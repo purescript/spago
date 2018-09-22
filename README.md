@@ -21,3 +21,7 @@ mkdir -p .psc-package/$NAME/.set
 dhall-to-json --pretty <<< './packages.dhall' > $TARGET
 echo wrote packages.json to $TARGET
 ```
+
+## Example
+
+See this commit for an example of how this ends up being used: <https://github.com/justinwoo/vidtracker/commit/9887cbbf238ff7fa74b0c47a6cb3b7cc5513327f>
