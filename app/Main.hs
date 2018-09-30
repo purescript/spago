@@ -23,7 +23,7 @@ insDhall :: IO ()
 insDhall = do
   T.mktree (T.fromText basePath)
   T.touch (T.fromText packagesJson)
-  code <- T.shell ("dhall-to-json --pretty <<< './packages.dhall' > " <> packagesJson) T.empty
+  code <- T.shell ("cat ./packages.dhall | dhall-to-json --pretty > " <> packagesJson) T.empty
 
   case code of
     T.ExitSuccess ->
