@@ -6,6 +6,10 @@
 
 A CLI for Spacchetti that does some stuff, but does not do anything that Psc-Package already does.
 
+## Installation
+
+Use the release archives or use NPM on Linux/OSX: <https://github.com/justinwoo/npm-spacchetti-cli-simple>
+
 ## Features
 
 ### LocalSetup
