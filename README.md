@@ -1,5 +1,7 @@
 # spacchetti-cli
 
+[![Build Status](https://travis-ci.org/justinwoo/spacchetti-cli.svg?branch=master)](https://travis-ci.org/justinwoo/spacchetti-cli)
+
 **Attention: See the Spacchetti docs first at <https://spacchetti.readthedocs.io/>**
 
 A CLI for Spacchetti that does some stuff, but does not do anything that Psc-Package already does.
