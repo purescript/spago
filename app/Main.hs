@@ -8,7 +8,7 @@ import qualified Turtle as T
 data Command
   -- | Do the boilerplate of the local project setup to override and add arbitrary packages
   -- | See the Spacchetti docs about this here: https://spacchetti.readthedocs.io/en/latest/local-setup.html
-  = LocalSetup
+  = LocalSetup Bool
   -- | Do the Ins-Dhall-ation of the local project setup, equivalent to:
   -- | ```sh
   -- | NAME='local'
@@ -35,8 +35,25 @@ insDhall = do
     basePath = ".psc-package/local/.set/"
     packagesJson = basePath <> "packages.json"
 
-localSetup :: IO ()
-localSetup = do
+unsafePathToText :: T.FilePath -> T.Text
+unsafePathToText p = case T.toText p of
+  Left t -> t
+  Right t -> t
+
+checkFiles :: [T.FilePath] -> IO ()
+checkFiles = T.void . traverse checkFile
+  where
+    checkFile p = do
+      hasFile <- T.testfile p
+      T.when hasFile $
+        T.die $ "Found " <> unsafePathToText p <> ": there's already a project here. "
+             <> "Run `spacchetti local-setup --force` if you're sure you want to overwrite it."
+
+localSetup :: Bool -> IO ()
+localSetup force = do
+  T.unless force $
+    checkFiles [ pscPackageJsonPath, packagesDhallPath ]
+
   T.touch pscPackageJsonPath
   T.touch packagesDhallPath
 
@@ -54,15 +71,18 @@ localSetup = do
 
 parser :: T.Parser Command
 parser
-      = LocalSetup <$ localSetup
+      = LocalSetup <$> localSetup
   T.<|> InsDhall <$ insDhall
   where
-    localSetup = T.subcommand "local-setup" "run project-local Spacchetti setup" $ pure ()
+    localSetup =
+      T.subcommand
+      "local-setup" "run project-local Spacchetti setup" $
+      T.switch "force" 'f' "Overwrite any project found in the current directory."
     insDhall = T.subcommand "insdhall" "insdhall the local package set" $ pure ()
 
 main :: IO ()
 main = do
   options <- T.options "Spacchetti CLI" parser
   case options of
-    LocalSetup -> localSetup
+    LocalSetup force -> localSetup force
     InsDhall -> insDhall
