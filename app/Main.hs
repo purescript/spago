@@ -2,9 +2,11 @@
 
 module Main where
 
+import           Data.Optional                  (Optional(..))
 import qualified Data.Text                      as Text
-import           Data.Version (showVersion)
-import           Paths_spacchetti_cli (version)
+import           Data.Version                   (showVersion)
+import qualified Options.Applicative            as Opts
+import qualified Paths_spacchetti_cli           as Pcli
 import qualified Turtle                         as T
 
 -- | Commands that this program handles
@@ -21,7 +23,7 @@ data Command
   -- | echo wrote packages.json to $TARGET
   -- | ```
   | InsDhall
-  -- | Outputs spacchetti-cli version.
+  -- | Show spacchetti-cli version
   | Version
 
 insDhall :: IO ()
@@ -76,7 +78,14 @@ localSetup force = do
 
 printVersion :: IO ()
 printVersion =
-  T.echo $ "Spacchetti CLI version " <> T.unsafeTextToLine (Text.pack $ showVersion version)
+  T.echo $ "Spacchetti CLI version " <> T.unsafeTextToLine (Text.pack $ showVersion Pcli.version)
+
+globalFlag :: T.ArgName -> T.ShortName -> Optional T.HelpMessage -> T.Parser ()
+globalFlag argName c helpMessage
+  = Opts.flag' ()
+   $ (Opts.long . Text.unpack . T.getArgName) argName
+  <> Opts.short c
+  <> foldMap (Opts.help . Text.unpack . T.getHelpMessage) helpMessage
 
 parser :: T.Parser Command
 parser
@@ -89,12 +98,12 @@ parser
       "local-setup" "run project-local Spacchetti setup" $
       T.switch "force" 'f' "Overwrite any project found in the current directory."
     insDhall = T.subcommand "insdhall" "insdhall the local package set" $ pure ()
-    versionOpt = T.switch "version" 'v' "Show spacchetti-cli version"
+    versionOpt = globalFlag "version" 'v' "Show spacchetti-cli version"
 
 main :: IO ()
 main = do
-  options <- T.options "Spacchetti CLI" parser
-  case options of
+  command <- T.options "Spacchetti CLI" parser
+  case command of
     LocalSetup force -> localSetup force
-    InsDhall -> insDhall
-    Version -> printVersion
+    InsDhall         -> insDhall
+    Version          -> printVersion
