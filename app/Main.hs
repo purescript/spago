@@ -2,6 +2,9 @@
 
 module Main where
 
+import qualified Data.Text as Text
+import Data.Version (showVersion)
+import qualified Paths_spacchetti_cli as Pcli
 import qualified Turtle as T
 
 -- | Commands that this program handles
@@ -18,6 +21,8 @@ data Command
   -- | echo wrote packages.json to $TARGET
   -- | ```
   | InsDhall
+  -- | Show spacchetti-cli version
+  | Version
 
 insDhall :: IO ()
 insDhall = do
@@ -72,20 +77,27 @@ localSetup force = do
     pscPackageJsonTemplate = "{\"name\": \"my-project\", \"set\": \"local\", \"source\": \"\", \"depends\": []}"
     packagesDhallTemplate = "let mkPackage = https://raw.githubusercontent.com/justinwoo/spacchetti/140918/src/mkPackage.dhall in let upstream = https://raw.githubusercontent.com/justinwoo/spacchetti/140918/src/packages.dhall in upstream"
 
+printVersion :: IO ()
+printVersion =
+  T.echo $ T.unsafeTextToLine (Text.pack $ showVersion Pcli.version)
+
 parser :: T.Parser Command
 parser
       = LocalSetup <$> localSetup
   T.<|> InsDhall <$ insDhall
+  T.<|> Version <$ version
   where
     localSetup =
       T.subcommand
       "local-setup" "run project-local Spacchetti setup" $
       T.switch "force" 'f' "Overwrite any project found in the current directory."
     insDhall = T.subcommand "insdhall" "insdhall the local package set" $ pure ()
+    version = T.subcommand "version" "Show spacchetti-cli version" $ pure ()
 
 main :: IO ()
 main = do
-  options <- T.options "Spacchetti CLI" parser
-  case options of
+  command <- T.options "Spacchetti CLI" parser
+  case command of
     LocalSetup force -> localSetup force
-    InsDhall -> insDhall
+    InsDhall         -> insDhall
+    Version          -> printVersion
