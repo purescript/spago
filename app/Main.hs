@@ -60,11 +60,14 @@ localSetup force = do
   T.writeTextFile pscPackageJsonPath pscPackageJsonTemplate
   T.writeTextFile packagesDhallPath packagesDhallTemplate
 
+  _ <- T.shell ("dhall format --inplace " <> packagesDhallText) T.empty
+
   T.echo "Set up local Spacchetti packages."
 
   where
+    packagesDhallText = "packages.dhall"
     pscPackageJsonPath = T.fromText "psc-package.json"
-    packagesDhallPath = T.fromText "packages.dhall"
+    packagesDhallPath = T.fromText packagesDhallText
 
     pscPackageJsonTemplate = "{\"name\": \"my-project\", \"set\": \"local\", \"source\": \"\", \"depends\": []}"
     packagesDhallTemplate = "let mkPackage = https://raw.githubusercontent.com/justinwoo/spacchetti/140918/src/mkPackage.dhall in let upstream = https://raw.githubusercontent.com/justinwoo/spacchetti/140918/src/packages.dhall in upstream"
