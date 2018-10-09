@@ -21,11 +21,16 @@ data Command
   -- | echo wrote packages.json to $TARGET
   -- | ```
   | InsDhall
+  -- | Deletes the .psc-package folder
+  | Clean
   -- | Show spacchetti-cli version
   | Version
 
 insDhall :: IO ()
 insDhall = do
+  isProject <- T.testfile "./packages.dhall"
+  T.unless isProject $
+    T.die "Missing packages.dhall file. Run `spacchetti local-setup` first."
   T.mktree (T.fromText basePath)
   T.touch (T.fromText packagesJson)
   code <- T.shell ("cat ./packages.dhall | dhall-to-json --pretty > " <> packagesJson) T.empty
@@ -81,10 +86,21 @@ printVersion :: IO ()
 printVersion =
   T.echo $ T.unsafeTextToLine (Text.pack $ showVersion Pcli.version)
 
+clean :: IO ()
+clean = do
+  let pscDir = "./.psc-package"
+  hasDir <- T.testdir pscDir
+  if hasDir
+    then do
+      T.rmtree pscDir
+      T.echo "Packages cache was cleaned."
+    else T.echo "Nothing to clean here."
+
 parser :: T.Parser Command
 parser
       = LocalSetup <$> localSetup
   T.<|> InsDhall <$ insDhall
+  T.<|> Clean <$ clean
   T.<|> Version <$ version
   where
     localSetup =
@@ -92,6 +108,7 @@ parser
       "local-setup" "run project-local Spacchetti setup" $
       T.switch "force" 'f' "Overwrite any project found in the current directory."
     insDhall = T.subcommand "insdhall" "insdhall the local package set" $ pure ()
+    clean = T.subcommand "clean" "Clean cached packages by deleting the .psc-package folder" $ pure ()
     version = T.subcommand "version" "Show spacchetti-cli version" $ pure ()
 
 main :: IO ()
@@ -100,4 +117,5 @@ main = do
   case command of
     LocalSetup force -> localSetup force
     InsDhall         -> insDhall
+    Clean            -> clean
     Version          -> printVersion
