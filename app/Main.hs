@@ -30,7 +30,7 @@ insDhall :: IO ()
 insDhall = do
   isProject <- T.testfile "./packages.dhall"
   T.unless isProject $
-    T.die "Missing packages.dhall file. Run `spacchetti local-setup first.`"
+    T.die "Missing packages.dhall file. Run `spacchetti local-setup` first."
   T.mktree (T.fromText basePath)
   T.touch (T.fromText packagesJson)
   code <- T.shell ("cat ./packages.dhall | dhall-to-json --pretty > " <> packagesJson) T.empty
