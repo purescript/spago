@@ -67,7 +67,12 @@ localSetup force = do
   T.touch pscPackageJsonPath
   T.touch packagesDhallPath
 
-  T.writeTextFile pscPackageJsonPath pscPackageJsonTemplate
+  pwd <- T.pwd
+  let projectName = case T.toText $ T.filename pwd of
+        Left _ -> "my-project"
+        Right n -> n
+
+  T.writeTextFile pscPackageJsonPath (pscPackageJsonTemplate projectName)
   T.writeTextFile packagesDhallPath packagesDhallTemplate
 
   _ <- T.shell ("dhall format --inplace " <> packagesDhallText) T.empty
@@ -79,7 +84,7 @@ localSetup force = do
     pscPackageJsonPath = T.fromText "psc-package.json"
     packagesDhallPath = T.fromText packagesDhallText
 
-    pscPackageJsonTemplate = "{\"name\": \"my-project\", \"set\": \"local\", \"source\": \"\", \"depends\": []}"
+    pscPackageJsonTemplate projectName = "{\n  \"name\": \"" <> projectName <> "\",\n  \"set\": \"local\",\n  \"source\": \"\",\n  \"depends\": [] \n}"
     packagesDhallTemplate = "let mkPackage = https://raw.githubusercontent.com/justinwoo/spacchetti/140918/src/mkPackage.dhall in let upstream = https://raw.githubusercontent.com/justinwoo/spacchetti/140918/src/packages.dhall in upstream"
 
 printVersion :: IO ()
