@@ -68,7 +68,13 @@ localSetup force = do
   T.touch pscPackageJsonPath
   T.touch packagesDhallPath
 
-  T.writeTextFile pscPackageJsonPath $ Text.pack Templates.pscPackageJson
+  pwd <- T.pwd
+  let projectName = case T.toText $ T.filename pwd of
+        Left _ -> "my-project"
+        Right n -> n
+
+  T.writeTextFile pscPackageJsonPath $ Text.replace "my-project" projectName
+    $ Text.pack Templates.pscPackageJson
   T.writeTextFile packagesDhallPath $ Text.pack Templates.packagesDhall
 
   _ <- T.shell ("dhall format --inplace " <> packagesDhallText) T.empty
