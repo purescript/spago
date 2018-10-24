@@ -5,6 +5,7 @@ module Main where
 import qualified Data.Text as Text
 import Data.Version (showVersion)
 import qualified Paths_spacchetti_cli as Pcli
+import qualified Templates as Templates
 import qualified Turtle as T
 
 -- | Commands that this program handles
@@ -67,8 +68,8 @@ localSetup force = do
   T.touch pscPackageJsonPath
   T.touch packagesDhallPath
 
-  T.writeTextFile pscPackageJsonPath pscPackageJsonTemplate
-  T.writeTextFile packagesDhallPath packagesDhallTemplate
+  T.writeTextFile pscPackageJsonPath $ Text.pack Templates.pscPackageJson
+  T.writeTextFile packagesDhallPath $ Text.pack Templates.packagesDhall
 
   _ <- T.shell ("dhall format --inplace " <> packagesDhallText) T.empty
 
@@ -78,9 +79,6 @@ localSetup force = do
     packagesDhallText = "packages.dhall"
     pscPackageJsonPath = T.fromText "psc-package.json"
     packagesDhallPath = T.fromText packagesDhallText
-
-    pscPackageJsonTemplate = "{\"name\": \"my-project\", \"set\": \"local\", \"source\": \"\", \"depends\": []}"
-    packagesDhallTemplate = "let mkPackage = https://raw.githubusercontent.com/justinwoo/spacchetti/140918/src/mkPackage.dhall in let upstream = https://raw.githubusercontent.com/justinwoo/spacchetti/140918/src/packages.dhall in upstream"
 
 printVersion :: IO ()
 printVersion =
