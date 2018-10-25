@@ -3,10 +3,12 @@
 module Main where
 
 import qualified Data.Text as Text
+import qualified Data.Text.Encoding as Text
 import Data.Version (showVersion)
 import qualified Paths_spacchetti_cli as Pcli
-import qualified Templates as Templates
+import qualified Templates
 import qualified Turtle as T
+import Data.Aeson
 
 -- | Commands that this program handles
 data Command
@@ -37,8 +39,10 @@ insDhall = do
   code <- T.shell ("cat ./packages.dhall | dhall-to-json --pretty > " <> packagesJson) T.empty
 
   case code of
-    T.ExitSuccess ->
-      T.echo $ T.unsafeTextToLine ("wrote packages.json to " <> packagesJson)
+    T.ExitSuccess -> do
+      T.echo $ T.unsafeTextToLine $
+        "Wrote packages.json to " <> packagesJson
+      T.echo "Now you can run `psc-package install`."
     T.ExitFailure n ->
       T.die ("failed to insdhall: " <> T.repr n)
 
@@ -51,35 +55,45 @@ unsafePathToText p = case T.toText p of
   Left t -> t
   Right t -> t
 
-checkFiles :: [T.FilePath] -> IO ()
-checkFiles = T.void . traverse checkFile
-  where
-    checkFile p = do
-      hasFile <- T.testfile p
-      T.when hasFile $
-        T.die $ "Found " <> unsafePathToText p <> ": there's already a project here. "
-             <> "Run `spacchetti local-setup --force` if you're sure you want to overwrite it."
-
 localSetup :: Bool -> IO ()
 localSetup force = do
-  T.unless force $
-    checkFiles [ pscPackageJsonPath, packagesDhallPath ]
-
-  T.touch pscPackageJsonPath
+  -- packages.dhall file
+  T.unless force $ do
+    hasDhall <- T.testfile packagesDhallPath
+    T.when hasDhall $
+      T.die $ "Found " <> unsafePathToText packagesDhallPath <> ": there's already a project here. "
+           <> "Run `spacchetti local-setup --force` if you're sure you want to overwrite it."
   T.touch packagesDhallPath
+  T.writeTextFile packagesDhallPath Templates.packagesDhall
 
-  pwd <- T.pwd
-  let projectName = case T.toText $ T.filename pwd of
-        Left _ -> "my-project"
-        Right n -> n
+  -- psc-package.json file
+  hasPscPackage <- T.testfile pscPackageJsonPath
+  if hasPscPackage && not force
+    then do
+      pscPackage <- T.readTextFile pscPackageJsonPath
+      case eitherDecodeStrict $ Text.encodeUtf8 pscPackage of
+        Left e -> T.die $ "The existing psc-package.json file is in the wrong format: " <>
+          Text.pack e
+        Right p -> do
+          T.writeTextFile pscPackageJsonPath $
+            Templates.encodePscPackage $ p { Templates.set = "local", Templates.source = "" }
+          T.echo "An existing psc-package.json file was found and upgraded to spacchetti."
+          T.echo $ "It's possible that some of the existing dependencies are not in the default " <>
+                   "spacchetti package set."
+          T.echo ""
 
-  T.writeTextFile pscPackageJsonPath $ Text.replace "my-project" projectName
-    $ Text.pack Templates.pscPackageJson
-  T.writeTextFile packagesDhallPath $ Text.pack Templates.packagesDhall
+    else do
+      T.touch pscPackageJsonPath
+      pwd <- T.pwd
+      let projectName = case T.toText $ T.filename pwd of
+            Left _ -> "my-project"
+            Right n -> n
+      T.writeTextFile pscPackageJsonPath $ Templates.pscPackageJson projectName
+
 
   _ <- T.shell ("dhall format --inplace " <> packagesDhallText) T.empty
 
-  T.echo "Set up local Spacchetti packages."
+  T.echo "Set up local Spacchetti packages. Run `spacchetti insdhall` to generate the package set."
 
   where
     packagesDhallText = "packages.dhall"
