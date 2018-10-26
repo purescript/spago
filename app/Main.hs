@@ -2,11 +2,14 @@
 
 module Main where
 
+import Data.Aeson
 import qualified Data.Text as Text
+import qualified Data.Text.Encoding as Text
 import Data.Version (showVersion)
 import qualified Paths_spacchetti_cli as Pcli
-import qualified Templates as Templates
+import qualified Templates
 import qualified Turtle as T
+import qualified Types
 
 -- | Commands that this program handles
 data Command
@@ -37,8 +40,10 @@ insDhall = do
   code <- T.shell ("cat ./packages.dhall | dhall-to-json --pretty > " <> packagesJson) T.empty
 
   case code of
-    T.ExitSuccess ->
-      T.echo $ T.unsafeTextToLine ("wrote packages.json to " <> packagesJson)
+    T.ExitSuccess -> do
+      T.echo $ T.unsafeTextToLine $
+        "Wrote packages.json to " <> packagesJson
+      T.echo "Now you can run `psc-package install`."
     T.ExitFailure n ->
       T.die ("failed to insdhall: " <> T.repr n)
 
@@ -51,40 +56,58 @@ unsafePathToText p = case T.toText p of
   Left t -> t
   Right t -> t
 
-checkFiles :: [T.FilePath] -> IO ()
-checkFiles = T.void . traverse checkFile
+-- | Tries to create the `packages.dhall` file. Fails when the file already exists,
+-- | unless `--force` has been used.
+makeDhall :: Bool -> IO ()
+makeDhall force = do
+  T.unless force $ do
+    hasDhall <- T.testfile packagesDhallPath
+    T.when hasDhall $
+      T.die $ "Found " <> unsafePathToText packagesDhallPath <> ": there's already a project here. "
+           <> "Run `spacchetti local-setup --force` if you're sure you want to overwrite it."
+  T.touch packagesDhallPath
+  T.writeTextFile packagesDhallPath Templates.packagesDhall
+  T.void $ T.shell ("dhall format --inplace " <> packagesDhallText) T.empty
   where
-    checkFile p = do
-      hasFile <- T.testfile p
-      T.when hasFile $
-        T.die $ "Found " <> unsafePathToText p <> ": there's already a project here. "
-             <> "Run `spacchetti local-setup --force` if you're sure you want to overwrite it."
+    packagesDhallText = "packages.dhall"
+    packagesDhallPath = T.fromText packagesDhallText
+
+-- | Tries to create the `psc-package.json` file. Existing dependencies are preserved,
+-- | unless `--force` has been used.
+makePscPackage :: Bool -> IO ()
+makePscPackage force = do
+  hasPscPackage <- T.testfile pscPackageJsonPath
+  if hasPscPackage && not force
+    then do
+      pscPackage <- T.readTextFile pscPackageJsonPath
+      case eitherDecodeStrict $ Text.encodeUtf8 pscPackage of
+        Left e -> T.die $ "The existing psc-package.json file is in the wrong format: " <>
+          Text.pack e
+        Right p -> do
+          T.writeTextFile pscPackageJsonPath $
+            Templates.encodePscPackage $ p { Types.set = "local", Types.source = "" }
+          T.echo "An existing psc-package.json file was found and upgraded to use local package sets."
+          T.echo $ "It's possible that some of the existing dependencies are not in the default " <>
+                   "spacchetti package set."
+          T.echo ""
+
+    else do
+      T.touch pscPackageJsonPath
+      pwd <- T.pwd
+      let projectName = case T.toText $ T.filename pwd of
+            Left _ -> "my-project"
+            Right n -> n
+      T.writeTextFile pscPackageJsonPath $ Templates.pscPackageJson projectName
+
+  where
+    pscPackageJsonPath = T.fromText "psc-package.json"
 
 localSetup :: Bool -> IO ()
 localSetup force = do
-  T.unless force $
-    checkFiles [ pscPackageJsonPath, packagesDhallPath ]
-
-  T.touch pscPackageJsonPath
-  T.touch packagesDhallPath
-
-  pwd <- T.pwd
-  let projectName = case T.toText $ T.filename pwd of
-        Left _ -> "my-project"
-        Right n -> n
-
-  T.writeTextFile pscPackageJsonPath $ Text.replace "my-project" projectName
-    $ Text.pack Templates.pscPackageJson
-  T.writeTextFile packagesDhallPath $ Text.pack Templates.packagesDhall
-
-  _ <- T.shell ("dhall format --inplace " <> packagesDhallText) T.empty
-
+  makeDhall force
+  makePscPackage force
   T.echo "Set up local Spacchetti packages."
-
-  where
-    packagesDhallText = "packages.dhall"
-    pscPackageJsonPath = T.fromText "psc-package.json"
-    packagesDhallPath = T.fromText packagesDhallText
+  T.echo "Run `spacchetti insdhall` to generate the package set."
 
 printVersion :: IO ()
 printVersion =

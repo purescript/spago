@@ -25,6 +25,8 @@ dependencies:
 - turtle
 - filepath
 - file-embed
+- aeson
+- aeson-pretty
 
 executables:
   spacchetti:
