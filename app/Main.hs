@@ -41,8 +41,7 @@ insDhall = do
 
   case code of
     T.ExitSuccess -> do
-      T.echo $ T.unsafeTextToLine $
-        "Wrote packages.json to " <> packagesJson
+      T.echo $ T.unsafeTextToLine $ "Wrote packages.json to " <> packagesJson
       T.echo "Now you can run `psc-package install`."
     T.ExitFailure n ->
       T.die ("failed to insdhall: " <> T.repr n)
@@ -62,9 +61,9 @@ makeDhall :: Bool -> IO ()
 makeDhall force = do
   T.unless force $ do
     hasDhall <- T.testfile packagesDhallPath
-    T.when hasDhall $
-      T.die $ "Found " <> unsafePathToText packagesDhallPath <> ": there's already a project here. "
-           <> "Run `spacchetti local-setup --force` if you're sure you want to overwrite it."
+    T.when hasDhall $ T.die
+       $ "Found " <> unsafePathToText packagesDhallPath <> ": there's already a project here. "
+      <> "Run `spacchetti local-setup --force` if you're sure you want to overwrite it."
   T.touch packagesDhallPath
   T.writeTextFile packagesDhallPath Templates.packagesDhall
   T.void $ T.shell ("dhall format --inplace " <> packagesDhallText) T.empty
@@ -87,9 +86,7 @@ makePscPackage force = do
           T.writeTextFile pscPackageJsonPath $
             Templates.encodePscPackage $ p { Types.set = "local", Types.source = "" }
           T.echo "An existing psc-package.json file was found and upgraded to use local package sets."
-          T.echo $ "It's possible that some of the existing dependencies are not in the default " <>
-                   "spacchetti package set."
-          T.echo ""
+          T.echo $ "It's possible that some of the existing dependencies are not in the default spacchetti package set."
 
     else do
       T.touch pscPackageJsonPath
