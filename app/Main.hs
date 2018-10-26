@@ -2,13 +2,14 @@
 
 module Main where
 
+import Data.Aeson
 import qualified Data.Text as Text
 import qualified Data.Text.Encoding as Text
 import Data.Version (showVersion)
 import qualified Paths_spacchetti_cli as Pcli
 import qualified Templates
 import qualified Turtle as T
-import Data.Aeson
+import qualified Types
 
 -- | Commands that this program handles
 data Command
@@ -55,9 +56,10 @@ unsafePathToText p = case T.toText p of
   Left t -> t
   Right t -> t
 
-localSetup :: Bool -> IO ()
-localSetup force = do
-  -- packages.dhall file
+-- | Tries to create the `packages.dhall` file. Fails when the file already exists,
+-- | unless `--force` has been used.
+makeDhall :: Bool -> IO ()
+makeDhall force = do
   T.unless force $ do
     hasDhall <- T.testfile packagesDhallPath
     T.when hasDhall $
@@ -65,8 +67,15 @@ localSetup force = do
            <> "Run `spacchetti local-setup --force` if you're sure you want to overwrite it."
   T.touch packagesDhallPath
   T.writeTextFile packagesDhallPath Templates.packagesDhall
+  T.void $ T.shell ("dhall format --inplace " <> packagesDhallText) T.empty
+  where
+    packagesDhallText = "packages.dhall"
+    packagesDhallPath = T.fromText packagesDhallText
 
-  -- psc-package.json file
+-- | Tries to create the `psc-package.json` file. Existing dependencies are preserved,
+-- | unless `--force` has been used.
+makePscPackage :: Bool -> IO ()
+makePscPackage force = do
   hasPscPackage <- T.testfile pscPackageJsonPath
   if hasPscPackage && not force
     then do
@@ -76,8 +85,8 @@ localSetup force = do
           Text.pack e
         Right p -> do
           T.writeTextFile pscPackageJsonPath $
-            Templates.encodePscPackage $ p { Templates.set = "local", Templates.source = "" }
-          T.echo "An existing psc-package.json file was found and upgraded to spacchetti."
+            Templates.encodePscPackage $ p { Types.set = "local", Types.source = "" }
+          T.echo "An existing psc-package.json file was found and upgraded to use local package sets."
           T.echo $ "It's possible that some of the existing dependencies are not in the default " <>
                    "spacchetti package set."
           T.echo ""
@@ -90,15 +99,15 @@ localSetup force = do
             Right n -> n
       T.writeTextFile pscPackageJsonPath $ Templates.pscPackageJson projectName
 
-
-  _ <- T.shell ("dhall format --inplace " <> packagesDhallText) T.empty
-
-  T.echo "Set up local Spacchetti packages. Run `spacchetti insdhall` to generate the package set."
-
   where
-    packagesDhallText = "packages.dhall"
     pscPackageJsonPath = T.fromText "psc-package.json"
-    packagesDhallPath = T.fromText packagesDhallText
+
+localSetup :: Bool -> IO ()
+localSetup force = do
+  makeDhall force
+  makePscPackage force
+  T.echo "Set up local Spacchetti packages."
+  T.echo "Run `spacchetti insdhall` to generate the package set."
 
 printVersion :: IO ()
 printVersion =
