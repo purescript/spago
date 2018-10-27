@@ -7,7 +7,7 @@
 module Main where
 
 import           Control.Exception        (SomeException, try)
-import           Data.Aeson
+import qualified Data.Aeson               as JSON
 import           Data.Aeson.Encode.Pretty as JSON
 import qualified Data.ByteString.Lazy     as ByteString.Lazy
 import qualified Data.List                as List
@@ -111,9 +111,7 @@ insDhall = do
   T.mktree pscPackageBasePath
   T.touch packagesJsonPath
 
-  res <- try (dhallToJSON packagesDhallPath packagesJsonPath)
-
-  case res of
+  try (dhallToJSON packagesDhallPath packagesJsonPath) >>= \case
     Right _ -> do
       T.echo $ T.unsafeTextToLine $ "Wrote packages.json to " <> packagesJsonText
       T.echo "Now you can run `psc-package install`."
@@ -141,7 +139,7 @@ makePscPackage force = do
   if hasPscPackage && not force
     then do
       pscPackage <- T.readTextFile pscPackageJsonPath
-      case eitherDecodeStrict $ Text.encodeUtf8 pscPackage of
+      case JSON.eitherDecodeStrict $ Text.encodeUtf8 pscPackage of
         Left e -> T.die $ "The existing psc-package.json file is in the wrong format: " <>
           Text.pack e
         Right p -> do
@@ -160,6 +158,18 @@ makePscPackage force = do
 
   where
     pscPackageJsonPath = T.fromText "psc-package.json"
+
+-- | Delete the .psc-package folder
+clean :: IO ()
+clean = do
+  let pscDir = "./.psc-package"
+  hasDir <- T.testdir pscDir
+  if hasDir
+    then do
+      T.rmtree pscDir
+      T.echo "Packages cache was cleaned."
+    else T.echo "Nothing to clean here."
+
 
 -- | Copies over `spacchetti.dhall` to set up a Spacchetti project
 makeSpacchetti :: Bool -> IO ()
@@ -202,13 +212,14 @@ dhallToJSON inputPath outputPath = do
                , JSON.confNumFormat = JSON.Generic
                , JSON.confTrailingNewline = False }
 
-  let encode = JSON.encodePretty' config
-
   dhall <- T.readTextFile inputPath
 
   json <- Dhall.JSON.codeToValue Dhall.JSON.NoConversion (unsafePathToText inputPath) dhall
 
-  T.writeTextFile inputPath $ Text.decodeUtf8 $ ByteString.Lazy.toStrict $ encode json
+  T.writeTextFile outputPath
+    $ Text.decodeUtf8
+    $ ByteString.Lazy.toStrict
+    $ JSON.encodePretty' config json
 
 makeSpacchettiJson :: IO ()
 makeSpacchettiJson = do
@@ -221,7 +232,7 @@ makeSpacchettiJson = do
 readSpacchettiJson :: IO Types.SpacchettiConfig
 readSpacchettiJson = do
   spacchettiConfigText <- T.readTextFile spacchettiJsonPath
-  case eitherDecodeStrict $ Text.encodeUtf8 spacchettiConfigText of
+  case JSON.eitherDecodeStrict $ Text.encodeUtf8 spacchettiConfigText of
     Left e -> T.die $ "The generated spacchetti.json was in the wrong format: " <> Text.pack e
     Right config -> return config
 
@@ -229,11 +240,11 @@ install :: IO ()
 install = do
   T.echo "generating spacchetti.json"
   makeSpacchettiJson
-  spacchettiConfigText <- T.readTextFile spacchettiJsonPath
+  _spacchettiConfigText <- T.readTextFile spacchettiJsonPath
   config <- readSpacchettiJson
   let deps = getAllDependencies config
   echo' $ "installing " <> Text.pack (show $ List.length deps) <> " dependencies."
-  traverse getDep deps
+  _ <- traverse getDep deps
   T.echo "installation complete."
 
 ensureSpacchettiJson :: IO ()
@@ -246,7 +257,7 @@ getDir
   ( Types.PackageName name
   , Types.PackageDefinition
       { Types.version=version
-      , Types.repo=repo
+      , Types.repo=_repo
       }
   )
   = spacchettiDir <> name <> "/" <> version
@@ -334,41 +345,42 @@ printVersion :: IO ()
 printVersion =
   T.echo $ T.unsafeTextToLine (Text.pack $ showVersion Pcli.version)
 
-clean :: IO ()
-clean = do
-  let pscDir = "./.psc-package"
-  hasDir <- T.testdir pscDir
-  if hasDir
-    then do
-      T.rmtree pscDir
-      T.echo "Packages cache was cleaned."
-    else T.echo "Nothing to clean here."
 
 parser :: T.Parser Command
 parser
-      = LocalSetup <$> localSetup
-  T.<|> InsDhall <$ insDhall
-  T.<|> Clean <$ clean
-  T.<|> Version <$ version
-  T.<|> InitSpacchetti <$> initSpacchetti
-  T.<|> Install <$ install
-  T.<|> Sources <$ sources
-  T.<|> Build <$ build
+      = LocalSetup <$> localSetup'
+  T.<|> InsDhall <$ insDhall'
+  T.<|> Clean <$ clean'
+  T.<|> Version <$ version'
+  T.<|> InitSpacchetti <$> initSpacchetti'
+  T.<|> Install <$ install'
+  T.<|> Sources <$ sources'
+  T.<|> Build <$ build'
   where
-    localSetup =
-      T.subcommand
-      "local-setup" "run project-local Spacchetti setup" $
-      T.switch "force" 'f' "Overwrite any project found in the current directory."
-    insDhall = T.subcommand "insdhall" "insdhall the local package set from packages.dhall" $ pure ()
-    clean = T.subcommand "clean" "Clean cached packages by deleting the .psc-package folder" $ pure ()
-    initSpacchetti =
-      T.subcommand
-      "init" "initialize a Spacchetti project" $
-      T.switch "force" 'f' "Overwrite any project found in the current directory."
-    install = T.subcommand "install" "Install a Spacchetti project from spacchetti.dhall" $ pure ()
-    sources = T.subcommand "sources" "Get globs of sources of dependencies of a Spacchetti project. Useful for editor plugins." $ pure ()
-    build = T.subcommand "build" "Build a Spacchetti project" $ pure ()
-    version = T.subcommand "version" "Show spacchetti-cli version" $ pure ()
+    localSetup'
+      = T.subcommand "local-setup" "run project-local Spacchetti setup"
+      $ T.switch "force" 'f' "Overwrite any project found in the current directory."
+    insDhall'
+      = T.subcommand "insdhall" "insdhall the local package set from packages.dhall"
+      $ pure ()
+    clean'
+      = T.subcommand "clean" "Clean cached packages by deleting the .psc-package folder"
+      $ pure ()
+    initSpacchetti'
+      = T.subcommand "init" "initialize a Spacchetti project"
+      $ T.switch "force" 'f' "Overwrite any project found in the current directory."
+    install'
+      = T.subcommand "install" "Install a Spacchetti project from spacchetti.dhall"
+      $ pure ()
+    sources'
+      = T.subcommand "sources" "Get globs of sources of dependencies of a Spacchetti project. Useful for editor plugins."
+      $ pure ()
+    build'
+      = T.subcommand "build" "Build a Spacchetti project"
+      $ pure ()
+    version'
+      = T.subcommand "version" "Show spacchetti-cli version"
+      $ pure ()
 
 main :: IO ()
 main = do
