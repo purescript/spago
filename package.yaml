@@ -35,6 +35,7 @@ dependencies:
 - dhall
 - dhall-json
 - bytestring
+- prettyprinter
 
 executables:
   spacchetti:
