@@ -2,13 +2,14 @@
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE LambdaCase            #-}
 {-# LANGUAGE OverloadedStrings     #-}
+{-# LANGUAGE RecordWildCards       #-}
 {-# LANGUAGE ScopedTypeVariables   #-}
 
 module Main where
 
 import           Control.Exception        (SomeException, try)
 import qualified Data.Aeson               as JSON
-import           Data.Aeson.Encode.Pretty as JSON
+import qualified Data.Aeson.Encode.Pretty as JSON
 import qualified Data.ByteString.Lazy     as ByteString.Lazy
 import qualified Data.List                as List
 import qualified Data.Map                 as Map
@@ -21,10 +22,12 @@ import qualified Dhall.JSON               as Dhall.JSON
 import qualified Dhall.Pretty             as Dhall.Pretty
 import qualified GHC.IO.Encoding
 import qualified Paths_spacchetti_cli     as Pcli
+import qualified PscPackage
+import           Spacchetti               (Package, PackageName)
+import qualified Spacchetti
 import qualified System.Directory         as Dir
 import qualified Templates
 import qualified Turtle                   as T
-import qualified Types
 
 -- | Commands that this program handles
 data Command
@@ -144,7 +147,7 @@ makePscPackage force = do
           Text.pack e
         Right p -> do
           T.writeTextFile pscPackageJsonPath $
-            Templates.encodePscPackage $ p { Types.set = "local", Types.source = "" }
+            Templates.encodePscPackage $ p { PscPackage.set = "local", PscPackage.source = "" }
           T.echo "An existing psc-package.json file was found and upgraded to use local package sets."
           T.echo $ "It's possible that some of the existing dependencies are not in the default spacchetti package set."
 
@@ -174,13 +177,17 @@ clean = do
 -- | Copies over `spacchetti.dhall` to set up a Spacchetti project
 makeSpacchetti :: Bool -> IO ()
 makeSpacchetti force = do
+  -- Make sure .spacchetti exists
+  T.mktree $ T.fromText spacchettiDir
+
   T.unless force $ do
     hasSpacchettiDhall <- T.testfile spacchettiDhallPath
     T.when hasSpacchettiDhall $ T.die
        $ "Found " <> unsafePathToText spacchettiDhallPath <> ": there's already a project here. "
-      <> "Run `spacchetti initSpacchetti --force` if you're sure you want to overwrite it."
+      <> "Run `spacchetti init --force` if you're sure you want to overwrite it."
   T.touch spacchettiDhallPath
   T.writeTextFile spacchettiDhallPath Templates.spacchettiDhall
+
   Dhall.Format.format Dhall.Pretty.Unicode (Just $ Text.unpack spacchettiDhallText)
 
 localSetup :: Bool -> IO ()
@@ -221,78 +228,65 @@ dhallToJSON inputPath outputPath = do
     $ ByteString.Lazy.toStrict
     $ JSON.encodePretty' config json
 
-makeSpacchettiJson :: IO ()
-makeSpacchettiJson = do
-  T.mktree $ T.fromText spacchettiDir
-  try (dhallToJSON spacchettiDhallPath spacchettiJsonPath) >>= \case
-    Right _ -> pure ()
+ensureSpacchettiConfig :: IO Spacchetti.Config
+ensureSpacchettiConfig = do
+  exists <- T.testfile spacchettiDhallPath
+  T.unless exists $ makeSpacchetti False
+  configText <- T.readTextFile spacchettiDhallPath
+  try (Spacchetti.parseConfig configText) >>= \case
+    Right config -> pure config
     Left (err :: SomeException) ->
-      T.die $ "making spacchetti.json failed: " <> Text.pack (show err)
-
-readSpacchettiJson :: IO Types.SpacchettiConfig
-readSpacchettiJson = do
-  spacchettiConfigText <- T.readTextFile spacchettiJsonPath
-  case JSON.eitherDecodeStrict $ Text.encodeUtf8 spacchettiConfigText of
-    Left e -> T.die $ "The generated spacchetti.json was in the wrong format: " <> Text.pack e
-    Right config -> return config
+      T.die $ "Error while reading spacchetti.dhall:\n" <> Text.pack (show err)
 
 install :: IO ()
 install = do
   T.echo "generating spacchetti.json"
-  makeSpacchettiJson
-  _spacchettiConfigText <- T.readTextFile spacchettiJsonPath
-  config <- readSpacchettiJson
+  config <- ensureSpacchettiConfig
   let deps = getAllDependencies config
-  echo' $ "installing " <> Text.pack (show $ List.length deps) <> " dependencies."
+  echo' $ "Installing " <> Text.pack (show $ List.length deps) <> " dependencies."
   _ <- traverse getDep deps
-  T.echo "installation complete."
-
-ensureSpacchettiJson :: IO ()
-ensureSpacchettiJson = do
-  exists <- T.testfile spacchettiJsonPath
-  T.unless exists makeSpacchettiJson
-
-getDir :: (Types.PackageName, Types.PackageDefinition) -> Text
-getDir
-  ( Types.PackageName name
-  , Types.PackageDefinition
-      { Types.version=version
-      , Types.repo=_repo
-      }
-  )
-  = spacchettiDir <> name <> "/" <> version
-
-getGlobs :: [(Types.PackageName, Types.PackageDefinition)] -> [Text]
-getGlobs = map fn
-  where
-    fn pair = (getDir pair) <> "/src/**/*.purs"
+  T.echo "Installation complete."
 
 sources :: IO ()
 sources = do
-  ensureSpacchettiJson
-  config <- readSpacchettiJson
+  config <- ensureSpacchettiConfig
   let
     deps = getAllDependencies config
     globs = getGlobs deps
   _ <- traverse (echo') globs
   pure ()
 
-getDep :: (Types.PackageName, Types.PackageDefinition) -> IO ()
-getDep
-  pair@
-    ( Types.PackageName name
-    , Types.PackageDefinition
-        { Types.version=version
-        , Types.repo=repo
-        }
-    ) = do
+build :: IO ()
+build = do
+  config <- ensureSpacchettiConfig
+  let
+    deps = getAllDependencies config
+    globs = getGlobs deps <> ["src/**/*.purs", "test/**/*.purs"]
+    paths = Text.intercalate " " $ surroundQuote <$> globs
+    cmd = "purs compile " <> paths
+  code <- T.shell cmd T.empty
+  case code of
+    T.ExitSuccess -> T.echo "Build succeeded."
+    T.ExitFailure n -> do
+      T.die ("Failed to build:" <> T.repr n)
+
+-- | Returns the dir path for a given package
+getDir :: (PackageName, Package) -> Text
+getDir (Spacchetti.PackageName{..}, Spacchetti.Package{..})
+  = spacchettiDir <> packageName <> "/" <> version
+
+getGlobs :: [(PackageName, Package)] -> [Text]
+getGlobs = map (\pair -> getDir pair <> "/src/**/*.purs")
+
+getDep :: (PackageName, Package) -> IO ()
+getDep pair@(Spacchetti.PackageName{..}, Spacchetti.Package{..} ) = do
   let dir = getDir pair
   exists <- T.testdir $ T.fromText dir
   if exists
     then do
-      echo' $ name <> " already installed."
+      echo' $ packageName <> " already installed."
     else do
-      echo' $ "installing " <> name
+      echo' $ "Installing " <> packageName
       T.mktree . T.fromText $ dir
       Dir.withCurrentDirectory (Text.unpack dir) $ do
         let
@@ -309,8 +303,9 @@ getDep
             T.rmtree $ T.fromText dir
             T.die ("Failed to install dependency: " <> T.repr n)
 
-getAllDependencies :: Types.SpacchettiConfig -> [(Types.PackageName, Types.PackageDefinition)]
-getAllDependencies (Types.SpacchettiConfig {Types.dependencies=deps, Types.packages=pkgs}) =
+
+getAllDependencies :: Spacchetti.Config -> [(PackageName, Package)]
+getAllDependencies Spacchetti.Config { dependencies = deps, packages = pkgs } =
   Map.toList $ List.foldl' go Map.empty deps
   where
     go acc dep
@@ -319,27 +314,12 @@ getAllDependencies (Types.SpacchettiConfig {Types.dependencies=deps, Types.packa
           case Map.lookup dep pkgs of
             -- lazy error handling, user gets crash
             Nothing -> error $ "Package " <> show dep <> " was missing from the package set."
-            Just x@(Types.PackageDefinition {Types.dependencies=innerDeps}) -> do
+            Just x@(Spacchetti.Package { dependencies = innerDeps }) -> do
               let newAcc = List.foldl' go acc innerDeps
               Map.insert dep x newAcc
 
 surroundQuote :: Text -> Text
 surroundQuote y = "\"" <> y <> "\""
-
-build :: IO ()
-build = do
-  ensureSpacchettiJson
-  config <- readSpacchettiJson
-  let
-    deps = getAllDependencies config
-    globs = getGlobs deps <> ["src/**/*.purs", "test/**/*.purs"]
-    paths = Text.intercalate " " $ surroundQuote <$> globs
-    cmd = "purs compile " <> paths
-  code <- T.shell cmd T.empty
-  case code of
-    T.ExitSuccess -> T.echo "Build succeeded."
-    T.ExitFailure n -> do
-      T.die ("Failed to build:" <> T.repr n)
 
 printVersion :: IO ()
 printVersion =
