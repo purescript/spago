@@ -109,10 +109,10 @@ in let additions =
 -}
 
     let mkPackage =
-          https://raw.githubusercontent.com/justinwoo/spacchetti/241018/src/mkPackage.dhall
+          https://raw.githubusercontent.com/justinwoo/spacchetti/241018/src/mkPackage.dhall sha256:806af8ce2510ded25a8aa9565e26852458e5dc83ddd3e8e39b04441392648f90
 
 in  let upstream =
-          https://raw.githubusercontent.com/justinwoo/spacchetti/241018/src/packages.dhall
+          https://raw.githubusercontent.com/justinwoo/spacchetti/241018/src/packages.dhall sha256:c827574476643cee0cbf1af5f6c4e83c8d77160f55fc295a152a1bb781b57748
 
 in  let overrides = {=}
 
