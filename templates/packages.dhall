@@ -6,10 +6,10 @@ cases, so that you don't need to know Dhall to use it.
 
 ## Warning: Don't Move This Top-Level Comment!
 
-Due to how `dhall format` currently works, this comment's 
-instructions cannot appear near corresponding sections below 
+Due to how `dhall format` currently works, this comment's
+instructions cannot appear near corresponding sections below
 because `dhall format` will delete the comment. However,
-it will not delete a top-level comment like this one. 
+it will not delete a top-level comment like this one.
 
 ## Use Cases
 
@@ -27,12 +27,12 @@ Purpose:
     default package set's release
 - Use your own modified version of some dependency that may
     include new API, changed API, removed API by
-    using your custom git repo of the library rather than 
+    using your custom git repo of the library rather than
     the package set's repo
- 
+
 Syntax:
 Replace the overrides' "{=}" (an empty record) with the following idea
-The "//" or "⫽" means "merge these two records and 
+The "//" or "⫽" means "merge these two records and
   when they have the same value, use the one on the right:"
 -------------------------------
 in let override =
@@ -43,18 +43,17 @@ in let override =
      , packageName =
          upstream.packageName // { repo = "https://www.example.com/path/to/new/repo.git" }
      }
-------------------------------- 
+-------------------------------
 
 Example:
-------------------------------- 
+-------------------------------
 in let overrides =
      { halogen =
          upstream.halogen ⫽ { version = "master" }
      , halogen-vdom =
          upstream.halogen-vdom ⫽ { version = "v4.0.0" }
      }
--}
-------------------------------- 
+-------------------------------
 
 ### Additions
 
@@ -65,14 +64,14 @@ Syntax:
 Replace the additions' "{=}" (an empty record) with the following idea:
 -------------------------------
 in let additions =
-     { "package-name" = 
+     { "package-name" =
           mkPackage
             [ "dependency1"
             , "dependency2"
             ]
             "https://example.com/path/to/git/repo.git"
             "tag ('v4.0.0') or branch ('master')"
-     , "package-name" = 
+     , "package-name" =
           mkPackage
             [ "dependency1"
             , "dependency2"
