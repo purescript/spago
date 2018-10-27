@@ -3,12 +3,12 @@
 module Templates where
 
 import Data.FileEmbed
-import System.FilePath ((</>))
 import qualified Data.Text.Lazy as LT
 import qualified Data.Text.Lazy.Encoding as LT
 import qualified Data.Text as T
 import Data.Aeson.Encode.Pretty
-import qualified Types
+import PscPackage (PscPackage)
+import qualified PscPackage as P
 
 packagesDhall :: T.Text
 packagesDhall = $(embedStringFile "templates/packages.dhall")
@@ -25,8 +25,8 @@ testMain = $(embedStringFile "templates/testMain.purs")
 gitignore :: T.Text
 gitignore = $(embedStringFile "templates/gitignore")
 
-encodePscPackage :: Types.PscPackage -> T.Text
+encodePscPackage :: PscPackage -> T.Text
 encodePscPackage = LT.toStrict . LT.decodeUtf8 . encodePretty
 
 pscPackageJson :: T.Text -> T.Text
-pscPackageJson name = encodePscPackage $ Types.PscPackage name "local" "" []
+pscPackageJson name = encodePscPackage $ P.PscPackage name "local" "" []
