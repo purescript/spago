@@ -10,6 +10,9 @@ extra-source-files:
 - README.md
 - ChangeLog.md
 
+ghc-options:
+  - -Wall
+
 # Metadata used when publishing your package
 # synopsis:            Short description of your package
 # category:            Web
@@ -29,6 +32,9 @@ dependencies:
 - aeson-pretty
 - containers
 - directory
+- dhall
+- dhall-json
+- bytestring
 
 executables:
   spacchetti:
