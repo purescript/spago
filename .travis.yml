@@ -106,3 +106,5 @@ deploy:
   skip_cleanup: true
   on:
     tags: true
+  script:
+    - echo 'done'
