@@ -86,18 +86,6 @@ script:
 
     fi
 
-
-before_deploy:
-  - |
-    if [ `uname` = "Darwin" ]
-    then
-      stack build --copy-bins --local-bin-path ./artifacts;
-    else
-      docker run --mount src="$(pwd)",target=/home/ubuntu/spacchetti,type=bind nilrecurring/haskell-lavello:lts-12 /bin/bash -c "cd spacchetti; stack build --copy-bins --local-bin-path ./artifacts"
-    fi
-  - cp artifacts/spacchetti spacchetti
-  - tar -zcvf "${TRAVIS_OS_NAME}.tar.gz" spacchetti
-
 deploy:
   provider: releases
   api_key: $API_KEY
@@ -106,3 +94,13 @@ deploy:
   skip_cleanup: true
   on:
     tags: true
+  script:
+    - |
+      if [ `uname` = "Darwin" ]
+      then
+        stack build --copy-bins --local-bin-path ./artifacts;
+      else
+        docker run --mount src="$(pwd)",target=/home/ubuntu/spacchetti,type=bind nilrecurring/haskell-lavello:lts-12 /bin/bash -c "cd spacchetti; stack build --copy-bins --local-bin-path ./artifacts"
+      fi
+    - cp artifacts/spacchetti spacchetti
+    - tar -zcvf "${TRAVIS_OS_NAME}.tar.gz" spacchetti
