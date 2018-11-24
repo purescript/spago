@@ -35,24 +35,24 @@ Replace the overrides' "{=}" (an empty record) with the following idea
 The "//" or "⫽" means "merge these two records and
   when they have the same value, use the one on the right:"
 -------------------------------
-in let override =
-     { packageName =
-         upstream.packageName ⫽ { updateEntity1 = "new value", updateEntity2 = "new value" }
-     , packageName =
-         upstream.packageName ⫽ { version = "v4.0.0" }
-     , packageName =
-         upstream.packageName // { repo = "https://www.example.com/path/to/new/repo.git" }
-     }
+let override =
+  { packageName =
+      upstream.packageName ⫽ { updateEntity1 = "new value", updateEntity2 = "new value" }
+  , packageName =
+      upstream.packageName ⫽ { version = "v4.0.0" }
+  , packageName =
+      upstream.packageName // { repo = "https://www.example.com/path/to/new/repo.git" }
+  }
 -------------------------------
 
 Example:
 -------------------------------
-in let overrides =
-     { halogen =
-         upstream.halogen ⫽ { version = "master" }
-     , halogen-vdom =
-         upstream.halogen-vdom ⫽ { version = "v4.0.0" }
-     }
+let overrides =
+  { halogen =
+      upstream.halogen ⫽ { version = "master" }
+  , halogen-vdom =
+      upstream.halogen-vdom ⫽ { version = "v4.0.0" }
+  }
 -------------------------------
 
 ### Additions
@@ -63,59 +63,59 @@ Purpose:
 Syntax:
 Replace the additions' "{=}" (an empty record) with the following idea:
 -------------------------------
-in let additions =
-     { "package-name" =
-          mkPackage
-            [ "dependency1"
-            , "dependency2"
-            ]
-            "https://example.com/path/to/git/repo.git"
-            "tag ('v4.0.0') or branch ('master')"
-     , "package-name" =
-          mkPackage
-            [ "dependency1"
-            , "dependency2"
-            ]
-            "https://example.com/path/to/git/repo.git"
-            "tag ('v4.0.0') or branch ('master')"
-     , etc.
-     }
+let additions =
+  { "package-name" =
+       mkPackage
+         [ "dependency1"
+         , "dependency2"
+         ]
+         "https://example.com/path/to/git/repo.git"
+         "tag ('v4.0.0') or branch ('master')"
+  , "package-name" =
+       mkPackage
+         [ "dependency1"
+         , "dependency2"
+         ]
+         "https://example.com/path/to/git/repo.git"
+         "tag ('v4.0.0') or branch ('master')"
+  , etc.
+  }
 -------------------------------
 
 Example:
 -------------------------------
-in let additions =
-     { benchotron =
-         mkPackage
-           [ "arrays"
-           , "exists"
-           , "profunctor"
-           , "strings"
-           , "quickcheck"
-           , "lcg"
-           , "transformers"
-           , "foldable-traversable"
-           , "exceptions"
-           , "node-fs"
-           , "node-buffer"
-           , "node-readline"
-           , "datetime"
-           , "now"
-           ]
-           "https://github.com/hdgarrood/purescript-benchotron.git"
-           "v7.0.0"
-     }
+let additions =
+  { benchotron =
+      mkPackage
+        [ "arrays"
+        , "exists"
+        , "profunctor"
+        , "strings"
+        , "quickcheck"
+        , "lcg"
+        , "transformers"
+        , "foldable-traversable"
+        , "exceptions"
+        , "node-fs"
+        , "node-buffer"
+        , "node-readline"
+        , "datetime"
+        , "now"
+        ]
+        "https://github.com/hdgarrood/purescript-benchotron.git"
+        "v7.0.0"
+  }
 -------------------------------
 -}
 
-    let mkPackage =
-          https://raw.githubusercontent.com/justinwoo/spacchetti/241018/src/mkPackage.dhall sha256:806af8ce2510ded25a8aa9565e26852458e5dc83ddd3e8e39b04441392648f90
+let mkPackage =
+      https://raw.githubusercontent.com/justinwoo/spacchetti/24112018/src/mkPackage.dhall sha256:8e1c6636f8a089f972b21cde0cef4b33fa36a2e503ad4c77928aabf92d2d4ec9
 
-in  let upstream =
-          https://raw.githubusercontent.com/justinwoo/spacchetti/241018/src/packages.dhall sha256:c827574476643cee0cbf1af5f6c4e83c8d77160f55fc295a152a1bb781b57748
+let upstream =
+      https://raw.githubusercontent.com/justinwoo/spacchetti/24112018/src/packages.dhall sha256:81454036f1779dbce007a69889ef10f3ecdb7bc8beb97d8d75931c8d87075ad1
 
-in  let overrides = {=}
+let overrides = {=}
 
-in  let additions = {=}
+let additions = {=}
 
 in  upstream ⫽ overrides ⫽ additions
