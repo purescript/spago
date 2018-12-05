@@ -1,9 +1,10 @@
-resolver: lts-12.14
+resolver: lts-12.21
 packages:
 - .
 extra-deps:
-- dhall-1.18.0
-- dhall-json-1.2.4
+- dhall-1.19.1
+- dhall-json-1.2.5
+- dotgen-0.4.2
 - megaparsec-7.0.2
 - repline-0.2.0.0
 - serialise-0.2.1.0
