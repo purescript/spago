@@ -22,6 +22,17 @@ ghc-options:
 # common to point users to the README.md file.
 description:         Please see the README on GitHub at <https://github.com/githubuser/spacchetti-cli#readme>
 
+default-extensions:
+- DeriveDataTypeable
+- DeriveGeneric
+- DerivingStrategies
+- DuplicateRecordFields
+- GeneralizedNewtypeDeriving
+- LambdaCase
+- RecordWildCards
+- ScopedTypeVariables
+- OverloadedStrings
+
 dependencies:
 - base >= 4.7 && < 5
 - text < 1.3
