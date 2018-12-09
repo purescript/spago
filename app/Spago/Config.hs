@@ -1,17 +1,8 @@
-{-# LANGUAGE DeriveGeneric              #-}
-{-# LANGUAGE DerivingStrategies         #-}
-{-# LANGUAGE DuplicateRecordFields      #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE LambdaCase                 #-}
-{-# LANGUAGE OverloadedStrings          #-}
-{-# LANGUAGE RecordWildCards            #-}
-
-module Spacchetti where
+module Spago.Config where
 
 import           Control.Exception                     (Exception, throwIO)
 import           Control.Monad.IO.Class                (liftIO)
 import           Data.Aeson
-import           Data.Map                              (Map)
 import qualified Data.Map                              as Map
 import           Data.Text                             (Text)
 import qualified Data.Text                             as Text
@@ -25,25 +16,9 @@ import           Dhall.TypeCheck                       (X)
 import qualified Dhall.TypeCheck
 import           GHC.Generics                          (Generic)
 
--- | Matches the packages definition of Spacchetti Package.dhall/psc-package
-newtype PackageName = PackageName { packageName :: Text }
-  deriving (Show)
-  deriving newtype (Eq, Ord, ToJSON, FromJSON, ToJSONKey, FromJSONKey, Dhall.Interpret)
+import           Spago.Spacchetti                      (Package, PackageName (..), Packages)
 
--- | A spacchetti package.
-data Package = Package
-  { dependencies :: [PackageName] -- ^ list of dependency package names
-  , repo         :: Text          -- ^ the git repository
-  , version      :: Text          -- ^ version string (also functions as a git ref)
-  }
-  deriving (Show, Generic)
-
-instance ToJSON Package
-instance FromJSON Package
-
-type Packages = Map PackageName Package
-
--- | Spacchetti configuration file type
+-- | Spago configuration file type
 data Config = Config
   { name         :: Text
   , dependencies :: [PackageName]
@@ -54,14 +29,14 @@ data Config = Config
 instance ToJSON Config
 instance FromJSON Config
 
--- | Spacchetti packages cannot be read
+-- | Spago configuration cannot be read
 data ConfigReadError
  = WrongPackageType (Dhall.Expr Src X)
    -- ^ a package has the wrong type
  | ConfigIsNotRecord (Dhall.Expr Src X)
    -- ^ the toplevel value is not a record
  | PackagesIsNotRecord (Dhall.Expr Src X)
-   -- ^ the toplevel value is not a record
+   -- ^ the "packages" key is not a record
  | KeyIsMissing Text
    -- ^ a key is missing from the config
 
@@ -69,7 +44,7 @@ instance Exception ConfigReadError
 
 instance Show ConfigReadError where
   show err = Text.unpack $ Text.intercalate "\n" $
-    [ _ERROR <> ": Error while reading spacchetti.dhall:"
+    [ _ERROR <> ": Error while reading spago.dhall:"
     , "" ]
     <> msg err
 
@@ -112,7 +87,7 @@ instance Show ConfigReadError where
       _ERROR :: Dhall.Text
       _ERROR = "\ESC[1;31mError\ESC[0m"
 
--- | Given a config, tries to read it into a Spacchetti Config
+-- | Tries to read in a Spago Config
 parseConfig :: Text -> IO Config
 parseConfig dhallText = do
   expr <- Dhall.inputExpr dhallText
@@ -132,7 +107,7 @@ parseConfig dhallText = do
           Nothing        -> throwIO $ KeyIsMissing "packages"
       pure Config{..}
     _ -> case Dhall.TypeCheck.typeOf expr of
-      Right e -> throwIO $ ConfigIsNotRecord e
+      Right e  -> throwIO $ ConfigIsNotRecord e
       Left err -> throwIO $ err
   pure config
     where

@@ -1,20 +1,20 @@
 {-# LANGUAGE TemplateHaskell #-}
-{-# LANGUAGE OverloadedStrings #-}
-module Templates where
 
-import Data.FileEmbed
-import qualified Data.Text.Lazy as LT
-import qualified Data.Text.Lazy.Encoding as LT
-import qualified Data.Text as T
-import Data.Aeson.Encode.Pretty
-import PscPackage (PscPackage)
-import qualified PscPackage as P
+module Spago.Templates where
+
+import           Data.Aeson.Encode.Pretty
+import           Data.FileEmbed
+import qualified Data.Text                as T
+import qualified Data.Text.Lazy           as LT
+import qualified Data.Text.Lazy.Encoding  as LT
+
+import           PscPackage.Types         (PscPackage (..))
 
 packagesDhall :: T.Text
 packagesDhall = $(embedStringFile "templates/packages.dhall")
 
-spacchettiDhall :: T.Text
-spacchettiDhall = $(embedStringFile "templates/spacchetti.dhall")
+spagoDhall :: T.Text
+spagoDhall = $(embedStringFile "templates/spago.dhall")
 
 srcMain :: T.Text
 srcMain = $(embedStringFile "templates/srcMain.purs")
@@ -29,4 +29,4 @@ encodePscPackage :: PscPackage -> T.Text
 encodePscPackage = LT.toStrict . LT.decodeUtf8 . encodePretty
 
 pscPackageJson :: T.Text -> T.Text
-pscPackageJson name = encodePscPackage $ P.PscPackage name "local" "" []
+pscPackageJson packageName = encodePscPackage $ PscPackage packageName "local" "" []

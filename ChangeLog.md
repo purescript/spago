@@ -1,3 +1,3 @@
-# Changelog for spacchetti-cli
+# Changelog for spago
 
 ## Unreleased changes
