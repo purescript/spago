@@ -110,8 +110,7 @@ getDep pair@(PackageName{..}, Package{..} ) = do
             , "git -c advice.detachedHead=false checkout FETCH_HEAD"
             ]
         -- Swallow stdout here, we don't want the whole git output.
-        -- stderr is still piped though, so we should get errors
-        try (T.sh $ T.inshell cmd T.empty) >>= \case
+        try (T.sh (T.inshellWithErr cmd T.empty)) >>= \case
           Right _ -> pure ()
           Left (err :: T.ExitCode) -> do
             T.rmtree $ T.fromText dir
