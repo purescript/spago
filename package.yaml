@@ -1,10 +1,10 @@
-name:                spacchetti-cli
-version:             0.5.0.0
-github:              "justinwoo/spacchetti-cli"
+name:                spago
+version:             0.6.0.0
+github:              "spacchetti/spago"
 license:             BSD3
-author:              "Justin Woo"
-maintainer:          "@jusrin00"
-copyright:           "2018 Justin Woo"
+author:              "Justin Woo, Fabrizio Ferrai"
+maintainer:          "@jusrin00, @fabferrai"
+copyright:           "2018 Justin Woo, Fabrizio Ferrai"
 
 extra-source-files:
 - README.md
@@ -20,7 +20,7 @@ ghc-options:
 # To avoid duplicated efforts in documentation and dealing with the
 # complications of embedding Haddock markup inside cabal files, it is
 # common to point users to the README.md file.
-description:         Please see the README on GitHub at <https://github.com/githubuser/spacchetti-cli#readme>
+description:         Please see the README on GitHub at <https://github.com/spacchetti/spago#readme>
 
 default-extensions:
 - DeriveDataTypeable
@@ -49,7 +49,7 @@ dependencies:
 - prettyprinter
 
 executables:
-  spacchetti:
+  spago:
     main:                Main.hs
     source-dirs:         app
     ghc-options:
@@ -58,7 +58,7 @@ executables:
     - -with-rtsopts=-N
 
 tests:
-  spacchetti-cli-test:
+  spago-test:
     main:                Spec.hs
     source-dirs:         test
     ghc-options:
