@@ -1,25 +1,26 @@
 module Spago where
 
-import           Control.Exception (throwIO, try)
-import qualified Data.List         as List
-import qualified Data.Map          as Map
-import           Data.Text         (Text)
-import qualified Data.Text         as Text
-import           Data.Version      (showVersion)
-import qualified Dhall.Format      as Dhall.Format
-import qualified Dhall.Pretty      as Dhall.Pretty
-import qualified Paths_spago       as Pcli
-import qualified System.Directory  as Dir
-import qualified Turtle            as T
+import           Control.Concurrent.Async (forConcurrently_)
+import           Control.Exception        (throwIO, try)
+import qualified Data.List                as List
+import qualified Data.Map                 as Map
+import           Data.Text                (Text)
+import qualified Data.Text                as Text
+import           Data.Version             (showVersion)
+import qualified Dhall.Format             as Dhall.Format
+import qualified Dhall.Pretty             as Dhall.Pretty
+import qualified Paths_spago              as Pcli
+import qualified System.Process           as Process
+import qualified Turtle                   as T
 
 import qualified PscPackage
 import           Spago.Config
-import           Spago.Spacchetti  (Package (..), PackageName (..))
-import qualified Spago.Templates   as Templates
+import           Spago.Spacchetti         (Package (..), PackageName (..))
+import qualified Spago.Templates          as Templates
 
 
 echo' :: Text -> IO ()
-echo' = T.echo . T.unsafeTextToLine
+echo' = T.printf (T.s T.% "\n")
 
 surroundQuote :: Text -> Text
 surroundQuote y = "\"" <> y <> "\""
@@ -82,39 +83,49 @@ ensureConfig = do
 
 
 -- | Returns the dir path for a given package
-getDir :: (PackageName, Package) -> Text
-getDir (PackageName{..}, Package{..})
+getPackageDir :: (PackageName, Package) -> Text
+getPackageDir (PackageName{..}, Package{..})
   = spagoDir <> packageName <> "/" <> version
 
 
 getGlobs :: [(PackageName, Package)] -> [Text]
-getGlobs = map (\pair -> getDir pair <> "/src/**/*.purs")
+getGlobs = map (\pair -> getPackageDir pair <> "/src/**/*.purs")
 
 
 getDep :: (PackageName, Package) -> IO ()
 getDep pair@(PackageName{..}, Package{..} ) = do
-  let dir = getDir pair
-  exists <- T.testdir $ T.fromText dir
+  exists <- T.testdir $ T.fromText packageDir
   if exists
     then do
-      echo' $ surroundQuote packageName <> " already installed."
+      echo' $ surroundQuote packageName <> " already installed"
     else do
       echo' $ "Installing " <> surroundQuote packageName
-      T.mktree . T.fromText $ dir
-      Dir.withCurrentDirectory (Text.unpack dir) $ do
-        let
-          cmd = Text.intercalate " && "
-            [ "git init"
-            , "git remote add origin " <> repo
-            , "git fetch origin " <> version
-            , "git -c advice.detachedHead=false checkout FETCH_HEAD"
-            ]
-        -- Swallow stdout here, we don't want the whole git output.
-        try (T.sh (T.inshellWithErr cmd T.empty)) >>= \case
-          Right _ -> pure ()
-          Left (err :: T.ExitCode) -> do
-            T.rmtree $ T.fromText dir
-            T.die ("Failed to install dependency: " <> T.repr err)
+      T.mktree . T.fromText $ packageDir
+      try (T.sh shell) >>= \case
+        Right _ -> pure ()
+        Left (err :: T.ExitCode) -> do
+          T.rmtree $ T.fromText packageDir
+          T.die ("Failed to install dependency: " <> T.repr err)
+  where
+    packageDir = getPackageDir pair
+
+    cmd = Text.intercalate " && "
+           [ "git init"
+           , "git remote add origin " <> repo
+           , "git fetch origin " <> version
+           , "git -c advice.detachedHead=false checkout FETCH_HEAD"
+           ]
+
+    -- Here we set the package directory as the cwd of the new process.
+    -- This is the "right" way to do it (instead of using e.g.
+    -- System.Directory.withCurrentDirectory), as that's apparently
+    -- not thread-safe
+    processWithNewCwd = (Process.shell (Text.unpack cmd))
+      { Process.cwd = Just $ Text.unpack packageDir }
+
+    -- Swallow stdout here in the shell, we don't want the whole git output
+    shell = T.streamWithErr processWithNewCwd T.empty
+
 
 
 getAllDependencies :: Config -> [(PackageName, Package)]
@@ -138,7 +149,7 @@ install = do
   config <- ensureConfig
   let deps = getAllDependencies config
   echo' $ "Installing " <> Text.pack (show $ List.length deps) <> " dependencies."
-  _ <- traverse getDep deps
+  _ <- forConcurrently_ deps getDep
   T.echo "Installation complete."
 
 
