@@ -4,10 +4,29 @@
 
 *(IPA: /ˈspaɡo/)*
 
-<img src="https://raw.githubusercontent.com/spacchetti/logo/master/spacchetti-icon.png" height="300px" alt="spacchetti logo">
-
 PureScript package manager and build tool powered by [Dhall][dhall] and
 [Spacchetti][spacchetti] package-sets.
+
+
+<img src="https://raw.githubusercontent.com/spacchetti/logo/master/spacchetti-icon.png" height="300px" alt="spacchetti logo">
+
+<!-- START doctoc generated TOC please keep comment here to allow auto update -->
+<!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
+
+
+- [What does all of this mean?](#what-does-all-of-this-mean)
+- [Installation](#installation)
+- [Quickstart](#quickstart)
+  - [Configuration file format](#configuration-file-format)
+- [Commands](#commands)
+  - [Package management](#package-management)
+  - [Building, bundling and testing a project](#building-bundling-and-testing-a-project)
+- [Can I use this with `psc-package`?](#can-i-use-this-with-psc-package)
+  - [`psc-package-local-setup`](#psc-package-local-setup)
+  - [`psc-package-insdhall`](#psc-package-insdhall)
+- [FAQ](#faq)
+
+<!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
 ## What does all of this mean?
 
@@ -130,7 +149,7 @@ $ spago install
 ..then `spago` will download all the `dependencies` listed in `spago.dhall` (and
 store them in the `.spago` folder).
 
-### Building a project
+### Building, bundling and testing a project
 
 We can then build the project and its dependencies by running:
 
