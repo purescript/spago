@@ -4,6 +4,7 @@ import qualified GHC.IO.Encoding
 import qualified Turtle          as T
 
 import qualified PscPackage
+import           Spago           (ModuleName(..), TargetPath(..), WithMain (..))
 import qualified Spago
 
 
@@ -23,6 +24,15 @@ data Command
 
   -- | Build the project paths src/ and test/
   | Build
+
+  -- | Test the project with some module, default Test.Main
+  | Test (Maybe ModuleName)
+
+  -- | Bundle the project, with optional main and target path arguments
+  | Bundle (Maybe ModuleName) (Maybe TargetPath)
+
+  -- | Bundle a module into a CommonJS module
+  | MakeModule (Maybe ModuleName) (Maybe TargetPath)
 
 
   -- | ### Commands for working with Psc-Package
@@ -52,64 +62,78 @@ data Command
 
 parser :: T.Parser Command
 parser
-      = Init <$> init'
-  T.<|> Install <$ install'
-  T.<|> Sources <$ sources'
-  T.<|> Build <$ build'
-  T.<|> PscPackageLocalSetup <$> localSetup'
-  T.<|> PscPackageInsDhall <$ insDhall'
-  T.<|> PscPackageClean <$ clean'
-  T.<|> Version <$ version'
+      = initProject
+  T.<|> install
+  T.<|> sources
+  T.<|> build
+  T.<|> test
+  T.<|> bundle
+  T.<|> makeModule
+  T.<|> pscPackageLocalSetup
+  T.<|> pscPackageInsDhall
+  T.<|> pscPackageClean
+  T.<|> version
   where
-    localSetup'
-      = T.subcommand "psc-package-local-setup"
-          "Setup a local package set by creating a new packages.dhall"
-      $ T.switch "force" 'f' "Overwrite any project found in the current directory"
+    force      = T.switch "force" 'f' "Overwrite any project found in the current directory"
+    mainModule = T.optional (T.opt (Just . ModuleName) "main" 'm' "The main module to bundle")
+    toTarget   = T.optional (T.opt (Just . TargetPath) "to" 't' "The target file path")
 
-    insDhall'
-      = T.subcommand "psc-package-insdhall"
-          "Insdhall the local package set from packages.dhall"
-      $ pure ()
+    pscPackageLocalSetup
+      = T.subcommand "psc-package-local-setup" "Setup a local package set by creating a new packages.dhall"
+      $ PscPackageLocalSetup <$> force
 
-    clean'
-      = T.subcommand "psc-package-clean"
-          "Clean cached packages by deleting the .psc-package folder"
-      $ pure ()
+    pscPackageInsDhall
+      = T.subcommand "psc-package-insdhall" "Insdhall the local package set from packages.dhall"
+      $ pure PscPackageInsDhall
 
-    init'
-      = T.subcommand "init"
-          "Initialize a new basic project"
-      $ T.switch "force" 'f' "Overwrite any project found in the current directory"
+    pscPackageClean
+      = T.subcommand "psc-package-clean" "Clean cached packages by deleting the .psc-package folder"
+      $ pure PscPackageClean
 
-    install'
-      = T.subcommand "install"
-          "Install (download) all dependencies listed in spago.dhall"
-      $ pure ()
+    initProject
+      = T.subcommand "init" "Initialize a new sample project"
+      $ Init <$> force
 
-    sources'
-      = T.subcommand "sources"
-          "List all the source paths (globs) for the dependencies of the project"
-      $ pure ()
+    install
+      = T.subcommand "install" "Install (download) all dependencies listed in spago.dhall"
+      $ pure Install
 
-    build'
-      = T.subcommand "build"
-          "Install the dependencies and compile the current package"
-      $ pure ()
+    sources
+      = T.subcommand "sources" "List all the source paths (globs) for the dependencies of the project"
+      $ pure Sources
 
-    version'
-      = T.subcommand "version"
-          "Show spago version"
-      $ pure ()
+    build
+      = T.subcommand "build" "Install the dependencies and compile the current package"
+      $ pure Build
+
+    test
+      = T.subcommand "test" "Test the project with some module, default Test.Main"
+      $ Test <$> mainModule
+
+    bundle
+      = T.subcommand "bundle" "Bundle the project, with optional main and target path arguments"
+      $ Bundle <$> mainModule <*> toTarget
+
+    makeModule
+      = T.subcommand "make-module" "Bundle a module into a CommonJS module"
+      $ MakeModule <$> mainModule <*> toTarget
+
+    version
+      = T.subcommand "version" "Show spago version"
+      $ pure Version
 
 main :: IO ()
 main = do
   GHC.IO.Encoding.setLocaleEncoding GHC.IO.Encoding.utf8
   command <- T.options "Spago - manage your PureScript projects" parser
   case command of
-    Init force                 -> Spago.init force
+    Init force                 -> Spago.initProject force
     Install                    -> Spago.install
     Sources                    -> Spago.sources
-    Build                      -> Spago.build
+    Build                      -> Spago.build Nothing
+    Test modName               -> Spago.test modName
+    Bundle modName tPath       -> Spago.bundle WithMain modName tPath
+    MakeModule modName tPath   -> Spago.makeModule modName tPath
     Version                    -> Spago.printVersion
     PscPackageLocalSetup force -> PscPackage.localSetup force
     PscPackageInsDhall         -> PscPackage.insDhall
