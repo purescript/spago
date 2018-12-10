@@ -46,7 +46,7 @@ dependencies:
 - dhall-json
 - bytestring
 - prettyprinter
-- async
+- async-pool
 - process
 
 executables:

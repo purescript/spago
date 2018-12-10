@@ -12,32 +12,55 @@ module Spago
   , WithMain(..)
   ) where
 
-import           Control.Concurrent.Async (forConcurrently_)
-import           Control.Exception        (SomeException, throwIO, try)
-import qualified Data.List                as List
-import qualified Data.Map                 as Map
-import           Data.Maybe               (fromMaybe)
-import           Data.Text                (Text)
-import qualified Data.Text                as Text
-import           Data.Version             (showVersion)
-import qualified Dhall.Format             as Dhall.Format
-import qualified Dhall.Pretty             as Dhall.Pretty
-import qualified Paths_spago              as Pcli
-import           System.IO                (hPutStrLn)
-import qualified System.Process           as Process
-import qualified Turtle                   as T
+import qualified Control.Concurrent.Async.Pool as Async
+import           Control.Exception             (Exception, SomeException, handle, onException,
+                                                throwIO, try)
+import           Data.Foldable                 (for_)
+import qualified Data.List                     as List
+import qualified Data.Map                      as Map
+import           Data.Maybe                    (fromMaybe)
+import           Data.Text                     (Text)
+import qualified Data.Text                     as Text
+import           Data.Traversable              (for)
+import           Data.Version                  (showVersion)
+import qualified Dhall.Format                  as Dhall.Format
+import qualified Dhall.Pretty                  as Dhall.Pretty
+import qualified Paths_spago                   as Pcli
+import           System.IO                     (hPutStrLn)
+import qualified System.Process                as Process
+import qualified Turtle                        as T
 
 import qualified PscPackage
 import           Spago.Config
-import           Spago.Spacchetti         (Package (..), PackageName (..))
-import qualified Spago.Templates          as Templates
+import           Spago.Spacchetti              (Package (..), PackageName (..))
+import qualified Spago.Templates               as Templates
 
 
-echo' :: Text -> IO ()
-echo' = T.printf (T.s T.% "\n")
+-- | Generic Error that we throw on program exit.
+--   We have it so that errors are displayed nicely to the user
+--   (the default Turtle.die is not nice)
+newtype SpagoError = SpagoError { _unError :: Text }
+instance Exception SpagoError
+instance Show SpagoError where
+  show (SpagoError err) = Text.unpack err
+
+
+echo :: Text -> IO ()
+echo = T.printf (T.s T.% "\n")
+
+echoStr :: String -> IO ()
+echoStr = echo . Text.pack
+
+die :: Text -> IO ()
+die reason = throwIO $ SpagoError reason
 
 surroundQuote :: Text -> Text
 surroundQuote y = "\"" <> y <> "\""
+
+-- | Manage a directory tree as a resource, deleting it if we except during the @action@
+--   NOTE: you should make sure the directory doesn't exist before calling this.
+withDirectory :: T.FilePath -> IO a -> IO a
+withDirectory dir action = (T.mktree dir >> action) `onException` (T.rmtree dir)
 
 -- | The directory in which spago will put its tempfiles
 spagoDir :: Text
@@ -58,7 +81,7 @@ makeConfig force = do
 
   T.unless force $ do
     hasSpagoDhall <- T.testfile spagoDhallPath
-    T.when hasSpagoDhall $ T.die
+    T.when hasSpagoDhall $ die
        $ "Found " <> spagoDhallText <> ": there's already a project here. "
       <> "Run `spago init --force` if you're sure you want to overwrite it."
   T.touch spagoDhallPath
@@ -82,8 +105,8 @@ initProject force = do
   T.writeTextFile "src/Main.purs" Templates.srcMain
   T.writeTextFile "test/Main.purs" Templates.testMain
   T.writeTextFile ".gitignore" Templates.gitignore
-  T.echo "Set up a local Spago project."
-  T.echo "Try running `spago install`"
+  echo "Set up a local Spago project."
+  echo "Try running `spago install`"
 
 
 -- | Checks that the Spago config is there and readable
@@ -112,17 +135,18 @@ getDep pair@(PackageName{..}, Package{..} ) = do
   exists <- T.testdir $ T.fromText packageDir
   if exists
     then do
-      echo' $ surroundQuote packageName <> " already installed"
+      echo $ quotedName <> " already installed"
     else do
-      echo' $ "Installing " <> surroundQuote packageName
-      T.mktree . T.fromText $ packageDir
-      try (T.sh shell) >>= \case
-        Right _ -> pure ()
-        Left (err :: T.ExitCode) -> do
-          T.rmtree $ T.fromText packageDir
-          T.die ("Failed to install dependency: " <> T.repr err)
+      echo $ "Installing " <> quotedName
+      withDirectory (T.fromText packageDir) $ do
+        try (T.sh shell) >>= \case
+          Right _ -> pure ()
+          Left (_err :: T.ExitCode) -> do
+            die ("Failed to install dependency " <> quotedName)
   where
     packageDir = getPackageDir pair
+
+    quotedName = surroundQuote packageName
 
     cmd = Text.intercalate " && "
            [ "git init"
@@ -159,13 +183,29 @@ getAllDependencies Config { dependencies = deps, packages = pkgs } =
 
 
 -- | Fetch all dependencies into `.spago/`
-install :: IO ()
-install = do
+install :: Maybe Int -> IO ()
+install maybeLimit = do
   config <- ensureConfig
   let deps = getAllDependencies config
-  echo' $ "Installing " <> Text.pack (show $ List.length deps) <> " dependencies."
-  _ <- forConcurrently_ deps getDep
-  T.echo "Installation complete."
+  echoStr $ "Installing " <> show (List.length deps) <> " dependencies."
+  Async.withTaskGroup limit $ \taskGroup -> do
+    asyncs <- for deps $ \dep -> Async.async taskGroup $ getDep dep
+    for_ asyncs $ \async -> handle (handler async) $ Async.wait async
+    echo "Installation complete."
+  where
+    -- Here we have this weird exception handling so that threads can clean after
+    -- themselves (e.g. remove the directory they might have created) in case an
+    -- asynchronous exception happens.
+    -- So in any exceptional case we cancel the thread, and wait for the cleanup
+    -- to finish.
+    handler async (_e :: SomeException) = do
+      Async.cancel async
+      _ <- Async.wait async
+      die "Installation failed."
+
+    -- We run a pretty high amount of threads by default, but this can be
+    -- limited by specifying an option
+    limit = fromMaybe 100 maybeLimit
 
 
 -- | Get source globs of dependencies listed in `spago.dhall`
@@ -175,7 +215,7 @@ sources = do
   let
     deps = getAllDependencies config
     globs = getGlobs deps
-  _ <- traverse (echo') globs
+  _ <- traverse echo globs
   pure ()
 
 
@@ -189,9 +229,9 @@ build targets = do
     paths = Text.intercalate " " $ surroundQuote <$> globs
     cmd = "purs compile " <> paths
   T.shell cmd T.empty >>= \case
-    T.ExitSuccess -> T.echo "Build succeeded."
+    T.ExitSuccess -> echo "Build succeeded."
     T.ExitFailure n -> do
-      T.die ("Failed to build:" <> T.repr n)
+      die ("Failed to build: " <> T.repr n)
 
 
 newtype ModuleName = ModuleName { unModuleName :: T.Text }
@@ -207,8 +247,8 @@ test maybeModuleName = do
   -- TODO: should this also include `src`? I don't see why not
   build $ Just ["test/**/*.purs"]
   T.shell cmd T.empty >>= \case
-    T.ExitSuccess   -> echo' "Tests succeeded."
-    T.ExitFailure n -> T.die $ "Tests failed: " <> T.repr n
+    T.ExitSuccess   -> echo "Tests succeeded."
+    T.ExitFailure n -> die $ "Tests failed: " <> T.repr n
   where
     moduleName = fromMaybe (ModuleName "Test.Main") maybeModuleName
     cmd = "node -e 'require(\"./output/" <> unModuleName moduleName <> "\").main()'"
@@ -238,8 +278,8 @@ bundle withMain maybeModuleName maybeTargetPath = do
         <> " -o " <> targetPath
 
   T.shell cmd T.empty >>= \case
-    T.ExitSuccess   -> echo' $ "Bundle succeeded and output file to " <> targetPath
-    T.ExitFailure n -> T.die $ "Bundle failed: " <> T.repr n
+    T.ExitSuccess   -> echo $ "Bundle succeeded and output file to " <> targetPath
+    T.ExitFailure n -> die $ "Bundle failed: " <> T.repr n
 
 
 -- | Bundle into a CommonJS module
@@ -247,18 +287,18 @@ makeModule :: Maybe ModuleName -> Maybe TargetPath -> IO ()
 makeModule maybeModuleName maybeTargetPath = do
   let (moduleName, targetPath) = prepareBundleDefaults maybeModuleName maybeTargetPath
       jsExport = Text.unpack $ "\nmodule.exports = PS[\""<> unModuleName moduleName <> "\"];"
-  echo' "Bundling first..."
+  echo "Bundling first..."
   bundle WithoutMain (Just moduleName) (Just targetPath)
   -- Here we append the CommonJS export line at the end of the bundle
   try (T.with
         (T.appendonly $ T.fromText $ unTargetPath targetPath)
         ((flip hPutStrLn) jsExport))
     >>= \case
-      Right _ -> echo' $ "Make module succeeded and output file to " <> unTargetPath targetPath
-      Left (n :: SomeException) -> T.die $ "Make module failed: " <> T.repr n
+      Right _ -> echo $ "Make module succeeded and output file to " <> unTargetPath targetPath
+      Left (n :: SomeException) -> die $ "Make module failed: " <> T.repr n
 
 
 -- | Print out Spago version
 printVersion :: IO ()
 printVersion =
-  echo' $ Text.pack $ showVersion Pcli.version
+  echoStr $ showVersion Pcli.version
