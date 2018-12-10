@@ -91,40 +91,42 @@ instance Show ConfigReadError where
 parseConfig :: Text -> IO Config
 parseConfig dhallText = do
   expr <- Dhall.inputExpr dhallText
-  config <- case expr of
+  case expr of
     Dhall.RecordLit ks -> do
-      name <- case (Dhall.Map.lookup "name" ks >>= Dhall.extract Dhall.strictText) of
-        Nothing -> liftIO $ throwIO $ KeyIsMissing "name"
-        Just n  -> pure n
-      dependencies <- case (Dhall.Map.lookup "dependencies" ks >>= Dhall.extract (Dhall.list pkgNameType)) of
-        Nothing -> liftIO $ throwIO $ KeyIsMissing "dependencies"
-        Just n  -> pure n
+      name         <- required ks "name" Dhall.strictText
+      dependencies <- required ks "dependencies" pkgNamesT
+
       packages <- case Dhall.Map.lookup "packages" ks of
           Just (Dhall.RecordLit pkgs) -> (Map.mapKeys PackageName . Dhall.Map.toMap)
             <$> Dhall.Map.traverseWithKey toPkg pkgs
-
           Just something -> throwIO $ PackagesIsNotRecord something
           Nothing        -> throwIO $ KeyIsMissing "packages"
+
       pure Config{..}
     _ -> case Dhall.TypeCheck.typeOf expr of
       Right e  -> throwIO $ ConfigIsNotRecord e
       Left err -> throwIO $ err
-  pure config
-    where
-      pkgType = Dhall.genericAuto :: Dhall.Type Package
-      pkgNameType = Dhall.auto :: Dhall.Type PackageName
 
-      toPkg :: Text -> Dhall.Expr Src X -> IO Package
-      toPkg _packageName pkgExpr = do
-        -- we annotate the expression with the type we want,
-        -- then typeOf will check the type for us
-        let eAnnot = Dhall.Annot pkgExpr $ Dhall.expected pkgType
-        -- typeOf only returns the type, which we already know
-        let _typ = Dhall.TypeCheck.typeOf eAnnot
-        -- the normalize is not strictly needed (we already normalized
-        -- the expressions that were given to this function)
-        -- but it converts the @Dhall.Expr s a@ @s@ arguments to any @t@,
-        -- which is needed for @extract@ to type check with @eAnnot@
-        case Dhall.extract pkgType $ Dhall.normalize $ eAnnot of
-          Just x  -> pure x
-          Nothing -> throwIO $ WrongPackageType pkgExpr
+  where
+    required ks name typ = case (Dhall.Map.lookup name ks >>= Dhall.extract typ) of
+      Just v -> pure v
+      Nothing -> liftIO $ throwIO $ KeyIsMissing name
+
+    pkgT      = Dhall.genericAuto :: Dhall.Type Package
+    pkgNameT  = Dhall.auto :: Dhall.Type PackageName
+    pkgNamesT = Dhall.list pkgNameT
+
+    toPkg :: Text -> Dhall.Expr Src X -> IO Package
+    toPkg _packageName pkgExpr = do
+      -- we annotate the expression with the type we want,
+      -- then typeOf will check the type for us
+      let eAnnot = Dhall.Annot pkgExpr $ Dhall.expected pkgT
+      -- typeOf only returns the type, which we already know
+      let _typ = Dhall.TypeCheck.typeOf eAnnot
+      -- the normalize is not strictly needed (we already normalized
+      -- the expressions that were given to this function)
+      -- but it converts the @Dhall.Expr s a@ @s@ arguments to any @t@,
+      -- which is needed for @extract@ to type check with @eAnnot@
+      case Dhall.extract pkgT $ Dhall.normalize $ eAnnot of
+        Just x  -> pure x
+        Nothing -> throwIO $ WrongPackageType pkgExpr
