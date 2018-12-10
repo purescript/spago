@@ -1,15 +1,29 @@
-module Spago where
+module Spago
+  ( initProject
+  , install
+  , sources
+  , build
+  , test
+  , bundle
+  , makeModule
+  , printVersion
+  , ModuleName(..)
+  , TargetPath(..)
+  , WithMain(..)
+  ) where
 
 import           Control.Concurrent.Async (forConcurrently_)
-import           Control.Exception        (throwIO, try)
+import           Control.Exception        (SomeException, throwIO, try)
 import qualified Data.List                as List
 import qualified Data.Map                 as Map
+import           Data.Maybe               (fromMaybe)
 import           Data.Text                (Text)
 import qualified Data.Text                as Text
 import           Data.Version             (showVersion)
 import qualified Dhall.Format             as Dhall.Format
 import qualified Dhall.Pretty             as Dhall.Pretty
 import qualified Paths_spago              as Pcli
+import           System.IO                (hPutStrLn)
 import qualified System.Process           as Process
 import qualified Turtle                   as T
 
@@ -58,12 +72,13 @@ makeConfig force = do
 --   - create `spago.dhall` to manage project config: name, deps, etc
 --   - create an example `src` folder
 --   - create an example `test` folder
-init :: Bool -> IO ()
-init force = do
+initProject :: Bool -> IO ()
+initProject force = do
   PscPackage.makePackagesDhall force "init"
   makeConfig force
   T.mktree "src"
   T.mktree "test"
+  -- TODO fail if these files exist
   T.writeTextFile "src/Main.purs" Templates.srcMain
   T.writeTextFile "test/Main.purs" Templates.testMain
   T.writeTextFile ".gitignore" Templates.gitignore
@@ -165,19 +180,82 @@ sources = do
 
 
 -- | Build the project with purs
-build :: IO ()
-build = do
+build :: Maybe [Text] -> IO ()
+build targets = do
   config <- ensureConfig
   let
-    deps = getAllDependencies config
-    globs = getGlobs deps <> ["src/**/*.purs", "test/**/*.purs"]
+    deps  = getAllDependencies config
+    globs = getGlobs deps <> (fromMaybe ["src/**/*.purs", "test/**/*.purs"] targets)
     paths = Text.intercalate " " $ surroundQuote <$> globs
     cmd = "purs compile " <> paths
-  code <- T.shell cmd T.empty
-  case code of
+  T.shell cmd T.empty >>= \case
     T.ExitSuccess -> T.echo "Build succeeded."
     T.ExitFailure n -> do
       T.die ("Failed to build:" <> T.repr n)
+
+
+newtype ModuleName = ModuleName { unModuleName :: T.Text }
+newtype TargetPath = TargetPath { unTargetPath :: T.Text }
+
+data WithMain = WithMain | WithoutMain
+
+
+-- | Test the project: compile and run the Test.Main
+--   (or the provided module name) with node
+test :: Maybe ModuleName -> IO ()
+test maybeModuleName = do
+  -- TODO: should this also include `src`? I don't see why not
+  build $ Just ["test/**/*.purs"]
+  T.shell cmd T.empty >>= \case
+    T.ExitSuccess   -> echo' "Tests succeeded."
+    T.ExitFailure n -> T.die $ "Tests failed: " <> T.repr n
+  where
+    moduleName = fromMaybe (ModuleName "Test.Main") maybeModuleName
+    cmd = "node -e 'require(\"./output/" <> unModuleName moduleName <> "\").main()'"
+
+
+prepareBundleDefaults :: Maybe ModuleName -> Maybe TargetPath -> (ModuleName, TargetPath)
+prepareBundleDefaults maybeModuleName maybeTargetPath = (moduleName, targetPath)
+  where
+    moduleName = fromMaybe (ModuleName "Main") maybeModuleName
+    targetPath = fromMaybe (TargetPath "index.js") maybeTargetPath
+
+
+-- | Bundle the project to a js file
+bundle :: WithMain -> Maybe ModuleName -> Maybe TargetPath -> IO ()
+bundle withMain maybeModuleName maybeTargetPath = do
+  let ((ModuleName moduleName), (TargetPath targetPath))
+        = prepareBundleDefaults maybeModuleName maybeTargetPath
+
+      main = case withMain of
+        WithMain    -> " --main " <> moduleName
+        WithoutMain -> ""
+
+      cmd
+        = "purs bundle './output/*/*.js'"
+        <> " -m " <> moduleName
+        <> main
+        <> " -o " <> targetPath
+
+  T.shell cmd T.empty >>= \case
+    T.ExitSuccess   -> echo' $ "Bundle succeeded and output file to " <> targetPath
+    T.ExitFailure n -> T.die $ "Bundle failed: " <> T.repr n
+
+
+-- | Bundle into a CommonJS module
+makeModule :: Maybe ModuleName -> Maybe TargetPath -> IO ()
+makeModule maybeModuleName maybeTargetPath = do
+  let (moduleName, targetPath) = prepareBundleDefaults maybeModuleName maybeTargetPath
+      jsExport = Text.unpack $ "\nmodule.exports = PS[\""<> unModuleName moduleName <> "\"];"
+  echo' "Bundling first..."
+  bundle WithoutMain (Just moduleName) (Just targetPath)
+  -- Here we append the CommonJS export line at the end of the bundle
+  try (T.with
+        (T.appendonly $ T.fromText $ unTargetPath targetPath)
+        ((flip hPutStrLn) jsExport))
+    >>= \case
+      Right _ -> echo' $ "Make module succeeded and output file to " <> unTargetPath targetPath
+      Left (n :: SomeException) -> T.die $ "Make module failed: " <> T.repr n
 
 
 -- | Print out Spago version
