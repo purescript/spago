@@ -17,7 +17,7 @@ data Command
   = Init Bool
 
   -- | Install (download) dependencies defined in spago.dhall
-  | Install
+  | Install (Maybe Int)
 
   -- | Get source globs of dependencies in spago.dhall
   | Sources
@@ -77,6 +77,7 @@ parser
     force      = T.switch "force" 'f' "Overwrite any project found in the current directory"
     mainModule = T.optional (T.opt (Just . ModuleName) "main" 'm' "The main module to bundle")
     toTarget   = T.optional (T.opt (Just . TargetPath) "to" 't' "The target file path")
+    limitJobs  = T.optional (T.optInt "jobs" 'j' "Limit the amount of jobs that can run concurrently")
 
     pscPackageLocalSetup
       = T.subcommand "psc-package-local-setup" "Setup a local package set by creating a new packages.dhall"
@@ -96,7 +97,7 @@ parser
 
     install
       = T.subcommand "install" "Install (download) all dependencies listed in spago.dhall"
-      $ pure Install
+      $ Install <$> limitJobs
 
     sources
       = T.subcommand "sources" "List all the source paths (globs) for the dependencies of the project"
@@ -128,7 +129,7 @@ main = do
   command <- T.options "Spago - manage your PureScript projects" parser
   case command of
     Init force                 -> Spago.initProject force
-    Install                    -> Spago.install
+    Install limitJobs          -> Spago.install limitJobs
     Sources                    -> Spago.sources
     Build                      -> Spago.build Nothing
     Test modName               -> Spago.test modName
