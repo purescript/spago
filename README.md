@@ -1,6 +1,6 @@
 # spago
 
-[![Build Status](https://travis-ci.org/spacchetti/spago.svg?branch=master)][travis-spago]
+[![Build Status](https://travis-ci.com/spacchetti/spago.svg?branch=master)][travis-spago]
 
 *(IPA: /ˈspaɡo/)*
 
