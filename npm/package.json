@@ -1,0 +1,24 @@
+{
+  "name": "purescript-spago",
+  "version": "0.6.0",
+  "description": "🍝 PureScript package manager and build tool powered by Dhall and Spacchetti package-sets",
+  "homepage": "https://github.com/spacchetti/spago",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/spacchetti/spago.git"
+  },
+  "main": "index.js",
+  "files": [
+    "install",
+    "spago"
+  ],
+  "scripts": {
+    "install": "./install"
+  },
+  "author": "Justin Woo, Fabrizio Ferrai",
+  "bin": {
+    "spago": "./spago"
+  },
+  "keywords": ["purescript", "psc-package", "spago", "spacchetti"],
+  "license": "MIT"
+}
