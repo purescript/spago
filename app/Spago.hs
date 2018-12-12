@@ -190,17 +190,23 @@ install maybeLimit = do
   echoStr $ "Installing " <> show (List.length deps) <> " dependencies."
   Async.withTaskGroup limit $ \taskGroup -> do
     asyncs <- for deps $ \dep -> Async.async taskGroup $ getDep dep
-    for_ asyncs $ \async -> handle (handler async) $ Async.wait async
+    handle (handler asyncs) $ for_ asyncs Async.wait
     echo "Installation complete."
   where
     -- Here we have this weird exception handling so that threads can clean after
     -- themselves (e.g. remove the directory they might have created) in case an
     -- asynchronous exception happens.
-    -- So in any exceptional case we cancel the thread, and wait for the cleanup
-    -- to finish.
-    handler async (_e :: SomeException) = do
-      Async.cancel async
-      _ <- Async.wait async
+    -- So if any Exception happens while `wait`ing for any thread, we go over all
+    -- the `asyncs` (the completed ones will not be affected) and `cancel` them.
+    -- This throws an AsyncException in their thread, which causes the bracket to
+    -- run the cleanup. However, we have to be careful afterwards, as `cancel` only
+    -- waits for the exception to be thrown there, and we have to `wait` ourselves
+    -- (with `waitCatch` so that we ignore any exception we are thrown and the `for_`
+    -- completes) for the asyncs to finish their cleanup.
+    handler asyncs (_e :: SomeException) = do
+      for_ asyncs $ \async -> do
+        Async.cancel async
+        Async.waitCatch async
       die "Installation failed."
 
     -- We run a pretty high amount of threads by default, but this can be
