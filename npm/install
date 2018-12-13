@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+set -e
+
+TAG=0.5.0.0
+
+# exit if there is evidence of installation
+[ -e ./spacchetti.tar.gz ] && exit 0;
+
+# remove stubs
+rm ./spacchetti
+
+# osx or linux install
+if [ "$(uname -s)" == "Darwin" ]
+then
+  curl --location --output ./spacchetti.tar.gz --silent https://github.com/justinwoo/spacchetti-cli/releases/download/$TAG/osx.tar.gz
+else
+  wget -O ./spacchetti.tar.gz https://github.com/justinwoo/spacchetti-cli/releases/download/$TAG/linux.tar.gz
+fi
+
+# unpack
+tar -xvf ./spacchetti.tar.gz -C ./

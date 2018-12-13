@@ -32,6 +32,7 @@ before_install:
   - if [ "x$GHCVER" = "xhead" ]; then CABALARGS=--allow-newer; fi
 
   - |
+    echo "Running before_install"
     if [ `uname` = "Darwin" ]
     then
       # Download and unpack the stack executable
@@ -54,6 +55,7 @@ before_install:
 
 install:
   - |
+    echo "Running install"
     if [ `uname` = "Darwin" ]
     then
 
@@ -73,6 +75,7 @@ install:
 
 script:
   - |
+    echo "Running script"
     if [ `uname` = "Darwin" ]
     then
 
@@ -89,22 +92,49 @@ script:
 
 before_deploy:
   - |
-    if [ `uname` = "Darwin" ]
-    then
-      stack build --copy-bins --local-bin-path ./artifacts;
-    else
-      docker run --mount src="$(pwd)",target=/home/ubuntu/spacchetti,type=bind nilrecurring/haskell-lavello:lts-12 /bin/bash -c "cd spacchetti; stack build --copy-bins --local-bin-path ./artifacts"
+    echo "Running before_deploy"
+
+    # We have to check on this condition so we run the before_deploy job only once
+    if ! [ "$BEFORE_DEPLOY_RUN" ]; then
+      export BEFORE_DEPLOY_RUN=1;
+
+      if [ `uname` = "Darwin" ]
+      then
+        stack build --copy-bins --local-bin-path ./artifacts;
+      else
+        docker run --mount src="$(pwd)",target=/home/ubuntu/spacchetti,type=bind nilrecurring/haskell-lavello:lts-12 /bin/bash -c "cd spacchetti; stack build --copy-bins --local-bin-path ./artifacts"
+      fi
+      cp artifacts/spacchetti spacchetti
+      tar -zcvf "${TRAVIS_OS_NAME}.tar.gz" spacchetti
+
+      ## Get ready to publish npm
+      cd npm
     fi
-  - cp artifacts/spacchetti spacchetti
-  - tar -zcvf "${TRAVIS_OS_NAME}.tar.gz" spacchetti
 
 deploy:
-  provider: releases
-  api_key: $API_KEY
-  file:
-    - $TRAVIS_OS_NAME.tar.gz
-  skip_cleanup: true
-  on:
-    tags: true
-  script:
-    - echo 'done'
+  - provider: releases
+    api_key: $API_KEY
+    file:
+      - ../$TRAVIS_OS_NAME.tar.gz
+    skip_cleanup: true
+    on:
+      tags: true
+    script:
+      - echo 'done'
+  - provider: npm
+    email: "$NPM_EMAIL"
+    api_key: "$NPM_TOKEN"
+    skip_cleanup: true
+    on:
+      condition: $TRAVIS_OS_NAME = osx
+      tags: true
+    script:
+      - echo 'done'
+
+after_deploy:
+  - |
+    echo "Running after_deploy"
+    if ! [ "$AFTER_DEPLOY_RUN" ]; then
+      export AFTER_DEPLOY_RUN=1;
+      cd ..
+    fi
