@@ -5,7 +5,7 @@ extra-deps:
 - dhall-1.19.1
 - dhall-json-1.2.5
 - dotgen-0.4.2
-- megaparsec-7.0.2
+- megaparsec-7.0.3
 - repline-0.2.0.0
 - async-pool-0.9.0.2
 - serialise-0.2.1.0
