@@ -2,6 +2,7 @@ import subprocess
 import os.path
 import signal
 import time
+import difflib
 
 
 def fail(msg):
@@ -16,13 +17,15 @@ def call(expected_code, command, failure_msg):
     """
     Try to run a command and exit if fails
     """
-    res = subprocess.run(command, capture_output=True)
-    if res.returncode != expected_code:
-        print(failure_msg)
-        print("Program output:")
-        fail(res.stderr.decode('utf-8'))
-    else:
-       return res
+    try:
+        return subprocess.check_output(command, stderr=subprocess.STDOUT).decode('utf-8')
+    except subprocess.CalledProcessError as e:
+        if e.returncode == expected_code:
+            return e.output.decode('utf-8')
+        else:
+            print("FAILURE: " + failure_msg)
+            print("Program output:")
+            fail(e.output.decode('utf-8'))
 
 
 def expect_success(command, *args):
@@ -51,10 +54,13 @@ def check_fixture(name):
     fixture = '../fixtures/' + name
     with open(name, 'r', encoding='utf-8') as result, \
          open(fixture, 'r', encoding='utf-8') as expected:
-        res_str = result.read()
-        exp_str = expected.read()
+        res_lines = result.readlines()
+        exp_lines = expected.readlines()
+        res_str = ''.join(res_lines)
+        exp_str = ''.join(exp_lines)
         if res_str != exp_str:
-            diff_res = call(0, ['diff', name, fixture], "diff failed")
-            fail("Failed to verify the fixture\n" + diff_res.stdout.decode('utf-8'))
+            print("\nFAILURE: Fixture doesn't match")
+            diff = difflib.context_diff(res_lines, exp_lines, fromfile='generated', tofile='expected')
+            fail("\nDiff:\n" + ''.join(diff))
         else:
             print('Successfully verified fixture for "{}"'.format(name))
