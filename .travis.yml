@@ -131,11 +131,3 @@ deploy:
       tags: true
     script:
       - echo 'done'
-
-after_deploy:
-  - |
-    echo "Running after_deploy"
-    if ! [ "$AFTER_DEPLOY_RUN" ]; then
-      export AFTER_DEPLOY_RUN=1;
-      cd ..
-    fi
