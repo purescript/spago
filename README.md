@@ -255,7 +255,7 @@ writing [ParcelJS][parcel] looks like a good option.
 
 [spacchetti]: https://github.com/spacchetti/spacchetti
 [dhall]: https://github.com/dhall-lang/dhall-lang
-[travis-spago]: https://travis-ci.org/spacchetti/spago
+[travis-spago]: https://travis-ci.com/spacchetti/spago
 [spacchetti-local-setup]: https://spacchetti.readthedocs.io/en/latest/local-setup.html
 [cargo]: https://github.com/rust-lang/cargo
 [stack]: https://github.com/commercialhaskell/stack
