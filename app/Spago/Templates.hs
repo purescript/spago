@@ -3,27 +3,28 @@
 module Spago.Templates where
 
 import           Data.Aeson.Encode.Pretty
-import           Data.FileEmbed
 import qualified Data.Text                as T
 import qualified Data.Text.Lazy           as LT
 import qualified Data.Text.Lazy.Encoding  as LT
 
 import           PscPackage.Types         (PscPackage (..))
+import           Spago.TH                 (embedFileUtf8)
+
 
 packagesDhall :: T.Text
-packagesDhall = $(embedStringFile "templates/packages.dhall")
+packagesDhall = $(embedFileUtf8 "templates/packages.dhall")
 
 spagoDhall :: T.Text
-spagoDhall = $(embedStringFile "templates/spago.dhall")
+spagoDhall = $(embedFileUtf8 "templates/spago.dhall")
 
 srcMain :: T.Text
-srcMain = $(embedStringFile "templates/srcMain.purs")
+srcMain = $(embedFileUtf8 "templates/srcMain.purs")
 
 testMain :: T.Text
-testMain = $(embedStringFile "templates/testMain.purs")
+testMain = $(embedFileUtf8 "templates/testMain.purs")
 
 gitignore :: T.Text
-gitignore = $(embedStringFile "templates/gitignore")
+gitignore = $(embedFileUtf8 "templates/gitignore")
 
 encodePscPackage :: PscPackage -> T.Text
 encodePscPackage = LT.toStrict . LT.decodeUtf8 . encodePretty
