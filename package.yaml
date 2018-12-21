@@ -48,6 +48,7 @@ dependencies:
 - prettyprinter
 - async-pool
 - process
+- template-haskell
 
 executables:
   spago:

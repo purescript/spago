@@ -277,7 +277,7 @@ bundle withMain maybeModuleName maybeTargetPath = do
         WithoutMain -> ""
 
       cmd
-        = "purs bundle './output/*/*.js'"
+        = "purs bundle \"output/*/*.js\""
         <> " -m " <> moduleName
         <> main
         <> " -o " <> targetPath
