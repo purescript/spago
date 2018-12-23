@@ -106,13 +106,13 @@ initProject force = do
   -- But the other files in the template are just skipped if already there.
   -- Because you might want to just init a project with your own source files,
   -- or just migrate a psc-package project
-  copyIfNotThere "src/Main.purs" Templates.srcMain
-  copyIfNotThere "test/Main.purs" Templates.testMain
-  copyIfNotThere ".gitignore" Templates.gitignore
+  copyIfNotExists "src/Main.purs" Templates.srcMain
+  copyIfNotExists "test/Main.purs" Templates.testMain
+  copyIfNotExists ".gitignore" Templates.gitignore
   echo "Set up a local Spago project."
   echo "Try running `spago install`"
   where
-    copyIfNotThere dest srcTemplate = do
+    copyIfNotExists dest srcTemplate = do
       let destPath = T.fromText dest
       (T.testfile destPath) >>= \case
         True  -> echo ("Found " <> surroundQuote dest <> ", not copying the sample one")
