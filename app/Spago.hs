@@ -115,7 +115,7 @@ initProject force = do
     copyIfNotExists dest srcTemplate = do
       let destPath = T.fromText dest
       (T.testfile destPath) >>= \case
-        True  -> echo ("Found " <> surroundQuote dest <> ", not copying the sample one")
+        True  -> echo ("Found existing " <> surroundQuote dest <> ", not overwriting it")
         False -> T.writeTextFile destPath srcTemplate
 
 
