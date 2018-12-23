@@ -85,6 +85,7 @@ makeConfig force = do
        $ "Found " <> spagoDhallText <> ": there's already a project here. "
       <> "Run `spago init --force` if you're sure you want to overwrite it."
   T.touch spagoDhallPath
+  -- TODO: try to read a psc-package config, so we can migrate automatically
   T.writeTextFile spagoDhallPath Templates.spagoDhall
 
   Dhall.Format.format Dhall.Pretty.Unicode (Just $ Text.unpack spagoDhallText)
@@ -97,16 +98,25 @@ makeConfig force = do
 --   - create an example `test` folder
 initProject :: Bool -> IO ()
 initProject force = do
+  -- packages.dhall and spago.dhall overwrite can be forced
   PscPackage.makePackagesDhall force "init"
   makeConfig force
   T.mktree "src"
   T.mktree "test"
-  -- TODO fail if these files exist
-  T.writeTextFile "src/Main.purs" Templates.srcMain
-  T.writeTextFile "test/Main.purs" Templates.testMain
-  T.writeTextFile ".gitignore" Templates.gitignore
+  -- But the other files in the template are just skipped if already there.
+  -- Because you might want to just init a project with your own source files,
+  -- or just migrate a psc-package project
+  copyIfNotThere "src/Main.purs" Templates.srcMain
+  copyIfNotThere "test/Main.purs" Templates.testMain
+  copyIfNotThere ".gitignore" Templates.gitignore
   echo "Set up a local Spago project."
   echo "Try running `spago install`"
+  where
+    copyIfNotThere dest srcTemplate = do
+      let destPath = T.fromText dest
+      (T.testfile destPath) >>= \case
+        True  -> echo ("Found " <> surroundQuote dest <> ", not copying the sample one")
+        False -> T.writeTextFile destPath srcTemplate
 
 
 -- | Checks that the Spago config is there and readable

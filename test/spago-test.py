@@ -16,11 +16,25 @@ expect_failure(
     "Spago should refuse to overwrite an existing project without -f"
 )
 
+# Here we check that spago does not overwrite any source files we might have
+expect_success(
+    ['rm', 'spago.dhall', 'packages.dhall'],
+    "Cleaning of config files should succeed"
+)
+with open('src/Main.purs', 'w') as f:
+    f.write("Something")
+expect_success(
+    ['spago', 'init'],
+    "Spago should not overwrite files when initing a project"
+)
+with open('src/Main.purs', 'r') as f:
+    assert f.read() == 'Something'
+expect_success(['rm', 'src/Main.purs'], "")
+
 expect_success(
     ['spago', 'init', '-f'],
     "Spago should always succeed in doing init with force"
 )
-
 
 ## spago install
 
