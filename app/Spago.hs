@@ -236,12 +236,12 @@ sources = do
 
 
 -- | Build the project with purs
-build :: Maybe [Text] -> IO ()
-build targets = do
+build :: IO ()
+build = do
   config <- ensureConfig
   let
     deps  = getAllDependencies config
-    globs = getGlobs deps <> (fromMaybe ["src/**/*.purs", "test/**/*.purs"] targets)
+    globs = getGlobs deps <> ["src/**/*.purs", "test/**/*.purs"]
     paths = Text.intercalate " " $ surroundQuote <$> globs
     cmd = "purs compile " <> paths
   T.shell cmd T.empty >>= \case
@@ -260,8 +260,7 @@ data WithMain = WithMain | WithoutMain
 --   (or the provided module name) with node
 test :: Maybe ModuleName -> IO ()
 test maybeModuleName = do
-  -- TODO: should this also include `src`? I don't see why not
-  build $ Just ["test/**/*.purs"]
+  build
   T.shell cmd T.empty >>= \case
     T.ExitSuccess   -> echo "Tests succeeded."
     T.ExitFailure n -> die $ "Tests failed: " <> T.repr n

@@ -131,7 +131,7 @@ main = do
     Init force                 -> Spago.initProject force
     Install limitJobs          -> Spago.install limitJobs
     Sources                    -> Spago.sources
-    Build                      -> Spago.build Nothing
+    Build                      -> Spago.build
     Test modName               -> Spago.test modName
     Bundle modName tPath       -> Spago.bundle WithMain modName tPath
     MakeModule modName tPath   -> Spago.makeModule modName tPath
