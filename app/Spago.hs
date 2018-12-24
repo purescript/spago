@@ -139,10 +139,13 @@ getDep pair@(PackageName{..}, Package{..} ) = do
     else do
       echo $ "Installing " <> quotedName
       withDirectory (T.fromText packageDir) $ do
-        try (T.sh shell) >>= \case
-          Right _ -> pure ()
-          Left (_err :: T.ExitCode) -> do
-            die ("Failed to install dependency " <> quotedName)
+        (T.systemStrictWithErr processWithNewCwd T.empty) >>= \case
+          (T.ExitSuccess, _, _) -> pure ()
+          (_, _stdout, stderr) -> do
+            echo ("\nFailed to install dependency " <> quotedName)
+            echo "\nGit output:"
+            echo stderr
+            die "Aborting installation.."
   where
     packageDir = getPackageDir pair
 
@@ -161,11 +164,6 @@ getDep pair@(PackageName{..}, Package{..} ) = do
     -- not thread-safe
     processWithNewCwd = (Process.shell (Text.unpack cmd))
       { Process.cwd = Just $ Text.unpack packageDir }
-
-    -- Swallow stdout here in the shell, we don't want the whole git output
-    shell = T.streamWithErr processWithNewCwd T.empty
-
-
 
 getAllDependencies :: Config -> [(PackageName, Package)]
 getAllDependencies Config { dependencies = deps, packages = pkgs } =
