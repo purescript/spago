@@ -1,10 +1,11 @@
 module Main (main) where
 
 import qualified GHC.IO.Encoding
-import qualified Turtle          as T
+import qualified System.Environment as Env
+import qualified Turtle             as T
 
 import qualified PscPackage
-import           Spago           (ModuleName(..), TargetPath(..), WithMain (..))
+import           Spago              (ModuleName (..), TargetPath (..), WithMain (..))
 import qualified Spago
 
 
@@ -125,7 +126,13 @@ parser
 
 main :: IO ()
 main = do
+  -- We always want to run in UTF8 anyways
   GHC.IO.Encoding.setLocaleEncoding GHC.IO.Encoding.utf8
+  -- Stop `git` from asking for input, not gonna happen
+  -- We just fail instead. Source:
+  -- https://serverfault.com/questions/544156
+  Env.setEnv "GIT_TERMINAL_PROMPT" "0"
+
   command <- T.options "Spago - manage your PureScript projects" parser
   case command of
     Init force                 -> Spago.initProject force

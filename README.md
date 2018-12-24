@@ -45,9 +45,12 @@ The recommended installation methods on Linux and macOS are:
 - Download the binary from the [latest GitHub release][spago-latest-release]
 - Compile from source by cloning this repo and running `stack install`
 
-**Note #1:** we don't currently support Windows, and we're sorry for this. The
-reason is that no current maintainer runs it. If you'd like to help with this
-that's awesome! Get in touch by [opening an issue][spago-issues] :)
+**Note #1:** support for Windows is still basic, and we're sorry for this - the
+reason is that no current maintainer runs it.  
+Currently the only way to install on Windows is with `stack` - more info in
+[#57](https://github.com/spacchetti/spago/issues/57).  
+If you'd like to help with this that's awesome! Get in touch by commenting there
+or [opening another issue][spago-issues] :)
 
 **Note #2:** we assume you already installed the [PureScript compiler][purescript].
 If not, get it with `npm install -g purescript`
