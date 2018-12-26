@@ -1,6 +1,6 @@
 {
   "name": "purescript-spago",
-  "version": "0.6.0",
+  "version": "0.6.1",
   "description": "🍝 PureScript package manager and build tool powered by Dhall and Spacchetti package-sets",
   "homepage": "https://github.com/spacchetti/spago",
   "repository": {
