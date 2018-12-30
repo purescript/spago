@@ -1,13 +1,11 @@
 resolver: lts-13.0
 packages:
 - .
-- location:
-    git: https://github.com/f-f/async-pool
-    commit: 5f5635af5061ada0498fd04482efbab328c4775b
-  extra-dep: true
 extra-deps:
 - dhall-1.20.0
 - dhall-json-1.2.6
 - fgl-5.7.0.1
 #- async-pool-0.9.0.2
+- git: https://github.com/f-f/async-pool
+  commit: 5f5635af5061ada0498fd04482efbab328c4775b
 - Win32-2.5.4.1@sha256:e623a1058bd8134ec14d62759f76cac52eee3576711cb2c4981f398f1ec44b85
