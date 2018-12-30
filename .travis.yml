@@ -14,17 +14,14 @@ services:
 
 matrix:
   include:
-  # BBuild on Linux with docker
-  - env: BUILD=stack ARGS=""
+  # Build on Linux with docker
+  - env: BUILD=stack ARGS="" IMAGE_TAG=lts-13
     compiler: ": #stack default"
 
   # Build on macOS natively
   - env: BUILD=stack ARGS=""
     compiler: ": #stack default osx"
     os: osx
-
-env:
-  - IMAGE_TAG=lts-13
 
 before_install:
   # Using compiler above sets CC to an invalid value, so unset it
