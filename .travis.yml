@@ -23,6 +23,8 @@ matrix:
     compiler: ": #stack default osx"
     os: osx
 
+env:
+  - IMAGE_TAG=lts-13
 
 before_install:
   # Using compiler above sets CC to an invalid value, so unset it
@@ -47,8 +49,8 @@ before_install:
       echo 'remote-repo-cache: $HOME/.cabal/packages' >> $HOME/.cabal/config
     
     else
-      docker pull nilrecurring/haskell-lavello:lts-12
-      docker run --mount src="$(pwd)",target=/home/ubuntu/spago,type=bind nilrecurring/haskell-lavello:lts-12 /bin/bash -c "sudo chown -R ubuntu spago; cd spago; stack build"
+      docker pull "nilrecurring/haskell-lavello:${IMAGE_TAG}"
+      docker run --mount src="$(pwd)",target=/home/ubuntu/spago,type=bind "nilrecurring/haskell-lavello:${IMAGE_TAG}" /bin/bash -c "sudo chown -R ubuntu spago; cd spago; stack build"
     
     fi
 
@@ -81,7 +83,7 @@ script:
       stack build --copy-bins --local-bin-path ./artifacts;
       nvm install 10 && nvm use 10
     else
-      docker run --mount src="$(pwd)",target=/home/ubuntu/spago,type=bind nilrecurring/haskell-lavello:lts-12 /bin/bash -c "cd spago; stack build --copy-bins --local-bin-path ./artifacts"
+      docker run --mount src="$(pwd)",target=/home/ubuntu/spago,type=bind "nilrecurring/haskell-lavello:${IMAGE_TAG}" /bin/bash -c "cd spago; stack build --copy-bins --local-bin-path ./artifacts"
     fi
   - export PATH="${PATH}:$(pwd)/artifacts"
   - npm install -g purescript@0.12.1
@@ -102,7 +104,7 @@ before_deploy:
       then
         stack build --copy-bins --local-bin-path ./artifacts;
       else
-        docker run --mount src="$(pwd)",target=/home/ubuntu/spago,type=bind nilrecurring/haskell-lavello:lts-12 /bin/bash -c "cd spago; stack build --copy-bins --local-bin-path ./artifacts"
+        docker run --mount src="$(pwd)",target=/home/ubuntu/spago,type=bind "nilrecurring/haskell-lavello:${IMAGE_TAG}" /bin/bash -c "cd spago; stack build --copy-bins --local-bin-path ./artifacts"
       fi
       cp artifacts/spago spago
       tar -zcvf "${TRAVIS_OS_NAME}.tar.gz" spago
