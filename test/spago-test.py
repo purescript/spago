@@ -50,10 +50,15 @@ expect_success(
 ## spago build
 
 expect_success(
+    ['spago', 'build', '--', '-o myOutput'],
+    "Spago should pass options to purs"
+)
+assert os.path.isdir('myOutput') == True
+
+expect_success(
     ['spago', 'build'],
     "Spago should build successfully"
 )
-
 
 ## spago test
 
@@ -86,6 +91,6 @@ check_fixture('module.js')
 ## Cleanup after tests
 
 expect_success(
-    ['rm', '-rf', '.spago', 'src', 'test', 'packages.dhall', 'spago.dhall', 'bundle.js', 'module.js', 'output'],
+    ['rm', '-rf', '.spago', 'src', 'test', 'packages.dhall', 'spago.dhall', 'bundle.js', 'module.js', 'output', 'myOutput'],
     "Cleanup should empty the project folder"
 )

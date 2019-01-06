@@ -164,7 +164,15 @@ This is just a thin layer above the PureScript compiler command `purs compile`.
 The build will produce very many JavaScript files in the `output/` folder. These
 are CommonJS modules, and you can just `require()` them e.g. on Node.
 
-However, you might want to get a single, executable file. You'd then use the following:
+**Note**: the wrapper on the compiler is so thin that you can pass options to `purs`.
+E.g. if you wish to output your files in some other place than `output/`, you can run
+
+```bash
+spago build -- -o myOutput/
+```
+
+Anyways, the above will create a whole lot of files, but you might want to get just a
+single, executable file. You'd then use the following:
 
 ```bash
 # You can specify the main module and the target file, or these defaults will be used
