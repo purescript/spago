@@ -24,10 +24,10 @@ data Command
   | Sources
 
   -- | Build the project paths src/ and test/
-  | Build
+  | Build [T.Text]
 
   -- | Test the project with some module, default Test.Main
-  | Test (Maybe ModuleName)
+  | Test (Maybe ModuleName) [T.Text]
 
   -- | Bundle the project, with optional main and target path arguments
   | Bundle (Maybe ModuleName) (Maybe TargetPath)
@@ -80,6 +80,8 @@ parser
     toTarget   = T.optional (T.opt (Just . TargetPath) "to" 't' "The target file path")
     limitJobs  = T.optional (T.optInt "jobs" 'j' "Limit the amount of jobs that can run concurrently")
 
+    passthroughArgs = T.many $ T.argText " ..any `purs` option" "Options passed through to `purs`; use -- to separate"
+
     pscPackageLocalSetup
       = T.subcommand "psc-package-local-setup" "Setup a local package set by creating a new packages.dhall"
       $ PscPackageLocalSetup <$> force
@@ -106,11 +108,11 @@ parser
 
     build
       = T.subcommand "build" "Install the dependencies and compile the current package"
-      $ pure Build
+      $ Build <$> passthroughArgs
 
     test
       = T.subcommand "test" "Test the project with some module, default Test.Main"
-      $ Test <$> mainModule
+      $ Test <$> mainModule <*> passthroughArgs
 
     bundle
       = T.subcommand "bundle" "Bundle the project, with optional main and target path arguments"
@@ -138,8 +140,8 @@ main = do
     Init force                 -> Spago.initProject force
     Install limitJobs          -> Spago.install limitJobs
     Sources                    -> Spago.sources
-    Build                      -> Spago.build
-    Test modName               -> Spago.test modName
+    Build pursArgs             -> Spago.build pursArgs
+    Test modName pursArgs      -> Spago.test modName pursArgs
     Bundle modName tPath       -> Spago.bundle WithMain modName tPath
     MakeModule modName tPath   -> Spago.makeModule modName tPath
     Version                    -> Spago.printVersion

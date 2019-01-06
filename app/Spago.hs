@@ -233,15 +233,17 @@ sources = do
   pure ()
 
 
--- | Build the project with purs
-build :: IO ()
-build = do
+-- | Build the project with purs, passing through
+--   the additional args in the list
+build :: [T.Text] -> IO ()
+build passthroughArgs = do
   config <- ensureConfig
   let
     deps  = getAllDependencies config
     globs = getGlobs deps <> ["src/**/*.purs", "test/**/*.purs"]
     paths = Text.intercalate " " $ surroundQuote <$> globs
-    cmd = "purs compile " <> paths
+    args  = Text.intercalate " " passthroughArgs
+    cmd = "purs compile " <> args <> " " <> paths
   T.shell cmd T.empty >>= \case
     T.ExitSuccess -> echo "Build succeeded."
     T.ExitFailure n -> do
@@ -256,9 +258,9 @@ data WithMain = WithMain | WithoutMain
 
 -- | Test the project: compile and run the Test.Main
 --   (or the provided module name) with node
-test :: Maybe ModuleName -> IO ()
-test maybeModuleName = do
-  build
+test :: Maybe ModuleName -> [T.Text] -> IO ()
+test maybeModuleName passthroughArgs = do
+  build passthroughArgs
   T.shell cmd T.empty >>= \case
     T.ExitSuccess   -> echo "Tests succeeded."
     T.ExitFailure n -> die $ "Tests failed: " <> T.repr n
