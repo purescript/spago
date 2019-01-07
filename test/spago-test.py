@@ -64,7 +64,7 @@ os.mkdir('another_source_path')
 os.rename('src/Main.purs', 'another_source_path/Main.purs')
 expect_success(
     ['spago', 'build', '--path', 'another_source_path/*.purs'],
-    "Spago should build successfully"
+    "Spago should build successfully sources included from custom path"
 )
 os.rename('another_source_path/Main.purs', 'src/Main.purs')
 
