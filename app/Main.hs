@@ -24,7 +24,8 @@ data Command
   | Sources
 
   -- | Build the project paths src/ and test/
-  | Build [T.Text]
+  --   or the specified target paths
+  | Build [TargetPath] [T.Text]
 
   -- | Test the project with some module, default Test.Main
   | Test (Maybe ModuleName) [T.Text]
@@ -75,10 +76,11 @@ parser
   T.<|> pscPackageClean
   T.<|> version
   where
-    force      = T.switch "force" 'f' "Overwrite any project found in the current directory"
-    mainModule = T.optional (T.opt (Just . ModuleName) "main" 'm' "The main module to bundle")
-    toTarget   = T.optional (T.opt (Just . TargetPath) "to" 't' "The target file path")
-    limitJobs  = T.optional (T.optInt "jobs" 'j' "Limit the amount of jobs that can run concurrently")
+    force       = T.switch "force" 'f' "Overwrite any project found in the current directory"
+    mainModule  = T.optional (T.opt (Just . ModuleName) "main" 'm' "The main module to bundle")
+    toTarget    = T.optional (T.opt (Just . TargetPath) "to" 't' "The target file path")
+    limitJobs   = T.optional (T.optInt "jobs" 'j' "Limit the amount of jobs that can run concurrently")
+    sourcePaths = T.many (T.opt (Just . TargetPath) "path" 'p' "Source path to include")
 
     passthroughArgs = T.many $ T.argText " ..any `purs` option" "Options passed through to `purs`; use -- to separate"
 
@@ -108,7 +110,7 @@ parser
 
     build
       = T.subcommand "build" "Install the dependencies and compile the current package"
-      $ Build <$> passthroughArgs
+      $ Build <$> sourcePaths <*> passthroughArgs
 
     test
       = T.subcommand "test" "Test the project with some module, default Test.Main"
@@ -140,7 +142,7 @@ main = do
     Init force                 -> Spago.initProject force
     Install limitJobs          -> Spago.install limitJobs
     Sources                    -> Spago.sources
-    Build pursArgs             -> Spago.build pursArgs
+    Build paths pursArgs       -> Spago.build paths pursArgs
     Test modName pursArgs      -> Spago.test modName pursArgs
     Bundle modName tPath       -> Spago.bundle WithMain modName tPath
     MakeModule modName tPath   -> Spago.makeModule modName tPath
