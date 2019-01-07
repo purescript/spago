@@ -60,6 +60,14 @@ expect_success(
     "Spago should build successfully"
 )
 
+os.mkdir('another_source_path')
+os.rename('src/Main.purs', 'another_source_path/Main.purs')
+expect_success(
+    ['spago', 'build', '--path', 'another_source_path/*.purs'],
+    "Spago should build successfully sources included from custom path"
+)
+os.rename('another_source_path/Main.purs', 'src/Main.purs')
+
 ## spago test
 
 expect_success(
@@ -91,6 +99,6 @@ check_fixture('module.js')
 ## Cleanup after tests
 
 expect_success(
-    ['rm', '-rf', '.spago', 'src', 'test', 'packages.dhall', 'spago.dhall', 'bundle.js', 'module.js', 'output', 'myOutput'],
+    ['rm', '-rf', '.spago', 'src', 'test', 'packages.dhall', 'spago.dhall', 'bundle.js', 'module.js', 'output', 'myOutput', 'another_source_path'],
     "Cleanup should empty the project folder"
 )

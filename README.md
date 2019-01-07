@@ -30,7 +30,7 @@ PureScript package manager and build tool powered by [Dhall][dhall] and
 
 ## What does all of this mean?
 
-`spago` aims to tie together the UX of developing a PureScript project.  
+`spago` aims to tie together the UX of developing a PureScript project.
 In this Pursuit (see what I did there) it is heavily inspired by [Rust's Cargo][cargo]
 and [Haskell's Stack][stack], and builds on top of ideas from existing PureScript
 infrastructure and tooling, as [`psc-package`][psc-package], [`pulp`][pulp] and
@@ -46,9 +46,9 @@ The recommended installation methods on Linux and macOS are:
 - Compile from source by cloning this repo and running `stack install`
 
 **Note #1:** support for Windows is still basic, and we're sorry for this - the
-reason is that no current maintainer runs it.  
+reason is that no current maintainer runs it.
 Currently the only way to install on Windows is with `stack` - more info in
-[#57](https://github.com/spacchetti/spago/issues/57).  
+[#57](https://github.com/spacchetti/spago/issues/57).
 If you'd like to help with this that's awesome! Get in touch by commenting there
 or [opening another issue][spago-issues] :)
 
@@ -82,12 +82,12 @@ test files in `test/`.
 
 Let's take a look at the two [Dhall][dhall] configuration files that `spago` requires:
 - `packages.dhall`: this file is meant to contain the *totality* of the packages
-  available to your project (that is, any package you might want to import).  
+  available to your project (that is, any package you might want to import).
   In practical terms, it pulls in a [Spacchetti][spacchetti] package-set as a base,
   and you are then able to add any package that might not be in the package set,
   or override esisting ones.
 - `spago.dhall`: this is your project configuration. It includes the above package-set,
-  the list of your dependencies, and any other project-wide setting that `spago` will 
+  the list of your dependencies, and any other project-wide setting that `spago` will
   use for builds.
 
 ### Configuration file format
@@ -160,9 +160,16 @@ We can then build the project and its dependencies by running:
 $ spago build
 ```
 
-This is just a thin layer above the PureScript compiler command `purs compile`.  
+This is just a thin layer above the PureScript compiler command `purs compile`.
 The build will produce very many JavaScript files in the `output/` folder. These
 are CommonJS modules, and you can just `require()` them e.g. on Node.
+
+It's also possible to include custom source paths when building (`src` and `test` are always included):
+
+```bash
+$ spago build --path 'another_source/**/*.purs'
+
+```
 
 **Note**: the wrapper on the compiler is so thin that you can pass options to `purs`.
 E.g. if you wish to output your files in some other place than `output/`, you can run
@@ -220,7 +227,7 @@ Here's what we can do about it:
 ### `psc-package-local-setup`
 
 This command creates a `packages.dhall` file in your project, that points to the
-most recent Spacchetti package-set, and lets you override and add arbitrary packages.  
+most recent Spacchetti package-set, and lets you override and add arbitrary packages.
 See the Spacchetti docs about this [here][spacchetti-local-setup].
 
 ### `psc-package-insdhall`
@@ -250,16 +257,16 @@ Yees, however:
   versions together all the time).
 - If you use `psc-package`, you have the problem of not having the ability of overriding
   packages versions when needed, leading everyone to make their own package-set, which
-  then goes unmaintained, etc.  
+  then goes unmaintained, etc.
   Of course you can use [Spacchetti] to solve this issue, but this is exactly what
   we're doing here: integrating all the workflow in a single tool, `spago`, instead
   of having to use `pulp`, `psc-package`, `purp`, etc.
-  
+
 > So if I use `spago make-module` this thing will compile all my js deps in the file?
 
 No. We only take care of PureScript land. In particular, `make-module` will do the
 most we can do on the PureScript side of things (dead code elimination), but will
-leave the `require`s still in.  
+leave the `require`s still in.
 To fill them in you should use the proper js tool of the day, at the time of
 writing [ParcelJS][parcel] looks like a good option.
 
