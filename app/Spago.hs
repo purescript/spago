@@ -258,9 +258,9 @@ data WithMain = WithMain | WithoutMain
 
 -- | Test the project: compile and run the Test.Main
 --   (or the provided module name) with node
-test :: Maybe ModuleName -> [T.Text] -> IO ()
-test maybeModuleName passthroughArgs = do
-  build [] passthroughArgs
+test :: Maybe ModuleName -> [TargetPath] -> [T.Text] -> IO ()
+test maybeModuleName paths passthroughArgs = do
+  build paths passthroughArgs
   T.shell cmd T.empty >>= \case
     T.ExitSuccess   -> echo "Tests succeeded."
     T.ExitFailure n -> die $ "Tests failed: " <> T.repr n

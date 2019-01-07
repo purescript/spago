@@ -28,7 +28,7 @@ data Command
   | Build [TargetPath] [T.Text]
 
   -- | Test the project with some module, default Test.Main
-  | Test (Maybe ModuleName) [T.Text]
+  | Test (Maybe ModuleName) [TargetPath] [T.Text]
 
   -- | Bundle the project, with optional main and target path arguments
   | Bundle (Maybe ModuleName) (Maybe TargetPath)
@@ -114,7 +114,7 @@ parser
 
     test
       = T.subcommand "test" "Test the project with some module, default Test.Main"
-      $ Test <$> mainModule <*> passthroughArgs
+      $ Test <$> mainModule <*> sourcePaths <*> passthroughArgs
 
     bundle
       = T.subcommand "bundle" "Bundle the project, with optional main and target path arguments"
@@ -139,14 +139,14 @@ main = do
 
   command <- T.options "Spago - manage your PureScript projects" parser
   case command of
-    Init force                 -> Spago.initProject force
-    Install limitJobs          -> Spago.install limitJobs
-    Sources                    -> Spago.sources
-    Build paths pursArgs       -> Spago.build paths pursArgs
-    Test modName pursArgs      -> Spago.test modName pursArgs
-    Bundle modName tPath       -> Spago.bundle WithMain modName tPath
-    MakeModule modName tPath   -> Spago.makeModule modName tPath
-    Version                    -> Spago.printVersion
-    PscPackageLocalSetup force -> PscPackage.localSetup force
-    PscPackageInsDhall         -> PscPackage.insDhall
-    PscPackageClean            -> PscPackage.clean
+    Init force                  -> Spago.initProject force
+    Install limitJobs           -> Spago.install limitJobs
+    Sources                     -> Spago.sources
+    Build paths pursArgs        -> Spago.build paths pursArgs
+    Test modName paths pursArgs -> Spago.test modName paths pursArgs
+    Bundle modName tPath        -> Spago.bundle WithMain modName tPath
+    MakeModule modName tPath    -> Spago.makeModule modName tPath
+    Version                     -> Spago.printVersion
+    PscPackageLocalSetup force  -> PscPackage.localSetup force
+    PscPackageInsDhall          -> PscPackage.insDhall
+    PscPackageClean             -> PscPackage.clean
