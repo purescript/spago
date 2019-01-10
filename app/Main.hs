@@ -27,6 +27,9 @@ data Command
   --   or the specified target paths
   | Build [TargetPath] [T.Text]
 
+  -- | List available packages
+  | ListPackages
+
   -- | Test the project with some module, default Test.Main
   | Test (Maybe ModuleName) [TargetPath] [T.Text]
 
@@ -67,6 +70,7 @@ parser
       = initProject
   T.<|> install
   T.<|> sources
+  T.<|> listPackages
   T.<|> build
   T.<|> test
   T.<|> bundle
@@ -108,6 +112,10 @@ parser
       = T.subcommand "sources" "List all the source paths (globs) for the dependencies of the project"
       $ pure Sources
 
+    listPackages
+      = T.subcommand "list-packages" "List packages available in your packages.dhall"
+      $ pure ListPackages
+
     build
       = T.subcommand "build" "Install the dependencies and compile the current package"
       $ Build <$> sourcePaths <*> passthroughArgs
@@ -141,6 +149,7 @@ main = do
   case command of
     Init force                  -> Spago.initProject force
     Install limitJobs           -> Spago.install limitJobs
+    ListPackages                -> Spago.listPackages
     Sources                     -> Spago.sources
     Build paths pursArgs        -> Spago.build paths pursArgs
     Test modName paths pursArgs -> Spago.test modName paths pursArgs

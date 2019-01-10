@@ -7,6 +7,7 @@ module Spago
   , bundle
   , makeModule
   , printVersion
+  , listPackages
   , ModuleName(..)
   , TargetPath(..)
   , WithMain(..)
@@ -135,7 +136,6 @@ getPackageDir :: (PackageName, Package) -> Text
 getPackageDir (PackageName{..}, Package{..})
   = spagoDir <> packageName <> "/" <> version
 
-
 getGlobs :: [(PackageName, Package)] -> [Text]
 getGlobs = map (\pair -> getPackageDir pair <> "/src/**/*.purs")
 
@@ -189,7 +189,6 @@ getAllDependencies Config { dependencies = deps, packages = pkgs } =
               let newAcc = List.foldl' go acc innerDeps
               Map.insert dep x newAcc
 
-
 -- | Fetch all dependencies into `.spago/`
 install :: Maybe Int -> IO ()
 install maybeLimit = do
@@ -220,6 +219,22 @@ install maybeLimit = do
     -- We run a pretty high amount of threads by default, but this can be
     -- limited by specifying an option
     limit = fromMaybe 100 maybeLimit
+
+-- | A list of the packages that can be added to this project
+listPackages :: IO ()
+listPackages = do
+    config <- ensureConfig
+    let names = getPackageNames config
+    _ <- traverse echo names
+    pure ()
+
+    where
+      -- | Get all the package names from the configuration
+      getPackageNames :: Config -> [Text]
+      getPackageNames Config {packages = pkgs } =
+        map toText $ Map.toList pkgs
+      toText (PackageName{..},Package{..}) =
+         packageName <> " (" <> version <> ", " <> repo <> ")"
 
 
 -- | Get source globs of dependencies listed in `spago.dhall`
