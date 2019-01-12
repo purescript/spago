@@ -4,6 +4,7 @@ module Spago
   , sources
   , build
   , test
+  , repl
   , bundle
   , makeModule
   , printVersion
@@ -16,6 +17,7 @@ module Spago
 import qualified Control.Concurrent.Async.Pool as Async
 import           Control.Exception             (Exception, SomeException, handle, onException,
                                                 throwIO, try)
+import           Control.Monad.IO.Class        (liftIO)
 import           Data.Foldable                 (for_)
 import qualified Data.List                     as List
 import qualified Data.Map                      as Map
@@ -270,6 +272,14 @@ newtype TargetPath = TargetPath { unTargetPath :: T.Text }
 
 data WithMain = WithMain | WithoutMain
 
+repl :: [TargetPath] -> [T.Text] -> IO ()
+repl sourcePaths passthroughArgs = do
+  config <- ensureConfig
+  let
+    deps  = getAllDependencies config
+    globs = getGlobs deps <> ["src/**/*.purs", "test/**/*.purs"] <> map unTargetPath sourcePaths
+    args  = Text.unpack <$> ["repl"] <> globs <> passthroughArgs
+  T.view $ liftIO $ Process.callProcess "purs" args
 
 -- | Test the project: compile and run the Test.Main
 --   (or the provided module name) with node
