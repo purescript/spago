@@ -23,6 +23,9 @@ data Command
   -- | Get source globs of dependencies in spago.dhall
   | Sources
 
+  -- | Start a REPL.
+  | Repl [TargetPath] [T.Text]
+
   -- | Build the project paths src/ and test/
   --   or the specified target paths
   | Build [TargetPath] [T.Text]
@@ -72,6 +75,7 @@ parser
   T.<|> sources
   T.<|> listPackages
   T.<|> build
+  T.<|> repl
   T.<|> test
   T.<|> bundle
   T.<|> makeModule
@@ -120,6 +124,10 @@ parser
       = T.subcommand "build" "Install the dependencies and compile the current package"
       $ Build <$> sourcePaths <*> passthroughArgs
 
+    repl
+      = T.subcommand "repl" "Start a REPL"
+      $ Repl <$> sourcePaths <*> passthroughArgs
+
     test
       = T.subcommand "test" "Test the project with some module, default Test.Main"
       $ Test <$> mainModule <*> sourcePaths <*> passthroughArgs
@@ -153,6 +161,7 @@ main = do
     Sources                     -> Spago.sources
     Build paths pursArgs        -> Spago.build paths pursArgs
     Test modName paths pursArgs -> Spago.test modName paths pursArgs
+    Repl paths pursArgs         -> Spago.repl paths pursArgs
     Bundle modName tPath        -> Spago.bundle WithMain modName tPath
     MakeModule modName tPath    -> Spago.makeModule modName tPath
     Version                     -> Spago.printVersion
