@@ -14,7 +14,7 @@ module Spago
   , SourcePath(..)
   , WithMain(..)
   , PursArg(..)
-  ,
+  , PackageName(..)
   ) where
 
 import qualified Control.Concurrent.Async.Pool as Async
@@ -34,7 +34,7 @@ import qualified System.Process                as Process
 import qualified Turtle                        as T hiding (die, echo)
 
 import qualified PscPackage
-import           Spago.Config                  (Config (..))
+import           Spago.Config                  (Config (..),addDependencies)
 import qualified Spago.Config                  as Config
 import           Spago.Spacchetti              (Package (..), PackageName (..))
 import qualified Spago.Templates               as Templates
@@ -146,10 +146,11 @@ getAllDependencies Config { dependencies = deps, packages = pkgs } =
               Map.insert dep x newAcc
 
 -- | Fetch all dependencies into `.spago/`
-install :: Maybe Int -> IO ()
-install maybeLimit = do
+install :: Maybe Int -> [PackageName] -> IO ()
+install maybeLimit packages = do
   -- Make sure .spago exists
   T.mktree $ T.fromText spagoDir
+  addDependencies packages
   config <- Config.ensureConfig
   let deps = getAllDependencies config
   echoStr $ "Installing " <> show (List.length deps) <> " dependencies."
@@ -177,7 +178,6 @@ install maybeLimit = do
     -- We run a pretty high amount of threads by default, but this can be
     -- limited by specifying an option
     limit = fromMaybe 100 maybeLimit
-
 
 -- | A list of the packages that can be added to this project
 listPackages :: IO ()
@@ -211,7 +211,7 @@ sources = do
 build :: (Maybe Int) -> [SourcePath] -> [PursArg] -> IO ()
 build maybeLimit sourcePaths passthroughArgs = do
   config <- Config.ensureConfig
-  install maybeLimit
+  install maybeLimit mempty
   let
     deps  = getAllDependencies config
     globs = getGlobs deps <> ["src/**/*.purs", "test/**/*.purs"] <> map unSourcePath sourcePaths

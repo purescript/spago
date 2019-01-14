@@ -6,7 +6,7 @@ import qualified Turtle             as T
 
 import qualified PscPackage
 import           Spago              (ModuleName (..), PursArg (..), SourcePath (..),
-                                     TargetPath (..), WithMain(..))
+                                     TargetPath (..), WithMain(..), PackageName (..))
 import qualified Spago
 
 
@@ -19,7 +19,7 @@ data Command
   = Init Bool
 
   -- | Install (download) dependencies defined in spago.dhall
-  | Install (Maybe Int)
+  | Install (Maybe Int) [PackageName]
 
   -- | Get source globs of dependencies in spago.dhall
   | Sources
@@ -90,7 +90,7 @@ parser
     toTarget    = T.optional (T.opt (Just . TargetPath) "to" 't' "The target file path")
     limitJobs   = T.optional (T.optInt "jobs" 'j' "Limit the amount of jobs that can run concurrently")
     sourcePaths = T.many (T.opt (Just . SourcePath) "path" 'p' "Source path to include")
-
+    packageName = T.many $ T.arg (Just . PackageName) "PACKAGE" "Name in package set"
     passthroughArgs = T.many $ T.arg (Just . PursArg) " ..any `purs` option" "Options passed through to `purs`; use -- to separate"
 
     pscPackageLocalSetup
@@ -111,7 +111,7 @@ parser
 
     install
       = T.subcommand "install" "Install (download) all dependencies listed in spago.dhall"
-      $ Install <$> limitJobs
+      $ Install <$> limitJobs <*> packageName
 
     sources
       = T.subcommand "sources" "List all the source paths (globs) for the dependencies of the project"
@@ -157,7 +157,7 @@ main = do
   command <- T.options "Spago - manage your PureScript projects" parser
   case command of
     Init force                            -> Spago.initProject force
-    Install limitJobs                     -> Spago.install limitJobs
+    Install limitJobs packageName         -> Spago.install limitJobs packageName
     ListPackages                          -> Spago.listPackages
     Sources                               -> Spago.sources
     Build limitJobs paths pursArgs        -> Spago.build limitJobs paths pursArgs
@@ -166,6 +166,6 @@ main = do
     Bundle modName tPath                  -> Spago.bundle WithMain modName tPath
     MakeModule modName tPath              -> Spago.makeModule modName tPath
     Version                               -> Spago.printVersion
-    PscPackageLocalSetup force  -> PscPackage.localSetup force
-    PscPackageInsDhall          -> PscPackage.insDhall
-    PscPackageClean             -> PscPackage.clean
+    PscPackageLocalSetup force            -> PscPackage.localSetup force
+    PscPackageInsDhall                    -> PscPackage.insDhall
+    PscPackageClean                       -> PscPackage.clean
