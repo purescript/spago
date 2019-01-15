@@ -163,6 +163,17 @@ getDep pair@(PackageName{..}, Package{..} ) = do
 
     quotedName = surroundQuote packageName
 
+    -- TODO:
+    -- It is theoretically possible to put a commit hash in the ref to fetch,
+    -- however, for how the Github server works, unless a commit is less than
+    -- one hour old, you cannot `fetch` by commit hash
+    -- If you want a commit by sha, you have to clone the whole repo history
+    -- for a given ref (like master) and then look for the commit sha
+    -- However, on Github you can actually get a snapshot for a specific sha,
+    -- by calling archives/sha.tar.gz link.
+    -- So basically we can check if we are dealing with a Github url and a commit hash,
+    -- and if yes we fetch the tar.gz (instead of running this git commands), otherwise we fail
+
     cmd = Text.intercalate " && "
            [ "git init"
            , "git remote add origin " <> repo
