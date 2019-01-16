@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -e
 
-TAG=0.6.2.1
+TAG=PACKAGE_VERSION
 
 # exit if there is evidence of installation
 [ -e ./spago.tar.gz ] && exit 0;
