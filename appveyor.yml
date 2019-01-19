@@ -1,0 +1,37 @@
+version: 1.0.{build}
+
+branches:
+  only:
+  - master
+
+environment:
+  STACK_ROOT: C:\sr
+  STACK_VERSION: 1.9.3
+
+  matrix:
+    - STACK_YAML: stack.yaml
+
+install:
+  - choco install -y haskell-stack --version %STACK_VERSION%
+  - stack setup > nul
+
+cache:
+  - C:\sr -> '%STACK_YAML%'
+  - .stack-work -> '%STACK_YAML%'
+
+build_script:
+  - stack build
+  - stack install --local-bin-path bin
+  - 7z a "bin\windows.tar.gz" "%APPVEYOR_BUILD_FOLDER%\bin\spago.exe"
+
+artifacts:
+  - path: bin\windows.tar.gz
+    name: spago
+
+deploy:
+  - provider: GitHub
+    auth_token:
+      secure: fJUuBdSozxDLZP2sDiBXf4dEjdSJPBhZvwI/3FII+4RNxow0wGEX5ZzEyeK2wN7q
+    artifact: spago
+    on:
+      APPVEYOR_REPO_TAG: true
