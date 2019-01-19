@@ -291,7 +291,7 @@ test maybeModuleName paths passthroughArgs = do
     T.ExitFailure n -> die $ "Tests failed: " <> T.repr n
   where
     moduleName = fromMaybe (ModuleName "Test.Main") maybeModuleName
-    cmd = "node -e 'require(\"./output/" <> unModuleName moduleName <> "\").main()'"
+    cmd = "node -e \"require('./output/" <> unModuleName moduleName <> "').main()\""
 
 
 prepareBundleDefaults :: Maybe ModuleName -> Maybe TargetPath -> (ModuleName, TargetPath)
