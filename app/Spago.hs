@@ -11,14 +11,17 @@ module Spago
   , listPackages
   , ModuleName(..)
   , TargetPath(..)
+  , SourcePath(..)
   , WithMain(..)
+  , PursArg(..)
+  ,
   ) where
 
 import qualified Control.Concurrent.Async.Pool as Async
 import           Control.Exception             (Exception, SomeException, handle, onException,
                                                 throwIO, try)
 import           Control.Monad.IO.Class        (liftIO)
-import           Data.Foldable                 (for_)
+import           Data.Foldable                 (for_, traverse_)
 import qualified Data.List                     as List
 import qualified Data.Map                      as Map
 import           Data.Maybe                    (fromMaybe)
@@ -31,7 +34,7 @@ import qualified Dhall.Pretty                  as Dhall.Pretty
 import qualified Paths_spago                   as Pcli
 import           System.IO                     (hPutStrLn)
 import qualified System.Process                as Process
-import qualified Turtle                        as T
+import qualified Turtle                        as T hiding (die, echo)
 
 import qualified PscPackage
 import           Spago.Config
@@ -222,21 +225,21 @@ install maybeLimit = do
     -- limited by specifying an option
     limit = fromMaybe 100 maybeLimit
 
+
 -- | A list of the packages that can be added to this project
 listPackages :: IO ()
 listPackages = do
-    config <- ensureConfig
-    let names = getPackageNames config
-    _ <- traverse echo names
-    pure ()
+  config <- ensureConfig
+  traverse_ echo $ getPackageNames config
 
-    where
-      -- | Get all the package names from the configuration
-      getPackageNames :: Config -> [Text]
-      getPackageNames Config {packages = pkgs } =
-        map toText $ Map.toList pkgs
-      toText (PackageName{..},Package{..}) =
-         packageName <> " (" <> version <> ", " <> repo <> ")"
+  where
+    -- | Get all the package names from the configuration
+    getPackageNames :: Config -> [Text]
+    getPackageNames Config {packages = pkgs } =
+      map toText $ Map.toList pkgs
+
+    toText (PackageName{..},Package{..}) =
+      packageName <> " (" <> version <> ", " <> repo <> ")"
 
 
 -- | Get source globs of dependencies listed in `spago.dhall`
@@ -252,40 +255,42 @@ sources = do
 
 -- | Build the project with purs, passing through
 --   the additional args in the list
-build :: [TargetPath] -> [T.Text] -> IO ()
-build sourcePaths passthroughArgs = do
+build :: (Maybe Int) -> [SourcePath] -> [PursArg] -> IO ()
+build maybeLimit sourcePaths passthroughArgs = do
   config <- ensureConfig
+  install maybeLimit
   let
     deps  = getAllDependencies config
-    globs = getGlobs deps <> ["src/**/*.purs", "test/**/*.purs"] <> map unTargetPath sourcePaths
+    globs = getGlobs deps <> ["src/**/*.purs", "test/**/*.purs"] <> map unSourcePath sourcePaths
     paths = Text.intercalate " " $ surroundQuote <$> globs
-    args  = Text.intercalate " " passthroughArgs
+    args  = Text.intercalate " " $ map unPursArg passthroughArgs
     cmd = "purs compile " <> args <> " " <> paths
   T.shell cmd T.empty >>= \case
     T.ExitSuccess -> echo "Build succeeded."
-    T.ExitFailure n -> do
-      die ("Failed to build: " <> T.repr n)
+    T.ExitFailure _ -> die ""
 
 
 newtype ModuleName = ModuleName { unModuleName :: T.Text }
 newtype TargetPath = TargetPath { unTargetPath :: T.Text }
+newtype SourcePath = SourcePath { unSourcePath :: T.Text }
+newtype PursArg = PursArg { unPursArg :: T.Text }
 
 data WithMain = WithMain | WithoutMain
 
-repl :: [TargetPath] -> [T.Text] -> IO ()
+repl :: [SourcePath] -> [PursArg] -> IO ()
 repl sourcePaths passthroughArgs = do
   config <- ensureConfig
   let
     deps  = getAllDependencies config
-    globs = getGlobs deps <> ["src/**/*.purs", "test/**/*.purs"] <> map unTargetPath sourcePaths
-    args  = Text.unpack <$> ["repl"] <> globs <> passthroughArgs
+    globs = getGlobs deps <> ["src/**/*.purs", "test/**/*.purs"] <> map unSourcePath sourcePaths
+    args  = Text.unpack <$> ["repl"] <> globs <> map unPursArg passthroughArgs
   T.view $ liftIO $ Process.callProcess "purs" args
 
 -- | Test the project: compile and run the Test.Main
 --   (or the provided module name) with node
-test :: Maybe ModuleName -> [TargetPath] -> [T.Text] -> IO ()
-test maybeModuleName paths passthroughArgs = do
-  build paths passthroughArgs
+test :: Maybe ModuleName -> Maybe Int -> [SourcePath] -> [PursArg] -> IO ()
+test maybeModuleName maybeLimit paths passthroughArgs = do
+  build maybeLimit paths passthroughArgs
   T.shell cmd T.empty >>= \case
     T.ExitSuccess   -> echo "Tests succeeded."
     T.ExitFailure n -> die $ "Tests failed: " <> T.repr n
