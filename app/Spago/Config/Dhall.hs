@@ -14,8 +14,6 @@ import           Dhall
 import           Dhall.Core                            as Dhall hiding (Type, pretty)
 import qualified Dhall.Map
 import qualified Dhall.Parser                          as Parser
-import           Turtle                                (MonadIO)
-import Data.Foldable (fold)
 
 
 type DhallExpr a = Dhall.Expr Parser.Src a
@@ -89,13 +87,6 @@ instance (Pretty a) => Show (ReadError a) where
         , "The value was instead:"
         , ""
         , "↳ " <> pretty tl
-        ]
-      msg (DependenciesIsNotList e) =
-        [ "Explanation: The \"dependencies\" key must contain a list of package names."
-        , ""
-        , "The value was instead:"
-        , ""
-        , "↳ " <> pretty e
         ]
       msg (DependenciesIsNotList e) =
         [ "Explanation: The \"dependencies\" key must contain a list of package names."

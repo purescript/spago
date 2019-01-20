@@ -157,6 +157,7 @@ makeConfig force = do
                   ( "Warning: found a \"psc-package.json\" file, "
                     <> "but was not able to read it, skipping the conversion..")
       Right pscConfig -> do
+        echo "Found a \"psc-package.json\" file, migrating to a new Spago config.."
         -- update the project name
         withConfigAST $ \config -> config { rawName = (PscPackage.name pscConfig) }
         -- TODO: check if all dependencies are in package set
