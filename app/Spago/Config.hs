@@ -1,37 +1,39 @@
-{-# LANGUAGE GADTs #-}
 module Spago.Config
   ( makeConfig
   , ensureConfig
-  , addDependency
+  , addDependencies
   , Config(..)
   ) where
 
-import           Control.Exception                     (Exception, throwIO, try)
-import           Control.Monad.IO.Class                (liftIO)
-import           Data.Aeson
-import           Data.Foldable                         (toList)
-import qualified Data.List                             as List
-import qualified Data.Map                              as Map
-import qualified Data.Sequence                         as Seq
-import           Data.Text                             (Text)
-import qualified Data.Text                             as Text
-import           Data.Text.Prettyprint.Doc             (Pretty)
-import qualified Data.Text.Prettyprint.Doc             as Pretty
-import qualified Data.Text.Prettyprint.Doc.Render.Text as PrettyText
-import           Data.Typeable                         (Typeable)
-import qualified Dhall
-import qualified Dhall.Core                            as Dhall
+import           Control.Exception         (throwIO, try)
+import           Control.Monad.IO.Class    (liftIO)
+import           Data.Aeson                (FromJSON, ToJSON)
+import qualified Data.Aeson                as JSON
+import           Data.Either               (lefts, rights)
+import           Data.Foldable             (toList)
+import qualified Data.List                 as List
+import qualified Data.Map                  as Map
+import qualified Data.Sequence             as Seq
+import           Data.Text                 (Text)
+import qualified Data.Text                 as Text
+import qualified Data.Text.Encoding        as Text
+import           Data.Text.Prettyprint.Doc (Pretty)
+import           Data.Typeable             (Typeable)
 import qualified Dhall.Format
+import qualified Dhall.Import
 import qualified Dhall.Map
-import qualified Dhall.Parser                          as Parser
+import qualified Dhall.Parser              as Parser
 import qualified Dhall.Pretty
-import           Dhall.TypeCheck                       (X)
+import           Dhall.TypeCheck           (X)
 import qualified Dhall.TypeCheck
-import           GHC.Generics                          (Generic)
-import qualified Turtle                                as T hiding (die, echo)
+import           GHC.Generics              (Generic)
+import qualified Turtle                    as T hiding (die, echo)
 
-import           Spago.Spacchetti                      (Package, PackageName (..), Packages)
-import qualified Spago.Templates                       as Templates
+import qualified PscPackage                as PscPkg
+import qualified PscPackage.Types          as PscPackage
+import qualified Spago.Config.Dhall        as Dhall
+import           Spago.Spacchetti          (Package, PackageName (..), Packages)
+import qualified Spago.Templates           as Templates
 import           Spago.Turtle
 
 
@@ -48,88 +50,32 @@ data Config = Config
   { name         :: Text
   , dependencies :: [PackageName]
   , packages     :: Packages
-  }
-  deriving (Show, Generic)
+  } deriving (Show, Generic)
 
 instance ToJSON Config
 instance FromJSON Config
 
--- | Spago configuration cannot be read
-data ConfigReadError a where
- WrongPackageType      :: Typeable a => Dhall.Expr Parser.Src a -> ConfigReadError a
-   -- ^ a package has the wrong type
- ConfigIsNotRecord     :: Typeable a => Dhall.Expr Parser.Src a -> ConfigReadError a
-   -- ^ the toplevel value is not a record
- PackagesIsNotRecord   :: Typeable a => Dhall.Expr Parser.Src a -> ConfigReadError a
-   -- ^ the "packages" key is not a record
- DependenciesIsNotList :: Typeable a => Dhall.Expr Parser.Src a -> ConfigReadError a
-   -- ^ the "dependencies" key is not a list
- ExprIsNotTextLit      :: Typeable a => Dhall.Expr Parser.Src a -> ConfigReadError a
-   -- ^ the expression is not a Text Literal
- KeyIsMissing          :: Typeable a => Text -> ConfigReadError a
-   -- ^ a key is missing from the config
 
-instance (Pretty a, Typeable a) => Exception (ConfigReadError a)
+-- | Type to represent the "raw" configuration,
+--   which is a configuration which has been parsed from Dhall,
+--   but not yet resolved (this is used to manipulate the AST directly)
+--
+--   Note: not all the values from the configuration are included here.
+--
+--   Note: this limits the amount of stuff that one can do in Dhall inside
+--   the configuration. E.g. you won't be able to have a dependency that
+--   is not a string in the list of dependencies of the project.
+data RawConfig = RawConfig
+  { rawName :: Text
+  , rawDeps :: [PackageName]
+  -- TODO: add packages if needed
+  } deriving (Show, Generic)
 
-instance (Pretty a) => Show (ConfigReadError a) where
-  show err = Text.unpack $ Text.intercalate "\n" $
-    [ _ERROR <> ": Error while reading spago.dhall:"
-    , "" ]
-    <> msg err
-
-    where
-      msg :: ConfigReadError a -> [Dhall.Text]
-      msg (WrongPackageType pkg) =
-        [ "Explanation: The outermost record must only contain packages."
-        , ""
-        , "The following field was not a package:"
-        , ""
-        , "↳ " <> pretty pkg
-        ]
-      msg (PackagesIsNotRecord tl) =
-        [ "Explanation: The \"packages\" key must contain a record of packages."
-        , ""
-        , "The value was instead:"
-        , ""
-        , "↳ " <> pretty tl
-        ]
-      msg (DependenciesIsNotList e) =
-        [ "Explanation: The \"dependencies\" key must contain a list of package names."
-        , ""
-        , "The value was instead:"
-        , ""
-        , "↳ " <> pretty e
-        ]
-      msg (ConfigIsNotRecord tl) =
-        [ "Explanation: The config should be a record."
-        , ""
-        , "Its type is instead:"
-        , ""
-        , "↳ " <> pretty tl
-        ]
-      msg (KeyIsMissing key) =
-        [ "Explanation: the configuration is missing a required key."
-        , ""
-        , "The key missing is:"
-        , ""
-        , "↳ " <> key
-        ]
-      msg (ExprIsNotTextLit e) =
-        [ "Explanation: the configuration contained a value that we expected to be"
-        , "a string, but wasn't."
-        , ""
-        , "The value was instead:"
-        , ""
-        , "↳ " <> pretty e
-        ]
-
-      _ERROR :: Dhall.Text
-      _ERROR = "\ESC[1;31mError\ESC[0m"
-
-pretty :: Pretty.Pretty a => Dhall.Expr s a -> Dhall.Text
-pretty = PrettyText.renderStrict
-  . Pretty.layoutPretty Pretty.defaultLayoutOptions
-  . Pretty.pretty
+data RawPackages = RawPackages
+  { mkPackage :: Dhall.Import
+  , upstream  :: Dhall.Import
+  -- TODO: add additions and overrides if needed
+  } deriving (Show, Generic)
 
 
 -- | Tries to read in a Spago Config
@@ -144,18 +90,18 @@ parseConfig dhallText = do
       packages <- case Dhall.Map.lookup "packages" ks of
           Just (Dhall.RecordLit pkgs) -> (Map.mapKeys PackageName . Dhall.Map.toMap)
             <$> Dhall.Map.traverseWithKey toPkg pkgs
-          Just something -> throwIO $ PackagesIsNotRecord something
-          Nothing        -> throwIO $ (KeyIsMissing "packages" :: ConfigReadError Dhall.Import)
+          Just something -> throwIO $ Dhall.PackagesIsNotRecord something
+          Nothing        -> throwIO $ Dhall.RequiredKeyMissing "packages" ks
 
       pure Config{..}
     _ -> case Dhall.TypeCheck.typeOf expr of
-      Right e  -> throwIO $ ConfigIsNotRecord e
+      Right e  -> throwIO $ Dhall.ConfigIsNotRecord e
       Left err -> throwIO $ err
 
   where
     required ks name typ = case (Dhall.Map.lookup name ks >>= Dhall.extract typ) of
       Just v  -> pure v
-      Nothing -> liftIO $ throwIO $ (KeyIsMissing name :: ConfigReadError Dhall.Import)
+      Nothing -> liftIO $ throwIO $ Dhall.RequiredKeyMissing name ks
 
     pkgT      = Dhall.genericAuto :: Dhall.Type Package
     pkgNameT  = Dhall.auto :: Dhall.Type PackageName
@@ -174,7 +120,8 @@ parseConfig dhallText = do
       -- which is needed for @extract@ to type check with @eAnnot@
       case Dhall.extract pkgT $ Dhall.normalize $ eAnnot of
         Just x  -> pure x
-        Nothing -> throwIO $ WrongPackageType pkgExpr
+        Nothing -> throwIO $ Dhall.WrongPackageType pkgExpr
+
 
 -- | Checks that the Spago config is there and readable
 ensureConfig :: IO Config
@@ -184,7 +131,8 @@ ensureConfig = do
   configText <- T.readTextFile path
   try (parseConfig configText) >>= \case
     Right config -> pure config
-    Left (err :: ConfigReadError Dhall.Import) -> throwIO err
+    Left (err :: Dhall.ReadError Dhall.Import) -> throwIO err
+
 
 -- | Copies over `spago.dhall` to set up a Spago project
 makeConfig :: Bool -> IO ()
@@ -195,63 +143,99 @@ makeConfig force = do
        $ "Found " <> pathText <> ": there's already a project here. "
       <> "Run `spago init --force` if you're sure you want to overwrite it."
   T.touch path
-  -- TODO: try to read a psc-package config, so we can migrate automatically
   T.writeTextFile path Templates.spagoDhall
-
   Dhall.Format.format Dhall.Pretty.Unicode (Just $ Text.unpack pathText)
 
--- | Takes a function that manipulates the Configuration Dhall AST,
+  -- We try to find an existing psc-package config, and we migrate the existing
+  -- content if we found one, otherwise we copy the default template
+  pscfileExists <- T.testfile PscPkg.configPath
+  T.when pscfileExists $ do
+    -- first, read the psc-package file content
+    content <- T.readTextFile PscPkg.configPath
+    case JSON.eitherDecodeStrict $ Text.encodeUtf8 content of
+      Left _err -> echo
+                  ( "Warning: found a \"psc-package.json\" file, "
+                    <> "but was not able to read it, skipping the conversion..")
+      Right pscConfig -> do
+        -- update the project name
+        withConfigAST $ \config -> config { rawName = (PscPackage.name pscConfig) }
+        -- TODO: check if all dependencies are in package set
+        -- add the existing dependencies
+        withConfigAST $ addRawDeps $ map PackageName $ PscPackage.depends pscConfig
+
+
+-- | Takes a function that manipulates the Dhall AST of the Config,
 --   and tries to run it on the current config.
 --   If it succeeds, it writes back to file the result returned.
 --   Note: it will pass in the parsed AST, not the resolved one (so
 --   e.g. imports will still be in the tree). If you need the resolved
 --   one, use `ensureConfig`.
-withConfigAST
-  :: (Dhall.Expr Parser.Src Dhall.Import -> IO (Dhall.Expr Parser.Src Dhall.Import))
-  -> IO ()
-withConfigAST action = do
+withConfigAST :: (RawConfig -> RawConfig) -> IO ()
+withConfigAST transform = do
+  -- get a workable configuration
   exists <- T.testfile path
   T.unless exists $ makeConfig False
   configText <- T.readTextFile path
+
+  -- parse the config without resolving imports
   expr <- case Parser.exprFromText mempty configText of
-    Left err  -> throwIO err
-    Right ast -> action $ Dhall.denote ast
-  T.writeTextFile path $ pretty expr
+    Left  err -> throwIO err
+    Right ast -> case Dhall.denote ast of
+      -- remove Note constructors, and check if config is a record
+      Dhall.RecordLit ks -> do
+        rawConfig <- pure $ do
+          currentName <- Dhall.requireKey ks "name" Dhall.fromTextLit
+          currentDeps <- Dhall.requireKey ks "dependencies" toPkgsList
+          Right $ RawConfig currentName currentDeps
 
--- | Adds the `name` dependency to the "dependencies" list in the Config AST
-addDependencyAST
-  :: Text
-  -> Dhall.Expr Parser.Src Dhall.Import
-  -> IO (Dhall.Expr Parser.Src Dhall.Import)
-addDependencyAST name expr =
-  let
-    addToList "dependencies" (Dhall.ListLit typ deps) = do
-      texts <- traverse fromTextLit $ toList deps
-      pure $ Dhall.ListLit typ
-        $ Seq.fromList
-        $ fmap toTextLit
-        $ List.sort
-        $ List.nub
-        $ (:) name texts
-    addToList "dependencies" e = throwIO $ DependenciesIsNotList e
-    addToList _ val = pure val
-  in
+        -- apply the transformation if config is valid
+        RawConfig{..} <- case rawConfig of
+          Right conf -> pure $ transform conf
+          Left err -> do
+            echo ("Error while trying to parse "
+                  <> surroundQuote pathText
+                  <> ". Details:\n")
+            throwIO $ err
 
-  case expr of
-    Dhall.RecordLit config -> Dhall.RecordLit
-      <$> Dhall.Map.traverseWithKey addToList config
-    e -> throwIO $ ConfigIsNotRecord e
+        -- return the new AST from the new config
+        let
+          mkNewAST "name"         _ = Dhall.toTextLit rawName
+          mkNewAST "dependencies" _ = Dhall.ListLit Nothing
+            $ Seq.fromList
+            $ fmap Dhall.toTextLit
+            $ fmap packageName rawDeps
+          mkNewAST _ v = v
+        pure $ Dhall.RecordLit $ Dhall.Map.mapWithKey mkNewAST ks
 
--- | Returns a Dhall Text literal from a lone string
-toTextLit :: Pretty a => Text -> Dhall.Expr Parser.Src a
-toTextLit str = Dhall.TextLit (Dhall.Chunks [] str)
+      e -> throwIO $ Dhall.ConfigIsNotRecord e
 
--- | Casts a Dhall Text literal to a string, or fails
-fromTextLit :: (Pretty a, Typeable a) => Dhall.Expr Parser.Src a -> IO Text
-fromTextLit (Dhall.TextLit (Dhall.Chunks [] str)) = pure str
-fromTextLit expr                                  = throwIO $ ExprIsNotTextLit expr
+  -- After modifying the expression, we have to check if it still typechecks
+  -- if it doesn't we don't write to file
+  resolvedExpr <- Dhall.Import.load expr
+  case Dhall.TypeCheck.typeOf resolvedExpr of
+    Left  err -> throwIO err
+    Right _   -> T.writeTextFile path $ Dhall.pretty expr
+
+  where
+    toPkgsList
+      :: (Pretty a, Typeable a)
+      => Dhall.Expr Parser.Src a
+      -> Either (Dhall.ReadError a) [PackageName]
+    toPkgsList (Dhall.ListLit _ pkgs) =
+      let
+        texts = fmap Dhall.fromTextLit $ toList pkgs
+      in
+      case (lefts texts) of
+        []  -> Right $ fmap PackageName $ rights texts
+        e:_ -> Left e
+    toPkgsList e = Left $ Dhall.DependenciesIsNotList e
+
+
+addRawDeps :: [PackageName] -> RawConfig -> RawConfig
+addRawDeps newDeps config = config
+  { rawDeps = List.sort $ List.nub (newDeps <> (rawDeps config)) }
 
 -- | Adds the `name` dependency to the "dependencies" list in the Config,
 --   sorts the dependencies, and writes the Config to file.
-addDependency :: Text -> IO ()
-addDependency name = withConfigAST (addDependencyAST name)
+addDependencies :: [PackageName] -> IO ()
+addDependencies = withConfigAST . addRawDeps

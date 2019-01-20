@@ -14,6 +14,12 @@ import           Spago.Dhall        (dhallToJSON)
 import qualified Spago.Templates    as Templates
 
 
+configPathText :: Text
+configPathText = "psc-package.json"
+
+configPath :: T.FilePath
+configPath = T.fromText configPathText
+
 pscPackageBasePathText :: Text
 pscPackageBasePathText = ".psc-package/local/.set/"
 
@@ -68,29 +74,26 @@ makePackagesDhall force command = do
 -- | unless `--force` has been used.
 makePscPackage :: Bool -> IO ()
 makePscPackage force = do
-  hasPscPackage <- T.testfile pscPackageJsonPath
+  hasPscPackage <- T.testfile configPath
   if hasPscPackage && not force
     then do
-      pscPackage <- T.readTextFile pscPackageJsonPath
+      pscPackage <- T.readTextFile configPath
       case JSON.eitherDecodeStrict $ Text.encodeUtf8 pscPackage of
         Left e -> T.die $ "The existing psc-package.json file is in the wrong format: " <>
           Text.pack e
         Right p -> do
-          T.writeTextFile pscPackageJsonPath $
+          T.writeTextFile configPath $
             Templates.encodePscPackage $ p { PscPackage.set = "local", PscPackage.source = "" }
           T.echo "An existing psc-package.json file was found and upgraded to use local package sets."
           T.echo $ "It's possible that some of the existing dependencies are not in the default spacchetti package set."
 
     else do
-      T.touch pscPackageJsonPath
+      T.touch configPath
       pwd <- T.pwd
       let projectName = case T.toText $ T.filename pwd of
             Left _  -> "my-project"
             Right n -> n
-      T.writeTextFile pscPackageJsonPath $ Templates.pscPackageJson projectName
-
-  where
-    pscPackageJsonPath = T.fromText "psc-package.json"
+      T.writeTextFile configPath $ Templates.pscPackageJson projectName
 
 
 -- | Create `packages.dhall` and update `psc-package.json` to use the local set
