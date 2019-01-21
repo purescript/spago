@@ -246,7 +246,7 @@ $ spago build --path 'another_source/**/*.purs'
 E.g. if you wish to output your files in some other place than `output/`, you can run
 
 ```bash
-spago build -- -o myOutput/
+$ spago build -- -o myOutput/
 ```
 
 Anyways, the above will create a whole lot of files, but you might want to get just a
