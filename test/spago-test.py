@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import os
+import json
 from utils import expect_success, expect_failure, fail, run_for, check_fixture
 
 
@@ -35,6 +36,29 @@ expect_success(
     ['spago', 'init', '-f'],
     "Spago should always succeed in doing init with force"
 )
+
+# Here we check that spago can import a project from psc-package
+with open('psc-package.json', 'w') as pscfile:
+    data = { "name": "aaa", "depends": [ "prelude" ], "set": "foo", "source": "bar" }
+    json.dump(data, pscfile)
+expect_success(
+    ['spago', 'init', '-f'],
+    "Spago should import config from psc-package"
+)
+os.rename('spago.dhall', 'spago-psc-success.dhall')
+check_fixture('spago-psc-success.dhall')
+
+# But should not import dependencies that are not in the package-set
+with open('psc-package.json', 'w') as pscfile:
+    data = { "name": "aaa", "depends": [ "prelude", "foo", "bar" ], "set": "foo", "source": "bar" }
+    json.dump(data, pscfile)
+expect_success(
+    ['spago', 'init', '-f'],
+    "Spago should not import dependencies that are not in the package-set"
+)
+os.rename('spago.dhall', 'spago-psc-failure.dhall')
+check_fixture('spago-psc-failure.dhall')
+
 
 ## spago install
 
@@ -99,6 +123,8 @@ check_fixture('module.js')
 ## Cleanup after tests
 
 expect_success(
-    ['rm', '-rf', '.spago', 'src', 'test', 'packages.dhall', 'spago.dhall', 'bundle.js', 'module.js', 'output', 'myOutput', 'another_source_path'],
+    ['rm', '-rf', '.spago', 'src', 'test', 'packages.dhall', 'spago.dhall', 'bundle.js',
+     'module.js', 'output', 'myOutput', 'another_source_path', 'psc-package.json',
+     'spago-psc-success.dhall', 'spago-psc-failure.dhall'],
     "Cleanup should empty the project folder"
 )

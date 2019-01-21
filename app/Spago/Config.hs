@@ -135,9 +135,10 @@ makeConfig force = do
     -- first, read the psc-package file content
     content <- T.readTextFile PscPkg.configPath
     case JSON.eitherDecodeStrict $ Text.encodeUtf8 content of
-      Left _err -> echo
-                  ( "Warning: found a \"psc-package.json\" file, "
-                    <> "but was not able to read it, skipping the conversion..")
+      Left _err -> do
+        echo ( "Warning: found a \"psc-package.json\" file, "
+               <> "but was not able to read it, skipping the conversion..")
+        echoStr $ show _err
       Right pscConfig -> do
         echo "Found a \"psc-package.json\" file, migrating to a new Spago config.."
         -- update the project name
@@ -154,11 +155,12 @@ makeConfig force = do
           -- If no packages are not in our set, add them to existing dependencies
           []   -> withConfigAST $ addRawDeps $ pscPackages
           pkgs -> echo
-                  ( "Some of the dependencies in your psc-package configuration "
-                    <> "were not found in spacchetti's package set, "
-                    <> "aborting the port of dependencies to your new spago config.\n"
-                    <> "These were:\n\n"
-                    <> (Text.intercalate "\n" $ map (\p -> "- " <> packageName p) pkgs))
+                  ( "\nSome of the dependencies in your psc-package configuration "
+                    <> "were not found in spacchetti's package set.\n"
+                    <> "Aborting the port of dependencies to your new spago config. "
+                    <> "We didn't find:\n"
+                    <> (Text.intercalate "\n" $ map (\p -> "- " <> packageName p) pkgs)
+                    <> "\n")
 
 
 -- | Takes a function that manipulates the Dhall AST of the Config,
