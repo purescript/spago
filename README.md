@@ -207,14 +207,14 @@ let additions =
   { facebook =
       mkPackage
         [ "console"
-		, "aff"
-		, "prelude"
-		, "foreign"
-		, "foreign-generic"
-		, "errors"
-		, "effect"
+        , "aff"
+        , "prelude"
+        , "foreign"
+        , "foreign-generic"
+        , "errors"
+        , "effect"
         ]
-		"https://github.com/Unisay/purescript-facebook.git"
+        "https://github.com/Unisay/purescript-facebook.git"
         "v0.3.0"
   }
 ```
