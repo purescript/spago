@@ -4,9 +4,11 @@ module Spago
   , sources
   , build
   , test
+  , repl
   , bundle
   , makeModule
   , printVersion
+  , listPackages
   , ModuleName(..)
   , TargetPath(..)
   , WithMain(..)
@@ -15,6 +17,7 @@ module Spago
 import qualified Control.Concurrent.Async.Pool as Async
 import           Control.Exception             (Exception, SomeException, handle, onException,
                                                 throwIO, try)
+import           Control.Monad.IO.Class        (liftIO)
 import           Data.Foldable                 (for_)
 import qualified Data.List                     as List
 import qualified Data.Map                      as Map
@@ -135,7 +138,6 @@ getPackageDir :: (PackageName, Package) -> Text
 getPackageDir (PackageName{..}, Package{..})
   = spagoDir <> packageName <> "/" <> version
 
-
 getGlobs :: [(PackageName, Package)] -> [Text]
 getGlobs = map (\pair -> getPackageDir pair <> "/src/**/*.purs")
 
@@ -189,7 +191,6 @@ getAllDependencies Config { dependencies = deps, packages = pkgs } =
               let newAcc = List.foldl' go acc innerDeps
               Map.insert dep x newAcc
 
-
 -- | Fetch all dependencies into `.spago/`
 install :: Maybe Int -> IO ()
 install maybeLimit = do
@@ -221,6 +222,22 @@ install maybeLimit = do
     -- limited by specifying an option
     limit = fromMaybe 100 maybeLimit
 
+-- | A list of the packages that can be added to this project
+listPackages :: IO ()
+listPackages = do
+    config <- ensureConfig
+    let names = getPackageNames config
+    _ <- traverse echo names
+    pure ()
+
+    where
+      -- | Get all the package names from the configuration
+      getPackageNames :: Config -> [Text]
+      getPackageNames Config {packages = pkgs } =
+        map toText $ Map.toList pkgs
+      toText (PackageName{..},Package{..}) =
+         packageName <> " (" <> version <> ", " <> repo <> ")"
+
 
 -- | Get source globs of dependencies listed in `spago.dhall`
 sources :: IO ()
@@ -233,15 +250,17 @@ sources = do
   pure ()
 
 
--- | Build the project with purs
-build :: IO ()
-build = do
+-- | Build the project with purs, passing through
+--   the additional args in the list
+build :: [TargetPath] -> [T.Text] -> IO ()
+build sourcePaths passthroughArgs = do
   config <- ensureConfig
   let
     deps  = getAllDependencies config
-    globs = getGlobs deps <> ["src/**/*.purs", "test/**/*.purs"]
+    globs = getGlobs deps <> ["src/**/*.purs", "test/**/*.purs"] <> map unTargetPath sourcePaths
     paths = Text.intercalate " " $ surroundQuote <$> globs
-    cmd = "purs compile " <> paths
+    args  = Text.intercalate " " passthroughArgs
+    cmd = "purs compile " <> args <> " " <> paths
   T.shell cmd T.empty >>= \case
     T.ExitSuccess -> echo "Build succeeded."
     T.ExitFailure n -> do
@@ -253,12 +272,20 @@ newtype TargetPath = TargetPath { unTargetPath :: T.Text }
 
 data WithMain = WithMain | WithoutMain
 
+repl :: [TargetPath] -> [T.Text] -> IO ()
+repl sourcePaths passthroughArgs = do
+  config <- ensureConfig
+  let
+    deps  = getAllDependencies config
+    globs = getGlobs deps <> ["src/**/*.purs", "test/**/*.purs"] <> map unTargetPath sourcePaths
+    args  = Text.unpack <$> ["repl"] <> globs <> passthroughArgs
+  T.view $ liftIO $ Process.callProcess "purs" args
 
 -- | Test the project: compile and run the Test.Main
 --   (or the provided module name) with node
-test :: Maybe ModuleName -> IO ()
-test maybeModuleName = do
-  build
+test :: Maybe ModuleName -> [TargetPath] -> [T.Text] -> IO ()
+test maybeModuleName paths passthroughArgs = do
+  build paths passthroughArgs
   T.shell cmd T.empty >>= \case
     T.ExitSuccess   -> echo "Tests succeeded."
     T.ExitFailure n -> die $ "Tests failed: " <> T.repr n

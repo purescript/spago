@@ -23,11 +23,18 @@ data Command
   -- | Get source globs of dependencies in spago.dhall
   | Sources
 
+  -- | Start a REPL.
+  | Repl [TargetPath] [T.Text]
+
   -- | Build the project paths src/ and test/
-  | Build
+  --   or the specified target paths
+  | Build [TargetPath] [T.Text]
+
+  -- | List available packages
+  | ListPackages
 
   -- | Test the project with some module, default Test.Main
-  | Test (Maybe ModuleName)
+  | Test (Maybe ModuleName) [TargetPath] [T.Text]
 
   -- | Bundle the project, with optional main and target path arguments
   | Bundle (Maybe ModuleName) (Maybe TargetPath)
@@ -66,7 +73,9 @@ parser
       = initProject
   T.<|> install
   T.<|> sources
+  T.<|> listPackages
   T.<|> build
+  T.<|> repl
   T.<|> test
   T.<|> bundle
   T.<|> makeModule
@@ -75,10 +84,13 @@ parser
   T.<|> pscPackageClean
   T.<|> version
   where
-    force      = T.switch "force" 'f' "Overwrite any project found in the current directory"
-    mainModule = T.optional (T.opt (Just . ModuleName) "main" 'm' "The main module to bundle")
-    toTarget   = T.optional (T.opt (Just . TargetPath) "to" 't' "The target file path")
-    limitJobs  = T.optional (T.optInt "jobs" 'j' "Limit the amount of jobs that can run concurrently")
+    force       = T.switch "force" 'f' "Overwrite any project found in the current directory"
+    mainModule  = T.optional (T.opt (Just . ModuleName) "main" 'm' "The main module to bundle")
+    toTarget    = T.optional (T.opt (Just . TargetPath) "to" 't' "The target file path")
+    limitJobs   = T.optional (T.optInt "jobs" 'j' "Limit the amount of jobs that can run concurrently")
+    sourcePaths = T.many (T.opt (Just . TargetPath) "path" 'p' "Source path to include")
+
+    passthroughArgs = T.many $ T.argText " ..any `purs` option" "Options passed through to `purs`; use -- to separate"
 
     pscPackageLocalSetup
       = T.subcommand "psc-package-local-setup" "Setup a local package set by creating a new packages.dhall"
@@ -104,13 +116,21 @@ parser
       = T.subcommand "sources" "List all the source paths (globs) for the dependencies of the project"
       $ pure Sources
 
+    listPackages
+      = T.subcommand "list-packages" "List packages available in your packages.dhall"
+      $ pure ListPackages
+
     build
       = T.subcommand "build" "Install the dependencies and compile the current package"
-      $ pure Build
+      $ Build <$> sourcePaths <*> passthroughArgs
+
+    repl
+      = T.subcommand "repl" "Start a REPL"
+      $ Repl <$> sourcePaths <*> passthroughArgs
 
     test
       = T.subcommand "test" "Test the project with some module, default Test.Main"
-      $ Test <$> mainModule
+      $ Test <$> mainModule <*> sourcePaths <*> passthroughArgs
 
     bundle
       = T.subcommand "bundle" "Bundle the project, with optional main and target path arguments"
@@ -135,14 +155,16 @@ main = do
 
   command <- T.options "Spago - manage your PureScript projects" parser
   case command of
-    Init force                 -> Spago.initProject force
-    Install limitJobs          -> Spago.install limitJobs
-    Sources                    -> Spago.sources
-    Build                      -> Spago.build
-    Test modName               -> Spago.test modName
-    Bundle modName tPath       -> Spago.bundle WithMain modName tPath
-    MakeModule modName tPath   -> Spago.makeModule modName tPath
-    Version                    -> Spago.printVersion
-    PscPackageLocalSetup force -> PscPackage.localSetup force
-    PscPackageInsDhall         -> PscPackage.insDhall
-    PscPackageClean            -> PscPackage.clean
+    Init force                  -> Spago.initProject force
+    Install limitJobs           -> Spago.install limitJobs
+    ListPackages                -> Spago.listPackages
+    Sources                     -> Spago.sources
+    Build paths pursArgs        -> Spago.build paths pursArgs
+    Test modName paths pursArgs -> Spago.test modName paths pursArgs
+    Repl paths pursArgs         -> Spago.repl paths pursArgs
+    Bundle modName tPath        -> Spago.bundle WithMain modName tPath
+    MakeModule modName tPath    -> Spago.makeModule modName tPath
+    Version                     -> Spago.printVersion
+    PscPackageLocalSetup force  -> PscPackage.localSetup force
+    PscPackageInsDhall          -> PscPackage.insDhall
+    PscPackageClean             -> PscPackage.clean
