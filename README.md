@@ -105,6 +105,9 @@ configuration into a new `spago.dhall` 😎
 Note: `spago` won't otherwise touch your `psc-package.json` file, so you'll have to
 remove it yourself.
 
+You'll note that most of the `psc-package` commands are the same in `spago`, so porting
+your existing build is just a matter of search-and-replace most of the times.
+
 ### Configuration file format
 
 It's indeed useful to know what's the format (or more precisely, the [Dhall][dhall]

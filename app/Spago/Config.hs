@@ -6,13 +6,13 @@ module Spago.Config
   ) where
 
 import           Control.Exception         (throwIO, try)
-import           Control.Monad.IO.Class    (liftIO)
 import           Data.Aeson                (FromJSON, ToJSON)
 import qualified Data.Aeson                as JSON
 import           Data.Either               (lefts, rights)
 import           Data.Foldable             (toList)
 import qualified Data.List                 as List
 import qualified Data.Map                  as Map
+import           Data.Maybe                (mapMaybe)
 import qualified Data.Sequence             as Seq
 import           Data.Text                 (Text)
 import qualified Data.Text                 as Text
@@ -84,43 +84,24 @@ parseConfig dhallText = do
   expr <- Dhall.inputExpr dhallText
   case expr of
     Dhall.RecordLit ks -> do
-      name         <- required ks "name" Dhall.strictText
-      dependencies <- required ks "dependencies" pkgNamesT
+      maybeConfig <- pure $ do
+        let packageTyp      = Dhall.genericAuto :: Dhall.Type Package
+            packageNamesTyp = Dhall.list (Dhall.auto :: Dhall.Type PackageName)
+        name         <- Dhall.requireTypedKey ks "name" Dhall.strictText
+        dependencies <- Dhall.requireTypedKey ks "dependencies" packageNamesTyp
+        packages     <- Dhall.requireKey ks "packages" $ \case
+          Dhall.RecordLit pkgs -> (Map.mapKeys PackageName . Dhall.Map.toMap)
+            <$> traverse (Dhall.coerceToType packageTyp) pkgs
+          something -> Left $ Dhall.PackagesIsNotRecord something
 
-      packages <- case Dhall.Map.lookup "packages" ks of
-          Just (Dhall.RecordLit pkgs) -> (Map.mapKeys PackageName . Dhall.Map.toMap)
-            <$> Dhall.Map.traverseWithKey toPkg pkgs
-          Just something -> throwIO $ Dhall.PackagesIsNotRecord something
-          Nothing        -> throwIO $ Dhall.RequiredKeyMissing "packages" ks
+        Right $ Config{..}
 
-      pure Config{..}
+      case maybeConfig of
+        Right config -> pure config
+        Left err     -> throwIO err
     _ -> case Dhall.TypeCheck.typeOf expr of
       Right e  -> throwIO $ Dhall.ConfigIsNotRecord e
       Left err -> throwIO $ err
-
-  where
-    required ks name typ = case (Dhall.Map.lookup name ks >>= Dhall.extract typ) of
-      Just v  -> pure v
-      Nothing -> liftIO $ throwIO $ Dhall.RequiredKeyMissing name ks
-
-    pkgT      = Dhall.genericAuto :: Dhall.Type Package
-    pkgNameT  = Dhall.auto :: Dhall.Type PackageName
-    pkgNamesT = Dhall.list pkgNameT
-
-    toPkg :: Text -> Dhall.Expr Parser.Src X -> IO Package
-    toPkg _packageName pkgExpr = do
-      -- we annotate the expression with the type we want,
-      -- then typeOf will check the type for us
-      let eAnnot = Dhall.Annot pkgExpr $ Dhall.expected pkgT
-      -- typeOf only returns the type, which we already know
-      let _typ = Dhall.TypeCheck.typeOf eAnnot
-      -- the normalize is not strictly needed (we already normalized
-      -- the expressions that were given to this function)
-      -- but it converts the @Dhall.Expr s a@ @s@ arguments to any @t@,
-      -- which is needed for @extract@ to type check with @eAnnot@
-      case Dhall.extract pkgT $ Dhall.normalize $ eAnnot of
-        Just x  -> pure x
-        Nothing -> throwIO $ Dhall.WrongPackageType pkgExpr
 
 
 -- | Checks that the Spago config is there and readable
@@ -131,10 +112,11 @@ ensureConfig = do
   configText <- T.readTextFile path
   try (parseConfig configText) >>= \case
     Right config -> pure config
-    Left (err :: Dhall.ReadError Dhall.Import) -> throwIO err
+    Left (err :: Dhall.ReadError X) -> throwIO err
 
 
--- | Copies over `spago.dhall` to set up a Spago project
+-- | Copies over `spago.dhall` to set up a Spago project.
+--   Eventually ports an existing `psc-package.json` to the new config.
 makeConfig :: Bool -> IO ()
 makeConfig force = do
   T.unless force $ do
@@ -159,10 +141,24 @@ makeConfig force = do
       Right pscConfig -> do
         echo "Found a \"psc-package.json\" file, migrating to a new Spago config.."
         -- update the project name
-        withConfigAST $ \config -> config { rawName = (PscPackage.name pscConfig) }
-        -- TODO: check if all dependencies are in package set
-        -- add the existing dependencies
-        withConfigAST $ addRawDeps $ map PackageName $ PscPackage.depends pscConfig
+        withConfigAST $ \config -> config { rawName = PscPackage.name pscConfig }
+        -- check if all dependencies are in package set
+        config <- ensureConfig
+        let pscPackages = map PackageName $ PscPackage.depends pscConfig
+        let notInSet = mapMaybe
+                         (\p -> case Map.lookup p (packages config) of
+                                 Just _  -> Nothing
+                                 Nothing -> Just p)
+                         pscPackages
+        case notInSet of
+          -- If no packages are not in our set, add them to existing dependencies
+          []   -> withConfigAST $ addRawDeps $ pscPackages
+          pkgs -> echo
+                  ( "Some of the dependencies in your psc-package configuration "
+                    <> "were not found in spacchetti's package set, "
+                    <> "aborting the port of dependencies to your new spago config.\n"
+                    <> "These were:\n\n"
+                    <> (Text.intercalate "\n" $ map (\p -> "- " <> packageName p) pkgs))
 
 
 -- | Takes a function that manipulates the Dhall AST of the Config,
