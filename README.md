@@ -27,6 +27,9 @@ PureScript package manager and build tool powered by [Dhall][dhall] and
   - [`psc-package-local-setup`](#psc-package-local-setup)
   - [`psc-package-insdhall`](#psc-package-insdhall)
 - [FAQ](#faq)
+    - [Hey wait we have a perfectly functional `pulp` right?](#hey-wait-we-have-a-perfectly-functional-pulp-right)
+    - [So if I use `spago make-module` this thing will compile all my js deps in the file?](#so-if-i-use-spago-make-module-this-thing-will-compile-all-my-js-deps-in-the-file)
+    - [So I added a new package to the `packages.dhall`, why is `spago` not installing it?](#so-i-added-a-new-package-to-the-packagesdhall-why-is-spago-not-installing-it)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
@@ -326,7 +329,7 @@ echo wrote packages.json to $TARGET
 
 ## FAQ
 
-> Hey wait we have a perfectly functional `pulp` right?
+#### Hey wait we have a perfectly functional `pulp` right?
 
 Yees, however:
 - `pulp` is a build tool, so you'll still have to use it with `bower` or `psc-package`.
@@ -340,7 +343,7 @@ Yees, however:
   we're doing here: integrating all the workflow in a single tool, `spago`, instead
   of having to use `pulp`, `psc-package`, `purp`, etc.
   
-> So if I use `spago make-module` this thing will compile all my js deps in the file?
+#### So if I use `spago make-module` this thing will compile all my js deps in the file?
 
 No. We only take care of PureScript land. In particular, `make-module` will do the
 most we can do on the PureScript side of things (dead code elimination), but will
@@ -348,7 +351,15 @@ leave the `require`s still in.
 To fill them in you should use the proper js tool of the day, at the time of
 writing [ParcelJS][parcel] looks like a good option.
 
-> So I added a new package to the `packages.dhall`, why is `spago` not installing it?
+If you wish to see an example of a project building with `spago` + `parceljs`, you
+can take a look at [affresco][affresco].  
+It is a PureScript monorepo of React-based components and apps.  
+The gist of it is that the PureScript apps in the repo are built with `spago build`
+(look in the `package.json` for it), but all the React components can be imported from
+JS apps as well, given that proper modules are built out of the PS sources (and for
+that `spago make-module` is used, you might want to take a look at the `build-purs.rb`).
+
+#### So I added a new package to the `packages.dhall`, why is `spago` not installing it?
 
 Adding a package to the package-set just includes it in the set of possible packages you
 can depend on. However if you wish `spago` to install it you should then add it to
@@ -368,3 +379,4 @@ the `dependencies` list in your `spago.dhall`.
 [spago-npm]: https://www.npmjs.com/package/purescript-spago
 [spago-latest-release]: https://github.com/spacchetti/spago/releases/latest
 [spago-issues]: https://github.com/spacchetti/spacchetti-cli/issues
+[affresco]: https://github.com/KSF-Media/affresco/tree/4b430b48059701a544dfb65b2ade07ef9f36328a
