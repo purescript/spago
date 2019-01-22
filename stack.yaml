@@ -2,8 +2,15 @@ resolver: lts-12.21
 packages:
 - .
 extra-deps:
-- dhall-1.19.1
-- dhall-json-1.2.5
+
+# Pinning to a commit due to https://github.com/dhall-lang/dhall-haskell/issues/788
+- git: https://github.com/dhall-lang/dhall-haskell
+  commit: 095ee6db61f858acd5ff04fddabc7dfcca6be365
+  subdirs:
+  - dhall
+  - dhall-json
+- cborg-json-0.2.1.0@sha256:af9137557002ca5308fe80570a9a29398dfb9708423870875223796760689ac3
+
 - dotgen-0.4.2
 - megaparsec-7.0.3
 - repline-0.2.0.0
