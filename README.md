@@ -20,11 +20,16 @@ PureScript package manager and build tool powered by [Dhall][dhall] and
   - [Configuration file format](#configuration-file-format)
 - [Commands](#commands)
   - [Package management](#package-management)
+    - [Listing available packages](#listing-available-packages)
+    - [Adding and overriding dependencies](#adding-and-overriding-dependencies)
   - [Building, bundling and testing a project](#building-bundling-and-testing-a-project)
 - [Can I use this with `psc-package`?](#can-i-use-this-with-psc-package)
   - [`psc-package-local-setup`](#psc-package-local-setup)
   - [`psc-package-insdhall`](#psc-package-insdhall)
 - [FAQ](#faq)
+    - [Hey wait we have a perfectly functional `pulp` right?](#hey-wait-we-have-a-perfectly-functional-pulp-right)
+    - [So if I use `spago make-module` this thing will compile all my js deps in the file?](#so-if-i-use-spago-make-module-this-thing-will-compile-all-my-js-deps-in-the-file)
+    - [So I added a new package to the `packages.dhall`, why is `spago` not installing it?](#so-i-added-a-new-package-to-the-packagesdhall-why-is-spago-not-installing-it)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
@@ -78,7 +83,9 @@ This last command will create a bunch of files:
 ```
 
 Convention note: `spago` expects your source files to be in `src/` and your
-test files in `test/`.
+test files in `test/`.  
+It is possible to include additional source paths when running some commands,
+like `build`, `test` or `repl`.
 
 Let's take a look at the two [Dhall][dhall] configuration files that `spago` requires:
 - `packages.dhall`: this file is meant to contain the *totality* of the packages
@@ -152,6 +159,70 @@ $ spago install
 ..then `spago` will download all the `dependencies` listed in `spago.dhall` (and
 store them in the `.spago` folder).
 
+#### Listing available packages
+
+It is sometimes useful to know which packages are contained in our package set 
+(e.g. to see which version we're using, or to search for packages).
+
+You can get a complete list of the packages your `packages.dhall` imports (together
+with their versions and URLs) by running:
+
+```bash
+$ spago list-packages
+```
+
+#### Adding and overriding dependencies
+
+Let's say I'm a user of the `react-basic` package. Now, let's say I stumble upon a bug
+in there, but thankfully I figure how to fix it. So I fork it, add my fix, and push
+to my fork.  
+Now if I want to use this fork in the current project, how can I tell `spago` to do it?
+
+We have a `overrides` record in `packages.dhall` just for that! And in this case it
+might look like this:
+
+```haskell
+let overrides =
+      { react-basic =
+            upstream.react-basic
+          ⫽ { repo =
+                "https://github.com/my-user/purescript-react-basic.git"
+            , version =
+                "my-branch-with-the-fix"
+            }
+      }
+```
+
+Note: currently support only branches and tags work as a `version`, and tags are
+recommended over branches (as for example if you push new commits to a branch,
+`spago` won't pick them up unless you delete the `.spago` folder).  
+Commit hashes are not supported yet, but hopefully will be at some point.
+
+If a package is not in the upstream package-set, you can add it in a similar way,
+by changing the `additions` record in the `packages.dhall` file.  
+E.g. if we want to add the `facebook` package:
+
+```haskell
+let additions =
+  { facebook =
+      mkPackage
+        [ "console"
+        , "aff"
+        , "prelude"
+        , "foreign"
+        , "foreign-generic"
+        , "errors"
+        , "effect"
+        ]
+        "https://github.com/Unisay/purescript-facebook.git"
+        "v0.3.0"
+  }
+```
+
+Once you verify that your application builds with the added packages, we would of
+course very much love if you could pull request it to the Upstream package-set,
+[spacchetti][spacchetti] ❤️🍝
+
 ### Building, bundling and testing a project
 
 We can then build the project and its dependencies by running:
@@ -175,7 +246,7 @@ $ spago build --path 'another_source/**/*.purs'
 E.g. if you wish to output your files in some other place than `output/`, you can run
 
 ```bash
-spago build -- -o myOutput/
+$ spago build -- -o myOutput/
 ```
 
 Anyways, the above will create a whole lot of files, but you might want to get just a
@@ -203,7 +274,7 @@ Bundling first...
 Bundle succeeded and output file to index.js
 Make module succeeded and output file to index.js
 
-> node -e "console.log(require('./index).main)"
+$ node -e "console.log(require('./index).main)"
 [Function]
 ```
 
@@ -215,6 +286,16 @@ $ spago test --main Test.Main
 Build succeeded.
 You should add some tests.
 Tests succeeded.
+```
+
+And last but not least, you can spawn a PureScript repl!  
+As with the `build` and `test` commands, you can add custom source paths
+to load, and pass options to the underlying `purs repl` by just putting
+them after `--`.  
+E.g. the following opens a repl on `localhost:3200`:
+
+```bash
+$ spago repl -- --port 3200
 ```
 
 ## Can I use this with `psc-package`?
@@ -248,7 +329,7 @@ echo wrote packages.json to $TARGET
 
 ## FAQ
 
-> Hey wait we have a perfectly functional `pulp` right?
+#### Hey wait we have a perfectly functional `pulp` right?
 
 Yees, however:
 - `pulp` is a build tool, so you'll still have to use it with `bower` or `psc-package`.
@@ -262,7 +343,7 @@ Yees, however:
   we're doing here: integrating all the workflow in a single tool, `spago`, instead
   of having to use `pulp`, `psc-package`, `purp`, etc.
   
-> So if I use `spago make-module` this thing will compile all my js deps in the file?
+#### So if I use `spago make-module` this thing will compile all my js deps in the file?
 
 No. We only take care of PureScript land. In particular, `make-module` will do the
 most we can do on the PureScript side of things (dead code elimination), but will
@@ -270,6 +351,33 @@ leave the `require`s still in.
 To fill them in you should use the proper js tool of the day, at the time of
 writing [ParcelJS][parcel] looks like a good option.
 
+If you wish to see an example of a project building with `spago` + `parcel`, a simple
+starting point is the [TodoMVC app with `react-basic`][todomvc].
+You can see in its `package.json` that a "production build" is just
+`spago build && parcel build index.html`.  
+If you open its `index.js` you'll see that it does a `require('./output/Todo.App')`:
+the files in `output` are generated by `spago build`, and then the `parcel` build resolves
+all the `require`s and bundles all these js files in.
+
+Though this is not the only way to include the built js - for a slimmer build or for importing
+some PureScript component in another js build we might want to use the output of `make-module`.
+
+For an example of this in a "production setting" you can take a look at [affresco][affresco].  
+It is a PureScript monorepo of React-based components and apps.  
+The gist of it is that the PureScript apps in the repo are built with `spago build`
+(look in the `package.json` for it), but all the React components can be imported from
+JS apps as well, given that proper modules are built out of the PS sources.  
+This is where `spago make-module` is used: the `build-purs.rb` builds a bundle out of every
+single React component in each component's folder - e.g. let's say we `make-module` from 
+the `ksf-login` component and output it in the `index.js` of the component's folder; we can
+then `yarn install` the single component (note it contains a `package.json`), and require it
+as a separate npm package with `require('@affresco/ksf-login')`.
+
+#### So I added a new package to the `packages.dhall`, why is `spago` not installing it?
+
+Adding a package to the package-set just includes it in the set of possible packages you
+can depend on. However if you wish `spago` to install it you should then add it to
+the `dependencies` list in your `spago.dhall`.  
 
 [spacchetti]: https://github.com/spacchetti/spacchetti
 [dhall]: https://github.com/dhall-lang/dhall-lang
@@ -285,3 +393,5 @@ writing [ParcelJS][parcel] looks like a good option.
 [spago-npm]: https://www.npmjs.com/package/purescript-spago
 [spago-latest-release]: https://github.com/spacchetti/spago/releases/latest
 [spago-issues]: https://github.com/spacchetti/spacchetti-cli/issues
+[affresco]: https://github.com/KSF-Media/affresco/tree/4b430b48059701a544dfb65b2ade07ef9f36328a
+[todomvc]: https://github.com/f-f/purescript-react-basic-todomvc
