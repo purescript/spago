@@ -267,7 +267,7 @@ build maybeLimit sourcePaths passthroughArgs = do
     cmd = "purs compile " <> args <> " " <> paths
   T.shell cmd T.empty >>= \case
     T.ExitSuccess -> echo "Build succeeded."
-    T.ExitFailure _ -> die ""
+    T.ExitFailure n -> die ("Failed to build: " <> T.repr n)
 
 
 newtype ModuleName = ModuleName { unModuleName :: T.Text }
