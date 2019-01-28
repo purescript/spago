@@ -17,6 +17,7 @@ PureScript package manager and build tool powered by [Dhall][dhall] and
 - [What does all of this mean?](#what-does-all-of-this-mean)
 - [Installation](#installation)
 - [Quickstart](#quickstart)
+  - [Switching from `psc-package`](#switching-from-psc-package)
   - [Configuration file format](#configuration-file-format)
 - [Commands](#commands)
   - [Package management](#package-management)
@@ -96,6 +97,19 @@ Let's take a look at the two [Dhall][dhall] configuration files that `spago` req
 - `spago.dhall`: this is your project configuration. It includes the above package-set,
   the list of your dependencies, and any other project-wide setting that `spago` will
   use for builds.
+
+### Switching from `psc-package`
+
+Do you have an existing `psc-package` project and want to switch to `spago`?
+
+No problem! If you run `spago init`, we'll port your existing `psc-package.json`
+configuration into a new `spago.dhall` 😎
+
+Note: `spago` won't otherwise touch your `psc-package.json` file, so you'll have to
+remove it yourself.
+
+You'll note that most of the `psc-package` commands are the same in `spago`, so porting
+your existing build is just a matter of search-and-replace most of the times.
 
 ### Configuration file format
 
