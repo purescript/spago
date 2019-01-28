@@ -18,8 +18,7 @@ module Spago
   ) where
 
 import qualified Control.Concurrent.Async.Pool as Async
-import           Control.Exception             (Exception, SomeException, handle, onException,
-                                                throwIO, try)
+import           Control.Exception             (SomeException, handle, try)
 import           Control.Monad.IO.Class        (liftIO)
 import           Data.Foldable                 (for_, traverse_)
 import qualified Data.List                     as List
@@ -29,72 +28,24 @@ import           Data.Text                     (Text)
 import qualified Data.Text                     as Text
 import           Data.Traversable              (for)
 import           Data.Version                  (showVersion)
-import qualified Dhall.Format                  as Dhall.Format
-import qualified Dhall.Pretty                  as Dhall.Pretty
 import qualified Paths_spago                   as Pcli
 import           System.IO                     (hPutStrLn)
 import qualified System.Process                as Process
 import qualified Turtle                        as T hiding (die, echo)
 
 import qualified PscPackage
-import           Spago.Config
+import           Spago.Config                  (Config (..))
+import qualified Spago.Config                  as Config
 import           Spago.Spacchetti              (Package (..), PackageName (..))
 import qualified Spago.Templates               as Templates
+import           Spago.Turtle
 
 
--- | Generic Error that we throw on program exit.
---   We have it so that errors are displayed nicely to the user
---   (the default Turtle.die is not nice)
-newtype SpagoError = SpagoError { _unError :: Text }
-instance Exception SpagoError
-instance Show SpagoError where
-  show (SpagoError err) = Text.unpack err
 
-
-echo :: Text -> IO ()
-echo = T.printf (T.s T.% "\n")
-
-echoStr :: String -> IO ()
-echoStr = echo . Text.pack
-
-die :: Text -> IO ()
-die reason = throwIO $ SpagoError reason
-
-surroundQuote :: Text -> Text
-surroundQuote y = "\"" <> y <> "\""
-
--- | Manage a directory tree as a resource, deleting it if we except during the @action@
---   NOTE: you should make sure the directory doesn't exist before calling this.
-withDirectory :: T.FilePath -> IO a -> IO a
-withDirectory dir action = (T.mktree dir >> action) `onException` (T.rmtree dir)
 
 -- | The directory in which spago will put its tempfiles
 spagoDir :: Text
 spagoDir = ".spago/"
-
-spagoDhallText :: Text
-spagoDhallText = "spago.dhall"
-
-spagoDhallPath :: T.FilePath
-spagoDhallPath = T.fromText spagoDhallText
-
-
--- | Copies over `spago.dhall` to set up a Spago project
-makeConfig :: Bool -> IO ()
-makeConfig force = do
-  -- Make sure .spago exists
-  T.mktree $ T.fromText spagoDir
-
-  T.unless force $ do
-    hasSpagoDhall <- T.testfile spagoDhallPath
-    T.when hasSpagoDhall $ die
-       $ "Found " <> spagoDhallText <> ": there's already a project here. "
-      <> "Run `spago init --force` if you're sure you want to overwrite it."
-  T.touch spagoDhallPath
-  -- TODO: try to read a psc-package config, so we can migrate automatically
-  T.writeTextFile spagoDhallPath Templates.spagoDhall
-
-  Dhall.Format.format Dhall.Pretty.Unicode (Just $ Text.unpack spagoDhallText)
 
 
 -- | Init a new Spago project:
@@ -106,7 +57,7 @@ initProject :: Bool -> IO ()
 initProject force = do
   -- packages.dhall and spago.dhall overwrite can be forced
   PscPackage.makePackagesDhall force "init"
-  makeConfig force
+  Config.makeConfig force
   T.mktree "src"
   T.mktree "test"
   -- But the other files in the template are just skipped if already there.
@@ -123,17 +74,6 @@ initProject force = do
       (T.testfile destPath) >>= \case
         True  -> echo ("Found existing " <> surroundQuote dest <> ", not overwriting it")
         False -> T.writeTextFile destPath srcTemplate
-
-
--- | Checks that the Spago config is there and readable
-ensureConfig :: IO Config
-ensureConfig = do
-  exists <- T.testfile spagoDhallPath
-  T.unless exists $ makeConfig False
-  configText <- T.readTextFile spagoDhallPath
-  try (parseConfig configText) >>= \case
-    Right config -> pure config
-    Left (err :: ConfigReadError) -> throwIO err
 
 
 -- | Returns the dir path for a given package
@@ -166,6 +106,17 @@ getDep pair@(PackageName{..}, Package{..} ) = do
 
     quotedName = surroundQuote packageName
 
+    -- TODO:
+    -- It is theoretically possible to put a commit hash in the ref to fetch,
+    -- however, for how the Github server works, unless a commit is less than
+    -- one hour old, you cannot `fetch` by commit hash
+    -- If you want a commit by sha, you have to clone the whole repo history
+    -- for a given ref (like master) and then look for the commit sha
+    -- However, on Github you can actually get a snapshot for a specific sha,
+    -- by calling archives/sha.tar.gz link.
+    -- So basically we can check if we are dealing with a Github url and a commit hash,
+    -- and if yes we fetch the tar.gz (instead of running this git commands), otherwise we fail
+
     cmd = Text.intercalate " && "
            [ "git init"
            , "git remote add origin " <> repo
@@ -197,7 +148,9 @@ getAllDependencies Config { dependencies = deps, packages = pkgs } =
 -- | Fetch all dependencies into `.spago/`
 install :: Maybe Int -> IO ()
 install maybeLimit = do
-  config <- ensureConfig
+  -- Make sure .spago exists
+  T.mktree $ T.fromText spagoDir
+  config <- Config.ensureConfig
   let deps = getAllDependencies config
   echoStr $ "Installing " <> show (List.length deps) <> " dependencies."
   Async.withTaskGroup limit $ \taskGroup -> do
@@ -229,13 +182,13 @@ install maybeLimit = do
 -- | A list of the packages that can be added to this project
 listPackages :: IO ()
 listPackages = do
-  config <- ensureConfig
+  config <- Config.ensureConfig
   traverse_ echo $ getPackageNames config
 
   where
     -- | Get all the package names from the configuration
     getPackageNames :: Config -> [Text]
-    getPackageNames Config {packages = pkgs } =
+    getPackageNames Config { packages = pkgs } =
       map toText $ Map.toList pkgs
 
     toText (PackageName{..},Package{..}) =
@@ -245,7 +198,7 @@ listPackages = do
 -- | Get source globs of dependencies listed in `spago.dhall`
 sources :: IO ()
 sources = do
-  config <- ensureConfig
+  config <- Config.ensureConfig
   let
     deps = getAllDependencies config
     globs = getGlobs deps
@@ -257,7 +210,7 @@ sources = do
 --   the additional args in the list
 build :: (Maybe Int) -> [SourcePath] -> [PursArg] -> IO ()
 build maybeLimit sourcePaths passthroughArgs = do
-  config <- ensureConfig
+  config <- Config.ensureConfig
   install maybeLimit
   let
     deps  = getAllDependencies config
@@ -279,7 +232,7 @@ data WithMain = WithMain | WithoutMain
 
 repl :: [SourcePath] -> [PursArg] -> IO ()
 repl sourcePaths passthroughArgs = do
-  config <- ensureConfig
+  config <- Config.ensureConfig
   let
     deps  = getAllDependencies config
     globs = getGlobs deps <> ["src/**/*.purs", "test/**/*.purs"] <> map unSourcePath sourcePaths
