@@ -150,8 +150,18 @@ install :: Maybe Int -> [PackageName] -> IO ()
 install maybeLimit packages = do
   -- Make sure .spago exists
   T.mktree $ T.fromText spagoDir
-  addDependencies packages
+
+  -- Only call addDependencies if new packages are supplied
+  case packages of
+    [] -> pure ()
+    additional -> 
+        -- Config is loaded here, because we will change it when
+        -- adding packages, we will reload it later on
+        -- (which will have the updates)
+        Config.ensureConfig >>= flip addDependencies additional
+
   config <- Config.ensureConfig
+
   let deps = getAllDependencies config
   echoStr $ "Installing " <> show (List.length deps) <> " dependencies."
   Async.withTaskGroup limit $ \taskGroup -> do
