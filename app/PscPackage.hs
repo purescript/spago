@@ -27,7 +27,7 @@ pscPackageBasePath :: T.FilePath
 pscPackageBasePath = T.fromText pscPackageBasePathText
 
 packagesDhallText :: Text
-packagesDhallText = "./packages.dhall"
+packagesDhallText = "packages.dhall"
 
 packagesDhallPath :: T.FilePath
 packagesDhallPath = T.fromText packagesDhallText
