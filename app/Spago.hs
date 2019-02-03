@@ -202,14 +202,15 @@ listPackages = do
     formatPackageNames Config { packages = pkgs } =
       let
         pkgsList = Map.toList pkgs
-        longestName = maximum $ Text.length . packageName . fst <$> pkgsList
-        longestVersion = maximum $ Text.length . version . snd <$> pkgsList
-      in map (toText longestName longestVersion) pkgsList
 
-    toText longestName longestVersion (PackageName{..},Package{..})
-      = leftPad longestName packageName <> " "
-      <> leftPad longestVersion version <> "   "
-      <> Text.pack (show repo)
+        longestName = maximum $ fmap (Text.length . packageName . fst) pkgsList
+        longestVersion = maximum $ fmap (Text.length . version . snd) pkgsList
+
+        renderPkg (PackageName{..},Package{..})
+          = leftPad longestName packageName <> " "
+          <> leftPad longestVersion version <> "   "
+          <> Text.pack (show repo)
+      in map renderPkg pkgsList
 
     leftPad :: Int -> Text -> Text
     leftPad n s
