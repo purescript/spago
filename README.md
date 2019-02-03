@@ -187,20 +187,63 @@ $ spago list-packages
 
 #### Adding and overriding dependencies
 
-Let's say I'm a user of the `react-basic` package. Now, let's say I stumble upon a bug
-in there, but thankfully I figure how to fix it. So I fork it, add my fix, and push
-to my fork.  
-Now if I want to use this fork in the current project, how can I tell `spago` to do it?
+Let's say I'm a user of the `simple-json` package. Now, let's say I stumble upon a bug
+in there, but thankfully I figure how to fix it. So I clone it locally and add my fix.  
+Now if I want to test this version in my current project, how can I tell `spago` to do it?
 
-We have a `overrides` record in `packages.dhall` just for that! And in this case it
-might look like this:
+We have a `overrides` record in `packages.dhall` just for that! And in this case we override
+the `repo` key with the local path of the package.  
+It might look like this:
 
 ```haskell
 let overrides =
-      { react-basic =
-            upstream.react-basic
+      { simple-json =
+            upstream.simple-json ⫽ { repo = "../purescript-simple-json" }
+      }
+```
+
+Note that if we `list-packages`, we'll see that it is now included as a local package:
+```bash
+$ spago list-packages
+...
+signal                v10.1.0   Remote "https://github.com/bodil/purescript-signal.git"
+sijidou               v0.1.0    Remote "https://github.com/justinwoo/purescript-sijidou.git"
+simple-json           v4.4.0    Local "../purescript-simple-json"
+simple-json-generics  v0.1.0    Remote "https://github.com/justinwoo/purescript-simple-json-generics.git"
+smolder               v11.0.1   Remote "https://github.com/bodil/purescript-smolder.git"
+...
+```
+
+And since local packages are just included in the build, if we add it to the `dependencies` 
+in `spago.dhall`, and then do `spago install`, it will not be downloaded:
+
+```
+$ spago install
+Installing 42 dependencies.
+...
+Installing "refs"
+Installing "identity"
+Skipping package "simple-json", using local path: "../purescript-simple-json"
+Installing "control"
+Installing "enums"
+...
+```
+
+..but its sources will be just included in the build.
+
+Let's now say that we test that our fix works, and we are ready to Pull Request the fix.  
+So we push our fork and open the PR, but while we wait for the fix to land on the next
+package-set release, we still want to use the fix in our production build.
+
+In this case, we can just change the override to point to some branch of our fork, like this:
+
+
+```haskell
+let overrides =
+      { simple-json =
+            upstream.simple-json
           ⫽ { repo =
-                "https://github.com/my-user/purescript-react-basic.git"
+                "https://github.com/my-user/purescript-simple-json.git"
             , version =
                 "my-branch-with-the-fix"
             }
