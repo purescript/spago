@@ -17,7 +17,7 @@ newtype PackageName = PackageName { packageName :: Text }
 -- | A spacchetti package.
 data Package = Package
   { dependencies :: [PackageName] -- ^ list of dependency package names
-  , repo         :: Repo          -- ^ the git repository
+  , repo         :: Repo          -- ^ the remote git repository or the local path
   , version      :: Text          -- ^ version string (also functions as a git ref)
   }
   deriving (Show, Generic)
@@ -27,9 +27,11 @@ instance FromJSON Package
 
 type Packages = Map PackageName Package
 
+-- | We consider a "Repo" a "box of source to include in the build"
+--   This can have different nature:
 data Repo
-  = Local Text
-  | Remote Text
+  = Local Text    -- ^ A local path
+  | Remote Text   -- ^ The address of a remote git repository
   deriving (Show, Generic)
 
 instance ToJSON Repo
@@ -38,6 +40,7 @@ instance FromJSON Repo
 instance Dhall.Interpret Repo where
   autoWith _ = makeRepo <$> Dhall.strictText
     where
+      -- We consider a "Remote" anything that `parseURI` thinks is a URI
       makeRepo path = case parseURI $ Text.unpack path of
         Just _uri -> Remote path
         Nothing   -> Local path
