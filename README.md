@@ -280,6 +280,26 @@ Once you verify that your application builds with the added packages, we would o
 course very much love if you could pull request it to the Upstream package-set,
 [spacchetti][spacchetti] ❤️🍝
 
+#### Upgrading the Package Set
+
+The version of the package-set you depend on is fixed in the `packages.dhall` file
+(look for the `upstream` var).
+
+You can upgrade to the latest version of Spacchetti with the `spacchetti-upgrade`
+command, that will automatically find out the latest version, download it, and write
+the new url and hashes in the `packages.dhall` file for you.
+
+Running it would look something like this:
+
+```bash
+$ spago spacchetti-upgrade
+Found the most recent tag for "spacchetti": 20190131
+Trying to read "packages.dhall"
+Package-set upgraded to latest tag "20190131"
+Fetching the new one and generating hashes.. (this might take some time)
+Done. Updating the local package-set file..
+```
+
 ### Building, bundling and testing a project
 
 We can then build the project and its dependencies by running:

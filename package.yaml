@@ -50,6 +50,7 @@ dependencies:
 - process
 - template-haskell
 - network-uri
+- github
 
 executables:
   spago:
