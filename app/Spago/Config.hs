@@ -324,8 +324,8 @@ upgradeSpacchetti = do
             echo $ "Package-set upgraded to latest tag "
               <> surroundQuote releaseTagName
               <> "\nFetching the new one and generating hashes.. (this might take some time)"
-            frozenMkPackages <- Dhall.Freeze.hashImport "." defaultStandardVersion mkPackage
-            frozenUpstream   <- Dhall.Freeze.hashImport "." defaultStandardVersion upstream
+            frozenMkPackages <- Dhall.Freeze.freezeImport "." defaultStandardVersion mkPackage
+            frozenUpstream   <- Dhall.Freeze.freezeImport "." defaultStandardVersion upstream
             pure $ RawPackages frozenMkPackages frozenUpstream
   where
     -- | Given an import and a new Spacchetti tag, upgrades the import to
