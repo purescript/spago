@@ -2,6 +2,7 @@ module Spago.Config
   ( makeConfig
   , ensureConfig
   , addDependencies
+  , upgradeSpacchetti
   , Config(..)
   ) where
 
@@ -11,6 +12,7 @@ import qualified Data.Aeson                as JSON
 import           Data.Either               (lefts, rights)
 import           Data.Foldable             (toList)
 import qualified Data.List                 as List
+import           Data.List.NonEmpty        (NonEmpty (..))
 import qualified Data.Map                  as Map
 import           Data.Maybe                (mapMaybe)
 import qualified Data.Sequence             as Seq
@@ -19,7 +21,9 @@ import qualified Data.Text                 as Text
 import qualified Data.Text.Encoding        as Text
 import           Data.Text.Prettyprint.Doc (Pretty)
 import           Data.Typeable             (Typeable)
+import           Dhall.Binary              (defaultStandardVersion)
 import qualified Dhall.Format
+import qualified Dhall.Freeze
 import qualified Dhall.Import
 import qualified Dhall.Map
 import qualified Dhall.Parser              as Parser
@@ -27,9 +31,10 @@ import qualified Dhall.Pretty
 import           Dhall.TypeCheck           (X)
 import qualified Dhall.TypeCheck
 import           GHC.Generics              (Generic)
+import qualified GitHub
 import qualified Turtle                    as T hiding (die, echo)
 
-import qualified PscPackage                as PscPkg
+import qualified PscPackage                as PscPackage
 import qualified PscPackage.Types          as PscPackage
 import qualified Spago.Config.Dhall        as Dhall
 import           Spago.Spacchetti          (Package, PackageName (..), Packages)
@@ -130,10 +135,10 @@ makeConfig force = do
 
   -- We try to find an existing psc-package config, and we migrate the existing
   -- content if we found one, otherwise we copy the default template
-  pscfileExists <- T.testfile PscPkg.configPath
+  pscfileExists <- T.testfile PscPackage.configPath
   T.when pscfileExists $ do
     -- first, read the psc-package file content
-    content <- T.readTextFile PscPkg.configPath
+    content <- T.readTextFile PscPackage.configPath
     case JSON.eitherDecodeStrict $ Text.encodeUtf8 content of
       Left _err -> do
         echo ( "Warning: found a \"psc-package.json\" file, "
@@ -238,3 +243,116 @@ addRawDeps newDeps config = config
 --   sorts the dependencies, and writes the Config to file.
 addDependencies :: [PackageName] -> IO ()
 addDependencies = withConfigAST . addRawDeps
+
+
+
+-- | Takes a function that manipulates the Dhall AST of the PackageSet,
+--   and tries to run it on the current packages.dhall
+--   If it succeeds, it writes back to file the result returned.
+--   Note: it will pass in the parsed AST, not the resolved one (so
+--   e.g. imports will still be in the tree). If you need the resolved
+--   one, use `ensureConfig`.
+withPackageSetAST :: (RawPackages -> IO RawPackages) -> IO ()
+withPackageSetAST transform = do
+  -- get a workable configuration
+  exists <- T.testfile PscPackage.packagesDhallPath
+  T.unless exists $ PscPackage.makePackagesDhall False "" -- TODO pass command here?
+  packageSetText <- T.readTextFile PscPackage.packagesDhallPath
+
+  -- parse the config without resolving imports
+  echo $ "Trying to read " <> surroundQuote PscPackage.packagesDhallText
+  (header, expr) <- case Parser.exprAndHeaderFromText mempty packageSetText of
+    Left  err -> throwIO err
+    Right (comment, ast) -> case Dhall.denote ast of
+      -- remove Note constructors, and match on the `let` shape
+      Dhall.Let
+        (Dhall.Binding "mkPackage" ann1 (Dhall.Embed mkPackageImport)
+          :| (Dhall.Binding "upstream" ann2 (Dhall.Embed upstreamImport)):rest)
+        body
+        -> do
+        -- run the transform on the package set
+        RawPackages{..} <- transform $ RawPackages mkPackageImport upstreamImport
+        -- rebuild it
+        pure $ (,) comment
+          $ Dhall.Let
+              (Dhall.Binding "mkPackage" ann1 (Dhall.Embed mkPackage)
+                :| (Dhall.Binding "upstream" ann2 (Dhall.Embed upstream)):rest)
+              body
+
+      e -> do
+        echo $ "Error while trying to parse "
+          <> surroundQuote PscPackage.packagesDhallText
+          <> ". Details:\n"
+        throwIO $ Dhall.CannotParsePackageSet e
+
+  -- After modifying the expression, we have to check if it still typechecks
+  -- if it doesn't we don't write to file
+  resolvedExpr <- Dhall.Import.load expr
+  case Dhall.TypeCheck.typeOf resolvedExpr of
+    Left  err -> throwIO err
+    Right _   -> do
+      echo "Done. Updating the local package-set file.."
+      T.writeTextFile PscPackage.packagesDhallPath
+        $ Dhall.prettyWithHeader header expr <> "\n"
+
+
+-- | Tries to upgrade the Spacchetti release of the local package set.
+--   It will:
+--   - try to read the latest tag from GitHub
+--   - try to read the current package-set file
+--   - try to replace the Spacchetti tag to which the package-set imports point to
+--     (if they point to the Spacchetti repo. This can be eventually made GitHub generic)
+--   - if all of this succeeds, it will regenerate the hashes and write to file
+upgradeSpacchetti :: IO ()
+upgradeSpacchetti = do
+  (GitHub.executeRequest' $ GitHub.latestReleaseR "spacchetti" "spacchetti") >>= \case
+    Left err -> do
+      echo "Could not reach GitHub. Error:\n"
+      throwIO err
+    Right GitHub.Release{..} -> do
+      echo ("Found the most recent tag for \"spacchetti\": " <> releaseTagName)
+      withPackageSetAST $ \packagesRaw -> do
+        maybePackages <- pure $ do
+          newMkPackages <- upgradeImport releaseTagName $ mkPackage packagesRaw
+          newUpstream   <- upgradeImport releaseTagName $ upstream packagesRaw
+          pure $ RawPackages newMkPackages newUpstream
+        case maybePackages of
+          Left wrongImport ->
+            throwIO $ (Dhall.ImportCannotBeUpdated wrongImport :: Dhall.ReadError Dhall.Import)
+          -- If everything is fine, refreeze the imports
+          Right RawPackages{..} -> do
+            echo $ "Package-set upgraded to latest tag "
+              <> surroundQuote releaseTagName
+              <> "\nFetching the new one and generating hashes.. (this might take some time)"
+            frozenMkPackages <- Dhall.Freeze.freezeImport "." defaultStandardVersion mkPackage
+            frozenUpstream   <- Dhall.Freeze.freezeImport "." defaultStandardVersion upstream
+            pure $ RawPackages frozenMkPackages frozenUpstream
+  where
+    -- | Given an import and a new Spacchetti tag, upgrades the import to
+    --   the tag and resets the hash
+    upgradeImport :: Text -> Dhall.Import -> Either Dhall.Import Dhall.Import
+    upgradeImport newTag Dhall.Import
+      { importHashed = Dhall.ImportHashed
+        { importType = Dhall.Remote Dhall.URL
+          -- Check if we're dealing with the Spacchetti repo
+          { authority = "raw.githubusercontent.com"
+          , path = Dhall.File
+            { directory = Dhall.Directory
+              { components = [ "src", _currentTag, "spacchetti", "spacchetti" ]}
+            , ..
+            }
+          , ..
+          }
+        , ..
+        }
+      , ..
+      } =
+      let components = [ "src", newTag, "spacchetti", "spacchetti" ]
+          directory = Dhall.Directory{..}
+          newPath = Dhall.File{..}
+          authority = "raw.githubusercontent.com"
+          importType = Dhall.Remote Dhall.URL { path = newPath, ..}
+          newHash = Nothing -- Reset the hash here, as we'll refreeze
+          importHashed = Dhall.ImportHashed { hash = newHash, ..}
+      in Right Dhall.Import{..}
+    upgradeImport _ imp = Left imp
