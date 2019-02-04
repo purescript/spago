@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+
+
+# Get the latest spacchetti tag
+export UPSTREAM_TAG=$(wget -q -O - https://github.com/spacchetti/spacchetti/releases/latest --server-response --max-redirect 0 2>&1 | sed -n -e 's/.*Location:.*tag\///p')
+
+# Then get the tag in the current template
+export CURRENT_TAG=$(cat templates/packages.dhall | grep "packages.dhall"  | sed -e "s|.*/spacchetti/spacchetti/||g" | sed "s|/src.*||g")
+
+
+error_text=$(cat <<-END
+
+The Spacchetti version in spago's template is outdated, let's upgrade it.
+
+Current tag:  $CURRENT_TAG
+Upstream tag: $UPSTREAM_TAG
+
+To fix this, run the following command in your spago repo:
+
+>>> cd templates && spago spacchetti-upgrade
+
+END
+)
+
+
+# If it's not the same, fail and ask the user to update it
+if [ "$UPSTREAM_TAG" != "$CURRENT_TAG" ]; then
+    echo "$error_text"
+    exit 1
+fi

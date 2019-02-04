@@ -26,6 +26,11 @@ pretty = PrettyText.renderStrict
   . Pretty.layoutPretty Pretty.defaultLayoutOptions
   . Pretty.pretty
 
+-- | Prettyprint a Dhall expression adding a comment on top
+prettyWithHeader :: Pretty.Pretty a => Text -> DhallExpr a -> Dhall.Text
+prettyWithHeader header expr = do
+  let doc = Pretty.pretty header <> Pretty.pretty expr
+  PrettyText.renderStrict $ Pretty.layoutSmart Pretty.defaultLayoutOptions doc
 
 -- | Returns a Dhall Text literal from a lone string
 toTextLit :: Pretty a => Text -> DhallExpr a
@@ -93,6 +98,10 @@ data ReadError a where
    -- ^ the "dependencies" key is not a list
  ExprIsNotTextLit      :: Typeable a => DhallExpr a -> ReadError a
    -- ^ the expression is not a Text Literal
+ CannotParsePackageSet :: Typeable a => DhallExpr a -> ReadError a
+   -- ^ the packages.dhall could not be parsed
+ ImportCannotBeUpdated :: Typeable a => Dhall.Import -> ReadError a
+   -- ^ the Import is not pointing to Spacchetti
  RequiredKeyMissing    :: Typeable a => Text -> Dhall.Map.Map Text (DhallExpr a) -> ReadError a
    -- ^ a key is missing from a Dhall map
 
@@ -156,6 +165,21 @@ instance (Pretty a) => Show (ReadError a) where
         , "The value was instead:"
         , ""
         , "↳ " <> pretty e
+        ]
+      msg (CannotParsePackageSet e) =
+        [ "Explanation: it was not possible to parse the `packages.dhall` file."
+        , ""
+        , "This is its Dhall expression:"
+        , ""
+        , "↳ " <> pretty e
+        ]
+      msg (ImportCannotBeUpdated imp) =
+        [ "Explanation: one of the imports in your `packages.dhall` file was not"
+        , "pointing to Spacchetti, thus it couldn't be upgraded."
+        , ""
+        , "The import was:"
+        , ""
+        , "↳ " <> pretty (Dhall.Embed imp)
         ]
 
       _ERROR :: Dhall.Text

@@ -28,7 +28,7 @@ echo = Turtle.printf (Turtle.s Turtle.% "\n")
 echoStr :: String -> IO ()
 echoStr = echo . Text.pack
 
-die :: Text -> IO ()
+die :: Text -> IO a
 die reason = throwIO $ SpagoError reason
 
 surroundQuote :: Text -> Text
