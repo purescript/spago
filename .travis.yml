@@ -14,7 +14,7 @@ services:
 
 matrix:
   include:
-  # BBuild on Linux with docker
+  # Build on Linux with docker
   - env: BUILD=stack ARGS=""
     compiler: ": #stack default"
 
@@ -84,6 +84,7 @@ script:
       docker run --mount src="$(pwd)",target=/home/ubuntu/spago,type=bind nilrecurring/haskell-lavello:lts-12 /bin/bash -c "cd spago; stack build --copy-bins --local-bin-path ./artifacts"
     fi
   - export PATH="${PATH}:$(pwd)/artifacts"
+  - ./scripts/check-spacchetti-version
   - npm install -g purescript@0.12.1
   - cd test/spago-test/ && python3 ../spago-test.py && cd ../../
   - npm install -g psc-package@3.0.1

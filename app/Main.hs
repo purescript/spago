@@ -6,8 +6,9 @@ import qualified Turtle             as T
 
 import qualified PscPackage
 import           Spago              (ModuleName (..), PursArg (..), SourcePath (..),
-                                     TargetPath (..), WithMain(..), PackageName (..))
+                                     TargetPath (..), WithMain (..), PackageName (..))
 import qualified Spago
+import qualified Spago.Config
 
 
 -- | Commands that this program handles
@@ -43,6 +44,8 @@ data Command
   -- | Bundle a module into a CommonJS module
   | MakeModule (Maybe ModuleName) (Maybe TargetPath)
 
+  -- | Upgrade the package-set to the latest release
+  | SpacchettiUpgrade
 
   -- | ### Commands for working with Psc-Package
   --
@@ -80,6 +83,7 @@ parser
   T.<|> test
   T.<|> bundle
   T.<|> makeModule
+  T.<|> spacchettiUpgrade
   T.<|> pscPackageLocalSetup
   T.<|> pscPackageInsDhall
   T.<|> pscPackageClean
@@ -141,6 +145,10 @@ parser
       = T.subcommand "make-module" "Bundle a module into a CommonJS module"
       $ MakeModule <$> mainModule <*> toTarget
 
+    spacchettiUpgrade
+      = T.subcommand "spacchetti-upgrade" "Upgrade \"packages.dhall\" to the latest Spacchetti release"
+      $ pure SpacchettiUpgrade
+
     version
       = T.subcommand "version" "Show spago version"
       $ pure Version
@@ -165,6 +173,7 @@ main = do
     Repl paths pursArgs                   -> Spago.repl paths pursArgs
     Bundle modName tPath                  -> Spago.bundle WithMain modName tPath
     MakeModule modName tPath              -> Spago.makeModule modName tPath
+    SpacchettiUpgrade                     -> Spago.Config.upgradeSpacchetti
     Version                               -> Spago.printVersion
     PscPackageLocalSetup force            -> PscPackage.localSetup force
     PscPackageInsDhall                    -> PscPackage.insDhall
