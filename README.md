@@ -31,7 +31,7 @@ PureScript package manager and build tool powered by [Dhall][dhall] and
 - [FAQ](#faq)
     - [Hey wait we have a perfectly functional `pulp` right?](#hey-wait-we-have-a-perfectly-functional-pulp-right)
     - [I miss `bower link`!](#i-miss-bower-link)
-    - [I added a new package to the `packages.dhall`, but `spago` not installing it. Why?](#i-added-a-new-package-to-the-packagesdhall-but-spago-not-installing-it-why)
+    - [I added a new package to the `packages.dhall`, but `spago` is not installing it. Why?](#i-added-a-new-package-to-the-packagesdhall-but-spago-is-not-installing-it-why)
     - [So if I use `spago make-module` this thing will compile all my js deps in the file?](#so-if-i-use-spago-make-module-this-thing-will-compile-all-my-js-deps-in-the-file)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
@@ -450,7 +450,7 @@ Yees, however:
 Take a look at the [section on editing the package-set](#adding-and-overriding-dependencies)
 for details on how to add or replace packages with local ones.
 
-#### I added a new package to the `packages.dhall`, but `spago` not installing it. Why?
+#### I added a new package to the `packages.dhall`, but `spago` is not installing it. Why?
 
 Adding a package to the package-set just includes it in the set of possible packages you
 can depend on. However if you wish `spago` to install it you should then add it to
