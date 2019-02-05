@@ -23,14 +23,16 @@ PureScript package manager and build tool powered by [Dhall][dhall] and
   - [Package management](#package-management)
     - [Listing available packages](#listing-available-packages)
     - [Adding and overriding dependencies](#adding-and-overriding-dependencies)
+    - [Upgrading the Package Set](#upgrading-the-package-set)
   - [Building, bundling and testing a project](#building-bundling-and-testing-a-project)
 - [Can I use this with `psc-package`?](#can-i-use-this-with-psc-package)
   - [`psc-package-local-setup`](#psc-package-local-setup)
   - [`psc-package-insdhall`](#psc-package-insdhall)
 - [FAQ](#faq)
     - [Hey wait we have a perfectly functional `pulp` right?](#hey-wait-we-have-a-perfectly-functional-pulp-right)
+    - [I miss `bower link`!](#i-miss-bower-link)
+    - [I added a new package to the `packages.dhall`, but `spago` not installing it. Why?](#i-added-a-new-package-to-the-packagesdhall-but-spago-not-installing-it-why)
     - [So if I use `spago make-module` this thing will compile all my js deps in the file?](#so-if-i-use-spago-make-module-this-thing-will-compile-all-my-js-deps-in-the-file)
-    - [So I added a new package to the `packages.dhall`, why is `spago` not installing it?](#so-i-added-a-new-package-to-the-packagesdhall-why-is-spago-not-installing-it)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
@@ -276,6 +278,28 @@ let additions =
   }
 ```
 
+The `mkPackage` function should be already included in your `packages.dhall`, and it will
+expect as input a list of dependencies, the location of the package, and the tag you wish to use.
+
+Of course this works also in the case of adding local packages. In this case you won't
+care about the value of the "version" (since it won't be used), so you can put arbitrary
+values in there.
+
+And of course if the package you're adding has a `spago.dhall` file you can just import it
+and pull the dependencies from there, instead of typing down the list of dependencies!
+
+Example:
+
+```haskell
+let additions =
+  { foobar =
+      mkPackage
+        (../foobar/spago.dhall).dependencies
+        "../foobar"
+        "local-fix-whatever"
+  }
+```
+
 Once you verify that your application builds with the added packages, we would of
 course very much love if you could pull request it to the Upstream package-set,
 [spacchetti][spacchetti] ❤️🍝
@@ -302,7 +326,7 @@ Done. Updating the local package-set file..
 
 ### Building, bundling and testing a project
 
-We can then build the project and its dependencies by running:
+We can build the project and its dependencies by running:
 
 ```bash
 $ spago build
@@ -354,6 +378,9 @@ Make module succeeded and output file to index.js
 $ node -e "console.log(require('./index).main)"
 [Function]
 ```
+
+More information on when you might want to use the different kinds of build can be found at
+[this FAQ entry](#so-if-i-use-spago-make-module-this-thing-will-compile-all-my-js-deps-in-the-file).
 
 You can also test your project with `spago`:
 
@@ -419,7 +446,18 @@ Yees, however:
   Of course you can use [Spacchetti] to solve this issue, but this is exactly what
   we're doing here: integrating all the workflow in a single tool, `spago`, instead
   of having to use `pulp`, `psc-package`, `purp`, etc.
-  
+
+#### I miss `bower link`!
+
+Take a look at the [section on editing the package-set](#adding-and-overriding-dependencies)
+for details on how to add or replace packages with local ones.
+
+#### I added a new package to the `packages.dhall`, but `spago` not installing it. Why?
+
+Adding a package to the package-set just includes it in the set of possible packages you
+can depend on. However if you wish `spago` to install it you should then add it to
+the `dependencies` list in your `spago.dhall`.
+
 #### So if I use `spago make-module` this thing will compile all my js deps in the file?
 
 No. We only take care of PureScript land. In particular, `make-module` will do the
@@ -450,11 +488,6 @@ the `ksf-login` component and output it in the `index.js` of the component's fol
 then `yarn install` the single component (note it contains a `package.json`), and require it
 as a separate npm package with `require('@affresco/ksf-login')`.
 
-#### So I added a new package to the `packages.dhall`, why is `spago` not installing it?
-
-Adding a package to the package-set just includes it in the set of possible packages you
-can depend on. However if you wish `spago` to install it you should then add it to
-the `dependencies` list in your `spago.dhall`.  
 
 [spacchetti]: https://github.com/spacchetti/spacchetti
 [dhall]: https://github.com/dhall-lang/dhall-lang
