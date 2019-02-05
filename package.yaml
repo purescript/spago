@@ -49,6 +49,7 @@ dependencies:
 - async-pool
 - process
 - template-haskell
+- network-uri
 - github
 
 executables:

@@ -23,14 +23,16 @@ PureScript package manager and build tool powered by [Dhall][dhall] and
   - [Package management](#package-management)
     - [Listing available packages](#listing-available-packages)
     - [Adding and overriding dependencies](#adding-and-overriding-dependencies)
+    - [Upgrading the Package Set](#upgrading-the-package-set)
   - [Building, bundling and testing a project](#building-bundling-and-testing-a-project)
 - [Can I use this with `psc-package`?](#can-i-use-this-with-psc-package)
   - [`psc-package-local-setup`](#psc-package-local-setup)
   - [`psc-package-insdhall`](#psc-package-insdhall)
 - [FAQ](#faq)
     - [Hey wait we have a perfectly functional `pulp` right?](#hey-wait-we-have-a-perfectly-functional-pulp-right)
+    - [I miss `bower link`!](#i-miss-bower-link)
+    - [I added a new package to the `packages.dhall`, but `spago` is not installing it. Why?](#i-added-a-new-package-to-the-packagesdhall-but-spago-is-not-installing-it-why)
     - [So if I use `spago make-module` this thing will compile all my js deps in the file?](#so-if-i-use-spago-make-module-this-thing-will-compile-all-my-js-deps-in-the-file)
-    - [So I added a new package to the `packages.dhall`, why is `spago` not installing it?](#so-i-added-a-new-package-to-the-packagesdhall-why-is-spago-not-installing-it)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
@@ -187,24 +189,65 @@ $ spago list-packages
 
 #### Adding and overriding dependencies
 
-Let's say I'm a user of the `react-basic` package. Now, let's say I stumble upon a bug
-in there, but thankfully I figure how to fix it. So I fork it, add my fix, and push
-to my fork.  
-Now if I want to use this fork in the current project, how can I tell `spago` to do it?
+Let's say I'm a user of the `simple-json` package. Now, let's say I stumble upon a bug
+in there, but thankfully I figure how to fix it. So I clone it locally and add my fix.  
+Now if I want to test this version in my current project, how can I tell `spago` to do it?
 
-We have a `overrides` record in `packages.dhall` just for that! And in this case it
-might look like this:
+We have a `overrides` record in `packages.dhall` just for that!  
+And in this case we override the `repo` key with the local path of the package.  
+It might look like this:
 
 ```haskell
 let overrides =
-      { react-basic =
-            upstream.react-basic
-          ⫽ { repo =
-                "https://github.com/my-user/purescript-react-basic.git"
-            , version =
-                "my-branch-with-the-fix"
-            }
+      { simple-json =
+            upstream.simple-json ⫽ { repo = "../purescript-simple-json" }
       }
+```
+
+Note that if we `list-packages`, we'll see that it is now included as a local package:
+```bash
+$ spago list-packages
+...
+signal                v10.1.0   Remote "https://github.com/bodil/purescript-signal.git"
+sijidou               v0.1.0    Remote "https://github.com/justinwoo/purescript-sijidou.git"
+simple-json           v4.4.0    Local "../purescript-simple-json"
+simple-json-generics  v0.1.0    Remote "https://github.com/justinwoo/purescript-simple-json-generics.git"
+smolder               v11.0.1   Remote "https://github.com/bodil/purescript-smolder.git"
+...
+```
+
+And since local packages are just included in the build, if we add it to the `dependencies` 
+in `spago.dhall` and then do `spago install`, it will not be downloaded:
+
+```
+$ spago install
+Installing 42 dependencies.
+...
+Installing "refs"
+Installing "identity"
+Skipping package "simple-json", using local path: "../purescript-simple-json"
+Installing "control"
+Installing "enums"
+...
+```
+
+..but its sources will be just included in the build.
+
+Let's now say that we test that our fix works, and we are ready to Pull Request the fix.  
+So we push our fork and open the PR, but while we wait for the fix to land on the next
+package-set release, we still want to use the fix in our production build.
+
+In this case, we can just change the override to point to some branch of our fork, like this:
+
+
+```haskell
+let overrides =
+    { simple-json =
+          upstream.simple-json
+       // { repo = "https://github.com/my-user/purescript-simple-json.git"
+          , version = "my-branch-with-the-fix"
+          }
+    }
 ```
 
 Note: currently support only branches and tags work as a `version`, and tags are
@@ -230,6 +273,28 @@ let additions =
         ]
         "https://github.com/Unisay/purescript-facebook.git"
         "v0.3.0"
+  }
+```
+
+The `mkPackage` function should be already included in your `packages.dhall`, and it will
+expect as input a list of dependencies, the location of the package, and the tag you wish to use.
+
+Of course this works also in the case of adding local packages. In this case you won't
+care about the value of the "version" (since it won't be used), so you can put arbitrary
+values in there.
+
+And of course if the package you're adding has a `spago.dhall` file you can just import it
+and pull the dependencies from there, instead of typing down the list of dependencies!
+
+Example:
+
+```haskell
+let additions =
+  { foobar =
+      mkPackage
+        (../foobar/spago.dhall).dependencies
+        "../foobar"
+        "local-fix-whatever"
   }
 ```
 
@@ -259,7 +324,7 @@ Done. Updating the local package-set file..
 
 ### Building, bundling and testing a project
 
-We can then build the project and its dependencies by running:
+We can build the project and its dependencies by running:
 
 ```bash
 $ spago build
@@ -311,6 +376,9 @@ Make module succeeded and output file to index.js
 $ node -e "console.log(require('./index).main)"
 [Function]
 ```
+
+More information on when you might want to use the different kinds of build can be found at
+[this FAQ entry](#so-if-i-use-spago-make-module-this-thing-will-compile-all-my-js-deps-in-the-file).
 
 You can also test your project with `spago`:
 
@@ -376,7 +444,18 @@ Yees, however:
   Of course you can use [Spacchetti] to solve this issue, but this is exactly what
   we're doing here: integrating all the workflow in a single tool, `spago`, instead
   of having to use `pulp`, `psc-package`, `purp`, etc.
-  
+
+#### I miss `bower link`!
+
+Take a look at the [section on editing the package-set](#adding-and-overriding-dependencies)
+for details on how to add or replace packages with local ones.
+
+#### I added a new package to the `packages.dhall`, but `spago` is not installing it. Why?
+
+Adding a package to the package-set just includes it in the set of possible packages you
+can depend on. However if you wish `spago` to install it you should then add it to
+the `dependencies` list in your `spago.dhall`.
+
 #### So if I use `spago make-module` this thing will compile all my js deps in the file?
 
 No. We only take care of PureScript land. In particular, `make-module` will do the
@@ -407,11 +486,6 @@ the `ksf-login` component and output it in the `index.js` of the component's fol
 then `yarn install` the single component (note it contains a `package.json`), and require it
 as a separate npm package with `require('@affresco/ksf-login')`.
 
-#### So I added a new package to the `packages.dhall`, why is `spago` not installing it?
-
-Adding a package to the package-set just includes it in the set of possible packages you
-can depend on. However if you wish `spago` to install it you should then add it to
-the `dependencies` list in your `spago.dhall`.  
 
 [spacchetti]: https://github.com/spacchetti/spacchetti
 [dhall]: https://github.com/dhall-lang/dhall-lang
