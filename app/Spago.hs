@@ -36,7 +36,7 @@ import qualified Turtle                        as T hiding (die, echo)
 import qualified PscPackage
 import           Spago.Config                  (Config (..))
 import qualified Spago.Config                  as Config
-import           Spago.Spacchetti              (Package (..), PackageName (..))
+import           Spago.Spacchetti              (Package (..), PackageName (..), Repo (..))
 import qualified Spago.Templates               as Templates
 import           Spago.Turtle
 
@@ -77,16 +77,27 @@ initProject force = do
 
 
 -- | Returns the dir path for a given package
+--   If the package is from a remote git repo, return the .spago folder in which we cloned
+--   Otherwise return the local folder
 getPackageDir :: (PackageName, Package) -> Text
-getPackageDir (PackageName{..}, Package{..})
+getPackageDir (PackageName{..}, Package{ repo = Remote _, ..})
   = spagoDir <> packageName <> "/" <> version
+getPackageDir (_, Package{ repo = Local path })
+  = path
 
 getGlobs :: [(PackageName, Package)] -> [Text]
 getGlobs = map (\pair -> getPackageDir pair <> "/src/**/*.purs")
 
 
+-- | If the repo points to a remote git, fetch it in the .spago folder.
+--   If it's a local directory do nothing
 getDep :: (PackageName, Package) -> IO ()
-getDep pair@(PackageName{..}, Package{..} ) = do
+getDep (PackageName package, Package { repo = Local path }) =
+  echo $ "Skipping package "
+      <> surroundQuote package
+      <> ", using local path: "
+      <> surroundQuote path
+getDep pair@(PackageName{..}, Package{ repo = Remote repo, ..} ) = do
   exists <- T.testdir $ T.fromText packageDir
   if exists
     then do
@@ -183,16 +194,28 @@ install maybeLimit = do
 listPackages :: IO ()
 listPackages = do
   config <- Config.ensureConfig
-  traverse_ echo $ getPackageNames config
+  traverse_ echo $ formatPackageNames config
 
   where
-    -- | Get all the package names from the configuration
-    getPackageNames :: Config -> [Text]
-    getPackageNames Config { packages = pkgs } =
-      map toText $ Map.toList pkgs
+    -- | Format all the package names from the configuration
+    formatPackageNames :: Config -> [Text]
+    formatPackageNames Config { packages = pkgs } =
+      let
+        pkgsList = Map.toList pkgs
 
-    toText (PackageName{..},Package{..}) =
-      packageName <> " (" <> version <> ", " <> repo <> ")"
+        longestName = maximum $ fmap (Text.length . packageName . fst) pkgsList
+        longestVersion = maximum $ fmap (Text.length . version . snd) pkgsList
+
+        renderPkg (PackageName{..},Package{..})
+          = leftPad longestName packageName <> " "
+          <> leftPad longestVersion version <> "   "
+          <> Text.pack (show repo)
+      in map renderPkg pkgsList
+
+    leftPad :: Int -> Text -> Text
+    leftPad n s
+      | Text.length s < n  = s <> Text.replicate (n - Text.length s) " "
+      | otherwise = s
 
 
 -- | Get source globs of dependencies listed in `spago.dhall`
