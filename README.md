@@ -193,8 +193,8 @@ Let's say I'm a user of the `simple-json` package. Now, let's say I stumble upon
 in there, but thankfully I figure how to fix it. So I clone it locally and add my fix.  
 Now if I want to test this version in my current project, how can I tell `spago` to do it?
 
-We have a `overrides` record in `packages.dhall` just for that! And in this case we override
-the `repo` key with the local path of the package.  
+We have a `overrides` record in `packages.dhall` just for that!  
+And in this case we override the `repo` key with the local path of the package.  
 It might look like this:
 
 ```haskell
@@ -217,7 +217,7 @@ smolder               v11.0.1   Remote "https://github.com/bodil/purescript-smol
 ```
 
 And since local packages are just included in the build, if we add it to the `dependencies` 
-in `spago.dhall`, and then do `spago install`, it will not be downloaded:
+in `spago.dhall` and then do `spago install`, it will not be downloaded:
 
 ```
 $ spago install
@@ -242,14 +242,12 @@ In this case, we can just change the override to point to some branch of our for
 
 ```haskell
 let overrides =
-      { simple-json =
-            upstream.simple-json
-          ⫽ { repo =
-                "https://github.com/my-user/purescript-simple-json.git"
-            , version =
-                "my-branch-with-the-fix"
-            }
-      }
+    { simple-json =
+          upstream.simple-json
+       // { repo = "https://github.com/my-user/purescript-simple-json.git"
+          , version = "my-branch-with-the-fix"
+          }
+    }
 ```
 
 Note: currently support only branches and tags work as a `version`, and tags are
