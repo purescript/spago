@@ -187,7 +187,15 @@ with their versions and URLs) by running:
 $ spago list-packages
 ```
 
-#### Adding and overriding dependencies
+#### Adding a dependency
+
+You can add dependencies from your package-set by running:
+
+```bash
+$ spago install my-new-package another-package
+```
+
+#### Adding and overriding dependencies in the Package Set
 
 Let's say I'm a user of the `simple-json` package. Now, let's say I stumble upon a bug
 in there, but thankfully I figure how to fix it. So I clone it locally and add my fix.  
