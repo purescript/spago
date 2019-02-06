@@ -465,7 +465,7 @@ In any case, you end up depending on some NPM package.
 And it would be really nice if `spago` would take care of installing all of these
 dependencies, so we don't have to worry about running npm besides it, right?
 
-While this scenarios are common, they are also really hard to support.
+While these scenarios are common, they are also really hard to support.
 In fact, it might be that a certain NPM package in your transitive dependencies
 would only support the browser, or only node. Should `spago` warn about that?  
 And if yes, where should we get all of this info?
