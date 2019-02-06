@@ -241,8 +241,23 @@ addRawDeps newDeps config = config
 
 -- | Adds the `name` dependency to the "dependencies" list in the Config,
 --   sorts the dependencies, and writes the Config to file.
-addDependencies :: [PackageName] -> IO ()
-addDependencies = withConfigAST . addRawDeps
+addDependencies :: Config -> [PackageName] -> IO ()
+addDependencies config newPackages = do 
+  let notInPackageSet = mapMaybe
+        (\p -> case Map.lookup p (packages config) of
+                Just _  -> Nothing
+                Nothing -> Just p)
+        newPackages
+  case notInPackageSet of
+  -- If no packages are not in our set, add them to existing dependencies
+    []   -> withConfigAST $ addRawDeps newPackages
+    pkgs -> echo
+              ( "\nSome of the dependencies you tried to add "
+              <> "were not found in spacchetti's package set.\n"
+              <> "Not adding new dependencies to your new spago config. "
+              <> "We didn't find:\n"
+              <> (Text.intercalate "\n" $ map (\p -> "- " <> packageName p) pkgs)
+              <> "\n")
 
 
 
