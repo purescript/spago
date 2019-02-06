@@ -25,14 +25,13 @@ PureScript package manager and build tool powered by [Dhall][dhall] and
     - [Adding and overriding dependencies](#adding-and-overriding-dependencies)
     - [Upgrading the Package Set](#upgrading-the-package-set)
   - [Building, bundling and testing a project](#building-bundling-and-testing-a-project)
-- [Can I use this with `psc-package`?](#can-i-use-this-with-psc-package)
-  - [`psc-package-local-setup`](#psc-package-local-setup)
-  - [`psc-package-insdhall`](#psc-package-insdhall)
 - [FAQ](#faq)
     - [Hey wait we have a perfectly functional `pulp` right?](#hey-wait-we-have-a-perfectly-functional-pulp-right)
     - [I miss `bower link`!](#i-miss-bower-link)
     - [I added a new package to the `packages.dhall`, but `spago` is not installing it. Why?](#i-added-a-new-package-to-the-packagesdhall-but-spago-is-not-installing-it-why)
-    - [So if I use `spago make-module` this thing will compile all my js deps in the file?](#so-if-i-use-spago-make-module-this-thing-will-compile-all-my-js-deps-in-the-file)
+    - [So if I use `spago make-module` will this thing compile all my js deps in the file?](#so-if-i-use-spago-make-module-this-thing-will-compile-all-my-js-deps-in-the-file)
+    - [Why can't `spago` also install my npm dependencies?](#why-cant-spago-also-install-my-npm-dependencies)
+    - [I still want to use `psc-package`, can this help me in some way?](#i-still-want-to-use-psc-package-can-this-help-me-in-some-way)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
@@ -400,35 +399,6 @@ E.g. the following opens a repl on `localhost:3200`:
 $ spago repl -- --port 3200
 ```
 
-## Can I use this with `psc-package`?
-
-Yes! Though the scope of the integration is limited to helping your
-psc-package-project to use the [Spacchetti][spacchetti] package-set.
-
-Here's what we can do about it:
-
-### `psc-package-local-setup`
-
-This command creates a `packages.dhall` file in your project, that points to the
-most recent Spacchetti package-set, and lets you override and add arbitrary packages.  
-See the Spacchetti docs about this [here][spacchetti-local-setup].
-
-### `psc-package-insdhall`
-
-Do the *Ins-Dhall-ation* of the local project setup: that is, generates a local
-package-set for `psc-package` from your `packages.dhall`, and points your
-`psc-package.json` to it.
-
-Functionally this is equivalent to running:
-
-```sh
-NAME='local'
-TARGET=.psc-package/$NAME/.set/packages.json
-mkdir -p .psc-package/$NAME/.set
-dhall-to-json --pretty <<< './packages.dhall' > $TARGET
-echo wrote packages.json to $TARGET
-```
-
 ## FAQ
 
 #### Hey wait we have a perfectly functional `pulp` right?
@@ -486,6 +456,55 @@ the `ksf-login` component and output it in the `index.js` of the component's fol
 then `yarn install` the single component (note it contains a `package.json`), and require it
 as a separate npm package with `require('@affresco/ksf-login')`.
 
+#### Why can't `spago` also install my npm dependencies?
+
+A common scenario is that you'd like to use things like `react-basic`, or want to depend
+on JS libraries like ThreeJS. 
+In any case, you end up depending on some NPM package.
+
+And it would be really nice if `spago` would take care of installing all of these
+dependencies, so we don't have to worry about running npm besides it, right?
+
+While this scenarios are common, they are also really hard to support.
+In fact, it might be that a certain NPM package in your transitive dependencies
+would only support the browser, or only node. Should `spago` warn about that?  
+And if yes, where should we get all of this info?
+
+Another big problem is that the JS backend is not the only backend around. For example,
+PureScript has a [C backend][purec] and an [Erlang backend][purerl] among the others.  
+These backends are going to use different package managers for their native dependencies,
+and while it's feasible for `spago` to support the backends themselves, supporting also
+all the possible native package managers (and doing things like building package-sets for their
+dependencies versions) is not a scalable approach.
+
+So this is the reason why if you or one of your dependencies need to depend on some "native"
+packages, you should run the appropriate package-manager for that (e.g. npm).  
+For examples on how to do it, see the previous FAQ entry.
+
+#### I still want to use `psc-package`, can this help me in some way?
+
+Yes! We can help you setup your psc-package-project to use the
+[Spacchetti][spacchetti] package-set.
+
+We have two commands for it:
+- **`psc-package-local-setup`**: this command creates a `packages.dhall` file in your project, 
+  that points to the most recent Spacchetti package-set, and lets you override and add 
+  arbitrary packages.  
+  See the Spacchetti docs about this [here][spacchetti-local-setup].
+- **`psc-package-insdhall`**: do the *Ins-Dhall-ation* of the local project setup: that is,
+  generates a local package-set for `psc-package` from your `packages.dhall`, and points your
+  `psc-package.json` to it.
+
+  Functionally this is equivalent to running:
+
+  ```sh
+  NAME='local'
+  TARGET=.psc-package/$NAME/.set/packages.json
+  mkdir -p .psc-package/$NAME/.set
+  dhall-to-json --pretty <<< './packages.dhall' > $TARGET
+  echo wrote packages.json to $TARGET
+  ```
+
 
 [spacchetti]: https://github.com/spacchetti/spacchetti
 [dhall]: https://github.com/dhall-lang/dhall-lang
@@ -503,3 +522,5 @@ as a separate npm package with `require('@affresco/ksf-login')`.
 [spago-issues]: https://github.com/spacchetti/spacchetti-cli/issues
 [affresco]: https://github.com/KSF-Media/affresco/tree/4b430b48059701a544dfb65b2ade07ef9f36328a
 [todomvc]: https://github.com/f-f/purescript-react-basic-todomvc
+[purec]: https://github.com/pure-c/purec
+[purerl]: https://github.com/purerl/purescript
