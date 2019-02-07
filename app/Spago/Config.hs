@@ -148,24 +148,10 @@ makeConfig force = do
         echo "Found a \"psc-package.json\" file, migrating to a new Spago config.."
         -- update the project name
         withConfigAST $ \config -> config { rawName = PscPackage.name pscConfig }
-        -- check if all dependencies are in package set
-        config <- ensureConfig
+        -- try to update the dependencies (will fail if not found in package set)
         let pscPackages = map PackageName $ PscPackage.depends pscConfig
-        let notInSet = mapMaybe
-                         (\p -> case Map.lookup p (packages config) of
-                                 Just _  -> Nothing
-                                 Nothing -> Just p)
-                         pscPackages
-        case notInSet of
-          -- If no packages are not in our set, add them to existing dependencies
-          []   -> withConfigAST $ addRawDeps $ pscPackages
-          pkgs -> echo
-                  ( "\nSome of the dependencies in your psc-package configuration "
-                    <> "were not found in spacchetti's package set.\n"
-                    <> "Aborting the port of dependencies to your new spago config. "
-                    <> "We didn't find:\n"
-                    <> (Text.intercalate "\n" $ map (\p -> "- " <> packageName p) pkgs)
-                    <> "\n")
+        config <- ensureConfig
+        addDependencies config pscPackages
 
 
 -- | Takes a function that manipulates the Dhall AST of the Config,
@@ -182,9 +168,9 @@ withConfigAST transform = do
   configText <- T.readTextFile path
 
   -- parse the config without resolving imports
-  expr <- case Parser.exprFromText mempty configText of
+  (header, expr) <- case Parser.exprAndHeaderFromText mempty configText of
     Left  err -> throwIO err
-    Right ast -> case Dhall.denote ast of
+    Right (header, ast) -> case Dhall.denote ast of
       -- remove Note constructors, and check if config is a record
       Dhall.RecordLit ks -> do
         rawConfig <- pure $ do
@@ -209,7 +195,7 @@ withConfigAST transform = do
             $ fmap Dhall.toTextLit
             $ fmap packageName rawDeps
           mkNewAST _ v = v
-        pure $ Dhall.RecordLit $ Dhall.Map.mapWithKey mkNewAST ks
+        pure (header, Dhall.RecordLit $ Dhall.Map.mapWithKey mkNewAST ks)
 
       e -> throwIO $ Dhall.ConfigIsNotRecord e
 
@@ -218,7 +204,7 @@ withConfigAST transform = do
   resolvedExpr <- Dhall.Import.load expr
   case Dhall.TypeCheck.typeOf resolvedExpr of
     Left  err -> throwIO err
-    Right _   -> T.writeTextFile path $ Dhall.pretty expr
+    Right _   -> T.writeTextFile path $ Dhall.prettyWithHeader header expr <> "\n"
 
   where
     toPkgsList
@@ -239,8 +225,10 @@ addRawDeps :: [PackageName] -> RawConfig -> RawConfig
 addRawDeps newDeps config = config
   { rawDeps = List.sort $ List.nub (newDeps <> (rawDeps config)) }
 
--- | Adds the `name` dependency to the "dependencies" list in the Config,
---   sorts the dependencies, and writes the Config to file.
+-- | Try to add the `newPackages` to the "dependencies" list in the Config.
+--   It will not add any dependency if any of them is not in the package set.
+--   If everything is fine instead, it will add the new deps, sort all the
+--   dependencies, and write the Config back to file.
 addDependencies :: Config -> [PackageName] -> IO ()
 addDependencies config newPackages = do 
   let notInPackageSet = mapMaybe
@@ -249,15 +237,14 @@ addDependencies config newPackages = do
                 Nothing -> Just p)
         newPackages
   case notInPackageSet of
-  -- If no packages are not in our set, add them to existing dependencies
+    -- If none of the newPackages are outside of the set, add them to existing dependencies
     []   -> withConfigAST $ addRawDeps newPackages
-    pkgs -> echo
-              ( "\nSome of the dependencies you tried to add "
-              <> "were not found in spacchetti's package set.\n"
-              <> "Not adding new dependencies to your new spago config. "
-              <> "We didn't find:\n"
-              <> (Text.intercalate "\n" $ map (\p -> "- " <> packageName p) pkgs)
-              <> "\n")
+    pkgs -> echo $ "\nSome of the dependencies you tried to add "
+                <> "were not found in spacchetti's package set.\n"
+                <> "Not adding new dependencies to your new spago config. "
+                <> "We didn't find:\n"
+                <> (Text.intercalate "\n" $ map (\p -> "- " <> packageName p) pkgs)
+                <> "\n"
 
 
 

@@ -22,7 +22,8 @@ PureScript package manager and build tool powered by [Dhall][dhall] and
 - [Commands](#commands)
   - [Package management](#package-management)
     - [Listing available packages](#listing-available-packages)
-    - [Adding and overriding dependencies](#adding-and-overriding-dependencies)
+    - [Adding a dependency](#adding-a-dependency)
+    - [Adding and overriding dependencies in the Package Set](#adding-and-overriding-dependencies-in-the-package-set)
     - [Upgrading the Package Set](#upgrading-the-package-set)
   - [Building, bundling and testing a project](#building-bundling-and-testing-a-project)
 - [FAQ](#faq)
@@ -186,7 +187,15 @@ with their versions and URLs) by running:
 $ spago list-packages
 ```
 
-#### Adding and overriding dependencies
+#### Adding a dependency
+
+You can add dependencies from your package-set by running:
+
+```bash
+$ spago install my-new-package another-package
+```
+
+#### Adding and overriding dependencies in the Package Set
 
 Let's say I'm a user of the `simple-json` package. Now, let's say I stumble upon a bug
 in there, but thankfully I figure how to fix it. So I clone it locally and add my fix.  

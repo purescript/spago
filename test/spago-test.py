@@ -2,6 +2,7 @@
 
 import os
 import json
+import time
 from utils import expect_success, expect_failure, fail, run_for, check_fixture
 
 
@@ -16,6 +17,8 @@ expect_failure(
     ['spago', 'init'],
     "Spago should refuse to overwrite an existing project without -f"
 )
+
+
 
 # Here we check that spago does not overwrite any source files we might have
 expect_success(
@@ -37,6 +40,8 @@ expect_success(
     "Spago should always succeed in doing init with force"
 )
 
+
+
 # Here we check that spago can import a project from psc-package
 with open('psc-package.json', 'w') as pscfile:
     data = { "name": "aaa", "depends": [ "prelude" ], "set": "foo", "source": "bar" }
@@ -47,6 +52,7 @@ expect_success(
 )
 os.rename('spago.dhall', 'spago-psc-success.dhall')
 check_fixture('spago-psc-success.dhall')
+
 
 # But should not import dependencies that are not in the package-set
 with open('psc-package.json', 'w') as pscfile:
@@ -60,29 +66,49 @@ os.rename('spago.dhall', 'spago-psc-failure.dhall')
 check_fixture('spago-psc-failure.dhall')
 
 
+
 ## spago install
 
 # Run `install` once and kill it soon to simulate failure
 run_for(0.5, ['spago', 'install', '-j', '3'])
+
+# Sleep for some time, as the above might take time to cleanup old processes
+time.sleep(1)
 
 expect_success(
     ['spago', 'install'],
     "Subsequent installs should succeed anyways"
 )
 
+expect_success(
+    ['spago', 'install', 'simple-json', 'foreign'],
+    "Spago should be able to add dependencies"
+)
+os.rename('spago.dhall', 'spago-install-success.dhall')
+check_fixture('spago-install-success.dhall')
+
+expect_success(
+    ['spago', 'install', 'foobar'],
+    "Spago should not add dependencies that are not in the package set"
+)
+os.rename('spago.dhall', 'spago-install-failure.dhall')
+check_fixture('spago-install-failure.dhall')
+
+
+
 
 ## spago build
+
+expect_success(
+    ['spago', 'build'],
+    "Spago should build successfully"
+)
 
 expect_success(
     ['spago', 'build', '--', '-o myOutput'],
     "Spago should pass options to purs"
 )
 assert os.path.isdir('myOutput') == True
-
-expect_success(
-    ['spago', 'build'],
-    "Spago should build successfully"
-)
 
 os.mkdir('another_source_path')
 os.rename('src/Main.purs', 'another_source_path/Main.purs')
@@ -92,12 +118,20 @@ expect_success(
 )
 os.rename('another_source_path/Main.purs', 'src/Main.purs')
 
+
+
+
 ## spago test
+
+#### Note: here we check that the tests effectively run, by matching on the expected output
 
 expect_success(
     ['spago', 'test'],
     "Spago should test successfully"
+    "test-output.txt"
 )
+
+
 
 
 ## spago bundle
@@ -110,6 +144,8 @@ expect_success(
 check_fixture('bundle.js')
 
 
+
+
 ## spago make-module
 
 expect_success(
@@ -120,11 +156,15 @@ expect_success(
 check_fixture('module.js')
 
 
+
+
+
 ## Cleanup after tests
 
 expect_success(
     ['rm', '-rf', '.spago', 'src', 'test', 'packages.dhall', 'spago.dhall', 'bundle.js',
      'module.js', 'output', 'myOutput', 'another_source_path', 'psc-package.json',
-     'spago-psc-success.dhall', 'spago-psc-failure.dhall'],
+     'spago-psc-success.dhall', 'spago-psc-failure.dhall', 'spago-install-success.dhall',
+     'spago-install-failure.dhall'],
     "Cleanup should empty the project folder"
 )
