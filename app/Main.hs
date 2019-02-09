@@ -35,6 +35,9 @@ data Command
   -- | List available packages
   | ListPackages
 
+  -- | Verify that the Package Set is correct (for a single package or in general)
+  | Verify (Maybe Int) (Maybe PackageName)
+
   -- | Test the project with some module, default Test.Main
   | Test (Maybe ModuleName) (Maybe Int) [SourcePath] [PursArg]
 
@@ -78,6 +81,7 @@ parser
   T.<|> install
   T.<|> sources
   T.<|> listPackages
+  T.<|> verify
   T.<|> build
   T.<|> repl
   T.<|> test
@@ -94,6 +98,7 @@ parser
     toTarget    = T.optional (T.opt (Just . TargetPath) "to" 't' "The target file path")
     limitJobs   = T.optional (T.optInt "jobs" 'j' "Limit the amount of jobs that can run concurrently")
     sourcePaths = T.many (T.opt (Just . SourcePath) "path" 'p' "Source path to include")
+    packageName = T.optional $ T.arg (Just . PackageName) "package" "Specify the name of a package"
     packageNames = T.many $ T.arg (Just . PackageName) "package" "Package name to add as dependency"
     passthroughArgs = T.many $ T.arg (Just . PursArg) " ..any `purs` option" "Options passed through to `purs`; use -- to separate"
 
@@ -124,6 +129,10 @@ parser
     listPackages
       = T.subcommand "list-packages" "List packages available in your packages.dhall"
       $ pure ListPackages
+
+    verify
+      = T.subcommand "verify" "Verify that the Package Set is correct (for a single package or all)"
+      $ Verify <$> limitJobs <*> packageName
 
     build
       = T.subcommand "build" "Install the dependencies and compile the current package"
@@ -169,6 +178,7 @@ main = do
     ListPackages                          -> Spago.listPackages
     Sources                               -> Spago.sources
     Build limitJobs paths pursArgs        -> Spago.build limitJobs paths pursArgs
+    Verify limitJobs maybePackage         -> Spago.verify limitJobs maybePackage
     Test modName limitJobs paths pursArgs -> Spago.test modName limitJobs paths pursArgs
     Repl paths pursArgs                   -> Spago.repl paths pursArgs
     Bundle modName tPath                  -> Spago.bundle WithMain modName tPath

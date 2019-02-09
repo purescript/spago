@@ -37,7 +37,7 @@ import qualified Turtle                    as T hiding (die, echo)
 import qualified PscPackage                as PscPackage
 import qualified PscPackage.Types          as PscPackage
 import qualified Spago.Config.Dhall        as Dhall
-import           Spago.Spacchetti          (Package, PackageName (..), Packages)
+import           Spago.Spacchetti          (Package, PackageName (..), PackageSet)
 import qualified Spago.Templates           as Templates
 import           Spago.Turtle
 
@@ -54,7 +54,7 @@ path = T.fromText pathText
 data Config = Config
   { name         :: Text
   , dependencies :: [PackageName]
-  , packages     :: Packages
+  , packages     :: PackageSet
   } deriving (Show, Generic)
 
 instance ToJSON Config
