@@ -3,6 +3,7 @@ module Spago.Config
   , ensureConfig
   , addDependencies
   , upgradeSpacchetti
+  , checkPursIsUpToDate
   , Config(..)
   ) where
 
@@ -21,6 +22,7 @@ import qualified Data.Text                 as Text
 import qualified Data.Text.Encoding        as Text
 import           Data.Text.Prettyprint.Doc (Pretty)
 import           Data.Typeable             (Typeable)
+import qualified Data.Versions             as Version
 import           Dhall.Binary              (defaultStandardVersion)
 import qualified Dhall.Format
 import qualified Dhall.Freeze
@@ -32,6 +34,7 @@ import           Dhall.TypeCheck           (X)
 import qualified Dhall.TypeCheck
 import           GHC.Generics              (Generic)
 import qualified GitHub
+import           Lens.Micro                ((^..))
 import qualified Turtle                    as T hiding (die, echo)
 
 import qualified PscPackage                as PscPackage
@@ -76,11 +79,14 @@ data RawConfig = RawConfig
   -- TODO: add packages if needed
   } deriving (Show, Generic)
 
-data RawPackages = RawPackages
+data RawPackageSet = RawPackageSet
   { mkPackage :: Dhall.Import
   , upstream  :: Dhall.Import
   -- TODO: add additions and overrides if needed
   } deriving (Show, Generic)
+
+
+data ReadOnly = ReadOnly | ReadAndWrite
 
 
 -- | Tries to read in a Spago Config
@@ -230,7 +236,7 @@ addRawDeps newDeps config = config
 --   If everything is fine instead, it will add the new deps, sort all the
 --   dependencies, and write the Config back to file.
 addDependencies :: Config -> [PackageName] -> IO ()
-addDependencies config newPackages = do 
+addDependencies config newPackages = do
   let notInPackageSet = mapMaybe
         (\p -> case Map.lookup p (packages config) of
                 Just _  -> Nothing
@@ -247,24 +253,27 @@ addDependencies config newPackages = do
                 <> "\n"
 
 
-
 -- | Takes a function that manipulates the Dhall AST of the PackageSet,
 --   and tries to run it on the current packages.dhall
 --   If it succeeds, it writes back to file the result returned.
 --   Note: it will pass in the parsed AST, not the resolved one (so
 --   e.g. imports will still be in the tree). If you need the resolved
 --   one, use `ensureConfig`.
-withPackageSetAST :: (RawPackages -> IO RawPackages) -> IO ()
-withPackageSetAST transform = do
+withPackageSetAST
+  :: ReadOnly
+  -> (RawPackageSet -> IO RawPackageSet)
+  -> IO ()
+withPackageSetAST readOnly transform = do
   -- get a workable configuration
   exists <- T.testfile PscPackage.packagesDhallPath
   T.unless exists $ PscPackage.makePackagesDhall False "" -- TODO pass command here?
   packageSetText <- T.readTextFile PscPackage.packagesDhallPath
 
   -- parse the config without resolving imports
-  echo $ "Trying to read " <> surroundQuote PscPackage.packagesDhallText
   (header, expr) <- case Parser.exprAndHeaderFromText mempty packageSetText of
-    Left  err -> throwIO err
+    Left err -> do
+      echo $ "Failed to read " <> surroundQuote PscPackage.packagesDhallText
+      throwIO err
     Right (comment, ast) -> case Dhall.denote ast of
       -- remove Note constructors, and match on the `let` shape
       Dhall.Let
@@ -273,7 +282,7 @@ withPackageSetAST transform = do
         body
         -> do
         -- run the transform on the package set
-        RawPackages{..} <- transform $ RawPackages mkPackageImport upstreamImport
+        RawPackageSet{..} <- transform $ RawPackageSet mkPackageImport upstreamImport
         -- rebuild it
         pure $ (,) comment
           $ Dhall.Let
@@ -288,11 +297,13 @@ withPackageSetAST transform = do
         throwIO $ Dhall.CannotParsePackageSet e
 
   -- After modifying the expression, we have to check if it still typechecks
-  -- if it doesn't we don't write to file
+  -- if it doesn't we don't write to file.
+  -- We also don't write to file if we are supposed to only read.
   resolvedExpr <- Dhall.Import.load expr
-  case Dhall.TypeCheck.typeOf resolvedExpr of
-    Left  err -> throwIO err
-    Right _   -> do
+  case (Dhall.TypeCheck.typeOf resolvedExpr, readOnly) of
+    (Left err, _)     -> throwIO err
+    (_, ReadOnly)     -> pure ()
+    (_, ReadAndWrite) -> do
       echo "Done. Updating the local package-set file.."
       T.writeTextFile PscPackage.packagesDhallPath
         $ Dhall.prettyWithHeader header expr <> "\n"
@@ -313,22 +324,22 @@ upgradeSpacchetti = do
       throwIO err
     Right GitHub.Release{..} -> do
       echo ("Found the most recent tag for \"spacchetti\": " <> releaseTagName)
-      withPackageSetAST $ \packagesRaw -> do
+      withPackageSetAST ReadAndWrite $ \packagesRaw -> do
         maybePackages <- pure $ do
           newMkPackages <- upgradeImport releaseTagName $ mkPackage packagesRaw
           newUpstream   <- upgradeImport releaseTagName $ upstream packagesRaw
-          pure $ RawPackages newMkPackages newUpstream
+          pure $ RawPackageSet newMkPackages newUpstream
         case maybePackages of
           Left wrongImport ->
             throwIO $ (Dhall.ImportCannotBeUpdated wrongImport :: Dhall.ReadError Dhall.Import)
           -- If everything is fine, refreeze the imports
-          Right RawPackages{..} -> do
+          Right RawPackageSet{..} -> do
             echo $ "Package-set upgraded to latest tag "
               <> surroundQuote releaseTagName
               <> "\nFetching the new one and generating hashes.. (this might take some time)"
             frozenMkPackages <- Dhall.Freeze.freezeImport "." defaultStandardVersion mkPackage
             frozenUpstream   <- Dhall.Freeze.freezeImport "." defaultStandardVersion upstream
-            pure $ RawPackages frozenMkPackages frozenUpstream
+            pure $ RawPackageSet frozenMkPackages frozenUpstream
   where
     -- | Given an import and a new Spacchetti tag, upgrades the import to
     --   the tag and resets the hash
@@ -358,3 +369,83 @@ upgradeSpacchetti = do
           importHashed = Dhall.ImportHashed { hash = newHash, ..}
       in Right Dhall.Import{..}
     upgradeImport _ imp = Left imp
+
+
+-- | Given a Dhall.Import, extract the spacchetti tag if
+getPackageSetTag :: Dhall.Import -> Maybe Text
+getPackageSetTag Dhall.Import
+  { importHashed = Dhall.ImportHashed
+    { importType = Dhall.Remote Dhall.URL
+      -- Check if we're dealing with the Spacchetti repo
+      { authority = "raw.githubusercontent.com"
+      , path = Dhall.File
+        { directory = Dhall.Directory
+          { components = [ "src", tag, "spacchetti", "spacchetti" ]}
+        , ..
+        }
+      , ..
+      }
+    , ..
+    }
+  , ..
+  } = Just tag
+getPackageSetTag _ = Nothing
+
+-- | Suppress the 'Left' value of an 'Either'
+hush :: Either a b -> Maybe b
+hush = either (const Nothing) Just
+
+checkPursIsUpToDate :: IO ()
+checkPursIsUpToDate = do
+  withPackageSetAST ReadOnly $ \packageSet@RawPackageSet{..} -> do
+    -- Let's talk backwards-compatibility.
+    -- At some point we switched Spacchetti from tagging the PackageSet with
+    -- something like '20180923'  to something like '0.12.2-20190209' instead
+    -- (in order to support this check).
+    -- Now, if people are still using the old tag, we should:
+    -- - warn them to upgrade with `spacchetti-upgrade`
+    -- - skip this check
+    case fmap (Text.split (=='-')) (getPackageSetTag upstream) of
+      Just [minPursVersion, _packageSetVersion] -> do
+        let Just pursVersionFromPackageSet = hush $ Version.semver minPursVersion
+        compilerVersion <- readPursVersion
+        performCheck compilerVersion pursVersionFromPackageSet
+      _ -> do
+        echo "WARNING: the PackageSet you're using doesn't check for the PureScript minimum version."
+        echo "Please upgrade ASAP with the following command:"
+        echo "\n`spago spacchetti-upgrade`\n"
+
+    -- We have to return a RawPackageSet, unmodified.
+    -- TODO: refactor so we don't have to return it
+    pure packageSet
+
+    where
+      -- | The chech is successful only when the installed compiler is "slightly"
+      --   greater (or equal of course) to the minimum version. E.g. fine cases are:
+      --   - current is 0.12.2 and package-set is on 0.12.1
+      --   - current is 1.2.3 and package-set is on 1.3.4
+      --   Not fine cases are e.g.:
+      --   - current is 0.1.2 and package-set is 0.2.3
+      --   - current is 1.2.3 and package-set is 0.2.3
+      performCheck :: Version.SemVer -> Version.SemVer -> IO ()
+      performCheck actualPursVersion minPursVersion = do
+        let versionList semver = semver ^.. (Version.major <> Version.minor <> Version.patch)
+        case (versionList actualPursVersion, versionList minPursVersion) of
+          ([0, b, c], [0, y, z]) | b == y && c >= z -> pure ()
+          ([a, b, _c], [x, y, _z]) | a /= 0 && a == x && b >= y -> pure ()
+          _ -> die
+            $ "Oh noes! It looks like the PureScript version on your system is not\n"
+            <> "compatible with the Package Set you're using.\n"
+            <> "\nCurrent version:    " <> Version.prettySemVer actualPursVersion
+            <> "\nPackageSet version: " <> Version.prettySemVer minPursVersion
+            <> "\nPlease upgrade your `purs` version. You can do it by running:\n"
+            <> "`npm update purescript`\n"
+
+      readPursVersion :: IO Version.SemVer
+      readPursVersion = do
+        versionText <- T.shellStrict "purs --version" T.empty >>= \case
+          (T.ExitSuccess, out) -> pure out
+          _ -> die "Failed to run 'purs --version'"
+        case Version.semver versionText of
+          Right parsed -> pure parsed
+          Left _ -> die $ "Failed to parse 'purs --version' output: " <> surroundQuote versionText

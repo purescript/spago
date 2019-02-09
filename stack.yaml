@@ -11,7 +11,7 @@ extra-deps:
   - dhall
   - dhall-json
 - cborg-json-0.2.1.0@sha256:af9137557002ca5308fe80570a9a29398dfb9708423870875223796760689ac3
-
+- versions-3.5.0
 - dotgen-0.4.2
 - megaparsec-7.0.3
 - repline-0.2.0.0
