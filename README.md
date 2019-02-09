@@ -186,6 +186,12 @@ with their versions and URLs) by running:
 $ spago list-packages
 ```
 
+Passing the `--deps` flag will restrict the output to dependencies from `spago.dhall`:
+
+```bash
+$ spago list-packages --deps
+```
+
 #### Adding a dependency
 
 You can add dependencies from your package-set by running:
