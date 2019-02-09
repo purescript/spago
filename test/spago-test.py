@@ -34,6 +34,7 @@ expect_success(
 with open('src/Main.purs', 'r') as f:
     assert f.read() == 'Something'
 expect_success(['rm', 'src/Main.purs'], "")
+expect_success(['rmdir', 'src'], "")
 
 expect_success(
     ['spago', 'init', '-f'],
