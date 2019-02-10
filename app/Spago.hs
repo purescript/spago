@@ -192,6 +192,8 @@ install maybeLimit packages = do
 
   config <- Config.ensureConfig
 
+  Config.checkPursIsUpToDate
+
   let deps = getAllDependencies config
   echoStr $ "Installing " <> show (List.length deps) <> " dependencies."
   Async.withTaskGroup limit $ \taskGroup -> do
