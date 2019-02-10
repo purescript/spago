@@ -35,8 +35,11 @@ data Command
   -- | List available packages
   | ListPackages (Maybe PackagesFilter)
 
-  -- | Verify that the Package Set is correct (for a single package or in general)
-  | Verify (Maybe Int) (Maybe PackageName)
+  -- | Verify that a single package is consistent with the Package Set
+  | Verify (Maybe Int) PackageName
+
+    -- | Verify that the Package Set is correct
+  | VerifySet (Maybe Int)
 
   -- | Test the project with some module, default Test.Main
   | Test (Maybe ModuleName) (Maybe Int) [SourcePath] [PursArg]
@@ -82,6 +85,7 @@ parser
   T.<|> sources
   T.<|> listPackages
   T.<|> verify
+  T.<|> verifySet
   T.<|> build
   T.<|> repl
   T.<|> test
@@ -98,7 +102,7 @@ parser
     toTarget    = T.optional (T.opt (Just . TargetPath) "to" 't' "The target file path")
     limitJobs   = T.optional (T.optInt "jobs" 'j' "Limit the amount of jobs that can run concurrently")
     sourcePaths = T.many (T.opt (Just . SourcePath) "path" 'p' "Source path to include")
-    packageName = T.optional $ T.arg (Just . PackageName) "package" "Specify the name of a package"
+    packageName = T.arg (Just . PackageName) "package" "Specify a package name. You can list them with `list-packages`"
     packageNames = T.many $ T.arg (Just . PackageName) "package" "Package name to add as dependency"
     passthroughArgs = T.many $ T.arg (Just . PursArg) " ..any `purs` option" "Options passed through to `purs`; use -- to separate"
     packagesFilter =
@@ -137,8 +141,12 @@ parser
       $ ListPackages <$> packagesFilter
 
     verify
-      = T.subcommand "verify" "Verify that the Package Set is correct (for a single package or all)"
+      = T.subcommand "verify" "Verify that a single package is consistent with the Package Set"
       $ Verify <$> limitJobs <*> packageName
+
+    verifySet
+      = T.subcommand "verify-set" "Verify that the whole Package Set builds correctly"
+      $ VerifySet <$> limitJobs
 
     build
       = T.subcommand "build" "Install the dependencies and compile the current package"
@@ -161,7 +169,7 @@ parser
       $ MakeModule <$> mainModule <*> toTarget
 
     spacchettiUpgrade
-      = T.subcommand "spacchetti-upgrade" "Upgrade \"packages.dhall\" to the latest Spacchetti release"
+      = T.subcommand "spacchetti-upgrade" "Upgrade the upstream in packages.dhall to the latest Spacchetti release"
       $ pure SpacchettiUpgrade
 
     version
@@ -184,7 +192,8 @@ main = do
     ListPackages packagesFilter           -> Spago.listPackages packagesFilter
     Sources                               -> Spago.sources
     Build limitJobs paths pursArgs        -> Spago.build limitJobs paths pursArgs
-    Verify limitJobs maybePackage         -> Spago.verify limitJobs maybePackage
+    Verify limitJobs package              -> Spago.verify limitJobs (Just package)
+    VerifySet limitJobs                   -> Spago.verify limitJobs Nothing
     Test modName limitJobs paths pursArgs -> Spago.test modName limitJobs paths pursArgs
     Repl paths pursArgs                   -> Spago.repl paths pursArgs
     Bundle modName tPath                  -> Spago.bundle WithMain modName tPath

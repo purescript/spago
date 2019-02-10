@@ -313,6 +313,10 @@ verify maybeLimit maybePackage = do
     Just packageName -> do
       case Map.lookup packageName packages of
         Nothing -> die $ "No packages found with the name " <> Text.pack (show packageName)
+        -- When verifying a single package we check the reverse deps/referrers
+        -- because we want to make sure the it doesn't break them
+        -- (without having to check the whole set of course, that would work
+        -- as well but would be much slower)
         Just package -> do
           reverseDeps <- getReverseDeps packages packageName
           let toVerify = [(packageName, package)] <> reverseDeps
