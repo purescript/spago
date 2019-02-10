@@ -33,7 +33,7 @@ data Command
   | Build (Maybe Int) [SourcePath] [PursArg]
 
   -- | List available packages
-  | ListPackages
+  | ListPackages Bool
 
   -- | Verify that the Package Set is correct (for a single package or in general)
   | Verify (Maybe Int) (Maybe PackageName)
@@ -101,6 +101,7 @@ parser
     packageName = T.optional $ T.arg (Just . PackageName) "package" "Specify the name of a package"
     packageNames = T.many $ T.arg (Just . PackageName) "package" "Package name to add as dependency"
     passthroughArgs = T.many $ T.arg (Just . PursArg) " ..any `purs` option" "Options passed through to `purs`; use -- to separate"
+    depsOnly    = T.switch "deps" 'd' "Dependencies only instead of all available packages"
 
     pscPackageLocalSetup
       = T.subcommand "psc-package-local-setup" "Setup a local package set by creating a new packages.dhall"
@@ -128,7 +129,7 @@ parser
 
     listPackages
       = T.subcommand "list-packages" "List packages available in your packages.dhall"
-      $ pure ListPackages
+      $ ListPackages <$> depsOnly
 
     verify
       = T.subcommand "verify" "Verify that the Package Set is correct (for a single package or all)"
@@ -175,7 +176,7 @@ main = do
   case command of
     Init force                            -> Spago.initProject force
     Install limitJobs packageNames        -> Spago.install limitJobs packageNames
-    ListPackages                          -> Spago.listPackages
+    ListPackages depsOnly                 -> Spago.listPackages depsOnly
     Sources                               -> Spago.sources
     Build limitJobs paths pursArgs        -> Spago.build limitJobs paths pursArgs
     Verify limitJobs maybePackage         -> Spago.verify limitJobs maybePackage

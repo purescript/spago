@@ -167,6 +167,9 @@ fetchPackage pair@(PackageName{..}, Package{ repo = Remote repo, ..} ) = do
 
 fetchPackages :: Maybe Int -> [(PackageName, Package)] -> IO ()
 fetchPackages maybeLimit deps = do
+
+  Config.checkPursIsUpToDate
+
   echoStr $ "Installing " <> show (List.length deps) <> " dependencies."
   Async.withTaskGroup limit $ \taskGroup -> do
     asyncs <- for deps $ \dep -> Async.async taskGroup $ fetchPackage dep
@@ -250,15 +253,23 @@ install maybeLimit packages = do
 
 
 -- | A list of the packages that can be added to this project
-listPackages :: IO ()
-listPackages = do
+listPackages :: Bool -> IO ()
+listPackages depsOnly = do
   config <- Config.ensureConfig
-  traverse_ echo $ formatPackageNames config
+  let pkgs = getPackages depsOnly config
+  if Map.null pkgs
+    then echo "There are no dependencies listed in your spago.dhall"
+    else traverse_ echo $ formatPackageNames pkgs
 
   where
+    getPackages :: Bool -> Config -> Packages
+    getPackages False (Config { packages = pkgs }) = pkgs
+    getPackages _ (Config { packages = pkgs, dependencies = deps}) =
+      Map.restrictKeys pkgs (Set.fromList deps)
+
     -- | Format all the package names from the configuration
-    formatPackageNames :: Config -> [Text]
-    formatPackageNames Config { packages = pkgs } =
+    formatPackageNames :: Packages -> [Text]
+    formatPackageNames pkgs =
       let
         pkgsList = Map.toList pkgs
 
