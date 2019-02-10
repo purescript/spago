@@ -371,7 +371,7 @@ upgradeSpacchetti = do
     upgradeImport _ imp = Left imp
 
 
--- | Given a Dhall.Import, extract the spacchetti tag if
+-- | Given a Dhall.Import, extract the GitHub tag if the upstream is Spacchetti
 getPackageSetTag :: Dhall.Import -> Maybe Text
 getPackageSetTag Dhall.Import
   { importHashed = Dhall.ImportHashed
@@ -391,9 +391,11 @@ getPackageSetTag Dhall.Import
   } = Just tag
 getPackageSetTag _ = Nothing
 
+
 -- | Suppress the 'Left' value of an 'Either'
 hush :: Either a b -> Maybe b
 hush = either (const Nothing) Just
+
 
 checkPursIsUpToDate :: IO ()
 checkPursIsUpToDate = do
@@ -421,12 +423,13 @@ checkPursIsUpToDate = do
     pure packageSet
 
     where
-      -- | The chech is successful only when the installed compiler is "slightly"
+      -- | The check is successful only when the installed compiler is "slightly"
       --   greater (or equal of course) to the minimum version. E.g. fine cases are:
       --   - current is 0.12.2 and package-set is on 0.12.1
-      --   - current is 1.2.3 and package-set is on 1.3.4
+      --   - current is 1.4.3 and package-set is on 1.3.4
       --   Not fine cases are e.g.:
       --   - current is 0.1.2 and package-set is 0.2.3
+      --   - current is 1.2.3 and package-set is 1.3.4
       --   - current is 1.2.3 and package-set is 0.2.3
       performCheck :: Version.SemVer -> Version.SemVer -> IO ()
       performCheck actualPursVersion minPursVersion = do
