@@ -16,6 +16,7 @@ module Spago
   , WithMain(..)
   , PursArg(..)
   , PackageName(..)
+  , PackagesFilter(..)
   ) where
 
 import qualified Control.Concurrent.Async.Pool as Async
@@ -44,6 +45,13 @@ import qualified Spago.Templates               as Templates
 import           Spago.Turtle
 
 
+newtype ModuleName = ModuleName { unModuleName :: T.Text }
+newtype TargetPath = TargetPath { unTargetPath :: T.Text }
+newtype SourcePath = SourcePath { unSourcePath :: T.Text }
+newtype PursArg = PursArg { unPursArg :: T.Text }
+
+data WithMain = WithMain | WithoutMain
+data PackagesFilter = TransitiveDeps | DirectDeps
 
 
 -- | The directory in which spago will put its tempfiles
@@ -253,34 +261,32 @@ install maybeLimit packages = do
 
 
 -- | A list of the packages that can be added to this project
-listPackages :: Bool -> IO ()
-listPackages depsOnly = do
-  config <- Config.ensureConfig
-  let pkgs = getPackages depsOnly config
-  if Map.null pkgs
-    then echo "There are no dependencies listed in your spago.dhall"
-    else traverse_ echo $ formatPackageNames pkgs
+listPackages :: Maybe PackagesFilter -> IO ()
+listPackages packagesFilter = do
+  Config{..} <- Config.ensureConfig
+  packagesToList :: [(PackageName, Package)] <- case packagesFilter of
+    Nothing             -> pure $ Map.toList packages
+    Just TransitiveDeps -> getTransitiveDeps packages dependencies
+    Just DirectDeps     -> pure $ Map.toList
+      $ Map.restrictKeys packages (Set.fromList dependencies)
+
+  case packagesToList of
+    [] -> echo "There are no dependencies listed in your spago.dhall"
+    _  -> traverse_ echo $ formatPackageNames packagesToList
 
   where
-    getPackages :: Bool -> Config -> Packages
-    getPackages False (Config { packages = pkgs }) = pkgs
-    getPackages _ (Config { packages = pkgs, dependencies = deps}) =
-      Map.restrictKeys pkgs (Set.fromList deps)
-
     -- | Format all the package names from the configuration
-    formatPackageNames :: Packages -> [Text]
+    formatPackageNames :: [(PackageName, Package)] -> [Text]
     formatPackageNames pkgs =
       let
-        pkgsList = Map.toList pkgs
-
-        longestName = maximum $ fmap (Text.length . packageName . fst) pkgsList
-        longestVersion = maximum $ fmap (Text.length . version . snd) pkgsList
+        longestName = maximum $ fmap (Text.length . packageName . fst) pkgs
+        longestVersion = maximum $ fmap (Text.length . version . snd) pkgs
 
         renderPkg (PackageName{..},Package{..})
           = leftPad longestName packageName <> " "
           <> leftPad longestVersion version <> "   "
           <> Text.pack (show repo)
-      in map renderPkg pkgsList
+      in map renderPkg pkgs
 
     leftPad :: Int -> Text -> Text
     leftPad n s
@@ -349,13 +355,6 @@ build maybeLimit sourcePaths passthroughArgs = do
     T.ExitSuccess -> echo "Build succeeded."
     T.ExitFailure n -> die ("Failed to build: " <> T.repr n)
 
-
-newtype ModuleName = ModuleName { unModuleName :: T.Text }
-newtype TargetPath = TargetPath { unTargetPath :: T.Text }
-newtype SourcePath = SourcePath { unSourcePath :: T.Text }
-newtype PursArg = PursArg { unPursArg :: T.Text }
-
-data WithMain = WithMain | WithoutMain
 
 repl :: [SourcePath] -> [PursArg] -> IO ()
 repl sourcePaths passthroughArgs = do

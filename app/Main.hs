@@ -5,8 +5,8 @@ import qualified System.Environment as Env
 import qualified Turtle             as T
 
 import qualified PscPackage
-import           Spago              (ModuleName (..), PursArg (..), SourcePath (..),
-                                     TargetPath (..), WithMain (..), PackageName (..))
+import           Spago              (ModuleName (..), PackageName (..), PackagesFilter (..),
+                                     PursArg (..), SourcePath (..), TargetPath (..), WithMain (..))
 import qualified Spago
 import qualified Spago.Config
 
@@ -33,7 +33,7 @@ data Command
   | Build (Maybe Int) [SourcePath] [PursArg]
 
   -- | List available packages
-  | ListPackages Bool
+  | ListPackages (Maybe PackagesFilter)
 
   -- | Verify that the Package Set is correct (for a single package or in general)
   | Verify (Maybe Int) (Maybe PackageName)
@@ -101,7 +101,12 @@ parser
     packageName = T.optional $ T.arg (Just . PackageName) "package" "Specify the name of a package"
     packageNames = T.many $ T.arg (Just . PackageName) "package" "Package name to add as dependency"
     passthroughArgs = T.many $ T.arg (Just . PursArg) " ..any `purs` option" "Options passed through to `purs`; use -- to separate"
-    depsOnly    = T.switch "deps" 'd' "Dependencies only instead of all available packages"
+    packagesFilter =
+      let wrap = \case
+            "direct"     -> Just DirectDeps
+            "transitive" -> Just TransitiveDeps
+            _            -> Nothing
+      in T.optional $ T.opt wrap "filter" 'f' "Filter packages: direct deps with `direct`, transitive ones with `transitive`"
 
     pscPackageLocalSetup
       = T.subcommand "psc-package-local-setup" "Setup a local package set by creating a new packages.dhall"
@@ -129,7 +134,7 @@ parser
 
     listPackages
       = T.subcommand "list-packages" "List packages available in your packages.dhall"
-      $ ListPackages <$> depsOnly
+      $ ListPackages <$> packagesFilter
 
     verify
       = T.subcommand "verify" "Verify that the Package Set is correct (for a single package or all)"
@@ -176,7 +181,7 @@ main = do
   case command of
     Init force                            -> Spago.initProject force
     Install limitJobs packageNames        -> Spago.install limitJobs packageNames
-    ListPackages depsOnly                 -> Spago.listPackages depsOnly
+    ListPackages packagesFilter           -> Spago.listPackages packagesFilter
     Sources                               -> Spago.sources
     Build limitJobs paths pursArgs        -> Spago.build limitJobs paths pursArgs
     Verify limitJobs maybePackage         -> Spago.verify limitJobs maybePackage
