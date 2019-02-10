@@ -414,7 +414,7 @@ checkPursIsUpToDate = do
           $ "WARNING: the package-set version you're on doesn't check if the version of the\n"
           <> "PureScript compiler installed on your system is compatible.\n"
           <> "If your build fails you might want to upgrade your set by running this command:\n"
-          <> "`spago spacchetti-upgrade`\n"
+          <> "`spago spacchetti-upgrade`\n\n"
 
     -- We have to return a RawPackageSet, unmodified.
     -- TODO: refactor so we don't have to return it
@@ -439,8 +439,7 @@ checkPursIsUpToDate = do
             <> "outdated for the package-set you're using.\n"
             <> "\ninstalled version:   " <> Version.prettySemVer actualPursVersion
             <> "\npackage-set version: " <> Version.prettySemVer minPursVersion
-            <> "\n\nPlease upgrade your `purs` version. You can do it by running:\n"
-            <> "\n`npm update purescript`\n"
+            <> "\n\nPlease upgrade your `purs` version.\n\n"
 
       readPursVersion :: IO Version.SemVer
       readPursVersion = do
