@@ -51,28 +51,46 @@ spagoDir = ".spago/"
 -- | Init a new Spago project:
 --   - create `packages.dhall` to manage the package set, overrides, etc
 --   - create `spago.dhall` to manage project config: name, deps, etc
---   - create an example `src` folder
---   - create an example `test` folder
+--   - create an example `src` folder (if needed)
+--   - create an example `test` folder (if needed)
 initProject :: Bool -> IO ()
 initProject force = do
   -- packages.dhall and spago.dhall overwrite can be forced
   PscPackage.makePackagesDhall force "init"
   Config.makeConfig force
-  T.mktree "src"
-  T.mktree "test"
-  -- But the other files in the template are just skipped if already there.
+
+  -- If these directories (or files) exist, we skip copying "sample sources"
   -- Because you might want to just init a project with your own source files,
   -- or just migrate a psc-package project
-  copyIfNotExists "src/Main.purs" Templates.srcMain
-  copyIfNotExists "test/Main.purs" Templates.testMain
+  whenDirNotExists "src" $ do
+    copyIfNotExists "src/Main.purs" Templates.srcMain
+
+  whenDirNotExists "test" $ do
+    copyIfNotExists "test/Main.purs" Templates.testMain
+
   copyIfNotExists ".gitignore" Templates.gitignore
+
   echo "Set up a local Spago project."
   echo "Try running `spago install`"
+
   where
+    whenDirNotExists dir action = do
+      let dirPath = T.fromText dir
+      dirExists <- T.testdir dirPath
+      case dirExists of
+        True ->
+          echo
+            $ "Found existing directory "
+            <> surroundQuote dir
+            <> ", skipping copy of sample sources"
+        False -> do
+          T.mktree dirPath
+          action
+
     copyIfNotExists dest srcTemplate = do
       let destPath = T.fromText dest
       (T.testfile destPath) >>= \case
-        True  -> echo ("Found existing " <> surroundQuote dest <> ", not overwriting it")
+        True  -> echo $ "Found existing " <> surroundQuote dest <> ", not overwriting it"
         False -> T.writeTextFile destPath srcTemplate
 
 
