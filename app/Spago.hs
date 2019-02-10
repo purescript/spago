@@ -24,6 +24,7 @@ import           Data.Foldable                 (for_, traverse_)
 import qualified Data.List                     as List
 import qualified Data.Map                      as Map
 import           Data.Maybe                    (fromMaybe)
+import qualified Data.Set                      as Set
 import           Data.Text                     (Text)
 import qualified Data.Text                     as Text
 import           Data.Traversable              (for)
@@ -36,7 +37,7 @@ import qualified Turtle                        as T hiding (die, echo)
 import qualified PscPackage
 import           Spago.Config                  (Config (..),addDependencies)
 import qualified Spago.Config                  as Config
-import           Spago.Spacchetti              (Package (..), PackageName (..), Repo (..))
+import           Spago.Spacchetti              (Package (..), PackageName (..), Packages, Repo (..))
 import qualified Spago.Templates               as Templates
 import           Spago.Turtle
 
@@ -221,15 +222,23 @@ install maybeLimit packages = do
     limit = fromMaybe 100 maybeLimit
 
 -- | A list of the packages that can be added to this project
-listPackages :: IO ()
-listPackages = do
+listPackages :: Bool -> IO ()
+listPackages depsOnly = do
   config <- Config.ensureConfig
-  traverse_ echo $ formatPackageNames config
+  let pkgs = getPackages depsOnly config
+  if Map.null pkgs
+    then echo "There are no dependencies listed in your spago.dhall"
+    else traverse_ echo $ formatPackageNames pkgs
 
   where
+    getPackages :: Bool -> Config -> Packages
+    getPackages False (Config { packages = pkgs }) = pkgs
+    getPackages _ (Config { packages = pkgs, dependencies = deps}) =
+      Map.restrictKeys pkgs (Set.fromList deps)
+
     -- | Format all the package names from the configuration
-    formatPackageNames :: Config -> [Text]
-    formatPackageNames Config { packages = pkgs } =
+    formatPackageNames :: Packages -> [Text]
+    formatPackageNames pkgs =
       let
         pkgsList = Map.toList pkgs
 

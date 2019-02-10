@@ -33,7 +33,7 @@ data Command
   | Build (Maybe Int) [SourcePath] [PursArg]
 
   -- | List available packages
-  | ListPackages
+  | ListPackages Bool
 
   -- | Test the project with some module, default Test.Main
   | Test (Maybe ModuleName) (Maybe Int) [SourcePath] [PursArg]
@@ -96,6 +96,7 @@ parser
     sourcePaths = T.many (T.opt (Just . SourcePath) "path" 'p' "Source path to include")
     packageNames = T.many $ T.arg (Just . PackageName) "package" "Package name to add as dependency"
     passthroughArgs = T.many $ T.arg (Just . PursArg) " ..any `purs` option" "Options passed through to `purs`; use -- to separate"
+    depsOnly    = T.switch "deps" 'd' "Dependencies only instead of all available packages"
 
     pscPackageLocalSetup
       = T.subcommand "psc-package-local-setup" "Setup a local package set by creating a new packages.dhall"
@@ -123,7 +124,7 @@ parser
 
     listPackages
       = T.subcommand "list-packages" "List packages available in your packages.dhall"
-      $ pure ListPackages
+      $ ListPackages <$> depsOnly
 
     build
       = T.subcommand "build" "Install the dependencies and compile the current package"
@@ -166,7 +167,7 @@ main = do
   case command of
     Init force                            -> Spago.initProject force
     Install limitJobs packageNames        -> Spago.install limitJobs packageNames
-    ListPackages                          -> Spago.listPackages
+    ListPackages depsOnly                 -> Spago.listPackages depsOnly
     Sources                               -> Spago.sources
     Build limitJobs paths pursArgs        -> Spago.build limitJobs paths pursArgs
     Test modName limitJobs paths pursArgs -> Spago.test modName limitJobs paths pursArgs
