@@ -55,8 +55,7 @@ The recommended installation methods on Linux and macOS are:
 
 **Note #1:** support for Windows is still basic, and we're sorry for this - the
 reason is that no current maintainer runs it.  
-Currently the only way to install on Windows is with `stack` - more info in
-[#57](https://github.com/spacchetti/spago/issues/57).  
+Currently the only way to install on Windows is with `stack`.  
 If you'd like to help with this that's awesome! Get in touch by commenting there
 or [opening another issue][spago-issues] :)
 
@@ -208,7 +207,7 @@ It might look like this:
 ```haskell
 let overrides =
       { simple-json =
-            upstream.simple-json ⫽ { repo = "../purescript-simple-json" }
+            upstream.simple-json // { repo = "../purescript-simple-json" }
       }
 ```
 
