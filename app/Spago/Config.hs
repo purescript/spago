@@ -410,10 +410,11 @@ checkPursIsUpToDate = do
         let Just pursVersionFromPackageSet = hush $ Version.semver minPursVersion
         compilerVersion <- readPursVersion
         performCheck compilerVersion pursVersionFromPackageSet
-      _ -> do
-        echo "WARNING: the PackageSet you're using doesn't check for the PureScript minimum version."
-        echo "Please upgrade ASAP with the following command:"
-        echo "\n`spago spacchetti-upgrade`\n"
+      _ -> echo
+          $ "WARNING: the package-set version you're on doesn't check if the version of the\n"
+          <> "PureScript compiler installed on your system is compatible.\n"
+          <> "Please upgrade ASAP with the following command:\n"
+          <> "\n`spago spacchetti-upgrade`\n"
 
     -- We have to return a RawPackageSet, unmodified.
     -- TODO: refactor so we don't have to return it
@@ -434,12 +435,12 @@ checkPursIsUpToDate = do
           ([0, b, c], [0, y, z]) | b == y && c >= z -> pure ()
           ([a, b, _c], [x, y, _z]) | a /= 0 && a == x && b >= y -> pure ()
           _ -> die
-            $ "Oh noes! It looks like the PureScript version on your system is not\n"
-            <> "compatible with the Package Set you're using.\n"
-            <> "\nCurrent version:    " <> Version.prettySemVer actualPursVersion
-            <> "\nPackageSet version: " <> Version.prettySemVer minPursVersion
-            <> "\nPlease upgrade your `purs` version. You can do it by running:\n"
-            <> "`npm update purescript`\n"
+            $ "Oh noes! It looks like the PureScript version installed on your system is\n"
+            <> "outdated for the package-set you're using.\n"
+            <> "\ninstalled version:   " <> Version.prettySemVer actualPursVersion
+            <> "\npackage-set version: " <> Version.prettySemVer minPursVersion
+            <> "\n\nPlease upgrade your `purs` version. You can do it by running:\n"
+            <> "\n`npm update purescript`\n"
 
       readPursVersion :: IO Version.SemVer
       readPursVersion = do
