@@ -413,8 +413,8 @@ checkPursIsUpToDate = do
       _ -> echo
           $ "WARNING: the package-set version you're on doesn't check if the version of the\n"
           <> "PureScript compiler installed on your system is compatible.\n"
-          <> "Please upgrade ASAP with the following command:\n"
-          <> "\n`spago spacchetti-upgrade`\n"
+          <> "If your build fails you might want to upgrade your set by running this command:\n"
+          <> "`spago spacchetti-upgrade`\n"
 
     -- We have to return a RawPackageSet, unmodified.
     -- TODO: refactor so we don't have to return it
