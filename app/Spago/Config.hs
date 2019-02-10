@@ -323,7 +323,7 @@ upgradeSpacchetti = do
       echo "Could not reach GitHub. Error:\n"
       throwIO err
     Right GitHub.Release{..} -> do
-      echo ("Found the most recent tag for \"spacchetti\": " <> releaseTagName)
+      echo ("Found the most recent tag for \"spacchetti\": " <> surroundQuote releaseTagName)
       withPackageSetAST ReadAndWrite $ \packagesRaw -> do
         maybePackages <- pure $ do
           newMkPackages <- upgradeImport releaseTagName $ mkPackage packagesRaw

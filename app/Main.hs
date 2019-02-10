@@ -125,7 +125,7 @@ parser
       $ pure PscPackageClean
 
     initProject
-      = T.subcommand "init" "Initialize a new sample project"
+      = T.subcommand "init" "Initialize a new sample project, or migrate a psc-package one"
       $ Init <$> force
 
     install
