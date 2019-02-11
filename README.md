@@ -24,13 +24,14 @@ PureScript package manager and build tool powered by [Dhall][dhall] and
     - [Listing available packages](#listing-available-packages)
     - [Adding a dependency](#adding-a-dependency)
     - [Adding and overriding dependencies in the Package Set](#adding-and-overriding-dependencies-in-the-package-set)
+    - [Verifying your additions and overrides](#verifying-your-additions-and-overrides)
     - [Upgrading the Package Set](#upgrading-the-package-set)
   - [Building, bundling and testing a project](#building-bundling-and-testing-a-project)
 - [FAQ](#faq)
     - [Hey wait we have a perfectly functional `pulp` right?](#hey-wait-we-have-a-perfectly-functional-pulp-right)
     - [I miss `bower link`!](#i-miss-bower-link)
     - [I added a new package to the `packages.dhall`, but `spago` is not installing it. Why?](#i-added-a-new-package-to-the-packagesdhall-but-spago-is-not-installing-it-why)
-    - [So if I use `spago make-module` will this thing compile all my js deps in the file?](#so-if-i-use-spago-make-module-this-thing-will-compile-all-my-js-deps-in-the-file)
+    - [So if I use `spago make-module` this thing will compile all my js deps in the file?](#so-if-i-use-spago-make-module-this-thing-will-compile-all-my-js-deps-in-the-file)
     - [Why can't `spago` also install my npm dependencies?](#why-cant-spago-also-install-my-npm-dependencies)
     - [I still want to use `psc-package`, can this help me in some way?](#i-still-want-to-use-psc-package-can-this-help-me-in-some-way)
 
@@ -48,19 +49,19 @@ infrastructure and tooling, as [`psc-package`][psc-package], [`pulp`][pulp] and
 
 > Right, so how can I get this thing?
 
-The recommended installation methods on Linux and macOS are:
-- `npm install -g purescript-spago` (see the latest releases on npm [here][spago-npm])
+The recommended installation methods are:
+- `npm install -g purescript-spago` (Linux and macOS only - see the latest releases on npm
+  [here][spago-npm])
 - Download the binary from the [latest GitHub release][spago-latest-release]
 - Compile from source by cloning this repo and running `stack install`
 
 **Note #1:** support for Windows is still basic, and we're sorry for this - the
 reason is that no current maintainer runs it.  
-Currently the only way to install on Windows is with `stack`.  
-If you'd like to help with this that's awesome! Get in touch by commenting there
-or [opening another issue][spago-issues] :)
+If you'd like to help with this that's awesome! Get in touch by taking a look at the
+[open issues][spago-issues] and eventually opening one :)
 
 **Note #2:** we assume you already installed the [PureScript compiler][purescript].
-If not, get it with `npm install -g purescript`
+If not, get it with `npm install -g purescript`, or the recommended method for your OS.
 
 ## Quickstart
 
@@ -128,7 +129,7 @@ let Package =
 -- The type of `packages.dhall` is a Record from a PackageName to a Package
 -- We're kind of stretching Dhall syntax here when defining this, but let's
 -- say that its type is something like this:
-let Packages =
+let PackageSet =
   { console : Package
   , effect : Package
   ...                  -- and so on, for all the packages in the package-set
@@ -138,7 +139,7 @@ let Packages =
 let Config =
   { name : Text               -- the name of our project
   , dependencies : List Text  -- the list of dependencies of our app
-  , packages : Packages       -- this is the type we just defined above
+  , packages : PackageSet     -- this is the type we just defined above
   }
 ```
 
@@ -186,10 +187,14 @@ with their versions and URLs) by running:
 $ spago list-packages
 ```
 
-Passing the `--deps` flag will restrict the output to dependencies from `spago.dhall`:
+By passing the `--filter` flag you can restrict the list to direct or transitive dependencies:
 
 ```bash
-$ spago list-packages --deps
+# Direct dependencies, i.e. only the ones listed in spago.dhall
+$ spago list-packages --filter=direct
+
+# Transitive dependencies, i.e. all the dependencies of your dependencies
+$ spago list-packages -f transitive
 ```
 
 #### Adding a dependency
@@ -244,8 +249,6 @@ Installing "enums"
 ...
 ```
 
-..but its sources will be just included in the build.
-
 Let's now say that we test that our fix works, and we are ready to Pull Request the fix.  
 So we push our fork and open the PR, but while we wait for the fix to land on the next
 package-set release, we still want to use the fix in our production build.
@@ -263,7 +266,7 @@ let overrides =
     }
 ```
 
-Note: currently support only branches and tags work as a `version`, and tags are
+**Note**: currently only "branches" and "tags" work as a `version`, and tags are
 recommended over branches (as for example if you push new commits to a branch,
 `spago` won't pick them up unless you delete the `.spago` folder).  
 Commit hashes are not supported yet, but hopefully will be at some point.
@@ -311,9 +314,23 @@ let additions =
   }
 ```
 
-Once you verify that your application builds with the added packages, we would of
-course very much love if you could pull request it to the Upstream package-set,
-[spacchetti][spacchetti] ❤️🍝
+#### Verifying your additions and overrides
+
+"But wait", you might say, "how do I know that my override doesn't break the package-set?"
+
+This is a fair question, and you can verify that your fix didn't break the rest of the
+package-set by running the `verify` command.
+
+E.g. if you patched the `foreign` package, and added it as a local package to your package-set,
+you can check that you didn't break its dependants (also called "reverse dependencies")
+by running:
+
+```bash
+$ spago verify foreign
+```
+
+Once you check that the packages you added verify correctly, we would of course very much love
+if you could pull request it to the Upstream package-set, [spacchetti][spacchetti] ❤️🍝
 
 #### Upgrading the Package Set
 
@@ -328,9 +345,8 @@ Running it would look something like this:
 
 ```bash
 $ spago spacchetti-upgrade
-Found the most recent tag for "spacchetti": 20190131
-Trying to read "packages.dhall"
-Package-set upgraded to latest tag "20190131"
+Found the most recent tag for "spacchetti": "0.12.2-20190210"
+Package-set upgraded to latest tag "0.12.2-20190210"
 Fetching the new one and generating hashes.. (this might take some time)
 Done. Updating the local package-set file..
 ```

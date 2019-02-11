@@ -5,8 +5,8 @@ import qualified System.Environment as Env
 import qualified Turtle             as T
 
 import qualified PscPackage
-import           Spago              (ModuleName (..), PursArg (..), SourcePath (..),
-                                     TargetPath (..), WithMain (..), PackageName (..))
+import           Spago              (ModuleName (..), PackageName (..), PackagesFilter (..),
+                                     PursArg (..), SourcePath (..), TargetPath (..), WithMain (..))
 import qualified Spago
 import qualified Spago.Config
 
@@ -33,7 +33,13 @@ data Command
   | Build (Maybe Int) [SourcePath] [PursArg]
 
   -- | List available packages
-  | ListPackages Bool
+  | ListPackages (Maybe PackagesFilter)
+
+  -- | Verify that a single package is consistent with the Package Set
+  | Verify (Maybe Int) PackageName
+
+    -- | Verify that the Package Set is correct
+  | VerifySet (Maybe Int)
 
   -- | Test the project with some module, default Test.Main
   | Test (Maybe ModuleName) (Maybe Int) [SourcePath] [PursArg]
@@ -78,6 +84,8 @@ parser
   T.<|> install
   T.<|> sources
   T.<|> listPackages
+  T.<|> verify
+  T.<|> verifySet
   T.<|> build
   T.<|> repl
   T.<|> test
@@ -94,9 +102,15 @@ parser
     toTarget    = T.optional (T.opt (Just . TargetPath) "to" 't' "The target file path")
     limitJobs   = T.optional (T.optInt "jobs" 'j' "Limit the amount of jobs that can run concurrently")
     sourcePaths = T.many (T.opt (Just . SourcePath) "path" 'p' "Source path to include")
+    packageName = T.arg (Just . PackageName) "package" "Specify a package name. You can list them with `list-packages`"
     packageNames = T.many $ T.arg (Just . PackageName) "package" "Package name to add as dependency"
     passthroughArgs = T.many $ T.arg (Just . PursArg) " ..any `purs` option" "Options passed through to `purs`; use -- to separate"
-    depsOnly    = T.switch "deps" 'd' "Dependencies only instead of all available packages"
+    packagesFilter =
+      let wrap = \case
+            "direct"     -> Just DirectDeps
+            "transitive" -> Just TransitiveDeps
+            _            -> Nothing
+      in T.optional $ T.opt wrap "filter" 'f' "Filter packages: direct deps with `direct`, transitive ones with `transitive`"
 
     pscPackageLocalSetup
       = T.subcommand "psc-package-local-setup" "Setup a local package set by creating a new packages.dhall"
@@ -111,7 +125,7 @@ parser
       $ pure PscPackageClean
 
     initProject
-      = T.subcommand "init" "Initialize a new sample project"
+      = T.subcommand "init" "Initialize a new sample project, or migrate a psc-package one"
       $ Init <$> force
 
     install
@@ -124,7 +138,15 @@ parser
 
     listPackages
       = T.subcommand "list-packages" "List packages available in your packages.dhall"
-      $ ListPackages <$> depsOnly
+      $ ListPackages <$> packagesFilter
+
+    verify
+      = T.subcommand "verify" "Verify that a single package is consistent with the Package Set"
+      $ Verify <$> limitJobs <*> packageName
+
+    verifySet
+      = T.subcommand "verify-set" "Verify that the whole Package Set builds correctly"
+      $ VerifySet <$> limitJobs
 
     build
       = T.subcommand "build" "Install the dependencies and compile the current package"
@@ -147,7 +169,7 @@ parser
       $ MakeModule <$> mainModule <*> toTarget
 
     spacchettiUpgrade
-      = T.subcommand "spacchetti-upgrade" "Upgrade \"packages.dhall\" to the latest Spacchetti release"
+      = T.subcommand "spacchetti-upgrade" "Upgrade the upstream in packages.dhall to the latest Spacchetti release"
       $ pure SpacchettiUpgrade
 
     version
@@ -167,9 +189,11 @@ main = do
   case command of
     Init force                            -> Spago.initProject force
     Install limitJobs packageNames        -> Spago.install limitJobs packageNames
-    ListPackages depsOnly                 -> Spago.listPackages depsOnly
+    ListPackages packagesFilter           -> Spago.listPackages packagesFilter
     Sources                               -> Spago.sources
     Build limitJobs paths pursArgs        -> Spago.build limitJobs paths pursArgs
+    Verify limitJobs package              -> Spago.verify limitJobs (Just package)
+    VerifySet limitJobs                   -> Spago.verify limitJobs Nothing
     Test modName limitJobs paths pursArgs -> Spago.test modName limitJobs paths pursArgs
     Repl paths pursArgs                   -> Spago.repl paths pursArgs
     Bundle modName tPath                  -> Spago.bundle WithMain modName tPath

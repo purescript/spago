@@ -6,6 +6,7 @@ module Spago
   , test
   , repl
   , bundle
+  , verify
   , makeModule
   , printVersion
   , listPackages
@@ -15,12 +16,13 @@ module Spago
   , WithMain(..)
   , PursArg(..)
   , PackageName(..)
+  , PackagesFilter(..)
   ) where
 
 import qualified Control.Concurrent.Async.Pool as Async
 import           Control.Exception             (SomeException, handle, try)
 import           Control.Monad.IO.Class        (liftIO)
-import           Data.Foldable                 (for_, traverse_)
+import           Data.Foldable                 (fold, for_, traverse_)
 import qualified Data.List                     as List
 import qualified Data.Map                      as Map
 import           Data.Maybe                    (fromMaybe)
@@ -35,13 +37,21 @@ import qualified System.Process                as Process
 import qualified Turtle                        as T hiding (die, echo)
 
 import qualified PscPackage
-import           Spago.Config                  (Config (..),addDependencies)
+import           Spago.Config                  (Config (..), addDependencies)
 import qualified Spago.Config                  as Config
-import           Spago.Spacchetti              (Package (..), PackageName (..), Packages, Repo (..))
+import           Spago.Spacchetti              (Package (..), PackageName (..), PackageSet,
+                                                Repo (..))
 import qualified Spago.Templates               as Templates
 import           Spago.Turtle
 
 
+newtype ModuleName = ModuleName { unModuleName :: T.Text }
+newtype TargetPath = TargetPath { unTargetPath :: T.Text }
+newtype SourcePath = SourcePath { unSourcePath :: T.Text }
+newtype PursArg = PursArg { unPursArg :: T.Text }
+
+data WithMain = WithMain | WithoutMain
+data PackagesFilter = TransitiveDeps | DirectDeps
 
 
 -- | The directory in which spago will put its tempfiles
@@ -104,19 +114,20 @@ getPackageDir (PackageName{..}, Package{ repo = Remote _, ..})
 getPackageDir (_, Package{ repo = Local path })
   = path
 
+
 getGlobs :: [(PackageName, Package)] -> [Text]
 getGlobs = map (\pair -> getPackageDir pair <> "/src/**/*.purs")
 
 
 -- | If the repo points to a remote git, fetch it in the .spago folder.
 --   If it's a local directory do nothing
-getDep :: (PackageName, Package) -> IO ()
-getDep (PackageName package, Package { repo = Local path }) =
+fetchPackage :: (PackageName, Package) -> IO ()
+fetchPackage (PackageName package, Package { repo = Local path }) =
   echo $ "Skipping package "
       <> surroundQuote package
       <> ", using local path: "
       <> surroundQuote path
-getDep pair@(PackageName{..}, Package{ repo = Remote repo, ..} ) = do
+fetchPackage pair@(PackageName{..}, Package{ repo = Remote repo, ..} ) = do
   exists <- T.testdir $ T.fromText packageDir
   if exists
     then do
@@ -161,43 +172,15 @@ getDep pair@(PackageName{..}, Package{ repo = Remote repo, ..} ) = do
     processWithNewCwd = (Process.shell (Text.unpack cmd))
       { Process.cwd = Just $ Text.unpack packageDir }
 
-getAllDependencies :: Config -> [(PackageName, Package)]
-getAllDependencies Config { dependencies = deps, packages = pkgs } =
-  Map.toList $ List.foldl' go Map.empty deps
-  where
-    go acc dep
-      | Map.member dep acc = acc
-      | otherwise =
-          case Map.lookup dep pkgs of
-            -- lazy error handling, user gets crash
-            Nothing -> error $ "Package " <> show dep <> " was missing from the package set."
-            Just x@(Package { dependencies = innerDeps }) -> do
-              let newAcc = List.foldl' go acc innerDeps
-              Map.insert dep x newAcc
 
--- | Fetch all dependencies into `.spago/`
-install :: Maybe Int -> [PackageName] -> IO ()
-install maybeLimit packages = do
-  -- Make sure .spago exists
-  T.mktree $ T.fromText spagoDir
-
-  -- Only call addDependencies if new packages are supplied
-  case packages of
-    [] -> pure ()
-    additional -> 
-        -- Config is loaded here, because we will change it when
-        -- adding packages, we will reload it later on
-        -- (which will have the updates)
-        Config.ensureConfig >>= flip addDependencies additional
-
-  config <- Config.ensureConfig
+fetchPackages :: Maybe Int -> [(PackageName, Package)] -> IO ()
+fetchPackages maybeLimit deps = do
 
   Config.checkPursIsUpToDate
 
-  let deps = getAllDependencies config
   echoStr $ "Installing " <> show (List.length deps) <> " dependencies."
   Async.withTaskGroup limit $ \taskGroup -> do
-    asyncs <- for deps $ \dep -> Async.async taskGroup $ getDep dep
+    asyncs <- for deps $ \dep -> Async.async taskGroup $ fetchPackage dep
     handle (handler asyncs) $ for_ asyncs Async.wait
     echo "Installation complete."
   where
@@ -221,35 +204,89 @@ install maybeLimit packages = do
     -- limited by specifying an option
     limit = fromMaybe 100 maybeLimit
 
--- | A list of the packages that can be added to this project
-listPackages :: Bool -> IO ()
-listPackages depsOnly = do
+
+-- | Return all the transitive dependencies of the current project
+getProjectDeps :: Config -> IO [(PackageName, Package)]
+getProjectDeps Config{..} = getTransitiveDeps packages dependencies
+
+
+-- | Return the transitive dependencies of a list of packages
+getTransitiveDeps :: PackageSet -> [PackageName] -> IO [(PackageName, Package)]
+getTransitiveDeps packageSet deps =
+  Map.toList . fold <$> traverse (go Set.empty) deps
+  where
+    go seen dep
+      | dep `Set.member` seen =
+          die $ "Cycle in package dependencies at package " <> packageName dep
+      | otherwise =
+        case Map.lookup dep packageSet of
+          Nothing ->
+            die $ "Package " <> Text.pack (show dep) <> " was missing from the package set."
+          Just info@Package{ .. } -> do
+            m <- fold <$> traverse (go (Set.insert dep seen)) dependencies
+            pure (Map.insert dep info m)
+
+
+getReverseDeps  :: PackageSet -> PackageName -> IO [(PackageName, Package)]
+getReverseDeps db dep =
+    List.nub <$> foldMap go (Map.toList db)
+  where
+    go pair@(packageName, Package {..}) =
+      case List.find (== dep) dependencies of
+        Nothing -> return mempty
+        Just _ -> do
+          innerDeps <- getReverseDeps db packageName
+          return $ pair : innerDeps
+
+
+-- | Fetch all dependencies into `.spago/`
+install :: Maybe Int -> [PackageName] -> IO ()
+install maybeLimit packages = do
+  -- Make sure .spago exists
+  T.mktree $ T.fromText spagoDir
+
+  -- Only call addDependencies if new packages are supplied
+  case packages of
+    [] -> pure ()
+    additional ->
+        -- Config is loaded here, because we will change it when
+        -- adding packages, we will reload it later on
+        -- (which will have the updates)
+        Config.ensureConfig >>= flip addDependencies additional
+
   config <- Config.ensureConfig
-  let pkgs = getPackages depsOnly config
-  if Map.null pkgs
-    then echo "There are no dependencies listed in your spago.dhall"
-    else traverse_ echo $ formatPackageNames pkgs
+
+  deps <- getProjectDeps config
+  fetchPackages maybeLimit deps
+
+
+-- | A list of the packages that can be added to this project
+listPackages :: Maybe PackagesFilter -> IO ()
+listPackages packagesFilter = do
+  Config{..} <- Config.ensureConfig
+  packagesToList :: [(PackageName, Package)] <- case packagesFilter of
+    Nothing             -> pure $ Map.toList packages
+    Just TransitiveDeps -> getTransitiveDeps packages dependencies
+    Just DirectDeps     -> pure $ Map.toList
+      $ Map.restrictKeys packages (Set.fromList dependencies)
+
+  case packagesToList of
+    [] -> echo "There are no dependencies listed in your spago.dhall"
+    _  -> traverse_ echo $ formatPackageNames packagesToList
 
   where
-    getPackages :: Bool -> Config -> Packages
-    getPackages False (Config { packages = pkgs }) = pkgs
-    getPackages _ (Config { packages = pkgs, dependencies = deps}) =
-      Map.restrictKeys pkgs (Set.fromList deps)
-
     -- | Format all the package names from the configuration
-    formatPackageNames :: Packages -> [Text]
+    formatPackageNames :: [(PackageName, Package)] -> [Text]
     formatPackageNames pkgs =
       let
-        pkgsList = Map.toList pkgs
-
-        longestName = maximum $ fmap (Text.length . packageName . fst) pkgsList
-        longestVersion = maximum $ fmap (Text.length . version . snd) pkgsList
+        longestName = maximum $ fmap (Text.length . packageName . fst) pkgs
+        longestVersion = maximum $ fmap (Text.length . version . snd) pkgs
 
         renderPkg (PackageName{..},Package{..})
           = leftPad longestName packageName <> " "
           <> leftPad longestVersion version <> "   "
           <> Text.pack (show repo)
-      in map renderPkg pkgsList
+      in map renderPkg pkgs
 
     leftPad :: Int -> Text -> Text
     leftPad n s
@@ -261,11 +298,49 @@ listPackages depsOnly = do
 sources :: IO ()
 sources = do
   config <- Config.ensureConfig
-  let
-    deps = getAllDependencies config
-    globs = getGlobs deps
-  _ <- traverse echo globs
+  deps <- getProjectDeps config
+  _ <- traverse echo $ getGlobs deps
   pure ()
+
+
+verify :: Maybe Int -> Maybe PackageName -> IO ()
+verify maybeLimit maybePackage = do
+  Config{..} <- Config.ensureConfig
+  case maybePackage of
+    -- If no package is specified, verify all of them
+    Nothing -> verifyPackages packages (Map.toList packages)
+    -- In case we have a package, search in the package set for it
+    Just packageName -> do
+      case Map.lookup packageName packages of
+        Nothing -> die $ "No packages found with the name " <> Text.pack (show packageName)
+        -- When verifying a single package we check the reverse deps/referrers
+        -- because we want to make sure the it doesn't break them
+        -- (without having to check the whole set of course, that would work
+        -- as well but would be much slower)
+        Just package -> do
+          reverseDeps <- getReverseDeps packages packageName
+          let toVerify = [(packageName, package)] <> reverseDeps
+          verifyPackages packages toVerify
+  where
+    verifyPackages :: PackageSet -> [(PackageName, Package)] -> IO ()
+    verifyPackages packageSet packages = do
+      echoStr $ "Verifying "
+              <> show (length packages)
+              <> " packages, this might take a while.."
+      traverse_ (verifyPackage packageSet) (fst <$> packages)
+
+    verifyPackage :: PackageSet -> PackageName -> IO ()
+    verifyPackage packageSet name = do
+      deps <- getTransitiveDeps packageSet [name]
+      let globs = getGlobs deps
+          paths = Text.intercalate " " $ surroundQuote <$> globs
+          cmd = "purs compile " <> paths
+          quotedName = surroundQuote $ packageName name
+      fetchPackages maybeLimit deps
+      echo $ "Verifying package " <> quotedName
+      T.shell cmd T.empty >>= \case
+        T.ExitSuccess -> echo $ "Successfully verified " <> quotedName
+        T.ExitFailure n -> die ("Failed to build: " <> T.repr n)
 
 
 -- | Build the project with purs, passing through
@@ -274,8 +349,8 @@ build :: (Maybe Int) -> [SourcePath] -> [PursArg] -> IO ()
 build maybeLimit sourcePaths passthroughArgs = do
   config <- Config.ensureConfig
   install maybeLimit mempty
+  deps <- getProjectDeps config
   let
-    deps  = getAllDependencies config
     globs = getGlobs deps <> ["src/**/*.purs", "test/**/*.purs"] <> map unSourcePath sourcePaths
     paths = Text.intercalate " " $ surroundQuote <$> globs
     args  = Text.intercalate " " $ map unPursArg passthroughArgs
@@ -285,18 +360,11 @@ build maybeLimit sourcePaths passthroughArgs = do
     T.ExitFailure n -> die ("Failed to build: " <> T.repr n)
 
 
-newtype ModuleName = ModuleName { unModuleName :: T.Text }
-newtype TargetPath = TargetPath { unTargetPath :: T.Text }
-newtype SourcePath = SourcePath { unSourcePath :: T.Text }
-newtype PursArg = PursArg { unPursArg :: T.Text }
-
-data WithMain = WithMain | WithoutMain
-
 repl :: [SourcePath] -> [PursArg] -> IO ()
 repl sourcePaths passthroughArgs = do
   config <- Config.ensureConfig
+  deps <- getProjectDeps config
   let
-    deps  = getAllDependencies config
     globs = getGlobs deps <> ["src/**/*.purs", "test/**/*.purs"] <> map unSourcePath sourcePaths
     args  = Text.unpack <$> ["repl"] <> globs <> map unPursArg passthroughArgs
   T.view $ liftIO $ Process.callProcess "purs" args
