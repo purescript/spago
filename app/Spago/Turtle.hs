@@ -2,7 +2,6 @@ module Spago.Turtle
   ( echo
   , echoStr
   , die
-  , surroundQuote
   , withDirectory
   ) where
 
@@ -30,9 +29,6 @@ echoStr = echo . Text.pack
 
 die :: Text -> IO a
 die reason = throwIO $ SpagoError reason
-
-surroundQuote :: Text -> Text
-surroundQuote y = "\"" <> y <> "\""
 
 -- | Manage a directory tree as a resource, deleting it if we except during the @action@
 --   NOTE: you should make sure the directory doesn't exist before calling this.

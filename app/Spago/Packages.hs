@@ -1,27 +1,18 @@
-module Spago
+module Spago.Packages
   ( initProject
   , install
   , sources
-  , build
-  , test
-  , repl
-  , bundle
   , verify
-  , makeModule
-  , printVersion
   , listPackages
-  , ModuleName(..)
-  , TargetPath(..)
-  , SourcePath(..)
-  , WithMain(..)
-  , PursArg(..)
-  , PackageName(..)
+  , getGlobs
+  , getProjectDeps
+  , PackageSet.upgradeSpacchetti
+  , PackageSet.PackageName(..)
   , PackagesFilter(..)
   ) where
 
 import qualified Control.Concurrent.Async.Pool as Async
-import           Control.Exception             (SomeException, handle, try)
-import           Control.Monad.IO.Class        (liftIO)
+import           Control.Exception             (SomeException, handle)
 import           Data.Foldable                 (fold, for_, traverse_)
 import qualified Data.List                     as List
 import qualified Data.Map                      as Map
@@ -30,28 +21,18 @@ import qualified Data.Set                      as Set
 import           Data.Text                     (Text)
 import qualified Data.Text                     as Text
 import           Data.Traversable              (for)
-import           Data.Version                  (showVersion)
-import qualified Paths_spago                   as Pcli
-import           System.IO                     (hPutStrLn)
 import qualified System.Process                as Process
 import qualified Turtle                        as T hiding (die, echo)
 
-import qualified PscPackage
-import           Spago.Config                  (Config (..), addDependencies)
+import           Spago.Config                  (Config (..))
 import qualified Spago.Config                  as Config
-import           Spago.Spacchetti              (Package (..), PackageName (..), PackageSet,
+import qualified Spago.Messages                as Messages
+import           Spago.PackageSet              (Package (..), PackageName (..), PackageSet,
                                                 Repo (..))
+import qualified Spago.PackageSet              as PackageSet
+import qualified Spago.Purs                    as Purs
 import qualified Spago.Templates               as Templates
 import           Spago.Turtle
-
-
-newtype ModuleName = ModuleName { unModuleName :: T.Text }
-newtype TargetPath = TargetPath { unTargetPath :: T.Text }
-newtype SourcePath = SourcePath { unSourcePath :: T.Text }
-newtype PursArg = PursArg { unPursArg :: T.Text }
-
-data WithMain = WithMain | WithoutMain
-data PackagesFilter = TransitiveDeps | DirectDeps
 
 
 -- | The directory in which spago will put its tempfiles
@@ -67,7 +48,7 @@ spagoDir = ".spago/"
 initProject :: Bool -> IO ()
 initProject force = do
   -- packages.dhall and spago.dhall overwrite can be forced
-  PscPackage.makePackagesDhall force "init"
+  PackageSet.makePackageSetFile force
   Config.makeConfig force
 
   -- If these directories (or files) exist, we skip copying "sample sources"
@@ -89,11 +70,7 @@ initProject force = do
       let dirPath = T.fromText dir
       dirExists <- T.testdir dirPath
       case dirExists of
-        True ->
-          echo
-            $ "Found existing directory "
-            <> surroundQuote dir
-            <> ", skipping copy of sample sources"
+        True -> echo $ Messages.foundExistingDirectory dir
         False -> do
           T.mktree dirPath
           action
@@ -101,7 +78,7 @@ initProject force = do
     copyIfNotExists dest srcTemplate = do
       let destPath = T.fromText dest
       (T.testfile destPath) >>= \case
-        True  -> echo $ "Found existing " <> surroundQuote dest <> ", not overwriting it"
+        True  -> echo $ Messages.foundExistingFile dest
         False -> T.writeTextFile destPath srcTemplate
 
 
@@ -115,18 +92,15 @@ getPackageDir (_, Package{ repo = Local path })
   = path
 
 
-getGlobs :: [(PackageName, Package)] -> [Text]
-getGlobs = map (\pair -> getPackageDir pair <> "/src/**/*.purs")
+getGlobs :: [(PackageName, Package)] -> [Purs.SourcePath]
+getGlobs = map (\pair -> Purs.SourcePath $ getPackageDir pair <> "/src/**/*.purs")
 
 
 -- | If the repo points to a remote git, fetch it in the .spago folder.
 --   If it's a local directory do nothing
 fetchPackage :: (PackageName, Package) -> IO ()
 fetchPackage (PackageName package, Package { repo = Local path }) =
-  echo $ "Skipping package "
-      <> surroundQuote package
-      <> ", using local path: "
-      <> surroundQuote path
+  echo $ Messages.foundLocalPackage package path
 fetchPackage pair@(PackageName{..}, Package{ repo = Remote repo, ..} ) = do
   exists <- T.testdir $ T.fromText packageDir
   if exists
@@ -137,15 +111,11 @@ fetchPackage pair@(PackageName{..}, Package{ repo = Remote repo, ..} ) = do
       withDirectory (T.fromText packageDir) $ do
         (T.systemStrictWithErr processWithNewCwd T.empty) >>= \case
           (T.ExitSuccess, _, _) -> pure ()
-          (_, _stdout, stderr) -> do
-            echo ("\nFailed to install dependency " <> quotedName)
-            echo "\nGit output:"
-            echo stderr
-            die "Aborting installation.."
+          (_, _stdout, stderr) -> die $ Messages.failedToInstallDep quotedName stderr
   where
     packageDir = getPackageDir pair
 
-    quotedName = surroundQuote packageName
+    quotedName = Messages.surroundQuote packageName
 
     -- TODO:
     -- It is theoretically possible to put a commit hash in the ref to fetch,
@@ -176,7 +146,7 @@ fetchPackage pair@(PackageName{..}, Package{ repo = Remote repo, ..} ) = do
 fetchPackages :: Maybe Int -> [(PackageName, Package)] -> IO ()
 fetchPackages maybeLimit deps = do
 
-  Config.checkPursIsUpToDate
+  PackageSet.checkPursIsUpToDate
 
   echoStr $ "Installing " <> show (List.length deps) <> " dependencies."
   Async.withTaskGroup limit $ \taskGroup -> do
@@ -252,12 +222,15 @@ install maybeLimit packages = do
         -- Config is loaded here, because we will change it when
         -- adding packages, we will reload it later on
         -- (which will have the updates)
-        Config.ensureConfig >>= flip addDependencies additional
+        Config.ensureConfig >>= flip Config.addDependencies additional
 
   config <- Config.ensureConfig
 
   deps <- getProjectDeps config
   fetchPackages maybeLimit deps
+
+
+data PackagesFilter = TransitiveDeps | DirectDeps
 
 
 -- | A list of the packages that can be added to this project
@@ -299,7 +272,7 @@ sources :: IO ()
 sources = do
   config <- Config.ensureConfig
   deps <- getProjectDeps config
-  _ <- traverse echo $ getGlobs deps
+  _ <- traverse echo $ fmap Purs.unSourcePath $ getGlobs deps
   pure ()
 
 
@@ -324,109 +297,15 @@ verify maybeLimit maybePackage = do
   where
     verifyPackages :: PackageSet -> [(PackageName, Package)] -> IO ()
     verifyPackages packageSet packages = do
-      echoStr $ "Verifying "
-              <> show (length packages)
-              <> " packages, this might take a while.."
+      echo $ Messages.verifying $ length packages
       traverse_ (verifyPackage packageSet) (fst <$> packages)
 
     verifyPackage :: PackageSet -> PackageName -> IO ()
     verifyPackage packageSet name = do
       deps <- getTransitiveDeps packageSet [name]
       let globs = getGlobs deps
-          paths = Text.intercalate " " $ surroundQuote <$> globs
-          cmd = "purs compile " <> paths
-          quotedName = surroundQuote $ packageName name
+          quotedName = Messages.surroundQuote $ packageName name
       fetchPackages maybeLimit deps
       echo $ "Verifying package " <> quotedName
-      T.shell cmd T.empty >>= \case
-        T.ExitSuccess -> echo $ "Successfully verified " <> quotedName
-        T.ExitFailure n -> die ("Failed to build: " <> T.repr n)
-
-
--- | Build the project with purs, passing through
---   the additional args in the list
-build :: (Maybe Int) -> [SourcePath] -> [PursArg] -> IO ()
-build maybeLimit sourcePaths passthroughArgs = do
-  config <- Config.ensureConfig
-  install maybeLimit mempty
-  deps <- getProjectDeps config
-  let
-    globs = getGlobs deps <> ["src/**/*.purs", "test/**/*.purs"] <> map unSourcePath sourcePaths
-    paths = Text.intercalate " " $ surroundQuote <$> globs
-    args  = Text.intercalate " " $ map unPursArg passthroughArgs
-    cmd = "purs compile " <> args <> " " <> paths
-  T.shell cmd T.empty >>= \case
-    T.ExitSuccess -> echo "Build succeeded."
-    T.ExitFailure n -> die ("Failed to build: " <> T.repr n)
-
-
-repl :: [SourcePath] -> [PursArg] -> IO ()
-repl sourcePaths passthroughArgs = do
-  config <- Config.ensureConfig
-  deps <- getProjectDeps config
-  let
-    globs = getGlobs deps <> ["src/**/*.purs", "test/**/*.purs"] <> map unSourcePath sourcePaths
-    args  = Text.unpack <$> ["repl"] <> globs <> map unPursArg passthroughArgs
-  T.view $ liftIO $ Process.callProcess "purs" args
-
--- | Test the project: compile and run the Test.Main
---   (or the provided module name) with node
-test :: Maybe ModuleName -> Maybe Int -> [SourcePath] -> [PursArg] -> IO ()
-test maybeModuleName maybeLimit paths passthroughArgs = do
-  build maybeLimit paths passthroughArgs
-  T.shell cmd T.empty >>= \case
-    T.ExitSuccess   -> echo "Tests succeeded."
-    T.ExitFailure n -> die $ "Tests failed: " <> T.repr n
-  where
-    moduleName = fromMaybe (ModuleName "Test.Main") maybeModuleName
-    cmd = "node -e \"require('./output/" <> unModuleName moduleName <> "').main()\""
-
-
-prepareBundleDefaults :: Maybe ModuleName -> Maybe TargetPath -> (ModuleName, TargetPath)
-prepareBundleDefaults maybeModuleName maybeTargetPath = (moduleName, targetPath)
-  where
-    moduleName = fromMaybe (ModuleName "Main") maybeModuleName
-    targetPath = fromMaybe (TargetPath "index.js") maybeTargetPath
-
-
--- | Bundle the project to a js file
-bundle :: WithMain -> Maybe ModuleName -> Maybe TargetPath -> IO ()
-bundle withMain maybeModuleName maybeTargetPath = do
-  let ((ModuleName moduleName), (TargetPath targetPath))
-        = prepareBundleDefaults maybeModuleName maybeTargetPath
-
-      main = case withMain of
-        WithMain    -> " --main " <> moduleName
-        WithoutMain -> ""
-
-      cmd
-        = "purs bundle \"output/*/*.js\""
-        <> " -m " <> moduleName
-        <> main
-        <> " -o " <> targetPath
-
-  T.shell cmd T.empty >>= \case
-    T.ExitSuccess   -> echo $ "Bundle succeeded and output file to " <> targetPath
-    T.ExitFailure n -> die $ "Bundle failed: " <> T.repr n
-
-
--- | Bundle into a CommonJS module
-makeModule :: Maybe ModuleName -> Maybe TargetPath -> IO ()
-makeModule maybeModuleName maybeTargetPath = do
-  let (moduleName, targetPath) = prepareBundleDefaults maybeModuleName maybeTargetPath
-      jsExport = Text.unpack $ "\nmodule.exports = PS[\""<> unModuleName moduleName <> "\"];"
-  echo "Bundling first..."
-  bundle WithoutMain (Just moduleName) (Just targetPath)
-  -- Here we append the CommonJS export line at the end of the bundle
-  try (T.with
-        (T.appendonly $ T.fromText $ unTargetPath targetPath)
-        ((flip hPutStrLn) jsExport))
-    >>= \case
-      Right _ -> echo $ "Make module succeeded and output file to " <> unTargetPath targetPath
-      Left (n :: SomeException) -> die $ "Make module failed: " <> T.repr n
-
-
--- | Print out Spago version
-printVersion :: IO ()
-printVersion =
-  echoStr $ showVersion Pcli.version
+      Purs.compile globs []
+      echo $ "Successfully verified " <> quotedName

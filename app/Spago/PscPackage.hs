@@ -1,18 +1,32 @@
-module PscPackage where
+module Spago.PscPackage where
 
-import           Control.Exception  (SomeException, try)
-import qualified Data.Aeson         as JSON
-import           Data.Text          (Text)
-import qualified Data.Text          as Text
-import qualified Data.Text.Encoding as Text
-import qualified Dhall.Format       as Dhall.Format
-import qualified Dhall.Pretty       as Dhall.Pretty
-import qualified Turtle             as T
+import           Control.Exception        (SomeException, try)
+import qualified Data.Aeson               as JSON
+import           Data.Aeson.Encode.Pretty (encodePretty)
+import qualified Data.Aeson.Encode.Pretty as JSON
+import qualified Data.ByteString.Lazy     as ByteString.Lazy
+import           Data.Text                (Text)
+import qualified Data.Text                as Text
+import qualified Data.Text.Encoding       as Text
+import qualified Data.Text.Lazy           as LT
+import qualified Data.Text.Lazy.Encoding  as LT
+import qualified Dhall.JSON               as Dhall.JSON
+import           GHC.Generics             (Generic)
+import qualified Turtle                   as T
 
-import qualified PscPackage.Types   as PscPackage
-import           Spago.Dhall        (dhallToJSON)
-import qualified Spago.Templates    as Templates
+import qualified Spago.PackageSet         as PackageSet
 
+
+data PscPackage = PscPackage
+  { name    :: Text
+  , set     :: Text
+  , source  :: Text
+  , depends :: [Text]
+  }
+  deriving (Show, Generic)
+
+instance JSON.ToJSON PscPackage
+instance JSON.FromJSON PscPackage
 
 configPathText :: Text
 configPathText = "psc-package.json"
@@ -26,48 +40,54 @@ pscPackageBasePathText = ".psc-package/local/.set/"
 pscPackageBasePath :: T.FilePath
 pscPackageBasePath = T.fromText pscPackageBasePathText
 
-packagesDhallText :: Text
-packagesDhallText = "packages.dhall"
-
-packagesDhallPath :: T.FilePath
-packagesDhallPath = T.fromText packagesDhallText
-
 packagesJsonText :: Text
 packagesJsonText = pscPackageBasePathText <> "packages.json"
 
 packagesJsonPath :: T.FilePath
 packagesJsonPath = T.fromText packagesJsonText
 
+pscPackageJson :: T.Text -> T.Text
+pscPackageJson packageName = encodePscPackage $ PscPackage packageName "local" "" []
+
+encodePscPackage :: PscPackage -> T.Text
+encodePscPackage = LT.toStrict . LT.decodeUtf8 . encodePretty
+
+
+-- | Given a path to a Dhall file and an output path to a JSON file,
+--   reads the Dhall, converts it, and writes it as JSON
+dhallToJSON :: T.Text -> T.FilePath -> IO ()
+dhallToJSON inputPath outputPath = do
+  let config = JSON.Config
+               { JSON.confIndent = JSON.Spaces 2
+               , JSON.confCompare = compare
+               , JSON.confNumFormat = JSON.Generic
+               , JSON.confTrailingNewline = False }
+
+  dhall <- T.readTextFile $ T.fromText inputPath
+
+  json <- Dhall.JSON.codeToValue Dhall.JSON.NoConversion inputPath dhall
+
+  T.writeTextFile outputPath
+    $ Text.decodeUtf8
+    $ ByteString.Lazy.toStrict
+    $ JSON.encodePretty' config json
+
 
 -- | Generates a local `packages.json` from the current `packages.dhall`
 insDhall :: IO ()
 insDhall = do
-  isProject <- T.testfile packagesDhallPath
+  isProject <- T.testfile PackageSet.path
   T.unless isProject $
     T.die "Missing packages.dhall file. Run `spago psc-package-local-setup` first."
   T.mktree pscPackageBasePath
   T.touch packagesJsonPath
 
-  try (dhallToJSON packagesDhallPath packagesJsonPath) >>= \case
+  try (dhallToJSON PackageSet.pathText packagesJsonPath) >>= \case
     Right _ -> do
       T.echo $ T.unsafeTextToLine $ "Wrote packages.json to " <> packagesJsonText
       T.echo "Now you can run `psc-package install`."
     Left (err :: SomeException) ->
       T.die ("Failed to insdhall: " <> Text.pack (show err))
-
-
--- | Tries to create the `packages.dhall` file. Fails when the file already exists,
---   unless `--force` has been used.
-makePackagesDhall :: Bool -> Text -> IO ()
-makePackagesDhall force command = do
-  T.unless force $ do
-    hasPackagesDhall <- T.testfile packagesDhallPath
-    T.when hasPackagesDhall $ T.die
-       $ "Found " <> packagesDhallText <> ": there's already a project here. "
-      <> "Run `spago " <> command <> " --force` if you're sure you want to overwrite it."
-  T.touch packagesDhallPath
-  T.writeTextFile packagesDhallPath Templates.packagesDhall
-  Dhall.Format.format Dhall.Pretty.Unicode (Just $ Text.unpack packagesDhallText)
 
 
 -- | Tries to create the `psc-package.json` file. Existing dependencies are preserved,
@@ -83,7 +103,7 @@ makePscPackage force = do
           Text.pack e
         Right p -> do
           T.writeTextFile configPath $
-            Templates.encodePscPackage $ p { PscPackage.set = "local", PscPackage.source = "" }
+            encodePscPackage $ p { set = "local", source = "" }
           T.echo "An existing psc-package.json file was found and upgraded to use local package sets."
           T.echo $ "It's possible that some of the existing dependencies are not in the default spacchetti package set."
 
@@ -93,13 +113,13 @@ makePscPackage force = do
       let projectName = case T.toText $ T.filename pwd of
             Left _  -> "my-project"
             Right n -> n
-      T.writeTextFile configPath $ Templates.pscPackageJson projectName
+      T.writeTextFile configPath $ pscPackageJson projectName
 
 
 -- | Create `packages.dhall` and update `psc-package.json` to use the local set
 localSetup :: Bool -> IO ()
 localSetup force = do
-  makePackagesDhall force "psc-package-local-setup"
+  PackageSet.makePackageSetFile force
   makePscPackage force
   T.echo "Set up local Spacchetti packages."
   T.echo "Run `spago psc-package-insdhall` to generate the package set."

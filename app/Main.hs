@@ -1,14 +1,18 @@
 module Main (main) where
 
+import qualified Data.Text          as Text
+import           Data.Version       (showVersion)
 import qualified GHC.IO.Encoding
+import qualified Paths_spago        as Pcli
 import qualified System.Environment as Env
 import qualified Turtle             as T
 
-import qualified PscPackage
-import           Spago              (ModuleName (..), PackageName (..), PackagesFilter (..),
-                                     PursArg (..), SourcePath (..), TargetPath (..), WithMain (..))
-import qualified Spago
-import qualified Spago.Config
+import           Spago.Build        (ExtraArg (..), ModuleName (..), SourcePath (..),
+                                     TargetPath (..), WithMain (..))
+import qualified Spago.Build
+import           Spago.Packages     (PackageName (..), PackagesFilter (..))
+import qualified Spago.Packages
+import qualified Spago.PscPackage   as PscPackage
 
 
 -- | Commands that this program handles
@@ -26,11 +30,11 @@ data Command
   | Sources
 
   -- | Start a REPL.
-  | Repl [SourcePath] [PursArg]
+  | Repl [SourcePath] [ExtraArg]
 
   -- | Build the project paths src/ and test/
   --   plus the specified source paths
-  | Build (Maybe Int) [SourcePath] [PursArg]
+  | Build (Maybe Int) [SourcePath] [ExtraArg]
 
   -- | List available packages
   | ListPackages (Maybe PackagesFilter)
@@ -42,7 +46,7 @@ data Command
   | VerifySet (Maybe Int)
 
   -- | Test the project with some module, default Test.Main
-  | Test (Maybe ModuleName) (Maybe Int) [SourcePath] [PursArg]
+  | Test (Maybe ModuleName) (Maybe Int) [SourcePath] [ExtraArg]
 
   -- | Bundle the project, with optional main and target path arguments
   | Bundle (Maybe ModuleName) (Maybe TargetPath)
@@ -104,7 +108,7 @@ parser
     sourcePaths = T.many (T.opt (Just . SourcePath) "path" 'p' "Source path to include")
     packageName = T.arg (Just . PackageName) "package" "Specify a package name. You can list them with `list-packages`"
     packageNames = T.many $ T.arg (Just . PackageName) "package" "Package name to add as dependency"
-    passthroughArgs = T.many $ T.arg (Just . PursArg) " ..any `purs` option" "Options passed through to `purs`; use -- to separate"
+    passthroughArgs = T.many $ T.arg (Just . ExtraArg) " ..any `purs` option" "Options passed through to `purs`; use -- to separate"
     packagesFilter =
       let wrap = \case
             "direct"     -> Just DirectDeps
@@ -185,21 +189,24 @@ main = do
   -- https://serverfault.com/questions/544156
   Env.setEnv "GIT_TERMINAL_PROMPT" "0"
 
+  -- | Print out Spago version
+  let printVersion = T.echo $ T.unsafeTextToLine $ Text.pack $ showVersion Pcli.version
+
   command <- T.options "Spago - manage your PureScript projects" parser
   case command of
-    Init force                            -> Spago.initProject force
-    Install limitJobs packageNames        -> Spago.install limitJobs packageNames
-    ListPackages packagesFilter           -> Spago.listPackages packagesFilter
-    Sources                               -> Spago.sources
-    Build limitJobs paths pursArgs        -> Spago.build limitJobs paths pursArgs
-    Verify limitJobs package              -> Spago.verify limitJobs (Just package)
-    VerifySet limitJobs                   -> Spago.verify limitJobs Nothing
-    Test modName limitJobs paths pursArgs -> Spago.test modName limitJobs paths pursArgs
-    Repl paths pursArgs                   -> Spago.repl paths pursArgs
-    Bundle modName tPath                  -> Spago.bundle WithMain modName tPath
-    MakeModule modName tPath              -> Spago.makeModule modName tPath
-    SpacchettiUpgrade                     -> Spago.Config.upgradeSpacchetti
-    Version                               -> Spago.printVersion
+    Init force                            -> Spago.Packages.initProject force
+    Install limitJobs packageNames        -> Spago.Packages.install limitJobs packageNames
+    ListPackages packagesFilter           -> Spago.Packages.listPackages packagesFilter
+    Sources                               -> Spago.Packages.sources
+    Verify limitJobs package              -> Spago.Packages.verify limitJobs (Just package)
+    VerifySet limitJobs                   -> Spago.Packages.verify limitJobs Nothing
+    SpacchettiUpgrade                     -> Spago.Packages.upgradeSpacchetti
+    Build limitJobs paths pursArgs        -> Spago.Build.build limitJobs paths pursArgs
+    Test modName limitJobs paths pursArgs -> Spago.Build.test modName limitJobs paths pursArgs
+    Repl paths pursArgs                   -> Spago.Build.repl paths pursArgs
+    Bundle modName tPath                  -> Spago.Build.bundle WithMain modName tPath
+    MakeModule modName tPath              -> Spago.Build.makeModule modName tPath
+    Version                               -> printVersion
     PscPackageLocalSetup force            -> PscPackage.localSetup force
     PscPackageInsDhall                    -> PscPackage.insDhall
     PscPackageClean                       -> PscPackage.clean
