@@ -94,8 +94,8 @@ makePackageSetFile force = do
 
 
 data RawPackageSet = RawPackageSet
-  { mkPackage :: Dhall.Import
-  , upstream  :: Dhall.Import
+  { mkPackage :: !Dhall.Import
+  , upstream  :: !Dhall.Import
   -- TODO: add additions and overrides if needed
   } deriving (Show, Generic)
 

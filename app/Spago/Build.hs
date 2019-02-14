@@ -18,7 +18,7 @@ import           System.IO         (hPutStrLn)
 import qualified Turtle            as T hiding (die, echo)
 
 import qualified Spago.Config      as Config
-import           Spago.Packages    as Packages
+import qualified Spago.Packages    as Packages
 import qualified Spago.Purs        as Purs
 import           Spago.Turtle
 
@@ -44,8 +44,8 @@ prepareBundleDefaults maybeModuleName maybeTargetPath = (moduleName, targetPath)
 build :: (Maybe Int) -> [Purs.SourcePath] -> [Purs.ExtraArg] -> IO ()
 build maybeLimit sourcePaths passthroughArgs = do
   config <- Config.ensureConfig
-  install maybeLimit mempty
   deps <- Packages.getProjectDeps config
+  Packages.fetchPackages maybeLimit deps
   let globs = Packages.getGlobs deps <> defaultSourcePaths <> sourcePaths
   Purs.compile globs passthroughArgs
 
@@ -53,7 +53,7 @@ build maybeLimit sourcePaths passthroughArgs = do
 repl :: [Purs.SourcePath] -> [Purs.ExtraArg] -> IO ()
 repl sourcePaths passthroughArgs = do
   config <- Config.ensureConfig
-  deps <- getProjectDeps config
+  deps <- Packages.getProjectDeps config
   let globs = Packages.getGlobs deps <> defaultSourcePaths <> sourcePaths
   Purs.repl globs passthroughArgs
 

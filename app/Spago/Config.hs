@@ -165,7 +165,7 @@ withConfigAST transform = do
         -- apply the transformation if config is valid
         RawConfig{..} <- case rawConfig of
           Right conf -> pure $ transform conf
-          Left err -> die $ Messages.failedToParseFile pathText err
+          Left err   -> die $ Messages.failedToParseFile pathText err
 
         -- return the new AST from the new config
         let
