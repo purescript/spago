@@ -26,6 +26,7 @@ PureScript package manager and build tool powered by [Dhall][dhall] and
     - [Adding and overriding dependencies in the Package Set](#adding-and-overriding-dependencies-in-the-package-set)
     - [Verifying your additions and overrides](#verifying-your-additions-and-overrides)
     - [Upgrading the Package Set](#upgrading-the-package-set)
+    - [Caching the Package Set](#caching-the-package-set)
   - [Building, bundling and testing a project](#building-bundling-and-testing-a-project)
 - [FAQ](#faq)
     - [Hey wait we have a perfectly functional `pulp` right?](#hey-wait-we-have-a-perfectly-functional-pulp-right)
@@ -364,11 +365,10 @@ let mkPackage =
 let upstream =
       https://raw.githubusercontent.com/spacchetti/spacchetti/0.12.2-20190210/src/packages.dhall sha256:1bee3f7608ca0f87a88b4b8807cb6722ab9ce3386b68325fbfa71d7211c1cf51
 
-
 ...
 ```
 
-The reason why it's so important is that (apart from [the security guarantees][dhall-hash-safety])
+The reason why it's so important is that (apart from [the safety guarantees][dhall-hash-safety])
 when your imports are protected by a hash they will be cached, considerably speeding up all
 the config-related operations.
 
