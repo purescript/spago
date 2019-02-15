@@ -57,6 +57,9 @@ data Command
   -- | Upgrade the package-set to the latest release
   | SpacchettiUpgrade
 
+  -- | Freeze the package-set so it will be cached
+  | Freeze
+
   -- | ### Commands for working with Psc-Package
   --
   --   Do the boilerplate of the local project setup to override and add arbitrary packages
@@ -96,6 +99,7 @@ parser
   T.<|> bundle
   T.<|> makeModule
   T.<|> spacchettiUpgrade
+  T.<|> freeze
   T.<|> pscPackageLocalSetup
   T.<|> pscPackageInsDhall
   T.<|> pscPackageClean
@@ -176,6 +180,10 @@ parser
       = T.subcommand "spacchetti-upgrade" "Upgrade the upstream in packages.dhall to the latest Spacchetti release"
       $ pure SpacchettiUpgrade
 
+    freeze
+      = T.subcommand "freeze" "Add hashes to the package-set, so it will be cached"
+      $ pure Freeze
+
     version
       = T.subcommand "version" "Show spago version"
       $ pure Version
@@ -201,6 +209,7 @@ main = do
     Verify limitJobs package              -> Spago.Packages.verify limitJobs (Just package)
     VerifySet limitJobs                   -> Spago.Packages.verify limitJobs Nothing
     SpacchettiUpgrade                     -> Spago.Packages.upgradeSpacchetti
+    Freeze                                -> Spago.Packages.freeze
     Build limitJobs paths pursArgs        -> Spago.Build.build limitJobs paths pursArgs
     Test modName limitJobs paths pursArgs -> Spago.Build.test modName limitJobs paths pursArgs
     Repl paths pursArgs                   -> Spago.Build.repl paths pursArgs

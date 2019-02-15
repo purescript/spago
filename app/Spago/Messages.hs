@@ -83,6 +83,12 @@ upgradingPackageSet newTag = makeMessage
   , "Fetching the new one and generating hashes.. (this might take some time)"
   ]
 
+freezePackageSet :: Text
+freezePackageSet = makeMessage
+  [ "Generating hashes for the package-set so it will be cached."
+  , "This might take some time..."
+  ]
+
 packageSetVersionWarning :: Text
 packageSetVersionWarning = makeMessage
  [ "WARNING: the package-set version you're on doesn't check if the version of the"

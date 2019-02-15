@@ -8,6 +8,7 @@ module Spago.Packages
   , getProjectDeps
   , fetchPackages
   , PackageSet.upgradeSpacchetti
+  , PackageSet.freeze
   , PackageSet.PackageName(..)
   , PackagesFilter(..)
   ) where

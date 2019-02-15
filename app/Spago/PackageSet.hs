@@ -2,6 +2,7 @@ module Spago.PackageSet
   ( upgradeSpacchetti
   , checkPursIsUpToDate
   , makePackageSetFile
+  , freeze
   , path
   , pathText
   , PackageSet
@@ -91,6 +92,13 @@ makePackageSetFile force = do
     T.when hasPackagesDhall $ die $ Messages.foundExistingProject pathText
   T.writeTextFile path Templates.packagesDhall
   Dhall.Format.format Dhall.Pretty.Unicode (Just $ Text.unpack pathText)
+
+
+-- | Freeze the package-set imports so they can be cached
+freeze :: IO ()
+freeze = do
+  echo Messages.freezePackageSet
+  Dhall.Freeze.freeze (Just $ Text.unpack pathText) False defaultStandardVersion
 
 
 data RawPackageSet = RawPackageSet
