@@ -26,6 +26,7 @@ PureScript package manager and build tool powered by [Dhall][dhall] and
     - [Adding and overriding dependencies in the Package Set](#adding-and-overriding-dependencies-in-the-package-set)
     - [Verifying your additions and overrides](#verifying-your-additions-and-overrides)
     - [Upgrading the Package Set](#upgrading-the-package-set)
+    - [Caching the Package Set](#caching-the-package-set)
   - [Building, bundling and testing a project](#building-bundling-and-testing-a-project)
 - [FAQ](#faq)
     - [Hey wait we have a perfectly functional `pulp` right?](#hey-wait-we-have-a-perfectly-functional-pulp-right)
@@ -351,6 +352,32 @@ Fetching the new one and generating hashes.. (this might take some time)
 Done. Updating the local package-set file..
 ```
 
+#### Caching the Package Set
+
+It is important to have the hashes set in your `packages.dhall`, like this:
+
+```haskell
+...
+
+let mkPackage =
+      https://raw.githubusercontent.com/spacchetti/spacchetti/0.12.2-20190210/src/mkPackage.dhall sha256:0b197efa1d397ace6eb46b243ff2d73a3da5638d8d0ac8473e8e4a8fc528cf57
+
+let upstream =
+      https://raw.githubusercontent.com/spacchetti/spacchetti/0.12.2-20190210/src/packages.dhall sha256:1bee3f7608ca0f87a88b4b8807cb6722ab9ce3386b68325fbfa71d7211c1cf51
+
+...
+```
+
+The reason why it's so important is that (apart from [the safety guarantees][dhall-hash-safety])
+when your imports are protected by a hash they will be cached, considerably speeding up all
+the config-related operations.
+
+You can freeze the imports in your package set by running:
+
+```bash
+$ spago freeze
+```
+
 ### Building, bundling and testing a project
 
 We can build the project and its dependencies by running:
@@ -554,3 +581,4 @@ We have two commands for it:
 [todomvc]: https://github.com/f-f/purescript-react-basic-todomvc
 [purec]: https://github.com/pure-c/purec
 [purerl]: https://github.com/purerl/purescript
+[dhall-hash-safety]: https://github.com/dhall-lang/dhall-lang/wiki/Safety-guarantees#code-injection
