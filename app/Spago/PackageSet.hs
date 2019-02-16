@@ -46,9 +46,9 @@ newtype PackageName = PackageName { packageName :: Text }
 
 -- | A spacchetti package.
 data Package = Package
-  { dependencies :: [PackageName] -- ^ list of dependency package names
-  , repo         :: Repo          -- ^ the remote git repository or the local path
-  , version      :: Text          -- ^ version string (also functions as a git ref)
+  { dependencies :: ![PackageName] -- ^ list of dependency package names
+  , repo         :: !Repo          -- ^ the remote git repository or the local path
+  , version      :: !Text          -- ^ version string (also functions as a git ref)
   }
   deriving (Eq, Show, Generic)
 
@@ -60,8 +60,8 @@ type PackageSet = Map PackageName Package
 -- | We consider a "Repo" a "box of source to include in the build"
 --   This can have different nature:
 data Repo
-  = Local Text    -- ^ A local path
-  | Remote Text   -- ^ The address of a remote git repository
+  = Local !Text    -- ^ A local path
+  | Remote !Text   -- ^ The address of a remote git repository
   deriving (Eq, Show, Generic)
 
 instance ToJSON Repo
@@ -102,8 +102,8 @@ freeze = do
 
 
 data RawPackageSet = RawPackageSet
-  { mkPackage :: Dhall.Import
-  , upstream  :: Dhall.Import
+  { mkPackage :: !Dhall.Import
+  , upstream  :: !Dhall.Import
   -- TODO: add additions and overrides if needed
   } deriving (Show, Generic)
 

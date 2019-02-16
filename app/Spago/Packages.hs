@@ -6,6 +6,7 @@ module Spago.Packages
   , listPackages
   , getGlobs
   , getProjectDeps
+  , fetchPackages
   , PackageSet.upgradeSpacchetti
   , PackageSet.freeze
   , PackageSet.PackageName(..)
@@ -15,6 +16,7 @@ module Spago.Packages
 import qualified Control.Concurrent.Async.Pool as Async
 import           Control.Exception             (SomeException, handle)
 import           Data.Foldable                 (fold, for_, traverse_)
+import           Control.Monad                 (filterM)
 import qualified Data.List                     as List
 import qualified Data.Map                      as Map
 import           Data.Maybe                    (fromMaybe)
@@ -145,13 +147,20 @@ fetchPackage pair@(PackageName{..}, Package{ repo = Remote repo, ..} ) = do
 
 
 fetchPackages :: Maybe Int -> [(PackageName, Package)] -> IO ()
-fetchPackages maybeLimit deps = do
+fetchPackages maybeLimit allDeps = do
 
   PackageSet.checkPursIsUpToDate
 
-  echoStr $ "Installing " <> show (List.length deps) <> " dependencies."
-  Async.withTaskGroup limit $ \taskGroup -> do
-    asyncs <- for deps $ \dep -> Async.async taskGroup $ fetchPackage dep
+  echoStr $ "Installing " <> show (List.length allDeps) <> " dependencies."
+
+  -- We try to fetch a dep only if their dir doesn't exist
+  depsToFetch <- (flip filterM) allDeps $ \dep -> do
+    exists <- T.testdir $ T.fromText $ getPackageDir dep
+    pure $ not exists
+
+  -- By default we make one thread per dep to fetch, but this can be limited
+  Async.withTaskGroup (fromMaybe (length depsToFetch) maybeLimit) $ \taskGroup -> do
+    asyncs <- for depsToFetch $ \dep -> Async.async taskGroup $ fetchPackage dep
     handle (handler asyncs) $ for_ asyncs Async.wait
     echo "Installation complete."
   where
@@ -171,10 +180,6 @@ fetchPackages maybeLimit deps = do
         Async.waitCatch async
       die "Installation failed."
 
-    -- We run a pretty high amount of threads by default, but this can be
-    -- limited by specifying an option
-    limit = fromMaybe 100 maybeLimit
-
 
 -- | Return all the transitive dependencies of the current project
 getProjectDeps :: Config -> IO [(PackageName, Package)]
@@ -193,7 +198,7 @@ getTransitiveDeps packageSet deps =
         case Map.lookup dep packageSet of
           Nothing ->
             die $ "Package " <> Text.pack (show dep) <> " was missing from the package set."
-          Just info@Package{ .. } -> do
+          Just info@Package{..} -> do
             m <- fold <$> traverse (go (Set.insert dep seen)) dependencies
             pure (Map.insert dep info m)
 
