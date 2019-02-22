@@ -51,7 +51,7 @@ infrastructure and tooling, as [`psc-package`][psc-package], [`pulp`][pulp] and
 > Right, so how can I get this thing?
 
 The recommended installation methods are:
-- `npm install -g purescript-spago` (Linux and macOS only - see the latest releases on npm
+- `npm install -g spago` (Linux and macOS only - see the latest releases on npm
   [here][spago-npm])
 - Download the binary from the [latest GitHub release][spago-latest-release]
 - Compile from source by cloning this repo and running `stack install`
@@ -574,7 +574,7 @@ We have two commands for it:
 [purp]: https://github.com/justinwoo/purp
 [parcel]: https://parceljs.org
 [purescript]: https://github.com/purescript/purescript
-[spago-npm]: https://www.npmjs.com/package/purescript-spago
+[spago-npm]: https://www.npmjs.com/package/spago
 [spago-latest-release]: https://github.com/spacchetti/spago/releases/latest
 [spago-issues]: https://github.com/spacchetti/spacchetti-cli/issues
 [affresco]: https://github.com/KSF-Media/affresco/tree/4b430b48059701a544dfb65b2ade07ef9f36328a
