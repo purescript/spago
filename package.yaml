@@ -53,6 +53,7 @@ dependencies:
 - github
 - versions
 - microlens
+- safe
 
 executables:
   spago:

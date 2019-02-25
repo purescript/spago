@@ -2,6 +2,7 @@ module Spago.Turtle
   ( echo
   , echoStr
   , die
+  , hush
   , withDirectory
   ) where
 
@@ -29,6 +30,10 @@ echoStr = echo . Text.pack
 
 die :: Text -> IO a
 die reason = throwIO $ SpagoError reason
+
+-- | Suppress the 'Left' value of an 'Either'
+hush :: Either a b -> Maybe b
+hush = either (const Nothing) Just
 
 -- | Manage a directory tree as a resource, deleting it if we except during the @action@
 --   NOTE: you should make sure the directory doesn't exist before calling this.

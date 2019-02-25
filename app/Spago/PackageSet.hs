@@ -244,11 +244,6 @@ getPackageSetTag Dhall.Import
 getPackageSetTag _ = Nothing
 
 
--- | Suppress the 'Left' value of an 'Either'
-hush :: Either a b -> Maybe b
-hush = either (const Nothing) Just
-
-
 checkPursIsUpToDate :: IO ()
 checkPursIsUpToDate = do
   withPackageSetAST ReadOnly $ \packageSet@RawPackageSet{..} -> do
