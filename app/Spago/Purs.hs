@@ -1,6 +1,8 @@
 module Spago.Purs where
 
+import           Control.Monad          (when)
 import           Control.Monad.IO.Class (liftIO)
+import           Data.Maybe             (isNothing)
 import qualified Data.Text              as Text
 import           Data.Versions          as Version
 import           Safe                   (headMay)
@@ -54,15 +56,18 @@ bundle withMain (ModuleName moduleName) (TargetPath targetPath) = do
     ("Bundle failed.")
 
 
-version :: IO Version.SemVer
+version :: IO (Maybe Version.SemVer)
 version = do
   fullVersionText <- T.shellStrict "purs --version" T.empty >>= \case
     (T.ExitSuccess, out) -> pure out
     _ -> die "Failed to run 'purs --version'"
   versionText <- pure $ headMay $ Text.split (== ' ') fullVersionText
-  case versionText >>= (hush . Version.semver) of
-    Just parsed -> pure parsed
-    Nothing     -> die $ Messages.failedToParseCommandOutput "purs --version" fullVersionText
+  parsed <- pure $ versionText >>= (hush . Version.semver)
+
+  when (isNothing parsed) $ do
+    echo $ Messages.failedToParseCommandOutput "purs --version" fullVersionText
+
+  pure parsed
 
 
 runWithOutput :: T.Text -> T.Text -> T.Text -> IO ()
