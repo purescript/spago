@@ -244,11 +244,6 @@ getPackageSetTag Dhall.Import
 getPackageSetTag _ = Nothing
 
 
--- | Suppress the 'Left' value of an 'Either'
-hush :: Either a b -> Maybe b
-hush = either (const Nothing) Just
-
-
 checkPursIsUpToDate :: IO ()
 checkPursIsUpToDate = do
   withPackageSetAST ReadOnly $ \packageSet@RawPackageSet{..} -> do
@@ -261,9 +256,11 @@ checkPursIsUpToDate = do
     -- - skip this check
     case fmap (Text.split (=='-')) (getPackageSetTag upstream) of
       Just [minPursVersion, _packageSetVersion] -> do
-        let Just pursVersionFromPackageSet = hush $ Version.semver minPursVersion
-        compilerVersion <- Purs.version
-        performCheck compilerVersion pursVersionFromPackageSet
+        maybeCompilerVersion <- Purs.version
+        case (maybeCompilerVersion, hush $ Version.semver minPursVersion) of
+          (Just compilerVersion, Just pursVersionFromPackageSet) -> do
+            performCheck compilerVersion pursVersionFromPackageSet
+          _ -> echo "WARNING: unable to parse versions, skipping check.."
       _ -> echo Messages.packageSetVersionWarning
 
     -- We have to return a RawPackageSet, unmodified.
