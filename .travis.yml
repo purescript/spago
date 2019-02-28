@@ -85,7 +85,7 @@ script:
     fi
   - export PATH="${PATH}:$(pwd)/artifacts"
   - ./scripts/check-package-sets-version
-  - npm install -g purescript@0.12.2
+  - npm install -g purescript@0.12.3
   - cd test/spago-test/ && python3 ../spago-test.py && cd ../../
   - npm install -g psc-package@3.0.1
   - cd test/psc-package-local-test/ && python3 ../psc-package-test.py && cd ../../
