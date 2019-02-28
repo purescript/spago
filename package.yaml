@@ -54,7 +54,6 @@ dependencies:
 - versions
 - microlens
 - safe
-- modern-uri
 
 executables:
   spago:
