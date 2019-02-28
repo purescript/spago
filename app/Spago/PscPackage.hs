@@ -105,7 +105,6 @@ makePscPackage force = do
           T.writeTextFile configPath $
             encodePscPackage $ p { set = "local", source = "" }
           T.echo "An existing psc-package.json file was found and upgraded to use local package sets."
-          T.echo $ "It's possible that some of the existing dependencies are not in the default spacchetti package set."
 
     else do
       T.touch configPath
@@ -121,7 +120,7 @@ localSetup :: Bool -> IO ()
 localSetup force = do
   PackageSet.makePackageSetFile force
   makePscPackage force
-  T.echo "Set up local Spacchetti packages."
+  T.echo "Set up local Dhall packages."
   T.echo "Run `spago psc-package-insdhall` to generate the package set."
 
 

@@ -7,7 +7,7 @@ module Spago.Packages
   , getGlobs
   , getProjectDeps
   , fetchPackages
-  , PackageSet.upgradeSpacchetti
+  , PackageSet.upgradePackageSet
   , PackageSet.freeze
   , PackageSet.PackageName(..)
   , PackagesFilter(..)

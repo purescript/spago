@@ -94,7 +94,7 @@ packageSetVersionWarning = makeMessage
  [ "WARNING: the package-set version you're on doesn't check if the version of the"
  , "PureScript compiler installed on your system is compatible."
  , "If your build fails you might want to upgrade your set by running this command:"
- , "`spago spacchetti-upgrade`"
+ , "`spago package-set-upgrade`"
  , ""
  ]
 

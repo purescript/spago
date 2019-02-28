@@ -1,5 +1,5 @@
 module Spago.PackageSet
-  ( upgradeSpacchetti
+  ( upgradePackageSet
   , checkPursIsUpToDate
   , makePackageSetFile
   , freeze
@@ -39,12 +39,12 @@ import qualified Spago.Templates    as Templates
 import           Spago.Turtle
 
 
--- | Matches the packages definition of Spacchetti Package.dhall/psc-package
 newtype PackageName = PackageName { packageName :: Text }
   deriving (Show)
   deriving newtype (Eq, Ord, ToJSON, FromJSON, ToJSONKey, FromJSONKey, Dhall.Interpret)
 
--- | A spacchetti package.
+-- | A package-set package.
+--   Matches the packages definition in Package.dhall from package-sets
 data Package = Package
   { dependencies :: ![PackageName] -- ^ list of dependency package names
   , repo         :: !Repo          -- ^ the remote git repository or the local path
@@ -165,19 +165,19 @@ withPackageSetAST readOnly transform = do
         $ Dhall.prettyWithHeader header expr <> "\n"
 
 
--- | Tries to upgrade the Spacchetti release of the local package set.
+-- | Tries to upgrade the Package-Sets release of the local package set.
 --   It will:
 --   - try to read the latest tag from GitHub
 --   - try to read the current package-set file
---   - try to replace the Spacchetti tag to which the package-set imports point to
---     (if they point to the Spacchetti repo. This can be eventually made GitHub generic)
+--   - try to replace the git tag to which the package-set imports point to
+--     (if they point to the Package-Sets repo. This can be eventually made GitHub generic)
 --   - if all of this succeeds, it will regenerate the hashes and write to file
-upgradeSpacchetti :: IO ()
-upgradeSpacchetti = do
-  (GitHub.executeRequest' $ GitHub.latestReleaseR "spacchetti" "spacchetti") >>= \case
+upgradePackageSet :: IO ()
+upgradePackageSet = do
+  (GitHub.executeRequest' $ GitHub.latestReleaseR "purescript" "package-sets") >>= \case
     Left err -> die $ Messages.failedToReachGitHub err
     Right GitHub.Release{..} -> do
-      echo ("Found the most recent tag for \"spacchetti\": " <> surroundQuote releaseTagName)
+      echo ("Found the most recent tag for \"purescript/package-sets\": " <> surroundQuote releaseTagName)
       withPackageSetAST ReadAndWrite $ \packagesRaw -> do
         maybePackages <- pure $ do
           newMkPackages <- upgradeImport releaseTagName $ mkPackage packagesRaw
@@ -193,17 +193,17 @@ upgradeSpacchetti = do
             frozenUpstream   <- Dhall.Freeze.freezeImport "." defaultStandardVersion upstream
             pure $ RawPackageSet frozenMkPackages frozenUpstream
   where
-    -- | Given an import and a new Spacchetti tag, upgrades the import to
-    --   the tag and resets the hash
+    -- | Given an import and a new purescript/package-sets tag,
+    --   upgrades the import to the tag and resets the hash
     upgradeImport :: Text -> Dhall.Import -> Either Dhall.Import Dhall.Import
-    upgradeImport newTag Dhall.Import
+    upgradeImport newTag imp@Dhall.Import
       { importHashed = Dhall.ImportHashed
         { importType = Dhall.Remote Dhall.URL
-          -- Check if we're dealing with the Spacchetti repo
+          -- Check if we're dealing with the right repo
           { authority = "raw.githubusercontent.com"
           , path = Dhall.File
             { directory = Dhall.Directory
-              { components = [ "src", _currentTag, "spacchetti", "spacchetti" ]}
+              { components = [ "src", _currentTag, ghRepo, ghOrg ]}
             , ..
             }
           , ..
@@ -212,27 +212,32 @@ upgradeSpacchetti = do
         }
       , ..
       } =
-      let components = [ "src", newTag, "spacchetti", "spacchetti" ]
+      let components = [ "src", newTag, "package-sets", "purescript" ]
           directory = Dhall.Directory{..}
           newPath = Dhall.File{..}
           authority = "raw.githubusercontent.com"
           importType = Dhall.Remote Dhall.URL { path = newPath, ..}
           newHash = Nothing -- Reset the hash here, as we'll refreeze
           importHashed = Dhall.ImportHashed { hash = newHash, ..}
-      in Right Dhall.Import{..}
+          newImport = Dhall.Import{..}
+      in case (ghOrg, ghRepo) of
+        ("spacchetti", "spacchetti")   -> Right newImport
+        ("purescript", "package-sets") -> Right newImport
+        _ -> Left imp
     upgradeImport _ imp = Left imp
 
 
--- | Given a Dhall.Import, extract the GitHub tag if the upstream is Spacchetti
+-- | Given a Dhall.Import, extract the GitHub tag if the upstream is
+--   purescript/package-sets or spacchetti
 getPackageSetTag :: Dhall.Import -> Maybe Text
 getPackageSetTag Dhall.Import
   { importHashed = Dhall.ImportHashed
     { importType = Dhall.Remote Dhall.URL
-      -- Check if we're dealing with the Spacchetti repo
+      -- Check if we're dealing with the right repo
       { authority = "raw.githubusercontent.com"
       , path = Dhall.File
         { directory = Dhall.Directory
-          { components = [ "src", tag, "spacchetti", "spacchetti" ]}
+          { components = [ "src", tag, ghRepo, ghOrg ]}
         , ..
         }
       , ..
@@ -240,7 +245,10 @@ getPackageSetTag Dhall.Import
     , ..
     }
   , ..
-  } = Just tag
+  } = case (ghOrg, ghRepo) of
+        ("spacchetti", "spacchetti")   -> Just tag
+        ("purescript", "package-sets") -> Just tag
+        _ -> Nothing
 getPackageSetTag _ = Nothing
 
 
@@ -252,9 +260,12 @@ checkPursIsUpToDate = do
     -- something like '20180923'  to something like '0.12.2-20190209' instead
     -- (in order to support this check).
     -- Now, if people are still using the old tag, we should:
-    -- - warn them to upgrade with `spacchetti-upgrade`
+    -- - warn them to upgrade with `package-set-upgrade`
     -- - skip this check
-    case fmap (Text.split (=='-')) (getPackageSetTag upstream) of
+    --
+    -- Update 2019-02-28: we switched from Spacchetti to package-sets, which
+    -- uses a different versioning (with "psc-" in front). We just strip it away
+    case fmap (Text.split (=='-') . Text.replace "psc-" "") (getPackageSetTag upstream) of
       Just [minPursVersion, _packageSetVersion] -> do
         maybeCompilerVersion <- Purs.version
         case (maybeCompilerVersion, hush $ Version.semver minPursVersion) of
