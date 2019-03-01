@@ -1,5 +1,5 @@
 {-
-Welcome to Spacchetti local packages!
+Welcome to your new Dhall package-set!
 
 Below are instructions for how to edit this file for most use
 cases, so that you don't need to know Dhall to use it.
@@ -109,10 +109,10 @@ let additions =
 -}
 
 let mkPackage =
-      https://raw.githubusercontent.com/spacchetti/spacchetti/0.12.2-20190221/src/mkPackage.dhall sha256:0b197efa1d397ace6eb46b243ff2d73a3da5638d8d0ac8473e8e4a8fc528cf57
+      https://raw.githubusercontent.com/purescript/package-sets/psc-0.12.3-20190227/src/mkPackage.dhall sha256:0b197efa1d397ace6eb46b243ff2d73a3da5638d8d0ac8473e8e4a8fc528cf57
 
 let upstream =
-      https://raw.githubusercontent.com/spacchetti/spacchetti/0.12.2-20190221/src/packages.dhall sha256:17410a9b306ed2b62e940fa71ecb567a4a8a9bbce4188f148b1fc9cb23bdafe2
+      https://raw.githubusercontent.com/purescript/package-sets/psc-0.12.3-20190227/src/packages.dhall sha256:eb8ae389eb218f1aad4c20054b8cce6c04a861a567aff72abd9111609178e986
 
 let overrides = {=}
 

@@ -101,7 +101,7 @@ data ReadError a where
  CannotParsePackageSet :: Typeable a => DhallExpr a -> ReadError a
    -- ^ the packages.dhall could not be parsed
  ImportCannotBeUpdated :: Typeable a => Dhall.Import -> ReadError a
-   -- ^ the Import is not pointing to Spacchetti
+   -- ^ the Import is not pointing to the right repo
  RequiredKeyMissing    :: Typeable a => Text -> Dhall.Map.Map Text (DhallExpr a) -> ReadError a
    -- ^ a key is missing from a Dhall map
 
@@ -175,7 +175,7 @@ instance (Pretty a) => Show (ReadError a) where
         ]
       msg (ImportCannotBeUpdated imp) =
         [ "Explanation: one of the imports in your `packages.dhall` file was not"
-        , "pointing to Spacchetti, thus it couldn't be upgraded."
+        , "pointing to the purescript/package-sets repo, thus it couldn't be upgraded."
         , ""
         , "The import was:"
         , ""

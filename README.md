@@ -5,7 +5,7 @@
 *(IPA: /ˈspaɡo/)*
 
 PureScript package manager and build tool powered by [Dhall][dhall] and
-[Spacchetti][spacchetti] package-sets.
+[package-sets][package-sets].
 
 
 <img src="https://raw.githubusercontent.com/spacchetti/logo/master/spacchetti-icon.png" height="300px" alt="spacchetti logo">
@@ -94,7 +94,7 @@ like `build`, `test` or `repl`.
 Let's take a look at the two [Dhall][dhall] configuration files that `spago` requires:
 - `packages.dhall`: this file is meant to contain the *totality* of the packages
   available to your project (that is, any package you might want to import).  
-  In practical terms, it pulls in a [Spacchetti][spacchetti] package-set as a base,
+  In practical terms, it pulls in the [official package-set][package-sets] as a base,
   and you are then able to add any package that might not be in the package set,
   or override esisting ones.
 - `spago.dhall`: this is your project configuration. It includes the above package-set,
@@ -331,23 +331,23 @@ $ spago verify foreign
 ```
 
 Once you check that the packages you added verify correctly, we would of course very much love
-if you could pull request it to the Upstream package-set, [spacchetti][spacchetti] ❤️🍝
+if you could pull request it to the [Upstream package-set][package-sets] ❤️
 
 #### Upgrading the Package Set
 
 The version of the package-set you depend on is fixed in the `packages.dhall` file
 (look for the `upstream` var).
 
-You can upgrade to the latest version of Spacchetti with the `spacchetti-upgrade`
+You can upgrade to the latest version of the package-set with the `package-set-upgrade`
 command, that will automatically find out the latest version, download it, and write
 the new url and hashes in the `packages.dhall` file for you.
 
 Running it would look something like this:
 
 ```bash
-$ spago spacchetti-upgrade
-Found the most recent tag for "spacchetti": "0.12.2-20190210"
-Package-set upgraded to latest tag "0.12.2-20190210"
+$ spago package-set-upgrade
+Found the most recent tag for "purescript/package-sets": "psc-0.12.3-20190227"
+Package-set upgraded to latest tag "psc-0.12.3-20190227"
 Fetching the new one and generating hashes.. (this might take some time)
 Done. Updating the local package-set file..
 ```
@@ -360,10 +360,10 @@ It is important to have the hashes set in your `packages.dhall`, like this:
 ...
 
 let mkPackage =
-      https://raw.githubusercontent.com/spacchetti/spacchetti/0.12.2-20190210/src/mkPackage.dhall sha256:0b197efa1d397ace6eb46b243ff2d73a3da5638d8d0ac8473e8e4a8fc528cf57
+      https://raw.githubusercontent.com/purescript/package-sets/psc-0.12.2-20190210/src/mkPackage.dhall sha256:0b197efa1d397ace6eb46b243ff2d73a3da5638d8d0ac8473e8e4a8fc528cf57
 
 let upstream =
-      https://raw.githubusercontent.com/spacchetti/spacchetti/0.12.2-20190210/src/packages.dhall sha256:1bee3f7608ca0f87a88b4b8807cb6722ab9ce3386b68325fbfa71d7211c1cf51
+      https://raw.githubusercontent.com/purescript/package-sets/psc-0.12.2-20190210/src/packages.dhall sha256:1bee3f7608ca0f87a88b4b8807cb6722ab9ce3386b68325fbfa71d7211c1cf51
 
 ...
 ```
@@ -468,9 +468,9 @@ Yees, however:
 - If you use `psc-package`, you have the problem of not having the ability of overriding
   packages versions when needed, leading everyone to make their own package-set, which
   then goes unmaintained, etc.  
-  Of course you can use [Spacchetti] to solve this issue, but this is exactly what
-  we're doing here: integrating all the workflow in a single tool, `spago`, instead
-  of having to use `pulp`, `psc-package`, `purp`, etc.
+  Of course you can use the package-set-local-setup to solve this issue, but this is 
+  exactly what we're doing here: integrating all the workflow in a single tool, `spago`,
+  instead of having to use `pulp`, `psc-package`, `purp`, etc.
 
 #### I miss `bower link`!
 
@@ -540,14 +540,12 @@ For examples on how to do it, see the previous FAQ entry.
 
 #### I still want to use `psc-package`, can this help me in some way?
 
-Yes! We can help you setup your psc-package-project to use the
-[Spacchetti][spacchetti] package-set.
+Yes! We can help you setup your psc-package project to use the Dhall version of the package-set.
 
 We have two commands for it:
 - **`psc-package-local-setup`**: this command creates a `packages.dhall` file in your project, 
-  that points to the most recent Spacchetti package-set, and lets you override and add 
-  arbitrary packages.  
-  See the Spacchetti docs about this [here][spacchetti-local-setup].
+  that points to the most recent package-set, and lets you override and add  arbitrary packages.  
+  See the docs about this [here][package-sets].
 - **`psc-package-insdhall`**: do the *Ins-Dhall-ation* of the local project setup: that is,
   generates a local package-set for `psc-package` from your `packages.dhall`, and points your
   `psc-package.json` to it.
@@ -562,11 +560,9 @@ We have two commands for it:
   echo wrote packages.json to $TARGET
   ```
 
-
-[spacchetti]: https://github.com/spacchetti/spacchetti
+[package-sets]: https://github.com/purescript/package-sets
 [dhall]: https://github.com/dhall-lang/dhall-lang
 [travis-spago]: https://travis-ci.com/spacchetti/spago
-[spacchetti-local-setup]: https://spacchetti.readthedocs.io/en/latest/local-setup.html
 [cargo]: https://github.com/rust-lang/cargo
 [stack]: https://github.com/commercialhaskell/stack
 [psc-package]: https://github.com/purescript/psc-package
@@ -576,7 +572,7 @@ We have two commands for it:
 [purescript]: https://github.com/purescript/purescript
 [spago-npm]: https://www.npmjs.com/package/spago
 [spago-latest-release]: https://github.com/spacchetti/spago/releases/latest
-[spago-issues]: https://github.com/spacchetti/spacchetti-cli/issues
+[spago-issues]: https://github.com/spacchetti/spago/issues
 [affresco]: https://github.com/KSF-Media/affresco/tree/4b430b48059701a544dfb65b2ade07ef9f36328a
 [todomvc]: https://github.com/f-f/purescript-react-basic-todomvc
 [purec]: https://github.com/pure-c/purec

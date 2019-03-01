@@ -55,7 +55,7 @@ data Command
   | MakeModule (Maybe ModuleName) (Maybe TargetPath)
 
   -- | Upgrade the package-set to the latest release
-  | SpacchettiUpgrade
+  | PackageSetUpgrade
 
   -- | Freeze the package-set so it will be cached
   | Freeze
@@ -63,8 +63,8 @@ data Command
   -- | ### Commands for working with Psc-Package
   --
   --   Do the boilerplate of the local project setup to override and add arbitrary packages
-  --   See the Spacchetti docs about this here:
-  --   https://spacchetti.readthedocs.io/en/latest/local-setup.html
+  --   See the package-sets docs about this here:
+  --   https://github.com/purescript/package-sets
   | PscPackageLocalSetup Bool
 
   -- | Do the Ins-Dhall-ation of the local project setup, equivalent to:
@@ -98,7 +98,7 @@ parser
   T.<|> test
   T.<|> bundle
   T.<|> makeModule
-  T.<|> spacchettiUpgrade
+  T.<|> packageSetUpgrade
   T.<|> freeze
   T.<|> pscPackageLocalSetup
   T.<|> pscPackageInsDhall
@@ -176,9 +176,9 @@ parser
       = T.subcommand "make-module" "Bundle a module into a CommonJS module"
       $ MakeModule <$> mainModule <*> toTarget
 
-    spacchettiUpgrade
-      = T.subcommand "spacchetti-upgrade" "Upgrade the upstream in packages.dhall to the latest Spacchetti release"
-      $ pure SpacchettiUpgrade
+    packageSetUpgrade
+      = T.subcommand "package-set-upgrade" "Upgrade the upstream in packages.dhall to the latest package-sets release"
+      $ pure PackageSetUpgrade
 
     freeze
       = T.subcommand "freeze" "Add hashes to the package-set, so it will be cached"
@@ -208,7 +208,7 @@ main = do
     Sources                               -> Spago.Packages.sources
     Verify limitJobs package              -> Spago.Packages.verify limitJobs (Just package)
     VerifySet limitJobs                   -> Spago.Packages.verify limitJobs Nothing
-    SpacchettiUpgrade                     -> Spago.Packages.upgradeSpacchetti
+    PackageSetUpgrade                     -> Spago.Packages.upgradePackageSet
     Freeze                                -> Spago.Packages.freeze
     Build limitJobs paths pursArgs        -> Spago.Build.build limitJobs paths pursArgs
     Test modName limitJobs paths pursArgs -> Spago.Build.test modName limitJobs paths pursArgs
