@@ -50,18 +50,13 @@ infrastructure and tooling, as [`psc-package`][psc-package], [`pulp`][pulp] and
 
 > Right, so how can I get this thing?
 
-The recommended installation methods are:
-- `npm install -g spago` (Linux and macOS only - see the latest releases on npm
+The recommended installation methods for Windows, Linux or macOS are:
+- `npm install -g spago` (see the latest releases on npm
   [here][spago-npm])
 - Download the binary from the [latest GitHub release][spago-latest-release]
 - Compile from source by cloning this repo and running `stack install`
 
-**Note #1:** support for Windows is still basic, and we're sorry for this - the
-reason is that no current maintainer runs it.  
-If you'd like to help with this that's awesome! Get in touch by taking a look at the
-[open issues][spago-issues] and eventually opening one :)
-
-**Note #2:** we assume you already installed the [PureScript compiler][purescript].
+**Note:** we assume you already installed the [PureScript compiler][purescript].
 If not, get it with `npm install -g purescript`, or the recommended method for your OS.
 
 ## Quickstart
