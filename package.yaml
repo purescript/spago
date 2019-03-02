@@ -1,10 +1,10 @@
 name:                spago
-version:             0.6.4.0
+version:             0.7.0.0
 github:              "spacchetti/spago"
 license:             BSD3
 author:              "Justin Woo, Fabrizio Ferrai"
 maintainer:          "@jusrin00, @fabferrai"
-copyright:           "2018 Justin Woo, Fabrizio Ferrai"
+copyright:           "2018-2019 Justin Woo, Fabrizio Ferrai"
 
 extra-source-files:
 - README.md

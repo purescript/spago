@@ -1,4 +1,0 @@
-#!/bin/bash
-set -e
-
-echo "This is a stub that will be replaced on install"
