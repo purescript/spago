@@ -10,7 +10,7 @@
   "main": "index.js",
   "files": [
     "install.js",
-    "spago",
+    "spago"
   ],
   "scripts": {
     "preinstall": "node ./install.js"
