@@ -174,11 +174,11 @@ fetchPackages maybeLimit allDeps = do
     -- waits for the exception to be thrown there, and we have to `wait` ourselves
     -- (with `waitCatch` so that we ignore any exception we are thrown and the `for_`
     -- completes) for the asyncs to finish their cleanup.
-    handler asyncs (_e :: SomeException) = do
+    handler asyncs (e :: SomeException) = do
       for_ asyncs $ \async -> do
         Async.cancel async
         Async.waitCatch async
-      die "Installation failed."
+      die $ "Installation failed.\n\nError:\n\n" <> Messages.tshow e
 
 
 -- | Return all the transitive dependencies of the current project
