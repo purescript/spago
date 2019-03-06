@@ -116,7 +116,6 @@ makeConfig force = do
   T.unless force $ do
     hasSpagoDhall <- T.testfile path
     T.when hasSpagoDhall $ die $ Messages.foundExistingProject pathText
-  T.touch path
   T.writeTextFile path Templates.spagoDhall
   Dhall.Format.format Dhall.Pretty.Unicode (Just $ Text.unpack pathText)
 
