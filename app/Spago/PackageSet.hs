@@ -91,7 +91,8 @@ makePackageSetFile force = do
     hasPackagesDhall <- T.testfile path
     T.when hasPackagesDhall $ die $ Messages.foundExistingProject pathText
   T.writeTextFile path Templates.packagesDhall
-  Dhall.Format.format Dhall.Pretty.Unicode (Just $ Text.unpack pathText)
+  Dhall.Format.format
+    (Dhall.Format.Format Dhall.Pretty.ASCII $ Dhall.Format.Modify (Just $ Text.unpack pathText))
 
 
 -- | Freeze the package-set imports so they can be cached

@@ -117,7 +117,8 @@ makeConfig force = do
     hasSpagoDhall <- T.testfile path
     T.when hasSpagoDhall $ die $ Messages.foundExistingProject pathText
   T.writeTextFile path Templates.spagoDhall
-  Dhall.Format.format Dhall.Pretty.Unicode (Just $ Text.unpack pathText)
+  Dhall.Format.format
+    (Dhall.Format.Format Dhall.Pretty.ASCII $ Dhall.Format.Modify (Just $ Text.unpack pathText))
 
   -- We try to find an existing psc-package config, and we migrate the existing
   -- content if we found one, otherwise we copy the default template
