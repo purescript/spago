@@ -3,6 +3,7 @@ module Spago.PackageSet
   , checkPursIsUpToDate
   , makePackageSetFile
   , freeze
+  , ensureFrozen
   , path
   , pathText
   , PackageSet
@@ -92,13 +93,6 @@ makePackageSetFile force = do
     T.when hasPackagesDhall $ die $ Messages.foundExistingProject pathText
   T.writeTextFile path Templates.packagesDhall
   Dhall.Format.format Dhall.Pretty.Unicode (Just $ Text.unpack pathText)
-
-
--- | Freeze the package-set imports so they can be cached
-freeze :: IO ()
-freeze = do
-  echo Messages.freezePackageSet
-  Dhall.Freeze.freeze (Just $ Text.unpack pathText) False defaultStandardVersion
 
 
 data RawPackageSet = RawPackageSet
@@ -296,3 +290,33 @@ checkPursIsUpToDate = do
           _ -> die $ Messages.pursVersionMismatch
                  (Version.prettySemVer actualPursVersion)
                  (Version.prettySemVer minPursVersion)
+
+
+-- | Given a Dhall.Import, tell if it's frozen
+isFrozen :: Dhall.Import -> Bool
+isFrozen Dhall.Import
+  { importHashed = Dhall.ImportHashed
+    { hash = Just _someHash
+    , ..
+    }
+  , ..
+  }        = True
+isFrozen _ = False
+
+
+-- | Freeze the package-set imports so they can be cached
+freeze :: IO ()
+freeze = do
+  echo Messages.freezePackageSet
+  Dhall.Freeze.freeze (Just $ Text.unpack pathText) False defaultStandardVersion
+
+
+-- | Check that the package-set import is correctly setup with hashes, and freeze it if not
+ensureFrozen :: IO ()
+ensureFrozen = do
+  withPackageSetAST ReadOnly $ \packageSet@RawPackageSet{..} -> do
+    case isFrozen upstream of
+      True  -> pure ()
+      False -> freeze
+
+    pure packageSet

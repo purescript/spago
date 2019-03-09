@@ -32,6 +32,7 @@ import qualified Turtle                    as T hiding (die, echo)
 import qualified Spago.Dhall               as Dhall
 import qualified Spago.Messages            as Messages
 import           Spago.PackageSet          (Package, PackageName (..), PackageSet)
+import qualified Spago.PackageSet          as PackageSet
 import qualified Spago.PscPackage          as PscPackage
 import qualified Spago.Templates           as Templates
 import           Spago.Turtle
@@ -103,6 +104,7 @@ ensureConfig :: IO Config
 ensureConfig = do
   exists <- T.testfile path
   T.unless exists $ makeConfig False
+  PackageSet.ensureFrozen
   configText <- T.readTextFile path
   try (parseConfig configText) >>= \case
     Right config -> pure config
