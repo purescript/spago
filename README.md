@@ -347,6 +347,15 @@ Fetching the new one and generating hashes.. (this might take some time)
 Done. Updating the local package-set file..
 ```
 
+If you wish to detach from tags for your package-set, you can of course point it to a
+specific commit.  
+Just set your `upstream` to look something like this:
+
+```haskell
+let upstream =
+      https://github.com/purescript/package-sets/blob/81354f2ea1ac9493eb05dfbd43adc6d183bc4ecd/src/packages.dhall
+```
+
 #### Caching the Package Set
 
 It is important to have the hashes set in your `packages.dhall`, like this:
