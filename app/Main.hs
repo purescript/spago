@@ -32,6 +32,9 @@ data Command
   -- | Start a REPL.
   | Repl [SourcePath] [ExtraArg]
 
+  -- | Generate documentation for the project and its dependencies
+  | Docs [SourcePath]
+
   -- | Build the project paths src/ and test/
   --   plus the specified source paths
   | Build (Maybe Int) [SourcePath] [ExtraArg]
@@ -95,6 +98,7 @@ parser
   T.<|> verifySet
   T.<|> build
   T.<|> repl
+  T.<|> docs
   T.<|> test
   T.<|> bundle
   T.<|> makeModule
@@ -164,6 +168,10 @@ parser
       = T.subcommand "repl" "Start a REPL"
       $ Repl <$> sourcePaths <*> passthroughArgs
 
+    docs
+      = T.subcommand "docs" "Generate docs for the project and its dependencies"
+      $ Docs <$> sourcePaths
+
     test
       = T.subcommand "test" "Test the project with some module, default Test.Main"
       $ Test <$> mainModule <*> limitJobs <*> sourcePaths <*> passthroughArgs
@@ -215,6 +223,7 @@ main = do
     Repl paths pursArgs                   -> Spago.Build.repl paths pursArgs
     Bundle modName tPath                  -> Spago.Build.bundle WithMain modName tPath
     MakeModule modName tPath              -> Spago.Build.makeModule modName tPath
+    Docs sourcePaths                      -> Spago.Build.docs sourcePaths
     Version                               -> printVersion
     PscPackageLocalSetup force            -> PscPackage.localSetup force
     PscPackageInsDhall                    -> PscPackage.insDhall
