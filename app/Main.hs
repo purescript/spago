@@ -181,7 +181,7 @@ parser
       $ pure PackageSetUpgrade
 
     freeze
-      = T.subcommand "freeze" "Add hashes to the package-set, so it will be cached"
+      = T.subcommand "freeze" "Recompute the hashes for the package-set"
       $ pure Freeze
 
     version
