@@ -151,17 +151,17 @@ fetchPackages maybeLimit allDeps = do
 
   PackageSet.checkPursIsUpToDate
 
-  echoStr $ "Installing " <> show (List.length allDeps) <> " dependencies."
-
   -- We try to fetch a dep only if their dir doesn't exist
   depsToFetch <- (flip filterM) allDeps $ \dep -> do
     exists <- T.testdir $ T.fromText $ getPackageDir dep
     pure $ not exists
 
+  echoStr $ "Installing " <> show (List.length depsToFetch) <> " dependencies."
+
   -- By default we make one thread per dep to fetch, but this can be limited
   Async.withTaskGroup (fromMaybe (length depsToFetch) maybeLimit) $ \taskGroup -> do
-    asyncs <- for depsToFetch $ \dep -> Async.async taskGroup $ fetchPackage dep
-    handle (handler asyncs) $ for_ asyncs Async.wait
+    asyncs <- for depsToFetch (Async.async taskGroup . fetchPackage)
+    handle (handler asyncs) (for_ asyncs Async.wait)
     echo "Installation complete."
   where
     -- Here we have this weird exception handling so that threads can clean after
@@ -179,7 +179,6 @@ fetchPackages maybeLimit allDeps = do
         Async.cancel async
         Async.waitCatch async
       die $ "Installation failed.\n\nError:\n\n" <> Messages.tshow e
-
 
 -- | Return all the transitive dependencies of the current project
 getProjectDeps :: Config -> IO [(PackageName, Package)]
