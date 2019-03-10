@@ -12,12 +12,19 @@ import qualified Data.Text.Prettyprint.Doc.Render.Text as PrettyText
 import           Data.Typeable                         (Typeable)
 import           Dhall
 import           Dhall.Core                            as Dhall hiding (Type, pretty)
+import qualified Dhall.Format
 import qualified Dhall.Map
 import qualified Dhall.Parser                          as Parser
+import qualified Dhall.Pretty
 import           Dhall.TypeCheck                       (X, typeOf)
 
-
 type DhallExpr a = Dhall.Expr Parser.Src a
+
+
+-- | Format a Dhall file in ASCII
+format :: Text -> IO ()
+format pathText = Dhall.Format.format
+  (Dhall.Format.Format Dhall.Pretty.ASCII $ Dhall.Format.Modify (Just $ Text.unpack pathText))
 
 
 -- | Prettyprint a Dhall expression
@@ -82,8 +89,8 @@ coerceToType typ expr = do
   let annot = Dhall.Annot expr $ Dhall.expected typ
   let checkedType = typeOf annot
   case (Dhall.extract typ $ Dhall.normalize annot, checkedType) of
-    (Just x, Right _)  -> Right x
-    _ -> Left $ WrongType typ expr
+    (Just x, Right _) -> Right x
+    _                 -> Left $ WrongType typ expr
 
 
 -- | Spago configuration cannot be read
