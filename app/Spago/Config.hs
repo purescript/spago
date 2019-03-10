@@ -15,15 +15,12 @@ import qualified Data.Map                  as Map
 import           Data.Maybe                (mapMaybe)
 import qualified Data.Sequence             as Seq
 import           Data.Text                 (Text)
-import qualified Data.Text                 as Text
 import qualified Data.Text.Encoding        as Text
 import           Data.Text.Prettyprint.Doc (Pretty)
 import           Data.Typeable             (Typeable)
-import qualified Dhall.Format
 import qualified Dhall.Import
 import qualified Dhall.Map
 import qualified Dhall.Parser              as Parser
-import qualified Dhall.Pretty
 import           Dhall.TypeCheck           (X)
 import qualified Dhall.TypeCheck
 import           GHC.Generics              (Generic)
@@ -119,7 +116,7 @@ makeConfig force = do
     hasSpagoDhall <- T.testfile path
     T.when hasSpagoDhall $ die $ Messages.foundExistingProject pathText
   T.writeTextFile path Templates.spagoDhall
-  Dhall.Format.format Dhall.Pretty.Unicode (Just $ Text.unpack pathText)
+  Dhall.format pathText
 
   -- We try to find an existing psc-package config, and we migrate the existing
   -- content if we found one, otherwise we copy the default template
@@ -185,7 +182,9 @@ withConfigAST transform = do
   resolvedExpr <- Dhall.Import.load expr
   case Dhall.TypeCheck.typeOf resolvedExpr of
     Left  err -> throwIO err
-    Right _   -> T.writeTextFile path $ Dhall.prettyWithHeader header expr <> "\n"
+    Right _   -> do
+      T.writeTextFile path $ Dhall.prettyWithHeader header expr <> "\n"
+      Dhall.format pathText
 
   where
     toPkgsList

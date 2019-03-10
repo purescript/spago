@@ -37,9 +37,9 @@ The "//" or "⫽" means "merge these two records and
 -------------------------------
 let override =
   { packageName =
-      upstream.packageName ⫽ { updateEntity1 = "new value", updateEntity2 = "new value" }
+      upstream.packageName // { updateEntity1 = "new value", updateEntity2 = "new value" }
   , packageName =
-      upstream.packageName ⫽ { version = "v4.0.0" }
+      upstream.packageName // { version = "v4.0.0" }
   , packageName =
       upstream.packageName // { repo = "https://www.example.com/path/to/new/repo.git" }
   }
@@ -49,9 +49,9 @@ Example:
 -------------------------------
 let overrides =
   { halogen =
-      upstream.halogen ⫽ { version = "master" }
+      upstream.halogen // { version = "master" }
   , halogen-vdom =
-      upstream.halogen-vdom ⫽ { version = "v4.0.0" }
+      upstream.halogen-vdom // { version = "v4.0.0" }
   }
 -------------------------------
 
@@ -109,13 +109,13 @@ let additions =
 -}
 
 let mkPackage =
-      https://raw.githubusercontent.com/purescript/package-sets/psc-0.12.3-20190227/src/mkPackage.dhall sha256:0b197efa1d397ace6eb46b243ff2d73a3da5638d8d0ac8473e8e4a8fc528cf57
+      https://raw.githubusercontent.com/purescript/package-sets/psc-0.12.3-20190310/src/mkPackage.dhall sha256:0b197efa1d397ace6eb46b243ff2d73a3da5638d8d0ac8473e8e4a8fc528cf57
 
 let upstream =
-      https://raw.githubusercontent.com/purescript/package-sets/psc-0.12.3-20190227/src/packages.dhall sha256:eb8ae389eb218f1aad4c20054b8cce6c04a861a567aff72abd9111609178e986
+      https://raw.githubusercontent.com/purescript/package-sets/psc-0.12.3-20190310/src/packages.dhall sha256:19895bfdb2fffdf7af09afdf3f6e6d917c0a14f9582bedb238b208f195852b66
 
 let overrides = {=}
 
 let additions = {=}
 
-in  upstream ⫽ overrides ⫽ additions
+in  upstream // overrides // additions
