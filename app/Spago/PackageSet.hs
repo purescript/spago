@@ -20,11 +20,9 @@ import qualified Data.Text          as Text
 import qualified Data.Versions      as Version
 import qualified Dhall
 import           Dhall.Binary       (defaultStandardVersion)
-import qualified Dhall.Format       as Dhall.Format
 import qualified Dhall.Freeze
 import qualified Dhall.Import
 import qualified Dhall.Parser       as Parser
-import qualified Dhall.Pretty       as Dhall.Pretty
 import qualified Dhall.TypeCheck
 import           GHC.Generics       (Generic)
 import qualified GitHub
@@ -91,8 +89,7 @@ makePackageSetFile force = do
     hasPackagesDhall <- T.testfile path
     T.when hasPackagesDhall $ die $ Messages.foundExistingProject pathText
   T.writeTextFile path Templates.packagesDhall
-  Dhall.Format.format
-    (Dhall.Format.Format Dhall.Pretty.ASCII $ Dhall.Format.Modify (Just $ Text.unpack pathText))
+  Dhall.format pathText
 
 
 -- | Freeze the package-set imports so they can be cached
@@ -162,8 +159,8 @@ withPackageSetAST readOnly transform = do
     (_, ReadOnly)     -> pure ()
     (_, ReadAndWrite) -> do
       echo "Done. Updating the local package-set file.."
-      T.writeTextFile path
-        $ Dhall.prettyWithHeader header expr <> "\n"
+      T.writeTextFile path $ Dhall.prettyWithHeader header expr <> "\n"
+      Dhall.format pathText
 
 
 -- | Tries to upgrade the Package-Sets release of the local package set.
