@@ -35,6 +35,9 @@ PureScript package manager and build tool powered by [Dhall][dhall] and
     - [So if I use `spago make-module` this thing will compile all my js deps in the file?](#so-if-i-use-spago-make-module-this-thing-will-compile-all-my-js-deps-in-the-file)
     - [Why can't `spago` also install my npm dependencies?](#why-cant-spago-also-install-my-npm-dependencies)
     - [I still want to use `psc-package`, can this help me in some way?](#i-still-want-to-use-psc-package-can-this-help-me-in-some-way)
+    - [I'm getting weird errors about `libtinfo.so.5`..](#im-getting-weird-errors-about-libtinfoso5)
+    - [I added a git repo URL to my overrides, but `spago` thinks it's a local path 🤔](#i-added-a-git-repo-url-to-my-overrides-but-spago-thinks-its-a-local-path-)
+    - [My `install` command is failing with some errors about "too many open files"](#my-install-command-is-failing-with-some-errors-about-too-many-open-files)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
@@ -563,6 +566,37 @@ We have two commands for it:
   dhall-to-json --pretty <<< './packages.dhall' > $TARGET
   echo wrote packages.json to $TARGET
   ```
+
+#### I'm getting weird errors about `libtinfo.so.5`..
+
+See [here](https://github.com/spacchetti/spago/issues/104#issue-408423391) for reasons and a fix.
+
+#### I added a git repo URL to my overrides, but `spago` thinks it's a local path 🤔
+
+This might happen if you copy the "git" URL from a GitHub repo and try adding it as a repo URL
+in your package-set.  
+However, `spago` requires URLs to conform to [RFC 3986](https://tools.ietf.org/html/rfc3986),
+which something like `git@foo.com:bar/baz.git` doesn't conform to.
+
+To have the above repo location accepted you should rewrite it like this:
+```
+ssh://git@foo.com/bar/baz.git
+```
+
+#### My `install` command is failing with some errors about "too many open files"
+
+This might happen because the limit of "open files per process" is too low in your OS - as
+`spago` will try to fetch all dependencies in parallel, and this requires lots of file operations.
+
+You can limit the number of concurrent operations with the `-j` flags, e.g.:
+
+```
+$ spago install -j 10
+```
+
+To get a ballpark value for the `j` flag you can take the result of the `ulimit -n` command
+(which gives you the current limit), and divide it by four.
+
 
 [package-sets]: https://github.com/purescript/package-sets
 [dhall]: https://github.com/dhall-lang/dhall-lang
