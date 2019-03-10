@@ -187,6 +187,8 @@ getProjectDeps Config{..} = getTransitiveDeps packages dependencies
 
 
 -- | Return the transitive dependencies of a list of packages
+--   Code basically from here:
+--   https://github.com/purescript/psc-package/blob/648da70ae9b7ed48216ed03f930c1a6e8e902c0e/app/Main.hs#L227
 getTransitiveDeps :: PackageSet -> [PackageName] -> IO [(PackageName, Package)]
 getTransitiveDeps packageSet deps =
   Map.toList . fold <$> traverse (go Set.empty) deps
@@ -197,10 +199,25 @@ getTransitiveDeps packageSet deps =
       | otherwise =
         case Map.lookup dep packageSet of
           Nothing ->
-            die $ "Package " <> Text.pack (show dep) <> " was missing from the package set."
+            die $ pkgNotFoundMsg dep
           Just info@Package{..} -> do
             m <- fold <$> traverse (go (Set.insert dep seen)) dependencies
             pure (Map.insert dep info m)
+
+    pkgNotFoundMsg pkg =
+      "Package `" <> packageName pkg <> "` does not exist in package set" <> extraHelp
+      where
+        extraHelp = case suggestedPkg of
+          Just pkg' | Map.member pkg' packageSet ->
+            ", but `" <> packageName pkg' <> "` does, did you mean that instead?"
+          Just pkg' ->
+            ", and nor does `" <> packageName pkg' <> "`"
+          Nothing ->
+            ""
+
+        suggestedPkg = do
+          sansPrefix <- Text.stripPrefix "purescript-" (packageName pkg)
+          Just (PackageName sansPrefix)
 
 
 getReverseDeps  :: PackageSet -> PackageName -> IO [(PackageName, Package)]
@@ -217,22 +234,23 @@ getReverseDeps db dep =
 
 -- | Fetch all dependencies into `.spago/`
 install :: Maybe Int -> [PackageName] -> IO ()
-install maybeLimit packages = do
+install maybeLimit newPackages = do
   -- Make sure .spago exists
   T.mktree $ T.fromText spagoDir
 
-  -- Only call addDependencies if new packages are supplied
-  case packages of
-    [] -> pure ()
-    additional ->
-        -- Config is loaded here, because we will change it when
-        -- adding packages, we will reload it later on
-        -- (which will have the updates)
-        Config.ensureConfig >>= flip Config.addDependencies additional
+  config@Config{..} <- Config.ensureConfig
 
-  config <- Config.ensureConfig
+  -- Try fetching the dependencies with the new names too
+  let newConfig :: Config
+      newConfig = config { dependencies = dependencies <> newPackages }
+  deps <- getProjectDeps newConfig
 
-  deps <- getProjectDeps config
+  -- If the above doesn't fail, write the new packages to the config
+  -- Also skip the write if there are no new packages to be written
+  case newPackages of
+    []         -> pure ()
+    additional -> Config.addDependencies newConfig additional
+
   fetchPackages maybeLimit deps
 
 
