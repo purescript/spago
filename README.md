@@ -588,7 +588,7 @@ ssh://git@foo.com/bar/baz.git
 This might happen because the limit of "open files per process" is too low in your OS - as
 `spago` will try to fetch all dependencies in parallel, and this requires lots of file operations.
 
-You can limit the number of concurrent operations with the `-j` flags, e.g.:
+You can limit the number of concurrent operations with the `-j` flag, e.g.:
 
 ```
 $ spago install -j 10
