@@ -64,7 +64,10 @@ def run_for(delay, command):
         if platform.system() == 'Windows':
             wrapper_command = "start python3 windows_test_wrapper.py " + str(delay) + " '" + json.dumps(command) + "'"
             print("Running the following command: \"" + wrapper_command + "\"")
-            subprocess.Popen(wrapper_command, shell=True)
+            p = subprocess.Popen(wrapper_command, shell=True)
+            # Terminate the whole shell after enough time has passed
+            time.sleep(delay + 1)
+            Popen("TASKKILL /F /PID {pid} /T".format(pid=p.pid))
         else:
             process = subprocess.Popen(command, stdout=FNULL, stderr=FNULL)
             time.sleep(delay)
