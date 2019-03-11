@@ -4,6 +4,7 @@ import signal
 import time
 import difflib
 import platform
+import json
 
 
 def fail(msg):
