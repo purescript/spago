@@ -7,6 +7,9 @@ branches:
 environment:
   STACK_ROOT: C:\sr
   STACK_VERSION: 1.9.3
+  PYTHON: "C:\\Python35-x64"
+  PYTHON_VERSION: "3.5.0"
+  PYTHON_ARCH: "64"
   
   # Workaround a gnarly bug https://github.com/haskell/cabal/issues/5386
   # See: https://www.fpcomplete.com/blog/2018/06/sed-a-debugging-story
@@ -19,6 +22,7 @@ environment:
 install:
   - choco install -y haskell-stack --version %STACK_VERSION%
   - stack setup > nul
+  - choco install purescript
 
 cache:
   - C:\sr -> '%STACK_YAML%'
@@ -28,6 +32,11 @@ build_script:
   - stack build
   - stack install --local-bin-path bin
   - 7z a "bin\windows.tar.gz" "%APPVEYOR_BUILD_FOLDER%\bin\spago.exe"
+
+test_script:
+  - set PATH=C:\projects\spago\bin;%PATH%
+  - "SET PATH=%PYTHON%;%PYTHON%\\Scripts;%PATH%"
+  - cd test\spago-test && python ..\spago-test.py && cd ..\..
 
 artifacts:
   - path: bin\windows.tar.gz
