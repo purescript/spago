@@ -67,7 +67,7 @@ def run_for(delay, command):
             p = subprocess.Popen(wrapper_command, shell=True)
             # Terminate the whole shell after enough time has passed
             time.sleep(delay + 1)
-            Popen("TASKKILL /F /PID {pid} /T".format(pid=p.pid))
+            subprocess.Popen("TASKKILL /F /PID {pid} /T".format(pid=p.pid))
         else:
             process = subprocess.Popen(command, stdout=FNULL, stderr=FNULL)
             time.sleep(delay)
