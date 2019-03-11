@@ -7,9 +7,10 @@ branches:
 environment:
   STACK_ROOT: C:\sr
   STACK_VERSION: 1.9.3
-  PYTHON: "C:\\Python35-x64"
-  PYTHON_VERSION: "3.5.0"
   PYTHON_ARCH: "64"
+  PYTHON_VERSION: 3.6
+  PYTHON: C:\\Python36-x64
+  TEST_WHEELINSTALL_ENV: wheelinstall-py36
   
   # Workaround a gnarly bug https://github.com/haskell/cabal/issues/5386
   # See: https://www.fpcomplete.com/blog/2018/06/sed-a-debugging-story
