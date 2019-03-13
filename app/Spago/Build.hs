@@ -80,7 +80,7 @@ runWithNode :: Purs.ModuleName
 runWithNode defaultModuleName maybeSuccessMessage failureMessage maybeModuleName maybeLimit paths passthroughArgs = do
   build maybeLimit paths passthroughArgs
   T.shell cmd T.empty >>= \case
-    T.ExitSuccess   -> fromMaybe (pure ()) echo maybeSuccessMessage
+    T.ExitSuccess   -> fromMaybe (pure ()) (echo <$> maybeSuccessMessage)
     T.ExitFailure n -> die $ failureMessage <> T.repr n
   where
     moduleName = fromMaybe defaultModuleName maybeModuleName
