@@ -12,7 +12,7 @@ module Spago.Build
   ) where
 
 import           Control.Exception (SomeException, try)
-import           Data.Maybe        (fromMaybe)
+import           Data.Maybe        (Maybe(..), fromMaybe)
 import qualified Data.Text         as Text
 import           System.IO         (hPutStrLn)
 import qualified Turtle            as T hiding (die, echo)
@@ -57,28 +57,35 @@ repl sourcePaths passthroughArgs = do
   let globs = Packages.getGlobs deps <> defaultSourcePaths <> sourcePaths
   Purs.repl globs passthroughArgs
 
--- | Test the project: compile and run the Test.Main
+-- | Test the project: compile and run "Test.Main"
 --   (or the provided module name) with node
 test :: Maybe Purs.ModuleName -> Maybe Int -> [Purs.SourcePath] -> [Purs.ExtraArg] -> IO ()
-test maybeModuleName maybeLimit paths passthroughArgs = do
-  build maybeLimit paths passthroughArgs
-  T.shell cmd T.empty >>= \case
-    T.ExitSuccess   -> echo "Tests succeeded."
-    T.ExitFailure n -> die $ "Tests failed: " <> T.repr n
-  where
-    moduleName = fromMaybe (Purs.ModuleName "Test.Main") maybeModuleName
-    cmd = "node -e \"require('./output/" <> Purs.unModuleName moduleName <> "').main()\""
+test maybeModuleName successMessage failureMessage maybeLimit paths passthroughArgs =
+  runWithNode (Purs.ModuleName "Test.Main") (Just "Tests succeeded.") "Tests failed: "
 
--- | Run the project: compile and run the Main
+-- | Run the project: compile and run "Main"
 --   (or the provided module name) with node
 run :: Maybe Purs.ModuleName -> Maybe Int -> [Purs.SourcePath] -> [Purs.ExtraArg] -> IO ()
-run maybeModuleName maybeLimit paths passthroughArgs = do
+run maybeModuleName successMessage failureMessage maybeLimit paths passthroughArgs =
+  runWithNode (Purs.ModuleName "Main") Nothing "Running failed, exit code: "
+
+-- | Run the project with node: compile and run with the provided ModuleName
+--   (or the default one if that's missing)
+runWithNode :: Purs.ModuleName
+            -> Maybe String
+            -> String
+            -> Maybe Purs.ModuleName
+            -> Maybe Int
+            -> [Purs.SourcePath]
+            -> [Purs.ExtraArg]
+            -> IO ()
+runWithNode defaultModuleName maybeSuccessMessage failureMessage maybeModuleName maybeLimit paths passthroughArgs = do
   build maybeLimit paths passthroughArgs
   T.shell cmd T.empty >>= \case
-    T.ExitSuccess   -> pure unit
-    T.ExitFailure n -> die $ "Run failed: " <> T.repr n
+    T.ExitSuccess   -> fromMaybe (pure ()) echo maybeSuccessMessage
+    T.ExitFailure n -> die $ failureMessage <> T.repr n
   where
-    moduleName = fromMaybe (Purs.ModuleName "Main") maybeModuleName
+    moduleName = fromMaybe defaultModuleName maybeModuleName
     cmd = "node -e \"require('./output/" <> Purs.unModuleName moduleName <> "').main()\""
 
 -- | Bundle the project to a js file
