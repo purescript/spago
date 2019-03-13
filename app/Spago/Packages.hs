@@ -249,7 +249,7 @@ install maybeLimit newPackages = do
   -- Also skip the write if there are no new packages to be written
   case newPackages of
     []         -> pure ()
-    additional -> Config.addDependencies newConfig additional
+    additional -> Config.addDependencies config additional
 
   fetchPackages maybeLimit deps
 
