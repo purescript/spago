@@ -58,7 +58,7 @@ let overrides =
 ### Additions
 
 Purpose:
-- Add packages that aren't alread included in the default package set
+- Add packages that aren't already included in the default package set
 
 Syntax:
 Replace the additions' "{=}" (an empty record) with the following idea:
