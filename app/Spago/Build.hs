@@ -70,8 +70,8 @@ run = runWithNode (Purs.ModuleName "Main") Nothing "Running failed, exit code: "
 -- | Run the project with node: compile and run with the provided ModuleName
 --   (or the default one if that's missing)
 runWithNode :: Purs.ModuleName
-            -> Maybe String
-            -> String
+            -> Maybe T.Text
+            -> T.Text
             -> Maybe Purs.ModuleName
             -> Maybe Int
             -> [Purs.SourcePath]
