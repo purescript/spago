@@ -60,14 +60,12 @@ repl sourcePaths passthroughArgs = do
 -- | Test the project: compile and run "Test.Main"
 --   (or the provided module name) with node
 test :: Maybe Purs.ModuleName -> Maybe Int -> [Purs.SourcePath] -> [Purs.ExtraArg] -> IO ()
-test maybeModuleName successMessage failureMessage maybeLimit paths passthroughArgs =
-  runWithNode (Purs.ModuleName "Test.Main") (Just "Tests succeeded.") "Tests failed: "
+test = runWithNode (Purs.ModuleName "Test.Main") (Just "Tests succeeded.") "Tests failed: "
 
 -- | Run the project: compile and run "Main"
 --   (or the provided module name) with node
 run :: Maybe Purs.ModuleName -> Maybe Int -> [Purs.SourcePath] -> [Purs.ExtraArg] -> IO ()
-run maybeModuleName successMessage failureMessage maybeLimit paths passthroughArgs =
-  runWithNode (Purs.ModuleName "Main") Nothing "Running failed, exit code: "
+run = runWithNode (Purs.ModuleName "Main") Nothing "Running failed, exit code: "
 
 -- | Run the project with node: compile and run with the provided ModuleName
 --   (or the default one if that's missing)
