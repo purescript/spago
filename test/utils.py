@@ -3,6 +3,8 @@ import os.path
 import signal
 import time
 import difflib
+import platform
+import json
 
 
 def fail(msg):
@@ -57,9 +59,19 @@ def run_for(delay, command):
     """
     print('Going to run this for {}s: "{}"'.format(delay, ' '.join(command)))
     with open(os.devnull, 'w') as FNULL:
-        process = subprocess.Popen(command, stdout=FNULL, stderr=FNULL)
-        time.sleep(delay)
-        process.send_signal(signal.SIGINT)
+        # Windows wants a different treatment, see this issue:
+        # https://stackoverflow.com/questions/7085604/
+        if platform.system() == 'Windows':
+            wrapper_command = "start python3 windows_test_wrapper.py " + str(delay) + " '" + json.dumps(command) + "'"
+            print("Running the following command: \"" + wrapper_command + "\"")
+            p = subprocess.Popen(wrapper_command, shell=True)
+            # Terminate the whole shell after enough time has passed
+            time.sleep(delay + 1)
+            subprocess.Popen("TASKKILL /F /PID {pid} /T".format(pid=p.pid))
+        else:
+            process = subprocess.Popen(command, stdout=FNULL, stderr=FNULL)
+            time.sleep(delay)
+            process.send_signal(signal.SIGINT)
 
 
 def check_fixture(name):
