@@ -48,6 +48,9 @@ data Command
   -- | Test the project with some module, default Test.Main
   | Test (Maybe ModuleName) (Maybe Int) [SourcePath] [ExtraArg]
 
+  -- | Run the project with some module, default Main
+  | Run (Maybe ModuleName) (Maybe Int) [SourcePath] [ExtraArg]
+
   -- | Bundle the project, with optional main and target path arguments
   | Bundle (Maybe ModuleName) (Maybe TargetPath)
 
@@ -96,6 +99,7 @@ parser
   T.<|> build
   T.<|> repl
   T.<|> test
+  T.<|> run
   T.<|> bundle
   T.<|> makeModule
   T.<|> packageSetUpgrade
@@ -168,6 +172,10 @@ parser
       = T.subcommand "test" "Test the project with some module, default Test.Main"
       $ Test <$> mainModule <*> limitJobs <*> sourcePaths <*> passthroughArgs
 
+    run
+      = T.subcommand "run" "Runs the project with some module, default Main"
+      $ Run <$> mainModule <*> limitJobs <*> sourcePaths <*> passthroughArgs
+
     bundle
       = T.subcommand "bundle" "Bundle the project, with optional main and target path arguments"
       $ Bundle <$> mainModule <*> toTarget
@@ -212,6 +220,7 @@ main = do
     Freeze                                -> Spago.Packages.freeze
     Build limitJobs paths pursArgs        -> Spago.Build.build limitJobs paths pursArgs
     Test modName limitJobs paths pursArgs -> Spago.Build.test modName limitJobs paths pursArgs
+    Run modName limitJobs paths pursArgs  -> Spago.Build.run modName limitJobs paths pursArgs
     Repl paths pursArgs                   -> Spago.Build.repl paths pursArgs
     Bundle modName tPath                  -> Spago.Build.bundle WithMain modName tPath
     MakeModule modName tPath              -> Spago.Build.makeModule modName tPath

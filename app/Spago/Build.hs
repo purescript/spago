@@ -69,6 +69,18 @@ test maybeModuleName maybeLimit paths passthroughArgs = do
     moduleName = fromMaybe (Purs.ModuleName "Test.Main") maybeModuleName
     cmd = "node -e \"require('./output/" <> Purs.unModuleName moduleName <> "').main()\""
 
+-- | Run the project: compile and run the Main
+--   (or the provided module name) with node
+run :: Maybe Purs.ModuleName -> Maybe Int -> [Purs.SourcePath] -> [Purs.ExtraArg] -> IO ()
+run maybeModuleName maybeLimit paths passthroughArgs = do
+  build maybeLimit paths passthroughArgs
+  T.shell cmd T.empty >>= \case
+    T.ExitSuccess   -> pure unit
+    T.ExitFailure n -> die $ "Run failed: " <> T.repr n
+  where
+    moduleName = fromMaybe (Purs.ModuleName "Main") maybeModuleName
+    cmd = "node -e \"require('./output/" <> Purs.unModuleName moduleName <> "').main()\""
+
 -- | Bundle the project to a js file
 bundle :: Purs.WithMain -> Maybe Purs.ModuleName -> Maybe Purs.TargetPath -> IO ()
 bundle withMain maybeModuleName maybeTargetPath =
