@@ -20,26 +20,25 @@ def call(expected_code, command, failure_msg, expected_output_fixture=None):
     Try to run a command and exit if fails
     """
     try:
-        return subprocess.check_output(command, stderr=subprocess.STDOUT).decode('utf-8')
+        out = subprocess.check_output(command, stderr=subprocess.STDOUT).decode('utf-8')
     except subprocess.CalledProcessError as e:
         if e.returncode == expected_code:
             out = e.output.decode('utf-8')
-
-            # Optionally check the output matches
-            if expected_output_fixture is not None:
-                with open('../fixtures/' + expected_output_fixture, 'r', encoding='utf-8') as expected:
-                    expected_str = ''.join(expected.readlines())
-                    if expected_str == out:
-                        return out
-                    else:
-                        print("Output doesn't match fixture!\n\n")
-                        print(out)
-                        print('\n\n')
-                        print(expected_str)
         else:
             print("FAILURE: " + failure_msg)
             print("Program output:")
             fail(e.output.decode('utf-8'))
+
+    # Optionally check the output matches
+    if expected_output_fixture is not None:
+        with open('../fixtures/' + expected_output_fixture, 'r', encoding='utf-8') as expected:
+            expected_str = ''.join(expected.readlines())
+            if expected_str != out:
+                print("\nOutput doesn't match fixture!\n\n")
+                print(out)
+                print('\n\n')
+                fail(expected_str)
+    return out
 
 
 def expect_success(command, *args):
