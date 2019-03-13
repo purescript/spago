@@ -1,6 +1,7 @@
 module Spago.Build
   ( build
   , test
+  , run
   , repl
   , bundle
   , makeModule
