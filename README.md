@@ -428,6 +428,18 @@ $ node -e "console.log(require('./index).main)"
 [Function]
 ```
 
+If you want to run the program (akin to `pulp run`), just use `run`:
+```bash
+# The main module defaults to "Main"
+$ spago run
+
+# Or define your own module path to Main
+$ spago run --main ModulePath.To.Main
+
+# And pass arguments through to your program
+$ spago run --main ModulePath.To.Main -- --some-option "argument"
+```
+
 More information on when you might want to use the different kinds of build can be found at
 [this FAQ entry](#so-if-i-use-spago-make-module-this-thing-will-compile-all-my-js-deps-in-the-file).
 
