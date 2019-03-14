@@ -33,7 +33,7 @@ def call(expected_code, command, failure_msg, expected_output_fixture=None):
     if expected_output_fixture is not None:
         with open('../fixtures/' + expected_output_fixture, 'r', encoding='utf-8') as expected:
             expected_str = ''.join(expected.readlines())
-            if expected_str.encode('utf-8') != out.encode('utf-8'):
+            if expected_str.encode('utf-8').strip() != out.encode('utf-8').strip():
                 print("\nOutput doesn't match fixture!\n\n")
                 print(out)
                 print('\n\n')
