@@ -37,6 +37,7 @@ build_script:
 test_script:
   - set PATH=C:\projects\spago\bin;%PATH%
   - "SET PATH=%PYTHON%;%PYTHON%\\Scripts;%PATH%"
+  - chcp 65001
   - cd test\spago-test && python ..\spago-test.py && cd ..\..
 
 artifacts:
