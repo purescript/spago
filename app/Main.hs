@@ -1,3 +1,4 @@
+{-# LANGUAGE ApplicativeDo #-}
 module Main (main) where
 
 import qualified Data.Text          as Text
@@ -8,7 +9,7 @@ import qualified System.Environment as Env
 import qualified Turtle             as T
 
 import           Spago.Build        (ExtraArg (..), ModuleName (..), SourcePath (..),
-                                     TargetPath (..), WithMain (..))
+                                     TargetPath (..), WithMain (..), Watch (..))
 import qualified Spago.Build
 import           Spago.Packages     (PackageName (..), PackagesFilter (..))
 import qualified Spago.Packages
@@ -37,7 +38,7 @@ data Command
 
   -- | Build the project paths src/ and test/
   --   plus the specified source paths
-  | Build (Maybe Int) [SourcePath] [ExtraArg]
+  | Build (Maybe Int) Watch [SourcePath] [ExtraArg]
 
   -- | List available packages
   | ListPackages (Maybe PackagesFilter)
@@ -49,7 +50,7 @@ data Command
   | VerifySet (Maybe Int)
 
   -- | Test the project with some module, default Test.Main
-  | Test (Maybe ModuleName) (Maybe Int) [SourcePath] [ExtraArg]
+  | Test (Maybe ModuleName) (Maybe Int) Watch [SourcePath] [ExtraArg]
 
   -- | Bundle the project, with optional main and target path arguments
   | Bundle (Maybe ModuleName) (Maybe TargetPath)
@@ -110,6 +111,12 @@ parser
   T.<|> version
   where
     force       = T.switch "force" 'f' "Overwrite any project found in the current directory"
+    watchBool   = T.switch "watch" 'w' "Watch for changes in local files and automatically rebuild"
+    watch = do
+      res <- watchBool
+      pure $ case res of
+        True -> Watch
+        False -> BuildOnce
     mainModule  = T.optional (T.opt (Just . ModuleName) "main" 'm' "The main module to bundle")
     toTarget    = T.optional (T.opt (Just . TargetPath) "to" 't' "The target file path")
     limitJobs   = T.optional (T.optInt "jobs" 'j' "Limit the amount of jobs that can run concurrently")
@@ -162,7 +169,7 @@ parser
 
     build
       = T.subcommand "build" "Install the dependencies and compile the current package"
-      $ Build <$> limitJobs <*> sourcePaths <*> passthroughArgs
+      $ Build <$> limitJobs <*> watch <*> sourcePaths <*> passthroughArgs
 
     repl
       = T.subcommand "repl" "Start a REPL"
@@ -174,7 +181,7 @@ parser
 
     test
       = T.subcommand "test" "Test the project with some module, default Test.Main"
-      $ Test <$> mainModule <*> limitJobs <*> sourcePaths <*> passthroughArgs
+      $ Test <$> mainModule <*> limitJobs <*> watch <*> sourcePaths <*> passthroughArgs
 
     bundle
       = T.subcommand "bundle" "Bundle the project, with optional main and target path arguments"
@@ -218,8 +225,9 @@ main = do
     VerifySet limitJobs                   -> Spago.Packages.verify limitJobs Nothing
     PackageSetUpgrade                     -> Spago.Packages.upgradePackageSet
     Freeze                                -> Spago.Packages.freeze
-    Build limitJobs paths pursArgs        -> Spago.Build.build limitJobs paths pursArgs
-    Test modName limitJobs paths pursArgs -> Spago.Build.test modName limitJobs paths pursArgs
+    Build limitJobs watch paths pursArgs  -> Spago.Build.build limitJobs watch paths pursArgs
+    Test modName limitJobs watch paths pursArgs
+                                          -> Spago.Build.test modName limitJobs watch paths pursArgs
     Repl paths pursArgs                   -> Spago.Build.repl paths pursArgs
     Bundle modName tPath                  -> Spago.Build.bundle WithMain modName tPath
     MakeModule modName tPath              -> Spago.Build.makeModule modName tPath

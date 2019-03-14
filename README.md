@@ -399,6 +399,13 @@ E.g. if you wish to output your files in some other place than `output/`, you ca
 $ spago build -- -o myOutput/
 ```
 
+If you wish to automatically have your project rebuilt when making changes to source files
+you can use the `--watch` flag:
+
+```bash
+$ spago build --watch
+```
+
 Anyways, the above will create a whole lot of files, but you might want to get just a
 single, executable file. You'd then use the following:
 
