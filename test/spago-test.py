@@ -128,7 +128,7 @@ os.rename('another_source_path/Main.purs', 'src/Main.purs')
 
 expect_success(
     ['spago', 'test'],
-    "Spago should test successfully"
+    "Spago should test successfully",
     "test-output.txt"
 )
 
