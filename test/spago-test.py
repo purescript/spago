@@ -88,7 +88,7 @@ expect_success(
 os.rename('spago.dhall', 'spago-install-success.dhall')
 check_fixture('spago-install-success.dhall')
 
-expect_success(
+expect_failure(
     ['spago', 'install', 'foobar'],
     "Spago should not add dependencies that are not in the package set"
 )
@@ -128,7 +128,7 @@ os.rename('another_source_path/Main.purs', 'src/Main.purs')
 
 expect_success(
     ['spago', 'test'],
-    "Spago should test successfully"
+    "Spago should test successfully",
     "test-output.txt"
 )
 
