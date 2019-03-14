@@ -58,6 +58,7 @@ The recommended installation methods for Windows, Linux or macOS are:
   [here][spago-npm])
 - Download the binary from the [latest GitHub release][spago-latest-release]
 - Compile from source by cloning this repo and running `stack install`
+- With Nix, using [easy-purescript-nix][spago-nix]
 
 **Note:** we assume you already installed the [PureScript compiler][purescript].
 If not, get it with `npm install -g purescript`, or the recommended method for your OS.
@@ -597,6 +598,8 @@ $ spago install -j 10
 To get a ballpark value for the `j` flag you can take the result of the `ulimit -n` command
 (which gives you the current limit), and divide it by four.
 
+
+[spago-nix]: https://github.com/justinwoo/easy-purescript-nix/blob/master/spago.nix
 
 [package-sets]: https://github.com/purescript/package-sets
 [dhall]: https://github.com/dhall-lang/dhall-lang
