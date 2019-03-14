@@ -32,12 +32,16 @@ def call(expected_code, command, failure_msg, expected_output_fixture=None):
     # Optionally check the output matches
     if expected_output_fixture is not None:
         with open('../fixtures/' + expected_output_fixture, 'r', encoding='utf-8') as expected:
-            expected_str = ''.join(expected.readlines())
-            if expected_str.encode('utf-8').strip() != out.encode('utf-8').strip():
-                print("\nOutput doesn't match fixture!\n\n")
-                print(out)
-                print('\n\n')
-                fail(expected_str)
+            # We have to do this crazy lines whitespace cleaning because of Windows line endings
+            exp_lines = expected.readlines()
+            res_lines = out.splitlines(keepends=False)
+            expected_str = '\n'.join([line.strip() for line in exp_lines])
+            result_str = '\n'.join([line.strip() for line in res_lines])
+            if expected_str != result_str:
+                diff = difflib.context_diff(res_lines, exp_lines, fromfile='generated', tofile='expected')
+                print("\nOutput doesn't match fixture!\n")
+                fail("\nDiff:\n" + ''.join(diff))
+
     return out
 
 
