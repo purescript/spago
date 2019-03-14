@@ -3,3 +3,4 @@ You should add some tests.
 Installing 3 dependencies.
 Installation complete.
 Build succeeded.
+Tests succeeded.
