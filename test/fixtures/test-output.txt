@@ -1,9 +1,6 @@
 🍝
 You should add some tests.
 Installing 3 dependencies.
-"prelude" already installed
-"console" already installed
-"effect" already installed
 Installation complete.
 Build succeeded.
 Tests succeeded.
