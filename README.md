@@ -386,7 +386,7 @@ You can freeze the imports in your package set by running:
 $ spago freeze
 ```
 
-### Building, bundling and testing a project
+### Building and testing a project
 
 We can build the project and its dependencies by running:
 
@@ -412,38 +412,6 @@ E.g. if you wish to output your files in some other place than `output/`, you ca
 $ spago build -- -o myOutput/
 ```
 
-Anyways, the above will create a whole lot of files, but you might want to get just a
-single, executable file. You'd then use the following:
-
-```bash
-# You can specify the main module and the target file, or these defaults will be used
-$ spago bundle --main Main --to index.js
-Bundle succeeded and output file to index.js
-
-# We can then run it with node:
-$ node .
-```
-
-*However*, you might want to build a module that has been “dead code eliminated”
-if you plan to make a single module of your PS exports, which can then be required
-from JS.
-
-Gotcha covered:
-
-```bash
-# You can specify the main module and the target file, or these defaults will be used
-$ spago make-module --main Main --to index.js
-Bundling first...
-Bundle succeeded and output file to index.js
-Make module succeeded and output file to index.js
-
-$ node -e "console.log(require('./index).main)"
-[Function]
-```
-
-More information on when you might want to use the different kinds of build can be found at
-[this FAQ entry](#so-if-i-use-spago-make-module-this-thing-will-compile-all-my-js-deps-in-the-file).
-
 You can also test your project with `spago`:
 
 ```bash
@@ -463,6 +431,62 @@ E.g. the following opens a repl on `localhost:3200`:
 ```bash
 $ spago repl -- --port 3200
 ```
+
+
+### Bundling a project in a single file
+
+For the cases when you wish to produce a single JS file from your PureScript project,
+there are basically three ways to do that:
+
+#### 1. `spago bundle`
+
+This will produce a single, executable, dead-code-eliminated file:
+
+
+```bash
+# You can specify the main module and the target file, or these defaults will be used
+$ spago bundle --main Main --to index.js
+Bundle succeeded and output file to index.js
+
+# We can then run it with node:
+$ node .
+```
+
+#### 2. `spago make-module`
+
+If you wish to produce a single, dead-code-eliminated JS module that you can `require` from
+JavaScript:
+
+```bash
+# You can specify the main module and the target file, or these defaults will be used
+$ spago make-module --main Main --to index.js
+Bundling first...
+Bundle succeeded and output file to index.js
+Make module succeeded and output file to index.js
+
+$ node -e "console.log(require('./index).main)"
+[Function]
+```
+
+#### 3. `spago build` + whatever JS bundler
+
+This is the case in which you have JS dependencies, and you need some other JS-specific tool
+to bundle them in (i.e. this is about resolving the `require`s in your JS code)
+
+In this case the flow might look like this:
+
+```bash
+# This will compile the PS to JS, and put the results in very many files in ./output
+# Note: this _doesn't_ resolve the `require`s in the JS code
+$ spago build
+
+# Here any bundler is fine: parcel, webpack, browserify, etc
+# Note: here the index.html is an example value, you should put the entrypoint here
+$ parcel build index.html
+```
+
+More information about this can be found at [this FAQ entry](#so-if-i-use-spago-make-module-this-thing-will-compile-all-my-js-deps-in-the-file).
+
 
 ## FAQ
 
