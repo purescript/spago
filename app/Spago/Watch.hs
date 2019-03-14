@@ -24,7 +24,8 @@ import           Spago.Turtle
 
 watch :: Set.Set Glob.Pattern -> IO () -> IO ()
 watch globs action = do
-  fileWatchConf Watch.defaultConfig $ \getGlobs -> do
+  let config = Watch.defaultConfig { Watch.confDebounce = Watch.Debounce 0.1 } -- in seconds
+  fileWatchConf config $ \getGlobs -> do
     getGlobs globs
     action
 
@@ -42,9 +43,13 @@ fileWatchConf watchConfig inner = Watch.withManagerConf watchConfig $ \manager -
     watchVar <- newTVarIO Map.empty
 
     let onChange event = do
+          globsUnsafe <- readTVarIO allGlobs
+          let shouldRebuild globs = or $ fmap (\glob -> Glob.match glob $ Watch.eventPath event) $ Set.toList globs
+          when (shouldRebuild globsUnsafe) $
+            echoStr $ "File changed, rebuilding: " <> show (Watch.eventPath event)
           atomically $ do
             globs <- readTVar allGlobs
-            when (or $ fmap (\glob -> Glob.match glob $ Watch.eventPath event) $ Set.toList globs)
+            when (shouldRebuild globs)
               (writeTVar dirtyVar True)
 
         setWatched :: Set.Set Glob.Pattern -> IO ()
