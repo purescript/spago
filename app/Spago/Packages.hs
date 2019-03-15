@@ -16,7 +16,7 @@ module Spago.Packages
 import qualified Control.Concurrent.Async.Pool as Async
 import           Control.Exception             (SomeException, handle)
 import           Data.Foldable                 (fold, for_, traverse_)
-import           Control.Monad                 (filterM)
+import           Control.Monad                 (filterM, when)
 import qualified Data.List                     as List
 import qualified Data.Map                      as Map
 import           Data.Maybe                    (fromMaybe)
@@ -156,10 +156,12 @@ fetchPackages maybeLimit allDeps = do
     exists <- T.testdir $ T.fromText $ getPackageDir dep
     pure $ not exists
 
-  echoStr $ "Installing " <> show (List.length depsToFetch) <> " dependencies."
+  let nOfDeps = List.length depsToFetch
+  when (nOfDeps > 0) $
+    echoStr $ "Installing " <> show nOfDeps <> " dependencies."
 
   -- By default we make one thread per dep to fetch, but this can be limited
-  Async.withTaskGroup (fromMaybe (length depsToFetch) maybeLimit) $ \taskGroup -> do
+  Async.withTaskGroup (fromMaybe nOfDeps maybeLimit) $ \taskGroup -> do
     asyncs <- for depsToFetch (Async.async taskGroup . fetchPackage)
     handle (handler asyncs) (for_ asyncs Async.wait)
     echo "Installation complete."
