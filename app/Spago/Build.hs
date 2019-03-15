@@ -4,6 +4,7 @@ module Spago.Build
   , repl
   , bundle
   , makeModule
+  , docs
   , Watch (..)
   , Purs.ExtraArg (..)
   , Purs.ModuleName (..)
@@ -102,3 +103,11 @@ makeModule maybeModuleName maybeTargetPath = do
     >>= \case
       Right _ -> echo $ "Make module succeeded and output file to " <> Purs.unTargetPath targetPath
       Left (n :: SomeException) -> die $ "Make module failed: " <> T.repr n
+
+-- | Generate docs for the `sourcePaths`
+docs :: [Purs.SourcePath] -> IO ()
+docs sourcePaths = do
+  config <- Config.ensureConfig
+  deps <- Packages.getProjectDeps config
+  echo "Generating documentation for the project. This might take a while.."
+  Purs.docs $ defaultSourcePaths <> Packages.getGlobs deps <> sourcePaths
