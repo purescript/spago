@@ -368,29 +368,17 @@ let upstream =
 
 #### Caching the Package Set
 
-It is important to have the hashes set in your `packages.dhall`, like this:
-
-```haskell
-...
-
-let mkPackage =
-      https://raw.githubusercontent.com/purescript/package-sets/psc-0.12.2-20190210/src/mkPackage.dhall sha256:0b197efa1d397ace6eb46b243ff2d73a3da5638d8d0ac8473e8e4a8fc528cf57
-
-let upstream =
-      https://raw.githubusercontent.com/purescript/package-sets/psc-0.12.2-20190210/src/packages.dhall sha256:1bee3f7608ca0f87a88b4b8807cb6722ab9ce3386b68325fbfa71d7211c1cf51
-
-...
-```
-
-The reason why it's so important is that (apart from [the safety guarantees][dhall-hash-safety])
-when your imports are protected by a hash they will be cached, considerably speeding up all
-the config-related operations.
-
-You can freeze the imports in your package set by running:
+If you encounter any issues with the hashes for the package-set (e.g. the hash is not deemed
+correct by `spago`), then you can have the hashes recomputed by running the `freeze` command:
 
 ```bash
 $ spago freeze
 ```
+
+However, this is a pretty rare situation and in principle it should not happen, and when
+it happens it might not be secure to run the above command.  
+To understand all the implications of this I'd invite you to read about
+[the safety guarantees][dhall-hash-safety] that Dhall offers.
 
 ### Building and testing a project
 
