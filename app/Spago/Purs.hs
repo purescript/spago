@@ -81,6 +81,7 @@ version = do
 
 runWithOutput :: T.Text -> T.Text -> T.Text -> IO ()
 runWithOutput command success failure = do
+  echo $ "Running command: `" <> command <> "`"
   T.shell command T.empty >>= \case
     T.ExitSuccess -> echo success
     T.ExitFailure _ -> die failure
