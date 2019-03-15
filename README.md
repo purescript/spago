@@ -349,29 +349,17 @@ Done. Updating the local package-set file..
 
 #### Caching the Package Set
 
-It is important to have the hashes set in your `packages.dhall`, like this:
-
-```haskell
-...
-
-let mkPackage =
-      https://raw.githubusercontent.com/purescript/package-sets/psc-0.12.2-20190210/src/mkPackage.dhall sha256:0b197efa1d397ace6eb46b243ff2d73a3da5638d8d0ac8473e8e4a8fc528cf57
-
-let upstream =
-      https://raw.githubusercontent.com/purescript/package-sets/psc-0.12.2-20190210/src/packages.dhall sha256:1bee3f7608ca0f87a88b4b8807cb6722ab9ce3386b68325fbfa71d7211c1cf51
-
-...
-```
-
-The reason why it's so important is that (apart from [the safety guarantees][dhall-hash-safety])
-when your imports are protected by a hash they will be cached, considerably speeding up all
-the config-related operations.
-
-You can freeze the imports in your package set by running:
+If you encounter any issues with the hashes for the package-set (e.g. the hash is not deemed
+correct by `spago`), then you can have the hashes recomputed by running the `freeze` command:
 
 ```bash
 $ spago freeze
 ```
+
+However, this is a pretty rare situation and in principle it should not happen, and when
+it happens it might not be secure to run the above command.  
+To understand all the implications of this I'd invite you to read about
+[the safety guarantees][dhall-hash-safety] that Dhall offers.
 
 ### Building, bundling and testing a project
 
@@ -397,6 +385,13 @@ E.g. if you wish to output your files in some other place than `output/`, you ca
 
 ```bash
 $ spago build -- -o myOutput/
+```
+
+If you wish to automatically have your project rebuilt when making changes to source files
+you can use the `--watch` flag:
+
+```bash
+$ spago build --watch
 ```
 
 Anyways, the above will create a whole lot of files, but you might want to get just a
@@ -462,6 +457,17 @@ E.g. the following opens a repl on `localhost:3200`:
 ```bash
 $ spago repl -- --port 3200
 ```
+
+### Documentation
+
+To build documentation for your project and its dependencies (i.e. a "project-local
+[Pursuit][pursuit]"), you can use the `docs` command:
+```bash
+$ spago docs
+```
+
+This will generate all the documentation in the `./generated-docs` folder of your project.
+You might then want to open the `index.html` file in there.
 
 ## FAQ
 
@@ -567,21 +573,22 @@ We have two commands for it:
   echo wrote packages.json to $TARGET
   ```
 
-[package-sets]: https://github.com/purescript/package-sets
-[dhall]: https://github.com/dhall-lang/dhall-lang
-[travis-spago]: https://travis-ci.com/spacchetti/spago
-[cargo]: https://github.com/rust-lang/cargo
-[stack]: https://github.com/commercialhaskell/stack
-[psc-package]: https://github.com/purescript/psc-package
 [pulp]: https://github.com/purescript-contrib/pulp
 [purp]: https://github.com/justinwoo/purp
-[parcel]: https://parceljs.org
-[purescript]: https://github.com/purescript/purescript
-[spago-npm]: https://www.npmjs.com/package/spago
-[spago-latest-release]: https://github.com/spacchetti/spago/releases/latest
-[spago-issues]: https://github.com/spacchetti/spago/issues
-[affresco]: https://github.com/KSF-Media/affresco/tree/4b430b48059701a544dfb65b2ade07ef9f36328a
-[todomvc]: https://github.com/f-f/purescript-react-basic-todomvc
+[dhall]: https://github.com/dhall-lang/dhall-lang
+[cargo]: https://github.com/rust-lang/cargo
+[stack]: https://github.com/commercialhaskell/stack
 [purec]: https://github.com/pure-c/purec
+[parcel]: https://parceljs.org
 [purerl]: https://github.com/purerl/purescript
+[pursuit]: https://pursuit.purescript.org/
+[todomvc]: https://github.com/f-f/purescript-react-basic-todomvc
+[affresco]: https://github.com/KSF-Media/affresco/tree/4b430b48059701a544dfb65b2ade07ef9f36328a
+[spago-npm]: https://www.npmjs.com/package/spago
+[purescript]: https://github.com/purescript/purescript
+[psc-package]: https://github.com/purescript/psc-package
+[package-sets]: https://github.com/purescript/package-sets
+[travis-spago]: https://travis-ci.com/spacchetti/spago
+[spago-issues]: https://github.com/spacchetti/spago/issues
 [dhall-hash-safety]: https://github.com/dhall-lang/dhall-lang/wiki/Safety-guarantees#code-injection
+[spago-latest-release]: https://github.com/spacchetti/spago/releases/latest

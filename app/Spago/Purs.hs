@@ -56,6 +56,15 @@ bundle withMain (ModuleName moduleName) (TargetPath targetPath) = do
     ("Bundle failed.")
 
 
+docs :: [SourcePath] -> IO ()
+docs sourcePaths = do
+  let
+    paths = Text.intercalate " " $ Messages.surroundQuote <$> map unSourcePath sourcePaths
+    cmd = "purs docs " <> paths <> " --format html"
+  runWithOutput cmd
+    ("Docs generated. Index is at " <> Messages.surroundQuote "./generated-docs/index.html")
+    "Docs generation failed."
+
 version :: IO (Maybe Version.SemVer)
 version = do
   fullVersionText <- T.shellStrict "purs --version" T.empty >>= \case
