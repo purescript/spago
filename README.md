@@ -27,7 +27,12 @@ PureScript package manager and build tool powered by [Dhall][dhall] and
     - [Verifying your additions and overrides](#verifying-your-additions-and-overrides)
     - [Upgrading the Package Set](#upgrading-the-package-set)
     - [Caching the Package Set](#caching-the-package-set)
-  - [Building, bundling and testing a project](#building-bundling-and-testing-a-project)
+  - [Building and testing a project](#building-and-testing-a-project)
+  - [Bundling a project into a single JS file](#bundling-a-project-into-a-single-js-file)
+    - [1. `spago bundle`](#1-spago-bundle)
+    - [2. `spago make-module`](#2-spago-make-module)
+    - [3. `spago build` + whatever JS bundler](#3-spago-build--whatever-js-bundler)
+  - [Documentation](#documentation)
 - [FAQ](#faq)
     - [Hey wait we have a perfectly functional `pulp` right?](#hey-wait-we-have-a-perfectly-functional-pulp-right)
     - [I miss `bower link`!](#i-miss-bower-link)
@@ -35,6 +40,10 @@ PureScript package manager and build tool powered by [Dhall][dhall] and
     - [So if I use `spago make-module` this thing will compile all my js deps in the file?](#so-if-i-use-spago-make-module-this-thing-will-compile-all-my-js-deps-in-the-file)
     - [Why can't `spago` also install my npm dependencies?](#why-cant-spago-also-install-my-npm-dependencies)
     - [I still want to use `psc-package`, can this help me in some way?](#i-still-want-to-use-psc-package-can-this-help-me-in-some-way)
+    - [I'm getting weird errors about `libtinfo.so.5`..](#im-getting-weird-errors-about-libtinfoso5)
+    - [I added a git repo URL to my overrides, but `spago` thinks it's a local path 🤔](#i-added-a-git-repo-url-to-my-overrides-but-spago-thinks-its-a-local-path-)
+    - [My `install` command is failing with some errors about "too many open files"](#my-install-command-is-failing-with-some-errors-about-too-many-open-files)
+    - [The `bundle`/`test`/`run`/etc commands don't work, what do I do?](#the-bundletestrunetc-commands-dont-work-what-do-i-do)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
@@ -55,6 +64,7 @@ The recommended installation methods for Windows, Linux or macOS are:
   [here][spago-npm])
 - Download the binary from the [latest GitHub release][spago-latest-release]
 - Compile from source by cloning this repo and running `stack install`
+- With Nix, using [easy-purescript-nix][spago-nix]
 
 **Note:** we assume you already installed the [PureScript compiler][purescript].
 If not, get it with `npm install -g purescript`, or the recommended method for your OS.
@@ -347,6 +357,15 @@ Fetching the new one and generating hashes.. (this might take some time)
 Done. Updating the local package-set file..
 ```
 
+If you wish to detach from tags for your package-set, you can of course point it to a
+specific commit.  
+Just set your `upstream` to look something like this:
+
+```haskell
+let upstream =
+      https://github.com/purescript/package-sets/blob/81354f2ea1ac9493eb05dfbd43adc6d183bc4ecd/src/packages.dhall
+```
+
 #### Caching the Package Set
 
 If you encounter any issues with the hashes for the package-set (e.g. the hash is not deemed
@@ -361,7 +380,7 @@ it happens it might not be secure to run the above command.
 To understand all the implications of this I'd invite you to read about
 [the safety guarantees][dhall-hash-safety] that Dhall offers.
 
-### Building, bundling and testing a project
+### Building and testing a project
 
 We can build the project and its dependencies by running:
 
@@ -397,35 +416,6 @@ $ spago build --watch
 Anyways, the above will create a whole lot of files, but you might want to get just a
 single, executable file. You'd then use the following:
 
-```bash
-# You can specify the main module and the target file, or these defaults will be used
-$ spago bundle --main Main --to index.js
-Bundle succeeded and output file to index.js
-
-# We can then run it with node:
-$ node .
-```
-
-*However*, you might want to build a module that has been “dead code eliminated”
-if you plan to make a single module of your PS exports, which can then be required
-from JS.
-
-Gotcha covered:
-
-```bash
-# You can specify the main module and the target file, or these defaults will be used
-$ spago make-module --main Main --to index.js
-Bundling first...
-Bundle succeeded and output file to index.js
-Make module succeeded and output file to index.js
-
-$ node -e "console.log(require('./index).main)"
-[Function]
-```
-
-More information on when you might want to use the different kinds of build can be found at
-[this FAQ entry](#so-if-i-use-spago-make-module-this-thing-will-compile-all-my-js-deps-in-the-file).
-
 You can also test your project with `spago`:
 
 ```bash
@@ -445,6 +435,60 @@ E.g. the following opens a repl on `localhost:3200`:
 ```bash
 $ spago repl -- --port 3200
 ```
+
+### Bundling a project into a single JS file
+
+For the cases when you wish to produce a single JS file from your PureScript project,
+there are basically three ways to do that:
+
+#### 1. `spago bundle`
+
+This will produce a single, executable, dead-code-eliminated file:
+
+```bash
+# You can specify the main module and the target file, or these defaults will be used
+$ spago bundle --main Main --to index.js
+Bundle succeeded and output file to index.js
+
+# We can then run it with node:
+$ node .
+```
+
+#### 2. `spago make-module`
+
+If you wish to produce a single, dead-code-eliminated JS module that you can `require` from
+JavaScript:
+
+```bash
+# You can specify the main module and the target file, or these defaults will be used
+$ spago make-module --main Main --to index.js
+Bundling first...
+Bundle succeeded and output file to index.js
+Make module succeeded and output file to index.js
+
+$ node -e "console.log(require('./index).main)"
+[Function]
+```
+
+#### 3. `spago build` + whatever JS bundler
+
+This is the case in which you have JS dependencies, and you need some other JS-specific tool
+to bundle them in (i.e. this is about resolving the `require`s in your JS code)
+
+In this case the flow might look like this:
+
+```bash
+# This will compile the PS to JS, and put the results in very many files in ./output
+# Note: this _doesn't_ resolve the `require`s in the JS code
+$ spago build
+
+# Here any bundler is fine: parcel, webpack, browserify, etc
+# Note: here the index.html is an example value, you should put the entrypoint here
+$ parcel build index.html
+```
+
+More information about this can be found at [this FAQ entry](#so-if-i-use-spago-make-module-this-thing-will-compile-all-my-js-deps-in-the-file).
+
 
 ### Documentation
 
@@ -561,6 +605,45 @@ We have two commands for it:
   echo wrote packages.json to $TARGET
   ```
 
+#### I'm getting weird errors about `libtinfo.so.5`..
+
+See [here](https://github.com/spacchetti/spago/issues/104#issue-408423391) for reasons and a fix.
+
+#### I added a git repo URL to my overrides, but `spago` thinks it's a local path 🤔
+
+This might happen if you copy the "git" URL from a GitHub repo and try adding it as a repo URL
+in your package-set.  
+However, `spago` requires URLs to conform to [RFC 3986](https://tools.ietf.org/html/rfc3986),
+which something like `git@foo.com:bar/baz.git` doesn't conform to.
+
+To have the above repo location accepted you should rewrite it like this:
+```
+ssh://git@foo.com/bar/baz.git
+```
+
+#### My `install` command is failing with some errors about "too many open files"
+
+This might happen because the limit of "open files per process" is too low in your OS - as
+`spago` will try to fetch all dependencies in parallel, and this requires lots of file operations.
+
+You can limit the number of concurrent operations with the `-j` flag, e.g.:
+
+```
+$ spago install -j 10
+```
+
+To get a ballpark value for the `j` flag you can take the result of the `ulimit -n` command
+(which gives you the current limit), and divide it by four.
+
+
+#### The `bundle`/`test`/`run`/etc commands don't work, what do I do?
+
+The rule of thumb is that in order for these commands to work then `spago build` must succeed first,
+as most of the commands make use of the artifacts produced by `build` in the `output` folder.
+
+So make sure `build` works first. If you still get a failure you might be encountering a `spago` bug.
+
+
 [pulp]: https://github.com/purescript-contrib/pulp
 [purp]: https://github.com/justinwoo/purp
 [dhall]: https://github.com/dhall-lang/dhall-lang
@@ -573,6 +656,7 @@ We have two commands for it:
 [todomvc]: https://github.com/f-f/purescript-react-basic-todomvc
 [affresco]: https://github.com/KSF-Media/affresco/tree/4b430b48059701a544dfb65b2ade07ef9f36328a
 [spago-npm]: https://www.npmjs.com/package/spago
+[spago-nix]: https://github.com/justinwoo/easy-purescript-nix/blob/master/spago.nix
 [purescript]: https://github.com/purescript/purescript
 [psc-package]: https://github.com/purescript/psc-package
 [package-sets]: https://github.com/purescript/package-sets
