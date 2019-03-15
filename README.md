@@ -27,7 +27,12 @@ PureScript package manager and build tool powered by [Dhall][dhall] and
     - [Verifying your additions and overrides](#verifying-your-additions-and-overrides)
     - [Upgrading the Package Set](#upgrading-the-package-set)
     - [Caching the Package Set](#caching-the-package-set)
-  - [Building, bundling and testing a project](#building-bundling-and-testing-a-project)
+  - [Building and testing a project](#building-and-testing-a-project)
+  - [Bundling a project into a single JS file](#bundling-a-project-into-a-single-js-file)
+    - [1. `spago bundle`](#1-spago-bundle)
+    - [2. `spago make-module`](#2-spago-make-module)
+    - [3. `spago build` + whatever JS bundler](#3-spago-build--whatever-js-bundler)
+  - [Documentation](#documentation)
 - [FAQ](#faq)
     - [Hey wait we have a perfectly functional `pulp` right?](#hey-wait-we-have-a-perfectly-functional-pulp-right)
     - [I miss `bower link`!](#i-miss-bower-link)
@@ -38,6 +43,7 @@ PureScript package manager and build tool powered by [Dhall][dhall] and
     - [I'm getting weird errors about `libtinfo.so.5`..](#im-getting-weird-errors-about-libtinfoso5)
     - [I added a git repo URL to my overrides, but `spago` thinks it's a local path 🤔](#i-added-a-git-repo-url-to-my-overrides-but-spago-thinks-its-a-local-path-)
     - [My `install` command is failing with some errors about "too many open files"](#my-install-command-is-failing-with-some-errors-about-too-many-open-files)
+    - [The `bundle`/`test`/`run`/etc commands don't work, what do I do?](#the-bundletestrunetc-commands-dont-work-what-do-i-do)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
@@ -640,6 +646,14 @@ $ spago install -j 10
 
 To get a ballpark value for the `j` flag you can take the result of the `ulimit -n` command
 (which gives you the current limit), and divide it by four.
+
+
+#### The `bundle`/`test`/`run`/etc commands don't work, what do I do?
+
+The rule of thumb is that in order for these commands to work then `spago build` must succeed first,
+as most of the commands make use of the artifacts produced by `build` in the `output` folder.
+
+So make sure `build` works first. If you still get a failure you might be encountering a `spago` bug.
 
 
 [pulp]: https://github.com/purescript-contrib/pulp
