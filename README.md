@@ -387,6 +387,13 @@ E.g. if you wish to output your files in some other place than `output/`, you ca
 $ spago build -- -o myOutput/
 ```
 
+If you wish to automatically have your project rebuilt when making changes to source files
+you can use the `--watch` flag:
+
+```bash
+$ spago build --watch
+```
+
 Anyways, the above will create a whole lot of files, but you might want to get just a
 single, executable file. You'd then use the following:
 
@@ -438,6 +445,17 @@ E.g. the following opens a repl on `localhost:3200`:
 ```bash
 $ spago repl -- --port 3200
 ```
+
+### Documentation
+
+To build documentation for your project and its dependencies (i.e. a "project-local
+[Pursuit][pursuit]"), you can use the `docs` command:
+```bash
+$ spago docs
+```
+
+This will generate all the documentation in the `./generated-docs` folder of your project.
+You might then want to open the `index.html` file in there.
 
 ## FAQ
 
@@ -543,21 +561,22 @@ We have two commands for it:
   echo wrote packages.json to $TARGET
   ```
 
-[package-sets]: https://github.com/purescript/package-sets
-[dhall]: https://github.com/dhall-lang/dhall-lang
-[travis-spago]: https://travis-ci.com/spacchetti/spago
-[cargo]: https://github.com/rust-lang/cargo
-[stack]: https://github.com/commercialhaskell/stack
-[psc-package]: https://github.com/purescript/psc-package
 [pulp]: https://github.com/purescript-contrib/pulp
 [purp]: https://github.com/justinwoo/purp
-[parcel]: https://parceljs.org
-[purescript]: https://github.com/purescript/purescript
-[spago-npm]: https://www.npmjs.com/package/spago
-[spago-latest-release]: https://github.com/spacchetti/spago/releases/latest
-[spago-issues]: https://github.com/spacchetti/spago/issues
-[affresco]: https://github.com/KSF-Media/affresco/tree/4b430b48059701a544dfb65b2ade07ef9f36328a
-[todomvc]: https://github.com/f-f/purescript-react-basic-todomvc
+[dhall]: https://github.com/dhall-lang/dhall-lang
+[cargo]: https://github.com/rust-lang/cargo
+[stack]: https://github.com/commercialhaskell/stack
 [purec]: https://github.com/pure-c/purec
+[parcel]: https://parceljs.org
 [purerl]: https://github.com/purerl/purescript
+[pursuit]: https://pursuit.purescript.org/
+[todomvc]: https://github.com/f-f/purescript-react-basic-todomvc
+[affresco]: https://github.com/KSF-Media/affresco/tree/4b430b48059701a544dfb65b2ade07ef9f36328a
+[spago-npm]: https://www.npmjs.com/package/spago
+[purescript]: https://github.com/purescript/purescript
+[psc-package]: https://github.com/purescript/psc-package
+[package-sets]: https://github.com/purescript/package-sets
+[travis-spago]: https://travis-ci.com/spacchetti/spago
+[spago-issues]: https://github.com/spacchetti/spago/issues
 [dhall-hash-safety]: https://github.com/dhall-lang/dhall-lang/wiki/Safety-guarantees#code-injection
+[spago-latest-release]: https://github.com/spacchetti/spago/releases/latest

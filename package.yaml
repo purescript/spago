@@ -39,6 +39,7 @@ dependencies:
 - turtle
 - filepath
 - file-embed
+- template-haskell
 - aeson
 - aeson-pretty
 - containers
@@ -48,12 +49,16 @@ dependencies:
 - prettyprinter
 - async-pool
 - process
-- template-haskell
 - network-uri
 - github
 - versions
 - microlens
 - safe
+- fsnotify
+- Glob
+- async
+- stm
+- directory
 
 executables:
   spago:

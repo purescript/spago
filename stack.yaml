@@ -12,3 +12,4 @@ extra-deps:
 - repline-0.2.0.0
 - serialise-0.2.1.0
 - Win32-2.5.4.1@sha256:e623a1058bd8134ec14d62759f76cac52eee3576711cb2c4981f398f1ec44b85
+- Glob-0.10.0
