@@ -358,7 +358,7 @@ Done. Updating the local package-set file..
 ```
 
 If you wish to detach from tags for your package-set, you can of course point it to a
-specific commit.
+specific commit.  
 Just set your `upstream` to look something like this:
 
 ```haskell
@@ -435,10 +435,10 @@ You should add some tests.
 Tests succeeded.
 ```
 
-And last but not least, you can spawn a PureScript repl!
+And last but not least, you can spawn a PureScript repl!  
 As with the `build` and `test` commands, you can add custom source paths
 to load, and pass options to the underlying `purs repl` by just putting
-them after `--`.
+them after `--`.  
 E.g. the following opens a repl on `localhost:3200`:
 
 ```bash
