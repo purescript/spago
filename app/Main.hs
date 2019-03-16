@@ -127,7 +127,7 @@ parser
     sourcePaths = T.many (T.opt (Just . SourcePath) "path" 'p' "Source path to include")
     packageName = T.arg (Just . PackageName) "package" "Specify a package name. You can list them with `list-packages`"
     packageNames = T.many $ T.arg (Just . PackageName) "package" "Package name to add as dependency"
-    passthroughArgs = T.many $ T.arg (Just . ExtraArg) " ..any `purs` option" "Options passed through to `purs`; use -- to separate"
+    passthroughArgs = T.many $ T.arg (Just . ExtraArg) " ..any `purs compile` option" "Options passed through to `purs compile`; use -- to separate"
     packagesFilter =
       let wrap = \case
             "direct"     -> Just DirectDeps

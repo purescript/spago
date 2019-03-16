@@ -38,7 +38,12 @@ def call(expected_code, command, failure_msg, expected_output_fixture=None):
             expected_str = '\n'.join([line.strip() for line in exp_lines])
             result_str = '\n'.join([line.strip() for line in res_lines])
             if expected_str != result_str:
-                diff = difflib.context_diff(res_lines, exp_lines, fromfile='generated', tofile='expected')
+                diff = difflib.context_diff(
+                    [line + "\n" for line in res_lines],
+                    exp_lines,
+                    fromfile='generated',
+                    tofile='expected'
+                )
                 print("\nOutput doesn't match fixture!\n")
                 fail("\nDiff:\n" + ''.join(diff))
 
