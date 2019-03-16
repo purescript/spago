@@ -78,12 +78,12 @@ run_for(0.5, ['spago', 'install', '-j', '3'])
 time.sleep(1)
 
 expect_success(
-    ['spago', 'install'],
+    ['spago', 'install', '-j', '10'],
     "Subsequent installs should succeed anyways"
 )
 
 expect_success(
-    ['spago', 'install', 'simple-json', 'foreign'],
+    ['spago', 'install', '-j', '10', 'simple-json', 'foreign'],
     "Spago should be able to add dependencies"
 )
 os.rename('spago.dhall', 'spago-install-success.dhall')
