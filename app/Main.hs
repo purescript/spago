@@ -53,10 +53,12 @@ data Command
   | Test (Maybe ModuleName) (Maybe Int) Watch [SourcePath] [ExtraArg]
 
   -- | Bundle the project, with optional main and target path arguments
-  | Bundle (Maybe ModuleName) (Maybe TargetPath)
+  --   Builds the project before bundling
+  | Bundle (Maybe ModuleName) (Maybe TargetPath) [SourcePath] [ExtraArg]
 
   -- | Bundle a module into a CommonJS module
-  | MakeModule (Maybe ModuleName) (Maybe TargetPath)
+  --   Builds the project before bundling
+  | MakeModule (Maybe ModuleName) (Maybe TargetPath) [SourcePath] [ExtraArg]
 
   -- | Upgrade the package-set to the latest release
   | PackageSetUpgrade
@@ -185,11 +187,11 @@ parser
 
     bundle
       = T.subcommand "bundle" "Bundle the project, with optional main and target path arguments"
-      $ Bundle <$> mainModule <*> toTarget
+      $ Bundle <$> mainModule <*> toTarget <*> sourcePaths <*> passthroughArgs
 
     makeModule
       = T.subcommand "make-module" "Bundle a module into a CommonJS module"
-      $ MakeModule <$> mainModule <*> toTarget
+      $ MakeModule <$> mainModule <*> toTarget <*> sourcePaths <*> passthroughArgs
 
     packageSetUpgrade
       = T.subcommand "package-set-upgrade" "Upgrade the upstream in packages.dhall to the latest package-sets release"
@@ -229,8 +231,9 @@ main = do
     Test modName limitJobs watch paths pursArgs
                                           -> Spago.Build.test modName limitJobs watch paths pursArgs
     Repl paths pursArgs                   -> Spago.Build.repl paths pursArgs
-    Bundle modName tPath                  -> Spago.Build.bundle WithMain modName tPath
-    MakeModule modName tPath              -> Spago.Build.makeModule modName tPath
+    Bundle modName tPath paths pursArgs   -> Spago.Build.bundle WithMain modName tPath paths pursArgs
+    MakeModule modName tPath paths pursArgs
+                                          -> Spago.Build.makeModule modName tPath paths pursArgs
     Docs sourcePaths                      -> Spago.Build.docs sourcePaths
     Version                               -> printVersion
     PscPackageLocalSetup force            -> PscPackage.localSetup force

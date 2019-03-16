@@ -84,18 +84,20 @@ test maybeModuleName maybeLimit shouldWatch paths passthroughArgs = do
     cmd = "node -e \"require('./output/" <> Purs.unModuleName moduleName <> "').main()\""
 
   -- | Bundle the project to a js file
-bundle :: Purs.WithMain -> Maybe Purs.ModuleName -> Maybe Purs.TargetPath -> IO ()
-bundle withMain maybeModuleName maybeTargetPath =
+bundle :: Purs.WithMain -> Maybe Purs.ModuleName -> Maybe Purs.TargetPath -> [Purs.SourcePath] -> [Purs.ExtraArg] -> IO ()
+bundle withMain maybeModuleName maybeTargetPath paths passthroughArgs =
   let (moduleName, targetPath) = prepareBundleDefaults maybeModuleName maybeTargetPath
-  in Purs.bundle withMain moduleName targetPath
+  in do
+    build Nothing BuildOnce paths passthroughArgs
+    Purs.bundle withMain moduleName targetPath
 
 -- | Bundle into a CommonJS module
-makeModule :: Maybe Purs.ModuleName -> Maybe Purs.TargetPath -> IO ()
-makeModule maybeModuleName maybeTargetPath = do
+makeModule :: Maybe Purs.ModuleName -> Maybe Purs.TargetPath -> [Purs.SourcePath] -> [Purs.ExtraArg] -> IO ()
+makeModule maybeModuleName maybeTargetPath paths passthroughArgs = do
   let (moduleName, targetPath) = prepareBundleDefaults maybeModuleName maybeTargetPath
       jsExport = Text.unpack $ "\nmodule.exports = PS[\""<> Purs.unModuleName moduleName <> "\"];"
   echo "Bundling first..."
-  bundle Purs.WithoutMain (Just moduleName) (Just targetPath)
+  bundle Purs.WithoutMain (Just moduleName) (Just targetPath) paths passthroughArgs
   -- Here we append the CommonJS export line at the end of the bundle
   try (T.with
         (T.appendonly $ T.fromText $ Purs.unTargetPath targetPath)
