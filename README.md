@@ -425,9 +425,6 @@ $ spago run --main ModulePath.To.Main
 $ spago run --main ModulePath.To.Main -- --verbose-errors
 ```
 
-Anyways, the above will create a whole lot of files, but you might want to get just a
-single, executable file. You'd then use the following:
-
 You can also test your project with `spago`:
 
 ```bash
