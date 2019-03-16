@@ -431,8 +431,8 @@ $ spago run
 # Or define your own module path to Main
 $ spago run --main ModulePath.To.Main
 
-# And pass arguments through to your program
-$ spago run --main ModulePath.To.Main -- --some-option "argument"
+# And pass arguments through to `purs compile`
+$ spago run --main ModulePath.To.Main -- --verbose-errors
 ```
 
 More information on when you might want to use the different kinds of build can be found at
