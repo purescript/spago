@@ -49,7 +49,7 @@ PureScript package manager and build tool powered by [Dhall][dhall] and
 
 ## What does all of this mean?
 
-`spago` aims to tie together the UX of developing a PureScript project.
+`spago` aims to tie together the UX of developing a PureScript project.  
 In this Pursuit (see what I did there) it is heavily inspired by [Rust's Cargo][cargo]
 and [Haskell's Stack][stack], and builds on top of ideas from existing PureScript
 infrastructure and tooling, as [`psc-package`][psc-package], [`pulp`][pulp] and
@@ -92,13 +92,13 @@ This last command will create a bunch of files:
 ```
 
 Convention note: `spago` expects your source files to be in `src/` and your
-test files in `test/`.
+test files in `test/`.  
 It is possible to include additional source paths when running some commands,
 like `build`, `test` or `repl`.
 
 Let's take a look at the two [Dhall][dhall] configuration files that `spago` requires:
 - `packages.dhall`: this file is meant to contain the *totality* of the packages
-  available to your project (that is, any package you might want to import).
+  available to your project (that is, any package you might want to import).  
   In practical terms, it pulls in the [official package-set][package-sets] as a base,
   and you are then able to add any package that might not be in the package set,
   or override esisting ones.
@@ -214,11 +214,11 @@ $ spago install my-new-package another-package
 #### Adding and overriding dependencies in the Package Set
 
 Let's say I'm a user of the `simple-json` package. Now, let's say I stumble upon a bug
-in there, but thankfully I figure how to fix it. So I clone it locally and add my fix.
+in there, but thankfully I figure how to fix it. So I clone it locally and add my fix.  
 Now if I want to test this version in my current project, how can I tell `spago` to do it?
 
-We have a `overrides` record in `packages.dhall` just for that!
-And in this case we override the `repo` key with the local path of the package.
+We have a `overrides` record in `packages.dhall` just for that!  
+And in this case we override the `repo` key with the local path of the package.  
 It might look like this:
 
 ```haskell
@@ -255,7 +255,7 @@ Installing "enums"
 ...
 ```
 
-Let's now say that we test that our fix works, and we are ready to Pull Request the fix.
+Let's now say that we test that our fix works, and we are ready to Pull Request the fix.  
 So we push our fork and open the PR, but while we wait for the fix to land on the next
 package-set release, we still want to use the fix in our production build.
 
@@ -274,11 +274,11 @@ let overrides =
 
 **Note**: currently only "branches" and "tags" work as a `version`, and tags are
 recommended over branches (as for example if you push new commits to a branch,
-`spago` won't pick them up unless you delete the `.spago` folder).
+`spago` won't pick them up unless you delete the `.spago` folder).  
 Commit hashes are not supported yet, but hopefully will be at some point.
 
 If a package is not in the upstream package-set, you can add it in a similar way,
-by changing the `additions` record in the `packages.dhall` file.
+by changing the `additions` record in the `packages.dhall` file.  
 E.g. if we want to add the `facebook` package:
 
 ```haskell
@@ -376,7 +376,7 @@ $ spago freeze
 ```
 
 However, this is a pretty rare situation and in principle it should not happen, and when
-it happens it might not be secure to run the above command.
+it happens it might not be secure to run the above command.  
 To understand all the implications of this I'd invite you to read about
 [the safety guarantees][dhall-hash-safety] that Dhall offers.
 
@@ -388,7 +388,7 @@ We can build the project and its dependencies by running:
 $ spago build
 ```
 
-This is just a thin layer above the PureScript compiler command `purs compile`.
+This is just a thin layer above the PureScript compiler command `purs compile`.  
 The build will produce very many JavaScript files in the `output/` folder. These
 are CommonJS modules, and you can just `require()` them e.g. on Node.
 
@@ -521,7 +521,7 @@ Yees, however:
   versions together all the time).
 - If you use `psc-package`, you have the problem of not having the ability of overriding
   packages versions when needed, leading everyone to make their own package-set, which
-  then goes unmaintained, etc.
+  then goes unmaintained, etc.  
   Of course you can use the package-set-local-setup to solve this issue, but this is
   exactly what we're doing here: integrating all the workflow in a single tool, `spago`,
   instead of having to use `pulp`, `psc-package`, `purp`, etc.
@@ -541,14 +541,14 @@ the `dependencies` list in your `spago.dhall`.
 
 No. We only take care of PureScript land. In particular, `make-module` will do the
 most we can do on the PureScript side of things (dead code elimination), but will
-leave the `require`s still in.
+leave the `require`s still in.  
 To fill them in you should use the proper js tool of the day, at the time of
 writing [ParcelJS][parcel] looks like a good option.
 
 If you wish to see an example of a project building with `spago` + `parcel`, a simple
 starting point is the [TodoMVC app with `react-basic`][todomvc].
 You can see in its `package.json` that a "production build" is just
-`spago build && parcel build index.html`.
+`spago build && parcel build index.html`.  
 If you open its `index.js` you'll see that it does a `require('./output/Todo.App')`:
 the files in `output` are generated by `spago build`, and then the `parcel` build resolves
 all the `require`s and bundles all these js files in.
@@ -556,11 +556,11 @@ all the `require`s and bundles all these js files in.
 Though this is not the only way to include the built js - for a slimmer build or for importing
 some PureScript component in another js build we might want to use the output of `make-module`.
 
-For an example of this in a "production setting" you can take a look at [affresco][affresco].
-It is a PureScript monorepo of React-based components and apps.
+For an example of this in a "production setting" you can take a look at [affresco][affresco].  
+It is a PureScript monorepo of React-based components and apps.  
 The gist of it is that the PureScript apps in the repo are built with `spago build`
 (look in the `package.json` for it), but all the React components can be imported from
-JS apps as well, given that proper modules are built out of the PS sources.
+JS apps as well, given that proper modules are built out of the PS sources.  
 This is where `spago make-module` is used: the `build-purs.rb` builds a bundle out of every
 single React component in each component's folder - e.g. let's say we `make-module` from
 the `ksf-login` component and output it in the `index.js` of the component's folder; we can
@@ -578,18 +578,18 @@ dependencies, so we don't have to worry about running npm besides it, right?
 
 While these scenarios are common, they are also really hard to support.
 In fact, it might be that a certain NPM package in your transitive dependencies
-would only support the browser, or only node. Should `spago` warn about that?
+would only support the browser, or only node. Should `spago` warn about that?  
 And if yes, where should we get all of this info?
 
 Another big problem is that the JS backend is not the only backend around. For example,
-PureScript has a [C backend][purec] and an [Erlang backend][purerl] among the others.
+PureScript has a [C backend][purec] and an [Erlang backend][purerl] among the others.  
 These backends are going to use different package managers for their native dependencies,
 and while it's feasible for `spago` to support the backends themselves, supporting also
 all the possible native package managers (and doing things like building package-sets for their
 dependencies versions) is not a scalable approach.
 
 So this is the reason why if you or one of your dependencies need to depend on some "native"
-packages, you should run the appropriate package-manager for that (e.g. npm).
+packages, you should run the appropriate package-manager for that (e.g. npm).  
 For examples on how to do it, see the previous FAQ entry.
 
 #### I still want to use `psc-package`, can this help me in some way?
@@ -598,7 +598,7 @@ Yes! We can help you setup your psc-package project to use the Dhall version of 
 
 We have two commands for it:
 - **`psc-package-local-setup`**: this command creates a `packages.dhall` file in your project,
-  that points to the most recent package-set, and lets you override and add  arbitrary packages.
+  that points to the most recent package-set, and lets you override and add  arbitrary packages.  
   See the docs about this [here][package-sets].
 - **`psc-package-insdhall`**: do the *Ins-Dhall-ation* of the local project setup: that is,
   generates a local package-set for `psc-package` from your `packages.dhall`, and points your
@@ -621,7 +621,7 @@ See [here](https://github.com/spacchetti/spago/issues/104#issue-408423391) for r
 #### I added a git repo URL to my overrides, but `spago` thinks it's a local path 🤔
 
 This might happen if you copy the "git" URL from a GitHub repo and try adding it as a repo URL
-in your package-set.
+in your package-set.  
 However, `spago` requires URLs to conform to [RFC 3986](https://tools.ietf.org/html/rfc3986),
 which something like `git@foo.com:bar/baz.git` doesn't conform to.
 
