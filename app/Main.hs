@@ -52,6 +52,9 @@ data Command
   -- | Test the project with some module, default Test.Main
   | Test (Maybe ModuleName) (Maybe Int) Watch [SourcePath] [ExtraArg]
 
+  -- | Run the project with some module, default Main
+  | Run (Maybe ModuleName) (Maybe Int) Watch [SourcePath] [ExtraArg]
+
   -- | Bundle the project, with optional main and target path arguments
   --   Builds the project before bundling
   | Bundle (Maybe ModuleName) (Maybe TargetPath) NoBuild [SourcePath] [ExtraArg]
@@ -103,6 +106,7 @@ parser
   T.<|> repl
   T.<|> docs
   T.<|> test
+  T.<|> run
   T.<|> bundle
   T.<|> makeModule
   T.<|> packageSetUpgrade
@@ -191,6 +195,10 @@ parser
       = T.subcommand "test" "Test the project with some module, default Test.Main"
       $ Test <$> mainModule <*> limitJobs <*> watch <*> sourcePaths <*> passthroughArgs
 
+    run
+      = T.subcommand "run" "Runs the project with some module, default Main"
+      $ Run <$> mainModule <*> limitJobs <*> watch <*> sourcePaths <*> passthroughArgs
+
     bundle
       = T.subcommand "bundle" "Bundle the project, with optional main and target path arguments"
       $ Bundle <$> mainModule <*> toTarget <*> noBuild <*> sourcePaths <*> passthroughArgs
@@ -236,6 +244,8 @@ main = do
     Build limitJobs watch paths pursArgs  -> Spago.Build.build limitJobs watch paths pursArgs
     Test modName limitJobs watch paths pursArgs
                                           -> Spago.Build.test modName limitJobs watch paths pursArgs
+    Run modName limitJobs watch paths pursArgs
+                                          -> Spago.Build.run modName limitJobs watch paths pursArgs
     Repl paths pursArgs                   -> Spago.Build.repl paths pursArgs
     Bundle modName tPath build paths pursArgs
                                           -> Spago.Build.bundle WithMain modName tPath build paths pursArgs

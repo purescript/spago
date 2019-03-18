@@ -140,6 +140,13 @@ expect_success(
 )
 
 
+## spago run
+
+expect_success(
+    ['spago', 'run'],
+    "Spago should run successfully",
+    "run-output.txt"
+)
 
 
 ## spago bundle
