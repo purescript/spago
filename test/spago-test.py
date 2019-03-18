@@ -3,6 +3,7 @@
 import os
 import json
 import time
+import shutil
 from utils import expect_success, expect_failure, fail, run_for, check_fixture
 
 
@@ -51,7 +52,7 @@ expect_success(
     ['spago', 'init', '-f'],
     "Spago should import config from psc-package"
 )
-os.rename('spago.dhall', 'spago-psc-success.dhall')
+shutil.copy2('spago.dhall', 'spago-psc-success.dhall')
 check_fixture('spago-psc-success.dhall')
 
 
@@ -63,7 +64,7 @@ expect_success(
     ['spago', 'init', '-f'],
     "Spago should not import dependencies that are not in the package-set"
 )
-os.rename('spago.dhall', 'spago-psc-failure.dhall')
+shutil.copy2('spago.dhall', 'spago-psc-failure.dhall')
 check_fixture('spago-psc-failure.dhall')
 
 
@@ -88,11 +89,17 @@ expect_success(
 os.rename('spago.dhall', 'spago-install-success.dhall')
 check_fixture('spago-install-success.dhall')
 
+
+expect_success(
+    ['spago', 'init', '-f'],
+    "Spago should always succeed in doing init with force"
+)
+
 expect_failure(
     ['spago', 'install', 'foobar'],
     "Spago should not add dependencies that are not in the package set"
 )
-os.rename('spago.dhall', 'spago-install-failure.dhall')
+shutil.copy2('spago.dhall', 'spago-install-failure.dhall')
 check_fixture('spago-install-failure.dhall')
 
 
