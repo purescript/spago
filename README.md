@@ -183,7 +183,7 @@ store them in the `.spago` folder).
 
 #### Listing available packages
 
-It is sometimes useful to know which packages are contained in our package set 
+It is sometimes useful to know which packages are contained in our package set
 (e.g. to see which version we're using, or to search for packages).
 
 You can get a complete list of the packages your `packages.dhall` imports (together
@@ -240,7 +240,7 @@ smolder               v11.0.1   Remote "https://github.com/bodil/purescript-smol
 ...
 ```
 
-And since local packages are just included in the build, if we add it to the `dependencies` 
+And since local packages are just included in the build, if we add it to the `dependencies`
 in `spago.dhall` and then do `spago install`, it will not be downloaded:
 
 ```
@@ -413,8 +413,17 @@ you can use the `--watch` flag:
 $ spago build --watch
 ```
 
-Anyways, the above will create a whole lot of files, but you might want to get just a
-single, executable file. You'd then use the following:
+If you want to run the program (akin to `pulp run`), just use `run`:
+```bash
+# The main module defaults to "Main"
+$ spago run
+
+# Or define your own module path to Main
+$ spago run --main ModulePath.To.Main
+
+# And pass arguments through to `purs compile`
+$ spago run --main ModulePath.To.Main -- --verbose-errors
+```
 
 You can also test your project with `spago`:
 
@@ -489,6 +498,12 @@ $ parcel build index.html
 
 More information about this can be found at [this FAQ entry](#so-if-i-use-spago-make-module-this-thing-will-compile-all-my-js-deps-in-the-file).
 
+##### Skipping the Build Step
+
+When running `spago bundle` and `spago make-module` the `build` step will also execute
+since bundling depends on building first.
+To skip this build you can add the `--no-build` flag.
+
 
 ### Documentation
 
@@ -513,7 +528,7 @@ Yees, however:
 - If you use `psc-package`, you have the problem of not having the ability of overriding
   packages versions when needed, leading everyone to make their own package-set, which
   then goes unmaintained, etc.  
-  Of course you can use the package-set-local-setup to solve this issue, but this is 
+  Of course you can use the package-set-local-setup to solve this issue, but this is
   exactly what we're doing here: integrating all the workflow in a single tool, `spago`,
   instead of having to use `pulp`, `psc-package`, `purp`, etc.
 
@@ -553,7 +568,7 @@ The gist of it is that the PureScript apps in the repo are built with `spago bui
 (look in the `package.json` for it), but all the React components can be imported from
 JS apps as well, given that proper modules are built out of the PS sources.  
 This is where `spago make-module` is used: the `build-purs.rb` builds a bundle out of every
-single React component in each component's folder - e.g. let's say we `make-module` from 
+single React component in each component's folder - e.g. let's say we `make-module` from
 the `ksf-login` component and output it in the `index.js` of the component's folder; we can
 then `yarn install` the single component (note it contains a `package.json`), and require it
 as a separate npm package with `require('@affresco/ksf-login')`.
@@ -561,7 +576,7 @@ as a separate npm package with `require('@affresco/ksf-login')`.
 #### Why can't `spago` also install my npm dependencies?
 
 A common scenario is that you'd like to use things like `react-basic`, or want to depend
-on JS libraries like ThreeJS. 
+on JS libraries like ThreeJS.
 In any case, you end up depending on some NPM package.
 
 And it would be really nice if `spago` would take care of installing all of these
@@ -588,7 +603,7 @@ For examples on how to do it, see the previous FAQ entry.
 Yes! We can help you setup your psc-package project to use the Dhall version of the package-set.
 
 We have two commands for it:
-- **`psc-package-local-setup`**: this command creates a `packages.dhall` file in your project, 
+- **`psc-package-local-setup`**: this command creates a `packages.dhall` file in your project,
   that points to the most recent package-set, and lets you override and add  arbitrary packages.  
   See the docs about this [here][package-sets].
 - **`psc-package-insdhall`**: do the *Ins-Dhall-ation* of the local project setup: that is,

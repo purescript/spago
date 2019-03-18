@@ -100,7 +100,8 @@ parseConfig dhallText = do
 ensureConfig :: IO Config
 ensureConfig = do
   exists <- T.testfile path
-  T.unless exists $ makeConfig False
+  T.unless exists $ do
+    die $ Messages.cannotFindConfig
   PackageSet.ensureFrozen
   configText <- T.readTextFile path
   try (parseConfig configText) >>= \case
