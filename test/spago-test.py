@@ -143,6 +143,7 @@ expect_success(
 
 
 ## spago bundle
+shutil.rmtree("./output") ## Remove output to ensure bundle builds as well as bundles
 
 expect_success(
     ['spago', 'bundle', '--to', 'bundle.js'],
@@ -155,6 +156,7 @@ check_fixture('bundle.js')
 
 
 ## spago make-module
+shutil.rmtree("./output") ## Remove output to ensure bundle builds as well as bundles
 
 expect_success(
     ['spago', 'make-module', '--to', 'module.js'],

@@ -9,7 +9,7 @@ import qualified System.Environment as Env
 import qualified Turtle             as T
 
 import           Spago.Build        (ExtraArg (..), ModuleName (..), SourcePath (..),
-                                     TargetPath (..), WithMain (..), Watch (..))
+                                     TargetPath (..), WithMain (..), Watch (..), NoBuild (..))
 import qualified Spago.Build
 import           Spago.Packages     (PackageName (..), PackagesFilter (..))
 import qualified Spago.Packages
@@ -53,10 +53,12 @@ data Command
   | Test (Maybe ModuleName) (Maybe Int) Watch [SourcePath] [ExtraArg]
 
   -- | Bundle the project, with optional main and target path arguments
-  | Bundle (Maybe ModuleName) (Maybe TargetPath)
+  --   Builds the project before bundling
+  | Bundle (Maybe ModuleName) (Maybe TargetPath) NoBuild [SourcePath] [ExtraArg]
 
   -- | Bundle a module into a CommonJS module
-  | MakeModule (Maybe ModuleName) (Maybe TargetPath)
+  --   Builds the project before bundling
+  | MakeModule (Maybe ModuleName) (Maybe TargetPath) NoBuild [SourcePath] [ExtraArg]
 
   -- | Upgrade the package-set to the latest release
   | PackageSetUpgrade
@@ -112,11 +114,17 @@ parser
   where
     force       = T.switch "force" 'f' "Overwrite any project found in the current directory"
     watchBool   = T.switch "watch" 'w' "Watch for changes in local files and automatically rebuild"
+    noBuildBool = T.switch "no-build" 's' "Skip build step"
     watch = do
       res <- watchBool
       pure $ case res of
         True -> Watch
         False -> BuildOnce
+    noBuild = do
+      res <- noBuildBool
+      pure $ case res of
+        True -> NoBuild
+        False -> DoBuild
     mainModule  = T.optional (T.opt (Just . ModuleName) "main" 'm' "The main module to bundle")
     toTarget    = T.optional (T.opt (Just . TargetPath) "to" 't' "The target file path")
     limitJobs   = T.optional (T.optInt "jobs" 'j' "Limit the amount of jobs that can run concurrently")
@@ -185,11 +193,11 @@ parser
 
     bundle
       = T.subcommand "bundle" "Bundle the project, with optional main and target path arguments"
-      $ Bundle <$> mainModule <*> toTarget
+      $ Bundle <$> mainModule <*> toTarget <*> noBuild <*> sourcePaths <*> passthroughArgs
 
     makeModule
       = T.subcommand "make-module" "Bundle a module into a CommonJS module"
-      $ MakeModule <$> mainModule <*> toTarget
+      $ MakeModule <$> mainModule <*> toTarget <*> noBuild <*> sourcePaths <*> passthroughArgs
 
     packageSetUpgrade
       = T.subcommand "package-set-upgrade" "Upgrade the upstream in packages.dhall to the latest package-sets release"
@@ -229,8 +237,10 @@ main = do
     Test modName limitJobs watch paths pursArgs
                                           -> Spago.Build.test modName limitJobs watch paths pursArgs
     Repl paths pursArgs                   -> Spago.Build.repl paths pursArgs
-    Bundle modName tPath                  -> Spago.Build.bundle WithMain modName tPath
-    MakeModule modName tPath              -> Spago.Build.makeModule modName tPath
+    Bundle modName tPath build paths pursArgs
+                                          -> Spago.Build.bundle WithMain modName tPath build paths pursArgs
+    MakeModule modName tPath build paths pursArgs
+                                          -> Spago.Build.makeModule modName tPath build paths pursArgs
     Docs sourcePaths                      -> Spago.Build.docs sourcePaths
     Version                               -> printVersion
     PscPackageLocalSetup force            -> PscPackage.localSetup force
