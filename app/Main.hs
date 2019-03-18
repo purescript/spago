@@ -9,7 +9,7 @@ import qualified System.Environment as Env
 import qualified Turtle             as T
 
 import           Spago.Build        (ExtraArg (..), ModuleName (..), SourcePath (..),
-                                     TargetPath (..), WithMain (..), Watch (..))
+                                     TargetPath (..), WithMain (..), Watch (..), NoBuild (..))
 import qualified Spago.Build
 import           Spago.Packages     (PackageName (..), PackagesFilter (..))
 import qualified Spago.Packages
@@ -52,11 +52,16 @@ data Command
   -- | Test the project with some module, default Test.Main
   | Test (Maybe ModuleName) (Maybe Int) Watch [SourcePath] [ExtraArg]
 
+  -- | Run the project with some module, default Main
+  | Run (Maybe ModuleName) (Maybe Int) Watch [SourcePath] [ExtraArg]
+
   -- | Bundle the project, with optional main and target path arguments
-  | Bundle (Maybe ModuleName) (Maybe TargetPath)
+  --   Builds the project before bundling
+  | Bundle (Maybe ModuleName) (Maybe TargetPath) NoBuild [SourcePath] [ExtraArg]
 
   -- | Bundle a module into a CommonJS module
-  | MakeModule (Maybe ModuleName) (Maybe TargetPath)
+  --   Builds the project before bundling
+  | MakeModule (Maybe ModuleName) (Maybe TargetPath) NoBuild [SourcePath] [ExtraArg]
 
   -- | Upgrade the package-set to the latest release
   | PackageSetUpgrade
@@ -97,11 +102,17 @@ parser = projectCommands
   where
     force       = T.switch "force" 'f' "Overwrite any project found in the current directory"
     watchBool   = T.switch "watch" 'w' "Watch for changes in local files and automatically rebuild"
+    noBuildBool = T.switch "no-build" 's' "Skip build step"
     watch = do
       res <- watchBool
       pure $ case res of
         True -> Watch
         False -> BuildOnce
+    noBuild = do
+      res <- noBuildBool
+      pure $ case res of
+        True -> NoBuild
+        False -> DoBuild
     mainModule  = T.optional (T.opt (Just . ModuleName) "main" 'm' "The main module to bundle")
     toTarget    = T.optional (T.opt (Just . TargetPath) "to" 't' "The target file path")
     limitJobs   = T.optional (T.optInt "jobs" 'j' "Limit the amount of jobs that can run concurrently")
@@ -121,6 +132,7 @@ parser = projectCommands
       , build
       , repl
       , test
+      , run
       , bundle
       , makeModule
       , docs
@@ -148,6 +160,12 @@ parser = projectCommands
       ( "test"
       , "Test the project with some module, default Test.Main"
       , Test <$> mainModule <*> limitJobs <*> watch <*> sourcePaths <*> passthroughArgs
+      )
+      
+    run =
+      ( "run"
+      , "Runs the project with some module, default Main"
+      , Run <$> mainModule <*> limitJobs <*> watch <*> sourcePaths <*> passthroughArgs
       )
 
     bundle =
@@ -257,6 +275,7 @@ parser = projectCommands
       , pure Version
       )
 
+
 main :: IO ()
 main = do
   -- We always want to run in UTF8 anyways
@@ -282,9 +301,13 @@ main = do
     Build limitJobs watch paths pursArgs  -> Spago.Build.build limitJobs watch paths pursArgs
     Test modName limitJobs watch paths pursArgs
                                           -> Spago.Build.test modName limitJobs watch paths pursArgs
+    Run modName limitJobs watch paths pursArgs
+                                          -> Spago.Build.run modName limitJobs watch paths pursArgs
     Repl paths pursArgs                   -> Spago.Build.repl paths pursArgs
-    Bundle modName tPath                  -> Spago.Build.bundle WithMain modName tPath
-    MakeModule modName tPath              -> Spago.Build.makeModule modName tPath
+    Bundle modName tPath build paths pursArgs
+                                          -> Spago.Build.bundle WithMain modName tPath build paths pursArgs
+    MakeModule modName tPath build paths pursArgs
+                                          -> Spago.Build.makeModule modName tPath build paths pursArgs
     Docs sourcePaths                      -> Spago.Build.docs sourcePaths
     Version                               -> printVersion
     PscPackageLocalSetup force            -> PscPackage.localSetup force

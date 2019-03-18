@@ -1,11 +1,13 @@
 module Spago.Build
   ( build
   , test
+  , run
   , repl
   , bundle
   , makeModule
   , docs
   , Watch (..)
+  , NoBuild (..)
   , Purs.ExtraArg (..)
   , Purs.ModuleName (..)
   , Purs.SourcePath (..)
@@ -14,7 +16,7 @@ module Spago.Build
   ) where
 
 import           Control.Exception    (SomeException, try)
-import           Data.Maybe           (fromMaybe)
+import           Data.Maybe           (Maybe(..), fromMaybe)
 import qualified Data.Set             as Set
 import qualified Data.Text            as Text
 import           System.Directory     (makeAbsolute)
@@ -31,6 +33,9 @@ import           Spago.Watch          (watch)
 
 data Watch = Watch | BuildOnce
 
+-- | Flag to go through with the build step
+--   or skip it, in the case of 'bundle' and 'makeModule'.
+data NoBuild = NoBuild | DoBuild
 
 defaultSourcePaths :: [Purs.SourcePath]
 defaultSourcePaths =
@@ -71,31 +76,54 @@ repl sourcePaths passthroughArgs = do
   let globs = Packages.getGlobs deps <> defaultSourcePaths <> sourcePaths
   Purs.repl globs passthroughArgs
 
--- | Test the project: compile and run the Test.Main
+-- | Test the project: compile and run "Test.Main"
 --   (or the provided module name) with node
 test :: Maybe Purs.ModuleName -> Maybe Int -> Watch -> [Purs.SourcePath] -> [Purs.ExtraArg] -> IO ()
-test maybeModuleName maybeLimit shouldWatch paths passthroughArgs = do
+test = runWithNode (Purs.ModuleName "Test.Main") (Just "Tests succeeded.") "Tests failed: "
+
+-- | Run the project: compile and run "Main"
+--   (or the provided module name) with node
+run :: Maybe Purs.ModuleName -> Maybe Int -> Watch -> [Purs.SourcePath] -> [Purs.ExtraArg] -> IO ()
+run = runWithNode (Purs.ModuleName "Main") Nothing "Running failed, exit code: "
+
+-- | Run the project with node: compile and run with the provided ModuleName
+--   (or the default one if that's missing)
+runWithNode :: Purs.ModuleName
+            -> Maybe T.Text
+            -> T.Text
+            -> Maybe Purs.ModuleName
+            -> Maybe Int
+            -> Watch
+            -> [Purs.SourcePath]
+            -> [Purs.ExtraArg]
+            -> IO ()
+runWithNode defaultModuleName maybeSuccessMessage failureMessage maybeModuleName
+            maybeLimit shouldWatch paths passthroughArgs = do
   build maybeLimit shouldWatch paths passthroughArgs
   T.shell cmd T.empty >>= \case
-    T.ExitSuccess   -> echo "Tests succeeded."
-    T.ExitFailure n -> die $ "Tests failed: " <> T.repr n
+    T.ExitSuccess   -> fromMaybe (pure ()) (echo <$> maybeSuccessMessage)
+    T.ExitFailure n -> die $ failureMessage <> T.repr n
   where
-    moduleName = fromMaybe (Purs.ModuleName "Test.Main") maybeModuleName
+    moduleName = fromMaybe defaultModuleName maybeModuleName
     cmd = "node -e \"require('./output/" <> Purs.unModuleName moduleName <> "').main()\""
 
   -- | Bundle the project to a js file
-bundle :: Purs.WithMain -> Maybe Purs.ModuleName -> Maybe Purs.TargetPath -> IO ()
-bundle withMain maybeModuleName maybeTargetPath =
+bundle :: Purs.WithMain -> Maybe Purs.ModuleName -> Maybe Purs.TargetPath -> NoBuild -> [Purs.SourcePath] -> [Purs.ExtraArg] -> IO ()
+bundle withMain maybeModuleName maybeTargetPath noBuild paths passthroughArgs =
   let (moduleName, targetPath) = prepareBundleDefaults maybeModuleName maybeTargetPath
-  in Purs.bundle withMain moduleName targetPath
+  in do
+    case noBuild of
+      DoBuild -> build Nothing BuildOnce paths passthroughArgs
+      NoBuild -> pure ()
+    Purs.bundle withMain moduleName targetPath
 
 -- | Bundle into a CommonJS module
-makeModule :: Maybe Purs.ModuleName -> Maybe Purs.TargetPath -> IO ()
-makeModule maybeModuleName maybeTargetPath = do
+makeModule :: Maybe Purs.ModuleName -> Maybe Purs.TargetPath -> NoBuild -> [Purs.SourcePath] -> [Purs.ExtraArg] -> IO ()
+makeModule maybeModuleName maybeTargetPath noBuild paths passthroughArgs = do
   let (moduleName, targetPath) = prepareBundleDefaults maybeModuleName maybeTargetPath
       jsExport = Text.unpack $ "\nmodule.exports = PS[\""<> Purs.unModuleName moduleName <> "\"];"
   echo "Bundling first..."
-  bundle Purs.WithoutMain (Just moduleName) (Just targetPath)
+  bundle Purs.WithoutMain (Just moduleName) (Just targetPath) noBuild paths passthroughArgs
   -- Here we append the CommonJS export line at the end of the bundle
   try (T.with
         (T.appendonly $ T.fromText $ Purs.unTargetPath targetPath)
