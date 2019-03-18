@@ -171,13 +171,13 @@ parser = projectCommands
     bundle =
       ( "bundle"
       , "Bundle the project, with optional main and target path arguments"
-      , Bundle <$> mainModule <*> toTarget
+      , Bundle <$> mainModule <*> toTarget <*> noBuild <*> sourcePaths <*> passthroughArgs
       )
 
     makeModule =
       ( "make-module"
       , "Bundle a module into a CommonJS module"
-      , MakeModule <$> mainModule <*> toTarget
+      , MakeModule <$> mainModule <*> toTarget <*> noBuild <*> sourcePaths <*> passthroughArgs
       )
 
     docs =
