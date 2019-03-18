@@ -498,6 +498,12 @@ $ parcel build index.html
 
 More information about this can be found at [this FAQ entry](#so-if-i-use-spago-make-module-this-thing-will-compile-all-my-js-deps-in-the-file).
 
+##### Skipping the Build Step
+
+When running `spago bundle` and `spago make-module` the `build` step will also execute
+since bundling depends on building first.
+To skip this build you can add the `--no-build` flag.
+
 
 ### Documentation
 

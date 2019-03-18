@@ -7,6 +7,7 @@ module Spago.Build
   , makeModule
   , docs
   , Watch (..)
+  , NoBuild (..)
   , Purs.ExtraArg (..)
   , Purs.ModuleName (..)
   , Purs.SourcePath (..)
@@ -32,6 +33,9 @@ import           Spago.Watch          (watch)
 
 data Watch = Watch | BuildOnce
 
+-- | Flag to go through with the build step
+--   or skip it, in the case of 'bundle' and 'makeModule'.
+data NoBuild = NoBuild | DoBuild
 
 defaultSourcePaths :: [Purs.SourcePath]
 defaultSourcePaths =
@@ -104,18 +108,22 @@ runWithNode defaultModuleName maybeSuccessMessage failureMessage maybeModuleName
     cmd = "node -e \"require('./output/" <> Purs.unModuleName moduleName <> "').main()\""
 
   -- | Bundle the project to a js file
-bundle :: Purs.WithMain -> Maybe Purs.ModuleName -> Maybe Purs.TargetPath -> IO ()
-bundle withMain maybeModuleName maybeTargetPath =
+bundle :: Purs.WithMain -> Maybe Purs.ModuleName -> Maybe Purs.TargetPath -> NoBuild -> [Purs.SourcePath] -> [Purs.ExtraArg] -> IO ()
+bundle withMain maybeModuleName maybeTargetPath noBuild paths passthroughArgs =
   let (moduleName, targetPath) = prepareBundleDefaults maybeModuleName maybeTargetPath
-  in Purs.bundle withMain moduleName targetPath
+  in do
+    case noBuild of
+      DoBuild -> build Nothing BuildOnce paths passthroughArgs
+      NoBuild -> pure ()
+    Purs.bundle withMain moduleName targetPath
 
 -- | Bundle into a CommonJS module
-makeModule :: Maybe Purs.ModuleName -> Maybe Purs.TargetPath -> IO ()
-makeModule maybeModuleName maybeTargetPath = do
+makeModule :: Maybe Purs.ModuleName -> Maybe Purs.TargetPath -> NoBuild -> [Purs.SourcePath] -> [Purs.ExtraArg] -> IO ()
+makeModule maybeModuleName maybeTargetPath noBuild paths passthroughArgs = do
   let (moduleName, targetPath) = prepareBundleDefaults maybeModuleName maybeTargetPath
       jsExport = Text.unpack $ "\nmodule.exports = PS[\""<> Purs.unModuleName moduleName <> "\"];"
   echo "Bundling first..."
-  bundle Purs.WithoutMain (Just moduleName) (Just targetPath)
+  bundle Purs.WithoutMain (Just moduleName) (Just targetPath) noBuild paths passthroughArgs
   -- Here we append the CommonJS export line at the end of the bundle
   try (T.with
         (T.appendonly $ T.fromText $ Purs.unTargetPath targetPath)

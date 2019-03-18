@@ -4,6 +4,14 @@ import           Data.Text (Text)
 import qualified Data.Text as Text
 
 
+cannotFindConfig :: Text
+cannotFindConfig = makeMessage
+  [ "There's no " <> surroundQuote "spago.dhall" <> "in your current location."
+  , ""
+  , "If you already have a spago project you might be in the wrong subdirectory,"
+  , "otherwise you might want to run `spago init` to initialize a new project."
+  ]
+
 foundExistingProject :: Text -> Text
 foundExistingProject pathText = makeMessage
   [ "Found " <> pathText <> ": it looks like there's already a project here."
