@@ -8,8 +8,9 @@ import qualified Paths_spago        as Pcli
 import qualified System.Environment as Env
 import qualified Turtle             as T
 
-import           Spago.Build        (ExtraArg (..), ModuleName (..), SourcePath (..),
-                                     TargetPath (..), WithMain (..), Watch (..), NoBuild (..))
+import           Spago.Build        (BuildOptions (..), ExtraArg (..), ModuleName (..),
+                                     NoBuild (..), SourcePath (..), TargetPath (..), Watch (..),
+                                     WithMain (..))
 import qualified Spago.Build
 import           Spago.Packages     (PackageName (..), PackagesFilter (..))
 import qualified Spago.Packages
@@ -36,9 +37,8 @@ data Command
   -- | Generate documentation for the project and its dependencies
   | Docs [SourcePath]
 
-  -- | Build the project paths src/ and test/
-  --   plus the specified source paths
-  | Build (Maybe Int) Watch [SourcePath] [ExtraArg]
+  -- | Build the project paths src/ and test/ plus the specified source paths
+  | Build BuildOptions
 
   -- | List available packages
   | ListPackages (Maybe PackagesFilter)
@@ -50,18 +50,18 @@ data Command
   | VerifySet (Maybe Int)
 
   -- | Test the project with some module, default Test.Main
-  | Test (Maybe ModuleName) (Maybe Int) Watch [SourcePath] [ExtraArg]
+  | Test (Maybe ModuleName) BuildOptions
 
   -- | Run the project with some module, default Main
-  | Run (Maybe ModuleName) (Maybe Int) Watch [SourcePath] [ExtraArg]
+  | Run (Maybe ModuleName) BuildOptions
 
   -- | Bundle the project, with optional main and target path arguments
   --   Builds the project before bundling
-  | Bundle (Maybe ModuleName) (Maybe TargetPath) NoBuild [SourcePath] [ExtraArg]
+  | Bundle (Maybe ModuleName) (Maybe TargetPath) NoBuild BuildOptions
 
   -- | Bundle a module into a CommonJS module
   --   Builds the project before bundling
-  | MakeModule (Maybe ModuleName) (Maybe TargetPath) NoBuild [SourcePath] [ExtraArg]
+  | MakeModule (Maybe ModuleName) (Maybe TargetPath) NoBuild BuildOptions
 
   -- | Upgrade the package-set to the latest release
   | PackageSetUpgrade
@@ -106,12 +106,12 @@ parser = projectCommands
     watch = do
       res <- watchBool
       pure $ case res of
-        True -> Watch
+        True  -> Watch
         False -> BuildOnce
     noBuild = do
       res <- noBuildBool
       pure $ case res of
-        True -> NoBuild
+        True  -> NoBuild
         False -> DoBuild
     mainModule  = T.optional (T.opt (Just . ModuleName) "main" 'm' "The main module to bundle")
     toTarget    = T.optional (T.opt (Just . TargetPath) "to" 't' "The target file path")
@@ -120,6 +120,7 @@ parser = projectCommands
     packageName = T.arg (Just . PackageName) "package" "Specify a package name. You can list them with `list-packages`"
     packageNames = T.many $ T.arg (Just . PackageName) "package" "Package name to add as dependency"
     passthroughArgs = T.many $ T.arg (Just . ExtraArg) " ..any `purs compile` option" "Options passed through to `purs compile`; use -- to separate"
+    buildOptions = BuildOptions <$> limitJobs <*> watch <*> sourcePaths <*> passthroughArgs
     packagesFilter =
       let wrap = \case
             "direct"     -> Just DirectDeps
@@ -147,7 +148,7 @@ parser = projectCommands
     build =
       ( "build"
       , "Install the dependencies and compile the current package"
-      , Build <$> limitJobs <*> watch <*> sourcePaths <*> passthroughArgs
+      , Build <$> buildOptions
       )
 
     repl =
@@ -159,25 +160,25 @@ parser = projectCommands
     test =
       ( "test"
       , "Test the project with some module, default Test.Main"
-      , Test <$> mainModule <*> limitJobs <*> watch <*> sourcePaths <*> passthroughArgs
+      , Test <$> mainModule <*> buildOptions
       )
-      
+
     run =
       ( "run"
       , "Runs the project with some module, default Main"
-      , Run <$> mainModule <*> limitJobs <*> watch <*> sourcePaths <*> passthroughArgs
+      , Run <$> mainModule <*> buildOptions
       )
 
     bundle =
       ( "bundle"
       , "Bundle the project, with optional main and target path arguments"
-      , Bundle <$> mainModule <*> toTarget <*> noBuild <*> sourcePaths <*> passthroughArgs
+      , Bundle <$> mainModule <*> toTarget <*> noBuild <*> buildOptions
       )
 
     makeModule =
       ( "make-module"
       , "Bundle a module into a CommonJS module"
-      , MakeModule <$> mainModule <*> toTarget <*> noBuild <*> sourcePaths <*> passthroughArgs
+      , MakeModule <$> mainModule <*> toTarget <*> noBuild <*> buildOptions
       )
 
     docs =
@@ -298,16 +299,14 @@ main = do
     VerifySet limitJobs                   -> Spago.Packages.verify limitJobs Nothing
     PackageSetUpgrade                     -> Spago.Packages.upgradePackageSet
     Freeze                                -> Spago.Packages.freeze
-    Build limitJobs watch paths pursArgs  -> Spago.Build.build limitJobs watch paths pursArgs
-    Test modName limitJobs watch paths pursArgs
-                                          -> Spago.Build.test modName limitJobs watch paths pursArgs
-    Run modName limitJobs watch paths pursArgs
-                                          -> Spago.Build.run modName limitJobs watch paths pursArgs
+    Build buildOptions                    -> Spago.Build.build buildOptions Nothing
+    Test modName buildOptions             -> Spago.Build.test modName buildOptions
+    Run modName buildOptions              -> Spago.Build.run modName buildOptions
     Repl paths pursArgs                   -> Spago.Build.repl paths pursArgs
-    Bundle modName tPath build paths pursArgs
-                                          -> Spago.Build.bundle WithMain modName tPath build paths pursArgs
-    MakeModule modName tPath build paths pursArgs
-                                          -> Spago.Build.makeModule modName tPath build paths pursArgs
+    Bundle modName tPath shouldBuild buildOptions
+                                          -> Spago.Build.bundle WithMain modName tPath shouldBuild buildOptions
+    MakeModule modName tPath shouldBuild buildOptions
+                                          -> Spago.Build.makeModule modName tPath shouldBuild buildOptions
     Docs sourcePaths                      -> Spago.Build.docs sourcePaths
     Version                               -> printVersion
     PscPackageLocalSetup force            -> PscPackage.localSetup force
