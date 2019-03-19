@@ -95,26 +95,10 @@ data Command
 
 
 parser :: T.Parser Command
-parser
-      = initProject
-  T.<|> install
-  T.<|> sources
-  T.<|> listPackages
-  T.<|> verify
-  T.<|> verifySet
-  T.<|> build
-  T.<|> repl
-  T.<|> docs
-  T.<|> test
-  T.<|> run
-  T.<|> bundle
-  T.<|> makeModule
-  T.<|> packageSetUpgrade
-  T.<|> freeze
-  T.<|> pscPackageLocalSetup
-  T.<|> pscPackageInsDhall
-  T.<|> pscPackageClean
-  T.<|> version
+parser = projectCommands
+  T.<|> packageSetCommands
+  T.<|> pscPackageCommands
+  T.<|> otherCommands
   where
     force       = T.switch "force" 'f' "Overwrite any project found in the current directory"
     watchBool   = T.switch "watch" 'w' "Watch for changes in local files and automatically rebuild"
@@ -143,81 +127,154 @@ parser
             _            -> Nothing
       in T.optional $ T.opt wrap "filter" 'f' "Filter packages: direct deps with `direct`, transitive ones with `transitive`"
 
-    pscPackageLocalSetup
-      = T.subcommand "psc-package-local-setup" "Setup a local package set by creating a new packages.dhall"
-      $ PscPackageLocalSetup <$> force
+    projectCommands = T.subcommandGroup "Project commands:"
+      [ initProject
+      , build
+      , repl
+      , test
+      , run
+      , bundle
+      , makeModule
+      , docs
+      ]
 
-    pscPackageInsDhall
-      = T.subcommand "psc-package-insdhall" "Insdhall the local package set from packages.dhall"
-      $ pure PscPackageInsDhall
+    initProject =
+      ( "init"
+      , "Initialize a new sample project, or migrate a psc-package one"
+      , Init <$> force
+      )
 
-    pscPackageClean
-      = T.subcommand "psc-package-clean" "Clean cached packages by deleting the .psc-package folder"
-      $ pure PscPackageClean
+    build =
+      ( "build"
+      , "Install the dependencies and compile the current package"
+      , Build <$> limitJobs <*> watch <*> sourcePaths <*> passthroughArgs
+      )
 
-    initProject
-      = T.subcommand "init" "Initialize a new sample project, or migrate a psc-package one"
-      $ Init <$> force
+    repl =
+      ( "repl"
+      , "Start a REPL"
+      , Repl <$> sourcePaths <*> passthroughArgs
+      )
 
-    install
-      = T.subcommand "install" "Install (download) all dependencies listed in spago.dhall"
-      $ Install <$> limitJobs <*> packageNames
+    test =
+      ( "test"
+      , "Test the project with some module, default Test.Main"
+      , Test <$> mainModule <*> limitJobs <*> watch <*> sourcePaths <*> passthroughArgs
+      )
+      
+    run =
+      ( "run"
+      , "Runs the project with some module, default Main"
+      , Run <$> mainModule <*> limitJobs <*> watch <*> sourcePaths <*> passthroughArgs
+      )
 
-    sources
-      = T.subcommand "sources" "List all the source paths (globs) for the dependencies of the project"
-      $ pure Sources
+    bundle =
+      ( "bundle"
+      , "Bundle the project, with optional main and target path arguments"
+      , Bundle <$> mainModule <*> toTarget <*> noBuild <*> sourcePaths <*> passthroughArgs
+      )
 
-    listPackages
-      = T.subcommand "list-packages" "List packages available in your packages.dhall"
-      $ ListPackages <$> packagesFilter
+    makeModule =
+      ( "make-module"
+      , "Bundle a module into a CommonJS module"
+      , MakeModule <$> mainModule <*> toTarget <*> noBuild <*> sourcePaths <*> passthroughArgs
+      )
 
-    verify
-      = T.subcommand "verify" "Verify that a single package is consistent with the Package Set"
-      $ Verify <$> limitJobs <*> packageName
+    docs =
+      ( "docs"
+      , "Generate docs for the project and its dependencies"
+      , Docs <$> sourcePaths
+      )
 
-    verifySet
-      = T.subcommand "verify-set" "Verify that the whole Package Set builds correctly"
-      $ VerifySet <$> limitJobs
 
-    build
-      = T.subcommand "build" "Install the dependencies and compile the current package"
-      $ Build <$> limitJobs <*> watch <*> sourcePaths <*> passthroughArgs
+    packageSetCommands = T.subcommandGroup "Package set commands:"
+      [ install
+      , sources
+      , listPackages
+      , verify
+      , verifySet
+      , packageSetUpgrade
+      , freeze
+      ]
 
-    repl
-      = T.subcommand "repl" "Start a REPL"
-      $ Repl <$> sourcePaths <*> passthroughArgs
+    install =
+      ( "install"
+      , "Install (download) all dependencies listed in spago.dhall"
+      , Install <$> limitJobs <*> packageNames
+      )
 
-    docs
-      = T.subcommand "docs" "Generate docs for the project and its dependencies"
-      $ Docs <$> sourcePaths
+    sources =
+      ( "sources"
+      , "List all the source paths (globs) for the dependencies of the project"
+      , pure Sources
+      )
 
-    test
-      = T.subcommand "test" "Test the project with some module, default Test.Main"
-      $ Test <$> mainModule <*> limitJobs <*> watch <*> sourcePaths <*> passthroughArgs
+    listPackages =
+      ( "list-packages"
+      , "List packages available in your packages.dhall"
+      , ListPackages <$> packagesFilter
+      )
 
-    run
-      = T.subcommand "run" "Runs the project with some module, default Main"
-      $ Run <$> mainModule <*> limitJobs <*> watch <*> sourcePaths <*> passthroughArgs
+    verify =
+      ( "verify"
+      , "Verify that a single package is consistent with the Package Set"
+      , Verify <$> limitJobs <*> packageName
+      )
 
-    bundle
-      = T.subcommand "bundle" "Bundle the project, with optional main and target path arguments"
-      $ Bundle <$> mainModule <*> toTarget <*> noBuild <*> sourcePaths <*> passthroughArgs
+    verifySet =
+      ( "verify-set"
+      , "Verify that the whole Package Set builds correctly"
+      , VerifySet <$> limitJobs
+      )
 
-    makeModule
-      = T.subcommand "make-module" "Bundle a module into a CommonJS module"
-      $ MakeModule <$> mainModule <*> toTarget <*> noBuild <*> sourcePaths <*> passthroughArgs
+    packageSetUpgrade =
+      ( "package-set-upgrade"
+      , "Upgrade the upstream in packages.dhall to the latest package-sets release"
+      , pure PackageSetUpgrade
+      )
 
-    packageSetUpgrade
-      = T.subcommand "package-set-upgrade" "Upgrade the upstream in packages.dhall to the latest package-sets release"
-      $ pure PackageSetUpgrade
+    freeze =
+      ( "freeze"
+      , "Recompute the hashes for the package-set"
+      , pure Freeze
+      )
 
-    freeze
-      = T.subcommand "freeze" "Recompute the hashes for the package-set"
-      $ pure Freeze
 
-    version
-      = T.subcommand "version" "Show spago version"
-      $ pure Version
+    pscPackageCommands = T.subcommandGroup "Psc-Package compatibility commands:"
+      [ pscPackageLocalSetup
+      , pscPackageInsDhall
+      , pscPackageClean
+      ]
+
+    pscPackageLocalSetup =
+      ( "psc-package-local-setup"
+      , "Setup a local package set by creating a new packages.dhall"
+      , PscPackageLocalSetup <$> force
+      )
+
+    pscPackageInsDhall =
+      ( "psc-package-insdhall"
+      , "Insdhall the local package set from packages.dhall"
+      , pure PscPackageInsDhall
+      )
+
+    pscPackageClean =
+      ( "psc-package-clean"
+      , "Clean cached packages by deleting the .psc-package folder"
+      , pure PscPackageClean
+      )
+
+
+    otherCommands = T.subcommandGroup "Other commands:"
+      [ version
+      ]
+
+    version =
+      ( "version"
+      , "Show spago version"
+      , pure Version
+      )
+
 
 main :: IO ()
 main = do
