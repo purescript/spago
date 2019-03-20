@@ -1,13 +1,11 @@
 module Spago.Purs where
 
-import Spago.Prelude
+import           Spago.Prelude
 
-import qualified Data.Text              as Text
-import           Data.Versions          as Version
-import qualified System.Process         as Process
+import qualified Data.Text      as Text
+import           Data.Versions  as Version
 
-import qualified Spago.Messages         as Messages
-import qualified Turtle
+import qualified Spago.Messages as Messages
 
 
 newtype ModuleName = ModuleName { unModuleName :: Text }
@@ -34,7 +32,7 @@ repl sourcePaths extraArgs = do
         <$> ["repl"]
         <> map unSourcePath sourcePaths
         <> map unExtraArg extraArgs
-  Turtle.view $ liftIO $ Process.callProcess "purs" args
+  viewShell $ callProcess "purs" args
 
 bundle :: Spago m => WithMain -> ModuleName -> TargetPath -> m ()
 bundle withMain (ModuleName moduleName) (TargetPath targetPath) = do
@@ -64,8 +62,8 @@ docs sourcePaths = do
 
 version :: Spago m => m (Maybe Version.SemVer)
 version = do
-  fullVersionText <- liftIO $ Turtle.shellStrict "purs --version" Turtle.empty >>= \case
-    (Turtle.ExitSuccess, out) -> pure out
+  fullVersionText <- shellStrict "purs --version" empty >>= \case
+    (ExitSuccess, out) -> pure out
     _ -> die "Failed to run 'purs --version'"
   versionText <- pure $ headMay $ Text.split (== ' ') fullVersionText
   parsed <- pure $ versionText >>= (hush . Version.semver)
@@ -79,6 +77,6 @@ version = do
 runWithOutput :: Spago m => Text -> Text -> Text -> m ()
 runWithOutput command success failure = do
   echoDebug $ "Running command: `" <> command <> "`"
-  liftIO $ Turtle.shell command Turtle.empty >>= \case
-    Turtle.ExitSuccess -> echo success
-    Turtle.ExitFailure _ -> die failure
+  liftIO $ shell command empty >>= \case
+    ExitSuccess -> echo success
+    ExitFailure _ -> die failure

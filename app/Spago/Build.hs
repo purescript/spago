@@ -21,7 +21,6 @@ import           Spago.Prelude
 import qualified Data.Set             as Set
 import qualified Data.Text            as Text
 import qualified System.FilePath.Glob as Glob
-import qualified Turtle
 
 import qualified Spago.Config         as Config
 import qualified Spago.Packages       as Packages
@@ -72,8 +71,7 @@ build BuildOptions{..} maybePostBuild = do
         case maybePostBuild of
           Just action -> action
           Nothing     -> pure ()
-  absoluteProjectGlobs <- traverse (liftIO . makeAbsolute)
-    $ Text.unpack . Purs.unSourcePath <$> projectGlobs
+  absoluteProjectGlobs <- traverse makeAbsolute $ Text.unpack . Purs.unSourcePath <$> projectGlobs
   case shouldWatch of
     BuildOnce -> buildAction
     Watch     -> watch (Set.fromAscList $ fmap Glob.compile absoluteProjectGlobs) buildAction
@@ -112,9 +110,9 @@ runWithNode defaultModuleName maybeSuccessMessage failureMessage maybeModuleName
     moduleName = fromMaybe defaultModuleName maybeModuleName
     cmd = "node -e \"require('./output/" <> Purs.unModuleName moduleName <> "').main()\""
     nodeAction = do
-      Turtle.shell cmd Turtle.empty >>= \case
-        Turtle.ExitSuccess   -> fromMaybe (pure ()) (echo <$> maybeSuccessMessage)
-        Turtle.ExitFailure n -> die $ failureMessage <> Turtle.repr n
+      shell cmd empty >>= \case
+        ExitSuccess   -> fromMaybe (pure ()) (echo <$> maybeSuccessMessage)
+        ExitFailure n -> die $ failureMessage <> repr n
 
   -- | Bundle the project to a js file
 bundle
@@ -147,12 +145,12 @@ makeModule maybeModuleName maybeTargetPath noBuild buildOpts = do
         echo "Bundling first..."
         Purs.bundle Purs.WithoutMain moduleName targetPath
         -- Here we append the CommonJS export line at the end of the bundle
-        liftIO $ try (Turtle.with
-              (Turtle.appendonly $ pathFromText $ Purs.unTargetPath targetPath)
+        try (with
+              (appendonly $ pathFromText $ Purs.unTargetPath targetPath)
               ((flip hPutStrLn) jsExport))
           >>= \case
             Right _ -> echo $ "Make module succeeded and output file to " <> Purs.unTargetPath targetPath
-            Left (n :: SomeException) -> die $ "Make module failed: " <> Turtle.repr n
+            Left (n :: SomeException) -> die $ "Make module failed: " <> repr n
   case noBuild of
     DoBuild -> build buildOpts (Just bundleAction)
     NoBuild -> bundleAction

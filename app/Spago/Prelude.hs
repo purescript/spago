@@ -16,6 +16,7 @@ module Spago.Prelude
   , Generic
   , Pretty
   , FilePath
+  , ExitCode (..)
   , (<|>)
   , (</>)
   , (^..)
@@ -36,9 +37,18 @@ module Spago.Prelude
   , makeAbsolute
   , hPutStrLn
   , many
+  , empty
+  , callProcess
+  , shell
+  , shellStrict
+  , systemStrictWithErr
+  , viewShell
+  , repr
+  , with
+  , appendonly
   ) where
 
-import           Control.Applicative       (many, (<|>))
+import           Control.Applicative       (empty, many, (<|>))
 import           Control.Monad             as X
 import           Control.Monad.Catch       as X
 import           Control.Monad.Reader      as X
@@ -58,12 +68,15 @@ import           GHC.Generics              (Generic)
 import           Lens.Micro                ((^..))
 import           Prelude                   as X hiding (FilePath)
 import           Safe                      (headMay)
-import           System.Directory          (makeAbsolute)
 import           System.FilePath           (isAbsolute, pathSeparator, (</>))
 import           System.IO                 (hPutStrLn)
-import           Turtle                    (FilePath, mktree, testdir, testfile)
+import           Turtle                    (ExitCode (..), FilePath, appendonly, mktree, repr,
+                                            shell, shellStrict, systemStrictWithErr, testdir,
+                                            testfile)
 import qualified Turtle                    as Turtle
 import           UnliftIO                  (MonadUnliftIO)
+import           UnliftIO.Directory        (makeAbsolute)
+import           UnliftIO.Process          (callProcess)
 
 -- | Generic Error that we throw on program exit.
 --   We have it so that errors are displayed nicely to the user
@@ -121,3 +134,11 @@ readTextFile = liftIO . Turtle.readTextFile
 
 writeTextFile :: MonadIO m => Turtle.FilePath -> Text -> m ()
 writeTextFile path text = liftIO $ Turtle.writeTextFile path text
+
+
+with :: MonadIO m => Turtle.Managed a -> (a -> IO r) -> m r
+with r f = liftIO $ Turtle.with r f
+
+
+viewShell :: (MonadIO m, Show a) => Turtle.Shell a -> m ()
+viewShell = Turtle.view

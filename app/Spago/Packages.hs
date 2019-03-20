@@ -21,7 +21,6 @@ import qualified Data.Map                      as Map
 import qualified Data.Set                      as Set
 import qualified Data.Text                     as Text
 import qualified System.Process                as Process
-import qualified Turtle
 
 import           Spago.Config                  (Config (..))
 import qualified Spago.Config                  as Config
@@ -107,8 +106,8 @@ fetchPackage pair@(PackageName{..}, Package{ repo = Remote repo, ..} ) = do
     else do
       echo $ "Installing " <> quotedName
       withDirectory (pathFromText packageDir) $ do
-        (Turtle.systemStrictWithErr processWithNewCwd Turtle.empty) >>= \case
-          (Turtle.ExitSuccess, _, _) -> pure ()
+        (systemStrictWithErr processWithNewCwd empty) >>= \case
+          (ExitSuccess, _, _) -> pure ()
           (_, _stdout, stderr) -> die $ Messages.failedToInstallDep quotedName stderr
   where
     packageDir = getPackageDir pair

@@ -61,9 +61,9 @@ data RawConfig = RawConfig
 
 
 -- | Tries to read in a Spago Config
-parseConfig :: Text -> IO Config
+parseConfig :: Spago m => Text -> m Config
 parseConfig dhallText = do
-  expr <- Dhall.inputExpr dhallText
+  expr <- liftIO $ Dhall.inputExpr dhallText
   case expr of
     Dhall.RecordLit ks -> do
       maybeConfig <- pure $ do
@@ -93,8 +93,8 @@ ensureConfig = do
   unless exists $ do
     die $ Messages.cannotFindConfig
   PackageSet.ensureFrozen
-  configText <- liftIO $ readTextFile path
-  liftIO $ try (parseConfig configText) >>= \case
+  configText <- readTextFile path
+  try (parseConfig configText) >>= \case
     Right config -> pure config
     Left (err :: Dhall.ReadError X) -> throwM err
 
@@ -103,18 +103,18 @@ ensureConfig = do
 --   Eventually ports an existing `psc-package.json` to the new config.
 makeConfig :: Spago m => Bool -> m ()
 makeConfig force = do
-  unless force $ liftIO $ do
+  unless force $ do
     hasSpagoDhall <- testfile path
     when hasSpagoDhall $ die $ Messages.foundExistingProject pathText
   writeTextFile path Templates.spagoDhall
-  liftIO $ Dhall.format pathText
+  Dhall.format pathText
 
   -- We try to find an existing psc-package config, and we migrate the existing
   -- content if we found one, otherwise we copy the default template
   pscfileExists <- testfile PscPackage.configPath
   when pscfileExists $ do
     -- first, read the psc-package file content
-    content <- liftIO $ readTextFile PscPackage.configPath
+    content <- readTextFile PscPackage.configPath
     case eitherDecodeStrict $ Text.encodeUtf8 content of
       Left err -> echo $ Messages.failedToReadPscFile err
       Right pscConfig -> do
@@ -171,7 +171,7 @@ withConfigAST transform = do
   -- After modifying the expression, we have to check if it still typechecks
   -- if it doesn't we don't write to file
   resolvedExpr <- liftIO $ Dhall.Import.load expr
-  liftIO $ case Dhall.TypeCheck.typeOf resolvedExpr of
+  case Dhall.TypeCheck.typeOf resolvedExpr of
     Left  err -> throwM err
     Right _   -> do
       writeTextFile path $ Dhall.prettyWithHeader header expr <> "\n"

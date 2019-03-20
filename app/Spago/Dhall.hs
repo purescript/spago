@@ -21,8 +21,8 @@ type DhallExpr a = Dhall.Expr Parser.Src a
 
 
 -- | Format a Dhall file in ASCII
-format :: Text -> IO ()
-format pathText = Dhall.Format.format
+format :: MonadIO m => Text -> m ()
+format pathText = liftIO $ Dhall.Format.format
   (Dhall.Format.Format Dhall.Pretty.ASCII $ Dhall.Format.Modify (Just $ Text.unpack pathText))
 
 
