@@ -1,27 +1,24 @@
 module Spago.Purs where
 
-import           Control.Monad          (when)
-import           Control.Monad.IO.Class (liftIO)
-import           Data.Maybe             (isNothing)
+import Spago.Prelude
+
 import qualified Data.Text              as Text
 import           Data.Versions          as Version
-import           Safe                   (headMay)
 import qualified System.Process         as Process
-import qualified Turtle                 as T hiding (die, echo)
 
 import qualified Spago.Messages         as Messages
-import           Spago.Turtle
+import qualified Turtle
 
 
-newtype ModuleName = ModuleName { unModuleName :: T.Text }
-newtype TargetPath = TargetPath { unTargetPath :: T.Text }
-newtype SourcePath = SourcePath { unSourcePath :: T.Text }
-newtype ExtraArg = ExtraArg { unExtraArg :: T.Text }
+newtype ModuleName = ModuleName { unModuleName :: Text }
+newtype TargetPath = TargetPath { unTargetPath :: Text }
+newtype SourcePath = SourcePath { unSourcePath :: Text }
+newtype ExtraArg = ExtraArg { unExtraArg :: Text }
 
 data WithMain = WithMain | WithoutMain
 
 
-compile :: [SourcePath] -> [ExtraArg] -> IO ()
+compile :: Spago m => [SourcePath] -> [ExtraArg] -> m ()
 compile sourcePaths extraArgs = do
   let
     paths = Text.intercalate " " $ Messages.surroundQuote <$> map unSourcePath sourcePaths
@@ -31,15 +28,15 @@ compile sourcePaths extraArgs = do
     "Build succeeded."
     "Failed to build."
 
-repl :: [SourcePath] -> [ExtraArg] -> IO ()
+repl :: Spago m => [SourcePath] -> [ExtraArg] -> m ()
 repl sourcePaths extraArgs = do
   let args  = Text.unpack
         <$> ["repl"]
         <> map unSourcePath sourcePaths
         <> map unExtraArg extraArgs
-  T.view $ liftIO $ Process.callProcess "purs" args
+  Turtle.view $ liftIO $ Process.callProcess "purs" args
 
-bundle :: WithMain -> ModuleName -> TargetPath -> IO ()
+bundle :: Spago m => WithMain -> ModuleName -> TargetPath -> m ()
 bundle withMain (ModuleName moduleName) (TargetPath targetPath) = do
   let main = case withMain of
         WithMain    -> " --main " <> moduleName
@@ -56,7 +53,7 @@ bundle withMain (ModuleName moduleName) (TargetPath targetPath) = do
     ("Bundle failed.")
 
 
-docs :: [SourcePath] -> IO ()
+docs :: Spago m => [SourcePath] -> m ()
 docs sourcePaths = do
   let
     paths = Text.intercalate " " $ Messages.surroundQuote <$> map unSourcePath sourcePaths
@@ -65,10 +62,10 @@ docs sourcePaths = do
     ("Docs generated. Index is at " <> Messages.surroundQuote "./generated-docs/index.html")
     "Docs generation failed."
 
-version :: IO (Maybe Version.SemVer)
+version :: Spago m => m (Maybe Version.SemVer)
 version = do
-  fullVersionText <- T.shellStrict "purs --version" T.empty >>= \case
-    (T.ExitSuccess, out) -> pure out
+  fullVersionText <- liftIO $ Turtle.shellStrict "purs --version" Turtle.empty >>= \case
+    (Turtle.ExitSuccess, out) -> pure out
     _ -> die "Failed to run 'purs --version'"
   versionText <- pure $ headMay $ Text.split (== ' ') fullVersionText
   parsed <- pure $ versionText >>= (hush . Version.semver)
@@ -79,9 +76,9 @@ version = do
   pure parsed
 
 
-runWithOutput :: T.Text -> T.Text -> T.Text -> IO ()
+runWithOutput :: Spago m => Text -> Text -> Text -> m ()
 runWithOutput command success failure = do
-  echo $ "Running command: `" <> command <> "`"
-  T.shell command T.empty >>= \case
-    T.ExitSuccess -> echo success
-    T.ExitFailure _ -> die failure
+  echoDebug $ "Running command: `" <> command <> "`"
+  liftIO $ Turtle.shell command Turtle.empty >>= \case
+    Turtle.ExitSuccess -> echo success
+    Turtle.ExitFailure _ -> die failure

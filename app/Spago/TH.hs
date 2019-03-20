@@ -7,6 +7,7 @@ module Spago.TH
 import           Data.FileEmbed
 import           Data.Text.Encoding         as LT
 import           Language.Haskell.TH.Syntax (Exp, Q)
+import           Prelude
 
 
 -- | This is here so that we can embed files as Utf8 Text.

@@ -1,12 +1,14 @@
 {-# LANGUAGE ApplicativeDo #-}
 module Main (main) where
 
+import           Spago.Prelude
+
 import qualified Data.Text          as Text
 import           Data.Version       (showVersion)
 import qualified GHC.IO.Encoding
 import qualified Paths_spago        as Pcli
 import qualified System.Environment as Env
-import qualified Turtle             as T
+import qualified Turtle             as CLI
 
 import           Spago.Build        (BuildOptions (..), ExtraArg (..), ModuleName (..),
                                      NoBuild (..), SourcePath (..), TargetPath (..), Watch (..),
@@ -94,15 +96,16 @@ data Command
   | Version
 
 
-parser :: T.Parser Command
-parser = projectCommands
-  T.<|> packageSetCommands
-  T.<|> pscPackageCommands
-  T.<|> otherCommands
+parser :: CLI.Parser (Command, GlobalOptions)
+parser = do
+  opts <- globalOptions
+  command <- projectCommands <|> packageSetCommands <|> pscPackageCommands <|> otherCommands
+  pure (command, opts)
   where
-    force       = T.switch "force" 'f' "Overwrite any project found in the current directory"
-    watchBool   = T.switch "watch" 'w' "Watch for changes in local files and automatically rebuild"
-    noBuildBool = T.switch "no-build" 's' "Skip build step"
+    force       = CLI.switch "force" 'f' "Overwrite any project found in the current directory"
+    debug       = CLI.switch "debug" 'd' "Enable debug logging, like printing `purs` commands"
+    watchBool   = CLI.switch "watch" 'w' "Watch for changes in local files and automatically rebuild"
+    noBuildBool = CLI.switch "no-build" 's' "Skip build step"
     watch = do
       res <- watchBool
       pure $ case res of
@@ -113,22 +116,23 @@ parser = projectCommands
       pure $ case res of
         True  -> NoBuild
         False -> DoBuild
-    mainModule  = T.optional (T.opt (Just . ModuleName) "main" 'm' "The main module to bundle")
-    toTarget    = T.optional (T.opt (Just . TargetPath) "to" 't' "The target file path")
-    limitJobs   = T.optional (T.optInt "jobs" 'j' "Limit the amount of jobs that can run concurrently")
-    sourcePaths = T.many (T.opt (Just . SourcePath) "path" 'p' "Source path to include")
-    packageName = T.arg (Just . PackageName) "package" "Specify a package name. You can list them with `list-packages`"
-    packageNames = T.many $ T.arg (Just . PackageName) "package" "Package name to add as dependency"
-    passthroughArgs = T.many $ T.arg (Just . ExtraArg) " ..any `purs compile` option" "Options passed through to `purs compile`; use -- to separate"
+    mainModule  = CLI.optional (CLI.opt (Just . ModuleName) "main" 'm' "The main module to bundle")
+    toTarget    = CLI.optional (CLI.opt (Just . TargetPath) "to" 't' "The target file path")
+    limitJobs   = CLI.optional (CLI.optInt "jobs" 'j' "Limit the amount of jobs that can run concurrently")
+    sourcePaths = CLI.many (CLI.opt (Just . SourcePath) "path" 'p' "Source path to include")
+    packageName = CLI.arg (Just . PackageName) "package" "Specify a package name. You can list them with `list-packages`"
+    packageNames = CLI.many $ CLI.arg (Just . PackageName) "package" "Package name to add as dependency"
+    passthroughArgs = many $ CLI.arg (Just . ExtraArg) " ..any `purs compile` option" "Options passed through to `purs compile`; use -- to separate"
     buildOptions = BuildOptions <$> limitJobs <*> watch <*> sourcePaths <*> passthroughArgs
+    globalOptions = GlobalOptions <$> debug
     packagesFilter =
       let wrap = \case
             "direct"     -> Just DirectDeps
             "transitive" -> Just TransitiveDeps
             _            -> Nothing
-      in T.optional $ T.opt wrap "filter" 'f' "Filter packages: direct deps with `direct`, transitive ones with `transitive`"
+      in CLI.optional $ CLI.opt wrap "filter" 'f' "Filter packages: direct deps with `direct`, transitive ones with `transitive`"
 
-    projectCommands = T.subcommandGroup "Project commands:"
+    projectCommands = CLI.subcommandGroup "Project commands:"
       [ initProject
       , build
       , repl
@@ -188,7 +192,7 @@ parser = projectCommands
       )
 
 
-    packageSetCommands = T.subcommandGroup "Package set commands:"
+    packageSetCommands = CLI.subcommandGroup "Package set commands:"
       [ install
       , sources
       , listPackages
@@ -241,7 +245,7 @@ parser = projectCommands
       )
 
 
-    pscPackageCommands = T.subcommandGroup "Psc-Package compatibility commands:"
+    pscPackageCommands = CLI.subcommandGroup "Psc-Package compatibility commands:"
       [ pscPackageLocalSetup
       , pscPackageInsDhall
       , pscPackageClean
@@ -266,7 +270,7 @@ parser = projectCommands
       )
 
 
-    otherCommands = T.subcommandGroup "Other commands:"
+    otherCommands = CLI.subcommandGroup "Other commands:"
       [ version
       ]
 
@@ -287,28 +291,29 @@ main = do
   Env.setEnv "GIT_TERMINAL_PROMPT" "0"
 
   -- | Print out Spago version
-  let printVersion = T.echo $ T.unsafeTextToLine $ Text.pack $ showVersion Pcli.version
+  let printVersion = CLI.echo $ CLI.unsafeTextToLine $ Text.pack $ showVersion Pcli.version
 
-  command <- T.options "Spago - manage your PureScript projects" parser
-  case command of
-    Init force                            -> Spago.Packages.initProject force
-    Install limitJobs packageNames        -> Spago.Packages.install limitJobs packageNames
-    ListPackages packagesFilter           -> Spago.Packages.listPackages packagesFilter
-    Sources                               -> Spago.Packages.sources
-    Verify limitJobs package              -> Spago.Packages.verify limitJobs (Just package)
-    VerifySet limitJobs                   -> Spago.Packages.verify limitJobs Nothing
-    PackageSetUpgrade                     -> Spago.Packages.upgradePackageSet
-    Freeze                                -> Spago.Packages.freeze
-    Build buildOptions                    -> Spago.Build.build buildOptions Nothing
-    Test modName buildOptions             -> Spago.Build.test modName buildOptions
-    Run modName buildOptions              -> Spago.Build.run modName buildOptions
-    Repl paths pursArgs                   -> Spago.Build.repl paths pursArgs
-    Bundle modName tPath shouldBuild buildOptions
-                                          -> Spago.Build.bundle WithMain modName tPath shouldBuild buildOptions
-    MakeModule modName tPath shouldBuild buildOptions
-                                          -> Spago.Build.makeModule modName tPath shouldBuild buildOptions
-    Docs sourcePaths                      -> Spago.Build.docs sourcePaths
-    Version                               -> printVersion
-    PscPackageLocalSetup force            -> PscPackage.localSetup force
-    PscPackageInsDhall                    -> PscPackage.insDhall
-    PscPackageClean                       -> PscPackage.clean
+  (command, globalOptions) <- CLI.options "Spago - manage your PureScript projects" parser
+  (flip runReaderT) globalOptions $
+    case command of
+      Init force                            -> Spago.Packages.initProject force
+      Install limitJobs packageNames        -> Spago.Packages.install limitJobs packageNames
+      ListPackages packagesFilter           -> Spago.Packages.listPackages packagesFilter
+      Sources                               -> Spago.Packages.sources
+      Verify limitJobs package              -> Spago.Packages.verify limitJobs (Just package)
+      VerifySet limitJobs                   -> Spago.Packages.verify limitJobs Nothing
+      PackageSetUpgrade                     -> Spago.Packages.upgradePackageSet
+      Freeze                                -> Spago.Packages.freeze
+      Build buildOptions                    -> Spago.Build.build buildOptions Nothing
+      Test modName buildOptions             -> Spago.Build.test modName buildOptions
+      Run modName buildOptions              -> Spago.Build.run modName buildOptions
+      Repl paths pursArgs                   -> Spago.Build.repl paths pursArgs
+      Bundle modName tPath shouldBuild buildOptions
+        -> Spago.Build.bundle WithMain modName tPath shouldBuild buildOptions
+      MakeModule modName tPath shouldBuild buildOptions
+        -> Spago.Build.makeModule modName tPath shouldBuild buildOptions
+      Docs sourcePaths                      -> Spago.Build.docs sourcePaths
+      Version                               -> printVersion
+      PscPackageLocalSetup force            -> liftIO $ PscPackage.localSetup force
+      PscPackageInsDhall                    -> liftIO $ PscPackage.insDhall
+      PscPackageClean                       -> liftIO $ PscPackage.clean

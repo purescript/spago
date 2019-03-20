@@ -4,12 +4,11 @@ module Spago.Dhall
   , module Dhall
   ) where
 
-import           Control.Exception                     (Exception)
+import           Spago.Prelude
+
 import qualified Data.Text                             as Text
-import           Data.Text.Prettyprint.Doc             (Pretty)
 import qualified Data.Text.Prettyprint.Doc             as Pretty
 import qualified Data.Text.Prettyprint.Doc.Render.Text as PrettyText
-import           Data.Typeable                         (Typeable)
 import           Dhall
 import           Dhall.Core                            as Dhall hiding (Type, pretty)
 import qualified Dhall.Format

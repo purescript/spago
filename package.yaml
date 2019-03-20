@@ -32,6 +32,9 @@ default-extensions:
 - RecordWildCards
 - ScopedTypeVariables
 - OverloadedStrings
+- FlexibleContexts
+- ConstraintKinds
+- NoImplicitPrelude
 
 dependencies:
 - base >= 4.7 && < 5
@@ -59,6 +62,9 @@ dependencies:
 - async
 - stm
 - directory
+- mtl
+- exceptions
+- unliftio
 
 executables:
   spago:
