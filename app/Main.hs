@@ -102,7 +102,7 @@ parser = do
   pure (command, opts)
   where
     force       = CLI.switch "force" 'f' "Overwrite any project found in the current directory"
-    debug       = CLI.switch "debug" 'd' "Enable debug logging, like printing `purs` commands"
+    verbose     = CLI.switch "verbose" 'v' "Enable additional debug logging, e.g. printing `purs` commands"
     watchBool   = CLI.switch "watch" 'w' "Watch for changes in local files and automatically rebuild"
     noBuildBool = CLI.switch "no-build" 's' "Skip build step"
     watch = do
@@ -123,7 +123,7 @@ parser = do
     packageNames = CLI.many $ CLI.arg (Just . PackageName) "package" "Package name to add as dependency"
     passthroughArgs = many $ CLI.arg (Just . ExtraArg) " ..any `purs compile` option" "Options passed through to `purs compile`; use -- to separate"
     buildOptions = BuildOptions <$> limitJobs <*> watch <*> sourcePaths <*> passthroughArgs
-    globalOptions = GlobalOptions <$> debug
+    globalOptions = GlobalOptions <$> verbose
     packagesFilter =
       let wrap = \case
             "direct"     -> Just DirectDeps

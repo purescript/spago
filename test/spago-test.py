@@ -143,7 +143,7 @@ expect_success(
 ## spago run
 
 expect_success(
-    ['spago', 'run', '--debug'],
+    ['spago', 'run', '--verbose'],
     "Spago should run successfully",
     "run-output.txt"
 )
