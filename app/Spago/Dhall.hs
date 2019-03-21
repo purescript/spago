@@ -4,12 +4,11 @@ module Spago.Dhall
   , module Dhall
   ) where
 
-import           Control.Exception                     (Exception)
+import           Spago.Prelude
+
 import qualified Data.Text                             as Text
-import           Data.Text.Prettyprint.Doc             (Pretty)
 import qualified Data.Text.Prettyprint.Doc             as Pretty
 import qualified Data.Text.Prettyprint.Doc.Render.Text as PrettyText
-import           Data.Typeable                         (Typeable)
 import           Dhall
 import           Dhall.Core                            as Dhall hiding (Type, pretty)
 import qualified Dhall.Format
@@ -22,8 +21,8 @@ type DhallExpr a = Dhall.Expr Parser.Src a
 
 
 -- | Format a Dhall file in ASCII
-format :: Text -> IO ()
-format pathText = Dhall.Format.format
+format :: MonadIO m => Text -> m ()
+format pathText = liftIO $ Dhall.Format.format
   (Dhall.Format.Format Dhall.Pretty.ASCII $ Dhall.Format.Modify (Just $ Text.unpack pathText))
 
 

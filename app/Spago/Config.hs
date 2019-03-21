@@ -5,42 +5,32 @@ module Spago.Config
   , Config(..)
   ) where
 
-import           Control.Exception         (throwIO, try)
-import           Data.Aeson                (FromJSON, ToJSON)
-import qualified Data.Aeson                as JSON
-import           Data.Either               (lefts, rights)
-import           Data.Foldable             (toList)
-import qualified Data.List                 as List
-import qualified Data.Map                  as Map
-import           Data.Maybe                (mapMaybe)
-import qualified Data.Sequence             as Seq
-import           Data.Text                 (Text)
-import qualified Data.Text.Encoding        as Text
-import           Data.Text.Prettyprint.Doc (Pretty)
-import           Data.Typeable             (Typeable)
+import           Spago.Prelude
+
+import qualified Data.List          as List
+import qualified Data.Map           as Map
+import qualified Data.Sequence      as Seq
+import qualified Data.Text.Encoding as Text
 import qualified Dhall.Import
 import qualified Dhall.Map
-import qualified Dhall.Parser              as Parser
-import           Dhall.TypeCheck           (X)
+import qualified Dhall.Parser       as Parser
+import           Dhall.TypeCheck    (X)
 import qualified Dhall.TypeCheck
-import           GHC.Generics              (Generic)
-import qualified Turtle                    as T hiding (die, echo)
 
-import qualified Spago.Dhall               as Dhall
-import qualified Spago.Messages            as Messages
-import           Spago.PackageSet          (Package, PackageName (..), PackageSet)
-import qualified Spago.PackageSet          as PackageSet
-import qualified Spago.PscPackage          as PscPackage
-import qualified Spago.Templates           as Templates
-import           Spago.Turtle
+import qualified Spago.Dhall        as Dhall
+import qualified Spago.Messages     as Messages
+import           Spago.PackageSet   (Package, PackageName (..), PackageSet)
+import qualified Spago.PackageSet   as PackageSet
+import qualified Spago.PscPackage   as PscPackage
+import qualified Spago.Templates    as Templates
 
 
 pathText :: Text
 pathText = "spago.dhall"
 
 -- | Path for the Spago Config
-path :: T.FilePath
-path = T.fromText pathText
+path :: FilePath
+path = pathFromText pathText
 
 
 -- | Spago configuration file type
@@ -71,9 +61,9 @@ data RawConfig = RawConfig
 
 
 -- | Tries to read in a Spago Config
-parseConfig :: Text -> IO Config
+parseConfig :: Spago m => Text -> m Config
 parseConfig dhallText = do
-  expr <- Dhall.inputExpr dhallText
+  expr <- liftIO $ Dhall.inputExpr dhallText
   case expr of
     Dhall.RecordLit ks -> do
       maybeConfig <- pure $ do
@@ -90,42 +80,42 @@ parseConfig dhallText = do
 
       case maybeConfig of
         Right config -> pure config
-        Left err     -> throwIO err
+        Left err     -> throwM err
     _ -> case Dhall.TypeCheck.typeOf expr of
-      Right e  -> throwIO $ Dhall.ConfigIsNotRecord e
-      Left err -> throwIO $ err
+      Right e  -> throwM $ Dhall.ConfigIsNotRecord e
+      Left err -> throwM $ err
 
 
 -- | Checks that the Spago config is there and readable
-ensureConfig :: IO Config
+ensureConfig :: Spago m => m Config
 ensureConfig = do
-  exists <- T.testfile path
-  T.unless exists $ do
+  exists <- testfile path
+  unless exists $ do
     die $ Messages.cannotFindConfig
   PackageSet.ensureFrozen
-  configText <- T.readTextFile path
+  configText <- readTextFile path
   try (parseConfig configText) >>= \case
     Right config -> pure config
-    Left (err :: Dhall.ReadError X) -> throwIO err
+    Left (err :: Dhall.ReadError X) -> throwM err
 
 
 -- | Copies over `spago.dhall` to set up a Spago project.
 --   Eventually ports an existing `psc-package.json` to the new config.
-makeConfig :: Bool -> IO ()
+makeConfig :: Spago m => Bool -> m ()
 makeConfig force = do
-  T.unless force $ do
-    hasSpagoDhall <- T.testfile path
-    T.when hasSpagoDhall $ die $ Messages.foundExistingProject pathText
-  T.writeTextFile path Templates.spagoDhall
+  unless force $ do
+    hasSpagoDhall <- testfile path
+    when hasSpagoDhall $ die $ Messages.foundExistingProject pathText
+  writeTextFile path Templates.spagoDhall
   Dhall.format pathText
 
   -- We try to find an existing psc-package config, and we migrate the existing
   -- content if we found one, otherwise we copy the default template
-  pscfileExists <- T.testfile PscPackage.configPath
-  T.when pscfileExists $ do
+  pscfileExists <- testfile PscPackage.configPath
+  when pscfileExists $ do
     -- first, read the psc-package file content
-    content <- T.readTextFile PscPackage.configPath
-    case JSON.eitherDecodeStrict $ Text.encodeUtf8 content of
+    content <- readTextFile PscPackage.configPath
+    case eitherDecodeStrict $ Text.encodeUtf8 content of
       Left err -> echo $ Messages.failedToReadPscFile err
       Right pscConfig -> do
         echo "Found a \"psc-package.json\" file, migrating to a new Spago config.."
@@ -143,16 +133,16 @@ makeConfig force = do
 --   Note: it will pass in the parsed AST, not the resolved one (so
 --   e.g. imports will still be in the tree). If you need the resolved
 --   one, use `ensureConfig`.
-withConfigAST :: (RawConfig -> RawConfig) -> IO ()
+withConfigAST :: Spago m => (RawConfig -> RawConfig) -> m ()
 withConfigAST transform = do
   -- get a workable configuration
-  exists <- T.testfile path
-  T.unless exists $ makeConfig False
-  configText <- T.readTextFile path
+  exists <- testfile path
+  unless exists $ makeConfig False
+  configText <- readTextFile path
 
   -- parse the config without resolving imports
   (header, expr) <- case Parser.exprAndHeaderFromText mempty configText of
-    Left  err -> throwIO err
+    Left  err -> throwM err
     Right (header, ast) -> case Dhall.denote ast of
       -- remove Note constructors, and check if config is a record
       Dhall.RecordLit ks -> do
@@ -176,15 +166,15 @@ withConfigAST transform = do
           mkNewAST _ v = v
         pure (header, Dhall.RecordLit $ Dhall.Map.mapWithKey mkNewAST ks)
 
-      e -> throwIO $ Dhall.ConfigIsNotRecord e
+      e -> throwM $ Dhall.ConfigIsNotRecord e
 
   -- After modifying the expression, we have to check if it still typechecks
   -- if it doesn't we don't write to file
-  resolvedExpr <- Dhall.Import.load expr
+  resolvedExpr <- liftIO $ Dhall.Import.load expr
   case Dhall.TypeCheck.typeOf resolvedExpr of
-    Left  err -> throwIO err
+    Left  err -> throwM err
     Right _   -> do
-      T.writeTextFile path $ Dhall.prettyWithHeader header expr <> "\n"
+      writeTextFile path $ Dhall.prettyWithHeader header expr <> "\n"
       Dhall.format pathText
 
   where
@@ -210,7 +200,7 @@ addRawDeps newDeps config = config
 --   It will not add any dependency if any of them is not in the package set.
 --   If everything is fine instead, it will add the new deps, sort all the
 --   dependencies, and write the Config back to file.
-addDependencies :: Config -> [PackageName] -> IO ()
+addDependencies :: Spago m => Config -> [PackageName] -> m ()
 addDependencies config newPackages = do
   let notInPackageSet = mapMaybe
         (\p -> case Map.lookup p (packages config) of

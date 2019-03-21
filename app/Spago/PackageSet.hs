@@ -12,30 +12,23 @@ module Spago.PackageSet
   , Repo (..)
   ) where
 
-import           Control.Exception  (throwIO)
-import           Data.Aeson
-import           Data.List.NonEmpty (NonEmpty (..))
-import           Data.Map           (Map)
-import           Data.Text          (Text)
-import qualified Data.Text          as Text
-import qualified Data.Versions      as Version
+import           Spago.Prelude
+
+import qualified Data.Text       as Text
+import qualified Data.Versions   as Version
 import qualified Dhall
-import           Dhall.Binary       (defaultStandardVersion)
+import           Dhall.Binary    (defaultStandardVersion)
 import qualified Dhall.Freeze
 import qualified Dhall.Import
-import qualified Dhall.Parser       as Parser
+import qualified Dhall.Parser    as Parser
 import qualified Dhall.TypeCheck
-import           GHC.Generics       (Generic)
 import qualified GitHub
-import           Lens.Micro         ((^..))
-import           Network.URI        (parseURI)
-import qualified Turtle             as T hiding (die, echo)
+import           Network.URI     (parseURI)
 
-import qualified Spago.Dhall        as Dhall
-import           Spago.Messages     as Messages
-import qualified Spago.Purs         as Purs
-import qualified Spago.Templates    as Templates
-import           Spago.Turtle
+import qualified Spago.Dhall     as Dhall
+import           Spago.Messages  as Messages
+import qualified Spago.Purs      as Purs
+import qualified Spago.Templates as Templates
 
 
 newtype PackageName = PackageName { packageName :: Text }
@@ -78,18 +71,18 @@ instance Dhall.Interpret Repo where
 pathText :: Text
 pathText = "packages.dhall"
 
-path :: T.FilePath
-path = T.fromText pathText
+path :: FilePath
+path = pathFromText pathText
 
 
 -- | Tries to create the `packages.dhall` file. Fails when the file already exists,
 --   unless `--force` has been used.
 makePackageSetFile :: Bool -> IO ()
 makePackageSetFile force = do
-  T.unless force $ do
-    hasPackagesDhall <- T.testfile path
-    T.when hasPackagesDhall $ die $ Messages.foundExistingProject pathText
-  T.writeTextFile path Templates.packagesDhall
+  unless force $ do
+    hasPackagesDhall <- testfile path
+    when hasPackagesDhall $ die $ Messages.foundExistingProject pathText
+  writeTextFile path Templates.packagesDhall
   Dhall.format pathText
 
 
@@ -110,20 +103,21 @@ data ReadOnly = ReadOnly | ReadAndWrite
 --   e.g. imports will still be in the tree). If you need the resolved
 --   one, use `ensureConfig`.
 withPackageSetAST
-  :: ReadOnly
-  -> (RawPackageSet -> IO RawPackageSet)
-  -> IO ()
+  :: Spago m
+  => ReadOnly
+  -> (RawPackageSet -> m RawPackageSet)
+  -> m ()
 withPackageSetAST readOnly transform = do
   -- get a workable configuration
-  exists <- T.testfile path
-  T.unless exists $ makePackageSetFile False
-  packageSetText <- T.readTextFile path
+  exists <- testfile path
+  unless exists $ liftIO $ makePackageSetFile False
+  packageSetText <- readTextFile path
 
   -- parse the config without resolving imports
   (header, expr) <- case Parser.exprAndHeaderFromText mempty packageSetText of
     Left err -> do
       echo $ Messages.failedToReadFile pathText
-      throwIO err
+      throwM err
     Right (comment, ast) -> case Dhall.denote ast of
       -- remove Note constructors, and match on the `let` shape
       Dhall.Let
@@ -147,14 +141,14 @@ withPackageSetAST readOnly transform = do
   -- After modifying the expression, we have to check if it still typechecks
   -- if it doesn't we don't write to file.
   -- We also don't write to file if we are supposed to only read.
-  resolvedExpr <- Dhall.Import.load expr
+  resolvedExpr <- liftIO $ Dhall.Import.load expr
   case (Dhall.TypeCheck.typeOf resolvedExpr, readOnly) of
-    (Left err, _)     -> throwIO err
+    (Left err, _)     -> throwM err
     (_, ReadOnly)     -> pure ()
     (_, ReadAndWrite) -> do
       echo "Done. Updating the local package-set file.."
-      T.writeTextFile path $ Dhall.prettyWithHeader header expr <> "\n"
-      Dhall.format pathText
+      writeTextFile path $ Dhall.prettyWithHeader header expr <> "\n"
+      liftIO $ Dhall.format pathText
 
 
 -- | Tries to upgrade the Package-Sets release of the local package set.
@@ -164,9 +158,10 @@ withPackageSetAST readOnly transform = do
 --   - try to replace the git tag to which the package-set imports point to
 --     (if they point to the Package-Sets repo. This can be eventually made GitHub generic)
 --   - if all of this succeeds, it will regenerate the hashes and write to file
-upgradePackageSet :: IO ()
+upgradePackageSet :: Spago m => m ()
 upgradePackageSet = do
-  (GitHub.executeRequest' $ GitHub.latestReleaseR "purescript" "package-sets") >>= \case
+  result <- liftIO $ GitHub.executeRequest' $ GitHub.latestReleaseR "purescript" "package-sets"
+  case result of
     Left err -> die $ Messages.failedToReachGitHub err
     Right GitHub.Release{..} -> do
       echo ("Found the most recent tag for \"purescript/package-sets\": " <> surroundQuote releaseTagName)
@@ -177,9 +172,9 @@ upgradePackageSet = do
           pure $ RawPackageSet newMkPackages newUpstream
         case maybePackages of
           Left wrongImport ->
-            throwIO $ (Dhall.ImportCannotBeUpdated wrongImport :: Dhall.ReadError Dhall.Import)
+            throwM $ (Dhall.ImportCannotBeUpdated wrongImport :: Dhall.ReadError Dhall.Import)
           -- If everything is fine, refreeze the imports
-          Right RawPackageSet{..} -> do
+          Right RawPackageSet{..} -> liftIO $ do
             echo $ Messages.upgradingPackageSet releaseTagName
             frozenMkPackages <- Dhall.Freeze.freezeImport "." defaultStandardVersion mkPackage
             frozenUpstream   <- Dhall.Freeze.freezeImport "." defaultStandardVersion upstream
@@ -215,7 +210,7 @@ upgradePackageSet = do
       in case (ghOrg, ghRepo) of
         ("spacchetti", "spacchetti")   -> Right newImport
         ("purescript", "package-sets") -> Right newImport
-        _ -> Left imp
+        _                              -> Left imp
     upgradeImport _ imp = Left imp
 
 
@@ -240,11 +235,11 @@ getPackageSetTag Dhall.Import
   } = case (ghOrg, ghRepo) of
         ("spacchetti", "spacchetti")   -> Just tag
         ("purescript", "package-sets") -> Just tag
-        _ -> Nothing
+        _                              -> Nothing
 getPackageSetTag _ = Nothing
 
 
-checkPursIsUpToDate :: IO ()
+checkPursIsUpToDate :: Spago m => m ()
 checkPursIsUpToDate = do
   withPackageSetAST ReadOnly $ \packageSet@RawPackageSet{..} -> do
     -- Let's talk backwards-compatibility.
@@ -279,7 +274,7 @@ checkPursIsUpToDate = do
       --   - current is 0.1.2 and package-set is 0.2.3
       --   - current is 1.2.3 and package-set is 1.3.4
       --   - current is 1.2.3 and package-set is 0.2.3
-      performCheck :: Version.SemVer -> Version.SemVer -> IO ()
+      performCheck :: Spago m => Version.SemVer -> Version.SemVer -> m ()
       performCheck actualPursVersion minPursVersion = do
         let versionList semver = semver ^.. (Version.major <> Version.minor <> Version.patch)
         case (versionList actualPursVersion, versionList minPursVersion) of
@@ -303,14 +298,14 @@ isFrozen _ = False
 
 
 -- | Freeze the package-set imports so they can be cached
-freeze :: IO ()
+freeze :: Spago m => m ()
 freeze = do
   echo Messages.freezePackageSet
-  Dhall.Freeze.freeze (Just $ Text.unpack pathText) False defaultStandardVersion
+  liftIO $ Dhall.Freeze.freeze (Just $ Text.unpack pathText) False defaultStandardVersion
 
 
 -- | Check that the package-set import is correctly setup with hashes, and freeze it if not
-ensureFrozen :: IO ()
+ensureFrozen :: Spago m => m ()
 ensureFrozen = do
   withPackageSetAST ReadOnly $ \packageSet@RawPackageSet{..} -> do
     case isFrozen upstream of

@@ -1,5 +1,5 @@
 name:                spago
-version:             0.7.1.0
+version:             0.7.2.0
 github:              "spacchetti/spago"
 license:             BSD3
 author:              "Justin Woo, Fabrizio Ferrai"
@@ -32,6 +32,10 @@ default-extensions:
 - RecordWildCards
 - ScopedTypeVariables
 - OverloadedStrings
+- FlexibleContexts
+- ConstraintKinds
+- NoImplicitPrelude
+- ApplicativeDo
 
 dependencies:
 - base >= 4.7 && < 5
@@ -59,6 +63,9 @@ dependencies:
 - async
 - stm
 - directory
+- mtl
+- exceptions
+- unliftio
 
 executables:
   spago:

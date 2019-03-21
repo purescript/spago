@@ -13,19 +13,14 @@ module Spago.Packages
   , PackagesFilter(..)
   ) where
 
+import           Spago.Prelude
+
 import qualified Control.Concurrent.Async.Pool as Async
-import           Control.Exception             (SomeException, handle)
-import           Data.Foldable                 (fold, for_, traverse_)
-import           Control.Monad                 (filterM, when)
 import qualified Data.List                     as List
 import qualified Data.Map                      as Map
-import           Data.Maybe                    (fromMaybe)
 import qualified Data.Set                      as Set
-import           Data.Text                     (Text)
 import qualified Data.Text                     as Text
-import           Data.Traversable              (for)
 import qualified System.Process                as Process
-import qualified Turtle                        as T hiding (die, echo)
 
 import           Spago.Config                  (Config (..))
 import qualified Spago.Config                  as Config
@@ -35,7 +30,6 @@ import           Spago.PackageSet              (Package (..), PackageName (..), 
 import qualified Spago.PackageSet              as PackageSet
 import qualified Spago.Purs                    as Purs
 import qualified Spago.Templates               as Templates
-import           Spago.Turtle
 
 
 -- | The directory in which spago will put its tempfiles
@@ -48,10 +42,10 @@ spagoDir = ".spago/"
 --   - create `spago.dhall` to manage project config: name, deps, etc
 --   - create an example `src` folder (if needed)
 --   - create an example `test` folder (if needed)
-initProject :: Bool -> IO ()
+initProject :: Spago m => Bool -> m ()
 initProject force = do
   -- packages.dhall and spago.dhall overwrite can be forced
-  PackageSet.makePackageSetFile force
+  liftIO $ PackageSet.makePackageSetFile force
   Config.makeConfig force
 
   -- If these directories (or files) exist, we skip copying "sample sources"
@@ -70,19 +64,19 @@ initProject force = do
 
   where
     whenDirNotExists dir action = do
-      let dirPath = T.fromText dir
-      dirExists <- T.testdir dirPath
+      let dirPath = pathFromText dir
+      dirExists <- testdir dirPath
       case dirExists of
         True -> echo $ Messages.foundExistingDirectory dir
         False -> do
-          T.mktree dirPath
+          mktree dirPath
           action
 
     copyIfNotExists dest srcTemplate = do
-      let destPath = T.fromText dest
-      (T.testfile destPath) >>= \case
+      let destPath = pathFromText dest
+      (testfile destPath) >>= \case
         True  -> echo $ Messages.foundExistingFile dest
-        False -> T.writeTextFile destPath srcTemplate
+        False -> writeTextFile destPath srcTemplate
 
 
 -- | Returns the dir path for a given package
@@ -105,15 +99,15 @@ fetchPackage :: (PackageName, Package) -> IO ()
 fetchPackage (PackageName package, Package { repo = Local path }) =
   echo $ Messages.foundLocalPackage package path
 fetchPackage pair@(PackageName{..}, Package{ repo = Remote repo, ..} ) = do
-  exists <- T.testdir $ T.fromText packageDir
+  exists <- testdir $ pathFromText packageDir
   if exists
     then do
       echo $ quotedName <> " already installed"
     else do
       echo $ "Installing " <> quotedName
-      withDirectory (T.fromText packageDir) $ do
-        (T.systemStrictWithErr processWithNewCwd T.empty) >>= \case
-          (T.ExitSuccess, _, _) -> pure ()
+      withDirectory (pathFromText packageDir) $ do
+        (systemStrictWithErr processWithNewCwd empty) >>= \case
+          (ExitSuccess, _, _) -> pure ()
           (_, _stdout, stderr) -> die $ Messages.failedToInstallDep quotedName stderr
   where
     packageDir = getPackageDir pair
@@ -146,14 +140,14 @@ fetchPackage pair@(PackageName{..}, Package{ repo = Remote repo, ..} ) = do
       { Process.cwd = Just $ Text.unpack packageDir }
 
 
-fetchPackages :: Maybe Int -> [(PackageName, Package)] -> IO ()
+fetchPackages :: Spago m => Maybe Int -> [(PackageName, Package)] -> m ()
 fetchPackages maybeLimit allDeps = do
 
   PackageSet.checkPursIsUpToDate
 
   -- We try to fetch a dep only if their dir doesn't exist
   depsToFetch <- (flip filterM) allDeps $ \dep -> do
-    exists <- T.testdir $ T.fromText $ getPackageDir dep
+    exists <- testdir $ pathFromText $ getPackageDir dep
     pure $ not exists
 
   let nOfDeps = List.length depsToFetch
@@ -161,7 +155,7 @@ fetchPackages maybeLimit allDeps = do
     echoStr $ "Installing " <> show nOfDeps <> " dependencies."
 
   -- By default we make one thread per dep to fetch, but this can be limited
-  Async.withTaskGroup (fromMaybe nOfDeps maybeLimit) $ \taskGroup -> do
+  liftIO $ Async.withTaskGroup (fromMaybe nOfDeps maybeLimit) $ \taskGroup -> do
     asyncs <- for depsToFetch (Async.async taskGroup . fetchPackage)
     handle (handler asyncs) (for_ asyncs Async.wait)
     echo "Installation complete."
@@ -183,14 +177,14 @@ fetchPackages maybeLimit allDeps = do
       die $ "Installation failed.\n\nError:\n\n" <> Messages.tshow e
 
 -- | Return all the transitive dependencies of the current project
-getProjectDeps :: Config -> IO [(PackageName, Package)]
+getProjectDeps :: Spago m => Config -> m [(PackageName, Package)]
 getProjectDeps Config{..} = getTransitiveDeps packages dependencies
 
 
 -- | Return the transitive dependencies of a list of packages
 --   Code basically from here:
 --   https://github.com/purescript/psc-package/blob/648da70ae9b7ed48216ed03f930c1a6e8e902c0e/app/Main.hs#L227
-getTransitiveDeps :: PackageSet -> [PackageName] -> IO [(PackageName, Package)]
+getTransitiveDeps :: Spago m => PackageSet -> [PackageName] -> m [(PackageName, Package)]
 getTransitiveDeps packageSet deps =
   Map.toList . fold <$> traverse (go Set.empty) deps
   where
@@ -234,10 +228,10 @@ getReverseDeps db dep =
 
 
 -- | Fetch all dependencies into `.spago/`
-install :: Maybe Int -> [PackageName] -> IO ()
+install :: Spago m => Maybe Int -> [PackageName] -> m ()
 install maybeLimit newPackages = do
   -- Make sure .spago exists
-  T.mktree $ T.fromText spagoDir
+  mktree $ pathFromText spagoDir
 
   config@Config{..} <- Config.ensureConfig
 
@@ -259,7 +253,7 @@ data PackagesFilter = TransitiveDeps | DirectDeps
 
 
 -- | A list of the packages that can be added to this project
-listPackages :: Maybe PackagesFilter -> IO ()
+listPackages :: Spago m => Maybe PackagesFilter -> m ()
 listPackages packagesFilter = do
   Config{..} <- Config.ensureConfig
   packagesToList :: [(PackageName, Package)] <- case packagesFilter of
@@ -293,7 +287,7 @@ listPackages packagesFilter = do
 
 
 -- | Get source globs of dependencies listed in `spago.dhall`
-sources :: IO ()
+sources :: Spago m => m ()
 sources = do
   config <- Config.ensureConfig
   deps <- getProjectDeps config
@@ -301,7 +295,7 @@ sources = do
   pure ()
 
 
-verify :: Maybe Int -> Maybe PackageName -> IO ()
+verify :: Spago m => Maybe Int -> Maybe PackageName -> m ()
 verify maybeLimit maybePackage = do
   Config{..} <- Config.ensureConfig
   case maybePackage of
@@ -316,16 +310,16 @@ verify maybeLimit maybePackage = do
         -- (without having to check the whole set of course, that would work
         -- as well but would be much slower)
         Just package -> do
-          reverseDeps <- getReverseDeps packages packageName
+          reverseDeps <- liftIO $ getReverseDeps packages packageName
           let toVerify = [(packageName, package)] <> reverseDeps
           verifyPackages packages toVerify
   where
-    verifyPackages :: PackageSet -> [(PackageName, Package)] -> IO ()
+    verifyPackages :: Spago m => PackageSet -> [(PackageName, Package)] -> m ()
     verifyPackages packageSet packages = do
       echo $ Messages.verifying $ length packages
       traverse_ (verifyPackage packageSet) (fst <$> packages)
 
-    verifyPackage :: PackageSet -> PackageName -> IO ()
+    verifyPackage :: Spago m => PackageSet -> PackageName -> m ()
     verifyPackage packageSet name = do
       deps <- getTransitiveDeps packageSet [name]
       let globs = getGlobs deps

@@ -1,5 +1,7 @@
 module Spago.PscPackage where
 
+import           Prelude
+
 import           Control.Exception        (SomeException, try)
 import qualified Data.Aeson               as JSON
 import           Data.Aeson.Encode.Pretty (encodePretty)

@@ -16,19 +16,15 @@ module Spago.Build
   , Purs.WithMain (..)
   ) where
 
-import           Control.Exception    (SomeException, try)
-import           Data.Maybe           (Maybe(..), fromMaybe)
+import           Spago.Prelude
+
 import qualified Data.Set             as Set
 import qualified Data.Text            as Text
-import           System.Directory     (makeAbsolute)
 import qualified System.FilePath.Glob as Glob
-import           System.IO            (hPutStrLn)
-import qualified Turtle               as T hiding (die, echo)
 
 import qualified Spago.Config         as Config
 import qualified Spago.Packages       as Packages
 import qualified Spago.Purs           as Purs
-import           Spago.Turtle
 import           Spago.Watch          (watch)
 
 
@@ -63,7 +59,7 @@ prepareBundleDefaults maybeModuleName maybeTargetPath = (moduleName, targetPath)
 
 -- | Build the project with purs, passing through additional args and
 --   eventually running some other action after the build
-build :: BuildOptions -> Maybe (IO ()) -> IO ()
+build :: Spago m => BuildOptions -> Maybe (m ()) -> m ()
 build BuildOptions{..} maybePostBuild = do
   config <- Config.ensureConfig
   deps <- Packages.getProjectDeps config
@@ -81,7 +77,7 @@ build BuildOptions{..} maybePostBuild = do
     Watch     -> watch (Set.fromAscList $ fmap Glob.compile absoluteProjectGlobs) buildAction
 
 -- | Start a repl
-repl :: [Purs.SourcePath] -> [Purs.ExtraArg] -> IO ()
+repl :: Spago m => [Purs.SourcePath] -> [Purs.ExtraArg] -> m ()
 repl sourcePaths passthroughArgs = do
   config <- Config.ensureConfig
   deps <- Packages.getProjectDeps config
@@ -90,35 +86,43 @@ repl sourcePaths passthroughArgs = do
 
 -- | Test the project: compile and run "Test.Main"
 --   (or the provided module name) with node
-test :: Maybe Purs.ModuleName -> BuildOptions -> IO ()
+test :: Spago m => Maybe Purs.ModuleName -> BuildOptions -> m ()
 test = runWithNode (Purs.ModuleName "Test.Main") (Just "Tests succeeded.") "Tests failed: "
 
 -- | Run the project: compile and run "Main"
 --   (or the provided module name) with node
-run :: Maybe Purs.ModuleName -> BuildOptions -> IO ()
+run :: Spago m => Maybe Purs.ModuleName -> BuildOptions -> m ()
 run = runWithNode (Purs.ModuleName "Main") Nothing "Running failed, exit code: "
 
 -- | Run the project with node: compile and run with the provided ModuleName
 --   (or the default one if that's missing)
 runWithNode
-  :: Purs.ModuleName
-  -> Maybe T.Text
-  -> T.Text
+  :: Spago m
+  => Purs.ModuleName
+  -> Maybe Text
+  -> Text
   -> Maybe Purs.ModuleName
   -> BuildOptions
-  -> IO ()
+  -> m ()
 runWithNode defaultModuleName maybeSuccessMessage failureMessage maybeModuleName buildOpts = do
   build buildOpts (Just nodeAction)
   where
     moduleName = fromMaybe defaultModuleName maybeModuleName
     cmd = "node -e \"require('./output/" <> Purs.unModuleName moduleName <> "').main()\""
     nodeAction = do
-      T.shell cmd T.empty >>= \case
-        T.ExitSuccess   -> fromMaybe (pure ()) (echo <$> maybeSuccessMessage)
-        T.ExitFailure n -> die $ failureMessage <> T.repr n
+      shell cmd empty >>= \case
+        ExitSuccess   -> fromMaybe (pure ()) (echo <$> maybeSuccessMessage)
+        ExitFailure n -> die $ failureMessage <> repr n
 
   -- | Bundle the project to a js file
-bundle :: Purs.WithMain -> Maybe Purs.ModuleName -> Maybe Purs.TargetPath -> NoBuild -> BuildOptions -> IO ()
+bundle
+  :: Spago m
+  => Purs.WithMain
+  -> Maybe Purs.ModuleName
+  -> Maybe Purs.TargetPath
+  -> NoBuild
+  -> BuildOptions
+  -> m ()
 bundle withMain maybeModuleName maybeTargetPath noBuild buildOpts =
   let (moduleName, targetPath) = prepareBundleDefaults maybeModuleName maybeTargetPath
       bundleAction = Purs.bundle withMain moduleName targetPath
@@ -127,26 +131,32 @@ bundle withMain maybeModuleName maybeTargetPath noBuild buildOpts =
     NoBuild -> bundleAction
 
 -- | Bundle into a CommonJS module
-makeModule :: Maybe Purs.ModuleName -> Maybe Purs.TargetPath -> NoBuild -> BuildOptions -> IO ()
-makeModule maybeModuleName maybeTargetPath noBuild buildOpts =
+makeModule
+  :: Spago m
+  => Maybe Purs.ModuleName
+  -> Maybe Purs.TargetPath
+  -> NoBuild
+  -> BuildOptions
+  -> m ()
+makeModule maybeModuleName maybeTargetPath noBuild buildOpts = do
   let (moduleName, targetPath) = prepareBundleDefaults maybeModuleName maybeTargetPath
       jsExport = Text.unpack $ "\nmodule.exports = PS[\""<> Purs.unModuleName moduleName <> "\"];"
       bundleAction = do
         echo "Bundling first..."
         Purs.bundle Purs.WithoutMain moduleName targetPath
         -- Here we append the CommonJS export line at the end of the bundle
-        try (T.with
-              (T.appendonly $ T.fromText $ Purs.unTargetPath targetPath)
+        try (with
+              (appendonly $ pathFromText $ Purs.unTargetPath targetPath)
               ((flip hPutStrLn) jsExport))
           >>= \case
             Right _ -> echo $ "Make module succeeded and output file to " <> Purs.unTargetPath targetPath
-            Left (n :: SomeException) -> die $ "Make module failed: " <> T.repr n
-  in case noBuild of
+            Left (n :: SomeException) -> die $ "Make module failed: " <> repr n
+  case noBuild of
     DoBuild -> build buildOpts (Just bundleAction)
     NoBuild -> bundleAction
 
 -- | Generate docs for the `sourcePaths`
-docs :: [Purs.SourcePath] -> IO ()
+docs :: Spago m => [Purs.SourcePath] -> m ()
 docs sourcePaths = do
   config <- Config.ensureConfig
   deps <- Packages.getProjectDeps config

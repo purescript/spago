@@ -1,6 +1,7 @@
 module Spago.Messages where
 
-import           Data.Text (Text)
+import Spago.Prelude
+
 import qualified Data.Text as Text
 
 

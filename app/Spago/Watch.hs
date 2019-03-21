@@ -4,25 +4,22 @@ module Spago.Watch (watch, globToParent) where
 -- This code basically comes straight from
 -- https://github.com/commercialhaskell/stack/blob/0740444175f41e6ea5ed236cd2c53681e4730003/src/Stack/FileWatch.hs
 
+import           Spago.Prelude          hiding (FilePath)
 
-import           Control.Concurrent.Async (race_)
-import           Control.Concurrent.STM   (check)
-import           Control.Exception        (SomeException, catch, throwIO, try)
-import           Control.Monad            (forM, forever, unless, when)
-import qualified Data.Map.Strict          as Map
-import qualified Data.Set                 as Set
-import qualified Data.Text                as Text
-import           GHC.Conc                 (atomically, newTVarIO, readTVar, readTVarIO, writeTVar)
+import           Control.Concurrent.STM (check)
+import qualified Data.Map.Strict        as Map
+import qualified Data.Set               as Set
+import qualified Data.Text              as Text
+import           GHC.IO                 (FilePath)
 import           GHC.IO.Exception
-import           System.FilePath          (isAbsolute, pathSeparator, (</>))
-import qualified System.FilePath.Glob     as Glob
-import qualified System.FSNotify          as Watch
-import           System.IO                (getLine)
+import qualified System.FilePath.Glob   as Glob
+import qualified System.FSNotify        as Watch
+import           System.IO              (getLine)
+import qualified UnliftIO
+import           UnliftIO.Async         (race_)
 
-import           Spago.Turtle
 
-
-watch :: Set.Set Glob.Pattern -> IO () -> IO ()
+watch :: Spago m => Set.Set Glob.Pattern -> m () -> m ()
 watch globs action = do
   let config = Watch.defaultConfig { Watch.confDebounce = Watch.Debounce 0.1 } -- in seconds
   fileWatchConf config $ \getGlobs -> do
@@ -30,45 +27,52 @@ watch globs action = do
     action
 
 
+withManagerConf :: Spago m => Watch.WatchConfig -> (Watch.WatchManager -> m a) -> m a
+withManagerConf conf = UnliftIO.bracket
+  (liftIO $ Watch.startManagerConf conf)
+  (liftIO . Watch.stopManager)
+
 -- | Run an action, watching for file changes
 --
 -- The action provided takes a callback that is used to set the files to be
 -- watched. When any of those files are changed, we rerun the action again.
-fileWatchConf :: Watch.WatchConfig
-              -> ((Set.Set Glob.Pattern -> IO ()) -> IO ())
-              -> IO ()
-fileWatchConf watchConfig inner = Watch.withManagerConf watchConfig $ \manager -> do
-    allGlobs <- newTVarIO Set.empty
-    dirtyVar <- newTVarIO True
-    watchVar <- newTVarIO Map.empty
+fileWatchConf
+  :: Spago m
+  => Watch.WatchConfig
+  -> ((Set.Set Glob.Pattern -> m ()) -> m ())
+  -> m ()
+fileWatchConf watchConfig inner = withManagerConf watchConfig $ \manager -> do
+    allGlobs <- liftIO $ newTVarIO Set.empty
+    dirtyVar <- liftIO $ newTVarIO True
+    watchVar <- liftIO $ newTVarIO Map.empty
 
     let onChange event = do
-          globsUnsafe <- readTVarIO allGlobs
+          globsUnsafe <- liftIO $ readTVarIO allGlobs
           let shouldRebuild globs = or $ fmap (\glob -> Glob.match glob $ Watch.eventPath event) $ Set.toList globs
           when (shouldRebuild globsUnsafe) $
             echoStr $ "File changed, rebuilding: " <> show (Watch.eventPath event)
-          atomically $ do
+          liftIO $ atomically $ do
             globs <- readTVar allGlobs
             when (shouldRebuild globs)
               (writeTVar dirtyVar True)
 
-        setWatched :: Set.Set Glob.Pattern -> IO ()
+        setWatched :: Spago m => Set.Set Glob.Pattern -> m ()
         setWatched globs = do
-          atomically $ writeTVar allGlobs globs
-          watch0 <- readTVarIO watchVar
+          liftIO $ atomically $ writeTVar allGlobs globs
+          watch0 <- liftIO $ readTVarIO watchVar
           let actions = Map.mergeWithKey
                 keepListening
                 stopListening
                 startListening
                 watch0
                 newDirs
-          watch1 <- forM (Map.toList actions) $ \(k, mmv) -> do
+          watch1 <- liftIO $ forM (Map.toList actions) $ \(k, mmv) -> do
             mv <- mmv
             return $
               case mv of
                 Nothing -> Map.empty
                 Just v  -> Map.singleton k v
-          atomically $ writeTVar watchVar $ Map.unions watch1
+          liftIO $ atomically $ writeTVar watchVar $ Map.unions watch1
           where
             newDirs = Map.fromList $ map (, ())
                     $ Set.toList
@@ -82,17 +86,17 @@ fileWatchConf watchConfig inner = Watch.withManagerConf watchConfig $ \manager -
                 -- the directory is removed.
                 case ioe_type ioe of
                   InvalidArgument -> return ()
-                  _               -> throwIO ioe
+                  _               -> throwM ioe
               return Nothing
 
             startListening = Map.mapWithKey $ \dir () -> do
-                -- let dir' = fromString $ toFilePath dir
-                listen <- Watch.watchTree manager dir (const True) onChange
-                return $ Just listen
+              listen <- Watch.watchTree manager dir (const True) $ onChange
+              return $ Just listen
 
-    let watchInput = do
-          line <- getLine
-          unless (line == "quit") $ do
+    let watchInput :: Spago m => m ()
+        watchInput = do
+          line <- liftIO $ getLine
+          unless (line == "quit") $ liftIO $ do
             case line of
               "help" -> do
                 echo ""
@@ -114,7 +118,7 @@ fileWatchConf watchConfig inner = Watch.withManagerConf watchConfig $ \manager -
           watchInput
 
     race_ watchInput $ forever $ do
-      atomically $ do
+      liftIO $ atomically $ do
         dirty <- readTVar dirtyVar
         check dirty
         writeTVar dirtyVar False
