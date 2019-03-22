@@ -1,6 +1,8 @@
 # spago
 
+[![npm](https://img.shields.io/npm/v/spago.svg)][spago-npm]
 [![Build Status](https://travis-ci.com/spacchetti/spago.svg?branch=master)][travis-spago]
+[![Build status](https://ci.appveyor.com/api/projects/status/jydvr4sur6j6816e/branch/master?svg=true)](https://ci.appveyor.com/project/f-f/spago/branch/master)
 
 *(IPA: /ˈspaɡo/)*
 
