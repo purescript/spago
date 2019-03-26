@@ -253,7 +253,7 @@ checkPursIsUpToDate = do
     -- Update 2019-02-28: we switched from Spacchetti to package-sets, which
     -- uses a different versioning (with "psc-" in front). We just strip it away
     case fmap (Text.split (=='-') . Text.replace "psc-" "") (getPackageSetTag upstream) of
-      Just [minPursVersion, _packageSetVersion] -> do
+      Just (minPursVersion:_) -> do
         maybeCompilerVersion <- Purs.version
         case (maybeCompilerVersion, hush $ Version.semver minPursVersion) of
           (Just compilerVersion, Just pursVersionFromPackageSet) -> do
