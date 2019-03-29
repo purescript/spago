@@ -32,7 +32,8 @@ cache:
 build_script:
   - stack build
   - stack install --local-bin-path bin
-  - 7z a "bin\windows.tar.gz" "%APPVEYOR_BUILD_FOLDER%\bin\spago.exe"
+  - cp bin\spago.exe spago.exe
+  - tar -zcvf windows.tar.gz spago.exe
 
 test_script:
   - set PATH=C:\projects\spago\bin;%PATH%
@@ -42,7 +43,7 @@ test_script:
   - cd test\spago-test && python ..\spago-test.py && cd ..\..
 
 artifacts:
-  - path: bin\windows.tar.gz
+  - path: windows.tar.gz
     name: spago
 
 deploy:
