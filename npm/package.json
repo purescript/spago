@@ -7,10 +7,6 @@
     "type": "git",
     "url": "https://github.com/spacchetti/spago.git"
   },
-  "files": [
-    "install.js",
-    "spago.exe"
-  ],
   "scripts": {
     "preinstall": "node ./install.js"
   },
