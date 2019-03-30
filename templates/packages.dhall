@@ -109,10 +109,10 @@ let additions =
 -}
 
 let mkPackage =
-      https://raw.githubusercontent.com/purescript/package-sets/psc-0.12.3-20190323-2/src/mkPackage.dhall sha256:0b197efa1d397ace6eb46b243ff2d73a3da5638d8d0ac8473e8e4a8fc528cf57
+      https://raw.githubusercontent.com/purescript/package-sets/psc-0.12.3-20190330/src/mkPackage.dhall sha256:0b197efa1d397ace6eb46b243ff2d73a3da5638d8d0ac8473e8e4a8fc528cf57
 
 let upstream =
-      https://raw.githubusercontent.com/purescript/package-sets/psc-0.12.3-20190323-2/src/packages.dhall sha256:75491c6ef6587959ebf80bb1ac4d706dfac83d8100230cf85dc4efe6cf918460
+      https://raw.githubusercontent.com/purescript/package-sets/psc-0.12.3-20190330/src/packages.dhall sha256:cb0cdde5926cfdff5bd17bb2508a85b5eee794088f253f59f884766828ba722c
 
 let overrides = {=}
 
