@@ -22,7 +22,7 @@ module Spago.Prelude
   , (<|>)
   , (</>)
   , (^..)
-  , rewriteMOf
+  , transformMOf
   , testfile
   , testdir
   , mktree
@@ -53,7 +53,7 @@ module Spago.Prelude
 
 import           Control.Applicative       (empty, many, (<|>))
 import           Control.Lens              ((^..))
-import           Control.Lens.Combinators  (rewriteMOf)
+import           Control.Lens.Combinators  (transformMOf)
 import           Control.Monad             as X
 import           Control.Monad.Catch       as X
 import           Control.Monad.Reader      as X

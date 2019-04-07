@@ -103,33 +103,33 @@ makeConfig force = do
       Left err -> echo $ Messages.failedToReadPscFile err
       Right pscConfig -> do
         echo "Found a \"psc-package.json\" file, migrating to a new Spago config.."
-        withConfigAST (pure . updateName (PscPackage.name pscConfig))
         -- try to update the dependencies (will fail if not found in package set)
         let pscPackages = map PackageName $ PscPackage.depends pscConfig
         config <- ensureConfig
-        withConfigAST (addRawDeps config pscPackages)
+        withConfigAST (\e -> addRawDeps config pscPackages
+                            $ updateName (PscPackage.name pscConfig) e)
 
 
-updateName :: Text -> Expr -> Maybe Expr
+updateName :: Text -> Expr -> Expr
 updateName newName (Dhall.RecordLit kvs)
-  | Just _name <- Dhall.Map.lookup "name" kvs = Just $ Dhall.RecordLit
+  | Just _name <- Dhall.Map.lookup "name" kvs = Dhall.RecordLit
     $ Dhall.Map.insert "name" (Dhall.toTextLit newName) kvs
-updateName _ _ = Nothing
+updateName _ other = other
 
-addRawDeps :: Spago m => Config -> [PackageName] -> Expr -> m (Maybe Expr)
-addRawDeps config newPackages (Dhall.RecordLit kvs)
+addRawDeps :: Spago m => Config -> [PackageName] -> Expr -> m Expr
+addRawDeps config newPackages r@(Dhall.RecordLit kvs)
   | Just (Dhall.ListLit Nothing dependencies) <- Dhall.Map.lookup "dependencies" kvs = do
       case notInPackageSet of
         -- If none of the newPackages are outside of the set, add them to existing dependencies
-        []-> do
+        [] -> do
           oldPackages <- traverse (throws . Dhall.fromTextLit) dependencies
           let newDepsExpr
                 = Dhall.ListLit Nothing $ fmap (Dhall.toTextLit . packageName)
                 $ Seq.sort $ nubSeq (Seq.fromList newPackages <> fmap PackageName oldPackages)
-          pure $ Just $ Dhall.RecordLit $ Dhall.Map.insert "dependencies" newDepsExpr kvs
+          pure $ Dhall.RecordLit $ Dhall.Map.insert "dependencies" newDepsExpr kvs
         pkgs -> do
           echo $ Messages.failedToAddDeps $ map packageName pkgs
-          pure Nothing
+          pure r
   where
     notInPackageSet = mapMaybe
       (\p -> case Map.lookup p (packages config) of
@@ -142,29 +142,29 @@ addRawDeps config newPackages (Dhall.RecordLit kvs)
     nubSeq xs = (fmap fst . Seq.filter (uncurry notElem)) (Seq.zip xs seens)
       where
         seens = Seq.scanl (flip Set.insert) Set.empty xs
-addRawDeps _ _ _ = pure Nothing
+addRawDeps _ _ other = pure other
 
 
 -- | Takes a function that manipulates the Dhall AST of the Config, and tries to run it
 --   on the current config. If it succeeds, it writes back to file the result returned.
 --   Note: it will pass in the parsed AST, not the resolved one (so e.g. imports will
 --   still be in the tree). If you need the resolved one, use `ensureConfig`.
-withConfigAST :: Spago m => (Expr -> m (Maybe Expr)) -> m ()
+withConfigAST :: Spago m => (Expr -> m Expr) -> m ()
 withConfigAST transform = do
   rawConfig <- Dhall.readRawExpr pathText
   case rawConfig of
     Nothing -> die Messages.cannotFindConfig
     Just (header, expr) -> do
-      newExpr <- rewriteMExpr transform expr
+      newExpr <- transformMExpr transform expr
       Dhall.writeRawExpr pathText (header, newExpr)
   where
-    rewriteMExpr
+    transformMExpr
       :: Spago m
-      => (Dhall.Expr s Dhall.Import -> m (Maybe (Dhall.Expr s Dhall.Import)))
+      => (Dhall.Expr s Dhall.Import -> m (Dhall.Expr s Dhall.Import))
       -> Dhall.Expr s Dhall.Import
       -> m (Dhall.Expr s Dhall.Import)
-    rewriteMExpr rules =
-      rewriteMOf
+    transformMExpr rules =
+      transformMOf
         Dhall.subExpressions
         rules
       . Dhall.Core.denote
