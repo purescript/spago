@@ -19,9 +19,6 @@ import qualified Data.Versions   as Version
 import qualified Dhall
 import           Dhall.Binary    (defaultStandardVersion)
 import qualified Dhall.Freeze
-import qualified Dhall.Import
-import qualified Dhall.Parser    as Parser
-import qualified Dhall.TypeCheck
 import qualified GitHub
 import           Network.URI     (parseURI)
 
@@ -67,8 +64,6 @@ instance Dhall.Interpret Repo where
         Just _uri -> Remote repo
         Nothing   -> Local repo
 
-type Expr = Dhall.DhallExpr Dhall.Import
-
 
 pathText :: Text
 pathText = "packages.dhall"
@@ -88,26 +83,6 @@ makePackageSetFile force = do
   Dhall.format pathText
 
 
-readRawPackageSet :: Spago m => m (Maybe (Text, Expr))
-readRawPackageSet = do
-  exists <- testfile path
-  if exists
-    then (do
-      packageSetText <- readTextFile path
-      fmap Just $ throws $ Parser.exprAndHeaderFromText mempty packageSetText)
-    else (pure Nothing)
-
-writeRawPackageSet :: Spago m => (Text, Expr) -> m ()
-writeRawPackageSet (header, expr) = do
-  -- After modifying the expression, we have to check if it still typechecks
-  -- if it doesn't we don't write to file.
-  resolvedExpr <- liftIO $ Dhall.Import.load expr
-  throws (Dhall.TypeCheck.typeOf resolvedExpr)
-  echo "Done. Updating the \"packages.dhall\" file.."
-  writeTextFile path $ Dhall.prettyWithHeader header expr <> "\n"
-  liftIO $ Dhall.format pathText
-
-
 -- | Tries to upgrade the Package-Sets release of the local package set.
 --   It will:
 --   - try to read the latest tag from GitHub
@@ -122,13 +97,13 @@ upgradePackageSet = do
     Left err -> die $ Messages.failedToReachGitHub err
     Right GitHub.Release{..} -> do
       echo ("Found the most recent tag for \"purescript/package-sets\": " <> surroundQuote releaseTagName)
-      rawPackageSet <- readRawPackageSet
+      rawPackageSet <- Dhall.readRawExpr pathText
       case rawPackageSet of
         Nothing -> die Messages.cannotFindPackages
         Just (header, expr) -> do
           let newExpr = fmap (upgradeImports releaseTagName) expr
           echo $ Messages.upgradingPackageSet releaseTagName
-          writeRawPackageSet (header, newExpr)
+          Dhall.writeRawExpr pathText (header, newExpr)
           -- If everything is fine, refreeze the imports
           freeze
   where
@@ -168,7 +143,7 @@ upgradePackageSet = do
 
 checkPursIsUpToDate :: Spago m => m ()
 checkPursIsUpToDate = do
-  rawPackageSet <- readRawPackageSet
+  rawPackageSet <- Dhall.readRawExpr pathText
   case rawPackageSet of
     Nothing -> echo Messages.cannotFindPackagesButItsFine
     Just (_header, expr) -> do
@@ -259,7 +234,7 @@ freeze = do
 -- | Freeze the file if any of the remote imports are not frozen
 ensureFrozen :: Spago m => m ()
 ensureFrozen = do
-  rawPackageSet <- readRawPackageSet
+  rawPackageSet <- Dhall.readRawExpr pathText
   case rawPackageSet of
     Nothing -> echo "WARNING: wasn't able to check if your package set file is frozen"
     Just (_header, expr) -> do

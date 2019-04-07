@@ -13,6 +13,7 @@ module Spago.Prelude
   , Typeable
   , Text
   , NonEmpty (..)
+  , Seq (..)
   , Map
   , Generic
   , Pretty
@@ -21,6 +22,7 @@ module Spago.Prelude
   , (<|>)
   , (</>)
   , (^..)
+  , rewriteMOf
   , testfile
   , testdir
   , mktree
@@ -50,6 +52,8 @@ module Spago.Prelude
   ) where
 
 import           Control.Applicative       (empty, many, (<|>))
+import           Control.Lens              ((^..))
+import           Control.Lens.Combinators  (rewriteMOf)
 import           Control.Monad             as X
 import           Control.Monad.Catch       as X
 import           Control.Monad.Reader      as X
@@ -59,6 +63,7 @@ import           Data.Foldable             as X
 import           Data.List.NonEmpty        (NonEmpty (..))
 import           Data.Map                  (Map)
 import           Data.Maybe                as X
+import           Data.Sequence             (Seq (..))
 import           Data.Text                 (Text)
 import qualified Data.Text                 as Text
 import           Data.Text.Prettyprint.Doc (Pretty)
@@ -66,7 +71,6 @@ import           Data.Traversable          (for)
 import           Data.Typeable             (Typeable)
 import           GHC.Conc                  (atomically, newTVarIO, readTVar, readTVarIO, writeTVar)
 import           GHC.Generics              (Generic)
-import           Lens.Micro                ((^..))
 import           Prelude                   as X hiding (FilePath)
 import           Safe                      (headMay)
 import           System.FilePath           (isAbsolute, pathSeparator, (</>))
