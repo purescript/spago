@@ -3,6 +3,7 @@ module Spago.Prelude
   , echoStr
   , echoDebug
   , die
+  , throws
   , hush
   , withDirectory
   , pathFromText
@@ -113,6 +114,10 @@ echoDebug str = do
 die :: MonadThrow m => Text -> m a
 die reason = throwM $ SpagoError reason
 
+-- | Throw Lefts
+throws :: MonadThrow m => Exception e => Either e a -> m a
+throws (Left  e) = throwM e
+throws (Right a) = pure a
 
 -- | Suppress the 'Left' value of an 'Either'
 hush :: Either a b -> Maybe b

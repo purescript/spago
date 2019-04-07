@@ -13,6 +13,19 @@ cannotFindConfig = makeMessage
   , "otherwise you might want to run `spago init` to initialize a new project."
   ]
 
+cannotFindPackages :: Text
+cannotFindPackages = makeMessage
+  [ "There's no " <> surroundQuote "packages.dhall" <> "in your current location."
+  , ""
+  , "If you already have a spago project you might be in the wrong subdirectory,"
+  , "otherwise you might want to run `spago init` to initialize a new package set file."
+  ]
+
+cannotFindPackagesButItsFine :: Text
+cannotFindPackagesButItsFine = makeMessage
+  [ "WARNING: did not find a " <> surroundQuote "packages.dhall" <> "in your current location, skipping compiler version check"
+  ]
+
 foundExistingProject :: Text -> Text
 foundExistingProject pathText = makeMessage
   [ "Found " <> pathText <> ": it looks like there's already a project here."
@@ -94,8 +107,7 @@ upgradingPackageSet newTag = makeMessage
 
 freezePackageSet :: Text
 freezePackageSet = makeMessage
-  [ "Generating hashes for the package-set so it will be cached."
-  , "This might take some time..."
+  [ "Generating new hashes for the package set file so it will be cached.. (this might take some time)"
   ]
 
 packageSetVersionWarning :: Text
