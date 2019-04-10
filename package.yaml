@@ -56,7 +56,7 @@ dependencies:
 - network-uri
 - github
 - versions
-- microlens
+- lens
 - safe
 - fsnotify
 - Glob

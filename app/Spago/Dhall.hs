@@ -14,6 +14,7 @@ import           Dhall.Core                            as Dhall hiding (Type, pr
 import qualified Dhall.Format
 import qualified Dhall.Map
 import qualified Dhall.Parser                          as Parser
+import qualified Dhall.Import
 import qualified Dhall.Pretty
 import           Dhall.TypeCheck                       (X, typeOf)
 
@@ -37,6 +38,28 @@ prettyWithHeader :: Pretty.Pretty a => Text -> DhallExpr a -> Dhall.Text
 prettyWithHeader header expr = do
   let doc = Pretty.pretty header <> Pretty.pretty expr
   PrettyText.renderStrict $ Pretty.layoutSmart Pretty.defaultLayoutOptions doc
+
+
+readRawExpr :: Spago m => Text -> m (Maybe (Text, DhallExpr Dhall.Import))
+readRawExpr pathText = do
+  exists <- testfile $ pathFromText pathText
+  if exists
+    then (do
+      packageSetText <- readTextFile $ pathFromText pathText
+      fmap Just $ throws $ Parser.exprAndHeaderFromText mempty packageSetText)
+    else (pure Nothing)
+
+
+writeRawExpr :: Spago m => Text -> (Text, DhallExpr Dhall.Import) -> m ()
+writeRawExpr pathText (header, expr) = do
+  -- After modifying the expression, we have to check if it still typechecks
+  -- if it doesn't we don't write to file.
+  resolvedExpr <- liftIO $ Dhall.Import.load expr
+  throws (Dhall.TypeCheck.typeOf resolvedExpr)
+  echo $ "Done. Updating the \"" <> pathText <> "\" file.."
+  writeTextFile (pathFromText pathText) $ prettyWithHeader header expr <> "\n"
+  liftIO $ format pathText
+
 
 -- | Returns a Dhall Text literal from a lone string
 toTextLit :: Pretty a => Text -> DhallExpr a

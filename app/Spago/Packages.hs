@@ -60,7 +60,7 @@ initProject force = do
   copyIfNotExists ".gitignore" Templates.gitignore
 
   echo "Set up a local Spago project."
-  echo "Try running `spago install`"
+  echo "Try running `spago build`"
 
   where
     whenDirNotExists dir action = do

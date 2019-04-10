@@ -3,6 +3,7 @@ module Spago.Prelude
   , echoStr
   , echoDebug
   , die
+  , throws
   , hush
   , withDirectory
   , pathFromText
@@ -12,6 +13,7 @@ module Spago.Prelude
   , Typeable
   , Text
   , NonEmpty (..)
+  , Seq (..)
   , Map
   , Generic
   , Pretty
@@ -20,6 +22,7 @@ module Spago.Prelude
   , (<|>)
   , (</>)
   , (^..)
+  , transformMOf
   , testfile
   , testdir
   , mktree
@@ -49,6 +52,8 @@ module Spago.Prelude
   ) where
 
 import           Control.Applicative       (empty, many, (<|>))
+import           Control.Lens              ((^..))
+import           Control.Lens.Combinators  (transformMOf)
 import           Control.Monad             as X
 import           Control.Monad.Catch       as X
 import           Control.Monad.Reader      as X
@@ -58,6 +63,7 @@ import           Data.Foldable             as X
 import           Data.List.NonEmpty        (NonEmpty (..))
 import           Data.Map                  (Map)
 import           Data.Maybe                as X
+import           Data.Sequence             (Seq (..))
 import           Data.Text                 (Text)
 import qualified Data.Text                 as Text
 import           Data.Text.Prettyprint.Doc (Pretty)
@@ -65,7 +71,6 @@ import           Data.Traversable          (for)
 import           Data.Typeable             (Typeable)
 import           GHC.Conc                  (atomically, newTVarIO, readTVar, readTVarIO, writeTVar)
 import           GHC.Generics              (Generic)
-import           Lens.Micro                ((^..))
 import           Prelude                   as X hiding (FilePath)
 import           Safe                      (headMay)
 import           System.FilePath           (isAbsolute, pathSeparator, (</>))
@@ -113,6 +118,10 @@ echoDebug str = do
 die :: MonadThrow m => Text -> m a
 die reason = throwM $ SpagoError reason
 
+-- | Throw Lefts
+throws :: MonadThrow m => Exception e => Either e a -> m a
+throws (Left  e) = throwM e
+throws (Right a) = pure a
 
 -- | Suppress the 'Left' value of an 'Either'
 hush :: Either a b -> Maybe b

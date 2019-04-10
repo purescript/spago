@@ -7,14 +7,12 @@ module Spago.Config
 
 import           Spago.Prelude
 
-import qualified Data.List          as List
 import qualified Data.Map           as Map
 import qualified Data.Sequence      as Seq
+import qualified Data.Set           as Set
 import qualified Data.Text.Encoding as Text
-import qualified Dhall.Import
+import qualified Dhall.Core
 import qualified Dhall.Map
-import qualified Dhall.Parser       as Parser
-import           Dhall.TypeCheck    (X)
 import qualified Dhall.TypeCheck
 
 import qualified Spago.Dhall        as Dhall
@@ -44,21 +42,7 @@ instance ToJSON Config
 instance FromJSON Config
 
 
--- | Type to represent the "raw" configuration,
---   which is a configuration which has been parsed from Dhall,
---   but not yet resolved (this is used to manipulate the AST directly)
---
---   Note: not all the values from the configuration are included here.
---
---   Note: this limits the amount of stuff that one can do in Dhall inside
---   the configuration. E.g. you won't be able to have a dependency that
---   is not a string in the list of dependencies of the project.
-data RawConfig = RawConfig
-  { rawName :: Text
-  , rawDeps :: [PackageName]
-  -- TODO: add packages if needed
-  } deriving (Show, Generic)
-
+type Expr = Dhall.DhallExpr Dhall.Import
 
 -- | Tries to read in a Spago Config
 parseConfig :: Spago m => Text -> m Config
@@ -96,7 +80,7 @@ ensureConfig = do
   configText <- readTextFile path
   try (parseConfig configText) >>= \case
     Right config -> pure config
-    Left (err :: Dhall.ReadError X) -> throwM err
+    Left (err :: Dhall.ReadError Dhall.TypeCheck.X) -> throwM err
 
 
 -- | Copies over `spago.dhall` to set up a Spago project.
@@ -119,82 +103,72 @@ makeConfig force = do
       Left err -> echo $ Messages.failedToReadPscFile err
       Right pscConfig -> do
         echo "Found a \"psc-package.json\" file, migrating to a new Spago config.."
-        -- update the project name
-        withConfigAST $ \config -> config { rawName = PscPackage.name pscConfig }
         -- try to update the dependencies (will fail if not found in package set)
         let pscPackages = map PackageName $ PscPackage.depends pscConfig
         config <- ensureConfig
-        addDependencies config pscPackages
+        withConfigAST (\e -> addRawDeps config pscPackages
+                            $ updateName (PscPackage.name pscConfig) e)
 
 
--- | Takes a function that manipulates the Dhall AST of the Config,
---   and tries to run it on the current config.
---   If it succeeds, it writes back to file the result returned.
---   Note: it will pass in the parsed AST, not the resolved one (so
---   e.g. imports will still be in the tree). If you need the resolved
---   one, use `ensureConfig`.
-withConfigAST :: Spago m => (RawConfig -> RawConfig) -> m ()
-withConfigAST transform = do
-  -- get a workable configuration
-  exists <- testfile path
-  unless exists $ makeConfig False
-  configText <- readTextFile path
+updateName :: Text -> Expr -> Expr
+updateName newName (Dhall.RecordLit kvs)
+  | Just _name <- Dhall.Map.lookup "name" kvs = Dhall.RecordLit
+    $ Dhall.Map.insert "name" (Dhall.toTextLit newName) kvs
+updateName _ other = other
 
-  -- parse the config without resolving imports
-  (header, expr) <- case Parser.exprAndHeaderFromText mempty configText of
-    Left  err -> throwM err
-    Right (header, ast) -> case Dhall.denote ast of
-      -- remove Note constructors, and check if config is a record
-      Dhall.RecordLit ks -> do
-        rawConfig <- pure $ do
-          currentName <- Dhall.requireKey ks "name" Dhall.fromTextLit
-          currentDeps <- Dhall.requireKey ks "dependencies" toPkgsList
-          Right $ RawConfig currentName currentDeps
-
-        -- apply the transformation if config is valid
-        RawConfig{..} <- case rawConfig of
-          Right conf -> pure $ transform conf
-          Left err   -> die $ Messages.failedToParseFile pathText err
-
-        -- return the new AST from the new config
-        let
-          mkNewAST "name"         _ = Dhall.toTextLit rawName
-          mkNewAST "dependencies" _ = Dhall.ListLit Nothing
-            $ Seq.fromList
-            $ fmap Dhall.toTextLit
-            $ fmap packageName rawDeps
-          mkNewAST _ v = v
-        pure (header, Dhall.RecordLit $ Dhall.Map.mapWithKey mkNewAST ks)
-
-      e -> throwM $ Dhall.ConfigIsNotRecord e
-
-  -- After modifying the expression, we have to check if it still typechecks
-  -- if it doesn't we don't write to file
-  resolvedExpr <- liftIO $ Dhall.Import.load expr
-  case Dhall.TypeCheck.typeOf resolvedExpr of
-    Left  err -> throwM err
-    Right _   -> do
-      writeTextFile path $ Dhall.prettyWithHeader header expr <> "\n"
-      Dhall.format pathText
-
+addRawDeps :: Spago m => Config -> [PackageName] -> Expr -> m Expr
+addRawDeps config newPackages r@(Dhall.RecordLit kvs)
+  | Just (Dhall.ListLit Nothing dependencies) <- Dhall.Map.lookup "dependencies" kvs = do
+      case notInPackageSet of
+        -- If none of the newPackages are outside of the set, add them to existing dependencies
+        [] -> do
+          oldPackages <- traverse (throws . Dhall.fromTextLit) dependencies
+          let newDepsExpr
+                = Dhall.ListLit Nothing $ fmap (Dhall.toTextLit . packageName)
+                $ Seq.sort $ nubSeq (Seq.fromList newPackages <> fmap PackageName oldPackages)
+          pure $ Dhall.RecordLit $ Dhall.Map.insert "dependencies" newDepsExpr kvs
+        pkgs -> do
+          echo $ Messages.failedToAddDeps $ map packageName pkgs
+          pure r
   where
-    toPkgsList
-      :: (Pretty a, Typeable a)
-      => Dhall.Expr Parser.Src a
-      -> Either (Dhall.ReadError a) [PackageName]
-    toPkgsList (Dhall.ListLit _ pkgs) =
-      let
-        texts = fmap Dhall.fromTextLit $ toList pkgs
-      in
-      case (lefts texts) of
-        []  -> Right $ fmap PackageName $ rights texts
-        e:_ -> Left e
-    toPkgsList e = Left $ Dhall.DependenciesIsNotList e
+    notInPackageSet = mapMaybe
+      (\p -> case Map.lookup p (packages config) of
+               Just _  -> Nothing
+               Nothing -> Just p)
+      newPackages
+
+    -- | Code from https://stackoverflow.com/questions/45757839
+    nubSeq :: Ord a => Seq a -> Seq a
+    nubSeq xs = (fmap fst . Seq.filter (uncurry notElem)) (Seq.zip xs seens)
+      where
+        seens = Seq.scanl (flip Set.insert) Set.empty xs
+addRawDeps _ _ other = pure other
 
 
-addRawDeps :: [PackageName] -> RawConfig -> RawConfig
-addRawDeps newDeps config = config
-  { rawDeps = List.sort $ List.nub (newDeps <> (rawDeps config)) }
+-- | Takes a function that manipulates the Dhall AST of the Config, and tries to run it
+--   on the current config. If it succeeds, it writes back to file the result returned.
+--   Note: it will pass in the parsed AST, not the resolved one (so e.g. imports will
+--   still be in the tree). If you need the resolved one, use `ensureConfig`.
+withConfigAST :: Spago m => (Expr -> m Expr) -> m ()
+withConfigAST transform = do
+  rawConfig <- Dhall.readRawExpr pathText
+  case rawConfig of
+    Nothing -> die Messages.cannotFindConfig
+    Just (header, expr) -> do
+      newExpr <- transformMExpr transform expr
+      Dhall.writeRawExpr pathText (header, newExpr)
+  where
+    transformMExpr
+      :: Spago m
+      => (Dhall.Expr s Dhall.Import -> m (Dhall.Expr s Dhall.Import))
+      -> Dhall.Expr s Dhall.Import
+      -> m (Dhall.Expr s Dhall.Import)
+    transformMExpr rules =
+      transformMOf
+        Dhall.subExpressions
+        rules
+      . Dhall.Core.denote
+
 
 -- | Try to add the `newPackages` to the "dependencies" list in the Config.
 --   It will not add any dependency if any of them is not in the package set.
@@ -202,12 +176,4 @@ addRawDeps newDeps config = config
 --   dependencies, and write the Config back to file.
 addDependencies :: Spago m => Config -> [PackageName] -> m ()
 addDependencies config newPackages = do
-  let notInPackageSet = mapMaybe
-        (\p -> case Map.lookup p (packages config) of
-                Just _  -> Nothing
-                Nothing -> Just p)
-        newPackages
-  case notInPackageSet of
-    -- If none of the newPackages are outside of the set, add them to existing dependencies
-    []   -> withConfigAST $ addRawDeps newPackages
-    pkgs -> echo $ Messages.failedToAddDeps $ map packageName pkgs
+  withConfigAST $ addRawDeps config newPackages
