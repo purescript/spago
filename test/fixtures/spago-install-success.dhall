@@ -5,7 +5,7 @@ You can edit this file as you like.
 { name =
     "aaa"
 , dependencies =
-    [ "console", "effect", "foreign", "simple-json" ]
+    [ "console", "effect", "foreign", "psci-support", "simple-json" ]
 , packages =
     ./packages.dhall
 }
