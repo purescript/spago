@@ -6,7 +6,6 @@ module Spago.Packages
   , listPackages
   , getGlobs
   , getProjectDeps
-  , fetchPackages
   , PackageSet.upgradePackageSet
   , PackageSet.freeze
   , PackageSet.PackageName(..)
@@ -15,26 +14,19 @@ module Spago.Packages
 
 import           Spago.Prelude
 
-import qualified Control.Concurrent.Async.Pool as Async
-import qualified Data.List                     as List
-import qualified Data.Map                      as Map
-import qualified Data.Set                      as Set
-import qualified Data.Text                     as Text
-import qualified System.Process                as Process
+import qualified Data.List        as List
+import qualified Data.Map         as Map
+import qualified Data.Set         as Set
+import qualified Data.Text        as Text
 
-import           Spago.Config                  (Config (..))
-import qualified Spago.Config                  as Config
-import qualified Spago.Messages                as Messages
-import           Spago.PackageSet              (Package (..), PackageName (..), PackageSet,
-                                                Repo (..))
-import qualified Spago.PackageSet              as PackageSet
-import qualified Spago.Purs                    as Purs
-import qualified Spago.Templates               as Templates
-
-
--- | The directory in which spago will put its tempfiles
-spagoDir :: Text
-spagoDir = ".spago/"
+import           Spago.Config     (Config (..))
+import qualified Spago.Config     as Config
+import qualified Spago.Fetch      as Fetch
+import qualified Spago.Messages   as Messages
+import           Spago.PackageSet (Package (..), PackageName (..), PackageSet)
+import qualified Spago.PackageSet as PackageSet
+import qualified Spago.Purs       as Purs
+import qualified Spago.Templates  as Templates
 
 
 -- | Init a new Spago project:
@@ -79,102 +71,11 @@ initProject force = do
         False -> writeTextFile destPath srcTemplate
 
 
--- | Returns the dir path for a given package
---   If the package is from a remote git repo, return the .spago folder in which we cloned
---   Otherwise return the local folder
-getPackageDir :: (PackageName, Package) -> Text
-getPackageDir (PackageName{..}, Package{ repo = Remote _, ..})
-  = spagoDir <> packageName <> "/" <> version
-getPackageDir (_, Package{ repo = Local path })
-  = path
-
-
 getGlobs :: [(PackageName, Package)] -> [Purs.SourcePath]
-getGlobs = map (\pair -> Purs.SourcePath $ getPackageDir pair <> "/src/**/*.purs")
+getGlobs = map (\pair
+                 -> Purs.SourcePath $ Text.pack $ Fetch.getLocalCacheDir pair
+                 <> "/src/**/*.purs")
 
-
--- | If the repo points to a remote git, fetch it in the .spago folder.
---   If it's a local directory do nothing
-fetchPackage :: (PackageName, Package) -> IO ()
-fetchPackage (PackageName package, Package { repo = Local path }) =
-  echo $ Messages.foundLocalPackage package path
-fetchPackage pair@(PackageName{..}, Package{ repo = Remote repo, ..} ) = do
-  exists <- testdir $ pathFromText packageDir
-  if exists
-    then do
-      echo $ quotedName <> " already installed"
-    else do
-      echo $ "Installing " <> quotedName
-      withDirectory (pathFromText packageDir) $ do
-        (systemStrictWithErr processWithNewCwd empty) >>= \case
-          (ExitSuccess, _, _) -> pure ()
-          (_, _stdout, stderr) -> die $ Messages.failedToInstallDep quotedName stderr
-  where
-    packageDir = getPackageDir pair
-
-    quotedName = Messages.surroundQuote packageName
-
-    -- TODO:
-    -- It is theoretically possible to put a commit hash in the ref to fetch,
-    -- however, for how the Github server works, unless a commit is less than
-    -- one hour old, you cannot `fetch` by commit hash
-    -- If you want a commit by sha, you have to clone the whole repo history
-    -- for a given ref (like master) and then look for the commit sha
-    -- However, on Github you can actually get a snapshot for a specific sha,
-    -- by calling archives/sha.tar.gz link.
-    -- So basically we can check if we are dealing with a Github url and a commit hash,
-    -- and if yes we fetch the tar.gz (instead of running this git commands), otherwise we fail
-
-    cmd = Text.intercalate " && "
-           [ "git init"
-           , "git remote add origin " <> repo
-           , "git fetch origin " <> version
-           , "git -c advice.detachedHead=false checkout FETCH_HEAD"
-           ]
-
-    -- Here we set the package directory as the cwd of the new process.
-    -- This is the "right" way to do it (instead of using e.g.
-    -- System.Directory.withCurrentDirectory), as that's apparently
-    -- not thread-safe
-    processWithNewCwd = (Process.shell (Text.unpack cmd))
-      { Process.cwd = Just $ Text.unpack packageDir }
-
-
-fetchPackages :: Spago m => Maybe Int -> [(PackageName, Package)] -> m ()
-fetchPackages maybeLimit allDeps = do
-
-  PackageSet.checkPursIsUpToDate
-
-  -- We try to fetch a dep only if their dir doesn't exist
-  depsToFetch <- (flip filterM) allDeps $ \dep -> do
-    exists <- testdir $ pathFromText $ getPackageDir dep
-    pure $ not exists
-
-  let nOfDeps = List.length depsToFetch
-  when (nOfDeps > 0) $
-    echoStr $ "Installing " <> show nOfDeps <> " dependencies."
-
-  -- By default we make one thread per dep to fetch, but this can be limited
-  liftIO $ Async.withTaskGroup (fromMaybe nOfDeps maybeLimit) $ \taskGroup -> do
-    asyncs <- for depsToFetch (Async.async taskGroup . fetchPackage)
-    handle (handler asyncs) (for_ asyncs Async.wait)
-    echo "Installation complete."
-  where
-    -- Here we have this weird exception handling so that threads can clean after
-    -- themselves (e.g. remove the directory they might have created) in case an
-    -- asynchronous exception happens.
-    -- So if any Exception happens while `wait`ing for any thread, we go over all
-    -- the `asyncs` (the completed ones will not be affected) and `cancel` them.
-    -- This throws an AsyncException in their thread, which causes the bracket to
-    -- run the cleanup. However, we have to be careful afterwards, as `cancel` only
-    -- waits for the exception to be thrown there, and we have to `wait` ourselves
-    -- (with `waitCatch` so that we ignore any exception we are thrown and the `for_`
-    -- completes) for the asyncs to finish their cleanup.
-    handler asyncs (e :: SomeException) = do
-      for_ asyncs $ \async -> do
-        Async.cancel async
-        Async.waitCatch async
-      die $ "Installation failed.\n\nError:\n\n" <> Messages.tshow e
 
 -- | Return all the transitive dependencies of the current project
 getProjectDeps :: Spago m => Config -> m [(PackageName, Package)]
@@ -230,9 +131,6 @@ getReverseDeps db dep =
 -- | Fetch all dependencies into `.spago/`
 install :: Spago m => Maybe Int -> [PackageName] -> m ()
 install maybeLimit newPackages = do
-  -- Make sure .spago exists
-  mktree $ pathFromText spagoDir
-
   config@Config{..} <- Config.ensureConfig
 
   -- Try fetching the dependencies with the new names too
@@ -246,7 +144,7 @@ install maybeLimit newPackages = do
     []         -> pure ()
     additional -> Config.addDependencies config additional
 
-  fetchPackages maybeLimit deps
+  Fetch.fetchPackages maybeLimit deps
 
 
 data PackagesFilter = TransitiveDeps | DirectDeps
@@ -324,7 +222,7 @@ verify maybeLimit maybePackage = do
       deps <- getTransitiveDeps packageSet [name]
       let globs = getGlobs deps
           quotedName = Messages.surroundQuote $ packageName name
-      fetchPackages maybeLimit deps
+      Fetch.fetchPackages maybeLimit deps
       echo $ "Verifying package " <> quotedName
       Purs.compile globs []
       echo $ "Successfully verified " <> quotedName

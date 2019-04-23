@@ -66,6 +66,12 @@ dependencies:
 - mtl
 - exceptions
 - unliftio
+- vector
+- temporary
+- zlib
+- tar
+- http-conduit
+- foldl
 
 executables:
   spago:

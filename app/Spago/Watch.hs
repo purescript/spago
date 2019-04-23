@@ -67,9 +67,9 @@ fileWatchConf watchConfig inner = withManagerConf watchConfig $ \manager -> do
                 watch0
                 newDirs
           watch1 <- liftIO $ forM (Map.toList actions) $ \(k, mmv) -> do
-            mv <- mmv
+            mv' <- mmv
             return $
-              case mv of
+              case mv' of
                 Nothing -> Map.empty
                 Just v  -> Map.singleton k v
           liftIO $ atomically $ writeTVar watchVar $ Map.unions watch1
