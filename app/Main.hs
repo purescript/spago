@@ -56,13 +56,13 @@ data Command
   -- | Run the project with some module, default Main
   | Run (Maybe ModuleName) BuildOptions
 
-  -- | Bundle the project, with optional main and target path arguments
+  -- | Bundle the project into an executable
   --   Builds the project before bundling
-  | Bundle (Maybe ModuleName) (Maybe TargetPath) NoBuild BuildOptions
+  | BundleApp (Maybe ModuleName) (Maybe TargetPath) NoBuild BuildOptions
 
   -- | Bundle a module into a CommonJS module
   --   Builds the project before bundling
-  | MakeModule (Maybe ModuleName) (Maybe TargetPath) NoBuild BuildOptions
+  | BundleModule (Maybe ModuleName) (Maybe TargetPath) NoBuild BuildOptions
 
   -- | Upgrade the package-set to the latest release
   | PackageSetUpgrade
@@ -137,8 +137,8 @@ parser = do
       , repl
       , test
       , run
-      , bundle
-      , makeModule
+      , bundleApp
+      , bundleModule
       , docs
       ]
 
@@ -172,16 +172,16 @@ parser = do
       , Run <$> mainModule <*> buildOptions
       )
 
-    bundle =
-      ( "bundle"
-      , "Bundle the project, with optional main and target path arguments"
-      , Bundle <$> mainModule <*> toTarget <*> noBuild <*> buildOptions
+    bundleApp =
+      ( "bundle-app"
+      , "Bundle the project into an executable"
+      , BundleApp <$> mainModule <*> toTarget <*> noBuild <*> buildOptions
       )
 
-    makeModule =
-      ( "make-module"
-      , "Bundle a module into a CommonJS module"
-      , MakeModule <$> mainModule <*> toTarget <*> noBuild <*> buildOptions
+    bundleModule =
+      ( "bundle-module"
+      , "Bundle the project into a CommonJS module"
+      , BundleModule <$> mainModule <*> toTarget <*> noBuild <*> buildOptions
       )
 
     docs =
@@ -307,10 +307,10 @@ main = do
       Test modName buildOptions             -> Spago.Build.test modName buildOptions
       Run modName buildOptions              -> Spago.Build.run modName buildOptions
       Repl paths pursArgs                   -> Spago.Build.repl paths pursArgs
-      Bundle modName tPath shouldBuild buildOptions
-        -> Spago.Build.bundle WithMain modName tPath shouldBuild buildOptions
-      MakeModule modName tPath shouldBuild buildOptions
-        -> Spago.Build.makeModule modName tPath shouldBuild buildOptions
+      BundleApp modName tPath shouldBuild buildOptions
+        -> Spago.Build.bundleApp WithMain modName tPath shouldBuild buildOptions
+      BundleModule modName tPath shouldBuild buildOptions
+        -> Spago.Build.bundleModule modName tPath shouldBuild buildOptions
       Docs sourcePaths                      -> Spago.Build.docs sourcePaths
       Version                               -> printVersion
       PscPackageLocalSetup force            -> liftIO $ PscPackage.localSetup force

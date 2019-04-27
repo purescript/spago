@@ -149,11 +149,11 @@ expect_success(
 )
 
 
-## spago bundle
+## spago bundle-app
 
 shutil.rmtree("./output") ## Remove output to ensure bundle builds as well as bundles
 expect_success(
-    ['spago', 'bundle', '--to', 'bundle.js'],
+    ['spago', 'bundle-app', '--to', 'bundle.js'],
     "Spago should bundle successfully"
 )
 
@@ -162,13 +162,13 @@ check_fixture('bundle.js')
 
 
 
-## spago make-module
+## spago bundle-module
 
 # Now we don't remove the output folder, but we pass the `--no-build`
 # flag to skip rebuilding (i.e. we are counting on the previous command to
 # have built stuff for us)
 expect_success(
-    ['spago', 'make-module', '--to', 'module.js', '--no-build'],
+    ['spago', 'bundle-module', '--to', 'module.js', '--no-build'],
     "Spago should successfully make a module"
 )
 
