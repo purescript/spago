@@ -78,7 +78,7 @@ makePackageSetFile :: Bool -> IO ()
 makePackageSetFile force = do
   unless force $ do
     hasPackagesDhall <- testfile path
-    when hasPackagesDhall $ die $ Messages.foundExistingProject pathText
+    when hasPackagesDhall $ echo $ Messages.foundExistingProject pathText
   writeTextFile path Templates.packagesDhall
   Dhall.format pathText
 
