@@ -1,12 +1,6 @@
 resolver: lts-12.21
 packages:
 - .
-
-nix:
-  enable: true
-  packages:
-    - zlib
-
 extra-deps:
 - dhall-1.21.0
 - dhall-json-1.2.7
