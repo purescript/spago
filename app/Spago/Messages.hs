@@ -28,8 +28,7 @@ cannotFindPackagesButItsFine = makeMessage
 
 foundExistingProject :: Text -> Text
 foundExistingProject pathText = makeMessage
-  [ "Found " <> pathText <> ": it looks like there's already a project here."
-  , "Run `spago init --force` if you're sure you want to overwrite it."
+  [ "Found a " <> surroundQuote pathText <> " file, skipping copy. Run `spago init --force` if you wish to overwrite it."
   ]
 
 foundExistingDirectory :: Text -> Text
