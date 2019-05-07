@@ -2,20 +2,22 @@ module Main (main) where
 
 import           Spago.Prelude
 
-import qualified Data.Text          as Text
-import           Data.Version       (showVersion)
+import qualified Data.Text           as Text
+import           Data.Version        (showVersion)
 import qualified GHC.IO.Encoding
-import qualified Paths_spago        as Pcli
-import qualified System.Environment as Env
-import qualified Turtle             as CLI
+import qualified Options.Applicative as Opts
+import qualified Paths_spago         as Pcli
+import qualified System.Environment  as Env
+import qualified Turtle              as CLI
 
-import           Spago.Build        (BuildOptions (..), ExtraArg (..), ModuleName (..),
-                                     NoBuild (..), SourcePath (..), TargetPath (..), Watch (..),
-                                     WithMain (..))
+import           Spago.Build         (BuildOptions (..), ExtraArg (..), ModuleName (..),
+                                      NoBuild (..), SourcePath (..), TargetPath (..), Watch (..),
+                                      WithMain (..))
 import qualified Spago.Build
-import           Spago.Packages     (PackageName (..), PackagesFilter (..))
+import           Spago.Messages      as Messages
+import           Spago.Packages      (PackageName (..), PackagesFilter (..))
 import qualified Spago.Packages
-import qualified Spago.PscPackage   as PscPackage
+import qualified Spago.PscPackage    as PscPackage
 
 
 -- | Commands that this program handles
@@ -60,6 +62,7 @@ data Command
   --   Builds the project before bundling
   | BundleApp (Maybe ModuleName) (Maybe TargetPath) NoBuild BuildOptions
 
+
   -- | Bundle a module into a CommonJS module
   --   Builds the project before bundling
   | BundleModule (Maybe ModuleName) (Maybe TargetPath) NoBuild BuildOptions
@@ -95,10 +98,16 @@ data Command
   | Version
 
 
+  -- | Bundle the project into an executable (replaced by BundleApp)
+  | Bundle
+
+  -- | Bundle a module into a CommonJS module (replaced by BundleModule)
+  | MakeModule
+
 parser :: CLI.Parser (Command, GlobalOptions)
 parser = do
   opts <- globalOptions
-  command <- projectCommands <|> packageSetCommands <|> pscPackageCommands <|> otherCommands
+  command <- projectCommands <|> packageSetCommands <|> pscPackageCommands <|> otherCommands <|> oldCommands
   pure (command, opts)
   where
     force       = CLI.switch "force" 'f' "Overwrite any project found in the current directory"
@@ -280,6 +289,15 @@ parser = do
       )
 
 
+    oldCommands = Opts.subparser $ Opts.internal <> bundle <> makeModule
+
+    bundle =
+      Opts.command "bundle" $ Opts.info (Bundle <$ mainModule <* toTarget <* noBuild <* buildOptions) mempty
+
+    makeModule =
+      Opts.command "make-module" $ Opts.info (MakeModule <$ mainModule <* toTarget <* noBuild <* buildOptions) mempty
+
+
 main :: IO ()
 main = do
   -- We always want to run in UTF8 anyways
@@ -316,3 +334,5 @@ main = do
       PscPackageLocalSetup force            -> liftIO $ PscPackage.localSetup force
       PscPackageInsDhall                    -> liftIO $ PscPackage.insDhall
       PscPackageClean                       -> liftIO $ PscPackage.clean
+      Bundle                                -> die Messages.bundleCommandRenamed
+      MakeModule                            -> die Messages.makeModuleCommandRenamed
