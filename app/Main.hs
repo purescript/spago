@@ -124,7 +124,7 @@ parser = do
       pure $ case res of
         True  -> NoBuild
         False -> DoBuild
-    mainModule  = CLI.optional (CLI.opt (Just . ModuleName) "main" 'm' "The main module to bundle")
+    mainModule  = CLI.optional (CLI.opt (Just . ModuleName) "main" 'm' "Module to be used as the application's entry point")
     toTarget    = CLI.optional (CLI.opt (Just . TargetPath) "to" 't' "The target file path")
     limitJobs   = CLI.optional (CLI.optInt "jobs" 'j' "Limit the amount of jobs that can run concurrently")
     sourcePaths = CLI.many (CLI.opt (Just . SourcePath) "path" 'p' "Source path to include")
