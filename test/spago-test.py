@@ -151,28 +151,44 @@ expect_success(
 
 ## spago bundle
 
+expect_failure(
+    ['spago', 'bundle', '--to', 'bundle.js'],
+    "Spago should fail but should point to the replacement command",
+    "bundle-output.txt"
+)
+
+
+## spago bundle-app
+
 shutil.rmtree("./output") ## Remove output to ensure bundle builds as well as bundles
 expect_success(
-    ['spago', 'bundle', '--to', 'bundle.js'],
+    ['spago', 'bundle-app', '--to', 'bundle-app.js'],
     "Spago should bundle successfully"
 )
 
-check_fixture('bundle.js')
-
-
+check_fixture('bundle-app.js')
 
 
 ## spago make-module
+
+expect_failure(
+    ['spago', 'make-module', '--to', 'make-module.js'],
+    "Spago should fail but should point to the replacement command",
+    "make-module-output.txt"
+)
+
+
+## spago bundle-module
 
 # Now we don't remove the output folder, but we pass the `--no-build`
 # flag to skip rebuilding (i.e. we are counting on the previous command to
 # have built stuff for us)
 expect_success(
-    ['spago', 'make-module', '--to', 'module.js', '--no-build'],
+    ['spago', 'bundle-module', '--to', 'bundle-module.js', '--no-build'],
     "Spago should successfully make a module"
 )
 
-check_fixture('module.js')
+check_fixture('bundle-module.js')
 
 
 
@@ -181,8 +197,8 @@ check_fixture('module.js')
 ## Cleanup after tests
 
 expect_success(
-    ['rm', '-rf', '.spago', 'src', 'test', 'packages.dhall', 'spago.dhall', 'bundle.js',
-     'module.js', 'output', 'myOutput', 'another_source_path', 'psc-package.json',
+    ['rm', '-rf', '.spago', 'src', 'test', 'packages.dhall', 'spago.dhall', 'bundle-app.js',
+     'bundle-module.js', 'output', 'myOutput', 'another_source_path', 'psc-package.json',
      'spago-psc-success.dhall', 'spago-psc-failure.dhall', 'spago-install-success.dhall',
      'spago-install-failure.dhall'],
     "Cleanup should empty the project folder"

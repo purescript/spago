@@ -2,20 +2,22 @@ module Main (main) where
 
 import           Spago.Prelude
 
-import qualified Data.Text          as Text
-import           Data.Version       (showVersion)
+import qualified Data.Text           as Text
+import           Data.Version        (showVersion)
 import qualified GHC.IO.Encoding
-import qualified Paths_spago        as Pcli
-import qualified System.Environment as Env
-import qualified Turtle             as CLI
+import qualified Options.Applicative as Opts
+import qualified Paths_spago         as Pcli
+import qualified System.Environment  as Env
+import qualified Turtle              as CLI
 
-import           Spago.Build        (BuildOptions (..), ExtraArg (..), ModuleName (..),
-                                     NoBuild (..), SourcePath (..), TargetPath (..), Watch (..),
-                                     WithMain (..))
+import           Spago.Build         (BuildOptions (..), ExtraArg (..), ModuleName (..),
+                                      NoBuild (..), SourcePath (..), TargetPath (..), Watch (..),
+                                      WithMain (..))
 import qualified Spago.Build
-import           Spago.Packages     (PackageName (..), PackagesFilter (..))
+import           Spago.Messages      as Messages
+import           Spago.Packages      (PackageName (..), PackagesFilter (..))
 import qualified Spago.Packages
-import qualified Spago.PscPackage   as PscPackage
+import qualified Spago.PscPackage    as PscPackage
 
 
 -- | Commands that this program handles
@@ -56,13 +58,14 @@ data Command
   -- | Run the project with some module, default Main
   | Run (Maybe ModuleName) BuildOptions
 
-  -- | Bundle the project, with optional main and target path arguments
+  -- | Bundle the project into an executable
   --   Builds the project before bundling
-  | Bundle (Maybe ModuleName) (Maybe TargetPath) NoBuild BuildOptions
+  | BundleApp (Maybe ModuleName) (Maybe TargetPath) NoBuild BuildOptions
+
 
   -- | Bundle a module into a CommonJS module
   --   Builds the project before bundling
-  | MakeModule (Maybe ModuleName) (Maybe TargetPath) NoBuild BuildOptions
+  | BundleModule (Maybe ModuleName) (Maybe TargetPath) NoBuild BuildOptions
 
   -- | Upgrade the package-set to the latest release
   | PackageSetUpgrade
@@ -95,10 +98,16 @@ data Command
   | Version
 
 
+  -- | Bundle the project into an executable (replaced by BundleApp)
+  | Bundle
+
+  -- | Bundle a module into a CommonJS module (replaced by BundleModule)
+  | MakeModule
+
 parser :: CLI.Parser (Command, GlobalOptions)
 parser = do
   opts <- globalOptions
-  command <- projectCommands <|> packageSetCommands <|> pscPackageCommands <|> otherCommands
+  command <- projectCommands <|> packageSetCommands <|> pscPackageCommands <|> otherCommands <|> oldCommands
   pure (command, opts)
   where
     force       = CLI.switch "force" 'f' "Overwrite any project found in the current directory"
@@ -115,7 +124,7 @@ parser = do
       pure $ case res of
         True  -> NoBuild
         False -> DoBuild
-    mainModule  = CLI.optional (CLI.opt (Just . ModuleName) "main" 'm' "The main module to bundle")
+    mainModule  = CLI.optional (CLI.opt (Just . ModuleName) "main" 'm' "Module to be used as the application's entry point")
     toTarget    = CLI.optional (CLI.opt (Just . TargetPath) "to" 't' "The target file path")
     limitJobs   = CLI.optional (CLI.optInt "jobs" 'j' "Limit the amount of jobs that can run concurrently")
     sourcePaths = CLI.many (CLI.opt (Just . SourcePath) "path" 'p' "Source path to include")
@@ -137,8 +146,8 @@ parser = do
       , repl
       , test
       , run
-      , bundle
-      , makeModule
+      , bundleApp
+      , bundleModule
       , docs
       ]
 
@@ -172,16 +181,16 @@ parser = do
       , Run <$> mainModule <*> buildOptions
       )
 
-    bundle =
-      ( "bundle"
-      , "Bundle the project, with optional main and target path arguments"
-      , Bundle <$> mainModule <*> toTarget <*> noBuild <*> buildOptions
+    bundleApp =
+      ( "bundle-app"
+      , "Bundle the project into an executable"
+      , BundleApp <$> mainModule <*> toTarget <*> noBuild <*> buildOptions
       )
 
-    makeModule =
-      ( "make-module"
-      , "Bundle a module into a CommonJS module"
-      , MakeModule <$> mainModule <*> toTarget <*> noBuild <*> buildOptions
+    bundleModule =
+      ( "bundle-module"
+      , "Bundle the project into a CommonJS module"
+      , BundleModule <$> mainModule <*> toTarget <*> noBuild <*> buildOptions
       )
 
     docs =
@@ -280,6 +289,15 @@ parser = do
       )
 
 
+    oldCommands = Opts.subparser $ Opts.internal <> bundle <> makeModule
+
+    bundle =
+      Opts.command "bundle" $ Opts.info (Bundle <$ mainModule <* toTarget <* noBuild <* buildOptions) mempty
+
+    makeModule =
+      Opts.command "make-module" $ Opts.info (MakeModule <$ mainModule <* toTarget <* noBuild <* buildOptions) mempty
+
+
 main :: IO ()
 main = do
   -- We always want to run in UTF8 anyways
@@ -307,12 +325,14 @@ main = do
       Test modName buildOptions             -> Spago.Build.test modName buildOptions
       Run modName buildOptions              -> Spago.Build.run modName buildOptions
       Repl paths pursArgs                   -> Spago.Build.repl paths pursArgs
-      Bundle modName tPath shouldBuild buildOptions
-        -> Spago.Build.bundle WithMain modName tPath shouldBuild buildOptions
-      MakeModule modName tPath shouldBuild buildOptions
-        -> Spago.Build.makeModule modName tPath shouldBuild buildOptions
+      BundleApp modName tPath shouldBuild buildOptions
+        -> Spago.Build.bundleApp WithMain modName tPath shouldBuild buildOptions
+      BundleModule modName tPath shouldBuild buildOptions
+        -> Spago.Build.bundleModule modName tPath shouldBuild buildOptions
       Docs sourcePaths                      -> Spago.Build.docs sourcePaths
       Version                               -> printVersion
       PscPackageLocalSetup force            -> liftIO $ PscPackage.localSetup force
       PscPackageInsDhall                    -> liftIO $ PscPackage.insDhall
       PscPackageClean                       -> liftIO $ PscPackage.clean
+      Bundle                                -> die Messages.bundleCommandRenamed
+      MakeModule                            -> die Messages.makeModuleCommandRenamed
