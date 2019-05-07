@@ -1,4 +1,4 @@
-module Main (main) where
+module Spago (main) where
 
 import           Spago.Prelude
 
