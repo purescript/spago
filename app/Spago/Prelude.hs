@@ -11,6 +11,7 @@ module Spago.Prelude
   , Spago
   , module X
   , Typeable
+  , Proxy(..)
   , Text
   , NonEmpty (..)
   , Seq (..)
@@ -68,7 +69,7 @@ import           Data.Text                 (Text)
 import qualified Data.Text                 as Text
 import           Data.Text.Prettyprint.Doc (Pretty)
 import           Data.Traversable          (for)
-import           Data.Typeable             (Typeable)
+import           Data.Typeable             (Proxy (..), Typeable)
 import           GHC.Conc                  (atomically, newTVarIO, readTVar, readTVarIO, writeTVar)
 import           GHC.Generics              (Generic)
 import           Prelude                   as X hiding (FilePath)
