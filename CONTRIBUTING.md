@@ -13,7 +13,7 @@ and respect and do not harass or belittle others.
 ## What is the correct way to ask a question?
 
 It's ok to ask questions by [opening an issue][spago-issues]!  
-I (@f-f) am also on the [Functional Programming Slack][fp-slack], so you can also ask
+I ([@f-f][f-f]) am also on the [Functional Programming Slack][fp-slack], so you can also ask
 questions in the `#purescript` and `#purescript-beginners` channels.
 
 
@@ -72,7 +72,7 @@ Everyone with the "commit bit" can merge changes.
 
 ## How do I get the "commit bit"?
 
-Just ask!  I (@f-f) hand out the commit bit freely to anybody who
+Just ask!  I ([@f-f][f-f]) hand out the commit bit freely to anybody who
 displays sustained interest in the project, sometimes even if they don't ask.
 However, you shouldn't assume that you are undeserving if I haven't given you
 the commit bit.  I might just be busy or forgetful, so I appreciate a helpful
@@ -83,6 +83,7 @@ I hand out the commit bit freely because mistakes are easy to fix or roll back.
 Learn by doing and get your hands dirty!
 
 
+[f-f]: https://github.com/f-f
 [stack]: http://haskellstack.org/
 [fp-slack]: https://fpchat-invite.herokuapp.com/
 [spago-issues]: https://github.com/spacchetti/spago/issues
