@@ -681,3 +681,7 @@ So make sure `build` works first. If you still get a failure you might be encoun
 [spago-issues]: https://github.com/spacchetti/spago/issues
 [dhall-hash-safety]: https://github.com/dhall-lang/dhall-lang/wiki/Safety-guarantees#code-injection
 [spago-latest-release]: https://github.com/spacchetti/spago/releases/latest
+
+#### I getting a 'Host Not Found' error running `spago install` or `spago build` in ubuntu
+
+If you get networking errors in ubuntu you may need to install the `netbase` package with `apt install netbase`. For more details see [this issue](https://github.com/spacchetti/spago/issues/196).
