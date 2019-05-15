@@ -518,6 +518,12 @@ $ spago docs
 This will generate all the documentation in the `./generated-docs` folder of your project.
 You might then want to open the `index.html` file in there.
 
+
+## Developing and contributing to Spago
+
+See the [`CONTRIBUTING.md`][contributing]
+
+
 ## FAQ
 
 #### Hey wait we have a perfectly functional `pulp` right?
@@ -676,6 +682,7 @@ So make sure `build` works first. If you still get a failure you might be encoun
 [spago-nix]: https://github.com/justinwoo/easy-purescript-nix/blob/master/spago.nix
 [purescript]: https://github.com/purescript/purescript
 [psc-package]: https://github.com/purescript/psc-package
+[contributing]: CONTRIBUTING.md
 [package-sets]: https://github.com/purescript/package-sets
 [travis-spago]: https://travis-ci.com/spacchetti/spago
 [spago-issues]: https://github.com/spacchetti/spago/issues
