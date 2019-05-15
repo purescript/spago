@@ -94,7 +94,7 @@ either `bower` or `psc-package`:
 
 ## Developing and contributing
 
-We'd love your help, and welcome PRs and contributions.
+We'd love your help, and welcome PRs and contributions!
 
 Some ideas for getting started:
 - [Build and run `spago`](CONTRIBUTING.md#developing-spago)
@@ -130,7 +130,7 @@ Other installation methods available:
 **Notes for Ubuntu users:**
 - If you get networking errors (e.g. "Host Not Found") you may need to install `netbase`.
   For more details see [this issue][ubuntu-issue-netbase].
-- If you encounnter issues with `libtinfo.so.5`, see [this issue][ubuntu-issues-libtinfo] for a fix.
+- If you encounnter issues with `libtinfo.so.5`, see [this issue][ubuntu-issue-libtinfo] for a fix.
 
 **Notes for NixOS users**: as you might expect, the `npm` installation won't work because it's
 dinamically linked. Use [easy-purescript-nix][spago-nix].
@@ -250,7 +250,7 @@ This will download all the transitive dependencies of your project (i.e. the dir
 i.e. the ones listed in the `dependencies` key of `spago.dhall`, plus all their dependencies, 
 recursively) to the local `.spago` folder (and the global cache, if possible).
 
-However, running this directly is **not necessary**, as all commands that need the dependencies
+However, running this directly is usually **not necessary**, as all commands that need the dependencies
 to be installed will run this for you.
 
 ### Build and run my project
@@ -642,6 +642,13 @@ $ node -e "console.log(require('./index).main)"
 [Function]
 ```
 
+#### Skipping the Build Step
+
+When running `spago bundle-app` and `spago bundle-module` the `build` step will also execute
+since bundling depends on building first.
+
+To skip this build you can add the `--no-build` flag.
+
 
 ### Make a project with PureScript + JavaScript
 
@@ -669,33 +676,6 @@ This generally consists of two separate build steps:
     PureScriptMain.somemethod();
     ```
   - the above example project uses `parcel`, but you can use `webpack`, `browserify`, etc.
-
-
-#### 3. `spago build` + whatever JS bundler
-
-This is the case in which you have JS dependencies, and you need some other JS-specific tool
-to bundle them in (i.e. this is about resolving the `require`s in your JS code)
-
-In this case the flow might look like this:
-
-```bash
-# This will compile the PS to JS, and put the results in very many files in ./output
-# Note: this _doesn't_ resolve the `require`s in the JS code
-$ spago build
-
-# Here any bundler is fine: parcel, webpack, browserify, etc
-# Note: here the index.html is an example value, you should put the entrypoint here
-$ parcel build index.html
-```
-
-More information about this can be found at [this FAQ entry](#so-if-i-use-spago-bundle-module-this-thing-will-compile-all-my-js-deps-in-the-file).
-
-##### Skipping the Build Step
-
-When running `spago bundle-app` and `spago bundle-module` the `build` step will also execute
-since bundling depends on building first.
-
-To skip this build you can add the `--no-build` flag.
 
 
 ### Generate documentation for my project
@@ -730,6 +710,8 @@ that packages in it:
 - use `pulp publish` (so that's it's available on the Bower registry and on [Pursuit][pursuit])
 
 All of this will be automated in future versions.
+
+A library published in this way is [purescript-rave](https://github.com/reactormonk/purescript-rave).
 
 ### Use this together with `psc-package`
 
