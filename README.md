@@ -103,7 +103,7 @@ Let's take a look at the two [Dhall][dhall] configuration files that `spago` req
   available to your project (that is, any package you might want to import).  
   In practical terms, it pulls in the [official package-set][package-sets] as a base,
   and you are then able to add any package that might not be in the package set,
-  or override esisting ones.
+  or override existing ones.
 - `spago.dhall`: this is your project configuration. It includes the above package-set,
   the list of your dependencies, and any other project-wide setting that `spago` will
   use for builds.
@@ -522,7 +522,7 @@ You might then want to open the `index.html` file in there.
 
 #### Hey wait we have a perfectly functional `pulp` right?
 
-Yees, however:
+Yes, however:
 - `pulp` is a build tool, so you'll still have to use it with `bower` or `psc-package`.
 - If you go for `bower`, you're missing out on package-sets (that is: packages versions
   that are known to be working together, saving you the headache of fitting package
@@ -542,7 +542,7 @@ for details on how to add or replace packages with local ones.
 #### I added a new package to the `packages.dhall`, but `spago` is not installing it. Why?
 
 Adding a package to the package-set just includes it in the set of possible packages you
-can depend on. However if you wish `spago` to install it you should then add it to
+can depend on. However, if you wish `spago` to install it you should then add it to
 the `dependencies` list in your `spago.dhall`.
 
 #### So if I use `spago bundle-module` this thing will compile all my js deps in the file?
@@ -681,3 +681,7 @@ So make sure `build` works first. If you still get a failure you might be encoun
 [spago-issues]: https://github.com/spacchetti/spago/issues
 [dhall-hash-safety]: https://github.com/dhall-lang/dhall-lang/wiki/Safety-guarantees#code-injection
 [spago-latest-release]: https://github.com/spacchetti/spago/releases/latest
+
+#### I getting a 'Host Not Found' error running `spago install` or `spago build` in ubuntu
+
+If you get networking errors in ubuntu you may need to install the `netbase` package with `apt install netbase`. For more details see [this issue](https://github.com/spacchetti/spago/issues/196).
