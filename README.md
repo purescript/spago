@@ -94,7 +94,15 @@ either `bower` or `psc-package`:
 
 ## Developing and contributing
 
-See the [`CONTRIBUTING.md`][contributing]
+We'd love your help, and welcome PRs and contributions.
+
+Some ideas for getting started:
+- [Build and run `spago`](CONTRIBUTING.md#developing-spago)
+- [Help us fix bugs and build features](https://github.com/spacchetti/spago/issues?utf8=%E2%9C%93&q=is%3Aissue+is%3Aopen+label%3A%22help+wanted%22+label%3A%22defect%22)
+- Help us improve our documentation
+- Help us [log bugs and open issues][new-issue]
+
+For more details see the [`CONTRIBUTING.md`][contributing]
 
 
 ## Installation
@@ -475,10 +483,7 @@ let additions =
 
 ### `bower link`
 
-See the section above for details on how to add or replace packages with local ones.
-
-TODO
-
+See how to [add local packages](#add-a-package-to-the-package-set) or [override existing ones](#override-a-package-in-the-package-set-with-a-local-one)
 
 
 ### Verify that an addition/override doesn't break the package set
@@ -831,7 +836,7 @@ packages, you should run the appropriate package-manager for that (e.g. npm).
 For examples on how to do it, see the previous FAQ entry. TODO
 
 
-#### Why we don't resolve JS dependencies when bundling, and how to do it
+### Why we don't resolve JS dependencies when bundling, and how to do it
 
 `spago` only takes care of PureScript land. In particular, `bundle-module` will do the
 most we can do on the PureScript side of things (dead code elimination), but will
@@ -930,6 +935,7 @@ TODO
 [todomvc]: https://github.com/f-f/purescript-react-basic-todomvc
 [affresco]: https://github.com/KSF-Media/affresco/tree/4b430b48059701a544dfb65b2ade07ef9f36328a
 [spago-npm]: https://www.npmjs.com/package/spago
+[new-issue]: https://github.com/spacchetti/spago/issues/new
 [spago-nix]: https://github.com/justinwoo/easy-purescript-nix/blob/master/spago.nix
 [purescript]: https://github.com/purescript/purescript
 [psc-package]: https://github.com/purescript/psc-package
