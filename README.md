@@ -70,7 +70,7 @@ Our main design goals are:
   on actually writing the software.
 - **Minimal dependencies**: users should not be expected to install a myriad of tools on their
   system to support various workflows. We depend only on `git` and `purs` being installed.
-- **Reproducible builds**: thanks to [package sets](TODOlink) and [Dhall][dhall], if your
+- **Reproducible builds**: thanks to [package sets][package-sets] and [Dhall][dhall], if your
   project builds today it will also build tomorrow and every day after that.
 
 Some tools that inspired `spago` are: [Rust's Cargo][cargo], [Haskell's Stack][stack], 
