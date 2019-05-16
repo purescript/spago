@@ -7,12 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8.0] - 2019-05-16
+
+Breaking changes:
+- Rename "bundle" to "bundle-app" and "make-module" to "bundle-module" for consistency (#175, #147)
+
 Bugfixes:
 - Don't fail `init` if a `packages.dhall` is already there, as it's the case of psc-package projects with local spacchetti (#180)
 
 Other improvements:
 - Remove CI check for package-sets version, add cron script to update it instead (#185)
 - Fill in CHANGELOG from release notes (#186)
+- Fix LICENSE file so GitHub recognizes it (#197)
+- Add a CONTRIBUTING file (#198, #189)
+- Improve README (#199, #194, #196, #201, #193, #192, #187, #178, #191, #150, #142)
 
 ## [0.7.7] - 2019-04-28
 
