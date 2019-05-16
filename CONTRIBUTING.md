@@ -25,10 +25,12 @@ If it's your first time contributing then it's probably best to pick the ones ma
 with "good first issue".
 
 The easiest way you can help is by contributing documentation (look for issues with
-the label "document me").  
+the label "document me").
+
 Do not worry if it's just about copypasting some instructions from an issue to the README,
 everything is welcome!
 
+If you wish to contribute documentation, [this is a suggested read](https://www.divio.com/blog/documentation/)
 
 ## Developing `spago`
 
@@ -46,6 +48,11 @@ To install the version you're developing system-wide, do
 $ stack install
 ```
 
+If you edit any title in the readme, run `doctoc` to update the Table of Contents:
+
+```bash
+doctoc --notitle README.md
+```
 
 ## Running tests
 

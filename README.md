@@ -16,62 +16,130 @@ PureScript package manager and build tool powered by [Dhall][dhall] and
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 
 
-- [What does all of this mean?](#what-does-all-of-this-mean)
+- [Design goals and reasons](#design-goals-and-reasons)
+  - [Brief survey of other package managers and build tools available](#brief-survey-of-other-package-managers-and-build-tools-available)
+- [Developing and contributing](#developing-and-contributing)
 - [Installation](#installation)
-- [Quickstart](#quickstart)
-  - [Switching from `psc-package`](#switching-from-psc-package)
-  - [Configuration file format](#configuration-file-format)
-- [Commands](#commands)
-  - [Package management](#package-management)
-    - [Listing available packages](#listing-available-packages)
-    - [Adding a dependency](#adding-a-dependency)
-    - [Adding and overriding dependencies in the Package Set](#adding-and-overriding-dependencies-in-the-package-set)
-    - [Verifying your additions and overrides](#verifying-your-additions-and-overrides)
-    - [Upgrading the Package Set](#upgrading-the-package-set)
-    - [Caching the Package Set](#caching-the-package-set)
-  - [Building and testing a project](#building-and-testing-a-project)
-  - [Bundling a project into a single JS file](#bundling-a-project-into-a-single-js-file)
+- [Super quick tutorial](#super-quick-tutorial)
+- [How do I...](#how-do-i)
+  - [Switch from `psc-package`](#switch-from-psc-package)
+  - [See what commands and flags are supported](#see-what-commands-and-flags-are-supported)
+  - [Download my dependencies locally](#download-my-dependencies-locally)
+  - [Build and run my project](#build-and-run-my-project)
+  - [Test my project](#test-my-project)
+  - [Run a repl](#run-a-repl)
+  - [List available packages](#list-available-packages)
+  - [Add a direct dependency](#add-a-direct-dependency)
+  - [Override a package in the package set with a local one](#override-a-package-in-the-package-set-with-a-local-one)
+  - [Override a package in the package set with a remote one](#override-a-package-in-the-package-set-with-a-remote-one)
+  - [Add a package to the package set](#add-a-package-to-the-package-set)
+  - [`bower link`](#bower-link)
+  - [Verify that an addition/override doesn't break the package set](#verify-that-an-additionoverride-doesnt-break-the-package-set)
+  - [Automagically upgrade the package set](#automagically-upgrade-the-package-set)
+  - [Separate `devDependencies` or test dependencies](#separate-devdependencies-or-test-dependencies)
+  - [Bundle a project into a single JS file](#bundle-a-project-into-a-single-js-file)
     - [1. `spago bundle-app`](#1-spago-bundle-app)
     - [2. `spago bundle-module`](#2-spago-bundle-module)
-    - [3. `spago build` + whatever JS bundler](#3-spago-build--whatever-js-bundler)
-  - [Documentation](#documentation)
-- [FAQ](#faq)
-    - [Hey wait we have a perfectly functional `pulp` right?](#hey-wait-we-have-a-perfectly-functional-pulp-right)
-    - [I miss `bower link`!](#i-miss-bower-link)
-    - [I added a new package to the `packages.dhall`, but `spago` is not installing it. Why?](#i-added-a-new-package-to-the-packagesdhall-but-spago-is-not-installing-it-why)
-    - [So if I use `spago bundle-module` this thing will compile all my js deps in the file?](#so-if-i-use-spago-bundle-module-this-thing-will-compile-all-my-js-deps-in-the-file)
-    - [Why can't `spago` also install my npm dependencies?](#why-cant-spago-also-install-my-npm-dependencies)
-    - [I still want to use `psc-package`, can this help me in some way?](#i-still-want-to-use-psc-package-can-this-help-me-in-some-way)
-    - [I'm getting weird errors about `libtinfo.so.5`..](#im-getting-weird-errors-about-libtinfoso5)
+    - [Skipping the Build Step](#skipping-the-build-step)
+  - [Make a project with PureScript + JavaScript](#make-a-project-with-purescript--javascript)
+  - [Generate documentation for my project](#generate-documentation-for-my-project)
+  - [Publish my library](#publish-my-library)
+  - [Use this together with `psc-package`](#use-this-together-with-psc-package)
+  - [Get all the licenses of my dependencies](#get-all-the-licenses-of-my-dependencies)
+  - [Know what `purs` commands are run under the hood](#know-what-purs-commands-are-run-under-the-hood)
+- [Explanations](#explanations)
+  - [Configuration file format](#configuration-file-format)
+  - [Why can't `spago` also install my npm dependencies?](#why-cant-spago-also-install-my-npm-dependencies)
+  - [Why we don't resolve JS dependencies when bundling, and how to do it](#why-we-dont-resolve-js-dependencies-when-bundling-and-how-to-do-it)
+- [Troubleshooting](#troubleshooting)
     - [I added a git repo URL to my overrides, but `spago` thinks it's a local path 🤔](#i-added-a-git-repo-url-to-my-overrides-but-spago-thinks-its-a-local-path-)
     - [My `install` command is failing with some errors about "too many open files"](#my-install-command-is-failing-with-some-errors-about-too-many-open-files)
-    - [The `bundle`/`test`/`run`/etc commands don't work, what do I do?](#the-bundletestrunetc-commands-dont-work-what-do-i-do)
+    - [Package set caching problems](#package-set-caching-problems)
+    - [I added a new package to the `packages.dhall`, but `spago` is not installing it. Why?](#i-added-a-new-package-to-the-packagesdhall-but-spago-is-not-installing-it-why)
+- [Reference - Internals](#reference---internals)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
-## What does all of this mean?
 
-`spago` aims to tie together the UX of developing a PureScript project.  
-In this Pursuit (see what I did there) it is heavily inspired by [Rust's Cargo][cargo]
-and [Haskell's Stack][stack], and builds on top of ideas from existing PureScript
-infrastructure and tooling, as [`psc-package`][psc-package], [`pulp`][pulp] and
-[`purp`][purp].
+## Design goals and reasons
+
+Our main design goals are:
+- **Great UX**: you're not supposed to spend your life configuring the build for your project.
+  A good build system just does what's most expected and gets out of the way so you can focus
+  on actually writing the software.
+- **Minimal dependencies**: users should not be expected to install a myriad of tools on their
+  system to support various workflows. We depend only on `git` and `purs` being installed.
+- **Reproducible builds**: thanks to [package sets][package-sets] and [Dhall][dhall], if your
+  project builds today it will also build tomorrow and every day after that.
+
+Some tools that inspired `spago` are: [Rust's Cargo][cargo], [Haskell's Stack][stack], 
+[`psc-package`][psc-package], [`pulp`][pulp] and [`purp`][purp].
+
+
+### Brief survey of other package managers and build tools available
+
+`pulp` is excellent, but it is only a build tool. This means that you'll have to use it with
+either `bower` or `psc-package`:
+- If you go for `bower`, you're missing out on package-sets (that is: packages versions
+  that are known to be working together, saving you the headache of fitting package
+  versions together all the time).
+- If you use `psc-package`, you have the problem of not having the ability of overriding
+  packages versions when needed, leading everyone to make their own package-set, which
+  then goes unmaintained, etc.
+  
+  Of course you can use the package-set-local-setup to solve this issue, but this is
+  exactly what we're doing here: integrating all the workflow in a single tool, `spago`,
+  instead of having to install and use `pulp`, `psc-package`, `purp`, etc.
+
+
+## Developing and contributing
+
+We'd love your help, and welcome PRs and contributions!
+
+Some ideas for getting started:
+- [Build and run `spago`](CONTRIBUTING.md#developing-spago)
+- [Help us fix bugs and build features](https://github.com/spacchetti/spago/issues?utf8=%E2%9C%93&q=is%3Aissue+is%3Aopen+label%3A%22help+wanted%22+label%3A%22defect%22)
+- Help us improve our documentation
+- Help us [log bugs and open issues][new-issue]
+
+For more details see the [`CONTRIBUTING.md`][contributing]
+
 
 ## Installation
 
-> Right, so how can I get this thing?
+The recommended installation method for Windows, Linux and macOS is `npm` (see the latest releases on npm
+  [here][spago-npm]):
+  
+```
+npm install -g spago
+``` 
 
-The recommended installation methods for Windows, Linux or macOS are:
-- `npm install -g spago` (see the latest releases on npm
-  [here][spago-npm])
+Other installation methods available:
 - Download the binary from the [latest GitHub release][spago-latest-release]
 - Compile from source by cloning this repo and running `stack install`
 - With Nix, using [easy-purescript-nix][spago-nix]
 
-**Note:** we assume you already installed the [PureScript compiler][purescript].
-If not, get it with `npm install -g purescript`, or the recommended method for your OS.
+**General notes:**
+- The assumption is that you already installed the [PureScript compiler][purescript].
+  If not, get it with `npm install -g purescript`, or the recommended method for your OS.
+- You might have issues with `npm` and Docker (e.g. getting the message "This is a stub that will be replaced.." etc)
+  You have two options:
+  - either **do not run npm as root**, because it doesn't work well with binaries. Use it as a nonprivileged user.
+  - or use `--unsafe-perm`: `npm install -g --unsafe-perm spago` 
 
-## Quickstart
+**Notes for Ubuntu users:**
+- If you get networking errors (e.g. "Host Not Found") you may need to install `netbase`.
+  For more details see [this issue][ubuntu-issue-netbase].
+- If you encounnter issues with `libtinfo.so.5`, see [this issue][ubuntu-issue-libtinfo] for a fix.
+
+**Notes for NixOS users**: as you might expect, the `npm` installation won't work because it's
+dinamically linked. Use [easy-purescript-nix][spago-nix].
+
+**Notes for Windows users:** if you are installing with `yarn` on Windows, things might not
+work and you want to instead use `npm`. See [this issue][windows-issue-yarn] for details.
+
+
+## Super quick tutorial
 
 Let's set up a new project!
 
@@ -94,21 +162,52 @@ This last command will create a bunch of files:
 ```
 
 Convention note: `spago` expects your source files to be in `src/` and your
-test files in `test/`.  
+test files in `test/`.
 It is possible to include additional source paths when running some commands,
 like `build`, `test` or `repl`.
 
 Let's take a look at the two [Dhall][dhall] configuration files that `spago` requires:
 - `packages.dhall`: this file is meant to contain the *totality* of the packages
-  available to your project (that is, any package you might want to import).  
-  In practical terms, it pulls in the [official package-set][package-sets] as a base,
+  available to your project (that is, any package you might want to import).
+  
+  In practice it pulls in the [official package-set][package-sets] as a base,
   and you are then able to add any package that might not be in the package set,
   or override existing ones.
 - `spago.dhall`: this is your project configuration. It includes the above package-set,
   the list of your dependencies, and any other project-wide setting that `spago` will
   use for builds.
 
-### Switching from `psc-package`
+To build your project, run:
+
+```bash
+$ spago build
+```
+
+This will download the necessary dependencies and compile the sample project in the `output/`
+directory. You can take a look at the content of `output/Main/index.js` to see what kind
+of JavaScript has been generated from your new `Main.purs` file.
+
+You can already see your project running, with the following command:
+
+```bash
+$ node -e "require('./output/Main/index').main()"
+```
+
+This imports the JS file you just looked at in Node, and runs the `main`.
+
+You can also bundle it in a single file with an entry point, so it can be run directly (useful for CLI apps):
+
+```bash
+$ spago bundle-app
+$ node .
+```
+
+
+## How do I...
+
+This section contains a collection of workflows you might want to use to get things done with `spago`
+
+### Switch from `psc-package`
 
 Do you have an existing `psc-package` project and want to switch to `spago`?
 
@@ -121,37 +220,8 @@ remove it yourself.
 You'll note that most of the `psc-package` commands are the same in `spago`, so porting
 your existing build is just a matter of search-and-replace most of the times.
 
-### Configuration file format
 
-It's indeed useful to know what's the format (or more precisely, the [Dhall][dhall]
-type) of the files that `spago` expects. Let's define them in Dhall:
-
-```haskell
--- The basic building block is a Package:
-let Package =
-  { dependencies : List Text  -- the list of dependencies of the Package
-  , repo = Text               -- the address of the git repo the Package is at
-  , version = Text            -- git tag
-  }
-
--- The type of `packages.dhall` is a Record from a PackageName to a Package
--- We're kind of stretching Dhall syntax here when defining this, but let's
--- say that its type is something like this:
-let PackageSet =
-  { console : Package
-  , effect : Package
-  ...                  -- and so on, for all the packages in the package-set
-  }
-
--- The type of the `spago.dhall` configuration is then the following:
-let Config =
-  { name : Text               -- the name of our project
-  , dependencies : List Text  -- the list of dependencies of our app
-  , packages : PackageSet     -- this is the type we just defined above
-  }
-```
-
-## Commands
+### See what commands and flags are supported
 
 For an overview of the available commands, run:
 
@@ -169,21 +239,95 @@ $ spago build --help
 This will give a detailed view of the command, and list any command-specific
 (vs global) flags.
 
-### Package management
 
-We initialized a project and saw how to configure dependencies and packages, the
-next step is fetching its dependencies.
-
-If we run:
+### Download my dependencies locally
 
 ```bash
 $ spago install
 ```
 
-..then `spago` will download all the `dependencies` listed in `spago.dhall` (and
-store them in the `.spago` folder).
+This will download all the transitive dependencies of your project (i.e. the direct dependencies,
+i.e. the ones listed in the `dependencies` key of `spago.dhall`, plus all their dependencies, 
+recursively) to the local `.spago` folder (and the global cache, if possible).
 
-#### Listing available packages
+However, running this directly is usually **not necessary**, as all commands that need the dependencies
+to be installed will run this for you.
+
+### Build and run my project
+
+We can build the project and its dependencies by running:
+
+```bash
+$ spago build
+```
+
+This is just a thin layer above the PureScript compiler command `purs compile`.
+
+The build will produce very many JavaScript files in the `output/` folder. These
+are CommonJS modules, and you can just `require()` them e.g. on Node.
+
+It's also possible to include custom source paths when building (`src` and `test` 
+are always included):
+
+```bash
+$ spago build --path 'another_source/**/*.purs'
+
+```
+
+**Note**: the wrapper on the compiler is so thin that you can pass options to `purs`.
+E.g. if you wish to output your files in some other place than `output/`, you can run
+
+```bash
+$ spago build -- -o myOutput/
+```
+
+If you wish to automatically have your project rebuilt when making changes to source files
+you can use the `--watch` flag:
+
+```bash
+$ spago build --watch
+```
+
+If you want to run the program (akin to `pulp run`), just use `run`:
+```bash
+# The main module defaults to "Main"
+$ spago run
+
+# Or define your own module path to Main
+$ spago run --main ModulePath.To.Main
+
+# And pass arguments through to `purs compile`
+$ spago run --main ModulePath.To.Main -- --verbose-errors
+```
+
+
+### Test my project
+
+You can also test your project with `spago`:
+
+```bash
+# Test.Main is the default here, but you can override it as usual
+$ spago test --main Test.Main
+Build succeeded.
+You should add some tests.
+Tests succeeded.
+```
+
+
+### Run a repl
+
+As with the `build` and `test` commands, you can add custom source paths
+to load, and pass options to the underlying `purs repl` by just putting
+them after `--`.
+
+E.g. the following opens a repl on `localhost:3200`:
+
+```bash
+$ spago repl -- --port 3200
+```
+
+
+### List available packages
 
 It is sometimes useful to know which packages are contained in our package set
 (e.g. to see which version we're using, or to search for packages).
@@ -205,22 +349,30 @@ $ spago list-packages --filter=direct
 $ spago list-packages -f transitive
 ```
 
-#### Adding a dependency
 
-You can add dependencies from your package-set by running:
+### Add a direct dependency
+
+You can add dependencies that are available in your package set by running:
 
 ```bash
-$ spago install my-new-package another-package
+# E.g. installing Halogen
+$ spago install halogen
+
+# This also supports multiple packages
+$ spago install foreign simple-json
 ```
 
-#### Adding and overriding dependencies in the Package Set
+
+### Override a package in the package set with a local one
 
 Let's say I'm a user of the `simple-json` package. Now, let's say I stumble upon a bug
-in there, but thankfully I figure how to fix it. So I clone it locally and add my fix.  
+in there, but thankfully I figure how to fix it. So I clone it locally and add my fix.
+
 Now if I want to test this version in my current project, how can I tell `spago` to do it?
 
-We have a `overrides` record in `packages.dhall` just for that!  
-And in this case we override the `repo` key with the local path of the package.  
+We have a `overrides` record in `packages.dhall` just for that!
+
+In this case we override the `repo` key with the local path of the package.
 It might look like this:
 
 ```haskell
@@ -231,6 +383,7 @@ let overrides =
 ```
 
 Note that if we `list-packages`, we'll see that it is now included as a local package:
+
 ```bash
 $ spago list-packages
 ...
@@ -257,7 +410,11 @@ Installing "enums"
 ...
 ```
 
-Let's now say that we test that our fix works, and we are ready to Pull Request the fix.  
+
+### Override a package in the package set with a remote one
+
+Let's now say that we test that our fix works, and we are ready to Pull Request the fix.
+
 So we push our fork and open the PR, but while we wait for the fix to land on the next
 package-set release, we still want to use the fix in our production build.
 
@@ -276,11 +433,15 @@ let overrides =
 
 **Note**: currently only "branches" and "tags" work as a `version`, and tags are
 recommended over branches (as for example if you push new commits to a branch,
-`spago` won't pick them up unless you delete the `.spago` folder).  
+`spago` won't pick them up unless you delete the `.spago` folder).
 Commit hashes are not supported yet, but hopefully will be at some point.
 
+
+### Add a package to the package set
+
 If a package is not in the upstream package-set, you can add it in a similar way,
-by changing the `additions` record in the `packages.dhall` file.  
+by changing the `additions` record in the `packages.dhall` file.
+
 E.g. if we want to add the `facebook` package:
 
 ```haskell
@@ -322,9 +483,15 @@ let additions =
   }
 ```
 
-#### Verifying your additions and overrides
 
-"But wait", you might say, "how do I know that my override doesn't break the package-set?"
+### `bower link`
+
+See how to [add local packages](#add-a-package-to-the-package-set) or [override existing ones](#override-a-package-in-the-package-set-with-a-local-one)
+
+
+### Verify that an addition/override doesn't break the package set
+
+"But wait", you might say, "how do I know that my override doesn't break the package set?"
 
 This is a fair question, and you can verify that your fix didn't break the rest of the
 package-set by running the `verify` command.
@@ -340,7 +507,10 @@ $ spago verify foreign
 Once you check that the packages you added verify correctly, we would of course very much love
 if you could pull request it to the [Upstream package-set][package-sets] ❤️
 
-#### Upgrading the Package Set
+If you decide so, you can read up on how to do it [here][package-sets-contributing].
+
+
+### Automagically upgrade the package set
 
 The version of the package-set you depend on is fixed in the `packages.dhall` file
 (look for the `upstream` var).
@@ -360,97 +530,90 @@ Done. Updating the local package-set file..
 ```
 
 If you wish to detach from tags for your package-set, you can of course point it to a
-specific commit.  
-Just set your `upstream` to look something like this:
+specific commit. Just set your `upstream` to look something like this:
 
 ```haskell
 let upstream =
       https://github.com/purescript/package-sets/blob/81354f2ea1ac9493eb05dfbd43adc6d183bc4ecd/src/packages.dhall
 ```
 
-#### Caching the Package Set
 
-If you encounter any issues with the hashes for the package-set (e.g. the hash is not deemed
-correct by `spago`), then you can have the hashes recomputed by running the `freeze` command:
+### Separate `devDependencies` or test dependencies
 
-```bash
-$ spago freeze
-```
+`spago` aims to support monorepos. This means that supporting "split" dependencies between tests
+and apps or just for dev can be handled as a "monorepo situation".
 
-However, this is a pretty rare situation and in principle it should not happen, and when
-it happens it might not be secure to run the above command.  
-To understand all the implications of this I'd invite you to read about
-[the safety guarantees][dhall-hash-safety] that Dhall offers.
+So for example if you wish to separate dependencies for some `app` and `lib` you're working on,
+you can handle it by having multiple `spago.dhall` config files for the lib and the executable.
 
-### Building and testing a project
-
-We can build the project and its dependencies by running:
-
-```bash
-$ spago build
-```
-
-This is just a thin layer above the PureScript compiler command `purs compile`.  
-The build will produce very many JavaScript files in the `output/` folder. These
-are CommonJS modules, and you can just `require()` them e.g. on Node.
-
-It's also possible to include custom source paths when building (`src` and `test` are always included):
-
-```bash
-$ spago build --path 'another_source/**/*.purs'
+E.g. let's say you have the following tree:
 
 ```
-
-**Note**: the wrapper on the compiler is so thin that you can pass options to `purs`.
-E.g. if you wish to output your files in some other place than `output/`, you can run
-
-```bash
-$ spago build -- -o myOutput/
+.
+├── app
+│   ├── spago.dhall
+│   ├── src
+│   │   └── Main.purs
+│   └── test
+│       └── Main.purs
+├── lib
+│   ├── spago.dhall
+│   ├── src
+│   │   └── Main.purs
+│   └── test
+│       └── Main.purs
+└── packages.dhall
 ```
 
-If you wish to automatically have your project rebuilt when making changes to source files
-you can use the `--watch` flag:
+Then:
+- the top level `packages.dhall` is standard and contains the link to the upstream and project-level overrides, etc
+- `lib/spago.dhall` might look something like this:
 
-```bash
-$ spago build --watch
+```hs
+{ name =
+    "my-lib"
+, dependencies =
+    [ "effect"
+    , "console"
+    , "psci-support"
+    , "prelude"
+    ]
+, packages =
+    ../packages.dhall   -- Note: this refers to the top-level packages file
+}
 ```
 
-If you want to run the program (akin to `pulp run`), just use `run`:
-```bash
-# The main module defaults to "Main"
-$ spago run
+- `app/spago.dhall` might look something like this:
 
-# Or define your own module path to Main
-$ spago run --main ModulePath.To.Main
-
-# And pass arguments through to `purs compile`
-$ spago run --main ModulePath.To.Main -- --verbose-errors
+```hs
+{ name =
+    "my-app"
+, dependencies =
+    -- Note: the app does not include all the dependencies that the lib included
+    [ "prelude"
+    , "simple-json" -- Note: this dep was not used by the library, only the executable uses it
+    , "my-lib"      -- Note: we add the library as dependency
+    ]
+, packages =
+    -- We refer to the top-level packages file here too, so deps stay in sync
+    -- and we also add the library as a local package
+    (../packages.dhall) //
+    { my-lib =
+        { repo = "../my-lib"
+        , version = ""
+        , dependencies = (../my-lib/spago.dhall).dependencies
+        }
+    }
+}
 ```
 
-You can also test your project with `spago`:
+With this setup you're able to decouple dependencies in the library and in the executables.
 
-```bash
-# Test.Main is the default here, but you can override it as usual
-$ spago test --main Test.Main
-Build succeeded.
-You should add some tests.
-Tests succeeded.
-```
 
-And last but not least, you can spawn a PureScript repl!  
-As with the `build` and `test` commands, you can add custom source paths
-to load, and pass options to the underlying `purs repl` by just putting
-them after `--`.  
-E.g. the following opens a repl on `localhost:3200`:
-
-```bash
-$ spago repl -- --port 3200
-```
-
-### Bundling a project into a single JS file
+### Bundle a project into a single JS file
 
 For the cases when you wish to produce a single JS file from your PureScript project,
-there are basically three ways to do that:
+there are basically two ways to do that:
 
 #### 1. `spago bundle-app`
 
@@ -481,33 +644,43 @@ $ node -e "console.log(require('./index).main)"
 [Function]
 ```
 
-#### 3. `spago build` + whatever JS bundler
-
-This is the case in which you have JS dependencies, and you need some other JS-specific tool
-to bundle them in (i.e. this is about resolving the `require`s in your JS code)
-
-In this case the flow might look like this:
-
-```bash
-# This will compile the PS to JS, and put the results in very many files in ./output
-# Note: this _doesn't_ resolve the `require`s in the JS code
-$ spago build
-
-# Here any bundler is fine: parcel, webpack, browserify, etc
-# Note: here the index.html is an example value, you should put the entrypoint here
-$ parcel build index.html
-```
-
-More information about this can be found at [this FAQ entry](#so-if-i-use-spago-bundle-module-this-thing-will-compile-all-my-js-deps-in-the-file).
-
-##### Skipping the Build Step
+#### Skipping the Build Step
 
 When running `spago bundle-app` and `spago bundle-module` the `build` step will also execute
 since bundling depends on building first.
+
 To skip this build you can add the `--no-build` flag.
 
 
-### Documentation
+### Make a project with PureScript + JavaScript
+
+Take a look at [TodoMVC with react-basic + spago + parcel][todomvc] to have a starting point.
+
+This generally consists of two separate build steps:
+
+1. Build the project with `spago`:
+  - this will compile your project to JS
+  - you can use either `spago build` - which will create many files that you can require in your JS -
+    or `spago bundle-module`, which will create only one Dead-Code-Eliminated file that you can require.
+  - the tradeoff between the two is compile times vs bundle size: `bundle-module` will be more expensive
+    to build, but will generally be smaller, while just requiring the artifacts from `build` is very fast
+    to compile but might lead to a bigger bundle (you should benchmark this though)
+2. Bundle the project with a JS bundler:
+  - this will usually bundle everything in a single JS file, after resolving all the `require`s
+    and including the JS dependencies
+  - you'll usually have a `index.js` file in your project, that will include something like:
+    ```js
+    ..
+    // So you require the PureScript file from js
+    var PureScriptMain = require('./output/Main');
+    ..
+    // Then you can just call its functions from js
+    PureScriptMain.somemethod();
+    ```
+  - the above example project uses `parcel`, but you can use `webpack`, `browserify`, etc.
+
+
+### Generate documentation for my project
 
 To build documentation for your project and its dependencies (i.e. a "project-local
 [Pursuit][pursuit]"), you can use the `docs` command:
@@ -519,103 +692,39 @@ This will generate all the documentation in the `./generated-docs` folder of you
 You might then want to open the `index.html` file in there.
 
 
-## Developing and contributing to Spago
+### Publish my library
 
-See the [`CONTRIBUTING.md`][contributing]
+If you wish to develop a library with `spago` you can definitely do so, and use it to
+manage and build your project, until you need to "publish" your library, where you'll need
+to use `bower`.
 
+When you decide you want to publish your library for others to use, you should:
+- make a Bowerfile that includes the dependencies from `spago.dhall`
+- run `pulp version`
+- run `pulp publish`
 
-## FAQ
+This is because the PureScript ecosystem uses the Bower registry as a "unique names registry".
+So in order to "publish" a package one needs to add it there, and eventually to [`package-sets`][package-sets].
+Consequentially, package-sets requires (full instructions [here][package-sets-contributing])
+that packages in it:
+- are in the Bower registry
+- use `pulp version` (because this gives versions with `vX.Y.Z`)
+- use `pulp publish` (so that's it's available on the Bower registry and on [Pursuit][pursuit])
 
-#### Hey wait we have a perfectly functional `pulp` right?
+All of this will be automated in future versions.
 
-Yes, however:
-- `pulp` is a build tool, so you'll still have to use it with `bower` or `psc-package`.
-- If you go for `bower`, you're missing out on package-sets (that is: packages versions
-  that are known to be working together, saving you the headache of fitting package
-  versions together all the time).
-- If you use `psc-package`, you have the problem of not having the ability of overriding
-  packages versions when needed, leading everyone to make their own package-set, which
-  then goes unmaintained, etc.  
-  Of course you can use the package-set-local-setup to solve this issue, but this is
-  exactly what we're doing here: integrating all the workflow in a single tool, `spago`,
-  instead of having to use `pulp`, `psc-package`, `purp`, etc.
+A library published in this way is [purescript-rave](https://github.com/reactormonk/purescript-rave).
 
-#### I miss `bower link`!
+### Use this together with `psc-package`
 
-Take a look at the [section on editing the package-set](#adding-and-overriding-dependencies)
-for details on how to add or replace packages with local ones.
-
-#### I added a new package to the `packages.dhall`, but `spago` is not installing it. Why?
-
-Adding a package to the package-set just includes it in the set of possible packages you
-can depend on. However, if you wish `spago` to install it you should then add it to
-the `dependencies` list in your `spago.dhall`.
-
-#### So if I use `spago bundle-module` this thing will compile all my js deps in the file?
-
-No. We only take care of PureScript land. In particular, `bundle-module` will do the
-most we can do on the PureScript side of things (dead code elimination), but will
-leave the `require`s still in.  
-To fill them in you should use the proper js tool of the day, at the time of
-writing [ParcelJS][parcel] looks like a good option.
-
-If you wish to see an example of a project building with `spago` + `parcel`, a simple
-starting point is the [TodoMVC app with `react-basic`][todomvc].
-You can see in its `package.json` that a "production build" is just
-`spago build && parcel build index.html`.  
-If you open its `index.js` you'll see that it does a `require('./output/Todo.App')`:
-the files in `output` are generated by `spago build`, and then the `parcel` build resolves
-all the `require`s and bundles all these js files in.
-
-Though this is not the only way to include the built js - for a slimmer build or for importing
-some PureScript component in another js build we might want to use the output of `bundle-module`.
-
-For an example of this in a "production setting" you can take a look at [affresco][affresco].  
-It is a PureScript monorepo of React-based components and apps.  
-The gist of it is that the PureScript apps in the repo are built with `spago build`
-(look in the `package.json` for it), but all the React components can be imported from
-JS apps as well, given that proper modules are built out of the PS sources.  
-This is where `spago bundle-module` is used: the `build-purs.rb` builds a bundle out of every
-single React component in each component's folder - e.g. let's say we `bundle-module` from
-the `ksf-login` component and output it in the `index.js` of the component's folder; we can
-then `yarn install` the single component (note it contains a `package.json`), and require it
-as a separate npm package with `require('@affresco/ksf-login')`.
-
-#### Why can't `spago` also install my npm dependencies?
-
-A common scenario is that you'd like to use things like `react-basic`, or want to depend
-on JS libraries like ThreeJS.
-In any case, you end up depending on some NPM package.
-
-And it would be really nice if `spago` would take care of installing all of these
-dependencies, so we don't have to worry about running npm besides it, right?
-
-While these scenarios are common, they are also really hard to support.
-In fact, it might be that a certain NPM package in your transitive dependencies
-would only support the browser, or only node. Should `spago` warn about that?  
-And if yes, where should we get all of this info?
-
-Another big problem is that the JS backend is not the only backend around. For example,
-PureScript has a [C backend][purec] and an [Erlang backend][purerl] among the others.  
-These backends are going to use different package managers for their native dependencies,
-and while it's feasible for `spago` to support the backends themselves, supporting also
-all the possible native package managers (and doing things like building package-sets for their
-dependencies versions) is not a scalable approach.
-
-So this is the reason why if you or one of your dependencies need to depend on some "native"
-packages, you should run the appropriate package-manager for that (e.g. npm).  
-For examples on how to do it, see the previous FAQ entry.
-
-#### I still want to use `psc-package`, can this help me in some way?
-
-Yes! We can help you setup your psc-package project to use the Dhall version of the package-set.
+`spago` can help you setup your `psc-package` project to use the Dhall version of the package set.
 
 We have two commands for it:
 - **`psc-package-local-setup`**: this command creates a `packages.dhall` file in your project,
-  that points to the most recent package-set, and lets you override and add  arbitrary packages.  
+  that points to the most recent package set, and lets you override and add arbitrary packages.
   See the docs about this [here][package-sets].
 - **`psc-package-insdhall`**: do the *Ins-Dhall-ation* of the local project setup: that is,
-  generates a local package-set for `psc-package` from your `packages.dhall`, and points your
+  generates a local package set for `psc-package` from your `packages.dhall`, and points your
   `psc-package.json` to it.
 
   Functionally this is equivalent to running:
@@ -628,14 +737,132 @@ We have two commands for it:
   echo wrote packages.json to $TARGET
   ```
 
-#### I'm getting weird errors about `libtinfo.so.5`..
+### Get all the licenses of my dependencies
 
-See [here](https://github.com/spacchetti/spago/issues/104#issue-408423391) for reasons and a fix.
+For compliance reasons, you might need to fetch all the `LICENSE` files of your dependencies.
+
+To do this you can exploit the `list-packages` command with its `--filter` flag.
+
+E.g. if you want to print out all the `LICENSE` files of your direct dependencies:
+
+```bash
+#!/usr/bin/env bash
+
+# Note: the `awk` part is to cut out only the package name
+for dep in $(spago list-packages -f direct | awk '{print $1}')
+do
+  cat $(find ".spago/${dep}" -iname 'LICENSE')
+done
+```
+
+### Know what `purs` commands are run under the hood
+
+The `-v` flag will print out all the `purs` commands that `spago` invokes during its operations.
+
+
+## Explanations
+
+### Configuration file format
+
+It's indeed useful to know what's the format (or more precisely, the [Dhall][dhall]
+type) of the files that `spago` expects. Let's define them in Dhall:
+
+```haskell
+-- The basic building block is a Package:
+let Package =
+  { dependencies : List Text  -- the list of dependencies of the Package
+  , repo = Text               -- the address of the git repo the Package is at
+  , version = Text            -- git tag
+  }
+
+-- The type of `packages.dhall` is a Record from a PackageName to a Package
+-- We're kind of stretching Dhall syntax here when defining this, but let's
+-- say that its type is something like this:
+let PackageSet =
+  { console : Package
+  , effect : Package
+  ...                  -- and so on, for all the packages in the package-set
+  }
+
+-- The type of the `spago.dhall` configuration is then the following:
+let Config =
+  { name : Text               -- the name of our project
+  , dependencies : List Text  -- the list of dependencies of our app
+  , packages : PackageSet     -- this is the type we just defined above
+  }
+```
+
+### Why can't `spago` also install my npm dependencies?
+
+A common scenario is that you'd like to use things like `react-basic`, or want to depend
+on JS libraries like ThreeJS.
+In any case, you end up depending on some NPM package.
+
+And it would be really nice if `spago` would take care of installing all of these
+dependencies, so we don't have to worry about running npm besides it, right?
+
+While these scenarios are common, they are also really hard to support.
+In fact, it might be that a certain NPM package in your transitive dependencies
+would only support the browser, or only node. Should `spago` warn about that?
+And if yes, where should we get all of this info?
+
+Another big problem is that the JS backend is not the only backend around. For example,
+PureScript has a [C backend][purec] and an [Erlang backend][purerl] among the others.
+
+These backends are going to use different package managers for their native dependencies,
+and while it's feasible for `spago` to support the backends themselves, supporting also
+all the possible native package managers (and doing things like building package-sets for their
+dependencies versions) is not a scalable approach (though we might do this in the future if
+there's enough demand).
+
+So this is the reason why if you or one of your dependencies need to depend on some "native"
+packages, you should run the appropriate package-manager for that (e.g. npm).
+
+For examples on how to do it, see next section.
+
+
+### Why we don't resolve JS dependencies when bundling, and how to do it
+
+`spago` only takes care of PureScript land. In particular, `bundle-module` will do the
+most we can do on the PureScript side of things (dead code elimination), but will
+leave the `require`s still in.
+
+To fill them in you should use the proper js tool of the day, at the time of
+writing [ParcelJS][parcel] looks like a good option.
+
+If you wish to see an example of a project building with `spago` + `parcel`, a simple
+starting point is the [TodoMVC app with `react-basic`][todomvc].
+You can see in its `package.json` that a "production build" is just
+`spago build && parcel build index.html`.
+
+If you open its `index.js` you'll see that it does a `require('./output/Todo.App')`:
+the files in `output` are generated by `spago build`, and then the `parcel` build resolves
+all the `require`s and bundles all these js files in.
+
+Though this is not the only way to include the built js - for a slimmer build or for importing
+some PureScript component in another js build we might want to use the output of `bundle-module`.
+
+For an example of this in a "production setting" you can take a look at [affresco][affresco].
+It is a PureScript monorepo of React-based components and apps.
+
+The gist of it is that the PureScript apps in the repo are built with `spago build`
+(look in the `package.json` for it), but all the React components can be imported from
+JS apps as well, given that proper modules are built out of the PS sources.
+
+This is where `spago bundle-module` is used: the `build-purs.rb` builds a bundle out of every
+single React component in each component's folder - e.g. let's say we `bundle-module` from
+the `ksf-login` component and output it in the `index.js` of the component's folder; we can
+then `yarn install` the single component (note it contains a `package.json`), and require it
+as a separate npm package with `require('@affresco/ksf-login')`.
+
+
+## Troubleshooting
 
 #### I added a git repo URL to my overrides, but `spago` thinks it's a local path 🤔
 
 This might happen if you copy the "git" URL from a GitHub repo and try adding it as a repo URL
-in your package-set.  
+in your package set.
+
 However, `spago` requires URLs to conform to [RFC 3986](https://tools.ietf.org/html/rfc3986),
 which something like `git@foo.com:bar/baz.git` doesn't conform to.
 
@@ -643,6 +870,7 @@ To have the above repo location accepted you should rewrite it like this:
 ```
 ssh://git@foo.com/bar/baz.git
 ```
+
 
 #### My `install` command is failing with some errors about "too many open files"
 
@@ -659,13 +887,32 @@ To get a ballpark value for the `j` flag you can take the result of the `ulimit 
 (which gives you the current limit), and divide it by four.
 
 
-#### The `bundle-app`/`test`/`run`/etc commands don't work, what do I do?
+#### Package set caching problems
 
-The rule of thumb is that in order for these commands to work then `spago build` must succeed first,
-as most of the commands make use of the artifacts produced by `build` in the `output` folder.
+If you encounter any issues with the hashes for the package-set (e.g. the hash is not deemed
+correct by `spago`), then you can have the hashes recomputed by running the `freeze` command:
 
-So make sure `build` works first. If you still get a failure you might be encountering a `spago` bug.
+```bash
+$ spago freeze
+```
 
+However, this is a pretty rare situation and in principle it should not happen, and when
+it happens it might not be secure to run the above command.
+
+To understand all the implications of this I'd invite you to read about
+[the safety guarantees][dhall-hash-safety] that Dhall offers.
+
+
+#### I added a new package to the `packages.dhall`, but `spago` is not installing it. Why?
+
+Adding a package to the package-set just includes it in the set of possible packages you
+can depend on. However, if you wish `spago` to install it you should then add it to
+the `dependencies` list in your `spago.dhall`.
+
+
+## Reference - Internals
+
+TODO
 
 [pulp]: https://github.com/purescript-contrib/pulp
 [purp]: https://github.com/justinwoo/purp
@@ -679,6 +926,7 @@ So make sure `build` works first. If you still get a failure you might be encoun
 [todomvc]: https://github.com/f-f/purescript-react-basic-todomvc
 [affresco]: https://github.com/KSF-Media/affresco/tree/4b430b48059701a544dfb65b2ade07ef9f36328a
 [spago-npm]: https://www.npmjs.com/package/spago
+[new-issue]: https://github.com/spacchetti/spago/issues/new
 [spago-nix]: https://github.com/justinwoo/easy-purescript-nix/blob/master/spago.nix
 [purescript]: https://github.com/purescript/purescript
 [psc-package]: https://github.com/purescript/psc-package
@@ -687,8 +935,9 @@ So make sure `build` works first. If you still get a failure you might be encoun
 [travis-spago]: https://travis-ci.com/spacchetti/spago
 [spago-issues]: https://github.com/spacchetti/spago/issues
 [dhall-hash-safety]: https://github.com/dhall-lang/dhall-lang/wiki/Safety-guarantees#code-injection
+[windows-issue-yarn]: https://github.com/spacchetti/spago/issues/187
 [spago-latest-release]: https://github.com/spacchetti/spago/releases/latest
+[ubuntu-issue-netbase]: https://github.com/spacchetti/spago/issues/196
+[ubuntu-issue-libtinfo]: https://github.com/spacchetti/spago/issues/104#issue-408423391
+[package-sets-contributing]: https://github.com/purescript/package-sets/blob/master/CONTRIBUTING.md
 
-#### I getting a 'Host Not Found' error running `spago install` or `spago build` in ubuntu
-
-If you get networking errors in ubuntu you may need to install the `netbase` package with `apt install netbase`. For more details see [this issue](https://github.com/spacchetti/spago/issues/196).
