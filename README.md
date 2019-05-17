@@ -912,7 +912,41 @@ the `dependencies` list in your `spago.dhall`.
 
 ## Reference - Internals
 
-TODO
+### The `spago-curator` tool
+
+While we publish only the `spago` binary, there is another executable that is built together
+with it, and that's `spago-curator`.
+
+Its purpose is to assist in the automation of certain tasks that make life easier (both
+for maintainers and users). You can think of it as a glorified Perl script.
+
+Here's an overview of its commands:
+- **`spago-curator index-github-meta`**: when you run it (provided that you have a GitHub token in 
+  your env), `spago-curator` will:
+  - take the latest package set
+  - crawl GitHub downloading the list of all tags and commits for every repo in the set
+  - put the result in a `metadataV1.json` file
+
+  The idea is that [spacchettibotti][spacchettibotti] will run this command periodically and
+  upload the resulting file to [the `package-sets-metadata` repo][package-sets-metadata], so
+  that `spago` will be able to rely on it for information about "is this ref immutable",
+  effectively enabling the possibility of a global cache.
+  
+  So every time `spago` will need to install dependencies it will:
+  - download this file if missing from the global cache or older than let's say 1 day
+  - check if the tag or commit of the package we need to download is in the cached GitHub index,
+    and if it is then this means we can "globally cache" that version.
+
+  A question that might arise is: "why not just hit GitHub asking for this info instead of
+  having this complicated CI process?"
+  
+  The problem is that GitHub limits token-less API requests to 50 per hour, so any
+  decently-sized installation will fail to get all the "cacheable" items, making the 
+  global cache kind of useless. So we are just caching all of that info for everyone here.
+  
+  The other solution would be to require people to have a GitHub token, but that is not really
+  good UX and security.
+
 
 [pulp]: https://github.com/purescript-contrib/pulp
 [purp]: https://github.com/justinwoo/purp
@@ -934,10 +968,11 @@ TODO
 [package-sets]: https://github.com/purescript/package-sets
 [travis-spago]: https://travis-ci.com/spacchetti/spago
 [spago-issues]: https://github.com/spacchetti/spago/issues
+[spacchettibotti]: https://github.com/spacchettibotti
 [dhall-hash-safety]: https://github.com/dhall-lang/dhall-lang/wiki/Safety-guarantees#code-injection
 [windows-issue-yarn]: https://github.com/spacchetti/spago/issues/187
 [spago-latest-release]: https://github.com/spacchetti/spago/releases/latest
 [ubuntu-issue-netbase]: https://github.com/spacchetti/spago/issues/196
 [ubuntu-issue-libtinfo]: https://github.com/spacchetti/spago/issues/104#issue-408423391
+[package-sets-metadata]: https://github.com/spacchetti/package-sets-metadata
 [package-sets-contributing]: https://github.com/purescript/package-sets/blob/master/CONTRIBUTING.md
-
