@@ -36,6 +36,8 @@ import qualified Spago.Templates  as Templates
 --   - create an example `test` folder (if needed)
 initProject :: Spago m => Bool -> m ()
 initProject force = do
+  echo "Initializing a sample project or migrating an existing one.."
+
   -- packages.dhall and spago.dhall overwrite can be forced
   liftIO $ PackageSet.makePackageSetFile force
   Config.makeConfig force

@@ -1,5 +1,5 @@
 name:                spago
-version:             0.7.5.0
+version:             0.8.0.0
 github:              "spacchetti/spago"
 license:             BSD3
 author:              "Justin Woo, Fabrizio Ferrai"
@@ -8,7 +8,7 @@ copyright:           "2018-2019 Justin Woo, Fabrizio Ferrai"
 
 extra-source-files:
 - README.md
-- ChangeLog.md
+- CHANGELOG.md
 
 ghc-options:
   - -Wall
@@ -70,14 +70,25 @@ dependencies:
 - temporary
 - zlib
 - tar
-- http-conduit
 - foldl
+- retry
+- optparse-applicative
+- http-conduit
 
 executables:
   spago:
-    main:                Main.hs
+    main:                Spago.hs
     source-dirs:         app
     ghc-options:
+    - -main-is Spago
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+  spago-curator:
+    main:                Curator.hs
+    source-dirs:         app
+    ghc-options:
+    - -main-is Curator
     - -threaded
     - -rtsopts
     - -with-rtsopts=-N

@@ -1,0 +1,52 @@
+#!/usr/bin/env bash
+
+# Script to check if the bundled package set is up to date, and open a PR if not
+
+
+# Fail script if variables are undefined
+set -u
+: "${SPACCHETTIBOTTI_TOKEN?Need to set SPACCHETTIBOTTI_TOKEN}"
+
+# Or if some command fails
+set -e
+
+
+# Get the latest package-sets tag
+echo "Getting upstream tag.."
+export UPSTREAM_TAG=$(wget -q -O - https://github.com/purescript/package-sets/releases/latest --server-response --max-redirect 0 2>&1 | sed -n -e 's/.*Location:.*tag\///p')
+
+# Then get the tag in the current template
+export CURRENT_TAG=$(cat templates/packages.dhall | grep "packages.dhall"  | sed -e "s|.*/purescript/package-sets/||g" | sed "s|/src.*||g")
+
+
+echo "Checking if package-set is up to date"
+
+git checkout master && git pull --rebase && git checkout -B master origin/master
+
+
+# This function creates a branch, if there are changes it commits and pushes it,
+# and opens a Pull Requests.
+function open-pr-if-changes {
+    local BRANCH_NAME="spacchettibotti-$(date +'%Y-%m-%dT%H-%M-%S')"
+    local PR_URL="https://api.github.com/repos/spacchetti/spago/pulls"
+
+    # We should be on the latest master commit, make a branch
+    # Also if there's an error we fail
+
+    git checkout -b "$BRANCH_NAME" && \
+    git add templates/packages.dhall && \
+    echo "Opening Pull Request (maybe)" && \
+
+    git commit -am "Update package-sets tag to ${UPSTREAM_TAG}" && git push --set-upstream origin "$BRANCH_NAME" && curl \
+        -X POST \
+	-H "Authorization: token $SPACCHETTIBOTTI_TOKEN" \
+	-H "Content-Type: application/json" \
+        -d "{\"head\":\"${BRANCH_NAME}\",\"base\":\"master\",\"title\":\"Update to package-sets@${UPSTREAM_TAG}\"}" \
+        "$PR_URL"
+}
+
+
+cd templates
+spago package-set-upgrade
+cd ..
+open-pr-if-changes || true

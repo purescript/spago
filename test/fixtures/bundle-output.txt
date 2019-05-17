@@ -1,0 +1,1 @@
+spago: The `bundle` command has been replaced with `bundle-app`, so use that instead.

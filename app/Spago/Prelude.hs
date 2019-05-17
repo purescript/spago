@@ -11,12 +11,12 @@ module Spago.Prelude
   , Spago
   , module X
   , Typeable
+  , Proxy(..)
   , Text
   , NonEmpty (..)
   , Seq (..)
   , Map
   , Generic
-  , Proxy(..)
   , Turtle.Alternative
   , Pretty
   , FilePath
@@ -93,7 +93,7 @@ import           Turtle                        (ExitCode (..), FilePath, appendo
 import qualified Turtle                        as Turtle
 import           UnliftIO                      (MonadUnliftIO, withRunInIO)
 import           UnliftIO.Directory            (makeAbsolute)
-import           UnliftIO.Exception            (try, IOException)
+import           UnliftIO.Exception            (IOException, try)
 import           UnliftIO.Process              (callProcess)
 
 -- | Generic Error that we throw on program exit.

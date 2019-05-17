@@ -28,8 +28,7 @@ cannotFindPackagesButItsFine = makeMessage
 
 foundExistingProject :: Text -> Text
 foundExistingProject pathText = makeMessage
-  [ "Found " <> pathText <> ": it looks like there's already a project here."
-  , "Run `spago init --force` if you're sure you want to overwrite it."
+  [ "Found a " <> surroundQuote pathText <> " file, skipping copy. Run `spago init --force` if you wish to overwrite it."
   ]
 
 foundExistingDirectory :: Text -> Text
@@ -134,6 +133,13 @@ pursVersionMismatch currentVersion minVersion = makeMessage
 verifying :: Show a => a -> Text
 verifying len = "Verifying " <> tshow len <> " packages, this might take a while.."
 
+bundleCommandRenamed :: Text
+bundleCommandRenamed =
+  "The `bundle` command has been replaced with `bundle-app`, so use that instead."
+
+makeModuleCommandRenamed :: Text
+makeModuleCommandRenamed =
+  "The `make-module` command has been replaced with `bundle-module`, so use that instead."
 
 tshow :: Show a => a -> Text
 tshow = Text.pack . show

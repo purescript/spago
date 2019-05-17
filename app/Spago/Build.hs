@@ -3,8 +3,8 @@ module Spago.Build
   , test
   , run
   , repl
-  , bundle
-  , makeModule
+  , bundleApp
+  , bundleModule
   , docs
   , Watch (..)
   , NoBuild (..)
@@ -32,7 +32,7 @@ import qualified Spago.Watch          as Watch
 data Watch = Watch | BuildOnce
 
 -- | Flag to go through with the build step
---   or skip it, in the case of 'bundle' and 'makeModule'.
+--   or skip it, in the case of 'bundleApp' and 'bundleModule'.
 data NoBuild = NoBuild | DoBuild
 
 data BuildOptions = BuildOptions
@@ -116,7 +116,7 @@ runWithNode defaultModuleName maybeSuccessMessage failureMessage maybeModuleName
         ExitFailure n -> die $ failureMessage <> repr n
 
   -- | Bundle the project to a js file
-bundle
+bundleApp
   :: Spago m
   => Purs.WithMain
   -> Maybe Purs.ModuleName
@@ -124,7 +124,7 @@ bundle
   -> NoBuild
   -> BuildOptions
   -> m ()
-bundle withMain maybeModuleName maybeTargetPath noBuild buildOpts =
+bundleApp withMain maybeModuleName maybeTargetPath noBuild buildOpts =
   let (moduleName, targetPath) = prepareBundleDefaults maybeModuleName maybeTargetPath
       bundleAction = Purs.bundle withMain moduleName targetPath
   in case noBuild of
@@ -132,14 +132,14 @@ bundle withMain maybeModuleName maybeTargetPath noBuild buildOpts =
     NoBuild -> bundleAction
 
 -- | Bundle into a CommonJS module
-makeModule
+bundleModule
   :: Spago m
   => Maybe Purs.ModuleName
   -> Maybe Purs.TargetPath
   -> NoBuild
   -> BuildOptions
   -> m ()
-makeModule maybeModuleName maybeTargetPath noBuild buildOpts = do
+bundleModule maybeModuleName maybeTargetPath noBuild buildOpts = do
   let (moduleName, targetPath) = prepareBundleDefaults maybeModuleName maybeTargetPath
       jsExport = Text.unpack $ "\nmodule.exports = PS[\""<> Purs.unModuleName moduleName <> "\"];"
       bundleAction = do
