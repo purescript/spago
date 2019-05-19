@@ -176,7 +176,7 @@ fetchPackages maybeLimit allDeps = do
       for_ asyncs $ \async -> do
         Async.cancel async
         Async.waitCatch async
-      die $ "Installation failed.\n\nError:\n\n" <> Messages.tshow e
+      die $ "Installation failed.\n\nError:\n\n" <> tshow e
 
 -- | Return all the transitive dependencies of the current project
 getProjectDeps :: Spago m => Config -> m [(PackageName, Package)]
