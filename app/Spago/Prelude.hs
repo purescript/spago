@@ -2,6 +2,7 @@ module Spago.Prelude
   ( echo
   , echoStr
   , echoDebug
+  , tshow
   , die
   , throws
   , hush
@@ -123,6 +124,9 @@ echo = Turtle.printf (Turtle.s Turtle.% "\n")
 
 echoStr :: MonadIO m => String -> m ()
 echoStr = echo . Text.pack
+
+tshow :: Show a => a -> Text
+tshow = Text.pack . show
 
 echoDebug :: Spago m => Text -> m ()
 echoDebug str = do

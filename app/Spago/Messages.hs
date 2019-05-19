@@ -141,9 +141,6 @@ makeModuleCommandRenamed :: Text
 makeModuleCommandRenamed =
   "The `make-module` command has been replaced with `bundle-module`, so use that instead."
 
-tshow :: Show a => a -> Text
-tshow = Text.pack . show
-
 surroundQuote :: Text -> Text
 surroundQuote y = "\"" <> y <> "\""
 

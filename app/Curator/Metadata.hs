@@ -1,3 +1,4 @@
+{-# Language BangPatterns #-}
 module Curator.Metadata where
 
 import           Spago.Prelude
@@ -17,15 +18,15 @@ import           Data.Aeson.Encode.Pretty      (encodePretty)
 import           Spago.PackageSet              (Package (..), PackageName (..), PackageSet,
                                                 Repo (..))
 
-newtype CommitHash = CommitHash { unCommitHash :: Text }
+newtype CommitHash = CommitHash Text
   deriving (Show, Generic, ToJSON, FromJSON)
 
-newtype Tag = Tag { unTag :: Text }
+newtype Tag = Tag Text
   deriving (Ord, Eq, Show, Generic, ToJSONKey, FromJSONKey)
 
 data RepoMetadataV1 = RepoMetadataV1
-  { commits :: ![CommitHash]
-  , tags    :: !(Map Tag CommitHash)
+  {  commits :: [CommitHash]
+  ,  tags    :: (Map Tag CommitHash)
   } deriving (Show, Generic)
 
 instance FromJSON RepoMetadataV1
@@ -38,8 +39,8 @@ type ReposMetadataV1 = Map PackageName RepoMetadataV1
 fetchRepoMetadata :: Text -> (PackageName, Package) -> IO (Maybe (PackageName, RepoMetadataV1))
 fetchRepoMetadata _ (_, Package{ repo = Local _, ..}) = pure Nothing
 fetchRepoMetadata token (packageName, Package{ repo = Remote repoUrl, .. }) =
-  Retry.recoverAll (Retry.fullJitterBackoff 50000 <> Retry.limitRetries 10) $ const $ do
-    let (owner:repo:_rest)
+  Retry.recoverAll (Retry.fullJitterBackoff 10000 <> Retry.limitRetries 10) $ \Retry.RetryStatus{..} -> do
+    let !(owner:repo:_rest)
           = Text.split (=='/')
           $ Text.replace "https://github.com/" ""
           $ case Text.isSuffixOf ".git" repoUrl of
@@ -49,12 +50,13 @@ fetchRepoMetadata token (packageName, Package{ repo = Remote repoUrl, .. }) =
         ownerN = GitHub.mkName Proxy owner
         repoN = GitHub.mkName Proxy repo
 
-    echo $ "Fetching commit metadata for '" <> owner <> "/" <> repo <> "'.."
+    echo $ "Retry " <> tshow rsIterNumber <> ": fetching commit metadata for '" <> owner <> "/" <> repo <> "'.."
     Right commitsVec <- GitHub.executeRequest auth $ GitHub.commitsForR ownerN repoN GitHub.FetchAll
-    echo $ "Fetching tags metadata for '" <> owner <> "/" <> repo <> "'.."
+    echo $ "Retry " <> tshow rsIterNumber <> ": fetching tags metadata for '" <> owner <> "/" <> repo <> "'.."
     Right tagsVec <- GitHub.executeRequest auth $ GitHub.tagsForR ownerN repoN GitHub.FetchAll
-    let commits = Vector.toList $ fmap (CommitHash . GitHub.untagName . GitHub.commitSha) commitsVec
-    let tags = Map.fromList $ Vector.toList
+    echo $ "Retry " <> tshow rsIterNumber <> ": fetched commits and tags for '" <> owner <> "/" <> repo <> "'"
+    let !commits = Vector.toList $ fmap (CommitHash . GitHub.untagName . GitHub.commitSha) commitsVec
+    let !tags = Map.fromList $ Vector.toList
           $ fmap (\t ->
                      ( Tag $ GitHub.tagName t
                      , CommitHash $ GitHub.branchCommitSha $ GitHub.tagCommit t
@@ -68,11 +70,11 @@ fetchReposMetadata token packageSet = do
   let packages = Map.toList packageSet
   echoStr $ "Fetching metadata for " <> show (length packages) <> " packages"
 
-  Async.withTaskGroup (length packages) $ \taskGroup -> do
+  Async.withTaskGroup 10 $ \taskGroup -> do
     asyncs <- for packages (Async.async taskGroup . fetchRepoMetadata token)
     reposMeta <- for asyncs Async.wait
     echo "Fetched all metadata."
-    pure $ Map.fromList $ catMaybes reposMeta
+    pure $! Map.fromList $! catMaybes reposMeta
 
 
 indexGitHub :: Text -> IO ()
