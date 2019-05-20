@@ -1,4 +1,4 @@
-{-# Language BangPatterns #-}
+{-# LANGUAGE BangPatterns #-}
 module Curator.Metadata where
 
 import           Spago.Prelude
@@ -15,24 +15,9 @@ import qualified GitHub
 import qualified Spago.Dhall                   as Dhall
 
 import           Data.Aeson.Encode.Pretty      (encodePretty)
+import           Spago.GitHubMetadata
 import           Spago.PackageSet              (Package (..), PackageName (..), PackageSet,
                                                 Repo (..))
-
-newtype CommitHash = CommitHash Text
-  deriving (Show, Generic, ToJSON, FromJSON)
-
-newtype Tag = Tag Text
-  deriving (Ord, Eq, Show, Generic, ToJSONKey, FromJSONKey)
-
-data RepoMetadataV1 = RepoMetadataV1
-  {  commits :: [CommitHash]
-  ,  tags    :: (Map Tag CommitHash)
-  } deriving (Show, Generic)
-
-instance FromJSON RepoMetadataV1
-instance ToJSON RepoMetadataV1
-
-type ReposMetadataV1 = Map PackageName RepoMetadataV1
 
 
 -- | Call GitHub to get metadata for a single package
@@ -44,7 +29,7 @@ fetchRepoMetadata token (packageName, Package{ repo = Remote repoUrl, .. }) =
           = Text.split (=='/')
           $ Text.replace "https://github.com/" ""
           $ case Text.isSuffixOf ".git" repoUrl of
-              True -> Text.dropEnd 4 repoUrl
+              True  -> Text.dropEnd 4 repoUrl
               False -> repoUrl
         auth = GitHub.OAuth $ Encoding.encodeUtf8 token
         ownerN = GitHub.mkName Proxy owner

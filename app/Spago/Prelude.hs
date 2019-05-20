@@ -59,6 +59,7 @@ module Spago.Prelude
   , async'
   , withTaskGroup'
   , Turtle.mktempdir
+  , getModificationTime
   ) where
 
 import           Control.Applicative           (empty, many, (<|>))
@@ -93,7 +94,7 @@ import           Turtle                        (ExitCode (..), FilePath, appendo
                                                 testfile)
 import qualified Turtle                        as Turtle
 import           UnliftIO                      (MonadUnliftIO, withRunInIO)
-import           UnliftIO.Directory            (makeAbsolute)
+import           UnliftIO.Directory            (makeAbsolute, getModificationTime)
 import           UnliftIO.Exception            (IOException, try)
 import           UnliftIO.Process              (callProcess)
 

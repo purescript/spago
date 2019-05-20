@@ -74,6 +74,7 @@ dependencies:
 - retry
 - optparse-applicative
 - http-conduit
+- time
 
 executables:
   spago:
