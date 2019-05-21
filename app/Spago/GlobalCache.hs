@@ -59,8 +59,8 @@ globallyCache (packageName, url, ref) downloadDir metadata cacheableCallback not
         Nothing -> notCacheableCallback -- TODO: nice error?
         Just _ -> do
           let archiveUrl = "https://github.com/" <> owner <> "/" <> repo <> "/archive/" <> ref <> ".tar.gz"
-          liftIO $ fetchTarball downloadDir archiveUrl
-          Just resultDir <-  Turtle.fold (Turtle.ls $ Turtle.decodeString downloadDir) Fold.head
+          fetchTarball downloadDir archiveUrl
+          Just resultDir <- Turtle.fold (Turtle.ls $ Turtle.decodeString downloadDir) Fold.head
           cacheableCallback $ Turtle.encodeString resultDir
       where
     other -> do
@@ -144,9 +144,13 @@ getMetadata cacheFlag = do
 getGlobalCacheDir :: (Alternative m, MonadIO m) => m FilePath.FilePath
 getGlobalCacheDir = do
   -- TODO: fail with a nice error in case of empty
-  cacheDir <- alternative₀ <|> alternative₁
+  cacheDir <- alternative₀ <|> alternative₁ <|> err
   pure $ cacheDir </> "spago"
   where
+    err = do
+      echo "ERROR: was not able to get a directory for the global cache. Set either `HOME` or `XDG_CACHE_HOME`"
+      empty
+
     alternative₀ = do
       maybeXDGCacheHome <- do
         liftIO (System.Environment.lookupEnv "XDG_CACHE_HOME")
@@ -164,8 +168,9 @@ getGlobalCacheDir = do
 
 
 -- | Fetch the tarball at `archiveUrl` and unpack it into `destination`
-fetchTarball :: FilePath.FilePath -> Text -> IO ()
+fetchTarball :: Spago m => FilePath.FilePath -> Text -> m ()
 fetchTarball destination archiveUrl = do
+  echoDebug $ "Fetching " <> archiveUrl
   tarballUrl <- Http.parseRequest $ Text.unpack archiveUrl
   lbs <- fmap Http.getResponseBody (Http.httpLBS tarballUrl)
-  Tar.unpack destination $ Tar.read $ GZip.decompress lbs
+  liftIO $ Tar.unpack destination $ Tar.read $ GZip.decompress lbs

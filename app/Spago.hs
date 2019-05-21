@@ -63,7 +63,6 @@ data Command
   --   Builds the project before bundling
   | BundleApp (Maybe ModuleName) (Maybe TargetPath) NoBuild BuildOptions
 
-
   -- | Bundle a module into a CommonJS module
   --   Builds the project before bundling
   | BundleModule (Maybe ModuleName) (Maybe TargetPath) NoBuild BuildOptions
