@@ -33,8 +33,7 @@ instance ToJSON RepoMetadataV1
 
 type ReposMetadataV1 = Map PackageName RepoMetadataV1
 
-
--- echo "WARNING: Unable to download GitHub metadata, global cache will be disabled"
+data CacheFlag = SkipCache | NewCache
 
 
 -- | A package is "globally cacheable" if:
@@ -65,7 +64,7 @@ globallyCache (packageName, url, ref) downloadDir metadata cacheableCallback not
           cacheableCallback $ Turtle.encodeString resultDir
       where
     other -> do
-      echoStr $ "ERROR! " <> show other
+      echoStr $ "ERROR: " <> show other
       notCacheableCallback -- TODO: error?
   where
     isTag = do
@@ -81,44 +80,63 @@ globallyCache (packageName, url, ref) downloadDir metadata cacheableCallback not
 
 
 -- | Download the GitHub Index cache from the `package-sets-metadata` repo
-getMetadata :: Spago m => m ReposMetadataV1
-getMetadata = do
+getMetadata :: Spago m => Maybe CacheFlag -> m ReposMetadataV1
+getMetadata cacheFlag = do
   globalCacheDir <- getGlobalCacheDir
 
   let metaURL = "https://raw.githubusercontent.com/spacchetti/package-sets-metadata/master/metadataV1.json"
+
       globalPathToMeta = globalCacheDir </> "metadataV1.json"
 
-  echo "Searching for packages cache metadata.."
+      maybeToMonoid :: Monoid a => Maybe a -> a
+      maybeToMonoid m = case m of
+        Nothing -> mempty
+        Just a  -> a
 
-  -- Check if the metadata is in global cache and fresher than 1 day
-  shouldDownloadMeta <- try (liftIO $ do
-      fileExists <- testfile $ Turtle.decodeString globalPathToMeta
-      lastModified <- getModificationTime globalPathToMeta
-      now <- Time.getCurrentTime
-      -- Note: `NomiNalDiffTime` is 1 second
-      let fileIsRecentEnough = Time.addUTCTime (24 * 60 * 60) lastModified >= now
-      pure $ not (fileExists && fileIsRecentEnough)
-      ) >>= \case
-    Right v -> pure v
-    Left (_err :: IOException) -> pure True
+      downloadMeta = do
+        metaBS <- (Http.httpBS metaURL >>= pure . Http.getResponseBody)
+        case decodeStrict' metaBS of
+          Nothing -> do
+            echo "WARNING: Unable to download GitHub metadata, global cache will be disabled"
+            pure mempty
+          Just meta -> do
+            liftIO $ BS.writeFile globalPathToMeta metaBS
+            pure meta
 
-  maybeMeta <- case shouldDownloadMeta of
-    -- If we should not, read from file
-    False -> do
-      echo "Recent packages cache metadata found, using it.."
-      liftIO $ decodeFileStrict globalPathToMeta
-    -- Otherwise download it, write it to file, and return it
-    True -> do
-      echo "Unable to find packages cache metadata, downloading from GitHub.."
-      metaBS <- (Http.httpBS metaURL >>= pure . Http.getResponseBody)
-      let meta = decodeStrict' metaBS
-      when (isJust meta) $ do
-        liftIO $ BS.writeFile globalPathToMeta metaBS
-      pure meta
+  case cacheFlag of
+    -- If we need to skip the cache we just get an empty map
+    Just SkipCache -> pure mempty
+    -- If we need to download a new cache we can skip checking the local filesystem
+    Just NewCache -> do
+      echo "Downloading a new packages cache metadata from GitHub.."
+      downloadMeta
+    -- Otherwise we check first
+    Nothing -> do
+      echo "Searching for packages cache metadata.."
 
-  pure $ case maybeMeta of
-    Nothing -> mempty
-    Just meta -> meta
+      -- Check if the metadata is in global cache and fresher than 1 day
+      shouldDownloadMeta <- try (liftIO $ do
+          fileExists <- testfile $ Turtle.decodeString globalPathToMeta
+          lastModified <- getModificationTime globalPathToMeta
+          now <- Time.getCurrentTime
+          -- Note: `NomiNalDiffTime` is 1 second
+          let fileIsRecentEnough = Time.addUTCTime (24 * 60 * 60) lastModified >= now
+          pure $ not (fileExists && fileIsRecentEnough)
+          ) >>= \case
+        Right v -> pure v
+        Left (err :: IOException) -> do
+          echoStr $ "ERROR: " <> show err
+          pure True
+
+      case shouldDownloadMeta of
+        -- If we should not download it, read from file
+        False -> do
+          echo "Recent packages cache metadata found, using it.."
+          fmap maybeToMonoid $ liftIO $ decodeFileStrict globalPathToMeta
+        -- Otherwise download it, write it to file, and return it
+        True -> do
+          echo "Unable to find packages cache metadata, downloading from GitHub.."
+          downloadMeta
 
 
 -- | Directory in which spago will put its global cache

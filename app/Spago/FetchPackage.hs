@@ -28,8 +28,8 @@ import qualified Spago.PackageSet              as PackageSet
 --     * then check if the Package is on GitHub and an "immutable" ref:
 --       * if yes, download the tar archive and copy it to global and then local cache
 --       * if not, run a series of git commands to get the code, and copy to local cache
-fetchPackages :: Spago m => Maybe Int -> [(PackageName, Package)] -> m ()
-fetchPackages maybeLimit allDeps = do
+fetchPackages :: Spago m => Maybe Int -> Maybe GlobalCache.CacheFlag -> [(PackageName, Package)] -> m ()
+fetchPackages maybeLimit globalCacheFlag allDeps = do
 
   PackageSet.checkPursIsUpToDate
 
@@ -48,7 +48,7 @@ fetchPackages maybeLimit allDeps = do
   let nOfDeps = List.length depsToFetch
   when (nOfDeps > 0) $ do
     echoStr $ "Installing " <> show nOfDeps <> " dependencies."
-    metadata <- GlobalCache.getMetadata
+    metadata <- GlobalCache.getMetadata globalCacheFlag
 
     -- By default we limit the concurrency to 10
     withTaskGroup' (fromMaybe 10 maybeLimit) $ \taskGroup -> do
@@ -82,7 +82,7 @@ fetchPackages maybeLimit allDeps = do
 fetchPackage :: Spago m => GlobalCache.ReposMetadataV1 -> (PackageName, Package) -> m ()
 fetchPackage _ (PackageName package, Package { repo = Local path }) =
   echo $ Messages.foundLocalPackage package path
-fetchPackage metadata pair@(packageName'@PackageName{..}, package@Package{ repo = Remote repo, ..} ) = do
+fetchPackage metadata pair@(packageName'@PackageName{..}, Package{ repo = Remote repo, ..} ) = do
   globalDir <- GlobalCache.getGlobalCacheDir
   let packageDir = getPackageDir packageName' version
       packageGlobalCacheDir = globalDir </> packageDir

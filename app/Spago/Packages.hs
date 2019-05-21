@@ -22,6 +22,7 @@ import qualified Data.Text          as Text
 import           Spago.Config       (Config (..))
 import qualified Spago.Config       as Config
 import qualified Spago.FetchPackage as Fetch
+import           Spago.GlobalCache  (CacheFlag (..))
 import qualified Spago.Messages     as Messages
 import           Spago.PackageSet   (Package (..), PackageName (..), PackageSet)
 import qualified Spago.PackageSet   as PackageSet
@@ -131,8 +132,8 @@ getReverseDeps db dep =
 
 
 -- | Fetch all dependencies into `.spago/`
-install :: Spago m => Maybe Int -> [PackageName] -> m ()
-install maybeLimit newPackages = do
+install :: Spago m => Maybe Int -> Maybe CacheFlag -> [PackageName] -> m ()
+install maybeLimit cacheFlag newPackages = do
   config@Config{..} <- Config.ensureConfig
 
   -- Try fetching the dependencies with the new names too
@@ -146,7 +147,7 @@ install maybeLimit newPackages = do
     []         -> pure ()
     additional -> Config.addDependencies config additional
 
-  Fetch.fetchPackages maybeLimit deps
+  Fetch.fetchPackages maybeLimit cacheFlag deps
 
 
 data PackagesFilter = TransitiveDeps | DirectDeps
@@ -195,8 +196,8 @@ sources = do
   pure ()
 
 
-verify :: Spago m => Maybe Int -> Maybe PackageName -> m ()
-verify maybeLimit maybePackage = do
+verify :: Spago m => Maybe Int -> Maybe CacheFlag -> Maybe PackageName -> m ()
+verify maybeLimit cacheFlag maybePackage = do
   Config{..} <- Config.ensureConfig
   case maybePackage of
     -- If no package is specified, verify all of them
@@ -224,7 +225,7 @@ verify maybeLimit maybePackage = do
       deps <- getTransitiveDeps packageSet [name]
       let globs = getGlobs deps
           quotedName = Messages.surroundQuote $ packageName name
-      Fetch.fetchPackages maybeLimit deps
+      Fetch.fetchPackages maybeLimit cacheFlag deps
       echo $ "Verifying package " <> quotedName
       Purs.compile globs []
       echo $ "Successfully verified " <> quotedName
