@@ -15,7 +15,7 @@ import qualified GitHub
 import qualified Spago.Dhall                   as Dhall
 
 import           Data.Aeson.Encode.Pretty      (encodePretty)
-import           Spago.GitHubMetadata
+import           Spago.GlobalCache
 import           Spago.PackageSet              (Package (..), PackageName (..), PackageSet,
                                                 Repo (..))
 

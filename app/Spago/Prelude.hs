@@ -6,8 +6,8 @@ module Spago.Prelude
   , die
   , throws
   , hush
-  , withDirectory
   , pathFromText
+  , assertDirectory
   , GlobalOptions (..)
   , Spago
   , module X
@@ -18,7 +18,7 @@ module Spago.Prelude
   , Seq (..)
   , Map
   , Generic
-  , Turtle.Alternative
+  , Alternative
   , Pretty
   , FilePath
   , IOException
@@ -62,8 +62,15 @@ module Spago.Prelude
   , getModificationTime
   ) where
 
-import           Control.Applicative           (empty, many, (<|>))
+
 import qualified Control.Concurrent.Async.Pool as Async
+import qualified Data.Text                     as Text
+import qualified System.FilePath               as FilePath
+import qualified System.IO
+import qualified Turtle                        as Turtle
+import qualified UnliftIO.Directory            as Directory
+
+import           Control.Applicative           (Alternative, empty, many, (<|>))
 import           Control.Lens                  ((^..))
 import           Control.Lens.Combinators      (transformMOf)
 import           Control.Monad                 as X
@@ -77,7 +84,6 @@ import           Data.Map                      (Map)
 import           Data.Maybe                    as X
 import           Data.Sequence                 (Seq (..))
 import           Data.Text                     (Text)
-import qualified Data.Text                     as Text
 import           Data.Text.Prettyprint.Doc     (Pretty)
 import           Data.Traversable              (for)
 import           Data.Typeable                 (Proxy (..), Typeable)
@@ -88,13 +94,11 @@ import           Prelude                       as X hiding (FilePath)
 import           Safe                          (headMay)
 import           System.FilePath               (isAbsolute, pathSeparator, (</>))
 import           System.IO                     (hPutStrLn)
-import qualified System.IO
 import           Turtle                        (ExitCode (..), FilePath, appendonly, mktree, repr,
                                                 shell, shellStrict, systemStrictWithErr, testdir,
                                                 testfile)
-import qualified Turtle                        as Turtle
 import           UnliftIO                      (MonadUnliftIO, withRunInIO)
-import           UnliftIO.Directory            (makeAbsolute, getModificationTime)
+import           UnliftIO.Directory            (getModificationTime, makeAbsolute)
 import           UnliftIO.Exception            (IOException, try)
 import           UnliftIO.Process              (callProcess)
 
@@ -147,11 +151,6 @@ throws (Right a) = pure a
 hush :: Either a b -> Maybe b
 hush = either (const Nothing) Just
 
--- | Manage a directory tree as a resource, deleting it if we except during the @action@
---   NOTE: you should make sure the directory doesn't exist before calling this.
-withDirectory :: Turtle.FilePath -> IO a -> IO a
-withDirectory dir action = (Turtle.mktree dir >> action) `onException` (Turtle.rmtree dir)
-
 
 pathFromText :: Text -> Turtle.FilePath
 pathFromText = Turtle.fromText
@@ -186,3 +185,34 @@ withTaskGroup' n action = withRunInIO $ \run -> Async.withTaskGroup n (\taskGrou
 
 async' :: Spago m => Async.TaskGroup -> m a -> m (Async.Async a)
 async' taskGroup action = withRunInIO $ \run -> Async.async taskGroup (run action)
+
+
+-- | Code from: https://github.com/dhall-lang/dhall-haskell/blob/d8f2787745bb9567a4542973f15e807323de4a1a/dhall/src/Dhall/Import.hs#L578
+assertDirectory :: (MonadIO m, Alternative m) => FilePath.FilePath -> m ()
+assertDirectory directory = do
+  let private = transform Directory.emptyPermissions
+        where
+          transform =
+            Directory.setOwnerReadable   True
+            .   Directory.setOwnerWritable   True
+            .   Directory.setOwnerSearchable True
+
+  let accessible path =
+        Directory.readable   path
+        && Directory.writable   path
+        && Directory.searchable path
+
+  directoryExists <- Directory.doesDirectoryExist directory
+
+  if directoryExists
+    then do
+      permissions <- Directory.getPermissions directory
+
+      guard (accessible permissions)
+
+    else do
+      assertDirectory (FilePath.takeDirectory directory)
+
+      Directory.createDirectory directory
+
+      Directory.setPermissions directory private

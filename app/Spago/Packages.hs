@@ -14,19 +14,19 @@ module Spago.Packages
 
 import           Spago.Prelude
 
-import qualified Data.List        as List
-import qualified Data.Map         as Map
-import qualified Data.Set         as Set
-import qualified Data.Text        as Text
+import qualified Data.List          as List
+import qualified Data.Map           as Map
+import qualified Data.Set           as Set
+import qualified Data.Text          as Text
 
-import           Spago.Config     (Config (..))
-import qualified Spago.Config     as Config
-import qualified Spago.Fetch      as Fetch
-import qualified Spago.Messages   as Messages
-import           Spago.PackageSet (Package (..), PackageName (..), PackageSet)
-import qualified Spago.PackageSet as PackageSet
-import qualified Spago.Purs       as Purs
-import qualified Spago.Templates  as Templates
+import           Spago.Config       (Config (..))
+import qualified Spago.Config       as Config
+import qualified Spago.FetchPackage as Fetch
+import qualified Spago.Messages     as Messages
+import           Spago.PackageSet   (Package (..), PackageName (..), PackageSet)
+import qualified Spago.PackageSet   as PackageSet
+import qualified Spago.Purs         as Purs
+import qualified Spago.Templates    as Templates
 
 
 -- | Init a new Spago project:

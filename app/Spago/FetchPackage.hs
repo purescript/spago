@@ -1,26 +1,20 @@
-module Spago.Fetch
+module Spago.FetchPackage
   ( fetchPackages
   , getLocalCacheDir
   ) where
 
 import           Spago.Prelude
 
-import qualified Codec.Archive.Tar             as Tar
-import qualified Codec.Compression.GZip        as GZip
 import qualified Control.Concurrent.Async.Pool as Async
-import qualified Control.Foldl                 as Fold
 import qualified Data.List                     as List
 import qualified Data.Text                     as Text
-import qualified Data.Vector                   as Vector
-import qualified GitHub
-import qualified Network.HTTP.Simple           as Http
-import qualified System.Directory              as Directory
-import qualified System.Environment
+import qualified UnliftIO.Directory              as Directory
 import qualified System.FilePath               as FilePath
 import qualified System.IO.Temp                as Temp
 import qualified System.Process                as Process
 import qualified Turtle
 
+import qualified Spago.GlobalCache             as GlobalCache
 import qualified Spago.Messages                as Messages
 import           Spago.PackageSet              (Package (..), PackageName (..), Repo (..))
 import qualified Spago.PackageSet              as PackageSet
@@ -40,24 +34,29 @@ fetchPackages maybeLimit allDeps = do
   PackageSet.checkPursIsUpToDate
 
   -- Ensure both local and global cache dirs are there
-  globalCacheDir >>= assertDirectory
+  GlobalCache.getGlobalCacheDir >>= assertDirectory
   (pure localCacheDir) >>= assertDirectory
 
   -- We try to fetch a dep only if their local cache directory doesn't exist
   -- (or their local path, which is the same thing)
   depsToFetch <- (flip filterM) allDeps $ \dep -> do
-    exists <- liftIO $ Directory.doesDirectoryExist $ getLocalCacheDir dep
+    exists <- Directory.doesDirectoryExist $ getLocalCacheDir dep
     pure $ not exists
 
+  -- TODO: add option to skip the cache
+  -- If we have to actually fetch any package, we get the Github Index
   let nOfDeps = List.length depsToFetch
-  when (nOfDeps > 0) $
+  when (nOfDeps > 0) $ do
     echoStr $ "Installing " <> show nOfDeps <> " dependencies."
+    metadata <- GlobalCache.getMetadata
 
-  -- By default we limit the concurrency to 10
-  withTaskGroup' (fromMaybe 10 maybeLimit) $ \taskGroup -> do
-    asyncs <- for depsToFetch (async' taskGroup . fetchPackage)
-    liftIO $ handle (handler asyncs) (for_ asyncs Async.wait)
-    echo "Installation complete."
+    -- By default we limit the concurrency to 10
+    withTaskGroup' (fromMaybe 10 maybeLimit) $ \taskGroup -> do
+      asyncs <- for depsToFetch (async' taskGroup . fetchPackage metadata)
+      liftIO $ handle (handler asyncs) (for_ asyncs Async.wait)
+
+  echo "Installation complete."
+
   where
     -- Here we have this weird exception handling so that threads can clean after
     -- themselves (e.g. remove the directory they might have created) in case an
@@ -80,11 +79,11 @@ fetchPackages maybeLimit allDeps = do
 --   eventually caching it to the global cache, or copying it from there if it's
 --   sensible to do so.
 --   If it's a local directory do nothing
-fetchPackage :: Spago m => (PackageName, Package) -> m ()
-fetchPackage (PackageName package, Package { repo = Local path }) =
+fetchPackage :: Spago m => GlobalCache.ReposMetadataV1 -> (PackageName, Package) -> m ()
+fetchPackage _ (PackageName package, Package { repo = Local path }) =
   echo $ Messages.foundLocalPackage package path
-fetchPackage pair@(packageName'@PackageName{..}, Package{ repo = Remote repo, ..} ) = do
-  globalDir <- globalCacheDir
+fetchPackage metadata pair@(packageName'@PackageName{..}, package@Package{ repo = Remote repo, ..} ) = do
+  globalDir <- GlobalCache.getGlobalCacheDir
   let packageDir = getPackageDir packageName' version
       packageGlobalCacheDir = globalDir </> packageDir
 
@@ -139,8 +138,12 @@ fetchPackage pair@(packageName'@PackageName{..}, Package{ repo = Remote repo, ..
         assertDirectory (localCacheDir </> Text.unpack packageName)
         -- ^ the parent package folder in the local cache (that stores all the versions)
 
-        globallyCache repo version downloadDir cacheableCallback nonCacheableCallback
-
+        GlobalCache.globallyCache
+          (packageName', repo, version)
+          downloadDir
+          metadata
+          cacheableCallback
+          nonCacheableCallback
 
   where
     quotedName = Messages.surroundQuote packageName
@@ -151,54 +154,6 @@ fetchPackage pair@(packageName'@PackageName{..}, Package{ repo = Remote repo, ..
            , "git fetch origin " <> version
            , "git -c advice.detachedHead=false checkout FETCH_HEAD"
            ]
-
-
--- | Fetch the tarball at `archiveUrl` and unpack it into `destination`
-fetchTarball :: FilePath.FilePath -> Text -> IO ()
-fetchTarball destination archiveUrl = do
-  tarballUrl <- Http.parseRequest $ Text.unpack archiveUrl
-  lbs <- fmap Http.getResponseBody (Http.httpLBS tarballUrl)
-  Tar.unpack destination $ Tar.read $ GZip.decompress lbs
-
-
--- | A package is "globally cacheable" if:
---   * it's a GitHub repo
---   * the ref we have is a commit or a tag -- i.e. "immutable enough", so e.g. not a branch
---
---   So here we check that one of the two is true, and if so we run the callback with the
---   URL of the .tar.gz archive on GitHub, otherwise another callback for when it's not
-globallyCache :: Spago m => Text -> Text -> FilePath.FilePath -> (FilePath.FilePath -> m ()) -> m () -> m ()
-globallyCache url version downloadDir cacheableCallback notCacheableCallback = do
-  case (Text.stripPrefix "https://github.com/" url)
-       >>= (Text.stripSuffix ".git")
-       >>= (Just . Text.split (== '/')) of
-    Just [owner, repo] -> do
-      try (isTag <|> isCommit) >>= \case
-        Left (err :: IOException) -> do
-          echoStr $ show err
-          notCacheableCallback -- TODO: nice error?
-        Right ref -> do
-          let archiveUrl = "https://github.com/" <> owner <> "/" <> repo <> "/archive/" <> ref <> ".tar.gz"
-          liftIO $ fetchTarball downloadDir archiveUrl
-          Just resultDir <-  Turtle.fold (Turtle.ls $ Turtle.decodeString downloadDir) Fold.head
-          cacheableCallback $ Turtle.encodeString resultDir
-      where
-        isTag = do
-          res <- liftIO $ GitHub.executeRequest'
-                $ GitHub.tagsForR (GitHub.mkName Proxy owner) (GitHub.mkName Proxy repo) GitHub.FetchAll
-          case res of
-            Right tags | Vector.elem version $ fmap GitHub.tagName tags -> return version
-            _                                                           -> empty
-
-        isCommit = do
-          res <- liftIO $ GitHub.executeRequest'
-                $ GitHub.gitCommitR (GitHub.mkName Proxy owner) (GitHub.mkName Proxy repo) (GitHub.mkName Proxy version)
-          case res of
-            Right _commit -> return version
-            _             -> empty
-    other -> do
-      echoStr $ show other
-      notCacheableCallback -- TODO: error?
 
 
 -- | Directory in which spago will put its local cache
@@ -221,57 +176,3 @@ getLocalCacheDir (packageName, Package{ repo = Remote _, ..}) = do
 getLocalCacheDir (_, Package{ repo = Local path }) =
   Text.unpack path
 
-
--- | Directory in which spago will put its global cache
--- | Code from: https://github.com/dhall-lang/dhall-haskell/blob/d8f2787745bb9567a4542973f15e807323de4a1a/dhall/src/Dhall/Import.hs#L578
-globalCacheDir :: (Alternative m, MonadIO m) => m FilePath.FilePath
-globalCacheDir = do
-  -- TODO: fail with a nice error in case of empty
-  cacheDir <- alternative₀ <|> alternative₁
-  pure $ cacheDir </> "spago"
-  where
-    alternative₀ = do
-      maybeXDGCacheHome <- do
-        liftIO (System.Environment.lookupEnv "XDG_CACHE_HOME")
-
-      case maybeXDGCacheHome of
-        Just xdgCacheHome -> return xdgCacheHome
-        Nothing           -> empty
-
-    alternative₁ = do
-      maybeHomeDirectory <- liftIO (System.Environment.lookupEnv "HOME")
-
-      case maybeHomeDirectory of
-        Just homeDirectory -> return (homeDirectory </> ".cache")
-        Nothing            -> empty
-
-
--- | Code from: https://github.com/dhall-lang/dhall-haskell/blob/d8f2787745bb9567a4542973f15e807323de4a1a/dhall/src/Dhall/Import.hs#L578
-assertDirectory :: (MonadIO m, Alternative m) => FilePath.FilePath -> m ()
-assertDirectory directory = do
-  let private = transform Directory.emptyPermissions
-        where
-          transform =
-            Directory.setOwnerReadable   True
-            .   Directory.setOwnerWritable   True
-            .   Directory.setOwnerSearchable True
-
-  let accessible path =
-        Directory.readable   path
-        && Directory.writable   path
-        && Directory.searchable path
-
-  directoryExists <- liftIO (Directory.doesDirectoryExist directory)
-
-  if directoryExists
-    then do
-      permissions <- liftIO (Directory.getPermissions directory)
-
-      guard (accessible permissions)
-
-    else do
-      assertDirectory (FilePath.takeDirectory directory)
-
-      liftIO (Directory.createDirectory directory)
-
-      liftIO (Directory.setPermissions directory private)

@@ -23,7 +23,7 @@ import qualified Data.Text            as Text
 import qualified System.FilePath.Glob as Glob
 
 import qualified Spago.Config         as Config
-import qualified Spago.Fetch          as Fetch
+import qualified Spago.FetchPackage   as Fetch
 import qualified Spago.Packages       as Packages
 import qualified Spago.Purs           as Purs
 import qualified Spago.Watch          as Watch
