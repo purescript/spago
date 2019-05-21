@@ -151,8 +151,8 @@ fetchPackage metadata pair@(packageName'@PackageName{..}, Package{ repo = Remote
     git = Text.intercalate " && "
            [ "git init"
            , "git remote add origin " <> repo
-           , "git fetch origin " <> version
-           , "git -c advice.detachedHead=false checkout FETCH_HEAD"
+           , "git fetch origin"
+           , "git -c advice.detachedHead=false checkout " <> version
            ]
 
 
