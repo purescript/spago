@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+New features:
+- Add global cache to avoid redownloading dependencies (#188, #133)
+- Add ability to pin a version to a commit hash in addition to branches and tags (#188, #202)
+
+Other improvements:
 - Add `spago-curator` tool to generate metadata from the package set (#202)
 
 ## [0.8.0] - 2019-05-16
