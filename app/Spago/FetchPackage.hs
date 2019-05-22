@@ -164,7 +164,7 @@ localCacheDir = ".spago"
 -- | Given a package name and a ref, return a FilePath for the package,
 --   to be used as a prefix in local and global cache
 getPackageDir :: PackageName -> Text -> FilePath.FilePath
-getPackageDir PackageName{..} version = Text.unpack packageName </> Text.unpack version
+getPackageDir PackageName{..} version = Text.unpack packageName <> "/" <> Text.unpack version
 
 
 -- | Returns the path in the local cache for a given package
@@ -172,7 +172,7 @@ getPackageDir PackageName{..} version = Text.unpack packageName </> Text.unpack 
 --   Otherwise return the local folder
 getLocalCacheDir :: (PackageName, Package) -> FilePath.FilePath
 getLocalCacheDir (packageName, Package{ repo = Remote _, ..}) = do
-  localCacheDir </> getPackageDir packageName version
+  localCacheDir <> "/" <> getPackageDir packageName version
 getLocalCacheDir (_, Package{ repo = Local path }) =
   Text.unpack path
 
