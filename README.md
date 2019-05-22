@@ -133,7 +133,7 @@ Other installation methods available:
 - If you encounnter issues with `libtinfo.so.5`, see [this issue][ubuntu-issue-libtinfo] for a fix.
 
 **Notes for NixOS users**: as you might expect, the `npm` installation won't work because it's
-dinamically linked. Use [easy-purescript-nix][spago-nix].
+dynamically linked. Use [easy-purescript-nix][spago-nix].
 
 **Notes for Windows users:** if you are installing with `yarn` on Windows, things might not
 work and you want to instead use `npm`. See [this issue][windows-issue-yarn] for details.
