@@ -130,7 +130,7 @@ Other installation methods available:
 **Notes for Ubuntu users:**
 - If you get networking errors (e.g. "Host Not Found") you may need to install `netbase`.
   For more details see [this issue][ubuntu-issue-netbase].
-- If you encounnter issues with `libtinfo.so.5`, see [this issue][ubuntu-issue-libtinfo] for a fix.
+- If you encounter issues with `libtinfo.so.5`, see [this issue][ubuntu-issue-libtinfo] for a fix.
 
 **Notes for NixOS users**: as you might expect, the `npm` installation won't work because it's
 dynamically linked. Use [easy-purescript-nix][spago-nix].
@@ -497,7 +497,7 @@ This is a fair question, and you can verify that your fix didn't break the rest 
 package-set by running the `verify` command.
 
 E.g. if you patched the `foreign` package, and added it as a local package to your package-set,
-you can check that you didn't break its dependants (also called "reverse dependencies")
+you can check that you didn't break its dependents (also called "reverse dependencies")
 by running:
 
 ```bash
