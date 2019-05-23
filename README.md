@@ -127,7 +127,7 @@ Other installation methods available:
   - either **do not run npm as root**, because it doesn't work well with binaries. Use it as a nonprivileged user.
   - or use `--unsafe-perm`: `npm install -g --unsafe-perm spago` 
 
-**Notes for Ubuntu users:**
+**Notes for Linux users:**
 - If you get networking errors (e.g. "Host Not Found") you may need to install `netbase`.
   For more details see [this issue][ubuntu-issue-netbase].
 - If you encounter issues with `libtinfo.so.5`, see [this issue][ubuntu-issue-libtinfo] for a fix.
