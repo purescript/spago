@@ -127,13 +127,13 @@ Other installation methods available:
   - either **do not run npm as root**, because it doesn't work well with binaries. Use it as a nonprivileged user.
   - or use `--unsafe-perm`: `npm install -g --unsafe-perm spago` 
 
-**Notes for Ubuntu users:**
+**Notes for Linux users:**
 - If you get networking errors (e.g. "Host Not Found") you may need to install `netbase`.
   For more details see [this issue][ubuntu-issue-netbase].
-- If you encounnter issues with `libtinfo.so.5`, see [this issue][ubuntu-issue-libtinfo] for a fix.
+- If you encounter issues with `libtinfo.so.5`, see [this issue][ubuntu-issue-libtinfo] for a fix.
 
 **Notes for NixOS users**: as you might expect, the `npm` installation won't work because it's
-dinamically linked. Use [easy-purescript-nix][spago-nix].
+dynamically linked. Use [easy-purescript-nix][spago-nix].
 
 **Notes for Windows users:** if you are installing with `yarn` on Windows, things might not
 work and you want to instead use `npm`. See [this issue][windows-issue-yarn] for details.
@@ -497,7 +497,7 @@ This is a fair question, and you can verify that your fix didn't break the rest 
 package-set by running the `verify` command.
 
 E.g. if you patched the `foreign` package, and added it as a local package to your package-set,
-you can check that you didn't break its dependants (also called "reverse dependencies")
+you can check that you didn't break its dependents (also called "reverse dependencies")
 by running:
 
 ```bash
