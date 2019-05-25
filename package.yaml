@@ -49,6 +49,7 @@ dependencies:
 - containers
 - dhall
 - dhall-json
+- extra
 - bytestring
 - prettyprinter
 - async-pool
@@ -87,3 +88,7 @@ executables:
     - -threaded
     - -rtsopts
     - -with-rtsopts=-N
+
+tests:
+  spec:
+    defaults: hspec/hspec@master
