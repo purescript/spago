@@ -76,18 +76,19 @@ install:
 script:
   - |
     echo "Running tests"
+    export PATH="${PATH}:$(pwd)/artifacts"
     if [ `uname` = "Darwin" ]
     then
-      stack build --copy-bins --local-bin-path ./artifacts;
-      export PATH="${PATH}:$(pwd)/artifacts"
-      nvm install 10 && nvm use 10
-      npm install -g purescript@0.12.5 psc-package@3.0.1
-      stack test
+      stack build --test --no-run-tests --copy-bins --local-bin-path ./artifacts;
     else
       docker run --mount src="$(pwd)",target=/home/ubuntu/spago,type=bind \
        nilrecurring/haskell-lavello:lts-12 /bin/bash -c \
-       "cd spago && stack build --copy-bins --local-bin-path ./artifacts && export PATH="${PATH}:$(pwd)/artifacts && nvm install 10 && nvm use 10 && npm install -g purescript@0.12.5 psc-package@3.0.1 && stack test"
+       'cd spago && stack build --test --no-run-tests --copy-bins --local-bin-path ./artifacts'
     fi
+    nvm install 10 && nvm use 10
+    npm install -g purescript@0.12.5 psc-package@3.0.1
+    # run the test suite executable
+    ./.stack-work/dist/*/*/build/spec/spec
 
 
 before_deploy:
