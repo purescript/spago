@@ -6,8 +6,7 @@ import           Test.Hspec          (Spec, afterAll_, around_, beforeAll,
                                       describe, it, shouldBe)
 import           Turtle              (FilePath, empty, procStrictWithErr, procs,
                                       rm, testdir, testfile)
-import           Utils               (shouldBeFailure, shouldBeSuccess, spago,
-                                      withCwd)
+import           Utils               (shouldBeSuccess, spago, withCwd)
 
 testDir :: FilePath
 testDir = "test/psc-package-local-test"
@@ -28,9 +27,9 @@ spec = beforeAll clean $ afterAll_ clean $ around_ (withCwd testDir) $ do
       spago ["psc-package-local-setup"] >>= shouldBeSuccess
       testfile "packages.dhall" >>= (`shouldBe` True)
 
-    it "Running local setup twice should cause an error with an existing setup" $ do
+    it "Running local setup twice should succeed on second run with an existing setup" $ do
 
-      spago ["psc-package-local-setup"] >>= shouldBeFailure
+      spago ["psc-package-local-setup"] >>= shouldBeSuccess
 
 
   describe "spago psc-package-insdhall" $ do
