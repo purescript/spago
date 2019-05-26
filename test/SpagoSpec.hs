@@ -32,7 +32,6 @@ spec = beforeAll clean $ around_ (withCwd testDir) $ do
 
       spago ["init"] >>= shouldBeFailure
 
-
       rm "spago.dhall" :: IO ()
       rm "packages.dhall"
 
@@ -78,12 +77,9 @@ spec = beforeAll clean $ around_ (withCwd testDir) $ do
       mv "spago.dhall" "spago-install-success.dhall"
       checkFixture "spago-install-success.dhall"
 
-    it "Spago should always succeed in doing init with force" $ do
-
-      spago ["init", "-f"] >>= shouldBeSuccess
-
     it "Spago should not add dependencies that are not in the package set" $ do
 
+      spago ["init", "-f"] >>= shouldBeSuccess
       spago ["install", "foobar"] >>= shouldBeFailure
       cp "spago.dhall" "spago-install-failure.dhall"
       checkFixture "spago-install-failure.dhall"
