@@ -1,5 +1,0 @@
-#!/usr/bin/env bash
-set -e
-
-echo "This is a stub that will be replaced on install. \
-It is needed to workaround https://github.com/yarnpkg/yarn/issues/3421"

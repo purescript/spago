@@ -10,8 +10,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 New features:
 - Add `spago-curator` tool to generate metadata from the package set (#202)
 
+Bugfixes:
+- Another attempt to fix NPM and Yarn installations on Windows (#215, #187)
+
 Other improvements:
 - The test suite is now written in Haskell rather than Python (#212, #177)
+
 
 ## [0.8.0] - 2019-05-16
 
@@ -149,4 +153,3 @@ Main changes from the previous "spacchetti-cli" incarnation:
 - Freeze `spacchetti` package-set import in `packages.dhall`, so `dhall` caching works for subsequent executions
 - Move to v4.0.0 of `dhall`
 - Add integration tests for most of the commands (#31, #30)
-
