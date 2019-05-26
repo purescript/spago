@@ -47,16 +47,19 @@ PureScript package manager and build tool powered by [Dhall][dhall] and
   - [Use this together with `psc-package`](#use-this-together-with-psc-package)
   - [Get all the licenses of my dependencies](#get-all-the-licenses-of-my-dependencies)
   - [Know what `purs` commands are run under the hood](#know-what-purs-commands-are-run-under-the-hood)
+  - [Ignore or update the global cache](#ignore-or-update-the-global-cache)
 - [Explanations](#explanations)
   - [Configuration file format](#configuration-file-format)
   - [Why can't `spago` also install my npm dependencies?](#why-cant-spago-also-install-my-npm-dependencies)
   - [Why we don't resolve JS dependencies when bundling, and how to do it](#why-we-dont-resolve-js-dependencies-when-bundling-and-how-to-do-it)
+  - [How does the "global cache" work?](#how-does-the-global-cache-work)
 - [Troubleshooting](#troubleshooting)
     - [I added a git repo URL to my overrides, but `spago` thinks it's a local path 🤔](#i-added-a-git-repo-url-to-my-overrides-but-spago-thinks-its-a-local-path-)
     - [My `install` command is failing with some errors about "too many open files"](#my-install-command-is-failing-with-some-errors-about-too-many-open-files)
     - [Package set caching problems](#package-set-caching-problems)
     - [I added a new package to the `packages.dhall`, but `spago` is not installing it. Why?](#i-added-a-new-package-to-the-packagesdhall-but-spago-is-not-installing-it-why)
 - [Reference - Internals](#reference---internals)
+  - [The `spago-curator` tool](#the-spago-curator-tool)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
@@ -418,7 +421,7 @@ Let's now say that we test that our fix works, and we are ready to Pull Request 
 So we push our fork and open the PR, but while we wait for the fix to land on the next
 package-set release, we still want to use the fix in our production build.
 
-In this case, we can just change the override to point to some branch of our fork, like this:
+In this case, we can just change the override to point to some commit of our fork, like this:
 
 
 ```haskell
@@ -426,15 +429,14 @@ let overrides =
     { simple-json =
           upstream.simple-json
        // { repo = "https://github.com/my-user/purescript-simple-json.git"
-          , version = "my-branch-with-the-fix"
+          , version = "701f3e44aafb1a6459281714858fadf2c4c2a977"
           }
     }
 ```
 
-**Note**: currently only "branches" and "tags" work as a `version`, and tags are
-recommended over branches (as for example if you push new commits to a branch,
-`spago` won't pick them up unless you delete the `.spago` folder).
-Commit hashes are not supported yet, but hopefully will be at some point.
+**Note**: you can use a "branch", a "tag" or a "commit hash" as a `version`.
+Generally it's recommended that you avoid using branches, because if you push new
+commits to a branch, `spago` won't pick them up unless you delete the `.spago` folder.
 
 
 ### Add a package to the package set
@@ -760,6 +762,19 @@ done
 The `-v` flag will print out all the `purs` commands that `spago` invokes during its operations.
 
 
+### Ignore or update the global cache
+
+There is a global cache that `spago` uses to avoid re-downloading things - its
+location will be printed if you call e.g. `spago install -v`.
+
+It's possible to change the behaviour of the global cache with the `--global-cache` flag
+that is accepted by many commands. You can either:
+- skip the cache with `--global-cache=skip`: in this case the global cache will be ignored
+  and the local project will re-download everything
+- update the cache to the latest version with `--global-cache=update`: this might be useful
+  if you want to globally cache a tag or commit that is newer than 24h - the time `spago` will
+  wait before updating its metadata file about "which things are globally cacheable".
+
 ## Explanations
 
 ### Configuration file format
@@ -855,6 +870,32 @@ the `ksf-login` component and output it in the `index.js` of the component's fol
 then `yarn install` the single component (note it contains a `package.json`), and require it
 as a separate npm package with `require('@affresco/ksf-login')`.
 
+### How does the "global cache" work?
+
+Every time `spago` will need to "install dependencies" it will:
+- check if the package is local to the filesystem: if it is then it will skip it as we can just
+  point to the files
+- check if the ref is already in the global cache. If it is, it will just copy it
+  to the project-local cache
+- download [a metadata file from the `package-sets-metadata`][package-sets-metadata-file] repo
+  if missing from the global cache or older 24 hours.
+  
+  This file contains the list of *tags* and *commits* for every package currently in the package
+  set, updated hourly.
+- check if the tag or commit of the package we need to download is in this cached index,
+  and if it is then this means we can "globally cache" that version - this is because commit
+  hashes are immutable, and tags are "immutable enough"
+- if a version is deemed to be "globally cacheable" then a tarball of that ref is downloaded
+  from GitHub and copied to both the global and the local cache
+- otherwise, the repo is just cloned to the local cache
+
+Note: a question that might come up while reading the above might be "why not just hit GitHub 
+to check commits and tags for every repo while installing?"
+
+The problem is that GitHub limits token-less API requests to 50 per hour, so any
+decently-sized installation will fail to get all the "cacheable" items, making the 
+global cache kind of useless. So we are just caching all of that info for everyone here.
+
 
 ## Troubleshooting
 
@@ -932,21 +973,8 @@ Here's an overview of its commands:
   that `spago` will be able to rely on it for information about "is this ref immutable",
   effectively enabling the possibility of a global cache.
   
-  So every time `spago` will need to install dependencies it will:
-  - download this file if missing from the global cache or older than let's say 1 day
-  - check if the tag or commit of the package we need to download is in the cached GitHub index,
-    and if it is then this means we can "globally cache" that version.
-
-  A question that might arise is: "why not just hit GitHub asking for this info instead of
-  having this complicated CI process?"
+  See [here](#how-does-the-global-cache-work) for more info about the global cache.
   
-  The problem is that GitHub limits token-less API requests to 50 per hour, so any
-  decently-sized installation will fail to get all the "cacheable" items, making the 
-  global cache kind of useless. So we are just caching all of that info for everyone here.
-  
-  The other solution would be to require people to have a GitHub token, but that is not really
-  good UX and security.
-
 
 [pulp]: https://github.com/purescript-contrib/pulp
 [purp]: https://github.com/justinwoo/purp
@@ -976,3 +1004,4 @@ Here's an overview of its commands:
 [ubuntu-issue-libtinfo]: https://github.com/spacchetti/spago/issues/104#issue-408423391
 [package-sets-metadata]: https://github.com/spacchetti/package-sets-metadata
 [package-sets-contributing]: https://github.com/purescript/package-sets/blob/master/CONTRIBUTING.md
+[package-sets-metadata-file]: https://github.com/spacchetti/package-sets-metadata/blob/master/metadataV1.json
