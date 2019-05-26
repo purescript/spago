@@ -7,11 +7,7 @@ branches:
 environment:
   STACK_ROOT: C:\sr
   STACK_VERSION: 1.9.3
-  PYTHON_ARCH: "64"
-  PYTHON_VERSION: 3.6
-  PYTHON: C:\\Python36-x64
-  TEST_WHEELINSTALL_ENV: wheelinstall-py36
-  
+
   # Workaround a gnarly bug https://github.com/haskell/cabal/issues/5386
   # See: https://www.fpcomplete.com/blog/2018/06/sed-a-debugging-story
   # TODO: check if it's fixed once we switch to lst-13 and GHC 8.6
@@ -37,11 +33,8 @@ build_script:
 
 test_script:
   - set PATH=C:\projects\spago\bin;%PATH%
-  - "SET PATH=%PYTHON%;%PYTHON%\\Scripts;%PATH%"
-  - chcp 65001
-  - set PYTHONIOENCODING=utf-8
   - set XDG_CACHE_HOME=C:\cache
-  - cd test\spago-test && python ..\spago-test.py && cd ..\..
+  - stack test --test-arguments=--match=Spago
 
 artifacts:
   - path: windows.tar.gz

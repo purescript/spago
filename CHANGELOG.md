@@ -9,10 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 New features:
 - Add global cache to avoid redownloading dependencies (#188, #133)
-- Add ability to pin a version to a commit hash in addition to branches and tags (#188, #202)
+- Add ability to pin a version to a commit hash in addition to branches and tags (#188, #200)
+
+Bugfixes:
+- Another attempt to fix NPM and Yarn installations on Windows (#215, #187)
 
 Other improvements:
+- The test suite is now written in Haskell rather than Python (#212, #177)
 - Add `spago-curator` tool to generate metadata from the package set (#202)
+
 
 ## [0.8.0] - 2019-05-16
 
@@ -150,4 +155,3 @@ Main changes from the previous "spacchetti-cli" incarnation:
 - Freeze `spacchetti` package-set import in `packages.dhall`, so `dhall` caching works for subsequent executions
 - Move to v4.0.0 of `dhall`
 - Add integration tests for most of the commands (#31, #30)
-

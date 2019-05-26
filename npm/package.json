@@ -8,15 +8,14 @@
     "url": "https://github.com/spacchetti/spago.git"
   },
   "scripts": {
-    "preinstall": "node ./install.js"
+    "postinstall": "node ./install.js"
   },
   "author": "Justin Woo, Fabrizio Ferrai",
   "bin": {
-    "spago": "./spago.exe"
+    "spago": "./spago"
   },
   "dependencies": {
     "follow-redirects": "^1.7.0",
-    "shelljs": "^0.8.3",
     "tar": "^4.4.8"
   },
   "keywords": [

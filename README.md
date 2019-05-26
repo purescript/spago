@@ -125,7 +125,7 @@ Other installation methods available:
 **General notes:**
 - The assumption is that you already installed the [PureScript compiler][purescript].
   If not, get it with `npm install -g purescript`, or the recommended method for your OS.
-- You might have issues with `npm` and Docker (e.g. getting the message "This is a stub that will be replaced.." etc)
+- You might have issues with `npm` and Docker (e.g. getting the message "Downloading the spago binary failed.." etc)
   You have two options:
   - either **do not run npm as root**, because it doesn't work well with binaries. Use it as a nonprivileged user.
   - or use `--unsafe-perm`: `npm install -g --unsafe-perm spago` 
@@ -137,9 +137,6 @@ Other installation methods available:
 
 **Notes for NixOS users**: as you might expect, the `npm` installation won't work because it's
 dynamically linked. Use [easy-purescript-nix][spago-nix].
-
-**Notes for Windows users:** if you are installing with `yarn` on Windows, things might not
-work and you want to instead use `npm`. See [this issue][windows-issue-yarn] for details.
 
 
 ## Super quick tutorial
