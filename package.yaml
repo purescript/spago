@@ -87,3 +87,9 @@ executables:
     - -threaded
     - -rtsopts
     - -with-rtsopts=-N
+
+tests:
+  spec:
+    defaults: hspec/hspec@master
+    dependencies:
+    - extra

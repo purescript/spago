@@ -64,9 +64,8 @@ So you might want to run them locally. This is a way to do it:
 # Build from source and install system-wide
 $ stack install
 
-# This runs the Python tests which make use of the `spago` executable
-$ cd tests/spago-test
-$ ../spago-test.py
+# This runs the tests which make use of the `spago` executable
+$ stack test
 ```
 
 
@@ -94,6 +93,3 @@ Learn by doing and get your hands dirty!
 [stack]: http://haskellstack.org/
 [fp-slack]: https://fpchat-invite.herokuapp.com/
 [spago-issues]: https://github.com/spacchetti/spago/issues
-
-
-
