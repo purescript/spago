@@ -32,7 +32,6 @@ spec = beforeAll clean $ around_ (withCwd testDir) $ do
 
       spago ["init"] >>= shouldBeFailure
 
-    it "Cleaning of config files should succeed" $ do
 
       rm "spago.dhall" :: IO ()
       rm "packages.dhall"
