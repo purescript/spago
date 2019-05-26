@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `spago-curator` tool to generate metadata from the package set (#202)
 
 Bugfixes:
-- Another attempt to fix NPM and Yarn installations on Windows (#187)
+- Another attempt to fix NPM and Yarn installations on Windows (#215, #187)
 
 ## [0.8.0] - 2019-05-16
 
