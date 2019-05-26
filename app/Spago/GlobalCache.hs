@@ -84,6 +84,8 @@ getMetadata :: Spago m => Maybe CacheFlag -> m ReposMetadataV1
 getMetadata cacheFlag = do
   globalCacheDir <- getGlobalCacheDir
 
+  echoDebug $ "Global cache directory: " <> Text.pack globalCacheDir
+
   let metaURL = "https://raw.githubusercontent.com/spacchetti/package-sets-metadata/master/metadataV1.json"
 
       globalPathToMeta = globalCacheDir </> "metadataV1.json"
