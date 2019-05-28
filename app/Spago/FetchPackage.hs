@@ -43,8 +43,8 @@ fetchPackages maybeLimit globalCacheFlag allDeps = do
     exists <- Directory.doesDirectoryExist $ getLocalCacheDir dep
     pure $ not exists
 
-  -- TODO: add option to skip the cache
   -- If we have to actually fetch any package, we get the Github Index
+  -- Note: it might be empty depending on the cacheFlag
   let nOfDeps = List.length depsToFetch
   when (nOfDeps > 0) $ do
     echoStr $ "Installing " <> show nOfDeps <> " dependencies."
