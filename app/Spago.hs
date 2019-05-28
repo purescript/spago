@@ -14,6 +14,7 @@ import           Spago.Build         (BuildOptions (..), ExtraArg (..), ModuleNa
                                       NoBuild (..), SourcePath (..), TargetPath (..), Watch (..),
                                       WithMain (..))
 import qualified Spago.Build
+import           Spago.GlobalCache   (CacheFlag (..))
 import           Spago.Messages      as Messages
 import           Spago.Packages      (PackageName (..), PackagesFilter (..))
 import qualified Spago.Packages
@@ -29,7 +30,7 @@ data Command
   = Init Bool
 
   -- | Install (download) dependencies defined in spago.dhall
-  | Install (Maybe Int) [PackageName]
+  | Install (Maybe Int) (Maybe CacheFlag) [PackageName]
 
   -- | Get source globs of dependencies in spago.dhall
   | Sources
@@ -47,10 +48,10 @@ data Command
   | ListPackages (Maybe PackagesFilter)
 
   -- | Verify that a single package is consistent with the Package Set
-  | Verify (Maybe Int) PackageName
+  | Verify (Maybe Int) (Maybe CacheFlag) PackageName
 
     -- | Verify that the Package Set is correct
-  | VerifySet (Maybe Int)
+  | VerifySet (Maybe Int) (Maybe CacheFlag)
 
   -- | Test the project with some module, default Test.Main
   | Test (Maybe ModuleName) BuildOptions
@@ -61,7 +62,6 @@ data Command
   -- | Bundle the project into an executable
   --   Builds the project before bundling
   | BundleApp (Maybe ModuleName) (Maybe TargetPath) NoBuild BuildOptions
-
 
   -- | Bundle a module into a CommonJS module
   --   Builds the project before bundling
@@ -124,6 +124,12 @@ parser = do
       pure $ case res of
         True  -> NoBuild
         False -> DoBuild
+    cacheFlag =
+      let wrap = \case
+            "skip" -> Just SkipCache
+            "update" -> Just NewCache
+            _ -> Nothing
+      in CLI.optional $ CLI.opt wrap "global-cache" 'c' "Configure the global caching behaviour: skip it with `skip` or force update with `update`"
     mainModule  = CLI.optional (CLI.opt (Just . ModuleName) "main" 'm' "Module to be used as the application's entry point")
     toTarget    = CLI.optional (CLI.opt (Just . TargetPath) "to" 't' "The target file path")
     limitJobs   = CLI.optional (CLI.optInt "jobs" 'j' "Limit the amount of jobs that can run concurrently")
@@ -131,7 +137,7 @@ parser = do
     packageName = CLI.arg (Just . PackageName) "package" "Specify a package name. You can list them with `list-packages`"
     packageNames = CLI.many $ CLI.arg (Just . PackageName) "package" "Package name to add as dependency"
     passthroughArgs = many $ CLI.arg (Just . ExtraArg) " ..any `purs compile` option" "Options passed through to `purs compile`; use -- to separate"
-    buildOptions = BuildOptions <$> limitJobs <*> watch <*> sourcePaths <*> passthroughArgs
+    buildOptions = BuildOptions <$> limitJobs <*> cacheFlag <*> watch <*> sourcePaths <*> passthroughArgs
     globalOptions = GlobalOptions <$> verbose
     packagesFilter =
       let wrap = \case
@@ -213,7 +219,7 @@ parser = do
     install =
       ( "install"
       , "Install (download) all dependencies listed in spago.dhall"
-      , Install <$> limitJobs <*> packageNames
+      , Install <$> limitJobs <*> cacheFlag <*> packageNames
       )
 
     sources =
@@ -231,13 +237,13 @@ parser = do
     verify =
       ( "verify"
       , "Verify that a single package is consistent with the Package Set"
-      , Verify <$> limitJobs <*> packageName
+      , Verify <$> limitJobs <*> cacheFlag <*> packageName
       )
 
     verifySet =
       ( "verify-set"
       , "Verify that the whole Package Set builds correctly"
-      , VerifySet <$> limitJobs
+      , VerifySet <$> limitJobs <*> cacheFlag
       )
 
     packageSetUpgrade =
@@ -314,11 +320,12 @@ main = do
   (flip runReaderT) globalOptions $
     case command of
       Init force                            -> Spago.Packages.initProject force
-      Install limitJobs packageNames        -> Spago.Packages.install limitJobs packageNames
+      Install limitJobs cacheConfig packageNames
+        -> Spago.Packages.install limitJobs cacheConfig packageNames
       ListPackages packagesFilter           -> Spago.Packages.listPackages packagesFilter
       Sources                               -> Spago.Packages.sources
-      Verify limitJobs package              -> Spago.Packages.verify limitJobs (Just package)
-      VerifySet limitJobs                   -> Spago.Packages.verify limitJobs Nothing
+      Verify limitJobs cacheConfig package  -> Spago.Packages.verify limitJobs cacheConfig (Just package)
+      VerifySet limitJobs cacheConfig       -> Spago.Packages.verify limitJobs cacheConfig Nothing
       PackageSetUpgrade                     -> Spago.Packages.upgradePackageSet
       Freeze                                -> Spago.Packages.freeze
       Build buildOptions                    -> Spago.Build.build buildOptions Nothing

@@ -23,9 +23,11 @@ import qualified Data.Text            as Text
 import qualified System.FilePath.Glob as Glob
 
 import qualified Spago.Config         as Config
+import qualified Spago.FetchPackage   as Fetch
+import qualified Spago.GlobalCache    as GlobalCache
 import qualified Spago.Packages       as Packages
 import qualified Spago.Purs           as Purs
-import           Spago.Watch          (watch)
+import qualified Spago.Watch          as Watch
 
 
 data Watch = Watch | BuildOnce
@@ -36,6 +38,7 @@ data NoBuild = NoBuild | DoBuild
 
 data BuildOptions = BuildOptions
   { maybeLimit      :: Maybe Int
+  , cacheConfig     :: Maybe GlobalCache.CacheFlag
   , shouldWatch     :: Watch
   , sourcePaths     :: [Purs.SourcePath]
   , passthroughArgs :: [Purs.ExtraArg]
@@ -63,7 +66,7 @@ build :: Spago m => BuildOptions -> Maybe (m ()) -> m ()
 build BuildOptions{..} maybePostBuild = do
   config <- Config.ensureConfig
   deps <- Packages.getProjectDeps config
-  Packages.fetchPackages maybeLimit deps
+  Fetch.fetchPackages maybeLimit cacheConfig deps
   let projectGlobs = defaultSourcePaths <> sourcePaths
       allGlobs = Packages.getGlobs deps <> projectGlobs
       buildAction = do
@@ -74,7 +77,7 @@ build BuildOptions{..} maybePostBuild = do
   absoluteProjectGlobs <- traverse makeAbsolute $ Text.unpack . Purs.unSourcePath <$> projectGlobs
   case shouldWatch of
     BuildOnce -> buildAction
-    Watch     -> watch (Set.fromAscList $ fmap Glob.compile absoluteProjectGlobs) buildAction
+    Watch     -> Watch.watch (Set.fromAscList $ fmap Glob.compile absoluteProjectGlobs) buildAction
 
 -- | Start a repl
 repl :: Spago m => [Purs.SourcePath] -> [Purs.ExtraArg] -> m ()

@@ -33,6 +33,7 @@ build_script:
 
 test_script:
   - set PATH=C:\projects\spago\bin;%PATH%
+  - set XDG_CACHE_HOME=C:\cache
   - stack test --test-arguments=--match=Spago
 
 artifacts:

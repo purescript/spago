@@ -1,5 +1,5 @@
 name:                spago
-version:             0.8.0.0
+version:             0.8.1.0
 github:              "spacchetti/spago"
 license:             BSD3
 author:              "Justin Woo, Fabrizio Ferrai"
@@ -67,8 +67,14 @@ dependencies:
 - exceptions
 - unliftio
 - vector
+- temporary
+- zlib
+- tar
+- foldl
 - retry
 - optparse-applicative
+- http-conduit
+- time
 
 executables:
   spago:
