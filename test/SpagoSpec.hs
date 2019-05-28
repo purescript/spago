@@ -81,9 +81,30 @@ spec = beforeAll clean $ around_ (withCwd testDir) $ do
 
       spago ["init", "-f"] >>= shouldBeSuccess
       spago ["install", "foobar"] >>= shouldBeFailure
-      cp "spago.dhall" "spago-install-failure.dhall"
+      mv "spago.dhall" "spago-install-failure.dhall"
       checkFixture "spago-install-failure.dhall"
 
+    it "Spago should be able to install a package in the set from a commit hash" $ do
+
+      rm "psc-package.json"
+      spago ["init"] >>= shouldBeSuccess
+      mv "packages.dhall" "packagesBase.dhall"
+      writeTextFile "packages.dhall" "let pkgs = ./packagesBase.dhall in pkgs // { simple-json = pkgs.simple-json // { version = \"d45590f493d68baae174b2d3062d502c0cc4c265\" } }"
+      spago ["install", "simple-json"] >>= shouldBeSuccess
+
+    it "Spago should be able to install a package not in the set from a commit hash" $ do
+
+      writeTextFile "packages.dhall" "let pkgs = ./packagesBase.dhall in pkgs // { spago = { dependencies = [\"prelude\"], repo = \"https://github.com/spacchetti/spago.git\", version = \"cbdbbf8f8771a7e43f04b18cdefffbcb0f03a990\" }}"
+      spago ["install", "spago"] >>= shouldBeSuccess
+
+    it "Spago should not be able to install a package from a not-existing commit hash" $ do
+
+      writeTextFile "packages.dhall" "let pkgs = ./packagesBase.dhall in pkgs // { spago = { dependencies = [\"prelude\"], repo = \"https://github.com/spacchetti/spago.git\", version = \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\" }}"
+      spago ["install", "spago"] >>= shouldBeFailure
+      rm "packages.dhall"
+      rm "packagesBase.dhall"
+      rm "spago.dhall"
+      spago ["init"] >>= shouldBeSuccess
 
   describe "spago build" $ do
 
