@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8.1] - 2019-05-29
+
 New features:
 - Add global cache to avoid redownloading dependencies (#188, #133)
 - Add ability to pin a version to a commit hash in addition to branches and tags (#188, #200)
@@ -17,7 +19,7 @@ Bugfixes:
 Other improvements:
 - The test suite is now written in Haskell rather than Python (#212, #177)
 - Add `spago-curator` tool to generate metadata from the package set (#202)
-
+- Improve docs (#208, #207, #218, #217)
 
 ## [0.8.0] - 2019-05-16
 
