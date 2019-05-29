@@ -114,6 +114,8 @@ before_deploy:
 
       ## Get ready to publish npm
       cd npm
+      cp ../README.md ./README.md
+      cp ../CONTRIBUTING.md ./CONTRIBUTING.md
       cp ../LICENSE ./LICENSE
     fi
 
