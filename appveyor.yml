@@ -20,6 +20,7 @@ install:
   - choco install -y haskell-stack --version %STACK_VERSION%
   - stack setup > nul
   - choco install purescript
+  - choco install psc-package
 
 cache:
   - C:\sr -> '%STACK_YAML%'
@@ -34,7 +35,7 @@ build_script:
 test_script:
   - set PATH=C:\projects\spago\bin;%PATH%
   - set XDG_CACHE_HOME=C:\cache
-  - stack test --test-arguments=--match=Spago
+  - stack test
 
 artifacts:
   - path: windows.tar.gz
