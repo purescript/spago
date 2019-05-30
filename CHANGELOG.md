@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+Bugfixes:
+- Fix `spago psc-package-clean` on Windows (#224)
+
+Other improvements:
+- Test suite now works fully on Windows (#224)
+
 ## [0.8.1] - 2019-05-29
 
 New features:

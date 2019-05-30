@@ -14,6 +14,7 @@ import qualified Data.Text.Lazy           as LT
 import qualified Data.Text.Lazy.Encoding  as LT
 import qualified Dhall.JSON               as Dhall.JSON
 import           GHC.Generics             (Generic)
+import           System.Directory         (removePathForcibly)
 import qualified Turtle                   as T
 
 import qualified Spago.PackageSet         as PackageSet
@@ -133,6 +134,6 @@ clean = do
   hasDir <- T.testdir pscDir
   if hasDir
     then do
-      T.rmtree pscDir
+      removePathForcibly $ T.encodeString pscDir
       T.echo "Packages cache was cleaned."
     else T.echo "Nothing to clean here."
