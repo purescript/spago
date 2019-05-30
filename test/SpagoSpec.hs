@@ -6,8 +6,8 @@ import           Prelude             hiding (FilePath)
 import           Test.Hspec          (Spec, around_, beforeAll, describe, it,
                                       shouldBe)
 import           Turtle              (FilePath, cp, mkdir, mv, readTextFile, rm,
-                                      rmtree, testdir, writeTextFile)
-import           Utils               (checkFixture, runFor, shouldBeFailure,
+                                      testdir, writeTextFile)
+import           Utils               (checkFixture, rmtree, runFor, shouldBeFailure,
                                       shouldBeFailureOutput, shouldBeSuccess,
                                       shouldBeSuccessOutput, spago, withCwd)
 

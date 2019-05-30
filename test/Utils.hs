@@ -1,5 +1,6 @@
 module Utils
   ( checkFixture
+  , rmtree
   , runFor
   , shouldBeFailure
   , shouldBeFailureOutput
@@ -12,10 +13,11 @@ module Utils
 import qualified Control.Concurrent as Concurrent
 import qualified Control.Exception  as Exception
 import           Prelude            hiding (FilePath)
+import           System.Directory   (removePathForcibly)
 import qualified System.Process     as Process
 import           Test.Hspec         (shouldBe)
 import           Turtle             (ExitCode (..), FilePath, Text, cd, empty,
-                                     procStrictWithErr, pwd, readTextFile)
+                                     encodeString, procStrictWithErr, pwd, readTextFile)
 
 withCwd :: FilePath -> IO () -> IO ()
 withCwd dir cmd = do
@@ -57,3 +59,6 @@ checkFixture path = do
   actual <- readTextFile path
   expected <- readFixture path
   actual `shouldBe` expected
+
+rmtree :: FilePath -> IO ()
+rmtree = removePathForcibly . encodeString
