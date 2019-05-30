@@ -7,7 +7,7 @@ import qualified Data.Text as Text
 
 cannotFindConfig :: Text
 cannotFindConfig = makeMessage
-  [ "There's no " <> surroundQuote "spago.dhall" <> "in your current location."
+  [ "There's no " <> surroundQuote "spago.dhall" <> " in your current location."
   , ""
   , "If you already have a spago project you might be in the wrong subdirectory,"
   , "otherwise you might want to run `spago init` to initialize a new project."
@@ -15,7 +15,7 @@ cannotFindConfig = makeMessage
 
 cannotFindPackages :: Text
 cannotFindPackages = makeMessage
-  [ "There's no " <> surroundQuote "packages.dhall" <> "in your current location."
+  [ "There's no " <> surroundQuote "packages.dhall" <> " in your current location."
   , ""
   , "If you already have a spago project you might be in the wrong subdirectory,"
   , "otherwise you might want to run `spago init` to initialize a new package set file."
@@ -23,7 +23,7 @@ cannotFindPackages = makeMessage
 
 cannotFindPackagesButItsFine :: Text
 cannotFindPackagesButItsFine = makeMessage
-  [ "WARNING: did not find a " <> surroundQuote "packages.dhall" <> "in your current location, skipping compiler version check"
+  [ "WARNING: did not find a " <> surroundQuote "packages.dhall" <> " in your current location, skipping compiler version check"
   ]
 
 foundExistingProject :: Text -> Text
