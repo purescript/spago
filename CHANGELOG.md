@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Bugfixes:
 - Fix `spago psc-package-clean` on Windows (#224)
+- Fix `spago repl` starting on Windows where PureScript was installed with NPM (#235, #227)
 
 Other improvements:
 - Test suite now works fully on Windows (#224)
