@@ -86,7 +86,15 @@ script:
        'cd spago && stack build --test --no-run-tests --copy-bins --local-bin-path ./artifacts'
     fi
     nvm install 10 && nvm use 10
-    npm install -g purescript@0.12.5 psc-package@3.0.1
+    npm install -g psc-package@3.0.1
+
+    # get newest purescript from github releases
+    TAG=$(wget -q -O - https://github.com/purescript/purescript/releases/latest --server-response --max-redirect 0 2>&1 | sed -n -e 's/.*Location:.*tag\///p')
+    wget -O $HOME/purescript.tar.gz https://github.com/purescript/purescript/releases/download/$TAG/linux64.tar.gz
+    tar -xvf $HOME/purescript.tar.gz -C $HOME/
+    chmod a+x $HOME/purescript
+    PATH=$HOME/purescript:$PATH
+
     # run the test suite executable
     ./.stack-work/dist/*/*/build/spec/spec
 
