@@ -19,8 +19,15 @@ environment:
 install:
   - choco install -y haskell-stack --version %STACK_VERSION%
   - stack setup > nul
-  - choco install purescript
   - choco install psc-package
+  - ps: |
+      $releases = "https://api.github.com/repos/purescript/purescript/releases"
+      $tag = (Invoke-WebRequest $releases | ConvertFrom-Json)[0].tag_name
+      $download = "https://github.com/purescript/purescript/releases/download/$tag/win64.tar.gz"
+      Invoke-WebRequest $download -Out purescript.tar.gz
+  - tar -xvf purescript.tar.gz
+  - set PATH=$APPVEYOR_BUILD_FOLDER\purescript;%PATH%
+  - chmod a+x purescript
 
 cache:
   - C:\sr -> '%STACK_YAML%'
