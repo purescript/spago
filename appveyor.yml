@@ -39,7 +39,7 @@ build_script:
   - tar -zcvf windows.tar.gz spago.exe
 
 test_script:
-  - set PATH=C:\projects\spago\bin;C:\projects\spago\purescript;purescript;%PATH%
+  - set PATH=C:\projects\spago\bin;C:\projects\spago\purescript;%PATH%
   - set XDG_CACHE_HOME=C:\cache
   - stack test
 
