@@ -184,7 +184,6 @@ spagoUpdater token controlChan fetcherChan = go Nothing
           go $ Just releaseTagName
 
 
-
 fetcher :: Text -> Queue.TBQueue FetcherMessage -> Queue.TQueue MetadataUpdaterMessage -> Queue.TQueue PackageSetsUpdaterMessage -> IO b
 fetcher token controlChan metadataChan psChan = forever $ do
   (atomically $ Queue.readTBQueue controlChan) >>= \case
@@ -237,7 +236,6 @@ fetcher token controlChan metadataChan psChan = forever $ do
                         )) tagsVec
         atomically $ Queue.writeTQueue metadataChan $ MMetadata packageName RepoMetadataV1{..}
 
-
     -- | Tries to read in a PackageSet from GitHub
     fetchPackageSet :: Text -> IO PackageSet
     fetchPackageSet tag = do
@@ -250,14 +248,13 @@ fetcher token controlChan metadataChan psChan = forever $ do
       pure packageSet
 
 
-
-packageSetsUpdater :: Queue.TQueue PackageSetsUpdaterMessage -> IO b
+packageSetsUpdater :: Queue.TQueue PackageSetsUpdaterMessage -> IO ()
 packageSetsUpdater dataChan = go mempty
   where
     updateVersion :: Monad m => PackageName -> Tag -> Expr -> m Expr
     updateVersion (PackageName packageName) (Tag tag) (Dhall.RecordLit kvs)
-      | Just (Dhall.RecordLit package) <- Dhall.Map.lookup packageName kvs =
-          let newPackage = Dhall.RecordLit $ Dhall.Map.insert "version" (Dhall.toTextLit tag) package
+      | Just (Dhall.App rest@(Dhall.App (Dhall.App (Dhall.Var (Dhall.V "mkPackage" 0)) _deps) _repo) (Dhall.TextLit _)) <- Dhall.Map.lookup packageName kvs =
+          let newPackage = Dhall.App rest $ Dhall.toTextLit tag
           in pure $ Dhall.RecordLit $ Dhall.Map.insert packageName newPackage kvs
     updateVersion _ _ other = pure other
 
@@ -272,17 +269,11 @@ packageSetsUpdater dataChan = go mempty
             Just Package{ version = version, .. } | version /= tag -> do
               echo $ "Found a newer tag for '" <> name <> "': " <> tag
               withAST ("data/package-sets/src/groups/" <> owner <> ".dhall") $ updateVersion packageName tag'
+              -- TODO: check that we didn't open the PR before
+              -- TODO: make a branch, open PR if needed
               go packageSet
-            _ -> go packageSet
-
-          -- TODO:
-          -- - check with the list of tags we have (TODO: save it?)
-          -- - then get the latest one
-          -- - then if it's different we should save the new tags
-          -- - commit and PR
-          -- - save that the PR is up somehow
-          -- echoStr $ "Tags for '" <> show packageName <> "': " <> tag
-          -- go packageSet
+            _ -> pure ()
+          go packageSet
 
 
 metadataUpdater :: Queue.TQueue MetadataUpdaterMessage -> IO ()
@@ -323,14 +314,8 @@ metadataUpdater dataChan = go mempty
 
 runWithCwd :: MonadIO io => GHC.IO.FilePath -> String -> io (ExitCode, Text, Text)
 runWithCwd cwd cmd = do
-  let processWithNewCwd = (Process.shell cmd)
-                    { Process.cwd = Just cwd }
-
+  let processWithNewCwd = (Process.shell cmd) { Process.cwd = Just cwd }
   systemStrictWithErr processWithNewCwd empty
-
-
-
-
 
 
 withAST :: MonadIO m => Text -> (Expr -> m Expr) -> m ()
