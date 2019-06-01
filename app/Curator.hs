@@ -190,6 +190,7 @@ fetcher token controlChan metadataChan psChan = forever $ do
     MPackageSetTag tag -> do
       echo "Downloading and parsing package set.."
       packageSet <- fetchPackageSet tag
+      atomically $ Queue.writeTQueue psChan $ MPackageSet packageSet
       let packages = Map.toList packageSet
       echoStr $ "Fetching metadata for " <> show (length packages) <> " packages"
 
@@ -260,7 +261,9 @@ packageSetsUpdater dataChan = go mempty
 
     go packageSet = do
       (atomically $ Queue.readTQueue dataChan) >>= \case
-        MPackageSet newSet -> go newSet
+        MPackageSet newSet -> do
+          echo "Received new package set, updating.."
+          go newSet
         MLatestTag packageName@(PackageName name) owner tag'@(Tag tag) -> do
           -- First we check if the latest tag is the one in the package set
           case Map.lookup packageName packageSet of
@@ -325,7 +328,9 @@ withAST path transform = do
     Nothing -> echo $ "Could not find file " <> path
     Just (header, expr) -> do
       newExpr <- transformMExpr transform expr
-      liftIO $ Dhall.writeRawExpr path (header, newExpr)
+      echo $ "Done. Updating the \"" <> path <> "\" file.."
+      writeTextFile (pathFromText path) $ Dhall.prettyWithHeader header newExpr <> "\n"
+      liftIO $ Dhall.format path
   where
     transformMExpr
       :: Monad m
