@@ -73,7 +73,7 @@ main = do
 
   -- Start threads
   Concurrent.forkIO $ fetcher token chanFetcher chanMetadataUpdater chanPackageSetsUpdater
-  Concurrent.forkIO $ spagoUpdater chanSpagoUpdater chanFetcher
+  Concurrent.forkIO $ spagoUpdater token chanSpagoUpdater chanFetcher
   Concurrent.forkIO $ metadataUpdater chanMetadataUpdater
   Concurrent.forkIO $ packageSetsUpdater chanPackageSetsUpdater
 
@@ -111,8 +111,8 @@ main = do
       runWithCwd ("data/" <> repo) "git config --local user.name 'Spacchettibotti' && git config --local user.email 'spacchettibotti@ferrai.io'"
 
 
-spagoUpdater :: Queue.TBQueue SpagoUpdaterMessage -> Queue.TBQueue FetcherMessage -> IO ()
-spagoUpdater controlChan fetcherChan = go Nothing
+spagoUpdater :: Text -> Queue.TBQueue SpagoUpdaterMessage -> Queue.TBQueue FetcherMessage -> IO ()
+spagoUpdater token controlChan fetcherChan = go Nothing
   where
     go maybeOldTag = do
       (atomically $ Queue.readTBQueue controlChan) >>= \case
@@ -129,10 +129,50 @@ spagoUpdater controlChan fetcherChan = go Nothing
           case (maybeOldTag, releaseTagName) of
             (Just oldTag, newTag) | oldTag == newTag -> pure ()
             (_, newTag) -> do
-              echo "Found newer tag. Opening a PR"
-              -- TODO branch, commit, push, PR, etc.
-              -- TODO keep track of open PR  -- Note: keep track of older PRs somehow
-              pure ()
+              echo "Found newer tag. Checking if we ever opened a PR about this.."
+              let auth = GitHub.OAuth $ Encoding.encodeUtf8 token
+                  owner = GitHub.mkName Proxy "spacchetti"
+                  repo = GitHub.mkName Proxy "spago"
+
+              let branchName = "spacchettibotti-" <> newTag
+              oldPRs <- GitHub.executeRequest auth
+                $ GitHub.pullRequestsForR owner repo
+                    (GitHub.optionsHead ("spacchetti:" <> branchName) <> GitHub.stateAll)
+                    GitHub.FetchAll
+              case oldPRs of
+                Left err -> echoStr $ "Error: " <> show err
+                Right prs | not $ Vector.null prs -> echo "PR has been already opened, skipping.."
+                Right _ -> do
+                  echo "No previous PRs found, updating package-sets version.."
+
+                  -- Sync the repo, commit and push
+                  echo "Pushing new commit (maybe)"
+                  (code, out, err) <- runWithCwd "data/spago" $ List.intercalate " && "
+                    [ "git checkout master"
+                    , "git pull --rebase"
+                    , "git checkout -B master origin/master"
+                    , "cd templates"
+                    , "spago package-set-upgrade"
+                    , "cd .."
+                    , "git checkout -B " <> Text.unpack branchName
+                    , "git add templates/packages.dhall"
+                    , "git commit -am 'Update package-sets tag to " <> Text.unpack newTag <> "'"
+                    , "git push --set-upstream origin " <> Text.unpack branchName
+                    ]
+
+                  case code of
+                    ExitSuccess -> do
+                      echo "Pushed a new commit, opening PR.."
+                      response <- GitHub.executeRequest auth
+                        $ GitHub.createPullRequestR owner repo
+                        $ GitHub.CreatePullRequest ("Update to package-sets@" <> newTag) "" branchName "master"
+                      case response of
+                        Right _ -> echo "Created PR 🎉"
+                        Left err' -> echoStr $ "Error while creating PR: " <> show err'
+                    _ -> do
+                      echo "Something's off. Either there wasn't anything to push or there are errors. Output:"
+                      echo out
+                      echo err
 
           echo "Kickstarting the Fetcher.."
           atomically $ Queue.writeTBQueue fetcherChan $ MPackageSetTag releaseTagName
