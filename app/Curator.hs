@@ -233,7 +233,7 @@ metadataUpdater dataChan = go mempty
 
           -- Sync the repo, commit and push
           echo "Pushing new commit (maybe)"
-          runWithCwd "data/package-sets-metadata" $ List.intercalate " && "
+          (code, out, err) <- runWithCwd "data/package-sets-metadata" $ List.intercalate " && "
             [ "git checkout master"
             , "git pull --rebase"
             , "git checkout -B master origin/master"
@@ -241,6 +241,13 @@ metadataUpdater dataChan = go mempty
             , "git commit -m 'Update GitHub index file'"
             , "git push --set-upstream origin master"
             ]
+
+          case code of
+            ExitSuccess -> echo "Pushed a new commit!"
+            _ -> do
+              echo "Something's off. Either there wasn't anything to push or there are errors. Output:"
+              echo out
+              echo err
 
           go state
 
