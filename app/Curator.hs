@@ -1,26 +1,48 @@
-{-
-
-Main module for `spago-curator` executable.
-
-Contains commands to help curate various spago metadata
-
--}
-
+{-# LANGUAGE BangPatterns #-}
 module Curator (main) where
 
-import Spago.Prelude
+import           Spago.Prelude
 
-import qualified System.Environment as Env
-import qualified Turtle             as CLI
+import qualified Control.Concurrent             as Concurrent
+import qualified Control.Concurrent.Async.Pool  as Async
+import qualified Control.Concurrent.STM.TBQueue as Queue
+import qualified Control.Concurrent.STM.TQueue  as Queue
+import qualified Control.Retry                  as Retry
+import qualified Data.ByteString.Lazy           as BSL
+import qualified Data.Map.Strict                as Map
+import qualified Data.Text                      as Text
+import qualified Data.Text.Encoding             as Encoding
+import qualified Data.Vector                    as Vector
+import qualified Dhall.Map
+import qualified GHC.IO
 import qualified GHC.IO.Encoding
-import qualified Data.Text as Text
+import qualified GitHub
+import qualified Spago.Dhall                    as Dhall
+import qualified System.Environment             as Env
+import qualified System.Process                 as Process
+import qualified Turtle
 
-import qualified Curator.Metadata as Meta
+import           Data.Aeson.Encode.Pretty       (encodePretty)
+import           Data.Vector                    (Vector)
+import           Spago.GlobalCache
+import           Spago.PackageSet               (Package (..), PackageName (..), PackageSet,
+                                                 Repo (..))
 
-data Command
-  = IndexGitHubMeta
+data SpagoUpdaterMessage
+  = MStart
+
+data FetcherMessage
+  = MPackageSetTag !Text
+
+data MetadataUpdaterMessage
+  = MMetadata !PackageName !RepoMetadataV1
+  | MEnd
+
+data PackageSetsUpdaterMessage
+  = MTags !PackageName !(Vector Tag)
 
 
+-- | Main loop. Setup folders, repos, channels and threads, and then control them
 main :: IO ()
 main = do
   -- We always want to run in UTF8 anyways
@@ -30,14 +52,191 @@ main = do
   -- https://serverfault.com/questions/544156
   Env.setEnv "GIT_TERMINAL_PROMPT" "0"
 
+  -- Prepare data folder that will contain the repos
+  mktree "data"
+
+  -- Make sure the repos are cloned
+  ensureRepo "spacchetti" "spago"
+  ensureRepo "spacchetti" "package-sets-metadata"
+  ensureRepo "purescript" "package-sets"
+
   -- Read GitHub Auth Token
   token <- fmap Text.pack $ Env.getEnv "SPACCHETTIBOTTI_TOKEN"
 
-  command <- CLI.options "Spago Curator" parser
+  -- Set up comms channels
+  chanFetcher            <- Queue.newTBQueueIO 10
+  chanSpagoUpdater       <- Queue.newTBQueueIO 10
+  chanMetadataUpdater    <- Queue.newTQueueIO
+  chanPackageSetsUpdater <- Queue.newTQueueIO
 
-  case command of
-    IndexGitHubMeta -> Meta.indexGitHub token
+  -- Start threads
+  -- TODO github token
+  Concurrent.forkIO $ fetcher token chanFetcher chanMetadataUpdater chanPackageSetsUpdater
+  Concurrent.forkIO $ spagoUpdater chanSpagoUpdater chanFetcher
+  Concurrent.forkIO $ metadataUpdater chanMetadataUpdater
+  Concurrent.forkIO $ packageSetsUpdater chanPackageSetsUpdater
+
+  {- |
+
+  To Kickstart the whole thing we just need to ping the SpagoUpdater every 1h.
+  It will:
+  - fetch the latest release of package-sets and try to commit to spago if it didn't before
+  - send a message to the Fetcher
+
+  The Fetcher upon receiving a message, will:
+  - start to swoop through the repos
+  - send messages to both the MetadataUpdater and PackageSetsUpdater for commits and tags
+  - send an End message to MetadataUpdater once done
+
+  -}
+  forever $ do
+    atomically $ Queue.writeTBQueue chanSpagoUpdater MStart
+    sleep _60m
 
   where
-    parser
-      = CLI.subcommand "index-github-meta" "Download metadata about packages commits and tags from GitHub" $ pure IndexGitHubMeta
+    _60m = 60 * 60 * 1000000
+
+    sleep = Concurrent.threadDelay
+
+    ensureRepo org repo = do
+      isThere <- testdir $ Turtle.decodeString $ "data" </> repo
+      when (not isThere) $ do
+        (code, _out, _err) <- runWithCwd "data" $ "git clone git@github.com:" <> org <> "/" <> repo <> ".git"
+        case code of
+          ExitSuccess -> echoStr $ "Cloned " <> org <> "/" <> repo
+          _           -> die "Error while cloning repo"
+
+
+spagoUpdater :: Queue.TBQueue SpagoUpdaterMessage -> Queue.TBQueue FetcherMessage -> IO ()
+spagoUpdater controlChan fetcherChan = go Nothing
+  where
+    go maybeOldTag = do
+      (atomically $ Queue.readTBQueue controlChan) >>= \case
+        MStart -> do
+          -- Get which one is the latest release of package-sets and download it
+          echo "Update has been kickstarted by main thread."
+          echo "Getting latest package-sets release.."
+          Right GitHub.Release{..} <- GitHub.executeRequest' $ GitHub.latestReleaseR "purescript" "package-sets"
+
+          echo $ "Latest tag fetched: " <> releaseTagName
+
+          -- Get spago a new package set if needed.
+          -- So we skip only if the oldTag is the same as the new tag
+          case (maybeOldTag, releaseTagName) of
+            (Just oldTag, newTag) | oldTag == newTag -> pure ()
+            (_, newTag) -> do
+              echo "Found newer tag. Opening a PR"
+              -- TODO branch, commit, push, PR, etc.
+              -- TODO keep track of open PR  -- Note: keep track of older PRs somehow
+              pure ()
+
+          echo "Kickstarting the Fetcher.."
+          atomically $ Queue.writeTBQueue fetcherChan $ MPackageSetTag releaseTagName
+          go $ Just releaseTagName
+
+
+
+fetcher :: Text -> Queue.TBQueue FetcherMessage -> Queue.TQueue MetadataUpdaterMessage -> Queue.TQueue PackageSetsUpdaterMessage -> IO b
+fetcher token controlChan metadataChan psChan = forever $ do
+  (atomically $ Queue.readTBQueue controlChan) >>= \case
+    MPackageSetTag tag -> do
+      echo "Downloading and parsing package set.."
+      packageSet <- fetchPackageSet tag
+      let packages = Map.toList packageSet
+      echoStr $ "Fetching metadata for " <> show (length packages) <> " packages"
+
+      -- Call GitHub for all these packages and get metadata for them
+      Async.withTaskGroup 10 $ \taskGroup -> do
+        asyncs <- for packages (Async.async taskGroup . fetchRepoMetadata)
+        for asyncs Async.wait
+
+      echo "Fetched all metadata."
+      atomically $ Queue.writeTQueue metadataChan MEnd
+
+  where
+    -- | Call GitHub to get metadata for a single package
+    fetchRepoMetadata :: (PackageName, Package) -> IO ()
+    fetchRepoMetadata (_, Package{ repo = Local _, ..}) = pure ()
+    fetchRepoMetadata (packageName, Package{ repo = Remote repoUrl, .. }) =
+      Retry.recoverAll (Retry.fullJitterBackoff 10000 <> Retry.limitRetries 10) $ \Retry.RetryStatus{..} -> do
+        let !(owner:repo:_rest)
+              = Text.split (=='/')
+              $ Text.replace "https://github.com/" ""
+              $ case Text.isSuffixOf ".git" repoUrl of
+                  True  -> Text.dropEnd 4 repoUrl
+                  False -> repoUrl
+            auth = GitHub.OAuth $ Encoding.encodeUtf8 token
+            ownerN = GitHub.mkName Proxy owner
+            repoN = GitHub.mkName Proxy repo
+
+        echo $ "Retry " <> tshow rsIterNumber <> ": fetching tags metadata for '" <> owner <> "/" <> repo <> "'.."
+        Right tagsVec <- GitHub.executeRequest auth $ GitHub.tagsForR ownerN repoN GitHub.FetchAll
+        -- Here we immediately send the tags to the PackageSets updater
+        atomically $ Queue.writeTQueue psChan $ MTags packageName $ fmap (Tag . GitHub.tagName) tagsVec
+
+        echo $ "Retry " <> tshow rsIterNumber <> ": fetching commit metadata for '" <> owner <> "/" <> repo <> "'.."
+        Right commitsVec <- GitHub.executeRequest auth $ GitHub.commitsForR ownerN repoN GitHub.FetchAll
+
+        echo $ "Retry " <> tshow rsIterNumber <> ": fetched commits and tags for '" <> owner <> "/" <> repo <> "'"
+        let !commits = Vector.toList $ fmap (CommitHash . GitHub.untagName . GitHub.commitSha) commitsVec
+        let !tags = Map.fromList $ Vector.toList
+              $ fmap (\t ->
+                        ( Tag $ GitHub.tagName t
+                        , CommitHash $ GitHub.branchCommitSha $ GitHub.tagCommit t
+                        )) tagsVec
+        atomically $ Queue.writeTQueue metadataChan $ MMetadata packageName RepoMetadataV1{..}
+
+
+    -- | Tries to read in a PackageSet from GitHub
+    fetchPackageSet :: Text -> IO PackageSet
+    fetchPackageSet tag = do
+      let packageTyp = Dhall.genericAuto :: Dhall.Type Package
+      expr <- Dhall.inputExpr ("https://raw.githubusercontent.com/purescript/package-sets/" <> tag <> "/src/packages.dhall")
+      Right packageSet <- pure $ case expr of
+        Dhall.RecordLit pkgs -> (Map.mapKeys PackageName . Dhall.Map.toMap)
+          <$> traverse (Dhall.coerceToType packageTyp) pkgs
+        something -> Left $ Dhall.PackagesIsNotRecord something
+      pure packageSet
+
+
+
+packageSetsUpdater :: Queue.TQueue PackageSetsUpdaterMessage -> IO b
+packageSetsUpdater dataChan = forever $ do
+  (atomically $ Queue.readTQueue dataChan) >>= \case
+    MTags packageName tags -> do
+      -- TODO:
+      -- - check with the list of tags we have (TODO: save it?)
+      -- - then get the latest one
+      -- - then if it's different we should save the new tags
+      -- - commit and PR
+      -- - save that the PR is up somehow
+      echoStr $ show packageName <> " " <> show tags
+
+
+
+metadataUpdater :: Queue.TQueue MetadataUpdaterMessage -> IO ()
+metadataUpdater dataChan = go mempty
+  where
+    go :: ReposMetadataV1 -> IO ()
+    go state = do
+      (atomically $ Queue.readTQueue dataChan) >>= \case
+        MMetadata packageName meta -> do
+          go $ Map.insert packageName meta state
+        MEnd -> do
+          -- Write the metadata to file
+          echo "Writing metadata to file.."
+          BSL.writeFile "data/package-sets-metadata/metadataV1.json" $ encodePretty state
+          echo "Done."
+
+          -- TODO: commit and push
+
+          go state
+
+
+
+runWithCwd :: MonadIO io => GHC.IO.FilePath -> String -> io (ExitCode, Text, Text)
+runWithCwd cwd cmd = do
+  let processWithNewCwd = (Process.shell cmd)
+                    { Process.cwd = Just cwd }
+
+  systemStrictWithErr processWithNewCwd empty
