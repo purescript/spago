@@ -268,7 +268,7 @@ metadataUpdater dataChan = go mempty
         MEnd -> do
           -- Write the metadata to file
           echo "Writing metadata to file.."
-          BSL.writeFile "data/package-sets-metadata/metadataV1.json" $ encodePretty state
+          BSL.writeFile "data/package-sets-metadata/metadataV1new.json" $ encodePretty state
           echo "Done."
 
           -- Sync the repo, commit and push
@@ -277,6 +277,7 @@ metadataUpdater dataChan = go mempty
             [ "git checkout master"
             , "git pull --rebase"
             , "git checkout -B master origin/master"
+            , "mv -u metadataV1new.json metadataV1.json"
             , "git add metadataV1.json"
             , "git commit -m 'Update GitHub index file'"
             , "git push --set-upstream origin master"
