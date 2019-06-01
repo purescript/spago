@@ -23,6 +23,7 @@ import qualified System.Environment             as Env
 import qualified System.Process                 as Process
 import qualified Turtle
 import qualified Dhall.Core
+import qualified System.IO.Temp as Temp
 
 import           Data.Aeson.Encode.Pretty       (encodePretty)
 import           Spago.GlobalCache
@@ -80,7 +81,7 @@ main = do
   Concurrent.forkIO $ fetcher token chanFetcher chanMetadataUpdater chanPackageSetsUpdater
   Concurrent.forkIO $ spagoUpdater token chanSpagoUpdater chanFetcher
   Concurrent.forkIO $ metadataUpdater chanMetadataUpdater
-  Concurrent.forkIO $ packageSetsUpdater chanPackageSetsUpdater
+  Concurrent.forkIO $ packageSetsUpdater token chanPackageSetsUpdater
 
   {- |
 
@@ -249,8 +250,8 @@ fetcher token controlChan metadataChan psChan = forever $ do
       pure packageSet
 
 
-packageSetsUpdater :: Queue.TQueue PackageSetsUpdaterMessage -> IO ()
-packageSetsUpdater dataChan = go mempty
+packageSetsUpdater :: Text -> Queue.TQueue PackageSetsUpdaterMessage -> IO ()
+packageSetsUpdater token dataChan = go mempty
   where
     updateVersion :: Monad m => PackageName -> Tag -> Expr -> m Expr
     updateVersion (PackageName packageName) (Tag tag) (Dhall.RecordLit kvs)
@@ -272,8 +273,56 @@ packageSetsUpdater dataChan = go mempty
             Just Package{ version = version, .. } | version /= tag -> do
               echo $ "Found a newer tag for '" <> name <> "': " <> tag
               withAST ("data/package-sets/src/groups/" <> owner <> ".dhall") $ updateVersion packageName tag'
-              -- TODO: check that we didn't open the PR before
-              -- TODO: make a branch, open PR if needed
+              let auth = GitHub.OAuth $ Encoding.encodeUtf8 token
+                  owner' = GitHub.mkName Proxy "purescript"
+                  repo' = GitHub.mkName Proxy "package-sets"
+                  branchName = "spacchettibotti-" <> name <> "-" <> tag
+
+              -- Check that we didn't open a PR about this before
+              oldPRs <- GitHub.executeRequest auth
+                $ GitHub.pullRequestsForR owner' repo'
+                    (GitHub.optionsHead ("purescript:" <> branchName) <> GitHub.stateAll)
+                    GitHub.FetchAll
+
+              case oldPRs of
+                Left err -> echoStr $ "Error: " <> show err
+                Right prs | not $ Vector.null prs -> echo "PR has been already opened once, skipping.."
+                Right _ -> do
+                  echo "No previous PRs found, verifying the addition and eventually committing.."
+                  echo $ "Branch name: " <> branchName
+
+                  Temp.withTempDirectory "data/package-sets" "spacchettibotti-" $ \tempDir -> do
+                    echoStr $ "Tempdir: " <> tempDir
+
+                    (code, out, err) <- runWithCwd "data/package-sets" $ List.intercalate " && "
+                      [ "git checkout master"
+                      , "git pull"
+                      , "git checkout -B master origin/master"
+                      , "cd " <> tempDir
+                      , "spago init"
+                      , "echo '../src/packages.dhall' > packages.dhall"
+                      , "spago verify-set"
+                      , "cd .."
+                      , "git checkout -B " <> Text.unpack branchName
+                      , "git add src/groups/" <> Text.unpack owner <> ".dhall"
+                      , "git commit -am 'Update " <> Text.unpack name <> " to " <> Text.unpack tag <> "'"
+                      , "git push --set-upstream origin " <> Text.unpack branchName
+                      ]
+
+                    case code of
+                      ExitSuccess -> do
+                        echo "Pushed a new commit, opening PR.."
+                        response <- GitHub.executeRequest auth
+                          $ GitHub.createPullRequestR owner' repo'
+                          $ GitHub.CreatePullRequest ("Update " <> name <> "@" <> tag) "The addition has been verified, this is safe to merge." branchName "master"
+                        case response of
+                          Right _ -> echo "Created PR 🎉"
+                          Left err' -> echoStr $ "Error while creating PR: " <> show err'
+                      _ -> do
+                        echo "Something's off. Either there wasn't anything to push or there are errors. Output:"
+                        echo out
+                        echo err
+
               go packageSet
             _ -> pure ()
           go packageSet
