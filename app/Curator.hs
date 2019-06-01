@@ -9,6 +9,7 @@ import qualified Control.Concurrent.STM.TBQueue as Queue
 import qualified Control.Concurrent.STM.TQueue  as Queue
 import qualified Control.Retry                  as Retry
 import qualified Data.ByteString.Lazy           as BSL
+import qualified Data.List                      as List
 import qualified Data.Map.Strict                as Map
 import qualified Data.Text                      as Text
 import qualified Data.Text.Encoding             as Encoding
@@ -55,7 +56,8 @@ main = do
   -- Prepare data folder that will contain the repos
   mktree "data"
 
-  -- Make sure the repos are cloned
+  -- Make sure the repos are cloned and configured
+  echo "Cloning and configuring repos.."
   ensureRepo "spacchetti" "spago"
   ensureRepo "spacchetti" "package-sets-metadata"
   ensureRepo "purescript" "package-sets"
@@ -70,7 +72,6 @@ main = do
   chanPackageSetsUpdater <- Queue.newTQueueIO
 
   -- Start threads
-  -- TODO github token
   Concurrent.forkIO $ fetcher token chanFetcher chanMetadataUpdater chanPackageSetsUpdater
   Concurrent.forkIO $ spagoUpdater chanSpagoUpdater chanFetcher
   Concurrent.forkIO $ metadataUpdater chanMetadataUpdater
@@ -100,11 +101,14 @@ main = do
 
     ensureRepo org repo = do
       isThere <- testdir $ Turtle.decodeString $ "data" </> repo
+      -- clone if needed
       when (not isThere) $ do
         (code, _out, _err) <- runWithCwd "data" $ "git clone git@github.com:" <> org <> "/" <> repo <> ".git"
         case code of
           ExitSuccess -> echoStr $ "Cloned " <> org <> "/" <> repo
           _           -> die "Error while cloning repo"
+      -- set the local git identity to spacchettibotti
+      runWithCwd ("data/" <> repo) "git config --local user.name 'Spacchettibotti' && git config --local user.email 'spacchettibotti@ferrai.io'"
 
 
 spagoUpdater :: Queue.TBQueue SpagoUpdaterMessage -> Queue.TBQueue FetcherMessage -> IO ()
@@ -210,8 +214,7 @@ packageSetsUpdater dataChan = forever $ do
       -- - then if it's different we should save the new tags
       -- - commit and PR
       -- - save that the PR is up somehow
-      echoStr $ show packageName <> " " <> show tags
-
+      echoStr $ "Tags for '" <> show packageName <> "': " <> show tags
 
 
 metadataUpdater :: Queue.TQueue MetadataUpdaterMessage -> IO ()
@@ -228,10 +231,18 @@ metadataUpdater dataChan = go mempty
           BSL.writeFile "data/package-sets-metadata/metadataV1.json" $ encodePretty state
           echo "Done."
 
-          -- TODO: commit and push
+          -- Sync the repo, commit and push
+          echo "Pushing new commit (maybe)"
+          runWithCwd "data/package-sets-metadata" $ List.intercalate " && "
+            [ "git checkout master"
+            , "git pull --rebase"
+            , "git checkout -B master origin/master"
+            , "git add metadataV1.json"
+            , "git commit -m 'Update GitHub index file'"
+            , "git push --set-upstream origin master"
+            ]
 
           go state
-
 
 
 runWithCwd :: MonadIO io => GHC.IO.FilePath -> String -> io (ExitCode, Text, Text)
