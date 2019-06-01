@@ -151,12 +151,12 @@ addRawDeps _ _ other = pure other
 --   still be in the tree). If you need the resolved one, use `ensureConfig`.
 withConfigAST :: Spago m => (Expr -> m Expr) -> m ()
 withConfigAST transform = do
-  rawConfig <- Dhall.readRawExpr pathText
+  rawConfig <- liftIO $ Dhall.readRawExpr pathText
   case rawConfig of
     Nothing -> die Messages.cannotFindConfig
     Just (header, expr) -> do
       newExpr <- transformMExpr transform expr
-      Dhall.writeRawExpr pathText (header, newExpr)
+      liftIO $ Dhall.writeRawExpr pathText (header, newExpr)
   where
     transformMExpr
       :: Spago m

@@ -97,13 +97,13 @@ upgradePackageSet = do
     Left err -> die $ Messages.failedToReachGitHub err
     Right GitHub.Release{..} -> do
       echo ("Found the most recent tag for \"purescript/package-sets\": " <> surroundQuote releaseTagName)
-      rawPackageSet <- Dhall.readRawExpr pathText
+      rawPackageSet <- liftIO $ Dhall.readRawExpr pathText
       case rawPackageSet of
         Nothing -> die Messages.cannotFindPackages
         Just (header, expr) -> do
           let newExpr = fmap (upgradeImports releaseTagName) expr
           echo $ Messages.upgradingPackageSet releaseTagName
-          Dhall.writeRawExpr pathText (header, newExpr)
+          liftIO $ Dhall.writeRawExpr pathText (header, newExpr)
           -- If everything is fine, refreeze the imports
           freeze
   where
@@ -143,7 +143,7 @@ upgradePackageSet = do
 
 checkPursIsUpToDate :: Spago m => m ()
 checkPursIsUpToDate = do
-  rawPackageSet <- Dhall.readRawExpr pathText
+  rawPackageSet <- liftIO $ Dhall.readRawExpr pathText
   case rawPackageSet of
     Nothing -> echo Messages.cannotFindPackagesButItsFine
     Just (_header, expr) -> do
@@ -234,7 +234,7 @@ freeze = do
 -- | Freeze the file if any of the remote imports are not frozen
 ensureFrozen :: Spago m => m ()
 ensureFrozen = do
-  rawPackageSet <- Dhall.readRawExpr pathText
+  rawPackageSet <- liftIO $ Dhall.readRawExpr pathText
   case rawPackageSet of
     Nothing -> echo "WARNING: wasn't able to check if your package set file is frozen"
     Just (_header, expr) -> do

@@ -22,12 +22,16 @@ import qualified Spago.Dhall                    as Dhall
 import qualified System.Environment             as Env
 import qualified System.Process                 as Process
 import qualified Turtle
+import qualified Dhall.Core
 
 import           Data.Aeson.Encode.Pretty       (encodePretty)
-import           Data.Vector                    (Vector)
 import           Spago.GlobalCache
 import           Spago.PackageSet               (Package (..), PackageName (..), PackageSet,
                                                  Repo (..))
+
+type Expr = Dhall.DhallExpr Dhall.Import
+
+
 
 data SpagoUpdaterMessage
   = MStart
@@ -40,7 +44,8 @@ data MetadataUpdaterMessage
   | MEnd
 
 data PackageSetsUpdaterMessage
-  = MTags !PackageName !(Vector Tag)
+  = MLatestTag !PackageName !Text !Tag
+  | MPackageSet !PackageSet
 
 
 -- | Main loop. Setup folders, repos, channels and threads, and then control them
@@ -215,8 +220,10 @@ fetcher token controlChan metadataChan psChan = forever $ do
 
         echo $ "Retry " <> tshow rsIterNumber <> ": fetching tags metadata for '" <> owner <> "/" <> repo <> "'.."
         Right tagsVec <- GitHub.executeRequest auth $ GitHub.tagsForR ownerN repoN GitHub.FetchAll
-        -- Here we immediately send the tags to the PackageSets updater
-        atomically $ Queue.writeTQueue psChan $ MTags packageName $ fmap (Tag . GitHub.tagName) tagsVec
+        -- Here we immediately send the latest tag to the PackageSets updater
+        case tagsVec Vector.!? 0 of
+          Nothing -> pure ()
+          Just latest -> atomically $ Queue.writeTQueue psChan $ MLatestTag packageName owner $ Tag $ GitHub.tagName latest
 
         echo $ "Retry " <> tshow rsIterNumber <> ": fetching commit metadata for '" <> owner <> "/" <> repo <> "'.."
         Right commitsVec <- GitHub.executeRequest auth $ GitHub.commitsForR ownerN repoN GitHub.FetchAll
@@ -245,16 +252,37 @@ fetcher token controlChan metadataChan psChan = forever $ do
 
 
 packageSetsUpdater :: Queue.TQueue PackageSetsUpdaterMessage -> IO b
-packageSetsUpdater dataChan = forever $ do
-  (atomically $ Queue.readTQueue dataChan) >>= \case
-    MTags packageName tags -> do
-      -- TODO:
-      -- - check with the list of tags we have (TODO: save it?)
-      -- - then get the latest one
-      -- - then if it's different we should save the new tags
-      -- - commit and PR
-      -- - save that the PR is up somehow
-      echoStr $ "Tags for '" <> show packageName <> "': " <> show tags
+packageSetsUpdater dataChan = go mempty
+  where
+    updateVersion :: Monad m => PackageName -> Tag -> Expr -> m Expr
+    updateVersion (PackageName packageName) (Tag tag) (Dhall.RecordLit kvs)
+      | Just (Dhall.RecordLit package) <- Dhall.Map.lookup packageName kvs =
+          let newPackage = Dhall.RecordLit $ Dhall.Map.insert "version" (Dhall.toTextLit tag) package
+          in pure $ Dhall.RecordLit $ Dhall.Map.insert packageName newPackage kvs
+    updateVersion _ _ other = pure other
+
+    go packageSet = do
+      (atomically $ Queue.readTQueue dataChan) >>= \case
+        MPackageSet newSet -> go newSet
+        MLatestTag packageName@(PackageName name) owner tag'@(Tag tag) -> do
+          -- First we check if the latest tag is the one in the package set
+          case Map.lookup packageName packageSet of
+            -- We're only interested in the case in which the tag in the package set
+            -- is different from the current tag.
+            Just Package{ version = version, .. } | version /= tag -> do
+              echo $ "Found a newer tag for '" <> name <> "': " <> tag
+              withAST ("data/package-sets/src/groups/" <> owner <> ".dhall") $ updateVersion packageName tag'
+              go packageSet
+            _ -> go packageSet
+
+          -- TODO:
+          -- - check with the list of tags we have (TODO: save it?)
+          -- - then get the latest one
+          -- - then if it's different we should save the new tags
+          -- - commit and PR
+          -- - save that the PR is up somehow
+          -- echoStr $ "Tags for '" <> show packageName <> "': " <> tag
+          -- go packageSet
 
 
 metadataUpdater :: Queue.TQueue MetadataUpdaterMessage -> IO ()
@@ -299,3 +327,28 @@ runWithCwd cwd cmd = do
                     { Process.cwd = Just cwd }
 
   systemStrictWithErr processWithNewCwd empty
+
+
+
+
+
+
+withAST :: MonadIO m => Text -> (Expr -> m Expr) -> m ()
+withAST path transform = do
+  rawConfig <- liftIO $ Dhall.readRawExpr path
+  case rawConfig of
+    Nothing -> echo $ "Could not find file " <> path
+    Just (header, expr) -> do
+      newExpr <- transformMExpr transform expr
+      liftIO $ Dhall.writeRawExpr path (header, newExpr)
+  where
+    transformMExpr
+      :: Monad m
+      => (Dhall.Expr s Dhall.Import -> m (Dhall.Expr s Dhall.Import))
+      -> Dhall.Expr s Dhall.Import
+      -> m (Dhall.Expr s Dhall.Import)
+    transformMExpr rules =
+      transformMOf
+        Dhall.subExpressions
+        rules
+        . Dhall.Core.denote
