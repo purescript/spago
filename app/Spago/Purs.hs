@@ -28,11 +28,12 @@ compile sourcePaths extraArgs = do
 
 repl :: Spago m => [SourcePath] -> [ExtraArg] -> m ()
 repl sourcePaths extraArgs = do
-  let args  = Text.unpack
-        <$> ["repl"]
-        <> map unSourcePath sourcePaths
-        <> map unExtraArg extraArgs
-  viewShell $ callProcess "purs" args
+  let paths = Text.intercalate " " $ Messages.surroundQuote <$> map unSourcePath sourcePaths
+      args = Text.intercalate " " $ map unExtraArg extraArgs
+      cmd = "purs repl " <> paths <> " " <> args
+
+  viewShell $ callCommand $ Text.unpack cmd
+
 
 bundle :: Spago m => WithMain -> ModuleName -> TargetPath -> m ()
 bundle withMain (ModuleName moduleName) (TargetPath targetPath) = do

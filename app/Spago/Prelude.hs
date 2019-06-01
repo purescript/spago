@@ -48,7 +48,7 @@ module Spago.Prelude
   , hPutStrLn
   , many
   , empty
-  , callProcess
+  , callCommand
   , shell
   , shellStrict
   , systemStrictWithErr
@@ -100,7 +100,7 @@ import           Turtle                        (ExitCode (..), FilePath, appendo
 import           UnliftIO                      (MonadUnliftIO, withRunInIO)
 import           UnliftIO.Directory            (getModificationTime, makeAbsolute)
 import           UnliftIO.Exception            (IOException, try)
-import           UnliftIO.Process              (callProcess)
+import           UnliftIO.Process              (callCommand)
 
 -- | Generic Error that we throw on program exit.
 --   We have it so that errors are displayed nicely to the user
