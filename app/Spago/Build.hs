@@ -123,10 +123,11 @@ bundleApp
   => Purs.WithMain
   -> Maybe Purs.ModuleName
   -> Maybe Purs.TargetPath
+  -> Bool
   -> NoBuild
   -> BuildOptions
   -> m ()
-bundleApp withMain maybeModuleName maybeTargetPath noBuild buildOpts =
+bundleApp withMain maybeModuleName maybeTargetPath exportPS noBuild buildOpts =
   let (moduleName, targetPath) = prepareBundleDefaults maybeModuleName maybeTargetPath
       bundleAction = Purs.bundle withMain moduleName targetPath
   in case noBuild of
@@ -138,10 +139,11 @@ bundleModule
   :: Spago m
   => Maybe Purs.ModuleName
   -> Maybe Purs.TargetPath
+  -> Bool
   -> NoBuild
   -> BuildOptions
   -> m ()
-bundleModule maybeModuleName maybeTargetPath noBuild buildOpts = do
+bundleModule maybeModuleName maybeTargetPath exportPS noBuild buildOpts = do
   let (moduleName, targetPath) = prepareBundleDefaults maybeModuleName maybeTargetPath
       jsExport = Text.unpack $ "\nmodule.exports = PS[\""<> Purs.unModuleName moduleName <> "\"];"
       bundleAction = do

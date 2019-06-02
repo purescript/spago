@@ -61,11 +61,11 @@ data Command
 
   -- | Bundle the project into an executable
   --   Builds the project before bundling
-  | BundleApp (Maybe ModuleName) (Maybe TargetPath) NoBuild BuildOptions
+  | BundleApp (Maybe ModuleName) (Maybe TargetPath) Bool NoBuild BuildOptions
 
   -- | Bundle a module into a CommonJS module
   --   Builds the project before bundling
-  | BundleModule (Maybe ModuleName) (Maybe TargetPath) NoBuild BuildOptions
+  | BundleModule (Maybe ModuleName) (Maybe TargetPath) Bool NoBuild BuildOptions
 
   -- | Upgrade the package-set to the latest release
   | PackageSetUpgrade
@@ -134,6 +134,7 @@ parser = do
     toTarget    = CLI.optional (CLI.opt (Just . TargetPath) "to" 't' "The target file path")
     limitJobs   = CLI.optional (CLI.optInt "jobs" 'j' "Limit the amount of jobs that can run concurrently")
     sourcePaths = CLI.many (CLI.opt (Just . SourcePath) "path" 'p' "Source path to include")
+    exportPS    = CLI.switch "export-ps" 'e' "Expose exported PureScript modules to JavaScript "
     packageName = CLI.arg (Just . PackageName) "package" "Specify a package name. You can list them with `list-packages`"
     packageNames = CLI.many $ CLI.arg (Just . PackageName) "package" "Package name to add as dependency"
     passthroughArgs = many $ CLI.arg (Just . ExtraArg) " ..any `purs compile` option" "Options passed through to `purs compile`; use -- to separate"
@@ -190,13 +191,13 @@ parser = do
     bundleApp =
       ( "bundle-app"
       , "Bundle the project into an executable"
-      , BundleApp <$> mainModule <*> toTarget <*> noBuild <*> buildOptions
+      , BundleApp <$> mainModule <*> toTarget <*> exportPS <*> noBuild <*> buildOptions
       )
 
     bundleModule =
       ( "bundle-module"
       , "Bundle the project into a CommonJS module"
-      , BundleModule <$> mainModule <*> toTarget <*> noBuild <*> buildOptions
+      , BundleModule <$> mainModule <*> toTarget <*> exportPS <*> noBuild <*> buildOptions
       )
 
     docs =
@@ -332,10 +333,10 @@ main = do
       Test modName buildOptions             -> Spago.Build.test modName buildOptions
       Run modName buildOptions              -> Spago.Build.run modName buildOptions
       Repl paths pursArgs                   -> Spago.Build.repl paths pursArgs
-      BundleApp modName tPath shouldBuild buildOptions
-        -> Spago.Build.bundleApp WithMain modName tPath shouldBuild buildOptions
-      BundleModule modName tPath shouldBuild buildOptions
-        -> Spago.Build.bundleModule modName tPath shouldBuild buildOptions
+      BundleApp modName tPath exportPS shouldBuild buildOptions
+        -> Spago.Build.bundleApp WithMain modName tPath exportPS shouldBuild buildOptions
+      BundleModule modName tPath exportPS shouldBuild buildOptions
+        -> Spago.Build.bundleModule modName tPath exportPS shouldBuild buildOptions
       Docs sourcePaths                      -> Spago.Build.docs sourcePaths
       Version                               -> printVersion
       PscPackageLocalSetup force            -> liftIO $ PscPackage.localSetup force
