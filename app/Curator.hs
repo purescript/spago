@@ -11,19 +11,20 @@ import qualified Control.Retry                  as Retry
 import qualified Data.ByteString.Lazy           as BSL
 import qualified Data.List                      as List
 import qualified Data.Map.Strict                as Map
+import qualified Data.Set                       as Set
 import qualified Data.Text                      as Text
 import qualified Data.Text.Encoding             as Encoding
 import qualified Data.Vector                    as Vector
+import qualified Dhall.Core
 import qualified Dhall.Map
 import qualified GHC.IO
 import qualified GHC.IO.Encoding
 import qualified GitHub
 import qualified Spago.Dhall                    as Dhall
 import qualified System.Environment             as Env
+import qualified System.IO.Temp                 as Temp
 import qualified System.Process                 as Process
 import qualified Turtle
-import qualified Dhall.Core
-import qualified System.IO.Temp as Temp
 
 import           Data.Aeson.Encode.Pretty       (encodePretty)
 import           Spago.GlobalCache
@@ -173,7 +174,7 @@ spagoUpdater token controlChan fetcherChan = go Nothing
                         $ GitHub.createPullRequestR owner repo
                         $ GitHub.CreatePullRequest ("Update to package-sets@" <> newTag) "" branchName "master"
                       case response of
-                        Right _ -> echo "Created PR 🎉"
+                        Right _   -> echo "Created PR 🎉"
                         Left err' -> echoStr $ "Error while creating PR: " <> show err'
                     _ -> do
                       echo "Something's off. Either there wasn't anything to push or there are errors. Output:"
@@ -251,7 +252,7 @@ fetcher token controlChan metadataChan psChan = forever $ do
 
 
 packageSetsUpdater :: Text -> Queue.TQueue PackageSetsUpdaterMessage -> IO ()
-packageSetsUpdater token dataChan = go mempty
+packageSetsUpdater token dataChan = go mempty mempty
   where
     updateVersion :: Monad m => PackageName -> Tag -> Expr -> m Expr
     updateVersion (PackageName packageName) (Tag tag) (Dhall.RecordLit kvs)
@@ -260,11 +261,11 @@ packageSetsUpdater token dataChan = go mempty
           in pure $ Dhall.RecordLit $ Dhall.Map.insert packageName newPackage kvs
     updateVersion _ _ other = pure other
 
-    go packageSet = do
+    go packageSet banned = do
       (atomically $ Queue.readTQueue dataChan) >>= \case
         MPackageSet newSet -> do
           echo "Received new package set, updating.."
-          go newSet
+          go newSet banned
         MLatestTag packageName@(PackageName name) owner tag'@(Tag tag) -> do
           -- First we check if the latest tag is the one in the package set
           case Map.lookup packageName packageSet of
@@ -283,16 +284,24 @@ packageSetsUpdater token dataChan = go mempty
                     (GitHub.optionsHead ("purescript:" <> branchName) <> GitHub.stateAll)
                     GitHub.FetchAll
 
-              case oldPRs of
-                Left err -> echoStr $ "Error: " <> show err
-                Right prs | not $ Vector.null prs -> echo "PR has been already opened once, skipping.."
-                Right _ -> do
+              case (oldPRs, Set.member branchName banned) of
+                (Left err, _) -> do
+                  echoStr $ "Error: " <> show err
+                  go packageSet banned
+                (Right prs, _) | not $ Vector.null prs -> do
+                  echo "PR has been already opened once, skipping.."
+                  go packageSet banned
+                (Right _, True) -> do
+                  echo "Package has failed to verify before, skipping.."
+                  go packageSet banned
+                (Right _, False) -> do
                   echo "No previous PRs found, verifying the addition and eventually committing.."
                   echo $ "Branch name: " <> branchName
 
-                  withAST ("data/package-sets/src/groups/" <> owner <> ".dhall") $ updateVersion packageName tag'
+                  withAST ("data/package-sets/src/groups/" <> owner <> ".dhall")
+                    $ updateVersion packageName tag'
 
-                  Temp.withTempDirectory "data/package-sets" "spacchettibotti-" $ \tempDir -> do
+                  newBanned <- Temp.withTempDirectory "data/package-sets" "spacchettibotti-" $ \tempDir -> do
                     echoStr $ "Tempdir: " <> tempDir
 
                     (code, out, err) <- runWithCwd "data/package-sets" $ List.intercalate " && "
@@ -320,19 +329,19 @@ packageSetsUpdater token dataChan = go mempty
                           $ GitHub.createPullRequestR owner' repo'
                           $ GitHub.CreatePullRequest ("Update " <> name <> " to " <> tag) "The addition has been verified by running `spago verify-set` in a clean project, so this is safe to merge." branchName "master"
                         case response of
-                          Right _ -> echo "Created PR 🎉"
+                          Right _   -> echo "Created PR 🎉"
                           Left err' -> echoStr $ "Error while creating PR: " <> show err'
+                        pure banned
                       _ -> do
                         echo "Something's off. Either there wasn't anything to push or there are errors. Output:"
                         echo out
                         echo err
                         echo "Reverting changes.."
                         runWithCwd "data/package-sets" "git checkout -- src/groups && git checkout master"
-                        pure ()
-
-              go packageSet
-            _ -> pure ()
-          go packageSet
+                        -- IMPORTANT: add the package to the banned ones so we don't reverify every time
+                        pure $ Set.insert branchName banned
+                  go packageSet newBanned
+            _ -> go packageSet banned
 
 
 metadataUpdater :: Queue.TQueue MetadataUpdaterMessage -> IO ()
