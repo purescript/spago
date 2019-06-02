@@ -272,7 +272,6 @@ packageSetsUpdater token dataChan = go mempty
             -- is different from the current tag.
             Just Package{ version = version, .. } | version /= tag -> do
               echo $ "Found a newer tag for '" <> name <> "': " <> tag
-              withAST ("data/package-sets/src/groups/" <> owner <> ".dhall") $ updateVersion packageName tag'
               let auth = GitHub.OAuth $ Encoding.encodeUtf8 token
                   owner' = GitHub.mkName Proxy "purescript"
                   repo' = GitHub.mkName Proxy "package-sets"
@@ -291,6 +290,8 @@ packageSetsUpdater token dataChan = go mempty
                   echo "No previous PRs found, verifying the addition and eventually committing.."
                   echo $ "Branch name: " <> branchName
 
+                  withAST ("data/package-sets/src/groups/" <> owner <> ".dhall") $ updateVersion packageName tag'
+
                   Temp.withTempDirectory "data/package-sets" "spacchettibotti-" $ \tempDir -> do
                     echoStr $ "Tempdir: " <> tempDir
 
@@ -298,15 +299,18 @@ packageSetsUpdater token dataChan = go mempty
                       [ "git checkout master"
                       , "git pull"
                       , "git checkout -B master origin/master"
-                      , "cd " <> tempDir
+                      , "cd ../../" <> tempDir
                       , "spago init"
                       , "echo '../src/packages.dhall' > packages.dhall"
                       , "spago verify-set"
                       , "cd .."
                       , "git checkout -B " <> Text.unpack branchName
-                      , "git add src/groups/" <> Text.unpack owner <> ".dhall"
+                      , "make"
+                      , "git add packages.json"
+                      , "git add src/groups"
                       , "git commit -am 'Update " <> Text.unpack name <> " to " <> Text.unpack tag <> "'"
                       , "git push --set-upstream origin " <> Text.unpack branchName
+                      , "git checkout master"
                       ]
 
                     case code of
@@ -322,6 +326,9 @@ packageSetsUpdater token dataChan = go mempty
                         echo "Something's off. Either there wasn't anything to push or there are errors. Output:"
                         echo out
                         echo err
+                        echo "Reverting changes.."
+                        runWithCwd "data/package-sets" "git checkout -- src/groups && git checkout master"
+                        pure ()
 
               go packageSet
             _ -> pure ()
