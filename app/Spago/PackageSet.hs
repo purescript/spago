@@ -229,7 +229,6 @@ freeze = do
   echo Messages.freezePackageSet
   liftIO $ do
     Dhall.Freeze.freeze (Just $ Text.unpack pathText) False Dhall.Pretty.ASCII defaultStandardVersion
-    Dhall.format pathText
 
 
 -- | Freeze the file if any of the remote imports are not frozen
