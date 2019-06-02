@@ -90,7 +90,7 @@ fetchPackage metadata pair@(packageName'@PackageName{..}, Package{ repo = Remote
   packageLocalCacheDir <- makeAbsolute $ getLocalCacheDir pair
 
   inGlobalCache <- testdir $ Turtle.decodeString packageGlobalCacheDir
-  Temp.withSystemTempDirectory (Text.unpack (packageName <> "-" <> version)) $ \path -> do
+  Temp.withTempDirectory localCacheDir (Text.unpack ("__download-" <> packageName <> "-" <> version)) $ \path -> do
     let downloadDir = path </> "download"
 
     -- * if a Package is in the global cache, copy it to the local cache
