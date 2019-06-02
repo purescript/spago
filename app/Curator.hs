@@ -318,7 +318,7 @@ packageSetsUpdater token dataChan = go mempty
                         echo "Pushed a new commit, opening PR.."
                         response <- GitHub.executeRequest auth
                           $ GitHub.createPullRequestR owner' repo'
-                          $ GitHub.CreatePullRequest ("Update " <> name <> "@" <> tag) "The addition has been verified, this is safe to merge." branchName "master"
+                          $ GitHub.CreatePullRequest ("Update " <> name <> " to " <> tag) "The addition has been verified by running `spago verify-set` in a clean project, so this is safe to merge." branchName "master"
                         case response of
                           Right _ -> echo "Created PR 🎉"
                           Left err' -> echoStr $ "Error while creating PR: " <> show err'
