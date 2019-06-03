@@ -7,12 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8.2] - 2019-06-03
+
 Bugfixes:
 - Fix `spago psc-package-clean` on Windows (#224)
 - Fix `spago repl` starting on Windows where PureScript was installed with NPM (#235, #227)
+- Fix missing filenames when encountering parse errors in Dhall files (#241, #222)
+- Download packages in local repo instead of global tempdir (#243, #220)
 
 Other improvements:
-- Test suite now works fully on Windows (#224)
+- Tests: test suite now works fully on Windows (#224)
+- CI: parametrize LTS version (#236)
+- CI: get PureScript binary for Travis from GitHub releases (#234)
+- Error messages: fix whitespace (#221)
 
 ## [0.8.1] - 2019-05-29
 
