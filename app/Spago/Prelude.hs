@@ -4,7 +4,7 @@ module Spago.Prelude
   , echoDebug
   , tshow
   , die
-  , throws
+  , Dhall.Core.throws
   , hush
   , pathFromText
   , assertDirectory
@@ -65,6 +65,7 @@ module Spago.Prelude
 
 import qualified Control.Concurrent.Async.Pool as Async
 import qualified Data.Text                     as Text
+import qualified Dhall.Core
 import qualified System.FilePath               as FilePath
 import qualified System.IO
 import qualified Turtle                        as Turtle
@@ -142,10 +143,6 @@ echoDebug str = do
 die :: MonadThrow m => Text -> m a
 die reason = throwM $ SpagoError reason
 
--- | Throw Lefts
-throws :: MonadThrow m => Exception e => Either e a -> m a
-throws (Left  e) = throwM e
-throws (Right a) = pure a
 
 -- | Suppress the 'Left' value of an 'Either'
 hush :: Either a b -> Maybe b
