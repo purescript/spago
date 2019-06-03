@@ -643,6 +643,27 @@ $ node -e "console.log(require('./index).main)"
 [Function]
 ```
 
+If you want to be able access modules and their functions from JavaScript land,
+(highly useful for use in `<script>` tags in the browser), then you can use
+a recipe like the following. In your index.js that is input the the bundler
+(e.g. Parcel):
+
+```javascript
+// index.js
+
+import * as Foo from  "./index.opt.js";
+window.Foo = Foo;
+```
+
+This references your exported module `Foo` and makes it globally accessible;
+here `index.opt.js` is the output of `spago bundle-module ...`, and possibly
+processed by other optimizers.
+
+And within JavaScript (e.g. a `<script>` tag) you can now call functions like:
+`Foo.bar()`, assuming `bar` is an export of `Foo`.
+
+
+
 #### Skipping the Build Step
 
 When running `spago bundle-app` and `spago bundle-module` the `build` step will also execute
