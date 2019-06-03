@@ -19,6 +19,7 @@ import qualified Data.Versions   as Version
 import qualified Dhall
 import           Dhall.Binary    (defaultStandardVersion)
 import qualified Dhall.Freeze
+import qualified Dhall.Pretty
 import qualified GitHub
 import           Network.URI     (parseURI)
 
@@ -227,8 +228,7 @@ freeze :: Spago m => m ()
 freeze = do
   echo Messages.freezePackageSet
   liftIO $ do
-    Dhall.Freeze.freeze (Just $ Text.unpack pathText) False defaultStandardVersion
-    Dhall.format pathText
+    Dhall.Freeze.freeze (Just $ Text.unpack pathText) False Dhall.Pretty.ASCII defaultStandardVersion
 
 
 -- | Freeze the file if any of the remote imports are not frozen
