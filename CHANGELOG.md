@@ -14,6 +14,7 @@ Bugfixes:
 - Fix `spago repl` starting on Windows where PureScript was installed with NPM (#235, #227)
 - Fix missing filenames when encountering parse errors in Dhall files (#241, #222)
 - Download packages in local repo instead of global tempdir (#243, #220)
+- Adds `--export` switch for `bundle-module` to allow use of PureScript modules from JS (#246)
 
 Other improvements:
 - Tests: test suite now works fully on Windows (#224)
