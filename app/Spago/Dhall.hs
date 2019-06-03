@@ -40,7 +40,7 @@ prettyWithHeader header expr = do
   PrettyText.renderStrict $ Pretty.layoutSmart Pretty.defaultLayoutOptions doc
 
 
-readRawExpr :: Spago m => Text -> m (Maybe (Text, DhallExpr Dhall.Import))
+readRawExpr :: Text -> IO (Maybe (Text, DhallExpr Dhall.Import))
 readRawExpr pathText = do
   exists <- testfile $ pathFromText pathText
   if exists
@@ -50,15 +50,15 @@ readRawExpr pathText = do
     else (pure Nothing)
 
 
-writeRawExpr :: Spago m => Text -> (Text, DhallExpr Dhall.Import) -> m ()
+writeRawExpr :: Text -> (Text, DhallExpr Dhall.Import) -> IO ()
 writeRawExpr pathText (header, expr) = do
   -- After modifying the expression, we have to check if it still typechecks
   -- if it doesn't we don't write to file.
-  resolvedExpr <- liftIO $ Dhall.Import.load expr
+  resolvedExpr <- Dhall.Import.load expr
   throws (Dhall.TypeCheck.typeOf resolvedExpr)
   echo $ "Done. Updating the \"" <> pathText <> "\" file.."
   writeTextFile (pathFromText pathText) $ prettyWithHeader header expr <> "\n"
-  liftIO $ format pathText
+  format pathText
 
 
 -- | Returns a Dhall Text literal from a lone string
