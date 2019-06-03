@@ -63,8 +63,8 @@ globallyCache (packageName, url, ref) downloadDir metadata cacheableCallback not
           Just resultDir <- Turtle.fold (Turtle.ls $ Turtle.decodeString downloadDir) Fold.head
           cacheableCallback $ Turtle.encodeString resultDir
       where
-    other -> do
-      echoStr $ "ERROR: " <> show other
+    _ -> do
+      echo $ "Warning: was not able to match url with GitHub ones: " <> url
       notCacheableCallback -- TODO: error?
   where
     isTag = do
@@ -127,7 +127,7 @@ getMetadata cacheFlag = do
           ) >>= \case
         Right v -> pure v
         Left (err :: IOException) -> do
-          echoStr $ "ERROR: " <> show err
+          echoStr $ "Warning: unable to read metadata file: " <> show err
           pure True
 
       case shouldDownloadMeta of
@@ -150,7 +150,7 @@ getGlobalCacheDir = do
   pure $ cacheDir </> "spago"
   where
     err = do
-      echo "ERROR: was not able to get a directory for the global cache. Set either `HOME` or `XDG_CACHE_HOME`"
+      echo "Error: was not able to get a directory for the global cache. Set either `HOME` or `XDG_CACHE_HOME`"
       empty
 
     alternative₀ = do
