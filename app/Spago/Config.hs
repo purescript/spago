@@ -45,9 +45,9 @@ instance FromJSON Config
 type Expr = Dhall.DhallExpr Dhall.Import
 
 -- | Tries to read in a Spago Config
-parseConfig :: Spago m => Text -> m Config
-parseConfig dhallText = do
-  expr <- liftIO $ Dhall.inputExpr dhallText
+parseConfig :: Spago m => m Config
+parseConfig = do
+  expr <- liftIO $ Dhall.inputExpr $ "./" <> pathText
   case expr of
     Dhall.RecordLit ks -> do
       maybeConfig <- pure $ do
@@ -76,10 +76,10 @@ ensureConfig = do
   exists <- testfile path
   unless exists $ do
     die $ Messages.cannotFindConfig
-  PackageSet.ensureFrozen
-  configText <- readTextFile path
-  try (parseConfig configText) >>= \case
-    Right config -> pure config
+  try parseConfig >>= \case
+    Right config -> do
+      PackageSet.ensureFrozen
+      pure config
     Left (err :: Dhall.ReadError Dhall.TypeCheck.X) -> throwM err
 
 
