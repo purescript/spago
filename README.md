@@ -947,31 +947,9 @@ Adding a package to the package-set just includes it in the set of possible pack
 can depend on. However, if you wish `spago` to install it you should then add it to
 the `dependencies` list in your `spago.dhall`.
 
+## Internals
 
-## Reference - Internals
-
-### The `spago-curator` tool
-
-While we publish only the `spago` binary, there is another executable that is built together
-with it, and that's `spago-curator`.
-
-Its purpose is to assist in the automation of certain tasks that make life easier (both
-for maintainers and users). You can think of it as a glorified Perl script.
-
-Here's an overview of its commands:
-- **`spago-curator index-github-meta`**: when you run it (provided that you have a GitHub token in 
-  your env), `spago-curator` will:
-  - take the latest package set
-  - crawl GitHub downloading the list of all tags and commits for every repo in the set
-  - put the result in a `metadataV1.json` file
-
-  The idea is that [spacchettibotti][spacchettibotti] will run this command periodically and
-  upload the resulting file to [the `package-sets-metadata` repo][package-sets-metadata], so
-  that `spago` will be able to rely on it for information about "is this ref immutable",
-  effectively enabling the possibility of a global cache.
-  
-  See [here](#how-does-the-global-cache-work) for more info about the global cache.
-  
+See [this document](./INTERNALS.md)
 
 [pulp]: https://github.com/purescript-contrib/pulp
 [purp]: https://github.com/justinwoo/purp
