@@ -123,11 +123,10 @@ bundleApp
   => Purs.WithMain
   -> Maybe Purs.ModuleName
   -> Maybe Purs.TargetPath
-  -> Bool
   -> NoBuild
   -> BuildOptions
   -> m ()
-bundleApp withMain maybeModuleName maybeTargetPath exportPS noBuild buildOpts =
+bundleApp withMain maybeModuleName maybeTargetPath noBuild buildOpts =
   let (moduleName, targetPath) = prepareBundleDefaults maybeModuleName maybeTargetPath
       bundleAction = Purs.bundle withMain moduleName targetPath
   in case noBuild of
@@ -145,7 +144,10 @@ bundleModule
   -> m ()
 bundleModule maybeModuleName maybeTargetPath exportPS noBuild buildOpts = do
   let (moduleName, targetPath) = prepareBundleDefaults maybeModuleName maybeTargetPath
-      jsExport = Text.unpack $ "\nmodule.exports = PS[\""<> Purs.unModuleName moduleName <> "\"];"
+      jsExport = Text.unpack $ "\nmodule.exports = PS[\"" <>
+        Purs.unModuleName moduleName <> "\"];" <> case exportPS of
+          True -> "\nexport default PS;\n"
+          False -> ""
       bundleAction = do
         echo "Bundling first..."
         Purs.bundle Purs.WithoutMain moduleName targetPath
