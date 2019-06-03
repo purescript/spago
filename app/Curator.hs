@@ -325,9 +325,11 @@ packageSetsUpdater token dataChan = go mempty mempty
                     case code of
                       ExitSuccess -> do
                         echo "Pushed a new commit, opening PR.."
+                        let releaseLink = "https://github.com/" <> owner <> "/purescript-" <> name <> "/releases/tag/" <> tag
+                            body = "The addition has been verified by running `spago verify-set` in a clean project, so this is safe to merge.\n\nLink to release: " <> releaseLink
                         response <- GitHub.executeRequest auth
                           $ GitHub.createPullRequestR owner' repo'
-                          $ GitHub.CreatePullRequest ("Update " <> name <> " to " <> tag) "The addition has been verified by running `spago verify-set` in a clean project, so this is safe to merge." branchName "master"
+                          $ GitHub.CreatePullRequest ("Update " <> name <> " to " <> tag) body branchName "master"
                         case response of
                           Right _   -> echo "Created PR 🎉"
                           Left err' -> echoStr $ "Error while creating PR: " <> show err'
