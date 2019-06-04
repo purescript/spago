@@ -185,7 +185,7 @@ async' taskGroup action = withRunInIO $ \run -> Async.async taskGroup (run actio
 
 
 -- | Code from: https://github.com/dhall-lang/dhall-haskell/blob/d8f2787745bb9567a4542973f15e807323de4a1a/dhall/src/Dhall/Import.hs#L578
-assertDirectory :: (MonadIO m, Alternative m) => FilePath.FilePath -> m ()
+assertDirectory :: (MonadIO m, MonadThrow m) => FilePath.FilePath -> m ()
 assertDirectory directory = do
   let private = transform Directory.emptyPermissions
         where
@@ -204,9 +204,8 @@ assertDirectory directory = do
   if directoryExists
     then do
       permissions <- Directory.getPermissions directory
-
-      guard (accessible permissions)
-
+      unless (accessible permissions) $ do
+        die $ "Directory " <> tshow directory <> " is not accessible. " <> tshow permissions
     else do
       assertDirectory (FilePath.takeDirectory directory)
 
