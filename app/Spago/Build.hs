@@ -64,6 +64,7 @@ prepareBundleDefaults maybeModuleName maybeTargetPath = (moduleName, targetPath)
 --   eventually running some other action after the build
 build :: Spago m => BuildOptions -> Maybe (m ()) -> m ()
 build BuildOptions{..} maybePostBuild = do
+  echoDebug "Running `spago build`"
   config <- Config.ensureConfig
   deps <- Packages.getProjectDeps config
   Fetch.fetchPackages maybeLimit cacheConfig deps
@@ -82,6 +83,7 @@ build BuildOptions{..} maybePostBuild = do
 -- | Start a repl
 repl :: Spago m => [Purs.SourcePath] -> [Purs.ExtraArg] -> m ()
 repl sourcePaths passthroughArgs = do
+  echoDebug "Running `spago repl`"
   config <- Config.ensureConfig
   deps <- Packages.getProjectDeps config
   let globs = Packages.getGlobs deps <> defaultSourcePaths <> sourcePaths
@@ -108,6 +110,7 @@ runWithNode
   -> BuildOptions
   -> m ()
 runWithNode defaultModuleName maybeSuccessMessage failureMessage maybeModuleName buildOpts = do
+  echoDebug "Running NodeJS"
   build buildOpts (Just nodeAction)
   where
     moduleName = fromMaybe defaultModuleName maybeModuleName
@@ -142,6 +145,7 @@ bundleModule
   -> BuildOptions
   -> m ()
 bundleModule maybeModuleName maybeTargetPath noBuild buildOpts = do
+  echoDebug "Running `bundleModule`"
   let (moduleName, targetPath) = prepareBundleDefaults maybeModuleName maybeTargetPath
       jsExport = Text.unpack $ "\nmodule.exports = PS[\""<> Purs.unModuleName moduleName <> "\"];"
       bundleAction = do
@@ -161,6 +165,7 @@ bundleModule maybeModuleName maybeTargetPath noBuild buildOpts = do
 -- | Generate docs for the `sourcePaths`
 docs :: Spago m => [Purs.SourcePath] -> m ()
 docs sourcePaths = do
+  echoDebug "Running `spago docs`"
   config <- Config.ensureConfig
   deps <- Packages.getProjectDeps config
   echo "Generating documentation for the project. This might take a while.."

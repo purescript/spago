@@ -30,6 +30,7 @@ import qualified Spago.PackageSet              as PackageSet
 --       * if not, run a series of git commands to get the code, and copy to local cache
 fetchPackages :: Spago m => Maybe Int -> Maybe GlobalCache.CacheFlag -> [(PackageName, Package)] -> m ()
 fetchPackages maybeLimit globalCacheFlag allDeps = do
+  echoDebug "Running `fetchPackages`"
 
   PackageSet.checkPursIsUpToDate
 
@@ -83,6 +84,7 @@ fetchPackage :: Spago m => GlobalCache.ReposMetadataV1 -> (PackageName, Package)
 fetchPackage _ (PackageName package, Package { repo = Local path }) =
   echo $ Messages.foundLocalPackage package path
 fetchPackage metadata pair@(packageName'@PackageName{..}, Package{ repo = Remote repo, ..} ) = do
+  echoDebug $ "Fetching package " <> packageName
   globalDir <- GlobalCache.getGlobalCacheDir
   let packageDir = getPackageDir packageName' version
       packageGlobalCacheDir = globalDir </> packageDir

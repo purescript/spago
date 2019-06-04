@@ -93,6 +93,7 @@ makePackageSetFile force = do
 --   - if all of this succeeds, it will regenerate the hashes and write to file
 upgradePackageSet :: Spago m => m ()
 upgradePackageSet = do
+  echoDebug "Running `spago package-set-upgrade`"
   result <- liftIO $ GitHub.executeRequest' $ GitHub.latestReleaseR "purescript" "package-sets"
   case result of
     Left err -> die $ Messages.failedToReachGitHub err
@@ -144,6 +145,7 @@ upgradePackageSet = do
 
 checkPursIsUpToDate :: Spago m => m ()
 checkPursIsUpToDate = do
+  echoDebug "Checking if `purs` is up to date"
   rawPackageSet <- liftIO $ Dhall.readRawExpr pathText
   case rawPackageSet of
     Nothing -> echo Messages.cannotFindPackagesButItsFine
@@ -234,6 +236,7 @@ freeze = do
 -- | Freeze the file if any of the remote imports are not frozen
 ensureFrozen :: Spago m => m ()
 ensureFrozen = do
+  echoDebug "Ensuring that the package set is frozen"
   rawPackageSet <- liftIO $ Dhall.readRawExpr pathText
   case rawPackageSet of
     Nothing -> echo "WARNING: wasn't able to check if your package set file is frozen"

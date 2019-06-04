@@ -51,6 +51,7 @@ globallyCache
   -> (m ())
   -> m ()
 globallyCache (packageName, url, ref) downloadDir metadata cacheableCallback notCacheableCallback = do
+  echoDebug $ "Running `globallyCache`: " <> tshow packageName <> " " <> url <> " " <> ref
   case (Text.stripPrefix "https://github.com/" url)
        >>= (Text.stripSuffix ".git")
        >>= (Just . Text.split (== '/')) of
@@ -59,6 +60,7 @@ globallyCache (packageName, url, ref) downloadDir metadata cacheableCallback not
         Nothing -> notCacheableCallback -- TODO: nice error?
         Just _ -> do
           let archiveUrl = "https://github.com/" <> owner <> "/" <> repo <> "/archive/" <> ref <> ".tar.gz"
+          echoDebug $ "About to fetch tarball for " <> archiveUrl
           fetchTarball downloadDir archiveUrl
           Just resultDir <- Turtle.fold (Turtle.ls $ Turtle.decodeString downloadDir) Fold.head
           cacheableCallback $ Turtle.encodeString resultDir
@@ -82,6 +84,8 @@ globallyCache (packageName, url, ref) downloadDir metadata cacheableCallback not
 -- | Download the GitHub Index cache from the `package-sets-metadata` repo
 getMetadata :: Spago m => Maybe CacheFlag -> m ReposMetadataV1
 getMetadata cacheFlag = do
+  echoDebug "Running `getMetadata`"
+
   globalCacheDir <- getGlobalCacheDir
 
   echoDebug $ "Global cache directory: " <> Text.pack globalCacheDir
@@ -143,9 +147,9 @@ getMetadata cacheFlag = do
 
 -- | Directory in which spago will put its global cache
 -- | Code from: https://github.com/dhall-lang/dhall-haskell/blob/d8f2787745bb9567a4542973f15e807323de4a1a/dhall/src/Dhall/Import.hs#L578
-getGlobalCacheDir :: (Alternative m, MonadIO m) => m FilePath.FilePath
+getGlobalCacheDir :: Spago m => m FilePath.FilePath
 getGlobalCacheDir = do
-  -- TODO: fail with a nice error in case of empty
+  echoDebug "Running `getGlobalCacheDir`"
   cacheDir <- alternative₀ <|> alternative₁ <|> err
   pure $ cacheDir </> "spago"
   where
