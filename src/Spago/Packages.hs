@@ -136,7 +136,7 @@ getReverseDeps packageSet@PackageSet{..} dep = do
 install :: Spago m => Maybe Int -> Maybe CacheFlag -> [PackageName] -> m ()
 install maybeLimit cacheFlag newPackages = do
   echoDebug "Running `spago install`"
-  config@Config{..} <- Config.ensureConfig
+  config@Config{ packageSet = PackageSet{..}, ..} <- Config.ensureConfig
 
   -- Try fetching the dependencies with the new names too
   let newConfig :: Config
@@ -149,7 +149,7 @@ install maybeLimit cacheFlag newPackages = do
     []         -> pure ()
     additional -> Config.addDependencies config additional
 
-  Fetch.fetchPackages maybeLimit cacheFlag deps
+  Fetch.fetchPackages maybeLimit cacheFlag deps packagesMinPursVersion
 
 
 data PackagesFilter = TransitiveDeps | DirectDeps
@@ -226,11 +226,11 @@ verify maybeLimit cacheFlag maybePackage = do
       traverse_ (verifyPackage packageSet) (fst <$> packages)
 
     verifyPackage :: Spago m => PackageSet -> PackageName -> m ()
-    verifyPackage packageSet name = do
+    verifyPackage packageSet@PackageSet{..} name = do
       deps <- getTransitiveDeps packageSet [name]
       let globs = getGlobs deps
           quotedName = Messages.surroundQuote $ packageName name
-      Fetch.fetchPackages maybeLimit cacheFlag deps
+      Fetch.fetchPackages maybeLimit cacheFlag deps packagesMinPursVersion
       echo $ "Verifying package " <> quotedName
       Purs.compile globs []
       echo $ "Successfully verified " <> quotedName

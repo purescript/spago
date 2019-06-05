@@ -26,6 +26,7 @@ import qualified Spago.Config         as Config
 import qualified Spago.FetchPackage   as Fetch
 import qualified Spago.GlobalCache    as GlobalCache
 import qualified Spago.Packages       as Packages
+import qualified Spago.PackageSet     as PackageSet
 import qualified Spago.Purs           as Purs
 import qualified Spago.Watch          as Watch
 
@@ -65,9 +66,9 @@ prepareBundleDefaults maybeModuleName maybeTargetPath = (moduleName, targetPath)
 build :: Spago m => BuildOptions -> Maybe (m ()) -> m ()
 build BuildOptions{..} maybePostBuild = do
   echoDebug "Running `spago build`"
-  config <- Config.ensureConfig
+  config@Config.Config{ packageSet = PackageSet.PackageSet{..}, ..} <- Config.ensureConfig
   deps <- Packages.getProjectDeps config
-  Fetch.fetchPackages maybeLimit cacheConfig deps
+  Fetch.fetchPackages maybeLimit cacheConfig deps packagesMinPursVersion
   let projectGlobs = defaultSourcePaths <> sourcePaths
       allGlobs = Packages.getGlobs deps <> projectGlobs
       buildAction = do

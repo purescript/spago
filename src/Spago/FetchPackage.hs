@@ -8,11 +8,12 @@ import           Spago.Prelude
 import qualified Control.Concurrent.Async.Pool as Async
 import qualified Data.List                     as List
 import qualified Data.Text                     as Text
-import qualified UnliftIO.Directory              as Directory
+import qualified Data.Versions                 as Version
 import qualified System.FilePath               as FilePath
 import qualified System.IO.Temp                as Temp
 import qualified System.Process                as Process
 import qualified Turtle
+import qualified UnliftIO.Directory            as Directory
 
 import qualified Spago.GlobalCache             as GlobalCache
 import qualified Spago.Messages                as Messages
@@ -28,11 +29,17 @@ import qualified Spago.PackageSet              as PackageSet
 --     * then check if the Package is on GitHub and an "immutable" ref:
 --       * if yes, download the tar archive and copy it to global and then local cache
 --       * if not, run a series of git commands to get the code, and copy to local cache
-fetchPackages :: Spago m => Maybe Int -> Maybe GlobalCache.CacheFlag -> [(PackageName, Package)] -> m ()
-fetchPackages maybeLimit globalCacheFlag allDeps = do
+fetchPackages
+  :: Spago m
+  => Maybe Int
+  -> Maybe GlobalCache.CacheFlag
+  -> [(PackageName, Package)]
+  -> Maybe Version.SemVer
+  -> m ()
+fetchPackages maybeLimit globalCacheFlag allDeps minPursVersion = do
   echoDebug "Running `fetchPackages`"
 
-  PackageSet.checkPursIsUpToDate
+  PackageSet.checkPursIsUpToDate minPursVersion
 
   -- Ensure both local and global cache dirs are there
   GlobalCache.getGlobalCacheDir >>= assertDirectory

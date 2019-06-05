@@ -120,13 +120,14 @@ packageSetVersionWarning = makeMessage
 
 pursVersionMismatch :: Text -> Text -> Text
 pursVersionMismatch currentVersion minVersion = makeMessage
-  [ "Oh noes! It looks like the PureScript version installed on your system is"
-  , "outdated for the package-set you're using."
+  [ "Oh noes! It looks like the PureScript version installed on your system is not compatible with the package-set you're using."
   , ""
   , "installed version:   " <> currentVersion
   , "package-set version: " <> minVersion
   , ""
-  , "Please upgrade your `purs` version."
+  , "There are a few ways to solve this:"
+  , "- install a compatible `purs` version (i.e. in the same 'semver range')"
+  , "- if you know what you're doing, you can override the `version` of the `metadata` package in the packages.dhall"
   , ""
   ]
 

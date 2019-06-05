@@ -60,8 +60,8 @@ parseConfig = do
           something -> Left $ Dhall.PackagesIsNotRecord something
 
         let metadataPackageName = PackageSet.PackageName "metadata"
-            (metadataMap, setPackages) = Map.partitionWithKey (\k _v -> k == metadataPackageName) packages
-            setMinPursVersion = join
+            (metadataMap, packagesDB) = Map.partitionWithKey (\k _v -> k == metadataPackageName) packages
+            packagesMinPursVersion = join
               $ fmap (hush . Version.semver . (Text.replace "v" "") . PackageSet.version)
               $ Map.lookup metadataPackageName metadataMap
             packageSet = PackageSet.PackageSet{..}
