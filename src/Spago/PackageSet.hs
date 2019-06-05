@@ -6,7 +6,7 @@ module Spago.PackageSet
   , ensureFrozen
   , path
   , pathText
-  , PackageSet
+  , PackageSet(..)
   , Package (..)
   , PackageName (..)
   , Repo (..)
@@ -45,7 +45,11 @@ data Package = Package
 instance ToJSON Package
 instance FromJSON Package
 
-type PackageSet = Map PackageName Package
+data PackageSet = PackageSet
+  { packagesDB        :: Map PackageName Package
+  , setMinPursVersion :: Maybe Version.SemVer
+  }
+  deriving (Show, Generic)
 
 -- | We consider a "Repo" a "box of source to include in the build"
 --   This can have different nature:

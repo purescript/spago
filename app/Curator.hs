@@ -28,11 +28,10 @@ import qualified Turtle
 
 import           Data.Aeson.Encode.Pretty       (encodePretty)
 import           Spago.GlobalCache
-import           Spago.PackageSet               (Package (..), PackageName (..), PackageSet,
-                                                 Repo (..))
+import           Spago.PackageSet               (Package (..), PackageName (..), Repo (..))
 
 type Expr = Dhall.DhallExpr Dhall.Import
-
+type PackageSetMap = Map PackageName Package
 
 
 data SpagoUpdaterMessage
@@ -47,7 +46,7 @@ data MetadataUpdaterMessage
 
 data PackageSetsUpdaterMessage
   = MLatestTag !PackageName !Text !Tag
-  | MPackageSet !PackageSet
+  | MPackageSet !PackageSetMap
 
 
 -- | Main loop. Setup folders, repos, channels and threads, and then control them
@@ -240,7 +239,7 @@ fetcher token controlChan metadataChan psChan = forever $ do
         atomically $ Queue.writeTQueue metadataChan $ MMetadata packageName RepoMetadataV1{..}
 
     -- | Tries to read in a PackageSet from GitHub
-    fetchPackageSet :: Text -> IO PackageSet
+    fetchPackageSet :: Text -> IO PackageSetMap
     fetchPackageSet tag = do
       let packageTyp = Dhall.genericAuto :: Dhall.Type Package
       expr <- Dhall.inputExpr ("https://raw.githubusercontent.com/purescript/package-sets/" <> tag <> "/src/packages.dhall")

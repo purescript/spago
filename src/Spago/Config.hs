@@ -10,17 +10,20 @@ import           Spago.Prelude
 import qualified Data.Map           as Map
 import qualified Data.Sequence      as Seq
 import qualified Data.Set           as Set
+import qualified Data.Text          as Text
 import qualified Data.Text.Encoding as Text
+import qualified Data.Versions      as Version
 import qualified Dhall.Core
 import qualified Dhall.Map
 import qualified Dhall.TypeCheck
 
 import qualified Spago.Dhall        as Dhall
 import qualified Spago.Messages     as Messages
-import           Spago.PackageSet   (Package, PackageName (..), PackageSet)
 import qualified Spago.PackageSet   as PackageSet
 import qualified Spago.PscPackage   as PscPackage
 import qualified Spago.Templates    as Templates
+
+import           Spago.PackageSet   (Package, PackageName, PackageSet)
 
 
 pathText :: Text
@@ -35,12 +38,8 @@ path = pathFromText pathText
 data Config = Config
   { name         :: Text
   , dependencies :: [PackageName]
-  , packages     :: PackageSet
+  , packageSet   :: PackageSet
   } deriving (Show, Generic)
-
-instance ToJSON Config
-instance FromJSON Config
-
 
 type Expr = Dhall.DhallExpr Dhall.Import
 
@@ -56,9 +55,16 @@ parseConfig = do
         name         <- Dhall.requireTypedKey ks "name" Dhall.strictText
         dependencies <- Dhall.requireTypedKey ks "dependencies" packageNamesTyp
         packages     <- Dhall.requireKey ks "packages" $ \case
-          Dhall.RecordLit pkgs -> (Map.mapKeys PackageName . Dhall.Map.toMap)
+          Dhall.RecordLit pkgs -> (Map.mapKeys PackageSet.PackageName . Dhall.Map.toMap)
             <$> traverse (Dhall.coerceToType packageTyp) pkgs
           something -> Left $ Dhall.PackagesIsNotRecord something
+
+        let metadataPackageName = PackageSet.PackageName "metadata"
+            (metadataMap, setPackages) = Map.partitionWithKey (\k _v -> k == metadataPackageName) packages
+            setMinPursVersion = join
+              $ fmap (hush . Version.semver . (Text.replace "v" "") . PackageSet.version)
+              $ Map.lookup metadataPackageName metadataMap
+            packageSet = PackageSet.PackageSet{..}
 
         Right $ Config{..}
 
@@ -104,7 +110,7 @@ makeConfig force = do
       Right pscConfig -> do
         echo "Found a \"psc-package.json\" file, migrating to a new Spago config.."
         -- try to update the dependencies (will fail if not found in package set)
-        let pscPackages = map PackageName $ PscPackage.depends pscConfig
+        let pscPackages = map PackageSet.PackageName $ PscPackage.depends pscConfig
         config <- ensureConfig
         withConfigAST (\e -> addRawDeps config pscPackages
                             $ updateName (PscPackage.name pscConfig) e)
@@ -124,15 +130,15 @@ addRawDeps config newPackages r@(Dhall.RecordLit kvs)
         [] -> do
           oldPackages <- traverse (throws . Dhall.fromTextLit) dependencies
           let newDepsExpr
-                = Dhall.ListLit Nothing $ fmap (Dhall.toTextLit . packageName)
-                $ Seq.sort $ nubSeq (Seq.fromList newPackages <> fmap PackageName oldPackages)
+                = Dhall.ListLit Nothing $ fmap (Dhall.toTextLit . PackageSet.packageName)
+                $ Seq.sort $ nubSeq (Seq.fromList newPackages <> fmap PackageSet.PackageName oldPackages)
           pure $ Dhall.RecordLit $ Dhall.Map.insert "dependencies" newDepsExpr kvs
         pkgs -> do
-          echo $ Messages.failedToAddDeps $ map packageName pkgs
+          echo $ Messages.failedToAddDeps $ map PackageSet.packageName pkgs
           pure r
   where
     notInPackageSet = mapMaybe
-      (\p -> case Map.lookup p (packages config) of
+      (\p -> case Map.lookup p (PackageSet.packagesDB $ packageSet config) of
                Just _  -> Nothing
                Nothing -> Just p)
       newPackages
