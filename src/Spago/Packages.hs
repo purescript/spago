@@ -89,7 +89,8 @@ getProjectDeps Config{..} = getTransitiveDeps packages dependencies
 --   Code basically from here:
 --   https://github.com/purescript/psc-package/blob/648da70ae9b7ed48216ed03f930c1a6e8e902c0e/app/Main.hs#L227
 getTransitiveDeps :: Spago m => PackageSet -> [PackageName] -> m [(PackageName, Package)]
-getTransitiveDeps packageSet deps =
+getTransitiveDeps packageSet deps = do
+  echoDebug "Getting transitive deps"
   Map.toList . fold <$> traverse (go Set.empty) deps
   where
     go seen dep
@@ -120,7 +121,7 @@ getTransitiveDeps packageSet deps =
 
 
 getReverseDeps  :: PackageSet -> PackageName -> IO [(PackageName, Package)]
-getReverseDeps db dep =
+getReverseDeps db dep = do
     List.nub <$> foldMap go (Map.toList db)
   where
     go pair@(packageName, Package {..}) =
@@ -134,6 +135,7 @@ getReverseDeps db dep =
 -- | Fetch all dependencies into `.spago/`
 install :: Spago m => Maybe Int -> Maybe CacheFlag -> [PackageName] -> m ()
 install maybeLimit cacheFlag newPackages = do
+  echoDebug "Running `spago install`"
   config@Config{..} <- Config.ensureConfig
 
   -- Try fetching the dependencies with the new names too
@@ -156,6 +158,7 @@ data PackagesFilter = TransitiveDeps | DirectDeps
 -- | A list of the packages that can be added to this project
 listPackages :: Spago m => Maybe PackagesFilter -> m ()
 listPackages packagesFilter = do
+  echoDebug "Running `listPackages`"
   Config{..} <- Config.ensureConfig
   packagesToList :: [(PackageName, Package)] <- case packagesFilter of
     Nothing             -> pure $ Map.toList packages
@@ -190,6 +193,7 @@ listPackages packagesFilter = do
 -- | Get source globs of dependencies listed in `spago.dhall`
 sources :: Spago m => m ()
 sources = do
+  echoDebug "Running `spago sources`"
   config <- Config.ensureConfig
   deps <- getProjectDeps config
   _ <- traverse echo $ fmap Purs.unSourcePath $ getGlobs deps
@@ -198,6 +202,7 @@ sources = do
 
 verify :: Spago m => Maybe Int -> Maybe CacheFlag -> Maybe PackageName -> m ()
 verify maybeLimit cacheFlag maybePackage = do
+  echoDebug "Running `spago verify`"
   Config{..} <- Config.ensureConfig
   case maybePackage of
     -- If no package is specified, verify all of them

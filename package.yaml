@@ -76,10 +76,14 @@ dependencies:
 - http-conduit
 - time
 
+
+library:
+  source-dirs: src
 executables:
   spago:
     main:                Spago.hs
     source-dirs:         app
+    dependencies:        [spago]
     ghc-options:
     - -main-is Spago
     - -threaded
@@ -88,6 +92,7 @@ executables:
   spago-curator:
     main:                Curator.hs
     source-dirs:         app
+    dependencies:        [spago]
     ghc-options:
     - -main-is Curator
     - -threaded
