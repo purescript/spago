@@ -37,70 +37,97 @@ default-extensions:
 - NoImplicitPrelude
 - ApplicativeDo
 
-dependencies:
-- base >= 4.7 && < 5
-- text < 1.3
-- turtle
-- filepath
-- file-embed
-- template-haskell
-- aeson
-- aeson-pretty
-- containers
-- dhall
-- dhall-json
-- bytestring
-- prettyprinter
-- async-pool
-- process
-- network-uri
-- github
-- versions
-- lens
-- safe
-- fsnotify
-- Glob
-- async
-- stm
-- directory
-- mtl
-- exceptions
-- unliftio
-- vector
-- temporary
-- zlib
-- tar
-- foldl
-- retry
-- optparse-applicative
-- http-conduit
-- time
-
 
 library:
   source-dirs: src
+  dependencies:
+  - base >= 4.7 && < 5
+  - text < 1.3
+  - turtle
+  - filepath
+  - file-embed
+  - template-haskell
+  - aeson
+  - aeson-pretty
+  - containers
+  - dhall
+  - dhall-json
+  - bytestring
+  - prettyprinter
+  - async-pool
+  - process
+  - network-uri
+  - github
+  - versions
+  - lens
+  - safe
+  - fsnotify
+  - Glob
+  - stm
+  - directory
+  - mtl
+  - exceptions
+  - unliftio
+  - vector
+  - temporary
+  - zlib
+  - tar
+  - foldl
+  - http-conduit
+  - time
+
 executables:
   spago:
     main:                Spago.hs
     source-dirs:         app
-    dependencies:        [spago]
+    other-modules:       [ Paths_spago ]
     ghc-options:
     - -main-is Spago
     - -threaded
     - -rtsopts
     - -with-rtsopts=-N
+    dependencies:
+    - spago
+    - base >= 4.7 && < 5
+    - text < 1.3
+    - turtle
+    - optparse-applicative
+
   spago-curator:
     main:                Curator.hs
     source-dirs:         app
-    dependencies:        [spago]
+    other-modules:       []
     ghc-options:
     - -main-is Curator
     - -threaded
     - -rtsopts
     - -with-rtsopts=-N
+    dependencies:
+    - spago
+    - base >= 4.7 && < 5
+    - text < 1.3
+    - turtle
+    - filepath
+    - aeson-pretty
+    - containers
+    - dhall
+    - bytestring
+    - async-pool
+    - process
+    - github
+    - lens
+    - stm
+    - vector
+    - temporary
+    - retry
 
 tests:
   spec:
     defaults: hspec/hspec@master
     dependencies:
+    - base >= 4.7 && < 5
+    - text < 1.3
+    - turtle
+    - process
+    - directory
     - extra

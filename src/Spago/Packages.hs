@@ -24,7 +24,7 @@ import qualified Spago.Config       as Config
 import qualified Spago.FetchPackage as Fetch
 import           Spago.GlobalCache  (CacheFlag (..))
 import qualified Spago.Messages     as Messages
-import           Spago.PackageSet   (Package (..), PackageName (..), PackageSet)
+import           Spago.PackageSet   (Package (..), PackageName (..), PackageSet (..))
 import qualified Spago.PackageSet   as PackageSet
 import qualified Spago.Purs         as Purs
 import qualified Spago.Templates    as Templates
@@ -82,14 +82,14 @@ getGlobs = map (\pair
 
 -- | Return all the transitive dependencies of the current project
 getProjectDeps :: Spago m => Config -> m [(PackageName, Package)]
-getProjectDeps Config{..} = getTransitiveDeps packages dependencies
+getProjectDeps Config{..} = getTransitiveDeps packageSet dependencies
 
 
 -- | Return the transitive dependencies of a list of packages
 --   Code basically from here:
 --   https://github.com/purescript/psc-package/blob/648da70ae9b7ed48216ed03f930c1a6e8e902c0e/app/Main.hs#L227
 getTransitiveDeps :: Spago m => PackageSet -> [PackageName] -> m [(PackageName, Package)]
-getTransitiveDeps packageSet deps = do
+getTransitiveDeps PackageSet{..} deps = do
   echoDebug "Getting transitive deps"
   Map.toList . fold <$> traverse (go Set.empty) deps
   where
@@ -97,7 +97,7 @@ getTransitiveDeps packageSet deps = do
       | dep `Set.member` seen =
           die $ "Cycle in package dependencies at package " <> packageName dep
       | otherwise =
-        case Map.lookup dep packageSet of
+        case Map.lookup dep packagesDB of
           Nothing ->
             die $ pkgNotFoundMsg dep
           Just info@Package{..} -> do
@@ -108,7 +108,7 @@ getTransitiveDeps packageSet deps = do
       "Package `" <> packageName pkg <> "` does not exist in package set" <> extraHelp
       where
         extraHelp = case suggestedPkg of
-          Just pkg' | Map.member pkg' packageSet ->
+          Just pkg' | Map.member pkg' packagesDB ->
             ", but `" <> packageName pkg' <> "` does, did you mean that instead?"
           Just pkg' ->
             ", and nor does `" <> packageName pkg' <> "`"
@@ -121,14 +121,14 @@ getTransitiveDeps packageSet deps = do
 
 
 getReverseDeps  :: PackageSet -> PackageName -> IO [(PackageName, Package)]
-getReverseDeps db dep = do
-    List.nub <$> foldMap go (Map.toList db)
+getReverseDeps packageSet@PackageSet{..} dep = do
+    List.nub <$> foldMap go (Map.toList packagesDB)
   where
     go pair@(packageName, Package {..}) =
       case List.find (== dep) dependencies of
         Nothing -> return mempty
         Just _ -> do
-          innerDeps <- getReverseDeps db packageName
+          innerDeps <- getReverseDeps packageSet packageName
           return $ pair : innerDeps
 
 
@@ -136,7 +136,7 @@ getReverseDeps db dep = do
 install :: Spago m => Maybe Int -> Maybe CacheFlag -> [PackageName] -> m ()
 install maybeLimit cacheFlag newPackages = do
   echoDebug "Running `spago install`"
-  config@Config{..} <- Config.ensureConfig
+  config@Config{ packageSet = PackageSet{..}, ..} <- Config.ensureConfig
 
   -- Try fetching the dependencies with the new names too
   let newConfig :: Config
@@ -149,7 +149,7 @@ install maybeLimit cacheFlag newPackages = do
     []         -> pure ()
     additional -> Config.addDependencies config additional
 
-  Fetch.fetchPackages maybeLimit cacheFlag deps
+  Fetch.fetchPackages maybeLimit cacheFlag deps packagesMinPursVersion
 
 
 data PackagesFilter = TransitiveDeps | DirectDeps
@@ -159,12 +159,12 @@ data PackagesFilter = TransitiveDeps | DirectDeps
 listPackages :: Spago m => Maybe PackagesFilter -> m ()
 listPackages packagesFilter = do
   echoDebug "Running `listPackages`"
-  Config{..} <- Config.ensureConfig
+  Config{packageSet = packageSet@PackageSet{..}, ..} <- Config.ensureConfig
   packagesToList :: [(PackageName, Package)] <- case packagesFilter of
-    Nothing             -> pure $ Map.toList packages
-    Just TransitiveDeps -> getTransitiveDeps packages dependencies
+    Nothing             -> pure $ Map.toList $ packagesDB
+    Just TransitiveDeps -> getTransitiveDeps packageSet dependencies
     Just DirectDeps     -> pure $ Map.toList
-      $ Map.restrictKeys packages (Set.fromList dependencies)
+      $ Map.restrictKeys packagesDB (Set.fromList dependencies)
 
   case packagesToList of
     [] -> echo "There are no dependencies listed in your spago.dhall"
@@ -203,22 +203,22 @@ sources = do
 verify :: Spago m => Maybe Int -> Maybe CacheFlag -> Maybe PackageName -> m ()
 verify maybeLimit cacheFlag maybePackage = do
   echoDebug "Running `spago verify`"
-  Config{..} <- Config.ensureConfig
+  Config{ packageSet = packageSet@PackageSet{..}, ..} <- Config.ensureConfig
   case maybePackage of
     -- If no package is specified, verify all of them
-    Nothing -> verifyPackages packages (Map.toList packages)
+    Nothing -> verifyPackages packageSet (Map.toList packagesDB)
     -- In case we have a package, search in the package set for it
     Just packageName -> do
-      case Map.lookup packageName packages of
+      case Map.lookup packageName packagesDB of
         Nothing -> die $ "No packages found with the name " <> Text.pack (show packageName)
         -- When verifying a single package we check the reverse deps/referrers
         -- because we want to make sure the it doesn't break them
         -- (without having to check the whole set of course, that would work
         -- as well but would be much slower)
         Just package -> do
-          reverseDeps <- liftIO $ getReverseDeps packages packageName
+          reverseDeps <- liftIO $ getReverseDeps packageSet packageName
           let toVerify = [(packageName, package)] <> reverseDeps
-          verifyPackages packages toVerify
+          verifyPackages packageSet toVerify
   where
     verifyPackages :: Spago m => PackageSet -> [(PackageName, Package)] -> m ()
     verifyPackages packageSet packages = do
@@ -226,11 +226,11 @@ verify maybeLimit cacheFlag maybePackage = do
       traverse_ (verifyPackage packageSet) (fst <$> packages)
 
     verifyPackage :: Spago m => PackageSet -> PackageName -> m ()
-    verifyPackage packageSet name = do
+    verifyPackage packageSet@PackageSet{..} name = do
       deps <- getTransitiveDeps packageSet [name]
       let globs = getGlobs deps
           quotedName = Messages.surroundQuote $ packageName name
-      Fetch.fetchPackages maybeLimit cacheFlag deps
+      Fetch.fetchPackages maybeLimit cacheFlag deps packagesMinPursVersion
       echo $ "Verifying package " <> quotedName
       Purs.compile globs []
       echo $ "Successfully verified " <> quotedName

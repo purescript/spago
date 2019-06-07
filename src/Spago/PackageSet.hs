@@ -6,7 +6,7 @@ module Spago.PackageSet
   , ensureFrozen
   , path
   , pathText
-  , PackageSet
+  , PackageSet(..)
   , Package (..)
   , PackageName (..)
   , Repo (..)
@@ -45,7 +45,11 @@ data Package = Package
 instance ToJSON Package
 instance FromJSON Package
 
-type PackageSet = Map PackageName Package
+data PackageSet = PackageSet
+  { packagesDB             :: Map PackageName Package
+  , packagesMinPursVersion :: Maybe Version.SemVer
+  }
+  deriving (Show, Generic)
 
 -- | We consider a "Repo" a "box of source to include in the build"
 --   This can have different nature:
@@ -143,33 +147,15 @@ upgradePackageSet = do
     upgradeImports _ imp = imp
 
 
-checkPursIsUpToDate :: Spago m => m ()
-checkPursIsUpToDate = do
+checkPursIsUpToDate :: Spago m => Maybe Version.SemVer -> m ()
+checkPursIsUpToDate packagesMinPursVersion = do
   echoDebug "Checking if `purs` is up to date"
-  rawPackageSet <- liftIO $ Dhall.readRawExpr pathText
-  case rawPackageSet of
-    Nothing -> echo Messages.cannotFindPackagesButItsFine
-    Just (_header, expr) -> do
-      maybeCompilerVersion <- Purs.version
-      let packageSetTags = foldMap getPackageSetTag expr
-
-      -- Let's talk backwards-compatibility.
-      -- At some point we switched Spacchetti from tagging the PackageSet with
-      -- something like '20180923'  to something like '0.12.2-20190209' instead
-      -- (in order to support this check).
-      -- Now, if people are still using the old tag, we should:
-      -- - warn them to upgrade with `package-set-upgrade`
-      -- - skip this check
-      --
-      -- Update 2019-02-28: we switched from Spacchetti to package-sets, which
-      -- uses a different versioning (with "psc-" in front). We just strip it away
-      case fmap (Text.split (=='-') . Text.replace "psc-" "") packageSetTags of
-        ((minPursVersion:_):_)
-          | Just compilerVersion <- maybeCompilerVersion
-          , Just pursVersionFromPackageSet <- hush $ Version.semver minPursVersion -> do
-          performCheck compilerVersion pursVersionFromPackageSet
-        _ -> echo "WARNING: unable to parse compiler and package set versions, skipping check.."
-
+  maybeCompilerVersion <- Purs.version
+  case (maybeCompilerVersion, packagesMinPursVersion) of
+    (Just compilerVersion, Just pursVersionFromPackageSet) -> performCheck compilerVersion pursVersionFromPackageSet
+    other -> do
+      echo "WARNING: unable to parse compiler and package set versions, not checking if `purs` is compatible with it.."
+      echoDebug $ "Versions we got: " <> tshow other
   where
     -- | The check is successful only when the installed compiler is "slightly"
     --   greater (or equal of course) to the minimum version. E.g. fine cases are:
@@ -188,30 +174,6 @@ checkPursIsUpToDate = do
         _ -> die $ Messages.pursVersionMismatch
             (Version.prettySemVer actualPursVersion)
             (Version.prettySemVer minPursVersion)
-
-    -- | Given a Dhall.Import extract the GitHub tag if it's the upstream import, and
-    --   if it points to purescript/package-sets or spacchetti
-    getPackageSetTag :: Dhall.Import -> [Text]
-    getPackageSetTag (Dhall.Import
-      { importHashed = Dhall.ImportHashed
-        { importType = Dhall.Remote Dhall.URL
-          -- Check if we're dealing with the right repo
-          { authority = "raw.githubusercontent.com"
-          , path = Dhall.File
-            { directory = Dhall.Directory
-              { components = [ "src", tag, ghRepo, ghOrg ]}
-            , file = "packages.dhall"
-            }
-          , ..
-          }
-        , ..
-        }
-      , ..
-      }) = case (ghOrg, ghRepo) of
-             ("spacchetti", "spacchetti")   -> [tag]
-             ("purescript", "package-sets") -> [tag]
-             _                              -> []
-    getPackageSetTag _ = []
 
 
 isRemoteFrozen :: Dhall.Import -> [Bool]
