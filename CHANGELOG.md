@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+Bugfixes:
+- Fix `spago install` failing when version branch name contains `/`'s (#257)
+
 ## [0.8.2] - 2019-06-03
 
 Bugfixes:

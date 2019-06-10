@@ -3,13 +3,12 @@ module SpagoSpec (spec) where
 import           Control.Concurrent  (threadDelay)
 import           Control.Monad.Extra (whenM)
 import           Prelude             hiding (FilePath)
-import           Test.Hspec          (Spec, around_, beforeAll, describe, it,
-                                      shouldBe)
-import           Turtle              (FilePath, cp, mkdir, mv, readTextFile, rm,
-                                      testdir, writeTextFile)
+import           Test.Hspec          (Spec, around_, beforeAll, describe, it, shouldBe)
+import           Turtle              (FilePath, cp, mkdir, mv, readTextFile, rm, testdir,
+                                      writeTextFile)
 import           Utils               (checkFixture, rmtree, runFor, shouldBeFailure,
-                                      shouldBeFailureOutput, shouldBeSuccess,
-                                      shouldBeSuccessOutput, spago, withCwd)
+                                      shouldBeFailureOutput, shouldBeSuccess, shouldBeSuccessOutput,
+                                      spago, withCwd)
 
 testDir :: FilePath
 testDir = "test/spago-test"
@@ -92,8 +91,16 @@ spec = beforeAll clean $ around_ (withCwd testDir) $ do
       writeTextFile "packages.dhall" "let pkgs = ./packagesBase.dhall in pkgs // { simple-json = pkgs.simple-json // { version = \"d45590f493d68baae174b2d3062d502c0cc4c265\" } }"
       spago ["install", "simple-json"] >>= shouldBeSuccess
 
+    it "Spago should be able to install a package version by branch name with `/`'s in it" $ do
+
+      writeTextFile "packages.dhall" "let pkgs = ./packagesBase.dhall in pkgs // { metadata_ = { dependencies = [\"prelude\"], repo = \"https://github.com/spacchetti/purescript-metadata.git\", version = \"spago-test/branch-with-slash\" }}"
+      spago ["install", "metadata_"] >>= shouldBeSuccess
+      rm "spago.dhall"
+
     it "Spago should be able to install a package not in the set from a commit hash" $ do
 
+      spago ["init"] >>= shouldBeSuccess
+      mv "packages.dhall" "packagesBase.dhall"
       writeTextFile "packages.dhall" "let pkgs = ./packagesBase.dhall in pkgs // { spago = { dependencies = [\"prelude\"], repo = \"https://github.com/spacchetti/spago.git\", version = \"cbdbbf8f8771a7e43f04b18cdefffbcb0f03a990\" }}"
       spago ["install", "spago"] >>= shouldBeSuccess
 
