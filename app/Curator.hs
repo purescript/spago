@@ -297,7 +297,7 @@ packageSetsUpdater token dataChan = go mempty mempty
                   echo "No previous PRs found, verifying the addition and eventually committing.."
                   echo $ "Branch name: " <> branchName
 
-                  withAST ("data/package-sets/src/groups/" <> owner <> ".dhall")
+                  withAST ("data/package-sets/src/groups/" <> Text.toLower owner <> ".dhall")
                     $ updateVersion packageName tag'
 
                   newBanned <- Temp.withTempDirectory "data/package-sets" "spacchettibotti-" $ \tempDir -> do
