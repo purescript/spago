@@ -7,7 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.8.2] - 2019-06-03
+## [0.8.4] - 2019-06-11
+
+Bugfixes:
+- Produce an error message when asserting directory permissions (#250)
+- Read purs version from inside the set instead of its GitHub tag (#253, #225)
+
+Other improvements:
+- Errors: add many debug logs (#251)
+- CI: rewrite Curator in Haskell (#239)
+- CI: build only `master` and tags on Travis (#247)
+- Dev: add Nix section to stack.yaml (#248)
+- Dev: tidy up the various executables, sources and dependencies (#251)
+
+## [0.8.3] - 2019-06-03
 
 Bugfixes:
 - Fix `spago psc-package-clean` on Windows (#224)
