@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Bugfixes:
 - Produce an error message when asserting directory permissions (#250)
 - Read purs version from inside the set instead of its GitHub tag (#253, #225)
+- Skip copy to global cache when encountering a permissions problem (#220, #260)
 
 Other improvements:
 - Errors: add many debug logs (#251)
