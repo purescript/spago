@@ -131,7 +131,7 @@ getMetadata cacheFlag = do
           ) >>= \case
         Right v -> pure v
         Left (err :: IOException) -> do
-          echoStr $ "Warning: unable to read metadata file: " <> show err
+          echoDebug $ "Unable to read metadata file. Error was: " <> tshow err
           pure True
 
       case shouldDownloadMeta of
