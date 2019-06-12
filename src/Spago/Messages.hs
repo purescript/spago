@@ -109,6 +109,14 @@ freezePackageSet = makeMessage
   [ "Generating new hashes for the package set file so it will be cached.. (this might take some time)"
   ]
 
+failedToCopyToGlobalCache :: Show a => a -> Text
+failedToCopyToGlobalCache err = makeMessage
+  [ "WARNING: was not able to copy the download to the global cache."
+  , "Most likely this comes from permissions not being right, so you could try setting the `XDG_CACHE_HOME` env variable (which determines where the global cache is) to a location which is writable by your user."
+  , "Error was:"
+  , tshow err
+  ]
+
 packageSetVersionWarning :: Text
 packageSetVersionWarning = makeMessage
  [ "WARNING: the package-set version you're on doesn't check if the version of the"
