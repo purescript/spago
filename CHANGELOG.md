@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+Other Improvements:
+- Added visual overview of what Spago does "under the hood" in typical project workflow (#211)
+
 ## [0.8.4] - 2019-06-11
 
 Bugfixes:

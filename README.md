@@ -19,6 +19,7 @@ PureScript package manager and build tool powered by [Dhall][dhall] and
 - [Design goals and reasons](#design-goals-and-reasons)
   - [Brief survey of other package managers and build tools available](#brief-survey-of-other-package-managers-and-build-tools-available)
 - [Developing and contributing](#developing-and-contributing)
+- [Visual Overview](#visual-overview)
 - [Installation](#installation)
 - [Super quick tutorial](#super-quick-tutorial)
 - [How do I...](#how-do-i)
@@ -106,6 +107,11 @@ Some ideas for getting started:
 - Help us [log bugs and open issues][new-issue]
 
 For more details see the [`CONTRIBUTING.md`][contributing]
+
+
+## Visual Overview
+
+![spago-flowchart.svg](./spago-flowchart.svg)
 
 
 ## Installation
