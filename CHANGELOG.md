@@ -7,7 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.8.2] - 2019-06-03
+## [0.8.4] - 2019-06-11
+
+Bugfixes:
+- Produce an error message when asserting directory permissions (#250)
+- Read purs version from inside the set instead of its GitHub tag (#253, #225)
+- Skip copy to global cache when encountering a permissions problem (#220, #260)
+
+Other improvements:
+- Errors: add many debug logs (#251)
+- CI: rewrite Curator in Haskell (#239)
+- CI: build only `master` and tags on Travis (#247)
+- Dev: add Nix section to stack.yaml (#248)
+- Dev: tidy up the various executables, sources and dependencies (#251)
+
+## [0.8.3] - 2019-06-03
 
 Bugfixes:
 - Fix `spago psc-package-clean` on Windows (#224)
@@ -90,13 +104,13 @@ Other fixes and improvements:
 ## [0.7.0] - 2019-03-03
 
 Breaking changes:
-- The NPM package `purescript-spago` is now deprecated. New releases will be published only to the package `spago` (#115, #44)  
-  You can install the package with `npm install -g spago`
-- [Spacchetti has been merged in the official package-set](https://github.com/purescript/package-sets/pull/271): this means that `spago` will now use that as the reference package-set. (#120)  
+- The NPM package `purescript-spago` is now deprecated. New releases will be published only to the package `spago` (#115, #44)
+- [Spacchetti has been merged in the official package-set](https://github.com/purescript/package-sets/pull/271): this means that `spago` will now use that as the reference package-set. (#120)
+
   As a result of this, the command `spago spacchetti-upgrade` has been renamed to `spago package-set-upgrade`.
 
 New features:
-- Support Windows in NPM install (#121, #109)  
+- Support Windows in NPM install (#121, #109)
 - Add `spago freeze` command to recompute hashes of the package-set (#113)
 - Add `spago verify` and `spago verify-set` commands (#108, #14) 
 - Add the `--filter` flag to `spago list-packages`, to filter by direct and transitive deps (#106, #108)
