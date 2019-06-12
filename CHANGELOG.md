@@ -104,13 +104,13 @@ Other fixes and improvements:
 ## [0.7.0] - 2019-03-03
 
 Breaking changes:
-- The NPM package `purescript-spago` is now deprecated. New releases will be published only to the package `spago` (#115, #44)  
-  You can install the package with `npm install -g spago`
-- [Spacchetti has been merged in the official package-set](https://github.com/purescript/package-sets/pull/271): this means that `spago` will now use that as the reference package-set. (#120)  
+- The NPM package `purescript-spago` is now deprecated. New releases will be published only to the package `spago` (#115, #44)
+- [Spacchetti has been merged in the official package-set](https://github.com/purescript/package-sets/pull/271): this means that `spago` will now use that as the reference package-set. (#120)
+
   As a result of this, the command `spago spacchetti-upgrade` has been renamed to `spago package-set-upgrade`.
 
 New features:
-- Support Windows in NPM install (#121, #109)  
+- Support Windows in NPM install (#121, #109)
 - Add `spago freeze` command to recompute hashes of the package-set (#113)
 - Add `spago verify` and `spago verify-set` commands (#108, #14) 
 - Add the `--filter` flag to `spago list-packages`, to filter by direct and transitive deps (#106, #108)
