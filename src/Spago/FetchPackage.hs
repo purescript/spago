@@ -120,7 +120,8 @@ fetchPackage metadata pair@(packageName'@PackageName{..}, Package{ repo = Remote
               let resultDir2 = path </> "download2"
               assertDirectory resultDir2
               cptree resultDir resultDir2
-              mv resultDir packageGlobalCacheDir
+              catch (mv resultDir packageGlobalCacheDir) $ \(err :: SomeException) ->
+                echo $ Messages.failedToCopyToGlobalCache err
               mv resultDir2 packageLocalCacheDir
 
         -- * if not, run a series of git commands to get the code, and move it to local cache
