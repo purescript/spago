@@ -10,21 +10,25 @@ module Spago.Packages
   , PackageSet.freeze
   , PackageSet.PackageName(..)
   , PackagesFilter(..)
+  , JsonFlag(..)
   ) where
 
 import           Spago.Prelude
 
-import qualified Data.List          as List
-import qualified Data.Map           as Map
-import qualified Data.Set           as Set
-import qualified Data.Text          as Text
+import           Data.Aeson               as Aeson
+import qualified Data.List                as List
+import qualified Data.Map                 as Map
+import qualified Data.Set                 as Set
+import qualified Data.Text                as Text
+import qualified Data.Text.Lazy           as LT
+import qualified Data.Text.Lazy.Encoding  as LT
 
 import           Spago.Config       (Config (..))
 import qualified Spago.Config       as Config
 import qualified Spago.FetchPackage as Fetch
 import           Spago.GlobalCache  (CacheFlag (..))
 import qualified Spago.Messages     as Messages
-import           Spago.PackageSet   (Package (..), PackageName (..), PackageSet (..))
+import           Spago.PackageSet   (Package (..), PackageName (..), PackageSet (..), Repo)
 import qualified Spago.PackageSet   as PackageSet
 import qualified Spago.Purs         as Purs
 import qualified Spago.Templates    as Templates
@@ -154,10 +158,26 @@ install maybeLimit cacheFlag newPackages = do
 
 data PackagesFilter = TransitiveDeps | DirectDeps
 
+data JsonFlag = JsonOutputNo | JsonOutputYes
+
+data JsonPackageOutput = JsonPackageOutput
+  { json_packageName :: !Text
+  , json_repo        :: !Repo
+  , json_version     :: !Text
+  }
+  deriving (Eq, Show, Generic)
+
+instance ToJSON JsonPackageOutput where
+  toJSON = Aeson.genericToJSON Aeson.defaultOptions
+    { fieldLabelModifier = drop 5
+    }
+
+encodeJsonPackageOutput :: JsonPackageOutput -> Text
+encodeJsonPackageOutput = LT.toStrict . LT.decodeUtf8 . Aeson.encode
 
 -- | A list of the packages that can be added to this project
-listPackages :: Spago m => Maybe PackagesFilter -> m ()
-listPackages packagesFilter = do
+listPackages :: Spago m => Maybe PackagesFilter -> JsonFlag -> m ()
+listPackages packagesFilter jsonFlag = do
   echoDebug "Running `listPackages`"
   Config{packageSet = packageSet@PackageSet{..}, ..} <- Config.ensureConfig
   packagesToList :: [(PackageName, Package)] <- case packagesFilter of
@@ -171,9 +191,25 @@ listPackages packagesFilter = do
     _  -> traverse_ echo $ formatPackageNames packagesToList
 
   where
+    formatPackageNames = case jsonFlag of
+      JsonOutputYes -> formatPackageNamesJson
+      JsonOutputNo -> formatPackageNamesText
+
+    -- | Format all the packages from the config in JSON
+    formatPackageNamesJson :: [(PackageName, Package)] -> [Text]
+    formatPackageNamesJson pkgs =
+      let
+        asJson (PackageName{..},Package{..})
+          = JsonPackageOutput
+              { json_packageName = packageName
+              , json_repo = repo
+              , json_version = version
+              }
+      in map (encodeJsonPackageOutput . asJson) pkgs
+
     -- | Format all the package names from the configuration
-    formatPackageNames :: [(PackageName, Package)] -> [Text]
-    formatPackageNames pkgs =
+    formatPackageNamesText :: [(PackageName, Package)] -> [Text]
+    formatPackageNamesText pkgs =
       let
         longestName = maximum $ fmap (Text.length . packageName . fst) pkgs
         longestVersion = maximum $ fmap (Text.length . version . snd) pkgs
