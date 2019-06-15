@@ -16,7 +16,7 @@ import           Spago.Build         (BuildOptions (..), ExtraArg (..), ModuleNa
 import qualified Spago.Build
 import           Spago.GlobalCache   (CacheFlag (..))
 import           Spago.Messages      as Messages
-import           Spago.Packages      (PackageName (..), PackagesFilter (..))
+import           Spago.Packages      (PackageName (..), PackagesFilter (..), JsonFlag(..))
 import qualified Spago.Packages
 import qualified Spago.PscPackage    as PscPackage
 
@@ -45,7 +45,7 @@ data Command
   | Build BuildOptions
 
   -- | List available packages
-  | ListPackages (Maybe PackagesFilter)
+  | ListPackages (Maybe PackagesFilter) JsonFlag
 
   -- | Verify that a single package is consistent with the Package Set
   | Verify (Maybe Int) (Maybe CacheFlag) PackageName
@@ -124,6 +124,12 @@ parser = do
       pure $ case res of
         True  -> NoBuild
         False -> DoBuild
+    jsonFlagBool = CLI.switch "json" 'j' "Produce JSON output"
+    jsonFlag = do
+      res <- jsonFlagBool
+      pure $ case res of
+        True  -> JsonOutputYes
+        False -> JsonOutputNo
     cacheFlag =
       let wrap = \case
             "skip" -> Just SkipCache
@@ -231,7 +237,7 @@ parser = do
     listPackages =
       ( "list-packages"
       , "List packages available in your packages.dhall"
-      , ListPackages <$> packagesFilter
+      , ListPackages <$> packagesFilter <*> jsonFlag
       )
 
     verify =
@@ -322,7 +328,7 @@ main = do
       Init force                            -> Spago.Packages.initProject force
       Install limitJobs cacheConfig packageNames
         -> Spago.Packages.install limitJobs cacheConfig packageNames
-      ListPackages packagesFilter           -> Spago.Packages.listPackages packagesFilter
+      ListPackages packagesFilter jsonFlag  -> Spago.Packages.listPackages packagesFilter jsonFlag
       Sources                               -> Spago.Packages.sources
       Verify limitJobs cacheConfig package  -> Spago.Packages.verify limitJobs cacheConfig (Just package)
       VerifySet limitJobs cacheConfig       -> Spago.Packages.verify limitJobs cacheConfig Nothing
