@@ -3,6 +3,7 @@ module Spago.Packages
   , install
   , sources
   , verify
+  , verifyBower
   , listPackages
   , getGlobs
   , getProjectDeps
@@ -235,6 +236,8 @@ sources = do
   _ <- traverse echo $ fmap Purs.unSourcePath $ getGlobs deps
   pure ()
 
+verifyBower :: Spago m => m ()
+verifyBower = undefined
 
 verify :: Spago m => Maybe Int -> Maybe CacheFlag -> Maybe PackageName -> m ()
 verify maybeLimit cacheFlag maybePackage = do
