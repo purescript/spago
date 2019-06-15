@@ -84,6 +84,13 @@ spec = around_ setup $ do
       mv "spago.dhall" "spago-install-failure.dhall"
       checkFixture "spago-install-failure.dhall"
 
+    it "Spago should not allow circular dependencies" $ do
+
+      writeTextFile "psc-package.json" "{ \"name\": \"aaa\", \"depends\": [ \"prelude\" ], \"set\": \"foo\", \"source\": \"bar\" }"
+      spago ["init"] >>= shouldBeSuccess
+      writeTextFile "spago.dhall" "{- Welcome to a Spago project!  You can edit this file as you like.  -} { name = \"my-project\" , dependencies = [ \"effect\", \"console\", \"psci-support\", \"a\", \"b\" ] , packages = ./packages.dhall // { a = { version = \"a1\", dependencies = [\"b\"], repo = \"/fake\" }, b = { version = \"b1\", dependencies = [\"a\"], repo = \"/fake\" } } }"
+      spago ["install"] >>= shouldBeFailureOutput "circular-dependencies.txt"
+
     it "Spago should be able to install a package in the set from a commit hash" $ do
 
       spago ["init"] >>= shouldBeSuccess
