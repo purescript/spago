@@ -240,19 +240,23 @@ sources = do
   pure ()
 
 data BowerDependencyResult
-  = Match Text Text
+  = Match Text Text Text
   | Missing Text
   | NonPureScript Text
-  | WrongVersion Text
-  deriving Show
+  | WrongVersion Text Text Text
+  deriving (Show, Eq)
 
 verifyBower :: Spago m => m ()
 verifyBower =  do
   echoDebug "Running `spago verify-bower`"
   Config{ packageSet = packageSet@PackageSet{..}, ..} <- Config.ensureConfig
-  echoStr $ show packageSet
   deps <- Bower.ensureBowerFile
-  echoStr $ show $ check packagesDB <$> deps
+  let (warning, success) = List.partition isWarning $ check packagesDB <$> deps
+  if null warning
+    then echo "All dependencies are in the set!"
+    else echo "Some dependencies are missing!"
+  traverse_ echo $ "Warnings:" : (display <$> warning)
+  traverse_ echo $ "Packages:" : (display <$> success)
   where
     check :: Map PackageName Package -> Bower.Dependency -> BowerDependencyResult
     check set Bower.Dependency{..} = case Text.stripPrefix "purescript-" name of
@@ -260,10 +264,19 @@ verifyBower =  do
       Just package -> case Map.lookup (PackageName package) set of
 	Nothing -> Missing package
 	Just Package{..}  -> case hush $ SemVer.parseSemVer version of
-          Nothing -> WrongVersion version
+          Nothing -> WrongVersion package rangeText version
           Just v -> if SemVer.matches range v
-                    then Match rangeText version
-                    else WrongVersion version
+                    then Match package rangeText version
+                    else WrongVersion package rangeText version
+    display :: BowerDependencyResult -> Text
+    display = \case
+      Match package range actual -> package <> " " <> actual <> " matches " <> range
+      Missing package -> package <> " is not in the package set"
+      NonPureScript name -> name <> " is not a PureScript package"
+      WrongVersion package range actual -> package <> " " <> actual <> " does not match " <> range
+    isWarning = \case
+      Match _ _ _ -> False
+      _           -> True
 
 verify :: Spago m => Maybe Int -> Maybe CacheFlag -> Maybe PackageName -> m ()
 verify maybeLimit cacheFlag maybePackage = do
