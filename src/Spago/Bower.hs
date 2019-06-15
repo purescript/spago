@@ -15,6 +15,7 @@ import qualified Spago.Messages       as Messages
 
 data Dependency = Dependency
   { name :: Text
+  , rangeText :: Text
   , range :: SemVer.SemVerRange
   } deriving (Show)
 
@@ -25,7 +26,7 @@ data RawDependency = RawDependency
 
 parseRange :: RawDependency -> Validation [RawDependency] Dependency
 parseRange raw@RawDependency{..}
-  = bimap (const $ [raw]) (Dependency name)
+  = bimap (const $ [raw]) (Dependency name range)
       $ eitherToValidation
       $ SemVer.parseSemVerRange range
 
@@ -36,10 +37,6 @@ rawDeps input
     get x = input ^@.. key x
                      . members
                      . _String
-
-isPurescriptDep :: Dependency -> Bool
-isPurescriptDep Dependency{..}
-  = Text.isPrefixOf "purescript-" name
 
 pathText :: Text
 pathText = "bower.json"

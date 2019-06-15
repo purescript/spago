@@ -17,9 +17,11 @@ module Spago.Packages
 import           Spago.Prelude
 
 import           Data.Aeson               as Aeson
+import qualified Data.Either.Validation   as V
 import qualified Data.List                as List
 import qualified Data.Map                 as Map
 import qualified Data.Set                 as Set
+import qualified Data.SemVer              as SemVer
 import qualified Data.Text                as Text
 import qualified Data.Text.Lazy           as LT
 import qualified Data.Text.Lazy.Encoding  as LT
@@ -237,13 +239,31 @@ sources = do
   _ <- traverse echo $ fmap Purs.unSourcePath $ getGlobs deps
   pure ()
 
+data BowerDependencyResult
+  = Match Text Text
+  | Missing Text
+  | NonPureScript Text
+  | WrongVersion Text
+  deriving Show
+
 verifyBower :: Spago m => m ()
 verifyBower =  do
   echoDebug "Running `spago verify-bower`"
   Config{ packageSet = packageSet@PackageSet{..}, ..} <- Config.ensureConfig
---  echoStr $ show packageSet
+  echoStr $ show packageSet
   deps <- Bower.ensureBowerFile
-  echoStr $ show deps
+  echoStr $ show $ check packagesDB <$> deps
+  where
+    check :: Map PackageName Package -> Bower.Dependency -> BowerDependencyResult
+    check set Bower.Dependency{..} = case Text.stripPrefix "purescript-" name of
+      Nothing -> NonPureScript name
+      Just package -> case Map.lookup (PackageName package) set of
+	Nothing -> Missing package
+	Just Package{..}  -> case hush $ SemVer.parseSemVer version of
+          Nothing -> WrongVersion version
+          Just v -> if SemVer.matches range v
+                    then Match rangeText version
+                    else WrongVersion version
 
 verify :: Spago m => Maybe Int -> Maybe CacheFlag -> Maybe PackageName -> m ()
 verify maybeLimit cacheFlag maybePackage = do
