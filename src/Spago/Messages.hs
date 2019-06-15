@@ -13,6 +13,10 @@ cannotFindConfig = makeMessage
   , "otherwise you might want to run `spago init` to initialize a new project."
   ]
 
+cannotFindBowerFile :: Text
+cannotFindBowerFile
+  = "There's no " <> surroundQuote "bower.json" <> " in your current location."
+
 cannotFindPackages :: Text
 cannotFindPackages = makeMessage
   [ "There's no " <> surroundQuote "packages.dhall" <> " in your current location."

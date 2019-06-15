@@ -24,6 +24,7 @@ import qualified Data.Text                as Text
 import qualified Data.Text.Lazy           as LT
 import qualified Data.Text.Lazy.Encoding  as LT
 
+import           Spago.Bower        as Bower
 import           Spago.Config       (Config (..))
 import qualified Spago.Config       as Config
 import qualified Spago.FetchPackage as Fetch
@@ -237,7 +238,12 @@ sources = do
   pure ()
 
 verifyBower :: Spago m => m ()
-verifyBower = undefined
+verifyBower =  do
+  echoDebug "Running `spago verify-bower`"
+  Config{ packageSet = packageSet@PackageSet{..}, ..} <- Config.ensureConfig
+--  echoStr $ show packageSet
+  deps <- Bower.ensureBowerFile
+  echoStr $ show deps
 
 verify :: Spago m => Maybe Int -> Maybe CacheFlag -> Maybe PackageName -> m ()
 verify maybeLimit cacheFlag maybePackage = do
