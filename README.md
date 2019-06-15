@@ -58,8 +58,8 @@ PureScript package manager and build tool powered by [Dhall][dhall] and
     - [My `install` command is failing with some errors about "too many open files"](#my-install-command-is-failing-with-some-errors-about-too-many-open-files)
     - [Package set caching problems](#package-set-caching-problems)
     - [I added a new package to the `packages.dhall`, but `spago` is not installing it. Why?](#i-added-a-new-package-to-the-packagesdhall-but-spago-is-not-installing-it-why)
-- [Reference - Internals](#reference---internals)
-  - [The `spago-curator` tool](#the-spago-curator-tool)
+- [Reference - Internals](#internals)
+  - [The `spago-curator` tool](INTERNALS.md#the-spago-curator-tool)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
