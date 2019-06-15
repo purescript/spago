@@ -85,47 +85,24 @@ getProjectDeps :: Spago m => Config -> m [(PackageName, Package)]
 getProjectDeps Config{..} = getTransitiveDeps packageSet dependencies
 
 
-fst' :: (a, b, c) -> a
-fst' (x, _, _) = x
-
-snd' :: (a, b, c) -> b
-snd' (_, x, _) = x
-
-trd' :: (a, b, c) -> c
-trd' (_, _, x) = x
-
 -- | Return the transitive dependencies of a list of packages
 --   Code basically from here:
 --   https://github.com/purescript/psc-package/blob/648da70ae9b7ed48216ed03f930c1a6e8e902c0e/app/Main.hs#L227
 getTransitiveDeps :: Spago m => PackageSet -> [PackageName] -> m [(PackageName, Package)]
 getTransitiveDeps PackageSet{..} deps = do
   echoDebug "Getting transitive deps"
-  let xs  = map (go Set.empty Set.empty Set.empty) deps
+  let (packageMap, notFoundErrors, cycleErrors) = foldMap (go Set.empty Set.empty Set.empty) deps
 
-  let cycleErrors = foldMap trd' xs
-  let notFoundErrors = foldMap snd' xs
-  let packageMap = Map.toList $ foldMap fst' xs
-
-  handleErrors cycleErrors notFoundErrors packageMap
+  handleErrors (Map.toList packageMap) (Set.toList notFoundErrors) (Set.toList cycleErrors)
 
   where
-    handleErrors :: MonadThrow m => Set.Set (CycleError PackageName) -> Set.Set (NotFoundError PackageName) -> [(PackageName, Package)] -> m [(PackageName, Package)]
-    handleErrors cycleErrors notFoundErrors packageMap
-      | not (Set.null cycleErrors) = die $ pkgsCycleErrorMsg cycleErrors
-      | not (Set.null notFoundErrors) = die $ pkgsNotFoundMsg notFoundErrors
+    handleErrors packageMap notFoundErrors cycleErrors
+      | not (null cycleErrors) = die $ "The following packages have circular dependencies:\n" <> (Text.intercalate "\n" . fmap pkgCycleMsg) cycleErrors
+      | not (null notFoundErrors) = die $ "The following packages do not exist in your package set:\n" <> (Text.intercalate "\n" . fmap pkgNotFoundMsg) notFoundErrors
       | otherwise = pure packageMap
 
-    pkgsCycleErrorMsg :: Set.Set (CycleError PackageName) -> Text
-    pkgsCycleErrorMsg pkgs = "Cycles in package dependencies at package:\n" <> (Text.intercalate "\n" . fmap pkgCycleErrorMsg . Set.toList) pkgs
+    pkgCycleMsg (CycleError pkg) = "  - " <> packageName pkg
 
-    pkgCycleErrorMsg :: CycleError PackageName -> Text
-    pkgCycleErrorMsg (CycleError pkg) = "  - " <> packageName pkg
-
-    pkgsNotFoundMsg :: Set.Set (NotFoundError PackageName) -> Text
-    pkgsNotFoundMsg pkgs =
-      "The following packages do not exist in your package set:\n" <> (Text.intercalate "\n" . fmap pkgNotFoundMsg . Set.toList) pkgs
-
-    pkgNotFoundMsg :: NotFoundError PackageName -> Text
     pkgNotFoundMsg (NotFoundError pkg) = "  - " <> packageName pkg <> extraHelp
       where
         extraHelp = case suggestedPkg of
@@ -139,17 +116,15 @@ getTransitiveDeps PackageSet{..} deps = do
           sansPrefix <- Text.stripPrefix "purescript-" (packageName pkg)
           Just (PackageName sansPrefix)
 
-    go :: Set.Set PackageName -> Set.Set (NotFoundError PackageName) -> Set.Set (CycleError PackageName) -> PackageName -> (Map PackageName Package, Set.Set (NotFoundError PackageName), Set.Set (CycleError PackageName))
-    go seen notFound cycles dep
+    go seen notFoundErrors cycleErrors dep
       | dep `Set.member` seen =
-          (packagesDB, notFound, Set.insert (CycleError dep) cycles)
-      | otherwise =
-        case Map.lookup dep packagesDB of
+          (packagesDB, notFoundErrors, Set.insert (CycleError dep) cycleErrors)
+      | otherwise = case Map.lookup dep packagesDB of
           Nothing ->
-            (packagesDB, Set.insert (NotFoundError dep) notFound, cycles)
+            (packagesDB , Set.insert (NotFoundError dep) notFoundErrors, cycleErrors)
           Just info@Package{..} -> do
-            let xs = map (go (Set.insert dep seen) notFound cycles) dependencies
-            (Map.insert dep info (foldMap fst' xs), foldMap snd' xs, foldMap trd' xs)
+            let (m, notFoundErrors', cycleErrors') = foldMap (go (Set.insert dep seen) notFoundErrors cycleErrors) dependencies
+            (Map.insert dep info m, notFoundErrors', cycleErrors')
 
 newtype NotFoundError a = NotFoundError a deriving (Eq, Ord)
 newtype CycleError a = CycleError a deriving (Eq, Ord)
