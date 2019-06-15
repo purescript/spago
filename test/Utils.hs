@@ -49,7 +49,7 @@ shouldBeFailure :: (ExitCode, Text, Text) -> IO ()
 shouldBeFailure (code, _stdout, _stderr) = do
   -- print $ "STDOUT: " <> _stdout
   -- print $ "STDERR: " <> _stderr
-  code`shouldBe` ExitFailure 1
+  code `shouldBe` ExitFailure 1
 
 shouldBeFailureOutput :: FilePath -> (ExitCode, Text, Text) -> IO ()
 shouldBeFailureOutput expected (code, _, out) = do
