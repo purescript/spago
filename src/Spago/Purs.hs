@@ -4,6 +4,7 @@ import           Spago.Prelude
 
 import qualified Data.Text      as Text
 import           Data.Versions  as Version
+import qualified Spago.Dhall    as Dhall
 
 import qualified Spago.Messages as Messages
 
@@ -11,6 +12,7 @@ import qualified Spago.Messages as Messages
 newtype ModuleName = ModuleName { unModuleName :: Text }
 newtype TargetPath = TargetPath { unTargetPath :: Text }
 newtype SourcePath = SourcePath { unSourcePath :: Text }
+  deriving newtype (Show, Dhall.Interpret)
 newtype ExtraArg = ExtraArg { unExtraArg :: Text }
 
 data WithMain = WithMain | WithoutMain
