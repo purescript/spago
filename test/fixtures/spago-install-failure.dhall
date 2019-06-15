@@ -5,7 +5,7 @@ You can edit this file as you like.
 { name =
     "aaa"
 , dependencies =
-    [ "effect", "console", "psci-support" ]
+    [ "console", "effect", "prelude", "psci-support" ]
 , packages =
     ./packages.dhall
 }
