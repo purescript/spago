@@ -36,6 +36,7 @@ default-extensions:
 - ConstraintKinds
 - NoImplicitPrelude
 - ApplicativeDo
+- NamedFieldPuns
 
 
 library:
@@ -130,4 +131,5 @@ tests:
     - turtle
     - process
     - directory
+    - temporary
     - extra
