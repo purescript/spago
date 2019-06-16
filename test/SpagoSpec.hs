@@ -6,8 +6,9 @@ import qualified System.IO.Temp     as Temp
 import           Test.Hspec         (Spec, around_, describe, it, shouldBe)
 import           Turtle             (cp, decodeString, mkdir, mktree, mv, readTextFile, testdir,
                                      writeTextFile)
-import           Utils              (checkFixture, runFor, shouldBeFailure, shouldBeFailureOutput,
-                                     shouldBeSuccess, shouldBeSuccessOutput, spago, withCwd)
+import           Utils              (checkFixture, readFixture, runFor, shouldBeFailure,
+                                     shouldBeFailureOutput, shouldBeSuccess, shouldBeSuccessOutput,
+                                     spago, withCwd)
 
 
 setup :: IO () -> IO ()
@@ -125,6 +126,14 @@ spec = around_ setup $ do
       mv "src/Main.purs" "another_source_path/Main.purs"
       spago ["build", "--path", "another_source_path/*.purs"] >>= shouldBeSuccess
 
+    it "Spago should add sources to config when key is missing" $ do
+
+      spago ["init"] >>= shouldBeSuccess
+      -- Replace initial config with the old config format (without 'sources')
+      writeTextFile "spago.dhall" =<< readFixture "spago-configV1.dhall"
+      spago ["build"] >>= shouldBeSuccess
+      mv "spago.dhall" "spago-configV2.dhall"
+      checkFixture "spago-configV2.dhall"
 
   describe "spago test" $ do
 
