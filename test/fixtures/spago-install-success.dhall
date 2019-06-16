@@ -8,4 +8,6 @@ You can edit this file as you like.
     [ "console", "effect", "foreign", "prelude", "psci-support", "simple-json" ]
 , packages =
     ./packages.dhall
+, sources =
+    [ "src/**/*.purs", "test/**/*.purs" ]
 }
