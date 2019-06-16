@@ -1,5 +1,5 @@
 {-# LANGUAGE TupleSections #-}
-module Spago.Watch (watch, globToParent) where
+module Spago.Watch (watch, globToParent, ClearScreen (..)) where
 
 -- This code basically comes straight from
 -- https://github.com/commercialhaskell/stack/blob/0740444175f41e6ea5ed236cd2c53681e4730003/src/Stack/FileWatch.hs
@@ -12,17 +12,21 @@ import qualified Data.Set               as Set
 import qualified Data.Text              as Text
 import           GHC.IO                 (FilePath)
 import           GHC.IO.Exception
+import           System.Console.ANSI    (clearScreen)
 import qualified System.FilePath.Glob   as Glob
 import qualified System.FSNotify        as Watch
 import           System.IO              (getLine)
 import qualified UnliftIO
 import           UnliftIO.Async         (race_)
 
+-- Should we clear the screen on rebuild?
+data ClearScreen = DoClear | NoClear
+  deriving Eq
 
-watch :: Spago m => Set.Set Glob.Pattern -> m () -> m ()
-watch globs action = do
+watch :: Spago m => Set.Set Glob.Pattern -> ClearScreen -> m () -> m ()
+watch globs shouldClear action = do
   let config = Watch.defaultConfig { Watch.confDebounce = Watch.Debounce 0.1 } -- in seconds
-  fileWatchConf config $ \getGlobs -> do
+  fileWatchConf config shouldClear $ \getGlobs -> do
     getGlobs globs
     action
 
@@ -39,18 +43,23 @@ withManagerConf conf = UnliftIO.bracket
 fileWatchConf
   :: Spago m
   => Watch.WatchConfig
+  -> ClearScreen
   -> ((Set.Set Glob.Pattern -> m ()) -> m ())
   -> m ()
-fileWatchConf watchConfig inner = withManagerConf watchConfig $ \manager -> do
+fileWatchConf watchConfig shouldClear inner = withManagerConf watchConfig $ \manager -> do
     allGlobs <- liftIO $ newTVarIO Set.empty
     dirtyVar <- liftIO $ newTVarIO True
     watchVar <- liftIO $ newTVarIO Map.empty
 
+    let redisplay maybeMsg = do
+          when (shouldClear == DoClear) $ liftIO clearScreen
+          mapM_ echoStr maybeMsg
+
     let onChange event = do
           globsUnsafe <- liftIO $ readTVarIO allGlobs
           let shouldRebuild globs = or $ fmap (\glob -> Glob.match glob $ Watch.eventPath event) $ Set.toList globs
-          when (shouldRebuild globsUnsafe) $
-            echoStr $ "File changed, rebuilding: " <> show (Watch.eventPath event)
+          when (shouldRebuild globsUnsafe) $ do
+            redisplay $ Just $ "File changed, rebuilding: " <> show (Watch.eventPath event)
           liftIO $ atomically $ do
             globs <- readTVar allGlobs
             when (shouldRebuild globs)
@@ -104,11 +113,15 @@ fileWatchConf watchConfig inner = withManagerConf watchConfig $ \manager -> do
                 echo "quit: exit"
                 echo "build: force a rebuild"
                 echo "watched: display watched files"
-              "build" -> atomically $ writeTVar dirtyVar True
+              "build" -> do
+                redisplay Nothing
+                atomically $ writeTVar dirtyVar True
               "watched" -> do
                 watch' <- readTVarIO allGlobs
                 mapM_ echoStr (Glob.decompile <$> Set.toList watch')
-              "" -> atomically $ writeTVar dirtyVar True
+              "" -> do
+                redisplay Nothing
+                atomically $ writeTVar dirtyVar True
               _ -> echoStr $ concat
                   [ "Unknown command: "
                   , show line
