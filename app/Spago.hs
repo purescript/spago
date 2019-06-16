@@ -19,6 +19,7 @@ import           Spago.Messages      as Messages
 import           Spago.Packages      (PackageName (..), PackagesFilter (..), JsonFlag(..))
 import qualified Spago.Packages
 import qualified Spago.PscPackage    as PscPackage
+import           Spago.Watch        (ClearScreen (..))
 
 
 -- | Commands that this program handles
@@ -110,15 +111,21 @@ parser = do
   command <- projectCommands <|> packageSetCommands <|> pscPackageCommands <|> otherCommands <|> oldCommands
   pure (command, opts)
   where
-    force       = CLI.switch "force" 'f' "Overwrite any project found in the current directory"
-    verbose     = CLI.switch "verbose" 'v' "Enable additional debug logging, e.g. printing `purs` commands"
-    watchBool   = CLI.switch "watch" 'w' "Watch for changes in local files and automatically rebuild"
-    noBuildBool = CLI.switch "no-build" 's' "Skip build step"
+    force           = CLI.switch "force" 'f' "Overwrite any project found in the current directory"
+    verbose         = CLI.switch "verbose" 'v' "Enable additional debug logging, e.g. printing `purs` commands"
+    watchBool       = CLI.switch "watch" 'w' "Watch for changes in local files and automatically rebuild"
+    clearScreenBool = CLI.switch "clear-screen" 'l' "Clear the screen on rebuild (watch mode only)"
+    noBuildBool     = CLI.switch "no-build" 's' "Skip build step"
     watch = do
       res <- watchBool
       pure $ case res of
         True  -> Watch
         False -> BuildOnce
+    clearScreen = do
+      res <- clearScreenBool
+      pure $ case res of
+        True  -> DoClear
+        False -> NoClear
     noBuild = do
       res <- noBuildBool
       pure $ case res of
@@ -143,7 +150,7 @@ parser = do
     packageName = CLI.arg (Just . PackageName) "package" "Specify a package name. You can list them with `list-packages`"
     packageNames = CLI.many $ CLI.arg (Just . PackageName) "package" "Package name to add as dependency"
     passthroughArgs = many $ CLI.arg (Just . ExtraArg) " ..any `purs compile` option" "Options passed through to `purs compile`; use -- to separate"
-    buildOptions = BuildOptions <$> limitJobs <*> cacheFlag <*> watch <*> sourcePaths <*> passthroughArgs
+    buildOptions = BuildOptions <$> limitJobs <*> cacheFlag <*> watch <*> clearScreen <*> sourcePaths <*> passthroughArgs
     globalOptions = GlobalOptions <$> verbose
     packagesFilter =
       let wrap = \case

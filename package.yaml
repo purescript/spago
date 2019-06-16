@@ -76,6 +76,7 @@ library:
   - foldl
   - http-conduit
   - time
+  - ansi-terminal
 
 executables:
   spago:
