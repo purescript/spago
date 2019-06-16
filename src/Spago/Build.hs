@@ -46,12 +46,6 @@ data BuildOptions = BuildOptions
   , passthroughArgs :: [Purs.ExtraArg]
   }
 
-defaultSourcePaths :: [Purs.SourcePath]
-defaultSourcePaths =
-  [ Purs.SourcePath "src/**/*.purs"
-  , Purs.SourcePath "test/**/*.purs"
-  ]
-
 prepareBundleDefaults
   :: Maybe Purs.ModuleName
   -> Maybe Purs.TargetPath
@@ -70,7 +64,7 @@ build BuildOptions{..} maybePostBuild = do
   config@Config.Config{ packageSet = PackageSet.PackageSet{..}, ..} <- Config.ensureConfig
   deps <- Packages.getProjectDeps config
   Fetch.fetchPackages maybeLimit cacheConfig deps packagesMinPursVersion
-  let projectGlobs = defaultSourcePaths <> sourcePaths
+  let projectGlobs = configSourcePaths <> sourcePaths
       allGlobs = Packages.getGlobs deps <> projectGlobs
       buildAction = do
         Purs.compile allGlobs passthroughArgs
@@ -88,7 +82,7 @@ repl sourcePaths passthroughArgs = do
   echoDebug "Running `spago repl`"
   config <- Config.ensureConfig
   deps <- Packages.getProjectDeps config
-  let globs = Packages.getGlobs deps <> defaultSourcePaths <> sourcePaths
+  let globs = Packages.getGlobs deps <> Config.configSourcePaths config <> sourcePaths
   Purs.repl globs passthroughArgs
 
 -- | Test the project: compile and run "Test.Main"
@@ -171,4 +165,4 @@ docs sourcePaths = do
   config <- Config.ensureConfig
   deps <- Packages.getProjectDeps config
   echo "Generating documentation for the project. This might take a while.."
-  Purs.docs $ defaultSourcePaths <> Packages.getGlobs deps <> sourcePaths
+  Purs.docs $ Config.configSourcePaths config <> Packages.getGlobs deps <> sourcePaths

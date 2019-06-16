@@ -1,5 +1,6 @@
 module Utils
   ( checkFixture
+  , readFixture
   , rmtree
   , runFor
   , shouldBeFailure
@@ -16,8 +17,8 @@ import           Prelude            hiding (FilePath)
 import           System.Directory   (removePathForcibly)
 import qualified System.Process     as Process
 import           Test.Hspec         (shouldBe)
-import           Turtle             (ExitCode (..), FilePath, Text, cd, empty,
-                                     encodeString, procStrictWithErr, pwd, readTextFile)
+import           Turtle             (ExitCode (..), FilePath, Text, cd, empty, encodeString,
+                                     procStrictWithErr, pwd, readTextFile)
 
 withCwd :: FilePath -> IO () -> IO ()
 withCwd dir cmd = do
