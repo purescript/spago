@@ -80,7 +80,7 @@ spec = around_ setup $ do
 
       writeTextFile "psc-package.json" "{ \"name\": \"aaa\", \"depends\": [ \"prelude\" ], \"set\": \"foo\", \"source\": \"bar\" }"
       spago ["init"] >>= shouldBeSuccess
-      spago ["install", "foobar"] >>= shouldBeFailureOutput "missing-dependencies.txt"
+      spago ["install", "foo", "bar"] >>= shouldBeFailureOutput "missing-dependencies.txt"
       mv "spago.dhall" "spago-install-failure.dhall"
       checkFixture "spago-install-failure.dhall"
 
