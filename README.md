@@ -286,6 +286,9 @@ you can use the `--watch` flag:
 
 ```bash
 $ spago build --watch
+
+# or, to clear the screen on rebuild:
+$ spago build --watch --clear-screen
 ```
 
 If you want to run the program (akin to `pulp run`), just use `run`:

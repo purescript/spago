@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.8.4] - 2019-06-11
 
+New features:
+- Add option to clear the screen to spago build/run (#209)
+
 Bugfixes:
 - Produce an error message when asserting directory permissions (#250)
 - Read purs version from inside the set instead of its GitHub tag (#253, #225)

@@ -41,6 +41,7 @@ data BuildOptions = BuildOptions
   { maybeLimit      :: Maybe Int
   , cacheConfig     :: Maybe GlobalCache.CacheFlag
   , shouldWatch     :: Watch
+  , shouldClear     :: Watch.ClearScreen
   , sourcePaths     :: [Purs.SourcePath]
   , passthroughArgs :: [Purs.ExtraArg]
   }
@@ -79,7 +80,7 @@ build BuildOptions{..} maybePostBuild = do
   absoluteProjectGlobs <- traverse makeAbsolute $ Text.unpack . Purs.unSourcePath <$> projectGlobs
   case shouldWatch of
     BuildOnce -> buildAction
-    Watch     -> Watch.watch (Set.fromAscList $ fmap Glob.compile absoluteProjectGlobs) buildAction
+    Watch     -> Watch.watch (Set.fromAscList $ fmap Glob.compile absoluteProjectGlobs) shouldClear buildAction
 
 -- | Start a repl
 repl :: Spago m => [Purs.SourcePath] -> [Purs.ExtraArg] -> m ()
