@@ -95,21 +95,19 @@ getProjectDeps Config{..} = getTransitiveDeps packageSet dependencies
 getTransitiveDeps :: Spago m => PackageSet -> [PackageName] -> m [(PackageName, Package)]
 getTransitiveDeps PackageSet{..} deps = do
   echoDebug "Getting transitive deps"
-  Map.toList . fold <$> traverse (go Set.empty) deps
-  where
-    go seen dep
-      | dep `Set.member` seen =
-          die $ "Cycle in package dependencies at package " <> packageName dep
-      | otherwise =
-        case Map.lookup dep packagesDB of
-          Nothing ->
-            die $ pkgNotFoundMsg dep
-          Just info@Package{..} -> do
-            m <- fold <$> traverse (go (Set.insert dep seen)) dependencies
-            pure (Map.insert dep info m)
+  let (packageMap, notFoundErrors, cycleErrors) = foldMap (go Set.empty Set.empty Set.empty) deps
 
-    pkgNotFoundMsg pkg =
-      "Package `" <> packageName pkg <> "` does not exist in package set" <> extraHelp
+  handleErrors (Map.toList packageMap) (Set.toList notFoundErrors) (Set.toList cycleErrors)
+
+  where
+    handleErrors packageMap notFoundErrors cycleErrors
+      | not (null cycleErrors) = die $ "The following packages have circular dependencies:\n" <> (Text.intercalate "\n" . fmap pkgCycleMsg) cycleErrors
+      | not (null notFoundErrors) = die $ "The following packages do not exist in your package set:\n" <> (Text.intercalate "\n" . fmap pkgNotFoundMsg) notFoundErrors
+      | otherwise = pure packageMap
+
+    pkgCycleMsg (CycleError pkg) = "  - " <> packageName pkg
+
+    pkgNotFoundMsg (NotFoundError pkg) = "  - " <> packageName pkg <> extraHelp
       where
         extraHelp = case suggestedPkg of
           Just pkg' | Map.member pkg' packagesDB ->
@@ -118,10 +116,22 @@ getTransitiveDeps PackageSet{..} deps = do
             ", and nor does `" <> packageName pkg' <> "`"
           Nothing ->
             ""
-
         suggestedPkg = do
           sansPrefix <- Text.stripPrefix "purescript-" (packageName pkg)
           Just (PackageName sansPrefix)
+
+    go seen notFoundErrors cycleErrors dep
+      | dep `Set.member` seen =
+          (packagesDB, notFoundErrors, Set.insert (CycleError dep) cycleErrors)
+      | otherwise = case Map.lookup dep packagesDB of
+          Nothing ->
+            (packagesDB , Set.insert (NotFoundError dep) notFoundErrors, cycleErrors)
+          Just info@Package{..} -> do
+            let (m, notFoundErrors', cycleErrors') = foldMap (go (Set.insert dep seen) notFoundErrors cycleErrors) dependencies
+            (Map.insert dep info m, notFoundErrors', cycleErrors')
+
+newtype NotFoundError a = NotFoundError a deriving (Eq, Ord)
+newtype CycleError a = CycleError a deriving (Eq, Ord)
 
 
 getReverseDeps  :: PackageSet -> PackageName -> IO [(PackageName, Package)]
