@@ -1,5 +1,7 @@
 module Utils
   ( checkFixture
+  , getHighestTag
+  , git
   , rmtree
   , runFor
   , shouldBeFailure
@@ -17,7 +19,9 @@ import           System.Directory   (removePathForcibly)
 import qualified System.Process     as Process
 import           Test.Hspec         (shouldBe)
 import           Turtle             (ExitCode (..), FilePath, Text, cd, empty,
-                                     encodeString, procStrictWithErr, pwd, readTextFile)
+                                     encodeString, inproc, limit,
+                                     procStrictWithErr, pwd, readTextFile,
+                                     strict)
 
 withCwd :: FilePath -> IO () -> IO ()
 withCwd dir cmd = do
@@ -27,6 +31,10 @@ withCwd dir cmd = do
 spago :: [Text] -> IO (ExitCode, Text, Text)
 spago args =
   procStrictWithErr "spago" args empty
+
+git :: [Text] -> IO (ExitCode, Text, Text)
+git args =
+  procStrictWithErr "git" args empty
 
 runFor :: Int -> String -> [String] -> IO ()
 runFor us cmd args = do
@@ -68,3 +76,10 @@ checkFixture path = do
 
 rmtree :: FilePath -> IO ()
 rmtree = removePathForcibly . encodeString
+
+getHighestTag :: IO (Maybe Text)
+getHighestTag = do
+  tag <- strict $ limit 1 $ inproc "git" ["tag", "--list", "--sort=-version:refname", "v*"] empty
+  pure $ if tag == ""
+    then Nothing
+    else Just tag

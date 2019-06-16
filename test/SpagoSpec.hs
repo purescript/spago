@@ -4,10 +4,12 @@ import           Control.Concurrent (threadDelay)
 import           Prelude            hiding (FilePath)
 import qualified System.IO.Temp     as Temp
 import           Test.Hspec         (Spec, around_, describe, it, shouldBe)
-import           Turtle             (cp, decodeString, mkdir, mktree, mv, readTextFile, testdir,
-                                     writeTextFile)
-import           Utils              (checkFixture, runFor, shouldBeFailure, shouldBeFailureOutput,
-                                     shouldBeSuccess, shouldBeSuccessOutput, spago, withCwd)
+import           Turtle             (cp, decodeString, mkdir, mktree, mv,
+                                     readTextFile, testdir, writeTextFile)
+import           Utils              (checkFixture, getHighestTag, git, runFor,
+                                     shouldBeFailure, shouldBeFailureOutput,
+                                     shouldBeSuccess, shouldBeSuccessOutput,
+                                     spago, withCwd)
 
 
 setup :: IO () -> IO ()
@@ -189,3 +191,30 @@ spec = around_ setup $ do
       -- to have built stuff for us)
       spago ["bundle-module", "--to", "bundle-module.js", "--no-build"] >>= shouldBeSuccess
       checkFixture "bundle-module.js"
+
+
+  describe "spago bump-version" $ do
+
+    it "Spago should bump minor version" $ do
+
+      spago ["init"] >>= shouldBeSuccess
+      git ["init"] >>= shouldBeSuccess
+      git ["add", "--all"] >>= shouldBeSuccess
+      git ["commit", "--message", "Initial commit"] >>= shouldBeSuccess
+      spago ["bump-version", "minor"] >>= shouldBeSuccess
+      getHighestTag >>= (`shouldBe` Just "v0.1.0")
+
+    it "Spago should bump patch version" $ do
+
+      spago ["bump-version", "patch"] >>= shouldBeSuccess
+      getHighestTag >>= (`shouldBe` Just "v0.1.1")
+
+    it "Spago should set version number" $ do
+
+      spago ["bump-version", "v3.1.5"] >>= shouldBeSuccess
+      getHighestTag >>= (`shouldBe` Just "v3.1.5")
+
+    it "Spago should bump major version" $ do
+
+      spago ["bump-version", "major"] >>= shouldBeSuccess
+      getHighestTag >>= (`shouldBe` Just "v4.0.0")
