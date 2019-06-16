@@ -301,6 +301,9 @@ $ spago run --main ModulePath.To.Main
 
 # And pass arguments through to `purs compile`
 $ spago run --main ModulePath.To.Main -- --verbose-errors
+
+# Or pass arguments to node
+$ spago run --node-args "arg1 arg2"
 ```
 
 
