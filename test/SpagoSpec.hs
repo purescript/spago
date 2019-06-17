@@ -133,7 +133,7 @@ spec = around_ setup $ do
       mv "src/Main.purs" "another_source_path/Main.purs"
       spago ["build", "--path", "another_source_path/*.purs"] >>= shouldBeSuccess
 
-    it "Spago should not install packages when passing the --no-install flag"
+    it "Spago should not install packages when passing the --no-install flag" $ do
 
       spago ["init"] >>= shouldBeSuccess
       spago ["build", "--no-install"] >>= shouldBeFailure
