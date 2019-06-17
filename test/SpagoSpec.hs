@@ -133,16 +133,16 @@ spec = around_ setup $ do
       mv "src/Main.purs" "another_source_path/Main.purs"
       spago ["build", "--path", "another_source_path/*.purs"] >>= shouldBeSuccess
 
-    it "Spago should add sources to config when key is missing" $ do
+    -- it "Spago should add sources to config when key is missing" $ do
 
-      configV1 <- readFixture "spago-configV1.dhall"
-      spago ["init"] >>= shouldBeSuccess
-      -- Replace initial config with the old config format (without 'sources')
-      writeTextFile "spago.dhall" configV1
+    --   configV1 <- readFixture "spago-configV1.dhall"
+    --   spago ["init"] >>= shouldBeSuccess
+    --   -- Replace initial config with the old config format (without 'sources')
+    --   writeTextFile "spago.dhall" configV1
 
-      spago ["build"] >>= shouldBeSuccess
-      mv "spago.dhall" "spago-configV2.dhall"
-      checkFixture "spago-configV2.dhall"
+    --   spago ["build"] >>= shouldBeSuccess
+    --   mv "spago.dhall" "spago-configV2.dhall"
+    --   checkFixture "spago-configV2.dhall"
 
   describe "spago test" $ do
 
