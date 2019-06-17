@@ -144,6 +144,11 @@ spec = around_ setup $ do
       mv "spago.dhall" "spago-configV2.dhall"
       checkFixture "spago-configV2.dhall"
 
+    it "Spago should be able to customize the `purs` command" $ do
+
+      spago ["init"] >>= shouldBeSuccess
+      spago ["install", "-v", "-p", "psa", "install"] >>= shouldBeFailureOutput "custom-purs-output.txt"
+
   describe "spago test" $ do
 
     it "Spago should test successfully" $ do

@@ -111,30 +111,18 @@ parser = do
   command <- projectCommands <|> packageSetCommands <|> pscPackageCommands <|> otherCommands <|> oldCommands
   pure (command, opts)
   where
-    force           = CLI.switch "force" 'f' "Overwrite any project found in the current directory"
-    verbose         = CLI.switch "verbose" 'v' "Enable additional debug logging, e.g. printing `purs` commands"
-    watchBool       = CLI.switch "watch" 'w' "Watch for changes in local files and automatically rebuild"
-    clearScreenBool = CLI.switch "clear-screen" 'l' "Clear the screen on rebuild (watch mode only)"
-    noBuildBool     = CLI.switch "no-build" 's' "Skip build step"
-    watch = do
-      res <- watchBool
-      pure $ case res of
+    force   = CLI.switch "force" 'f' "Overwrite any project found in the current directory"
+    verbose = CLI.switch "verbose" 'v' "Enable additional debug logging, e.g. printing `purs` commands"
+    watch = (flip fmap) (CLI.switch "watch" 'w' "Watch for changes in local files and automatically rebuild") $ \case
         True  -> Watch
         False -> BuildOnce
-    clearScreen = do
-      res <- clearScreenBool
-      pure $ case res of
+    clearScreen = (flip fmap) (CLI.switch "clear-screen" 'l' "Clear the screen on rebuild (watch mode only)") $ \case
         True  -> DoClear
         False -> NoClear
-    noBuild = do
-      res <- noBuildBool
-      pure $ case res of
+    noBuild = (flip fmap) (CLI.switch "no-build" 's' "Skip build step") $ \case
         True  -> NoBuild
         False -> DoBuild
-    jsonFlagBool = CLI.switch "json" 'j' "Produce JSON output"
-    jsonFlag = do
-      res <- jsonFlagBool
-      pure $ case res of
+    jsonFlag = (flip fmap) (CLI.switch "json" 'j' "Produce JSON output") $ \case
         True  -> JsonOutputYes
         False -> JsonOutputNo
     cacheFlag =
@@ -143,6 +131,7 @@ parser = do
             "update" -> Just NewCache
             _ -> Nothing
       in CLI.optional $ CLI.opt wrap "global-cache" 'c' "Configure the global caching behaviour: skip it with `skip` or force update with `update`"
+    pursCommandFlag = fmap (fromMaybe "purs") $ CLI.optional $ CLI.optText "purs-command" 'p' "Configure the command for calling the compiler. Default value: `purs`"
     mainModule  = CLI.optional (CLI.opt (Just . ModuleName) "main" 'm' "Module to be used as the application's entry point")
     toTarget    = CLI.optional (CLI.opt (Just . TargetPath) "to" 't' "The target file path")
     limitJobs   = CLI.optional (CLI.optInt "jobs" 'j' "Limit the amount of jobs that can run concurrently")
@@ -151,7 +140,7 @@ parser = do
     packageNames = CLI.many $ CLI.arg (Just . PackageName) "package" "Package name to add as dependency"
     passthroughArgs = many $ CLI.arg (Just . ExtraArg) " ..any `purs compile` option" "Options passed through to `purs compile`; use -- to separate"
     buildOptions = BuildOptions <$> limitJobs <*> cacheFlag <*> watch <*> clearScreen <*> sourcePaths <*> passthroughArgs
-    globalOptions = GlobalOptions <$> verbose
+    globalOptions = GlobalOptions <$> verbose <*> pursCommandFlag
     packagesFilter =
       let wrap = \case
             "direct"     -> Just DirectDeps

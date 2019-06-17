@@ -20,31 +20,34 @@ data WithMain = WithMain | WithoutMain
 
 compile :: Spago m => [SourcePath] -> [ExtraArg] -> m ()
 compile sourcePaths extraArgs = do
+  purs <- asks optionsPursCommand
   let
     paths = Text.intercalate " " $ Messages.surroundQuote <$> map unSourcePath sourcePaths
     args  = Text.intercalate " " $ map unExtraArg extraArgs
-    cmd = "purs compile " <> args <> " " <> paths
+    cmd = purs <> " compile " <> args <> " " <> paths
   runWithOutput cmd
     "Build succeeded."
     "Failed to build."
 
 repl :: Spago m => [SourcePath] -> [ExtraArg] -> m ()
 repl sourcePaths extraArgs = do
+  purs <- asks optionsPursCommand
   let paths = Text.intercalate " " $ Messages.surroundQuote <$> map unSourcePath sourcePaths
       args = Text.intercalate " " $ map unExtraArg extraArgs
-      cmd = "purs repl " <> paths <> " " <> args
+      cmd = purs <> " repl " <> paths <> " " <> args
 
   viewShell $ callCommand $ Text.unpack cmd
 
 
 bundle :: Spago m => WithMain -> ModuleName -> TargetPath -> m ()
 bundle withMain (ModuleName moduleName) (TargetPath targetPath) = do
+  purs <- asks optionsPursCommand
   let main = case withMain of
         WithMain    -> " --main " <> moduleName
         WithoutMain -> ""
 
       cmd
-        = "purs bundle \"output/*/*.js\""
+        = purs <> " bundle \"output/*/*.js\""
         <> " -m " <> moduleName
         <> main
         <> " -o " <> targetPath
@@ -56,23 +59,27 @@ bundle withMain (ModuleName moduleName) (TargetPath targetPath) = do
 
 docs :: Spago m => [SourcePath] -> m ()
 docs sourcePaths = do
+  purs <- asks optionsPursCommand
   let
     paths = Text.intercalate " " $ Messages.surroundQuote <$> map unSourcePath sourcePaths
-    cmd = "purs docs " <> paths <> " --format html"
+    cmd = purs <> " docs " <> paths <> " --format html"
   runWithOutput cmd
     ("Docs generated. Index is at " <> Messages.surroundQuote "./generated-docs/index.html")
     "Docs generation failed."
 
 version :: Spago m => m (Maybe Version.SemVer)
 version = do
-  fullVersionText <- shellStrict "purs --version" empty >>= \case
+  purs <- asks optionsPursCommand
+  let cmd = purs <> " --version"
+  echoDebug $ "Running command: `" <> cmd <> "`"
+  fullVersionText <- shellStrict cmd empty >>= \case
     (ExitSuccess, out) -> pure out
-    _ -> die "Failed to run 'purs --version'"
+    _ -> die $ "Failed to run '" <> cmd <> "'"
   versionText <- pure $ headMay $ Text.split (== ' ') fullVersionText
   parsed <- pure $ versionText >>= (hush . Version.semver)
 
   when (isNothing parsed) $ do
-    echo $ Messages.failedToParseCommandOutput "purs --version" fullVersionText
+    echo $ Messages.failedToParseCommandOutput cmd fullVersionText
 
   pure parsed
 

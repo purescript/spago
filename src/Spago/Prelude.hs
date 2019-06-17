@@ -113,7 +113,8 @@ instance Show SpagoError where
 
 
 data GlobalOptions = GlobalOptions
-  { debug :: Bool
+  { debug              :: Bool
+  , optionsPursCommand :: Text
   }
 
 type Spago m =

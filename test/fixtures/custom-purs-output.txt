@@ -1,0 +1,6 @@
+Running `spago install`
+Ensuring that the package set is frozen
+Getting transitive deps
+Running `fetchPackages`
+Checking if `purs` is up to date
+Running command: `psa --version`
