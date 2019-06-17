@@ -36,6 +36,7 @@ default-extensions:
 - ConstraintKinds
 - NoImplicitPrelude
 - ApplicativeDo
+- NamedFieldPuns
 
 
 library:
@@ -75,6 +76,7 @@ library:
   - foldl
   - http-conduit
   - time
+  - ansi-terminal
 
 executables:
   spago:
@@ -130,4 +132,5 @@ tests:
     - turtle
     - process
     - directory
+    - temporary
     - extra

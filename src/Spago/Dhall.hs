@@ -12,9 +12,9 @@ import qualified Data.Text.Prettyprint.Doc.Render.Text as PrettyText
 import           Dhall
 import           Dhall.Core                            as Dhall hiding (Type, pretty)
 import qualified Dhall.Format
+import qualified Dhall.Import
 import qualified Dhall.Map
 import qualified Dhall.Parser                          as Parser
-import qualified Dhall.Import
 import qualified Dhall.Pretty
 import           Dhall.TypeCheck                       (X, typeOf)
 
@@ -56,7 +56,6 @@ writeRawExpr pathText (header, expr) = do
   -- if it doesn't we don't write to file.
   resolvedExpr <- Dhall.Import.load expr
   throws (Dhall.TypeCheck.typeOf resolvedExpr)
-  echo $ "Done. Updating the \"" <> pathText <> "\" file.."
   writeTextFile (pathFromText pathText) $ prettyWithHeader header expr <> "\n"
   format pathText
 

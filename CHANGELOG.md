@@ -6,11 +6,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+Bugfixes:
+- Report all missing packages together (#223)
 
 Other Improvements:
 - Added visual overview of what Spago does "under the hood" in typical project workflow (#211)
 
 ## [0.8.4] - 2019-06-11
+
+New features:
+- Add option to clear the screen to spago build/run (#209)
 
 Bugfixes:
 - Produce an error message when asserting directory permissions (#250)

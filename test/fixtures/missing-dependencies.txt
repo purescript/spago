@@ -1,0 +1,3 @@
+spago: The following packages do not exist in your package set:
+  - bar
+  - foo
