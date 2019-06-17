@@ -135,9 +135,11 @@ spec = around_ setup $ do
 
     it "Spago should add sources to config when key is missing" $ do
 
+      configV1 <- readFixture "spago-configV1.dhall"
       spago ["init"] >>= shouldBeSuccess
       -- Replace initial config with the old config format (without 'sources')
-      writeTextFile "spago.dhall" =<< readFixture "spago-configV1.dhall"
+      writeTextFile "spago.dhall" configV1
+
       spago ["build"] >>= shouldBeSuccess
       mv "spago.dhall" "spago-configV2.dhall"
       checkFixture "spago-configV2.dhall"
