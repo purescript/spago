@@ -145,9 +145,10 @@ spec = around_ setup $ do
       configV1 <- readFixture "spago-configV1.dhall"
       spago ["init"] >>= shouldBeSuccess
       -- Replace initial config with the old config format (without 'sources')
+      mv "spago.dhall" "spago-old.dhall"
       writeTextFile "spago.dhall" configV1
 
-      spago ["build"] >>= shouldBeSuccess
+      spago ["install"] >>= shouldBeSuccess
       mv "spago.dhall" "spago-configV2.dhall"
       checkFixture "spago-configV2.dhall"
 
