@@ -30,6 +30,8 @@ import qualified Spago.Packages       as Packages
 import qualified Spago.PackageSet     as PackageSet
 import qualified Spago.Purs           as Purs
 import qualified Spago.Watch          as Watch
+import qualified System.IO.Temp       as Temp
+import qualified Turtle               as Turtle
 
 
 data Watch = Watch | BuildOnce
@@ -87,10 +89,26 @@ build BuildOptions{..} maybePostBuild = do
 repl :: Spago m => [Purs.SourcePath] -> [Purs.ExtraArg] -> m ()
 repl sourcePaths passthroughArgs = do
   echoDebug "Running `spago repl`"
-  config <- Config.ensureConfig
-  deps <- Packages.getProjectDeps config
-  let globs = Packages.getGlobs deps <> Config.configSourcePaths config <> sourcePaths
-  Purs.repl globs passthroughArgs
+
+  hasPackagesDhall <- testfile "packages.dhall"
+  if hasPackagesDhall
+    then do
+      config <- Config.ensureConfig
+      deps <- Packages.getProjectDeps config
+      let globs = Packages.getGlobs deps <> Config.configSourcePaths config <> sourcePaths
+      Purs.repl globs passthroughArgs
+    else Temp.withSystemTempDirectory "spago-repl-tmp" $ \dir -> do
+      Turtle.cd (Turtle.decodeString dir)
+
+      Packages.initProject False
+
+      config <- Config.parseConfig
+      deps <- Packages.getProjectDeps config
+      let globs = Packages.getGlobs deps <> Config.configSourcePaths config <> sourcePaths
+
+      Packages.install Nothing Nothing (fmap fst deps)
+
+      Purs.repl globs passthroughArgs
 
 -- | Test the project: compile and run "Test.Main"
 --   (or the provided module name) with node

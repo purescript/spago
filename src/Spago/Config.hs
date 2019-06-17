@@ -2,6 +2,7 @@
 module Spago.Config
   ( makeConfig
   , ensureConfig
+  , parseConfig
   , addDependencies
   , Config(..)
   ) where
