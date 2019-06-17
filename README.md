@@ -19,7 +19,6 @@ PureScript package manager and build tool powered by [Dhall][dhall] and
 - [Design goals and reasons](#design-goals-and-reasons)
   - [Brief survey of other package managers and build tools available](#brief-survey-of-other-package-managers-and-build-tools-available)
 - [Developing and contributing](#developing-and-contributing)
-- [Visual Overview](#visual-overview)
 - [Installation](#installation)
 - [Super quick tutorial](#super-quick-tutorial)
 - [How do I...](#how-do-i)
@@ -50,6 +49,7 @@ PureScript package manager and build tool powered by [Dhall][dhall] and
   - [Know what `purs` commands are run under the hood](#know-what-purs-commands-are-run-under-the-hood)
   - [Ignore or update the global cache](#ignore-or-update-the-global-cache)
 - [Explanations](#explanations)
+  - [Visual Overview: What happens when you do 'spago build'?](#visual-overview-what-happens-when-you-do-spago-build)
   - [Configuration file format](#configuration-file-format)
   - [Why can't `spago` also install my npm dependencies?](#why-cant-spago-also-install-my-npm-dependencies)
   - [Why we don't resolve JS dependencies when bundling, and how to do it](#why-we-dont-resolve-js-dependencies-when-bundling-and-how-to-do-it)
@@ -107,11 +107,6 @@ Some ideas for getting started:
 - Help us [log bugs and open issues][new-issue]
 
 For more details see the [`CONTRIBUTING.md`][contributing]
-
-
-## Visual Overview
-
-![spago-flowchart.svg](./spago-flowchart.svg)
 
 
 ## Installation
@@ -779,6 +774,10 @@ that is accepted by many commands. You can either:
   wait before updating its metadata file about "which things are globally cacheable".
 
 ## Explanations
+
+### Visual Overview: What happens when you do 'spago build'?
+
+![spago-flowchart.svg](./diagrams/spago-flowchart.svg)
 
 ### Configuration file format
 
