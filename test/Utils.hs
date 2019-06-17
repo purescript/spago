@@ -1,5 +1,6 @@
 module Utils
   ( checkFixture
+  , readFixture
   , rmtree
   , runFor
   , shouldBeFailure
@@ -16,8 +17,8 @@ import           Prelude            hiding (FilePath)
 import           System.Directory   (removePathForcibly)
 import qualified System.Process     as Process
 import           Test.Hspec         (shouldBe)
-import           Turtle             (ExitCode (..), FilePath, Text, cd, empty,
-                                     encodeString, procStrictWithErr, pwd, readTextFile)
+import           Turtle             (ExitCode (..), FilePath, Text, cd, empty, encodeString,
+                                     procStrictWithErr, pwd, readTextFile)
 
 withCwd :: FilePath -> IO () -> IO ()
 withCwd dir cmd = do
@@ -35,7 +36,10 @@ runFor us cmd args = do
   Process.terminateProcess p
 
 shouldBeSuccess :: (ExitCode, Text, Text) -> IO ()
-shouldBeSuccess (code, _, _) = code `shouldBe` ExitSuccess
+shouldBeSuccess (code, _stdout, _stderr) = do
+  -- print $ "STDOUT: " <> _stdout
+  -- print $ "STDERR: " <> _stderr
+  code `shouldBe` ExitSuccess
 
 shouldBeSuccessOutput :: FilePath -> (ExitCode, Text, Text) -> IO ()
 shouldBeSuccessOutput expected (code, out, _) = do
@@ -43,7 +47,10 @@ shouldBeSuccessOutput expected (code, out, _) = do
   (code, out) `shouldBe` (ExitSuccess, expectedContent)
 
 shouldBeFailure :: (ExitCode, Text, Text) -> IO ()
-shouldBeFailure (code, _, _) = code`shouldBe` ExitFailure 1
+shouldBeFailure (code, _stdout, _stderr) = do
+  -- print $ "STDOUT: " <> _stdout
+  -- print $ "STDERR: " <> _stderr
+  code `shouldBe` ExitFailure 1
 
 shouldBeFailureOutput :: FilePath -> (ExitCode, Text, Text) -> IO ()
 shouldBeFailureOutput expected (code, _, out) = do
