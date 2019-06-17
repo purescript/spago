@@ -8,6 +8,7 @@ module Spago.Build
   , docs
   , Watch (..)
   , NoBuild (..)
+  , NoInstall (..)
   , BuildOptions (..)
   , Purs.ExtraArg (..)
   , Purs.ModuleName (..)
@@ -37,12 +38,16 @@ data Watch = Watch | BuildOnce
 --   or skip it, in the case of 'bundleApp' and 'bundleModule'.
 data NoBuild = NoBuild | DoBuild
 
+-- | Flag to skip the automatic installation of libraries on build
+data NoInstall = NoInstall | DoInstall
+
 data BuildOptions = BuildOptions
   { maybeLimit      :: Maybe Int
   , cacheConfig     :: Maybe GlobalCache.CacheFlag
   , shouldWatch     :: Watch
   , shouldClear     :: Watch.ClearScreen
   , sourcePaths     :: [Purs.SourcePath]
+  , noInstall       :: NoInstall
   , passthroughArgs :: [Purs.ExtraArg]
   }
 
@@ -63,7 +68,9 @@ build BuildOptions{..} maybePostBuild = do
   echoDebug "Running `spago build`"
   config@Config.Config{ packageSet = PackageSet.PackageSet{..}, ..} <- Config.ensureConfig
   deps <- Packages.getProjectDeps config
-  Fetch.fetchPackages maybeLimit cacheConfig deps packagesMinPursVersion
+  case noInstall of
+    DoInstall -> Fetch.fetchPackages maybeLimit cacheConfig deps packagesMinPursVersion
+    NoInstall -> pure ()
   let projectGlobs = configSourcePaths <> sourcePaths
       allGlobs = Packages.getGlobs deps <> projectGlobs
       buildAction = do
