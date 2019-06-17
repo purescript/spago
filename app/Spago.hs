@@ -12,7 +12,7 @@ import qualified Turtle              as CLI
 
 import           Spago.Build         (BuildOptions (..), ExtraArg (..), ModuleName (..),
                                       NoBuild (..), SourcePath (..), TargetPath (..), Watch (..),
-                                      WithMain (..))
+                                      WithMain (..), NoInstall (..))
 import qualified Spago.Build
 import           Spago.GlobalCache   (CacheFlag (..))
 import           Spago.Messages      as Messages
@@ -114,6 +114,7 @@ parser = do
     force           = CLI.switch "force" 'f' "Overwrite any project found in the current directory"
     verbose         = CLI.switch "verbose" 'v' "Enable additional debug logging, e.g. printing `purs` commands"
     watchBool       = CLI.switch "watch" 'w' "Watch for changes in local files and automatically rebuild"
+    noInstallBool   = CLI.switch "no-install" 'n' "Don't run the automatic installation of packages"
     clearScreenBool = CLI.switch "clear-screen" 'l' "Clear the screen on rebuild (watch mode only)"
     noBuildBool     = CLI.switch "no-build" 's' "Skip build step"
     watch = do
@@ -121,6 +122,11 @@ parser = do
       pure $ case res of
         True  -> Watch
         False -> BuildOnce
+    noInstall = do
+      res <- noInstallBool
+      pure $ case res of
+        True  -> NoInstall
+        False -> DoInstall
     clearScreen = do
       res <- clearScreenBool
       pure $ case res of
@@ -150,7 +156,7 @@ parser = do
     packageName = CLI.arg (Just . PackageName) "package" "Specify a package name. You can list them with `list-packages`"
     packageNames = CLI.many $ CLI.arg (Just . PackageName) "package" "Package name to add as dependency"
     passthroughArgs = many $ CLI.arg (Just . ExtraArg) " ..any `purs compile` option" "Options passed through to `purs compile`; use -- to separate"
-    buildOptions = BuildOptions <$> limitJobs <*> cacheFlag <*> watch <*> clearScreen <*> sourcePaths <*> passthroughArgs
+    buildOptions = BuildOptions <$> limitJobs <*> cacheFlag <*> watch <*> clearScreen <*> sourcePaths <*> noInstall <*> passthroughArgs
     globalOptions = GlobalOptions <$> verbose
     packagesFilter =
       let wrap = \case
