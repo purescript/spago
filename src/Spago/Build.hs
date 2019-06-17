@@ -94,12 +94,12 @@ repl sourcePaths passthroughArgs = do
 
 -- | Test the project: compile and run "Test.Main"
 --   (or the provided module name) with node
-test :: Spago m => Maybe Purs.ModuleName -> BuildOptions -> m ()
+test :: Spago m => Maybe Purs.ModuleName -> BuildOptions -> [Purs.ExtraArg] -> m ()
 test = runWithNode (Purs.ModuleName "Test.Main") (Just "Tests succeeded.") "Tests failed: "
 
 -- | Run the project: compile and run "Main"
 --   (or the provided module name) with node
-run :: Spago m => Maybe Purs.ModuleName -> BuildOptions -> m ()
+run :: Spago m => Maybe Purs.ModuleName -> BuildOptions -> [Purs.ExtraArg] -> m ()
 run = runWithNode (Purs.ModuleName "Main") Nothing "Running failed, exit code: "
 
 -- | Run the project with node: compile and run with the provided ModuleName
@@ -111,13 +111,15 @@ runWithNode
   -> Text
   -> Maybe Purs.ModuleName
   -> BuildOptions
+  -> [Purs.ExtraArg]
   -> m ()
-runWithNode defaultModuleName maybeSuccessMessage failureMessage maybeModuleName buildOpts = do
+runWithNode defaultModuleName maybeSuccessMessage failureMessage maybeModuleName buildOpts nodeArgs = do
   echoDebug "Running NodeJS"
   build buildOpts (Just nodeAction)
   where
     moduleName = fromMaybe defaultModuleName maybeModuleName
-    cmd = "node -e \"require('./output/" <> Purs.unModuleName moduleName <> "').main()\""
+    args = Text.intercalate " " $ map Purs.unExtraArg nodeArgs
+    cmd = "node -e \"require('./output/" <> Purs.unModuleName moduleName <> "').main()\" " <> args
     nodeAction = do
       shell cmd empty >>= \case
         ExitSuccess   -> fromMaybe (pure ()) (echo <$> maybeSuccessMessage)

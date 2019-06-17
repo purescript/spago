@@ -13,6 +13,7 @@ Bugfixes:
 
 New features:
 - Add option to clear the screen to spago build/run (#209)
+- Add option to pass args to node when doing spago test/run (#267)
 
 Bugfixes:
 - Produce an error message when asserting directory permissions (#250)
