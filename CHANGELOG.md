@@ -22,6 +22,7 @@ Bugfixes:
 - Fix `spago install` failing when version branch name contains `/`'s (#257, #258)
 - Report all missing packages together when it's not possible to build an install plan (#264, #223)
 - Pull the latest package-sets version when doing `init` (#254, #279)
+- Fix `spago install` not adding new dependencies when list is empty (#282, #281)
 
 Other Improvements:
 - Docs: add visual overview of what Spago does "under the hood" in typical project workflow (#211)
