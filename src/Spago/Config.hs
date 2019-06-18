@@ -130,7 +130,7 @@ updateName _ other = other
 
 addRawDeps :: Spago m => Config -> [PackageName] -> Expr -> m Expr
 addRawDeps config newPackages r@(Dhall.RecordLit kvs)
-  | Just (Dhall.ListLit Nothing dependencies) <- Dhall.Map.lookup "dependencies" kvs = do
+  | Just (Dhall.ListLit _ dependencies) <- Dhall.Map.lookup "dependencies" kvs = do
       case notInPackageSet of
         -- If none of the newPackages are outside of the set, add them to existing dependencies
         [] -> do
