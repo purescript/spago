@@ -99,6 +99,13 @@ spec = around_ setup $ do
       writeTextFile "packages.dhall" "let pkgs = ./packagesBase.dhall in pkgs // { simple-json = pkgs.simple-json // { version = \"d45590f493d68baae174b2d3062d502c0cc4c265\" } }"
       spago ["install", "simple-json"] >>= shouldBeSuccess
 
+    it "Spago should be able to install a package version by branch name with / in it" $ do
+
+      spago ["init"] >>= shouldBeSuccess
+      mv "packages.dhall" "packagesBase.dhall"
+      writeTextFile "packages.dhall" "let pkgs = ./packagesBase.dhall in pkgs // { metadata_ = { dependencies = [\"prelude\"], repo = \"https://github.com/spacchetti/purescript-metadata.git\", version = \"spago-test/branch-with-slash\" }}"
+      spago ["install", "metadata_"] >>= shouldBeSuccess
+
     it "Spago should be able to install a package not in the set from a commit hash" $ do
 
       spago ["init"] >>= shouldBeSuccess
@@ -133,14 +140,22 @@ spec = around_ setup $ do
       mv "src/Main.purs" "another_source_path/Main.purs"
       spago ["build", "--path", "another_source_path/*.purs"] >>= shouldBeSuccess
 
+    it "Spago should not install packages when passing the --no-install flag" $ do
+
+      spago ["init"] >>= shouldBeSuccess
+      spago ["build", "--no-install"] >>= shouldBeFailure
+      spago ["install"] >>= shouldBeSuccess
+      spago ["build", "--no-install"] >>= shouldBeSuccess
+
     it "Spago should add sources to config when key is missing" $ do
 
       configV1 <- readFixture "spago-configV1.dhall"
       spago ["init"] >>= shouldBeSuccess
       -- Replace initial config with the old config format (without 'sources')
+      mv "spago.dhall" "spago-old.dhall"
       writeTextFile "spago.dhall" configV1
 
-      spago ["build"] >>= shouldBeSuccess
+      spago ["install"] >>= shouldBeSuccess
       mv "spago.dhall" "spago-configV2.dhall"
       checkFixture "spago-configV2.dhall"
 
