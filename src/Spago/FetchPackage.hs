@@ -6,9 +6,12 @@ module Spago.FetchPackage
 import           Spago.Prelude
 
 import qualified Control.Concurrent.Async.Pool as Async
+import qualified Data.ByteString               as ByteString
 import qualified Data.List                     as List
 import qualified Data.Text                     as Text
+import qualified Data.Text.Encoding            as Text
 import qualified Data.Versions                 as Version
+import qualified Numeric                       as Numeric
 import qualified System.FilePath               as FilePath
 import qualified System.IO.Temp                as Temp
 import qualified System.Process                as Process
@@ -99,7 +102,7 @@ fetchPackage metadata pair@(packageName'@PackageName{..}, Package{ repo = Remote
   packageLocalCacheDir <- makeAbsolute $ getLocalCacheDir pair
 
   inGlobalCache <- testdir $ Turtle.decodeString packageGlobalCacheDir
-  Temp.withTempDirectory localCacheDir (Text.unpack ("__download-" <> packageName <> "-" <> version)) $ \path -> do
+  Temp.withTempDirectory localCacheDir (Text.unpack ("__download-" <> packageName <> "-" <> (getCacheVersionDir version))) $ \path -> do
     let downloadDir = path </> "download"
 
     -- * if a Package is in the global cache, copy it to the local cache
@@ -174,7 +177,7 @@ localCacheDir = ".spago"
 -- | Given a package name and a ref, return a FilePath for the package,
 --   to be used as a prefix in local and global cache
 getPackageDir :: PackageName -> Text -> FilePath.FilePath
-getPackageDir PackageName{..} version = Text.unpack packageName <> "/" <> Text.unpack version
+getPackageDir PackageName{..} version = Text.unpack packageName <> "/" <> Text.unpack (getCacheVersionDir version)
 
 
 -- | Returns the path in the local cache for a given package
@@ -186,3 +189,14 @@ getLocalCacheDir (packageName, Package{ repo = Remote _, ..}) = do
 getLocalCacheDir (_, Package{ repo = Local path }) =
   Text.unpack path
 
+
+-- | Returns the name of the cache dir based on version from `PackageName` escaped
+--   If the branch version name you are trying to install has any ["/", "\", ":", ";" ]
+--   in the branch name escape the character
+getCacheVersionDir :: Text -> Text
+getCacheVersionDir = Text.concatMap replace
+  where
+    escape = Text.pack . foldMap ((<>) "%" . flip Numeric.showHex "") . ByteString.unpack . Text.encodeUtf8
+    replace c = if c `elem` ['/', '\\', ':', ';']
+      then escape (Text.singleton c)
+      else Text.singleton c

@@ -99,6 +99,12 @@ spec = around_ setup $ do
       writeTextFile "packages.dhall" "let pkgs = ./packagesBase.dhall in pkgs // { simple-json = pkgs.simple-json // { version = \"d45590f493d68baae174b2d3062d502c0cc4c265\" } }"
       spago ["install", "simple-json"] >>= shouldBeSuccess
 
+    it "Spago should be able to install a package version by branch name with `/`'s in it" $ do
+
+      writeTextFile "packages.dhall" "let pkgs = ./packagesBase.dhall in pkgs // { metadata_ = { dependencies = [\"prelude\"], repo = \"https://github.com/spacchetti/purescript-metadata.git\", version = \"spago-test/branch-with-slash\" }}"
+      spago ["install", "metadata_"] >>= shouldBeSuccess
+      rm "spago.dhall"
+
     it "Spago should be able to install a package not in the set from a commit hash" $ do
 
       spago ["init"] >>= shouldBeSuccess
