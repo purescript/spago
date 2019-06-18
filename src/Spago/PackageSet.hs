@@ -100,19 +100,45 @@ upgradePackageSet = do
   echoDebug "Running `spago package-set-upgrade`"
   result <- liftIO $ GitHub.executeRequest' $ GitHub.latestReleaseR "purescript" "package-sets"
   case result of
-    Left err -> die $ Messages.failedToReachGitHub err
+    Left err -> echoDebug $ Messages.failedToReachGitHub err
     Right GitHub.Release{..} -> do
-      echo ("Found the most recent tag for \"purescript/package-sets\": " <> surroundQuote releaseTagName)
+      let quotedTag = surroundQuote releaseTagName
+      echoDebug $ "Found the most recent tag for \"purescript/package-sets\": " <> quotedTag
       rawPackageSet <- liftIO $ Dhall.readRawExpr pathText
       case rawPackageSet of
         Nothing -> die Messages.cannotFindPackages
+        -- Skip the check if the tag is already the newest
+        Just (_, expr)
+          | (currentTag:_) <- (foldMap getCurrentTag expr)
+          , currentTag == releaseTagName
+            -> echo $ "Skipping package set version upgrade, already on latest version: " <> quotedTag
         Just (header, expr) -> do
+          echo $ "Upgrading the package set version to " <> quotedTag
           let newExpr = fmap (upgradeImports releaseTagName) expr
           echo $ Messages.upgradingPackageSet releaseTagName
           liftIO $ Dhall.writeRawExpr pathText (header, newExpr)
           -- If everything is fine, refreeze the imports
           freeze
   where
+    getCurrentTag :: Dhall.Import -> [Text]
+    getCurrentTag Dhall.Import
+      { importHashed = Dhall.ImportHashed
+        { importType = Dhall.Remote Dhall.URL
+          -- Check if we're dealing with the right repo
+          { authority = "raw.githubusercontent.com"
+          , path = Dhall.File
+            { directory = Dhall.Directory
+              { components = [ "src", currentTag, "package-sets", "purescript" ]}
+            , ..
+            }
+          , ..
+          }
+        , ..
+        }
+      , ..
+      } = [currentTag]
+    getCurrentTag _ = []
+
     -- | Given an import and a new purescript/package-sets tag,
     --   upgrades the import to the tag and resets the hash
     upgradeImports :: Text -> Dhall.Import -> Dhall.Import
