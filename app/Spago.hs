@@ -12,7 +12,7 @@ import qualified Turtle              as CLI
 
 import           Spago.Build         (BuildOptions (..), ExtraArg (..), ModuleName (..),
                                       NoBuild (..), SourcePath (..), TargetPath (..), Watch (..),
-                                      WithMain (..))
+                                      WithMain (..), NoInstall (..))
 import qualified Spago.Build
 import           Spago.GlobalCache   (CacheFlag (..))
 import           Spago.Messages      as Messages
@@ -55,10 +55,10 @@ data Command
   | VerifySet (Maybe Int) (Maybe CacheFlag)
 
   -- | Test the project with some module, default Test.Main
-  | Test (Maybe ModuleName) BuildOptions
+  | Test (Maybe ModuleName) BuildOptions [ExtraArg]
 
   -- | Run the project with some module, default Main
-  | Run (Maybe ModuleName) BuildOptions
+  | Run (Maybe ModuleName) BuildOptions [ExtraArg]
 
   -- | Bundle the project into an executable
   --   Builds the project before bundling
@@ -114,13 +114,20 @@ parser = do
     force           = CLI.switch "force" 'f' "Overwrite any project found in the current directory"
     verbose         = CLI.switch "verbose" 'v' "Enable additional debug logging, e.g. printing `purs` commands"
     watchBool       = CLI.switch "watch" 'w' "Watch for changes in local files and automatically rebuild"
+    noInstallBool   = CLI.switch "no-install" 'n' "Don't run the automatic installation of packages"
     clearScreenBool = CLI.switch "clear-screen" 'l' "Clear the screen on rebuild (watch mode only)"
     noBuildBool     = CLI.switch "no-build" 's' "Skip build step"
+    nodeArgs        = CLI.many $ CLI.opt (Just . ExtraArg) "node-args" 'n' "Argument to pass to node (run/test only)"
     watch = do
       res <- watchBool
       pure $ case res of
         True  -> Watch
         False -> BuildOnce
+    noInstall = do
+      res <- noInstallBool
+      pure $ case res of
+        True  -> NoInstall
+        False -> DoInstall
     clearScreen = do
       res <- clearScreenBool
       pure $ case res of
@@ -150,7 +157,7 @@ parser = do
     packageName = CLI.arg (Just . PackageName) "package" "Specify a package name. You can list them with `list-packages`"
     packageNames = CLI.many $ CLI.arg (Just . PackageName) "package" "Package name to add as dependency"
     passthroughArgs = many $ CLI.arg (Just . ExtraArg) " ..any `purs compile` option" "Options passed through to `purs compile`; use -- to separate"
-    buildOptions = BuildOptions <$> limitJobs <*> cacheFlag <*> watch <*> clearScreen <*> sourcePaths <*> passthroughArgs
+    buildOptions = BuildOptions <$> limitJobs <*> cacheFlag <*> watch <*> clearScreen <*> sourcePaths <*> noInstall <*> passthroughArgs
     globalOptions = GlobalOptions <$> verbose
     packagesFilter =
       let wrap = \case
@@ -191,13 +198,13 @@ parser = do
     test =
       ( "test"
       , "Test the project with some module, default Test.Main"
-      , Test <$> mainModule <*> buildOptions
+      , Test <$> mainModule <*> buildOptions <*> nodeArgs
       )
 
     run =
       ( "run"
       , "Runs the project with some module, default Main"
-      , Run <$> mainModule <*> buildOptions
+      , Run <$> mainModule <*> buildOptions <*> nodeArgs
       )
 
     bundleApp =
@@ -342,8 +349,8 @@ main = do
       PackageSetUpgrade                     -> Spago.Packages.upgradePackageSet
       Freeze                                -> Spago.Packages.freeze
       Build buildOptions                    -> Spago.Build.build buildOptions Nothing
-      Test modName buildOptions             -> Spago.Build.test modName buildOptions
-      Run modName buildOptions              -> Spago.Build.run modName buildOptions
+      Test modName buildOptions nodeArgs    -> Spago.Build.test modName buildOptions nodeArgs
+      Run modName buildOptions nodeArgs     -> Spago.Build.run modName buildOptions nodeArgs
       Repl paths pursArgs                   -> Spago.Build.repl paths pursArgs
       BundleApp modName tPath shouldBuild buildOptions
         -> Spago.Build.bundleApp WithMain modName tPath shouldBuild buildOptions

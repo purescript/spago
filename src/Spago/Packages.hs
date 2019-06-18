@@ -47,6 +47,9 @@ initProject force = do
   liftIO $ PackageSet.makePackageSetFile force
   Config.makeConfig force
 
+  -- Get the latest version of the package set if possible
+  PackageSet.upgradePackageSet
+
   -- If these directories (or files) exist, we skip copying "sample sources"
   -- Because you might want to just init a project with your own source files,
   -- or just migrate a psc-package project
