@@ -11,6 +11,9 @@ Bugfixes:
 - Report all missing packages together (#223)
 - Fix `spago install` failing when version branch name contains `/`'s (#257)
 
+Other Improvements:
+- Added visual overview of what Spago does "under the hood" in typical project workflow (#211)
+
 ## [0.8.4] - 2019-06-11
 
 New features:

@@ -54,6 +54,18 @@ If you edit any title in the readme, run `doctoc` to update the Table of Content
 doctoc --notitle README.md
 ```
 
+If you want to contribute new or edit existing flowcharts, download [yEd](https://www.yworks.com/products/yed), use that program to edit the `.graphml` files, and then export them as an SVG or PNG file via the <kbd>CTRL+E</kbd> shortcut. When a dialog box appears, just press 'ok' and use the default export settings.
+
+The following are recommendations to make using `yEd` easier/faster:
+- In the 'Preferences' dialog
+    - Under the 'General' tab, change the "Mouse Wheel Behavior" to "[Wheel] Up/Down, [Shift+Wheel] Left/Right, [Ctrl+Wheel] In/Out"
+    - Under the 'Editor' tab, check the "Create Node on background click" box
+    - Under the 'Editor' tab, check the "Edit Label on Create Node" box
+    - Under the 'Editor' tab, check the "Dynamically Adjust Node Size to Label Size" box
+- Click on an edge between two nodes...
+    - ... and press <kbd>F2</kbd> to add text to that edge
+    - ... and press <kbd>F6</kbd> to edit its properties. Under the 'Label' tab, change the "Placement"'s "Model" dropdown to "Free" to get full control over where the edge's text can appear.
+
 ## Running tests
 
 The CI runs the tests on new pull requests, so it's not possible to merge a change without them passing.
