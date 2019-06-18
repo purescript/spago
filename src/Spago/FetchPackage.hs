@@ -197,6 +197,6 @@ getCacheVersionDir :: Text -> Text
 getCacheVersionDir = Text.concatMap replace
   where
     escape = Text.pack . foldMap ((<>) "%" . flip Numeric.showHex "") . ByteString.unpack . Text.encodeUtf8
-    replace c = if c `elem` ['/', '\\', ':', ';']
+    replace c = if c `elem` ['%', '/', '\\', ':', ';']
       then escape (Text.singleton c)
       else Text.singleton c
