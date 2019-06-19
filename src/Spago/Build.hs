@@ -95,7 +95,7 @@ repl maybeLimit cacheFlag newPackages sourcePaths passthroughArgs = do
       deps <- Packages.getProjectDeps config
       let globs = Packages.getGlobs deps <> Config.configSourcePaths config <> sourcePaths
       Purs.repl globs passthroughArgs
-    Left (err :: SpagoError) -> do
+    Left (err :: SomeException) -> do
       echoDebug $ tshow err
       cacheDir <- GlobalCache.getGlobalCacheDir
       Temp.withTempDirectory cacheDir "spago-repl-tmp" $ \dir -> do
