@@ -49,6 +49,7 @@ PureScript package manager and build tool powered by [Dhall][dhall] and
   - [Know what `purs` commands are run under the hood](#know-what-purs-commands-are-run-under-the-hood)
   - [Ignore or update the global cache](#ignore-or-update-the-global-cache)
 - [Explanations](#explanations)
+  - [Visual Overview: What happens when you do 'spago build'?](#visual-overview-what-happens-when-you-do-spago-build)
   - [Configuration file format](#configuration-file-format)
   - [Why can't `spago` also install my npm dependencies?](#why-cant-spago-also-install-my-npm-dependencies)
   - [Why we don't resolve JS dependencies when bundling, and how to do it](#why-we-dont-resolve-js-dependencies-when-bundling-and-how-to-do-it)
@@ -58,8 +59,8 @@ PureScript package manager and build tool powered by [Dhall][dhall] and
     - [My `install` command is failing with some errors about "too many open files"](#my-install-command-is-failing-with-some-errors-about-too-many-open-files)
     - [Package set caching problems](#package-set-caching-problems)
     - [I added a new package to the `packages.dhall`, but `spago` is not installing it. Why?](#i-added-a-new-package-to-the-packagesdhall-but-spago-is-not-installing-it-why)
-- [Reference - Internals](#reference---internals)
-  - [The `spago-curator` tool](#the-spago-curator-tool)
+- [Reference - Internals](#internals)
+  - [The `spago-curator` tool](INTERNALS.md#the-spago-curator-tool)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
@@ -286,6 +287,9 @@ you can use the `--watch` flag:
 
 ```bash
 $ spago build --watch
+
+# or, to clear the screen on rebuild:
+$ spago build --watch --clear-screen
 ```
 
 If you want to run the program (akin to `pulp run`), just use `run`:
@@ -298,6 +302,9 @@ $ spago run --main ModulePath.To.Main
 
 # And pass arguments through to `purs compile`
 $ spago run --main ModulePath.To.Main -- --verbose-errors
+
+# Or pass arguments to node
+$ spago run --node-args "arg1 arg2"
 ```
 
 
@@ -773,6 +780,10 @@ that is accepted by many commands. You can either:
   wait before updating its metadata file about "which things are globally cacheable".
 
 ## Explanations
+
+### Visual Overview: What happens when you do 'spago build'?
+
+![spago-flowchart.svg](./diagrams/spago-flowchart.svg)
 
 ### Configuration file format
 

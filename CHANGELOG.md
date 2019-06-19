@@ -7,7 +7,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.8.4] - 2019-06-11
+## [0.8.5] - 2019-06-18
+
+ZuriHac edition 🎉
+
+New features:
+- Add `sources` key to config to customize the sources used in the build (#273, #173)
+- Add `--json` flag to the `list-packages` command to optionally output JSON (#263)
+- Add `--clear-screen` flag to to clear the screen when watching (#271, #209)
+- Add `--no-install` flag for build to prevent automatic installation (#274, #269)
+- Add `--node-args` flag to pass arguments to Node in `run/test` commands (#267, #275)
+
+Bugfixes:
+- Fix `spago install` failing when version branch name contains `/`'s (#257, #258)
+- Report all missing packages together when it's not possible to build an install plan (#264, #223)
+- Pull the latest package-sets version when doing `init` (#254, #279)
+- Fix `spago install` not adding new dependencies when list is empty (#282, #281)
+
+Other Improvements:
+- Docs: add visual overview of what Spago does "under the hood" in typical project workflow (#211)
+- Docs: fix outdated references in README (#266)
+- Tests: untangle testcases environments (#265, #214)
+- Tests: improve packages test by checking for missing and circular dependencies (#270)
+
+## [0.8.4] - 2019-06-12
+
+New features:
+- Add option to clear the screen to spago build/run (#209)
+- Add option to pass args to node when doing spago test/run (#267)
 
 Bugfixes:
 - Produce an error message when asserting directory permissions (#250)

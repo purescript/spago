@@ -1,3 +1,4 @@
+{-# LANGUAGE ViewPatterns #-}
 module Spago.Config
   ( makeConfig
   , ensureConfig
@@ -21,6 +22,7 @@ import qualified Spago.Dhall        as Dhall
 import qualified Spago.Messages     as Messages
 import qualified Spago.PackageSet   as PackageSet
 import qualified Spago.PscPackage   as PscPackage
+import qualified Spago.Purs         as Purs
 import qualified Spago.Templates    as Templates
 
 import           Spago.PackageSet   (Package, PackageName, PackageSet)
@@ -36,9 +38,10 @@ path = pathFromText pathText
 
 -- | Spago configuration file type
 data Config = Config
-  { name         :: Text
-  , dependencies :: [PackageName]
-  , packageSet   :: PackageSet
+  { name              :: Text
+  , dependencies      :: [PackageName]
+  , packageSet        :: PackageSet
+  , configSourcePaths :: [Purs.SourcePath]
   } deriving (Show, Generic)
 
 type Expr = Dhall.DhallExpr Dhall.Import
@@ -46,18 +49,21 @@ type Expr = Dhall.DhallExpr Dhall.Import
 -- | Tries to read in a Spago Config
 parseConfig :: Spago m => m Config
 parseConfig = do
+  withConfigAST $ pure . addSourcePaths
   expr <- liftIO $ Dhall.inputExpr $ "./" <> pathText
   case expr of
     Dhall.RecordLit ks -> do
       maybeConfig <- pure $ do
         let packageTyp      = Dhall.genericAuto :: Dhall.Type Package
             packageNamesTyp = Dhall.list (Dhall.auto :: Dhall.Type PackageName)
+            sourcesType     = Dhall.list (Dhall.auto :: Dhall.Type Purs.SourcePath)
         name         <- Dhall.requireTypedKey ks "name" Dhall.strictText
         dependencies <- Dhall.requireTypedKey ks "dependencies" packageNamesTyp
         packages     <- Dhall.requireKey ks "packages" $ \case
           Dhall.RecordLit pkgs -> (Map.mapKeys PackageSet.PackageName . Dhall.Map.toMap)
             <$> traverse (Dhall.coerceToType packageTyp) pkgs
           something -> Left $ Dhall.PackagesIsNotRecord something
+        configSourcePaths  <- Dhall.requireTypedKey ks "sources" sourcesType
 
         let metadataPackageName = PackageSet.PackageName "metadata"
             (metadataMap, packagesDB) = Map.partitionWithKey (\k _v -> k == metadataPackageName) packages
@@ -124,7 +130,7 @@ updateName _ other = other
 
 addRawDeps :: Spago m => Config -> [PackageName] -> Expr -> m Expr
 addRawDeps config newPackages r@(Dhall.RecordLit kvs)
-  | Just (Dhall.ListLit Nothing dependencies) <- Dhall.Map.lookup "dependencies" kvs = do
+  | Just (Dhall.ListLit _ dependencies) <- Dhall.Map.lookup "dependencies" kvs = do
       case notInPackageSet of
         -- If none of the newPackages are outside of the set, add them to existing dependencies
         [] -> do
@@ -150,6 +156,15 @@ addRawDeps config newPackages r@(Dhall.RecordLit kvs)
         seens = Seq.scanl (flip Set.insert) Set.empty xs
 addRawDeps _ _ other = pure other
 
+addSourcePaths :: Expr -> Expr
+addSourcePaths (Dhall.RecordLit kvs)
+  | isConfigV1 kvs = Dhall.RecordLit
+    $ Dhall.Map.insert "sources" (Dhall.ListLit Nothing $ fmap Dhall.toTextLit $ Seq.fromList ["src/**/*.purs", "test/**/*.purs"]) kvs
+  where
+    isConfigV1 (Set.fromList . Dhall.Map.keys -> configKeySet) =
+      let configV1Keys = Set.fromList ["name", "dependencies", "packages"]
+      in configKeySet == configV1Keys
+addSourcePaths expr = expr
 
 -- | Takes a function that manipulates the Dhall AST of the Config, and tries to run it
 --   on the current config. If it succeeds, it writes back to file the result returned.
