@@ -122,6 +122,7 @@ executables:
     - vector
     - temporary
     - retry
+    - time
 
 tests:
   spec:
