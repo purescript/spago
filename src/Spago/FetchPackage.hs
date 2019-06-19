@@ -1,12 +1,14 @@
 module Spago.FetchPackage
   ( fetchPackages
   , getLocalCacheDir
+  , getCacheVersionDir
   ) where
 
 import           Spago.Prelude
 
 import qualified Control.Concurrent.Async.Pool as Async
 import qualified Data.ByteString               as ByteString
+import qualified Data.Char                     as Char
 import qualified Data.List                     as List
 import qualified Data.Text                     as Text
 import qualified Data.Text.Encoding            as Text
@@ -190,13 +192,21 @@ getLocalCacheDir (_, Package{ repo = Local path }) =
   Text.unpack path
 
 
--- | Returns the name of the cache dir based on version from `PackageName` escaped
---   If the branch version name you are trying to install has any ["/", "\", ":", ";" ]
---   in the branch name escape the character
+-- | Returns the name of the cache dir based on the ref, escaped if necessary.
+-- This function must be injective and must always produce valid directory
+-- names, which means that problematic characters like / or : will be escaped
+-- using a scheme similar to URL-encoding. Note in particular that the function
+-- must be injective in a case-insensitive manner if we want this to work
+-- reliably on case-insensitive filesystems, in the sense that two different
+-- inputs must map to two different outputs _and_ those outputs must differ by
+-- more than just casing.
+--
+-- The characters which are most commonly used in version and branch names are
+-- those which we allow through as they are (without escaping).
 getCacheVersionDir :: Text -> Text
 getCacheVersionDir = Text.concatMap replace
   where
     escape = Text.pack . foldMap ((<>) "%" . flip Numeric.showHex "") . ByteString.unpack . Text.encodeUtf8
-    replace c = if c `elem` ['%', '/', '\\', ':', ';']
-      then escape (Text.singleton c)
-      else Text.singleton c
+    replace c = if Char.isLower c || Char.isDigit c || c `elem` ['.', ',', '-', '_', '+']
+      then Text.singleton c
+      else escape (Text.singleton c)
