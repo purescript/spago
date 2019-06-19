@@ -135,3 +135,6 @@ tests:
     - directory
     - temporary
     - extra
+    - containers
+    - QuickCheck
+    - spago

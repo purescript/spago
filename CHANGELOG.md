@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+Bugfixes:
+- Fix `spago install` failing when version branch names differ only by case on case-insensitive filesystems (#258)
+
 ## [0.8.5] - 2019-06-18
 
 ZuriHac edition 🎉
