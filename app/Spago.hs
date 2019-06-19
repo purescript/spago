@@ -37,7 +37,7 @@ data Command
   | Sources
 
   -- | Start a REPL.
-  | Repl [SourcePath] [ExtraArg]
+  | Repl (Maybe Int) (Maybe CacheFlag) [PackageName] [SourcePath] [ExtraArg]
 
   -- | Generate documentation for the project and its dependencies
   | Docs [SourcePath]
@@ -156,6 +156,7 @@ parser = do
     sourcePaths = CLI.many (CLI.opt (Just . SourcePath) "path" 'p' "Source path to include")
     packageName = CLI.arg (Just . PackageName) "package" "Specify a package name. You can list them with `list-packages`"
     packageNames = CLI.many $ CLI.arg (Just . PackageName) "package" "Package name to add as dependency"
+    replPackageNames = CLI.many $ CLI.opt (Just . PackageName) "package" 'r' "Package name to add to the REPL as dependency"
     passthroughArgs = many $ CLI.arg (Just . ExtraArg) " ..any `purs compile` option" "Options passed through to `purs compile`; use -- to separate"
     buildOptions = BuildOptions <$> limitJobs <*> cacheFlag <*> watch <*> clearScreen <*> sourcePaths <*> noInstall <*> passthroughArgs
     globalOptions = GlobalOptions <$> verbose
@@ -192,7 +193,7 @@ parser = do
     repl =
       ( "repl"
       , "Start a REPL"
-      , Repl <$> sourcePaths <*> passthroughArgs
+      , Repl <$> limitJobs <*> cacheFlag <*> replPackageNames <*> sourcePaths <*> passthroughArgs
       )
 
     test =
@@ -351,7 +352,7 @@ main = do
       Build buildOptions                    -> Spago.Build.build buildOptions Nothing
       Test modName buildOptions nodeArgs    -> Spago.Build.test modName buildOptions nodeArgs
       Run modName buildOptions nodeArgs     -> Spago.Build.run modName buildOptions nodeArgs
-      Repl paths pursArgs                   -> Spago.Build.repl paths pursArgs
+      Repl limitJobs cacheConfig replPackageNames paths pursArgs -> Spago.Build.repl limitJobs cacheConfig replPackageNames paths pursArgs
       BundleApp modName tPath shouldBuild buildOptions
         -> Spago.Build.bundleApp WithMain modName tPath shouldBuild buildOptions
       BundleModule modName tPath shouldBuild buildOptions

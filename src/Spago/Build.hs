@@ -86,29 +86,33 @@ build BuildOptions{..} maybePostBuild = do
     Watch     -> Watch.watch (Set.fromAscList $ fmap Glob.compile absoluteProjectGlobs) shouldClear buildAction
 
 -- | Start a repl
-repl :: Spago m => [Purs.SourcePath] -> [Purs.ExtraArg] -> m ()
-repl sourcePaths passthroughArgs = do
+repl :: Spago m => Maybe Int -> Maybe GlobalCache.CacheFlag -> [PackageSet.PackageName] -> [Purs.SourcePath] -> [Purs.ExtraArg] -> m ()
+repl maybeLimit cacheFlag newPackages sourcePaths passthroughArgs = do
   echoDebug "Running `spago repl`"
 
-  hasPackagesDhall <- testfile "packages.dhall"
-  if hasPackagesDhall
-    then do
-      config <- Config.ensureConfig
+  try Config.ensureConfig >>= \case
+    Right config -> do
       deps <- Packages.getProjectDeps config
       let globs = Packages.getGlobs deps <> Config.configSourcePaths config <> sourcePaths
       Purs.repl globs passthroughArgs
-    else Temp.withSystemTempDirectory "spago-repl-tmp" $ \dir -> do
-      Turtle.cd (Turtle.decodeString dir)
+    Left (err :: SpagoError) -> do
+      echoDebug $ tshow err
+      cacheDir <- GlobalCache.getGlobalCacheDir
+      Temp.withTempDirectory cacheDir "spago-repl-tmp" $ \dir -> do
+        Turtle.cd (Turtle.decodeString dir)
 
-      Packages.initProject False
+        Packages.initProject False
 
-      config <- Config.parseConfig
-      deps <- Packages.getProjectDeps config
-      let globs = Packages.getGlobs deps <> Config.configSourcePaths config <> sourcePaths
+        config@Config.Config{ packageSet = PackageSet.PackageSet{..}, ..} <- Config.ensureConfig
 
-      Packages.install Nothing Nothing (fmap fst deps)
+        let updatedConfig = Config.Config name (dependencies <> newPackages) (Config.packageSet config) configSourcePaths
 
-      Purs.repl globs passthroughArgs
+        deps <- Packages.getProjectDeps updatedConfig
+        let globs = Packages.getGlobs deps <> Config.configSourcePaths updatedConfig <> sourcePaths
+
+        Fetch.fetchPackages maybeLimit cacheFlag deps packagesMinPursVersion
+
+        Purs.repl globs passthroughArgs
 
 -- | Test the project: compile and run "Test.Main"
 --   (or the provided module name) with node

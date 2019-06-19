@@ -11,8 +11,7 @@ Bugfixes:
 - Fix `spago install` failing when version branch names differ only by case on case-insensitive filesystems (#258)
 
 New features:
-- Add support for starting a repl within a folder which has not been setup as a
-  spago project (#168)
+- Add support for starting a repl within a folder which has not been setup as a spago project (#168)
 
 ## [0.8.5] - 2019-06-18
 
