@@ -138,4 +138,3 @@ tests:
     - containers
     - QuickCheck
     - spago
-    - extra
