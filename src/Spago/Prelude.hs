@@ -60,7 +60,6 @@ module Spago.Prelude
   , withTaskGroup'
   , Turtle.mktempdir
   , getModificationTime
-  , SpagoError(..)
   ) where
 
 
