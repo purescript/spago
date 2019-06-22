@@ -14,6 +14,7 @@ module Utils
 
 import qualified Control.Concurrent as Concurrent
 import qualified Control.Exception  as Exception
+import qualified Data.Text          as Text
 import           Prelude            hiding (FilePath)
 import           System.Directory   (removePathForcibly)
 import qualified System.Process     as Process
@@ -80,6 +81,6 @@ rmtree = removePathForcibly . encodeString
 getHighestTag :: IO (Maybe Text)
 getHighestTag = do
   tag <- strict $ limit 1 $ inproc "git" ["tag", "--list", "--sort=-version:refname", "v*"] empty
-  pure $ if tag == ""
-    then Nothing
-    else Just tag
+  pure $ case Text.strip tag of
+    ""   -> Nothing
+    tag' -> Just tag'

@@ -6,10 +6,9 @@ import qualified System.IO.Temp     as Temp
 import           Test.Hspec         (Spec, around_, describe, it, shouldBe)
 import           Turtle             (cp, decodeString, mkdir, mktree, mv,
                                      readTextFile, testdir, writeTextFile)
-import           Utils              (checkFixture, getHighestTag, git, runFor,
-                                     shouldBeFailure, shouldBeFailureOutput,
-                                     shouldBeSuccess, shouldBeSuccessOutput,
-                                     spago, withCwd)
+import           Utils              (checkFixture, runFor, shouldBeFailure,
+                                     shouldBeFailureOutput, shouldBeSuccess,
+                                     shouldBeSuccessOutput, spago, withCwd)
 
 
 setup :: IO () -> IO ()
