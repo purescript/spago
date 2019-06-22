@@ -30,6 +30,8 @@ import qualified Spago.Packages       as Packages
 import qualified Spago.PackageSet     as PackageSet
 import qualified Spago.Purs           as Purs
 import qualified Spago.Watch          as Watch
+import qualified System.IO.Temp       as Temp
+import qualified Turtle               as Turtle
 
 
 data Watch = Watch | BuildOnce
@@ -84,13 +86,33 @@ build BuildOptions{..} maybePostBuild = do
     Watch     -> Watch.watch (Set.fromAscList $ fmap Glob.compile absoluteProjectGlobs) shouldClear buildAction
 
 -- | Start a repl
-repl :: Spago m => [Purs.SourcePath] -> [Purs.ExtraArg] -> m ()
-repl sourcePaths passthroughArgs = do
+repl :: Spago m => Maybe Int -> Maybe GlobalCache.CacheFlag -> [PackageSet.PackageName] -> [Purs.SourcePath] -> [Purs.ExtraArg] -> m ()
+repl maybeLimit cacheFlag newPackages sourcePaths passthroughArgs = do
   echoDebug "Running `spago repl`"
-  config <- Config.ensureConfig
-  deps <- Packages.getProjectDeps config
-  let globs = Packages.getGlobs deps <> Config.configSourcePaths config <> sourcePaths
-  Purs.repl globs passthroughArgs
+
+  try Config.ensureConfig >>= \case
+    Right config -> do
+      deps <- Packages.getProjectDeps config
+      let globs = Packages.getGlobs deps <> Config.configSourcePaths config <> sourcePaths
+      Purs.repl globs passthroughArgs
+    Left (err :: SomeException) -> do
+      echoDebug $ tshow err
+      cacheDir <- GlobalCache.getGlobalCacheDir
+      Temp.withTempDirectory cacheDir "spago-repl-tmp" $ \dir -> do
+        Turtle.cd (Turtle.decodeString dir)
+
+        Packages.initProject False
+
+        config@Config.Config{ packageSet = PackageSet.PackageSet{..}, ..} <- Config.ensureConfig
+
+        let updatedConfig = Config.Config name (dependencies <> newPackages) (Config.packageSet config) configSourcePaths
+
+        deps <- Packages.getProjectDeps updatedConfig
+        let globs = Packages.getGlobs deps <> Config.configSourcePaths updatedConfig <> sourcePaths
+
+        Fetch.fetchPackages maybeLimit cacheFlag deps packagesMinPursVersion
+
+        Purs.repl globs passthroughArgs
 
 -- | Test the project: compile and run "Test.Main"
 --   (or the provided module name) with node

@@ -10,6 +10,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Bugfixes:
 - Fix `spago install` failing when version branch names differ only by case on case-insensitive filesystems (#258)
 
+New features:
+- Add support for starting a repl within a folder which has not been setup as a spago project (#168)
+
 ## [0.8.5] - 2019-06-18
 
 ZuriHac edition 🎉
@@ -118,14 +121,14 @@ New features:
 ## [0.7.1] - 2019-03-19
 
 New features:
-- Add `--watch` flag to `build`, `test`, `run`, `bundle` and `make-module` commands (#65, #126, #153) 
+- Add `--watch` flag to `build`, `test`, `run`, `bundle` and `make-module` commands (#65, #126, #153)
 - Add `spago docs` command, to generate documentation from the project and all dependencies (#127)
 - Add `spago run` command, to run your project (#131, #137)
 
 Other fixes and improvements:
 - Automatically build in commands that require the project to be built (#146, #149)
-- Don't automatically create a configuration if not found (#139, #144) 
-- Always ensure that the package-set has a hash on it, for speed and security reasons (#128) 
+- Don't automatically create a configuration if not found (#139, #144)
+- Always ensure that the package-set has a hash on it, for speed and security reasons (#128)
 - Improvements to documentation and FAQ (#132, #125, #119, #123, #104, #135)
 - Improvements to errors, messages and logging (#143, #145, #133, #151, #148, #129, #130, #136)
 - Improvements to tests (#95, #91, #138, #141, #140)
@@ -142,12 +145,12 @@ Breaking changes:
 New features:
 - Support Windows in NPM install (#121, #109)
 - Add `spago freeze` command to recompute hashes of the package-set (#113)
-- Add `spago verify` and `spago verify-set` commands (#108, #14) 
+- Add `spago verify` and `spago verify-set` commands (#108, #14)
 - Add the `--filter` flag to `spago list-packages`, to filter by direct and transitive deps (#106, #108)
-- Check that the version of the installed compiler is at least what the package-set requires (#101, #107, #117, #116) 
+- Check that the version of the installed compiler is at least what the package-set requires (#101, #107, #117, #116)
 
 Other improvements:
-- Improve the installation: do less work and print less useless stuff (#110, #112, #114) 
+- Improve the installation: do less work and print less useless stuff (#110, #112, #114)
 - Skip the copy of template files if the source directories exist (#102, #105)
 
 ## [0.6.4] - 2019-02-07
@@ -187,7 +190,7 @@ New features:
 
 Bugfixes:
 - Don't overwrite files when doing `init`, just skip the copy if some file exists (#56)
-- Print `git` output in case of failure when doing `install` (#54, #59) 
+- Print `git` output in case of failure when doing `install` (#54, #59)
 - Include building `src/*` when running `test` (#50, #53)
 - Make file embedding indipendent of the locale when compiling; now we just use Unicode
 
