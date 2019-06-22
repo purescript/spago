@@ -3,9 +3,10 @@ module BumpVersionSpec (spec) where
 import           Prelude        hiding (FilePath)
 import qualified System.IO.Temp as Temp
 import           Test.Hspec     (Spec, around_, before_, describe, it, shouldBe)
-import           Turtle         (Text, cptree, decodeString)
-import           Utils          (getHighestTag, git, shouldBeFailure,
-                                 shouldBeSuccess, spago, withCwd)
+import           Turtle         (Text, cptree, decodeString, mv)
+import           Utils          (checkFixture, getHighestTag, git,
+                                 shouldBeFailure, shouldBeSuccess, spago,
+                                 withCwd)
 
 
 setup :: IO () -> IO ()
@@ -59,3 +60,9 @@ spec = around_ setup $ do
 
       spago ["bump-version", "v3.1.5"] >>= shouldBeSuccess
       getHighestTag >>= (`shouldBe` Just "v3.1.5")
+
+    before_ initGit $ it "Spago should create bower.json" $ do
+
+      spago ["bump-version", "minor"] >>= shouldBeSuccess
+      mv "bower.json" "bump-version-bower.json"
+      checkFixture "bump-version-bower.json"
