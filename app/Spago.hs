@@ -19,6 +19,8 @@ import           Spago.Messages      as Messages
 import           Spago.Packages      (PackageName (..), PackagesFilter (..), JsonFlag(..))
 import qualified Spago.Packages
 import qualified Spago.PscPackage    as PscPackage
+import           Spago.Version       (VersionBump(..))
+import qualified Spago.Version       as Version
 import           Spago.Watch        (ClearScreen (..))
 
 
@@ -56,6 +58,9 @@ data Command
 
   -- | Test the project with some module, default Test.Main
   | Test (Maybe ModuleName) BuildOptions
+
+  -- | Bump and tag a new version in preparation for release.
+  | BumpVersion VersionBump
 
   -- | Run the project with some module, default Main
   | Run (Maybe ModuleName) BuildOptions
@@ -143,6 +148,14 @@ parser = do
             "update" -> Just NewCache
             _ -> Nothing
       in CLI.optional $ CLI.opt wrap "global-cache" 'c' "Configure the global caching behaviour: skip it with `skip` or force update with `update`"
+    versionBump =
+      let spec = \case
+            "major" -> Just Version.Major
+            "minor" -> Just Version.Minor
+            "patch" -> Just Version.Patch
+            v | Right v' <- Version.parseVersion v -> Just $ Exact v'
+            _ -> Nothing
+      in CLI.arg spec "bump" "How to bump the version. Acceptable values: 'major', 'minor', 'patch', or a version (e.g. 'v1.2.3')."
     mainModule  = CLI.optional (CLI.opt (Just . ModuleName) "main" 'm' "Module to be used as the application's entry point")
     toTarget    = CLI.optional (CLI.opt (Just . TargetPath) "to" 't' "The target file path")
     limitJobs   = CLI.optional (CLI.optInt "jobs" 'j' "Limit the amount of jobs that can run concurrently")
@@ -164,6 +177,7 @@ parser = do
       , build
       , repl
       , test
+      , bumpVersion
       , run
       , bundleApp
       , bundleModule
@@ -192,6 +206,12 @@ parser = do
       ( "test"
       , "Test the project with some module, default Test.Main"
       , Test <$> mainModule <*> buildOptions
+      )
+
+    bumpVersion =
+      ( "bump-version"
+      , "Bump and tag a new version in preparation for release."
+      , BumpVersion <$> versionBump
       )
 
     run =
@@ -343,6 +363,7 @@ main = do
       Freeze                                -> Spago.Packages.freeze
       Build buildOptions                    -> Spago.Build.build buildOptions Nothing
       Test modName buildOptions             -> Spago.Build.test modName buildOptions
+      BumpVersion spec                      -> Version.bumpVersion spec
       Run modName buildOptions              -> Spago.Build.run modName buildOptions
       Repl paths pursArgs                   -> Spago.Build.repl paths pursArgs
       BundleApp modName tPath shouldBuild buildOptions
