@@ -1,20 +1,15 @@
 {
-  "name": "purescript-bump-version-test",
-  "license": "MIT",
-  "repository": {
-    "type": "git",
-    "url": "git://github.com/spago/not-a-real-repo.git"
-  },
-  "ignore": [
-    "**/.*",
-    "node_modules",
-    "bower_components",
-    "output"
-  ],
-  "dependencies": {
-    "purescript-console": "^4.2.0",
-    "purescript-effect": "^2.0.1",
-    "purescript-psci-support": "^4.0.0",
-    "purescript-tortellini": "^5.1.0"
-  }
+    "name": "purescript-bump-version-test",
+    "ignore": [
+        "**/.*",
+        "node_modules",
+        "bower_components",
+        "output"
+    ],
+    "dependencies": {
+        "purescript-console": "^v4.2.0",
+        "purescript-effect": "^v2.0.1",
+        "purescript-psci-support": "^v4.0.0",
+        "purescript-tortellini": "^v5.1.0"
+    }
 }

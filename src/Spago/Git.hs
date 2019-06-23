@@ -1,6 +1,7 @@
 module Spago.Git
   ( requireCleanWorkingTree
   , getAllTags
+  , addAllChanges
   , commitAndTag
   ) where
 
@@ -25,6 +26,11 @@ requireCleanWorkingTree = do
 getAllTags :: Spago m => m [Text]
 getAllTags = do
   fmap Text.lines $ T.strict $ T.inproc "git" ["tag", "--list"] empty
+
+
+addAllChanges :: Spago m => m ()
+addAllChanges = do
+  T.procs "git" ["add", "-A"] empty
 
 
 commitAndTag :: Spago m => Text -> Text -> m ()

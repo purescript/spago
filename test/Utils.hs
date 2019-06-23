@@ -8,6 +8,7 @@ module Utils
   , shouldBeFailureOutput
   , shouldBeSuccess
   , shouldBeSuccessOutput
+  , shouldBeEmptySuccess
   , spago
   , withCwd
   ) where
@@ -48,6 +49,10 @@ shouldBeSuccess (code, _stdout, _stderr) = do
   -- print $ "STDOUT: " <> _stdout
   -- print $ "STDERR: " <> _stderr
   code `shouldBe` ExitSuccess
+
+shouldBeEmptySuccess :: (ExitCode, Text, Text) -> IO ()
+shouldBeEmptySuccess result = do
+  result `shouldBe` (ExitSuccess, "", "")
 
 shouldBeSuccessOutput :: FilePath -> (ExitCode, Text, Text) -> IO ()
 shouldBeSuccessOutput expected (code, out, _) = do

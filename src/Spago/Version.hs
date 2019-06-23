@@ -15,6 +15,7 @@ import           Text.Megaparsec            (ParseErrorBundle, Parsec)
 import qualified Text.Megaparsec            as MP
 import qualified Text.Megaparsec.Char.Lexer as L
 
+import qualified Spago.Bower                as Bower
 import qualified Spago.Git                  as Git
 
 
@@ -94,4 +95,6 @@ bumpVersion :: Spago m => VersionBump -> m ()
 bumpVersion spec = do
   oldVersion <- getCurrentVersion
   newVersion <- getNextVersion spec oldVersion
+  Bower.writeBowerJson
+  Git.addAllChanges
   tagNewVersion oldVersion newVersion

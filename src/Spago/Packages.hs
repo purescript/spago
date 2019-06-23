@@ -5,6 +5,7 @@ module Spago.Packages
   , verify
   , listPackages
   , getGlobs
+  , getDirectDeps
   , getProjectDeps
   , PackageSet.upgradePackageSet
   , PackageSet.freeze
@@ -84,6 +85,18 @@ getGlobs = map (\pair
                  <> "/src/**/*.purs")
 
 
+-- | Return the direct dependencies of the current project
+getDirectDeps :: Spago m => Config -> m [(PackageName, Package)]
+getDirectDeps Config{..} = do
+  let PackageSet{..} = packageSet
+  for dependencies $ \dep ->
+    case Map.lookup dep packagesDB of
+      Nothing ->
+        die $ pkgNotFoundMsg dep packagesDB
+      Just pkg ->
+        pure (dep, pkg)
+
+
 -- | Return all the transitive dependencies of the current project
 getProjectDeps :: Spago m => Config -> m [(PackageName, Package)]
 getProjectDeps Config{..} = getTransitiveDeps packageSet dependencies
@@ -103,25 +116,27 @@ getTransitiveDeps PackageSet{..} deps = do
       | otherwise =
         case Map.lookup dep packagesDB of
           Nothing ->
-            die $ pkgNotFoundMsg dep
+            die $ pkgNotFoundMsg dep packagesDB
           Just info@Package{..} -> do
             m <- fold <$> traverse (go (Set.insert dep seen)) dependencies
             pure (Map.insert dep info m)
 
-    pkgNotFoundMsg pkg =
-      "Package `" <> packageName pkg <> "` does not exist in package set" <> extraHelp
-      where
-        extraHelp = case suggestedPkg of
-          Just pkg' | Map.member pkg' packagesDB ->
-            ", but `" <> packageName pkg' <> "` does, did you mean that instead?"
-          Just pkg' ->
-            ", and nor does `" <> packageName pkg' <> "`"
-          Nothing ->
-            ""
 
-        suggestedPkg = do
-          sansPrefix <- Text.stripPrefix "purescript-" (packageName pkg)
-          Just (PackageName sansPrefix)
+pkgNotFoundMsg :: PackageName -> Map PackageName Package -> Text
+pkgNotFoundMsg pkg packagesDB =
+  "Package `" <> packageName pkg <> "` does not exist in package set" <> extraHelp
+  where
+    extraHelp = case suggestedPkg of
+      Just pkg' | Map.member pkg' packagesDB ->
+        ", but `" <> packageName pkg' <> "` does, did you mean that instead?"
+      Just pkg' ->
+        ", and nor does `" <> packageName pkg' <> "`"
+      Nothing ->
+        ""
+
+    suggestedPkg = do
+      sansPrefix <- Text.stripPrefix "purescript-" (packageName pkg)
+      Just (PackageName sansPrefix)
 
 
 getReverseDeps  :: PackageSet -> PackageName -> IO [(PackageName, Package)]
