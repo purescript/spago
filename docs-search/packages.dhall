@@ -17,6 +17,36 @@ let additions =
 		  ]
 		  "https://github.com/klntsky/purescript-search-trie.git"
 		  "master"
+	  , halogen =
+		  mkPackage
+		  [ "aff"
+		  , "avar"
+		  , "console"
+		  , "const"
+		  , "coroutines"
+		  , "dom-indexed"
+		  , "foreign"
+		  , "fork"
+		  , "free"
+		  , "freeap"
+		  , "halogen-vdom"
+		  , "media-types"
+		  , "nullable"
+		  , "ordered-collections"
+		  , "parallel"
+		  , "profunctor"
+		  , "transformers"
+		  , "unsafe-coerce"
+		  , "unsafe-reference"
+		  , "web-uievents"
+		  ]
+		  "https://github.com/slamdata/purescript-halogen.git"
+		  "v5.0.0-rc.4"
+	  , halogen-css =
+		  mkPackage
+		  [ "css", "halogen" ]
+		  "https://github.com/slamdata/purescript-halogen-css.git"
+		  "v8.0.0"
 	  }
 
 in  upstream ⫽ overrides ⫽ additions

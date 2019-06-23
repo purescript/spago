@@ -21,6 +21,9 @@
 	, "strings"
 	, "web-dom"
 	, "web-html"
+	, "halogen"
+	, "halogen-css"
+	, "coroutines"
 	]
 , packages =
 	./packages.dhall
