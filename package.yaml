@@ -1,5 +1,5 @@
 name:                spago
-version:             0.8.4.0
+version:             0.8.5.0
 github:              "spacchetti/spago"
 license:             BSD3
 author:              "Justin Woo, Fabrizio Ferrai"
@@ -124,6 +124,7 @@ executables:
     - vector
     - temporary
     - retry
+    - time
 
 tests:
   spec:
@@ -136,3 +137,6 @@ tests:
     - directory
     - temporary
     - extra
+    - containers
+    - QuickCheck
+    - spago

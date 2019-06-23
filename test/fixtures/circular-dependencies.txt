@@ -1,1 +1,3 @@
-spago: Cycle in package dependencies at package a
+spago: The following packages have circular dependencies:
+  - a
+  - b

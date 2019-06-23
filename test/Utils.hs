@@ -1,5 +1,6 @@
 module Utils
   ( checkFixture
+  , readFixture
   , getHighestTag
   , git
   , rmtree
