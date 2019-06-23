@@ -1,6 +1,5 @@
 module Spago.Version
   ( VersionBump(..)
-  , VersionTriple
   , bumpVersion
   , parseVersion
   , unparseVersion
@@ -8,50 +7,36 @@ module Spago.Version
 
 import           Spago.Prelude
 
-import qualified Data.Text                  as Text
-import           Data.Void                  (Void)
-import qualified Safe.Foldable              as Safe
-import           Text.Megaparsec            (ParseErrorBundle, Parsec)
-import qualified Text.Megaparsec            as MP
-import qualified Text.Megaparsec.Char.Lexer as L
+import           Data.SemVer   (Version)
+import qualified Data.SemVer   as SemVer
+import qualified Data.Text     as Text
+import qualified Safe.Foldable as Safe
 
-import qualified Spago.Bower                as Bower
-import qualified Spago.Git                  as Git
+import qualified Spago.Bower   as Bower
+import qualified Spago.Git     as Git
 
-
-type VersionTriple = (Integer, Integer, Integer)
 
 data VersionBump
   = Major
   | Minor
   | Patch
-  | Exact VersionTriple
+  | Exact Version
 
 
-versionParser :: Parsec Void Text VersionTriple
-versionParser = do
-  MP.optional $ MP.single 'v'
-  major <- L.decimal
-  MP.single '.'
-  minor <- L.decimal
-  MP.single '.'
-  patch <- L.decimal
-  MP.eof
-  pure (major, minor, patch)
-
-
-parseVersion :: Text -> Either (ParseErrorBundle Text Void) VersionTriple
+-- | Parses a version, ignoring an optional leading 'v', or returns an error message.
+parseVersion :: Text -> Either String Version
 parseVersion =
-  MP.parse versionParser ""
+  SemVer.fromText . Text.dropWhile (== 'v')
 
 
-unparseVersion :: VersionTriple -> Text
-unparseVersion (major, minor, patch) =
-  Text.pack $ "v" <> show major <> "." <> show minor <> "." <> show patch
+-- | Turns a version into text, with a leading 'v'.
+unparseVersion :: Version -> Text
+unparseVersion version =
+  "v" <> SemVer.toText version
 
 
 -- | Get the highest git version tag, die if this is not a git repo with no uncommitted changes.
-getCurrentVersion :: Spago m => m VersionTriple
+getCurrentVersion :: Spago m => m Version
 getCurrentVersion = do
   Git.requireCleanWorkingTree
 
@@ -60,34 +45,34 @@ getCurrentVersion = do
 
   case Safe.maximumMay tags of
     Nothing -> do
-      echo "No existing version tags found so assuming current version is v0.0.0"
-      pure (0, 0, 0)
-    Just maxTag -> do
-      echo $ "Found current version from git tag: " <> unparseVersion maxTag
-      pure maxTag
+      echo $ "No existing version tags found so assuming current version is " <> unparseVersion SemVer.initial
+      pure SemVer.initial
+    Just maxVersion -> do
+      echo $ "Found current version from git tag: " <> unparseVersion maxVersion
+      pure maxVersion
 
 
 -- | Get the next version to use, or die if this would result in the version number going down/not changing.
-getNextVersion :: Spago m => VersionBump -> VersionTriple -> m VersionTriple
-getNextVersion spec v@(major, minor, patch) =
+getNextVersion :: Spago m => VersionBump -> Version -> m Version
+getNextVersion spec version =
   case spec of
-    Major -> pure (major + 1, 0        , 0        )
-    Minor -> pure (major    , minor + 1, 0        )
-    Patch -> pure (major    , minor    , patch + 1)
-    Exact v'
-      | v' > v    -> pure v'
+    Major -> pure $ SemVer.incrementMajor version
+    Minor -> pure $ SemVer.incrementMinor version
+    Patch -> pure $ SemVer.incrementPatch version
+    Exact v
+      | v > version -> pure v
       | otherwise -> die "Oh noes! The new version must be higher than the current version." -- todo: move to messages module
 
 
--- | Make a tag for the new version
-tagNewVersion :: Spago m => VersionTriple -> VersionTriple -> m ()
+-- | Make a tag for the new version.
+tagNewVersion :: Spago m => Version -> Version -> m ()
 tagNewVersion oldVersion newVersion = do
 
-  let oldVersionStr = unparseVersion oldVersion
-      newVersionStr = unparseVersion newVersion
+  let oldVersionTag = unparseVersion oldVersion
+      newVersionTag = unparseVersion newVersion
 
-  Git.commitAndTag newVersionStr $ oldVersionStr <> " → " <> newVersionStr
-  echo $ "Git tag created for new version: " <> newVersionStr
+  Git.commitAndTag newVersionTag $ oldVersionTag <> " → " <> newVersionTag
+  echo $ "Git tag created for new version: " <> SemVer.toText newVersion
 
 
 -- | Bump and tag a new version in preparation for release.
