@@ -162,11 +162,6 @@ This last command will create a bunch of files:
     └── Main.purs
 ```
 
-Convention note: `spago` expects your source files to be in `src/` and your
-test files in `test/`.
-It is possible to include additional source paths when running some commands,
-like `build`, `test` or `repl`.
-
 Let's take a look at the two [Dhall][dhall] configuration files that `spago` requires:
 - `packages.dhall`: this file is meant to contain the *totality* of the packages
   available to your project (that is, any package you might want to import).
@@ -175,8 +170,8 @@ Let's take a look at the two [Dhall][dhall] configuration files that `spago` req
   and you are then able to add any package that might not be in the package set,
   or override existing ones.
 - `spago.dhall`: this is your project configuration. It includes the above package-set,
-  the list of your dependencies, and any other project-wide setting that `spago` will
-  use for builds.
+  the list of your dependencies, the source paths that will be used to build, and any
+  other project-wide setting that `spago` will use.
 
 To build your project, run:
 
@@ -188,15 +183,21 @@ This will download the necessary dependencies and compile the sample project in 
 directory. You can take a look at the content of `output/Main/index.js` to see what kind
 of JavaScript has been generated from your new `Main.purs` file.
 
-You can already see your project running, with the following command:
+You can already see your project running, by doing
+
+```bash
+$ spago run
+```
+
+..which is basically equivalent to the following command:
 
 ```bash
 $ node -e "require('./output/Main/index').main()"
 ```
 
-This imports the JS file you just looked at in Node, and runs the `main`.
+..which imports the JS file you just looked at, and runs the `main` with Node.
 
-You can also bundle it in a single file with an entry point, so it can be run directly (useful for CLI apps):
+You can also bundle the project in a single file with an entry point, so it can be run directly (useful for CLI apps):
 
 ```bash
 $ spago bundle-app
@@ -811,6 +812,7 @@ let PackageSet =
 let Config =
   { name : Text               -- the name of our project
   , dependencies : List Text  -- the list of dependencies of our app
+  , sources : List Text       -- the list of globs for the paths to always include in the build
   , packages : PackageSet     -- this is the type we just defined above
   }
 ```
