@@ -7,14 +7,20 @@ import Spago.Prelude
 import qualified Data.Aeson                 as Aeson
 import qualified Data.Aeson.Encode.Pretty   as Pretty
 import qualified Data.ByteString.Lazy       as ByteString
+import           Data.String                (IsString)
 import           Web.Bower.PackageMeta      (PackageMeta (..))
 import qualified Web.Bower.PackageMeta      as Bower
 
 import           Spago.Config               (Config (..))
 import qualified Spago.Config               as Config
+import qualified Spago.Git                  as Git
 import qualified Spago.Packages             as Packages
 import           Spago.PackageSet           (PackageName (..), Package (..))
 import qualified Spago.Templates            as Templates
+
+
+bowerPath :: IsString t => t
+bowerPath = "bower.json"
 
 
 writeBowerJson :: Spago m => m ()
@@ -32,8 +38,11 @@ writeBowerJson = do
         }
       bowerJson = Pretty.encodePretty' prettyConfig bowerPkg
 
-  liftIO $ ByteString.writeFile "bower.json" bowerJson
-  -- todo: check bower json is versioned
+  ignored <- Git.isIgnored bowerPath
+  when ignored $ do
+    die $ bowerPath <> " is being ignored by git - change this before continuing."
+
+  liftIO $ ByteString.writeFile bowerPath bowerJson
 
 
 templateBowerJson :: Spago m => m Bower.PackageMeta

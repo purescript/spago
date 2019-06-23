@@ -19,6 +19,10 @@ setup cmd = do
 initGit :: IO ()
 initGit = do
   git ["init"] >>= shouldBeSuccess
+  commitAll
+
+commitAll :: IO ()
+commitAll = do
   git ["add", "--all"] >>= shouldBeSuccess
   git ["commit", "--message", "Initial commit"] >>= shouldBeSuccess
 
@@ -67,3 +71,9 @@ spec = around_ setup $ do
       git ["status", "--porcelain"] >>= shouldBeEmptySuccess
       mv "bower.json" "bump-version-bower.json"
       checkFixture "bump-version-bower.json"
+
+    before_ initGit $ it "Spago should fail when bower.json is not tracked" $ do
+
+      appendFile ".gitignore" "bower.json\n"
+      commitAll
+      spago ["bump-version", "minor"] >>= shouldBeFailure

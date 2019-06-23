@@ -3,6 +3,7 @@ module Spago.Git
   , getAllTags
   , addAllChanges
   , commitAndTag
+  , isIgnored
   ) where
 
 import           Spago.Prelude
@@ -37,3 +38,8 @@ commitAndTag :: Spago m => Text -> Text -> m ()
 commitAndTag tag message = do
   T.procs "git" ["commit", "--quiet", "--allow-empty", "--message=" <> message] empty
   T.procs "git" ["tag", "--annotate", "--message=" <> message, tag] empty
+
+
+isIgnored :: Spago m => Text -> m Bool
+isIgnored path = do
+  (== ExitSuccess) <$> T.proc "git" ["check-ignore", "--quiet", path] empty
