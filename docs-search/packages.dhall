@@ -16,7 +16,7 @@ let additions =
 		  , "foldable-traversable"
 		  ]
 		  "https://github.com/klntsky/purescript-search-trie.git"
-		  "master"
+		  "fd37a12"
 	  , halogen =
 		  mkPackage
 		  [ "aff"

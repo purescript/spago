@@ -2,6 +2,9 @@ module Spago.Search.Declarations where
 
 import Prelude
 
+import Effect
+import Effect.Aff
+import Control.Promise
 import Data.Argonaut.Decode (class DecodeJson, decodeJson)
 import Data.Argonaut.Encode (class EncodeJson, encodeJson)
 import Data.Generic.Rep (class Generic)
@@ -48,3 +51,8 @@ instance decodeJsonDeclarations :: DecodeJson Declarations where
 
 instance encodeJsonDeclarations :: EncodeJson Declarations where
   encodeJson = encodeJson <<< unwrap
+
+loadDeclarations :: String -> Aff (Array Declarations)
+loadDeclarations = toAffE <<< loadDeclarations_
+
+foreign import loadDeclarations_ :: String -> Effect (Promise (Array Declarations))
