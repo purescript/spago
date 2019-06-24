@@ -26,7 +26,7 @@ import Halogen.HTML.Properties as HP
 
 type State = { shown :: Boolean
              , mbIndex :: Maybe SearchIndex
-             , results :: Array IndexEntry
+             , results :: Array SearchResult
              , input :: String
              }
 
@@ -97,7 +97,8 @@ render state
         show (Array.length state.results) <>
         " definitions" ] <>
 
-      [ HH.div_ $ state.results <#> \result -> HH.div_ [ HH.text (unwrap result).title ]
+      [ HH.div_ $ state.results <#> \result ->
+         HH.div_ [ HH.text (unwrap result).name ]
       ]
 
 renderSummary :: forall a b. String -> HH.HTML b a
