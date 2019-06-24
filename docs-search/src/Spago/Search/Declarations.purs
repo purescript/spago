@@ -2,17 +2,21 @@ module Spago.Search.Declarations where
 
 import Prelude
 
-import Effect
-import Effect.Aff
-import Control.Promise
-import Data.Argonaut.Decode (class DecodeJson, decodeJson)
+import Control.Promise (Promise, toAffE)
+import Data.Argonaut.Core (Json)
+import Data.Argonaut.Decode (class DecodeJson, decodeJson, (.:), (.:?))
 import Data.Argonaut.Encode (class EncodeJson, encodeJson)
+import Data.Either (Either(..))
 import Data.Generic.Rep (class Generic)
 import Data.Generic.Rep.Show (genericShow)
+import Data.Maybe (Maybe)
 import Data.Newtype (class Newtype, unwrap)
+import Effect (Effect)
+import Effect.Aff (Aff)
 
 newtype IndexEntry
   = IndexEntry { title :: String
+               , comments :: Maybe String
                , info :: { declType :: String
                          }
                , sourceSpan :: { start :: Array Int
@@ -29,7 +33,13 @@ instance showIndexEntry :: Show IndexEntry where
   show = genericShow
 
 instance decodeJsonIndexEntry :: DecodeJson IndexEntry where
-  decodeJson json = IndexEntry <$> decodeJson json
+  decodeJson json = IndexEntry <$> do
+    handle     <- decodeJson json
+    title      <- handle .:  "title"
+    comments   <- handle .:? "comments"
+    info       <- handle .:  "info"
+    sourceSpan <- handle .:  "sourceSpan"
+    pure { title, comments, info, sourceSpan }
 
 instance encodeJsonIndexEntry :: EncodeJson IndexEntry where
   encodeJson = encodeJson <<< unwrap
@@ -52,7 +62,7 @@ instance decodeJsonDeclarations :: DecodeJson Declarations where
 instance encodeJsonDeclarations :: EncodeJson Declarations where
   encodeJson = encodeJson <<< unwrap
 
-loadDeclarations :: String -> Aff (Array Declarations)
-loadDeclarations = toAffE <<< loadDeclarations_
+loadDeclarations :: String -> Aff (Either String (Array Declarations))
+loadDeclarations string = decodeJson <$> toAffE (loadDeclarations_ string)
 
-foreign import loadDeclarations_ :: String -> Effect (Promise (Array Declarations))
+foreign import loadDeclarations_ :: String -> Effect (Promise Json)

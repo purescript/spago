@@ -5,9 +5,12 @@ import Prelude
 import Spago.Search.Declarations (Declarations(..), IndexEntry(..))
 
 import Data.Foldable (foldr)
+import Data.Array ((!!))
 import Data.List (List)
 import Data.List as List
-import Data.Maybe (Maybe(..))
+import Data.Maybe (Maybe(..), fromMaybe)
+import Data.String.Common as String
+import Data.String.Pattern (Pattern(..))
 import Data.Newtype (class Newtype)
 import Data.Search.Trie (Trie, alter)
 import Data.String.CodeUnits (toCharArray)
@@ -19,6 +22,14 @@ derive instance newtypeSearchIndex :: Newtype SearchIndex _
 
 newtype SearchResult
   = SearchResult { name :: String
+                 , comments :: Maybe String
+                 , declType :: String
+                 , moduleName :: String
+                 , packageName :: String
+                 , sourceSpan :: { start :: Array Int
+                                 , end :: Array Int
+                                 , name :: String
+                                 }
                  }
 
 derive instance newtypeSearchResult :: Newtype SearchResult _
@@ -27,10 +38,11 @@ mkSearchIndex :: Array Declarations -> SearchIndex
 mkSearchIndex = SearchIndex <<< foldr insertDeclarations mempty
   where
     insertDeclarations (Declarations { name, declarations }) trie
-      = foldr insertIndexEntry trie declarations
+      = foldr (insertIndexEntry name) trie declarations
 
-    insertIndexEntry entry@(IndexEntry { title }) trie
-      = foldr insertSearchResult trie (resultsForEntry entry)
+    insertIndexEntry moduleName entry@(IndexEntry { title }) trie
+      = foldr insertSearchResult trie
+        (resultsForEntry moduleName entry)
 
     insertSearchResult :: { path :: String
                           , result :: SearchResult
@@ -46,12 +58,35 @@ mkSearchIndex = SearchIndex <<< foldr insertDeclarations mempty
         Nothing ->
           Just $ List.singleton result
 
-    resultsForEntry :: IndexEntry -> List { path :: String
-                                          , result :: SearchResult
-                                          }
-    resultsForEntry (IndexEntry { title })
+    resultsForEntry
+      :: String
+      -> IndexEntry
+      -> List { path :: String
+              , result :: SearchResult
+              }
+    resultsForEntry moduleName (IndexEntry { title
+                                           , comments
+                                           , info
+                                           , sourceSpan })
       = List.fromFoldable
         [ { path: title
-          , result : SearchResult { name: title }
+          , result: SearchResult { name: title
+                                 , comments
+                                 , declType: info.declType
+                                 , moduleName
+                                 , sourceSpan
+                                 , packageName:
+                                   extractPackageName sourceSpan
+                                 }
           }
         ]
+
+    extractPackageName { name } =
+      let chunks = String.split (Pattern "/") name in
+      fromMaybe "<unknown>" $
+      chunks !! 0 >>= \dir ->
+      -- TODO: is is safe to assume that directory name is ".spago"?
+      if dir == ".spago" then
+        chunks !! 1
+      else
+        Just "<local package>"

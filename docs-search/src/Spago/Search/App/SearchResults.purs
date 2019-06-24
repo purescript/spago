@@ -2,66 +2,71 @@ module Spago.Search.App.SearchResults where
 
 import Prelude
 
-import Spago.Search.App.SearchField (Message(..))
-import Spago.Search.Declarations
-import Spago.Search.Index
-import Spago.Search.Extra
+import Spago.Search.Declarations (loadDeclarations)
+import Spago.Search.Extra (whenJust)
+import Spago.Search.Index (SearchIndex, SearchResult, mkSearchIndex)
 
-import CSS hiding (render,map)
 import Data.Array as Array
+import Data.Either (Either(..))
 import Data.List as List
-import Data.Maybe
-import Data.Newtype
+import Data.Maybe (Maybe(..), isNothing)
+import Data.Newtype (unwrap, wrap)
 import Data.Search.Trie as Trie
-import Data.String (null) as String
+import Data.String (length) as String
 import Data.String.CodeUnits (toCharArray) as String
 import Data.String.Common (toLower) as String
-import Effect.Aff
-import Effect.Console
+import Effect.Aff (Aff)
+import Effect.Console (error)
 import Halogen as H
 import Halogen.HTML as HH
-import Halogen.HTML.CSS as HS
-import Halogen.HTML.Events as HE
 import Halogen.HTML.Properties as HP
+import Spago.Search.App.SearchField (Message(..))
+import Web.DOM.Element (Element)
+import Web.DOM.Element as Element
 
-type State = { shown :: Boolean
-             , mbIndex :: Maybe SearchIndex
+type State = { mbIndex :: Maybe SearchIndex
              , results :: Array SearchResult
              , input :: String
+             , contents :: Element
              }
 
 data Query a
   = SearchFieldMessage Message a
 
-component :: forall i o. H.Component HH.HTML Query i o Aff
-component =
+mkComponent :: forall i o. Element -> H.Component HH.HTML Query i o Aff
+mkComponent contents =
   H.mkComponent
     { initialState:
-      const { mbIndex: Nothing, results: [], shown: false, input: "" }
+      const { mbIndex: Nothing, results: [], input: "", contents }
     , render
     , eval: H.mkEval $ H.defaultEval { handleQuery = handleQuery }
     }
 
 handleQuery :: forall o a. Query a -> H.HalogenM State Unit () o Aff (Maybe a)
 handleQuery (SearchFieldMessage Focused next) = do
-  H.modify_ (_ { shown = true })
   state <- H.get
   when (isNothing state.mbIndex) do
-    declarations <- H.liftAff $ loadDeclarations "../spago-search-index.js"
-    H.modify_ (_ { mbIndex = Just $ mkSearchIndex declarations })
+    eiDeclarations <- H.liftAff $ loadDeclarations "../spago-search-index.js"
+    case eiDeclarations of
+      Left err -> do
+        H.liftEffect do
+          error $ "spago-search: couldn't load search index: " <> err
+      Right declarations -> do
+        H.modify_ (_ { mbIndex = Just $ mkSearchIndex declarations })
   pure Nothing
 handleQuery (SearchFieldMessage LostFocus next) = do
   state <- H.get
   when (Array.null state.results) do
-    H.modify_ (_ { shown = false })
+    showPageContents
   pure Nothing
 handleQuery (SearchFieldMessage (InputUpdated input) next) = do
   H.modify_ (_ { input = input })
-
-  if String.null input
+  if String.length input < 2
   then do
+    showPageContents
     H.modify_ (_ { results = [] })
   else do
+    hidePageContents
     state <- H.get
     whenJust (unwrap <$> state.mbIndex) \index -> do
       let path = List.fromFoldable $
@@ -76,33 +81,91 @@ handleQuery (SearchFieldMessage (InputUpdated input) next) = do
 
   pure Nothing
 
-render :: forall m. State -> H.ComponentHTML Unit () m
-render { mbIndex: Nothing, shown: true } =
-  renderSummary "Loading index..."
-render { mbIndex: Nothing, shown: false } =
-  HH.div_ []
-render state
-  | not state.shown || String.null state.input = HH.div_ []
-  | otherwise =
-    HH.div
-    [ HS.style do
-         float floatLeft
-    ]
-    if Array.null state.results
-    then
-      [ renderSummary "No search results" ]
-    else
-      [ renderSummary $
-        "Found " <>
-        show (Array.length state.results) <>
-        " definitions" ] <>
+showPageContents :: forall o. H.HalogenM State Unit () o Aff Unit
+showPageContents = do
+  state <- H.get
+  H.liftEffect do
+    Element.removeAttribute "style" state.contents
 
-      [ HH.div_ $ state.results <#> \result ->
-         HH.div_ [ HH.text (unwrap result).name ]
-      ]
+hidePageContents :: forall o. H.HalogenM State Unit () o Aff Unit
+hidePageContents = do
+  state <- H.get
+  H.liftEffect do
+    Element.setAttribute "style" "display: none" state.contents
+
+render :: forall m. State -> H.ComponentHTML Unit () m
+render { mbIndex: Nothing } =
+  HH.div_ []
+render { input: "" } =
+  HH.div_ []
+render state =
+  HH.div [ HP.classes [ wrap "container"
+                      , wrap "clearfix"
+                      ]
+         ]
+  if Array.null state.results
+  then
+    [ renderSummary "No search results" ]
+  else
+    [ renderSummary $
+      "Found " <>
+      show (Array.length state.results) <>
+      " definitions" ] <>
+
+    [ HH.div [ HP.id_ "spage-search-results-container" ] $
+      Array.concat $
+      state.results <#> renderResult
+    ]
 
 renderSummary :: forall a b. String -> HH.HTML b a
 renderSummary text =
   HH.div [ HP.id_ "spago-search-summary" ]
   [ HH.text text
+  ]
+
+renderResult :: forall a b.  SearchResult -> Array (HH.HTML a b)
+renderResult = unwrap >>> \result ->
+  [ HH.div [ HP.class_ (wrap "result") ]
+    [ HH.h3 [ HP.class_ (wrap "result__title") ]
+      [ HH.a [ HP.class_ (wrap "result__link") ]
+        [ HH.text result.name ]
+      ]
+    ]
+
+  , HH.div [ HP.class_ (wrap "result__body") ] $
+    [ HH.pre [ HP.class_ (wrap "result__signature") ]
+      [ HH.code_ []
+      ]
+    ] <>
+
+    case result.comments of
+      Just comments -> [ HH.pre_
+                         [ HH.text comments
+                         ]
+                       ]
+      Nothing -> [ ]
+
+  , HH.div [ HP.class_ (wrap "result__actions") ]
+    [ HH.span [ HP.class_ (wrap "result__actions__item") ]
+      [ HH.span [ HP.classes [ wrap "badge"
+                             , wrap "badge--package"
+                             ]
+                , HP.title "Package"
+                ]
+        [ HH.text "P"
+        ]
+      , HH.text result.packageName
+      ]
+
+    , HH.span [ HP.class_ (wrap "result__actions__item") ]
+      [ HH.span [ HP.classes [ wrap "badge"
+                             , wrap "badge--module"
+                             ]
+                , HP.title "Module"
+                ]
+        [ HH.text "M"
+        ]
+      , HH.text result.moduleName
+      ]
+    ]
   ]

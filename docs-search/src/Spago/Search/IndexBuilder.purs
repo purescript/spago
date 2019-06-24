@@ -10,14 +10,14 @@ import Data.Argonaut.Decode (decodeJson)
 import Data.Argonaut.Encode (encodeJson)
 import Data.Argonaut.Parser (jsonParser)
 import Data.Array as Array
-import Data.Either (hush)
+import Data.Either (hush, isLeft)
 import Data.Maybe (Maybe(..))
 import Data.Newtype (unwrap)
 import Data.Search.Trie as Trie
-import Data.String.CodePoints as String
-import Data.String.Common as String
+import Data.String.CodePoints (contains) as String
+import Data.String.Common (replace) as String
 import Data.String.Pattern (Pattern(..), Replacement(..))
-import Data.String.Pattern as String
+import Data.String.Pattern (Pattern(..)) as String
 import Data.Traversable (for, for_)
 import Effect (Effect)
 import Effect.Aff (Aff, launchAff_)
@@ -28,15 +28,28 @@ import Node.FS.Aff (exists, readTextFile, readdir, writeTextFile)
 import Node.Process as Process
 
 collectDeclarations :: Array String -> Aff (Array Declarations)
-collectDeclarations paths =
-  Array.catMaybes <$> for paths \path -> do
-    let jsonFile = "output/" <> path <> "/docs.json"
+collectDeclarations paths = do
+  mbs <- for paths \moduleName -> do
+    let jsonFile = "output/" <> moduleName <> "/docs.json"
     doesExist <- exists jsonFile
+
     if doesExist then do
       contents <- readTextFile UTF8 jsonFile
-      pure $ hush $ jsonParser contents >>= decodeJson
-    else
+      let mbResult = jsonParser contents >>= decodeJson
+
+      when (isLeft mbResult) do
+        liftEffect $ log $
+          "Index build failed for module " <>
+          moduleName <>
+          ": " <> show mbResult
+
+      pure $ hush mbResult
+    else do
+      liftEffect $ do
+        log $
+          "Couldn't find docs.json for " <> moduleName
       pure Nothing
+  pure $ Array.catMaybes mbs
 
 writeDeclarations :: Array Declarations -> Aff Unit
 writeDeclarations decls = do
