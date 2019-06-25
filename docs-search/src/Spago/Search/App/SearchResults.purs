@@ -164,14 +164,7 @@ renderResult = unwrap >>> \result ->
              , HE.onClick $ const $ Just $ SearchResultClicked result.moduleName
              , HP.href $
                result.moduleName <> ".html#" <>
-
-               ( case result.declType of
-                    "value" -> "v"
-                    "alias" -> "v"
-                    _ -> "t"
-               ) <>
-
-               ":" <> result.name
+               result.hashAnchor <> ":" <> result.name
              ]
         [ HH.text result.name ]
       ]
