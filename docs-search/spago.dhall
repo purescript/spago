@@ -24,6 +24,7 @@
 	, "halogen"
 	, "halogen-css"
 	, "coroutines"
+	, "test-unit"
 	]
 , packages =
 	./packages.dhall
