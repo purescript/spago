@@ -280,14 +280,11 @@ decodeTuple cont err json =
           Right $ cont a b
         _ -> Left $ err unit
 
-data Triple a b c = T1 a | T2 b | T3 c
-
 decodeTriple
-  :: forall fst sec trd res
+  :: forall fst sec res
   .  DecodeJson fst
   => DecodeJson sec
-  => DecodeJson trd
-  => (fst -> sec -> trd -> res)
+  => (fst -> sec -> sec -> res)
   -> (forall a. a -> String)
   -> Json
   -> Either String res
@@ -297,11 +294,11 @@ decodeTriple cont err json =
     Just arrOfJsons -> do
       let arrayOfVariants =
             arrOfJsons <#> \variantJson ->
-              T1 <$> decodeJson variantJson <|>
-              T2 <$> decodeJson variantJson <|>
-              T3 <$> decodeJson variantJson
+              Left <$> decodeJson variantJson <|>
+              Right <$> decodeJson variantJson <|>
+              Right <$> decodeJson variantJson
       case arrayOfVariants of
-        [ Right (T1 a), Right (T2 b), Right (T3 c) ] ->
+        [ Right (Left a), Right (Right b), Right (Right c) ] ->
           Right $ cont a b c
         _ -> Left $ err unit
 

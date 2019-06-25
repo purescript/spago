@@ -205,6 +205,7 @@ main = runTest do
                                           }
                            ))
           (TypeVar "h")
+
     test "TypeOp" do
       let typeOp = mkJson """
           {
@@ -312,6 +313,50 @@ main = runTest do
                                             name: "String"
                                           }
                            ))
+    test "RCons" do
+
+      let rcons = mkJson """
+      {
+        "annotation": [],
+        "tag": "RCons",
+        "contents": [
+          "tail",
+          {
+            "annotation": [],
+            "tag": "TypeApp",
+            "contents": [
+              {
+                "annotation": [],
+                "tag": "TypeConstructor",
+                "contents": [
+                  [
+                    "Data",
+                    "Symbol"
+                  ],
+                  "SProxy"
+                ]
+              },
+              {
+                "annotation": [],
+                "tag": "TypeVar",
+                "contents": "t"
+              }
+            ]
+          },
+          {
+            "annotation": [],
+            "tag": "REmpty"
+          }
+        ]
+      }
+      """
+
+      assertRight (decodeJson rcons) $
+        RCons
+          "tail"
+          (TypeApp (TypeConstructor $ QualifiedName { moduleName: [ "Data", "Symbol" ], name: "SProxy" })
+                   (TypeVar "t"))
+          REmpty
 
 assertRight :: forall a. Show a => Eq a => Either String a -> a -> Aff Unit
 assertRight eiActual expected =
