@@ -67,25 +67,25 @@ mkSearchIndex = SearchIndex <<< foldr insertDeclarations mempty
     resultsForEntry moduleName (IndexEntry { title
                                            , comments
                                            , info
-                                           , sourceSpan })
-      = List.fromFoldable
-        [ { path: title
-          , result: SearchResult { name: title
-                                 , comments
-                                 , declType: info.declType
-                                 , moduleName
-                                 , sourceSpan
-                                 , packageName:
-                                   extractPackageName sourceSpan
-                                 }
-          }
-        ]
+                                           , sourceSpan }) =
+      List.fromFoldable
+      [ { path: title
+        , result: SearchResult { name: title
+                               , comments
+                               , declType: info.declType
+                               , moduleName
+                               , sourceSpan
+                               , packageName:
+                                 extractPackageName sourceSpan
+                               }
+        }
+      ]
 
     extractPackageName { name } =
       let chunks = String.split (Pattern "/") name in
       fromMaybe "<unknown>" $
       chunks !! 0 >>= \dir ->
-      -- TODO: is is safe to assume that directory name is ".spago"?
+      -- TODO: is it safe to assume that directory name is ".spago"?
       if dir == ".spago" then
         chunks !! 1
       else

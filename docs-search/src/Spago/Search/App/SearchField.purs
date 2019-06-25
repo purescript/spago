@@ -2,14 +2,14 @@ module Spago.Search.App.SearchField where
 
 import Prelude
 
+import CSS hiding (render, map)
+import Data.Maybe (Maybe(..))
+import Effect.Aff (Aff)
 import Halogen as H
 import Halogen.HTML as HH
+import Halogen.HTML.CSS as HS
 import Halogen.HTML.Events as HE
 import Halogen.HTML.Properties as HP
-import Halogen.HTML.CSS as HS
-import CSS hiding (render, map)
-import Effect.Aff (Aff)
-import Data.Maybe (Maybe(..))
 
 type State = { input :: String }
 
