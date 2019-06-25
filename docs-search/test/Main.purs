@@ -1,23 +1,24 @@
 module Test.Main where
 
+import Data.Argonaut.Decode
+import Data.Argonaut.Parser
+import Data.Either
+import Data.Maybe
+import Effect.Aff
+import Partial.Unsafe
 import Prelude
+import Spago.Search.TypeParser
+
 import Effect (Effect)
 import Effect.Console (log)
 import Test.Unit (suite, test, timeout)
-import Test.Unit.Main (runTest)
 import Test.Unit.Assert as Assert
-import Spago.Search.TypeParser
-import Data.Argonaut.Decode
-import Data.Either
-import Data.Maybe
-import Data.Argonaut.Parser
-import Partial.Unsafe
-import Effect.Aff
+import Test.Unit.Main (runTest)
 
 main :: Effect Unit
 main = runTest do
   let mkJson x = unsafePartial $  fromRight $ jsonParser x
-  suite "TypeParser" do
+  suite "Kind parser" do
 
     test "QualifiedName" do
 
@@ -129,10 +130,193 @@ main = runTest do
         )
 
 
+  suite "Constraint parser" do
+    test "Constraint" do
+      let constraint = mkJson """
+      {
+        "constraintAnn": [],
+        "constraintClass": [
+          [
+            "Prim"
+          ],
+          "Partial"
+        ],
+        "constraintArgs": [],
+        "constraintData": null
+      }
+      """
+      assertRight (decodeJson constraint)
+        (Constraint { constraintClass: QualifiedName { moduleName: ["Prim"]
+                                                     , name: "Partial"
+                                                     }
+                    , constraintArgs: []
+                    })
+
+  suite "Type parser" do
+    test "TypeVar" do
+      let typeVar = mkJson """
+      {
+        "annotation": [],
+        "tag": "TypeVar",
+        "contents": "m"
+      }
+      """
+
+      assertRight (decodeJson typeVar)
+       (TypeVar "m")
+
+    test "TypeApp" do
+      let typeApp1 = mkJson """
+        {
+          "annotation": [],
+          "tag": "TypeApp",
+          "contents": [
+            {
+              "annotation": [],
+              "tag": "TypeConstructor",
+              "contents": [
+                [
+                  "Control",
+                  "Monad",
+                  "ST",
+                  "Internal"
+                ],
+                "ST"
+              ]
+            },
+            {
+              "annotation": [],
+              "tag": "TypeVar",
+              "contents": "h"
+            }
+          ]
+        }
+      """
+
+      assertRight (decodeJson typeApp1) $
+        TypeApp
+          (TypeConstructor (QualifiedName { moduleName:
+                                            [ "Control"
+                                            , "Monad"
+                                            , "ST"
+                                            , "Internal"
+                                            ],
+                                            name: "ST"
+                                          }
+                           ))
+          (TypeVar "h")
+    test "TypeOp" do
+      let typeOp = mkJson """
+          {
+            "annotation": [],
+            "tag": "TypeOp",
+            "contents": [
+              [
+                "Data",
+                "NaturalTransformation"
+              ],
+              "~>"
+            ]
+          }
+      """
+      assertRight (decodeJson typeOp) $
+        TypeOp $ QualifiedName { moduleName: [ "Data", "NaturalTransformation" ]
+                               , name: "~>"
+                               }
+
+    test "BinaryNoParens" do
+      let binaryNoParens = mkJson """
+      {
+        "annotation": [],
+        "tag": "BinaryNoParensType",
+        "contents": [
+          {
+            "annotation": [],
+            "tag": "TypeOp",
+            "contents": [
+              [
+                "Data",
+                "NaturalTransformation"
+              ],
+              "~>"
+            ]
+          },
+          {
+            "annotation": [],
+            "tag": "TypeVar",
+            "contents": "m"
+          },
+          {
+            "annotation": [],
+            "tag": "TypeVar",
+            "contents": "n"
+          }
+        ]
+      }
+      """
+
+      assertRight (decodeJson binaryNoParens) $
+        BinaryNoParens
+        (TypeOp $ QualifiedName { moduleName: ["Data", "NaturalTransformation"], name: "~>" })
+        (TypeVar "m")
+        (TypeVar "n")
+
+    test "ParensInType" do
+      let parensInType = mkJson """
+        {
+          "annotation": [],
+          "tag": "ParensInType",
+          "contents": {
+            "annotation": [],
+            "tag": "TypeApp",
+            "contents": [
+              {
+                "annotation": [],
+                "tag": "TypeConstructor",
+                "contents": [
+                  [
+                    "Data",
+                    "Maybe"
+                  ],
+                  "Maybe"
+                ]
+              },
+              {
+                "annotation": [],
+                "tag": "TypeConstructor",
+                "contents": [
+                  [
+                    "Prim"
+                  ],
+                  "String"
+                ]
+              }
+            ]
+          }
+        }
+      """
+
+      assertRight (decodeJson parensInType) $
+        ParensInType $
+          TypeApp
+          (TypeConstructor (QualifiedName { moduleName:
+                                            [ "Data"
+                                            , "Maybe"
+                                            ],
+                                            name: "Maybe"
+                                          }
+                           ))
+          (TypeConstructor (QualifiedName { moduleName:
+                                            [ "Prim"
+                                            ],
+                                            name: "String"
+                                          }
+                           ))
+
 assertRight :: forall a. Show a => Eq a => Either String a -> a -> Aff Unit
 assertRight eiActual expected =
   case eiActual of
     Left string -> do
-      Assert.equal eiActual (Right expected)
+      Assert.equal (Right expected) eiActual
     Right actual -> do
-      Assert.equal eiActual (Right expected)
+      Assert.equal (Right expected) eiActual
