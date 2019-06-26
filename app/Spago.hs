@@ -117,7 +117,7 @@ parser = do
     noInstallBool   = CLI.switch "no-install" 'n' "Don't run the automatic installation of packages"
     clearScreenBool = CLI.switch "clear-screen" 'l' "Clear the screen on rebuild (watch mode only)"
     noBuildBool     = CLI.switch "no-build" 's' "Skip build step"
-    nodeArgs        = CLI.many $ CLI.opt (Just . ExtraArg) "node-args" 'n' "Argument to pass to node (run/test only)"
+    nodeArgs        = CLI.many $ CLI.opt (Just . ExtraArg) "node-args" 'a' "Argument to pass to node (run/test only)"
     watch = do
       res <- watchBool
       pure $ case res of
