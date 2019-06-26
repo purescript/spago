@@ -1,13 +1,13 @@
 module Spago.Search.TypeDecoder where
 
-import Data.Either
-import Data.Traversable
+
 import Prelude
 
-import Data.Argonaut.Core (Json, caseJsonArray, caseJsonObject, fromArray, fromObject, jsonEmptyObject, jsonNull, stringify, toArray)
+import Data.Argonaut.Core (Json, caseJsonObject, fromArray, fromObject, jsonEmptyObject, stringify, toArray)
 import Data.Argonaut.Decode (class DecodeJson, decodeJson, (.:))
 import Data.Argonaut.Encode (class EncodeJson, encodeJson)
 import Data.Array ((!!))
+import Data.Either (Either(..))
 import Data.Generic.Rep (class Generic)
 import Data.Generic.Rep.Show (genericShow)
 import Data.Maybe (Maybe(..), fromMaybe)
@@ -57,10 +57,7 @@ derive instance eqKind :: Eq Kind
 derive instance genericKind :: Generic Kind _
 
 instance showKind :: Show Kind where
-  show = case _ of
-    Row k -> "(Row " <> show k <> ")"
-    FunKind k1 k2 -> "(FunKind " <> show k1 <> " " <> show k2 <> ")"
-    NamedKind name -> "(NamedKind " <> show name <> ")"
+  show x = genericShow x
 
 instance decodeJsonKind :: DecodeJson Kind where
   decodeJson json = do
@@ -165,31 +162,7 @@ derive instance eqType :: Eq Type
 derive instance genericType :: Generic Type _
 
 instance showType :: Show Type where
-  show = case _ of
-    TypeVar _String ->
-      "(TypeVar " <> show _String <> ")"
-    TypeLevelString _String ->
-      "(TypeLevelString " <> show _String <> ")"
-    TypeWildcard ->
-      "TypeWildcard"
-    TypeConstructor _QualifiedName ->
-      "(TypeConstructor " <> show _QualifiedName <> ")"
-    TypeOp _QualifiedName ->
-      "(TypeOp " <> show _QualifiedName <> ")"
-    TypeApp _Type1 _Type2 ->
-      "(TypeApp " <> show _Type1 <> " " <> show _Type2 <> ")"
-    ForAll _String _Type  _Maybe_Kind  ->
-      "(ForAll " <> show _String <> " " <> show _Type <> " " <> show _Maybe_Kind <> ")"
-    ConstrainedType _Constraint _Type ->
-      "(ConstrainedType " <> show _Constraint <> " " <> show _Type <> ")"
-    REmpty ->
-      "REmpty"
-    RCons _String _Type1 _Type2 ->
-         "(RConsLabel " <> show _String <> " " <> show _Type1 <> " " <> show _Type2 <> ")"
-    BinaryNoParensType _Type1 _Type2 _Type3 ->
-      "(BinaryNoParensTypeType " <> show _Type1 <> " " <> show _Type2 <> " " <> show _Type3 <> ")"
-    ParensInType _Type ->
-      "(ParensInType " <> show _Type <> ")"
+  show x = genericShow x
 
 instance decodeJsonType :: DecodeJson Type where
   decodeJson json = do
