@@ -2,6 +2,8 @@ module Spago.Search.Declarations where
 
 import Prelude
 
+import Spago.Search.TypeParser (Kind, Type)
+
 import Control.Promise (Promise, toAffE)
 import Data.Argonaut.Core (Json, fromString, stringify, toString)
 import Data.Argonaut.Decode (class DecodeJson, decodeJson, (.:), (.:?))
@@ -87,6 +89,8 @@ newtype IndexEntry
   = IndexEntry { title :: String
                , comments :: Maybe String
                , info :: { declType :: DeclType
+                         , kind :: Maybe Kind
+                         , type :: Maybe Type
                          }
                , sourceSpan :: { start :: Array Int
                                , end :: Array Int
@@ -108,7 +112,11 @@ instance decodeJsonIndexEntry :: DecodeJson IndexEntry where
     title      <- handle .:  "title"
     comments   <- handle .:? "comments"
     children   <- handle .:  "children"
-    info       <- handle .:  "info"
+    info       <- handle .:  "info" >>= \ihandle -> do
+      ty       <- ihandle .:? "type"
+      kind     <- ihandle .:? "kind"
+      declType <- ihandle .:  "declType"
+      pure { type: ty, kind, declType }
     sourceSpan <- handle .:  "sourceSpan"
     pure { title, comments, info, sourceSpan, children }
 

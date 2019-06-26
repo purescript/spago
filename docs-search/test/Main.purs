@@ -1,23 +1,24 @@
 module Test.Main where
 
 import Data.Argonaut.Decode
+import Data.Argonaut.Encode
 import Data.Argonaut.Parser
 import Data.Either
 import Data.Maybe
+import Effect (Effect)
 import Effect.Aff
+import Effect.Console (log)
 import Partial.Unsafe
 import Prelude
+import Spago.Search.Declarations
 import Spago.Search.TypeParser
-
-import Effect (Effect)
-import Effect.Console (log)
 import Test.Unit (suite, test, timeout)
 import Test.Unit.Assert as Assert
 import Test.Unit.Main (runTest)
 
 main :: Effect Unit
 main = runTest do
-  let mkJson x = unsafePartial $  fromRight $ jsonParser x
+  let mkJson x = unsafePartial $ fromRight $ jsonParser x
   suite "Kind parser" do
 
     test "QualifiedName" do
@@ -257,7 +258,7 @@ main = runTest do
       """
 
       assertRight (decodeJson binaryNoParens) $
-        BinaryNoParens
+        BinaryNoParensType
         (TypeOp $ QualifiedName { moduleName: ["Data", "NaturalTransformation"], name: "~>" })
         (TypeVar "m")
         (TypeVar "n")
@@ -357,6 +358,34 @@ main = runTest do
           (TypeApp (TypeConstructor $ QualifiedName { moduleName: [ "Data", "Symbol" ], name: "SProxy" })
                    (TypeVar "t"))
           REmpty
+
+    test "ForAll" do
+      let forallJson = mkJson """
+      {"annotation":[],"tag":"ForAll","contents":["a",{"annotation":[],"tag":"TypeApp","contents":[{"annotation":[],"tag":"TypeApp","contents":[{"annotation":[],"tag":"TypeConstructor","contents":[["Prim"],"Function"]},{"annotation":[],"tag":"TypeConstructor","contents":[["Prim"],"String"]}]},{"annotation":[],"tag":"TypeVar","contents":"a"}]},null]}
+      """
+      assertRight (decodeJson forallJson) $
+        ForAll "a" Nothing (TypeApp (TypeApp (TypeConstructor $ qualified ["Prim"] "Function")
+                                             (TypeConstructor $ qualified ["Prim"] "String"))
+                                    (TypeVar "a")) Nothing
+  suite "jsons" do
+
+    test "jsons #1" do
+      let json = mkJson """
+{"annotation":[],"tag":"ForAll","contents":["o",{"annotation":[],"tag":"ForAll","contents":["r",{"annotation":[],"tag":"ForAll","contents":["l",{"annotation":[],"tag":"ConstrainedType","contents":[{"constraintAnn":[],"constraintClass":[["Type","Data","Boolean"],"And"],"constraintArgs":[{"annotation":[],"tag":"TypeVar","contents":"l"},{"annotation":[],"tag":"TypeVar","contents":"r"},{"annotation":[],"tag":"TypeVar","contents":"o"}],"constraintData":null},{"annotation":[],"tag":"TypeApp","contents":[{"annotation":[],"tag":"TypeApp","contents":[{"annotation":[],"tag":"TypeConstructor","contents":[["Prim"],"Function"]},{"annotation":[],"tag":"TypeApp","contents":[{"annotation":[],"tag":"TypeConstructor","contents":[["Type","Data","Boolean"],"BProxy"]},{"annotation":[],"tag":"TypeVar","contents":"l"}]}]},{"annotation":[],"tag":"TypeApp","contents":[{"annotation":[],"tag":"TypeApp","contents":[{"annotation":[],"tag":"TypeConstructor","contents":[["Prim"],"Function"]},{"annotation":[],"tag":"TypeApp","contents":[{"annotation":[],"tag":"TypeConstructor","contents":[["Type","Data","Boolean"],"BProxy"]},{"annotation":[],"tag":"TypeVar","contents":"r"}]}]},{"annotation":[],"tag":"TypeApp","contents":[{"annotation":[],"tag":"TypeConstructor","contents":[["Type","Data","Boolean"],"BProxy"]},{"annotation":[],"tag":"TypeVar","contents":"o"}]}]}]}]},null]},null]},null]}
+      """
+
+      assertRight (decodeJson json) $ (ForAll "o" Nothing (ForAll "r" Nothing (ForAll "l" Nothing (ConstrainedType (Constraint { constraintArgs: [(TypeVar "l"),(TypeVar "r"),(TypeVar "o")], constraintClass: (QualifiedName { moduleName: ["Type","Data","Boolean"], name: "And" }) }) (TypeApp (TypeApp (TypeConstructor (QualifiedName { moduleName: ["Prim"], name: "Function" })) (TypeApp (TypeConstructor (QualifiedName { moduleName: ["Type","Data","Boolean"], name: "BProxy" })) (TypeVar "l"))) (TypeApp (TypeApp (TypeConstructor (QualifiedName { moduleName: ["Prim"], name: "Function" })) (TypeApp (TypeConstructor (QualifiedName { moduleName: ["Type","Data","Boolean"], name: "BProxy" })) (TypeVar "r"))) (TypeApp (TypeConstructor (QualifiedName { moduleName: ["Type","Data","Boolean"], name: "BProxy" })) (TypeVar "o"))))) Nothing) Nothing) Nothing)
+
+  suite "Kind encoder" do
+    test "FunKind" do
+      let k1 =
+            FunKind (Row (NamedKind $ qualified [] "a"))
+                    (FunKind (NamedKind $ qualified [] "b")
+                             (NamedKind $ qualified [] "b"))
+      assertRight (decodeJson $ encodeJson $ k1) k1
+
+
+qualified moduleName name = QualifiedName { moduleName, name }
 
 assertRight :: forall a. Show a => Eq a => Either String a -> a -> Aff Unit
 assertRight eiActual expected =
