@@ -138,7 +138,7 @@ data Type
   -- | A type application
   | TypeApp Type Type
   -- | Forall quantifier
-  | ForAll String (Maybe Kind) Type (Maybe SkolemScope)
+  | ForAll String Type (Maybe Kind)
   -- | A type withset of type class constraints
   | ConstrainedType Constraint Type
   {-
@@ -160,8 +160,6 @@ data Type
   -- data constructor will be removed.
   | ParensInType Type
 
-type SkolemScope = Unit
-
 derive instance eqType :: Eq Type
 derive instance genericType :: Generic Type _
 
@@ -179,8 +177,8 @@ instance showType :: Show Type where
       "(TypeOp " <> show _QualifiedName <> ")"
     TypeApp _Type1 _Type2 ->
       "(TypeApp " <> show _Type1 <> " " <> show _Type2 <> ")"
-    ForAll _String _Maybe_Kind _Type _Maybe_SkolemScope ->
-      "(ForAll " <> show _String <> " " <> show _Maybe_Kind <> " " <> show _Type <> " " <> show _Maybe_SkolemScope <> ")"
+    ForAll _String _Type  _Maybe_Kind  ->
+      "(ForAll " <> show _String <> " " <> show _Type <> " " <> show _Maybe_Kind <> ")"
     ConstrainedType _Constraint _Type ->
       "(ConstrainedType " <> show _Constraint <> " " <> show _Type <> ")"
     REmpty ->
@@ -205,7 +203,7 @@ instance decodeJsonType :: DecodeJson Type where
         decodeContents (decodeTuple TypeApp (const err)) (Left err) json
         where err = mkJsonError' "TypeApp" json
       "ForAll" ->
-        decodeContents (decodeTuple (\str ty -> ForAll str Nothing ty Nothing) err) (Left $ err unit) json
+        decodeContents (decodeTriple ForAll err) (Left $ err unit) json
         where err = mkJsonError "ForAll" json
       "ConstrainedType" ->
         decodeContents (decodeTuple ConstrainedType err) (Left $ err unit) json
@@ -231,7 +229,7 @@ instance encodeJsonType :: EncodeJson Type where
     TypeConstructor val -> encodeTaggedContents "TypeConstructor" (encodeJson val)
     TypeOp          val -> encodeTaggedContents "TypeOp"          (encodeJson val)
     TypeApp t1 t2       -> encodeTaggedContents "TypeApp"         (encodeTuple t1 t2)
-    ForAll str _ ty _   -> encodeTaggedContents "ForAll"          (encodeTuple str ty) -- TODO
+    ForAll str ty mbk   -> encodeTaggedContents "ForAll"          (encodeTriple str ty mbk)
     ConstrainedType c t -> encodeTaggedContents "ConstrainedType" (encodeTuple c t)
     REmpty              -> encodeTaggedContents "REmpty"          jsonEmptyObject
     RCons s t1 t2       -> encodeTaggedContents "RCons"           (encodeTriple s t1 t2)

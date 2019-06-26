@@ -364,9 +364,9 @@ main = runTest do
       {"annotation":[],"tag":"ForAll","contents":["a",{"annotation":[],"tag":"TypeApp","contents":[{"annotation":[],"tag":"TypeApp","contents":[{"annotation":[],"tag":"TypeConstructor","contents":[["Prim"],"Function"]},{"annotation":[],"tag":"TypeConstructor","contents":[["Prim"],"String"]}]},{"annotation":[],"tag":"TypeVar","contents":"a"}]},null]}
       """
       assertRight (decodeJson forallJson) $
-        ForAll "a" Nothing (TypeApp (TypeApp (TypeConstructor $ qualified ["Prim"] "Function")
-                                             (TypeConstructor $ qualified ["Prim"] "String"))
-                                    (TypeVar "a")) Nothing
+        ForAll "a" (TypeApp (TypeApp (TypeConstructor $ qualified ["Prim"] "Function")
+                                     (TypeConstructor $ qualified ["Prim"] "String"))
+                            (TypeVar "a")) Nothing
   suite "jsons" do
 
     test "jsons #1" do
@@ -374,7 +374,7 @@ main = runTest do
 {"annotation":[],"tag":"ForAll","contents":["o",{"annotation":[],"tag":"ForAll","contents":["r",{"annotation":[],"tag":"ForAll","contents":["l",{"annotation":[],"tag":"ConstrainedType","contents":[{"constraintAnn":[],"constraintClass":[["Type","Data","Boolean"],"And"],"constraintArgs":[{"annotation":[],"tag":"TypeVar","contents":"l"},{"annotation":[],"tag":"TypeVar","contents":"r"},{"annotation":[],"tag":"TypeVar","contents":"o"}],"constraintData":null},{"annotation":[],"tag":"TypeApp","contents":[{"annotation":[],"tag":"TypeApp","contents":[{"annotation":[],"tag":"TypeConstructor","contents":[["Prim"],"Function"]},{"annotation":[],"tag":"TypeApp","contents":[{"annotation":[],"tag":"TypeConstructor","contents":[["Type","Data","Boolean"],"BProxy"]},{"annotation":[],"tag":"TypeVar","contents":"l"}]}]},{"annotation":[],"tag":"TypeApp","contents":[{"annotation":[],"tag":"TypeApp","contents":[{"annotation":[],"tag":"TypeConstructor","contents":[["Prim"],"Function"]},{"annotation":[],"tag":"TypeApp","contents":[{"annotation":[],"tag":"TypeConstructor","contents":[["Type","Data","Boolean"],"BProxy"]},{"annotation":[],"tag":"TypeVar","contents":"r"}]}]},{"annotation":[],"tag":"TypeApp","contents":[{"annotation":[],"tag":"TypeConstructor","contents":[["Type","Data","Boolean"],"BProxy"]},{"annotation":[],"tag":"TypeVar","contents":"o"}]}]}]}]},null]},null]},null]}
       """
 
-      assertRight (decodeJson json) $ (ForAll "o" Nothing (ForAll "r" Nothing (ForAll "l" Nothing (ConstrainedType (Constraint { constraintArgs: [(TypeVar "l"),(TypeVar "r"),(TypeVar "o")], constraintClass: (QualifiedName { moduleName: ["Type","Data","Boolean"], name: "And" }) }) (TypeApp (TypeApp (TypeConstructor (QualifiedName { moduleName: ["Prim"], name: "Function" })) (TypeApp (TypeConstructor (QualifiedName { moduleName: ["Type","Data","Boolean"], name: "BProxy" })) (TypeVar "l"))) (TypeApp (TypeApp (TypeConstructor (QualifiedName { moduleName: ["Prim"], name: "Function" })) (TypeApp (TypeConstructor (QualifiedName { moduleName: ["Type","Data","Boolean"], name: "BProxy" })) (TypeVar "r"))) (TypeApp (TypeConstructor (QualifiedName { moduleName: ["Type","Data","Boolean"], name: "BProxy" })) (TypeVar "o"))))) Nothing) Nothing) Nothing)
+      assertRight (decodeJson json) $ (ForAll "o" (ForAll "r" (ForAll "l" (ConstrainedType (Constraint { constraintArgs: [(TypeVar "l"),(TypeVar "r"),(TypeVar "o")], constraintClass: (QualifiedName { moduleName: ["Type","Data","Boolean"], name: "And" }) }) (TypeApp (TypeApp (TypeConstructor (QualifiedName { moduleName: ["Prim"], name: "Function" })) (TypeApp (TypeConstructor (QualifiedName { moduleName: ["Type","Data","Boolean"], name: "BProxy" })) (TypeVar "l"))) (TypeApp (TypeApp (TypeConstructor (QualifiedName { moduleName: ["Prim"], name: "Function" })) (TypeApp (TypeConstructor (QualifiedName { moduleName: ["Type","Data","Boolean"], name: "BProxy" })) (TypeVar "r"))) (TypeApp (TypeConstructor (QualifiedName { moduleName: ["Type","Data","Boolean"], name: "BProxy" })) (TypeVar "o"))))) Nothing) Nothing) Nothing)
 
   suite "Kind encoder" do
     test "FunKind" do
