@@ -19,7 +19,28 @@ import Test.Unit.Main (runTest)
 main :: Effect Unit
 main = runTest do
   let mkJson x = unsafePartial $ fromRight $ jsonParser x
-  suite "Kind parser" do
+  suite "FunDeps decoder" do
+    test "FunDeps" do
+      let funDeps = mkJson """
+       [
+          [
+            [
+              "lhs",
+              "rhs"
+            ],
+            [
+              "output"
+            ]
+          ]
+        ]
+      """
+      assertRight (decodeJson funDeps)
+        (FunDeps [ FunDep { lhs: [ "lhs", "rhs" ]
+                          , rhs: [ "output"]
+                          }
+                 ])
+
+  suite "Kind decoder" do
 
     test "QualifiedName" do
 
@@ -131,7 +152,7 @@ main = runTest do
         )
 
 
-  suite "Constraint parser" do
+  suite "Constraint decoder" do
     test "Constraint" do
       let constraint = mkJson """
       {
@@ -153,7 +174,7 @@ main = runTest do
                     , constraintArgs: []
                     })
 
-  suite "Type parser" do
+  suite "Type decoder" do
     test "TypeVar" do
       let typeVar = mkJson """
       {
@@ -385,6 +406,7 @@ main = runTest do
       assertRight (decodeJson $ encodeJson $ k1) k1
 
 
+qualified :: Array String -> String -> QualifiedName
 qualified moduleName name = QualifiedName { moduleName, name }
 
 assertRight :: forall a. Show a => Eq a => Either String a -> a -> Aff Unit

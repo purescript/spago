@@ -45,6 +45,22 @@ insertStyle doc = do
   .top-banner__actions {
     width: 10%;
   }
+  .load_more {
+    margin-top:2em;
+  }
+  .load_more p {
+    font-style:italic
+  }
+  .load_more a {
+    background:#eee;
+    padding:0.4em
+  }
+  #load-more-link {
+    cursor: pointer;
+  }
+  .result {
+    font-size: 1.25em;
+  }
   """
   mbHead <-
     ParentNode.querySelector (wrap "head") (Document.toParentNode doc)

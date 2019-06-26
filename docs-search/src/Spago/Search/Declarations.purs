@@ -2,7 +2,7 @@ module Spago.Search.Declarations where
 
 import Prelude
 
-import Spago.Search.TypeParser (Kind, Type)
+import Spago.Search.TypeParser
 
 import Control.Promise (Promise, toAffE)
 import Data.Argonaut.Core (Json, fromString, stringify, toString)
@@ -89,8 +89,12 @@ newtype IndexEntry
   = IndexEntry { title :: String
                , comments :: Maybe String
                , info :: { declType :: DeclType
-                         , kind :: Maybe Kind
-                         , type :: Maybe Type
+                         , kind          :: Maybe Kind
+                         , typeArguments :: Maybe (Array TypeArgument)
+                         , type          :: Maybe Type
+                         , superclasses  :: Maybe (Array Constraint)
+                         , arguments     :: Maybe (Array TypeArgument)
+                         , fundeps       :: Maybe FunDeps
                          }
                , sourceSpan :: { start :: Array Int
                                , end :: Array Int
@@ -112,11 +116,15 @@ instance decodeJsonIndexEntry :: DecodeJson IndexEntry where
     title      <- handle .:  "title"
     comments   <- handle .:? "comments"
     children   <- handle .:  "children"
-    info       <- handle .:  "info" >>= \ihandle -> do
-      ty       <- ihandle .:? "type"
-      kind     <- ihandle .:? "kind"
-      declType <- ihandle .:  "declType"
-      pure { type: ty, kind, declType }
+    info       <- handle .:  "info" >>= \info -> do
+      ty            <- info .:? "type"
+      kind          <- info .:? "kind"
+      typeArguments <- info .:? "typeArguments"
+      arguments     <- info .:? "arguments"
+      superclasses  <- info .:? "superclasses"
+      fundeps       <- info .:? "fundeps"
+      declType      <- info .:  "declType"
+      pure { type: ty, kind, declType, typeArguments, superclasses, fundeps, arguments }
     sourceSpan <- handle .:  "sourceSpan"
     pure { title, comments, info, sourceSpan, children }
 
@@ -127,6 +135,8 @@ newtype ChildIndexEntry
   = ChildIndexEntry { title :: String
                     , comments :: Maybe String
                     , info :: { declType :: ChildDeclType
+                              , arguments :: Maybe (Array Type)
+                              , type :: Maybe Type
                               }
                     , mbSourceSpan :: Maybe { start :: Array Int
                                             , end :: Array Int
@@ -145,7 +155,11 @@ instance decodeJsonChildIndexEntry :: DecodeJson ChildIndexEntry where
     handle       <- decodeJson json
     title        <- handle .:  "title"
     comments     <- handle .:? "comments"
-    info         <- handle .:  "info"
+    info         <- handle .:  "info" >>= \info -> do
+      arguments <- info .:? "arguments"
+      ty        <- info .:? "type"
+      declType  <- info .:  "declType"
+      pure { arguments, declType, type: ty }
     mbSourceSpan <- handle .:?  "sourceSpan"
     pure { title, comments, info, mbSourceSpan }
 

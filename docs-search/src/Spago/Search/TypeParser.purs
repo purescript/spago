@@ -1,12 +1,13 @@
 module Spago.Search.TypeParser where
 
+import Data.Either
+import Data.Traversable
 import Prelude
 
-import Data.Argonaut.Core (Json, caseJsonObject, fromArray, fromObject, jsonEmptyObject, stringify, toArray)
+import Data.Argonaut.Core (Json, caseJsonArray, caseJsonObject, fromArray, fromObject, jsonEmptyObject, jsonNull, stringify, toArray)
 import Data.Argonaut.Decode (class DecodeJson, decodeJson, (.:))
 import Data.Argonaut.Encode (class EncodeJson, encodeJson)
 import Data.Array ((!!))
-import Data.Either (Either(..))
 import Data.Generic.Rep (class Generic)
 import Data.Generic.Rep.Show (genericShow)
 import Data.Maybe (Maybe(..), fromMaybe)
@@ -237,6 +238,59 @@ instance encodeJsonType :: EncodeJson Type where
       encodeTaggedContents "BinaryNoParensType" (encodeTriple t1 t2 t3)
     ParensInType t      -> encodeTaggedContents "ParensInType"    (encodeJson t)
     TypeWildcard        -> encodeTaggedContents "TypeWildcard"    jsonEmptyObject
+
+newtype FunDep
+  = FunDep
+    { lhs :: Array String
+    , rhs :: Array String
+    }
+
+derive newtype instance eqFunDep :: Eq FunDep
+derive newtype instance showFunDep :: Show FunDep
+derive instance newtypeFunDep :: Newtype FunDep _
+
+instance decodeJsonFunDep :: DecodeJson FunDep where
+  decodeJson json =
+    decodeTuple
+      (\lhs rhs -> FunDep { lhs, rhs })
+      (mkJsonError "FunDep" json)
+      json
+
+instance encodeJsonFunDep :: EncodeJson FunDep where
+  encodeJson (FunDep {lhs, rhs}) =
+    fromArray [ encodeJson lhs, encodeJson rhs ]
+
+newtype FunDeps = FunDeps (Array FunDep)
+
+derive newtype instance eqFunDeps :: Eq FunDeps
+derive newtype instance showFunDeps :: Show FunDeps
+derive instance newtypeFunDeps :: Newtype FunDeps _
+
+instance decodeJsonFunDeps :: DecodeJson FunDeps where
+  decodeJson json = FunDeps <$> decodeJson json
+
+instance encodeJsonFunDeps :: EncodeJson FunDeps where
+  encodeJson (FunDeps deps) = encodeJson deps
+
+newtype TypeArgument
+  = TypeArgument
+    { name :: String
+    , mbKind :: Maybe Kind
+    }
+
+derive newtype instance eqTypeArgument :: Eq TypeArgument
+derive newtype instance showTypeArgument :: Show TypeArgument
+derive instance newtypeTypeArgument :: Newtype TypeArgument _
+
+instance decodeJsonTypeArgument :: DecodeJson TypeArgument where
+  decodeJson json =
+    decodeTuple (\name mbKind -> TypeArgument { name, mbKind })
+    (mkJsonError "TypeArgument" json)
+    json
+
+instance encodeJsonTypeArgument :: EncodeJson TypeArgument where
+  encodeJson (TypeArgument { name, mbKind }) =
+    fromArray [ encodeJson name, encodeJson mbKind ]
 
 -- | Decode a heterogeneous tuple, serialized as an array.
 -- | e.g. `[0, ""]` to `Tuple 0 ""`
