@@ -10,8 +10,8 @@ import Effect.Aff
 import Effect.Console (log)
 import Partial.Unsafe
 import Prelude
-import Spago.Search.Declarations
-import Spago.Search.TypeParser
+import Spago.Search.DocsJson
+import Spago.Search.TypeDecoder
 import Test.Unit (suite, test, timeout)
 import Test.Unit.Assert as Assert
 import Test.Unit.Main (runTest)

@@ -1,4 +1,4 @@
-module Spago.Search.TypeParser where
+module Spago.Search.TypeDecoder where
 
 import Data.Either
 import Data.Traversable

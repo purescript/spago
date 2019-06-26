@@ -2,7 +2,7 @@ module Spago.Search.App.SearchResults where
 
 import Prelude
 import Spago.Search.Index
-import Spago.Search.TypeParser
+import Spago.Search.TypeDecoder
 
 import CSS (textWhitespace, whitespacePreWrap)
 import Data.Array as Array
@@ -24,7 +24,7 @@ import Halogen.HTML.CSS as HS
 import Halogen.HTML.Events as HE
 import Halogen.HTML.Properties as HP
 import Spago.Search.App.SearchField (Message(..))
-import Spago.Search.Declarations (loadDeclarations)
+import Spago.Search.DocsJson (loadDeclarations)
 import Spago.Search.Extra (whenJust)
 import Web.DOM.Element (Element)
 import Web.DOM.Element as Element

@@ -2,7 +2,7 @@ module Spago.Seach.IndexBuilder where
 
 import Prelude
 
-import Spago.Search.Declarations (Declarations)
+import Spago.Search.DocsJson (Declarations)
 import Spago.Search.Index (mkSearchIndex)
 
 import Data.Argonaut.Core (stringify)

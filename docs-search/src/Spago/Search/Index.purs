@@ -2,8 +2,8 @@ module Spago.Search.Index where
 
 import Prelude
 
-import Spago.Search.TypeParser (Constraint, FunDeps, Kind, Type, TypeArgument)
-import Spago.Search.Declarations (ChildDeclType(..), ChildIndexEntry(..), DeclType(..), Declarations(..), IndexEntry(..))
+import Spago.Search.TypeDecoder (Constraint, FunDeps, Kind, Type, TypeArgument)
+import Spago.Search.DocsJson (ChildDeclType(..), ChildIndexEntry(..), DeclType(..), Declarations(..), IndexEntry(..))
 
 import Control.Alt ((<|>))
 import Data.Array ((!!))

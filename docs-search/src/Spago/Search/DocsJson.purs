@@ -1,8 +1,8 @@
-module Spago.Search.Declarations where
+module Spago.Search.DocsJson where
 
 import Prelude
 
-import Spago.Search.TypeParser
+import Spago.Search.TypeDecoder
 
 import Control.Promise (Promise, toAffE)
 import Data.Argonaut.Core (Json, fromString, stringify, toString)
