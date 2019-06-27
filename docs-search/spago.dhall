@@ -1,14 +1,18 @@
 { name =
 	"my-project"
 , dependencies =
-	[ "effect"
-	, "aff-promise"
+	[ "aff-promise"
 	, "argonaut-codecs"
 	, "argonaut-core"
 	, "arrays"
 	, "console"
+	, "control"
+	, "coroutines"
+	, "effect"
 	, "foldable-traversable"
 	, "generics-rep"
+	, "halogen"
+	, "halogen-css"
 	, "lists"
 	, "maybe"
 	, "newtype"
@@ -19,12 +23,10 @@
 	, "psci-support"
 	, "search-trie"
 	, "strings"
+	, "string-parsers"
+	, "test-unit"
 	, "web-dom"
 	, "web-html"
-	, "halogen"
-	, "halogen-css"
-	, "coroutines"
-	, "test-unit"
 	]
 , packages =
 	./packages.dhall

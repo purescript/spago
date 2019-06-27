@@ -15,9 +15,12 @@ import Spago.Search.TypeDecoder
 import Test.Unit (suite, test, timeout)
 import Test.Unit.Assert as Assert
 import Test.Unit.Main (runTest)
+import Test.TypeQuery as TypeQuery
 
 main :: Effect Unit
 main = runTest do
+  TypeQuery.tests
+
   let mkJson x = unsafePartial $ fromRight $ jsonParser x
   suite "FunDeps decoder" do
     test "FunDeps" do
