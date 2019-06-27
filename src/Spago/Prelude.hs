@@ -32,6 +32,8 @@ module Spago.Prelude
   , mktree
   , mv
   , cptree
+  , chmod
+  , executable
   , readTextFile
   , writeTextFile
   , atomically
@@ -97,7 +99,7 @@ import           System.FilePath               (isAbsolute, pathSeparator, (</>)
 import           System.IO                     (hPutStrLn)
 import           Turtle                        (ExitCode (..), FilePath, appendonly, mktree, repr,
                                                 shell, shellStrict, systemStrictWithErr, testdir,
-                                                testfile)
+                                                testfile, chmod, executable)
 import           UnliftIO                      (MonadUnliftIO, withRunInIO)
 import           UnliftIO.Directory            (getModificationTime, makeAbsolute)
 import           UnliftIO.Exception            (IOException, try)

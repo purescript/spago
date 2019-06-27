@@ -141,8 +141,12 @@ runWithNode defaultModuleName maybeSuccessMessage failureMessage maybeModuleName
   where
     moduleName = fromMaybe defaultModuleName maybeModuleName
     args = Text.intercalate " " $ map Purs.unExtraArg nodeArgs
-    cmd = "node -e \"require('./output/" <> Purs.unModuleName moduleName <> "').main()\" " <> args
+    contents = "#!/usr/bin/env node\n\n" <> "require('../output/" <> Purs.unModuleName moduleName <> "').main()"
+    cmd = "node .spago/run.js " <> args
     nodeAction = do
+      echoDebug $ "Writing .spago/run.js"
+      writeTextFile ".spago/run.js" contents
+      chmod executable ".spago/run.js"
       shell cmd empty >>= \case
         ExitSuccess   -> fromMaybe (pure ()) (echo <$> maybeSuccessMessage)
         ExitFailure n -> die $ failureMessage <> repr n
