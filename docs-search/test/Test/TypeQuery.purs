@@ -162,6 +162,39 @@ tests = do
                                              (QApp (QVar "f")
                                               (QApp (QConst "List") (QVar "a")))))))
 
+    test "test #28" do
+      let input = "forall f a. Alternative f => Lazy(f (List a))=>f a -> f (List a)"
+      assertRight (parseTypeQuery input) ((QForAll (nl "f" ["a"]))
+                                          (QConstraint "Alternative" (l [QVar "f"])
+                                           (QConstraint "Lazy" (l [QApp (QVar "f")
+                                                                   (QApp (QConst "List") (QVar "a"))])
+                                            (QFun (QApp (QVar "f") (QVar "a"))
+                                             (QApp (QVar "f")
+                                              (QApp (QConst "List") (QVar "a")))))))
+
+    test "test #29" do
+      let input = "{a::Int,b::Int}"
+      assertRight (parseTypeQuery input)
+        (QApp (QConst "Record") (QRow (List.fromFoldable [ Tuple "a" (QConst "Int"), Tuple "b" (QConst "Int")])))
+
+    test "test #30" do
+      let input = "{record''' :: Int}"
+      assertRight (parseTypeQuery input)
+        (QApp (QConst "Record") (QRow (List.fromFoldable [ Tuple "record'''" (QConst "Int")])))
+
+    test "test #31" do
+      let input = "(row''' :: Int)"
+      assertRight (parseTypeQuery input)
+        (QRow (List.fromFoldable [ Tuple "row'''" (QConst "Int")]))
+
+    test "test #32" do
+      let input = "(row1 :: Int, row2 :: (),row3::(row4::{}))"
+      assertRight (parseTypeQuery input)
+        (QRow (l [ Tuple "row1" (QConst "Int")
+                 , Tuple "row2" (QRow Nil)
+                 , Tuple "row3" (QRow (l [ Tuple "row4" (QApp (QConst "Record") (QRow Nil)) ])) ]))
+
+
   suite "polish notation" do
 
     test "test #1" do

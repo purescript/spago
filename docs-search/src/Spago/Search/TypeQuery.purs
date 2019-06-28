@@ -51,7 +51,7 @@ typeQueryParser = fix \typeQuery ->
       record = QApp (QConst "Record") <$> (string "{" *> rowFields <* string "}")
 
       binders =
-        string "forall" *> some space *> sepEndBy1 ident (some space) <* string "." <* skipSpaces
+        string "forall" *> some space *> sepEndBy1 ident skipSpaces <* string "." <* skipSpaces
 
       for_all = QForAll <$> binders <*> typeQuery
 
@@ -74,7 +74,7 @@ typeQueryParser = fix \typeQuery ->
         foldr1 QFun <$> sepBy1 apps (string "->" *> skipSpaces)
 
       constrained =
-        QConstraint <$> (upperCaseIdent <* some space) <*>
+        QConstraint <$> (upperCaseIdent <* skipSpaces) <*>
                         (sepEndBy ((QVar <$> ident) <|> parens) (many space) <* string "=>" <* skipSpaces) <*>
                         typeQuery
   in
