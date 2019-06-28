@@ -11,7 +11,7 @@ import Data.Generic.Rep.Show (genericShow)
 import Data.List (List(..), (:))
 import Data.List as List
 import Data.List.NonEmpty as NonEmptyList
-import Data.Maybe (Maybe)
+import Data.Maybe (Maybe(..))
 import Data.Set as Set
 import Data.Tuple (Tuple(..), snd)
 
@@ -108,10 +108,11 @@ shapeOfType ty = List.reverse $ go (pure ty) Nil
           go rest (PVar : acc)
 
         row@(RCons _ _ _) ->
-          go (typesInRow <> rest) (PRow (List.length joined) : acc)
+          go (typesInRow <> rest) (PRow (List.length joined.rows) : acc)
           where
-            joined = List.sortBy (\x y -> compare x.row y.row) $ joinRows row
-            typesInRow = joined <#> (_.ty)
+            joined = joinRows row
+            sorted = List.sortBy (\x y -> compare x.row y.row) $ joined.rows
+            typesInRow = sorted <#> (_.ty)
 
         BinaryNoParensType op l r ->
           go (TypeApp (TypeApp op l) r : rest) acc
@@ -128,11 +129,17 @@ joinForAlls ty = go Nil ty
       go ({ var, mbKind } : acc) ty'
     go acc ty' = { binders: acc, ty: ty' }
 
-joinRows :: Type -> List { row :: String
-                         , ty :: Type
-                         }
+joinRows :: Type -> { rows :: List { row :: String
+                                   , ty :: Type
+                                   }
+                    , ty :: Maybe Type }
 joinRows = go Nil
   where
     go acc (RCons row ty rest) =
       go ({ row, ty } : acc) rest
-    go acc _ = List.reverse acc
+    go acc ty = { rows:  List.reverse acc
+                , ty:
+                  case ty of
+                    REmpty -> Nothing
+                    ty' -> Just ty'
+                }

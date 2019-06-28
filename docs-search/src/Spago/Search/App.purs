@@ -61,6 +61,9 @@ insertStyle doc = do
   .result {
     font-size: 1.25em;
   }
+  .result__body .keyword, .result__body .syntax {
+    color: #0B71B4;
+  }
   """
   mbHead <-
     ParentNode.querySelector (wrap "head") (Document.toParentNode doc)

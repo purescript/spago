@@ -11,7 +11,7 @@ import Data.List (List, (:))
 import Data.List as List
 import Data.Maybe (Maybe(..), fromMaybe)
 import Data.Newtype (class Newtype, unwrap)
-import Data.Search.Trie (Trie, alter, entriesUnordered, fromList, insert)
+import Data.Search.Trie (Trie, alter, entriesUnordered)
 import Data.String.CodeUnits (stripPrefix, stripSuffix, toCharArray)
 import Data.String.Common (toLower)
 import Data.String.Common as String
@@ -31,7 +31,9 @@ data ResultInfo
   | ExternDataResult      { kind :: Kind }
   | TypeSynonymResult     { type :: Type }
   | DataConstructorResult { arguments :: Array Type }
-  | TypeClassMemberResult { type :: Type }
+  | TypeClassMemberResult { type :: Type
+                          , typeClass :: String
+                          , typeClassArguments :: Array String }
   | TypeClassResult       { fundeps :: FunDeps
                           , arguments :: Array TypeArgument
                           , superclasses :: Array Constraint }
@@ -131,27 +133,30 @@ resultsForEntry
   -> List { path :: String
           , result :: SearchResult
           }
-resultsForEntry moduleName ie@(IndexEntry entry@{info, title, sourceSpan, comments, children}) =
-  let { name, declLevel } = getLevelAndName info.declType title
+resultsForEntry moduleName indexEntry@(IndexEntry entry) =
+  let { info, title, sourceSpan, comments, children } = entry
+      { name, declLevel } = getLevelAndName info.declType title
       packageName = extractPackageName sourceSpan.name
-  in case mkInfo declLevel ie of
+  in case mkInfo declLevel indexEntry of
        Nothing -> mempty
-       Just info' -> (
-         List.singleton $
-         { path: name
-         , result: SearchResult { name: title
-                                , comments
-                                , hashAnchor: declLevelToHashAnchor declLevel
-                                , moduleName
-                                , sourceSpan: Just sourceSpan
-                                , packageName
-                                , info: info'
-                                }
-         }
-         ) <>
-         ( List.fromFoldable children >>=
-           resultsForChildIndexEntry packageName moduleName
-         )
+       Just info' ->
+         let result = SearchResult { name: title
+                                   , comments
+                                   , hashAnchor: declLevelToHashAnchor declLevel
+                                   , moduleName
+                                   , sourceSpan: Just sourceSpan
+                                   , packageName
+                                   , info: info'
+                                   }
+         in
+           ( List.singleton $
+               { path: name
+               , result
+               }
+           ) <>
+           ( List.fromFoldable children >>=
+             resultsForChildIndexEntry packageName moduleName result
+           )
 
 mkInfo :: DeclLevel -> IndexEntry -> Maybe ResultInfo
 mkInfo declLevel (IndexEntry { info, title }) =
@@ -240,11 +245,12 @@ extractPackageName name =
 resultsForChildIndexEntry
   :: String
   -> String
+  -> SearchResult
   -> ChildIndexEntry
   -> List { path :: String, result :: SearchResult }
-resultsForChildIndexEntry packageName moduleName
-  cie@(ChildIndexEntry { title, info, comments, mbSourceSpan }) =
-    case mkChildInfo cie of
+resultsForChildIndexEntry packageName moduleName parentResult
+  child@(ChildIndexEntry { title, info, comments, mbSourceSpan }) =
+    case mkChildInfo parentResult child of
       Nothing -> mempty
       Just resultInfo ->
         { path: title
@@ -258,13 +264,21 @@ resultsForChildIndexEntry packageName moduleName
                                }
         } # List.singleton
 
-mkChildInfo :: ChildIndexEntry -> Maybe ResultInfo
-mkChildInfo (ChildIndexEntry { info } ) =
+mkChildInfo :: SearchResult -> ChildIndexEntry -> Maybe ResultInfo
+mkChildInfo parentResult (ChildIndexEntry { info } ) =
   case info.declType of
     ChildDeclDataConstructor ->
       info.arguments <#>
       \arguments -> DataConstructorResult { arguments }
     ChildDeclTypeClassMember ->
-      info.type <#>
-      \ty -> TypeClassMemberResult { type: ty }
+      -- We need to get the name and the type arguments of a parent class.
+      case (unwrap parentResult).info of
+        TypeClassResult { arguments } ->
+          info.type <#>
+            \ty -> TypeClassMemberResult
+                     { type: ty
+                     , typeClass: (unwrap parentResult).name
+                     , typeClassArguments: arguments <#> unwrap >>> (_.name)
+                     }
+        _ -> Nothing
     ChildDeclInstance -> Nothing

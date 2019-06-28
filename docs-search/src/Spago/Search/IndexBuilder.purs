@@ -1,4 +1,4 @@
-module Spago.Seach.IndexBuilder where
+module Spago.Search.IndexBuilder where
 
 import Prelude
 
@@ -96,4 +96,9 @@ main = do
     writeDeclarations declarations
     patchDocs
     let index = mkSearchIndex declarations
-    liftEffect $ log $ "Loaded " <> show (Trie.size $ (unwrap index).decls) <> " definitions"
+    liftEffect $ log $
+      "Loaded " <>
+      show (Trie.size $ (unwrap index).decls) <>
+      " definitions and " <>
+      show (Trie.size $ (unwrap index).types) <>
+      " type definitions"

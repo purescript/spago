@@ -5,20 +5,27 @@ import Data.Argonaut.Encode
 import Data.Argonaut.Parser
 import Data.Either
 import Data.Maybe
-import Effect (Effect)
 import Effect.Aff
-import Effect.Console (log)
 import Partial.Unsafe
 import Prelude
 import Spago.Search.DocsJson
 import Spago.Search.TypeDecoder
+
+import Effect (Effect)
+import Effect.Aff (Aff, launchAff_)
+import Effect.Class (liftEffect)
+import Effect.Console (log)
+import Test.TypeQuery as TypeQuery
+import Test.TypeShape as TypeShape
 import Test.Unit (suite, test)
 import Test.Unit.Assert as Assert
-import Test.Unit.Main (runTest)
-import Test.TypeQuery as TypeQuery
+import Test.Unit.Main (run, runTest)
 
 main :: Effect Unit
-main = runTest do
+main = do
+  runTest mainTest
+
+mainTest = do
   TypeQuery.tests
 
   let mkJson x = unsafePartial $ fromRight $ jsonParser x

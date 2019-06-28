@@ -10,15 +10,19 @@ import Halogen.HTML as HH
 import Halogen.HTML.CSS as HS
 import Halogen.HTML.Events as HE
 import Halogen.HTML.Properties as HP
+import Web.UIEvent.KeyboardEvent as KeyboardEvent
 
 type State = { input :: String }
 
 data Action
   = InputAction String
+  | EnterPressed
+  | EscapePressed
   | FocusChanged Boolean
 
 data Message
   = InputUpdated String
+  | InputCleared
   | Focused
   | LostFocus
 
@@ -37,7 +41,12 @@ handleAction :: forall m. Action -> H.HalogenM State Action () Message m Unit
 handleAction = case _ of
   InputAction input -> do
     H.modify_ $ const { input }
-    H.raise $ InputUpdated input
+  EnterPressed -> do
+    state <- H.get
+    H.raise $ InputUpdated state.input
+  EscapePressed -> do
+    H.modify_ (_ { input = "" })
+    H.raise $ InputCleared
   FocusChanged status -> do
     H.raise
       if status
@@ -60,6 +69,11 @@ render state =
     [ HP.value state.input
     , HP.placeholder "Search for definitions"
     , HP.type_ HP.InputText
+    , HE.onKeyUp (\event ->
+                   case KeyboardEvent.code event of
+                     "Enter"  -> Just EnterPressed
+                     "Escape" -> Just EscapePressed
+                     _        -> Nothing)
     , HE.onValueInput (Just <<< InputAction)
     , HE.onFocusIn  $ const $ Just $ FocusChanged true
     , HE.onFocusOut $ const $ Just $ FocusChanged false

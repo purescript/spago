@@ -8,7 +8,8 @@ import Data.Either (Either)
 import Data.Foldable (foldl)
 import Data.Generic.Rep (class Generic)
 import Data.Generic.Rep.Show (genericShow)
-import Data.List (List(..), some, (:))
+import Data.String.Common (trim) as String
+import Data.List (List(..), many, some, (:))
 import Data.List as List
 import Data.List.NonEmpty (NonEmptyList, cons', uncons)
 import Data.List.NonEmpty as NonEmptyList
@@ -26,7 +27,7 @@ data TypeQuery
   | QFun TypeQuery TypeQuery
   | QApp TypeQuery TypeQuery
   | QForAll (NonEmptyList String) TypeQuery
-  | QConstraint String (List String) TypeQuery
+  | QConstraint String (List TypeQuery) TypeQuery
   | QRow (List (Tuple String TypeQuery))
 
 derive instance eqTypeQuery :: Eq TypeQuery
@@ -36,7 +37,7 @@ instance showTypeQuery :: Show TypeQuery where
   show x = genericShow x
 
 parseTypeQuery :: String -> Either ParseError TypeQuery
-parseTypeQuery = runParser (typeQueryParser <* eof)
+parseTypeQuery = String.trim >>> runParser (typeQueryParser <* eof)
 
 typeQueryParser :: Parser TypeQuery
 typeQueryParser = fix \typeQuery ->
@@ -45,7 +46,9 @@ typeQueryParser = fix \typeQuery ->
                                   (skipSpaces *> typeQuery <* skipSpaces))
                        (string "," *> skipSpaces)
 
-      row = string "{" *> rowFields <* string "}"
+      row = string "(" *> rowFields <* string ")"
+
+      record = QApp (QConst "Record") <$> (string "{" *> rowFields <* string "}")
 
       binders =
         string "forall" *> some space *> sepEndBy1 ident (some space) <* string "." <* skipSpaces
@@ -57,8 +60,9 @@ typeQueryParser = fix \typeQuery ->
 
       atom = skipSpaces *> (
         for_all    <|>
-        parens     <|>
+        try parens <|>
         row        <|>
+        record     <|>
         concrete   <|>
         any
       )
@@ -71,7 +75,7 @@ typeQueryParser = fix \typeQuery ->
 
       constrained =
         QConstraint <$> (upperCaseIdent <* some space) <*>
-                        (sepEndBy ident (some space) <* string "=>" <* skipSpaces) <*>
+                        (sepEndBy ((QVar <$> ident) <|> parens) (many space) <* string "=>" <* skipSpaces) <*>
                         typeQuery
   in
     try constrained <|> funs
@@ -101,19 +105,19 @@ concrete =
 ident :: Parser String
 ident = do
   head <- anyLetter
-  rest <- Array.many alphaNum
+  rest <- Array.many (alphaNum <|> char '\'')
   pure $ fromCharArray $ pure head <> rest
 
 upperCaseIdent :: Parser String
 upperCaseIdent = do
   head <- upperCaseChar
-  rest <- Array.many alphaNum
+  rest <- Array.many (alphaNum <|> char '\'')
   pure $ fromCharArray $ pure head <> rest
 
 lowerCaseIdent :: Parser String
 lowerCaseIdent = do
   head <- lowerCaseChar
-  rest <- Array.many alphaNum
+  rest <- Array.many (alphaNum <|> char '\'')
   pure $ fromCharArray $ pure head <> rest
 
 space :: Parser Char
@@ -152,7 +156,7 @@ getFreeVariables query = go Set.empty Set.empty (List.singleton $ Next query)
         queue = (Next q : Unbind (Set.difference newBound bound) : rest)
 
     go bound free (Next (QConstraint _ vars q) : rest) =
-      go bound (List.foldr (insertIfUnbound bound) free vars) (Next q : rest)
+      go bound free ((Next <$> vars) <> (Next q : rest))
 
     go bound free (Next (QRow lst) : rest) =
       go bound free ((lst <#> snd >>> Next) <> rest)

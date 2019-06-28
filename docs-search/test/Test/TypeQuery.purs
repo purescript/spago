@@ -104,19 +104,19 @@ tests = do
       let input = "forall m a. Monad m => a -> m a"
       assertRight (parseTypeQuery input)
         (QForAll (nl "m" ["a"])
-                 (QConstraint "Monad" (l ["m"])
+                 (QConstraint "Monad" (l [QVar "m"])
                   (QFun (QVar "a")
                         (QApp (QVar "m") (QVar "a")))))
 
     test "test #19" do
       let input = "{ a :: Int }"
       assertRight (parseTypeQuery input)
-        (QRow (pure (Tuple "a" (QConst "Int"))))
+        (QApp (QConst "Record") (QRow (pure (Tuple "a" (QConst "Int")))))
 
     test "test #20" do
       let input = "{a::Int}"
       assertRight (parseTypeQuery input)
-        (QRow (pure (Tuple "a" (QConst "Int"))))
+        (QApp (QConst "Record") (QRow (pure (Tuple "a" (QConst "Int")))))
 
     test "test #21" do
       let input = "Int"
@@ -129,7 +129,7 @@ tests = do
     test "test #23" do
       let input = "forall m a. MonadRec m => Process m a -> m a"
       assertRight (parseTypeQuery input) (QForAll (nl "m" ("a" : Nil))
-                                          (QConstraint "MonadRec" ("m" : Nil)
+                                          (QConstraint "MonadRec" (l [QVar "m"])
                                            (QFun (QApp (QApp (QConst "Process")
                                                         (QVar "m")) (QVar "a"))
                                             (QApp (QVar "m") (QVar "a")))))
@@ -137,16 +137,30 @@ tests = do
     test "test #24" do
       let input = "forall t f a. Foldable1 t => Apply f => f"
       assertRight (parseTypeQuery input) (QForAll (nl "t" ["f", "a"])
-                                          (QConstraint "Foldable1" (l ["t"])
-                                           (QConstraint "Apply" ("f" : Nil) (QVar "f"))))
+                                          (QConstraint "Foldable1" (l [QVar "t"])
+                                           (QConstraint "Apply" (l [QVar "f"]) (QVar "f"))))
 
     test "test #25" do
       let input = "forall m a.MonadRec m=>Process m a->m a"
       assertRight (parseTypeQuery input) ((QForAll (nl "m" ("a" : Nil))
-                                           (QConstraint "MonadRec" ("m" : Nil)
+                                           (QConstraint "MonadRec" (l [QVar "m"])
                                             (QFun (QApp (QApp (QConst "Process")
                                                          (QVar "m")) (QVar "a"))
                                              (QApp (QVar "m") (QVar "a"))))))
+
+    test "test #26" do
+      let input = "m a -> (a -> m b) -> m b"
+      assertRight (parseTypeQuery input) (QFun (QApp (QVar "m") (QVar "a")) (QFun (QFun (QVar "a") (QApp (QVar "m") (QVar "b"))) (QApp (QVar "m") (QVar "b"))))
+
+    test "test #27" do
+      let input = "forall f a. Alternative f => Lazy (f (List a)) => f a -> f (List a)"
+      assertRight (parseTypeQuery input) ((QForAll (nl "f" ["a"]))
+                                          (QConstraint "Alternative" (l [QVar "f"])
+                                           (QConstraint "Lazy" (l [QApp (QVar "f")
+                                                                   (QApp (QConst "List") (QVar "a"))])
+                                            (QFun (QApp (QVar "f") (QVar "a"))
+                                             (QApp (QVar "f")
+                                              (QApp (QConst "List") (QVar "a")))))))
 
   suite "polish notation" do
 
