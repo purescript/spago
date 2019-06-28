@@ -96,4 +96,4 @@ main = do
     writeDeclarations declarations
     patchDocs
     let index = mkSearchIndex declarations
-    liftEffect $ log $ "Loaded " <> show (Trie.size $ unwrap index) <> " definitions"
+    liftEffect $ log $ "Loaded " <> show (Trie.size $ (unwrap index).decls) <> " definitions"

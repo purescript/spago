@@ -1,136 +1,228 @@
 module Test.TypeQuery where
 
-
-import Data.Argonaut.Decode
-import Data.Argonaut.Encode
-import Data.Argonaut.Parser
-import Data.Either
-import Data.Maybe
-import Effect (Effect)
-import Effect.Aff
-import Effect.Console (log)
-import Partial.Unsafe
 import Prelude
 import Spago.Search.DocsJson
-import Spago.Search.TypeDecoder
 import Spago.Search.TypeQuery
-import Test.Unit (suite, test, timeout)
-import Test.Unit.Assert as Assert
-import Test.Unit.Main (runTest)
-import Data.List as List
+import Spago.Search.TypeShape
+
+import Data.Either (Either(..), isRight)
+import Data.Foldable (class Foldable)
 import Data.List (List(..), (:))
-import Data.Tuple
-import Data.Foldable
+import Data.List as List
 import Data.List.NonEmpty (NonEmptyList)
 import Data.List.NonEmpty as NonEmptyList
+import Data.Set as Set
+import Data.Tuple (Tuple(..))
+import Effect.Aff (Aff)
+import Test.Unit (TestSuite, suite, test)
+import Test.Unit.Assert as Assert
 
-tests =
+tests :: TestSuite
+tests = do
   suite "TypeQuery parser" do
 
     test "test #0" do
       let input = "a"
-      assertRight (parseTypeQuery input) (QAny "a")
+      assertRight (parseTypeQuery input) (QVar "a")
 
-    test "test #0.1" do
+    test "test #1" do
       let input = "ab"
-      assertRight (parseTypeQuery input) (QAny "ab")
-
-    test "test #1.0" do
-      let input = "a b"
-      assertRight (parseTypeQuery input) (QApp (QAny "a") (QAny "b"))
-
-    test "test #1.1" do
-      let input = "a b c"
-      assertRight (parseTypeQuery input) (QApp (QApp (QAny "a") (QAny "b")) (QAny "c"))
+      assertRight (parseTypeQuery input) (QVar "ab")
 
     test "test #2" do
-      let input = "a -> b"
-      assertRight (parseTypeQuery input) (QFun (QAny "a") (QAny "b"))
+      let input = "a b"
+      assertRight (parseTypeQuery input) (QApp (QVar "a") (QVar "b"))
 
     test "test #3" do
-      let input = "a -> b c"
-      assertRight (parseTypeQuery input) (QFun (QAny "a") (QApp (QAny "b") (QAny "c")))
+      let input = "a b c"
+      assertRight (parseTypeQuery input) (QApp (QApp (QVar "a") (QVar "b")) (QVar "c"))
 
     test "test #4" do
-      let input = "a b -> c"
-      assertRight (parseTypeQuery input) (QFun (QApp (QAny "a") (QAny "b")) (QAny "c"))
+      let input = "a -> b"
+      assertRight (parseTypeQuery input) (QFun (QVar "a") (QVar "b"))
 
     test "test #5" do
-      let input = "a b"
-      assertRight (parseTypeQuery input) (QApp (QAny "a") (QAny "b"))
+      let input = "a -> b c"
+      assertRight (parseTypeQuery input) (QFun (QVar "a") (QApp (QVar "b") (QVar "c")))
 
     test "test #6" do
-      let input = "a (b c)"
-      assertRight (parseTypeQuery input) (QApp (QAny "a") (QApp (QAny "b") (QAny "c")))
-
-    test "test #6.1" do
-      let input = "(a b) (c d)"
-      assertRight (parseTypeQuery input)
-        (QApp (QApp (QAny "a") (QAny "b"))
-              (QApp (QAny "c") (QAny "d")))
+      let input = "a b -> c"
+      assertRight (parseTypeQuery input) (QFun (QApp (QVar "a") (QVar "b")) (QVar "c"))
 
     test "test #7" do
-      let input = "a ( b c )"
-      assertRight (parseTypeQuery input) (QApp (QAny "a") (QApp (QAny "b") (QAny "c")))
+      let input = "a b"
+      assertRight (parseTypeQuery input) (QApp (QVar "a") (QVar "b"))
 
     test "test #8" do
-      let input = "aaa"
-      assertRight (parseTypeQuery input) (QAny "aaa")
+      let input = "a (b c)"
+      assertRight (parseTypeQuery input) (QApp (QVar "a") (QApp (QVar "b") (QVar "c")))
 
     test "test #9" do
-      let input = "aaa ( bbb ccc )"
-      assertRight (parseTypeQuery input) (QApp (QAny "aaa") (QApp (QAny "bbb") (QAny "ccc")))
+      let input = "(a b) (c d)"
+      assertRight (parseTypeQuery input)
+        (QApp (QApp (QVar "a") (QVar "b"))
+              (QApp (QVar "c") (QVar "d")))
 
     test "test #10" do
-      let input = "(a -> b) ->  (c -> d)"
-      assertRight (parseTypeQuery input) (QFun (QFun (QAny "a") (QAny "b"))
-                                                  (QFun (QAny "c") (QAny "d")))
+      let input = "a ( b c )"
+      assertRight (parseTypeQuery input) (QApp (QVar "a") (QApp (QVar "b") (QVar "c")))
 
     test "test #11" do
-      let input = "a -> b -> c -> d"
-      assertRight (parseTypeQuery input) (QFun (QAny "a")
-                                          (QFun (QAny "b")
-                                           (QFun (QAny "c") (QAny "d"))))
-
-    test "test #11.1" do
-      let input = "a -> b -> c"
-      assertRight (parseTypeQuery input) (QFun (QAny "a")
-                                          (QFun (QAny "b")
-                                           (QAny "c")))
+      let input = "aaa"
+      assertRight (parseTypeQuery input) (QVar "aaa")
 
     test "test #12" do
-      let input = "forall a b c. c"
-      assertRight (parseTypeQuery input) (QForAll (nl "a" ["b", "c"]) (QAny "c"))
+      let input = "aaa ( bbb ccc )"
+      assertRight (parseTypeQuery input) (QApp (QVar "aaa") (QApp (QVar "bbb") (QVar "ccc")))
 
     test "test #13" do
-      let input = "forall a. Maybe a"
-      assertRight (parseTypeQuery input) (QForAll (nl "a" $ []) (QApp (QConcrete "Maybe") (QAny "a")))
+      let input = "(a -> b) ->  (c -> d)"
+      assertRight (parseTypeQuery input) (QFun (QFun (QVar "a") (QVar "b"))
+                                                  (QFun (QVar "c") (QVar "d")))
 
     test "test #14" do
+      let input = "a -> b -> c -> d"
+      assertRight (parseTypeQuery input) (QFun (QVar "a")
+                                          (QFun (QVar "b")
+                                           (QFun (QVar "c") (QVar "d"))))
+
+    test "test #15" do
+      let input = "a -> b -> c"
+      assertRight (parseTypeQuery input) (QFun (QVar "a")
+                                          (QFun (QVar "b")
+                                           (QVar "c")))
+
+    test "test #16" do
+      let input = "forall a b c. c"
+      assertRight (parseTypeQuery input) (QForAll (nl "a" ["b", "c"]) (QVar "c"))
+
+    test "test #17" do
+      let input = "forall a. Maybe a"
+      assertRight (parseTypeQuery input) (QForAll (nl "a" $ []) (QApp (QConst "Maybe") (QVar "a")))
+
+    test "test #18" do
       let input = "forall m a. Monad m => a -> m a"
       assertRight (parseTypeQuery input)
         (QForAll (nl "m" ["a"])
                  (QConstraint "Monad" (l ["m"])
-                  (QFun (QAny "a")
-                        (QApp (QAny "m") (QAny "a")))))
+                  (QFun (QVar "a")
+                        (QApp (QVar "m") (QVar "a")))))
 
-    test "test #15" do
+    test "test #19" do
       let input = "{ a :: Int }"
       assertRight (parseTypeQuery input)
-        (QRow (pure (Tuple "a" (QConcrete "Int"))))
+        (QRow (pure (Tuple "a" (QConst "Int"))))
 
-    test "test #16" do
+    test "test #20" do
       let input = "{a::Int}"
       assertRight (parseTypeQuery input)
-        (QRow (pure (Tuple "a" (QConcrete "Int"))))
+        (QRow (pure (Tuple "a" (QConst "Int"))))
 
-    test "test #17" do
+    test "test #21" do
       let input = "Int"
-      assertRight (parseTypeQuery input) (QConcrete "Int")
+      assertRight (parseTypeQuery input) (QConst "Int")
 
-    test "test #18" do
+    test "test #22" do
       let input = "a->b"
-      assertRight (parseTypeQuery input) (QFun (QAny "a") (QAny "b"))
+      assertRight (parseTypeQuery input) (QFun (QVar "a") (QVar "b"))
+
+    test "test #23" do
+      let input = "forall m a. MonadRec m => Process m a -> m a"
+      assertRight (parseTypeQuery input) (QForAll (nl "m" ("a" : Nil))
+                                          (QConstraint "MonadRec" ("m" : Nil)
+                                           (QFun (QApp (QApp (QConst "Process")
+                                                        (QVar "m")) (QVar "a"))
+                                            (QApp (QVar "m") (QVar "a")))))
+
+    test "test #24" do
+      let input = "forall t f a. Foldable1 t => Apply f => f"
+      assertRight (parseTypeQuery input) (QForAll (nl "t" ["f", "a"])
+                                          (QConstraint "Foldable1" (l ["t"])
+                                           (QConstraint "Apply" ("f" : Nil) (QVar "f"))))
+
+    test "test #25" do
+      let input = "forall m a.MonadRec m=>Process m a->m a"
+      assertRight (parseTypeQuery input) ((QForAll (nl "m" ("a" : Nil))
+                                           (QConstraint "MonadRec" ("m" : Nil)
+                                            (QFun (QApp (QApp (QConst "Process")
+                                                         (QVar "m")) (QVar "a"))
+                                             (QApp (QVar "m") (QVar "a"))))))
+
+  suite "polish notation" do
+
+    test "test #1" do
+      let input = "(a -> b) -> (b -> ((a -> b) -> c))"
+      assertRight (shapeOfTypeQuery <$> parseTypeQuery input)
+          (l [ PForAll 3, PFun, PFun, PVar, PVar, PFun, PVar, PFun, PFun
+             , PVar, PVar, PVar ])
+
+    test "test #2" do
+      let input = "forall a. (a -> b) -> (b -> ((a -> b) -> c))"
+      assertRight (shapeOfTypeQuery <$> parseTypeQuery input)
+          (l [ PForAll 3, PFun, PFun, PVar, PVar, PFun, PVar, PFun, PFun
+             , PVar, PVar, PVar ])
+
+    test "test #3" do
+      let input = "forall a. (a -> b) -> (b -> ((a -> b) -> c))"
+      assertRight (shapeOfTypeQuery <$> parseTypeQuery input)
+          (l [ PForAll 3, PFun, PFun, PVar, PVar, PFun, PVar, PFun, PFun
+             , PVar, PVar, PVar ])
+
+    test "test #4" do
+      let input = "forall a. (forall h. ST h (STArray h a)) -> Array a"
+      assertRight (shapeOfTypeQuery <$> parseTypeQuery input)
+          (l [ PForAll 1, PFun, PForAll 1, PApp, PApp, PVar, PVar, PApp, PApp, PVar, PVar, PVar, PApp, PVar, PVar ])
+
+  suite "free variable counting" do
+
+    test "test #1" do
+      let input = "forall a. (a -> b) -> (b -> ((a -> b) -> c))"
+      assertRight (countFreeVars <$> parseTypeQuery input) 2
+
+    test "test #2" do
+      -- `b` is not bound on the left, `a` is not bound on the right
+      let input = "(forall a. (a -> b)) -> forall b. (b -> a)"
+      assertRight (countFreeVars <$> parseTypeQuery input) 2
+
+    test "test #3" do
+      let input = "a -> forall a. a"
+      assertRight (countFreeVars <$> parseTypeQuery input) 1
+
+    test "test #4" do
+      let input = "(forall a. a) -> a"
+      assertRight (countFreeVars <$> parseTypeQuery input) 1
+
+    test "test #5" do
+      let input = "forall a. a -> a"
+      assertRight (countFreeVars <$> parseTypeQuery input) 0
+
+    test "test #6" do
+      let input = "a -> b -> c"
+      assertRight (countFreeVars <$> parseTypeQuery input) 3
+
+    test "test #7" do
+      let input = "forall m a. Monad m => a -> m a"
+      assertRight (countFreeVars <$> parseTypeQuery input) 0
+
+    test "test #8" do
+      let input = "Monad m => a -> m a"
+      assertRight (countFreeVars <$> parseTypeQuery input) 2
+
+    test "test #9" do
+      let input = "Monad m => a -> a"
+      assertRight (countFreeVars <$> parseTypeQuery input) 2
+
+    test "test #10" do
+      let input = "forall a. (forall a. a) a"
+      assertRight (countFreeVars <$> parseTypeQuery input) 0
+
+    test "test #11" do
+      let input = "forall a. (forall b. a) a"
+      assertRight (countFreeVars <$> parseTypeQuery input) 0
+
+    test "test #12" do
+      let input = "forall a. (forall b. a) a b"
+      assertRight (countFreeVars <$> parseTypeQuery input) 1
 
 l :: forall f. Foldable f => (forall a. f a -> List a)
 l = List.fromFoldable
@@ -153,3 +245,6 @@ assertRight eiActual expected =
       Assert.equal (Right expected) eiActual
     Right actual -> do
       Assert.equal (Right expected) eiActual
+
+countFreeVars :: TypeQuery -> Int
+countFreeVars = getFreeVariables >>> Set.size

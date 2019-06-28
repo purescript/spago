@@ -8,25 +8,26 @@ import Data.Either (Either)
 import Data.Foldable (foldl)
 import Data.Generic.Rep (class Generic)
 import Data.Generic.Rep.Show (genericShow)
-import Data.List (List, some, (:))
+import Data.List (List(..), some, (:))
 import Data.List as List
 import Data.List.NonEmpty (NonEmptyList, cons', uncons)
+import Data.List.NonEmpty as NonEmptyList
 import Data.Maybe (Maybe(..))
+import Data.Set as Set
 import Data.String.CodeUnits (fromCharArray)
-import Data.Tuple (Tuple(..))
+import Data.Tuple (Tuple(..), snd)
 import Text.Parsing.StringParser (ParseError, Parser, runParser, try)
 import Text.Parsing.StringParser.CodePoints (alphaNum, anyLetter, char, eof, lowerCaseChar, skipSpaces, string, upperCaseChar)
 import Text.Parsing.StringParser.Combinators (fix, sepBy, sepBy1, sepEndBy, sepEndBy1)
 
 data TypeQuery
-  = QAny String
-  | QConcrete String
+  = QVar String
+  | QConst String
   | QFun TypeQuery TypeQuery
   | QApp TypeQuery TypeQuery
   | QForAll (NonEmptyList String) TypeQuery
   | QConstraint String (List String) TypeQuery
   | QRow (List (Tuple String TypeQuery))
-  | QEmpty
 
 derive instance eqTypeQuery :: Eq TypeQuery
 derive instance genericTypeQuery :: Generic TypeQuery _
@@ -70,8 +71,8 @@ typeQueryParser = fix \typeQuery ->
 
       constrained =
         QConstraint <$> (upperCaseIdent <* some space) <*>
-                        (sepEndBy ident (some space) <* string "=>") <*>
-                        funs
+                        (sepEndBy ident (some space) <* string "=>" <* skipSpaces) <*>
+                        typeQuery
   in
     try constrained <|> funs
 
@@ -91,11 +92,11 @@ foldr1 f = go List.Nil
 
 any :: Parser TypeQuery
 any = do
-  QAny <$> lowerCaseIdent
+  QVar <$> lowerCaseIdent
 
 concrete :: Parser TypeQuery
 concrete =
-  QConcrete <$> upperCaseIdent
+  QConst <$> upperCaseIdent
 
 ident :: Parser String
 ident = do
@@ -117,3 +118,41 @@ lowerCaseIdent = do
 
 space :: Parser Char
 space = char ' '
+
+
+-- | Used only in `getFreeVariables`.
+data FreeVarCounterQueueEntry = Unbind (Set.Set String) | Next TypeQuery
+
+getFreeVariables :: TypeQuery -> Set.Set String
+getFreeVariables query = go Set.empty Set.empty (List.singleton $ Next query)
+  where
+    insertIfUnbound bound var free =
+      if Set.member var bound
+      then free
+      else Set.insert var free
+
+    go bound free Nil = free
+    go bound free (Unbind vars : rest) =
+      go (Set.difference bound vars) free rest
+
+    go bound free (Next (QVar var) : rest) =
+      go bound (insertIfUnbound bound var free) rest
+
+    go bound free (Next (QConst str) : rest) =
+      go bound free rest
+    go bound free (Next (QFun q1 q2) : rest) =
+      go bound free (Next q1 : Next q2 : rest)
+    go bound free (Next (QApp q1 q2) : rest) =
+      go bound free (Next q1 : Next q2 : rest)
+
+    go bound free (Next (QForAll nl q) : rest) =
+      go (Set.union bound newBound) free queue
+      where
+        newBound = NonEmptyList.foldr Set.insert mempty nl
+        queue = (Next q : Unbind (Set.difference newBound bound) : rest)
+
+    go bound free (Next (QConstraint _ vars q) : rest) =
+      go bound (List.foldr (insertIfUnbound bound) free vars) (Next q : rest)
+
+    go bound free (Next (QRow lst) : rest) =
+      go bound free ((lst <#> snd >>> Next) <> rest)

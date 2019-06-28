@@ -1,9 +1,8 @@
 module Spago.Search.Index where
 
+import Data.Tuple
 import Prelude
-
-import Spago.Search.TypeDecoder (Constraint, FunDeps, Kind, Type, TypeArgument)
-import Spago.Search.DocsJson (ChildDeclType(..), ChildIndexEntry(..), DeclType(..), Declarations(..), IndexEntry(..))
+import Spago.Search.TypeShape
 
 import Control.Alt ((<|>))
 import Data.Array ((!!))
@@ -11,14 +10,19 @@ import Data.Foldable (foldr)
 import Data.List (List, (:))
 import Data.List as List
 import Data.Maybe (Maybe(..), fromMaybe)
-import Data.Newtype (class Newtype)
-import Data.Search.Trie (Trie, alter)
+import Data.Newtype (class Newtype, unwrap)
+import Data.Search.Trie (Trie, alter, entriesUnordered, fromList, insert)
 import Data.String.CodeUnits (stripPrefix, stripSuffix, toCharArray)
 import Data.String.Common (toLower)
 import Data.String.Common as String
 import Data.String.Pattern (Pattern(..))
+import Spago.Search.DocsJson (ChildDeclType(..), ChildIndexEntry(..), DeclType(..), Declarations(..), IndexEntry(..))
+import Spago.Search.TypeDecoder (Constraint, FunDeps, Kind, Type, TypeArgument)
 
-newtype SearchIndex = SearchIndex (Trie Char (List SearchResult))
+newtype SearchIndex
+  = SearchIndex  { decls :: Trie Char (List SearchResult)
+                 , types :: Trie ShapeChunk (List SearchResult)
+                 }
 
 derive instance newtypeSearchIndex :: Newtype SearchIndex _
 
@@ -52,7 +56,42 @@ newtype SearchResult
 derive instance newtypeSearchResult :: Newtype SearchResult _
 
 mkSearchIndex :: Array Declarations -> SearchIndex
-mkSearchIndex = SearchIndex <<< foldr insertDeclarations mempty
+mkSearchIndex decls =
+  SearchIndex { decls: trie
+              , types
+              }
+  where
+    trie = foldr insertDeclarations mempty decls
+    types = foldr insertTypes mempty do
+      Tuple _ results <- entriesUnordered trie
+      result <- results
+      case (unwrap result).info of
+        ValueResult dict ->
+          insertTypeResultsFor dict.type result
+        TypeClassMemberResult dict ->
+          -- TODO: fix missing foralls for type class members
+          insertTypeResultsFor dict.type result
+        TypeSynonymResult dict ->
+          insertTypeResultsFor dict.type result
+        _ -> mempty
+
+    insertTypeResultsFor ty result =
+      let path = shapeOfType ty in
+      pure $ Tuple path result
+
+insertTypes
+  :: Tuple (List ShapeChunk) SearchResult
+  -> Trie ShapeChunk (List SearchResult)
+  -> Trie ShapeChunk (List SearchResult)
+insertTypes (Tuple path result) trie =
+  alter path updateResults trie
+  where
+    updateResults mbOldResults =
+      case mbOldResults of
+        Just oldResults ->
+          Just $ result : oldResults
+        Nothing ->
+          Just $ List.singleton result
 
 insertDeclarations
   :: Declarations

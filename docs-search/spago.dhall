@@ -20,7 +20,7 @@
 	, "node-fs"
 	, "node-fs-aff"
 	, "node-process"
-	, "psci-support"
+	, "profunctor"
 	, "search-trie"
 	, "strings"
 	, "string-parsers"

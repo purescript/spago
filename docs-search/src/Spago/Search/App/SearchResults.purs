@@ -1,13 +1,15 @@
 module Spago.Search.App.SearchResults where
 
 import Prelude
+
 import Spago.Search.Index
 import Spago.Search.TypeDecoder
+import Spago.Search.TypeShape
+import Spago.Search.TypeQuery
 
 import CSS (textWhitespace, whitespacePreWrap)
 import Data.Array as Array
 import Data.Either (Either(..))
-import Data.List (List(..), (:))
 import Data.List as List
 import Data.Maybe (Maybe(..), isNothing, isJust)
 import Data.Newtype (unwrap, wrap)
@@ -32,8 +34,12 @@ import Web.HTML as HTML
 import Web.HTML.Location as Location
 import Web.HTML.Window as Window
 
+-- | Is it a search by type or by declaration?
+data ResultsType = TypeResults TypeQuery | DeclResults
+
 type State = { mbIndex :: Maybe SearchIndex
              , results :: Array SearchResult
+             , resultsType :: ResultsType
              , input :: String
              , contents :: Element
              , resultsCount :: Int
@@ -51,6 +57,7 @@ mkComponent contents =
   H.mkComponent
     { initialState: const { mbIndex: Nothing
                           , results: []
+                          , resultsType: DeclResults
                           , input: ""
                           , contents
                           , resultsCount: 25
@@ -87,11 +94,28 @@ handleQuery (SearchFieldMessage (InputUpdated input) next) = do
       let path = List.fromFoldable $
                  String.toCharArray $
                  String.toLower input
-      H.modify_ (_ { results = Array.concat $
-                               List.toUnfoldable $
-                               map List.toUnfoldable $
-                               Trie.queryValues path $
-                               index
+          eiTypeQuery = parseTypeQuery input
+          resultsType =
+            case eiTypeQuery of
+              Left _ -> DeclResults
+              Right query
+                | isValuableQuery query -> TypeResults query
+                | otherwise -> DeclResults
+          results =
+            case resultsType of
+              DeclResults ->
+                Array.concat $
+                List.toUnfoldable $
+                map List.toUnfoldable $
+                Trie.queryValues path $
+                index.decls
+              TypeResults query ->
+                List.toUnfoldable $
+                Trie.queryValues shape index.types >>= identity
+                where
+                  shape = shapeOfTypeQuery query
+      H.modify_ (_ { results = results
+                   , resultsType = resultsType
                    , resultsCount = 25 })
   pure Nothing
 
@@ -149,10 +173,13 @@ render state =
     ]
   else
     let selectedResults = Array.take state.resultsCount state.results in
-    [ HH.div [ HP.classes [ wrap "result" ] ]
+    [ HH.div [ HP.classes [ wrap "result" ] ] $
       [ HH.text "Found "
       , HH.strong_ [ HH.text $ show $ Array.length state.results ]
-      , HH.text " definitions"
+      , HH.text $
+          case state.resultsType of
+            DeclResults   -> " definitions."
+            TypeResults _ -> " definitions with similar types."
       ]
 
     , HH.div [ HP.id_ "spage-search-results-container" ] $
@@ -167,7 +194,6 @@ render state =
              [ HH.text "No further results." ]
       ]
     ]
-
 
 renderSummary :: forall a b. String -> HH.HTML b a
 renderSummary text =
@@ -259,7 +285,11 @@ renderType = case _ of
 
   TypeApp (TypeConstructor (QualifiedName { moduleName: ["Prim"]
                                           , name: "Record" }))
-          record -> renderRow record
+          record ->
+    HH.span_ [ HH.text "{ | "
+             , renderType record
+             , HH.text " }" ]
+
 
   TypeApp t1 t2 ->
     HH.span_ [ renderType t1
@@ -268,10 +298,10 @@ renderType = case _ of
              ]
 
   ty@(ForAll _ _ _) ->
-    let foralls = joinForalls ty in
+    let foralls = joinForAlls ty in
     HH.span_ $
     [ HH.text "forall" ] <>
-    ( Array.fromFoldable foralls.vars <#>
+    ( Array.fromFoldable foralls.binders <#>
       \ { var, mbKind } ->
         case mbKind of
           Nothing -> HH.text (" " <> var)
@@ -293,11 +323,11 @@ renderType = case _ of
   REmpty -> HH.text "{}"
   ty@(RCons _ _ _) -> renderRow ty
 
-  BinaryNoParensType t1 t2 t3 ->
+  BinaryNoParensType op t1 t2 ->
     HH.span_
     [ renderType t1
+    , renderType op
     , renderType t2
-    , renderType t3
     ]
   ParensInType ty ->
     HH.span_
@@ -305,14 +335,6 @@ renderType = case _ of
     , renderType ty
     , HH.text ")"
     ]
-
-joinForalls :: Type -> { vars :: List.List { var :: String, mbKind :: Maybe Kind }
-                       , ty :: Type }
-joinForalls = go Nil
-  where
-    go acc (ForAll var ty mbKind) =
-      go ({ var, mbKind } : acc) ty
-    go acc ty = { vars: acc, ty }
 
 renderRow :: forall a. Type -> HH.HTML a Action
 renderRow ty =
@@ -325,16 +347,6 @@ renderRow ty =
                , renderType entry.ty ] ]
   ) <>
   [ HH.text " }" ]
-
-joinRows :: Type -> List { row :: String
-                         , ty :: Type
-                         }
-joinRows = go Nil
-  where
-    go acc (RCons row ty rest) =
-      go ({ row, ty } : acc) rest
-    go acc _ = List.reverse acc
-
 
 htmlSingleton :: forall t406 t407. HH.HTML t407 t406 -> HH.HTML t407 t406
 htmlSingleton x = HH.span_ [ x ]
@@ -355,3 +367,8 @@ renderKind = case _ of
   Row k1 -> HH.span_ [ HH.text "#", renderKind k1 ]
   FunKind k1 k2 -> HH.span_ [ renderKind k1, renderKind k2 ]
   NamedKind qname -> renderQualifiedName qname
+
+isValuableQuery :: TypeQuery -> Boolean
+isValuableQuery (QVar _) = false
+isValuableQuery (QConst _) = false
+isValuableQuery _ = true

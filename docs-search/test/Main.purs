@@ -12,7 +12,7 @@ import Partial.Unsafe
 import Prelude
 import Spago.Search.DocsJson
 import Spago.Search.TypeDecoder
-import Test.Unit (suite, test, timeout)
+import Test.Unit (suite, test)
 import Test.Unit.Assert as Assert
 import Test.Unit.Main (runTest)
 import Test.TypeQuery as TypeQuery
