@@ -3,7 +3,8 @@ module BumpVersionSpec (spec) where
 import           Prelude        hiding (FilePath)
 import qualified System.IO.Temp as Temp
 import           Test.Hspec     (Spec, around_, before_, describe, it, shouldBe)
-import           Turtle         (Text, cptree, decodeString, mv)
+import           Turtle         (Text, cptree, decodeString, inplace, mkdir, mv)
+import qualified Turtle.Pattern as Pattern
 import           Utils          (checkFixture, getHighestTag, git,
                                  shouldBeEmptySuccess, shouldBeFailure,
                                  shouldBeSuccess, spago, withCwd)
@@ -30,6 +31,12 @@ initGitTag :: Text -> IO ()
 initGitTag tag = do
   initGit
   git ["tag", "--annotate", tag, "--message", ""] >>= shouldBeSuccess
+
+setOverrides :: Text -> IO ()
+setOverrides t = do
+  let pattern = ("let overrides = " <> t) <$ Pattern.text "let overrides = {=}"
+  inplace pattern "packages.dhall"
+  commitAll
 
 spec :: Spec
 spec = around_ setup $ do
@@ -76,4 +83,16 @@ spec = around_ setup $ do
 
       appendFile ".gitignore" "bower.json\n"
       commitAll
+      spago ["bump-version", "minor"] >>= shouldBeFailure
+
+    before_ initGit $ it "Spago should fail when packages.dhall references non-tagged dependency" $ do
+
+      setOverrides "{ tortellini = upstream.tortellini // { version = \"master\" } }"
+      spago ["bump-version", "minor"] >>= shouldBeFailure
+
+    before_ initGit $ it "Spago should fail when packages.dhall references local dependency" $ do
+
+      mkdir "purescript-tortellini"
+      withCwd "purescript-tortellini" $ spago ["init"] >>= shouldBeSuccess
+      setOverrides "{ tortellini = upstream.tortellini // { repo = \"./purescript-tortellini\" } }"
       spago ["bump-version", "minor"] >>= shouldBeFailure
