@@ -703,22 +703,21 @@ You might then want to open the `index.html` file in there.
 
 If you wish to develop a library with `spago` you can definitely do so, and use it to
 manage and build your project, until you need to "publish" your library, where you'll need
-to use `bower`.
+to use `pulp`.
 
 When you decide you want to publish your library for others to use, you should:
-- make a Bowerfile that includes the dependencies from `spago.dhall`
-- run `pulp version`
-- run `pulp publish`
+- run `spago bump-version <BUMP>`. This will generate a `bower.json` in a new  commit in Git that is tagged with the version.
+- run `pulp publish`. This will ensure the package is registered in Bower, push the version tag to Git and upload documentation to Pursuit. 
 
 This is because the PureScript ecosystem uses the Bower registry as a "unique names registry".
 So in order to "publish" a package one needs to add it there, and eventually to [`package-sets`][package-sets].
 Consequentially, package-sets requires (full instructions [here][package-sets-contributing])
 that packages in it:
 - are in the Bower registry
-- use `pulp version` (because this gives versions with `vX.Y.Z`)
+- use `spago bump-version` or `pulp version` (because this gives versions with `vX.Y.Z`)
 - use `pulp publish` (so that's it's available on the Bower registry and on [Pursuit][pursuit])
 
-All of this will be automated in future versions.
+All of this will be automated in future versions, removing the need for Pulp.
 
 A library published in this way is [purescript-rave](https://github.com/reactormonk/purescript-rave).
 
