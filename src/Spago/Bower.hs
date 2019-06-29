@@ -67,7 +67,7 @@ mkPackageName spagoName = do
   let psName = "purescript-" <> spagoName
   case Bower.mkPackageName psName of
     Left err ->
-      die $ psName <> " is not a valid bower package name: " <> Bower.showPackageNameError err
+      die $ psName <> " is not a valid Bower package name: " <> Bower.showPackageNameError err
     Right name ->
       pure name
 
@@ -81,9 +81,9 @@ mkDependencies config = do
   for deps $ \(PackageName{..}, Package{..}) -> do
     case repo of
       Local path ->
-        die $ "Unable to create bower version for local repo: " <> path
+        die $ "Unable to create Bower version for local repo: " <> path
       Remote _ | not (isTag packageName version reposMeta) ->
-        die $ "Unable to create bower version from non-tag version: " <> packageName <> " " <> version
+        die $ "Unable to create Bower version from non-tag version: " <> packageName <> " " <> version
       Remote _ -> do
         bowerName <- mkPackageName packageName
         pure (bowerName, Bower.VersionRange $ "^" <> version)

@@ -218,7 +218,7 @@ parser = do
 
     bumpVersion =
       ( "bump-version"
-      , "Bump and tag a new version in preparation for release."
+      , "Bump and tag a new version, and generate bower.json, in preparation for release."
       , BumpVersion <$> versionBump
       )
 
