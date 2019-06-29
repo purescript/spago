@@ -45,7 +45,7 @@ getCurrentVersion = do
 
   case Safe.maximumMay tags of
     Nothing -> do
-      echo $ "No existing version tags found so assuming current version is " <> unparseVersion SemVer.initial
+      echo $ "No git version tags found, so assuming current version is " <> unparseVersion SemVer.initial
       pure SemVer.initial
     Just maxVersion -> do
       echo $ "Found current version from git tag: " <> unparseVersion maxVersion
@@ -61,7 +61,7 @@ getNextVersion spec version =
     Patch -> pure $ SemVer.incrementPatch version
     Exact v
       | v > version -> pure v
-      | otherwise -> die "Oh noes! The new version must be higher than the current version." -- todo: move to messages module
+      | otherwise -> die "The new version must be higher than the current version."
 
 
 -- | Make a tag for the new version.
