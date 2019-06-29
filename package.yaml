@@ -78,7 +78,6 @@ library:
   - http-conduit
   - time
   - ansi-terminal
-  - semver
 
 executables:
   spago:
