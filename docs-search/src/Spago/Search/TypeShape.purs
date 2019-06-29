@@ -31,6 +31,19 @@ derive instance genericShapeChunk :: Generic ShapeChunk _
 instance showShapeChunk :: Show ShapeChunk where
   show x = genericShow x
 
+stringifyShape :: TypeShape -> String
+stringifyShape shape =
+  if res == "" then "e" else res
+  where
+    res = List.foldMap stringifyChunk shape
+    stringifyChunk =
+      case _ of
+        PVar      -> "v"
+        PFun      -> "f"
+        PApp      -> "a"
+        PForAll n -> "b" <> show n
+        PRow n    -> "r" <> show n
+
 shapeOfTypeQuery :: TypeQuery -> TypeShape
 shapeOfTypeQuery query =
   prependForAll $ List.reverse $ go (pure query) Nil

@@ -374,7 +374,7 @@ renderTypeClassSignature { fundeps, arguments, superclasses } { name, moduleName
 renderTypeClassMemberSignature
   :: forall a rest
   .  { type :: Type
-     , typeClass :: String
+     , typeClass :: QualifiedName
      , typeClassArguments :: Array String
      }
   -> { name :: String | rest }
@@ -382,12 +382,6 @@ renderTypeClassMemberSignature
 renderTypeClassMemberSignature { type: ty, typeClass, typeClassArguments } result =
   [ HH.text result.name
   , HH.text " :: "
-  , HH.text $ typeClass <> " "
-    -- We don't want to insert `forall` here to avoid visual noise,
-    -- and to make type class members more easily distinguishable from ordinary values.
-    -- TODO: consider doing what pursuit does.
-  , HH.text $ Array.intercalate " " typeClassArguments <> " "
-  , HH.text "=> "
   , renderType ty ]
 
 renderDataSignature

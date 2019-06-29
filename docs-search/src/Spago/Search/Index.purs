@@ -2,9 +2,9 @@ module Spago.Search.Index where
 
 import Prelude
 
-import Spago.Search.TypeShape (ShapeChunk, shapeOfType)
 import Spago.Search.DocsJson (ChildDeclType(..), ChildIndexEntry(..), DataDeclType, DeclType(..), Declarations(..), IndexEntry(..))
-import Spago.Search.TypeDecoder (Constraint, FunDeps, Kind, Type, TypeArgument)
+import Spago.Search.TypeDecoder (Constraint(..), FunDeps, Kind, QualifiedName(..), Type(..), TypeArgument)
+import Spago.Search.TypeShape (ShapeChunk, joinForAlls, shapeOfType)
 
 import Control.Alt ((<|>))
 import Data.Array ((!!))
@@ -12,7 +12,7 @@ import Data.Foldable (foldr)
 import Data.List (List, (:))
 import Data.List as List
 import Data.Maybe (Maybe(..), fromMaybe)
-import Data.Newtype (class Newtype, unwrap)
+import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Search.Trie (Trie, alter, entriesUnordered)
 import Data.String.CodeUnits (stripPrefix, stripSuffix, toCharArray)
 import Data.String.Common (toLower)
@@ -35,7 +35,7 @@ data ResultInfo
                           , type :: Type }
   | DataConstructorResult { arguments :: Array Type }
   | TypeClassMemberResult { type :: Type
-                          , typeClass :: String
+                          , typeClass :: QualifiedName
                           , typeClassArguments :: Array String }
   | TypeClassResult       { fundeps :: FunDeps
                           , arguments :: Array TypeArgument
@@ -76,6 +76,7 @@ mkSearchIndex decls =
         TypeClassMemberResult dict ->
           -- TODO: fix missing foralls for type class members
           insertTypeResultsFor dict.type result
+
         TypeSynonymResult dict ->
           insertTypeResultsFor dict.type result
         _ -> mempty
@@ -277,14 +278,41 @@ mkChildInfo parentResult (ChildIndexEntry { info } ) =
       info.arguments <#>
       \arguments -> DataConstructorResult { arguments }
     ChildDeclTypeClassMember ->
-      -- We need to get the name and the type arguments of a parent class.
       case (unwrap parentResult).info of
         TypeClassResult { arguments } ->
+          -- We need to reconstruct a "real" type of a type class member.
+          -- For example, if `unconstrainedType` is the type of `pure`, i.e. `forall a. a -> m a`,
+          -- `restoredType` should be `forall m a. Control.Applicative.Applicative m => a -> m a`.
           info.type <#>
-            \ty -> TypeClassMemberResult
-                     { type: ty
-                     , typeClass: (unwrap parentResult).name
-                     , typeClassArguments: arguments <#> unwrap >>> (_.name)
-                     }
+            \(unconstrainedType :: Type) ->
+            let
+              -- First, we get a list of nested `forall` quantifiers for `unconstrainedType`
+              -- and a version of `unconstrainedType` without them (`ty`).
+              { ty, binders } = joinForAlls unconstrainedType
+
+              -- Then we construct a qualified name of the type class.
+              parentClassName =
+                QualifiedName { moduleName: String.split (wrap ".") (unwrap parentResult).moduleName
+                              , name: (unwrap parentResult).name }
+
+              typeClassArguments = arguments <#> unwrap >>> _.name
+
+              -- We concatenate two lists:
+              -- * list of type parameters of the type class, and
+              -- * list of quantified variables of the unconstrained type
+              allArguments =
+                typeClassArguments <> (List.toUnfoldable binders <#> (_.var))
+
+              restoredType =
+                foldr (\arg -> compose (\type'' -> ForAll arg type'' Nothing)) identity allArguments $
+                ConstrainedType (Constraint { constraintClass: parentClassName
+                                            , constraintArgs: typeClassArguments <#> TypeVar
+                                            }) ty
+
+            in TypeClassMemberResult
+               { type: restoredType
+               , typeClass: parentClassName
+               , typeClassArguments
+               }
         _ -> Nothing
     ChildDeclInstance -> Nothing
