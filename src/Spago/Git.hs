@@ -9,12 +9,12 @@ module Spago.Git
 import           Spago.Prelude
 
 import qualified Data.Text     as Text
-import qualified Turtle        as T
+import qualified Turtle
 
 
 requireCleanWorkingTree :: Spago m => m ()
 requireCleanWorkingTree = do
-  (code, stdout, stderr) <- T.procStrictWithErr "git" ["status", "--porcelain"] empty
+  (code, stdout, stderr) <- Turtle.procStrictWithErr "git" ["status", "--porcelain"] empty
 
   when (code /= ExitSuccess) $ do
     echoDebug $ "git status stderr: " <> stderr
@@ -26,20 +26,20 @@ requireCleanWorkingTree = do
 
 getAllTags :: Spago m => m [Text]
 getAllTags = do
-  fmap Text.lines $ T.strict $ T.inproc "git" ["tag", "--list"] empty
+  fmap Text.lines $ Turtle.strict $ Turtle.inproc "git" ["tag", "--list"] empty
 
 
 addAllChanges :: Spago m => m ()
 addAllChanges = do
-  T.procs "git" ["add", "-A"] empty
+  Turtle.procs "git" ["add", "-A"] empty
 
 
 commitAndTag :: Spago m => Text -> Text -> m ()
 commitAndTag tag message = do
-  T.procs "git" ["commit", "--quiet", "--allow-empty", "--message=" <> message] empty
-  T.procs "git" ["tag", "--annotate", "--message=" <> message, tag] empty
+  Turtle.procs "git" ["commit", "--quiet", "--allow-empty", "--message=" <> message] empty
+  Turtle.procs "git" ["tag", "--annotate", "--message=" <> message, tag] empty
 
 
 isIgnored :: Spago m => Text -> m Bool
 isIgnored path = do
-  (== ExitSuccess) <$> T.proc "git" ["check-ignore", "--quiet", path] empty
+  (== ExitSuccess) <$> Turtle.proc "git" ["check-ignore", "--quiet", path] empty
