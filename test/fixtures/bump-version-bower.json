@@ -1,5 +1,12 @@
 {
     "name": "purescript-bump-version-test",
+    "license": [
+        "MIT"
+    ],
+    "repository": {
+        "type": "git",
+        "url": "git://github.com/spago/not-a-real-repo.git"
+    },
     "ignore": [
         "**/.*",
         "node_modules",

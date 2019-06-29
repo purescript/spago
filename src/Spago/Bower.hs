@@ -12,7 +12,7 @@ import           Data.String                (IsString)
 import           Web.Bower.PackageMeta      (PackageMeta (..))
 import qualified Web.Bower.PackageMeta      as Bower
 
-import           Spago.Config               (Config (..))
+import           Spago.Config               (Config (..), PublishConfig (..))
 import qualified Spago.Config               as Config
 import qualified Spago.Git                  as Git
 import qualified Spago.GlobalCache          as GlobalCache
@@ -29,14 +29,17 @@ bowerPath = "bower.json"
 writeBowerJson :: Spago m => m ()
 writeBowerJson = do
   config@Config{..} <- Config.ensureConfig
+  PublishConfig{..} <- Config.ensurePublishConfig
 
   bowerName <- mkPackageName name
   bowerDependencies <- mkDependencies config
   template <- templateBowerJson
 
-  let bowerPkg = template { bowerName, bowerDependencies }
+  let bowerLicense = [license]
+      bowerRepository = Just $ Bower.Repository repository "git"
+      bowerPkg = template { bowerLicense, bowerRepository, bowerName, bowerDependencies }
       prettyConfig = Pretty.defConfig
-        { Pretty.confCompare = Pretty.keyOrder ["name", "ignore", "dependencies"] <> compare
+        { Pretty.confCompare = Pretty.keyOrder ["name", "license", "repository", "ignore", "dependencies"] <> compare
         , Pretty.confTrailingNewline = True
         }
       bowerJson = Pretty.encodePretty' prettyConfig bowerPkg
@@ -46,6 +49,8 @@ writeBowerJson = do
     die $ bowerPath <> " is being ignored by git - change this before continuing."
 
   liftIO $ ByteString.writeFile bowerPath bowerJson
+
+  echo $ "Generated " <> bowerPath <> " using the package set."
 
 
 templateBowerJson :: Spago m => m Bower.PackageMeta
