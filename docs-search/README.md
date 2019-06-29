@@ -12,5 +12,5 @@ See [#89](https://github.com/spacchetti/spago/issues/89).
 spago build
 spago docs
 spago bundle-app -m Spago.Search.App --to generated-docs/spago-search-app.js
-spago run -m Spago.Seach.IndexBuilder
+spago run -m Spago.Search.IndexBuilder
 ```

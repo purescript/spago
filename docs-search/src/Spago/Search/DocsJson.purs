@@ -85,10 +85,36 @@ instance decodeJsonChildDeclType :: DecodeJson ChildDeclType where
           _             -> Left $ "Couldn't decode ChildDeclType: " <> string
       Nothing           -> Left $ "Couldn't decode ChildDeclType: " <> stringify json
 
+data DataDeclType
+  = NewtypeDataDecl
+  | DataDataDecl
+
+derive instance eqDataDeclType :: Eq DataDeclType
+derive instance genericDataDeclType :: Generic DataDeclType _
+
+instance showDataDeclType :: Show DataDeclType where
+  show = genericShow
+
+instance encodeJsonDataDeclType :: EncodeJson DataDeclType where
+  encodeJson = fromString <<< case _ of
+    NewtypeDataDecl -> "newtype"
+    DataDataDecl    -> "data"
+
+instance decodeJsonDataDeclType :: DecodeJson DataDeclType where
+  decodeJson json =
+    case toString json of
+      Just string ->
+        case string of
+          "newtype" -> Right NewtypeDataDecl
+          "data"    -> Right DataDataDecl
+          _         -> Left $ "Couldn't decode DataDeclType: " <> string
+      Nothing     -> Left $ "Couldn't decode DataDeclType: "   <> stringify json
+
 newtype IndexEntry
   = IndexEntry { title :: String
                , comments :: Maybe String
-               , info :: { declType :: DeclType
+               , info :: { declType      :: DeclType
+                         , dataDeclType  :: Maybe DataDeclType
                          , kind          :: Maybe Kind
                          , typeArguments :: Maybe (Array TypeArgument)
                          , type          :: Maybe Type
@@ -124,7 +150,9 @@ instance decodeJsonIndexEntry :: DecodeJson IndexEntry where
       superclasses  <- info .:? "superclasses"
       fundeps       <- info .:? "fundeps"
       declType      <- info .:  "declType"
-      pure { type: ty, kind, declType, typeArguments, superclasses, fundeps, arguments }
+      dataDeclType  <- info .:? "dataDeclType"
+      pure { type: ty, kind, declType, typeArguments, superclasses, fundeps
+           , arguments, dataDeclType }
     sourceSpan <- handle .:  "sourceSpan"
     pure { title, comments, info, sourceSpan, children }
 

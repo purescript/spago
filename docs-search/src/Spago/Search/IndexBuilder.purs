@@ -11,14 +11,16 @@ import Data.Argonaut.Encode (encodeJson)
 import Data.Argonaut.Parser (jsonParser)
 import Data.Array as Array
 import Data.Either (hush, isLeft)
+import Data.List as List
 import Data.Maybe (Maybe(..))
 import Data.Newtype (unwrap)
 import Data.Search.Trie as Trie
 import Data.String.CodePoints (contains) as String
 import Data.String.Common (replace) as String
-import Data.String.Pattern (Pattern(..), Replacement(..))
 import Data.String.Pattern (Pattern(..)) as String
+import Data.String.Pattern (Pattern(..), Replacement(..))
 import Data.Traversable (for, for_)
+import Data.Tuple
 import Effect (Effect)
 import Effect.Aff (Aff, launchAff_)
 import Effect.Class (liftEffect)
@@ -92,7 +94,7 @@ main = do
   launchAff_ do
     paths <- readdir "output"
     declarations <- collectDeclarations paths
-    liftEffect $ log $ "Found " <> show (Array.length declarations) <> " modules"
+    liftEffect $ log $ "Found " <> show (Array.length declarations) <> " modules."
     writeDeclarations declarations
     patchDocs
     let index = mkSearchIndex declarations
@@ -100,5 +102,7 @@ main = do
       "Loaded " <>
       show (Trie.size $ (unwrap index).decls) <>
       " definitions and " <>
+      show (List.length $ join $ map snd $ Trie.entriesUnordered (unwrap index).types) <>
+      " type definitions with " <>
       show (Trie.size $ (unwrap index).types) <>
-      " type definitions"
+      " different shapes."

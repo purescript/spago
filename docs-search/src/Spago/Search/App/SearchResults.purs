@@ -17,7 +17,7 @@ import Data.Newtype (unwrap, wrap)
 import Data.Search.Trie as Trie
 import Data.String (length) as String
 import Data.String.CodeUnits (toCharArray, stripSuffix) as String
-import Data.String.Common (toLower) as String
+import Data.String.Common (toLower, trim) as String
 import Data.String.Pattern (Pattern(..)) as String
 import Effect.Aff (Aff)
 import Effect.Console (error)
@@ -27,7 +27,7 @@ import Halogen.HTML.CSS as HS
 import Halogen.HTML.Events as HE
 import Halogen.HTML.Properties as HP
 import Spago.Search.App.SearchField (Message(..))
-import Spago.Search.DocsJson (loadDeclarations)
+import Spago.Search.DocsJson (DataDeclType(..), loadDeclarations)
 import Spago.Search.Extra (whenJust, (>#>))
 import Web.DOM.Element (Element)
 import Web.DOM.Element as Element
@@ -36,6 +36,8 @@ import Web.HTML.Location as Location
 import Web.HTML.Window as Window
 
 data Mode = Off | Loading | Active
+
+derive instance eqMode :: Eq Mode
 
 -- | Is it a search by type or by name?
 data ResultsType = TypeResults TypeQuery | DeclResults
@@ -85,32 +87,41 @@ handleQuery (SearchFieldMessage LostFocus next) = do
   pure Nothing
 handleQuery (SearchFieldMessage InputCleared next) = do
   H.modify_ (_ { results = [], input = "", mode = Off })
+  updateSearchResults
   showPageContents
   pure Nothing
 handleQuery (SearchFieldMessage (InputUpdated input) next) = do
-  H.modify_ (_ { input = input })
+  H.modify_ (_ { input = String.trim input })
 
-  H.get >>= \state -> when (isNothing state.mbIndex) do
+  H.get >>= \state -> when (isNothing state.mbIndex && state.mode == Off) do
     H.modify_ (_ { mode = Loading })
-    eiDeclarations <-
-      H.liftAff $ loadDeclarations "../spago-search-index.js"
-    case eiDeclarations of
-      Left err -> do
-        H.liftEffect do
-          error $ "spago-search: couldn't load search index: " <> err
-      Right declarations -> do
-        H.modify_ (_ { mbIndex = Just $ mkSearchIndex declarations })
+    void $ H.fork do
+      eiDeclarations <-
+        H.liftAff $ loadDeclarations "../spago-search-index.js"
+      case eiDeclarations of
+        Left err -> do
+          H.liftEffect do
+            error $ "spago-search: couldn't load search index: " <> err
+        Right declarations -> do
+          H.modify_ (_ { mbIndex = Just $ mkSearchIndex declarations
+                       , mode = Active })
+          updateSearchResults
 
-  H.modify_ (_ { mode = Active })
+  updateSearchResults
+  pure Nothing
+
+updateSearchResults
+  :: forall o
+  .  H.HalogenM State Action () o Aff Unit
+updateSearchResults = do
+  { input } <- H.get
 
   if String.length input < 2
   then do
-
     showPageContents
     H.modify_ (_ { results = [] })
 
   else do
-
     hidePageContents
     state <- H.get
 
@@ -146,7 +157,6 @@ handleQuery (SearchFieldMessage (InputUpdated input) next) = do
       H.modify_ (_ { results = results
                    , resultsType = resultsType
                    , resultsCount = 25 })
-  pure Nothing
 
 handleAction
  :: forall o
@@ -191,13 +201,13 @@ render
   :: forall m
   .  State
   -> H.ComponentHTML Action () m
-render { mbIndex: Nothing, mode: Loading } =
+render { mode: Loading } =
   HH.div [ HP.classes [ wrap "container", wrap "clearfix" ] ] $
   pure $
   HH.div [ HP.classes [ wrap "col", wrap "col--main" ] ] $
   [ HH.h1_ [ HH.text "Loading..." ] ]
 
-render state =
+render state@{ mode: Active } =
   HH.div [ HP.classes [ wrap "container", wrap "clearfix" ] ] $
   pure $
 
@@ -236,6 +246,7 @@ render state =
              [ HH.text "No further results." ]
       ]
     ]
+render { mode: Off } = HH.div_ []
 
 renderSummary
   :: forall a b
@@ -311,17 +322,23 @@ renderResultType result =
                     , HH.text " :: "
                     , renderType ty ]
 
+    TypeClassResult info ->
+      wrapSignature $ renderTypeClassSignature info result
+
     TypeClassMemberResult info ->
       wrapSignature $ renderTypeClassMemberSignature info result
 
-    TypeClassResult info  ->
-      wrapSignature $ renderTypeClassResult info result
+    DataResult info ->
+      wrapSignature $ renderDataSignature info result
+
+    TypeSynonymResult info ->
+      wrapSignature $ renderTypeSynonymSignature info result
     _ -> []
   where
     wrapSignature signature =
       [ HH.pre [ HP.class_ (wrap "result__signature") ] [ HH.code_ signature ] ]
 
-renderTypeClassResult
+renderTypeClassSignature
   :: forall a rest
   .  { fundeps :: FunDeps
      , arguments :: Array TypeArgument
@@ -329,7 +346,7 @@ renderTypeClassResult
      }
   -> { name :: String, moduleName :: String | rest }
   -> Array (HH.HTML a Action)
-renderTypeClassResult { fundeps, arguments, superclasses } { name, moduleName } =
+renderTypeClassSignature { fundeps, arguments, superclasses } { name, moduleName } =
   [ keyword "class"
   , if Array.null superclasses
     then
@@ -341,28 +358,16 @@ renderTypeClassResult { fundeps, arguments, superclasses } { name, moduleName } 
         superclasses <#> renderConstraint >>> Array.singleton
       )
       , syntax ")"
-      , HH.text " "
+      , space
       , syntax "<="
       ]
-  , HH.text " "
+  , space
   , HH.a [ makeHref TypeLevel false moduleName name ]
     [ HH.text name ]
-  , HH.text " "
+  , space
   ] <> (
-    Array.intercalate [ HH.text " " ] (
-       arguments <#> (
-          unwrap >>>
-          \argument ->
-          case argument.mbKind of
-            Nothing ->
-              [ HH.text argument.name ]
-            Just kind ->
-              [ HH.text "("
-              , HH.text argument.name
-              , HH.text " :: "
-              , renderKind kind
-              , HH.text ")"
-              ]))
+    Array.intercalate [ space ] $
+      arguments <#> renderTypeArgument
   )
 
 -- | Insert type class name and arguments
@@ -385,6 +390,59 @@ renderTypeClassMemberSignature { type: ty, typeClass, typeClassArguments } resul
   , HH.text "=> "
   , renderType ty ]
 
+renderDataSignature
+  :: forall a rest
+  .  { typeArguments :: Array TypeArgument
+     , dataDeclType :: DataDeclType }
+  -> { name :: String | rest }
+  -> Array (HH.HTML a Action)
+renderDataSignature { typeArguments, dataDeclType } { name } =
+  [ keyword
+    case dataDeclType of
+      NewtypeDataDecl -> "newtype"
+      DataDataDecl    -> "data"
+  , space
+  , HH.text name
+  , space
+  , HH.span_ $
+    Array.intercalate [ space ] $
+      typeArguments <#> renderTypeArgument
+  ]
+
+renderTypeSynonymSignature
+  :: forall a rest
+  .  { type :: Type
+     , arguments :: Array TypeArgument
+     }
+  -> { name :: String | rest }
+  -> Array (HH.HTML a Action)
+renderTypeSynonymSignature { type: ty, arguments } { name } =
+  [ keyword "type"
+  , space
+  , HH.text name
+  , space
+  , HH.span_ $
+    Array.intercalate [ space ] $
+      arguments <#> renderTypeArgument
+  , space
+  , syntax "="
+  , space
+  , renderType ty
+  ]
+
+renderTypeArgument :: forall a. TypeArgument -> Array (HH.HTML a Action)
+renderTypeArgument (TypeArgument { name, mbKind }) =
+  case mbKind of
+    Nothing ->
+      [ HH.text name ]
+    Just kind ->
+      [ HH.text "("
+      , HH.text name
+      , HH.text " :: "
+      , renderKind kind
+      , HH.text ")"
+      ]
+
 renderType
   :: forall a
   .  Type
@@ -400,7 +458,7 @@ renderType = case _ of
                     (QualifiedName { moduleName: [ "Prim" ]
                                    , name: "Function" })) t1) t2 ->
     HH.span_ [ renderType t1
-             , HH.text " -> "
+             , syntax " -> "
              , renderType t2
              ]
 
@@ -411,7 +469,7 @@ renderType = case _ of
 
   TypeApp t1 t2 ->
     HH.span_ [ renderType t1
-             , HH.text " "
+             , space
              , renderType t2
              ]
 
@@ -431,9 +489,9 @@ renderType = case _ of
   BinaryNoParensType op t1 t2 ->
     HH.span_
     [ renderType t1
-    , HH.text " "
+    , space
     , renderType op
-    , HH.text " "
+    , space
     , renderType t2
     ]
 
@@ -451,19 +509,21 @@ renderForAll
 renderForAll ty =
   HH.span_ $
 
-  [ HH.text "forall" ] <>
+  [ keyword "forall" ] <>
 
   ( Array.fromFoldable foralls.binders <#>
     \ { var, mbKind } ->
     case mbKind of
       Nothing -> HH.text (" " <> var)
       Just kind ->
-        HH.span_ [ HH.text $ " (" <> var <> " :: "
+        HH.span_ [ HH.text $ " (" <> var <> " "
+                 , syntax "::"
+                 , space
                  , renderKind kind
                  , HH.text ")" ]
   ) <>
 
-  [ HH.text ". ", renderType foralls.ty ]
+  [ syntax ". ", renderType foralls.ty ]
 
   where
     foralls = joinForAlls ty
@@ -504,8 +564,8 @@ renderConstraint
   -> HH.HTML a Action
 renderConstraint (Constraint { constraintClass, constraintArgs }) =
   HH.span_ $
-  [ renderQualifiedName false TypeLevel constraintClass, HH.text " " ] <>
-  Array.intercalate [ HH.text " " ] (constraintArgs <#> \ty -> [ renderType ty ])
+  [ renderQualifiedName false TypeLevel constraintClass, space ] <>
+  Array.intercalate [ space ] (constraintArgs <#> \ty -> [ renderType ty ])
 
 renderQualifiedName
   :: forall a
@@ -532,7 +592,7 @@ renderKind
   HH.HTML a Action
 renderKind = case _ of
   Row k1          -> HH.span_ [ HH.text "# ", renderKind k1 ]
-  FunKind k1 k2   -> HH.span_ [ renderKind k1, HH.text " -> ", renderKind k2 ]
+  FunKind k1 k2   -> HH.span_ [ renderKind k1, syntax " -> ", renderKind k2 ]
   NamedKind qname -> renderQualifiedName false KindLevel qname
 
 makeHref
@@ -559,6 +619,9 @@ syntax
   .  String
   -> HH.HTML a Action
 syntax str = HH.span [ HP.class_ (wrap "syntax") ] [ HH.text str ]
+
+space :: forall a b. HH.HTML a b
+space = HH.text " "
 
 isValuableTypeQuery :: TypeQuery -> Boolean
 isValuableTypeQuery (QVar _) = false

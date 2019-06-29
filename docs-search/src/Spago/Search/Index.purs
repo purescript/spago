@@ -1,8 +1,10 @@
 module Spago.Search.Index where
 
-import Data.Tuple
 import Prelude
-import Spago.Search.TypeShape
+
+import Spago.Search.TypeShape (ShapeChunk, shapeOfType)
+import Spago.Search.DocsJson (ChildDeclType(..), ChildIndexEntry(..), DataDeclType, DeclType(..), Declarations(..), IndexEntry(..))
+import Spago.Search.TypeDecoder (Constraint, FunDeps, Kind, Type, TypeArgument)
 
 import Control.Alt ((<|>))
 import Data.Array ((!!))
@@ -16,8 +18,7 @@ import Data.String.CodeUnits (stripPrefix, stripSuffix, toCharArray)
 import Data.String.Common (toLower)
 import Data.String.Common as String
 import Data.String.Pattern (Pattern(..))
-import Spago.Search.DocsJson (ChildDeclType(..), ChildIndexEntry(..), DeclType(..), Declarations(..), IndexEntry(..))
-import Spago.Search.TypeDecoder (Constraint, FunDeps, Kind, Type, TypeArgument)
+import Data.Tuple (Tuple(..))
 
 newtype SearchIndex
   = SearchIndex  { decls :: Trie Char (List SearchResult)
@@ -27,9 +28,11 @@ newtype SearchIndex
 derive instance newtypeSearchIndex :: Newtype SearchIndex _
 
 data ResultInfo
-  = DataResult            { typeArguments :: Array TypeArgument }
+  = DataResult            { typeArguments :: Array TypeArgument
+                          , dataDeclType :: DataDeclType }
   | ExternDataResult      { kind :: Kind }
-  | TypeSynonymResult     { type :: Type }
+  | TypeSynonymResult     { arguments :: Array TypeArgument
+                          , type :: Type }
   | DataConstructorResult { arguments :: Array Type }
   | TypeClassMemberResult { type :: Type
                           , typeClass :: String
@@ -167,16 +170,19 @@ mkInfo declLevel (IndexEntry { info, title }) =
       \ty -> ValueResult { type: ty }
 
     DeclData ->
-      info.typeArguments <#>
-      \typeArguments -> DataResult { typeArguments }
+       make <$> info.typeArguments <*> info.dataDeclType
+        where
+          make typeArguments dataDeclType =
+            DataResult { typeArguments, dataDeclType }
 
     DeclExternData ->
       info.kind <#>
       \kind -> ExternDataResult { kind }
 
     DeclTypeSynonym ->
-      info.type <#>
-      \ty -> TypeSynonymResult { type: ty }
+      make <$> info.type <*> info.arguments
+        where
+          make ty args = TypeSynonymResult { type: ty, arguments: args }
 
     DeclTypeClass ->
       case info.fundeps, info.arguments, info.superclasses of
