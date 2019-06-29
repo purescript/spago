@@ -81,5 +81,6 @@ bumpVersion spec = do
   oldVersion <- getCurrentVersion
   newVersion <- getNextVersion spec oldVersion
   Bower.writeBowerJson
+  Bower.runBowerInstall
   Git.addAllChanges
   tagNewVersion oldVersion newVersion

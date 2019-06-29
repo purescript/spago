@@ -1,5 +1,6 @@
 module Spago.Bower
   ( writeBowerJson
+  , runBowerInstall
   ) where
 
 import Spago.Prelude
@@ -9,6 +10,7 @@ import qualified Data.Aeson.Encode.Pretty   as Pretty
 import qualified Data.ByteString.Lazy       as ByteString
 import qualified Data.Map                   as Map
 import           Data.String                (IsString)
+import qualified Turtle                     as Turtle
 import           Web.Bower.PackageMeta      (PackageMeta (..))
 import qualified Web.Bower.PackageMeta      as Bower
 
@@ -51,6 +53,12 @@ writeBowerJson = do
   liftIO $ ByteString.writeFile bowerPath bowerJson
 
   echo $ "Generated " <> bowerPath <> " using the package set."
+
+
+runBowerInstall :: Spago m => m ()
+runBowerInstall = do
+  echo "Running `bower install` so `pulp publish` can read resolved versions from it."
+  Turtle.procs "bower" ["install", "--silent"] empty
 
 
 templateBowerJson :: Spago m => m Bower.PackageMeta
