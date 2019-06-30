@@ -16,7 +16,7 @@ import qualified Control.Exception  as Exception
 import           Prelude            hiding (FilePath)
 import           System.Directory   (removePathForcibly)
 import qualified System.Process     as Process
-import           Test.Hspec         (shouldBe)
+import           Test.Hspec         (HasCallStack, shouldBe, shouldSatisfy)
 import           Turtle             (ExitCode (..), FilePath, Text, cd, empty, encodeString,
                                      procStrictWithErr, pwd, readTextFile)
 
@@ -35,33 +35,33 @@ runFor us cmd args = do
   Concurrent.threadDelay us
   Process.terminateProcess p
 
-shouldBeSuccess :: (ExitCode, Text, Text) -> IO ()
-shouldBeSuccess (code, _stdout, _stderr) = do
+shouldBeSuccess :: HasCallStack => (ExitCode, Text, Text) -> IO ()
+shouldBeSuccess result@(_code, _stdout, _stderr) = do
   -- print $ "STDOUT: " <> _stdout
   -- print $ "STDERR: " <> _stderr
-  code `shouldBe` ExitSuccess
+  result `shouldSatisfy` (\(code, _, _) -> code == ExitSuccess)
 
-shouldBeSuccessOutput :: FilePath -> (ExitCode, Text, Text) -> IO ()
-shouldBeSuccessOutput expected (code, out, _) = do
+shouldBeSuccessOutput :: HasCallStack => FilePath -> (ExitCode, Text, Text) -> IO ()
+shouldBeSuccessOutput expected result = do
   expectedContent <- readFixture expected
-  (code, out) `shouldBe` (ExitSuccess, expectedContent)
+  result `shouldSatisfy` (\(code, stdout, _stderr) -> code == ExitSuccess && stdout == expectedContent)
 
-shouldBeFailure :: (ExitCode, Text, Text) -> IO ()
-shouldBeFailure (code, _stdout, _stderr) = do
+shouldBeFailure :: HasCallStack => (ExitCode, Text, Text) -> IO ()
+shouldBeFailure result@(_code, _stdout, _stderr) = do
   -- print $ "STDOUT: " <> _stdout
   -- print $ "STDERR: " <> _stderr
-  code `shouldBe` ExitFailure 1
+  result `shouldSatisfy` (\(code, _, _) -> code == ExitFailure 1)
 
-shouldBeFailureOutput :: FilePath -> (ExitCode, Text, Text) -> IO ()
-shouldBeFailureOutput expected (code, _, out) = do
+shouldBeFailureOutput :: HasCallStack => FilePath -> (ExitCode, Text, Text) -> IO ()
+shouldBeFailureOutput expected result = do
   expectedContent <- readFixture expected
-  (code, out) `shouldBe` (ExitFailure 1, expectedContent)
+  result `shouldSatisfy` (\(code, _stdout, stderr) -> code == ExitFailure 1 && stderr == expectedContent)
 
 readFixture :: FilePath -> IO Text
 readFixture path =
   readTextFile $ "../fixtures/" <> path
 
-checkFixture :: FilePath -> IO ()
+checkFixture :: HasCallStack => FilePath -> IO ()
 checkFixture path = do
   actual <- readTextFile path
   expected <- readFixture path
