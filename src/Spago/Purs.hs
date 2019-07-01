@@ -83,7 +83,7 @@ docs format sourcePaths = do
     formatStr = printDocsFormat $ fromMaybe Html format
     cmd = "purs docs " <> paths <> " --format " <> formatStr
   runWithOutput cmd
-    ("Docs generated. Index is at " <> Messages.surroundQuote "./generated-docs/index.html")
+    "Docs generation succeeded."
     "Docs generation failed."
 
 version :: Spago m => m (Maybe Version.SemVer)
