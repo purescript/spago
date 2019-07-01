@@ -1,4 +1,10 @@
-module Spago.Search.TypeQuery where
+module Spago.Search.TypeQuery
+       ( TypeQuery(..)
+       , parseTypeQuery
+       , typeQueryParser
+       , getFreeVariables
+       )
+where
 
 import Prelude
 

@@ -1,30 +1,27 @@
 module Test.Main where
 
-import Data.Argonaut.Decode
-import Data.Argonaut.Encode
-import Data.Argonaut.Parser
-import Data.Either
-import Data.Maybe
-import Effect.Aff
-import Partial.Unsafe
 import Prelude
-import Spago.Search.DocsJson
-import Spago.Search.TypeDecoder
 
-import Effect (Effect)
-import Effect.Aff (Aff, launchAff_)
-import Effect.Class (liftEffect)
-import Effect.Console (log)
+import Spago.Search.TypeDecoder (Constraint(..), FunDep(..), FunDeps(..), Kind(..), QualifiedName(..), Type(..))
 import Test.TypeQuery as TypeQuery
-import Test.TypeShape as TypeShape
-import Test.Unit (suite, test)
+
+import Data.Argonaut.Decode (decodeJson)
+import Data.Argonaut.Encode (encodeJson)
+import Data.Argonaut.Parser (jsonParser)
+import Data.Either (Either(..), fromRight)
+import Data.Maybe (Maybe(..))
+import Effect (Effect)
+import Effect.Aff (Aff)
+import Partial.Unsafe (unsafePartial)
+import Test.Unit (TestSuite, suite, test)
 import Test.Unit.Assert as Assert
-import Test.Unit.Main (run, runTest)
+import Test.Unit.Main (runTest)
 
 main :: Effect Unit
 main = do
   runTest mainTest
 
+mainTest :: TestSuite
 mainTest = do
   TypeQuery.tests
 

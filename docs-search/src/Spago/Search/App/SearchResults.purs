@@ -2,47 +2,52 @@ module Spago.Search.App.SearchResults where
 
 import Prelude
 
-import Spago.Search.Index
-import Spago.Search.TypeDecoder
-import Spago.Search.TypeQuery
-import Spago.Search.TypeShape
+import Spago.Search.App.SearchField (SearchFieldMessage(..))
+import Spago.Search.Declarations (DeclLevel(..), declLevelToHashAnchor)
+import Spago.Search.DocsJson (DataDeclType(..))
+import Spago.Search.Extra ((>#>))
+import Spago.Search.SearchResult (ResultInfo(..), SearchResult)
+import Spago.Search.TypeDecoder (Constraint(..), FunDeps, Kind(..), QualifiedName(..), Type(..), TypeArgument(..))
+import Spago.Search.TypeQuery (TypeQuery(..), parseTypeQuery)
+import Spago.Search.TypeShape (joinForAlls, joinRows)
+import Spago.Search.Config (config)
 
 import CSS (textWhitespace, whitespacePreWrap)
 import Data.Array ((!!))
 import Data.Array as Array
-import Data.Either (Either(..))
+import Data.Either (hush)
 import Data.List as List
-import Data.Maybe (Maybe(..), isJust, isNothing)
+import Data.Maybe (Maybe(..), isJust, maybe)
 import Data.Newtype (unwrap, wrap)
-import Data.Search.Trie as Trie
 import Data.String (length) as String
-import Data.String.CodeUnits (toCharArray, stripSuffix) as String
+import Data.String.CodeUnits (stripSuffix) as String
 import Data.String.Common (toLower, trim) as String
 import Data.String.Pattern (Pattern(..)) as String
 import Effect.Aff (Aff)
-import Effect.Console (error)
 import Halogen as H
 import Halogen.HTML as HH
 import Halogen.HTML.CSS as HS
 import Halogen.HTML.Events as HE
 import Halogen.HTML.Properties as HP
-import Spago.Search.App.SearchField (Message(..))
-import Spago.Search.DocsJson (DataDeclType(..), loadDeclarations)
-import Spago.Search.Extra (whenJust, (>#>))
+import Spago.Search.Index (Index)
+import Spago.Search.Index as Index
+import Spago.Search.TypeIndex (TypeIndex)
+import Spago.Search.TypeIndex as TypeIndex
 import Web.DOM.Element (Element)
 import Web.DOM.Element as Element
 import Web.HTML as HTML
 import Web.HTML.Location as Location
 import Web.HTML.Window as Window
 
-data Mode = Off | Loading | Active
+data Mode = Off | Loading | Active | InputTooShort
 
 derive instance eqMode :: Eq Mode
 
 -- | Is it a search by type or by name?
 data ResultsType = TypeResults TypeQuery | DeclResults
 
-type State = { mbIndex :: Maybe SearchIndex
+type State = { index :: Index
+             , typeIndex :: TypeIndex
              , results :: Array SearchResult
              , resultsType :: ResultsType
              , input :: String
@@ -52,7 +57,7 @@ type State = { mbIndex :: Maybe SearchIndex
              }
 
 data Query a
-  = SearchFieldMessage Message a
+  = MessageFromSearchField SearchFieldMessage a
 
 data Action
   = SearchResultClicked String
@@ -64,12 +69,13 @@ mkComponent
   -> H.Component HH.HTML Query i o Aff
 mkComponent contents =
   H.mkComponent
-    { initialState: const { mbIndex: Nothing
+    { initialState: const { index: mempty
+                          , typeIndex: mempty
                           , results: []
                           , resultsType: DeclResults
                           , input: ""
                           , contents
-                          , resultsCount: 25
+                          , resultsCount: config.resultsCount
                           , mode: Off
                           }
     , render
@@ -81,82 +87,49 @@ handleQuery
   :: forall o a
   .  Query a
   -> H.HalogenM State Action () o Aff (Maybe a)
-handleQuery (SearchFieldMessage Focused next) = do
+handleQuery (MessageFromSearchField Focused next) = do
   pure Nothing
-handleQuery (SearchFieldMessage LostFocus next) = do
+handleQuery (MessageFromSearchField LostFocus next) = do
   pure Nothing
-handleQuery (SearchFieldMessage InputCleared next) = do
+handleQuery (MessageFromSearchField InputCleared next) = do
   H.modify_ (_ { results = [], input = "", mode = Off })
-  updateSearchResults
   showPageContents
   pure Nothing
-handleQuery (SearchFieldMessage (InputUpdated input) next) = do
-  H.modify_ (_ { input = String.trim input })
+handleQuery (MessageFromSearchField (InputUpdated input_) next) = do
+  let input = String.trim input_
 
-  H.get >>= \state -> when (isNothing state.mbIndex && state.mode == Off) do
-    H.modify_ (_ { mode = Loading })
-    void $ H.fork do
-      eiDeclarations <-
-        H.liftAff $ loadDeclarations "../spago-search-index.js"
-      case eiDeclarations of
-        Left err -> do
-          H.liftEffect do
-            error $ "spago-search: couldn't load search index: " <> err
-        Right declarations -> do
-          H.modify_ (_ { mbIndex = Just $ mkSearchIndex declarations
-                       , mode = Active })
-          updateSearchResults
-
-  updateSearchResults
-  pure Nothing
-
-updateSearchResults
-  :: forall o
-  .  H.HalogenM State Action () o Aff Unit
-updateSearchResults = do
-  { input } <- H.get
+  state <- H.modify (_ { input = input })
 
   if String.length input < 2
   then do
-    showPageContents
-    H.modify_ (_ { results = [] })
-
+    if input == ""
+    then do
+      H.modify_ (_ { mode = Off })
+      showPageContents
+    else do
+      H.modify_ (_ { mode = InputTooShort })
+      hidePageContents
   else do
+    H.modify_ (_ { mode = Loading, resultsCount = config.resultsCount })
+
+    void $ H.fork do
+      let resultsType =
+            maybe DeclResults TypeResults (hush (parseTypeQuery state.input)
+                                           >>= isValuableTypeQuery)
+
+      case resultsType of
+
+        DeclResults -> do
+          { index, results } <- H.liftAff $ Index.query state.index (String.toLower state.input)
+          H.modify_ (_ { results = results, mode = Active, index = index })
+
+        TypeResults query -> do
+          { index, results } <- H.liftAff $ TypeIndex.query state.typeIndex query
+          H.modify_ (_ { results = results, mode = Active, typeIndex = index })
+
     hidePageContents
-    state <- H.get
 
-    whenJust (unwrap <$> state.mbIndex) \index -> do
-      let path = List.fromFoldable $
-                 String.toCharArray $
-                 String.toLower input
-
-          eiTypeQuery = parseTypeQuery input
-
-          resultsType =
-            case eiTypeQuery of
-              Left _ -> DeclResults
-              Right query
-                | isValuableTypeQuery query -> TypeResults query
-                | otherwise -> DeclResults
-
-          results =
-            case resultsType of
-              DeclResults ->
-                Array.concat $
-                List.toUnfoldable $
-                map List.toUnfoldable $
-                Trie.queryValues path $
-                index.decls
-              TypeResults query ->
-                List.toUnfoldable $
-                join $
-                Trie.queryValues shape index.types
-                where
-                  shape = shapeOfTypeQuery query
-
-      H.modify_ (_ { results = results
-                   , resultsType = resultsType
-                   , resultsCount = 25 })
+  pure Nothing
 
 handleAction
  :: forall o
@@ -201,52 +174,59 @@ render
   :: forall m
   .  State
   -> H.ComponentHTML Action () m
-render { mode: Loading } =
-  HH.div [ HP.classes [ wrap "container", wrap "clearfix" ] ] $
-  pure $
-  HH.div [ HP.classes [ wrap "col", wrap "col--main" ] ] $
-  [ HH.h1_ [ HH.text "Loading..." ] ]
-
-render state@{ mode: Active } =
-  HH.div [ HP.classes [ wrap "container", wrap "clearfix" ] ] $
-  pure $
-
-  HH.div [ HP.classes [ wrap "col", wrap "col--main" ] ] $
-
-  [ HH.h1_ [ HH.text "Search results" ] ] <>
-
-  if Array.null state.results
-  then
-    [ HH.div [ HP.classes [ wrap "result", wrap "result--empty" ] ]
-      [ HH.text "Your search for "
-      , HH.strong_ [ HH.text state.input ]
-      , HH.text " did not yield any results."
-      ]
-    ]
-  else
-    let selectedResults = Array.take state.resultsCount state.results in
-    [ HH.div [ HP.classes [ wrap "result" ] ] $
-      [ HH.text "Found "
-      , HH.strong_ [ HH.text $ show $ Array.length state.results ]
-      , HH.text $
-          case state.resultsType of
-            DeclResults   -> " definitions."
-            TypeResults _ -> " definitions with similar types."
-      ]
-
-    , HH.div [ HP.id_ "spage-search-results-container" ] $
-      Array.concat $ selectedResults <#> renderResult
-
-    , HH.div [ HP.class_ (wrap "load_more"), HP.id_ "load-more" ]
-      [ if Array.length selectedResults < Array.length state.results
-        then HH.a [ HP.id_ "load-more-link"
-                  , HE.onClick $ const $ Just MoreResultsRequested ]
-             [ HH.text "Show more results" ]
-        else HH.p_
-             [ HH.text "No further results." ]
-      ]
-    ]
 render { mode: Off } = HH.div_ []
+render { mode: Loading } =
+  renderContainer $
+  [ HH.h1_ [ HH.text "Loading..." ] ]
+render { mode: InputTooShort } =
+  renderContainer $
+  [ HH.h1_ [ HH.text "Error" ] ] <>
+  [ HH.div [ HP.classes [ wrap "result", wrap "result--empty" ] ]
+    [ HH.text "Search query is too short." ]
+  ]
+render state@{ mode: Active, results: [] } =
+  renderContainer $
+
+  [ HH.h1_ [ HH.text "Search results" ]
+  , HH.div [ HP.classes [ wrap "result", wrap "result--empty" ] ]
+    [ HH.text "Your search for "
+    , HH.strong_ [ HH.text state.input ]
+    , HH.text " did not yield any results."
+    ]
+  ]
+render state@{ mode: Active } =
+  renderContainer $
+  [ HH.h1_ [ HH.text "Search results" ]
+
+  , HH.div [ HP.classes [ wrap "result" ] ] $
+    [ HH.text "Found "
+    , HH.strong_ [ HH.text $ show $ Array.length state.results ]
+    , HH.text $
+        case state.resultsType of
+          DeclResults   -> " definitions."
+          TypeResults _ -> " definitions with similar types."
+    ]
+
+  , HH.div_ $
+    Array.concat $ shownResults <#> renderResult
+
+  , HH.div [ HP.class_ (wrap "load_more"), HP.id_ "load-more" ]
+    [ if Array.length shownResults < Array.length state.results
+      then HH.a [ HP.id_ "load-more-link"
+                , HE.onClick $ const $ Just MoreResultsRequested ]
+           [ HH.text "Show more results" ]
+      else HH.p_
+           [ HH.text "No further results." ]
+    ]
+  ]
+  where
+    shownResults = Array.take state.resultsCount state.results
+
+renderContainer :: forall a b. Array (HH.HTML b a) -> HH.HTML b a
+renderContainer =
+  HH.div [ HP.classes [ wrap "container", wrap "clearfix" ] ] <<<
+  pure <<<
+  HH.div [ HP.classes [ wrap "col", wrap "col--main" ] ]
 
 renderSummary
   :: forall a b
@@ -338,6 +318,7 @@ renderResultType result =
     wrapSignature signature =
       [ HH.pre [ HP.class_ (wrap "result__signature") ] [ HH.code_ signature ] ]
 
+-- TODO: render fundeps
 renderTypeClassSignature
   :: forall a rest
   .  { fundeps :: FunDeps
@@ -617,7 +598,7 @@ syntax str = HH.span [ HP.class_ (wrap "syntax") ] [ HH.text str ]
 space :: forall a b. HH.HTML a b
 space = HH.text " "
 
-isValuableTypeQuery :: TypeQuery -> Boolean
-isValuableTypeQuery (QVar _) = false
-isValuableTypeQuery (QConst _) = false
-isValuableTypeQuery _ = true
+isValuableTypeQuery :: TypeQuery -> Maybe TypeQuery
+isValuableTypeQuery (QVar _) = Nothing
+isValuableTypeQuery (QConst _) = Nothing
+isValuableTypeQuery query = Just query

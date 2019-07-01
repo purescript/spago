@@ -20,13 +20,13 @@ data Action
   | EscapePressed
   | FocusChanged Boolean
 
-data Message
+data SearchFieldMessage
   = InputUpdated String
   | InputCleared
   | Focused
   | LostFocus
 
-component :: forall q i. H.Component HH.HTML q i Message Aff
+component :: forall q i. H.Component HH.HTML q i SearchFieldMessage Aff
 component =
   H.mkComponent
     { initialState
@@ -37,7 +37,7 @@ component =
 initialState :: forall i. i -> State
 initialState _ = { input: "" }
 
-handleAction :: forall m. Action -> H.HalogenM State Action () Message m Unit
+handleAction :: forall m. Action -> H.HalogenM State Action () SearchFieldMessage m Unit
 handleAction = case _ of
   InputAction input -> do
     H.modify_ $ const { input }

@@ -36,8 +36,7 @@ main = do
       sfio <- runUI SearchField.component unit searchField
       srio <- runUI (SearchResults.mkComponent pageContents) unit searchResults
       sfio.subscribe $
-        Coroutine.consumer \message ->
-        srio.query $ H.tell $ SearchResults.SearchFieldMessage message
+        Coroutine.consumer (srio.query <<< H.tell <<< SearchResults.MessageFromSearchField)
 
 insertStyle :: Document.Document -> Effect Unit
 insertStyle doc = do

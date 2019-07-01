@@ -1,11 +1,12 @@
 module Test.TypeQuery where
 
 import Prelude
-import Spago.Search.DocsJson
-import Spago.Search.TypeQuery
-import Spago.Search.TypeShape
 
-import Data.Either (Either(..), isRight)
+
+import Spago.Search.TypeQuery (TypeQuery(..), getFreeVariables, parseTypeQuery)
+import Spago.Search.TypeShape (ShapeChunk(..), shapeOfTypeQuery)
+
+import Data.Either (Either(..))
 import Data.Foldable (class Foldable)
 import Data.List (List(..), (:))
 import Data.List as List
