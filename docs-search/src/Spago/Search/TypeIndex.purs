@@ -1,33 +1,28 @@
 module Spago.Search.TypeIndex where
 
-import Data.Map
-import Data.Maybe
-import Data.Newtype
-import Data.Tuple
-import Effect.Aff
 import Prelude
-import Spago.Search.Index
-import Spago.Search.TypeQuery
-import Spago.Search.TypeShape
-import Spago.Search.Config
-import Spago.Search.SearchResult
-import Spago.Search.Declarations
+
+import Spago.Search.Config (config)
+import Spago.Search.Declarations (Declarations(..))
+import Spago.Search.SearchResult (ResultInfo(..), SearchResult)
+import Spago.Search.TypeQuery (TypeQuery)
+import Spago.Search.TypeShape (shapeOfType, shapeOfTypeQuery, stringifyShape)
 
 import Control.Promise (Promise, toAffE)
-import Data.Argonaut.Core (Json, fromString, stringify, toString)
-import Data.Argonaut.Decode (class DecodeJson, decodeJson, (.:), (.:?))
-import Data.Argonaut.Encode (class EncodeJson, encodeJson)
+import Data.Argonaut.Core (Json)
+import Data.Argonaut.Decode (decodeJson)
 import Data.Array as Array
-import Data.Either (Either(..), hush)
-import Data.Generic.Rep (class Generic)
-import Data.Generic.Rep.Show (genericShow)
-import Data.List (List(..), (:))
+import Data.Either (hush)
+import Data.List (List, (:))
 import Data.List as List
+import Data.Map (Map)
 import Data.Map as Map
 import Data.Maybe (Maybe(..))
-import Data.Newtype (class Newtype, unwrap)
+import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Search.Trie as Trie
+import Data.Tuple (Tuple(..), snd)
 import Effect (Effect)
+import Effect.Aff (Aff, try)
 
 newtype TypeIndex = TypeIndex (Map String (Maybe (Array SearchResult)))
 

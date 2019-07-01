@@ -1,25 +1,22 @@
 module Spago.Search.IndexBuilder where
 
-import Data.Tuple
-import Node.FS.Stats
 import Prelude
-import Spago.Search.Config
-import Spago.Search.Declarations
-import Spago.Search.Extra
-import Spago.Search.Index
-import Spago.Search.SearchResult
-import Spago.Search.TypeIndex
+
+import Spago.Search.Config (config)
+import Spago.Search.Declarations (Declarations(..), mkDeclarations)
+import Spago.Search.Extra ((>#>))
+import Spago.Search.Index (getPartId)
+import Spago.Search.SearchResult (SearchResult)
+import Spago.Search.TypeIndex (TypeIndex, mkTypeIndex)
 
 import Data.Argonaut.Core (stringify)
 import Data.Argonaut.Decode (decodeJson)
 import Data.Argonaut.Encode (encodeJson)
 import Data.Argonaut.Parser (jsonParser)
 import Data.Array as Array
-import Data.Char as Char
-import Data.Either (Either(..), hush, isLeft)
-import Data.List (List(..), (:))
+import Data.Either (Either(..))
+import Data.List (List)
 import Data.List as List
-import Data.Map (Map)
 import Data.Map as Map
 import Data.Maybe (Maybe(..))
 import Data.Newtype (unwrap)
@@ -31,12 +28,14 @@ import Data.String.Common (replace) as String
 import Data.String.Pattern (Pattern(..)) as String
 import Data.String.Pattern (Pattern(..), Replacement(..))
 import Data.Traversable (for, for_)
+import Data.Tuple (Tuple(..), fst, snd)
 import Effect (Effect)
 import Effect.Aff (Aff, launchAff_, parallel, sequential)
 import Effect.Class (liftEffect)
-import Effect.Console (log, logShow)
+import Effect.Console (log)
 import Node.Encoding (Encoding(UTF8))
 import Node.FS.Aff (exists, mkdir, readTextFile, readdir, stat, writeTextFile)
+import Node.FS.Stats (isDirectory, isFile)
 import Node.Process as Process
 import Spago.Search.DocsJson (DocsJson)
 
@@ -45,11 +44,9 @@ main = launchAff_ mainAff
 
 mainAff :: Aff Unit
 mainAff = do
-  let outputDir = "output"
-
   checkDirectories
 
-  docsJsons <- collectDocsJsons outputDir
+  docsJsons <- collectDocsJsons config.outputDirectory
 
   liftEffect $ log $
     "Found " <> show (Array.length docsJsons) <> " modules."

@@ -2,9 +2,8 @@ module Spago.Search.TypeShape where
 
 import Prelude
 
-import Spago.Search.TypeDecoder
-import Spago.Search.TypeQuery
-import Spago.Search.TypeQuery
+import Spago.Search.TypeDecoder (Kind, QualifiedName(..), Type(..))
+import Spago.Search.TypeQuery (TypeQuery(..), getFreeVariables)
 
 import Data.Generic.Rep (class Generic)
 import Data.Generic.Rep.Show (genericShow)
@@ -14,6 +13,7 @@ import Data.List.NonEmpty as NonEmptyList
 import Data.Maybe (Maybe(..))
 import Data.Set as Set
 import Data.Tuple (Tuple(..), snd)
+import Data.Ord (abs)
 
 type TypeShape = List ShapeChunk
 
@@ -33,7 +33,8 @@ instance showShapeChunk :: Show ShapeChunk where
 
 stringifyShape :: TypeShape -> String
 stringifyShape shape =
-  if res == "" then "e" else res
+  show $ abs $ hash
+  if res == "" then "0" else res
   where
     res = List.foldMap stringifyChunk shape
     stringifyChunk =
@@ -156,3 +157,5 @@ joinRows = go Nil
                     REmpty -> Nothing
                     ty' -> Just ty'
                 }
+
+foreign import hash :: String -> Int
