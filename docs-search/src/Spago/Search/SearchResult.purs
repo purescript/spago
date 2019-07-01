@@ -1,27 +1,15 @@
 module Spago.Search.SearchResult where
 
-import Spago.Search.DocsJson (ChildDeclType(..), ChildDeclaration(..), DataDeclType, DeclType(..), Declaration(..), DocsJson(..))
-import Spago.Search.TypeDecoder (Constraint(..), FunDeps, Kind, QualifiedName(..), Type(..), TypeArgument)
-import Spago.Search.TypeShape (ShapeChunk, joinForAlls, shapeOfType)
+import Spago.Search.DocsJson (DataDeclType)
+import Spago.Search.TypeDecoder (Constraint, FunDeps, Kind, QualifiedName, Type, TypeArgument)
 
-import Control.Alt ((<|>))
-import Data.Array ((!!))
-import Data.Foldable (foldr)
-import Data.List (List, (:))
-import Data.List as List
-import Data.Maybe (Maybe(..), fromMaybe)
-import Data.Newtype (class Newtype, unwrap, wrap)
-import Data.Search.Trie (Trie, alter)
-import Data.String.CodeUnits (stripPrefix, stripSuffix, toCharArray)
-import Data.String.Common (toLower)
-import Data.String.Common as String
-import Data.String.Pattern (Pattern(..))
-
-import Data.Generic.Rep (class Generic)
 import Data.Argonaut.Decode (class DecodeJson)
+import Data.Argonaut.Decode.Generic.Rep (genericDecodeJson)
 import Data.Argonaut.Encode (class EncodeJson)
 import Data.Argonaut.Encode.Generic.Rep (genericEncodeJson)
-import Data.Argonaut.Decode.Generic.Rep (genericDecodeJson)
+import Data.Generic.Rep (class Generic)
+import Data.Maybe (Maybe(..))
+import Data.Newtype (class Newtype)
 
 data ResultInfo
   = DataResult            { typeArguments :: Array TypeArgument
@@ -48,6 +36,15 @@ instance encodeJsonResultInfo :: EncodeJson ResultInfo where
 
 instance decodeJsonResultInfo :: DecodeJson ResultInfo where
   decodeJson = genericDecodeJson
+
+typeOf :: ResultInfo -> Maybe Type
+typeOf (TypeSynonymResult { type: res }) =
+  Just res
+typeOf (TypeClassMemberResult { type: res }) =
+  Just res
+typeOf (ValueResult { type: res }) =
+  Just res
+typeOf _ = Nothing
 
 newtype SearchResult
   = SearchResult { name :: String

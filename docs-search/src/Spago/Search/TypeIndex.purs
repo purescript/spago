@@ -13,11 +13,11 @@ import Data.Argonaut.Core (Json)
 import Data.Argonaut.Decode (decodeJson)
 import Data.Array as Array
 import Data.Either (hush)
-import Data.List (List, (:))
+import Data.List (List)
 import Data.List as List
 import Data.Map (Map)
 import Data.Map as Map
-import Data.Maybe (Maybe(..))
+import Data.Maybe (Maybe(..), fromMaybe')
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Search.Trie as Trie
 import Data.Tuple (Tuple(..), snd)
@@ -37,23 +37,16 @@ insert
  -> TypeIndex
 insert key value = unwrap >>> Map.insert key value >>> wrap
 
-insertTypes
-  :: Tuple String SearchResult
-  -> Map String (List SearchResult)
-  -> Map String (List SearchResult)
-insertTypes (Tuple path results) mp =
-  Map.alter updateResults path mp
-  where
-    updateResults mbOldResults =
-      case mbOldResults of
-        Just oldResults ->
-          Just $ results : oldResults
-        Nothing ->
-          Just $ List.singleton results
-
 mkTypeIndex :: Declarations -> TypeIndex
 mkTypeIndex (Declarations trie) = TypeIndex $ map (Array.fromFoldable >>> Just) types
   where
+    insertTypes
+      :: Tuple String SearchResult
+      -> Map String (List SearchResult)
+      -> Map String (List SearchResult)
+    insertTypes (Tuple shape result) =
+      Map.insertWith append shape (List.singleton result)
+
     types = List.foldr insertTypes mempty do
 
       results <- Trie.entriesUnordered trie >>= snd
@@ -82,15 +75,13 @@ lookup key index@(TypeIndex map) =
     Just results -> pure { index, results: Array.fold results }
     Nothing -> do
       eiJson <- try (toAffE (lookup_ key $ config.mkShapeScriptPath key))
-      let mbResult = do
-            json <- hush eiJson
-            results <- hush (decodeJson json)
-            pure { index: insert key (Just results) index, results }
-      case mbResult of
-        Nothing -> pure { index: insert key Nothing index, results: [] }
-        Just results -> pure results
+      pure $ fromMaybe'
+        (\_ ->  { index: insert key Nothing index, results: [] })
+        do
+          json <- hush eiJson
+          results <- hush (decodeJson json)
+          pure { index: insert key (Just results) index, results }
 
--- TODO: flip arguments
 query
   :: TypeIndex
   -> TypeQuery

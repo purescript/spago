@@ -1,6 +1,5 @@
 module Spago.Search.TypeDecoder where
 
-
 import Prelude
 
 import Data.Argonaut.Core (Json, caseJsonObject, fromArray, fromObject, jsonEmptyObject, stringify, toArray)
@@ -14,6 +13,8 @@ import Data.Maybe (Maybe(..), fromMaybe)
 import Data.Newtype (class Newtype)
 import Data.Tuple (Tuple(..))
 import Foreign.Object as Object
+import Data.List (List(..), (:))
+import Data.List as List
 
 derive instance eqQualifiedName :: Eq QualifiedName
 derive instance genericQualifiedName :: Generic QualifiedName _
@@ -22,9 +23,10 @@ derive instance newtypeQualifiedName :: Newtype QualifiedName _
 instance showQualifiedName :: Show QualifiedName where
   show = genericShow
 
-newtype QualifiedName = QualifiedName { moduleName :: Array String
-                                      , name :: String
-                                      }
+newtype QualifiedName
+  = QualifiedName { moduleName :: Array String
+                  , name :: String
+                  }
 
 instance decodeJsonQualifiedName :: DecodeJson QualifiedName where
   decodeJson json = do
@@ -342,3 +344,31 @@ encodeTaggedContents tag contents =
   [ Tuple "tag" (encodeJson tag)
   , Tuple "contents" contents
   ]
+
+
+joinForAlls
+  :: Type
+  -> { binders :: List { var :: String
+                       , mbKind :: Maybe Kind }
+     , ty :: Type
+     }
+joinForAlls ty = go Nil ty
+  where
+    go acc (ForAll var ty' mbKind) =
+      go ({ var, mbKind } : acc) ty'
+    go acc ty' = { binders: acc, ty: ty' }
+
+joinRows :: Type -> { rows :: List { row :: String
+                                   , ty :: Type
+                                   }
+                    , ty :: Maybe Type }
+joinRows = go Nil
+  where
+    go acc (RCons row ty rest) =
+      go ({ row, ty } : acc) rest
+    go acc ty = { rows:  List.reverse acc
+                , ty:
+                  case ty of
+                    REmpty -> Nothing
+                    ty' -> Just ty'
+                }

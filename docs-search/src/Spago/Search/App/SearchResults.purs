@@ -3,14 +3,17 @@ module Spago.Search.App.SearchResults where
 import Prelude
 
 import Spago.Search.App.SearchField (SearchFieldMessage(..))
+import Spago.Search.Config (config)
 import Spago.Search.Declarations (DeclLevel(..), declLevelToHashAnchor)
 import Spago.Search.DocsJson (DataDeclType(..))
 import Spago.Search.Extra ((>#>))
-import Spago.Search.SearchResult (ResultInfo(..), SearchResult)
-import Spago.Search.TypeDecoder (Constraint(..), FunDeps, Kind(..), QualifiedName(..), Type(..), TypeArgument(..))
-import Spago.Search.TypeQuery (TypeQuery(..), parseTypeQuery)
-import Spago.Search.TypeShape (joinForAlls, joinRows)
-import Spago.Search.Config (config)
+import Spago.Search.Index (Index)
+import Spago.Search.Index as Index
+import Spago.Search.SearchResult (ResultInfo(..), SearchResult, typeOf)
+import Spago.Search.TypeDecoder (Constraint(..), FunDep(..), FunDeps(..), Kind(..), QualifiedName(..), Type(..), TypeArgument(..), joinForAlls, joinRows)
+import Spago.Search.TypeIndex (TypeIndex)
+import Spago.Search.TypeIndex as TypeIndex
+import Spago.Search.TypeQuery (TypeQuery(..), parseTypeQuery, penalty)
 
 import CSS (textWhitespace, whitespacePreWrap)
 import Data.Array ((!!))
@@ -29,10 +32,6 @@ import Halogen.HTML as HH
 import Halogen.HTML.CSS as HS
 import Halogen.HTML.Events as HE
 import Halogen.HTML.Properties as HP
-import Spago.Search.Index (Index)
-import Spago.Search.Index as Index
-import Spago.Search.TypeIndex (TypeIndex)
-import Spago.Search.TypeIndex as TypeIndex
 import Web.DOM.Element (Element)
 import Web.DOM.Element as Element
 import Web.HTML as HTML
@@ -121,11 +120,15 @@ handleQuery (MessageFromSearchField (InputUpdated input_) next) = do
 
         DeclResults -> do
           { index, results } <- H.liftAff $ Index.query state.index (String.toLower state.input)
-          H.modify_ (_ { results = results, mode = Active, index = index })
+          H.modify_ (_ { results = results
+                       , mode = Active
+                       , index = index })
 
         TypeResults query -> do
           { index, results } <- H.liftAff $ TypeIndex.query state.typeIndex query
-          H.modify_ (_ { results = results, mode = Active, typeIndex = index })
+          H.modify_ (_ { results = sortByDistance query results
+                       , mode = Active
+                       , typeIndex = index })
 
     hidePageContents
 
@@ -152,7 +155,7 @@ handleAction = case _ of
 
     when onThisPage do
       showPageContents
-      H.modify_ (_ { input = "" })
+      H.modify_ (_ { input = "", mode = Off })
 
 showPageContents
   :: forall o
@@ -297,7 +300,8 @@ renderResultType
 renderResultType result =
   case result.info of
     ValueResult { type: ty } ->
-      wrapSignature [ HH.a [ makeHref ValueLevel false result.moduleName result.name ]
+      wrapSignature [ HH.a [ makeHref ValueLevel false result.moduleName result.name
+                           , HE.onClick $ const $ Just $ SearchResultClicked result.moduleName ]
                       [ HH.text result.name ]
                     , HH.text " :: "
                     , renderType ty ]
@@ -318,7 +322,6 @@ renderResultType result =
     wrapSignature signature =
       [ HH.pre [ HP.class_ (wrap "result__signature") ] [ HH.code_ signature ] ]
 
--- TODO: render fundeps
 renderTypeClassSignature
   :: forall a rest
   .  { fundeps :: FunDeps
@@ -343,13 +346,30 @@ renderTypeClassSignature { fundeps, arguments, superclasses } { name, moduleName
       , syntax "<="
       ]
   , space
-  , HH.a [ makeHref TypeLevel false moduleName name ]
+  , HH.a [ makeHref TypeLevel false moduleName name
+         , HE.onClick $ const $ Just $
+           SearchResultClicked moduleName
+         ]
     [ HH.text name ]
   , space
   ] <> (
     Array.intercalate [ space ] $
       arguments <#> renderTypeArgument
+  ) <> (
+    renderFunDeps fundeps
   )
+
+renderFunDeps :: forall a. FunDeps -> Array (HH.HTML a Action)
+renderFunDeps (FunDeps []) = []
+renderFunDeps (FunDeps deps) =
+  append [ syntax " | " ] $
+  Array.intercalate [ syntax ", " ] $
+  deps <#> renderFunDep
+  where
+    renderFunDep (FunDep { lhs, rhs }) =
+      Array.intercalate [ space ] (pure <<< HH.text <$> lhs) <>
+      [ syntax " -> " ] <>
+      Array.intercalate [ space ] (pure <<< HH.text <$> rhs)
 
 -- | Insert type class name and arguments
 renderTypeClassMemberSignature
@@ -553,7 +573,7 @@ renderQualifiedName isInfix level (QualifiedName { moduleName, name })
       HH.text name
     else
       HH.a [ HE.onClick $ const $ Just $
-             SearchResultClicked $ moduleNameString
+             SearchResultClicked moduleNameString
            , makeHref level isInfix moduleNameString name
            ]
       [ HH.text name ]
@@ -602,3 +622,12 @@ isValuableTypeQuery :: TypeQuery -> Maybe TypeQuery
 isValuableTypeQuery (QVar _) = Nothing
 isValuableTypeQuery (QConst _) = Nothing
 isValuableTypeQuery query = Just query
+
+sortByDistance :: TypeQuery -> Array SearchResult -> Array SearchResult
+sortByDistance typeQuery results =
+  _.result <$> Array.sortBy comparePenalties resultsWithPenalties
+  where
+    comparePenalties r1 r2 = compare r1.penalty r2.penalty
+    resultsWithPenalties = results <#>
+               \result -> { penalty: typeOf (unwrap result).info >>= penalty typeQuery
+                          , result }

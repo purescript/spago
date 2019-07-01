@@ -14,7 +14,7 @@ config =
   , typeIndexDirectory: "generated-docs/index/types"
   , mkShapeScriptPath:
     \shape -> "../index/types/" <> shape <> ".js"
-  , countOfIndexParts: 50
+  , numberOfIndexParts: 50
   -- ^ In how many parts the index should be splitted?
   , mkIndexPartPath:
     \(partId :: Int) -> "generated-docs/index/declarations/" <> show partId <> ".js"
@@ -22,4 +22,12 @@ config =
     \(partId :: Int) -> "../index/declarations/" <> show partId <> ".js"
   , resultsCount: 25
   -- ^ How many results to show by default?
+  , penalties: { typeVars: 2
+               , match: 2
+               , matchConstraint: 2
+               , instantiate: 3
+               , generalize: 1
+               , missingConstraint: 1
+               , excessiveConstraint: 5
+               }
   }

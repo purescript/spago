@@ -4,8 +4,7 @@ import Prelude
 
 import Spago.Search.SearchResult (ResultInfo(..), SearchResult(..))
 import Spago.Search.DocsJson (ChildDeclType(..), ChildDeclaration(..), DeclType(..), Declaration(..), DocsJson(..))
-import Spago.Search.TypeDecoder (Constraint(..), QualifiedName(..), Type(..))
-import Spago.Search.TypeShape (joinForAlls)
+import Spago.Search.TypeDecoder (Constraint(..), QualifiedName(..), Type(..), joinForAlls)
 
 import Control.Alt ((<|>))
 import Data.Array ((!!))
@@ -155,7 +154,7 @@ getLevelAndName
 getLevelAndName DeclValue       name = { name, declLevel: ValueLevel }
 getLevelAndName DeclData        name = { name, declLevel: TypeLevel }
 getLevelAndName DeclTypeSynonym name = { name, declLevel: TypeLevel }
-getLevelAndName DeclTypeClass   name = { name, declLevel: ValueLevel }
+getLevelAndName DeclTypeClass   name = { name, declLevel: TypeLevel }
 -- "declType": "alias" does not specify the level of the declaration.
 -- But for type aliases, name of the declaration is always wrapped into
 -- "type (" and ")".
@@ -199,6 +198,10 @@ resultsForChildDeclaration packageName moduleName parentResult
         { path: title
         , result: SearchResult { name: title
                                , comments
+                                 -- `ChildDeclaration`s are always either data
+                                 -- constructors, type class members or instances.
+                                 -- The former two are both value-level, and
+                                 -- the latter are not included in the index.
                                , hashAnchor: "v"
                                , moduleName
                                , sourceSpan: mbSourceSpan

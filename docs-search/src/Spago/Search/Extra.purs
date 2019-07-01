@@ -4,7 +4,6 @@ import Prelude
 
 import Data.Foldable (class Foldable, foldMap)
 import Data.Maybe (Maybe(..))
-import Data.Array as Array
 
 whenJust :: forall a m. Monad m => Maybe a -> (a -> m Unit) -> m Unit
 whenJust (Just a) f = f a

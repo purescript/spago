@@ -2,7 +2,7 @@ module Spago.Search.TypeShape where
 
 import Prelude
 
-import Spago.Search.TypeDecoder (Kind, QualifiedName(..), Type(..))
+import Spago.Search.TypeDecoder (QualifiedName(..), Type(..), joinForAlls, joinRows)
 import Spago.Search.TypeQuery (TypeQuery(..), getFreeVariables)
 
 import Data.Generic.Rep (class Generic)
@@ -10,7 +10,6 @@ import Data.Generic.Rep.Show (genericShow)
 import Data.List (List(..), (:))
 import Data.List as List
 import Data.List.NonEmpty as NonEmptyList
-import Data.Maybe (Maybe(..))
 import Data.Set as Set
 import Data.Tuple (Tuple(..), snd)
 import Data.Ord (abs)
@@ -125,37 +124,10 @@ shapeOfType ty = List.reverse $ go (pure ty) Nil
           go (typesInRow <> rest) (PRow (List.length joined.rows) : acc)
           where
             joined = joinRows row
-            sorted = List.sortBy (\x y -> compare x.row y.row) $ joined.rows
+            sorted = List.sortBy (\x y -> compare x.row y.row) joined.rows
             typesInRow = sorted <#> (_.ty)
 
         BinaryNoParensType op l r ->
           go (TypeApp (TypeApp op l) r : rest) acc
-
-joinForAlls
-  :: Type
-  -> { binders :: List { var :: String
-                       , mbKind :: Maybe Kind }
-     , ty :: Type
-     }
-joinForAlls ty = go Nil ty
-  where
-    go acc (ForAll var ty' mbKind) =
-      go ({ var, mbKind } : acc) ty'
-    go acc ty' = { binders: acc, ty: ty' }
-
-joinRows :: Type -> { rows :: List { row :: String
-                                   , ty :: Type
-                                   }
-                    , ty :: Maybe Type }
-joinRows = go Nil
-  where
-    go acc (RCons row ty rest) =
-      go ({ row, ty } : acc) rest
-    go acc ty = { rows:  List.reverse acc
-                , ty:
-                  case ty of
-                    REmpty -> Nothing
-                    ty' -> Just ty'
-                }
 
 foreign import hash :: String -> Int

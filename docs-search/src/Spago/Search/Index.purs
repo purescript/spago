@@ -35,7 +35,7 @@ query
   :: Index
   -> String
   -> Aff { index :: Index, results :: Array SearchResult }
-query index@(Index mp) input = do
+query index@(Index indexMap) input = do
   let
     path :: List Char
     path =
@@ -46,7 +46,7 @@ query index@(Index mp) input = do
     partId :: Int
     partId = getPartId path
 
-  case Map.lookup partId mp of
+  case Map.lookup partId indexMap of
     Just trie ->
       pure { index, results: flatten $ Trie.queryValues path trie }
     Nothing -> do
@@ -63,9 +63,9 @@ query index@(Index mp) input = do
           pure $ Array.foldr insertResults mempty results
 
       case mbNewTrie of
-        Just trie -> do
-          pure { index: Index $ Map.insert partId trie mp
-               , results: flatten $ Trie.queryValues path trie
+        Just newTrie -> do
+          pure { index: Index $ Map.insert partId newTrie indexMap
+               , results: flatten $ Trie.queryValues path newTrie
                }
         Nothing -> do
           pure { index, results: mempty }
@@ -93,9 +93,9 @@ insertResults (Tuple path newResults) =
 -- | Find in which part of the index this path can be found.
 getPartId :: List Char -> Int
 getPartId (a : b : _) =
-  (Char.toCharCode a + Char.toCharCode b) `mod` config.countOfIndexParts
+  (Char.toCharCode a + Char.toCharCode b) `mod` config.numberOfIndexParts
 getPartId (a : _) =
-  Char.toCharCode a `mod` config.countOfIndexParts
+  Char.toCharCode a `mod` config.numberOfIndexParts
 getPartId _ = 0
 
 foreign import loadIndex_

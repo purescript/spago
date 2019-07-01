@@ -3,7 +3,7 @@ module Test.TypeQuery where
 import Prelude
 
 
-import Spago.Search.TypeQuery (TypeQuery(..), getFreeVariables, parseTypeQuery)
+import Spago.Search.TypeQuery (TypeQuery(..), Substitution(..), getFreeVariables, parseTypeQuery, typeVarPenalty)
 import Spago.Search.TypeShape (ShapeChunk(..), shapeOfTypeQuery)
 
 import Data.Either (Either(..))
@@ -271,6 +271,66 @@ tests = do
     test "test #12" do
       let input = "forall a. (forall b. a) a b"
       assertRight (countFreeVars <$> parseTypeQuery input) 1
+
+  suite "typeVarPenalty" do
+
+    test "#0" do
+      Assert.equal 0 (typeVarPenalty mempty)
+
+    test "#1" do
+      Assert.equal 0 (typeVarPenalty $ l [ Substitute "a" "b"
+                                         , Substitute "b" "a"
+                                         ])
+
+    test "#2" do
+      Assert.equal 0 (typeVarPenalty $ l [ Substitute "a" "b"
+                                         , Substitute "a" "b"
+                                         , Substitute "a" "b"
+                                         ])
+
+    test "#3" do
+      Assert.equal 1 (typeVarPenalty $ l [ Substitute "a" "b"
+                                         , Substitute "a" "c"
+                                         ])
+
+    test "#4" do
+      Assert.equal 1 (typeVarPenalty $ l [ Substitute "a" "b"
+                                         , Substitute "b" "a"
+                                         , Substitute "b" "c"
+                                         ])
+
+    test "#5" do
+      Assert.equal 0 (typeVarPenalty $ l [ Substitute "a" "b"
+                                         , Substitute "b" "c"
+                                         , Substitute "c" "a"
+                                         ])
+
+    test "#6" do
+      Assert.equal 2 (typeVarPenalty $ l [ Substitute "a" "b"
+                                         , Substitute "a" "c"
+                                         , Substitute "a" "a"
+                                         ])
+
+    test "#7" do
+      Assert.equal 2 (typeVarPenalty $ l [ Substitute "a" "a"
+                                         , Substitute "b" "a"
+                                         , Substitute "c" "a"
+                                         ])
+
+    test "#8" do
+      Assert.equal 4 (typeVarPenalty $ l [ Substitute "a" "a"
+                                         , Substitute "b" "a"
+                                         , Substitute "c" "a"
+                                         , Substitute "a" "b"
+                                         , Substitute "a" "c"
+                                         , Substitute "a" "a"
+                                         ])
+
+    test "#9" do
+      Assert.equal 0 (typeVarPenalty $ l [ Substitute "a" "e"
+                                         , Substitute "b" "d"
+                                         , Substitute "c" "f"
+                                         ])
 
 l :: forall f. Foldable f => (forall a. f a -> List a)
 l = List.fromFoldable
