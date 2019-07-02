@@ -698,6 +698,12 @@ $ spago docs
 This will generate all the documentation in the `./generated-docs` folder of your project.
 You might then want to open the `index.html` file in there.
 
+To build the documentation as Markdown instead of HTML, or to generate tags for your project,
+you can pass a `format` flag:
+```bash
+$ spago docs --format ctags
+```
+
 
 ### Publish my library
 
