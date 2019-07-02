@@ -54,13 +54,36 @@ bundle withMain (ModuleName moduleName) (TargetPath targetPath) = do
     ("Bundle failed.")
 
 
-docs :: Spago m => [SourcePath] -> m ()
-docs sourcePaths = do
+data DocsFormat
+  = Html
+  | Markdown
+  | Ctags
+  | Etags
+
+parseDocsFormat :: Text -> Maybe DocsFormat
+parseDocsFormat = \case
+  "html"     -> Just Html
+  "markdown" -> Just Markdown
+  "ctags"    -> Just Ctags
+  "etags"    -> Just Etags
+  _          -> Nothing
+
+printDocsFormat :: DocsFormat -> Text
+printDocsFormat = \case
+  Html     -> "html"
+  Markdown -> "markdown"
+  Ctags    -> "ctags"
+  Etags    -> "etags"
+
+
+docs :: Spago m => Maybe DocsFormat -> [SourcePath] -> m ()
+docs format sourcePaths = do
   let
     paths = Text.intercalate " " $ Messages.surroundQuote <$> map unSourcePath sourcePaths
-    cmd = "purs docs " <> paths <> " --format html"
+    formatStr = printDocsFormat $ fromMaybe Html format
+    cmd = "purs docs " <> paths <> " --format " <> formatStr
   runWithOutput cmd
-    ("Docs generated. Index is at " <> Messages.surroundQuote "./generated-docs/index.html")
+    "Docs generation succeeded."
     "Docs generation failed."
 
 version :: Spago m => m (Maybe Version.SemVer)

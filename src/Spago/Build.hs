@@ -194,10 +194,10 @@ bundleModule maybeModuleName maybeTargetPath noBuild buildOpts = do
     NoBuild -> bundleAction
 
 -- | Generate docs for the `sourcePaths`
-docs :: Spago m => [Purs.SourcePath] -> m ()
-docs sourcePaths = do
+docs :: Spago m => Maybe Purs.DocsFormat -> [Purs.SourcePath] -> m ()
+docs format sourcePaths = do
   echoDebug "Running `spago docs`"
   config <- Config.ensureConfig
   deps <- Packages.getProjectDeps config
   echo "Generating documentation for the project. This might take a while.."
-  Purs.docs $ Config.configSourcePaths config <> Packages.getGlobs deps <> sourcePaths
+  Purs.docs format $ Config.configSourcePaths config <> Packages.getGlobs deps <> sourcePaths

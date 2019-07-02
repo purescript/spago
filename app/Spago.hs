@@ -19,7 +19,8 @@ import           Spago.Messages      as Messages
 import           Spago.Packages      (PackageName (..), PackagesFilter (..), JsonFlag(..))
 import qualified Spago.Packages
 import qualified Spago.PscPackage    as PscPackage
-import           Spago.Watch        (ClearScreen (..))
+import qualified Spago.Purs          as Purs
+import           Spago.Watch         (ClearScreen (..))
 
 
 -- | Commands that this program handles
@@ -40,7 +41,7 @@ data Command
   | Repl (Maybe Int) (Maybe CacheFlag) [PackageName] [SourcePath] [ExtraArg]
 
   -- | Generate documentation for the project and its dependencies
-  | Docs [SourcePath]
+  | Docs (Maybe Purs.DocsFormat) [SourcePath]
 
   -- | Build the project paths src/ and test/ plus the specified source paths
   | Build BuildOptions
@@ -166,7 +167,7 @@ parser = do
             "transitive" -> Just TransitiveDeps
             _            -> Nothing
       in CLI.optional $ CLI.opt wrap "filter" 'f' "Filter packages: direct deps with `direct`, transitive ones with `transitive`"
-
+    docsFormat = CLI.optional $ CLI.opt Purs.parseDocsFormat "format" 'f' "Docs output format (markdown | html | etags | ctags)"
     projectCommands = CLI.subcommandGroup "Project commands:"
       [ initProject
       , build
@@ -223,7 +224,7 @@ parser = do
     docs =
       ( "docs"
       , "Generate docs for the project and its dependencies"
-      , Docs <$> sourcePaths
+      , Docs <$> docsFormat <*> sourcePaths
       )
 
 
@@ -357,7 +358,7 @@ main = do
         -> Spago.Build.bundleApp WithMain modName tPath shouldBuild buildOptions
       BundleModule modName tPath shouldBuild buildOptions
         -> Spago.Build.bundleModule modName tPath shouldBuild buildOptions
-      Docs sourcePaths                      -> Spago.Build.docs sourcePaths
+      Docs format sourcePaths               -> Spago.Build.docs format sourcePaths
       Version                               -> printVersion
       PscPackageLocalSetup force            -> liftIO $ PscPackage.localSetup force
       PscPackageInsDhall                    -> liftIO $ PscPackage.insDhall
