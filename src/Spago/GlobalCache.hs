@@ -106,6 +106,7 @@ getMetadata cacheFlag = do
             echo "WARNING: Unable to download GitHub metadata, global cache will be disabled"
             pure mempty
           Just meta -> do
+            assertDirectory globalCacheDir
             liftIO $ BS.writeFile globalPathToMeta metaBS
             pure meta
 
