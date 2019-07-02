@@ -20,6 +20,8 @@ setup cmd = do
 initGit :: IO ()
 initGit = do
   git ["init"] >>= shouldBeSuccess
+  git ["config", "user.email", "spago@example.com"] >>= shouldBeSuccess
+  git ["config", "user.name", "Giovanni Spago"] >>= shouldBeSuccess
   commitAll
 
 commitAll :: IO ()
