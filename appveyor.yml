@@ -19,7 +19,8 @@ environment:
 install:
   - choco install -y haskell-stack --version %STACK_VERSION%
   - stack setup > nul
-  - choco install psc-package bower
+  - choco install psc-package
+  - npm install bower -g
   - ps: |
       $releases = "https://api.github.com/repos/purescript/purescript/releases"
       $tag = (Invoke-WebRequest $releases | ConvertFrom-Json)[0].tag_name
