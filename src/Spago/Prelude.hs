@@ -23,6 +23,7 @@ module Spago.Prelude
   , FilePath
   , IOException
   , ExitCode (..)
+  , Validation(..)
   , (<|>)
   , (</>)
   , (^..)
@@ -80,8 +81,9 @@ import           Control.Lens.Combinators      (transformMOf)
 import           Control.Monad                 as X
 import           Control.Monad.Catch           as X hiding (try)
 import           Control.Monad.Reader          as X
-import           Data.Aeson                    as X
+import           Data.Aeson                    as X hiding (Result(..))
 import           Data.Either                   as X
+import           Data.Either.Validation        (Validation (..))
 import           Data.Foldable                 as X
 import           Data.List.NonEmpty            (NonEmpty (..))
 import           Data.Map                      (Map)
@@ -98,9 +100,9 @@ import           Prelude                       as X hiding (FilePath)
 import           Safe                          (headMay)
 import           System.FilePath               (isAbsolute, pathSeparator, (</>))
 import           System.IO                     (hPutStrLn)
-import           Turtle                        (ExitCode (..), FilePath, appendonly, mktree, repr,
-                                                shell, shellStrict, systemStrictWithErr, testdir,
-                                                testfile, chmod, executable)
+import           Turtle                        (ExitCode (..), FilePath, appendonly, chmod,
+                                                executable, mktree, repr, shell, shellStrict,
+                                                systemStrictWithErr, testdir, testfile)
 import           UnliftIO                      (MonadUnliftIO, withRunInIO)
 import           UnliftIO.Directory            (getModificationTime, makeAbsolute)
 import           UnliftIO.Exception            (IOException, try)

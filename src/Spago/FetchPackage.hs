@@ -22,7 +22,7 @@ import qualified UnliftIO.Directory            as Directory
 
 import qualified Spago.GlobalCache             as GlobalCache
 import qualified Spago.Messages                as Messages
-import           Spago.PackageSet              (Package (..), PackageName (..), Repo (..))
+import           Spago.PackageSet              (Package (..), PackageName (..), Repo (..), PackageLocation(..))
 import qualified Spago.PackageSet              as PackageSet
 
 
@@ -93,9 +93,9 @@ fetchPackages maybeLimit globalCacheFlag allDeps minPursVersion = do
 --   sensible to do so.
 --   If it's a local directory do nothing
 fetchPackage :: Spago m => GlobalCache.ReposMetadataV1 -> (PackageName, Package) -> m ()
-fetchPackage _ (PackageName package, Package { repo = Local path }) =
-  echo $ Messages.foundLocalPackage package path
-fetchPackage metadata pair@(packageName'@PackageName{..}, Package{ repo = Remote repo, ..} ) = do
+fetchPackage _ (PackageName package, Package { location = Local{..}, .. }) =
+  echo $ Messages.foundLocalPackage package localPath
+fetchPackage metadata pair@(packageName'@PackageName{..}, Package{ location = Remote{..}, .. } ) = do
   echoDebug $ "Fetching package " <> packageName
   globalDir <- GlobalCache.getGlobalCacheDir
   let packageDir = getPackageDir packageName' version
@@ -161,11 +161,11 @@ fetchPackage metadata pair@(packageName'@PackageName{..}, Package{ repo = Remote
           nonCacheableCallback
 
   where
-    quotedName = Messages.surroundQuote packageName
+    quotedName = surroundQuote packageName
 
     git = Text.intercalate " && "
            [ "git init"
-           , "git remote add origin " <> repo
+           , "git remote add origin " <> unRepo repo
            , "git fetch origin"
            , "git -c advice.detachedHead=false checkout " <> version
            ]
@@ -186,10 +186,10 @@ getPackageDir PackageName{..} version = Text.unpack packageName <> "/" <> Text.u
 --   If the package is from a remote git repo, return the folder inside the local cache
 --   Otherwise return the local folder
 getLocalCacheDir :: (PackageName, Package) -> FilePath.FilePath
-getLocalCacheDir (packageName, Package{ repo = Remote _, ..}) = do
+getLocalCacheDir (packageName, Package{ location = Remote{..}, .. }) = do
   localCacheDir <> "/" <> getPackageDir packageName version
-getLocalCacheDir (_, Package{ repo = Local path }) =
-  Text.unpack path
+getLocalCacheDir (_, Package{ location = Local{..}, .. }) =
+  Text.unpack localPath
 
 
 -- | Returns the name of the cache dir based on the ref, escaped if necessary.

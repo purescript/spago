@@ -21,7 +21,7 @@ data WithMain = WithMain | WithoutMain
 compile :: Spago m => [SourcePath] -> [ExtraArg] -> m ()
 compile sourcePaths extraArgs = do
   let
-    paths = Text.intercalate " " $ Messages.surroundQuote <$> map unSourcePath sourcePaths
+    paths = Text.intercalate " " $ surroundQuote <$> map unSourcePath sourcePaths
     args  = Text.intercalate " " $ map unExtraArg extraArgs
     cmd = "purs compile " <> args <> " " <> paths
   runWithOutput cmd
@@ -30,7 +30,7 @@ compile sourcePaths extraArgs = do
 
 repl :: Spago m => [SourcePath] -> [ExtraArg] -> m ()
 repl sourcePaths extraArgs = do
-  let paths = Text.intercalate " " $ Messages.surroundQuote <$> map unSourcePath sourcePaths
+  let paths = Text.intercalate " " $ surroundQuote <$> map unSourcePath sourcePaths
       args = Text.intercalate " " $ map unExtraArg extraArgs
       cmd = "purs repl " <> paths <> " " <> args
 
@@ -79,7 +79,7 @@ printDocsFormat = \case
 docs :: Spago m => Maybe DocsFormat -> [SourcePath] -> m ()
 docs format sourcePaths = do
   let
-    paths = Text.intercalate " " $ Messages.surroundQuote <$> map unSourcePath sourcePaths
+    paths = Text.intercalate " " $ surroundQuote <$> map unSourcePath sourcePaths
     formatStr = printDocsFormat $ fromMaybe Html format
     cmd = "purs docs " <> paths <> " --format " <> formatStr
   runWithOutput cmd

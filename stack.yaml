@@ -2,9 +2,13 @@ resolver: lts-12.21
 packages:
 - .
 extra-deps:
-- dhall-1.23.0
-- dhall-json-1.2.8
+- github: dhall-lang/dhall-haskell
+  commit: 817c833643c37e8fdb71a2efd74bbd7fc895e87d
+  subdirs:
+    - dhall
+    - dhall-json
 - async-pool-0.9.0.2
+- either-5
 - cborg-json-0.2.1.0@sha256:af9137557002ca5308fe80570a9a29398dfb9708423870875223796760689ac3
 - versions-3.5.0
 - dotgen-0.4.2
@@ -14,5 +18,7 @@ extra-deps:
 - Win32-2.5.4.1@sha256:e623a1058bd8134ec14d62759f76cac52eee3576711cb2c4981f398f1ec44b85
 - Glob-0.10.0
 - turtle-1.5.14
+- libyaml-0.1.1.0@sha256:b3fcd8c44622c75e054c2267f3fec39a58a311748000310cbc8257a4683d3f02,2090
+- yaml-0.11.0.0@sha256:8303b3e445295f4fe28ee18efe49ef2667f9f88742ce8049db437c6579be425e,5079
 nix:
   packages: [zlib]

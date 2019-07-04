@@ -14,7 +14,7 @@ import qualified System.Environment
 import qualified System.FilePath        as FilePath
 import qualified Turtle
 
-import           Spago.PackageSet       (PackageName (..))
+import           Spago.PackageSet       (PackageName (..), Repo(..))
 
 
 newtype CommitHash = CommitHash Text
@@ -44,13 +44,13 @@ data CacheFlag = SkipCache | NewCache
 --   URL of the .tar.gz archive on GitHub, otherwise another callback for when it's not
 globallyCache
   :: Spago m
-  => (PackageName, Text, Text)
+  => (PackageName, Repo, Text)
   -> FilePath.FilePath
   -> ReposMetadataV1
   -> (FilePath.FilePath -> m ())
   -> (m ())
   -> m ()
-globallyCache (packageName, url, ref) downloadDir metadata cacheableCallback notCacheableCallback = do
+globallyCache (packageName, Repo url, ref) downloadDir metadata cacheableCallback notCacheableCallback = do
   echoDebug $ "Running `globallyCache`: " <> tshow packageName <> " " <> url <> " " <> ref
   case (Text.stripPrefix "https://github.com/" url)
        >>= (Text.stripSuffix ".git")

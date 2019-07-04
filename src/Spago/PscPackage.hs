@@ -1,8 +1,7 @@
 module Spago.PscPackage where
 
-import           Prelude
+import           Spago.Prelude
 
-import           Control.Exception        (SomeException, try)
 import qualified Data.Aeson               as JSON
 import           Data.Aeson.Encode.Pretty (encodePretty)
 import qualified Data.Aeson.Encode.Pretty as JSON
@@ -12,7 +11,7 @@ import qualified Data.Text                as Text
 import qualified Data.Text.Encoding       as Text
 import qualified Data.Text.Lazy           as LT
 import qualified Data.Text.Lazy.Encoding  as LT
-import qualified Dhall.JSON               as Dhall.JSON
+import qualified Dhall.JSON
 import           GHC.Generics             (Generic)
 import           System.Directory         (removePathForcibly)
 import qualified Turtle                   as T
@@ -68,12 +67,12 @@ dhallToJSON inputPath outputPath = do
 
   dhall <- T.readTextFile $ T.fromText inputPath
 
-  json <- Dhall.JSON.codeToValue Dhall.JSON.NoConversion inputPath dhall
+  jsonVal <- Dhall.JSON.codeToValue Dhall.JSON.NoConversion Dhall.JSON.ForbidWithinJSON inputPath dhall
 
   T.writeTextFile outputPath
     $ Text.decodeUtf8
     $ ByteString.Lazy.toStrict
-    $ JSON.encodePretty' config json
+    $ JSON.encodePretty' config jsonVal
 
 
 -- | Generates a local `packages.json` from the current `packages.dhall`

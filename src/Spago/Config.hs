@@ -3,6 +3,7 @@ module Spago.Config
   ( makeConfig
   , ensureConfig
   , addDependencies
+  , parsePackage
   , Config(..)
   ) where
 
@@ -45,6 +46,35 @@ data Config = Config
   } deriving (Show, Generic)
 
 type Expr = Dhall.DhallExpr Dhall.Import
+type ResolvedExpr = Dhall.DhallExpr Dhall.TypeCheck.X
+
+
+isLocationType :: (Eq s, Eq a) => Dhall.Expr s a -> Bool
+isLocationType (Dhall.Union kvs) | locationUnionMap == Dhall.Map.toMap kvs = True
+  where
+    locationUnionMap = Map.fromList
+      [ ("Environment", Just Dhall.Text)
+      , ("Remote", Just Dhall.Text)
+      , ("Local", Just Dhall.Text)
+      , ("Missing", Nothing)
+      ]
+isLocationType _ = False
+
+parsePackage :: ResolvedExpr -> IO Package
+parsePackage (Dhall.RecordLit ks) = do
+  let repoType = Dhall.auto :: Dhall.Type PackageSet.Repo
+  let dependenciesType = Dhall.list (Dhall.auto :: Dhall.Type PackageName)
+  repo <- Dhall.requireTypedKey ks "repo" repoType
+  version <- Dhall.requireTypedKey ks "version" Dhall.strictText
+  dependencies <- Dhall.requireTypedKey ks "dependencies" dependenciesType
+  let location = PackageSet.Remote{..}
+  pure PackageSet.Package{..}
+parsePackage (Dhall.App (Dhall.Field union "Local") (Dhall.TextLit (Dhall.Chunks [] localPath)))
+  | isLocationType union = do
+      let dependencies = []
+      let location = PackageSet.Local{..}
+      pure PackageSet.Package{..}
+parsePackage _expr = die "errr"
 
 -- | Tries to read in a Spago Config
 parseConfig :: Spago m => m Config
@@ -52,31 +82,27 @@ parseConfig = do
   withConfigAST $ pure . addSourcePaths
   expr <- liftIO $ Dhall.inputExpr $ "./" <> pathText
   case expr of
-    Dhall.RecordLit ks -> do
-      maybeConfig <- pure $ do
-        let packageTyp      = Dhall.genericAuto :: Dhall.Type Package
-            packageNamesTyp = Dhall.list (Dhall.auto :: Dhall.Type PackageName)
-            sourcesType     = Dhall.list (Dhall.auto :: Dhall.Type Purs.SourcePath)
-        name         <- Dhall.requireTypedKey ks "name" Dhall.strictText
-        dependencies <- Dhall.requireTypedKey ks "dependencies" packageNamesTyp
-        packages     <- Dhall.requireKey ks "packages" $ \case
-          Dhall.RecordLit pkgs -> (Map.mapKeys PackageSet.PackageName . Dhall.Map.toMap)
-            <$> traverse (Dhall.coerceToType packageTyp) pkgs
-          something -> Left $ Dhall.PackagesIsNotRecord something
-        configSourcePaths  <- Dhall.requireTypedKey ks "sources" sourcesType
+    Dhall.RecordLit ks -> liftIO $ do
+      packages :: Map PackageName Package <- Dhall.requireKey ks "packages" (\case
+        Dhall.RecordLit pkgs ->
+          fmap (Map.mapKeys PackageSet.PackageName . Dhall.Map.toMap)
+          $ traverse parsePackage pkgs
+        something -> throwM $ Dhall.PackagesIsNotRecord something)
 
-        let metadataPackageName = PackageSet.PackageName "metadata"
-            (metadataMap, packagesDB) = Map.partitionWithKey (\k _v -> k == metadataPackageName) packages
-            packagesMinPursVersion = join
-              $ fmap (hush . Version.semver . (Text.replace "v" "") . PackageSet.version)
-              $ Map.lookup metadataPackageName metadataMap
-            packageSet = PackageSet.PackageSet{..}
+      let pkgNamesType = Dhall.list (Dhall.auto :: Dhall.Type PackageName)
+      let sourcesType  = Dhall.list (Dhall.auto :: Dhall.Type Purs.SourcePath)
+      name              <- Dhall.requireTypedKey ks "name" Dhall.strictText
+      dependencies      <- Dhall.requireTypedKey ks "dependencies" pkgNamesType
+      configSourcePaths <- Dhall.requireTypedKey ks "sources" sourcesType
 
-        Right $ Config{..}
+      let metadataPackageName = PackageSet.PackageName "metadata"
+      let (metadataMap, packagesDB) = Map.partitionWithKey (\k _v -> k == metadataPackageName) packages
+      let packagesMinPursVersion = join
+            $ fmap (hush . Version.semver . (Text.replace "v" "") . PackageSet.version . PackageSet.location)
+            $ Map.lookup metadataPackageName metadataMap
+      let packageSet = PackageSet.PackageSet{..}
 
-      case maybeConfig of
-        Right config -> pure config
-        Left err     -> throwM err
+      pure Config{..}
     _ -> case Dhall.TypeCheck.typeOf expr of
       Right e  -> throwM $ Dhall.ConfigIsNotRecord e
       Left err -> throwM $ err

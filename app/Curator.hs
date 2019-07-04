@@ -26,10 +26,11 @@ import qualified System.Environment             as Env
 import qualified System.IO.Temp                 as Temp
 import qualified System.Process                 as Process
 import qualified Turtle
+import qualified Spago.Config
 
 import           Data.Aeson.Encode.Pretty       (encodePretty)
 import           Spago.GlobalCache
-import           Spago.PackageSet               (Package (..), PackageName (..), Repo (..))
+import           Spago.PackageSet               (Package (..), PackageName (..), Repo (..), PackageLocation(..))
 
 type Expr = Dhall.DhallExpr Dhall.Import
 type PackageSetMap = Map PackageName Package
@@ -216,8 +217,8 @@ fetcher token controlChan metadataChan psChan = forever $ do
   where
     -- | Call GitHub to get metadata for a single package
     fetchRepoMetadata :: (PackageName, Package) -> IO ()
-    fetchRepoMetadata (_, Package{ repo = Local _, ..}) = pure ()
-    fetchRepoMetadata (packageName, Package{ repo = Remote repoUrl, .. }) =
+    fetchRepoMetadata (_, Package{ location = Local{..}, ..}) = pure ()
+    fetchRepoMetadata (packageName, Package{ location = Remote{ repo = Repo repoUrl, ..}, ..}) =
       Retry.recoverAll (Retry.fullJitterBackoff 50000 <> Retry.limitRetries 25) $ \Retry.RetryStatus{..} -> do
         let !(owner:repo:_rest)
               = Text.split (=='/')
@@ -251,13 +252,11 @@ fetcher token controlChan metadataChan psChan = forever $ do
     -- | Tries to read in a PackageSet from GitHub
     fetchPackageSet :: Text -> IO PackageSetMap
     fetchPackageSet tag = do
-      let packageTyp = Dhall.genericAuto :: Dhall.Type Package
       expr <- Dhall.inputExpr ("https://raw.githubusercontent.com/purescript/package-sets/" <> tag <> "/src/packages.dhall")
-      Right packageSet <- pure $ case expr of
-        Dhall.RecordLit pkgs -> (Map.mapKeys PackageName . Dhall.Map.toMap)
-          <$> traverse (Dhall.coerceToType packageTyp) pkgs
-        something -> Left $ Dhall.PackagesIsNotRecord something
-      pure packageSet
+      case expr of
+        Dhall.RecordLit pkgs -> fmap (Map.mapKeys PackageName . Dhall.Map.toMap)
+          $ traverse Spago.Config.parsePackage pkgs
+        something -> throwM $ Dhall.PackagesIsNotRecord something
 
 
 packageSetsUpdater :: Text -> Queue.TQueue PackageSetsUpdaterMessage -> IO ()
@@ -280,7 +279,7 @@ packageSetsUpdater token dataChan = go mempty mempty
           case Map.lookup packageName packageSet of
             -- We're only interested in the case in which the tag in the package set
             -- is different from the current tag.
-            Just Package{ version = version, .. } | version /= tag -> do
+            Just Package{ location = Remote{..}, .. } | version /= tag -> do
               echo $ "Found a newer tag for '" <> name <> "': " <> tag
               let auth = GitHub.OAuth $ Encoding.encodeUtf8 token
                   owner' = GitHub.mkName Proxy "purescript"

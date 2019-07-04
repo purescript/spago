@@ -28,7 +28,7 @@ import qualified Spago.Config       as Config
 import qualified Spago.FetchPackage as Fetch
 import           Spago.GlobalCache  (CacheFlag (..))
 import qualified Spago.Messages     as Messages
-import           Spago.PackageSet   (Package (..), PackageName (..), PackageSet (..), Repo)
+import           Spago.PackageSet   (Package (..), PackageName (..), PackageSet (..), Repo(..))
 import qualified Spago.PackageSet   as PackageSet
 import qualified Spago.Purs         as Purs
 import qualified Spago.Templates    as Templates
@@ -129,9 +129,9 @@ getTransitiveDeps PackageSet{..} deps = do
       | otherwise = case Map.lookup dep packagesDB of
           Nothing ->
             (packagesDB , Set.insert (NotFoundError dep) notFoundErrors, cycleErrors)
-          Just info@Package{..} -> do
+          Just packageInfo@Package{..} -> do
             let (m, notFoundErrors', cycleErrors') = foldMap (go (Set.insert dep seen) notFoundErrors cycleErrors) dependencies
-            (Map.insert dep info m, notFoundErrors', cycleErrors')
+            (Map.insert dep packageInfo m, notFoundErrors', cycleErrors')
 
 newtype NotFoundError a = NotFoundError a deriving (Eq, Ord)
 newtype CycleError a = CycleError a deriving (Eq, Ord)
@@ -141,7 +141,7 @@ getReverseDeps  :: PackageSet -> PackageName -> IO [(PackageName, Package)]
 getReverseDeps packageSet@PackageSet{..} dep = do
     List.nub <$> foldMap go (Map.toList packagesDB)
   where
-    go pair@(packageName, Package {..}) =
+    go pair@(packageName, Package{..}) = do
       case List.find (== dep) dependencies of
         Nothing -> return mempty
         Just _ -> do
@@ -175,7 +175,7 @@ data JsonFlag = JsonOutputNo | JsonOutputYes
 
 data JsonPackageOutput = JsonPackageOutput
   { json_packageName :: !Text
-  , json_repo        :: !Repo
+  , json_repo        :: !Text
   , json_version     :: !Text
   }
   deriving (Eq, Show, Generic)
@@ -212,11 +212,17 @@ listPackages packagesFilter jsonFlag = do
     formatPackageNamesJson :: [(PackageName, Package)] -> [Text]
     formatPackageNamesJson pkgs =
       let
-        asJson (PackageName{..},Package{..})
+        asJson (PackageName{..}, Package{ location = PackageSet.Remote{..}, ..})
           = JsonPackageOutput
               { json_packageName = packageName
-              , json_repo = repo
+              , json_repo = unRepo repo
               , json_version = version
+              }
+        asJson (PackageName{..}, Package { location = PackageSet.Local{..}, ..})
+          = JsonPackageOutput
+              { json_packageName = packageName
+              , json_repo = localPath
+              , json_version = "local"
               }
       in map (encodeJsonPackageOutput . asJson) pkgs
 
@@ -224,13 +230,19 @@ listPackages packagesFilter jsonFlag = do
     formatPackageNamesText :: [(PackageName, Package)] -> [Text]
     formatPackageNamesText pkgs =
       let
-        longestName = maximum $ fmap (Text.length . packageName . fst) pkgs
-        longestVersion = maximum $ fmap (Text.length . version . snd) pkgs
+        showVersion PackageSet.Remote{..} = version
+        showVersion _ = "local"
 
-        renderPkg (PackageName{..},Package{..})
+        showLocation PackageSet.Remote{ repo = Repo repo } = "Remote " <> surroundQuote repo
+        showLocation PackageSet.Local{..} = "Local " <> surroundQuote localPath
+
+        longestName = maximum $ fmap (Text.length . packageName . fst) pkgs
+        longestVersion = maximum $ fmap (Text.length . showVersion . location . snd) pkgs
+
+        renderPkg (PackageName{..}, Package{..})
           = leftPad longestName packageName <> " "
-          <> leftPad longestVersion version <> "   "
-          <> Text.pack (show repo)
+          <> leftPad longestVersion (showVersion location) <> "   "
+          <> showLocation location
       in map renderPkg pkgs
 
     leftPad :: Int -> Text -> Text
@@ -278,7 +290,7 @@ verify maybeLimit cacheFlag maybePackage = do
     verifyPackage packageSet@PackageSet{..} name = do
       deps <- getTransitiveDeps packageSet [name]
       let globs = getGlobs deps
-          quotedName = Messages.surroundQuote $ packageName name
+          quotedName = surroundQuote $ packageName name
       Fetch.fetchPackages maybeLimit cacheFlag deps packagesMinPursVersion
       echo $ "Verifying package " <> quotedName
       Purs.compile globs []
