@@ -175,7 +175,7 @@ data JsonFlag = JsonOutputNo | JsonOutputYes
 
 data JsonPackageOutput = JsonPackageOutput
   { json_packageName :: !Text
-  , json_repo        :: !Text
+  , json_repo        :: !Value
   , json_version     :: !Text
   }
   deriving (Eq, Show, Generic)
@@ -212,16 +212,16 @@ listPackages packagesFilter jsonFlag = do
     formatPackageNamesJson :: [(PackageName, Package)] -> [Text]
     formatPackageNamesJson pkgs =
       let
-        asJson (PackageName{..}, Package{ location = PackageSet.Remote{..}, ..})
+        asJson (PackageName{..}, Package{ location = loc@PackageSet.Remote{..}, ..})
           = JsonPackageOutput
               { json_packageName = packageName
-              , json_repo = unRepo repo
+              , json_repo = toJSON loc
               , json_version = version
               }
-        asJson (PackageName{..}, Package { location = PackageSet.Local{..}, ..})
+        asJson (PackageName{..}, Package { location = loc@PackageSet.Local{..}, ..})
           = JsonPackageOutput
               { json_packageName = packageName
-              , json_repo = localPath
+              , json_repo = toJSON loc
               , json_version = "local"
               }
       in map (encodeJsonPackageOutput . asJson) pkgs

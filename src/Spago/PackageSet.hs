@@ -54,11 +54,23 @@ data PackageLocation
   deriving (Eq, Show, Generic)
 
 
+-- | This instance is to make `spago list-dependencies --json` work
+instance ToJSON PackageLocation where
+  toJSON Remote{..} = object
+    [ "tag" .= ("Remote" :: Text)
+    , "contents" .= unRepo repo
+    ]
+  toJSON Local{..} = object
+    [ "tag" .= ("Local" :: Text)
+    , "contents" .= localPath
+    ]
+
 data PackageSet = PackageSet
   { packagesDB             :: Map PackageName Package
   , packagesMinPursVersion :: Maybe Version.SemVer
   }
   deriving (Show, Generic)
+
 
 -- | We consider a "Repo" a "box of source to include in the build"
 --   This can have different nature:
@@ -66,7 +78,6 @@ newtype Repo = Repo { unRepo :: Text }
   deriving (Eq, Show, Generic)
 
 instance ToJSON Repo
-instance FromJSON Repo
 
 instance Dhall.Interpret Repo where
   autoWith _ = makeRepo <$> Dhall.strictText
