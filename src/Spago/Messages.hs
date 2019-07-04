@@ -151,8 +151,5 @@ makeModuleCommandRenamed :: Text
 makeModuleCommandRenamed =
   "The `make-module` command has been replaced with `bundle-module`, so use that instead."
 
-surroundQuote :: Text -> Text
-surroundQuote y = "\"" <> y <> "\""
-
 makeMessage :: [Text] -> Text
 makeMessage = Text.intercalate "\n"

@@ -26,6 +26,7 @@ module Spago.Prelude
   , (<|>)
   , (</>)
   , (^..)
+  , surroundQuote
   , transformMOf
   , testfile
   , testdir
@@ -169,6 +170,10 @@ with r f = liftIO $ Turtle.with r f
 
 viewShell :: (MonadIO m, Show a) => Turtle.Shell a -> m ()
 viewShell = Turtle.view
+
+
+surroundQuote :: Text -> Text
+surroundQuote y = "\"" <> y <> "\""
 
 
 mv :: MonadIO m => System.IO.FilePath -> System.IO.FilePath -> m ()
