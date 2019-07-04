@@ -81,7 +81,7 @@ import           Control.Lens.Combinators      (transformMOf)
 import           Control.Monad                 as X
 import           Control.Monad.Catch           as X hiding (try)
 import           Control.Monad.Reader          as X
-import           Data.Aeson                    as X hiding (Result(..))
+import           Data.Aeson                    as X hiding (Result (..))
 import           Data.Either                   as X
 import           Data.Either.Validation        (Validation (..))
 import           Data.Foldable                 as X
@@ -93,8 +93,6 @@ import           Data.Text                     (Text)
 import           Data.Text.Prettyprint.Doc     (Pretty)
 import           Data.Traversable              (for)
 import           Data.Typeable                 (Proxy (..), Typeable)
-import           GHC.Conc                      (atomically, newTVarIO, readTVar, readTVarIO,
-                                                writeTVar)
 import           GHC.Generics                  (Generic)
 import           Prelude                       as X hiding (FilePath)
 import           Safe                          (headMay)
@@ -107,6 +105,8 @@ import           UnliftIO                      (MonadUnliftIO, withRunInIO)
 import           UnliftIO.Directory            (getModificationTime, makeAbsolute)
 import           UnliftIO.Exception            (IOException, try)
 import           UnliftIO.Process              (callCommand)
+import           UnliftIO.STM                  (atomically, newTVarIO, readTVar, readTVarIO,
+                                                writeTVar)
 
 -- | Generic Error that we throw on program exit.
 --   We have it so that errors are displayed nicely to the user

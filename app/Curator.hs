@@ -196,8 +196,8 @@ spagoUpdater token controlChan fetcherChan = go Nothing
           go $ Just releaseTagName
 
 
-fetcher :: Text -> Queue.TBQueue FetcherMessage -> Queue.TQueue MetadataUpdaterMessage -> Queue.TQueue PackageSetsUpdaterMessage -> IO b
-fetcher token controlChan metadataChan psChan = forever $ do
+fetcher :: MonadIO m => Text -> Queue.TBQueue FetcherMessage -> Queue.TQueue MetadataUpdaterMessage -> Queue.TQueue PackageSetsUpdaterMessage -> m b
+fetcher token controlChan metadataChan psChan = liftIO $ forever $ do
   (atomically $ Queue.readTBQueue controlChan) >>= \case
     MPackageSetTag tag -> do
       echo "Downloading and parsing package set.."
@@ -216,10 +216,10 @@ fetcher token controlChan metadataChan psChan = forever $ do
 
   where
     -- | Call GitHub to get metadata for a single package
-    fetchRepoMetadata :: (PackageName, Package) -> IO ()
+    fetchRepoMetadata :: MonadIO m => (PackageName, Package) -> m ()
     fetchRepoMetadata (_, Package{ location = Local{..}, ..}) = pure ()
     fetchRepoMetadata (packageName, Package{ location = Remote{ repo = Repo repoUrl, ..}, ..}) =
-      Retry.recoverAll (Retry.fullJitterBackoff 50000 <> Retry.limitRetries 25) $ \Retry.RetryStatus{..} -> do
+      liftIO $ Retry.recoverAll (Retry.fullJitterBackoff 50000 <> Retry.limitRetries 25) $ \Retry.RetryStatus{..} -> do
         let !(owner:repo:_rest)
               = Text.split (=='/')
               $ Text.replace "https://github.com/" ""
@@ -250,9 +250,9 @@ fetcher token controlChan metadataChan psChan = forever $ do
         atomically $ Queue.writeTQueue metadataChan $ MMetadata packageName RepoMetadataV1{..}
 
     -- | Tries to read in a PackageSet from GitHub
-    fetchPackageSet :: Text -> IO PackageSetMap
+    fetchPackageSet :: MonadIO m => MonadThrow m => Text -> m PackageSetMap
     fetchPackageSet tag = do
-      expr <- Dhall.inputExpr ("https://raw.githubusercontent.com/purescript/package-sets/" <> tag <> "/src/packages.dhall")
+      expr <- liftIO $ Dhall.inputExpr ("https://raw.githubusercontent.com/purescript/package-sets/" <> tag <> "/src/packages.dhall")
       case expr of
         Dhall.RecordLit pkgs -> fmap (Map.mapKeys PackageName . Dhall.Map.toMap)
           $ traverse Spago.Config.parsePackage pkgs

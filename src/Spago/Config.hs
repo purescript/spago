@@ -49,6 +49,7 @@ type Expr = Dhall.DhallExpr Dhall.Import
 type ResolvedExpr = Dhall.DhallExpr Dhall.TypeCheck.X
 
 
+
 isLocationType :: (Eq s, Eq a) => Dhall.Expr s a -> Bool
 isLocationType (Dhall.Union kvs) | locationUnionMap == Dhall.Map.toMap kvs = True
   where
@@ -60,18 +61,29 @@ isLocationType (Dhall.Union kvs) | locationUnionMap == Dhall.Map.toMap kvs = Tru
       ]
 isLocationType _ = False
 
-parsePackage :: ResolvedExpr -> IO Package
+
+dependenciesType :: Dhall.Type [PackageName]
+dependenciesType = Dhall.list (Dhall.auto :: Dhall.Type PackageName)
+
+parsePackage :: MonadIO m => MonadThrow m => ResolvedExpr -> m Package
 parsePackage (Dhall.RecordLit ks) = do
   let repoType = Dhall.auto :: Dhall.Type PackageSet.Repo
-  let dependenciesType = Dhall.list (Dhall.auto :: Dhall.Type PackageName)
   repo <- Dhall.requireTypedKey ks "repo" repoType
   version <- Dhall.requireTypedKey ks "version" Dhall.strictText
   dependencies <- Dhall.requireTypedKey ks "dependencies" dependenciesType
   let location = PackageSet.Remote{..}
   pure PackageSet.Package{..}
-parsePackage (Dhall.App (Dhall.Field union "Local") (Dhall.TextLit (Dhall.Chunks [] localPath)))
+parsePackage (Dhall.App (Dhall.Field union "Local") (Dhall.TextLit (Dhall.Chunks [] spagoConfigPath)))
   | isLocationType union = do
-      let dependencies = []
+      localPath <- case Text.isSuffixOf "/spago.dhall" spagoConfigPath of
+        True  -> pure $ Text.dropEnd 12 spagoConfigPath
+        False -> error "aaa" -- TODO: nice error about pointing to spago.dhall
+      rawConfig <- liftIO $ Dhall.readRawExpr spagoConfigPath
+      dependencies <- case rawConfig of
+        Nothing -> die Messages.cannotFindConfig  -- TODO: maybe different error?
+        Just (_header, expr) -> do
+          newExpr <- transformMExpr (pure . filterDependencies . addSourcePaths) expr
+          liftIO $ Dhall.input dependenciesType (Dhall.pretty newExpr)
       let location = PackageSet.Local{..}
       pure PackageSet.Package{..}
 parsePackage _expr = die "errr"
@@ -82,17 +94,16 @@ parseConfig = do
   withConfigAST $ pure . addSourcePaths
   expr <- liftIO $ Dhall.inputExpr $ "./" <> pathText
   case expr of
-    Dhall.RecordLit ks -> liftIO $ do
+    Dhall.RecordLit ks -> do
       packages :: Map PackageName Package <- Dhall.requireKey ks "packages" (\case
         Dhall.RecordLit pkgs ->
           fmap (Map.mapKeys PackageSet.PackageName . Dhall.Map.toMap)
           $ traverse parsePackage pkgs
         something -> throwM $ Dhall.PackagesIsNotRecord something)
 
-      let pkgNamesType = Dhall.list (Dhall.auto :: Dhall.Type PackageName)
       let sourcesType  = Dhall.list (Dhall.auto :: Dhall.Type Purs.SourcePath)
       name              <- Dhall.requireTypedKey ks "name" Dhall.strictText
-      dependencies      <- Dhall.requireTypedKey ks "dependencies" pkgNamesType
+      dependencies      <- Dhall.requireTypedKey ks "dependencies" dependenciesType
       configSourcePaths <- Dhall.requireTypedKey ks "sources" sourcesType
 
       let metadataPackageName = PackageSet.PackageName "metadata"
@@ -182,15 +193,25 @@ addRawDeps config newPackages r@(Dhall.RecordLit kvs)
         seens = Seq.scanl (flip Set.insert) Set.empty xs
 addRawDeps _ _ other = pure other
 
+
 addSourcePaths :: Expr -> Expr
 addSourcePaths (Dhall.RecordLit kvs)
   | isConfigV1 kvs = Dhall.RecordLit
     $ Dhall.Map.insert "sources" (Dhall.ListLit Nothing $ fmap Dhall.toTextLit $ Seq.fromList ["src/**/*.purs", "test/**/*.purs"]) kvs
-  where
-    isConfigV1 (Set.fromList . Dhall.Map.keys -> configKeySet) =
-      let configV1Keys = Set.fromList ["name", "dependencies", "packages"]
-      in configKeySet == configV1Keys
 addSourcePaths expr = expr
+
+isConfigV1 (Set.fromList . Dhall.Map.keys -> configKeySet) =
+  let configV1Keys = Set.fromList ["name", "dependencies", "packages"]
+  in configKeySet == configV1Keys
+
+isConfigV2 (Set.fromList . Dhall.Map.keys -> configKeySet) =
+  let configV2Keys = Set.fromList ["name", "dependencies", "packages", "sources"]
+  in configKeySet == configV2Keys
+
+filterDependencies :: Expr -> Expr
+filterDependencies (Dhall.RecordLit kvs)
+  | isConfigV2 kvs, Just deps <- Dhall.Map.lookup "dependencies" kvs = deps
+filterDependencies expr = expr
 
 -- | Takes a function that manipulates the Dhall AST of the Config, and tries to run it
 --   on the current config. If it succeeds, it writes back to file the result returned.
@@ -204,17 +225,17 @@ withConfigAST transform = do
     Just (header, expr) -> do
       newExpr <- transformMExpr transform expr
       liftIO $ Dhall.writeRawExpr pathText (header, newExpr)
-  where
-    transformMExpr
-      :: Spago m
-      => (Dhall.Expr s Dhall.Import -> m (Dhall.Expr s Dhall.Import))
-      -> Dhall.Expr s Dhall.Import
-      -> m (Dhall.Expr s Dhall.Import)
-    transformMExpr rules =
-      transformMOf
-        Dhall.subExpressions
-        rules
-      . Dhall.Core.denote
+
+transformMExpr
+  :: MonadIO m
+  => (Dhall.Expr s Dhall.Import -> m (Dhall.Expr s Dhall.Import))
+  -> Dhall.Expr s Dhall.Import
+  -> m (Dhall.Expr s Dhall.Import)
+transformMExpr rules =
+  transformMOf
+    Dhall.subExpressions
+    rules
+    . Dhall.Core.denote
 
 
 -- | Try to add the `newPackages` to the "dependencies" list in the Config.
