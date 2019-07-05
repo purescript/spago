@@ -58,7 +58,9 @@ writeBowerJson = do
 runBowerInstall :: Spago m => m ()
 runBowerInstall = do
   echo "Running `bower install` so `pulp publish` can read resolved versions from it."
-  Turtle.procs "bower" ["install", "--silent"] empty
+  shell "bower install --silent" empty >>= \case
+    ExitSuccess   -> pure ()
+    ExitFailure _ -> die "Failed to run `bower install` on your package"
 
 
 templateBowerJson :: Spago m => m Bower.PackageMeta
