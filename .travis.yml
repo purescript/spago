@@ -96,6 +96,7 @@ script:
 
     # get newest purescript from github releases
     TAG=$(wget -q -O - https://github.com/purescript/purescript/releases/latest --server-response --max-redirect 0 2>&1 | sed -n -e 's/.*Location:.*tag\///p')
+    TAG="v0.13.0"
     wget -O $HOME/purescript.tar.gz https://github.com/purescript/purescript/releases/download/$TAG/$PURS_OS.tar.gz
     tar -xvf $HOME/purescript.tar.gz -C $HOME/
     chmod a+x $HOME/purescript
