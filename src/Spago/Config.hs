@@ -173,11 +173,12 @@ addSourcePaths expr = expr
 withConfigAST :: Spago m => (Expr -> m Expr) -> m ()
 withConfigAST transform = do
   rawConfig <- liftIO $ Dhall.readRawExpr pathText
+  hasDontFormatConfig <- asks dontFormatConfig
   case rawConfig of
     Nothing -> die Messages.cannotFindConfig
     Just (header, expr) -> do
       newExpr <- transformMExpr transform expr
-      liftIO $ Dhall.writeRawExpr pathText (header, newExpr)
+      liftIO $ Dhall.writeRawExpr hasDontFormatConfig pathText (header, newExpr)
   where
     transformMExpr
       :: Spago m

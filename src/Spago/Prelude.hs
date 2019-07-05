@@ -116,6 +116,7 @@ instance Show SpagoError where
 
 data GlobalOptions = GlobalOptions
   { debug :: Bool
+  , dontFormatConfig :: Bool
   }
 
 type Spago m =

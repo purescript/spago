@@ -50,14 +50,15 @@ readRawExpr pathText = do
     else (pure Nothing)
 
 
-writeRawExpr :: Text -> (Text, DhallExpr Dhall.Import) -> IO ()
-writeRawExpr pathText (header, expr) = do
+writeRawExpr :: Bool -> Text -> (Text, DhallExpr Dhall.Import) -> IO ()
+writeRawExpr hasDontFormatConfig pathText (header, expr) = do
   -- After modifying the expression, we have to check if it still typechecks
   -- if it doesn't we don't write to file.
   resolvedExpr <- Dhall.Import.load expr
-  throws (Dhall.TypeCheck.typeOf resolvedExpr)
-  writeTextFile (pathFromText pathText) $ prettyWithHeader header expr <> "\n"
-  format pathText
+  _ <- throws (Dhall.TypeCheck.typeOf resolvedExpr)
+  unless hasDontFormatConfig $ do
+    writeTextFile (pathFromText pathText) $ prettyWithHeader header expr <> "\n"
+    format pathText
 
 
 -- | Returns a Dhall Text literal from a lone string

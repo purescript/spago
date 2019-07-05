@@ -116,7 +116,7 @@ upgradePackageSet = do
           echo $ "Upgrading the package set version to " <> quotedTag
           let newExpr = fmap (upgradeImports releaseTagName) expr
           echo $ Messages.upgradingPackageSet releaseTagName
-          liftIO $ Dhall.writeRawExpr pathText (header, newExpr)
+          liftIO $ Dhall.writeRawExpr False pathText (header, newExpr)
           -- If everything is fine, refreeze the imports
           freeze
   where
