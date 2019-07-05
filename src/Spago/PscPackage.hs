@@ -1,6 +1,6 @@
 module Spago.PscPackage where
 
-import           Spago.Prelude
+import           Spago.Prelude hiding (set)
 
 import qualified Data.Aeson               as JSON
 import           Data.Aeson.Encode.Pretty (encodePretty)

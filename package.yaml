@@ -61,7 +61,7 @@ library:
   - network-uri
   - github
   - versions
-  - lens
+  - lens-family-core
   - safe
   - fsnotify
   - Glob
@@ -118,7 +118,7 @@ executables:
     - async-pool
     - process
     - github
-    - lens
+    - lens-family-core
     - stm
     - vector
     - temporary

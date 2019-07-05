@@ -27,6 +27,7 @@ module Spago.Prelude
   , (<|>)
   , (</>)
   , (^..)
+  , set
   , surroundQuote
   , transformMOf
   , testfile
@@ -76,8 +77,6 @@ import qualified Turtle                        as Turtle
 import qualified UnliftIO.Directory            as Directory
 
 import           Control.Applicative           (Alternative, empty, many, (<|>))
-import           Control.Lens                  ((^..))
-import           Control.Lens.Combinators      (transformMOf)
 import           Control.Monad                 as X
 import           Control.Monad.Catch           as X hiding (try)
 import           Control.Monad.Reader          as X
@@ -93,7 +92,9 @@ import           Data.Text                     (Text)
 import           Data.Text.Prettyprint.Doc     (Pretty)
 import           Data.Traversable              (for)
 import           Data.Typeable                 (Proxy (..), Typeable)
+import           Dhall.Optics                  (transformMOf)
 import           GHC.Generics                  (Generic)
+import           Lens.Family                   (set, (^..))
 import           Prelude                       as X hiding (FilePath)
 import           Safe                          (headMay)
 import           System.FilePath               (isAbsolute, pathSeparator, (</>))

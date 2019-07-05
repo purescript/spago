@@ -83,7 +83,14 @@ parsePackage (Dhall.App (Dhall.Field union "Local") (Dhall.TextLit (Dhall.Chunks
         Nothing -> die Messages.cannotFindConfig  -- TODO: maybe different error?
         Just (_header, expr) -> do
           newExpr <- transformMExpr (pure . filterDependencies . addSourcePaths) expr
-          liftIO $ Dhall.input dependenciesType (Dhall.pretty newExpr)
+          -- Note: we have to use inputWithSettings here because we're about to resolve
+          -- the raw config from the local project. So if that has any imports they
+          -- should be relative to the directory of that package
+          liftIO $
+            Dhall.inputWithSettings
+              (set Dhall.rootDirectory (Text.unpack localPath) Dhall.defaultInputSettings)
+              dependenciesType
+              (Dhall.pretty newExpr)
       let location = PackageSet.Local{..}
       pure PackageSet.Package{..}
 parsePackage _expr = die "errr"
