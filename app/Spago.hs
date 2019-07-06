@@ -114,7 +114,7 @@ data Command
 parser :: CLI.Parser (Command, GlobalOptions)
 parser = do
   opts <- globalOptions
-  command <- projectCommands <|> packageSetCommands <|> pscPackageCommands <|> otherCommands <|> oldCommands
+  command <- projectCommands <|> packageSetCommands <|> publishCommands <|> pscPackageCommands <|> otherCommands <|> oldCommands
   pure (command, opts)
   where
     force           = CLI.switch "force" 'f' "Overwrite any project found in the current directory"
@@ -186,7 +186,6 @@ parser = do
       , build
       , repl
       , test
-      , bumpVersion
       , run
       , bundleApp
       , bundleModule
@@ -215,12 +214,6 @@ parser = do
       ( "test"
       , "Test the project with some module, default Test.Main"
       , Test <$> mainModule <*> buildOptions <*> nodeArgs
-      )
-
-    bumpVersion =
-      ( "bump-version"
-      , "Bump and tag a new version, and generate bower.json, in preparation for release."
-      , BumpVersion <$> versionBump
       )
 
     run =
@@ -298,6 +291,17 @@ parser = do
       ( "freeze"
       , "Recompute the hashes for the package-set"
       , pure Freeze
+      )
+
+
+    publishCommands = CLI.subcommandGroup "Publish commands:"
+      [ bumpVersion
+      ]
+
+    bumpVersion =
+      ( "bump-version"
+      , "Bump and tag a new version, and generate bower.json, in preparation for release."
+      , BumpVersion <$> versionBump
       )
 
 
