@@ -6,6 +6,7 @@ module Utils
   , rmtree
   , runFor
   , shouldBeFailure
+  , shouldBeFailureInfix
   , shouldBeFailureOutput
   , shouldBeSuccess
   , shouldBeSuccessOutput
@@ -70,6 +71,10 @@ shouldBeFailureOutput :: HasCallStack => FilePath -> (ExitCode, Text, Text) -> I
 shouldBeFailureOutput expected result = do
   expectedContent <- readFixture expected
   result `shouldSatisfy` (\(code, _stdout, stderr) -> code == ExitFailure 1 && stderr == expectedContent)
+
+shouldBeFailureInfix :: HasCallStack => Text -> (ExitCode, Text, Text) -> IO ()
+shouldBeFailureInfix expected result = do
+  result `shouldSatisfy` (\(code, _stdout, stderr) -> code == ExitFailure 1 && Text.isInfixOf expected stderr)
 
 readFixture :: FilePath -> IO Text
 readFixture path =

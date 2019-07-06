@@ -38,7 +38,6 @@ unparseVersion version =
 -- | Get the highest git version tag, die if this is not a git repo with no uncommitted changes.
 getCurrentVersion :: Spago m => m SemVer
 getCurrentVersion = do
-  Git.requireCleanWorkingTree
 
   tagTexts <- Git.getAllTags
   let tags = catMaybes $ hush . parseVersion <$> tagTexts
@@ -81,9 +80,17 @@ tagNewVersion oldVersion newVersion = do
 -- | Bump and tag a new version in preparation for release.
 bumpVersion :: Spago m => VersionBump -> m ()
 bumpVersion spec = do
+  Git.requireCleanWorkingTree
+  
   oldVersion <- getCurrentVersion
   newVersion <- getNextVersion spec oldVersion
+
   Bower.writeBowerJson
   Bower.runBowerInstall
-  Git.addAllChanges
+
+  clean <- Git.hasCleanWorkingTree
+  if clean
+    then echo $ "The generated " <> Bower.bowerPath <> " is already committed, good."
+    else die $ "A new " <> Bower.bowerPath <> " has been generated. Please commit this and run `bump-version` again."
+
   tagNewVersion oldVersion newVersion

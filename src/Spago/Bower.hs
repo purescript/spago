@@ -1,5 +1,6 @@
 module Spago.Bower
-  ( writeBowerJson
+  ( bowerPath
+  , writeBowerJson
   , runBowerInstall
   ) where
 
