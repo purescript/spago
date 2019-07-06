@@ -14,7 +14,6 @@ import qualified Data.Text     as Text
 import qualified Safe.Foldable as Safe
 
 import qualified Spago.Bower   as Bower
-import qualified Spago.Build   as Build
 import           Spago.DryRun     (DryRun (..))
 import qualified Spago.DryRun  as DryRun
 import qualified Spago.Git     as Git
