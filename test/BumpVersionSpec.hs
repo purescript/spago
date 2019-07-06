@@ -3,8 +3,7 @@ module BumpVersionSpec (spec) where
 import           Prelude        hiding (FilePath)
 import qualified System.IO.Temp as Temp
 import           Test.Hspec     (Spec, around_, before_, describe, it, shouldBe)
-import           Turtle         (Text, cp, cptree, decodeString, inplace, mkdir,
-                                 mv)
+import           Turtle         (Text, cp, decodeString, inplace, mkdir, mv)
 import qualified Turtle.Pattern as Pattern
 import           Utils          (checkFixture, getHighestTag, git,
                                  shouldBeFailureInfix, shouldBeSuccess, spago,
@@ -14,9 +13,26 @@ import           Utils          (checkFixture, getHighestTag, git,
 setup :: IO () -> IO ()
 setup cmd = do
   Temp.withTempDirectory "test/" "bump-version-test" $ \temp -> do
-    let tempPath = decodeString temp
-    cptree "test/bump-version-test" tempPath
-    withCwd tempPath cmd
+    withCwd (decodeString temp) (setupSpago *> cmd)
+  where
+    setupSpago = do
+
+      spago ["init"] >>= shouldBeSuccess
+      let fields = do
+            Pattern.text "{ name ="
+            pure "{ license = \"MIT\", repository = \"git://github.com/spago/not-a-real-repo.git\", name ="
+      inplace fields "spago.dhall"
+
+      -- fix the package set so bower.json is generated with predicable versions
+      let pkgSet = do
+            Pattern.text "https://raw.githubusercontent.com/purescript/package-sets/"
+            Pattern.plus $ Pattern.notChar '/'
+            Pattern.text "/src/packages.dhall sha256:"
+            Pattern.plus $ Pattern.hexDigit
+            pure "https://raw.githubusercontent.com/purescript/package-sets/psc-0.13.0-20190614/src/packages.dhall sha256:5cbf2418298e7de762401c5719c6eb18eda4c67ba512b3f076b50a793a7fc482"
+      inplace pkgSet "packages.dhall"
+
+      spago ["install", "tortellini"]
 
 initGit :: IO ()
 initGit = do
