@@ -6,8 +6,8 @@ import           Test.Hspec     (Spec, around_, before_, describe, it, shouldBe)
 import           Turtle         (Text, cp, decodeString, inplace, mkdir, mv)
 import qualified Turtle.Pattern as Pattern
 import           Utils          (checkFixture, getHighestTag, git,
-                                 shouldBeFailureInfix, shouldBeSuccess, spago,
-                                 withCwd)
+                                 shouldBeFailureInfix, shouldBeSuccess,
+                                 shouldBeSuccessInfix, spago, withCwd)
 
 
 setup :: IO () -> IO ()
@@ -71,34 +71,40 @@ spec = around_ setup $ do
       spago ["bump-version", "minor"] >>= shouldBeFailureInfix
         "Your git working tree is dirty. Please commit or stash your changes first"
 
+    before_ (initGitTag "v1.2.3") $ it "Spago should not make a tag when not passing --no-dry-run" $ do
+
+      spago ["bump-version", "minor"] >>= shouldBeSuccessInfix
+        "Skipped creating new Git tag (v1.3.0) because this is a dry run."
+      getHighestTag >>= (`shouldBe` Just "v1.2.3")
+
     before_ (initGitTag "not-a-version") $ it "Spago should use v0.0.0 as initial version" $ do
 
-      spago ["bump-version", "patch"] >>= shouldBeSuccess
+      spago ["bump-version", "--no-dry-run", "patch"] >>= shouldBeSuccess
       getHighestTag >>= (`shouldBe` Just "v0.0.1")
 
     before_ (initGitTag "v1.3.4") $ it "Spago should bump patch version" $ do
 
-      spago ["bump-version", "patch"] >>= shouldBeSuccess
+      spago ["bump-version", "--no-dry-run", "patch"] >>= shouldBeSuccess
       getHighestTag >>= (`shouldBe` Just "v1.3.5")
 
     before_ (initGitTag "v1.3.4") $ it "Spago should bump minor version" $ do
 
-      spago ["bump-version", "minor"] >>= shouldBeSuccess
+      spago ["bump-version", "--no-dry-run", "minor"] >>= shouldBeSuccess
       getHighestTag >>= (`shouldBe` Just "v1.4.0")
 
     before_ (initGitTag "v1.3.4") $ it "Spago should bump major version" $ do
 
-      spago ["bump-version", "major"] >>= shouldBeSuccess
+      spago ["bump-version", "--no-dry-run", "major"] >>= shouldBeSuccess
       getHighestTag >>= (`shouldBe` Just "v2.0.0")
 
     before_ (initGitTag "v0.0.1") $ it "Spago should set exact version" $ do
 
-      spago ["bump-version", "v3.1.5"] >>= shouldBeSuccess
+      spago ["bump-version", "--no-dry-run", "v3.1.5"] >>= shouldBeSuccess
       getHighestTag >>= (`shouldBe` Just "v3.1.5")
 
     before_ initGit $ it "Spago should create bower.json, but not commit it" $ do
 
-      spago ["bump-version", "minor"] >>= shouldBeFailureInfix
+      spago ["bump-version", "--no-dry-run", "minor"] >>= shouldBeFailureInfix
          "A new bower.json has been generated. Please commit this and run `bump-version` again."
       mv "bower.json" "bump-version-bower.json"
       checkFixture "bump-version-bower.json"

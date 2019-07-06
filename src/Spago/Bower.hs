@@ -16,6 +16,7 @@ import qualified Web.Bower.PackageMeta      as Bower
 
 import           Spago.Config               (Config (..), PublishConfig (..))
 import qualified Spago.Config               as Config
+import           Spago.DryRun               (DryRun (..))
 import qualified Spago.Git                  as Git
 import qualified Spago.GlobalCache          as GlobalCache
 import           Spago.GlobalCache          (RepoMetadataV1 (..), Tag (..))
@@ -28,8 +29,8 @@ bowerPath :: IsString t => t
 bowerPath = "bower.json"
 
 
-writeBowerJson :: Spago m => m ()
-writeBowerJson = do
+writeBowerJson :: Spago m => DryRun -> m ()
+writeBowerJson dryRun = do
   config@Config{..} <- Config.ensureConfig
   PublishConfig{..} <- Config.ensurePublishConfig
 
@@ -50,17 +51,21 @@ writeBowerJson = do
   when ignored $ do
     die $ bowerPath <> " is being ignored by git - change this before continuing."
 
-  liftIO $ ByteString.writeFile bowerPath bowerJson
+  case dryRun of
+    DryRun -> echo $ "Skipped writing " <> bowerPath <> " because this is a dry run."
+    NoDryRun -> do
+      liftIO $ ByteString.writeFile bowerPath bowerJson
+      echo $ "Generated " <> bowerPath <> " using the package set."
 
-  echo $ "Generated " <> bowerPath <> " using the package set."
 
-
-runBowerInstall :: Spago m => m ()
-runBowerInstall = do
-  echo "Running `bower install` so `pulp publish` can read resolved versions from it."
-  shell "bower install --silent" empty >>= \case
-    ExitSuccess   -> pure ()
-    ExitFailure _ -> die "Failed to run `bower install` on your package"
+runBowerInstall :: Spago m => DryRun -> m ()
+runBowerInstall = \case
+  DryRun -> echo "Skipped running `bower install` because this is a dry run."
+  NoDryRun -> do
+    echo "Running `bower install` so `pulp publish` can read resolved versions from it."
+    shell "bower install --silent" empty >>= \case
+      ExitSuccess   -> pure ()
+      ExitFailure _ -> die "Failed to run `bower install` on your package"
 
 
 templateBowerJson :: Spago m => m Bower.PackageMeta

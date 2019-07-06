@@ -10,10 +10,13 @@ import qualified Paths_spago         as Pcli
 import qualified System.Environment  as Env
 import qualified Turtle              as CLI
 
-import           Spago.Build         (BuildOptions (..), ExtraArg (..), ModuleName (..),
-                                      NoBuild (..), SourcePath (..), TargetPath (..), Watch (..),
-                                      WithMain (..), NoInstall (..))
+import           Spago.Build         (BuildOptions (..), ExtraArg (..),
+                                      ModuleName (..), SourcePath (..),
+                                      TargetPath (..), Watch (..),
+                                      WithMain (..), NoBuild (..),
+                                      NoInstall (..))
 import qualified Spago.Build
+import           Spago.DryRun        (DryRun (..))
 import           Spago.GlobalCache   (CacheFlag (..))
 import           Spago.Messages      as Messages
 import           Spago.Packages      (PackageName (..), PackagesFilter (..), JsonFlag(..))
@@ -61,7 +64,7 @@ data Command
   | Test (Maybe ModuleName) BuildOptions [ExtraArg]
 
   -- | Bump and tag a new version in preparation for release.
-  | BumpVersion VersionBump
+  | BumpVersion DryRun VersionBump
 
   -- | Run the project with some module, default Main
   | Run (Maybe ModuleName) BuildOptions [ExtraArg]
@@ -164,6 +167,7 @@ parser = do
             v | Right v' <- Version.parseVersion v -> Just $ Exact v'
             _ -> Nothing
       in CLI.arg spec "bump" "How to bump the version. Acceptable values: 'major', 'minor', 'patch', or a version (e.g. 'v1.2.3')."
+    dryRun = bool DryRun NoDryRun <$> CLI.switch "no-dry-run" 'f' "Actually perform side-effects (the default is to describe what would be done)"
     mainModule  = CLI.optional (CLI.opt (Just . ModuleName) "main" 'm' "Module to be used as the application's entry point")
     toTarget    = CLI.optional (CLI.opt (Just . TargetPath) "to" 't' "The target file path")
     limitJobs   = CLI.optional (CLI.optInt "jobs" 'j' "Limit the amount of jobs that can run concurrently")
@@ -301,7 +305,7 @@ parser = do
     bumpVersion =
       ( "bump-version"
       , "Bump and tag a new version, and generate bower.json, in preparation for release."
-      , BumpVersion <$> versionBump
+      , BumpVersion <$> dryRun <*> versionBump
       )
 
 
@@ -376,7 +380,7 @@ main = do
       Freeze                                -> Spago.Packages.freeze
       Build buildOptions                    -> Spago.Build.build buildOptions Nothing
       Test modName buildOptions nodeArgs    -> Spago.Build.test modName buildOptions nodeArgs
-      BumpVersion spec                      -> Version.bumpVersion spec
+      BumpVersion dryRun spec               -> Version.bumpVersion dryRun spec
       Run modName buildOptions nodeArgs     -> Spago.Build.run modName buildOptions nodeArgs
       Repl limitJobs cacheConfig replPackageNames paths pursArgs -> Spago.Build.repl limitJobs cacheConfig replPackageNames paths pursArgs
       BundleApp modName tPath shouldBuild buildOptions

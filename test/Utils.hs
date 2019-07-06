@@ -9,6 +9,7 @@ module Utils
   , shouldBeFailureInfix
   , shouldBeFailureOutput
   , shouldBeSuccess
+  , shouldBeSuccessInfix
   , shouldBeSuccessOutput
   , shouldBeEmptySuccess
   , spago
@@ -56,6 +57,10 @@ shouldBeSuccessOutput :: HasCallStack => FilePath -> (ExitCode, Text, Text) -> I
 shouldBeSuccessOutput expected result = do
   expectedContent <- readFixture expected
   result `shouldSatisfy` (\(code, stdout, _stderr) -> code == ExitSuccess && stdout == expectedContent)
+
+shouldBeSuccessInfix :: HasCallStack => Text -> (ExitCode, Text, Text) -> IO ()
+shouldBeSuccessInfix expected result =
+  result `shouldSatisfy` (\(code, stdout, _stderr) -> code == ExitSuccess && Text.isInfixOf expected stdout)
 
 shouldBeEmptySuccess :: HasCallStack => (ExitCode, Text, Text) -> IO ()
 shouldBeEmptySuccess result = do

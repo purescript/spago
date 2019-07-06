@@ -1,5 +1,6 @@
 module Spago.Version
   ( VersionBump(..)
+  , DryRun(..)
   , bumpVersion
   , parseVersion
   , unparseVersion
@@ -13,6 +14,9 @@ import qualified Data.Text     as Text
 import qualified Safe.Foldable as Safe
 
 import qualified Spago.Bower   as Bower
+import qualified Spago.Build   as Build
+import           Spago.DryRun     (DryRun (..))
+import qualified Spago.DryRun  as DryRun
 import qualified Spago.Git     as Git
 
 
@@ -67,30 +71,37 @@ getNextVersion spec version@SemVer{..} =
 
 
 -- | Make a tag for the new version.
-tagNewVersion :: Spago m => SemVer -> SemVer -> m ()
-tagNewVersion oldVersion newVersion = do
+tagNewVersion :: Spago m => DryRun -> SemVer -> SemVer -> m ()
+tagNewVersion dryRun oldVersion newVersion = do
 
   let oldVersionTag = unparseVersion oldVersion
       newVersionTag = unparseVersion newVersion
 
-  Git.commitAndTag newVersionTag $ oldVersionTag <> " → " <> newVersionTag
-  echo $ "Git tag created for new version: " <> unparseVersion newVersion
+  case dryRun of
+    DryRun -> do
+      echo $ "Skipped creating new Git tag (" <> newVersionTag <> ") because this is a dry run."
+    NoDryRun -> do
+      Git.commitAndTag newVersionTag $ oldVersionTag <> " → " <> newVersionTag
+      echo $ "Git tag created for new version: " <> newVersionTag
 
 
 -- | Bump and tag a new version in preparation for release.
-bumpVersion :: Spago m => VersionBump -> m ()
-bumpVersion spec = do
+bumpVersion :: Spago m => DryRun -> VersionBump -> m ()
+bumpVersion dryRun spec = do
+  DryRun.showHelp dryRun
+
   Git.requireCleanWorkingTree
-  
+
   oldVersion <- getCurrentVersion
   newVersion <- getNextVersion spec oldVersion
 
-  Bower.writeBowerJson
-  Bower.runBowerInstall
+  Bower.writeBowerJson dryRun
+  Bower.runBowerInstall dryRun
 
-  clean <- Git.hasCleanWorkingTree
-  if clean
-    then echo $ "The generated " <> Bower.bowerPath <> " is already committed, good."
-    else die $ "A new " <> Bower.bowerPath <> " has been generated. Please commit this and run `bump-version` again."
+  when (dryRun == NoDryRun) $ do
+    clean <- Git.hasCleanWorkingTree
+    if clean
+      then echo $ "The generated " <> Bower.bowerPath <> " is already committed, good."
+      else die $ "A new " <> Bower.bowerPath <> " has been generated. Please commit this and run `bump-version` again."
 
-  tagNewVersion oldVersion newVersion
+  tagNewVersion dryRun oldVersion newVersion

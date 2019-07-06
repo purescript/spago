@@ -712,8 +712,8 @@ manage and build your project, until you need to "publish" your library, where y
 to use `pulp`.
 
 When you decide you want to publish your library for others to use, you should:
-- run `spago bump-version <BUMP>`. This will generate a `bower.json` in a new  commit in Git that is tagged with the version.
-- run `pulp publish`. This will ensure the package is registered in Bower, push the version tag to Git and upload documentation to Pursuit. 
+- run `spago bump-version --no-dry-run <BUMP>`. This will generate a `bower.json` in a new  commit in Git that is tagged with the version.
+- run `pulp publish`. This will ensure the package is registered in Bower, push the version tag to Git and upload documentation to Pursuit.
 
 This is because the PureScript ecosystem uses the Bower registry as a "unique names registry".
 So in order to "publish" a package one needs to add it there, and eventually to [`package-sets`][package-sets].
