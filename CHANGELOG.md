@@ -13,8 +13,7 @@ Bugfixes:
 New features:
 - Add support for starting a repl within a folder which has not been setup as a spago project (#168)
 - Add `--format` flag to `spago docs` (#294)
-- Add `--no-config-format` global flag. Fixes #300. Skips formatting
-  `spago.dhall` during operations.
+- Add `--no-config-format` global flag to skip formatting Dhall files during operations. (#300, #302)
 
 ## [0.8.5] - 2019-06-18
 

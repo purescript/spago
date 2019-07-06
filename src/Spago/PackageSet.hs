@@ -85,7 +85,7 @@ makePackageSetFile force = do
     hasPackagesDhall <- testfile path
     when hasPackagesDhall $ echo $ Messages.foundExistingProject pathText
   writeTextFile path Templates.packagesDhall
-  Dhall.format pathText
+  Dhall.format DoFormat pathText
 
 
 -- | Tries to upgrade the Package-Sets release of the local package set.
@@ -116,7 +116,7 @@ upgradePackageSet = do
           echo $ "Upgrading the package set version to " <> quotedTag
           let newExpr = fmap (upgradeImports releaseTagName) expr
           echo $ Messages.upgradingPackageSet releaseTagName
-          liftIO $ Dhall.writeRawExpr False pathText (header, newExpr)
+          liftIO $ Dhall.writeRawExpr DoFormat pathText (header, newExpr)
           -- If everything is fine, refreeze the imports
           freeze
   where

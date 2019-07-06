@@ -140,6 +140,11 @@ parser = do
       pure $ case res of
         True  -> NoBuild
         False -> DoBuild
+    noFormat = do
+      res <- noConfigFormat
+      pure $ case res of
+        True  -> NoFormat
+        False -> DoFormat
     jsonFlagBool = CLI.switch "json" 'j' "Produce JSON output"
     jsonFlag = do
       res <- jsonFlagBool
@@ -161,7 +166,7 @@ parser = do
     replPackageNames = CLI.many $ CLI.opt (Just . PackageName) "dependency" 'd' "Package name to add to the REPL as dependency"
     passthroughArgs = many $ CLI.arg (Just . ExtraArg) " ..any `purs compile` option" "Options passed through to `purs compile`; use -- to separate"
     buildOptions = BuildOptions <$> limitJobs <*> cacheFlag <*> watch <*> clearScreen <*> sourcePaths <*> noInstall <*> passthroughArgs
-    globalOptions = GlobalOptions <$> verbose <*> noConfigFormat
+    globalOptions = GlobalOptions <$> verbose <*> noFormat
     packagesFilter =
       let wrap = \case
             "direct"     -> Just DirectDeps

@@ -103,7 +103,7 @@ makeConfig force = do
     hasSpagoDhall <- testfile path
     when hasSpagoDhall $ die $ Messages.foundExistingProject pathText
   writeTextFile path Templates.spagoDhall
-  Dhall.format pathText
+  Dhall.format DoFormat pathText
 
   -- We try to find an existing psc-package config, and we migrate the existing
   -- content if we found one, otherwise we copy the default template
@@ -173,12 +173,12 @@ addSourcePaths expr = expr
 withConfigAST :: Spago m => (Expr -> m Expr) -> m ()
 withConfigAST transform = do
   rawConfig <- liftIO $ Dhall.readRawExpr pathText
-  hasDontFormatConfig <- asks dontFormatConfig
+  shouldFormat <- asks shouldFormat
   case rawConfig of
     Nothing -> die Messages.cannotFindConfig
     Just (header, expr) -> do
       newExpr <- transformMExpr transform expr
-      liftIO $ Dhall.writeRawExpr hasDontFormatConfig pathText (header, newExpr)
+      liftIO $ Dhall.writeRawExpr shouldFormat pathText (header, newExpr)
   where
     transformMExpr
       :: Spago m
