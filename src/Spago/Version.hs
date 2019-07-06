@@ -61,7 +61,10 @@ getNextVersion spec version@SemVer{..} =
     Patch -> pure $ SemVer _svMajor _svMinor (_svPatch + 1) [] []
     Exact v
       | v > version -> pure v
-      | otherwise -> die "The new version must be higher than the current version."
+      | otherwise -> do
+        let new = unparseVersion v
+            old = unparseVersion version
+        die $ "The new version (" <> new <> ") must be higher than the current version (" <> old <> ")"
 
 
 -- | Make a tag for the new version.
