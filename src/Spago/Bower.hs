@@ -10,7 +10,6 @@ import qualified Data.Aeson.Encode.Pretty   as Pretty
 import qualified Data.ByteString.Lazy       as ByteString
 import qualified Data.Map                   as Map
 import           Data.String                (IsString)
-import qualified Turtle                     as Turtle
 import           Web.Bower.PackageMeta      (PackageMeta (..))
 import qualified Web.Bower.PackageMeta      as Bower
 
