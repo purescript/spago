@@ -105,7 +105,6 @@ spec = around_ setup $ do
       mv "packages.dhall" "packagesBase.dhall"
       writeTextFile "packages.dhall" "let pkgs = ./packagesBase.dhall in pkgs // { metadata_ = { dependencies = [\"prelude\"], repo = \"https://github.com/spacchetti/purescript-metadata.git\", version = \"spago-test/branch-with-slash\" }}"
       spago ["install", "metadata_"] >>= shouldBeSuccess
-
     it "Spago should be able to install a package not in the set from a commit hash" $ do
 
       spago ["init"] >>= shouldBeSuccess

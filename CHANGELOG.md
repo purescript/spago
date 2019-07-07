@@ -14,6 +14,7 @@ New features:
 - Add support for starting a repl within a folder which has not been setup as a spago project (#168)
 - Add `--format` flag to `spago docs` (#294)
 - Add `--no-config-format` global flag to skip formatting Dhall files during operations. (#300, #302)
+- Add `bump-version` command, for generating `bower.json` files and making version tags in Git (#203)
 
 ## [0.8.5] - 2019-06-18
 

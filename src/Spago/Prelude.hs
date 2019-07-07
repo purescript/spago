@@ -81,6 +81,7 @@ import           Control.Monad                 as X
 import           Control.Monad.Catch           as X hiding (try)
 import           Control.Monad.Reader          as X
 import           Data.Aeson                    as X
+import           Data.Bool                     as X
 import           Data.Either                   as X
 import           Data.Foldable                 as X
 import           Data.List.NonEmpty            (NonEmpty (..))

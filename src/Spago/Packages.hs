@@ -5,6 +5,7 @@ module Spago.Packages
   , verify
   , listPackages
   , getGlobs
+  , getDirectDeps
   , getProjectDeps
   , PackageSet.upgradePackageSet
   , PackageSet.freeze
@@ -87,6 +88,18 @@ getGlobs = map (\pair
                  <> "/src/**/*.purs")
 
 
+-- | Return the direct dependencies of the current project
+getDirectDeps :: Spago m => Config -> m [(PackageName, Package)]
+getDirectDeps Config{..} = do
+  let PackageSet{..} = packageSet
+  for dependencies $ \dep ->
+    case Map.lookup dep packagesDB of
+      Nothing ->
+        die $ pkgNotFoundMsg packagesDB (NotFoundError dep)
+      Just pkg ->
+        pure (dep, pkg)
+
+
 -- | Return all the transitive dependencies of the current project
 getProjectDeps :: Spago m => Config -> m [(PackageName, Package)]
 getProjectDeps Config{..} = getTransitiveDeps packageSet dependencies
@@ -101,27 +114,13 @@ getTransitiveDeps PackageSet{..} deps = do
   let (packageMap, notFoundErrors, cycleErrors) = foldMap (go Set.empty Set.empty Set.empty) deps
 
   handleErrors (Map.toList packageMap) (Set.toList notFoundErrors) (Set.toList cycleErrors)
-
   where
     handleErrors packageMap notFoundErrors cycleErrors
       | not (null cycleErrors) = die $ "The following packages have circular dependencies:\n" <> (Text.intercalate "\n" . fmap pkgCycleMsg) cycleErrors
-      | not (null notFoundErrors) = die $ "The following packages do not exist in your package set:\n" <> (Text.intercalate "\n" . fmap pkgNotFoundMsg) notFoundErrors
+      | not (null notFoundErrors) = die $ "The following packages do not exist in your package set:\n" <> (Text.intercalate "\n" . fmap (pkgNotFoundMsg packagesDB)) notFoundErrors
       | otherwise = pure packageMap
 
     pkgCycleMsg (CycleError pkg) = "  - " <> packageName pkg
-
-    pkgNotFoundMsg (NotFoundError pkg) = "  - " <> packageName pkg <> extraHelp
-      where
-        extraHelp = case suggestedPkg of
-          Just pkg' | Map.member pkg' packagesDB ->
-            ", but `" <> packageName pkg' <> "` does, did you mean that instead?"
-          Just pkg' ->
-            ", and nor does `" <> packageName pkg' <> "`"
-          Nothing ->
-            ""
-        suggestedPkg = do
-          sansPrefix <- Text.stripPrefix "purescript-" (packageName pkg)
-          Just (PackageName sansPrefix)
 
     go seen notFoundErrors cycleErrors dep
       | dep `Set.member` seen =
@@ -132,6 +131,22 @@ getTransitiveDeps PackageSet{..} deps = do
           Just info@Package{..} -> do
             let (m, notFoundErrors', cycleErrors') = foldMap (go (Set.insert dep seen) notFoundErrors cycleErrors) dependencies
             (Map.insert dep info m, notFoundErrors', cycleErrors')
+
+
+pkgNotFoundMsg :: Map PackageName Package -> NotFoundError PackageName -> Text
+pkgNotFoundMsg packagesDB (NotFoundError pkg) = "  - " <> packageName pkg <> extraHelp
+  where
+    extraHelp = case suggestedPkg of
+      Just pkg' | Map.member pkg' packagesDB ->
+        ", but `" <> packageName pkg' <> "` does, did you mean that instead?"
+      Just pkg' ->
+        ", and nor does `" <> packageName pkg' <> "`"
+      Nothing ->
+        ""
+    suggestedPkg = do
+      sansPrefix <- Text.stripPrefix "purescript-" (packageName pkg)
+      Just (PackageName sansPrefix)
+
 
 newtype NotFoundError a = NotFoundError a deriving (Eq, Ord)
 newtype CycleError a = CycleError a deriving (Eq, Ord)
