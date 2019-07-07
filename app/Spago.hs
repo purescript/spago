@@ -122,6 +122,7 @@ parser = do
   where
     force           = CLI.switch "force" 'f' "Overwrite any project found in the current directory"
     verbose         = CLI.switch "verbose" 'v' "Enable additional debug logging, e.g. printing `purs` commands"
+    noConfigFormat  = CLI.switch "no-config-format" 'F' "Disable formatting the configuration file `spago.dhall`"
     watchBool       = CLI.switch "watch" 'w' "Watch for changes in local files and automatically rebuild"
     noInstallBool   = CLI.switch "no-install" 'n' "Don't run the automatic installation of packages"
     clearScreenBool = CLI.switch "clear-screen" 'l' "Clear the screen on rebuild (watch mode only)"
@@ -147,6 +148,11 @@ parser = do
       pure $ case res of
         True  -> NoBuild
         False -> DoBuild
+    noFormat = do
+      res <- noConfigFormat
+      pure $ case res of
+        True  -> NoFormat
+        False -> DoFormat
     jsonFlagBool = CLI.switch "json" 'j' "Produce JSON output"
     jsonFlag = do
       res <- jsonFlagBool
@@ -177,7 +183,7 @@ parser = do
     replPackageNames = CLI.many $ CLI.opt (Just . PackageName) "dependency" 'd' "Package name to add to the REPL as dependency"
     passthroughArgs = many $ CLI.arg (Just . ExtraArg) " ..any `purs compile` option" "Options passed through to `purs compile`; use -- to separate"
     buildOptions = BuildOptions <$> limitJobs <*> cacheFlag <*> watch <*> clearScreen <*> sourcePaths <*> noInstall <*> passthroughArgs
-    globalOptions = GlobalOptions <$> verbose
+    globalOptions = GlobalOptions <$> verbose <*> noFormat
     packagesFilter =
       let wrap = \case
             "direct"     -> Just DirectDeps

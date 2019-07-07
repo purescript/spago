@@ -9,6 +9,7 @@ module Spago.Prelude
   , pathFromText
   , assertDirectory
   , GlobalOptions (..)
+  , DoFormat (..)
   , Spago
   , module X
   , Typeable
@@ -115,8 +116,12 @@ instance Show SpagoError where
   show (SpagoError err) = Text.unpack err
 
 
+-- | Flag to skip automatic formatting of the Dhall files
+data DoFormat = DoFormat | NoFormat deriving (Eq)
+
 data GlobalOptions = GlobalOptions
   { debug :: Bool
+  , shouldFormat :: DoFormat
   }
 
 type Spago m =
