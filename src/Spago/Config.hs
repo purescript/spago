@@ -2,8 +2,10 @@
 module Spago.Config
   ( makeConfig
   , ensureConfig
+  , ensurePublishConfig
   , addDependencies
   , Config(..)
+  , PublishConfig(..)
   ) where
 
 import           Spago.Prelude
@@ -44,55 +46,81 @@ data Config = Config
   , configSourcePaths :: [Purs.SourcePath]
   } deriving (Show, Generic)
 
+-- | The extra fields that are only needed for publishing libraries.
+data PublishConfig = PublishConfig
+  { license           :: Text
+  , repository        :: Text
+  } deriving (Show, Generic)
+
 type Expr = Dhall.DhallExpr Dhall.Import
 
+type ConfigParser a =
+  Dhall.Map.Map Text (Dhall.DhallExpr Dhall.TypeCheck.X)
+  -> Either (Dhall.ReadError Dhall.TypeCheck.X) a
+
+
 -- | Tries to read in a Spago Config
-parseConfig :: Spago m => m Config
-parseConfig = do
-  withConfigAST $ pure . addSourcePaths
-  expr <- liftIO $ Dhall.inputExpr $ "./" <> pathText
-  case expr of
-    Dhall.RecordLit ks -> do
-      maybeConfig <- pure $ do
-        let packageTyp      = Dhall.genericAuto :: Dhall.Type Package
-            packageNamesTyp = Dhall.list (Dhall.auto :: Dhall.Type PackageName)
-            sourcesType     = Dhall.list (Dhall.auto :: Dhall.Type Purs.SourcePath)
-        name         <- Dhall.requireTypedKey ks "name" Dhall.strictText
-        dependencies <- Dhall.requireTypedKey ks "dependencies" packageNamesTyp
-        packages     <- Dhall.requireKey ks "packages" $ \case
-          Dhall.RecordLit pkgs -> (Map.mapKeys PackageSet.PackageName . Dhall.Map.toMap)
-            <$> traverse (Dhall.coerceToType packageTyp) pkgs
-          something -> Left $ Dhall.PackagesIsNotRecord something
-        configSourcePaths  <- Dhall.requireTypedKey ks "sources" sourcesType
+parseConfig :: ConfigParser Config
+parseConfig ks = do
 
-        let metadataPackageName = PackageSet.PackageName "metadata"
-            (metadataMap, packagesDB) = Map.partitionWithKey (\k _v -> k == metadataPackageName) packages
-            packagesMinPursVersion = join
-              $ fmap (hush . Version.semver . (Text.replace "v" "") . PackageSet.version)
-              $ Map.lookup metadataPackageName metadataMap
-            packageSet = PackageSet.PackageSet{..}
+  let packageTyp      = Dhall.genericAuto :: Dhall.Type Package
+      packageNamesTyp = Dhall.list (Dhall.auto :: Dhall.Type PackageName)
+      sourcesType     = Dhall.list (Dhall.auto :: Dhall.Type Purs.SourcePath)
+  name         <- Dhall.requireTypedKey ks "name" Dhall.strictText
+  dependencies <- Dhall.requireTypedKey ks "dependencies" packageNamesTyp
+  packages     <- Dhall.requireKey ks "packages" $ \case
+    Dhall.RecordLit pkgs -> (Map.mapKeys PackageSet.PackageName . Dhall.Map.toMap)
+      <$> traverse (Dhall.coerceToType packageTyp) pkgs
+    something -> Left $ Dhall.PackagesIsNotRecord something
+  configSourcePaths  <- Dhall.requireTypedKey ks "sources" sourcesType
 
-        Right $ Config{..}
+  let metadataPackageName = PackageSet.PackageName "metadata"
+      (metadataMap, packagesDB) = Map.partitionWithKey (\k _v -> k == metadataPackageName) packages
+      packagesMinPursVersion = join
+        $ fmap (hush . Version.semver . (Text.replace "v" "") . PackageSet.version)
+        $ Map.lookup metadataPackageName metadataMap
+      packageSet = PackageSet.PackageSet{..}
 
-      case maybeConfig of
-        Right config -> pure config
-        Left err     -> throwM err
-    _ -> case Dhall.TypeCheck.typeOf expr of
-      Right e  -> throwM $ Dhall.ConfigIsNotRecord e
-      Left err -> throwM $ err
+  Right $ Config{..}
+
+
+parsePublishConfig :: ConfigParser PublishConfig
+parsePublishConfig ks = do
+  license <- Dhall.requireTypedKey ks "license" Dhall.strictText
+  repository <- Dhall.requireTypedKey ks "repository" Dhall.strictText
+  Right $ PublishConfig{..}
 
 
 -- | Checks that the Spago config is there and readable
 ensureConfig :: Spago m => m Config
-ensureConfig = do
+ensureConfig = ensureConfigInternal parseConfig
+
+
+-- | Checks that the Spago config is there and has all the fields required for publishing.
+ensurePublishConfig :: Spago m => m PublishConfig
+ensurePublishConfig = ensureConfigInternal parsePublishConfig
+
+
+ensureConfigInternal :: Spago m => ConfigParser a -> m a
+ensureConfigInternal parseMap = do
+
   exists <- testfile path
   unless exists $ do
     die $ Messages.cannotFindConfig
-  try parseConfig >>= \case
-    Right config -> do
-      PackageSet.ensureFrozen
-      pure config
-    Left (err :: Dhall.ReadError Dhall.TypeCheck.X) -> throwM err
+
+  withConfigAST $ pure . addSourcePaths
+
+  expr <- liftIO $ Dhall.inputExpr $ "./" <> pathText
+  case expr of
+    Dhall.RecordLit ks -> do
+      case parseMap ks of
+        Right config -> do
+          PackageSet.ensureFrozen
+          pure config
+        Left err     -> throwM err
+    _ -> case Dhall.TypeCheck.typeOf expr of
+      Right e  -> throwM $ Dhall.ConfigIsNotRecord e
+      Left err -> throwM $ err
 
 
 -- | Copies over `spago.dhall` to set up a Spago project.

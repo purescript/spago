@@ -10,16 +10,21 @@ import qualified Paths_spago         as Pcli
 import qualified System.Environment  as Env
 import qualified Turtle              as CLI
 
-import           Spago.Build         (BuildOptions (..), ExtraArg (..), ModuleName (..),
-                                      NoBuild (..), SourcePath (..), TargetPath (..), Watch (..),
-                                      WithMain (..), NoInstall (..))
+import           Spago.Build         (BuildOptions (..), ExtraArg (..),
+                                      ModuleName (..), SourcePath (..),
+                                      TargetPath (..), Watch (..),
+                                      WithMain (..), NoBuild (..),
+                                      NoInstall (..))
 import qualified Spago.Build
+import           Spago.DryRun        (DryRun (..))
 import           Spago.GlobalCache   (CacheFlag (..))
 import           Spago.Messages      as Messages
 import           Spago.Packages      (PackageName (..), PackagesFilter (..), JsonFlag(..))
 import qualified Spago.Packages
 import qualified Spago.PscPackage    as PscPackage
 import qualified Spago.Purs          as Purs
+import           Spago.Version       (VersionBump(..))
+import qualified Spago.Version       as Version
 import           Spago.Watch         (ClearScreen (..))
 
 
@@ -57,6 +62,9 @@ data Command
 
   -- | Test the project with some module, default Test.Main
   | Test (Maybe ModuleName) BuildOptions [ExtraArg]
+
+  -- | Bump and tag a new version in preparation for release.
+  | BumpVersion DryRun VersionBump
 
   -- | Run the project with some module, default Main
   | Run (Maybe ModuleName) BuildOptions [ExtraArg]
@@ -109,7 +117,7 @@ data Command
 parser :: CLI.Parser (Command, GlobalOptions)
 parser = do
   opts <- globalOptions
-  command <- projectCommands <|> packageSetCommands <|> pscPackageCommands <|> otherCommands <|> oldCommands
+  command <- projectCommands <|> packageSetCommands <|> publishCommands <|> pscPackageCommands <|> otherCommands <|> oldCommands
   pure (command, opts)
   where
     force           = CLI.switch "force" 'f' "Overwrite any project found in the current directory"
@@ -151,6 +159,15 @@ parser = do
             "update" -> Just NewCache
             _ -> Nothing
       in CLI.optional $ CLI.opt wrap "global-cache" 'c' "Configure the global caching behaviour: skip it with `skip` or force update with `update`"
+    versionBump =
+      let spec = \case
+            "major" -> Just Version.Major
+            "minor" -> Just Version.Minor
+            "patch" -> Just Version.Patch
+            v | Right v' <- Version.parseVersion v -> Just $ Exact v'
+            _ -> Nothing
+      in CLI.arg spec "bump" "How to bump the version. Acceptable values: 'major', 'minor', 'patch', or a version (e.g. 'v1.2.3')."
+    dryRun = bool DryRun NoDryRun <$> CLI.switch "no-dry-run" 'f' "Actually perform side-effects (the default is to describe what would be done)"
     mainModule  = CLI.optional (CLI.opt (Just . ModuleName) "main" 'm' "Module to be used as the application's entry point")
     toTarget    = CLI.optional (CLI.opt (Just . TargetPath) "to" 't' "The target file path")
     limitJobs   = CLI.optional (CLI.optInt "jobs" 'j' "Limit the amount of jobs that can run concurrently")
@@ -281,6 +298,17 @@ parser = do
       )
 
 
+    publishCommands = CLI.subcommandGroup "Publish commands:"
+      [ bumpVersion
+      ]
+
+    bumpVersion =
+      ( "bump-version"
+      , "Bump and tag a new version, and generate bower.json, in preparation for release."
+      , BumpVersion <$> dryRun <*> versionBump
+      )
+
+
     pscPackageCommands = CLI.subcommandGroup "Psc-Package compatibility commands:"
       [ pscPackageLocalSetup
       , pscPackageInsDhall
@@ -352,6 +380,7 @@ main = do
       Freeze                                -> Spago.Packages.freeze
       Build buildOptions                    -> Spago.Build.build buildOptions Nothing
       Test modName buildOptions nodeArgs    -> Spago.Build.test modName buildOptions nodeArgs
+      BumpVersion dryRun spec               -> Version.bumpVersion dryRun spec
       Run modName buildOptions nodeArgs     -> Spago.Build.run modName buildOptions nodeArgs
       Repl limitJobs cacheConfig replPackageNames paths pursArgs -> Spago.Build.repl limitJobs cacheConfig replPackageNames paths pursArgs
       BundleApp modName tPath shouldBuild buildOptions
