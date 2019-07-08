@@ -123,8 +123,8 @@ parseConfig = do
       configSourcePaths <- Dhall.requireTypedKey ks "sources" sourcesType
 
       let ensurePublishConfig = do
-            license    <- Dhall.requireTypedKey ks "license" Dhall.strictText
-            repository <- Dhall.requireTypedKey ks "repository" Dhall.strictText
+            publishLicense    <- Dhall.requireTypedKey ks "license" Dhall.strictText
+            publishRepository <- Dhall.requireTypedKey ks "repository" Dhall.strictText
             pure PublishConfig{..}
       publishConfig <- try ensurePublishConfig
 
@@ -219,13 +219,9 @@ addSourcePaths :: Expr -> Expr
 addSourcePaths (Dhall.RecordLit kvs)
   | isConfigV1 kvs = Dhall.RecordLit
     $ Dhall.Map.insert "sources" (Dhall.ListLit Nothing $ fmap Dhall.toTextLit $ Seq.fromList ["src/**/*.purs", "test/**/*.purs"]) kvs
-  where
-    isConfigV1 (Set.fromList . Dhall.Map.keys -> configKeySet) =
-      let configV1Keys = Set.fromList ["name", "dependencies", "packages"]
-      in configKeySet == configV1Keys
 addSourcePaths expr = expr
 
-
+isConfigV1, isConfigV2 :: Dhall.Map.Map Text v -> Bool
 isConfigV1 (Set.fromList . Dhall.Map.keys -> configKeySet) =
   let configV1Keys = Set.fromList ["name", "dependencies", "packages"]
   in configKeySet == configV1Keys
