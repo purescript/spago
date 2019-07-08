@@ -75,9 +75,8 @@ dependenciesType = Dhall.list (Dhall.auto :: Dhall.Type PackageName)
 
 parsePackage :: MonadIO m => MonadThrow m => ResolvedExpr -> m Package
 parsePackage (Dhall.RecordLit ks) = do
-  let repoType = Dhall.auto :: Dhall.Type PackageSet.Repo
-  repo <- Dhall.requireTypedKey ks "repo" repoType
-  version <- Dhall.requireTypedKey ks "version" Dhall.strictText
+  repo         <- Dhall.requireTypedKey ks "repo" (Dhall.auto :: Dhall.Type PackageSet.Repo)
+  version      <- Dhall.requireTypedKey ks "version" Dhall.strictText
   dependencies <- Dhall.requireTypedKey ks "dependencies" dependenciesType
   let location = PackageSet.Remote{..}
   pure PackageSet.Package{..}
@@ -85,10 +84,10 @@ parsePackage (Dhall.App (Dhall.Field union "Local") (Dhall.TextLit (Dhall.Chunks
   | isLocationType union = do
       localPath <- case Text.isSuffixOf "/spago.dhall" spagoConfigPath of
         True  -> pure $ Text.dropEnd 12 spagoConfigPath
-        False -> error "aaa" -- TODO: nice error about pointing to spago.dhall
+        False -> die $ Messages.failedToParseLocalRepo spagoConfigPath
       rawConfig <- liftIO $ Dhall.readRawExpr spagoConfigPath
       dependencies <- case rawConfig of
-        Nothing -> die Messages.cannotFindConfig  -- TODO: maybe different error?
+        Nothing -> die $ Messages.cannotFindConfigLocalPackage spagoConfigPath
         Just (_header, expr) -> do
           newExpr <- transformMExpr (pure . filterDependencies . addSourcePaths) expr
           -- Note: we have to use inputWithSettings here because we're about to resolve
@@ -101,7 +100,7 @@ parsePackage (Dhall.App (Dhall.Field union "Local") (Dhall.TextLit (Dhall.Chunks
               (Dhall.pretty newExpr)
       let location = PackageSet.Local{..}
       pure PackageSet.Package{..}
-parsePackage _expr = die "errr"
+parsePackage expr = die $ Messages.failedToParsePackage $ Dhall.pretty expr
 
 
 -- | Tries to read in a Spago Config

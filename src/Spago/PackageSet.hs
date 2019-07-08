@@ -85,7 +85,7 @@ instance Dhall.Interpret Repo where
       -- We consider a "Remote" anything that `parseURI` thinks is a URI
       makeRepo repo = case parseURI $ Text.unpack repo of
         Just _uri -> Repo repo
-        Nothing   -> error $ "Couldn't parse repo string: " <> Text.unpack repo
+        Nothing   -> error $ Text.unpack $ Messages.failedToParseRepoString repo
 
 
 pathText :: Text
