@@ -105,7 +105,7 @@ repl maybeLimit cacheFlag newPackages sourcePaths passthroughArgs = do
 
         config@Config.Config{ packageSet = PackageSet.PackageSet{..}, ..} <- Config.ensureConfig
 
-        let updatedConfig = Config.Config name (dependencies <> newPackages) (Config.packageSet config) configSourcePaths
+        let updatedConfig = Config.Config name (dependencies <> newPackages) (Config.packageSet config) configSourcePaths publishConfig
 
         deps <- Packages.getProjectDeps updatedConfig
         let globs = Packages.getGlobs deps <> Config.configSourcePaths updatedConfig <> sourcePaths

@@ -5,6 +5,7 @@ module Spago.Config
   , addDependencies
   , parsePackage
   , Config(..)
+  , PublishConfig(..)
   ) where
 
 import           Spago.Prelude
@@ -43,11 +44,17 @@ data Config = Config
   , dependencies      :: [PackageName]
   , packageSet        :: PackageSet
   , configSourcePaths :: [Purs.SourcePath]
+  , publishConfig     :: Either (Dhall.ReadError Dhall.TypeCheck.X) PublishConfig
+  } deriving (Show, Generic)
+
+-- | The extra fields that are only needed for publishing libraries.
+data PublishConfig = PublishConfig
+  { publishLicense    :: Text
+  , publishRepository :: Text
   } deriving (Show, Generic)
 
 type Expr = Dhall.DhallExpr Dhall.Import
 type ResolvedExpr = Dhall.DhallExpr Dhall.TypeCheck.X
-
 
 
 isLocationType :: (Eq s, Eq a) => Dhall.Expr s a -> Bool
@@ -64,6 +71,7 @@ isLocationType _ = False
 
 dependenciesType :: Dhall.Type [PackageName]
 dependenciesType = Dhall.list (Dhall.auto :: Dhall.Type PackageName)
+
 
 parsePackage :: MonadIO m => MonadThrow m => ResolvedExpr -> m Package
 parsePackage (Dhall.RecordLit ks) = do
@@ -95,6 +103,7 @@ parsePackage (Dhall.App (Dhall.Field union "Local") (Dhall.TextLit (Dhall.Chunks
       pure PackageSet.Package{..}
 parsePackage _expr = die "errr"
 
+
 -- | Tries to read in a Spago Config
 parseConfig :: Spago m => m Config
 parseConfig = do
@@ -112,6 +121,12 @@ parseConfig = do
       name              <- Dhall.requireTypedKey ks "name" Dhall.strictText
       dependencies      <- Dhall.requireTypedKey ks "dependencies" dependenciesType
       configSourcePaths <- Dhall.requireTypedKey ks "sources" sourcesType
+
+      let ensurePublishConfig = do
+            license    <- Dhall.requireTypedKey ks "license" Dhall.strictText
+            repository <- Dhall.requireTypedKey ks "repository" Dhall.strictText
+            pure PublishConfig{..}
+      publishConfig <- try ensurePublishConfig
 
       let metadataPackageName = PackageSet.PackageName "metadata"
       let (metadataMap, packagesDB) = Map.partitionWithKey (\k _v -> k == metadataPackageName) packages
@@ -147,7 +162,7 @@ makeConfig force = do
     hasSpagoDhall <- testfile path
     when hasSpagoDhall $ die $ Messages.foundExistingProject pathText
   writeTextFile path Templates.spagoDhall
-  Dhall.format pathText
+  Dhall.format DoFormat pathText
 
   -- We try to find an existing psc-package config, and we migrate the existing
   -- content if we found one, otherwise we copy the default template
@@ -200,25 +215,32 @@ addRawDeps config newPackages r@(Dhall.RecordLit kvs)
         seens = Seq.scanl (flip Set.insert) Set.empty xs
 addRawDeps _ _ other = pure other
 
-
 addSourcePaths :: Expr -> Expr
 addSourcePaths (Dhall.RecordLit kvs)
   | isConfigV1 kvs = Dhall.RecordLit
     $ Dhall.Map.insert "sources" (Dhall.ListLit Nothing $ fmap Dhall.toTextLit $ Seq.fromList ["src/**/*.purs", "test/**/*.purs"]) kvs
+  where
+    isConfigV1 (Set.fromList . Dhall.Map.keys -> configKeySet) =
+      let configV1Keys = Set.fromList ["name", "dependencies", "packages"]
+      in configKeySet == configV1Keys
 addSourcePaths expr = expr
+
 
 isConfigV1 (Set.fromList . Dhall.Map.keys -> configKeySet) =
   let configV1Keys = Set.fromList ["name", "dependencies", "packages"]
   in configKeySet == configV1Keys
 
+
 isConfigV2 (Set.fromList . Dhall.Map.keys -> configKeySet) =
   let configV2Keys = Set.fromList ["name", "dependencies", "packages", "sources"]
   in configKeySet == configV2Keys
+
 
 filterDependencies :: Expr -> Expr
 filterDependencies (Dhall.RecordLit kvs)
   | isConfigV2 kvs, Just deps <- Dhall.Map.lookup "dependencies" kvs = deps
 filterDependencies expr = expr
+
 
 -- | Takes a function that manipulates the Dhall AST of the Config, and tries to run it
 --   on the current config. If it succeeds, it writes back to file the result returned.
@@ -227,11 +249,13 @@ filterDependencies expr = expr
 withConfigAST :: Spago m => (Expr -> m Expr) -> m ()
 withConfigAST transform = do
   rawConfig <- liftIO $ Dhall.readRawExpr pathText
+  shouldFormat <- asks shouldFormat
   case rawConfig of
     Nothing -> die Messages.cannotFindConfig
     Just (header, expr) -> do
       newExpr <- transformMExpr transform expr
-      liftIO $ Dhall.writeRawExpr pathText (header, newExpr)
+      liftIO $ Dhall.writeRawExpr shouldFormat pathText (header, newExpr)
+
 
 transformMExpr
   :: MonadIO m

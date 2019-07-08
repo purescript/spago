@@ -52,6 +52,7 @@ library:
   - aeson
   - aeson-pretty
   - containers
+  - bower-json
   - dhall
   - dhall-json
   - bytestring
