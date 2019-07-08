@@ -97,8 +97,6 @@ mkDependencies config = do
     case repo of
       Local path ->
         die $ "Unable to create Bower version for local repo: " <> path
-      Remote _ | not (isTag packageName version reposMeta) ->
-        die $ "Unable to create Bower version from non-tag version: " <> packageName <> " " <> version
       Remote _ -> do
         bowerName <- mkPackageName packageName
         pure (bowerName, Bower.VersionRange $ "^" <> version)
