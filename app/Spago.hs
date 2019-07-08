@@ -120,51 +120,18 @@ parser = do
   command <- projectCommands <|> packageSetCommands <|> publishCommands <|> pscPackageCommands <|> otherCommands <|> oldCommands
   pure (command, opts)
   where
-    force           = CLI.switch "force" 'f' "Overwrite any project found in the current directory"
-    verbose         = CLI.switch "verbose" 'v' "Enable additional debug logging, e.g. printing `purs` commands"
-    noConfigFormat  = CLI.switch "no-config-format" 'F' "Disable formatting the configuration file `spago.dhall`"
-    watchBool       = CLI.switch "watch" 'w' "Watch for changes in local files and automatically rebuild"
-    noInstallBool   = CLI.switch "no-install" 'n' "Don't run the automatic installation of packages"
-    clearScreenBool = CLI.switch "clear-screen" 'l' "Clear the screen on rebuild (watch mode only)"
-    noBuildBool     = CLI.switch "no-build" 's' "Skip build step"
-    nodeArgs        = CLI.many $ CLI.opt (Just . ExtraArg) "node-args" 'a' "Argument to pass to node (run/test only)"
-    watch = do
-      res <- watchBool
-      pure $ case res of
-        True  -> Watch
-        False -> BuildOnce
-    noInstall = do
-      res <- noInstallBool
-      pure $ case res of
-        True  -> NoInstall
-        False -> DoInstall
-    clearScreen = do
-      res <- clearScreenBool
-      pure $ case res of
-        True  -> DoClear
-        False -> NoClear
-    noBuild = do
-      res <- noBuildBool
-      pure $ case res of
-        True  -> NoBuild
-        False -> DoBuild
-    noFormat = do
-      res <- noConfigFormat
-      pure $ case res of
-        True  -> NoFormat
-        False -> DoFormat
-    jsonFlagBool = CLI.switch "json" 'j' "Produce JSON output"
-    jsonFlag = do
-      res <- jsonFlagBool
-      pure $ case res of
-        True  -> JsonOutputYes
-        False -> JsonOutputNo
     cacheFlag =
       let wrap = \case
             "skip" -> Just SkipCache
             "update" -> Just NewCache
             _ -> Nothing
       in CLI.optional $ CLI.opt wrap "global-cache" 'c' "Configure the global caching behaviour: skip it with `skip` or force update with `update`"
+    packagesFilter =
+      let wrap = \case
+            "direct"     -> Just DirectDeps
+            "transitive" -> Just TransitiveDeps
+            _            -> Nothing
+      in CLI.optional $ CLI.opt wrap "filter" 'f' "Filter packages: direct deps with `direct`, transitive ones with `transitive`"
     versionBump =
       let spec = \case
             "major" -> Just Version.Major
@@ -173,24 +140,31 @@ parser = do
             v | Right v' <- Version.parseVersion v -> Just $ Exact v'
             _ -> Nothing
       in CLI.arg spec "bump" "How to bump the version. Acceptable values: 'major', 'minor', 'patch', or a version (e.g. 'v1.2.3')."
-    dryRun = bool DryRun NoDryRun <$> CLI.switch "no-dry-run" 'f' "Actually perform side-effects (the default is to describe what would be done)"
-    mainModule  = CLI.optional (CLI.opt (Just . ModuleName) "main" 'm' "Module to be used as the application's entry point")
-    toTarget    = CLI.optional (CLI.opt (Just . TargetPath) "to" 't' "The target file path")
+
+    force   = CLI.switch "force" 'f' "Overwrite any project found in the current directory"
+    verbose = CLI.switch "verbose" 'v' "Enable additional debug logging, e.g. printing `purs` commands"
+    watch       = bool BuildOnce Watch <$> CLI.switch "watch" 'w' "Watch for changes in local files and automatically rebuild"
+    noInstall   = bool DoInstall NoInstall <$> CLI.switch "no-install" 'n' "Don't run the automatic installation of packages"
+    clearScreen = bool NoClear DoClear <$> CLI.switch "clear-screen" 'l' "Clear the screen on rebuild (watch mode only)"
+    noBuild     = bool NoBuild DoBuild <$> CLI.switch "no-build" 's' "Skip build step"
+    noFormat    = bool DoFormat NoFormat <$> CLI.switch "no-config-format" 'F' "Disable formatting the configuration file `spago.dhall`"
+    jsonFlag    = bool JsonOutputNo JsonOutputYes <$> CLI.switch "json" 'j' "Produce JSON output"
+    dryRun      = bool DryRun NoDryRun <$> CLI.switch "no-dry-run" 'f' "Actually perform side-effects (the default is to describe what would be done)"
+    mainModule  = CLI.optional $ CLI.opt (Just . ModuleName) "main" 'm' "Module to be used as the application's entry point"
+    toTarget    = CLI.optional $ CLI.opt (Just . TargetPath) "to" 't' "The target file path"
+    docsFormat  = CLI.optional $ CLI.opt Purs.parseDocsFormat "format" 'f' "Docs output format (markdown | html | etags | ctags)"
     limitJobs   = CLI.optional (CLI.optInt "jobs" 'j' "Limit the amount of jobs that can run concurrently")
-    sourcePaths = CLI.many (CLI.opt (Just . SourcePath) "path" 'p' "Source path to include")
-    packageName = CLI.arg (Just . PackageName) "package" "Specify a package name. You can list them with `list-packages`"
-    packageNames = CLI.many $ CLI.arg (Just . PackageName) "package" "Package name to add as dependency"
-    replPackageNames = CLI.many $ CLI.opt (Just . PackageName) "dependency" 'd' "Package name to add to the REPL as dependency"
+    nodeArgs         = many $ CLI.opt (Just . ExtraArg) "node-args" 'a' "Argument to pass to node (run/test only)"
+    replPackageNames = many $ CLI.opt (Just . PackageName) "dependency" 'd' "Package name to add to the REPL as dependency"
+    sourcePaths      = many $ CLI.opt (Just . SourcePath) "path" 'p' "Source path to include"
+
+    packageName     = CLI.arg (Just . PackageName) "package" "Specify a package name. You can list them with `list-packages`"
+    packageNames    = many $ CLI.arg (Just . PackageName) "package" "Package name to add as dependency"
     passthroughArgs = many $ CLI.arg (Just . ExtraArg) " ..any `purs compile` option" "Options passed through to `purs compile`; use -- to separate"
-    buildOptions = BuildOptions <$> limitJobs <*> cacheFlag <*> watch <*> clearScreen <*> sourcePaths <*> noInstall <*> passthroughArgs
+
+    buildOptions  = BuildOptions <$> limitJobs <*> cacheFlag <*> watch <*> clearScreen <*> sourcePaths <*> noInstall <*> passthroughArgs
     globalOptions = GlobalOptions <$> verbose <*> noFormat
-    packagesFilter =
-      let wrap = \case
-            "direct"     -> Just DirectDeps
-            "transitive" -> Just TransitiveDeps
-            _            -> Nothing
-      in CLI.optional $ CLI.opt wrap "filter" 'f' "Filter packages: direct deps with `direct`, transitive ones with `transitive`"
-    docsFormat = CLI.optional $ CLI.opt Purs.parseDocsFormat "format" 'f' "Docs output format (markdown | html | etags | ctags)"
+
     projectCommands = CLI.subcommandGroup "Project commands:"
       [ initProject
       , build
