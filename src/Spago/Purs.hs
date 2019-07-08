@@ -1,9 +1,22 @@
-module Spago.Purs where
+module Spago.Purs
+  ( compile
+  , repl
+  , bundle
+  , docs
+  , version
+  , parseDocsFormat
+  , SourcePath(..)
+  , TargetPath(..)
+  , ModuleName(..)
+  , ExtraArg(..)
+  , WithMain(..)
+  , DocsFormat(..)
+  ) where
 
 import           Spago.Prelude
 
 import qualified Data.Text      as Text
-import           Data.Versions  as Version
+import qualified Data.Versions  as Version
 import qualified Spago.Dhall    as Dhall
 
 import qualified Spago.Messages as Messages
@@ -20,10 +33,15 @@ data WithMain = WithMain | WithoutMain
 
 compile :: Spago m => [SourcePath] -> [ExtraArg] -> m ()
 compile sourcePaths extraArgs = do
+  -- first we decide if we can use psa
+  purs <- try psaVersion >>= \case
+    Right _ -> "psa"
+    Left _ -> "purs"
+
   let
     paths = Text.intercalate " " $ Messages.surroundQuote <$> map unSourcePath sourcePaths
     args  = Text.intercalate " " $ map unExtraArg extraArgs
-    cmd = "purs compile " <> args <> " " <> paths
+    cmd = purs <> " compile " <> args <> " " <> paths
   runWithOutput cmd
     "Build succeeded."
     "Failed to build."
@@ -68,17 +86,17 @@ parseDocsFormat = \case
   "etags"    -> Just Etags
   _          -> Nothing
 
-printDocsFormat :: DocsFormat -> Text
-printDocsFormat = \case
-  Html     -> "html"
-  Markdown -> "markdown"
-  Ctags    -> "ctags"
-  Etags    -> "etags"
-
 
 docs :: Spago m => Maybe DocsFormat -> [SourcePath] -> m ()
 docs format sourcePaths = do
   let
+    printDocsFormat :: DocsFormat -> Text
+    printDocsFormat = \case
+      Html     -> "html"
+      Markdown -> "markdown"
+      Ctags    -> "ctags"
+      Etags    -> "etags"
+
     paths = Text.intercalate " " $ Messages.surroundQuote <$> map unSourcePath sourcePaths
     formatStr = printDocsFormat $ fromMaybe Html format
     cmd = "purs docs " <> paths <> " --format " <> formatStr
@@ -86,16 +104,20 @@ docs format sourcePaths = do
     "Docs generation succeeded."
     "Docs generation failed."
 
-version :: Spago m => m (Maybe Version.SemVer)
-version = do
-  fullVersionText <- shellStrict "purs --version" empty >>= \case
+version, psaVersion :: Spago m => m (Maybe Version.SemVer)
+version = versionImpl "purs"
+psaVersion = versionImpl "psa"
+
+versionImpl :: Spago m => Text -> m (Maybe Version.SemVer)
+versionImpl purs = do
+  fullVersionText <- shellStrict (purs <> " --version") empty >>= \case
     (ExitSuccess, out) -> pure out
-    _ -> die "Failed to run 'purs --version'"
+    _ -> die $ "Failed to run '" <> purs <> " --version'"
   versionText <- pure $ headMay $ Text.split (== ' ') fullVersionText
   parsed <- pure $ versionText >>= (hush . Version.semver)
 
   when (isNothing parsed) $ do
-    echo $ Messages.failedToParseCommandOutput "purs --version" fullVersionText
+    echo $ Messages.failedToParseCommandOutput (purs <> " --version") fullVersionText
 
   pure parsed
 
