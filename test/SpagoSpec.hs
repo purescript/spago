@@ -177,7 +177,7 @@ spec = around_ setup $ do
       -- Note: apparently purs starts caching the compiled modules only after three builds
       spago ["build"] >>= shouldBeSuccess
       spago ["build"] >>= shouldBeSuccess
-      spago ["run", "--verbose"] >>= shouldBeSuccessOutput "run-output.txt"
+      spago ["-v", "run"] >>= shouldBeSuccessOutput "run-output.txt"
 
 
   describe "spago bundle" $ do

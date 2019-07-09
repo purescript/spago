@@ -33,10 +33,15 @@ data WithMain = WithMain | WithoutMain
 
 compile :: Spago m => [SourcePath] -> [ExtraArg] -> m ()
 compile sourcePaths extraArgs = do
-  -- first we decide if we can use psa
-  purs <- try psaVersion >>= \case
-    Right _ -> "psa"
-    Left _ -> "purs"
+  -- first we decide if we _want_ to use psa, then if we _can_
+  usePsa <- asks globalUsePsa
+  purs <- case usePsa of
+    NoPsa -> pure "purs"
+    UsePsa -> tryIO psaVersion >>= \case
+      Right _ -> pure "psa"
+      Left _ -> pure "purs"
+
+  echoDebug $ "Compiling with " <> Messages.surroundQuote purs
 
   let
     paths = Text.intercalate " " $ Messages.surroundQuote <$> map unSourcePath sourcePaths

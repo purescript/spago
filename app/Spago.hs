@@ -143,13 +143,17 @@ parser = do
 
     force   = CLI.switch "force" 'f' "Overwrite any project found in the current directory"
     verbose = CLI.switch "verbose" 'v' "Enable additional debug logging, e.g. printing `purs` commands"
+
+    -- Note: the first constructor is the default when the flag is not provided
     watch       = bool BuildOnce Watch <$> CLI.switch "watch" 'w' "Watch for changes in local files and automatically rebuild"
     noInstall   = bool DoInstall NoInstall <$> CLI.switch "no-install" 'n' "Don't run the automatic installation of packages"
     clearScreen = bool NoClear DoClear <$> CLI.switch "clear-screen" 'l' "Clear the screen on rebuild (watch mode only)"
-    noBuild     = bool NoBuild DoBuild <$> CLI.switch "no-build" 's' "Skip build step"
+    noBuild     = bool DoBuild NoBuild <$> CLI.switch "no-build" 's' "Skip build step"
     noFormat    = bool DoFormat NoFormat <$> CLI.switch "no-config-format" 'F' "Disable formatting the configuration file `spago.dhall`"
     jsonFlag    = bool JsonOutputNo JsonOutputYes <$> CLI.switch "json" 'j' "Produce JSON output"
     dryRun      = bool DryRun NoDryRun <$> CLI.switch "no-dry-run" 'f' "Actually perform side-effects (the default is to describe what would be done)"
+    usePsa      = bool UsePsa NoPsa <$> CLI.switch "no-psa" 'P' "Don't build with `psa`, but use `purs`"
+
     mainModule  = CLI.optional $ CLI.opt (Just . ModuleName) "main" 'm' "Module to be used as the application's entry point"
     toTarget    = CLI.optional $ CLI.opt (Just . TargetPath) "to" 't' "The target file path"
     docsFormat  = CLI.optional $ CLI.opt Purs.parseDocsFormat "format" 'f' "Docs output format (markdown | html | etags | ctags)"
@@ -163,7 +167,7 @@ parser = do
     passthroughArgs = many $ CLI.arg (Just . ExtraArg) " ..any `purs compile` option" "Options passed through to `purs compile`; use -- to separate"
 
     buildOptions  = BuildOptions <$> limitJobs <*> cacheFlag <*> watch <*> clearScreen <*> sourcePaths <*> noInstall <*> passthroughArgs
-    globalOptions = GlobalOptions <$> verbose <*> noFormat
+    globalOptions = GlobalOptions <$> verbose <*> noFormat <*> usePsa
 
     projectCommands = CLI.subcommandGroup "Project commands:"
       [ initProject
