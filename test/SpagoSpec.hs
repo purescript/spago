@@ -221,3 +221,19 @@ spec = around_ setup $ do
       -- to have built stuff for us)
       spago ["bundle-module", "--to", "bundle-module.js", "--no-build"] >>= shouldBeSuccess
       checkFixture "bundle-module.js"
+
+  describe "spago list-packages" $ do
+
+    it "Spago should list-packages successfully" $ do
+
+      spago ["init"] >>= shouldBeSuccess
+      mv "packages.dhall" "packages-old.dhall"
+      writeTextFile "packages.dhall" "https://raw.githubusercontent.com/purescript/package-sets/psc-0.13.0-20190626/src/packages.dhall sha256:9905f07c9c3bd62fb3205e2108515811a89d55cff24f4341652f61ddacfcf148"
+      spago ["list-packages"] >>= shouldBeSuccessOutput "list-packages.txt"
+
+    it "Spago should list-packages in JSON successfully" $ do
+
+      spago ["init"] >>= shouldBeSuccess
+      mv "packages.dhall" "packages-old.dhall"
+      writeTextFile "packages.dhall" "https://raw.githubusercontent.com/purescript/package-sets/psc-0.13.0-20190626/src/packages.dhall sha256:9905f07c9c3bd62fb3205e2108515811a89d55cff24f4341652f61ddacfcf148"
+      spago ["list-packages", "--json"] >>= shouldBeSuccessOutput "list-packages.json"
