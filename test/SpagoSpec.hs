@@ -179,6 +179,13 @@ spec = around_ setup $ do
       spago ["build"] >>= shouldBeSuccess
       spago ["-v", "run"] >>= shouldBeSuccessOutput "run-output.txt"
 
+    it "Spago should be able to not use `psa`" $ do
+
+      spago ["init"] >>= shouldBeSuccess
+      spago ["--no-psa", "build"] >>= shouldBeSuccess
+      spago ["--no-psa", "build"] >>= shouldBeSuccess
+      spago ["-v", "--no-psa", "run"] >>= shouldBeSuccessOutput "run-no-psa.txt"
+
 
   describe "spago bundle" $ do
 
