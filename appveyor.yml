@@ -20,7 +20,7 @@ install:
   - choco install -y haskell-stack --version %STACK_VERSION%
   - stack setup > nul
   - choco install psc-package
-  - npm install -g bower
+  - npm install -g bower purescript-psa
   - set PATH=%APPDATA%\npm;%PATH%
   - ps: |
       $releases = "https://api.github.com/repos/purescript/purescript/releases"

@@ -142,6 +142,13 @@ spec = around_ setup $ do
 
       spago ["install"] >>= shouldBeSuccess
 
+  describe "spago sources" $ do
+
+    it "Spago should print both dependencies and project sources" $ do
+
+      spago ["init"] >>= shouldBeSuccess
+      spago ["sources"] >>= shouldBeSuccessOutput "sources-output.txt"
+
   describe "spago build" $ do
 
     it "Spago should build successfully" $ do
@@ -200,7 +207,14 @@ spec = around_ setup $ do
       -- Note: apparently purs starts caching the compiled modules only after three builds
       spago ["build"] >>= shouldBeSuccess
       spago ["build"] >>= shouldBeSuccess
-      spago ["run", "--verbose"] >>= shouldBeSuccessOutput "run-output.txt"
+      spago ["-v", "run"] >>= shouldBeSuccessOutput "run-output.txt"
+
+    it "Spago should be able to not use `psa`" $ do
+
+      spago ["init"] >>= shouldBeSuccess
+      spago ["--no-psa", "build"] >>= shouldBeSuccess
+      spago ["--no-psa", "build"] >>= shouldBeSuccess
+      spago ["-v", "--no-psa", "run"] >>= shouldBeSuccessOutput "run-no-psa.txt"
 
 
   describe "spago bundle" $ do
