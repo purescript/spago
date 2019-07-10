@@ -122,12 +122,12 @@ spec = around_ setup $ do
 
     it "Spago should install successfully when there are local dependencies sharing the same packages.dhall" $ do
 
-      -- Create local 'lib-a' package
+      -- Create local 'lib-a' package that depends on lib-c
       mkdir "lib-a"
       cd "lib-a"
       spago ["init"] >>= shouldBeSuccess
       rm "spago.dhall"
-      writeTextFile "spago.dhall" $ "{ name = \"lib-a\", dependencies = [\"console\", \"effect\", \"prelude\"], packages = ../packages.dhall }"
+      writeTextFile "spago.dhall" $ "{ name = \"lib-a\", dependencies = [\"console\", \"effect\", \"prelude\", \"lib-c\"], packages = ../packages.dhall }"
       cd ".."
 
       -- Create local 'lib-b' package that has its dependencies in a separate file
@@ -139,12 +139,20 @@ spec = around_ setup $ do
       writeTextFile "spago-deps.dhall" "[\"console\", \"effect\", \"prelude\"]"
       cd ".."
 
+      -- Create local 'lib-c' package
+      mkdir "lib-c"
+      cd "lib-c"
+      spago ["init"] >>= shouldBeSuccess
+      rm "spago.dhall"
+      writeTextFile "spago.dhall" $ "{ name = \"lib-c\", dependencies = [\"console\", \"effect\", \"prelude\"], packages = ../packages.dhall }"
+      cd ".."
+
       -- Create 'app' package that depends on 'lib-a' and 'lib-b'
       spago ["init"] >>= shouldBeSuccess
       rm "spago.dhall"
       writeTextFile "spago.dhall" "{ name = \"app\", dependencies = [\"console\", \"effect\", \"prelude\", \"lib-a\", \"lib-b\"], packages = ./packages.dhall }"
       packageDhall <- readTextFile "packages.dhall"
-      writeTextFile "packages.dhall" $ packageDhall <> " // { lib-a = ./lib-a/spago.dhall as Location, lib-b = ./lib-b/spago.dhall as Location }"
+      writeTextFile "packages.dhall" $ packageDhall <> " // { lib-a = ./lib-a/spago.dhall as Location, lib-b = ./lib-b/spago.dhall as Location, lib-c = ./lib-c/spago.dhall as Location }"
 
       spago ["install"] >>= shouldBeSuccess
 
