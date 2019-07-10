@@ -119,6 +119,15 @@ spec = around_ setup $ do
       writeTextFile "packages.dhall" "let pkgs = ./packagesBase.dhall in pkgs // { spago = { dependencies = [\"prelude\"], repo = \"https://github.com/spacchetti/spago.git\", version = \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\" }}"
       spago ["install", "spago"] >>= shouldBeFailure
 
+
+  describe "spago sources" $ do
+
+    it "Spago should print both dependencies and project sources" $ do
+
+      spago ["init"] >>= shouldBeSuccess
+      spago ["sources"] >>= shouldBeSuccessOutput "sources-output.txt"
+
+
   describe "spago build" $ do
 
     it "Spago should build successfully" $ do
