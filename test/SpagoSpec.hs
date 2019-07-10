@@ -1,11 +1,12 @@
 module SpagoSpec (spec) where
 
 import           Control.Concurrent (threadDelay)
+import           Data.Foldable      (for_)
 import           Prelude            hiding (FilePath)
 import qualified System.IO.Temp     as Temp
 import           Test.Hspec         (Spec, around_, describe, it, shouldBe)
-import           Turtle             (cp, decodeString, mkdir, mktree, mv, readTextFile, testdir,
-                                     writeTextFile)
+import           Turtle             (cd, cp, decodeString, fromText, mkdir, mktree, mv, readTextFile,
+                                     rm, testdir, writeTextFile)
 import           Utils              (checkFixture, readFixture, runFor, shouldBeFailure,
                                      shouldBeFailureOutput, shouldBeSuccess, shouldBeSuccessOutput,
                                      spago, withCwd)
@@ -105,6 +106,7 @@ spec = around_ setup $ do
       mv "packages.dhall" "packagesBase.dhall"
       writeTextFile "packages.dhall" "let pkgs = ./packagesBase.dhall in pkgs // { metadata_ = { dependencies = [\"prelude\"], repo = \"https://github.com/spacchetti/purescript-metadata.git\", version = \"spago-test/branch-with-slash\" }}"
       spago ["install", "metadata_"] >>= shouldBeSuccess
+
     it "Spago should be able to install a package not in the set from a commit hash" $ do
 
       spago ["init"] >>= shouldBeSuccess
@@ -119,6 +121,26 @@ spec = around_ setup $ do
       writeTextFile "packages.dhall" "let pkgs = ./packagesBase.dhall in pkgs // { spago = { dependencies = [\"prelude\"], repo = \"https://github.com/spacchetti/spago.git\", version = \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\" }}"
       spago ["install", "spago"] >>= shouldBeFailure
 
+    it "Spago should install successfully when there are local dependencies sharing the same packages.dhall" $ do
+
+      -- Create local 'lib-a' and 'lib-b' packages
+      for_ ["lib-a", "lib-b"] $ \name -> do
+        mkdir $ fromText name
+        cd $ fromText name
+        spago ["init"] >>= shouldBeSuccess
+        rm "spago.dhall"
+        writeTextFile "spago.dhall" $ "{ name = \"" <> name <> "\", dependencies = ./spago-deps.dhall, packages = ../packages.dhall }"
+        writeTextFile "spago-deps.dhall" "[\"console\", \"effect\", \"prelude\"]"
+        cd ".."
+
+      -- Create 'app' package that depends on 'lib-a' and 'lib-b'
+      spago ["init"] >>= shouldBeSuccess
+      rm "spago.dhall"
+      writeTextFile "spago.dhall" "{ name = \"app\", dependencies = [\"console\", \"effect\", \"prelude\", \"lib-a\", \"lib-b\"], packages = ./packages.dhall }"
+      packageDhall <- readTextFile "packages.dhall"
+      writeTextFile "packages.dhall" $ packageDhall <> " // { lib-a = mkPackage ./lib-a/spago-deps.dhall \"./lib-a\" \"v1.0.0\", lib-b = mkPackage ./lib-b/spago-deps.dhall \"./lib-b\" \"v1.0.0\" }"
+
+      spago ["install"] >>= shouldBeSuccess
 
   describe "spago sources" $ do
 
@@ -126,7 +148,6 @@ spec = around_ setup $ do
 
       spago ["init"] >>= shouldBeSuccess
       spago ["sources"] >>= shouldBeSuccessOutput "sources-output.txt"
-
 
   describe "spago build" $ do
 
