@@ -244,7 +244,7 @@ filterDependencies expr = expr
 withConfigAST :: Spago m => (Expr -> m Expr) -> m ()
 withConfigAST transform = do
   rawConfig <- liftIO $ Dhall.readRawExpr pathText
-  shouldFormat <- asks shouldFormat
+  shouldFormat <- asks globalDoFormat
   case rawConfig of
     Nothing -> die Messages.cannotFindConfig
     Just (header, expr) -> do

@@ -10,6 +10,7 @@ module Spago.Prelude
   , assertDirectory
   , GlobalOptions (..)
   , DoFormat (..)
+  , UsePsa(..)
   , Spago
   , module X
   , Typeable
@@ -50,6 +51,7 @@ module Spago.Prelude
   , headMay
   , for
   , try
+  , tryIO
   , makeAbsolute
   , hPutStrLn
   , many
@@ -106,7 +108,7 @@ import           Turtle                        (ExitCode (..), FilePath, appendo
                                                 systemStrictWithErr, testdir, testfile)
 import           UnliftIO                      (MonadUnliftIO, withRunInIO)
 import           UnliftIO.Directory            (getModificationTime, makeAbsolute)
-import           UnliftIO.Exception            (IOException, try)
+import           UnliftIO.Exception            (IOException, try, tryIO)
 import           UnliftIO.Process              (callCommand)
 import           UnliftIO.STM                  (atomically, newTVarIO, readTVar, readTVarIO,
                                                 writeTVar)
@@ -123,9 +125,13 @@ instance Show SpagoError where
 -- | Flag to skip automatic formatting of the Dhall files
 data DoFormat = DoFormat | NoFormat deriving (Eq)
 
+-- | Flag to disable the automatic use of `psa`
+data UsePsa = UsePsa | NoPsa
+
 data GlobalOptions = GlobalOptions
-  { debug :: Bool
-  , shouldFormat :: DoFormat
+  { globalDebug    :: Bool
+  , globalDoFormat :: DoFormat
+  , globalUsePsa   :: UsePsa
   }
 
 type Spago m =
@@ -148,7 +154,7 @@ tshow = Text.pack . show
 
 echoDebug :: Spago m => Text -> m ()
 echoDebug str = do
-  hasDebug <- asks debug
+  hasDebug <- asks globalDebug
   Turtle.when hasDebug $ do
     echo str
 
