@@ -41,7 +41,7 @@ compile sourcePaths extraArgs = do
       Right _ -> pure "psa"
       Left _ -> pure "purs"
 
-  echoDebug $ "Compiling with " <> Messages.surroundQuote purs
+  echoDebug $ "Compiling with " <> surroundQuote purs
 
   let
     paths = Text.intercalate " " $ surroundQuote <$> map unSourcePath sourcePaths
