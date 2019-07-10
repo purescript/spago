@@ -272,7 +272,7 @@ sources = do
   echoDebug "Running `spago sources`"
   config <- Config.ensureConfig
   deps <- getProjectDeps config
-  _ <- traverse echo $ fmap Purs.unSourcePath $ getGlobs deps
+  _ <- traverse echo $ fmap Purs.unSourcePath (getGlobs deps <> Config.configSourcePaths config)
   pure ()
 
 
