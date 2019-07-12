@@ -157,7 +157,7 @@ getMetadata cacheFlag = do
 getGlobalCacheDir :: Spago m => m FilePath.FilePath
 getGlobalCacheDir = do
   echoDebug "Running `getGlobalCacheDir`"
-  cacheDir <- alternative₀ <|> alternative₁ <|> alternative₂ <|> err
+  cacheDir <- alternative₀ <|> alternative₁ <|> alternative₂ <|> alternative₃ <|> err
   pure $ cacheDir </> "spago"
   where
     err = die Messages.cannotGetGlobalCacheDir
@@ -177,7 +177,14 @@ getGlobalCacheDir = do
         Just homeDirectory -> return (homeDirectory </> ".cache")
         Nothing            -> empty
 
-    alternative₂ = pure ".spago-global-cache"
+    alternative₂ = do
+      maybeWindowsHomeDirectory <- liftIO (System.Environment.lookupEnv "HomePath")
+
+      case maybeWindowsHomeDirectory of
+        Just homeDirectory -> return (homeDirectory </> ".cache")
+        Nothing            -> empty
+
+    alternative₃ = pure ".spago-global-cache"
 
 
 -- | Fetch the tarball at `archiveUrl` and unpack it into `destination`
