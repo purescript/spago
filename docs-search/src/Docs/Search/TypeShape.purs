@@ -1,9 +1,9 @@
-module Spago.Search.TypeShape where
+module Docs.Search.TypeShape where
 
 import Prelude
 
-import Spago.Search.TypeDecoder (QualifiedName(..), Type(..), joinForAlls, joinRows)
-import Spago.Search.TypeQuery (TypeQuery(..), getFreeVariables)
+import Docs.Search.TypeDecoder (QualifiedName(..), Type(..), joinForAlls, joinRows)
+import Docs.Search.TypeQuery (TypeQuery(..), getFreeVariables)
 
 import Data.Generic.Rep (class Generic)
 import Data.Generic.Rep.Show (genericShow)

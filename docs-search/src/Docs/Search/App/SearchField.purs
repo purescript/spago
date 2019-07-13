@@ -1,4 +1,4 @@
-module Spago.Search.App.SearchField where
+module Docs.Search.App.SearchField where
 
 import Prelude
 

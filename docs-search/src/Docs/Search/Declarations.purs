@@ -1,10 +1,10 @@
-module Spago.Search.Declarations where
+module Docs.Search.Declarations where
 
 import Prelude
 
-import Spago.Search.SearchResult (ResultInfo(..), SearchResult(..))
-import Spago.Search.DocsJson (ChildDeclType(..), ChildDeclaration(..), DeclType(..), Declaration(..), DocsJson(..))
-import Spago.Search.TypeDecoder (Constraint(..), QualifiedName(..), Type(..), joinForAlls)
+import Docs.Search.SearchResult (ResultInfo(..), SearchResult(..))
+import Docs.Search.DocsJson (ChildDeclType(..), ChildDeclaration(..), DeclType(..), Declaration(..), DocsJson(..))
+import Docs.Search.TypeDecoder (Constraint(..), QualifiedName(..), Type(..), joinForAlls)
 
 import Control.Alt ((<|>))
 import Data.Array ((!!))

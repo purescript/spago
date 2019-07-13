@@ -1,10 +1,10 @@
-module Spago.Search.App where
+module Docs.Search.App where
 
 import Prelude
 
-import Spago.Search.App.SearchField as SearchField
-import Spago.Search.App.SearchResults as SearchResults
-import Spago.Search.Extra (whenJust)
+import Docs.Search.App.SearchField as SearchField
+import Docs.Search.App.SearchResults as SearchResults
+import Docs.Search.Extra (whenJust)
 
 import Control.Coroutine as Coroutine
 import Data.Maybe (Maybe(..))

@@ -1,4 +1,4 @@
-module Spago.Search.Config where
+module Docs.Search.Config where
 
 import Prelude
 

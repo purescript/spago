@@ -1,24 +1,28 @@
 /* global exports */
 
-exports.lookup_ = function (shape) {
+exports.loadIndex_ = function (partId) {
   return function (url) {
     return function () {
-      return new Promise(function (resolve, reject) {
-        if (typeof window.spagoTypeIndex[shape] === 'undefined') {
+      return new Promise(function(resolve, reject) {
+        if (typeof window.DocsSearchIndex[partId] === 'undefined') {
+
           var script = document.createElement('script');
           script.type = 'text/javascript';
           script.src = url;
+
           script.addEventListener('load', function () {
-            if (typeof window.spagoTypeIndex[shape] === 'undefined') {
-              reject(new Error("Couldn't load index for type shape " + shape));
+            if (typeof window.DocsSearchIndex[partId] == 'undefined') {
+              reject();
             } else {
-              resolve(window.spagoTypeIndex[shape]);
+              resolve(window.DocsSearchIndex[partId]);
             }
           });
+
           script.addEventListener('error', reject);
+
           document.body.appendChild(script);
         } else {
-          resolve(window.spagoTypeIndex[shape]);
+          resolve(window.DocsSearchIndex[partId]);
         }
       });
     };

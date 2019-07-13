@@ -1,4 +1,4 @@
-module Spago.Search.TypeQuery
+module Docs.Search.TypeQuery
        ( TypeQuery(..)
        , Substitution(..)
        , parseTypeQuery
@@ -11,8 +11,8 @@ where
 
 import Prelude
 
-import Spago.Search.TypeDecoder
-import Spago.Search.Config
+import Docs.Search.TypeDecoder
+import Docs.Search.Config
 
 import Control.Alt ((<|>))
 import Data.Array as Array

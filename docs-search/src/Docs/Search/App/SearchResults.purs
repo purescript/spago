@@ -1,19 +1,19 @@
-module Spago.Search.App.SearchResults where
+module Docs.Search.App.SearchResults where
 
 import Prelude
 
-import Spago.Search.App.SearchField (SearchFieldMessage(..))
-import Spago.Search.Config (config)
-import Spago.Search.Declarations (DeclLevel(..), declLevelToHashAnchor)
-import Spago.Search.DocsJson (DataDeclType(..))
-import Spago.Search.Extra ((>#>))
-import Spago.Search.Index (Index)
-import Spago.Search.Index as Index
-import Spago.Search.SearchResult (ResultInfo(..), SearchResult, typeOf)
-import Spago.Search.TypeDecoder (Constraint(..), FunDep(..), FunDeps(..), Kind(..), QualifiedName(..), Type(..), TypeArgument(..), joinForAlls, joinRows)
-import Spago.Search.TypeIndex (TypeIndex)
-import Spago.Search.TypeIndex as TypeIndex
-import Spago.Search.TypeQuery (TypeQuery(..), parseTypeQuery, penalty)
+import Docs.Search.App.SearchField (SearchFieldMessage(..))
+import Docs.Search.Config (config)
+import Docs.Search.Declarations (DeclLevel(..), declLevelToHashAnchor)
+import Docs.Search.DocsJson (DataDeclType(..))
+import Docs.Search.Extra ((>#>))
+import Docs.Search.Index (Index)
+import Docs.Search.Index as Index
+import Docs.Search.SearchResult (ResultInfo(..), SearchResult, typeOf)
+import Docs.Search.TypeDecoder (Constraint(..), FunDep(..), FunDeps(..), Kind(..), QualifiedName(..), Type(..), TypeArgument(..), joinForAlls, joinRows)
+import Docs.Search.TypeIndex (TypeIndex)
+import Docs.Search.TypeIndex as TypeIndex
+import Docs.Search.TypeQuery (TypeQuery(..), parseTypeQuery, penalty)
 
 import CSS (textWhitespace, whitespacePreWrap)
 import Data.Array ((!!))
@@ -236,8 +236,7 @@ renderSummary
   .  String
   -> HH.HTML b a
 renderSummary text =
-  HH.div [ HP.id_ "spago-search-summary" ]
-  [ HH.text text ]
+  HH.div_ [ HH.text text ]
 
 renderResult
   :: forall a

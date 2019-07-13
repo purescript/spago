@@ -1,9 +1,9 @@
-module Spago.Search.Index where
+module Docs.Search.Index where
 
 import Prelude
 
-import Spago.Search.Config (config)
-import Spago.Search.SearchResult (SearchResult)
+import Docs.Search.Config (config)
+import Docs.Search.SearchResult (SearchResult)
 
 import Control.Promise (Promise, toAffE)
 import Data.Argonaut.Core (Json)

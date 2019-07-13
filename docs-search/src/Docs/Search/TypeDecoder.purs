@@ -1,4 +1,4 @@
-module Spago.Search.TypeDecoder where
+module Docs.Search.TypeDecoder where
 
 import Prelude
 

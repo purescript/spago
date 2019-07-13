@@ -3,8 +3,8 @@ module Test.TypeQuery where
 import Prelude
 
 
-import Spago.Search.TypeQuery (TypeQuery(..), Substitution(..), getFreeVariables, parseTypeQuery, typeVarPenalty)
-import Spago.Search.TypeShape (ShapeChunk(..), shapeOfTypeQuery)
+import Docs.Search.TypeQuery (TypeQuery(..), Substitution(..), getFreeVariables, parseTypeQuery, typeVarPenalty)
+import Docs.Search.TypeShape (ShapeChunk(..), shapeOfTypeQuery)
 
 import Data.Either (Either(..))
 import Data.Foldable (class Foldable)

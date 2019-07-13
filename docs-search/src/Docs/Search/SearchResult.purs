@@ -1,7 +1,7 @@
-module Spago.Search.SearchResult where
+module Docs.Search.SearchResult where
 
-import Spago.Search.DocsJson (DataDeclType)
-import Spago.Search.TypeDecoder (Constraint, FunDeps, Kind, QualifiedName, Type, TypeArgument)
+import Docs.Search.DocsJson (DataDeclType)
+import Docs.Search.TypeDecoder (Constraint, FunDeps, Kind, QualifiedName, Type, TypeArgument)
 
 import Data.Argonaut.Decode (class DecodeJson)
 import Data.Argonaut.Decode.Generic.Rep (genericDecodeJson)

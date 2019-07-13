@@ -2,7 +2,7 @@ module Test.Main where
 
 import Prelude
 
-import Spago.Search.TypeDecoder (Constraint(..), FunDep(..), FunDeps(..), Kind(..), QualifiedName(..), Type(..))
+import Docs.Search.TypeDecoder (Constraint(..), FunDep(..), FunDeps(..), Kind(..), QualifiedName(..), Type(..))
 import Test.TypeQuery as TypeQuery
 
 import Data.Argonaut.Decode (decodeJson)

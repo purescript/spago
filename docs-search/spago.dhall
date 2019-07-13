@@ -1,5 +1,5 @@
 { name =
-	"my-project"
+	"docs-search"
 , dependencies =
 	[ "aff-promise"
 	, "argonaut-codecs"

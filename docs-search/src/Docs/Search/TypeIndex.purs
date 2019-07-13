@@ -1,12 +1,12 @@
-module Spago.Search.TypeIndex where
+module Docs.Search.TypeIndex where
 
 import Prelude
 
-import Spago.Search.Config (config)
-import Spago.Search.Declarations (Declarations(..))
-import Spago.Search.SearchResult (ResultInfo(..), SearchResult)
-import Spago.Search.TypeQuery (TypeQuery)
-import Spago.Search.TypeShape (shapeOfType, shapeOfTypeQuery, stringifyShape)
+import Docs.Search.Config (config)
+import Docs.Search.Declarations (Declarations(..))
+import Docs.Search.SearchResult (ResultInfo(..), SearchResult)
+import Docs.Search.TypeQuery (TypeQuery)
+import Docs.Search.TypeShape (shapeOfType, shapeOfTypeQuery, stringifyShape)
 
 import Control.Promise (Promise, toAffE)
 import Data.Argonaut.Core (Json)
