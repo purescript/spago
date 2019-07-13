@@ -24,7 +24,7 @@ install:
   - set PATH=%APPDATA%\npm;%PATH%
   - ps: |
       $releases = "https://api.github.com/repos/purescript/purescript/releases"
-      $tag = "v0.13.0"
+      $tag = "v0.13.2"
       $download = "https://github.com/purescript/purescript/releases/download/$tag/win64.tar.gz"
       Invoke-WebRequest $download -Out purescript.tar.gz
   - tar -xvf purescript.tar.gz
