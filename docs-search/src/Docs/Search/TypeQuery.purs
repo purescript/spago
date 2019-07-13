@@ -11,8 +11,9 @@ where
 
 import Prelude
 
-import Docs.Search.TypeDecoder
 import Docs.Search.Config
+import Docs.Search.DocsJson
+import Docs.Search.TypeDecoder
 
 import Control.Alt ((<|>))
 import Data.Array as Array
@@ -183,20 +184,24 @@ data Substitution
   | Match String String
   | Generalize TypeQuery String
   | Substitute String String
-  | MatchConstraints String String
+  | MatchConstraints (Set String) (Set String)
   | MissingConstraint
   | ExcessiveConstraint
+  | RowsMismatch Int Int
+  | Mismatch
 
 derive instance genericSubstitution :: Generic Substitution _
 
 instance showSubstitution :: Show Substitution where
   show x = genericShow x
 
-unify :: TypeQuery -> Type -> Maybe (List Substitution)
+unify :: TypeQuery -> Type -> List Substitution
 unify query type_ = go Nil (List.singleton { q: query, t: type_ })
   where
-    go :: List Substitution -> List { q :: TypeQuery, t :: Type } -> Maybe (List Substitution)
-    go acc Nil = Just acc
+    go :: List Substitution -> List { q :: TypeQuery, t :: Type } -> List Substitution
+    go acc Nil = acc
+    go acc ({ q, t: ParensInType t } : rest) =
+        go acc ({ q, t } : rest)
 
     -- * ForAll
     go acc ({ q: (QForAll queryBinders q), t:type_1@(ForAll _ _ _) } : rest) =
@@ -218,6 +223,16 @@ unify query type_ = go Nil (List.singleton { q: query, t: type_ })
     -- * Names
     go acc ({ q: QConst qname, t: TypeConstructor (QualifiedName { name }) } : rest) =
       go (Match qname name : acc) rest
+    go acc ({ q: QConst qname, t } : rest) =
+      go (Mismatch : acc) rest
+    go acc ({ q, t: TypeConstructor (QualifiedName { name }) } : rest) =
+      go (Mismatch : acc) rest
+
+    -- type operators can't appear in type queries: this is always a mismatch
+    go acc ({ q, t: TypeOp (QualifiedName { name }) } : rest) =
+      go (Mismatch : acc) rest
+    go acc ({ q, t: BinaryNoParensType _ _ _ } : rest) =
+      go (Mismatch : acc) rest
 
     -- * Functions
     go acc ({ q: QFun q1 q2
@@ -225,17 +240,20 @@ unify query type_ = go Nil (List.singleton { q: query, t: type_ })
                                     (QualifiedName { moduleName: [ "Prim" ]
                                                    , name: "Function" })) t1) t2 } : rest) =
       go acc ({ q: q1, t: t1 } : { q: q2, t: t2 } : rest)
+    go acc ({ q: QFun q1 q2, t } : rest) =
+      go (Mismatch : acc) rest
 
     -- * Constraints
-    go acc ({ q: QConstraint className args q
-            , t: ConstrainedType cnstr t } : rest) =
-      go (MatchConstraints className typeClassName  : acc) ({ q, t } : rest)
-       where typeClassName = (unwrap (unwrap cnstr).constraintClass).name
-    go acc ({ q: QConstraint _ _ q
-            , t } : rest) =
+    go acc ({ q: q@(QConstraint _ _ _)
+            , t: t@(ConstrainedType _ _) } : rest) =
+      let qcs = Set.fromFoldable (joinQueryConstraints q).constraints
+          tcs = Set.fromFoldable (joinConstraints t).constraints
+      in
+        -- TODO: use edit distance instead
+        go (MatchConstraints qcs tcs : acc) rest
+    go acc ({ q: QConstraint _ _ q, t } : rest) =
       go (ExcessiveConstraint : acc) ({ q, t } : rest)
-    go acc ({ q
-            , t: ConstrainedType cnstr t } : rest) =
+    go acc ({ q, t: ConstrainedType _ t } : rest) =
       go (MissingConstraint : acc) ({ q, t } : rest)
 
     -- * Rows
@@ -243,25 +261,45 @@ unify query type_ = go Nil (List.singleton { q: query, t: type_ })
             , t: TypeApp (TypeConstructor
                            (QualifiedName { moduleName: [ "Prim" ]
                                           , name: "Record" })) row } : rest) =
-      let { rows, ty } = joinRows row in
-        if List.length rows == List.length qRows then
+      let { rows, ty } = joinRows row
+          qRowsLength = List.length qRows
+          rowsLength = List.length rows in
+        if rowsLength == qRowsLength then
           let
             sortedQRows = List.sortBy (\x y -> compare (fst x) (fst y)) qRows
             sortedRows  = List.sortBy (\x y -> compare x.row y.row) rows in
-            go acc $
-            (List.zipWith (\(Tuple _ q) { ty: t } -> { q, t }) sortedQRows sortedRows <> rest)
+            go
+            -- match row names
+            (List.zipWith (\(Tuple qRowName _) { row: rowName } ->
+                              Match qRowName rowName) sortedQRows sortedRows <> acc)
+            -- match row types
+            (List.zipWith (\(Tuple _ q) { ty: t } ->
+                              { q, t }) sortedQRows sortedRows <> rest)
         else
-          Nothing
+          go (RowsMismatch qRowsLength rowsLength : acc) rest
+
+    go acc ({ q: QRow _ } : rest) =
+      go (Mismatch : acc) rest
 
     -- * Type application
     go acc ({ q: QApp q1 q2, t: TypeApp t1 t2 } : rest) =
       go acc ({ q: q1, t: t1 } : { q: q2, t: t2 } : rest)
 
-    go acc _ = Nothing
+    go acc ({ q, t: TypeLevelString _ } : rest) =
+      go (Mismatch : acc) rest
 
-penalty :: TypeQuery -> Type -> Maybe Int
+    go acc ({ q, t: TypeWildcard } : rest) =
+      go (Mismatch : acc) rest
+
+    go acc ({ q, t: RCons _ _ _ } : rest) =
+      go (Mismatch : acc) rest
+
+    go acc ({ q, t: REmpty } : rest) =
+      go (Mismatch : acc) rest
+
+penalty :: TypeQuery -> Type -> Int
 penalty typeQuery ty =
-  unify typeQuery ty <#> \substs ->
+  let substs = unify typeQuery ty in
   typeVarPenalty substs * config.penalties.typeVars +
   namesPenalty substs +
   mismatchPenalty substs
@@ -293,14 +331,17 @@ typeVarPenalty substs =
 namesPenalty :: List Substitution -> Int
 namesPenalty = go 0
   where
-    go n Nil = n
-    go n (Match a b : rest)
-      | a == b = go n rest
-      | otherwise = go (n + config.penalties.match) rest
-    go n (MatchConstraints a b : rest)
-      | a == b = go n rest
-      | otherwise = go (n + config.penalties.matchConstraint) rest
-    go n (_ : rest) = go n rest
+    go p Nil = p
+    go p (Mismatch : rest) = go (p + config.penalties.mismatch) rest
+    go p (Match a b : rest)
+      | a == b = go p rest
+      | otherwise = go (p + config.penalties.match) rest
+    go p (MatchConstraints qcs tcs : rest)
+      = let p' = Set.size (Set.union qcs tcs) -
+                 Set.size (Set.intersection qcs tcs) in
+        go (p + config.penalties.matchConstraint * p') rest
+    go p (RowsMismatch n m : rest) = go (config.penalties.rowsMismatch * abs (n - m)) rest
+    go p (_ : rest) = go p rest
 
 -- | Penalty for generalization and instantiation.
 mismatchPenalty :: List Substitution -> Int
@@ -312,3 +353,12 @@ mismatchPenalty = go 0
     go n (ExcessiveConstraint : rest) = go (n + config.penalties.excessiveConstraint) rest
     go n (MissingConstraint   : rest) = go (n + config.penalties.missingConstraint)   rest
     go n (_ : rest) = go n rest
+
+-- | Only returns a list of type class names (lists of arguments are omitted).
+joinQueryConstraints :: TypeQuery -> { constraints :: List String
+                                     , ty :: TypeQuery }
+joinQueryConstraints = go Nil
+  where
+    go acc (QConstraint name _ query) =
+      go (name : acc) query
+    go acc ty = { constraints: List.sort acc, ty }

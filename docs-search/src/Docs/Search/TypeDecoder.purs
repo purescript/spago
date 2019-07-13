@@ -9,12 +9,12 @@ import Data.Array ((!!))
 import Data.Either (Either(..))
 import Data.Generic.Rep (class Generic)
 import Data.Generic.Rep.Show (genericShow)
+import Data.List (List(..), (:))
+import Data.List as List
 import Data.Maybe (Maybe(..), fromMaybe)
 import Data.Newtype (class Newtype)
 import Data.Tuple (Tuple(..))
 import Foreign.Object as Object
-import Data.List (List(..), (:))
-import Data.List as List
 
 derive instance eqQualifiedName :: Eq QualifiedName
 derive instance genericQualifiedName :: Generic QualifiedName _
@@ -372,3 +372,12 @@ joinRows = go Nil
                     REmpty -> Nothing
                     ty' -> Just ty'
                 }
+
+-- | Only returns a list of type class names (lists of arguments are omitted).
+joinConstraints :: Type -> { constraints :: List String
+                           , ty :: Type }
+joinConstraints = go Nil
+  where
+    go acc (ConstrainedType (Constraint { constraintClass: QualifiedName { name } }) ty) =
+      go (name : acc) ty
+    go acc ty = { constraints: List.sort acc, ty }

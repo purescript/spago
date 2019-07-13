@@ -2,9 +2,9 @@ module Test.TypeQuery where
 
 import Prelude
 
-
-import Docs.Search.TypeQuery (TypeQuery(..), Substitution(..), getFreeVariables, parseTypeQuery, typeVarPenalty)
+import Docs.Search.TypeQuery (Substitution(..), TypeQuery(..), getFreeVariables, parseTypeQuery, penalty, typeVarPenalty)
 import Docs.Search.TypeShape (ShapeChunk(..), shapeOfTypeQuery)
+import Docs.Search.TypeDecoder (QualifiedName(..), Type(..))
 
 import Data.Either (Either(..))
 import Data.Foldable (class Foldable)
@@ -195,6 +195,15 @@ tests = do
                  , Tuple "row2" (QRow Nil)
                  , Tuple "row3" (QRow (l [ Tuple "row4" (QApp (QConst "Record") (QRow Nil)) ])) ]))
 
+    test "test #33" do
+      let input = "Foldable1 t => Apply f => t (f a) -> f Unit"
+      assertRight (parseTypeQuery input)
+        (QConstraint "Foldable1" ((QVar "t") : Nil) (QConstraint "Apply" ((QVar "f") : Nil) (QFun (QApp (QVar "t") (QApp (QVar "f") (QVar "a"))) (QApp (QVar "f") (QConst "Unit")))))
+
+    test "test #34" do
+      let input = "Foldable1 t => Apply f => t (f a) -> f a"
+      assertRight (parseTypeQuery input)
+        (QConstraint "Foldable1" ((QVar "t") : Nil) (QConstraint "Apply" ((QVar "f") : Nil) (QFun (QApp (QVar "t") (QApp (QVar "f") (QVar "a"))) (QApp (QVar "f") (QVar "a")))))
 
   suite "polish notation" do
 
@@ -332,11 +341,32 @@ tests = do
                                          , Substitute "c" "f"
                                          ])
 
+  suite "unification" do
+    test "instantiation #0" do
+      let mVarQuery = QVar "m"
+          unitConstQuery = QConst "Unit"
+
+      Assert.assert "instantiation #0" $
+        (penalty unitConstQuery unitType < penalty mVarQuery unitType)
+
+    test "generalization #0" do
+      let query = QVar "m"
+          t1 = TypeVar "m"
+
+      Assert.assert "qeneralization #0" $
+        (penalty query unitType > penalty query t1)
+
+
 l :: forall f. Foldable f => (forall a. f a -> List a)
 l = List.fromFoldable
 
 nl :: forall t5 t6. Foldable t6 => t5 -> t6 t5 -> NonEmptyList t5
 nl x rst = NonEmptyList.cons' x $ List.fromFoldable rst
+
+unitType :: Type
+unitType = TypeConstructor (QualifiedName { moduleName: []
+                                          , name: "Unit"
+                                          })
 
 assertRight
   :: forall a b

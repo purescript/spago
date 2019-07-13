@@ -63,6 +63,10 @@ insertStyle doc = do
   .result__body .keyword, .result__body .syntax {
     color: #0B71B4;
   }
+  .badge {
+    /* Add a margin between badge icons and package/module names. */
+    margin-right: 0.25em;
+  }
   """
   mbHead <-
     ParentNode.querySelector (wrap "head") (Document.toParentNode doc)

@@ -628,5 +628,5 @@ sortByDistance typeQuery results =
   where
     comparePenalties r1 r2 = compare r1.penalty r2.penalty
     resultsWithPenalties = results <#>
-               \result -> { penalty: typeOf (unwrap result).info >>= penalty typeQuery
+               \result -> { penalty: typeOf (unwrap result).info <#> penalty typeQuery
                           , result }

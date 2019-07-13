@@ -22,12 +22,14 @@ config =
     \(partId :: Int) -> "../index/declarations/" <> show partId <> ".js"
   , resultsCount: 25
   -- ^ How many results to show by default?
-  , penalties: { typeVars: 2
+  , penalties: { typeVars: 6
                , match: 2
-               , matchConstraint: 2
-               , instantiate: 3
-               , generalize: 1
+               , matchConstraint: 1
+               , instantiate: 1
+               , generalize: 4
+               , rowsMismatch: 6
+               , mismatch: 10
                , missingConstraint: 1
-               , excessiveConstraint: 5
+               , excessiveConstraint: 1
                }
   }
