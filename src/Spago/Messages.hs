@@ -26,6 +26,17 @@ cannotFindPackagesButItsFine = makeMessage
   [ "WARNING: did not find a " <> surroundQuote "packages.dhall" <> " in your current location, skipping compiler version check"
   ]
 
+cannotGetGlobalCacheDir :: Text
+cannotGetGlobalCacheDir = makeMessage
+  [ "ERROR: Spago was not able to get a directory for the global cache. To fix this there are some things you could do:"
+  , ""
+  , "- Set either the `HOME` or `XDG_CACHE_HOME` environment variable. Depending on your OS you'll have to type a different thing in your terminal to do it:"
+  , "  On Windows:    set XDG_CACHE_DIR=\"C:\\tmp\\spago\""
+  , "  On Linux/Mac:  export XDG_CACHE_HOME='/tmp/spago'"
+  , ""
+  , "- Disable the global cache entirely, by passing to Spago `--global-cache skip`"
+  ]
+
 foundExistingProject :: Text -> Text
 foundExistingProject pathText = makeMessage
   [ "Found a " <> surroundQuote pathText <> " file, skipping copy. Run `spago init --force` if you wish to overwrite it."
