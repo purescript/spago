@@ -39,10 +39,11 @@ spec = beforeAll clean $ afterAll_ clean $ around_ (withCwd testDir) $ do
       spago ["psc-package-insdhall"] >>= shouldBeSuccess
       testfile ".psc-package/local/.set/packages.json" >>= (`shouldBe` True)
 
+    {-
     it "Psc-Package build should work successfully" $ do
 
       procStrictWithErr "psc-package" ["build"] empty >>= shouldBeSuccess
-
+    -}
 
   describe "spago psc-package-clean" $ do
 
