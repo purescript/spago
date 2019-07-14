@@ -23,6 +23,7 @@ PureScript package manager and build tool powered by [Dhall][dhall] and
 - [Super quick tutorial](#super-quick-tutorial)
 - [How do I...](#how-do-i)
   - [Switch from `psc-package`](#switch-from-psc-package)
+  - [Switch from `bower`](#switch-from-bower)
   - [See what commands and flags are supported](#see-what-commands-and-flags-are-supported)
   - [Download my dependencies locally](#download-my-dependencies-locally)
   - [Build and run my project](#build-and-run-my-project)
@@ -76,7 +77,7 @@ Our main design goals are:
 - **Reproducible builds**: thanks to [package sets][package-sets] and [Dhall][dhall], if your
   project builds today it will also build tomorrow and every day after that.
 
-Some tools that inspired `spago` are: [Rust's Cargo][cargo], [Haskell's Stack][stack], 
+Some tools that inspired `spago` are: [Rust's Cargo][cargo], [Haskell's Stack][stack],
 [`psc-package`][psc-package], [`pulp`][pulp] and [`purp`][purp].
 
 
@@ -90,7 +91,7 @@ either `bower` or `psc-package`:
 - If you use `psc-package`, you have the problem of not having the ability of overriding
   packages versions when needed, leading everyone to make their own package-set, which
   then goes unmaintained, etc.
-  
+
   Of course you can use the package-set-local-setup to solve this issue, but this is
   exactly what we're doing here: integrating all the workflow in a single tool, `spago`,
   instead of having to install and use `pulp`, `psc-package`, `purp`, etc.
@@ -113,10 +114,10 @@ For more details see the [`CONTRIBUTING.md`][contributing]
 
 The recommended installation method for Windows, Linux and macOS is `npm` (see the latest releases on npm
   [here][spago-npm]):
-  
+
 ```
 npm install -g spago
-``` 
+```
 
 Other installation methods available:
 - Download the binary from the [latest GitHub release][spago-latest-release]
@@ -129,7 +130,7 @@ Other installation methods available:
 - You might have issues with `npm` and Docker (e.g. getting the message "Downloading the spago binary failed.." etc)
   You have two options:
   - either **do not run npm as root**, because it doesn't work well with binaries. Use it as a nonprivileged user.
-  - or use `--unsafe-perm`: `npm install -g --unsafe-perm spago` 
+  - or use `--unsafe-perm`: `npm install -g --unsafe-perm spago`
 
 **Notes for Linux users:**
 - If you get networking errors (e.g. "Host Not Found") you may need to install `netbase`.
@@ -165,7 +166,7 @@ This last command will create a bunch of files:
 Let's take a look at the two [Dhall][dhall] configuration files that `spago` requires:
 - `packages.dhall`: this file is meant to contain the *totality* of the packages
   available to your project (that is, any package you might want to import).
-  
+
   In practice it pulls in the [official package-set][package-sets] as a base,
   and you are then able to add any package that might not be in the package set,
   or override existing ones.
@@ -223,6 +224,20 @@ You'll note that most of the `psc-package` commands are the same in `spago`, so 
 your existing build is just a matter of search-and-replace most of the times.
 
 
+### Switch from `bower`
+
+Switching from `bower` is a bit more involved, because the package list models
+are different. Start by running `spago init`. Then prompt spago to install your
+current `bower` dependencies by running:
+
+```
+spago install $(jq < bower.json ".dependencies | keys | .[] | .[11:]" | tr '\n' ' ' | tr -d '"')
+spago install $(jq < bower.json ".devDependencies | keys | .[] | .[11:]" | tr '\n' ' ' | tr -d '"')
+```
+
+If spago doesn't find some of them (because they're not on the package set), [add them manually](#add-a-package-to-the-package-set).
+
+
 ### See what commands and flags are supported
 
 For an overview of the available commands, run:
@@ -249,7 +264,7 @@ $ spago install
 ```
 
 This will download all the transitive dependencies of your project (i.e. the direct dependencies,
-i.e. the ones listed in the `dependencies` key of `spago.dhall`, plus all their dependencies, 
+i.e. the ones listed in the `dependencies` key of `spago.dhall`, plus all their dependencies,
 recursively) to the local `.spago` folder (and the global cache, if possible).
 
 However, running this directly is usually **not necessary**, as all commands that need the dependencies
@@ -917,7 +932,7 @@ Every time `spago` will need to "install dependencies" it will:
   to the project-local cache
 - download [a metadata file from the `package-sets-metadata`][package-sets-metadata-file] repo
   if missing from the global cache or older 24 hours.
-  
+
   This file contains the list of *tags* and *commits* for every package currently in the package
   set, updated hourly.
 - check if the tag or commit of the package we need to download is in this cached index,
@@ -927,11 +942,11 @@ Every time `spago` will need to "install dependencies" it will:
   from GitHub and copied to both the global and the local cache
 - otherwise, the repo is just cloned to the local cache
 
-Note: a question that might come up while reading the above might be "why not just hit GitHub 
+Note: a question that might come up while reading the above might be "why not just hit GitHub
 to check commits and tags for every repo while installing?"
 
 The problem is that GitHub limits token-less API requests to 50 per hour, so any
-decently-sized installation will fail to get all the "cacheable" items, making the 
+decently-sized installation will fail to get all the "cacheable" items, making the
 global cache kind of useless. So we are just caching all of that info for everyone here.
 
 
