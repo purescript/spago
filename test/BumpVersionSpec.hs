@@ -3,12 +3,19 @@ module BumpVersionSpec (spec) where
 import           Prelude        hiding (FilePath)
 import qualified System.IO.Temp as Temp
 import           Test.Hspec     (Spec, around_, before_, describe, it, shouldBe)
-import           Turtle         (Text, cp, decodeString, inplace, mkdir, mv)
-import qualified Turtle.Pattern as Pattern
+import           Turtle         (Text, cp, decodeString, mkdir, mv,
+                                 writeTextFile)
 import           Utils          (checkFixture, getHighestTag, git,
                                  shouldBeFailureInfix, shouldBeSuccess,
                                  shouldBeSuccessInfix, spago, withCwd)
 
+
+-- fix the package set so bower.json is generated with predictable versions
+packageSet :: Text
+packageSet =
+  "let upstream = https://raw.githubusercontent.com/purescript/package-sets/psc-0.13.0-20190614/src/packages.dhall \
+  \ sha256:5cbf2418298e7de762401c5719c6eb18eda4c67ba512b3f076b50a793a7fc482 \
+  \ in upstream"
 
 setup :: IO () -> IO ()
 setup cmd = do
@@ -16,22 +23,9 @@ setup cmd = do
     withCwd (decodeString temp) (setupSpago *> cmd)
   where
     setupSpago = do
-
       spago ["init"] >>= shouldBeSuccess
-      let fields = do
-            Pattern.text "{ name ="
-            pure "{ license = \"MIT\", repository = \"git://github.com/spago/not-a-real-repo.git\", name ="
-      inplace fields "spago.dhall"
-
-      -- fix the package set so bower.json is generated with predicable versions
-      let pkgSet = do
-            Pattern.text "https://raw.githubusercontent.com/purescript/package-sets/"
-            Pattern.plus $ Pattern.notChar '/'
-            Pattern.text "/src/packages.dhall sha256:"
-            Pattern.plus $ Pattern.hexDigit
-            pure "https://raw.githubusercontent.com/purescript/package-sets/psc-0.13.0-20190614/src/packages.dhall sha256:5cbf2418298e7de762401c5719c6eb18eda4c67ba512b3f076b50a793a7fc482"
-      inplace pkgSet "packages.dhall"
-
+      appendFile "spago.dhall" " // { license = \"MIT\", repository = \"git://github.com/spago/not-a-real-repo.git\" }"
+      writeTextFile "packages.dhall" packageSet
       spago ["install", "tortellini"]
 
 initGit :: IO ()
@@ -56,9 +50,8 @@ initGitTag tag = do
   commitAll
 
 setOverrides :: Text -> IO ()
-setOverrides t = do
-  let pattern = ("let overrides = " <> t) <$ Pattern.text "let overrides = {=}"
-  inplace pattern "packages.dhall"
+setOverrides overrides = do
+  writeTextFile "packages.dhall" $ packageSet <> " // " <> overrides
   commitAll
 
 spec :: Spec
@@ -116,13 +109,13 @@ spec = around_ setup $ do
       spago ["bump-version", "minor"] >>= shouldBeFailureInfix
         "bower.json is being ignored by git - change this before continuing."
 
-    before_ initGit $ it "Spago should fail when packages.dhall references non-tagged dependency" $ do
+    before_ initGit $ it "Spago should fail when spago.dhall references non-tagged dependency" $ do
 
       setOverrides "{ tortellini = upstream.tortellini // { version = \"master\" } }"
       spago ["bump-version", "minor"] >>= shouldBeFailureInfix
         "Unable to create Bower version from non-tag version: tortellini master"
 
-    before_ initGit $ it "Spago should fail when packages.dhall references local dependency" $ do
+    before_ initGit $ it "Spago should fail when spago.dhall references local dependency" $ do
 
       mkdir "purescript-tortellini"
       withCwd "purescript-tortellini" $ spago ["init"] >>= shouldBeSuccess
