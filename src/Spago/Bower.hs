@@ -94,10 +94,10 @@ mkBowerVersion :: Spago m => Bower.PackageName -> Text -> Text -> m Bower.Versio
 mkBowerVersion packageName version repo = do
 
   let cmd = "bower info --json '" <> Bower.runPackageName packageName <> "#" <> version <> "'"
-  (code, stdout, _stderr) <- Turtle.shellStrictWithErr cmd empty
+  (code, stdout, stderr) <- Turtle.shellStrictWithErr cmd empty
 
   when (code /= ExitSuccess) $ do
-    die $ "Failed to run: " <> cmd
+    die $ "Failed to run: " <> cmd <> "\n" <> stderr
 
   info <- case Aeson.decode $ encodeUtf8 $ fromStrict stdout of
     Just (Object obj) -> pure obj
