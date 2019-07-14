@@ -14,6 +14,7 @@ import qualified System.Environment
 import qualified System.FilePath        as FilePath
 import qualified Turtle
 
+import qualified Spago.Messages         as Messages
 import           Spago.PackageSet       (PackageName (..), Repo(..))
 
 
@@ -147,16 +148,19 @@ getMetadata cacheFlag = do
 
 
 -- | Directory in which spago will put its global cache
--- | Code from: https://github.com/dhall-lang/dhall-haskell/blob/d8f2787745bb9567a4542973f15e807323de4a1a/dhall/src/Dhall/Import.hs#L578
+--   Code from: https://github.com/dhall-lang/dhall-haskell/blob/d8f2787745bb9567a4542973f15e807323de4a1a/dhall/src/Dhall/Import.hs#L578
+--
+--   In order we try to get:
+--   - the folder pointed by `$XDG_CACHE_HOME`
+--   - the folder pointed by `$HOME/.cache`
+--   - the project-local `.cache`
 getGlobalCacheDir :: Spago m => m FilePath.FilePath
 getGlobalCacheDir = do
   echoDebug "Running `getGlobalCacheDir`"
-  cacheDir <- alternative₀ <|> alternative₁ <|> err
+  cacheDir <- alternative₀ <|> alternative₁ <|> alternative₂ <|> alternative₃ <|> err
   pure $ cacheDir </> "spago"
   where
-    err = do
-      echo "Error: was not able to get a directory for the global cache. Set either `HOME` or `XDG_CACHE_HOME`"
-      empty
+    err = die Messages.cannotGetGlobalCacheDir
 
     alternative₀ = do
       maybeXDGCacheHome <- do
@@ -172,6 +176,15 @@ getGlobalCacheDir = do
       case maybeHomeDirectory of
         Just homeDirectory -> return (homeDirectory </> ".cache")
         Nothing            -> empty
+
+    alternative₂ = do
+      maybeWindowsHomeDirectory <- liftIO (System.Environment.lookupEnv "HomePath")
+
+      case maybeWindowsHomeDirectory of
+        Just homeDirectory -> return (homeDirectory </> ".cache")
+        Nothing            -> empty
+
+    alternative₃ = pure ".spago-global-cache"
 
 
 -- | Fetch the tarball at `archiveUrl` and unpack it into `destination`
