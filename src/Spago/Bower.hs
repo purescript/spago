@@ -9,8 +9,11 @@ import Spago.Prelude
 import qualified Data.Aeson                 as Aeson
 import qualified Data.Aeson.Encode.Pretty   as Pretty
 import qualified Data.ByteString.Lazy       as ByteString
-import qualified Data.Map                   as Map
+import qualified Data.HashMap.Strict        as HashMap
 import           Data.String                (IsString)
+import           Data.Text.Lazy             (fromStrict)
+import           Data.Text.Lazy.Encoding    (encodeUtf8)
+import qualified Turtle
 import           Web.Bower.PackageMeta      (PackageMeta (..))
 import qualified Web.Bower.PackageMeta      as Bower
 
@@ -18,8 +21,6 @@ import           Spago.Config               (Config (..), PublishConfig (..))
 import qualified Spago.Config               as Config
 import           Spago.DryRun               (DryRun (..))
 import qualified Spago.Git                  as Git
-import qualified Spago.GlobalCache          as GlobalCache
-import           Spago.GlobalCache          (RepoMetadataV1 (..), Tag (..))
 import qualified Spago.Packages             as Packages
 import           Spago.PackageSet           (PackageName (..), Package (..), Repo (..))
 import qualified Spago.Templates            as Templates
@@ -87,21 +88,34 @@ mkPackageName spagoName = do
       pure name
 
 
+-- | If the given version exists in bower, return a shorthand bower
+-- | version, otherwise return a URL#version style bower version.
+mkBowerVersion :: Spago m => Bower.PackageName -> Text -> Text -> m Bower.VersionRange
+mkBowerVersion packageName version repo = do
+
+  let cmd = "bower info --json '" <> Bower.runPackageName packageName <> "#" <> version <> "'"
+  (code, stdout, _stderr) <- Turtle.shellStrictWithErr cmd empty
+
+  when (code /= ExitSuccess) $ do
+    die $ "Failed to run: " <> cmd
+
+  info <- case Aeson.decode $ encodeUtf8 $ fromStrict stdout of
+    Just (Object obj) -> pure obj
+    _ -> die $ "Unable to decode output from `" <> cmd <> "`: " <> stdout
+
+  if HashMap.member "version" info
+    then pure $ Bower.VersionRange $ "^" <> version
+    else pure $ Bower.VersionRange $ repo <> "#" <> version
+
+
 mkDependencies :: Spago m => Config -> m [(Bower.PackageName, Bower.VersionRange)]
 mkDependencies config = do
-
-  reposMeta <- GlobalCache.getMetadata Nothing
   deps <- Packages.getDirectDeps config
-
   for deps $ \(PackageName{..}, Package{..}) -> do
     case repo of
       Local path ->
         die $ "Unable to create Bower version for local repo: " <> path
-      Remote _ -> do
+      Remote path -> do
         bowerName <- mkPackageName packageName
-        pure (bowerName, Bower.VersionRange $ "^" <> version)
-  where
-    isTag packageName version reposMeta =
-      isJust $ do
-        RepoMetadataV1{..} <- Map.lookup (PackageName packageName) reposMeta
-        Map.lookup (Tag version) tags
+        bowerVersion <- mkBowerVersion bowerName version path
+        pure (bowerName, bowerVersion)
