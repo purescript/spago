@@ -1,0 +1,34 @@
+language: node_js
+dist: trusty
+sudo: required
+node_js: stable
+
+env:
+  matrix:
+  - PATH=$HOME/purescript:$PATH
+
+install:
+- export PURS_VERSION=v0.13.2
+- wget -O $HOME/purescript.tar.gz https://github.com/purescript/purescript/releases/download/$PURS_VERSION/linux64.tar.gz
+- tar -xvf $HOME/purescript.tar.gz -C $HOME/
+- chmod a+x $HOME/purescript
+- npm install -g spago
+- spago install
+
+script:
+- spago build
+- spago test
+- spago docs
+- spago bundle-app -m Docs.Search.App --to generated-docs/docs-search-app.js
+- spago run -m Docs.Search.IndexBuilder
+
+deploy:
+  - provider: releases
+    api_key: $API_KEY
+    file:
+      - generated-docs/docs-search-app.js
+    skip_cleanup: true
+    on:
+      tags: true
+    script:
+      - echo 'done'
