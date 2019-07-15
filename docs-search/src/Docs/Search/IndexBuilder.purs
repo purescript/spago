@@ -4,6 +4,7 @@ import Prelude
 
 import Docs.Search.Config (config)
 import Docs.Search.Declarations (Declarations(..), mkDeclarations)
+import Docs.Search.DocsJson (DocsJson)
 import Docs.Search.Extra ((>#>))
 import Docs.Search.Index (getPartId)
 import Docs.Search.SearchResult (SearchResult)
@@ -26,7 +27,6 @@ import Data.Set as Set
 import Data.String.CodePoints (contains) as String
 import Data.String.CodeUnits (singleton) as String
 import Data.String.Common (replace) as String
-import Data.String.Pattern (Pattern(..)) as String
 import Data.String.Pattern (Pattern(..), Replacement(..))
 import Data.Traversable (for, for_)
 import Data.Tuple (Tuple(..), fst, snd)
@@ -38,7 +38,6 @@ import Node.Encoding (Encoding(UTF8))
 import Node.FS.Aff (exists, mkdir, readTextFile, readdir, stat, writeTextFile)
 import Node.FS.Stats (isDirectory, isFile)
 import Node.Process as Process
-import Docs.Search.DocsJson (DocsJson)
 
 main :: Effect Unit
 main = launchAff_ mainAff
@@ -82,7 +81,7 @@ collectDocsJsons :: String -> Aff (Array DocsJson)
 collectDocsJsons outputDir = do
   paths <- readdir outputDir
 
-  mbs <- for paths \moduleName -> do
+  Array.catMaybes <$> for paths \moduleName -> do
     let jsonFile = "output/" <> moduleName <> "/docs.json"
     doesExist <- fileExists jsonFile
     if doesExist then do
@@ -103,8 +102,6 @@ collectDocsJsons outputDir = do
           "Couldn't find docs.json for " <> moduleName
       pure Nothing
 
-  pure $ Array.catMaybes mbs
-
 writeTypeIndex :: TypeIndex -> Aff Unit
 writeTypeIndex typeIndex =
   for_ entries \(Tuple typeShape results) -> do
@@ -117,33 +114,34 @@ writeTypeIndex typeIndex =
     entries :: Array _
     entries = Map.toUnfoldableUnordered (unwrap typeIndex)
 
-writeIndex :: Declarations -> Aff Unit
-writeIndex (Declarations trie) = do
-  let
-    prefixes :: Array (List Char)
-    prefixes =
+-- | Get a mapping from index parts to index contents.
+getIndex :: Declarations -> Map Int (Array (Tuple String (Array SearchResult)))
+getIndex (Declarations trie) =
+  Array.foldr insert mempty parts
+    where
+      prefixes :: Array (List Char)
+      prefixes =
         Set.toUnfoldable $
         List.foldr (\entry -> Set.insert (List.take 2 $ fst entry)) mempty $
         Trie.entriesUnordered trie
 
-    parts
-      :: Array { prefix :: List Char
-               , results :: Array (Tuple String (Array SearchResult))
-               }
-    parts = prefixes <#> \prefix ->
-      let results =
-            Array.fromFoldable $
-            Trie.query prefix trie <#>
-            \(Tuple path value) ->
-            Tuple (path >#> String.singleton) (Array.fromFoldable value)
-      in
-       { prefix, results }
+      parts
+        :: Array { prefix :: List Char
+                 , results :: Array (Tuple String (Array SearchResult))
+                 }
+      parts = prefixes <#> \prefix ->
+        let results =
+              Array.fromFoldable $
+              Trie.query prefix trie <#>
+              \(Tuple path value) ->
+              Tuple (path >#> String.singleton) (Array.fromFoldable value)
+        in
+         { prefix, results }
 
-    resultsMap :: Map Int (Array (Tuple String (Array SearchResult)))
-    resultsMap = Array.foldr insert mempty parts
+      insert part = Map.insertWith append (getPartId part.prefix) part.results
 
-    insert part = Map.insertWith append (getPartId part.prefix) part.results
-
+writeIndex :: Declarations -> Aff Unit
+writeIndex = getIndex >>> \resultsMap -> do
   for_ (Map.toUnfoldableUnordered resultsMap :: Array _)
     \(Tuple indexPartId results) -> do
       let header =
@@ -153,17 +151,24 @@ writeIndex (Declarations trie) = do
       writeTextFile UTF8 (config.mkIndexPartPath indexPartId) $
         header <> stringify (encodeJson results)
 
+patchHTML :: String -> Tuple Boolean String
+patchHTML html =
+  let
+    pattern = Pattern "</body>"
+    patch = "<!-- Docs search index. -->" <>
+            "<script type=\"text/javascript\" src=\"../docs-search-app.js\"></script>" <>
+            "<script type=\"text/javascript\">" <>
+            "window.DocsSearchTypeIndex = {};" <>
+            "window.DocsSearchIndex = {};" <>
+            "</script>" <>
+            "</body>"
+  in if not $ String.contains (Pattern patch) html
+     then Tuple true $ String.replace pattern (Replacement patch) html
+     else Tuple false html
+
 patchDocs :: Aff Unit
 patchDocs = do
   let dirname = "generated-docs/"
-      pattern = Pattern "</body>"
-      patch = "<!-- Docs search index. -->" <>
-              "<script type=\"text/javascript\" src=\"../docs-search-app.js\"></script>" <>
-              "<script type=\"text/javascript\">" <>
-              "window.DocsSearchTypeIndex = {};" <>
-              "window.DocsSearchIndex = {};" <>
-              "</script>" <>
-              "</body>"
 
   files <- readdir (dirname <> "html")
 
@@ -172,9 +177,10 @@ patchDocs = do
 
     whenM (fileExists path) do
       contents <- readTextFile UTF8 path
-      when (not $ String.contains (String.Pattern patch) contents) do
-        writeTextFile UTF8 path $
-          String.replace pattern (Replacement patch) contents
+      case patchHTML contents of
+        Tuple true patchedContents -> do
+          writeTextFile UTF8 path patchedContents
+        _ -> pure unit
 
 createDirectories :: Aff Unit
 createDirectories = do

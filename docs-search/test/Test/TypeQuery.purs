@@ -2,11 +2,12 @@ module Test.TypeQuery where
 
 import Prelude
 
+import Test.Extra (assertRight)
+
 import Docs.Search.TypeQuery (Substitution(..), TypeQuery(..), getFreeVariables, parseTypeQuery, penalty, typeVarPenalty)
 import Docs.Search.TypeShape (ShapeChunk(..), shapeOfTypeQuery)
 import Docs.Search.TypeDecoder (QualifiedName(..), Type(..))
 
-import Data.Either (Either(..))
 import Data.Foldable (class Foldable)
 import Data.List (List(..), (:))
 import Data.List as List
@@ -14,7 +15,6 @@ import Data.List.NonEmpty (NonEmptyList)
 import Data.List.NonEmpty as NonEmptyList
 import Data.Set as Set
 import Data.Tuple (Tuple(..))
-import Effect.Aff (Aff)
 import Test.Unit (TestSuite, suite, test)
 import Test.Unit.Assert as Assert
 
@@ -367,22 +367,6 @@ unitType :: Type
 unitType = TypeConstructor (QualifiedName { moduleName: []
                                           , name: "Unit"
                                           })
-
-assertRight
-  :: forall a b
-  .  Show a
-  => Show b
-  => Eq a
-  => Eq b
-  => Either b a
-  -> a
-  -> Aff Unit
-assertRight eiActual expected =
-  case eiActual of
-    Left string -> do
-      Assert.equal (Right expected) eiActual
-    Right actual -> do
-      Assert.equal (Right expected) eiActual
 
 countFreeVars :: TypeQuery -> Int
 countFreeVars = getFreeVariables >>> Set.size

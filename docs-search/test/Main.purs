@@ -4,17 +4,18 @@ import Prelude
 
 import Docs.Search.TypeDecoder (Constraint(..), FunDep(..), FunDeps(..), Kind(..), QualifiedName(..), Type(..))
 import Test.TypeQuery as TypeQuery
+import Test.IndexBuilder as IndexBuilder
+
+import Test.Extra (assertRight)
 
 import Data.Argonaut.Decode (decodeJson)
 import Data.Argonaut.Encode (encodeJson)
 import Data.Argonaut.Parser (jsonParser)
-import Data.Either (Either(..), fromRight)
+import Data.Either (fromRight)
 import Data.Maybe (Maybe(..))
 import Effect (Effect)
-import Effect.Aff (Aff)
 import Partial.Unsafe (unsafePartial)
 import Test.Unit (TestSuite, suite, test)
-import Test.Unit.Assert as Assert
 import Test.Unit.Main (runTest)
 
 main :: Effect Unit
@@ -24,6 +25,7 @@ main = do
 mainTest :: TestSuite
 mainTest = do
   TypeQuery.tests
+  IndexBuilder.tests
 
   let mkJson x = unsafePartial $ fromRight $ jsonParser x
   suite "FunDeps decoder" do
@@ -415,11 +417,3 @@ mainTest = do
 
 qualified :: Array String -> String -> QualifiedName
 qualified moduleName name = QualifiedName { moduleName, name }
-
-assertRight :: forall a. Show a => Eq a => Either String a -> a -> Aff Unit
-assertRight eiActual expected =
-  case eiActual of
-    Left string -> do
-      Assert.equal (Right expected) eiActual
-    Right actual -> do
-      Assert.equal (Right expected) eiActual
