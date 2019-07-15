@@ -41,6 +41,8 @@ build_script:
   - tar -zcvf windows.tar.gz spago.exe
 
 test_script:
+  - echo %PATH%
+  - where.exe bower*
   - set PATH=C:\projects\spago\bin;C:\projects\spago\purescript;%PATH%
   - set XDG_CACHE_HOME=C:\cache
   - stack test
