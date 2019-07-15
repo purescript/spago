@@ -25,14 +25,15 @@ script:
 - spago build
 - spago test
 - spago docs
-- spago bundle-app -m Docs.Search.App --to generated-docs/docs-search-app.js
-- spago run -m Docs.Search.IndexBuilder
+- spago bundle-app -m Docs.Search.App --to docs-search-app.js
+- spago bundle-app -m Docs.Search.IndexBuilder --to index-builder.js
 
 deploy:
   - provider: releases
     api_key: $API_KEY
     file:
-      - generated-docs/docs-search-app.js
+      - docs-search-app.js
+      - index-builder.js
     skip_cleanup: true
     on:
       tags: true
