@@ -3,6 +3,12 @@ dist: trusty
 sudo: required
 node_js: stable
 
+# Build only master and release tags
+branches:
+  only:
+  - master
+  - /^v\d+\.\d+\.\d+(\.\d+)?$/
+
 env:
   matrix:
   - PATH=$HOME/purescript:$PATH
