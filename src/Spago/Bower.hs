@@ -11,6 +11,7 @@ import qualified Data.Aeson.Encode.Pretty   as Pretty
 import qualified Data.ByteString.Lazy       as ByteString
 import qualified Data.HashMap.Strict        as HashMap
 import           Data.String                (IsString)
+import qualified Data.Text                  as Text
 import           Data.Text.Lazy             (fromStrict)
 import           Data.Text.Lazy.Encoding    (encodeUtf8)
 import qualified Turtle
@@ -93,15 +94,15 @@ mkPackageName spagoName = do
 mkBowerVersion :: Spago m => Bower.PackageName -> Text -> Text -> m Bower.VersionRange
 mkBowerVersion packageName version repo = do
 
-  let cmd = "bower info --json " <> Bower.runPackageName packageName <> "#" <> version
-  (code, stdout, stderr) <- Turtle.shellStrictWithErr cmd empty
+  let args = ["info", "--json", Bower.runPackageName packageName <> "#" <> version]
+  (code, stdout, stderr) <- Turtle.procStrictWithErr "bower" args empty
 
   when (code /= ExitSuccess) $ do
-    die $ "Failed to run: " <> cmd <> "\n" <> stderr
+    die $ "Failed to run: `bower " <> Text.intercalate " " args <> "`\n" <> stderr
 
   info <- case Aeson.decode $ encodeUtf8 $ fromStrict stdout of
     Just (Object obj) -> pure obj
-    _ -> die $ "Unable to decode output from `" <> cmd <> "`: " <> stdout
+    _ -> die $ "Unable to decode output from `bower " <> Text.intercalate " " args <> "`: " <> stdout
 
   if HashMap.member "version" info
     then pure $ Bower.VersionRange $ "^" <> version
