@@ -16,3 +16,9 @@ spago docs
 spago bundle-app -m Docs.Search.App --to generated-docs/docs-search-app.js
 spago run -m Docs.Search.IndexBuilder
 ```
+
+## UI
+
+The user interface of the app is optimised for keyboard-only use.
+
+**S** hotkey can be used to focus on the search field, **Escape** can be used to leave it. Pressing **Escape** twice will close the search results listing.
