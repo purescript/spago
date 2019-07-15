@@ -137,7 +137,7 @@ spec = around_ setup $ do
       spago ["init"] >>= shouldBeSuccess
       rm "spago.dhall"
       writeTextFile "spago.dhall" "{ name = \"app\", dependencies = [\"console\", \"effect\", \"prelude\", \"lib-a\", \"lib-b\"], packages = ./packages.dhall }"
-      writeTextFile "mkPackage" "λ(dependencies : List Text) → λ(repo : Text) → λ(version : Text) → { dependencies = dependencies, repo = repo, version = version }"
+      writeTextFile "mkPackage" "\\(dependencies : List Text) -> \\(repo : Text) -> \\(version : Text) -> { dependencies = dependencies, repo = repo, version = version }"
       packageDhall <- readTextFile "packages.dhall"
       writeTextFile "packages.dhall" $ packageDhall <> " // { lib-a = ./mkPackage ./lib-a/spago-deps.dhall \"./lib-a\" \"v1.0.0\", lib-b = ./mkPackage ./lib-b/spago-deps.dhall \"./lib-b\" \"v1.0.0\" }"
 
