@@ -125,6 +125,23 @@ upgradePackageSet = do
       { importHashed = Dhall.ImportHashed
         { importType = Dhall.Remote Dhall.URL
           -- Check if we're dealing with the right repo
+          { authority = "github.com"
+          , path = Dhall.File
+            { file = "packages.dhall"
+            , directory = Dhall.Directory
+              { components = [ currentTag, "download", "releases", "package-sets", "purescript" ]}
+            }
+          , ..
+          }
+        , ..
+        }
+      , ..
+      } = [currentTag]
+    -- TODO: remove this branch in 1.0
+    getCurrentTag Dhall.Import
+      { importHashed = Dhall.ImportHashed
+        { importType = Dhall.Remote Dhall.URL
+          -- Check if we're dealing with the right repo
           { authority = "raw.githubusercontent.com"
           , path = Dhall.File
             { directory = Dhall.Directory
@@ -142,13 +159,39 @@ upgradePackageSet = do
     -- | Given an import and a new purescript/package-sets tag,
     --   upgrades the import to the tag and resets the hash
     upgradeImports :: Text -> Dhall.Import -> Dhall.Import
+    upgradeImports newTag (Dhall.Import
+      { importHashed = Dhall.ImportHashed
+        { importType = Dhall.Remote Dhall.URL
+          { authority = "github.com"
+          , path = Dhall.File
+            { file = "packages.dhall"
+            , directory = Dhall.Directory
+              { components = [ _currentTag, "download", "releases", "package-sets", "purescript" ]}
+            , ..
+            }
+          , ..
+          }
+        , ..
+        }
+      , ..
+      }) =
+      let components = [ newTag, "download", "releases", "package-sets", "purescript" ]
+          directory = Dhall.Directory{..}
+          newPath = Dhall.File{ file = "packages.dhall", .. }
+          authority = "github.com"
+          importType = Dhall.Remote Dhall.URL { path = newPath, ..}
+          newHash = Nothing -- Reset the hash here, as we'll refreeze
+          importHashed = Dhall.ImportHashed { hash = newHash, ..}
+      in Dhall.Import{..}
+    -- TODO: remove this branch in 1.0
     upgradeImports newTag imp@(Dhall.Import
       { importHashed = Dhall.ImportHashed
         { importType = Dhall.Remote Dhall.URL
           -- Check if we're dealing with the right repo
           { authority = "raw.githubusercontent.com"
           , path = Dhall.File
-            { directory = Dhall.Directory
+            { file = "packages.dhall"
+            , directory = Dhall.Directory
               { components = [ "src", _currentTag, ghRepo, ghOrg ]}
             , ..
             }
@@ -158,10 +201,10 @@ upgradePackageSet = do
         }
       , ..
       }) =
-      let components = [ "src", newTag, "package-sets", "purescript" ]
+      let components = [ newTag, "download", "releases", "package-sets", "purescript" ]
           directory = Dhall.Directory{..}
-          newPath = Dhall.File{..}
-          authority = "raw.githubusercontent.com"
+          newPath = Dhall.File{ file = "packages.dhall", ..}
+          authority = "github.com"
           importType = Dhall.Remote Dhall.URL { path = newPath, ..}
           newHash = Nothing -- Reset the hash here, as we'll refreeze
           importHashed = Dhall.ImportHashed { hash = newHash, ..}
