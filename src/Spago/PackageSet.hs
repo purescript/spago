@@ -77,14 +77,13 @@ path :: FilePath
 path = pathFromText pathText
 
 
--- | Tries to create the `packages.dhall` file. Fails when the file already exists,
---   unless `--force` has been used.
+-- | Tries to create the `packages.dhall` file if needed
 makePackageSetFile :: Bool -> IO ()
 makePackageSetFile force = do
-  unless force $ do
-    hasPackagesDhall <- testfile path
-    when hasPackagesDhall $ echo $ Messages.foundExistingProject pathText
-  writeTextFile path Templates.packagesDhall
+  hasPackagesDhall <- testfile path
+  if force || not hasPackagesDhall
+    then writeTextFile path Templates.packagesDhall
+    else echo $ Messages.foundExistingProject pathText
   Dhall.format DoFormat pathText
 
 
