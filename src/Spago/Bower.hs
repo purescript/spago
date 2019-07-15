@@ -93,7 +93,7 @@ mkPackageName spagoName = do
 mkBowerVersion :: Spago m => Bower.PackageName -> Text -> Text -> m Bower.VersionRange
 mkBowerVersion packageName version repo = do
 
-  let cmd = "bower info --json '" <> Bower.runPackageName packageName <> "#" <> version <> "'"
+  let cmd = "bower info --json " <> Bower.runPackageName packageName <> "#" <> version
   (code, stdout, stderr) <- Turtle.shellStrictWithErr cmd empty
 
   when (code /= ExitSuccess) $ do
