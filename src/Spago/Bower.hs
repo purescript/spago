@@ -33,10 +33,14 @@ bowerPath :: IsString t => t
 bowerPath = "bower.json"
 
 
-bowerCmd :: Text
-bowerCmd = case System.buildOS of
-  Windows -> "bower." -- workaround windows issue: https://github.com/haskell/process/issues/140
-  _ -> "bower"
+runBower :: Spago m => [Text] -> m (ExitCode, Text, Text)
+runBower args =
+  case System.buildOS of
+    Windows ->
+      -- workaround windows issue: https://github.com/haskell/process/issues/140
+      Turtle.procStrictWithErr "cmd.exe" (["/c", "bower.cmd"] <> args) empty
+    _ ->
+      Turtle.procStrictWithErr "bower" args empty
 
 
 writeBowerJson :: Spago m => DryRun -> m ()
@@ -103,7 +107,7 @@ mkBowerVersion :: Spago m => Bower.PackageName -> Text -> Text -> m Bower.Versio
 mkBowerVersion packageName version repo = do
 
   let args = ["info", "--json", Bower.runPackageName packageName <> "#" <> version]
-  (code, stdout, stderr) <- Turtle.procStrictWithErr bowerCmd args empty
+  (code, stdout, stderr) <- runBower args
 
   when (code /= ExitSuccess) $ do
     die $ "Failed to run: `bower " <> Text.intercalate " " args <> "`\n" <> stderr
