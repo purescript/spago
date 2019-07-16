@@ -14,6 +14,8 @@ import           Data.String                (IsString)
 import qualified Data.Text                  as Text
 import           Data.Text.Lazy             (fromStrict)
 import           Data.Text.Lazy.Encoding    (encodeUtf8)
+import qualified Distribution.System        as System
+import           Distribution.System        (OS (..))
 import qualified Turtle
 import           Web.Bower.PackageMeta      (PackageMeta (..))
 import qualified Web.Bower.PackageMeta      as Bower
@@ -29,6 +31,12 @@ import qualified Spago.Templates            as Templates
 
 bowerPath :: IsString t => t
 bowerPath = "bower.json"
+
+
+bowerCmd :: Text
+bowerCmd = case System.buildOS of
+  Windows -> "bower." -- workaround windows issue: https://github.com/haskell/process/issues/140
+  _ -> "bower"
 
 
 writeBowerJson :: Spago m => DryRun -> m ()
@@ -95,7 +103,7 @@ mkBowerVersion :: Spago m => Bower.PackageName -> Text -> Text -> m Bower.Versio
 mkBowerVersion packageName version repo = do
 
   let args = ["info", "--json", Bower.runPackageName packageName <> "#" <> version]
-  (code, stdout, stderr) <- Turtle.procStrictWithErr "bower" args empty
+  (code, stdout, stderr) <- Turtle.procStrictWithErr bowerCmd args empty
 
   when (code /= ExitSuccess) $ do
     die $ "Failed to run: `bower " <> Text.intercalate " " args <> "`\n" <> stderr
