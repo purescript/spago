@@ -38,7 +38,7 @@ runBower args =
   case System.buildOS of
     Windows ->
       -- workaround windows issue: https://github.com/haskell/process/issues/140
-      Turtle.procStrictWithErr "cmd.exe" (["/c", "bower.cmd"] <> args) empty
+      Turtle.procStrictWithErr "cmd.exe" (["/c", "bower"] <> args) empty
     _ ->
       Turtle.procStrictWithErr "bower" args empty
 
