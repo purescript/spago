@@ -101,7 +101,8 @@ getMetadata cacheFlag = do
         Just a  -> a
 
       downloadMeta = handleAny
-        (const $ do
+        (\err -> do
+            echoDebug $ "Metadata fetch failed with exception: " <> tshow err
             echo "WARNING: Unable to download GitHub metadata, global cache will be disabled"
             pure mempty)
         (do
