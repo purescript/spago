@@ -21,7 +21,6 @@ install:
   - stack setup > nul
   - choco install psc-package
   - npm install -g bower purescript-psa
-  - set PATH=%APPDATA%\npm;%PATH%
   - ps: |
       $releases = "https://api.github.com/repos/purescript/purescript/releases"
       $tag = "v0.13.2"
@@ -41,8 +40,6 @@ build_script:
   - tar -zcvf windows.tar.gz spago.exe
 
 test_script:
-  - echo %PATH%
-  - where.exe bower*
   - set PATH=C:\projects\spago\bin;C:\projects\spago\purescript;%PATH%
   - set XDG_CACHE_HOME=C:\cache
   - stack test
