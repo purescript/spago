@@ -34,13 +34,12 @@ bowerPath = "bower.json"
 
 
 runBower :: Spago m => [Text] -> m (ExitCode, Text, Text)
-runBower args =
-  case System.buildOS of
-    Windows ->
-      -- workaround windows issue: https://github.com/haskell/process/issues/140
-      Turtle.procStrictWithErr "cmd.exe" (["/c", "bower"] <> args) empty
-    _ ->
-      Turtle.procStrictWithErr "bower" args empty
+runBower args = do
+  -- workaround windows issue: https://github.com/haskell/process/issues/140
+  cmd <- case System.buildOS of
+    Windows -> Turtle.lineToText <$> Turtle.single (Turtle.inproc "where" ["bower.cmd"] empty)
+    _       -> pure "bower"
+  Turtle.procStrictWithErr cmd args empty
 
 
 writeBowerJson :: Spago m => DryRun -> m ()
