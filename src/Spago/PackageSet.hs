@@ -14,19 +14,21 @@ module Spago.PackageSet
 
 import           Spago.Prelude
 
-import qualified Data.Text       as Text
-import qualified Data.Versions   as Version
+import qualified Data.Text           as Text
+import qualified Data.Text.Encoding  as Text
+import qualified Data.Versions       as Version
 import qualified Dhall
-import           Dhall.Binary    (defaultStandardVersion)
+import           Dhall.Binary        (defaultStandardVersion)
 import qualified Dhall.Freeze
 import qualified Dhall.Pretty
-import qualified GitHub
-import           Network.URI     (parseURI)
+import qualified Network.HTTP.Simple as Http
+import qualified Network.HTTP.Client as Http
+import           Network.URI         (parseURI)
 
-import qualified Spago.Dhall     as Dhall
-import           Spago.Messages  as Messages
-import qualified Spago.Purs      as Purs
-import qualified Spago.Templates as Templates
+import qualified Spago.Dhall         as Dhall
+import           Spago.Messages      as Messages
+import qualified Spago.Purs          as Purs
+import qualified Spago.Templates     as Templates
 
 
 newtype PackageName = PackageName { packageName :: Text }
@@ -97,10 +99,9 @@ makePackageSetFile force = do
 upgradePackageSet :: Spago m => m ()
 upgradePackageSet = do
   echoDebug "Running `spago package-set-upgrade`"
-  result <- liftIO $ GitHub.executeRequest' $ GitHub.latestReleaseR "purescript" "package-sets"
-  case result of
-    Left err -> echoDebug $ Messages.failedToReachGitHub err
-    Right GitHub.Release{..} -> do
+  try getLatestRelease >>= \case
+    Left (err :: SomeException) -> echoDebug $ Messages.failedToReachGitHub err
+    Right releaseTagName -> do
       let quotedTag = surroundQuote releaseTagName
       echoDebug $ "Found the most recent tag for \"purescript/package-sets\": " <> quotedTag
       rawPackageSet <- liftIO $ Dhall.readRawExpr pathText
@@ -119,6 +120,17 @@ upgradePackageSet = do
           -- If everything is fine, refreeze the imports
           freeze
   where
+    -- | The idea here is that we go to the `latest` endpoint, and then get redirected
+    --   to the latest release. So we search for the `Location` header which should contain
+    --   the URL we get redirected to, and strip the release name from there (it's the
+    --   last segment of the URL)
+    getLatestRelease :: Spago m => m Text
+    getLatestRelease = do
+      request <- Http.parseRequest "https://github.com/purescript/package-sets/releases/latest"
+      response <- Http.httpBS $ request { Http.redirectCount = 0 }
+      let [redirectUrl] = Http.getResponseHeader "Location" response
+      pure $ last $ Text.splitOn "/" $ Text.decodeUtf8 redirectUrl
+
     getCurrentTag :: Dhall.Import -> [Text]
     getCurrentTag Dhall.Import
       { importHashed = Dhall.ImportHashed
