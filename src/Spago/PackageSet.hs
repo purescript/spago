@@ -128,7 +128,8 @@ upgradePackageSet = do
     getLatestRelease = do
       request <- Http.parseRequest "https://github.com/purescript/package-sets/releases/latest"
       response <- Http.httpBS $ request { Http.redirectCount = 0 }
-      let [redirectUrl] = Http.getResponseHeader "Location" response
+      redirectUrl <- (\case [u] -> pure u; _ -> error ("Error following GitHub redirect, response:\n\n" <> show response))
+          $ Http.getResponseHeader "Location" response
       pure $ last $ Text.splitOn "/" $ Text.decodeUtf8 redirectUrl
 
     getCurrentTag :: Dhall.Import -> [Text]
