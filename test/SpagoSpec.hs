@@ -2,11 +2,12 @@ module SpagoSpec (spec) where
 
 import           Control.Concurrent (threadDelay)
 import           Data.Foldable      (for_)
+import qualified Data.Text          as Text
 import           Prelude            hiding (FilePath)
 import qualified System.IO.Temp     as Temp
 import           Test.Hspec         (Spec, around_, describe, it, shouldBe)
-import           Turtle             (cd, cp, decodeString, fromText, mkdir, mktree, mv, readTextFile,
-                                     rm, testdir, writeTextFile)
+import           Turtle             (cd, cp, decodeString, fromText, mkdir, mktree, mv,
+                                     readTextFile, rm, testdir, writeTextFile)
 import           Utils              (checkFixture, readFixture, runFor, shouldBeFailure,
                                      shouldBeFailureOutput, shouldBeSuccess, shouldBeSuccessOutput,
                                      spago, withCwd)
@@ -137,8 +138,9 @@ spec = around_ setup $ do
       spago ["init"] >>= shouldBeSuccess
       rm "spago.dhall"
       writeTextFile "spago.dhall" "{ name = \"app\", dependencies = [\"console\", \"effect\", \"prelude\", \"lib-a\", \"lib-b\"], packages = ./packages.dhall }"
+      writeTextFile "mkPackage" "\\(dependencies : List Text) -> \\(repo : Text) -> \\(version : Text) -> { dependencies = dependencies, repo = repo, version = version }"
       packageDhall <- readTextFile "packages.dhall"
-      writeTextFile "packages.dhall" $ packageDhall <> " // { lib-a = mkPackage ./lib-a/spago-deps.dhall \"./lib-a\" \"v1.0.0\", lib-b = mkPackage ./lib-b/spago-deps.dhall \"./lib-b\" \"v1.0.0\" }"
+      writeTextFile "packages.dhall" $ packageDhall <> " // { lib-a = ./mkPackage ./lib-a/spago-deps.dhall \"./lib-a\" \"v1.0.0\", lib-b = ./mkPackage ./lib-b/spago-deps.dhall \"./lib-b\" \"v1.0.0\" }"
 
       spago ["install"] >>= shouldBeSuccess
 
@@ -197,6 +199,23 @@ spec = around_ setup $ do
       spago ["build"] >>= shouldBeSuccess
       spago ["build"] >>= shouldBeSuccess
       spago ["test"] >>= shouldBeSuccessOutput "test-output.txt"
+
+
+  describe "spago package-set-upgrade" $ do
+
+    it "Spago should migrate package-sets from src/packages.dhall to the released one" $ do
+
+      spago ["init"] >>= shouldBeSuccess
+      mv "packages.dhall" "packages-expected.dhall"
+      packages <- readTextFile "packages-expected.dhall"
+      let [packageSetUrl]
+            = map Text.strip
+            $ filter (not . null . Text.breakOnAll "https://github.com/purescript/package-sets")
+            $ Text.lines packages
+      writeTextFile "packages.dhall" "https://raw.githubusercontent.com/purescript/package-sets/psc-0.13.0-20190713/src/packages.dhall sha256:906af79ba3aec7f429b107fd8d12e8a29426db8229d228c6f992b58151e2308e"
+      spago ["package-set-upgrade"] >>= shouldBeSuccess
+      newPackages <- fmap Text.strip $ readTextFile "packages.dhall"
+      newPackages `shouldBe` packageSetUrl
 
 
   describe "spago run" $ do

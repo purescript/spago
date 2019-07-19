@@ -73,17 +73,16 @@ build BuildOptions{..} maybePostBuild = do
   case noInstall of
     DoInstall -> Fetch.fetchPackages maybeLimit cacheConfig deps packagesMinPursVersion
     NoInstall -> pure ()
-  let projectGlobs = configSourcePaths <> sourcePaths
-      allGlobs = Packages.getGlobs deps <> projectGlobs
+  let allGlobs = Packages.getGlobs deps <> configSourcePaths <> sourcePaths
       buildAction = do
         Purs.compile allGlobs passthroughArgs
         case maybePostBuild of
           Just action -> action
           Nothing     -> pure ()
-  absoluteProjectGlobs <- traverse makeAbsolute $ Text.unpack . Purs.unSourcePath <$> projectGlobs
+  absoluteGlobs <- traverse makeAbsolute $ Text.unpack . Purs.unSourcePath <$> allGlobs
   case shouldWatch of
     BuildOnce -> buildAction
-    Watch     -> Watch.watch (Set.fromAscList $ fmap Glob.compile absoluteProjectGlobs) shouldClear buildAction
+    Watch     -> Watch.watch (Set.fromAscList $ fmap Glob.compile absoluteGlobs) shouldClear buildAction
 
 -- | Start a repl
 repl :: Spago m => Maybe Int -> Maybe GlobalCache.CacheFlag -> [PackageSet.PackageName] -> [Purs.SourcePath] -> [Purs.ExtraArg] -> m ()
