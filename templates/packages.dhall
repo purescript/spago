@@ -65,19 +65,25 @@ Replace the additions' "{=}" (an empty record) with the following idea:
 -------------------------------
 let additions =
   { "package-name" =
-       mkPackage
-         [ "dependency1"
-         , "dependency2"
-         ]
-         "https://example.com/path/to/git/repo.git"
-         "tag ('v4.0.0') or branch ('master')"
+       { dependencies =
+           [ "dependency1"
+           , "dependency2"
+           ]
+       , repo =
+           "https://example.com/path/to/git/repo.git"
+       , version =
+           "tag ('v4.0.0') or branch ('master')"
+       }
   , "package-name" =
-       mkPackage
-         [ "dependency1"
-         , "dependency2"
-         ]
-         "https://example.com/path/to/git/repo.git"
-         "tag ('v4.0.0') or branch ('master')"
+       { dependencies =
+           [ "dependency1"
+           , "dependency2"
+           ]
+       , repo =
+           "https://example.com/path/to/git/repo.git"
+       , version =
+           "tag ('v4.0.0') or branch ('master')"
+       }
   , etc.
   }
 -------------------------------
@@ -86,33 +92,34 @@ Example:
 -------------------------------
 let additions =
   { benchotron =
-      mkPackage
-        [ "arrays"
-        , "exists"
-        , "profunctor"
-        , "strings"
-        , "quickcheck"
-        , "lcg"
-        , "transformers"
-        , "foldable-traversable"
-        , "exceptions"
-        , "node-fs"
-        , "node-buffer"
-        , "node-readline"
-        , "datetime"
-        , "now"
-        ]
-        "https://github.com/hdgarrood/purescript-benchotron.git"
-        "v7.0.0"
+      { dependencies =
+          [ "arrays"
+          , "exists"
+          , "profunctor"
+          , "strings"
+          , "quickcheck"
+          , "lcg"
+          , "transformers"
+          , "foldable-traversable"
+          , "exceptions"
+          , "node-fs"
+          , "node-buffer"
+          , "node-readline"
+          , "datetime"
+          , "now"
+          ],
+      , repo =
+          "https://github.com/hdgarrood/purescript-benchotron.git"
+      , version =
+          "v7.0.0"
+      }
   }
 -------------------------------
 -}
 
-let mkPackage =
-      https://raw.githubusercontent.com/purescript/package-sets/psc-0.13.0-20190713/src/mkPackage.dhall sha256:0b197efa1d397ace6eb46b243ff2d73a3da5638d8d0ac8473e8e4a8fc528cf57
 
 let upstream =
-      https://raw.githubusercontent.com/purescript/package-sets/psc-0.13.0-20190713/src/packages.dhall sha256:906af79ba3aec7f429b107fd8d12e8a29426db8229d228c6f992b58151e2308e
+      https://github.com/purescript/package-sets/releases/download/psc-0.13.2-20190715/packages.dhall sha256:906af79ba3aec7f429b107fd8d12e8a29426db8229d228c6f992b58151e2308e
 
 let overrides = {=}
 
