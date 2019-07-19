@@ -60,7 +60,6 @@ library:
   - async-pool
   - process
   - network-uri
-  - github
   - versions
   - lens-family-core
   - safe
@@ -76,6 +75,7 @@ library:
   - zlib
   - tar
   - foldl
+  - http-client
   - http-conduit
   - time
   - ansi-terminal

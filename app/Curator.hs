@@ -264,8 +264,11 @@ packageSetsUpdater token dataChan = go mempty mempty
   where
     updateVersion :: Monad m => PackageName -> Tag -> Expr -> m Expr
     updateVersion (PackageName packageName) (Tag tag) (Dhall.RecordLit kvs)
-      | Just (Dhall.App rest@(Dhall.App (Dhall.App (Dhall.Var (Dhall.V "mkPackage" 0)) _deps) _repo) (Dhall.TextLit _)) <- Dhall.Map.lookup packageName kvs =
-          let newPackage = Dhall.App rest $ Dhall.toTextLit tag
+      | Just (Dhall.RecordLit pkgKVs) <- Dhall.Map.lookup packageName kvs
+      , Just (Dhall.TextLit _) <- Dhall.Map.lookup "version" pkgKVs =
+          let
+            newPackageVersion = Dhall.toTextLit tag
+            newPackage = Dhall.RecordLit $ Dhall.Map.insert "version" newPackageVersion pkgKVs
           in pure $ Dhall.RecordLit $ Dhall.Map.insert packageName newPackage kvs
     updateVersion _ _ other = pure other
 

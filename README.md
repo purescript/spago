@@ -469,22 +469,22 @@ E.g. if we want to add the `facebook` package:
 ```haskell
 let additions =
   { facebook =
-      mkPackage
-        [ "console"
-        , "aff"
-        , "prelude"
-        , "foreign"
-        , "foreign-generic"
-        , "errors"
-        , "effect"
-        ]
-        "https://github.com/Unisay/purescript-facebook.git"
-        "v0.3.0"
+      { dependencies =
+          [ "console"
+          , "aff"
+          , "prelude"
+          , "foreign"
+          , "foreign-generic"
+          , "errors"
+          , "effect"
+          ]
+      , repo =
+          "https://github.com/Unisay/purescript-facebook.git"
+      , version =
+          "v0.3.0"
+      }
   }
 ```
-
-The `mkPackage` function should be already included in your `packages.dhall`, and it will
-expect as input a list of dependencies, the location of the package, and the tag you wish to use.
 
 Of course this works also in the case of adding local packages, which work exactly as the `overrides`:
 
