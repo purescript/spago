@@ -45,13 +45,13 @@ runBower args = do
   Turtle.procStrictWithErr cmd args empty
 
 
-writeBowerJson :: Spago m => DryRun -> m ()
-writeBowerJson dryRun = do
+writeBowerJson :: Spago m => Maybe Int -> DryRun -> m ()
+writeBowerJson limitJobs dryRun = do
   config@Config{..} <- Config.ensureConfig
   PublishConfig{..} <- Config.ensurePublishConfig
 
   bowerName <- mkPackageName name
-  bowerDependencies <- mkDependencies config
+  bowerDependencies <- mkDependencies limitJobs config
   template <- templateBowerJson
 
   let bowerLicense = [license]
@@ -123,14 +123,18 @@ mkBowerVersion packageName version repo = do
     else pure $ Bower.VersionRange $ repo <> "#" <> version
 
 
-mkDependencies :: Spago m => Config -> m [(Bower.PackageName, Bower.VersionRange)]
-mkDependencies config = do
+mkDependencies :: Spago m => Maybe Int -> Config -> m [(Bower.PackageName, Bower.VersionRange)]
+mkDependencies limitJobs config = do
   deps <- Packages.getDirectDeps config
-  for deps $ \(PackageName{..}, Package{..}) -> do
-    case repo of
-      Local path ->
-        die $ "Unable to create Bower version for local repo: " <> path
-      Remote path -> do
-        bowerName <- mkPackageName packageName
-        bowerVersion <- mkBowerVersion bowerName version path
-        pure (bowerName, bowerVersion)
+  withTaskGroup' (fromMaybe 10 limitJobs) $ \taskGroup ->
+    mapTasks' taskGroup $ mkDependency <$> deps
+  where
+    mkDependency :: Spago m => (PackageName, Package) -> m (Bower.PackageName, Bower.VersionRange)
+    mkDependency (PackageName{..}, Package{..}) =
+      case repo of
+        Local path ->
+          die $ "Unable to create Bower version for local repo: " <> path
+        Remote path -> do
+          bowerName <- mkPackageName packageName
+          bowerVersion <- mkBowerVersion bowerName version path
+          pure (bowerName, bowerVersion)

@@ -62,6 +62,7 @@ module Spago.Prelude
   , with
   , appendonly
   , async'
+  , mapTasks'
   , withTaskGroup'
   , Turtle.mktempdir
   , getModificationTime
@@ -197,6 +198,8 @@ withTaskGroup' n action = withRunInIO $ \run -> Async.withTaskGroup n (\taskGrou
 async' :: Spago m => Async.TaskGroup -> m a -> m (Async.Async a)
 async' taskGroup action = withRunInIO $ \run -> Async.async taskGroup (run action)
 
+mapTasks' :: (Spago m, Traversable t) => Async.TaskGroup -> t (m a) -> m (t a)
+mapTasks' taskGroup actions = withRunInIO $ \run -> Async.mapTasks taskGroup (run <$> actions)
 
 -- | Code from: https://github.com/dhall-lang/dhall-haskell/blob/d8f2787745bb9567a4542973f15e807323de4a1a/dhall/src/Dhall/Import.hs#L578
 assertDirectory :: (MonadIO m, MonadThrow m) => FilePath.FilePath -> m ()
