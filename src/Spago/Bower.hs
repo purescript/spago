@@ -37,8 +37,11 @@ runBower :: Spago m => [Text] -> m (ExitCode, Text, Text)
 runBower args = do
   -- workaround windows issue: https://github.com/haskell/process/issues/140
   cmd <- case System.buildOS of
-    Windows -> Turtle.lineToText <$> Turtle.single (Turtle.inproc "where" ["bower.cmd"] empty)
-    _       -> pure "bower"
+    Windows -> do
+      let bowers = Turtle.inproc "where" ["bower.cmd"] empty
+      Turtle.lineToText <$> Turtle.single (Turtle.limit 1 bowers)
+    _ ->
+      pure "bower"
   Turtle.procStrictWithErr cmd args empty
 
 
