@@ -100,16 +100,21 @@ getMetadata cacheFlag = do
         Nothing -> mempty
         Just a  -> a
 
-      downloadMeta = do
-        metaBS <- (Http.httpBS metaURL >>= pure . Http.getResponseBody)
-        case decodeStrict' metaBS of
-          Nothing -> do
+      downloadMeta = handleAny
+        (\err -> do
+            echoDebug $ "Metadata fetch failed with exception: " <> tshow err
             echo "WARNING: Unable to download GitHub metadata, global cache will be disabled"
-            pure mempty
-          Just meta -> do
-            assertDirectory globalCacheDir
-            liftIO $ BS.writeFile globalPathToMeta metaBS
-            pure meta
+            pure mempty)
+        (do
+            metaBS <- Http.getResponseBody `fmap` Http.httpBS metaURL
+            case decodeStrict' metaBS of
+              Nothing -> do
+                echo "WARNING: Unable to parse GitHub metadata, global cache will be disabled"
+                pure mempty
+              Just meta -> do
+                assertDirectory globalCacheDir
+                liftIO $ BS.writeFile globalPathToMeta metaBS
+                pure meta)
 
   case cacheFlag of
     -- If we need to skip the cache we just get an empty map
@@ -123,7 +128,7 @@ getMetadata cacheFlag = do
       echo "Searching for packages cache metadata.."
 
       -- Check if the metadata is in global cache and fresher than 1 day
-      shouldDownloadMeta <- try (liftIO $ do
+      shouldDownloadMeta <- tryIO (liftIO $ do
           fileExists <- testfile $ Turtle.decodeString globalPathToMeta
           lastModified <- getModificationTime globalPathToMeta
           now <- Time.getCurrentTime
@@ -132,7 +137,7 @@ getMetadata cacheFlag = do
           pure $ not (fileExists && fileIsRecentEnough)
           ) >>= \case
         Right v -> pure v
-        Left (err :: IOException) -> do
+        Left err -> do
           echoDebug $ "Unable to read metadata file. Error was: " <> tshow err
           pure True
 
