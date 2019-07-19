@@ -126,7 +126,7 @@ mkBowerVersion packageName version repo = do
 mkDependencies :: Spago m => Maybe Int -> Config -> m [(Bower.PackageName, Bower.VersionRange)]
 mkDependencies limitJobs config = do
   deps <- Packages.getDirectDeps config
-  withTaskGroup' (fromMaybe 10 limitJobs) $ \taskGroup ->
+  withTaskGroup' jobs $ \taskGroup ->
     mapTasks' taskGroup $ mkDependency <$> deps
   where
     mkDependency :: Spago m => (PackageName, Package) -> m (Bower.PackageName, Bower.VersionRange)
@@ -138,3 +138,9 @@ mkDependencies limitJobs config = do
           bowerName <- mkPackageName packageName
           bowerVersion <- mkBowerVersion bowerName version path
           pure (bowerName, bowerVersion)
+
+    jobs = case System.buildOS of
+      -- Windows sucks so lets make it slow for them!
+      -- (just kidding, its a bug: https://github.com/bower/spec/issues/79)
+      Windows -> 1
+      _       -> fromMaybe 10 limitJobs
