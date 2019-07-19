@@ -50,6 +50,7 @@ module Spago.Prelude
   , pathSeparator
   , headMay
   , for
+  , handleAny
   , try
   , tryIO
   , makeAbsolute
@@ -108,7 +109,7 @@ import           Turtle                        (ExitCode (..), FilePath, appendo
                                                 systemStrictWithErr, testdir, testfile)
 import           UnliftIO                      (MonadUnliftIO, withRunInIO)
 import           UnliftIO.Directory            (getModificationTime, makeAbsolute)
-import           UnliftIO.Exception            (IOException, try, tryIO)
+import           UnliftIO.Exception            (IOException, handleAny, try, tryIO)
 import           UnliftIO.Process              (callCommand)
 import           UnliftIO.STM                  (atomically, newTVarIO, readTVar, readTVarIO,
                                                 writeTVar)
