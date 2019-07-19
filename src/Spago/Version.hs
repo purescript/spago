@@ -85,8 +85,8 @@ tagNewVersion dryRun oldVersion newVersion = do
 
 
 -- | Bump and tag a new version in preparation for release.
-bumpVersion :: Spago m => DryRun -> VersionBump -> m ()
-bumpVersion dryRun spec = do
+bumpVersion :: Spago m => Maybe Int -> DryRun -> VersionBump -> m ()
+bumpVersion limitJobs dryRun spec = do
   DryRun.showHelp dryRun
 
   Git.requireCleanWorkingTree
@@ -94,7 +94,7 @@ bumpVersion dryRun spec = do
   oldVersion <- getCurrentVersion
   newVersion <- getNextVersion spec oldVersion
 
-  Bower.writeBowerJson dryRun
+  Bower.writeBowerJson limitJobs dryRun
   Bower.runBowerInstall dryRun
 
   when (dryRun == NoDryRun) $ do

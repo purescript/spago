@@ -64,7 +64,7 @@ data Command
   | Test (Maybe ModuleName) BuildOptions [ExtraArg]
 
   -- | Bump and tag a new version in preparation for release.
-  | BumpVersion DryRun VersionBump
+  | BumpVersion (Maybe Int) DryRun VersionBump
 
   -- | Run the project with some module, default Main
   | Run (Maybe ModuleName) BuildOptions [ExtraArg]
@@ -289,7 +289,7 @@ parser = do
     bumpVersion =
       ( "bump-version"
       , "Bump and tag a new version, and generate bower.json, in preparation for release."
-      , BumpVersion <$> dryRun <*> versionBump
+      , BumpVersion <$> limitJobs <*> dryRun <*> versionBump
       )
 
 
@@ -364,7 +364,7 @@ main = do
       Freeze                                -> Spago.Packages.freeze
       Build buildOptions                    -> Spago.Build.build buildOptions Nothing
       Test modName buildOptions nodeArgs    -> Spago.Build.test modName buildOptions nodeArgs
-      BumpVersion dryRun spec               -> Version.bumpVersion dryRun spec
+      BumpVersion limitJobs dryRun spec     -> Version.bumpVersion limitJobs dryRun spec
       Run modName buildOptions nodeArgs     -> Spago.Build.run modName buildOptions nodeArgs
       Repl limitJobs cacheConfig replPackageNames paths pursArgs -> Spago.Build.repl limitJobs cacheConfig replPackageNames paths pursArgs
       BundleApp modName tPath shouldBuild buildOptions
