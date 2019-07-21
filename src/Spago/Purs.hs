@@ -37,9 +37,9 @@ compile sourcePaths extraArgs = do
   usePsa <- asks globalUsePsa
   purs <- case usePsa of
     NoPsa -> pure "purs"
-    UsePsa -> tryIO psaVersion >>= \case
+    UsePsa -> try psaVersion >>= \case
       Right _ -> pure "psa"
-      Left _ -> pure "purs"
+      Left (_err :: SomeException) -> pure "purs"
 
   echoDebug $ "Compiling with " <> Messages.surroundQuote purs
 
