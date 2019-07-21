@@ -41,7 +41,8 @@ deploy:
     script:
       - echo 'done'
   - provider: npm
-    api_key: $NPM_API_KEY
+    api_key:
+      secure: $NPM_API_KEY
     email: klntsky@gmail.com
     skip_cleanup: true
     on:
