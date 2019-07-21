@@ -137,6 +137,7 @@ before_deploy:
 deploy:
   - provider: releases
     api_key: $API_KEY
+    target_commitish: master
     file:
       - ../$TRAVIS_OS_NAME.tar.gz
     skip_cleanup: true
