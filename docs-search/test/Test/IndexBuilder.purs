@@ -2,19 +2,9 @@ module Test.IndexBuilder where
 
 import Prelude
 
-import Test.Extra
+import Docs.Search.IndexBuilder (patchHTML)
 
-import Docs.Search.IndexBuilder
-
-import Data.Either (Either(..))
-import Data.Foldable (class Foldable)
-import Data.List (List(..), (:))
-import Data.List as List
-import Data.List.NonEmpty (NonEmptyList)
-import Data.List.NonEmpty as NonEmptyList
-import Data.Set as Set
-import Data.Tuple (Tuple(..), snd)
-import Effect.Aff (Aff)
+import Data.Tuple (snd)
 import Test.Unit (TestSuite, suite, test)
 import Test.Unit.Assert as Assert
 

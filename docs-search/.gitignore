@@ -8,3 +8,4 @@
 /.purs*
 /.psa*
 /.spago/
+/dist/

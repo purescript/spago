@@ -21,6 +21,8 @@
 	, "node-fs"
 	, "node-fs-aff"
 	, "node-process"
+	, "node-readline"
+	, "optparse"
 	, "profunctor"
 	, "search-trie"
 	, "string-parsers"

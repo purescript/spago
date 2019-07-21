@@ -2,10 +2,9 @@ module Docs.Search.DocsJson where
 
 import Prelude
 
-import Docs.Search.TypeDecoder
+import Docs.Search.TypeDecoder (Constraint, FunDeps, Kind, Type, TypeArgument)
 
-import Control.Promise (Promise, toAffE)
-import Data.Argonaut.Core (Json, fromString, stringify, toString)
+import Data.Argonaut.Core (fromString, stringify, toString)
 import Data.Argonaut.Decode (class DecodeJson, decodeJson, (.:), (.:?))
 import Data.Argonaut.Encode (class EncodeJson, encodeJson)
 import Data.Either (Either(..))
@@ -13,8 +12,6 @@ import Data.Generic.Rep (class Generic)
 import Data.Generic.Rep.Show (genericShow)
 import Data.Maybe (Maybe(..))
 import Data.Newtype (class Newtype, unwrap)
-import Effect (Effect)
-import Effect.Aff (Aff)
 
 newtype DocsJson
   = DocsJson { name :: String

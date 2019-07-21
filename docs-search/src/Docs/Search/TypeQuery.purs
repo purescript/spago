@@ -1,3 +1,4 @@
+-- | `TypeQuery` is a representation of a user-provided type.
 module Docs.Search.TypeQuery
        ( TypeQuery(..)
        , Substitution(..)
@@ -11,24 +12,21 @@ where
 
 import Prelude
 
-import Docs.Search.Config
-import Docs.Search.DocsJson
-import Docs.Search.TypeDecoder
+import Docs.Search.Config (config)
+import Docs.Search.Extra (foldl1, foldr1)
+import Docs.Search.TypeDecoder (QualifiedName(..), Type(..), joinConstraints, joinRows)
 
 import Control.Alt ((<|>))
 import Data.Array as Array
 import Data.Either (Either)
-import Data.Foldable (foldl)
 import Data.Generic.Rep (class Generic)
 import Data.Generic.Rep.Show (genericShow)
 import Data.List (List(..), many, some, (:))
 import Data.List as List
-import Data.List.NonEmpty (NonEmptyList, cons', uncons)
+import Data.List.NonEmpty (NonEmptyList)
 import Data.List.NonEmpty as NonEmptyList
 import Data.Map (Map)
 import Data.Map as Map
-import Data.Maybe (Maybe(..))
-import Data.Newtype (unwrap)
 import Data.Ord (abs)
 import Data.Set (Set)
 import Data.Set as Set
@@ -93,24 +91,11 @@ typeQueryParser = fix \typeQuery ->
 
       constrained =
         QConstraint <$> (upperCaseIdent <* skipSpaces) <*>
-                        (sepEndBy ((QVar <$> ident) <|> parens) (many space) <* string "=>" <* skipSpaces) <*>
+                        (sepEndBy ((QVar <$> ident) <|> parens)
+                                  (many space) <* string "=>" <* skipSpaces) <*>
                         typeQuery
   in
     try constrained <|> funs
-
-foldl1 :: forall a. (a -> a -> a) -> NonEmptyList a -> a
-foldl1 f as =
-  case uncons as of
-    { head, tail } -> foldl f head tail
-
-foldr1 :: forall a. (a -> a -> a) -> NonEmptyList a -> a
-foldr1 f = go List.Nil
-  where
-    go acc x = case uncons x of
-      { head, tail } -> case List.uncons tail of
-        Nothing -> List.foldl (flip f) head acc
-        Just { head: head1, tail: tail1 } ->
-          go (head : acc) (cons' head1 tail1)
 
 any :: Parser TypeQuery
 any = do
@@ -188,7 +173,12 @@ data Substitution
   | MissingConstraint
   | ExcessiveConstraint
   | RowsMismatch Int Int
-  | Mismatch
+  | Mismatch TypeQuery Type
+  -- ^ Type and type query significantly differ.
+  | TypeMismatch Type
+  -- ^ A query of size 1 corresponds to some type.
+  | QueryMismatch TypeQuery
+  -- ^ A type of size 1 corresponds to some query.
 
 derive instance genericSubstitution :: Generic Substitution _
 
@@ -204,44 +194,10 @@ unify query type_ = go Nil (List.singleton { q: query, t: type_ })
         go acc ({ q, t } : rest)
 
     -- * ForAll
-    go acc ({ q: (QForAll queryBinders q), t:type_1@(ForAll _ _ _) } : rest) =
-      let { binders, ty } = joinForAlls type_1 in
-        go acc ({ q, t: ty } : rest)
     go acc ({ q, t: ForAll _ t _ } : rest) =
         go acc ({ q, t } : rest)
-    go acc ({ q: (QForAll queryBinders q), t } : rest) =
+    go acc ({ q: (QForAll _ q), t } : rest) =
         go acc ({ q, t } : rest)
-
-    -- * Type variables
-    go acc ({ q: QVar q, t: TypeVar v } : rest) =
-      go (Substitute q v : acc) rest
-    go acc ({ q, t: TypeVar v } : rest ) =
-      go (Generalize q v : acc) rest
-    go acc ({ q: QVar v, t } : rest) =
-      go (Instantiate v t : acc) rest
-
-    -- * Names
-    go acc ({ q: QConst qname, t: TypeConstructor (QualifiedName { name }) } : rest) =
-      go (Match qname name : acc) rest
-    go acc ({ q: QConst qname, t } : rest) =
-      go (Mismatch : acc) rest
-    go acc ({ q, t: TypeConstructor (QualifiedName { name }) } : rest) =
-      go (Mismatch : acc) rest
-
-    -- type operators can't appear in type queries: this is always a mismatch
-    go acc ({ q, t: TypeOp (QualifiedName { name }) } : rest) =
-      go (Mismatch : acc) rest
-    go acc ({ q, t: BinaryNoParensType _ _ _ } : rest) =
-      go (Mismatch : acc) rest
-
-    -- * Functions
-    go acc ({ q: QFun q1 q2
-            , t: TypeApp (TypeApp (TypeConstructor
-                                    (QualifiedName { moduleName: [ "Prim" ]
-                                                   , name: "Function" })) t1) t2 } : rest) =
-      go acc ({ q: q1, t: t1 } : { q: q2, t: t2 } : rest)
-    go acc ({ q: QFun q1 q2, t } : rest) =
-      go (Mismatch : acc) rest
 
     -- * Constraints
     go acc ({ q: q@(QConstraint _ _ _)
@@ -255,6 +211,37 @@ unify query type_ = go Nil (List.singleton { q: query, t: type_ })
       go (ExcessiveConstraint : acc) ({ q, t } : rest)
     go acc ({ q, t: ConstrainedType _ t } : rest) =
       go (MissingConstraint : acc) ({ q, t } : rest)
+
+    -- * Type variables
+    go acc ({ q: QVar q, t: TypeVar v } : rest) =
+      go (Substitute q v : acc) rest
+    go acc ({ q, t: TypeVar v } : rest ) =
+      go (Generalize q v : acc) rest
+    go acc ({ q: QVar v, t } : rest) =
+      go (Instantiate v t : acc) rest
+
+    -- * Names
+    go acc ({ q: QConst qname, t: TypeConstructor (QualifiedName { name }) } : rest) =
+      go (Match qname name : acc) rest
+    go acc ({ q: QConst qname, t } : rest) =
+      go (TypeMismatch t : acc) rest
+    go acc ({ q, t: TypeConstructor (QualifiedName { name }) } : rest) =
+      go (QueryMismatch q : acc) rest
+
+    -- type operators can't appear in type queries: this is always a mismatch
+    go acc ({ q, t: TypeOp (QualifiedName { name }) } : rest) =
+      go (QueryMismatch q : acc) rest
+    go acc ({ q, t: t@(BinaryNoParensType _ _ _) } : rest) =
+      go (Mismatch q t : acc) rest
+
+    -- * Functions
+    go acc ({ q: QFun q1 q2
+            , t: TypeApp (TypeApp (TypeConstructor
+                                    (QualifiedName { moduleName: [ "Prim" ]
+                                                   , name: "Function" })) t1) t2 } : rest) =
+      go acc ({ q: q1, t: t1 } : { q: q2, t: t2 } : rest)
+    go acc ({ q: q@(QFun q1 q2), t } : rest) =
+      go (Mismatch q t : acc) rest
 
     -- * Rows
     go acc ({ q: QApp (QConst "Record") (QRow qRows)
@@ -278,24 +265,24 @@ unify query type_ = go Nil (List.singleton { q: query, t: type_ })
         else
           go (RowsMismatch qRowsLength rowsLength : acc) rest
 
-    go acc ({ q: QRow _ } : rest) =
-      go (Mismatch : acc) rest
+    go acc ({ q: q@(QRow _), t } : rest) =
+      go (Mismatch q t : acc) rest
 
     -- * Type application
     go acc ({ q: QApp q1 q2, t: TypeApp t1 t2 } : rest) =
       go acc ({ q: q1, t: t1 } : { q: q2, t: t2 } : rest)
 
     go acc ({ q, t: TypeLevelString _ } : rest) =
-      go (Mismatch : acc) rest
+      go (QueryMismatch q : acc) rest
 
     go acc ({ q, t: TypeWildcard } : rest) =
-      go (Mismatch : acc) rest
+      go (QueryMismatch q : acc) rest
 
-    go acc ({ q, t: RCons _ _ _ } : rest) =
-      go (Mismatch : acc) rest
+    go acc ({ q, t: t@(RCons _ _ _) } : rest) =
+      go (Mismatch q t : acc) rest
 
     go acc ({ q, t: REmpty } : rest) =
-      go (Mismatch : acc) rest
+      go (QueryMismatch q : acc) rest
 
 penalty :: TypeQuery -> Type -> Int
 penalty typeQuery ty =
@@ -332,7 +319,6 @@ namesPenalty :: List Substitution -> Int
 namesPenalty = go 0
   where
     go p Nil = p
-    go p (Mismatch : rest) = go (p + config.penalties.mismatch) rest
     go p (Match a b : rest)
       | a == b = go p rest
       | otherwise = go (p + config.penalties.match) rest
@@ -348,10 +334,15 @@ mismatchPenalty :: List Substitution -> Int
 mismatchPenalty = go 0
   where
     go n Nil = n
-    go n (Instantiate _ _     : rest) = go (n + config.penalties.instantiate)         rest
-    go n (Generalize _ _      : rest) = go (n + config.penalties.generalize)          rest
+    go n (Instantiate q t     : rest) = go (n + typeSize t *
+                                            config.penalties.instantiate)             rest
+    go n (Generalize q t      : rest) = go (n + typeQuerySize q *
+                                            config.penalties.generalize)              rest
     go n (ExcessiveConstraint : rest) = go (n + config.penalties.excessiveConstraint) rest
     go n (MissingConstraint   : rest) = go (n + config.penalties.missingConstraint)   rest
+    go n (Mismatch q t        : rest) = go (n + typeQuerySize q + typeSize t)         rest
+    go n (TypeMismatch t      : rest) = go (n + typeSize t)                           rest
+    go n (QueryMismatch q     : rest) = go (n + typeQuerySize q)                      rest
     go n (_ : rest) = go n rest
 
 -- | Only returns a list of type class names (lists of arguments are omitted).
@@ -362,3 +353,55 @@ joinQueryConstraints = go Nil
     go acc (QConstraint name _ query) =
       go (name : acc) query
     go acc ty = { constraints: List.sort acc, ty }
+
+typeQuerySize :: TypeQuery -> Int
+typeQuerySize = go 0 <<< List.singleton
+  where
+    go n Nil = n
+    go n (QVar _ : rest) =
+      go (n + 1) rest
+    go n (QConst _ : rest) =
+      go (n + 1) rest
+    go n (QFun q1 q2 : rest) =
+      go (n + 1) (q1 : q2 : rest)
+    go n (QApp q1 q2 : rest) =
+      go (n + 1) (q1 : q2 : rest)
+    go n (QForAll _ q : rest) =
+      go (n + 1) (q : rest)
+    go n (QConstraint _ _ q : rest) =
+      go (n + 1) (q : rest)
+    go n (QRow qs : rest) =
+      go n       ((qs <#> snd) <> rest)
+
+typeSize :: Type -> Int
+typeSize = go 0 <<< List.singleton
+  where
+    go n Nil = n
+    go n (TypeVar _ : rest) =
+      go (n + 1) rest
+    go n (TypeLevelString _ : rest) =
+      go (n + 1) rest
+    go n (TypeWildcard : rest) =
+      go (n + 1) rest
+    go n (TypeConstructor _ : rest) =
+      go (n + 1) rest
+    go n (TypeOp _ : rest) =
+      go (n + 1) rest
+    go n (TypeApp (TypeApp (TypeConstructor
+                    (QualifiedName { moduleName: [ "Prim" ]
+                                   , name: "Function" })) t1) t2 : rest) =
+      go (n + 1) (t1 : t2 : rest)
+    go n (TypeApp q1 q2 : rest) =
+      go (n + 1) (q1 : q2 : rest)
+    go n (ForAll _ t _ : rest) =
+      go (n + 1) (t : rest)
+    go n (ConstrainedType _ t : rest) =
+      go (n + 1) (t : rest)
+    go n (RCons _ t1 t2 : rest) =
+      go (n + 1) (t1 : t2 : rest)
+    go n (REmpty : rest) =
+      go (n + 1) rest
+    go n (BinaryNoParensType op t1 t2 : rest) =
+      go (n + 1) (t1 : t2 : rest)
+    go n (ParensInType t : rest) =
+      go n (t : rest)

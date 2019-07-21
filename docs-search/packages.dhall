@@ -47,6 +47,28 @@ let additions =
 		  [ "css", "halogen" ]
 		  "https://github.com/slamdata/purescript-halogen-css.git"
 		  "v8.0.0"
+	  , optparse =
+		  mkPackage
+		  [ "prelude"
+		  , "effect"
+		  , "exitcodes"
+		  , "strings"
+		  , "ordered-collections"
+		  , "arrays"
+		  , "console"
+		  , "memoize"
+		  , "transformers"
+		  , "exists"
+		  , "node-process"
+		  , "free"
+		  ]
+		  "https://github.com/f-o-a-m/purescript-optparse.git"
+		  "v3.0.1"
+	  , exitcodes =
+		  mkPackage
+		  [ "enums" ]
+		  "https://github.com/Risto-Stevcev/purescript-exitcodes.git"
+		  "v4.0.0"
 	  }
 
 in  upstream ⫽ overrides ⫽ additions

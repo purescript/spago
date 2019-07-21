@@ -7,24 +7,19 @@ import Docs.Search.Config (config)
 import Docs.Search.Declarations (DeclLevel(..), declLevelToHashAnchor)
 import Docs.Search.DocsJson (DataDeclType(..))
 import Docs.Search.Extra ((>#>))
-import Docs.Search.Index (Index)
-import Docs.Search.Index as Index
-import Docs.Search.SearchResult (ResultInfo(..), SearchResult, typeOf)
+import Docs.Search.SearchResult (ResultInfo(..), SearchResult)
 import Docs.Search.TypeDecoder (Constraint(..), FunDep(..), FunDeps(..), Kind(..), QualifiedName(..), Type(..), TypeArgument(..), joinForAlls, joinRows)
-import Docs.Search.TypeIndex (TypeIndex)
-import Docs.Search.TypeIndex as TypeIndex
-import Docs.Search.TypeQuery (TypeQuery(..), parseTypeQuery, penalty)
+import Docs.Search.Engine as SearchEngine
+import Docs.Search.Engine (ResultsType(..))
 
 import CSS (textWhitespace, whitespacePreWrap)
 import Data.Array ((!!))
 import Data.Array as Array
-import Data.Either (hush)
 import Data.List as List
-import Data.Maybe (Maybe(..), isJust, maybe)
+import Data.Maybe (Maybe(..), isJust)
 import Data.Newtype (unwrap, wrap)
-import Data.String (length) as String
 import Data.String.CodeUnits (stripSuffix) as String
-import Data.String.Common (toLower, trim) as String
+import Data.String.Common (null, trim) as String
 import Data.String.Pattern (Pattern(..)) as String
 import Effect.Aff (Aff)
 import Halogen as H
@@ -38,15 +33,11 @@ import Web.HTML as HTML
 import Web.HTML.Location as Location
 import Web.HTML.Window as Window
 
-data Mode = Off | Loading | Active | InputTooShort
+data Mode = Off | Loading | Active
 
 derive instance eqMode :: Eq Mode
 
--- | Is it a search by type or by name?
-data ResultsType = TypeResults TypeQuery | DeclResults
-
-type State = { index :: Index
-             , typeIndex :: TypeIndex
+type State = { searchEngineState :: SearchEngine.State
              , results :: Array SearchResult
              , resultsType :: ResultsType
              , input :: String
@@ -68,8 +59,7 @@ mkComponent
   -> H.Component HH.HTML Query i o Aff
 mkComponent contents =
   H.mkComponent
-    { initialState: const { index: mempty
-                          , typeIndex: mempty
+    { initialState: const { searchEngineState: mempty
                           , results: []
                           , resultsType: DeclResults
                           , input: ""
@@ -99,36 +89,20 @@ handleQuery (MessageFromSearchField (InputUpdated input_) next) = do
 
   state <- H.modify (_ { input = input })
 
-  if String.length input < 2
+  if String.null input
   then do
-    if input == ""
-    then do
       H.modify_ (_ { mode = Off })
       showPageContents
-    else do
-      H.modify_ (_ { mode = InputTooShort })
-      hidePageContents
   else do
     H.modify_ (_ { mode = Loading, resultsCount = config.resultsCount })
 
     void $ H.fork do
-      let resultsType =
-            maybe DeclResults TypeResults (hush (parseTypeQuery state.input)
-                                           >>= isValuableTypeQuery)
-
-      case resultsType of
-
-        DeclResults -> do
-          { index, results } <- H.liftAff $ Index.query state.index (String.toLower state.input)
-          H.modify_ (_ { results = results
-                       , mode = Active
-                       , index = index })
-
-        TypeResults query -> do
-          { index, results } <- H.liftAff $ TypeIndex.query state.typeIndex query
-          H.modify_ (_ { results = sortByDistance query results
-                       , mode = Active
-                       , typeIndex = index })
+      { searchEngineState, results, resultsType } <- H.liftAff $
+        SearchEngine.query state.searchEngineState state.input
+      H.modify_ (_ { results = results
+                   , mode = Active
+                   , searchEngineState = searchEngineState
+                   , resultsType = resultsType })
 
     hidePageContents
 
@@ -181,12 +155,6 @@ render { mode: Off } = HH.div_ []
 render { mode: Loading } =
   renderContainer $
   [ HH.h1_ [ HH.text "Loading..." ] ]
-render { mode: InputTooShort } =
-  renderContainer $
-  [ HH.h1_ [ HH.text "Error" ] ] <>
-  [ HH.div [ HP.classes [ wrap "result", wrap "result--empty" ] ]
-    [ HH.text "Search query is too short." ]
-  ]
 render state@{ mode: Active, results: [] } =
   renderContainer $
 
@@ -299,11 +267,7 @@ renderResultType
 renderResultType result =
   case result.info of
     ValueResult { type: ty } ->
-      wrapSignature [ HH.a [ makeHref ValueLevel false result.moduleName result.name
-                           , HE.onClick $ const $ Just $ SearchResultClicked result.moduleName ]
-                      [ HH.text result.name ]
-                    , HH.text " :: "
-                    , renderType ty ]
+      wrapSignature $ renderValueSignature result ty
 
     TypeClassResult info ->
       wrapSignature $ renderTypeClassSignature info result
@@ -320,6 +284,21 @@ renderResultType result =
   where
     wrapSignature signature =
       [ HH.pre [ HP.class_ (wrap "result__signature") ] [ HH.code_ signature ] ]
+
+renderValueSignature
+  :: forall a rest
+  .  { moduleName :: String
+     , name :: String
+     | rest
+     }
+  -> Type
+  -> Array (HH.HTML a Action)
+renderValueSignature result ty =
+  [ HH.a [ makeHref ValueLevel false result.moduleName result.name
+         , HE.onClick $ const $ Just $ SearchResultClicked result.moduleName ]
+    [ HH.text result.name ]
+  , HH.text " :: "
+  , renderType ty ]
 
 renderTypeClassSignature
   :: forall a rest
@@ -582,8 +561,8 @@ renderQualifiedName isInfix level (QualifiedName { moduleName, name })
 
 renderKind
   :: forall a
-  .  Kind ->
-  HH.HTML a Action
+  .  Kind
+  -> HH.HTML a Action
 renderKind = case _ of
   Row k1          -> HH.span_ [ HH.text "# ", renderKind k1 ]
   FunKind k1 k2   -> HH.span_ [ renderKind k1, syntax " -> ", renderKind k2 ]
@@ -616,17 +595,3 @@ syntax str = HH.span [ HP.class_ (wrap "syntax") ] [ HH.text str ]
 
 space :: forall a b. HH.HTML a b
 space = HH.text " "
-
-isValuableTypeQuery :: TypeQuery -> Maybe TypeQuery
-isValuableTypeQuery (QVar _) = Nothing
-isValuableTypeQuery (QConst _) = Nothing
-isValuableTypeQuery query = Just query
-
-sortByDistance :: TypeQuery -> Array SearchResult -> Array SearchResult
-sortByDistance typeQuery results =
-  _.result <$> Array.sortBy comparePenalties resultsWithPenalties
-  where
-    comparePenalties r1 r2 = compare r1.penalty r2.penalty
-    resultsWithPenalties = results <#>
-               \result -> { penalty: typeOf (unwrap result).info <#> penalty typeQuery
-                          , result }

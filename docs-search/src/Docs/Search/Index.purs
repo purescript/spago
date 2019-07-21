@@ -98,6 +98,7 @@ getPartId (a : _) =
   Char.toCharCode a `mod` config.numberOfIndexParts
 getPartId _ = 0
 
+-- | Load a part of the index by injecting a <script> tag into the DOM.
 foreign import loadIndex_
  :: Int
  -> String

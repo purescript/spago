@@ -8,6 +8,7 @@ import Docs.Search.TypeDecoder (Constraint(..), QualifiedName(..), Type(..), joi
 
 import Control.Alt ((<|>))
 import Data.Array ((!!))
+import Data.Array as Array
 import Data.Foldable (foldr)
 import Data.List (List, (:))
 import Data.List as List
@@ -15,8 +16,8 @@ import Data.Maybe (Maybe(..), fromMaybe)
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Search.Trie (Trie, alter)
 import Data.String.CodeUnits (stripPrefix, stripSuffix, toCharArray)
-import Data.String.Common (toLower)
 import Data.String.Common (split) as String
+import Data.String.Common (toLower)
 import Data.String.Pattern (Pattern(..))
 
 type ModuleName = String
@@ -178,11 +179,18 @@ extractPackageName name =
   let chunks = String.split (Pattern "/") name in
   fromMaybe "<unknown>" $
   chunks !! 0 >>= \dir ->
-  -- TODO: is it safe to assume that directory name is ".spago"?
   if dir == ".spago" then
     chunks !! 1
   else
-    Just "<local package>"
+    let
+      bowerComponentsIndex =
+        Array.findIndex (_ == "bower_components") chunks
+    in
+      case bowerComponentsIndex of
+        Just n ->
+          chunks !! (n + 1)
+        Nothing ->
+          Just "<local package>"
 
 resultsForChildDeclaration
   :: PackageName

@@ -19,24 +19,31 @@ install:
 - tar -xvf $HOME/purescript.tar.gz -C $HOME/
 - chmod a+x $HOME/purescript
 - npm install -g spago
+- npm install
 - spago install
 
 script:
 - spago build
 - spago test
 - spago docs
-- spago bundle-app -m Docs.Search.App --to docs-search-app.js
-- spago bundle-app -m Docs.Search.IndexBuilder --to index-builder.js
-- node index-builder.js
+- npm run build
+- node dist/main.js build-index
 
 deploy:
   - provider: releases
     api_key: $API_KEY
     file:
-      - docs-search-app.js
-      - index-builder.js
+      - dist/docs-search-app.js
+      - dist/main.js
     skip_cleanup: true
     on:
       tags: true
     script:
       - echo 'done'
+  - provider: npm
+    api_key: $NPM_API_KEY
+    email: klntsky@gmail.com
+    skip_cleanup: true
+    on:
+      tags: true
+      branch: master

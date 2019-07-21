@@ -69,23 +69,23 @@ mkTypeIndex (Declarations trie) = TypeIndex $ map (Array.fromFoldable >>> Just) 
 lookup
   :: String
   -> TypeIndex
-  -> Aff { index :: TypeIndex, results :: Array SearchResult }
-lookup key index@(TypeIndex map) =
+  -> Aff { typeIndex :: TypeIndex, results :: Array SearchResult }
+lookup key typeIndex@(TypeIndex map) =
   case Map.lookup key map of
-    Just results -> pure { index, results: Array.fold results }
+    Just results -> pure { typeIndex, results: Array.fold results }
     Nothing -> do
       eiJson <- try (toAffE (lookup_ key $ config.mkShapeScriptPath key))
       pure $ fromMaybe'
-        (\_ ->  { index: insert key Nothing index, results: [] })
+        (\_ ->  { typeIndex: insert key Nothing typeIndex, results: [] })
         do
           json <- hush eiJson
           results <- hush (decodeJson json)
-          pure { index: insert key (Just results) index, results }
+          pure { typeIndex: insert key (Just results) typeIndex, results }
 
 query
   :: TypeIndex
   -> TypeQuery
-  -> Aff { index :: TypeIndex, results :: Array SearchResult }
+  -> Aff { typeIndex :: TypeIndex, results :: Array SearchResult }
 query typeIndex typeQuery = do
   res <- lookup (stringifyShape $ shapeOfTypeQuery typeQuery) typeIndex
   pure $ res { results = sortByRelevance typeQuery res.results }

@@ -4,21 +4,34 @@
 
 An app that adds search capabilities to generated documentation for purescript code.
 
-The goal is to replicate all functionality of pursuit, including querying by type.
+It supports nearly-all functionality of [Pursuit](https://github.com/purescript/pursuit), including querying by type.
 
-See [#89](https://github.com/spacchetti/spago/issues/89).
+## Installing
 
-To see it in action, run the following:
+Run `npm install purescript-docs-search`.
 
-```
-spago build
-spago docs
-spago bundle-app -m Docs.Search.App --to generated-docs/docs-search-app.js
-spago run -m Docs.Search.IndexBuilder
-```
+## Usage
 
-## UI
+There are two usage scenarios:
+
+### Patching static documentation
+
+Use `purescript-docs-search build-index` command to patch HTML files located in `generated-docs/html`. You then will be able to search for declarations or types:
+
+![Preview](preview.png)
 
 The user interface of the app is optimised for keyboard-only use.
 
 **S** hotkey can be used to focus on the search field, **Escape** can be used to leave it. Pressing **Escape** twice will close the search results listing.
+
+### Using the CLI
+
+Running `purescript-docs-search` within a project directory will open an interactive command-line session.
+
+Note that unlike in Pursuit, most relevant results will appear last.
+
+A quick demo:
+
+[![asciicast](https://asciinema.org/a/Hexie5JoWjlAqLqv2IgafIdb9.svg)](https://asciinema.org/a/Hexie5JoWjlAqLqv2IgafIdb9)
+
+You may notice that the CLI offers slightly better results than the web interface. This is a performance tradeoff.
