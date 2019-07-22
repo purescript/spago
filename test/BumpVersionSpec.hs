@@ -5,9 +5,10 @@ import qualified System.IO.Temp as Temp
 import           Test.Hspec     (Spec, around_, before_, describe, it, shouldBe)
 import           Turtle         (Text, cp, decodeString, mkdir, mv,
                                  writeTextFile)
-import           Utils          (checkFixture, getHighestTag, git,
-                                 shouldBeFailureInfix, shouldBeSuccess,
-                                 shouldBeSuccessInfix, spago, withCwd)
+import           Utils          (checkFileHasInfix, checkFixture, getHighestTag,
+                                 git, shouldBeFailure, shouldBeFailureInfix,
+                                 shouldBeSuccess, shouldBeSuccessInfix, spago,
+                                 withCwd)
 
 
 -- fix the package set so bower.json is generated with predictable versions
@@ -109,11 +110,11 @@ spec = around_ setup $ do
       spago ["bump-version", "minor"] >>= shouldBeFailureInfix
         "bower.json is being ignored by git - change this before continuing."
 
-    before_ initGit $ it "Spago should fail when spago.dhall references non-tagged dependency" $ do
+    before_ initGit $ it "Spago should generate URL#version for non-tagged dependency" $ do
 
       setOverrides "{ tortellini = upstream.tortellini // { version = \"master\" } }"
-      spago ["bump-version", "minor"] >>= shouldBeFailureInfix
-        "Unable to create Bower version from non-tag version: tortellini master"
+      spago ["bump-version", "--no-dry-run", "minor"] >>= shouldBeFailure
+      checkFileHasInfix "bower.json" "\"purescript-tortellini\": \"https://github.com/justinwoo/purescript-tortellini.git#master\""
 
     before_ initGit $ it "Spago should fail when spago.dhall references local dependency" $ do
 

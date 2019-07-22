@@ -1,5 +1,6 @@
 module Utils
   ( checkFixture
+  , checkFileHasInfix
   , readFixture
   , getHighestTag
   , git
@@ -90,6 +91,11 @@ checkFixture path = do
   actual <- readTextFile path
   expected <- readFixture path
   actual `shouldBe` expected
+
+checkFileHasInfix :: HasCallStack => FilePath -> Text -> IO ()
+checkFileHasInfix path needle = do
+  actual <- readTextFile path
+  actual `shouldSatisfy` Text.isInfixOf needle
 
 rmtree :: FilePath -> IO ()
 rmtree = removePathForcibly . encodeString

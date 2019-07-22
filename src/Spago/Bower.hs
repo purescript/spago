@@ -9,8 +9,14 @@ import Spago.Prelude
 import qualified Data.Aeson                 as Aeson
 import qualified Data.Aeson.Encode.Pretty   as Pretty
 import qualified Data.ByteString.Lazy       as ByteString
-import qualified Data.Map                   as Map
+import qualified Data.HashMap.Strict        as HashMap
 import           Data.String                (IsString)
+import qualified Data.Text                  as Text
+import           Data.Text.Lazy             (fromStrict)
+import           Data.Text.Lazy.Encoding    (encodeUtf8)
+import qualified Distribution.System        as System
+import           Distribution.System        (OS (..))
+import qualified Turtle
 import           Web.Bower.PackageMeta      (PackageMeta (..))
 import qualified Web.Bower.PackageMeta      as Bower
 
@@ -18,8 +24,6 @@ import           Spago.Config               (Config (..), PublishConfig (..))
 import qualified Spago.Config               as Config
 import           Spago.DryRun               (DryRun (..))
 import qualified Spago.Git                  as Git
-import qualified Spago.GlobalCache          as GlobalCache
-import           Spago.GlobalCache          (RepoMetadataV1 (..), Tag (..))
 import qualified Spago.Packages             as Packages
 import           Spago.PackageSet           (PackageName (..), Package (..), PackageLocation(..))
 import qualified Spago.Templates            as Templates
@@ -29,13 +33,25 @@ bowerPath :: IsString t => t
 bowerPath = "bower.json"
 
 
-writeBowerJson :: Spago m => DryRun -> m ()
-writeBowerJson dryRun = do
+runBower :: Spago m => [Text] -> m (ExitCode, Text, Text)
+runBower args = do
+  -- workaround windows issue: https://github.com/haskell/process/issues/140
+  cmd <- case System.buildOS of
+    Windows -> do
+      let bowers = Turtle.inproc "where" ["bower.cmd"] empty
+      Turtle.lineToText <$> Turtle.single (Turtle.limit 1 bowers)
+    _ ->
+      pure "bower"
+  Turtle.procStrictWithErr cmd args empty
+
+
+writeBowerJson :: Spago m => Maybe Int -> DryRun -> m ()
+writeBowerJson limitJobs dryRun = do
   config@Config{..} <- Config.ensureConfig
   PublishConfig{..} <- throws publishConfig
 
   bowerName <- mkPackageName name
-  bowerDependencies <- mkDependencies config
+  bowerDependencies <- mkDependencies limitJobs config
   template <- templateBowerJson
 
   let bowerLicense = [publishLicense]
@@ -87,23 +103,44 @@ mkPackageName spagoName = do
       pure name
 
 
-mkDependencies :: Spago m => Config -> m [(Bower.PackageName, Bower.VersionRange)]
-mkDependencies config = do
+-- | If the given version exists in bower, return a shorthand bower
+-- | version, otherwise return a URL#version style bower version.
+mkBowerVersion :: Spago m => Bower.PackageName -> Text -> Repo -> m Bower.VersionRange
+mkBowerVersion packageName version (Repo repo) = do
 
-  reposMeta <- GlobalCache.getMetadata Nothing
+  let args = ["info", "--json", Bower.runPackageName packageName <> "#" <> version]
+  (code, stdout, stderr) <- runBower args
+
+  when (code /= ExitSuccess) $ do
+    die $ "Failed to run: `bower " <> Text.intercalate " " args <> "`\n" <> stderr
+
+  info <- case Aeson.decode $ encodeUtf8 $ fromStrict stdout of
+    Just (Object obj) -> pure obj
+    _ -> die $ "Unable to decode output from `bower " <> Text.intercalate " " args <> "`: " <> stdout
+
+  if HashMap.member "version" info
+    then pure $ Bower.VersionRange $ "^" <> version
+    else pure $ Bower.VersionRange $ repo <> "#" <> version
+
+
+mkDependencies :: Spago m => Maybe Int -> Config -> m [(Bower.PackageName, Bower.VersionRange)]
+mkDependencies limitJobs config = do
   deps <- Packages.getDirectDeps config
-
-  for deps $ \(PackageName{..}, Package{..}) -> do
-    case location of
-      Local path ->
-        die $ "Unable to create Bower version for local repo: " <> path
-      Remote{..} | not (isTag packageName version reposMeta) ->
-        die $ "Unable to create Bower version from non-tag version: " <> packageName <> " " <> version
-      Remote{..} -> do
-        bowerName <- mkPackageName packageName
-        pure (bowerName, Bower.VersionRange $ "^" <> version)
+  withTaskGroup' jobs $ \taskGroup ->
+    mapTasks' taskGroup $ mkDependency <$> deps
   where
-    isTag packageName version reposMeta =
-      isJust $ do
-        RepoMetadataV1{..} <- Map.lookup (PackageName packageName) reposMeta
-        Map.lookup (Tag version) tags
+    mkDependency :: Spago m => (PackageName, Package) -> m (Bower.PackageName, Bower.VersionRange)
+    mkDependency (PackageName{..}, Package{..}) =
+      case location of
+        Local path ->
+          die $ "Unable to create Bower version for local repo: " <> path
+        Remote{..} -> do
+          bowerName <- mkPackageName packageName
+          bowerVersion <- mkBowerVersion bowerName version repo
+          pure (bowerName, bowerVersion)
+
+    jobs = case System.buildOS of
+      -- Windows sucks so lets make it slow for them!
+      -- (just kidding, its a bug: https://github.com/bower/spec/issues/79)
+      Windows -> 1
+      _       -> fromMaybe 10 limitJobs
