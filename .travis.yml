@@ -106,6 +106,7 @@ script:
     ./.stack-work/dist/*/*/build/spec/spec
     
     # install psa and rerun tests that exercise it
+    npm install -g purescript-psa
     ./.stack-work/dist/*/*/build/spec/spec --match "/Spago/spago run"
 
 
