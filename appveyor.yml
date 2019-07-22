@@ -45,7 +45,7 @@ test_script:
   - stack test
   # We install psa and rerun the tests that exercise it
   - npm install -g purescript-psa
-  - stack test --ta '--match "/Spago/spago run"'
+  - stack test --ta "--match "/Spago/spago run""
 
 artifacts:
   - path: windows.tar.gz
