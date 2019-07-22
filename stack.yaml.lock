@@ -107,10 +107,10 @@ packages:
   original:
     hackage: Glob-0.10.0
 - completed:
-    hackage: turtle-1.5.14@sha256:b70772d4f81bf1f7e4e8245ca02c66c8aab29faf37e34530c4d3eca758bdd546,4908
+    hackage: turtle-1.5.14@sha256:be0f9d3102e11458554d17f581a69984e511f15d6d51a4c4816743783576b566,4908
     pantry-tree:
       size: 1114
-      sha256: 471c03f64e26b76fde17723a429eb0c17ed3fbd49c3654de8a9c15413c060c4a
+      sha256: 191eed87a5e8713a212ddfe4c5f4b819d07771c56becd92b8b5c6119f7ddad5d
   original:
     hackage: turtle-1.5.14
 - completed:

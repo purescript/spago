@@ -60,6 +60,7 @@ module Spago.Prelude
   , callCommand
   , shell
   , shellStrict
+  , shellStrictWithErr
   , systemStrictWithErr
   , viewShell
   , repr
@@ -107,7 +108,8 @@ import           System.FilePath               (isAbsolute, pathSeparator, (</>)
 import           System.IO                     (hPutStrLn)
 import           Turtle                        (ExitCode (..), FilePath, appendonly, chmod,
                                                 executable, mktree, repr, shell, shellStrict,
-                                                systemStrictWithErr, testdir, testfile)
+                                                shellStrictWithErr, systemStrictWithErr, testdir,
+                                                testfile)
 import           UnliftIO                      (MonadUnliftIO, withRunInIO)
 import           UnliftIO.Directory            (getModificationTime, makeAbsolute)
 import           UnliftIO.Exception            (IOException, handleAny, try, tryIO)

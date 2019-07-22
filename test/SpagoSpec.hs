@@ -6,9 +6,8 @@ import qualified Data.Text          as Text
 import           Prelude            hiding (FilePath)
 import qualified System.IO.Temp     as Temp
 import           Test.Hspec         (Spec, around_, describe, it, shouldBe)
-import           Turtle             (cd, cp, decodeString, fromText, mkdir, mktree, mv,
-                                     readTextFile, rm, testdir, writeTextFile)
-
+import           Turtle             (ExitCode (..), cd, cp, decodeString, fromText, mkdir, mktree,
+                                     mv, readTextFile, rm, testdir, writeTextFile, shell, empty)
 import           Utils              (checkFixture, readFixture, runFor, shouldBeFailure,
                                      shouldBeFailureOutput, shouldBeSuccess, shouldBeSuccessOutput,
                                      spago, withCwd)
@@ -241,7 +240,10 @@ spec = around_ setup $ do
       -- Note: apparently purs starts caching the compiled modules only after three builds
       spago ["build"] >>= shouldBeSuccess
       spago ["build"] >>= shouldBeSuccess
-      spago ["-v", "run"] >>= shouldBeSuccessOutput "run-output.txt"
+
+      shell "psa --version" empty >>= \case
+        ExitSuccess -> spago ["-v", "run"] >>= shouldBeSuccessOutput "run-output.txt"
+        ExitFailure _ ->  spago ["-v", "run"] >>= shouldBeSuccessOutput "run-output-psa-not-installed.txt"
 
     it "Spago should be able to not use `psa`" $ do
 
