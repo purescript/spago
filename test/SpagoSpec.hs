@@ -6,8 +6,8 @@ import qualified Data.Text          as Text
 import           Prelude            hiding (FilePath)
 import qualified System.IO.Temp     as Temp
 import           Test.Hspec         (Spec, around_, describe, it, shouldBe)
-import           Turtle             (cd, cp, decodeString, fromText, mkdir, mktree, mv,
-                                     readTextFile, rm, testdir, writeTextFile)
+import           Turtle             (ExitCode (..), cd, cp, decodeString, fromText, mkdir, mktree,
+                                     mv, readTextFile, rm, testdir, writeTextFile)
 import           Utils              (checkFixture, readFixture, runFor, shouldBeFailure,
                                      shouldBeFailureOutput, shouldBeSuccess, shouldBeSuccessOutput,
                                      spago, withCwd)
