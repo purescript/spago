@@ -20,7 +20,7 @@ install:
   - choco install -y haskell-stack --version %STACK_VERSION%
   - stack setup > nul
   - choco install psc-package
-  - npm install -g bower purescript-psa
+  - npm install -g bower
   - ps: |
       $releases = "https://api.github.com/repos/purescript/purescript/releases"
       $tag = "v0.13.2"
@@ -43,6 +43,9 @@ test_script:
   - set PATH=C:\projects\spago\bin;C:\projects\spago\purescript;%PATH%
   - set XDG_CACHE_HOME=C:\cache
   - stack test
+  # We install psa and rerun the tests that exercise it
+  - npm install -g purescript-psa
+  - stack test --ta "--match \"/Spago/spago run\""
 
 artifacts:
   - path: windows.tar.gz
