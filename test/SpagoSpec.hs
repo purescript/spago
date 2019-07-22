@@ -7,7 +7,7 @@ import           Prelude            hiding (FilePath)
 import qualified System.IO.Temp     as Temp
 import           Test.Hspec         (Spec, around_, describe, it, shouldBe)
 import           Turtle             (ExitCode (..), cd, cp, decodeString, fromText, mkdir, mktree,
-                                     mv, readTextFile, rm, testdir, writeTextFile)
+                                     mv, readTextFile, rm, testdir, writeTextFile, shell, empty)
 import           Utils              (checkFixture, readFixture, runFor, shouldBeFailure,
                                      shouldBeFailureOutput, shouldBeSuccess, shouldBeSuccessOutput,
                                      spago, withCwd)
