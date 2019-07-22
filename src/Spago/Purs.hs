@@ -115,8 +115,8 @@ psaVersion = versionImpl "psa"
 
 versionImpl :: Spago m => Text -> m (Maybe Version.SemVer)
 versionImpl purs = do
-  fullVersionText <- shellStrict (purs <> " --version") empty >>= \case
-    (ExitSuccess, out) -> pure out
+  fullVersionText <- shellStrictWithErr (purs <> " --version") empty >>= \case
+    (ExitSuccess, out, _err) -> pure out
     _ -> die $ "Failed to run '" <> purs <> " --version'"
   versionText <- pure $ headMay $ Text.split (== ' ') fullVersionText
   parsed <- pure $ versionText >>= (hush . Version.semver)

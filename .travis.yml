@@ -92,7 +92,7 @@ script:
        'cd spago && stack build --test --no-run-tests --copy-bins --local-bin-path ./artifacts'
     fi
     nvm install 10 && nvm use 10
-    npm install -g psc-package@3.0.1 bower@1.8.8 purescript-psa
+    npm install -g psc-package@3.0.1 bower@1.8.8
 
     # get newest purescript from github releases
     TAG=$(wget -q -O - https://github.com/purescript/purescript/releases/latest --server-response --max-redirect 0 2>&1 | sed -n -e 's/.*Location:.*tag\///p')
@@ -104,6 +104,9 @@ script:
 
     # run the test suite executable
     ./.stack-work/dist/*/*/build/spec/spec
+    
+    # install psa and rerun tests that exercise it
+    ./.stack-work/dist/*/*/build/spec/spec --match "/Spago/spago run"
 
 
 before_deploy:

@@ -226,7 +226,10 @@ spec = around_ setup $ do
       -- Note: apparently purs starts caching the compiled modules only after three builds
       spago ["build"] >>= shouldBeSuccess
       spago ["build"] >>= shouldBeSuccess
-      spago ["-v", "run"] >>= shouldBeSuccessOutput "run-output.txt"
+
+      shell "psa --version" empty >>= \case
+        ExitSuccess -> spago ["-v", "run"] >>= shouldBeSuccessOutput "run-output.txt"
+        ExitFailure _ ->  spago ["-v", "run"] >>= shouldBeSuccessOutput "run-output-psa-not-installed.txt"
 
     it "Spago should be able to not use `psa`" $ do
 
