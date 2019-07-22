@@ -25,7 +25,7 @@ import qualified Spago.Config               as Config
 import           Spago.DryRun               (DryRun (..))
 import qualified Spago.Git                  as Git
 import qualified Spago.Packages             as Packages
-import           Spago.PackageSet           (PackageName (..), Package (..), PackageLocation(..))
+import           Spago.PackageSet           (PackageName (..), Package (..), PackageLocation(..), Repo(..))
 import qualified Spago.Templates            as Templates
 
 
