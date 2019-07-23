@@ -16,11 +16,12 @@ import Data.Argonaut.Encode (encodeJson)
 import Data.Argonaut.Parser (jsonParser)
 import Data.Array as Array
 import Data.Either (Either(..))
+import Data.Foldable (sum)
 import Data.List (List)
 import Data.List as List
 import Data.Map (Map)
 import Data.Map as Map
-import Data.Maybe (Maybe(..))
+import Data.Maybe (Maybe(..), fromMaybe)
 import Data.Newtype (unwrap)
 import Data.Search.Trie as Trie
 import Data.Set as Set
@@ -29,7 +30,7 @@ import Data.String.CodeUnits (singleton) as String
 import Data.String.Common (replace) as String
 import Data.String.Pattern (Pattern(..), Replacement(..))
 import Data.Traversable (for, for_)
-import Data.Tuple (Tuple(..), fst, snd)
+import Data.Tuple (Tuple(..), fst)
 import Effect (Effect)
 import Effect.Aff (Aff, launchAff_, parallel, sequential)
 import Effect.Class (liftEffect)
@@ -60,7 +61,7 @@ run' cfg = do
     log $ "Found " <> show (Array.length docsJsons) <> " modules."
 
   let index = mkDeclarations docsJsons
-      typeIndex = mkTypeIndex index
+      typeIndex = mkTypeIndex docsJsons
 
   createDirectories cfg
 
@@ -70,12 +71,16 @@ run' cfg = do
            <*> parallel (patchDocs cfg)
            <*> parallel (copyAppFile cfg)
 
+  let countOfDefinitions = Trie.size $ unwrap index
+      countOfTypeDefinitions =
+        sum $ fromMaybe 0 <$> map Array.length <$> Map.values (unwrap typeIndex)
+
   liftEffect do
     log $
       "Added " <>
-      show (Trie.size $ unwrap index) <>
+      show countOfDefinitions <>
       " definitions and " <>
-      show (List.length $ join $ map snd $ Trie.entriesUnordered (unwrap index)) <>
+      show countOfTypeDefinitions <>
       " type definitions to the search index."
 
   where ignore _ _ _ _ = unit

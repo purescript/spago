@@ -3,8 +3,10 @@ module Docs.Search.TypeIndex where
 import Prelude
 
 import Docs.Search.Config (config)
-import Docs.Search.Declarations (Declarations(..))
+import Docs.Search.Declarations (resultsForEntry)
+import Docs.Search.DocsJson (DocsJson(..))
 import Docs.Search.SearchResult (ResultInfo(..), SearchResult)
+import Docs.Search.TypeDecoder (Type)
 import Docs.Search.TypeQuery (TypeQuery)
 import Docs.Search.TypeShape (shapeOfType, shapeOfTypeQuery, stringifyShape)
 
@@ -13,14 +15,10 @@ import Data.Argonaut.Core (Json)
 import Data.Argonaut.Decode (decodeJson)
 import Data.Array as Array
 import Data.Either (hush)
-import Data.List (List)
-import Data.List as List
 import Data.Map (Map)
 import Data.Map as Map
-import Data.Maybe (Maybe(..), fromMaybe')
+import Data.Maybe (Maybe(..), fromMaybe', isJust)
 import Data.Newtype (class Newtype, unwrap, wrap)
-import Data.Search.Trie as Trie
-import Data.Tuple (Tuple(..), snd)
 import Effect (Effect)
 import Effect.Aff (Aff, try)
 
@@ -30,41 +28,39 @@ derive newtype instance semigroupTypeIndex :: Semigroup TypeIndex
 derive newtype instance monoidTypeIndex :: Monoid TypeIndex
 derive instance newtypeTypeIndex :: Newtype TypeIndex _
 
-insert
- :: String
- -> Maybe (Array SearchResult)
- -> TypeIndex
- -> TypeIndex
-insert key value = unwrap >>> Map.insert key value >>> wrap
-
-mkTypeIndex :: Declarations -> TypeIndex
-mkTypeIndex (Declarations trie) = TypeIndex $ map (Array.fromFoldable >>> Just) types
+mkTypeIndex :: Array DocsJson -> TypeIndex
+mkTypeIndex docsJsons =
+  TypeIndex $ map Just $ Array.foldr insert mempty docsJsons
   where
-    insertTypes
-      :: Tuple String SearchResult
-      -> Map String (List SearchResult)
-      -> Map String (List SearchResult)
-    insertTypes (Tuple shape result) =
-      Map.insertWith append shape (List.singleton result)
+    insert :: DocsJson -> Map String (Array SearchResult) -> Map String (Array SearchResult)
+    insert docsJson mp =
+      Array.foldr (\result ->
+                    case getType result of
+                      Just ty ->
+                        Map.insertWith append (stringifyShape $ shapeOfType ty) (pure result)
+                      Nothing -> identity
+                  ) mp (allResults docsJson)
 
-    types = List.foldr insertTypes mempty do
+allResults :: DocsJson -> Array SearchResult
+allResults (DocsJson { name, declarations }) =
+  declarations >>= (resultsForEntry name >>> map (_.result) >>> Array.fromFoldable)
 
-      results <- Trie.entriesUnordered trie >>= snd
+resultsWithTypes :: DocsJson -> Array SearchResult
+resultsWithTypes docsJson = Array.filter (getType >>> isJust) $ allResults docsJson
 
-      case (unwrap results).info of
-        ValueResult dict ->
-          insertTypeResultsFor dict.type results
+getType :: SearchResult -> Maybe Type
+getType sr =
+  case (unwrap sr).info of
+    ValueResult dict ->
+      Just dict.type
 
-        TypeClassMemberResult dict ->
-          insertTypeResultsFor dict.type results
+    TypeClassMemberResult dict ->
+      Just dict.type
 
-        TypeSynonymResult dict ->
-          insertTypeResultsFor dict.type results
-        _ -> mempty
+    TypeSynonymResult dict ->
+      Just dict.type
 
-    insertTypeResultsFor ty results =
-      let path = stringifyShape (shapeOfType ty) in
-      pure $ Tuple path results
+    _ -> Nothing
 
 lookup
   :: String
@@ -81,6 +77,14 @@ lookup key typeIndex@(TypeIndex map) =
           json <- hush eiJson
           results <- hush (decodeJson json)
           pure { typeIndex: insert key (Just results) typeIndex, results }
+
+  where
+    insert
+      :: String
+      -> Maybe (Array SearchResult)
+      -> TypeIndex
+      -> TypeIndex
+    insert k v = unwrap >>> Map.insert k v >>> wrap
 
 query
   :: TypeIndex

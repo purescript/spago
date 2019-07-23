@@ -10,21 +10,20 @@ import Docs.Search.IndexBuilder as IndexBuilder
 import Docs.Search.SearchResult (ResultInfo(..), SearchResult(..))
 import Docs.Search.Terminal (bold, cyan, green, yellow)
 import Docs.Search.TypeDecoder (Constraint, FunDeps, Kind, QualifiedName, Type, TypeArgument)
-import Docs.Search.TypeIndex (mkTypeIndex)
+import Docs.Search.TypeIndex (resultsWithTypes)
 import Docs.Search.TypePrinter (keyword, showConstraint, showFunDeps, showKind, showType, showTypeArgument, space, syntax)
 import Docs.Search.TypeQuery (parseTypeQuery)
 
 import Data.Array as Array
 import Data.Either (hush)
 import Data.List as List
-import Data.Map as Map
 import Data.Maybe (Maybe(..), fromMaybe)
 import Data.Newtype (unwrap, wrap)
 import Data.Search.Trie as Trie
 import Data.String (length) as String
 import Data.String.CodeUnits (fromCharArray, toCharArray) as String
 import Data.String.Common (split, toLower, trim) as String
-import Data.Tuple (snd, fst)
+import Data.Tuple (fst)
 import Effect (Effect)
 import Effect.Aff (launchAff_)
 import Effect.Class (liftEffect)
@@ -42,17 +41,19 @@ run cfg = launchAff_ $ do
   docsJsons <- IndexBuilder.decodeDocsJsons cfg
 
   let index = mkDeclarations docsJsons
-      typeIndex = Array.concat $ Array.fromFoldable (
-        Map.values (unwrap (mkTypeIndex index)) <#> fromMaybe []
-      ) :: Array SearchResult
+      typeIndex = docsJsons >>= resultsWithTypes
+
+  let countOfDefinitions = Trie.size $ unwrap index
+      countOfTypeDefinitions =
+        Array.length typeIndex
 
   liftEffect do
     log $
       "Loaded " <>
-      show (Trie.size $ unwrap index) <>
+      show countOfDefinitions <>
       " definitions and " <>
-      show (List.length $ join $ map snd $ Trie.entriesUnordered (unwrap index)) <>
-      " type definitions"
+      show countOfTypeDefinitions <>
+      " type definitions."
 
   liftEffect do
     let
