@@ -6,6 +6,7 @@ module Spago.Build
   , bundleApp
   , bundleModule
   , docs
+  , search
   , Watch (..)
   , NoBuild (..)
   , NoInstall (..)
@@ -30,6 +31,7 @@ import qualified Spago.GlobalCache    as GlobalCache
 import qualified Spago.Packages       as Packages
 import qualified Spago.PackageSet     as PackageSet
 import qualified Spago.Purs           as Purs
+import qualified Spago.Templates      as Templates
 import qualified Spago.Watch          as Watch
 import qualified System.IO.Temp       as Temp
 import qualified Turtle               as Turtle
@@ -201,11 +203,29 @@ bundleModule maybeModuleName maybeTargetPath noBuild buildOpts = do
     DoBuild -> build buildOpts (Just bundleAction)
     NoBuild -> bundleAction
 
--- | Generate docs for the `sourcePaths`
+-- | Generate docs for the `sourcePaths` and run `purescript-docs-search build-index` to patch them.
 docs :: Spago m => Maybe Purs.DocsFormat -> [Purs.SourcePath] -> Packages.DepsOnly -> m ()
 docs format sourcePaths depsOnly = do
   echoDebug "Running `spago docs`"
   config@Config.Config{..} <- Config.ensureConfig
   deps <- Packages.getProjectDeps config
   echo "Generating documentation for the project. This might take a while.."
+
   Purs.docs format $ Packages.getGlobs deps depsOnly configSourcePaths <> sourcePaths
+
+  echo "Making the documentation searchable..."
+  writeTextFile ".spago/purescript-docs-search" Templates.docsSearch
+  writeTextFile ".spago/docs-search-app.js"     Templates.docsSearchApp
+  let cmd = "node .spago/purescript-docs-search build-index"
+  echoDebug $ "Running `" <> cmd <> "`"
+  shell cmd empty >>= \case
+    ExitSuccess   -> pure ()
+    ExitFailure n -> die $ "Failed while trying to make the documentation searchable: " <> repr n
+
+-- | Start a search REPL.
+search :: Spago m => m ()
+search = do
+  writeTextFile ".spago/purescript-docs-search" Templates.docsSearch
+  let cmd = "node .spago/purescript-docs-search search"
+  echoDebug $ "Running `" <> cmd <> "`"
+  viewShell $ callCommand $ Text.unpack cmd

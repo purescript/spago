@@ -103,10 +103,11 @@ data Command
   -- | Deletes the .psc-package folder
   | PscPackageClean
 
+  -- | Runs `purescript-docs-search search`.
+  | Search
 
   -- | Show version
   | Version
-
 
   -- | Bundle the project into an executable (replaced by BundleApp)
   | Bundle
@@ -179,6 +180,7 @@ parser = do
       , bundleApp
       , bundleModule
       , docs
+      , search
       ]
 
     initProject =
@@ -229,6 +231,11 @@ parser = do
       , Docs <$> docsFormat <*> sourcePaths <*> depsOnly
       )
 
+    search =
+      ( "search"
+      , "Run the search engine."
+      , pure Search
+      )
 
     packageSetCommands = CLI.subcommandGroup "Package set commands:"
       [ install
@@ -377,5 +384,6 @@ main = do
       PscPackageLocalSetup force            -> liftIO $ PscPackage.localSetup force
       PscPackageInsDhall                    -> liftIO $ PscPackage.insDhall
       PscPackageClean                       -> liftIO $ PscPackage.clean
+      Search                                -> Spago.Build.search
       Bundle                                -> die Messages.bundleCommandRenamed
       MakeModule                            -> die Messages.makeModuleCommandRenamed

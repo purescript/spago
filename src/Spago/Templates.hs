@@ -5,7 +5,7 @@ import qualified Data.ByteString.Internal as B
 import           Data.FileEmbed           (embedFile)
 import qualified Data.Text                as T
 
-import           Spago.TH                 (embedFileUtf8)
+import           Spago.TH                 (embedFileUtf8, embedURLWithFallback)
 
 
 packagesDhall :: T.Text
@@ -25,3 +25,15 @@ gitignore = $(embedFileUtf8 "templates/gitignore")
 
 bowerJson :: B.ByteString
 bowerJson = $(embedFile "templates/bower.json")
+
+docsSearchApp :: T.Text
+docsSearchApp =
+  $(embedURLWithFallback
+    "https://github.com/spacchetti/purescript-docs-search/releases/download/v0.0.3/docs-search-app.js"
+    "templates/docs-search-app.js")
+
+docsSearch :: T.Text
+docsSearch =
+  $(embedURLWithFallback
+     "https://github.com/spacchetti/purescript-docs-search/releases/download/v0.0.3/main.js"
+     "templates/purescript-docs-search")
