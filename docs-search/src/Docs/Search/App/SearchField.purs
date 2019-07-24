@@ -18,7 +18,8 @@ import Web.DOM.ParentNode as ParentNode
 import Web.HTML (window) as Web
 import Web.HTML as HTML
 import Web.HTML.HTMLDocument as HTMLDocument
-import Web.HTML.HTMLElement (blur, focus, fromElement) as Web
+import Web.HTML.HTMLElement (blur) as Web
+import Web.HTML.HTMLInputElement as HTMLInputElement
 import Web.HTML.Window (document) as Web
 import Web.HTML.Window as Window
 import Web.UIEvent.KeyboardEvent (KeyboardEvent)
@@ -65,12 +66,19 @@ handleAction = case _ of
         (map (HandleKey sid) <<< KE.fromEvent)
 
   HandleKey sid ev -> do
+
     when (KE.code ev == "KeyS") do
-      H.liftEffect $ withSearchField Web.focus
+      state <- H.get
+      when (not state.focused) do
+        H.liftEffect do
+          withSearchField HTMLInputElement.select
+
     when (KE.code ev == "Escape") do
       state <- H.get
       if state.focused
-      then H.liftEffect $ withSearchField Web.blur
+      then do
+        H.liftEffect do
+          withSearchField (HTMLInputElement.toHTMLElement >>> Web.blur)
       else do
         H.modify_ (_ { input = "" })
         H.raise $ InputCleared
@@ -80,7 +88,8 @@ handleAction = case _ of
 
   EnterPressed -> do
     state <- H.get
-    H.liftEffect $ withSearchField Web.blur
+    H.liftEffect do
+      withSearchField (HTMLInputElement.toHTMLElement >>> Web.blur)
     H.raise $ InputUpdated state.input
 
   FocusChanged status -> do
@@ -90,7 +99,7 @@ handleAction = case _ of
       then Focused
       else LostFocus
 
-withSearchField :: (HTML.HTMLElement -> Effect Unit) -> Effect Unit
+withSearchField :: (HTML.HTMLInputElement -> Effect Unit) -> Effect Unit
 withSearchField cont = do
   doc <- Document.toParentNode <$>
          HTMLDocument.toDocument <$>
@@ -99,7 +108,7 @@ withSearchField cont = do
   let selector = wrap "#docs-search-query-field"
 
   mbEl <- ParentNode.querySelector selector doc
-  maybe mempty cont (mbEl >>= Web.fromElement)
+  maybe mempty cont (mbEl >>= HTMLInputElement.fromElement)
 
 render :: forall m. State -> H.ComponentHTML Action () m
 render state =
@@ -115,7 +124,7 @@ render state =
 
   [ HH.input
     [ HP.value state.input
-    , HP.placeholder "Search for definitions"
+    , HP.placeholder "Search for definitions... (S to focus)"
     , HP.id_ "docs-search-query-field"
     , HP.type_ HP.InputText
     , HE.onKeyUp (\event ->
