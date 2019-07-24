@@ -210,21 +210,37 @@ docs format sourcePaths depsOnly = do
   config@Config.Config{..} <- Config.ensureConfig
   deps <- Packages.getProjectDeps config
   echo "Generating documentation for the project. This might take a while.."
-
   Purs.docs format $ Packages.getGlobs deps depsOnly configSourcePaths <> sourcePaths
 
-  echo "Making the documentation searchable..."
-  writeTextFile ".spago/purescript-docs-search" Templates.docsSearch
-  writeTextFile ".spago/docs-search-app.js"     Templates.docsSearchApp
-  let cmd = "node .spago/purescript-docs-search build-index"
-  echoDebug $ "Running `" <> cmd <> "`"
-  shell cmd empty >>= \case
-    ExitSuccess   -> pure ()
-    ExitFailure n -> die $ "Failed while trying to make the documentation searchable: " <> repr n
+  when (isHTMLFormat format) $ do
+    echo "Making the documentation searchable..."
+    writeTextFile ".spago/purescript-docs-search" Templates.docsSearch
+    writeTextFile ".spago/docs-search-app.js"     Templates.docsSearchApp
+    let cmd = "node .spago/purescript-docs-search build-index"
+    echoDebug $ "Running `" <> cmd <> "`"
+    shell cmd empty >>= \case
+      ExitSuccess   -> pure ()
+      ExitFailure n -> die $ "Failed while trying to make the documentation searchable: " <> repr n
+
+  where
+    isHTMLFormat = \case
+      Just Purs.Html -> True
+      Nothing   -> True
+      _         -> False
 
 -- | Start a search REPL.
 search :: Spago m => m ()
 search = do
+  config@Config.Config{..} <- Config.ensureConfig
+  deps <- Packages.getProjectDeps config
+
+  echo "Building module metadata..."
+
+  Purs.compile (Packages.getGlobs deps Packages.AllSources configSourcePaths)
+    [ Purs.ExtraArg "--codegen"
+    , Purs.ExtraArg "docs"
+    ]
+
   writeTextFile ".spago/purescript-docs-search" Templates.docsSearch
   let cmd = "node .spago/purescript-docs-search search"
   echoDebug $ "Running `" <> cmd <> "`"
