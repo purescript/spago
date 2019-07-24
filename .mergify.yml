@@ -6,8 +6,8 @@ pull_request_rules:
   name: Automatically merge pull requests
   conditions:
   - status-success=continuous-integration/appveyor/pr
-  - status-success=Travis CI - Pull Request
-  - label=merge me
+  - status-success=continuous-integration/travis-ci/pr
+  - label=mergify
   - ! '#approved-reviews-by>=1'
   - ! '#changes-requested-reviews-by=0'
 - actions:
