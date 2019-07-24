@@ -12,6 +12,7 @@ module Spago.Packages
   , PackageSet.PackageName(..)
   , PackagesFilter(..)
   , JsonFlag(..)
+  , DepsOnly(..)
   ) where
 
 import           Spago.Prelude
@@ -82,10 +83,17 @@ initProject force = do
         False -> writeTextFile destPath srcTemplate
 
 
-getGlobs :: [(PackageName, Package)] -> [Purs.SourcePath]
-getGlobs = map (\pair
-                 -> Purs.SourcePath $ Text.pack $ Fetch.getLocalCacheDir pair
-                 <> "/src/**/*.purs")
+-- | Only build deps and ignore input paths
+data DepsOnly = DepsOnly | AllSources
+
+getGlobs :: [(PackageName, Package)] -> DepsOnly -> [Purs.SourcePath] -> [Purs.SourcePath]
+getGlobs deps depsOnly configSourcePaths
+  = map (\pair
+          -> Purs.SourcePath $ Text.pack $ Fetch.getLocalCacheDir pair
+          <> "/src/**/*.purs") deps
+  <> case depsOnly of
+    DepsOnly -> []
+    AllSources -> configSourcePaths
 
 
 -- | Return the direct dependencies of the current project
@@ -272,7 +280,10 @@ sources = do
   echoDebug "Running `spago sources`"
   config <- Config.ensureConfig
   deps <- getProjectDeps config
-  _ <- traverse echo $ fmap Purs.unSourcePath (getGlobs deps <> Config.configSourcePaths config)
+  _ <- traverse echo
+    $ fmap Purs.unSourcePath
+    $ getGlobs deps AllSources
+    $ Config.configSourcePaths config
   pure ()
 
 
@@ -304,7 +315,7 @@ verify maybeLimit cacheFlag maybePackage = do
     verifyPackage :: Spago m => PackageSet -> PackageName -> m ()
     verifyPackage packageSet@PackageSet{..} name = do
       deps <- getTransitiveDeps packageSet [name]
-      let globs = getGlobs deps
+      let globs = getGlobs deps DepsOnly []
           quotedName = surroundQuote $ packageName name
       Fetch.fetchPackages maybeLimit cacheFlag deps packagesMinPursVersion
       echo $ "Verifying package " <> quotedName
