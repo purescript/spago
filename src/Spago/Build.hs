@@ -9,8 +9,8 @@ module Spago.Build
   , Watch (..)
   , NoBuild (..)
   , NoInstall (..)
-  , DepsOnly (..)
   , BuildOptions (..)
+  , Packages.DepsOnly (..)
   , Purs.ExtraArg (..)
   , Purs.ModuleName (..)
   , Purs.SourcePath (..)
@@ -43,14 +43,6 @@ data NoBuild = NoBuild | DoBuild
 -- | Flag to skip the automatic installation of libraries on build
 data NoInstall = NoInstall | DoInstall
 
--- | Only build deps and ignore input paths
-data DepsOnly = DepsOnly | WithAll
-
-applyDepsOnly :: DepsOnly -> [Purs.SourcePath] -> [Purs.SourcePath]
-applyDepsOnly depsOnly sources = case depsOnly of
-  DepsOnly -> []
-  WithAll -> sources
-
 data BuildOptions = BuildOptions
   { maybeLimit      :: Maybe Int
   , cacheConfig     :: Maybe GlobalCache.CacheFlag
@@ -59,7 +51,7 @@ data BuildOptions = BuildOptions
   , sourcePaths     :: [Purs.SourcePath]
   , noInstall       :: NoInstall
   , passthroughArgs :: [Purs.ExtraArg]
-  , depsOnly        :: DepsOnly
+  , depsOnly        :: Packages.DepsOnly
   }
 
 prepareBundleDefaults
@@ -82,8 +74,7 @@ build BuildOptions{..} maybePostBuild = do
   case noInstall of
     DoInstall -> Fetch.fetchPackages maybeLimit cacheConfig deps packagesMinPursVersion
     NoInstall -> pure ()
-  let configSourcePaths' = applyDepsOnly depsOnly configSourcePaths
-  let allGlobs = Packages.getGlobs deps <> configSourcePaths' <> sourcePaths
+  let allGlobs = Packages.getGlobs deps depsOnly configSourcePaths <> sourcePaths
       buildAction = do
         Purs.compile allGlobs passthroughArgs
         case maybePostBuild of
@@ -95,17 +86,22 @@ build BuildOptions{..} maybePostBuild = do
     Watch     -> Watch.watch (Set.fromAscList $ fmap Glob.compile absoluteGlobs) shouldClear buildAction
 
 -- | Start a repl
-repl :: Spago m => Maybe Int -> Maybe GlobalCache.CacheFlag -> [PackageSet.PackageName] -> [Purs.SourcePath] -> [Purs.ExtraArg] -> DepsOnly -> m ()
+repl
+  :: Spago m
+  => Maybe Int
+  -> Maybe GlobalCache.CacheFlag
+  -> [PackageSet.PackageName]
+  -> [Purs.SourcePath]
+  -> [Purs.ExtraArg]
+  -> Packages.DepsOnly
+  -> m ()
 repl maybeLimit cacheFlag newPackages sourcePaths passthroughArgs depsOnly = do
   echoDebug "Running `spago repl`"
 
   try Config.ensureConfig >>= \case
-    Right config -> do
+    Right config@Config.Config{..} -> do
       deps <- Packages.getProjectDeps config
-
-      let configSourcePaths = Config.configSourcePaths config
-      let configSourcePaths' = applyDepsOnly depsOnly configSourcePaths
-      let globs = Packages.getGlobs deps <> configSourcePaths' <> sourcePaths
+      let globs = Packages.getGlobs deps depsOnly configSourcePaths <> sourcePaths
       Purs.repl globs passthroughArgs
     Left (err :: SomeException) -> do
       echoDebug $ tshow err
@@ -120,9 +116,7 @@ repl maybeLimit cacheFlag newPackages sourcePaths passthroughArgs depsOnly = do
         let updatedConfig = Config.Config name (dependencies <> newPackages) (Config.packageSet config) configSourcePaths
 
         deps <- Packages.getProjectDeps updatedConfig
-        let updatedConfigSourcePaths = Config.configSourcePaths updatedConfig
-        let updatedConfigSourcePaths' = applyDepsOnly depsOnly updatedConfigSourcePaths
-        let globs = Packages.getGlobs deps <> updatedConfigSourcePaths' <> sourcePaths
+        let globs = Packages.getGlobs deps depsOnly $ Config.configSourcePaths updatedConfig
 
         Fetch.fetchPackages maybeLimit cacheFlag deps packagesMinPursVersion
 
@@ -208,12 +202,10 @@ bundleModule maybeModuleName maybeTargetPath noBuild buildOpts = do
     NoBuild -> bundleAction
 
 -- | Generate docs for the `sourcePaths`
-docs :: Spago m => Maybe Purs.DocsFormat -> [Purs.SourcePath] -> DepsOnly -> m ()
+docs :: Spago m => Maybe Purs.DocsFormat -> [Purs.SourcePath] -> Packages.DepsOnly -> m ()
 docs format sourcePaths depsOnly = do
   echoDebug "Running `spago docs`"
-  config <- Config.ensureConfig
+  config@Config.Config{..} <- Config.ensureConfig
   deps <- Packages.getProjectDeps config
   echo "Generating documentation for the project. This might take a while.."
-  let configSourcePaths = Config.configSourcePaths config
-  let configSourcePaths' = applyDepsOnly depsOnly configSourcePaths
-  Purs.docs format $ configSourcePaths' <> Packages.getGlobs deps <> sourcePaths
+  Purs.docs format $ Packages.getGlobs deps depsOnly configSourcePaths <> sourcePaths

@@ -147,7 +147,7 @@ parser = do
     -- Note: the first constructor is the default when the flag is not provided
     watch       = bool BuildOnce Watch <$> CLI.switch "watch" 'w' "Watch for changes in local files and automatically rebuild"
     noInstall   = bool DoInstall NoInstall <$> CLI.switch "no-install" 'n' "Don't run the automatic installation of packages"
-    depsOnly    = bool WithAll DepsOnly <$> CLI.switch "deps-only" 'd' "Only use sources from dependencies, skipping the project sources."
+    depsOnly    = bool AllSources DepsOnly <$> CLI.switch "deps-only" 'd' "Only use sources from dependencies, skipping the project sources."
     clearScreen = bool NoClear DoClear <$> CLI.switch "clear-screen" 'l' "Clear the screen on rebuild (watch mode only)"
     noBuild     = bool DoBuild NoBuild <$> CLI.switch "no-build" 's' "Skip build step"
     noFormat    = bool DoFormat NoFormat <$> CLI.switch "no-config-format" 'F' "Disable formatting the configuration file `spago.dhall`"
