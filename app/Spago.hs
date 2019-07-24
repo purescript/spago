@@ -14,7 +14,7 @@ import           Spago.Build         (BuildOptions (..), ExtraArg (..),
                                       ModuleName (..), SourcePath (..),
                                       TargetPath (..), Watch (..),
                                       WithMain (..), NoBuild (..),
-                                      NoInstall (..))
+                                      NoInstall (..), DepsOnly (..))
 import qualified Spago.Build
 import           Spago.DryRun        (DryRun (..))
 import           Spago.GlobalCache   (CacheFlag (..))
@@ -43,10 +43,10 @@ data Command
   | Sources
 
   -- | Start a REPL.
-  | Repl (Maybe Int) (Maybe CacheFlag) [PackageName] [SourcePath] [ExtraArg]
+  | Repl (Maybe Int) (Maybe CacheFlag) [PackageName] [SourcePath] [ExtraArg] DepsOnly
 
   -- | Generate documentation for the project and its dependencies
-  | Docs (Maybe Purs.DocsFormat) [SourcePath]
+  | Docs (Maybe Purs.DocsFormat) [SourcePath] DepsOnly
 
   -- | Build the project paths src/ and test/ plus the specified source paths
   | Build BuildOptions
@@ -147,6 +147,7 @@ parser = do
     -- Note: the first constructor is the default when the flag is not provided
     watch       = bool BuildOnce Watch <$> CLI.switch "watch" 'w' "Watch for changes in local files and automatically rebuild"
     noInstall   = bool DoInstall NoInstall <$> CLI.switch "no-install" 'n' "Don't run the automatic installation of packages"
+    depsOnly    = bool WithAll DepsOnly <$> CLI.switch "deps-only" 'd' "Only use sources from dependencies, skipping the project sources."
     clearScreen = bool NoClear DoClear <$> CLI.switch "clear-screen" 'l' "Clear the screen on rebuild (watch mode only)"
     noBuild     = bool DoBuild NoBuild <$> CLI.switch "no-build" 's' "Skip build step"
     noFormat    = bool DoFormat NoFormat <$> CLI.switch "no-config-format" 'F' "Disable formatting the configuration file `spago.dhall`"
@@ -166,7 +167,7 @@ parser = do
     packageNames    = many $ CLI.arg (Just . PackageName) "package" "Package name to add as dependency"
     passthroughArgs = many $ CLI.arg (Just . ExtraArg) " ..any `purs compile` option" "Options passed through to `purs compile`; use -- to separate"
 
-    buildOptions  = BuildOptions <$> limitJobs <*> cacheFlag <*> watch <*> clearScreen <*> sourcePaths <*> noInstall <*> passthroughArgs
+    buildOptions  = BuildOptions <$> limitJobs <*> cacheFlag <*> watch <*> clearScreen <*> sourcePaths <*> noInstall <*> passthroughArgs <*> depsOnly
     globalOptions = GlobalOptions <$> verbose <*> noFormat <*> usePsa
 
     projectCommands = CLI.subcommandGroup "Project commands:"
@@ -195,7 +196,7 @@ parser = do
     repl =
       ( "repl"
       , "Start a REPL"
-      , Repl <$> limitJobs <*> cacheFlag <*> replPackageNames <*> sourcePaths <*> passthroughArgs
+      , Repl <$> limitJobs <*> cacheFlag <*> replPackageNames <*> sourcePaths <*> passthroughArgs <*> depsOnly
       )
 
     test =
@@ -225,7 +226,7 @@ parser = do
     docs =
       ( "docs"
       , "Generate docs for the project and its dependencies"
-      , Docs <$> docsFormat <*> sourcePaths
+      , Docs <$> docsFormat <*> sourcePaths <*> depsOnly
       )
 
 
@@ -366,12 +367,12 @@ main = do
       Test modName buildOptions nodeArgs    -> Spago.Build.test modName buildOptions nodeArgs
       BumpVersion limitJobs dryRun spec     -> Version.bumpVersion limitJobs dryRun spec
       Run modName buildOptions nodeArgs     -> Spago.Build.run modName buildOptions nodeArgs
-      Repl limitJobs cacheConfig replPackageNames paths pursArgs -> Spago.Build.repl limitJobs cacheConfig replPackageNames paths pursArgs
+      Repl limitJobs cacheConfig replPackageNames paths pursArgs depsOnly -> Spago.Build.repl limitJobs cacheConfig replPackageNames paths pursArgs depsOnly
       BundleApp modName tPath shouldBuild buildOptions
         -> Spago.Build.bundleApp WithMain modName tPath shouldBuild buildOptions
       BundleModule modName tPath shouldBuild buildOptions
         -> Spago.Build.bundleModule modName tPath shouldBuild buildOptions
-      Docs format sourcePaths               -> Spago.Build.docs format sourcePaths
+      Docs format sourcePaths depsOnly      -> Spago.Build.docs format sourcePaths depsOnly
       Version                               -> printVersion
       PscPackageLocalSetup force            -> liftIO $ PscPackage.localSetup force
       PscPackageInsDhall                    -> liftIO $ PscPackage.insDhall
