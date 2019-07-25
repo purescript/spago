@@ -12,6 +12,7 @@ import Data.List.NonEmpty as NonEmpty
 import Data.Maybe (Maybe, fromMaybe, optional)
 import Data.Unfoldable (class Unfoldable)
 import Effect (Effect)
+import Effect.Console (log)
 import Options.Applicative (Parser, command, execParser, fullDesc, helper, info, long, metavar, progDesc, strOption, subparser, value, (<**>))
 import Options.Applicative as CA
 
@@ -24,6 +25,7 @@ main = do
   case fromMaybe defaultCommands args of
     BuildIndex cfg -> IndexBuilder.run cfg
     Search cfg -> Interactive.run cfg
+    Version -> log "0.0.4"
 
 getArgs :: Effect (Maybe Commands)
 getArgs = execParser opts
@@ -39,6 +41,7 @@ data Commands
                , generatedDocs :: String
                }
   | Search { docsFiles :: Array String }
+  | Version
 
 derive instance genericCommands :: Generic Commands _
 
@@ -55,6 +58,11 @@ commands = optional $ subparser
  <> command "search"
     ( info startInteractive
       ( progDesc "Run the search engine."
+      )
+    )
+ <> command "version"
+    ( info (pure Version)
+      ( progDesc "Show purescript-docs-search version."
       )
     )
   )

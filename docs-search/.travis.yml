@@ -23,10 +23,10 @@ install:
 - spago install
 
 script:
-- spago build
-- spago test
-- spago docs
 - npm run build
+- npm test
+# Check if it the app is able to build the search index for itself.
+- spago docs
 - ./dist/purescript-docs-search build-index
 
 deploy:
