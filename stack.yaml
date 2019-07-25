@@ -3,7 +3,7 @@ packages:
 - .
 extra-deps:
 - github: dhall-lang/dhall-haskell
-  commit: 817c833643c37e8fdb71a2efd74bbd7fc895e87d
+  commit: 354346be91ca62d64a1d68dcf7897e5a30f8646c
   subdirs:
     - dhall
     - dhall-json
@@ -20,5 +20,7 @@ extra-deps:
 - turtle-1.5.14
 - libyaml-0.1.1.0@sha256:b3fcd8c44622c75e054c2267f3fec39a58a311748000310cbc8257a4683d3f02,2090
 - yaml-0.11.0.0@sha256:8303b3e445295f4fe28ee18efe49ef2667f9f88742ce8049db437c6579be425e,5079
+- th-lift-0.8.0.1@sha256:cceb81b12c0580e02a7a3898b6d60cca5e1be080741f69ddde4f12210d8ba7ca,1960
+- th-lift-instances-0.1.13@sha256:2852e468511805cb25d9e3923c9e91647d008ab4a764ec0921e5e40ff8a8e874,2625
 nix:
   packages: [zlib]
