@@ -27,14 +27,14 @@ script:
 - spago test
 - spago docs
 - npm run build
-- node dist/main.js build-index
+- ./dist/purescript-docs-search build-index
 
 deploy:
   - provider: releases
     api_key: $API_KEY
     file:
       - dist/docs-search-app.js
-      - dist/main.js
+      - dist/purescript-docs-search
     skip_cleanup: true
     on:
       tags: true

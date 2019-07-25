@@ -7,7 +7,7 @@
     "test": "test"
   },
   "bin": {
-    "purescript-docs-search": "dist/main.js"
+    "purescript-docs-search": "dist/purescript-docs-search"
   },
   "files": [
     "dist/main.js",
@@ -17,8 +17,14 @@
   "scripts": {
     "test": "spago test",
     "bundle-app": "spago bundle-app -m Docs.Search.App --to dist/docs-search-app.js",
-    "bundle-main": "spago bundle-app -m Docs.Search.Main --to dist/main.js && browserify --no-builtins --no-commondir --no-detect-globals --node dist/main.js --outfile dist/main-bundled.js && echo \"#!/usr/bin/env node\" > dist/main.js && cat dist/main-bundled.js >> dist/main.js && rm dist/main-bundled.js",
-    "build": "npm run bundle-app && npm run bundle-main",
+    "parcel-app": "parcel build --no-source-maps --target browser --out-file dist/docs-search-app.js dist/docs-search-app.js",
+    "build-app": "npm run bundle-app && npm run parcel-app",
+    "bundle-main": "spago bundle-app -m Docs.Search.Main --to dist/main.js",
+    "parcel-main": "parcel build --no-source-maps --target node --bundle-node-modules --out-file dist/main.js dist/main.js",
+    "add-shebang": "echo \"#!/usr/bin/env node\" > dist/purescript-docs-search && cat dist/main.js >> dist/purescript-docs-search",
+    "chmod-main": "chmod +x dist/purescript-docs-search",
+    "build-main": "npm run bundle-main && npm run parcel-main && npm run add-shebang && rm dist/main.js && npm run chmod-main",
+    "build": "npm run build-app && npm run build-main",
     "clean": "rm -rf dist"
   },
   "repository": {
@@ -36,8 +42,8 @@
   "homepage": "https://github.com/spacchetti/purescript-docs-search#readme",
   "dependencies": {},
   "devDependencies": {
-    "browserify": "^16.3.0",
     "glob": "^7.1.4",
+    "parcel": "^1.12.3",
     "spago": "^0.8.5"
   }
 }
