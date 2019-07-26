@@ -8,7 +8,9 @@ module Spago.Build
   , docs
   , Watch (..)
   , NoBuild (..)
+  , NoInstall (..)
   , BuildOptions (..)
+  , Packages.DepsOnly (..)
   , Purs.ExtraArg (..)
   , Purs.ModuleName (..)
   , Purs.SourcePath (..)
@@ -29,7 +31,8 @@ import qualified Spago.Packages       as Packages
 import qualified Spago.PackageSet     as PackageSet
 import qualified Spago.Purs           as Purs
 import qualified Spago.Watch          as Watch
-
+import qualified System.IO.Temp       as Temp
+import qualified Turtle               as Turtle
 
 data Watch = Watch | BuildOnce
 
@@ -37,19 +40,19 @@ data Watch = Watch | BuildOnce
 --   or skip it, in the case of 'bundleApp' and 'bundleModule'.
 data NoBuild = NoBuild | DoBuild
 
+-- | Flag to skip the automatic installation of libraries on build
+data NoInstall = NoInstall | DoInstall
+
 data BuildOptions = BuildOptions
   { maybeLimit      :: Maybe Int
   , cacheConfig     :: Maybe GlobalCache.CacheFlag
   , shouldWatch     :: Watch
+  , shouldClear     :: Watch.ClearScreen
   , sourcePaths     :: [Purs.SourcePath]
+  , noInstall       :: NoInstall
   , passthroughArgs :: [Purs.ExtraArg]
+  , depsOnly        :: Packages.DepsOnly
   }
-
-defaultSourcePaths :: [Purs.SourcePath]
-defaultSourcePaths =
-  [ Purs.SourcePath "src/**/*.purs"
-  , Purs.SourcePath "test/**/*.purs"
-  ]
 
 prepareBundleDefaults
   :: Maybe Purs.ModuleName
@@ -68,36 +71,65 @@ build BuildOptions{..} maybePostBuild = do
   echoDebug "Running `spago build`"
   config@Config.Config{ packageSet = PackageSet.PackageSet{..}, ..} <- Config.ensureConfig
   deps <- Packages.getProjectDeps config
-  Fetch.fetchPackages maybeLimit cacheConfig deps packagesMinPursVersion
-  let projectGlobs = defaultSourcePaths <> sourcePaths
-      allGlobs = Packages.getGlobs deps <> projectGlobs
+  case noInstall of
+    DoInstall -> Fetch.fetchPackages maybeLimit cacheConfig deps packagesMinPursVersion
+    NoInstall -> pure ()
+  let allGlobs = Packages.getGlobs deps depsOnly configSourcePaths <> sourcePaths
       buildAction = do
         Purs.compile allGlobs passthroughArgs
         case maybePostBuild of
           Just action -> action
           Nothing     -> pure ()
-  absoluteProjectGlobs <- traverse makeAbsolute $ Text.unpack . Purs.unSourcePath <$> projectGlobs
+  absoluteGlobs <- traverse makeAbsolute $ Text.unpack . Purs.unSourcePath <$> allGlobs
   case shouldWatch of
     BuildOnce -> buildAction
-    Watch     -> Watch.watch (Set.fromAscList $ fmap Glob.compile absoluteProjectGlobs) buildAction
+    Watch     -> Watch.watch (Set.fromAscList $ fmap Glob.compile absoluteGlobs) shouldClear buildAction
 
 -- | Start a repl
-repl :: Spago m => [Purs.SourcePath] -> [Purs.ExtraArg] -> m ()
-repl sourcePaths passthroughArgs = do
+repl
+  :: Spago m
+  => Maybe Int
+  -> Maybe GlobalCache.CacheFlag
+  -> [PackageSet.PackageName]
+  -> [Purs.SourcePath]
+  -> [Purs.ExtraArg]
+  -> Packages.DepsOnly
+  -> m ()
+repl maybeLimit cacheFlag newPackages sourcePaths passthroughArgs depsOnly = do
   echoDebug "Running `spago repl`"
-  config <- Config.ensureConfig
-  deps <- Packages.getProjectDeps config
-  let globs = Packages.getGlobs deps <> defaultSourcePaths <> sourcePaths
-  Purs.repl globs passthroughArgs
+
+  try Config.ensureConfig >>= \case
+    Right config@Config.Config{..} -> do
+      deps <- Packages.getProjectDeps config
+      let globs = Packages.getGlobs deps depsOnly configSourcePaths <> sourcePaths
+      Purs.repl globs passthroughArgs
+    Left (err :: SomeException) -> do
+      echoDebug $ tshow err
+      cacheDir <- GlobalCache.getGlobalCacheDir
+      Temp.withTempDirectory cacheDir "spago-repl-tmp" $ \dir -> do
+        Turtle.cd (Turtle.decodeString dir)
+
+        Packages.initProject False
+
+        config@Config.Config{ packageSet = PackageSet.PackageSet{..}, ..} <- Config.ensureConfig
+
+        let updatedConfig = Config.Config name (dependencies <> newPackages) (Config.packageSet config) configSourcePaths
+
+        deps <- Packages.getProjectDeps updatedConfig
+        let globs = Packages.getGlobs deps depsOnly $ Config.configSourcePaths updatedConfig
+
+        Fetch.fetchPackages maybeLimit cacheFlag deps packagesMinPursVersion
+
+        Purs.repl globs passthroughArgs
 
 -- | Test the project: compile and run "Test.Main"
 --   (or the provided module name) with node
-test :: Spago m => Maybe Purs.ModuleName -> BuildOptions -> m ()
+test :: Spago m => Maybe Purs.ModuleName -> BuildOptions -> [Purs.ExtraArg] -> m ()
 test = runWithNode (Purs.ModuleName "Test.Main") (Just "Tests succeeded.") "Tests failed: "
 
 -- | Run the project: compile and run "Main"
 --   (or the provided module name) with node
-run :: Spago m => Maybe Purs.ModuleName -> BuildOptions -> m ()
+run :: Spago m => Maybe Purs.ModuleName -> BuildOptions -> [Purs.ExtraArg] -> m ()
 run = runWithNode (Purs.ModuleName "Main") Nothing "Running failed, exit code: "
 
 -- | Run the project with node: compile and run with the provided ModuleName
@@ -109,14 +141,20 @@ runWithNode
   -> Text
   -> Maybe Purs.ModuleName
   -> BuildOptions
+  -> [Purs.ExtraArg]
   -> m ()
-runWithNode defaultModuleName maybeSuccessMessage failureMessage maybeModuleName buildOpts = do
+runWithNode defaultModuleName maybeSuccessMessage failureMessage maybeModuleName buildOpts nodeArgs = do
   echoDebug "Running NodeJS"
   build buildOpts (Just nodeAction)
   where
     moduleName = fromMaybe defaultModuleName maybeModuleName
-    cmd = "node -e \"require('./output/" <> Purs.unModuleName moduleName <> "').main()\""
+    args = Text.intercalate " " $ map Purs.unExtraArg nodeArgs
+    contents = "#!/usr/bin/env node\n\n" <> "require('../output/" <> Purs.unModuleName moduleName <> "').main()"
+    cmd = "node .spago/run.js " <> args
     nodeAction = do
+      echoDebug $ "Writing .spago/run.js"
+      writeTextFile ".spago/run.js" contents
+      chmod executable ".spago/run.js"
       shell cmd empty >>= \case
         ExitSuccess   -> fromMaybe (pure ()) (echo <$> maybeSuccessMessage)
         ExitFailure n -> die $ failureMessage <> repr n
@@ -164,10 +202,10 @@ bundleModule maybeModuleName maybeTargetPath noBuild buildOpts = do
     NoBuild -> bundleAction
 
 -- | Generate docs for the `sourcePaths`
-docs :: Spago m => [Purs.SourcePath] -> m ()
-docs sourcePaths = do
+docs :: Spago m => Maybe Purs.DocsFormat -> [Purs.SourcePath] -> Packages.DepsOnly -> m ()
+docs format sourcePaths depsOnly = do
   echoDebug "Running `spago docs`"
-  config <- Config.ensureConfig
+  config@Config.Config{..} <- Config.ensureConfig
   deps <- Packages.getProjectDeps config
   echo "Generating documentation for the project. This might take a while.."
-  Purs.docs $ defaultSourcePaths <> Packages.getGlobs deps <> sourcePaths
+  Purs.docs format $ Packages.getGlobs deps depsOnly configSourcePaths <> sourcePaths

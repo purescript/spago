@@ -30,6 +30,17 @@ cannotFindPackagesButItsFine = makeMessage
   [ "WARNING: did not find a " <> surroundQuote "packages.dhall" <> " in your current location, skipping compiler version check"
   ]
 
+cannotGetGlobalCacheDir :: Text
+cannotGetGlobalCacheDir = makeMessage
+  [ "ERROR: Spago was not able to get a directory for the global cache. To fix this there are some things you could do:"
+  , ""
+  , "- Set either the `HOME` or `XDG_CACHE_HOME` environment variable. Depending on your OS you'll have to type a different thing in your terminal to do it:"
+  , "  On Windows:    set XDG_CACHE_DIR=\"C:\\tmp\\spago\""
+  , "  On Linux/Mac:  export XDG_CACHE_HOME='/tmp/spago'"
+  , ""
+  , "- Disable the global cache entirely, by passing to Spago `--global-cache skip`"
+  ]
+
 foundExistingProject :: Text -> Text
 foundExistingProject pathText = makeMessage
   [ "Found a " <> surroundQuote pathText <> " file, skipping copy. Run `spago init --force` if you wish to overwrite it."
@@ -126,7 +137,7 @@ packageSetVersionWarning = makeMessage
  [ "WARNING: the package-set version you're on doesn't check if the version of the"
  , "PureScript compiler installed on your system is compatible."
  , "If your build fails you might want to upgrade your set by running this command:"
- , "`spago package-set-upgrade`"
+ , "`spago upgrade-set`"
  , ""
  ]
 
@@ -139,7 +150,7 @@ pursVersionMismatch currentVersion minVersion = makeMessage
   , ""
   , "There are a few ways to solve this:"
   , "- install a compatible `purs` version (i.e. in the same 'semver range' as the one in the package set)"
-  , "- if the `purs` version is 'too new', you can try using `spago package-set-upgrade` to upgrade to the latest package set"
+  , "- if the `purs` version is 'too new', you can try using `spago upgrade-set` to upgrade to the latest package set"
   , "- if you know what you're doing and you want to void this check, you can override the `version` of the `metadata` package in the packages.dhall"
   , ""
   ]

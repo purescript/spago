@@ -9,6 +9,8 @@ module Spago.Prelude
   , pathFromText
   , assertDirectory
   , GlobalOptions (..)
+  , DoFormat (..)
+  , UsePsa(..)
   , Spago
   , module X
   , Typeable
@@ -32,6 +34,8 @@ module Spago.Prelude
   , mktree
   , mv
   , cptree
+  , chmod
+  , executable
   , readTextFile
   , writeTextFile
   , atomically
@@ -43,7 +47,9 @@ module Spago.Prelude
   , pathSeparator
   , headMay
   , for
+  , handleAny
   , try
+  , tryIO
   , makeAbsolute
   , hPutStrLn
   , many
@@ -51,12 +57,14 @@ module Spago.Prelude
   , callCommand
   , shell
   , shellStrict
+  , shellStrictWithErr
   , systemStrictWithErr
   , viewShell
   , repr
   , with
   , appendonly
   , async'
+  , mapTasks'
   , withTaskGroup'
   , Turtle.mktempdir
   , getModificationTime
@@ -78,6 +86,7 @@ import           Control.Monad                 as X
 import           Control.Monad.Catch           as X hiding (try)
 import           Control.Monad.Reader          as X
 import           Data.Aeson                    as X
+import           Data.Bool                     as X
 import           Data.Either                   as X
 import           Data.Foldable                 as X
 import           Data.List.NonEmpty            (NonEmpty (..))
@@ -95,12 +104,13 @@ import           Prelude                       as X hiding (FilePath)
 import           Safe                          (headMay)
 import           System.FilePath               (isAbsolute, pathSeparator, (</>))
 import           System.IO                     (hPutStrLn)
-import           Turtle                        (ExitCode (..), FilePath, appendonly, mktree, repr,
-                                                shell, shellStrict, systemStrictWithErr, testdir,
+import           Turtle                        (ExitCode (..), FilePath, appendonly, chmod,
+                                                executable, mktree, repr, shell, shellStrict,
+                                                shellStrictWithErr, systemStrictWithErr, testdir,
                                                 testfile)
 import           UnliftIO                      (MonadUnliftIO, withRunInIO)
 import           UnliftIO.Directory            (getModificationTime, makeAbsolute)
-import           UnliftIO.Exception            (IOException, try)
+import           UnliftIO.Exception            (IOException, handleAny, try, tryIO)
 import           UnliftIO.Process              (callCommand)
 
 -- | Generic Error that we throw on program exit.
@@ -112,8 +122,16 @@ instance Show SpagoError where
   show (SpagoError err) = Text.unpack err
 
 
+-- | Flag to skip automatic formatting of the Dhall files
+data DoFormat = DoFormat | NoFormat deriving (Eq)
+
+-- | Flag to disable the automatic use of `psa`
+data UsePsa = UsePsa | NoPsa
+
 data GlobalOptions = GlobalOptions
-  { debug :: Bool
+  { globalDebug    :: Bool
+  , globalDoFormat :: DoFormat
+  , globalUsePsa   :: UsePsa
   }
 
 type Spago m =
@@ -136,7 +154,7 @@ tshow = Text.pack . show
 
 echoDebug :: Spago m => Text -> m ()
 echoDebug str = do
-  hasDebug <- asks debug
+  hasDebug <- asks globalDebug
   Turtle.when hasDebug $ do
     echo str
 
@@ -183,6 +201,8 @@ withTaskGroup' n action = withRunInIO $ \run -> Async.withTaskGroup n (\taskGrou
 async' :: Spago m => Async.TaskGroup -> m a -> m (Async.Async a)
 async' taskGroup action = withRunInIO $ \run -> Async.async taskGroup (run action)
 
+mapTasks' :: (Spago m, Traversable t) => Async.TaskGroup -> t (m a) -> m (t a)
+mapTasks' taskGroup actions = withRunInIO $ \run -> Async.mapTasks taskGroup (run <$> actions)
 
 -- | Code from: https://github.com/dhall-lang/dhall-haskell/blob/d8f2787745bb9567a4542973f15e807323de4a1a/dhall/src/Dhall/Import.hs#L578
 assertDirectory :: (MonadIO m, MonadThrow m) => FilePath.FilePath -> m ()

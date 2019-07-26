@@ -14,19 +14,21 @@ module Spago.PackageSet
 
 import           Spago.Prelude
 
-import qualified Data.Text       as Text
-import qualified Data.Versions   as Version
+import qualified Data.Text           as Text
+import qualified Data.Text.Encoding  as Text
+import qualified Data.Versions       as Version
 import qualified Dhall
-import           Dhall.Binary    (defaultStandardVersion)
+import           Dhall.Binary        (defaultStandardVersion)
 import qualified Dhall.Freeze
 import qualified Dhall.Pretty
-import qualified GitHub
-import           Network.URI     (parseURI)
+import qualified Network.HTTP.Simple as Http
+import qualified Network.HTTP.Client as Http
+import           Network.URI         (parseURI)
 
-import qualified Spago.Dhall     as Dhall
-import           Spago.Messages  as Messages
-import qualified Spago.Purs      as Purs
-import qualified Spago.Templates as Templates
+import qualified Spago.Dhall         as Dhall
+import           Spago.Messages      as Messages
+import qualified Spago.Purs          as Purs
+import qualified Spago.Templates     as Templates
 
 
 newtype PackageName = PackageName { packageName :: Text }
@@ -77,15 +79,14 @@ path :: FilePath
 path = pathFromText pathText
 
 
--- | Tries to create the `packages.dhall` file. Fails when the file already exists,
---   unless `--force` has been used.
-makePackageSetFile :: Bool -> IO ()
+-- | Tries to create the `packages.dhall` file if needed
+makePackageSetFile :: Spago m => Bool -> m ()
 makePackageSetFile force = do
-  unless force $ do
-    hasPackagesDhall <- testfile path
-    when hasPackagesDhall $ echo $ Messages.foundExistingProject pathText
-  writeTextFile path Templates.packagesDhall
-  Dhall.format pathText
+  hasPackagesDhall <- testfile path
+  if force || not hasPackagesDhall
+    then writeTextFile path Templates.packagesDhall
+    else echo $ Messages.foundExistingProject pathText
+  Dhall.format DoFormat pathText
 
 
 -- | Tries to upgrade the Package-Sets release of the local package set.
@@ -97,32 +98,112 @@ makePackageSetFile force = do
 --   - if all of this succeeds, it will regenerate the hashes and write to file
 upgradePackageSet :: Spago m => m ()
 upgradePackageSet = do
-  echoDebug "Running `spago package-set-upgrade`"
-  result <- liftIO $ GitHub.executeRequest' $ GitHub.latestReleaseR "purescript" "package-sets"
-  case result of
-    Left err -> die $ Messages.failedToReachGitHub err
-    Right GitHub.Release{..} -> do
-      echo ("Found the most recent tag for \"purescript/package-sets\": " <> surroundQuote releaseTagName)
+  echoDebug "Running `spago upgrade-set`"
+  try getLatestRelease >>= \case
+    Left (err :: SomeException) -> echoDebug $ Messages.failedToReachGitHub err
+    Right releaseTagName -> do
+      let quotedTag = surroundQuote releaseTagName
+      echoDebug $ "Found the most recent tag for \"purescript/package-sets\": " <> quotedTag
       rawPackageSet <- liftIO $ Dhall.readRawExpr pathText
       case rawPackageSet of
         Nothing -> die Messages.cannotFindPackages
+        -- Skip the check if the tag is already the newest
+        Just (_, expr)
+          | (currentTag:_) <- (foldMap getCurrentTag expr)
+          , currentTag == releaseTagName
+            -> echo $ "Skipping package set version upgrade, already on latest version: " <> quotedTag
         Just (header, expr) -> do
+          echo $ "Upgrading the package set version to " <> quotedTag
           let newExpr = fmap (upgradeImports releaseTagName) expr
           echo $ Messages.upgradingPackageSet releaseTagName
-          liftIO $ Dhall.writeRawExpr pathText (header, newExpr)
+          liftIO $ Dhall.writeRawExpr DoFormat pathText (header, newExpr)
           -- If everything is fine, refreeze the imports
           freeze
   where
-    -- | Given an import and a new purescript/package-sets tag,
-    --   upgrades the import to the tag and resets the hash
-    upgradeImports :: Text -> Dhall.Import -> Dhall.Import
-    upgradeImports newTag imp@(Dhall.Import
+    -- | The idea here is that we go to the `latest` endpoint, and then get redirected
+    --   to the latest release. So we search for the `Location` header which should contain
+    --   the URL we get redirected to, and strip the release name from there (it's the
+    --   last segment of the URL)
+    getLatestRelease :: Spago m => m Text
+    getLatestRelease = do
+      request <- Http.parseRequest "https://github.com/purescript/package-sets/releases/latest"
+      response <- Http.httpBS $ request { Http.redirectCount = 0 }
+      redirectUrl <- (\case [u] -> pure u; _ -> error ("Error following GitHub redirect, response:\n\n" <> show response))
+          $ Http.getResponseHeader "Location" response
+      pure $ last $ Text.splitOn "/" $ Text.decodeUtf8 redirectUrl
+
+    getCurrentTag :: Dhall.Import -> [Text]
+    getCurrentTag Dhall.Import
+      { importHashed = Dhall.ImportHashed
+        { importType = Dhall.Remote Dhall.URL
+          -- Check if we're dealing with the right repo
+          { authority = "github.com"
+          , path = Dhall.File
+            { file = "packages.dhall"
+            , directory = Dhall.Directory
+              { components = [ currentTag, "download", "releases", "package-sets", "purescript" ]}
+            }
+          , ..
+          }
+        , ..
+        }
+      , ..
+      } = [currentTag]
+    -- TODO: remove this branch in 1.0
+    getCurrentTag Dhall.Import
       { importHashed = Dhall.ImportHashed
         { importType = Dhall.Remote Dhall.URL
           -- Check if we're dealing with the right repo
           { authority = "raw.githubusercontent.com"
           , path = Dhall.File
             { directory = Dhall.Directory
+              { components = [ "src", currentTag, "package-sets", "purescript" ]}
+            , ..
+            }
+          , ..
+          }
+        , ..
+        }
+      , ..
+      } = [currentTag]
+    getCurrentTag _ = []
+
+    -- | Given an import and a new purescript/package-sets tag,
+    --   upgrades the import to the tag and resets the hash
+    upgradeImports :: Text -> Dhall.Import -> Dhall.Import
+    upgradeImports newTag (Dhall.Import
+      { importHashed = Dhall.ImportHashed
+        { importType = Dhall.Remote Dhall.URL
+          { authority = "github.com"
+          , path = Dhall.File
+            { file = "packages.dhall"
+            , directory = Dhall.Directory
+              { components = [ _currentTag, "download", "releases", "package-sets", "purescript" ]}
+            , ..
+            }
+          , ..
+          }
+        , ..
+        }
+      , ..
+      }) =
+      let components = [ newTag, "download", "releases", "package-sets", "purescript" ]
+          directory = Dhall.Directory{..}
+          newPath = Dhall.File{ file = "packages.dhall", .. }
+          authority = "github.com"
+          importType = Dhall.Remote Dhall.URL { path = newPath, ..}
+          newHash = Nothing -- Reset the hash here, as we'll refreeze
+          importHashed = Dhall.ImportHashed { hash = newHash, ..}
+      in Dhall.Import{..}
+    -- TODO: remove this branch in 1.0
+    upgradeImports newTag imp@(Dhall.Import
+      { importHashed = Dhall.ImportHashed
+        { importType = Dhall.Remote Dhall.URL
+          -- Check if we're dealing with the right repo
+          { authority = "raw.githubusercontent.com"
+          , path = Dhall.File
+            { file = "packages.dhall"
+            , directory = Dhall.Directory
               { components = [ "src", _currentTag, ghRepo, ghOrg ]}
             , ..
             }
@@ -132,10 +213,10 @@ upgradePackageSet = do
         }
       , ..
       }) =
-      let components = [ "src", newTag, "package-sets", "purescript" ]
+      let components = [ newTag, "download", "releases", "package-sets", "purescript" ]
           directory = Dhall.Directory{..}
-          newPath = Dhall.File{..}
-          authority = "raw.githubusercontent.com"
+          newPath = Dhall.File{ file = "packages.dhall", ..}
+          authority = "github.com"
           importType = Dhall.Remote Dhall.URL { path = newPath, ..}
           newHash = Nothing -- Reset the hash here, as we'll refreeze
           importHashed = Dhall.ImportHashed { hash = newHash, ..}

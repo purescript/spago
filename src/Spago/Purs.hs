@@ -1,9 +1,23 @@
-module Spago.Purs where
+module Spago.Purs
+  ( compile
+  , repl
+  , bundle
+  , docs
+  , version
+  , parseDocsFormat
+  , SourcePath(..)
+  , TargetPath(..)
+  , ModuleName(..)
+  , ExtraArg(..)
+  , WithMain(..)
+  , DocsFormat(..)
+  ) where
 
 import           Spago.Prelude
 
 import qualified Data.Text      as Text
-import           Data.Versions  as Version
+import qualified Data.Versions  as Version
+import qualified Spago.Dhall    as Dhall
 
 import qualified Spago.Messages as Messages
 
@@ -11,6 +25,7 @@ import qualified Spago.Messages as Messages
 newtype ModuleName = ModuleName { unModuleName :: Text }
 newtype TargetPath = TargetPath { unTargetPath :: Text }
 newtype SourcePath = SourcePath { unSourcePath :: Text }
+  deriving newtype (Show, Dhall.Interpret)
 newtype ExtraArg = ExtraArg { unExtraArg :: Text }
 
 data WithMain = WithMain | WithoutMain
@@ -18,10 +33,20 @@ data WithMain = WithMain | WithoutMain
 
 compile :: Spago m => [SourcePath] -> [ExtraArg] -> m ()
 compile sourcePaths extraArgs = do
+  -- first we decide if we _want_ to use psa, then if we _can_
+  usePsa <- asks globalUsePsa
+  purs <- case usePsa of
+    NoPsa -> pure "purs"
+    UsePsa -> try psaVersion >>= \case
+      Right _ -> pure "psa"
+      Left (_err :: SomeException) -> pure "purs"
+
+  echoDebug $ "Compiling with " <> Messages.surroundQuote purs
+
   let
     paths = Text.intercalate " " $ Messages.surroundQuote <$> map unSourcePath sourcePaths
     args  = Text.intercalate " " $ map unExtraArg extraArgs
-    cmd = "purs compile " <> args <> " " <> paths
+    cmd = purs <> " compile " <> args <> " " <> paths
   runWithOutput cmd
     "Build succeeded."
     "Failed to build."
@@ -52,25 +77,52 @@ bundle withMain (ModuleName moduleName) (TargetPath targetPath) = do
     ("Bundle failed.")
 
 
-docs :: Spago m => [SourcePath] -> m ()
-docs sourcePaths = do
+data DocsFormat
+  = Html
+  | Markdown
+  | Ctags
+  | Etags
+
+parseDocsFormat :: Text -> Maybe DocsFormat
+parseDocsFormat = \case
+  "html"     -> Just Html
+  "markdown" -> Just Markdown
+  "ctags"    -> Just Ctags
+  "etags"    -> Just Etags
+  _          -> Nothing
+
+
+docs :: Spago m => Maybe DocsFormat -> [SourcePath] -> m ()
+docs format sourcePaths = do
   let
+    printDocsFormat :: DocsFormat -> Text
+    printDocsFormat = \case
+      Html     -> "html"
+      Markdown -> "markdown"
+      Ctags    -> "ctags"
+      Etags    -> "etags"
+
     paths = Text.intercalate " " $ Messages.surroundQuote <$> map unSourcePath sourcePaths
-    cmd = "purs docs " <> paths <> " --format html"
+    formatStr = printDocsFormat $ fromMaybe Html format
+    cmd = "purs docs " <> paths <> " --format " <> formatStr
   runWithOutput cmd
-    ("Docs generated. Index is at " <> Messages.surroundQuote "./generated-docs/index.html")
+    "Docs generation succeeded."
     "Docs generation failed."
 
-version :: Spago m => m (Maybe Version.SemVer)
-version = do
-  fullVersionText <- shellStrict "purs --version" empty >>= \case
-    (ExitSuccess, out) -> pure out
-    _ -> die "Failed to run 'purs --version'"
+version, psaVersion :: Spago m => m (Maybe Version.SemVer)
+version = versionImpl "purs"
+psaVersion = versionImpl "psa"
+
+versionImpl :: Spago m => Text -> m (Maybe Version.SemVer)
+versionImpl purs = do
+  fullVersionText <- shellStrictWithErr (purs <> " --version") empty >>= \case
+    (ExitSuccess, out, _err) -> pure out
+    _ -> die $ "Failed to run '" <> purs <> " --version'"
   versionText <- pure $ headMay $ Text.split (== ' ') fullVersionText
   parsed <- pure $ versionText >>= (hush . Version.semver)
 
   when (isNothing parsed) $ do
-    echo $ Messages.failedToParseCommandOutput "purs --version" fullVersionText
+    echo $ Messages.failedToParseCommandOutput (purs <> " --version") fullVersionText
 
   pure parsed
 

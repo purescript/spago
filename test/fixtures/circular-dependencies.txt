@@ -1,0 +1,3 @@
+spago: The following packages have circular dependencies:
+  - a
+  - b
