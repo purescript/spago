@@ -46,7 +46,7 @@ initProject force = do
   echo "Initializing a sample project or migrating an existing one.."
 
   -- packages.dhall and spago.dhall overwrite can be forced
-  liftIO $ PackageSet.makePackageSetFile force
+  PackageSet.makePackageSetFile force
   Config.makeConfig force
 
   -- Get the latest version of the package set if possible
