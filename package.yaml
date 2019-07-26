@@ -61,6 +61,7 @@ library:
   - github
   - versions
   - lens
+  - lens-aeson
   - safe
   - fsnotify
   - Glob
@@ -76,6 +77,8 @@ library:
   - foldl
   - http-conduit
   - time
+  - either
+  - semver-range
 
 executables:
   spago:

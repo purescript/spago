@@ -1,4 +1,4 @@
-module Spago.Bower where
+module Spago.BowerMigration where
 
 import           Spago.Prelude hiding (Success)
 

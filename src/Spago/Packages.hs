@@ -26,7 +26,7 @@ import qualified Data.Text                as Text
 import qualified Data.Text.Lazy           as LT
 import qualified Data.Text.Lazy.Encoding  as LT
 
-import           Spago.Bower        as Bower
+import           Spago.BowerMigration        as Bower
 import           Spago.Config       (Config (..))
 import qualified Spago.Config       as Config
 import qualified Spago.FetchPackage as Fetch

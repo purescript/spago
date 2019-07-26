@@ -53,10 +53,6 @@ data Command
   -- | Verify that the Package Set is correct
   | VerifySet (Maybe Int) (Maybe CacheFlag)
 
-  -- | Verify that the dependencies in the bower file can be satisfied by the
-  --   package set.
-  | VerifyBower
-
   -- | Test the project with some module, default Test.Main
   | Test (Maybe ModuleName) BuildOptions
 
@@ -222,7 +218,6 @@ parser = do
       , listPackages
       , verify
       , verifySet
-      , verifyBower
       , packageSetUpgrade
       , freeze
       ]
@@ -255,12 +250,6 @@ parser = do
       ( "verify-set"
       , "Verify that the whole Package Set builds correctly"
       , VerifySet <$> limitJobs <*> cacheFlag
-      )
-
-    verifyBower =
-      ( "verify-bower"
-      , "Verify that the package set satisfies bower dependencies"
-      , pure VerifyBower
       )
 
     packageSetUpgrade =
@@ -343,7 +332,6 @@ main = do
       Sources                               -> Spago.Packages.sources
       Verify limitJobs cacheConfig package  -> Spago.Packages.verify limitJobs cacheConfig (Just package)
       VerifySet limitJobs cacheConfig       -> Spago.Packages.verify limitJobs cacheConfig Nothing
-      VerifyBower                           -> Spago.Packages.verifyBower
       PackageSetUpgrade                     -> Spago.Packages.upgradePackageSet
       Freeze                                -> Spago.Packages.freeze
       Build buildOptions                    -> Spago.Build.build buildOptions Nothing
