@@ -85,8 +85,6 @@ bumpVersion :: Spago m => DryRun -> VersionBump -> m ()
 bumpVersion dryRun spec = do
   Bower.writeBowerJson
 
-  Git.requireCleanWorkingTree
-
   oldVersion <- getCurrentVersion
   newVersion <- getNextVersion spec oldVersion
 

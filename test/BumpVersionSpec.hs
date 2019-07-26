@@ -67,8 +67,7 @@ spec = around_ setup $ do
 
     before_ (initGitTag "v1.2.3") $ it "Spago should not make a tag when not passing --no-dry-run" $ do
 
-      spago ["bump-version", "minor"] >>= shouldBeSuccessInfix
-        "Skipped creating new Git tag (v1.3.0) because this is a dry run."
+      spago ["bump-version", "minor"] >>= shouldBeSuccess
       getHighestTag >>= (`shouldBe` Just "v1.2.3")
 
     before_ (initGitTag "not-a-version") $ it "Spago should use v0.0.0 as initial version" $ do
@@ -98,7 +97,7 @@ spec = around_ setup $ do
 
     before_ initGit $ it "Spago should create bower.json, but not commit it" $ do
 
-      spago ["bump-version", "--no-dry-run", "minor"] >>= shouldBeFailureInfix
+      spago ["bump-version", "minor"] >>= shouldBeFailureInfix
          "A new bower.json has been generated. Please commit this and run `bump-version` again."
       mv "bower.json" "bump-version-bower.json"
       checkFixture "bump-version-bower.json"
@@ -108,7 +107,7 @@ spec = around_ setup $ do
       appendFile ".gitignore" "bower.json\n"
       commitAll
       spago ["bump-version", "minor"] >>= shouldBeFailureInfix
-        "bower.json is being ignored by git - change this before continuing."
+        "bower.json is being ignored by git - change this before continuing"
 
     before_ initGit $ it "Spago should generate URL#version for non-tagged dependency" $ do
 

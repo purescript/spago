@@ -75,7 +75,7 @@ spec = around_ setup $ do
 
       writeTextFile "psc-package.json" "{ \"name\": \"aaa\", \"depends\": [ \"prelude\" ], \"set\": \"foo\", \"source\": \"bar\" }"
       spago ["init"] >>= shouldBeSuccess
-      spago ["install", "-j10", "simple-json", "foreign"] >>= shouldBeSuccess
+      spago ["install", "-j 10", "simple-json", "foreign"] >>= shouldBeSuccess
       mv "spago.dhall" "spago-install-success.dhall"
       checkFixture "spago-install-success.dhall"
 
