@@ -548,14 +548,14 @@ If you decide so, you can read up on how to do it [here][package-sets-contributi
 The version of the package-set you depend on is fixed in the `packages.dhall` file
 (look for the `upstream` var).
 
-You can upgrade to the latest version of the package-set with the `package-set-upgrade`
+You can upgrade to the latest version of the package-set with the `upgrade-set`
 command, that will automatically find out the latest version, download it, and write
 the new url and hashes in the `packages.dhall` file for you.
 
 Running it would look something like this:
 
 ```bash
-$ spago package-set-upgrade
+$ spago upgrade-set
 Found the most recent tag for "purescript/package-sets": "psc-0.12.3-20190227"
 Package-set upgraded to latest tag "psc-0.12.3-20190227"
 Fetching the new one and generating hashes.. (this might take some time)

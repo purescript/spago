@@ -168,7 +168,7 @@ spagoUpdater token controlChan fetcherChan = go Nothing
                     , "git pull --rebase"
                     , "git checkout -B master origin/master"
                     , "cd templates"
-                    , "spago package-set-upgrade"
+                    , "spago upgrade-set"
                     , "cd .."
                     , "git checkout -B " <> Text.unpack branchName
                     , "git add templates/packages.dhall"

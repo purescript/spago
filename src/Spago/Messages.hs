@@ -133,7 +133,7 @@ packageSetVersionWarning = makeMessage
  [ "WARNING: the package-set version you're on doesn't check if the version of the"
  , "PureScript compiler installed on your system is compatible."
  , "If your build fails you might want to upgrade your set by running this command:"
- , "`spago package-set-upgrade`"
+ , "`spago upgrade-set`"
  , ""
  ]
 
@@ -146,7 +146,7 @@ pursVersionMismatch currentVersion minVersion = makeMessage
   , ""
   , "There are a few ways to solve this:"
   , "- install a compatible `purs` version (i.e. in the same 'semver range' as the one in the package set)"
-  , "- if the `purs` version is 'too new', you can try using `spago package-set-upgrade` to upgrade to the latest package set"
+  , "- if the `purs` version is 'too new', you can try using `spago upgrade-set` to upgrade to the latest package set"
   , "- if you know what you're doing and you want to void this check, you can override the `version` of the `metadata` package in the packages.dhall"
   , ""
   ]
