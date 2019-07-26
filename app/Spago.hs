@@ -243,7 +243,7 @@ parser = do
       , listPackages
       , verify
       , verifySet
-      , packageSetUpgrade
+      , upgradeSet
       , freeze
       ]
 
@@ -277,8 +277,8 @@ parser = do
       , VerifySet <$> limitJobs <*> cacheFlag
       )
 
-    packageSetUpgrade =
-      ( "package-set-upgrade"
+    upgradeSet =
+      ( "upgrade-set"
       , "Upgrade the upstream in packages.dhall to the latest package-sets release"
       , pure PackageSetUpgrade
       )
