@@ -14,8 +14,7 @@ import qualified Data.Text     as Text
 import qualified Safe.Foldable as Safe
 
 import qualified Spago.Bower   as Bower
-import           Spago.DryRun     (DryRun (..))
-import qualified Spago.DryRun  as DryRun
+import           Spago.DryRun     (DryRun(..), DryAction(..), runDryActions)
 import qualified Spago.Git     as Git
 
 
@@ -70,37 +69,32 @@ getNextVersion spec version@SemVer{..} =
 
 
 -- | Make a tag for the new version.
-tagNewVersion :: Spago m => DryRun -> SemVer -> SemVer -> m ()
-tagNewVersion dryRun oldVersion newVersion = do
+tagNewVersion :: Spago m => SemVer -> SemVer -> m ()
+tagNewVersion oldVersion newVersion = do
 
   let oldVersionTag = unparseVersion oldVersion
       newVersionTag = unparseVersion newVersion
 
-  case dryRun of
-    DryRun -> do
-      echo $ "Skipped creating new Git tag (" <> newVersionTag <> ") because this is a dry run."
-    NoDryRun -> do
-      Git.commitAndTag newVersionTag $ oldVersionTag <> " → " <> newVersionTag
-      echo $ "Git tag created for new version: " <> newVersionTag
+  Git.commitAndTag newVersionTag $ oldVersionTag <> " → " <> newVersionTag
+  echo $ "Git tag created for new version: " <> newVersionTag
 
 
 -- | Bump and tag a new version in preparation for release.
-bumpVersion :: Spago m => Maybe Int -> DryRun -> VersionBump -> m ()
-bumpVersion limitJobs dryRun spec = do
-  DryRun.showHelp dryRun
+bumpVersion :: Spago m => DryRun -> VersionBump -> m ()
+bumpVersion dryRun spec = do
+  Bower.writeBowerJson
 
   Git.requireCleanWorkingTree
 
   oldVersion <- getCurrentVersion
   newVersion <- getNextVersion spec oldVersion
 
-  Bower.writeBowerJson limitJobs dryRun
-  Bower.runBowerInstall dryRun
+  Bower.runBowerInstall
 
-  when (dryRun == NoDryRun) $ do
-    clean <- Git.hasCleanWorkingTree
-    if clean
-      then echo $ "The generated " <> Bower.bowerPath <> " is already committed, good."
-      else die $ "A new " <> Bower.bowerPath <> " has been generated. Please commit this and run `bump-version` again."
+  clean <- Git.hasCleanWorkingTree
+  when (not clean) $ do
+    die $ "A new " <> Bower.bowerPath <> " has been generated. Please commit this and run `bump-version` again."
 
-  tagNewVersion dryRun oldVersion newVersion
+  runDryActions dryRun
+    $ DryAction ("create new version tag " <> unparseVersion newVersion) (tagNewVersion oldVersion newVersion)
+    :| []

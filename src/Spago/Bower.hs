@@ -22,7 +22,6 @@ import qualified Web.Bower.PackageMeta      as Bower
 
 import           Spago.Config               (Config (..), PublishConfig (..))
 import qualified Spago.Config               as Config
-import           Spago.DryRun               (DryRun (..))
 import qualified Spago.Git                  as Git
 import qualified Spago.Packages             as Packages
 import           Spago.PackageSet           (PackageName (..), Package (..), Repo (..))
@@ -45,13 +44,14 @@ runBower args = do
   Turtle.procStrictWithErr cmd args empty
 
 
-writeBowerJson :: Spago m => Maybe Int -> DryRun -> m ()
-writeBowerJson limitJobs dryRun = do
+writeBowerJson :: Spago m => m ()
+writeBowerJson = do
+  echo $ "Generating " <> bowerPath <> " using the package set versions.."
   config@Config{..} <- Config.ensureConfig
   PublishConfig{..} <- Config.ensurePublishConfig
 
   bowerName <- mkPackageName name
-  bowerDependencies <- mkDependencies limitJobs config
+  bowerDependencies <- mkDependencies config
   template <- templateBowerJson
 
   let bowerLicense = [license]
@@ -65,23 +65,18 @@ writeBowerJson limitJobs dryRun = do
 
   ignored <- Git.isIgnored bowerPath
   when ignored $ do
-    die $ bowerPath <> " is being ignored by git - change this before continuing."
+    die $ bowerPath <> " is being ignored by git - change this before continuing"
 
-  case dryRun of
-    DryRun -> echo $ "Skipped writing " <> bowerPath <> " because this is a dry run."
-    NoDryRun -> do
-      liftIO $ ByteString.writeFile bowerPath bowerJson
-      echo $ "Generated " <> bowerPath <> " using the package set."
+  liftIO $ ByteString.writeFile bowerPath bowerJson
+  echo $ "Generated " <> bowerPath <> " using the package set"
 
 
-runBowerInstall :: Spago m => DryRun -> m ()
-runBowerInstall = \case
-  DryRun -> echo "Skipped running `bower install` because this is a dry run."
-  NoDryRun -> do
-    echo "Running `bower install` so `pulp publish` can read resolved versions from it."
-    shell "bower install --silent" empty >>= \case
-      ExitSuccess   -> pure ()
-      ExitFailure _ -> die "Failed to run `bower install` on your package"
+runBowerInstall :: Spago m => m ()
+runBowerInstall = do
+  echo "Running `bower install` so `pulp publish` can read resolved versions from it"
+  shell "bower install --silent" empty >>= \case
+    ExitSuccess   -> pure ()
+    ExitFailure _ -> die "Failed to run `bower install` on your package"
 
 
 templateBowerJson :: Spago m => m Bower.PackageMeta
@@ -123,11 +118,15 @@ mkBowerVersion packageName version repo = do
     else pure $ Bower.VersionRange $ repo <> "#" <> version
 
 
-mkDependencies :: Spago m => Maybe Int -> Config -> m [(Bower.PackageName, Bower.VersionRange)]
-mkDependencies limitJobs config = do
+mkDependencies :: Spago m => Config -> m [(Bower.PackageName, Bower.VersionRange)]
+mkDependencies config = do
   deps <- Packages.getDirectDeps config
+
+  jobs <- getJobs
+
   withTaskGroup' jobs $ \taskGroup ->
     mapTasks' taskGroup $ mkDependency <$> deps
+
   where
     mkDependency :: Spago m => (PackageName, Package) -> m (Bower.PackageName, Bower.VersionRange)
     mkDependency (PackageName{..}, Package{..}) =
@@ -139,8 +138,8 @@ mkDependencies limitJobs config = do
           bowerVersion <- mkBowerVersion bowerName version path
           pure (bowerName, bowerVersion)
 
-    jobs = case System.buildOS of
+    getJobs = case System.buildOS of
       -- Windows sucks so lets make it slow for them!
       -- (just kidding, its a bug: https://github.com/bower/spec/issues/79)
-      Windows -> 1
-      _       -> fromMaybe 10 limitJobs
+      Windows -> pure 1
+      _       -> asks globalJobs
