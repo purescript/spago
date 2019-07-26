@@ -374,8 +374,8 @@ main = do
         -> Spago.Build.bundleModule modName tPath shouldBuild buildOptions
       Docs format sourcePaths depsOnly      -> Spago.Build.docs format sourcePaths depsOnly
       Version                               -> printVersion
-      PscPackageLocalSetup force            -> liftIO $ PscPackage.localSetup force
-      PscPackageInsDhall                    -> liftIO $ PscPackage.insDhall
-      PscPackageClean                       -> liftIO $ PscPackage.clean
+      PscPackageLocalSetup force            -> PscPackage.localSetup force
+      PscPackageInsDhall                    -> PscPackage.insDhall
+      PscPackageClean                       -> PscPackage.clean
       Bundle                                -> die Messages.bundleCommandRenamed
       MakeModule                            -> die Messages.makeModuleCommandRenamed

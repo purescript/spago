@@ -80,7 +80,7 @@ path = pathFromText pathText
 
 
 -- | Tries to create the `packages.dhall` file if needed
-makePackageSetFile :: Bool -> IO ()
+makePackageSetFile :: Spago m => Bool -> m ()
 makePackageSetFile force = do
   hasPackagesDhall <- testfile path
   if force || not hasPackagesDhall
