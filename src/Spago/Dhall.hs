@@ -12,9 +12,9 @@ import qualified Data.Text.Prettyprint.Doc.Render.Text as PrettyText
 import           Dhall
 import           Dhall.Core                            as Dhall hiding (Type, pretty)
 import qualified Dhall.Format
+import qualified Dhall.Import
 import qualified Dhall.Map
 import qualified Dhall.Parser                          as Parser
-import qualified Dhall.Import
 import qualified Dhall.Pretty
 import           Dhall.TypeCheck                       (X, typeOf)
 
@@ -22,9 +22,12 @@ type DhallExpr a = Dhall.Expr Parser.Src a
 
 
 -- | Format a Dhall file in ASCII
-format :: MonadIO m => Text -> m ()
-format pathText = liftIO $ Dhall.Format.format
-  (Dhall.Format.Format Dhall.Pretty.ASCII $ Dhall.Format.Modify (Just $ Text.unpack pathText))
+format :: MonadIO m => DoFormat -> Text -> m ()
+format shouldFormat pathText =
+  when (shouldFormat == DoFormat) $
+    liftIO $ Dhall.Format.format
+      (Dhall.Format.Format Dhall.Pretty.ASCII $
+       Dhall.Format.Modify (Just $ Text.unpack pathText))
 
 
 -- | Prettyprint a Dhall expression
@@ -50,15 +53,14 @@ readRawExpr pathText = do
     else (pure Nothing)
 
 
-writeRawExpr :: Text -> (Text, DhallExpr Dhall.Import) -> IO ()
-writeRawExpr pathText (header, expr) = do
+writeRawExpr :: DoFormat -> Text -> (Text, DhallExpr Dhall.Import) -> IO ()
+writeRawExpr shouldFormat pathText (header, expr) = do
   -- After modifying the expression, we have to check if it still typechecks
   -- if it doesn't we don't write to file.
   resolvedExpr <- Dhall.Import.load expr
-  throws (Dhall.TypeCheck.typeOf resolvedExpr)
-  echo $ "Done. Updating the \"" <> pathText <> "\" file.."
+  _ <- throws (Dhall.TypeCheck.typeOf resolvedExpr)
   writeTextFile (pathFromText pathText) $ prettyWithHeader header expr <> "\n"
-  format pathText
+  format shouldFormat pathText
 
 
 -- | Returns a Dhall Text literal from a lone string

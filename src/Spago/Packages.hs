@@ -6,12 +6,14 @@ module Spago.Packages
   , verifyBower
   , listPackages
   , getGlobs
+  , getDirectDeps
   , getProjectDeps
   , PackageSet.upgradePackageSet
   , PackageSet.freeze
   , PackageSet.PackageName(..)
   , PackagesFilter(..)
   , JsonFlag(..)
+  , DepsOnly(..)
   ) where
 
 import           Spago.Prelude
@@ -26,7 +28,7 @@ import qualified Data.Text                as Text
 import qualified Data.Text.Lazy           as LT
 import qualified Data.Text.Lazy.Encoding  as LT
 
-import           Spago.Bower        as Bower
+import           Spago.BowerMigration        as Bower
 import           Spago.Config       (Config (..))
 import qualified Spago.Config       as Config
 import qualified Spago.FetchPackage as Fetch
@@ -48,8 +50,11 @@ initProject force = do
   echo "Initializing a sample project or migrating an existing one.."
 
   -- packages.dhall and spago.dhall overwrite can be forced
-  liftIO $ PackageSet.makePackageSetFile force
+  PackageSet.makePackageSetFile force
   Config.makeConfig force
+
+  -- Get the latest version of the package set if possible
+  PackageSet.upgradePackageSet
 
   -- If these directories (or files) exist, we skip copying "sample sources"
   -- Because you might want to just init a project with your own source files,
@@ -82,10 +87,29 @@ initProject force = do
         False -> writeTextFile destPath srcTemplate
 
 
-getGlobs :: [(PackageName, Package)] -> [Purs.SourcePath]
-getGlobs = map (\pair
-                 -> Purs.SourcePath $ Text.pack $ Fetch.getLocalCacheDir pair
-                 <> "/src/**/*.purs")
+-- | Only build deps and ignore input paths
+data DepsOnly = DepsOnly | AllSources
+
+getGlobs :: [(PackageName, Package)] -> DepsOnly -> [Purs.SourcePath] -> [Purs.SourcePath]
+getGlobs deps depsOnly configSourcePaths
+  = map (\pair
+          -> Purs.SourcePath $ Text.pack $ Fetch.getLocalCacheDir pair
+          <> "/src/**/*.purs") deps
+  <> case depsOnly of
+    DepsOnly -> []
+    AllSources -> configSourcePaths
+
+
+-- | Return the direct dependencies of the current project
+getDirectDeps :: Spago m => Config -> m [(PackageName, Package)]
+getDirectDeps Config{..} = do
+  let PackageSet{..} = packageSet
+  for dependencies $ \dep ->
+    case Map.lookup dep packagesDB of
+      Nothing ->
+        die $ pkgNotFoundMsg packagesDB (NotFoundError dep)
+      Just pkg ->
+        pure (dep, pkg)
 
 
 -- | Return all the transitive dependencies of the current project
@@ -99,33 +123,45 @@ getProjectDeps Config{..} = getTransitiveDeps packageSet dependencies
 getTransitiveDeps :: Spago m => PackageSet -> [PackageName] -> m [(PackageName, Package)]
 getTransitiveDeps PackageSet{..} deps = do
   echoDebug "Getting transitive deps"
-  Map.toList . fold <$> traverse (go Set.empty) deps
+  let (packageMap, notFoundErrors, cycleErrors) = foldMap (go Set.empty Set.empty Set.empty) deps
+
+  handleErrors (Map.toList packageMap) (Set.toList notFoundErrors) (Set.toList cycleErrors)
   where
-    go seen dep
+    handleErrors packageMap notFoundErrors cycleErrors
+      | not (null cycleErrors) = die $ "The following packages have circular dependencies:\n" <> (Text.intercalate "\n" . fmap pkgCycleMsg) cycleErrors
+      | not (null notFoundErrors) = die $ "The following packages do not exist in your package set:\n" <> (Text.intercalate "\n" . fmap (pkgNotFoundMsg packagesDB)) notFoundErrors
+      | otherwise = pure packageMap
+
+    pkgCycleMsg (CycleError pkg) = "  - " <> packageName pkg
+
+    go seen notFoundErrors cycleErrors dep
       | dep `Set.member` seen =
-          die $ "Cycle in package dependencies at package " <> packageName dep
-      | otherwise =
-        case Map.lookup dep packagesDB of
+          (packagesDB, notFoundErrors, Set.insert (CycleError dep) cycleErrors)
+      | otherwise = case Map.lookup dep packagesDB of
           Nothing ->
-            die $ pkgNotFoundMsg dep
+            (packagesDB , Set.insert (NotFoundError dep) notFoundErrors, cycleErrors)
           Just info@Package{..} -> do
-            m <- fold <$> traverse (go (Set.insert dep seen)) dependencies
-            pure (Map.insert dep info m)
+            let (m, notFoundErrors', cycleErrors') = foldMap (go (Set.insert dep seen) notFoundErrors cycleErrors) dependencies
+            (Map.insert dep info m, notFoundErrors', cycleErrors')
 
-    pkgNotFoundMsg pkg =
-      "Package `" <> packageName pkg <> "` does not exist in package set" <> extraHelp
-      where
-        extraHelp = case suggestedPkg of
-          Just pkg' | Map.member pkg' packagesDB ->
-            ", but `" <> packageName pkg' <> "` does, did you mean that instead?"
-          Just pkg' ->
-            ", and nor does `" <> packageName pkg' <> "`"
-          Nothing ->
-            ""
 
-        suggestedPkg = do
-          sansPrefix <- Text.stripPrefix "purescript-" (packageName pkg)
-          Just (PackageName sansPrefix)
+pkgNotFoundMsg :: Map PackageName Package -> NotFoundError PackageName -> Text
+pkgNotFoundMsg packagesDB (NotFoundError pkg) = "  - " <> packageName pkg <> extraHelp
+  where
+    extraHelp = case suggestedPkg of
+      Just pkg' | Map.member pkg' packagesDB ->
+        ", but `" <> packageName pkg' <> "` does, did you mean that instead?"
+      Just pkg' ->
+        ", and nor does `" <> packageName pkg' <> "`"
+      Nothing ->
+        ""
+    suggestedPkg = do
+      sansPrefix <- Text.stripPrefix "purescript-" (packageName pkg)
+      Just (PackageName sansPrefix)
+
+
+newtype NotFoundError a = NotFoundError a deriving (Eq, Ord)
+newtype CycleError a = CycleError a deriving (Eq, Ord)
 
 
 getReverseDeps  :: PackageSet -> PackageName -> IO [(PackageName, Package)]
@@ -236,7 +272,10 @@ sources = do
   echoDebug "Running `spago sources`"
   config <- Config.ensureConfig
   deps <- getProjectDeps config
-  _ <- traverse echo $ fmap Purs.unSourcePath $ getGlobs deps
+  _ <- traverse echo
+    $ fmap Purs.unSourcePath
+    $ getGlobs deps AllSources
+    $ Config.configSourcePaths config
   pure ()
 
 data BowerDependencyResult
@@ -306,7 +345,7 @@ verify maybeLimit cacheFlag maybePackage = do
     verifyPackage :: Spago m => PackageSet -> PackageName -> m ()
     verifyPackage packageSet@PackageSet{..} name = do
       deps <- getTransitiveDeps packageSet [name]
-      let globs = getGlobs deps
+      let globs = getGlobs deps DepsOnly []
           quotedName = Messages.surroundQuote $ packageName name
       Fetch.fetchPackages maybeLimit cacheFlag deps packagesMinPursVersion
       echo $ "Verifying package " <> quotedName

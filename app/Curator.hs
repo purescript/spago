@@ -14,6 +14,7 @@ import qualified Data.Map.Strict                as Map
 import qualified Data.Set                       as Set
 import qualified Data.Text                      as Text
 import qualified Data.Text.Encoding             as Encoding
+import qualified Data.Time                      as Time
 import qualified Data.Vector                    as Vector
 import qualified Dhall.Core
 import qualified Dhall.Map
@@ -78,10 +79,10 @@ main = do
   chanPackageSetsUpdater <- Queue.newTQueueIO
 
   -- Start threads
-  Concurrent.forkIO $ fetcher token chanFetcher chanMetadataUpdater chanPackageSetsUpdater
-  Concurrent.forkIO $ spagoUpdater token chanSpagoUpdater chanFetcher
-  Concurrent.forkIO $ metadataUpdater chanMetadataUpdater
-  Concurrent.forkIO $ packageSetsUpdater token chanPackageSetsUpdater
+  spawnThread "fetcher"      $ fetcher token chanFetcher chanMetadataUpdater chanPackageSetsUpdater
+  spawnThread "spagoUpdater" $ spagoUpdater token chanSpagoUpdater chanFetcher
+  spawnThread "metaUpdater"  $ metadataUpdater chanMetadataUpdater
+  spawnThread "setsUpdater"  $ packageSetsUpdater token chanPackageSetsUpdater
 
   {- |
 
@@ -104,6 +105,15 @@ main = do
     _60m = 60 * 60 * 1000000
 
     sleep = Concurrent.threadDelay
+
+    spawnThread name thread = Concurrent.forkIO $ catch thread $ \(err :: SomeException) -> do
+      now <- Time.getCurrentTime
+      BSL.appendFile "curator-errors.log"
+        $ "Current time: " <> repr now <> "\n"
+        <> "Got error from thread '" <> name <> "'\n"
+        <> "Exception was:\n\n"
+        <> (BSL.fromStrict . Encoding.encodeUtf8 . tshow) err
+        <> "\n\n\n"
 
     ensureRepo org repo = do
       isThere <- testdir $ Turtle.decodeString $ "data" </> repo
@@ -158,7 +168,7 @@ spagoUpdater token controlChan fetcherChan = go Nothing
                     , "git pull --rebase"
                     , "git checkout -B master origin/master"
                     , "cd templates"
-                    , "spago package-set-upgrade"
+                    , "spago upgrade-set"
                     , "cd .."
                     , "git checkout -B " <> Text.unpack branchName
                     , "git add templates/packages.dhall"
@@ -208,7 +218,7 @@ fetcher token controlChan metadataChan psChan = forever $ do
     fetchRepoMetadata :: (PackageName, Package) -> IO ()
     fetchRepoMetadata (_, Package{ repo = Local _, ..}) = pure ()
     fetchRepoMetadata (packageName, Package{ repo = Remote repoUrl, .. }) =
-      Retry.recoverAll (Retry.fullJitterBackoff 10000 <> Retry.limitRetries 10) $ \Retry.RetryStatus{..} -> do
+      Retry.recoverAll (Retry.fullJitterBackoff 50000 <> Retry.limitRetries 25) $ \Retry.RetryStatus{..} -> do
         let !(owner:repo:_rest)
               = Text.split (=='/')
               $ Text.replace "https://github.com/" ""
@@ -255,8 +265,11 @@ packageSetsUpdater token dataChan = go mempty mempty
   where
     updateVersion :: Monad m => PackageName -> Tag -> Expr -> m Expr
     updateVersion (PackageName packageName) (Tag tag) (Dhall.RecordLit kvs)
-      | Just (Dhall.App rest@(Dhall.App (Dhall.App (Dhall.Var (Dhall.V "mkPackage" 0)) _deps) _repo) (Dhall.TextLit _)) <- Dhall.Map.lookup packageName kvs =
-          let newPackage = Dhall.App rest $ Dhall.toTextLit tag
+      | Just (Dhall.RecordLit pkgKVs) <- Dhall.Map.lookup packageName kvs
+      , Just (Dhall.TextLit _) <- Dhall.Map.lookup "version" pkgKVs =
+          let
+            newPackageVersion = Dhall.toTextLit tag
+            newPackage = Dhall.RecordLit $ Dhall.Map.insert "version" newPackageVersion pkgKVs
           in pure $ Dhall.RecordLit $ Dhall.Map.insert packageName newPackage kvs
     updateVersion _ _ other = pure other
 
@@ -396,7 +409,7 @@ withAST path transform = do
       newExpr <- transformMExpr transform expr
       echo $ "Done. Updating the \"" <> path <> "\" file.."
       writeTextFile (pathFromText path) $ Dhall.prettyWithHeader header newExpr <> "\n"
-      liftIO $ Dhall.format path
+      liftIO $ Dhall.format DoFormat path
   where
     transformMExpr
       :: Monad m

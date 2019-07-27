@@ -1,14 +1,19 @@
 module Spago.FetchPackage
   ( fetchPackages
   , getLocalCacheDir
+  , getCacheVersionDir
   ) where
 
 import           Spago.Prelude
 
 import qualified Control.Concurrent.Async.Pool as Async
+import qualified Data.ByteString               as ByteString
+import qualified Data.Char                     as Char
 import qualified Data.List                     as List
 import qualified Data.Text                     as Text
+import qualified Data.Text.Encoding            as Text
 import qualified Data.Versions                 as Version
+import qualified Numeric                       as Numeric
 import qualified System.FilePath               as FilePath
 import qualified System.IO.Temp                as Temp
 import qualified System.Process                as Process
@@ -99,7 +104,7 @@ fetchPackage metadata pair@(packageName'@PackageName{..}, Package{ repo = Remote
   packageLocalCacheDir <- makeAbsolute $ getLocalCacheDir pair
 
   inGlobalCache <- testdir $ Turtle.decodeString packageGlobalCacheDir
-  Temp.withTempDirectory localCacheDir (Text.unpack ("__download-" <> packageName <> "-" <> version)) $ \path -> do
+  Temp.withTempDirectory localCacheDir (Text.unpack ("__download-" <> packageName <> "-" <> (getCacheVersionDir version))) $ \path -> do
     let downloadDir = path </> "download"
 
     -- * if a Package is in the global cache, copy it to the local cache
@@ -174,7 +179,7 @@ localCacheDir = ".spago"
 -- | Given a package name and a ref, return a FilePath for the package,
 --   to be used as a prefix in local and global cache
 getPackageDir :: PackageName -> Text -> FilePath.FilePath
-getPackageDir PackageName{..} version = Text.unpack packageName <> "/" <> Text.unpack version
+getPackageDir PackageName{..} version = Text.unpack packageName <> "/" <> Text.unpack (getCacheVersionDir version)
 
 
 -- | Returns the path in the local cache for a given package
@@ -186,3 +191,22 @@ getLocalCacheDir (packageName, Package{ repo = Remote _, ..}) = do
 getLocalCacheDir (_, Package{ repo = Local path }) =
   Text.unpack path
 
+
+-- | Returns the name of the cache dir based on the ref, escaped if necessary.
+-- This function must be injective and must always produce valid directory
+-- names, which means that problematic characters like / or : will be escaped
+-- using a scheme similar to URL-encoding. Note in particular that the function
+-- must be injective in a case-insensitive manner if we want this to work
+-- reliably on case-insensitive filesystems, in the sense that two different
+-- inputs must map to two different outputs _and_ those outputs must differ by
+-- more than just casing.
+--
+-- The characters which are most commonly used in version and branch names are
+-- those which we allow through as they are (without escaping).
+getCacheVersionDir :: Text -> Text
+getCacheVersionDir = Text.concatMap replace
+  where
+    escape = Text.pack . foldMap ((<>) "%" . flip Numeric.showHex "") . ByteString.unpack . Text.encodeUtf8
+    replace c = if Char.isLower c || Char.isDigit c || c `elem` ['.', ',', '-', '_', '+']
+      then Text.singleton c
+      else escape (Text.singleton c)

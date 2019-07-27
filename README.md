@@ -23,6 +23,7 @@ PureScript package manager and build tool powered by [Dhall][dhall] and
 - [Super quick tutorial](#super-quick-tutorial)
 - [How do I...](#how-do-i)
   - [Switch from `psc-package`](#switch-from-psc-package)
+  - [Switch from `bower`](#switch-from-bower)
   - [See what commands and flags are supported](#see-what-commands-and-flags-are-supported)
   - [Download my dependencies locally](#download-my-dependencies-locally)
   - [Build and run my project](#build-and-run-my-project)
@@ -49,6 +50,7 @@ PureScript package manager and build tool powered by [Dhall][dhall] and
   - [Know what `purs` commands are run under the hood](#know-what-purs-commands-are-run-under-the-hood)
   - [Ignore or update the global cache](#ignore-or-update-the-global-cache)
 - [Explanations](#explanations)
+  - [Visual Overview: What happens when you do 'spago build'?](#visual-overview-what-happens-when-you-do-spago-build)
   - [Configuration file format](#configuration-file-format)
   - [Why can't `spago` also install my npm dependencies?](#why-cant-spago-also-install-my-npm-dependencies)
   - [Why we don't resolve JS dependencies when bundling, and how to do it](#why-we-dont-resolve-js-dependencies-when-bundling-and-how-to-do-it)
@@ -58,8 +60,8 @@ PureScript package manager and build tool powered by [Dhall][dhall] and
     - [My `install` command is failing with some errors about "too many open files"](#my-install-command-is-failing-with-some-errors-about-too-many-open-files)
     - [Package set caching problems](#package-set-caching-problems)
     - [I added a new package to the `packages.dhall`, but `spago` is not installing it. Why?](#i-added-a-new-package-to-the-packagesdhall-but-spago-is-not-installing-it-why)
-- [Reference - Internals](#reference---internals)
-  - [The `spago-curator` tool](#the-spago-curator-tool)
+- [Reference - Internals](#internals)
+  - [The `spago-curator` tool](INTERNALS.md#the-spago-curator-tool)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
@@ -75,7 +77,7 @@ Our main design goals are:
 - **Reproducible builds**: thanks to [package sets][package-sets] and [Dhall][dhall], if your
   project builds today it will also build tomorrow and every day after that.
 
-Some tools that inspired `spago` are: [Rust's Cargo][cargo], [Haskell's Stack][stack], 
+Some tools that inspired `spago` are: [Rust's Cargo][cargo], [Haskell's Stack][stack],
 [`psc-package`][psc-package], [`pulp`][pulp] and [`purp`][purp].
 
 
@@ -89,7 +91,7 @@ either `bower` or `psc-package`:
 - If you use `psc-package`, you have the problem of not having the ability of overriding
   packages versions when needed, leading everyone to make their own package-set, which
   then goes unmaintained, etc.
-  
+
   Of course you can use the package-set-local-setup to solve this issue, but this is
   exactly what we're doing here: integrating all the workflow in a single tool, `spago`,
   instead of having to install and use `pulp`, `psc-package`, `purp`, etc.
@@ -112,10 +114,10 @@ For more details see the [`CONTRIBUTING.md`][contributing]
 
 The recommended installation method for Windows, Linux and macOS is `npm` (see the latest releases on npm
   [here][spago-npm]):
-  
+
 ```
 npm install -g spago
-``` 
+```
 
 Other installation methods available:
 - Download the binary from the [latest GitHub release][spago-latest-release]
@@ -128,7 +130,7 @@ Other installation methods available:
 - You might have issues with `npm` and Docker (e.g. getting the message "Downloading the spago binary failed.." etc)
   You have two options:
   - either **do not run npm as root**, because it doesn't work well with binaries. Use it as a nonprivileged user.
-  - or use `--unsafe-perm`: `npm install -g --unsafe-perm spago` 
+  - or use `--unsafe-perm`: `npm install -g --unsafe-perm spago`
 
 **Notes for Linux users:**
 - If you get networking errors (e.g. "Host Not Found") you may need to install `netbase`.
@@ -161,21 +163,16 @@ This last command will create a bunch of files:
     └── Main.purs
 ```
 
-Convention note: `spago` expects your source files to be in `src/` and your
-test files in `test/`.
-It is possible to include additional source paths when running some commands,
-like `build`, `test` or `repl`.
-
 Let's take a look at the two [Dhall][dhall] configuration files that `spago` requires:
 - `packages.dhall`: this file is meant to contain the *totality* of the packages
   available to your project (that is, any package you might want to import).
-  
+
   In practice it pulls in the [official package-set][package-sets] as a base,
   and you are then able to add any package that might not be in the package set,
   or override existing ones.
 - `spago.dhall`: this is your project configuration. It includes the above package-set,
-  the list of your dependencies, and any other project-wide setting that `spago` will
-  use for builds.
+  the list of your dependencies, the source paths that will be used to build, and any
+  other project-wide setting that `spago` will use.
 
 To build your project, run:
 
@@ -187,15 +184,21 @@ This will download the necessary dependencies and compile the sample project in 
 directory. You can take a look at the content of `output/Main/index.js` to see what kind
 of JavaScript has been generated from your new `Main.purs` file.
 
-You can already see your project running, with the following command:
+You can already see your project running, by doing
+
+```bash
+$ spago run
+```
+
+..which is basically equivalent to the following command:
 
 ```bash
 $ node -e "require('./output/Main/index').main()"
 ```
 
-This imports the JS file you just looked at in Node, and runs the `main`.
+..which imports the JS file you just looked at, and runs the `main` with Node.
 
-You can also bundle it in a single file with an entry point, so it can be run directly (useful for CLI apps):
+You can also bundle the project in a single file with an entry point, so it can be run directly (useful for CLI apps):
 
 ```bash
 $ spago bundle-app
@@ -219,6 +222,20 @@ remove it yourself.
 
 You'll note that most of the `psc-package` commands are the same in `spago`, so porting
 your existing build is just a matter of search-and-replace most of the times.
+
+
+### Switch from `bower`
+
+Switching from `bower` is a bit more involved, because the package list models
+are different. Start by running `spago init`. Then prompt spago to install your
+current `bower` dependencies by running:
+
+```
+spago install $(jq < bower.json ".dependencies | keys | .[] | .[11:]" | tr '\n' ' ' | tr -d '"')
+spago install $(jq < bower.json ".devDependencies | keys | .[] | .[11:]" | tr '\n' ' ' | tr -d '"')
+```
+
+If spago doesn't find some of them (because they're not on the package set), [add them manually](#add-a-package-to-the-package-set).
 
 
 ### See what commands and flags are supported
@@ -247,7 +264,7 @@ $ spago install
 ```
 
 This will download all the transitive dependencies of your project (i.e. the direct dependencies,
-i.e. the ones listed in the `dependencies` key of `spago.dhall`, plus all their dependencies, 
+i.e. the ones listed in the `dependencies` key of `spago.dhall`, plus all their dependencies,
 recursively) to the local `.spago` folder (and the global cache, if possible).
 
 However, running this directly is usually **not necessary**, as all commands that need the dependencies
@@ -266,7 +283,7 @@ This is just a thin layer above the PureScript compiler command `purs compile`.
 The build will produce very many JavaScript files in the `output/` folder. These
 are CommonJS modules, and you can just `require()` them e.g. on Node.
 
-It's also possible to include custom source paths when building (`src` and `test` 
+It's also possible to include custom source paths when building (`src` and `test`
 are always included):
 
 ```bash
@@ -286,6 +303,9 @@ you can use the `--watch` flag:
 
 ```bash
 $ spago build --watch
+
+# or, to clear the screen on rebuild:
+$ spago build --watch --clear-screen
 ```
 
 If you want to run the program (akin to `pulp run`), just use `run`:
@@ -298,6 +318,20 @@ $ spago run --main ModulePath.To.Main
 
 # And pass arguments through to `purs compile`
 $ spago run --main ModulePath.To.Main -- --verbose-errors
+
+# Or pass arguments to node
+$ spago run --node-args "arg1 arg2"
+```
+
+
+### Avoid re-formatting the `spago.dhall` and `packages.dhall` with each command
+
+You can pass the `--no-config-format` or `-F` global flag:
+
+``` bash
+$ spago build -F
+Installation complete.
+Build succeeded.
 ```
 
 
@@ -446,22 +480,22 @@ E.g. if we want to add the `facebook` package:
 ```haskell
 let additions =
   { facebook =
-      mkPackage
-        [ "console"
-        , "aff"
-        , "prelude"
-        , "foreign"
-        , "foreign-generic"
-        , "errors"
-        , "effect"
-        ]
-        "https://github.com/Unisay/purescript-facebook.git"
-        "v0.3.0"
+      { dependencies =
+          [ "console"
+          , "aff"
+          , "prelude"
+          , "foreign"
+          , "foreign-generic"
+          , "errors"
+          , "effect"
+          ]
+      , repo =
+          "https://github.com/Unisay/purescript-facebook.git"
+      , version =
+          "v0.3.0"
+      }
   }
 ```
-
-The `mkPackage` function should be already included in your `packages.dhall`, and it will
-expect as input a list of dependencies, the location of the package, and the tag you wish to use.
 
 Of course this works also in the case of adding local packages. In this case you won't
 care about the value of the "version" (since it won't be used), so you can put arbitrary
@@ -514,14 +548,14 @@ If you decide so, you can read up on how to do it [here][package-sets-contributi
 The version of the package-set you depend on is fixed in the `packages.dhall` file
 (look for the `upstream` var).
 
-You can upgrade to the latest version of the package-set with the `package-set-upgrade`
+You can upgrade to the latest version of the package-set with the `upgrade-set`
 command, that will automatically find out the latest version, download it, and write
 the new url and hashes in the `packages.dhall` file for you.
 
 Running it would look something like this:
 
 ```bash
-$ spago package-set-upgrade
+$ spago upgrade-set
 Found the most recent tag for "purescript/package-sets": "psc-0.12.3-20190227"
 Package-set upgraded to latest tag "psc-0.12.3-20190227"
 Fetching the new one and generating hashes.. (this might take some time)
@@ -690,27 +724,32 @@ $ spago docs
 This will generate all the documentation in the `./generated-docs` folder of your project.
 You might then want to open the `index.html` file in there.
 
+To build the documentation as Markdown instead of HTML, or to generate tags for your project,
+you can pass a `format` flag:
+```bash
+$ spago docs --format ctags
+```
+
 
 ### Publish my library
 
 If you wish to develop a library with `spago` you can definitely do so, and use it to
 manage and build your project, until you need to "publish" your library, where you'll need
-to use `bower`.
+to use `pulp`.
 
 When you decide you want to publish your library for others to use, you should:
-- make a Bowerfile that includes the dependencies from `spago.dhall`
-- run `pulp version`
-- run `pulp publish`
+- run `spago bump-version --no-dry-run <BUMP>`. This will generate a `bower.json` in a new  commit in Git that is tagged with the version.
+- run `pulp publish`. This will ensure the package is registered in Bower, push the version tag to Git and upload documentation to Pursuit.
 
 This is because the PureScript ecosystem uses the Bower registry as a "unique names registry".
 So in order to "publish" a package one needs to add it there, and eventually to [`package-sets`][package-sets].
 Consequentially, package-sets requires (full instructions [here][package-sets-contributing])
 that packages in it:
 - are in the Bower registry
-- use `pulp version` (because this gives versions with `vX.Y.Z`)
+- use `spago bump-version` or `pulp version` (because this gives versions with `vX.Y.Z`)
 - use `pulp publish` (so that's it's available on the Bower registry and on [Pursuit][pursuit])
 
-All of this will be automated in future versions.
+All of this will be automated in future versions, removing the need for Pulp.
 
 A library published in this way is [purescript-rave](https://github.com/reactormonk/purescript-rave).
 
@@ -774,6 +813,10 @@ that is accepted by many commands. You can either:
 
 ## Explanations
 
+### Visual Overview: What happens when you do 'spago build'?
+
+![spago-flowchart.svg](./diagrams/spago-flowchart.svg)
+
 ### Configuration file format
 
 It's indeed useful to know what's the format (or more precisely, the [Dhall][dhall]
@@ -800,6 +843,7 @@ let PackageSet =
 let Config =
   { name : Text               -- the name of our project
   , dependencies : List Text  -- the list of dependencies of our app
+  , sources : List Text       -- the list of globs for the paths to always include in the build
   , packages : PackageSet     -- this is the type we just defined above
   }
 ```
@@ -876,7 +920,7 @@ Every time `spago` will need to "install dependencies" it will:
   to the project-local cache
 - download [a metadata file from the `package-sets-metadata`][package-sets-metadata-file] repo
   if missing from the global cache or older 24 hours.
-  
+
   This file contains the list of *tags* and *commits* for every package currently in the package
   set, updated hourly.
 - check if the tag or commit of the package we need to download is in this cached index,
@@ -886,11 +930,11 @@ Every time `spago` will need to "install dependencies" it will:
   from GitHub and copied to both the global and the local cache
 - otherwise, the repo is just cloned to the local cache
 
-Note: a question that might come up while reading the above might be "why not just hit GitHub 
+Note: a question that might come up while reading the above might be "why not just hit GitHub
 to check commits and tags for every repo while installing?"
 
 The problem is that GitHub limits token-less API requests to 50 per hour, so any
-decently-sized installation will fail to get all the "cacheable" items, making the 
+decently-sized installation will fail to get all the "cacheable" items, making the
 global cache kind of useless. So we are just caching all of that info for everyone here.
 
 
