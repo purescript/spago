@@ -79,6 +79,8 @@ library:
   - http-client
   - http-conduit
   - time
+  - either
+  - semver-range
   - ansi-terminal
   - unordered-containers
 
