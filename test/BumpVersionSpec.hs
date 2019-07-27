@@ -97,7 +97,7 @@ spec = around_ setup $ do
 
     before_ initGit $ it "Spago should create bower.json, but not commit it" $ do
 
-      spago ["bump-version", "minor"] >>= shouldBeFailureInfix
+      spago ["bump-version", "--no-dry-run", "minor"] >>= shouldBeFailureInfix
          "A new bower.json has been generated. Please commit this and run `bump-version` again."
       mv "bower.json" "bump-version-bower.json"
       checkFixture "bump-version-bower.json"
