@@ -1,6 +1,6 @@
 module Spago.Bower
   ( bowerPath
-  , writeBowerJson
+  , generateBowerJson
   , runBowerInstall
   ) where
 
@@ -44,9 +44,9 @@ runBower args = do
   Turtle.procStrictWithErr cmd args empty
 
 
-writeBowerJson :: Spago m => m ()
-writeBowerJson = do
-  echo $ "Generating " <> bowerPath <> " using the package set versions.."
+generateBowerJson :: Spago m => m ByteString.ByteString
+generateBowerJson = do
+  echo $ "Generating a new Bower config using the package set versions.."
   config@Config{..} <- Config.ensureConfig
   PublishConfig{..} <- Config.ensurePublishConfig
 
@@ -67,8 +67,8 @@ writeBowerJson = do
   when ignored $ do
     die $ bowerPath <> " is being ignored by git - change this before continuing"
 
-  liftIO $ ByteString.writeFile bowerPath bowerJson
-  echo $ "Generated " <> bowerPath <> " using the package set"
+  echo $ "Generated a valid Bower config using the package set"
+  pure bowerJson
 
 
 runBowerInstall :: Spago m => m ()

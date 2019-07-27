@@ -8,15 +8,16 @@ module Spago.Version
 
 import           Spago.Prelude
 
-import           Data.Versions    (SemVer (..))
-import qualified Data.Versions as Version
-import qualified Data.Text     as Text
-import qualified Safe.Foldable as Safe
+import qualified Data.ByteString.Lazy as ByteString
+import qualified Data.Text            as Text
+import           Data.Versions        (SemVer (..))
+import qualified Data.Versions        as Version
+import qualified Safe.Foldable        as Safe
 
-import qualified Spago.Bower   as Bower
-import           Spago.DryRun     (DryRun(..), DryAction(..), runDryActions)
-import qualified Spago.Git     as Git
-import Spago.Messages (surroundQuote)
+import qualified Spago.Bower          as Bower
+import           Spago.DryRun         (DryAction (..), DryRun (..), runDryActions)
+import qualified Spago.Git            as Git
+import           Spago.Messages       (surroundQuote)
 
 
 data VersionBump
@@ -83,14 +84,17 @@ tagNewVersion oldVersion newVersion = do
 -- | Bump and tag a new version in preparation for release.
 bumpVersion :: Spago m => DryRun -> VersionBump -> m ()
 bumpVersion dryRun spec = do
+  newBowerConfig <- Bower.generateBowerJson
+
   Git.requireCleanWorkingTree
 
   oldVersion <- getCurrentVersion
   newVersion <- getNextVersion spec oldVersion
 
   let writeBowerAction = DryAction
-        ("generate `bower.json` from your config and try to install its dependencies") $ do
-        Bower.writeBowerJson
+        ("write the new config to the `bower.json` file and try to install its dependencies") $ do
+        echo $ "Writing the new Bower config to " <> surroundQuote Bower.bowerPath
+        liftIO $ ByteString.writeFile Bower.bowerPath newBowerConfig
         Bower.runBowerInstall
         clean <- Git.hasCleanWorkingTree
         when (not clean) $ do
