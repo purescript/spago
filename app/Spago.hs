@@ -57,7 +57,7 @@ data Command
   -- | Verify that a single package is consistent with the Package Set
   | Verify (Maybe Int) (Maybe CacheFlag) PackageName
 
-    -- | Verify that the Package Set is correct
+  -- | Verify that the Package Set is correct
   | VerifySet (Maybe Int) (Maybe CacheFlag)
 
   -- | Test the project with some module, default Test.Main
