@@ -62,6 +62,7 @@ library:
   - network-uri
   - versions
   - lens
+  - lens-aeson
   - safe
   - fsnotify
   - Glob
@@ -78,6 +79,8 @@ library:
   - http-client
   - http-conduit
   - time
+  - either
+  - semver-range
   - ansi-terminal
   - unordered-containers
 
