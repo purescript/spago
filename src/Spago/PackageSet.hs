@@ -98,7 +98,7 @@ path = pathFromText pathText
 
 
 -- | Tries to create the `packages.dhall` file if needed
-makePackageSetFile :: Bool -> IO ()
+makePackageSetFile :: Spago m => Bool -> m ()
 makePackageSetFile force = do
   hasPackagesDhall <- testfile path
   if force || not hasPackagesDhall
@@ -116,7 +116,7 @@ makePackageSetFile force = do
 --   - if all of this succeeds, it will regenerate the hashes and write to file
 upgradePackageSet :: Spago m => m ()
 upgradePackageSet = do
-  echoDebug "Running `spago package-set-upgrade`"
+  echoDebug "Running `spago upgrade-set`"
   try getLatestRelease >>= \case
     Left (err :: SomeException) -> echoDebug $ Messages.failedToReachGitHub err
     Right releaseTagName -> do
