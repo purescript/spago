@@ -18,25 +18,26 @@ module Spago.Packages
 
 import           Spago.Prelude
 
-import           Data.Aeson               as Aeson
-import qualified Data.List                as List
-import qualified Data.Map                 as Map
-import qualified Data.Set                 as Set
-import qualified Data.SemVer              as SemVer
-import qualified Data.Text                as Text
-import qualified Data.Text.Lazy           as LT
-import qualified Data.Text.Lazy.Encoding  as LT
+import           Data.Aeson              as Aeson
+import qualified Data.List               as List
+import qualified Data.Map                as Map
+import qualified Data.SemVer             as SemVer
+import qualified Data.Set                as Set
+import qualified Data.Text               as Text
+import qualified Data.Text.Lazy          as LT
+import qualified Data.Text.Lazy.Encoding as LT
 
-import           Spago.BowerMigration        as Bower
-import           Spago.Config       (Config (..))
-import qualified Spago.Config       as Config
-import qualified Spago.FetchPackage as Fetch
-import           Spago.GlobalCache  (CacheFlag (..))
-import qualified Spago.Messages     as Messages
-import           Spago.PackageSet   (Package (..), PackageName (..), PackageSet (..), Repo(..))
-import qualified Spago.PackageSet   as PackageSet
-import qualified Spago.Purs         as Purs
-import qualified Spago.Templates    as Templates
+import           Spago.BowerMigration    as Bower
+import           Spago.Config            (Config (..))
+import qualified Spago.Config            as Config
+import qualified Spago.FetchPackage      as Fetch
+import           Spago.GlobalCache       (CacheFlag (..))
+import qualified Spago.Messages          as Messages
+import           Spago.PackageSet        (Package (..), PackageLocation (..), PackageName (..),
+                                          PackageSet (..), Repo (..))
+import qualified Spago.PackageSet        as PackageSet
+import qualified Spago.Purs              as Purs
+import qualified Spago.Templates         as Templates
 
 
 -- | Init a new Spago project:
@@ -95,7 +96,7 @@ getGlobs deps depsOnly configSourcePaths
           -> Purs.SourcePath $ Text.pack $ Fetch.getLocalCacheDir pair
           <> "/src/**/*.purs") deps
   <> case depsOnly of
-    DepsOnly -> []
+    DepsOnly   -> []
     AllSources -> configSourcePaths
 
 
@@ -232,7 +233,7 @@ listPackages packagesFilter jsonFlag = do
   where
     formatPackageNames = case jsonFlag of
       JsonOutputYes -> formatPackageNamesJson
-      JsonOutputNo -> formatPackageNamesText
+      JsonOutputNo  -> formatPackageNamesText
 
     -- | Format all the packages from the config in JSON
     formatPackageNamesJson :: [(PackageName, Package)] -> [Text]
@@ -257,10 +258,10 @@ listPackages packagesFilter jsonFlag = do
     formatPackageNamesText pkgs =
       let
         showVersion PackageSet.Remote{..} = version
-        showVersion _ = "local"
+        showVersion _                     = "local"
 
         showLocation PackageSet.Remote{ repo = Repo repo } = "Remote " <> surroundQuote repo
-        showLocation PackageSet.Local{..} = "Local " <> surroundQuote localPath
+        showLocation PackageSet.Local{..}                  = "Local " <> surroundQuote localPath
 
         longestName = maximum $ fmap (Text.length . packageName . fst) pkgs
         longestVersion = maximum $ fmap (Text.length . showVersion . location . snd) pkgs
@@ -309,21 +310,23 @@ verifyBower =  do
   traverse_ echo $ "Packages:" : (display <$> success)
   where
     check :: Map PackageName Package -> Bower.Dependency -> BowerDependencyResult
-    check set Bower.Dependency{..} = case Text.stripPrefix "purescript-" name of
+    check packageSet Bower.Dependency{..} = case Text.stripPrefix "purescript-" name of
       Nothing -> NonPureScript name
-      Just package -> case Map.lookup (PackageName package) set of
-        Nothing -> Missing package
-        Just Package{..}  -> case hush $ SemVer.parseSemVer version of
+      Just package -> case Map.lookup (PackageName package) packageSet of
+        Just Package{ location = Remote{..}, .. } -> case hush $ SemVer.parseSemVer version of
           Nothing -> WrongVersion package rangeText version
           Just v -> if SemVer.matches range v
                     then Match package rangeText version
                     else WrongVersion package rangeText version
+        _ -> Missing package
+
     display :: BowerDependencyResult -> Text
     display = \case
       Match package range actual -> package <> " " <> actual <> " matches " <> range
       Missing package -> package <> " is not in the package set"
       NonPureScript name -> name <> " is not a PureScript package"
       WrongVersion package range actual -> package <> " " <> actual <> " does not match " <> range
+
     isWarning = \case
       Match _ _ _ -> False
       _           -> True

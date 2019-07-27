@@ -141,6 +141,13 @@ packages:
       sha256: 04bfabd50736570361f5f54d29be6d26b21459c2ccabb10abe40e79d6b763f30
   original:
     hackage: th-lift-instances-0.1.13@sha256:2852e468511805cb25d9e3923c9e91647d008ab4a764ec0921e5e40ff8a8e874,2625
+- completed:
+    hackage: semver-range-0.2.8@sha256:44918080c220cf67b6e7c8ad16f01f3cfe1ac69d4f72e528e84d566348bb23c3,1941
+    pantry-tree:
+      size: 401
+      sha256: fd72964da8246cc09d477b4c6e6f20971de058917d08d9f8183f5c0e2116f9c6
+  original:
+    hackage: semver-range-0.2.8
 snapshots:
 - completed:
     size: 508406
