@@ -83,19 +83,23 @@ tagNewVersion oldVersion newVersion = do
 -- | Bump and tag a new version in preparation for release.
 bumpVersion :: Spago m => DryRun -> VersionBump -> m ()
 bumpVersion dryRun spec = do
-  Bower.writeBowerJson
+  Git.requireCleanWorkingTree
 
   oldVersion <- getCurrentVersion
   newVersion <- getNextVersion spec oldVersion
 
-  Bower.runBowerInstall
+  let writeBowerAction = DryAction
+        ("generate `bower.json` from your config and try to install its dependencies") $ do
+        Bower.writeBowerJson
+        Bower.runBowerInstall
+        clean <- Git.hasCleanWorkingTree
+        when (not clean) $ do
+          die $ "A new " <> Bower.bowerPath <> " has been generated. Please commit this and run `bump-version` again."
 
-  clean <- Git.hasCleanWorkingTree
-  when (not clean) $ do
-    die $ "A new " <> Bower.bowerPath <> " has been generated. Please commit this and run `bump-version` again."
+  let tagAction = DryAction
+        ("create (locally) the new git tag " <> surroundQuote (unparseVersion newVersion))
+        (tagNewVersion oldVersion newVersion)
 
   runDryActions dryRun
-    $ DryAction
-        ("create new git tag " <> surroundQuote (unparseVersion newVersion))
-        (tagNewVersion oldVersion newVersion)
-    :| []
+    $ writeBowerAction
+    :| [ tagAction ]
