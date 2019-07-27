@@ -9,7 +9,6 @@ import           Data.Bifunctor       (bimap)
 import qualified Data.ByteString.Lazy as B
 import           Data.Either.Validation
 import qualified Data.SemVer          as SemVer
-import qualified Data.Text            as Text
 import qualified Data.Text.Encoding   as Text
 import qualified Spago.Messages       as Messages
 

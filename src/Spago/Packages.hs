@@ -19,7 +19,6 @@ module Spago.Packages
 import           Spago.Prelude
 
 import           Data.Aeson               as Aeson
-import qualified Data.Either.Validation   as V
 import qualified Data.List                as List
 import qualified Data.Map                 as Map
 import qualified Data.Set                 as Set
@@ -288,7 +287,7 @@ data BowerDependencyResult
 verifyBower :: Spago m => m ()
 verifyBower =  do
   echoDebug "Running `spago verify-bower`"
-  Config{ packageSet = packageSet@PackageSet{..}, ..} <- Config.ensureConfig
+  Config{ packageSet = PackageSet{..}, ..} <- Config.ensureConfig
   deps <- Bower.ensureBowerFile
   let (warning, success) = List.partition isWarning $ check packagesDB <$> deps
   if null warning
@@ -301,8 +300,8 @@ verifyBower =  do
     check set Bower.Dependency{..} = case Text.stripPrefix "purescript-" name of
       Nothing -> NonPureScript name
       Just package -> case Map.lookup (PackageName package) set of
-	Nothing -> Missing package
-	Just Package{..}  -> case hush $ SemVer.parseSemVer version of
+        Nothing -> Missing package
+        Just Package{..}  -> case hush $ SemVer.parseSemVer version of
           Nothing -> WrongVersion package rangeText version
           Just v -> if SemVer.matches range v
                     then Match package rangeText version
