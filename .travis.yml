@@ -81,6 +81,7 @@ install:
 
 script:
   - |
+    set -e
     echo "Running tests"
     export PATH="${PATH}:$(pwd)/artifacts"
     if [ `uname` = "Darwin" ]

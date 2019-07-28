@@ -46,8 +46,7 @@ data NoBuild = NoBuild | DoBuild
 data NoInstall = NoInstall | DoInstall
 
 data BuildOptions = BuildOptions
-  { maybeLimit      :: Maybe Int
-  , cacheConfig     :: Maybe GlobalCache.CacheFlag
+  { cacheConfig     :: Maybe GlobalCache.CacheFlag
   , shouldWatch     :: Watch
   , shouldClear     :: Watch.ClearScreen
   , sourcePaths     :: [Purs.SourcePath]
@@ -74,7 +73,7 @@ build BuildOptions{..} maybePostBuild = do
   config@Config.Config{ packageSet = PackageSet.PackageSet{..}, ..} <- Config.ensureConfig
   deps <- Packages.getProjectDeps config
   case noInstall of
-    DoInstall -> Fetch.fetchPackages maybeLimit cacheConfig deps packagesMinPursVersion
+    DoInstall -> Fetch.fetchPackages cacheConfig deps packagesMinPursVersion
     NoInstall -> pure ()
   let allGlobs = Packages.getGlobs deps depsOnly configSourcePaths <> sourcePaths
       buildAction = do
@@ -90,14 +89,13 @@ build BuildOptions{..} maybePostBuild = do
 -- | Start a repl
 repl
   :: Spago m
-  => Maybe Int
-  -> Maybe GlobalCache.CacheFlag
+  => Maybe GlobalCache.CacheFlag
   -> [PackageSet.PackageName]
   -> [Purs.SourcePath]
   -> [Purs.ExtraArg]
   -> Packages.DepsOnly
   -> m ()
-repl maybeLimit cacheFlag newPackages sourcePaths passthroughArgs depsOnly = do
+repl cacheFlag newPackages sourcePaths passthroughArgs depsOnly = do
   echoDebug "Running `spago repl`"
 
   try Config.ensureConfig >>= \case
@@ -120,7 +118,7 @@ repl maybeLimit cacheFlag newPackages sourcePaths passthroughArgs depsOnly = do
         deps <- Packages.getProjectDeps updatedConfig
         let globs = Packages.getGlobs deps depsOnly $ Config.configSourcePaths updatedConfig
 
-        Fetch.fetchPackages maybeLimit cacheFlag deps packagesMinPursVersion
+        Fetch.fetchPackages cacheFlag deps packagesMinPursVersion
 
         Purs.repl globs passthroughArgs
 

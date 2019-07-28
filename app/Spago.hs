@@ -37,13 +37,13 @@ data Command
   = Init Bool
 
   -- | Install (download) dependencies defined in spago.dhall
-  | Install (Maybe Int) (Maybe CacheFlag) [PackageName]
+  | Install (Maybe CacheFlag) [PackageName]
 
   -- | Get source globs of dependencies in spago.dhall
   | Sources
 
   -- | Start a REPL.
-  | Repl (Maybe Int) (Maybe CacheFlag) [PackageName] [SourcePath] [ExtraArg] DepsOnly
+  | Repl (Maybe CacheFlag) [PackageName] [SourcePath] [ExtraArg] DepsOnly
 
   -- | Generate documentation for the project and its dependencies
   | Docs (Maybe Purs.DocsFormat) [SourcePath] DepsOnly
@@ -55,16 +55,16 @@ data Command
   | ListPackages (Maybe PackagesFilter) JsonFlag
 
   -- | Verify that a single package is consistent with the Package Set
-  | Verify (Maybe Int) (Maybe CacheFlag) PackageName
+  | Verify (Maybe CacheFlag) PackageName
 
   -- | Verify that the Package Set is correct
-  | VerifySet (Maybe Int) (Maybe CacheFlag)
+  | VerifySet (Maybe CacheFlag)
 
   -- | Test the project with some module, default Test.Main
   | Test (Maybe ModuleName) BuildOptions [ExtraArg]
 
   -- | Bump and tag a new version in preparation for release.
-  | BumpVersion (Maybe Int) DryRun VersionBump
+  | BumpVersion DryRun VersionBump
 
   -- | Run the project with some module, default Main
   | Run (Maybe ModuleName) BuildOptions [ExtraArg]
@@ -159,7 +159,7 @@ parser = do
     mainModule  = CLI.optional $ CLI.opt (Just . ModuleName) "main" 'm' "Module to be used as the application's entry point"
     toTarget    = CLI.optional $ CLI.opt (Just . TargetPath) "to" 't' "The target file path"
     docsFormat  = CLI.optional $ CLI.opt Purs.parseDocsFormat "format" 'f' "Docs output format (markdown | html | etags | ctags)"
-    limitJobs   = CLI.optional (CLI.optInt "jobs" 'j' "Limit the amount of jobs that can run concurrently")
+    jobsLimit   = CLI.optional (CLI.optInt "jobs" 'j' "Limit the amount of jobs that can run concurrently")
     nodeArgs         = many $ CLI.opt (Just . ExtraArg) "node-args" 'a' "Argument to pass to node (run/test only)"
     replPackageNames = many $ CLI.opt (Just . PackageName) "dependency" 'd' "Package name to add to the REPL as dependency"
     sourcePaths      = many $ CLI.opt (Just . SourcePath) "path" 'p' "Source path to include"
@@ -168,8 +168,10 @@ parser = do
     packageNames    = many $ CLI.arg (Just . PackageName) "package" "Package name to add as dependency"
     passthroughArgs = many $ CLI.arg (Just . ExtraArg) " ..any `purs compile` option" "Options passed through to `purs compile`; use -- to separate"
 
-    buildOptions  = BuildOptions <$> limitJobs <*> cacheFlag <*> watch <*> clearScreen <*> sourcePaths <*> noInstall <*> passthroughArgs <*> depsOnly
-    globalOptions = GlobalOptions <$> verbose <*> noFormat <*> usePsa
+    buildOptions  = BuildOptions <$> cacheFlag <*> watch <*> clearScreen <*> sourcePaths <*> noInstall <*> passthroughArgs <*> depsOnly
+
+    -- Note: by default we limit concurrency to 20
+    globalOptions = GlobalOptions <$> verbose <*> noFormat <*> usePsa <*> fmap (fromMaybe 20) jobsLimit
 
     projectCommands = CLI.subcommandGroup "Project commands:"
       [ initProject
@@ -198,7 +200,7 @@ parser = do
     repl =
       ( "repl"
       , "Start a REPL"
-      , Repl <$> limitJobs <*> cacheFlag <*> replPackageNames <*> sourcePaths <*> passthroughArgs <*> depsOnly
+      , Repl <$> cacheFlag <*> replPackageNames <*> sourcePaths <*> passthroughArgs <*> depsOnly
       )
 
     test =
@@ -250,7 +252,7 @@ parser = do
     install =
       ( "install"
       , "Install (download) all dependencies listed in spago.dhall"
-      , Install <$> limitJobs <*> cacheFlag <*> packageNames
+      , Install <$> cacheFlag <*> packageNames
       )
 
     sources =
@@ -268,13 +270,13 @@ parser = do
     verify =
       ( "verify"
       , "Verify that a single package is consistent with the Package Set"
-      , Verify <$> limitJobs <*> cacheFlag <*> packageName
+      , Verify <$> cacheFlag <*> packageName
       )
 
     verifySet =
       ( "verify-set"
       , "Verify that the whole Package Set builds correctly"
-      , VerifySet <$> limitJobs <*> cacheFlag
+      , VerifySet <$> cacheFlag
       )
 
     upgradeSet =
@@ -297,7 +299,7 @@ parser = do
     bumpVersion =
       ( "bump-version"
       , "Bump and tag a new version, and generate bower.json, in preparation for release."
-      , BumpVersion <$> limitJobs <*> dryRun <*> versionBump
+      , BumpVersion <$> dryRun <*> versionBump
       )
 
 
@@ -362,19 +364,19 @@ main = do
   (flip runReaderT) globalOptions $
     case command of
       Init force                            -> Spago.Packages.initProject force
-      Install limitJobs cacheConfig packageNames
-        -> Spago.Packages.install limitJobs cacheConfig packageNames
+      Install cacheConfig packageNames      -> Spago.Packages.install cacheConfig packageNames
       ListPackages packagesFilter jsonFlag  -> Spago.Packages.listPackages packagesFilter jsonFlag
       Sources                               -> Spago.Packages.sources
-      Verify limitJobs cacheConfig package  -> Spago.Packages.verify limitJobs cacheConfig (Just package)
-      VerifySet limitJobs cacheConfig       -> Spago.Packages.verify limitJobs cacheConfig Nothing
+      Verify cacheConfig package            -> Spago.Packages.verify cacheConfig (Just package)
+      VerifySet cacheConfig                 -> Spago.Packages.verify cacheConfig Nothing
       PackageSetUpgrade                     -> Spago.Packages.upgradePackageSet
       Freeze                                -> Spago.Packages.freeze
       Build buildOptions                    -> Spago.Build.build buildOptions Nothing
       Test modName buildOptions nodeArgs    -> Spago.Build.test modName buildOptions nodeArgs
-      BumpVersion limitJobs dryRun spec     -> Version.bumpVersion limitJobs dryRun spec
+      BumpVersion dryRun spec               -> Version.bumpVersion dryRun spec
       Run modName buildOptions nodeArgs     -> Spago.Build.run modName buildOptions nodeArgs
-      Repl limitJobs cacheConfig replPackageNames paths pursArgs depsOnly -> Spago.Build.repl limitJobs cacheConfig replPackageNames paths pursArgs depsOnly
+      Repl cacheConfig replPackageNames paths pursArgs depsOnly
+        -> Spago.Build.repl cacheConfig replPackageNames paths pursArgs depsOnly
       BundleApp modName tPath shouldBuild buildOptions
         -> Spago.Build.bundleApp WithMain modName tPath shouldBuild buildOptions
       BundleModule modName tPath shouldBuild buildOptions

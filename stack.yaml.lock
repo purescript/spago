@@ -88,6 +88,13 @@ packages:
       sha256: 191eed87a5e8713a212ddfe4c5f4b819d07771c56becd92b8b5c6119f7ddad5d
   original:
     hackage: turtle-1.5.14
+- completed:
+    hackage: semver-range-0.2.8@sha256:44918080c220cf67b6e7c8ad16f01f3cfe1ac69d4f72e528e84d566348bb23c3,1941
+    pantry-tree:
+      size: 401
+      sha256: fd72964da8246cc09d477b4c6e6f20971de058917d08d9f8183f5c0e2116f9c6
+  original:
+    hackage: semver-range-0.2.8
 snapshots:
 - completed:
     size: 508406
