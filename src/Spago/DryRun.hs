@@ -1,16 +1,28 @@
 module Spago.DryRun
   ( DryRun(..)
-  , showHelp
+  , DryAction(..)
+  , runDryActions
   ) where
 
 import Spago.Prelude
 
 
 -- | Whether to actually perform side-effects
-data DryRun = DryRun | NoDryRun deriving Eq
+data DryRun = DryRun | NoDryRun
 
+-- | Wrapper for Spago actions that can be dry run
+data DryAction m
+  = DryAction
+    { dryMessage :: Text
+    , dryAction  :: m ()
+    }
 
-showHelp :: Spago m => DryRun -> m ()
-showHelp dryRun = do
-  when (dryRun == DryRun) $ do
-    echo "This is a dry run. Side effects will not be performed. Pass --no-dry-run to change this."
+runDryActions :: Spago m => DryRun -> NonEmpty (DryAction m) -> m ()
+runDryActions DryRun dryActions = do
+  echo "\nWARNING: this is a dry run, so these side effects were not performed:"
+  for_ dryActions $ \DryAction{..} -> echo $ "* " <> dryMessage
+  echo "\nUse the `--no-dry-run` flag to run them"
+runDryActions NoDryRun dryActions = do
+  for_ dryActions $ \DryAction{..} -> do
+    echo $ "** Running action: " <> dryMessage
+    dryAction

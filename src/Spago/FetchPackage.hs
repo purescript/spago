@@ -36,12 +36,11 @@ import qualified Spago.PackageSet              as PackageSet
 --       * if not, run a series of git commands to get the code, and copy to local cache
 fetchPackages
   :: Spago m
-  => Maybe Int
-  -> Maybe GlobalCache.CacheFlag
+  => Maybe GlobalCache.CacheFlag
   -> [(PackageName, Package)]
   -> Maybe Version.SemVer
   -> m ()
-fetchPackages maybeLimit globalCacheFlag allDeps minPursVersion = do
+fetchPackages globalCacheFlag allDeps minPursVersion = do
   echoDebug "Running `fetchPackages`"
 
   PackageSet.checkPursIsUpToDate minPursVersion
@@ -63,8 +62,8 @@ fetchPackages maybeLimit globalCacheFlag allDeps minPursVersion = do
     echoStr $ "Installing " <> show nOfDeps <> " dependencies."
     metadata <- GlobalCache.getMetadata globalCacheFlag
 
-    -- By default we limit the concurrency to 10
-    withTaskGroup' (fromMaybe 10 maybeLimit) $ \taskGroup -> do
+    limit <- asks globalJobs
+    withTaskGroup' limit $ \taskGroup -> do
       asyncs <- for depsToFetch (async' taskGroup . fetchPackage metadata)
       liftIO $ handle (handler asyncs) (for_ asyncs Async.wait)
 

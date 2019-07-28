@@ -136,6 +136,7 @@ data GlobalOptions = GlobalOptions
   { globalDebug    :: Bool
   , globalDoFormat :: DoFormat
   , globalUsePsa   :: UsePsa
+  , globalJobs     :: Int
   }
 
 type Spago m =

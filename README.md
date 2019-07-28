@@ -952,7 +952,7 @@ global cache kind of useless. So we are just caching all of that info for everyo
 
 ## Troubleshooting
 
-#### My `install` command is failing with some errors about "too many open files"
+#### Spago is failing with some errors about "too many open files"
 
 This might happen because the limit of "open files per process" is too low in your OS - as
 `spago` will try to fetch all dependencies in parallel, and this requires lots of file operations.
@@ -960,7 +960,7 @@ This might happen because the limit of "open files per process" is too low in yo
 You can limit the number of concurrent operations with the `-j` flag, e.g.:
 
 ```
-$ spago install -j 10
+$ spago -j 10 install
 ```
 
 To get a ballpark value for the `j` flag you can take the result of the `ulimit -n` command
