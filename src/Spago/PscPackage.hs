@@ -84,7 +84,7 @@ insDhall = do
 
   PackageSet.ensureFrozen
 
-  try (dhallToJSON PackageSet.pathText packagesJsonPath) >>= \case
+  try (dhallToJSON PackageSet.path packagesJsonPath) >>= \case
     Right _ -> do
       echo $ "Wrote packages.json to " <> packagesJsonText
       echo "Now you can run `psc-package install`."

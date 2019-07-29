@@ -9,7 +9,6 @@ module Spago.Prelude
   , pathFromText
   , assertDirectory
   , GlobalOptions (..)
-  , DoFormat (..)
   , UsePsa(..)
   , Spago
   , module X
@@ -18,6 +17,7 @@ module Spago.Prelude
   , Text
   , NonEmpty (..)
   , Seq (..)
+  , IsString
   , Map
   , Generic
   , Alternative
@@ -95,6 +95,7 @@ import           Data.List.NonEmpty            (NonEmpty (..))
 import           Data.Map                      (Map)
 import           Data.Maybe                    as X
 import           Data.Sequence                 (Seq (..))
+import           Data.String                   (IsString)
 import           Data.Text                     (Text)
 import           Data.Text.Prettyprint.Doc     (Pretty)
 import           Data.Traversable              (for)
@@ -126,15 +127,11 @@ instance Show SpagoError where
   show (SpagoError err) = Text.unpack err
 
 
--- | Flag to skip automatic formatting of the Dhall files
-data DoFormat = DoFormat | NoFormat deriving (Eq)
-
 -- | Flag to disable the automatic use of `psa`
 data UsePsa = UsePsa | NoPsa
 
 data GlobalOptions = GlobalOptions
   { globalDebug    :: Bool
-  , globalDoFormat :: DoFormat
   , globalUsePsa   :: UsePsa
   , globalJobs     :: Int
   }
