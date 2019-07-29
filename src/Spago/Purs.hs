@@ -41,10 +41,10 @@ compile sourcePaths extraArgs = do
       Right _ -> pure "psa"
       Left (_err :: SomeException) -> pure "purs"
 
-  echoDebug $ "Compiling with " <> Messages.surroundQuote purs
+  echoDebug $ "Compiling with " <> surroundQuote purs
 
   let
-    paths = Text.intercalate " " $ Messages.surroundQuote <$> map unSourcePath sourcePaths
+    paths = Text.intercalate " " $ surroundQuote <$> map unSourcePath sourcePaths
     args  = Text.intercalate " " $ map unExtraArg extraArgs
     cmd = purs <> " compile " <> args <> " " <> paths
   runWithOutput cmd
@@ -53,7 +53,7 @@ compile sourcePaths extraArgs = do
 
 repl :: Spago m => [SourcePath] -> [ExtraArg] -> m ()
 repl sourcePaths extraArgs = do
-  let paths = Text.intercalate " " $ Messages.surroundQuote <$> map unSourcePath sourcePaths
+  let paths = Text.intercalate " " $ surroundQuote <$> map unSourcePath sourcePaths
       args = Text.intercalate " " $ map unExtraArg extraArgs
       cmd = "purs repl " <> paths <> " " <> args
 
@@ -102,7 +102,7 @@ docs format sourcePaths = do
       Ctags    -> "ctags"
       Etags    -> "etags"
 
-    paths = Text.intercalate " " $ Messages.surroundQuote <$> map unSourcePath sourcePaths
+    paths = Text.intercalate " " $ surroundQuote <$> map unSourcePath sourcePaths
     formatStr = printDocsFormat $ fromMaybe Html format
     cmd = "purs docs " <> paths <> " --format " <> formatStr
   runWithOutput cmd

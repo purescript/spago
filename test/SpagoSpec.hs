@@ -91,7 +91,7 @@ spec = around_ setup $ do
 
       writeTextFile "psc-package.json" "{ \"name\": \"aaa\", \"depends\": [ \"prelude\" ], \"set\": \"foo\", \"source\": \"bar\" }"
       spago ["init"] >>= shouldBeSuccess
-      writeTextFile "spago.dhall" "{- Welcome to a Spago project!  You can edit this file as you like.  -} { name = \"my-project\" , dependencies = [ \"effect\", \"console\", \"psci-support\", \"a\", \"b\" ] , packages = ./packages.dhall // { a = { version = \"a1\", dependencies = [\"b\"], repo = \"/fake\" }, b = { version = \"b1\", dependencies = [\"a\"], repo = \"/fake\" } } }"
+      writeTextFile "spago.dhall" "{- Welcome to a Spago project!  You can edit this file as you like.  -} { name = \"my-project\" , dependencies = [ \"effect\", \"console\", \"psci-support\", \"a\", \"b\" ] , packages = ./packages.dhall // { a = { version = \"a1\", dependencies = [\"b\"], repo = \"https://github.com/fake/fake.git\" }, b = { version = \"b1\", dependencies = [\"a\"], repo = \"https://github.com/fake/fake.git\" } } }"
       spago ["install"] >>= shouldBeFailureOutput "circular-dependencies.txt"
 
     it "Spago should be able to install a package in the set from a commit hash" $ do
@@ -124,23 +124,37 @@ spec = around_ setup $ do
 
     it "Spago should install successfully when there are local dependencies sharing the same packages.dhall" $ do
 
-      -- Create local 'lib-a' and 'lib-b' packages
-      for_ ["lib-a", "lib-b"] $ \name -> do
-        mkdir $ fromText name
-        cd $ fromText name
-        spago ["init"] >>= shouldBeSuccess
-        rm "spago.dhall"
-        writeTextFile "spago.dhall" $ "{ name = \"" <> name <> "\", dependencies = ./spago-deps.dhall, packages = ../packages.dhall }"
-        writeTextFile "spago-deps.dhall" "[\"console\", \"effect\", \"prelude\"]"
-        cd ".."
+      -- Create local 'lib-a' package that depends on lib-c
+      mkdir "lib-a"
+      cd "lib-a"
+      spago ["init"] >>= shouldBeSuccess
+      rm "spago.dhall"
+      writeTextFile "spago.dhall" $ "{ name = \"lib-a\", dependencies = [\"console\", \"effect\", \"prelude\", \"lib-c\"], packages = ../packages.dhall }"
+      cd ".."
+
+      -- Create local 'lib-b' package that has its dependencies in a separate file
+      mkdir "lib-b"
+      cd "lib-b"
+      spago ["init"] >>= shouldBeSuccess
+      rm "spago.dhall"
+      writeTextFile "spago.dhall" $ "{ name = \"lib-b\", dependencies = ./spago-deps.dhall, packages = ../packages.dhall }"
+      writeTextFile "spago-deps.dhall" "[\"console\", \"effect\", \"prelude\"]"
+      cd ".."
+
+      -- Create local 'lib-c' package
+      mkdir "lib-c"
+      cd "lib-c"
+      spago ["init"] >>= shouldBeSuccess
+      rm "spago.dhall"
+      writeTextFile "spago.dhall" $ "{ name = \"lib-c\", dependencies = [\"console\", \"effect\", \"prelude\"], packages = ../packages.dhall }"
+      cd ".."
 
       -- Create 'app' package that depends on 'lib-a' and 'lib-b'
       spago ["init"] >>= shouldBeSuccess
       rm "spago.dhall"
       writeTextFile "spago.dhall" "{ name = \"app\", dependencies = [\"console\", \"effect\", \"prelude\", \"lib-a\", \"lib-b\"], packages = ./packages.dhall }"
-      writeTextFile "mkPackage" "\\(dependencies : List Text) -> \\(repo : Text) -> \\(version : Text) -> { dependencies = dependencies, repo = repo, version = version }"
       packageDhall <- readTextFile "packages.dhall"
-      writeTextFile "packages.dhall" $ packageDhall <> " // { lib-a = ./mkPackage ./lib-a/spago-deps.dhall \"./lib-a\" \"v1.0.0\", lib-b = ./mkPackage ./lib-b/spago-deps.dhall \"./lib-b\" \"v1.0.0\" }"
+      writeTextFile "packages.dhall" $ packageDhall <> " // { lib-a = ./lib-a/spago.dhall as Location, lib-b = ./lib-b/spago.dhall as Location, lib-c = ./lib-c/spago.dhall as Location }"
 
       spago ["install"] >>= shouldBeSuccess
 

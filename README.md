@@ -283,8 +283,8 @@ This is just a thin layer above the PureScript compiler command `purs compile`.
 The build will produce very many JavaScript files in the `output/` folder. These
 are CommonJS modules, and you can just `require()` them e.g. on Node.
 
-It's also possible to include custom source paths when building (`src` and `test`
-are always included):
+It's also possible to include custom source paths when building (the ones declared in your
+`sources` config are always included):
 
 ```bash
 $ spago build --path 'another_source/**/*.purs'
@@ -406,13 +406,14 @@ Now if I want to test this version in my current project, how can I tell `spago`
 
 We have a `overrides` record in `packages.dhall` just for that!
 
-In this case we override the `repo` key with the local path of the package.
+In this case we override the package with its local copy, which must have a `spago.dhall`.
+(it should be enough to do `spago init` to have the Bower configuration imported)
+
 It might look like this:
 
 ```haskell
 let overrides =
-      { simple-json =
-            upstream.simple-json // { repo = "../purescript-simple-json" }
+      { simple-json = ../purescript-simple-json/spago.dhall as Location
       }
 ```
 
@@ -423,26 +424,14 @@ $ spago list-packages
 ...
 signal                v10.1.0   Remote "https://github.com/bodil/purescript-signal.git"
 sijidou               v0.1.0    Remote "https://github.com/justinwoo/purescript-sijidou.git"
-simple-json           v4.4.0    Local "../purescript-simple-json"
+simple-json           local     Local "./../purescript-simple-json"
 simple-json-generics  v0.1.0    Remote "https://github.com/justinwoo/purescript-simple-json-generics.git"
 smolder               v11.0.1   Remote "https://github.com/bodil/purescript-smolder.git"
 ...
 ```
 
 And since local packages are just included in the build, if we add it to the `dependencies`
-in `spago.dhall` and then do `spago install`, it will not be downloaded:
-
-```
-$ spago install
-Installing 42 dependencies.
-...
-Installing "refs"
-Installing "identity"
-Skipping package "simple-json", using local path: "../purescript-simple-json"
-Installing "control"
-Installing "enums"
-...
-```
+in `spago.dhall` and then do `spago install`, it will not be downloaded.
 
 
 ### Override a package in the package set with a remote one
@@ -497,22 +486,13 @@ let additions =
   }
 ```
 
-Of course this works also in the case of adding local packages. In this case you won't
-care about the value of the "version" (since it won't be used), so you can put arbitrary
-values in there.
-
-And of course if the package you're adding has a `spago.dhall` file you can just import it
-and pull the dependencies from there, instead of typing down the list of dependencies!
+Of course this works also in the case of adding local packages, which work exactly as the `overrides`:
 
 Example:
 
 ```haskell
 let additions =
-  { foobar =
-      mkPackage
-        (../foobar/spago.dhall).dependencies
-        "../foobar"
-        "local-fix-whatever"
+  { foobar = ../foobar/spago.dhall as Location
   }
 ```
 
@@ -571,77 +551,107 @@ let upstream =
 ```
 
 
-### Separate `devDependencies` or test dependencies
+### Monorepo
 
-`spago` aims to support monorepos. This means that supporting "split" dependencies between tests
-and apps or just for dev can be handled as a "monorepo situation".
+Spago aims to support ["monorepos"][luu-monorepo], allowing you to split a blob of code 
+into different "compilation units" that might have different dependencies, deliverables, etc.
 
-So for example if you wish to separate dependencies for some `app` and `lib` you're working on,
-you can handle it by having multiple `spago.dhall` config files for the lib and the executable.
+A typical monorepo setup in spago consists of:
+- some "libraries" (i.e. packages that other packages will depend on), each having their own `spago.dhall`
+- some "apps" (i.e. packages that no one depends on), each having their own `spago.dhall`
+- a single `packages.dhall` , that includes all the "libraries" as local packages, and that
+  all `spago.dhall` files refer to - this is so that all packages share the same package set.
 
-E.g. let's say you have the following tree:
+So for example if you have `lib1`, `lib2` and `app1`, you might have the following file tree:
 
 ```
 .
-├── app
+├── app1
 │   ├── spago.dhall
 │   ├── src
 │   │   └── Main.purs
 │   └── test
 │       └── Main.purs
-├── lib
+├── lib1
 │   ├── spago.dhall
-│   ├── src
-│   │   └── Main.purs
-│   └── test
+│   └── src
+│       └── Main.purs
+├── lib2
+│   ├── spago.dhall
+│   └── src
 │       └── Main.purs
 └── packages.dhall
 ```
 
 Then:
-- the top level `packages.dhall` is standard and contains the link to the upstream and project-level overrides, etc
-- `lib/spago.dhall` might look something like this:
+- the top level `packages.dhall` might look like this:
 
-```hs
+```dhall
+let upstream = https://raw.githubusercontent.com/purescript/package-sets/psc-0.13.0-20190626/src/packages.dhall sha256:9905f07c9c3bd62fb3205e2108515811a89d55cff24f4341652f61ddacfcf148
+
+let overrides =
+  { lib1 = ./lib1/spago.dhall as Location
+  , lib2 = ./lib2/spago.dhall as Location
+  }
+
+in upstream // overrides
+```
+
+- `lib1/spago.dhall` might look something like this:
+
+```dhall
 { name =
-    "my-lib"
+    "lib1"
 , dependencies =
     [ "effect"
     , "console"
-    , "psci-support"
     , "prelude"
     ]
+, sources =
+    [ "src/**/*.purs" ]
 , packages =
     ../packages.dhall   -- Note: this refers to the top-level packages file
 }
 ```
 
-- `app/spago.dhall` might look something like this:
+- assuming `lib1` depends on `lib2`, `lib2/spago.dhall` might look something like this:
 
-```hs
+```dhall
 { name =
-    "my-app"
+    "lib2"
 , dependencies =
-    -- Note: the app does not include all the dependencies that the lib included
-    [ "prelude"
-    , "simple-json" -- Note: this dep was not used by the library, only the executable uses it
-    , "my-lib"      -- Note: we add the library as dependency
+    [ "effect"
+    , "console"
+    , "prelude"
+    , "lib1"            -- Note the dependency here
     ]
+, sources =
+    [ "src/**/*.purs" ]
 , packages =
-    -- We refer to the top-level packages file here too, so deps stay in sync
-    -- and we also add the library as a local package
-    (../packages.dhall) //
-    { my-lib =
-        { repo = "../my-lib"
-        , version = ""
-        , dependencies = (../my-lib/spago.dhall).dependencies
-        }
-    }
+    ../packages.dhall
 }
 ```
 
-With this setup you're able to decouple dependencies in the library and in the executables.
+- and then `app1/spago.dhall` might look something like this:
 
+```hs
+{ name =
+    "app1"
+, dependencies =
+    -- Note: the app does not include all the dependencies that the lib included
+    [ "prelude"
+    , "simple-json" -- Note: this dep was not used by the library, only the app uses it
+    , "lib2"        -- Note: we add `lib2` as dependency
+    ]
+, packages =
+    -- We also refer to the top-level packages file here, so deps stay in sync for all packages
+    ../packages.dhall
+}
+```
+
+Note that you can also handle as a "monorepo" a simpler situation where you want to "split"
+dependencies, so e.g. if you want to not include your test dependencies in your app's
+dependencies, you can have a "test" project depend on the "app" project.
 
 ### Bundle a project into a single JS file
 
@@ -793,9 +803,11 @@ do
 done
 ```
 
-### Know what `purs` commands are run under the hood
+### Know which `purs` commands are run under the hood
 
-The `-v` flag will print out all the `purs` commands that `spago` invokes during its operations.
+The `-v` flag will print out all the `purs` commands that `spago` invokes during its operations,
+plus a lot of diagnostic info, so you might want to use it to troubleshoot weird behaviours
+and/or crashes.
 
 
 ### Ignore or update the global cache
@@ -940,20 +952,6 @@ global cache kind of useless. So we are just caching all of that info for everyo
 
 ## Troubleshooting
 
-#### I added a git repo URL to my overrides, but `spago` thinks it's a local path 🤔
-
-This might happen if you copy the "git" URL from a GitHub repo and try adding it as a repo URL
-in your package set.
-
-However, `spago` requires URLs to conform to [RFC 3986](https://tools.ietf.org/html/rfc3986),
-which something like `git@foo.com:bar/baz.git` doesn't conform to.
-
-To have the above repo location accepted you should rewrite it like this:
-```
-ssh://git@foo.com/bar/baz.git
-```
-
-
 #### Spago is failing with some errors about "too many open files"
 
 This might happen because the limit of "open files per process" is too low in your OS - as
@@ -1012,6 +1010,7 @@ See [this document](./INTERNALS.md)
 [purescript]: https://github.com/purescript/purescript
 [psc-package]: https://github.com/purescript/psc-package
 [contributing]: CONTRIBUTING.md
+[luu-monorepo]: https://danluu.com/monorepo/
 [package-sets]: https://github.com/purescript/package-sets
 [travis-spago]: https://travis-ci.com/spacchetti/spago
 [spago-issues]: https://github.com/spacchetti/spago/issues

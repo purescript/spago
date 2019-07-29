@@ -5,6 +5,47 @@ import Spago.Prelude
 import qualified Data.Text as Text
 
 
+failedToParseLocalRepo :: Text -> Text
+failedToParseLocalRepo spagoConfigPath = makeMessage
+  [ "ERROR: your when importing local packages you should point to their `spago.dhall` file."
+  , "However, the following local package is not: " <> surroundQuote spagoConfigPath
+  ]
+
+cannotFindConfigLocalPackage :: Text -> Text
+cannotFindConfigLocalPackage spagoConfigPath
+  = "ERROR: it was not possible to find a `spago.dhall` file at the following location: "
+  <> surroundQuote spagoConfigPath
+
+failedToParsePackage :: Text -> Text
+failedToParsePackage expr = makeMessage
+  [ "ERROR: could not read a Package configuration."
+  , "For remote packages, this is the expected type of the Package configuration:"
+  , ""
+  , "{ repo : Text, version : Text, dependencies : List Text }"
+  , ""
+  , "For local packages, this is how you should import them:"
+  , ""
+  , "./path/to/some/local/package/spago.dhall as Location"
+  , ""
+  , "..but your package declaration didn't match any of them, and was the following expression instead:"
+  , ""
+  , expr
+  ]
+
+failedToParseRepoString :: Text -> Text
+failedToParseRepoString repo = makeMessage
+  [ "ERROR: was not able to parse the address to the remote repo: " <> surroundQuote repo
+  , ""
+  , "This might be for one of the following reasons:"
+  , ""
+  , "- you're including a local path as a 'repo address', but that's not supported anymore, and you should switch to the new syntax for importing local packages, e.g.:"
+  , ""
+  , "  let overrides = { some-package = ./some/local/path/spago.dhall as Location }"
+  , ""
+  , "- you're trying to use a URL which doesn't conform to RFC 3986, e.g. in the form of `git@foo.com:bar/baz.git`."
+  , "  The above example can be rewritten in a valid form as \"ssh://git@foo.com/bar/baz.git\""
+  ]
+
 cannotFindConfig :: Text
 cannotFindConfig = makeMessage
   [ "There's no " <> surroundQuote "spago.dhall" <> " in your current location."
@@ -12,10 +53,6 @@ cannotFindConfig = makeMessage
   , "If you already have a spago project you might be in the wrong subdirectory,"
   , "otherwise you might want to run `spago init` to initialize a new project."
   ]
-
-cannotFindBowerFile :: Text
-cannotFindBowerFile
-  = "There's no " <> surroundQuote "bower.json" <> " in your current location."
 
 cannotFindPackages :: Text
 cannotFindPackages = makeMessage
@@ -165,9 +202,6 @@ bundleCommandRenamed =
 makeModuleCommandRenamed :: Text
 makeModuleCommandRenamed =
   "The `make-module` command has been replaced with `bundle-module`, so use that instead."
-
-surroundQuote :: Text -> Text
-surroundQuote y = "\"" <> y <> "\""
 
 makeMessage :: [Text] -> Text
 makeMessage = Text.intercalate "\n"

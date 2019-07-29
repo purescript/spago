@@ -18,25 +18,26 @@ module Spago.Packages
 
 import           Spago.Prelude
 
-import           Data.Aeson               as Aeson
-import qualified Data.List                as List
-import qualified Data.Map                 as Map
-import qualified Data.Set                 as Set
-import qualified Data.SemVer              as SemVer
-import qualified Data.Text                as Text
-import qualified Data.Text.Lazy           as LT
-import qualified Data.Text.Lazy.Encoding  as LT
+import           Data.Aeson              as Aeson
+import qualified Data.List               as List
+import qualified Data.Map                as Map
+import qualified Data.SemVer             as SemVer
+import qualified Data.Set                as Set
+import qualified Data.Text               as Text
+import qualified Data.Text.Lazy          as LT
+import qualified Data.Text.Lazy.Encoding as LT
 
-import           Spago.BowerMigration        as Bower
-import           Spago.Config       (Config (..))
-import qualified Spago.Config       as Config
-import qualified Spago.FetchPackage as Fetch
-import           Spago.GlobalCache  (CacheFlag (..))
-import qualified Spago.Messages     as Messages
-import           Spago.PackageSet   (Package (..), PackageName (..), PackageSet (..), Repo)
-import qualified Spago.PackageSet   as PackageSet
-import qualified Spago.Purs         as Purs
-import qualified Spago.Templates    as Templates
+import           Spago.BowerMigration    as Bower
+import           Spago.Config            (Config (..))
+import qualified Spago.Config            as Config
+import qualified Spago.FetchPackage      as Fetch
+import           Spago.GlobalCache       (CacheFlag (..))
+import qualified Spago.Messages          as Messages
+import           Spago.PackageSet        (Package (..), PackageLocation (..), PackageName (..),
+                                          PackageSet (..), Repo (..))
+import qualified Spago.PackageSet        as PackageSet
+import qualified Spago.Purs              as Purs
+import qualified Spago.Templates         as Templates
 
 
 -- | Init a new Spago project:
@@ -95,7 +96,7 @@ getGlobs deps depsOnly configSourcePaths
           -> Purs.SourcePath $ Text.pack $ Fetch.getLocalCacheDir pair
           <> "/src/**/*.purs") deps
   <> case depsOnly of
-    DepsOnly -> []
+    DepsOnly   -> []
     AllSources -> configSourcePaths
 
 
@@ -139,9 +140,9 @@ getTransitiveDeps PackageSet{..} deps = do
       | otherwise = case Map.lookup dep packagesDB of
           Nothing ->
             (packagesDB , Set.insert (NotFoundError dep) notFoundErrors, cycleErrors)
-          Just info@Package{..} -> do
+          Just packageInfo@Package{..} -> do
             let (m, notFoundErrors', cycleErrors') = foldMap (go (Set.insert dep seen) notFoundErrors cycleErrors) dependencies
-            (Map.insert dep info m, notFoundErrors', cycleErrors')
+            (Map.insert dep packageInfo m, notFoundErrors', cycleErrors')
 
 
 pkgNotFoundMsg :: Map PackageName Package -> NotFoundError PackageName -> Text
@@ -167,7 +168,7 @@ getReverseDeps  :: PackageSet -> PackageName -> IO [(PackageName, Package)]
 getReverseDeps packageSet@PackageSet{..} dep = do
     List.nub <$> foldMap go (Map.toList packagesDB)
   where
-    go pair@(packageName, Package {..}) =
+    go pair@(packageName, Package{..}) = do
       case List.find (== dep) dependencies of
         Nothing -> return mempty
         Just _ -> do
@@ -201,7 +202,7 @@ data JsonFlag = JsonOutputNo | JsonOutputYes
 
 data JsonPackageOutput = JsonPackageOutput
   { json_packageName :: !Text
-  , json_repo        :: !Repo
+  , json_repo        :: !Value
   , json_version     :: !Text
   }
   deriving (Eq, Show, Generic)
@@ -232,17 +233,23 @@ listPackages packagesFilter jsonFlag = do
   where
     formatPackageNames = case jsonFlag of
       JsonOutputYes -> formatPackageNamesJson
-      JsonOutputNo -> formatPackageNamesText
+      JsonOutputNo  -> formatPackageNamesText
 
     -- | Format all the packages from the config in JSON
     formatPackageNamesJson :: [(PackageName, Package)] -> [Text]
     formatPackageNamesJson pkgs =
       let
-        asJson (PackageName{..},Package{..})
+        asJson (PackageName{..}, Package{ location = loc@PackageSet.Remote{..}, ..})
           = JsonPackageOutput
               { json_packageName = packageName
-              , json_repo = repo
+              , json_repo = toJSON loc
               , json_version = version
+              }
+        asJson (PackageName{..}, Package { location = loc@PackageSet.Local{..}, ..})
+          = JsonPackageOutput
+              { json_packageName = packageName
+              , json_repo = toJSON loc
+              , json_version = "local"
               }
       in map (encodeJsonPackageOutput . asJson) pkgs
 
@@ -250,13 +257,19 @@ listPackages packagesFilter jsonFlag = do
     formatPackageNamesText :: [(PackageName, Package)] -> [Text]
     formatPackageNamesText pkgs =
       let
-        longestName = maximum $ fmap (Text.length . packageName . fst) pkgs
-        longestVersion = maximum $ fmap (Text.length . version . snd) pkgs
+        showVersion PackageSet.Remote{..} = version
+        showVersion _                     = "local"
 
-        renderPkg (PackageName{..},Package{..})
+        showLocation PackageSet.Remote{ repo = Repo repo } = "Remote " <> surroundQuote repo
+        showLocation PackageSet.Local{..}                  = "Local " <> surroundQuote localPath
+
+        longestName = maximum $ fmap (Text.length . packageName . fst) pkgs
+        longestVersion = maximum $ fmap (Text.length . showVersion . location . snd) pkgs
+
+        renderPkg (PackageName{..}, Package{..})
           = leftPad longestName packageName <> " "
-          <> leftPad longestVersion version <> "   "
-          <> Text.pack (show repo)
+          <> leftPad longestVersion (showVersion location) <> "   "
+          <> showLocation location
       in map renderPkg pkgs
 
     leftPad :: Int -> Text -> Text
@@ -297,21 +310,23 @@ verifyBower =  do
   traverse_ echo $ "Packages:" : (display <$> success)
   where
     check :: Map PackageName Package -> Bower.Dependency -> BowerDependencyResult
-    check set Bower.Dependency{..} = case Text.stripPrefix "purescript-" name of
+    check packageSet Bower.Dependency{..} = case Text.stripPrefix "purescript-" name of
       Nothing -> NonPureScript name
-      Just package -> case Map.lookup (PackageName package) set of
-        Nothing -> Missing package
-        Just Package{..}  -> case hush $ SemVer.parseSemVer version of
+      Just package -> case Map.lookup (PackageName package) packageSet of
+        Just Package{ location = Remote{..}, .. } -> case hush $ SemVer.parseSemVer version of
           Nothing -> WrongVersion package rangeText version
           Just v -> if SemVer.matches range v
                     then Match package rangeText version
                     else WrongVersion package rangeText version
+        _ -> Missing package
+
     display :: BowerDependencyResult -> Text
     display = \case
       Match package range actual -> package <> " " <> actual <> " matches " <> range
       Missing package -> package <> " is not in the package set"
       NonPureScript name -> name <> " is not a PureScript package"
       WrongVersion package range actual -> package <> " " <> actual <> " does not match " <> range
+
     isWarning = \case
       Match _ _ _ -> False
       _           -> True
@@ -345,7 +360,7 @@ verify cacheFlag maybePackage = do
     verifyPackage packageSet@PackageSet{..} name = do
       deps <- getTransitiveDeps packageSet [name]
       let globs = getGlobs deps DepsOnly []
-          quotedName = Messages.surroundQuote $ packageName name
+          quotedName = surroundQuote $ packageName name
       Fetch.fetchPackages cacheFlag deps packagesMinPursVersion
       echo $ "Verifying package " <> quotedName
       Purs.compile globs []

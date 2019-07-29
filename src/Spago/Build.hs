@@ -113,7 +113,7 @@ repl cacheFlag newPackages sourcePaths passthroughArgs depsOnly = do
 
         config@Config.Config{ packageSet = PackageSet.PackageSet{..}, ..} <- Config.ensureConfig
 
-        let updatedConfig = Config.Config name (dependencies <> newPackages) (Config.packageSet config) configSourcePaths
+        let updatedConfig = Config.Config name (dependencies <> newPackages) (Config.packageSet config) configSourcePaths publishConfig
 
         deps <- Packages.getProjectDeps updatedConfig
         let globs = Packages.getGlobs deps depsOnly $ Config.configSourcePaths updatedConfig
