@@ -10,24 +10,27 @@ module Spago.Config
 
 import           Spago.Prelude
 
-import qualified Data.Map           as Map
-import qualified Data.Sequence      as Seq
-import qualified Data.Set           as Set
-import qualified Data.Text          as Text
-import qualified Data.Text.Encoding as Text
-import qualified Data.Versions      as Version
+import qualified Data.Map              as Map
+import qualified Data.SemVer           as SemVer
+import qualified Data.Sequence         as Seq
+import qualified Data.Set              as Set
+import qualified Data.Text             as Text
+import qualified Data.Text.Encoding    as Text
+import qualified Data.Versions         as Version
 import qualified Dhall.Core
 import qualified Dhall.Map
 import qualified Dhall.TypeCheck
+import qualified Web.Bower.PackageMeta as Bower
 
-import qualified Spago.Dhall        as Dhall
-import qualified Spago.Messages     as Messages
-import qualified Spago.PackageSet   as PackageSet
-import qualified Spago.PscPackage   as PscPackage
-import qualified Spago.Purs         as Purs
-import qualified Spago.Templates    as Templates
+import qualified Spago.Dhall           as Dhall
+import qualified Spago.Messages        as Messages
+import qualified Spago.PackageSet      as PackageSet
+import qualified Spago.PscPackage      as PscPackage
+import qualified Spago.Purs            as Purs
+import qualified Spago.Templates       as Templates
 
-import           Spago.PackageSet   (Package, PackageName, PackageSet)
+import           Spago.PackageSet      (Package (..), PackageLocation (..), PackageName (..),
+                                        PackageSet (..))
 
 
 -- | Path for the Spago Config
@@ -162,22 +165,124 @@ makeConfig force = do
   writeTextFile path Templates.spagoDhall
   Dhall.format path
 
-  -- We try to find an existing psc-package config, and we migrate the existing
-  -- content if we found one, otherwise we copy the default template
+  -- We try to find an existing psc-package or Bower config, and if
+  -- we find any we migrate the existing content
+  -- Otherwise we just keep the default template
+  bowerFileExists <- testfile "bower.json"
   pscfileExists <- testfile PscPackage.configPath
-  when pscfileExists $ do
-    -- first, read the psc-package file content
-    content <- readTextFile PscPackage.configPath
-    case eitherDecodeStrict $ Text.encodeUtf8 content of
-      Left err -> echo $ Messages.failedToReadPscFile err
-      Right pscConfig -> do
-        echo "Found a \"psc-package.json\" file, migrating to a new Spago config.."
-        -- try to update the dependencies (will fail if not found in package set)
-        let pscPackages = map PackageSet.PackageName $ PscPackage.depends pscConfig
-        config <- ensureConfig
-        withConfigAST (\e -> addRawDeps config pscPackages
-                            $ updateName (PscPackage.name pscConfig) e)
 
+  case (pscfileExists, bowerFileExists) of
+    (True, _) -> do
+      -- first, read the psc-package file content
+      content <- readTextFile PscPackage.configPath
+      case eitherDecodeStrict $ Text.encodeUtf8 content of
+        Left err -> echo $ Messages.failedToReadPscFile err
+        Right pscConfig -> do
+          echo "Found a \"psc-package.json\" file, migrating to a new Spago config.."
+          -- try to update the dependencies (will fail if not found in package set)
+          let pscPackages = map PackageSet.PackageName $ PscPackage.depends pscConfig
+          config <- ensureConfig
+          withConfigAST (\e -> addRawDeps config pscPackages
+                               $ updateName (PscPackage.name pscConfig) e)
+    (_, True) -> do
+      -- read the bowerfile
+      content <- readTextFile "bower.json"
+      case eitherDecodeStrict $ Text.encodeUtf8 content of
+        Left err -> die $ Messages.failedToParseFile path err
+        Right packageMeta -> do
+          echo "Found a \"bower.json\" file, migrating to a new Spago config.."
+          -- then try to update the dependencies. We'll migrates the ones that we can,
+          -- and print a message to the user to fix the missing ones
+          config@Config{..} <- ensureConfig
+
+          let (bowerName, packageResults) = migrateBower packageMeta packageSet
+              (bowerErrors, bowerPackages) = partitionEithers packageResults
+
+          if null bowerErrors
+            then echo "All Bower dependencies are in the set! 🎉"
+            else do
+              echo $ tshow bowerErrors
+
+          withConfigAST (\e -> addRawDeps config bowerPackages
+                               $ updateName bowerName e)
+
+    _ -> pure ()
+
+
+migrateBower :: Bower.PackageMeta -> PackageSet -> (Text, [Either BowerDependencyError PackageName])
+migrateBower Bower.PackageMeta{..} PackageSet{..} = (packageName, dependencies)
+  where
+    dependencies = map migratePackage (bowerDependencies <> bowerDevDependencies)
+
+    -- | For each Bower dependency, we:
+    --   * try to parse the range into a SemVer.Range
+    --   * then check if it's a purescript package
+    --   * then try to search in the Package Set for that package
+    --   * then try to match the version there into the Bower range
+    migratePackage :: (Bower.PackageName, Bower.VersionRange) -> Either BowerDependencyError PackageName
+    migratePackage (Bower.runPackageName -> name, Bower.VersionRange unparsedRange) =
+      case SemVer.parseSemVerRange unparsedRange of
+        Left err -> Left $ UnparsableRange unparsedRange $ tshow err
+        Right range -> case Text.stripPrefix "purescript-" name of
+          Nothing -> Left $ NonPureScript name
+          Just packageSetName | package <- PackageName packageSetName -> case Map.lookup package packagesDB of
+            Nothing -> Left $ MissingFromTheSet package
+            Just Package{ location = Local {..} } -> Right package
+            Just Package{ location = Remote {..} } -> case SemVer.parseSemVer version of
+              Right v | SemVer.matches range v -> Right package
+              _                                -> Left $ WrongVersion package range version
+
+    packageName =
+      let name = Bower.runPackageName bowerName
+      in case Text.isPrefixOf "purescript-" name of
+        True  -> Text.drop 11 name
+        False -> name
+
+data BowerDependencyError
+  = UnparsableRange Text Text
+  | NonPureScript Text
+  | MissingFromTheSet PackageName
+  | WrongVersion PackageName SemVer.SemVerRange Text
+  deriving (Show, Eq, Ord)
+
+
+{-
+verifyBower :: Spago m => m ()
+verifyBower =  do
+  echoDebug "Running `spago verify-bower`"
+  Config{ packageSet = PackageSet{..}, ..} <- Config.ensureConfig
+  deps <- Bower.ensureBowerFile
+  let (warning, success) = List.partition isWarning $ check packagesDB <$> deps
+  if null warning
+    then echo "All dependencies are in the set!"
+    else echo "Some dependencies are missing!"
+  traverse_ echo $ "Warnings:" : (display <$> warning)
+  traverse_ echo $ "Packages:" : (display <$> success)
+  where
+    check :: Map PackageName Package -> Bower.Dependency -> BowerDependencyResult
+    check packageSet Bower.Dependency{..} = case Text.stripPrefix "purescript-" name of
+      Nothing -> NonPureScript name
+      Just package -> case Map.lookup (PackageName package) packageSet of
+        Just Package{ location = Remote{..}, .. } -> case hush $ SemVer.parseSemVer version of
+          Nothing -> WrongVersion package rangeText version
+          Just v -> if SemVer.matches range v
+                    then Match package rangeText version
+                    else WrongVersion package rangeText version
+        _ -> Missing package
+
+    display :: BowerDependencyResult -> Text
+    display = \case
+      Match package range actual -> package <> " " <> actual <> " matches " <> range
+      Missing package -> package <> " is not in the package set"
+      NonPureScript name -> name <> " is not a PureScript package"
+      WrongVersion package range actual -> package <> " " <> actual <> " does not match " <> range
+
+    isWarning = \case
+      Match _ _ _ -> False
+      _           -> True
+
+
+-}
 
 updateName :: Text -> Expr -> Expr
 updateName newName (Dhall.RecordLit kvs)
