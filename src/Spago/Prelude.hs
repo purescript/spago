@@ -25,9 +25,12 @@ module Spago.Prelude
   , FilePath
   , IOException
   , ExitCode (..)
+  , Validation(..)
   , (<|>)
   , (</>)
   , (^..)
+  , set
+  , surroundQuote
   , transformMOf
   , testfile
   , testdir
@@ -80,14 +83,13 @@ import qualified Turtle                        as Turtle
 import qualified UnliftIO.Directory            as Directory
 
 import           Control.Applicative           (Alternative, empty, many, (<|>))
-import           Control.Lens                  ((^..))
-import           Control.Lens.Combinators      (transformMOf)
 import           Control.Monad                 as X
 import           Control.Monad.Catch           as X hiding (try)
 import           Control.Monad.Reader          as X
-import           Data.Aeson                    as X
+import           Data.Aeson                    as X hiding (Result (..))
 import           Data.Bool                     as X
 import           Data.Either                   as X
+import           Data.Either.Validation        (Validation (..))
 import           Data.Foldable                 as X
 import           Data.List.NonEmpty            (NonEmpty (..))
 import           Data.Map                      (Map)
@@ -97,9 +99,9 @@ import           Data.Text                     (Text)
 import           Data.Text.Prettyprint.Doc     (Pretty)
 import           Data.Traversable              (for)
 import           Data.Typeable                 (Proxy (..), Typeable)
-import           GHC.Conc                      (atomically, newTVarIO, readTVar, readTVarIO,
-                                                writeTVar)
+import           Dhall.Optics                  (transformMOf)
 import           GHC.Generics                  (Generic)
+import           Lens.Family                   (set, (^..))
 import           Prelude                       as X hiding (FilePath)
 import           Safe                          (headMay)
 import           System.FilePath               (isAbsolute, pathSeparator, (</>))
@@ -112,6 +114,8 @@ import           UnliftIO                      (MonadUnliftIO, withRunInIO)
 import           UnliftIO.Directory            (getModificationTime, makeAbsolute)
 import           UnliftIO.Exception            (IOException, handleAny, try, tryIO)
 import           UnliftIO.Process              (callCommand)
+import           UnliftIO.STM                  (atomically, newTVarIO, readTVar, readTVarIO,
+                                                writeTVar)
 
 -- | Generic Error that we throw on program exit.
 --   We have it so that errors are displayed nicely to the user
@@ -186,6 +190,10 @@ with r f = liftIO $ Turtle.with r f
 
 viewShell :: (MonadIO m, Show a) => Turtle.Shell a -> m ()
 viewShell = Turtle.view
+
+
+surroundQuote :: Text -> Text
+surroundQuote y = "\"" <> y <> "\""
 
 
 mv :: MonadIO m => System.IO.FilePath -> System.IO.FilePath -> m ()

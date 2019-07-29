@@ -80,25 +80,26 @@ fromTextLit expr                                  = Left $ ExprIsNotTextLit expr
 -- | Require a key from a Dhall.Map, and run an action on it if found.
 --   If not found, return the name of the key.
 requireKey
-  :: (Typeable b)
+  :: (Typeable b, Pretty b, MonadIO m, MonadThrow m)
   => Dhall.Map.Map Text (DhallExpr b)
   -> Text
-  -> (DhallExpr b -> Either (ReadError b) a)
-  -> Either (ReadError b) a
+  -> (DhallExpr b -> m a)
+  -> m a
 requireKey ks name f = case (Dhall.Map.lookup name ks) of
   Just v  -> f v
-  Nothing -> Left $ RequiredKeyMissing name ks
+  Nothing -> throwM (RequiredKeyMissing name ks)
 
 
 -- | Same as `requireKey`, but we give it a Dhall.Type to automagically decode from
 requireTypedKey
-  :: Dhall.Map.Map Text (DhallExpr Dhall.TypeCheck.X)
+  :: (MonadIO m, MonadThrow m)
+  => Dhall.Map.Map Text (DhallExpr Dhall.TypeCheck.X)
   -> Text
   -> Dhall.Type a
-  -> Either (ReadError Dhall.TypeCheck.X) a
+  -> m a
 requireTypedKey ks name typ = requireKey ks name $ \expr -> case Dhall.extract typ expr of
-  Just v  -> Right v
-  Nothing -> Left $ RequiredKeyMissing name ks
+  Success v -> pure v
+  Failure _ -> throwM $ RequiredKeyMissing name ks
 
 
 -- | Convert a Dhall expression to a given Dhall type
@@ -113,7 +114,7 @@ coerceToType typ expr = do
   let annot = Dhall.Annot expr $ Dhall.expected typ
   let checkedType = typeOf annot
   case (Dhall.extract typ $ Dhall.normalize annot, checkedType) of
-    (Just x, Right _) -> Right x
+    (Success x, Right _) -> Right x
     _                 -> Left $ WrongType typ expr
 
 

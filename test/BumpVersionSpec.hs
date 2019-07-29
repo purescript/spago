@@ -119,6 +119,6 @@ spec = around_ setup $ do
 
       mkdir "purescript-tortellini"
       withCwd "purescript-tortellini" $ spago ["init"] >>= shouldBeSuccess
-      setOverrides "{ tortellini = upstream.tortellini // { repo = \"./purescript-tortellini\" } }"
+      setOverrides "{ tortellini = ./purescript-tortellini/spago.dhall as Location }"
       spago ["bump-version", "minor"] >>= shouldBeFailureInfix
         "Unable to create Bower version for local repo: ./purescript-tortellini"

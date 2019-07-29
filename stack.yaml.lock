@@ -5,19 +5,19 @@
 
 packages:
 - completed:
-    hackage: dhall-1.23.0@sha256:12a699b7ed30ee40b1a3e05dfd3eef1b053914a5aebeb2f76cc568306570e51b,30737
+    hackage: dhall-1.25.0@sha256:1c6724d963bf3428ddf0336f916e3f9bc429bf81ed2e27a8855dbbee11d89fe2,40352
     pantry-tree:
-      size: 127759
-      sha256: d5c6ff3a3628ac42975364405f9c0dfac4ad0286667e2535839b4806e5438109
+      size: 225143
+      sha256: 0ed1fb4d2bc400d71e9445199f5af8985ba8e1faad029b416745aa4ac5c8f20d
   original:
-    hackage: dhall-1.23.0
+    hackage: dhall-1.25.0
 - completed:
-    hackage: dhall-json-1.2.8@sha256:e098f4f7891ea9ab2ac38c126614e07c821166dea47f10d876eaeda0ad5ceb11,3722
+    hackage: dhall-json-1.4.0@sha256:74f6422e7b84d32f9965b604e09bc1eb10dc4b9693f735be30a5fb1e4dd61478,5240
     pantry-tree:
-      size: 632
-      sha256: c73951ed3564a1650d11d282c21cb284c884ff5524349f0d67298af7ea6ea90c
+      size: 2261
+      sha256: fee6d6d1be4a2e1ef1ce1986a89f71a5ef95fb55e519db475e1f3ac9e76b9662
   original:
-    hackage: dhall-json-1.2.8
+    hackage: dhall-json-1.4.0
 - completed:
     hackage: async-pool-0.9.0.2@sha256:3aca5861a7b839d02a3f5c52ad6d1ce368631003f68c3d9cb6d711c29e9618db,1599
     pantry-tree:
@@ -25,6 +25,13 @@ packages:
       sha256: 6e97326dc06f9c32fbe7b312e17c427a716a9c2688529ab356de61b0effdb684
   original:
     hackage: async-pool-0.9.0.2
+- completed:
+    hackage: either-5@sha256:3189d6fa583d6b5a2c40120a5b92ade7e72e1f47cf3346f2bf7aac50dda44da4,1388
+    pantry-tree:
+      size: 657
+      sha256: 756fc538cac507e2ad2ea1ba1b53743eba4405638ccd4734835191e63e88f3d9
+  original:
+    hackage: either-5
 - completed:
     hackage: cborg-json-0.2.1.0@sha256:af9137557002ca5308fe80570a9a29398dfb9708423870875223796760689ac3,1268
     pantry-tree:
@@ -88,6 +95,34 @@ packages:
       sha256: 191eed87a5e8713a212ddfe4c5f4b819d07771c56becd92b8b5c6119f7ddad5d
   original:
     hackage: turtle-1.5.14
+- completed:
+    hackage: libyaml-0.1.1.0@sha256:b3fcd8c44622c75e054c2267f3fec39a58a311748000310cbc8257a4683d3f02,2090
+    pantry-tree:
+      size: 1096
+      sha256: 5955a20a686e9cfe6316201085315ec0053ef532788a2d63908457b214dea3ae
+  original:
+    hackage: libyaml-0.1.1.0@sha256:b3fcd8c44622c75e054c2267f3fec39a58a311748000310cbc8257a4683d3f02,2090
+- completed:
+    hackage: yaml-0.11.1.0@sha256:3dc3ed2760f6d1bb280b3a2da29f9032f508d57bfc545fb16b1424f2a5560641,5079
+    pantry-tree:
+      size: 1989
+      sha256: 91ad3e06ba3ea11c4de1d0bdbdaeedbe4e4a5b1e4caf20bf1dc36f7b954e47e5
+  original:
+    hackage: yaml-0.11.1.0@sha256:3dc3ed2760f6d1bb280b3a2da29f9032f508d57bfc545fb16b1424f2a5560641,5079
+- completed:
+    hackage: th-lift-0.8.0.1@sha256:cceb81b12c0580e02a7a3898b6d60cca5e1be080741f69ddde4f12210d8ba7ca,1960
+    pantry-tree:
+      size: 461
+      sha256: 7ed900048c8722069edb6063023d89343f056ca305be598f51f166bd389621df
+  original:
+    hackage: th-lift-0.8.0.1@sha256:cceb81b12c0580e02a7a3898b6d60cca5e1be080741f69ddde4f12210d8ba7ca,1960
+- completed:
+    hackage: th-lift-instances-0.1.13@sha256:2852e468511805cb25d9e3923c9e91647d008ab4a764ec0921e5e40ff8a8e874,2625
+    pantry-tree:
+      size: 526
+      sha256: 04bfabd50736570361f5f54d29be6d26b21459c2ccabb10abe40e79d6b763f30
+  original:
+    hackage: th-lift-instances-0.1.13@sha256:2852e468511805cb25d9e3923c9e91647d008ab4a764ec0921e5e40ff8a8e874,2625
 - completed:
     hackage: semver-range-0.2.8@sha256:44918080c220cf67b6e7c8ad16f01f3cfe1ac69d4f72e528e84d566348bb23c3,1941
     pantry-tree:

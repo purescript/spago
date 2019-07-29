@@ -8,6 +8,7 @@ module Spago.PackageSet
   , pathText
   , PackageSet(..)
   , Package (..)
+  , PackageLocation(..)
   , PackageName (..)
   , Repo (..)
   ) where
@@ -38,14 +39,33 @@ newtype PackageName = PackageName { packageName :: Text }
 -- | A package-set package.
 --   Matches the packages definition in Package.dhall from package-sets
 data Package = Package
-  { dependencies :: ![PackageName] -- ^ list of dependency package names
-  , repo         :: !Repo          -- ^ the remote git repository or the local path
-  , version      :: !Text          -- ^ version string (also functions as a git ref)
+  { dependencies :: ![PackageName]   -- ^ list of dependency package names
+  , location     :: !PackageLocation -- ^ info about where the package is located
   }
   deriving (Eq, Show, Generic)
 
-instance ToJSON Package
-instance FromJSON Package
+
+data PackageLocation
+  = Remote
+      { repo    :: !Repo          -- ^ the remote git repository
+      , version :: !Text          -- ^ version string (also functions as a git ref)
+      }
+  | Local
+      { localPath :: !Text        -- ^ local path of the package
+      }
+  deriving (Eq, Show, Generic)
+
+
+-- | This instance is to make `spago list-packages --json` work
+instance ToJSON PackageLocation where
+  toJSON Remote{..} = object
+    [ "tag" .= ("Remote" :: Text)
+    , "contents" .= unRepo repo
+    ]
+  toJSON Local{..} = object
+    [ "tag" .= ("Local" :: Text)
+    , "contents" .= localPath
+    ]
 
 data PackageSet = PackageSet
   { packagesDB             :: Map PackageName Package
@@ -53,23 +73,21 @@ data PackageSet = PackageSet
   }
   deriving (Show, Generic)
 
+
 -- | We consider a "Repo" a "box of source to include in the build"
 --   This can have different nature:
-data Repo
-  = Local !Text    -- ^ A local path
-  | Remote !Text   -- ^ The address of a remote git repository
+newtype Repo = Repo { unRepo :: Text }
   deriving (Eq, Show, Generic)
 
 instance ToJSON Repo
-instance FromJSON Repo
 
 instance Dhall.Interpret Repo where
   autoWith _ = makeRepo <$> Dhall.strictText
     where
       -- We consider a "Remote" anything that `parseURI` thinks is a URI
       makeRepo repo = case parseURI $ Text.unpack repo of
-        Just _uri -> Remote repo
-        Nothing   -> Local repo
+        Just _uri -> Repo repo
+        Nothing   -> error $ Text.unpack $ Messages.failedToParseRepoString repo
 
 
 pathText :: Text
@@ -272,8 +290,13 @@ isRemoteFrozen _ = []
 freeze :: Spago m => m ()
 freeze = do
   echo Messages.freezePackageSet
-  liftIO $ do
-    Dhall.Freeze.freeze (Just $ Text.unpack pathText) False Dhall.Pretty.ASCII defaultStandardVersion
+  liftIO $
+    Dhall.Freeze.freeze
+      (Just $ Text.unpack pathText)
+      Dhall.Freeze.OnlyRemoteImports
+      Dhall.Freeze.Secure
+      Dhall.Pretty.ASCII
+      defaultStandardVersion
 
 
 -- | Freeze the file if any of the remote imports are not frozen

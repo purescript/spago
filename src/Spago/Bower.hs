@@ -24,7 +24,7 @@ import           Spago.Config               (Config (..), PublishConfig (..))
 import qualified Spago.Config               as Config
 import qualified Spago.Git                  as Git
 import qualified Spago.Packages             as Packages
-import           Spago.PackageSet           (PackageName (..), Package (..), Repo (..))
+import           Spago.PackageSet           (PackageName (..), Package (..), PackageLocation(..), Repo(..))
 import qualified Spago.Templates            as Templates
 
 
@@ -48,14 +48,14 @@ generateBowerJson :: Spago m => m ByteString.ByteString
 generateBowerJson = do
   echo $ "Generating a new Bower config using the package set versions.."
   config@Config{..} <- Config.ensureConfig
-  PublishConfig{..} <- Config.ensurePublishConfig
+  PublishConfig{..} <- throws publishConfig
 
   bowerName <- mkPackageName name
   bowerDependencies <- mkDependencies config
   template <- templateBowerJson
 
-  let bowerLicense = [license]
-      bowerRepository = Just $ Bower.Repository repository "git"
+  let bowerLicense = [publishLicense]
+      bowerRepository = Just $ Bower.Repository publishRepository "git"
       bowerPkg = template { bowerLicense, bowerRepository, bowerName, bowerDependencies }
       prettyConfig = Pretty.defConfig
         { Pretty.confCompare = Pretty.keyOrder ["name", "license", "repository", "ignore", "dependencies"] <> compare
@@ -100,8 +100,8 @@ mkPackageName spagoName = do
 
 -- | If the given version exists in bower, return a shorthand bower
 -- | version, otherwise return a URL#version style bower version.
-mkBowerVersion :: Spago m => Bower.PackageName -> Text -> Text -> m Bower.VersionRange
-mkBowerVersion packageName version repo = do
+mkBowerVersion :: Spago m => Bower.PackageName -> Text -> Repo -> m Bower.VersionRange
+mkBowerVersion packageName version (Repo repo) = do
 
   let args = ["info", "--json", Bower.runPackageName packageName <> "#" <> version]
   (code, stdout, stderr) <- runBower args
@@ -130,12 +130,12 @@ mkDependencies config = do
   where
     mkDependency :: Spago m => (PackageName, Package) -> m (Bower.PackageName, Bower.VersionRange)
     mkDependency (PackageName{..}, Package{..}) =
-      case repo of
+      case location of
         Local path ->
           die $ "Unable to create Bower version for local repo: " <> path
-        Remote path -> do
+        Remote{..} -> do
           bowerName <- mkPackageName packageName
-          bowerVersion <- mkBowerVersion bowerName version path
+          bowerVersion <- mkBowerVersion bowerName version repo
           pure (bowerName, bowerVersion)
 
     getJobs = case System.buildOS of

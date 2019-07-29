@@ -2,9 +2,10 @@ resolver: lts-12.21
 packages:
 - .
 extra-deps:
-- dhall-1.23.0
-- dhall-json-1.2.8
+- dhall-1.25.0
+- dhall-json-1.4.0
 - async-pool-0.9.0.2
+- either-5
 - cborg-json-0.2.1.0@sha256:af9137557002ca5308fe80570a9a29398dfb9708423870875223796760689ac3
 - versions-3.5.0
 - dotgen-0.4.2
@@ -14,6 +15,10 @@ extra-deps:
 - Win32-2.5.4.1@sha256:e623a1058bd8134ec14d62759f76cac52eee3576711cb2c4981f398f1ec44b85
 - Glob-0.10.0
 - turtle-1.5.14
+- libyaml-0.1.1.0@sha256:b3fcd8c44622c75e054c2267f3fec39a58a311748000310cbc8257a4683d3f02,2090
+- yaml-0.11.1.0@sha256:3dc3ed2760f6d1bb280b3a2da29f9032f508d57bfc545fb16b1424f2a5560641,5079
+- th-lift-0.8.0.1@sha256:cceb81b12c0580e02a7a3898b6d60cca5e1be080741f69ddde4f12210d8ba7ca,1960
+- th-lift-instances-0.1.13@sha256:2852e468511805cb25d9e3923c9e91647d008ab4a764ec0921e5e40ff8a8e874,2625
 - semver-range-0.2.8
 nix:
   packages: [zlib]
