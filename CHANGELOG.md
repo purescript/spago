@@ -7,14 +7,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-Bugfixes:
-- Fix `spago install` failing when version branch names differ only by case on case-insensitive filesystems (#258)
+## [0.9.0] - 2019-07-30
+
+Breaking changes (!!!):
+- Rename `package-set-upgrade` to `upgrade-set` (#336)
+- Move the `--jobs` flag to be global (#338)
+- Import local packages `as Location` (#301, #244)
 
 New features:
-- Add support for starting a repl within a folder which has not been setup as a spago project (#168)
-- Add `--format` flag to `spago docs` (#294)
-- Add `--no-config-format` global flag to skip formatting Dhall files during operations. (#300, #302)
-- Add `bump-version` command, for generating `bower.json` files and making version tags in Git (#203)
+- Use `psa` for compiling if installed; you can avoid this with the new `--no-psa` flag (#305, #283, #252, #327)
+- Add support for starting a repl within a folder which has not been setup as a spago project (#168, #280)
+- Add `--format` flag to `spago docs` (#294, #299)
+- Add `bump-version` command, for generating `bower.json` files and making version tags in Git (#203, #289, #324)
+- Add project sources to `spago sources` output (#276, #287, #308)
+- Watch all sources, including dependencies, when building with filewatch (#172, #309)
+- Add `--deps-only` flag to build dependencies alone (#330, #331)
+- Add automatic migration of Bower projects when doing `spago init` (#159, #272, #342)
+- Add searchbar to docs generated with `spago docs` (#340, #333, #89)
+
+Bugfixes:
+- Fix `spago install` failing when version branch names differ only by case on case-insensitive filesystems (#285)
+- Change `--node-args` shortcut to `-a` to avoid clash (#292, #293)
+- Stop reformatting config files if not necessary (#300, #302, #339)
+- Make `spago run` write a file and execute it so that args are passed correctly (#297, #295)
+- Add fallback for global cache directory (#314, #312)
+- Do not overwrite `spago.dhall` when doing `spago init` twice (#318, #321)
+- Catch exceptions when trying to fetch metadata (#325)
+- Generate hashes when doing `psc-package-insdhall` (#337, #240)
+
+Other Improvements:
+- Curator: log exceptions to file to monitor eventual issues (#284)
+- Docs: update README with newest features (#286)
+- Docs: add docs about switching from Bower (#317)
+- Tests: improve failure messages (#298)
+- Tests: fix `packages.dhall` fixtures manipulation (#307)
+- Tests: add tests for the `list-packages` command (#304)
+- Tests: add tests for local dependencies (#310)
+- Config: remove `mkPackage` function in Dhall configs, and switch to package-sets releases for upstream (#322, #320, #319)
+- Config: update test template to use `Effect.Class.Console` (#328, #334)
+- CI: fix missing "commit since last release" message (#326)
+- CI: add configuration for Mergify (#332)
+
 
 ## [0.8.5] - 2019-06-18
 
