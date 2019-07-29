@@ -71,6 +71,7 @@ module Spago.Prelude
   , withTaskGroup'
   , Turtle.mktempdir
   , getModificationTime
+  , docsSearchVersion
   ) where
 
 
@@ -238,3 +239,8 @@ assertDirectory directory = do
       Directory.createDirectory directory
 
       Directory.setPermissions directory private
+
+
+-- | Release tag for the `purescript-docs-search` app.
+docsSearchVersion :: Text
+docsSearchVersion = "v0.0.4"

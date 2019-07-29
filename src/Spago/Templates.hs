@@ -6,6 +6,7 @@ import           Data.FileEmbed           (embedFile)
 import qualified Data.Text                as T
 
 import           Spago.TH                 (embedFileUtf8, embedURLWithFallback)
+import           Spago.Prelude
 
 
 packagesDhall :: T.Text
@@ -29,11 +30,17 @@ bowerJson = $(embedFile "templates/bower.json")
 docsSearchApp :: T.Text
 docsSearchApp =
   $(embedURLWithFallback
-    "https://github.com/spacchetti/purescript-docs-search/releases/download/v0.0.4/docs-search-app.js"
+    ( "https://github.com/spacchetti/purescript-docs-search/releases/download/"
+   <> T.unpack docsSearchVersion
+   <> "/docs-search-app.js"
+    )
     "templates/docs-search-app.js")
 
 docsSearch :: T.Text
 docsSearch =
   $(embedURLWithFallback
-     "https://github.com/spacchetti/purescript-docs-search/releases/download/v0.0.4/purescript-docs-search"
+     ( "https://github.com/spacchetti/purescript-docs-search/releases/download/"
+    <> T.unpack docsSearchVersion
+    <> "/purescript-docs-search"
+     )
      "templates/purescript-docs-search")

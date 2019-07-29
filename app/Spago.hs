@@ -234,7 +234,7 @@ parser = do
 
     search =
       ( "search"
-      , "Run the search engine."
+      , "Start a search REPL to find definitions matching names and types"
       , pure Search
       )
 

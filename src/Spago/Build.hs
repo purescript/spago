@@ -218,7 +218,7 @@ docs format sourcePaths depsOnly = do
     echoDebug $ "Running `" <> cmd <> "`"
     shell cmd empty >>= \case
       ExitSuccess   -> pure ()
-      ExitFailure n -> die $ "Failed while trying to make the documentation searchable: " <> repr n
+      ExitFailure n -> echo $ "Failed while trying to make the documentation searchable: " <> repr n
 
   where
     isHTMLFormat = \case
