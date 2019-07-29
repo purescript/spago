@@ -5,37 +5,19 @@
 
 packages:
 - completed:
-    size: 300776
-    subdir: dhall
-    url: https://github.com/dhall-lang/dhall-haskell/archive/354346be91ca62d64a1d68dcf7897e5a30f8646c.tar.gz
-    cabal-file:
-      size: 40233
-      sha256: a322ba6dea998b227e3edefca0c841081a42e9f7924e5dbf711c691f60a35cbc
-    name: dhall
-    version: 1.24.0
-    sha256: 0b46c36486429c7a7466b3d7fa7c9c9a3186ab003759de7eb2b85199323a9f9a
+    hackage: dhall-1.25.0@sha256:1c6724d963bf3428ddf0336f916e3f9bc429bf81ed2e27a8855dbbee11d89fe2,40352
     pantry-tree:
-      size: 8842
-      sha256: 584a497c36f5e77def27eed68aec6f2a249ce28b16b52c3d412cd70e76fa8122
+      size: 225143
+      sha256: 0ed1fb4d2bc400d71e9445199f5af8985ba8e1faad029b416745aa4ac5c8f20d
   original:
-    subdir: dhall
-    url: https://github.com/dhall-lang/dhall-haskell/archive/354346be91ca62d64a1d68dcf7897e5a30f8646c.tar.gz
+    hackage: dhall-1.25.0
 - completed:
-    size: 300776
-    subdir: dhall-json
-    url: https://github.com/dhall-lang/dhall-haskell/archive/354346be91ca62d64a1d68dcf7897e5a30f8646c.tar.gz
-    cabal-file:
-      size: 5634
-      sha256: f22a2afb411cdaa44a2db338fc34bed92c384f48b532d867500f3176f70e0c87
-    name: dhall-json
-    version: 1.3.0
-    sha256: 0b46c36486429c7a7466b3d7fa7c9c9a3186ab003759de7eb2b85199323a9f9a
+    hackage: dhall-json-1.4.0@sha256:74f6422e7b84d32f9965b604e09bc1eb10dc4b9693f735be30a5fb1e4dd61478,5240
     pantry-tree:
-      size: 2868
-      sha256: 489ecc094d28f092559914ac6ac4fb022bae483fefcfe86878850e7af6416046
+      size: 2261
+      sha256: fee6d6d1be4a2e1ef1ce1986a89f71a5ef95fb55e519db475e1f3ac9e76b9662
   original:
-    subdir: dhall-json
-    url: https://github.com/dhall-lang/dhall-haskell/archive/354346be91ca62d64a1d68dcf7897e5a30f8646c.tar.gz
+    hackage: dhall-json-1.4.0
 - completed:
     hackage: async-pool-0.9.0.2@sha256:3aca5861a7b839d02a3f5c52ad6d1ce368631003f68c3d9cb6d711c29e9618db,1599
     pantry-tree:
@@ -121,12 +103,12 @@ packages:
   original:
     hackage: libyaml-0.1.1.0@sha256:b3fcd8c44622c75e054c2267f3fec39a58a311748000310cbc8257a4683d3f02,2090
 - completed:
-    hackage: yaml-0.11.0.0@sha256:8303b3e445295f4fe28ee18efe49ef2667f9f88742ce8049db437c6579be425e,5079
+    hackage: yaml-0.11.1.0@sha256:3dc3ed2760f6d1bb280b3a2da29f9032f508d57bfc545fb16b1424f2a5560641,5079
     pantry-tree:
       size: 1989
-      sha256: f95eb551d1bebfe405eb7c2901e2eaba9ea17d379fc984bd04d44d4831d3fbca
+      sha256: 91ad3e06ba3ea11c4de1d0bdbdaeedbe4e4a5b1e4caf20bf1dc36f7b954e47e5
   original:
-    hackage: yaml-0.11.0.0@sha256:8303b3e445295f4fe28ee18efe49ef2667f9f88742ce8049db437c6579be425e,5079
+    hackage: yaml-0.11.1.0@sha256:3dc3ed2760f6d1bb280b3a2da29f9032f508d57bfc545fb16b1424f2a5560641,5079
 - completed:
     hackage: th-lift-0.8.0.1@sha256:cceb81b12c0580e02a7a3898b6d60cca5e1be080741f69ddde4f12210d8ba7ca,1960
     pantry-tree:

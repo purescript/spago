@@ -17,7 +17,6 @@ import qualified Safe.Foldable        as Safe
 import qualified Spago.Bower          as Bower
 import           Spago.DryRun         (DryAction (..), DryRun (..), runDryActions)
 import qualified Spago.Git            as Git
-import           Spago.Messages       (surroundQuote)
 
 
 data VersionBump
