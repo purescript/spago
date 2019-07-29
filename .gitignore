@@ -4,3 +4,5 @@ test/spago-test
 *.cabal
 *~
 **/__pycache__
+templates/docs-search-app.js
+templates/purescript-docs-search
