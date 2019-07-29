@@ -3,11 +3,9 @@ module BumpVersionSpec (spec) where
 import           Prelude        hiding (FilePath)
 import qualified System.IO.Temp as Temp
 import           Test.Hspec     (Spec, around_, before_, describe, it, shouldBe)
-import           Turtle         (Text, cp, decodeString, mkdir, mv,
-                                 writeTextFile)
-import           Utils          (checkFileHasInfix, checkFixture, getHighestTag,
-                                 git, shouldBeFailure, shouldBeFailureInfix,
-                                 shouldBeSuccess, shouldBeSuccessInfix, spago,
+import           Turtle         (Text, cp, decodeString, mkdir, mv, writeTextFile)
+import           Utils          (checkFileHasInfix, checkFixture, getHighestTag, git,
+                                 shouldBeFailure, shouldBeFailureInfix, shouldBeSuccess, spago,
                                  withCwd)
 
 

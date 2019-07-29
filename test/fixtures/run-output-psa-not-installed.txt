@@ -1,6 +1,7 @@
 🍝
 Running NodeJS
 Running `spago build`
+Transformed config is the same as the read one, not overwriting it
 Ensuring that the package set is frozen
 Getting transitive deps
 Running `fetchPackages`

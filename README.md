@@ -324,17 +324,6 @@ $ spago run --node-args "arg1 arg2"
 ```
 
 
-### Avoid re-formatting the `spago.dhall` and `packages.dhall` with each command
-
-You can pass the `--no-config-format` or `-F` global flag:
-
-``` bash
-$ spago build -F
-Installation complete.
-Build succeeded.
-```
-
-
 ### Test my project
 
 You can also test your project with `spago`:

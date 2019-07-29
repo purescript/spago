@@ -151,7 +151,6 @@ parser = do
     depsOnly    = bool AllSources DepsOnly <$> CLI.switch "deps-only" 'd' "Only use sources from dependencies, skipping the project sources."
     clearScreen = bool NoClear DoClear <$> CLI.switch "clear-screen" 'l' "Clear the screen on rebuild (watch mode only)"
     noBuild     = bool DoBuild NoBuild <$> CLI.switch "no-build" 's' "Skip build step"
-    noFormat    = bool DoFormat NoFormat <$> CLI.switch "no-config-format" 'F' "Disable formatting the configuration file `spago.dhall`"
     jsonFlag    = bool JsonOutputNo JsonOutputYes <$> CLI.switch "json" 'j' "Produce JSON output"
     dryRun      = bool DryRun NoDryRun <$> CLI.switch "no-dry-run" 'f' "Actually perform side-effects (the default is to describe what would be done)"
     usePsa      = bool UsePsa NoPsa <$> CLI.switch "no-psa" 'P' "Don't build with `psa`, but use `purs`"
@@ -171,7 +170,7 @@ parser = do
     buildOptions  = BuildOptions <$> cacheFlag <*> watch <*> clearScreen <*> sourcePaths <*> noInstall <*> passthroughArgs <*> depsOnly
 
     -- Note: by default we limit concurrency to 20
-    globalOptions = GlobalOptions <$> verbose <*> noFormat <*> usePsa <*> fmap (fromMaybe 20) jobsLimit
+    globalOptions = GlobalOptions <$> verbose <*> usePsa <*> fmap (fromMaybe 20) jobsLimit
 
     projectCommands = CLI.subcommandGroup "Project commands:"
       [ initProject

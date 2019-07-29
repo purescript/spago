@@ -5,7 +5,6 @@ module Spago.PackageSet
   , freeze
   , ensureFrozen
   , path
-  , pathText
   , PackageSet(..)
   , Package (..)
   , PackageLocation(..)
@@ -90,11 +89,8 @@ instance Dhall.Interpret Repo where
         Nothing   -> error $ Text.unpack $ Messages.failedToParseRepoString repo
 
 
-pathText :: Text
-pathText = "packages.dhall"
-
-path :: FilePath
-path = pathFromText pathText
+path :: IsString t => t
+path = "packages.dhall"
 
 
 -- | Tries to create the `packages.dhall` file if needed
@@ -103,8 +99,8 @@ makePackageSetFile force = do
   hasPackagesDhall <- testfile path
   if force || not hasPackagesDhall
     then writeTextFile path Templates.packagesDhall
-    else echo $ Messages.foundExistingProject pathText
-  Dhall.format DoFormat pathText
+    else echo $ Messages.foundExistingProject path
+  Dhall.format path
 
 
 -- | Tries to upgrade the Package-Sets release of the local package set.
@@ -122,7 +118,7 @@ upgradePackageSet = do
     Right releaseTagName -> do
       let quotedTag = surroundQuote releaseTagName
       echoDebug $ "Found the most recent tag for \"purescript/package-sets\": " <> quotedTag
-      rawPackageSet <- liftIO $ Dhall.readRawExpr pathText
+      rawPackageSet <- liftIO $ Dhall.readRawExpr path
       case rawPackageSet of
         Nothing -> die Messages.cannotFindPackages
         -- Skip the check if the tag is already the newest
@@ -134,7 +130,7 @@ upgradePackageSet = do
           echo $ "Upgrading the package set version to " <> quotedTag
           let newExpr = fmap (upgradeImports releaseTagName) expr
           echo $ Messages.upgradingPackageSet releaseTagName
-          liftIO $ Dhall.writeRawExpr DoFormat pathText (header, newExpr)
+          liftIO $ Dhall.writeRawExpr path (header, newExpr)
           -- If everything is fine, refreeze the imports
           freeze
   where
@@ -292,7 +288,7 @@ freeze = do
   echo Messages.freezePackageSet
   liftIO $
     Dhall.Freeze.freeze
-      (Just $ Text.unpack pathText)
+      (Just path)
       Dhall.Freeze.OnlyRemoteImports
       Dhall.Freeze.Secure
       Dhall.Pretty.ASCII
@@ -303,7 +299,7 @@ freeze = do
 ensureFrozen :: Spago m => m ()
 ensureFrozen = do
   echoDebug "Ensuring that the package set is frozen"
-  rawPackageSet <- liftIO $ Dhall.readRawExpr pathText
+  rawPackageSet <- liftIO $ Dhall.readRawExpr path
   case rawPackageSet of
     Nothing -> echo "WARNING: wasn't able to check if your package set file is frozen"
     Just (_header, expr) -> do

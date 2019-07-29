@@ -30,12 +30,9 @@ import qualified Spago.Templates    as Templates
 import           Spago.PackageSet   (Package, PackageName, PackageSet)
 
 
-pathText :: Text
-pathText = "spago.dhall"
-
 -- | Path for the Spago Config
-path :: FilePath
-path = pathFromText pathText
+path :: IsString t => t
+path = "spago.dhall"
 
 
 -- | Spago configuration file type
@@ -106,8 +103,10 @@ parsePackage expr = die $ Messages.failedToParsePackage $ Dhall.pretty expr
 -- | Tries to read in a Spago Config
 parseConfig :: Spago m => m Config
 parseConfig = do
+  -- Here we try to migrate any config that is not in the latest format
   withConfigAST $ pure . addSourcePaths
-  expr <- liftIO $ Dhall.inputExpr $ "./" <> pathText
+
+  expr <- liftIO $ Dhall.inputExpr $ "./" <> path
   case expr of
     Dhall.RecordLit ks -> do
       packages :: Map PackageName Package <- Dhall.requireKey ks "packages" (\case
@@ -159,9 +158,9 @@ makeConfig :: Spago m => Bool -> m ()
 makeConfig force = do
   unless force $ do
     hasSpagoDhall <- testfile path
-    when hasSpagoDhall $ die $ Messages.foundExistingProject pathText
+    when hasSpagoDhall $ die $ Messages.foundExistingProject path
   writeTextFile path Templates.spagoDhall
-  Dhall.format DoFormat pathText
+  Dhall.format path
 
   -- We try to find an existing psc-package config, and we migrate the existing
   -- content if we found one, otherwise we copy the default template
@@ -243,13 +242,15 @@ filterDependencies expr = expr
 --   still be in the tree). If you need the resolved one, use `ensureConfig`.
 withConfigAST :: Spago m => (Expr -> m Expr) -> m ()
 withConfigAST transform = do
-  rawConfig <- liftIO $ Dhall.readRawExpr pathText
-  shouldFormat <- asks globalDoFormat
+  rawConfig <- liftIO $ Dhall.readRawExpr path
   case rawConfig of
     Nothing -> die Messages.cannotFindConfig
     Just (header, expr) -> do
       newExpr <- transformMExpr transform expr
-      liftIO $ Dhall.writeRawExpr shouldFormat pathText (header, newExpr)
+      -- Write the new expression only if it has actually changed
+      if (Dhall.Core.denote expr /= newExpr)
+        then liftIO $ Dhall.writeRawExpr path (header, newExpr)
+        else echoDebug "Transformed config is the same as the read one, not overwriting it"
 
 
 transformMExpr
