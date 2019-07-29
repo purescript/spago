@@ -2,10 +2,8 @@ module PscPackageSpec (spec) where
 
 import           Control.Monad.Extra (whenM)
 import           Prelude             hiding (FilePath)
-import           Test.Hspec          (Spec, afterAll_, around_, beforeAll,
-                                      describe, it, shouldBe)
-import           Turtle              (FilePath, empty, procStrictWithErr, procs,
-                                      rm, testdir, testfile)
+import           Test.Hspec          (Spec, afterAll_, around_, beforeAll, describe, it, shouldBe)
+import           Turtle              (FilePath, empty, procs, rm, testdir, testfile)
 import           Utils               (shouldBeSuccess, spago, withCwd)
 
 testDir :: FilePath
