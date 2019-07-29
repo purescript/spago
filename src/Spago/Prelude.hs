@@ -192,7 +192,7 @@ viewShell :: (MonadIO m, Show a) => Turtle.Shell a -> m ()
 viewShell = Turtle.view
 
 
-surroundQuote :: Text -> Text
+surroundQuote :: IsString t => Semigroup t => t -> t
 surroundQuote y = "\"" <> y <> "\""
 
 

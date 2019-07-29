@@ -10,6 +10,7 @@ module Spago.Config
 
 import           Spago.Prelude
 
+import qualified Data.List             as List
 import qualified Data.Map              as Map
 import qualified Data.SemVer           as SemVer
 import qualified Data.Sequence         as Seq
@@ -199,9 +200,11 @@ makeConfig force = do
               (bowerErrors, bowerPackages) = partitionEithers packageResults
 
           if null bowerErrors
-            then echo "All Bower dependencies are in the set! 🎉"
+            then do
+              echo "All Bower dependencies are in the set! 🎉"
+              echo $ "You can now safely delete your " <> surroundQuote "bower.json"
             else do
-              echo $ tshow bowerErrors
+              echo $ showBowerErrors bowerErrors
 
           withConfigAST (\e -> addRawDeps config bowerPackages
                                $ updateName bowerName e)
@@ -222,7 +225,7 @@ migrateBower Bower.PackageMeta{..} PackageSet{..} = (packageName, dependencies)
     migratePackage :: (Bower.PackageName, Bower.VersionRange) -> Either BowerDependencyError PackageName
     migratePackage (Bower.runPackageName -> name, Bower.VersionRange unparsedRange) =
       case SemVer.parseSemVerRange unparsedRange of
-        Left err -> Left $ UnparsableRange unparsedRange $ tshow err
+        Left _err -> Left $ UnparsableRange (PackageName name) unparsedRange
         Right range -> case Text.stripPrefix "purescript-" name of
           Nothing -> Left $ NonPureScript name
           Just packageSetName | package <- PackageName packageSetName -> case Map.lookup package packagesDB of
@@ -239,50 +242,37 @@ migrateBower Bower.PackageMeta{..} PackageSet{..} = (packageName, dependencies)
         False -> name
 
 data BowerDependencyError
-  = UnparsableRange Text Text
+  = UnparsableRange PackageName Text
   | NonPureScript Text
   | MissingFromTheSet PackageName
   | WrongVersion PackageName SemVer.SemVerRange Text
-  deriving (Show, Eq, Ord)
+  deriving (Eq, Ord)
 
 
-{-
-verifyBower :: Spago m => m ()
-verifyBower =  do
-  echoDebug "Running `spago verify-bower`"
-  Config{ packageSet = PackageSet{..}, ..} <- Config.ensureConfig
-  deps <- Bower.ensureBowerFile
-  let (warning, success) = List.partition isWarning $ check packagesDB <$> deps
-  if null warning
-    then echo "All dependencies are in the set!"
-    else echo "Some dependencies are missing!"
-  traverse_ echo $ "Warnings:" : (display <$> warning)
-  traverse_ echo $ "Packages:" : (display <$> success)
+showBowerErrors :: [BowerDependencyError] -> Text
+showBowerErrors (List.sort -> errors)
+  = "\n\nSpago encountered some errors while trying to migrate your Bower config.\n"
+  <> "A Spago config has been generated but it's recommended that you apply the suggestions here\n\n"
+  <> (Text.unlines $ map (\errorGroup ->
+      (case (head errorGroup) of
+         UnparsableRange _ _ -> "It was not possible to parse the version range for these packages:"
+         NonPureScript _ -> "These packages are not PureScript packages, so you should install them with `npm` instead:"
+         MissingFromTheSet _ -> "These packages are missing from the package set. You should add them in your local package set:\n(See here for how: https://github.com/spacchetti/spago#add-a-package-to-the-package-set)"
+         WrongVersion _ _ _ -> "These packages are in the set, but did not match the Bower range. You can try to install them with `spago install some-package-name`")
+      <> "\n"
+      <> Text.unlines (map (("* " <>) . showE) errorGroup)) (List.groupBy groupFn errors))
   where
-    check :: Map PackageName Package -> Bower.Dependency -> BowerDependencyResult
-    check packageSet Bower.Dependency{..} = case Text.stripPrefix "purescript-" name of
-      Nothing -> NonPureScript name
-      Just package -> case Map.lookup (PackageName package) packageSet of
-        Just Package{ location = Remote{..}, .. } -> case hush $ SemVer.parseSemVer version of
-          Nothing -> WrongVersion package rangeText version
-          Just v -> if SemVer.matches range v
-                    then Match package rangeText version
-                    else WrongVersion package rangeText version
-        _ -> Missing package
+    groupFn (UnparsableRange _ _) (UnparsableRange _ _) = True
+    groupFn (NonPureScript _) (NonPureScript _) = True
+    groupFn (MissingFromTheSet _) (MissingFromTheSet _) = True
+    groupFn (WrongVersion _ _ _) (WrongVersion _ _ _) = True
+    groupFn _ _ = False
 
-    display :: BowerDependencyResult -> Text
-    display = \case
-      Match package range actual -> package <> " " <> actual <> " matches " <> range
-      Missing package -> package <> " is not in the package set"
-      NonPureScript name -> name <> " is not a PureScript package"
-      WrongVersion package range actual -> package <> " " <> actual <> " does not match " <> range
+    showE (UnparsableRange (PackageName name) range) = surroundQuote name <> " had range " <> surroundQuote range
+    showE (NonPureScript name) = surroundQuote name
+    showE (MissingFromTheSet (PackageName name)) = surroundQuote name
+    showE (WrongVersion (PackageName name) range version) = surroundQuote name <> " has version " <> version <> ", but range is " <> tshow range
 
-    isWarning = \case
-      Match _ _ _ -> False
-      _           -> True
-
-
--}
 
 updateName :: Text -> Expr -> Expr
 updateName newName (Dhall.RecordLit kvs)
