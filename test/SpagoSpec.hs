@@ -60,8 +60,8 @@ spec = around_ setup $ do
 
     it "Spago should import configs from Bower" $ do
 
-      shell "git clone https://github.com/justinwoo/purescript-simple-json.git ." empty
-      shell "git checkout v7.0.0" empty
+      shellStrictWithErr "git clone https://github.com/justinwoo/purescript-simple-json.git ." empty
+      shellStrictWithErr "git checkout v7.0.0" empty
       spago ["init"] >>= shouldBeSuccess
       mv "spago.dhall" "spago-bower-import.dhall"
       checkFixture "spago-bower-import.dhall"
