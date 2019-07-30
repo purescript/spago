@@ -6,7 +6,7 @@ import           Prelude            hiding (FilePath)
 import qualified System.IO.Temp     as Temp
 import           Test.Hspec         (Spec, around_, describe, it, shouldBe)
 import           Turtle             (ExitCode (..), cd, cp, decodeString, empty, mkdir, mktree, mv,
-                                     readTextFile, rm, shell, testdir, writeTextFile)
+                                     readTextFile, rm, shell, testdir, writeTextFile, shellStrictWithErr)
 import           Utils              (checkFixture, readFixture, runFor, shouldBeFailure,
                                      shouldBeFailureOutput, shouldBeSuccess, shouldBeSuccessOutput,
                                      spago, withCwd)
@@ -58,6 +58,13 @@ spec = around_ setup $ do
       cp "spago.dhall" "spago-psc-failure.dhall"
       checkFixture "spago-psc-failure.dhall"
 
+    it "Spago should import configs from Bower" $ do
+
+      shellStrictWithErr "git clone https://github.com/justinwoo/purescript-simple-json.git ." empty
+      shellStrictWithErr "git checkout v7.0.0" empty
+      spago ["init"] >>= shouldBeSuccess
+      mv "spago.dhall" "spago-bower-import.dhall"
+      checkFixture "spago-bower-import.dhall"
 
   describe "spago install" $ do
 

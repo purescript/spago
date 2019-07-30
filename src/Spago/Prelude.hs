@@ -37,6 +37,7 @@ module Spago.Prelude
   , mktree
   , mv
   , cptree
+  , bimap
   , chmod
   , executable
   , readTextFile
@@ -88,6 +89,7 @@ import           Control.Monad                 as X
 import           Control.Monad.Catch           as X hiding (try)
 import           Control.Monad.Reader          as X
 import           Data.Aeson                    as X hiding (Result (..))
+import           Data.Bifunctor                (bimap)
 import           Data.Bool                     as X
 import           Data.Either                   as X
 import           Data.Either.Validation        (Validation (..))
@@ -132,9 +134,9 @@ instance Show SpagoError where
 data UsePsa = UsePsa | NoPsa
 
 data GlobalOptions = GlobalOptions
-  { globalDebug    :: Bool
-  , globalUsePsa   :: UsePsa
-  , globalJobs     :: Int
+  { globalDebug  :: Bool
+  , globalUsePsa :: UsePsa
+  , globalJobs   :: Int
   }
 
 type Spago m =
@@ -190,7 +192,7 @@ viewShell :: (MonadIO m, Show a) => Turtle.Shell a -> m ()
 viewShell = Turtle.view
 
 
-surroundQuote :: Text -> Text
+surroundQuote :: IsString t => Semigroup t => t -> t
 surroundQuote y = "\"" <> y <> "\""
 
 

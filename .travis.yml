@@ -81,9 +81,9 @@ install:
 
 script:
   - |
-    set -e
     echo "Running tests"
     export PATH="${PATH}:$(pwd)/artifacts"
+    set -e
     if [ `uname` = "Darwin" ]
     then
       stack build --test --no-run-tests --copy-bins --local-bin-path ./artifacts;

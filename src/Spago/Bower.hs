@@ -1,5 +1,5 @@
 module Spago.Bower
-  ( bowerPath
+  ( path
   , generateBowerJson
   , runBowerInstall
   ) where
@@ -28,8 +28,8 @@ import           Spago.PackageSet           (PackageName (..), Package (..), Pac
 import qualified Spago.Templates            as Templates
 
 
-bowerPath :: IsString t => t
-bowerPath = "bower.json"
+path :: IsString t => t
+path = "bower.json"
 
 
 runBower :: Spago m => [Text] -> m (ExitCode, Text, Text)
@@ -63,9 +63,9 @@ generateBowerJson = do
         }
       bowerJson = Pretty.encodePretty' prettyConfig bowerPkg
 
-  ignored <- Git.isIgnored bowerPath
+  ignored <- Git.isIgnored path
   when ignored $ do
-    die $ bowerPath <> " is being ignored by git - change this before continuing"
+    die $ path <> " is being ignored by git - change this before continuing"
 
   echo $ "Generated a valid Bower config using the package set"
   pure bowerJson
@@ -131,8 +131,8 @@ mkDependencies config = do
     mkDependency :: Spago m => (PackageName, Package) -> m (Bower.PackageName, Bower.VersionRange)
     mkDependency (PackageName{..}, Package{..}) =
       case location of
-        Local path ->
-          die $ "Unable to create Bower version for local repo: " <> path
+        Local localPath ->
+          die $ "Unable to create Bower version for local repo: " <> localPath
         Remote{..} -> do
           bowerName <- mkPackageName packageName
           bowerVersion <- mkBowerVersion bowerName version repo
