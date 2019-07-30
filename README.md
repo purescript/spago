@@ -12,103 +12,6 @@ PureScript package manager and build tool powered by [Dhall][dhall] and
 
 <img src="https://raw.githubusercontent.com/spacchetti/logo/master/spacchetti-icon.png" height="300px" alt="spacchetti logo">
 
-<!-- START doctoc generated TOC please keep comment here to allow auto update -->
-<!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
-
-
-- [Design goals and reasons](#design-goals-and-reasons)
-  - [Brief survey of other package managers and build tools available](#brief-survey-of-other-package-managers-and-build-tools-available)
-- [Developing and contributing](#developing-and-contributing)
-- [Installation](#installation)
-- [Super quick tutorial](#super-quick-tutorial)
-- [How do I...](#how-do-i)
-  - [Switch from `psc-package`](#switch-from-psc-package)
-  - [Switch from `bower`](#switch-from-bower)
-  - [See what commands and flags are supported](#see-what-commands-and-flags-are-supported)
-  - [Download my dependencies locally](#download-my-dependencies-locally)
-  - [Build and run my project](#build-and-run-my-project)
-  - [Test my project](#test-my-project)
-  - [Run a repl](#run-a-repl)
-  - [List available packages](#list-available-packages)
-  - [Add a direct dependency](#add-a-direct-dependency)
-  - [Override a package in the package set with a local one](#override-a-package-in-the-package-set-with-a-local-one)
-  - [Override a package in the package set with a remote one](#override-a-package-in-the-package-set-with-a-remote-one)
-  - [Add a package to the package set](#add-a-package-to-the-package-set)
-  - [`bower link`](#bower-link)
-  - [Verify that an addition/override doesn't break the package set](#verify-that-an-additionoverride-doesnt-break-the-package-set)
-  - [Automagically upgrade the package set](#automagically-upgrade-the-package-set)
-  - [Separate `devDependencies` or test dependencies](#separate-devdependencies-or-test-dependencies)
-  - [Bundle a project into a single JS file](#bundle-a-project-into-a-single-js-file)
-    - [1. `spago bundle-app`](#1-spago-bundle-app)
-    - [2. `spago bundle-module`](#2-spago-bundle-module)
-    - [Skipping the Build Step](#skipping-the-build-step)
-  - [Make a project with PureScript + JavaScript](#make-a-project-with-purescript--javascript)
-  - [Generate documentation for my project](#generate-documentation-for-my-project)
-  - [Publish my library](#publish-my-library)
-  - [Use this together with `psc-package`](#use-this-together-with-psc-package)
-  - [Get all the licenses of my dependencies](#get-all-the-licenses-of-my-dependencies)
-  - [Know what `purs` commands are run under the hood](#know-what-purs-commands-are-run-under-the-hood)
-  - [Ignore or update the global cache](#ignore-or-update-the-global-cache)
-- [Explanations](#explanations)
-  - [Visual Overview: What happens when you do 'spago build'?](#visual-overview-what-happens-when-you-do-spago-build)
-  - [Configuration file format](#configuration-file-format)
-  - [Why can't `spago` also install my npm dependencies?](#why-cant-spago-also-install-my-npm-dependencies)
-  - [Why we don't resolve JS dependencies when bundling, and how to do it](#why-we-dont-resolve-js-dependencies-when-bundling-and-how-to-do-it)
-  - [How does the "global cache" work?](#how-does-the-global-cache-work)
-- [Troubleshooting](#troubleshooting)
-    - [I added a git repo URL to my overrides, but `spago` thinks it's a local path 🤔](#i-added-a-git-repo-url-to-my-overrides-but-spago-thinks-its-a-local-path-)
-    - [My `install` command is failing with some errors about "too many open files"](#my-install-command-is-failing-with-some-errors-about-too-many-open-files)
-    - [Package set caching problems](#package-set-caching-problems)
-    - [I added a new package to the `packages.dhall`, but `spago` is not installing it. Why?](#i-added-a-new-package-to-the-packagesdhall-but-spago-is-not-installing-it-why)
-- [Reference - Internals](#internals)
-  - [The `spago-curator` tool](INTERNALS.md#the-spago-curator-tool)
-
-<!-- END doctoc generated TOC please keep comment here to allow auto update -->
-
-
-## Design goals and reasons
-
-Our main design goals are:
-- **Great UX**: you're not supposed to spend your life configuring the build for your project.
-  A good build system just does what's most expected and gets out of the way so you can focus
-  on actually writing the software.
-- **Minimal dependencies**: users should not be expected to install a myriad of tools on their
-  system to support various workflows. We depend only on `git` and `purs` being installed.
-- **Reproducible builds**: thanks to [package sets][package-sets] and [Dhall][dhall], if your
-  project builds today it will also build tomorrow and every day after that.
-
-Some tools that inspired `spago` are: [Rust's Cargo][cargo], [Haskell's Stack][stack],
-[`psc-package`][psc-package], [`pulp`][pulp] and [`purp`][purp].
-
-
-### Brief survey of other package managers and build tools available
-
-`pulp` is excellent, but it is only a build tool. This means that you'll have to use it with
-either `bower` or `psc-package`:
-- If you go for `bower`, you're missing out on package-sets (that is: packages versions
-  that are known to be working together, saving you the headache of fitting package
-  versions together all the time).
-- If you use `psc-package`, you have the problem of not having the ability of overriding
-  packages versions when needed, leading everyone to make their own package-set, which
-  then goes unmaintained, etc.
-
-  Of course you can use the package-set-local-setup to solve this issue, but this is
-  exactly what we're doing here: integrating all the workflow in a single tool, `spago`,
-  instead of having to install and use `pulp`, `psc-package`, `purp`, etc.
-
-
-## Developing and contributing
-
-We'd love your help, and welcome PRs and contributions!
-
-Some ideas for getting started:
-- [Build and run `spago`](CONTRIBUTING.md#developing-spago)
-- [Help us fix bugs and build features](https://github.com/spacchetti/spago/issues?utf8=%E2%9C%93&q=is%3Aissue+is%3Aopen+label%3A%22help+wanted%22+label%3A%22defect%22)
-- Help us improve our documentation
-- Help us [log bugs and open issues][new-issue]
-
-For more details see the [`CONTRIBUTING.md`][contributing]
-
 
 ## Installation
 
@@ -204,6 +107,100 @@ You can also bundle the project in a single file with an entry point, so it can 
 $ spago bundle-app
 $ node .
 ```
+
+
+<!-- START doctoc generated TOC please keep comment here to allow auto update -->
+<!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
+
+
+- [Design goals and reasons](#design-goals-and-reasons)
+  - [Brief survey of other package managers and build tools available](#brief-survey-of-other-package-managers-and-build-tools-available)
+- [Developing and contributing](#developing-and-contributing)
+- [How do I...](#how-do-i)
+  - [Switch from `psc-package`](#switch-from-psc-package)
+  - [Switch from `bower`](#switch-from-bower)
+  - [See what commands and flags are supported](#see-what-commands-and-flags-are-supported)
+  - [Download my dependencies locally](#download-my-dependencies-locally)
+  - [Build and run my project](#build-and-run-my-project)
+  - [Test my project](#test-my-project)
+  - [Run a repl](#run-a-repl)
+  - [List available packages](#list-available-packages)
+  - [Add a direct dependency](#add-a-direct-dependency)
+  - [Override a package in the package set with a local one](#override-a-package-in-the-package-set-with-a-local-one)
+  - [Override a package in the package set with a remote one](#override-a-package-in-the-package-set-with-a-remote-one)
+  - [Add a package to the package set](#add-a-package-to-the-package-set)
+  - [`bower link`](#bower-link)
+  - [Verify that an addition/override doesn't break the package set](#verify-that-an-additionoverride-doesnt-break-the-package-set)
+  - [Automagically upgrade the package set](#automagically-upgrade-the-package-set)
+  - [Monorepo](#monorepo)
+  - [Bundle a project into a single JS file](#bundle-a-project-into-a-single-js-file)
+    - [1. `spago bundle-app`](#1-spago-bundle-app)
+    - [2. `spago bundle-module`](#2-spago-bundle-module)
+    - [Skipping the Build Step](#skipping-the-build-step)
+  - [Make a project with PureScript + JavaScript](#make-a-project-with-purescript--javascript)
+  - [Generate documentation for my project](#generate-documentation-for-my-project)
+  - [Publish my library](#publish-my-library)
+  - [Use this together with `psc-package`](#use-this-together-with-psc-package)
+  - [Get all the licenses of my dependencies](#get-all-the-licenses-of-my-dependencies)
+  - [Know which `purs` commands are run under the hood](#know-which-purs-commands-are-run-under-the-hood)
+  - [Ignore or update the global cache](#ignore-or-update-the-global-cache)
+- [Explanations](#explanations)
+  - [Visual Overview: What happens when you do 'spago build'?](#visual-overview-what-happens-when-you-do-spago-build)
+  - [Configuration file format](#configuration-file-format)
+  - [Why can't `spago` also install my npm dependencies?](#why-cant-spago-also-install-my-npm-dependencies)
+  - [Why we don't resolve JS dependencies when bundling, and how to do it](#why-we-dont-resolve-js-dependencies-when-bundling-and-how-to-do-it)
+  - [How does the "global cache" work?](#how-does-the-global-cache-work)
+- [Troubleshooting](#troubleshooting)
+    - [Spago is failing with some errors about "too many open files"](#spago-is-failing-with-some-errors-about-too-many-open-files)
+    - [Package set caching problems](#package-set-caching-problems)
+    - [I added a new package to the `packages.dhall`, but `spago` is not installing it. Why?](#i-added-a-new-package-to-the-packagesdhall-but-spago-is-not-installing-it-why)
+- [Internals](#internals)
+
+<!-- END doctoc generated TOC please keep comment here to allow auto update -->
+
+
+## Design goals and reasons
+
+Our main design goals are:
+- **Great UX**: you're not supposed to spend your life configuring the build for your project.
+  A good build system just does what's most expected and gets out of the way so you can focus
+  on actually writing the software.
+- **Minimal dependencies**: users should not be expected to install a myriad of tools on their
+  system to support various workflows. We depend only on `git` and `purs` being installed.
+- **Reproducible builds**: thanks to [package sets][package-sets] and [Dhall][dhall], if your
+  project builds today it will also build tomorrow and every day after that.
+
+Some tools that inspired `spago` are: [Rust's Cargo][cargo], [Haskell's Stack][stack],
+[`psc-package`][psc-package], [`pulp`][pulp] and [`purp`][purp].
+
+
+### Brief survey of other package managers and build tools available
+
+`pulp` is excellent, but it is only a build tool. This means that you'll have to use it with
+either `bower` or `psc-package`:
+- If you go for `bower`, you're missing out on package-sets (that is: packages versions
+  that are known to be working together, saving you the headache of fitting package
+  versions together all the time).
+- If you use `psc-package`, you have the problem of not having the ability of overriding
+  packages versions when needed, leading everyone to make their own package-set, which
+  then goes unmaintained, etc.
+
+  Of course you can use the package-set-local-setup to solve this issue, but this is
+  exactly what we're doing here: integrating all the workflow in a single tool, `spago`,
+  instead of having to install and use `pulp`, `psc-package`, `purp`, etc.
+
+
+## Developing and contributing
+
+We'd love your help, and welcome PRs and contributions!
+
+Some ideas for getting started:
+- [Build and run `spago`](CONTRIBUTING.md#developing-spago)
+- [Help us fix bugs and build features](https://github.com/spacchetti/spago/issues?utf8=%E2%9C%93&q=is%3Aissue+is%3Aopen+label%3A%22help+wanted%22+label%3A%22defect%22)
+- Help us improve our documentation
+- Help us [log bugs and open issues][new-issue]
+
+For more details see the [`CONTRIBUTING.md`][contributing]
 
 
 ## How do I...
@@ -475,7 +472,7 @@ let additions =
   }
 ```
 
-Of course this works also in the case of adding local packages, which work exactly as the `overrides`:
+As you might expect, this works also in the case of adding local packages:
 
 Example:
 
