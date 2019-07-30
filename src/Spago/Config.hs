@@ -10,24 +10,28 @@ module Spago.Config
 
 import           Spago.Prelude
 
-import qualified Data.Map           as Map
-import qualified Data.Sequence      as Seq
-import qualified Data.Set           as Set
-import qualified Data.Text          as Text
-import qualified Data.Text.Encoding as Text
-import qualified Data.Versions      as Version
+import qualified Data.List             as List
+import qualified Data.Map              as Map
+import qualified Data.SemVer           as SemVer
+import qualified Data.Sequence         as Seq
+import qualified Data.Set              as Set
+import qualified Data.Text             as Text
+import qualified Data.Text.Encoding    as Text
+import qualified Data.Versions         as Version
 import qualified Dhall.Core
 import qualified Dhall.Map
 import qualified Dhall.TypeCheck
+import qualified Web.Bower.PackageMeta as Bower
 
-import qualified Spago.Dhall        as Dhall
-import qualified Spago.Messages     as Messages
-import qualified Spago.PackageSet   as PackageSet
-import qualified Spago.PscPackage   as PscPackage
-import qualified Spago.Purs         as Purs
-import qualified Spago.Templates    as Templates
+import qualified Spago.Dhall           as Dhall
+import qualified Spago.Messages        as Messages
+import qualified Spago.PackageSet      as PackageSet
+import qualified Spago.PscPackage      as PscPackage
+import qualified Spago.Purs            as Purs
+import qualified Spago.Templates       as Templates
 
-import           Spago.PackageSet   (Package, PackageName, PackageSet)
+import           Spago.PackageSet      (Package (..), PackageLocation (..), PackageName (..),
+                                        PackageSet (..))
 
 
 -- | Path for the Spago Config
@@ -162,21 +166,112 @@ makeConfig force = do
   writeTextFile path Templates.spagoDhall
   Dhall.format path
 
-  -- We try to find an existing psc-package config, and we migrate the existing
-  -- content if we found one, otherwise we copy the default template
+  -- We try to find an existing psc-package or Bower config, and if
+  -- we find any we migrate the existing content
+  -- Otherwise we just keep the default template
+  bowerFileExists <- testfile "bower.json"
   pscfileExists <- testfile PscPackage.configPath
-  when pscfileExists $ do
-    -- first, read the psc-package file content
-    content <- readTextFile PscPackage.configPath
-    case eitherDecodeStrict $ Text.encodeUtf8 content of
-      Left err -> echo $ Messages.failedToReadPscFile err
-      Right pscConfig -> do
-        echo "Found a \"psc-package.json\" file, migrating to a new Spago config.."
-        -- try to update the dependencies (will fail if not found in package set)
-        let pscPackages = map PackageSet.PackageName $ PscPackage.depends pscConfig
-        config <- ensureConfig
-        withConfigAST (\e -> addRawDeps config pscPackages
-                            $ updateName (PscPackage.name pscConfig) e)
+
+  case (pscfileExists, bowerFileExists) of
+    (True, _) -> do
+      -- first, read the psc-package file content
+      content <- readTextFile PscPackage.configPath
+      case eitherDecodeStrict $ Text.encodeUtf8 content of
+        Left err -> echo $ Messages.failedToReadPscFile err
+        Right pscConfig -> do
+          echo "Found a \"psc-package.json\" file, migrating to a new Spago config.."
+          -- try to update the dependencies (will fail if not found in package set)
+          let pscPackages = map PackageSet.PackageName $ PscPackage.depends pscConfig
+          config <- ensureConfig
+          withConfigAST (\e -> addRawDeps config pscPackages
+                               $ updateName (PscPackage.name pscConfig) e)
+    (_, True) -> do
+      -- read the bowerfile
+      content <- readTextFile "bower.json"
+      case eitherDecodeStrict $ Text.encodeUtf8 content of
+        Left err -> die $ Messages.failedToParseFile path err
+        Right packageMeta -> do
+          echo "Found a \"bower.json\" file, migrating to a new Spago config.."
+          -- then try to update the dependencies. We'll migrates the ones that we can,
+          -- and print a message to the user to fix the missing ones
+          config@Config{..} <- ensureConfig
+
+          let (bowerName, packageResults) = migrateBower packageMeta packageSet
+              (bowerErrors, bowerPackages) = partitionEithers packageResults
+
+          if null bowerErrors
+            then do
+              echo "All Bower dependencies are in the set! 🎉"
+              echo $ "You can now safely delete your " <> surroundQuote "bower.json"
+            else do
+              echo $ showBowerErrors bowerErrors
+
+          withConfigAST (\e -> addRawDeps config bowerPackages
+                               $ updateName bowerName e)
+
+    _ -> pure ()
+
+
+migrateBower :: Bower.PackageMeta -> PackageSet -> (Text, [Either BowerDependencyError PackageName])
+migrateBower Bower.PackageMeta{..} PackageSet{..} = (packageName, dependencies)
+  where
+    dependencies = map migratePackage (bowerDependencies <> bowerDevDependencies)
+
+    -- | For each Bower dependency, we:
+    --   * try to parse the range into a SemVer.Range
+    --   * then check if it's a purescript package
+    --   * then try to search in the Package Set for that package
+    --   * then try to match the version there into the Bower range
+    migratePackage :: (Bower.PackageName, Bower.VersionRange) -> Either BowerDependencyError PackageName
+    migratePackage (Bower.runPackageName -> name, Bower.VersionRange unparsedRange) =
+      case SemVer.parseSemVerRange unparsedRange of
+        Left _err -> Left $ UnparsableRange (PackageName name) unparsedRange
+        Right range -> case Text.stripPrefix "purescript-" name of
+          Nothing -> Left $ NonPureScript name
+          Just packageSetName | package <- PackageName packageSetName -> case Map.lookup package packagesDB of
+            Nothing -> Left $ MissingFromTheSet package
+            Just Package{ location = Local {..} } -> Right package
+            Just Package{ location = Remote {..} } -> case SemVer.parseSemVer version of
+              Right v | SemVer.matches range v -> Right package
+              _                                -> Left $ WrongVersion package range version
+
+    packageName =
+      let name = Bower.runPackageName bowerName
+      in case Text.isPrefixOf "purescript-" name of
+        True  -> Text.drop 11 name
+        False -> name
+
+data BowerDependencyError
+  = UnparsableRange PackageName Text
+  | NonPureScript Text
+  | MissingFromTheSet PackageName
+  | WrongVersion PackageName SemVer.SemVerRange Text
+  deriving (Eq, Ord)
+
+
+showBowerErrors :: [BowerDependencyError] -> Text
+showBowerErrors (List.sort -> errors)
+  = "\n\nSpago encountered some errors while trying to migrate your Bower config.\n"
+  <> "A Spago config has been generated but it's recommended that you apply the suggestions here\n\n"
+  <> (Text.unlines $ map (\errorGroup ->
+      (case (head errorGroup) of
+         UnparsableRange _ _ -> "It was not possible to parse the version range for these packages:"
+         NonPureScript _ -> "These packages are not PureScript packages, so you should install them with `npm` instead:"
+         MissingFromTheSet _ -> "These packages are missing from the package set. You should add them in your local package set:\n(See here for how: https://github.com/spacchetti/spago#add-a-package-to-the-package-set)"
+         WrongVersion _ _ _ -> "These packages are in the set, but did not match the Bower range. You can try to install them with `spago install some-package-name`")
+      <> "\n"
+      <> Text.unlines (map (("* " <>) . showE) errorGroup)) (List.groupBy groupFn errors))
+  where
+    groupFn (UnparsableRange _ _) (UnparsableRange _ _) = True
+    groupFn (NonPureScript _) (NonPureScript _) = True
+    groupFn (MissingFromTheSet _) (MissingFromTheSet _) = True
+    groupFn (WrongVersion _ _ _) (WrongVersion _ _ _) = True
+    groupFn _ _ = False
+
+    showE (UnparsableRange (PackageName name) range) = surroundQuote name <> " had range " <> surroundQuote range
+    showE (NonPureScript name) = surroundQuote name
+    showE (MissingFromTheSet (PackageName name)) = surroundQuote name
+    showE (WrongVersion (PackageName name) range version) = surroundQuote name <> " has version " <> version <> ", but range is " <> tshow range
 
 
 updateName :: Text -> Expr -> Expr

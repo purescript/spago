@@ -3,7 +3,6 @@ module Spago.Packages
   , install
   , sources
   , verify
-  , verifyBower
   , listPackages
   , getGlobs
   , getDirectDeps
@@ -21,13 +20,11 @@ import           Spago.Prelude
 import           Data.Aeson              as Aeson
 import qualified Data.List               as List
 import qualified Data.Map                as Map
-import qualified Data.SemVer             as SemVer
 import qualified Data.Set                as Set
 import qualified Data.Text               as Text
 import qualified Data.Text.Lazy          as LT
 import qualified Data.Text.Lazy.Encoding as LT
 
-import           Spago.BowerMigration    as Bower
 import           Spago.Config            (Config (..))
 import qualified Spago.Config            as Config
 import qualified Spago.FetchPackage      as Fetch
@@ -290,46 +287,6 @@ sources = do
     $ Config.configSourcePaths config
   pure ()
 
-data BowerDependencyResult
-  = Match Text Text Text
-  | Missing Text
-  | NonPureScript Text
-  | WrongVersion Text Text Text
-  deriving (Show, Eq)
-
-verifyBower :: Spago m => m ()
-verifyBower =  do
-  echoDebug "Running `spago verify-bower`"
-  Config{ packageSet = PackageSet{..}, ..} <- Config.ensureConfig
-  deps <- Bower.ensureBowerFile
-  let (warning, success) = List.partition isWarning $ check packagesDB <$> deps
-  if null warning
-    then echo "All dependencies are in the set!"
-    else echo "Some dependencies are missing!"
-  traverse_ echo $ "Warnings:" : (display <$> warning)
-  traverse_ echo $ "Packages:" : (display <$> success)
-  where
-    check :: Map PackageName Package -> Bower.Dependency -> BowerDependencyResult
-    check packageSet Bower.Dependency{..} = case Text.stripPrefix "purescript-" name of
-      Nothing -> NonPureScript name
-      Just package -> case Map.lookup (PackageName package) packageSet of
-        Just Package{ location = Remote{..}, .. } -> case hush $ SemVer.parseSemVer version of
-          Nothing -> WrongVersion package rangeText version
-          Just v -> if SemVer.matches range v
-                    then Match package rangeText version
-                    else WrongVersion package rangeText version
-        _ -> Missing package
-
-    display :: BowerDependencyResult -> Text
-    display = \case
-      Match package range actual -> package <> " " <> actual <> " matches " <> range
-      Missing package -> package <> " is not in the package set"
-      NonPureScript name -> name <> " is not a PureScript package"
-      WrongVersion package range actual -> package <> " " <> actual <> " does not match " <> range
-
-    isWarning = \case
-      Match _ _ _ -> False
-      _           -> True
 
 verify :: Spago m => Maybe CacheFlag -> Maybe PackageName -> m ()
 verify cacheFlag maybePackage = do

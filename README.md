@@ -226,16 +226,17 @@ your existing build is just a matter of search-and-replace most of the times.
 
 ### Switch from `bower`
 
-Switching from `bower` is a bit more involved, because the package list models
-are different. Start by running `spago init`. Then prompt spago to install your
-current `bower` dependencies by running:
+Switching from `bower` is about the same workflow: just run `spago init` and
+we'll try to match the package versions in your `bower.json` with the ones in
+the package set, porting the packages to your `spago.dhall`
 
-```
-spago install $(jq < bower.json ".dependencies | keys | .[] | .[11:]" | tr '\n' ' ' | tr -d '"')
-spago install $(jq < bower.json ".devDependencies | keys | .[] | .[11:]" | tr '\n' ' ' | tr -d '"')
-```
+Note: `spago` won't otherwise touch your `bower.json` file, so you'll have to
+remove it yourself.
 
-If spago doesn't find some of them (because they're not on the package set), [add them manually](#add-a-package-to-the-package-set).
+Some packages might not be found or have the wrong version, in which case
+you'll have to carefully:
+- try to run `spago install some-package` for packages in the set
+- [add the missing packages](#add-a-package-to-the-package-set) if not in the set
 
 
 ### See what commands and flags are supported

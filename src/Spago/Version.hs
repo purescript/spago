@@ -92,12 +92,12 @@ bumpVersion dryRun spec = do
 
   let writeBowerAction = DryAction
         ("write the new config to the `bower.json` file and try to install its dependencies") $ do
-        echo $ "Writing the new Bower config to " <> surroundQuote Bower.bowerPath
-        liftIO $ ByteString.writeFile Bower.bowerPath newBowerConfig
+        echo $ "Writing the new Bower config to " <> surroundQuote Bower.path
+        liftIO $ ByteString.writeFile Bower.path newBowerConfig
         Bower.runBowerInstall
         clean <- Git.hasCleanWorkingTree
         when (not clean) $ do
-          die $ "A new " <> Bower.bowerPath <> " has been generated. Please commit this and run `bump-version` again."
+          die $ "A new " <> Bower.path <> " has been generated. Please commit this and run `bump-version` again."
 
   let tagAction = DryAction
         ("create (locally) the new git tag " <> surroundQuote (unparseVersion newVersion))
