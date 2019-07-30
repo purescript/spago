@@ -81,11 +81,8 @@ install:
 
 script:
   - |
-    set -e
+    # set -e
     echo "Running tests"
-    # Patch so we get full failure logs, see:
-    # https://github.com/travis-ci/travis-ci/issues/8920
-    python -c "import fcntl; fcntl.fcntl(1, fcntl.F_SETFL, 0)"
     export PATH="${PATH}:$(pwd)/artifacts"
     if [ `uname` = "Darwin" ]
     then
@@ -112,11 +109,6 @@ script:
     # install psa and rerun tests that exercise it
     npm install -g purescript-psa
     ./.stack-work/dist/*/*/build/spec/spec --match "/Spago/spago run"
-
-
-after_failure:
-  - sleep 10;
-  - echo == End of test log ==
 
 
 before_deploy:
