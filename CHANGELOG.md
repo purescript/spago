@@ -41,15 +41,15 @@ Breaking changes (!!!):
 
 
 New features:
+- Add searchbar to docs generated with `spago docs` (#340, #333, #89)
+- Add automatic migration of Bower projects when doing `spago init` (#159, #272, #342)
+- Add `bump-version` command, for generating `bower.json` files and making version tags in Git (#203, #289, #324)
 - Use `psa` for compiling if installed; you can avoid this with the new `--no-psa` flag (#305, #283, #252, #327)
 - Add support for starting a repl within a folder which has not been setup as a spago project (#168, #280)
 - Add `--format` flag to `spago docs` (#294, #299)
-- Add `bump-version` command, for generating `bower.json` files and making version tags in Git (#203, #289, #324)
 - Add project sources to `spago sources` output (#276, #287, #308)
 - Watch all sources, including dependencies, when building with filewatch (#172, #309)
 - Add `--deps-only` flag to build dependencies alone (#330, #331)
-- Add automatic migration of Bower projects when doing `spago init` (#159, #272, #342)
-- Add searchbar to docs generated with `spago docs` (#340, #333, #89)
 
 Bugfixes:
 - Fix `spago install` failing when version branch names differ only by case on case-insensitive filesystems (#285)
