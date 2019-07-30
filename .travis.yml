@@ -83,6 +83,9 @@ script:
   - |
     set -e
     echo "Running tests"
+    # Patch so we get full failure logs, see:
+    # https://github.com/travis-ci/travis-ci/issues/8920
+    python -c "import fcntl; fcntl.fcntl(1, fcntl.F_SETFL, 0)"
     export PATH="${PATH}:$(pwd)/artifacts"
     if [ `uname` = "Darwin" ]
     then
