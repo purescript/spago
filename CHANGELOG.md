@@ -10,9 +10,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.9.0] - 2019-07-30
 
 Breaking changes (!!!):
-- Rename `package-set-upgrade` to `upgrade-set` (#336)
-- Move the `--jobs` flag to be global (#338)
-- Import local packages `as Location` (#301, #244)
+- **Rename `package-set-upgrade` to `upgrade-set` (#336)**
+
+  You now have to call `spago upgrade-set` if you wish to upgrade your package-sets version
+
+- **Move the `--jobs` flag to be global (#338)**
+
+  If you were invoking spago in this way: `spago install -j 10`, you now have to use `spago -j 10 install` instead
+
+- **Import local packages `as Location` (#301, #244)**
+
+  Before you'd import a local package in this way:
+
+  ```dhall
+  let additions =
+    { foobar =
+        mkPackage
+          (../foobar/spago.dhall).dependencies
+          "../foobar"
+          "local-fix-whatever"
+    }
+  ```
+
+  ..but now you'll have to import it using `as Location` instead:
+
+  ```dhall
+  let additions =
+    { foobar = ../foobar/spago.dhall as Location }
+  ```
+
 
 New features:
 - Use `psa` for compiling if installed; you can avoid this with the new `--no-psa` flag (#305, #283, #252, #327)
@@ -39,6 +65,7 @@ Other Improvements:
 - Curator: log exceptions to file to monitor eventual issues (#284)
 - Docs: update README with newest features (#286)
 - Docs: add docs about switching from Bower (#317)
+- Errors: improve error message for overriding compiler version (#345, #343)
 - Tests: improve failure messages (#298)
 - Tests: fix `packages.dhall` fixtures manipulation (#307)
 - Tests: add tests for the `list-packages` command (#304)
