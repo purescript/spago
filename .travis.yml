@@ -111,6 +111,11 @@ script:
     ./.stack-work/dist/*/*/build/spec/spec --match "/Spago/spago run"
 
 
+after_failure:
+  - sleep 10;
+  - echo == End of test log ==
+
+
 before_deploy:
   - |
     echo "Running before_deploy"
