@@ -160,7 +160,7 @@ parser = do
     docsFormat  = CLI.optional $ CLI.opt Purs.parseDocsFormat "format" 'f' "Docs output format (markdown | html | etags | ctags)"
     jobsLimit   = CLI.optional (CLI.optInt "jobs" 'j' "Limit the amount of jobs that can run concurrently")
     nodeArgs         = many $ CLI.opt (Just . ExtraArg) "node-args" 'a' "Argument to pass to node (run/test only)"
-    replPackageNames = many $ CLI.opt (Just . PackageName) "dependency" 'd' "Package name to add to the REPL as dependency"
+    replPackageNames = many $ CLI.opt (Just . PackageName) "dependency" 'D' "Package name to add to the REPL as dependency"
     sourcePaths      = many $ CLI.opt (Just . SourcePath) "path" 'p' "Source path to include"
 
     packageName     = CLI.arg (Just . PackageName) "package" "Specify a package name. You can list them with `list-packages`"
