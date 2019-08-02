@@ -1,6 +1,7 @@
 {-# LANGUAGE ViewPatterns #-}
 module Spago.Config
-  ( makeConfig
+  ( defaultPath
+  , makeConfig
   , ensureConfig
   , addDependencies
   , parsePackage
@@ -33,11 +34,12 @@ import qualified Spago.Templates       as Templates
 import           Spago.PackageSet      (Package (..), PackageLocation (..), PackageName (..),
                                         PackageSet (..))
 
+-- | Default path for the Spago Config
+defaultPath :: IsString t => t
+defaultPath = "spago.dhall"
 
--- | Path for the Spago Config
-path :: IsString t => t
-path = "spago.dhall"
-
+getPath :: Spago m => m Text
+getPath = fromMaybe defaultPath <$> asks globalConfigPath
 
 -- | Spago configuration file type
 data Config = Config
@@ -110,6 +112,7 @@ parseConfig = do
   -- Here we try to migrate any config that is not in the latest format
   withConfigAST $ pure . addSourcePaths
 
+  path <- getPath
   expr <- liftIO $ Dhall.inputExpr $ "./" <> path
   case expr of
     Dhall.RecordLit ks -> do
@@ -146,7 +149,8 @@ parseConfig = do
 -- | Checks that the Spago config is there and readable
 ensureConfig :: Spago m => m Config
 ensureConfig = do
-  exists <- testfile path
+  path <- getPath
+  exists <- testfile' path
   unless exists $ do
     die $ Messages.cannotFindConfig
   try parseConfig >>= \case
@@ -160,10 +164,12 @@ ensureConfig = do
 --   Eventually ports an existing `psc-package.json` to the new config.
 makeConfig :: Spago m => Bool -> m ()
 makeConfig force = do
+  path <- getPath
+  let filePath = pathFromText path
   unless force $ do
-    hasSpagoDhall <- testfile path
+    hasSpagoDhall <- testfile filePath
     when hasSpagoDhall $ die $ Messages.foundExistingProject path
-  writeTextFile path Templates.spagoDhall
+  writeTextFile filePath Templates.spagoDhall
   Dhall.format path
 
   -- We try to find an existing psc-package or Bower config, and if
@@ -337,6 +343,7 @@ filterDependencies expr = expr
 --   still be in the tree). If you need the resolved one, use `ensureConfig`.
 withConfigAST :: Spago m => (Expr -> m Expr) -> m ()
 withConfigAST transform = do
+  path <- getPath
   rawConfig <- liftIO $ Dhall.readRawExpr path
   case rawConfig of
     Nothing -> die Messages.cannotFindConfig

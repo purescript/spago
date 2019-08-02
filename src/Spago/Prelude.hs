@@ -7,6 +7,7 @@ module Spago.Prelude
   , Dhall.Core.throws
   , hush
   , pathFromText
+  , testfile'
   , assertDirectory
   , GlobalOptions (..)
   , UsePsa(..)
@@ -134,9 +135,10 @@ instance Show SpagoError where
 data UsePsa = UsePsa | NoPsa
 
 data GlobalOptions = GlobalOptions
-  { globalDebug  :: Bool
-  , globalUsePsa :: UsePsa
-  , globalJobs   :: Int
+  { globalDebug      :: Bool
+  , globalUsePsa     :: UsePsa
+  , globalJobs       :: Int
+  , globalConfigPath :: Maybe Text
   }
 
 type Spago m =
@@ -171,10 +173,11 @@ die reason = throwM $ SpagoError reason
 hush :: Either a b -> Maybe b
 hush = either (const Nothing) Just
 
-
 pathFromText :: Text -> Turtle.FilePath
 pathFromText = Turtle.fromText
 
+testfile' :: MonadIO m => Text -> m Bool
+testfile' = testfile . pathFromText
 
 readTextFile :: MonadIO m => Turtle.FilePath -> m Text
 readTextFile = liftIO . Turtle.readTextFile
