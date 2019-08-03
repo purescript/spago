@@ -466,9 +466,9 @@ let additions =
           , "effect"
           ]
       , repo =
-          "https://github.com/Unisay/purescript-facebook.git"
+          "https://github.com/Unisay/purescript-facebook.git" -- must be https not ssh
       , version =
-          "v0.3.0"
+          "v0.3.0" -- branch, tag, or commit hash
       }
   }
 ```
