@@ -83,7 +83,6 @@ script:
   - |
     echo "Running tests"
     export PATH="${PATH}:$(pwd)/artifacts"
-    # set -e
     if [ `uname` = "Darwin" ]
     then
       stack build --test --no-run-tests --copy-bins --local-bin-path ./artifacts;
@@ -105,10 +104,6 @@ script:
 
     # run the test suite executable
     ./.stack-work/dist/*/*/build/spec/spec
-    
-    # install psa and rerun tests that exercise it
-    npm install -g purescript-psa
-    ./.stack-work/dist/*/*/build/spec/spec --match "/Spago/spago run"
 
 
 before_deploy:
