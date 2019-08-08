@@ -83,6 +83,7 @@ library:
   - semver-range
   - ansi-terminal
   - unordered-containers
+  - retry
 
 executables:
   spago:

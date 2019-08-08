@@ -14,6 +14,7 @@ module Spago.PackageSet
 
 import           Spago.Prelude
 
+import qualified Control.Retry       as Retry
 import qualified Data.Text           as Text
 import qualified Data.Text.Encoding  as Text
 import qualified Data.Versions       as Version
@@ -21,8 +22,8 @@ import qualified Dhall
 import           Dhall.Binary        (defaultStandardVersion)
 import qualified Dhall.Freeze
 import qualified Dhall.Pretty
-import qualified Network.HTTP.Simple as Http
 import qualified Network.HTTP.Client as Http
+import qualified Network.HTTP.Simple as Http
 import           Network.URI         (parseURI)
 
 import qualified Spago.Dhall         as Dhall
@@ -113,7 +114,7 @@ makePackageSetFile force = do
 upgradePackageSet :: Spago m => m ()
 upgradePackageSet = do
   echoDebug "Running `spago upgrade-set`"
-  try getLatestRelease >>= \case
+  try (Retry.recoverAll (Retry.fullJitterBackoff 50000 <> Retry.limitRetries 5) $ \_ -> getLatestRelease) >>= \case
     Left (err :: SomeException) -> echoDebug $ Messages.failedToReachGitHub err
     Right releaseTagName -> do
       let quotedTag = surroundQuote releaseTagName
