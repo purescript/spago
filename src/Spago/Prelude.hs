@@ -138,7 +138,7 @@ data GlobalOptions = GlobalOptions
   { globalDebug      :: Bool
   , globalUsePsa     :: UsePsa
   , globalJobs       :: Int
-  , globalConfigPath :: Maybe Text
+  , globalConfigPath :: IsString t => t
   }
 
 type Spago m =
