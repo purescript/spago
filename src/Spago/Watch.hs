@@ -25,7 +25,7 @@ data ClearScreen = DoClear | NoClear
 
 watch :: Spago m => Set.Set Glob.Pattern -> ClearScreen -> m () -> m ()
 watch globs shouldClear action = do
-  let config = Watch.defaultConfig { Watch.confDebounce = Watch.Debounce 1 }
+  let config = Watch.defaultConfig { Watch.confDebounce = Watch.Debounce 0.1 }
   fileWatchConf config shouldClear $ \getGlobs -> do
     getGlobs globs
     action
