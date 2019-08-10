@@ -293,7 +293,7 @@ $ spago build --path 'another_source/**/*.purs'
 E.g. if you wish to output your files in some other place than `output/`, you can run
 
 ```bash
-$ spago build -- -o myOutput/
+$ spago build --purs-args '-o myOutput/'
 ```
 
 If you wish to automatically have your project rebuilt when making changes to source files
@@ -315,7 +315,7 @@ $ spago run
 $ spago run --main ModulePath.To.Main
 
 # And pass arguments through to `purs compile`
-$ spago run --main ModulePath.To.Main -- --verbose-errors
+$ spago run --main ModulePath.To.Main --purs-args '--verbose-errors'
 
 # Or pass arguments to node
 $ spago run --node-args "arg1 arg2"
