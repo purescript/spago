@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+Breaking changes (!!!):
+- **Flags and arguments that you want to give to `purs` are now passed with `--purs-args`**
+
+  The previous behaviour in which all arguments that could not parse as `spago` arguments
+  were passed along to `purs` was sometimes confusing (e.g. when using `--path` and multiple
+  arguments).
 
 ## [0.9.0] - 2019-07-30
 
