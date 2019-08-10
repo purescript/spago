@@ -181,7 +181,13 @@ spec = around_ setup $ do
     it "Spago should pass options to purs" $ do
 
       spago ["init"] >>= shouldBeSuccess
-      spago ["build", "--", "-o", "myOutput"] >>= shouldBeSuccess
+      spago ["build", "--purs-args", "-o myOutput"] >>= shouldBeSuccess
+      testdir "myOutput" >>= (`shouldBe` True)
+
+    it "Spago should pass multiple options to purs" $ do
+
+      spago ["init"] >>= shouldBeSuccess
+      spago ["build", "--purs-args", "-o", "--purs-args", "myOutput"] >>= shouldBeSuccess
       testdir "myOutput" >>= (`shouldBe` True)
 
     it "Spago should build successfully with sources included from custom path" $ do
