@@ -84,6 +84,7 @@ library:
   - ansi-terminal
   - unordered-containers
   - retry
+  - github
 
 executables:
   spago:
