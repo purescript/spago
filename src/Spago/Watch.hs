@@ -25,7 +25,7 @@ data ClearScreen = DoClear | NoClear
 
 watch :: Spago m => Set.Set Glob.Pattern -> ClearScreen -> m () -> m ()
 watch globs shouldClear action = do
-  let config = Watch.defaultConfig { Watch.confDebounce = Watch.Debounce 0.1 }
+  let config = Watch.defaultConfig { Watch.confDebounce = Watch.Debounce 0.1 } -- in seconds
   fileWatchConf config shouldClear $ \getGlobs -> do
     getGlobs globs
     action
@@ -56,14 +56,14 @@ fileWatchConf watchConfig shouldClear inner = withManagerConf watchConfig $ \man
           mapM_ echoStr maybeMsg
 
     let onChange event = do
-          rebuilding <- liftIO $ atomically $ do
+          globsUnsafe <- liftIO $ readTVarIO allGlobs
+          let shouldRebuild globs = or $ fmap (\glob -> Glob.match glob $ Watch.eventPath event) $ Set.toList globs
+          when (shouldRebuild globsUnsafe) $ do
+            redisplay $ Just $ "File changed, rebuilding: " <> show (Watch.eventPath event)
+          liftIO $ atomically $ do
             globs <- readTVar allGlobs
-            let shouldRebuild = or $ fmap (\glob -> Glob.match glob $ Watch.eventPath event) $ Set.toList globs
-            when shouldRebuild
+            when (shouldRebuild globs)
               (writeTVar dirtyVar True)
-            pure shouldRebuild
-          when rebuilding $ do
-            redisplay $ Just $ "File changed, triggered a build: " <> show (Watch.eventPath event)
 
         setWatched :: Spago m => Set.Set Glob.Pattern -> m ()
         setWatched globs = do
