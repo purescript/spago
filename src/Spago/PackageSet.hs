@@ -146,15 +146,18 @@ upgradePackageSet = do
       response <- Http.httpBS
         $ Http.addRequestHeader "User-Agent" "Mozilla/5.0"
         $ request { Http.redirectCount = 0 }
-      redirectUrl <- (\case [u] -> pure u; _ -> error ("Error following GitHub redirect, response:\n\n" <> show response))
-          $ Http.getResponseHeader "Location" response
-      pure $ last $ Text.splitOn "/" $ Text.decodeUtf8 redirectUrl
+      case Http.getResponseHeader "Location" response of
+        [redirectUrl] -> return $ last $ Text.splitOn "/" $ Text.decodeUtf8 redirectUrl
+        _ -> do
+          echoStr $ "Error following GitHub redirect, response:\n\n" <> show response
+          empty
 
     getLatestRelease2 :: Spago m => m Text
     getLatestRelease2 = do
       result <- liftIO $ GitHub.executeRequest' $ GitHub.latestReleaseR "purescript" "package-sets"
-      GitHub.Release{..} <- throws result
-      pure releaseTagName
+      case result of
+        Right GitHub.Release{..} -> return releaseTagName
+        Left _ -> empty
 
     getCurrentTag :: Dhall.Import -> [Text]
     getCurrentTag Dhall.Import
