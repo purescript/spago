@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+Bugfixes:
+- Do not compile files twice when using `--watch` and Vim (#346)
+
 ## [0.9.0] - 2019-07-30
 
 Breaking changes (!!!):
