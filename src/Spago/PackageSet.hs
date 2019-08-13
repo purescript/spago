@@ -14,6 +14,7 @@ module Spago.PackageSet
 
 import           Spago.Prelude
 
+import qualified Control.Retry       as Retry
 import qualified Data.Text           as Text
 import qualified Data.Text.Encoding  as Text
 import qualified Data.Versions       as Version
@@ -21,9 +22,10 @@ import qualified Dhall
 import           Dhall.Binary        (defaultStandardVersion)
 import qualified Dhall.Freeze
 import qualified Dhall.Pretty
-import qualified Network.HTTP.Simple as Http
 import qualified Network.HTTP.Client as Http
+import qualified Network.HTTP.Simple as Http
 import           Network.URI         (parseURI)
+import qualified GitHub
 
 import qualified Spago.Dhall         as Dhall
 import           Spago.Messages      as Messages
@@ -113,7 +115,7 @@ makePackageSetFile force = do
 upgradePackageSet :: Spago m => m ()
 upgradePackageSet = do
   echoDebug "Running `spago upgrade-set`"
-  try getLatestRelease >>= \case
+  try (Retry.recoverAll (Retry.fullJitterBackoff 50000 <> Retry.limitRetries 5) $ \_ -> getLatestRelease1 <|> getLatestRelease2) >>= \case
     Left (err :: SomeException) -> echoDebug $ Messages.failedToReachGitHub err
     Right releaseTagName -> do
       let quotedTag = surroundQuote releaseTagName
@@ -138,13 +140,24 @@ upgradePackageSet = do
     --   to the latest release. So we search for the `Location` header which should contain
     --   the URL we get redirected to, and strip the release name from there (it's the
     --   last segment of the URL)
-    getLatestRelease :: Spago m => m Text
-    getLatestRelease = do
+    getLatestRelease1 :: Spago m => m Text
+    getLatestRelease1 = do
       request <- Http.parseRequest "https://github.com/purescript/package-sets/releases/latest"
-      response <- Http.httpBS $ request { Http.redirectCount = 0 }
-      redirectUrl <- (\case [u] -> pure u; _ -> error ("Error following GitHub redirect, response:\n\n" <> show response))
-          $ Http.getResponseHeader "Location" response
-      pure $ last $ Text.splitOn "/" $ Text.decodeUtf8 redirectUrl
+      response <- Http.httpBS
+        $ Http.addRequestHeader "User-Agent" "Mozilla/5.0"
+        $ request { Http.redirectCount = 0 }
+      case Http.getResponseHeader "Location" response of
+        [redirectUrl] -> return $ last $ Text.splitOn "/" $ Text.decodeUtf8 redirectUrl
+        _ -> do
+          echoStr $ "Error following GitHub redirect, response:\n\n" <> show response
+          empty
+
+    getLatestRelease2 :: Spago m => m Text
+    getLatestRelease2 = do
+      result <- liftIO $ GitHub.executeRequest' $ GitHub.latestReleaseR "purescript" "package-sets"
+      case result of
+        Right GitHub.Release{..} -> return releaseTagName
+        Left _ -> empty
 
     getCurrentTag :: Dhall.Import -> [Text]
     getCurrentTag Dhall.Import
