@@ -26,7 +26,7 @@ data ClearScreen = DoClear | NoClear
 
 watch :: Spago m => Set.Set Glob.Pattern -> ClearScreen -> m () -> m ()
 watch globs shouldClear action = do
-  let config = Watch.defaultConfig
+  let config = Watch.defaultConfig { Watch.confDebounce = Watch.NoDebounce }
   fileWatchConf config shouldClear $ \getGlobs -> do
     getGlobs globs
     action
@@ -74,8 +74,12 @@ fileWatchConf watchConfig shouldClear inner = withManagerConf watchConfig $ \man
             globs                <- readTVar allGlobs
             (lastTime, lastPath) <- readTVar lastEvent
 
+            let matches glob = Glob.match glob $ Watch.eventPath event
+            -- We should rebuild if at least one of the globs matches the path,
+            -- and the last event either has different path, or has happened
+            -- more than `debounceTime` seconds ago.
             let shouldRebuild =
-                  ( or ((\glob -> Glob.match glob $ Watch.eventPath event) <$> Set.toList globs)
+                  ( or (matches <$> Set.toList globs)
                  && ( lastPath /= Watch.eventPath event
                    || diffUTCTime timeNow lastTime > debounceTime
                     )
