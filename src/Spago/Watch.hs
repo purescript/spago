@@ -18,6 +18,7 @@ import qualified System.FSNotify        as Watch
 import           System.IO              (getLine)
 import qualified UnliftIO
 import           UnliftIO.Async         (race_)
+import           Data.Time.Clock        (NominalDiffTime, getCurrentTime, diffUTCTime)
 
 -- Should we clear the screen on rebuild?
 data ClearScreen = DoClear | NoClear
@@ -25,7 +26,7 @@ data ClearScreen = DoClear | NoClear
 
 watch :: Spago m => Set.Set Glob.Pattern -> ClearScreen -> m () -> m ()
 watch globs shouldClear action = do
-  let config = Watch.defaultConfig { Watch.confDebounce = Watch.Debounce 0.1 } -- in seconds
+  let config = Watch.defaultConfig { Watch.confDebounce = Watch.NoDebounce }
   fileWatchConf config shouldClear $ \getGlobs -> do
     getGlobs globs
     action
@@ -35,6 +36,11 @@ withManagerConf :: Spago m => Watch.WatchConfig -> (Watch.WatchManager -> m a) -
 withManagerConf conf = UnliftIO.bracket
   (liftIO $ Watch.startManagerConf conf)
   (liftIO . Watch.stopManager)
+
+
+debounceTime :: NominalDiffTime
+debounceTime = 0.1
+
 
 -- | Run an action, watching for file changes
 --
@@ -47,23 +53,46 @@ fileWatchConf
   -> ((Set.Set Glob.Pattern -> m ()) -> m ())
   -> m ()
 fileWatchConf watchConfig shouldClear inner = withManagerConf watchConfig $ \manager -> do
-    allGlobs <- liftIO $ newTVarIO Set.empty
-    dirtyVar <- liftIO $ newTVarIO True
-    watchVar <- liftIO $ newTVarIO Map.empty
+    allGlobs  <- liftIO $ newTVarIO Set.empty
+    dirtyVar  <- liftIO $ newTVarIO True
+    -- `lastEvent` is used for event debouncing.
+    -- We don't use built-in debouncing because it does not work well with some
+    -- text editors (#346).
+    lastEvent <- liftIO $ do
+      timeNow <- getCurrentTime
+      newTVarIO (timeNow, "")
+    watchVar  <- liftIO $ newTVarIO Map.empty
 
     let redisplay maybeMsg = do
           when (shouldClear == DoClear) $ liftIO clearScreen
           mapM_ echoStr maybeMsg
 
     let onChange event = do
-          globsUnsafe <- liftIO $ readTVarIO allGlobs
-          let shouldRebuild globs = or $ fmap (\glob -> Glob.match glob $ Watch.eventPath event) $ Set.toList globs
-          when (shouldRebuild globsUnsafe) $ do
-            redisplay $ Just $ "File changed, rebuilding: " <> show (Watch.eventPath event)
-          liftIO $ atomically $ do
-            globs <- readTVar allGlobs
-            when (shouldRebuild globs)
+          timeNow <- liftIO getCurrentTime
+
+          rebuilding <- liftIO $ atomically $ do
+            globs                <- readTVar allGlobs
+            (lastTime, lastPath) <- readTVar lastEvent
+
+            let matches glob = Glob.match glob $ Watch.eventPath event
+            -- We should rebuild if at least one of the globs matches the path,
+            -- and the last event either has different path, or has happened
+            -- more than `debounceTime` seconds ago.
+            let shouldRebuild =
+                  ( or (matches <$> Set.toList globs)
+                 && ( lastPath /= Watch.eventPath event
+                   || diffUTCTime timeNow lastTime > debounceTime
+                    )
+                  )
+
+            when shouldRebuild
               (writeTVar dirtyVar True)
+
+            pure shouldRebuild
+
+          when rebuilding $ do
+            liftIO $ atomically $ writeTVar lastEvent (timeNow, Watch.eventPath event)
+            redisplay $ Just $ "File changed, triggered a build: " <> show (Watch.eventPath event)
 
         setWatched :: Spago m => Set.Set Glob.Pattern -> m ()
         setWatched globs = do
