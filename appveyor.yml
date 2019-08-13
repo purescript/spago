@@ -30,8 +30,8 @@ install:
   - chmod a+x purescript
 
 cache:
-  - C:\sr -> '%STACK_YAML%'
-  - .stack-work -> '%STACK_YAML%'
+  - '%STACK_ROOT% -> %STACK_YAML%, appveyor.yml'
+  - '.stack-work -> %STACK_YAML%, appveyor.yml'
 
 build_script:
   - stack build
