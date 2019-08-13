@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+Bugfixes:
+- fix Dhall syntax error in packages.dhall template
+
 ## [0.9.0] - 2019-07-30
 
 Breaking changes (!!!):

@@ -107,7 +107,7 @@ let additions =
           , "node-readline"
           , "datetime"
           , "now"
-          ],
+          ]
       , repo =
           "https://github.com/hdgarrood/purescript-benchotron.git"
       , version =
