@@ -44,6 +44,7 @@ failedToParseRepoString repo = makeMessage
   , ""
   , "- you're trying to use a URL which doesn't conform to RFC 3986, e.g. in the form of `git@foo.com:bar/baz.git`."
   , "  The above example can be rewritten in a valid form as \"ssh://git@foo.com/bar/baz.git\""
+  , ""
   ]
 
 cannotFindConfig :: Text
