@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Bugfixes:
 - Do not compile files twice when using `--watch` and Vim (#346)
+- fix Dhall syntax error in packages.dhall template
 
 ## [0.9.0] - 2019-07-30
 
