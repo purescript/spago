@@ -163,9 +163,7 @@ fetchPackage metadata pair@(packageName'@PackageName{..}, Package{ location = Re
     quotedName = surroundQuote packageName
 
     git = Text.intercalate " && "
-           [ "git init"
-           , "git remote add origin " <> unRepo repo
-           , "git fetch origin"
+           [ "git clone " <> unRepo repo <> " ."
            , "git -c advice.detachedHead=false checkout " <> version
            ]
 
