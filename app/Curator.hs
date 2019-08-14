@@ -407,7 +407,7 @@ withAST path transform = do
     Just (header, expr) -> do
       newExpr <- transformMExpr transform expr
       echo $ "Done. Updating the \"" <> path <> "\" file.."
-      writeTextFile (pathFromText path) $ Dhall.prettyWithHeader header newExpr <> "\n"
+      writeTextFile path $ Dhall.prettyWithHeader header newExpr <> "\n"
       liftIO $ Dhall.format path
   where
     transformMExpr

@@ -10,20 +10,19 @@ import qualified Paths_spago         as Pcli
 import qualified System.Environment  as Env
 import qualified Turtle              as CLI
 
-import           Spago.Build         (BuildOptions (..), ExtraArg (..),
-                                      ModuleName (..), SourcePath (..),
-                                      TargetPath (..), Watch (..),
-                                      WithMain (..), NoBuild (..),
-                                      NoInstall (..), DepsOnly (..))
+import           Spago.Build         (BuildOptions (..), DepsOnly (..), ExtraArg (..),
+                                      ModuleName (..), NoBuild (..), NoInstall (..),
+                                      SourcePath (..), TargetPath (..), Watch (..), WithMain (..))
 import qualified Spago.Build
+import qualified Spago.Config        as Config
 import           Spago.DryRun        (DryRun (..))
 import           Spago.GlobalCache   (CacheFlag (..))
 import           Spago.Messages      as Messages
-import           Spago.Packages      (PackageName (..), PackagesFilter (..), JsonFlag(..))
+import           Spago.Packages      (JsonFlag (..), PackageName (..), PackagesFilter (..))
 import qualified Spago.Packages
 import qualified Spago.PscPackage    as PscPackage
 import qualified Spago.Purs          as Purs
-import           Spago.Version       (VersionBump(..))
+import           Spago.Version       (VersionBump (..))
 import qualified Spago.Version       as Version
 import           Spago.Watch         (ClearScreen (..))
 
@@ -171,7 +170,7 @@ parser = do
     buildOptions  = BuildOptions <$> cacheFlag <*> watch <*> clearScreen <*> sourcePaths <*> noInstall <*> passthroughArgs <*> depsOnly
 
     -- Note: by default we limit concurrency to 20
-    globalOptions = GlobalOptions <$> verbose <*> usePsa <*> fmap (fromMaybe 20) jobsLimit <*> configPath
+    globalOptions = GlobalOptions <$> verbose <*> usePsa <*> fmap (fromMaybe 20) jobsLimit <*> fmap (fromMaybe Config.defaultPath) configPath
 
     projectCommands = CLI.subcommandGroup "Project commands:"
       [ initProject

@@ -48,7 +48,7 @@ prettyWithHeader header expr = do
 
 readRawExpr :: Text -> IO (Maybe (Text, DhallExpr Dhall.Import))
 readRawExpr pathText = do
-  exists <- testfile $ pathFromText pathText
+  exists <- testfile pathText
   if exists
     then (do
       packageSetText <- readTextFile $ pathFromText pathText
@@ -62,7 +62,7 @@ writeRawExpr pathText (header, expr) = do
   -- if it doesn't we don't write to file.
   resolvedExpr <- Dhall.Import.load expr
   throws (Dhall.TypeCheck.typeOf resolvedExpr)
-  writeTextFile (pathFromText pathText) $ prettyWithHeader header expr <> "\n"
+  writeTextFile pathText $ prettyWithHeader header expr <> "\n"
   format pathText
 
 
@@ -76,7 +76,7 @@ fromTextLit
   :: (Pretty a, Typeable a)
   => DhallExpr a
   -> Either (ReadError a) Text
-fromTextLit (Dhall.TextLit (Dhall.Chunks [] str)) = Right str
+fromTextLit(Dhall.TextLit (Dhall.Chunks [] str)) = Right str
 fromTextLit expr                                  = Left $ ExprIsNotTextLit expr
 
 

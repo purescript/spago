@@ -129,7 +129,7 @@ getMetadata cacheFlag = do
 
       -- Check if the metadata is in global cache and fresher than 1 day
       shouldDownloadMeta <- tryIO (liftIO $ do
-          fileExists <- testfile $ Turtle.decodeString globalPathToMeta
+          fileExists <- testfile $ Text.pack globalPathToMeta
           lastModified <- getModificationTime globalPathToMeta
           now <- Time.getCurrentTime
           -- Note: `NomiNalDiffTime` is 1 second

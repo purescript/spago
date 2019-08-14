@@ -38,9 +38,6 @@ import           Spago.PackageSet      (Package (..), PackageLocation (..), Pack
 defaultPath :: IsString t => t
 defaultPath = "spago.dhall"
 
-getPath :: Spago m => m Text
-getPath = fromMaybe defaultPath <$> asks globalConfigPath
-
 -- | Spago configuration file type
 data Config = Config
   { name              :: Text
@@ -112,7 +109,7 @@ parseConfig = do
   -- Here we try to migrate any config that is not in the latest format
   withConfigAST $ pure . addSourcePaths
 
-  path <- getPath
+  path <- asks globalConfigPath
   expr <- liftIO $ Dhall.inputExpr $ "./" <> path
   case expr of
     Dhall.RecordLit ks -> do
@@ -149,8 +146,8 @@ parseConfig = do
 -- | Checks that the Spago config is there and readable
 ensureConfig :: Spago m => m Config
 ensureConfig = do
-  path <- getPath
-  exists <- testfile' path
+  path <- asks globalConfigPath
+  exists <- testfile path
   unless exists $ do
     die $ Messages.cannotFindConfig
   try parseConfig >>= \case
@@ -164,12 +161,11 @@ ensureConfig = do
 --   Eventually ports an existing `psc-package.json` to the new config.
 makeConfig :: Spago m => Bool -> m ()
 makeConfig force = do
-  path <- getPath
-  let filePath = pathFromText path
+  path <- asks globalConfigPath
   unless force $ do
-    hasSpagoDhall <- testfile filePath
+    hasSpagoDhall <- testfile path
     when hasSpagoDhall $ die $ Messages.foundExistingProject path
-  writeTextFile filePath Templates.spagoDhall
+  writeTextFile path Templates.spagoDhall
   Dhall.format path
 
   -- We try to find an existing psc-package or Bower config, and if
@@ -343,7 +339,7 @@ filterDependencies expr = expr
 --   still be in the tree). If you need the resolved one, use `ensureConfig`.
 withConfigAST :: Spago m => (Expr -> m Expr) -> m ()
 withConfigAST transform = do
-  path <- getPath
+  path <- asks globalConfigPath
   rawConfig <- liftIO $ Dhall.readRawExpr path
   case rawConfig of
     Nothing -> die Messages.cannotFindConfig

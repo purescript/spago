@@ -7,7 +7,6 @@ module Spago.Prelude
   , Dhall.Core.throws
   , hush
   , pathFromText
-  , testfile'
   , assertDirectory
   , GlobalOptions (..)
   , UsePsa(..)
@@ -113,8 +112,7 @@ import           System.FilePath               (isAbsolute, pathSeparator, (</>)
 import           System.IO                     (hPutStrLn)
 import           Turtle                        (ExitCode (..), FilePath, appendonly, chmod,
                                                 executable, mktree, repr, shell, shellStrict,
-                                                shellStrictWithErr, systemStrictWithErr, testdir,
-                                                testfile)
+                                                shellStrictWithErr, systemStrictWithErr, testdir)
 import           UnliftIO                      (MonadUnliftIO, withRunInIO)
 import           UnliftIO.Directory            (getModificationTime, makeAbsolute)
 import           UnliftIO.Exception            (IOException, handleAny, try, tryIO)
@@ -138,7 +136,7 @@ data GlobalOptions = GlobalOptions
   { globalDebug      :: Bool
   , globalUsePsa     :: UsePsa
   , globalJobs       :: Int
-  , globalConfigPath :: IsString t => t
+  , globalConfigPath :: Text
   }
 
 type Spago m =
@@ -176,15 +174,15 @@ hush = either (const Nothing) Just
 pathFromText :: Text -> Turtle.FilePath
 pathFromText = Turtle.fromText
 
-testfile' :: MonadIO m => Text -> m Bool
-testfile' = testfile . pathFromText
+testfile :: MonadIO m => Text -> m Bool
+testfile = Turtle.testfile . pathFromText
 
 readTextFile :: MonadIO m => Turtle.FilePath -> m Text
 readTextFile = liftIO . Turtle.readTextFile
 
 
-writeTextFile :: MonadIO m => Turtle.FilePath -> Text -> m ()
-writeTextFile path text = liftIO $ Turtle.writeTextFile path text
+writeTextFile :: MonadIO m => Text -> Text -> m ()
+writeTextFile path text = liftIO $ Turtle.writeTextFile (Turtle.fromText path) text
 
 
 with :: MonadIO m => Turtle.Managed a -> (a -> IO r) -> m r

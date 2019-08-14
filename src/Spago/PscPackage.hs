@@ -28,11 +28,8 @@ data PscPackage = PscPackage
 instance JSON.ToJSON PscPackage
 instance JSON.FromJSON PscPackage
 
-configPathText :: Text
-configPathText = "psc-package.json"
-
-configPath :: T.FilePath
-configPath = T.fromText configPathText
+configPath :: IsString t => t
+configPath = "psc-package.json"
 
 pscPackageBasePathText :: Text
 pscPackageBasePathText = ".psc-package/local/.set/"
@@ -55,7 +52,7 @@ encodePscPackage = LT.toStrict . LT.decodeUtf8 . encodePretty
 
 -- | Given a path to a Dhall file and an output path to a JSON file,
 --   reads the Dhall, converts it, and writes it as JSON
-dhallToJSON :: Spago m => T.Text -> T.FilePath -> m ()
+dhallToJSON :: Spago m => T.Text -> T.Text -> m ()
 dhallToJSON inputPath outputPath = do
   let config = JSON.Config
                { JSON.confIndent = JSON.Spaces 2
@@ -84,7 +81,7 @@ insDhall = do
 
   PackageSet.ensureFrozen
 
-  try (dhallToJSON PackageSet.path packagesJsonPath) >>= \case
+  try (dhallToJSON PackageSet.path packagesJsonText) >>= \case
     Right _ -> do
       echo $ "Wrote packages.json to " <> packagesJsonText
       echo "Now you can run `psc-package install`."
