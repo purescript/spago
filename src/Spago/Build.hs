@@ -51,7 +51,7 @@ data BuildOptions = BuildOptions
   , shouldClear     :: Watch.ClearScreen
   , sourcePaths     :: [Purs.SourcePath]
   , noInstall       :: NoInstall
-  , passthroughArgs :: [Purs.ExtraArg]
+  , pursArgs        :: [Purs.ExtraArg]
   , depsOnly        :: Packages.DepsOnly
   }
 
@@ -77,7 +77,7 @@ build BuildOptions{..} maybePostBuild = do
     NoInstall -> pure ()
   let allGlobs = Packages.getGlobs deps depsOnly configSourcePaths <> sourcePaths
       buildAction = do
-        Purs.compile allGlobs passthroughArgs
+        Purs.compile allGlobs pursArgs
         case maybePostBuild of
           Just action -> action
           Nothing     -> pure ()
@@ -95,14 +95,14 @@ repl
   -> [Purs.ExtraArg]
   -> Packages.DepsOnly
   -> m ()
-repl cacheFlag newPackages sourcePaths passthroughArgs depsOnly = do
+repl cacheFlag newPackages sourcePaths pursArgs depsOnly = do
   echoDebug "Running `spago repl`"
 
   try Config.ensureConfig >>= \case
     Right config@Config.Config{..} -> do
       deps <- Packages.getProjectDeps config
       let globs = Packages.getGlobs deps depsOnly configSourcePaths <> sourcePaths
-      Purs.repl globs passthroughArgs
+      Purs.repl globs pursArgs
     Left (err :: SomeException) -> do
       echoDebug $ tshow err
       cacheDir <- GlobalCache.getGlobalCacheDir
@@ -120,7 +120,7 @@ repl cacheFlag newPackages sourcePaths passthroughArgs depsOnly = do
 
         Fetch.fetchPackages cacheFlag deps packagesMinPursVersion
 
-        Purs.repl globs passthroughArgs
+        Purs.repl globs pursArgs
 
 -- | Test the project: compile and run "Test.Main"
 --   (or the provided module name) with node
