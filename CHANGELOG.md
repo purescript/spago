@@ -13,6 +13,11 @@ Breaking changes (!!!):
   were passed along to `purs` was sometimes confusing (e.g. when using `--path` and multiple
   arguments).
 
+Bugfixes:
+- Do not compile files twice when using `--watch` and Vim (#346)
+- fix Dhall syntax error in packages.dhall template
+- Use `git clone` instead of `git fetch` when fetching a package (#373)
+
 ## [0.9.0] - 2019-07-30
 
 Breaking changes (!!!):

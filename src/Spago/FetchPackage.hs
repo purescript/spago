@@ -125,7 +125,7 @@ fetchPackage metadata pair@(packageName'@PackageName{..}, Package{ location = Re
               assertDirectory resultDir2
               cptree resultDir resultDir2
               catch (mv resultDir packageGlobalCacheDir) $ \(err :: SomeException) ->
-                echo $ Messages.failedToCopyToGlobalCache err
+                echoDebug $ Messages.failedToCopyToGlobalCache err
               mv resultDir2 packageLocalCacheDir
 
         -- * if not, run a series of git commands to get the code, and move it to local cache
@@ -163,9 +163,7 @@ fetchPackage metadata pair@(packageName'@PackageName{..}, Package{ location = Re
     quotedName = surroundQuote packageName
 
     git = Text.intercalate " && "
-           [ "git init"
-           , "git remote add origin " <> unRepo repo
-           , "git fetch origin"
+           [ "git clone " <> unRepo repo <> " ."
            , "git -c advice.detachedHead=false checkout " <> version
            ]
 

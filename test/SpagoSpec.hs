@@ -239,7 +239,7 @@ spec = around_ setup $ do
             $ filter (not . null . Text.breakOnAll "https://github.com/purescript/package-sets")
             $ Text.lines packages
       writeTextFile "packages.dhall" "https://raw.githubusercontent.com/purescript/package-sets/psc-0.13.0-20190713/src/packages.dhall sha256:906af79ba3aec7f429b107fd8d12e8a29426db8229d228c6f992b58151e2308e"
-      spago ["upgrade-set"] >>= shouldBeSuccess
+      spago ["-v", "upgrade-set"] >>= shouldBeSuccess
       newPackages <- fmap Text.strip $ readTextFile "packages.dhall"
       newPackages `shouldBe` packageSetUrl
 
