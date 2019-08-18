@@ -5,11 +5,6 @@ module Spago.PackageSet
   , freeze
   , ensureFrozen
   , path
-  , PackageSet(..)
-  , Package (..)
-  , PackageLocation(..)
-  , PackageName (..)
-  , Repo (..)
   ) where
 
 import           Spago.Prelude
@@ -18,77 +13,19 @@ import qualified Control.Retry       as Retry
 import qualified Data.Text           as Text
 import qualified Data.Text.Encoding  as Text
 import qualified Data.Versions       as Version
-import qualified Dhall
 import           Dhall.Binary        (defaultStandardVersion)
 import qualified Dhall.Freeze
 import qualified Dhall.Pretty
+import qualified GitHub
 import qualified Network.HTTP.Client as Http
 import qualified Network.HTTP.Simple as Http
-import           Network.URI         (parseURI)
-import qualified GitHub
 
 import qualified Spago.Dhall         as Dhall
+import qualified Spago.GlobalCache   as GlobalCache
 import           Spago.Messages      as Messages
 import qualified Spago.Purs          as Purs
 import qualified Spago.Templates     as Templates
-
-
-newtype PackageName = PackageName { packageName :: Text }
-  deriving (Show)
-  deriving newtype (Eq, Ord, ToJSON, FromJSON, ToJSONKey, FromJSONKey, Dhall.Interpret)
-
--- | A package-set package.
---   Matches the packages definition in Package.dhall from package-sets
-data Package = Package
-  { dependencies :: ![PackageName]   -- ^ list of dependency package names
-  , location     :: !PackageLocation -- ^ info about where the package is located
-  }
-  deriving (Eq, Show, Generic)
-
-
-data PackageLocation
-  = Remote
-      { repo    :: !Repo          -- ^ the remote git repository
-      , version :: !Text          -- ^ version string (also functions as a git ref)
-      }
-  | Local
-      { localPath :: !Text        -- ^ local path of the package
-      }
-  deriving (Eq, Show, Generic)
-
-
--- | This instance is to make `spago list-packages --json` work
-instance ToJSON PackageLocation where
-  toJSON Remote{..} = object
-    [ "tag" .= ("Remote" :: Text)
-    , "contents" .= unRepo repo
-    ]
-  toJSON Local{..} = object
-    [ "tag" .= ("Local" :: Text)
-    , "contents" .= localPath
-    ]
-
-data PackageSet = PackageSet
-  { packagesDB             :: Map PackageName Package
-  , packagesMinPursVersion :: Maybe Version.SemVer
-  }
-  deriving (Show, Generic)
-
-
--- | We consider a "Repo" a "box of source to include in the build"
---   This can have different nature:
-newtype Repo = Repo { unRepo :: Text }
-  deriving (Eq, Show, Generic)
-
-instance ToJSON Repo
-
-instance Dhall.Interpret Repo where
-  autoWith _ = makeRepo <$> Dhall.strictText
-    where
-      -- We consider a "Remote" anything that `parseURI` thinks is a URI
-      makeRepo repo = case parseURI $ Text.unpack repo of
-        Just _uri -> Repo repo
-        Nothing   -> error $ Text.unpack $ Messages.failedToParseRepoString repo
+import           Spago.Types         ()
 
 
 path :: IsString t => t
@@ -115,9 +52,30 @@ makePackageSetFile force = do
 upgradePackageSet :: Spago m => m ()
 upgradePackageSet = do
   echoDebug "Running `spago upgrade-set`"
-  try (Retry.recoverAll (Retry.fullJitterBackoff 50000 <> Retry.limitRetries 5) $ \_ -> getLatestRelease1 <|> getLatestRelease2) >>= \case
-    Left (err :: SomeException) -> echoDebug $ Messages.failedToReachGitHub err
-    Right releaseTagName -> do
+
+  globalCacheDir <- GlobalCache.getGlobalCacheDir
+  let globalPathToCachedTag = globalCacheDir </> "package-sets-tag.txt"
+  let writeTagCache releaseTagName = writeTextFile (pathFromText $ Text.pack globalPathToCachedTag) releaseTagName
+  let readTagCache :: Spago m => m (Either SomeException Text)
+      readTagCache = try $ readTextFile $ pathFromText $ Text.pack globalPathToCachedTag
+  let downloadTagToCache =
+        try (Retry.recoverAll (Retry.fullJitterBackoff 50000 <> Retry.limitRetries 5) $ \_ -> getLatestRelease1 <|> getLatestRelease2) >>= \case
+          Left (err :: SomeException) -> echoDebug $ Messages.failedToReachGitHub err
+          Right releaseTagName -> writeTagCache releaseTagName
+
+  shouldRefreshFile globalPathToCachedTag >>= \case
+    True -> downloadTagToCache
+    False -> pure ()
+
+  readTagCache >>= \case
+    Right tag -> updateTag tag
+    Left err -> do
+      echo "WARNING: was not possible to upgrate the package-sets release"
+      echoDebug $ "Error: " <> tshow err
+
+  where
+    updateTag :: Spago m => Text -> m ()
+    updateTag releaseTagName =  do
       let quotedTag = surroundQuote releaseTagName
       echoDebug $ "Found the most recent tag for \"purescript/package-sets\": " <> quotedTag
       rawPackageSet <- liftIO $ Dhall.readRawExpr path
@@ -135,7 +93,7 @@ upgradePackageSet = do
           liftIO $ Dhall.writeRawExpr path (header, newExpr)
           -- If everything is fine, refreeze the imports
           freeze
-  where
+
     -- | The idea here is that we go to the `latest` endpoint, and then get redirected
     --   to the latest release. So we search for the `Location` header which should contain
     --   the URL we get redirected to, and strip the release name from there (it's the
@@ -157,7 +115,7 @@ upgradePackageSet = do
       result <- liftIO $ GitHub.executeRequest' $ GitHub.latestReleaseR "purescript" "package-sets"
       case result of
         Right GitHub.Release{..} -> return releaseTagName
-        Left _ -> empty
+        Left _                   -> empty
 
     getCurrentTag :: Dhall.Import -> [Text]
     getCurrentTag Dhall.Import

@@ -8,14 +8,13 @@ import qualified Control.Foldl          as Fold
 import qualified Data.ByteString        as BS
 import qualified Data.Map.Strict        as Map
 import qualified Data.Text              as Text
-import qualified Data.Time              as Time
 import qualified Network.HTTP.Simple    as Http
 import qualified System.Environment
 import qualified System.FilePath        as FilePath
 import qualified Turtle
 
 import qualified Spago.Messages         as Messages
-import           Spago.PackageSet       (PackageName (..), Repo(..))
+import Spago.Types
 
 
 newtype CommitHash = CommitHash Text
@@ -128,20 +127,7 @@ getMetadata cacheFlag = do
       echo "Searching for packages cache metadata.."
 
       -- Check if the metadata is in global cache and fresher than 1 day
-      shouldDownloadMeta <- tryIO (liftIO $ do
-          fileExists <- testfile $ Turtle.decodeString globalPathToMeta
-          lastModified <- getModificationTime globalPathToMeta
-          now <- Time.getCurrentTime
-          -- Note: `NomiNalDiffTime` is 1 second
-          let fileIsRecentEnough = Time.addUTCTime (24 * 60 * 60) lastModified >= now
-          pure $ not (fileExists && fileIsRecentEnough)
-          ) >>= \case
-        Right v -> pure v
-        Left err -> do
-          echoDebug $ "Unable to read metadata file. Error was: " <> tshow err
-          pure True
-
-      case shouldDownloadMeta of
+      shouldRefreshFile globalPathToMeta >>= \case
         -- If we should not download it, read from file
         False -> do
           echo "Recent packages cache metadata found, using it.."

@@ -24,17 +24,19 @@ import           Spago.Prelude
 import qualified Data.Set             as Set
 import qualified Data.Text            as Text
 import qualified System.FilePath.Glob as Glob
+import qualified System.IO.Temp       as Temp
+import qualified Turtle               as Turtle
 
 import qualified Spago.Config         as Config
 import qualified Spago.FetchPackage   as Fetch
 import qualified Spago.GlobalCache    as GlobalCache
 import qualified Spago.Packages       as Packages
-import qualified Spago.PackageSet     as PackageSet
 import qualified Spago.Purs           as Purs
 import qualified Spago.Templates      as Templates
 import qualified Spago.Watch          as Watch
-import qualified System.IO.Temp       as Temp
-import qualified Turtle               as Turtle
+
+import           Spago.Types          as PackageSet
+
 
 data Watch = Watch | BuildOnce
 
@@ -46,13 +48,13 @@ data NoBuild = NoBuild | DoBuild
 data NoInstall = NoInstall | DoInstall
 
 data BuildOptions = BuildOptions
-  { cacheConfig     :: Maybe GlobalCache.CacheFlag
-  , shouldWatch     :: Watch
-  , shouldClear     :: Watch.ClearScreen
-  , sourcePaths     :: [Purs.SourcePath]
-  , noInstall       :: NoInstall
-  , pursArgs        :: [Purs.ExtraArg]
-  , depsOnly        :: Packages.DepsOnly
+  { cacheConfig :: Maybe GlobalCache.CacheFlag
+  , shouldWatch :: Watch
+  , shouldClear :: Watch.ClearScreen
+  , sourcePaths :: [Purs.SourcePath]
+  , noInstall   :: NoInstall
+  , pursArgs    :: [Purs.ExtraArg]
+  , depsOnly    :: Packages.DepsOnly
   }
 
 prepareBundleDefaults
