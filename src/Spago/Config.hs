@@ -31,8 +31,7 @@ import qualified Spago.PscPackage      as PscPackage
 import qualified Spago.Purs            as Purs
 import qualified Spago.Templates       as Templates
 
-import           Spago.PackageSet      (Package (..), PackageLocation (..), PackageName (..),
-                                        PackageSet (..))
+import           Spago.Types           as PackageSet
 
 -- | Default path for the Spago Config
 defaultPath :: IsString t => t
@@ -265,10 +264,10 @@ showBowerErrors (List.sort -> errors)
       <> Text.unlines (map (("* " <>) . showE) errorGroup)) (List.groupBy groupFn errors))
   where
     groupFn (UnparsableRange _ _) (UnparsableRange _ _) = True
-    groupFn (NonPureScript _) (NonPureScript _) = True
+    groupFn (NonPureScript _) (NonPureScript _)         = True
     groupFn (MissingFromTheSet _) (MissingFromTheSet _) = True
-    groupFn (WrongVersion _ _ _) (WrongVersion _ _ _) = True
-    groupFn _ _ = False
+    groupFn (WrongVersion _ _ _) (WrongVersion _ _ _)   = True
+    groupFn _ _                                         = False
 
     showE (UnparsableRange (PackageName name) range) = surroundQuote name <> " had range " <> surroundQuote range
     showE (NonPureScript name) = surroundQuote name

@@ -9,7 +9,6 @@ module Spago.Packages
   , getProjectDeps
   , PackageSet.upgradePackageSet
   , PackageSet.freeze
-  , PackageSet.PackageName(..)
   , PackagesFilter(..)
   , JsonFlag(..)
   , DepsOnly(..)
@@ -30,11 +29,11 @@ import qualified Spago.Config            as Config
 import qualified Spago.FetchPackage      as Fetch
 import           Spago.GlobalCache       (CacheFlag (..))
 import qualified Spago.Messages          as Messages
-import           Spago.PackageSet        (Package (..), PackageLocation (..), PackageName (..),
-                                          PackageSet (..), Repo (..))
 import qualified Spago.PackageSet        as PackageSet
 import qualified Spago.Purs              as Purs
 import qualified Spago.Templates         as Templates
+
+import           Spago.Types             as PackageSet
 
 
 -- | Init a new Spago project:

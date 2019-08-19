@@ -21,16 +21,17 @@ import qualified Dhall.Map
 import qualified GHC.IO
 import qualified GHC.IO.Encoding
 import qualified GitHub
+import qualified Spago.Config
 import qualified Spago.Dhall                    as Dhall
 import qualified System.Environment             as Env
 import qualified System.IO.Temp                 as Temp
 import qualified System.Process                 as Process
 import qualified Turtle
-import qualified Spago.Config
 
 import           Data.Aeson.Encode.Pretty       (encodePretty)
 import           Spago.GlobalCache
-import           Spago.PackageSet               (Package (..), PackageName (..), Repo (..), PackageLocation(..))
+import           Spago.Types                    as PackageSet
+
 
 type Expr = Dhall.DhallExpr Dhall.Import
 type PackageSetMap = Map PackageName Package

@@ -18,10 +18,11 @@ import qualified Spago.Config        as Config
 import           Spago.DryRun        (DryRun (..))
 import           Spago.GlobalCache   (CacheFlag (..))
 import           Spago.Messages      as Messages
-import           Spago.Packages      (JsonFlag (..), PackageName (..), PackagesFilter (..))
+import           Spago.Packages      (JsonFlag (..), PackagesFilter (..))
 import qualified Spago.Packages
 import qualified Spago.PscPackage    as PscPackage
 import qualified Spago.Purs          as Purs
+import           Spago.Types
 import           Spago.Version       (VersionBump (..))
 import qualified Spago.Version       as Version
 import           Spago.Watch         (ClearScreen (..))
@@ -165,9 +166,9 @@ parser = do
 
     packageName     = CLI.arg (Just . PackageName) "package" "Specify a package name. You can list them with `list-packages`"
     packageNames    = many $ CLI.arg (Just . PackageName) "package" "Package name to add as dependency"
-    passthroughArgs = many $ CLI.arg (Just . ExtraArg) " ..any `purs compile` option" "Options passed through to `purs compile`; use -- to separate"
+    pursArgs        = many $ CLI.opt (Just . ExtraArg) "purs-args" 'u' "Argument to pass to purs"
 
-    buildOptions  = BuildOptions <$> cacheFlag <*> watch <*> clearScreen <*> sourcePaths <*> noInstall <*> passthroughArgs <*> depsOnly
+    buildOptions  = BuildOptions <$> cacheFlag <*> watch <*> clearScreen <*> sourcePaths <*> noInstall <*> pursArgs <*> depsOnly
 
     -- Note: by default we limit concurrency to 20
     globalOptions = GlobalOptions <$> verbose <*> usePsa <*> fmap (fromMaybe 20) jobsLimit <*> fmap (fromMaybe Config.defaultPath) configPath
@@ -199,7 +200,7 @@ parser = do
     repl =
       ( "repl"
       , "Start a REPL"
-      , Repl <$> cacheFlag <*> replPackageNames <*> sourcePaths <*> passthroughArgs <*> depsOnly
+      , Repl <$> cacheFlag <*> replPackageNames <*> sourcePaths <*> pursArgs <*> depsOnly
       )
 
     test =

@@ -50,6 +50,7 @@ module Spago.Prelude
   , isAbsolute
   , pathSeparator
   , headMay
+  , shouldRefreshFile
   , for
   , handleAny
   , try
@@ -101,6 +102,7 @@ import           Data.Sequence                 (Seq (..))
 import           Data.String                   (IsString)
 import           Data.Text                     (Text)
 import           Data.Text.Prettyprint.Doc     (Pretty)
+import qualified Data.Time                     as Time
 import           Data.Traversable              (for)
 import           Data.Typeable                 (Proxy (..), Typeable)
 import           Dhall.Optics                  (transformMOf)
@@ -247,3 +249,19 @@ assertDirectory directory = do
 -- | Release tag for the `purescript-docs-search` app.
 docsSearchVersion :: Text
 docsSearchVersion = "v0.0.4"
+
+
+-- | Check if the file is present and more recent than 1 day
+shouldRefreshFile :: Spago m => FilePath.FilePath -> m Bool
+shouldRefreshFile path = (tryIO $ liftIO $ do
+  fileExists <- testfile $ Turtle.decodeString path
+  lastModified <- getModificationTime path
+  now <- Time.getCurrentTime
+  -- Note: `NomiNalDiffTime` is 1 second
+  let fileIsRecentEnough = Time.addUTCTime (24 * 60 * 60) lastModified >= now
+  pure $ not (fileExists && fileIsRecentEnough))
+  >>= \case
+  Right v -> pure v
+  Left err -> do
+    echoDebug $ "Unable to read file " <> Text.pack path <> ". Error was: " <> tshow err
+    pure True
