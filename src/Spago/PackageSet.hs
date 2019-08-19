@@ -54,10 +54,10 @@ upgradePackageSet = do
   echoDebug "Running `spago upgrade-set`"
 
   globalCacheDir <- GlobalCache.getGlobalCacheDir
+  assertDirectory globalCacheDir
   let globalPathToCachedTag = globalCacheDir </> "package-sets-tag.txt"
   let writeTagCache releaseTagName = writeTextFile (pathFromText $ Text.pack globalPathToCachedTag) releaseTagName
-  let readTagCache :: Spago m => m (Either SomeException Text)
-      readTagCache = try $ readTextFile $ pathFromText $ Text.pack globalPathToCachedTag
+  let readTagCache = try $ readTextFile $ pathFromText $ Text.pack globalPathToCachedTag
   let downloadTagToCache =
         try (Retry.recoverAll (Retry.fullJitterBackoff 50000 <> Retry.limitRetries 5) $ \_ -> getLatestRelease1 <|> getLatestRelease2) >>= \case
           Left (err :: SomeException) -> echoDebug $ Messages.failedToReachGitHub err
@@ -69,7 +69,7 @@ upgradePackageSet = do
 
   readTagCache >>= \case
     Right tag -> updateTag tag
-    Left err -> do
+    Left (err :: SomeException) -> do
       echo "WARNING: was not possible to upgrate the package-sets release"
       echoDebug $ "Error: " <> tshow err
 
