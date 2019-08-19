@@ -24,8 +24,9 @@ import           Spago.Config               (Config (..), PublishConfig (..))
 import qualified Spago.Config               as Config
 import qualified Spago.Git                  as Git
 import qualified Spago.Packages             as Packages
-import           Spago.PackageSet           (PackageName (..), Package (..), PackageLocation(..), Repo(..))
 import qualified Spago.Templates            as Templates
+
+import Spago.Types
 
 
 path :: IsString t => t

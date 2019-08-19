@@ -22,8 +22,9 @@ import qualified UnliftIO.Directory            as Directory
 
 import qualified Spago.GlobalCache             as GlobalCache
 import qualified Spago.Messages                as Messages
-import           Spago.PackageSet              (Package (..), PackageName (..), Repo (..), PackageLocation(..))
 import qualified Spago.PackageSet              as PackageSet
+
+import           Spago.Types
 
 
 -- | Algorithm for fetching dependencies:
