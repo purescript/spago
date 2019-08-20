@@ -254,7 +254,7 @@ docsSearchVersion = "v0.0.4"
 -- | Check if the file is present and more recent than 1 day
 shouldRefreshFile :: Spago m => FilePath.FilePath -> m Bool
 shouldRefreshFile path = (tryIO $ liftIO $ do
-  fileExists <- testfile $ Turtle.decodeString path
+  fileExists <- testfile $ Text.pack path
   lastModified <- getModificationTime path
   now <- Time.getCurrentTime
   -- Note: `NomiNalDiffTime` is 1 second
