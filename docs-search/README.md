@@ -10,6 +10,8 @@ It supports nearly-all functionality of [Pursuit](https://github.com/purescript/
 
 Run `npm install purescript-docs-search`.
 
+When using [spago](https://github.com/spacchetti/spago), you don't need to install this app. Just run `spago docs` or `spago search`.
+
 ## Usage
 
 There are two usage scenarios:
