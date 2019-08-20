@@ -128,6 +128,21 @@ spec = around_ setup $ do
       writeTextFile "packages.dhall" "let pkgs = ./packagesBase.dhall in pkgs // { spago = { dependencies = [\"prelude\"], repo = \"https://github.com/spacchetti/spago.git\", version = \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\" }}"
       spago ["install", "spago"] >>= shouldBeFailure
 
+    it "Spago should be able to update dependencies in an alternative config" $ do
+
+      spago ["init"] >>= shouldBeSuccess
+      writeTextFile "alternative1.dhall" "./spago.dhall // {dependencies = [\"prelude\"]}"
+      spago ["-x", "alternative1.dhall", "install", "simple-json"] >>= shouldBeSuccess
+      checkFixture "alternative1.dhall"
+
+    it "Spago should not change the alternative config if it does not change dependencies" $ do
+
+      spago ["init"] >>= shouldBeSuccess
+      writeTextFile "alternative2.dhall" "./spago.dhall // { sources = [ \"src/**/*.purs\" ] }"
+      spago ["-x", "alternative2.dhall", "install", "simple-json"] >>= shouldBeSuccess
+      spago ["-x", "alternative2.dhall", "install", "simple-json"] >>= shouldBeSuccessOutput "alternative2install.txt"
+      checkFixture "alternative2.dhall"
+
     it "Spago should install successfully when there are local dependencies sharing the same packages.dhall" $ do
 
       -- Create local 'lib-a' package that depends on lib-c
