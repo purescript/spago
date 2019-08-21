@@ -56,7 +56,7 @@ upgradePackageSet = do
   globalCacheDir <- GlobalCache.getGlobalCacheDir
   assertDirectory globalCacheDir
   let globalPathToCachedTag = globalCacheDir </> "package-sets-tag.txt"
-  let writeTagCache releaseTagName = writeTextFile (pathFromText $ Text.pack globalPathToCachedTag) releaseTagName
+  let writeTagCache releaseTagName = writeTextFile (Text.pack globalPathToCachedTag) releaseTagName
   let readTagCache = try $ readTextFile $ pathFromText $ Text.pack globalPathToCachedTag
   let downloadTagToCache =
         try (Retry.recoverAll (Retry.fullJitterBackoff 50000 <> Retry.limitRetries 5) $ \_ -> getLatestRelease1 <|> getLatestRelease2) >>= \case

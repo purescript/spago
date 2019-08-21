@@ -14,6 +14,7 @@ import           Spago.Build         (BuildOptions (..), DepsOnly (..), ExtraArg
                                       ModuleName (..), NoBuild (..), NoInstall (..),
                                       SourcePath (..), TargetPath (..), Watch (..), WithMain (..))
 import qualified Spago.Build
+import qualified Spago.Config        as Config
 import           Spago.DryRun        (DryRun (..))
 import           Spago.GlobalCache   (CacheFlag (..))
 import           Spago.Messages      as Messages
@@ -153,6 +154,7 @@ parser = do
     jsonFlag    = bool JsonOutputNo JsonOutputYes <$> CLI.switch "json" 'j' "Produce JSON output"
     dryRun      = bool DryRun NoDryRun <$> CLI.switch "no-dry-run" 'f' "Actually perform side-effects (the default is to describe what would be done)"
     usePsa      = bool UsePsa NoPsa <$> CLI.switch "no-psa" 'P' "Don't build with `psa`, but use `purs`"
+    configPath  = CLI.optional $ CLI.optText "config" 'x' "Optional config path to be used instead of the default spago.dhall"
 
     mainModule  = CLI.optional $ CLI.opt (Just . ModuleName) "main" 'm' "Module to be used as the application's entry point"
     toTarget    = CLI.optional $ CLI.opt (Just . TargetPath) "to" 't' "The target file path"
@@ -169,7 +171,7 @@ parser = do
     buildOptions  = BuildOptions <$> cacheFlag <*> watch <*> clearScreen <*> sourcePaths <*> noInstall <*> pursArgs <*> depsOnly
 
     -- Note: by default we limit concurrency to 20
-    globalOptions = GlobalOptions <$> verbose <*> usePsa <*> fmap (fromMaybe 20) jobsLimit
+    globalOptions = GlobalOptions <$> verbose <*> usePsa <*> fmap (fromMaybe 20) jobsLimit <*> fmap (fromMaybe Config.defaultPath) configPath
 
     projectCommands = CLI.subcommandGroup "Project commands:"
       [ initProject

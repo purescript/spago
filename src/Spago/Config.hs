@@ -1,6 +1,7 @@
 {-# LANGUAGE ViewPatterns #-}
 module Spago.Config
-  ( makeConfig
+  ( defaultPath
+  , makeConfig
   , ensureConfig
   , addDependencies
   , parsePackage
@@ -32,11 +33,9 @@ import qualified Spago.Templates       as Templates
 
 import           Spago.Types           as PackageSet
 
-
--- | Path for the Spago Config
-path :: IsString t => t
-path = "spago.dhall"
-
+-- | Default path for the Spago Config
+defaultPath :: IsString t => t
+defaultPath = "spago.dhall"
 
 -- | Spago configuration file type
 data Config = Config
@@ -109,6 +108,7 @@ parseConfig = do
   -- Here we try to migrate any config that is not in the latest format
   withConfigAST $ pure . addSourcePaths
 
+  path <- asks globalConfigPath
   expr <- liftIO $ Dhall.inputExpr $ "./" <> path
   case expr of
     Dhall.RecordLit ks -> do
@@ -145,6 +145,7 @@ parseConfig = do
 -- | Checks that the Spago config is there and readable
 ensureConfig :: Spago m => m Config
 ensureConfig = do
+  path <- asks globalConfigPath
   exists <- testfile path
   unless exists $ do
     die $ Messages.cannotFindConfig
@@ -159,6 +160,7 @@ ensureConfig = do
 --   Eventually ports an existing `psc-package.json` to the new config.
 makeConfig :: Spago m => Bool -> m ()
 makeConfig force = do
+  path <- asks globalConfigPath
   unless force $ do
     hasSpagoDhall <- testfile path
     when hasSpagoDhall $ die $ Messages.foundExistingProject path
@@ -182,8 +184,8 @@ makeConfig force = do
           -- try to update the dependencies (will fail if not found in package set)
           let pscPackages = map PackageSet.PackageName $ PscPackage.depends pscConfig
           config <- ensureConfig
-          withConfigAST (\e -> addRawDeps config pscPackages
-                               $ updateName (PscPackage.name pscConfig) e)
+          void $ withConfigAST (\e -> addRawDeps config pscPackages
+                                      $ updateName (PscPackage.name pscConfig) e)
     (_, True) -> do
       -- read the bowerfile
       content <- readTextFile "bower.json"
@@ -205,8 +207,8 @@ makeConfig force = do
             else do
               echo $ showBowerErrors bowerErrors
 
-          withConfigAST (\e -> addRawDeps config bowerPackages
-                               $ updateName bowerName e)
+          void $ withConfigAST (\e -> addRawDeps config bowerPackages
+                                      $ updateName bowerName e)
 
     _ -> pure ()
 
@@ -334,17 +336,20 @@ filterDependencies expr = expr
 --   on the current config. If it succeeds, it writes back to file the result returned.
 --   Note: it will pass in the parsed AST, not the resolved one (so e.g. imports will
 --   still be in the tree). If you need the resolved one, use `ensureConfig`.
-withConfigAST :: Spago m => (Expr -> m Expr) -> m ()
+withConfigAST :: Spago m => (Expr -> m Expr) -> m Bool
 withConfigAST transform = do
+  path <- asks globalConfigPath
   rawConfig <- liftIO $ Dhall.readRawExpr path
   case rawConfig of
     Nothing -> die Messages.cannotFindConfig
     Just (header, expr) -> do
       newExpr <- transformMExpr transform expr
       -- Write the new expression only if it has actually changed
-      if (Dhall.Core.denote expr /= newExpr)
+      let exprHasChanged = Dhall.Core.denote expr /= newExpr
+      if exprHasChanged
         then liftIO $ Dhall.writeRawExpr path (header, newExpr)
         else echoDebug "Transformed config is the same as the read one, not overwriting it"
+      pure exprHasChanged
 
 
 transformMExpr
@@ -365,4 +370,6 @@ transformMExpr rules =
 --   dependencies, and write the Config back to file.
 addDependencies :: Spago m => Config -> [PackageName] -> m ()
 addDependencies config newPackages = do
-  withConfigAST $ addRawDeps config newPackages
+  configHasChanged <- withConfigAST $ addRawDeps config newPackages
+  when (not configHasChanged) $ do
+    echo "WARNING: configuration file was not updated. You should have a record with the `dependencies` key for this to work."

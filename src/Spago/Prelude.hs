@@ -114,8 +114,7 @@ import           System.FilePath               (isAbsolute, pathSeparator, (</>)
 import           System.IO                     (hPutStrLn)
 import           Turtle                        (ExitCode (..), FilePath, appendonly, chmod,
                                                 executable, mktree, repr, shell, shellStrict,
-                                                shellStrictWithErr, systemStrictWithErr, testdir,
-                                                testfile)
+                                                shellStrictWithErr, systemStrictWithErr, testdir)
 import           UnliftIO                      (MonadUnliftIO, withRunInIO)
 import           UnliftIO.Directory            (getModificationTime, makeAbsolute)
 import           UnliftIO.Exception            (IOException, handleAny, try, tryIO)
@@ -136,9 +135,10 @@ instance Show SpagoError where
 data UsePsa = UsePsa | NoPsa
 
 data GlobalOptions = GlobalOptions
-  { globalDebug  :: Bool
-  , globalUsePsa :: UsePsa
-  , globalJobs   :: Int
+  { globalDebug      :: Bool
+  , globalUsePsa     :: UsePsa
+  , globalJobs       :: Int
+  , globalConfigPath :: Text
   }
 
 type Spago m =
@@ -173,17 +173,18 @@ die reason = throwM $ SpagoError reason
 hush :: Either a b -> Maybe b
 hush = either (const Nothing) Just
 
-
 pathFromText :: Text -> Turtle.FilePath
 pathFromText = Turtle.fromText
 
+testfile :: MonadIO m => Text -> m Bool
+testfile = Turtle.testfile . pathFromText
 
 readTextFile :: MonadIO m => Turtle.FilePath -> m Text
 readTextFile = liftIO . Turtle.readTextFile
 
 
-writeTextFile :: MonadIO m => Turtle.FilePath -> Text -> m ()
-writeTextFile path text = liftIO $ Turtle.writeTextFile path text
+writeTextFile :: MonadIO m => Text -> Text -> m ()
+writeTextFile path text = liftIO $ Turtle.writeTextFile (Turtle.fromText path) text
 
 
 with :: MonadIO m => Turtle.Managed a -> (a -> IO r) -> m r
@@ -253,7 +254,7 @@ docsSearchVersion = "v0.0.4"
 -- | Check if the file is present and more recent than 1 day
 shouldRefreshFile :: Spago m => FilePath.FilePath -> m Bool
 shouldRefreshFile path = (tryIO $ liftIO $ do
-  fileExists <- testfile $ Turtle.decodeString path
+  fileExists <- testfile $ Text.pack path
   lastModified <- getModificationTime path
   now <- Time.getCurrentTime
   -- Note: `NomiNalDiffTime` is 1 second

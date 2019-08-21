@@ -77,10 +77,9 @@ initProject force = do
           action
 
     copyIfNotExists dest srcTemplate = do
-      let destPath = pathFromText dest
-      (testfile destPath) >>= \case
+      (testfile dest) >>= \case
         True  -> echo $ Messages.foundExistingFile dest
-        False -> writeTextFile destPath srcTemplate
+        False -> writeTextFile dest srcTemplate
 
 
 -- | Only build deps and ignore input paths
