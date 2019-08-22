@@ -2,12 +2,16 @@ module Spago.Types where
 
 import           Spago.Prelude
 
-import qualified Data.Text      as Text
-import qualified Data.Versions  as Version
-import qualified Dhall          as Dhall
-import qualified Network.URI    as URI
+import qualified Data.Text       as Text
+import qualified Data.Versions   as Version
+import qualified Dhall           as Dhall
+import qualified Dhall.TypeCheck
+import qualified Network.URI     as URI
 
-import qualified Spago.Messages as Messages
+
+import qualified Spago.Dhall     as Dhall
+import qualified Spago.Messages  as Messages
+import qualified Spago.Purs      as Purs
 
 
 newtype PackageName = PackageName { packageName :: Text }
@@ -66,3 +70,19 @@ instance Dhall.Interpret Repo where
       makeRepo repo = case URI.parseURI $ Text.unpack repo of
         Just _uri -> Repo repo
         Nothing   -> error $ Text.unpack $ Messages.failedToParseRepoString repo
+
+
+-- | Spago configuration file type
+data Config = Config
+  { name              :: Text
+  , dependencies      :: [PackageName]
+  , packageSet        :: PackageSet
+  , configSourcePaths :: [Purs.SourcePath]
+  , publishConfig     :: Either (Dhall.ReadError Dhall.TypeCheck.X) PublishConfig
+  } deriving (Show, Generic)
+
+-- | The extra fields that are only needed for publishing libraries.
+data PublishConfig = PublishConfig
+  { publishLicense    :: Text
+  , publishRepository :: Text
+  } deriving (Show, Generic)

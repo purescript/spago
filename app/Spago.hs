@@ -16,16 +16,18 @@ import           Spago.Build         (BuildOptions (..), DepsOnly (..), ExtraArg
 import qualified Spago.Build
 import qualified Spago.Config        as Config
 import           Spago.DryRun        (DryRun (..))
+import qualified Spago.Git           as Git
 import qualified Spago.GitHub
 import           Spago.GlobalCache   (CacheFlag (..))
 import           Spago.Messages      as Messages
 import           Spago.Packages      (JsonFlag (..), PackagesFilter (..))
 import qualified Spago.Packages
 import qualified Spago.PscPackage    as PscPackage
+import qualified Spago.Publish
 import qualified Spago.Purs          as Purs
 import           Spago.Types
-import qualified Spago.Version
 import           Spago.Version       (VersionBump (..))
+import qualified Spago.Version
 import           Spago.Watch         (ClearScreen (..))
 
 
@@ -66,6 +68,9 @@ data Command
 
   -- | Bump and tag a new version in preparation for release.
   | BumpVersion DryRun VersionBump
+
+  -- | Publish a release
+  | Publish DryRun
 
   -- | Save a GitHub token to cache, to authenticate to various GitHub things
   | Login
@@ -142,7 +147,7 @@ parser = do
             "major" -> Just Spago.Version.Major
             "minor" -> Just Spago.Version.Minor
             "patch" -> Just Spago.Version.Patch
-            v | Right v' <- Spago.Version.parseVersion v -> Just $ Exact v'
+            v | Right v' <- Git.parseVersion v -> Just $ Exact v'
             _ -> Nothing
       in CLI.arg spec "bump" "How to bump the version. Acceptable values: 'major', 'minor', 'patch', or a version (e.g. 'v1.2.3')."
 
@@ -299,6 +304,7 @@ parser = do
     publishCommands = CLI.subcommandGroup "Publish commands:"
       [ login
       , bumpVersion
+      , publish
       ]
 
     login =
@@ -313,6 +319,11 @@ parser = do
       , BumpVersion <$> dryRun <*> versionBump
       )
 
+    publish =
+      ( "publish"
+      , "EXPERIMENTAL: Publish the latest version, uploading it to Bower and Pursuit"
+      , Publish <$> dryRun
+      )
 
     pscPackageCommands = CLI.subcommandGroup "Psc-Package compatibility commands:"
       [ pscPackageLocalSetup
@@ -388,6 +399,7 @@ main = do
       Test modName buildOptions nodeArgs    -> Spago.Build.test modName buildOptions nodeArgs
       BumpVersion dryRun spec               -> Spago.Version.bumpVersion dryRun spec
       Login                                 -> Spago.GitHub.login
+      Publish dryRun                        -> Spago.Publish.publish dryRun
       Run modName buildOptions nodeArgs     -> Spago.Build.run modName buildOptions nodeArgs
       Repl cacheConfig replPackageNames paths pursArgs depsOnly
         -> Spago.Build.repl cacheConfig replPackageNames paths pursArgs depsOnly

@@ -1,32 +1,32 @@
 module Spago.Bower
   ( path
   , generateBowerJson
+  , readBowerfile
   , runBowerInstall
+  , runBowerInfo
+  , runBowerRegister
   ) where
 
-import Spago.Prelude
+import           Spago.Prelude
 
-import qualified Data.Aeson                 as Aeson
-import qualified Data.Aeson.Encode.Pretty   as Pretty
-import qualified Data.ByteString.Lazy       as ByteString
-import qualified Data.HashMap.Strict        as HashMap
-import           Data.String                (IsString)
-import qualified Data.Text                  as Text
-import           Data.Text.Lazy             (fromStrict)
-import           Data.Text.Lazy.Encoding    (encodeUtf8)
-import qualified Distribution.System        as System
-import           Distribution.System        (OS (..))
+import qualified Data.Aeson               as Aeson
+import qualified Data.Aeson.Encode.Pretty as Pretty
+import qualified Data.ByteString.Lazy     as ByteString
+import qualified Data.HashMap.Strict      as HashMap
+import           Data.String              (IsString)
+import qualified Data.Text                as Text
+import           Distribution.System      (OS (..))
+import qualified Distribution.System      as System
 import qualified Turtle
-import           Web.Bower.PackageMeta      (PackageMeta (..))
-import qualified Web.Bower.PackageMeta      as Bower
+import           Web.Bower.PackageMeta    (PackageMeta (..))
+import qualified Web.Bower.PackageMeta    as Bower
 
-import           Spago.Config               (Config (..), PublishConfig (..))
-import qualified Spago.Config               as Config
-import qualified Spago.Git                  as Git
-import qualified Spago.Packages             as Packages
-import qualified Spago.Templates            as Templates
+import qualified Spago.Git                as Git
+import qualified Spago.Messages           as Messages
+import qualified Spago.Packages           as Packages
+import qualified Spago.Templates          as Templates
 
-import Spago.Types
+import           Spago.Types
 
 
 path :: IsString t => t
@@ -45,10 +45,9 @@ runBower args = do
   Turtle.procStrictWithErr cmd args empty
 
 
-generateBowerJson :: Spago m => m ByteString.ByteString
-generateBowerJson = do
+generateBowerJson :: Spago m => Config -> m ByteString.ByteString
+generateBowerJson config@Config{..} = do
   echo $ "Generating a new Bower config using the package set versions.."
-  config@Config{..} <- Config.ensureConfig
   PublishConfig{..} <- throws publishConfig
 
   bowerName <- mkPackageName name
@@ -72,12 +71,46 @@ generateBowerJson = do
   pure bowerJson
 
 
+readBowerfile :: Spago m => m Bower.PackageMeta
+readBowerfile = do
+  content <- readTextFile path
+  case eitherDecodeStrict $ encodeUtf8 content of
+    Left err          -> die $ Messages.failedToParseFile path err
+    Right packageMeta -> pure packageMeta
+
+
 runBowerInstall :: Spago m => m ()
 runBowerInstall = do
   echo "Running `bower install` so `pulp publish` can read resolved versions from it"
   shell "bower install --silent" empty >>= \case
     ExitSuccess   -> pure ()
     ExitFailure _ -> die "Failed to run `bower install` on your package"
+
+
+runBowerInfo :: Spago m => Bower.PackageName -> Maybe Text -> m (HashMap.HashMap Text Value)
+runBowerInfo packageName version = do
+
+  let args =
+        [ "info"
+        , "--json"
+        , Bower.runPackageName packageName <> case version of
+            Nothing -> ""
+            Just v  -> "#" <> v
+        ]
+  (code, stdout, stderr) <- runBower args
+
+  when (code /= ExitSuccess) $ do
+    die $ "Failed to run: `bower " <> Text.intercalate " " args <> "`\n" <> stderr
+
+  case Aeson.decodeStrict $ encodeUtf8 $  stdout of
+    Just (Object obj) -> pure obj
+    _ -> die $ "Unable to decode output from `bower " <> Text.intercalate " " args <> "`: " <> stdout
+
+
+runBowerRegister :: Spago m => Bower.PackageName -> Text -> m ()
+runBowerRegister packageName repoUrl = do
+  (_code, stdout, _stderr) <- runBower ["register", Bower.runPackageName packageName, repoUrl]
+  echo stdout
 
 
 templateBowerJson :: Spago m => m Bower.PackageMeta
@@ -104,15 +137,7 @@ mkPackageName spagoName = do
 mkBowerVersion :: Spago m => Bower.PackageName -> Text -> Repo -> m Bower.VersionRange
 mkBowerVersion packageName version (Repo repo) = do
 
-  let args = ["info", "--json", Bower.runPackageName packageName <> "#" <> version]
-  (code, stdout, stderr) <- runBower args
-
-  when (code /= ExitSuccess) $ do
-    die $ "Failed to run: `bower " <> Text.intercalate " " args <> "`\n" <> stderr
-
-  info <- case Aeson.decode $ encodeUtf8 $ fromStrict stdout of
-    Just (Object obj) -> pure obj
-    _ -> die $ "Unable to decode output from `bower " <> Text.intercalate " " args <> "`: " <> stdout
+  info <- runBowerInfo packageName $ Just version
 
   if HashMap.member "version" info
     then pure $ Bower.VersionRange $ "^" <> version

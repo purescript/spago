@@ -37,20 +37,6 @@ import           Spago.Types           as PackageSet
 defaultPath :: IsString t => t
 defaultPath = "spago.dhall"
 
--- | Spago configuration file type
-data Config = Config
-  { name              :: Text
-  , dependencies      :: [PackageName]
-  , packageSet        :: PackageSet
-  , configSourcePaths :: [Purs.SourcePath]
-  , publishConfig     :: Either (Dhall.ReadError Dhall.TypeCheck.X) PublishConfig
-  } deriving (Show, Generic)
-
--- | The extra fields that are only needed for publishing libraries.
-data PublishConfig = PublishConfig
-  { publishLicense    :: Text
-  , publishRepository :: Text
-  } deriving (Show, Generic)
 
 type Expr = Dhall.DhallExpr Dhall.Import
 type ResolvedExpr = Dhall.DhallExpr Dhall.TypeCheck.X
@@ -190,7 +176,7 @@ makeConfig force = do
       -- read the bowerfile
       content <- readTextFile "bower.json"
       case eitherDecodeStrict $ Text.encodeUtf8 content of
-        Left err -> die $ Messages.failedToParseFile path err
+        Left err -> die $ Messages.failedToParseFile "bower.json" err
         Right packageMeta -> do
           echo "Found a \"bower.json\" file, migrating to a new Spago config.."
           -- then try to update the dependencies. We'll migrates the ones that we can,

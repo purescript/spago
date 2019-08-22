@@ -64,6 +64,11 @@ module Spago.Prelude
   , shellStrict
   , shellStrictWithErr
   , systemStrictWithErr
+  , Turtle.proc
+  , Turtle.inproc
+  , Turtle.strict
+  , Turtle.procStrictWithErr
+  , Turtle.procs
   , viewShell
   , repr
   , with
@@ -76,6 +81,8 @@ module Spago.Prelude
   , docsSearchVersion
   , githubTokenEnvVar
   , whenM
+  , encodeUtf8
+  , decodeUtf8
   ) where
 
 
@@ -103,6 +110,7 @@ import           Data.Maybe                    as X
 import           Data.Sequence                 (Seq (..))
 import           Data.String                   (IsString)
 import           Data.Text                     (Text)
+import           Data.Text.Encoding            (decodeUtf8, encodeUtf8)
 import           Data.Text.Prettyprint.Doc     (Pretty)
 import qualified Data.Time                     as Time
 import           Data.Traversable              (for)

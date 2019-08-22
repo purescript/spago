@@ -68,10 +68,10 @@ packages:
   original:
     hackage: repline-0.2.1.0
 - completed:
-    hackage: serialise-0.2.1.0@sha256:8d6051f64c6ebfaf705195dd0b8dfb667617f2e674b290ed2e44985009e4f951,8242
+    hackage: serialise-0.2.1.0@sha256:265fb7359c704086b150710426ae60882cdbccaaacc26bb59d77a1189a8276e6,8276
     pantry-tree:
       size: 4056
-      sha256: 26f4c5d503a78001152b73868bd66c5b3479d9b62bb0134c6557815ced34402a
+      sha256: 057b2511e490657565bfedd32e74c22434b836657d7ac4b7421e449de2331681
   original:
     hackage: serialise-0.2.1.0
 - completed:
@@ -158,9 +158,23 @@ packages:
       sha256: c355f7924ce67e5bf8f20767462af18f09b8c0d1f7161117221cbb94c15deee3
   original:
     hackage: unix-2.7.2.2@sha256:e69269a17b9fa26cb77f3f55e86c39d0a4940ccfa0c4bc20826919d2572076ad,3496
+- completed:
+    hackage: github-0.22@sha256:13f09e904248a40dd173c08f2859d0dfda178a7c27f88df20b70a0d5a7614757,6909
+    pantry-tree:
+      size: 7050
+      sha256: f290767f547b77ae323da3fb92a662c8a9e5fed1c23f626937e79ae983b84af0
+  original:
+    hackage: github-0.22
+- completed:
+    hackage: binary-instances-1@sha256:cdef50410f2797de38f021d328d38c32b2f4abeaab86bfaf78e0657150863090,2613
+    pantry-tree:
+      size: 1035
+      sha256: b58b9e7a482f158b33d87d807cd91bf99e6cd998593f4d9b11d96e978559a690
+  original:
+    hackage: binary-instances-1@sha256:cdef50410f2797de38f021d328d38c32b2f4abeaab86bfaf78e0657150863090,2613
 snapshots:
 - completed:
-    size: 508406
-    url: https://raw.githubusercontent.com/commercialhaskell/stackage-snapshots/master/lts/12/21.yaml
-    sha256: 609dd00c32f59e11bb333b9113d9d2e54269627de1268cbb3cc576af8c7b6237
-  original: lts-12.21
+    size: 523878
+    url: https://raw.githubusercontent.com/commercialhaskell/stackage-snapshots/master/lts/14/3.yaml
+    sha256: 470c46c27746a48c7c50f829efc0cf00112787a7804ee4ac7a27754658f6d92c
+  original: lts-14.3

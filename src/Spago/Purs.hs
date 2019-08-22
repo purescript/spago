@@ -3,6 +3,7 @@ module Spago.Purs
   , repl
   , bundle
   , docs
+  , publish
   , version
   , parseDocsFormat
   , SourcePath(..)
@@ -108,6 +109,16 @@ docs format sourcePaths = do
   runWithOutput cmd
     "Docs generation succeeded."
     "Docs generation failed."
+
+
+publish :: Spago m => Text -> m Text
+publish resolutionsPath = do
+  let cmd =  "purs publish --manifest bower.json --resolutions " <> resolutionsPath
+  echoDebug $ "Running command: `" <> cmd <> "`"
+  shellStrictWithErr cmd empty >>= \case
+    (ExitSuccess, out, _err) -> pure out
+    (_, _, err) -> die $ "Error while running `purs publish`. Log:\n" <> err
+
 
 version, psaVersion :: Spago m => m (Maybe Version.SemVer)
 version = versionImpl "purs"
