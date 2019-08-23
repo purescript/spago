@@ -9,11 +9,10 @@ import qualified Data.ByteString        as BS
 import qualified Data.Map.Strict        as Map
 import qualified Data.Text              as Text
 import qualified Network.HTTP.Simple    as Http
-import qualified System.Environment
 import qualified System.FilePath        as FilePath
 import qualified Turtle
+import           UnliftIO.Directory     (XdgDirectory(XdgCache), getXdgDirectory)
 
-import qualified Spago.Messages         as Messages
 import Spago.Types
 
 
@@ -139,43 +138,14 @@ getMetadata cacheFlag = do
 
 
 -- | Directory in which spago will put its global cache
---   Code from: https://github.com/dhall-lang/dhall-haskell/blob/d8f2787745bb9567a4542973f15e807323de4a1a/dhall/src/Dhall/Import.hs#L578
---
---   In order we try to get:
---   - the folder pointed by `$XDG_CACHE_HOME`
---   - the folder pointed by `$HOME/.cache`
---   - the project-local `.cache`
+--   `getXdgDirectory XdgCache` tries to find the folder pointed by 
+--   `$XDG_CACHE_HOME`, otherwise it uses:
+--   - (on Linux/MacOS) the folder pointed by `$HOME/.cache`, or
+--   - (on Windows) the folder pointed by `LocalAppData`
 getGlobalCacheDir :: Spago m => m FilePath.FilePath
 getGlobalCacheDir = do
   echoDebug "Running `getGlobalCacheDir`"
-  cacheDir <- alternative₀ <|> alternative₁ <|> alternative₂ <|> alternative₃ <|> err
-  pure $ cacheDir </> "spago"
-  where
-    err = die Messages.cannotGetGlobalCacheDir
-
-    alternative₀ = do
-      maybeXDGCacheHome <- do
-        liftIO (System.Environment.lookupEnv "XDG_CACHE_HOME")
-
-      case maybeXDGCacheHome of
-        Just xdgCacheHome -> return xdgCacheHome
-        Nothing           -> empty
-
-    alternative₁ = do
-      maybeHomeDirectory <- liftIO (System.Environment.lookupEnv "HOME")
-
-      case maybeHomeDirectory of
-        Just homeDirectory -> return (homeDirectory </> ".cache")
-        Nothing            -> empty
-
-    alternative₂ = do
-      maybeWindowsHomeDirectory <- liftIO (System.Environment.lookupEnv "HomePath")
-
-      case maybeWindowsHomeDirectory of
-        Just homeDirectory -> return (homeDirectory </> ".cache")
-        Nothing            -> empty
-
-    alternative₃ = pure ".spago-global-cache"
+  getXdgDirectory XdgCache "spago" <|> pure ".spago-global-cache"
 
 
 -- | Fetch the tarball at `archiveUrl` and unpack it into `destination`

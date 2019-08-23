@@ -17,6 +17,7 @@ Bugfixes:
 - Do not compile files twice when using `--watch` and Vim (#346)
 - fix Dhall syntax error in packages.dhall template
 - Use `git clone` instead of `git fetch` when fetching a package (#373)
+- Fixes Windows global cache location; now uses `LocalAppData` as default (#384, #380)
 
 ## [0.9.0] - 2019-07-30
 
