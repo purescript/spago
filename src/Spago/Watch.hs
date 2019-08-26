@@ -9,10 +9,10 @@ import           Spago.Prelude          hiding (FilePath)
 import           Control.Concurrent.STM (check)
 import qualified Data.Map.Strict        as Map
 import qualified Data.Set               as Set
-import qualified Data.Text              as Text
 import           GHC.IO                 (FilePath)
 import           GHC.IO.Exception
 import           System.Console.ANSI    (clearScreen)
+import           System.FilePath        (splitDirectories)
 import qualified System.FilePath.Glob   as Glob
 import qualified System.FSNotify        as Watch
 import           System.IO              (getLine)
@@ -175,15 +175,9 @@ fileWatchConf watchConfig shouldClear inner = withManagerConf watchConfig $ \man
 
 
 globToParent :: Glob.Pattern -> FilePath
-globToParent glob = go base $ map Text.unpack pathComponents
+globToParent glob = go pathHead pathRest
   where
-    path = Glob.decompile glob
-
-    base = case isAbsolute path of
-      True  -> [pathSeparator]
-      False -> "."
-
-    pathComponents = Text.split (== pathSeparator) $ Text.pack path
+    pathHead : pathRest = splitDirectories $ Glob.decompile glob
 
     go acc []           = acc
     go acc ("*":_rest)  = acc
