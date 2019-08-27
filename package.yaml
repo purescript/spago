@@ -67,7 +67,7 @@ library:
   - fsnotify
   - Glob
   - stm
-  - directory
+  - directory >= 1.3.4.0
   - mtl
   - exceptions
   - unliftio

@@ -114,20 +114,22 @@ fetchPackage metadata pair@(packageName'@PackageName{..}, Package{ location = Re
         cptree packageGlobalCacheDir downloadDir
         assertDirectory (localCacheDir </> Text.unpack packageName)
         mv downloadDir packageLocalCacheDir
-      else do
+      else Temp.withTempDirectory globalDir (Text.unpack ("__temp-" <> "-" <> packageName <> (getCacheVersionDir version))) $ \globalTemp -> do
         -- * otherwise, check if the Package is on GitHub and an "immutable" ref
         -- * if yes, download the tar archive and copy it to global and then local cache
         let cacheableCallback :: Spago m => FilePath.FilePath -> m ()
             cacheableCallback resultDir = do
-              -- the idea here is that we first copy the tree in the temp folder,
-              -- then atomically move it to the caches
+              -- the idea here is that we first copy the tree to a temp folder,
+              -- then atomically move it to the correct cache location.  Since
+              -- `mv` will not move folders across filesystems, this temp
+              -- is created inside globalDir, guaranteeing the same filesystem.
               echo $ "Installing and globally caching " <> quotedName
-              let resultDir2 = path </> "download2"
+              let resultDir2 = globalTemp </> "download2"
               assertDirectory resultDir2
               cptree resultDir resultDir2
-              catch (mv resultDir packageGlobalCacheDir) $ \(err :: SomeException) ->
+              catch (mv resultDir2 packageGlobalCacheDir) $ \(err :: SomeException) ->
                 echoDebug $ Messages.failedToCopyToGlobalCache err
-              mv resultDir2 packageLocalCacheDir
+              mv resultDir packageLocalCacheDir
 
         -- * if not, run a series of git commands to get the code, and move it to local cache
         let nonCacheableCallback :: Spago m => m ()
