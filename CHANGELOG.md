@@ -20,6 +20,7 @@ Bugfixes:
 - Fixes Windows global cache location; now uses `LocalAppData` as default (#384, #380)
 - Fix failure to copy to global cache on a different filesystem (#385)
 - Fix watch function on Windows (issue with paths) (#387, #380)
+- "Quit" command in watch mode now actually quits (#390, #389)
 
 ## [0.9.0] - 2019-07-30
 
