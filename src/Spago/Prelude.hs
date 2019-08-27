@@ -74,6 +74,8 @@ module Spago.Prelude
   , Turtle.mktempdir
   , getModificationTime
   , docsSearchVersion
+  , githubTokenEnvVar
+  , whenM
   ) where
 
 
@@ -207,6 +209,13 @@ cptree :: MonadIO m => System.IO.FilePath -> System.IO.FilePath -> m ()
 cptree from to = Turtle.cptree (Turtle.decodeString from) (Turtle.decodeString to)
 
 
+-- | Like 'when', but where the test can be monadic
+whenM :: Monad m => m Bool -> m () -> m ()
+whenM b t = b >>= \case
+  True  -> t
+  False -> pure ()
+
+
 withTaskGroup' :: Spago m => Int -> (Async.TaskGroup -> m b) -> m b
 withTaskGroup' n action = withRunInIO $ \run -> Async.withTaskGroup n (\taskGroup -> run $ action taskGroup)
 
@@ -249,6 +258,10 @@ assertDirectory directory = do
 -- | Release tag for the `purescript-docs-search` app.
 docsSearchVersion :: Text
 docsSearchVersion = "v0.0.4"
+
+
+githubTokenEnvVar :: IsString t => t
+githubTokenEnvVar = "SPAGO_GITHUB_TOKEN"
 
 
 -- | Check if the file is present and more recent than 1 day

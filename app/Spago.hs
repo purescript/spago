@@ -16,6 +16,7 @@ import           Spago.Build         (BuildOptions (..), DepsOnly (..), ExtraArg
 import qualified Spago.Build
 import qualified Spago.Config        as Config
 import           Spago.DryRun        (DryRun (..))
+import qualified Spago.GitHub
 import           Spago.GlobalCache   (CacheFlag (..))
 import           Spago.Messages      as Messages
 import           Spago.Packages      (JsonFlag (..), PackagesFilter (..))
@@ -23,8 +24,8 @@ import qualified Spago.Packages
 import qualified Spago.PscPackage    as PscPackage
 import qualified Spago.Purs          as Purs
 import           Spago.Types
+import qualified Spago.Version
 import           Spago.Version       (VersionBump (..))
-import qualified Spago.Version       as Version
 import           Spago.Watch         (ClearScreen (..))
 
 
@@ -65,6 +66,9 @@ data Command
 
   -- | Bump and tag a new version in preparation for release.
   | BumpVersion DryRun VersionBump
+
+  -- | Save a GitHub token to cache, to authenticate to various GitHub things
+  | Login
 
   -- | Run the project with some module, default Main
   | Run (Maybe ModuleName) BuildOptions [ExtraArg]
@@ -135,10 +139,10 @@ parser = do
       in CLI.optional $ CLI.opt wrap "filter" 'f' "Filter packages: direct deps with `direct`, transitive ones with `transitive`"
     versionBump =
       let spec = \case
-            "major" -> Just Version.Major
-            "minor" -> Just Version.Minor
-            "patch" -> Just Version.Patch
-            v | Right v' <- Version.parseVersion v -> Just $ Exact v'
+            "major" -> Just Spago.Version.Major
+            "minor" -> Just Spago.Version.Minor
+            "patch" -> Just Spago.Version.Patch
+            v | Right v' <- Spago.Version.parseVersion v -> Just $ Exact v'
             _ -> Nothing
       in CLI.arg spec "bump" "How to bump the version. Acceptable values: 'major', 'minor', 'patch', or a version (e.g. 'v1.2.3')."
 
@@ -293,8 +297,15 @@ parser = do
 
 
     publishCommands = CLI.subcommandGroup "Publish commands:"
-      [ bumpVersion
+      [ login
+      , bumpVersion
       ]
+
+    login =
+      ( "login"
+      , "Save the GitHub token to the global cache - set it with the SPAGO_GITHUB_TOKEN env variable"
+      , pure Login
+      )
 
     bumpVersion =
       ( "bump-version"
@@ -348,6 +359,11 @@ parser = do
       Opts.command "make-module" $ Opts.info (MakeModule <$ mainModule <* toTarget <* noBuild <* buildOptions) mempty
 
 
+-- | Print out Spago version
+printVersion :: Spago m => m ()
+printVersion = CLI.echo $ CLI.unsafeTextToLine $ Text.pack $ showVersion Pcli.version
+
+
 main :: IO ()
 main = do
   -- We always want to run in UTF8 anyways
@@ -356,9 +372,6 @@ main = do
   -- We just fail instead. Source:
   -- https://serverfault.com/questions/544156
   Env.setEnv "GIT_TERMINAL_PROMPT" "0"
-
-  -- | Print out Spago version
-  let printVersion = CLI.echo $ CLI.unsafeTextToLine $ Text.pack $ showVersion Pcli.version
 
   (command, globalOptions) <- CLI.options "Spago - manage your PureScript projects" parser
   (flip runReaderT) globalOptions $
@@ -373,7 +386,8 @@ main = do
       Freeze                                -> Spago.Packages.freeze
       Build buildOptions                    -> Spago.Build.build buildOptions Nothing
       Test modName buildOptions nodeArgs    -> Spago.Build.test modName buildOptions nodeArgs
-      BumpVersion dryRun spec               -> Version.bumpVersion dryRun spec
+      BumpVersion dryRun spec               -> Spago.Version.bumpVersion dryRun spec
+      Login                                 -> Spago.GitHub.login
       Run modName buildOptions nodeArgs     -> Spago.Build.run modName buildOptions nodeArgs
       Repl cacheConfig replPackageNames paths pursArgs depsOnly
         -> Spago.Build.repl cacheConfig replPackageNames paths pursArgs depsOnly

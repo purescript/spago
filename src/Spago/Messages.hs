@@ -195,6 +195,16 @@ pursVersionMismatch currentVersion minVersion = makeMessage
   , ""
   ]
 
+getNewGitHubToken :: Text
+getNewGitHubToken = makeMessage
+  [ "Please obtain a GitHub personal access token at:"
+  , "  https://github.com/settings/tokens/new"
+  , "No scopes are required, so don't check any of the boxes."
+  , ""
+  , "After you've done that, assign it to the " <> githubTokenEnvVar <> " environment variable,"
+  , "and then call `spago login` again so Spago can pick it up and save it to cache"
+  ]
+
 verifying :: Show a => a -> Text
 verifying len = "Verifying " <> tshow len <> " packages, this might take a while.."
 

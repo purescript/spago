@@ -1,0 +1,2 @@
+Token read, authenticating with GitHub..
+Successfully authenticated as "spacchettibotti"

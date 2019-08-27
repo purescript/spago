@@ -186,6 +186,12 @@ spec = around_ setup $ do
       spago ["init"] >>= shouldBeSuccess
       spago ["sources"] >>= shouldBeSuccessOutput "sources-output.txt"
 
+  describe "spago login" $ do
+
+    it "Spago should login correctly" $ do
+
+      spago ["login"] >>= shouldBeSuccessOutput "login-output.txt"
+
   describe "spago build" $ do
 
     it "Spago should build successfully" $ do
