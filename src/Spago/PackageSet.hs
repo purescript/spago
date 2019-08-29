@@ -9,23 +9,16 @@ module Spago.PackageSet
 
 import           Spago.Prelude
 
-import qualified Control.Retry       as Retry
-import qualified Data.Text           as Text
-import qualified Data.Text.Encoding  as Text
 import qualified Data.Versions       as Version
 import           Dhall.Binary        (defaultStandardVersion)
 import qualified Dhall.Freeze
 import qualified Dhall.Pretty
-import qualified GitHub
-import qualified Network.HTTP.Client as Http
-import qualified Network.HTTP.Simple as Http
 
 import qualified Spago.Dhall         as Dhall
-import qualified Spago.GlobalCache   as GlobalCache
+import qualified Spago.GitHub        as GitHub
 import           Spago.Messages      as Messages
 import qualified Spago.Purs          as Purs
 import qualified Spago.Templates     as Templates
-import           Spago.Types         ()
 
 
 path :: IsString t => t
@@ -53,24 +46,10 @@ upgradePackageSet :: Spago m => m ()
 upgradePackageSet = do
   echoDebug "Running `spago upgrade-set`"
 
-  globalCacheDir <- GlobalCache.getGlobalCacheDir
-  assertDirectory globalCacheDir
-  let globalPathToCachedTag = globalCacheDir </> "package-sets-tag.txt"
-  let writeTagCache releaseTagName = writeTextFile (Text.pack globalPathToCachedTag) releaseTagName
-  let readTagCache = try $ readTextFile $ pathFromText $ Text.pack globalPathToCachedTag
-  let downloadTagToCache =
-        try (Retry.recoverAll (Retry.fullJitterBackoff 50000 <> Retry.limitRetries 5) $ \_ -> getLatestRelease1 <|> getLatestRelease2) >>= \case
-          Left (err :: SomeException) -> echoDebug $ Messages.failedToReachGitHub err
-          Right releaseTagName -> writeTagCache releaseTagName
-
-  shouldRefreshFile globalPathToCachedTag >>= \case
-    True -> downloadTagToCache
-    False -> pure ()
-
-  readTagCache >>= \case
+  GitHub.getLatestPackageSetsTag >>= \case
     Right tag -> updateTag tag
     Left (err :: SomeException) -> do
-      echo "WARNING: was not possible to upgrate the package-sets release"
+      echo "WARNING: was not possible to upgrade the package-sets release"
       echoDebug $ "Error: " <> tshow err
 
   where
@@ -93,29 +72,6 @@ upgradePackageSet = do
           liftIO $ Dhall.writeRawExpr path (header, newExpr)
           -- If everything is fine, refreeze the imports
           freeze
-
-    -- | The idea here is that we go to the `latest` endpoint, and then get redirected
-    --   to the latest release. So we search for the `Location` header which should contain
-    --   the URL we get redirected to, and strip the release name from there (it's the
-    --   last segment of the URL)
-    getLatestRelease1 :: Spago m => m Text
-    getLatestRelease1 = do
-      request <- Http.parseRequest "https://github.com/purescript/package-sets/releases/latest"
-      response <- Http.httpBS
-        $ Http.addRequestHeader "User-Agent" "Mozilla/5.0"
-        $ request { Http.redirectCount = 0 }
-      case Http.getResponseHeader "Location" response of
-        [redirectUrl] -> return $ last $ Text.splitOn "/" $ Text.decodeUtf8 redirectUrl
-        _ -> do
-          echoStr $ "Error following GitHub redirect, response:\n\n" <> show response
-          empty
-
-    getLatestRelease2 :: Spago m => m Text
-    getLatestRelease2 = do
-      result <- liftIO $ GitHub.executeRequest' $ GitHub.latestReleaseR "purescript" "package-sets"
-      case result of
-        Right GitHub.Release{..} -> return releaseTagName
-        Left _                   -> empty
 
     getCurrentTag :: Dhall.Import -> [Text]
     getCurrentTag Dhall.Import
