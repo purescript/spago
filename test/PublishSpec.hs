@@ -1,4 +1,4 @@
-module BumpVersionSpec (spec) where
+module PublishSpec (spec) where
 
 import           Prelude        hiding (FilePath)
 import qualified System.IO.Temp as Temp
@@ -120,3 +120,11 @@ spec = around_ setup $ do
       setOverrides "{ tortellini = ./purescript-tortellini/spago.dhall as Location }"
       spago ["bump-version", "minor"] >>= shouldBeFailureInfix
         "Unable to create Bower version for local repo: ./purescript-tortellini"
+
+  describe "spago publish" $ do
+
+     before_ (initGitTag "v1.2.3") $ it "Spago should successfully complete a publishing dry run" $ do
+
+       spago ["bump-version", "--no-dry-run", "minor"] >>= shouldBeSuccess
+       getHighestTag >>= (`shouldBe` Just "v1.3.0")
+       spago ["publish"] >>= shouldBeSuccessOutput "publish-output.txt"

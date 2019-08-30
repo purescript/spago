@@ -134,7 +134,8 @@ data PursResolutionPackage = PursResolutionPackage
   , path    :: String
   } deriving (Generic)
 
-instance ToJSON PursResolutionPackage
+instance ToJSON PursResolutionPackage where
+  toJSON = genericToJSON defaultOptions { omitNothingFields = True }
 
 
 mkResolutionsFile :: Spago m => m Text
@@ -142,7 +143,8 @@ mkResolutionsFile = do
   echo "Creating resolutions file from Bower configurations.."
   bowerPackages :: [FilePath] <- Turtle.fold (Turtle.ls bowerPackagesPath) Fold.list
   bowerJsons <- forM bowerPackages $ \package -> do
-    let configPath = Turtle.encodeString bowerPackagesPath </> Turtle.encodeString package </> ".bower.json"
+    echoDebug $ "Getting generated resolutions for " <> tshow package
+    let configPath = Turtle.encodeString package </> ".bower.json"
     eitherContent <- liftIO $ eitherDecodeFileStrict configPath
     case eitherContent of
       Right c  -> pure c
