@@ -85,6 +85,8 @@ library:
   - unordered-containers
   - retry
   - github
+  - transformers
+  - lens-family-core
 
 executables:
   spago:

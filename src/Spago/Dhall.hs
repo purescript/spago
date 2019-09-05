@@ -6,6 +6,7 @@ module Spago.Dhall
 
 import           Spago.Prelude
 
+import qualified Control.Monad.Trans.State.Strict      as State
 import qualified Data.Text                             as Text
 import qualified Data.Text.Prettyprint.Doc             as Pretty
 import qualified Data.Text.Prettyprint.Doc.Render.Text as PrettyText
@@ -17,6 +18,7 @@ import qualified Dhall.Map
 import qualified Dhall.Parser                          as Parser
 import qualified Dhall.Pretty
 import           Dhall.TypeCheck                       (X, typeOf)
+import qualified Lens.Family
 
 type DhallExpr a = Dhall.Expr Parser.Src a
 
@@ -45,6 +47,31 @@ prettyWithHeader header expr = do
   let doc = Pretty.pretty header <> Pretty.pretty expr
   PrettyText.renderStrict $ Pretty.layoutSmart Pretty.defaultLayoutOptions doc
 
+
+readRawExprAndStatus :: Text -> IO (Maybe (Dhall.Import.Status, DhallExpr Dhall.Import))
+readRawExprAndStatus pathText = do
+  fileContents <- readTextFile $ pathFromText pathText
+  expr <- throws $ Parser.exprFromText mempty fileContents
+  (resolved, status) <- load $ Dhall.normalize expr
+  -- let imports = Lens.Family.view Dhall.Import.stack status
+  let graph = Lens.Family.view Dhall.Import.graph status
+  -- putStrLn  "IMPORTS:"
+  -- putStrLn $ show $ renderChained <$> imports
+  putStrLn  "GRAPH:"
+  for_ graph $ \d -> do
+    putStrLn $ "Parent: " <> renderChained (Dhall.Import.parent d)
+    putStrLn $ "Child: " <> renderChained (Dhall.Import.child d)
+    putStrLn " "
+
+  pure Nothing
+  where
+    load expr
+      = State.runStateT
+          (Dhall.Import.loadWith expr)
+          (Dhall.Import.emptyStatus ".")
+
+    renderChained :: Dhall.Import.Chained -> String
+    renderChained = show . Dhall.Import.chainedImport
 
 readRawExpr :: Text -> IO (Maybe (Text, DhallExpr Dhall.Import))
 readRawExpr pathText = do

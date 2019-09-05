@@ -226,10 +226,10 @@ freeze = do
 ensureFrozen :: Spago m => m ()
 ensureFrozen = do
   echoDebug "Ensuring that the package set is frozen"
-  rawPackageSet <- liftIO $ Dhall.readRawExpr path
+  rawPackageSet <- liftIO $ Dhall.readRawExprAndStatus "spago.dhall"
   case rawPackageSet of
     Nothing -> echo "WARNING: wasn't able to check if your package set file is frozen"
-    Just (_header, expr) -> do
+    Just (status, expr) -> do
       let areRemotesFrozen = foldMap isRemoteFrozen expr
       unless (and areRemotesFrozen) $ do
         freeze
