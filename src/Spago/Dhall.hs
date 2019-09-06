@@ -19,7 +19,6 @@ import qualified Dhall.Parser                          as Parser
 import qualified Dhall.Pretty
 import           Dhall.TypeCheck                       (X, typeOf)
 import qualified Lens.Family
-import qualified System.IO
 
 type DhallExpr a = Dhall.Expr Parser.Src a
 
@@ -65,15 +64,6 @@ readImports pathText = do
 
     childImport
       = Dhall.Import.chainedImport . Dhall.Import.child
-
-
-localImportPath :: Dhall.Import -> Maybe System.IO.FilePath
-localImportPath (Dhall.Import
-  { importHashed = Dhall.ImportHashed
-    { importType = Dhall.Local Dhall.Here file
-    }
-  })              = Just $ Text.unpack $ pretty file
-localImportPath _ = Nothing
 
 
 readRawExpr :: Text -> IO (Maybe (Text, DhallExpr Dhall.Import))

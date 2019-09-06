@@ -152,6 +152,11 @@ freezePackageSet = makeMessage
   [ "Generating new hashes for the package set file so it will be cached.. (this might take some time)"
   ]
 
+failedToCheckPackageSetFrozen :: Text
+failedToCheckPackageSetFrozen = makeMessage
+  [ "WARNING: wasn't able to check if your package set import is frozen"
+  ]
+
 failedToCopyToGlobalCache :: Show a => a -> Text
 failedToCopyToGlobalCache err = makeMessage
   [ "WARNING: was not able to copy the download to the global cache."

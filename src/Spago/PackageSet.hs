@@ -9,6 +9,7 @@ module Spago.PackageSet
 
 import           Spago.Prelude
 
+import qualified Data.Text           as Text
 import qualified Data.Versions       as Version
 import           Dhall.Binary        (defaultStandardVersion)
 import qualified Dhall.Freeze
@@ -211,6 +212,15 @@ isRemoteFrozen (Dhall.Import
 isRemoteFrozen _ = []
 
 
+localImportPath :: Dhall.Import -> Maybe System.IO.FilePath
+localImportPath (Dhall.Import
+  { importHashed = Dhall.ImportHashed
+    { importType = Dhall.Local Dhall.Here file
+    }
+  })              = Just $ Text.unpack $ "." <> Dhall.pretty file
+localImportPath _ = Nothing
+
+
 -- | Freeze the package set remote imports so they will be cached
 freeze :: Spago m => System.IO.FilePath -> m ()
 freeze path = do
@@ -229,10 +239,8 @@ ensureFrozen :: Spago m => m ()
 ensureFrozen = do
   echoDebug "Ensuring that the package set is frozen"
   imports <- liftIO $ Dhall.readImports "spago.dhall"
-  -- case rawPackageSet of
-    -- @TODO Determine error case (and put this in Messages?)
-    -- Nothing -> echo "WARNING: wasn't able to check if your package set file is frozen"
-    -- Just imports -> do
   let areRemotesFrozen = foldMap isRemoteFrozen imports
-  unless (and areRemotesFrozen) $
-    traverse_ (maybe (pure ()) freeze . Dhall.localImportPath) imports
+  case areRemotesFrozen of
+    []      -> echo Messages.failedToCheckPackageSetFrozen
+    remotes -> unless (and remotes) $
+      traverse_ (maybe (pure ()) freeze . localImportPath) imports
