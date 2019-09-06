@@ -12,6 +12,7 @@ Breaking changes (!!!):
   The previous behaviour in which all arguments that could not parse as `spago` arguments
   were passed along to `purs` was sometimes confusing (e.g. when using `--path` and multiple
   arguments).
+- New `--no-search` flag for `spago docs` to skip patching the documentation using `purescript-docs-search`.
 
 Bugfixes:
 - Do not compile files twice when using `--watch` and Vim (#346)
