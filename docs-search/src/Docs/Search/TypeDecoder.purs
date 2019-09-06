@@ -2,6 +2,7 @@ module Docs.Search.TypeDecoder where
 
 import Prelude
 
+import Control.Alt ((<|>))
 import Data.Argonaut.Core (Json, caseJsonObject, fromArray, fromObject, jsonEmptyObject, stringify, toArray)
 import Data.Argonaut.Decode (class DecodeJson, decodeJson, (.:))
 import Data.Argonaut.Encode (class EncodeJson, encodeJson)
@@ -83,11 +84,11 @@ instance decodeJsonKind :: DecodeJson Kind where
 instance encodeJsonKind :: EncodeJson Kind where
   encodeJson = case _ of
     Row k ->
-      encodeTaggedContents "Row" (encodeJson k)
+      tagged "Row" (encodeJson k)
     FunKind k1 k2 ->
-      encodeTaggedContents "FunKind" (encodeTuple k1 k2)
+      tagged "FunKind" (encodeTuple k1 k2)
     NamedKind qname ->
-      encodeTaggedContents "NamedKind" (encodeJson qname)
+      tagged "NamedKind" (encodeJson qname)
 
 -- | A typeclass constraint
 newtype Constraint = Constraint
@@ -138,7 +139,7 @@ data Type
   -- | A type application
   | TypeApp Type Type
   -- | Forall quantifier
-  | ForAll String Type (Maybe Kind)
+  | ForAll String (Maybe Kind) Type
   -- | A type withset of type class constraints
   | ConstrainedType Constraint Type
   {-
@@ -179,7 +180,20 @@ instance decodeJsonType :: DecodeJson Type where
         decodeContents (decodeTuple TypeApp (const err)) (Left err) json
         where err = mkJsonError' "TypeApp" json
       "ForAll" ->
-        decodeContents (decodeTriple ForAll err) (Left $ err unit) json
+        decodeContents
+        (decodeTriple
+         (\(v :: String) (t :: Type) (_ :: Maybe Int) ->
+           ForAll v Nothing t) err)
+        (Left $ err unit)
+        json
+        <|>
+        decodeContents
+        (decodeQuadriple
+         (\f (k :: Kind) a (_ :: Maybe Int) ->
+           ForAll f (Just k) a)
+         err)
+        (Left $ err unit)
+        json
         where err = mkJsonError "ForAll" json
       "ConstrainedType" ->
         decodeContents (decodeTuple ConstrainedType err) (Left $ err unit) json
@@ -200,19 +214,23 @@ instance decodeJsonType :: DecodeJson Type where
 
 instance encodeJsonType :: EncodeJson Type where
   encodeJson = case _ of
-    TypeVar         val -> encodeTaggedContents "TypeVar"         (encodeJson val)
-    TypeLevelString val -> encodeTaggedContents "TypeLevelString" (encodeJson val)
-    TypeConstructor val -> encodeTaggedContents "TypeConstructor" (encodeJson val)
-    TypeOp          val -> encodeTaggedContents "TypeOp"          (encodeJson val)
-    TypeApp t1 t2       -> encodeTaggedContents "TypeApp"         (encodeTuple t1 t2)
-    ForAll str ty mbk   -> encodeTaggedContents "ForAll"          (encodeTriple str ty mbk)
-    ConstrainedType c t -> encodeTaggedContents "ConstrainedType" (encodeTuple c t)
-    REmpty              -> encodeTaggedContents "REmpty"          jsonEmptyObject
-    RCons s t1 t2       -> encodeTaggedContents "RCons"           (encodeTriple s t1 t2)
+    TypeVar         val    -> tagged "TypeVar"         (encodeJson val)
+    TypeLevelString val    -> tagged "TypeLevelString" (encodeJson val)
+    TypeConstructor val    -> tagged "TypeConstructor" (encodeJson val)
+    TypeOp          val    -> tagged "TypeOp"          (encodeJson val)
+    TypeApp t1 t2          -> tagged "TypeApp"         (encodeTuple t1 t2)
+    ForAll str Nothing ty  -> tagged "ForAll"          (encodeTriple str ty emptySkolemScope)
+    ForAll str (Just k) ty -> tagged "ForAll"          (encodeQuadriple str k ty emptySkolemScope)
+    ConstrainedType c t    -> tagged "ConstrainedType" (encodeTuple c t)
+    REmpty                 -> tagged "REmpty"          jsonEmptyObject
+    RCons s t1 t2          -> tagged "RCons"           (encodeTriple s t1 t2)
+    ParensInType t         -> tagged "ParensInType"    (encodeJson t)
+    TypeWildcard           -> tagged "TypeWildcard"    jsonEmptyObject
     BinaryNoParensType t1 t2 t3 ->
-      encodeTaggedContents "BinaryNoParensType" (encodeTriple t1 t2 t3)
-    ParensInType t      -> encodeTaggedContents "ParensInType"    (encodeJson t)
-    TypeWildcard        -> encodeTaggedContents "TypeWildcard"    jsonEmptyObject
+                              tagged "BinaryNoParensType" (encodeTriple t1 t2 t3)
+
+emptySkolemScope :: Maybe Int
+emptySkolemScope = Nothing
 
 newtype FunDep
   = FunDep
@@ -305,6 +323,28 @@ decodeTriple cont err json =
       pure $ cont fst sec trd
     _ -> Left $ err unit
 
+-- | Decode a heterogeneous quadriple.
+decodeQuadriple
+  :: forall fst sec trd frt res
+  .  DecodeJson fst
+  => DecodeJson sec
+  => DecodeJson trd
+  => DecodeJson frt
+  => (fst -> sec -> trd -> frt -> res)
+  -> (forall a. a -> String)
+  -> Json
+  -> Either String res
+decodeQuadriple cont err json =
+  case toArray json of
+    Just [ json1, json2, json3, json4 ] -> do
+      fst <- decodeJson json1
+      sec <- decodeJson json2
+      trd <- decodeJson json3
+      frt <- decodeJson json4
+      pure $ cont fst sec trd frt
+    _ -> Left $ err unit
+
+
 -- | Decode a `.contents` property.
 decodeContents :: forall r. (Json -> r) -> r -> Json -> r
 decodeContents go err json =
@@ -338,8 +378,22 @@ encodeTriple
 encodeTriple fst sec trd =
   fromArray [ encodeJson fst, encodeJson sec, encodeJson trd ]
 
-encodeTaggedContents :: String -> Json -> Json
-encodeTaggedContents tag contents =
+encodeQuadriple
+  :: forall fst sec trd frt
+  .  EncodeJson fst
+  => EncodeJson sec
+  => EncodeJson trd
+  => EncodeJson frt
+  => fst
+  -> sec
+  -> trd
+  -> frt
+  -> Json
+encodeQuadriple fst sec trd frt =
+  fromArray [ encodeJson fst, encodeJson sec, encodeJson trd, encodeJson frt ]
+
+tagged :: String -> Json -> Json
+tagged tag contents =
   fromObject $ Object.fromFoldable
   [ Tuple "tag" (encodeJson tag)
   , Tuple "contents" contents
@@ -348,14 +402,14 @@ encodeTaggedContents tag contents =
 
 joinForAlls
   :: Type
-  -> { binders :: List { var :: String
+  -> { binders :: List { name :: String
                        , mbKind :: Maybe Kind }
      , ty :: Type
      }
 joinForAlls ty = go Nil ty
   where
-    go acc (ForAll var ty' mbKind) =
-      go ({ var, mbKind } : acc) ty'
+    go acc (ForAll name mbKind ty') =
+      go ({ name, mbKind } : acc) ty'
     go acc ty' = { binders: acc, ty: ty' }
 
 joinRows :: Type -> { rows :: List { row :: String

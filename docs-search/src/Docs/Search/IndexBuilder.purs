@@ -5,9 +5,9 @@ import Prelude
 import Docs.Search.Config (config)
 import Docs.Search.Declarations (Declarations(..), mkDeclarations)
 import Docs.Search.DocsJson (DocsJson)
-import Docs.Search.Extra ((>#>), glob)
-import Docs.Search.Index (getPartId)
-import Docs.Search.SearchResult (SearchResult)
+import Docs.Search.Extra ((>#>))
+import Docs.Search.Index (getPartId, insertResults)
+import Docs.Search.SearchResult (SearchResult(..))
 import Docs.Search.TypeIndex (TypeIndex, mkTypeIndex)
 
 import Data.Argonaut.Core (stringify)
@@ -15,18 +15,19 @@ import Data.Argonaut.Decode (decodeJson)
 import Data.Argonaut.Encode (encodeJson)
 import Data.Argonaut.Parser (jsonParser)
 import Data.Array as Array
-import Data.Either (Either(..))
-import Data.Foldable (sum)
+import Data.Either (Either(..), either)
+import Data.Foldable (sum, foldr)
 import Data.List (List)
 import Data.List as List
 import Data.Map (Map)
 import Data.Map as Map
 import Data.Maybe (Maybe(..), fromMaybe)
-import Data.Newtype (unwrap)
+import Data.Newtype (wrap, unwrap)
+import Data.Profunctor.Strong (second)
 import Data.Search.Trie as Trie
 import Data.Set as Set
 import Data.String.CodePoints (contains) as String
-import Data.String.CodeUnits (singleton) as String
+import Data.String.CodeUnits (singleton, stripPrefix) as String
 import Data.String.Common (replace) as String
 import Data.String.Pattern (Pattern(..), Replacement(..))
 import Data.Traversable (for, for_)
@@ -39,13 +40,38 @@ import Node.Encoding (Encoding(UTF8))
 import Node.FS.Aff (exists, mkdir, readFile, readTextFile, readdir, stat, writeFile, writeTextFile)
 import Node.FS.Stats (isDirectory, isFile)
 import Node.Process as Process
+import Web.Bower.PackageMeta (PackageMeta(..))
+
 
 type Config = { docsFiles :: Array String
+              , bowerFiles :: Array String
               , generatedDocs :: String
               }
 
+
 run :: Config -> Effect Unit
 run = launchAff_ <<< run'
+
+
+insertPackages
+  :: Array PackageMeta
+  -> Declarations
+  -> Declarations
+insertPackages packageMetas (Declarations decls) =
+  Declarations $
+  foldr (insertResults <<< second pure) decls $
+  map resultFromPackageMeta packageMetas
+
+
+resultFromPackageMeta :: PackageMeta -> Tuple String SearchResult
+resultFromPackageMeta (PackageMeta { name, description, repository }) =
+  Tuple shortName $ PackageResult { name: shortName
+                                  , description
+                                  , repository: fromMaybe "" (repository <#> (_.url))
+                                  }
+
+  where
+    shortName = fromMaybe name $ String.stripPrefix (wrap "purescript-") name
 
 run' :: Config -> Aff Unit
 run' cfg = do
@@ -55,12 +81,18 @@ run' cfg = do
   liftEffect do
     log "Building the search index..."
 
-  docsJsons <- decodeDocsJsons cfg
+  docsJsons    <- decodeDocsJsons cfg
+  packageMetas <- decodeBowerJsons cfg
 
   liftEffect do
-    log $ "Found " <> show (Array.length docsJsons) <> " modules."
+    log $
+      "Indexing " <>
+      show (Array.length docsJsons) <>
+      " modules from " <>
+      show (Array.length packageMetas) <>
+      " packages..."
 
-  let index = mkDeclarations docsJsons
+  let index = insertPackages packageMetas $ mkDeclarations docsJsons
       typeIndex = mkTypeIndex docsJsons
 
   createDirectories cfg
@@ -85,6 +117,7 @@ run' cfg = do
 
   where ignore _ _ _ _ = unit
 
+
 -- | Exit early if something is missing.
 checkDirectories :: Config -> Aff Unit
 checkDirectories cfg = do
@@ -98,15 +131,15 @@ checkDirectories cfg = do
       liftEffect do
         logAndExit "Build the documentation first!"
 
+
 -- | Read and decode given `docs.json` files.
 decodeDocsJsons
   :: forall rest
   .  { docsFiles :: Array String | rest }
   -> Aff (Array DocsJson)
-decodeDocsJsons cfg = do
+decodeDocsJsons cfg@{ docsFiles } = do
 
-  paths <- Array.concat <$> for cfg.docsFiles \str -> do
-    liftEffect $ glob str
+  paths <- getPathsByGlobs docsFiles
 
   when (Array.null paths) do
     liftEffect do
@@ -125,7 +158,7 @@ decodeDocsJsons cfg = do
       case eiResult of
         Left error -> do
           liftEffect $ log $
-            "\"docs.json\" decoding failed failed for " <> jsonFile <> ": " <> show error
+            "\"docs.json\" decoding failed failed for " <> jsonFile <> ": " <> error
           pure Nothing
         Right result -> pure result
 
@@ -141,6 +174,39 @@ decodeDocsJsons cfg = do
 
   pure docsJsons
 
+
+decodeBowerJsons
+  :: forall rest
+  .  { bowerFiles :: Array String | rest }
+  -> Aff (Array PackageMeta)
+decodeBowerJsons { bowerFiles } = do
+  paths <- getPathsByGlobs bowerFiles
+
+  when (Array.null paths) do
+    liftEffect do
+      logAndExit $
+        "The following globs do not match any files: " <> showGlobs bowerFiles <>
+        ".\nAre you in a project directory?"
+
+  Array.nubBy compareNames <$>
+    Array.catMaybes <$>
+      for paths \jsonFileName ->
+        join <$> withExisting jsonFileName
+          \contents ->
+            either (logError jsonFileName) pure
+            (jsonParser contents >>= decodeJson)
+
+  where
+    compareNames
+      (PackageMeta { name: name1 })
+      (PackageMeta { name: name2 }) = compare name1 name2
+
+    logError fileName error = do
+      liftEffect $ log $
+        "\"bower.json\" decoding failed failed for " <> fileName <> ": " <> error
+      pure Nothing
+
+
 -- | Write type index parts to files.
 writeTypeIndex :: Config -> TypeIndex -> Aff Unit
 writeTypeIndex { generatedDocs } typeIndex =
@@ -153,6 +219,7 @@ writeTypeIndex { generatedDocs } typeIndex =
       "window.DocsSearchTypeIndex[\"" <> typeShape <> "\"] = "
     entries :: Array _
     entries = Map.toUnfoldableUnordered (unwrap typeIndex)
+
 
 -- | Get a mapping from index parts to index contents.
 getIndex :: Declarations -> Map Int (Array (Tuple String (Array SearchResult)))
@@ -187,6 +254,7 @@ getIndex (Declarations trie) =
         List.foldr (\path -> Set.insert (List.take 2 path)) mempty $
         fst <$> Trie.entriesUnordered trie
 
+
 writeIndex :: Config -> Declarations -> Aff Unit
 writeIndex { generatedDocs } = getIndex >>> \resultsMap -> do
   for_ (Map.toUnfoldableUnordered resultsMap :: Array _)
@@ -197,6 +265,7 @@ writeIndex { generatedDocs } = getIndex >>> \resultsMap -> do
 
       writeTextFile UTF8 (generatedDocs <> config.mkIndexPartPath indexPartId) $
         header <> stringify (encodeJson results)
+
 
 patchHTML :: String -> Tuple Boolean String
 patchHTML html =
@@ -213,6 +282,9 @@ patchHTML html =
      then Tuple true $ String.replace pattern (Replacement patch) html
      else Tuple false html
 
+
+-- | Iterate through the HTML files generated by the PureScript compiler, and
+-- | modify them using `patchHTML`.
 patchDocs :: Config -> Aff Unit
 patchDocs cfg = do
   let dirname = cfg.generatedDocs
@@ -229,6 +301,9 @@ patchDocs cfg = do
           writeTextFile UTF8 path patchedContents
         _ -> pure unit
 
+
+-- | Create directories for two indices, or fail with a message
+-- | in case the docs were not generated.
 createDirectories :: Config -> Aff Unit
 createDirectories { generatedDocs } = do
   let indexDir         = generatedDocs <> "/index"
@@ -247,6 +322,7 @@ createDirectories { generatedDocs } = do
   whenM (not <$> directoryExists typeIndexDir) do
     mkdir typeIndexDir
 
+
 -- | Copy the client-side application, responsible for handling user input and rendering
 -- | the results, to the destination path.
 copyAppFile :: Config -> Aff Unit
@@ -261,12 +337,14 @@ copyAppFile { generatedDocs } = do
   buffer <- readFile appFile
   writeFile (generatedDocs <> "/docs-search-app.js") buffer
 
+
 directoryExists :: String -> Aff Boolean
 directoryExists path = do
   doesExist <- exists path
   case doesExist of
     false -> pure false
     true -> isDirectory <$> stat path
+
 
 fileExists :: String -> Aff Boolean
 fileExists path = do
@@ -275,13 +353,39 @@ fileExists path = do
     false -> pure false
     true -> isFile <$> stat path
 
+
+withExisting :: forall a. String -> (String -> Aff a) -> Aff (Maybe a)
+withExisting file f = do
+  doesExist <- fileExists file
+
+  if doesExist
+    then do
+    contents <- readTextFile UTF8 file
+    res <- f contents
+    pure $ Just res
+    else do
+    liftEffect $ do
+      log $
+        "File does not exist: " <> file
+    pure Nothing
+
+
 logAndExit :: forall a. String -> Effect a
 logAndExit message = do
   log message
   Process.exit 1
 
+
 showGlobs :: Array String -> String
 showGlobs = Array.intercalate ", "
 
+
+getPathsByGlobs :: Array String -> Aff (Array String)
+getPathsByGlobs globs =
+  liftEffect $ Array.concat <$> for globs glob
+
+
 -- | Get __dirname.
 foreign import getDirname :: Effect String
+
+foreign import glob :: String -> Effect (Array String)

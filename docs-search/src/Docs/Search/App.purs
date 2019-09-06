@@ -1,3 +1,4 @@
+-- | This is the main module of the client-side Halogen app.
 module Docs.Search.App where
 
 import Prelude
@@ -13,6 +14,7 @@ import Effect (Effect)
 import Halogen as H
 import Halogen.Aff as HA
 import Halogen.VDom.Driver (runUI)
+import MarkdownIt as MD
 import Web.DOM.Document as Document
 import Web.DOM.Element as Element
 import Web.DOM.Node as Node
@@ -31,10 +33,13 @@ main = do
   insertStyle doc
   mbContainers <- getContainers doc
 
+  -- Initialize a `markdown-it` instance (we need it to render the docs as markdown)
+  markdownIt <- MD.newMarkdownIt MD.Default mempty
+
   whenJust mbContainers \ { searchField, searchResults, pageContents } -> do
     HA.runHalogenAff do
       sfio <- runUI SearchField.component unit searchField
-      srio <- runUI (SearchResults.mkComponent pageContents) unit searchResults
+      srio <- runUI (SearchResults.mkComponent pageContents markdownIt) unit searchResults
       sfio.subscribe $
         Coroutine.consumer (srio.query <<< H.tell <<< SearchResults.MessageFromSearchField)
 
@@ -68,6 +73,7 @@ insertStyle doc = do
     margin-right: 0.25em;
   }
   """
+
   mbHead <-
     ParentNode.querySelector (wrap "head") (Document.toParentNode doc)
 
@@ -78,9 +84,12 @@ insertStyle doc = do
     void $ Node.appendChild (Text.toNode contents) (Element.toNode style)
     void $ Node.appendChild (Element.toNode style) (Element.toNode head)
 
-getContainers :: Document.Document -> Effect (Maybe { searchField :: HTML.HTMLElement
-                                                    , searchResults :: HTML.HTMLElement
-                                                    , pageContents :: Element.Element })
+-- | Query the DOM for specific elements that should always be present.
+getContainers
+  :: Document.Document
+  -> Effect (Maybe { searchField :: HTML.HTMLElement
+                   , searchResults :: HTML.HTMLElement
+                   , pageContents :: Element.Element })
 getContainers doc = do
   let docPN = Document.toParentNode doc
   mbBanner <-
@@ -89,12 +98,13 @@ getContainers doc = do
     ParentNode.querySelector (wrap ".everything-except-footer") docPN
   mbContainer <-
     ParentNode.querySelector (wrap ".everything-except-footer > .container") docPN
-  case mbBanner, mbEverything, mbContainer of
-    Just banner, Just everything, Just pageContents -> do
+  case unit of
+    _ | Just banner       <- mbBanner
+      , Just everything   <- mbEverything
+      , Just pageContents <- mbContainer -> do
       search <- Document.createElement "div" doc
       void $ Node.appendChild (Element.toNode search) (Element.toNode banner)
       pure $ fromElement search     >>= \searchField ->
              fromElement everything >>= \searchResults ->
              pure { searchField, searchResults, pageContents }
-    _, _, _ ->
-      pure Nothing
+      | otherwise -> pure Nothing

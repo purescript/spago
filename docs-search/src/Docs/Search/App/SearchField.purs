@@ -1,3 +1,5 @@
+-- | This module contains a Halogen component for search field, that emits
+-- | `SearchFieldMessage`s for various events.
 module Docs.Search.App.SearchField where
 
 import Prelude

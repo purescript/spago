@@ -1,9 +1,11 @@
+-- | A "search engine" that determines if a query is a declaration query or a type query, and
+-- | searches for it in the corresponding index.
 module Docs.Search.Engine where
 
 import Prelude
 
 import Docs.Search.TypeQuery (TypeQuery(..), parseTypeQuery, penalty)
-import Docs.Search.SearchResult (SearchResult, typeOf)
+import Docs.Search.SearchResult (SearchResult, typeOfResult)
 import Docs.Search.Index as Index
 import Docs.Search.Index (Index)
 import Docs.Search.TypeIndex as TypeIndex
@@ -12,7 +14,6 @@ import Docs.Search.TypeIndex (TypeIndex)
 import Data.Array as Array
 import Data.Either (hush)
 import Data.Maybe (Maybe(..))
-import Data.Newtype (unwrap)
 import Data.String.Common as String
 import Effect.Aff (Aff)
 
@@ -55,5 +56,5 @@ sortByDistance typeQuery results =
     comparePenalties r1 r2 = compare r1.penalty r2.penalty
     resultsWithPenalties =
       results <#>
-      \result -> { penalty: typeOf (unwrap result).info <#> penalty typeQuery
+      \result -> { penalty: typeOfResult result <#> penalty typeQuery
                  , result }

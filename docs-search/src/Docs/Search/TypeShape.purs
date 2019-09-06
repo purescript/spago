@@ -1,3 +1,6 @@
+-- | We need `TypeShape`s as a way to "semantically hash" types.
+-- | This allows us to split type index in parts and load
+-- | it on demand.
 module Docs.Search.TypeShape where
 
 import Prelude

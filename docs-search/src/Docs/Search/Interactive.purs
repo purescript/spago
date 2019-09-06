@@ -1,3 +1,4 @@
+-- | Definitions for the "search REPL".
 module Docs.Search.Interactive where
 
 import Prelude
@@ -6,6 +7,7 @@ import Docs.Search.Declarations (Declarations, mkDeclarations)
 import Docs.Search.DocsJson (DataDeclType(..))
 import Docs.Search.Engine (isValuableTypeQuery)
 import Docs.Search.Engine as SearchEngine
+import Docs.Search.Extra (homePageFromRepository)
 import Docs.Search.IndexBuilder as IndexBuilder
 import Docs.Search.SearchResult (ResultInfo(..), SearchResult(..))
 import Docs.Search.Terminal (bold, cyan, green, yellow)
@@ -30,7 +32,10 @@ import Effect.Class (liftEffect)
 import Effect.Console (log)
 import Node.ReadLine (createConsoleInterface, question)
 
-type Config = { docsFiles :: Array String }
+type Config =
+  { docsFiles :: Array String
+  , bowerFiles :: Array String
+  }
 
 run :: Config -> Effect Unit
 run cfg = launchAff_ $ do
@@ -38,9 +43,12 @@ run cfg = launchAff_ $ do
   liftEffect do
     log "Loading search index..."
 
-  docsJsons <- IndexBuilder.decodeDocsJsons cfg
+  docsJsons    <- IndexBuilder.decodeDocsJsons cfg
+  packageMetas <- IndexBuilder.decodeBowerJsons cfg
 
-  let index = mkDeclarations docsJsons
+  let index =
+        IndexBuilder.insertPackages packageMetas $
+        mkDeclarations docsJsons
       typeIndex = docsJsons >>= resultsWithTypes
 
   let countOfDefinitions = Trie.size $ unwrap index
@@ -110,7 +118,7 @@ mkCompleter index input = do
        , matched: input }
 
 showResult :: SearchResult -> String
-showResult result@(SearchResult { name, comments, moduleName, packageName, info }) =
+showResult (SearchResult result@{ name, comments, moduleName, packageName }) =
   showSignature result <> "\n" <>
 
   (fromMaybe "\n" $
@@ -118,27 +126,42 @@ showResult result@(SearchResult { name, comments, moduleName, packageName, info 
    "\n" <> leftShift 3 (String.trim comment) <> "\n\n") <>
 
   bold (cyan (rightPad 40 packageName)) <> space <> bold (green moduleName)
+showResult (PackageResult { name, description, repository }) =
+  cyan "package" <> " " <> yellow name <> "\n" <>
+  (fromMaybe "\n" $
+   description <#> \text ->
+   "\n" <> leftShift 3 text <> "\n\n") <>
+  leftShift 3 (homePageFromRepository repository)
 
-showSignature :: SearchResult -> String
-showSignature result@(SearchResult { name, info }) =
+
+showSignature ::
+  forall rest.
+  { name :: String
+  , moduleName :: String
+  , packageName :: String
+  , info :: ResultInfo
+  | rest
+  }
+  -> String
+showSignature result@{ name, info } =
   case info of
     ValueResult { type: ty } ->
       yellow name <> syntax " :: " <> showType ty
 
     TypeClassResult info' ->
-      showTypeClassSignature info' (unwrap result)
+      showTypeClassSignature info' result
 
     TypeClassMemberResult info' ->
-      showTypeClassMemberSignature info' (unwrap result)
+      showTypeClassMemberSignature info' result
 
     DataResult info' ->
-      showDataSignature info' (unwrap result)
+      showDataSignature info' result
 
     TypeSynonymResult info' ->
-      showTypeSynonymSignature info' (unwrap result)
+      showTypeSynonymSignature info' result
 
     ExternDataResult info' ->
-      showExternDataSignature info' (unwrap result)
+      showExternDataSignature info' result
 
     ValueAliasResult ->
       yellow ("(" <> name <> ")")
@@ -182,7 +205,7 @@ showTypeClassMemberSignature
   :: forall rest
   .  { type :: Type
      , typeClass :: QualifiedName
-     , typeClassArguments :: Array String
+     , typeClassArguments :: Array TypeArgument
      }
   -> { name :: String | rest }
   -> String

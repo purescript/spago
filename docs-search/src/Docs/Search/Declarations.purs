@@ -4,7 +4,7 @@ import Prelude
 
 import Docs.Search.SearchResult (ResultInfo(..), SearchResult(..))
 import Docs.Search.DocsJson (ChildDeclType(..), ChildDeclaration(..), DeclType(..), Declaration(..), DocsJson(..))
-import Docs.Search.TypeDecoder (Constraint(..), QualifiedName(..), Type(..), joinForAlls)
+import Docs.Search.TypeDecoder (Constraint(..), QualifiedName(..), Type(..), Kind, joinForAlls)
 
 import Control.Alt ((<|>))
 import Data.Array ((!!))
@@ -31,9 +31,7 @@ derive newtype instance semigroupDeclarations :: Semigroup Declarations
 derive newtype instance monoidDeclarations :: Monoid Declarations
 
 mkDeclarations :: Array DocsJson -> Declarations
-mkDeclarations docsJson = Declarations trie
-  where
-    trie = foldr insertDocsJson mempty docsJson
+mkDeclarations = Declarations <<< foldr insertDocsJson mempty
 
 insertDocsJson
   :: DocsJson
@@ -48,7 +46,7 @@ insertDeclaration
   -> Trie Char (List SearchResult)
   -> Trie Char (List SearchResult)
 insertDeclaration moduleName entry@(Declaration { title }) trie
-  = foldr insertSearchResult trie (resultsForEntry moduleName entry)
+  = foldr insertSearchResult trie (resultsForDeclaration moduleName entry)
 
 insertSearchResult
   :: { path :: String
@@ -58,22 +56,23 @@ insertSearchResult
   -> Trie Char (List SearchResult)
 insertSearchResult { path, result } trie =
   let path' = List.fromFoldable $ toCharArray $ toLower path in
-    alter path' updateResults trie
+    alter path' (Just <<< updateResults) trie
     where
-      updateResults mbOldResults =
-        case mbOldResults of
-          Just oldResults ->
-            Just $ result : oldResults
-          Nothing ->
-            Just $ List.singleton result
+      updateResults mbOldResults
+        | Just oldResults <- mbOldResults =
+            result : oldResults
+        | otherwise =
+            List.singleton result
 
-resultsForEntry
+-- | For each declaration, extract its own `SearchResult` and `SearchResult`s
+-- | corresponding to its children (e.g. a class declaration contains class members).
+resultsForDeclaration
   :: ModuleName
   -> Declaration
   -> List { path :: String
           , result :: SearchResult
           }
-resultsForEntry moduleName indexEntry@(Declaration entry) =
+resultsForDeclaration moduleName indexEntry@(Declaration entry) =
   let { info, title, sourceSpan, comments, children } = entry
       { name, declLevel } = getLevelAndName info.declType title
       packageName = extractPackageName sourceSpan.name
@@ -103,29 +102,28 @@ mkInfo declLevel (Declaration { info, title }) =
   case info.declType of
 
     DeclValue ->
-      info.type <#>
-      \ty -> ValueResult { type: ty }
+      info."type" <#> \ty -> ValueResult { type: ty }
 
     DeclData ->
-       make <$> info.typeArguments <*> info.dataDeclType
-        where
-          make typeArguments dataDeclType =
-            DataResult { typeArguments, dataDeclType }
+      make <$> info.typeArguments <*> info.dataDeclType
+      where
+        make typeArguments dataDeclType =
+          DataResult { typeArguments, dataDeclType }
 
     DeclExternData ->
-      info.kind <#>
-      \kind -> ExternDataResult { kind }
+      info.kind <#> \kind -> ExternDataResult { kind }
 
     DeclTypeSynonym ->
-      make <$> info.type <*> info.arguments
+      make <$> info."type" <*> info.arguments
         where
-          make ty args = TypeSynonymResult { type: ty, arguments: args }
+          make ty args = TypeSynonymResult { "type": ty, arguments: args }
 
-    DeclTypeClass ->
-      case info.fundeps, info.arguments, info.superclasses of
-        Just fundeps, Just arguments, Just superclasses ->
-          Just $ TypeClassResult { fundeps, arguments, superclasses }
-        _, _, _ -> Nothing
+    DeclTypeClass
+      | Just fundeps      <- info.fundeps
+      , Just arguments    <- info.arguments
+      , Just superclasses <- info.superclasses ->
+        Just $ TypeClassResult { fundeps, arguments, superclasses }
+      | otherwise -> Nothing
 
     DeclAlias ->
       case declLevel of
@@ -192,6 +190,7 @@ extractPackageName name =
         Nothing ->
           Just "<local package>"
 
+-- | Extract `SearchResults` from a `ChildDeclaration`.
 resultsForChildDeclaration
   :: PackageName
   -> ModuleName
@@ -199,10 +198,8 @@ resultsForChildDeclaration
   -> ChildDeclaration
   -> List { path :: String, result :: SearchResult }
 resultsForChildDeclaration packageName moduleName parentResult
-  child@(ChildDeclaration { title, info, comments, mbSourceSpan }) =
-    case mkChildInfo parentResult child of
-      Nothing -> mempty
-      Just resultInfo ->
+  child@(ChildDeclaration { title, info, comments, mbSourceSpan })
+  | Just resultInfo <- mkChildInfo parentResult child =
         { path: title
         , result: SearchResult { name: title
                                , comments
@@ -217,61 +214,70 @@ resultsForChildDeclaration packageName moduleName parentResult
                                , info: resultInfo
                                }
         } # List.singleton
+  | otherwise = mempty
 
 mkChildInfo
   :: SearchResult
   -> ChildDeclaration
   -> Maybe ResultInfo
-mkChildInfo parentResult (ChildDeclaration { info } ) =
-  case info.declType of
-    ChildDeclDataConstructor ->
-      info.arguments <#>
-      \arguments -> DataConstructorResult { arguments }
-    ChildDeclTypeClassMember ->
-      case (unwrap parentResult).info of
-        TypeClassResult { arguments } ->
-          -- We need to reconstruct a "real" type of a type class member.
-          -- For example, if `unconstrainedType` is the type of `pure`, i.e. `forall a. a -> m a`,
-          -- `restoredType` should be `forall m a. Control.Applicative.Applicative m => a -> m a`.
-          info.type <#>
-            \(unconstrainedType :: Type) ->
-            let
-              -- First, we get a list of nested `forall` quantifiers for `unconstrainedType`
-              -- and a version of `unconstrainedType` without them (`ty`).
-              { ty, binders } = joinForAlls unconstrainedType
+mkChildInfo
+  (SearchResult { info: parentInfo, moduleName, name: resultName })
+  (ChildDeclaration { info } )
 
-              -- Then we construct a qualified name of the type class.
-              constraintClass =
-                QualifiedName { moduleName:
-                                String.split (wrap ".")
-                                (unwrap parentResult).moduleName
-                              , name: (unwrap parentResult).name }
+  | ChildDeclDataConstructor <- info.declType =
+      info.arguments <#> \arguments -> DataConstructorResult { arguments }
 
-              typeClassArguments = arguments <#> unwrap >>> _.name
+  | ChildDeclTypeClassMember <- info.declType
+  , TypeClassResult { arguments } <- parentInfo =
+    -- We need to reconstruct a "real" type of a type class member.
+    -- For example, if `unconstrainedType` is the type of `pure`, i.e.
+    -- `forall a. a -> m a`, then `restoredType` should be:
+    -- `forall m a. Control.Applicative.Applicative m => a -> m a`.
 
-              -- We concatenate two lists:
-              -- * list of type parameters of the type class, and
-              -- * list of quantified variables of the unconstrained type
-              allArguments :: Array String
-              allArguments =
-                typeClassArguments <> (List.toUnfoldable binders <#> (_.var))
+    info."type" <#>
+    \(unconstrainedType :: Type) ->
+      let
+        -- First, we get a list of nested `forall` quantifiers for
+        -- `unconstrainedType`  and a version of `unconstrainedType` without
+        -- them (`ty`).
+        ({ ty, binders }) = joinForAlls unconstrainedType
 
-              restoreType :: Type -> Type
-              restoreType =
-                foldr
-                  (\arg -> compose (\type'' -> ForAll arg type'' Nothing))
-                  identity allArguments
+        -- Then we construct a qualified name of the type class.
+        constraintClass =
+          QualifiedName { moduleName: String.split (wrap ".") moduleName
+                        , name: resultName }
 
-              restoredType = restoreType $
-                ConstrainedType (Constraint { constraintClass
-                                            , constraintArgs: typeClassArguments <#> TypeVar
-                                            }) ty
+        -- We concatenate two lists:
+        -- * a list of type parameters of the type class, and
+        -- * a list of quantified variables of the unconstrained type
+        allArguments :: Array { name :: String, mbKind :: Maybe Kind }
+        allArguments =
+          (arguments <#> unwrap) <> List.toUnfoldable binders
 
-            in TypeClassMemberResult
-               { type: restoredType
-               , typeClass: constraintClass
-               , typeClassArguments
-               }
+        restoreType :: Type -> Type
+        restoreType =
+          foldr
+            (\({ name, mbKind }) -> compose (\type'' -> ForAll name mbKind type''))
+            identity
+            allArguments
 
-        _ -> Nothing
-    ChildDeclInstance -> Nothing
+        -- Finally, we have a restored type. It allows us to search for
+        -- type members the same way we search for functions. And types
+        -- of class member results appear with the correct
+        -- class constraints.
+        restoredType =
+          restoreType $
+          ConstrainedType
+          (Constraint { constraintClass
+                      , constraintArgs: arguments <#> unwrap >>> (_.name) >>> TypeVar
+                      }) ty
+
+      in TypeClassMemberResult
+         { type: restoredType
+         , typeClass: constraintClass
+         , typeClassArguments: arguments
+         }
+
+  | otherwise = Nothing
+
+mkChildInfo _ _ = Nothing

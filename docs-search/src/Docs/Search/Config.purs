@@ -2,6 +2,28 @@ module Docs.Search.Config where
 
 import Prelude
 
+-- | Some magic constants.
+config ::
+  { declIndexDirectory :: String
+  , indexDirectory :: String
+  , mkIndexPartLoadPath :: Int -> String
+  , mkIndexPartPath :: Int -> String
+  , mkShapeScriptPath :: String -> String
+  , numberOfIndexParts :: Int
+  , outputDirectory :: String
+  , penalties :: { excessiveConstraint :: Int
+                 , generalize :: Int
+                 , instantiate :: Int
+                 , match :: Int
+                 , matchConstraint :: Int
+                 , missingConstraint :: Int
+                 , rowsMismatch :: Int
+                 , typeVars :: Int
+                 }
+  , requiredDirectories :: Array String
+  , resultsCount :: Int
+  , typeIndexDirectory :: String
+  }
 config =
   { outputDirectory: "output"
   , requiredDirectories:

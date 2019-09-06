@@ -1,3 +1,5 @@
+-- | Contains `Index` that can be loaded on demand, transparently
+-- | to the user.
 module Docs.Search.Index where
 
 import Prelude
@@ -31,6 +33,10 @@ derive instance newtypeIndex :: Newtype Index _
 derive newtype instance semigroupIndex :: Semigroup Index
 derive newtype instance monoidIndex :: Monoid Index
 
+-- | This function dynamically injects a script with the required index part and returns
+-- | a new `Index` that contains newly loaded definitions.
+-- |
+-- | We split the index because of its size, and also to speed up queries.
 query
   :: Index
   -> String

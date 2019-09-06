@@ -3,9 +3,9 @@ module Docs.Search.TypeIndex where
 import Prelude
 
 import Docs.Search.Config (config)
-import Docs.Search.Declarations (resultsForEntry)
+import Docs.Search.Declarations (resultsForDeclaration)
 import Docs.Search.DocsJson (DocsJson(..))
-import Docs.Search.SearchResult (ResultInfo(..), SearchResult)
+import Docs.Search.SearchResult (ResultInfo(..), SearchResult(..))
 import Docs.Search.TypeDecoder (Type)
 import Docs.Search.TypeQuery (TypeQuery)
 import Docs.Search.TypeShape (shapeOfType, shapeOfTypeQuery, stringifyShape)
@@ -43,14 +43,14 @@ mkTypeIndex docsJsons =
 
 allResults :: DocsJson -> Array SearchResult
 allResults (DocsJson { name, declarations }) =
-  declarations >>= (resultsForEntry name >>> map (_.result) >>> Array.fromFoldable)
+  declarations >>= (resultsForDeclaration name >>> map (_.result) >>> Array.fromFoldable)
 
 resultsWithTypes :: DocsJson -> Array SearchResult
 resultsWithTypes docsJson = Array.filter (getType >>> isJust) $ allResults docsJson
 
 getType :: SearchResult -> Maybe Type
-getType sr =
-  case (unwrap sr).info of
+getType (SearchResult { info }) =
+  case info of
     ValueResult dict ->
       Just dict.type
 
@@ -61,6 +61,7 @@ getType sr =
       Just dict.type
 
     _ -> Nothing
+getType _ = Nothing
 
 lookup
   :: String
@@ -92,11 +93,7 @@ query
   -> Aff { typeIndex :: TypeIndex, results :: Array SearchResult }
 query typeIndex typeQuery = do
   res <- lookup (stringifyShape $ shapeOfTypeQuery typeQuery) typeIndex
-  pure $ res { results = sortByRelevance typeQuery res.results }
-
--- | TODO
-sortByRelevance :: TypeQuery -> Array SearchResult -> Array SearchResult
-sortByRelevance typeQuery = identity
+  pure $ res { results = res.results }
 
 foreign import lookup_
   :: String

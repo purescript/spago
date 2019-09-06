@@ -14,7 +14,7 @@ env:
   - PATH=$HOME/purescript:$PATH
 
 install:
-- export PURS_VERSION=v0.13.2
+- export PURS_VERSION=v0.13.3
 - wget -O $HOME/purescript.tar.gz https://github.com/purescript/purescript/releases/download/$PURS_VERSION/linux64.tar.gz
 - tar -xvf $HOME/purescript.tar.gz -C $HOME/
 - chmod a+x $HOME/purescript

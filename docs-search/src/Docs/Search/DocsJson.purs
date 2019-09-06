@@ -1,3 +1,4 @@
+-- | A module containing everything that is necessary to decode `docs.json` files.
 module Docs.Search.DocsJson where
 
 import Prelude

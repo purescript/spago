@@ -9,6 +9,7 @@ import Data.Maybe (Maybe(..))
 import Data.Array as Array
 import Data.List as List
 
+-- | A pretty-printer for types, for TTY with colors.
 showType :: Type -> String
 showType = case _ of
   TypeVar str -> str
@@ -114,11 +115,11 @@ showForAll ty =
   keyword "forall" <>
 
   ( Array.fold $ foralls.binders <#>
-    \ { var, mbKind } ->
+    \ { name, mbKind } ->
     case mbKind of
-      Nothing -> " " <> var
+      Nothing -> " " <> name
       Just kind ->
-        " (" <> var <> " "
+        " (" <> name <> " "
         <> syntax "::"
         <> space
         <> showKind kind
