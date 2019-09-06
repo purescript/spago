@@ -73,7 +73,7 @@ dhallToJSON inputPath outputPath = do
 -- | Generates a local `packages.json` from the current `packages.dhall`
 insDhall :: Spago m => m ()
 insDhall = do
-  isProject <- testfile PackageSet.path
+  isProject <- testfile PackageSet.packagesPath
   unless isProject $
     die "Missing packages.dhall file. Run `spago psc-package-local-setup` first."
   mktree pscPackageBasePath
@@ -81,7 +81,7 @@ insDhall = do
 
   PackageSet.ensureFrozen
 
-  try (dhallToJSON PackageSet.path packagesJsonText) >>= \case
+  try (dhallToJSON PackageSet.packagesPath packagesJsonText) >>= \case
     Right _ -> do
       echo $ "Wrote packages.json to " <> packagesJsonText
       echo "Now you can run `psc-package install`."

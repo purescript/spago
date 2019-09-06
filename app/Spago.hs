@@ -383,7 +383,7 @@ main = do
       Verify cacheConfig package            -> Spago.Packages.verify cacheConfig (Just package)
       VerifySet cacheConfig                 -> Spago.Packages.verify cacheConfig Nothing
       PackageSetUpgrade                     -> Spago.Packages.upgradePackageSet
-      Freeze                                -> Spago.Packages.freeze
+      Freeze                                -> Spago.Packages.freeze Spago.Packages.packagesPath
       Build buildOptions                    -> Spago.Build.build buildOptions Nothing
       Test modName buildOptions nodeArgs    -> Spago.Build.test modName buildOptions nodeArgs
       BumpVersion dryRun spec               -> Spago.Version.bumpVersion dryRun spec

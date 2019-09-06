@@ -19,6 +19,7 @@ import qualified Dhall.Parser                          as Parser
 import qualified Dhall.Pretty
 import           Dhall.TypeCheck                       (X, typeOf)
 import qualified Lens.Family
+import qualified System.IO
 
 type DhallExpr a = Dhall.Expr Parser.Src a
 
@@ -36,7 +37,7 @@ format pathText = liftIO $
 
 
 -- | Prettyprint a Dhall expression
-pretty :: Pretty.Pretty a => DhallExpr a -> Dhall.Text
+pretty :: Pretty.Pretty a => a -> Dhall.Text
 pretty = PrettyText.renderStrict
   . Pretty.layoutPretty Pretty.defaultLayoutOptions
   . Pretty.pretty
@@ -48,30 +49,32 @@ prettyWithHeader header expr = do
   PrettyText.renderStrict $ Pretty.layoutSmart Pretty.defaultLayoutOptions doc
 
 
-readRawExprAndStatus :: Text -> IO (Maybe (Dhall.Import.Status, DhallExpr Dhall.Import))
-readRawExprAndStatus pathText = do
+-- | Return a list of all imports starting from a particular file
+readImports :: Text -> IO [Dhall.Import]
+readImports pathText = do
   fileContents <- readTextFile $ pathFromText pathText
   expr <- throws $ Parser.exprFromText mempty fileContents
-  (resolved, status) <- load $ Dhall.normalize expr
-  -- let imports = Lens.Family.view Dhall.Import.stack status
+  (_, status) <- load expr
   let graph = Lens.Family.view Dhall.Import.graph status
-  -- putStrLn  "IMPORTS:"
-  -- putStrLn $ show $ renderChained <$> imports
-  putStrLn  "GRAPH:"
-  for_ graph $ \d -> do
-    putStrLn $ "Parent: " <> renderChained (Dhall.Import.parent d)
-    putStrLn $ "Child: " <> renderChained (Dhall.Import.child d)
-    putStrLn " "
-
-  pure Nothing
+  pure $ childImport <$> graph
   where
     load expr
       = State.runStateT
           (Dhall.Import.loadWith expr)
           (Dhall.Import.emptyStatus ".")
 
-    renderChained :: Dhall.Import.Chained -> String
-    renderChained = show . Dhall.Import.chainedImport
+    childImport
+      = Dhall.Import.chainedImport . Dhall.Import.child
+
+
+localImportPath :: Dhall.Import -> Maybe System.IO.FilePath
+localImportPath (Dhall.Import
+  { importHashed = Dhall.ImportHashed
+    { importType = Dhall.Local Dhall.Here file
+    }
+  })              = Just $ Text.unpack $ pretty file
+localImportPath _ = Nothing
+
 
 readRawExpr :: Text -> IO (Maybe (Text, DhallExpr Dhall.Import))
 readRawExpr pathText = do
