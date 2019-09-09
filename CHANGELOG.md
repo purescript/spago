@@ -21,6 +21,7 @@ Bugfixes:
 - Fix failure to copy to global cache on a different filesystem (#385)
 - Fix watch function on Windows (issue with paths) (#387, #380)
 - "Quit" command in watch mode now actually quits (#390, #389)
+- Look up remote imports dynamically when doing frozen check (#349)
 
 ## [0.9.0] - 2019-07-30
 
