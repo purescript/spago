@@ -217,7 +217,7 @@ localImportPath (Dhall.Import
   { importHashed = Dhall.ImportHashed
     { importType = Dhall.Local Dhall.Here file
     }
-  })              = Just $ Text.unpack $ "." <> Dhall.pretty file
+  })              = Just $ Text.unpack $ "." <> pretty file
 localImportPath _ = Nothing
 
 

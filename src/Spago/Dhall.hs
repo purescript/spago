@@ -35,12 +35,6 @@ format pathText = liftIO $
     path = Just $ Text.unpack pathText
 
 
--- | Prettyprint a Dhall expression
-pretty :: Pretty.Pretty a => a -> Dhall.Text
-pretty = PrettyText.renderStrict
-  . Pretty.layoutPretty Pretty.defaultLayoutOptions
-  . Pretty.pretty
-
 -- | Prettyprint a Dhall expression adding a comment on top
 prettyWithHeader :: Pretty.Pretty a => Text -> DhallExpr a -> Dhall.Text
 prettyWithHeader header expr = do

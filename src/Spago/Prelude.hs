@@ -76,53 +76,56 @@ module Spago.Prelude
   , docsSearchVersion
   , githubTokenEnvVar
   , whenM
+  , pretty
   ) where
 
 
-import qualified Control.Concurrent.Async.Pool as Async
-import qualified Data.Text                     as Text
+import qualified Control.Concurrent.Async.Pool         as Async
+import qualified Data.Text                             as Text
+import qualified Data.Text.Prettyprint.Doc             as Pretty
+import qualified Data.Text.Prettyprint.Doc.Render.Text as PrettyText
+import           Dhall                                 (Text)
 import qualified Dhall.Core
-import qualified System.FilePath               as FilePath
+import qualified System.FilePath                       as FilePath
 import qualified System.IO
-import qualified Turtle                        as Turtle
-import qualified UnliftIO.Directory            as Directory
+import qualified Turtle                                as Turtle
+import qualified UnliftIO.Directory                    as Directory
 
-import           Control.Applicative           (Alternative, empty, many, (<|>))
-import           Control.Monad                 as X
-import           Control.Monad.Catch           as X hiding (try)
-import           Control.Monad.Reader          as X
-import           Data.Aeson                    as X hiding (Result (..))
-import           Data.Bifunctor                (bimap)
-import           Data.Bool                     as X
-import           Data.Either                   as X
-import           Data.Either.Validation        (Validation (..))
-import           Data.Foldable                 as X
-import           Data.List.NonEmpty            (NonEmpty (..))
-import           Data.Map                      (Map)
-import           Data.Maybe                    as X
-import           Data.Sequence                 (Seq (..))
-import           Data.String                   (IsString)
-import           Data.Text                     (Text)
-import           Data.Text.Prettyprint.Doc     (Pretty)
-import qualified Data.Time                     as Time
-import           Data.Traversable              (for)
-import           Data.Typeable                 (Proxy (..), Typeable)
-import           Dhall.Optics                  (transformMOf)
-import           GHC.Generics                  (Generic)
-import           Lens.Family                   (set, (^..))
-import           Prelude                       as X hiding (FilePath)
-import           Safe                          (headMay)
-import           System.FilePath               (isAbsolute, pathSeparator, (</>))
-import           System.IO                     (hPutStrLn)
-import           Turtle                        (ExitCode (..), FilePath, appendonly, chmod,
-                                                executable, mktree, repr, shell, shellStrict,
-                                                shellStrictWithErr, systemStrictWithErr, testdir)
-import           UnliftIO                      (MonadUnliftIO, withRunInIO)
-import           UnliftIO.Directory            (getModificationTime, makeAbsolute)
-import           UnliftIO.Exception            (IOException, handleAny, try, tryIO)
-import           UnliftIO.Process              (callCommand)
-import           UnliftIO.STM                  (atomically, newTVarIO, readTVar, readTVarIO,
-                                                writeTVar)
+import           Control.Applicative                   (Alternative, empty, many, (<|>))
+import           Control.Monad                         as X
+import           Control.Monad.Catch                   as X hiding (try)
+import           Control.Monad.Reader                  as X
+import           Data.Aeson                            as X hiding (Result (..))
+import           Data.Bifunctor                        (bimap)
+import           Data.Bool                             as X
+import           Data.Either                           as X
+import           Data.Either.Validation                (Validation (..))
+import           Data.Foldable                         as X
+import           Data.List.NonEmpty                    (NonEmpty (..))
+import           Data.Map                              (Map)
+import           Data.Maybe                            as X
+import           Data.Sequence                         (Seq (..))
+import           Data.String                           (IsString)
+import           Data.Text.Prettyprint.Doc             (Pretty)
+import qualified Data.Time                             as Time
+import           Data.Traversable                      (for)
+import           Data.Typeable                         (Proxy (..), Typeable)
+import           Dhall.Optics                          (transformMOf)
+import           GHC.Generics                          (Generic)
+import           Lens.Family                           (set, (^..))
+import           Prelude                               as X hiding (FilePath)
+import           Safe                                  (headMay)
+import           System.FilePath                       (isAbsolute, pathSeparator, (</>))
+import           System.IO                             (hPutStrLn)
+import           Turtle                                (ExitCode (..), FilePath, appendonly, chmod,
+                                                        executable, mktree, repr, shell, shellStrict,
+                                                        shellStrictWithErr, systemStrictWithErr, testdir)
+import           UnliftIO                              (MonadUnliftIO, withRunInIO)
+import           UnliftIO.Directory                    (getModificationTime, makeAbsolute)
+import           UnliftIO.Exception                    (IOException, handleAny, try, tryIO)
+import           UnliftIO.Process                      (callCommand)
+import           UnliftIO.STM                          (atomically, newTVarIO, readTVar, readTVarIO,
+                                                        writeTVar)
 
 -- | Generic Error that we throw on program exit.
 --   We have it so that errors are displayed nicely to the user
@@ -278,3 +281,10 @@ shouldRefreshFile path = (tryIO $ liftIO $ do
   Left err -> do
     echoDebug $ "Unable to read file " <> Text.pack path <> ". Error was: " <> tshow err
     pure True
+
+
+-- | Prettyprint a `Pretty` expression
+pretty :: Pretty.Pretty a => a -> Dhall.Text
+pretty = PrettyText.renderStrict
+  . Pretty.layoutPretty Pretty.defaultLayoutOptions
+  . Pretty.pretty
