@@ -11,7 +11,7 @@ import qualified System.Environment  as Env
 import qualified Turtle              as CLI
 
 import           Spago.Build         (BuildOptions (..), DepsOnly (..), ExtraArg (..),
-                                      ModuleName (..), NoBuild (..), NoInstall (..),
+                                      ModuleName (..), NoBuild (..), NoInstall (..), NoSearch (..),
                                       SourcePath (..), TargetPath (..), Watch (..), WithMain (..))
 import qualified Spago.Build
 import qualified Spago.Config        as Config
@@ -47,7 +47,7 @@ data Command
   | Repl (Maybe CacheFlag) [PackageName] [SourcePath] [ExtraArg] DepsOnly
 
   -- | Generate documentation for the project and its dependencies
-  | Docs (Maybe Purs.DocsFormat) [SourcePath] DepsOnly
+  | Docs (Maybe Purs.DocsFormat) [SourcePath] DepsOnly NoSearch
 
   -- | Build the project paths src/ and test/ plus the specified source paths
   | Build BuildOptions
@@ -153,6 +153,7 @@ parser = do
     watch       = bool BuildOnce Watch <$> CLI.switch "watch" 'w' "Watch for changes in local files and automatically rebuild"
     noInstall   = bool DoInstall NoInstall <$> CLI.switch "no-install" 'n' "Don't run the automatic installation of packages"
     depsOnly    = bool AllSources DepsOnly <$> CLI.switch "deps-only" 'd' "Only use sources from dependencies, skipping the project sources."
+    noSearch    = bool AddSearch NoSearch <$> CLI.switch "no-search" 'S' "Do not make the documentation searchable"
     clearScreen = bool NoClear DoClear <$> CLI.switch "clear-screen" 'l' "Clear the screen on rebuild (watch mode only)"
     noBuild     = bool DoBuild NoBuild <$> CLI.switch "no-build" 's' "Skip build step"
     jsonFlag    = bool JsonOutputNo JsonOutputYes <$> CLI.switch "json" 'j' "Produce JSON output"
@@ -234,7 +235,7 @@ parser = do
     docs =
       ( "docs"
       , "Generate docs for the project and its dependencies"
-      , Docs <$> docsFormat <*> sourcePaths <*> depsOnly
+      , Docs <$> docsFormat <*> sourcePaths <*> depsOnly <*> noSearch
       )
 
     search =
@@ -395,7 +396,8 @@ main = do
         -> Spago.Build.bundleApp WithMain modName tPath shouldBuild buildOptions
       BundleModule modName tPath shouldBuild buildOptions
         -> Spago.Build.bundleModule modName tPath shouldBuild buildOptions
-      Docs format sourcePaths depsOnly      -> Spago.Build.docs format sourcePaths depsOnly
+      Docs format sourcePaths depsOnly noSearch
+        -> Spago.Build.docs format sourcePaths depsOnly noSearch
       Search                                -> Spago.Build.search
       Version                               -> printVersion
       PscPackageLocalSetup force            -> PscPackage.localSetup force

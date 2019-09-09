@@ -186,11 +186,12 @@ spec = around_ setup $ do
       spago ["init"] >>= shouldBeSuccess
       spago ["sources"] >>= shouldBeSuccessOutput "sources-output.txt"
 
-  describe "spago login" $ do
-
-    it "Spago should login correctly" $ do
-
-      spago ["login"] >>= shouldBeSuccessOutput "login-output.txt"
+  -- -- This is currently commented because it requires a GitHub token and Travis makes it hard to do it securely
+  -- describe "spago login" $ do
+  --
+  --  it "Spago should login correctly" $ do
+  --
+  --    spago ["login"] >>= shouldBeSuccessOutput "login-output.txt"
 
   describe "spago build" $ do
 
