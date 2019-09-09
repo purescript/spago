@@ -235,10 +235,10 @@ freeze path = do
 
 
 -- | Freeze the file if any of the remote imports are not frozen
-ensureFrozen :: Spago m => m ()
-ensureFrozen = do
+ensureFrozen :: Spago m => System.IO.FilePath -> m ()
+ensureFrozen path = do
   echoDebug "Ensuring that the package set is frozen"
-  imports <- liftIO $ Dhall.readImports "spago.dhall"
+  imports <- liftIO $ Dhall.readImports $ Text.pack path
   let areRemotesFrozen = foldMap isRemoteFrozen imports
   case areRemotesFrozen of
     []      -> echo Messages.failedToCheckPackageSetFrozen

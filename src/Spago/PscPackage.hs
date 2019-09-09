@@ -79,7 +79,7 @@ insDhall = do
   mktree pscPackageBasePath
   T.touch packagesJsonPath
 
-  PackageSet.ensureFrozen
+  PackageSet.ensureFrozen PackageSet.packagesPath
 
   try (dhallToJSON PackageSet.packagesPath packagesJsonText) >>= \case
     Right _ -> do
