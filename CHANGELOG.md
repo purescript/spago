@@ -23,6 +23,9 @@ Bugfixes:
 - Fix watch function on Windows (issue with paths) (#387, #380)
 - "Quit" command in watch mode now actually quits (#390, #389)
 
+New features:
+- Support watching js files (#407, #205)
+
 ## [0.9.0] - 2019-07-30
 
 Breaking changes (!!!):
