@@ -96,10 +96,10 @@ parsePackage (Dhall.App (Dhall.Field union "Local") (Dhall.TextLit (Dhall.Chunks
             Dhall.inputWithSettings
               (set Dhall.rootDirectory (Text.unpack localPath) Dhall.defaultInputSettings)
               dependenciesType
-              (Dhall.pretty newExpr)
+              (pretty newExpr)
       let location = PackageSet.Local{..}
       pure PackageSet.Package{..}
-parsePackage expr = die $ Messages.failedToParsePackage $ Dhall.pretty expr
+parsePackage expr = die $ Messages.failedToParsePackage $ pretty expr
 
 
 -- | Tries to read in a Spago Config
@@ -151,7 +151,7 @@ ensureConfig = do
     die $ Messages.cannotFindConfig
   try parseConfig >>= \case
     Right config -> do
-      PackageSet.ensureFrozen
+      PackageSet.ensureFrozen $ Text.unpack path
       pure config
     Left (err :: Dhall.ReadError Dhall.TypeCheck.X) -> throwM err
 
