@@ -215,9 +215,9 @@ isRemoteFrozen _ = []
 localImportPath :: Dhall.Import -> Maybe System.IO.FilePath
 localImportPath (Dhall.Import
   { importHashed = Dhall.ImportHashed
-    { importType = Dhall.Local Dhall.Here file
+    { importType = localImport@(Dhall.Local _ _)
     }
-  })              = Just $ Text.unpack $ "." <> pretty file
+  })              = Just $ Text.unpack $ pretty localImport
 localImportPath _ = Nothing
 
 
