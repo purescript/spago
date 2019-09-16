@@ -151,7 +151,7 @@ ensureConfig = do
     die $ Messages.cannotFindConfig
   try parseConfig >>= \case
     Right config -> do
-      PackageSet.ensureFrozen defaultPath
+      PackageSet.ensureFrozen $ Text.unpack path
       pure config
     Left (err :: Dhall.ReadError Dhall.TypeCheck.X) -> throwM err
 
