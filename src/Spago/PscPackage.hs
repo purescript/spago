@@ -62,7 +62,7 @@ dhallToJSON inputPath outputPath = do
 
   dhall <- readTextFile $ T.fromText inputPath
 
-  jsonVal <- liftIO $ Dhall.JSON.codeToValue Dhall.JSON.NoConversion Dhall.JSON.ForbidWithinJSON inputPath dhall
+  jsonVal <- liftIO $ Dhall.JSON.codeToValue Dhall.JSON.NoConversion Dhall.JSON.ForbidWithinJSON (Just $ Text.unpack inputPath) dhall
 
   writeTextFile outputPath
     $ Text.decodeUtf8
