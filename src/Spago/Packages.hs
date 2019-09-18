@@ -10,6 +10,7 @@ module Spago.Packages
   , getProjectDeps
   , PackageSet.upgradePackageSet
   , PackageSet.freeze
+  , PackageSet.packagesPath
   , PackagesFilter(..)
   , JsonFlag(..)
   , DepsOnly(..)

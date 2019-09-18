@@ -5,19 +5,19 @@
 
 packages:
 - completed:
-    hackage: dhall-1.25.0@sha256:1c6724d963bf3428ddf0336f916e3f9bc429bf81ed2e27a8855dbbee11d89fe2,40352
+    hackage: dhall-1.26.0@sha256:0f559ab8ed9d7b7f1ed0e2a99a9aadee00d8c6c63b92e9be209d84f7f4197b10,33247
     pantry-tree:
-      size: 225143
-      sha256: 0ed1fb4d2bc400d71e9445199f5af8985ba8e1faad029b416745aa4ac5c8f20d
+      size: 221712
+      sha256: cbd35293fc6b2ef77e5d64fca3775b2915aea86ad0c3425e08d21c950fcd06ea
   original:
-    hackage: dhall-1.25.0
+    hackage: dhall-1.26.0
 - completed:
-    hackage: dhall-json-1.4.0@sha256:74f6422e7b84d32f9965b604e09bc1eb10dc4b9693f735be30a5fb1e4dd61478,5240
+    hackage: dhall-json-1.4.1@sha256:5b0dac356e84d03e855aa4e8aa455532c4c4a274154e26756ae77ebbc82c89a4,5398
     pantry-tree:
-      size: 2261
-      sha256: fee6d6d1be4a2e1ef1ce1986a89f71a5ef95fb55e519db475e1f3ac9e76b9662
+      size: 3387
+      sha256: 77290c47daa5960e967ff219ce9c44ffd3035e64acd6a1d42268eb366b2c4264
   original:
-    hackage: dhall-json-1.4.0
+    hackage: dhall-json-1.4.1
 - completed:
     hackage: github-0.22@sha256:13f09e904248a40dd173c08f2859d0dfda178a7c27f88df20b70a0d5a7614757,6909
     pantry-tree:
