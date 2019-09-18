@@ -11,7 +11,6 @@ import           Spago.Prelude
 
 import qualified Data.Text           as Text
 import qualified Data.Versions       as Version
-import           Dhall.Binary        (defaultStandardVersion)
 import qualified Dhall.Freeze
 import qualified Dhall.Pretty
 
@@ -231,7 +230,6 @@ freeze path = do
       Dhall.Freeze.OnlyRemoteImports
       Dhall.Freeze.Secure
       Dhall.Pretty.ASCII
-      defaultStandardVersion
 
 
 -- | Freeze the file if any of the remote imports are not frozen
