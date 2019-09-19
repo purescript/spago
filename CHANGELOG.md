@@ -24,6 +24,9 @@ Bugfixes:
 - "Quit" command in watch mode now actually quits (#390, #389)
 - Look up remote imports dynamically when doing frozen check (#349)
 
+Other Improvements:
+- Make no-op `spago install` faster (#409)
+
 ## [0.9.0] - 2019-07-30
 
 Breaking changes (!!!):
