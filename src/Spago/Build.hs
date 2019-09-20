@@ -26,6 +26,7 @@ import qualified Data.Set             as Set
 import qualified Data.Text            as Text
 import qualified System.FilePath.Glob as Glob
 import qualified System.IO.Temp       as Temp
+import           System.Directory (getCurrentDirectory)
 import qualified Turtle               as Turtle
 
 import qualified Spago.Config         as Config
@@ -221,9 +222,14 @@ docs format sourcePaths depsOnly noSearch = do
   config@Config.Config{..} <- Config.ensureConfig
   deps <- Packages.getProjectDeps config
   echo "Generating documentation for the project. This might take a while.."
-  Purs.docs format $ Packages.getGlobs deps depsOnly configSourcePaths <> sourcePaths
+  Purs.docs docsFormat $ Packages.getGlobs deps depsOnly configSourcePaths <> sourcePaths
 
-  when (isHTMLFormat format && noSearch == AddSearch) $ do
+  when isHTMLFormat $ do
+    link <- linkToIndexHtml
+    let text = "Link: " <> link
+    echo text
+
+  when (isHTMLFormat && noSearch == AddSearch) $ do
     echo "Making the documentation searchable..."
     writeTextFile ".spago/purescript-docs-search" Templates.docsSearch
     writeTextFile ".spago/docs-search-app.js"     Templates.docsSearchApp
@@ -234,10 +240,12 @@ docs format sourcePaths depsOnly noSearch = do
       ExitFailure n -> echo $ "Failed while trying to make the documentation searchable: " <> repr n
 
   where
-    isHTMLFormat = \case
-      Just Purs.Html -> True
-      Nothing   -> True
-      _         -> False
+    docsFormat = fromMaybe Purs.Html format
+    isHTMLFormat = docsFormat == Purs.Html
+
+    linkToIndexHtml = do
+      currentDir <- liftIO $ Text.pack <$> getCurrentDirectory
+      return ("file://" <> currentDir <> "/generated-docs/html/index.html")
 
 -- | Start a search REPL.
 search :: Spago m => m ()
