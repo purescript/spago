@@ -88,17 +88,16 @@ build BuildOptions{..} maybePostBuild = do
   case shouldWatch of
     BuildOnce -> buildAction
     Watch -> do
-      matches <- liftIO $ checkGlobsExist absoluteGlobs
+      matches <- filterMatchingGlobs absoluteGlobs -- @TODO use allGlobs here
       Watch.watch (Set.fromAscList $ fmap Glob.compile matches) shouldClear buildAction
 
   where
-    checkGlobsExist :: [String] -> IO ([String], [String])
-    checkGlobsExist globs = do
-    
-    checkGlobExists :: String -> IO Bool
-    checkGlobExists pattern = do
-      paths <- Glob.glob pattern
-      pure $ null paths
+    filterMatchingGlobs :: Spago m => [String] -> m [String]
+    filterMatchingGlobs = filterM $ \pattern -> do
+      paths <- liftIO $ Glob.glob pattern
+      let matches = null paths
+      when matches $ echoStr $ "No match found for pattern: " ++ pattern
+      pure matches
 
 
 -- | Start a repl
