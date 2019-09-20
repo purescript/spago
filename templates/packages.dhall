@@ -64,7 +64,7 @@ Syntax:
 Replace the additions' "{=}" (an empty record) with the following idea:
 -------------------------------
 let additions =
-  { "package-name" =
+  { package-name =
        { dependencies =
            [ "dependency1"
            , "dependency2"
@@ -74,7 +74,7 @@ let additions =
        , version =
            "tag ('v4.0.0') or branch ('master')"
        }
-  , "package-name" =
+  , package-name =
        { dependencies =
            [ "dependency1"
            , "dependency2"
