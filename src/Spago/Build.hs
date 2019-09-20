@@ -87,7 +87,19 @@ build BuildOptions{..} maybePostBuild = do
   absoluteGlobs <- traverse makeAbsolute $ Text.unpack . Purs.unSourcePath <$> allGlobs
   case shouldWatch of
     BuildOnce -> buildAction
-    Watch     -> Watch.watch (Set.fromAscList $ fmap Glob.compile absoluteGlobs) shouldClear buildAction
+    Watch -> do
+      matches <- liftIO $ checkGlobsExist absoluteGlobs
+      Watch.watch (Set.fromAscList $ fmap Glob.compile matches) shouldClear buildAction
+
+  where
+    checkGlobsExist :: [String] -> IO ([String], [String])
+    checkGlobsExist globs = do
+    
+    checkGlobExists :: String -> IO Bool
+    checkGlobExists pattern = do
+      paths <- Glob.glob pattern
+      pure $ null paths
+
 
 -- | Start a repl
 repl
