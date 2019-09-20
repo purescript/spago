@@ -3,10 +3,10 @@
 -- | it on demand.
 module Docs.Search.TypeShape where
 
-import Prelude
-
 import Docs.Search.TypeDecoder (QualifiedName(..), Type(..), joinForAlls, joinRows)
 import Docs.Search.TypeQuery (TypeQuery(..), getFreeVariables)
+
+import Prelude
 
 import Data.Generic.Rep (class Generic)
 import Data.Generic.Rep.Show (genericShow)
@@ -17,7 +17,9 @@ import Data.Set as Set
 import Data.Tuple (Tuple(..), snd)
 import Data.Ord (abs)
 
+
 type TypeShape = List ShapeChunk
+
 
 data ShapeChunk
   = PVar
@@ -33,6 +35,7 @@ derive instance genericShapeChunk :: Generic ShapeChunk _
 instance showShapeChunk :: Show ShapeChunk where
   show x = genericShow x
 
+
 stringifyShape :: TypeShape -> String
 stringifyShape shape =
   show $ abs $ hash
@@ -46,6 +49,7 @@ stringifyShape shape =
         PApp      -> "a"
         PForAll n -> "b" <> show n
         PRow n    -> "r" <> show n
+
 
 shapeOfTypeQuery :: TypeQuery -> TypeShape
 shapeOfTypeQuery query =
@@ -79,6 +83,7 @@ shapeOfTypeQuery query =
         QRow lst ->
           let lst' = List.sortBy (\(Tuple x _) (Tuple y _) -> compare x y) lst in
           go (map snd lst' <> rest) (PRow (List.length lst) : acc)
+
 
 shapeOfType :: Type -> TypeShape
 shapeOfType ty = List.reverse $ go (pure ty) Nil
@@ -132,5 +137,6 @@ shapeOfType ty = List.reverse $ go (pure ty) Nil
 
         BinaryNoParensType op l r ->
           go (TypeApp (TypeApp op l) r : rest) acc
+
 
 foreign import hash :: String -> Int

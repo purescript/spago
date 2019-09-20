@@ -6,6 +6,7 @@ import Prelude
 import Docs.Search.App.SearchField as SearchField
 import Docs.Search.App.SearchResults as SearchResults
 import Docs.Search.Extra (whenJust)
+import Docs.Search.PackageIndex as PackageIndex
 
 import Control.Coroutine as Coroutine
 import Data.Maybe (Maybe(..))
@@ -38,8 +39,12 @@ main = do
 
   whenJust mbContainers \ { searchField, searchResults, pageContents } -> do
     HA.runHalogenAff do
+      packageIndex <- PackageIndex.loadPackageIndex
+
+      let initialSearchEngineState = { packageIndex: packageIndex, index: mempty, typeIndex: mempty }
+
       sfio <- runUI SearchField.component unit searchField
-      srio <- runUI (SearchResults.mkComponent pageContents markdownIt) unit searchResults
+      srio <- runUI (SearchResults.mkComponent initialSearchEngineState pageContents markdownIt) unit searchResults
       sfio.subscribe $
         Coroutine.consumer (srio.query <<< H.tell <<< SearchResults.MessageFromSearchField)
 

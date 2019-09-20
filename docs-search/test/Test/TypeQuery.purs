@@ -1,12 +1,10 @@
 module Test.TypeQuery where
 
-import Prelude
-
-import Test.Extra (assertRight)
-
+import Docs.Search.TypeDecoder (Constraint(..), QualifiedName(..), Type(..))
 import Docs.Search.TypeQuery (Substitution(..), TypeQuery(..), getFreeVariables, parseTypeQuery, penalty, typeVarPenalty)
-import Docs.Search.TypeShape (ShapeChunk(..), shapeOfTypeQuery)
-import Docs.Search.TypeDecoder (QualifiedName(..), Type(..))
+import Docs.Search.TypeShape (ShapeChunk(..), shapeOfType, shapeOfTypeQuery)
+
+import Prelude
 
 import Data.Foldable (class Foldable)
 import Data.List (List(..), (:))
@@ -15,8 +13,11 @@ import Data.List.NonEmpty (NonEmptyList)
 import Data.List.NonEmpty as NonEmptyList
 import Data.Set as Set
 import Data.Tuple (Tuple(..))
+import Test.Extra (assertRight)
 import Test.Unit (TestSuite, suite, test)
 import Test.Unit.Assert as Assert
+import Data.Maybe (Maybe(..))
+
 
 tests :: TestSuite
 tests = do
@@ -205,6 +206,13 @@ tests = do
       assertRight (parseTypeQuery input)
         (QConstraint "Foldable1" ((QVar "t") : Nil) (QConstraint "Apply" ((QVar "f") : Nil) (QFun (QApp (QVar "t") (QApp (QVar "f") (QVar "a"))) (QApp (QVar "f") (QVar "a")))))
 
+    test "test #35" do
+      let input = "Generic a rep => GenericEq rep => a -> a -> Boolean"
+      assertRight (parseTypeQuery input)
+        (QConstraint "Generic" ((QVar "a") : (QVar "rep") : Nil)
+         (QConstraint "GenericEq" ((QVar "rep") : Nil)
+          (QFun (QVar "a") (QFun (QVar "a") (QConst "Boolean")))))
+
   suite "polish notation" do
 
     test "test #1" do
@@ -229,6 +237,25 @@ tests = do
       let input = "forall a. (forall h. ST h (STArray h a)) -> Array a"
       assertRight (shapeOfTypeQuery <$> parseTypeQuery input)
           (l [ PForAll 1, PFun, PForAll 1, PApp, PApp, PVar, PVar, PApp, PApp, PVar, PVar, PVar, PApp, PVar, PVar ])
+
+  suite "type shapes" do
+    test "test #1" do
+      let query = "Generic a rep => GenericEq rep => a -> a -> Boolean"
+          c1 = constr (qname [""] "Generic") [TypeVar "a", TypeVar "rep"]
+          c2 = constr (qname [""] "GenericEq") [TypeVar "rep"]
+
+          fun t1 t2 =
+            TypeApp (TypeApp (TypeConstructor (QualifiedName { moduleName: ["Prim"]
+                                                             , name: "Function" })) t1) t2
+          type_ =
+            ForAll "a" Nothing $
+            ForAll "rep" Nothing $
+            ConstrainedType c1
+            (ConstrainedType c2
+             (fun (TypeVar "a") (fun (TypeVar "b")
+                                 (TypeConstructor $ qname ["Prim", "Boolean"] "Boolean"))))
+          shape = shapeOfTypeQuery <$> parseTypeQuery query
+      Assert.equal (pure $ shapeOfType type_) shape
 
   suite "free variable counting" do
 
@@ -370,3 +397,9 @@ unitType = TypeConstructor (QualifiedName { moduleName: []
 
 countFreeVars :: TypeQuery -> Int
 countFreeVars = getFreeVariables >>> Set.size
+
+qname :: Array String -> String -> QualifiedName
+qname m n = QualifiedName { moduleName: m, name: n }
+
+constr :: QualifiedName -> Array Type -> Constraint
+constr c a = Constraint { constraintClass: c, constraintArgs: a }

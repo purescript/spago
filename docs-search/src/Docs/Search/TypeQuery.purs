@@ -10,11 +10,11 @@ module Docs.Search.TypeQuery
        )
 where
 
-import Prelude
-
 import Docs.Search.Config (config)
 import Docs.Search.Extra (foldl1, foldr1)
 import Docs.Search.TypeDecoder (QualifiedName(..), Type(..), joinConstraints, joinRows)
+
+import Prelude
 
 import Control.Alt ((<|>))
 import Data.Array as Array
@@ -37,6 +37,7 @@ import Text.Parsing.StringParser (ParseError, Parser, runParser, try)
 import Text.Parsing.StringParser.CodePoints (alphaNum, anyLetter, char, eof, lowerCaseChar, skipSpaces, string, upperCaseChar)
 import Text.Parsing.StringParser.Combinators (fix, sepBy, sepBy1, sepEndBy, sepEndBy1)
 
+
 -- | We need type queries because we don't have a full-featured type parser
 -- | available.
 data TypeQuery
@@ -54,8 +55,10 @@ derive instance genericTypeQuery :: Generic TypeQuery _
 instance showTypeQuery :: Show TypeQuery where
   show x = genericShow x
 
+
 parseTypeQuery :: String -> Either ParseError TypeQuery
 parseTypeQuery = String.trim >>> runParser (typeQueryParser <* eof)
+
 
 typeQueryParser :: Parser TypeQuery
 typeQueryParser = fix \typeQuery ->
@@ -98,6 +101,7 @@ typeQueryParser = fix \typeQuery ->
                         typeQuery
   in
     try constrained <|> funs
+
 
 any :: Parser TypeQuery
 any = do
@@ -166,6 +170,7 @@ getFreeVariables query = go Set.empty Set.empty (List.singleton $ Next query)
     go bound free (Next (QRow lst) : rest) =
       go bound free ((lst <#> snd >>> Next) <> rest)
 
+
 data Substitution
   = Instantiate String Type
   | Match String String
@@ -186,6 +191,7 @@ derive instance genericSubstitution :: Generic Substitution _
 
 instance showSubstitution :: Show Substitution where
   show x = genericShow x
+
 
 -- | A mock-up of unification algorithm, that does not unify anything, actually.
 -- | We use it to estimate how far a type is from a type query, by looking into
@@ -289,6 +295,7 @@ unify query type_ = go Nil (List.singleton { q: query, t: type_ })
     go acc ({ q, t: REmpty } : rest) =
       go (QueryMismatch q : acc) rest
 
+
 -- | Sum various penalties.
 penalty :: TypeQuery -> Type -> Int
 penalty typeQuery ty =
@@ -296,6 +303,7 @@ penalty typeQuery ty =
   typeVarPenalty substs * config.penalties.typeVars +
   namesPenalty substs +
   mismatchPenalty substs
+
 
 -- | Penalty for type variables mismatch.
 -- | Congruent types should receive zero penalty points.
@@ -320,6 +328,7 @@ typeVarPenalty substs =
                       _ -> identity
                    ) mempty substs
 
+
 -- | Penalty for name mismatches.
 namesPenalty :: List Substitution -> Int
 namesPenalty = go 0
@@ -334,6 +343,7 @@ namesPenalty = go 0
         go (p + config.penalties.matchConstraint * p') rest
     go p (RowsMismatch n m : rest) = go (config.penalties.rowsMismatch * abs (n - m)) rest
     go p (_ : rest) = go p rest
+
 
 -- | Penalty for generalization and instantiation.
 mismatchPenalty :: List Substitution -> Int
@@ -351,6 +361,7 @@ mismatchPenalty = go 0
     go n (QueryMismatch q     : rest) = go (n + typeQuerySize q)                      rest
     go n (_ : rest) = go n rest
 
+
 -- | Only returns a list of type class names (lists of arguments are omitted).
 joinQueryConstraints :: TypeQuery -> { constraints :: List String
                                      , ty :: TypeQuery }
@@ -359,6 +370,7 @@ joinQueryConstraints = go Nil
     go acc (QConstraint name _ query) =
       go (name : acc) query
     go acc ty = { constraints: List.sort acc, ty }
+
 
 typeQuerySize :: TypeQuery -> Int
 typeQuerySize = go 0 <<< List.singleton
@@ -378,6 +390,7 @@ typeQuerySize = go 0 <<< List.singleton
       go (n + 1) (q : rest)
     go n (QRow qs : rest) =
       go n       ((qs <#> snd) <> rest)
+
 
 typeSize :: Type -> Int
 typeSize = go 0 <<< List.singleton

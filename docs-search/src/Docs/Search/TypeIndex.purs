@@ -1,14 +1,16 @@
+-- | Partial type index, can be loaded on demand in the browser.
 module Docs.Search.TypeIndex where
-
-import Prelude
 
 import Docs.Search.Config (config)
 import Docs.Search.Declarations (resultsForDeclaration)
 import Docs.Search.DocsJson (DocsJson(..))
+import Docs.Search.PackageIndex (Scores)
 import Docs.Search.SearchResult (ResultInfo(..), SearchResult(..))
 import Docs.Search.TypeDecoder (Type)
 import Docs.Search.TypeQuery (TypeQuery)
 import Docs.Search.TypeShape (shapeOfType, shapeOfTypeQuery, stringifyShape)
+
+import Prelude
 
 import Control.Promise (Promise, toAffE)
 import Data.Argonaut.Core (Json)
@@ -22,14 +24,16 @@ import Data.Newtype (class Newtype, unwrap, wrap)
 import Effect (Effect)
 import Effect.Aff (Aff, try)
 
+
 newtype TypeIndex = TypeIndex (Map String (Maybe (Array SearchResult)))
 
 derive newtype instance semigroupTypeIndex :: Semigroup TypeIndex
 derive newtype instance monoidTypeIndex :: Monoid TypeIndex
 derive instance newtypeTypeIndex :: Newtype TypeIndex _
 
-mkTypeIndex :: Array DocsJson -> TypeIndex
-mkTypeIndex docsJsons =
+
+mkTypeIndex :: Scores -> Array DocsJson -> TypeIndex
+mkTypeIndex scores docsJsons =
   TypeIndex $ map Just $ Array.foldr insert mempty docsJsons
   where
     insert :: DocsJson -> Map String (Array SearchResult) -> Map String (Array SearchResult)
@@ -39,14 +43,17 @@ mkTypeIndex docsJsons =
                       Just ty ->
                         Map.insertWith append (stringifyShape $ shapeOfType ty) (pure result)
                       Nothing -> identity
-                  ) mp (allResults docsJson)
+                  ) mp (allResults scores docsJson)
 
-allResults :: DocsJson -> Array SearchResult
-allResults (DocsJson { name, declarations }) =
-  declarations >>= (resultsForDeclaration name >>> map (_.result) >>> Array.fromFoldable)
 
-resultsWithTypes :: DocsJson -> Array SearchResult
-resultsWithTypes docsJson = Array.filter (getType >>> isJust) $ allResults docsJson
+allResults :: Scores -> DocsJson -> Array SearchResult
+allResults scores (DocsJson { name, declarations }) =
+  declarations >>= (resultsForDeclaration scores name >>> map (_.result) >>> Array.fromFoldable)
+
+
+resultsWithTypes :: Scores -> DocsJson -> Array SearchResult
+resultsWithTypes scores = Array.filter (getType >>> isJust) <<< allResults scores
+
 
 getType :: SearchResult -> Maybe Type
 getType (SearchResult { info }) =
@@ -61,23 +68,23 @@ getType (SearchResult { info }) =
       Just dict.type
 
     _ -> Nothing
-getType _ = Nothing
+
 
 lookup
   :: String
   -> TypeIndex
-  -> Aff { typeIndex :: TypeIndex, results :: Array SearchResult }
-lookup key typeIndex@(TypeIndex map) =
+  -> Aff { index :: TypeIndex, results :: Array SearchResult }
+lookup key index@(TypeIndex map) =
   case Map.lookup key map of
-    Just results -> pure { typeIndex, results: Array.fold results }
+    Just results -> pure { index, results: Array.fold results }
     Nothing -> do
       eiJson <- try (toAffE (lookup_ key $ config.mkShapeScriptPath key))
       pure $ fromMaybe'
-        (\_ ->  { typeIndex: insert key Nothing typeIndex, results: [] })
+        (\_ ->  { index: insert key Nothing index, results: [] })
         do
           json <- hush eiJson
           results <- hush (decodeJson json)
-          pure { typeIndex: insert key (Just results) typeIndex, results }
+          pure { index: insert key (Just results) index, results }
 
   where
     insert
@@ -87,13 +94,15 @@ lookup key typeIndex@(TypeIndex map) =
       -> TypeIndex
     insert k v = unwrap >>> Map.insert k v >>> wrap
 
+
 query
   :: TypeIndex
   -> TypeQuery
-  -> Aff { typeIndex :: TypeIndex, results :: Array SearchResult }
+  -> Aff { index :: TypeIndex, results :: Array SearchResult }
 query typeIndex typeQuery = do
   res <- lookup (stringifyShape $ shapeOfTypeQuery typeQuery) typeIndex
   pure $ res { results = res.results }
+
 
 foreign import lookup_
   :: String

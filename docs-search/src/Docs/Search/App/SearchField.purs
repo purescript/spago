@@ -20,7 +20,7 @@ import Web.DOM.ParentNode as ParentNode
 import Web.HTML (window) as Web
 import Web.HTML as HTML
 import Web.HTML.HTMLDocument as HTMLDocument
-import Web.HTML.HTMLElement (blur) as Web
+import Web.HTML.HTMLElement (blur, focus) as Web
 import Web.HTML.HTMLInputElement as HTMLInputElement
 import Web.HTML.Window (document) as Web
 import Web.HTML.Window as Window
@@ -74,6 +74,7 @@ handleAction = case _ of
       when (not state.focused) do
         H.liftEffect do
           withSearchField HTMLInputElement.select
+          withSearchField (HTMLInputElement.toHTMLElement >>> Web.focus)
 
     when (KE.code ev == "Escape") do
       state <- H.get

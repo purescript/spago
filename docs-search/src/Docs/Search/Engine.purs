@@ -1,60 +1,106 @@
--- | A "search engine" that determines if a query is a declaration query or a type query, and
--- | searches for it in the corresponding index.
 module Docs.Search.Engine where
+
+import Docs.Search.PackageIndex (PackageIndex, PackageResult)
+import Docs.Search.SearchResult (SearchResult)
+import Docs.Search.TypeQuery (TypeQuery(..), parseTypeQuery)
 
 import Prelude
 
-import Docs.Search.TypeQuery (TypeQuery(..), parseTypeQuery, penalty)
-import Docs.Search.SearchResult (SearchResult, typeOfResult)
-import Docs.Search.Index as Index
-import Docs.Search.Index (Index)
-import Docs.Search.TypeIndex as TypeIndex
-import Docs.Search.TypeIndex (TypeIndex)
-
+import Data.Newtype (unwrap)
 import Data.Array as Array
 import Data.Either (hush)
 import Data.Maybe (Maybe(..))
-import Data.String.Common as String
-import Effect.Aff (Aff)
+import Data.Search.Trie (Trie)
+import Data.String.Common (toLower) as String
+import Data.List (List)
 
-data ResultsType = TypeResults TypeQuery | DeclResults
 
-type State = { index :: Index
-             , typeIndex :: TypeIndex
-             }
+type Index = Trie Char (List SearchResult)
+
+
+type Query m index input result =
+  index -> input -> m { index :: index, results :: Array result }
+
+
+type Engine m index typeIndex =
+  { queryIndex
+    :: Query m index String SearchResult
+  , queryTypeIndex
+    :: Query m typeIndex TypeQuery SearchResult
+  , queryPackageIndex
+    :: Query m PackageIndex String PackageResult
+  }
+
+
+type EngineState index typeIndex
+  = { index :: index
+    , typeIndex :: typeIndex
+    , packageIndex :: PackageIndex
+    }
+
+
+mkEngineState
+  :: forall index typeIndex
+  .  index
+  -> typeIndex
+  -> PackageIndex
+  -> EngineState index typeIndex
+mkEngineState index typeIndex packageIndex =
+  { index, typeIndex, packageIndex }
+
+
+data Result
+  = DeclResult SearchResult
+  | TypeResult SearchResult
+  | PackResult PackageResult
+
+
+sortByPopularity :: Array Result -> Array Result
+sortByPopularity =
+  Array.sortWith
+  \result ->
+    -- Sort by popularity, show packages before
+    -- ordinary definitions.
+    - case result of
+        DeclResult r -> 2 * (unwrap r).score
+        TypeResult r -> 2 * (unwrap r).score
+        PackResult r -> 2 * r.score + 1
+
 
 query
-  :: State
-  -> String
-  -> Aff { searchEngineState :: State
-         , results :: Array SearchResult
-         , resultsType :: ResultsType
-         }
-query { index, typeIndex } input =
+  :: forall m index typeIndex
+  .  Monad m
+  => Engine m index typeIndex
+  -> Query m (EngineState index typeIndex) String Result
+query engine state input =
   case hush (parseTypeQuery input) >>= isValuableTypeQuery of
-    Nothing -> do
-      response <- Index.query index (String.toLower input)
-      pure { searchEngineState: { index: response.index, typeIndex }
-           , results: response.results
-           , resultsType: DeclResults }
 
+    -- A declaration/package query
+    Nothing -> do
+      let lower = String.toLower input
+
+      response        <- engine.queryIndex        state.index        lower
+      packageResponse <- engine.queryPackageIndex state.packageIndex lower
+
+      pure { results: sortByPopularity $
+             (packageResponse.results <#> PackResult) <>
+             (response.results        <#> DeclResult)
+
+             -- No need to update package index (it never changes).
+           , index: state { index = response.index }
+           }
+
+    -- A type query
     Just typeQuery -> do
-      response <- TypeIndex.query typeIndex typeQuery
-      pure { searchEngineState: { index, typeIndex: response.typeIndex }
-           , results: sortByDistance typeQuery response.results
-           , resultsType: TypeResults typeQuery }
+
+      response <- engine.queryTypeIndex state.typeIndex typeQuery
+
+      pure { results: response.results <#> TypeResult
+           , index: state { typeIndex = response.index }
+           }
+
 
 isValuableTypeQuery :: TypeQuery -> Maybe TypeQuery
 isValuableTypeQuery (QVar _) = Nothing
 isValuableTypeQuery (QConst _) = Nothing
 isValuableTypeQuery other = Just other
-
-sortByDistance :: TypeQuery -> Array SearchResult -> Array SearchResult
-sortByDistance typeQuery results =
-  _.result <$> Array.sortBy comparePenalties resultsWithPenalties
-  where
-    comparePenalties r1 r2 = compare r1.penalty r2.penalty
-    resultsWithPenalties =
-      results <#>
-      \result -> { penalty: typeOfResult result <#> penalty typeQuery
-                 , result }

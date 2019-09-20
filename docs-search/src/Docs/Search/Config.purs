@@ -5,9 +5,10 @@ import Prelude
 -- | Some magic constants.
 config ::
   { declIndexDirectory :: String
-  , indexDirectory :: String
   , mkIndexPartLoadPath :: Int -> String
   , mkIndexPartPath :: Int -> String
+  , packageInfoPath :: String
+  , packageInfoLoadPath :: String
   , mkShapeScriptPath :: String -> String
   , numberOfIndexParts :: Int
   , outputDirectory :: String
@@ -28,20 +29,24 @@ config =
   { outputDirectory: "output"
   , requiredDirectories:
     [ "generated-docs"
+    , "generated-docs/html"
     , "output"
     ]
   -- ^ Directories required by IndexBuilder
-  , indexDirectory: "generated-docs/index"
-  , declIndexDirectory: "generated-docs/index/declarations"
-  , typeIndexDirectory: "generated-docs/index/types"
+  , declIndexDirectory: "generated-docs/html/index/declarations"
+  , typeIndexDirectory: "generated-docs/html/index/types"
   , mkShapeScriptPath:
-    \shape -> "../index/types/" <> shape <> ".js"
+    \shape -> "./index/types/" <> shape <> ".js"
   , numberOfIndexParts: 50
   -- ^ In how many parts the index should be splitted?
   , mkIndexPartPath:
-    \(partId :: Int) -> "/index/declarations/" <> show partId <> ".js"
+    \(partId :: Int) -> "html/index/declarations/" <> show partId <> ".js"
   , mkIndexPartLoadPath:
-    \(partId :: Int) -> "../index/declarations/" <> show partId <> ".js"
+    \(partId :: Int) -> "./index/declarations/" <> show partId <> ".js"
+  , packageInfoPath: "generated-docs/html/index/packages.json"
+  -- ^ Path to package index.
+  , packageInfoLoadPath: "./index/packages.json"
+  -- ^ Used to load package index to the browser scope.
   , resultsCount: 25
   -- ^ How many results to show by default?
   , penalties: { typeVars: 2

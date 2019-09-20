@@ -9,7 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 New features:
 - Render docs as markdown (#15)
-- Show help for each CLI command.
+- Show help for each CLI command (#17)
+- Add packages to the search index (#16)
+- Sort search results by popularity (based on number of package reverse dependencies).
+
+Bugfixes:
+- Fix decoding of kind annotations in `forall`s (#17)
+- Fix rendering for variable-parametrized records (e.g. `Record a`) and type-level strings.
 
 ## [0.0.4] - 2019-07-25
 

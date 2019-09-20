@@ -1,14 +1,15 @@
 module Docs.Search.IndexBuilder where
 
-import Prelude
-
 import Docs.Search.Config (config)
 import Docs.Search.Declarations (Declarations(..), mkDeclarations)
 import Docs.Search.DocsJson (DocsJson)
 import Docs.Search.Extra ((>#>))
-import Docs.Search.Index (getPartId, insertResults)
-import Docs.Search.SearchResult (SearchResult(..))
+import Docs.Search.BrowserEngine (getPartId)
+import Docs.Search.PackageIndex (PackageInfo, mkPackageInfo, mkScores)
+import Docs.Search.SearchResult (SearchResult)
 import Docs.Search.TypeIndex (TypeIndex, mkTypeIndex)
+
+import Prelude
 
 import Data.Argonaut.Core (stringify)
 import Data.Argonaut.Decode (decodeJson)
@@ -16,18 +17,17 @@ import Data.Argonaut.Encode (encodeJson)
 import Data.Argonaut.Parser (jsonParser)
 import Data.Array as Array
 import Data.Either (Either(..), either)
-import Data.Foldable (sum, foldr)
+import Data.Foldable (sum)
 import Data.List (List)
 import Data.List as List
 import Data.Map (Map)
 import Data.Map as Map
 import Data.Maybe (Maybe(..), fromMaybe)
-import Data.Newtype (wrap, unwrap)
-import Data.Profunctor.Strong (second)
+import Data.Newtype (unwrap)
 import Data.Search.Trie as Trie
 import Data.Set as Set
 import Data.String.CodePoints (contains) as String
-import Data.String.CodeUnits (singleton, stripPrefix) as String
+import Data.String.CodeUnits (singleton) as String
 import Data.String.Common (replace) as String
 import Data.String.Pattern (Pattern(..), Replacement(..))
 import Data.Traversable (for, for_)
@@ -53,26 +53,6 @@ run :: Config -> Effect Unit
 run = launchAff_ <<< run'
 
 
-insertPackages
-  :: Array PackageMeta
-  -> Declarations
-  -> Declarations
-insertPackages packageMetas (Declarations decls) =
-  Declarations $
-  foldr (insertResults <<< second pure) decls $
-  map resultFromPackageMeta packageMetas
-
-
-resultFromPackageMeta :: PackageMeta -> Tuple String SearchResult
-resultFromPackageMeta (PackageMeta { name, description, repository }) =
-  Tuple shortName $ PackageResult { name: shortName
-                                  , description
-                                  , repository: fromMaybe "" (repository <#> (_.url))
-                                  }
-
-  where
-    shortName = fromMaybe name $ String.stripPrefix (wrap "purescript-") name
-
 run' :: Config -> Aff Unit
 run' cfg = do
 
@@ -92,20 +72,24 @@ run' cfg = do
       show (Array.length packageMetas) <>
       " packages..."
 
-  let index = insertPackages packageMetas $ mkDeclarations docsJsons
-      typeIndex = mkTypeIndex docsJsons
+  let scores      = mkScores packageMetas
+      index       = mkDeclarations scores docsJsons
+      typeIndex   = mkTypeIndex scores docsJsons
+      packageInfo = mkPackageInfo packageMetas
 
   createDirectories cfg
 
   void $ sequential do
     ignore <$> parallel (writeIndex cfg index)
            <*> parallel (writeTypeIndex cfg typeIndex)
+           <*> parallel (writePackageInfo packageInfo)
            <*> parallel (patchDocs cfg)
            <*> parallel (copyAppFile cfg)
 
   let countOfDefinitions = Trie.size $ unwrap index
       countOfTypeDefinitions =
         sum $ fromMaybe 0 <$> map Array.length <$> Map.values (unwrap typeIndex)
+      countOfPackages = Array.length packageMetas
 
   liftEffect do
     log $
@@ -113,9 +97,11 @@ run' cfg = do
       show countOfDefinitions <>
       " definitions and " <>
       show countOfTypeDefinitions <>
-      " type definitions to the search index."
+      " type definitions from " <>
+      show countOfPackages <>
+      " packages to the search index."
 
-  where ignore _ _ _ _ = unit
+  where ignore _ _ _ _ _ = unit
 
 
 -- | Exit early if something is missing.
@@ -211,7 +197,7 @@ decodeBowerJsons { bowerFiles } = do
 writeTypeIndex :: Config -> TypeIndex -> Aff Unit
 writeTypeIndex { generatedDocs } typeIndex =
   for_ entries \(Tuple typeShape results) -> do
-    writeTextFile UTF8 (generatedDocs <> "/index/types/" <> typeShape <> ".js")
+    writeTextFile UTF8 (config.typeIndexDirectory <> "/" <> typeShape <> ".js")
       (mkHeader typeShape <> stringify (encodeJson results))
   where
     mkHeader typeShape =
@@ -220,6 +206,15 @@ writeTypeIndex { generatedDocs } typeIndex =
     entries :: Array _
     entries = Map.toUnfoldableUnordered (unwrap typeIndex)
 
+
+writePackageInfo :: PackageInfo -> Aff Unit
+writePackageInfo packageInfo = do
+
+  writeTextFile UTF8 config.packageInfoPath $
+    header <> stringify (encodeJson packageInfo)
+
+  where
+    header = "window.DocsSearchPackageIndex = "
 
 -- | Get a mapping from index parts to index contents.
 getIndex :: Declarations -> Map Int (Array (Tuple String (Array SearchResult)))
@@ -272,7 +267,7 @@ patchHTML html =
   let
     pattern = Pattern "</body>"
     patch = "<!-- Docs search index. -->" <>
-            "<script type=\"text/javascript\" src=\"../docs-search-app.js\"></script>" <>
+            "<script type=\"text/javascript\" src=\"./docs-search-app.js\"></script>" <>
             "<script type=\"text/javascript\">" <>
             "window.DocsSearchTypeIndex = {};" <>
             "window.DocsSearchIndex = {};" <>
@@ -306,11 +301,15 @@ patchDocs cfg = do
 -- | in case the docs were not generated.
 createDirectories :: Config -> Aff Unit
 createDirectories { generatedDocs } = do
-  let indexDir         = generatedDocs <> "/index"
-      declIndexDir     = generatedDocs <> "/index/declarations"
-      typeIndexDir     = generatedDocs <> "/index/types"
+  let htmlDocs         = generatedDocs <> "/html"
+      indexDir         = generatedDocs <> "/html/index"
+      declIndexDir     = generatedDocs <> "/html/index/declarations"
+      typeIndexDir     = generatedDocs <> "/html/index/types"
 
   whenM (not <$> directoryExists generatedDocs) $ liftEffect do
+    logAndExit "Generate the documentation first!"
+
+  whenM (not <$> directoryExists htmlDocs) $ liftEffect do
     logAndExit "Generate the documentation first!"
 
   whenM (not <$> directoryExists indexDir) do
@@ -335,7 +334,7 @@ copyAppFile { generatedDocs } = do
         "Client-side app was not found at " <> appFile <> ".\n" <>
         "Check your installation."
   buffer <- readFile appFile
-  writeFile (generatedDocs <> "/docs-search-app.js") buffer
+  writeFile (generatedDocs <> "/html/docs-search-app.js") buffer
 
 
 directoryExists :: String -> Aff Boolean

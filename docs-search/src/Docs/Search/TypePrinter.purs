@@ -2,12 +2,14 @@ module Docs.Search.TypePrinter where
 
 import Prelude
 
+import Docs.Search.Extra ((>#>))
 import Docs.Search.Terminal (cyan)
 import Docs.Search.TypeDecoder (Constraint(..), FunDep(..), FunDeps(..), Kind(..), QualifiedName(..), Type(..), TypeArgument(..), joinForAlls, joinRows)
 
-import Data.Maybe (Maybe(..))
+import Data.Maybe (Maybe(..), fromMaybe)
 import Data.Array as Array
 import Data.List as List
+
 
 -- | A pretty-printer for types, for TTY with colors.
 showType :: Type -> String
@@ -20,7 +22,9 @@ showType = case _ of
 
   TypeApp (TypeApp (TypeConstructor
                     (QualifiedName { moduleName: [ "Prim" ]
-                                   , name: "Function" })) t1) t2 ->
+                                   , name: "Function" }))
+                   t1)
+          t2 ->
     showType t1 <> syntax " -> " <> showType t2
 
   TypeApp (TypeConstructor (QualifiedName { moduleName: [ "Prim" ]
@@ -54,6 +58,7 @@ showType = case _ of
     showType ty <>
     ")"
 
+
 showTypeArgument :: TypeArgument -> String
 showTypeArgument (TypeArgument { name, mbKind }) =
   case mbKind of
@@ -65,6 +70,7 @@ showTypeArgument (TypeArgument { name, mbKind }) =
       " :: " <>
       showKind kind <>
       ")"
+
 
 showFunDeps :: FunDeps -> String
 showFunDeps (FunDeps []) = ""
@@ -78,11 +84,13 @@ showFunDeps (FunDeps deps) =
       syntax " -> " <>
       Array.intercalate space rhs
 
+
 showQualifiedName
   :: QualifiedName
   -> String
 showQualifiedName (QualifiedName { name })
   = name
+
 
 showRow
   :: Boolean
@@ -92,7 +100,9 @@ showRow asRow =
   joinRows >>> \ { rows, ty } ->
   if List.null rows
   then
-    if asRow then "()" else "{}"
+    if asRow
+    then "()"
+    else fromMaybe "{}" $ ty <#> \ty' -> "Record " <> showType ty'
   else
     opening <>
     ( Array.intercalate ", " $ Array.fromFoldable $ rows <#>
@@ -100,13 +110,14 @@ showRow asRow =
       entry.row <> syntax " :: " <> showType entry.ty
     ) <>
 
-    case ty of
-      Just ty' -> " | " <> showType ty' <> closing
-      Nothing  -> closing
+    (ty >#> \ty' -> " | " <> showType ty') <>
+
+    closing
 
     where
       opening = if asRow then "(" else "{ "
       closing = if asRow then ")" else " }"
+
 
 showForAll
   :: Type
@@ -132,6 +143,7 @@ showForAll ty =
   where
     foralls = joinForAlls ty
 
+
 showKind
   :: Kind
   -> String
@@ -140,12 +152,14 @@ showKind = case _ of
   FunKind k1 k2   -> showKind k1 <> syntax " -> " <> showKind k2
   NamedKind qname -> showQualifiedName qname
 
+
 showConstraint
   :: Constraint
   -> String
 showConstraint (Constraint { constraintClass, constraintArgs }) =
   showQualifiedName constraintClass <> space <>
   Array.intercalate space (constraintArgs <#> showType)
+
 
 syntax :: String -> String
 syntax = cyan

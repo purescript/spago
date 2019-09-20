@@ -1,17 +1,20 @@
--- | Contains `Index` that can be loaded on demand, transparently
--- | to the user.
-module Docs.Search.Index where
+-- | A search engine that is used in the browser.
+module Docs.Search.BrowserEngine where
+
+import Docs.Search.Config (config)
+import Docs.Search.PackageIndex (queryPackageIndex)
+import Docs.Search.Engine (Engine, EngineState, Index)
+import Docs.Search.SearchResult (SearchResult)
+import Docs.Search.TypeIndex (TypeIndex)
+import Docs.Search.TypeIndex as TypeIndex
 
 import Prelude
 
-import Docs.Search.Config (config)
-import Docs.Search.SearchResult (SearchResult)
-
+import Data.Char as Char
 import Control.Promise (Promise, toAffE)
 import Data.Argonaut.Core (Json)
 import Data.Argonaut.Decode (decodeJson)
 import Data.Array as Array
-import Data.Char as Char
 import Data.Either (hush)
 import Data.List (List, (:))
 import Data.List as List
@@ -26,22 +29,27 @@ import Data.Tuple (Tuple(..))
 import Effect (Effect)
 import Effect.Aff (Aff, try)
 
-newtype Index
-  = Index (Map Int (Trie Char (List SearchResult)))
 
-derive instance newtypeIndex :: Newtype Index _
-derive newtype instance semigroupIndex :: Semigroup Index
-derive newtype instance monoidIndex :: Monoid Index
+newtype PartialIndex
+  = PartialIndex (Map Int Index)
+
+derive instance newtypePartialIndex :: Newtype PartialIndex _
+derive newtype instance semigroupPartialIndex :: Semigroup PartialIndex
+derive newtype instance monoidPartialIndex :: Monoid PartialIndex
+
+
+type BrowserEngineState = EngineState PartialIndex TypeIndex
+
 
 -- | This function dynamically injects a script with the required index part and returns
--- | a new `Index` that contains newly loaded definitions.
+-- | a new `PartialIndex` that contains newly loaded definitions.
 -- |
 -- | We split the index because of its size, and also to speed up queries.
 query
-  :: Index
+  :: PartialIndex
   -> String
-  -> Aff { index :: Index, results :: Array SearchResult }
-query index@(Index indexMap) input = do
+  -> Aff { index :: PartialIndex, results :: Array SearchResult }
+query index@(PartialIndex indexMap) input = do
   let
     path :: List Char
     path =
@@ -70,7 +78,7 @@ query index@(Index indexMap) input = do
 
       case mbNewTrie of
         Just newTrie -> do
-          pure { index: Index $ Map.insert partId newTrie indexMap
+          pure { index: PartialIndex $ Map.insert partId newTrie indexMap
                , results: flatten $ Trie.queryValues path newTrie
                }
         Nothing -> do
@@ -78,6 +86,7 @@ query index@(Index indexMap) input = do
 
   where
     flatten = Array.concat <<< Array.fromFoldable <<< map Array.fromFoldable
+
 
 insertResults
   :: Tuple String (Array SearchResult)
@@ -96,6 +105,17 @@ insertResults (Tuple path newResults) =
         Nothing  -> Just $ List.fromFoldable newResults
         Just old -> Just $ List.fromFoldable newResults <> old
 
+
+browserSearchEngine
+  :: Engine Aff PartialIndex TypeIndex
+browserSearchEngine =
+  { queryIndex: query
+  , queryTypeIndex: TypeIndex.query
+  , queryPackageIndex
+  }
+
+
+
 -- | Find in which part of the index this path can be found.
 getPartId :: List Char -> Int
 getPartId (a : b : _) =
@@ -103,6 +123,7 @@ getPartId (a : b : _) =
 getPartId (a : _) =
   Char.toCharCode a `mod` config.numberOfIndexParts
 getPartId _ = 0
+
 
 -- | Load a part of the index by injecting a <script> tag into the DOM.
 foreign import loadIndex_

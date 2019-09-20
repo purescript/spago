@@ -1,22 +1,25 @@
 -- | This module contains a Halogen component for search results.
 module Docs.Search.App.SearchResults where
 
-import Prelude
-
 import Docs.Search.App.SearchField (SearchFieldMessage(..))
+import Docs.Search.BrowserEngine (PartialIndex, browserSearchEngine)
 import Docs.Search.Config (config)
 import Docs.Search.Declarations (DeclLevel(..), declLevelToHashAnchor)
 import Docs.Search.DocsJson (DataDeclType(..))
-import Docs.Search.Extra ((>#>), homePageFromRepository)
+import Docs.Search.Extra (homePageFromRepository, (>#>))
+import Docs.Search.PackageIndex (PackageResult)
+import Docs.Search.Engine (Result(..))
+import Docs.Search.Engine as Engine
 import Docs.Search.SearchResult (ResultInfo(..), SearchResult(..))
 import Docs.Search.TypeDecoder (Constraint(..), FunDep(..), FunDeps(..), Kind(..), QualifiedName(..), Type(..), TypeArgument(..), joinForAlls, joinRows)
-import Docs.Search.Engine as SearchEngine
-import Docs.Search.Engine (ResultsType(..))
+import Docs.Search.TypeIndex (TypeIndex)
+
+import Prelude
 
 import Data.Array ((!!))
 import Data.Array as Array
 import Data.List as List
-import Data.Maybe (Maybe(..), isJust)
+import Data.Maybe (Maybe(..), isJust, fromMaybe)
 import Data.Newtype (wrap)
 import Data.String.CodeUnits (stripSuffix) as String
 import Data.String.Common (null, trim) as String
@@ -40,9 +43,12 @@ data Mode = Off | Loading | Active
 derive instance eqMode :: Eq Mode
 
 
-type State = { searchEngineState :: SearchEngine.State
-             , results :: Array SearchResult
-             , resultsType :: ResultsType
+type EngineState =
+  Engine.EngineState PartialIndex TypeIndex
+
+
+type State = { engineState :: EngineState
+             , results :: Array Result
              , input :: String
              , contents :: Element
              , resultsCount :: Int
@@ -62,14 +68,14 @@ data Action
 
 mkComponent
   :: forall o i
-  .  Element
+  .  EngineState
+  -> Element
   -> MD.MarkdownIt
   -> H.Component HH.HTML Query i o Aff
-mkComponent contents markdownIt =
+mkComponent initialEngineState contents markdownIt =
   H.mkComponent
-    { initialState: const { searchEngineState: mempty
+    { initialState: const { engineState: initialEngineState
                           , results: []
-                          , resultsType: DeclResults
                           , input: ""
                           , contents
                           , resultsCount: config.resultsCount
@@ -107,12 +113,14 @@ handleQuery (MessageFromSearchField (InputUpdated input_) next) = do
     H.modify_ (_ { mode = Loading, resultsCount = config.resultsCount })
 
     void $ H.fork do
-      { searchEngineState, results, resultsType } <- H.liftAff $
-        SearchEngine.query state.searchEngineState state.input
+      { index, results } <- H.liftAff $
+        Engine.query browserSearchEngine state.engineState state.input
+
       H.modify_ (_ { results = results
                    , mode = Active
-                   , searchEngineState = searchEngineState
-                   , resultsType = resultsType })
+                   , engineState = index
+                   }
+                )
 
     hidePageContents
 
@@ -186,15 +194,6 @@ render state@{ mode: Active } =
   renderContainer $
   [ HH.h1_ [ HH.text "Search results" ]
 
-  , HH.div [ HP.classes [ wrap "result" ] ] $
-    [ HH.text "Found "
-    , HH.strong_ [ HH.text $ show $ Array.length state.results ]
-    , HH.text $
-        case state.resultsType of
-          DeclResults   -> " definitions."
-          TypeResults _ -> " definitions with similar types."
-    ]
-
   , HH.div_ $
     Array.concat $ shownResults <#> renderResult state.markdownIt
 
@@ -229,9 +228,47 @@ renderSummary text =
 renderResult
   :: forall a
   .  MD.MarkdownIt
+  -> Result
+  -> Array (HH.HTML a Action)
+renderResult markdownIt (DeclResult sr) = renderSearchResult markdownIt sr
+renderResult markdownIt (TypeResult sr) = renderSearchResult markdownIt sr
+renderResult markdownIt (PackResult sr) = renderPackageResult sr
+
+
+renderPackageResult
+  :: forall a
+  .  PackageResult
+  -> Array (HH.HTML a Action)
+renderPackageResult { name, description, repository } =
+  [ HH.div [ HP.class_ (wrap "result") ]
+    [ HH.h3 [ HP.class_ (wrap "result__title") ]
+      [ HH.span [ HP.classes [ wrap "result__badge"
+                             , wrap "badge"
+                             , wrap "badge--package" ]
+                , HP.title "Package"
+                ]
+        [ HH.text "P" ]
+
+      , HH.a [ HP.class_ (wrap "result__link")
+             , HP.href $ fromMaybe "" repository # homePageFromRepository
+             ]
+        [ HH.text name ]
+      ]
+    ]
+  ] <>
+
+  description >#> \descriptionText ->
+  [ HH.div [ HP.class_ (wrap "result__body") ]
+    [ HH.text descriptionText ]
+  ]
+
+
+renderSearchResult
+  :: forall a
+  .  MD.MarkdownIt
   -> SearchResult
   -> Array (HH.HTML a Action)
-renderResult markdownIt (SearchResult result) =
+renderSearchResult markdownIt (SearchResult result) =
   -- class names here and below are from Pursuit.
   [ HH.div [ HP.class_ (wrap "result") ]
     [ HH.h3 [ HP.class_ (wrap "result__title") ]
@@ -273,30 +310,6 @@ renderResult markdownIt (SearchResult result) =
       ]
     ]
   ]
-
-renderResult _markdownIt (PackageResult { name, description, repository }) =
-  [ HH.div [ HP.class_ (wrap "result") ]
-    [ HH.h3 [ HP.class_ (wrap "result__title") ]
-      [ HH.span [ HP.classes [ wrap "result__badge"
-                             , wrap "badge"
-                             , wrap "badge--package" ]
-                , HP.title "Package"
-                ]
-        [ HH.text "P" ]
-
-      , HH.a [ HP.class_ (wrap "result__link")
-             , HP.href $ homePageFromRepository repository
-             ]
-        [ HH.text name ]
-      ]
-    ]
-  ] <> (
-    description >#>
-    \descriptionText ->
-    [ HH.div [ HP.class_ (wrap "result__body") ]
-      [ HH.text descriptionText ]
-    ]
-  )
 
 
 renderResultType
@@ -476,7 +489,7 @@ renderType
   -> HH.HTML a Action
 renderType = case _ of
   TypeVar str -> HH.text str
-  TypeLevelString str -> HH.text $ "(Text \"" <> str <> "\")" -- TODO: add escaping
+  TypeLevelString str -> HH.text $ "\"" <> str <> "\"" -- TODO: add escaping
   TypeWildcard -> HH.text "_"
   TypeConstructor qname -> renderQualifiedName false TypeLevel qname
   TypeOp qname -> renderQualifiedName true TypeLevel qname
@@ -569,7 +582,17 @@ renderRow asRow =
 
   if List.null rows
   then
-    [ HH.text $ if asRow then "()" else "{}" ]
+    [ if asRow
+      then HH.text "()"
+      else
+        fromMaybe (HH.text "{}") $
+        ty <#> \ty' ->
+        HH.span_
+        [ renderQualifiedName false TypeLevel primRecord
+        , HH.text " "
+        , renderType ty'
+        ]
+    ]
   else
     [ HH.text opening ] <>
 
@@ -579,9 +602,9 @@ renderRow asRow =
                  , renderType entry.ty ] ]
     ) <>
 
-    case ty of
-      Just ty' -> [ HH.text " | ", renderType ty', HH.text closing ]
-      Nothing  -> [ HH.text closing ]
+    (ty >#> \ty' -> [ HH.text " | ", renderType ty' ]) <>
+
+    [ HH.text closing ]
 
     where
       opening = if asRow then "( " else "{ "
@@ -641,6 +664,10 @@ makeHref level isInfix moduleName name =
   moduleName <> ".html#" <>
   declLevelToHashAnchor level <> ":" <>
   if isInfix then "type (" <> name <> ")" else name
+
+
+primRecord :: QualifiedName
+primRecord = QualifiedName { moduleName: [ "Prim" ], name: "Record" }
 
 
 keyword

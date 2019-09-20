@@ -14,6 +14,7 @@ import Data.Generic.Rep.Show (genericShow)
 import Data.Maybe (Maybe(..))
 import Data.Newtype (class Newtype, unwrap)
 
+
 newtype DocsJson
   = DocsJson { name :: String
              , declarations :: Array Declaration
@@ -31,6 +32,7 @@ instance decodeJsonDocsJson :: DecodeJson DocsJson where
 
 instance encodeJsonDocsJson :: EncodeJson DocsJson where
   encodeJson = encodeJson <<< unwrap
+
 
 newtype Declaration
   = Declaration { title :: String
@@ -81,6 +83,7 @@ instance decodeJsonDeclaration :: DecodeJson Declaration where
 instance encodeJsonDeclaration :: EncodeJson Declaration where
   encodeJson = encodeJson <<< unwrap
 
+
 newtype ChildDeclaration
   = ChildDeclaration { title :: String
                      , comments :: Maybe String
@@ -116,6 +119,7 @@ instance decodeJsonChildDeclaration :: DecodeJson ChildDeclaration where
 
 instance encodeJsonChildDeclaration :: EncodeJson ChildDeclaration where
   encodeJson = encodeJson <<< unwrap
+
 
 -- See `src/Language/Purescript/Docs/Types.hs`
 data DeclType
@@ -158,6 +162,7 @@ instance decodeJsonDeclType :: DecodeJson DeclType where
           "kind"        -> Right DeclExternKind
           _             -> Left $ "Couldn't decode DeclType: " <> string
 
+
 data ChildDeclType
   = ChildDeclInstance
   | ChildDeclDataConstructor
@@ -185,6 +190,7 @@ instance decodeJsonChildDeclType :: DecodeJson ChildDeclType where
           "dataConstructor" -> Right ChildDeclDataConstructor
           "typeClassMember" -> Right ChildDeclTypeClassMember
           _                 -> Left $ "Couldn't decode ChildDeclType: " <> tag
+
 
 data DataDeclType
   = NewtypeDataDecl

@@ -2,8 +2,9 @@ module Docs.Search.Extra where
 
 import Prelude
 
+import Data.Array as Array
 import Data.Foldable (class Foldable, foldMap, foldl)
-import Data.List ((:))
+import Data.List (List, (:))
 import Data.List as List
 import Data.List.NonEmpty (NonEmptyList, cons', uncons)
 import Data.String.CodeUnits as String
@@ -33,9 +34,14 @@ foldr1 f = go List.Nil
         Just { head: head1, tail: tail1 } ->
           go (head : acc) (cons' head1 tail1)
 
-
 -- | Try to guess repository main page on github from git URL.
 homePageFromRepository :: String -> String
 homePageFromRepository repo =
   fromMaybe repo $ String.stripSuffix (wrap ".git") $
   fromMaybe repo $ String.stripPrefix (wrap "git:") repo <#> ("https:" <> _)
+
+stringToList :: String -> List Char
+stringToList = List.fromFoldable <<< String.toCharArray
+
+listToString :: List Char -> String
+listToString = String.fromCharArray <<< Array.fromFoldable
