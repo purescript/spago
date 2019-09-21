@@ -12,7 +12,8 @@ import qualified Turtle              as CLI
 
 import           Spago.Build         (BuildOptions (..), DepsOnly (..), ExtraArg (..),
                                       ModuleName (..), NoBuild (..), NoInstall (..), NoSearch (..),
-                                      SourcePath (..), TargetPath (..), Watch (..), WithMain (..))
+                                      SourcePath (..), TargetPath (..), Watch (..), WithMain (..),
+                                      OpenDocs (..))
 import qualified Spago.Build
 import qualified Spago.Config        as Config
 import           Spago.DryRun        (DryRun (..))
@@ -47,7 +48,7 @@ data Command
   | Repl (Maybe CacheFlag) [PackageName] [SourcePath] [ExtraArg] DepsOnly
 
   -- | Generate documentation for the project and its dependencies
-  | Docs (Maybe Purs.DocsFormat) [SourcePath] DepsOnly NoSearch
+  | Docs (Maybe Purs.DocsFormat) [SourcePath] DepsOnly NoSearch OpenDocs
 
   -- | Build the project paths src/ and test/ plus the specified source paths
   | Build BuildOptions
@@ -159,6 +160,7 @@ parser = do
     jsonFlag    = bool JsonOutputNo JsonOutputYes <$> CLI.switch "json" 'j' "Produce JSON output"
     dryRun      = bool DryRun NoDryRun <$> CLI.switch "no-dry-run" 'f' "Actually perform side-effects (the default is to describe what would be done)"
     usePsa      = bool UsePsa NoPsa <$> CLI.switch "no-psa" 'P' "Don't build with `psa`, but use `purs`"
+    openDocs    = bool NoOpenDocs DoOpenDocs <$> CLI.switch "open" 'o' "Open generated documentation in browswer (for HTML format only)"
     configPath  = CLI.optional $ CLI.optText "config" 'x' "Optional config path to be used instead of the default spago.dhall"
 
     mainModule  = CLI.optional $ CLI.opt (Just . ModuleName) "main" 'm' "Module to be used as the application's entry point"
@@ -235,7 +237,7 @@ parser = do
     docs =
       ( "docs"
       , "Generate docs for the project and its dependencies"
-      , Docs <$> docsFormat <*> sourcePaths <*> depsOnly <*> noSearch
+      , Docs <$> docsFormat <*> sourcePaths <*> depsOnly <*> noSearch <*> openDocs
       )
 
     search =
@@ -396,8 +398,8 @@ main = do
         -> Spago.Build.bundleApp WithMain modName tPath shouldBuild buildOptions
       BundleModule modName tPath shouldBuild buildOptions
         -> Spago.Build.bundleModule modName tPath shouldBuild buildOptions
-      Docs format sourcePaths depsOnly noSearch
-        -> Spago.Build.docs format sourcePaths depsOnly noSearch
+      Docs format sourcePaths depsOnly noSearch openDocs
+        -> Spago.Build.docs format sourcePaths depsOnly noSearch openDocs
       Search                                -> Spago.Build.search
       Version                               -> printVersion
       PscPackageLocalSetup force            -> PscPackage.localSetup force

@@ -13,6 +13,7 @@ module Spago.Build
   , BuildOptions (..)
   , Packages.DepsOnly (..)
   , NoSearch (..)
+  , OpenDocs (..)
   , Purs.ExtraArg (..)
   , Purs.ModuleName (..)
   , Purs.SourcePath (..)
@@ -28,6 +29,7 @@ import qualified System.FilePath.Glob as Glob
 import qualified System.IO.Temp       as Temp
 import           System.Directory (getCurrentDirectory)
 import qualified Turtle               as Turtle
+import qualified Web.Browser          as Browser
 
 import qualified Spago.Config         as Config
 import qualified Spago.FetchPackage   as Fetch
@@ -209,6 +211,10 @@ bundleModule maybeModuleName maybeTargetPath noBuild buildOpts = do
 data NoSearch = NoSearch | AddSearch
   deriving (Eq)
 
+-- | Flag to open generated HTML documentation in browser
+data OpenDocs = NoOpenDocs | DoOpenDocs
+  deriving (Eq)
+
 -- | Generate docs for the `sourcePaths` and run `purescript-docs-search build-index` to patch them.
 docs
   :: Spago m
@@ -216,28 +222,33 @@ docs
   -> [Purs.SourcePath]
   -> Packages.DepsOnly
   -> NoSearch
+  -> OpenDocs
   -> m ()
-docs format sourcePaths depsOnly noSearch = do
+docs format sourcePaths depsOnly noSearch open = do
   echoDebug "Running `spago docs`"
   config@Config.Config{..} <- Config.ensureConfig
   deps <- Packages.getProjectDeps config
-  echo "Generating documentation for the project. This might take a while.."
+  echo "Generating documentation for the project. This might take a while..."
   Purs.docs docsFormat $ Packages.getGlobs deps depsOnly configSourcePaths <> sourcePaths
 
   when isHTMLFormat $ do
     link <- linkToIndexHtml
-    let text = "Link: " <> link
-    echo text
+    let linkText = "Link: " <> link
+    echo linkText
 
-  when (isHTMLFormat && noSearch == AddSearch) $ do
-    echo "Making the documentation searchable..."
-    writeTextFile ".spago/purescript-docs-search" Templates.docsSearch
-    writeTextFile ".spago/docs-search-app.js"     Templates.docsSearchApp
-    let cmd = "node .spago/purescript-docs-search build-index"
-    echoDebug $ "Running `" <> cmd <> "`"
-    shell cmd empty >>= \case
-      ExitSuccess   -> pure ()
-      ExitFailure n -> echo $ "Failed while trying to make the documentation searchable: " <> repr n
+    when (open == DoOpenDocs) $ do
+      echo "Opening in browser..."
+      () <$ openLink link
+
+    when (noSearch == AddSearch) $ do
+      echo "Making the documentation searchable..."
+      writeTextFile ".spago/purescript-docs-search" Templates.docsSearch
+      writeTextFile ".spago/docs-search-app.js"     Templates.docsSearchApp
+      let cmd = "node .spago/purescript-docs-search build-index"
+      echoDebug $ "Running `" <> cmd <> "`"
+      shell cmd empty >>= \case
+        ExitSuccess   -> pure ()
+        ExitFailure n -> echo $ "Failed while trying to make the documentation searchable: " <> repr n
 
   where
     docsFormat = fromMaybe Purs.Html format
@@ -246,6 +257,8 @@ docs format sourcePaths depsOnly noSearch = do
     linkToIndexHtml = do
       currentDir <- liftIO $ Text.pack <$> getCurrentDirectory
       return ("file://" <> currentDir <> "/generated-docs/html/index.html")
+    
+    openLink link = liftIO $ Browser.openBrowser (Text.unpack link)
 
 -- | Start a search REPL.
 search :: Spago m => m ()
