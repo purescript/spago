@@ -67,6 +67,7 @@ library:
   - lens-family-core
   - mtl
   - network-uri
+  - open-browser
   - prettyprinter
   - process
   - retry

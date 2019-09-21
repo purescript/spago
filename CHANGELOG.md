@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+New features:
+- Display a link to the generated docs' `index.html` (#379)
+- Add `--open` flag to `spago docs` which opens generated docs in browser (#379)
+
 ## [0.10.0] - 2019-09-21
 
 Breaking changes (!!!):
@@ -41,7 +45,6 @@ Other Improvements:
 - Docs: keep README up to date with new features (#398, #347)
 - Deps: upgrade to lts-14 and GHC-8.6 (#395)
 - Deps: upgrade to dhall-1.26.0, v10 of the standard (#411, #358)
-
 
 ## [0.9.0] - 2019-07-30
 
