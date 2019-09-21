@@ -5,6 +5,7 @@ module Spago.Packages
   , verify
   , listPackages
   , getGlobs
+  , getJsGlobs
   , getDirectDeps
   , getProjectDeps
   , PackageSet.upgradePackageSet
@@ -95,6 +96,17 @@ getGlobs deps depsOnly configSourcePaths
   <> case depsOnly of
     DepsOnly   -> []
     AllSources -> configSourcePaths
+
+
+getJsGlobs :: [(PackageName, Package)] -> DepsOnly -> [Purs.SourcePath] -> [Purs.SourcePath]
+getJsGlobs deps depsOnly configSourcePaths
+  = map (\pair
+          -> Purs.SourcePath $ Text.pack $ Fetch.getLocalCacheDir pair
+          <> "/src/**/*.js") deps
+  <> case depsOnly of
+    DepsOnly   -> []
+    AllSources -> Purs.SourcePath . Text.replace ".purs" ".js" . Purs.unSourcePath
+      <$> configSourcePaths
 
 
 -- | Return the direct dependencies of the current project
