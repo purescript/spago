@@ -73,7 +73,7 @@ Let's take a look at the two [Dhall][dhall] configuration files that `spago` req
   In practice it pulls in the [official package-set][package-sets] as a base,
   and you are then able to add any package that might not be in the package set,
   or override existing ones.
-- `spago.dhall`: this is your project configuration. It includes the above package-set,
+- `spago.dhall`: this is your project configuration. It includes the above package set,
   the list of your dependencies, the source paths that will be used to build, and any
   other project-wide setting that `spago` will use.
 
@@ -133,6 +133,7 @@ $ node .
   - [Verify that an addition/override doesn't break the package set](#verify-that-an-additionoverride-doesnt-break-the-package-set)
   - [Automagically upgrade the package set](#automagically-upgrade-the-package-set)
   - [Monorepo](#monorepo)
+  - [`devDependencies`, `testDependencies`, or in general a situation with many configurations](#devdependencies-testdependencies-or-in-general-a-situation-with-many-configurations)
   - [Bundle a project into a single JS file](#bundle-a-project-into-a-single-js-file)
     - [1. `spago bundle-app`](#1-spago-bundle-app)
     - [2. `spago bundle-module`](#2-spago-bundle-module)
@@ -344,7 +345,7 @@ them after `--`.
 E.g. the following opens a repl on `localhost:3200`:
 
 ```bash
-$ spago repl -- --port 3200
+$ spago repl --purs-args '--port 3200'
 ```
 
 
@@ -468,7 +469,7 @@ let additions =
       , repo =
           "https://github.com/Unisay/purescript-facebook.git"
       , version =
-          "v0.3.0"
+          "v0.3.0"  -- branch, tag, or commit hash
       }
   }
 ```
@@ -636,9 +637,26 @@ in upstream // overrides
 }
 ```
 
-Note that you can also handle as a "monorepo" a simpler situation where you want to "split"
-dependencies, so e.g. if you want to not include your test dependencies in your app's
-dependencies, you can have a "test" project depend on the "app" project.
+### `devDependencies`, `testDependencies`, or in general a situation with many configurations
+
+You might have a simpler situation than a monorepo, where e.g. you just want to "split" dependencies.
+
+A common case is when you don't want to include your test dependencies in your app's dependencies.
+
+E.g. if you want to add `purescript-spec` to your test dependencies you can have a `test.dhall` that looks like this:
+```dhall
+let conf = ./spago.dhall
+
+in conf // {
+  sources = [ "test/**/*.purs" ],
+  dependencies = conf.dependencies # [ "spec" ]
+}
+```
+
+And then you can run tests like this:
+```bash
+$ spago -x test.dhall test
+```
 
 ### Bundle a project into a single JS file
 
