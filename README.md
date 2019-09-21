@@ -534,7 +534,7 @@ specific commit. Just set your `upstream` to look something like this:
 
 ```haskell
 let upstream =
-      https://github.com/purescript/package-sets/blob/81354f2ea1ac9493eb05dfbd43adc6d183bc4ecd/src/packages.dhall
+      https://raw.githubusercontent.com/purescript/package-sets/bd72269fec59950404a380a46e293bde34b4618f/src/packages.dhall
 ```
 
 

@@ -12,6 +12,7 @@ module Spago.Build
   , NoInstall (..)
   , BuildOptions (..)
   , Packages.DepsOnly (..)
+  , NoSearch (..)
   , Purs.ExtraArg (..)
   , Purs.ModuleName (..)
   , Purs.SourcePath (..)
@@ -84,9 +85,14 @@ build BuildOptions{..} maybePostBuild = do
           Just action -> action
           Nothing     -> pure ()
   absoluteGlobs <- traverse makeAbsolute $ Text.unpack . Purs.unSourcePath <$> allGlobs
+  absoluteJSGlobs <- traverse makeAbsolute $ Text.unpack . Purs.unSourcePath
+    <$> (Packages.getJsGlobs deps depsOnly configSourcePaths <> sourcePaths)
+
   case shouldWatch of
     BuildOnce -> buildAction
-    Watch     -> Watch.watch (Set.fromAscList $ fmap Glob.compile absoluteGlobs) shouldClear buildAction
+    Watch     -> Watch.watch
+      (Set.fromAscList $ fmap Glob.compile $ absoluteGlobs <> absoluteJSGlobs)
+      shouldClear buildAction
 
 -- | Start a repl
 repl
@@ -203,16 +209,26 @@ bundleModule maybeModuleName maybeTargetPath noBuild buildOpts = do
     DoBuild -> build buildOpts (Just bundleAction)
     NoBuild -> bundleAction
 
+-- | A flag to skip patching the docs using @purescript-docs-search@.
+data NoSearch = NoSearch | AddSearch
+  deriving (Eq)
+
 -- | Generate docs for the `sourcePaths` and run `purescript-docs-search build-index` to patch them.
-docs :: Spago m => Maybe Purs.DocsFormat -> [Purs.SourcePath] -> Packages.DepsOnly -> m ()
-docs format sourcePaths depsOnly = do
+docs
+  :: Spago m
+  => Maybe Purs.DocsFormat
+  -> [Purs.SourcePath]
+  -> Packages.DepsOnly
+  -> NoSearch
+  -> m ()
+docs format sourcePaths depsOnly noSearch = do
   echoDebug "Running `spago docs`"
   config@Config.Config{..} <- Config.ensureConfig
   deps <- Packages.getProjectDeps config
   echo "Generating documentation for the project. This might take a while.."
   Purs.docs format $ Packages.getGlobs deps depsOnly configSourcePaths <> sourcePaths
 
-  when (isHTMLFormat format) $ do
+  when (isHTMLFormat format && noSearch == AddSearch) $ do
     echo "Making the documentation searchable..."
     writeTextFile ".spago/purescript-docs-search" Templates.docsSearch
     writeTextFile ".spago/docs-search-app.js"     Templates.docsSearchApp

@@ -42,49 +42,49 @@ default-extensions:
 library:
   source-dirs: src
   dependencies:
-  - base >= 4.7 && < 5
-  - text < 1.3
-  - Cabal
-  - turtle
-  - either
-  - filepath
-  - file-embed
-  - template-haskell
   - aeson
   - aeson-pretty
-  - containers
+  - ansi-terminal
+  - async-pool
+  - base >= 4.7 && < 5
   - bower-json
+  - bytestring
+  - Cabal
+  - containers
   - dhall
   - dhall-json
-  - bytestring
-  - prettyprinter
-  - async-pool
-  - process
-  - network-uri
-  - versions
-  - lens-family-core
-  - safe
-  - fsnotify
-  - Glob
-  - stm
   - directory >= 1.3.4.0
-  - mtl
+  - either
   - exceptions
-  - unliftio
-  - vector
-  - temporary
-  - zlib
-  - tar
+  - file-embed
+  - filepath
   - foldl
+  - fsnotify
+  - github
+  - Glob
   - http-client
   - http-conduit
-  - time
-  - either
-  - semver-range
-  - ansi-terminal
-  - unordered-containers
+  - lens-family-core
+  - mtl
+  - network-uri
+  - prettyprinter
+  - process
   - retry
-  - github
+  - safe
+  - semver-range
+  - stm
+  - tar
+  - template-haskell
+  - temporary
+  - text < 1.3
+  - time
+  - transformers
+  - turtle
+  - unliftio
+  - unordered-containers
+  - vector
+  - versions
+  - zlib
 
 executables:
   spago:
@@ -97,11 +97,11 @@ executables:
     - -rtsopts
     - -with-rtsopts=-N
     dependencies:
-    - spago
     - base >= 4.7 && < 5
+    - optparse-applicative
+    - spago
     - text < 1.3
     - turtle
-    - optparse-applicative
 
   spago-curator:
     main:                Curator.hs
@@ -113,24 +113,24 @@ executables:
     - -rtsopts
     - -with-rtsopts=-N
     dependencies:
-    - spago
-    - base >= 4.7 && < 5
-    - text < 1.3
-    - turtle
-    - filepath
     - aeson-pretty
+    - async-pool
+    - base >= 4.7 && < 5
+    - bytestring
     - containers
     - dhall
-    - bytestring
-    - async-pool
-    - process
+    - filepath
     - github
     - lens-family-core
-    - stm
-    - vector
-    - temporary
+    - process
     - retry
+    - spago
+    - stm
+    - temporary
+    - text < 1.3
     - time
+    - turtle
+    - vector
 
 tests:
   spec:
@@ -141,12 +141,12 @@ tests:
     - -with-rtsopts=-N
     dependencies:
     - base >= 4.7 && < 5
-    - text < 1.3
-    - turtle
-    - process
-    - directory
-    - temporary
-    - extra
     - containers
+    - directory
+    - extra
+    - process
     - QuickCheck
     - spago
+    - temporary
+    - text < 1.3
+    - turtle

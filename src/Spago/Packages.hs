@@ -5,10 +5,12 @@ module Spago.Packages
   , verify
   , listPackages
   , getGlobs
+  , getJsGlobs
   , getDirectDeps
   , getProjectDeps
   , PackageSet.upgradePackageSet
   , PackageSet.freeze
+  , PackageSet.packagesPath
   , PackagesFilter(..)
   , JsonFlag(..)
   , DepsOnly(..)
@@ -16,24 +18,25 @@ module Spago.Packages
 
 import           Spago.Prelude
 
-import           Data.Aeson              as Aeson
-import qualified Data.List               as List
-import qualified Data.Map                as Map
-import qualified Data.Set                as Set
-import qualified Data.Text               as Text
-import qualified Data.Text.Lazy          as LT
-import qualified Data.Text.Lazy.Encoding as LT
+import qualified Control.Monad.State.Lazy as State
+import           Data.Aeson               as Aeson
+import qualified Data.List                as List
+import qualified Data.Map                 as Map
+import qualified Data.Set                 as Set
+import qualified Data.Text                as Text
+import qualified Data.Text.Lazy           as LT
+import qualified Data.Text.Lazy.Encoding  as LT
 
-import           Spago.Config            (Config (..))
-import qualified Spago.Config            as Config
-import qualified Spago.FetchPackage      as Fetch
-import           Spago.GlobalCache       (CacheFlag (..))
-import qualified Spago.Messages          as Messages
-import qualified Spago.PackageSet        as PackageSet
-import qualified Spago.Purs              as Purs
-import qualified Spago.Templates         as Templates
+import           Spago.Config             (Config (..))
+import qualified Spago.Config             as Config
+import qualified Spago.FetchPackage       as Fetch
+import           Spago.GlobalCache        (CacheFlag (..))
+import qualified Spago.Messages           as Messages
+import qualified Spago.PackageSet         as PackageSet
+import qualified Spago.Purs               as Purs
+import qualified Spago.Templates          as Templates
 
-import           Spago.Types             as PackageSet
+import           Spago.Types              as PackageSet
 
 
 -- | Init a new Spago project:
@@ -95,6 +98,17 @@ getGlobs deps depsOnly configSourcePaths
     AllSources -> configSourcePaths
 
 
+getJsGlobs :: [(PackageName, Package)] -> DepsOnly -> [Purs.SourcePath] -> [Purs.SourcePath]
+getJsGlobs deps depsOnly configSourcePaths
+  = map (\pair
+          -> Purs.SourcePath $ Text.pack $ Fetch.getLocalCacheDir pair
+          <> "/src/**/*.js") deps
+  <> case depsOnly of
+    DepsOnly   -> []
+    AllSources -> Purs.SourcePath . Text.replace ".purs" ".js" . Purs.unSourcePath
+      <$> configSourcePaths
+
+
 -- | Return the direct dependencies of the current project
 getDirectDeps :: Spago m => Config -> m [(PackageName, Package)]
 getDirectDeps Config{..} = do
@@ -113,12 +127,10 @@ getProjectDeps Config{..} = getTransitiveDeps packageSet dependencies
 
 
 -- | Return the transitive dependencies of a list of packages
---   Code basically from here:
---   https://github.com/purescript/psc-package/blob/648da70ae9b7ed48216ed03f930c1a6e8e902c0e/app/Main.hs#L227
 getTransitiveDeps :: Spago m => PackageSet -> [PackageName] -> m [(PackageName, Package)]
 getTransitiveDeps PackageSet{..} deps = do
   echoDebug "Getting transitive deps"
-  let (packageMap, notFoundErrors, cycleErrors) = foldMap (go Set.empty Set.empty Set.empty) deps
+  let (packageMap, notFoundErrors, cycleErrors) = State.evalState (fold <$> traverse (go mempty) deps) mempty
 
   handleErrors (Map.toList packageMap) (Set.toList notFoundErrors) (Set.toList cycleErrors)
   where
@@ -129,15 +141,22 @@ getTransitiveDeps PackageSet{..} deps = do
 
     pkgCycleMsg (CycleError pkg) = "  - " <> packageName pkg
 
-    go seen notFoundErrors cycleErrors dep
+    go seen dep
       | dep `Set.member` seen =
-          (packagesDB, notFoundErrors, Set.insert (CycleError dep) cycleErrors)
-      | otherwise = case Map.lookup dep packagesDB of
-          Nothing ->
-            (packagesDB , Set.insert (NotFoundError dep) notFoundErrors, cycleErrors)
-          Just packageInfo@Package{..} -> do
-            let (m, notFoundErrors', cycleErrors') = foldMap (go (Set.insert dep seen) notFoundErrors cycleErrors) dependencies
-            (Map.insert dep packageInfo m, notFoundErrors', cycleErrors')
+          pure (mempty, mempty, Set.singleton $ CycleError dep)
+      | otherwise = do
+          cache <- State.get
+          case Map.lookup dep cache of
+            Just allDeps ->
+              pure (allDeps, mempty, mempty)
+            Nothing | Just packageInfo@Package{..} <- Map.lookup dep packagesDB -> do
+              (childDeps, notFoundErrors, cycleErrors) <- fold <$> traverse (go (Set.insert dep seen)) dependencies
+              let allDeps = Map.insert dep packageInfo childDeps
+              when (null notFoundErrors && null cycleErrors) $ do
+                State.modify $ Map.insert dep allDeps
+              pure (allDeps, notFoundErrors, cycleErrors)
+            Nothing ->
+              pure (mempty, Set.singleton $ NotFoundError dep, mempty)
 
 
 pkgNotFoundMsg :: Map PackageName Package -> NotFoundError PackageName -> Text

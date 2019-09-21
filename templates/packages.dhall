@@ -64,7 +64,7 @@ Syntax:
 Replace the additions' "{=}" (an empty record) with the following idea:
 -------------------------------
 let additions =
-  { "package-name" =
+  { package-name =
        { dependencies =
            [ "dependency1"
            , "dependency2"
@@ -74,7 +74,7 @@ let additions =
        , version =
            "tag ('v4.0.0') or branch ('master')"
        }
-  , "package-name" =
+  , package-name =
        { dependencies =
            [ "dependency1"
            , "dependency2"
@@ -119,7 +119,7 @@ let additions =
 
 
 let upstream =
-      https://github.com/purescript/package-sets/releases/download/psc-0.13.3-20190831/packages.dhall sha256:852cd4b9e463258baf4e253e8524bcfe019124769472ca50b316fe93217c3a47
+      https://github.com/purescript/package-sets/releases/download/psc-0.13.3-20190920/packages.dhall sha256:53873cf2fc4a343a41f335ee47c1706ecf755ac7c5a336e8eb03ad23165dfd28
 
 let overrides = {=}
 

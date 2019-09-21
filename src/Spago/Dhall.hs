@@ -6,6 +6,7 @@ module Spago.Dhall
 
 import           Spago.Prelude
 
+import qualified Control.Monad.Trans.State.Strict      as State
 import qualified Data.Text                             as Text
 import qualified Data.Text.Prettyprint.Doc             as Pretty
 import qualified Data.Text.Prettyprint.Doc.Render.Text as PrettyText
@@ -17,6 +18,7 @@ import qualified Dhall.Map
 import qualified Dhall.Parser                          as Parser
 import qualified Dhall.Pretty
 import           Dhall.TypeCheck                       (X, typeOf)
+import qualified Lens.Family
 
 type DhallExpr a = Dhall.Expr Parser.Src a
 
@@ -33,17 +35,29 @@ format pathText = liftIO $
     path = Just $ Text.unpack pathText
 
 
--- | Prettyprint a Dhall expression
-pretty :: Pretty.Pretty a => DhallExpr a -> Dhall.Text
-pretty = PrettyText.renderStrict
-  . Pretty.layoutPretty Pretty.defaultLayoutOptions
-  . Pretty.pretty
-
 -- | Prettyprint a Dhall expression adding a comment on top
 prettyWithHeader :: Pretty.Pretty a => Text -> DhallExpr a -> Dhall.Text
 prettyWithHeader header expr = do
   let doc = Pretty.pretty header <> Pretty.pretty expr
   PrettyText.renderStrict $ Pretty.layoutSmart Pretty.defaultLayoutOptions doc
+
+
+-- | Return a list of all imports starting from a particular file
+readImports :: Text -> IO [Dhall.Import]
+readImports pathText = do
+  fileContents <- readTextFile $ pathFromText pathText
+  expr <- throws $ Parser.exprFromText mempty fileContents
+  (_, status) <- load expr
+  let graph = Lens.Family.view Dhall.Import.graph status
+  pure $ childImport <$> graph
+  where
+    load expr
+      = State.runStateT
+          (Dhall.Import.loadWith expr)
+          (Dhall.Import.emptyStatus ".")
+
+    childImport
+      = Dhall.Import.chainedImport . Dhall.Import.child
 
 
 readRawExpr :: Text -> IO (Maybe (Text, DhallExpr Dhall.Import))
