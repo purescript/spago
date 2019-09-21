@@ -88,9 +88,14 @@ build BuildOptions{..} maybePostBuild = do
           Just action -> action
           Nothing     -> pure ()
   absoluteGlobs <- traverse makeAbsolute $ Text.unpack . Purs.unSourcePath <$> allGlobs
+  absoluteJSGlobs <- traverse makeAbsolute $ Text.unpack . Purs.unSourcePath
+    <$> (Packages.getJsGlobs deps depsOnly configSourcePaths <> sourcePaths)
+
   case shouldWatch of
     BuildOnce -> buildAction
-    Watch     -> Watch.watch (Set.fromAscList $ fmap Glob.compile absoluteGlobs) shouldClear buildAction
+    Watch     -> Watch.watch
+      (Set.fromAscList $ fmap Glob.compile $ absoluteGlobs <> absoluteJSGlobs)
+      shouldClear buildAction
 
 -- | Start a repl
 repl

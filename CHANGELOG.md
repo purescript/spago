@@ -6,23 +6,42 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+## [0.10.0] - 2019-09-21
+
 Breaking changes (!!!):
-- **Flags and arguments that you want to give to `purs` are now passed with `--purs-args`**
+- **Flags and arguments that you want to give to `purs` are now passed with `--purs-args` (#353, #366)**
 
   The previous behaviour in which all arguments that could not parse as `spago` arguments
   were passed along to `purs` was sometimes confusing (e.g. when using `--path` and multiple
   arguments).
-- New `--no-search` flag for `spago docs` to skip patching the documentation using `purescript-docs-search`.
+
+New features:
+- Support watching js files (#407, #205)
+- New `--no-search` flag for `spago docs` to skip patching the documentation using `purescript-docs-search` (#400)
+- New `-x` flag for specifying the config path location (#357, #329)
+- New `spago login` command, to save a GitHub token to the cache so it can be used for various operations hitting GitHub (#391, #403)
 
 Bugfixes:
-- Do not compile files twice when using `--watch` and Vim (#346)
-- fix Dhall syntax error in packages.dhall template
-- Use `git clone` instead of `git fetch` when fetching a package (#373)
-- Fixes Windows global cache location; now uses `LocalAppData` as default (#384, #380)
-- Fix failure to copy to global cache on a different filesystem (#385)
-- Fix watch function on Windows (issue with paths) (#387, #380)
 - "Quit" command in watch mode now actually quits (#390, #389)
-- Look up remote imports dynamically when doing frozen check (#349)
+- Do not compile files twice when using `--watch` and Vim (#346, #371)
+- Use `git clone` instead of `git fetch` when fetching a package, so all tags can be installed (#373, #374)
+- Fix Windows global cache location; now uses `LocalAppData` as default (#384, #380)
+- Fix naming clash in short flag for repl dependencies (#352, #350)
+- Fix failure to copy to global cache on a different filesystem (#385, #386)
+- Fix watch function on Windows (issue with paths) (#387, #380, #401)
+- Look up remote imports dynamically when doing frozen check, to always find the right `packages.dhall` (#349, #402)
+
+Other Improvements:
+- Performance: make no-op `spago install` faster (#409, #412)
+- CI: remove reviews limitation on mergify (#354)
+- CI: various fixes (#362, #368, #382, #388, #418)
+- Docs: fix syntax errors in template comment (#369, #413, #408)
+- Docs: fix link for package-set from commit (#405)
+- Docs: keep README up to date with new features (#398, #347)
+- Deps: upgrade to lts-14 and GHC-8.6 (#395)
+- Deps: upgrade to dhall-1.26.0, v10 of the standard (#411, #358)
+
 
 New features:
 - Display a link to the generated docs' `index.html` (#379)

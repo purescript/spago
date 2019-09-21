@@ -19,6 +19,7 @@ module Spago.Prelude
   , Seq (..)
   , IsString
   , Map
+  , Set
   , Generic
   , Alternative
   , Pretty
@@ -105,6 +106,7 @@ import           Data.List.NonEmpty                    (NonEmpty (..))
 import           Data.Map                              (Map)
 import           Data.Maybe                            as X
 import           Data.Sequence                         (Seq (..))
+import           Data.Set                              (Set)
 import           Data.String                           (IsString)
 import           Data.Text.Prettyprint.Doc             (Pretty)
 import qualified Data.Time                             as Time
@@ -260,7 +262,7 @@ assertDirectory directory = do
 
 -- | Release tag for the `purescript-docs-search` app.
 docsSearchVersion :: Text
-docsSearchVersion = "v0.0.4"
+docsSearchVersion = "v0.0.5"
 
 
 githubTokenEnvVar :: IsString t => t
