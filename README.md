@@ -73,7 +73,7 @@ Let's take a look at the two [Dhall][dhall] configuration files that `spago` req
   In practice it pulls in the [official package-set][package-sets] as a base,
   and you are then able to add any package that might not be in the package set,
   or override existing ones.
-- `spago.dhall`: this is your project configuration. It includes the above package-set,
+- `spago.dhall`: this is your project configuration. It includes the above package set,
   the list of your dependencies, the source paths that will be used to build, and any
   other project-wide setting that `spago` will use.
 
@@ -133,12 +133,14 @@ $ node .
   - [Verify that an addition/override doesn't break the package set](#verify-that-an-additionoverride-doesnt-break-the-package-set)
   - [Automagically upgrade the package set](#automagically-upgrade-the-package-set)
   - [Monorepo](#monorepo)
+  - [`devDependencies`, `testDependencies`, or in general a situation with many configurations](#devdependencies-testdependencies-or-in-general-a-situation-with-many-configurations)
   - [Bundle a project into a single JS file](#bundle-a-project-into-a-single-js-file)
     - [1. `spago bundle-app`](#1-spago-bundle-app)
     - [2. `spago bundle-module`](#2-spago-bundle-module)
     - [Skipping the Build Step](#skipping-the-build-step)
   - [Make a project with PureScript + JavaScript](#make-a-project-with-purescript--javascript)
   - [Generate documentation for my project](#generate-documentation-for-my-project)
+  - [Get source maps for my project](#get-source-maps-for-my-project)
   - [Publish my library](#publish-my-library)
   - [Use this together with `psc-package`](#use-this-together-with-psc-package)
   - [Get all the licenses of my dependencies](#get-all-the-licenses-of-my-dependencies)
@@ -344,7 +346,7 @@ them after `--`.
 E.g. the following opens a repl on `localhost:3200`:
 
 ```bash
-$ spago repl -- --port 3200
+$ spago repl --purs-args '--port 3200'
 ```
 
 
@@ -423,10 +425,10 @@ in `spago.dhall` and then do `spago install`, it will not be downloaded.
 
 ### Override a package in the package set with a remote one
 
-Let's now say that we test that our fix works, and we are ready to Pull Request the fix.
+Let's now say that we test that our fix from above works, and we are ready to Pull Request the fix.
 
 So we push our fork and open the PR, but while we wait for the fix to land on the next
-package-set release, we still want to use the fix in our production build.
+`package sets` release, we still want to use the fix in our production build.
 
 In this case, we can just change the override to point to some commit of our fork, like this:
 
@@ -448,7 +450,7 @@ commits to a branch, `spago` won't pick them up unless you delete the `.spago` f
 
 ### Add a package to the package set
 
-If a package is not in the upstream package-set, you can add it in a similar way,
+If a package is not in the upstream package set, you can add it in a similar way,
 by changing the `additions` record in the `packages.dhall` file.
 
 E.g. if we want to add the `facebook` package:
@@ -468,7 +470,7 @@ let additions =
       , repo =
           "https://github.com/Unisay/purescript-facebook.git"
       , version =
-          "v0.3.0"
+          "v0.3.0"  -- branch, tag, or commit hash
       }
   }
 ```
@@ -636,9 +638,26 @@ in upstream // overrides
 }
 ```
 
-Note that you can also handle as a "monorepo" a simpler situation where you want to "split"
-dependencies, so e.g. if you want to not include your test dependencies in your app's
-dependencies, you can have a "test" project depend on the "app" project.
+### `devDependencies`, `testDependencies`, or in general a situation with many configurations
+
+You might have a simpler situation than a monorepo, where e.g. you just want to "split" dependencies.
+
+A common case is when you don't want to include your test dependencies in your app's dependencies.
+
+E.g. if you want to add `purescript-spec` to your test dependencies you can have a `test.dhall` that looks like this:
+```dhall
+let conf = ./spago.dhall
+
+in conf // {
+  sources = [ "test/**/*.purs" ],
+  dependencies = conf.dependencies # [ "spec" ]
+}
+```
+
+And then you can run tests like this:
+```bash
+$ spago -x test.dhall test
+```
 
 ### Bundle a project into a single JS file
 
@@ -726,6 +745,16 @@ you can pass a `format` flag:
 ```bash
 $ spago docs --format ctags
 ```
+
+
+### Get source maps for my project
+
+Quoting from [this tweet](https://twitter.com/jusrin00/status/1092071407356387328):
+
+1. build with `--purs-args '-g sourcemaps'
+2. source output (like `var someModule = require('./output/Whatever/index.js');`) and use
+   something like `parcel`, to avoid mangling/destroying the sourcemaps
+3. now you can see your breakpoints in action
 
 
 ### Publish my library
