@@ -140,6 +140,7 @@ $ node .
     - [Skipping the Build Step](#skipping-the-build-step)
   - [Make a project with PureScript + JavaScript](#make-a-project-with-purescript--javascript)
   - [Generate documentation for my project](#generate-documentation-for-my-project)
+  - [Get source maps for my project](#get-source-maps-for-my-project)
   - [Publish my library](#publish-my-library)
   - [Use this together with `psc-package`](#use-this-together-with-psc-package)
   - [Get all the licenses of my dependencies](#get-all-the-licenses-of-my-dependencies)
@@ -744,6 +745,16 @@ you can pass a `format` flag:
 ```bash
 $ spago docs --format ctags
 ```
+
+
+### Get source maps for my project
+
+Quoting from [this tweet](https://twitter.com/jusrin00/status/1092071407356387328):
+
+1. build with `--purs-args '-g sourcemaps'
+2. source output (like `var someModule = require('./output/Whatever/index.js');`) and use
+   something like `parcel`, to avoid mangling/destroying the sourcemaps
+3. now you can see your breakpoints in action
 
 
 ### Publish my library
