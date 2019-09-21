@@ -25,7 +25,6 @@ import           Spago.Prelude
 import qualified Data.Set             as Set
 import qualified Data.Text            as Text
 import qualified System.FilePath.Glob as Glob
-import qualified System.IO            as System.IO
 import qualified System.IO.Temp       as Temp
 import qualified Turtle               as Turtle
 
@@ -90,22 +89,17 @@ build BuildOptions{..} maybePostBuild = do
     BuildOnce -> buildAction allGlobs
     Watch -> do
       matches <- filterMatchingGlobsAndWarn allGlobs
-      absolutePaths <- makeGlobsAbsolute matches
-      Watch.watch (Set.fromAscList $ fmap Glob.compile absolutePaths) shouldClear (buildAction matches)
+      absoluteGlobs <- traverse makeAbsolute $ Text.unpack . Purs.unSourcePath <$> matches
+      Watch.watch (Set.fromAscList $ fmap Glob.compile absoluteGlobs) shouldClear (buildAction matches)
 
   where
-    makeGlobsAbsolute :: Spago m => [Purs.SourcePath] -> m [System.IO.FilePath]
-    makeGlobsAbsolute patterns
-      = liftIO $ traverse makeAbsolute $
-          Text.unpack . Purs.unSourcePath <$> patterns
-
     filterMatchingGlobsAndWarn :: Spago m => [Purs.SourcePath] -> m [Purs.SourcePath]
     filterMatchingGlobsAndWarn = filterM $ \sourcePath -> do
       let pattern = Purs.unSourcePath sourcePath
       paths <- liftIO $ Glob.glob (Text.unpack pattern)
-      let doesNotMatch = null paths
-      when doesNotMatch $ echo (Messages.globsDoNotMatchWhenWatching pattern)
-      pure $ not doesNotMatch
+      let doesMatch = not (null paths)
+      unless doesMatch $ echo (Messages.globsDoNotMatchWhenWatching pattern)
+      pure doesMatch
 
 
 -- | Start a repl
