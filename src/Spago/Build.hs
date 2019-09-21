@@ -25,6 +25,7 @@ import           Spago.Prelude
 import qualified Data.Set             as Set
 import qualified Data.Text            as Text
 import qualified System.FilePath.Glob as Glob
+import qualified System.IO            as System.IO
 import qualified System.IO.Temp       as Temp
 import qualified Turtle               as Turtle
 
@@ -79,18 +80,23 @@ build BuildOptions{..} maybePostBuild = do
   case noInstall of
     DoInstall -> Fetch.fetchPackages cacheConfig deps packagesMinPursVersion
     NoInstall -> pure ()
-  let allGlobs = Packages.getGlobs deps depsOnly configSourcePaths <> sourcePaths
+
+  let allPSGlobs = Packages.getGlobs   deps depsOnly configSourcePaths <> sourcePaths
+      allJSGlobs = Packages.getJsGlobs deps depsOnly configSourcePaths <> sourcePaths
       buildAction globs = do
         Purs.compile globs pursArgs
         case maybePostBuild of
           Just action -> action
           Nothing     -> pure ()
+
+  absoluteJSGlobs <- makeGlobsAbsolute allJSGlobs
+
   case shouldWatch of
-    BuildOnce -> buildAction allGlobs
+    BuildOnce -> buildAction allPSGlobs
     Watch -> do
-      matches <- filterMatchingGlobsAndWarn allGlobs
-      absoluteGlobs <- traverse makeAbsolute $ Text.unpack . Purs.unSourcePath <$> matches
-      Watch.watch (Set.fromAscList $ fmap Glob.compile absoluteGlobs) shouldClear (buildAction matches)
+      matches <- filterMatchingGlobsAndWarn allPSGlobs
+      absolutePSGlobs <- makeGlobsAbsolute matches
+      Watch.watch (Set.fromAscList $ fmap Glob.compile $ absolutePSGlobs <> absoluteJSGlobs) shouldClear (buildAction matches)
 
   where
     filterMatchingGlobsAndWarn :: Spago m => [Purs.SourcePath] -> m [Purs.SourcePath]
@@ -101,6 +107,9 @@ build BuildOptions{..} maybePostBuild = do
       unless doesMatch $ echo (Messages.globsDoNotMatchWhenWatching pattern)
       pure doesMatch
 
+    makeGlobsAbsolute :: Spago m => [Purs.SourcePath] -> m [System.IO.FilePath]
+    makeGlobsAbsolute globs
+      = traverse makeAbsolute $ Text.unpack . Purs.unSourcePath <$> globs
 
 -- | Start a repl
 repl
