@@ -237,14 +237,6 @@ docs format sourcePaths depsOnly noSearch open = do
   Purs.docs docsFormat $ Packages.getGlobs deps depsOnly configSourcePaths <> sourcePaths
 
   when isHTMLFormat $ do
-    link <- linkToIndexHtml
-    let linkText = "Link: " <> link
-    echo linkText
-
-    when (open == DoOpenDocs) $ do
-      echo "Opening in browser..."
-      () <$ openLink link
-
     when (noSearch == AddSearch) $ do
       echo "Making the documentation searchable..."
       writeTextFile ".spago/purescript-docs-search" Templates.docsSearch
@@ -254,6 +246,14 @@ docs format sourcePaths depsOnly noSearch open = do
       shell cmd empty >>= \case
         ExitSuccess   -> pure ()
         ExitFailure n -> echo $ "Failed while trying to make the documentation searchable: " <> repr n
+        
+    link <- linkToIndexHtml
+    let linkText = "Link: " <> link
+    echo linkText
+
+    when (open == DoOpenDocs) $ do
+      echo "Opening in browser..."
+      () <$ openLink link
 
   where
     docsFormat = fromMaybe Purs.Html format
