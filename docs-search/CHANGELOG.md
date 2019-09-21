@@ -12,6 +12,7 @@ New features:
 - Show help for each CLI command (#17)
 - Add packages to the search index (#16)
 - Sort search results by popularity (based on number of package reverse dependencies).
+- Add `--no-patch` flag to `build-index` command.
 
 Bugfixes:
 - Fix decoding of kind annotations in `forall`s (#17)

@@ -43,10 +43,12 @@ import Node.Process as Process
 import Web.Bower.PackageMeta (PackageMeta(..))
 
 
-type Config = { docsFiles :: Array String
-              , bowerFiles :: Array String
-              , generatedDocs :: String
-              }
+type Config =
+  { docsFiles :: Array String
+  , bowerFiles :: Array String
+  , generatedDocs :: String
+  , noPatch :: Boolean
+  }
 
 
 run :: Config -> Effect Unit
@@ -83,7 +85,9 @@ run' cfg = do
     ignore <$> parallel (writeIndex cfg index)
            <*> parallel (writeTypeIndex cfg typeIndex)
            <*> parallel (writePackageInfo packageInfo)
-           <*> parallel (patchDocs cfg)
+           <*> parallel (if cfg.noPatch
+                         then pure unit
+                         else patchDocs cfg)
            <*> parallel (copyAppFile cfg)
 
   let countOfDefinitions = Trie.size $ unwrap index

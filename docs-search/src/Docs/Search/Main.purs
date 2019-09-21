@@ -14,7 +14,7 @@ import Data.Maybe (Maybe, fromMaybe, optional)
 import Data.Unfoldable (class Unfoldable)
 import Effect (Effect)
 import Effect.Console (log)
-import Options.Applicative (Parser, command, execParser, fullDesc, helper, info, long, metavar, progDesc, strOption, subparser, value, (<**>))
+import Options.Applicative (Parser, command, execParser, flag, fullDesc, help, helper, info, long, metavar, progDesc, strOption, subparser, value, (<**>))
 import Options.Applicative as CA
 
 
@@ -45,6 +45,7 @@ data Commands
     { docsFiles :: Array String
     , bowerFiles :: Array String
     , generatedDocs :: String
+    , noPatch :: Boolean
     }
   | Search
     { docsFiles :: Array String
@@ -92,7 +93,12 @@ buildIndex = ado
    <> value "./generated-docs/"
     )
 
-  in BuildIndex { docsFiles, bowerFiles, generatedDocs }
+  noPatch <- flag false true
+    ( long "no-patch"
+   <> help "Do not patch the HTML docs, only build indices"
+    )
+
+  in BuildIndex { docsFiles, bowerFiles, generatedDocs, noPatch }
 
 
 startInteractive :: Parser Commands
