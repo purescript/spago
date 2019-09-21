@@ -38,6 +38,7 @@ Other Improvements:
 - CI: various fixes (#362, #368, #382, #388, #418)
 - Docs: fix syntax errors in template comment (#369, #413, #408)
 - Docs: fix link for package-set from commit (#405)
+- Docs: keep README up to date with new features (#398, #347)
 - Deps: upgrade to lts-14 and GHC-8.6 (#395)
 - Deps: upgrade to dhall-1.26.0, v10 of the standard (#411, #358)
 

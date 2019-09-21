@@ -425,10 +425,10 @@ in `spago.dhall` and then do `spago install`, it will not be downloaded.
 
 ### Override a package in the package set with a remote one
 
-Let's now say that we test that our fix works, and we are ready to Pull Request the fix.
+Let's now say that we test that our fix from above works, and we are ready to Pull Request the fix.
 
 So we push our fork and open the PR, but while we wait for the fix to land on the next
-package-set release, we still want to use the fix in our production build.
+`package sets` release, we still want to use the fix in our production build.
 
 In this case, we can just change the override to point to some commit of our fork, like this:
 
@@ -450,7 +450,7 @@ commits to a branch, `spago` won't pick them up unless you delete the `.spago` f
 
 ### Add a package to the package set
 
-If a package is not in the upstream package-set, you can add it in a similar way,
+If a package is not in the upstream package set, you can add it in a similar way,
 by changing the `additions` record in the `packages.dhall` file.
 
 E.g. if we want to add the `facebook` package:
