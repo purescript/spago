@@ -6,6 +6,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
 Breaking changes (!!!):
 - **Flags and arguments that you want to give to `purs` are now passed with `--purs-args`**
 
@@ -26,6 +27,10 @@ Bugfixes:
 
 New features:
 - Support watching js files (#407, #205)
+
+Other Improvements:
+- Make no-op `spago install` faster (#409)
+
 
 ## [0.9.0] - 2019-07-30
 
