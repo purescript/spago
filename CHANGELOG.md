@@ -24,6 +24,10 @@ Bugfixes:
 - "Quit" command in watch mode now actually quits (#390, #389)
 - Look up remote imports dynamically when doing frozen check (#349)
 
+New features:
+- Display a link to the generated docs' `index.html` (#379)
+- Add `--open` flag to `spago docs` which opens generated docs in browser (#379)
+
 ## [0.9.0] - 2019-07-30
 
 Breaking changes (!!!):
