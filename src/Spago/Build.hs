@@ -81,20 +81,20 @@ build BuildOptions{..} maybePostBuild = do
     DoInstall -> Fetch.fetchPackages cacheConfig deps packagesMinPursVersion
     NoInstall -> pure ()
 
-  let allPSGlobs = Packages.getGlobs   deps depsOnly configSourcePaths <> sourcePaths
-      allJSGlobs = Packages.getJsGlobs deps depsOnly configSourcePaths <> sourcePaths
+  let allPsGlobs = Packages.getGlobs   deps depsOnly configSourcePaths <> sourcePaths
+      allJsGlobs = Packages.getJsGlobs deps depsOnly configSourcePaths <> sourcePaths
       buildAction globs = do
         Purs.compile globs pursArgs
         case maybePostBuild of
           Just action -> action
           Nothing     -> pure ()
 
-  absoluteJSGlobs <- makeGlobsAbsolute allJSGlobs
+  absoluteJSGlobs <- makeGlobsAbsolute allJsGlobs
 
   case shouldWatch of
-    BuildOnce -> buildAction allPSGlobs
+    BuildOnce -> buildAction allPsGlobs
     Watch -> do
-      matches <- filterMatchingGlobsAndWarn allPSGlobs
+      matches <- filterMatchingGlobsAndWarn allPsGlobs
       absolutePSGlobs <- makeGlobsAbsolute matches
       Watch.watch (Set.fromAscList $ fmap Glob.compile $ absolutePSGlobs <> absoluteJSGlobs) shouldClear (buildAction matches)
 
