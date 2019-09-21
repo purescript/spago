@@ -3,9 +3,9 @@ module Docs.Search.NodeEngine where
 
 import Docs.Search.Extra (stringToList)
 import Docs.Search.PackageIndex as PackageIndex
-import Docs.Search.Engine (Engine, Query, Index)
-import Docs.Search.SearchResult (SearchResult, typeOfResult)
-import Docs.Search.TypeQuery (TypeQuery, penalty)
+import Docs.Search.Engine (Engine, Query, Index, sortByDistance)
+import Docs.Search.SearchResult (SearchResult)
+import Docs.Search.TypeQuery (TypeQuery)
 
 import Prelude
 
@@ -41,15 +41,6 @@ queryIndex index input =
 queryTypeIndex
   :: Query Identity (Array SearchResult) TypeQuery SearchResult
 queryTypeIndex index typeQuery =
-  pure { index, results:
-                Array.take 100 $
-                sortByDistance typeQuery index
+  pure { index
+       , results: Array.take 100 $ sortByDistance typeQuery index
        }
-
-
-sortByDistance
-  :: TypeQuery
-  -> Array SearchResult
-  -> Array SearchResult
-sortByDistance typeQuery =
-  Array.sortWith (map (penalty typeQuery) <<< typeOfResult)

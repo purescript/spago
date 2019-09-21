@@ -27,7 +27,7 @@ main = do
   case fromMaybe defaultCommands args of
     BuildIndex cfg -> IndexBuilder.run cfg
     Search cfg -> Interactive.run cfg
-    Version -> log "0.0.4"
+    Version -> log "0.0.5"
 
 
 getArgs :: Effect (Maybe Commands)

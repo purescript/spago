@@ -1,8 +1,8 @@
 module Docs.Search.Engine where
 
 import Docs.Search.PackageIndex (PackageIndex, PackageResult)
-import Docs.Search.SearchResult (SearchResult)
-import Docs.Search.TypeQuery (TypeQuery(..), parseTypeQuery)
+import Docs.Search.SearchResult (SearchResult, typeOfResult)
+import Docs.Search.TypeQuery (TypeQuery(..), parseTypeQuery, penalty)
 
 import Prelude
 
@@ -95,7 +95,7 @@ query engine state input =
 
       response <- engine.queryTypeIndex state.typeIndex typeQuery
 
-      pure { results: response.results <#> TypeResult
+      pure { results: sortByDistance typeQuery (response.results) <#> TypeResult
            , index: state { typeIndex = response.index }
            }
 
@@ -104,3 +104,11 @@ isValuableTypeQuery :: TypeQuery -> Maybe TypeQuery
 isValuableTypeQuery (QVar _) = Nothing
 isValuableTypeQuery (QConst _) = Nothing
 isValuableTypeQuery other = Just other
+
+
+sortByDistance
+  :: TypeQuery
+  -> Array SearchResult
+  -> Array SearchResult
+sortByDistance typeQuery =
+  Array.sortWith (map (penalty typeQuery) <<< typeOfResult)
