@@ -25,12 +25,14 @@ import           Spago.Prelude
 import qualified Data.Set             as Set
 import qualified Data.Text            as Text
 import qualified System.FilePath.Glob as Glob
+import qualified System.IO            as System.IO
 import qualified System.IO.Temp       as Temp
 import qualified Turtle               as Turtle
 
 import qualified Spago.Config         as Config
 import qualified Spago.FetchPackage   as Fetch
 import qualified Spago.GlobalCache    as GlobalCache
+import qualified Spago.Messages       as Messages
 import qualified Spago.Packages       as Packages
 import qualified Spago.Purs           as Purs
 import qualified Spago.Templates      as Templates
@@ -79,25 +81,31 @@ build BuildOptions{..} maybePostBuild = do
     DoInstall -> Fetch.fetchPackages cacheConfig deps packagesMinPursVersion
     NoInstall -> pure ()
   let allGlobs = Packages.getGlobs deps depsOnly configSourcePaths <> sourcePaths
-      buildAction = do
-        Purs.compile allGlobs pursArgs
+      buildAction globs = do
+        Purs.compile globs pursArgs
         case maybePostBuild of
           Just action -> action
           Nothing     -> pure ()
-  absoluteGlobs <- traverse makeAbsolute $ Text.unpack . Purs.unSourcePath <$> allGlobs
   case shouldWatch of
-    BuildOnce -> buildAction
+    BuildOnce -> buildAction allGlobs
     Watch -> do
-      matches <- filterMatchingGlobs absoluteGlobs -- @TODO use allGlobs here
-      Watch.watch (Set.fromAscList $ fmap Glob.compile matches) shouldClear buildAction
+      matches <- filterMatchingGlobsAndWarn allGlobs
+      absolutePaths <- makeGlobsAbsolute matches
+      Watch.watch (Set.fromAscList $ fmap Glob.compile absolutePaths) shouldClear (buildAction matches)
 
   where
-    filterMatchingGlobs :: Spago m => [String] -> m [String]
-    filterMatchingGlobs = filterM $ \pattern -> do
-      paths <- liftIO $ Glob.glob pattern
-      let matches = null paths
-      when matches $ echoStr $ "No match found for pattern: " ++ pattern
-      pure matches
+    makeGlobsAbsolute :: Spago m => [Purs.SourcePath] -> m [System.IO.FilePath]
+    makeGlobsAbsolute patterns
+      = liftIO $ traverse makeAbsolute $
+          Text.unpack . Purs.unSourcePath <$> patterns
+
+    filterMatchingGlobsAndWarn :: Spago m => [Purs.SourcePath] -> m [Purs.SourcePath]
+    filterMatchingGlobsAndWarn = filterM $ \sourcePath -> do
+      let pattern = Purs.unSourcePath sourcePath
+      paths <- liftIO $ Glob.glob (Text.unpack pattern)
+      let doesNotMatch = null paths
+      when doesNotMatch $ echo (Messages.globsDoNotMatchWhenWatching pattern)
+      pure $ not doesNotMatch
 
 
 -- | Start a repl

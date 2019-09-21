@@ -211,5 +211,9 @@ makeModuleCommandRenamed :: Text
 makeModuleCommandRenamed =
   "The `make-module` command has been replaced with `bundle-module`, so use that instead."
 
+globsDoNotMatchWhenWatching :: Text -> Text
+globsDoNotMatchWhenWatching pattern =
+  "WARNING: No matching files found when trying to watch pattern: " <> pattern
+
 makeMessage :: [Text] -> Text
 makeMessage = Text.intercalate "\n"
