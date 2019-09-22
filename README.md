@@ -346,7 +346,10 @@ them after `--`.
 E.g. the following opens a repl on `localhost:3200`:
 
 ```bash
-$ spago repl --purs-args '--port 3200'
+$ spago repl -- --port 3200
+
+# or
+$ spago repl -- -p 3200
 ```
 
 
