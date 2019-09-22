@@ -92,10 +92,12 @@ import qualified Control.Concurrent.Async.Pool         as Async
 import qualified Data.Text                             as Text
 import qualified Data.Text.Prettyprint.Doc             as Pretty
 import qualified Data.Text.Prettyprint.Doc.Render.Text as PrettyText
-import           Dhall                                 (Text)
 import qualified Dhall.Core
 import qualified System.FilePath                       as FilePath
 import qualified System.IO
+
+import qualified Turtle                                as Turtle
+import qualified UnliftIO.Directory                    as Directory
 
 import           Control.Applicative                   (Alternative, empty, many, (<|>))
 import           Control.Monad                         as X
@@ -295,7 +297,7 @@ shouldRefreshFile path = (tryIO $ liftIO $ do
 
 
 -- | Prettyprint a `Pretty` expression
-pretty :: Pretty.Pretty a => a -> Dhall.Text
+pretty :: Pretty.Pretty a => a -> Text
 pretty = PrettyText.renderStrict
   . Pretty.layoutPretty Pretty.defaultLayoutOptions
   . Pretty.pretty
