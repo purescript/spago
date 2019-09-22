@@ -5,6 +5,7 @@ module Spago.PackageSet
   , freeze
   , ensureFrozen
   , packagesPath
+  , findRootOutputPath
   ) where
 
 import           Spago.Prelude
@@ -20,7 +21,7 @@ import           Spago.Messages      as Messages
 import qualified Spago.Purs          as Purs
 import qualified Spago.Templates     as Templates
 import qualified System.IO
-
+import qualified System.FilePath
 
 packagesPath :: IsString t => t
 packagesPath = "packages.dhall"
@@ -219,6 +220,32 @@ localImportPath (Dhall.Import
   })              = Just $ Text.unpack $ pretty localImport
 localImportPath _ = Nothing
 
+-- | In a Monorepo we don't wish to rebuild our shared packages over and over, 
+-- | so we build into an output folder at the highest point
+-- | (where, hopefully, packages.dhall lives)
+findRootOutputPath :: Spago m => System.IO.FilePath -> m (Maybe System.IO.FilePath)
+findRootOutputPath path = do
+  echoDebug "Locating root path of packages.dhall"
+  imports <- liftIO $ Dhall.readImports $ Text.pack path
+  let localImports = catMaybes (map localImportPath imports)
+  pure $ (flip System.FilePath.replaceFileName) "output" <$> (findRootPath localImports)
+
+-- | Given a list of filepaths, find the one with the least folders
+findRootPath :: [System.IO.FilePath] -> Maybe System.IO.FilePath
+findRootPath paths 
+  = foldr comparePaths Nothing paths
+  where
+    isLessThan :: Ord a => a -> Maybe a -> Bool
+    isLessThan a maybeA
+      = isNothing maybeA 
+      || fromMaybe False (fmap (\a' -> a < a') maybeA)
+    
+    comparePaths path current 
+      = if isLessThan 
+          (length (System.FilePath.splitSearchPath path))
+          (length <$> current)
+        then Just path
+        else current
 
 -- | Freeze the package set remote imports so they will be cached
 freeze :: Spago m => System.IO.FilePath -> m ()

@@ -10,6 +10,7 @@ module Spago.Build
   , Watch (..)
   , NoBuild (..)
   , NoInstall (..)
+  , UseSharedOutputFolder (..)
   , BuildOptions (..)
   , Packages.DepsOnly (..)
   , NoSearch (..)
@@ -43,8 +44,8 @@ import qualified Spago.Purs           as Purs
 import qualified Spago.Templates      as Templates
 import qualified Spago.Watch          as Watch
 
-import           Spago.Types          as PackageSet
-
+import qualified Spago.PackageSet     as PackageSet
+import           Spago.Types          as Types
 
 data Watch = Watch | BuildOnce
 
@@ -55,14 +56,18 @@ data NoBuild = NoBuild | DoBuild
 -- | Flag to skip the automatic installation of libraries on build
 data NoInstall = NoInstall | DoInstall
 
+-- | Flag to use shared output folder if possible
+data UseSharedOutputFolder = UseSharedOutputFolder | NoSharedOutput
+
 data BuildOptions = BuildOptions
-  { cacheConfig :: Maybe GlobalCache.CacheFlag
-  , shouldWatch :: Watch
-  , shouldClear :: Watch.ClearScreen
-  , sourcePaths :: [Purs.SourcePath]
-  , noInstall   :: NoInstall
-  , pursArgs    :: [Purs.ExtraArg]
-  , depsOnly    :: Packages.DepsOnly
+  { cacheConfig  :: Maybe GlobalCache.CacheFlag
+  , shouldWatch  :: Watch
+  , shouldClear  :: Watch.ClearScreen
+  , sourcePaths  :: [Purs.SourcePath]
+  , noInstall    :: NoInstall
+  , pursArgs     :: [Purs.ExtraArg]
+  , depsOnly     :: Packages.DepsOnly
+  , sharedOutput :: UseSharedOutputFolder
   }
 
 prepareBundleDefaults
@@ -74,25 +79,25 @@ prepareBundleDefaults maybeModuleName maybeTargetPath = (moduleName, targetPath)
     moduleName = fromMaybe (Purs.ModuleName "Main") maybeModuleName
     targetPath = fromMaybe (Purs.TargetPath "index.js") maybeTargetPath
 
-
--- | Build the project with purs, passing through additional args and
 --   eventually running some other action after the build
 build :: Spago m => BuildOptions -> Maybe (m ()) -> m ()
 build BuildOptions{..} maybePostBuild = do
   echoDebug "Running `spago build`"
-  config@Config.Config{ packageSet = PackageSet.PackageSet{..}, ..} <- Config.ensureConfig
+  config@Config.Config{ packageSet = Types.PackageSet{..}, ..} <- Config.ensureConfig
   deps <- Packages.getProjectDeps config
   case noInstall of
     DoInstall -> Fetch.fetchPackages cacheConfig deps packagesMinPursVersion
     NoInstall -> pure ()
-
+  sharedOutputArgs <- case sharedOutput of
+    UseSharedOutputFolder -> getBuildArgsForSharedFolder
+    NoSharedOutput        -> pure []
   let allPsGlobs = Packages.getGlobs   deps depsOnly configSourcePaths <> sourcePaths
       allJsGlobs = Packages.getJsGlobs deps depsOnly configSourcePaths <> sourcePaths
 
       buildAction globs = do
         case alternateBackend of
           Nothing ->
-              Purs.compile globs pursArgs
+              Purs.compile globs (pursArgs <> sharedOutputArgs)
           Just backend -> do
               when (Purs.ExtraArg "--codegen" `List.elem` pursArgs) $
                 die "Can't pass `--codegen` option to build when using a backend. Hint: No need to pass `--codegen corefn` explicitly when using the `backend` option. Remove the argument to solve the error"
@@ -133,12 +138,11 @@ build BuildOptions{..} maybePostBuild = do
     wrap   = Purs.SourcePath . Text.pack
     unwrap = Text.unpack . Purs.unSourcePath
 
-
 -- | Start a repl
 repl
   :: Spago m
   => Maybe GlobalCache.CacheFlag
-  -> [PackageSet.PackageName]
+  -> [Types.PackageName]
   -> [Purs.SourcePath]
   -> [Purs.ExtraArg]
   -> Packages.DepsOnly
@@ -159,7 +163,7 @@ repl cacheFlag newPackages sourcePaths pursArgs depsOnly = do
 
         Packages.initProject False Dhall.WithComments
 
-        config@Config.Config{ packageSet = PackageSet.PackageSet{..}, ..} <- Config.ensureConfig
+        config@Config.Config{ packageSet = Types.PackageSet{..}, ..} <- Config.ensureConfig
 
         let updatedConfig = Config.Config name (dependencies <> newPackages) (Config.packageSet config) alternateBackend configSourcePaths publishConfig
 
@@ -319,3 +323,19 @@ search = do
   let cmd = "node .spago/purescript-docs-search search"
   echoDebug $ "Running `" <> cmd <> "`"
   viewShell $ callCommand $ Text.unpack cmd
+
+-- | If we are using the --sharedOutput flag, calculate the extra args to
+-- | send to Purs compile
+getBuildArgsForSharedFolder
+  :: Spago m
+  => m [Purs.ExtraArg]
+getBuildArgsForSharedFolder = do
+  configPath <- asks globalConfigPath
+  outputFolder <- PackageSet.findRootOutputPath (Text.unpack configPath)
+  case pathToOutputArg <$> outputFolder of
+    Just newArg -> pure [newArg]
+    _           -> pure []
+
+-- | Take root output path and turn it into Purs argument
+pathToOutputArg :: String -> Purs.ExtraArg
+pathToOutputArg = Purs.ExtraArg . Text.pack . ((++) "-o ")

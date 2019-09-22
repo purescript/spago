@@ -271,6 +271,49 @@ spec = around_ setup $ do
       spago ["install"] >>= shouldBeSuccess
       mv "spago.dhall" "spago-configV2.dhall"
       checkFixture "spago-configV2.dhall"
+    
+    it "Spago should create a local output folder when we are not using --sharedOutput" $ do
+
+      -- Create root-level packages.dhall
+      mkdir "monorepo"
+      cd "monorepo"
+      spago ["init"] >>= shouldBeSuccess
+      rm "spago.dhall"
+
+      -- Create local 'lib-a' package that uses packages.dhall on top level (but also has it's own one to confuse things)
+      mkdir "lib-a"
+      cd "lib-a"
+      spago ["init"] >>= shouldBeSuccess
+      rm "spago.dhall"
+      writeTextFile "spago.dhall" $ "{ name = \"lib-1\", dependencies = [\"console\", \"effect\", \"prelude\"], packages = ./packages.dhall }"
+      rm "packages.dhall"
+      writeTextFile "packages.dhall" $ "../packages.dhall"
+      spago ["build"] >>= shouldBeSuccess
+      testdir "output" >>= (`shouldBe` True)
+
+      cd ".."
+      testdir "output" >>= (`shouldBe` False)
+
+    it "Spago should create an output folder in the root when we are using --sharedOutput" $ do
+
+      -- Create root-level packages.dhall
+      mkdir "monorepo2"
+      cd "monorepo2"
+      spago ["init"] >>= shouldBeSuccess
+      rm "spago.dhall"
+
+      -- Create local 'lib-a' package that uses packages.dhall on top level (but also has it's own one to confuse things)
+      mkdir "lib-a"
+      cd "lib-a"
+      spago ["init"] >>= shouldBeSuccess
+      rm "packages.dhall"
+      writeTextFile "packages.dhall" $ "../packages.dhall"
+      rm "spago.dhall"
+      writeTextFile "spago.dhall" $ "{ name = \"lib-1\", dependencies = [\"console\", \"effect\", \"prelude\"], packages = ./packages.dhall }"
+      spago ["build", "--sharedOutput"] >>= shouldBeSuccess
+
+      cd ".."
+      testdir "output" >>= (`shouldBe` True)
 
     describe "alternate backend" $ do
 

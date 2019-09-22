@@ -637,6 +637,8 @@ in upstream // overrides
 }
 ```
 
+To avoid building the same packages over and over, use `--sharedOutput` in `spago build` to use one `output` folder in the location of your root `packages.dhall` to speed up builds.
+
 ### `devDependencies`, `testDependencies`, or in general a situation with many configurations
 
 You might have a simpler situation than a monorepo, where e.g. you just want to "split" dependencies.
