@@ -4,13 +4,13 @@ module Spago.PackageSet
   , makePackageSetFile
   , freeze
   , ensureFrozen
-  , path
+  , packagesPath
   ) where
 
 import           Spago.Prelude
 
+import qualified Data.Text           as Text
 import qualified Data.Versions       as Version
-import           Dhall.Binary        (defaultStandardVersion)
 import qualified Dhall.Freeze
 import qualified Dhall.Pretty
 
@@ -19,20 +19,21 @@ import qualified Spago.GitHub        as GitHub
 import           Spago.Messages      as Messages
 import qualified Spago.Purs          as Purs
 import qualified Spago.Templates     as Templates
+import qualified System.IO
 
 
-path :: IsString t => t
-path = "packages.dhall"
+packagesPath :: IsString t => t
+packagesPath = "packages.dhall"
 
 
 -- | Tries to create the `packages.dhall` file if needed
 makePackageSetFile :: Spago m => Bool -> m ()
 makePackageSetFile force = do
-  hasPackagesDhall <- testfile path
+  hasPackagesDhall <- testfile packagesPath
   if force || not hasPackagesDhall
-    then writeTextFile path Templates.packagesDhall
-    else echo $ Messages.foundExistingProject path
-  Dhall.format path
+    then writeTextFile packagesPath Templates.packagesDhall
+    else echo $ Messages.foundExistingProject packagesPath
+  Dhall.format packagesPath
 
 
 -- | Tries to upgrade the Package-Sets release of the local package set.
@@ -57,7 +58,7 @@ upgradePackageSet = do
     updateTag releaseTagName =  do
       let quotedTag = surroundQuote releaseTagName
       echoDebug $ "Found the most recent tag for \"purescript/package-sets\": " <> quotedTag
-      rawPackageSet <- liftIO $ Dhall.readRawExpr path
+      rawPackageSet <- liftIO $ Dhall.readRawExpr packagesPath
       case rawPackageSet of
         Nothing -> die Messages.cannotFindPackages
         -- Skip the check if the tag is already the newest
@@ -69,9 +70,9 @@ upgradePackageSet = do
           echo $ "Upgrading the package set version to " <> quotedTag
           let newExpr = fmap (upgradeImports releaseTagName) expr
           echo $ Messages.upgradingPackageSet releaseTagName
-          liftIO $ Dhall.writeRawExpr path (header, newExpr)
+          liftIO $ Dhall.writeRawExpr packagesPath (header, newExpr)
           -- If everything is fine, refreeze the imports
-          freeze
+          freeze packagesPath
 
     getCurrentTag :: Dhall.Import -> [Text]
     getCurrentTag Dhall.Import
@@ -202,6 +203,7 @@ isRemoteFrozen :: Dhall.Import -> [Bool]
 isRemoteFrozen (Dhall.Import
   { importHashed = Dhall.ImportHashed
     { importType = Dhall.Remote _
+    , hash
     , ..
     }
   , ..
@@ -209,9 +211,18 @@ isRemoteFrozen (Dhall.Import
 isRemoteFrozen _ = []
 
 
+localImportPath :: Dhall.Import -> Maybe System.IO.FilePath
+localImportPath (Dhall.Import
+  { importHashed = Dhall.ImportHashed
+    { importType = localImport@(Dhall.Local _ _)
+    }
+  })              = Just $ Text.unpack $ pretty localImport
+localImportPath _ = Nothing
+
+
 -- | Freeze the package set remote imports so they will be cached
-freeze :: Spago m => m ()
-freeze = do
+freeze :: Spago m => System.IO.FilePath -> m ()
+freeze path = do
   echo Messages.freezePackageSet
   liftIO $
     Dhall.Freeze.freeze
@@ -219,17 +230,15 @@ freeze = do
       Dhall.Freeze.OnlyRemoteImports
       Dhall.Freeze.Secure
       Dhall.Pretty.ASCII
-      defaultStandardVersion
 
 
 -- | Freeze the file if any of the remote imports are not frozen
-ensureFrozen :: Spago m => m ()
-ensureFrozen = do
+ensureFrozen :: Spago m => System.IO.FilePath -> m ()
+ensureFrozen path = do
   echoDebug "Ensuring that the package set is frozen"
-  rawPackageSet <- liftIO $ Dhall.readRawExpr path
-  case rawPackageSet of
-    Nothing -> echo "WARNING: wasn't able to check if your package set file is frozen"
-    Just (_header, expr) -> do
-      let areRemotesFrozen = foldMap isRemoteFrozen expr
-      unless (and areRemotesFrozen) $ do
-        freeze
+  imports <- liftIO $ Dhall.readImports $ Text.pack path
+  let areRemotesFrozen = foldMap isRemoteFrozen imports
+  case areRemotesFrozen of
+    []      -> echo Messages.failedToCheckPackageSetFrozen
+    remotes -> unless (and remotes) $
+      traverse_ (maybe (pure ()) freeze . localImportPath) imports

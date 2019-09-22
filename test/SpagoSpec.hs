@@ -179,6 +179,26 @@ spec = around_ setup $ do
 
       spago ["install"] >>= shouldBeSuccess
 
+    it "Spago should not warn about freezing remote imports with the default setup" $ do
+
+      spago ["init"] >>= shouldBeSuccess
+      -- Do an initial installation so that it's easier to compare subsequent output
+      spago ["install"] >>= shouldBeSuccess
+      spago ["install"] >>= shouldBeSuccessOutput "ensure-frozen-success.txt"
+
+    it "Spago should not warn about freezing remote imports if they can be located from spago.dhall" $ do
+
+      spago ["init"] >>= shouldBeSuccess
+      -- Do an initial installation so that it's easier to compare subsequent output
+      spago ["install"] >>= shouldBeSuccess
+
+      mkdir "elsewhere"
+      writeTextFile "elsewhere/a.dhall" "let p = ./b.dhall in p"
+      mv "packages.dhall" "elsewhere/b.dhall"
+      spagoDhall <- readTextFile "spago.dhall"
+      writeTextFile "spago.dhall" $ Text.replace "./packages.dhall" "./elsewhere/a.dhall" spagoDhall
+      spago ["install"] >>= shouldBeSuccessOutput "ensure-frozen-success.txt"
+
   describe "spago sources" $ do
 
     it "Spago should print both dependencies and project sources" $ do
@@ -186,11 +206,12 @@ spec = around_ setup $ do
       spago ["init"] >>= shouldBeSuccess
       spago ["sources"] >>= shouldBeSuccessOutput "sources-output.txt"
 
-  describe "spago login" $ do
-
-    it "Spago should login correctly" $ do
-
-      spago ["login"] >>= shouldBeSuccessOutput "login-output.txt"
+  -- -- This is currently commented because it requires a GitHub token and Travis makes it hard to do it securely
+  -- describe "spago login" $ do
+  --
+  --  it "Spago should login correctly" $ do
+  --
+  --    spago ["login"] >>= shouldBeSuccessOutput "login-output.txt"
 
   describe "spago build" $ do
 

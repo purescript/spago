@@ -11,8 +11,9 @@ import qualified System.Environment  as Env
 import qualified Turtle              as CLI
 
 import           Spago.Build         (BuildOptions (..), DepsOnly (..), ExtraArg (..),
-                                      ModuleName (..), NoBuild (..), NoInstall (..),
-                                      SourcePath (..), TargetPath (..), Watch (..), WithMain (..))
+                                      ModuleName (..), NoBuild (..), NoInstall (..), NoSearch (..),
+                                      SourcePath (..), TargetPath (..), Watch (..), WithMain (..),
+                                      OpenDocs (..))
 import qualified Spago.Build
 import qualified Spago.Config        as Config
 import           Spago.DryRun        (DryRun (..))
@@ -49,7 +50,7 @@ data Command
   | Repl (Maybe CacheFlag) [PackageName] [SourcePath] [ExtraArg] DepsOnly
 
   -- | Generate documentation for the project and its dependencies
-  | Docs (Maybe Purs.DocsFormat) [SourcePath] DepsOnly
+  | Docs (Maybe Purs.DocsFormat) [SourcePath] DepsOnly NoSearch OpenDocs
 
   -- | Build the project paths src/ and test/ plus the specified source paths
   | Build BuildOptions
@@ -158,11 +159,13 @@ parser = do
     watch       = bool BuildOnce Watch <$> CLI.switch "watch" 'w' "Watch for changes in local files and automatically rebuild"
     noInstall   = bool DoInstall NoInstall <$> CLI.switch "no-install" 'n' "Don't run the automatic installation of packages"
     depsOnly    = bool AllSources DepsOnly <$> CLI.switch "deps-only" 'd' "Only use sources from dependencies, skipping the project sources."
+    noSearch    = bool AddSearch NoSearch <$> CLI.switch "no-search" 'S' "Do not make the documentation searchable"
     clearScreen = bool NoClear DoClear <$> CLI.switch "clear-screen" 'l' "Clear the screen on rebuild (watch mode only)"
     noBuild     = bool DoBuild NoBuild <$> CLI.switch "no-build" 's' "Skip build step"
     jsonFlag    = bool JsonOutputNo JsonOutputYes <$> CLI.switch "json" 'j' "Produce JSON output"
     dryRun      = bool DryRun NoDryRun <$> CLI.switch "no-dry-run" 'f' "Actually perform side-effects (the default is to describe what would be done)"
     usePsa      = bool UsePsa NoPsa <$> CLI.switch "no-psa" 'P' "Don't build with `psa`, but use `purs`"
+    openDocs    = bool NoOpenDocs DoOpenDocs <$> CLI.switch "open" 'o' "Open generated documentation in browswer (for HTML format only)"
     configPath  = CLI.optional $ CLI.optText "config" 'x' "Optional config path to be used instead of the default spago.dhall"
 
     mainModule  = CLI.optional $ CLI.opt (Just . ModuleName) "main" 'm' "Module to be used as the application's entry point"
@@ -239,7 +242,7 @@ parser = do
     docs =
       ( "docs"
       , "Generate docs for the project and its dependencies"
-      , Docs <$> docsFormat <*> sourcePaths <*> depsOnly
+      , Docs <$> docsFormat <*> sourcePaths <*> depsOnly <*> noSearch <*> openDocs
       )
 
     search =
@@ -394,7 +397,7 @@ main = do
       Verify cacheConfig package            -> Spago.Packages.verify cacheConfig (Just package)
       VerifySet cacheConfig                 -> Spago.Packages.verify cacheConfig Nothing
       PackageSetUpgrade                     -> Spago.Packages.upgradePackageSet
-      Freeze                                -> Spago.Packages.freeze
+      Freeze                                -> Spago.Packages.freeze Spago.Packages.packagesPath
       Build buildOptions                    -> Spago.Build.build buildOptions Nothing
       Test modName buildOptions nodeArgs    -> Spago.Build.test modName buildOptions nodeArgs
       BumpVersion dryRun spec               -> Spago.Version.bumpVersion dryRun spec
@@ -407,7 +410,8 @@ main = do
         -> Spago.Build.bundleApp WithMain modName tPath shouldBuild buildOptions
       BundleModule modName tPath shouldBuild buildOptions
         -> Spago.Build.bundleModule modName tPath shouldBuild buildOptions
-      Docs format sourcePaths depsOnly      -> Spago.Build.docs format sourcePaths depsOnly
+      Docs format sourcePaths depsOnly noSearch openDocs
+        -> Spago.Build.docs format sourcePaths depsOnly noSearch openDocs
       Search                                -> Spago.Build.search
       Version                               -> printVersion
       PscPackageLocalSetup force            -> PscPackage.localSetup force

@@ -83,6 +83,7 @@ data DocsFormat
   | Markdown
   | Ctags
   | Etags
+  deriving (Eq)
 
 parseDocsFormat :: Text -> Maybe DocsFormat
 parseDocsFormat = \case
@@ -93,7 +94,7 @@ parseDocsFormat = \case
   _          -> Nothing
 
 
-docs :: Spago m => Maybe DocsFormat -> [SourcePath] -> m ()
+docs :: Spago m => DocsFormat -> [SourcePath] -> m ()
 docs format sourcePaths = do
   let
     printDocsFormat :: DocsFormat -> Text
@@ -104,7 +105,7 @@ docs format sourcePaths = do
       Etags    -> "etags"
 
     paths = Text.intercalate " " $ surroundQuote <$> map unSourcePath sourcePaths
-    formatStr = printDocsFormat $ fromMaybe Html format
+    formatStr = printDocsFormat format
     cmd = "purs docs " <> paths <> " --format " <> formatStr
   runWithOutput cmd
     "Docs generation succeeded."
@@ -128,7 +129,7 @@ versionImpl :: Spago m => Text -> m (Maybe Version.SemVer)
 versionImpl purs = do
   fullVersionText <- shellStrictWithErr (purs <> " --version") empty >>= \case
     (ExitSuccess, out, _err) -> pure out
-    _ -> die $ "Failed to run '" <> purs <> " --version'"
+    (_, _out, err) -> die $ "Failed to run '" <> purs <> " --version'. Error:" <> err
   versionText <- pure $ headMay $ Text.split (== ' ') fullVersionText
   parsed <- pure $ versionText >>= (hush . Version.semver)
 
