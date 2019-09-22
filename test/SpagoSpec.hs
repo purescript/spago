@@ -311,6 +311,7 @@ spec = around_ setup $ do
       rm "spago.dhall"
       writeTextFile "spago.dhall" $ "{ name = \"lib-1\", dependencies = [\"console\", \"effect\", \"prelude\"], packages = ./packages.dhall }"
       spago ["build", "--sharedOutput"] >>= shouldBeSuccess
+      testdir "output" >>= (`shouldBe` False)
 
       cd ".."
       testdir "output" >>= (`shouldBe` True)
