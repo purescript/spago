@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+Breaking changes (😱!!!):
+- **Remove `psc-package`-related commands (#423)**
+
+  Since `psc-package` is now deprecated, we no longer support the 
+  `psc-package-local-setup`, `psc-package-insdhall` and `psc-package-clean` commands.
+
 New features:
 - Display a link to the generated docs' `index.html` (#379)
 - Add `--open` flag to `spago docs` which opens generated docs in browser (#379)

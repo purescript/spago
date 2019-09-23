@@ -52,7 +52,6 @@ library:
   - Cabal
   - containers
   - dhall
-  - dhall-json
   - directory >= 1.3.4.0
   - either
   - exceptions

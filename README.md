@@ -142,7 +142,6 @@ $ node .
   - [Generate documentation for my project](#generate-documentation-for-my-project)
   - [Get source maps for my project](#get-source-maps-for-my-project)
   - [Publish my library](#publish-my-library)
-  - [Use this together with `psc-package`](#use-this-together-with-psc-package)
   - [Get all the licenses of my dependencies](#get-all-the-licenses-of-my-dependencies)
   - [Know which `purs` commands are run under the hood](#know-which-purs-commands-are-run-under-the-hood)
   - [Ignore or update the global cache](#ignore-or-update-the-global-cache)
@@ -784,27 +783,6 @@ All of this will be automated in future versions, removing the need for Pulp.
 
 A library published in this way is [purescript-rave](https://github.com/reactormonk/purescript-rave).
 
-### Use this together with `psc-package`
-
-`spago` can help you setup your `psc-package` project to use the Dhall version of the package set.
-
-We have two commands for it:
-- **`psc-package-local-setup`**: this command creates a `packages.dhall` file in your project,
-  that points to the most recent package set, and lets you override and add arbitrary packages.
-  See the docs about this [here][package-sets].
-- **`psc-package-insdhall`**: do the *Ins-Dhall-ation* of the local project setup: that is,
-  generates a local package set for `psc-package` from your `packages.dhall`, and points your
-  `psc-package.json` to it.
-
-  Functionally this is equivalent to running:
-
-  ```sh
-  NAME='local'
-  TARGET=.psc-package/$NAME/.set/packages.json
-  mkdir -p .psc-package/$NAME/.set
-  dhall-to-json --pretty <<< './packages.dhall' > $TARGET
-  echo wrote packages.json to $TARGET
-  ```
 
 ### Get all the licenses of my dependencies
 
