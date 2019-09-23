@@ -1,5 +1,5 @@
 name:                spago
-version:             0.9.0.0
+version:             0.10.0.0
 github:              "spacchetti/spago"
 license:             BSD3
 author:              "Justin Woo, Fabrizio Ferrai"
@@ -67,6 +67,7 @@ library:
   - lens-family-core
   - mtl
   - network-uri
+  - open-browser
   - prettyprinter
   - process
   - retry
