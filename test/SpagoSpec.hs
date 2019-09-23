@@ -271,8 +271,8 @@ spec = around_ setup $ do
       spago ["install"] >>= shouldBeSuccess
       mv "spago.dhall" "spago-configV2.dhall"
       checkFixture "spago-configV2.dhall"
-    
-    it "Spago should create a local output folder when we are not using --sharedOutput" $ do
+
+    it "Spago should create a local output folder when we are using --no-share-output" $ do
 
       -- Create root-level packages.dhall
       mkdir "monorepo"
@@ -288,13 +288,55 @@ spec = around_ setup $ do
       writeTextFile "spago.dhall" $ "{ name = \"lib-1\", dependencies = [\"console\", \"effect\", \"prelude\"], packages = ./packages.dhall }"
       rm "packages.dhall"
       writeTextFile "packages.dhall" $ "../packages.dhall"
-      spago ["build"] >>= shouldBeSuccess
+      spago ["build", "--no-share-output"] >>= shouldBeSuccess
       testdir "output" >>= (`shouldBe` True)
 
       cd ".."
       testdir "output" >>= (`shouldBe` False)
 
-    it "Spago should create an output folder in the root when we are using --sharedOutput" $ do
+    it "Spago should find the middle packages.dhall even when another file is further up the tree" $ do
+
+      -- Create root-level module to confuse things
+      mkdir "monorepo-root"
+      cd "monorepo-root"
+      spago ["init"] >>= shouldBeSuccess
+      rm "spago.dhall"
+      writeTextFile "spago.dhall" $ "{ name = \"lib-extra\", dependencies = [\"console\", \"effect\", \"prelude\"], packages = ./packages.dhall }"
+
+      -- get rid of duplicate Main module
+      cd "src"
+      rm "Main.purs"
+      writeTextFile "Main.purs" $ "module OtherMain where \n import Prelude\n import Effect\n main :: Effect Unit\n main = pure unit"
+      cd ".."
+
+      -- create real root
+      mkdir "subfolder"
+      cd "subfolder"
+      spago ["init"] >>= shouldBeSuccess
+      packageDhall <- readTextFile "packages.dhall"
+      writeTextFile "packages.dhall" $ packageDhall <> " // { lib-extra = ../spago.dhall as Location }"
+
+      -- Create local 'lib-a' package that uses packages.dhall in middle folder
+      mkdir "lib-a"
+      cd "lib-a"
+      spago ["init"] >>= shouldBeSuccess
+      rm "spago.dhall"
+      writeTextFile "spago.dhall" $ "{ name = \"lib-1\", dependencies = [\"lib-extra\",\"console\", \"effect\", \"prelude\"], packages = ../packages.dhall }"
+      rm "packages.dhall"
+      spago ["build"] >>= shouldBeSuccess
+
+      -- don't use nested folder
+      testdir "output" >>= (`shouldBe` False)
+
+      -- use middle one
+      cd ".."
+      testdir "output" >>= (`shouldBe` True)
+
+      -- not the trick root folder
+      cd ".."
+      testdir "output" >>= (`shouldBe` False)
+
+    it "Spago should create an output folder in the root when we are not passing --no-share-output" $ do
 
       -- Create root-level packages.dhall
       mkdir "monorepo2"
@@ -310,7 +352,7 @@ spec = around_ setup $ do
       writeTextFile "packages.dhall" $ "../packages.dhall"
       rm "spago.dhall"
       writeTextFile "spago.dhall" $ "{ name = \"lib-1\", dependencies = [\"console\", \"effect\", \"prelude\"], packages = ./packages.dhall }"
-      spago ["build", "--sharedOutput"] >>= shouldBeSuccess
+      spago ["build"] >>= shouldBeSuccess
       testdir "output" >>= (`shouldBe` False)
 
       cd ".."

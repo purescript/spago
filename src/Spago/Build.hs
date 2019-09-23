@@ -10,7 +10,7 @@ module Spago.Build
   , Watch (..)
   , NoBuild (..)
   , NoInstall (..)
-  , UseSharedOutputFolder (..)
+  , ShareOutput (..)
   , BuildOptions (..)
   , Packages.DepsOnly (..)
   , NoSearch (..)
@@ -57,17 +57,17 @@ data NoBuild = NoBuild | DoBuild
 data NoInstall = NoInstall | DoInstall
 
 -- | Flag to use shared output folder if possible
-data UseSharedOutputFolder = UseSharedOutputFolder | NoSharedOutput
+data ShareOutput = ShareOutput | NoShareOutput
 
 data BuildOptions = BuildOptions
-  { cacheConfig  :: Maybe GlobalCache.CacheFlag
-  , shouldWatch  :: Watch
-  , shouldClear  :: Watch.ClearScreen
-  , sourcePaths  :: [Purs.SourcePath]
-  , noInstall    :: NoInstall
-  , pursArgs     :: [Purs.ExtraArg]
-  , depsOnly     :: Packages.DepsOnly
-  , sharedOutput :: UseSharedOutputFolder
+  { cacheConfig :: Maybe GlobalCache.CacheFlag
+  , shouldWatch :: Watch
+  , shouldClear :: Watch.ClearScreen
+  , sourcePaths :: [Purs.SourcePath]
+  , noInstall   :: NoInstall
+  , pursArgs    :: [Purs.ExtraArg]
+  , depsOnly    :: Packages.DepsOnly
+  , shareOutput :: ShareOutput
   }
 
 prepareBundleDefaults
@@ -88,16 +88,16 @@ build BuildOptions{..} maybePostBuild = do
   case noInstall of
     DoInstall -> Fetch.fetchPackages cacheConfig deps packagesMinPursVersion
     NoInstall -> pure ()
-  sharedOutputArgs <- case sharedOutput of
-    UseSharedOutputFolder -> getBuildArgsForSharedFolder
-    NoSharedOutput        -> pure []
+  sharedOutputArgs <- case shareOutput of
+    ShareOutput   -> getBuildArgsForSharedFolder pursArgs
+    NoShareOutput -> pure []
   let allPsGlobs = Packages.getGlobs   deps depsOnly configSourcePaths <> sourcePaths
       allJsGlobs = Packages.getJsGlobs deps depsOnly configSourcePaths <> sourcePaths
 
       buildAction globs = do
         case alternateBackend of
           Nothing ->
-              Purs.compile globs (pursArgs <> sharedOutputArgs)
+              Purs.compile globs sharedOutputArgs
           Just backend -> do
               when (Purs.ExtraArg "--codegen" `List.elem` pursArgs) $
                 die "Can't pass `--codegen` option to build when using a backend. Hint: No need to pass `--codegen corefn` explicitly when using the `backend` option. Remove the argument to solve the error"
@@ -324,18 +324,25 @@ search = do
   echoDebug $ "Running `" <> cmd <> "`"
   viewShell $ callCommand $ Text.unpack cmd
 
--- | If we are using the --sharedOutput flag, calculate the extra args to
+-- | If we aren't using the --no-share-output flag, calculate the extra args to
 -- | send to Purs compile
 getBuildArgsForSharedFolder
   :: Spago m
-  => m [Purs.ExtraArg]
-getBuildArgsForSharedFolder = do
-  configPath <- asks globalConfigPath
-  outputFolder <- PackageSet.findRootOutputPath (Text.unpack configPath)
-  case pathToOutputArg <$> outputFolder of
-    Just newArg -> pure [newArg]
-    _           -> pure []
-
--- | Take root output path and turn it into Purs argument
-pathToOutputArg :: String -> Purs.ExtraArg
-pathToOutputArg = Purs.ExtraArg . Text.pack . ((++) "-o ")
+  => [Purs.ExtraArg]
+  -> m [Purs.ExtraArg]
+getBuildArgsForSharedFolder pursArgs = do
+  let pathToOutputArg
+        = Purs.ExtraArg . Text.pack . ((++) "--output ")
+      containsOutputRule (Purs.ExtraArg a)
+        =  Text.isInfixOf "--output" a
+        || Text.isInfixOf "-o" a
+  if (or $ containsOutputRule <$> pursArgs)
+    then do
+      echo "Output path set explicitly - not using shared output path"
+      pure pursArgs
+    else do
+      configPath <- asks globalConfigPath
+      outputFolder <- PackageSet.findRootOutputPath (Text.unpack configPath)
+      case pathToOutputArg <$> outputFolder of
+        Just newArg -> pure (pursArgs <> [newArg])
+        _           -> pure pursArgs

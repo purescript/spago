@@ -220,14 +220,24 @@ localImportPath (Dhall.Import
   })              = Just $ Text.unpack $ pretty localImport
 localImportPath _ = Nothing
 
+
+rootPackagePath :: Dhall.Import -> Maybe System.IO.FilePath
+rootPackagePath (Dhall.Import
+  { importHashed = Dhall.ImportHashed
+    { importType = localImport@(Dhall.Local _ Dhall.File { file = "packages.dhall" })
+    }
+  , Dhall.importMode = Dhall.Code
+  })              = Just $ Text.unpack $ pretty localImport
+rootPackagePath _ = Nothing
+
+
 -- | In a Monorepo we don't wish to rebuild our shared packages over and over, 
--- | so we build into an output folder at the highest point
--- | (where, hopefully, packages.dhall lives)
+-- | so we build into an output folder where our root packages.dhall lives
 findRootOutputPath :: Spago m => System.IO.FilePath -> m (Maybe System.IO.FilePath)
 findRootOutputPath path = do
   echoDebug "Locating root path of packages.dhall"
   imports <- liftIO $ Dhall.readImports $ Text.pack path
-  let localImports = catMaybes (map localImportPath imports)
+  let localImports = catMaybes (map rootPackagePath imports)
   pure $ (flip System.FilePath.replaceFileName) "output" <$> (findRootPath localImports)
 
 -- | Given a list of filepaths, find the one with the least folders
@@ -239,7 +249,7 @@ findRootPath paths
     isLessThan a maybeA
       = isNothing maybeA 
       || fromMaybe False (fmap (\a' -> a < a') maybeA)
-    
+
     comparePaths path current 
       = if isLessThan 
           (length (System.FilePath.splitSearchPath path))

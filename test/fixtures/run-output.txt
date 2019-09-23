@@ -8,7 +8,8 @@ Running `fetchPackages`
 Checking if `purs` is up to date
 Running `getGlobalCacheDir`
 Installation complete.
+Locating root path of packages.dhall
 Compiling with "psa"
-Running command: `psa compile  ".spago/console/v4.2.0/src/**/*.purs" ".spago/effect/v2.0.1/src/**/*.purs" ".spago/prelude/v4.1.1/src/**/*.purs" ".spago/psci-support/v4.0.0/src/**/*.purs" "src/**/*.purs" "test/**/*.purs"`
+Running command: `psa compile --output ./output ".spago/console/v4.2.0/src/**/*.purs" ".spago/effect/v2.0.1/src/**/*.purs" ".spago/prelude/v4.1.1/src/**/*.purs" ".spago/psci-support/v4.0.0/src/**/*.purs" "src/**/*.purs" "test/**/*.purs"`
 Build succeeded.
 Writing .spago/run.js
