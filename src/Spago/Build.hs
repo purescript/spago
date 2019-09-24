@@ -83,10 +83,22 @@ build BuildOptions{..} maybePostBuild = do
     NoInstall -> pure ()
   let allGlobs = Packages.getGlobs deps depsOnly configSourcePaths <> sourcePaths
       buildAction = do
-        Purs.compile allGlobs pursArgs
-        case maybePostBuild of
-          Just action -> action
-          Nothing     -> pure ()
+        case alternateBackend of 
+          Nothing ->
+              Purs.compile allGlobs pursArgs
+          Just backend -> do
+              Purs.compile allGlobs $
+                pursArgs ++
+                  [ Purs.ExtraArg "--codegen"
+                  , Purs.ExtraArg "corefn"
+                  ]
+
+              shell backend empty >>= \case
+                ExitSuccess   -> pure ()
+                ExitFailure n -> die $ "Backend exited with error:" <> repr n
+        fromMaybe (pure ()) maybePostBuild
+
+
   absoluteGlobs <- traverse makeAbsolute $ Text.unpack . Purs.unSourcePath <$> allGlobs
   absoluteJSGlobs <- traverse makeAbsolute $ Text.unpack . Purs.unSourcePath
     <$> (Packages.getJsGlobs deps depsOnly configSourcePaths <> sourcePaths)
@@ -124,7 +136,7 @@ repl cacheFlag newPackages sourcePaths pursArgs depsOnly = do
 
         config@Config.Config{ packageSet = PackageSet.PackageSet{..}, ..} <- Config.ensureConfig
 
-        let updatedConfig = Config.Config name (dependencies <> newPackages) (Config.packageSet config) configSourcePaths publishConfig
+        let updatedConfig = Config.Config name (dependencies <> newPackages) (Config.packageSet config) alternateBackend configSourcePaths publishConfig
 
         deps <- Packages.getProjectDeps updatedConfig
         let globs = Packages.getGlobs deps depsOnly $ Config.configSourcePaths updatedConfig
