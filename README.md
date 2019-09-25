@@ -149,6 +149,7 @@ $ node .
 - [Explanations](#explanations)
   - [Visual Overview: What happens when you do 'spago build'?](#visual-overview-what-happens-when-you-do-spago-build)
   - [Configuration file format](#configuration-file-format)
+  - [Alternate Backends](#alternate-backends)
   - [Why can't `spago` also install my npm dependencies?](#why-cant-spago-also-install-my-npm-dependencies)
   - [Why we don't resolve JS dependencies when bundling, and how to do it](#why-we-dont-resolve-js-dependencies-when-bundling-and-how-to-do-it)
   - [How does the "global cache" work?](#how-does-the-global-cache-work)
@@ -882,7 +883,7 @@ let Config =
   }
 ```
 
-#### Alternate Backends
+### Alternate Backends
 
 Spago supports compiling with alternate purescript backends like [psgo](https://github.com/andyarvanitis/purescript-native) or [pskt](https://github.com/csicar/pskt). To use an alternate backend, add the `backend` option to you `spago.dhall` file:
 
