@@ -27,6 +27,7 @@ newtype TargetPath = TargetPath { unTargetPath :: Text }
 newtype SourcePath = SourcePath { unSourcePath :: Text }
   deriving newtype (Show, Dhall.Interpret)
 newtype ExtraArg = ExtraArg { unExtraArg :: Text }
+  deriving newtype (Eq)
 
 data WithMain = WithMain | WithoutMain
 

@@ -25,6 +25,7 @@ import           Spago.Prelude
 
 import qualified Data.Set             as Set
 import qualified Data.Text            as Text
+import qualified Data.List            as List
 import qualified System.FilePath.Glob as Glob
 import qualified System.IO            as System.IO
 import qualified System.IO.Temp       as Temp
@@ -86,11 +87,20 @@ build BuildOptions{..} maybePostBuild = do
 
   let allPsGlobs = Packages.getGlobs   deps depsOnly configSourcePaths <> sourcePaths
       allJsGlobs = Packages.getJsGlobs deps depsOnly configSourcePaths <> sourcePaths
+
       buildAction globs = do
-        Purs.compile globs pursArgs
-        case maybePostBuild of
-          Just action -> action
-          Nothing     -> pure ()
+        case alternateBackend of 
+          Nothing ->
+              Purs.compile globs pursArgs
+          Just backend -> do
+              when (Purs.ExtraArg "--codegen" `List.elem` pursArgs) $ 
+                die "Can't pass `--codegen` option to build when using a backend. Hint: No need to pass `--codegen corefn` explicitly when using the `backend` option. Remove the argument to solve the error"
+              Purs.compile globs $ pursArgs ++ [ Purs.ExtraArg "--codegen", Purs.ExtraArg "corefn" ]
+
+              shell backend empty >>= \case
+                ExitSuccess   -> pure ()
+                ExitFailure n -> die $ "Backend " <> surroundQuote backend <> " exited with error:" <> repr n
+        fromMaybe (pure ()) maybePostBuild
 
   absoluteJSGlobs <- makeGlobsAbsolute allJsGlobs
 
@@ -141,7 +151,7 @@ repl cacheFlag newPackages sourcePaths pursArgs depsOnly = do
 
         config@Config.Config{ packageSet = PackageSet.PackageSet{..}, ..} <- Config.ensureConfig
 
-        let updatedConfig = Config.Config name (dependencies <> newPackages) (Config.packageSet config) configSourcePaths publishConfig
+        let updatedConfig = Config.Config name (dependencies <> newPackages) (Config.packageSet config) alternateBackend configSourcePaths publishConfig
 
         deps <- Packages.getProjectDeps updatedConfig
         let globs = Packages.getGlobs deps depsOnly $ Config.configSourcePaths updatedConfig
