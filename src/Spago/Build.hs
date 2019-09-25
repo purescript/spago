@@ -89,11 +89,11 @@ build BuildOptions{..} maybePostBuild = do
       allJsGlobs = Packages.getJsGlobs deps depsOnly configSourcePaths <> sourcePaths
 
       buildAction globs = do
-        case alternateBackend of 
+        case alternateBackend of
           Nothing ->
               Purs.compile globs pursArgs
           Just backend -> do
-              when (Purs.ExtraArg "--codegen" `List.elem` pursArgs) $ 
+              when (Purs.ExtraArg "--codegen" `List.elem` pursArgs) $
                 die "Can't pass `--codegen` option to build when using a backend. Hint: No need to pass `--codegen corefn` explicitly when using the `backend` option. Remove the argument to solve the error"
               Purs.compile globs $ pursArgs ++ [ Purs.ExtraArg "--codegen", Purs.ExtraArg "corefn" ]
 
@@ -156,7 +156,7 @@ repl cacheFlag newPackages sourcePaths pursArgs depsOnly = do
       Temp.withTempDirectory cacheDir "spago-repl-tmp" $ \dir -> do
         Turtle.cd (Turtle.decodeString dir)
 
-        Packages.initProject False
+        Packages.initProject False False
 
         config@Config.Config{ packageSet = PackageSet.PackageSet{..}, ..} <- Config.ensureConfig
 
@@ -282,7 +282,7 @@ docs format sourcePaths depsOnly noSearch open = do
       shell cmd empty >>= \case
         ExitSuccess   -> pure ()
         ExitFailure n -> echo $ "Failed while trying to make the documentation searchable: " <> repr n
-        
+
     link <- linkToIndexHtml
     let linkText = "Link: " <> link
     echo linkText
@@ -298,7 +298,7 @@ docs format sourcePaths depsOnly noSearch open = do
     linkToIndexHtml = do
       currentDir <- liftIO $ Text.pack <$> getCurrentDirectory
       return ("file://" <> currentDir <> "/generated-docs/html/index.html")
-    
+
     openLink link = liftIO $ Browser.openBrowser (Text.unpack link)
 
 -- | Start a search REPL.

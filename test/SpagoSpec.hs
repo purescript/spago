@@ -66,6 +66,14 @@ spec = around_ setup $ do
       mv "spago.dhall" "spago-bower-import.dhall"
       checkFixture "spago-bower-import.dhall"
 
+    it "Spago should strip comments from spago.dhall and packages.dhall" $ do
+
+      spago ["init", "--no-comments"] >>= shouldBeSuccess
+      cp "spago.dhall" "spago-config-no-comments.dhall"
+      cp "packages.dhall" "packages-no-comments.dhall"
+      checkFixture "spago-config-no-comments.dhall"
+      checkFixture "packages-no-comments.dhall"
+
   describe "spago install" $ do
 
     it "Subsequent installs should succeed after failed install" $ do
@@ -266,7 +274,7 @@ spec = around_ setup $ do
         mv "spago.dhall" "spago-old.dhall"
         writeTextFile "spago.dhall" configWithBackend
 
-        
+
         spago ["build"] >>= shouldBeSuccess
 
         checkFixture "alternate-backend-output.txt"

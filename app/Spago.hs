@@ -34,8 +34,8 @@ data Command
 
   -- | ### Commands for working with Spago projects
   --
-  -- | Initialize a new project
-  = Init Bool
+  -- | Initialize a new project (switches to 1. force overwrite and 2. strip comments)
+  = Init Bool Bool
 
   -- | Install (download) dependencies defined in spago.dhall
   | Install (Maybe CacheFlag) [PackageName]
@@ -128,6 +128,7 @@ parser = do
 
     force   = CLI.switch "force" 'f' "Overwrite any project found in the current directory"
     verbose = CLI.switch "verbose" 'v' "Enable additional debug logging, e.g. printing `purs` commands"
+    noComments = CLI.switch "no-comments" 'C' "Strip comments in the generated package.dhall and spago.dhall files"
 
     -- Note: the first constructor is the default when the flag is not provided
     watch       = bool BuildOnce Watch <$> CLI.switch "watch" 'w' "Watch for changes in local files and automatically rebuild"
@@ -174,7 +175,7 @@ parser = do
     initProject =
       ( "init"
       , "Initialize a new sample project, or migrate a psc-package one"
-      , Init <$> force
+      , Init <$> force <*> noComments
       )
 
     build =
@@ -332,7 +333,7 @@ main = do
   (command, globalOptions) <- CLI.options "Spago - manage your PureScript projects" parser
   (flip runReaderT) globalOptions $
     case command of
-      Init force                            -> Spago.Packages.initProject force
+      Init force noComments                 -> Spago.Packages.initProject force noComments
       Install cacheConfig packageNames      -> Spago.Packages.install cacheConfig packageNames
       ListPackages packagesFilter jsonFlag  -> Spago.Packages.listPackages packagesFilter jsonFlag
       Sources                               -> Spago.Packages.sources

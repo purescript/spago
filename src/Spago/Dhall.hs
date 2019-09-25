@@ -41,6 +41,17 @@ prettyWithHeader header expr = do
   let doc = Pretty.pretty header <> Pretty.pretty expr
   PrettyText.renderStrict $ Pretty.layoutSmart Pretty.defaultLayoutOptions doc
 
+stripComments :: String -> Text -> Text
+stripComments file dhallSrc =
+  case Parser.exprFromText file dhallSrc of
+    -- TODO parsing of template could potentially fail (e.g. with update of dhall version)
+    -- what to do in that case? Print a warning and return not-stripped template?
+    Left _ -> dhallSrc
+    Right expr -> prettyPrintDhallExpr expr
+
+prettyPrintDhallExpr :: Pretty a => DhallExpr a -> Text
+prettyPrintDhallExpr =
+  PrettyText.renderStrict . Pretty.layoutPretty Pretty.defaultLayoutOptions . Dhall.Pretty.prettyExpr
 
 -- | Return a list of all imports starting from a particular file
 readImports :: Text -> IO [Dhall.Import]
@@ -58,6 +69,7 @@ readImports pathText = do
 
     childImport
       = Dhall.Import.chainedImport . Dhall.Import.child
+
 
 
 readRawExpr :: Text -> IO (Maybe (Text, DhallExpr Dhall.Import))
@@ -126,7 +138,7 @@ maybeTypedKey
   -> Text
   -> Dhall.Type a
   -> m (Maybe a)
-maybeTypedKey ks name typ = typify `mapM` Dhall.Map.lookup name ks 
+maybeTypedKey ks name typ = typify `mapM` Dhall.Map.lookup name ks
   where
     typify expr = case Dhall.extract typ expr of
       Success v -> pure v
