@@ -95,7 +95,7 @@ build BuildOptions{..} maybePostBuild = do
 
               shell backend empty >>= \case
                 ExitSuccess   -> pure ()
-                ExitFailure n -> die $ "Backend exited with error:" <> repr n
+                ExitFailure n -> die $ "Backend " <> surroundQuote backend <> " exited with error:" <> repr n
         fromMaybe (pure ()) maybePostBuild
 
 
