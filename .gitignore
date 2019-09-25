@@ -1,5 +1,7 @@
 data
 test/spago-test
+test/spago-test-*
+test/bump-version-test-*
 .stack-work/
 *.cabal
 *~
