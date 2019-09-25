@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 New features:
 - Display a link to the generated docs' `index.html` (#379)
 - Add `--open` flag to `spago docs` which opens generated docs in browser (#379)
+- Support building for alternate backends (#355). E.g: Use `backend = "psgo"` entry in `spago.dhall` to compile with `psgo`
 
 ## [0.10.0] - 2019-09-21
 
