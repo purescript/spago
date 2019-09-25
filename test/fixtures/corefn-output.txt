@@ -1,1 +1,0 @@
-spago: No need to pass `--codegen corefn` explicitly when using the `backend` option. Remove the argument to solve the error.

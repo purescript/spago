@@ -83,16 +83,14 @@ build BuildOptions{..} maybePostBuild = do
     DoInstall -> Fetch.fetchPackages cacheConfig deps packagesMinPursVersion
     NoInstall -> pure ()
   let allGlobs = Packages.getGlobs deps depsOnly configSourcePaths <> sourcePaths
-      genCoreFnOpts = [ Purs.ExtraArg "--codegen", Purs.ExtraArg "corefn" ]
       buildAction = do
         case alternateBackend of 
           Nothing ->
               Purs.compile allGlobs pursArgs
           Just backend -> do
-              let normalizedArgs = concatMap (fmap Purs.ExtraArg . Text.words . Purs.unExtraArg) pursArgs
-              when (genCoreFnOpts `List.isInfixOf` normalizedArgs) $ 
-                die "No need to pass `--codegen corefn` explicitly when using the `backend` option. Remove the argument to solve the error."
-              Purs.compile allGlobs $ pursArgs ++ genCoreFnOpts
+              when (Purs.ExtraArg "--codegen" `List.elem` pursArgs) $ 
+                die "Can't pass `--codegen` option to build when using a backend. Hint: No need to pass `--codegen corefn` explicitly when using the `backend` option. Remove the argument to solve the error"
+              Purs.compile allGlobs $ pursArgs ++ [ Purs.ExtraArg "--codegen", Purs.ExtraArg "corefn" ]
 
               shell backend empty >>= \case
                 ExitSuccess   -> pure ()

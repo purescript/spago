@@ -278,7 +278,8 @@ spec = around_ setup $ do
         writeTextFile "spago.dhall" configWithBackend
 
         spago ["build"] >>= shouldBeSuccess
-        spago ["build", "--purs-args", "--codegen", "--purs-args", "corefn"] >>= shouldBeFailureOutput "corefn-output.txt"
+        spago ["build", "--purs-args", "--codegen", "--purs-args", "corefn"] >>= shouldBeFailureOutput "codegen-opt-with-backend.txt"
+        spago ["build", "--purs-args", "--codegen", "--purs-args", "docs"] >>= shouldBeFailureOutput "codegen-opt-with-backend.txt"
 
 
 
