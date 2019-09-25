@@ -25,6 +25,7 @@ import           Spago.Prelude
 
 import qualified Data.Set             as Set
 import qualified Data.Text            as Text
+import qualified Data.List            as List
 import qualified System.FilePath.Glob as Glob
 import qualified System.IO.Temp       as Temp
 import           System.Directory (getCurrentDirectory)
@@ -82,16 +83,16 @@ build BuildOptions{..} maybePostBuild = do
     DoInstall -> Fetch.fetchPackages cacheConfig deps packagesMinPursVersion
     NoInstall -> pure ()
   let allGlobs = Packages.getGlobs deps depsOnly configSourcePaths <> sourcePaths
+      genCoreFnOpts = [ Purs.ExtraArg "--codegen", Purs.ExtraArg "corefn" ]
       buildAction = do
         case alternateBackend of 
           Nothing ->
               Purs.compile allGlobs pursArgs
           Just backend -> do
-              Purs.compile allGlobs $
-                pursArgs ++
-                  [ Purs.ExtraArg "--codegen"
-                  , Purs.ExtraArg "corefn"
-                  ]
+              let normalizedArgs = concatMap (fmap Purs.ExtraArg . Text.words . Purs.unExtraArg) pursArgs
+              when (genCoreFnOpts `List.isInfixOf` normalizedArgs) $ 
+                die "No need to pass `--codegen corefn` explicitly when using the `backend` option. Remove the argument to solve the error."
+              Purs.compile allGlobs $ pursArgs ++ genCoreFnOpts
 
               shell backend empty >>= \case
                 ExitSuccess   -> pure ()
