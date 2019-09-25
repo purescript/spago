@@ -258,6 +258,31 @@ spec = around_ setup $ do
       mv "spago.dhall" "spago-configV2.dhall"
       checkFixture "spago-configV2.dhall"
 
+    describe "alternate backend" $ do
+
+      it "Spago should use alternate backend if option is specified" $ do
+        configWithBackend <- readFixture "spago-configWithBackend.dhall"
+        spago ["init"] >>= shouldBeSuccess
+        mv "spago.dhall" "spago-old.dhall"
+        writeTextFile "spago.dhall" configWithBackend
+
+        
+        spago ["build"] >>= shouldBeSuccess
+
+        checkFixture "alternate-backend-output.txt"
+
+      it "Passing `--codegen corefn` with backend option should fail" $ do
+        configWithBackend <- readFixture "spago-configWithBackend.dhall"
+        spago ["init"] >>= shouldBeSuccess
+        mv "spago.dhall" "spago-old.dhall"
+        writeTextFile "spago.dhall" configWithBackend
+
+        spago ["build"] >>= shouldBeSuccess
+        spago ["build", "--purs-args", "--codegen", "--purs-args", "corefn"] >>= shouldBeFailureOutput "codegen-opt-with-backend.txt"
+        spago ["build", "--purs-args", "--codegen", "--purs-args", "docs"] >>= shouldBeFailureOutput "codegen-opt-with-backend.txt"
+
+
+
   describe "spago test" $ do
 
     it "Spago should test successfully" $ do

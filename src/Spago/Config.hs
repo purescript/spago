@@ -42,6 +42,7 @@ data Config = Config
   { name              :: Text
   , dependencies      :: [PackageName]
   , packageSet        :: PackageSet
+  , alternateBackend  :: Maybe Text
   , configSourcePaths :: [Purs.SourcePath]
   , publishConfig     :: Either (Dhall.ReadError Dhall.TypeCheck.X) PublishConfig
   } deriving (Show, Generic)
@@ -122,6 +123,7 @@ parseConfig = do
       name              <- Dhall.requireTypedKey ks "name" Dhall.strictText
       dependencies      <- Dhall.requireTypedKey ks "dependencies" dependenciesType
       configSourcePaths <- Dhall.requireTypedKey ks "sources" sourcesType
+      alternateBackend  <- Dhall.maybeTypedKey ks "backend" Dhall.strictText
 
       let ensurePublishConfig = do
             publishLicense    <- Dhall.requireTypedKey ks "license" Dhall.strictText
