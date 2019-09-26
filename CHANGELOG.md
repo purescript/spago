@@ -12,6 +12,9 @@ New features:
 - Add `--open` flag to `spago docs` which opens generated docs in browser (#379)
 - Support building for alternate backends (#355). E.g: Use `backend = "psgo"` entry in `spago.dhall` to compile with `psgo`
 
+Bugfixes:
+- Warn (but don't error) when trying to watch missing directories (#406)
+
 ## [0.10.0] - 2019-09-21
 
 Breaking changes (!!!):
