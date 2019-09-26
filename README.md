@@ -637,7 +637,9 @@ in upstream // overrides
 }
 ```
 
-To avoid building the same packages over and over, use `--sharedOutput` in `spago build` to use one `output` folder in the location of your root `packages.dhall` to speed up builds. In the example above, this would create an `output` folder in the root, instead of ending up with `lib1/output`, `lib2/output` etc.
+To avoid building the same packages over, a shared `output` folder will be created next to your root `packages.dhall`. 
+
+To disable this behaviour, pass `--no-share-output` to `spago build`.
 
 ### `devDependencies`, `testDependencies`, or in general a situation with many configurations
 
