@@ -27,9 +27,9 @@ import qualified Data.Set             as Set
 import qualified Data.Text            as Text
 import qualified Data.List            as List
 import qualified System.FilePath.Glob as Glob
-import qualified System.IO            as System.IO
+import qualified System.IO            as Sys
 import qualified System.IO.Temp       as Temp
-import           System.Directory (getCurrentDirectory)
+import           System.Directory     (getCurrentDirectory)
 import qualified Turtle               as Turtle
 import qualified Web.Browser          as Browser
 
@@ -102,27 +102,36 @@ build BuildOptions{..} maybePostBuild = do
                 ExitFailure n -> die $ "Backend " <> surroundQuote backend <> " exited with error:" <> repr n
         fromMaybe (pure ()) maybePostBuild
 
-  absoluteJSGlobs <- makeGlobsAbsolute allJsGlobs
-
   case shouldWatch of
     BuildOnce -> buildAction allPsGlobs
     Watch -> do
-      matches <- filterMatchingGlobsAndWarn allPsGlobs
-      absolutePSGlobs <- makeGlobsAbsolute matches
-      Watch.watch (Set.fromAscList $ fmap Glob.compile $ absolutePSGlobs <> absoluteJSGlobs) shouldClear (buildAction matches)
+      (psMatches, psMismatches) <- partitionGlobs $ unwrap <$> allPsGlobs
+      (jsMatches, jsMismatches) <- partitionGlobs $ unwrap <$> allJsGlobs
+
+      echo $ Messages.globsDoNotMatchWhenWatching $ List.nub $ Text.pack <$> (psMismatches <> jsMismatches)
+
+      absolutePSGlobs <- traverse makeAbsolute psMatches
+      absoluteJSGlobs <- traverse makeAbsolute jsMatches
+
+      Watch.watch
+        (Set.fromAscList $ fmap Glob.compile $ absolutePSGlobs <> absoluteJSGlobs)
+        shouldClear
+        (buildAction (wrap <$> psMatches))
 
   where
-    filterMatchingGlobsAndWarn :: Spago m => [Purs.SourcePath] -> m [Purs.SourcePath]
-    filterMatchingGlobsAndWarn = filterM $ \sourcePath -> do
-      let pattern = Purs.unSourcePath sourcePath
-      paths <- liftIO $ Glob.glob (Text.unpack pattern)
-      let doesMatch = not (null paths)
-      unless doesMatch $ echo (Messages.globsDoNotMatchWhenWatching pattern)
-      pure doesMatch
+    partitionGlobs :: Spago m => [Sys.FilePath] -> m ([Sys.FilePath], [Sys.FilePath])
+    partitionGlobs = foldrM go ([],[])
+      where
+      go sourcePath (matches, mismatches) = do
+        let parentDir = Watch.globToParent $ Glob.compile sourcePath
+        paths <- liftIO $ Glob.glob parentDir
+        pure $ if null paths
+          then (matches, parentDir : mismatches)
+          else (sourcePath : matches, mismatches)
 
-    makeGlobsAbsolute :: Spago m => [Purs.SourcePath] -> m [System.IO.FilePath]
-    makeGlobsAbsolute globs
-      = traverse makeAbsolute $ Text.unpack . Purs.unSourcePath <$> globs
+    wrap   = Purs.SourcePath . Text.pack
+    unwrap = Text.unpack . Purs.unSourcePath
+
 
 -- | Start a repl
 repl
