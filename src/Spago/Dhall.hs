@@ -45,13 +45,10 @@ stripComments :: String -> Text -> Text
 stripComments file dhallSrc =
   case Parser.exprFromText file dhallSrc of
     -- TODO parsing of template could potentially fail (e.g. with update of dhall version)
-    -- what to do in that case? Print a warning and return not-stripped template?
-    Left _ -> dhallSrc
-    Right expr -> prettyPrintDhallExpr expr
+    -- what to do in that case? Print a warning and return not-stripped template? or use Dhall.Core.throws?
+    Left _     -> dhallSrc
+    Right expr -> pretty expr
 
-prettyPrintDhallExpr :: Pretty a => DhallExpr a -> Text
-prettyPrintDhallExpr =
-  PrettyText.renderStrict . Pretty.layoutPretty Pretty.defaultLayoutOptions . Dhall.Pretty.prettyExpr
 
 -- | Return a list of all imports starting from a particular file
 readImports :: Text -> IO [Dhall.Import]
@@ -103,7 +100,7 @@ fromTextLit
   => DhallExpr a
   -> Either (ReadError a) Text
 fromTextLit(Dhall.TextLit (Dhall.Chunks [] str)) = Right str
-fromTextLit expr                                  = Left $ ExprIsNotTextLit expr
+fromTextLit expr                                 = Left $ ExprIsNotTextLit expr
 
 
 -- | Require a key from a Dhall.Map, and run an action on it if found.
@@ -158,7 +155,7 @@ coerceToType typ expr = do
   let checkedType = typeOf annot
   case (Dhall.extract typ $ Dhall.normalize annot, checkedType) of
     (Success x, Right _) -> Right x
-    _                 -> Left $ WrongType typ expr
+    _                    -> Left $ WrongType typ expr
 
 
 -- | Spago configuration cannot be read
