@@ -275,8 +275,7 @@ shouldRefreshFile path = (tryIO $ liftIO $ do
   fileExists <- testfile $ Text.pack path
   lastModified <- getModificationTime path
   now <- Time.getCurrentTime
-  -- Note: `NomiNalDiffTime` is 1 second
-  let fileIsRecentEnough = Time.addUTCTime (24 * 60 * 60) lastModified >= now
+  let fileIsRecentEnough = Time.addUTCTime Time.nominalDay lastModified >= now
   pure $ not (fileExists && fileIsRecentEnough))
   >>= \case
   Right v -> pure v
