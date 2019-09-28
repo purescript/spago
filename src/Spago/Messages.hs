@@ -7,8 +7,8 @@ import qualified Data.Text as Text
 
 failedToParseLocalRepo :: Text -> Text
 failedToParseLocalRepo spagoConfigPath = makeMessage
-  [ "ERROR: your when importing local packages you should point to their `spago.dhall` file."
-  , "However, the following local package is not: " <> surroundQuote spagoConfigPath
+  [ "ERROR: when importing local packages you should point to their `spago.dhall` file."
+  , "However, the following local package points to: " <> surroundQuote spagoConfigPath
   ]
 
 cannotFindConfigLocalPackage :: Text -> Text
@@ -184,7 +184,7 @@ pursVersionMismatch currentVersion minVersion = makeMessage
   , "There are a few ways to solve this:"
   , "- install a compatible `purs` version (i.e. in the same 'semver range' as the one in the package set)"
   , "- if the `purs` version is 'too new', you can try using `spago upgrade-set` to upgrade to the latest package set"
-  , "- if you know what you're doing and you want to void this check, you can override the `version` of the `metadata` package in the packages.dhall:"
+  , "- if you know what you're doing and you want to avoid this check, you can override the `version` of the `metadata` package in the packages.dhall:"
   , ""
   , "  let overrides = { metadata = upstream.metadata // { version = \"v" <> currentVersion <> "\" } }"
   , ""
