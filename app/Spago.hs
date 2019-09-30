@@ -22,7 +22,6 @@ import           Spago.GlobalCache   (CacheFlag (..))
 import           Spago.Messages      as Messages
 import           Spago.Packages      (JsonFlag (..), PackagesFilter (..))
 import qualified Spago.Packages
-import qualified Spago.PscPackage    as PscPackage
 import qualified Spago.Purs          as Purs
 import           Spago.Types
 import qualified Spago.Version
@@ -88,26 +87,6 @@ data Command
   -- | Freeze the package-set so it will be cached
   | Freeze
 
-  -- | ### Commands for working with Psc-Package
-  --
-  --   Do the boilerplate of the local project setup to override and add arbitrary packages
-  --   See the package-sets docs about this here:
-  --   https://github.com/purescript/package-sets
-  | PscPackageLocalSetup Bool
-
-  -- | Do the Ins-Dhall-ation of the local project setup, equivalent to:
-  --   ```sh
-  --   NAME='local'
-  --   TARGET=.psc-package/$NAME/.set/packages.json
-  --   mktree -p .psc-package/$NAME/.set
-  --   dhall-to-json --pretty <<< './packages.dhall' > $TARGET
-  --   echo wrote packages.json to $TARGET
-  --   ```
-  | PscPackageInsDhall
-
-  -- | Deletes the .psc-package folder
-  | PscPackageClean
-
   -- | Runs `purescript-docs-search search`.
   | Search
 
@@ -123,7 +102,7 @@ data Command
 parser :: CLI.Parser (Command, GlobalOptions)
 parser = do
   opts <- globalOptions
-  command <- projectCommands <|> packageSetCommands <|> publishCommands <|> pscPackageCommands <|> otherCommands <|> oldCommands
+  command <- projectCommands <|> packageSetCommands <|> publishCommands <|> otherCommands <|> oldCommands
   pure (command, opts)
   where
     cacheFlag =
@@ -316,32 +295,6 @@ parser = do
       , BumpVersion <$> dryRun <*> versionBump
       )
 
-
-    pscPackageCommands = CLI.subcommandGroup "Psc-Package compatibility commands:"
-      [ pscPackageLocalSetup
-      , pscPackageInsDhall
-      , pscPackageClean
-      ]
-
-    pscPackageLocalSetup =
-      ( "psc-package-local-setup"
-      , "Setup a local package set by creating a new packages.dhall"
-      , PscPackageLocalSetup <$> force
-      )
-
-    pscPackageInsDhall =
-      ( "psc-package-insdhall"
-      , "Insdhall the local package set from packages.dhall"
-      , pure PscPackageInsDhall
-      )
-
-    pscPackageClean =
-      ( "psc-package-clean"
-      , "Clean cached packages by deleting the .psc-package folder"
-      , pure PscPackageClean
-      )
-
-
     otherCommands = CLI.subcommandGroup "Other commands:"
       [ version
       ]
@@ -402,8 +355,5 @@ main = do
         -> Spago.Build.docs format sourcePaths depsOnly noSearch openDocs
       Search                                -> Spago.Build.search
       Version                               -> printVersion
-      PscPackageLocalSetup force            -> PscPackage.localSetup force
-      PscPackageInsDhall                    -> PscPackage.insDhall
-      PscPackageClean                       -> PscPackage.clean
       Bundle                                -> die Messages.bundleCommandRenamed
       MakeModule                            -> die Messages.makeModuleCommandRenamed

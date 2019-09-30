@@ -12,13 +12,6 @@ packages:
   original:
     hackage: dhall-1.26.0
 - completed:
-    hackage: dhall-json-1.4.1@sha256:5b0dac356e84d03e855aa4e8aa455532c4c4a274154e26756ae77ebbc82c89a4,5398
-    pantry-tree:
-      size: 3387
-      sha256: 77290c47daa5960e967ff219ce9c44ffd3035e64acd6a1d42268eb366b2c4264
-  original:
-    hackage: dhall-json-1.4.1
-- completed:
     hackage: github-0.22@sha256:13f09e904248a40dd173c08f2859d0dfda178a7c27f88df20b70a0d5a7614757,6909
     pantry-tree:
       size: 7050
