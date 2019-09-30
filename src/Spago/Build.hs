@@ -25,15 +25,18 @@ import           Spago.Prelude
 
 import qualified Data.Set             as Set
 import qualified Data.Text            as Text
+import qualified Data.List            as List
 import qualified System.FilePath.Glob as Glob
+import qualified System.IO            as Sys
 import qualified System.IO.Temp       as Temp
-import           System.Directory (getCurrentDirectory)
+import           System.Directory     (getCurrentDirectory)
 import qualified Turtle               as Turtle
 import qualified Web.Browser          as Browser
 
 import qualified Spago.Config         as Config
 import qualified Spago.FetchPackage   as Fetch
 import qualified Spago.GlobalCache    as GlobalCache
+import qualified Spago.Messages       as Messages
 import qualified Spago.Packages       as Packages
 import qualified Spago.Purs           as Purs
 import qualified Spago.Templates      as Templates
@@ -81,21 +84,54 @@ build BuildOptions{..} maybePostBuild = do
   case noInstall of
     DoInstall -> Fetch.fetchPackages cacheConfig deps packagesMinPursVersion
     NoInstall -> pure ()
-  let allGlobs = Packages.getGlobs deps depsOnly configSourcePaths <> sourcePaths
-      buildAction = do
-        Purs.compile allGlobs pursArgs
-        case maybePostBuild of
-          Just action -> action
-          Nothing     -> pure ()
-  absoluteGlobs <- traverse makeAbsolute $ Text.unpack . Purs.unSourcePath <$> allGlobs
-  absoluteJSGlobs <- traverse makeAbsolute $ Text.unpack . Purs.unSourcePath
-    <$> (Packages.getJsGlobs deps depsOnly configSourcePaths <> sourcePaths)
+
+  let allPsGlobs = Packages.getGlobs   deps depsOnly configSourcePaths <> sourcePaths
+      allJsGlobs = Packages.getJsGlobs deps depsOnly configSourcePaths <> sourcePaths
+
+      buildAction globs = do
+        case alternateBackend of 
+          Nothing ->
+              Purs.compile globs pursArgs
+          Just backend -> do
+              when (Purs.ExtraArg "--codegen" `List.elem` pursArgs) $ 
+                die "Can't pass `--codegen` option to build when using a backend. Hint: No need to pass `--codegen corefn` explicitly when using the `backend` option. Remove the argument to solve the error"
+              Purs.compile globs $ pursArgs ++ [ Purs.ExtraArg "--codegen", Purs.ExtraArg "corefn" ]
+
+              shell backend empty >>= \case
+                ExitSuccess   -> pure ()
+                ExitFailure n -> die $ "Backend " <> surroundQuote backend <> " exited with error:" <> repr n
+        fromMaybe (pure ()) maybePostBuild
 
   case shouldWatch of
-    BuildOnce -> buildAction
-    Watch     -> Watch.watch
-      (Set.fromAscList $ fmap Glob.compile $ absoluteGlobs <> absoluteJSGlobs)
-      shouldClear buildAction
+    BuildOnce -> buildAction allPsGlobs
+    Watch -> do
+      (psMatches, psMismatches) <- partitionGlobs $ unwrap <$> allPsGlobs
+      (jsMatches, jsMismatches) <- partitionGlobs $ unwrap <$> allJsGlobs
+
+      echo $ Messages.globsDoNotMatchWhenWatching $ List.nub $ Text.pack <$> (psMismatches <> jsMismatches)
+
+      absolutePSGlobs <- traverse makeAbsolute psMatches
+      absoluteJSGlobs <- traverse makeAbsolute jsMatches
+
+      Watch.watch
+        (Set.fromAscList $ fmap Glob.compile $ absolutePSGlobs <> absoluteJSGlobs)
+        shouldClear
+        (buildAction (wrap <$> psMatches))
+
+  where
+    partitionGlobs :: Spago m => [Sys.FilePath] -> m ([Sys.FilePath], [Sys.FilePath])
+    partitionGlobs = foldrM go ([],[])
+      where
+      go sourcePath (matches, mismatches) = do
+        let parentDir = Watch.globToParent $ Glob.compile sourcePath
+        paths <- liftIO $ Glob.glob parentDir
+        pure $ if null paths
+          then (matches, parentDir : mismatches)
+          else (sourcePath : matches, mismatches)
+
+    wrap   = Purs.SourcePath . Text.pack
+    unwrap = Text.unpack . Purs.unSourcePath
+
 
 -- | Start a repl
 repl
@@ -124,7 +160,7 @@ repl cacheFlag newPackages sourcePaths pursArgs depsOnly = do
 
         config@Config.Config{ packageSet = PackageSet.PackageSet{..}, ..} <- Config.ensureConfig
 
-        let updatedConfig = Config.Config name (dependencies <> newPackages) (Config.packageSet config) configSourcePaths publishConfig
+        let updatedConfig = Config.Config name (dependencies <> newPackages) (Config.packageSet config) alternateBackend configSourcePaths publishConfig
 
         deps <- Packages.getProjectDeps updatedConfig
         let globs = Packages.getGlobs deps depsOnly $ Config.configSourcePaths updatedConfig

@@ -148,6 +148,7 @@ $ node .
 - [Explanations](#explanations)
   - [Visual Overview: What happens when you do 'spago build'?](#visual-overview-what-happens-when-you-do-spago-build)
   - [Configuration file format](#configuration-file-format)
+  - [Alternate Backends](#alternate-backends)
   - [Why can't `spago` also install my npm dependencies?](#why-cant-spago-also-install-my-npm-dependencies)
   - [Why we don't resolve JS dependencies when bundling, and how to do it](#why-we-dont-resolve-js-dependencies-when-bundling-and-how-to-do-it)
   - [How does the "global cache" work?](#how-does-the-global-cache-work)
@@ -339,8 +340,7 @@ Tests succeeded.
 ### Run a repl
 
 As with the `build` and `test` commands, you can add custom source paths
-to load, and pass options to the underlying `purs repl` by just putting
-them after `--`.
+to load, and pass options to the underlying `purs repl` via `--purs-args`.
 
 E.g. the following opens a repl on `localhost:3200`:
 
@@ -755,7 +755,7 @@ $ spago docs --format ctags
 
 Quoting from [this tweet](https://twitter.com/jusrin00/status/1092071407356387328):
 
-1. build with `--purs-args '-g sourcemaps'
+1. build with `--purs-args '-g sourcemaps'`
 2. source output (like `var someModule = require('./output/Whatever/index.js');`) and use
    something like `parcel`, to avoid mangling/destroying the sourcemaps
 3. now you can see your breakpoints in action
@@ -852,12 +852,27 @@ let PackageSet =
 
 -- The type of the `spago.dhall` configuration is then the following:
 let Config =
-  { name : Text               -- the name of our project
-  , dependencies : List Text  -- the list of dependencies of our app
-  , sources : List Text       -- the list of globs for the paths to always include in the build
-  , packages : PackageSet     -- this is the type we just defined above
+  { name : Text                   -- the name of our project
+  , dependencies : List Text      -- the list of dependencies of our app
+  , alternateBackend : Maybe Text -- Nothing by default, meaning use purs. If specified, spago will use the executable as the backend
+  , sources : List Text           -- the list of globs for the paths to always include in the build
+  , packages : PackageSet         -- this is the type we just defined above
   }
 ```
+
+### Alternate Backends
+
+Spago supports compiling with alternate purescript backends like [psgo](https://github.com/andyarvanitis/purescript-native) or [pskt](https://github.com/csicar/pskt). To use an alternate backend, add the `backend` option to you `spago.dhall` file:
+
+```dhall
+{ name =
+    "aaa"
+, backend =
+    "psgo"
+  ...
+```
+
+The value of the `backend` entry should be the name of the backend executable.
 
 ### Why can't `spago` also install my npm dependencies?
 

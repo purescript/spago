@@ -118,6 +118,20 @@ requireTypedKey ks name typ = requireKey ks name $ \expr -> case Dhall.extract t
   Success v -> pure v
   Failure _ -> throwM $ RequiredKeyMissing name ks
 
+-- | Try to find a key from a Dhall.Map, and automagically decode the value with the given Dhall.Type
+--   If not found, return `Nothing`, if type is incorrect throw error
+maybeTypedKey
+  :: (MonadIO m, MonadThrow m)
+  => Dhall.Map.Map Text (DhallExpr Dhall.TypeCheck.X)
+  -> Text
+  -> Dhall.Type a
+  -> m (Maybe a)
+maybeTypedKey ks name typ = typify `mapM` Dhall.Map.lookup name ks 
+  where
+    typify expr = case Dhall.extract typ expr of
+      Success v -> pure v
+      Failure a -> throwM a
+
 
 -- | Convert a Dhall expression to a given Dhall type
 --
