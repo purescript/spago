@@ -79,7 +79,7 @@
     <g text-rendering="geometricPrecision" stroke-miterlimit="1.45" shape-rendering="geometricPrecision" transform="matrix(1,0,0,1,224,-135)" stroke-linecap="butt">
       <rect fill="none" x="787.143" width="205.8652" height="68.1798" y="1088.6267" clip-path="url(#clipPath2)"/>
       <text x="794.143" xml:space="preserve" y="1105.9177" clip-path="url(#clipPath2)" font-family="sans-serif" stroke="none">5b. Via `spago bundle-module`,</text>
-      <text x="794.143" xml:space="preserve" y="1119.8865" clip-path="url(#clipPath2)" font-family="sans-serif" stroke="none">create a CS module that</text>
+      <text x="794.143" xml:space="preserve" y="1119.8865" clip-path="url(#clipPath2)" font-family="sans-serif" stroke="none">create a JS module that</text>
       <text x="794.143" xml:space="preserve" y="1133.8552" clip-path="url(#clipPath2)" font-family="sans-serif" stroke="none">one can use/integrate </text>
       <text x="794.143" xml:space="preserve" y="1147.824" clip-path="url(#clipPath2)" font-family="sans-serif" stroke="none">into one's application</text>
     </g>
@@ -292,12 +292,12 @@
       <path d="M138.1143 742.4382 L143.1143 730.4382 L138.1143 733.4382 L133.1143 730.4382 Z" clip-path="url(#clipPath2)" stroke="none"/>
       <text x="41.6034" xml:space="preserve" y="593.7231" clip-path="url(#clipPath2)" font-family="sans-serif" stroke="none">3b. If a remote dependency is cacheable</text>
       <text x="41.6034" xml:space="preserve" y="607.6918" clip-path="url(#clipPath2)" font-family="sans-serif" stroke="none">but hasn't been stored in the global cache </text>
-      <text x="41.6034" xml:space="preserve" y="621.6606" clip-path="url(#clipPath2)" font-family="sans-serif" stroke="none">yet, then download its tarbell and store it in </text>
+      <text x="41.6034" xml:space="preserve" y="621.6606" clip-path="url(#clipPath2)" font-family="sans-serif" stroke="none">yet, then download its tarball and store it in </text>
       <text x="41.6034" xml:space="preserve" y="635.6293" clip-path="url(#clipPath2)" font-family="sans-serif" stroke="none">the global cache...</text>
       <path fill="none" d="M-72.4618 507.4088 L367.1327 507.4088" clip-path="url(#clipPath2)"/>
       <path d="M375.1327 507.4088 L363.1327 502.4088 L366.1327 507.4088 L363.1327 512.4088 Z" clip-path="url(#clipPath2)" stroke="none"/>
       <text x="40.1572" xml:space="preserve" y="462.6667" clip-path="url(#clipPath2)" font-family="sans-serif" stroke="none">3a. If a remote dependency is </text>
-      <text x="40.1572" xml:space="preserve" y="476.6354" clip-path="url(#clipPath2)" font-family="sans-serif" stroke="none">not cacheable, git clone` it into </text>
+      <text x="40.1572" xml:space="preserve" y="476.6354" clip-path="url(#clipPath2)" font-family="sans-serif" stroke="none">not cacheable, `git clone` it into </text>
       <text x="40.1572" xml:space="preserve" y="490.6042" clip-path="url(#clipPath2)" font-family="sans-serif" stroke="none">the project's local `.spago/` directory</text>
     </g>
   </g>
