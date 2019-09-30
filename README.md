@@ -341,8 +341,7 @@ Tests succeeded.
 ### Run a repl
 
 As with the `build` and `test` commands, you can add custom source paths
-to load, and pass options to the underlying `purs repl` by just putting
-them after `--`.
+to load, and pass options to the underlying `purs repl` via `--purs-args`.
 
 E.g. the following opens a repl on `localhost:3200`:
 
@@ -757,7 +756,7 @@ $ spago docs --format ctags
 
 Quoting from [this tweet](https://twitter.com/jusrin00/status/1092071407356387328):
 
-1. build with `--purs-args '-g sourcemaps'
+1. build with `--purs-args '-g sourcemaps'`
 2. source output (like `var someModule = require('./output/Whatever/index.js');`) and use
    something like `parcel`, to avoid mangling/destroying the sourcemaps
 3. now you can see your breakpoints in action
