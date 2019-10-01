@@ -294,6 +294,42 @@ spec = around_ setup $ do
       cd ".."
       testdir "output" >>= (`shouldBe` False)
 
+    it "Spago should use the main packages.dhall even when another packages.dhall is further up the tree" $ do
+
+      -- Create root-level packages.dhall that directs to middle one
+      mkdir "monorepo-1"
+      cd "monorepo-1"
+      spago ["init"] >>= shouldBeSuccess
+      rm "spago.dhall"
+      rm "packages.dhall"
+      writeTextFile "packages.dhall" $ "./monorepo-2/packages.dhall"
+
+      -- Create local 'monorepo-2' package that is the real root
+      mkdir "monorepo-2"
+      cd "monorepo-2"
+      spago ["init"] >>= shouldBeSuccess
+      rm "spago.dhall"
+      writeTextFile "spago.dhall" $ "{ name = \"lib-1\", dependencies = [\"console\", \"effect\", \"prelude\"], packages = ./packages.dhall }"
+      spago ["build", "--no-share-output"] >>= shouldBeSuccess
+      testdir "output" >>= (`shouldBe` True)
+
+       -- Create local 'monorepo-3' package that uses packages.dhall on top level
+      mkdir "monorepo-3"
+      cd "monorepo-3"
+      spago ["init"] >>= shouldBeSuccess
+      rm "spago.dhall"
+      writeTextFile "spago.dhall" $ "{ name = \"lib-1\", dependencies = [\"console\", \"effect\", \"prelude\"], packages = ./packages.dhall }"
+      rm "packages.dhall"
+      writeTextFile "packages.dhall" $ "../../packages.dhall"
+      spago ["build"] >>= shouldBeSuccess
+      testdir "output" >>= (`shouldBe` False)
+
+      cd ".."
+      testdir "output" >>= (`shouldBe` True)
+
+      cd ".."
+      testdir "output" >>= (`shouldBe` False)
+
     it "Spago should find the middle packages.dhall even when another file is further up the tree" $ do
 
       -- Create root-level module to confuse things
