@@ -41,11 +41,11 @@ prettyWithHeader header expr = do
   let doc = Pretty.pretty header <> Pretty.pretty expr
   PrettyText.renderStrict $ Pretty.layoutSmart Pretty.defaultLayoutOptions doc
 
-stripComments :: String -> Text -> Text
-stripComments file dhallSrc =
-  case Parser.exprFromText file dhallSrc of
-    -- TODO parsing of template could potentially fail (e.g. with update of dhall version)
-    -- what to do in that case? Print a warning and return not-stripped template? or use Dhall.Core.throws?
+stripComments :: Text -> Text
+stripComments dhallSrc =
+  -- This can be considered hack taking advantage of current Dhall behavior
+  -- the parser does not preserve comments: https://github.com/dhall-lang/dhall-haskell/issues/145
+  case Parser.exprFromText mempty dhallSrc of
     Left _     -> dhallSrc
     Right expr -> pretty expr
 

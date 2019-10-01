@@ -31,8 +31,8 @@ makePackageSetFile :: Spago m => Bool -> Bool -> m ()
 makePackageSetFile force noComments = do
   hasPackagesDhall <- testfile packagesPath
   if force || not hasPackagesDhall
-    then let stripComments = if noComments then Dhall.stripComments packagesPath else id
-         in writeTextFile packagesPath $ stripComments Templates.packagesDhall
+    then let perhapsStripComments = if noComments then Dhall.stripComments else id
+         in writeTextFile packagesPath $ perhapsStripComments Templates.packagesDhall
     else echo $ Messages.foundExistingProject packagesPath
   Dhall.format packagesPath
 

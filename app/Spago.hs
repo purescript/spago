@@ -128,7 +128,7 @@ parser = do
 
     force   = CLI.switch "force" 'f' "Overwrite any project found in the current directory"
     verbose = CLI.switch "verbose" 'v' "Enable additional debug logging, e.g. printing `purs` commands"
-    noComments = CLI.switch "no-comments" 'C' "Strip comments in the generated package.dhall and spago.dhall files"
+    noComments = CLI.switch "no-comments" 'C' "Generate package.dhall and spago.dhall files without tutorial comments"
 
     -- Note: the first constructor is the default when the flag is not provided
     watch       = bool BuildOnce Watch <$> CLI.switch "watch" 'w' "Watch for changes in local files and automatically rebuild"

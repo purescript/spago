@@ -166,8 +166,8 @@ makeConfig force noComments = do
   unless force $ do
     hasSpagoDhall <- testfile path
     when hasSpagoDhall $ die $ Messages.foundExistingProject path
-  let stripComments = if noComments then Dhall.stripComments defaultPath else id
-  writeTextFile path $ stripComments Templates.spagoDhall
+  let perhapsStripComments = if noComments then Dhall.stripComments else id
+  writeTextFile path $ perhapsStripComments Templates.spagoDhall
   Dhall.format path
 
 

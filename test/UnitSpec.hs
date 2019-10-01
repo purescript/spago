@@ -1,23 +1,24 @@
 -- Unit tests
 module UnitSpec where
 
-import Prelude
-import Data.List.Extra (nubOrd)
-import Data.Text (Text)
-import qualified Data.Text as Text
-import qualified Data.Map as Map
-import Test.QuickCheck (Gen, Property)
-import qualified Test.QuickCheck as QC
-import Test.Hspec (Spec, describe, it)
+import           Data.List.Extra    (nubOrd)
+import qualified Data.Map           as Map
+import           Data.Text          (Text)
+import qualified Data.Text          as Text
+import           Prelude
+import           Test.Hspec         (Spec, describe, it, shouldBe)
+import           Test.QuickCheck    (Gen, Property)
+import qualified Test.QuickCheck    as QC
 
-import Spago.FetchPackage (getCacheVersionDir)
+import           Spago.Dhall        (stripComments)
+import           Spago.FetchPackage (getCacheVersionDir)
 
 -- A value of this type represents a failure of a function to be injective,
 -- specifically, that all of the distinct values in the `inputs` list each
 -- mapped to the same output.
 data InjectivityFailure a b
   = InjectivityFailure
-      { inputs :: [a]
+      { inputs   :: [a]
         -- ^ should all be distinct and should have at least 2 elements.
       , allMapTo :: b
       }
@@ -92,5 +93,10 @@ genBranchName =
 
 spec :: Spec
 spec = describe "unit tests" $ do
-  it "getCacheVersionDir is (case insensitively) injective" $
+  it "getCacheVersionDir is (case insensitively) injective" $ do
     checkInjective (Text.toLower . getCacheVersionDir) genBranchName
+  describe "stripComments" $ do
+    it "removes comments from dhall source and formats it" $ do
+      stripComments "{- a comment -}\n[1,2]" `shouldBe` "[ 1, 2 ]"
+    it "just formats dhall source without comments" $ do
+      stripComments "[1,2]" `shouldBe` "[ 1, 2 ]"
