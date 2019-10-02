@@ -332,10 +332,25 @@ getOutputPath
   :: Spago m
   => BuildOptions
   -> m (Maybe Sys.FilePath)
-getOutputPath _ = do
-
+getOutputPath buildOpts = do
   configPath <- asks globalConfigPath
-  PackageSet.findRootOutputPath (Text.unpack configPath)
+  outputPath <- PackageSet.findRootOutputPath (Text.unpack configPath)
+  case findOutputFlag (pursArgs buildOpts) of
+    Just path -> pure (Just path)
+    Nothing   ->
+      case shareOutput buildOpts of
+        NoShareOutput -> pure Nothing
+        ShareOutput   -> pure outputPath
+
+findOutputFlag :: [Purs.ExtraArg] -> Maybe Sys.FilePath
+findOutputFlag [] = Nothing
+findOutputFlag (_:[]) = Nothing
+findOutputFlag (x:y:xs)
+  = if (  Text.isInfixOf "-o" (Purs.unExtraArg x)
+       || Text.isInfixOf "--output" (Purs.unExtraArg x)
+       )
+    then Just $ Text.unpack (Purs.unExtraArg y)
+    else findOutputFlag (y : xs)
 
 -- | If we aren't using the --no-share-output flag, calculate the extra args to
 -- | send to Purs compile
