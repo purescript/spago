@@ -27,9 +27,9 @@ import qualified Data.Text                as Text
 import qualified Data.Text.Lazy           as LT
 import qualified Data.Text.Lazy.Encoding  as LT
 
-
 import           Spago.Config             (Config (..))
 import qualified Spago.Config             as Config
+import qualified Spago.Dhall              as Dhall
 import qualified Spago.FetchPackage       as Fetch
 import           Spago.GlobalCache        (CacheFlag (..))
 import qualified Spago.Messages           as Messages
@@ -45,13 +45,13 @@ import           Spago.Types              as PackageSet
 --   - create `spago.dhall` to manage project config: name, deps, etc
 --   - create an example `src` folder (if needed)
 --   - create an example `test` folder (if needed)
-initProject :: Spago m => Bool -> Bool -> m ()
-initProject force noComments = do
+initProject :: Spago m => Bool -> Dhall.TemplateComments -> m ()
+initProject force comments = do
   echo "Initializing a sample project or migrating an existing one.."
 
   -- packages.dhall and spago.dhall overwrite can be forced
-  PackageSet.makePackageSetFile force noComments
-  Config.makeConfig force noComments
+  PackageSet.makePackageSetFile force comments
+  Config.makeConfig force comments
 
   -- Get the latest version of the package set if possible
   PackageSet.upgradePackageSet

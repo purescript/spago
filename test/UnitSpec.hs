@@ -10,7 +10,7 @@ import           Test.Hspec         (Spec, describe, it, shouldBe)
 import           Test.QuickCheck    (Gen, Property)
 import qualified Test.QuickCheck    as QC
 
-import           Spago.Dhall        (stripComments)
+import           Spago.Dhall        (TemplateComments (..), processComments)
 import           Spago.FetchPackage (getCacheVersionDir)
 
 -- A value of this type represents a failure of a function to be injective,
@@ -95,8 +95,14 @@ spec :: Spec
 spec = describe "unit tests" $ do
   it "getCacheVersionDir is (case insensitively) injective" $ do
     checkInjective (Text.toLower . getCacheVersionDir) genBranchName
-  describe "stripComments" $ do
-    it "removes comments from dhall source and formats it" $ do
-      stripComments "{- a comment -}\n[1,2]" `shouldBe` "[ 1, 2 ]"
-    it "just formats dhall source without comments" $ do
-      stripComments "[1,2]" `shouldBe` "[ 1, 2 ]"
+
+  describe "Dhall.processComments" $ do
+
+    let dhallWithComment = "{- a comment -}\n[1,2]"
+
+    it "does not change dhall source when WithComments is used" $
+      processComments WithComments dhallWithComment `shouldBe` dhallWithComment
+    it "removes comments from dhall source and formats it" $
+      processComments NoComments dhallWithComment `shouldBe` "[ 1, 2 ]"
+    it "formats dhall source when no comments are present" $
+      processComments NoComments "[1,2]" `shouldBe` "[ 1, 2 ]"

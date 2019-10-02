@@ -23,17 +23,18 @@ module Spago.Build
 
 import           Spago.Prelude
 
+import qualified Data.List            as List
 import qualified Data.Set             as Set
 import qualified Data.Text            as Text
-import qualified Data.List            as List
+import           System.Directory     (getCurrentDirectory)
 import qualified System.FilePath.Glob as Glob
 import qualified System.IO            as Sys
 import qualified System.IO.Temp       as Temp
-import           System.Directory     (getCurrentDirectory)
 import qualified Turtle               as Turtle
 import qualified Web.Browser          as Browser
 
 import qualified Spago.Config         as Config
+import qualified Spago.Dhall          as Dhall
 import qualified Spago.FetchPackage   as Fetch
 import qualified Spago.GlobalCache    as GlobalCache
 import qualified Spago.Messages       as Messages
@@ -156,7 +157,7 @@ repl cacheFlag newPackages sourcePaths pursArgs depsOnly = do
       Temp.withTempDirectory cacheDir "spago-repl-tmp" $ \dir -> do
         Turtle.cd (Turtle.decodeString dir)
 
-        Packages.initProject False False
+        Packages.initProject False Dhall.WithComments
 
         config@Config.Config{ packageSet = PackageSet.PackageSet{..}, ..} <- Config.ensureConfig
 

@@ -41,10 +41,16 @@ prettyWithHeader header expr = do
   let doc = Pretty.pretty header <> Pretty.pretty expr
   PrettyText.renderStrict $ Pretty.layoutSmart Pretty.defaultLayoutOptions doc
 
+data TemplateComments = WithComments | NoComments
+
+processComments :: TemplateComments -> Text -> Text
+processComments WithComments = id
+processComments NoComments   = stripComments
+
 stripComments :: Text -> Text
 stripComments dhallSrc =
-  -- This can be considered hack taking advantage of current Dhall behavior
-  -- the parser does not preserve comments: https://github.com/dhall-lang/dhall-haskell/issues/145
+  -- This is a hack taking advantage of current Dhall's parser behavior which does not preserve comments
+  -- This impl might need to be revisited after https://github.com/dhall-lang/dhall-haskell/issues/145 is fixed
   case Parser.exprFromText mempty dhallSrc of
     Left _     -> dhallSrc
     Right expr -> pretty expr
