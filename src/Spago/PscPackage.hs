@@ -1,6 +1,6 @@
 module Spago.PscPackage where
 
-import           Spago.Prelude            hiding (set)
+import           Spago.Prelude hiding (set)
 
 
 data PscPackage = PscPackage
@@ -16,3 +16,4 @@ instance FromJSON PscPackage
 
 configPath :: IsString t => t
 configPath = "psc-package.json"
+

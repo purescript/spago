@@ -169,7 +169,6 @@ makeConfig force comments = do
   writeTextFile path $ Dhall.processComments comments Templates.spagoDhall
   Dhall.format path
 
-
   -- We try to find an existing psc-package or Bower config, and if
   -- we find any we migrate the existing content
   -- Otherwise we just keep the default template
