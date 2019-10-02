@@ -4,9 +4,11 @@ import           Control.Concurrent (threadDelay)
 import qualified Data.Text          as Text
 import           Prelude            hiding (FilePath)
 import qualified System.IO.Temp     as Temp
-import           Test.Hspec         (Spec, around_, describe, it, shouldBe)
+import           Test.Hspec         (Spec, around_, describe, it, shouldBe, shouldNotSatisfy,
+                                     shouldSatisfy)
 import           Turtle             (ExitCode (..), cd, cp, decodeString, empty, mkdir, mktree, mv,
-                                     readTextFile, rm, shell, testdir, writeTextFile, shellStrictWithErr)
+                                     readTextFile, rm, shell, shellStrictWithErr, testdir,
+                                     writeTextFile)
 import           Utils              (checkFixture, readFixture, runFor, shouldBeFailure,
                                      shouldBeFailureOutput, shouldBeSuccess, shouldBeSuccessOutput,
                                      spago, withCwd)
@@ -69,10 +71,14 @@ spec = around_ setup $ do
     it "Spago should strip comments from spago.dhall and packages.dhall" $ do
 
       spago ["init", "--no-comments"] >>= shouldBeSuccess
+
       cp "spago.dhall" "spago-config-no-comments.dhall"
-      cp "packages.dhall" "packages-no-comments.dhall"
       checkFixture "spago-config-no-comments.dhall"
-      checkFixture "packages-no-comments.dhall"
+
+      -- We don't want fixture for packages.dhall to avoid having to maintain upstream package-set URL in fixture
+      dhallSource <- readTextFile "packages.dhall"
+      dhallSource `shouldNotSatisfy` (Text.isInfixOf "{-") -- comments not present
+      dhallSource `shouldSatisfy` (Text.isInfixOf "let overrides = {=}") -- some dhall stuff is present
 
   describe "spago install" $ do
 
