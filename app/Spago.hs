@@ -12,10 +12,11 @@ import qualified Turtle              as CLI
 
 import           Spago.Build         (BuildOptions (..), DepsOnly (..), ExtraArg (..),
                                       ModuleName (..), NoBuild (..), NoInstall (..), NoSearch (..),
-                                      SourcePath (..), TargetPath (..), Watch (..), WithMain (..),
-                                      OpenDocs (..))
+                                      OpenDocs (..), SourcePath (..), TargetPath (..), Watch (..),
+                                      WithMain (..))
 import qualified Spago.Build
 import qualified Spago.Config        as Config
+import           Spago.Dhall         (TemplateComments (..))
 import           Spago.DryRun        (DryRun (..))
 import qualified Spago.GitHub
 import           Spago.GlobalCache   (CacheFlag (..))
@@ -24,8 +25,8 @@ import           Spago.Packages      (JsonFlag (..), PackagesFilter (..))
 import qualified Spago.Packages
 import qualified Spago.Purs          as Purs
 import           Spago.Types
-import qualified Spago.Version
 import           Spago.Version       (VersionBump (..))
+import qualified Spago.Version
 import           Spago.Watch         (ClearScreen (..))
 
 
@@ -35,7 +36,7 @@ data Command
   -- | ### Commands for working with Spago projects
   --
   -- | Initialize a new project
-  = Init Bool
+  = Init Bool TemplateComments
 
   -- | Install (download) dependencies defined in spago.dhall
   | Install (Maybe CacheFlag) [PackageName]
@@ -140,6 +141,7 @@ parser = do
     dryRun      = bool DryRun NoDryRun <$> CLI.switch "no-dry-run" 'f' "Actually perform side-effects (the default is to describe what would be done)"
     usePsa      = bool UsePsa NoPsa <$> CLI.switch "no-psa" 'P' "Don't build with `psa`, but use `purs`"
     openDocs    = bool NoOpenDocs DoOpenDocs <$> CLI.switch "open" 'o' "Open generated documentation in browser (for HTML format only)"
+    noComments  = bool WithComments NoComments <$> CLI.switch "no-comments" 'C' "Generate package.dhall and spago.dhall files without tutorial comments"
     configPath  = CLI.optional $ CLI.optText "config" 'x' "Optional config path to be used instead of the default spago.dhall"
 
     mainModule  = CLI.optional $ CLI.opt (Just . ModuleName) "main" 'm' "Module to be used as the application's entry point"
@@ -174,7 +176,7 @@ parser = do
     initProject =
       ( "init"
       , "Initialize a new sample project, or migrate a psc-package one"
-      , Init <$> force
+      , Init <$> force <*> noComments
       )
 
     build =
@@ -332,7 +334,7 @@ main = do
   (command, globalOptions) <- CLI.options "Spago - manage your PureScript projects" parser
   (flip runReaderT) globalOptions $
     case command of
-      Init force                            -> Spago.Packages.initProject force
+      Init force noComments                 -> Spago.Packages.initProject force noComments
       Install cacheConfig packageNames      -> Spago.Packages.install cacheConfig packageNames
       ListPackages packagesFilter jsonFlag  -> Spago.Packages.listPackages packagesFilter jsonFlag
       Sources                               -> Spago.Packages.sources

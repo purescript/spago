@@ -160,13 +160,13 @@ ensureConfig = do
 
 -- | Copies over `spago.dhall` to set up a Spago project.
 --   Eventually ports an existing `psc-package.json` to the new config.
-makeConfig :: Spago m => Bool -> m ()
-makeConfig force = do
+makeConfig :: Spago m => Bool -> Dhall.TemplateComments -> m ()
+makeConfig force comments = do
   path <- asks globalConfigPath
   unless force $ do
     hasSpagoDhall <- testfile path
     when hasSpagoDhall $ die $ Messages.foundExistingProject path
-  writeTextFile path Templates.spagoDhall
+  writeTextFile path $ Dhall.processComments comments Templates.spagoDhall
   Dhall.format path
 
   -- We try to find an existing psc-package or Bower config, and if

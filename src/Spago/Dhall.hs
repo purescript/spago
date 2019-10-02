@@ -41,6 +41,20 @@ prettyWithHeader header expr = do
   let doc = Pretty.pretty header <> Pretty.pretty expr
   PrettyText.renderStrict $ Pretty.layoutSmart Pretty.defaultLayoutOptions doc
 
+data TemplateComments = WithComments | NoComments
+
+processComments :: TemplateComments -> Text -> Text
+processComments WithComments = id
+processComments NoComments   = stripComments
+
+stripComments :: Text -> Text
+stripComments dhallSrc =
+  -- This is a hack taking advantage of current Dhall's parser behavior which does not preserve comments
+  -- This impl might need to be revisited after https://github.com/dhall-lang/dhall-haskell/issues/145 is fixed
+  case Parser.exprFromText mempty dhallSrc of
+    Left _     -> dhallSrc
+    Right expr -> pretty expr
+
 
 -- | Return a list of all imports starting from a particular file
 readImports :: Text -> IO [Dhall.Import]
@@ -58,6 +72,7 @@ readImports pathText = do
 
     childImport
       = Dhall.Import.chainedImport . Dhall.Import.child
+
 
 
 readRawExpr :: Text -> IO (Maybe (Text, DhallExpr Dhall.Import))
@@ -91,7 +106,7 @@ fromTextLit
   => DhallExpr a
   -> Either (ReadError a) Text
 fromTextLit(Dhall.TextLit (Dhall.Chunks [] str)) = Right str
-fromTextLit expr                                  = Left $ ExprIsNotTextLit expr
+fromTextLit expr                                 = Left $ ExprIsNotTextLit expr
 
 
 -- | Require a key from a Dhall.Map, and run an action on it if found.
@@ -126,7 +141,7 @@ maybeTypedKey
   -> Text
   -> Dhall.Type a
   -> m (Maybe a)
-maybeTypedKey ks name typ = typify `mapM` Dhall.Map.lookup name ks 
+maybeTypedKey ks name typ = typify `mapM` Dhall.Map.lookup name ks
   where
     typify expr = case Dhall.extract typ expr of
       Success v -> pure v
@@ -146,7 +161,7 @@ coerceToType typ expr = do
   let checkedType = typeOf annot
   case (Dhall.extract typ $ Dhall.normalize annot, checkedType) of
     (Success x, Right _) -> Right x
-    _                 -> Left $ WrongType typ expr
+    _                    -> Left $ WrongType typ expr
 
 
 -- | Spago configuration cannot be read

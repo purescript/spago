@@ -23,17 +23,18 @@ module Spago.Build
 
 import           Spago.Prelude
 
+import qualified Data.List            as List
 import qualified Data.Set             as Set
 import qualified Data.Text            as Text
-import qualified Data.List            as List
+import           System.Directory     (getCurrentDirectory)
 import qualified System.FilePath.Glob as Glob
 import qualified System.IO            as Sys
 import qualified System.IO.Temp       as Temp
-import           System.Directory     (getCurrentDirectory)
 import qualified Turtle               as Turtle
 import qualified Web.Browser          as Browser
 
 import qualified Spago.Config         as Config
+import qualified Spago.Dhall          as Dhall
 import qualified Spago.FetchPackage   as Fetch
 import qualified Spago.GlobalCache    as GlobalCache
 import qualified Spago.Messages       as Messages
@@ -89,11 +90,11 @@ build BuildOptions{..} maybePostBuild = do
       allJsGlobs = Packages.getJsGlobs deps depsOnly configSourcePaths <> sourcePaths
 
       buildAction globs = do
-        case alternateBackend of 
+        case alternateBackend of
           Nothing ->
               Purs.compile globs pursArgs
           Just backend -> do
-              when (Purs.ExtraArg "--codegen" `List.elem` pursArgs) $ 
+              when (Purs.ExtraArg "--codegen" `List.elem` pursArgs) $
                 die "Can't pass `--codegen` option to build when using a backend. Hint: No need to pass `--codegen corefn` explicitly when using the `backend` option. Remove the argument to solve the error"
               Purs.compile globs $ pursArgs ++ [ Purs.ExtraArg "--codegen", Purs.ExtraArg "corefn" ]
 
@@ -156,7 +157,7 @@ repl cacheFlag newPackages sourcePaths pursArgs depsOnly = do
       Temp.withTempDirectory cacheDir "spago-repl-tmp" $ \dir -> do
         Turtle.cd (Turtle.decodeString dir)
 
-        Packages.initProject False
+        Packages.initProject False Dhall.WithComments
 
         config@Config.Config{ packageSet = PackageSet.PackageSet{..}, ..} <- Config.ensureConfig
 
@@ -282,7 +283,7 @@ docs format sourcePaths depsOnly noSearch open = do
       shell cmd empty >>= \case
         ExitSuccess   -> pure ()
         ExitFailure n -> echo $ "Failed while trying to make the documentation searchable: " <> repr n
-        
+
     link <- linkToIndexHtml
     let linkText = "Link: " <> link
     echo linkText
@@ -298,7 +299,7 @@ docs format sourcePaths depsOnly noSearch open = do
     linkToIndexHtml = do
       currentDir <- liftIO $ Text.pack <$> getCurrentDirectory
       return ("file://" <> currentDir <> "/generated-docs/html/index.html")
-    
+
     openLink link = liftIO $ Browser.openBrowser (Text.unpack link)
 
 -- | Start a search REPL.
