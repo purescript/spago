@@ -429,6 +429,27 @@ spec = around_ setup $ do
       spago ["build"] >>= shouldBeSuccess
       spago ["test"] >>= shouldBeSuccessOutput "test-output.txt"
 
+    it "Spago should test successfully with a different output folder" $ do
+
+      -- Create root-level packages.dhall
+      mkdir "monorepo"
+      cd "monorepo"
+      spago ["init"] >>= shouldBeSuccess
+      rm "spago.dhall"
+
+      -- Create local 'lib-a' package that uses packages.dhall on top level (but also has it's own one to confuse things)
+      mkdir "lib-a"
+      cd "lib-a"
+      spago ["init"] >>= shouldBeSuccess
+      rm "spago.dhall"
+      writeTextFile "spago.dhall" $ "{ name = \"lib-1\", dependencies = [\"console\", \"effect\", \"prelude\"], packages = ./packages.dhall }"
+      rm "packages.dhall"
+      writeTextFile "packages.dhall" $ "../packages.dhall"
+      spago ["test"] >>= shouldBeSuccess
+      testdir "output" >>= (`shouldBe` False)
+
+      cd ".."
+      testdir "output" >>= (`shouldBe` True)
 
   describe "spago upgrade-set" $ do
 

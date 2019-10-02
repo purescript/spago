@@ -1,5 +1,6 @@
 🍝
 Running NodeJS
+Locating root path of packages.dhall
 Running `spago build`
 Transformed config is the same as the read one, not overwriting it
 Ensuring that the package set is frozen

@@ -81,7 +81,7 @@ prepareBundleDefaults maybeModuleName maybeTargetPath = (moduleName, targetPath)
 
 --   eventually running some other action after the build
 build :: Spago m => BuildOptions -> Maybe (m ()) -> m ()
-build BuildOptions{..} maybePostBuild = do
+build buildOpts@BuildOptions{..} maybePostBuild = do
   echoDebug "Running `spago build`"
   config@Config.Config{ packageSet = Types.PackageSet{..}, ..} <- Config.ensureConfig
   deps <- Packages.getProjectDeps config
@@ -89,7 +89,7 @@ build BuildOptions{..} maybePostBuild = do
     DoInstall -> Fetch.fetchPackages cacheConfig deps packagesMinPursVersion
     NoInstall -> pure ()
   sharedOutputArgs <- case shareOutput of
-    ShareOutput   -> getBuildArgsForSharedFolder pursArgs
+    ShareOutput   -> getBuildArgsForSharedFolder buildOpts
     NoShareOutput -> pure []
   let allPsGlobs = Packages.getGlobs   deps depsOnly configSourcePaths <> sourcePaths
       allJsGlobs = Packages.getJsGlobs deps depsOnly configSourcePaths <> sourcePaths
@@ -197,15 +197,18 @@ runWithNode
   -> m ()
 runWithNode defaultModuleName maybeSuccessMessage failureMessage maybeModuleName buildOpts nodeArgs = do
   echoDebug "Running NodeJS"
-  build buildOpts (Just nodeAction)
+  outputPath <- getOutputPath buildOpts
+  build buildOpts (Just (nodeAction outputPath))
   where
     moduleName = fromMaybe defaultModuleName maybeModuleName
     args = Text.intercalate " " $ map Purs.unExtraArg nodeArgs
-    contents = "#!/usr/bin/env node\n\n" <> "require('../output/" <> Purs.unModuleName moduleName <> "').main()"
+    contents = \outputPath'
+      -> let path = fromMaybe "output" outputPath'
+         in "#!/usr/bin/env node\n\n" <> "require('../" <> Text.pack path <> "/" <> Purs.unModuleName moduleName <> "').main()"
     cmd = "node .spago/run.js " <> args
-    nodeAction = do
+    nodeAction outputPath' = do
       echoDebug $ "Writing .spago/run.js"
-      writeTextFile ".spago/run.js" contents
+      writeTextFile ".spago/run.js" (contents outputPath')
       chmod executable ".spago/run.js"
       shell cmd empty >>= \case
         ExitSuccess   -> fromMaybe (pure ()) (echo <$> maybeSuccessMessage)
@@ -324,25 +327,36 @@ search = do
   echoDebug $ "Running `" <> cmd <> "`"
   viewShell $ callCommand $ Text.unpack cmd
 
+
+getOutputPath
+  :: Spago m
+  => BuildOptions
+  -> m (Maybe Sys.FilePath)
+getOutputPath _ = do
+
+  configPath <- asks globalConfigPath
+  PackageSet.findRootOutputPath (Text.unpack configPath)
+
 -- | If we aren't using the --no-share-output flag, calculate the extra args to
 -- | send to Purs compile
 getBuildArgsForSharedFolder
   :: Spago m
-  => [Purs.ExtraArg]
+  => BuildOptions
   -> m [Purs.ExtraArg]
-getBuildArgsForSharedFolder pursArgs = do
-  let pathToOutputArg
+getBuildArgsForSharedFolder buildOpts = do
+  let pursArgs'
+        = pursArgs buildOpts
+      pathToOutputArg
         = Purs.ExtraArg . Text.pack . ((++) "--output ")
       containsOutputRule (Purs.ExtraArg a)
         =  Text.isInfixOf "--output" a
         || Text.isInfixOf "-o" a
-  if (or $ containsOutputRule <$> pursArgs)
+  if (or $ containsOutputRule <$> pursArgs')
     then do
       echo "Output path set explicitly - not using shared output path"
-      pure pursArgs
+      pure pursArgs'
     else do
-      configPath <- asks globalConfigPath
-      outputFolder <- PackageSet.findRootOutputPath (Text.unpack configPath)
+      outputFolder <- getOutputPath buildOpts
       case pathToOutputArg <$> outputFolder of
-        Just newArg -> pure (pursArgs <> [newArg])
-        _           -> pure pursArgs
+        Just newArg -> pure (pursArgs' <> [newArg])
+        _           -> pure pursArgs'
