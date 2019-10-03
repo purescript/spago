@@ -5,7 +5,7 @@ import qualified Data.Text          as Text
 import           Prelude            hiding (FilePath)
 import qualified System.IO.Temp     as Temp
 import           Test.Hspec         (Spec, around_, describe, it, shouldBe, shouldNotSatisfy,
-                                     shouldSatisfy)
+                                     shouldReturn, shouldSatisfy)
 import           Turtle             (ExitCode (..), cd, cp, decodeString, empty, mkdir, mktree, mv,
                                      readTextFile, rm, shell, shellStrictWithErr, testdir,
                                      writeTextFile)
@@ -238,13 +238,13 @@ spec = around_ setup $ do
 
       spago ["init"] >>= shouldBeSuccess
       spago ["build", "--purs-args", "-o myOutput"] >>= shouldBeSuccess
-      testdir "myOutput" >>= (`shouldBe` True)
+      testdir "myOutput" `shouldReturn` True
 
     it "Spago should pass multiple options to purs" $ do
 
       spago ["init"] >>= shouldBeSuccess
       spago ["build", "--purs-args", "-o", "--purs-args", "myOutput"] >>= shouldBeSuccess
-      testdir "myOutput" >>= (`shouldBe` True)
+      testdir "myOutput" `shouldReturn` True
 
     it "Spago should build successfully with sources included from custom path" $ do
 
@@ -289,7 +289,7 @@ spec = around_ setup $ do
       rm "packages.dhall"
       writeTextFile "packages.dhall" $ "../packages.dhall"
       spago ["build", "--no-share-output"] >>= shouldBeSuccess
-      testdir "output" >>= (`shouldBe` True)
+      testdir "output" `shouldReturn` True
 
       cd ".."
       testdir "output" >>= (`shouldBe` False)
@@ -311,7 +311,7 @@ spec = around_ setup $ do
       rm "spago.dhall"
       writeTextFile "spago.dhall" $ "{ name = \"lib-1\", dependencies = [\"console\", \"effect\", \"prelude\"], packages = ./packages.dhall }"
       spago ["build", "--no-share-output"] >>= shouldBeSuccess
-      testdir "output" >>= (`shouldBe` True)
+      testdir "output" `shouldReturn` True
 
        -- Create local 'monorepo-3' package that uses packages.dhall on top level
       mkdir "monorepo-3"
@@ -322,13 +322,13 @@ spec = around_ setup $ do
       rm "packages.dhall"
       writeTextFile "packages.dhall" $ "../../packages.dhall"
       spago ["build"] >>= shouldBeSuccess
-      testdir "output" >>= (`shouldBe` False)
+      testdir "output" `shouldReturn` False
 
       cd ".."
-      testdir "output" >>= (`shouldBe` True)
+      testdir "output" `shouldReturn` True
 
       cd ".."
-      testdir "output" >>= (`shouldBe` False)
+      testdir "output" `shouldReturn` False
 
     it "Spago should find the middle packages.dhall even when another file is further up the tree" $ do
 
@@ -362,15 +362,15 @@ spec = around_ setup $ do
       spago ["build"] >>= shouldBeSuccess
 
       -- don't use nested folder
-      testdir "output" >>= (`shouldBe` False)
+      testdir "output" `shouldReturn` False
 
       -- use middle one
       cd ".."
-      testdir "output" >>= (`shouldBe` True)
+      testdir "output" `shouldReturn` True
 
       -- not the trick root folder
       cd ".."
-      testdir "output" >>= (`shouldBe` False)
+      testdir "output" `shouldReturn` False
 
     it "Spago should create an output folder in the root when we are not passing --no-share-output" $ do
 
@@ -389,10 +389,10 @@ spec = around_ setup $ do
       rm "spago.dhall"
       writeTextFile "spago.dhall" $ "{ name = \"lib-1\", dependencies = [\"console\", \"effect\", \"prelude\"], packages = ./packages.dhall }"
       spago ["build"] >>= shouldBeSuccess
-      testdir "output" >>= (`shouldBe` False)
+      testdir "output" `shouldReturn` False
 
       cd ".."
-      testdir "output" >>= (`shouldBe` True)
+      testdir "output" `shouldReturn` True
 
     describe "alternate backend" $ do
 
@@ -401,7 +401,6 @@ spec = around_ setup $ do
         spago ["init"] >>= shouldBeSuccess
         mv "spago.dhall" "spago-old.dhall"
         writeTextFile "spago.dhall" configWithBackend
-
 
         spago ["build"] >>= shouldBeSuccess
 
@@ -433,7 +432,7 @@ spec = around_ setup $ do
 
       spago ["init"] >>= shouldBeSuccess
       spago ["test", "--purs-args", "-o", "--purs-args", "myOutput"] >>= shouldBeSuccess
-      testdir "myOutput" >>= (`shouldBe` True)
+      testdir "myOutput" `shouldReturn` True
 
     it "Spago should test successfully with a different output folder" $ do
 
@@ -452,10 +451,10 @@ spec = around_ setup $ do
       rm "packages.dhall"
       writeTextFile "packages.dhall" $ "../packages.dhall"
       spago ["test"] >>= shouldBeSuccess
-      testdir "output" >>= (`shouldBe` False)
+      testdir "output" `shouldReturn` False
 
       cd ".."
-      testdir "output" >>= (`shouldBe` True)
+      testdir "output" `shouldReturn` True
 
     it "Spago should test successfully with --no-share-output" $ do
 
@@ -474,10 +473,10 @@ spec = around_ setup $ do
       rm "packages.dhall"
       writeTextFile "packages.dhall" $ "../packages.dhall"
       spago ["test", "--no-share-output"] >>= shouldBeSuccess
-      testdir "output" >>= (`shouldBe` True)
+      testdir "output" `shouldReturn` True
 
       cd ".."
-      testdir "output" >>= (`shouldBe` False)
+      testdir "output" `shouldReturn` False
 
 
   describe "spago upgrade-set" $ do

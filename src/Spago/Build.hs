@@ -328,6 +328,9 @@ search = do
   viewShell $ callCommand $ Text.unpack cmd
 
 
+-- | Find the output path for purs compiler
+-- | This is based on the location of packages.dhall, the shareOutput flag
+-- | and whether the user has manually specified a path in pursArgs
 getOutputPath
   :: Spago m
   => BuildOptions
@@ -342,15 +345,26 @@ getOutputPath buildOpts = do
         NoShareOutput -> pure Nothing
         ShareOutput   -> pure outputPath
 
+-- | Find an output flag and then return the next item
+-- | which should be the output folder
 findOutputFlag :: [Purs.ExtraArg] -> Maybe Sys.FilePath
 findOutputFlag [] = Nothing
 findOutputFlag (_:[]) = Nothing
 findOutputFlag (x:y:xs)
-  = if (  Text.isInfixOf "-o" (Purs.unExtraArg x)
-       || Text.isInfixOf "--output" (Purs.unExtraArg x)
-       )
+  = if isOutputFlag x
     then Just $ Text.unpack (Purs.unExtraArg y)
     else findOutputFlag (y : xs)
+
+-- | is this argument specifying an output folder?
+isOutputFlag :: Purs.ExtraArg -> Bool
+isOutputFlag (Purs.ExtraArg a)
+  =  firstWord == "-o"
+  || firstWord == "--output"
+    where
+      firstWord
+        = fromMaybe "" $ case Text.words a of
+             []       -> Nothing
+             (word:_) -> Just word
 
 -- | If we aren't using the --no-share-output flag, calculate the extra args to
 -- | send to Purs compile
@@ -363,10 +377,7 @@ getBuildArgsForSharedFolder buildOpts = do
         = pursArgs buildOpts
       pathToOutputArg
         = Purs.ExtraArg . Text.pack . ((++) "--output ")
-      containsOutputRule (Purs.ExtraArg a)
-        =  Text.isInfixOf "--output" a
-        || Text.isInfixOf "-o" a
-  if (or $ containsOutputRule <$> pursArgs')
+  if (or $ isOutputFlag <$> pursArgs')
     then do
       echo "Output path set explicitly - not using shared output path"
       pure pursArgs'

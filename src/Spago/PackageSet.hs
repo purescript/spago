@@ -237,7 +237,7 @@ findRootOutputPath :: Spago m => System.IO.FilePath -> m (Maybe System.IO.FilePa
 findRootOutputPath path = do
   echoDebug "Locating root path of packages.dhall"
   imports <- liftIO $ Dhall.readImports $ Text.pack path
-  let localImports = catMaybes (map rootPackagePath imports)
+  let localImports = mapMaybe rootPackagePath imports
   pure $ (flip System.FilePath.replaceFileName) "output" <$> (findRootPath localImports)
 
 -- | Given a list of filepaths, find the one with the least folders
