@@ -142,13 +142,13 @@ $ node .
   - [Generate documentation for my project](#generate-documentation-for-my-project)
   - [Get source maps for my project](#get-source-maps-for-my-project)
   - [Publish my library](#publish-my-library)
-  - [Use this together with `psc-package`](#use-this-together-with-psc-package)
   - [Get all the licenses of my dependencies](#get-all-the-licenses-of-my-dependencies)
   - [Know which `purs` commands are run under the hood](#know-which-purs-commands-are-run-under-the-hood)
   - [Ignore or update the global cache](#ignore-or-update-the-global-cache)
 - [Explanations](#explanations)
   - [Visual Overview: What happens when you do 'spago build'?](#visual-overview-what-happens-when-you-do-spago-build)
   - [Configuration file format](#configuration-file-format)
+  - [Alternate Backends](#alternate-backends)
   - [Why can't `spago` also install my npm dependencies?](#why-cant-spago-also-install-my-npm-dependencies)
   - [Why we don't resolve JS dependencies when bundling, and how to do it](#why-we-dont-resolve-js-dependencies-when-bundling-and-how-to-do-it)
   - [How does the "global cache" work?](#how-does-the-global-cache-work)
@@ -340,8 +340,7 @@ Tests succeeded.
 ### Run a repl
 
 As with the `build` and `test` commands, you can add custom source paths
-to load, and pass options to the underlying `purs repl` by just putting
-them after `--`.
+to load, and pass options to the underlying `purs repl` via `--purs-args`.
 
 E.g. the following opens a repl on `localhost:3200`:
 
@@ -756,7 +755,7 @@ $ spago docs --format ctags
 
 Quoting from [this tweet](https://twitter.com/jusrin00/status/1092071407356387328):
 
-1. build with `--purs-args '-g sourcemaps'
+1. build with `--purs-args '-g sourcemaps'`
 2. source output (like `var someModule = require('./output/Whatever/index.js');`) and use
    something like `parcel`, to avoid mangling/destroying the sourcemaps
 3. now you can see your breakpoints in action
@@ -784,27 +783,6 @@ All of this will be automated in future versions, removing the need for Pulp.
 
 A library published in this way is [purescript-rave](https://github.com/reactormonk/purescript-rave).
 
-### Use this together with `psc-package`
-
-`spago` can help you setup your `psc-package` project to use the Dhall version of the package set.
-
-We have two commands for it:
-- **`psc-package-local-setup`**: this command creates a `packages.dhall` file in your project,
-  that points to the most recent package set, and lets you override and add arbitrary packages.
-  See the docs about this [here][package-sets].
-- **`psc-package-insdhall`**: do the *Ins-Dhall-ation* of the local project setup: that is,
-  generates a local package set for `psc-package` from your `packages.dhall`, and points your
-  `psc-package.json` to it.
-
-  Functionally this is equivalent to running:
-
-  ```sh
-  NAME='local'
-  TARGET=.psc-package/$NAME/.set/packages.json
-  mkdir -p .psc-package/$NAME/.set
-  dhall-to-json --pretty <<< './packages.dhall' > $TARGET
-  echo wrote packages.json to $TARGET
-  ```
 
 ### Get all the licenses of my dependencies
 
@@ -874,12 +852,27 @@ let PackageSet =
 
 -- The type of the `spago.dhall` configuration is then the following:
 let Config =
-  { name : Text               -- the name of our project
-  , dependencies : List Text  -- the list of dependencies of our app
-  , sources : List Text       -- the list of globs for the paths to always include in the build
-  , packages : PackageSet     -- this is the type we just defined above
+  { name : Text                   -- the name of our project
+  , dependencies : List Text      -- the list of dependencies of our app
+  , alternateBackend : Maybe Text -- Nothing by default, meaning use purs. If specified, spago will use the executable as the backend
+  , sources : List Text           -- the list of globs for the paths to always include in the build
+  , packages : PackageSet         -- this is the type we just defined above
   }
 ```
+
+### Alternate Backends
+
+Spago supports compiling with alternate purescript backends like [psgo](https://github.com/andyarvanitis/purescript-native) or [pskt](https://github.com/csicar/pskt). To use an alternate backend, add the `backend` option to you `spago.dhall` file:
+
+```dhall
+{ name =
+    "aaa"
+, backend =
+    "psgo"
+  ...
+```
+
+The value of the `backend` entry should be the name of the backend executable.
 
 ### Why can't `spago` also install my npm dependencies?
 

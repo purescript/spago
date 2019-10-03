@@ -12,21 +12,21 @@ import qualified Turtle              as CLI
 
 import           Spago.Build         (BuildOptions (..), DepsOnly (..), ExtraArg (..),
                                       ModuleName (..), NoBuild (..), NoInstall (..), NoSearch (..),
-                                      SourcePath (..), TargetPath (..), Watch (..), WithMain (..),
-                                      OpenDocs (..))
+                                      OpenDocs (..), SourcePath (..), TargetPath (..), Watch (..),
+                                      WithMain (..))
 import qualified Spago.Build
 import qualified Spago.Config        as Config
+import           Spago.Dhall         (TemplateComments (..))
 import           Spago.DryRun        (DryRun (..))
 import qualified Spago.GitHub
 import           Spago.GlobalCache   (CacheFlag (..))
 import           Spago.Messages      as Messages
 import           Spago.Packages      (JsonFlag (..), PackagesFilter (..))
 import qualified Spago.Packages
-import qualified Spago.PscPackage    as PscPackage
 import qualified Spago.Purs          as Purs
 import           Spago.Types
-import qualified Spago.Version
 import           Spago.Version       (VersionBump (..))
+import qualified Spago.Version
 import           Spago.Watch         (ClearScreen (..))
 
 
@@ -36,7 +36,7 @@ data Command
   -- | ### Commands for working with Spago projects
   --
   -- | Initialize a new project
-  = Init Bool
+  = Init Bool TemplateComments
 
   -- | Install (download) dependencies defined in spago.dhall
   | Install (Maybe CacheFlag) [PackageName]
@@ -88,26 +88,6 @@ data Command
   -- | Freeze the package-set so it will be cached
   | Freeze
 
-  -- | ### Commands for working with Psc-Package
-  --
-  --   Do the boilerplate of the local project setup to override and add arbitrary packages
-  --   See the package-sets docs about this here:
-  --   https://github.com/purescript/package-sets
-  | PscPackageLocalSetup Bool
-
-  -- | Do the Ins-Dhall-ation of the local project setup, equivalent to:
-  --   ```sh
-  --   NAME='local'
-  --   TARGET=.psc-package/$NAME/.set/packages.json
-  --   mktree -p .psc-package/$NAME/.set
-  --   dhall-to-json --pretty <<< './packages.dhall' > $TARGET
-  --   echo wrote packages.json to $TARGET
-  --   ```
-  | PscPackageInsDhall
-
-  -- | Deletes the .psc-package folder
-  | PscPackageClean
-
   -- | Runs `purescript-docs-search search`.
   | Search
 
@@ -123,7 +103,7 @@ data Command
 parser :: CLI.Parser (Command, GlobalOptions)
 parser = do
   opts <- globalOptions
-  command <- projectCommands <|> packageSetCommands <|> publishCommands <|> pscPackageCommands <|> otherCommands <|> oldCommands
+  command <- projectCommands <|> packageSetCommands <|> publishCommands <|> otherCommands <|> oldCommands
   pure (command, opts)
   where
     cacheFlag =
@@ -160,7 +140,8 @@ parser = do
     jsonFlag    = bool JsonOutputNo JsonOutputYes <$> CLI.switch "json" 'j' "Produce JSON output"
     dryRun      = bool DryRun NoDryRun <$> CLI.switch "no-dry-run" 'f' "Actually perform side-effects (the default is to describe what would be done)"
     usePsa      = bool UsePsa NoPsa <$> CLI.switch "no-psa" 'P' "Don't build with `psa`, but use `purs`"
-    openDocs    = bool NoOpenDocs DoOpenDocs <$> CLI.switch "open" 'o' "Open generated documentation in browswer (for HTML format only)"
+    openDocs    = bool NoOpenDocs DoOpenDocs <$> CLI.switch "open" 'o' "Open generated documentation in browser (for HTML format only)"
+    noComments  = bool WithComments NoComments <$> CLI.switch "no-comments" 'C' "Generate package.dhall and spago.dhall files without tutorial comments"
     configPath  = CLI.optional $ CLI.optText "config" 'x' "Optional config path to be used instead of the default spago.dhall"
 
     mainModule  = CLI.optional $ CLI.opt (Just . ModuleName) "main" 'm' "Module to be used as the application's entry point"
@@ -195,7 +176,7 @@ parser = do
     initProject =
       ( "init"
       , "Initialize a new sample project, or migrate a psc-package one"
-      , Init <$> force
+      , Init <$> force <*> noComments
       )
 
     build =
@@ -316,32 +297,6 @@ parser = do
       , BumpVersion <$> dryRun <*> versionBump
       )
 
-
-    pscPackageCommands = CLI.subcommandGroup "Psc-Package compatibility commands:"
-      [ pscPackageLocalSetup
-      , pscPackageInsDhall
-      , pscPackageClean
-      ]
-
-    pscPackageLocalSetup =
-      ( "psc-package-local-setup"
-      , "Setup a local package set by creating a new packages.dhall"
-      , PscPackageLocalSetup <$> force
-      )
-
-    pscPackageInsDhall =
-      ( "psc-package-insdhall"
-      , "Insdhall the local package set from packages.dhall"
-      , pure PscPackageInsDhall
-      )
-
-    pscPackageClean =
-      ( "psc-package-clean"
-      , "Clean cached packages by deleting the .psc-package folder"
-      , pure PscPackageClean
-      )
-
-
     otherCommands = CLI.subcommandGroup "Other commands:"
       [ version
       ]
@@ -379,7 +334,7 @@ main = do
   (command, globalOptions) <- CLI.options "Spago - manage your PureScript projects" parser
   (flip runReaderT) globalOptions $
     case command of
-      Init force                            -> Spago.Packages.initProject force
+      Init force noComments                 -> Spago.Packages.initProject force noComments
       Install cacheConfig packageNames      -> Spago.Packages.install cacheConfig packageNames
       ListPackages packagesFilter jsonFlag  -> Spago.Packages.listPackages packagesFilter jsonFlag
       Sources                               -> Spago.Packages.sources
@@ -402,8 +357,5 @@ main = do
         -> Spago.Build.docs format sourcePaths depsOnly noSearch openDocs
       Search                                -> Spago.Build.search
       Version                               -> printVersion
-      PscPackageLocalSetup force            -> PscPackage.localSetup force
-      PscPackageInsDhall                    -> PscPackage.insDhall
-      PscPackageClean                       -> PscPackage.clean
       Bundle                                -> die Messages.bundleCommandRenamed
       MakeModule                            -> die Messages.makeModuleCommandRenamed

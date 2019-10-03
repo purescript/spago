@@ -189,7 +189,7 @@ via Node/Browser<y:LabelModel>
                   <y:Fill color="#FFCC00" transparent="false"/>
                   <y:BorderStyle color="#000000" raised="false" type="line" width="1.0"/>
                   <y:NodeLabel alignment="left" autoSizePolicy="content" fontFamily="Dialog" fontSize="12" fontStyle="plain" hasBackgroundColor="false" hasLineColor="false" height="59.875" horizontalTextPosition="center" iconTextGap="4" modelName="custom" textColor="#000000" verticalTextPosition="bottom" visible="true" width="195.865234375" x="5.0" y="4.152383349240836">5b. Via `spago bundle-module`,
-create a CS module that
+create a JS module that
 one can use/integrate 
 into one's application<y:LabelModel>
                       <y:SmartNodeLabelModel distance="4.0"/>
@@ -636,7 +636,7 @@ file's "dependencies" list)<y:LabelModel>
           <y:Arrows source="none" target="standard"/>
           <y:EdgeLabel alignment="left" configuration="AutoFlippingLabel" distance="2.0" fontFamily="Dialog" fontSize="12" fontStyle="plain" hasBackgroundColor="false" hasLineColor="false" height="59.875" horizontalTextPosition="center" iconTextGap="4" modelName="free" modelPosition="anywhere" preferredPlacement="anywhere" ratio="0.5" textColor="#000000" verticalTextPosition="bottom" visible="true" width="271.779296875" x="82.9294645476912" y="-74.74487577425953">3b. If a remote dependency is cacheable
 but hasn't been stored in the global cache 
-yet, then download its tarbell and store it in 
+yet, then download its tarball and store it in 
 the global cache...<y:PreferredPlacementDescriptor angle="0.0" angleOffsetOnRightSide="0" angleReference="absolute" angleRotationOnRightSide="co" distance="-1.0" frozen="true" placement="anywhere" side="anywhere" sideReference="relative_to_edge_flow"/>
           </y:EdgeLabel>
           <y:BendStyle smoothed="false"/>
@@ -650,7 +650,7 @@ the global cache...<y:PreferredPlacementDescriptor angle="0.0" angleOffsetOnRigh
           <y:LineStyle color="#000000" type="line" width="1.0"/>
           <y:Arrows source="none" target="standard"/>
           <y:EdgeLabel alignment="left" configuration="AutoFlippingLabel" distance="2.0" fontFamily="Dialog" fontSize="12" fontStyle="plain" hasBackgroundColor="false" hasLineColor="false" height="45.90625" horizontalTextPosition="center" iconTextGap="4" modelName="free" modelPosition="anywhere" preferredPlacement="anywhere" ratio="0.5" textColor="#000000" verticalTextPosition="bottom" visible="true" width="228.361328125" x="110.61896715916168" y="-57.880779976337976">3a. If a remote dependency is 
-not cacheable, git clone` it into 
+not cacheable, `git clone` it into 
 the project's local `.spago/` directory<y:PreferredPlacementDescriptor angle="0.0" angleOffsetOnRightSide="0" angleReference="absolute" angleRotationOnRightSide="co" distance="-1.0" frozen="true" placement="anywhere" side="anywhere" sideReference="relative_to_edge_flow"/>
           </y:EdgeLabel>
           <y:BendStyle smoothed="false"/>

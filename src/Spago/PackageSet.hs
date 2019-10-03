@@ -27,11 +27,11 @@ packagesPath = "packages.dhall"
 
 
 -- | Tries to create the `packages.dhall` file if needed
-makePackageSetFile :: Spago m => Bool -> m ()
-makePackageSetFile force = do
+makePackageSetFile :: Spago m => Bool -> Dhall.TemplateComments -> m ()
+makePackageSetFile force comments = do
   hasPackagesDhall <- testfile packagesPath
   if force || not hasPackagesDhall
-    then writeTextFile packagesPath Templates.packagesDhall
+    then writeTextFile packagesPath $ Dhall.processComments comments Templates.packagesDhall
     else echo $ Messages.foundExistingProject packagesPath
   Dhall.format packagesPath
 

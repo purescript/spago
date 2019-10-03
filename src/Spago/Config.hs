@@ -42,6 +42,7 @@ data Config = Config
   { name              :: Text
   , dependencies      :: [PackageName]
   , packageSet        :: PackageSet
+  , alternateBackend  :: Maybe Text
   , configSourcePaths :: [Purs.SourcePath]
   , publishConfig     :: Either (Dhall.ReadError Dhall.TypeCheck.X) PublishConfig
   } deriving (Show, Generic)
@@ -122,6 +123,7 @@ parseConfig = do
       name              <- Dhall.requireTypedKey ks "name" Dhall.strictText
       dependencies      <- Dhall.requireTypedKey ks "dependencies" dependenciesType
       configSourcePaths <- Dhall.requireTypedKey ks "sources" sourcesType
+      alternateBackend  <- Dhall.maybeTypedKey ks "backend" Dhall.strictText
 
       let ensurePublishConfig = do
             publishLicense    <- Dhall.requireTypedKey ks "license" Dhall.strictText
@@ -158,13 +160,13 @@ ensureConfig = do
 
 -- | Copies over `spago.dhall` to set up a Spago project.
 --   Eventually ports an existing `psc-package.json` to the new config.
-makeConfig :: Spago m => Bool -> m ()
-makeConfig force = do
+makeConfig :: Spago m => Bool -> Dhall.TemplateComments -> m ()
+makeConfig force comments = do
   path <- asks globalConfigPath
   unless force $ do
     hasSpagoDhall <- testfile path
     when hasSpagoDhall $ die $ Messages.foundExistingProject path
-  writeTextFile path Templates.spagoDhall
+  writeTextFile path $ Dhall.processComments comments Templates.spagoDhall
   Dhall.format path
 
   -- We try to find an existing psc-package or Bower config, and if

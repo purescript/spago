@@ -7,9 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+Breaking changes (😱!!!):
+- **Remove `psc-package`-related commands (#423)**
+
+  Since `psc-package` is now deprecated, we no longer support the 
+  `psc-package-local-setup`, `psc-package-insdhall` and `psc-package-clean` commands.
+
 New features:
 - Display a link to the generated docs' `index.html` (#379)
 - Add `--open` flag to `spago docs` which opens generated docs in browser (#379)
+- Support building for alternate backends (#355). E.g: Use `backend = "psgo"` entry in `spago.dhall` to compile with `psgo`
+- Add `--no-comments` flag to `spago init` which strips comments from the generated `spago.dhall` and `packages.dhall` configs (#417)
+
+Bugfixes:
+- Warn (but don't error) when trying to watch missing directories (#406)
 
 ## [0.10.0] - 2019-09-21
 

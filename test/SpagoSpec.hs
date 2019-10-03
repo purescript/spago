@@ -4,9 +4,11 @@ import           Control.Concurrent (threadDelay)
 import qualified Data.Text          as Text
 import           Prelude            hiding (FilePath)
 import qualified System.IO.Temp     as Temp
-import           Test.Hspec         (Spec, around_, describe, it, shouldBe)
+import           Test.Hspec         (Spec, around_, describe, it, shouldBe, shouldNotSatisfy,
+                                     shouldSatisfy)
 import           Turtle             (ExitCode (..), cd, cp, decodeString, empty, mkdir, mktree, mv,
-                                     readTextFile, rm, shell, testdir, writeTextFile, shellStrictWithErr)
+                                     readTextFile, rm, shell, shellStrictWithErr, testdir,
+                                     writeTextFile)
 import           Utils              (checkFixture, readFixture, runFor, shouldBeFailure,
                                      shouldBeFailureOutput, shouldBeSuccess, shouldBeSuccessOutput,
                                      spago, withCwd)
@@ -65,6 +67,18 @@ spec = around_ setup $ do
       spago ["init"] >>= shouldBeSuccess
       mv "spago.dhall" "spago-bower-import.dhall"
       checkFixture "spago-bower-import.dhall"
+
+    it "Spago should strip comments from spago.dhall and packages.dhall" $ do
+
+      spago ["init", "--no-comments"] >>= shouldBeSuccess
+
+      cp "spago.dhall" "spago-config-no-comments.dhall"
+      checkFixture "spago-config-no-comments.dhall"
+
+      -- We don't want fixture for packages.dhall to avoid having to maintain upstream package-set URL in fixture
+      dhallSource <- readTextFile "packages.dhall"
+      dhallSource `shouldNotSatisfy` (Text.isInfixOf "{-") -- comments not present
+      dhallSource `shouldSatisfy` (Text.isInfixOf "let overrides = {=}") -- some dhall stuff is present
 
   describe "spago install" $ do
 
@@ -257,6 +271,31 @@ spec = around_ setup $ do
       spago ["install"] >>= shouldBeSuccess
       mv "spago.dhall" "spago-configV2.dhall"
       checkFixture "spago-configV2.dhall"
+
+    describe "alternate backend" $ do
+
+      it "Spago should use alternate backend if option is specified" $ do
+        configWithBackend <- readFixture "spago-configWithBackend.dhall"
+        spago ["init"] >>= shouldBeSuccess
+        mv "spago.dhall" "spago-old.dhall"
+        writeTextFile "spago.dhall" configWithBackend
+
+
+        spago ["build"] >>= shouldBeSuccess
+
+        checkFixture "alternate-backend-output.txt"
+
+      it "Passing `--codegen corefn` with backend option should fail" $ do
+        configWithBackend <- readFixture "spago-configWithBackend.dhall"
+        spago ["init"] >>= shouldBeSuccess
+        mv "spago.dhall" "spago-old.dhall"
+        writeTextFile "spago.dhall" configWithBackend
+
+        spago ["build"] >>= shouldBeSuccess
+        spago ["build", "--purs-args", "--codegen", "--purs-args", "corefn"] >>= shouldBeFailureOutput "codegen-opt-with-backend.txt"
+        spago ["build", "--purs-args", "--codegen", "--purs-args", "docs"] >>= shouldBeFailureOutput "codegen-opt-with-backend.txt"
+
+
 
   describe "spago test" $ do
 
