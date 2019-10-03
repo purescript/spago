@@ -637,6 +637,10 @@ in upstream // overrides
 }
 ```
 
+To avoid building the same packages over, a shared `output` folder will be created next to your root `packages.dhall`. 
+
+To disable this behaviour, pass `--no-share-output` to `spago build`.
+
 ### `devDependencies`, `testDependencies`, or in general a situation with many configurations
 
 You might have a simpler situation than a monorepo, where e.g. you just want to "split" dependencies.

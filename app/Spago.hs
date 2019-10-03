@@ -12,8 +12,8 @@ import qualified Turtle              as CLI
 
 import           Spago.Build         (BuildOptions (..), DepsOnly (..), ExtraArg (..),
                                       ModuleName (..), NoBuild (..), NoInstall (..), NoSearch (..),
-                                      OpenDocs (..), SourcePath (..), TargetPath (..), Watch (..),
-                                      WithMain (..))
+                                      OpenDocs (..), ShareOutput (..), SourcePath (..),
+                                      TargetPath (..), Watch (..), WithMain (..))
 import qualified Spago.Build
 import qualified Spago.Config        as Config
 import           Spago.Dhall         (TemplateComments (..))
@@ -155,8 +155,8 @@ parser = do
     packageName     = CLI.arg (Just . PackageName) "package" "Specify a package name. You can list them with `list-packages`"
     packageNames    = many $ CLI.arg (Just . PackageName) "package" "Package name to add as dependency"
     pursArgs        = many $ CLI.opt (Just . ExtraArg) "purs-args" 'u' "Argument to pass to purs"
-
-    buildOptions  = BuildOptions <$> cacheFlag <*> watch <*> clearScreen <*> sourcePaths <*> noInstall <*> pursArgs <*> depsOnly
+    useSharedOutput = bool ShareOutput NoShareOutput <$> CLI.switch "no-share-output" 'S' "Disabled using a shared output folder in location of root packages.dhall"
+    buildOptions  = BuildOptions <$> cacheFlag <*> watch <*> clearScreen <*> sourcePaths <*> noInstall <*> pursArgs <*> depsOnly <*> useSharedOutput
 
     -- Note: by default we limit concurrency to 20
     globalOptions = GlobalOptions <$> verbose <*> usePsa <*> fmap (fromMaybe 20) jobsLimit <*> fmap (fromMaybe Config.defaultPath) configPath
