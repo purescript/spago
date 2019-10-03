@@ -312,7 +312,9 @@ verify cacheFlag maybePackage = do
   Config{ packageSet = packageSet@PackageSet{..}, ..} <- Config.ensureConfig
   case maybePackage of
     -- If no package is specified, verify all of them
-    Nothing -> verifyPackages packageSet (Map.toList packagesDB)
+    Nothing -> do
+      verifyPackages packageSet (Map.toList packagesDB)
+      compileEverything packageSet
     -- In case we have a package, search in the package set for it
     Just packageName -> do
       case Map.lookup packageName packagesDB of
@@ -340,3 +342,12 @@ verify cacheFlag maybePackage = do
       echo $ "Verifying package " <> quotedName
       Purs.compile globs []
       echo $ "Successfully verified " <> quotedName
+
+    compileEverything :: Spago m => PackageSet -> m ()
+    compileEverything PackageSet{..} = do
+      let deps = Map.toList packagesDB
+          globs = getGlobs deps DepsOnly []
+      Fetch.fetchPackages cacheFlag deps packagesMinPursVersion
+      echo "Compiling everything (will fail if module names conflict)"
+      Purs.compile globs []
+      echo "Successfully compiled everything"
