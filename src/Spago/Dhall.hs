@@ -61,12 +61,12 @@ readImports :: Text -> IO [Dhall.Import]
 readImports pathText = do
   fileContents <- readTextFile $ pathFromText pathText
   expr <- throws $ Parser.exprFromText mempty fileContents
-  (_, status) <- load expr
+  status <- load expr
   let graph = Lens.Family.view Dhall.Import.graph status
   pure $ childImport <$> graph
   where
     load expr
-      = State.runStateT
+      = State.execStateT
           (Dhall.Import.loadWith expr)
           (Dhall.Import.emptyStatus ".")
 

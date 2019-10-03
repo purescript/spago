@@ -300,11 +300,10 @@ sources = do
   echoDebug "Running `spago sources`"
   config <- Config.ensureConfig
   deps <- getProjectDeps config
-  _ <- traverse echo
+  traverse_ echo
     $ fmap Purs.unSourcePath
     $ getGlobs deps AllSources
     $ Config.configSourcePaths config
-  pure ()
 
 
 data CheckModulesUnique = DoCheckModulesUnique | NoCheckModulesUnique
@@ -320,7 +319,7 @@ verify cacheFlag chkModsUniq maybePackage = do
     -- In case we have a package, search in the package set for it
     Just packageName -> do
       case Map.lookup packageName packagesDB of
-        Nothing -> die $ "No packages found with the name " <> Text.pack (show packageName)
+        Nothing -> die $ "No packages found with the name " <> tshow packageName
         -- When verifying a single package we check the reverse deps/referrers
         -- because we want to make sure the it doesn't break them
         -- (without having to check the whole set of course, that would work
