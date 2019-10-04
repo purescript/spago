@@ -171,23 +171,21 @@ pkgNotFoundMsg packagesDB (NotFoundError pkg) = "  - " <> packageName pkg <> ext
         ", and nor does `" <> packageName pkg' <> "`"
       Nothing ->
         ""
-    suggestedPkg = do
-      sansPrefix <- Text.stripPrefix "purescript-" (packageName pkg)
-      Just (PackageName sansPrefix)
+    suggestedPkg = stripPurescriptPrefix pkg
 
 
 newtype NotFoundError a = NotFoundError a deriving (Eq, Ord)
 newtype CycleError a = CycleError a deriving (Eq, Ord)
-
+newtype FoundWithoutPrefix = FoundWithoutPrefix PackageName
 
 getReverseDeps  :: PackageSet -> PackageName -> IO [(PackageName, Package)]
 getReverseDeps packageSet@PackageSet{..} dep = do
     List.nub <$> foldMap go (Map.toList packagesDB)
   where
     go pair@(packageName, Package{..}) = do
-      case List.find (== dep) dependencies of
-        Nothing -> return mempty
-        Just _ -> do
+      case dep `elem` dependencies of
+        False -> return mempty
+        True -> do
           innerDeps <- getReverseDeps packageSet packageName
           return $ pair : innerDeps
 
@@ -198,18 +196,55 @@ install cacheFlag newPackages = do
   echoDebug "Running `spago install`"
   config@Config{ packageSet = PackageSet{..}, ..} <- Config.ensureConfig
 
+  existingNewPackages <- reportMissingPackages $ classifyPackages packagesDB newPackages
+
   -- Try fetching the dependencies with the new names too
   let newConfig :: Config
-      newConfig = config { dependencies = dependencies <> newPackages }
+      newConfig = config { dependencies = dependencies <> existingNewPackages }
   deps <- getProjectDeps newConfig
 
   -- If the above doesn't fail, write the new packages to the config
   -- Also skip the write if there are no new packages to be written
-  case newPackages of
+  case existingNewPackages of
     []         -> pure ()
     additional -> Config.addDependencies config additional
 
   Fetch.fetchPackages cacheFlag deps packagesMinPursVersion
+
+reportMissingPackages :: Spago m => PackagesLookupResult -> m [PackageName]
+reportMissingPackages (PackagesLookupResult found foundWithoutPrefix notFound) = do
+  unless (null notFound) $
+    die $ "The following packages do not exist in your package set:\n"
+        <> (Text.intercalate "\n" . fmap (\(NotFoundError p) -> "  - " <> packageName p) $ List.sort notFound)
+
+  for_ foundWithoutPrefix $ \(FoundWithoutPrefix sansPrefix) ->
+    echo $ "WARNING: the package 'purescript-" <> packageName sansPrefix <> "' was not found in your package set, but '"
+         <> packageName sansPrefix <> "' was. Using that instead."
+  pure found
+
+
+classifyPackages :: Map PackageName a -> [PackageName] -> PackagesLookupResult
+classifyPackages packagesDB =
+    foldr classifyPackage (PackagesLookupResult [] [] [])
+  where
+    classifyPackage :: PackageName -> PackagesLookupResult -> PackagesLookupResult
+    classifyPackage pkg (PackagesLookupResult found foundWithoutPrefix notFound)
+      | Map.member pkg packagesDB        = PackagesLookupResult (pkg : found) foundWithoutPrefix notFound
+      | Just sansPrefix <- stripPurescriptPrefix pkg,
+        Map.member sansPrefix packagesDB = PackagesLookupResult (sansPrefix : found) (FoundWithoutPrefix sansPrefix : foundWithoutPrefix) notFound
+      | otherwise                        = PackagesLookupResult found foundWithoutPrefix (NotFoundError pkg : notFound)
+
+
+data PackagesLookupResult = PackagesLookupResult
+  { _found              :: [PackageName]
+  , _foundWithoutPrefix :: [FoundWithoutPrefix]
+  , _notFound           :: [NotFoundError PackageName]
+  }
+
+
+stripPurescriptPrefix :: PackageName -> Maybe PackageName
+stripPurescriptPrefix (PackageName name) =
+  PackageName <$> Text.stripPrefix "purescript-" name
 
 
 data PackagesFilter = TransitiveDeps | DirectDeps

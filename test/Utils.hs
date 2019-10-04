@@ -76,9 +76,10 @@ shouldBeFailure result@(_code, _stdout, _stderr) = do
   result `shouldSatisfy` (\(code, _, _) -> code == ExitFailure 1)
 
 shouldBeFailureOutput :: HasCallStack => FilePath -> (ExitCode, Text, Text) -> IO ()
-shouldBeFailureOutput expected result = do
+shouldBeFailureOutput expected (code, _stdout, stderr) = do
   expectedContent <- readFixture expected
-  result `shouldSatisfy` (\(code, _stdout, stderr) -> code == ExitFailure 1 && stderr == expectedContent)
+  code `shouldBe` ExitFailure 1
+  stderr `shouldBe` expectedContent
 
 shouldBeFailureInfix :: HasCallStack => Text -> (ExitCode, Text, Text) -> IO ()
 shouldBeFailureInfix expected result = do
