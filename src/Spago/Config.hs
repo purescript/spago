@@ -284,8 +284,8 @@ updateName newName (Dhall.RecordLit kvs)
 updateName _ other = other
 
 addRawDeps :: Spago m => Config -> [PackageName] -> Expr -> m Expr
-addRawDeps config newPackages r@(Dhall.RecordLit kvs)
-  | Just (Dhall.ListLit _ dependencies) <- Dhall.Map.lookup "dependencies" kvs = do
+addRawDeps config newPackages r@(Dhall.RecordLit kvs) = case Dhall.Map.lookup "dependencies" kvs of
+  Just (Dhall.ListLit _ dependencies) -> do
       case notInPackageSet of
         -- If none of the newPackages are outside of the set, add them to existing dependencies
         [] -> do
@@ -297,18 +297,21 @@ addRawDeps config newPackages r@(Dhall.RecordLit kvs)
         pkgs -> do
           echo $ Messages.failedToAddDeps $ map PackageSet.packageName pkgs
           pure r
-  where
-    notInPackageSet = mapMaybe
-      (\p -> case Map.lookup p (PackageSet.packagesDB $ packageSet config) of
-               Just _  -> Nothing
-               Nothing -> Just p)
-      newPackages
+    where
+      packagesDB = PackageSet.packagesDB $ packageSet config
+      notInPackageSet = filter (\p -> Map.notMember p packagesDB) newPackages
 
-    -- | Code from https://stackoverflow.com/questions/45757839
-    nubSeq :: Ord a => Seq a -> Seq a
-    nubSeq xs = (fmap fst . Seq.filter (uncurry notElem)) (Seq.zip xs seens)
-      where
-        seens = Seq.scanl (flip Set.insert) Set.empty xs
+      -- | Code from https://stackoverflow.com/questions/45757839
+      nubSeq :: Ord a => Seq a -> Seq a
+      nubSeq xs = (fmap fst . Seq.filter (uncurry notElem)) (Seq.zip xs seens)
+        where
+          seens = Seq.scanl (flip Set.insert) Set.empty xs
+  Just _ -> do
+    echo "WARNING: Failed to add dependencies. The `dependencies` field wasn't a List of Strings."
+    pure r
+  Nothing -> do
+    echo "WARNING: Failed to add dependencies. You should have a record with the `dependencies` key for this to work."
+    pure r
 addRawDeps _ _ other = pure other
 
 addSourcePaths :: Expr -> Expr
@@ -373,5 +376,5 @@ transformMExpr rules =
 addDependencies :: Spago m => Config -> [PackageName] -> m ()
 addDependencies config newPackages = do
   configHasChanged <- withConfigAST $ addRawDeps config newPackages
-  when (not configHasChanged) $ do
-    echo "WARNING: configuration file was not updated. You should have a record with the `dependencies` key for this to work."
+  unless configHasChanged $
+    echo "WARNING: configuration file was not updated."
