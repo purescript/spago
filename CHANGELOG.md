@@ -19,6 +19,7 @@ New features:
 - Support building for alternate backends (#355). E.g: Use `backend = "psgo"` entry in `spago.dhall` to compile with `psgo`
 - Add `--no-comments` flag to `spago init` which strips comments from the generated `spago.dhall` and `packages.dhall` configs (#417)
 - Add shared output folder to reduce build duplication. Pass `--no-share-output` flag to `spago build` to disable (#377)
+- Fix confusing warning when trying to `spago install` a package already present in project dependencies list (#436)
 
 Bugfixes:
 - Warn (but don't error) when trying to watch missing directories (#406)
