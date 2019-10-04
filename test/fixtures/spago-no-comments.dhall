@@ -1,7 +1,7 @@
 { name =
     "my-project"
 , dependencies =
-    [ "effect", "console", "psci-support" ]
+    [ "console", "effect", "psci-support" ]
 , packages =
     ./packages.dhall
 , sources =

@@ -72,8 +72,8 @@ spec = around_ setup $ do
 
       spago ["init", "--no-comments"] >>= shouldBeSuccess
 
-      cp "spago.dhall" "spago-config-no-comments.dhall"
-      checkFixture "spago-config-no-comments.dhall"
+      cp "spago.dhall" "spago-no-comments.dhall"
+      checkFixture "spago-no-comments.dhall"
 
       -- We don't want fixture for packages.dhall to avoid having to maintain upstream package-set URL in fixture
       dhallSource <- readTextFile "packages.dhall"
@@ -90,6 +90,12 @@ spec = around_ setup $ do
       -- Sleep for some time, as the above might take time to cleanup old processes
       threadDelay 1000000
       spago ["install", "-j", "10"] >>= shouldBeSuccess
+
+    it "Spago should warn that config was not changed, when trying to install package already present in project dependencies" $ do
+
+      spago ["init"] >>= shouldBeSuccess
+      spago ["install"] >>= shouldBeSuccess
+      spago ["install", "effect"] >>= shouldBeSuccessOutput "spago-install-existing-dep-warning.txt"
 
     it "Spago should be able to add dependencies" $ do
 
