@@ -1,0 +1,6 @@
+WARNING: the package 'purescript-newtype' was not found in your package set, but 'newtype' was. Using that instead.
+Installing 1 dependencies.
+Searching for packages cache metadata..
+Recent packages cache metadata found, using it..
+Copying from global cache: "newtype"
+Installation complete.

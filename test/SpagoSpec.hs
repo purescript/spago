@@ -9,9 +9,9 @@ import           Test.Hspec         (Spec, around_, describe, it, shouldBe, shou
 import           Turtle             (ExitCode (..), cd, cp, decodeString, empty, mkdir, mktree, mv,
                                      readTextFile, rm, shell, shellStrictWithErr, testdir,
                                      writeTextFile)
-import           Utils              (checkFixture, readFixture, runFor, shouldBeFailure,
-                                     shouldBeFailureOutput, shouldBeSuccess, shouldBeSuccessOutput,
-                                     spago, withCwd)
+import           Utils              (checkFileHasInfix, checkFixture, readFixture, runFor,
+                                     shouldBeFailure, shouldBeFailureOutput, shouldBeSuccess,
+                                     shouldBeSuccessOutput, spago, withCwd)
 
 
 setup :: IO () -> IO ()
@@ -39,7 +39,7 @@ spec = around_ setup $ do
       mktree "src"
       writeTextFile "src/Main.purs" "Something"
       spago ["init"] >>= shouldBeSuccess
-      readTextFile "src/Main.purs" >>= (`shouldBe` "Something")
+      readTextFile "src/Main.purs" `shouldReturn` "Something"
 
     it "Spago should always succeed in doing init with force" $ do
 
@@ -96,6 +96,14 @@ spec = around_ setup $ do
       spago ["init"] >>= shouldBeSuccess
       spago ["install"] >>= shouldBeSuccess
       spago ["install", "effect"] >>= shouldBeSuccessOutput "spago-install-existing-dep-warning.txt"
+
+    it "Spago should strip 'purescript-' prefix and give warning if package without prefix is present in package set" $ do
+
+      spago ["init"] >>= shouldBeSuccess
+      spago ["install"] >>= shouldBeSuccess
+      spago ["install", "purescript-newtype"] >>= shouldBeSuccessOutput "spago-install-purescript-prefix-warning.txt"
+      -- dep added without "purescript-" prefix
+      checkFileHasInfix "spago.dhall" "\"newtype\""
 
     it "Spago should be able to add dependencies" $ do
 
@@ -298,7 +306,7 @@ spec = around_ setup $ do
       testdir "output" `shouldReturn` True
 
       cd ".."
-      testdir "output" >>= (`shouldBe` False)
+      testdir "output" `shouldReturn` False
 
     it "Spago should use the main packages.dhall even when another packages.dhall is further up the tree" $ do
 
