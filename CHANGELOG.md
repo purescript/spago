@@ -18,6 +18,7 @@ New features:
 - Add `--open` flag to `spago docs` which opens generated docs in browser (#379)
 - Support building for alternate backends (#355). E.g: Use `backend = "psgo"` entry in `spago.dhall` to compile with `psgo`
 - Add `--no-comments` flag to `spago init` which strips comments from the generated `spago.dhall` and `packages.dhall` configs (#417)
+- Make `spago verify-set` compile everything, to detect duplicate module names (#438)
 - Add shared output folder to reduce build duplication. Pass `--no-share-output` flag to `spago build` to disable (#377)
 - Fix confusing warning when trying to `spago install` a package already present in project dependencies list (#436)
 

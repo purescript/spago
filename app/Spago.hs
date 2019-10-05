@@ -21,7 +21,7 @@ import           Spago.DryRun        (DryRun (..))
 import qualified Spago.GitHub
 import           Spago.GlobalCache   (CacheFlag (..))
 import           Spago.Messages      as Messages
-import           Spago.Packages      (JsonFlag (..), PackagesFilter (..))
+import           Spago.Packages      (CheckModulesUnique (..), JsonFlag (..), PackagesFilter (..))
 import qualified Spago.Packages
 import qualified Spago.Purs          as Purs
 import           Spago.Types
@@ -60,7 +60,7 @@ data Command
   | Verify (Maybe CacheFlag) PackageName
 
   -- | Verify that the Package Set is correct
-  | VerifySet (Maybe CacheFlag)
+  | VerifySet (Maybe CacheFlag) CheckModulesUnique
 
   -- | Test the project with some module, default Test.Main
   | Test (Maybe ModuleName) BuildOptions [ExtraArg]
@@ -143,6 +143,7 @@ parser = do
     openDocs    = bool NoOpenDocs DoOpenDocs <$> CLI.switch "open" 'o' "Open generated documentation in browser (for HTML format only)"
     noComments  = bool WithComments NoComments <$> CLI.switch "no-comments" 'C' "Generate package.dhall and spago.dhall files without tutorial comments"
     configPath  = CLI.optional $ CLI.optText "config" 'x' "Optional config path to be used instead of the default spago.dhall"
+    chkModsUniq = bool DoCheckModulesUnique NoCheckModulesUnique <$> CLI.switch "no-check-modules-unique" 'M' "Skip checking whether modules names are unique across all packages."
 
     mainModule  = CLI.optional $ CLI.opt (Just . ModuleName) "main" 'm' "Module to be used as the application's entry point"
     toTarget    = CLI.optional $ CLI.opt (Just . TargetPath) "to" 't' "The target file path"
@@ -264,7 +265,7 @@ parser = do
     verifySet =
       ( "verify-set"
       , "Verify that the whole Package Set builds correctly"
-      , VerifySet <$> cacheFlag
+      , VerifySet <$> cacheFlag <*> chkModsUniq
       )
 
     upgradeSet =
@@ -338,8 +339,8 @@ main = do
       Install cacheConfig packageNames      -> Spago.Packages.install cacheConfig packageNames
       ListPackages packagesFilter jsonFlag  -> Spago.Packages.listPackages packagesFilter jsonFlag
       Sources                               -> Spago.Packages.sources
-      Verify cacheConfig package            -> Spago.Packages.verify cacheConfig (Just package)
-      VerifySet cacheConfig                 -> Spago.Packages.verify cacheConfig Nothing
+      Verify cacheConfig package            -> Spago.Packages.verify cacheConfig NoCheckModulesUnique (Just package)
+      VerifySet cacheConfig chkModsUniq     -> Spago.Packages.verify cacheConfig chkModsUniq Nothing
       PackageSetUpgrade                     -> Spago.Packages.upgradePackageSet
       Freeze                                -> Spago.Packages.freeze Spago.Packages.packagesPath
       Build buildOptions                    -> Spago.Build.build buildOptions Nothing
