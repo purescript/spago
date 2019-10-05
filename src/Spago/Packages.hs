@@ -12,6 +12,7 @@ module Spago.Packages
   , PackageSet.freeze
   , PackageSet.packagesPath
   , PackagesFilter(..)
+  , CheckModulesUnique(..)
   , JsonFlag(..)
   , DepsOnly(..)
   ) where
@@ -306,15 +307,16 @@ sources = do
   pure ()
 
 
-verify :: Spago m => Maybe CacheFlag -> Maybe PackageName -> m ()
-verify cacheFlag maybePackage = do
+data CheckModulesUnique = DoCheckModulesUnique | NoCheckModulesUnique
+
+verify :: Spago m => Maybe CacheFlag -> CheckModulesUnique -> Maybe PackageName -> m ()
+verify cacheFlag chkModsUniq maybePackage = do
   echoDebug "Running `spago verify`"
   Config{ packageSet = packageSet@PackageSet{..}, ..} <- Config.ensureConfig
   case maybePackage of
     -- If no package is specified, verify all of them
     Nothing -> do
       verifyPackages packageSet (Map.toList packagesDB)
-      compileEverything packageSet
     -- In case we have a package, search in the package set for it
     Just packageName -> do
       case Map.lookup packageName packagesDB of
@@ -327,6 +329,9 @@ verify cacheFlag maybePackage = do
           reverseDeps <- liftIO $ getReverseDeps packageSet packageName
           let toVerify = [(packageName, package)] <> reverseDeps
           verifyPackages packageSet toVerify
+  case chkModsUniq of
+    DoCheckModulesUnique -> compileEverything packageSet
+    NoCheckModulesUnique -> pure ()
   where
     verifyPackages :: Spago m => PackageSet -> [(PackageName, Package)] -> m ()
     verifyPackages packageSet packages = do
