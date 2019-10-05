@@ -1,2 +1,3 @@
-WARNING: configuration file was not updated. You should have a record with the `dependencies` key for this to work.
+WARNING: Failed to add dependencies. You should have a record with the `dependencies` key for this to work.
+WARNING: configuration file was not updated.
 Installation complete.

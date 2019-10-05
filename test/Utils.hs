@@ -55,13 +55,15 @@ shouldBeSuccess result@(_code, _stdout, _stderr) = do
   result `shouldSatisfy` (\(code, _, _) -> code == ExitSuccess)
 
 shouldBeSuccessOutput :: HasCallStack => FilePath -> (ExitCode, Text, Text) -> IO ()
-shouldBeSuccessOutput expected result = do
-  expectedContent <- readFixture expected
-  result `shouldSatisfy` (\(code, stdout, _stderr) -> code == ExitSuccess && stdout == expectedContent)
+shouldBeSuccessOutput expected (code, stdout, _stderr) = do
+  expectedStdout <- readFixture expected
+  code `shouldBe` ExitSuccess
+  stdout `shouldBe` expectedStdout
 
 shouldBeSuccessInfix :: HasCallStack => Text -> (ExitCode, Text, Text) -> IO ()
-shouldBeSuccessInfix expected result =
-  result `shouldSatisfy` (\(code, stdout, _stderr) -> code == ExitSuccess && Text.isInfixOf expected stdout)
+shouldBeSuccessInfix expected (code, stdout, _stderr) = do
+  code `shouldBe` ExitSuccess
+  stdout `shouldSatisfy` (Text.isInfixOf expected)
 
 shouldBeEmptySuccess :: HasCallStack => (ExitCode, Text, Text) -> IO ()
 shouldBeEmptySuccess result = do

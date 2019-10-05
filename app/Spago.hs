@@ -12,8 +12,8 @@ import qualified Turtle              as CLI
 
 import           Spago.Build         (BuildOptions (..), DepsOnly (..), ExtraArg (..),
                                       ModuleName (..), NoBuild (..), NoInstall (..), NoSearch (..),
-                                      OpenDocs (..), SourcePath (..), TargetPath (..), Watch (..),
-                                      WithMain (..))
+                                      OpenDocs (..), ShareOutput (..), SourcePath (..),
+                                      TargetPath (..), Watch (..), WithMain (..))
 import qualified Spago.Build
 import qualified Spago.Config        as Config
 import           Spago.Dhall         (TemplateComments (..))
@@ -21,7 +21,7 @@ import           Spago.DryRun        (DryRun (..))
 import qualified Spago.GitHub
 import           Spago.GlobalCache   (CacheFlag (..))
 import           Spago.Messages      as Messages
-import           Spago.Packages      (JsonFlag (..), PackagesFilter (..))
+import           Spago.Packages      (CheckModulesUnique (..), JsonFlag (..), PackagesFilter (..))
 import qualified Spago.Packages
 import qualified Spago.Purs          as Purs
 import           Spago.Types
@@ -60,7 +60,7 @@ data Command
   | Verify (Maybe CacheFlag) PackageName
 
   -- | Verify that the Package Set is correct
-  | VerifySet (Maybe CacheFlag)
+  | VerifySet (Maybe CacheFlag) CheckModulesUnique
 
   -- | Test the project with some module, default Test.Main
   | Test (Maybe ModuleName) BuildOptions [ExtraArg]
@@ -143,6 +143,7 @@ parser = do
     openDocs    = bool NoOpenDocs DoOpenDocs <$> CLI.switch "open" 'o' "Open generated documentation in browser (for HTML format only)"
     noComments  = bool WithComments NoComments <$> CLI.switch "no-comments" 'C' "Generate package.dhall and spago.dhall files without tutorial comments"
     configPath  = CLI.optional $ CLI.optText "config" 'x' "Optional config path to be used instead of the default spago.dhall"
+    chkModsUniq = bool DoCheckModulesUnique NoCheckModulesUnique <$> CLI.switch "no-check-modules-unique" 'M' "Skip checking whether modules names are unique across all packages."
 
     mainModule  = CLI.optional $ CLI.opt (Just . ModuleName) "main" 'm' "Module to be used as the application's entry point"
     toTarget    = CLI.optional $ CLI.opt (Just . TargetPath) "to" 't' "The target file path"
@@ -155,8 +156,8 @@ parser = do
     packageName     = CLI.arg (Just . PackageName) "package" "Specify a package name. You can list them with `list-packages`"
     packageNames    = many $ CLI.arg (Just . PackageName) "package" "Package name to add as dependency"
     pursArgs        = many $ CLI.opt (Just . ExtraArg) "purs-args" 'u' "Argument to pass to purs"
-
-    buildOptions  = BuildOptions <$> cacheFlag <*> watch <*> clearScreen <*> sourcePaths <*> noInstall <*> pursArgs <*> depsOnly
+    useSharedOutput = bool ShareOutput NoShareOutput <$> CLI.switch "no-share-output" 'S' "Disabled using a shared output folder in location of root packages.dhall"
+    buildOptions  = BuildOptions <$> cacheFlag <*> watch <*> clearScreen <*> sourcePaths <*> noInstall <*> pursArgs <*> depsOnly <*> useSharedOutput
 
     -- Note: by default we limit concurrency to 20
     globalOptions = GlobalOptions <$> verbose <*> usePsa <*> fmap (fromMaybe 20) jobsLimit <*> fmap (fromMaybe Config.defaultPath) configPath
@@ -264,7 +265,7 @@ parser = do
     verifySet =
       ( "verify-set"
       , "Verify that the whole Package Set builds correctly"
-      , VerifySet <$> cacheFlag
+      , VerifySet <$> cacheFlag <*> chkModsUniq
       )
 
     upgradeSet =
@@ -338,8 +339,8 @@ main = do
       Install cacheConfig packageNames      -> Spago.Packages.install cacheConfig packageNames
       ListPackages packagesFilter jsonFlag  -> Spago.Packages.listPackages packagesFilter jsonFlag
       Sources                               -> Spago.Packages.sources
-      Verify cacheConfig package            -> Spago.Packages.verify cacheConfig (Just package)
-      VerifySet cacheConfig                 -> Spago.Packages.verify cacheConfig Nothing
+      Verify cacheConfig package            -> Spago.Packages.verify cacheConfig NoCheckModulesUnique (Just package)
+      VerifySet cacheConfig chkModsUniq     -> Spago.Packages.verify cacheConfig chkModsUniq Nothing
       PackageSetUpgrade                     -> Spago.Packages.upgradePackageSet
       Freeze                                -> Spago.Packages.freeze Spago.Packages.packagesPath
       Build buildOptions                    -> Spago.Build.build buildOptions Nothing
