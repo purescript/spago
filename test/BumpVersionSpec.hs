@@ -2,7 +2,7 @@ module BumpVersionSpec (spec) where
 
 import           Prelude        hiding (FilePath)
 import qualified System.IO.Temp as Temp
-import           Test.Hspec     (Spec, around_, before_, describe, it, shouldBe)
+import           Test.Hspec     (Spec, around_, before_, describe, it, shouldReturn)
 import           Turtle         (Text, cp, decodeString, mkdir, mv, writeTextFile)
 import           Utils          (checkFileHasInfix, checkFixture, getHighestTag, git,
                                  shouldBeFailure, shouldBeFailureInfix, shouldBeSuccess, spago,
@@ -66,32 +66,32 @@ spec = around_ setup $ do
     before_ (initGitTag "v1.2.3") $ it "Spago should not make a tag when not passing --no-dry-run" $ do
 
       spago ["bump-version", "minor"] >>= shouldBeSuccess
-      getHighestTag >>= (`shouldBe` Just "v1.2.3")
+      getHighestTag `shouldReturn` Just "v1.2.3"
 
     before_ (initGitTag "not-a-version") $ it "Spago should use v0.0.0 as initial version" $ do
 
       spago ["bump-version", "--no-dry-run", "patch"] >>= shouldBeSuccess
-      getHighestTag >>= (`shouldBe` Just "v0.0.1")
+      getHighestTag `shouldReturn` Just "v0.0.1"
 
     before_ (initGitTag "v1.3.4") $ it "Spago should bump patch version" $ do
 
       spago ["bump-version", "--no-dry-run", "patch"] >>= shouldBeSuccess
-      getHighestTag >>= (`shouldBe` Just "v1.3.5")
+      getHighestTag `shouldReturn` Just "v1.3.5"
 
     before_ (initGitTag "v1.3.4") $ it "Spago should bump minor version" $ do
 
       spago ["bump-version", "--no-dry-run", "minor"] >>= shouldBeSuccess
-      getHighestTag >>= (`shouldBe` Just "v1.4.0")
+      getHighestTag `shouldReturn` Just "v1.4.0"
 
     before_ (initGitTag "v1.3.4") $ it "Spago should bump major version" $ do
 
       spago ["bump-version", "--no-dry-run", "major"] >>= shouldBeSuccess
-      getHighestTag >>= (`shouldBe` Just "v2.0.0")
+      getHighestTag `shouldReturn` Just "v2.0.0"
 
     before_ (initGitTag "v0.0.1") $ it "Spago should set exact version" $ do
 
       spago ["bump-version", "--no-dry-run", "v3.1.5"] >>= shouldBeSuccess
-      getHighestTag >>= (`shouldBe` Just "v3.1.5")
+      getHighestTag `shouldReturn` Just "v3.1.5"
 
     before_ initGit $ it "Spago should create bower.json, but not commit it" $ do
 

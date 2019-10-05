@@ -2,7 +2,8 @@ module Spago.Version
   ( VersionBump(..)
   , DryRun(..)
   , bumpVersion
-  , parseVersion
+  , getNextVersion
+  , parseVersionBump
   , unparseVersion
   ) where
 
@@ -24,6 +25,15 @@ data VersionBump
   | Minor
   | Patch
   | Exact SemVer
+
+
+parseVersionBump :: Text -> Maybe VersionBump
+parseVersionBump = \case
+  "major" -> Just Major
+  "minor" -> Just Minor
+  "patch" -> Just Patch
+  v | Right v' <- parseVersion v -> Just $ Exact v'
+  _ -> Nothing
 
 
 -- | Parses a version, ignoring an optional leading 'v', or returns an error message.
