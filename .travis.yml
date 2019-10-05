@@ -130,7 +130,7 @@ before_deploy:
         cp artifacts/spago spago
         tar -zcvf "${TRAVIS_OS_NAME}-dynamic.tar.gz" spago
         # Then the static one
-docker run --mount src="$(pwd)",target=/home/ubuntu/spago,type=bind "nilrecurring/haskell-lavello:${IMAGE_TAG}" /bin/bash -c "cd spago; stack build --copy-bins --flag spago:static --local-bin-path ./artifacts"
+        docker run --mount src="$(pwd)",target=/home/ubuntu/spago,type=bind "nilrecurring/haskell-lavello:${IMAGE_TAG}" /bin/bash -c "cd spago; stack build --copy-bins --flag spago:static --local-bin-path ./artifacts"
         sed -e "s/NPM_VERSION/$(./scripts/get-npm-version)/g" -i npm/package.json ;
         sed -e "s/PACKAGE_VERSION/$(./scripts/get-version)/g" -i npm/install.js ;
       fi
