@@ -66,19 +66,18 @@ getCurrentVersion = do
       pure maxVersion
 
 
--- | Get the next version to use, or die if this would result in the version number going down/not changing.
 getNextVersion :: VersionBump -> SemVer -> Either Text SemVer
-getNextVersion spec version@SemVer{..} =
+getNextVersion spec currentV@SemVer{..} =
   case spec of
     Major -> Right $ SemVer (_svMajor + 1) 0 0 [] []
     Minor -> Right $ SemVer _svMajor (_svMinor + 1) 0 [] []
     Patch -> Right $ SemVer _svMajor _svMinor (_svPatch + 1) [] []
-    Exact v
-      | v > version -> Right v
+    Exact newV
+      | currentV < newV -> Right newV
       | otherwise -> do
-        let new = unparseVersion v
-            old = unparseVersion version
-        Left $ "The new version (" <> new <> ") must be higher than the current version (" <> old <> ")"
+        let new = unparseVersion newV
+            current = unparseVersion currentV
+        Left $ "The new version (" <> new <> ") must be higher than the current version (" <> current <> ")"
 
 
 -- | Make a tag for the new version.
