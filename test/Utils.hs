@@ -24,15 +24,13 @@ import           Prelude            hiding (FilePath)
 import           System.Directory   (removePathForcibly)
 import qualified System.Process     as Process
 import           Test.Hspec         (HasCallStack, shouldBe, shouldSatisfy)
-import           Turtle             (ExitCode (..), FilePath, Text, cd, empty,
-                                     encodeString, inproc, limit,
-                                     procStrictWithErr, pwd, readTextFile,
-                                     strict)
+import           Turtle             (ExitCode (..), FilePath, Text, cd, empty, encodeString, inproc,
+                                     limit, procStrictWithErr, pwd, readTextFile, strict)
 
 withCwd :: FilePath -> IO () -> IO ()
 withCwd dir cmd = do
   oldDir <- pwd
-  Exception.bracket (cd dir) (const $ cd oldDir) (const cmd)
+  Exception.bracket_ (cd dir) (cd oldDir) cmd
 
 spago :: [Text] -> IO (ExitCode, Text, Text)
 spago args =

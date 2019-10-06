@@ -326,7 +326,7 @@ main = do
   Env.setEnv "GIT_TERMINAL_PROMPT" "0"
 
   (command, globalOptions) <- CLI.options "Spago - manage your PureScript projects" parser
-  (flip runReaderT) globalOptions $
+  flip runReaderT globalOptions $
     case command of
       Init force noComments                 -> Spago.Packages.initProject force noComments
       Install cacheConfig packageNames      -> Spago.Packages.install cacheConfig packageNames

@@ -3,6 +3,7 @@ module Spago.Version
   , DryRun(..)
   , bumpVersion
   , getNextVersion
+  , parseVersion
   , parseVersionBump
   , unparseVersion
   ) where
@@ -25,6 +26,7 @@ data VersionBump
   | Minor
   | Patch
   | Exact SemVer
+  deriving (Eq, Show)
 
 
 parseVersionBump :: Text -> Maybe VersionBump
@@ -65,18 +67,18 @@ getCurrentVersion = do
 
 
 -- | Get the next version to use, or die if this would result in the version number going down/not changing.
-getNextVersion :: Spago m => VersionBump -> SemVer -> m SemVer
+getNextVersion :: VersionBump -> SemVer -> Either Text SemVer
 getNextVersion spec version@SemVer{..} =
   case spec of
-    Major -> pure $ SemVer (_svMajor + 1) 0 0 [] []
-    Minor -> pure $ SemVer _svMajor (_svMinor + 1) 0 [] []
-    Patch -> pure $ SemVer _svMajor _svMinor (_svPatch + 1) [] []
+    Major -> Right $ SemVer (_svMajor + 1) 0 0 [] []
+    Minor -> Right $ SemVer _svMajor (_svMinor + 1) 0 [] []
+    Patch -> Right $ SemVer _svMajor _svMinor (_svPatch + 1) [] []
     Exact v
-      | v > version -> pure v
+      | v > version -> Right v
       | otherwise -> do
         let new = unparseVersion v
             old = unparseVersion version
-        die $ "The new version (" <> new <> ") must be higher than the current version (" <> old <> ")"
+        Left $ "The new version (" <> new <> ") must be higher than the current version (" <> old <> ")"
 
 
 -- | Make a tag for the new version.
@@ -98,15 +100,15 @@ bumpVersion dryRun spec = do
   Git.requireCleanWorkingTree
 
   oldVersion <- getCurrentVersion
-  newVersion <- getNextVersion spec oldVersion
+  newVersion <- either die pure $ getNextVersion spec oldVersion
 
   let writeBowerAction = DryAction
-        ("write the new config to the `bower.json` file and try to install its dependencies") $ do
+        "write the new config to the `bower.json` file and try to install its dependencies" $ do
         echo $ "Writing the new Bower config to " <> surroundQuote Bower.path
         liftIO $ ByteString.writeFile Bower.path newBowerConfig
         Bower.runBowerInstall
         clean <- Git.hasCleanWorkingTree
-        when (not clean) $ do
+        unless clean $ do
           die $ "A new " <> Bower.path <> " has been generated. Please commit this and run `bump-version` again."
 
   let tagAction = DryAction

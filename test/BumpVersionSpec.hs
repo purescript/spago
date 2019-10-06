@@ -1,13 +1,19 @@
 module BumpVersionSpec (spec) where
 
-import           Prelude        hiding (FilePath)
-import qualified System.IO.Temp as Temp
-import           Test.Hspec     (Spec, around_, before_, describe, it, shouldReturn)
-import           Turtle         (Text, cp, decodeString, mkdir, mv, writeTextFile)
-import           Utils          (checkFileHasInfix, checkFixture, getHighestTag, git,
-                                 shouldBeFailure, shouldBeFailureInfix, shouldBeSuccess, spago,
-                                 withCwd)
+import           Data.Versions         (SemVer (..), VUnit (..))
+import           Prelude               hiding (FilePath)
+import qualified System.IO.Temp        as Temp
+import           Test.Hspec            (Spec, around_, before_, describe, it, shouldBe,
+                                        shouldReturn)
+import           Test.Hspec.QuickCheck (prop)
+import           Test.QuickCheck       (Gen, arbitrary, forAll)
+import           Turtle                (Text, cp, decodeString, mkdir, mv, writeTextFile)
+import           Utils                 (checkFileHasInfix, checkFixture, getHighestTag, git,
+                                        shouldBeFailure, shouldBeFailureInfix, shouldBeSuccess,
+                                        spago, withCwd)
 
+import           Spago.Version         (VersionBump (..), getNextVersion, parseVersion,
+                                        parseVersionBump, unparseVersion)
 
 -- fix the package set so bower.json is generated with predictable versions
 packageSet :: Text
@@ -53,70 +59,118 @@ setOverrides overrides = do
   writeTextFile "packages.dhall" $ packageSet <> " // " <> overrides
   commitAll
 
+randomSemVer :: Gen SemVer
+randomSemVer = SemVer <$> arbitrary <*> arbitrary <*> arbitrary <*> pure [] <*> pure []
+
 spec :: Spec
-spec = around_ setup $ do
+spec = describe "spago bump-version" $ do
+  describe "property tests" $ do
 
-  describe "spago bump-version" $ do
+    describe "getNextVersion" $ do
 
-    it "Spago should complain when no git repo exists" $ do
+      prop "Major version bump should +1 major version and set minor and patch to 0" $
+        forAll randomSemVer $ \initialVersion ->
+            let Right newVersion = getNextVersion Major initialVersion
+            in   _svMajor newVersion == _svMajor initialVersion + 1
+              && _svMinor newVersion == 0
+              && _svPatch newVersion == 0
 
-      spago ["bump-version", "minor"] >>= shouldBeFailureInfix
-        "Your git working tree is dirty. Please commit or stash your changes first"
+      prop "Minor version bump should keep major, +1 minor and set patch to 0" $
+        forAll randomSemVer $ \initialVersion ->
+            let Right newVersion = getNextVersion Minor initialVersion
+            in   _svMajor newVersion == _svMajor initialVersion
+              && _svMinor newVersion == _svMinor initialVersion + 1
+              && _svPatch newVersion == 0
 
-    before_ (initGitTag "v1.2.3") $ it "Spago should not make a tag when not passing --no-dry-run" $ do
+      prop "Patch version bump should keep major and minor and +1 patch" $
+        forAll randomSemVer $ \initialVersion ->
+            let Right newVersion = getNextVersion Patch initialVersion
+            in   _svMajor newVersion == _svMajor initialVersion
+              && _svMinor newVersion == _svMinor initialVersion
+              && _svPatch newVersion == _svPatch initialVersion + 1
 
-      spago ["bump-version", "minor"] >>= shouldBeSuccess
-      getHighestTag `shouldReturn` Just "v1.2.3"
+      prop "parseVersion . unparseVersion == id" $
+        forAll randomSemVer $ \v -> parseVersion (unparseVersion v) == Right v
 
-    before_ (initGitTag "not-a-version") $ it "Spago should use v0.0.0 as initial version" $ do
+  describe "unit tests" $ do
 
-      spago ["bump-version", "--no-dry-run", "patch"] >>= shouldBeSuccess
-      getHighestTag `shouldReturn` Just "v0.0.1"
+    describe "parseVersionBump" $ do
 
-    before_ (initGitTag "v1.3.4") $ it "Spago should bump patch version" $ do
+      it "should parse 'major'" $
+        parseVersionBump "major" `shouldBe` Just Major
 
-      spago ["bump-version", "--no-dry-run", "patch"] >>= shouldBeSuccess
-      getHighestTag `shouldReturn` Just "v1.3.5"
+      it "should parse 'minor'" $
+        parseVersionBump "minor" `shouldBe` Just Minor
 
-    before_ (initGitTag "v1.3.4") $ it "Spago should bump minor version" $ do
+      it "should parse 'patch'" $
+        parseVersionBump "patch" `shouldBe` Just Patch
 
-      spago ["bump-version", "--no-dry-run", "minor"] >>= shouldBeSuccess
-      getHighestTag `shouldReturn` Just "v1.4.0"
+      it "should parse version starting with 'v'" $
+        parseVersionBump "v1.2.3" `shouldBe` Just (Exact (SemVer 1 2 3 [] []))
 
-    before_ (initGitTag "v1.3.4") $ it "Spago should bump major version" $ do
+      it "should parse version not starting with 'v'" $
+        parseVersionBump "1.2.3" `shouldBe` Just (Exact (SemVer 1 2 3 [] []))
 
-      spago ["bump-version", "--no-dry-run", "major"] >>= shouldBeSuccess
-      getHighestTag `shouldReturn` Just "v2.0.0"
+      -- TODO is this desired behavior, or should we just drop ONE 'v'? I'd agree it's edge case, but still :-)
+      it "should drop multiple 'v's from the beginning" $
+        parseVersionBump "vvvvvvvv1.2.3" `shouldBe` Just (Exact (SemVer 1 2 3 [] []))
 
-    before_ (initGitTag "v0.0.1") $ it "Spago should set exact version" $ do
+      -- TODO should this work or should we strip these in parser implementation?
+      it "should parse versions with PREREL and META tags" $
+        parseVersionBump "1.2.3-r1+git123" `shouldBe` Just (Exact (SemVer 1 2 3 [[Str "r",Digits 1]] [[Str "git", Digits 123]]))
 
-      spago ["bump-version", "--no-dry-run", "v3.1.5"] >>= shouldBeSuccess
-      getHighestTag `shouldReturn` Just "v3.1.5"
+      it "should not parse version which is not semantic" $ do
+        parseVersionBump "" `shouldBe` Nothing
+        parseVersionBump "1" `shouldBe` Nothing
+        parseVersionBump "1.2" `shouldBe` Nothing
+        parseVersionBump "1.2.3.4" `shouldBe` Nothing
 
-    before_ initGit $ it "Spago should create bower.json, but not commit it" $ do
+  around_ setup $ do
+    describe "end to end tests" $ do
 
-      spago ["bump-version", "--no-dry-run", "minor"] >>= shouldBeFailureInfix
-         "A new bower.json has been generated. Please commit this and run `bump-version` again."
-      mv "bower.json" "bump-version-bower.json"
-      checkFixture "bump-version-bower.json"
+      it "Spago should complain when no git repo exists" $ do
 
-    before_ initGit $ it "Spago should fail when bower.json is not tracked" $ do
+        spago ["bump-version", "minor"] >>= shouldBeFailureInfix
+          "Your git working tree is dirty. Please commit or stash your changes first"
 
-      appendFile ".gitignore" "bower.json\n"
-      commitAll
-      spago ["bump-version", "minor"] >>= shouldBeFailureInfix
-        "bower.json is being ignored by git - change this before continuing"
+      before_ (initGitTag "v1.2.3") $ it "Spago should only make a tag with `--no-dry-run`" $ do
 
-    before_ initGit $ it "Spago should generate URL#version for non-tagged dependency" $ do
+        spago ["bump-version", "minor"] >>= shouldBeSuccess
+        getHighestTag `shouldReturn` Just "v1.2.3"
 
-      setOverrides "{ tortellini = upstream.tortellini // { version = \"master\" } }"
-      spago ["bump-version", "--no-dry-run", "minor"] >>= shouldBeFailure
-      checkFileHasInfix "bower.json" "\"purescript-tortellini\": \"https://github.com/justinwoo/purescript-tortellini.git#master\""
+        spago ["bump-version", "--no-dry-run", "minor"] >>= shouldBeSuccess
+        getHighestTag `shouldReturn` Just "v1.3.0"
 
-    before_ initGit $ it "Spago should fail when spago.dhall references local dependency" $ do
+      before_ (initGitTag "not-a-version") $ it "Spago should use v0.0.0 as initial version" $ do
 
-      mkdir "purescript-tortellini"
-      withCwd "purescript-tortellini" $ spago ["init"] >>= shouldBeSuccess
-      setOverrides "{ tortellini = ./purescript-tortellini/spago.dhall as Location }"
-      spago ["bump-version", "minor"] >>= shouldBeFailureInfix
-        "Unable to create Bower version for local repo: ./purescript-tortellini"
+        spago ["bump-version", "--no-dry-run", "patch"] >>= shouldBeSuccess
+        getHighestTag `shouldReturn` Just "v0.0.1"
+
+
+      before_ initGit $ it "Spago should create bower.json, but not commit it" $ do
+
+        spago ["bump-version", "--no-dry-run", "minor"] >>= shouldBeFailureInfix
+           "A new bower.json has been generated. Please commit this and run `bump-version` again."
+        mv "bower.json" "bump-version-bower.json"
+        checkFixture "bump-version-bower.json"
+
+      before_ initGit $ it "Spago should fail when bower.json is not tracked" $ do
+
+        appendFile ".gitignore" "bower.json\n"
+        commitAll
+        spago ["bump-version", "minor"] >>= shouldBeFailureInfix
+          "bower.json is being ignored by git - change this before continuing"
+
+      before_ initGit $ it "Spago should generate URL#version for non-tagged dependency" $ do
+
+        setOverrides "{ tortellini = upstream.tortellini // { version = \"master\" } }"
+        spago ["bump-version", "--no-dry-run", "minor"] >>= shouldBeFailure
+        checkFileHasInfix "bower.json" "\"purescript-tortellini\": \"https://github.com/justinwoo/purescript-tortellini.git#master\""
+
+      before_ initGit $ it "Spago should fail when spago.dhall references local dependency" $ do
+
+        mkdir "purescript-tortellini"
+        withCwd "purescript-tortellini" $ spago ["init"] >>= shouldBeSuccess
+        setOverrides "{ tortellini = ./purescript-tortellini/spago.dhall as Location }"
+        spago ["bump-version", "minor"] >>= shouldBeFailureInfix
+          "Unable to create Bower version for local repo: ./purescript-tortellini"
