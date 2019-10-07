@@ -25,6 +25,7 @@ New features:
 Bugfixes:
 - Warn (but don't error) when trying to watch missing directories (#406)
 - Fix confusing warning when trying to `spago install` a package already present in project dependencies list (#436)
+- Do not watch files in `.spago` folder when running `spago build --watch` (#430)
 
 ## [0.10.0] - 2019-09-21
 
