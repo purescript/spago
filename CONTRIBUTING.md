@@ -76,6 +76,9 @@ So you might want to run them locally. This is a way to do it:
 # Build from source and install system-wide
 $ stack install
 
+# Install bower since end-to-end tests require it
+$ npm install -g bower
+
 # This runs the tests which make use of the `spago` executable
 $ stack test
 ```
