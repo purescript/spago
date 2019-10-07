@@ -25,6 +25,7 @@ module Spago.Build
 import           Spago.Prelude
 
 import qualified Data.List            as List
+import qualified Data.List.NonEmpty   as NonEmpty
 import qualified Data.Set             as Set
 import qualified Data.Text            as Text
 import           System.Directory     (getCurrentDirectory)
@@ -40,12 +41,11 @@ import qualified Spago.FetchPackage   as Fetch
 import qualified Spago.GlobalCache    as GlobalCache
 import qualified Spago.Messages       as Messages
 import qualified Spago.Packages       as Packages
+import qualified Spago.PackageSet     as PackageSet
 import qualified Spago.Purs           as Purs
 import qualified Spago.Templates      as Templates
-import qualified Spago.Watch          as Watch
-
-import qualified Spago.PackageSet     as PackageSet
 import           Spago.Types          as Types
+import qualified Spago.Watch          as Watch
 
 data Watch = Watch | BuildOnce
 
@@ -114,7 +114,9 @@ build buildOpts@BuildOptions{..} maybePostBuild = do
       (psMatches, psMismatches) <- partitionGlobs $ unwrap <$> allPsGlobs
       (jsMatches, jsMismatches) <- partitionGlobs $ unwrap <$> allJsGlobs
 
-      echo $ Messages.globsDoNotMatchWhenWatching $ List.nub $ Text.pack <$> (psMismatches <> jsMismatches)
+      case NonEmpty.nonEmpty (psMismatches <> jsMismatches) of
+        Nothing -> pure ()
+        Just mismatches -> echo $ Messages.globsDoNotMatchWhenWatching $ NonEmpty.nub $ Text.pack <$> mismatches
 
       absolutePSGlobs <- traverse makeAbsolute psMatches
       absoluteJSGlobs <- traverse makeAbsolute jsMatches

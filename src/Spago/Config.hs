@@ -12,6 +12,7 @@ module Spago.Config
 import           Spago.Prelude
 
 import qualified Data.List             as List
+import qualified Data.List.NonEmpty    as NonEmpty
 import qualified Data.Map              as Map
 import qualified Data.SemVer           as SemVer
 import qualified Data.Sequence         as Seq
@@ -286,16 +287,16 @@ updateName _ other = other
 addRawDeps :: Spago m => Config -> [PackageName] -> Expr -> m Expr
 addRawDeps config newPackages r@(Dhall.RecordLit kvs) = case Dhall.Map.lookup "dependencies" kvs of
   Just (Dhall.ListLit _ dependencies) -> do
-      case notInPackageSet of
+      case NonEmpty.nonEmpty notInPackageSet of
         -- If none of the newPackages are outside of the set, add them to existing dependencies
-        [] -> do
+        Nothing -> do
           oldPackages <- traverse (throws . Dhall.fromTextLit) dependencies
           let newDepsExpr
                 = Dhall.ListLit Nothing $ fmap (Dhall.toTextLit . PackageSet.packageName)
                 $ Seq.sort $ nubSeq (Seq.fromList newPackages <> fmap PackageSet.PackageName oldPackages)
           pure $ Dhall.RecordLit $ Dhall.Map.insert "dependencies" newDepsExpr kvs
-        pkgs -> do
-          echo $ Messages.failedToAddDeps $ map PackageSet.packageName pkgs
+        Just pkgs -> do
+          echo $ Messages.failedToAddDeps $ NonEmpty.map PackageSet.packageName pkgs
           pure r
     where
       packagesDB = PackageSet.packagesDB $ packageSet config

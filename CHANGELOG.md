@@ -27,6 +27,9 @@ Bugfixes:
 - Fix confusing warning when trying to `spago install` a package already present in project dependencies list (#436)
 - Do not watch files in `.spago` folder when running `spago build --watch` (#430)
 
+Other improvements:
+- Speed up test suite by replacing couple of end 2 end bump-version tests with unit/property tests
+
 ## [0.10.0] - 2019-09-21
 
 Breaking changes (!!!):

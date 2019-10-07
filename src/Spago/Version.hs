@@ -2,7 +2,9 @@ module Spago.Version
   ( VersionBump(..)
   , DryRun(..)
   , bumpVersion
+  , getNextVersion
   , parseVersion
+  , parseVersionBump
   , unparseVersion
   ) where
 
@@ -24,6 +26,16 @@ data VersionBump
   | Minor
   | Patch
   | Exact SemVer
+  deriving (Eq, Show)
+
+
+parseVersionBump :: Text -> Maybe VersionBump
+parseVersionBump = \case
+  "major" -> Just Major
+  "minor" -> Just Minor
+  "patch" -> Just Patch
+  v | Right v' <- parseVersion v -> Just $ Exact v'
+  _ -> Nothing
 
 
 -- | Parses a version, ignoring an optional leading 'v', or returns an error message.
@@ -54,19 +66,18 @@ getCurrentVersion = do
       pure maxVersion
 
 
--- | Get the next version to use, or die if this would result in the version number going down/not changing.
-getNextVersion :: Spago m => VersionBump -> SemVer -> m SemVer
-getNextVersion spec version@SemVer{..} =
+getNextVersion :: VersionBump -> SemVer -> Either Text SemVer
+getNextVersion spec currentV@SemVer{..} =
   case spec of
-    Major -> pure $ SemVer (_svMajor + 1) 0 0 [] []
-    Minor -> pure $ SemVer _svMajor (_svMinor + 1) 0 [] []
-    Patch -> pure $ SemVer _svMajor _svMinor (_svPatch + 1) [] []
-    Exact v
-      | v > version -> pure v
+    Major -> Right $ SemVer (_svMajor + 1) 0 0 [] []
+    Minor -> Right $ SemVer _svMajor (_svMinor + 1) 0 [] []
+    Patch -> Right $ SemVer _svMajor _svMinor (_svPatch + 1) [] []
+    Exact newV
+      | currentV < newV -> Right newV
       | otherwise -> do
-        let new = unparseVersion v
-            old = unparseVersion version
-        die $ "The new version (" <> new <> ") must be higher than the current version (" <> old <> ")"
+        let new = unparseVersion newV
+            current = unparseVersion currentV
+        Left $ "The new version (" <> new <> ") must be higher than the current version (" <> current <> ")"
 
 
 -- | Make a tag for the new version.
@@ -88,15 +99,15 @@ bumpVersion dryRun spec = do
   Git.requireCleanWorkingTree
 
   oldVersion <- getCurrentVersion
-  newVersion <- getNextVersion spec oldVersion
+  newVersion <- either die pure $ getNextVersion spec oldVersion
 
   let writeBowerAction = DryAction
-        ("write the new config to the `bower.json` file and try to install its dependencies") $ do
+        "write the new config to the `bower.json` file and try to install its dependencies" $ do
         echo $ "Writing the new Bower config to " <> surroundQuote Bower.path
         liftIO $ ByteString.writeFile Bower.path newBowerConfig
         Bower.runBowerInstall
         clean <- Git.hasCleanWorkingTree
-        when (not clean) $ do
+        unless clean $ do
           die $ "A new " <> Bower.path <> " has been generated. Please commit this and run `bump-version` again."
 
   let tagAction = DryAction
