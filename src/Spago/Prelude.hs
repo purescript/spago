@@ -89,7 +89,7 @@ import           Dhall                                 (Text)
 import qualified Dhall.Core
 import qualified System.FilePath                       as FilePath
 import qualified System.IO
-import qualified Turtle                                as Turtle
+import qualified Turtle
 import qualified UnliftIO.Directory                    as Directory
 
 import           Control.Applicative                   (Alternative, empty, many, (<|>))
@@ -120,8 +120,9 @@ import           Safe                                  (headMay)
 import           System.FilePath                       (isAbsolute, pathSeparator, (</>))
 import           System.IO                             (hPutStrLn)
 import           Turtle                                (ExitCode (..), FilePath, appendonly, chmod,
-                                                        executable, mktree, repr, shell, shellStrict,
-                                                        shellStrictWithErr, systemStrictWithErr, testdir)
+                                                        executable, mktree, repr, shell,
+                                                        shellStrict, shellStrictWithErr,
+                                                        systemStrictWithErr, testdir)
 import           UnliftIO                              (MonadUnliftIO, withRunInIO)
 import           UnliftIO.Directory                    (getModificationTime, makeAbsolute)
 import           UnliftIO.Exception                    (IOException, handleAny, try, tryIO)

@@ -82,7 +82,7 @@ initProject force comments = do
           action
 
     copyIfNotExists dest srcTemplate = do
-      (testfile dest) >>= \case
+      testfile dest >>= \case
         True  -> echo $ Messages.foundExistingFile dest
         False -> writeTextFile dest srcTemplate
 
@@ -171,23 +171,21 @@ pkgNotFoundMsg packagesDB (NotFoundError pkg) = "  - " <> packageName pkg <> ext
         ", and nor does `" <> packageName pkg' <> "`"
       Nothing ->
         ""
-    suggestedPkg = do
-      sansPrefix <- Text.stripPrefix "purescript-" (packageName pkg)
-      Just (PackageName sansPrefix)
+    suggestedPkg = stripPurescriptPrefix pkg
 
 
 newtype NotFoundError a = NotFoundError a deriving (Eq, Ord)
 newtype CycleError a = CycleError a deriving (Eq, Ord)
-
+newtype FoundWithoutPrefix = FoundWithoutPrefix PackageName
 
 getReverseDeps  :: PackageSet -> PackageName -> IO [(PackageName, Package)]
 getReverseDeps packageSet@PackageSet{..} dep = do
     List.nub <$> foldMap go (Map.toList packagesDB)
   where
     go pair@(packageName, Package{..}) = do
-      case List.find (== dep) dependencies of
-        Nothing -> return mempty
-        Just _ -> do
+      case dep `elem` dependencies of
+        False -> return mempty
+        True -> do
           innerDeps <- getReverseDeps packageSet packageName
           return $ pair : innerDeps
 
@@ -198,18 +196,55 @@ install cacheFlag newPackages = do
   echoDebug "Running `spago install`"
   config@Config{ packageSet = PackageSet{..}, ..} <- Config.ensureConfig
 
+  existingNewPackages <- reportMissingPackages $ classifyPackages packagesDB newPackages
+
   -- Try fetching the dependencies with the new names too
   let newConfig :: Config
-      newConfig = config { dependencies = dependencies <> newPackages }
+      newConfig = config { dependencies = dependencies <> existingNewPackages }
   deps <- getProjectDeps newConfig
 
   -- If the above doesn't fail, write the new packages to the config
   -- Also skip the write if there are no new packages to be written
-  case newPackages of
+  case existingNewPackages of
     []         -> pure ()
     additional -> Config.addDependencies config additional
 
   Fetch.fetchPackages cacheFlag deps packagesMinPursVersion
+
+reportMissingPackages :: Spago m => PackagesLookupResult -> m [PackageName]
+reportMissingPackages (PackagesLookupResult found foundWithoutPrefix notFound) = do
+  unless (null notFound) $
+    die $ "The following packages do not exist in your package set:\n"
+        <> (Text.intercalate "\n" . fmap (\(NotFoundError p) -> "  - " <> packageName p) $ List.sort notFound)
+
+  for_ foundWithoutPrefix $ \(FoundWithoutPrefix sansPrefix) ->
+    echo $ "WARNING: the package 'purescript-" <> packageName sansPrefix <> "' was not found in your package set, but '"
+         <> packageName sansPrefix <> "' was. Using that instead."
+  pure found
+
+
+classifyPackages :: Map PackageName a -> [PackageName] -> PackagesLookupResult
+classifyPackages packagesDB =
+    foldr classifyPackage (PackagesLookupResult [] [] [])
+  where
+    classifyPackage :: PackageName -> PackagesLookupResult -> PackagesLookupResult
+    classifyPackage pkg (PackagesLookupResult found foundWithoutPrefix notFound)
+      | Map.member pkg packagesDB        = PackagesLookupResult (pkg : found) foundWithoutPrefix notFound
+      | Just sansPrefix <- stripPurescriptPrefix pkg,
+        Map.member sansPrefix packagesDB = PackagesLookupResult (sansPrefix : found) (FoundWithoutPrefix sansPrefix : foundWithoutPrefix) notFound
+      | otherwise                        = PackagesLookupResult found foundWithoutPrefix (NotFoundError pkg : notFound)
+
+
+data PackagesLookupResult = PackagesLookupResult
+  { _found              :: [PackageName]
+  , _foundWithoutPrefix :: [FoundWithoutPrefix]
+  , _notFound           :: [NotFoundError PackageName]
+  }
+
+
+stripPurescriptPrefix :: PackageName -> Maybe PackageName
+stripPurescriptPrefix (PackageName name) =
+  PackageName <$> Text.stripPrefix "purescript-" name
 
 
 data PackagesFilter = TransitiveDeps | DirectDeps
@@ -237,7 +272,7 @@ listPackages packagesFilter jsonFlag = do
   echoDebug "Running `listPackages`"
   Config{packageSet = packageSet@PackageSet{..}, ..} <- Config.ensureConfig
   packagesToList :: [(PackageName, Package)] <- case packagesFilter of
-    Nothing             -> pure $ Map.toList $ packagesDB
+    Nothing             -> pure $ Map.toList packagesDB
     Just TransitiveDeps -> getTransitiveDeps packageSet dependencies
     Just DirectDeps     -> pure $ Map.toList
       $ Map.restrictKeys packagesDB (Set.fromList dependencies)
@@ -300,11 +335,10 @@ sources = do
   echoDebug "Running `spago sources`"
   config <- Config.ensureConfig
   deps <- getProjectDeps config
-  _ <- traverse echo
+  traverse_ echo
     $ fmap Purs.unSourcePath
     $ getGlobs deps AllSources
     $ Config.configSourcePaths config
-  pure ()
 
 
 data CheckModulesUnique = DoCheckModulesUnique | NoCheckModulesUnique
@@ -320,7 +354,7 @@ verify cacheFlag chkModsUniq maybePackage = do
     -- In case we have a package, search in the package set for it
     Just packageName -> do
       case Map.lookup packageName packagesDB of
-        Nothing -> die $ "No packages found with the name " <> Text.pack (show packageName)
+        Nothing -> die $ "No packages found with the name " <> tshow packageName
         -- When verifying a single package we check the reverse deps/referrers
         -- because we want to make sure the it doesn't break them
         -- (without having to check the whole set of course, that would work

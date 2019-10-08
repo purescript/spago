@@ -13,7 +13,7 @@ import qualified Data.List                     as List
 import qualified Data.Text                     as Text
 import qualified Data.Text.Encoding            as Text
 import qualified Data.Versions                 as Version
-import qualified Numeric                       as Numeric
+import qualified Numeric
 import qualified System.FilePath               as FilePath
 import qualified System.IO.Temp                as Temp
 import qualified System.Process                as Process
@@ -47,12 +47,12 @@ fetchPackages globalCacheFlag allDeps minPursVersion = do
   PackageSet.checkPursIsUpToDate minPursVersion
 
   -- Ensure both local and global cache dirs are there
-  GlobalCache.getGlobalCacheDir >>= assertDirectory
-  (pure localCacheDir) >>= assertDirectory
+  assertDirectory =<< GlobalCache.getGlobalCacheDir
+  assertDirectory localCacheDir
 
   -- We try to fetch a dep only if their local cache directory doesn't exist
   -- (or their local path, which is the same thing)
-  depsToFetch <- (flip filterM) allDeps $ \dep -> do
+  depsToFetch <- flip filterM allDeps $ \dep -> do
     exists <- Directory.doesDirectoryExist $ getLocalCacheDir dep
     pure $ not exists
 
@@ -104,7 +104,7 @@ fetchPackage metadata pair@(packageName'@PackageName{..}, Package{ location = Re
   packageLocalCacheDir <- makeAbsolute $ getLocalCacheDir pair
 
   inGlobalCache <- testdir $ Turtle.decodeString packageGlobalCacheDir
-  Temp.withTempDirectory localCacheDir (Text.unpack ("__download-" <> packageName <> "-" <> (getCacheVersionDir version))) $ \path -> do
+  Temp.withTempDirectory localCacheDir (Text.unpack ("__download-" <> packageName <> "-" <> getCacheVersionDir version)) $ \path -> do
     let downloadDir = path </> "download"
 
     -- * if a Package is in the global cache, copy it to the local cache
@@ -114,7 +114,7 @@ fetchPackage metadata pair@(packageName'@PackageName{..}, Package{ location = Re
         cptree packageGlobalCacheDir downloadDir
         assertDirectory (localCacheDir </> Text.unpack packageName)
         mv downloadDir packageLocalCacheDir
-      else Temp.withTempDirectory globalDir (Text.unpack ("__temp-" <> "-" <> packageName <> (getCacheVersionDir version))) $ \globalTemp -> do
+      else Temp.withTempDirectory globalDir (Text.unpack ("__temp-" <> "-" <> packageName <> getCacheVersionDir version)) $ \globalTemp -> do
         -- * otherwise, check if the Package is on GitHub and an "immutable" ref
         -- * if yes, download the tar archive and copy it to global and then local cache
         let cacheableCallback :: Spago m => FilePath.FilePath -> m ()
@@ -143,7 +143,7 @@ fetchPackage metadata pair@(packageName'@PackageName{..}, Package{ location = Re
               let processWithNewCwd = (Process.shell (Text.unpack git))
                     { Process.cwd = Just downloadDir }
 
-              (systemStrictWithErr processWithNewCwd empty) >>= \case
+              systemStrictWithErr processWithNewCwd empty >>= \case
                 (ExitSuccess, _, _) -> mv downloadDir packageLocalCacheDir
                 (_, _stdout, stderr) -> die $ Messages.failedToInstallDep quotedName stderr
 

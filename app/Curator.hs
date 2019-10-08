@@ -40,8 +40,8 @@ type PackageSetMap = Map PackageName Package
 data SpagoUpdaterMessage
   = MStart
 
-data FetcherMessage
-  = MPackageSetTag !Text
+newtype FetcherMessage
+  = MPackageSetTag Text
 
 data MetadataUpdaterMessage
   = MMetadata !PackageName !RepoMetadataV1
@@ -72,7 +72,7 @@ main = do
   ensureRepo "purescript" "package-sets"
 
   -- Read GitHub Auth Token
-  token <- fmap Text.pack $ Env.getEnv "SPACCHETTIBOTTI_TOKEN"
+  token <- Text.pack <$> Env.getEnv "SPACCHETTIBOTTI_TOKEN"
 
   -- Set up comms channels
   chanFetcher            <- Queue.newTBQueueIO 10
@@ -120,7 +120,7 @@ main = do
     ensureRepo org repo = do
       isThere <- testdir $ Turtle.decodeString $ "data" </> repo
       -- clone if needed
-      when (not isThere) $ do
+      unless isThere $ do
         (code, _out, _err) <- runWithCwd "data" $ "git clone git@github.com:" <> org <> "/" <> repo <> ".git"
         case code of
           ExitSuccess -> echoStr $ "Cloned " <> org <> "/" <> repo
@@ -133,7 +133,7 @@ spagoUpdater :: Text -> Queue.TBQueue SpagoUpdaterMessage -> Queue.TBQueue Fetch
 spagoUpdater token controlChan fetcherChan = go Nothing
   where
     go maybeOldTag = do
-      (atomically $ Queue.readTBQueue controlChan) >>= \case
+      atomically (Queue.readTBQueue controlChan) >>= \case
         MStart -> do
           -- Get which one is the latest release of package-sets and download it
           echo "Update has been kickstarted by main thread."
@@ -199,7 +199,7 @@ spagoUpdater token controlChan fetcherChan = go Nothing
 
 fetcher :: MonadIO m => Text -> Queue.TBQueue FetcherMessage -> Queue.TQueue MetadataUpdaterMessage -> Queue.TQueue PackageSetsUpdaterMessage -> m b
 fetcher token controlChan metadataChan psChan = liftIO $ forever $ do
-  (atomically $ Queue.readTBQueue controlChan) >>= \case
+  atomically (Queue.readTBQueue controlChan) >>= \case
     MPackageSetTag tag -> do
       echo "Downloading and parsing package set.."
       packageSet <- fetchPackageSet tag
@@ -274,7 +274,7 @@ packageSetsUpdater token dataChan = go mempty mempty
     updateVersion _ _ other = pure other
 
     go packageSet banned = do
-      (atomically $ Queue.readTQueue dataChan) >>= \case
+      atomically (Queue.readTQueue dataChan) >>= \case
         MPackageSet newSet -> do
           echo "Received new package set, updating.."
           go newSet banned
@@ -363,7 +363,7 @@ metadataUpdater dataChan = go mempty
   where
     go :: ReposMetadataV1 -> IO ()
     go state = do
-      (atomically $ Queue.readTQueue dataChan) >>= \case
+      atomically (Queue.readTQueue dataChan) >>= \case
         MMetadata packageName meta -> do
           go $ Map.insert packageName meta state
         MEnd -> do

@@ -14,16 +14,20 @@ Breaking changes (😱!!!):
   `psc-package-local-setup`, `psc-package-insdhall` and `psc-package-clean` commands.
 
 New features:
-- Display a link to the generated docs' `index.html` (#379)
-- Add `--open` flag to `spago docs` which opens generated docs in browser (#379)
-- Support building for alternate backends (#355). E.g: Use `backend = "psgo"` entry in `spago.dhall` to compile with `psgo`
-- Add `--no-comments` flag to `spago init` which strips comments from the generated `spago.dhall` and `packages.dhall` configs (#417)
-- Make `spago verify-set` compile everything, to detect duplicate module names (#438)
-- Add shared output folder to reduce build duplication. Pass `--no-share-output` flag to `spago build` to disable (#377)
-- Fix confusing warning when trying to `spago install` a package already present in project dependencies list (#436)
+- `spago docs` now displays a link to the generated docs' `index.html` (#379)
+- `spago docs` has new `--open` flag, which opens generated docs in browser (#379)
+- added support for building with alternate backends (#355). E.g: Use `backend = "psgo"` entry in `spago.dhall` to compile with `psgo`
+- `spago init` has new `--no-comments` flag which skips adding tutorial comments to the generated `spago.dhall` and `packages.dhall` files (#417)
+- `spago verify-set` now compiles everything, to detect duplicate module names (#438)
+- `spago build` now uses shared output folder to reduce build duplication. Pass `--no-share-output` flag to disable this behavior (#377)
+- `spago install purescript-XYZ` will now strip `purescript-` prefix and install XYZ (if it exists in package set) instead of just failing with a warning (#367)
 
 Bugfixes:
 - Warn (but don't error) when trying to watch missing directories (#406)
+- Fix confusing warning when trying to `spago install` a package already present in project dependencies list (#436)
+
+Other improvements:
+- Speed up test suite by replacing couple of end 2 end bump-version tests with unit/property tests
 
 ## [0.10.0] - 2019-09-21
 

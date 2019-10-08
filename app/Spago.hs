@@ -118,14 +118,7 @@ parser = do
             "transitive" -> Just TransitiveDeps
             _            -> Nothing
       in CLI.optional $ CLI.opt wrap "filter" 'f' "Filter packages: direct deps with `direct`, transitive ones with `transitive`"
-    versionBump =
-      let spec = \case
-            "major" -> Just Spago.Version.Major
-            "minor" -> Just Spago.Version.Minor
-            "patch" -> Just Spago.Version.Patch
-            v | Right v' <- Spago.Version.parseVersion v -> Just $ Exact v'
-            _ -> Nothing
-      in CLI.arg spec "bump" "How to bump the version. Acceptable values: 'major', 'minor', 'patch', or a version (e.g. 'v1.2.3')."
+    versionBump = CLI.arg Spago.Version.parseVersionBump "bump" "How to bump the version. Acceptable values: 'major', 'minor', 'patch', or a version (e.g. 'v1.2.3')."
 
     force   = CLI.switch "force" 'f' "Overwrite any project found in the current directory"
     verbose = CLI.switch "verbose" 'v' "Enable additional debug logging, e.g. printing `purs` commands"
@@ -333,7 +326,7 @@ main = do
   Env.setEnv "GIT_TERMINAL_PROMPT" "0"
 
   (command, globalOptions) <- CLI.options "Spago - manage your PureScript projects" parser
-  (flip runReaderT) globalOptions $
+  flip runReaderT globalOptions $
     case command of
       Init force noComments                 -> Spago.Packages.initProject force noComments
       Install cacheConfig packageNames      -> Spago.Packages.install cacheConfig packageNames

@@ -1,9 +1,9 @@
 module Spago.Messages where
 
-import Spago.Prelude
+import           Spago.Prelude
 
-import qualified Data.Text as Text
-
+import qualified Data.List.NonEmpty as NonEmpty
+import qualified Data.Text          as Text
 
 failedToParseLocalRepo :: Text -> Text
 failedToParseLocalRepo spagoConfigPath = makeMessage
@@ -132,13 +132,13 @@ failedToReachGitHub err = makeMessage
   , tshow err
   ]
 
-failedToAddDeps :: [Text] -> Text
+failedToAddDeps :: NonEmpty Text -> Text
 failedToAddDeps pkgs = makeMessage $
   [ "Some of the dependencies you tried to add were not found in the package-set."
   , "Not adding any new dependencies to your new spago config."
   , "We didn't find:"
   ]
-  <> map ((<>) "- ") pkgs
+  <> map ("- " <>) (NonEmpty.toList pkgs)
   <> [""]
 
 upgradingPackageSet :: Text -> Text
@@ -211,9 +211,9 @@ makeModuleCommandRenamed :: Text
 makeModuleCommandRenamed =
   "The `make-module` command has been replaced with `bundle-module`, so use that instead."
 
-globsDoNotMatchWhenWatching :: [Text] -> Text
+globsDoNotMatchWhenWatching :: NonEmpty Text -> Text
 globsDoNotMatchWhenWatching patterns = makeMessage $
-  "WARNING: No matches found when trying to watch the following directories: " : patterns
+  "WARNING: No matches found when trying to watch the following directories: " : NonEmpty.toList patterns
 
 makeMessage :: [Text] -> Text
 makeMessage = Text.intercalate "\n"

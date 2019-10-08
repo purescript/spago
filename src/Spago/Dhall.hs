@@ -61,12 +61,12 @@ readImports :: Text -> IO [Dhall.Import]
 readImports pathText = do
   fileContents <- readTextFile $ pathFromText pathText
   expr <- throws $ Parser.exprFromText mempty fileContents
-  (_, status) <- load expr
+  status <- load expr
   let graph = Lens.Family.view Dhall.Import.graph status
   pure $ childImport <$> graph
   where
     load expr
-      = State.runStateT
+      = State.execStateT
           (Dhall.Import.loadWith expr)
           (Dhall.Import.emptyStatus ".")
 
@@ -82,7 +82,7 @@ readRawExpr pathText = do
     then (do
       packageSetText <- readTextFile $ pathFromText pathText
       fmap Just $ throws $ Parser.exprAndHeaderFromText mempty packageSetText)
-    else (pure Nothing)
+    else pure Nothing
 
 
 writeRawExpr :: Text -> (Text, DhallExpr Dhall.Import) -> IO ()
@@ -117,7 +117,7 @@ requireKey
   -> Text
   -> (DhallExpr b -> m a)
   -> m a
-requireKey ks name f = case (Dhall.Map.lookup name ks) of
+requireKey ks name f = case Dhall.Map.lookup name ks of
   Just v  -> f v
   Nothing -> throwM (RequiredKeyMissing name ks)
 
@@ -198,7 +198,7 @@ instance (Pretty a) => Show (ReadError a) where
         , ""
         , "The type was the following:"
         , ""
-        , "↳ " <> (pretty $ Dhall.expected typ)
+        , "↳ " <> pretty (Dhall.expected typ)
         , ""
         , "And the expression was the following:"
         , ""
