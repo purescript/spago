@@ -90,6 +90,9 @@ script:
     else
       docker run --mount src="$(pwd)",target=/home/ubuntu/spago,type=bind \
        "nilrecurring/haskell-lavello:${IMAGE_TAG}" /bin/bash -c \
+       'cd spago && stack build --test --no-run-tests --flag spago:static'
+      docker run --mount src="$(pwd)",target=/home/ubuntu/spago,type=bind \
+       "nilrecurring/haskell-lavello:${IMAGE_TAG}" /bin/bash -c \
        'cd spago && stack build --test --no-run-tests --copy-bins --local-bin-path ./artifacts'
     fi
     nvm install 10 && nvm use 10
@@ -115,18 +118,25 @@ before_deploy:
     if ! [ "$BEFORE_DEPLOY_RUN" ]; then
       export BEFORE_DEPLOY_RUN=1;
 
+      mkdir uploads
       if [ `uname` = "Darwin" ]
       then
         stack build --copy-bins --local-bin-path ./artifacts;
         sed -e "s/NPM_VERSION/$(./scripts/get-npm-version)/g" -i "" npm/package.json ;
         sed -e "s/PACKAGE_VERSION/$(./scripts/get-version)/g" -i "" npm/install.js ;
       else
+        # We first build the dynamic version
         docker run --mount src="$(pwd)",target=/home/ubuntu/spago,type=bind "nilrecurring/haskell-lavello:${IMAGE_TAG}" /bin/bash -c "cd spago; stack build --copy-bins --local-bin-path ./artifacts"
+        cp artifacts/spago spago
+        tar -zcvf "${TRAVIS_OS_NAME}-dynamic.tar.gz" spago
+        # Then the static one
+        docker run --mount src="$(pwd)",target=/home/ubuntu/spago,type=bind "nilrecurring/haskell-lavello:${IMAGE_TAG}" /bin/bash -c "cd spago; stack build --copy-bins --flag spago:static --local-bin-path ./artifacts"
         sed -e "s/NPM_VERSION/$(./scripts/get-npm-version)/g" -i npm/package.json ;
         sed -e "s/PACKAGE_VERSION/$(./scripts/get-version)/g" -i npm/install.js ;
       fi
       cp artifacts/spago spago
       tar -zcvf "${TRAVIS_OS_NAME}.tar.gz" spago
+      mv "*.tar.gz" uploads
 
       ## Get ready to publish npm
       cd npm
@@ -139,8 +149,8 @@ deploy:
   - provider: releases
     api_key: $API_KEY
     target_commitish: master
-    file:
-      - ../$TRAVIS_OS_NAME.tar.gz
+    file_glob: true
+    file: ../uploads/*
     skip_cleanup: true
     on:
       tags: true
