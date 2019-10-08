@@ -82,7 +82,7 @@ initProject force comments = do
           action
 
     copyIfNotExists dest srcTemplate = do
-      (testfile dest) >>= \case
+      testfile dest >>= \case
         True  -> echo $ Messages.foundExistingFile dest
         False -> writeTextFile dest srcTemplate
 
@@ -272,7 +272,7 @@ listPackages packagesFilter jsonFlag = do
   echoDebug "Running `listPackages`"
   Config{packageSet = packageSet@PackageSet{..}, ..} <- Config.ensureConfig
   packagesToList :: [(PackageName, Package)] <- case packagesFilter of
-    Nothing             -> pure $ Map.toList $ packagesDB
+    Nothing             -> pure $ Map.toList packagesDB
     Just TransitiveDeps -> getTransitiveDeps packageSet dependencies
     Just DirectDeps     -> pure $ Map.toList
       $ Map.restrictKeys packagesDB (Set.fromList dependencies)
