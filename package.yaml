@@ -13,6 +13,11 @@ extra-source-files:
 ghc-options:
   - -Wall
 
+flags:
+  static:
+    manual: true
+    default: false
+
 # Metadata used when publishing your package
 # synopsis:            Short description of your package
 # category:            Web
@@ -91,11 +96,24 @@ executables:
     main:                Spago.hs
     source-dirs:         app
     other-modules:       [ Paths_spago ]
-    ghc-options:
-    - -main-is Spago
-    - -threaded
-    - -rtsopts
-    - -with-rtsopts=-N
+    when:
+    - condition: flag(static)
+      then:
+        ghc-options:
+        - -main-is Spago
+        - -threaded
+        - -rtsopts
+        - -with-rtsopts=-N
+        - -static
+        - -O2
+        cc-options: -static
+        ld-options: -static -pthread
+      else:
+        ghc-options:
+        - -main-is Spago
+        - -threaded
+        - -rtsopts
+        - -with-rtsopts=-N
     dependencies:
     - base >= 4.7 && < 5
     - optparse-applicative
