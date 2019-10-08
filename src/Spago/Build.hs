@@ -139,7 +139,7 @@ build buildOpts@BuildOptions{..} maybePostBuild = do
 
     wrap   = Purs.SourcePath . Text.pack
     unwrap = Text.unpack . Purs.unSourcePath
-    removeDotSpago = filter $ not . (".spago" `List.isInfixOf`)
+    removeDotSpago = filter (\glob -> ".spago" `notElem` splitDirectories glob)
 
 -- | Start a repl
 repl
