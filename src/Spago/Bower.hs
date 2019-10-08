@@ -47,7 +47,7 @@ runBower args = do
 
 generateBowerJson :: Spago m => m ByteString.ByteString
 generateBowerJson = do
-  echo $ "Generating a new Bower config using the package set versions.."
+  echo "Generating a new Bower config using the package set versions.."
   config@Config{..} <- Config.ensureConfig
   PublishConfig{..} <- throws publishConfig
 
@@ -68,7 +68,7 @@ generateBowerJson = do
   when ignored $ do
     die $ path <> " is being ignored by git - change this before continuing"
 
-  echo $ "Generated a valid Bower config using the package set"
+  echo "Generated a valid Bower config using the package set"
   pure bowerJson
 
 

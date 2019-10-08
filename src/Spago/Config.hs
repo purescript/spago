@@ -135,14 +135,14 @@ parseConfig = do
       let metadataPackageName = PackageSet.PackageName "metadata"
       let (metadataMap, packagesDB) = Map.partitionWithKey (\k _v -> k == metadataPackageName) packages
       let packagesMinPursVersion = join
-            $ fmap (hush . Version.semver . (Text.replace "v" "") . PackageSet.version . PackageSet.location)
+            $ fmap (hush . Version.semver . Text.replace "v" "" . PackageSet.version . PackageSet.location)
             $ Map.lookup metadataPackageName metadataMap
       let packageSet = PackageSet.PackageSet{..}
 
       pure Config{..}
     _ -> case Dhall.TypeCheck.typeOf expr of
       Right e  -> throwM $ Dhall.ConfigIsNotRecord e
-      Left err -> throwM $ err
+      Left err -> throwM err
 
 
 -- | Checks that the Spago config is there and readable
@@ -151,7 +151,7 @@ ensureConfig = do
   path <- asks globalConfigPath
   exists <- testfile path
   unless exists $ do
-    die $ Messages.cannotFindConfig
+    die Messages.cannotFindConfig
   try parseConfig >>= \case
     Right config -> do
       PackageSet.ensureFrozen $ Text.unpack path
@@ -258,7 +258,7 @@ showBowerErrors (List.sort -> errors)
   = "\n\nSpago encountered some errors while trying to migrate your Bower config.\n"
   <> "A Spago config has been generated but it's recommended that you apply the suggestions here\n\n"
   <> (Text.unlines $ map (\errorGroup ->
-      (case (head errorGroup) of
+      (case head errorGroup of
          UnparsableRange _ _ -> "It was not possible to parse the version range for these packages:"
          NonPureScript _ -> "These packages are not PureScript packages, so you should install them with `npm` instead:"
          MissingFromTheSet _ -> "These packages are missing from the package set. You should add them in your local package set:\n(See here for how: https://github.com/spacchetti/spago#add-a-package-to-the-package-set)"

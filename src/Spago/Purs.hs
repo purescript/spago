@@ -75,7 +75,7 @@ bundle withMain (ModuleName moduleName) (TargetPath targetPath) = do
 
   runWithOutput cmd
     ("Bundle succeeded and output file to " <> targetPath)
-    ("Bundle failed.")
+    "Bundle failed."
 
 
 data DocsFormat
@@ -120,8 +120,8 @@ versionImpl purs = do
   fullVersionText <- shellStrictWithErr (purs <> " --version") empty >>= \case
     (ExitSuccess, out, _err) -> pure out
     (_, _out, err) -> die $ "Failed to run '" <> purs <> " --version'. Error:" <> err
-  versionText <- pure $ headMay $ Text.split (== ' ') fullVersionText
-  parsed <- pure $ versionText >>= (hush . Version.semver)
+  let versionText = headMay $ Text.split (== ' ') fullVersionText
+      parsed = versionText >>= (hush . Version.semver)
 
   when (isNothing parsed) $ do
     echo $ Messages.failedToParseCommandOutput (purs <> " --version") fullVersionText

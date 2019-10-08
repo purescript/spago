@@ -4,7 +4,7 @@ import           Spago.Prelude
 
 import qualified Data.Text      as Text
 import qualified Data.Versions  as Version
-import qualified Dhall          as Dhall
+import qualified Dhall
 import qualified Network.URI    as URI
 
 import qualified Spago.Messages as Messages

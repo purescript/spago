@@ -80,11 +80,10 @@ fileWatchConf watchConfig shouldClear inner = withManagerConf watchConfig $ \man
             -- and the last event either has different path, or has happened
             -- more than `debounceTime` seconds ago.
             let shouldRebuild =
-                  ( or (matches <$> Set.toList globs)
+                   any matches (Set.toList globs)
                  && ( lastPath /= Watch.eventPath event
                    || diffUTCTime timeNow lastTime > debounceTime
                     )
-                  )
 
             when shouldRebuild
               (writeTVar dirtyVar True)
@@ -129,13 +128,13 @@ fileWatchConf watchConfig shouldClear inner = withManagerConf watchConfig $ \man
               return Nothing
 
             startListening = Map.mapWithKey $ \dir () -> do
-              listen <- Watch.watchTree manager dir (const True) $ onChange
+              listen <- Watch.watchTree manager dir (const True) onChange
               return $ Just listen
 
     let watchInput :: Spago m => m ()
         watchInput = do
           line <- liftIO $ unpack . toLower . pack <$> getLine
-          if (line == "quit") then echo "Leaving watch mode."
+          if line == "quit" then echo "Leaving watch mode."
           else do
             liftIO $ case line of
               "help" -> do

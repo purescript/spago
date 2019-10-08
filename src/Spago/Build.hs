@@ -32,7 +32,7 @@ import           System.Directory     (getCurrentDirectory)
 import qualified System.FilePath.Glob as Glob
 import qualified System.IO            as Sys
 import qualified System.IO.Temp       as Temp
-import qualified Turtle               as Turtle
+import qualified Turtle
 import qualified Web.Browser          as Browser
 
 import qualified Spago.Config         as Config
@@ -205,16 +205,16 @@ runWithNode defaultModuleName maybeSuccessMessage failureMessage maybeModuleName
   where
     moduleName = fromMaybe defaultModuleName maybeModuleName
     args = Text.intercalate " " $ map Purs.unExtraArg nodeArgs
-    contents = \outputPath'
-      -> let path = fromMaybe "output" outputPath'
+    contents outputPath' =
+         let path = fromMaybe "output" outputPath'
          in "#!/usr/bin/env node\n\n" <> "require('../" <> Text.pack path <> "/" <> Purs.unModuleName moduleName <> "').main()"
     cmd = "node .spago/run.js " <> args
     nodeAction outputPath' = do
-      echoDebug $ "Writing .spago/run.js"
+      echoDebug "Writing .spago/run.js"
       writeTextFile ".spago/run.js" (contents outputPath')
       chmod executable ".spago/run.js"
       shell cmd empty >>= \case
-        ExitSuccess   -> fromMaybe (pure ()) (echo <$> maybeSuccessMessage)
+        ExitSuccess   -> maybe (pure ()) echo maybeSuccessMessage
         ExitFailure n -> die $ failureMessage <> repr n
 
   -- | Bundle the project to a js file
@@ -251,7 +251,7 @@ bundleModule maybeModuleName maybeTargetPath noBuild buildOpts = do
         -- Here we append the CommonJS export line at the end of the bundle
         try (with
               (appendonly $ pathFromText $ Purs.unTargetPath targetPath)
-              ((flip hPutStrLn) jsExport))
+              (flip hPutStrLn jsExport))
           >>= \case
             Right _ -> echo $ "Make module succeeded and output file to " <> Purs.unTargetPath targetPath
             Left (n :: SomeException) -> die $ "Make module failed: " <> repr n
@@ -352,7 +352,7 @@ getOutputPath buildOpts = do
 -- | which should be the output folder
 findOutputFlag :: [Purs.ExtraArg] -> Maybe Sys.FilePath
 findOutputFlag [] = Nothing
-findOutputFlag (_:[]) = Nothing
+findOutputFlag [_] = Nothing
 findOutputFlag (x:y:xs)
   = if isOutputFlag x
     then Just $ Text.unpack (Purs.unExtraArg y)
@@ -379,8 +379,8 @@ getBuildArgsForSharedFolder buildOpts = do
   let pursArgs'
         = pursArgs buildOpts
       pathToOutputArg
-        = Purs.ExtraArg . Text.pack . ((++) "--output ")
-  if (or $ isOutputFlag <$> pursArgs')
+        = Purs.ExtraArg . Text.pack . ("--output " <>)
+  if any isOutputFlag pursArgs'
     then do
       echo "Output path set explicitly - not using shared output path"
       pure pursArgs'
