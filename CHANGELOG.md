@@ -21,6 +21,7 @@ New features:
 - `spago verify-set` now compiles everything, to detect duplicate module names (#438)
 - `spago build` now uses shared output folder to reduce build duplication. Pass `--no-share-output` flag to disable this behavior (#377)
 - `spago install purescript-XYZ` will now strip `purescript-` prefix and install XYZ (if it exists in package set) instead of just failing with a warning (#367)
+- `spago run` now recognizes backend specified in the configuration file and calls the backend with `--run` argument.
 
 Bugfixes:
 - Warn (but don't error) when trying to watch missing directories (#406)
