@@ -29,6 +29,7 @@ import qualified Data.List.NonEmpty   as NonEmpty
 import qualified Data.Set             as Set
 import qualified Data.Text            as Text
 import           System.Directory     (getCurrentDirectory)
+import           System.FilePath      (splitDirectories)
 import qualified System.FilePath.Glob as Glob
 import qualified System.IO            as Sys
 import qualified System.IO.Temp       as Temp
@@ -122,7 +123,7 @@ build buildOpts@BuildOptions{..} maybePostBuild = do
       absoluteJSGlobs <- traverse makeAbsolute jsMatches
 
       Watch.watch
-        (Set.fromAscList $ fmap Glob.compile $ absolutePSGlobs <> absoluteJSGlobs)
+        (Set.fromAscList $ fmap Glob.compile . removeDotSpago $ absolutePSGlobs <> absoluteJSGlobs)
         shouldClear
         (buildAction (wrap <$> psMatches))
 
@@ -139,6 +140,7 @@ build buildOpts@BuildOptions{..} maybePostBuild = do
 
     wrap   = Purs.SourcePath . Text.pack
     unwrap = Text.unpack . Purs.unSourcePath
+    removeDotSpago = filter (\glob -> ".spago" `notElem` (splitDirectories glob))
 
 -- | Start a repl
 repl
