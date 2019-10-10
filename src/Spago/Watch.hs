@@ -80,7 +80,7 @@ fileWatchConf watchConfig shouldClear inner = withManagerConf watchConfig $ \man
             -- and the last event either has different path, or has happened
             -- more than `debounceTime` seconds ago.
             let shouldRebuild =
-                   any matches (Set.toList globs)
+                   any matches globs
                  && ( lastPath /= Watch.eventPath event
                    || diffUTCTime timeNow lastTime > debounceTime
                     )
