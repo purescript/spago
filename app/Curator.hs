@@ -1,4 +1,31 @@
 {-# LANGUAGE BangPatterns #-}
+
+{-
+
+# The `spago-curator` tool
+
+The purpose of this executable is to assist in the automation of certain infrastructure
+tasks that make life easier in Spago-land (both for maintainers and users).
+You can think of it as a glorified Perl script.
+
+It requires a GitHub token in the `SPACCHETTIBOTTI_TOKEN` and a configured ssh key,
+authenticated to all the repos it pushes to.
+
+All its operations are run as the `spacchettibotti` user.
+
+Once started, every 1h will do the following things:
+- check if there's a new tag out for package-sets. If yes, it opens a PR to `spago` to update it
+- crawl GitHub downloading the list of all tags and commits for every repo in the set.
+  These will be put in a `metadataV1.json` file, in [the `package-sets-metadata` repo][package-sets-metadata].
+  This file is used so that `spago` can rely on it for information about "is this ref immutable",
+  effectively enabling the possibility of a global cache.
+- check if the latest tag for every package is the latest tag in the set.
+  If not, it updates it locally, tries to verify the new set, and if everything is fine it
+  opens a PR to the [`package-sets` repo](https://github.com/purescript/package-sets)
+
+-}
+
+
 module Curator (main) where
 
 import           Spago.Prelude
@@ -7,6 +34,7 @@ import qualified Control.Concurrent             as Concurrent
 import qualified Control.Concurrent.Async.Pool  as Async
 import qualified Control.Concurrent.STM.TBQueue as Queue
 import qualified Control.Concurrent.STM.TQueue  as Queue
+import qualified Control.Concurrent.STM.TChan   as Chan
 import qualified Control.Retry                  as Retry
 import qualified Data.ByteString.Lazy           as BSL
 import qualified Data.List                      as List
@@ -29,30 +57,66 @@ import qualified System.Process                 as Process
 import qualified Turtle
 
 import           Data.Aeson.Encode.Pretty       (encodePretty)
-import           Spago.GlobalCache
-import           Spago.Types                    as PackageSet
+import           Spago.GlobalCache              (RepoMetadataV1(..), ReposMetadataV1(..))
+import           Spago.Types
 
 
 type Expr = Dhall.DhallExpr Dhall.Import
 type PackageSetMap = Map PackageName Package
+type GitHubAddress = (GitHub.Name GitHub.Owner, GitHub.Name GitHub.Repo)
 
 
-data SpagoUpdaterMessage
-  = MStart
-
-newtype FetcherMessage
-  = MPackageSetTag Text
-
-data MetadataUpdaterMessage
-  = MMetadata !PackageName !RepoMetadataV1
-  | MEnd
-
-data PackageSetsUpdaterMessage
-  = MLatestTag !PackageName !Text !Tag
-  | MPackageSet !PackageSetMap
+data Message
+  = RefreshState
+  | DoneFetching
+  | NewRepoRelease !GitHubAddress !Text
+  | NewPackageRelease !PackageName !Text
+  | NewMetadata !PackageName !RepoMetadataV1
+  --
+  -- | MLatestTag !PackageName !Text !Tag
+  -- | MPackageSet !PackageSetMap
 
 
--- | Main loop. Setup folders, repos, channels and threads, and then control them
+{-
+
+Stuff that we need to persiste:
+
+- version of package sets (i.e. old tag) :: Text
+- version of the purescript compiler     :: Text
+- version of purescript-docs-search      :: Text
+- package set                            :: PackageSetMap
+- metadata about packages                :: ReposMetadataV1
+- banned packages                        :: List of banned packages
+
+
+-}
+
+
+data State = State
+  { latestReleases :: Map GitHubAddress Text
+  , packageSet :: PackageSetMap
+  , metadata :: ReposMetadataV1
+  , banned :: Set Text
+  } deriving (Show)
+
+emptyState :: State
+emptyState = State{..}
+  where
+    latestReleases = mempty
+    packageSet = mempty
+    metadata = mempty
+    banned = mempty
+
+
+state :: Concurrent.MVar State
+state = GHC.IO.unsafePerformIO $ Concurrent.newMVar emptyState
+
+
+bus :: Chan.TChan Message
+bus = GHC.IO.unsafePerformIO Chan.newBroadcastTChanIO
+
+
+
 main :: IO ()
 main = do
   -- We always want to run in UTF8 anyways
@@ -62,29 +126,34 @@ main = do
   -- https://serverfault.com/questions/544156
   Env.setEnv "GIT_TERMINAL_PROMPT" "0"
 
+  -- Read GitHub Auth Token
+  token <- Text.pack <$> Env.getEnv "SPACCHETTIBOTTI_TOKEN"
+
+  spawnThread "writer"                  $ persistState
+  spawnThread "releaseCheckPackageSets" $ checkLatestRelease token ("purescript", "package-sets")
+  spawnThread "releaseCheckPureScript"  $ checkLatestRelease token ("purescript", "purescript")
+  spawnThread "releaseCheckDocsSearch"  $ checkLatestRelease token ("spacchetti", "purescript-docs-search")
+
+
+
+
+
+
+
   -- Prepare data folder that will contain the repos
   mktree "data"
 
   -- Make sure the repos are cloned and configured
-  echo "Cloning and configuring repos.."
-  ensureRepo "spacchetti" "spago"
-  ensureRepo "spacchetti" "package-sets-metadata"
-  ensureRepo "purescript" "package-sets"
-
-  -- Read GitHub Auth Token
-  token <- Text.pack <$> Env.getEnv "SPACCHETTIBOTTI_TOKEN"
-
-  -- Set up comms channels
-  chanFetcher            <- Queue.newTBQueueIO 10
-  chanSpagoUpdater       <- Queue.newTBQueueIO 10
-  chanMetadataUpdater    <- Queue.newTQueueIO
-  chanPackageSetsUpdater <- Queue.newTQueueIO
+  -- echo "Cloning and configuring repos.."
+  -- ensureRepo "spacchetti" "spago"
+  -- ensureRepo "spacchetti" "package-sets-metadata"
+  -- ensureRepo "purescript" "package-sets"
 
   -- Start threads
-  spawnThread "fetcher"      $ fetcher token chanFetcher chanMetadataUpdater chanPackageSetsUpdater
-  spawnThread "spagoUpdater" $ spagoUpdater token chanSpagoUpdater chanFetcher
-  spawnThread "metaUpdater"  $ metadataUpdater chanMetadataUpdater
-  spawnThread "setsUpdater"  $ packageSetsUpdater token chanPackageSetsUpdater
+  -- spawnThread "fetcher"      $ fetcher token chanFetcher chanMetadataUpdater chanPackageSetsUpdater
+  -- spawnThread "spagoUpdater" $ spagoUpdater token chanSpagoUpdater chanFetcher
+  -- spawnThread "metaUpdater"  $ metadataUpdater chanMetadataUpdater
+  -- spawnThread "setsUpdater"  $ packageSetsUpdater token chanPackageSetsUpdater
 
   {- |
 
@@ -100,7 +169,7 @@ main = do
 
   -}
   forever $ do
-    atomically $ Queue.writeTBQueue chanSpagoUpdater MStart
+    atomically $ Chan.writeTChan bus RefreshState
     sleep _60m
 
   where
@@ -129,6 +198,44 @@ main = do
       runWithCwd ("data/" <> repo) "git config --local user.name 'Spacchettibotti' && git config --local user.email 'spacchettibotti@ferrai.io'"
 
 
+
+
+
+persistState = liftIO $ do
+  pullChan <- atomically $ Chan.dupTChan bus
+  forever $ atomically (Chan.readTChan pullChan) >>= \case
+    NewRepoRelease address release -> do
+        liftIO
+          $ Concurrent.modifyMVar_ state
+          $ \State{..} -> let newReleases = Map.insert address release latestReleases
+                          in pure State{ latestReleases = newReleases , ..}
+        a <- liftIO (Concurrent.readMVar state)
+        echo $ tshow a
+    _ -> pure ()
+
+
+getLatestRelease token (owner, repo) = GitHub.executeRequest auth $ GitHub.latestReleaseR owner repo
+  where
+    auth = GitHub.OAuth $ Encoding.encodeUtf8 token
+
+checkLatestRelease :: MonadIO m => Text -> GitHubAddress -> m ()
+checkLatestRelease token address = liftIO $ do
+  pullChan <- atomically $ Chan.dupTChan bus
+  forever $ atomically (Chan.readTChan pullChan) >>= \case
+    RefreshState -> getLatestRelease token address >>= \case
+      Left _ -> pure () -- TODO: error out here?
+      Right GitHub.Release {..} -> do
+        State{..} <- Concurrent.readMVar state
+        case Map.lookup address latestReleases of
+          Just currentRelease | currentRelease == releaseTagName -> pure ()
+          _ -> atomically $ Chan.writeTChan bus $ NewRepoRelease address releaseTagName
+    _ -> pure ()
+
+
+
+
+
+{-
 spagoUpdater :: Text -> Queue.TBQueue SpagoUpdaterMessage -> Queue.TBQueue FetcherMessage -> IO ()
 spagoUpdater token controlChan fetcherChan = go Nothing
   where
@@ -392,6 +499,7 @@ metadataUpdater dataChan = go mempty
               echo err
 
           go state
+-}
 
 
 runWithCwd :: MonadIO io => GHC.IO.FilePath -> String -> io (ExitCode, Text, Text)
