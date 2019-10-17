@@ -582,3 +582,33 @@ spec = around_ setup $ do
       mv "packages.dhall" "packages-old.dhall"
       writeTextFile "packages.dhall" "https://github.com/purescript/package-sets/releases/download/psc-0.13.4-20191025/packages.dhall sha256:f9eb600e5c2a439c3ac9543b1f36590696342baedab2d54ae0aa03c9447ce7d4"
       spago ["list-packages", "--json"] >>= shouldBeSuccessOutput "list-packages.json"
+
+  describe "spago output-path" $ do
+    it "Spago should output the correct path" $ do
+
+      -- Create local 'monorepo-1' package that is the real root
+      mkdir "monorepo-1"
+      cd "monorepo-1"
+      spago ["init"] >>= shouldBeSuccess
+      rm "spago.dhall"
+      writeTextFile "spago.dhall" $ "{ name = \"lib-1\", dependencies = [\"console\", \"effect\", \"prelude\"], packages = ./packages.dhall }"
+
+       -- Create local 'monorepo-2' package that uses packages.dhall on top level
+      mkdir "monorepo-2"
+      cd "monorepo-2"
+      spago ["init"] >>= shouldBeSuccess
+      rm "spago.dhall"
+      writeTextFile "spago.dhall" $ "{ name = \"lib-1\", dependencies = [\"console\", \"effect\", \"prelude\"], packages = ./packages.dhall }"
+      rm "packages.dhall"
+      writeTextFile "packages.dhall" $ "../packages.dhall"
+      spago ["output-path"] >>= shouldBeSuccessOutput "output-path-remote.txt"
+
+    it "Spago should output the local path when no overrides" $ do
+
+      -- Create local 'monorepo-1' package that is the real root
+      mkdir "monorepo-1"
+      cd "monorepo-1"
+      spago ["init"] >>= shouldBeSuccess
+      rm "spago.dhall"
+      writeTextFile "spago.dhall" $ "{ name = \"lib-1\", dependencies = [\"console\", \"effect\", \"prelude\"], packages = ./packages.dhall }"
+      spago ["output-path", "--no-share-output"] >>= shouldBeSuccessOutput "output-path-local.txt"
