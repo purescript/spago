@@ -7,6 +7,7 @@ module Spago.Build
   , bundleModule
   , docs
   , search
+  , showOutputPath
   , Watch (..)
   , NoBuild (..)
   , NoInstall (..)
@@ -357,6 +358,17 @@ getOutputPath buildOpts = do
       case shareOutput buildOpts of
         NoShareOutput -> pure Nothing
         ShareOutput   -> pure outputPath
+
+-- | Used by `spago output-path` command
+showOutputPath
+  :: Spago m
+  => BuildOptions
+  -> m ()
+showOutputPath buildOptions = do
+  path <- getOutputPath buildOptions
+  case path of
+      Just path' -> liftIO $ putStrLn path'
+      _          -> liftIO $ putStrLn "output"
 
 -- | Find an output flag and then return the next item
 -- | which should be the output folder

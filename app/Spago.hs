@@ -100,6 +100,9 @@ data Command
   -- | Bundle a module into a CommonJS module (replaced by BundleModule)
   | MakeModule
 
+  -- | Returns output folder for compiled code
+  | OutputPath BuildOptions
+
 parser :: CLI.Parser (Command, GlobalOptions)
 parser = do
   opts <- globalOptions
@@ -165,6 +168,7 @@ parser = do
       , bundleModule
       , docs
       , search
+      , outputPath
       ]
 
     initProject =
@@ -219,6 +223,12 @@ parser = do
       ( "search"
       , "Start a search REPL to find definitions matching names and types"
       , pure Search
+      )
+
+    outputPath =
+      ( "output-path"
+      , "Returns the output path for compiled code"
+      , OutputPath <$> buildOptions
       )
 
     packageSetCommands = CLI.subcommandGroup "Package set commands:"
@@ -351,5 +361,6 @@ main = do
         -> Spago.Build.docs format sourcePaths depsOnly noSearch openDocs
       Search                                -> Spago.Build.search
       Version                               -> printVersion
+      OutputPath buildOptions               -> Spago.Build.showOutputPath buildOptions
       Bundle                                -> die Messages.bundleCommandRenamed
       MakeModule                            -> die Messages.makeModuleCommandRenamed
