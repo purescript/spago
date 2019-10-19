@@ -705,7 +705,7 @@ Take a look at [TodoMVC with react-basic + spago + parcel][todomvc] for a workin
 To start a project using Spago and Parcel together, here's the cammands and file setup you'll need:
 
 0. install Node Package Manager(NPM): `curl https://www.npmjs.org/install.sh | sh`
-1. Install Spago: `npm i -g spago purescript` 
+1. Install Spago and PureScript: `npm i -g spago purescript` 
 2. Create a folder for your project: `mkdir <project folder name>`
 3. Move to the project folder: `cd <project folder name>`
 4. Create your PureScript project with Spago: `spago init`, This also produces a `./src/Main.purs` file which contains some starter code.
