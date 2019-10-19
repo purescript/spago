@@ -850,7 +850,7 @@ let PackageSet =
 let Config =
   { name : Text                   -- the name of our project
   , dependencies : List Text      -- the list of dependencies of our app
-  , alternateBackend : Maybe Text -- Nothing by default, meaning use purs. If specified, spago will use the executable as the backend
+  , backend : Maybe Text          -- Nothing by default, meaning use purs. If specified, spago will use the executable as the backend
   , sources : List Text           -- the list of globs for the paths to always include in the build
   , packages : PackageSet         -- this is the type we just defined above
   }
