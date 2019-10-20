@@ -366,9 +366,7 @@ showOutputPath
   -> m ()
 showOutputPath buildOptions = do
   path <- getOutputPath buildOptions
-  case path of
-      Just path' -> liftIO $ putStrLn path'
-      _          -> liftIO $ putStrLn "output"
+  Turtle.echo $ Turtle.unsafeTextToLine $ Text.pack $ fromMaybe "output" path
 
 -- | Find an output flag and then return the next item
 -- | which should be the output folder

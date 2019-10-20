@@ -6,3 +6,4 @@ test/spago-test
 **/__pycache__
 templates/docs-search-app.js
 templates/purescript-docs-search
+.DS_Store

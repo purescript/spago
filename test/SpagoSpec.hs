@@ -9,9 +9,9 @@ import           Test.Hspec         (Spec, around_, describe, it, shouldBe, shou
 import           Turtle             (ExitCode (..), cd, cp, decodeString, empty, mkdir, mktree, mv,
                                      readTextFile, rm, shell, shellStrictWithErr, testdir,
                                      writeTextFile)
-import           Utils              (checkFileHasInfix, checkFixture, readFixture, runFor,
-                                     shouldBeFailure, shouldBeFailureOutput, shouldBeSuccess,
-                                     shouldBeSuccessOutput, spago, withCwd)
+import           Utils              (checkFileHasInfix, checkFixture, outputShouldEqual,
+                                     readFixture, runFor, shouldBeFailure, shouldBeFailureOutput,
+                                     shouldBeSuccess, shouldBeSuccessOutput, spago, withCwd)
 
 
 setup :: IO () -> IO ()
@@ -590,25 +590,18 @@ spec = around_ setup $ do
       mkdir "monorepo-1"
       cd "monorepo-1"
       spago ["init"] >>= shouldBeSuccess
-      rm "spago.dhall"
-      writeTextFile "spago.dhall" $ "{ name = \"lib-1\", dependencies = [\"console\", \"effect\", \"prelude\"], packages = ./packages.dhall }"
 
        -- Create local 'monorepo-2' package that uses packages.dhall on top level
       mkdir "monorepo-2"
       cd "monorepo-2"
       spago ["init"] >>= shouldBeSuccess
-      rm "spago.dhall"
-      writeTextFile "spago.dhall" $ "{ name = \"lib-1\", dependencies = [\"console\", \"effect\", \"prelude\"], packages = ./packages.dhall }"
       rm "packages.dhall"
       writeTextFile "packages.dhall" $ "../packages.dhall"
-      spago ["output-path"] >>= shouldBeSuccessOutput "output-path-remote.txt"
+      spago ["output-path"] >>= outputShouldEqual "./../output\n"
 
     it "Spago should output the local path when no overrides" $ do
 
-      -- Create local 'monorepo-1' package that is the real root
       mkdir "monorepo-1"
       cd "monorepo-1"
       spago ["init"] >>= shouldBeSuccess
-      rm "spago.dhall"
-      writeTextFile "spago.dhall" $ "{ name = \"lib-1\", dependencies = [\"console\", \"effect\", \"prelude\"], packages = ./packages.dhall }"
-      spago ["output-path", "--no-share-output"] >>= shouldBeSuccessOutput "output-path-local.txt"
+      spago ["output-path", "--no-share-output"] >>= outputShouldEqual "output\n"
