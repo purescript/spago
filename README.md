@@ -684,7 +684,7 @@ Bundling first...
 Bundle succeeded and output file to index.js
 Make module succeeded and output file to index.js
 
-$ node -e "console.log(require('./index).main)"
+$ node -e "console.log(require('./index').main)"
 [Function]
 ```
 
