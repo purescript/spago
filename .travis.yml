@@ -1,7 +1,6 @@
 sudo: required
 
 language: generic
-dist: bionic
 
 cache:
   directories:
@@ -16,7 +15,7 @@ services:
 matrix:
   include:
   # Build on Linux with docker
-  - env: BUILD=stack ARGS="" PURS_OS="linux64" IMAGE_TAG=lts-14
+  - env: BUILD=stack ARGS="" PURS_OS="linux64" IMAGE_TAG=lts-12
     compiler: ": #stack default"
 
   # Build on macOS natively
