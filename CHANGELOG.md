@@ -28,6 +28,7 @@ Bugfixes:
 - Fix confusing warning when trying to `spago install` a package already present in project dependencies list (#436)
 - Do not watch files in `.spago` folder when running `spago build --watch` (#430)
 - Fix dynamic libraries compatibility problems by publishing a statically linked executable for Linux (#427, #437)
+- `--clear-screen` (usable e.g. with `spago build --watch`) now also resets cursor position, so the rebuild message always appears at top left of the screen (#465)
 
 Other improvements:
 - Speed up test suite by replacing couple of end 2 end bump-version tests with unit/property tests
