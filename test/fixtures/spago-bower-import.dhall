@@ -2,8 +2,7 @@
 Welcome to a Spago project!
 You can edit this file as you like.
 -}
-{ name =
-    "simple-json"
+{ name = "simple-json"
 , dependencies =
     [ "arrays"
     , "assert"
@@ -21,8 +20,6 @@ You can edit this file as you like.
     , "typelevel-prelude"
     , "variant"
     ]
-, packages =
-    ./packages.dhall
-, sources =
-    [ "src/**/*.purs", "test/**/*.purs" ]
+, packages = ./packages.dhall
+, sources = [ "src/**/*.purs", "test/**/*.purs" ]
 }
