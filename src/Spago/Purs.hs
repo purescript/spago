@@ -25,7 +25,7 @@ import qualified Spago.Messages as Messages
 newtype ModuleName = ModuleName { unModuleName :: Text }
 newtype TargetPath = TargetPath { unTargetPath :: Text }
 newtype SourcePath = SourcePath { unSourcePath :: Text }
-  deriving newtype (Show, Dhall.Interpret)
+  deriving newtype (Show, Dhall.FromDhall)
 newtype ExtraArg = ExtraArg { unExtraArg :: Text }
   deriving newtype (Eq)
 
