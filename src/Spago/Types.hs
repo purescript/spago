@@ -12,7 +12,7 @@ import qualified Spago.Messages as Messages
 
 newtype PackageName = PackageName { packageName :: Text }
   deriving (Show)
-  deriving newtype (Eq, Ord, ToJSON, FromJSON, ToJSONKey, FromJSONKey, Dhall.Interpret)
+  deriving newtype (Eq, Ord, ToJSON, FromJSON, ToJSONKey, FromJSONKey, Dhall.FromDhall)
 
 -- | A package-set package.
 --   Matches the packages definition in Package.dhall from package-sets
@@ -59,7 +59,7 @@ newtype Repo = Repo { unRepo :: Text }
 
 instance ToJSON Repo
 
-instance Dhall.Interpret Repo where
+instance Dhall.FromDhall Repo where
   autoWith _ = makeRepo <$> Dhall.strictText
     where
       -- We consider a "Remote" anything that `parseURI` thinks is a URI
