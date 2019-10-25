@@ -18,6 +18,7 @@ import qualified Dhall.Map
 import qualified Dhall.Parser                          as Parser
 import qualified Dhall.Pretty
 import           Dhall.TypeCheck                       (X, typeOf)
+import           Dhall.Util                            as Dhall
 import qualified Lens.Family
 
 type DhallExpr a = Dhall.Expr Parser.Src a
@@ -31,8 +32,8 @@ format pathText = liftIO $
     Left (_e :: SomeException) -> f $ Dhall.Format.Modify path
     Right _ -> pure ()
   where
-    f = Dhall.Format.format . Dhall.Format.Format Dhall.Pretty.ASCII
-    path = Just $ Text.unpack pathText
+    f = Dhall.Format.format . Dhall.Format.Format Dhall.Pretty.ASCII Dhall.NoCensor
+    path = Dhall.InputFile $ Text.unpack pathText
 
 
 -- | Prettyprint a Dhall expression adding a comment on top

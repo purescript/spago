@@ -166,7 +166,7 @@ spec = around_ setup $ do
     it "Spago should not change the alternative config if it does not change dependencies" $ do
 
       spago ["init"] >>= shouldBeSuccess
-      writeTextFile "alternative2.dhall" "./spago.dhall // { sources = [ \"src/**/*.purs\" ] }"
+      writeTextFile "alternative2.dhall" "./spago.dhall // { sources = [ \"src/**/*.purs\" ] }\n"
       spago ["-x", "alternative2.dhall", "install", "simple-json"] >>= shouldBeSuccess
       spago ["-x", "alternative2.dhall", "install", "simple-json"] >>= shouldBeSuccessOutput "alternative2install.txt"
       checkFixture "alternative2.dhall"
@@ -416,9 +416,9 @@ spec = around_ setup $ do
         mv "spago.dhall" "spago-old.dhall"
         writeTextFile "spago.dhall" configWithBackend
 
-        spago ["build"] >>= shouldBeSuccess
-
-        checkFixture "alternate-backend-output.txt"
+        -- Blocked by https://github.com/purescript/purescript/issues/3743
+        -- spago ["-j", "5", "build"] >>= shouldBeSuccess
+        -- checkFixture "alternate-backend-output.txt"
 
       it "Passing `--codegen corefn` with backend option should fail" $ do
         configWithBackend <- readFixture "spago-configWithBackend.dhall"
@@ -426,9 +426,10 @@ spec = around_ setup $ do
         mv "spago.dhall" "spago-old.dhall"
         writeTextFile "spago.dhall" configWithBackend
 
-        spago ["build"] >>= shouldBeSuccess
-        spago ["build", "--purs-args", "--codegen", "--purs-args", "corefn"] >>= shouldBeFailureOutput "codegen-opt-with-backend.txt"
-        spago ["build", "--purs-args", "--codegen", "--purs-args", "docs"] >>= shouldBeFailureOutput "codegen-opt-with-backend.txt"
+        -- Blocked by https://github.com/purescript/purescript/issues/3743
+        -- spago ["-j", "5", "build"] >>= shouldBeSuccess
+        -- spago ["build", "--purs-args", "--codegen", "--purs-args", "corefn"] >>= shouldBeFailureOutput "codegen-opt-with-backend.txt"
+        -- spago ["build", "--purs-args", "--codegen", "--purs-args", "docs"] >>= shouldBeFailureOutput "codegen-opt-with-backend.txt"
 
 
 
@@ -504,7 +505,7 @@ spec = around_ setup $ do
             = map Text.strip
             $ filter (not . null . Text.breakOnAll "https://github.com/purescript/package-sets")
             $ Text.lines packages
-      writeTextFile "packages.dhall" "https://raw.githubusercontent.com/purescript/package-sets/psc-0.13.0-20190713/src/packages.dhall sha256:906af79ba3aec7f429b107fd8d12e8a29426db8229d228c6f992b58151e2308e"
+      writeTextFile "packages.dhall" "https://github.com/purescript/package-sets/releases/download/psc-0.13.4-20191025/packages.dhall sha256:f9eb600e5c2a439c3ac9543b1f36590696342baedab2d54ae0aa03c9447ce7d4"
       spago ["-v", "upgrade-set"] >>= shouldBeSuccess
       newPackages <- Text.strip <$> readTextFile "packages.dhall"
       newPackages `shouldBe` packageSetUrl
@@ -572,12 +573,12 @@ spec = around_ setup $ do
 
       spago ["init"] >>= shouldBeSuccess
       mv "packages.dhall" "packages-old.dhall"
-      writeTextFile "packages.dhall" "https://raw.githubusercontent.com/purescript/package-sets/psc-0.13.0-20190626/src/packages.dhall sha256:9905f07c9c3bd62fb3205e2108515811a89d55cff24f4341652f61ddacfcf148"
+      writeTextFile "packages.dhall" "https://github.com/purescript/package-sets/releases/download/psc-0.13.4-20191025/packages.dhall sha256:f9eb600e5c2a439c3ac9543b1f36590696342baedab2d54ae0aa03c9447ce7d4"
       spago ["list-packages"] >>= shouldBeSuccessOutput "list-packages.txt"
 
     it "Spago should list-packages in JSON successfully" $ do
 
       spago ["init"] >>= shouldBeSuccess
       mv "packages.dhall" "packages-old.dhall"
-      writeTextFile "packages.dhall" "https://raw.githubusercontent.com/purescript/package-sets/psc-0.13.0-20190626/src/packages.dhall sha256:9905f07c9c3bd62fb3205e2108515811a89d55cff24f4341652f61ddacfcf148"
+      writeTextFile "packages.dhall" "https://github.com/purescript/package-sets/releases/download/psc-0.13.4-20191025/packages.dhall sha256:f9eb600e5c2a439c3ac9543b1f36590696342baedab2d54ae0aa03c9447ce7d4"
       spago ["list-packages", "--json"] >>= shouldBeSuccessOutput "list-packages.json"

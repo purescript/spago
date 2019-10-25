@@ -252,10 +252,11 @@ freeze path = do
   echo Messages.freezePackageSet
   liftIO $
     Dhall.Freeze.freeze
-      (Just path)
+      (Dhall.InputFile path)
       Dhall.Freeze.OnlyRemoteImports
       Dhall.Freeze.Secure
       Dhall.Pretty.ASCII
+      Dhall.NoCensor
 
 
 -- | Freeze the file if any of the remote imports are not frozen
