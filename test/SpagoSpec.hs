@@ -166,7 +166,7 @@ spec = around_ setup $ do
     it "Spago should not change the alternative config if it does not change dependencies" $ do
 
       spago ["init"] >>= shouldBeSuccess
-      writeTextFile "alternative2.dhall" "./spago.dhall // { sources = [ \"src/**/*.purs\" ] }"
+      writeTextFile "alternative2.dhall" "./spago.dhall // { sources = [ \"src/**/*.purs\" ] }\n"
       spago ["-x", "alternative2.dhall", "install", "simple-json"] >>= shouldBeSuccess
       spago ["-x", "alternative2.dhall", "install", "simple-json"] >>= shouldBeSuccessOutput "alternative2install.txt"
       checkFixture "alternative2.dhall"
