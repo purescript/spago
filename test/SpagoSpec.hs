@@ -504,7 +504,7 @@ spec = around_ setup $ do
             = map Text.strip
             $ filter (not . null . Text.breakOnAll "https://github.com/purescript/package-sets")
             $ Text.lines packages
-      writeTextFile "packages.dhall" "https://raw.githubusercontent.com/purescript/package-sets/psc-0.13.0-20190713/src/packages.dhall sha256:906af79ba3aec7f429b107fd8d12e8a29426db8229d228c6f992b58151e2308e"
+      writeTextFile "packages.dhall" "https://github.com/purescript/package-sets/releases/download/psc-0.13.4-20191025/packages.dhall sha256:f9eb600e5c2a439c3ac9543b1f36590696342baedab2d54ae0aa03c9447ce7d4"
       spago ["-v", "upgrade-set"] >>= shouldBeSuccess
       newPackages <- Text.strip <$> readTextFile "packages.dhall"
       newPackages `shouldBe` packageSetUrl
@@ -572,12 +572,12 @@ spec = around_ setup $ do
 
       spago ["init"] >>= shouldBeSuccess
       mv "packages.dhall" "packages-old.dhall"
-      writeTextFile "packages.dhall" "https://raw.githubusercontent.com/purescript/package-sets/psc-0.13.0-20190626/src/packages.dhall sha256:9905f07c9c3bd62fb3205e2108515811a89d55cff24f4341652f61ddacfcf148"
+      writeTextFile "packages.dhall" "https://github.com/purescript/package-sets/releases/download/psc-0.13.4-20191025/packages.dhall sha256:f9eb600e5c2a439c3ac9543b1f36590696342baedab2d54ae0aa03c9447ce7d4"
       spago ["list-packages"] >>= shouldBeSuccessOutput "list-packages.txt"
 
     it "Spago should list-packages in JSON successfully" $ do
 
       spago ["init"] >>= shouldBeSuccess
       mv "packages.dhall" "packages-old.dhall"
-      writeTextFile "packages.dhall" "https://raw.githubusercontent.com/purescript/package-sets/psc-0.13.0-20190626/src/packages.dhall sha256:9905f07c9c3bd62fb3205e2108515811a89d55cff24f4341652f61ddacfcf148"
+      writeTextFile "packages.dhall" "https://github.com/purescript/package-sets/releases/download/psc-0.13.4-20191025/packages.dhall sha256:f9eb600e5c2a439c3ac9543b1f36590696342baedab2d54ae0aa03c9447ce7d4"
       spago ["list-packages", "--json"] >>= shouldBeSuccessOutput "list-packages.json"
