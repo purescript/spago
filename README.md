@@ -567,7 +567,7 @@ Then:
 - the top level `packages.dhall` might look like this:
 
 ```dhall
-let upstream = https://raw.githubusercontent.com/purescript/package-sets/psc-0.13.0-20190626/src/packages.dhall sha256:9905f07c9c3bd62fb3205e2108515811a89d55cff24f4341652f61ddacfcf148
+let upstream = https://github.com/purescript/package-sets/releases/download/psc-0.13.4-20191025/packages.dhall sha256:f9eb600e5c2a439c3ac9543b1f36590696342baedab2d54ae0aa03c9447ce7d4
 
 let overrides =
   { lib1 = ./lib1/spago.dhall as Location
