@@ -416,7 +416,7 @@ spec = around_ setup $ do
         mv "spago.dhall" "spago-old.dhall"
         writeTextFile "spago.dhall" configWithBackend
 
-        spago ["build"] >>= shouldBeSuccess
+        spago ["-j", "5", "build"] >>= shouldBeSuccess
 
         checkFixture "alternate-backend-output.txt"
 
@@ -426,7 +426,7 @@ spec = around_ setup $ do
         mv "spago.dhall" "spago-old.dhall"
         writeTextFile "spago.dhall" configWithBackend
 
-        spago ["build"] >>= shouldBeSuccess
+        spago ["-j", "5", "build"] >>= shouldBeSuccess
         spago ["build", "--purs-args", "--codegen", "--purs-args", "corefn"] >>= shouldBeFailureOutput "codegen-opt-with-backend.txt"
         spago ["build", "--purs-args", "--codegen", "--purs-args", "docs"] >>= shouldBeFailureOutput "codegen-opt-with-backend.txt"
 
