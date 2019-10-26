@@ -998,6 +998,7 @@ To configure this, add the following script to your `package.json` file:
 
 For publishing CLI programs or npm modules, please refer to the npm documentation
 
+Other build options are available, using webpack (and purs-loader), or browserify.  Parcel is used here for it's low-configuration overhead.
 
 ### Generate documentation for my project
 
