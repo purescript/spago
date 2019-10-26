@@ -1,4 +1,5 @@
 {-# LANGUAGE ViewPatterns #-}
+{-# LANGUAGE OverloadedLists #-}
 module Spago.Config
   ( defaultPath
   , makeConfig
@@ -323,13 +324,14 @@ addSourcePaths expr = expr
 
 isConfigV1, isConfigV2 :: Dhall.Map.Map Text v -> Bool
 isConfigV1 (Set.fromList . Dhall.Map.keys -> configKeySet) =
-  let configV1Keys = Set.fromList ["name", "dependencies", "packages"]
+  let configV1Keys = ["name", "dependencies", "packages"]
   in configKeySet == configV1Keys
 
 
 isConfigV2 (Set.fromList . Dhall.Map.keys -> configKeySet) =
-  let configV2Keys = Set.fromList ["name", "dependencies", "packages", "sources"]
-  in configKeySet == configV2Keys
+  let configV2Keys = ["name", "dependencies", "packages", "sources"]
+      optionalKeys = ["backend", "license", "repository"]
+  in Set.difference configKeySet optionalKeys == configV2Keys
 
 
 filterDependencies :: Expr -> Expr

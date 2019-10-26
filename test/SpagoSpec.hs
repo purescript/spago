@@ -401,7 +401,7 @@ spec = around_ setup $ do
       rm "packages.dhall"
       writeTextFile "packages.dhall" $ "../packages.dhall"
       rm "spago.dhall"
-      writeTextFile "spago.dhall" $ "{ name = \"lib-1\", dependencies = [\"console\", \"effect\", \"prelude\"], packages = ./packages.dhall }"
+      writeTextFile "spago.dhall" $ "{ name = \"lib-1\", license = \"MIT\", repository = \"https://github.com/fake/lib-1.git\", dependencies = [\"console\", \"effect\", \"prelude\"], sources = [\"src/**/*.purs\"], packages = ./packages.dhall }"
       spago ["build"] >>= shouldBeSuccess
       testdir "output" `shouldReturn` False
 
