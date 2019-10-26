@@ -10,16 +10,16 @@ import           Control.Concurrent.STM (check)
 import qualified Data.Map.Strict        as Map
 import qualified Data.Set               as Set
 import           Data.Text              (pack, toLower, unpack)
+import           Data.Time.Clock        (NominalDiffTime, diffUTCTime, getCurrentTime)
 import           GHC.IO                 (FilePath)
 import           GHC.IO.Exception
-import           System.Console.ANSI    (clearScreen)
+import           System.Console.ANSI    (clearScreen, setCursorPosition)
 import           System.FilePath        (splitDirectories)
 import qualified System.FilePath.Glob   as Glob
 import qualified System.FSNotify        as Watch
 import           System.IO              (getLine)
 import qualified UnliftIO
 import           UnliftIO.Async         (race_)
-import           Data.Time.Clock        (NominalDiffTime, getCurrentTime, diffUTCTime)
 
 -- Should we clear the screen on rebuild?
 data ClearScreen = DoClear | NoClear
@@ -65,7 +65,9 @@ fileWatchConf watchConfig shouldClear inner = withManagerConf watchConfig $ \man
     watchVar  <- liftIO $ newTVarIO Map.empty
 
     let redisplay maybeMsg = do
-          when (shouldClear == DoClear) $ liftIO clearScreen
+          when (shouldClear == DoClear) $ liftIO $ do
+            clearScreen
+            setCursorPosition 0 0
           mapM_ echoStr maybeMsg
 
     let onChange event = do
