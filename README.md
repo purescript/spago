@@ -1000,6 +1000,89 @@ To configure this, add the following script to your `package.json` file:
 12. To run a production build, you can simply run `npm run build` and to start a production process, call `npm start`
 
 For publishing CLI programs or npm modules, please refer to the npm documentation
+<<<<<<< HEAD
+=======
+
+#### Getting Started from Scratch
+
+To start a project using Spago and Parcel together, here's the cammands and file setup you'll need:
+
+0. install Node Package Manager(NPM): `curl https://www.npmjs.org/install.sh | sh`
+1. Install Spago and PureScript: `npm i -g spago purescript` 
+2. Create a folder for your project: `mkdir <project folder name>`
+3. Move to the project folder: `cd <project folder name>`
+4. Create your PureScript project with Spago: `spago init`, This also produces a `./src/Main.purs` file which contains some starter code.
+5. Initialize the JavaScript/NPM project `npm init`
+6. Install Parcel as a dependency `npm i parcel`
+7. Add a JavaScript file which imports and calls the `main` function from the output of `./src/Main.purs`. This can be placed in the root directory for your project. Traditionally this file is named `index.js`. The `main` function from `Main.purs` can accept arguments, this is useful since parcel will replace environment variables inside of JavaScript. It is recommended to read any environment variables in the JavaScript file and pass them as arguments to `main`. Here is an example JavaScript file:
+
+``` JavaScript
+var Main = require('./output/Main');
+
+function main () {
+    /* 
+     Here we could add variables such as 
+     
+     var baseUrl = process.env.BASE_URL;
+
+     Parcel will replace `process.env.BASE_URL` 
+     with the string contents of the BASE_URL environment
+     variable at bundle/build time.  
+     A .env file can also be used to override shell variables
+     for more information, see https://en.parceljs.org/env.html
+
+     These variables can be supplied to the Main.main function,
+     however, you will need to change the type to accept variables, by default it is an Effect.
+     You will probably want to make it a function from String -> Effect ()
+  */
+
+  Main.main();
+  }
+
+// HMR stuff
+// For more info see: https://parceljs.org/hmr.html
+if (module.hot) {
+  module.hot.accept(function () {
+    console.log('Reloaded, running main again');
+    main();
+  });
+}
+
+console.log('Starting app');
+
+main();
+```
+
+8. Add an HTML file which sources your JavaScript file. This can be named `index.html` and placed in the root directory of your project. Here is an example HTML file:
+
+``` HTML
+  <!doctype html>
+<html lang="en" data-framework="purescript">
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+</head>
+
+<body>
+  <div id="app"></div>
+  <script src="./index.js"></script>
+</body>
+</html>
+```
+
+9. Add a development script to `package.json` which will hot-bundle the PureScript code with Spago, and then hot-reload the resulting JavaScript code using Parcel. Here, we'll call this script `dev`. 
+
+``` 
+...
+  "scripts": {
+    "dev": "spago build --watch & parcel index.html",
+  },
+...
+```
+
+This script will simultanously run spago and parcel. When you run it with `npm run dev`, Parcel will tell you which port your application is being served on, by default this will be `localhost:1234`. If you've followed this guide you can navigate there in a browser and open the javascript console. you will see the output of both `index.js` and the compiled `Main.purs` file. When you modify any purescript file in `./src`, you should see Spago and Parcel rebuild your application, and the browser should execute the new code. For some applications you may adjust the JavaScript function that handles hot modules to fully reload the page with `window.location.reload();`.
+
+10. when you are ready to build and deploy your application as static html/js/css, you may add a `build` script to package.json in order to produce a final bundle, this script is usually something like `spago build && parcel build index.html`. 
+>>>>>>> 5ce1eea... cleanup
 
 Other build options are available, using webpack (and purs-loader), or browserify.  Parcel is used here for it's low-configuration overhead.
 
