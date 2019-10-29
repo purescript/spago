@@ -7,7 +7,7 @@ module Spago.Build
   , bundleModule
   , docs
   , search
-  , showOutputPath
+  , showPaths
   , Watch (..)
   , NoBuild (..)
   , NoInstall (..)
@@ -16,6 +16,7 @@ module Spago.Build
   , Packages.DepsOnly (..)
   , NoSearch (..)
   , OpenDocs (..)
+  , PathType (..)
   , Purs.ExtraArg (..)
   , Purs.ModuleName (..)
   , Purs.SourcePath (..)
@@ -359,14 +360,52 @@ getOutputPath buildOpts = do
         NoShareOutput -> pure Nothing
         ShareOutput   -> pure outputPath
 
+getOutputPathOrDefault
+  :: Spago m
+  => BuildOptions
+  -> m Sys.FilePath
+getOutputPathOrDefault buildOpts
+  = (fromMaybe "output-root") <$> getOutputPath buildOpts
+
+data PathType
+  = OutputFolder
+
 -- | Used by `spago output-path` command
 showOutputPath
   :: Spago m
   => BuildOptions
   -> m ()
 showOutputPath buildOptions = do
-  path <- getOutputPath buildOptions
-  Turtle.echo $ Turtle.unsafeTextToLine $ Text.pack $ fromMaybe "output" path
+  path <- getOutputPathOrDefault buildOptions
+  Turtle.echo $ Turtle.unsafeTextToLine $ Text.pack path
+
+showPaths
+  :: Spago m
+  => BuildOptions
+  -> Maybe PathType
+  -> m ()
+showPaths buildOptions whichPaths = 
+  case whichPaths of
+    (Just OutputFolder) -> showOutputPath buildOptions
+    Nothing             -> showAllPaths buildOptions
+
+showAllPaths
+  :: Spago m
+  => BuildOptions
+  -> m ()
+showAllPaths buildOptions = do
+  let showPath (a,b) = 
+        Turtle.echo $ Turtle.unsafeTextToLine $ (a <> ": " <> b)
+  paths <- getAllPaths buildOptions
+  traverse_ showPath paths
+
+getAllPaths
+  :: Spago m
+  => BuildOptions
+  -> m [(Text, Text)]
+getAllPaths buildOptions = do
+  outputPath <- getOutputPathOrDefault buildOptions
+  pure [ ("output", Text.pack outputPath) ]
 
 -- | Find an output flag and then return the next item
 -- | which should be the output folder

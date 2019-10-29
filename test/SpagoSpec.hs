@@ -597,11 +597,11 @@ spec = around_ setup $ do
       spago ["init"] >>= shouldBeSuccess
       rm "packages.dhall"
       writeTextFile "packages.dhall" $ "../packages.dhall"
-      spago ["output-path"] >>= outputShouldEqual "./../output\n"
+      spago ["path"] >>= outputShouldEqual "./../output\n"
 
     it "Spago should output the local path when no overrides" $ do
 
       mkdir "monorepo-1"
       cd "monorepo-1"
       spago ["init"] >>= shouldBeSuccess
-      spago ["output-path", "--no-share-output"] >>= outputShouldEqual "output\n"
+      spago ["path", "--no-share-output"] >>= outputShouldEqual "output\n"
