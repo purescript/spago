@@ -60,8 +60,15 @@ import           Spago.Types
 
 type Expr = Dhall.DhallExpr Dhall.Import
 type PackageSetMap = Map PackageName Package
-type GitHubAddress = (GitHub.Name GitHub.Owner, GitHub.Name GitHub.Repo)
 
+data GitHubAddress = Address
+  { owner :: GitHub.Name GitHub.Owner
+  , repo  :: GitHub.Name GitHub.Repo
+  } deriving (Eq, Ord)
+
+instance Show GitHubAddress where
+  show (Address owner repo) = Text.unpack
+    $ "\"" <> GitHub.untagName owner <> "/" <> GitHub.untagName repo <> "\""
 
 data Message
   = RefreshState
@@ -95,11 +102,11 @@ bus = GHC.IO.unsafePerformIO Chan.newBroadcastTChanIO
 
 
 packageSetsRepo, purescriptRepo, docsSearchRepo, spagoRepo, metadataRepo :: GitHubAddress
-packageSetsRepo = ("purescript", "package-sets")
-purescriptRepo  = ("purescript", "purescript")
-docsSearchRepo  = ("spacchetti", "purescript-docs-search")
-metadataRepo    = ("spacchetti", "package-sets-metadata")
-spagoRepo       = ("spacchetti", "spago")
+packageSetsRepo = Address "purescript" "package-sets"
+purescriptRepo  = Address "purescript" "purescript"
+docsSearchRepo  = Address "spacchetti" "purescript-docs-search"
+metadataRepo    = Address "spacchetti" "package-sets-metadata"
+spagoRepo       = Address "spacchetti" "spago"
 
 main :: IO ()
 main = do
@@ -111,9 +118,11 @@ main = do
   Env.setEnv "GIT_TERMINAL_PROMPT" "0"
 
   -- Read GitHub Auth Token
+  echo "Reading GitHub token.."
   token <- (GitHub.OAuth . Encoding.encodeUtf8 . Text.pack) <$> Env.getEnv "SPACCHETTIBOTTI_TOKEN"
 
   -- Prepare data folder that will contain the temp copies of the repos
+  echo "Creating 'data' folder"
   mktree "data"
 
   spawnThread "writer"                  $ persistState
@@ -122,7 +131,7 @@ main = do
   spawnThread "releaseCheckDocsSearch"  $ checkLatestRelease token docsSearchRepo
   spawnThread "spagoUpdatePackageSets"  $ spagoUpdatePackageSets token
   spawnThread "metadataFetcher"         $ metadataFetcher token
-  spawnThread "metadataUpdater"         $ metadataUpdater token
+  spawnThread "metadataUpdater"         $ metadataUpdater
   spawnThread "packageSetsUpdater"      $ packageSetsUpdater token
   -- TODO: update purescript-metadata repo on purs release
   -- TODO: update CI version for purescript on purs release
@@ -139,14 +148,16 @@ main = do
 
     sleep = Concurrent.threadDelay
 
-    spawnThread name thread = Concurrent.forkIO $ catch thread $ \(err :: SomeException) -> do
-      now <- Time.getCurrentTime
-      BSL.appendFile "curator-errors.log"
-        $ "Current time: " <> repr now <> "\n"
-        <> "Got error from thread '" <> name <> "'\n"
-        <> "Exception was:\n\n"
-        <> (BSL.fromStrict . Encoding.encodeUtf8 . tshow) err
-        <> "\n\n\n"
+    spawnThread name thread = do
+      echo $ "Spawning thread " <> tshow name
+      Concurrent.forkIO $ catch thread $ \(err :: SomeException) -> do
+        now <- Time.getCurrentTime
+        BSL.appendFile "curator-errors.log"
+          $ "Current time: " <> repr now <> "\n"
+          <> "Got error from thread '" <> name <> "'\n"
+          <> "Exception was:\n\n"
+          <> (BSL.fromStrict . Encoding.encodeUtf8 . tshow) err
+          <> "\n\n\n"
 
 
 
@@ -158,13 +169,13 @@ main = do
 
 
 getLatestRelease :: GitHub.AuthMethod am => am -> GitHubAddress -> IO (Either GitHub.Error GitHub.Release)
-getLatestRelease token address@(owner, repo) = do
+getLatestRelease token address@(Address owner repo) = do
   echo $ "Getting latest release for " <> tshow address
   GitHub.executeRequest token $ GitHub.latestReleaseR owner repo
 
 
 getTags :: GitHub.AuthMethod am => am -> GitHubAddress -> IO (Either GitHub.Error (Maybe Tag, (Map Tag CommitHash)))
-getTags token address@(owner, repo) = do
+getTags token address@(Address owner repo) = do
   echo $ "Getting tags for " <> tshow address
   res <- GitHub.executeRequest token $ GitHub.tagsForR owner repo GitHub.FetchAll
   let f vec =
@@ -181,7 +192,7 @@ getTags token address@(owner, repo) = do
 
 
 getCommits :: GitHub.AuthMethod am => am -> GitHubAddress -> IO (Either GitHub.Error [CommitHash])
-getCommits token address@(owner, repo) = do
+getCommits token address@(Address owner repo) = do
   echo $ "Getting commits for " <> tshow address
   res <- GitHub.executeRequest token $ GitHub.commitsForR owner repo GitHub.FetchAll
   pure $ fmap (Vector.toList . fmap (CommitHash . GitHub.untagName . GitHub.commitSha)) res
@@ -279,7 +290,7 @@ metadataFetcher token = do
               $ case Text.isSuffixOf ".git" repoUrl of
                   True  -> Text.dropEnd 4 repoUrl
                   False -> repoUrl
-            address = (GitHub.mkName Proxy owner, GitHub.mkName Proxy repo)
+            address = Address (GitHub.mkName Proxy owner) (GitHub.mkName Proxy repo)
 
         echo $ "Retry " <> tshow rsIterNumber <> ": fetching tags and commits for " <> tshow address
 
@@ -306,20 +317,20 @@ metadataFetcher token = do
 
 
 -- | Whenever there's a new metadata set, push it to the repo
-metadataUpdater :: GitHub.AuthMethod am => am -> IO b
-metadataUpdater token = do
+metadataUpdater :: IO b
+metadataUpdater = do
   pullChan <- atomically $ Chan.dupTChan bus
   forever $ atomically (Chan.readTChan pullChan) >>= \case
     NewMetadata metadata -> do
       -- Write the metadata to file
-      echo "Writing metadata to file.."
       path <- makeAbsolute "metadataV1new.json"
+      echo $ "Writing metadata to file: " <> tshow path
       BSL.writeFile path $ encodePretty metadata
       echo "Done."
 
       let commitMessage = "Update GitHub index file"
-      runAndPushMaster token metadataRepo commitMessage
-        [ "mv -u " <> Text.pack path <> " metadataV1.json"
+      runAndPushMaster metadataRepo commitMessage
+        [ "mv -f " <> Text.pack path <> " metadataV1.json"
         , "git add metadataV1.json"
         ]
     _ -> pure ()
@@ -424,59 +435,23 @@ data PullRequest = PullRequest
   , prBody       :: Text
   }
 
+
+runAndPushMaster :: GitHubAddress -> Text -> [Text] -> IO ()
+runAndPushMaster address commit commands
+  = runInClonedRepo address "master" commit commands (pure ())
+
 runAndOpenPR :: GitHub.AuthMethod am => am -> PullRequest -> [Text] -> IO ()
-runAndOpenPR = runAndPush OpenPR
-
-runAndPushMaster :: GitHub.AuthMethod am => am -> GitHubAddress -> Text -> [Text] -> IO ()
-runAndPushMaster token prAddress prTitle = runAndPush PushMaster token PullRequest{ prBranchName = "master", prBody = "", ..}
-
-runAndPush :: GitHub.AuthMethod am => OpenPR -> am -> PullRequest -> [Text] -> IO ()
-runAndPush shouldOpenPR token PullRequest{..} commands = unlessM pullRequestExists runCommandsAndPR
+runAndOpenPR token PullRequest{ prAddress = address@Address{..}, ..} commands
+  = unlessM pullRequestExists (runInClonedRepo address prBranchName prTitle commands openPR)
   where
-    (owner, repo) = prAddress
-
-    runCommandsAndPR = do
-      -- Clone the repo in a temp folder
-      Temp.withTempDirectory "data" "__temp-repo" $ \path -> do
-        let runInRepo = runWithCwd (path </> (Text.unpack . GitHub.untagName) repo) . (Text.intercalate " && ")
-        (code, _out, _err) <- runWithCwd path $ "git clone git@github.com:" <> GitHub.untagName owner <> "/" <> GitHub.untagName repo <> ".git"
-        if code /= ExitSuccess
-          then echo "Error while cloning repo"
-          else do
-            echo $ "Cloned " <> tshow prAddress
-            -- Configure the repo: set the git identity to spacchettibotti and switch to the branch
-            runInRepo
-              [ "git config --local user.name 'Spacchettibotti'"
-              , "git config --local user.email 'spacchettibotti@ferrai.io'"
-              , "git checkout -B " <> prBranchName
-              ]
-            -- Run the commands we wanted to run, check if everything is fine
-            (code', out, err) <- runInRepo commands
-            if code' /= ExitSuccess
-              then do
-                echo "Something's off. Output:"
-                echo out
-                echo err
-              else do
-                -- If it is fine, then check if anything actually changed/got staged
-                (code'', _out, _err) <- runInRepo [ "git diff --staged --exit-code" ]
-                if code'' == ExitSuccess
-                  then echo "Nothing to commit, skipping.."
-                  else do
-                    -- If yes, then push and open PR
-                    _ <- runInRepo
-                         [ "git commit -am '" <> prTitle <> "'"
-                         , "git push --set-upstream origin " <> prBranchName
-                         ]
-                    when (shouldOpenPR == OpenPR) $ do
-                      echo "Pushed a new commit, opening PR.."
-                      response <- GitHub.executeRequest token
-                        $ GitHub.createPullRequestR owner repo
-                        $ GitHub.CreatePullRequest prTitle prBody prBranchName "master"
-                      case response of
-                        Right _   -> echo "Created PR 🎉"
-                        Left err' -> echoStr $ "Error while creating PR: " <> show err'
-
+    openPR = do
+      echo "Pushed a new commit, opening PR.."
+      response <- GitHub.executeRequest token
+        $ GitHub.createPullRequestR owner repo
+        $ GitHub.CreatePullRequest prTitle prBody prBranchName "master"
+      case response of
+        Right _   -> echo "Created PR 🎉"
+        Left err' -> echoStr $ "Error while creating PR: " <> show err'
 
     pullRequestExists = do
       echo $ "Checking if we ever opened a PR " <> surroundQuote prTitle
@@ -497,9 +472,51 @@ runAndPush shouldOpenPR token PullRequest{..} commands = unlessM pullRequestExis
           pure False
 
 
+runInClonedRepo :: GitHubAddress -> Text -> Text -> [Text] -> IO () -> IO ()
+runInClonedRepo address@Address{..} branchName commit commands postAction = do
+  -- Clone the repo in a temp folder
+  Temp.withTempDirectory "data" "__temp-repo" $ \path -> do
+    let runInRepo failure success cmds = do
+          (code, out, err) <- runWithCwd (path </> (Text.unpack . GitHub.untagName) repo) $ Text.intercalate " && " cmds
+          if code /= ExitSuccess
+            then do
+              failure
+              echo out
+              echo err
+            else success
+
+    (code, _out, _err) <- runWithCwd path $ "git clone git@github.com:" <> GitHub.untagName owner <> "/" <> GitHub.untagName repo <> ".git"
+    if code /= ExitSuccess
+      then echo "Error while cloning repo"
+      else do
+        echo $ "Cloned " <> tshow address
+        -- Configure the repo: set the git identity to spacchettibotti and switch to the branch
+        runInRepo
+          (echo "Failed to configure the repo")
+          (pure ())
+          [ "git config --local user.name 'Spacchettibotti'"
+          , "git config --local user.email 'spacchettibotti@ferrai.io'"
+          , "git checkout -B " <> branchName
+          ]
+        -- Run the commands we wanted to run, check if everything is fine
+        runInRepo
+          (echo "Something's off with the commands")
+          -- If it is fine, then check if anything actually changed or got staged
+          (runInRepo
+            (runInRepo
+              (echo "Failed to commit!")
+              postAction
+              [ "git commit -m '" <> commit <> "'"
+              , "git push --set-upstream origin " <> branchName
+              ])
+            (echo "Nothing to commit, skipping..")
+            [ "git diff --staged --exit-code" ])
+          commands
+
 
 runWithCwd :: MonadIO io => GHC.IO.FilePath -> Text -> io (ExitCode, Text, Text)
 runWithCwd cwd cmd = do
+  echo $ "Running in path " <> Text.pack cwd <> ": `" <> cmd <> "`"
   let processWithNewCwd = (Process.shell (Text.unpack cmd)) { Process.cwd = Just cwd }
   systemStrictWithErr processWithNewCwd empty
 
