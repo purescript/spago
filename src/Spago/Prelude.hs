@@ -39,6 +39,8 @@ module Spago.Prelude
   , mv
   , cptree
   , bimap
+  , first
+  , second
   , chmod
   , executable
   , readTextFile
@@ -77,6 +79,7 @@ module Spago.Prelude
   , docsSearchVersion
   , githubTokenEnvVar
   , whenM
+  , unlessM
   , pretty
   ) where
 
@@ -97,7 +100,7 @@ import           Control.Monad                         as X
 import           Control.Monad.Catch                   as X hiding (try)
 import           Control.Monad.Reader                  as X
 import           Data.Aeson                            as X hiding (Result (..))
-import           Data.Bifunctor                        (bimap)
+import           Data.Bifunctor                        (bimap, first, second)
 import           Data.Bool                             as X
 import           Data.Either                           as X
 import           Data.Either.Validation                (Validation (..))
@@ -220,6 +223,9 @@ whenM :: Monad m => m Bool -> m () -> m ()
 whenM b t = b >>= \case
   True  -> t
   False -> pure ()
+
+unlessM :: Monad m => m Bool -> m () -> m ()
+unlessM b t = whenM (not <$> b) t
 
 
 withTaskGroup' :: Spago m => Int -> (Async.TaskGroup -> m b) -> m b

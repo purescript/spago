@@ -20,10 +20,11 @@ newtype CommitHash = CommitHash Text
   deriving (Eq, Show, Generic, ToJSON, FromJSON)
 
 newtype Tag = Tag Text
-  deriving (Ord, Eq, Show, Generic, ToJSONKey, FromJSONKey)
+  deriving (Ord, Eq, Show, Generic, ToJSONKey, FromJSONKey, FromJSON, ToJSON)
 
 data RepoMetadataV1 = RepoMetadataV1
   { commits :: [CommitHash]
+  , latest  :: Maybe Tag
   , tags    :: (Map Tag CommitHash)
   } deriving (Show, Generic)
 
