@@ -707,13 +707,13 @@ Take a look at [TodoMVC with react-basic + spago + parcel][todomvc] for a workin
 
 To start a project using Spago and Parcel together, here's the cammands and file setup you'll need:
 
-0. install Node Package Manager(NPM): `curl https://www.npmjs.org/install.sh | sh`
+0. Install Node Package Manager(NPM): `curl https://www.npmjs.org/install.sh | sh`
 1. Install Spago and PureScript: `npm i -g spago purescript` 
 2. Create a folder for your project: `mkdir <project folder name>`
 3. Move to the project folder: `cd <project folder name>`
 4. Create your PureScript project with Spago: `spago init`, This also produces a `./src/Main.purs` file which contains some starter code.
 5. Initialize the JavaScript/NPM project `npm init`
-6. Install Parcel as a dependency `npm i parcel` (this is usually a dev dependancy, add the `--save-dev` flag to prevent installation in production or CI environments)
+6. Install Parcel as a dependency `npm i parcel --save dev`
 7. Add a JavaScript file which imports and calls the `main` function from the output of `./src/Main.purs`. This can be placed in the root directory for your project. Traditionally this file is named `index.js`. The `main` function from `Main.purs` can accept arguments, this is useful since parcel will replace environment variables inside of JavaScript. It is recommended to read any environment variables in the JavaScript file and pass them as arguments to `main`. Here is an example JavaScript file:
 
 ``` JavaScript
@@ -779,7 +779,7 @@ main();
 ...
 ```
 
-This script will simultanously run spago and parcel. When you run it with `npm run dev`, Parcel will tell you which port your application is being served on, by default this will be `localhost:1234`. If you've followed this guide you can navigate there in a browser and open the javascript console. you will see the output of both `index.js` and the compiled `Main.purs` file. When you modify any purescript file in `./src`, you should see Spago and Parcel rebuild your application, and the browser should execute the new code. For some applications you may adjust the JavaScript function that handles hot modules to fully reload the page with `window.location.reload();`.
+This script will simultanously run spago and parcel in parallel. NPM scripts allow project dependencies to be treated as if they are on your PATH. When you run it with `npm run dev`, Parcel will tell you which port your application is being served on, by default this will be `localhost:1234`. If you've followed this guide you can navigate there in a browser and open the javascript console. you will see the output of both `index.js` and the compiled `Main.purs` file. When you modify any purescript file in `./src`, you should see Spago and Parcel rebuild your application, and the browser should execute the new code. For some applications you may adjust the JavaScript function that handles hot modules to fully reload the page with `window.location.reload();`.
 
 10. At this point we should be able to test our program by running `npm run dev`, when you navigate a browser to localhost:1234, you should see '🍝' as output in the javascript development console if this was performed successfully 
 
@@ -788,16 +788,16 @@ This script will simultanously run spago and parcel. When you run it with `npm r
 Other build options are available, using webpack (and purs-loader), or browserify.  Parcel is used here for it's low-configuration overhead.
 
 
-#### Getting Started from Scratch With WebPack (For Larger front end projects)
+#### Getting Started from Scratch With WebPack (For Front End Projects)
 
-0. install Node Package Manager(NPM): `curl https://www.npmjs.org/install.sh | sh`
+0. Install Node Package Manager(NPM): `curl https://www.npmjs.org/install.sh | sh`
 1. Install Spago and PureScript: `npm i -g spago purescript` 
 2. Create a folder for your project: `mkdir <project folder name>`
 3. Move to the project folder: `cd <project folder name>`
 4. Create your PureScript project with Spago: `spago init`, This also produces a `./src/Main.purs` file which contains some starter code.
 5. Initialize the JavaScript/NPM project `npm init`
-6. Add WebPack as a dependancy `npm install webpack webpack-cli webpack-dev-server` (this is usually a dev dependancy, add the `--save-dev` flag to prevent installation in production or CI environments)
-7. Install the PureScript loader and HTML plugin for WebPack `npm install purs-loader html-webpack plugin` (This is likely also dev dependancy. Depending on other tools/filetypes you may require additional loaders, This may include css/scss, image files, etc. please refer to the [WebPack documentation][https://webpack.js.org/] for more information)
+6. Add WebPack and PureScript-PSA as dependancies `npm install webpack webpack-cli webpack-dev-server purescript-psa --save-dev`
+7. Install the PureScript loader and HTML plugin for WebPack `npm install purs-loader html-webpack plugin --save-dev` (Depending on other tools/filetypes you may require additional loaders, This may include css/scss, image files, etc. please refer to the [WebPack documentation][https://webpack.js.org/] for more information)
 8. Create an HTML file that will serve as the entry point for your application. Typically this is `index.html`. in your HTML file, be sure to pull in the `bundle.js` file, which will be Webpack's output. here is an example HTML file:
 
 ``` html
@@ -938,7 +938,7 @@ console.log('app starting' )
 
 #### Getting Started from Scratch With Nodemon (for Backend and/or CLI projects)
 
-0. install Node Package Manager(NPM): `curl https://www.npmjs.org/install.sh | sh`
+0. Install Node Package Manager(NPM): `curl https://www.npmjs.org/install.sh | sh`
 1. Install Spago and PureScript: `npm i -g spago purescript` 
 2. Create a folder for your project: `mkdir <project folder name>`
 3. Move to the project folder: `cd <project folder name>`
@@ -999,7 +999,7 @@ To configure this, add the following script to your `package.json` file:
 
 12. To run a production build, you can simply run `npm run build` and to start a production process, call `npm start`
 
-For publishing CLI programs or npm modules, please refer to the npm documentation
+For publishing CLI programs or NPM modules, please refer to the [npm documentation][https://docs.npmjs.com/cli/publish], however if you are publishing a Node module for consumption by JavaScript users, it is recommended that you pre-compile your purescript project before distributing. 
 
 ### Generate documentation for my project
 
