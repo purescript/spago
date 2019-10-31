@@ -1,6 +1,6 @@
 {-# LANGUAGE BangPatterns #-}
 
-{-
+{-|
 
 # The `spago-curator` tool
 
@@ -13,20 +13,10 @@ authenticated to all the repos it pushes to.
 
 All its operations are run as the `spacchettibotti` user.
 
-Once started, every 1h will do the following things:
-- check if there's a new tag out for package-sets. If yes, it opens a PR to `spago` to update it
-- crawl GitHub downloading the list of all tags and commits for every repo in the set.
-  These will be put in a `metadataV1.json` file, in [the `package-sets-metadata` repo][package-sets-metadata].
-  This file is used so that `spago` can rely on it for information about "is this ref immutable",
-  effectively enabling the possibility of a global cache.
-- check if the latest tag for every package is the latest tag in the set.
-  If not, it updates it locally, tries to verify the new set, and if everything is fine it
-  opens a PR to the [`package-sets` repo](https://github.com/purescript/package-sets)
-
 -}
 
 
-module Curator (main) where
+module Curator where
 
 import           Spago.Prelude
 
@@ -163,7 +153,7 @@ main = do
 
 ----------------------------------
 --
---  GitHub
+-- * GitHub operations
 --
 ----------------------------------
 
@@ -198,10 +188,22 @@ getCommits token address@(Address owner repo) = do
   pure $ fmap (Vector.toList . fmap (CommitHash . GitHub.untagName . GitHub.commitSha)) res
 
 
+getPullRequestForUser :: GitHub.AuthMethod am => am -> GitHub.Name GitHub.User -> GitHubAddress -> IO (Maybe GitHub.SimplePullRequest)
+getPullRequestForUser token user Address{..} = do
+  eitherPRs <- GitHub.executeRequest token
+    $ GitHub.pullRequestsForR owner repo GitHub.stateOpen GitHub.FetchAll
+  case eitherPRs of
+    Left _ -> pure Nothing -- maybe? or maybe error out?
+    Right prs -> pure
+      $ Vector.find
+          (\GitHub.SimplePullRequest{ simplePullRequestUser = GitHub.SimpleUser{..}}
+             -> simpleUserLogin == user)
+          prs
+
 
 ----------------------------------
 --
---  Threads
+-- * Threads
 --
 ----------------------------------
 
@@ -341,8 +343,11 @@ packageSetsUpdater _token = do
   pullChan <- atomically $ Chan.dupTChan bus
   forever $ atomically (Chan.readTChan pullChan) >>= \case
     NewMetadata newMetadata -> do
-      -- once we get a new set of metadata, we get all the latest releases from there,
-      -- and diff this list with the current package set from the state.
+      -- This metadata is the most up-to-date snapshot of all the repos in package-sets
+      -- master branch. Among other things it contains the latest releases of all the
+      -- packages in there.
+      -- So here we take all these releases, and diff this list with the current
+      -- package set from the state - i.e. the one versioned in package-sets master.
       -- This gives us a list of packages that need to be updated
       let latestTags :: Map PackageName Tag = Map.mapMaybe id $ latest <$> newMetadata
       State{..} <- Concurrent.readMVar state
@@ -352,6 +357,10 @@ packageSetsUpdater _token = do
       let newTags = intersectionMaybe pickLatestIfDifferent latestTags packageSetTags
       echo $ "Found " <> tshow (length newTags) <> " packages to update"
       echo $ tshow newTags
+      -- If we have more than one package to update, let's see if we already have an
+      -- open PR to package-sets. If we do we can just commit there
+      maybePR <- getPullRequestForUser token "spacchettibotti" packageSetsRepo
+
       -- let branchName = "spacchettibotti-" <> name <> "-" <> tag
       -- echo $ "Branch name: " <> branchName
 {-
@@ -420,13 +429,10 @@ packageSetsUpdater _token = do
 
 ----------------------------------
 --
---  Machinery
+-- * Machinery
 --
 ----------------------------------
 
-
-data OpenPR = OpenPR | PushMaster
-  deriving Eq
 
 data PullRequest = PullRequest
   { prBranchName :: Text
@@ -473,10 +479,10 @@ runAndOpenPR token PullRequest{ prAddress = address@Address{..}, ..} commands
 
 
 runInClonedRepo :: GitHubAddress -> Text -> Text -> [Text] -> IO () -> IO ()
-runInClonedRepo address@Address{..} branchName commit commands postAction = do
+runInClonedRepo address@Address{..} branchName commit commands postAction =
   -- Clone the repo in a temp folder
   Temp.withTempDirectory "data" "__temp-repo" $ \path -> do
-    let runInRepo failure success cmds = do
+    let runInRepo cmds failure success = do
           (code, out, err) <- runWithCwd (path </> (Text.unpack . GitHub.untagName) repo) $ Text.intercalate " && " cmds
           if code /= ExitSuccess
             then do
@@ -492,26 +498,26 @@ runInClonedRepo address@Address{..} branchName commit commands postAction = do
         echo $ "Cloned " <> tshow address
         -- Configure the repo: set the git identity to spacchettibotti and switch to the branch
         runInRepo
-          (echo "Failed to configure the repo")
-          (pure ())
           [ "git config --local user.name 'Spacchettibotti'"
           , "git config --local user.email 'spacchettibotti@ferrai.io'"
           , "git checkout -B " <> branchName
           ]
+          (echo "Failed to configure the repo")
+          (pure ())
         -- Run the commands we wanted to run, check if everything is fine
         runInRepo
+          commands
           (echo "Something's off with the commands")
           -- If it is fine, then check if anything actually changed or got staged
           (runInRepo
+            [ "git diff --staged --exit-code" ]
             (runInRepo
-              (echo "Failed to commit!")
-              postAction
               [ "git commit -m '" <> commit <> "'"
               , "git push --set-upstream origin " <> branchName
-              ])
-            (echo "Nothing to commit, skipping..")
-            [ "git diff --staged --exit-code" ])
-          commands
+              ]
+              (echo "Failed to commit!")
+              postAction)
+            (echo "Nothing to commit, skipping.."))
 
 
 runWithCwd :: MonadIO io => GHC.IO.FilePath -> Text -> io (ExitCode, Text, Text)
