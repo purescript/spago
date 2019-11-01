@@ -29,6 +29,7 @@ import qualified Data.List.NonEmpty   as NonEmpty
 import qualified Data.Set             as Set
 import qualified Data.Text            as Text
 import           System.Directory     (getCurrentDirectory)
+import           System.FilePath      (splitDirectories)
 import qualified System.FilePath.Glob as Glob
 import qualified System.IO            as Sys
 import qualified System.IO.Temp       as Temp
@@ -122,7 +123,7 @@ build buildOpts@BuildOptions{..} maybePostBuild = do
       absoluteJSGlobs <- traverse makeAbsolute jsMatches
 
       Watch.watch
-        (Set.fromAscList $ fmap Glob.compile $ absolutePSGlobs <> absoluteJSGlobs)
+        (Set.fromAscList $ fmap Glob.compile . removeDotSpago $ absolutePSGlobs <> absoluteJSGlobs)
         shouldClear
         (buildAction (wrap <$> psMatches))
 
@@ -139,6 +140,7 @@ build buildOpts@BuildOptions{..} maybePostBuild = do
 
     wrap   = Purs.SourcePath . Text.pack
     unwrap = Text.unpack . Purs.unSourcePath
+    removeDotSpago = filter (\glob -> ".spago" `notElem` (splitDirectories glob))
 
 -- | Start a repl
 repl
@@ -179,42 +181,51 @@ repl cacheFlag newPackages sourcePaths pursArgs depsOnly = do
 -- | Test the project: compile and run "Test.Main"
 --   (or the provided module name) with node
 test :: Spago m => Maybe Purs.ModuleName -> BuildOptions -> [Purs.ExtraArg] -> m ()
-test = runWithNode (Purs.ModuleName "Test.Main") (Just "Tests succeeded.") "Tests failed: "
+test maybeModuleName buildOpts extraArgs = do
+  Config.Config { alternateBackend } <- Config.ensureConfig
+  runBackend alternateBackend (Purs.ModuleName "Test.Main") (Just "Tests succeeded.") "Tests failed: " maybeModuleName buildOpts extraArgs
 
 -- | Run the project: compile and run "Main"
 --   (or the provided module name) with node
 run :: Spago m => Maybe Purs.ModuleName -> BuildOptions -> [Purs.ExtraArg] -> m ()
-run = runWithNode (Purs.ModuleName "Main") Nothing "Running failed, exit code: "
+run maybeModuleName buildOpts extraArgs = do
+  Config.Config { alternateBackend } <- Config.ensureConfig
+  runBackend alternateBackend (Purs.ModuleName "Main") Nothing "Running failed; " maybeModuleName buildOpts extraArgs
 
 -- | Run the project with node: compile and run with the provided ModuleName
 --   (or the default one if that's missing)
-runWithNode
+runBackend
   :: Spago m
-  => Purs.ModuleName
+  => Maybe Text
+  -> Purs.ModuleName
   -> Maybe Text
   -> Text
   -> Maybe Purs.ModuleName
   -> BuildOptions
   -> [Purs.ExtraArg]
   -> m ()
-runWithNode defaultModuleName maybeSuccessMessage failureMessage maybeModuleName buildOpts nodeArgs = do
-  echoDebug "Running NodeJS"
-  outputPath <- getOutputPath buildOpts
-  build buildOpts (Just (nodeAction outputPath))
+runBackend maybeBackend defaultModuleName maybeSuccessMessage failureMessage maybeModuleName buildOpts extraArgs = do
+  echoDebug $ "Running with backend: " <> fromMaybe "nodejs" maybeBackend
+  let postBuild = maybe (nodeAction =<< getOutputPath buildOpts) backendAction maybeBackend
+  build buildOpts (Just postBuild)
   where
     moduleName = fromMaybe defaultModuleName maybeModuleName
-    args = Text.intercalate " " $ map Purs.unExtraArg nodeArgs
-    contents outputPath' =
+    nodeArgs = Text.intercalate " " $ map Purs.unExtraArg extraArgs
+    nodeContents outputPath' =
          let path = fromMaybe "output" outputPath'
          in "#!/usr/bin/env node\n\n" <> "require('../" <> Text.pack path <> "/" <> Purs.unModuleName moduleName <> "').main()"
-    cmd = "node .spago/run.js " <> args
+    nodeCmd = "node .spago/run.js " <> nodeArgs
     nodeAction outputPath' = do
       echoDebug "Writing .spago/run.js"
-      writeTextFile ".spago/run.js" (contents outputPath')
+      writeTextFile ".spago/run.js" (nodeContents outputPath')
       chmod executable ".spago/run.js"
-      shell cmd empty >>= \case
+      shell nodeCmd empty >>= \case
         ExitSuccess   -> maybe (pure ()) echo maybeSuccessMessage
-        ExitFailure n -> die $ failureMessage <> repr n
+        ExitFailure n -> die $ failureMessage <> "exit code: " <> repr n
+    backendAction backend =
+      Turtle.proc backend (["--run" {-, Purs.unModuleName moduleName-}] <> fmap Purs.unExtraArg extraArgs) empty >>= \case
+        ExitSuccess   -> maybe (pure ()) echo maybeSuccessMessage
+        ExitFailure n -> die $ failureMessage <> "Backend " <> surroundQuote backend <> " exited with error:" <> repr n
 
   -- | Bundle the project to a js file
 bundleApp

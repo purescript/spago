@@ -67,7 +67,7 @@ globallyCache (packageName, Repo url, ref) downloadDir metadata cacheableCallbac
           cacheableCallback $ Turtle.encodeString resultDir
       where
     _ -> do
-      echo $ "Warning: was not able to match url with GitHub ones: " <> url
+      echo $ "WARNING: Not caching repo, because URL doesn't have the form of 'https://github.com/<ORG>/<REPO>.git': " <> url
       notCacheableCallback -- TODO: error?
   where
     isTag = do
@@ -140,7 +140,7 @@ getMetadata cacheFlag = do
 
 
 -- | Directory in which spago will put its global cache
---   `getXdgDirectory XdgCache` tries to find the folder pointed by 
+--   `getXdgDirectory XdgCache` tries to find the folder pointed by
 --   `$XDG_CACHE_HOME`, otherwise it uses:
 --   - (on Linux/MacOS) the folder pointed by `$HOME/.cache`, or
 --   - (on Windows) the folder pointed by `LocalAppData`

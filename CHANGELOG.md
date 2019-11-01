@@ -21,11 +21,16 @@ New features:
 - `spago verify-set` now compiles everything, to detect duplicate module names (#438)
 - `spago build` now uses shared output folder to reduce build duplication. Pass `--no-share-output` flag to disable this behavior (#377)
 - `spago install purescript-XYZ` will now strip `purescript-` prefix and install XYZ (if it exists in package set) instead of just failing with a warning (#367)
+- `spago run` now recognizes backend specified in the configuration file and calls the backend with `--run` argument.
+- documentation now includes a step-by-step guide on setting up a Spago/Parcel project (#456)
+- documentation now includes a step-by-step guide on setting up a Spago/Node and Spago/Webpack project (#456-extra)
 
 Bugfixes:
 - Warn (but don't error) when trying to watch missing directories (#406)
 - Fix confusing warning when trying to `spago install` a package already present in project dependencies list (#436)
+- Do not watch files in `.spago` folder when running `spago build --watch` (#430)
 - Fix dynamic libraries compatibility problems by publishing a statically linked executable for Linux (#427, #437)
+- `--clear-screen` (usable e.g. with `spago build --watch`) now also resets cursor position, so the rebuild message always appears at top left of the screen (#465)
 
 Other improvements:
 - Speed up test suite by replacing couple of end 2 end bump-version tests with unit/property tests
