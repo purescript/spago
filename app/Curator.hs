@@ -326,15 +326,16 @@ metadataUpdater = do
   forever $ atomically (Chan.readTChan pullChan) >>= \case
     NewMetadata metadata -> do
       -- Write the metadata to file
-      let writeMetadata = do
-            path <- makeAbsolute "metadataV1new.json"
+      let writeMetadata :: GHC.IO.FilePath -> IO ()
+          writeMetadata tempfolder = do
+            path <- makeAbsolute (tempfolder </> "metadataV1new.json")
             echo $ "Writing metadata to file: " <> tshow path
             BSL.writeFile path $ encodePretty metadata
             echo "Done."
 
       let commitMessage = "Update GitHub index file"
       runAndPushMaster metadataRepo commitMessage
-        (const $ writeMetadata)
+        writeMetadata
         [ "mv -f metadataV1new.json metadataV1.json"
         , "git add metadataV1.json"
         ]
@@ -408,22 +409,19 @@ packageSetsUpdater token = do
         maybePR <- getPullRequestForUser token "spacchettibotti" packageSetsRepo
 
         let patchVersions path = do
+              absPath <- makeAbsolute path
               for_ (Map.toList newTags) $ \(packageName, (tag, owner)) -> do
                 echo $ "Patching version for " <> tshow packageName
-                withAST ("src/groups/" <> Text.toLower owner <> ".dhall")
+                withAST (Text.pack $ absPath </> "src" </> "groups" </> Text.unpack (Text.toLower owner) <> ".dhall")
                   $ updateVersion packageName tag
 
               echo "Verifying new set. This might take a LONG while.."
-              result <- runWithCwd path "cd src; spago init; spago verify-set"
+              result <- runWithCwd path "cd src; spago init; git diff --exit-code || spago verify-set"
               echo "Verified packages, spamming the channel with the result.."
               atomically $ Chan.writeTChan bus $ NewVerification result
 
         let commands =
-              [ "cd src"
-              , "spago init"
-              , "spago verify-set"
-              , "cd .."
-              , "make"
+              [ "make"
               , "git add packages.json"
               , "git add src/groups"
               ]
@@ -529,8 +527,9 @@ runInClonedRepo :: GitHubAddress -> Text -> Text -> (GHC.IO.FilePath -> IO ()) -
 runInClonedRepo address@Address{..} branchName commit preAction commands postAction =
   -- Clone the repo in a temp folder
   Temp.withTempDirectory "data" "__temp-repo" $ \path -> do
+    let repoPath = Text.unpack $ GitHub.untagName repo
     let runInRepo cmds failure success = do
-          (code, out, err) <- runWithCwd (path </> (Text.unpack . GitHub.untagName) repo) $ Text.intercalate " && " cmds
+          (code, out, err) <- runWithCwd (path </> repoPath) $ Text.intercalate " && " cmds
           if code /= ExitSuccess
             then do
               failure
@@ -551,7 +550,7 @@ runInClonedRepo address@Address{..} branchName commit preAction commands postAct
           ]
           (echo "Failed to configure the repo")
           -- If the setup was fine, run the setup code before running the commands
-          (preAction path)
+          (preAction $ path </> repoPath)
         -- Run the commands we wanted to run
         runInRepo
           commands
