@@ -65,6 +65,7 @@ data Message
   | NewRepoRelease !GitHubAddress !Text
   | NewPackageSet !PackageSetMap
   | NewMetadata !ReposMetadataV1
+  | NewVerification !(ExitCode, Text, Text)
 
 
 data State = State
@@ -123,6 +124,7 @@ main = do
   spawnThread "metadataFetcher"         $ metadataFetcher token
   spawnThread "metadataUpdater"         $ metadataUpdater
   spawnThread "packageSetsUpdater"      $ packageSetsUpdater token
+  spawnThread "packageSetsCommenter"    $ packageSetCommenter token
   -- TODO: update purescript-metadata repo on purs release
   -- TODO: update CI version for purescript on purs release
   -- TODO: have the bot monitor comments for banned packages
@@ -151,11 +153,9 @@ main = do
 
 
 
-----------------------------------
---
 -- * GitHub operations
 --
-----------------------------------
+--
 
 
 getLatestRelease :: GitHub.AuthMethod am => am -> GitHubAddress -> IO (Either GitHub.Error GitHub.Release)
@@ -188,24 +188,24 @@ getCommits token address@(Address owner repo) = do
   pure $ fmap (Vector.toList . fmap (CommitHash . GitHub.untagName . GitHub.commitSha)) res
 
 
-getPullRequestForUser :: GitHub.AuthMethod am => am -> GitHub.Name GitHub.User -> GitHubAddress -> IO (Maybe GitHub.SimplePullRequest)
+getPullRequestForUser :: GitHub.AuthMethod am => am -> GitHub.Name GitHub.User -> GitHubAddress -> IO (Maybe GitHub.PullRequest)
 getPullRequestForUser token user Address{..} = do
-  eitherPRs <- GitHub.executeRequest token
+  maybePRs <- fmap hush $ GitHub.executeRequest token
     $ GitHub.pullRequestsForR owner repo GitHub.stateOpen GitHub.FetchAll
-  case eitherPRs of
-    Left _ -> pure Nothing -- maybe? or maybe error out?
-    Right prs -> pure
-      $ Vector.find
-          (\GitHub.SimplePullRequest{ simplePullRequestUser = GitHub.SimpleUser{..}}
-             -> simpleUserLogin == user)
-          prs
+  let findPRbyUser = Vector.find
+        (\GitHub.SimplePullRequest{ simplePullRequestUser = GitHub.SimpleUser{..}}
+          -> simpleUserLogin == user)
+  let fetchFullPR GitHub.SimplePullRequest{..} = fmap hush $ GitHub.executeRequest token $ GitHub.pullRequestR owner repo simplePullRequestNumber
+  -- TODO: there must be a nice way to lift this instead of casing
+  case (findPRbyUser =<< maybePRs :: Maybe GitHub.SimplePullRequest) of
+    Nothing -> pure Nothing
+    Just pr -> fetchFullPR pr
 
 
-----------------------------------
---
+
 -- * Threads
 --
-----------------------------------
+--
 
 
 -- | Everything that goes on the bus is persisted in the State,
@@ -216,6 +216,7 @@ persistState = liftIO $ do
   pullChan <- atomically $ Chan.dupTChan bus
   forever $ atomically (Chan.readTChan pullChan) >>= \case
     RefreshState -> pure ()
+    NewVerification _ -> pure () -- TODO: maybe save this?
     NewRepoRelease address release -> do
       Concurrent.modifyMVar_ state
         $ \State{..} -> let newReleases = Map.insert address release latestReleases
@@ -253,7 +254,7 @@ spagoUpdatePackageSets token = do
     NewRepoRelease address newTag | address == packageSetsRepo -> do
       let prTitle = "Update to package-sets@" <> newTag
       let prBranchName = "spacchettibotti-" <> newTag
-      runAndOpenPR token PullRequest{ prBody = "", prAddress = spagoRepo, ..}
+      runAndOpenPR token PullRequest{ prBody = "", prAddress = spagoRepo, ..} (const $ pure ())
         [ "cd templates"
         , "spago upgrade-set"
         , "git add packages.dhall"
@@ -325,21 +326,60 @@ metadataUpdater = do
   forever $ atomically (Chan.readTChan pullChan) >>= \case
     NewMetadata metadata -> do
       -- Write the metadata to file
-      path <- makeAbsolute "metadataV1new.json"
-      echo $ "Writing metadata to file: " <> tshow path
-      BSL.writeFile path $ encodePretty metadata
-      echo "Done."
+      let writeMetadata = do
+            path <- makeAbsolute "metadataV1new.json"
+            echo $ "Writing metadata to file: " <> tshow path
+            BSL.writeFile path $ encodePretty metadata
+            echo "Done."
 
       let commitMessage = "Update GitHub index file"
       runAndPushMaster metadataRepo commitMessage
-        [ "mv -f " <> Text.pack path <> " metadataV1.json"
+        (const $ writeMetadata)
+        [ "mv -f metadataV1new.json metadataV1.json"
         , "git add metadataV1.json"
         ]
     _ -> pure ()
 
 
-packageSetsUpdater :: am -> IO ()
-packageSetsUpdater _token = do
+packageSetCommenter :: GitHub.AuthMethod am => am -> IO b
+packageSetCommenter token = do
+  pullChan <- atomically $ Chan.dupTChan bus
+  forever $ atomically (Chan.readTChan pullChan) >>= \case
+    NewVerification result -> do
+      maybePR <- getPullRequestForUser token "spacchettibotti" packageSetsRepo
+
+      case maybePR of
+        Nothing -> do
+          echo "Could not find an open PR, waiting 5 mins.."
+          Concurrent.threadDelay (5 * 60 * 1000000)
+          atomically $ Chan.writeTChan bus $ NewVerification result
+        Just GitHub.PullRequest{..} -> do
+          let commentBody = case result of
+                (ExitSuccess, _, _) -> "Result of `spago verify-set` in a clean project: **success** 🎉"
+                (_, out, err) -> Text.unlines
+                  [ "Result of `spago verify-set` in a clean project: **failure** 😱"
+                  , ""
+                  , "<details><summary>Output of `spago verify-set`</summary><p>"
+                  , "```"
+                  , out
+                  , "```"
+                  , "</p></details>"
+                  , ""
+                  , "<details><summary>Error output</summary><p>"
+                  , "```"
+                  , err
+                  , "```"
+                  , "</p></details>"
+                  ]
+          let (Address owner repo) = packageSetsRepo
+          (GitHub.executeRequest token $ GitHub.createCommentR owner repo pullRequestNumber commentBody) >>= \case
+            Left err -> echo $ "Something went wrong while commenting. Error: " <> tshow err
+            Right _ -> echo "Commented on the open PR"
+    _ -> pure ()
+
+
+packageSetsUpdater :: GitHub.AuthMethod am => am -> IO ()
+packageSetsUpdater token = do
   pullChan <- atomically $ Chan.dupTChan bus
   forever $ atomically (Chan.readTChan pullChan) >>= \case
     NewMetadata newMetadata -> do
@@ -349,71 +389,75 @@ packageSetsUpdater _token = do
       -- So here we take all these releases, and diff this list with the current
       -- package set from the state - i.e. the one versioned in package-sets master.
       -- This gives us a list of packages that need to be updated
-      let latestTags :: Map PackageName Tag = Map.mapMaybe id $ latest <$> newMetadata
+      let latestTags :: Map PackageName (Tag, Text)
+            = Map.mapMaybe id
+            $ (\RepoMetadataV1{..} -> case latest of
+                  Nothing -> Nothing
+                  Just v -> Just (v, owner))
+            <$> newMetadata
       State{..} <- Concurrent.readMVar state
-      let packageSetTags :: Map PackageName Tag  = Map.mapMaybe id $ filterLocalPackages <$> packageSet
+      let packageSetTags :: Map PackageName (Tag, Text)  = Map.mapMaybe id $ filterLocalPackages <$> packageSet
       let intersectionMaybe f = Map.merge Map.dropMissing Map.dropMissing (Map.zipWithMaybeMatched f)
-      let pickLatestIfDifferent _k a b = if a == b then Nothing else Just a
+      let pickLatestIfDifferent _k v@(tag1, _) (tag2, _) = if tag1 == tag2 then Nothing else Just v
       let newTags = intersectionMaybe pickLatestIfDifferent latestTags packageSetTags
       echo $ "Found " <> tshow (length newTags) <> " packages to update"
-      echo $ tshow newTags
-      -- If we have more than one package to update, let's see if we already have an
-      -- open PR to package-sets. If we do we can just commit there
-      maybePR <- getPullRequestForUser token "spacchettibotti" packageSetsRepo
+      when (length newTags > 0) $ do
+        echo $ tshow newTags
+        -- If we have more than one package to update, let's see if we already have an
+        -- open PR to package-sets. If we do we can just commit there
+        maybePR <- getPullRequestForUser token "spacchettibotti" packageSetsRepo
 
-      -- let branchName = "spacchettibotti-" <> name <> "-" <> tag
-      -- echo $ "Branch name: " <> branchName
-{-
-                  withAST ("data/package-sets/src/groups/" <> Text.toLower owner <> ".dhall")
-                    $ updateVersion packageName tag'
+        let patchVersions path = do
+              for_ (Map.toList newTags) $ \(packageName, (tag, owner)) -> do
+                echo $ "Patching version for " <> tshow packageName
+                withAST ("src/groups/" <> Text.toLower owner <> ".dhall")
+                  $ updateVersion packageName tag
 
-                  newBanned <- Temp.withTempDirectory "data/package-sets" "spacchettibotti-" $ \tempDir -> do
-                    echoStr $ "Tempdir: " <> tempDir
+              echo "Verifying new set. This might take a LONG while.."
+              result <- runWithCwd path "cd src; spago init; spago verify-set"
+              echo "Verified packages, spamming the channel with the result.."
+              atomically $ Chan.writeTChan bus $ NewVerification result
 
-                    (code, out, err) <- runWithCwd "data/package-sets" $ List.intercalate " && "
-                      [ "git checkout master"
-                      , "git pull"
-                      , "git checkout -B master origin/master"
-                      , "cd ../../" <> tempDir
-                      , "spago init"
-                      , "echo '../src/packages.dhall' > packages.dhall"
-                      , "spago verify-set"
-                      , "cd .."
-                      , "git checkout -B " <> Text.unpack branchName
-                      , "make"
-                      , "git add packages.json"
-                      , "git add src/groups"
-                      , "git commit -am 'Update " <> Text.unpack name <> " to " <> Text.unpack tag <> "'"
-                      , "git push --set-upstream origin " <> Text.unpack branchName
-                      , "git checkout master"
-                      ]
+        let commands =
+              [ "cd src"
+              , "spago init"
+              , "spago verify-set"
+              , "cd .."
+              , "make"
+              , "git add packages.json"
+              , "git add src/groups"
+              ]
 
-                    case code of
-                      ExitSuccess -> do
-                        echo "Pushed a new commit, opening PR.."
-                        let releaseLink = "https://github.com/" <> owner <> "/purescript-" <> name <> "/releases/tag/" <> tag
-                            body = "The addition has been verified by running `spago verify-set` in a clean project, so this is safe to merge.\n\nLink to release: " <> releaseLink
-                        response <- GitHub.executeRequest auth
-                          $ GitHub.createPullRequestR owner' repo'
-                          $ GitHub.CreatePullRequest ("Update " <> name <> " to " <> tag) body branchName "master"
-                        case response of
-                          Right _   -> echo "Created PR 🎉"
-                          Left err' -> echoStr $ "Error while creating PR: " <> show err'
-                        pure banned
-                      _ -> do
-                        echo "Something's off. Either there wasn't anything to push or there are errors. Output:"
-                        echo out
-                        echo err
-                        echo "Reverting changes.."
-                        runWithCwd "data/package-sets" "git checkout -- src/groups && git checkout master"
-                        -- IMPORTANT: add the package to the banned ones so we don't reverify every time
-                        pure $ Set.insert branchName banned
--}
+        case maybePR of
+          Nothing -> do
+            today <- (Text.pack . Time.showGregorian . Time.utctDay) <$> Time.getCurrentTime
+            let prBranchName = "spacchettibotti-updates-" <> today
+                prTitle = "Updates " <> today
+                prAddress = packageSetsRepo
+                renderUpdate (PackageName packageName, (Tag tag, owner))
+                  = "- [`" <> packageName <> "` upgraded to `" <> tag <> "`](https://github.com/"
+                  <> owner <> "/purescript-" <> packageName <> "/releases/tag/" <> tag <> ")"
+                prBody = Text.unlines $ [ "Updated packages:" ] <> fmap renderUpdate (Map.toList newTags)
+            runAndOpenPR token PullRequest{..} patchVersions commands
+          Just GitHub.PullRequest{pullRequestHead = GitHub.PullRequestCommit{..} , ..} ->
+            runAndPushBranch pullRequestCommitRef packageSetsRepo pullRequestTitle patchVersions commands
+
+      {-
+
+      TODO implement banned packages handling:
+      - get comments from the pull request
+      - parse commands for the bot (ban/unban)
+      - get the end state, and update the banned list
+      - (maybe persist it? or maybe we should just always fetch the latest PR, where we put
+        a list of banned packages at the beginning of the PR, and calc the current state from that + comments)
+      - take the banned list, and add the versions to `newTags`, but picking them from packageSet instead of metadata
+
+      -}
     _ -> pure ()
   where
     filterLocalPackages Package{..} = case location of
       Local _    -> Nothing
-      Remote{..} -> Just $ Tag version
+      Remote{..} -> Just (Tag version, "") -- FIXME: we should parse the url to get the owner here, but well..
 
     updateVersion :: Monad m => PackageName -> Tag -> Expr -> m Expr
     updateVersion (PackageName packageName) (Tag tag) (Dhall.RecordLit kvs)
@@ -427,11 +471,9 @@ packageSetsUpdater _token = do
 
 
 
-----------------------------------
---
 -- * Machinery
 --
-----------------------------------
+--
 
 
 data PullRequest = PullRequest
@@ -442,13 +484,18 @@ data PullRequest = PullRequest
   }
 
 
-runAndPushMaster :: GitHubAddress -> Text -> [Text] -> IO ()
-runAndPushMaster address commit commands
-  = runInClonedRepo address "master" commit commands (pure ())
+runAndPushBranch :: Text -> GitHubAddress -> Text -> (GHC.IO.FilePath -> IO ()) -> [Text] -> IO ()
+runAndPushBranch branchName address commit preAction commands
+  = runInClonedRepo address branchName commit preAction commands (pure ())
 
-runAndOpenPR :: GitHub.AuthMethod am => am -> PullRequest -> [Text] -> IO ()
-runAndOpenPR token PullRequest{ prAddress = address@Address{..}, ..} commands
-  = unlessM pullRequestExists (runInClonedRepo address prBranchName prTitle commands openPR)
+
+runAndPushMaster :: GitHubAddress -> Text -> (GHC.IO.FilePath -> IO ()) -> [Text] -> IO ()
+runAndPushMaster = runAndPushBranch "master"
+
+
+runAndOpenPR :: GitHub.AuthMethod am => am -> PullRequest -> (GHC.IO.FilePath -> IO ()) -> [Text] -> IO ()
+runAndOpenPR token PullRequest{ prAddress = address@Address{..}, ..} preAction commands
+  = unlessM pullRequestExists (runInClonedRepo address prBranchName prTitle preAction commands openPR)
   where
     openPR = do
       echo "Pushed a new commit, opening PR.."
@@ -478,8 +525,8 @@ runAndOpenPR token PullRequest{ prAddress = address@Address{..}, ..} commands
           pure False
 
 
-runInClonedRepo :: GitHubAddress -> Text -> Text -> [Text] -> IO () -> IO ()
-runInClonedRepo address@Address{..} branchName commit commands postAction =
+runInClonedRepo :: GitHubAddress -> Text -> Text -> (GHC.IO.FilePath -> IO ()) -> [Text] -> IO () -> IO ()
+runInClonedRepo address@Address{..} branchName commit preAction commands postAction =
   -- Clone the repo in a temp folder
   Temp.withTempDirectory "data" "__temp-repo" $ \path -> do
     let runInRepo cmds failure success = do
@@ -500,15 +547,16 @@ runInClonedRepo address@Address{..} branchName commit commands postAction =
         runInRepo
           [ "git config --local user.name 'Spacchettibotti'"
           , "git config --local user.email 'spacchettibotti@ferrai.io'"
-          , "git checkout -B " <> branchName
+          , "git checkout " <> branchName <> " || git checkout -b " <> branchName
           ]
           (echo "Failed to configure the repo")
-          (pure ())
-        -- Run the commands we wanted to run, check if everything is fine
+          -- If the setup was fine, run the setup code before running the commands
+          (preAction path)
+        -- Run the commands we wanted to run
         runInRepo
           commands
-          (echo "Something's off with the commands")
-          -- If it is fine, then check if anything actually changed or got staged
+          (echo "Something was off while running commands..")
+          -- Check if anything actually changed or got staged
           (runInRepo
             [ "git diff --staged --exit-code" ]
             (runInRepo

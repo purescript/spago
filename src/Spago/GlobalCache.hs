@@ -25,6 +25,7 @@ newtype Tag = Tag Text
 data RepoMetadataV1 = RepoMetadataV1
   { commits :: [CommitHash]
   , latest  :: Maybe Tag
+  , owner   :: Text
   , tags    :: (Map Tag CommitHash)
   } deriving (Show, Generic)
 
