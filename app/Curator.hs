@@ -202,6 +202,14 @@ getPullRequestForUser token user Address{..} = do
     Just pr -> fetchFullPR pr
 
 
+getCommentsOnPR :: GitHub.AuthMethod am => am -> GitHubAddress -> GitHub.IssueNumber -> IO [GitHub.IssueComment]
+getCommentsOnPR token Address{..} issueNumber = do
+  eitherComments <- GitHub.executeRequest token
+    $ GitHub.commentsR owner repo issueNumber GitHub.FetchAll
+  pure $ case eitherComments of
+    Left _ -> []
+    Right comments -> Vector.toList comments
+
 
 -- * Threads
 --
@@ -401,44 +409,66 @@ packageSetsUpdater token = do
       let intersectionMaybe f = Map.merge Map.dropMissing Map.dropMissing (Map.zipWithMaybeMatched f)
       let pickLatestIfDifferent _k v@(tag1, _) (tag2, _) = if tag1 == tag2 then Nothing else Just v
       let newTags = intersectionMaybe pickLatestIfDifferent latestTags packageSetTags
+      let beginningOfTime = Time.UTCTime (Time.fromGregorian 1800 1 1) 0
+
       echo $ "Found " <> tshow (length newTags) <> " packages to update"
-      when (length newTags > 0) $ do
-        echo $ tshow newTags
-        -- If we have more than one package to update, let's see if we already have an
-        -- open PR to package-sets. If we do we can just commit there
-        maybePR <- getPullRequestForUser token "spacchettibotti" packageSetsRepo
 
-        let patchVersions path = do
-              absPath <- makeAbsolute path
-              for_ (Map.toList newTags) $ \(packageName, (tag, owner)) -> do
-                echo $ "Patching version for " <> tshow packageName
-                withAST (Text.pack $ absPath </> "src" </> "groups" </> Text.unpack (Text.toLower owner) <> ".dhall")
-                  $ updateVersion packageName tag
+      echo $ tshow newTags
+      -- If we have more than one package to update, let's see if we already have an
+      -- open PR to package-sets. If we do we can just commit there
+      maybePR <- getPullRequestForUser token "spacchettibotti" packageSetsRepo
 
-              echo "Verifying new set. This might take a LONG while.."
-              result <- runWithCwd path "cd src; spago init; git diff --exit-code || spago verify-set"
-              echo "Verified packages, spamming the channel with the result.."
-              atomically $ Chan.writeTChan bus $ NewVerification result
+      let patchVersions path = do
+            for_ (Map.toList newTags) $ \(packageName, (tag, owner)) -> do
+              echo $ "Patching version for " <> tshow packageName
+              withAST (Text.pack $ path </> "src" </> "groups" </> Text.unpack (Text.toLower owner) <> ".dhall")
+                $ updateVersion packageName tag
 
-        let commands =
-              [ "make"
-              , "git add packages.json"
-              , "git add src/groups"
-              ]
+            echo "Verifying new set. This might take a LONG while.."
+            result <- runWithCwd path "cd src; spago init; spago verify-set"
+            echo "Verified packages, spamming the channel with the result.."
+            atomically $ Chan.writeTChan bus $ NewVerification result
 
-        case maybePR of
-          Nothing -> do
-            today <- (Text.pack . Time.showGregorian . Time.utctDay) <$> Time.getCurrentTime
-            let prBranchName = "spacchettibotti-updates-" <> today
-                prTitle = "Updates " <> today
-                prAddress = packageSetsRepo
-                renderUpdate (PackageName packageName, (Tag tag, owner))
-                  = "- [`" <> packageName <> "` upgraded to `" <> tag <> "`](https://github.com/"
-                  <> owner <> "/purescript-" <> packageName <> "/releases/tag/" <> tag <> ")"
-                prBody = Text.unlines $ [ "Updated packages:" ] <> fmap renderUpdate (Map.toList newTags)
-            runAndOpenPR token PullRequest{..} patchVersions commands
-          Just GitHub.PullRequest{pullRequestHead = GitHub.PullRequestCommit{..} , ..} ->
-            runAndPushBranch pullRequestCommitRef packageSetsRepo pullRequestTitle patchVersions commands
+      let commands =
+            [ "make"
+            , "git add packages.json"
+            , "git add src/groups"
+            ]
+
+      case maybePR of
+        Nothing -> do
+          today <- (Text.pack . Time.showGregorian . Time.utctDay) <$> Time.getCurrentTime
+          let prBranchName = "spacchettibotti-updates-" <> today
+              prTitle = "Updates " <> today
+              prAddress = packageSetsRepo
+              renderUpdate (PackageName packageName, (Tag tag, owner))
+                = "- [`" <> packageName <> "` upgraded to `" <> tag <> "`](https://github.com/"
+                <> owner <> "/purescript-" <> packageName <> "/releases/tag/" <> tag <> ")"
+              prBody = Text.unlines $ [ "Updated packages:" ] <> fmap renderUpdate (Map.toList newTags)
+          runAndOpenPR token PullRequest{..} patchVersions commands
+        Just GitHub.PullRequest{ pullRequestHead = GitHub.PullRequestCommit{..}, ..} -> do
+          -- Since a PR is already there we might have to skip verification,
+          -- because we might have verified that commit already
+          -- Since we leave a comment every time we verify, we can check if there
+          -- are any new commits since the last comment
+          -- (this means that any comment will retrigger a verification)
+          let shouldVerifyAgain path = do
+                commentsForPR <- getCommentsOnPR token packageSetsRepo pullRequestNumber
+                lastCommitTime <- getLatestCommitTime path
+                let lastCommentTime = case lastMay commentsForPR of
+                      Nothing -> beginningOfTime
+                      Just GitHub.IssueComment{..} -> issueCommentCreatedAt
+                pure $ and
+                  -- If there are tags to push
+                  [ length newTags > 0
+                  -- And the latest commit to our branch is newer than our latest comment on the PR
+                  , Time.diffUTCTime lastCommitTime lastCommentTime > 0
+                  ]
+          let patchVersions' path = shouldVerifyAgain path >>= \case
+                True -> patchVersions path
+                False -> echo "Skipping verification as there's nothing new under the sun.."
+
+          runAndPushBranch pullRequestCommitRef packageSetsRepo pullRequestTitle patchVersions' commands
 
       {-
 
@@ -550,7 +580,7 @@ runInClonedRepo address@Address{..} branchName commit preAction commands postAct
           ]
           (echo "Failed to configure the repo")
           -- If the setup was fine, run the setup code before running the commands
-          (preAction $ path </> repoPath)
+          (preAction =<< makeAbsolute (path </> repoPath))
         -- Run the commands we wanted to run
         runInRepo
           commands
@@ -572,6 +602,12 @@ runWithCwd cwd cmd = do
   echo $ "Running in path " <> Text.pack cwd <> ": `" <> cmd <> "`"
   let processWithNewCwd = (Process.shell (Text.unpack cmd)) { Process.cwd = Just cwd }
   systemStrictWithErr processWithNewCwd empty
+
+
+getLatestCommitTime :: GHC.IO.FilePath -> IO Time.UTCTime
+getLatestCommitTime path = do
+  (_code, out, _err) <- runWithCwd path "git show -s --format=%ci"
+  Time.parseTimeM True Time.defaultTimeLocale "%Y-%m-%d %H:%M:%S %z" $ Text.unpack out
 
 
 withAST :: MonadIO m => Text -> (Expr -> m Expr) -> m ()

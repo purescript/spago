@@ -53,6 +53,7 @@ module Spago.Prelude
   , isAbsolute
   , pathSeparator
   , headMay
+  , lastMay
   , shouldRefreshFile
   , for
   , handleAny
@@ -119,7 +120,7 @@ import           Dhall.Optics                          (transformMOf)
 import           GHC.Generics                          (Generic)
 import           Lens.Family                           (set, (^..))
 import           Prelude                               as X hiding (FilePath)
-import           Safe                                  (headMay)
+import           Safe                                  (headMay, lastMay)
 import           System.FilePath                       (isAbsolute, pathSeparator, (</>))
 import           System.IO                             (hPutStrLn)
 import           Turtle                                (ExitCode (..), FilePath, appendonly, chmod,
