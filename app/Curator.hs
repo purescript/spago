@@ -211,6 +211,15 @@ getCommentsOnPR token Address{..} issueNumber = do
     Right comments -> Vector.toList comments
 
 
+updatePullRequestBody :: GitHub.AuthMethod am => am -> GitHubAddress -> GitHub.IssueNumber -> Text -> IO ()
+updatePullRequestBody token Address{..} pullRequestNumber newBody = do
+  void
+    $ GitHub.executeRequest token
+    $ GitHub.updatePullRequestR owner repo pullRequestNumber
+    $ GitHub.EditPullRequest Nothing (Just newBody) Nothing Nothing Nothing
+
+
+
 -- * Threads
 --
 --
@@ -369,15 +378,19 @@ packageSetCommenter token = do
                   [ "Result of `spago verify-set` in a clean project: **failure** 😱"
                   , ""
                   , "<details><summary>Output of `spago verify-set`</summary><p>"
+                  , ""
                   , "```"
                   , out
                   , "```"
+                  , ""
                   , "</p></details>"
                   , ""
                   , "<details><summary>Error output</summary><p>"
+                  , ""
                   , "```"
                   , err
                   , "```"
+                  , ""
                   , "</p></details>"
                   ]
           let (Address owner repo) = packageSetsRepo
@@ -441,10 +454,7 @@ packageSetsUpdater token = do
           let prBranchName = "spacchettibotti-updates-" <> today
               prTitle = "Updates " <> today
               prAddress = packageSetsRepo
-              renderUpdate (PackageName packageName, (Tag tag, owner))
-                = "- [`" <> packageName <> "` upgraded to `" <> tag <> "`](https://github.com/"
-                <> owner <> "/purescript-" <> packageName <> "/releases/tag/" <> tag <> ")"
-              prBody = Text.unlines $ [ "Updated packages:" ] <> fmap renderUpdate (Map.toList newTags)
+              prBody = mkBody newTags
           runAndOpenPR token PullRequest{..} patchVersions commands
         Just GitHub.PullRequest{ pullRequestHead = GitHub.PullRequestCommit{..}, ..} -> do
           -- Since a PR is already there we might have to skip verification,
@@ -465,8 +475,10 @@ packageSetsUpdater token = do
                   , Time.diffUTCTime lastCommitTime lastCommentTime > 0
                   ]
           let patchVersions' path = shouldVerifyAgain path >>= \case
-                True -> patchVersions path
                 False -> echo "Skipping verification as there's nothing new under the sun.."
+                True -> do
+                  patchVersions path
+                  updatePullRequestBody token packageSetsRepo pullRequestNumber $ mkBody newTags
 
           runAndPushBranch pullRequestCommitRef packageSetsRepo pullRequestTitle patchVersions' commands
 
@@ -483,6 +495,15 @@ packageSetsUpdater token = do
       -}
     _ -> pure ()
   where
+    mkBody packages =
+      let renderUpdate (PackageName packageName, (Tag tag, owner))
+            = "- [`" <> packageName <> "` upgraded to `" <> tag <> "`](https://github.com/"
+              <> owner <> "/purescript-" <> packageName <> "/releases/tag/" <> tag <> ")"
+      in Text.unlines
+         $ [ "Updated packages:" ]
+         <> fmap renderUpdate (Map.toList packages)
+         <> [ "", "" ]
+
     filterLocalPackages Package{..} = case location of
       Local _    -> Nothing
       Remote{..} -> Just (Tag version, "") -- FIXME: we should parse the url to get the owner here, but well..
