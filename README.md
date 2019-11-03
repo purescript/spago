@@ -1097,7 +1097,7 @@ that is accepted by many commands. You can either:
 ### Know the output path for my compiled code
 
 As there are now various factors that can affect the output path of compiled code, run 
-`spago output-path` along with any flags you would pass to `spago build` (like 
+`spago path output` along with any flags you would pass to `spago build` (like 
 `--purs-args` or `--no-share-output`) to return the output path Spago is using. 
 This can be useful for sharing an output folder with `webpack`, for instance.
 

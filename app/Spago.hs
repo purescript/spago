@@ -225,10 +225,15 @@ parser = do
       , pure Search
       )
 
+    pathSubcommand
+      =   CLI.subcommand "output" "Output path for compiled code"
+            (Path (Just OutputFolder) <$> buildOptions)
+      <|> (Path Nothing <$> buildOptions)
+
     path =
       ( "path"
       , "Display paths used by the project"
-      , Path Nothing <$> buildOptions
+      , pathSubcommand
       )
 
     packageSetCommands = CLI.subcommandGroup "Package set commands:"

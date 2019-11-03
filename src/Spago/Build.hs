@@ -365,12 +365,12 @@ getOutputPathOrDefault
   => BuildOptions
   -> m Sys.FilePath
 getOutputPathOrDefault buildOpts
-  = (fromMaybe "output-root") <$> getOutputPath buildOpts
+  = (fromMaybe "output") <$> getOutputPath buildOpts
 
 data PathType
   = OutputFolder
 
--- | Used by `spago output-path` command
+-- | Used by `spago path output` command
 showOutputPath
   :: Spago m
   => BuildOptions
