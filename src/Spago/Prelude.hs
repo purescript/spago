@@ -182,7 +182,7 @@ logWarning :: MonadIO m => Text -> m ()
 logWarning = logText . ("WARNING: " <>)
 
 logError :: MonadIO m => Text -> m ()
-logError = logText . ("Error: " <>)
+logError = logText . ("ERROR: " <>)
 
 tshow :: Show a => a -> Text
 tshow = Text.pack . show
