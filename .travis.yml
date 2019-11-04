@@ -1,6 +1,7 @@
 sudo: required
 
 language: generic
+dist: bionic
 
 cache:
   directories:
