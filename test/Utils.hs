@@ -12,6 +12,7 @@ module Utils
   , shouldBeSuccess
   , shouldBeSuccessInfix
   , shouldBeSuccessOutput
+  , shouldBeSuccessOutputWithErr
   , shouldBeEmptySuccess
   , spago
   , withCwd
@@ -57,6 +58,14 @@ shouldBeSuccessOutput expected (code, stdout, _stderr) = do
   expectedStdout <- readFixture expected
   code `shouldBe` ExitSuccess
   stdout `shouldBe` expectedStdout
+
+shouldBeSuccessOutputWithErr :: HasCallStack => FilePath -> FilePath -> (ExitCode, Text, Text) -> IO ()
+shouldBeSuccessOutputWithErr expected expectedErr (code, stdout, stderr) = do
+  expectedStdout <- readFixture expected
+  expectedStderr <- readFixture expectedErr
+  code `shouldBe` ExitSuccess
+  stdout `shouldBe` expectedStdout
+  stderr `shouldBe` expectedStderr
 
 shouldBeSuccessInfix :: HasCallStack => Text -> (ExitCode, Text, Text) -> IO ()
 shouldBeSuccessInfix expected (code, stdout, _stderr) = do

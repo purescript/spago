@@ -11,7 +11,8 @@ import           Turtle             (ExitCode (..), cd, cp, decodeString, empty,
                                      writeTextFile)
 import           Utils              (checkFileHasInfix, checkFixture, readFixture, runFor,
                                      shouldBeFailure, shouldBeFailureOutput, shouldBeSuccess,
-                                     shouldBeSuccessOutput, spago, withCwd)
+                                     shouldBeSuccessOutput, shouldBeSuccessOutputWithErr, spago, withCwd)
+
 
 
 setup :: IO () -> IO ()
@@ -95,7 +96,7 @@ spec = around_ setup $ do
 
       spago ["init"] >>= shouldBeSuccess
       spago ["install"] >>= shouldBeSuccess
-      spago ["install", "effect"] >>= shouldBeSuccessOutput "spago-install-existing-dep-warning.txt"
+      spago ["install", "effect"] >>= shouldBeSuccessOutputWithErr "spago-install-existing-dep-output.txt" "spago-install-existing-dep-warning.txt"
 
     it "Spago should strip 'purescript-' prefix and give warning if package without prefix is present in package set" $ do
 
@@ -168,7 +169,7 @@ spec = around_ setup $ do
       spago ["init"] >>= shouldBeSuccess
       writeTextFile "alternative2.dhall" "./spago.dhall // { sources = [ \"src/**/*.purs\" ] }\n"
       spago ["-x", "alternative2.dhall", "install", "simple-json"] >>= shouldBeSuccess
-      spago ["-x", "alternative2.dhall", "install", "simple-json"] >>= shouldBeSuccessOutput "alternative2install.txt"
+      spago ["-x", "alternative2.dhall", "install", "simple-json"] >>= shouldBeSuccessOutputWithErr "alternative2install.txt" "alternative2install-warning.txt"
       checkFixture "alternative2.dhall"
 
     it "Spago should install successfully when there are local dependencies sharing the same packages.dhall" $ do

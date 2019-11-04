@@ -24,6 +24,7 @@ New features:
 - `spago run` now recognizes backend specified in the configuration file and calls the backend with `--run` argument.
 - documentation now includes a step-by-step guide on setting up a Spago/Parcel project (#456)
 - documentation now includes a step-by-step guide on setting up a Spago/Node and Spago/Webpack project (#456-extra)
+- moved warning and error logs to stderr, adjusted logging strategy (#256)
 
 Bugfixes:
 - Warn (but don't error) when trying to watch missing directories (#406)

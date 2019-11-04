@@ -42,7 +42,7 @@ fetchPackages
   -> Maybe Version.SemVer
   -> m ()
 fetchPackages globalCacheFlag allDeps minPursVersion = do
-  echoDebug "Running `fetchPackages`"
+  logDebug "Running `fetchPackages`"
 
   PackageSet.checkPursIsUpToDate minPursVersion
 
@@ -60,7 +60,7 @@ fetchPackages globalCacheFlag allDeps minPursVersion = do
   -- Note: it might be empty depending on the cacheFlag
   let nOfDeps = List.length depsToFetch
   when (nOfDeps > 0) $ do
-    echoStr $ "Installing " <> show nOfDeps <> " dependencies."
+    outputStr $ "Installing " <> show nOfDeps <> " dependencies."
     metadata <- GlobalCache.getMetadata globalCacheFlag
 
     limit <- asks globalJobs
@@ -68,7 +68,7 @@ fetchPackages globalCacheFlag allDeps minPursVersion = do
       asyncs <- for depsToFetch (async' taskGroup . fetchPackage metadata)
       liftIO $ handle (handler asyncs) (for_ asyncs Async.wait)
 
-  echo "Installation complete."
+  output "Installation complete."
 
   where
     -- Here we have this weird exception handling so that threads can clean after
@@ -94,9 +94,9 @@ fetchPackages globalCacheFlag allDeps minPursVersion = do
 --   If it's a local directory do nothing
 fetchPackage :: Spago m => GlobalCache.ReposMetadataV1 -> (PackageName, Package) -> m ()
 fetchPackage _ (PackageName package, Package { location = Local{..}, .. }) =
-  echo $ Messages.foundLocalPackage package localPath
+  output $ Messages.foundLocalPackage package localPath
 fetchPackage metadata pair@(packageName'@PackageName{..}, Package{ location = Remote{..}, .. } ) = do
-  echoDebug $ "Fetching package " <> packageName
+  logDebug $ "Fetching package " <> packageName
   globalDir <- GlobalCache.getGlobalCacheDir
   let packageDir = getPackageDir packageName' version
       packageGlobalCacheDir = globalDir </> packageDir
@@ -110,7 +110,7 @@ fetchPackage metadata pair@(packageName'@PackageName{..}, Package{ location = Re
     -- * if a Package is in the global cache, copy it to the local cache
     if inGlobalCache
       then do
-        echo $ "Copying from global cache: " <> quotedName
+        output $ "Copying from global cache: " <> quotedName
         cptree packageGlobalCacheDir downloadDir
         assertDirectory (localCacheDir </> Text.unpack packageName)
         mv downloadDir packageLocalCacheDir
@@ -123,18 +123,18 @@ fetchPackage metadata pair@(packageName'@PackageName{..}, Package{ location = Re
               -- then atomically move it to the correct cache location.  Since
               -- `mv` will not move folders across filesystems, this temp
               -- is created inside globalDir, guaranteeing the same filesystem.
-              echo $ "Installing and globally caching " <> quotedName
+              output $ "Installing and globally caching " <> quotedName
               let resultDir2 = globalTemp </> "download2"
               assertDirectory resultDir2
               cptree resultDir resultDir2
               catch (mv resultDir2 packageGlobalCacheDir) $ \(err :: SomeException) ->
-                echoDebug $ Messages.failedToCopyToGlobalCache err
+                output $ Messages.failedToCopyToGlobalCache err
               mv resultDir packageLocalCacheDir
 
         -- * if not, run a series of git commands to get the code, and move it to local cache
         let nonCacheableCallback :: Spago m => m ()
             nonCacheableCallback = do
-              echo $ "Installing " <> quotedName
+              output $ "Installing " <> quotedName
 
               -- Here we set the package directory as the cwd of the new process.
               -- This is the "right" way to do it (instead of using e.g.

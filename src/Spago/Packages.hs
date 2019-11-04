@@ -48,7 +48,7 @@ import           Spago.Types              as PackageSet
 --   - create an example `test` folder (if needed)
 initProject :: Spago m => Bool -> Dhall.TemplateComments -> m ()
 initProject force comments = do
-  echo "Initializing a sample project or migrating an existing one.."
+  output "Initializing a sample project or migrating an existing one.."
 
   -- packages.dhall and spago.dhall overwrite can be forced
   PackageSet.makePackageSetFile force comments
@@ -68,22 +68,22 @@ initProject force comments = do
 
   copyIfNotExists ".gitignore" Templates.gitignore
 
-  echo "Set up a local Spago project."
-  echo "Try running `spago build`"
+  output "Set up a local Spago project."
+  output "Try running `spago build`"
 
   where
     whenDirNotExists dir action = do
       let dirPath = pathFromText dir
       dirExists <- testdir dirPath
       case dirExists of
-        True -> echo $ Messages.foundExistingDirectory dir
+        True -> output $ Messages.foundExistingDirectory dir
         False -> do
           mktree dirPath
           action
 
     copyIfNotExists dest srcTemplate = do
       testfile dest >>= \case
-        True  -> echo $ Messages.foundExistingFile dest
+        True  -> output $ Messages.foundExistingFile dest
         False -> writeTextFile dest srcTemplate
 
 
@@ -131,7 +131,7 @@ getProjectDeps Config{..} = getTransitiveDeps packageSet dependencies
 -- | Return the transitive dependencies of a list of packages
 getTransitiveDeps :: Spago m => PackageSet -> [PackageName] -> m [(PackageName, Package)]
 getTransitiveDeps PackageSet{..} deps = do
-  echoDebug "Getting transitive deps"
+  logDebug "Getting transitive deps"
   let (packageMap, notFoundErrors, cycleErrors) = State.evalState (fold <$> traverse (go mempty) deps) mempty
 
   handleErrors (Map.toList packageMap) (Set.toList notFoundErrors) (Set.toList cycleErrors)
@@ -193,7 +193,7 @@ getReverseDeps packageSet@PackageSet{..} dep = do
 -- | Fetch all dependencies into `.spago/`
 install :: Spago m => Maybe CacheFlag -> [PackageName] -> m ()
 install cacheFlag newPackages = do
-  echoDebug "Running `spago install`"
+  logDebug "Running `spago install`"
   config@Config{ packageSet = PackageSet{..}, ..} <- Config.ensureConfig
 
   existingNewPackages <- reportMissingPackages $ classifyPackages packagesDB newPackages
@@ -218,7 +218,7 @@ reportMissingPackages (PackagesLookupResult found foundWithoutPrefix notFound) =
         <> (Text.intercalate "\n" . fmap (\(NotFoundError p) -> "  - " <> packageName p) $ List.sort notFound)
 
   for_ foundWithoutPrefix $ \(FoundWithoutPrefix sansPrefix) ->
-    echo $ "WARNING: the package 'purescript-" <> packageName sansPrefix <> "' was not found in your package set, but '"
+    output $ "WARNING: the package 'purescript-" <> packageName sansPrefix <> "' was not found in your package set, but '"
          <> packageName sansPrefix <> "' was. Using that instead."
   pure found
 
@@ -269,7 +269,7 @@ encodeJsonPackageOutput = LT.toStrict . LT.decodeUtf8 . Aeson.encode
 -- | A list of the packages that can be added to this project
 listPackages :: Spago m => Maybe PackagesFilter -> JsonFlag -> m ()
 listPackages packagesFilter jsonFlag = do
-  echoDebug "Running `listPackages`"
+  logDebug "Running `listPackages`"
   Config{packageSet = packageSet@PackageSet{..}, ..} <- Config.ensureConfig
   packagesToList :: [(PackageName, Package)] <- case packagesFilter of
     Nothing             -> pure $ Map.toList packagesDB
@@ -278,8 +278,8 @@ listPackages packagesFilter jsonFlag = do
       $ Map.restrictKeys packagesDB (Set.fromList dependencies)
 
   case packagesToList of
-    [] -> echo "There are no dependencies listed in your spago.dhall"
-    _  -> traverse_ echo $ formatPackageNames packagesToList
+    [] -> output "There are no dependencies listed in your spago.dhall"
+    _  -> traverse_ output $ formatPackageNames packagesToList
 
   where
     formatPackageNames = case jsonFlag of
@@ -332,10 +332,10 @@ listPackages packagesFilter jsonFlag = do
 -- | Get source globs of dependencies listed in `spago.dhall`
 sources :: Spago m => m ()
 sources = do
-  echoDebug "Running `spago sources`"
+  logDebug "Running `spago sources`"
   config <- Config.ensureConfig
   deps <- getProjectDeps config
-  traverse_ echo
+  traverse_ output
     $ fmap Purs.unSourcePath
     $ getGlobs deps AllSources
     $ Config.configSourcePaths config
@@ -345,7 +345,7 @@ data CheckModulesUnique = DoCheckModulesUnique | NoCheckModulesUnique
 
 verify :: Spago m => Maybe CacheFlag -> CheckModulesUnique -> Maybe PackageName -> m ()
 verify cacheFlag chkModsUniq maybePackage = do
-  echoDebug "Running `spago verify`"
+  logDebug "Running `spago verify`"
   Config{ packageSet = packageSet@PackageSet{..}, ..} <- Config.ensureConfig
   case maybePackage of
     -- If no package is specified, verify all of them
@@ -369,7 +369,7 @@ verify cacheFlag chkModsUniq maybePackage = do
   where
     verifyPackages :: Spago m => PackageSet -> [(PackageName, Package)] -> m ()
     verifyPackages packageSet packages = do
-      echo $ Messages.verifying $ length packages
+      output $ Messages.verifying $ length packages
       traverse_ (verifyPackage packageSet) (fst <$> packages)
 
     verifyPackage :: Spago m => PackageSet -> PackageName -> m ()
@@ -378,15 +378,15 @@ verify cacheFlag chkModsUniq maybePackage = do
       let globs = getGlobs deps DepsOnly []
           quotedName = surroundQuote $ packageName name
       Fetch.fetchPackages cacheFlag deps packagesMinPursVersion
-      echo $ "Verifying package " <> quotedName
+      output $ "Verifying package " <> quotedName
       Purs.compile globs []
-      echo $ "Successfully verified " <> quotedName
+      output $ "Successfully verified " <> quotedName
 
     compileEverything :: Spago m => PackageSet -> m ()
     compileEverything PackageSet{..} = do
       let deps = Map.toList packagesDB
           globs = getGlobs deps DepsOnly []
       Fetch.fetchPackages cacheFlag deps packagesMinPursVersion
-      echo "Compiling everything (will fail if module names conflict)"
+      output "Compiling everything (will fail if module names conflict)"
       Purs.compile globs []
-      echo "Successfully compiled everything"
+      output "Successfully compiled everything"

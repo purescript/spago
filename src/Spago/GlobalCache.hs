@@ -50,7 +50,7 @@ globallyCache
   -> (m ())
   -> m ()
 globallyCache (packageName, Repo url, ref) downloadDir metadata cacheableCallback notCacheableCallback = do
-  echoDebug $ "Running `globallyCache`: " <> tshow packageName <> " " <> url <> " " <> ref
+  logDebug $ "Running `globallyCache`: " <> tshow packageName <> " " <> url <> " " <> ref
   case (Text.stripPrefix "https://github.com/" url)
        >>= (Text.stripSuffix ".git")
        >>= (Just . Text.split (== '/')) of
@@ -59,13 +59,13 @@ globallyCache (packageName, Repo url, ref) downloadDir metadata cacheableCallbac
         Nothing -> notCacheableCallback -- TODO: nice error?
         Just _ -> do
           let archiveUrl = "https://github.com/" <> owner <> "/" <> repo <> "/archive/" <> ref <> ".tar.gz"
-          echoDebug $ "About to fetch tarball for " <> archiveUrl
+          logDebug $ "About to fetch tarball for " <> archiveUrl
           fetchTarball downloadDir archiveUrl
           Just resultDir <- Turtle.fold (Turtle.ls $ Turtle.decodeString downloadDir) Fold.head
           cacheableCallback $ Turtle.encodeString resultDir
       where
     _ -> do
-      echo $ "WARNING: Not caching repo, because URL doesn't have the form of 'https://github.com/<ORG>/<REPO>.git': " <> url
+      logWarning $ "Not caching repo, because URL doesn't have the form of 'https://github.com/<ORG>/<REPO>.git': " <> url
       notCacheableCallback -- TODO: error?
   where
     isTag = do
@@ -83,11 +83,11 @@ globallyCache (packageName, Repo url, ref) downloadDir metadata cacheableCallbac
 -- | Download the GitHub Index cache from the `package-sets-metadata` repo
 getMetadata :: Spago m => Maybe CacheFlag -> m ReposMetadataV1
 getMetadata cacheFlag = do
-  echoDebug "Running `getMetadata`"
+  logDebug "Running `getMetadata`"
 
   globalCacheDir <- getGlobalCacheDir
 
-  echoDebug $ "Global cache directory: " <> Text.pack globalCacheDir
+  logDebug $ "Global cache directory: " <> Text.pack globalCacheDir
 
   let metaURL = "https://raw.githubusercontent.com/spacchetti/package-sets-metadata/master/metadataV1.json"
 
@@ -100,14 +100,14 @@ getMetadata cacheFlag = do
 
       downloadMeta = handleAny
         (\err -> do
-            echoDebug $ "Metadata fetch failed with exception: " <> tshow err
-            echo "WARNING: Unable to download GitHub metadata, global cache will be disabled"
+            logDebug $ "Metadata fetch failed with exception: " <> tshow err
+            output "WARNING: Unable to download GitHub metadata, global cache will be disabled"
             pure mempty)
         (do
             metaBS <- Http.getResponseBody `fmap` Http.httpBS metaURL
             case decodeStrict' metaBS of
               Nothing -> do
-                echo "WARNING: Unable to parse GitHub metadata, global cache will be disabled"
+                logWarning "Unable to parse GitHub metadata, global cache will be disabled"
                 pure mempty
               Just meta -> do
                 assertDirectory globalCacheDir
@@ -119,21 +119,21 @@ getMetadata cacheFlag = do
     Just SkipCache -> pure mempty
     -- If we need to download a new cache we can skip checking the local filesystem
     Just NewCache -> do
-      echo "Downloading a new packages cache metadata from GitHub.."
+      output "Downloading a new packages cache metadata from GitHub.."
       downloadMeta
     -- Otherwise we check first
     Nothing -> do
-      echo "Searching for packages cache metadata.."
+      output "Searching for packages cache metadata.."
 
       -- Check if the metadata is in global cache and fresher than 1 day
       shouldRefreshFile globalPathToMeta >>= \case
         -- If we should not download it, read from file
         False -> do
-          echo "Recent packages cache metadata found, using it.."
+          output "Recent packages cache metadata found, using it.."
           fmap maybeToMonoid $ liftIO $ decodeFileStrict globalPathToMeta
         -- Otherwise download it, write it to file, and return it
         True -> do
-          echo "Unable to find packages cache metadata, downloading from GitHub.."
+          output "Unable to find packages cache metadata, downloading from GitHub.."
           downloadMeta
 
 
@@ -144,14 +144,14 @@ getMetadata cacheFlag = do
 --   - (on Windows) the folder pointed by `LocalAppData`
 getGlobalCacheDir :: Spago m => m FilePath.FilePath
 getGlobalCacheDir = do
-  echoDebug "Running `getGlobalCacheDir`"
+  logDebug "Running `getGlobalCacheDir`"
   getXdgDirectory XdgCache "spago" <|> pure ".spago-global-cache"
 
 
 -- | Fetch the tarball at `archiveUrl` and unpack it into `destination`
 fetchTarball :: Spago m => FilePath.FilePath -> Text -> m ()
 fetchTarball destination archiveUrl = do
-  echoDebug $ "Fetching " <> archiveUrl
+  logDebug $ "Fetching " <> archiveUrl
   tarballUrl <- Http.parseRequest $ Text.unpack archiveUrl
   lbs <- fmap Http.getResponseBody (Http.httpLBS tarballUrl)
   liftIO $ Tar.unpack destination $ Tar.read $ GZip.decompress lbs

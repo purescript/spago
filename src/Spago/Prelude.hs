@@ -1,8 +1,5 @@
 module Spago.Prelude
-  ( echo
-  , echoStr
-  , echoDebug
-  , tshow
+  ( tshow
   , die
   , Dhall.Core.throws
   , hush
@@ -78,6 +75,11 @@ module Spago.Prelude
   , githubTokenEnvVar
   , whenM
   , pretty
+  , output
+  , outputStr
+  , logDebug
+  , logWarning
+  , logError
   ) where
 
 
@@ -158,24 +160,35 @@ type Spago m =
   , MonadMask m
   )
 
-echo :: MonadIO m => Text -> m ()
-echo = Turtle.printf (Turtle.s Turtle.% "\n")
+output :: MonadIO m => Text -> m ()
+output = Turtle.printf (Turtle.s Turtle.% "\n")
 
-echoStr :: MonadIO m => String -> m ()
-echoStr = echo . Text.pack
+outputStr :: MonadIO m => String -> m ()
+outputStr = output . Text.pack
+
+logStderr :: MonadIO m => String -> m () 
+logStderr = liftIO . System.IO.hPutStrLn System.IO.stderr
+
+logText :: MonadIO m => Text -> m ()
+logText = logStderr . Text.unpack
+
+logDebug :: Spago m => Text -> m ()
+logDebug str = do
+  hasDebug <- asks globalDebug
+  when hasDebug $ do
+    logText $ str
+
+logWarning :: MonadIO m => Text -> m ()
+logWarning = logText . ("WARNING: " <>)
+
+logError :: MonadIO m => Text -> m ()
+logError = logText . ("Error: " <>)
 
 tshow :: Show a => a -> Text
 tshow = Text.pack . show
 
-echoDebug :: Spago m => Text -> m ()
-echoDebug str = do
-  hasDebug <- asks globalDebug
-  Turtle.when hasDebug $ do
-    echo str
-
 die :: MonadThrow m => Text -> m a
 die reason = throwM $ SpagoError reason
-
 
 -- | Suppress the 'Left' value of an 'Either'
 hush :: Either a b -> Maybe b
@@ -281,7 +294,7 @@ shouldRefreshFile path = (tryIO $ liftIO $ do
   >>= \case
   Right v -> pure v
   Left err -> do
-    echoDebug $ "Unable to read file " <> Text.pack path <> ". Error was: " <> tshow err
+    logDebug $ "Unable to read file " <> Text.pack path <> ". Error was: " <> tshow err
     pure True
 
 

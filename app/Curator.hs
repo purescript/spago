@@ -66,7 +66,7 @@ main = do
   mktree "data"
 
   -- Make sure the repos are cloned and configured
-  echo "Cloning and configuring repos.."
+  output "Cloning and configuring repos.."
   ensureRepo "spacchetti" "spago"
   ensureRepo "spacchetti" "package-sets-metadata"
   ensureRepo "purescript" "package-sets"
@@ -123,7 +123,7 @@ main = do
       unless isThere $ do
         (code, _out, _err) <- runWithCwd "data" $ "git clone git@github.com:" <> org <> "/" <> repo <> ".git"
         case code of
-          ExitSuccess -> echoStr $ "Cloned " <> org <> "/" <> repo
+          ExitSuccess -> outputStr $ "Cloned " <> org <> "/" <> repo
           _           -> die "Error while cloning repo"
       -- set the local git identity to spacchettibotti
       runWithCwd ("data/" <> repo) "git config --local user.name 'Spacchettibotti' && git config --local user.email 'spacchettibotti@ferrai.io'"
@@ -136,18 +136,18 @@ spagoUpdater token controlChan fetcherChan = go Nothing
       atomically (Queue.readTBQueue controlChan) >>= \case
         MStart -> do
           -- Get which one is the latest release of package-sets and download it
-          echo "Update has been kickstarted by main thread."
-          echo "Getting latest package-sets release.."
+          output "Update has been kickstarted by main thread."
+          output "Getting latest package-sets release.."
           Right GitHub.Release{..} <- GitHub.executeRequest' $ GitHub.latestReleaseR "purescript" "package-sets"
 
-          echo $ "Latest tag fetched: " <> releaseTagName
+          output $ "Latest tag fetched: " <> releaseTagName
 
           -- Get spago a new package set if needed.
           -- So we skip only if the oldTag is the same as the new tag
           case (maybeOldTag, releaseTagName) of
             (Just oldTag, newTag) | oldTag == newTag -> pure ()
             (_, newTag) -> do
-              echo "Found newer tag. Checking if we ever opened a PR about this.."
+              output "Found newer tag. Checking if we ever opened a PR about this.."
               let auth = GitHub.OAuth $ Encoding.encodeUtf8 token
                   owner = GitHub.mkName Proxy "spacchetti"
                   repo = GitHub.mkName Proxy "spago"
@@ -158,13 +158,13 @@ spagoUpdater token controlChan fetcherChan = go Nothing
                     (GitHub.optionsHead ("spacchetti:" <> branchName) <> GitHub.stateAll)
                     GitHub.FetchAll
               case oldPRs of
-                Left err -> echoStr $ "Error: " <> show err
-                Right prs | not $ Vector.null prs -> echo "PR has been already opened, skipping.."
+                Left err -> logError $ tshow err
+                Right prs | not $ Vector.null prs -> output "PR has been already opened, skipping.."
                 Right _ -> do
-                  echo "No previous PRs found, updating package-sets version.."
+                  output "No previous PRs found, updating package-sets version.."
 
                   -- Sync the repo, commit and push
-                  echo "Pushing new commit (maybe)"
+                  output "Pushing new commit (maybe)"
                   (code, out, err) <- runWithCwd "data/spago" $ List.intercalate " && "
                     [ "git checkout master"
                     , "git pull --rebase"
@@ -180,19 +180,19 @@ spagoUpdater token controlChan fetcherChan = go Nothing
 
                   case code of
                     ExitSuccess -> do
-                      echo "Pushed a new commit, opening PR.."
+                      output "Pushed a new commit, opening PR.."
                       response <- GitHub.executeRequest auth
                         $ GitHub.createPullRequestR owner repo
                         $ GitHub.CreatePullRequest ("Update to package-sets@" <> newTag) "" branchName "master"
                       case response of
-                        Right _   -> echo "Created PR 🎉"
-                        Left err' -> echoStr $ "Error while creating PR: " <> show err'
+                        Right _   -> output "Created PR 🎉"
+                        Left err' -> outputStr $ "Error while creating PR: " <> show err'
                     _ -> do
-                      echo "Something's off. Either there wasn't anything to push or there are errors. Output:"
-                      echo out
-                      echo err
+                      output "Something's off. Either there wasn't anything to push or there are errors. Output:"
+                      output out
+                      output err
 
-          echo "Kickstarting the Fetcher.."
+          output "Kickstarting the Fetcher.."
           atomically $ Queue.writeTBQueue fetcherChan $ MPackageSetTag releaseTagName
           go $ Just releaseTagName
 
@@ -201,18 +201,18 @@ fetcher :: MonadIO m => Text -> Queue.TBQueue FetcherMessage -> Queue.TQueue Met
 fetcher token controlChan metadataChan psChan = liftIO $ forever $ do
   atomically (Queue.readTBQueue controlChan) >>= \case
     MPackageSetTag tag -> do
-      echo "Downloading and parsing package set.."
+      output "Downloading and parsing package set.."
       packageSet <- fetchPackageSet tag
       atomically $ Queue.writeTQueue psChan $ MPackageSet packageSet
       let packages = Map.toList packageSet
-      echoStr $ "Fetching metadata for " <> show (length packages) <> " packages"
+      outputStr $ "Fetching metadata for " <> show (length packages) <> " packages"
 
       -- Call GitHub for all these packages and get metadata for them
       Async.withTaskGroup 10 $ \taskGroup -> do
         asyncs <- for packages (Async.async taskGroup . fetchRepoMetadata)
         for asyncs Async.wait
 
-      echo "Fetched all metadata."
+      output "Fetched all metadata."
       atomically $ Queue.writeTQueue metadataChan MEnd
 
   where
@@ -231,17 +231,17 @@ fetcher token controlChan metadataChan psChan = liftIO $ forever $ do
             ownerN = GitHub.mkName Proxy owner
             repoN = GitHub.mkName Proxy repo
 
-        echo $ "Retry " <> tshow rsIterNumber <> ": fetching tags metadata for '" <> owner <> "/" <> repo <> "'.."
+        output $ "Retry " <> tshow rsIterNumber <> ": fetching tags metadata for '" <> owner <> "/" <> repo <> "'.."
         Right tagsVec <- GitHub.executeRequest auth $ GitHub.tagsForR ownerN repoN GitHub.FetchAll
         -- Here we immediately send the latest tag to the PackageSets updater
         case tagsVec Vector.!? 0 of
           Nothing -> pure ()
           Just latest -> atomically $ Queue.writeTQueue psChan $ MLatestTag packageName owner $ Tag $ GitHub.tagName latest
 
-        echo $ "Retry " <> tshow rsIterNumber <> ": fetching commit metadata for '" <> owner <> "/" <> repo <> "'.."
+        output $ "Retry " <> tshow rsIterNumber <> ": fetching commit metadata for '" <> owner <> "/" <> repo <> "'.."
         Right commitsVec <- GitHub.executeRequest auth $ GitHub.commitsForR ownerN repoN GitHub.FetchAll
 
-        echo $ "Retry " <> tshow rsIterNumber <> ": fetched commits and tags for '" <> owner <> "/" <> repo <> "'"
+        output $ "Retry " <> tshow rsIterNumber <> ": fetched commits and tags for '" <> owner <> "/" <> repo <> "'"
         let !commits = Vector.toList $ fmap (CommitHash . GitHub.untagName . GitHub.commitSha) commitsVec
         let !tags = Map.fromList $ Vector.toList
               $ fmap (\t ->
@@ -276,7 +276,7 @@ packageSetsUpdater token dataChan = go mempty mempty
     go packageSet banned = do
       atomically (Queue.readTQueue dataChan) >>= \case
         MPackageSet newSet -> do
-          echo "Received new package set, updating.."
+          output "Received new package set, updating.."
           go newSet banned
         MLatestTag packageName@(PackageName name) owner tag'@(Tag tag) -> do
           -- First we check if the latest tag is the one in the package set
@@ -284,7 +284,7 @@ packageSetsUpdater token dataChan = go mempty mempty
             -- We're only interested in the case in which the tag in the package set
             -- is different from the current tag.
             Just Package{ location = Remote{..}, .. } | version /= tag -> do
-              echo $ "Found a newer tag for '" <> name <> "': " <> tag
+              output $ "Found a newer tag for '" <> name <> "': " <> tag
               let auth = GitHub.OAuth $ Encoding.encodeUtf8 token
                   owner' = GitHub.mkName Proxy "purescript"
                   repo' = GitHub.mkName Proxy "package-sets"
@@ -298,23 +298,23 @@ packageSetsUpdater token dataChan = go mempty mempty
 
               case (oldPRs, Set.member branchName banned) of
                 (Left err, _) -> do
-                  echoStr $ "Error: " <> show err
+                  logError $ tshow err
                   go packageSet banned
                 (Right prs, _) | not $ Vector.null prs -> do
-                  echo "PR has been already opened once, skipping.."
+                  output "PR has been already opened once, skipping.."
                   go packageSet banned
                 (Right _, True) -> do
-                  echo "Package has failed to verify before, skipping.."
+                  output "Package has failed to verify before, skipping.."
                   go packageSet banned
                 (Right _, False) -> do
-                  echo "No previous PRs found, verifying the addition and eventually committing.."
-                  echo $ "Branch name: " <> branchName
+                  output "No previous PRs found, verifying the addition and eventually committing.."
+                  output $ "Branch name: " <> branchName
 
                   withAST ("data/package-sets/src/groups/" <> Text.toLower owner <> ".dhall")
                     $ updateVersion packageName tag'
 
                   newBanned <- Temp.withTempDirectory "data/package-sets" "spacchettibotti-" $ \tempDir -> do
-                    echoStr $ "Tempdir: " <> tempDir
+                    outputStr $ "Tempdir: " <> tempDir
 
                     (code, out, err) <- runWithCwd "data/package-sets" $ List.intercalate " && "
                       [ "git checkout master"
@@ -336,21 +336,21 @@ packageSetsUpdater token dataChan = go mempty mempty
 
                     case code of
                       ExitSuccess -> do
-                        echo "Pushed a new commit, opening PR.."
+                        output "Pushed a new commit, opening PR.."
                         let releaseLink = "https://github.com/" <> owner <> "/purescript-" <> name <> "/releases/tag/" <> tag
                             body = "The addition has been verified by running `spago verify-set` in a clean project, so this is safe to merge.\n\nLink to release: " <> releaseLink
                         response <- GitHub.executeRequest auth
                           $ GitHub.createPullRequestR owner' repo'
                           $ GitHub.CreatePullRequest ("Update " <> name <> " to " <> tag) body branchName "master"
                         case response of
-                          Right _   -> echo "Created PR 🎉"
-                          Left err' -> echoStr $ "Error while creating PR: " <> show err'
+                          Right _   -> output "Created PR 🎉"
+                          Left err' -> outputStr $ "Error while creating PR: " <> show err'
                         pure banned
                       _ -> do
-                        echo "Something's off. Either there wasn't anything to push or there are errors. Output:"
-                        echo out
-                        echo err
-                        echo "Reverting changes.."
+                        output "Something's off. Either there wasn't anything to push or there are errors. Output:"
+                        output out
+                        output err
+                        output "Reverting changes.."
                         runWithCwd "data/package-sets" "git checkout -- src/groups && git checkout master"
                         -- IMPORTANT: add the package to the banned ones so we don't reverify every time
                         pure $ Set.insert branchName banned
@@ -368,12 +368,12 @@ metadataUpdater dataChan = go mempty
           go $ Map.insert packageName meta state
         MEnd -> do
           -- Write the metadata to file
-          echo "Writing metadata to file.."
+          output "Writing metadata to file.."
           BSL.writeFile "data/package-sets-metadata/metadataV1new.json" $ encodePretty state
-          echo "Done."
+          output "Done."
 
           -- Sync the repo, commit and push
-          echo "Pushing new commit (maybe)"
+          output "Pushing new commit (maybe)"
           (code, out, err) <- runWithCwd "data/package-sets-metadata" $ List.intercalate " && "
             [ "git checkout master"
             , "git pull --rebase"
@@ -385,11 +385,11 @@ metadataUpdater dataChan = go mempty
             ]
 
           case code of
-            ExitSuccess -> echo "Pushed a new commit!"
+            ExitSuccess -> output "Pushed a new commit!"
             _ -> do
-              echo "Something's off. Either there wasn't anything to push or there are errors. Output:"
-              echo out
-              echo err
+              output "Something's off. Either there wasn't anything to push or there are errors. Output:"
+              output out
+              output err
 
           go state
 
@@ -404,10 +404,10 @@ withAST :: MonadIO m => Text -> (Expr -> m Expr) -> m ()
 withAST path transform = do
   rawConfig <- liftIO $ Dhall.readRawExpr path
   case rawConfig of
-    Nothing -> echo $ "Could not find file " <> path
+    Nothing -> output $ "Could not find file " <> path
     Just (header, expr) -> do
       newExpr <- transformMExpr transform expr
-      echo $ "Done. Updating the \"" <> path <> "\" file.."
+      output $ "Done. Updating the \"" <> path <> "\" file.."
       writeTextFile path $ Dhall.prettyWithHeader header newExpr <> "\n"
       liftIO $ Dhall.format path
   where
