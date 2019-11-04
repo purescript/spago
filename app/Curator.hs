@@ -31,6 +31,7 @@ import qualified Data.Text                     as Text
 import qualified Data.Text.Encoding            as Encoding
 import qualified Data.Time                     as Time
 import qualified Data.Vector                   as Vector
+import qualified Data.Set as Set
 import qualified Dhall.Core
 import qualified Dhall.Map
 import qualified GHC.IO
@@ -41,6 +42,7 @@ import qualified Spago.Dhall                   as Dhall
 import qualified System.Environment            as Env
 import qualified System.IO.Temp                as Temp
 import qualified System.Process                as Process
+import qualified Text.Megaparsec as Parse
 
 import           Data.Aeson.Encode.Pretty      (encodePretty)
 import           Spago.GlobalCache             (CommitHash (..), RepoMetadataV1 (..),
@@ -72,7 +74,7 @@ data State = State
   { latestReleases :: Map GitHubAddress Text
   , packageSet     :: PackageSetMap
   , metadata       :: ReposMetadataV1
-  , banned         :: Set Text
+  , banned         :: Set (PackageName, Tag)
   } deriving (Show)
 
 emptyState :: State
@@ -116,18 +118,24 @@ main = do
   echo "Creating 'data' folder"
   mktree "data"
 
+  -- Start spawning threads
+  --   General utility
   spawnThread "writer"                  $ persistState
-  spawnThread "releaseCheckPackageSets" $ checkLatestRelease token packageSetsRepo
+  --   purescript repo
   spawnThread "releaseCheckPureScript"  $ checkLatestRelease token purescriptRepo
+  --   purescript-docs-search repo
   spawnThread "releaseCheckDocsSearch"  $ checkLatestRelease token docsSearchRepo
+  --   spago repo
   spawnThread "spagoUpdatePackageSets"  $ spagoUpdatePackageSets token
+  --     TODO: update purescript-metadata repo on purs release
+  --     TODO: update CI version for purescript on purs release
+  --   package-sets-metadata repo
   spawnThread "metadataFetcher"         $ metadataFetcher token
   spawnThread "metadataUpdater"         $ metadataUpdater
+  -- package-sets repo
+  spawnThread "releaseCheckPackageSets" $ checkLatestRelease token packageSetsRepo
   spawnThread "packageSetsUpdater"      $ packageSetsUpdater token
   spawnThread "packageSetsCommenter"    $ packageSetCommenter token
-  -- TODO: update purescript-metadata repo on purs release
-  -- TODO: update CI version for purescript on purs release
-  -- TODO: have the bot monitor comments for banned packages
 
   -- To kickstart the whole thing we just need to send a "heartbeat" on the bus once an hour
   -- Threads will be listening to this and act accordingly
@@ -234,10 +242,9 @@ persistState = liftIO $ do
   forever $ atomically (Chan.readTChan pullChan) >>= \case
     RefreshState -> pure ()
     NewVerification _ -> pure () -- TODO: maybe save this?
-    NewRepoRelease address release -> do
-      Concurrent.modifyMVar_ state
-        $ \State{..} -> let newReleases = Map.insert address release latestReleases
-                        in pure State{ latestReleases = newReleases , ..}
+    NewRepoRelease address release -> Concurrent.modifyMVar_ state
+      $ \State{..} -> let newReleases = Map.insert address release latestReleases
+                      in pure State{ latestReleases = newReleases , ..}
     NewMetadata newMetadata -> Concurrent.modifyMVar_ state
       $ \State{..} -> pure State{ metadata = newMetadata, ..}
     NewPackageSet newPackageSet -> Concurrent.modifyMVar_ state
@@ -400,6 +407,11 @@ packageSetCommenter token = do
     _ -> pure ()
 
 
+data BotCommand
+  = Ban PackageName
+  | Unban PackageName
+  deriving (Eq, Ord)
+
 packageSetsUpdater :: GitHub.AuthMethod am => am -> IO ()
 packageSetsUpdater token = do
   pullChan <- atomically $ Chan.dupTChan bus
@@ -410,29 +422,36 @@ packageSetsUpdater token = do
       -- packages in there.
       -- So here we take all these releases, and diff this list with the current
       -- package set from the state - i.e. the one versioned in package-sets master.
-      -- This gives us a list of packages that need to be updated
-      let latestTags :: Map PackageName (Tag, Text)
-            = Map.mapMaybe id
-            $ (\RepoMetadataV1{..} -> case latest of
-                  Nothing -> Nothing
-                  Just v -> Just (v, owner))
-            <$> newMetadata
-      State{..} <- Concurrent.readMVar state
-      let packageSetTags :: Map PackageName (Tag, Text)  = Map.mapMaybe id $ filterLocalPackages <$> packageSet
+      -- This gives us a list of packages that need to be updated.
+      -- In doing this we consider packages that might have been "banned"
+      -- (i.e. that we don't want to update)
       let intersectionMaybe f = Map.merge Map.dropMissing Map.dropMissing (Map.zipWithMaybeMatched f)
-      let pickLatestIfDifferent _k v@(tag1, _) (tag2, _) = if tag1 == tag2 then Nothing else Just v
-      let newTags = intersectionMaybe pickLatestIfDifferent latestTags packageSetTags
-      let beginningOfTime = Time.UTCTime (Time.fromGregorian 1800 1 1) 0
+      let computePackagesToUpdate metadata packageSet banned
+            = intersectionMaybe pickPackage metadata packageSet
+            where
+              pickPackage :: PackageName -> RepoMetadataV1 -> Package -> Maybe (Tag, Text)
+              -- | We throw away packages without a release
+              pickPackage _ RepoMetadataV1{ latest = Nothing, ..} _ = Nothing
+              -- | And the local ones
+              pickPackage _ _ Package{ location = Local _, ..} = Nothing
+              -- | For the remaining ones: we pick the latest from metadata if it's
+              --   different from the one we have in the set. Except if that version
+              --   is banned, in that case we pick it from the package set
+              pickPackage packageName RepoMetadataV1{ latest = Just latest, owner } Package{ location = Remote{ version } }
+                = case (latest == Tag version, Set.member (packageName, latest) banned) of
+                    (True, _) -> Nothing
+                    (_, True) -> Just (Tag version, owner)
+                    (_, _)    -> Just (latest, owner)
 
-      echo $ "Found " <> tshow (length newTags) <> " packages to update"
-
-      echo $ tshow newTags
-      -- If we have more than one package to update, let's see if we already have an
-      -- open PR to package-sets. If we do we can just commit there
-      maybePR <- getPullRequestForUser token "spacchettibotti" packageSetsRepo
+      State{..} <- Concurrent.readMVar state
+      let removeBannedOverrides packageName (Tag tag, _) = case Map.lookup packageName packageSet of
+            Just Package{ location = Remote {version}} | tag == version -> False
+            _ -> True
+      let newVersionsWithBanned = computePackagesToUpdate newMetadata packageSet banned
+      let newVersions = Map.filterWithKey removeBannedOverrides newVersionsWithBanned
 
       let patchVersions path = do
-            for_ (Map.toList newTags) $ \(packageName, (tag, owner)) -> do
+            for_ (Map.toList newVersionsWithBanned) $ \(packageName, (tag, owner)) -> do
               echo $ "Patching version for " <> tshow packageName
               withAST (Text.pack $ path </> "src" </> "groups" </> Text.unpack (Text.toLower owner) <> ".dhall")
                 $ updateVersion packageName tag
@@ -448,65 +467,92 @@ packageSetsUpdater token = do
             , "git add src/groups"
             ]
 
-      case maybePR of
-        Nothing -> do
-          today <- (Text.pack . Time.showGregorian . Time.utctDay) <$> Time.getCurrentTime
-          let prBranchName = "spacchettibotti-updates-" <> today
-              prTitle = "Updates " <> today
-              prAddress = packageSetsRepo
-              prBody = mkBody newTags
-          runAndOpenPR token PullRequest{..} patchVersions commands
-        Just GitHub.PullRequest{ pullRequestHead = GitHub.PullRequestCommit{..}, ..} -> do
-          -- Since a PR is already there we might have to skip verification,
-          -- because we might have verified that commit already
-          -- Since we leave a comment every time we verify, we can check if there
-          -- are any new commits since the last comment
-          -- (this means that any comment will retrigger a verification)
-          let shouldVerifyAgain path = do
-                commentsForPR <- getCommentsOnPR token packageSetsRepo pullRequestNumber
-                lastCommitTime <- getLatestCommitTime path
-                let lastCommentTime = case lastMay commentsForPR of
-                      Nothing -> beginningOfTime
-                      Just GitHub.IssueComment{..} -> issueCommentCreatedAt
-                pure $ and
-                  -- If there are tags to push
-                  [ length newTags > 0
-                  -- And the latest commit to our branch is newer than our latest comment on the PR
-                  , Time.diffUTCTime lastCommitTime lastCommentTime > 0
-                  ]
-          let patchVersions' path = shouldVerifyAgain path >>= \case
-                False -> echo "Skipping verification as there's nothing new under the sun.."
-                True -> do
-                  patchVersions path
-                  updatePullRequestBody token packageSetsRepo pullRequestNumber $ mkBody newTags
+      echo $ "Found " <> tshow (length newVersions) <> " packages to update"
 
-          runAndPushBranch pullRequestCommitRef packageSetsRepo pullRequestTitle patchVersions' commands
+      when (length newVersions > 0) $ do
+        echo $ tshow newVersions
+        -- If we have more than one package to update, let's see if we already have an
+        -- open PR to package-sets. If we do we can just commit there
+        maybePR <- getPullRequestForUser token "spacchettibotti" packageSetsRepo
 
-      {-
+        case maybePR of
+          Nothing -> do
+            today <- (Text.pack . Time.showGregorian . Time.utctDay) <$> Time.getCurrentTime
+            let prBranchName = "spacchettibotti-updates-" <> today
+                prTitle = "Updates " <> today
+                prAddress = packageSetsRepo
+                prBody = mkBody newVersions banned
+            runAndOpenPR token PullRequest{..} patchVersions commands
+          Just GitHub.PullRequest{ pullRequestHead = GitHub.PullRequestCommit{..}, ..} -> do
+            -- A PR is there and there might be updates to the banned packages, so we
+            -- try to update the banlist
+            commentsForPR <- getCommentsOnPR token packageSetsRepo pullRequestNumber
+            let newBanned = computeNewBanned commentsForPR banned packageSet
+            let newVersionsWithBanned' = computePackagesToUpdate newMetadata packageSet newBanned
+            let newVersions' = Map.filterWithKey removeBannedOverrides newVersionsWithBanned'
 
-      TODO implement banned packages handling:
-      - get comments from the pull request
-      - parse commands for the bot (ban/unban)
-      - get the end state, and update the banned list
-      - (maybe persist it? or maybe we should just always fetch the latest PR, where we put
-        a list of banned packages at the beginning of the PR, and calc the current state from that + comments)
-      - take the banned list, and add the versions to `newTags`, but picking them from packageSet instead of metadata
+            -- Since a PR is already there we might have to skip verification,
+            -- because we might have verified that commit already
+            -- Since we leave a comment every time we verify, we can check if there
+            -- are any new commits since the last comment
+            -- (this means that any comment will retrigger a verification)
+            let shouldVerifyAgain path = do
+                  lastCommitTime <- getLatestCommitTime path
+                  let lastCommentTime = case lastMay commentsForPR of
+                        Nothing -> pullRequestCreatedAt
+                        Just GitHub.IssueComment{..} -> issueCommentCreatedAt
+                  pure $ or
+                    -- If the banned packages changed
+                    [ newVersions /= newVersions'
+                    -- Or the latest commit to our branch is newer than our latest comment on the PR
+                    , Time.diffUTCTime lastCommitTime lastCommentTime > 0
+                    ]
+            let patchVersions' path = shouldVerifyAgain path >>= \case
+                  False -> echo "Skipping verification as there's nothing new under the sun.."
+                  True -> do
+                    patchVersions path
+                    updatePullRequestBody token packageSetsRepo pullRequestNumber $ mkBody newVersions' newBanned
 
-      -}
+            runAndPushBranch pullRequestCommitRef packageSetsRepo pullRequestTitle patchVersions' commands
     _ -> pure ()
   where
-    mkBody packages =
+    computeNewBanned comments banned packageSet
+      = Set.fromList $ Map.toList
+      $ foldl applyCommand (Map.fromList $ Set.toList banned)
+      $ mapMaybe parseComment comments
+      where
+        applyCommand :: Map PackageName Tag -> BotCommand -> Map PackageName Tag
+        applyCommand bannedMap (Ban package) | Just Package{ location = Remote{ version }} <- Map.lookup package packageSet
+          = Map.insert package (Tag version) bannedMap
+        applyCommand bannedMap (Unban package) = Map.delete package bannedMap
+        applyCommand bannedMap _ = bannedMap
+
+        parseComment GitHub.IssueComment{..} = Parse.parseMaybe parseCommand issueCommentBody
+
+        parseCommand :: Parse.Parsec Void Text BotCommand
+        parseCommand = do
+          void $ Parse.chunk "@spacchettibotti "
+          command <- (Parse.chunk "ban " >> pure Ban) <|> (Parse.chunk "unban " >> pure Unban)
+          package <- PackageName <$> Parse.takeRest
+          pure $ command package
+
+    mkBody packages banned =
       let renderUpdate (PackageName packageName, (Tag tag, owner))
             = "- [`" <> packageName <> "` upgraded to `" <> tag <> "`](https://github.com/"
               <> owner <> "/purescript-" <> packageName <> "/releases/tag/" <> tag <> ")"
+          renderBanned (PackageName packageName, Tag tag)
+            = "- `" <> packageName <> "`@`" <> tag <> "`"
       in Text.unlines
          $ [ "Updated packages:" ]
          <> fmap renderUpdate (Map.toList packages)
-         <> [ "", "" ]
-
-    filterLocalPackages Package{..} = case location of
-      Local _    -> Nothing
-      Remote{..} -> Just (Tag version, "") -- FIXME: we should parse the url to get the owner here, but well..
+         <> (if Set.null banned
+             then []
+             else [ "", "Banned packages:" ] <> fmap renderBanned (Set.toList banned))
+         <> [ ""
+            , "You can give commands to the bot by adding a comment where you tag it, e.g.:"
+            , "- `@spacchettibotti ban react-basic`"
+            , "- `@spacchettibotti unban simple-json`"
+            ]
 
     updateVersion :: Monad m => PackageName -> Tag -> Expr -> m Expr
     updateVersion (PackageName packageName) (Tag tag) (Dhall.RecordLit kvs)

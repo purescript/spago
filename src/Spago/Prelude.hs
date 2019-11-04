@@ -24,6 +24,7 @@ module Spago.Prelude
   , Alternative
   , Pretty
   , FilePath
+  , Void
   , IOException
   , ExitCode (..)
   , Validation(..)
@@ -116,6 +117,7 @@ import           Data.Text.Prettyprint.Doc             (Pretty)
 import qualified Data.Time                             as Time
 import           Data.Traversable                      (for)
 import           Data.Typeable                         (Proxy (..), Typeable)
+import           Data.Void                             (Void)
 import           Dhall.Optics                          (transformMOf)
 import           GHC.Generics                          (Generic)
 import           Lens.Family                           (set, (^..))

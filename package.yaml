@@ -140,6 +140,7 @@ executables:
     - filepath
     - github
     - lens-family-core
+    - megaparsec
     - process
     - retry
     - spago
