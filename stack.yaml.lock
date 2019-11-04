@@ -96,6 +96,13 @@ packages:
   original:
     hackage: repline-0.2.1.0
 - completed:
+    hackage: rio-0.1.12.0@sha256:a0b42682a455ffde6a4d894b135117e379aea7ed1810c2cfed471b8f5879968c,3633
+    pantry-tree:
+      size: 4745
+      sha256: 340566441c9d1087f661fb51f95a080ffdf2da8fce6b4b8f86f158f4195894f5
+  original:
+    hackage: rio-0.1.12.0
+- completed:
     hackage: serialise-0.2.1.0@sha256:265fb7359c704086b150710426ae60882cdbccaaacc26bb59d77a1189a8276e6,8276
     pantry-tree:
       size: 4056
@@ -214,6 +221,27 @@ packages:
       sha256: dfc2d75f4e59c03e2c68be6909b577f26991367134eaac06a407e940e66856ae
   original:
     hackage: unordered-containers-0.2.10.0@sha256:5e9b095a9283d9e2f064fec73a81a6b6ea0b7fda3f219a8175785d2d2a3de204,5199
+- completed:
+    hackage: base-orphans-0.8.1@sha256:defd0057b5db93257528d89b5b01a0fee9738e878c121c686948ac4aa5dded63,2927
+    pantry-tree:
+      size: 1272
+      sha256: e059f342ae4cd1edcbd90f5f69caab550a00cc64abcfd198ede188391ffe151f
+  original:
+    hackage: base-orphans-0.8.1@sha256:defd0057b5db93257528d89b5b01a0fee9738e878c121c686948ac4aa5dded63
+- completed:
+    hackage: typed-process-0.2.6.0@sha256:c901c13d491441830eb23132ad6968243a56b98161629d260a26c0b13c735fcd,2136
+    pantry-tree:
+      size: 529
+      sha256: 2ef79f15f1f391e49dc522076f6d1584c7b305bf2aaa0dfec4dc0d4b61f31111
+  original:
+    hackage: typed-process-0.2.6.0@sha256:c901c13d491441830eb23132ad6968243a56b98161629d260a26c0b13c735fcd
+- completed:
+    hackage: unliftio-0.2.12@sha256:b089fbc2ff2628a963c2c4b12143f2020874e3e5144ffd6c62b25639a0ca1483,3325
+    pantry-tree:
+      size: 2229
+      sha256: 4971b43f3d473eff868eb1a0c359729b49f1779e78c462ba45ef0d1eda677699
+  original:
+    hackage: unliftio-0.2.12@sha256:b089fbc2ff2628a963c2c4b12143f2020874e3e5144ffd6c62b25639a0ca1483
 snapshots:
 - completed:
     size: 508406
