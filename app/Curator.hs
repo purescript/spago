@@ -6,12 +6,14 @@
 
 The purpose of this executable is to assist in the automation of certain infrastructure
 tasks that make life easier in Spago-land (both for maintainers and users).
-You can think of it as a glorified Perl script.
+Basically pulling data from places and pushing it somewhere else, and kind of keeping
+things in sync so that humans don't have to do it.
 
 It requires a GitHub token in the `SPACCHETTIBOTTI_TOKEN` and a configured ssh key,
 authenticated to all the repos it pushes to.
-
 All its operations are run as the `spacchettibotti` user.
+
+To see all the things that this program does, check out the "Threads" section
 
 -}
 
@@ -31,7 +33,7 @@ import qualified Data.Text                     as Text
 import qualified Data.Text.Encoding            as Encoding
 import qualified Data.Time                     as Time
 import qualified Data.Vector                   as Vector
-import qualified Data.Set as Set
+import qualified Data.Set                      as Set
 import qualified Dhall.Core
 import qualified Dhall.Map
 import qualified GHC.IO
@@ -42,7 +44,7 @@ import qualified Spago.Dhall                   as Dhall
 import qualified System.Environment            as Env
 import qualified System.IO.Temp                as Temp
 import qualified System.Process                as Process
-import qualified Text.Megaparsec as Parse
+import qualified Text.Megaparsec               as Parse
 
 import           Data.Aeson.Encode.Pretty      (encodePretty)
 import           Spago.GlobalCache             (CommitHash (..), RepoMetadataV1 (..),
@@ -86,10 +88,13 @@ emptyState = State{..}
     banned = mempty
 
 
+-- | Concurrent-safe global state, so we can read data in here instead of
+--   having to pass it around.
 state :: Concurrent.MVar State
 state = GHC.IO.unsafePerformIO $ Concurrent.newMVar emptyState
 
 
+-- | Main message bus. It is write-only so you should use `spawnThread` to read from it
 bus :: Chan.TChan Message
 bus = GHC.IO.unsafePerformIO Chan.newBroadcastTChanIO
 
@@ -100,6 +105,7 @@ purescriptRepo  = Address "purescript" "purescript"
 docsSearchRepo  = Address "spacchetti" "purescript-docs-search"
 metadataRepo    = Address "spacchetti" "package-sets-metadata"
 spagoRepo       = Address "spacchetti" "spago"
+
 
 main :: IO ()
 main = do
@@ -148,9 +154,15 @@ main = do
 
     sleep = Concurrent.threadDelay
 
+    spawnThread :: Text -> (Message -> IO ()) -> IO ()
     spawnThread name thread = do
+      let threadLoop = do
+            pullChan <- atomically $ Chan.dupTChan bus
+            forever $ atomically (Chan.readTChan pullChan) >>= thread
       echo $ "Spawning thread " <> tshow name
-      Concurrent.forkIO $ catch thread $ \(err :: SomeException) -> do
+      void $ Concurrent.forkIO $ catch threadLoop $ \(err :: SomeException) -> do
+        -- TODO: use logError from RIO instead of this crap
+        {-
         now <- Time.getCurrentTime
         BSL.appendFile "curator-errors.log"
           $ "Current time: " <> repr now <> "\n"
@@ -158,6 +170,9 @@ main = do
           <> "Exception was:\n\n"
           <> (BSL.fromStrict . Encoding.encodeUtf8 . tshow) err
           <> "\n\n\n"
+        -}
+        echo $ "Thread " <> tshow name <> " broke, restarting.."
+        spawnThread name thread
 
 
 
@@ -236,75 +251,66 @@ updatePullRequestBody token Address{..} pullRequestNumber newBody = do
 -- | Everything that goes on the bus is persisted in the State,
 --   so threads can access some decently-up-to-date info
 --   (with no guarantee of atomicity though, this is only for convenience)
-persistState :: IO a
-persistState = liftIO $ do
-  pullChan <- atomically $ Chan.dupTChan bus
-  forever $ atomically (Chan.readTChan pullChan) >>= \case
-    RefreshState -> pure ()
-    NewVerification _ -> pure () -- TODO: maybe save this?
-    NewRepoRelease address release -> Concurrent.modifyMVar_ state
-      $ \State{..} -> let newReleases = Map.insert address release latestReleases
-                      in pure State{ latestReleases = newReleases , ..}
-    NewMetadata newMetadata -> Concurrent.modifyMVar_ state
-      $ \State{..} -> pure State{ metadata = newMetadata, ..}
-    NewPackageSet newPackageSet -> Concurrent.modifyMVar_ state
-      $ \State{..} -> pure State{ packageSet = newPackageSet, ..}
+persistState :: Message -> IO ()
+persistState = \case
+  RefreshState -> pure ()
+  NewVerification _ -> pure () -- TODO: maybe save this?
+  NewRepoRelease address release -> Concurrent.modifyMVar_ state
+    $ \State{..} -> let newReleases = Map.insert address release latestReleases
+                    in pure State{ latestReleases = newReleases , ..}
+  NewMetadata newMetadata -> Concurrent.modifyMVar_ state
+    $ \State{..} -> pure State{ metadata = newMetadata, ..}
+  NewPackageSet newPackageSet -> Concurrent.modifyMVar_ state
+    $ \State{..} -> pure State{ packageSet = newPackageSet, ..}
 
 
--- | Calls GitHub to check for new releases of a repository
+-- | Call GitHub to check for new releases of a repository
 --   When there's a new one and we don't have it in our state we send a message on the bus
-checkLatestRelease :: GitHub.Auth -> GitHubAddress -> IO ()
-checkLatestRelease token address = do
-  pullChan <- atomically $ Chan.dupTChan bus
-  forever $ atomically (Chan.readTChan pullChan) >>= \case
-    RefreshState -> getLatestRelease token address >>= \case
-      Left _ -> pure () -- TODO: error out here?
-      Right GitHub.Release {..} -> do
-        State{..} <- Concurrent.readMVar state
-        case Map.lookup address latestReleases of
-          -- We don't do anything if we have a release saved and it's the current one
-          Just currentRelease | currentRelease == releaseTagName -> pure ()
-          _ -> do
-            echo $ "Found a new release for " <> tshow address <> ": " <> releaseTagName
-            atomically $ Chan.writeTChan bus $ NewRepoRelease address releaseTagName
-    _ -> pure ()
+checkLatestRelease :: GitHub.Auth -> GitHubAddress -> Message -> IO ()
+checkLatestRelease token address RefreshState = getLatestRelease token address >>= \case
+  Left _ -> pure () -- TODO: error out here?
+  Right GitHub.Release {..} -> do
+    State{..} <- Concurrent.readMVar state
+    case Map.lookup address latestReleases of
+      -- We don't do anything if we have a release saved and it's the current one
+      Just currentRelease | currentRelease == releaseTagName -> pure ()
+      _ -> do
+        echo $ "Found a new release for " <> tshow address <> ": " <> releaseTagName
+        atomically $ Chan.writeTChan bus $ NewRepoRelease address releaseTagName
+checkLatestRelease _ _ _ = pure ()
 
 
 -- | Whenever there's a new release of package-sets, update it in Spago's template
-spagoUpdatePackageSets :: GitHub.AuthMethod am => am -> IO b
-spagoUpdatePackageSets token = do
-  pullChan <- atomically $ Chan.dupTChan bus
-  forever $ atomically (Chan.readTChan pullChan) >>= \case
-    NewRepoRelease address newTag | address == packageSetsRepo -> do
-      let prTitle = "Update to package-sets@" <> newTag
-      let prBranchName = "spacchettibotti-" <> newTag
-      runAndOpenPR token PullRequest{ prBody = "", prAddress = spagoRepo, ..} (const $ pure ())
-        [ "cd templates"
-        , "spago upgrade-set"
-        , "git add packages.dhall"
-        ]
-    _ -> pure ()
+spagoUpdatePackageSets :: GitHub.AuthMethod am => am -> Message -> IO ()
+spagoUpdatePackageSets token (NewRepoRelease address newTag) | address == packageSetsRepo = do
+  let prTitle = "Update to package-sets@" <> newTag
+  let prBranchName = "spacchettibotti-" <> newTag
+  runAndOpenPR token PullRequest{ prBody = "", prAddress = spagoRepo, ..} (const $ pure ())
+    [ "cd templates"
+    , "spago upgrade-set"
+    , "git add packages.dhall"
+    ]
+spagoUpdatePackageSets _ _ = pure ()
 
 
-metadataFetcher :: GitHub.AuthMethod am => am -> IO b
-metadataFetcher token = do
-  pullChan <- atomically $ Chan.dupTChan bus
-  forever $ atomically (Chan.readTChan pullChan) >>= \case
-    RefreshState -> do
-      echo "Downloading and parsing package set.."
-      packageSet <- fetchPackageSet
-      atomically $ Chan.writeTChan bus $ NewPackageSet packageSet
-      let packages = Map.toList packageSet
-      echoStr $ "Fetching metadata for " <> show (length packages) <> " packages"
+-- | Take the latest package set from package-sets master, get a list of all the
+--   packages in there, and thenn query their commits and tags. Once done, send
+--   the package on the bus.
+metadataFetcher :: GitHub.AuthMethod am => am -> Message -> IO ()
+metadataFetcher token RefreshState = do
+  echo "Downloading and parsing package set.."
+  packageSet <- fetchPackageSet
+  atomically $ Chan.writeTChan bus $ NewPackageSet packageSet
+  let packages = Map.toList packageSet
+  echoStr $ "Fetching metadata for " <> show (length packages) <> " packages"
 
-      -- Call GitHub for all these packages and get metadata for them
-      metadata <- Async.withTaskGroup 10 $ \taskGroup -> do
-        asyncs <- for packages (Async.async taskGroup . fetchRepoMetadata)
-        for asyncs Async.wait
+  -- Call GitHub for all these packages and get metadata for them
+  metadata <- Async.withTaskGroup 10 $ \taskGroup -> do
+    asyncs <- for packages (Async.async taskGroup . fetchRepoMetadata)
+    for asyncs Async.wait
 
-      echo "Fetched all metadata."
-      atomically $ Chan.writeTChan bus $ NewMetadata $ foldMap (uncurry Map.singleton) metadata
-    _ -> pure ()
+  echo "Fetched all metadata."
+  atomically $ Chan.writeTChan bus $ NewMetadata $ foldMap (uncurry Map.singleton) metadata
 
   where
     fetchRepoMetadata :: MonadIO m => MonadThrow m => (PackageName, Package) -> m (PackageName, RepoMetadataV1)
@@ -340,71 +346,67 @@ metadataFetcher token = do
         Dhall.RecordLit pkgs -> fmap (Map.mapKeys PackageName . Dhall.Map.toMap)
           $ traverse Spago.Config.parsePackage pkgs
         something -> throwM $ Dhall.PackagesIsNotRecord something
-
+metadataFetcher _ _ = pure ()
 
 
 -- | Whenever there's a new metadata set, push it to the repo
-metadataUpdater :: IO b
-metadataUpdater = do
-  pullChan <- atomically $ Chan.dupTChan bus
-  forever $ atomically (Chan.readTChan pullChan) >>= \case
-    NewMetadata metadata -> do
-      -- Write the metadata to file
-      let writeMetadata :: GHC.IO.FilePath -> IO ()
-          writeMetadata tempfolder = do
-            path <- makeAbsolute (tempfolder </> "metadataV1new.json")
-            echo $ "Writing metadata to file: " <> tshow path
-            BSL.writeFile path $ encodePretty metadata
-            echo "Done."
+metadataUpdater :: Message -> IO ()
+metadataUpdater (NewMetadata metadata) = do
+  -- Write the metadata to file
+  let writeMetadata :: GHC.IO.FilePath -> IO ()
+      writeMetadata tempfolder = do
+        path <- makeAbsolute (tempfolder </> "metadataV1new.json")
+        echo $ "Writing metadata to file: " <> tshow path
+        BSL.writeFile path $ encodePretty metadata
+        echo "Done."
 
-      let commitMessage = "Update GitHub index file"
-      runAndPushMaster metadataRepo commitMessage
-        writeMetadata
-        [ "mv -f metadataV1new.json metadataV1.json"
-        , "git add metadataV1.json"
-        ]
-    _ -> pure ()
+  let commitMessage = "Update GitHub index file"
+  runAndPushMaster metadataRepo commitMessage
+    writeMetadata
+    [ "mv -f metadataV1new.json metadataV1.json"
+    , "git add metadataV1.json"
+    ]
+metadataUpdater _ = pure ()
 
 
-packageSetCommenter :: GitHub.AuthMethod am => am -> IO b
-packageSetCommenter token = do
-  pullChan <- atomically $ Chan.dupTChan bus
-  forever $ atomically (Chan.readTChan pullChan) >>= \case
-    NewVerification result -> do
-      maybePR <- getPullRequestForUser token "spacchettibotti" packageSetsRepo
+-- | Watch out for the result of a `spago verify-set` command, and comment appropriately
+--   on the PR thread (if any)
+packageSetCommenter :: GitHub.AuthMethod am => am -> Message -> IO ()
+packageSetCommenter token (NewVerification result) = do
+  maybePR <- getPullRequestForUser token "spacchettibotti" packageSetsRepo
 
-      case maybePR of
-        Nothing -> do
-          echo "Could not find an open PR, waiting 5 mins.."
-          Concurrent.threadDelay (5 * 60 * 1000000)
-          atomically $ Chan.writeTChan bus $ NewVerification result
-        Just GitHub.PullRequest{..} -> do
-          let commentBody = case result of
-                (ExitSuccess, _, _) -> "Result of `spago verify-set` in a clean project: **success** 🎉"
-                (_, out, err) -> Text.unlines
-                  [ "Result of `spago verify-set` in a clean project: **failure** 😱"
-                  , ""
-                  , "<details><summary>Output of `spago verify-set`</summary><p>"
-                  , ""
-                  , "```"
-                  , out
-                  , "```"
-                  , ""
-                  , "</p></details>"
-                  , ""
-                  , "<details><summary>Error output</summary><p>"
-                  , ""
-                  , "```"
-                  , err
-                  , "```"
-                  , ""
-                  , "</p></details>"
-                  ]
-          let (Address owner repo) = packageSetsRepo
-          (GitHub.executeRequest token $ GitHub.createCommentR owner repo pullRequestNumber commentBody) >>= \case
-            Left err -> echo $ "Something went wrong while commenting. Error: " <> tshow err
-            Right _ -> echo "Commented on the open PR"
-    _ -> pure ()
+  case maybePR of
+    Nothing -> do
+      echo "Could not find an open PR, waiting 5 mins.."
+      Concurrent.threadDelay (5 * 60 * 1000000)
+      atomically $ Chan.writeTChan bus $ NewVerification result
+    Just GitHub.PullRequest{..} -> do
+      let commentBody = case result of
+            (ExitSuccess, _, _) -> "Result of `spago verify-set` in a clean project: **success** 🎉"
+            (_, out, err) -> Text.unlines
+              [ "Result of `spago verify-set` in a clean project: **failure** 😱"
+              , ""
+              , "<details><summary>Output of `spago verify-set`</summary><p>"
+              , ""
+              , "```"
+              , out
+              , "```"
+              , ""
+              , "</p></details>"
+              , ""
+              , "<details><summary>Error output</summary><p>"
+              , ""
+              , "```"
+              , err
+              , "```"
+              , ""
+              , "</p></details>"
+              ]
+      let (Address owner repo) = packageSetsRepo
+      (GitHub.executeRequest token $ GitHub.createCommentR owner repo pullRequestNumber commentBody) >>= \case
+        Left err -> echo $ "Something went wrong while commenting. Error: " <> tshow err
+        Right _ -> echo "Commented on the open PR"
+packageSetCommenter _ _ = pure ()
 
 
 data BotCommand
@@ -412,109 +414,112 @@ data BotCommand
   | Unban PackageName
   deriving (Eq, Ord)
 
-packageSetsUpdater :: GitHub.AuthMethod am => am -> IO ()
-packageSetsUpdater token = do
-  pullChan <- atomically $ Chan.dupTChan bus
-  forever $ atomically (Chan.readTChan pullChan) >>= \case
-    NewMetadata newMetadata -> do
-      -- This metadata is the most up-to-date snapshot of all the repos in package-sets
-      -- master branch. Among other things it contains the latest releases of all the
-      -- packages in there.
-      -- So here we take all these releases, and diff this list with the current
-      -- package set from the state - i.e. the one versioned in package-sets master.
-      -- This gives us a list of packages that need to be updated.
-      -- In doing this we consider packages that might have been "banned"
-      -- (i.e. that we don't want to update)
-      let intersectionMaybe f = Map.merge Map.dropMissing Map.dropMissing (Map.zipWithMaybeMatched f)
-      let computePackagesToUpdate metadata packageSet banned
-            = intersectionMaybe pickPackage metadata packageSet
-            where
-              pickPackage :: PackageName -> RepoMetadataV1 -> Package -> Maybe (Tag, Text)
-              -- | We throw away packages without a release
-              pickPackage _ RepoMetadataV1{ latest = Nothing, ..} _ = Nothing
-              -- | And the local ones
-              pickPackage _ _ Package{ location = Local _, ..} = Nothing
-              -- | For the remaining ones: we pick the latest from metadata if it's
-              --   different from the one we have in the set. Except if that version
-              --   is banned, in that case we pick it from the package set
-              pickPackage packageName RepoMetadataV1{ latest = Just latest, owner } Package{ location = Remote{ version } }
-                = case (latest == Tag version, Set.member (packageName, latest) banned) of
-                    (True, _) -> Nothing
-                    (_, True) -> Just (Tag version, owner)
-                    (_, _)    -> Just (latest, owner)
 
-      State{..} <- Concurrent.readMVar state
-      let removeBannedOverrides packageName (Tag tag, _) = case Map.lookup packageName packageSet of
-            Just Package{ location = Remote {version}} | tag == version -> False
-            _ -> True
-      let newVersionsWithBanned = computePackagesToUpdate newMetadata packageSet banned
-      let newVersions = Map.filterWithKey removeBannedOverrides newVersionsWithBanned
+-- | This fairly sophisticated thing will try to upgrade packages in the set
+--   as soon as there's a new release available for them.
+--   It will do so by getting the releases, patching the Dhall files in there,
+--   then opening a PR with the result of `spago verify-set`.
+--   Once in there, it will parse the comments on the PR to find out which
+--   packages we want to temporarily ban from the verification/upgrade process
+packageSetsUpdater :: GitHub.AuthMethod am => am -> Message -> IO ()
+packageSetsUpdater token (NewMetadata newMetadata) = do
+  -- This metadata is the most up-to-date snapshot of all the repos in package-sets
+  -- master branch. Among other things it contains the latest releases of all the
+  -- packages in there.
+  -- So here we take all these releases, and diff this list with the current
+  -- package set from the state - i.e. the one versioned in package-sets master.
+  -- This gives us a list of packages that need to be updated.
+  -- In doing this we consider packages that might have been "banned"
+  -- (i.e. that we don't want to update)
+  let intersectionMaybe f = Map.merge Map.dropMissing Map.dropMissing (Map.zipWithMaybeMatched f)
+  let computePackagesToUpdate metadata packageSet banned
+        = intersectionMaybe pickPackage metadata packageSet
+        where
+          pickPackage :: PackageName -> RepoMetadataV1 -> Package -> Maybe (Tag, Text)
+          -- | We throw away packages without a release
+          pickPackage _ RepoMetadataV1{ latest = Nothing, ..} _ = Nothing
+          -- | And the local ones
+          pickPackage _ _ Package{ location = Local _, ..} = Nothing
+          -- | For the remaining ones: we pick the latest from metadata if it's
+          --   different from the one we have in the set. Except if that version
+          --   is banned, in that case we pick it from the package set
+          pickPackage packageName RepoMetadataV1{ latest = Just latest, owner } Package{ location = Remote{ version } }
+            = case (latest == Tag version, Set.member (packageName, latest) banned) of
+                (True, _) -> Nothing
+                (_, True) -> Just (Tag version, owner)
+                (_, _)    -> Just (latest, owner)
 
-      let patchVersions path = do
-            for_ (Map.toList newVersionsWithBanned) $ \(packageName, (tag, owner)) -> do
-              echo $ "Patching version for " <> tshow packageName
-              withAST (Text.pack $ path </> "src" </> "groups" </> Text.unpack (Text.toLower owner) <> ".dhall")
-                $ updateVersion packageName tag
+  State{..} <- Concurrent.readMVar state
+  let removeBannedOverrides packageName (Tag tag, _) = case Map.lookup packageName packageSet of
+        Just Package{ location = Remote {version}} | tag == version -> False
+        _ -> True
+  let newVersionsWithBanned = computePackagesToUpdate newMetadata packageSet banned
+  let newVersions = Map.filterWithKey removeBannedOverrides newVersionsWithBanned
 
-            echo "Verifying new set. This might take a LONG while.."
-            result <- runWithCwd path "cd src; spago init; spago verify-set"
-            echo "Verified packages, spamming the channel with the result.."
-            atomically $ Chan.writeTChan bus $ NewVerification result
+  let patchVersions path = do
+        for_ (Map.toList newVersionsWithBanned) $ \(packageName, (tag, owner)) -> do
+          echo $ "Patching version for " <> tshow packageName
+          withAST (Text.pack $ path </> "src" </> "groups" </> Text.unpack (Text.toLower owner) <> ".dhall")
+            $ updateVersion packageName tag
 
-      let commands =
-            [ "make"
-            , "git add packages.json"
-            , "git add src/groups"
-            ]
+        echo "Verifying new set. This might take a LONG while.."
+        result <- runWithCwd path "cd src; spago init; spago verify-set"
+        echo "Verified packages, spamming the channel with the result.."
+        atomically $ Chan.writeTChan bus $ NewVerification result
 
-      echo $ "Found " <> tshow (length newVersions) <> " packages to update"
+  let commands =
+        [ "make"
+        , "git add packages.json"
+        , "git add src/groups"
+        ]
 
-      when (length newVersions > 0) $ do
-        echo $ tshow newVersions
-        -- If we have more than one package to update, let's see if we already have an
-        -- open PR to package-sets. If we do we can just commit there
-        maybePR <- getPullRequestForUser token "spacchettibotti" packageSetsRepo
+  echo $ "Found " <> tshow (length newVersions) <> " packages to update"
 
-        case maybePR of
-          Nothing -> do
-            today <- (Text.pack . Time.showGregorian . Time.utctDay) <$> Time.getCurrentTime
-            let prBranchName = "spacchettibotti-updates-" <> today
-                prTitle = "Updates " <> today
-                prAddress = packageSetsRepo
-                prBody = mkBody newVersions banned
-            runAndOpenPR token PullRequest{..} patchVersions commands
-          Just GitHub.PullRequest{ pullRequestHead = GitHub.PullRequestCommit{..}, ..} -> do
-            -- A PR is there and there might be updates to the banned packages, so we
-            -- try to update the banlist
-            commentsForPR <- getCommentsOnPR token packageSetsRepo pullRequestNumber
-            let newBanned = computeNewBanned commentsForPR banned packageSet
-            let newVersionsWithBanned' = computePackagesToUpdate newMetadata packageSet newBanned
-            let newVersions' = Map.filterWithKey removeBannedOverrides newVersionsWithBanned'
+  when (length newVersions > 0) $ do
+    echo $ tshow newVersions
+    -- If we have more than one package to update, let's see if we already have an
+    -- open PR to package-sets. If we do we can just commit there
+    maybePR <- getPullRequestForUser token "spacchettibotti" packageSetsRepo
 
-            -- Since a PR is already there we might have to skip verification,
-            -- because we might have verified that commit already
-            -- Since we leave a comment every time we verify, we can check if there
-            -- are any new commits since the last comment
-            -- (this means that any comment will retrigger a verification)
-            let shouldVerifyAgain path = do
-                  lastCommitTime <- getLatestCommitTime path
-                  let lastCommentTime = case lastMay commentsForPR of
-                        Nothing -> pullRequestCreatedAt
-                        Just GitHub.IssueComment{..} -> issueCommentCreatedAt
-                  pure $ or
-                    -- If the banned packages changed
-                    [ newVersions /= newVersions'
-                    -- Or the latest commit to our branch is newer than our latest comment on the PR
-                    , Time.diffUTCTime lastCommitTime lastCommentTime > 0
-                    ]
-            let patchVersions' path = shouldVerifyAgain path >>= \case
-                  False -> echo "Skipping verification as there's nothing new under the sun.."
-                  True -> do
-                    patchVersions path
-                    updatePullRequestBody token packageSetsRepo pullRequestNumber $ mkBody newVersions' newBanned
+    case maybePR of
+      Nothing -> do
+        today <- (Text.pack . Time.showGregorian . Time.utctDay) <$> Time.getCurrentTime
+        let prBranchName = "spacchettibotti-updates-" <> today
+            prTitle = "Updates " <> today
+            prAddress = packageSetsRepo
+            prBody = mkBody newVersions banned
+        runAndOpenPR token PullRequest{..} patchVersions commands
+      Just GitHub.PullRequest{ pullRequestHead = GitHub.PullRequestCommit{..}, ..} -> do
+        -- A PR is there and there might be updates to the banned packages, so we
+        -- try to update the banlist
+        commentsForPR <- getCommentsOnPR token packageSetsRepo pullRequestNumber
+        let newBanned = computeNewBanned commentsForPR banned packageSet
+        let newVersionsWithBanned' = computePackagesToUpdate newMetadata packageSet newBanned
+        let newVersions' = Map.filterWithKey removeBannedOverrides newVersionsWithBanned'
 
-            runAndPushBranch pullRequestCommitRef packageSetsRepo pullRequestTitle patchVersions' commands
-    _ -> pure ()
+        -- Since a PR is already there we might have to skip verification,
+        -- because we might have verified that commit already
+        -- Since we leave a comment every time we verify, we can check if there
+        -- are any new commits since the last comment
+        -- (this means that any comment will retrigger a verification)
+        let shouldVerifyAgain path = do
+              lastCommitTime <- getLatestCommitTime path
+              let lastCommentTime = case lastMay commentsForPR of
+                    Nothing -> pullRequestCreatedAt
+                    Just GitHub.IssueComment{..} -> issueCommentCreatedAt
+              pure $ or
+                -- If the banned packages changed
+                [ newVersions /= newVersions'
+                -- Or the latest commit to our branch is newer than our latest comment on the PR
+                , Time.diffUTCTime lastCommitTime lastCommentTime > 0
+                ]
+        let patchVersions' path = shouldVerifyAgain path >>= \case
+              False -> echo "Skipping verification as there's nothing new under the sun.."
+              True -> do
+                patchVersions path
+                updatePullRequestBody token packageSetsRepo pullRequestNumber $ mkBody newVersions' newBanned
+
+        runAndPushBranch pullRequestCommitRef packageSetsRepo pullRequestTitle patchVersions' commands
   where
     computeNewBanned comments banned packageSet
       = Set.fromList $ Map.toList
@@ -563,7 +568,7 @@ packageSetsUpdater token = do
             newPackage = Dhall.RecordLit $ Dhall.Map.insert "version" newPackageVersion pkgKVs
           in pure $ Dhall.RecordLit $ Dhall.Map.insert packageName newPackage kvs
     updateVersion _ _ other = pure other
-
+packageSetsUpdater _ _ = pure ()
 
 
 -- * Machinery
