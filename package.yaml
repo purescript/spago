@@ -75,6 +75,7 @@ library:
   - prettyprinter
   - process
   - retry
+  - rio
   - safe
   - semver-range
   - stm
@@ -140,6 +141,7 @@ executables:
     - filepath
     - github
     - lens-family-core
+    - megaparsec
     - process
     - retry
     - spago
