@@ -75,6 +75,7 @@ library:
   - prettyprinter
   - process
   - retry
+  - rio
   - safe
   - semver-range
   - stm
