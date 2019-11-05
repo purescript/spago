@@ -27,6 +27,7 @@ import qualified System.Process     as Process
 import           Test.Hspec         (HasCallStack, shouldBe, shouldSatisfy)
 import           Turtle             (ExitCode (..), FilePath, Text, cd, empty, encodeString, inproc,
                                      limit, procStrictWithErr, pwd, readTextFile, strict)
+import Data.Char (isControl)
 
 withCwd :: FilePath -> IO () -> IO ()
 withCwd dir cmd = do
@@ -65,7 +66,7 @@ shouldBeSuccessOutputWithErr expected expectedErr (code, stdout, stderr) = do
   expectedStderr <- readFixture expectedErr
   code `shouldBe` ExitSuccess
   stdout `shouldBe` expectedStdout
-  stderr `shouldBe` expectedStderr
+  (stripAnsi stderr) `shouldBe` expectedStderr
 
 shouldBeSuccessInfix :: HasCallStack => Text -> (ExitCode, Text, Text) -> IO ()
 shouldBeSuccessInfix expected (code, stdout, _stderr) = do
@@ -116,3 +117,7 @@ getHighestTag = do
   pure $ case Text.strip tag of
     ""   -> Nothing
     tag' -> Just tag'
+
+stripAnsi :: Text -> Text
+stripAnsi = Text.unlines . fmap prep . Text.lines
+  where prep = Text.strip . Text.filter (not . isControl)
