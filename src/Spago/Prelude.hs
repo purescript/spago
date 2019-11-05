@@ -24,6 +24,7 @@ module Spago.Prelude
   , Alternative
   , Pretty
   , FilePath
+  , Void
   , IOException
   , ExitCode (..)
   , Validation(..)
@@ -39,6 +40,8 @@ module Spago.Prelude
   , mv
   , cptree
   , bimap
+  , first
+  , second
   , chmod
   , executable
   , readTextFile
@@ -51,6 +54,7 @@ module Spago.Prelude
   , isAbsolute
   , pathSeparator
   , headMay
+  , lastMay
   , shouldRefreshFile
   , for
   , handleAny
@@ -77,6 +81,7 @@ module Spago.Prelude
   , docsSearchVersion
   , githubTokenEnvVar
   , whenM
+  , unlessM
   , pretty
   ) where
 
@@ -97,7 +102,7 @@ import           Control.Monad                         as X
 import           Control.Monad.Catch                   as X hiding (try)
 import           Control.Monad.Reader                  as X
 import           Data.Aeson                            as X hiding (Result (..))
-import           Data.Bifunctor                        (bimap)
+import           Data.Bifunctor                        (bimap, first, second)
 import           Data.Bool                             as X
 import           Data.Either                           as X
 import           Data.Either.Validation                (Validation (..))
@@ -112,11 +117,12 @@ import           Data.Text.Prettyprint.Doc             (Pretty)
 import qualified Data.Time                             as Time
 import           Data.Traversable                      (for)
 import           Data.Typeable                         (Proxy (..), Typeable)
+import           Data.Void                             (Void)
 import           Dhall.Optics                          (transformMOf)
 import           GHC.Generics                          (Generic)
 import           Lens.Family                           (set, (^..))
 import           Prelude                               as X hiding (FilePath)
-import           Safe                                  (headMay)
+import           Safe                                  (headMay, lastMay)
 import           System.FilePath                       (isAbsolute, pathSeparator, (</>))
 import           System.IO                             (hPutStrLn)
 import           Turtle                                (ExitCode (..), FilePath, appendonly, chmod,
@@ -220,6 +226,9 @@ whenM :: Monad m => m Bool -> m () -> m ()
 whenM b t = b >>= \case
   True  -> t
   False -> pure ()
+
+unlessM :: Monad m => m Bool -> m () -> m ()
+unlessM b t = whenM (not <$> b) t
 
 
 withTaskGroup' :: Spago m => Int -> (Async.TaskGroup -> m b) -> m b

@@ -23,6 +23,7 @@ New features:
 - `spago install purescript-XYZ` will now strip `purescript-` prefix and install XYZ (if it exists in package set) instead of just failing with a warning (#367)
 - `spago run` now recognizes backend specified in the configuration file and calls the backend with `--run` argument.
 - documentation now includes a step-by-step guide on setting up a Spago/Parcel project (#456)
+- documentation now includes a step-by-step guide on setting up a Spago/Node and Spago/Webpack project (#456-extra)
 
 Bugfixes:
 - Warn (but don't error) when trying to watch missing directories (#406)
