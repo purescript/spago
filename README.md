@@ -151,7 +151,6 @@ $ node .
     - [Spago is failing with some errors about "too many open files"](#spago-is-failing-with-some-errors-about-too-many-open-files)
     - [Package set caching problems](#package-set-caching-problems)
     - [I added a new package to the `packages.dhall`, but `spago` is not installing it. Why?](#i-added-a-new-package-to-the-packagesdhall-but-spago-is-not-installing-it-why)
-- [Internals](#internals)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
@@ -1282,9 +1281,6 @@ Adding a package to the package-set just includes it in the set of possible pack
 can depend on. However, if you wish `spago` to install it you should then add it to
 the `dependencies` list in your `spago.dhall`.
 
-## Internals
-
-See [this document](./INTERNALS.md)
 
 [pulp]: https://github.com/purescript-contrib/pulp
 [purp]: https://github.com/justinwoo/purp
