@@ -4,7 +4,7 @@ module Spago.Bower
   , runBowerInstall
   ) where
 
-import Spago.Prelude
+import Spago.Prelude hiding (encodeUtf8)
 
 import qualified Data.Aeson                 as Aeson
 import qualified Data.Aeson.Encode.Pretty   as Pretty
@@ -105,14 +105,14 @@ mkBowerVersion :: Spago m => Bower.PackageName -> Text -> Repo -> m Bower.Versio
 mkBowerVersion packageName version (Repo repo) = do
 
   let args = ["info", "--json", Bower.runPackageName packageName <> "#" <> version]
-  (code, stdout, stderr) <- runBower args
+  (code, out, err) <- runBower args
 
   when (code /= ExitSuccess) $ do
-    die $ "Failed to run: `bower " <> Text.intercalate " " args <> "`\n" <> stderr
+    die $ "Failed to run: `bower " <> Text.intercalate " " args <> "`\n" <> err
 
-  info <- case Aeson.decode $ encodeUtf8 $ fromStrict stdout of
+  info <- case Aeson.decode $ encodeUtf8 $ fromStrict out of
     Just (Object obj) -> pure obj
-    _ -> die $ "Unable to decode output from `bower " <> Text.intercalate " " args <> "`: " <> stdout
+    _ -> die $ "Unable to decode output from `bower " <> Text.intercalate " " args <> "`: " <> out
 
   if HashMap.member "version" info
     then pure $ Bower.VersionRange $ "^" <> version

@@ -4,6 +4,7 @@ module Spago.GitHub where
 import           Spago.Prelude
 
 import qualified Control.Retry       as Retry
+import qualified Data.List           as List
 import qualified Data.Text           as Text
 import qualified Data.Text.Encoding
 import qualified GitHub
@@ -99,7 +100,7 @@ getLatestPackageSetsTag = do
         $ Http.addRequestHeader "User-Agent" "Mozilla/5.0"
         $ request { Http.redirectCount = 0 }
       case Http.getResponseHeader "Location" response of
-        [redirectUrl] -> return $ last $ Text.splitOn "/" $ Data.Text.Encoding.decodeUtf8 redirectUrl
+        [redirectUrl] -> return $ List.last $ Text.splitOn "/" $ Data.Text.Encoding.decodeUtf8 redirectUrl
         _ -> do
           echoStr $ "Error following GitHub redirect, response:\n\n" <> show response
           empty

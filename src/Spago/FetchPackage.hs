@@ -82,9 +82,9 @@ fetchPackages globalCacheFlag allDeps minPursVersion = do
     -- (with `waitCatch` so that we ignore any exception we are thrown and the `for_`
     -- completes) for the asyncs to finish their cleanup.
     handler asyncs (e :: SomeException) = do
-      for_ asyncs $ \async -> do
-        Async.cancel async
-        Async.waitCatch async
+      for_ asyncs $ \asyncTask -> do
+        Async.cancel asyncTask
+        Async.waitCatch asyncTask
       die $ "Installation failed.\n\nError:\n\n" <> tshow e
 
 
@@ -145,7 +145,7 @@ fetchPackage metadata pair@(packageName'@PackageName{..}, Package{ location = Re
 
               systemStrictWithErr processWithNewCwd empty >>= \case
                 (ExitSuccess, _, _) -> mv downloadDir packageLocalCacheDir
-                (_, _stdout, stderr) -> die $ Messages.failedToInstallDep quotedName stderr
+                (_, _out, err) -> die $ Messages.failedToInstallDep quotedName err
 
         -- Make sure that the following folders exist first:
         assertDirectory downloadDir

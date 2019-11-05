@@ -22,7 +22,7 @@ module Spago.Build
   , Purs.WithMain (..)
   ) where
 
-import           Spago.Prelude
+import           Spago.Prelude hiding (link)
 
 import qualified Data.List            as List
 import qualified Data.List.NonEmpty   as NonEmpty

@@ -46,7 +46,7 @@ data Config = Config
   , packageSet        :: PackageSet
   , alternateBackend  :: Maybe Text
   , configSourcePaths :: [Purs.SourcePath]
-  , publishConfig     :: Either (Dhall.ReadError Dhall.TypeCheck.X) PublishConfig
+  , publishConfig     :: Either (Dhall.ReadError Void) PublishConfig
   } deriving (Show, Generic)
 
 -- | The extra fields that are only needed for publishing libraries.
@@ -56,7 +56,7 @@ data PublishConfig = PublishConfig
   } deriving (Show, Generic)
 
 type Expr = Dhall.DhallExpr Dhall.Import
-type ResolvedExpr = Dhall.DhallExpr Dhall.TypeCheck.X
+type ResolvedExpr = Dhall.DhallExpr Void
 
 
 isLocationType :: (Eq s, Eq a) => Dhall.Expr s a -> Bool
@@ -157,7 +157,7 @@ ensureConfig = do
     Right config -> do
       PackageSet.ensureFrozen $ Text.unpack path
       pure config
-    Left (err :: Dhall.ReadError Dhall.TypeCheck.X) -> throwM err
+    Left (err :: Dhall.ReadError Void) -> throwM err
 
 
 -- | Copies over `spago.dhall` to set up a Spago project.
@@ -259,7 +259,7 @@ showBowerErrors (List.sort -> errors)
   = "\n\nSpago encountered some errors while trying to migrate your Bower config.\n"
   <> "A Spago config has been generated but it's recommended that you apply the suggestions here\n\n"
   <> (Text.unlines $ map (\errorGroup ->
-      (case head errorGroup of
+      (case List.head errorGroup of
          UnparsableRange _ _ -> "It was not possible to parse the version range for these packages:"
          NonPureScript _ -> "These packages are not PureScript packages, so you should install them with `npm` instead:"
          MissingFromTheSet _ -> "These packages are missing from the package set. You should add them in your local package set:\n(See here for how: https://github.com/spacchetti/spago#add-a-package-to-the-package-set)"

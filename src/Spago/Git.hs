@@ -21,13 +21,13 @@ requireCleanWorkingTree = do
 
 hasCleanWorkingTree :: Spago m => m Bool
 hasCleanWorkingTree = do
-  (code, stdout, stderr) <- Turtle.procStrictWithErr "git" ["status", "--porcelain"] empty
+  (code, out, err) <- Turtle.procStrictWithErr "git" ["status", "--porcelain"] empty
 
   when (code /= ExitSuccess) $ do
-    echoDebug $ "git status stderr: " <> stderr
+    echoDebug $ "git status stderr: " <> err
     die "Unable to check git status. Perhaps git is not installed or this is not a git repository?"
 
-  pure $ stdout == ""
+  pure $ out == ""
 
 
 getAllTags :: Spago m => m [Text]

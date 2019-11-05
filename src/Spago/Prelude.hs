@@ -2,7 +2,6 @@ module Spago.Prelude
   ( echo
   , echoStr
   , echoDebug
-  , tshow
   , die
   , Dhall.Core.throws
   , hush
@@ -12,26 +11,15 @@ module Spago.Prelude
   , UsePsa(..)
   , Spago
   , module X
-  , Typeable
   , Proxy(..)
-  , Text
   , NonEmpty (..)
   , Seq (..)
-  , IsString
-  , Map
-  , Set
-  , Generic
-  , Alternative
   , Pretty
   , FilePath
-  , Void
-  , IOException
   , ExitCode (..)
   , Validation(..)
-  , (<|>)
   , (</>)
   , (^..)
-  , set
   , surroundQuote
   , transformMOf
   , testfile
@@ -46,23 +34,13 @@ module Spago.Prelude
   , executable
   , readTextFile
   , writeTextFile
-  , atomically
-  , newTVarIO
-  , readTVar
-  , readTVarIO
-  , writeTVar
   , isAbsolute
   , pathSeparator
   , headMay
   , lastMay
   , shouldRefreshFile
-  , for
-  , handleAny
-  , try
-  , tryIO
   , makeAbsolute
   , hPutStrLn
-  , many
   , empty
   , callCommand
   , shell
@@ -80,16 +58,16 @@ module Spago.Prelude
   , getModificationTime
   , docsSearchVersion
   , githubTokenEnvVar
-  , whenM
-  , unlessM
   , pretty
   ) where
 
 
 import qualified Control.Concurrent.Async.Pool         as Async
+import qualified Control.Monad.Catch                   as Catch
 import qualified Data.Text                             as Text
 import qualified Data.Text.Prettyprint.Doc             as Pretty
 import qualified Data.Text.Prettyprint.Doc.Render.Text as PrettyText
+import qualified Data.Time                             as Time
 import           Dhall                                 (Text)
 import qualified Dhall.Core
 import qualified System.FilePath                       as FilePath
@@ -97,9 +75,8 @@ import qualified System.IO
 import qualified Turtle
 import qualified UnliftIO.Directory                    as Directory
 
-import           Control.Applicative                   (Alternative, empty, many, (<|>))
+import           Control.Applicative                   (empty)
 import           Control.Monad                         as X
-import           Control.Monad.Catch                   as X hiding (try)
 import           Control.Monad.Reader                  as X
 import           Data.Aeson                            as X hiding (Result (..))
 import           Data.Bifunctor                        (bimap, first, second)
@@ -108,20 +85,12 @@ import           Data.Either                           as X
 import           Data.Either.Validation                (Validation (..))
 import           Data.Foldable                         as X
 import           Data.List.NonEmpty                    (NonEmpty (..))
-import           Data.Map                              (Map)
 import           Data.Maybe                            as X
 import           Data.Sequence                         (Seq (..))
-import           Data.Set                              (Set)
-import           Data.String                           (IsString)
 import           Data.Text.Prettyprint.Doc             (Pretty)
-import qualified Data.Time                             as Time
-import           Data.Traversable                      (for)
-import           Data.Typeable                         (Proxy (..), Typeable)
-import           Data.Void                             (Void)
 import           Dhall.Optics                          (transformMOf)
-import           GHC.Generics                          (Generic)
-import           Lens.Family                           (set, (^..))
-import           Prelude                               as X hiding (FilePath)
+import           Lens.Family                           ((^..))
+import           RIO                                   as X hiding (FilePath, first, second, force)
 import           Safe                                  (headMay, lastMay)
 import           System.FilePath                       (isAbsolute, pathSeparator, (</>))
 import           System.IO                             (hPutStrLn)
@@ -129,12 +98,9 @@ import           Turtle                                (ExitCode (..), FilePath,
                                                         executable, mktree, repr, shell,
                                                         shellStrict, shellStrictWithErr,
                                                         systemStrictWithErr, testdir)
-import           UnliftIO                              (MonadUnliftIO, withRunInIO)
 import           UnliftIO.Directory                    (getModificationTime, makeAbsolute)
-import           UnliftIO.Exception                    (IOException, handleAny, try, tryIO)
 import           UnliftIO.Process                      (callCommand)
-import           UnliftIO.STM                          (atomically, newTVarIO, readTVar, readTVarIO,
-                                                        writeTVar)
+
 
 -- | Generic Error that we throw on program exit.
 --   We have it so that errors are displayed nicely to the user
@@ -159,9 +125,9 @@ type Spago m =
   ( MonadReader GlobalOptions m
   , MonadIO m
   , MonadUnliftIO m
-  , MonadCatch m
+  , Catch.MonadCatch m
   , Turtle.Alternative m
-  , MonadMask m
+  , Catch.MonadMask m
   )
 
 echo :: MonadIO m => Text -> m ()
@@ -170,8 +136,6 @@ echo = Turtle.printf (Turtle.s Turtle.% "\n")
 echoStr :: MonadIO m => String -> m ()
 echoStr = echo . Text.pack
 
-tshow :: Show a => a -> Text
-tshow = Text.pack . show
 
 echoDebug :: Spago m => Text -> m ()
 echoDebug str = do
@@ -214,21 +178,11 @@ surroundQuote y = "\"" <> y <> "\""
 
 
 mv :: MonadIO m => System.IO.FilePath -> System.IO.FilePath -> m ()
-mv from to = Turtle.mv (Turtle.decodeString from) (Turtle.decodeString to)
+mv from to' = Turtle.mv (Turtle.decodeString from) (Turtle.decodeString to')
 
 
 cptree :: MonadIO m => System.IO.FilePath -> System.IO.FilePath -> m ()
-cptree from to = Turtle.cptree (Turtle.decodeString from) (Turtle.decodeString to)
-
-
--- | Like 'when', but where the test can be monadic
-whenM :: Monad m => m Bool -> m () -> m ()
-whenM b t = b >>= \case
-  True  -> t
-  False -> pure ()
-
-unlessM :: Monad m => m Bool -> m () -> m ()
-unlessM b t = whenM (not <$> b) t
+cptree from to' = Turtle.cptree (Turtle.decodeString from) (Turtle.decodeString to')
 
 
 withTaskGroup' :: Spago m => Int -> (Async.TaskGroup -> m b) -> m b
