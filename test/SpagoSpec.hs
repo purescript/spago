@@ -523,7 +523,7 @@ spec = around_ setup $ do
 
       shell "psa --version" empty >>= \case
         ExitSuccess -> spago ["-v", "run"] >>= shouldBeSuccessOutputWithErr "run-output.txt" "run-output-err.txt"
-        ExitFailure _ ->  spago ["-v", "run"] >>= shouldBeSuccessOutput "run-output-psa-not-installed.txt"
+        ExitFailure _ ->  spago ["-v", "run"] >>= shouldBeSuccessOutputWithErr "run-output-psa-not-installed.txt" "run-output-psa-not-installed-err.txt"
 
     it "Spago should be able to not use `psa`" $ do
 
