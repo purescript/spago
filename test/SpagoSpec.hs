@@ -522,7 +522,7 @@ spec = around_ setup $ do
       spago ["build"] >>= shouldBeSuccess
 
       shell "psa --version" empty >>= \case
-        ExitSuccess -> spago ["-v", "run"] >>= shouldBeSuccessOutput "run-output.txt"
+        ExitSuccess -> spago ["-v", "run"] >>= shouldBeSuccessOutputWithErr "run-output.txt" "run-output-err.txt"
         ExitFailure _ ->  spago ["-v", "run"] >>= shouldBeSuccessOutput "run-output-psa-not-installed.txt"
 
     it "Spago should be able to not use `psa`" $ do
@@ -530,8 +530,7 @@ spec = around_ setup $ do
       spago ["init"] >>= shouldBeSuccess
       spago ["--no-psa", "build"] >>= shouldBeSuccess
       spago ["--no-psa", "build"] >>= shouldBeSuccess
-      spago ["-v", "--no-psa", "run"] >>= shouldBeSuccessOutput "run-no-psa.txt"
-
+      spago ["-v", "--no-psa", "run"] >>= shouldBeSuccessOutputWithErr "run-no-psa.txt" "run-no-psa-err.txt"
 
   describe "spago bundle" $ do
 
