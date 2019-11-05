@@ -375,9 +375,8 @@ showOutputPath
   :: Spago m
   => BuildOptions
   -> m ()
-showOutputPath buildOptions = do
-  path <- getOutputPathOrDefault buildOptions
-  Turtle.echo $ Turtle.unsafeTextToLine $ Text.pack path
+showOutputPath buildOptions = 
+  echoStr =<< getOutputPathOrDefault buildOptions
 
 showPaths
   :: Spago m
@@ -393,11 +392,11 @@ showAllPaths
   :: Spago m
   => BuildOptions
   -> m ()
-showAllPaths buildOptions = do
-  let showPath (a,b) = 
-        Turtle.echo $ Turtle.unsafeTextToLine $ (a <> ": " <> b)
-  paths <- getAllPaths buildOptions
-  traverse_ showPath paths
+showAllPaths buildOptions = 
+  traverse_ showPath =<< getAllPaths buildOptions
+  where
+    showPath (a,b) 
+      = echo (a <> ": " <> b)
 
 getAllPaths
   :: Spago m
