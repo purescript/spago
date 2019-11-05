@@ -11,5 +11,7 @@ Running `getGlobalCacheDir`
 Locating root path of packages.dhall
 Compiling with "psa"
 Running command: `psa compile --output ./output ".spago/console/v4.2.0/src/**/*.purs" ".spago/effect/v2.0.1/src/**/*.purs" ".spago/prelude/v4.1.1/src/**/*.purs" ".spago/psci-support/v4.0.0/src/**/*.purs" "src/**/*.purs" "test/**/*.purs"`
+           Src   Lib   All
+\ESC[33mWarnings\ESC[0m   \ESC[32m0\ESC[0m     \ESC[32m0\ESC[0m     \ESC[32m0\ESC[0m  \n\ESC[31mErrors\ESC[0m     \ESC[32m0\ESC[0m     \ESC[32m0\ESC[0m     \ESC[32m0\ESC[0m 
 Locating root path of packages.dhall
 Writing .spago/run.js
