@@ -1,13 +1,10 @@
 module Spago.Prelude
-  ( echo
-  , echoStr
-  , echoDebug
-  , die
+  ( die
   , Dhall.Core.throws
   , hush
   , pathFromText
   , assertDirectory
-  , GlobalOptions (..)
+  , App (..)
   , UsePsa(..)
   , Spago
   , module X
@@ -59,6 +56,9 @@ module Spago.Prelude
   , docsSearchVersion
   , githubTokenEnvVar
   , pretty
+  , output
+  , outputStr
+  , askApp
   ) where
 
 
@@ -104,7 +104,6 @@ import           UnliftIO.Process                      (callCommand)
 
 -- | Generic Error that we throw on program exit.
 --   We have it so that errors are displayed nicely to the user
---   (the default Turtle.die is not nice)
 newtype SpagoError = SpagoError { _unError :: Text }
 instance Exception SpagoError
 instance Show SpagoError where
@@ -114,38 +113,38 @@ instance Show SpagoError where
 -- | Flag to disable the automatic use of `psa`
 data UsePsa = UsePsa | NoPsa
 
-data GlobalOptions = GlobalOptions
-  { globalDebug      :: Bool
-  , globalUsePsa     :: UsePsa
-  , globalJobs       :: Int
-  , globalConfigPath :: Text
+-- | App configuration containing parameters and other common
+--   things it's useful to compute only once at startup.
+data App = App
+  { appUsePsa      :: UsePsa
+  , appJobs        :: Int
+  , appConfigPath  :: Text
+  , appOutputPath  :: Text
+  , appGlobalCache :: Text
+  , appLocalCache  :: Text
+  , appLogFunc :: !LogFunc
   }
 
-type Spago m =
-  ( MonadReader GlobalOptions m
-  , MonadIO m
-  , MonadUnliftIO m
-  , Catch.MonadCatch m
-  , Turtle.Alternative m
-  , Catch.MonadMask m
-  )
-
-echo :: MonadIO m => Text -> m ()
-echo = Turtle.printf (Turtle.s Turtle.% "\n")
-
-echoStr :: MonadIO m => String -> m ()
-echoStr = echo . Text.pack
+instance HasLogFunc App where
+  logFuncL = lens appLogFunc (\x y -> x { appLogFunc = y })
 
 
-echoDebug :: Spago m => Text -> m ()
-echoDebug str = do
-  hasDebug <- asks globalDebug
-  Turtle.when hasDebug $ do
-    echo str
+type Spago = RIO App
+
+
+-- | Facility to easily get global parameters from the environment
+askApp :: (App -> a) -> Spago a
+askApp = view . to
+
+
+output :: MonadIO m => Text -> m ()
+output = Turtle.printf (Turtle.s Turtle.% "\n")
+
+outputStr :: MonadIO m => String -> m ()
+outputStr = output . Text.pack
 
 die :: MonadThrow m => Text -> m a
 die reason = throwM $ SpagoError reason
-
 
 -- | Suppress the 'Left' value of an 'Either'
 hush :: Either a b -> Maybe b
@@ -185,13 +184,13 @@ cptree :: MonadIO m => System.IO.FilePath -> System.IO.FilePath -> m ()
 cptree from to' = Turtle.cptree (Turtle.decodeString from) (Turtle.decodeString to')
 
 
-withTaskGroup' :: Spago m => Int -> (Async.TaskGroup -> m b) -> m b
+withTaskGroup' :: Int -> (Async.TaskGroup -> Spago b) -> Spago b
 withTaskGroup' n action = withRunInIO $ \run -> Async.withTaskGroup n (\taskGroup -> run $ action taskGroup)
 
-async' :: Spago m => Async.TaskGroup -> m a -> m (Async.Async a)
+async' :: Async.TaskGroup -> Spago a -> Spago (Async.Async a)
 async' taskGroup action = withRunInIO $ \run -> Async.async taskGroup (run action)
 
-mapTasks' :: (Spago m, Traversable t) => Async.TaskGroup -> t (m a) -> m (t a)
+mapTasks' :: Traversable t => Async.TaskGroup -> t (Spago a) -> Spago (t a)
 mapTasks' taskGroup actions = withRunInIO $ \run -> Async.mapTasks taskGroup (run <$> actions)
 
 -- | Code from: https://github.com/dhall-lang/dhall-haskell/blob/d8f2787745bb9567a4542973f15e807323de4a1a/dhall/src/Dhall/Import.hs#L578
@@ -234,18 +233,17 @@ githubTokenEnvVar = "SPAGO_GITHUB_TOKEN"
 
 
 -- | Check if the file is present and more recent than 1 day
-shouldRefreshFile :: Spago m => FilePath.FilePath -> m Bool
+shouldRefreshFile :: FilePath.FilePath -> Spago Bool
 shouldRefreshFile path = (tryIO $ liftIO $ do
   fileExists <- testfile $ Text.pack path
   lastModified <- getModificationTime path
   now <- Time.getCurrentTime
   let fileIsRecentEnough = Time.addUTCTime Time.nominalDay lastModified >= now
-  pure $ not (fileExists && fileIsRecentEnough))
-  >>= \case
-  Right v -> pure v
-  Left err -> do
-    echoDebug $ "Unable to read file " <> Text.pack path <> ". Error was: " <> tshow err
-    pure True
+  pure $ not (fileExists && fileIsRecentEnough)) >>= \case
+    Right v -> pure v
+    Left err -> do
+      logDebug $ "Unable to read file " <> displayShow path <> ". Error was: " <> display err
+      pure True
 
 
 -- | Prettyprint a `Pretty` expression

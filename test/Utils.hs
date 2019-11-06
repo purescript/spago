@@ -4,6 +4,7 @@ module Utils
   , readFixture
   , getHighestTag
   , git
+  , outputShouldEqual
   , rmtree
   , runFor
   , shouldBeFailure
@@ -12,6 +13,7 @@ module Utils
   , shouldBeSuccess
   , shouldBeSuccessInfix
   , shouldBeSuccessOutput
+  , shouldBeSuccessOutputWithErr
   , shouldBeEmptySuccess
   , spago
   , withCwd
@@ -26,6 +28,7 @@ import qualified System.Process     as Process
 import           Test.Hspec         (HasCallStack, shouldBe, shouldSatisfy)
 import           Turtle             (ExitCode (..), FilePath, Text, cd, empty, encodeString, inproc,
                                      limit, procStrictWithErr, pwd, readTextFile, strict)
+import Data.Char (isControl)
 
 withCwd :: FilePath -> IO () -> IO ()
 withCwd dir cmd = do
@@ -52,11 +55,23 @@ shouldBeSuccess result@(_code, _stdout, _stderr) = do
   -- print $ "STDERR: " <> _stderr
   result `shouldSatisfy` (\(code, _, _) -> code == ExitSuccess)
 
+outputShouldEqual :: HasCallStack => Text -> (ExitCode, Text, Text) -> IO ()
+outputShouldEqual expected (_,output,_) = do
+  output `shouldBe` expected
+
 shouldBeSuccessOutput :: HasCallStack => FilePath -> (ExitCode, Text, Text) -> IO ()
 shouldBeSuccessOutput expected (code, stdout, _stderr) = do
   expectedStdout <- readFixture expected
   code `shouldBe` ExitSuccess
   stdout `shouldBe` expectedStdout
+
+shouldBeSuccessOutputWithErr :: HasCallStack => FilePath -> FilePath -> (ExitCode, Text, Text) -> IO ()
+shouldBeSuccessOutputWithErr expected expectedErr (code, stdout, stderr) = do
+  expectedStdout <- readFixture expected
+  expectedStderr <- readFixture expectedErr
+  code `shouldBe` ExitSuccess
+  stdout `shouldBe` expectedStdout
+  stderr `shouldBe` expectedStderr
 
 shouldBeSuccessInfix :: HasCallStack => Text -> (ExitCode, Text, Text) -> IO ()
 shouldBeSuccessInfix expected (code, stdout, _stderr) = do

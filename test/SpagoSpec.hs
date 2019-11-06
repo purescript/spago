@@ -11,7 +11,9 @@ import           Turtle             (ExitCode (..), cd, cp, decodeString, empty,
                                      writeTextFile)
 import           Utils              (checkFileHasInfix, checkFixture, readFixture, runFor,
                                      shouldBeFailure, shouldBeFailureOutput, shouldBeSuccess,
-                                     shouldBeSuccessOutput, spago, withCwd)
+                                     shouldBeSuccessOutput, shouldBeSuccessOutputWithErr, spago, withCwd,
+                                     outputShouldEqual)
+
 
 
 setup :: IO () -> IO ()
@@ -95,7 +97,7 @@ spec = around_ setup $ do
 
       spago ["init"] >>= shouldBeSuccess
       spago ["install"] >>= shouldBeSuccess
-      spago ["install", "effect"] >>= shouldBeSuccessOutput "spago-install-existing-dep-warning.txt"
+      spago ["install", "effect"] >>= shouldBeSuccessOutputWithErr "spago-install-existing-dep-output.txt" "spago-install-existing-dep-warning.txt"
 
     it "Spago should strip 'purescript-' prefix and give warning if package without prefix is present in package set" $ do
 
@@ -168,7 +170,7 @@ spec = around_ setup $ do
       spago ["init"] >>= shouldBeSuccess
       writeTextFile "alternative2.dhall" "./spago.dhall // { sources = [ \"src/**/*.purs\" ] }\n"
       spago ["-x", "alternative2.dhall", "install", "simple-json"] >>= shouldBeSuccess
-      spago ["-x", "alternative2.dhall", "install", "simple-json"] >>= shouldBeSuccessOutput "alternative2install.txt"
+      spago ["-x", "alternative2.dhall", "install", "simple-json"] >>= shouldBeSuccessOutputWithErr "alternative2install.txt" "alternative2install-warning.txt"
       checkFixture "alternative2.dhall"
 
     it "Spago should install successfully when there are local dependencies sharing the same packages.dhall" $ do
@@ -521,16 +523,15 @@ spec = around_ setup $ do
       spago ["build"] >>= shouldBeSuccess
 
       shell "psa --version" empty >>= \case
-        ExitSuccess -> spago ["-v", "run"] >>= shouldBeSuccessOutput "run-output.txt"
-        ExitFailure _ ->  spago ["-v", "run"] >>= shouldBeSuccessOutput "run-output-psa-not-installed.txt"
+        ExitSuccess -> spago ["-v", "run"] >>= shouldBeSuccessOutputWithErr "run-output.txt" "run-output-err.txt"
+        ExitFailure _ ->  spago ["-v", "run"] >>= shouldBeSuccessOutputWithErr "run-output-psa-not-installed.txt" "run-output-psa-not-installed-err.txt"
 
     it "Spago should be able to not use `psa`" $ do
 
       spago ["init"] >>= shouldBeSuccess
       spago ["--no-psa", "build"] >>= shouldBeSuccess
       spago ["--no-psa", "build"] >>= shouldBeSuccess
-      spago ["-v", "--no-psa", "run"] >>= shouldBeSuccessOutput "run-no-psa.txt"
-
+      spago ["-v", "--no-psa", "run"] >>= shouldBeSuccessOutputWithErr "run-no-psa.txt" "run-no-psa-err.txt"
 
   describe "spago bundle" $ do
 
@@ -582,3 +583,27 @@ spec = around_ setup $ do
       mv "packages.dhall" "packages-old.dhall"
       writeTextFile "packages.dhall" "https://github.com/purescript/package-sets/releases/download/psc-0.13.4-20191025/packages.dhall sha256:f9eb600e5c2a439c3ac9543b1f36590696342baedab2d54ae0aa03c9447ce7d4"
       spago ["list-packages", "--json"] >>= shouldBeSuccessOutput "list-packages.json"
+
+  describe "spago path output" $ do
+    it "Spago should output the correct path" $ do
+
+      -- Create local 'monorepo-1' package that is the real root
+      mkdir "monorepo-1"
+      cd "monorepo-1"
+      spago ["init"] >>= shouldBeSuccess
+
+       -- Create local 'monorepo-2' package that uses packages.dhall on top level
+      mkdir "monorepo-2"
+      cd "monorepo-2"
+      spago ["init"] >>= shouldBeSuccess
+      rm "packages.dhall"
+      writeTextFile "packages.dhall" $ "../packages.dhall"
+      spago ["path", "output"] >>= outputShouldEqual "./../output\n"
+      pure ()
+
+    it "Spago should output the local path when no overrides" $ do
+
+      mkdir "monorepo-1"
+      cd "monorepo-1"
+      spago ["init"] >>= shouldBeSuccess
+      spago ["path", "output", "--no-share-output"] >>= outputShouldEqual "output\n"
