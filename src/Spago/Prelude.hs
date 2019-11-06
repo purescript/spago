@@ -4,7 +4,7 @@ module Spago.Prelude
   , hush
   , pathFromText
   , assertDirectory
-  , App (..)
+  , Env (..)
   , UsePsa(..)
   , Spago
   , module X
@@ -58,7 +58,7 @@ module Spago.Prelude
   , pretty
   , output
   , outputStr
-  , askApp
+  , askEnv
   ) where
 
 
@@ -69,6 +69,7 @@ import qualified Data.Text.Prettyprint.Doc.Render.Text as PrettyText
 import qualified Data.Time                             as Time
 import           Dhall                                 (Text)
 import qualified Dhall.Core
+import qualified GHC.IO
 import qualified System.FilePath                       as FilePath
 import qualified System.IO
 import qualified Turtle
@@ -89,7 +90,7 @@ import           Data.Sequence                         (Seq (..))
 import           Data.Text.Prettyprint.Doc             (Pretty)
 import           Dhall.Optics                          (transformMOf)
 import           Lens.Family                           ((^..))
-import           RIO                                   as X hiding (FilePath, first, second, force)
+import           RIO                                   as X hiding (FilePath, first, force, second)
 import           RIO.Orphans                           as X
 import           Safe                                  (headMay, lastMay)
 import           System.FilePath                       (isAbsolute, pathSeparator, (</>))
@@ -115,26 +116,24 @@ data UsePsa = UsePsa | NoPsa
 
 -- | App configuration containing parameters and other common
 --   things it's useful to compute only once at startup.
-data App = App
-  { appUsePsa      :: UsePsa
-  , appJobs        :: Int
-  , appConfigPath  :: Text
-  , appOutputPath  :: Text
-  , appGlobalCache :: Text
-  , appLocalCache  :: Text
-  , appLogFunc :: !LogFunc
+data Env = Env
+  { envUsePsa      :: UsePsa
+  , envJobs        :: Int
+  , envConfigPath  :: Text
+  , envGlobalCache :: GHC.IO.FilePath
+  , envLogFunc     :: !LogFunc
   }
 
-instance HasLogFunc App where
-  logFuncL = lens appLogFunc (\x y -> x { appLogFunc = y })
+instance HasLogFunc Env where
+  logFuncL = lens envLogFunc (\x y -> x { envLogFunc = y })
 
 
-type Spago = RIO App
+type Spago = RIO Env
 
 
 -- | Facility to easily get global parameters from the environment
-askApp :: (App -> a) -> Spago a
-askApp = view . to
+askEnv :: (Env -> a) -> Spago a
+askEnv = view . to
 
 
 output :: MonadIO m => Text -> m ()

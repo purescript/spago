@@ -46,7 +46,8 @@ fetchPackages globalCacheFlag allDeps minPursVersion = do
   PackageSet.checkPursIsUpToDate minPursVersion
 
   -- Ensure both local and global cache dirs are there
-  assertDirectory =<< GlobalCache.getGlobalCacheDir
+  globalCache <- askEnv envGlobalCache
+  assertDirectory globalCache
   assertDirectory localCacheDir
 
   -- We try to fetch a dep only if their local cache directory doesn't exist
@@ -62,7 +63,7 @@ fetchPackages globalCacheFlag allDeps minPursVersion = do
     outputStr $ "Installing " <> show nOfDeps <> " dependencies."
     metadata <- GlobalCache.getMetadata globalCacheFlag
 
-    limit <- askApp appJobs
+    limit <- askEnv envJobs
     withTaskGroup' limit $ \taskGroup -> do
       asyncs <- for depsToFetch (async' taskGroup . fetchPackage metadata)
       liftIO $ handle (handler asyncs) (for_ asyncs Async.wait)
@@ -96,9 +97,9 @@ fetchPackage _ (PackageName package, Package { location = Local{..}, .. }) =
   output $ Messages.foundLocalPackage package localPath
 fetchPackage metadata pair@(packageName'@PackageName{..}, Package{ location = Remote{..}, .. } ) = do
   logDebug $ "Fetching package " <> display packageName
-  globalDir <- GlobalCache.getGlobalCacheDir
+  globalCache <- askEnv envGlobalCache
   let packageDir = getPackageDir packageName' version
-      packageGlobalCacheDir = globalDir </> packageDir
+      packageGlobalCacheDir = globalCache </> packageDir
 
   packageLocalCacheDir <- makeAbsolute $ getLocalCacheDir pair
 
@@ -113,7 +114,7 @@ fetchPackage metadata pair@(packageName'@PackageName{..}, Package{ location = Re
         cptree packageGlobalCacheDir downloadDir
         assertDirectory (localCacheDir </> Text.unpack packageName)
         mv downloadDir packageLocalCacheDir
-      else Temp.withTempDirectory globalDir (Text.unpack ("__temp-" <> "-" <> packageName <> getCacheVersionDir version)) $ \globalTemp -> do
+      else Temp.withTempDirectory globalCache (Text.unpack ("__temp-" <> "-" <> packageName <> getCacheVersionDir version)) $ \globalTemp -> do
         -- * otherwise, check if the Package is on GitHub and an "immutable" ref
         -- * if yes, download the tar archive and copy it to global and then local cache
         let cacheableCallback :: FilePath.FilePath -> Spago ()
@@ -149,7 +150,7 @@ fetchPackage metadata pair@(packageName'@PackageName{..}, Package{ location = Re
         -- Make sure that the following folders exist first:
         assertDirectory downloadDir
         -- ^ the folder to store the download
-        assertDirectory (globalDir </> Text.unpack packageName)
+        assertDirectory (globalCache </> Text.unpack packageName)
         -- ^ the parent package folder in the global cache (that stores all the versions)
         assertDirectory (localCacheDir </> Text.unpack packageName)
         -- ^ the parent package folder in the local cache (that stores all the versions)

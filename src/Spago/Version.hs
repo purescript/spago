@@ -51,7 +51,7 @@ unparseVersion version =
 
 
 -- | Get the highest git version tag, die if this is not a git repo with no uncommitted changes.
-getCurrentVersion :: Spago m => m SemVer
+getCurrentVersion :: Spago SemVer
 getCurrentVersion = do
 
   tagTexts <- Git.getAllTags
@@ -81,7 +81,7 @@ getNextVersion spec currentV@SemVer{..} =
 
 
 -- | Make a tag for the new version.
-tagNewVersion :: Spago m => SemVer -> SemVer -> m ()
+tagNewVersion :: SemVer -> SemVer -> Spago ()
 tagNewVersion oldVersion newVersion = do
 
   let oldVersionTag = unparseVersion oldVersion
@@ -92,7 +92,7 @@ tagNewVersion oldVersion newVersion = do
 
 
 -- | Bump and tag a new version in preparation for release.
-bumpVersion :: Spago m => DryRun -> VersionBump -> m ()
+bumpVersion :: DryRun -> VersionBump -> Spago ()
 bumpVersion dryRun spec = do
   newBowerConfig <- Bower.generateBowerJson
 

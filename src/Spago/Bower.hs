@@ -33,7 +33,7 @@ path :: IsString t => t
 path = "bower.json"
 
 
-runBower :: Spago m => [Text] -> m (ExitCode, Text, Text)
+runBower :: [Text] -> Spago (ExitCode, Text, Text)
 runBower args = do
   -- workaround windows issue: https://github.com/haskell/process/issues/140
   cmd <- case System.buildOS of
@@ -45,7 +45,7 @@ runBower args = do
   Turtle.procStrictWithErr cmd args empty
 
 
-generateBowerJson :: Spago m => m ByteString.ByteString
+generateBowerJson :: Spago ByteString.ByteString
 generateBowerJson = do
   output "Generating a new Bower config using the package set versions.."
   config@Config{..} <- Config.ensureConfig
@@ -72,7 +72,7 @@ generateBowerJson = do
   pure bowerJson
 
 
-runBowerInstall :: Spago m => m ()
+runBowerInstall :: Spago ()
 runBowerInstall = do
   output "Running `bower install` so `pulp publish` can read resolved versions from it"
   shell "bower install --silent" empty >>= \case
@@ -80,7 +80,7 @@ runBowerInstall = do
     ExitFailure _ -> die "Failed to run `bower install` on your package"
 
 
-templateBowerJson :: Spago m => m Bower.PackageMeta
+templateBowerJson :: Spago Bower.PackageMeta
 templateBowerJson = do
   case Aeson.decodeStrict Templates.bowerJson of
     Just t  ->
@@ -89,7 +89,7 @@ templateBowerJson = do
       die "Invalid bower.json template (this is a Spago bug)"
 
 
-mkPackageName :: Spago m => Text -> m Bower.PackageName
+mkPackageName :: Text -> Spago Bower.PackageName
 mkPackageName spagoName = do
   let psName = "purescript-" <> spagoName
   case Bower.mkPackageName psName of
@@ -101,7 +101,7 @@ mkPackageName spagoName = do
 
 -- | If the given version exists in bower, return a shorthand bower
 -- | version, otherwise return a URL#version style bower version.
-mkBowerVersion :: Spago m => Bower.PackageName -> Text -> Repo -> m Bower.VersionRange
+mkBowerVersion :: Bower.PackageName -> Text -> Repo -> Spago Bower.VersionRange
 mkBowerVersion packageName version (Repo repo) = do
 
   let args = ["info", "--json", Bower.runPackageName packageName <> "#" <> version]
@@ -119,7 +119,7 @@ mkBowerVersion packageName version (Repo repo) = do
     else pure $ Bower.VersionRange $ repo <> "#" <> version
 
 
-mkDependencies :: Spago m => Config -> m [(Bower.PackageName, Bower.VersionRange)]
+mkDependencies :: Config -> Spago [(Bower.PackageName, Bower.VersionRange)]
 mkDependencies config = do
   deps <- Packages.getDirectDeps config
 
@@ -129,7 +129,7 @@ mkDependencies config = do
     mapTasks' taskGroup $ mkDependency <$> deps
 
   where
-    mkDependency :: Spago m => (PackageName, Package) -> m (Bower.PackageName, Bower.VersionRange)
+    mkDependency :: (PackageName, Package) -> Spago (Bower.PackageName, Bower.VersionRange)
     mkDependency (PackageName{..}, Package{..}) =
       case location of
         Local localPath ->
@@ -143,4 +143,4 @@ mkDependencies config = do
       -- Windows sucks so lets make it slow for them!
       -- (just kidding, its a bug: https://github.com/bower/spec/issues/79)
       Windows -> pure 1
-      _       -> asks globalJobs
+      _       -> askEnv envJobs

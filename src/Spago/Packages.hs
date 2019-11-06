@@ -46,7 +46,7 @@ import           Spago.Types              as PackageSet
 --   - create `spago.dhall` to manage project config: name, deps, etc
 --   - create an example `src` folder (if needed)
 --   - create an example `test` folder (if needed)
-initProject :: Spago m => Bool -> Dhall.TemplateComments -> m ()
+initProject :: Bool -> Dhall.TemplateComments -> Spago ()
 initProject force comments = do
   output "Initializing a sample project or migrating an existing one.."
 
@@ -112,7 +112,7 @@ getJsGlobs deps depsOnly configSourcePaths
 
 
 -- | Return the direct dependencies of the current project
-getDirectDeps :: Spago m => Config -> m [(PackageName, Package)]
+getDirectDeps :: Config -> Spago [(PackageName, Package)]
 getDirectDeps Config{..} = do
   let PackageSet{..} = packageSet
   for dependencies $ \dep ->
@@ -124,12 +124,12 @@ getDirectDeps Config{..} = do
 
 
 -- | Return all the transitive dependencies of the current project
-getProjectDeps :: Spago m => Config -> m [(PackageName, Package)]
+getProjectDeps :: Config -> Spago [(PackageName, Package)]
 getProjectDeps Config{..} = getTransitiveDeps packageSet dependencies
 
 
 -- | Return the transitive dependencies of a list of packages
-getTransitiveDeps :: Spago m => PackageSet -> [PackageName] -> m [(PackageName, Package)]
+getTransitiveDeps :: PackageSet -> [PackageName] -> Spago [(PackageName, Package)]
 getTransitiveDeps PackageSet{..} deps = do
   logDebug "Getting transitive deps"
   let (packageMap, notFoundErrors, cycleErrors) = State.evalState (fold <$> traverse (go mempty) deps) mempty
@@ -191,7 +191,7 @@ getReverseDeps packageSet@PackageSet{..} dep = do
 
 
 -- | Fetch all dependencies into `.spago/`
-install :: Spago m => Maybe CacheFlag -> [PackageName] -> m ()
+install :: Maybe CacheFlag -> [PackageName] -> Spago ()
 install cacheFlag newPackages = do
   logDebug "Running `spago install`"
   config@Config{ packageSet = PackageSet{..}, ..} <- Config.ensureConfig
@@ -211,7 +211,7 @@ install cacheFlag newPackages = do
 
   Fetch.fetchPackages cacheFlag deps packagesMinPursVersion
 
-reportMissingPackages :: Spago m => PackagesLookupResult -> m [PackageName]
+reportMissingPackages :: PackagesLookupResult -> Spago [PackageName]
 reportMissingPackages (PackagesLookupResult found foundWithoutPrefix notFound) = do
   unless (null notFound) $
     die $ "The following packages do not exist in your package set:\n"
@@ -267,7 +267,7 @@ encodeJsonPackageOutput :: JsonPackageOutput -> Text
 encodeJsonPackageOutput = LT.toStrict . LT.decodeUtf8 . Aeson.encode
 
 -- | A list of the packages that can be added to this project
-listPackages :: Spago m => Maybe PackagesFilter -> JsonFlag -> m ()
+listPackages :: Maybe PackagesFilter -> JsonFlag -> Spago ()
 listPackages packagesFilter jsonFlag = do
   logDebug "Running `listPackages`"
   Config{packageSet = packageSet@PackageSet{..}, ..} <- Config.ensureConfig
@@ -330,7 +330,7 @@ listPackages packagesFilter jsonFlag = do
 
 
 -- | Get source globs of dependencies listed in `spago.dhall`
-sources :: Spago m => m ()
+sources :: Spago ()
 sources = do
   logDebug "Running `spago sources`"
   config <- Config.ensureConfig
@@ -343,7 +343,7 @@ sources = do
 
 data CheckModulesUnique = DoCheckModulesUnique | NoCheckModulesUnique
 
-verify :: Spago m => Maybe CacheFlag -> CheckModulesUnique -> Maybe PackageName -> m ()
+verify :: Maybe CacheFlag -> CheckModulesUnique -> Maybe PackageName -> Spago ()
 verify cacheFlag chkModsUniq maybePackage = do
   logDebug "Running `spago verify`"
   Config{ packageSet = packageSet@PackageSet{..}, ..} <- Config.ensureConfig
@@ -367,12 +367,12 @@ verify cacheFlag chkModsUniq maybePackage = do
     DoCheckModulesUnique -> compileEverything packageSet
     NoCheckModulesUnique -> pure ()
   where
-    verifyPackages :: Spago m => PackageSet -> [(PackageName, Package)] -> m ()
+    verifyPackages :: PackageSet -> [(PackageName, Package)] -> Spago ()
     verifyPackages packageSet packages = do
       output $ Messages.verifying $ length packages
       traverse_ (verifyPackage packageSet) (fst <$> packages)
 
-    verifyPackage :: Spago m => PackageSet -> PackageName -> m ()
+    verifyPackage :: PackageSet -> PackageName -> Spago ()
     verifyPackage packageSet@PackageSet{..} name = do
       deps <- getTransitiveDeps packageSet [name]
       let globs = getGlobs deps DepsOnly []
@@ -382,7 +382,7 @@ verify cacheFlag chkModsUniq maybePackage = do
       Purs.compile globs []
       output $ "Successfully verified " <> quotedName
 
-    compileEverything :: Spago m => PackageSet -> m ()
+    compileEverything :: PackageSet -> Spago ()
     compileEverything PackageSet{..} = do
       let deps = Map.toList packagesDB
           globs = getGlobs deps DepsOnly []

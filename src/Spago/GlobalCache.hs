@@ -143,9 +143,8 @@ getMetadata cacheFlag = do
 --   `$XDG_CACHE_HOME`, otherwise it uses:
 --   - (on Linux/MacOS) the folder pointed by `$HOME/.cache`, or
 --   - (on Windows) the folder pointed by `LocalAppData`
-getGlobalCacheDir :: Spago FilePath.FilePath
+getGlobalCacheDir :: MonadIO m => m FilePath.FilePath
 getGlobalCacheDir = do
-  logDebug "Running `getGlobalCacheDir`"
   liftIO $ getXdgDirectory XdgCache "spago" <|> pure ".spago-global-cache"
 
 

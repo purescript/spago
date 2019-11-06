@@ -106,12 +106,12 @@ parsePackage expr = die $ Messages.failedToParsePackage $ pretty expr
 
 
 -- | Tries to read in a Spago Config
-parseConfig :: Spago m => m Config
+parseConfig :: Spago Config
 parseConfig = do
   -- Here we try to migrate any config that is not in the latest format
   withConfigAST $ pure . addSourcePaths
 
-  path <- asks globalConfigPath
+  path <- askEnv envConfigPath
   expr <- liftIO $ Dhall.inputExpr $ "./" <> path
   case expr of
     Dhall.RecordLit ks -> do
@@ -147,9 +147,9 @@ parseConfig = do
 
 
 -- | Checks that the Spago config is there and readable
-ensureConfig :: Spago m => m Config
+ensureConfig :: Spago Config
 ensureConfig = do
-  path <- asks globalConfigPath
+  path <- askEnv envConfigPath
   exists <- testfile path
   unless exists $ do
     die Messages.cannotFindConfig
@@ -162,9 +162,9 @@ ensureConfig = do
 
 -- | Copies over `spago.dhall` to set up a Spago project.
 --   Eventually ports an existing `psc-package.json` to the new config.
-makeConfig :: Spago m => Bool -> Dhall.TemplateComments -> m ()
+makeConfig :: Bool -> Dhall.TemplateComments -> Spago ()
 makeConfig force comments = do
-  path <- asks globalConfigPath
+  path <- askEnv envConfigPath
   unless force $ do
     hasSpagoDhall <- testfile path
     when hasSpagoDhall $ die $ Messages.foundExistingProject path
@@ -285,7 +285,7 @@ updateName newName (Dhall.RecordLit kvs)
     $ Dhall.Map.insert "name" (Dhall.toTextLit newName) kvs
 updateName _ other = other
 
-addRawDeps :: Spago m => Config -> [PackageName] -> Expr -> m Expr
+addRawDeps :: Config -> [PackageName] -> Expr -> Spago Expr
 addRawDeps config newPackages r@(Dhall.RecordLit kvs) = case Dhall.Map.lookup "dependencies" kvs of
   Just (Dhall.ListLit _ dependencies) -> do
       case NonEmpty.nonEmpty notInPackageSet of
@@ -309,10 +309,10 @@ addRawDeps config newPackages r@(Dhall.RecordLit kvs) = case Dhall.Map.lookup "d
         where
           seens = Seq.scanl (flip Set.insert) Set.empty xs
   Just _ -> do
-    logWarning "Failed to add dependencies. The `dependencies` field wasn't a List of Strings."
+    logWarn "Failed to add dependencies. The `dependencies` field wasn't a List of Strings."
     pure r
   Nothing -> do
-    logWarning "Failed to add dependencies. You should have a record with the `dependencies` key for this to work."
+    logWarn "Failed to add dependencies. You should have a record with the `dependencies` key for this to work."
     pure r
 addRawDeps _ _ other = pure other
 
@@ -344,9 +344,9 @@ filterDependencies expr = expr
 --   on the current config. If it succeeds, it writes back to file the result returned.
 --   Note: it will pass in the parsed AST, not the resolved one (so e.g. imports will
 --   still be in the tree). If you need the resolved one, use `ensureConfig`.
-withConfigAST :: Spago m => (Expr -> m Expr) -> m Bool
+withConfigAST :: (Expr -> Spago Expr) -> Spago Bool
 withConfigAST transform = do
-  path <- asks globalConfigPath
+  path <- askEnv envConfigPath
   rawConfig <- liftIO $ Dhall.readRawExpr path
   case rawConfig of
     Nothing -> die Messages.cannotFindConfig
@@ -376,8 +376,8 @@ transformMExpr rules =
 --   It will not add any dependency if any of them is not in the package set.
 --   If everything is fine instead, it will add the new deps, sort all the
 --   dependencies, and write the Config back to file.
-addDependencies :: Spago m => Config -> [PackageName] -> m ()
+addDependencies :: Config -> [PackageName] -> Spago ()
 addDependencies config newPackages = do
   configHasChanged <- withConfigAST $ addRawDeps config newPackages
   unless configHasChanged $
-    logWarning "configuration file was not updated."
+    logWarn "configuration file was not updated."

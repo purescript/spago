@@ -24,7 +24,7 @@ tokenCacheFile = "github-token.txt"
 login :: Spago ()
 login = do
  maybeToken <- liftIO (System.Environment.lookupEnv githubTokenEnvVar)
- globalCacheDir <- GlobalCache.getGlobalCacheDir
+ globalCacheDir <- askEnv envGlobalCache
 
  case maybeToken of
    Nothing -> die Messages.getNewGitHubToken
@@ -44,21 +44,21 @@ login = do
 
 
 readToken :: (MonadReader env m, MonadIO m, Alternative m) => m Text
-readToken = readFromEnv <|> readFromFile
+readToken = liftIO $ readFromEnv <|> readFromFile
   where
-    readFromEnv = liftIO (System.Environment.lookupEnv githubTokenEnvVar) >>= \case
+    readFromEnv = (System.Environment.lookupEnv githubTokenEnvVar) >>= \case
       Nothing -> empty
       Just (Text.pack -> token) -> return token
 
-    readFromFile = undefined -- do
-      -- globalCacheDir <- GlobalCache.getGlobalCacheDir
-      -- assertDirectory globalCacheDir
-      -- readTextFile $ pathFromText $ Text.pack $ globalCacheDir </> tokenCacheFile
+    readFromFile = do
+      globalCache <- GlobalCache.getGlobalCacheDir
+      assertDirectory globalCache
+      readTextFile $ pathFromText $ Text.pack $ globalCache </> tokenCacheFile
 
 
 getLatestPackageSetsTag :: Spago (Either SomeException Text)
 getLatestPackageSetsTag = do
-  globalCacheDir <- GlobalCache.getGlobalCacheDir
+  globalCacheDir <- askEnv envGlobalCache
   assertDirectory globalCacheDir
   let globalPathToCachedTag = globalCacheDir </> tagCacheFile
   let writeTagCache releaseTagName = writeTextFile (Text.pack globalPathToCachedTag) releaseTagName

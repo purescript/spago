@@ -35,7 +35,7 @@ data WithMain = WithMain | WithoutMain
 compile :: [SourcePath] -> [ExtraArg] -> Spago ()
 compile sourcePaths extraArgs = do
   -- first we decide if we _want_ to use psa, then if we _can_
-  usePsa <- askApp appUsePsa
+  usePsa <- askEnv envUsePsa
   purs <- case usePsa of
     NoPsa -> pure "purs"
     UsePsa -> try psaVersion >>= \case

@@ -25,7 +25,7 @@ import           UnliftIO.Async         (race_)
 data ClearScreen = DoClear | NoClear
   deriving Eq
 
-watch :: Spago m => Set.Set Glob.Pattern -> ClearScreen -> m () -> m ()
+watch :: Set.Set Glob.Pattern -> ClearScreen -> Spago () -> Spago ()
 watch globs shouldClear action = do
   let config = Watch.defaultConfig { Watch.confDebounce = Watch.NoDebounce }
   fileWatchConf config shouldClear $ \getGlobs -> do
@@ -33,7 +33,7 @@ watch globs shouldClear action = do
     action
 
 
-withManagerConf :: Spago m => Watch.WatchConfig -> (Watch.WatchManager -> m a) -> m a
+withManagerConf :: Watch.WatchConfig -> (Watch.WatchManager -> Spago a) -> Spago a
 withManagerConf conf = UnliftIO.bracket
   (liftIO $ Watch.startManagerConf conf)
   (liftIO . Watch.stopManager)
@@ -48,11 +48,10 @@ debounceTime = 0.1
 -- The action provided takes a callback that is used to set the files to be
 -- watched. When any of those files are changed, we rerun the action again.
 fileWatchConf
-  :: Spago m
-  => Watch.WatchConfig
+  :: Watch.WatchConfig
   -> ClearScreen
-  -> ((Set.Set Glob.Pattern -> m ()) -> m ())
-  -> m ()
+  -> ((Set.Set Glob.Pattern -> Spago ()) -> Spago ())
+  -> Spago ()
 fileWatchConf watchConfig shouldClear inner = withManagerConf watchConfig $ \manager -> do
     allGlobs  <- liftIO $ newTVarIO Set.empty
     dirtyVar  <- liftIO $ newTVarIO True
@@ -96,7 +95,7 @@ fileWatchConf watchConfig shouldClear inner = withManagerConf watchConfig $ \man
             liftIO $ atomically $ writeTVar lastEvent (timeNow, Watch.eventPath event)
             redisplay $ Just $ "File changed, triggered a build: " <> show (Watch.eventPath event)
 
-        setWatched :: Spago m => Set.Set Glob.Pattern -> m ()
+        setWatched :: Set.Set Glob.Pattern -> Spago ()
         setWatched globs = do
           liftIO $ atomically $ writeTVar allGlobs globs
           watch0 <- liftIO $ readTVarIO watchVar
@@ -133,7 +132,7 @@ fileWatchConf watchConfig shouldClear inner = withManagerConf watchConfig $ \man
               listen <- Watch.watchTree manager dir (const True) onChange
               return $ Just listen
 
-    let watchInput :: Spago m => m ()
+    let watchInput :: Spago ()
         watchInput = do
           line <- liftIO $ unpack . toLower . pack <$> getLine
           if line == "quit" then output "Leaving watch mode."
