@@ -4,6 +4,7 @@ module Utils
   , readFixture
   , getHighestTag
   , git
+  , outputShouldEqual
   , rmtree
   , runFor
   , shouldBeFailure
@@ -51,6 +52,10 @@ shouldBeSuccess result@(_code, _stdout, _stderr) = do
   -- print $ "STDOUT: " <> _stdout
   -- print $ "STDERR: " <> _stderr
   result `shouldSatisfy` (\(code, _, _) -> code == ExitSuccess)
+
+outputShouldEqual :: HasCallStack => Text -> (ExitCode, Text, Text) -> IO ()
+outputShouldEqual expected (_,output,_) = do
+  output `shouldBe` expected
 
 shouldBeSuccessOutput :: HasCallStack => FilePath -> (ExitCode, Text, Text) -> IO ()
 shouldBeSuccessOutput expected (code, stdout, _stderr) = do
