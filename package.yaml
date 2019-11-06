@@ -155,6 +155,7 @@ executables:
 tests:
   spec:
     defaults: hspec/hspec@master
+    main: Main
     ghc-options:
     - -threaded
     - -rtsopts
