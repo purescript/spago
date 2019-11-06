@@ -165,6 +165,14 @@ spec = around_ setup $ do
       spago ["-x", "alternative1.dhall", "install", "simple-json"] >>= shouldBeSuccess
       checkFixture "alternative1.dhall"
 
+    it "Spago should install successfully when the config file is in another directory" $ do
+
+      spago ["init"] >>= shouldBeSuccess
+      rm "spago.dhall"
+      mkdir "nested"
+      writeTextFile "./nested/spago.dhall" "{ name = \"nested\", sources = [ \"src/**/*.purs\" ], dependencies = [ \"effect\", \"console\", \"psci-support\" ] , packages = ../packages.dhall }"
+      spago ["install", "--config", "./nested/spago.dhall"] >>= shouldBeSuccess
+
     it "Spago should not change the alternative config if it does not change dependencies" $ do
 
       spago ["init"] >>= shouldBeSuccess

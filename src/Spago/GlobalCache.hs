@@ -66,7 +66,7 @@ globallyCache (packageName, Repo url, ref) downloadDir metadata cacheableCallbac
           cacheableCallback $ Turtle.encodeString resultDir
       where
     _ -> do
-      logWarn $ "Not caching repo, because URL doesn't have the form of 'https://github.com/<ORG>/<REPO>.git': " <> display url
+      logDebug $ "Not caching repo because URL doesn't have the form of 'https://github.com/<ORG>/<REPO>.git': " <> display url
       notCacheableCallback -- TODO: error?
   where
     isTag = do
