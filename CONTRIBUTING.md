@@ -83,6 +83,15 @@ $ npm install -g bower
 $ stack test
 ```
 
+note: if you receive the following error from running tests: 
+hGetContents: invalid argument (invalid byte sequence)
+
+You may be missing an environment variable. try the following
+
+```bash
+$ LC_ALL=en_US.iso88591 
+$ stack test
+```
 
 ## Merging changes
 

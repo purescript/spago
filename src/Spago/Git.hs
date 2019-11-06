@@ -24,7 +24,7 @@ hasCleanWorkingTree = do
   (code, stdout, stderr) <- Turtle.procStrictWithErr "git" ["status", "--porcelain"] empty
 
   when (code /= ExitSuccess) $ do
-    echoDebug $ "git status stderr: " <> stderr
+    logDebug $ "git status stderr: " <> stderr
     die "Unable to check git status. Perhaps git is not installed or this is not a git repository?"
 
   pure $ stdout == ""

@@ -9,9 +9,11 @@ import           Test.Hspec         (Spec, around_, describe, it, shouldBe, shou
 import           Turtle             (ExitCode (..), cd, cp, decodeString, empty, mkdir, mktree, mv,
                                      readTextFile, rm, shell, shellStrictWithErr, testdir,
                                      writeTextFile)
-import           Utils              (checkFileHasInfix, checkFixture, outputShouldEqual,
-                                     readFixture, runFor, shouldBeFailure, shouldBeFailureOutput,
-                                     shouldBeSuccess, shouldBeSuccessOutput, spago, withCwd)
+import           Utils              (checkFileHasInfix, checkFixture, readFixture, runFor,
+                                     shouldBeFailure, shouldBeFailureOutput, shouldBeSuccess,
+                                     shouldBeSuccessOutput, shouldBeSuccessOutputWithErr, spago, withCwd,
+                                     outputShouldEqual)
+
 
 
 setup :: IO () -> IO ()
@@ -95,7 +97,7 @@ spec = around_ setup $ do
 
       spago ["init"] >>= shouldBeSuccess
       spago ["install"] >>= shouldBeSuccess
-      spago ["install", "effect"] >>= shouldBeSuccessOutput "spago-install-existing-dep-warning.txt"
+      spago ["install", "effect"] >>= shouldBeSuccessOutputWithErr "spago-install-existing-dep-output.txt" "spago-install-existing-dep-warning.txt"
 
     it "Spago should strip 'purescript-' prefix and give warning if package without prefix is present in package set" $ do
 
@@ -168,7 +170,7 @@ spec = around_ setup $ do
       spago ["init"] >>= shouldBeSuccess
       writeTextFile "alternative2.dhall" "./spago.dhall // { sources = [ \"src/**/*.purs\" ] }\n"
       spago ["-x", "alternative2.dhall", "install", "simple-json"] >>= shouldBeSuccess
-      spago ["-x", "alternative2.dhall", "install", "simple-json"] >>= shouldBeSuccessOutput "alternative2install.txt"
+      spago ["-x", "alternative2.dhall", "install", "simple-json"] >>= shouldBeSuccessOutputWithErr "alternative2install.txt" "alternative2install-warning.txt"
       checkFixture "alternative2.dhall"
 
     it "Spago should install successfully when there are local dependencies sharing the same packages.dhall" $ do
@@ -521,16 +523,15 @@ spec = around_ setup $ do
       spago ["build"] >>= shouldBeSuccess
 
       shell "psa --version" empty >>= \case
-        ExitSuccess -> spago ["-v", "run"] >>= shouldBeSuccessOutput "run-output.txt"
-        ExitFailure _ ->  spago ["-v", "run"] >>= shouldBeSuccessOutput "run-output-psa-not-installed.txt"
+        ExitSuccess -> spago ["-v", "run"] >>= shouldBeSuccessOutputWithErr "run-output.txt" "run-output-err.txt"
+        ExitFailure _ ->  spago ["-v", "run"] >>= shouldBeSuccessOutputWithErr "run-output-psa-not-installed.txt" "run-output-psa-not-installed-err.txt"
 
     it "Spago should be able to not use `psa`" $ do
 
       spago ["init"] >>= shouldBeSuccess
       spago ["--no-psa", "build"] >>= shouldBeSuccess
       spago ["--no-psa", "build"] >>= shouldBeSuccess
-      spago ["-v", "--no-psa", "run"] >>= shouldBeSuccessOutput "run-no-psa.txt"
-
+      spago ["-v", "--no-psa", "run"] >>= shouldBeSuccessOutputWithErr "run-no-psa.txt" "run-no-psa-err.txt"
 
   describe "spago bundle" $ do
 
@@ -598,6 +599,7 @@ spec = around_ setup $ do
       rm "packages.dhall"
       writeTextFile "packages.dhall" $ "../packages.dhall"
       spago ["path", "output"] >>= outputShouldEqual "./../output\n"
+      pure ()
 
     it "Spago should output the local path when no overrides" $ do
 

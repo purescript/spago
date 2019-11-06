@@ -28,9 +28,9 @@ login = do
  case maybeToken of
    Nothing -> die Messages.getNewGitHubToken
    Just (Text.pack -> token) -> do
-     echo "Token read, authenticating with GitHub.."
+     output "Token read, authenticating with GitHub.."
      username <- getUsername token
-     echo $ "Successfully authenticated as " <> surroundQuote username
+     output $ "Successfully authenticated as " <> surroundQuote username
      writeTextFile (Text.pack $ globalCacheDir </> tokenCacheFile) token
   where
     getUsername token = do
@@ -64,7 +64,7 @@ getLatestPackageSetsTag = do
   let readTagCache = try $ readTextFile $ pathFromText $ Text.pack globalPathToCachedTag
   let downloadTagToCache =
         try (Retry.recoverAll (Retry.fullJitterBackoff 50000 <> Retry.limitRetries 5) $ \_ -> getLatestRelease1 <|> getLatestRelease2) >>= \case
-          Left (err :: SomeException) -> echoDebug $ Messages.failedToReachGitHub err
+          Left (err :: SomeException) -> logDebug $ Messages.failedToReachGitHub err
           Right releaseTagName -> writeTagCache releaseTagName
 
   whenM (shouldRefreshFile globalPathToCachedTag) downloadTagToCache
@@ -78,14 +78,14 @@ getLatestPackageSetsTag = do
       f <- case hush maybeToken of
         Nothing -> pure GitHub.executeRequest'
         Just token -> do
-          echoDebug "Using cached GitHub token for getting the latest release.."
+          logDebug "Using cached GitHub token for getting the latest release.."
           pure $ GitHub.executeRequest (GitHub.OAuth $ Data.Text.Encoding.encodeUtf8 token)
       result <- liftIO $ f $ GitHub.latestReleaseR "purescript" "package-sets"
 
       case result of
         Right GitHub.Release{..} -> return releaseTagName
         Left err -> do
-          echo $ Messages.failedToReachGitHub err
+          logWarning $ Messages.failedToReachGitHub err
           empty
 
     -- | The idea here is that we go to the `latest` endpoint, and then get redirected
@@ -101,5 +101,5 @@ getLatestPackageSetsTag = do
       case Http.getResponseHeader "Location" response of
         [redirectUrl] -> return $ last $ Text.splitOn "/" $ Data.Text.Encoding.decodeUtf8 redirectUrl
         _ -> do
-          echoStr $ "Error following GitHub redirect, response:\n\n" <> show response
+          outputStr $ "Error following GitHub redirect, response:\n\n" <> show response
           empty

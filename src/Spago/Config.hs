@@ -182,9 +182,9 @@ makeConfig force comments = do
       -- first, read the psc-package file content
       content <- readTextFile PscPackage.configPath
       case eitherDecodeStrict $ Text.encodeUtf8 content of
-        Left err -> echo $ Messages.failedToReadPscFile err
+        Left err -> output $ Messages.failedToReadPscFile err
         Right pscConfig -> do
-          echo "Found a \"psc-package.json\" file, migrating to a new Spago config.."
+          output "Found a \"psc-package.json\" file, migrating to a new Spago config.."
           -- try to update the dependencies (will fail if not found in package set)
           let pscPackages = map PackageSet.PackageName $ PscPackage.depends pscConfig
           config <- ensureConfig
@@ -196,7 +196,7 @@ makeConfig force comments = do
       case eitherDecodeStrict $ Text.encodeUtf8 content of
         Left err -> die $ Messages.failedToParseFile path err
         Right packageMeta -> do
-          echo "Found a \"bower.json\" file, migrating to a new Spago config.."
+          output "Found a \"bower.json\" file, migrating to a new Spago config.."
           -- then try to update the dependencies. We'll migrates the ones that we can,
           -- and print a message to the user to fix the missing ones
           config@Config{..} <- ensureConfig
@@ -206,10 +206,10 @@ makeConfig force comments = do
 
           if null bowerErrors
             then do
-              echo "All Bower dependencies are in the set! 🎉"
-              echo $ "You can now safely delete your " <> surroundQuote "bower.json"
+              output "All Bower dependencies are in the set! 🎉"
+              output $ "You can now safely delete your " <> surroundQuote "bower.json"
             else do
-              echo $ showBowerErrors bowerErrors
+              output $ showBowerErrors bowerErrors
 
           void $ withConfigAST (\e -> addRawDeps config bowerPackages
                                       $ updateName bowerName e)
@@ -297,7 +297,7 @@ addRawDeps config newPackages r@(Dhall.RecordLit kvs) = case Dhall.Map.lookup "d
                 $ Seq.sort $ nubSeq (Seq.fromList newPackages <> fmap PackageSet.PackageName oldPackages)
           pure $ Dhall.RecordLit $ Dhall.Map.insert "dependencies" newDepsExpr kvs
         Just pkgs -> do
-          echo $ Messages.failedToAddDeps $ NonEmpty.map PackageSet.packageName pkgs
+          output $ Messages.failedToAddDeps $ NonEmpty.map PackageSet.packageName pkgs
           pure r
     where
       packagesDB = PackageSet.packagesDB $ packageSet config
@@ -309,10 +309,10 @@ addRawDeps config newPackages r@(Dhall.RecordLit kvs) = case Dhall.Map.lookup "d
         where
           seens = Seq.scanl (flip Set.insert) Set.empty xs
   Just _ -> do
-    echo "WARNING: Failed to add dependencies. The `dependencies` field wasn't a List of Strings."
+    logWarning "Failed to add dependencies. The `dependencies` field wasn't a List of Strings."
     pure r
   Nothing -> do
-    echo "WARNING: Failed to add dependencies. You should have a record with the `dependencies` key for this to work."
+    logWarning "Failed to add dependencies. You should have a record with the `dependencies` key for this to work."
     pure r
 addRawDeps _ _ other = pure other
 
@@ -356,7 +356,7 @@ withConfigAST transform = do
       let exprHasChanged = Dhall.Core.denote expr /= newExpr
       if exprHasChanged
         then liftIO $ Dhall.writeRawExpr path (header, newExpr)
-        else echoDebug "Transformed config is the same as the read one, not overwriting it"
+        else logDebug "Transformed config is the same as the read one, not overwriting it"
       pure exprHasChanged
 
 
@@ -380,4 +380,4 @@ addDependencies :: Spago m => Config -> [PackageName] -> m ()
 addDependencies config newPackages = do
   configHasChanged <- withConfigAST $ addRawDeps config newPackages
   unless configHasChanged $
-    echo "WARNING: configuration file was not updated."
+    logWarning "configuration file was not updated."

@@ -68,7 +68,7 @@ fileWatchConf watchConfig shouldClear inner = withManagerConf watchConfig $ \man
           when (shouldClear == DoClear) $ liftIO $ do
             clearScreen
             setCursorPosition 0 0
-          mapM_ echoStr maybeMsg
+          mapM_ outputStr maybeMsg
 
     let onChange event = do
           timeNow <- liftIO getCurrentTime
@@ -136,25 +136,25 @@ fileWatchConf watchConfig shouldClear inner = withManagerConf watchConfig $ \man
     let watchInput :: Spago m => m ()
         watchInput = do
           line <- liftIO $ unpack . toLower . pack <$> getLine
-          if line == "quit" then echo "Leaving watch mode."
+          if line == "quit" then output "Leaving watch mode."
           else do
             liftIO $ case line of
               "help" -> do
-                echo ""
-                echo "help: display this help"
-                echo "quit: exit"
-                echo "build: force a rebuild"
-                echo "watched: display watched files"
+                output ""
+                output "help: display this help"
+                output "quit: exit"
+                output "build: force a rebuild"
+                output "watched: display watched files"
               "build" -> do
                 redisplay Nothing
                 atomically $ writeTVar dirtyVar True
               "watched" -> do
                 watch' <- readTVarIO allGlobs
-                mapM_ echoStr (Glob.decompile <$> Set.toList watch')
+                mapM_ outputStr (Glob.decompile <$> Set.toList watch')
               "" -> do
                 redisplay Nothing
                 atomically $ writeTVar dirtyVar True
-              _ -> echoStr $ concat
+              _ -> outputStr $ concat
                   [ "Unknown command: "
                   , show line
                   , ". Try 'help'"
@@ -170,10 +170,10 @@ fileWatchConf watchConfig shouldClear inner = withManagerConf watchConfig $ \man
       eres :: Either SomeException () <- try $ inner setWatched
 
       case eres of
-        Left e -> echoStr $ show e
-        _      -> echo "Success! Waiting for next file change."
+        Left e -> outputStr $ show e
+        _      -> output "Success! Waiting for next file change."
 
-      echo "Type help for available commands. Press enter to force a rebuild."
+      output "Type help for available commands. Press enter to force a rebuild."
 
 
 globToParent :: Glob.Pattern -> FilePath
