@@ -129,13 +129,14 @@ $ node .
   - [Bundle a project into a single JS file](#bundle-a-project-into-a-single-js-file)
     - [1. `spago bundle-app`](#1-spago-bundle-app)
     - [2. `spago bundle-module`](#2-spago-bundle-module)
-    - [Skipping the Build Step](#skipping-the-build-step)
+    - [Skip the "build" step](#skip-the-build-step)
   - [Make a project with PureScript + JavaScript](#make-a-project-with-purescript--javascript)
-    - [Getting Started from Scratch - With Parcel (Front End Projects)](#getting-started-from-scratch-with-parcel-for-front-end-projects)
-    - [Getting Started from Scratch - With WebPack (Large Front End Projects)](#getting-started-from-scratch-with-parcel-for-front-end-projects)
-    - [Getting Started from Scratch - With Nodemon (Back End Projects)](#getting-started-from-scratch-with-parcel-for-front-end-projects)
+    - [Get started from scratch with Parcel (frontend projects)](#get-started-from-scratch-with-parcel-frontend-projects)
+    - [Get started from scratch with Webpack (frontend projects)](#get-started-from-scratch-with-webpack-frontend-projects)
+    - [Get started from scratch with Nodemon (backend and/or CLI projects)](#get-started-from-scratch-with-nodemon-backend-andor-cli-projects)
   - [Generate documentation for my project](#generate-documentation-for-my-project)
   - [Get source maps for my project](#get-source-maps-for-my-project)
+  - [Use alternate backends to compile to Go, C++, Kotlin, etc](#use-alternate-backends-to-compile-to-go-c-kotlin-etc)
   - [Publish my library](#publish-my-library)
   - [Get all the licenses of my dependencies](#get-all-the-licenses-of-my-dependencies)
   - [Know which `purs` commands are run under the hood](#know-which-purs-commands-are-run-under-the-hood)
@@ -143,7 +144,6 @@ $ node .
 - [Explanations](#explanations)
   - [Visual Overview: What happens when you do 'spago build'?](#visual-overview-what-happens-when-you-do-spago-build)
   - [Configuration file format](#configuration-file-format)
-  - [Alternate Backends](#alternate-backends)
   - [Why can't `spago` also install my npm dependencies?](#why-cant-spago-also-install-my-npm-dependencies)
   - [Why we don't resolve JS dependencies when bundling, and how to do it](#why-we-dont-resolve-js-dependencies-when-bundling-and-how-to-do-it)
   - [How does the "global cache" work?](#how-does-the-global-cache-work)
@@ -535,7 +535,7 @@ let upstream =
 
 ### Monorepo
 
-Spago aims to support ["monorepos"][luu-monorepo], allowing you to split a blob of code 
+Spago aims to support ["monorepos"][luu-monorepo], allowing you to split a blob of code
 into different "compilation units" that might have different dependencies, deliverables, etc.
 
 A typical monorepo setup in spago consists of:
@@ -631,7 +631,7 @@ in upstream // overrides
 }
 ```
 
-To avoid building the same packages over, a shared `output` folder will be created next to your root `packages.dhall`. 
+To avoid building the same packages over, a shared `output` folder will be created next to your root `packages.dhall`.
 
 To disable this behaviour, pass `--no-share-output` to `spago build`.
 
@@ -690,315 +690,343 @@ $ node -e "console.log(require('./index').main)"
 [Function]
 ```
 
-#### Skipping the Build Step
+#### Skip the "build" step
 
-When running `spago bundle-app` and `spago bundle-module` the `build` step will also execute
-since bundling depends on building first.
+When running `spago bundle-app` and `spago bundle-module`, Spago will first try to `build`
+your project, since bundling requires the project to be compiled first.
 
-To skip this build you can add the `--no-build` flag.
+If you already compiled your project and want to skip this step you can pass the `--no-build` flag.
 
 
 ### Make a project with PureScript + JavaScript
 
-Take a look at [TodoMVC with react-basic + spago + parcel][todomvc] for a working example.
+Take a look at [TodoMVC with react-basic + spago + parcel][todomvc] for a working example,
+or follow one of the next "get started" sections:
 
-#### Getting Started from Scratch With Parcel (For Front End Projects)
+#### Get started from scratch with Parcel (frontend projects)
 
-To start a project using Spago and Parcel together, here's the cammands and file setup you'll need:
+To start a project using Spago and Parcel together, here's the commands and file setup you'll need:
 
-0. Install Node Package Manager(NPM): `curl https://www.npmjs.org/install.sh | sh`
-1. Install Spago and PureScript: `npm i -g spago purescript` 
-2. Create a folder for your project: `mkdir <project folder name>`
-3. Move to the project folder: `cd <project folder name>`
-4. Create your PureScript project with Spago: `spago init`, This also produces a `./src/Main.purs` file which contains some starter code.
-5. Initialize the JavaScript/NPM project `npm init`
-6. Install Parcel as a dependency `npm i parcel --save dev`
-7. Add a JavaScript file which imports and calls the `main` function from the output of `./src/Main.purs`. This can be placed in the root directory for your project. Traditionally this file is named `index.js`. The `main` function from `Main.purs` can accept arguments, this is useful since parcel will replace environment variables inside of JavaScript. It is recommended to read any environment variables in the JavaScript file and pass them as arguments to `main`. Here is an example JavaScript file:
+1. Follow [Spago's "Super quick tutorial"](#super-quick-tutorial)
+2. Initialise a JavaScript/npm project with `npm init`
+3. Install Parcel as a development-time dependency `npm i parcel --save dev`
+4. Add a JavaScript file which imports and calls the `main` function from the output of `src/Main.purs`.
+  This can be placed in the root directory for your project. Traditionally this file is named `index.js`.
+  The `main` function from `Main.purs` can accept arguments, this is useful since Parcel will replace
+  environment variables inside of JavaScript.
+  It is recommended to read any environment variables in the JavaScript file and pass them as
+  arguments to `main`. Here is an example JavaScript file:
 
-``` JavaScript
-var Main = require('./output/Main');
+  ```js
+  var Main = require('./output/Main');
 
-function main () {
-    /* 
-     Here we could add variables such as 
-     
-     var baseUrl = process.env.BASE_URL;
+  function main () {
+      /*
+      Here we could add variables such as
 
-     Parcel will replace `process.env.BASE_URL` 
-     with the string contents of the BASE_URL environment
-     variable at bundle/build time.  
-     A .env file can also be used to override shell variables
-     for more information, see https://en.parceljs.org/env.html
+      var baseUrl = process.env.BASE_URL;
 
-     These variables can be supplied to the Main.main function,
-     however, you will need to change the type to accept variables, by default it is an Effect.
-     You will probably want to make it a function from String -> Effect ()
-  */
+      Parcel will replace `process.env.BASE_URL`
+      with the string contents of the BASE_URL environment
+      variable at bundle/build time.
+      A .env file can also be used to override shell variables
+      for more information, see https://en.parceljs.org/env.html
 
-  Main.main();
+      These variables can be supplied to the Main.main function.
+      However, you will need to change the type to accept variables, by default it is an Effect.
+      You will probably want to make it a function from String -> Effect ()
+    */
+
+    Main.main();
   }
 
-// HMR stuff
-// For more info see: https://parceljs.org/hmr.html
-if (module.hot) {
-  module.hot.accept(function () {
-    console.log('Reloaded, running main again');
-    main();
-  });
-}
+  // HMR setup. For more info see: https://parceljs.org/hmr.html
+  if (module.hot) {
+    module.hot.accept(function () {
+      console.log('Reloaded, running main again');
+      main();
+    });
+  }
 
-console.log('Starting app');
+  console.log('Starting app');
 
-main();
-```
+  main();
+  ```
 
-8. Add an HTML file which sources your JavaScript file. This can be named `index.html` and placed in the root directory of your project. Here is an example HTML file:
+5. Add an HTML file which sources your JavaScript file. This can be named `index.html`
+  and placed in the root directory of your project. Here is an example HTML file:
 
-``` HTML
+  ```html
   <!doctype html>
-<html lang="en" data-framework="purescript">
-<head>
-  <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-</head>
+  <html lang="en" data-framework="purescript">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+  </head>
 
-<body>
-  <div id="app"></div>
-  <script src="./index.js"></script>
-</body>
-</html>
-```
+  <body>
+    <div id="app"></div>
+    <script src="./index.js"></script>
+  </body>
+  </html>
+  ```
 
-9. Add a development script to `package.json` which will hot-bundle the PureScript code with Spago, and then hot-reload the resulting JavaScript code using Parcel. Here, we'll call this script `dev`. 
+6. Add a development script to `package.json` which will hot-bundle the PureScript code with Spago,
+  and then hot-reload the resulting JavaScript code using Parcel. Here, we'll call this script `dev`.
 
-``` 
-...
-  "scripts": {
-    "dev": "spago build --watch & parcel index.html",
-  },
-...
-```
+  ```js
+  ...
+    "scripts": {
+      "dev": "spago build --watch & parcel index.html",
+    },
+  ...
+  ```
 
-This script will simultanously run spago and parcel in parallel. NPM scripts allow project dependencies to be treated as if they are on your PATH. When you run it with `npm run dev`, Parcel will tell you which port your application is being served on, by default this will be `localhost:1234`. If you've followed this guide you can navigate there in a browser and open the javascript console. you will see the output of both `index.js` and the compiled `Main.purs` file. When you modify any purescript file in `./src`, you should see Spago and Parcel rebuild your application, and the browser should execute the new code. For some applications you may adjust the JavaScript function that handles hot modules to fully reload the page with `window.location.reload();`.
+  This script will simultaneously run Spago and Parcel in parallel.
+  NPM scripts allow project dependencies to be treated as if they are on your `$PATH`.
+  When you run it with `npm run dev`, Parcel will tell you which port your application is being served on,
+  by default this will be `localhost:1234`.
 
-10. At this point we should be able to test our program by running `npm run dev`, when you navigate a browser to localhost:1234, you should see '🍝' as output in the javascript development console if this was performed successfully 
+  If you've followed this guide you can navigate there in a browser and open the JavaScript console,
+  you will see the output of both `index.js` and the compiled `Main.purs` file.
+  When you modify any purescript file in `./src`, you should see Spago and Parcel rebuild your application,
+  and the browser should execute the new code.
+  For some applications you may adjust the JavaScript function that handles hot modules to
+  fully reload the page with `window.location.reload();`.
 
-11. when you are ready to build and deploy your application as static html/js/css, you may add a `build` script to package.json in order to produce a final bundle, this script is usually something like `spago build && parcel build index.html`. 
+7. At this point we should be able to test our program by running `npm run dev`.
+  When you navigate a browser to `localhost:1234`, you should see '🍝' as output in the JavaScript console
+  if this was performed successfully!
 
-Other build options are available, using webpack (and purs-loader), or browserify.  Parcel is used here for it's low-configuration overhead.
-
-
-#### Getting Started from Scratch With WebPack (For Front End Projects)
-
-0. Install Node Package Manager(NPM): `curl https://www.npmjs.org/install.sh | sh`
-1. Install Spago and PureScript: `npm i -g spago purescript` 
-2. Create a folder for your project: `mkdir <project folder name>`
-3. Move to the project folder: `cd <project folder name>`
-4. Create your PureScript project with Spago: `spago init`, This also produces a `./src/Main.purs` file which contains some starter code.
-5. Initialize the JavaScript/NPM project `npm init`
-6. Add WebPack and PureScript-PSA as dependancies `npm install webpack webpack-cli webpack-dev-server purescript-psa --save-dev`
-7. Install the PureScript loader and HTML plugin for WebPack `npm install purs-loader html-webpack plugin --save-dev` (Depending on other tools/filetypes you may require additional loaders, This may include css/scss, image files, etc. please refer to the [WebPack documentation][https://webpack.js.org/] for more information)
-8. Create an HTML file that will serve as the entry point for your application. Typically this is `index.html`. in your HTML file, be sure to pull in the `bundle.js` file, which will be Webpack's output. here is an example HTML file:
-
-``` html
-
-<!doctype html>
-<html>
-<head>
-</head>
-<body>
-  <div ></div>
-</body>
-</html>
+8. When you are ready to build and deploy your application as static html/js/css,
+  you may add a `build` script to `package.json` in order to produce a final bundle.
+  This script is usually something like `spago build && parcel build index.html`.
 
 
-```
+#### Get started from scratch with Webpack (frontend projects)
 
-9. create a `webpack.config.js` file in the root of your project. Here is an example webpack configuration:
+1. Follow [Spago's "Super quick tutorial"](#super-quick-tutorial)
+2. Initialise a JavaScript/npm project with `npm init`
+3. Add Webpack and purescript-psa as development-time dependencies: `npm install --save-dev webpack webpack-cli webpack-dev-server purescript-psa`
+4. Install the PureScript loader and HTML plugin for WebPack `npm install --save-dev purs-loader html-webpack plugin`.
+  Note that you may require additional loaders for css/scss, image files, etc. Please refer to the [Webpack documentation](https://webpack.js.org/) for more information.
+5. Create an HTML file that will serve as the entry point for your application.
+  Typically this is `index.html`. in your HTML file, be sure to pull in the `bundle.js` file, which will be Webpack's output. here is an example HTML file:
 
-``` JavaScript
+  ```html
+  <!doctype html>
+  <html lang="en" data-framework="purescript">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+  </head>
 
-'use strict';
+  <body>
+    <div id="app"></div>
+    <script src="./bundle.js"></script>
+  </body>
+  </html>
+  ```
 
-const path = require('path');
+6. Create a `webpack.config.js` file in the root of your project. Here is an example webpack configuration:
 
-const HtmlWebpackPlugin = require('html-webpack-plugin');
+  ```js
 
-const webpack = require('webpack');
+  'use strict';
 
-const isWebpackDevServer = process.argv.some(a => path.basename(a) === 'webpack-dev-server');
+  const path = require('path');
+  const HtmlWebpackPlugin = require('html-webpack-plugin');
+  const webpack = require('webpack');
+  const isWebpackDevServer = process.argv.some(a => path.basename(a) === 'webpack-dev-server');
+  const isWatch = process.argv.some(a => a === '--watch');
 
-const isWatch = process.argv.some(a => a === '--watch');
-
-const plugins =
-  isWebpackDevServer || !isWatch ? [] : [
-    function(){
-      this.plugin('done', function(stats){
-        process.stderr.write(stats.toString('errors-only'));
-      });
-    }
-  ]
-;
-
-module.exports = {
-  devtool: 'eval-source-map',
-
-  devServer: {
-    contentBase: path.resolve(__dirname, 'dist'),
-    port: 4008,
-    stats: 'errors-only'
-  },
-
-  entry: './src/index.js',
-
-  output: {
-    path: path.resolve(__dirname, 'dist'),
-    filename: 'bundle.js'
-  },
-
-  module: {
-    rules: [
-      {
-        test: /\.purs$/,
-        use: [
-          {
-            loader: 'purs-loader',
-            options: {
-              src: [
-                'src/**/*.purs'
-              ],
-              spago: true,
-              watch: isWebpackDevServer || isWatch,
-              pscIde: true
-            }
-          }
-        ]
-      },
-      {
-        test: /\.(png|jpg|gif)$/i,
-        use: [
-          {
-            loader: 'url-loader',
-            options: {
-              limit: 8192,
-            },
-          },
-        ],
-      },
+  const plugins =
+    isWebpackDevServer || !isWatch ? [] : [
+      function(){
+        this.plugin('done', function(stats){
+          process.stderr.write(stats.toString('errors-only'));
+        });
+      }
     ]
-  },
+  ;
 
-  resolve: {
-    modules: [ 'node_modules' ],
-    extensions: [ '.purs', '.js']
-  },
+  module.exports = {
+    devtool: 'eval-source-map',
 
-  plugins: [
-    new webpack.LoaderOptionsPlugin({
-      debug: true
-    }),
-    new HtmlWebpackPlugin({
-      title: 'purescript-webpack-example',
-      template: 'index.html'
-    })
-  ].concat(plugins)
-};
-```
+    devServer: {
+      contentBase: path.resolve(__dirname, 'dist'),
+      port: 4008,
+      stats: 'errors-only'
+    },
 
-10. Add `src/index.js`, this file will import and execute the purescript Main file, and serves as the entry point for the webpack bundler. You can also use this file to refer to environment variables which can then be passed to Purescript code. Please refer to the webpack documentation on environment variable replacement during bundling. Here is an example `index.js` file:
+    entry: './src/index.js',
 
-``` JavaScript
+    output: {
+      path: path.resolve(__dirname, 'dist'),
+      filename: 'bundle.js'
+    },
 
-'use strict';
+    module: {
+      rules: [
+        {
+          test: /\.purs$/,
+          use: [
+            {
+              loader: 'purs-loader',
+              options: {
+                src: [
+                  'src/**/*.purs'
+                ],
+                spago: true,
+                watch: isWebpackDevServer || isWatch,
+                pscIde: true
+              }
+            }
+          ]
+        },
+        {
+          test: /\.(png|jpg|gif)$/i,
+          use: [
+            {
+              loader: 'url-loader',
+              options: {
+                limit: 8192,
+              },
+            },
+          ],
+        },
+      ]
+    },
 
-require('./Main.purs').main();
+    resolve: {
+      modules: [ 'node_modules' ],
+      extensions: [ '.purs', '.js']
+    },
 
-if (module.hot) {
-  module.hot.accept();
-}
+    plugins: [
+      new webpack.LoaderOptionsPlugin({
+        debug: true
+      }),
+      new HtmlWebpackPlugin({
+        title: 'purescript-webpack-example',
+        template: 'index.html'
+      })
+    ].concat(plugins)
+  };
+  ```
 
-console.log('app starting' )
-```
+7. Add a `src/index.js`: this file will import and execute the PureScript `Main` module,
+  and serves as the entry point for the Webpack bundler.
 
-11. Add the following scripts to `package.json`
+  You can also use this file to refer to environment variables which can then be passed to PureScript code.
+  Please refer to the Webpack documentation on environment variable replacement during bundling.
+  Here is an example `index.js` file:
 
-```
-... 
+  ```js
 
-  "scripts": {
-    "webpack:server": "webpack-dev-server --progress --inline --hot"
-  },
-...
-```
+  'use strict';
 
-12. At this point we should be able to test our program by running `npm run webpack:server`, once you navigate in a browser to localhost:4008 you should see '🍝' as output in the javascript development console if this was performed successfully.
+  require('./Main.purs').main();
 
-13. For production builds, it is recommended to have a seperate build and serve script. Please refer to the [WebPack documentation][https://webpack.js.org/] for more information. Generally production builds use a seperate webpack configuration.
+  if (module.hot) {
+    module.hot.accept();
+  }
+
+  console.log('app starting')
+  ```
+
+8. Add the following development script to `package.json`:
+
+  ```js
+  ...
+
+    "scripts": {
+      "webpack:server": "webpack-dev-server --progress --inline --hot"
+    },
+  ...
+  ```
+
+9. At this point we should be able to run our program by calling `npm run webpack:server`.
+  If you point your browser to `localhost:4008` you should see `🍝` in the JavaScript
+  development console. This means everything went alright!
+
+10. For production builds, it is recommended to have separate scripts to build and serve.
+  Please refer to the [Webpack documentation](https://webpack.js.org/) for more information.
 
 
-#### Getting Started from Scratch With Nodemon (for Backend and/or CLI projects)
+#### Get started from scratch with Nodemon (backend and/or CLI projects)
 
-0. Install Node Package Manager(NPM): `curl https://www.npmjs.org/install.sh | sh`
-1. Install Spago and PureScript: `npm i -g spago purescript` 
-2. Create a folder for your project: `mkdir <project folder name>`
-3. Move to the project folder: `cd <project folder name>`
-4. Create your PureScript project with Spago: `spago init`, This also produces a `./src/Main.purs` file which contains some starter code.
-5. Initialize the JavaScript/NPM project `npm init`
-6. Add Nodemon as a dependancy `npm install nodemon` (this is usually a dev dependancy, add the `--save-dev` flag to prevent installation in production or CI environments)
-7. Add a JavaScript file which imports and calls the `main` function from the output of `./src/Main.purs`. This can be placed in the root directory for your project. Traditionally this file is named `index.js`. The `main` function from `Main.purs` can accept arguments, this is useful since the Node runtime will replace environment variables inside of JavaScript. It is recommended to read any environment variables in the JavaScript file and pass them as arguments to `main`. Here is an example JavaScript file:
+1. Follow [Spago's "Super quick tutorial"](#super-quick-tutorial)
+2. Initialise a JavaScript/npm project with `npm init`
+3. Add Nodemon as a development-time dependency: `npm install --save-dev nodemon`
+4. Add a JavaScript file which imports and calls the `main` function from the output of `src/Main.purs`.
 
-``` JavaScript
-'use strict'
+  This can be placed in the root directory of your project, and traditionally this file is named `index.js`.
 
-var Main = require('./output/Main');
+  The `main` function from `Main.purs` can accept arguments, and this is useful since the Node
+  runtime will replace environment variables inside of JavaScript.
+  It is recommended to read any environment variables in the JavaScript file and pass them as arguments to `main`.
 
-function main () {
-    /* 
-     Here we could add variables such as 
-     
-     var baseUrl = process.env.BASE_URL;
+  Here is an example JavaScript file:
 
-     Node will replace `process.env.BASE_URL` 
-     with the string contents of the BASE_URL environment
-     variable at bundle/build time.  
+  ```js
+  'use strict'
 
-     These variables can be supplied to the Main.main function,
-     however, you will need to change the type to accept variables, by default it is an Effect.
-     You will probably want to make it a function from String -> Effect ()
-  */
+  var Main = require('./output/Main');
 
-  Main.main();
-}
-```
+  function main () {
+      /*
+      Here we could add variables such as
 
-8. At this point we should be able to test our program by running `spago build` followed by `node index.js`, you should see '🍝' as output if this was performed successfully 
-9. Now we want to enable Nodemon, Nodemon will watch for file changes in the dependancy tree and reload our Node program each time there is a change during development. We'll also tell Spago to watch our PureScript source files so that they are compiled, which in turn will trigger Nodemon to reload.
+      var baseUrl = process.env.BASE_URL;
 
-To configure this, add the following script to your `package.json` file:
+      Node will replace `process.env.BASE_URL`
+      with the string contents of the BASE_URL environment
+      variable at bundle/build time.
 
-``` 
-...
-  "scripts": {
-    "dev": "spago build --watch & nodemon \"node index.js\"",
-  },
-...
-```
+      These variables can be supplied to the Main.main function,
+      however, you will need to change the type to accept variables, by default it is an Effect.
+      You will probably want to make it a function from String -> Effect ()
+    */
 
-10. You can now run your development environment by running `npm run dev`
+    Main.main();
+  }
+  ```
 
-11. For a production build, add the following scripts to your `package.json`: 
+5. At this point we should be able to run our program by calling `spago build` followed by `node index.js`.
+  If you see `🍝` as output then this was successful!
+6. Now we want to enable Nodemon, which will watch for file changes in the dependancy tree and
+  reload our Node program every time there is a new change.
+  We'll also tell Spago to watch our PureScript source files so that they are compiled,
+  which in turn will trigger a Nodemon reload.
 
-``` 
-...
-  "scripts": {
-    "build": "spago build",
-    "start": "node index.js"
-  },
-...
-```
+  To configure this, add the following script to your `package.json` file:
 
-12. To run a production build, you can simply run `npm run build` and to start a production process, call `npm start`
+  ```js
+  ..
+    "scripts": {
+      "dev": "spago build --watch & nodemon \"node index.js\"",
+    },
+  ...
+  ```
 
-For publishing CLI programs or NPM modules, please refer to the [npm documentation][https://docs.npmjs.com/cli/publish], however if you are publishing a Node module for consumption by JavaScript users, it is recommended that you pre-compile your purescript project before distributing. 
+7. You can now run your development environment by calling `npm run dev`
+
+8. For a production build, add the following scripts to your `package.json`:
+
+  ```js
+  ...
+    "scripts": {
+      "build": "spago build && node index.js"
+    },
+  ...
+  ```
+
+9. To run a production build, you can now run `npm run build`!
+
+For publishing CLI programs or NPM modules, please refer to the [relevant npm documentation](https://docs.npmjs.com/cli/publish).
+
+Please note that if you are publishing a Node module for consumption by JavaScript users,
+it is recommended that you pre-compile your PureScript project before distributing it.
+
 
 ### Generate documentation for my project
 
@@ -1031,6 +1059,19 @@ Quoting from [this tweet](https://twitter.com/jusrin00/status/109207140735638732
    something like `parcel`, to avoid mangling/destroying the sourcemaps
 3. now you can see your breakpoints in action
 
+
+### Use alternate backends to compile to Go, C++, Kotlin, etc
+
+Spago supports compiling with alternate purescript backends like [psgo] or [pskt].
+To use an alternate backend, add the `backend` option to you `spago.dhall` file:
+
+```dhall
+{ name = "aaa"
+, backend = "psgo"
+...
+```
+
+The value of the `backend` entry should be the name of the backend executable.
 
 ### Publish my library
 
@@ -1130,20 +1171,6 @@ let Config =
   , packages : PackageSet         -- this is the type we just defined above
   }
 ```
-
-### Alternate Backends
-
-Spago supports compiling with alternate purescript backends like [psgo](https://github.com/andyarvanitis/purescript-native) or [pskt](https://github.com/csicar/pskt). To use an alternate backend, add the `backend` option to you `spago.dhall` file:
-
-```dhall
-{ name =
-    "aaa"
-, backend =
-    "psgo"
-  ...
-```
-
-The value of the `backend` entry should be the name of the backend executable.
 
 ### Why can't `spago` also install my npm dependencies?
 
@@ -1275,6 +1302,8 @@ can depend on. However, if you wish `spago` to install it you should then add it
 the `dependencies` list in your `spago.dhall`.
 
 
+[psgo]: https://github.com/andyarvanitis/purescript-native
+[pskt]: https://github.com/csicar/pskt
 [pulp]: https://github.com/purescript-contrib/pulp
 [purp]: https://github.com/justinwoo/purp
 [dhall]: https://github.com/dhall-lang/dhall-lang
