@@ -4,6 +4,7 @@ module Utils
   , readFixture
   , getHighestTag
   , git
+  , outputShouldEqual
   , rmtree
   , runFor
   , shouldBeFailure
@@ -54,6 +55,10 @@ shouldBeSuccess result@(_code, _stdout, _stderr) = do
   -- print $ "STDERR: " <> _stderr
   result `shouldSatisfy` (\(code, _, _) -> code == ExitSuccess)
 
+outputShouldEqual :: HasCallStack => Text -> (ExitCode, Text, Text) -> IO ()
+outputShouldEqual expected (_,output,_) = do
+  output `shouldBe` expected
+
 shouldBeSuccessOutput :: HasCallStack => FilePath -> (ExitCode, Text, Text) -> IO ()
 shouldBeSuccessOutput expected (code, stdout, _stderr) = do
   expectedStdout <- readFixture expected
@@ -66,7 +71,7 @@ shouldBeSuccessOutputWithErr expected expectedErr (code, stdout, stderr) = do
   expectedStderr <- readFixture expectedErr
   code `shouldBe` ExitSuccess
   stdout `shouldBe` expectedStdout
-  (stripAnsi stderr) `shouldBe` expectedStderr
+  stderr `shouldBe` expectedStderr
 
 shouldBeSuccessInfix :: HasCallStack => Text -> (ExitCode, Text, Text) -> IO ()
 shouldBeSuccessInfix expected (code, stdout, _stderr) = do
@@ -117,7 +122,3 @@ getHighestTag = do
   pure $ case Text.strip tag of
     ""   -> Nothing
     tag' -> Just tag'
-
-stripAnsi :: Text -> Text
-stripAnsi = Text.unlines . fmap prep . Text.lines
-  where prep = Text.strip . Text.filter (not . isControl)

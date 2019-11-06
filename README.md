@@ -151,7 +151,6 @@ $ node .
     - [Spago is failing with some errors about "too many open files"](#spago-is-failing-with-some-errors-about-too-many-open-files)
     - [Package set caching problems](#package-set-caching-problems)
     - [I added a new package to the `packages.dhall`, but `spago` is not installing it. Why?](#i-added-a-new-package-to-the-packagesdhall-but-spago-is-not-installing-it-why)
-- [Internals](#internals)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
@@ -1094,6 +1093,13 @@ that is accepted by many commands. You can either:
   if you want to globally cache a tag or commit that is newer than 24h - the time `spago` will
   wait before updating its metadata file about "which things are globally cacheable".
 
+### Know the output path for my compiled code
+
+As there are now various factors that can affect the output path of compiled code, run 
+`spago path output` along with any flags you would pass to `spago build` (like 
+`--purs-args` or `--no-share-output`) to return the output path Spago is using. 
+This can be useful for sharing an output folder with `webpack`, for instance.
+
 ## Explanations
 
 ### Visual Overview: What happens when you do 'spago build'?
@@ -1275,9 +1281,6 @@ Adding a package to the package-set just includes it in the set of possible pack
 can depend on. However, if you wish `spago` to install it you should then add it to
 the `dependencies` list in your `spago.dhall`.
 
-## Internals
-
-See [this document](./INTERNALS.md)
 
 [pulp]: https://github.com/purescript-contrib/pulp
 [purp]: https://github.com/justinwoo/purp

@@ -12,8 +12,8 @@ import qualified Turtle              as CLI
 
 import           Spago.Build         (BuildOptions (..), DepsOnly (..), ExtraArg (..),
                                       ModuleName (..), NoBuild (..), NoInstall (..), NoSearch (..),
-                                      OpenDocs (..), ShareOutput (..), SourcePath (..),
-                                      TargetPath (..), Watch (..), WithMain (..))
+                                      OpenDocs (..), PathType (..), ShareOutput (..),
+                                      SourcePath (..), TargetPath (..), Watch (..), WithMain (..))
 import qualified Spago.Build
 import qualified Spago.Config        as Config
 import           Spago.Dhall         (TemplateComments (..))
@@ -100,6 +100,9 @@ data Command
   -- | Bundle a module into a CommonJS module (replaced by BundleModule)
   | MakeModule
 
+  -- | Returns output folder for compiled code
+  | Path (Maybe PathType) BuildOptions
+
 parser :: CLI.Parser (Command, GlobalOptions)
 parser = do
   opts <- globalOptions
@@ -165,6 +168,7 @@ parser = do
       , bundleModule
       , docs
       , search
+      , path
       ]
 
     initProject =
@@ -219,6 +223,17 @@ parser = do
       ( "search"
       , "Start a search REPL to find definitions matching names and types"
       , pure Search
+      )
+
+    pathSubcommand
+      =   CLI.subcommand "output" "Output path for compiled code"
+            (Path (Just OutputFolder) <$> buildOptions)
+      <|> (Path Nothing <$> buildOptions)
+
+    path =
+      ( "path"
+      , "Display paths used by the project"
+      , pathSubcommand
       )
 
     packageSetCommands = CLI.subcommandGroup "Package set commands:"
@@ -351,5 +366,6 @@ main = do
         -> Spago.Build.docs format sourcePaths depsOnly noSearch openDocs
       Search                                -> Spago.Build.search
       Version                               -> printVersion
+      Path whichPath buildOptions           -> Spago.Build.showPaths buildOptions whichPath
       Bundle                                -> die Messages.bundleCommandRenamed
       MakeModule                            -> die Messages.makeModuleCommandRenamed

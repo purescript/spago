@@ -7,6 +7,7 @@ module Spago.Build
   , bundleModule
   , docs
   , search
+  , showPaths
   , Watch (..)
   , NoBuild (..)
   , NoInstall (..)
@@ -15,6 +16,7 @@ module Spago.Build
   , Packages.DepsOnly (..)
   , NoSearch (..)
   , OpenDocs (..)
+  , PathType (..)
   , Purs.ExtraArg (..)
   , Purs.ModuleName (..)
   , Purs.SourcePath (..)
@@ -357,6 +359,52 @@ getOutputPath buildOpts = do
       case shareOutput buildOpts of
         NoShareOutput -> pure Nothing
         ShareOutput   -> pure outputPath
+
+getOutputPathOrDefault
+  :: Spago m
+  => BuildOptions
+  -> m Sys.FilePath
+getOutputPathOrDefault buildOpts
+  = (fromMaybe "output") <$> getOutputPath buildOpts
+
+data PathType
+  = OutputFolder
+
+-- | Used by `spago path output` command
+showOutputPath
+  :: Spago m
+  => BuildOptions
+  -> m ()
+showOutputPath buildOptions = 
+  outputStr =<< getOutputPathOrDefault buildOptions
+
+showPaths
+  :: Spago m
+  => BuildOptions
+  -> Maybe PathType
+  -> m ()
+showPaths buildOptions whichPaths = 
+  case whichPaths of
+    (Just OutputFolder) -> showOutputPath buildOptions
+    Nothing             -> showAllPaths buildOptions
+
+showAllPaths
+  :: Spago m
+  => BuildOptions
+  -> m ()
+showAllPaths buildOptions = 
+  traverse_ showPath =<< getAllPaths buildOptions
+  where
+    showPath (a,b) 
+      = output (a <> ": " <> b)
+
+getAllPaths
+  :: Spago m
+  => BuildOptions
+  -> m [(Text, Text)]
+getAllPaths buildOptions = do
+  outputPath <- getOutputPathOrDefault buildOptions
+  pure [ ("output", Text.pack outputPath) ]
 
 -- | Find an output flag and then return the next item
 -- | which should be the output folder
