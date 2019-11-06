@@ -20,6 +20,7 @@ import qualified Dhall.Pretty
 import           Dhall.TypeCheck                       (X, typeOf)
 import           Dhall.Util                            as Dhall
 import qualified Lens.Family
+import qualified System.FilePath                       as FilePath
 
 type DhallExpr a = Dhall.Expr Parser.Src a
 
@@ -66,10 +67,10 @@ readImports pathText = do
   let graph = Lens.Family.view Dhall.Import.graph status
   pure $ childImport <$> graph
   where
-    load expr
+    load expr'
       = State.execStateT
-          (Dhall.Import.loadWith expr)
-          (Dhall.Import.emptyStatus ".")
+          (Dhall.Import.loadWith expr')
+          (Dhall.Import.emptyStatus (FilePath.takeDirectory $ Text.unpack pathText))
 
     childImport
       = Dhall.Import.chainedImport . Dhall.Import.child
