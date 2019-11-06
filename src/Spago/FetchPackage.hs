@@ -36,11 +36,10 @@ import           Spago.Types
 --       * if yes, download the tar archive and copy it to global and then local cache
 --       * if not, run a series of git commands to get the code, and copy to local cache
 fetchPackages
-  :: Spago m
-  => Maybe GlobalCache.CacheFlag
+  :: Maybe GlobalCache.CacheFlag
   -> [(PackageName, Package)]
   -> Maybe Version.SemVer
-  -> m ()
+  -> Spago ()
 fetchPackages globalCacheFlag allDeps minPursVersion = do
   logDebug "Running `fetchPackages`"
 
@@ -63,7 +62,7 @@ fetchPackages globalCacheFlag allDeps minPursVersion = do
     outputStr $ "Installing " <> show nOfDeps <> " dependencies."
     metadata <- GlobalCache.getMetadata globalCacheFlag
 
-    limit <- asks globalJobs
+    limit <- askApp appJobs
     withTaskGroup' limit $ \taskGroup -> do
       asyncs <- for depsToFetch (async' taskGroup . fetchPackage metadata)
       liftIO $ handle (handler asyncs) (for_ asyncs Async.wait)
@@ -92,11 +91,11 @@ fetchPackages globalCacheFlag allDeps minPursVersion = do
 --   eventually caching it to the global cache, or copying it from there if it's
 --   sensible to do so.
 --   If it's a local directory do nothing
-fetchPackage :: Spago m => GlobalCache.ReposMetadataV1 -> (PackageName, Package) -> m ()
+fetchPackage :: GlobalCache.ReposMetadataV1 -> (PackageName, Package) -> Spago ()
 fetchPackage _ (PackageName package, Package { location = Local{..}, .. }) =
   output $ Messages.foundLocalPackage package localPath
 fetchPackage metadata pair@(packageName'@PackageName{..}, Package{ location = Remote{..}, .. } ) = do
-  logDebug $ "Fetching package " <> packageName
+  logDebug $ "Fetching package " <> display packageName
   globalDir <- GlobalCache.getGlobalCacheDir
   let packageDir = getPackageDir packageName' version
       packageGlobalCacheDir = globalDir </> packageDir
@@ -117,7 +116,7 @@ fetchPackage metadata pair@(packageName'@PackageName{..}, Package{ location = Re
       else Temp.withTempDirectory globalDir (Text.unpack ("__temp-" <> "-" <> packageName <> getCacheVersionDir version)) $ \globalTemp -> do
         -- * otherwise, check if the Package is on GitHub and an "immutable" ref
         -- * if yes, download the tar archive and copy it to global and then local cache
-        let cacheableCallback :: Spago m => FilePath.FilePath -> m ()
+        let cacheableCallback :: FilePath.FilePath -> Spago ()
             cacheableCallback resultDir = do
               -- the idea here is that we first copy the tree to a temp folder,
               -- then atomically move it to the correct cache location.  Since
@@ -132,7 +131,7 @@ fetchPackage metadata pair@(packageName'@PackageName{..}, Package{ location = Re
               mv resultDir packageLocalCacheDir
 
         -- * if not, run a series of git commands to get the code, and move it to local cache
-        let nonCacheableCallback :: Spago m => m ()
+        let nonCacheableCallback :: Spago ()
             nonCacheableCallback = do
               output $ "Installing " <> quotedName
 

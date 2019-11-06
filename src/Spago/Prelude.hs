@@ -63,7 +63,6 @@ module Spago.Prelude
 
 
 import qualified Control.Concurrent.Async.Pool         as Async
-import qualified Control.Monad.Catch                   as Catch
 import qualified Data.Text                             as Text
 import qualified Data.Text.Prettyprint.Doc             as Pretty
 import qualified Data.Text.Prettyprint.Doc.Render.Text as PrettyText
@@ -91,6 +90,7 @@ import           Data.Text.Prettyprint.Doc             (Pretty)
 import           Dhall.Optics                          (transformMOf)
 import           Lens.Family                           ((^..))
 import           RIO                                   as X hiding (FilePath, first, second, force)
+import           RIO.Orphans                           as X
 import           Safe                                  (headMay, lastMay)
 import           System.FilePath                       (isAbsolute, pathSeparator, (</>))
 import           System.IO                             (hPutStrLn)

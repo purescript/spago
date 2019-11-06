@@ -103,6 +103,13 @@ packages:
   original:
     hackage: rio-0.1.12.0
 - completed:
+    hackage: rio-orphans-0.1.1.0@sha256:15600084c56ef4e1f22ac2091d10fa6ed62f01f531d819c6a5a19492212a76c9,1612
+    pantry-tree:
+      size: 428
+      sha256: a1f439b0f16a4a9767cda0e17d24a816794af8f8f1630694a787e8d3e04ab339
+  original:
+    hackage: rio-orphans-0.1.1.0
+- completed:
     hackage: serialise-0.2.1.0@sha256:265fb7359c704086b150710426ae60882cdbccaaacc26bb59d77a1189a8276e6,8276
     pantry-tree:
       size: 4056

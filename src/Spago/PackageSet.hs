@@ -30,7 +30,7 @@ packagesPath = "packages.dhall"
 
 
 -- | Tries to create the `packages.dhall` file if needed
-makePackageSetFile :: Spago m => Bool -> Dhall.TemplateComments -> m ()
+makePackageSetFile :: Bool -> Dhall.TemplateComments -> Spago ()
 makePackageSetFile force comments = do
   hasPackagesDhall <- testfile packagesPath
   if force || not hasPackagesDhall
@@ -46,7 +46,7 @@ makePackageSetFile force comments = do
 --   - try to replace the git tag to which the package-set imports point to
 --     (if they point to the Package-Sets repo. This can be eventually made GitHub generic)
 --   - if all of this succeeds, it will regenerate the hashes and write to file
-upgradePackageSet :: Spago m => m ()
+upgradePackageSet :: Spago ()
 upgradePackageSet = do
   logDebug "Running `spago upgrade-set`"
 
@@ -54,13 +54,13 @@ upgradePackageSet = do
     Right tag -> updateTag tag
     Left (err :: SomeException) -> do
       output "WARNING: was not possible to upgrade the package-sets release"
-      logDebug $ "Error: " <> tshow err
+      logDebug $ "Error: " <> display err
 
   where
-    updateTag :: Spago m => Text -> m ()
+    updateTag :: Text -> Spago ()
     updateTag releaseTagName =  do
       let quotedTag = surroundQuote releaseTagName
-      logDebug $ "Found the most recent tag for \"purescript/package-sets\": " <> quotedTag
+      logDebug $ "Found the most recent tag for \"purescript/package-sets\": " <> display quotedTag
       rawPackageSet <- liftIO $ Dhall.readRawExpr packagesPath
       case rawPackageSet of
         Nothing -> die Messages.cannotFindPackages
@@ -173,15 +173,15 @@ upgradePackageSet = do
     upgradeImports _ imp = imp
 
 
-checkPursIsUpToDate :: Spago m => Maybe Version.SemVer -> m ()
+checkPursIsUpToDate :: Maybe Version.SemVer -> Spago ()
 checkPursIsUpToDate packagesMinPursVersion = do
   logDebug "Checking if `purs` is up to date"
   maybeCompilerVersion <- Purs.version
   case (maybeCompilerVersion, packagesMinPursVersion) of
     (Just compilerVersion, Just pursVersionFromPackageSet) -> performCheck compilerVersion pursVersionFromPackageSet
     other -> do
-      logWarning "unable to parse compiler and package set versions, not checking if `purs` is compatible with it.."
-      logDebug $ "Versions we got: " <> tshow other
+      logWarn "unable to parse compiler and package set versions, not checking if `purs` is compatible with it.."
+      logDebug $ "Versions we got: " <> displayShow other
   where
     -- | The check is successful only when the installed compiler is "slightly"
     --   greater (or equal of course) to the minimum version. E.g. fine cases are:
@@ -191,7 +191,7 @@ checkPursIsUpToDate packagesMinPursVersion = do
     --   - current is 0.1.2 and package-set is 0.2.3
     --   - current is 1.2.3 and package-set is 1.3.4
     --   - current is 1.2.3 and package-set is 0.2.3
-    performCheck :: Spago m => Version.SemVer -> Version.SemVer -> m ()
+    performCheck :: Version.SemVer -> Version.SemVer -> Spago ()
     performCheck actualPursVersion minPursVersion = do
       let versionList semver = semver ^.. (Version.major <> Version.minor <> Version.patch)
       case (versionList actualPursVersion, versionList minPursVersion) of
@@ -235,7 +235,7 @@ rootPackagePath _ = Nothing
 
 -- | In a Monorepo we don't wish to rebuild our shared packages over and over,
 -- | so we build into an output folder where our root packages.dhall lives
-findRootOutputPath :: Spago m => System.IO.FilePath -> m (Maybe System.IO.FilePath)
+findRootOutputPath :: System.IO.FilePath -> Spago (Maybe System.IO.FilePath)
 findRootOutputPath path = do
   logDebug "Locating root path of packages.dhall"
   imports <- liftIO $ Dhall.readImports $ Text.pack path
@@ -247,7 +247,7 @@ findRootPath :: [System.IO.FilePath] -> Maybe System.IO.FilePath
 findRootPath = Safe.minimumByMay (comparing (length . System.FilePath.splitSearchPath))
 
 -- | Freeze the package set remote imports so they will be cached
-freeze :: Spago m => System.IO.FilePath -> m ()
+freeze :: System.IO.FilePath -> Spago ()
 freeze path = do
   output Messages.freezePackageSet
   liftIO $
@@ -260,7 +260,7 @@ freeze path = do
 
 
 -- | Freeze the file if any of the remote imports are not frozen
-ensureFrozen :: Spago m => System.IO.FilePath -> m ()
+ensureFrozen :: System.IO.FilePath -> Spago ()
 ensureFrozen path = do
   logDebug "Ensuring that the package set is frozen"
   imports <- liftIO $ Dhall.readImports $ Text.pack path
