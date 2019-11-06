@@ -42,7 +42,7 @@ compile sourcePaths extraArgs = do
       Right _ -> pure "psa"
       Left (_err :: SomeException) -> pure "purs"
 
-  echoDebug $ "Compiling with " <> surroundQuote purs
+  logDebug $ "Compiling with " <> surroundQuote purs
 
   let
     paths = Text.intercalate " " $ surroundQuote <$> map unSourcePath sourcePaths
@@ -124,14 +124,14 @@ versionImpl purs = do
       parsed = versionText >>= (hush . Version.semver)
 
   when (isNothing parsed) $ do
-    echo $ Messages.failedToParseCommandOutput (purs <> " --version") fullVersionText
+    output $ Messages.failedToParseCommandOutput (purs <> " --version") fullVersionText
 
   pure parsed
 
 
 runWithOutput :: Spago m => Text -> Text -> Text -> m ()
 runWithOutput command success failure = do
-  echoDebug $ "Running command: `" <> command <> "`"
+  logDebug $ "Running command: `" <> command <> "`"
   liftIO $ shell command empty >>= \case
-    ExitSuccess -> echo success
+    ExitSuccess -> output success
     ExitFailure _ -> die failure

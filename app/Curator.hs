@@ -117,11 +117,11 @@ main = do
   Env.setEnv "GIT_TERMINAL_PROMPT" "0"
 
   -- Read GitHub Auth Token
-  echo "Reading GitHub token.."
+  output "Reading GitHub token.."
   token <- (GitHub.OAuth . Encoding.encodeUtf8 . Text.pack) <$> Env.getEnv "SPACCHETTIBOTTI_TOKEN"
 
   -- Prepare data folder that will contain the temp copies of the repos
-  echo "Creating 'data' folder"
+  output "Creating 'data' folder"
   mktree "data"
 
   -- Start spawning threads
@@ -159,7 +159,7 @@ main = do
       let threadLoop = do
             pullChan <- atomically $ Chan.dupTChan bus
             forever $ atomically (Chan.readTChan pullChan) >>= thread
-      echo $ "Spawning thread " <> tshow name
+      output $ "Spawning thread " <> tshow name
       void $ Concurrent.forkIO $ catch threadLoop $ \(err :: SomeException) -> do
         -- TODO: use logError from RIO instead of this crap
         {-
@@ -171,7 +171,7 @@ main = do
           <> (BSL.fromStrict . Encoding.encodeUtf8 . tshow) err
           <> "\n\n\n"
         -}
-        echo $ "Thread " <> tshow name <> " broke, restarting.."
+        output $ "Thread " <> tshow name <> " broke, restarting.."
         spawnThread name thread
 
 
@@ -183,13 +183,13 @@ main = do
 
 getLatestRelease :: GitHub.AuthMethod am => am -> GitHubAddress -> IO (Either GitHub.Error GitHub.Release)
 getLatestRelease token address@(Address owner repo) = do
-  echo $ "Getting latest release for " <> tshow address
+  output $ "Getting latest release for " <> tshow address
   GitHub.executeRequest token $ GitHub.latestReleaseR owner repo
 
 
 getTags :: GitHub.AuthMethod am => am -> GitHubAddress -> IO (Either GitHub.Error (Maybe Tag, (Map Tag CommitHash)))
 getTags token address@(Address owner repo) = do
-  echo $ "Getting tags for " <> tshow address
+  output $ "Getting tags for " <> tshow address
   res <- GitHub.executeRequest token $ GitHub.tagsForR owner repo GitHub.FetchAll
   let f vec =
         ( (Tag . GitHub.tagName) <$> vec Vector.!? 0
@@ -206,7 +206,7 @@ getTags token address@(Address owner repo) = do
 
 getCommits :: GitHub.AuthMethod am => am -> GitHubAddress -> IO (Either GitHub.Error [CommitHash])
 getCommits token address@(Address owner repo) = do
-  echo $ "Getting commits for " <> tshow address
+  output $ "Getting commits for " <> tshow address
   res <- GitHub.executeRequest token $ GitHub.commitsForR owner repo GitHub.FetchAll
   pure $ fmap (Vector.toList . fmap (CommitHash . GitHub.untagName . GitHub.commitSha)) res
 
@@ -275,7 +275,7 @@ checkLatestRelease token address RefreshState = getLatestRelease token address >
       -- We don't do anything if we have a release saved and it's the current one
       Just currentRelease | currentRelease == releaseTagName -> pure ()
       _ -> do
-        echo $ "Found a new release for " <> tshow address <> ": " <> releaseTagName
+        output $ "Found a new release for " <> tshow address <> ": " <> releaseTagName
         atomically $ Chan.writeTChan bus $ NewRepoRelease address releaseTagName
 checkLatestRelease _ _ _ = pure ()
 
@@ -298,18 +298,18 @@ spagoUpdatePackageSets _ _ = pure ()
 --   the package on the bus.
 metadataFetcher :: GitHub.AuthMethod am => am -> Message -> IO ()
 metadataFetcher token RefreshState = do
-  echo "Downloading and parsing package set.."
+  output "Downloading and parsing package set.."
   packageSet <- fetchPackageSet
   atomically $ Chan.writeTChan bus $ NewPackageSet packageSet
   let packages = Map.toList packageSet
-  echoStr $ "Fetching metadata for " <> show (length packages) <> " packages"
+  outputStr $ "Fetching metadata for " <> show (length packages) <> " packages"
 
   -- Call GitHub for all these packages and get metadata for them
   metadata <- Async.withTaskGroup 10 $ \taskGroup -> do
     asyncs <- for packages (Async.async taskGroup . fetchRepoMetadata)
     for asyncs Async.wait
 
-  echo "Fetched all metadata."
+  output "Fetched all metadata."
   atomically $ Chan.writeTChan bus $ NewMetadata $ foldMap (uncurry Map.singleton) metadata
 
   where
@@ -325,7 +325,7 @@ metadataFetcher token RefreshState = do
                   False -> repoUrl
             address = Address (GitHub.mkName Proxy owner) (GitHub.mkName Proxy repo)
 
-        echo $ "Retry " <> tshow rsIterNumber <> ": fetching tags and commits for " <> tshow address
+        output $ "Retry " <> tshow rsIterNumber <> ": fetching tags and commits for " <> tshow address
 
         !eitherTags <- getTags token address
         !eitherCommits <- getCommits token address
@@ -356,9 +356,9 @@ metadataUpdater (NewMetadata metadata) = do
   let writeMetadata :: GHC.IO.FilePath -> IO ()
       writeMetadata tempfolder = do
         path <- makeAbsolute (tempfolder </> "metadataV1new.json")
-        echo $ "Writing metadata to file: " <> tshow path
+        output $ "Writing metadata to file: " <> tshow path
         BSL.writeFile path $ encodePretty metadata
-        echo "Done."
+        output "Done."
 
   let commitMessage = "Update GitHub index file"
   runAndPushMaster metadataRepo commitMessage
@@ -377,7 +377,7 @@ packageSetCommenter token (NewVerification result) = do
 
   case maybePR of
     Nothing -> do
-      echo "Could not find an open PR, waiting 5 mins.."
+      output "Could not find an open PR, waiting 5 mins.."
       Concurrent.threadDelay (5 * 60 * 1000000)
       atomically $ Chan.writeTChan bus $ NewVerification result
     Just GitHub.PullRequest{..} -> do
@@ -404,8 +404,8 @@ packageSetCommenter token (NewVerification result) = do
               ]
       let (Address owner repo) = packageSetsRepo
       (GitHub.executeRequest token $ GitHub.createCommentR owner repo pullRequestNumber commentBody) >>= \case
-        Left err -> echo $ "Something went wrong while commenting. Error: " <> tshow err
-        Right _ -> echo "Commented on the open PR"
+        Left err -> output $ "Something went wrong while commenting. Error: " <> tshow err
+        Right _ -> output "Commented on the open PR"
 packageSetCommenter _ _ = pure ()
 
 
@@ -458,13 +458,13 @@ packageSetsUpdater token (NewMetadata newMetadata) = do
 
   let patchVersions path = do
         for_ (Map.toList newVersionsWithBanned) $ \(packageName, (tag, owner)) -> do
-          echo $ "Patching version for " <> tshow packageName
+          output $ "Patching version for " <> tshow packageName
           withAST (Text.pack $ path </> "src" </> "groups" </> Text.unpack (Text.toLower owner) <> ".dhall")
             $ updateVersion packageName tag
 
-        echo "Verifying new set. This might take a LONG while.."
+        output "Verifying new set. This might take a LONG while.."
         result <- runWithCwd path "cd src; spago init; spago verify-set"
-        echo "Verified packages, spamming the channel with the result.."
+        output "Verified packages, spamming the channel with the result.."
         atomically $ Chan.writeTChan bus $ NewVerification result
 
   let commands =
@@ -473,10 +473,10 @@ packageSetsUpdater token (NewMetadata newMetadata) = do
         , "git add src/groups"
         ]
 
-  echo $ "Found " <> tshow (length newVersions) <> " packages to update"
+  output $ "Found " <> tshow (length newVersions) <> " packages to update"
 
   when (length newVersions > 0) $ do
-    echo $ tshow newVersions
+    output $ tshow newVersions
     -- If we have more than one package to update, let's see if we already have an
     -- open PR to package-sets. If we do we can just commit there
     maybePR <- getPullRequestForUser token "spacchettibotti" packageSetsRepo
@@ -514,7 +514,7 @@ packageSetsUpdater token (NewMetadata newMetadata) = do
                 , Time.diffUTCTime lastCommitTime lastCommentTime > 0
                 ]
         let patchVersions' path = shouldVerifyAgain path >>= \case
-              False -> echo "Skipping verification as there's nothing new under the sun.."
+              False -> output "Skipping verification as there's nothing new under the sun.."
               True -> do
                 patchVersions path
                 updatePullRequestBody token packageSetsRepo pullRequestNumber $ mkBody newVersions' newBanned
@@ -598,16 +598,16 @@ runAndOpenPR token PullRequest{ prAddress = address@Address{..}, ..} preAction c
   = unlessM pullRequestExists (runInClonedRepo address prBranchName prTitle preAction commands openPR)
   where
     openPR = do
-      echo "Pushed a new commit, opening PR.."
+      output "Pushed a new commit, opening PR.."
       response <- GitHub.executeRequest token
         $ GitHub.createPullRequestR owner repo
         $ GitHub.CreatePullRequest prTitle prBody prBranchName "master"
       case response of
-        Right _   -> echo "Created PR 🎉"
-        Left err' -> echoStr $ "Error while creating PR: " <> show err'
+        Right _   -> output "Created PR 🎉"
+        Left err' -> outputStr $ "Error while creating PR: " <> show err'
 
     pullRequestExists = do
-      echo $ "Checking if we ever opened a PR " <> surroundQuote prTitle
+      output $ "Checking if we ever opened a PR " <> surroundQuote prTitle
 
       oldPRs <- GitHub.executeRequest token
         $ GitHub.pullRequestsForR owner repo
@@ -615,13 +615,13 @@ runAndOpenPR token PullRequest{ prAddress = address@Address{..}, ..} preAction c
         GitHub.FetchAll
       case oldPRs of
         Left err -> do
-          echoStr $ "Error: " <> show err
+          outputStr $ "Error: " <> show err
           pure True
         Right prs | not $ Vector.null prs -> do
-          echo "PR was opened, skipping.."
+          output "PR was opened, skipping.."
           pure True
         Right _ -> do
-          echo "No previous PRs found, opening one.."
+          output "No previous PRs found, opening one.."
           pure False
 
 
@@ -635,28 +635,28 @@ runInClonedRepo address@Address{..} branchName commit preAction commands postAct
           if code /= ExitSuccess
             then do
               failure
-              echo out
-              echo err
+              output out
+              output err
             else success
 
     (code, _out, _err) <- runWithCwd path $ "git clone git@github.com:" <> GitHub.untagName owner <> "/" <> GitHub.untagName repo <> ".git"
     if code /= ExitSuccess
-      then echo "Error while cloning repo"
+      then output "Error while cloning repo"
       else do
-        echo $ "Cloned " <> tshow address
+        output $ "Cloned " <> tshow address
         -- Configure the repo: set the git identity to spacchettibotti and switch to the branch
         runInRepo
           [ "git config --local user.name 'Spacchettibotti'"
           , "git config --local user.email 'spacchettibotti@ferrai.io'"
           , "git checkout " <> branchName <> " || git checkout -b " <> branchName
           ]
-          (echo "Failed to configure the repo")
+          (output "Failed to configure the repo")
           -- If the setup was fine, run the setup code before running the commands
           (preAction =<< makeAbsolute (path </> repoPath))
         -- Run the commands we wanted to run
         runInRepo
           commands
-          (echo "Something was off while running commands..")
+          (output "Something was off while running commands..")
           -- Check if anything actually changed or got staged
           (runInRepo
             [ "git diff --staged --exit-code" ]
@@ -664,14 +664,14 @@ runInClonedRepo address@Address{..} branchName commit preAction commands postAct
               [ "git commit -m '" <> commit <> "'"
               , "git push --set-upstream origin " <> branchName
               ]
-              (echo "Failed to commit!")
+              (output "Failed to commit!")
               postAction)
-            (echo "Nothing to commit, skipping.."))
+            (output "Nothing to commit, skipping.."))
 
 
 runWithCwd :: MonadIO io => GHC.IO.FilePath -> Text -> io (ExitCode, Text, Text)
 runWithCwd cwd cmd = do
-  echo $ "Running in path " <> Text.pack cwd <> ": `" <> cmd <> "`"
+  output $ "Running in path " <> Text.pack cwd <> ": `" <> cmd <> "`"
   let processWithNewCwd = (Process.shell (Text.unpack cmd)) { Process.cwd = Just cwd }
   systemStrictWithErr processWithNewCwd empty
 
@@ -686,10 +686,10 @@ withAST :: MonadIO m => Text -> (Expr -> m Expr) -> m ()
 withAST path transform = do
   rawConfig <- liftIO $ Dhall.readRawExpr path
   case rawConfig of
-    Nothing -> echo $ "Could not find file " <> path
+    Nothing -> output $ "Could not find file " <> path
     Just (header, expr) -> do
       newExpr <- transformMExpr transform expr
-      echo $ "Done. Updating the \"" <> path <> "\" file.."
+      output $ "Done. Updating the \"" <> path <> "\" file.."
       writeTextFile path $ Dhall.prettyWithHeader header newExpr <> "\n"
       liftIO $ Dhall.format path
   where

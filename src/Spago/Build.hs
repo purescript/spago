@@ -85,7 +85,7 @@ prepareBundleDefaults maybeModuleName maybeTargetPath = (moduleName, targetPath)
 --   eventually running some other action after the build
 build :: Spago m => BuildOptions -> Maybe (m ()) -> m ()
 build buildOpts@BuildOptions{..} maybePostBuild = do
-  echoDebug "Running `spago build`"
+  logDebug "Running `spago build`"
   config@Config.Config{ packageSet = Types.PackageSet{..}, ..} <- Config.ensureConfig
   deps <- Packages.getProjectDeps config
   case noInstall of
@@ -119,7 +119,7 @@ build buildOpts@BuildOptions{..} maybePostBuild = do
 
       case NonEmpty.nonEmpty (psMismatches <> jsMismatches) of
         Nothing -> pure ()
-        Just mismatches -> echo $ Messages.globsDoNotMatchWhenWatching $ NonEmpty.nub $ Text.pack <$> mismatches
+        Just mismatches -> output $ Messages.globsDoNotMatchWhenWatching $ NonEmpty.nub $ Text.pack <$> mismatches
 
       absolutePSGlobs <- traverse makeAbsolute psMatches
       absoluteJSGlobs <- traverse makeAbsolute jsMatches
@@ -154,7 +154,7 @@ repl
   -> Packages.DepsOnly
   -> m ()
 repl cacheFlag newPackages sourcePaths pursArgs depsOnly = do
-  echoDebug "Running `spago repl`"
+  logDebug "Running `spago repl`"
 
   try Config.ensureConfig >>= \case
     Right config@Config.Config{..} -> do
@@ -162,7 +162,7 @@ repl cacheFlag newPackages sourcePaths pursArgs depsOnly = do
       let globs = Packages.getGlobs deps depsOnly configSourcePaths <> sourcePaths
       Purs.repl globs pursArgs
     Left (err :: SomeException) -> do
-      echoDebug $ tshow err
+      logDebug $ tshow err
       cacheDir <- GlobalCache.getGlobalCacheDir
       Temp.withTempDirectory cacheDir "spago-repl-tmp" $ \dir -> do
         Turtle.cd (Turtle.decodeString dir)
@@ -207,7 +207,7 @@ runBackend
   -> [Purs.ExtraArg]
   -> m ()
 runBackend maybeBackend defaultModuleName maybeSuccessMessage failureMessage maybeModuleName buildOpts extraArgs = do
-  echoDebug $ "Running with backend: " <> fromMaybe "nodejs" maybeBackend
+  logDebug $ "Running with backend: " <> fromMaybe "nodejs" maybeBackend
   let postBuild = maybe (nodeAction =<< getOutputPath buildOpts) backendAction maybeBackend
   build buildOpts (Just postBuild)
   where
@@ -218,15 +218,15 @@ runBackend maybeBackend defaultModuleName maybeSuccessMessage failureMessage may
          in "#!/usr/bin/env node\n\n" <> "require('../" <> Text.pack path <> "/" <> Purs.unModuleName moduleName <> "').main()"
     nodeCmd = "node .spago/run.js " <> nodeArgs
     nodeAction outputPath' = do
-      echoDebug "Writing .spago/run.js"
+      logDebug "Writing .spago/run.js"
       writeTextFile ".spago/run.js" (nodeContents outputPath')
       chmod executable ".spago/run.js"
       shell nodeCmd empty >>= \case
-        ExitSuccess   -> maybe (pure ()) echo maybeSuccessMessage
+        ExitSuccess   -> maybe (pure ()) output maybeSuccessMessage
         ExitFailure n -> die $ failureMessage <> "exit code: " <> repr n
     backendAction backend =
       Turtle.proc backend (["--run" {-, Purs.unModuleName moduleName-}] <> fmap Purs.unExtraArg extraArgs) empty >>= \case
-        ExitSuccess   -> maybe (pure ()) echo maybeSuccessMessage
+        ExitSuccess   -> maybe (pure ()) output maybeSuccessMessage
         ExitFailure n -> die $ failureMessage <> "Backend " <> surroundQuote backend <> " exited with error:" <> repr n
 
   -- | Bundle the project to a js file
@@ -254,18 +254,18 @@ bundleModule
   -> BuildOptions
   -> m ()
 bundleModule maybeModuleName maybeTargetPath noBuild buildOpts = do
-  echoDebug "Running `bundleModule`"
+  logDebug "Running `bundleModule`"
   let (moduleName, targetPath) = prepareBundleDefaults maybeModuleName maybeTargetPath
       jsExport = Text.unpack $ "\nmodule.exports = PS[\""<> Purs.unModuleName moduleName <> "\"];"
       bundleAction = do
-        echo "Bundling first..."
+        output "Bundling first..."
         Purs.bundle Purs.WithoutMain moduleName targetPath
         -- Here we append the CommonJS export line at the end of the bundle
         try (with
               (appendonly $ pathFromText $ Purs.unTargetPath targetPath)
               (flip hPutStrLn jsExport))
           >>= \case
-            Right _ -> echo $ "Make module succeeded and output file to " <> Purs.unTargetPath targetPath
+            Right _ -> output $ "Make module succeeded and output file to " <> Purs.unTargetPath targetPath
             Left (n :: SomeException) -> die $ "Make module failed: " <> repr n
   case noBuild of
     DoBuild -> build buildOpts (Just bundleAction)
@@ -289,29 +289,29 @@ docs
   -> OpenDocs
   -> m ()
 docs format sourcePaths depsOnly noSearch open = do
-  echoDebug "Running `spago docs`"
+  logDebug "Running `spago docs`"
   config@Config.Config{..} <- Config.ensureConfig
   deps <- Packages.getProjectDeps config
-  echo "Generating documentation for the project. This might take a while..."
+  output "Generating documentation for the project. This might take a while..."
   Purs.docs docsFormat $ Packages.getGlobs deps depsOnly configSourcePaths <> sourcePaths
 
   when isHTMLFormat $ do
     when (noSearch == AddSearch) $ do
-      echo "Making the documentation searchable..."
+      output "Making the documentation searchable..."
       writeTextFile ".spago/purescript-docs-search" Templates.docsSearch
       writeTextFile ".spago/docs-search-app.js"     Templates.docsSearchApp
       let cmd = "node .spago/purescript-docs-search build-index"
-      echoDebug $ "Running `" <> cmd <> "`"
+      logDebug $ "Running `" <> cmd <> "`"
       shell cmd empty >>= \case
         ExitSuccess   -> pure ()
-        ExitFailure n -> echo $ "Failed while trying to make the documentation searchable: " <> repr n
+        ExitFailure n -> output $ "Failed while trying to make the documentation searchable: " <> repr n
 
     link <- linkToIndexHtml
     let linkText = "Link: " <> link
-    echo linkText
+    output linkText
 
     when (open == DoOpenDocs) $ do
-      echo "Opening in browser..."
+      output "Opening in browser..."
       () <$ openLink link
 
   where
@@ -330,7 +330,7 @@ search = do
   config@Config.Config{..} <- Config.ensureConfig
   deps <- Packages.getProjectDeps config
 
-  echo "Building module metadata..."
+  output "Building module metadata..."
 
   Purs.compile (Packages.getGlobs deps Packages.AllSources configSourcePaths)
     [ Purs.ExtraArg "--codegen"
@@ -339,7 +339,7 @@ search = do
 
   writeTextFile ".spago/purescript-docs-search" Templates.docsSearch
   let cmd = "node .spago/purescript-docs-search search"
-  echoDebug $ "Running `" <> cmd <> "`"
+  logDebug $ "Running `" <> cmd <> "`"
   viewShell $ callCommand $ Text.unpack cmd
 
 
@@ -376,7 +376,7 @@ showOutputPath
   => BuildOptions
   -> m ()
 showOutputPath buildOptions = 
-  echoStr =<< getOutputPathOrDefault buildOptions
+  outputStr =<< getOutputPathOrDefault buildOptions
 
 showPaths
   :: Spago m
@@ -396,7 +396,7 @@ showAllPaths buildOptions =
   traverse_ showPath =<< getAllPaths buildOptions
   where
     showPath (a,b) 
-      = echo (a <> ": " <> b)
+      = output (a <> ": " <> b)
 
 getAllPaths
   :: Spago m
@@ -440,7 +440,7 @@ getBuildArgsForSharedFolder buildOpts = do
         = Purs.ExtraArg . Text.pack . ("--output " <>)
   if any isOutputFlag pursArgs'
     then do
-      echo "Output path set explicitly - not using shared output path"
+      output "Output path set explicitly - not using shared output path"
       pure pursArgs'
     else do
       outputFolder <- getOutputPath buildOpts

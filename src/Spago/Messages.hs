@@ -120,9 +120,9 @@ failedToParseFile file err = makeMessage
   ]
 
 failedToParseCommandOutput :: Text -> Text -> Text
-failedToParseCommandOutput command output = makeMessage
+failedToParseCommandOutput command outputText = makeMessage
   [ "Failed to parse '" <> command <> "' output: "
-  , surroundQuote output
+  , surroundQuote outputText
   ]
 
 failedToReachGitHub :: Show a => a -> Text
