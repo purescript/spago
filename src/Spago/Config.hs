@@ -112,7 +112,7 @@ parseConfig = do
   withConfigAST $ pure . addSourcePaths
 
   path <- askEnv envConfigPath
-  expr <- liftIO $ Dhall.inputExpr $ "./" <> path
+  expr <- liftIO $ Dhall.inputExpr path
   case expr of
     Dhall.RecordLit ks -> do
       packages :: Map PackageName Package <- Dhall.requireKey ks "packages" (\case

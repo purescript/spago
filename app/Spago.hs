@@ -354,7 +354,9 @@ runWithEnv GlobalOptions{..} app = do
         $ setLogUseColor True
         $ setLogVerboseFormat True
         $ logOptions'
-  let configPath = fromMaybe Config.defaultPath globalConfigPath
+
+  configPath <- fmap Text.pack . makeAbsolute . Text.unpack $ fromMaybe Config.defaultPath globalConfigPath
+
   logDebug'  "Running `getGlobalCacheDir`"
   globalCache <- getGlobalCacheDir
   withLogFunc logOptions $ \logFunc ->
