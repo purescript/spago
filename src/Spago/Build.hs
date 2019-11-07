@@ -217,7 +217,7 @@ runBackend maybeBackend defaultModuleName maybeSuccessMessage failureMessage may
     nodeArgs = Text.intercalate " " $ map Purs.unExtraArg extraArgs
     nodeContents outputPath' =
          let path = fromMaybe "output" outputPath'
-         in "#!/usr/bin/env node\n\n" <> "require('../" <> Text.pack path <> "/" <> Purs.unModuleName moduleName <> "').main()"
+         in "#!/usr/bin/env node\n\n" <> "require('" <> Text.pack path <> "/" <> Purs.unModuleName moduleName <> "').main()"
     nodeCmd = "node .spago/run.js " <> nodeArgs
     nodeAction outputPath' = do
       logDebug "Writing .spago/run.js"
