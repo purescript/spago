@@ -598,18 +598,20 @@ spec = around_ setup $ do
       cd "monorepo-1"
       spago ["init"] >>= shouldBeSuccess
 
+      absoluteOutputPath <- Text.pack <$> makeAbsolute "./output"
+
        -- Create local 'monorepo-2' package that uses packages.dhall on top level
       mkdir "monorepo-2"
       cd "monorepo-2"
       spago ["init"] >>= shouldBeSuccess
       rm "packages.dhall"
       writeTextFile "packages.dhall" $ "../packages.dhall"
-      spago ["path", "output"] >>= outputShouldEqual "./../output\n"
-      pure ()
+      spago ["path", "output"] >>= outputShouldEqual (absoluteOutputPath <> "\n")
 
     it "Spago should output the local path when no overrides" $ do
 
       mkdir "monorepo-1"
       cd "monorepo-1"
       spago ["init"] >>= shouldBeSuccess
-      spago ["path", "output", "--no-share-output"] >>= outputShouldEqual "output\n"
+      absoluteOutputPath <- Text.pack <$> makeAbsolute "./output"
+      spago ["path", "output", "--no-share-output"] >>= outputShouldEqual (absoluteOutputPath <> "\n")
