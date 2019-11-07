@@ -67,7 +67,7 @@ fileWatchConf watchConfig shouldClear inner = withManagerConf watchConfig $ \man
           when (shouldClear == DoClear) $ liftIO $ do
             clearScreen
             setCursorPosition 0 0
-          mapM_ outputStr maybeMsg
+          mapM_ logInfo maybeMsg
 
     let onChange event = do
           timeNow <- liftIO getCurrentTime
@@ -93,12 +93,16 @@ fileWatchConf watchConfig shouldClear inner = withManagerConf watchConfig $ \man
 
           when rebuilding $ do
             liftIO $ atomically $ writeTVar lastEvent (timeNow, Watch.eventPath event)
-            redisplay $ Just $ "File changed, triggered a build: " <> show (Watch.eventPath event)
+            redisplay $ Just $ "File changed, triggered a build: " <> displayShow (Watch.eventPath event)
 
         setWatched :: Set.Set Glob.Pattern -> Spago ()
         setWatched globs = do
           liftIO $ atomically $ writeTVar allGlobs globs
           watch0 <- liftIO $ readTVarIO watchVar
+          env <- ask
+          let startListening = Map.mapWithKey $ \dir () -> do
+                listen <- Watch.watchTree manager dir (const True) (runRIO env . onChange)
+                return $ Just listen
           let actions = Map.mergeWithKey
                 keepListening
                 stopListening
@@ -128,36 +132,34 @@ fileWatchConf watchConfig shouldClear inner = withManagerConf watchConfig $ \man
                   _               -> throwM ioe
               return Nothing
 
-            startListening = Map.mapWithKey $ \dir () -> do
-              listen <- Watch.watchTree manager dir (const True) onChange
-              return $ Just listen
-
     let watchInput :: Spago ()
         watchInput = do
+          -- env <- ask
           line <- liftIO $ unpack . toLower . pack <$> getLine
-          if line == "quit" then output "Leaving watch mode."
+          if line == "quit" then logInfo "Leaving watch mode."
           else do
-            liftIO $ case line of
-              "help" -> do
-                output ""
-                output "help: display this help"
-                output "quit: exit"
-                output "build: force a rebuild"
-                output "watched: display watched files"
+            case line of
+              "help" -> traverse_ logInfo
+                          [ ""
+                          , "help: display this help"
+                          , "quit: exit"
+                          , "build: force a rebuild"
+                          , "watched: display watched files"
+                          ]
               "build" -> do
                 redisplay Nothing
                 atomically $ writeTVar dirtyVar True
               "watched" -> do
                 watch' <- readTVarIO allGlobs
-                mapM_ outputStr (Glob.decompile <$> Set.toList watch')
+                mapM_ (logInfo . displayShow) (Glob.decompile <$> Set.toList watch')
               "" -> do
                 redisplay Nothing
                 atomically $ writeTVar dirtyVar True
-              _ -> outputStr $ concat
-                  [ "Unknown command: "
-                  , show line
-                  , ". Try 'help'"
-                  ]
+              _ -> logWarn $ displayShow $ concat
+                     [ "Unknown command: "
+                     , show line
+                     , ". Try 'help'"
+                     ]
             watchInput
 
     race_ watchInput $ forever $ do
@@ -169,10 +171,10 @@ fileWatchConf watchConfig shouldClear inner = withManagerConf watchConfig $ \man
       eres :: Either SomeException () <- try $ inner setWatched
 
       case eres of
-        Left e -> outputStr $ show e
-        _      -> output "Success! Waiting for next file change."
+        Left e -> logWarn $ display e
+        _      -> logInfo "Success! Waiting for next file change."
 
-      output "Type help for available commands. Press enter to force a rebuild."
+      logInfo "Type help for available commands. Press enter to force a rebuild."
 
 
 globToParent :: Glob.Pattern -> FilePath

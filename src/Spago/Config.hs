@@ -182,9 +182,9 @@ makeConfig force comments = do
       -- first, read the psc-package file content
       content <- readTextFile PscPackage.configPath
       case eitherDecodeStrict $ Text.encodeUtf8 content of
-        Left err -> output $ Messages.failedToReadPscFile err
+        Left err -> logInfo $ display $ Messages.failedToReadPscFile err
         Right pscConfig -> do
-          output "Found a \"psc-package.json\" file, migrating to a new Spago config.."
+          logInfo "Found a \"psc-package.json\" file, migrating to a new Spago config.."
           -- try to update the dependencies (will fail if not found in package set)
           let pscPackages = map PackageSet.PackageName $ PscPackage.depends pscConfig
           config <- ensureConfig
@@ -196,7 +196,7 @@ makeConfig force comments = do
       case eitherDecodeStrict $ Text.encodeUtf8 content of
         Left err -> die [ display $ Messages.failedToParseFile path err ]
         Right packageMeta -> do
-          output "Found a \"bower.json\" file, migrating to a new Spago config.."
+          logInfo "Found a \"bower.json\" file, migrating to a new Spago config.."
           -- then try to update the dependencies. We'll migrates the ones that we can,
           -- and print a message to the user to fix the missing ones
           config@Config{..} <- ensureConfig
@@ -206,10 +206,10 @@ makeConfig force comments = do
 
           if null bowerErrors
             then do
-              output "All Bower dependencies are in the set! 🎉"
-              output $ "You can now safely delete your " <> surroundQuote "bower.json"
+              logInfo "All Bower dependencies are in the set! 🎉"
+              logInfo $ "You can now safely delete your " <> surroundQuote "bower.json"
             else do
-              output $ showBowerErrors bowerErrors
+              logWarn $ display $ showBowerErrors bowerErrors
 
           void $ withConfigAST (\e -> addRawDeps config bowerPackages
                                       $ updateName bowerName e)
@@ -297,7 +297,7 @@ addRawDeps config newPackages r@(Dhall.RecordLit kvs) = case Dhall.Map.lookup "d
                 $ Seq.sort $ nubSeq (Seq.fromList newPackages <> fmap PackageSet.PackageName oldPackages)
           pure $ Dhall.RecordLit $ Dhall.Map.insert "dependencies" newDepsExpr kvs
         Just pkgs -> do
-          output $ Messages.failedToAddDeps $ NonEmpty.map PackageSet.packageName pkgs
+          logWarn $ display $ Messages.failedToAddDeps $ NonEmpty.map PackageSet.packageName pkgs
           pure r
     where
       packagesDB = PackageSet.packagesDB $ packageSet config

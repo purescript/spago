@@ -20,9 +20,9 @@ data DryAction
 runDryActions :: DryRun -> NonEmpty DryAction -> Spago ()
 runDryActions DryRun dryActions = do
   logWarn "this is a dry run, so these side effects were not performed:"
-  for_ dryActions $ \DryAction{..} -> output $ "* " <> dryMessage
-  output "\nUse the `--no-dry-run` flag to run them"
+  for_ dryActions $ \DryAction{..} -> logWarn $ "* " <> display dryMessage
+  logWarn "\nUse the `--no-dry-run` flag to run them"
 runDryActions NoDryRun dryActions = do
   for_ dryActions $ \DryAction{..} -> do
-    output $ "** Running action: " <> dryMessage
+    logInfo $ "** Running action: " <> display dryMessage
     dryAction

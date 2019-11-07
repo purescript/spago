@@ -47,7 +47,7 @@ runBower args = do
 
 generateBowerJson :: Spago ByteString.ByteString
 generateBowerJson = do
-  output "Generating a new Bower config using the package set versions.."
+  logInfo "Generating a new Bower config using the package set versions.."
   config@Config{..} <- Config.ensureConfig
   PublishConfig{..} <- throws publishConfig
 
@@ -68,13 +68,13 @@ generateBowerJson = do
   when ignored $ do
     die [ path <> " is being ignored by git - change this before continuing" ]
 
-  output "Generated a valid Bower config using the package set"
+  logInfo "Generated a valid Bower config using the package set"
   pure bowerJson
 
 
 runBowerInstall :: Spago ()
 runBowerInstall = do
-  output "Running `bower install` so `pulp publish` can read resolved versions from it"
+  logInfo "Running `bower install` so `pulp publish` can read resolved versions from it"
   shell "bower install --silent" empty >>= \case
     ExitSuccess   -> pure ()
     ExitFailure _ -> die [ "Failed to run `bower install` on your package" ]

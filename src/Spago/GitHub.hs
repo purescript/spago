@@ -29,9 +29,9 @@ login = do
  case maybeToken of
    Nothing -> die [ display Messages.getNewGitHubToken ]
    Just (Text.pack -> token) -> do
-     output "Token read, authenticating with GitHub.."
+     logInfo "Token read, authenticating with GitHub.."
      username <- getUsername token
-     output $ "Successfully authenticated as " <> surroundQuote username
+     logInfo $ "Successfully authenticated as " <> displayShow username
      writeTextFile (Text.pack $ globalCacheDir </> tokenCacheFile) token
   where
     getUsername token = do
@@ -105,5 +105,6 @@ getLatestPackageSetsTag = do
       case Http.getResponseHeader "Location" response of
         [redirectUrl] -> return $ List.last $ Text.splitOn "/" $ Data.Text.Encoding.decodeUtf8 redirectUrl
         _ -> do
-          outputStr $ "Error following GitHub redirect, response:\n\n" <> show response
+          logWarn "Error following GitHub redirect, response:"
+          logWarn $ displayShow response
           empty

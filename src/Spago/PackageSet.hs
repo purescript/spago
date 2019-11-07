@@ -53,7 +53,7 @@ upgradePackageSet = do
   GitHub.getLatestPackageSetsTag >>= \case
     Right tag -> updateTag tag
     Left (err :: SomeException) -> do
-      output "WARNING: was not possible to upgrade the package-sets release"
+      logWarn "Was not possible to upgrade the package-sets release"
       logDebug $ "Error: " <> display err
 
   where
@@ -70,9 +70,9 @@ upgradePackageSet = do
           , currentTag == releaseTagName
             -> logDebug $ "Skipping package set version upgrade, already on latest version: " <> display quotedTag
         Just (header, expr) -> do
-          output $ "Upgrading the package set version to " <> quotedTag
+          logInfo $ "Upgrading the package set version to " <> display quotedTag
           let newExpr = fmap (upgradeImports releaseTagName) expr
-          output $ Messages.upgradingPackageSet releaseTagName
+          logInfo $ display $ Messages.upgradingPackageSet releaseTagName
           liftIO $ Dhall.writeRawExpr packagesPath (header, newExpr)
           -- If everything is fine, refreeze the imports
           freeze packagesPath
@@ -252,7 +252,7 @@ findRootPath = Safe.minimumByMay (comparing (length . System.FilePath.splitSearc
 -- | Freeze the package set remote imports so they will be cached
 freeze :: System.IO.FilePath -> Spago ()
 freeze path = do
-  output Messages.freezePackageSet
+  logInfo $ display Messages.freezePackageSet
   liftIO $
     Dhall.Freeze.freeze
       (Dhall.InputFile path)
@@ -269,6 +269,6 @@ ensureFrozen path = do
   imports <- liftIO $ Dhall.readImports $ Text.pack path
   let areRemotesFrozen = foldMap isRemoteFrozen imports
   case areRemotesFrozen of
-    []      -> output Messages.failedToCheckPackageSetFrozen
+    []      -> logWarn $ display $ Messages.failedToCheckPackageSetFrozen
     remotes -> unless (and remotes) $
       traverse_ (maybe (pure ()) freeze . localImportPath) imports

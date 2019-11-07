@@ -59,10 +59,10 @@ getCurrentVersion = do
 
   case Safe.maximumMay tags of
     Nothing -> do
-      output $ "No git version tags found, so assuming current version is " <> unparseVersion mempty
+      logInfo $ display $ "No git version tags found, so assuming current version is " <> unparseVersion mempty
       pure mempty
     Just maxVersion -> do
-      output $ "Found current version from git tag: " <> unparseVersion maxVersion
+      logInfo $ display $ "Found current version from git tag: " <> unparseVersion maxVersion
       pure maxVersion
 
 
@@ -88,7 +88,7 @@ tagNewVersion oldVersion newVersion = do
       newVersionTag = unparseVersion newVersion
 
   Git.commitAndTag newVersionTag $ oldVersionTag <> " → " <> newVersionTag
-  output $ "Git tag created for new version: " <> newVersionTag
+  logInfo $ display $ "Git tag created for new version: " <> newVersionTag
 
 
 -- | Bump and tag a new version in preparation for release.
@@ -103,7 +103,7 @@ bumpVersion dryRun spec = do
 
   let writeBowerAction = DryAction
         "write the new config to the `bower.json` file and try to install its dependencies" $ do
-        output $ "Writing the new Bower config to " <> surroundQuote Bower.path
+        logInfo $ "Writing the new Bower config to " <> surroundQuote Bower.path
         liftIO $ ByteString.writeFile Bower.path newBowerConfig
         Bower.runBowerInstall
         clean <- Git.hasCleanWorkingTree
