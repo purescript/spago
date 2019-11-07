@@ -1,0 +1,3 @@
+[33m[warn] [0mFailed to add dependencies. You should have a record with the `dependencies` key for this to work.[0m
+[33m[warn] [0mConfiguration file was not updated.[0m
+[34m[info] [0mInstallation complete.[0m

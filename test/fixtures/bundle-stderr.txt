@@ -1,0 +1,1 @@
+[31m[error] [0mThe `bundle` command has been replaced with `bundle-app`, so use that instead.[0m

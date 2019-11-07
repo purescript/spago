@@ -102,7 +102,7 @@ getMetadata cacheFlag = do
       downloadMeta = handleAny
         (\err -> do
             logDebug $ "Metadata fetch failed with exception: " <> display err
-            output "WARNING: Unable to download GitHub metadata, global cache will be disabled"
+            logWarn "Unable to download GitHub metadata, global cache will be disabled"
             pure mempty)
         (do
             metaBS <- Http.getResponseBody `fmap` Http.httpBS metaURL
@@ -120,21 +120,21 @@ getMetadata cacheFlag = do
     Just SkipCache -> pure mempty
     -- If we need to download a new cache we can skip checking the local filesystem
     Just NewCache -> do
-      output "Downloading a new packages cache metadata from GitHub.."
+      logInfo "Downloading a new packages cache metadata from GitHub.."
       downloadMeta
     -- Otherwise we check first
     Nothing -> do
-      output "Searching for packages cache metadata.."
+      logInfo "Searching for packages cache metadata.."
 
       -- Check if the metadata is in global cache and fresher than 1 day
       shouldRefreshFile globalPathToMeta >>= \case
         -- If we should not download it, read from file
         False -> do
-          output "Recent packages cache metadata found, using it.."
+          logInfo "Recent packages cache metadata found, using it.."
           fmap maybeToMonoid $ liftIO $ decodeFileStrict globalPathToMeta
         -- Otherwise download it, write it to file, and return it
         True -> do
-          output "Unable to find packages cache metadata, downloading from GitHub.."
+          logInfo "Unable to find packages cache metadata, downloading from GitHub.."
           downloadMeta
 
 

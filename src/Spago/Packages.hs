@@ -219,8 +219,10 @@ reportMissingPackages (PackagesLookupResult found foundWithoutPrefix notFound) =
       <> (fmap (\(NotFoundError (PackageName packageName)) -> display $ "  - " <> packageName) $ List.sort notFound)
 
   for_ foundWithoutPrefix $ \(FoundWithoutPrefix sansPrefix) ->
-    output $ "WARNING: the package 'purescript-" <> packageName sansPrefix <> "' was not found in your package set, but '"
-         <> packageName sansPrefix <> "' was. Using that instead."
+    logWarn
+    $ display
+    $ "The package 'purescript-" <> packageName sansPrefix <> "' was not found in your package set, but '"
+    <> packageName sansPrefix <> "' was. Using that instead."
   pure found
 
 
@@ -279,7 +281,7 @@ listPackages packagesFilter jsonFlag = do
       $ Map.restrictKeys packagesDB (Set.fromList dependencies)
 
   case packagesToList of
-    [] -> output "There are no dependencies listed in your spago.dhall"
+    [] -> logWarn "There are no dependencies listed in your spago.dhall"
     _  -> traverse_ output $ formatPackageNames packagesToList
 
   where
@@ -370,7 +372,7 @@ verify cacheFlag chkModsUniq maybePackage = do
   where
     verifyPackages :: PackageSet -> [(PackageName, Package)] -> Spago ()
     verifyPackages packageSet packages = do
-      output $ Messages.verifying $ length packages
+      logInfo $ display $ Messages.verifying $ length packages
       traverse_ (verifyPackage packageSet) (fst <$> packages)
 
     verifyPackage :: PackageSet -> PackageName -> Spago ()
@@ -379,15 +381,15 @@ verify cacheFlag chkModsUniq maybePackage = do
       let globs = getGlobs deps DepsOnly []
           quotedName = surroundQuote $ packageName name
       Fetch.fetchPackages cacheFlag deps packagesMinPursVersion
-      output $ "Verifying package " <> quotedName
+      logInfo $ display $ "Verifying package " <> quotedName
       Purs.compile globs []
-      output $ "Successfully verified " <> quotedName
+      logInfo $ display $ "Successfully verified " <> quotedName
 
     compileEverything :: PackageSet -> Spago ()
     compileEverything PackageSet{..} = do
       let deps = Map.toList packagesDB
           globs = getGlobs deps DepsOnly []
       Fetch.fetchPackages cacheFlag deps packagesMinPursVersion
-      output "Compiling everything (will fail if module names conflict)"
+      logInfo "Compiling everything (will fail if module names conflict)"
       Purs.compile globs []
-      output "Successfully compiled everything"
+      logInfo "Successfully compiled everything"

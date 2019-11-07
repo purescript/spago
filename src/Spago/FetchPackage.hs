@@ -95,7 +95,7 @@ fetchPackages globalCacheFlag allDeps minPursVersion = do
 --   If it's a local directory do nothing
 fetchPackage :: GlobalCache.ReposMetadataV1 -> (PackageName, Package) -> Spago ()
 fetchPackage _ (PackageName package, Package { location = Local{..}, .. }) =
-  output $ Messages.foundLocalPackage package localPath
+  logInfo $ display $ Messages.foundLocalPackage package localPath
 fetchPackage metadata pair@(packageName'@PackageName{..}, Package{ location = Remote{..}, .. } ) = do
   logDebug $ "Fetching package " <> display packageName
   globalCache <- askEnv envGlobalCache
@@ -111,7 +111,7 @@ fetchPackage metadata pair@(packageName'@PackageName{..}, Package{ location = Re
     -- * if a Package is in the global cache, copy it to the local cache
     if inGlobalCache
       then do
-        output $ "Copying from global cache: " <> quotedName
+        logInfo $ "Copying from global cache: " <> display quotedName
         cptree packageGlobalCacheDir downloadDir
         assertDirectory (localCacheDir </> Text.unpack packageName)
         mv downloadDir packageLocalCacheDir
@@ -124,18 +124,18 @@ fetchPackage metadata pair@(packageName'@PackageName{..}, Package{ location = Re
               -- then atomically move it to the correct cache location.  Since
               -- `mv` will not move folders across filesystems, this temp
               -- is created inside globalDir, guaranteeing the same filesystem.
-              output $ "Installing and globally caching " <> quotedName
+              logInfo $ "Installing and globally caching " <> display quotedName
               let resultDir2 = globalTemp </> "download2"
               assertDirectory resultDir2
               cptree resultDir resultDir2
               catch (mv resultDir2 packageGlobalCacheDir) $ \(err :: SomeException) ->
-                output $ Messages.failedToCopyToGlobalCache err
+                logInfo $ display $ Messages.failedToCopyToGlobalCache err
               mv resultDir packageLocalCacheDir
 
         -- * if not, run a series of git commands to get the code, and move it to local cache
         let nonCacheableCallback :: Spago ()
             nonCacheableCallback = do
-              output $ "Installing " <> quotedName
+              logInfo $ "Installing " <> display quotedName
 
               -- Here we set the package directory as the cwd of the new process.
               -- This is the "right" way to do it (instead of using e.g.

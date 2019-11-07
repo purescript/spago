@@ -38,9 +38,11 @@ compile sourcePaths extraArgs = do
   usePsa <- askEnv envUsePsa
   purs <- case usePsa of
     NoPsa -> pure "purs"
-    UsePsa -> try psaVersion >>= \case
+    UsePsa -> psaVersion >>= \case
       Right _ -> pure "psa"
-      Left (_err :: SomeException) -> pure "purs"
+      Left err -> do
+        logDebug $ display err
+        pure "purs"
 
   logDebug $ "Compiling with " <> displayShow purs
 
@@ -111,27 +113,26 @@ docs format sourcePaths = do
     "Docs generation succeeded."
     "Docs generation failed."
 
-version, psaVersion :: Spago (Maybe Version.SemVer)
-version = versionImpl "purs"
+version, psaVersion :: Spago (Either Text Version.SemVer)
+version    = versionImpl "purs"
 psaVersion = versionImpl "psa"
 
-versionImpl :: Text -> Spago (Maybe Version.SemVer)
-versionImpl purs = do
-  fullVersionText <- shellStrictWithErr (purs <> " --version") empty >>= \case
-    (ExitSuccess, out, _err) -> pure out
-    (_, _out, err) -> die [ "Failed to run '" <> display purs <> " --version'", display err ]
-  let versionText = headMay $ Text.split (== ' ') fullVersionText
-      parsed = versionText >>= (hush . Version.semver)
+versionImpl :: Text -> Spago (Either Text Version.SemVer)
+versionImpl purs = shellStrictWithErr (purs <> " --version") empty >>= \case
+  (ExitSuccess, out, _err) -> do
+    let versionText = headMay $ Text.split (== ' ') out
+        parsed = versionText >>= (hush . Version.semver)
 
-  when (isNothing parsed) $ do
-    output $ Messages.failedToParseCommandOutput (purs <> " --version") fullVersionText
+    pure $ case parsed of
+      Nothing -> Left $ Messages.failedToParseCommandOutput (purs <> " --version") out
+      Just p -> Right p
+  (_, _out, err) -> pure $ Left $ "Failed to run '" <> purs <> " --version'. Error: " <> err
 
-  pure parsed
 
 
 runWithOutput :: Text -> Text -> Text -> Spago ()
 runWithOutput command success failure = do
   logDebug $ "Running command: `" <> display command <> "`"
   shell command empty >>= \case
-    ExitSuccess -> output success
+    ExitSuccess -> logInfo $ display success
     ExitFailure _ -> die [ display failure ]

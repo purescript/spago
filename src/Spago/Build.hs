@@ -123,7 +123,7 @@ build buildOpts@BuildOptions{..} maybePostBuild = do
 
       case NonEmpty.nonEmpty (psMismatches <> jsMismatches) of
         Nothing -> pure ()
-        Just mismatches -> output $ Messages.globsDoNotMatchWhenWatching $ NonEmpty.nub $ Text.pack <$> mismatches
+        Just mismatches -> logInfo $ display $ Messages.globsDoNotMatchWhenWatching $ NonEmpty.nub $ Text.pack <$> mismatches
 
       absolutePSGlobs <- traverse makeAbsolute psMatches
       absoluteJSGlobs <- traverse makeAbsolute jsMatches
@@ -224,11 +224,11 @@ runBackend maybeBackend defaultModuleName maybeSuccessMessage failureMessage may
       writeTextFile ".spago/run.js" (nodeContents outputPath')
       chmod executable ".spago/run.js"
       shell nodeCmd empty >>= \case
-        ExitSuccess   -> maybe (pure ()) output maybeSuccessMessage
+        ExitSuccess   -> maybe (pure ()) (logInfo . display) maybeSuccessMessage
         ExitFailure n -> die [ display failureMessage <> "exit code: " <> repr n ]
     backendAction backend =
       Turtle.proc backend (["--run" {-, Purs.unModuleName moduleName-}] <> fmap Purs.unExtraArg extraArgs) empty >>= \case
-        ExitSuccess   -> maybe (pure ()) output maybeSuccessMessage
+        ExitSuccess   -> maybe (pure ()) (logInfo . display) maybeSuccessMessage
         ExitFailure n -> die [ display failureMessage <> "Backend " <> displayShow backend <> " exited with error:" <> repr n ]
 
   -- | Bundle the project to a js file
@@ -258,14 +258,14 @@ bundleModule maybeModuleName maybeTargetPath noBuild buildOpts = do
   let (moduleName, targetPath) = prepareBundleDefaults maybeModuleName maybeTargetPath
       jsExport = Text.unpack $ "\nmodule.exports = PS[\""<> Purs.unModuleName moduleName <> "\"];"
       bundleAction = do
-        output "Bundling first..."
+        logInfo "Bundling first..."
         Purs.bundle Purs.WithoutMain moduleName targetPath
         -- Here we append the CommonJS export line at the end of the bundle
         try (with
               (appendonly $ pathFromText $ Purs.unTargetPath targetPath)
               (flip hPutStrLn jsExport))
           >>= \case
-            Right _ -> output $ "Make module succeeded and output file to " <> Purs.unTargetPath targetPath
+            Right _ -> logInfo $ display $ "Make module succeeded and output file to " <> Purs.unTargetPath targetPath
             Left (n :: SomeException) -> die [ "Make module failed: " <> repr n ]
   case noBuild of
     DoBuild -> build buildOpts (Just bundleAction)
@@ -291,26 +291,26 @@ docs format sourcePaths depsOnly noSearch open = do
   logDebug "Running `spago docs`"
   config@Config.Config{..} <- Config.ensureConfig
   deps <- Packages.getProjectDeps config
-  output "Generating documentation for the project. This might take a while..."
+  logInfo "Generating documentation for the project. This might take a while..."
   Purs.docs docsFormat $ Packages.getGlobs deps depsOnly configSourcePaths <> sourcePaths
 
   when isHTMLFormat $ do
     when (noSearch == AddSearch) $ do
-      output "Making the documentation searchable..."
+      logInfo "Making the documentation searchable..."
       writeTextFile ".spago/purescript-docs-search" Templates.docsSearch
       writeTextFile ".spago/docs-search-app.js"     Templates.docsSearchApp
       let cmd = "node .spago/purescript-docs-search build-index"
       logDebug $ "Running `" <> display cmd <> "`"
       shell cmd empty >>= \case
         ExitSuccess   -> pure ()
-        ExitFailure n -> output $ "Failed while trying to make the documentation searchable: " <> repr n
+        ExitFailure n -> logWarn $ "Failed while trying to make the documentation searchable: " <> repr n
 
     link <- linkToIndexHtml
     let linkText = "Link: " <> link
-    output linkText
+    logInfo $ display linkText
 
     when (open == DoOpenDocs) $ do
-      output "Opening in browser..."
+      logInfo "Opening in browser..."
       () <$ openLink link
 
   where
@@ -329,7 +329,7 @@ search = do
   config@Config.Config{..} <- Config.ensureConfig
   deps <- Packages.getProjectDeps config
 
-  output "Building module metadata..."
+  logInfo "Building module metadata..."
 
   Purs.compile (Packages.getGlobs deps Packages.AllSources configSourcePaths)
     [ Purs.ExtraArg "--codegen"
@@ -432,7 +432,7 @@ getBuildArgsForSharedFolder buildOpts = do
         = Purs.ExtraArg . Text.pack . ("--output " <>)
   if any isOutputFlag pursArgs'
     then do
-      output "Output path set explicitly - not using shared output path"
+      logInfo "Output path set explicitly - not using shared output path"
       pure pursArgs'
     else do
       outputFolder <- getOutputPath buildOpts

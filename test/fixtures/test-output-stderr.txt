@@ -1,0 +1,3 @@
+[34m[info] [0mInstallation complete.[0m
+[34m[info] [0mBuild succeeded.[0m
+[34m[info] [0mTests succeeded.[0m

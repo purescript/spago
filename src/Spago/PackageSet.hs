@@ -176,12 +176,14 @@ upgradePackageSet = do
 checkPursIsUpToDate :: Maybe Version.SemVer -> Spago ()
 checkPursIsUpToDate packagesMinPursVersion = do
   logDebug "Checking if `purs` is up to date"
-  maybeCompilerVersion <- Purs.version
-  case (maybeCompilerVersion, packagesMinPursVersion) of
-    (Just compilerVersion, Just pursVersionFromPackageSet) -> performCheck compilerVersion pursVersionFromPackageSet
-    other -> do
+  eitherCompilerVersion <- Purs.version
+  case (eitherCompilerVersion, packagesMinPursVersion) of
+    (Right compilerVersion, Just pursVersionFromPackageSet) -> performCheck compilerVersion pursVersionFromPackageSet
+    (compilerVersion, packageSetVersion) -> do
       logWarn "Unable to parse compiler and package set versions, not checking if `purs` is compatible with it.."
-      logDebug $ "Versions we got: " <> displayShow other
+      logDebug $ "Versions we got:"
+      logDebug $ " - from the compiler: " <> displayShow compilerVersion
+      logDebug $ " - in package set: " <> displayShow packageSetVersion
   where
     -- | The check is successful only when the installed compiler is "slightly"
     --   greater (or equal of course) to the minimum version. E.g. fine cases are:
