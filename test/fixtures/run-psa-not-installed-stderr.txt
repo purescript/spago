@@ -21,7 +21,7 @@ Running `getGlobalCacheDir`
 @(src/Spago/FetchPackage.hs:71:3)[0m
 [32m[debug] [0mLocating root path of packages.dhall[90m
 @(src/Spago/PackageSet.hs:243:3)[0m
-[32m[debug] [0mFailed to run 'psa --version'. Error: /bin/sh: psa: command not found
+[32m[debug] [0mFailed to run 'psa --version'
 [90m
 @(src/Spago/Purs.hs:44:9)[0m
 [32m[debug] [0mCompiling with "purs"[90m
