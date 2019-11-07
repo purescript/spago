@@ -103,12 +103,16 @@ build buildOpts@BuildOptions{..} maybePostBuild = do
               Purs.compile globs sharedOutputArgs
           Just backend -> do
               when (Purs.ExtraArg "--codegen" `List.elem` pursArgs) $
-                die "Can't pass `--codegen` option to build when using a backend. Hint: No need to pass `--codegen corefn` explicitly when using the `backend` option. Remove the argument to solve the error"
+                die
+                  [ "Can't pass `--codegen` option to build when using a backend"
+                  , "Hint: No need to pass `--codegen corefn` explicitly when using the `backend` option."
+                  , "Remove the argument to solve the error"
+                  ]
               Purs.compile globs $ pursArgs ++ [ Purs.ExtraArg "--codegen", Purs.ExtraArg "corefn" ]
 
               shell backend empty >>= \case
                 ExitSuccess   -> pure ()
-                ExitFailure n -> die $ "Backend " <> surroundQuote backend <> " exited with error:" <> repr n
+                ExitFailure n -> die [ "Backend " <> displayShow backend <> " exited with error:" <> repr n ]
         fromMaybe (pure ()) maybePostBuild
 
   case shouldWatch of
@@ -221,11 +225,11 @@ runBackend maybeBackend defaultModuleName maybeSuccessMessage failureMessage may
       chmod executable ".spago/run.js"
       shell nodeCmd empty >>= \case
         ExitSuccess   -> maybe (pure ()) output maybeSuccessMessage
-        ExitFailure n -> die $ failureMessage <> "exit code: " <> repr n
+        ExitFailure n -> die [ display failureMessage <> "exit code: " <> repr n ]
     backendAction backend =
       Turtle.proc backend (["--run" {-, Purs.unModuleName moduleName-}] <> fmap Purs.unExtraArg extraArgs) empty >>= \case
         ExitSuccess   -> maybe (pure ()) output maybeSuccessMessage
-        ExitFailure n -> die $ failureMessage <> "Backend " <> surroundQuote backend <> " exited with error:" <> repr n
+        ExitFailure n -> die [ display failureMessage <> "Backend " <> displayShow backend <> " exited with error:" <> repr n ]
 
   -- | Bundle the project to a js file
 bundleApp
@@ -262,7 +266,7 @@ bundleModule maybeModuleName maybeTargetPath noBuild buildOpts = do
               (flip hPutStrLn jsExport))
           >>= \case
             Right _ -> output $ "Make module succeeded and output file to " <> Purs.unTargetPath targetPath
-            Left (n :: SomeException) -> die $ "Make module failed: " <> repr n
+            Left (n :: SomeException) -> die [ "Make module failed: " <> repr n ]
   case noBuild of
     DoBuild -> build buildOpts (Just bundleAction)
     NoBuild -> bundleAction

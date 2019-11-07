@@ -49,6 +49,9 @@ module Spago.Prelude
   , with
   , appendonly
   , async'
+  , wait'
+  , cancel'
+  , waitCatch'
   , mapTasks'
   , withTaskGroup'
   , Turtle.mktempdir
@@ -142,8 +145,10 @@ output = Turtle.printf (Turtle.s Turtle.% "\n")
 outputStr :: MonadIO m => String -> m ()
 outputStr = output . Text.pack
 
-die :: MonadThrow m => Text -> m a
-die reason = throwM $ SpagoError reason
+die :: (MonadIO m, HasLogFunc env, MonadReader env m) => [Utf8Builder] -> m a
+die reasons = do
+  traverse_ logError reasons
+  exitFailure
 
 -- | Suppress the 'Left' value of an 'Either'
 hush :: Either a b -> Maybe b
@@ -183,17 +188,26 @@ cptree :: MonadIO m => System.IO.FilePath -> System.IO.FilePath -> m ()
 cptree from to' = Turtle.cptree (Turtle.decodeString from) (Turtle.decodeString to')
 
 
-withTaskGroup' :: Int -> (Async.TaskGroup -> Spago b) -> Spago b
+withTaskGroup' :: (MonadIO m, MonadReader env m, HasLogFunc env, MonadUnliftIO m) => Int -> (Async.TaskGroup -> m b) -> m b
 withTaskGroup' n action = withRunInIO $ \run -> Async.withTaskGroup n (\taskGroup -> run $ action taskGroup)
 
-async' :: Async.TaskGroup -> Spago a -> Spago (Async.Async a)
+async' :: (MonadIO m, MonadReader env m, HasLogFunc env, MonadUnliftIO m) => Async.TaskGroup -> m a -> m (Async.Async a)
 async' taskGroup action = withRunInIO $ \run -> Async.async taskGroup (run action)
+
+wait' :: MonadIO m => Async.Async a -> m a
+wait' = liftIO . Async.wait
+
+cancel' :: MonadIO m => Async.Async a -> m ()
+cancel' = liftIO . Async.cancel
+
+waitCatch' :: MonadIO m => Async.Async a -> m (Either SomeException a)
+waitCatch' = liftIO . Async.waitCatch
 
 mapTasks' :: Traversable t => Async.TaskGroup -> t (Spago a) -> Spago (t a)
 mapTasks' taskGroup actions = withRunInIO $ \run -> Async.mapTasks taskGroup (run <$> actions)
 
 -- | Code from: https://github.com/dhall-lang/dhall-haskell/blob/d8f2787745bb9567a4542973f15e807323de4a1a/dhall/src/Dhall/Import.hs#L578
-assertDirectory :: (MonadIO m, MonadThrow m) => FilePath.FilePath -> m ()
+assertDirectory :: (MonadIO m, MonadThrow m, HasLogFunc env, MonadReader env m) => FilePath.FilePath -> m ()
 assertDirectory directory = do
   let private = transform Directory.emptyPermissions
         where
@@ -213,7 +227,7 @@ assertDirectory directory = do
     then do
       permissions <- Directory.getPermissions directory
       unless (accessible permissions) $ do
-        die $ "Directory " <> tshow directory <> " is not accessible. " <> tshow permissions
+        die [ "Directory " <> displayShow directory <> " is not accessible. " <> displayShow permissions ]
     else do
       assertDirectory (FilePath.takeDirectory directory)
 

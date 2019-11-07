@@ -16,7 +16,7 @@ requireCleanWorkingTree :: Spago ()
 requireCleanWorkingTree = do
   clean <- hasCleanWorkingTree
   unless clean $ do
-    die "Your git working tree is dirty. Please commit or stash your changes first."
+    die [ "Your git working tree is dirty. Please commit or stash your changes first." ]
 
 
 hasCleanWorkingTree :: Spago Bool
@@ -25,7 +25,7 @@ hasCleanWorkingTree = do
 
   when (code /= ExitSuccess) $ do
     logDebug $ "git status stderr: " <> display err
-    die "Unable to check git status. Perhaps git is not installed or this is not a git repository?"
+    die [ "Unable to check git status. Perhaps git is not installed or this is not a git repository?" ]
 
   pure $ out == ""
 

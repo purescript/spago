@@ -119,7 +119,7 @@ versionImpl :: Text -> Spago (Maybe Version.SemVer)
 versionImpl purs = do
   fullVersionText <- shellStrictWithErr (purs <> " --version") empty >>= \case
     (ExitSuccess, out, _err) -> pure out
-    (_, _out, err) -> die $ "Failed to run '" <> purs <> " --version'. Error:" <> err
+    (_, _out, err) -> die [ "Failed to run '" <> display purs <> " --version'", display err ]
   let versionText = headMay $ Text.split (== ' ') fullVersionText
       parsed = versionText >>= (hush . Version.semver)
 
@@ -132,6 +132,6 @@ versionImpl purs = do
 runWithOutput :: Text -> Text -> Text -> Spago ()
 runWithOutput command success failure = do
   logDebug $ "Running command: `" <> display command <> "`"
-  liftIO $ shell command empty >>= \case
+  shell command empty >>= \case
     ExitSuccess -> output success
-    ExitFailure _ -> die failure
+    ExitFailure _ -> die [ display failure ]

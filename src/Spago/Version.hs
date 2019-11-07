@@ -99,7 +99,7 @@ bumpVersion dryRun spec = do
   Git.requireCleanWorkingTree
 
   oldVersion <- getCurrentVersion
-  newVersion <- either die pure $ getNextVersion spec oldVersion
+  newVersion <- either (\err -> die [ display err ]) pure $ getNextVersion spec oldVersion
 
   let writeBowerAction = DryAction
         "write the new config to the `bower.json` file and try to install its dependencies" $ do
@@ -108,7 +108,7 @@ bumpVersion dryRun spec = do
         Bower.runBowerInstall
         clean <- Git.hasCleanWorkingTree
         unless clean $ do
-          die $ "A new " <> Bower.path <> " has been generated. Please commit this and run `bump-version` again."
+          die [ "A new " <> Bower.path <> " has been generated. Please commit this and run `bump-version` again." ]
 
   let tagAction = DryAction
         ("create (locally) the new git tag " <> surroundQuote (unparseVersion newVersion))

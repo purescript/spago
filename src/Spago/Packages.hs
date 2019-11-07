@@ -48,7 +48,7 @@ import           Spago.Types              as PackageSet
 --   - create an example `test` folder (if needed)
 initProject :: Bool -> Dhall.TemplateComments -> Spago ()
 initProject force comments = do
-  output "Initializing a sample project or migrating an existing one.."
+  logInfo "Initializing a sample project or migrating an existing one.."
 
   -- packages.dhall and spago.dhall overwrite can be forced
   PackageSet.makePackageSetFile force comments
@@ -68,22 +68,22 @@ initProject force comments = do
 
   copyIfNotExists ".gitignore" Templates.gitignore
 
-  output "Set up a local Spago project."
-  output "Try running `spago build`"
+  logInfo "Set up a local Spago project."
+  logInfo "Try running `spago build`"
 
   where
     whenDirNotExists dir action = do
       let dirPath = pathFromText dir
       dirExists <- testdir dirPath
       case dirExists of
-        True -> output $ Messages.foundExistingDirectory dir
+        True -> logInfo $ display $ Messages.foundExistingDirectory dir
         False -> do
           mktree dirPath
           action
 
     copyIfNotExists dest srcTemplate = do
       testfile dest >>= \case
-        True  -> output $ Messages.foundExistingFile dest
+        True  -> logInfo $ display $ Messages.foundExistingFile dest
         False -> writeTextFile dest srcTemplate
 
 
@@ -118,7 +118,7 @@ getDirectDeps Config{..} = do
   for dependencies $ \dep ->
     case Map.lookup dep packagesDB of
       Nothing ->
-        die $ pkgNotFoundMsg packagesDB (NotFoundError dep)
+        die [ display $ pkgNotFoundMsg packagesDB (NotFoundError dep) ]
       Just pkg ->
         pure (dep, pkg)
 
@@ -137,11 +137,11 @@ getTransitiveDeps PackageSet{..} deps = do
   handleErrors (Map.toList packageMap) (Set.toList notFoundErrors) (Set.toList cycleErrors)
   where
     handleErrors packageMap notFoundErrors cycleErrors
-      | not (null cycleErrors) = die $ "The following packages have circular dependencies:\n" <> (Text.intercalate "\n" . fmap pkgCycleMsg) cycleErrors
-      | not (null notFoundErrors) = die $ "The following packages do not exist in your package set:\n" <> (Text.intercalate "\n" . fmap (pkgNotFoundMsg packagesDB)) notFoundErrors
+      | not (null cycleErrors) = die $ [ "The following packages have circular dependencies:" ] <> fmap pkgCycleMsg cycleErrors
+      | not (null notFoundErrors) = die $ [ "The following packages do not exist in your package set:" ] <> fmap (pkgNotFoundMsg packagesDB) notFoundErrors
       | otherwise = pure packageMap
 
-    pkgCycleMsg (CycleError pkg) = "  - " <> packageName pkg
+    pkgCycleMsg (CycleError (PackageName packageName)) = "  - " <> display packageName
 
     go seen dep
       | dep `Set.member` seen =
@@ -161,14 +161,14 @@ getTransitiveDeps PackageSet{..} deps = do
               pure (mempty, Set.singleton $ NotFoundError dep, mempty)
 
 
-pkgNotFoundMsg :: Map PackageName Package -> NotFoundError PackageName -> Text
-pkgNotFoundMsg packagesDB (NotFoundError pkg) = "  - " <> packageName pkg <> extraHelp
+pkgNotFoundMsg :: Map PackageName Package -> NotFoundError PackageName -> Utf8Builder
+pkgNotFoundMsg packagesDB (NotFoundError pkg@(PackageName packageName)) = display $ "  - " <> packageName <> extraHelp
   where
     extraHelp = case suggestedPkg of
-      Just pkg' | Map.member pkg' packagesDB ->
-        ", but `" <> packageName pkg' <> "` does, did you mean that instead?"
-      Just pkg' ->
-        ", and nor does `" <> packageName pkg' <> "`"
+      Just pkg'@(PackageName suggested) | Map.member pkg' packagesDB ->
+        ", but `" <> suggested <> "` does, did you mean that instead?"
+      Just (PackageName suggested) ->
+        ", and nor does `" <> suggested <> "`"
       Nothing ->
         ""
     suggestedPkg = stripPurescriptPrefix pkg
@@ -214,8 +214,9 @@ install cacheFlag newPackages = do
 reportMissingPackages :: PackagesLookupResult -> Spago [PackageName]
 reportMissingPackages (PackagesLookupResult found foundWithoutPrefix notFound) = do
   unless (null notFound) $
-    die $ "The following packages do not exist in your package set:\n"
-        <> (Text.intercalate "\n" . fmap (\(NotFoundError p) -> "  - " <> packageName p) $ List.sort notFound)
+    die $
+      [ "The following packages do not exist in your package set:" ]
+      <> (fmap (\(NotFoundError (PackageName packageName)) -> display $ "  - " <> packageName) $ List.sort notFound)
 
   for_ foundWithoutPrefix $ \(FoundWithoutPrefix sansPrefix) ->
     output $ "WARNING: the package 'purescript-" <> packageName sansPrefix <> "' was not found in your package set, but '"
@@ -352,9 +353,9 @@ verify cacheFlag chkModsUniq maybePackage = do
     Nothing -> do
       verifyPackages packageSet (Map.toList packagesDB)
     -- In case we have a package, search in the package set for it
-    Just packageName -> do
+    Just packageName@(PackageName actualPackageName) -> do
       case Map.lookup packageName packagesDB of
-        Nothing -> die $ "No packages found with the name " <> tshow packageName
+        Nothing -> die [ "No packages found with the name " <> displayShow actualPackageName ]
         -- When verifying a single package we check the reverse deps/referrers
         -- because we want to make sure the it doesn't break them
         -- (without having to check the whole set of course, that would work

@@ -35,7 +35,7 @@ makePackageSetFile force comments = do
   hasPackagesDhall <- testfile packagesPath
   if force || not hasPackagesDhall
     then writeTextFile packagesPath $ Dhall.processComments comments Templates.packagesDhall
-    else output $ Messages.foundExistingProject packagesPath
+    else logWarn $ display $ Messages.foundExistingProject packagesPath
   Dhall.format packagesPath
 
 
@@ -63,12 +63,12 @@ upgradePackageSet = do
       logDebug $ "Found the most recent tag for \"purescript/package-sets\": " <> display quotedTag
       rawPackageSet <- liftIO $ Dhall.readRawExpr packagesPath
       case rawPackageSet of
-        Nothing -> die Messages.cannotFindPackages
+        Nothing -> die [ display Messages.cannotFindPackages ]
         -- Skip the check if the tag is already the newest
         Just (_, expr)
           | (currentTag:_) <- foldMap getCurrentTag expr
           , currentTag == releaseTagName
-            -> output $ "Skipping package set version upgrade, already on latest version: " <> quotedTag
+            -> logDebug $ "Skipping package set version upgrade, already on latest version: " <> display quotedTag
         Just (header, expr) -> do
           output $ "Upgrading the package set version to " <> quotedTag
           let newExpr = fmap (upgradeImports releaseTagName) expr
@@ -180,7 +180,7 @@ checkPursIsUpToDate packagesMinPursVersion = do
   case (maybeCompilerVersion, packagesMinPursVersion) of
     (Just compilerVersion, Just pursVersionFromPackageSet) -> performCheck compilerVersion pursVersionFromPackageSet
     other -> do
-      logWarn "unable to parse compiler and package set versions, not checking if `purs` is compatible with it.."
+      logWarn "Unable to parse compiler and package set versions, not checking if `purs` is compatible with it.."
       logDebug $ "Versions we got: " <> displayShow other
   where
     -- | The check is successful only when the installed compiler is "slightly"
@@ -197,9 +197,10 @@ checkPursIsUpToDate packagesMinPursVersion = do
       case (versionList actualPursVersion, versionList minPursVersion) of
         ([0, b, c], [0, y, z]) | b == y && c >= z -> pure ()
         ([a, b, _c], [x, y, _z]) | a /= 0 && a == x && b >= y -> pure ()
-        _ -> die $ Messages.pursVersionMismatch
-            (Version.prettySemVer actualPursVersion)
-            (Version.prettySemVer minPursVersion)
+        _ -> die [ display
+                   $ Messages.pursVersionMismatch
+                   (Version.prettySemVer actualPursVersion)
+                   (Version.prettySemVer minPursVersion) ]
 
 
 isRemoteFrozen :: Dhall.Import -> [Bool]

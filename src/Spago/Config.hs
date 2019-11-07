@@ -75,7 +75,7 @@ dependenciesType :: Dhall.Type [PackageName]
 dependenciesType = Dhall.list (Dhall.auto :: Dhall.Type PackageName)
 
 
-parsePackage :: MonadIO m => MonadThrow m => ResolvedExpr -> m Package
+parsePackage :: (MonadIO m, MonadThrow m, MonadReader env m, HasLogFunc env) => ResolvedExpr -> m Package
 parsePackage (Dhall.RecordLit ks) = do
   repo         <- Dhall.requireTypedKey ks "repo" (Dhall.auto :: Dhall.Type PackageSet.Repo)
   version      <- Dhall.requireTypedKey ks "version" Dhall.strictText
@@ -86,10 +86,10 @@ parsePackage (Dhall.App (Dhall.Field union "Local") (Dhall.TextLit (Dhall.Chunks
   | isLocationType union = do
       localPath <- case Text.isSuffixOf "/spago.dhall" spagoConfigPath of
         True  -> pure $ Text.dropEnd 12 spagoConfigPath
-        False -> die $ Messages.failedToParseLocalRepo spagoConfigPath
+        False -> die [ display $ Messages.failedToParseLocalRepo spagoConfigPath ]
       rawConfig <- liftIO $ Dhall.readRawExpr spagoConfigPath
       dependencies <- case rawConfig of
-        Nothing -> die $ Messages.cannotFindConfigLocalPackage spagoConfigPath
+        Nothing -> die [ display $ Messages.cannotFindConfigLocalPackage spagoConfigPath ]
         Just (_header, expr) -> do
           newExpr <- transformMExpr (pure . filterDependencies . addSourcePaths) expr
           -- Note: we have to use inputWithSettings here because we're about to resolve
@@ -102,7 +102,7 @@ parsePackage (Dhall.App (Dhall.Field union "Local") (Dhall.TextLit (Dhall.Chunks
               (pretty newExpr)
       let location = PackageSet.Local{..}
       pure PackageSet.Package{..}
-parsePackage expr = die $ Messages.failedToParsePackage $ pretty expr
+parsePackage expr = die [ display $ Messages.failedToParsePackage $ pretty expr ]
 
 
 -- | Tries to read in a Spago Config
@@ -152,7 +152,7 @@ ensureConfig = do
   path <- askEnv envConfigPath
   exists <- testfile path
   unless exists $ do
-    die Messages.cannotFindConfig
+    die [ display Messages.cannotFindConfig ]
   try parseConfig >>= \case
     Right config -> do
       PackageSet.ensureFrozen $ Text.unpack path
@@ -167,7 +167,7 @@ makeConfig force comments = do
   path <- askEnv envConfigPath
   unless force $ do
     hasSpagoDhall <- testfile path
-    when hasSpagoDhall $ die $ Messages.foundExistingProject path
+    when hasSpagoDhall $ die [ display $ Messages.foundExistingProject path ]
   writeTextFile path $ Dhall.processComments comments Templates.spagoDhall
   Dhall.format path
 
@@ -194,7 +194,7 @@ makeConfig force comments = do
       -- read the bowerfile
       content <- readTextFile "bower.json"
       case eitherDecodeStrict $ Text.encodeUtf8 content of
-        Left err -> die $ Messages.failedToParseFile path err
+        Left err -> die [ display $ Messages.failedToParseFile path err ]
         Right packageMeta -> do
           output "Found a \"bower.json\" file, migrating to a new Spago config.."
           -- then try to update the dependencies. We'll migrates the ones that we can,
@@ -349,7 +349,7 @@ withConfigAST transform = do
   path <- askEnv envConfigPath
   rawConfig <- liftIO $ Dhall.readRawExpr path
   case rawConfig of
-    Nothing -> die Messages.cannotFindConfig
+    Nothing -> die [ display $ Messages.cannotFindConfig ]
     Just (header, expr) -> do
       newExpr <- transformMExpr transform expr
       -- Write the new expression only if it has actually changed
@@ -380,4 +380,4 @@ addDependencies :: Config -> [PackageName] -> Spago ()
 addDependencies config newPackages = do
   configHasChanged <- withConfigAST $ addRawDeps config newPackages
   unless configHasChanged $
-    logWarn "configuration file was not updated."
+    logWarn "Configuration file was not updated."

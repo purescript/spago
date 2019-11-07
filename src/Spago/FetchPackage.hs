@@ -60,15 +60,15 @@ fetchPackages globalCacheFlag allDeps minPursVersion = do
   -- Note: it might be empty depending on the cacheFlag
   let nOfDeps = List.length depsToFetch
   when (nOfDeps > 0) $ do
-    outputStr $ "Installing " <> show nOfDeps <> " dependencies."
+    logInfo $ "Installing " <> display nOfDeps <> " dependencies."
     metadata <- GlobalCache.getMetadata globalCacheFlag
 
     limit <- askEnv envJobs
     withTaskGroup' limit $ \taskGroup -> do
       asyncs <- for depsToFetch (async' taskGroup . fetchPackage metadata)
-      liftIO $ handle (handler asyncs) (for_ asyncs Async.wait)
+      handle (handler asyncs) (for_ asyncs wait')
 
-  output "Installation complete."
+  logInfo "Installation complete."
 
   where
     -- Here we have this weird exception handling so that threads can clean after
@@ -81,11 +81,12 @@ fetchPackages globalCacheFlag allDeps minPursVersion = do
     -- waits for the exception to be thrown there, and we have to `wait` ourselves
     -- (with `waitCatch` so that we ignore any exception we are thrown and the `for_`
     -- completes) for the asyncs to finish their cleanup.
+    handler :: (HasLogFunc env, MonadReader env m, MonadIO m) => [Async.Async ()] -> SomeException -> m ()
     handler asyncs (e :: SomeException) = do
       for_ asyncs $ \asyncTask -> do
-        Async.cancel asyncTask
-        Async.waitCatch asyncTask
-      die $ "Installation failed.\n\nError:\n\n" <> tshow e
+        cancel' asyncTask
+        waitCatch' asyncTask
+      die [ "Installation failed", "Error:", display e ]
 
 
 -- | If the repo points to a remote git, fetch it in the local .spago folder, while
@@ -145,7 +146,7 @@ fetchPackage metadata pair@(packageName'@PackageName{..}, Package{ location = Re
 
               systemStrictWithErr processWithNewCwd empty >>= \case
                 (ExitSuccess, _, _) -> mv downloadDir packageLocalCacheDir
-                (_, _out, err) -> die $ Messages.failedToInstallDep quotedName err
+                (_, _out, err) -> die [ display $ Messages.failedToInstallDep quotedName err ]
 
         -- Make sure that the following folders exist first:
         assertDirectory downloadDir

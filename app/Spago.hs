@@ -346,11 +346,13 @@ printVersion = CLI.echo $ CLI.unsafeTextToLine $ Text.pack $ showVersion Pcli.ve
 --   and runs the app
 runWithEnv :: GlobalOptions -> Spago a -> IO a
 runWithEnv GlobalOptions{..} app = do
-  let logDebug' str = when globalVerbose $ output str
+  let logDebug' str = when globalVerbose $ hPutStrLn stderr str
   logOptions' <- logOptionsHandle stderr globalVerbose
   let logOptions
         = setLogUseTime globalTimestamps
-        $ setLogUseLoc True
+        $ setLogUseLoc globalVerbose
+        $ setLogUseColor True
+        $ setLogVerboseFormat True
         $ logOptions'
   let configPath = fromMaybe Config.defaultPath globalConfigPath
   logDebug'  "Running `getGlobalCacheDir`"
@@ -403,5 +405,5 @@ main = do
       Search                                -> Spago.Build.search
       Version                               -> printVersion
       Path whichPath buildOptions           -> Spago.Build.showPaths buildOptions whichPath
-      Bundle                                -> die Messages.bundleCommandRenamed
-      MakeModule                            -> die Messages.makeModuleCommandRenamed
+      Bundle                                -> die [ display Messages.bundleCommandRenamed ]
+      MakeModule                            -> die [ display Messages.makeModuleCommandRenamed ]

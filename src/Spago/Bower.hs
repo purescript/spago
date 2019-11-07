@@ -66,7 +66,7 @@ generateBowerJson = do
 
   ignored <- Git.isIgnored path
   when ignored $ do
-    die $ path <> " is being ignored by git - change this before continuing"
+    die [ path <> " is being ignored by git - change this before continuing" ]
 
   output "Generated a valid Bower config using the package set"
   pure bowerJson
@@ -77,7 +77,7 @@ runBowerInstall = do
   output "Running `bower install` so `pulp publish` can read resolved versions from it"
   shell "bower install --silent" empty >>= \case
     ExitSuccess   -> pure ()
-    ExitFailure _ -> die "Failed to run `bower install` on your package"
+    ExitFailure _ -> die [ "Failed to run `bower install` on your package" ]
 
 
 templateBowerJson :: Spago Bower.PackageMeta
@@ -86,7 +86,7 @@ templateBowerJson = do
     Just t  ->
       pure t
     Nothing ->
-      die "Invalid bower.json template (this is a Spago bug)"
+      die [ "Invalid bower.json template (this is a Spago bug)" ]
 
 
 mkPackageName :: Text -> Spago Bower.PackageName
@@ -94,7 +94,7 @@ mkPackageName spagoName = do
   let psName = "purescript-" <> spagoName
   case Bower.mkPackageName psName of
     Left err ->
-      die $ psName <> " is not a valid Bower package name: " <> Bower.showPackageNameError err
+      die [ display $ psName <> " is not a valid Bower package name: " <> Bower.showPackageNameError err ]
     Right name ->
       pure name
 
@@ -108,11 +108,11 @@ mkBowerVersion packageName version (Repo repo) = do
   (code, out, err) <- runBower args
 
   when (code /= ExitSuccess) $ do
-    die $ "Failed to run: `bower " <> Text.intercalate " " args <> "`\n" <> err
+    die [ display $ "Failed to run: `bower " <> Text.intercalate " " args <> "`", display err ]
 
   info <- case Aeson.decode $ encodeUtf8 $ fromStrict out of
     Just (Object obj) -> pure obj
-    _ -> die $ "Unable to decode output from `bower " <> Text.intercalate " " args <> "`: " <> out
+    _ -> die [ display $ "Unable to decode output from `bower " <> Text.intercalate " " args <> "`: ", display out ]
 
   if HashMap.member "version" info
     then pure $ Bower.VersionRange $ "^" <> version
@@ -133,7 +133,7 @@ mkDependencies config = do
     mkDependency (PackageName{..}, Package{..}) =
       case location of
         Local localPath ->
-          die $ "Unable to create Bower version for local repo: " <> localPath
+          die [ "Unable to create Bower version for local repo: " <> display localPath ]
         Remote{..} -> do
           bowerName <- mkPackageName packageName
           bowerVersion <- mkBowerVersion bowerName version repo

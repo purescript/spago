@@ -27,7 +27,7 @@ login = do
  globalCacheDir <- askEnv envGlobalCache
 
  case maybeToken of
-   Nothing -> die Messages.getNewGitHubToken
+   Nothing -> die [ display Messages.getNewGitHubToken ]
    Just (Text.pack -> token) -> do
      output "Token read, authenticating with GitHub.."
      username <- getUsername token
@@ -39,14 +39,14 @@ login = do
         (GitHub.OAuth $ Data.Text.Encoding.encodeUtf8 token)
         GitHub.userInfoCurrentR
       case result of
-        Left err              -> die $ Messages.failedToReachGitHub err
+        Left err              -> die [ display $ Messages.failedToReachGitHub err ]
         Right GitHub.User{..} -> pure $ GitHub.untagName userLogin
 
 
-readToken :: (MonadReader env m, MonadIO m, Alternative m) => m Text
-readToken = liftIO $ readFromEnv <|> readFromFile
+readToken :: (MonadReader env m, MonadIO m, Alternative m, HasLogFunc env, MonadThrow m) => m Text
+readToken = readFromEnv <|> readFromFile
   where
-    readFromEnv = (System.Environment.lookupEnv githubTokenEnvVar) >>= \case
+    readFromEnv = liftIO (System.Environment.lookupEnv githubTokenEnvVar) >>= \case
       Nothing -> empty
       Just (Text.pack -> token) -> return token
 
@@ -76,7 +76,7 @@ getLatestPackageSetsTag = do
   readTagCache
 
   where
-    getLatestRelease1 :: (HasLogFunc env, MonadReader env m, MonadIO m, Alternative m, MonadUnliftIO m) => m Text
+    getLatestRelease1 :: (HasLogFunc env, MonadReader env m, MonadIO m, Alternative m, MonadUnliftIO m, MonadThrow m) => m Text
     getLatestRelease1 = do
       maybeToken :: Either SomeException Text <- try readToken
       f <- case hush maybeToken of
