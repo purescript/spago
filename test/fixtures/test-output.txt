@@ -1,5 +1,0 @@
-🍝
-You should add some tests.
-Installation complete.
-Build succeeded.
-Tests succeeded.

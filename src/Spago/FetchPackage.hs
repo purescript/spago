@@ -36,18 +36,18 @@ import           Spago.Types
 --       * if yes, download the tar archive and copy it to global and then local cache
 --       * if not, run a series of git commands to get the code, and copy to local cache
 fetchPackages
-  :: Spago m
-  => Maybe GlobalCache.CacheFlag
+  :: Maybe GlobalCache.CacheFlag
   -> [(PackageName, Package)]
   -> Maybe Version.SemVer
-  -> m ()
+  -> Spago ()
 fetchPackages globalCacheFlag allDeps minPursVersion = do
-  echoDebug "Running `fetchPackages`"
+  logDebug "Running `fetchPackages`"
 
   PackageSet.checkPursIsUpToDate minPursVersion
 
   -- Ensure both local and global cache dirs are there
-  assertDirectory =<< GlobalCache.getGlobalCacheDir
+  globalCache <- askEnv envGlobalCache
+  assertDirectory globalCache
   assertDirectory localCacheDir
 
   -- We try to fetch a dep only if their local cache directory doesn't exist
@@ -60,15 +60,15 @@ fetchPackages globalCacheFlag allDeps minPursVersion = do
   -- Note: it might be empty depending on the cacheFlag
   let nOfDeps = List.length depsToFetch
   when (nOfDeps > 0) $ do
-    echoStr $ "Installing " <> show nOfDeps <> " dependencies."
+    logInfo $ "Installing " <> display nOfDeps <> " dependencies."
     metadata <- GlobalCache.getMetadata globalCacheFlag
 
-    limit <- asks globalJobs
+    limit <- askEnv envJobs
     withTaskGroup' limit $ \taskGroup -> do
       asyncs <- for depsToFetch (async' taskGroup . fetchPackage metadata)
-      liftIO $ handle (handler asyncs) (for_ asyncs Async.wait)
+      handle (handler asyncs) (for_ asyncs wait')
 
-  echo "Installation complete."
+  logInfo "Installation complete."
 
   where
     -- Here we have this weird exception handling so that threads can clean after
@@ -81,25 +81,26 @@ fetchPackages globalCacheFlag allDeps minPursVersion = do
     -- waits for the exception to be thrown there, and we have to `wait` ourselves
     -- (with `waitCatch` so that we ignore any exception we are thrown and the `for_`
     -- completes) for the asyncs to finish their cleanup.
+    handler :: (HasLogFunc env, MonadReader env m, MonadIO m) => [Async.Async ()] -> SomeException -> m ()
     handler asyncs (e :: SomeException) = do
-      for_ asyncs $ \async -> do
-        Async.cancel async
-        Async.waitCatch async
-      die $ "Installation failed.\n\nError:\n\n" <> tshow e
+      for_ asyncs $ \asyncTask -> do
+        cancel' asyncTask
+        waitCatch' asyncTask
+      die [ "Installation failed", "Error:", display e ]
 
 
 -- | If the repo points to a remote git, fetch it in the local .spago folder, while
 --   eventually caching it to the global cache, or copying it from there if it's
 --   sensible to do so.
 --   If it's a local directory do nothing
-fetchPackage :: Spago m => GlobalCache.ReposMetadataV1 -> (PackageName, Package) -> m ()
+fetchPackage :: GlobalCache.ReposMetadataV1 -> (PackageName, Package) -> Spago ()
 fetchPackage _ (PackageName package, Package { location = Local{..}, .. }) =
-  echo $ Messages.foundLocalPackage package localPath
+  logInfo $ display $ Messages.foundLocalPackage package localPath
 fetchPackage metadata pair@(packageName'@PackageName{..}, Package{ location = Remote{..}, .. } ) = do
-  echoDebug $ "Fetching package " <> packageName
-  globalDir <- GlobalCache.getGlobalCacheDir
+  logDebug $ "Fetching package " <> display packageName
+  globalCache <- askEnv envGlobalCache
   let packageDir = getPackageDir packageName' version
-      packageGlobalCacheDir = globalDir </> packageDir
+      packageGlobalCacheDir = globalCache </> packageDir
 
   packageLocalCacheDir <- makeAbsolute $ getLocalCacheDir pair
 
@@ -110,31 +111,31 @@ fetchPackage metadata pair@(packageName'@PackageName{..}, Package{ location = Re
     -- * if a Package is in the global cache, copy it to the local cache
     if inGlobalCache
       then do
-        echo $ "Copying from global cache: " <> quotedName
+        logInfo $ "Copying from global cache: " <> display quotedName
         cptree packageGlobalCacheDir downloadDir
         assertDirectory (localCacheDir </> Text.unpack packageName)
         mv downloadDir packageLocalCacheDir
-      else Temp.withTempDirectory globalDir (Text.unpack ("__temp-" <> "-" <> packageName <> getCacheVersionDir version)) $ \globalTemp -> do
+      else Temp.withTempDirectory globalCache (Text.unpack ("__temp-" <> "-" <> packageName <> getCacheVersionDir version)) $ \globalTemp -> do
         -- * otherwise, check if the Package is on GitHub and an "immutable" ref
         -- * if yes, download the tar archive and copy it to global and then local cache
-        let cacheableCallback :: Spago m => FilePath.FilePath -> m ()
+        let cacheableCallback :: FilePath.FilePath -> Spago ()
             cacheableCallback resultDir = do
               -- the idea here is that we first copy the tree to a temp folder,
               -- then atomically move it to the correct cache location.  Since
               -- `mv` will not move folders across filesystems, this temp
               -- is created inside globalDir, guaranteeing the same filesystem.
-              echo $ "Installing and globally caching " <> quotedName
+              logInfo $ "Installing and globally caching " <> display quotedName
               let resultDir2 = globalTemp </> "download2"
               assertDirectory resultDir2
               cptree resultDir resultDir2
               catch (mv resultDir2 packageGlobalCacheDir) $ \(err :: SomeException) ->
-                echoDebug $ Messages.failedToCopyToGlobalCache err
+                logInfo $ display $ Messages.failedToCopyToGlobalCache err
               mv resultDir packageLocalCacheDir
 
         -- * if not, run a series of git commands to get the code, and move it to local cache
-        let nonCacheableCallback :: Spago m => m ()
+        let nonCacheableCallback :: Spago ()
             nonCacheableCallback = do
-              echo $ "Installing " <> quotedName
+              logInfo $ "Installing " <> display quotedName
 
               -- Here we set the package directory as the cwd of the new process.
               -- This is the "right" way to do it (instead of using e.g.
@@ -145,12 +146,12 @@ fetchPackage metadata pair@(packageName'@PackageName{..}, Package{ location = Re
 
               systemStrictWithErr processWithNewCwd empty >>= \case
                 (ExitSuccess, _, _) -> mv downloadDir packageLocalCacheDir
-                (_, _stdout, stderr) -> die $ Messages.failedToInstallDep quotedName stderr
+                (_, _out, err) -> die [ display $ Messages.failedToInstallDep quotedName err ]
 
         -- Make sure that the following folders exist first:
         assertDirectory downloadDir
         -- ^ the folder to store the download
-        assertDirectory (globalDir </> Text.unpack packageName)
+        assertDirectory (globalCache </> Text.unpack packageName)
         -- ^ the parent package folder in the global cache (that stores all the versions)
         assertDirectory (localCacheDir </> Text.unpack packageName)
         -- ^ the parent package folder in the local cache (that stores all the versions)

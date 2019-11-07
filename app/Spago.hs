@@ -12,14 +12,14 @@ import qualified Turtle              as CLI
 
 import           Spago.Build         (BuildOptions (..), DepsOnly (..), ExtraArg (..),
                                       ModuleName (..), NoBuild (..), NoInstall (..), NoSearch (..),
-                                      OpenDocs (..), ShareOutput (..), SourcePath (..),
-                                      TargetPath (..), Watch (..), WithMain (..))
+                                      OpenDocs (..), PathType (..), ShareOutput (..),
+                                      SourcePath (..), TargetPath (..), Watch (..), WithMain (..))
 import qualified Spago.Build
 import qualified Spago.Config        as Config
 import           Spago.Dhall         (TemplateComments (..))
 import           Spago.DryRun        (DryRun (..))
 import qualified Spago.GitHub
-import           Spago.GlobalCache   (CacheFlag (..))
+import           Spago.GlobalCache   (CacheFlag (..), getGlobalCacheDir)
 import           Spago.Messages      as Messages
 import           Spago.Packages      (CheckModulesUnique (..), JsonFlag (..), PackagesFilter (..))
 import qualified Spago.Packages
@@ -100,6 +100,19 @@ data Command
   -- | Bundle a module into a CommonJS module (replaced by BundleModule)
   | MakeModule
 
+  -- | Returns output folder for compiled code
+  | Path (Maybe PathType) BuildOptions
+
+
+data GlobalOptions = GlobalOptions
+  { globalVerbose     :: Bool
+  , globalVeryVerbose :: Bool
+  , globalUsePsa      :: UsePsa
+  , globalJobs        :: Maybe Int
+  , globalConfigPath  :: Maybe Text
+  }
+
+
 parser :: CLI.Parser (Command, GlobalOptions)
 parser = do
   opts <- globalOptions
@@ -122,6 +135,7 @@ parser = do
 
     force   = CLI.switch "force" 'f' "Overwrite any project found in the current directory"
     verbose = CLI.switch "verbose" 'v' "Enable additional debug logging, e.g. printing `purs` commands"
+    veryVerbose = CLI.switch "very-verbose" 'V' "Enable more verbosity: timestamps and source locations"
 
     -- Note: the first constructor is the default when the flag is not provided
     watch       = bool BuildOnce Watch <$> CLI.switch "watch" 'w' "Watch for changes in local files and automatically rebuild"
@@ -153,7 +167,7 @@ parser = do
     buildOptions  = BuildOptions <$> cacheFlag <*> watch <*> clearScreen <*> sourcePaths <*> noInstall <*> pursArgs <*> depsOnly <*> useSharedOutput
 
     -- Note: by default we limit concurrency to 20
-    globalOptions = GlobalOptions <$> verbose <*> usePsa <*> fmap (fromMaybe 20) jobsLimit <*> fmap (fromMaybe Config.defaultPath) configPath
+    globalOptions = GlobalOptions <$> verbose <*> veryVerbose <*> usePsa <*> jobsLimit <*> configPath
 
     projectCommands = CLI.subcommandGroup "Project commands:"
       [ initProject
@@ -165,6 +179,7 @@ parser = do
       , bundleModule
       , docs
       , search
+      , path
       ]
 
     initProject =
@@ -219,6 +234,17 @@ parser = do
       ( "search"
       , "Start a search REPL to find definitions matching names and types"
       , pure Search
+      )
+
+    pathSubcommand
+      =   CLI.subcommand "output" "Output path for compiled code"
+            (Path (Just OutputFolder) <$> buildOptions)
+      <|> (Path Nothing <$> buildOptions)
+
+    path =
+      ( "path"
+      , "Display paths used by the project"
+      , pathSubcommand
       )
 
     packageSetCommands = CLI.subcommandGroup "Package set commands:"
@@ -312,9 +338,35 @@ parser = do
 
 
 -- | Print out Spago version
-printVersion :: Spago m => m ()
+printVersion :: Spago ()
 printVersion = CLI.echo $ CLI.unsafeTextToLine $ Text.pack $ showVersion Pcli.version
 
+
+-- | Given the global CLI options, it creates the Env for the Spago context
+--   and runs the app
+runWithEnv :: GlobalOptions -> Spago a -> IO a
+runWithEnv GlobalOptions{..} app = do
+  let logDebug' str = when globalVerbose $ hPutStrLn stderr str
+  logOptions' <- logOptionsHandle stderr (globalVerbose || globalVeryVerbose)
+  let logOptions
+        = setLogUseTime globalVeryVerbose
+        $ setLogUseLoc globalVeryVerbose
+        $ setLogUseColor True
+        $ setLogVerboseFormat True
+        $ logOptions'
+  let configPath = fromMaybe Config.defaultPath globalConfigPath
+  logDebug'  "Running `getGlobalCacheDir`"
+  globalCache <- getGlobalCacheDir
+  withLogFunc logOptions $ \logFunc ->
+    let
+      env = Env
+        { envLogFunc = logFunc
+        , envUsePsa = globalUsePsa
+        , envJobs = fromMaybe 20 globalJobs
+        , envConfigPath = configPath
+        , envGlobalCache = globalCache
+        }
+    in runRIO env app
 
 main :: IO ()
 main = do
@@ -326,7 +378,8 @@ main = do
   Env.setEnv "GIT_TERMINAL_PROMPT" "0"
 
   (command, globalOptions) <- CLI.options "Spago - manage your PureScript projects" parser
-  flip runReaderT globalOptions $
+
+  runWithEnv globalOptions $
     case command of
       Init force noComments                 -> Spago.Packages.initProject force noComments
       Install cacheConfig packageNames      -> Spago.Packages.install cacheConfig packageNames
@@ -351,5 +404,6 @@ main = do
         -> Spago.Build.docs format sourcePaths depsOnly noSearch openDocs
       Search                                -> Spago.Build.search
       Version                               -> printVersion
-      Bundle                                -> die Messages.bundleCommandRenamed
-      MakeModule                            -> die Messages.makeModuleCommandRenamed
+      Path whichPath buildOptions           -> Spago.Build.showPaths buildOptions whichPath
+      Bundle                                -> die [ display Messages.bundleCommandRenamed ]
+      MakeModule                            -> die [ display Messages.makeModuleCommandRenamed ]

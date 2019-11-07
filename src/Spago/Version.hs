@@ -51,7 +51,7 @@ unparseVersion version =
 
 
 -- | Get the highest git version tag, die if this is not a git repo with no uncommitted changes.
-getCurrentVersion :: Spago m => m SemVer
+getCurrentVersion :: Spago SemVer
 getCurrentVersion = do
 
   tagTexts <- Git.getAllTags
@@ -59,10 +59,10 @@ getCurrentVersion = do
 
   case Safe.maximumMay tags of
     Nothing -> do
-      echo $ "No git version tags found, so assuming current version is " <> unparseVersion mempty
+      logInfo $ display $ "No git version tags found, so assuming current version is " <> unparseVersion mempty
       pure mempty
     Just maxVersion -> do
-      echo $ "Found current version from git tag: " <> unparseVersion maxVersion
+      logInfo $ display $ "Found current version from git tag: " <> unparseVersion maxVersion
       pure maxVersion
 
 
@@ -81,34 +81,34 @@ getNextVersion spec currentV@SemVer{..} =
 
 
 -- | Make a tag for the new version.
-tagNewVersion :: Spago m => SemVer -> SemVer -> m ()
+tagNewVersion :: SemVer -> SemVer -> Spago ()
 tagNewVersion oldVersion newVersion = do
 
   let oldVersionTag = unparseVersion oldVersion
       newVersionTag = unparseVersion newVersion
 
   Git.commitAndTag newVersionTag $ oldVersionTag <> " → " <> newVersionTag
-  echo $ "Git tag created for new version: " <> newVersionTag
+  logInfo $ display $ "Git tag created for new version: " <> newVersionTag
 
 
 -- | Bump and tag a new version in preparation for release.
-bumpVersion :: Spago m => DryRun -> VersionBump -> m ()
+bumpVersion :: DryRun -> VersionBump -> Spago ()
 bumpVersion dryRun spec = do
   newBowerConfig <- Bower.generateBowerJson
 
   Git.requireCleanWorkingTree
 
   oldVersion <- getCurrentVersion
-  newVersion <- either die pure $ getNextVersion spec oldVersion
+  newVersion <- either (\err -> die [ display err ]) pure $ getNextVersion spec oldVersion
 
   let writeBowerAction = DryAction
         "write the new config to the `bower.json` file and try to install its dependencies" $ do
-        echo $ "Writing the new Bower config to " <> surroundQuote Bower.path
+        logInfo $ "Writing the new Bower config to " <> surroundQuote Bower.path
         liftIO $ ByteString.writeFile Bower.path newBowerConfig
         Bower.runBowerInstall
         clean <- Git.hasCleanWorkingTree
         unless clean $ do
-          die $ "A new " <> Bower.path <> " has been generated. Please commit this and run `bump-version` again."
+          die [ "A new " <> Bower.path <> " has been generated. Please commit this and run `bump-version` again." ]
 
   let tagAction = DryAction
         ("create (locally) the new git tag " <> surroundQuote (unparseVersion newVersion))

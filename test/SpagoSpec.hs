@@ -11,7 +11,10 @@ import           Turtle             (ExitCode (..), cd, cp, decodeString, empty,
                                      writeTextFile)
 import           Utils              (checkFileHasInfix, checkFixture, readFixture, runFor,
                                      shouldBeFailure, shouldBeFailureOutput, shouldBeSuccess,
-                                     shouldBeSuccessOutput, spago, withCwd)
+                                     shouldBeSuccessStderr, shouldBeFailureStderr,
+                                     shouldBeSuccessOutput, shouldBeSuccessOutputWithErr, spago, withCwd,
+                                     outputShouldEqual)
+
 
 
 setup :: IO () -> IO ()
@@ -95,13 +98,13 @@ spec = around_ setup $ do
 
       spago ["init"] >>= shouldBeSuccess
       spago ["install"] >>= shouldBeSuccess
-      spago ["install", "effect"] >>= shouldBeSuccessOutput "spago-install-existing-dep-warning.txt"
+      spago ["install", "effect"] >>= shouldBeSuccessStderr "spago-install-existing-dep-stderr.txt"
 
     it "Spago should strip 'purescript-' prefix and give warning if package without prefix is present in package set" $ do
 
       spago ["init"] >>= shouldBeSuccess
       spago ["install"] >>= shouldBeSuccess
-      spago ["install", "purescript-newtype"] >>= shouldBeSuccessOutput "spago-install-purescript-prefix-warning.txt"
+      spago ["install", "purescript-newtype"] >>= shouldBeSuccessStderr "spago-install-purescript-prefix-stderr.txt"
       -- dep added without "purescript-" prefix
       checkFileHasInfix "spago.dhall" "\"newtype\""
 
@@ -117,7 +120,7 @@ spec = around_ setup $ do
 
       writeTextFile "psc-package.json" "{ \"name\": \"aaa\", \"depends\": [ \"prelude\" ], \"set\": \"foo\", \"source\": \"bar\" }"
       spago ["init"] >>= shouldBeSuccess
-      spago ["install", "foo", "bar"] >>= shouldBeFailureOutput "missing-dependencies.txt"
+      spago ["install", "foo", "bar"] >>= shouldBeFailureStderr "missing-dependencies.txt"
       mv "spago.dhall" "spago-install-failure.dhall"
       checkFixture "spago-install-failure.dhall"
 
@@ -126,7 +129,7 @@ spec = around_ setup $ do
       writeTextFile "psc-package.json" "{ \"name\": \"aaa\", \"depends\": [ \"prelude\" ], \"set\": \"foo\", \"source\": \"bar\" }"
       spago ["init"] >>= shouldBeSuccess
       writeTextFile "spago.dhall" "{- Welcome to a Spago project!  You can edit this file as you like.  -} { name = \"my-project\" , dependencies = [ \"effect\", \"console\", \"psci-support\", \"a\", \"b\" ] , packages = ./packages.dhall // { a = { version = \"a1\", dependencies = [\"b\"], repo = \"https://github.com/fake/fake.git\" }, b = { version = \"b1\", dependencies = [\"a\"], repo = \"https://github.com/fake/fake.git\" } } }"
-      spago ["install"] >>= shouldBeFailureOutput "circular-dependencies.txt"
+      spago ["install"] >>= shouldBeFailureStderr "circular-dependencies.txt"
 
     it "Spago should be able to install a package in the set from a commit hash" $ do
 
@@ -163,12 +166,20 @@ spec = around_ setup $ do
       spago ["-x", "alternative1.dhall", "install", "simple-json"] >>= shouldBeSuccess
       checkFixture "alternative1.dhall"
 
+    it "Spago should install successfully when the config file is in another directory" $ do
+
+      spago ["init"] >>= shouldBeSuccess
+      rm "spago.dhall"
+      mkdir "nested"
+      writeTextFile "./nested/spago.dhall" "{ name = \"nested\", sources = [ \"src/**/*.purs\" ], dependencies = [ \"effect\", \"console\", \"psci-support\" ] , packages = ../packages.dhall }"
+      spago ["install", "--config", "./nested/spago.dhall"] >>= shouldBeSuccess
+
     it "Spago should not change the alternative config if it does not change dependencies" $ do
 
       spago ["init"] >>= shouldBeSuccess
       writeTextFile "alternative2.dhall" "./spago.dhall // { sources = [ \"src/**/*.purs\" ] }\n"
       spago ["-x", "alternative2.dhall", "install", "simple-json"] >>= shouldBeSuccess
-      spago ["-x", "alternative2.dhall", "install", "simple-json"] >>= shouldBeSuccessOutput "alternative2install.txt"
+      spago ["-x", "alternative2.dhall", "install", "simple-json"] >>= shouldBeSuccessStderr "alternative2install-stderr.txt"
       checkFixture "alternative2.dhall"
 
     it "Spago should install successfully when there are local dependencies sharing the same packages.dhall" $ do
@@ -207,13 +218,6 @@ spec = around_ setup $ do
 
       spago ["install"] >>= shouldBeSuccess
 
-    it "Spago should not warn about freezing remote imports with the default setup" $ do
-
-      spago ["init"] >>= shouldBeSuccess
-      -- Do an initial installation so that it's easier to compare subsequent output
-      spago ["install"] >>= shouldBeSuccess
-      spago ["install"] >>= shouldBeSuccessOutput "ensure-frozen-success.txt"
-
     it "Spago should not warn about freezing remote imports if they can be located from spago.dhall" $ do
 
       spago ["init"] >>= shouldBeSuccess
@@ -225,7 +229,7 @@ spec = around_ setup $ do
       mv "packages.dhall" "elsewhere/b.dhall"
       spagoDhall <- readTextFile "spago.dhall"
       writeTextFile "spago.dhall" $ Text.replace "./packages.dhall" "./elsewhere/a.dhall" spagoDhall
-      spago ["install"] >>= shouldBeSuccessOutput "ensure-frozen-success.txt"
+      spago ["install"] >>= shouldBeSuccessStderr "ensure-frozen-success.txt"
 
   describe "spago sources" $ do
 
@@ -438,10 +442,8 @@ spec = around_ setup $ do
     it "Spago should test successfully" $ do
 
       spago ["init"] >>= shouldBeSuccess
-      -- Note: apparently purs starts caching the compiled modules only after three builds
       spago ["build"] >>= shouldBeSuccess
-      spago ["build"] >>= shouldBeSuccess
-      spago ["test"] >>= shouldBeSuccessOutput "test-output.txt"
+      spago ["test"] >>= shouldBeSuccessOutputWithErr "test-output-stdout.txt" "test-output-stderr.txt"
 
     it "Spago should test in custom output folder" $ do
 
@@ -516,27 +518,23 @@ spec = around_ setup $ do
     it "Spago should run successfully" $ do
 
       spago ["init"] >>= shouldBeSuccess
-      -- Note: apparently purs starts caching the compiled modules only after three builds
-      spago ["build"] >>= shouldBeSuccess
       spago ["build"] >>= shouldBeSuccess
 
       shell "psa --version" empty >>= \case
-        ExitSuccess -> spago ["-v", "run"] >>= shouldBeSuccessOutput "run-output.txt"
-        ExitFailure _ ->  spago ["-v", "run"] >>= shouldBeSuccessOutput "run-output-psa-not-installed.txt"
+        ExitSuccess -> spago ["-v", "run"] >>= shouldBeSuccessOutputWithErr "run-output.txt" "run-stderr.txt"
+        ExitFailure _ ->  spago ["-v", "run"] >>= shouldBeSuccessOutputWithErr "run-output.txt" "run-psa-not-installed-stderr.txt"
 
     it "Spago should be able to not use `psa`" $ do
 
       spago ["init"] >>= shouldBeSuccess
       spago ["--no-psa", "build"] >>= shouldBeSuccess
-      spago ["--no-psa", "build"] >>= shouldBeSuccess
-      spago ["-v", "--no-psa", "run"] >>= shouldBeSuccessOutput "run-no-psa.txt"
-
+      spago ["-v", "--no-psa", "run"] >>= shouldBeSuccessOutputWithErr "run-output.txt" "run-no-psa-stderr.txt"
 
   describe "spago bundle" $ do
 
     it "Spago should fail but should point to the replacement command" $ do
 
-      spago ["bundle", "--to", "bundle.js"] >>= shouldBeFailureOutput "bundle-output.txt"
+      spago ["bundle", "--to", "bundle.js"] >>= shouldBeFailureStderr "bundle-stderr.txt"
 
 
   describe "spago bundle-app" $ do
@@ -552,7 +550,7 @@ spec = around_ setup $ do
 
     it "Spago should fail but should point to the replacement command" $ do
 
-      spago ["make-module", "--to", "make-module.js"] >>= shouldBeFailureOutput "make-module-output.txt"
+      spago ["make-module", "--to", "make-module.js"] >>= shouldBeFailureStderr "make-module-stderr.txt"
 
 
   describe "spago bundle-module" $ do
@@ -582,3 +580,27 @@ spec = around_ setup $ do
       mv "packages.dhall" "packages-old.dhall"
       writeTextFile "packages.dhall" "https://github.com/purescript/package-sets/releases/download/psc-0.13.4-20191025/packages.dhall sha256:f9eb600e5c2a439c3ac9543b1f36590696342baedab2d54ae0aa03c9447ce7d4"
       spago ["list-packages", "--json"] >>= shouldBeSuccessOutput "list-packages.json"
+
+  describe "spago path output" $ do
+    it "Spago should output the correct path" $ do
+
+      -- Create local 'monorepo-1' package that is the real root
+      mkdir "monorepo-1"
+      cd "monorepo-1"
+      spago ["init"] >>= shouldBeSuccess
+
+       -- Create local 'monorepo-2' package that uses packages.dhall on top level
+      mkdir "monorepo-2"
+      cd "monorepo-2"
+      spago ["init"] >>= shouldBeSuccess
+      rm "packages.dhall"
+      writeTextFile "packages.dhall" $ "../packages.dhall"
+      spago ["path", "output"] >>= outputShouldEqual "./../output\n"
+      pure ()
+
+    it "Spago should output the local path when no overrides" $ do
+
+      mkdir "monorepo-1"
+      cd "monorepo-1"
+      spago ["init"] >>= shouldBeSuccess
+      spago ["path", "output", "--no-share-output"] >>= outputShouldEqual "output\n"

@@ -17,9 +17,10 @@ import qualified Dhall.Import
 import qualified Dhall.Map
 import qualified Dhall.Parser                          as Parser
 import qualified Dhall.Pretty
-import           Dhall.TypeCheck                       (X, typeOf)
+import           Dhall.TypeCheck                       (typeOf)
 import           Dhall.Util                            as Dhall
 import qualified Lens.Family
+import qualified System.FilePath                       as FilePath
 
 type DhallExpr a = Dhall.Expr Parser.Src a
 
@@ -66,10 +67,10 @@ readImports pathText = do
   let graph = Lens.Family.view Dhall.Import.graph status
   pure $ childImport <$> graph
   where
-    load expr
+    load expr'
       = State.execStateT
-          (Dhall.Import.loadWith expr)
-          (Dhall.Import.emptyStatus ".")
+          (Dhall.Import.loadWith expr')
+          (Dhall.Import.emptyStatus (FilePath.takeDirectory $ Text.unpack pathText))
 
     childImport
       = Dhall.Import.chainedImport . Dhall.Import.child
@@ -126,7 +127,7 @@ requireKey ks name f = case Dhall.Map.lookup name ks of
 -- | Same as `requireKey`, but we give it a Dhall.Type to automagically decode from
 requireTypedKey
   :: (MonadIO m, MonadThrow m)
-  => Dhall.Map.Map Text (DhallExpr Dhall.TypeCheck.X)
+  => Dhall.Map.Map Text (DhallExpr Void)
   -> Text
   -> Dhall.Type a
   -> m a
@@ -138,7 +139,7 @@ requireTypedKey ks name typ = requireKey ks name $ \expr -> case Dhall.extract t
 --   If not found, return `Nothing`, if type is incorrect throw error
 maybeTypedKey
   :: (MonadIO m, MonadThrow m)
-  => Dhall.Map.Map Text (DhallExpr Dhall.TypeCheck.X)
+  => Dhall.Map.Map Text (DhallExpr Void)
   -> Text
   -> Dhall.Type a
   -> m (Maybe a)
@@ -156,7 +157,7 @@ maybeTypedKey ks name typ = typify `mapM` Dhall.Map.lookup name ks
 --   result of the normalization (we need to normalize so that extract can work)
 --   and return a `Right` only if both typecheck and normalization succeeded.
 coerceToType
-  :: Type a -> DhallExpr X -> Either (ReadError X) a
+  :: Type a -> DhallExpr Void -> Either (ReadError Void) a
 coerceToType typ expr = do
   let annot = Dhall.Annot expr $ Dhall.expected typ
   let checkedType = typeOf annot

@@ -1,1 +1,1 @@
-Installation complete.
+[34m[info] [0mInstallation complete.[0m

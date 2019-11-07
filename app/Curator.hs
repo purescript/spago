@@ -23,7 +23,6 @@ module Curator where
 import           Spago.Prelude
 
 import qualified Control.Concurrent            as Concurrent
-import qualified Control.Concurrent.Async.Pool as Async
 import qualified Control.Concurrent.STM.TChan  as Chan
 import qualified Control.Retry                 as Retry
 import qualified Data.ByteString.Lazy          as BSL
@@ -107,72 +106,73 @@ metadataRepo    = Address "spacchetti" "package-sets-metadata"
 spagoRepo       = Address "spacchetti" "spago"
 
 
+type Curator = RIO LogFunc
+
 main :: IO ()
-main = do
-  -- We always want to run in UTF8 anyways
-  GHC.IO.Encoding.setLocaleEncoding GHC.IO.Encoding.utf8
-  -- Stop `git` from asking for input, not gonna happen
-  -- We just fail instead. Source:
-  -- https://serverfault.com/questions/544156
-  Env.setEnv "GIT_TERMINAL_PROMPT" "0"
+main = withBinaryFile "curator.log" AppendMode $ \configHandle -> do
+  logStderr <- logOptionsHandle stderr True
+  logFile <- logOptionsHandle configHandle True
 
-  -- Read GitHub Auth Token
-  echo "Reading GitHub token.."
-  token <- (GitHub.OAuth . Encoding.encodeUtf8 . Text.pack) <$> Env.getEnv "SPACCHETTIBOTTI_TOKEN"
+  withLogFunc logStderr $ \logFuncConsole -> withLogFunc logFile $ \logFuncFile ->
+    runRIO (logFuncConsole <> logFuncFile) $ do
+    -- We always want to run in UTF8 anyways
+    liftIO $ GHC.IO.Encoding.setLocaleEncoding GHC.IO.Encoding.utf8
+    -- Stop `git` from asking for input, not gonna happen
+    -- We just fail instead. Source:
+    -- https://serverfault.com/questions/544156
+    liftIO $ Env.setEnv "GIT_TERMINAL_PROMPT" "0"
 
-  -- Prepare data folder that will contain the temp copies of the repos
-  echo "Creating 'data' folder"
-  mktree "data"
+    -- Read GitHub Auth Token
+    logInfo "Reading GitHub token.."
+    token <- liftIO $ (GitHub.OAuth . Encoding.encodeUtf8 . Text.pack) <$> Env.getEnv "SPACCHETTIBOTTI_TOKEN"
 
-  -- Start spawning threads
-  --   General utility
-  spawnThread "writer"                  $ persistState
-  --   purescript repo
-  spawnThread "releaseCheckPureScript"  $ checkLatestRelease token purescriptRepo
-  --   purescript-docs-search repo
-  spawnThread "releaseCheckDocsSearch"  $ checkLatestRelease token docsSearchRepo
-  --   spago repo
-  spawnThread "spagoUpdatePackageSets"  $ spagoUpdatePackageSets token
-  --     TODO: update purescript-metadata repo on purs release
-  --     TODO: update CI version for purescript on purs release
-  --   package-sets-metadata repo
-  spawnThread "metadataFetcher"         $ metadataFetcher token
-  spawnThread "metadataUpdater"         $ metadataUpdater
-  -- package-sets repo
-  spawnThread "releaseCheckPackageSets" $ checkLatestRelease token packageSetsRepo
-  spawnThread "packageSetsUpdater"      $ packageSetsUpdater token
-  spawnThread "packageSetsCommenter"    $ packageSetCommenter token
+    -- Prepare data folder that will contain the temp copies of the repos
+    logInfo "Creating 'data' folder"
+    mktree "data"
 
-  -- To kickstart the whole thing we just need to send a "heartbeat" on the bus once an hour
-  -- Threads will be listening to this and act accordingly
-  forever $ do
-    atomically $ Chan.writeTChan bus RefreshState
-    sleep _60m
+    env <- ask
+    let spawnThread :: Text -> (Message -> Curator ()) -> Curator ()
+        spawnThread name thread = do
+          let threadLoop :: IO ()
+              threadLoop = do
+                pullChan <- atomically $ Chan.dupTChan bus
+                forever $ atomically (Chan.readTChan pullChan) >>= (runRIO env . thread)
+          logInfo $ "Spawning thread " <> displayShow name
+          void $ liftIO $ Concurrent.forkIO $ catch threadLoop $ \(err :: SomeException) -> runRIO env $ do
+            logError $ "Thread " <> displayShow name <> " broke, restarting.."
+            logError $ "Error was: " <> display err
+            spawnThread name thread
+
+    -- Start spawning threads
+    --   General utility
+    spawnThread "writer"                  $ persistState
+    --   purescript repo
+    spawnThread "releaseCheckPureScript"  $ checkLatestRelease token purescriptRepo
+    --   purescript-docs-search repo
+    spawnThread "releaseCheckDocsSearch"  $ checkLatestRelease token docsSearchRepo
+    --   spago repo
+    spawnThread "spagoUpdatePackageSets"  $ spagoUpdatePackageSets token
+    --     TODO: update purescript-metadata repo on purs release
+    --     TODO: update CI version for purescript on purs release
+    --   package-sets-metadata repo
+    spawnThread "metadataFetcher"         $ metadataFetcher token
+    spawnThread "metadataUpdater"         $ metadataUpdater
+    -- package-sets repo
+    spawnThread "releaseCheckPackageSets" $ checkLatestRelease token packageSetsRepo
+    spawnThread "packageSetsUpdater"      $ packageSetsUpdater token
+    spawnThread "packageSetsCommenter"    $ packageSetCommenter token
+
+    -- To kickstart the whole thing we just need to send a "heartbeat" on the bus once an hour
+    -- Threads will be listening to this and act accordingly
+    liftIO $ forever $ do
+      atomically $ Chan.writeTChan bus RefreshState
+      sleep _60m
 
   where
     _60m = 60 * 60 * 1000000
 
     sleep = Concurrent.threadDelay
 
-    spawnThread :: Text -> (Message -> IO ()) -> IO ()
-    spawnThread name thread = do
-      let threadLoop = do
-            pullChan <- atomically $ Chan.dupTChan bus
-            forever $ atomically (Chan.readTChan pullChan) >>= thread
-      echo $ "Spawning thread " <> tshow name
-      void $ Concurrent.forkIO $ catch threadLoop $ \(err :: SomeException) -> do
-        -- TODO: use logError from RIO instead of this crap
-        {-
-        now <- Time.getCurrentTime
-        BSL.appendFile "curator-errors.log"
-          $ "Current time: " <> repr now <> "\n"
-          <> "Got error from thread '" <> name <> "'\n"
-          <> "Exception was:\n\n"
-          <> (BSL.fromStrict . Encoding.encodeUtf8 . tshow) err
-          <> "\n\n\n"
-        -}
-        echo $ "Thread " <> tshow name <> " broke, restarting.."
-        spawnThread name thread
 
 
 
@@ -181,16 +181,16 @@ main = do
 --
 
 
-getLatestRelease :: GitHub.AuthMethod am => am -> GitHubAddress -> IO (Either GitHub.Error GitHub.Release)
+getLatestRelease :: GitHub.AuthMethod am => am -> GitHubAddress -> Curator (Either GitHub.Error GitHub.Release)
 getLatestRelease token address@(Address owner repo) = do
-  echo $ "Getting latest release for " <> tshow address
-  GitHub.executeRequest token $ GitHub.latestReleaseR owner repo
+  logInfo $ "Getting latest release for " <> displayShow address
+  liftIO $ GitHub.executeRequest token $ GitHub.latestReleaseR owner repo
 
 
-getTags :: GitHub.AuthMethod am => am -> GitHubAddress -> IO (Either GitHub.Error (Maybe Tag, (Map Tag CommitHash)))
+getTags :: GitHub.AuthMethod am => am -> GitHubAddress -> Curator (Either GitHub.Error (Maybe Tag, (Map Tag CommitHash)))
 getTags token address@(Address owner repo) = do
-  echo $ "Getting tags for " <> tshow address
-  res <- GitHub.executeRequest token $ GitHub.tagsForR owner repo GitHub.FetchAll
+  logInfo $ "Getting tags for " <> displayShow address
+  res <- liftIO $ GitHub.executeRequest token $ GitHub.tagsForR owner repo GitHub.FetchAll
   let f vec =
         ( (Tag . GitHub.tagName) <$> vec Vector.!? 0
         , Map.fromList
@@ -204,10 +204,10 @@ getTags token address@(Address owner repo) = do
   pure (fmap f res)
 
 
-getCommits :: GitHub.AuthMethod am => am -> GitHubAddress -> IO (Either GitHub.Error [CommitHash])
+getCommits :: GitHub.AuthMethod am => am -> GitHubAddress -> Curator (Either GitHub.Error [CommitHash])
 getCommits token address@(Address owner repo) = do
-  echo $ "Getting commits for " <> tshow address
-  res <- GitHub.executeRequest token $ GitHub.commitsForR owner repo GitHub.FetchAll
+  logInfo $ "Getting commits for " <> displayShow address
+  res <- liftIO $ GitHub.executeRequest token $ GitHub.commitsForR owner repo GitHub.FetchAll
   pure $ fmap (Vector.toList . fmap (CommitHash . GitHub.untagName . GitHub.commitSha)) res
 
 
@@ -251,37 +251,37 @@ updatePullRequestBody token Address{..} pullRequestNumber newBody = do
 -- | Everything that goes on the bus is persisted in the State,
 --   so threads can access some decently-up-to-date info
 --   (with no guarantee of atomicity though, this is only for convenience)
-persistState :: Message -> IO ()
+persistState :: Message -> Curator ()
 persistState = \case
   RefreshState -> pure ()
   NewVerification _ -> pure () -- TODO: maybe save this?
-  NewRepoRelease address release -> Concurrent.modifyMVar_ state
+  NewRepoRelease address release -> liftIO $ Concurrent.modifyMVar_ state
     $ \State{..} -> let newReleases = Map.insert address release latestReleases
                     in pure State{ latestReleases = newReleases , ..}
-  NewMetadata newMetadata -> Concurrent.modifyMVar_ state
+  NewMetadata newMetadata -> liftIO $ Concurrent.modifyMVar_ state
     $ \State{..} -> pure State{ metadata = newMetadata, ..}
-  NewPackageSet newPackageSet -> Concurrent.modifyMVar_ state
+  NewPackageSet newPackageSet -> liftIO $ Concurrent.modifyMVar_ state
     $ \State{..} -> pure State{ packageSet = newPackageSet, ..}
 
 
 -- | Call GitHub to check for new releases of a repository
 --   When there's a new one and we don't have it in our state we send a message on the bus
-checkLatestRelease :: GitHub.Auth -> GitHubAddress -> Message -> IO ()
+checkLatestRelease :: GitHub.Auth -> GitHubAddress -> Message -> Curator ()
 checkLatestRelease token address RefreshState = getLatestRelease token address >>= \case
   Left _ -> pure () -- TODO: error out here?
   Right GitHub.Release {..} -> do
-    State{..} <- Concurrent.readMVar state
+    State{..} <- liftIO $ Concurrent.readMVar state
     case Map.lookup address latestReleases of
       -- We don't do anything if we have a release saved and it's the current one
       Just currentRelease | currentRelease == releaseTagName -> pure ()
       _ -> do
-        echo $ "Found a new release for " <> tshow address <> ": " <> releaseTagName
+        logInfo $ "Found a new release for " <> displayShow address <> ": " <> display releaseTagName
         atomically $ Chan.writeTChan bus $ NewRepoRelease address releaseTagName
 checkLatestRelease _ _ _ = pure ()
 
 
 -- | Whenever there's a new release of package-sets, update it in Spago's template
-spagoUpdatePackageSets :: GitHub.AuthMethod am => am -> Message -> IO ()
+spagoUpdatePackageSets :: GitHub.AuthMethod am => am -> Message -> Curator ()
 spagoUpdatePackageSets token (NewRepoRelease address newTag) | address == packageSetsRepo = do
   let prTitle = "Update to package-sets@" <> newTag
   let prBranchName = "spacchettibotti-" <> newTag
@@ -296,27 +296,27 @@ spagoUpdatePackageSets _ _ = pure ()
 -- | Take the latest package set from package-sets master, get a list of all the
 --   packages in there, and thenn query their commits and tags. Once done, send
 --   the package on the bus.
-metadataFetcher :: GitHub.AuthMethod am => am -> Message -> IO ()
+metadataFetcher :: GitHub.AuthMethod am => am -> Message -> Curator ()
 metadataFetcher token RefreshState = do
-  echo "Downloading and parsing package set.."
+  logInfo "Downloading and parsing package set.."
   packageSet <- fetchPackageSet
   atomically $ Chan.writeTChan bus $ NewPackageSet packageSet
   let packages = Map.toList packageSet
-  echoStr $ "Fetching metadata for " <> show (length packages) <> " packages"
+  logInfo $ "Fetching metadata for " <> display (length packages) <> " packages"
 
   -- Call GitHub for all these packages and get metadata for them
-  metadata <- Async.withTaskGroup 10 $ \taskGroup -> do
-    asyncs <- for packages (Async.async taskGroup . fetchRepoMetadata)
-    for asyncs Async.wait
+  metadata <- withTaskGroup' 10 $ \taskGroup -> do
+    asyncs <- for packages (async' taskGroup . fetchRepoMetadata)
+    for asyncs wait'
 
-  echo "Fetched all metadata."
+  logInfo "Fetched all metadata."
   atomically $ Chan.writeTChan bus $ NewMetadata $ foldMap (uncurry Map.singleton) metadata
 
   where
-    fetchRepoMetadata :: MonadIO m => MonadThrow m => (PackageName, Package) -> m (PackageName, RepoMetadataV1)
-    fetchRepoMetadata (_, pkg@Package{ location = Local{..}, ..}) = die $ "Tried to fetch a local package: " <> tshow pkg
+    fetchRepoMetadata :: (PackageName, Package) -> Curator (PackageName, RepoMetadataV1)
+    fetchRepoMetadata (_, pkg@Package{ location = Local{..}, ..}) = die [ "Tried to fetch a local package: " <> displayShow pkg ]
     fetchRepoMetadata (packageName, Package{ location = Remote{ repo = Repo repoUrl, ..}, ..}) =
-      liftIO $ Retry.recoverAll (Retry.fullJitterBackoff 50000 <> Retry.limitRetries 25) $ \Retry.RetryStatus{..} -> do
+      Retry.recoverAll (Retry.fullJitterBackoff 50000 <> Retry.limitRetries 25) $ \Retry.RetryStatus{..} -> do
         let !(owner:repo:_rest)
               = Text.split (=='/')
               $ Text.replace "https://github.com/" ""
@@ -325,21 +325,21 @@ metadataFetcher token RefreshState = do
                   False -> repoUrl
             address = Address (GitHub.mkName Proxy owner) (GitHub.mkName Proxy repo)
 
-        echo $ "Retry " <> tshow rsIterNumber <> ": fetching tags and commits for " <> tshow address
+        logDebug $ "Retry " <> display rsIterNumber <> ": fetching tags and commits for " <> displayShow address
 
         !eitherTags <- getTags token address
         !eitherCommits <- getCommits token address
 
         case (eitherTags, eitherCommits) of
-          (Left _, _) -> die $ "Retry " <> tshow rsIterNumber <> ": failed to fetch tags"
-          (_, Left _) -> die $ "Retry " <> tshow rsIterNumber <> ": failed to fetch commits"
+          (Left _, _) -> die [ "Retry " <> display rsIterNumber <> ": failed to fetch tags" ]
+          (_, Left _) -> die [ "Retry " <> display rsIterNumber <> ": failed to fetch commits" ]
           (Right (latest, tags), Right commits) -> do
             pure (packageName, RepoMetadataV1{..})
 
 
     -- | Tries to read in a PackageSet from GitHub, master branch
     --   (so we always get the most up to date and we don't have to wait for a release)
-    fetchPackageSet :: MonadIO m => MonadThrow m => m PackageSetMap
+    fetchPackageSet :: (MonadIO m, MonadThrow m, MonadReader env m, HasLogFunc env) => m PackageSetMap
     fetchPackageSet = do
       expr <- liftIO $ Dhall.inputExpr "https://raw.githubusercontent.com/purescript/package-sets/master/src/packages.dhall"
       case expr of
@@ -350,15 +350,15 @@ metadataFetcher _ _ = pure ()
 
 
 -- | Whenever there's a new metadata set, push it to the repo
-metadataUpdater :: Message -> IO ()
+metadataUpdater :: Message -> Curator ()
 metadataUpdater (NewMetadata metadata) = do
   -- Write the metadata to file
-  let writeMetadata :: GHC.IO.FilePath -> IO ()
+  let writeMetadata :: GHC.IO.FilePath -> Curator ()
       writeMetadata tempfolder = do
         path <- makeAbsolute (tempfolder </> "metadataV1new.json")
-        echo $ "Writing metadata to file: " <> tshow path
-        BSL.writeFile path $ encodePretty metadata
-        echo "Done."
+        logInfo $ "Writing metadata to file: " <> displayShow path
+        liftIO $ BSL.writeFile path $ encodePretty metadata
+        logInfo "Done."
 
   let commitMessage = "Update GitHub index file"
   runAndPushMaster metadataRepo commitMessage
@@ -371,14 +371,14 @@ metadataUpdater _ = pure ()
 
 -- | Watch out for the result of a `spago verify-set` command, and comment appropriately
 --   on the PR thread (if any)
-packageSetCommenter :: GitHub.AuthMethod am => am -> Message -> IO ()
+packageSetCommenter :: GitHub.AuthMethod am => am -> Message -> Curator ()
 packageSetCommenter token (NewVerification result) = do
-  maybePR <- getPullRequestForUser token "spacchettibotti" packageSetsRepo
+  maybePR <- liftIO $ getPullRequestForUser token "spacchettibotti" packageSetsRepo
 
   case maybePR of
     Nothing -> do
-      echo "Could not find an open PR, waiting 5 mins.."
-      Concurrent.threadDelay (5 * 60 * 1000000)
+      logWarn "Could not find an open PR, waiting 5 mins.."
+      liftIO $ Concurrent.threadDelay (5 * 60 * 1000000)
       atomically $ Chan.writeTChan bus $ NewVerification result
     Just GitHub.PullRequest{..} -> do
       let commentBody = case result of
@@ -403,9 +403,9 @@ packageSetCommenter token (NewVerification result) = do
               , "</p></details>"
               ]
       let (Address owner repo) = packageSetsRepo
-      (GitHub.executeRequest token $ GitHub.createCommentR owner repo pullRequestNumber commentBody) >>= \case
-        Left err -> echo $ "Something went wrong while commenting. Error: " <> tshow err
-        Right _ -> echo "Commented on the open PR"
+      (liftIO $ GitHub.executeRequest token $ GitHub.createCommentR owner repo pullRequestNumber commentBody) >>= \case
+        Left err -> logError $ "Something went wrong while commenting. Error: " <> displayShow err
+        Right _ -> logInfo "Commented on the open PR"
 packageSetCommenter _ _ = pure ()
 
 
@@ -421,7 +421,7 @@ data BotCommand
 --   then opening a PR with the result of `spago verify-set`.
 --   Once in there, it will parse the comments on the PR to find out which
 --   packages we want to temporarily ban from the verification/upgrade process
-packageSetsUpdater :: GitHub.AuthMethod am => am -> Message -> IO ()
+packageSetsUpdater :: GitHub.AuthMethod am => am -> Message -> Curator ()
 packageSetsUpdater token (NewMetadata newMetadata) = do
   -- This metadata is the most up-to-date snapshot of all the repos in package-sets
   -- master branch. Among other things it contains the latest releases of all the
@@ -449,22 +449,23 @@ packageSetsUpdater token (NewMetadata newMetadata) = do
                 (_, True) -> Just (Tag version, owner)
                 (_, _)    -> Just (latest, owner)
 
-  State{..} <- Concurrent.readMVar state
+  State{..} <- liftIO $ Concurrent.readMVar state
   let removeBannedOverrides packageName (Tag tag, _) = case Map.lookup packageName packageSet of
         Just Package{ location = Remote {version}} | tag == version -> False
         _ -> True
   let newVersionsWithBanned = computePackagesToUpdate newMetadata packageSet banned
   let newVersions = Map.filterWithKey removeBannedOverrides newVersionsWithBanned
 
-  let patchVersions path = do
+  let patchVersions :: GHC.IO.FilePath -> Curator ()
+      patchVersions path = do
         for_ (Map.toList newVersionsWithBanned) $ \(packageName, (tag, owner)) -> do
-          echo $ "Patching version for " <> tshow packageName
+          logInfo $ "Patching version for " <> displayShow packageName
           withAST (Text.pack $ path </> "src" </> "groups" </> Text.unpack (Text.toLower owner) <> ".dhall")
             $ updateVersion packageName tag
 
-        echo "Verifying new set. This might take a LONG while.."
+        logInfo "Verifying new set. This might take a LONG while.."
         result <- runWithCwd path "cd src; spago init; spago verify-set"
-        echo "Verified packages, spamming the channel with the result.."
+        logInfo "Verified packages, spamming the channel with the result.."
         atomically $ Chan.writeTChan bus $ NewVerification result
 
   let commands =
@@ -473,17 +474,17 @@ packageSetsUpdater token (NewMetadata newMetadata) = do
         , "git add src/groups"
         ]
 
-  echo $ "Found " <> tshow (length newVersions) <> " packages to update"
+  logInfo $ "Found " <> display (length newVersions) <> " packages to update"
 
   when (length newVersions > 0) $ do
-    echo $ tshow newVersions
+    logInfo $ displayShow newVersions
     -- If we have more than one package to update, let's see if we already have an
     -- open PR to package-sets. If we do we can just commit there
-    maybePR <- getPullRequestForUser token "spacchettibotti" packageSetsRepo
+    maybePR <- liftIO $ getPullRequestForUser token "spacchettibotti" packageSetsRepo
 
     case maybePR of
       Nothing -> do
-        today <- (Text.pack . Time.showGregorian . Time.utctDay) <$> Time.getCurrentTime
+        today <- liftIO $ (Text.pack . Time.showGregorian . Time.utctDay) <$> Time.getCurrentTime
         let prBranchName = "spacchettibotti-updates-" <> today
             prTitle = "Updates " <> today
             prAddress = packageSetsRepo
@@ -492,7 +493,7 @@ packageSetsUpdater token (NewMetadata newMetadata) = do
       Just GitHub.PullRequest{ pullRequestHead = GitHub.PullRequestCommit{..}, ..} -> do
         -- A PR is there and there might be updates to the banned packages, so we
         -- try to update the banlist
-        commentsForPR <- getCommentsOnPR token packageSetsRepo pullRequestNumber
+        commentsForPR <- liftIO $ getCommentsOnPR token packageSetsRepo pullRequestNumber
         let newBanned = computeNewBanned commentsForPR banned packageSet
         let newVersionsWithBanned' = computePackagesToUpdate newMetadata packageSet newBanned
         let newVersions' = Map.filterWithKey removeBannedOverrides newVersionsWithBanned'
@@ -514,10 +515,10 @@ packageSetsUpdater token (NewMetadata newMetadata) = do
                 , Time.diffUTCTime lastCommitTime lastCommentTime > 0
                 ]
         let patchVersions' path = shouldVerifyAgain path >>= \case
-              False -> echo "Skipping verification as there's nothing new under the sun.."
+              False -> logInfo "Skipping verification as there's nothing new under the sun.."
               True -> do
                 patchVersions path
-                updatePullRequestBody token packageSetsRepo pullRequestNumber $ mkBody newVersions' newBanned
+                liftIO $ updatePullRequestBody token packageSetsRepo pullRequestNumber $ mkBody newVersions' newBanned
 
         runAndPushBranch pullRequestCommitRef packageSetsRepo pullRequestTitle patchVersions' commands
   where
@@ -584,48 +585,51 @@ data PullRequest = PullRequest
   }
 
 
-runAndPushBranch :: Text -> GitHubAddress -> Text -> (GHC.IO.FilePath -> IO ()) -> [Text] -> IO ()
+runAndPushBranch :: Text -> GitHubAddress -> Text -> (GHC.IO.FilePath -> Curator ()) -> [Text] -> Curator ()
 runAndPushBranch branchName address commit preAction commands
   = runInClonedRepo address branchName commit preAction commands (pure ())
 
 
-runAndPushMaster :: GitHubAddress -> Text -> (GHC.IO.FilePath -> IO ()) -> [Text] -> IO ()
+runAndPushMaster :: GitHubAddress -> Text -> (GHC.IO.FilePath -> Curator ()) -> [Text] -> Curator ()
 runAndPushMaster = runAndPushBranch "master"
 
 
-runAndOpenPR :: GitHub.AuthMethod am => am -> PullRequest -> (GHC.IO.FilePath -> IO ()) -> [Text] -> IO ()
+runAndOpenPR :: GitHub.AuthMethod am => am -> PullRequest -> (GHC.IO.FilePath -> Curator ()) -> [Text] -> Curator ()
 runAndOpenPR token PullRequest{ prAddress = address@Address{..}, ..} preAction commands
   = unlessM pullRequestExists (runInClonedRepo address prBranchName prTitle preAction commands openPR)
   where
+    openPR :: Curator ()
     openPR = do
-      echo "Pushed a new commit, opening PR.."
-      response <- GitHub.executeRequest token
+      logInfo "Pushed a new commit, opening PR.."
+      response <- liftIO $ GitHub.executeRequest token
         $ GitHub.createPullRequestR owner repo
         $ GitHub.CreatePullRequest prTitle prBody prBranchName "master"
       case response of
-        Right _   -> echo "Created PR 🎉"
-        Left err' -> echoStr $ "Error while creating PR: " <> show err'
+        Right _   -> logInfo "Created PR 🎉"
+        Left err' -> logError $ "Error while creating PR: " <> displayShow err'
 
+    pullRequestExists :: Curator Bool
     pullRequestExists = do
-      echo $ "Checking if we ever opened a PR " <> surroundQuote prTitle
+      logInfo $ "Checking if we ever opened a PR " <> displayShow prTitle
 
-      oldPRs <- GitHub.executeRequest token
+      oldPRs <- liftIO
+        $ GitHub.executeRequest token
         $ GitHub.pullRequestsForR owner repo
         (GitHub.optionsHead (GitHub.untagName owner <> ":" <> prBranchName) <> GitHub.stateAll)
         GitHub.FetchAll
       case oldPRs of
         Left err -> do
-          echoStr $ "Error: " <> show err
+          logError $ "Error: " <> displayShow err
           pure True
         Right prs | not $ Vector.null prs -> do
-          echo "PR was opened, skipping.."
+          logWarn "PR was opened, skipping.."
           pure True
         Right _ -> do
-          echo "No previous PRs found, opening one.."
+          logInfo "No previous PRs found, opening one.."
           pure False
 
 
-runInClonedRepo :: GitHubAddress -> Text -> Text -> (GHC.IO.FilePath -> IO ()) -> [Text] -> IO () -> IO ()
+runInClonedRepo :: GitHubAddress -> Text -> Text -> (GHC.IO.FilePath -> Curator ()) -> [Text] -> Curator () -> Curator ()
 runInClonedRepo address@Address{..} branchName commit preAction commands postAction =
   -- Clone the repo in a temp folder
   Temp.withTempDirectory "data" "__temp-repo" $ \path -> do
@@ -635,28 +639,28 @@ runInClonedRepo address@Address{..} branchName commit preAction commands postAct
           if code /= ExitSuccess
             then do
               failure
-              echo out
-              echo err
+              logInfo $ display out
+              logError $ display err
             else success
 
     (code, _out, _err) <- runWithCwd path $ "git clone git@github.com:" <> GitHub.untagName owner <> "/" <> GitHub.untagName repo <> ".git"
     if code /= ExitSuccess
-      then echo "Error while cloning repo"
+      then logError "Error while cloning repo"
       else do
-        echo $ "Cloned " <> tshow address
+        logInfo $ "Cloned " <> displayShow address
         -- Configure the repo: set the git identity to spacchettibotti and switch to the branch
         runInRepo
           [ "git config --local user.name 'Spacchettibotti'"
           , "git config --local user.email 'spacchettibotti@ferrai.io'"
           , "git checkout " <> branchName <> " || git checkout -b " <> branchName
           ]
-          (echo "Failed to configure the repo")
+          (logError "Failed to configure the repo")
           -- If the setup was fine, run the setup code before running the commands
           (preAction =<< makeAbsolute (path </> repoPath))
         -- Run the commands we wanted to run
         runInRepo
           commands
-          (echo "Something was off while running commands..")
+          (logError "Something was off while running commands..")
           -- Check if anything actually changed or got staged
           (runInRepo
             [ "git diff --staged --exit-code" ]
@@ -664,32 +668,32 @@ runInClonedRepo address@Address{..} branchName commit preAction commands postAct
               [ "git commit -m '" <> commit <> "'"
               , "git push --set-upstream origin " <> branchName
               ]
-              (echo "Failed to commit!")
+              (logError "Failed to commit!")
               postAction)
-            (echo "Nothing to commit, skipping.."))
+            (logInfo "Nothing to commit, skipping.."))
 
 
-runWithCwd :: MonadIO io => GHC.IO.FilePath -> Text -> io (ExitCode, Text, Text)
+runWithCwd :: GHC.IO.FilePath -> Text -> Curator (ExitCode, Text, Text)
 runWithCwd cwd cmd = do
-  echo $ "Running in path " <> Text.pack cwd <> ": `" <> cmd <> "`"
+  logDebug $ "Running in path " <> displayShow cwd <> ": `" <> display cmd <> "`"
   let processWithNewCwd = (Process.shell (Text.unpack cmd)) { Process.cwd = Just cwd }
   systemStrictWithErr processWithNewCwd empty
 
 
-getLatestCommitTime :: GHC.IO.FilePath -> IO Time.UTCTime
+getLatestCommitTime :: GHC.IO.FilePath -> Curator Time.UTCTime
 getLatestCommitTime path = do
   (_code, out, _err) <- runWithCwd path "git show -s --format=%ci"
   Time.parseTimeM True Time.defaultTimeLocale "%Y-%m-%d %H:%M:%S %z" $ Text.unpack out
 
 
-withAST :: MonadIO m => Text -> (Expr -> m Expr) -> m ()
+withAST :: (MonadIO m, MonadReader env m, HasLogFunc env) => Text -> (Expr -> m Expr) -> m ()
 withAST path transform = do
   rawConfig <- liftIO $ Dhall.readRawExpr path
   case rawConfig of
-    Nothing -> echo $ "Could not find file " <> path
+    Nothing -> logWarn $ "Could not find file " <> display path
     Just (header, expr) -> do
       newExpr <- transformMExpr transform expr
-      echo $ "Done. Updating the \"" <> path <> "\" file.."
+      logInfo $ "Done. Updating the \"" <> display path <> "\" file.."
       writeTextFile path $ Dhall.prettyWithHeader header newExpr <> "\n"
       liftIO $ Dhall.format path
   where

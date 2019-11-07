@@ -1,0 +1,1 @@
+[31m[error] [0mThe `make-module` command has been replaced with `bundle-module`, so use that instead.[0m
