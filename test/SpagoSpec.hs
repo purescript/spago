@@ -546,7 +546,11 @@ spec = around_ setup $ do
 
       spago ["init"] >>= shouldBeSuccess
       spago ["--no-psa", "build"] >>= shouldBeSuccess
-      spago ["-v", "--no-psa", "run"] >>= shouldBeSuccessOutputWithErr "run-output.txt" "run-no-psa-stderr.txt"
+
+      stdoutText <- readFixture "run-output.txt"
+      outputPath <- makeAbsolute "output"
+      stderrText <- Text.replace "$OUTPUT_PATH" (Text.pack outputPath) <$> readFixture "run-no-psa-stderr.txt"
+      spago ["-v", "--no-psa", "run"] >>= successOutputAndErrShouldEqual stdoutText stderrText
 
   describe "spago bundle" $ do
 

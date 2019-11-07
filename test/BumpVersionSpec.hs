@@ -1,5 +1,6 @@
 module BumpVersionSpec (spec) where
 
+import qualified Data.Text             as Text
 import           Data.Versions         (SemVer (..), VUnit (..))
 import           Prelude               hiding (FilePath)
 import qualified System.IO.Temp        as Temp
@@ -12,6 +13,7 @@ import           Utils                 (checkFileHasInfix, checkFixture, getHigh
                                         shouldBeFailure, shouldBeFailureInfix, shouldBeSuccess,
                                         spago, withCwd)
 
+import           Spago.Prelude         (makeAbsolute)
 import           Spago.Version         (VersionBump (..), getNextVersion, parseVersion,
                                         parseVersionBump, unparseVersion)
 
@@ -172,5 +174,7 @@ spec = describe "spago bump-version" $ do
         mkdir "purescript-tortellini"
         withCwd "purescript-tortellini" $ spago ["init"] >>= shouldBeSuccess
         setOverrides "{ tortellini = ./purescript-tortellini/spago.dhall as Location }"
+
+        repoPath <- Text.pack <$> makeAbsolute "./purescript-tortellini"
         spago ["bump-version", "minor"] >>= shouldBeFailureInfix
-          "Unable to create Bower version for local repo: ./purescript-tortellini"
+          ("Unable to create Bower version for local repo: " <> repoPath)
