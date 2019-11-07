@@ -44,15 +44,14 @@ data CacheFlag = SkipCache | NewCache
 --   So here we check that one of the two is true, and if so we run the callback with the
 --   URL of the .tar.gz archive on GitHub, otherwise another callback for when it's not
 globallyCache
-  :: Spago m
-  => (PackageName, Repo, Text)
+  :: (PackageName, Repo, Text)
   -> FilePath.FilePath
   -> ReposMetadataV1
-  -> (FilePath.FilePath -> m ())
-  -> (m ())
-  -> m ()
+  -> (FilePath.FilePath -> Spago ())
+  -> (Spago ())
+  -> Spago ()
 globallyCache (packageName, Repo url, ref) downloadDir metadata cacheableCallback notCacheableCallback = do
-  logDebug $ "Running `globallyCache`: " <> tshow packageName <> " " <> url <> " " <> ref
+  logDebug $ "Running `globallyCache`: " <> displayShow packageName <> " " <> display url <> " " <> display ref
   case (Text.stripPrefix "https://github.com/" url)
        >>= (Text.stripSuffix ".git")
        >>= (Just . Text.split (== '/')) of
@@ -61,13 +60,13 @@ globallyCache (packageName, Repo url, ref) downloadDir metadata cacheableCallbac
         Nothing -> notCacheableCallback -- TODO: nice error?
         Just _ -> do
           let archiveUrl = "https://github.com/" <> owner <> "/" <> repo <> "/archive/" <> ref <> ".tar.gz"
-          logDebug $ "About to fetch tarball for " <> archiveUrl
+          logDebug $ "About to fetch tarball for " <> display archiveUrl
           fetchTarball downloadDir archiveUrl
           Just resultDir <- Turtle.fold (Turtle.ls $ Turtle.decodeString downloadDir) Fold.head
           cacheableCallback $ Turtle.encodeString resultDir
       where
     _ -> do
-      logDebug $ "Not caching repo because URL doesn't have the form of 'https://github.com/<ORG>/<REPO>.git': " <> url
+      logDebug $ "Not caching repo because URL doesn't have the form of 'https://github.com/<ORG>/<REPO>.git': " <> display url
       notCacheableCallback -- TODO: error?
   where
     isTag = do
@@ -83,13 +82,13 @@ globallyCache (packageName, Repo url, ref) downloadDir metadata cacheableCallbac
 
 
 -- | Download the GitHub Index cache from the `package-sets-metadata` repo
-getMetadata :: Spago m => Maybe CacheFlag -> m ReposMetadataV1
+getMetadata :: Maybe CacheFlag -> Spago ReposMetadataV1
 getMetadata cacheFlag = do
   logDebug "Running `getMetadata`"
 
   globalCacheDir <- getGlobalCacheDir
 
-  logDebug $ "Global cache directory: " <> Text.pack globalCacheDir
+  logDebug $ "Global cache directory: " <> displayShow globalCacheDir
 
   let metaURL = "https://raw.githubusercontent.com/spacchetti/package-sets-metadata/master/metadataV1.json"
 
@@ -102,14 +101,14 @@ getMetadata cacheFlag = do
 
       downloadMeta = handleAny
         (\err -> do
-            logDebug $ "Metadata fetch failed with exception: " <> tshow err
-            output "WARNING: Unable to download GitHub metadata, global cache will be disabled"
+            logDebug $ "Metadata fetch failed with exception: " <> display err
+            logWarn "Unable to download GitHub metadata, global cache will be disabled"
             pure mempty)
         (do
             metaBS <- Http.getResponseBody `fmap` Http.httpBS metaURL
             case decodeStrict' metaBS of
               Nothing -> do
-                logWarning "Unable to parse GitHub metadata, global cache will be disabled"
+                logWarn "Unable to parse GitHub metadata, global cache will be disabled"
                 pure mempty
               Just meta -> do
                 assertDirectory globalCacheDir
@@ -121,21 +120,21 @@ getMetadata cacheFlag = do
     Just SkipCache -> pure mempty
     -- If we need to download a new cache we can skip checking the local filesystem
     Just NewCache -> do
-      output "Downloading a new packages cache metadata from GitHub.."
+      logInfo "Downloading a new packages cache metadata from GitHub.."
       downloadMeta
     -- Otherwise we check first
     Nothing -> do
-      output "Searching for packages cache metadata.."
+      logInfo "Searching for packages cache metadata.."
 
       -- Check if the metadata is in global cache and fresher than 1 day
       shouldRefreshFile globalPathToMeta >>= \case
         -- If we should not download it, read from file
         False -> do
-          output "Recent packages cache metadata found, using it.."
+          logInfo "Recent packages cache metadata found, using it.."
           fmap maybeToMonoid $ liftIO $ decodeFileStrict globalPathToMeta
         -- Otherwise download it, write it to file, and return it
         True -> do
-          output "Unable to find packages cache metadata, downloading from GitHub.."
+          logInfo "Unable to find packages cache metadata, downloading from GitHub.."
           downloadMeta
 
 
@@ -144,16 +143,15 @@ getMetadata cacheFlag = do
 --   `$XDG_CACHE_HOME`, otherwise it uses:
 --   - (on Linux/MacOS) the folder pointed by `$HOME/.cache`, or
 --   - (on Windows) the folder pointed by `LocalAppData`
-getGlobalCacheDir :: Spago m => m FilePath.FilePath
+getGlobalCacheDir :: MonadIO m => m FilePath.FilePath
 getGlobalCacheDir = do
-  logDebug "Running `getGlobalCacheDir`"
-  getXdgDirectory XdgCache "spago" <|> pure ".spago-global-cache"
+  liftIO $ getXdgDirectory XdgCache "spago" <|> pure ".spago-global-cache"
 
 
 -- | Fetch the tarball at `archiveUrl` and unpack it into `destination`
-fetchTarball :: Spago m => FilePath.FilePath -> Text -> m ()
+fetchTarball :: FilePath.FilePath -> Text -> Spago ()
 fetchTarball destination archiveUrl = do
-  logDebug $ "Fetching " <> archiveUrl
+  logDebug $ "Fetching " <> display archiveUrl
   tarballUrl <- Http.parseRequest $ Text.unpack archiveUrl
   lbs <- fmap Http.getResponseBody (Http.httpLBS tarballUrl)
   liftIO $ Tar.unpack destination $ Tar.read $ GZip.decompress lbs

@@ -32,17 +32,19 @@ newtype ExtraArg = ExtraArg { unExtraArg :: Text }
 data WithMain = WithMain | WithoutMain
 
 
-compile :: Spago m => [SourcePath] -> [ExtraArg] -> m ()
+compile :: [SourcePath] -> [ExtraArg] -> Spago ()
 compile sourcePaths extraArgs = do
   -- first we decide if we _want_ to use psa, then if we _can_
-  usePsa <- asks globalUsePsa
+  usePsa <- askEnv envUsePsa
   purs <- case usePsa of
     NoPsa -> pure "purs"
-    UsePsa -> try psaVersion >>= \case
+    UsePsa -> psaVersion >>= \case
       Right _ -> pure "psa"
-      Left (_err :: SomeException) -> pure "purs"
+      Left err -> do
+        logDebug $ display err
+        pure "purs"
 
-  logDebug $ "Compiling with " <> surroundQuote purs
+  logDebug $ "Compiling with " <> displayShow purs
 
   let
     paths = Text.intercalate " " $ surroundQuote <$> map unSourcePath sourcePaths
@@ -52,7 +54,7 @@ compile sourcePaths extraArgs = do
     "Build succeeded."
     "Failed to build."
 
-repl :: Spago m => [SourcePath] -> [ExtraArg] -> m ()
+repl :: [SourcePath] -> [ExtraArg] -> Spago ()
 repl sourcePaths extraArgs = do
   let paths = Text.intercalate " " $ surroundQuote <$> map unSourcePath sourcePaths
       args = Text.intercalate " " $ map unExtraArg extraArgs
@@ -61,7 +63,7 @@ repl sourcePaths extraArgs = do
   viewShell $ callCommand $ Text.unpack cmd
 
 
-bundle :: Spago m => WithMain -> ModuleName -> TargetPath -> m ()
+bundle :: WithMain -> ModuleName -> TargetPath -> Spago ()
 bundle withMain (ModuleName moduleName) (TargetPath targetPath) = do
   let main = case withMain of
         WithMain    -> " --main " <> moduleName
@@ -94,7 +96,7 @@ parseDocsFormat = \case
   _          -> Nothing
 
 
-docs :: Spago m => DocsFormat -> [SourcePath] -> m ()
+docs :: DocsFormat -> [SourcePath] -> Spago ()
 docs format sourcePaths = do
   let
     printDocsFormat :: DocsFormat -> Text
@@ -111,27 +113,26 @@ docs format sourcePaths = do
     "Docs generation succeeded."
     "Docs generation failed."
 
-version, psaVersion :: Spago m => m (Maybe Version.SemVer)
-version = versionImpl "purs"
+version, psaVersion :: Spago (Either Text Version.SemVer)
+version    = versionImpl "purs"
 psaVersion = versionImpl "psa"
 
-versionImpl :: Spago m => Text -> m (Maybe Version.SemVer)
-versionImpl purs = do
-  fullVersionText <- shellStrictWithErr (purs <> " --version") empty >>= \case
-    (ExitSuccess, out, _err) -> pure out
-    (_, _out, err) -> die $ "Failed to run '" <> purs <> " --version'. Error:" <> err
-  let versionText = headMay $ Text.split (== ' ') fullVersionText
-      parsed = versionText >>= (hush . Version.semver)
+versionImpl :: Text -> Spago (Either Text Version.SemVer)
+versionImpl purs = shellStrictWithErr (purs <> " --version") empty >>= \case
+  (ExitSuccess, out, _err) -> do
+    let versionText = headMay $ Text.split (== ' ') out
+        parsed = versionText >>= (hush . Version.semver)
 
-  when (isNothing parsed) $ do
-    output $ Messages.failedToParseCommandOutput (purs <> " --version") fullVersionText
-
-  pure parsed
+    pure $ case parsed of
+      Nothing -> Left $ Messages.failedToParseCommandOutput (purs <> " --version") out
+      Just p -> Right p
+  (_, _out, _err) -> pure $ Left $ "Failed to run '" <> purs <> " --version'"
 
 
-runWithOutput :: Spago m => Text -> Text -> Text -> m ()
+
+runWithOutput :: Text -> Text -> Text -> Spago ()
 runWithOutput command success failure = do
-  logDebug $ "Running command: `" <> command <> "`"
-  liftIO $ shell command empty >>= \case
-    ExitSuccess -> output success
-    ExitFailure _ -> die failure
+  logDebug $ "Running command: `" <> display command <> "`"
+  shell command empty >>= \case
+    ExitSuccess -> logInfo $ display success
+    ExitFailure _ -> die [ display failure ]

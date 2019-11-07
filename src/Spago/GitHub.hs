@@ -4,6 +4,7 @@ module Spago.GitHub where
 import           Spago.Prelude
 
 import qualified Control.Retry       as Retry
+import qualified Data.List           as List
 import qualified Data.Text           as Text
 import qualified Data.Text.Encoding
 import qualified GitHub
@@ -20,17 +21,17 @@ tagCacheFile = "package-sets-tag.txt"
 tokenCacheFile = "github-token.txt"
 
 
-login :: Spago m => m ()
+login :: Spago ()
 login = do
  maybeToken <- liftIO (System.Environment.lookupEnv githubTokenEnvVar)
- globalCacheDir <- GlobalCache.getGlobalCacheDir
+ globalCacheDir <- askEnv envGlobalCache
 
  case maybeToken of
-   Nothing -> die Messages.getNewGitHubToken
+   Nothing -> die [ display Messages.getNewGitHubToken ]
    Just (Text.pack -> token) -> do
-     output "Token read, authenticating with GitHub.."
+     logInfo "Token read, authenticating with GitHub.."
      username <- getUsername token
-     output $ "Successfully authenticated as " <> surroundQuote username
+     logInfo $ "Successfully authenticated as " <> displayShow username
      writeTextFile (Text.pack $ globalCacheDir </> tokenCacheFile) token
   where
     getUsername token = do
@@ -38,11 +39,11 @@ login = do
         (GitHub.OAuth $ Data.Text.Encoding.encodeUtf8 token)
         GitHub.userInfoCurrentR
       case result of
-        Left err              -> die $ Messages.failedToReachGitHub err
+        Left err              -> die [ display $ Messages.failedToReachGitHub err ]
         Right GitHub.User{..} -> pure $ GitHub.untagName userLogin
 
 
-readToken :: Spago m => m Text
+readToken :: (MonadReader env m, MonadIO m, Alternative m, HasLogFunc env, MonadThrow m) => m Text
 readToken = readFromEnv <|> readFromFile
   where
     readFromEnv = liftIO (System.Environment.lookupEnv githubTokenEnvVar) >>= \case
@@ -50,29 +51,32 @@ readToken = readFromEnv <|> readFromFile
       Just (Text.pack -> token) -> return token
 
     readFromFile = do
-      globalCacheDir <- GlobalCache.getGlobalCacheDir
-      assertDirectory globalCacheDir
-      readTextFile $ pathFromText $ Text.pack $ globalCacheDir </> tokenCacheFile
+      globalCache <- GlobalCache.getGlobalCacheDir
+      assertDirectory globalCache
+      readTextFile $ pathFromText $ Text.pack $ globalCache </> tokenCacheFile
 
 
-getLatestPackageSetsTag :: Spago m => m (Either SomeException Text)
+getLatestPackageSetsTag :: Spago (Either SomeException Text)
 getLatestPackageSetsTag = do
-  globalCacheDir <- GlobalCache.getGlobalCacheDir
+  globalCacheDir <- askEnv envGlobalCache
   assertDirectory globalCacheDir
   let globalPathToCachedTag = globalCacheDir </> tagCacheFile
   let writeTagCache releaseTagName = writeTextFile (Text.pack globalPathToCachedTag) releaseTagName
   let readTagCache = try $ readTextFile $ pathFromText $ Text.pack globalPathToCachedTag
-  let downloadTagToCache =
-        try (Retry.recoverAll (Retry.fullJitterBackoff 50000 <> Retry.limitRetries 5) $ \_ -> getLatestRelease1 <|> getLatestRelease2) >>= \case
-          Left (err :: SomeException) -> logDebug $ Messages.failedToReachGitHub err
-          Right releaseTagName -> writeTagCache releaseTagName
+  let downloadTagToCache env = try
+        $ Retry.recoverAll (Retry.fullJitterBackoff 50000 <> Retry.limitRetries 5)
+        $ \_ -> runReaderT (getLatestRelease1 <|> getLatestRelease2) env
 
-  whenM (shouldRefreshFile globalPathToCachedTag) downloadTagToCache
+  whenM (shouldRefreshFile globalPathToCachedTag) $ do
+    env <- ask
+    liftIO (downloadTagToCache env) >>= \case
+      Left (err :: SomeException) -> logDebug $ display $ Messages.failedToReachGitHub err
+      Right releaseTagName -> writeTagCache releaseTagName
 
   readTagCache
 
   where
-    getLatestRelease1 :: Spago m => m Text
+    getLatestRelease1 :: (HasLogFunc env, MonadReader env m, MonadIO m, Alternative m, MonadUnliftIO m, MonadThrow m) => m Text
     getLatestRelease1 = do
       maybeToken :: Either SomeException Text <- try readToken
       f <- case hush maybeToken of
@@ -85,21 +89,22 @@ getLatestPackageSetsTag = do
       case result of
         Right GitHub.Release{..} -> return releaseTagName
         Left err -> do
-          logWarning $ Messages.failedToReachGitHub err
+          logWarn $ display $ Messages.failedToReachGitHub err
           empty
 
     -- | The idea here is that we go to the `latest` endpoint, and then get redirected
     --   to the latest release. So we search for the `Location` header which should contain
     --   the URL we get redirected to, and strip the release name from there (it's the
     --   last segment of the URL)
-    getLatestRelease2 :: Spago m => m Text
+    getLatestRelease2 :: (HasLogFunc env, MonadReader env m, MonadIO m, MonadThrow m, Alternative m) => m Text
     getLatestRelease2 = do
       request <- Http.parseRequest "https://github.com/purescript/package-sets/releases/latest"
       response <- Http.httpBS
         $ Http.addRequestHeader "User-Agent" "Mozilla/5.0"
         $ request { Http.redirectCount = 0 }
       case Http.getResponseHeader "Location" response of
-        [redirectUrl] -> return $ last $ Text.splitOn "/" $ Data.Text.Encoding.decodeUtf8 redirectUrl
+        [redirectUrl] -> return $ List.last $ Text.splitOn "/" $ Data.Text.Encoding.decodeUtf8 redirectUrl
         _ -> do
-          outputStr $ "Error following GitHub redirect, response:\n\n" <> show response
+          logWarn "Error following GitHub redirect, response:"
+          logWarn $ displayShow response
           empty

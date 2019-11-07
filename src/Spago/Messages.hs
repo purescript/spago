@@ -87,12 +87,12 @@ foundLocalPackage package path
   = "Skipping package " <> surroundQuote package <> ", using local path: " <> surroundQuote path
 
 failedToInstallDep :: Text -> Text -> Text
-failedToInstallDep dep stderr = makeMessage
+failedToInstallDep dep err = makeMessage
   [ ""
   , "Failed to install dependency " <> dep
   , "Git output:"
   , ""
-  , stderr
+  , err
   , ""
   , "Aborting installation.."
   ]

@@ -1,3 +1,3 @@
-spago: The following packages do not exist in your package set:
-  - bar
-  - foo
+[31m[error] [0mThe following packages do not exist in your package set:[0m
+[31m[error] [0m  - bar[0m
+[31m[error] [0m  - foo[0m

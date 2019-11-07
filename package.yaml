@@ -76,6 +76,7 @@ library:
   - process
   - retry
   - rio
+  - rio-orphans
   - safe
   - semver-range
   - stm

@@ -14,6 +14,8 @@ module Utils
   , shouldBeSuccessInfix
   , shouldBeSuccessOutput
   , shouldBeSuccessOutputWithErr
+  , shouldBeSuccessStderr
+  , shouldBeFailureStderr
   , shouldBeEmptySuccess
   , spago
   , withCwd
@@ -28,7 +30,7 @@ import qualified System.Process     as Process
 import           Test.Hspec         (HasCallStack, shouldBe, shouldSatisfy)
 import           Turtle             (ExitCode (..), FilePath, Text, cd, empty, encodeString, inproc,
                                      limit, procStrictWithErr, pwd, readTextFile, strict)
-import Data.Char (isControl)
+
 
 withCwd :: FilePath -> IO () -> IO ()
 withCwd dir cmd = do
@@ -65,6 +67,12 @@ shouldBeSuccessOutput expected (code, stdout, _stderr) = do
   code `shouldBe` ExitSuccess
   stdout `shouldBe` expectedStdout
 
+shouldBeSuccessStderr :: HasCallStack => FilePath -> (ExitCode, Text, Text) -> IO ()
+shouldBeSuccessStderr expected (code, _stdout, stderr) = do
+  expectedStderr <- readFixture expected
+  code `shouldBe` ExitSuccess
+  stderr `shouldBe` expectedStderr
+
 shouldBeSuccessOutputWithErr :: HasCallStack => FilePath -> FilePath -> (ExitCode, Text, Text) -> IO ()
 shouldBeSuccessOutputWithErr expected expectedErr (code, stdout, stderr) = do
   expectedStdout <- readFixture expected
@@ -90,6 +98,12 @@ shouldBeFailure result@(_code, _stdout, _stderr) = do
 
 shouldBeFailureOutput :: HasCallStack => FilePath -> (ExitCode, Text, Text) -> IO ()
 shouldBeFailureOutput expected (code, _stdout, stderr) = do
+  expectedContent <- readFixture expected
+  code `shouldBe` ExitFailure 1
+  stderr `shouldBe` expectedContent
+
+shouldBeFailureStderr :: HasCallStack => FilePath -> (ExitCode, Text, Text) -> IO ()
+shouldBeFailureStderr expected (code, _stdout, stderr) = do
   expectedContent <- readFixture expected
   code `shouldBe` ExitFailure 1
   stderr `shouldBe` expectedContent

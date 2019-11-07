@@ -11,18 +11,18 @@ import Spago.Prelude
 data DryRun = DryRun | NoDryRun
 
 -- | Wrapper for Spago actions that can be dry run
-data DryAction m
+data DryAction
   = DryAction
     { dryMessage :: Text
-    , dryAction  :: m ()
+    , dryAction  :: Spago ()
     }
 
-runDryActions :: Spago m => DryRun -> NonEmpty (DryAction m) -> m ()
+runDryActions :: DryRun -> NonEmpty DryAction -> Spago ()
 runDryActions DryRun dryActions = do
-  logWarning "this is a dry run, so these side effects were not performed:"
-  for_ dryActions $ \DryAction{..} -> output $ "* " <> dryMessage
-  output "\nUse the `--no-dry-run` flag to run them"
+  logWarn "this is a dry run, so these side effects were not performed:"
+  for_ dryActions $ \DryAction{..} -> logWarn $ "* " <> display dryMessage
+  logWarn "\nUse the `--no-dry-run` flag to run them"
 runDryActions NoDryRun dryActions = do
   for_ dryActions $ \DryAction{..} -> do
-    output $ "** Running action: " <> dryMessage
+    logInfo $ "** Running action: " <> display dryMessage
     dryAction
