@@ -5,6 +5,7 @@ module Utils
   , getHighestTag
   , git
   , outputShouldEqual
+  , successOutputAndErrShouldEqual
   , rmtree
   , runFor
   , shouldBeFailure
@@ -80,6 +81,12 @@ shouldBeSuccessOutputWithErr expected expectedErr (code, stdout, stderr) = do
   code `shouldBe` ExitSuccess
   stdout `shouldBe` expectedStdout
   stderr `shouldBe` expectedStderr
+
+successOutputAndErrShouldEqual :: HasCallStack => Text -> Text -> (ExitCode, Text, Text) -> IO ()
+successOutputAndErrShouldEqual expected expectedErr (code, stdout, stderr) = do
+  code `shouldBe` ExitSuccess
+  stdout `shouldBe` expected
+  stderr `shouldBe` expectedErr
 
 shouldBeSuccessInfix :: HasCallStack => Text -> (ExitCode, Text, Text) -> IO ()
 shouldBeSuccessInfix expected (code, stdout, _stderr) = do

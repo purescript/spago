@@ -14,7 +14,7 @@ import           Utils              (checkFileHasInfix, checkFixture, readFixtur
                                      shouldBeFailure, shouldBeFailureOutput, shouldBeSuccess,
                                      shouldBeSuccessStderr, shouldBeFailureStderr,
                                      shouldBeSuccessOutput, shouldBeSuccessOutputWithErr, spago, withCwd,
-                                     outputShouldEqual)
+                                     outputShouldEqual, successOutputAndErrShouldEqual)
 
 
 setup :: IO () -> IO ()
@@ -529,9 +529,18 @@ spec = around_ setup $ do
       spago ["init"] >>= shouldBeSuccess
       spago ["build"] >>= shouldBeSuccess
 
+      outputPath <- makeAbsolute "output"
+
       shell "psa --version" empty >>= \case
-        ExitSuccess -> spago ["-v", "run"] >>= shouldBeSuccessOutputWithErr "run-output.txt" "run-stderr.txt"
-        ExitFailure _ ->  spago ["-v", "run"] >>= shouldBeSuccessOutputWithErr "run-output.txt" "run-psa-not-installed-stderr.txt"
+        ExitSuccess -> do
+          stdoutText <- readFixture "run-output.txt"
+          stderrText <- Text.replace "$OUTPUT_PATH" (Text.pack outputPath) <$> readFixture "run-stderr.txt"
+          spago ["-v", "run"] >>= successOutputAndErrShouldEqual stdoutText stderrText
+
+        ExitFailure _ -> do
+          stdoutText <- readFixture "run-output.txt"
+          stderrText <- Text.replace "$OUTPUT_PATH" (Text.pack outputPath) <$> readFixture "run-psa-not-installed-stderr.txt"
+          spago ["-v", "run"] >>= successOutputAndErrShouldEqual stdoutText stderrText
 
     it "Spago should be able to not use `psa`" $ do
 
