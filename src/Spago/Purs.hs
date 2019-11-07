@@ -126,7 +126,7 @@ versionImpl purs = shellStrictWithErr (purs <> " --version") empty >>= \case
     pure $ case parsed of
       Nothing -> Left $ Messages.failedToParseCommandOutput (purs <> " --version") out
       Just p -> Right p
-  (_, _out, err) -> pure $ Left $ "Failed to run '" <> purs <> " --version'"
+  (_, _out, _err) -> pure $ Left $ "Failed to run '" <> purs <> " --version'"
 
 
 

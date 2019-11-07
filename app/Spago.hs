@@ -105,11 +105,11 @@ data Command
 
 
 data GlobalOptions = GlobalOptions
-  { globalVerbose    :: Bool
-  , globalTimestamps :: Bool
-  , globalUsePsa     :: UsePsa
-  , globalJobs       :: Maybe Int
-  , globalConfigPath :: Maybe Text
+  { globalVerbose     :: Bool
+  , globalVeryVerbose :: Bool
+  , globalUsePsa      :: UsePsa
+  , globalJobs        :: Maybe Int
+  , globalConfigPath  :: Maybe Text
   }
 
 
@@ -135,7 +135,7 @@ parser = do
 
     force   = CLI.switch "force" 'f' "Overwrite any project found in the current directory"
     verbose = CLI.switch "verbose" 'v' "Enable additional debug logging, e.g. printing `purs` commands"
-    timestamps = CLI.switch "timestamps" 'T' "Enable timestamps with debug logging"
+    veryVerbose = CLI.switch "very-verbose" 'V' "Enable more verbosity: timestamps and source locations"
 
     -- Note: the first constructor is the default when the flag is not provided
     watch       = bool BuildOnce Watch <$> CLI.switch "watch" 'w' "Watch for changes in local files and automatically rebuild"
@@ -167,7 +167,7 @@ parser = do
     buildOptions  = BuildOptions <$> cacheFlag <*> watch <*> clearScreen <*> sourcePaths <*> noInstall <*> pursArgs <*> depsOnly <*> useSharedOutput
 
     -- Note: by default we limit concurrency to 20
-    globalOptions = GlobalOptions <$> verbose <*> timestamps <*> usePsa <*> jobsLimit <*> configPath
+    globalOptions = GlobalOptions <$> verbose <*> veryVerbose <*> usePsa <*> jobsLimit <*> configPath
 
     projectCommands = CLI.subcommandGroup "Project commands:"
       [ initProject
@@ -347,10 +347,10 @@ printVersion = CLI.echo $ CLI.unsafeTextToLine $ Text.pack $ showVersion Pcli.ve
 runWithEnv :: GlobalOptions -> Spago a -> IO a
 runWithEnv GlobalOptions{..} app = do
   let logDebug' str = when globalVerbose $ hPutStrLn stderr str
-  logOptions' <- logOptionsHandle stderr globalVerbose
+  logOptions' <- logOptionsHandle stderr (globalVerbose || globalVeryVerbose)
   let logOptions
-        = setLogUseTime globalTimestamps
-        $ setLogUseLoc globalVerbose
+        = setLogUseTime globalVeryVerbose
+        $ setLogUseLoc globalVeryVerbose
         $ setLogUseColor True
         $ setLogVerboseFormat True
         $ logOptions'

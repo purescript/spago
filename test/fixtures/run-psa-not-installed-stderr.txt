@@ -1,36 +1,18 @@
 Running `getGlobalCacheDir`
-[32m[debug] [0mTransformed config is the same as the read one, not overwriting it[90m
-@(src/Spago/Config.hs:359:14)[0m
-[32m[debug] [0mEnsuring that the package set is frozen[90m
-@(src/Spago/PackageSet.hs:268:3)[0m
-[32m[debug] [0mRunning with backend: nodejs[90m
-@(src/Spago/Build.hs:212:3)[0m
-[32m[debug] [0mRunning `spago build`[90m
-@(src/Spago/Build.hs:88:3)[0m
-[32m[debug] [0mTransformed config is the same as the read one, not overwriting it[90m
-@(src/Spago/Config.hs:359:14)[0m
-[32m[debug] [0mEnsuring that the package set is frozen[90m
-@(src/Spago/PackageSet.hs:268:3)[0m
-[32m[debug] [0mGetting transitive deps[90m
-@(src/Spago/Packages.hs:134:3)[0m
-[32m[debug] [0mRunning `fetchPackages`[90m
-@(src/Spago/FetchPackage.hs:44:3)[0m
-[32m[debug] [0mChecking if `purs` is up to date[90m
-@(src/Spago/PackageSet.hs:178:3)[0m
-[34m[info] [0mInstallation complete.[90m
-@(src/Spago/FetchPackage.hs:71:3)[0m
-[32m[debug] [0mLocating root path of packages.dhall[90m
-@(src/Spago/PackageSet.hs:243:3)[0m
-[32m[debug] [0mFailed to run 'psa --version'
-[90m
-@(src/Spago/Purs.hs:44:9)[0m
-[32m[debug] [0mCompiling with "purs"[90m
-@(src/Spago/Purs.hs:47:3)[0m
-[32m[debug] [0mRunning command: `purs compile --output ./output ".spago/console/v4.2.0/src/**/*.purs" ".spago/effect/v2.0.1/src/**/*.purs" ".spago/prelude/v4.1.1/src/**/*.purs" ".spago/psci-support/v4.0.0/src/**/*.purs" "src/**/*.purs" "test/**/*.purs"`[90m
-@(src/Spago/Purs.hs:135:3)[0m
-[34m[info] [0mBuild succeeded.[90m
-@(src/Spago/Purs.hs:137:20)[0m
-[32m[debug] [0mLocating root path of packages.dhall[90m
-@(src/Spago/PackageSet.hs:243:3)[0m
-[32m[debug] [0mWriting .spago/run.js[90m
-@(src/Spago/Build.hs:223:7)[0m
+[32m[debug] [0mTransformed config is the same as the read one, not overwriting it[0m
+[32m[debug] [0mEnsuring that the package set is frozen[0m
+[32m[debug] [0mRunning with backend: nodejs[0m
+[32m[debug] [0mRunning `spago build`[0m
+[32m[debug] [0mTransformed config is the same as the read one, not overwriting it[0m
+[32m[debug] [0mEnsuring that the package set is frozen[0m
+[32m[debug] [0mGetting transitive deps[0m
+[32m[debug] [0mRunning `fetchPackages`[0m
+[32m[debug] [0mChecking if `purs` is up to date[0m
+[34m[info] [0mInstallation complete.[0m
+[32m[debug] [0mLocating root path of packages.dhall[0m
+[32m[debug] [0mFailed to run 'psa --version'[0m
+[32m[debug] [0mCompiling with "purs"[0m
+[32m[debug] [0mRunning command: `purs compile --output ./output ".spago/console/v4.2.0/src/**/*.purs" ".spago/effect/v2.0.1/src/**/*.purs" ".spago/prelude/v4.1.1/src/**/*.purs" ".spago/psci-support/v4.0.0/src/**/*.purs" "src/**/*.purs" "test/**/*.purs"`[0m
+[34m[info] [0mBuild succeeded.[0m
+[32m[debug] [0mLocating root path of packages.dhall[0m
+[32m[debug] [0mWriting .spago/run.js[0m
