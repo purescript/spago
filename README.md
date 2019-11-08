@@ -796,7 +796,7 @@ Other build options are available, using webpack (and purs-loader), or browserif
 4. Create your PureScript project with Spago: `spago init`, This also produces a `./src/Main.purs` file which contains some starter code.
 5. Initialize the JavaScript/NPM project `npm init`
 6. Add WebPack and PureScript-PSA as dependancies `npm install webpack webpack-cli webpack-dev-server purescript-psa --save-dev`
-7. Install the PureScript loader and HTML plugin for WebPack `npm install purs-loader html-webpack plugin --save-dev` (Depending on other tools/filetypes you may require additional loaders, This may include css/scss, image files, etc. please refer to the [WebPack documentation][https://webpack.js.org/] for more information)
+7. Install the PureScript loader and HTML plugin for WebPack `npm install purs-loader html-webpack plugin --save-dev` (Depending on other tools/filetypes you may require additional loaders, This may include css/scss, image files, etc. please refer to the [WebPack documentation](https://webpack.js.org/) for more information)
 8. Create an HTML file that will serve as the entry point for your application. Typically this is `index.html`. in your HTML file, be sure to pull in the `bundle.js` file, which will be Webpack's output. here is an example HTML file:
 
 ``` html
@@ -932,7 +932,7 @@ console.log('app starting' )
 
 12. At this point we should be able to test our program by running `npm run webpack:server`, once you navigate in a browser to localhost:4008 you should see '🍝' as output in the javascript development console if this was performed successfully.
 
-13. For production builds, it is recommended to have a seperate build and serve script. Please refer to the [WebPack documentation][https://webpack.js.org/] for more information. Generally production builds use a seperate webpack configuration.
+13. For production builds, it is recommended to have a seperate build and serve script. Please refer to the [WebPack documentation](https://webpack.js.org/) for more information. Generally production builds use a seperate webpack configuration.
 
 
 #### Getting Started from Scratch With Nodemon (for Backend and/or CLI projects)
@@ -998,7 +998,7 @@ To configure this, add the following script to your `package.json` file:
 
 12. To run a production build, you can simply run `npm run build` and to start a production process, call `npm start`
 
-For publishing CLI programs or NPM modules, please refer to the [npm documentation][https://docs.npmjs.com/cli/publish], however if you are publishing a Node module for consumption by JavaScript users, it is recommended that you pre-compile your purescript project before distributing. 
+For publishing CLI programs or NPM modules, please refer to the [npm documentation](https://docs.npmjs.com/cli/publish), however if you are publishing a Node module for consumption by JavaScript users, it is recommended that you pre-compile your purescript project before distributing. 
 
 ### Generate documentation for my project
 
