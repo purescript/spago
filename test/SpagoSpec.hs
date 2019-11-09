@@ -536,7 +536,7 @@ spec = around_ setup $ do
       cp "../fixtures/spago-run-stdin.purs" "src/Main.purs"
       spago ["install", "node-buffer", "node-streams", "node-process"] >>= shouldBeSuccess
       spago ["build"] >>= shouldBeSuccess
-      shellStrictWithErr "echo wut | spago run" empty >>= shouldBeSuccessOutput "spago-run-passthrough.txt"
+      shellStrictWithErr "echo wut| spago run" empty >>= shouldBeSuccessOutput "spago-run-passthrough.txt"
 
   describe "spago bundle" $ do
 
