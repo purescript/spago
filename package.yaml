@@ -69,6 +69,7 @@ library:
   - http-client
   - http-conduit
   - lens-family-core
+  - megaparsec >=7.0 && <8.0
   - mtl
   - network-uri
   - open-browser
@@ -166,6 +167,8 @@ tests:
     - containers
     - directory
     - extra
+    - hspec-megaparsec >=2.0 && <2.1
+    - megaparsec >=7.0 && <8.0
     - process
     - QuickCheck
     - spago

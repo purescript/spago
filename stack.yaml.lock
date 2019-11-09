@@ -249,6 +249,13 @@ packages:
       sha256: 4971b43f3d473eff868eb1a0c359729b49f1779e78c462ba45ef0d1eda677699
   original:
     hackage: unliftio-0.2.12@sha256:b089fbc2ff2628a963c2c4b12143f2020874e3e5144ffd6c62b25639a0ca1483
+- completed:
+    hackage: hspec-megaparsec-2.0.1@sha256:7f26ab334eaa653054766110cf259c31314d1c2ec170270e56101e344ce65ef9,2163
+    pantry-tree:
+      size: 385
+      sha256: fb4b022bc9076c0e2486b0267a3702e8029f5eaf04683428592919d606cc9b7c
+  original:
+    hackage: hspec-megaparsec-2.0.1@sha256:7f26ab334eaa653054766110cf259c31314d1c2ec170270e56101e344ce65ef9,2163
 snapshots:
 - completed:
     size: 508406
