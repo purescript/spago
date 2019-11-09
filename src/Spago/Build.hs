@@ -38,6 +38,7 @@ import qualified System.IO.Temp       as Temp
 import qualified Turtle
 import qualified Web.Browser          as Browser
 
+import qualified Spago.Build.Parser   as Parse
 import qualified Spago.Config         as Config
 import qualified Spago.Dhall          as Dhall
 import qualified Spago.FetchPackage   as Fetch
@@ -187,8 +188,19 @@ repl cacheFlag newPackages sourcePaths pursArgs depsOnly = do
 --   (or the provided module name) with node
 test :: Maybe Purs.ModuleName -> BuildOptions -> [Purs.ExtraArg] -> Spago ()
 test maybeModuleName buildOpts extraArgs = do
-  Config.Config { alternateBackend } <- Config.ensureConfig
-  runBackend alternateBackend (Purs.ModuleName "Test.Main") (Just "Tests succeeded.") "Tests failed: " maybeModuleName buildOpts extraArgs
+  logDebug $ displayShow $ sourcePaths buildOpts
+  liftIO (Glob.glob "test/**/*.purs") >>= \case
+    [] -> logInfo "succeed (0/0 tests passed)"
+    paths -> do
+      logDebug $ displayShow paths
+      results <- forM paths $ \path -> do
+                    content <- readFileBinary path
+                    return $ Parse.checkExistTestModule content
+      if or results then do
+        Config.Config { alternateBackend } <- Config.ensureConfig
+        runBackend alternateBackend (Purs.ModuleName "Test.Main") (Just "Tests succeeded.") "Tests failed: " maybeModuleName buildOpts extraArgs
+      else
+        logInfo "succeed (0/0 tests passed)"
 
 -- | Run the project: compile and run "Main"
 --   (or the provided module name) with node
