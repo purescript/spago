@@ -36,6 +36,7 @@ import qualified System.FilePath.Glob as Glob
 import qualified System.IO            as Sys
 import qualified System.IO.Temp       as Temp
 import qualified Turtle
+import qualified System.Process       as Process
 import qualified Web.Browser          as Browser
 
 import qualified Spago.Build.Parser   as Parse
@@ -234,8 +235,10 @@ runBackend maybeBackend defaultModuleName maybeSuccessMessage failureMessage may
     nodeAction outputPath' = do
       logDebug "Writing .spago/run.js"
       writeTextFile ".spago/run.js" (nodeContents outputPath')
-      chmod executable ".spago/run.js"
-      shell nodeCmd empty >>= \case
+      void $ chmod executable ".spago/run.js"
+      -- We build a process by hand here because we need to forward the stdin to the backend process
+      let processWithStdin = (Process.shell (Text.unpack nodeCmd)) { Process.std_in = Process.Inherit }
+      Turtle.system processWithStdin empty >>= \case
         ExitSuccess   -> maybe (pure ()) (logInfo . display) maybeSuccessMessage
         ExitFailure n -> die [ display failureMessage <> "exit code: " <> repr n ]
     backendAction backend =

@@ -530,6 +530,14 @@ spec = around_ setup $ do
       spago ["--no-psa", "build"] >>= shouldBeSuccess
       spago ["-v", "--no-psa", "run"] >>= shouldBeSuccessOutputWithErr "run-output.txt" "run-no-psa-stderr.txt"
 
+    it "Spago should pass stdin to the child process" $ do
+
+      spago ["init"] >>= shouldBeSuccess
+      cp "../fixtures/spago-run-stdin.purs" "src/Main.purs"
+      spago ["install", "node-buffer", "node-streams", "node-process"] >>= shouldBeSuccess
+      spago ["build"] >>= shouldBeSuccess
+      shellStrictWithErr "echo wut| spago run" empty >>= shouldBeSuccessOutput "spago-run-passthrough.txt"
+
   describe "spago bundle" $ do
 
     it "Spago should fail but should point to the replacement command" $ do
