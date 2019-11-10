@@ -1,17 +1,17 @@
 module Spago.Build.Parser
   ( ModuleExportType (..)
   , PsModule (..)
-  , pModule
-  , checkExistTestModule
+  , moduleDeclaration
+  , checkModuleNameMatches
   ) where
 
-import           Spago.Prelude hiding (many, try)
-import qualified RIO.ByteString as B
-import qualified RIO.NonEmpty.Partial as NE'
+import qualified RIO.ByteString             as ByteString
+import qualified RIO.NonEmpty.Partial       as NonEmpty
+import           Spago.Prelude              hiding (many, try)
 
 import           Text.Megaparsec
 import           Text.Megaparsec.Byte
-import qualified Text.Megaparsec.Byte.Lexer as L
+import qualified Text.Megaparsec.Byte.Lexer as Lexer
 
 type Parser = Parsec Void ByteString
 
@@ -26,57 +26,57 @@ data ModuleExportType
   | ExportClass    ByteString
   deriving (Eq, Show)
 
-pModule :: Parser PsModule
-pModule = between (space *> symbol "module") (symbol "where") $ PsModule
-  <$> lexeme pModuleFullName
-  <*> optional (lexeme (between (symbol "(") (symbol ")") pModuleExportList))
+moduleDeclaration :: Parser PsModule
+moduleDeclaration = between (space *> symbol "module") (symbol "where") $ PsModule
+  <$> lexeme moduleFullName
+  <*> optional (lexeme (between (symbol "(") (symbol ")") moduleExportList))
 
-pModuleFullName :: Parser ByteString
-pModuleFullName = do
-  res <- sepBy pModuleName (symbol ".")
-  return (B.intercalate "." res)
+moduleFullName :: Parser ByteString
+moduleFullName = do
+  res <- sepBy moduleName (symbol ".")
+  return (ByteString.intercalate "." res)
 
-pModuleName :: Parser ByteString
-pModuleName = fmap B.pack ((:) <$> upperChar <*> many letterChar)
+moduleName :: Parser ByteString
+moduleName = fmap ByteString.pack ((:) <$> upperChar <*> many letterChar)
 
-pModuleExportList :: Parser (NonEmpty ModuleExportType)
-pModuleExportList = do
-  let exportP = choice [pExportClassOrModule, pExportFunc]
+moduleExportList :: Parser (NonEmpty ModuleExportType)
+moduleExportList = do
+  let exportP = choice [ exportClassOrModule, exportFunc ]
   exports <- sepBy exportP (symbol ",")
   if null exports then
     fail "Invalid syntax: export list"
   else
-    return $ NE'.fromList exports
+    return $ NonEmpty.fromList exports
 
-pExportFunc :: Parser ModuleExportType
-pExportFunc = do
-  name <- B.pack <$> lexeme (many letterChar)
-  if B.null name then
+exportFunc :: Parser ModuleExportType
+exportFunc = do
+  name <- ByteString.pack <$> lexeme (many letterChar)
+  if ByteString.null name then
     fail "no input"
   else
     return $ ExportFunction name
 
-pExportClassOrModule :: Parser ModuleExportType
-pExportClassOrModule = ($)
+exportClassOrModule :: Parser ModuleExportType
+exportClassOrModule = ($)
   <$> choice [ ExportModule <$ string "module"
              , ExportClass  <$ string "class"
              ]
   <*  space1
-  <*> pModuleFullName
+  <*> moduleFullName
 
 lexeme :: Parser a -> Parser a
-lexeme = L.lexeme sc
+lexeme = Lexer.lexeme sc
 
 symbol :: ByteString -> Parser ByteString
-symbol = L.symbol sc
+symbol = Lexer.symbol sc
 
 sc :: Parser ()
-sc = L.space
+sc = Lexer.space
   space1
-  (L.skipLineComment "//")
-  (L.skipBlockComment "{-" "-}")
+  (Lexer.skipLineComment "//")
+  (Lexer.skipBlockComment "{-" "-}")
 
-checkExistTestModule :: ByteString -> Bool
-checkExistTestModule content = case parse pModule "" content of
-  Left _ -> False
-  Right (PsModule name _) -> name == "Test.Main"
+checkModuleNameMatches :: ByteString -> ByteString -> Bool
+checkModuleNameMatches expectedModuleName content = case parse moduleDeclaration "" content of
+  Left _                  -> False
+  Right (PsModule name _) -> name == expectedModuleName

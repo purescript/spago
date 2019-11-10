@@ -445,6 +445,12 @@ spec = around_ setup $ do
       spago ["build"] >>= shouldBeSuccess
       spago ["test"] >>= shouldBeSuccessOutputWithErr "test-output-stdout.txt" "test-output-stderr.txt"
 
+    it "Spago should fail nicely when the test module is not found" $ do
+
+      spago ["init"] >>= shouldBeSuccess
+      mv "test" "test2"
+      spago ["test"] >>= shouldBeFailureStderr "spago-test-not-found.txt"
+
     it "Spago should test in custom output folder" $ do
 
       spago ["init"] >>= shouldBeSuccess
