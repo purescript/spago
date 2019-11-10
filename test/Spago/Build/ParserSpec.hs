@@ -1,25 +1,26 @@
 module Spago.Build.ParserSpec (spec) where
 
-import Prelude
-import Test.Hspec
-import Text.Megaparsec
-import Test.Hspec.Megaparsec
-import Data.List.NonEmpty
+import           Data.List.NonEmpty
+import           Prelude
+import           Test.Hspec
+import           Test.Hspec.Megaparsec
+import qualified Text.Megaparsec as Parser
 
-import Spago.Build.Parser
+import           Spago.Build.Parser    (PsModule (..), ModuleExportType(..))
+import qualified Spago.Build.Parser    as Parser
 
 spec :: Spec
 spec = do
-  describe "PureScript Module Parser" $ do
-    it "pModule (fail)" $ do
-      let p = parse pModule ""
+  describe "Parser for module declarations" $ do
+    it "should fail on bad inputs" $ do
+      let p = Parser.parse Parser.moduleDeclaration ""
 
       p `shouldFailOn` "module Test.Main () where"
       p `shouldFailOn` "module Test.Main (,) where"
 
-    it "pModule (success)" $ do
-      let p = parse pModule ""
-      
+    it "should succeed" $ do
+      let p = Parser.parse Parser.moduleDeclaration ""
+
       p "module Test where"
         `shouldParse`
           PsModule "Test" Nothing

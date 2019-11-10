@@ -185,48 +185,48 @@ repl cacheFlag newPackages sourcePaths pursArgs depsOnly = do
 
         Purs.repl globs pursArgs
 
+
 -- | Test the project: compile and run "Test.Main"
 --   (or the provided module name) with node
 test :: Maybe Purs.ModuleName -> BuildOptions -> [Purs.ExtraArg] -> Spago ()
 test maybeModuleName buildOpts extraArgs = do
-  logDebug $ displayShow $ sourcePaths buildOpts
-  liftIO (Glob.glob "test/**/*.purs") >>= \case
-    [] -> logInfo "succeed (0/0 tests passed)"
-    paths -> do
-      logDebug $ displayShow paths
-      results <- forM paths $ \path -> do
-                    content <- readFileBinary path
-                    return $ Parse.checkExistTestModule content
-      if or results then do
-        Config.Config { alternateBackend } <- Config.ensureConfig
-        runBackend alternateBackend (Purs.ModuleName "Test.Main") (Just "Tests succeeded.") "Tests failed: " maybeModuleName buildOpts extraArgs
-      else
-        logInfo "succeed (0/0 tests passed)"
+  let moduleName = fromMaybe (Purs.ModuleName "Test.Main") maybeModuleName
+  Config.Config { alternateBackend, configSourcePaths } <- Config.ensureConfig
+  liftIO (foldMapM (Glob.glob . Text.unpack . Purs.unSourcePath) configSourcePaths) >>= \paths -> do
+    results <- forM paths $ \path -> do
+      content <- readFileBinary path
+      pure $ Parse.checkModuleNameMatches (encodeUtf8 $ Purs.unModuleName moduleName) content
+    if or results
+      then do
+        runBackend alternateBackend moduleName (Just "Tests succeeded.") "Tests failed: " buildOpts extraArgs
+      else do
+        die [ "Module '" <> (display . Purs.unModuleName) moduleName <> "' not found! Are you including it in your build?" ]
+
 
 -- | Run the project: compile and run "Main"
 --   (or the provided module name) with node
 run :: Maybe Purs.ModuleName -> BuildOptions -> [Purs.ExtraArg] -> Spago ()
 run maybeModuleName buildOpts extraArgs = do
   Config.Config { alternateBackend } <- Config.ensureConfig
-  runBackend alternateBackend (Purs.ModuleName "Main") Nothing "Running failed; " maybeModuleName buildOpts extraArgs
+  let moduleName = fromMaybe (Purs.ModuleName "Main") maybeModuleName
+  runBackend alternateBackend moduleName Nothing "Running failed; " buildOpts extraArgs
 
--- | Run the project with node: compile and run with the provided ModuleName
---   (or the default one if that's missing)
+
+-- | Run the project with node (or the chosen alternate backend):
+--   compile and run the provided ModuleName
 runBackend
   :: Maybe Text
   -> Purs.ModuleName
   -> Maybe Text
   -> Text
-  -> Maybe Purs.ModuleName
   -> BuildOptions
   -> [Purs.ExtraArg]
   -> Spago ()
-runBackend maybeBackend defaultModuleName maybeSuccessMessage failureMessage maybeModuleName buildOpts extraArgs = do
+runBackend maybeBackend moduleName maybeSuccessMessage failureMessage buildOpts extraArgs = do
   logDebug $ display $ "Running with backend: " <> fromMaybe "nodejs" maybeBackend
   let postBuild = maybe (nodeAction =<< getOutputPath buildOpts) backendAction maybeBackend
   build buildOpts (Just postBuild)
   where
-    moduleName = fromMaybe defaultModuleName maybeModuleName
     nodeArgs = Text.intercalate " " $ map Purs.unExtraArg extraArgs
     nodeContents outputPath' =
          let path = fromMaybe "output" outputPath'
