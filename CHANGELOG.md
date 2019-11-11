@@ -45,7 +45,7 @@ New features:
 - `spago run` now allows to pipe `stdin` to your running project (#488, #490)
 
 Bugfixes:
-- Fix Ctrl-C handling in Windows NPM shim (#493, #483)
+- Fix Ctrl-C handling in REPL when using NPM installation on Windows (#493, #483)
 - Fix confusing warning when trying to `spago install` a package already present in project dependencies list (#436, #439)
 - Warn (but don't error) when trying to `--watch` missing directories (#406, #420, #447, #448)
 - Do not watch files in `.spago` folder when running with `--watch` (#430, #446)
