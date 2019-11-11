@@ -445,6 +445,12 @@ spec = around_ setup $ do
       spago ["build"] >>= shouldBeSuccess
       spago ["test"] >>= shouldBeSuccessOutputWithErr "test-output-stdout.txt" "test-output-stderr.txt"
 
+    it "Spago should fail nicely when the test module is not found" $ do
+
+      spago ["init"] >>= shouldBeSuccess
+      mv "test" "test2"
+      spago ["test"] >>= shouldBeFailureStderr "spago-test-not-found.txt"
+
     it "Spago should test in custom output folder" $ do
 
       spago ["init"] >>= shouldBeSuccess
@@ -529,6 +535,14 @@ spec = around_ setup $ do
       spago ["init"] >>= shouldBeSuccess
       spago ["--no-psa", "build"] >>= shouldBeSuccess
       spago ["-v", "--no-psa", "run"] >>= shouldBeSuccessOutputWithErr "run-output.txt" "run-no-psa-stderr.txt"
+
+    it "Spago should pass stdin to the child process" $ do
+
+      spago ["init"] >>= shouldBeSuccess
+      cp "../fixtures/spago-run-stdin.purs" "src/Main.purs"
+      spago ["install", "node-buffer", "node-streams", "node-process"] >>= shouldBeSuccess
+      spago ["build"] >>= shouldBeSuccess
+      shellStrictWithErr "echo wut| spago run" empty >>= shouldBeSuccessOutput "spago-run-passthrough.txt"
 
   describe "spago bundle" $ do
 
