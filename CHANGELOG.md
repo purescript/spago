@@ -7,41 +7,69 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-Breaking changes (😱!!!):
-- **Remove `psc-package`-related commands (#423)**
 
-  Since `psc-package` is now deprecated, we no longer support the 
+## [0.11.0] - 2019-11-11
+
+Breaking changes (😱!!!):
+- **Remove `psc-package`-related commands (#423, #425)**
+
+  Since we are approaching a stable release and `spago` feature set is a superset of `psc-package` ones,
+  from this release we do not support the commands to interop with `psc-package`:
   `psc-package-local-setup`, `psc-package-insdhall` and `psc-package-clean` commands.
+- **Build static binaries for Linux (#437, 427)**
+
+  This should fix the dynamic-library-compatibility problems on some distributions.
+  It should work as well as the old dynamic binary, but it's theoretically a breaking change since
+  some behaviours might be different.
+- **Move all logging to `stderr` (#256, #475, #476, #486)**
+
+  All "business output" (e.g. `spago sources`) will stay on `stdout`, so in practice everything
+  should be fine, but this is theoretically a breaking change since someone might be depending
+  on the output we had so far.
+
 
 New features:
-- `spago docs` now displays a link to the generated docs' `index.html` (#379)
-- `spago docs` has new `--open` flag, which opens generated docs in browser (#379)
-- added support for building with alternate backends (#355). E.g: Use `backend = "psgo"` entry in `spago.dhall` to compile with `psgo`
-- `spago init` has new `--no-comments` flag which skips adding tutorial comments to the generated `spago.dhall` and `packages.dhall` files (#417)
-- `spago verify-set` now compiles everything, to detect duplicate module names (#438)
-- `spago build` now uses shared output folder to reduce build duplication. Pass `--no-share-output` flag to disable this behavior (#377)
-- `spago install purescript-XYZ` will now strip `purescript-` prefix and install XYZ (if it exists in package set) instead of just failing with a warning (#367)
-- `spago run` now recognizes backend specified in the configuration file and calls the backend with `--run` argument.
-- documentation now includes a step-by-step guide on setting up a Spago/Parcel project (#456)
-- documentation now includes a step-by-step guide on setting up a Spago/Node and Spago/Webpack project (#456-extra)
-- moved warning and error logs to stderr, adjusted logging strategy (#256)
-- `spago path` returns output path so that it can be shared with tools such as `purs-loader`
+- add support for `spago build` and `spago run` with alternate backends (#355, #426, #452, #435)
+
+  E.g: add the key `backend = "psgo"` in `spago.dhall` to compile/run with `psgo`
+- add support for sharing the `output` folder in monorepos, to reduce build duplication.
+
+  Pass `--no-share-output` flag to disable this behavior (#377, #422)
+- add new command `spago path` that returns the paths used in the project.
+
+  E.g. `spago path output` returns the output path so that it can be shared with tools such as `purs-loader`. (#463)
+- `spago docs` now displays a link to the generated docs' `index.html`, and opens them in the browser when passed the `--open` flag (#379, #421)
+- `spago init` has new `--no-comments` flag which skips adding tutorial comments to the generated `spago.dhall` and `packages.dhall` files (#417, #428)
+- `spago verify-set` now compiles everything, to detect duplicate module names. This can be disabled with `--no-check-modules-unique` (#438)
+- `spago install purescript-XYZ` will now strip `purescript-` prefix and install XYZ (if it exists in package set) instead of just failing with a warning (#367, #443)
+- `spago run` now allows to pipe `stdin` to your running project (#488, #490)
 
 Bugfixes:
-- Warn (but don't error) when trying to watch missing directories (#406)
-- Fix confusing warning when trying to `spago install` a package already present in project dependencies list (#436)
-- Do not watch files in `.spago` folder when running `spago build --watch` (#430)
-- Fix dynamic libraries compatibility problems by publishing a statically linked executable for Linux (#427, #437)
-- `--clear-screen` (usable e.g. with `spago build --watch`) now also resets cursor position, so the rebuild message always appears at top left of the screen (#465)
-- Fix `--config` option when config file is in another directory (#484)
 - Fix Ctrl-C handling in REPL when using NPM installation on Windows (#493, #483)
+- Fix confusing warning when trying to `spago install` a package already present in project dependencies list (#436, #439)
+- Warn (but don't error) when trying to `--watch` missing directories (#406, #420, #447, #448)
+- Do not watch files in `.spago` folder when running with `--watch` (#430, #446)
+- The `--clear-screen` flag (usable e.g. with `spago build --watch`) now also resets cursor position, so the rebuild message always appears at top left of the screen (#465, #466)
+- Allow additional fields in the config for local packages (#470)
+- Fix `--config` option: get the correct paths when config file is in another directory (#478, #484)
 
 Other improvements:
-- Speed up test suite by replacing couple of end 2 end bump-version tests with unit/property tests
+- Tests: speed up test suite by replacing some end-to-end tests with unit/property tests (#445, #440)
+- Tests: update instructions to run tests (#449)
+- Tests: always run test suites with UTF8 encoding (#482)
+- Docs: various improvements to README (#432, #457, #464, #487)
+- Docs: add "getting started" guides for Parcel, Webpack and Nodemon (#456, #461, #473)
+- Errors: improve cache skipping error (#453, #480, #481)
+- Errors: add a nice error message when trying to run `spago test` with no test modules (#489, #383, #492)
+- Refactor: fix `hlint` warnings (#450)
+- Refactor: rewrite Curator for moar maintainability (#458, #419)
+- Deps: update to Dhall 1.27 and Purs 0.13.4 (#469)
+- Deps: revert to GHC 8.4.4 and LTS-12 (#479)
+
 
 ## [0.10.0] - 2019-09-21
 
-Breaking changes (!!!):
+Breaking changes (😱!!!):
 - **Flags and arguments that you want to give to `purs` are now passed with `--purs-args` (#353, #366)**
 
   The previous behaviour in which all arguments that could not parse as `spago` arguments
