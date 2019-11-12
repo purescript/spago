@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 
-## [0.11.0] - 2019-11-11
+## [0.11.0] - 2019-11-12
 
 Breaking changes (😱!!!):
 - **Remove `psc-package`-related commands (#423, #425)**
@@ -65,7 +65,7 @@ Other improvements:
 - Refactor: rewrite Curator for moar maintainability (#458, #419)
 - Deps: update to Dhall 1.27 and Purs 0.13.4 (#469)
 - Deps: revert to GHC 8.4.4 and LTS-12 (#479)
-- CI: fix release code (#494)
+- CI: fix release code (#494, #495)
 
 
 ## [0.10.0] - 2019-09-21
