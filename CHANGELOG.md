@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.11.1] - 2019-11-12
+
+This is identical to `0.11.0`, but published under a new version number due to mishaps in the publishing CI process.
 
 ## [0.11.0] - 2019-11-12
 
