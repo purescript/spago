@@ -65,6 +65,7 @@ Other improvements:
 - Refactor: rewrite Curator for moar maintainability (#458, #419)
 - Deps: update to Dhall 1.27 and Purs 0.13.4 (#469)
 - Deps: revert to GHC 8.4.4 and LTS-12 (#479)
+- CI: fix release code (#494)
 
 
 ## [0.10.0] - 2019-09-21
