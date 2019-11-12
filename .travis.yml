@@ -136,9 +136,7 @@ before_deploy:
       fi
       cp artifacts/spago spago
       tar -zcvf "${TRAVIS_OS_NAME}.tar.gz" spago
-      for f in "*.tar.gz"; do
-        mv "$f" uploads/;
-      fi
+      for f in *.tar.gz; do mv "$f" uploads/; done
 
       ## Get ready to publish npm
       cd npm
