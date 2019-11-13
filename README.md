@@ -808,7 +808,7 @@ To start a project using Spago and Parcel together, here's the commands and file
 1. Follow [Spago's "Super quick tutorial"](#super-quick-tutorial)
 2. Initialise a JavaScript/npm project with `npm init`
 3. Add Webpack and purescript-psa as development-time dependencies: `npm install --save-dev webpack webpack-cli webpack-dev-server purescript-psa`
-4. Install the PureScript loader and HTML plugin for WebPack `npm install --save-dev purs-loader html-webpack plugin`.
+4. Install the PureScript loader and HTML plugin for WebPack `npm install --save-dev purs-loader html-webpack-plugin`.
   Note that you may require additional loaders for css/scss, image files, etc. Please refer to the [Webpack documentation](https://webpack.js.org/) for more information.
 5. Create an HTML file that will serve as the entry point for your application.
   Typically this is `index.html`. in your HTML file, be sure to pull in the `bundle.js` file, which will be Webpack's output. here is an example HTML file:
@@ -931,15 +931,15 @@ To start a project using Spago and Parcel together, here's the commands and file
     module.hot.accept();
   }
 
-  console.log('app starting')
+  console.log('app starting');
   ```
 
 8. Add the following development script to `package.json`:
 
   ```js
   ...
-
     "scripts": {
+      ...,
       "webpack:server": "webpack-dev-server --progress --inline --hot"
     },
   ...
