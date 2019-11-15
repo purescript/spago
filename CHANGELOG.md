@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.12.0] - 2019-11-15
+
+Breaking changes (😱!!!):
+- **Revert back to dynamically linked binary on Linux (#502, #500, #497)**
+
+  The static binary was still dynamically linking to `glibc`, causing it to be broken on
+  some distros. So for now we're back on a dynamically-linked executable.
+
 ## [0.11.1] - 2019-11-12
 
 This is identical to `0.11.0`, but published under a new version number due to mishaps in the publishing CI process.
