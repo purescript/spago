@@ -182,7 +182,7 @@ makeConfig force comments = do
       -- first, read the psc-package file content
       content <- readTextFile PscPackage.configPath
       case eitherDecodeStrict $ Text.encodeUtf8 content of
-        Left err -> logInfo $ display $ Messages.failedToReadPscFile err
+        Left err -> logWarn $ display $ Messages.failedToReadPscFile err
         Right pscConfig -> do
           logInfo "Found a \"psc-package.json\" file, migrating to a new Spago config.."
           -- try to update the dependencies (will fail if not found in package set)

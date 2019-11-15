@@ -125,7 +125,7 @@ build buildOpts@BuildOptions{..} maybePostBuild = do
 
       case NonEmpty.nonEmpty (psMismatches <> jsMismatches) of
         Nothing -> pure ()
-        Just mismatches -> logInfo $ display $ Messages.globsDoNotMatchWhenWatching $ NonEmpty.nub $ Text.pack <$> mismatches
+        Just mismatches -> logWarn $ display $ Messages.globsDoNotMatchWhenWatching $ NonEmpty.nub $ Text.pack <$> mismatches
 
       absolutePSGlobs <- traverse makeAbsolute psMatches
       absoluteJSGlobs <- traverse makeAbsolute jsMatches
