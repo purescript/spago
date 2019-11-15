@@ -129,7 +129,7 @@ fetchPackage metadata pair@(packageName'@PackageName{..}, Package{ location = Re
               assertDirectory resultDir2
               cptree resultDir resultDir2
               catch (mv resultDir2 packageGlobalCacheDir) $ \(err :: SomeException) ->
-                logInfo $ display $ Messages.failedToCopyToGlobalCache err
+                logWarn $ display $ Messages.failedToCopyToGlobalCache err
               mv resultDir packageLocalCacheDir
 
         -- * if not, run a series of git commands to get the code, and move it to local cache

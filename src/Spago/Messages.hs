@@ -63,12 +63,6 @@ cannotFindPackages = makeMessage
   , "otherwise you might want to run `spago init` to initialize a new package set file."
   ]
 
-cannotFindPackagesButItsFine :: Text
-cannotFindPackagesButItsFine = makeMessage
-  [ "WARNING: did not find a " <> surroundQuote "packages.dhall" <> " in your current location, skipping compiler version check"
-  ]
-
-
 foundExistingProject :: Text -> Text
 foundExistingProject pathText = makeMessage
   [ "Found a " <> surroundQuote pathText <> " file, skipping copy. Run `spago init --force` if you wish to overwrite it."
@@ -164,15 +158,6 @@ failedToCopyToGlobalCache err = makeMessage
   , "Error was:"
   , tshow err
   ]
-
-packageSetVersionWarning :: Text
-packageSetVersionWarning = makeMessage
- [ "WARNING: the package-set version you're on doesn't check if the version of the"
- , "PureScript compiler installed on your system is compatible."
- , "If your build fails you might want to upgrade your set by running this command:"
- , "`spago upgrade-set`"
- , ""
- ]
 
 pursVersionMismatch :: Text -> Text -> Text
 pursVersionMismatch currentVersion minVersion = makeMessage
