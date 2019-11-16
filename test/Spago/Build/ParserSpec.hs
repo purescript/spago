@@ -53,7 +53,7 @@ spec = do
 
       p "module Test.Main (main, test) where"
         `shouldParse`
-          PsModule "Test.Main" (Just $ fromList [ExportValue"main", ExportValue "test"])
+          PsModule "Test.Main" (Just $ fromList [ExportValue "main", ExportValue "test"])
 
       p "module A (module B) where"
         `shouldParse`
@@ -107,3 +107,23 @@ spec = do
       p "module Test (kind T) where"
         `shouldParse`
           PsModule "Test" (Just $ fromList [ExportKind "T"])
+
+      p "-- | comment \nmodule T where"
+        `shouldParse`
+          PsModule "T" Nothing
+
+      p "module T (HalogenIO\n, module Data.Lazy,module B) where"
+        `shouldParse`
+          PsModule "T" (Just $ fromList [ ExportType   "HalogenIO" Nothing
+                                        , ExportModule "Data.Lazy"
+                                        , ExportModule "B"
+                                        ]
+                       )
+
+      p "module A (class_) where"
+        `shouldParse`
+          PsModule "A" (Just $ fromList [ExportValue "class_"])
+
+      p "module A (module_) where"
+        `shouldParse`
+          PsModule "A" (Just $ fromList [ExportValue "module_"])

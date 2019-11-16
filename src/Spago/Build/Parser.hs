@@ -40,13 +40,13 @@ data DataMembers
   deriving (Eq, Show)
 
 moduleDecl :: Parser PsModule
-moduleDecl = between (space *> symbol "module") (symbol "where") $
+moduleDecl = between (sc *> symbol "module") (symbol "where") $
   PsModule
     <$> lexeme moduleFullName
     <*> optional moduleExports
 
 moduleFullName :: Parser ByteString
-moduleFullName = ByteString.intercalate "." <$> sepBy moduleName (symbol ".")
+moduleFullName = lexeme (ByteString.intercalate "." <$> sepBy moduleName (symbol "."))
 
 moduleName :: Parser ByteString
 moduleName = toName <$> upperChar <*> many alphaNumChar
@@ -66,10 +66,7 @@ moduleExportList = do
 
 moduleExport :: Parser ModuleExportType
 moduleExport = choice
-  [ exportTypeOp
-  , exportClass
-  , exportKind
-  , exportModule
+  [ try $ choice [ exportTypeOp, exportClass, exportKind, exportModule ]
   , exportType
   , exportOp
   , exportValue
@@ -79,23 +76,16 @@ exportTypeOp :: Parser ModuleExportType
 exportTypeOp = ExportTypeOp <$ symbol "type" <*> exportSymbol
 
 exportClass :: Parser ModuleExportType
-exportClass = ExportClass <$ symbol "class" <*> properName
+exportClass = ExportClass <$ symbol "class" <*> properNameUpper
 
 exportKind :: Parser ModuleExportType
-exportKind = ExportKind <$ symbol "kind" <*> properName
+exportKind = ExportKind <$ symbol "kind" <*> properNameUpper
 
 exportModule :: Parser ModuleExportType
-exportModule = ExportModule <$ symbol "module" <*> moduleFullName
+exportModule = ExportModule <$ symbol "module" <*> moduleFullName <* notFollowedBy identChar 
 
 exportValue :: Parser ModuleExportType
-exportValue = do
-  pre  <- lowerChar <|> underscore
-  rest <- many identChar
-
-  if pre == 95 && null rest then
-    fail "Unexpected token _"
-  else
-    return $ ExportValue (ByteString.pack (pre:rest))
+exportValue = ExportValue <$> properNameLower
 
 exportOp :: Parser ModuleExportType
 exportOp = ExportOp <$> exportSymbol
@@ -107,18 +97,24 @@ exportSymbol = ByteString.pack <$> between (string "(") (string ")") (many (sati
                   || ((not . Char.isAscii) $ ByteString.w2c c) && (Char.isSymbol $ ByteString.w2c c)
 
 exportType :: Parser ModuleExportType
-exportType = ExportType <$> lexeme properName <*> optional dataMembers
+exportType = ExportType <$> properNameUpper <*> optional dataMembers
 
-properName :: Parser ByteString
-properName = f <$> upperChar <*> many identChar
+properNameUpper :: Parser ByteString
+properNameUpper = lexeme (properName upperChar)
+
+properNameLower :: Parser ByteString
+properNameLower = lexeme (properName lowerChar)
+
+properName :: Parser Word8 -> Parser ByteString
+properName pre = f <$> pre <*> many identChar
   where
-    f pre rest = ByteString.pack (pre:rest)
+    f x xs = ByteString.pack (x:xs)
 
 dataMembers :: Parser DataMembers
-dataMembers = choice
+dataMembers = lexeme $ choice
   [ DataAll           <$  string "(..)"
   , DataEnumerated [] <$  string "()"
-  , DataEnumerated    <$> between (string "(") (string ")") (sepBy properName (symbol ","))
+  , DataEnumerated    <$> between (string "(") (string ")") (sepBy properNameUpper (symbol ","))
   ]
 
 underscore :: Parser Word8
@@ -138,7 +134,7 @@ symbol = Lexer.symbol sc
 sc :: Parser ()
 sc = Lexer.space
   space1
-  (Lexer.skipLineComment "//")
+  (Lexer.skipLineComment "--")
   (Lexer.skipBlockComment "{-" "-}")
 
 checkModuleNameMatches :: ByteString -> ByteString -> Bool
