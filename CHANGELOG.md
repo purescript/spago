@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.12.1] - 2019-11-17
+
+Bugfixes:
+- Fix macOS release artifact (#503, #504)
+- Complete parser implementation for module declarations, for `spago test` (#499)
+
+Other improvements:
+- Docs: fix typo in README (#498)
+- Errors: use `logWarn` for all warnings (#501)
+
 ## [0.12.0] - 2019-11-15
 
 Breaking changes (😱!!!):
