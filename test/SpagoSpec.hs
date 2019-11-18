@@ -3,6 +3,7 @@ module SpagoSpec (spec) where
 import           Control.Concurrent (threadDelay)
 import qualified Data.Text          as Text
 import           Prelude            hiding (FilePath)
+import           System.Directory   (makeAbsolute)
 import qualified System.IO.Temp     as Temp
 import           Test.Hspec         (Spec, around_, describe, it, shouldBe, shouldNotSatisfy,
                                      shouldReturn, shouldSatisfy)
@@ -173,6 +174,15 @@ spec = around_ setup $ do
       mkdir "nested"
       writeTextFile "./nested/spago.dhall" "{ name = \"nested\", sources = [ \"src/**/*.purs\" ], dependencies = [ \"effect\", \"console\", \"psci-support\" ] , packages = ../packages.dhall }"
       spago ["install", "--config", "./nested/spago.dhall"] >>= shouldBeSuccess
+
+    it "Spago should install successfully when the config file provided as an absolute path" $ do
+
+      spago ["init"] >>= shouldBeSuccess
+      rm "spago.dhall"
+      mkdir "nested"
+      writeTextFile "./nested/spago.dhall" "{ name = \"nested\", sources = [ \"src/**/*.purs\" ], dependencies = [ \"effect\", \"console\", \"psci-support\" ] , packages = ../packages.dhall }"
+      absolutePath <- Text.pack <$> makeAbsolute "./nested/spago.dhall"
+      spago ["install", "--config", absolutePath] >>= shouldBeSuccess
 
     it "Spago should not change the alternative config if it does not change dependencies" $ do
 
