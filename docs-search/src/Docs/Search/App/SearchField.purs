@@ -7,6 +7,7 @@ import Prelude
 import CSS (border, borderRadius, color, em, float, floatLeft, fontWeight, lineHeight, marginBottom, marginLeft, paddingBottom, paddingLeft, paddingRight, paddingTop, pct, px, rgb, solid, weight, width)
 import Data.Maybe (Maybe(..), maybe)
 import Data.Newtype (wrap)
+import Docs.Search.URIHash as URIHash
 import Effect (Effect)
 import Effect.Aff (Aff)
 import Halogen as H
@@ -38,20 +39,33 @@ data Action
   | InitKeyboardListener
   | HandleKey H.SubscriptionId KeyboardEvent
 
+data Query a
+  = ReadURIHash a
+
 data SearchFieldMessage
   = InputUpdated String
   | InputCleared
   | Focused
   | LostFocus
 
-component :: forall q i. H.Component HH.HTML q i SearchFieldMessage Aff
+component :: forall i. H.Component HH.HTML Query i SearchFieldMessage Aff
 component =
   H.mkComponent
     { initialState
     , render
     , eval: H.mkEval $ H.defaultEval { handleAction = handleAction
+                                     , handleQuery = handleQuery
                                      , initialize = Just InitKeyboardListener }
     }
+
+handleQuery
+  :: forall a
+  .  Query a
+  -> H.HalogenM State Action () SearchFieldMessage Aff (Maybe a)
+handleQuery (ReadURIHash next) = do
+  state <- H.get
+  H.raise (InputUpdated state.input)
+  pure Nothing
 
 initialState :: forall i. i -> State
 initialState _ = { input: "", focused: false }
@@ -60,6 +74,10 @@ handleAction :: Action -> H.HalogenM State Action () SearchFieldMessage Aff Unit
 handleAction = case _ of
 
   InitKeyboardListener -> do
+
+    input <- H.liftEffect URIHash.getInput
+    H.modify_ (_ { input = input })
+
     document <- H.liftEffect $ Web.document =<< Web.window
     H.subscribe' \sid ->
       ES.eventListenerEventSource
@@ -82,9 +100,7 @@ handleAction = case _ of
       then do
         H.liftEffect do
           withSearchField (HTMLInputElement.toHTMLElement >>> Web.blur)
-      else do
-        H.modify_ (_ { input = "" })
-        H.raise $ InputCleared
+      else clearInput
 
   InputAction input -> do
     H.modify_ $ (_ { input = input })
@@ -93,6 +109,7 @@ handleAction = case _ of
     state <- H.get
     H.liftEffect do
       withSearchField (HTMLInputElement.toHTMLElement >>> Web.blur)
+    H.liftEffect (URIHash.setInput state.input)
     H.raise $ InputUpdated state.input
 
   FocusChanged status -> do
@@ -101,6 +118,12 @@ handleAction = case _ of
       if status
       then Focused
       else LostFocus
+
+clearInput :: H.HalogenM State Action () SearchFieldMessage Aff Unit
+clearInput = do
+  H.modify_ (_ { input = "" })
+  H.liftEffect URIHash.removeHash
+  H.raise InputCleared
 
 withSearchField :: (HTML.HTMLInputElement -> Effect Unit) -> Effect Unit
 withSearchField cont = do

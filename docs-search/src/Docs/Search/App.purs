@@ -41,12 +41,23 @@ main = do
     HA.runHalogenAff do
       packageIndex <- PackageIndex.loadPackageIndex
 
-      let initialSearchEngineState = { packageIndex: packageIndex, index: mempty, typeIndex: mempty }
+      let initialSearchEngineState = { packageIndex: packageIndex
+                                     , index: mempty
+                                     , typeIndex: mempty
+                                     }
+
+          resultsComponent =
+            SearchResults.mkComponent initialSearchEngineState pageContents markdownIt
 
       sfio <- runUI SearchField.component unit searchField
-      srio <- runUI (SearchResults.mkComponent initialSearchEngineState pageContents markdownIt) unit searchResults
+      srio <- runUI resultsComponent unit searchResults
+
       sfio.subscribe $
         Coroutine.consumer (srio.query <<< H.tell <<< SearchResults.MessageFromSearchField)
+
+      -- We need to read the URI hash only when both components are initialized and
+      -- the search field is subscribed to the main component.
+      sfio.query (SearchField.ReadURIHash unit)
 
 insertStyle :: Document.Document -> Effect Unit
 insertStyle doc = do
