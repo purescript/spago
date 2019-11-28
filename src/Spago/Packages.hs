@@ -349,7 +349,18 @@ data CheckModulesUnique = DoCheckModulesUnique | NoCheckModulesUnique
 verify :: Maybe CacheFlag -> CheckModulesUnique -> Maybe PackageName -> Spago ()
 verify cacheFlag chkModsUniq maybePackage = do
   logDebug "Running `spago verify`"
-  Config{ packageSet = packageSet@PackageSet{..}, ..} <- Config.ensureConfig
+
+  packageSet@PackageSet{..} <- do
+    -- Try to read a "packages.dhall" directly
+    try (liftIO (Dhall.inputExpr $ "./" <> PackageSet.packagesPath)) >>= \case 
+      Right (Dhall.RecordLit ks) -> Config.parsePackageSet ks
+      (_ :: Either SomeException (Dhall.DhallExpr Void))  -> do
+          -- Try to read a "spago.dhall" and find the packages from there
+          try Config.ensureConfig >>= \case
+            Right (Config{ packageSet = packageSet@PackageSet{..}, ..}) -> pure packageSet
+            Left (_ :: SomeException) -> die []
+            -- die [ display Messages.whatever ]
+
   case maybePackage of
     -- If no package is specified, verify all of them
     Nothing -> do
