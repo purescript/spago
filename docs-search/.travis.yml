@@ -41,6 +41,8 @@ deploy:
     script:
       - echo 'done'
   - provider: npm
+    api_token:
+      secure: $NPM_API_TOKEN
     email: klntsky@gmail.com
     skip_cleanup: true
     edge: true
