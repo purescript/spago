@@ -12,6 +12,7 @@ import Control.Coroutine as Coroutine
 import Data.Maybe (Maybe(..))
 import Data.Newtype (wrap)
 import Effect (Effect)
+import Effect.Aff (launchAff_)
 import Halogen as H
 import Halogen.Aff as HA
 import Halogen.VDom.Driver (runUI)
@@ -21,10 +22,12 @@ import Web.DOM.Element as Element
 import Web.DOM.Node as Node
 import Web.DOM.ParentNode as ParentNode
 import Web.DOM.Text as Text
+import Web.Event.EventTarget (addEventListener, eventListener)
 import Web.HTML as HTML
 import Web.HTML.HTMLDocument as HTMLDocument
 import Web.HTML.HTMLElement (fromElement)
 import Web.HTML.Window as Window
+import Web.HTML.Event.HashChangeEvent.EventTypes (hashchange)
 
 main :: Effect Unit
 main = do
@@ -57,7 +60,18 @@ main = do
 
       -- We need to read the URI hash only when both components are initialized and
       -- the search field is subscribed to the main component.
-      sfio.query (SearchField.ReadURIHash unit)
+      void $ sfio.query $ H.tell SearchField.ReadURIHash
+
+      -- Subscribe to URI hash updates
+      H.liftEffect do
+
+        listener <-
+          eventListener \event ->
+            launchAff_ do
+              sfio.query $ H.tell SearchField.ReadURIHash
+
+        addEventListener hashchange listener true (Window.toEventTarget win)
+
 
 insertStyle :: Document.Document -> Effect Unit
 insertStyle doc = do

@@ -63,8 +63,11 @@ handleQuery
   .  Query a
   -> H.HalogenM State Action () SearchFieldMessage Aff (Maybe a)
 handleQuery (ReadURIHash next) = do
-  state <- H.get
-  H.raise (InputUpdated state.input)
+  oldInput <- H.get <#> _.input
+  newInput <- H.liftEffect URIHash.getInput
+  when (oldInput /= newInput) do
+    H.modify_ (_ { input = newInput })
+    H.raise (InputUpdated newInput)
   pure Nothing
 
 initialState :: forall i. i -> State
@@ -74,9 +77,6 @@ handleAction :: Action -> H.HalogenM State Action () SearchFieldMessage Aff Unit
 handleAction = case _ of
 
   InitKeyboardListener -> do
-
-    input <- H.liftEffect URIHash.getInput
-    H.modify_ (_ { input = input })
 
     document <- H.liftEffect $ Web.document =<< Web.window
     H.subscribe' \sid ->
