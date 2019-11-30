@@ -22,7 +22,6 @@ install:
   - curl --silent --show-error --output stack.zip --location "https://github.com/commercialhaskell/stack/releases/download/v%STACK_VERSION%/stack-%STACK_VERSION%-windows-x86_64.zip"
   - 7z x stack.zip stack.exe
   - stack setup > nul
-  - choco ins tall psc-package
   - npm install -g bower
   - ps: |
       $releases = "https://api.github.com/repos/purescript/purescript/releases"
