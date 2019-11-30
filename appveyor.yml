@@ -17,13 +17,15 @@ environment:
     - STACK_YAML: stack.yaml
 
 install:
-  - choco install -y haskell-stack --version %STACK_VERSION%
+  # http://help.appveyor.com/discussions/problems/6312-curl-command-not-found
+  - set PATH=C:\Program Files\Git\mingw64\bin;%PATH%
+  - curl --silent --show-error --output stack.zip --location "https://github.com/commercialhaskell/stack/releases/download/v%STACK_VERSION%/stack-%STACK_VERSION%-windows-x86_64.zip"
+  - 7z x stack.zip stack.exe
   - stack setup > nul
-  - choco install psc-package
   - npm install -g bower
   - ps: |
       $releases = "https://api.github.com/repos/purescript/purescript/releases"
-      $tag = "v0.13.4"
+      $tag = "v0.13.5"
       $download = "https://github.com/purescript/purescript/releases/download/$tag/win64.tar.gz"
       Invoke-WebRequest $download -Out purescript.tar.gz
   - tar -xvf purescript.tar.gz
