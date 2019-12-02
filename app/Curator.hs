@@ -152,6 +152,7 @@ main = withBinaryFile "curator.log" AppendMode $ \configHandle -> do
     spawnThread "releaseCheckDocsSearch"  $ checkLatestRelease token docsSearchRepo
     --   spago repo
     spawnThread "spagoUpdatePackageSets"  $ spagoUpdatePackageSets token
+    spawnThread "spagoUpdateDocsSearch"   $ spagoUpdateDocsSearch token
     --     TODO: update purescript-metadata repo on purs release
     spawnThread "spagoUpdatePurescript"   $ spagoUpdatePurescriptVersion token
     --   package-sets-metadata repo
@@ -309,6 +310,19 @@ spagoUpdatePurescriptVersion token (NewRepoRelease address newTag) | address == 
     , "git add .travis.yml appveyor.yml test"
     ]
 spagoUpdatePurescriptVersion _ _ = pure ()
+
+
+-- | Whenever there's a new release of the purescript-docs-search, update our version of it
+spagoUpdateDocsSearch :: GitHub.AuthMethod am => am -> Message -> Curator ()
+spagoUpdateDocsSearch token (NewRepoRelease address newTag) | address == docsSearchRepo = do
+  let prTitle = "Update to purescript-docs-search@" <> newTag
+  let prBranchName = "spacchettibotti-docs-search-" <> newTag
+  runAndOpenPR token PullRequest{ prBody = "", prAddress = spagoRepo, ..} (const $ pure ())
+    [ "sed -e 's/docsSearchVersion = .*/docsSearchVersion = " <> surroundQuote newTag <> "/g' -i src/Spago/Prelude.hs"
+    , "git add src"
+    ]
+spagoUpdateDocsSearch _ _ = pure ()
+
 
 -- | Take the latest package set from package-sets master, get a list of all the
 --   packages in there, and thenn query their commits and tags. Once done, send
