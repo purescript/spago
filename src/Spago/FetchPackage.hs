@@ -108,7 +108,7 @@ fetchPackage metadata pair@(packageName'@PackageName{..}, Package{ location = Re
   Temp.withTempDirectory localCacheDir (Text.unpack ("__download-" <> packageName <> "-" <> getCacheVersionDir version)) $ \path -> do
     let downloadDir = path </> "download"
 
-    -- * if a Package is in the global cache, copy it to the local cache
+    -- If a Package is in the global cache, copy it to the local cache.
     if inGlobalCache
       then do
         logInfo $ "Copying from global cache: " <> display quotedName
@@ -116,11 +116,11 @@ fetchPackage metadata pair@(packageName'@PackageName{..}, Package{ location = Re
         assertDirectory (localCacheDir </> Text.unpack packageName)
         mv downloadDir packageLocalCacheDir
       else Temp.withTempDirectory globalCache (Text.unpack ("__temp-" <> "-" <> packageName <> getCacheVersionDir version)) $ \globalTemp -> do
-        -- * otherwise, check if the Package is on GitHub and an "immutable" ref
-        -- * if yes, download the tar archive and copy it to global and then local cache
+        -- Otherwise, check if the Package is on GitHub and an "immutable" ref.
+        -- If yes, download the tar archive and copy it to global and then local cache.
         let cacheableCallback :: FilePath.FilePath -> Spago ()
             cacheableCallback resultDir = do
-              -- the idea here is that we first copy the tree to a temp folder,
+              -- The idea here is that we first copy the tree to a temp folder,
               -- then atomically move it to the correct cache location.  Since
               -- `mv` will not move folders across filesystems, this temp
               -- is created inside globalDir, guaranteeing the same filesystem.
@@ -132,7 +132,7 @@ fetchPackage metadata pair@(packageName'@PackageName{..}, Package{ location = Re
                 logWarn $ display $ Messages.failedToCopyToGlobalCache err
               mv resultDir packageLocalCacheDir
 
-        -- * if not, run a series of git commands to get the code, and move it to local cache
+        -- If not, run a series of git commands to get the code, and move it to local cache.
         let nonCacheableCallback :: Spago ()
             nonCacheableCallback = do
               logInfo $ "Installing " <> display quotedName
@@ -148,13 +148,14 @@ fetchPackage metadata pair@(packageName'@PackageName{..}, Package{ location = Re
                 (ExitSuccess, _, _) -> mv downloadDir packageLocalCacheDir
                 (_, _out, err) -> die [ display $ Messages.failedToInstallDep quotedName err ]
 
-        -- Make sure that the following folders exist first:
+        -- Make sure that the following folders exist first.
+        --
+        -- The folder to store the download:
         assertDirectory downloadDir
-        -- ^ the folder to store the download
+        -- The parent package folder in the global cache (that stores all the versions):
         assertDirectory (globalCache </> Text.unpack packageName)
-        -- ^ the parent package folder in the global cache (that stores all the versions)
+        -- The parent package folder in the local cache (that stores all the versions):
         assertDirectory (localCacheDir </> Text.unpack packageName)
-        -- ^ the parent package folder in the local cache (that stores all the versions)
 
         GlobalCache.globallyCache
           (packageName', repo, version)

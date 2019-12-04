@@ -168,22 +168,22 @@ coerceToType typ expr = do
 
 -- | Spago configuration cannot be read
 data ReadError a where
+ -- | a package has the wrong type
  WrongType             :: Typeable a => Dhall.Type b -> DhallExpr a -> ReadError a
-   -- ^ a package has the wrong type
+ -- | the toplevel value is not a record
  ConfigIsNotRecord     :: Typeable a => DhallExpr a -> ReadError a
-   -- ^ the toplevel value is not a record
+ -- | the "packages" key is not a record
  PackagesIsNotRecord   :: Typeable a => DhallExpr a -> ReadError a
-   -- ^ the "packages" key is not a record
+ -- | the "dependencies" key is not a list
  DependenciesIsNotList :: Typeable a => DhallExpr a -> ReadError a
-   -- ^ the "dependencies" key is not a list
+ -- | the expression is not a Text Literal
  ExprIsNotTextLit      :: Typeable a => DhallExpr a -> ReadError a
-   -- ^ the expression is not a Text Literal
+ -- | the packages.dhall could not be parsed
  CannotParsePackageSet :: Typeable a => DhallExpr a -> ReadError a
-   -- ^ the packages.dhall could not be parsed
+ -- | the Import is not pointing to the right repo
  ImportCannotBeUpdated :: Typeable a => Dhall.Import -> ReadError a
-   -- ^ the Import is not pointing to the right repo
+ -- | a key is missing from a Dhall map
  RequiredKeyMissing    :: Typeable a => Text -> Dhall.Map.Map Text (DhallExpr a) -> ReadError a
-   -- ^ a key is missing from a Dhall map
 
 instance (Pretty a, Typeable a) => Exception (ReadError a)
 

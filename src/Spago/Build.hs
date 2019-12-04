@@ -246,7 +246,7 @@ runBackend maybeBackend moduleName maybeSuccessMessage failureMessage buildOpts 
         ExitSuccess   -> maybe (pure ()) (logInfo . display) maybeSuccessMessage
         ExitFailure n -> die [ display failureMessage <> "Backend " <> displayShow backend <> " exited with error:" <> repr n ]
 
-  -- | Bundle the project to a js file
+-- | Bundle the project to a js file
 bundleApp
   :: Purs.WithMain
   -> Maybe Purs.ModuleName
