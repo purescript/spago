@@ -116,6 +116,7 @@ data GlobalOptions = GlobalOptions
   , globalVerbose     :: Bool
   , globalVeryVerbose :: Bool
   , globalUseColor    :: Bool
+  , globalLogHandle   :: Maybe Handle
   , globalUsePsa      :: UsePsa
   , globalJobs        :: Maybe Int
   , globalConfigPath  :: Maybe Text
@@ -145,6 +146,14 @@ parser = do
     beforeCommands = many $ CLI.opt Just "before" 'b' "Commands to run before a build."
     thenCommands   = many $ CLI.opt Just "then" 't' "Commands to run following a successfull build."
     elseCommands   = many $ CLI.opt Just "else" 'e' "Commands to run following an unsuccessfull build."
+    outputStream =
+      let wrap = \case
+            "stdout" -> Just stdout
+            "1"      -> Just stdout
+            "stderr" -> Just stderr
+            "2"      -> Just stderr
+            _        -> Nothing
+      in CLI.optional $ CLI.opt wrap "output-stream" 'O' "Select the output stream to which logging should be directed: any of `stdout`, `1`, `stderr`, or `2`."
     versionBump = CLI.arg Spago.Version.parseVersionBump "bump" "How to bump the version. Acceptable values: 'major', 'minor', 'patch', or a version (e.g. 'v1.2.3')."
 
     force       = CLI.switch "force" 'f' "Overwrite any project found in the current directory"
@@ -188,7 +197,7 @@ parser = do
                     <*> beforeCommands <*> thenCommands <*> elseCommands
 
     -- Note: by default we limit concurrency to 20
-    globalOptions = GlobalOptions <$> quiet <*> verbose <*> veryVerbose <*> (not <$> noColor) <*> usePsa
+    globalOptions = GlobalOptions <$> quiet <*> verbose <*> veryVerbose <*> (not <$> noColor) <*> outputStream <*> usePsa
                     <*> jobsLimit <*> configPath
 
 
@@ -386,7 +395,7 @@ runWithEnv GlobalOptions{..} app = do
   let termDumb = maybeTerm == Just "dumb" || maybeTerm == Just "win"
   let useColor = globalUseColor && not termDumb
 
-  let logHandle = stderr
+  let logHandle = fromMaybe stderr globalLogHandle
   logOptions' <- logOptionsHandle logHandle verbose
   let logOptions
         = setLogUseTime globalVeryVerbose

@@ -293,6 +293,15 @@ E.g. if you wish to output your files in some other place than `output/`, you ca
 $ spago build --purs-args '-o myOutput/'
 ```
 
+It's possible to suppress or redirect Spago's logging in order to interact directly
+with `purs` output. The following two examples use `jq` to format compilation errors
+rendered by `purs` as JSON.
+
+```bash
+$ spago --quiet build --purs-args '--json-errors' 2> >( jq )
+$ spago --output-stream stdout build --purs-args '--json-errors' 2> >( jq )
+```
+
 If you wish to automatically have your project rebuilt when making changes to source files
 you can use the `--watch` flag:
 
@@ -1153,9 +1162,9 @@ that is accepted by many commands. You can either:
 
 ### Know the output path for my compiled code
 
-As there are now various factors that can affect the output path of compiled code, run 
-`spago path output` along with any flags you would pass to `spago build` (like 
-`--purs-args` or `--no-share-output`) to return the output path Spago is using. 
+As there are now various factors that can affect the output path of compiled code, run
+`spago path output` along with any flags you would pass to `spago build` (like
+`--purs-args` or `--no-share-output`) to return the output path Spago is using.
 This can be useful for sharing an output folder with `webpack`, for instance.
 
 ## Explanations
