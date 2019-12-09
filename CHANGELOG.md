@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+Other improvements:
+- Log backend build command if used
+
 ## [0.12.1] - 2019-11-17
 
 Bugfixes:
