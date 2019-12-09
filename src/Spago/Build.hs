@@ -112,7 +112,10 @@ build buildOpts@BuildOptions{..} maybePostBuild = do
                   ]
               Purs.compile globs $ pursArgs ++ [ Purs.ExtraArg "--codegen", Purs.ExtraArg "corefn" ]
 
-              shell backend empty >>= \case
+              logDebug $ display $ "Compiling with backend \"" <> backend <> "\""
+              let backendCmd = backend -- In future there will be some arguments here
+              logDebug $ "Running command `" <> display backendCmd <> "`"
+              shell backendCmd empty >>= \case
                 ExitSuccess   -> pure ()
                 ExitFailure n -> die [ "Backend " <> displayShow backend <> " exited with error:" <> repr n ]
         fromMaybe (pure ()) maybePostBuild
