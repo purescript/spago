@@ -15,7 +15,7 @@
     "spago": "./spago"
   },
   "dependencies": {
-    "follow-redirects": "^1.7.0",
+    "request": "^2.88.0",
     "tar": "^4.4.8"
   },
   "keywords": [
