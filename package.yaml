@@ -56,7 +56,7 @@ library:
   - bytestring
   - Cabal
   - containers
-  - dhall
+  - dhall >= 1.28.0
   - directory >= 1.3.4.0
   - either
   - exceptions

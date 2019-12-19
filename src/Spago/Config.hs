@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP #-}
 {-# LANGUAGE ViewPatterns #-}
 {-# LANGUAGE OverloadedLists #-}
 module Spago.Config
@@ -72,22 +71,13 @@ isLocationType (Dhall.Union kvs) | locationUnionMap == Dhall.Map.toMap kvs = Tru
 isLocationType _ = False
 
 
-#if MIN_VERSION_dhall(1,28,0)
 dependenciesType :: Dhall.Decoder [PackageName]
 dependenciesType = Dhall.list (Dhall.auto :: Dhall.Decoder PackageName)
-#else
-dependenciesType :: Dhall.Type [PackageName]
-dependenciesType = Dhall.list (Dhall.auto :: Dhall.Type PackageName)
-#endif
 
 
 parsePackage :: (MonadIO m, MonadThrow m, MonadReader env m, HasLogFunc env) => ResolvedExpr -> m Package
 parsePackage (Dhall.RecordLit ks) = do
-#if MIN_VERSION_dhall(1,28,0)
   repo         <- Dhall.requireTypedKey ks "repo" (Dhall.auto :: Dhall.Decoder PackageSet.Repo)
-#else
-  repo         <- Dhall.requireTypedKey ks "repo" (Dhall.auto :: Dhall.Type PackageSet.Repo)
-#endif
   version      <- Dhall.requireTypedKey ks "version" Dhall.strictText
   dependencies <- Dhall.requireTypedKey ks "dependencies" dependenciesType
   let location = PackageSet.Remote{..}
@@ -131,11 +121,7 @@ parseConfig = do
           $ traverse parsePackage pkgs
         something -> throwM $ Dhall.PackagesIsNotRecord something)
 
-#if MIN_VERSION_dhall(1,28,0)
       let sourcesType  = Dhall.list (Dhall.auto :: Dhall.Decoder Purs.SourcePath)
-#else
-      let sourcesType  = Dhall.list (Dhall.auto :: Dhall.Type Purs.SourcePath)
-#endif
       name              <- Dhall.requireTypedKey ks "name" Dhall.strictText
       dependencies      <- Dhall.requireTypedKey ks "dependencies" dependenciesType
       configSourcePaths <- Dhall.requireTypedKey ks "sources" sourcesType
