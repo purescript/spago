@@ -1,3 +1,0 @@
-#!/usr/bin/env bash
-
-grep "version:" package.yaml | sed "s/version: *//g" | sed 's/.\{2\}$//'
