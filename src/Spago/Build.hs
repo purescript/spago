@@ -95,7 +95,7 @@ build buildOpts@BuildOptions{..} maybePostBuild = do
     NoInstall -> pure ()
   sharedOutputArgs <- case shareOutput of
     ShareOutput   -> getBuildArgsForSharedFolder buildOpts
-    NoShareOutput -> pure []
+    NoShareOutput -> pure pursArgs
   let allPsGlobs = Packages.getGlobs   deps depsOnly configSourcePaths <> sourcePaths
       allJsGlobs = Packages.getJsGlobs deps depsOnly configSourcePaths <> sourcePaths
 

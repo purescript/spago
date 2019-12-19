@@ -340,7 +340,7 @@ spec = around_ setup $ do
       rm "packages.dhall"
       writeTextFile "packages.dhall" $ "../../packages.dhall"
       spago ["build"] >>= shouldBeSuccess
-      testdir "output" `shouldReturn` False
+      testdir "output" `shouldReturn` True
 
       cd ".."
       testdir "output" `shouldReturn` True
@@ -380,11 +380,11 @@ spec = around_ setup $ do
       spago ["build"] >>= shouldBeSuccess
 
       -- don't use nested folder
-      testdir "output" `shouldReturn` False
+      testdir "output" `shouldReturn` True
 
       -- use middle one
       cd ".."
-      testdir "output" `shouldReturn` True
+      testdir "output" `shouldReturn` False
 
       -- not the trick root folder
       cd ".."
@@ -407,10 +407,10 @@ spec = around_ setup $ do
       rm "spago.dhall"
       writeTextFile "spago.dhall" $ "{ name = \"lib-1\", license = \"MIT\", repository = \"https://github.com/fake/lib-1.git\", dependencies = [\"console\", \"effect\", \"prelude\"], sources = [\"src/**/*.purs\"], packages = ./packages.dhall }"
       spago ["build"] >>= shouldBeSuccess
-      testdir "output" `shouldReturn` False
+      testdir "output" `shouldReturn` True
 
       cd ".."
-      testdir "output" `shouldReturn` True
+      testdir "output" `shouldReturn` False
 
     describe "alternate backend" $ do
 
@@ -474,10 +474,10 @@ spec = around_ setup $ do
       rm "packages.dhall"
       writeTextFile "packages.dhall" $ "../packages.dhall"
       spago ["test"] >>= shouldBeSuccess
-      testdir "output" `shouldReturn` False
+      testdir "output" `shouldReturn` True
 
       cd ".."
-      testdir "output" `shouldReturn` True
+      testdir "output" `shouldReturn` False
 
     it "Spago should test successfully with --no-share-output" $ do
 
@@ -609,7 +609,7 @@ spec = around_ setup $ do
       spago ["init"] >>= shouldBeSuccess
       rm "packages.dhall"
       writeTextFile "packages.dhall" $ "../packages.dhall"
-      spago ["path", "output"] >>= outputShouldEqual "./../output\n"
+      spago ["path", "output"] >>= outputShouldEqual "output\n"
       pure ()
 
     it "Spago should output the local path when no overrides" $ do
