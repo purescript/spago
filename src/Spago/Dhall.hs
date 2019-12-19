@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE GADTs #-}
 module Spago.Dhall
   ( module Spago.Dhall
@@ -11,7 +12,11 @@ import qualified Data.Text                             as Text
 import qualified Data.Text.Prettyprint.Doc             as Pretty
 import qualified Data.Text.Prettyprint.Doc.Render.Text as PrettyText
 import           Dhall
+#if MIN_VERSION_dhall(1,28,0)
+import           Dhall.Core                            as Dhall hiding (pretty)
+#else
 import           Dhall.Core                            as Dhall hiding (Type, pretty)
+#endif
 import qualified Dhall.Format
 import qualified Dhall.Import
 import qualified Dhall.Map
@@ -83,7 +88,11 @@ readRawExpr pathText = do
   if exists
     then (do
       packageSetText <- readTextFile $ pathFromText pathText
+#if MIN_VERSION_dhall(1,28,0)
+      fmap (\(Header text, expr) -> Just (text, expr)) $ throws $ Parser.exprAndHeaderFromText mempty packageSetText)
+#else
       fmap Just $ throws $ Parser.exprAndHeaderFromText mempty packageSetText)
+#endif
     else pure Nothing
 
 
@@ -129,7 +138,11 @@ requireTypedKey
   :: (MonadIO m, MonadThrow m)
   => Dhall.Map.Map Text (DhallExpr Void)
   -> Text
+#if MIN_VERSION_dhall(1,28,0)
+  -> Dhall.Decoder a
+#else
   -> Dhall.Type a
+#endif
   -> m a
 requireTypedKey ks name typ = requireKey ks name $ \expr -> case Dhall.extract typ expr of
   Success v -> pure v
@@ -141,7 +154,11 @@ maybeTypedKey
   :: (MonadIO m, MonadThrow m)
   => Dhall.Map.Map Text (DhallExpr Void)
   -> Text
+#if MIN_VERSION_dhall(1,28,0)
+  -> Dhall.Decoder a
+#else
   -> Dhall.Type a
+#endif
   -> m (Maybe a)
 maybeTypedKey ks name typ = typify `mapM` Dhall.Map.lookup name ks
   where
@@ -157,7 +174,11 @@ maybeTypedKey ks name typ = typify `mapM` Dhall.Map.lookup name ks
 --   result of the normalization (we need to normalize so that extract can work)
 --   and return a `Right` only if both typecheck and normalization succeeded.
 coerceToType
-  :: Type a -> DhallExpr Void -> Either (ReadError Void) a
+#if MIN_VERSION_dhall(1,28,0)
+  :: Dhall.Decoder a -> DhallExpr Void -> Either (ReadError Void) a
+#else
+  :: Dhall.Type a -> DhallExpr Void -> Either (ReadError Void) a
+#endif
 coerceToType typ expr = do
   let annot = Dhall.Annot expr $ Dhall.expected typ
   let checkedType = typeOf annot
@@ -169,7 +190,11 @@ coerceToType typ expr = do
 -- | Spago configuration cannot be read
 data ReadError a where
  -- | a package has the wrong type
+#if MIN_VERSION_dhall(1,28,0)
+ WrongType             :: Typeable a => Dhall.Decoder b -> DhallExpr a -> ReadError a
+#else
  WrongType             :: Typeable a => Dhall.Type b -> DhallExpr a -> ReadError a
+#endif
  -- | the toplevel value is not a record
  ConfigIsNotRecord     :: Typeable a => DhallExpr a -> ReadError a
  -- | the "packages" key is not a record

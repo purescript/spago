@@ -5,12 +5,19 @@
 
 packages:
 - completed:
-    hackage: dhall-1.27.0@sha256:b522d6b534949e65771ed0179afc1488e4de2b185af5ed38e4806a6720db51bf,30519
+    hackage: dhall-1.28.0@sha256:a0b38be83ab76c59adf6d67868b9b183591edc68d2c3727d38598ddc12c36c95,31625
     pantry-tree:
-      size: 232998
-      sha256: 3f79ba6a3eeb0f59c1cf41663d65eebe71f5780f5765169e3d52406789a6f286
+      size: 241424
+      sha256: 8c92a349408edf2c72760025740b4950cd0a1d2ce0ba393333332c1bbc469967
   original:
-    hackage: dhall-1.27.0
+    hackage: dhall-1.28.0
+- completed:
+    hackage: atomic-write-0.2.0.7@sha256:3b626dfbc288cd070f1ac31b1c15ddd49822a923778ffe21f92b2116ffc72dc3,4584
+    pantry-tree:
+      size: 2237
+      sha256: b49d642f11c9eade41fac2c52dc34aadb093fd48139418c001e19d7ab1ae6696
+  original:
+    hackage: atomic-write-0.2.0.7
 - completed:
     hackage: github-0.23@sha256:07671c92da7142668ecdeaa5669ddda629ae85f25acd2ecadd49f9a119a5eac6,6965
     pantry-tree:
