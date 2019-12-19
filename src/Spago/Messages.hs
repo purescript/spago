@@ -207,5 +207,12 @@ globsDoNotMatchWhenWatching :: NonEmpty Text -> Text
 globsDoNotMatchWhenWatching patterns = makeMessage $
   "WARNING: No matches found when trying to watch the following directories: " : NonEmpty.toList patterns
 
+unopenLogHandle :: Text -> Text
+unopenLogHandle err = makeMessage
+  [ tshow err
+  , "File descriptor 3 may not have been opened."
+  , "One way of opening fd 3 in the UNIX shell bash is the following: `spago -o 3 build 3>&2`."
+  ]
+
 makeMessage :: [Text] -> Text
 makeMessage = Text.intercalate "\n"

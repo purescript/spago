@@ -4,7 +4,7 @@ module Spago.Watch (watch, globToParent, ClearScreen (..)) where
 -- This code basically comes straight from
 -- https://github.com/commercialhaskell/stack/blob/0740444175f41e6ea5ed236cd2c53681e4730003/src/Stack/FileWatch.hs
 
-import           Spago.Prelude          hiding (FilePath)
+import           Spago.Prelude          hiding (FilePath, hFlush)
 
 import           Control.Concurrent.STM (check)
 import qualified Data.Map.Strict        as Map
@@ -17,8 +17,8 @@ import           System.Console.ANSI    (clearScreen, setCursorPosition)
 import           System.FilePath        (splitDirectories)
 import qualified System.FilePath.Glob   as Glob
 import qualified System.FSNotify        as Watch
-import           System.IO              (getLine)
-import qualified UnliftIO
+import           System.IO              (getLine, hFlush, stdout)
+import qualified UnliftIO               hiding (hFlush)
 import           UnliftIO.Async         (race_)
 
 -- Should we clear the screen on rebuild?

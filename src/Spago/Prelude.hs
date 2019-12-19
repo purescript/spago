@@ -7,6 +7,7 @@ module Spago.Prelude
   , Env (..)
   , UsePsa(..)
   , Spago
+  , SpagoError (..)
   , module X
   , Proxy(..)
   , NonEmpty (..)
