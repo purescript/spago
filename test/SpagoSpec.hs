@@ -441,7 +441,7 @@ spec = around_ setup $ do
 
       dir <- pwd
       let dumpFile = dir </> "testOutput"
-      spago ["build", "--before", "echo before > " <> ( Text.pack $ encodeString dumpFile )] >>= shouldBeSuccess
+      spago ["build", "--before", "echo before>> " <> ( Text.pack $ encodeString dumpFile )] >>= shouldBeSuccess
       test <- readTextFile dumpFile
       test `shouldBe` "before\n"
 
@@ -452,8 +452,8 @@ spec = around_ setup $ do
       dir <- pwd
       let dumpFile = dir </> "testOutput"
       spago [ "build"
-            , "--then", "echo then >> " <> ( Text.pack $ encodeString dumpFile )
-            , "--else", "echo else >> " <> ( Text.pack $ encodeString dumpFile )
+            , "--then", "echo then>> " <> ( Text.pack $ encodeString dumpFile )
+            , "--else", "echo else>> " <> ( Text.pack $ encodeString dumpFile )
             ] >>= shouldBeSuccess
       test <- readTextFile dumpFile
       test `shouldBe` "then\n"
@@ -465,8 +465,8 @@ spec = around_ setup $ do
       dir <- pwd
       let dumpFile = dir </> "testOutput"
       spago [ "build"
-            , "--before", "echo before >> " <> ( Text.pack $ encodeString dumpFile )
-            , "--then", "echo then >> " <> ( Text.pack $ encodeString dumpFile )
+            , "--before", "echo before>> " <> ( Text.pack $ encodeString dumpFile )
+            , "--then", "echo then>> " <> ( Text.pack $ encodeString dumpFile )
             ] >>= shouldBeSuccess
       test <- readTextFile dumpFile
       test `shouldBe` "before\nthen\n"
@@ -480,8 +480,8 @@ spec = around_ setup $ do
       rm "src/Main.purs"
       writeTextFile "src/Main.purs" "Invalid Purescript code"
       spago [ "build"
-            , "--then", "echo then >> " <> ( Text.pack $ encodeString dumpFile )
-            , "--else", "echo else >> " <> ( Text.pack $ encodeString dumpFile )
+            , "--then", "echo then>> " <> ( Text.pack $ encodeString dumpFile )
+            , "--else", "echo else>> " <> ( Text.pack $ encodeString dumpFile )
             ] >>= shouldBeFailure
       test <- readTextFile dumpFile
       test `shouldBe` "else\n"
@@ -493,10 +493,10 @@ spec = around_ setup $ do
       dir <- pwd
       let dumpFile = dir </> "testOutput"
       spago [ "build"
-            , "--before", "echo before1 >> " <> ( Text.pack $ encodeString dumpFile )
-            , "--before", "echo before2 >> " <> ( Text.pack $ encodeString dumpFile )
-            , "--then", "echo then1 >> " <> ( Text.pack $ encodeString dumpFile )
-            , "--then", "echo then2 >> " <> ( Text.pack $ encodeString dumpFile )
+            , "--before", "echo before1>> " <> ( Text.pack $ encodeString dumpFile )
+            , "--before", "echo before2>> " <> ( Text.pack $ encodeString dumpFile )
+            , "--then", "echo then1>> " <> ( Text.pack $ encodeString dumpFile )
+            , "--then", "echo then2>> " <> ( Text.pack $ encodeString dumpFile )
             ] >>= shouldBeSuccess
       test <- readTextFile dumpFile
       test `shouldBe` "before1\nbefore2\nthen1\nthen2\n"
