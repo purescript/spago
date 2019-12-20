@@ -6,14 +6,14 @@ import           Prelude            hiding (FilePath)
 import qualified System.IO.Temp     as Temp
 import           Test.Hspec         (Spec, around_, describe, it, shouldBe, shouldNotSatisfy,
                                      shouldReturn, shouldSatisfy)
-import           Turtle             (ExitCode (..), cd, cp, decodeString, empty, mkdir, mktree, mv,
-                                     readTextFile, rm, shell, shellStrictWithErr, testdir,
-                                     writeTextFile)
-import           Utils              (checkFileHasInfix, checkFixture, readFixture, runFor,
-                                     shouldBeFailure, shouldBeFailureOutput, shouldBeSuccess,
-                                     shouldBeSuccessStderr, shouldBeFailureStderr,
-                                     shouldBeSuccessOutput, shouldBeSuccessOutputWithErr, spago, withCwd,
-                                     outputShouldEqual)
+import           Turtle             (ExitCode (..), cd, cp, decodeString, empty, encodeString,
+                                     mkdir, mktree, mv, pwd, readTextFile, rm, shell,
+                                     shellStrictWithErr, testdir, writeTextFile, (</>))
+import           Utils              (checkFileHasInfix, checkFixture, outputShouldEqual,
+                                     readFixture, runFor, shouldBeFailure, shouldBeFailureOutput,
+                                     shouldBeFailureStderr, shouldBeSuccess, shouldBeSuccessOutput,
+                                     shouldBeSuccessOutputWithErr, shouldBeSuccessStderr, spago,
+                                     withCwd)
 
 
 
@@ -435,6 +435,71 @@ spec = around_ setup $ do
         -- spago ["build", "--purs-args", "--codegen", "--purs-args", "corefn"] >>= shouldBeFailureOutput "codegen-opt-with-backend.txt"
         -- spago ["build", "--purs-args", "--codegen", "--purs-args", "docs"] >>= shouldBeFailureOutput "codegen-opt-with-backend.txt"
 
+    it "Spago should run a before command" $ do
+
+      spago ["init"] >>= shouldBeSuccess
+
+      dir <- pwd
+      let dumpFile = dir </> "testOutput"
+      spago ["build", "--before", "echo before > " <> ( Text.pack $ encodeString dumpFile )] >>= shouldBeSuccess
+      test <- readTextFile dumpFile
+      test `shouldBe` "before\n"
+
+    it "Spago should run a then command" $ do
+
+      spago ["init"] >>= shouldBeSuccess
+
+      dir <- pwd
+      let dumpFile = dir </> "testOutput"
+      spago [ "build"
+            , "--then", "echo then >> " <> ( Text.pack $ encodeString dumpFile )
+            , "--else", "echo else >> " <> ( Text.pack $ encodeString dumpFile )
+            ] >>= shouldBeSuccess
+      test <- readTextFile dumpFile
+      test `shouldBe` "then\n"
+
+    it "Spago should run a before command before a then command" $ do
+
+      spago ["init"] >>= shouldBeSuccess
+
+      dir <- pwd
+      let dumpFile = dir </> "testOutput"
+      spago [ "build"
+            , "--before", "echo before >> " <> ( Text.pack $ encodeString dumpFile )
+            , "--then", "echo then >> " <> ( Text.pack $ encodeString dumpFile )
+            ] >>= shouldBeSuccess
+      test <- readTextFile dumpFile
+      test `shouldBe` "before\nthen\n"
+
+    it "Spago should run an else command if there is an error" $ do
+
+      spago ["init"] >>= shouldBeSuccess
+
+      dir <- pwd
+      let dumpFile = dir </> "testOutput"
+      rm "src/Main.purs"
+      writeTextFile "src/Main.purs" "Invalid Purescript code"
+      spago [ "build"
+            , "--then", "echo then >> " <> ( Text.pack $ encodeString dumpFile )
+            , "--else", "echo else >> " <> ( Text.pack $ encodeString dumpFile )
+            ] >>= shouldBeFailure
+      test <- readTextFile dumpFile
+      test `shouldBe` "else\n"
+
+    it "Spago should run multiple commands in order" $ do
+
+      spago ["init"] >>= shouldBeSuccess
+
+      dir <- pwd
+      let dumpFile = dir </> "testOutput"
+      spago [ "build"
+            , "--before", "echo before1 >> " <> ( Text.pack $ encodeString dumpFile )
+            , "--before", "echo before2 >> " <> ( Text.pack $ encodeString dumpFile )
+            , "--then", "echo then1 >> " <> ( Text.pack $ encodeString dumpFile )
+            , "--then", "echo then2 >> " <> ( Text.pack $ encodeString dumpFile )
+            ] >>= shouldBeSuccess
+      test <- readTextFile dumpFile
+      test `shouldBe` "before1\nbefore2\nthen1\nthen2\n"
 
 
   describe "spago test" $ do

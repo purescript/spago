@@ -303,6 +303,25 @@ $ spago build --watch
 $ spago build --watch --clear-screen
 ```
 
+To run a command before a build you can use the `--before` flag, eg to clear the screen before a build:
+
+```bash
+$ spago build --watch --before clear
+```
+
+To run a command after the build, use `--then` for successful builds, or `--else` for unsuccessful builds:
+
+```bash
+$ spago build --watch --then "notify-send 'Built successfully'" --else "notify-send 'Build failed'"
+```
+
+Multiple commands are possible - they will be run in the order specified:
+
+```bash
+$ spago build --watch --before clear --before "notify-send 'Building'"
+```
+
+
 If you want to run the program (akin to `pulp run`), just use `run`:
 ```bash
 # The main module defaults to "Main"

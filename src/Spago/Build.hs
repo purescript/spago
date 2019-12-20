@@ -65,14 +65,17 @@ data NoInstall = NoInstall | DoInstall
 data ShareOutput = ShareOutput | NoShareOutput
 
 data BuildOptions = BuildOptions
-  { cacheConfig :: Maybe GlobalCache.CacheFlag
-  , shouldWatch :: Watch
-  , shouldClear :: Watch.ClearScreen
-  , sourcePaths :: [Purs.SourcePath]
-  , noInstall   :: NoInstall
-  , pursArgs    :: [Purs.ExtraArg]
-  , depsOnly    :: Packages.DepsOnly
-  , shareOutput :: ShareOutput
+  { cacheConfig    :: Maybe GlobalCache.CacheFlag
+  , shouldWatch    :: Watch
+  , shouldClear    :: Watch.ClearScreen
+  , sourcePaths    :: [Purs.SourcePath]
+  , noInstall      :: NoInstall
+  , pursArgs       :: [Purs.ExtraArg]
+  , depsOnly       :: Packages.DepsOnly
+  , shareOutput    :: ShareOutput
+  , beforeCommands :: [Text]
+  , thenCommands   :: [Text]
+  , elseCommands   :: [Text]
   }
 
 prepareBundleDefaults
@@ -99,7 +102,7 @@ build buildOpts@BuildOptions{..} maybePostBuild = do
   let allPsGlobs = Packages.getGlobs   deps depsOnly configSourcePaths <> sourcePaths
       allJsGlobs = Packages.getJsGlobs deps depsOnly configSourcePaths <> sourcePaths
 
-      buildAction globs = do
+      buildBackend globs = do 
         case alternateBackend of
           Nothing ->
               Purs.compile globs sharedOutputArgs
@@ -118,6 +121,11 @@ build buildOpts@BuildOptions{..} maybePostBuild = do
               shell backendCmd empty >>= \case
                 ExitSuccess   -> pure ()
                 ExitFailure n -> die [ "Backend " <> displayShow backend <> " exited with error:" <> repr n ]
+
+      buildAction globs = do
+        runCommands beforeCommands
+        onException ( buildBackend globs ) $ runCommands elseCommands
+        runCommands thenCommands
         fromMaybe (pure ()) maybePostBuild
 
   case shouldWatch of
@@ -139,6 +147,9 @@ build buildOpts@BuildOptions{..} maybePostBuild = do
         (buildAction (wrap <$> psMatches))
 
   where
+    runCommands :: [Text] -> Spago ()
+    runCommands commands = traverse_ ( flip shell empty ) commands
+
     partitionGlobs :: [Sys.FilePath] -> Spago ([Sys.FilePath], [Sys.FilePath])
     partitionGlobs = foldrM go ([],[])
       where

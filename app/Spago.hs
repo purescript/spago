@@ -125,6 +125,10 @@ parser = do
             "update" -> Just NewCache
             _ -> Nothing
       in CLI.optional $ CLI.opt wrap "global-cache" 'c' "Configure the global caching behaviour: skip it with `skip` or force update with `update`"
+
+    beforeCommands = many $ CLI.opt Just "before" 'b' "Commands to run before a build."
+    thenCommands   = many $ CLI.opt Just "then" 't' "Commands to run following a successfull build."
+    elseCommands   = many $ CLI.opt Just "else" 'e' "Commands to run following an unsuccessfull build."
     packagesFilter =
       let wrap = \case
             "direct"     -> Just DirectDeps
@@ -165,7 +169,9 @@ parser = do
     pursArgs        = many $ CLI.opt (Just . ExtraArg) "purs-args" 'u' "Argument to pass to purs"
     -- See https://github.com/spacchetti/spago/pull/526 for why this flag is disabled
     useSharedOutput = bool NoShareOutput NoShareOutput <$> CLI.switch "no-share-output" 'S' "DEPRECATED: Disabled using a shared output folder in location of root packages.dhall"
-    buildOptions  = BuildOptions <$> cacheFlag <*> watch <*> clearScreen <*> sourcePaths <*> noInstall <*> pursArgs <*> depsOnly <*> useSharedOutput
+    buildOptions  = BuildOptions <$> cacheFlag <*> watch <*> clearScreen <*> sourcePaths <*> noInstall
+                    <*> pursArgs <*> depsOnly <*> useSharedOutput
+                    <*> beforeCommands <*> thenCommands <*> elseCommands
 
     -- Note: by default we limit concurrency to 20
     globalOptions = GlobalOptions <$> verbose <*> veryVerbose <*> usePsa <*> jobsLimit <*> configPath
