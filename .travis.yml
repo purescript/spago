@@ -121,7 +121,7 @@ before_deploy:
       if [ `uname` = "Darwin" ]
       then
         stack build --copy-bins --local-bin-path ./artifacts;
-        sed -e "s/NPM_VERSION/$(./scripts/get-npm-version)/g" -i "" npm/package.json ;
+        sed -e "s/NPM_VERSION/$(./scripts/get-version)/g" -i "" npm/package.json ;
         sed -e "s/PACKAGE_VERSION/$(./scripts/get-version)/g" -i "" npm/install.js ;
       else
         # We first build the static version
@@ -130,7 +130,7 @@ before_deploy:
         tar -zcvf "${TRAVIS_OS_NAME}-static.tar.gz" spago
         # Then the dynamic one
         docker run --mount src="$(pwd)",target=/home/ubuntu/spago,type=bind "nilrecurring/haskell-lavello:${IMAGE_TAG}" /bin/bash -c "cd spago; stack build --copy-bins --local-bin-path ./artifacts"
-        sed -e "s/NPM_VERSION/$(./scripts/get-npm-version)/g" -i npm/package.json ;
+        sed -e "s/NPM_VERSION/$(./scripts/get-version)/g" -i npm/package.json ;
         sed -e "s/PACKAGE_VERSION/$(./scripts/get-version)/g" -i npm/install.js ;
       fi
       cp artifacts/spago spago

@@ -7,8 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.13.0] - 2019-12-19
+
+Breaking changes (😱!!!):
+- **Disable `output` folder sharing (#526)**
+
+  This reverts an (accidentally) breaking changes introduced in `0.11.0`, for which
+  Spago would take decisions on where the `output` folder should be in order to
+  share some compilation results. This turned out to break some other things, so
+  we'll stop trying to be smart about it here.
+
+New features:
+- Enable HTTP(S) proxies on the NPM installation (#460, #522)
+
 Other improvements:
-- Log backend build command if used
+- Log backend build command when building (#521)
+- Deps: update `purescript-docs-search` version to `0.0.6` (#525)
+- CI: update `purs` version to `0.13.5` (#513)
+- CI: fix Haddocks and start testing them in CI (#511, #516)
+- Curator: automate updating `purs` version (#514)
+- Curator: automate updating the `purescript-docs-search` version (#519)
 
 ## [0.12.1] - 2019-11-17
 
@@ -40,6 +58,12 @@ Breaking changes (😱!!!):
   Since we are approaching a stable release and `spago` feature set is a superset of `psc-package` ones,
   from this release we do not support the commands to interop with `psc-package`:
   `psc-package-local-setup`, `psc-package-insdhall` and `psc-package-clean` commands.
+- **Start sharing the output folder in monorepos, to reduce build duplication (#377, #422)**
+
+  This is a breaking change because your build might stop working if you were relying
+  on the `output` folder being in a certain place, and if you were passing `--output`
+  as an option to `purs`.
+  However, you can pass the `--no-share-output` flag to disable this behavior
 - **Build static binaries for Linux (#437, 427)**
 
   This should fix the dynamic-library-compatibility problems on some distributions.
@@ -56,9 +80,6 @@ New features:
 - add support for `spago build` and `spago run` with alternate backends (#355, #426, #452, #435)
 
   E.g: add the key `backend = "psgo"` in `spago.dhall` to compile/run with `psgo`
-- add support for sharing the `output` folder in monorepos, to reduce build duplication.
-
-  Pass `--no-share-output` flag to disable this behavior (#377, #422)
 - add new command `spago path` that returns the paths used in the project.
 
   E.g. `spago path output` returns the output path so that it can be shared with tools such as `purs-loader`. (#463)
