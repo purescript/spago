@@ -16,7 +16,6 @@ import           Utils              (checkFileHasInfix, checkFixture, outputShou
                                      withCwd)
 
 
-
 setup :: IO () -> IO ()
 setup cmd = do
   Temp.withTempDirectory "test/" "spago-test" $ \temp -> do
@@ -705,3 +704,15 @@ spec = around_ setup $ do
       cd "monorepo-1"
       spago ["init"] >>= shouldBeSuccess
       spago ["path", "output", "--no-share-output"] >>= outputShouldEqual "output\n"
+
+  describe "spago verify-set" $ do
+    it "Spago should fail when there is no spago.dhall or packages.dhall" $ do
+      spago ["init"] >>= shouldBeSuccess
+      rm "spago.dhall"
+      rm "packages.dhall"
+      spago ["verify-set"] >>= shouldBeFailureStderr "verify-set-failure-no-files.txt"
+
+    it "Spago should fail when packages.dhall is malformed" $ do
+      spago ["init"] >>= shouldBeSuccess
+      writeTextFile "packages.dhall" $ "abcdef"
+      spago ["verify-set"] >>= shouldBeFailureStderr "verify-set-failure-bad-packages-dhall.txt"

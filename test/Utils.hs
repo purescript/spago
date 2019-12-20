@@ -29,7 +29,8 @@ import           System.Directory   (removePathForcibly)
 import qualified System.Process     as Process
 import           Test.Hspec         (HasCallStack, shouldBe, shouldSatisfy)
 import           Turtle             (ExitCode (..), FilePath, Text, cd, empty, encodeString, inproc,
-                                     limit, procStrictWithErr, pwd, readTextFile, strict)
+                                     inprocWithErr, limit, procStrictWithErr, pwd, readTextFile,
+                                     strict)
 
 
 withCwd :: FilePath -> IO () -> IO ()

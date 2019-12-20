@@ -1,0 +1,5 @@
+[31m[error] [0mThere's no "spago.dhall" in your current location.
+
+If you already have a spago project you might be in the wrong subdirectory,
+otherwise you might want to run `spago init` to initialize a new project.[0m
+[31m[error] [0mCould not find a valid "spago.dhall" or "packages.dhall"[0m
