@@ -185,6 +185,9 @@ getNewGitHubToken = makeMessage
   , "and then call `spago login` again so Spago can pick it up and save it to cache"
   ]
 
+couldNotVerifySet :: Text
+couldNotVerifySet = "Could not find a valid \"spago.dhall\" or \"packages.dhall\""
+
 verifying :: Show a => a -> Text
 verifying len = "Verifying " <> tshow len <> " packages, this might take a while.."
 

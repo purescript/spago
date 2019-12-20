@@ -350,6 +350,9 @@ verify :: Maybe CacheFlag -> CheckModulesUnique -> Maybe PackageName -> Spago ()
 verify cacheFlag chkModsUniq maybePackage = do
   logDebug "Running `spago verify`"
 
+  -- @TODO Swap the order of these to check for `spago.dhall` first, once
+  -- `ensureConfig` no longer calls `die` internally. See:
+  -- https://github.com/spacchetti/spago/pull/515#pullrequestreview-329632196
   packageSet@PackageSet{..} <- do
     -- Try to read a "packages.dhall" directly
     try (liftIO (Dhall.inputExpr $ "./" <> PackageSet.packagesPath)) >>= \case 
@@ -358,8 +361,7 @@ verify cacheFlag chkModsUniq maybePackage = do
           -- Try to read a "spago.dhall" and find the packages from there
           try Config.ensureConfig >>= \case
             Right (Config{ packageSet = packageSet@PackageSet{..}, ..}) -> pure packageSet
-            Left (_ :: SomeException) -> die []
-            -- die [ display Messages.whatever ]
+            Left (_ :: SomeException) -> die [ display Messages.couldNotVerifySet ]
 
   case maybePackage of
     -- If no package is specified, verify all of them
