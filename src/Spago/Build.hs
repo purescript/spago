@@ -123,9 +123,9 @@ build buildOpts@BuildOptions{..} maybePostBuild = do
                 ExitFailure n -> die [ "Backend " <> displayShow backend <> " exited with error:" <> repr n ]
 
       buildAction globs = do
-        runCommands beforeCommands
-        onException ( buildBackend globs ) $ runCommands elseCommands
-        runCommands thenCommands
+        runCommands "Before" beforeCommands
+        onException ( buildBackend globs ) $ runCommands "Else" elseCommands
+        runCommands "Then" thenCommands
         fromMaybe (pure ()) maybePostBuild
 
   case shouldWatch of
@@ -147,8 +147,12 @@ build buildOpts@BuildOptions{..} maybePostBuild = do
         (buildAction (wrap <$> psMatches))
 
   where
-    runCommands :: [Text] -> Spago ()
-    runCommands commands = traverse_ ( flip shell empty ) commands
+    runCommands :: Text -> [Text] -> Spago ()
+    runCommands label = traverse_ runCommand
+      where
+      runCommand command = shell command empty >>= \case
+        ExitSuccess   -> pure ()
+        ExitFailure n -> die [ repr label <> " command failed. exit code: " <> repr n ]
 
     partitionGlobs :: [Sys.FilePath] -> Spago ([Sys.FilePath], [Sys.FilePath])
     partitionGlobs = foldrM go ([],[])

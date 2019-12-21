@@ -501,6 +501,28 @@ spec = around_ setup $ do
       test <- readTextFile dumpFile
       test `shouldBe` "before1\nbefore2\nthen1\nthen2\n"
 
+    it "Spago should fail the build if a before command fails" $ do
+
+      spago ["init"] >>= shouldBeSuccess
+      spago [ "build"
+            , "--before", "exit 1"
+            ] >>= shouldBeFailure
+
+    it "Spago should fail the build if a then command fails" $ do
+
+      spago ["init"] >>= shouldBeSuccess
+      spago [ "build"
+            , "--then", "exit 1"
+            ] >>= shouldBeFailure
+
+    it "Spago should still fail the build if an else command fails" $ do
+
+      spago ["init"] >>= shouldBeSuccess
+      rm "src/Main.purs"
+      writeTextFile "src/Main.purs" "Invalid Purescript code"
+      spago [ "build"
+            , "--else", "exit 1"
+            ] >>= shouldBeFailure
 
   describe "spago test" $ do
 
