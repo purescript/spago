@@ -303,10 +303,10 @@ $ spago build --watch
 $ spago build --watch --clear-screen
 ```
 
-To run a command before a build you can use the `--before` flag, eg to clear the screen before a build:
+To run a command before a build you can use the `--before` flag, eg to post a notification that a build has started:
 
 ```bash
-$ spago build --watch --before clear
+$ spago build --watch --before "notify-send 'Building'"
 ```
 
 To run a command after the build, use `--then` for successful builds, or `--else` for unsuccessful builds:
