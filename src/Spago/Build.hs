@@ -125,8 +125,8 @@ build buildOpts@BuildOptions{..} maybePostBuild = do
       buildAction globs = do
         runCommands "Before" beforeCommands
         onException ( buildBackend globs ) $ runCommands "Else" elseCommands
-        runCommands "Then" thenCommands
         fromMaybe (pure ()) maybePostBuild
+        runCommands "Then" thenCommands
 
   case shouldWatch of
     BuildOnce -> buildAction allPsGlobs
