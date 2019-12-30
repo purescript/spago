@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+New features:
+- Added `--before`, `--then` and `--else` flags to specify commands to run before and after a build.
+
 ## [0.13.0] - 2019-12-19
 
 Breaking changes (😱!!!):
