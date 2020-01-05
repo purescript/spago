@@ -729,7 +729,7 @@ To start a project using Spago and Parcel together, here's the commands and file
 
 1. Follow [Spago's "Super quick tutorial"](#super-quick-tutorial)
 2. Initialise a JavaScript/npm project with `npm init`
-3. Install Parcel as a development-time dependency `npm i parcel --save dev`
+3. Install Parcel as a development-time dependency `npm i parcel --save-dev`
 4. Add a JavaScript file which imports and calls the `main` function from the output of `src/Main.purs`.
   This can be placed in the root directory for your project. Traditionally this file is named `index.js`.
   The `main` function from `Main.purs` can accept arguments, this is useful since Parcel will replace
