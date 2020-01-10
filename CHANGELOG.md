@@ -7,8 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.13.1] - 2020-01-10
+
 New features:
-- Added `--before`, `--then` and `--else` flags to specify commands to run before and after a build.
+- Add `--before`, `--then` and `--else` flags to specify commands to run before and after a build (#532, #410)
+
+Other improvements:
+- Docs: fix npm command line argument in README (#597)
 
 ## [0.13.0] - 2019-12-19
 
