@@ -303,6 +303,25 @@ $ spago build --watch
 $ spago build --watch --clear-screen
 ```
 
+To run a command before a build you can use the `--before` flag, eg to post a notification that a build has started:
+
+```bash
+$ spago build --watch --before "notify-send 'Building'"
+```
+
+To run a command after the build, use `--then` for successful builds, or `--else` for unsuccessful builds:
+
+```bash
+$ spago build --watch --then "notify-send 'Built successfully'" --else "notify-send 'Build failed'"
+```
+
+Multiple commands are possible - they will be run in the order specified:
+
+```bash
+$ spago build --watch --before clear --before "notify-send 'Building'"
+```
+
+
 If you want to run the program (akin to `pulp run`), just use `run`:
 ```bash
 # The main module defaults to "Main"
@@ -710,7 +729,7 @@ To start a project using Spago and Parcel together, here's the commands and file
 
 1. Follow [Spago's "Super quick tutorial"](#super-quick-tutorial)
 2. Initialise a JavaScript/npm project with `npm init`
-3. Install Parcel as a development-time dependency `npm i parcel --save dev`
+3. Install Parcel as a development-time dependency `npm i parcel --save-dev`
 4. Add a JavaScript file which imports and calls the `main` function from the output of `src/Main.purs`.
   This can be placed in the root directory for your project. Traditionally this file is named `index.js`.
   The `main` function from `Main.purs` can accept arguments, this is useful since Parcel will replace

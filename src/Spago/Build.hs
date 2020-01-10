@@ -65,14 +65,17 @@ data NoInstall = NoInstall | DoInstall
 data ShareOutput = ShareOutput | NoShareOutput
 
 data BuildOptions = BuildOptions
-  { cacheConfig :: Maybe GlobalCache.CacheFlag
-  , shouldWatch :: Watch
-  , shouldClear :: Watch.ClearScreen
-  , sourcePaths :: [Purs.SourcePath]
-  , noInstall   :: NoInstall
-  , pursArgs    :: [Purs.ExtraArg]
-  , depsOnly    :: Packages.DepsOnly
-  , shareOutput :: ShareOutput
+  { cacheConfig    :: Maybe GlobalCache.CacheFlag
+  , shouldWatch    :: Watch
+  , shouldClear    :: Watch.ClearScreen
+  , sourcePaths    :: [Purs.SourcePath]
+  , noInstall      :: NoInstall
+  , pursArgs       :: [Purs.ExtraArg]
+  , depsOnly       :: Packages.DepsOnly
+  , shareOutput    :: ShareOutput
+  , beforeCommands :: [Text]
+  , thenCommands   :: [Text]
+  , elseCommands   :: [Text]
   }
 
 prepareBundleDefaults
@@ -99,7 +102,7 @@ build buildOpts@BuildOptions{..} maybePostBuild = do
   let allPsGlobs = Packages.getGlobs   deps depsOnly configSourcePaths <> sourcePaths
       allJsGlobs = Packages.getJsGlobs deps depsOnly configSourcePaths <> sourcePaths
 
-      buildAction globs = do
+      buildBackend globs = do 
         case alternateBackend of
           Nothing ->
               Purs.compile globs sharedOutputArgs
@@ -118,7 +121,12 @@ build buildOpts@BuildOptions{..} maybePostBuild = do
               shell backendCmd empty >>= \case
                 ExitSuccess   -> pure ()
                 ExitFailure n -> die [ "Backend " <> displayShow backend <> " exited with error:" <> repr n ]
+
+      buildAction globs = do
+        runCommands "Before" beforeCommands
+        onException ( buildBackend globs ) $ runCommands "Else" elseCommands
         fromMaybe (pure ()) maybePostBuild
+        runCommands "Then" thenCommands
 
   case shouldWatch of
     BuildOnce -> buildAction allPsGlobs
@@ -139,6 +147,13 @@ build buildOpts@BuildOptions{..} maybePostBuild = do
         (buildAction (wrap <$> psMatches))
 
   where
+    runCommands :: Text -> [Text] -> Spago ()
+    runCommands label = traverse_ runCommand
+      where
+      runCommand command = shell command empty >>= \case
+        ExitSuccess   -> pure ()
+        ExitFailure n -> die [ repr label <> " command failed. exit code: " <> repr n ]
+
     partitionGlobs :: [Sys.FilePath] -> Spago ([Sys.FilePath], [Sys.FilePath])
     partitionGlobs = foldrM go ([],[])
       where
