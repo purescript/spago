@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+New features:
+- Allow `verify-set` to work with either a `spago.dhall` or a `packages.dhall` (#515)
+
 ## [0.13.1] - 2020-01-10
 
 New features:

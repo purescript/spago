@@ -6,6 +6,7 @@ module Spago.Config
   , ensureConfig
   , addDependencies
   , parsePackage
+  , parsePackageSet
   , Config(..)
   , PublishConfig(..)
   ) where
@@ -105,6 +106,20 @@ parsePackage (Dhall.App (Dhall.Field union "Local") (Dhall.TextLit (Dhall.Chunks
 parsePackage expr = die [ display $ Messages.failedToParsePackage $ pretty expr ]
 
 
+-- | Parse the contents of a "packages.dhall" file (or the "packages" key of an
+-- evaluated "spago.dhall")
+parsePackageSet :: Dhall.Map.Map Text (Dhall.DhallExpr Void) -> Spago PackageSet
+parsePackageSet pkgs = do
+  packages <- fmap (Map.mapKeys PackageSet.PackageName . Dhall.Map.toMap) $ traverse parsePackage pkgs
+
+  let metadataPackageName = PackageSet.PackageName "metadata"
+  let (metadataMap, packagesDB) = Map.partitionWithKey (\k _v -> k == metadataPackageName) packages
+  let packagesMinPursVersion = join
+        $ fmap (hush . Version.semver . Text.replace "v" "" . PackageSet.version . PackageSet.location)
+        $ Map.lookup metadataPackageName metadataMap
+  pure PackageSet.PackageSet{..}
+
+
 -- | Tries to read in a Spago Config
 parseConfig :: Spago Config
 parseConfig = do
@@ -115,12 +130,6 @@ parseConfig = do
   expr <- liftIO $ Dhall.inputExpr $ "./" <> path
   case expr of
     Dhall.RecordLit ks -> do
-      packages :: Map PackageName Package <- Dhall.requireKey ks "packages" (\case
-        Dhall.RecordLit pkgs ->
-          fmap (Map.mapKeys PackageSet.PackageName . Dhall.Map.toMap)
-          $ traverse parsePackage pkgs
-        something -> throwM $ Dhall.PackagesIsNotRecord something)
-
       let sourcesType  = Dhall.list (Dhall.auto :: Dhall.Type Purs.SourcePath)
       name              <- Dhall.requireTypedKey ks "name" Dhall.strictText
       dependencies      <- Dhall.requireTypedKey ks "dependencies" dependenciesType
@@ -133,12 +142,9 @@ parseConfig = do
             pure PublishConfig{..}
       publishConfig <- try ensurePublishConfig
 
-      let metadataPackageName = PackageSet.PackageName "metadata"
-      let (metadataMap, packagesDB) = Map.partitionWithKey (\k _v -> k == metadataPackageName) packages
-      let packagesMinPursVersion = join
-            $ fmap (hush . Version.semver . Text.replace "v" "" . PackageSet.version . PackageSet.location)
-            $ Map.lookup metadataPackageName metadataMap
-      let packageSet = PackageSet.PackageSet{..}
+      packageSet <- Dhall.requireKey ks "packages" (\case
+        Dhall.RecordLit pkgs -> parsePackageSet pkgs
+        something            -> throwM $ Dhall.PackagesIsNotRecord something)
 
       pure Config{..}
     _ -> case Dhall.TypeCheck.typeOf expr of
