@@ -303,7 +303,7 @@ rendered by `purs` as JSON. Specifically, the third example distinguishes betwee
 $ spago --quiet build --purs-args --json-errors 2> >( jq )
 $ spago --output-stream stdout build --purs-args --json-errors 2> >( jq )
 $ touch spago-log # Create a file for Spago's logging messages.
-$ spago -O 3 build -w -l -u --json-errors 3>> spago-log 4>&2 2>&1 1>&4 4>&- | jq
+$ spago -o 3 build -w -l -u --json-errors 3>> spago-log 4>&2 2>&1 1>&4 4>&- | jq
 ```
 
 If you wish to automatically have your project rebuilt when making changes to source files

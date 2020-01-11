@@ -214,5 +214,14 @@ unopenLogHandle err = makeMessage
   , "One way of opening fd 3 in the UNIX shell bash is the following: `spago -o 3 build 3>&2`."
   ]
 
+noControllingTerminal :: Show a => a -> Text
+noControllingTerminal err = makeMessage
+  [ "WARNING: The file path for the controlling terminal could not be determined."
+  , "Details:"
+  , ""
+  , tshow err
+  , ""
+  ]
+
 makeMessage :: [Text] -> Text
 makeMessage = Text.intercalate "\n"

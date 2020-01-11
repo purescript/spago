@@ -176,7 +176,7 @@ parser = do
             "2"      -> Just $ pure stderr
             "3"      -> Just handleForFD3
             _        -> Nothing
-      in CLI.optional $ CLI.opt wrap "output-stream" 'O' "Select the output stream for logging: any of `stdout`, `1`, `stderr`, `2`, or `3`."
+      in CLI.optional $ CLI.opt wrap "output-stream" 'o' "Select the output stream for logging: any of `stdout`, `1`, `stderr`, `2`, or `3`."
     versionBump = CLI.arg Spago.Version.parseVersionBump "bump" "How to bump the version. Acceptable values: 'major', 'minor', 'patch', or a version (e.g. 'v1.2.3')."
 
     force       = CLI.switch "force" 'f' "Overwrite any project found in the current directory"
@@ -220,8 +220,7 @@ parser = do
                     <*> beforeCommands <*> thenCommands <*> elseCommands
 
     -- Note: by default we limit concurrency to 20
-    globalOptions = GlobalOptions <$> quiet <*> verbose <*> veryVerbose <*> (not <$> noColor) <*> outputStream <*> usePsa
-                    <*> jobsLimit <*> configPath
+    globalOptions = GlobalOptions <$> quiet <*> verbose <*> veryVerbose <*> (not <$> noColor) <*> outputStream <*> usePsa <*> jobsLimit <*> configPath
 
 
     initProject =
