@@ -1,6 +1,6 @@
 module Docs.Search.Declarations where
 
-import Docs.Search.DocsJson (ChildDeclType(..), ChildDeclaration(..), DeclType(..), Declaration(..), DocsJson(..))
+import Docs.Search.DocsJson (ChildDeclType(..), ChildDeclaration(..), DeclType(..), Declaration(..), DocsJson(..), SourceSpan)
 import Docs.Search.PackageIndex (Scores)
 import Docs.Search.SearchResult (ResultInfo(..), SearchResult(..))
 import Docs.Search.TypeDecoder (Constraint(..), QualifiedName(..), Type(..), Kind, joinForAlls)
@@ -87,7 +87,7 @@ resultsForDeclaration
 resultsForDeclaration scores moduleName indexEntry@(Declaration entry) =
   let { info, title, sourceSpan, comments, children } = entry
       { name, declLevel } = getLevelAndName info.declType title
-      packageName = extractPackageName sourceSpan.name
+      packageName = extractPackageName moduleName sourceSpan
   in case mkInfo declLevel indexEntry of
        Nothing -> mempty
        Just info' ->
@@ -95,7 +95,7 @@ resultsForDeclaration scores moduleName indexEntry@(Declaration entry) =
                                    , comments
                                    , hashAnchor: declLevelToHashAnchor declLevel
                                    , moduleName
-                                   , sourceSpan: Just sourceSpan
+                                   , sourceSpan
                                    , packageName
                                    , score: fromMaybe 0 $ Map.lookup packageName scores
                                    , info: info'
@@ -189,24 +189,22 @@ getLevelAndName DeclExternKind  name = { name, declLevel: KindLevel }
 
 
 -- | Extract package name from `sourceSpan.name`, which contains path to
--- | the source file.
-extractPackageName :: String -> String
-extractPackageName name =
-  let chunks = String.split (Pattern "/") name in
-  fromMaybe "<unknown>" $
-  chunks !! 0 >>= \dir ->
-  if dir == ".spago" then
-    chunks !! 1
-  else
-    let
-      bowerComponentsIndex =
-        Array.findIndex (_ == "bower_components") chunks
-    in
-      case bowerComponentsIndex of
-        Just n ->
-          chunks !! (n + 1)
-        Nothing ->
-          Just "<local package>"
+-- | the source file. If `ModuleName` string starts with `Prim.`, it's a
+-- | built-in (guaranteed by the compiler).
+extractPackageName :: ModuleName -> Maybe SourceSpan -> String
+extractPackageName moduleName _
+  | String.split (Pattern ".") moduleName !! 0 == Just "Prim" = "<builtin>"
+extractPackageName _ Nothing = "<unknown>"
+extractPackageName _ (Just { name }) =
+  let dirs = String.split (Pattern "/") name
+  in
+    fromMaybe "<local package>" do
+      topLevelDir <- dirs !! 0
+      if topLevelDir == ".spago"
+      then dirs !! 1
+      else do
+        bowerDirIx <- Array.findIndex (_ == "bower_components") dirs
+        dirs !! (bowerDirIx + 1)
 
 
 -- | Extract `SearchResults` from a `ChildDeclaration`.

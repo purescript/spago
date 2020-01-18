@@ -33,6 +33,10 @@ instance decodeJsonDocsJson :: DecodeJson DocsJson where
 instance encodeJsonDocsJson :: EncodeJson DocsJson where
   encodeJson = encodeJson <<< unwrap
 
+type SourceSpan = { start :: Array Int
+                  , end :: Array Int
+                  , name :: String
+                  }
 
 newtype Declaration
   = Declaration { title :: String
@@ -46,10 +50,7 @@ newtype Declaration
                          , arguments     :: Maybe (Array TypeArgument)
                          , fundeps       :: Maybe FunDeps
                          }
-               , sourceSpan :: { start :: Array Int
-                               , end :: Array Int
-                               , name :: String
-                               }
+               , sourceSpan :: Maybe SourceSpan
                , children :: Array ChildDeclaration
                }
 
