@@ -99,7 +99,7 @@ script:
     npm install -g psc-package@3.0.1 bower@1.8.8
 
     # get purescript from github releases
-    TAG="v0.13.5"
+    TAG="v0.13.6"
     wget -O $HOME/purescript.tar.gz https://github.com/purescript/purescript/releases/download/$TAG/$PURS_OS.tar.gz
     tar -xvf $HOME/purescript.tar.gz -C $HOME/
     chmod a+x $HOME/purescript
