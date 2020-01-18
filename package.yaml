@@ -1,6 +1,6 @@
 name:                spago
 version:             0.13.1
-github:              "spacchetti/spago"
+github:              "purescript/spago"
 license:             BSD3
 author:              "Justin Woo, Fabrizio Ferrai"
 maintainer:          "@jusrin00, @fabferrai"
@@ -25,7 +25,7 @@ flags:
 # To avoid duplicated efforts in documentation and dealing with the
 # complications of embedding Haddock markup inside cabal files, it is
 # common to point users to the README.md file.
-description:         Please see the README on GitHub at <https://github.com/spacchetti/spago#readme>
+description:         Please see the README on GitHub at <https://github.com/purescript/spago#readme>
 
 default-extensions:
 - DeriveDataTypeable

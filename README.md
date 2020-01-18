@@ -1,7 +1,7 @@
 # spago
 
 [![npm](https://img.shields.io/npm/v/spago.svg)][spago-npm]
-[![Build Status](https://travis-ci.com/spacchetti/spago.svg?branch=master)][travis-spago]
+[![Build Status](https://travis-ci.com/purescript/spago.svg?branch=master)][travis-spago]
 [![Build status](https://ci.appveyor.com/api/projects/status/jydvr4sur6j6816e/branch/master?svg=true)](https://ci.appveyor.com/project/f-f/spago/branch/master)
 
 *(IPA: /ˈspaɡo/)*
@@ -193,7 +193,7 @@ We'd love your help, and welcome PRs and contributions!
 
 Some ideas for getting started:
 - [Build and run `spago`](CONTRIBUTING.md#developing-spago)
-- [Help us fix bugs and build features](https://github.com/spacchetti/spago/issues?utf8=%E2%9C%93&q=is%3Aissue+is%3Aopen+label%3A%22help+wanted%22+label%3A%22defect%22)
+- [Help us fix bugs and build features](https://github.com/purescript/spago/issues?utf8=%E2%9C%93&q=is%3Aissue+is%3Aopen+label%3A%22help+wanted%22+label%3A%22defect%22)
 - Help us improve our documentation
 - Help us [log bugs and open issues][new-issue]
 
@@ -1343,21 +1343,21 @@ the `dependencies` list in your `spago.dhall`.
 [todomvc]: https://github.com/f-f/purescript-react-basic-todomvc
 [affresco]: https://github.com/KSF-Media/affresco/tree/4b430b48059701a544dfb65b2ade07ef9f36328a
 [spago-npm]: https://www.npmjs.com/package/spago
-[new-issue]: https://github.com/spacchetti/spago/issues/new
+[new-issue]: https://github.com/purescript/spago/issues/new
 [spago-nix]: https://github.com/justinwoo/easy-purescript-nix/blob/master/spago.nix
 [purescript]: https://github.com/purescript/purescript
 [psc-package]: https://github.com/purescript/psc-package
 [contributing]: CONTRIBUTING.md
 [luu-monorepo]: https://danluu.com/monorepo/
 [package-sets]: https://github.com/purescript/package-sets
-[travis-spago]: https://travis-ci.com/spacchetti/spago
-[spago-issues]: https://github.com/spacchetti/spago/issues
+[travis-spago]: https://travis-ci.com/purescript/spago
+[spago-issues]: https://github.com/purescript/spago/issues
 [spacchettibotti]: https://github.com/spacchettibotti
 [dhall-hash-safety]: https://github.com/dhall-lang/dhall-lang/wiki/Safety-guarantees#code-injection
-[windows-issue-yarn]: https://github.com/spacchetti/spago/issues/187
-[spago-latest-release]: https://github.com/spacchetti/spago/releases/latest
-[ubuntu-issue-netbase]: https://github.com/spacchetti/spago/issues/196
-[ubuntu-issue-libtinfo]: https://github.com/spacchetti/spago/issues/104#issue-408423391
+[windows-issue-yarn]: https://github.com/purescript/spago/issues/187
+[spago-latest-release]: https://github.com/purescript/spago/releases/latest
+[ubuntu-issue-netbase]: https://github.com/purescript/spago/issues/196
+[ubuntu-issue-libtinfo]: https://github.com/purescript/spago/issues/104#issue-408423391
 [package-sets-metadata]: https://github.com/spacchetti/package-sets-metadata
 [package-sets-contributing]: https://github.com/purescript/package-sets/blob/master/CONTRIBUTING.md
 [package-sets-metadata-file]: https://github.com/spacchetti/package-sets-metadata/blob/master/metadataV1.json

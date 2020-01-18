@@ -167,7 +167,7 @@ parser = do
     packageName     = CLI.arg (Just . PackageName) "package" "Specify a package name. You can list them with `list-packages`"
     packageNames    = many $ CLI.arg (Just . PackageName) "package" "Package name to add as dependency"
     pursArgs        = many $ CLI.opt (Just . ExtraArg) "purs-args" 'u' "Argument to pass to purs"
-    -- See https://github.com/spacchetti/spago/pull/526 for why this flag is disabled
+    -- See https://github.com/purescript/spago/pull/526 for why this flag is disabled
     useSharedOutput = bool NoShareOutput NoShareOutput <$> CLI.switch "no-share-output" 'S' "DEPRECATED: Disabled using a shared output folder in location of root packages.dhall"
     buildOptions  = BuildOptions <$> cacheFlag <*> watch <*> clearScreen <*> sourcePaths <*> noInstall
                     <*> pursArgs <*> depsOnly <*> useSharedOutput

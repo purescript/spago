@@ -268,7 +268,7 @@ showBowerErrors (List.sort -> errors)
       (case List.head errorGroup of
          UnparsableRange _ _ -> "It was not possible to parse the version range for these packages:"
          NonPureScript _ -> "These packages are not PureScript packages, so you should install them with `npm` instead:"
-         MissingFromTheSet _ -> "These packages are missing from the package set. You should add them in your local package set:\n(See here for how: https://github.com/spacchetti/spago#add-a-package-to-the-package-set)"
+         MissingFromTheSet _ -> "These packages are missing from the package set. You should add them in your local package set:\n(See here for how: https://github.com/purescript/spago#add-a-package-to-the-package-set)"
          WrongVersion _ _ _ -> "These packages are in the set, but did not match the Bower range. You can try to install them with `spago install some-package-name`")
       <> "\n"
       <> Text.unlines (map (("* " <>) . showE) errorGroup)) (List.groupBy groupFn errors))

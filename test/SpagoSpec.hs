@@ -148,14 +148,14 @@ spec = around_ setup $ do
 
       spago ["init"] >>= shouldBeSuccess
       mv "packages.dhall" "packagesBase.dhall"
-      writeTextFile "packages.dhall" "let pkgs = ./packagesBase.dhall in pkgs // { spago = { dependencies = [\"prelude\"], repo = \"https://github.com/spacchetti/spago.git\", version = \"cbdbbf8f8771a7e43f04b18cdefffbcb0f03a990\" }}"
+      writeTextFile "packages.dhall" "let pkgs = ./packagesBase.dhall in pkgs // { spago = { dependencies = [\"prelude\"], repo = \"https://github.com/purescript/spago.git\", version = \"cbdbbf8f8771a7e43f04b18cdefffbcb0f03a990\" }}"
       spago ["install", "spago"] >>= shouldBeSuccess
 
     it "Spago should not be able to install a package from a not-existing commit hash" $ do
 
       spago ["init"] >>= shouldBeSuccess
       mv "packages.dhall" "packagesBase.dhall"
-      writeTextFile "packages.dhall" "let pkgs = ./packagesBase.dhall in pkgs // { spago = { dependencies = [\"prelude\"], repo = \"https://github.com/spacchetti/spago.git\", version = \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\" }}"
+      writeTextFile "packages.dhall" "let pkgs = ./packagesBase.dhall in pkgs // { spago = { dependencies = [\"prelude\"], repo = \"https://github.com/purescript/spago.git\", version = \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\" }}"
       spago ["install", "spago"] >>= shouldBeFailure
 
     it "Spago should be able to update dependencies in an alternative config" $ do
