@@ -103,7 +103,6 @@ fileWatchConf manager terminalHandle shouldClear globs action = do
         hClearScreen terminalHandle
         hSetCursorPosition terminalHandle 0 0
         when (terminalHandle == stdout) $ do
-          hPutStrLn terminalHandle "Flushing terminalHandle b/c stdout."
           hFlush terminalHandle
 
   let matches :: Watch.Event -> Glob.Pattern -> Bool
@@ -152,9 +151,9 @@ fileWatchConf manager terminalHandle shouldClear globs action = do
         when rebuilding $ do
           redisplayAndTryAction $ Just $ "File changed, triggered a build: " <> displayShow (Watch.eventPath event)
 
-  let watchGlobs :: Set.Set Glob.Pattern -> Spago ()
-      watchGlobs globs' = do
-        forM_ (Set.toList globs') $ \glob -> liftIO $
+  let watchGlobs :: Spago ()
+      watchGlobs = do
+        forM_ (Set.toList globs) $ \glob -> liftIO $
           Watch.watchTree manager (globToParent glob) (const True) (runRIO env . onChange)
 
   let watchInput :: Spago ()
@@ -182,7 +181,7 @@ fileWatchConf manager terminalHandle shouldClear globs action = do
 
   spawnRunActionThread
   tryAction
-  watchGlobs globs
+  watchGlobs
   watchInput
 
 globToParent :: Glob.Pattern -> FilePath
