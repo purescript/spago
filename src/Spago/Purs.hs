@@ -10,6 +10,7 @@ module Spago.Purs
   , ModuleName(..)
   , ExtraArg(..)
   , WithMain(..)
+  , WithSrcMap(..)
   , DocsFormat(..)
   ) where
 
@@ -31,6 +32,7 @@ newtype ExtraArg = ExtraArg { unExtraArg :: Text }
 
 data WithMain = WithMain | WithoutMain
 
+data WithSrcMap = WithSrcMap | WithoutSrcMap
 
 compile :: [SourcePath] -> [ExtraArg] -> Spago ()
 compile sourcePaths extraArgs = do
@@ -63,17 +65,22 @@ repl sourcePaths extraArgs = do
   viewShell $ callCommand $ Text.unpack cmd
 
 
-bundle :: WithMain -> ModuleName -> TargetPath -> Spago ()
-bundle withMain (ModuleName moduleName) (TargetPath targetPath) = do
+bundle :: WithMain -> WithSrcMap -> ModuleName -> TargetPath -> Spago ()
+bundle withMain withSourceMap (ModuleName moduleName) (TargetPath targetPath) = do
   let main = case withMain of
         WithMain    -> " --main " <> moduleName
         WithoutMain -> ""
+
+      sourceMap = case withSourceMap of 
+        WithSrcMap    -> " --source-maps"
+        WithoutSrcMap -> ""
 
       cmd
         = "purs bundle \"output/*/*.js\""
         <> " -m " <> moduleName
         <> main
         <> " -o " <> targetPath
+        <> sourceMap
 
   runWithOutput cmd
     ("Bundle succeeded and output file to " <> targetPath)

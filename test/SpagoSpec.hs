@@ -645,7 +645,13 @@ spec = around_ setup $ do
       spago ["bundle-app", "--to", "bundle-app.js"] >>= shouldBeSuccess
       checkFixture "bundle-app.js"
 
+    it "Spago should bundle successfully with source map" $ do
 
+      spago ["init"] >>= shouldBeSuccess
+      spago ["bundle-app", "--to", "bundle-app-src-map.js", "--source-maps"] >>= shouldBeSuccess
+      checkFixture "bundle-app-src-map.js"
+      checkFixture "bundle-app-src-map.js.map"
+  
   describe "spago make-module" $ do
 
     it "Spago should fail but should point to the replacement command" $ do

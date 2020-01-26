@@ -13,7 +13,8 @@ import qualified Turtle              as CLI
 import           Spago.Build         (BuildOptions (..), DepsOnly (..), ExtraArg (..),
                                       ModuleName (..), NoBuild (..), NoInstall (..), NoSearch (..),
                                       OpenDocs (..), PathType (..), ShareOutput (..),
-                                      SourcePath (..), TargetPath (..), Watch (..), WithMain (..))
+                                      SourcePath (..), TargetPath (..), Watch (..), WithMain (..),
+                                      WithSrcMap (..))
 import qualified Spago.Build
 import qualified Spago.Config        as Config
 import           Spago.Dhall         (TemplateComments (..))
@@ -148,6 +149,7 @@ parser = do
     noSearch    = bool AddSearch NoSearch <$> CLI.switch "no-search" 'S' "Do not make the documentation searchable"
     clearScreen = bool NoClear DoClear <$> CLI.switch "clear-screen" 'l' "Clear the screen on rebuild (watch mode only)"
     noBuild     = bool DoBuild NoBuild <$> CLI.switch "no-build" 's' "Skip build step"
+    srcMapFlag  = bool WithoutSrcMap WithSrcMap <$> CLI.switch "source-maps" 'x' "Whether to generate source maps for the bundle"
     jsonFlag    = bool JsonOutputNo JsonOutputYes <$> CLI.switch "json" 'j' "Produce JSON output"
     dryRun      = bool DryRun NoDryRun <$> CLI.switch "no-dry-run" 'f' "Actually perform side-effects (the default is to describe what would be done)"
     usePsa      = bool UsePsa NoPsa <$> CLI.switch "no-psa" 'P' "Don't build with `psa`, but use `purs`"
@@ -169,7 +171,7 @@ parser = do
     pursArgs        = many $ CLI.opt (Just . ExtraArg) "purs-args" 'u' "Argument to pass to purs"
     -- See https://github.com/spacchetti/spago/pull/526 for why this flag is disabled
     useSharedOutput = bool NoShareOutput NoShareOutput <$> CLI.switch "no-share-output" 'S' "DEPRECATED: Disabled using a shared output folder in location of root packages.dhall"
-    buildOptions  = BuildOptions <$> cacheFlag <*> watch <*> clearScreen <*> sourcePaths <*> noInstall
+    buildOptions  = BuildOptions <$> cacheFlag <*> watch <*> clearScreen <*> sourcePaths <*> srcMapFlag <*> noInstall
                     <*> pursArgs <*> depsOnly <*> useSharedOutput
                     <*> beforeCommands <*> thenCommands <*> elseCommands
 
