@@ -67,6 +67,7 @@ fileWatchConf watchConfig shouldClear inner = withManagerConf watchConfig $ \man
           when (shouldClear == DoClear) $ liftIO $ do
             clearScreen
             setCursorPosition 0 0
+            hFlush stdout
           mapM_ logInfo maybeMsg
 
     let onChange event = do
@@ -86,13 +87,13 @@ fileWatchConf watchConfig shouldClear inner = withManagerConf watchConfig $ \man
                    || diffUTCTime timeNow lastTime > debounceTime
                     )
 
-            when shouldRebuild
-              (writeTVar dirtyVar True)
+            when shouldRebuild $ do
+              writeTVar dirtyVar True
+              writeTVar lastEvent (timeNow, Watch.eventPath event)
 
             pure shouldRebuild
 
           when rebuilding $ do
-            liftIO $ atomically $ writeTVar lastEvent (timeNow, Watch.eventPath event)
             redisplay $ Just $ "File changed, triggered a build: " <> displayShow (Watch.eventPath event)
 
         setWatched :: Set.Set Glob.Pattern -> Spago ()

@@ -11,7 +11,7 @@ Running `getGlobalCacheDir`
 [34m[info] [0mInstallation complete.[0m
 [32m[debug] [0mFailed to run 'psa --version'[0m
 [32m[debug] [0mCompiling with "purs"[0m
-[32m[debug] [0mRunning command: `purs compile  ".spago/console/v4.3.0/src/**/*.purs" ".spago/effect/v2.0.1/src/**/*.purs" ".spago/prelude/v4.1.1/src/**/*.purs" ".spago/psci-support/v4.0.0/src/**/*.purs" "src/**/*.purs" "test/**/*.purs"`[0m
+[32m[debug] [0mRunning command: `purs compile  ".spago/console/v4.4.0/src/**/*.purs" ".spago/effect/v2.0.1/src/**/*.purs" ".spago/prelude/v4.1.1/src/**/*.purs" ".spago/psci-support/v4.0.0/src/**/*.purs" "src/**/*.purs" "test/**/*.purs"`[0m
 [34m[info] [0mBuild succeeded.[0m
 [32m[debug] [0mLocating root path of packages.dhall[0m
 [32m[debug] [0mWriting .spago/run.js[0m
