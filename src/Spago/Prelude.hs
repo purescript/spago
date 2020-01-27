@@ -238,7 +238,7 @@ assertDirectory directory = do
 
 -- | Release tag for the `purescript-docs-search` app.
 docsSearchVersion :: Text
-docsSearchVersion = "v0.0.6"
+docsSearchVersion = "v0.0.8"
 
 
 githubTokenEnvVar :: IsString t => t
