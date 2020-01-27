@@ -105,13 +105,14 @@ data Command
 
 
 data GlobalOptions = GlobalOptions
-  { globalVerbose     :: Bool
+  { globalQuiet       :: Bool
+  , globalVerbose     :: Bool
   , globalVeryVerbose :: Bool
+  , globalUseColor    :: Bool
   , globalUsePsa      :: UsePsa
   , globalJobs        :: Maybe Int
   , globalConfigPath  :: Maybe Text
   }
-
 
 parser :: CLI.Parser (Command, GlobalOptions)
 parser = do
@@ -137,9 +138,11 @@ parser = do
       in CLI.optional $ CLI.opt wrap "filter" 'f' "Filter packages: direct deps with `direct`, transitive ones with `transitive`"
     versionBump = CLI.arg Spago.Version.parseVersionBump "bump" "How to bump the version. Acceptable values: 'major', 'minor', 'patch', or a version (e.g. 'v1.2.3')."
 
-    force   = CLI.switch "force" 'f' "Overwrite any project found in the current directory"
-    verbose = CLI.switch "verbose" 'v' "Enable additional debug logging, e.g. printing `purs` commands"
+    force       = CLI.switch "force" 'f' "Overwrite any project found in the current directory"
+    quiet       = CLI.switch "quiet" 'q' "Suppress all spago logging"
+    verbose     = CLI.switch "verbose" 'v' "Enable additional debug logging, e.g. printing `purs` commands"
     veryVerbose = CLI.switch "very-verbose" 'V' "Enable more verbosity: timestamps and source locations"
+    noColor     = CLI.switch "no-color" 'C' "Log without ANSI color escape sequences"
 
     -- Note: the first constructor is the default when the flag is not provided
     watch       = bool BuildOnce Watch <$> CLI.switch "watch" 'w' "Watch for changes in local files and automatically rebuild"
@@ -174,7 +177,8 @@ parser = do
                     <*> beforeCommands <*> thenCommands <*> elseCommands
 
     -- Note: by default we limit concurrency to 20
-    globalOptions = GlobalOptions <$> verbose <*> veryVerbose <*> usePsa <*> jobsLimit <*> configPath
+    globalOptions = GlobalOptions <$> quiet <*> verbose <*> veryVerbose <*> (not <$> noColor) <*> usePsa
+                    <*> jobsLimit <*> configPath
 
     projectCommands = CLI.subcommandGroup "Project commands:"
       [ initProject
@@ -353,21 +357,28 @@ printVersion = CLI.echo $ CLI.unsafeTextToLine $ Text.pack $ showVersion Pcli.ve
 --   and runs the app
 runWithEnv :: GlobalOptions -> Spago a -> IO a
 runWithEnv GlobalOptions{..} app = do
-  let logDebug' str = when globalVerbose $ hPutStrLn stderr str
-  logOptions' <- logOptionsHandle stderr (globalVerbose || globalVeryVerbose)
+  let verbose = not globalQuiet && (globalVerbose || globalVeryVerbose)
+  let logHandle = stderr
+  let logDebug' str = when verbose $ hPutStrLn logHandle str
+  logOptions' <- logOptionsHandle logHandle verbose
   let logOptions
         = setLogUseTime globalVeryVerbose
         $ setLogUseLoc globalVeryVerbose
-        $ setLogUseColor True
+        $ setLogUseColor globalUseColor
         $ setLogVerboseFormat True
         $ logOptions'
   let configPath = fromMaybe Config.defaultPath globalConfigPath
-  logDebug'  "Running `getGlobalCacheDir`"
+  logDebug' "Running `getGlobalCacheDir`"
   globalCache <- getGlobalCacheDir
   withLogFunc logOptions $ \logFunc ->
     let
+      logFunc' :: LogFunc
+      logFunc' = if globalQuiet
+        then mkLogFunc $ \_ _ _ _ -> pure ()
+        else logFunc
+
       env = Env
-        { envLogFunc = logFunc
+        { envLogFunc = logFunc'
         , envUsePsa = globalUsePsa
         , envJobs = fromMaybe 20 globalJobs
         , envConfigPath = configPath
