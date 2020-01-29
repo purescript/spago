@@ -185,13 +185,13 @@ main = withBinaryFile "curator.log" AppendMode $ \configHandle -> do
 getLatestRelease :: GitHub.AuthMethod am => am -> GitHubAddress -> Curator (Either GitHub.Error GitHub.Release)
 getLatestRelease token address@(Address owner repo) = do
   logInfo $ "Getting latest release for " <> displayShow address
-  liftIO $ GitHub.executeRequest token $ GitHub.latestReleaseR owner repo
+  liftIO $ GitHub.github token $ GitHub.latestReleaseR owner repo
 
 
 getTags :: GitHub.AuthMethod am => am -> GitHubAddress -> Curator (Either GitHub.Error (Maybe Tag, (Map Tag CommitHash)))
 getTags token address@(Address owner repo) = do
   logInfo $ "Getting tags for " <> displayShow address
-  res <- liftIO $ GitHub.executeRequest token $ GitHub.tagsForR owner repo GitHub.FetchAll
+  res <- liftIO $ GitHub.github token $ GitHub.tagsForR owner repo GitHub.FetchAll
   let f vec =
         ( (Tag . GitHub.tagName) <$> vec Vector.!? 0
         , Map.fromList
@@ -208,18 +208,18 @@ getTags token address@(Address owner repo) = do
 getCommits :: GitHub.AuthMethod am => am -> GitHubAddress -> Curator (Either GitHub.Error [CommitHash])
 getCommits token address@(Address owner repo) = do
   logInfo $ "Getting commits for " <> displayShow address
-  res <- liftIO $ GitHub.executeRequest token $ GitHub.commitsForR owner repo GitHub.FetchAll
+  res <- liftIO $ GitHub.github token $ GitHub.commitsForR owner repo GitHub.FetchAll
   pure $ fmap (Vector.toList . fmap (CommitHash . GitHub.untagName . GitHub.commitSha)) res
 
 
 getPullRequestForUser :: GitHub.AuthMethod am => am -> GitHub.Name GitHub.User -> GitHubAddress -> IO (Maybe GitHub.PullRequest)
 getPullRequestForUser token user Address{..} = do
-  maybePRs <- fmap hush $ GitHub.executeRequest token
+  maybePRs <- fmap hush $ GitHub.github token
     $ GitHub.pullRequestsForR owner repo GitHub.stateOpen GitHub.FetchAll
   let findPRbyUser = Vector.find
         (\GitHub.SimplePullRequest{ simplePullRequestUser = GitHub.SimpleUser{..}}
           -> simpleUserLogin == user)
-  let fetchFullPR GitHub.SimplePullRequest{..} = fmap hush $ GitHub.executeRequest token $ GitHub.pullRequestR owner repo simplePullRequestNumber
+  let fetchFullPR GitHub.SimplePullRequest{..} = fmap hush $ GitHub.github token $ GitHub.pullRequestR owner repo simplePullRequestNumber
   -- TODO: there must be a nice way to lift this instead of casing
   case (findPRbyUser =<< maybePRs :: Maybe GitHub.SimplePullRequest) of
     Nothing -> pure Nothing
@@ -228,8 +228,7 @@ getPullRequestForUser token user Address{..} = do
 
 getCommentsOnPR :: GitHub.AuthMethod am => am -> GitHubAddress -> GitHub.IssueNumber -> IO [GitHub.IssueComment]
 getCommentsOnPR token Address{..} issueNumber = do
-  eitherComments <- GitHub.executeRequest token
-    $ GitHub.commentsR owner repo issueNumber GitHub.FetchAll
+  eitherComments <- GitHub.github token $ GitHub.commentsR owner repo issueNumber GitHub.FetchAll
   pure $ case eitherComments of
     Left _ -> []
     Right comments -> Vector.toList comments
@@ -238,7 +237,7 @@ getCommentsOnPR token Address{..} issueNumber = do
 updatePullRequestBody :: GitHub.AuthMethod am => am -> GitHubAddress -> GitHub.IssueNumber -> Text -> IO ()
 updatePullRequestBody token Address{..} pullRequestNumber newBody = do
   void
-    $ GitHub.executeRequest token
+    $ GitHub.github token
     $ GitHub.updatePullRequestR owner repo pullRequestNumber
     $ GitHub.EditPullRequest Nothing (Just newBody) Nothing Nothing Nothing
 
@@ -269,7 +268,7 @@ persistState = \case
 --   When there's a new one and we don't have it in our state we send a message on the bus
 checkLatestRelease :: GitHub.Auth -> GitHubAddress -> Message -> Curator ()
 checkLatestRelease token address RefreshState = getLatestRelease token address >>= \case
-  Left _ -> pure () -- TODO: error out here?
+  Left err -> logWarn $ "Could not check the latest release for " <> displayShow address <> ". Error: " <> displayShow err
   Right GitHub.Release {..} -> do
     State{..} <- liftIO $ Concurrent.readMVar state
     case Map.lookup address latestReleases of
@@ -434,7 +433,7 @@ packageSetCommenter token (NewVerification result) = do
               , "</p></details>"
               ]
       let (Address owner repo) = packageSetsRepo
-      (liftIO $ GitHub.executeRequest token $ GitHub.createCommentR owner repo pullRequestNumber commentBody) >>= \case
+      (liftIO $ GitHub.github token $ GitHub.createCommentR owner repo pullRequestNumber commentBody) >>= \case
         Left err -> logError $ "Something went wrong while commenting. Error: " <> displayShow err
         Right _ -> logInfo "Commented on the open PR"
 packageSetCommenter _ _ = pure ()
@@ -632,7 +631,7 @@ runAndOpenPR token PullRequest{ prAddress = address@Address{..}, ..} preAction c
     openPR :: Curator ()
     openPR = do
       logInfo "Pushed a new commit, opening PR.."
-      response <- liftIO $ GitHub.executeRequest token
+      response <- liftIO $ GitHub.github token
         $ GitHub.createPullRequestR owner repo
         $ GitHub.CreatePullRequest prTitle prBody prBranchName "master"
       case response of
@@ -644,7 +643,7 @@ runAndOpenPR token PullRequest{ prAddress = address@Address{..}, ..} preAction c
       logInfo $ "Checking if we ever opened a PR " <> displayShow prTitle
 
       oldPRs <- liftIO
-        $ GitHub.executeRequest token
+        $ GitHub.github token
         $ GitHub.pullRequestsForR owner repo
         (GitHub.optionsHead (GitHub.untagName owner <> ":" <> prBranchName) <> GitHub.stateAll)
         GitHub.FetchAll

@@ -72,13 +72,13 @@ isLocationType (Dhall.Union kvs) | locationUnionMap == Dhall.Map.toMap kvs = Tru
 isLocationType _ = False
 
 
-dependenciesType :: Dhall.Type [PackageName]
-dependenciesType = Dhall.list (Dhall.auto :: Dhall.Type PackageName)
+dependenciesType :: Dhall.Decoder [PackageName]
+dependenciesType = Dhall.list (Dhall.auto :: Dhall.Decoder PackageName)
 
 
 parsePackage :: (MonadIO m, MonadThrow m, MonadReader env m, HasLogFunc env) => ResolvedExpr -> m Package
 parsePackage (Dhall.RecordLit ks) = do
-  repo         <- Dhall.requireTypedKey ks "repo" (Dhall.auto :: Dhall.Type PackageSet.Repo)
+  repo         <- Dhall.requireTypedKey ks "repo" (Dhall.auto :: Dhall.Decoder PackageSet.Repo)
   version      <- Dhall.requireTypedKey ks "version" Dhall.strictText
   dependencies <- Dhall.requireTypedKey ks "dependencies" dependenciesType
   let location = PackageSet.Remote{..}
@@ -130,7 +130,7 @@ parseConfig = do
   expr <- liftIO $ Dhall.inputExpr $ "./" <> path
   case expr of
     Dhall.RecordLit ks -> do
-      let sourcesType  = Dhall.list (Dhall.auto :: Dhall.Type Purs.SourcePath)
+      let sourcesType  = Dhall.list (Dhall.auto :: Dhall.Decoder Purs.SourcePath)
       name              <- Dhall.requireTypedKey ks "name" Dhall.strictText
       dependencies      <- Dhall.requireTypedKey ks "dependencies" dependenciesType
       configSourcePaths <- Dhall.requireTypedKey ks "sources" sourcesType
