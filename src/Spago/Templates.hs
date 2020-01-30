@@ -27,6 +27,9 @@ gitignore = $(embedFileUtf8 "templates/gitignore")
 bowerJson :: B.ByteString
 bowerJson = $(embedFile "templates/bower.json")
 
+pursRepl :: T.Text
+pursRepl = $(embedFileUtf8 "templates/purs-repl")
+
 docsSearchApp :: T.Text
 docsSearchApp =
   $(embedURLWithFallback
