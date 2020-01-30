@@ -102,7 +102,7 @@ build buildOpts@BuildOptions{..} maybePostBuild = do
   let allPsGlobs = Packages.getGlobs   deps depsOnly configSourcePaths <> sourcePaths
       allJsGlobs = Packages.getJsGlobs deps depsOnly configSourcePaths <> sourcePaths
 
-      buildBackend globs = do 
+      buildBackend globs = do
         case alternateBackend of
           Nothing ->
               Purs.compile globs sharedOutputArgs
@@ -142,7 +142,7 @@ build buildOpts@BuildOptions{..} maybePostBuild = do
       absoluteJSGlobs <- traverse makeAbsolute jsMatches
 
       Watch.watch
-        (Set.fromAscList $ fmap Glob.compile . removeDotSpago $ absolutePSGlobs <> absoluteJSGlobs)
+        (Set.fromAscList $ fmap (Glob.compile . collapse) . removeDotSpago $ absolutePSGlobs <> absoluteJSGlobs)
         shouldClear
         (buildAction (wrap <$> psMatches))
 
@@ -167,6 +167,7 @@ build buildOpts@BuildOptions{..} maybePostBuild = do
     wrap   = Purs.SourcePath . Text.pack
     unwrap = Text.unpack . Purs.unSourcePath
     removeDotSpago = filter (\glob -> ".spago" `notElem` (splitDirectories glob))
+    collapse = Turtle.encodeString . Turtle.collapse . Turtle.decodeString
 
 -- | Start a repl
 repl
@@ -404,14 +405,14 @@ data PathType
 showOutputPath
   :: BuildOptions
   -> Spago ()
-showOutputPath buildOptions = 
+showOutputPath buildOptions =
   outputStr =<< getOutputPathOrDefault buildOptions
 
 showPaths
   :: BuildOptions
   -> Maybe PathType
   -> Spago ()
-showPaths buildOptions whichPaths = 
+showPaths buildOptions whichPaths =
   case whichPaths of
     (Just OutputFolder) -> showOutputPath buildOptions
     Nothing             -> showAllPaths buildOptions
@@ -419,10 +420,10 @@ showPaths buildOptions whichPaths =
 showAllPaths
   :: BuildOptions
   -> Spago ()
-showAllPaths buildOptions = 
+showAllPaths buildOptions =
   traverse_ showPath =<< getAllPaths buildOptions
   where
-    showPath (a,b) 
+    showPath (a,b)
       = output (a <> ": " <> b)
 
 getAllPaths

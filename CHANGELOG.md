@@ -11,6 +11,9 @@ New features:
 - Allow `verify-set` to work with either a `spago.dhall` or a `packages.dhall` (#515)
 - Fix typo on `packages.dhall` template (`let override` should be `let overrides`)
 
+Bugfixes:
+- Fix watching relative paths in sources config (e.g. `../src/**/*.purs`) (#556)
+
 ## [0.13.1] - 2020-01-10
 
 New features:
