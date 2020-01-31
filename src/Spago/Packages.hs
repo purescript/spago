@@ -68,6 +68,8 @@ initProject force comments = do
 
   copyIfNotExists ".gitignore" Templates.gitignore
 
+  copyIfNotExists ".purs-repl" Templates.pursRepl
+
   logInfo "Set up a local Spago project."
   logInfo "Try running `spago build`"
 
@@ -355,7 +357,7 @@ verify cacheFlag chkModsUniq maybePackage = do
   -- https://github.com/spacchetti/spago/pull/515#pullrequestreview-329632196
   packageSet@PackageSet{..} <- do
     -- Try to read a "packages.dhall" directly
-    try (liftIO (Dhall.inputExpr $ "./" <> PackageSet.packagesPath)) >>= \case 
+    try (liftIO (Dhall.inputExpr $ "./" <> PackageSet.packagesPath)) >>= \case
       Right (Dhall.RecordLit ks) -> Config.parsePackageSet ks
       (_ :: Either SomeException (Dhall.DhallExpr Void))  -> do
           -- Try to read a "spago.dhall" and find the packages from there
