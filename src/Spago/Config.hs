@@ -4,6 +4,7 @@ module Spago.Config
   ( defaultPath
   , makeConfig
   , ensureConfig
+  , ensureConfigUnsafe
   , addDependencies
   , parsePackage
   , parsePackageSet
@@ -153,17 +154,25 @@ parseConfig = do
 
 
 -- | Checks that the Spago config is there and readable
-ensureConfig :: Spago Config
+ensureConfig :: Spago (Either Utf8Builder Config)
 ensureConfig = do
   path <- askEnv envConfigPath
   exists <- testfile path
-  unless exists $ do
-    die [ display Messages.cannotFindConfig ]
-  try parseConfig >>= \case
-    Right config -> do
-      PackageSet.ensureFrozen $ Text.unpack path
-      pure config
-    Left (err :: Dhall.ReadError Void) -> throwM err
+  if not exists
+    then pure $ Left $ display Messages.cannotFindConfig
+    else try parseConfig >>= \case
+      Right config -> do
+        PackageSet.ensureFrozen $ Text.unpack path
+        pure $ Right config
+      Left (err :: Dhall.ReadError Void) -> pure $ Left $ displayShow err
+
+
+-- | Same as `ensureConfig`, but will quit with an error
+--   if it's not possible to find a config.
+ensureConfigUnsafe :: Spago Config
+ensureConfigUnsafe = ensureConfig >>= \case
+  Left err -> die [ err ]
+  Right config -> pure config
 
 
 -- | Copies over `spago.dhall` to set up a Spago project.
@@ -193,9 +202,9 @@ makeConfig force comments = do
           logInfo "Found a \"psc-package.json\" file, migrating to a new Spago config.."
           -- try to update the dependencies (will fail if not found in package set)
           let pscPackages = map PackageSet.PackageName $ PscPackage.depends pscConfig
-          config <- ensureConfig
-          void $ withConfigAST (\e -> addRawDeps config pscPackages
-                                      $ updateName (PscPackage.name pscConfig) e)
+          config <- ensureConfigUnsafe
+          void $ withConfigAST ( addRawDeps config pscPackages
+                               . updateName (PscPackage.name pscConfig))
     (_, True) -> do
       -- read the bowerfile
       content <- readTextFile "bower.json"
@@ -205,7 +214,7 @@ makeConfig force comments = do
           logInfo "Found a \"bower.json\" file, migrating to a new Spago config.."
           -- then try to update the dependencies. We'll migrates the ones that we can,
           -- and print a message to the user to fix the missing ones
-          config@Config{..} <- ensureConfig
+          config@Config{..} <- ensureConfigUnsafe
 
           let (bowerName, packageResults) = migrateBower packageMeta packageSet
               (bowerErrors, bowerPackages) = partitionEithers packageResults
@@ -217,8 +226,8 @@ makeConfig force comments = do
             else do
               logWarn $ display $ showBowerErrors bowerErrors
 
-          void $ withConfigAST (\e -> addRawDeps config bowerPackages
-                                      $ updateName bowerName e)
+          void $ withConfigAST ( addRawDeps config bowerPackages
+                               . updateName bowerName)
 
     _ -> pure ()
 

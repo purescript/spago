@@ -48,7 +48,7 @@ runBower args = do
 generateBowerJson :: Spago ByteString.ByteString
 generateBowerJson = do
   logInfo "Generating a new Bower config using the package set versions.."
-  config@Config{..} <- Config.ensureConfig
+  config@Config{..} <- Config.ensureConfigUnsafe
   PublishConfig{..} <- throws publishConfig
 
   bowerName <- mkPackageName name

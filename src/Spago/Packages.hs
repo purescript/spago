@@ -196,7 +196,7 @@ getReverseDeps packageSet@PackageSet{..} dep = do
 install :: Maybe CacheFlag -> [PackageName] -> Spago ()
 install cacheFlag newPackages = do
   logDebug "Running `spago install`"
-  config@Config{ packageSet = PackageSet{..}, ..} <- Config.ensureConfig
+  config@Config{ packageSet = PackageSet{..}, ..} <- Config.ensureConfigUnsafe
 
   existingNewPackages <- reportMissingPackages $ classifyPackages packagesDB newPackages
 
@@ -275,7 +275,7 @@ encodeJsonPackageOutput = LT.toStrict . LT.decodeUtf8 . Aeson.encode
 listPackages :: Maybe PackagesFilter -> JsonFlag -> Spago ()
 listPackages packagesFilter jsonFlag = do
   logDebug "Running `listPackages`"
-  Config{packageSet = packageSet@PackageSet{..}, ..} <- Config.ensureConfig
+  Config{packageSet = packageSet@PackageSet{..}, ..} <- Config.ensureConfigUnsafe
   packagesToList :: [(PackageName, Package)] <- case packagesFilter of
     Nothing             -> pure $ Map.toList packagesDB
     Just TransitiveDeps -> getTransitiveDeps packageSet dependencies
@@ -338,7 +338,7 @@ listPackages packagesFilter jsonFlag = do
 sources :: Spago ()
 sources = do
   logDebug "Running `spago sources`"
-  config <- Config.ensureConfig
+  config <- Config.ensureConfigUnsafe
   deps <- getProjectDeps config
   traverse_ output
     $ fmap Purs.unSourcePath
@@ -361,7 +361,7 @@ verify cacheFlag chkModsUniq maybePackage = do
       Right (Dhall.RecordLit ks) -> Config.parsePackageSet ks
       (_ :: Either SomeException (Dhall.DhallExpr Void))  -> do
           -- Try to read a "spago.dhall" and find the packages from there
-          try Config.ensureConfig >>= \case
+          try Config.ensureConfigUnsafe >>= \case
             Right (Config{ packageSet = packageSet@PackageSet{..}, ..}) -> pure packageSet
             Left (_ :: SomeException) -> die [ display Messages.couldNotVerifySet ]
 
