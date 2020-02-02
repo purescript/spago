@@ -1,6 +1,7 @@
 module Utils
   ( checkFixture
   , checkFileHasInfix
+  , checkFileExist
   , readFixture
   , getHighestTag
   , git
@@ -25,7 +26,7 @@ import qualified Control.Concurrent as Concurrent
 import qualified Control.Exception  as Exception
 import qualified Data.Text          as Text
 import           Prelude            hiding (FilePath)
-import           System.Directory   (removePathForcibly)
+import           System.Directory   (removePathForcibly, doesFileExist)
 import qualified System.Process     as Process
 import           Test.Hspec         (HasCallStack, shouldBe, shouldSatisfy)
 import           Turtle             (ExitCode (..), FilePath, Text, cd, empty, encodeString, inproc,
@@ -121,6 +122,11 @@ checkFixture path = do
   actual <- readTextFile path
   expected <- readFixture path
   actual `shouldBe` expected
+
+checkFileExist :: HasCallStack => FilePath -> IO ()
+checkFileExist path = do 
+    exist <- doesFileExist $ encodeString path 
+    exist `shouldBe` True
 
 checkFileHasInfix :: HasCallStack => FilePath -> Text -> IO ()
 checkFileHasInfix path needle = do
