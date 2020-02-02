@@ -10,6 +10,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 New features:
 - Allow `verify-set` to work with either a `spago.dhall` or a `packages.dhall` (#515)
 - Fix typo on `packages.dhall` template (`let override` should be `let overrides`)
+- Create `.purs-repl` file when running `spago init` (#555)
+
+Bugfixes:
+- Fix watching relative paths in sources config (e.g. `../src/**/*.purs`) (#556)
 
 ## [0.13.1] - 2020-01-10
 
