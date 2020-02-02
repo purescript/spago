@@ -91,7 +91,7 @@ prepareBundleDefaults maybeModuleName maybeTargetPath = (moduleName, targetPath)
 build :: BuildOptions -> Maybe (Spago ()) -> Spago ()
 build buildOpts@BuildOptions{..} maybePostBuild = do
   logDebug "Running `spago build`"
-  config@Config.Config{ packageSet = Types.PackageSet{..}, ..} <- Config.ensureConfig
+  config@Config.Config{ packageSet = Types.PackageSet{..}, ..} <- Config.ensureConfigUnsafe
   deps <- Packages.getProjectDeps config
   case noInstall of
     DoInstall -> Fetch.fetchPackages cacheConfig deps packagesMinPursVersion
@@ -180,7 +180,7 @@ repl
 repl cacheFlag newPackages sourcePaths pursArgs depsOnly = do
   logDebug "Running `spago repl`"
 
-  try Config.ensureConfig >>= \case
+  try Config.ensureConfigUnsafe >>= \case
     Right config@Config.Config{..} -> do
       deps <- Packages.getProjectDeps config
       let globs = Packages.getGlobs deps depsOnly configSourcePaths <> sourcePaths
@@ -193,7 +193,7 @@ repl cacheFlag newPackages sourcePaths pursArgs depsOnly = do
 
         Packages.initProject False Dhall.WithComments
 
-        config@Config.Config{ packageSet = Types.PackageSet{..}, ..} <- Config.ensureConfig
+        config@Config.Config{ packageSet = Types.PackageSet{..}, ..} <- Config.ensureConfigUnsafe
 
         let updatedConfig = Config.Config name (dependencies <> newPackages) (Config.packageSet config) alternateBackend configSourcePaths publishConfig
 
@@ -210,7 +210,7 @@ repl cacheFlag newPackages sourcePaths pursArgs depsOnly = do
 test :: Maybe Purs.ModuleName -> BuildOptions -> [Purs.ExtraArg] -> Spago ()
 test maybeModuleName buildOpts extraArgs = do
   let moduleName = fromMaybe (Purs.ModuleName "Test.Main") maybeModuleName
-  Config.Config { alternateBackend, configSourcePaths } <- Config.ensureConfig
+  Config.Config { alternateBackend, configSourcePaths } <- Config.ensureConfigUnsafe
   liftIO (foldMapM (Glob.glob . Text.unpack . Purs.unSourcePath) configSourcePaths) >>= \paths -> do
     results <- forM paths $ \path -> do
       content <- readFileBinary path
@@ -226,7 +226,7 @@ test maybeModuleName buildOpts extraArgs = do
 --   (or the provided module name) with node
 run :: Maybe Purs.ModuleName -> BuildOptions -> [Purs.ExtraArg] -> Spago ()
 run maybeModuleName buildOpts extraArgs = do
-  Config.Config { alternateBackend } <- Config.ensureConfig
+  Config.Config { alternateBackend } <- Config.ensureConfigUnsafe
   let moduleName = fromMaybe (Purs.ModuleName "Main") maybeModuleName
   runBackend alternateBackend moduleName Nothing "Running failed; " buildOpts extraArgs
 
@@ -323,7 +323,7 @@ docs
   -> Spago ()
 docs format sourcePaths depsOnly noSearch open = do
   logDebug "Running `spago docs`"
-  config@Config.Config{..} <- Config.ensureConfig
+  config@Config.Config{..} <- Config.ensureConfigUnsafe
   deps <- Packages.getProjectDeps config
   logInfo "Generating documentation for the project. This might take a while..."
   Purs.docs docsFormat $ Packages.getGlobs deps depsOnly configSourcePaths <> sourcePaths
@@ -360,7 +360,7 @@ docs format sourcePaths depsOnly noSearch open = do
 -- | Start a search REPL.
 search :: Spago ()
 search = do
-  config@Config.Config{..} <- Config.ensureConfig
+  config@Config.Config{..} <- Config.ensureConfigUnsafe
   deps <- Packages.getProjectDeps config
 
   logInfo "Building module metadata..."
