@@ -34,7 +34,7 @@ data PackageLocation
   deriving (Eq, Show, Generic)
 
 
--- | This instance is to make `spago list-packages --json` work
+-- | This instance is to make `spago ls packages --json` work
 instance ToJSON PackageLocation where
   toJSON Remote{..} = object
     [ "tag" .= ("Remote" :: Text)
