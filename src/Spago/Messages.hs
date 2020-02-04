@@ -199,6 +199,10 @@ makeModuleCommandRenamed :: Text
 makeModuleCommandRenamed =
   "The `make-module` command has been replaced with `bundle-module`, so use that instead."
 
+listPackagesCommandRenamed :: Text
+listPackagesCommandRenamed =
+  "The `list-packages` command has been replaced with `ls packages`, so use that instead."
+
 globsDoNotMatchWhenWatching :: NonEmpty Text -> Text
 globsDoNotMatchWhenWatching patterns = makeMessage $
   "WARNING: No matches found when trying to watch the following directories: " : NonEmpty.toList patterns

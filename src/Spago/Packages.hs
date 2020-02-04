@@ -11,7 +11,7 @@ module Spago.Packages
   , PackageSet.upgradePackageSet
   , PackageSet.freeze
   , PackageSet.packagesPath
-  , PackagesFilter(..)
+  , IncludePackages(..)
   , CheckModulesUnique(..)
   , JsonFlag(..)
   , DepsOnly(..)
@@ -252,7 +252,7 @@ stripPurescriptPrefix (PackageName name) =
   PackageName <$> Text.stripPrefix "purescript-" name
 
 
-data PackagesFilter = TransitiveDeps | DirectDeps
+data IncludePackages = PackageSetPackages | TransitiveDeps | DirectDeps
 
 data JsonFlag = JsonOutputNo | JsonOutputYes
 
@@ -272,14 +272,14 @@ encodeJsonPackageOutput :: JsonPackageOutput -> Text
 encodeJsonPackageOutput = LT.toStrict . LT.decodeUtf8 . Aeson.encode
 
 -- | A list of the packages that can be added to this project
-listPackages :: Maybe PackagesFilter -> JsonFlag -> Spago ()
+listPackages :: IncludePackages -> JsonFlag -> Spago ()
 listPackages packagesFilter jsonFlag = do
   logDebug "Running `listPackages`"
   Config{packageSet = packageSet@PackageSet{..}, ..} <- Config.ensureConfigUnsafe
   packagesToList :: [(PackageName, Package)] <- case packagesFilter of
-    Nothing             -> pure $ Map.toList packagesDB
-    Just TransitiveDeps -> getTransitiveDeps packageSet dependencies
-    Just DirectDeps     -> pure $ Map.toList
+    PackageSetPackages -> pure $ Map.toList packagesDB
+    TransitiveDeps     -> getTransitiveDeps packageSet dependencies
+    DirectDeps         -> pure $ Map.toList
       $ Map.restrictKeys packagesDB (Set.fromList dependencies)
 
   case packagesToList of

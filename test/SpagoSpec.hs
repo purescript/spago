@@ -680,21 +680,21 @@ spec = around_ setup $ do
       checkFixture "bundle-module-src-map.js"
       checkFileExist "bundle-module-src-map.js.map"
 
-  describe "spago list-packages" $ do
+  describe "spago ls packages" $ do
 
-    it "Spago should list-packages successfully" $ do
-
-      spago ["init"] >>= shouldBeSuccess
-      mv "packages.dhall" "packages-old.dhall"
-      writeTextFile "packages.dhall" "https://github.com/purescript/package-sets/releases/download/psc-0.13.4-20191025/packages.dhall sha256:f9eb600e5c2a439c3ac9543b1f36590696342baedab2d54ae0aa03c9447ce7d4"
-      spago ["list-packages"] >>= shouldBeSuccessOutput "list-packages.txt"
-
-    it "Spago should list-packages in JSON successfully" $ do
+    it "Spago should ls packages successfully" $ do
 
       spago ["init"] >>= shouldBeSuccess
       mv "packages.dhall" "packages-old.dhall"
       writeTextFile "packages.dhall" "https://github.com/purescript/package-sets/releases/download/psc-0.13.4-20191025/packages.dhall sha256:f9eb600e5c2a439c3ac9543b1f36590696342baedab2d54ae0aa03c9447ce7d4"
-      spago ["list-packages", "--json"] >>= shouldBeSuccessOutput "list-packages.json"
+      spago ["ls", "packages"] >>= shouldBeSuccessOutput "list-packages.txt"
+
+    it "Spago should ls packages in JSON successfully" $ do
+
+      spago ["init"] >>= shouldBeSuccess
+      mv "packages.dhall" "packages-old.dhall"
+      writeTextFile "packages.dhall" "https://github.com/purescript/package-sets/releases/download/psc-0.13.4-20191025/packages.dhall sha256:f9eb600e5c2a439c3ac9543b1f36590696342baedab2d54ae0aa03c9447ce7d4"
+      spago ["ls", "packages", "--json"] >>= shouldBeSuccessOutput "list-packages.json"
 
   describe "spago path output" $ do
     it "Spago should output the correct path" $ do

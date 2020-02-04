@@ -372,17 +372,17 @@ You can get a complete list of the packages your `packages.dhall` imports (toget
 with their versions and URLs) by running:
 
 ```bash
-$ spago list-packages
+$ spago ls packages
 ```
 
-By passing the `--filter` flag you can restrict the list to direct or transitive dependencies:
+By using the `ls deps` command instead you can restrict the list to direct or transitive dependencies:
 
 ```bash
 # Direct dependencies, i.e. only the ones listed in spago.dhall
-$ spago list-packages --filter=direct
+$ spago ls deps
 
 # Transitive dependencies, i.e. all the dependencies of your dependencies
-$ spago list-packages -f transitive
+$ spago ls deps --transitive
 ```
 
 
@@ -419,10 +419,10 @@ let overrides =
       }
 ```
 
-Note that if we `list-packages`, we'll see that it is now included as a local package:
+Note that if we do `spago ls packages`, we'll see that it is now included as a local package:
 
 ```bash
-$ spago list-packages
+$ spago ls packages
 ...
 signal                v10.1.0   Remote "https://github.com/bodil/purescript-signal.git"
 sijidou               v0.1.0    Remote "https://github.com/justinwoo/purescript-sijidou.git"
@@ -1117,7 +1117,7 @@ A library published in this way is [purescript-rave](https://github.com/reactorm
 
 For compliance reasons, you might need to fetch all the `LICENSE` files of your dependencies.
 
-To do this you can exploit the `list-packages` command with its `--filter` flag.
+To do this you can exploit the `ls deps` command.
 
 E.g. if you want to print out all the `LICENSE` files of your direct dependencies:
 
@@ -1125,7 +1125,7 @@ E.g. if you want to print out all the `LICENSE` files of your direct dependencie
 #!/usr/bin/env bash
 
 # Note: the `awk` part is to cut out only the package name
-for dep in $(spago list-packages -f direct | awk '{print $1}')
+for dep in $(spago ls deps | awk '{print $1}')
 do
   cat $(find ".spago/${dep}" -iname 'LICENSE')
 done
