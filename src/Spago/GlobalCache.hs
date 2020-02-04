@@ -5,6 +5,7 @@ import           Spago.Prelude
 import qualified Codec.Archive.Tar      as Tar
 import qualified Codec.Compression.GZip as GZip
 import qualified Control.Foldl          as Fold
+import qualified Control.Retry          as Retry
 import qualified Data.ByteString        as BS
 import qualified Data.Map.Strict        as Map
 import qualified Data.Text              as Text
@@ -153,5 +154,8 @@ fetchTarball :: FilePath.FilePath -> Text -> Spago ()
 fetchTarball destination archiveUrl = do
   logDebug $ "Fetching " <> display archiveUrl
   tarballUrl <- Http.parseRequest $ Text.unpack archiveUrl
-  lbs <- fmap Http.getResponseBody (Http.httpLBS tarballUrl)
+  lbs <- fmap Http.getResponseBody
+    -- We retry a couple of times here to avoid transient network errors
+    $ Retry.recoverAll (Retry.fullJitterBackoff 100000 <> Retry.limitRetries 2)
+    $ \_retryStatus -> Http.httpLBS tarballUrl
   liftIO $ Tar.unpack destination $ Tar.read $ GZip.decompress lbs
