@@ -1,4 +1,4 @@
-Running `getGlobalCacheDir`
+[32m[debug] [0mRunning `getGlobalCacheDir`[0m
 [32m[debug] [0mTransformed config is the same as the read one, not overwriting it[0m
 [32m[debug] [0mEnsuring that the package set is frozen[0m
 [32m[debug] [0mRunning with backend: nodejs[0m
