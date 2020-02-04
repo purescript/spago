@@ -827,7 +827,7 @@ To start a project using Spago and Parcel together, here's the commands and file
 4. Install the PureScript loader and HTML plugin for WebPack `npm install --save-dev purs-loader html-webpack-plugin`.
   Note that you may require additional loaders for css/scss, image files, etc. Please refer to the [Webpack documentation](https://webpack.js.org/) for more information.
 5. Create an HTML file that will serve as the entry point for your application.
-  Typically this is `index.html`. in your HTML file, be sure to pull in the `bundle.js` file, which will be Webpack's output. here is an example HTML file:
+  Typically this is `index.html`. In your HTML file, be sure to pull in the `bundle.js` file, which will be Webpack's output. Here is an example HTML file:
 
   ```html
   <!doctype html>
@@ -1080,7 +1080,7 @@ Quoting from [this tweet](https://twitter.com/jusrin00/status/109207140735638732
 ### Use alternate backends to compile to Go, C++, Kotlin, etc
 
 Spago supports compiling with alternate purescript backends like [psgo] or [pskt].
-To use an alternate backend, add the `backend` option to you `spago.dhall` file:
+To use an alternate backend, add the `backend` option to your `spago.dhall` file:
 
 ```dhall
 { name = "aaa"
@@ -1106,7 +1106,7 @@ Consequentially, package-sets requires (full instructions [here][package-sets-co
 that packages in it:
 - are in the Bower registry
 - use `spago bump-version` or `pulp version` (because this gives versions with `vX.Y.Z`)
-- use `pulp publish` (so that's it's available on the Bower registry and on [Pursuit][pursuit])
+- use `pulp publish` (so it's available on the Bower registry and on [Pursuit][pursuit])
 
 All of this will be automated in future versions, removing the need for Pulp.
 
@@ -1214,9 +1214,9 @@ Another big problem is that the JS backend is not the only backend around. For e
 PureScript has a [C backend][purec] and an [Erlang backend][purerl] among the others.
 
 These backends are going to use different package managers for their native dependencies,
-and while it's feasible for `spago` to support the backends themselves, supporting also
+and while it's feasible for `spago` to support the backends themselves, also supporting
 all the possible native package managers (and doing things like building package-sets for their
-dependencies versions) is not a scalable approach (though we might do this in the future if
+dependencies' versions) is not a scalable approach (though we might do this in the future if
 there's enough demand).
 
 So this is the reason why if you or one of your dependencies need to depend on some "native"
@@ -1267,7 +1267,7 @@ Every time `spago` will need to "install dependencies" it will:
 - check if the ref is already in the global cache. If it is, it will just copy it
   to the project-local cache
 - download [a metadata file from the `package-sets-metadata`][package-sets-metadata-file] repo
-  if missing from the global cache or older 24 hours.
+  if missing from the global cache or older than 24 hours.
 
   This file contains the list of *tags* and *commits* for every package currently in the package
   set, updated hourly.
