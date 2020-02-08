@@ -21,7 +21,7 @@ import           Spago.DryRun        (DryRun (..))
 import qualified Spago.GitHub
 import           Spago.GlobalCache   (CacheFlag (..), getGlobalCacheDir)
 import           Spago.Messages      as Messages
-import           Spago.Packages      (CheckModulesUnique (..), JsonFlag (..), PackagesFilter (..))
+import           Spago.Packages      (CheckModulesUnique (..), JsonFlag (..), IncludePackages (..))
 import qualified Spago.Packages
 import qualified Spago.Purs          as Purs
 import           Spago.Types
@@ -54,7 +54,10 @@ data Command
   | Build BuildOptions
 
   -- | List available packages
-  | ListPackages (Maybe PackagesFilter) JsonFlag
+  | ListPackages JsonFlag
+
+  -- | List dependencies of the project
+  | ListDeps JsonFlag IncludeTransitive
 
   -- | Verify that a single package is consistent with the Package Set
   | Verify (Maybe CacheFlag) PackageName
@@ -91,6 +94,9 @@ data Command
   -- | Runs `purescript-docs-search search`.
   | Search
 
+  -- | Returns output folder for compiled code
+  | Path (Maybe PathType) BuildOptions
+
   -- | Show version
   | Version
 
@@ -100,23 +106,32 @@ data Command
   -- | Bundle a module into a CommonJS module (replaced by BundleModule)
   | MakeModule
 
-  -- | Returns output folder for compiled code
-  | Path (Maybe PathType) BuildOptions
+  -- | List available packages (deprecated, old version of ListPackages)
+  | ListPackagesOld
 
 
 data GlobalOptions = GlobalOptions
-  { globalVerbose     :: Bool
+  { globalQuiet       :: Bool
+  , globalVerbose     :: Bool
   , globalVeryVerbose :: Bool
+  , globalUseColor    :: Bool
   , globalUsePsa      :: UsePsa
   , globalJobs        :: Maybe Int
   , globalConfigPath  :: Maybe Text
   }
 
+data IncludeTransitive = IncludeTransitive | NoIncludeTransitive
 
 parser :: CLI.Parser (Command, GlobalOptions)
 parser = do
   opts <- globalOptions
-  command <- projectCommands <|> packageSetCommands <|> publishCommands <|> otherCommands <|> oldCommands
+  command
+    <-  projectCommands
+    <|> packagesCommands
+    <|> packageSetCommands
+    <|> publishCommands
+    <|> otherCommands
+    <|> oldCommands
   pure (command, opts)
   where
     cacheFlag =
@@ -129,17 +144,13 @@ parser = do
     beforeCommands = many $ CLI.opt Just "before" 'b' "Commands to run before a build."
     thenCommands   = many $ CLI.opt Just "then" 't' "Commands to run following a successfull build."
     elseCommands   = many $ CLI.opt Just "else" 'e' "Commands to run following an unsuccessfull build."
-    packagesFilter =
-      let wrap = \case
-            "direct"     -> Just DirectDeps
-            "transitive" -> Just TransitiveDeps
-            _            -> Nothing
-      in CLI.optional $ CLI.opt wrap "filter" 'f' "Filter packages: direct deps with `direct`, transitive ones with `transitive`"
     versionBump = CLI.arg Spago.Version.parseVersionBump "bump" "How to bump the version. Acceptable values: 'major', 'minor', 'patch', or a version (e.g. 'v1.2.3')."
 
-    force   = CLI.switch "force" 'f' "Overwrite any project found in the current directory"
-    verbose = CLI.switch "verbose" 'v' "Enable additional debug logging, e.g. printing `purs` commands"
+    force       = CLI.switch "force" 'f' "Overwrite any project found in the current directory"
+    quiet       = CLI.switch "quiet" 'q' "Suppress all spago logging"
+    verbose     = CLI.switch "verbose" 'v' "Enable additional debug logging, e.g. printing `purs` commands"
     veryVerbose = CLI.switch "very-verbose" 'V' "Enable more verbosity: timestamps and source locations"
+    noColor     = CLI.switch "no-color" 'C' "Log without ANSI color escape sequences"
 
     -- Note: the first constructor is the default when the flag is not provided
     watch       = bool BuildOnce Watch <$> CLI.switch "watch" 'w' "Watch for changes in local files and automatically rebuild"
@@ -155,6 +166,7 @@ parser = do
     noComments  = bool WithComments NoComments <$> CLI.switch "no-comments" 'C' "Generate package.dhall and spago.dhall files without tutorial comments"
     configPath  = CLI.optional $ CLI.optText "config" 'x' "Optional config path to be used instead of the default spago.dhall"
     chkModsUniq = bool DoCheckModulesUnique NoCheckModulesUnique <$> CLI.switch "no-check-modules-unique" 'M' "Skip checking whether modules names are unique across all packages."
+    transitive  = bool NoIncludeTransitive IncludeTransitive <$> CLI.switch "transitive" 't' "Include transitive dependencies"
 
     mainModule  = CLI.optional $ CLI.opt (Just . ModuleName) "main" 'm' "Module to be used as the application's entry point"
     toTarget    = CLI.optional $ CLI.opt (Just . TargetPath) "to" 't' "The target file path"
@@ -164,30 +176,19 @@ parser = do
     replPackageNames = many $ CLI.opt (Just . PackageName) "dependency" 'D' "Package name to add to the REPL as dependency"
     sourcePaths      = many $ CLI.opt (Just . SourcePath) "path" 'p' "Source path to include"
 
-    packageName     = CLI.arg (Just . PackageName) "package" "Specify a package name. You can list them with `list-packages`"
+    packageName     = CLI.arg (Just . PackageName) "package" "Specify a package name. You can list them with `ls packages`"
     packageNames    = many $ CLI.arg (Just . PackageName) "package" "Package name to add as dependency"
     pursArgs        = many $ CLI.opt (Just . ExtraArg) "purs-args" 'u' "Argument to pass to purs"
     -- See https://github.com/purescript/spago/pull/526 for why this flag is disabled
-    useSharedOutput = bool NoShareOutput NoShareOutput <$> CLI.switch "no-share-output" 'S' "DEPRECATED: Disabled using a shared output folder in location of root packages.dhall"
+    useSharedOutput = bool NoShareOutput NoShareOutput <$> CLI.switch "no-share-output" 'S' "DEPRECATED: Disable using a shared output folder in location of root packages.dhall"
     buildOptions  = BuildOptions <$> cacheFlag <*> watch <*> clearScreen <*> sourcePaths <*> noInstall
                     <*> pursArgs <*> depsOnly <*> useSharedOutput
                     <*> beforeCommands <*> thenCommands <*> elseCommands
 
     -- Note: by default we limit concurrency to 20
-    globalOptions = GlobalOptions <$> verbose <*> veryVerbose <*> usePsa <*> jobsLimit <*> configPath
+    globalOptions = GlobalOptions <$> quiet <*> verbose <*> veryVerbose <*> (not <$> noColor) <*> usePsa
+                    <*> jobsLimit <*> configPath
 
-    projectCommands = CLI.subcommandGroup "Project commands:"
-      [ initProject
-      , build
-      , repl
-      , test
-      , run
-      , bundleApp
-      , bundleModule
-      , docs
-      , search
-      , path
-      ]
 
     initProject =
       ( "init"
@@ -254,15 +255,19 @@ parser = do
       , pathSubcommand
       )
 
-    packageSetCommands = CLI.subcommandGroup "Package set commands:"
-      [ install
-      , sources
-      , listPackages
-      , verify
-      , verifySet
-      , upgradeSet
-      , freeze
-      ]
+    listPackages
+      = CLI.subcommand "packages" "List packages available in the local package set"
+        (ListPackages <$> jsonFlag)
+
+    listDeps
+      = CLI.subcommand "deps" "List dependencies of the project"
+        (ListDeps <$> jsonFlag <*> transitive)
+
+    list =
+      ( "ls"
+      , "List command. Supports: `packages`, `deps`"
+      , listPackages <|> listDeps
+      )
 
     install =
       ( "install"
@@ -274,12 +279,6 @@ parser = do
       ( "sources"
       , "List all the source paths (globs) for the dependencies of the project"
       , pure Sources
-      )
-
-    listPackages =
-      ( "list-packages"
-      , "List packages available in your packages.dhall"
-      , ListPackages <$> packagesFilter <*> jsonFlag
       )
 
     verify =
@@ -306,12 +305,6 @@ parser = do
       , pure Freeze
       )
 
-
-    publishCommands = CLI.subcommandGroup "Publish commands:"
-      [ login
-      , bumpVersion
-      ]
-
     login =
       ( "login"
       , "Save the GitHub token to the global cache - set it with the SPAGO_GITHUB_TOKEN env variable"
@@ -334,14 +327,45 @@ parser = do
       , pure Version
       )
 
-
-    oldCommands = Opts.subparser $ Opts.internal <> bundle <> makeModule
+    packagesFilter = CLI.optional $ CLI.opt (const Nothing) "filter" 'f' "Filter packages: direct deps with `direct`, transitive ones with `transitive`"
+    listPackagesOld =
+      Opts.command "list-packages" $ Opts.info (ListPackagesOld <$ packagesFilter <* jsonFlag) mempty
 
     bundle =
       Opts.command "bundle" $ Opts.info (Bundle <$ mainModule <* toTarget <* noBuild <* buildOptions) mempty
 
     makeModule =
       Opts.command "make-module" $ Opts.info (MakeModule <$ mainModule <* toTarget <* noBuild <* buildOptions) mempty
+
+
+    projectCommands = CLI.subcommandGroup "Project commands:"
+      [ initProject
+      , build
+      , repl
+      , test
+      , run
+      , bundleApp
+      , bundleModule
+      , docs
+      , search
+      , path
+      , sources
+      ]
+    packagesCommands = CLI.subcommandGroup "Packages commands:"
+      [ install
+      , list
+      ]
+    packageSetCommands = CLI.subcommandGroup "Package set commands:"
+      [ verify
+      , verifySet
+      , upgradeSet
+      , freeze
+      ]
+    publishCommands = CLI.subcommandGroup "Publish commands:"
+      [ login
+      , bumpVersion
+      ]
+    oldCommands = Opts.subparser $ Opts.internal <> bundle <> makeModule <> listPackagesOld
 
 
 -- | Print out Spago version
@@ -353,27 +377,34 @@ printVersion = CLI.echo $ CLI.unsafeTextToLine $ Text.pack $ showVersion Pcli.ve
 --   and runs the app
 runWithEnv :: GlobalOptions -> Spago a -> IO a
 runWithEnv GlobalOptions{..} app = do
-  let logDebug' str = when globalVerbose $ hPutStrLn stderr str
-  logOptions' <- logOptionsHandle stderr (globalVerbose || globalVeryVerbose)
+  let verbose = not globalQuiet && (globalVerbose || globalVeryVerbose)
+  let logHandle = stderr
+  logOptions' <- logOptionsHandle logHandle verbose
   let logOptions
         = setLogUseTime globalVeryVerbose
         $ setLogUseLoc globalVeryVerbose
-        $ setLogUseColor True
-        $ setLogVerboseFormat True
-        $ logOptions'
-  let configPath = fromMaybe Config.defaultPath globalConfigPath
-  logDebug'  "Running `getGlobalCacheDir`"
-  globalCache <- getGlobalCacheDir
-  withLogFunc logOptions $ \logFunc ->
-    let
-      env = Env
-        { envLogFunc = logFunc
-        , envUsePsa = globalUsePsa
-        , envJobs = fromMaybe 20 globalJobs
-        , envConfigPath = configPath
-        , envGlobalCache = globalCache
-        }
-    in runRIO env app
+        $ setLogUseColor globalUseColor
+        $ setLogVerboseFormat True logOptions'
+  withLogFunc logOptions $ \logFunc -> do
+    let logFunc' :: LogFunc
+        logFunc' = if globalQuiet
+          then mkLogFunc $ \_ _ _ _ -> pure ()
+          else logFunc
+
+    let configPath = fromMaybe Config.defaultPath globalConfigPath
+
+    globalCache <- runRIO logFunc' $ do
+      logDebug "Running `getGlobalCacheDir`"
+      getGlobalCacheDir
+
+    let env = Env
+          { envLogFunc = logFunc'
+          , envUsePsa = globalUsePsa
+          , envJobs = fromMaybe 20 globalJobs
+          , envConfigPath = configPath
+          , envGlobalCache = globalCache
+          }
+    runRIO env app
 
 main :: IO ()
 main = do
@@ -390,7 +421,9 @@ main = do
     case command of
       Init force noComments                 -> Spago.Packages.initProject force noComments
       Install cacheConfig packageNames      -> Spago.Packages.install cacheConfig packageNames
-      ListPackages packagesFilter jsonFlag  -> Spago.Packages.listPackages packagesFilter jsonFlag
+      ListPackages jsonFlag                 -> Spago.Packages.listPackages PackageSetPackages jsonFlag
+      ListDeps jsonFlag IncludeTransitive   -> Spago.Packages.listPackages TransitiveDeps jsonFlag
+      ListDeps jsonFlag NoIncludeTransitive -> Spago.Packages.listPackages DirectDeps jsonFlag
       Sources                               -> Spago.Packages.sources
       Verify cacheConfig package            -> Spago.Packages.verify cacheConfig NoCheckModulesUnique (Just package)
       VerifySet cacheConfig chkModsUniq     -> Spago.Packages.verify cacheConfig chkModsUniq Nothing
@@ -414,3 +447,4 @@ main = do
       Path whichPath buildOptions           -> Spago.Build.showPaths buildOptions whichPath
       Bundle                                -> die [ display Messages.bundleCommandRenamed ]
       MakeModule                            -> die [ display Messages.makeModuleCommandRenamed ]
+      ListPackagesOld                       -> die [ display Messages.listPackagesCommandRenamed ]

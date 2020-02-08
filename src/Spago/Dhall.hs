@@ -11,7 +11,7 @@ import qualified Data.Text                             as Text
 import qualified Data.Text.Prettyprint.Doc             as Pretty
 import qualified Data.Text.Prettyprint.Doc.Render.Text as PrettyText
 import           Dhall
-import           Dhall.Core                            as Dhall hiding (Type, pretty)
+import           Dhall.Core                            as Dhall hiding (pretty)
 import qualified Dhall.Format
 import qualified Dhall.Import
 import qualified Dhall.Map
@@ -30,7 +30,8 @@ type DhallExpr a = Dhall.Expr Parser.Src a
 format :: MonadIO m => Text -> m ()
 format pathText = liftIO $
   try (f $ Dhall.Format.Check path) >>= \case
-    Left (_e :: SomeException) -> f $ Dhall.Format.Modify path
+    Left (_e :: SomeException) ->
+      f $ Dhall.Format.Modify path
     Right _ -> pure ()
   where
     f = Dhall.Format.format . Dhall.Format.Format Dhall.Pretty.ASCII Dhall.NoCensor
@@ -38,8 +39,8 @@ format pathText = liftIO $
 
 
 -- | Prettyprint a Dhall expression adding a comment on top
-prettyWithHeader :: Pretty.Pretty a => Text -> DhallExpr a -> Dhall.Text
-prettyWithHeader header expr = do
+prettyWithHeader :: Pretty.Pretty a => Dhall.Header -> DhallExpr a -> Dhall.Text
+prettyWithHeader (Header header) expr = do
   let doc = Pretty.pretty header <> Pretty.pretty expr
   PrettyText.renderStrict $ Pretty.layoutSmart Pretty.defaultLayoutOptions doc
 
@@ -77,7 +78,7 @@ readImports pathText = do
 
 
 
-readRawExpr :: Text -> IO (Maybe (Text, DhallExpr Dhall.Import))
+readRawExpr :: Text -> IO (Maybe (Dhall.Header, DhallExpr Dhall.Import))
 readRawExpr pathText = do
   exists <- testfile pathText
   if exists
@@ -87,13 +88,13 @@ readRawExpr pathText = do
     else pure Nothing
 
 
-writeRawExpr :: Text -> (Text, DhallExpr Dhall.Import) -> IO ()
+writeRawExpr :: Text -> (Dhall.Header, DhallExpr Dhall.Import) -> IO ()
 writeRawExpr pathText (header, expr) = do
   -- After modifying the expression, we have to check if it still typechecks
   -- if it doesn't we don't write to file.
   resolvedExpr <- Dhall.Import.load expr
-  throws (Dhall.TypeCheck.typeOf resolvedExpr)
-  writeTextFile pathText $ prettyWithHeader header expr <> "\n"
+  _ <- throws (Dhall.TypeCheck.typeOf resolvedExpr)
+  writeTextFile pathText $ prettyWithHeader header expr
   format pathText
 
 
@@ -124,12 +125,12 @@ requireKey ks name f = case Dhall.Map.lookup name ks of
   Nothing -> throwM (RequiredKeyMissing name ks)
 
 
--- | Same as `requireKey`, but we give it a Dhall.Type to automagically decode from
+-- | Same as `requireKey`, but we give it a Dhall.Decoder to automagically decode from
 requireTypedKey
   :: (MonadIO m, MonadThrow m)
   => Dhall.Map.Map Text (DhallExpr Void)
   -> Text
-  -> Dhall.Type a
+  -> Dhall.Decoder a
   -> m a
 requireTypedKey ks name typ = requireKey ks name $ \expr -> case Dhall.extract typ expr of
   Success v -> pure v
@@ -141,7 +142,7 @@ maybeTypedKey
   :: (MonadIO m, MonadThrow m)
   => Dhall.Map.Map Text (DhallExpr Void)
   -> Text
-  -> Dhall.Type a
+  -> Dhall.Decoder a
   -> m (Maybe a)
 maybeTypedKey ks name typ = typify `mapM` Dhall.Map.lookup name ks
   where
@@ -157,7 +158,7 @@ maybeTypedKey ks name typ = typify `mapM` Dhall.Map.lookup name ks
 --   result of the normalization (we need to normalize so that extract can work)
 --   and return a `Right` only if both typecheck and normalization succeeded.
 coerceToType
-  :: Type a -> DhallExpr Void -> Either (ReadError Void) a
+  :: Dhall.Decoder a -> DhallExpr Void -> Either (ReadError Void) a
 coerceToType typ expr = do
   let annot = Dhall.Annot expr $ Dhall.expected typ
   let checkedType = typeOf annot
@@ -169,7 +170,7 @@ coerceToType typ expr = do
 -- | Spago configuration cannot be read
 data ReadError a where
  -- | a package has the wrong type
- WrongType             :: Typeable a => Dhall.Type b -> DhallExpr a -> ReadError a
+ WrongType             :: Typeable a => Dhall.Decoder b -> DhallExpr a -> ReadError a
  -- | the toplevel value is not a record
  ConfigIsNotRecord     :: Typeable a => DhallExpr a -> ReadError a
  -- | the "packages" key is not a record
