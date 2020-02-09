@@ -107,4 +107,4 @@ Learn by doing and get your hands dirty!
 [f-f]: https://github.com/f-f
 [stack]: http://haskellstack.org/
 [fp-slack]: https://fpchat-invite.herokuapp.com/
-[spago-issues]: https://github.com/spacchetti/spago/issues
+[spago-issues]: https://github.com/purescript/spago/issues

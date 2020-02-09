@@ -2,10 +2,10 @@
   "name": "spago",
   "version": "NPM_VERSION",
   "description": "🍝 PureScript package manager and build tool powered by Dhall and package-sets",
-  "homepage": "https://github.com/spacchetti/spago",
+  "homepage": "https://github.com/purescript/spago",
   "repository": {
     "type": "git",
-    "url": "https://github.com/spacchetti/spago.git"
+    "url": "https://github.com/purescript/spago.git"
   },
   "scripts": {
     "postinstall": "node ./install.js"

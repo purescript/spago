@@ -354,7 +354,7 @@ verify cacheFlag chkModsUniq maybePackage = do
 
   -- @TODO Swap the order of these to check for `spago.dhall` first, once
   -- `ensureConfig` no longer calls `die` internally. See:
-  -- https://github.com/spacchetti/spago/pull/515#pullrequestreview-329632196
+  -- https://github.com/purescript/spago/pull/515#pullrequestreview-329632196
   packageSet@PackageSet{..} <- do
     -- Try to read a "packages.dhall" directly
     try (liftIO (Dhall.inputExpr $ "./" <> PackageSet.packagesPath)) >>= \case
