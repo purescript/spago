@@ -7,16 +7,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.14.0] - 2020-02-09
+
+Breaking changes (😱!!!):
+- **Replace `list-packages` command with `ls packages` and `ls deps` (#563)**
+
+  This is happening for future extensibility, i.e. so that we can add any
+  `spago ls $whatever` subcommand in a non-breaking way whenever we'll want to
+  list more things.
+
+  How things got renamed:
+  - `spago list-packages` → `spago ls packages`
+  - `spago list-packages -f direct` → `spago ls deps`
+  - `spago list-packages -f transitive` → `spago ls deps -t`
+
+  Note: the `list-packages` command is still there to provide a semi-gracious transition path for folks, and will be removed in a future release.
+
 New features:
 - Allow `verify-set` to work with either a `spago.dhall` or a `packages.dhall` (#515)
-- Fix typo on `packages.dhall` template (`let override` should be `let overrides`)
-- Create `.purs-repl` file when running `spago init` (#555)
+- Create `.purs-repl` file when running `spago init` (#555, #558)
+- Add `--source-maps` flag to build commands (#545, #562)
+- Add `--quiet` and `--no-color` global flags to better control logging (#548)
 
 Bugfixes:
+- Fix a few watch-mode buffering and concurrency issues (#549)
 - Fix watching relative paths in sources config (e.g. `../src/**/*.purs`) (#556)
+- Make the `ensureConfig` function safe (#561, #531)
+- Retry downloading packages on network errors (#557, #565)
 
 Other improvements:
 - Docs: fix misc typos in README (#566)
+- Docs: fix typo in `packages.dhall` template (#539)
+- Docs: remove mention of shared output folder in README (#559, #552)
+- Docs: update links: spacchetti/spago → purescript/spago
+- CI: update to `purs-0.13.6` (#542)
+- CI: update CI to the new location of the repo (#560)
+- Deps: update to `purescript-docs-search-0.0.8` (#543)
+- Deps: update to `dhall-1.29` and `github-0.24` (#553)
 
 ## [0.13.1] - 2020-01-10
 

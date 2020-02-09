@@ -1,5 +1,5 @@
 name:                spago
-version:             0.13.1
+version:             0.14.0
 github:              "purescript/spago"
 license:             BSD3
 author:              "Justin Woo, Fabrizio Ferrai"
