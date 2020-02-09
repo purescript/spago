@@ -15,6 +15,9 @@ New features:
 Bugfixes:
 - Fix watching relative paths in sources config (e.g. `../src/**/*.purs`) (#556)
 
+Other improvements:
+- Docs: fix misc typos in README (#566)
+
 ## [0.13.1] - 2020-01-10
 
 New features:
