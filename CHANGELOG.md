@@ -379,10 +379,10 @@ Other improvements:
 ## [0.6.4] - 2019-02-07
 
 New features:
-- [`spago init` will search for a `psc-package.json`, and try to port it to your new `spago.dhall` config](https://github.com/spacchetti/spago/tree/6947bf1e9721b4e8a5e87ba8a546a7e9c83153e9#switching-from-psc-package) (#76)
-- [Add the `spacchetti-upgrade` command, to automatically upgrade to the latest Package Set](https://github.com/spacchetti/spago/tree/6947bf1e9721b4e8a5e87ba8a546a7e9c83153e9#upgrading-the-package-set) (#93, #73)
-- [You can now add local packages to the Package Set 🎉](https://github.com/spacchetti/spago/tree/6947bf1e9721b4e8a5e87ba8a546a7e9c83153e9#adding-and-overriding-dependencies-in-the-package-set) (#96, #88)
-- [Now it's possible to run `spago install foo bar` to add new dependencies to your project](https://github.com/spacchetti/spago/tree/6947bf1e9721b4e8a5e87ba8a546a7e9c83153e9#adding-a-dependency) (#74)
+- [`spago init` will search for a `psc-package.json`, and try to port it to your new `spago.dhall` config](https://github.com/purescript/spago/tree/6947bf1e9721b4e8a5e87ba8a546a7e9c83153e9#switching-from-psc-package) (#76)
+- [Add the `spacchetti-upgrade` command, to automatically upgrade to the latest Package Set](https://github.com/purescript/spago/tree/6947bf1e9721b4e8a5e87ba8a546a7e9c83153e9#upgrading-the-package-set) (#93, #73)
+- [You can now add local packages to the Package Set 🎉](https://github.com/purescript/spago/tree/6947bf1e9721b4e8a5e87ba8a546a7e9c83153e9#adding-and-overriding-dependencies-in-the-package-set) (#96, #88)
+- [Now it's possible to run `spago install foo bar` to add new dependencies to your project](https://github.com/purescript/spago/tree/6947bf1e9721b4e8a5e87ba8a546a7e9c83153e9#adding-a-dependency) (#74)
 - Now every time you try to build, Spago will also check that dependencies are installed (#75, #82)
 
 Bugfixes:

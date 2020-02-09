@@ -7,6 +7,6 @@ const request = require("request");
 const tar = require("tar");
 const version = "PACKAGE_VERSION";
 const platform = { win32: "windows", darwin: "osx" }[process.platform] || "linux";
-const url = `https://github.com/spacchetti/spago/releases/download/${version}/${platform}.tar.gz`
+const url = `https://github.com/purescript/spago/releases/download/${version}/${platform}.tar.gz`
 
 request.get(url).pipe(tar.x({"C": './'}));
