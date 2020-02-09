@@ -22,6 +22,7 @@ module Spago.Build
   , Purs.SourcePath (..)
   , Purs.TargetPath (..)
   , Purs.WithMain (..)
+  , Purs.WithSrcMap (..)
   ) where
 
 import           Spago.Prelude hiding (link)
@@ -69,6 +70,7 @@ data BuildOptions = BuildOptions
   , shouldWatch    :: Watch
   , shouldClear    :: Watch.ClearScreen
   , sourcePaths    :: [Purs.SourcePath]
+  , withSourceMap   :: Purs.WithSrcMap
   , noInstall      :: NoInstall
   , pursArgs       :: [Purs.ExtraArg]
   , depsOnly       :: Packages.DepsOnly
@@ -275,7 +277,7 @@ bundleApp
   -> Spago ()
 bundleApp withMain maybeModuleName maybeTargetPath noBuild buildOpts =
   let (moduleName, targetPath) = prepareBundleDefaults maybeModuleName maybeTargetPath
-      bundleAction = Purs.bundle withMain moduleName targetPath
+      bundleAction = Purs.bundle withMain (withSourceMap buildOpts) moduleName targetPath
   in case noBuild of
     DoBuild -> build buildOpts (Just bundleAction)
     NoBuild -> bundleAction
@@ -293,7 +295,7 @@ bundleModule maybeModuleName maybeTargetPath noBuild buildOpts = do
       jsExport = Text.unpack $ "\nmodule.exports = PS[\""<> Purs.unModuleName moduleName <> "\"];"
       bundleAction = do
         logInfo "Bundling first..."
-        Purs.bundle Purs.WithoutMain moduleName targetPath
+        Purs.bundle Purs.WithoutMain (withSourceMap buildOpts) moduleName targetPath
         -- Here we append the CommonJS export line at the end of the bundle
         try (with
               (appendonly $ pathFromText $ Purs.unTargetPath targetPath)

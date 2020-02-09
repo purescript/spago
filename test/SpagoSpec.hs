@@ -9,7 +9,7 @@ import           Test.Hspec         (Spec, around_, describe, it, shouldBe, shou
 import           Turtle             (ExitCode (..), cd, cp, decodeString, empty, encodeString,
                                      mkdir, mktree, mv, pwd, readTextFile, rm, shell,
                                      shellStrictWithErr, testdir, writeTextFile, (</>))
-import           Utils              (checkFileHasInfix, checkFixture, outputShouldEqual,
+import           Utils              (checkFileHasInfix, checkFixture, checkFileExist, outputShouldEqual,
                                      readFixture, runFor, shouldBeFailure, shouldBeFailureOutput,
                                      shouldBeFailureStderr, shouldBeSuccess, shouldBeSuccessOutput,
                                      shouldBeSuccessOutputWithErr, shouldBeSuccessStderr, spago,
@@ -645,7 +645,13 @@ spec = around_ setup $ do
       spago ["bundle-app", "--to", "bundle-app.js"] >>= shouldBeSuccess
       checkFixture "bundle-app.js"
 
+    it "Spago should bundle successfully with source map" $ do
 
+      spago ["init"] >>= shouldBeSuccess
+      spago ["bundle-app", "--to", "bundle-app-src-map.js", "--source-maps"] >>= shouldBeSuccess
+      checkFixture "bundle-app-src-map.js"
+      checkFileExist "bundle-app-src-map.js.map"
+  
   describe "spago make-module" $ do
 
     it "Spago should fail but should point to the replacement command" $ do
@@ -664,6 +670,15 @@ spec = around_ setup $ do
       -- to have built stuff for us)
       spago ["bundle-module", "--to", "bundle-module.js", "--no-build"] >>= shouldBeSuccess
       checkFixture "bundle-module.js"
+
+    it "Spago should successfully make a module with source map" $ do
+
+      spago ["init"] >>= shouldBeSuccess
+      spago ["build"] >>= shouldBeSuccess
+
+      spago ["bundle-module", "--to", "bundle-module-src-map.js", "--no-build", "--source-maps"] >>= shouldBeSuccess
+      checkFixture "bundle-module-src-map.js"
+      checkFileExist "bundle-module-src-map.js.map"
 
   describe "spago ls packages" $ do
 
