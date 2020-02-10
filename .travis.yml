@@ -151,6 +151,7 @@ deploy:
     file_glob: true
     file: ../uploads/*
     skip_cleanup: true
+    edge: true
     on:
       tags: true
     script:
@@ -159,6 +160,7 @@ deploy:
     email: "$NPM_EMAIL"
     api_key: "$NPM_TOKEN"
     skip_cleanup: true
+    edge: true
     on:
       condition: $TRAVIS_OS_NAME = osx
       tags: true
