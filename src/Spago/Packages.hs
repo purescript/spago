@@ -220,11 +220,9 @@ reportMissingPackages (PackagesLookupResult found foundWithoutPrefix notFound) =
       [ "The following packages do not exist in your package set:" ]
       <> (fmap (\(NotFoundError (PackageName packageName)) -> display $ "  - " <> packageName) $ List.sort notFound)
 
-  for_ foundWithoutPrefix $ \(FoundWithoutPrefix sansPrefix) ->
-    logWarn
-    $ display
-    $ "The package 'purescript-" <> packageName sansPrefix <> "' was not found in your package set, but '"
-    <> packageName sansPrefix <> "' was. Using that instead."
+  for_ foundWithoutPrefix $ \(FoundWithoutPrefix (PackageName sansPrefix)) ->
+    logInfo $ display
+      $ "The package 'purescript-" <> sansPrefix <> "' was resolved to the '" <> sansPrefix <> "' package"
   pure found
 
 
