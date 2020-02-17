@@ -663,7 +663,7 @@ E.g. if you want to add `purescript-spec` to your test dependencies you can have
 let conf = ./spago.dhall
 
 in conf // {
-  sources = [ "test/**/*.purs" ],
+  sources = conf.sources # [ "test/**/*.purs" ],
   dependencies = conf.dependencies # [ "spec" ]
 }
 ```
