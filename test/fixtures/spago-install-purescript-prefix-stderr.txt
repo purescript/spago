@@ -1,4 +1,4 @@
-[33m[warn] [0mThe package 'purescript-newtype' was not found in your package set, but 'newtype' was. Using that instead.[0m
+[34m[info] [0mThe package 'purescript-newtype' was resolved to the 'newtype' package[0m
 [34m[info] [0mInstalling 1 dependencies.[0m
 [34m[info] [0mSearching for packages cache metadata..[0m
 [34m[info] [0mRecent packages cache metadata found, using it..[0m
