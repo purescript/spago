@@ -411,7 +411,7 @@ runWithEnv GlobalOptions{..} app = do
 main :: IO ()
 main = do
   -- We always want to run in UTF8 anyways
-  GHC.IO.Encoding.setLocaleEncoding GHC.IO.Encoding.utf8
+  -- GHC.IO.Encoding.setLocaleEncoding GHC.IO.Encoding.utf8
   -- Stop `git` from asking for input, not gonna happen
   -- We just fail instead. Source:
   -- https://serverfault.com/questions/544156
