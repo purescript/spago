@@ -4,14 +4,7 @@ import           Spago.Prelude
 
 import qualified Data.Text           as Text
 import           Data.Version        (showVersion)
-import           Foreign.C           (CInt (..))
-import qualified GHC.IO.Encoding     as Encoding
-import           GHC.IO.Exception    (IOException (..))
-import qualified GHC.IO.Exception    as IOErrorType (IOErrorType (..))
-import           GHC.IO.FD           (mkFD)
-import qualified GHC.IO.Handle       as Handle (BufferMode (..))
-import           GHC.IO.Handle.FD    (mkHandleFromFD)
-import qualified GHC.IO.Device       as Device (IODeviceType (..))
+import qualified GHC.IO.Encoding
 import qualified Options.Applicative as Opts
 import qualified Paths_spago         as Pcli
 import qualified System.Environment  as Env
@@ -36,6 +29,7 @@ import           Spago.Types
 import           Spago.Version       (VersionBump (..))
 import qualified Spago.Version
 import           Spago.Watch         (ClearScreen (..))
+
 
 -- | Commands that this program handles
 data Command
@@ -122,29 +116,12 @@ data GlobalOptions = GlobalOptions
   , globalVerbose     :: Bool
   , globalVeryVerbose :: Bool
   , globalUseColor    :: Bool
-  , globalLogHandle   :: Maybe (IO Handle)
   , globalUsePsa      :: UsePsa
   , globalJobs        :: Maybe Int
   , globalConfigPath  :: Maybe Text
   }
 
 data IncludeTransitive = IncludeTransitive | NoIncludeTransitive
-
-handleForFD3 :: IO Handle
-handleForFD3 = do
-  (fd3, _) <- mkFD (Foreign.C.CInt 3) WriteMode Nothing False False `catch` manageFDException
-  handle' <- mkHandleFromFD fd3 Device.RegularFile "<nonstandard-stream>" WriteMode False (Just Encoding.utf8)
-  -- Handle 3's buffering is turned off. The handle is modeled after `stderr`,
-  -- which, in GHC.IO.Handle.FD, is also configured to be unbuffered.
-  hSetBuffering handle' Handle.NoBuffering
-  return handle'
-  where
-    manageFDException :: IOException -> IO a
-    manageFDException e@IOError{..} = case (ioe_type, ioe_location) of
-      (IOErrorType.UnsupportedOperation, "fdType") ->
-        throwIO $ SpagoError $ Messages.unopenLogHandle $ Text.pack $ show e
-      _ ->
-        throwIO e
 
 parser :: CLI.Parser (Command, GlobalOptions)
 parser = do
@@ -168,15 +145,6 @@ parser = do
     beforeCommands = many $ CLI.opt Just "before" 'b' "Commands to run before a build."
     thenCommands   = many $ CLI.opt Just "then" 't' "Commands to run following a successfull build."
     elseCommands   = many $ CLI.opt Just "else" 'e' "Commands to run following an unsuccessfull build."
-    outputStream =
-      let wrap = \case
-            "stdout" -> Just $ pure stdout
-            "1"      -> Just $ pure stdout
-            "stderr" -> Just $ pure stderr
-            "2"      -> Just $ pure stderr
-            "3"      -> Just handleForFD3
-            _        -> Nothing
-      in CLI.optional $ CLI.opt wrap "output-stream" 'o' "Select the output stream for logging: any of `stdout`, `1`, `stderr`, `2`, or `3`."
     versionBump = CLI.arg Spago.Version.parseVersionBump "bump" "How to bump the version. Acceptable values: 'major', 'minor', 'patch', or a version (e.g. 'v1.2.3')."
 
     force       = CLI.switch "force" 'f' "Overwrite any project found in the current directory"
@@ -220,7 +188,8 @@ parser = do
                     <*> beforeCommands <*> thenCommands <*> elseCommands
 
     -- Note: by default we limit concurrency to 20
-    globalOptions = GlobalOptions <$> quiet <*> verbose <*> veryVerbose <*> (not <$> noColor) <*> outputStream <*> usePsa <*> jobsLimit <*> configPath
+    globalOptions = GlobalOptions <$> quiet <*> verbose <*> veryVerbose <*> (not <$> noColor) <*> usePsa
+                    <*> jobsLimit <*> configPath
 
 
     initProject =
@@ -417,7 +386,7 @@ runWithEnv GlobalOptions{..} app = do
   let termDumb = maybeTerm == Just "dumb" || maybeTerm == Just "win"
   let useColor = globalUseColor && not termDumb
 
-  logHandle <- fromMaybe (pure stderr) globalLogHandle
+  let logHandle = stderr
   logOptions' <- logOptionsHandle logHandle verbose
   let logOptions
         = setLogUseTime globalVeryVerbose
@@ -448,7 +417,7 @@ runWithEnv GlobalOptions{..} app = do
 main :: IO ()
 main = do
   -- We always want to run in UTF8 anyways
-  Encoding.setLocaleEncoding Encoding.utf8
+  GHC.IO.Encoding.setLocaleEncoding GHC.IO.Encoding.utf8
   -- Stop `git` from asking for input, not gonna happen
   -- We just fail instead. Source:
   -- https://serverfault.com/questions/544156

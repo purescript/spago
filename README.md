@@ -293,19 +293,6 @@ E.g. if you wish to output your files in some other place than `output/`, you ca
 $ spago build --purs-args '-o myOutput/'
 ```
 
-It's possible to suppress or redirect Spago's logging in order to interact directly
-with `purs` output. The following examples use `jq` to format compilation errors
-rendered by `purs` as JSON. Specifically, the third example distinguishes between
-`purs` output and Spago output by configuring Spago to direct its own logging messages
-(but not those from `purs`) to file descriptor 3 for separate handling.
-
-```bash
-$ spago --quiet build --purs-args --json-errors 2> >( jq )
-$ spago --output-stream stdout build --purs-args --json-errors 2> >( jq )
-$ touch spago-log # Create a file for Spago's logging messages.
-$ spago -o 3 build -w -l -u --json-errors 3>> spago-log 4>&2 2>&1 1>&4 4>&- | jq
-```
-
 If you wish to automatically have your project rebuilt when making changes to source files
 you can use the `--watch` flag:
 
