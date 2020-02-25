@@ -14,13 +14,14 @@ import           Data.Time.Clock          (NominalDiffTime, diffUTCTime, getCurr
 import           GHC.IO                   (FilePath)
 import           GHC.IO.Exception
 import           System.Console.ANSI      (hClearScreen, hSetCursorPosition)
+import qualified System.Environment       as Env
 import           System.FilePath          (splitDirectories)
 import qualified System.FilePath.Glob     as Glob
 import qualified System.FSNotify          as Watch
 #ifdef mingw32_HOST_OS
-import           System.IO                (getLine, stdout)
+import           System.IO                (getLine, stderr)
 #else
-import           System.IO                (getLine, openFile, stdout)
+import           System.IO                (getLine, openFile, stderr)
 import           System.Posix.Terminal    (getControllingTerminalName)
 #endif
 import qualified UnliftIO                 (bracket)
@@ -37,7 +38,28 @@ watch globs shouldClear action = flip runContT return $ do
   let conf = Watch.defaultConfig { Watch.confDebounce = Watch.NoDebounce }
   manager <- ContT $ withManagerConf conf
   terminalHandle <- ContT $ withTerminalHandle
-  lift $ fileWatchConf manager terminalHandle shouldClear globs action
+  maybeTerm <- liftIO $ Env.lookupEnv "TERM"
+  let useColor = maybeTerm /= Just "dumb" && maybeTerm /= Just "win"
+  let writer = getWriter terminalHandle useColor
+  lift $ fileWatchConf manager terminalHandle writer shouldClear globs action
+
+
+getWriter :: Handle -> Bool -> LogLevel -> Utf8Builder -> Spago ()
+getWriter handle' useColor level msg =
+    liftIO . hPutStrLn handle' . unpack . textDisplay $ msg'
+  where
+  msg' = setColor <> reset <> msg
+
+  ifUseColor color = if useColor then color else ""
+
+  reset     = ifUseColor "\ESC[0m"
+  setBlue   = ifUseColor "\ESC[34m"
+  setYellow = ifUseColor "\ESC[33m"
+
+  setColor = case level of
+    LevelInfo -> setBlue <> "[info] "
+    LevelWarn -> setYellow <> "[warn] "
+    _         -> ""
 
 
 withManagerConf :: Watch.WatchConfig -> (Watch.WatchManager -> Spago a) -> Spago a
@@ -46,9 +68,13 @@ withManagerConf conf = UnliftIO.bracket
   (liftIO . Watch.stopManager)
 
 
+backupHandle :: Handle
+backupHandle = stderr
+
+
 #ifdef mingw32_HOST_OS
 withTerminalHandle :: (Handle -> Spago a) -> Spago a
-withTerminalHandle = UnliftIO.bracket (return stdout) (const $ return ())
+withTerminalHandle = UnliftIO.bracket (return backupHandle) (const $ return ())
 #else
 withTerminalHandle :: (Handle -> Spago a) -> Spago a
 withTerminalHandle = UnliftIO.bracket terminalHandle release
@@ -63,12 +89,12 @@ withTerminalHandle = UnliftIO.bracket terminalHandle release
         Left e@IOError{..} -> case (ioe_type, ioe_location) of
           (UnsupportedOperation, "getControllingTerminalName") -> do
             logWarn $ display $ Messages.noControllingTerminal $ pack $ show e
-            return stdout
+            return backupHandle
           _ ->
             throwIO e
     release :: Handle -> Spago ()
     release handle' = do
-      when (handle' /= stdout) $ liftIO $ do
+      when (handle' /= backupHandle) $ liftIO $ do
         hClose handle'
 #endif
 
@@ -84,11 +110,12 @@ debounceTime = 0.1
 fileWatchConf
   :: Watch.WatchManager
   -> Handle
+  -> (LogLevel -> Utf8Builder -> Spago ())
   -> ClearScreen
   -> Set.Set Glob.Pattern
   -> Spago ()
   -> Spago ()
-fileWatchConf manager terminalHandle shouldClear globs action = do
+fileWatchConf manager terminalHandle writer shouldClear globs action = do
   -- `lastEvent` is used for event debouncing.
   -- We don't use built-in debouncing because it does not work well with some
   -- text editors (#346).
@@ -102,8 +129,7 @@ fileWatchConf manager terminalHandle shouldClear globs action = do
       clearScreen = do
         hClearScreen terminalHandle
         hSetCursorPosition terminalHandle 0 0
-        when (terminalHandle == stdout) $ do
-          hFlush terminalHandle
+        hFlush terminalHandle
 
   let matches :: Watch.Event -> Glob.Pattern -> Bool
       matches event glob = Glob.match glob $ Watch.eventPath event
@@ -111,11 +137,17 @@ fileWatchConf manager terminalHandle shouldClear globs action = do
   let serialize :: Spago () -> Spago ()
       serialize = liftIO . atomically . writeTQueue spagoTQueue
 
+  let writeInfo :: Utf8Builder -> Spago ()
+      writeInfo = writer LevelInfo
+
+  let writeWarn :: Utf8Builder -> Spago ()
+      writeWarn = writer LevelWarn
+
   let redisplay :: Maybe Utf8Builder -> Spago ()
       redisplay maybeMsg = serialize $ do
         when (shouldClear == DoClear) $
           liftIO clearScreen
-        mapM_ logInfo maybeMsg
+        mapM_ writeInfo maybeMsg
 
   let spawnRunActionThread :: Spago ()
       spawnRunActionThread =
@@ -131,9 +163,9 @@ fileWatchConf manager terminalHandle shouldClear globs action = do
       tryAction = serialize $ do
         eres :: Either SomeException () <- try action
         case eres of
-          Left e -> logWarn $ display e
-          _      -> logInfo "Success! Waiting for next file change."
-        logInfo "Type help for available commands. Press enter to force a rebuild."
+          Left e -> writeWarn $ display e
+          _      -> writeInfo "Success! Waiting for next file change."
+        writeInfo "Type help for available commands. Press enter to force a rebuild."
 
   let redisplayAndTryAction :: Maybe Utf8Builder -> Spago ()
       redisplayAndTryAction maybeMsg = redisplay maybeMsg *> tryAction
@@ -159,10 +191,10 @@ fileWatchConf manager terminalHandle shouldClear globs action = do
   let watchInput :: Spago ()
       watchInput = do
         line <- liftIO $ unpack . toLower . pack <$> getLine
-        if line == "quit" then logInfo "Leaving watch mode."
+        if line == "quit" then writeInfo "Leaving watch mode."
         else do
           case line of
-            "help" -> traverse_ logInfo
+            "help" -> traverse_ writeInfo
                         [ ""
                         , "help: display this help"
                         , "quit: exit"
@@ -170,9 +202,9 @@ fileWatchConf manager terminalHandle shouldClear globs action = do
                         , "watched: display watched files"
                         ]
             "build" -> redisplayAndTryAction Nothing
-            "watched" -> mapM_ (logInfo . displayShow) (Glob.decompile <$> Set.toList globs)
+            "watched" -> mapM_ (writeInfo . displayShow) (Glob.decompile <$> Set.toList globs)
             "" -> redisplayAndTryAction Nothing
-            _ -> logWarn $ displayShow $ concat
+            _ -> writeWarn $ displayShow $ concat
                     [ "Unknown command: "
                     , show line
                     , ". Try 'help'"
