@@ -380,12 +380,18 @@ printVersion = CLI.echo $ CLI.unsafeTextToLine $ Text.pack $ showVersion Pcli.ve
 runWithEnv :: GlobalOptions -> Spago a -> IO a
 runWithEnv GlobalOptions{..} app = do
   let verbose = not globalQuiet && (globalVerbose || globalVeryVerbose)
+
+  -- https://github.com/purescript/spago/issues/579
+  maybeTerm <- Env.lookupEnv "TERM"
+  let termDumb = maybeTerm == Just "dumb" || maybeTerm == Just "win"
+  let useColor = globalUseColor && not termDumb
+
   let logHandle = stderr
   logOptions' <- logOptionsHandle logHandle verbose
   let logOptions
         = setLogUseTime globalVeryVerbose
         $ setLogUseLoc globalVeryVerbose
-        $ setLogUseColor globalUseColor
+        $ setLogUseColor useColor
         $ setLogVerboseFormat True logOptions'
   withLogFunc logOptions $ \logFunc -> do
     let logFunc' :: LogFunc
