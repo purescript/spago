@@ -382,8 +382,8 @@ runWithEnv GlobalOptions{..} app = do
   let verbose = not globalQuiet && (globalVerbose || globalVeryVerbose)
 
   -- https://github.com/purescript/spago/issues/579
-  term <- Env.getEnv "TERM"
-  let termDumb = term == "dumb" || term == "win"
+  maybeTerm <- Env.lookupEnv "TERM"
+  let termDumb = maybeTerm == Just "dumb" || maybeTerm == Just "win"
   let useColor = globalUseColor && not termDumb
 
   let logHandle = stderr
