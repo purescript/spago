@@ -717,7 +717,7 @@ runWithCwd cwd cmd = do
 getLatestCommitTime :: GHC.IO.FilePath -> Curator Time.UTCTime
 getLatestCommitTime path = do
   (_code, out, _err) <- runWithCwd path "git show -s --format=%ci"
-  Time.parseTimeM True Time.defaultTimeLocale "%Y-%m-%d %H:%M:%S %z" $ Text.unpack out
+  liftIO $ Time.parseTimeM True Time.defaultTimeLocale "%Y-%m-%d %H:%M:%S %z" $ Text.unpack out
 
 
 withAST :: (MonadIO m, MonadReader env m, HasLogFunc env) => Text -> (Expr -> m Expr) -> m ()
