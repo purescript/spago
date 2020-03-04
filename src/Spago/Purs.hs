@@ -37,7 +37,7 @@ data WithSrcMap = WithSrcMap | WithoutSrcMap
 compile :: [SourcePath] -> [ExtraArg] -> Spago ()
 compile sourcePaths extraArgs = do
   -- first we decide if we _want_ to use psa, then if we _can_
-  usePsa <- askEnv envUsePsa
+  usePsa <- view usePsaL
   purs <- case usePsa of
     NoPsa -> pure "purs"
     UsePsa -> psaVersion >>= \case

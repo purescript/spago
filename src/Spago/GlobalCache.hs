@@ -18,10 +18,10 @@ import Spago.Types
 
 
 newtype CommitHash = CommitHash Text
-  deriving (Eq, Show, Generic, ToJSON, FromJSON)
+  deriving (Ord, Eq, Show, Read, Generic, Data, ToJSON, FromJSON)
 
 newtype Tag = Tag Text
-  deriving (Ord, Eq, Show, Generic, ToJSONKey, FromJSONKey, FromJSON, ToJSON)
+  deriving (Ord, Eq, Show, Read, Generic, Data, ToJSONKey, FromJSONKey, FromJSON, ToJSON)
 
 data RepoMetadataV1 = RepoMetadataV1
   { commits :: [CommitHash]

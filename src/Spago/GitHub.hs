@@ -21,10 +21,10 @@ tagCacheFile = "package-sets-tag.txt"
 tokenCacheFile = "github-token.txt"
 
 
-login :: Spago ()
+login :: HasEnv env => RIO env ()
 login = do
  maybeToken <- liftIO (System.Environment.lookupEnv githubTokenEnvVar)
- globalCacheDir <- askEnv envGlobalCache
+ globalCacheDir <- view globalCacheL
 
  case maybeToken of
    Nothing -> die [ display Messages.getNewGitHubToken ]
@@ -58,10 +58,10 @@ readToken = readFromEnv <|> readFromFile
 
 getLatestPackageSetsTag :: Spago (Either SomeException Text)
 getLatestPackageSetsTag = do
-  globalCacheDir <- askEnv envGlobalCache
+  globalCacheDir <- view globalCacheL
   assertDirectory globalCacheDir
   let globalPathToCachedTag = globalCacheDir </> tagCacheFile
-  let writeTagCache releaseTagName = writeTextFile (Text.pack globalPathToCachedTag) releaseTagName
+  let writeTagCache = writeTextFile (Text.pack globalPathToCachedTag)
   let readTagCache = try $ readTextFile $ pathFromText $ Text.pack globalPathToCachedTag
   let downloadTagToCache env = try
         $ Retry.recoverAll (Retry.fullJitterBackoff 50000 <> Retry.limitRetries 5)

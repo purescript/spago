@@ -4,7 +4,12 @@ module Spago.Prelude
   , hush
   , pathFromText
   , assertDirectory
-  , Env (..)
+  , Env
+  , HasEnv(..)
+  , HasGlobalCache(..)
+  , HasConfigPath(..)
+  , HasJobs(..)
+  , HasPsa(..)
   , UsePsa(..)
   , Spago
   , module X
@@ -61,7 +66,6 @@ module Spago.Prelude
   , pretty
   , output
   , outputStr
-  , askEnv
   ) where
 
 
@@ -72,7 +76,6 @@ import qualified Data.Text.Prettyprint.Doc.Render.Text as PrettyText
 import qualified Data.Time                             as Time
 import           Dhall                                 (Text)
 import qualified Dhall.Core
-import qualified GHC.IO
 import qualified System.FilePath                       as FilePath
 import qualified System.IO
 import qualified Turtle
@@ -105,6 +108,8 @@ import           Turtle                                (ExitCode (..), FilePath,
 import           UnliftIO.Directory                    (getModificationTime, makeAbsolute)
 import           UnliftIO.Process                      (callCommand)
 
+import           Spago.Env
+
 
 -- | Generic Error that we throw on program exit.
 --   We have it so that errors are displayed nicely to the user
@@ -114,30 +119,7 @@ instance Show SpagoError where
   show (SpagoError err) = Text.unpack err
 
 
--- | Flag to disable the automatic use of `psa`
-data UsePsa = UsePsa | NoPsa
-
--- | App configuration containing parameters and other common
---   things it's useful to compute only once at startup.
-data Env = Env
-  { envUsePsa      :: UsePsa
-  , envJobs        :: Int
-  , envConfigPath  :: Text
-  , envGlobalCache :: GHC.IO.FilePath
-  , envLogFunc     :: !LogFunc
-  }
-
-instance HasLogFunc Env where
-  logFuncL = lens envLogFunc (\x y -> x { envLogFunc = y })
-
-
 type Spago = RIO Env
-
-
--- | Facility to easily get global parameters from the environment
-askEnv :: (Env -> a) -> Spago a
-askEnv = view . to
-
 
 output :: MonadIO m => Text -> m ()
 output = Turtle.printf (Turtle.s Turtle.% "\n")

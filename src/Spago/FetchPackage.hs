@@ -46,7 +46,7 @@ fetchPackages globalCacheFlag allDeps minPursVersion = do
   PackageSet.checkPursIsUpToDate minPursVersion
 
   -- Ensure both local and global cache dirs are there
-  globalCache <- askEnv envGlobalCache
+  globalCache <- view globalCacheL
   assertDirectory globalCache
   assertDirectory localCacheDir
 
@@ -63,7 +63,7 @@ fetchPackages globalCacheFlag allDeps minPursVersion = do
     logInfo $ "Installing " <> display nOfDeps <> " dependencies."
     metadata <- GlobalCache.getMetadata globalCacheFlag
 
-    limit <- askEnv envJobs
+    limit <- view jobsL
     withTaskGroup' limit $ \taskGroup -> do
       asyncs <- for depsToFetch (async' taskGroup . fetchPackage metadata)
       handle (handler asyncs) (for_ asyncs wait')
@@ -98,7 +98,7 @@ fetchPackage _ (PackageName package, Package { location = Local{..}, .. }) =
   logInfo $ display $ Messages.foundLocalPackage package localPath
 fetchPackage metadata pair@(packageName'@PackageName{..}, Package{ location = Remote{..}, .. } ) = do
   logDebug $ "Fetching package " <> display packageName
-  globalCache <- askEnv envGlobalCache
+  globalCache <- view globalCacheL
   let packageDir = getPackageDir packageName' version
       packageGlobalCacheDir = globalCache </> packageDir
 

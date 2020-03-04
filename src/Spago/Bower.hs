@@ -143,4 +143,4 @@ mkDependencies config = do
       -- Windows sucks so lets make it slow for them!
       -- (just kidding, its a bug: https://github.com/bower/spec/issues/79)
       Windows -> pure 1
-      _       -> askEnv envJobs
+      _       -> view jobsL
