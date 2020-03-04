@@ -19,6 +19,7 @@ import qualified Spago.Build
 import qualified Spago.Config        as Config
 import           Spago.Dhall         (TemplateComments (..))
 import           Spago.DryRun        (DryRun (..))
+import           Spago.Env
 import qualified Spago.GitHub
 import           Spago.GlobalCache   (CacheFlag (..), getGlobalCacheDir)
 import           Spago.Messages      as Messages

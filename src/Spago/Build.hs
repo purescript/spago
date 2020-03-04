@@ -189,7 +189,7 @@ repl cacheFlag newPackages sourcePaths pursArgs depsOnly = do
       Purs.repl globs pursArgs
     Left (err :: SomeException) -> do
       logDebug $ display err
-      cacheDir <- askEnv envGlobalCache
+      cacheDir <- view globalCacheL
       Temp.withTempDirectory cacheDir "spago-repl-tmp" $ \dir -> do
         Turtle.cd (Turtle.decodeString dir)
 
@@ -385,7 +385,7 @@ getOutputPath
   :: BuildOptions
   -> Spago (Maybe Sys.FilePath)
 getOutputPath buildOpts = do
-  configPath <- askEnv envConfigPath
+  configPath <- view configPathL
   outputPath <- PackageSet.findRootOutputPath (Text.unpack configPath)
   case findOutputFlag (pursArgs buildOpts) of
     Just path -> pure (Just path)

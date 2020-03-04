@@ -127,7 +127,7 @@ parseConfig = do
   -- Here we try to migrate any config that is not in the latest format
   withConfigAST $ pure . addSourcePaths
 
-  path <- askEnv envConfigPath
+  path <- view configPathL
   expr <- liftIO $ Dhall.inputExpr $ "./" <> path
   case expr of
     Dhall.RecordLit ks -> do
@@ -156,7 +156,7 @@ parseConfig = do
 -- | Checks that the Spago config is there and readable
 ensureConfig :: Spago (Either Utf8Builder Config)
 ensureConfig = do
-  path <- askEnv envConfigPath
+  path <- view configPathL
   exists <- testfile path
   if not exists
     then pure $ Left $ display Messages.cannotFindConfig
@@ -179,7 +179,7 @@ ensureConfigUnsafe = ensureConfig >>= \case
 --   Eventually ports an existing `psc-package.json` to the new config.
 makeConfig :: Bool -> Dhall.TemplateComments -> Spago ()
 makeConfig force comments = do
-  path <- askEnv envConfigPath
+  path <- view configPathL
   unless force $ do
     hasSpagoDhall <- testfile path
     when hasSpagoDhall $ die [ display $ Messages.foundExistingProject path ]
@@ -361,7 +361,7 @@ filterDependencies expr = expr
 --   still be in the tree). If you need the resolved one, use `ensureConfig`.
 withConfigAST :: (Expr -> Spago Expr) -> Spago Bool
 withConfigAST transform = do
-  path <- askEnv envConfigPath
+  path <- view configPathL
   rawConfig <- liftIO $ Dhall.readRawExpr path
   case rawConfig of
     Nothing -> die [ display $ Messages.cannotFindConfig ]

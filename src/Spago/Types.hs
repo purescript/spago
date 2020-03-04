@@ -11,7 +11,7 @@ import qualified Spago.Messages as Messages
 
 
 newtype PackageName = PackageName { packageName :: Text }
-  deriving (Show)
+  deriving (Show, Read, Data)
   deriving newtype (Eq, Ord, ToJSON, FromJSON, ToJSONKey, FromJSONKey, Dhall.FromDhall)
 
 -- | A package-set package.
