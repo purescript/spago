@@ -33,6 +33,13 @@ packages:
   original:
     hackage: github-0.24
 - completed:
+    hackage: with-utf8-1.0.0.0@sha256:686e47588986d8080451b4e617118b579487dd4e085bba7bb36fac4198c90ae6,2480
+    pantry-tree:
+      size: 905
+      sha256: 39176872f0dde9f9e09c9cb9496e2b7b10fa17cb9a6eca8d40ca4b2dcaaacc11
+  original:
+    hackage: with-utf8-1.0.0.0
+- completed:
     hackage: async-pool-0.9.0.2@sha256:3aca5861a7b839d02a3f5c52ad6d1ce368631003f68c3d9cb6d711c29e9618db,1599
     pantry-tree:
       size: 443

@@ -4,11 +4,11 @@ import           Spago.Prelude
 
 import qualified Data.Text           as Text
 import           Data.Version        (showVersion)
-import qualified GHC.IO.Encoding
 import qualified Options.Applicative as Opts
 import qualified Paths_spago         as Pcli
 import qualified System.Environment  as Env
 import qualified Turtle              as CLI
+import           Main.Utf8           (withUtf8)
 
 import           Spago.Build         (BuildOptions (..), DepsOnly (..), ExtraArg (..),
                                       ModuleName (..), NoBuild (..), NoInstall (..), NoSearch (..),
@@ -416,9 +416,7 @@ runWithEnv GlobalOptions{..} app = do
     runRIO env app
 
 main :: IO ()
-main = do
-  -- We always want to run in UTF8 anyways
-  GHC.IO.Encoding.setLocaleEncoding GHC.IO.Encoding.utf8
+main = withUtf8 $ do
   -- Stop `git` from asking for input, not gonna happen
   -- We just fail instead. Source:
   -- https://serverfault.com/questions/544156
