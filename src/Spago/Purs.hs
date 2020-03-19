@@ -17,11 +17,13 @@ module Spago.Purs
 import           Spago.Prelude
 
 import qualified Data.Text      as Text
+import qualified Data.Text.Encoding as Text.Encoding
+import Data.Text.Encoding.Error (lenientDecode)
 import qualified Data.Versions  as Version
 import qualified Spago.Dhall    as Dhall
 
 import qualified Spago.Messages as Messages
-
+import qualified Turtle.Bytes
 
 newtype ModuleName = ModuleName { unModuleName :: Text }
 newtype TargetPath = TargetPath { unTargetPath :: Text }
@@ -125,13 +127,13 @@ version    = versionImpl "purs"
 psaVersion = versionImpl "psa"
 
 versionImpl :: Text -> Spago (Either Text Version.SemVer)
-versionImpl purs = shellStrictWithErr (purs <> " --version") empty >>= \case
+versionImpl purs = Turtle.Bytes.shellStrictWithErr (purs <> " --version") empty >>= \case
   (ExitSuccess, out, _err) -> do
-    let versionText = headMay $ Text.split (== ' ') out
+    let versionText = headMay $ Text.split (== ' ') (Text.Encoding.decodeUtf8With lenientDecode out)
         parsed = versionText >>= (hush . Version.semver)
 
     pure $ case parsed of
-      Nothing -> Left $ Messages.failedToParseCommandOutput (purs <> " --version") out
+      Nothing -> Left $ Messages.failedToParseCommandOutput (purs <> " --version") (Text.Encoding.decodeUtf8With lenientDecode out)
       Just p -> Right p
   (_, _out, _err) -> pure $ Left $ "Failed to run '" <> purs <> " --version'"
 
