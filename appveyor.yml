@@ -47,6 +47,9 @@ test_script:
   - stack test
   # We install psa and rerun the tests that exercise it
   - npm install -g purescript-psa
+  # We run tests with Japanese encoding, so we can figure out any encoding problems
+  # https://en.wikipedia.org/wiki/Code_page_932_(Microsoft_Windows)
+  - chcp 932
   - stack test --ta "--match \"/Spago/spago run\""
 
 artifacts:
