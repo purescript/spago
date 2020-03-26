@@ -16,13 +16,11 @@ environment:
   matrix:
     - STACK_YAML: stack.yaml
 
-# We run the Windows CI with Japanese encoding,
-# so we can figure out any encoding problems
-# https://en.wikipedia.org/wiki/Code_page_932_(Microsoft_Windows)
+cache:
+  - '%STACK_ROOT% -> %STACK_YAML%, appveyor.yml'
+  - '.stack-work -> %STACK_YAML%, appveyor.yml'
+
 install:
-  - ps: Set-WinSystemLocale ja-JP
-  - ps: Start-Sleep -s 5
-  - ps: Restart-Computer
   # http://help.appveyor.com/discussions/problems/6312-curl-command-not-found
   - set PATH=C:\Program Files\Git\mingw64\bin;%PATH%
   - curl --silent --show-error --output stack.zip --location "https://github.com/commercialhaskell/stack/releases/download/v%STACK_VERSION%/stack-%STACK_VERSION%-windows-x86_64.zip"
@@ -36,10 +34,12 @@ install:
       Invoke-WebRequest $download -Out purescript.tar.gz
   - tar -xvf purescript.tar.gz
   - chmod a+x purescript
-
-cache:
-  - '%STACK_ROOT% -> %STACK_YAML%, appveyor.yml'
-  - '.stack-work -> %STACK_YAML%, appveyor.yml'
+  # We run the Windows CI with Japanese encoding,
+  # so we can figure out any encoding problems
+  # https://en.wikipedia.org/wiki/Code_page_932_(Microsoft_Windows)
+  - ps: Set-WinSystemLocale ja-JP
+  - ps: Start-Sleep -s 5
+  - ps: Restart-Computer
 
 build_script:
   - stack build
