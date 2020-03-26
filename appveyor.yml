@@ -16,6 +16,14 @@ environment:
   matrix:
     - STACK_YAML: stack.yaml
 
+# We run the Windows CI with Japanese encoding,
+# so we can figure out any encoding problems
+# https://en.wikipedia.org/wiki/Code_page_932_(Microsoft_Windows)
+init:
+  - ps: Set-WinSystemLocale ja-JP
+  - ps: Start-Sleep -s 5
+  - ps: Restart-Computer
+
 install:
   # http://help.appveyor.com/discussions/problems/6312-curl-command-not-found
   - set PATH=C:\Program Files\Git\mingw64\bin;%PATH%
@@ -47,9 +55,6 @@ test_script:
   - stack test
   # We install psa and rerun the tests that exercise it
   - npm install -g purescript-psa
-  # We run tests with Japanese encoding, so we can figure out any encoding problems
-  # https://en.wikipedia.org/wiki/Code_page_932_(Microsoft_Windows)
-  - chcp 932
   - stack test --ta "--match \"/Spago/spago run\""
 
 artifacts:
