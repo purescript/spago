@@ -42,7 +42,6 @@ module Spago.Prelude
   , lastMay
   , shouldRefreshFile
   , makeAbsolute
-  , hPutStrLn
   , empty
   , callCommand
   , shell
@@ -70,6 +69,7 @@ module Spago.Prelude
 
 
 import qualified Control.Concurrent.Async.Pool         as Async
+import           Control.Monad.Catch                   (MonadMask)
 import qualified Data.Text                             as Text
 import qualified Data.Text.Prettyprint.Doc             as Pretty
 import qualified Data.Text.Prettyprint.Doc.Render.Text as PrettyText
@@ -94,13 +94,13 @@ import           Data.List.NonEmpty                    (NonEmpty (..))
 import           Data.Maybe                            as X
 import           Data.Sequence                         (Seq (..))
 import           Data.Text.Prettyprint.Doc             (Pretty)
+import           Data.Text.IO.Utf8                     (readFile, writeFile)
 import           Dhall.Optics                          (transformMOf)
 import           Lens.Family                           ((^..))
 import           RIO                                   as X hiding (FilePath, first, force, second)
 import           RIO.Orphans                           as X
 import           Safe                                  (headMay, lastMay)
 import           System.FilePath                       (isAbsolute, pathSeparator, (</>))
-import           System.IO                             (hPutStrLn)
 import           Turtle                                (ExitCode (..), FilePath, appendonly, chmod,
                                                         executable, mktree, repr, shell,
                                                         shellStrict, shellStrictWithErr,
@@ -143,11 +143,11 @@ testfile :: MonadIO m => Text -> m Bool
 testfile = Turtle.testfile . pathFromText
 
 readTextFile :: MonadIO m => Turtle.FilePath -> m Text
-readTextFile = liftIO . Turtle.readTextFile
+readTextFile = readFile . Turtle.encodeString
 
 
-writeTextFile :: MonadIO m => Text -> Text -> m ()
-writeTextFile path text = liftIO $ Turtle.writeTextFile (Turtle.fromText path) text
+writeTextFile :: (MonadIO m, MonadMask m) => Text -> Text -> m ()
+writeTextFile path text = writeFile (Text.unpack path) text
 
 
 with :: MonadIO m => Turtle.Managed a -> (a -> IO r) -> m r

@@ -16,6 +16,10 @@ environment:
   matrix:
     - STACK_YAML: stack.yaml
 
+cache:
+  - '%STACK_ROOT% -> %STACK_YAML%, appveyor.yml'
+  - '.stack-work -> %STACK_YAML%, appveyor.yml'
+
 install:
   # http://help.appveyor.com/discussions/problems/6312-curl-command-not-found
   - set PATH=C:\Program Files\Git\mingw64\bin;%PATH%
@@ -31,10 +35,6 @@ install:
   - tar -xvf purescript.tar.gz
   - chmod a+x purescript
 
-cache:
-  - '%STACK_ROOT% -> %STACK_YAML%, appveyor.yml'
-  - '.stack-work -> %STACK_YAML%, appveyor.yml'
-
 build_script:
   - stack build
   - stack install --local-bin-path bin
@@ -42,12 +42,19 @@ build_script:
   - tar -zcvf windows.tar.gz spago.exe
 
 test_script:
-  - set PATH=C:\projects\spago\bin;C:\projects\spago\purescript;%PATH%
-  - set XDG_CACHE_HOME=C:\cache
-  - stack test
+  # We run the Windows CI with Japanese encoding,
+  # so we can figure out any encoding problems
+  # https://en.wikipedia.org/wiki/Code_page_932_(Microsoft_Windows)
+  - ps: Set-WinSystemLocale ja-JP
+  - ps: Start-Sleep -s 5
+  - ps: Restart-Computer
+  - ps: Start-Sleep -s 5
+  - cmd: set PATH=C:\projects\spago\bin;C:\projects\spago\purescript;%PATH%
+  - cmd: set XDG_CACHE_HOME=C:\cache
+  - cmd: stack test
   # We install psa and rerun the tests that exercise it
-  - npm install -g purescript-psa
-  - stack test --ta "--match \"/Spago/spago run\""
+  - cmd: npm install -g purescript-psa
+  - cmd: stack test --ta "--match \"/Spago/spago run\""
 
 artifacts:
   - path: windows.tar.gz

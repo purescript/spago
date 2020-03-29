@@ -1,7 +1,7 @@
 {-# LANGUAGE TupleSections #-}
 module Spago.Watch (watch, globToParent, ClearScreen (..)) where
 
--- This code basically comes straight from
+-- This code is derived from:
 -- https://github.com/commercialhaskell/stack/blob/0740444175f41e6ea5ed236cd2c53681e4730003/src/Stack/FileWatch.hs
 
 import           Spago.Prelude          hiding (FilePath)
@@ -9,7 +9,8 @@ import           Spago.Prelude          hiding (FilePath)
 import           Control.Concurrent.STM (check)
 import qualified Data.Map.Strict        as Map
 import qualified Data.Set               as Set
-import           Data.Text              (pack, toLower, unpack)
+import qualified Data.Text              as Text
+import qualified Data.Text.IO           as Text.IO
 import           Data.Time.Clock        (NominalDiffTime, diffUTCTime, getCurrentTime)
 import           GHC.IO                 (FilePath)
 import           GHC.IO.Exception
@@ -17,9 +18,9 @@ import           System.Console.ANSI    (clearScreen, setCursorPosition)
 import           System.FilePath        (splitDirectories)
 import qualified System.FilePath.Glob   as Glob
 import qualified System.FSNotify        as Watch
-import           System.IO              (getLine)
+import qualified System.IO.Utf8         as Utf8
 import qualified UnliftIO
-import           UnliftIO.Async         (race_)
+import qualified UnliftIO.Async         as Async
 
 -- Should we clear the screen on rebuild?
 data ClearScreen = DoClear | NoClear
@@ -135,8 +136,7 @@ fileWatchConf watchConfig shouldClear inner = withManagerConf watchConfig $ \man
 
     let watchInput :: Spago ()
         watchInput = do
-          -- env <- ask
-          line <- liftIO $ unpack . toLower . pack <$> getLine
+          line <- Utf8.withHandle stdin (liftIO $ Text.toLower <$> Text.IO.hGetLine stdin)
           if line == "quit" then logInfo "Leaving watch mode."
           else do
             case line of
@@ -163,7 +163,7 @@ fileWatchConf watchConfig shouldClear inner = withManagerConf watchConfig $ \man
                      ]
             watchInput
 
-    race_ watchInput $ forever $ do
+    Async.race_ watchInput $ forever $ do
       liftIO $ atomically $ do
         dirty <- readTVar dirtyVar
         check dirty

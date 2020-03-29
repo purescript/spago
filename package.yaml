@@ -92,6 +92,7 @@ library:
   - unordered-containers
   - vector
   - versions
+  - with-utf8
   - zlib
 
 executables:
@@ -123,6 +124,7 @@ executables:
     - spago
     - text < 1.3
     - turtle
+    - with-utf8
 
 tests:
   spec:
