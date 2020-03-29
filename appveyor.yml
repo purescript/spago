@@ -34,12 +34,6 @@ install:
       Invoke-WebRequest $download -Out purescript.tar.gz
   - tar -xvf purescript.tar.gz
   - chmod a+x purescript
-  # We run the Windows CI with Japanese encoding,
-  # so we can figure out any encoding problems
-  # https://en.wikipedia.org/wiki/Code_page_932_(Microsoft_Windows)
-  - ps: Set-WinSystemLocale ja-JP
-  - ps: Start-Sleep -s 5
-  - ps: Restart-Computer
 
 build_script:
   - stack build
@@ -48,6 +42,12 @@ build_script:
   - tar -zcvf windows.tar.gz spago.exe
 
 test_script:
+  # We run the Windows CI with Japanese encoding,
+  # so we can figure out any encoding problems
+  # https://en.wikipedia.org/wiki/Code_page_932_(Microsoft_Windows)
+  - ps: Set-WinSystemLocale ja-JP
+  - ps: Start-Sleep -s 5
+  - ps: Restart-Computer
   - set PATH=C:\projects\spago\bin;C:\projects\spago\purescript;%PATH%
   - set XDG_CACHE_HOME=C:\cache
   - stack test
