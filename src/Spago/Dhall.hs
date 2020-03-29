@@ -29,12 +29,12 @@ type DhallExpr a = Dhall.Expr Parser.Src a
 --   We first check if it's already formatted, if not we reformat it.
 format :: MonadIO m => Text -> m ()
 format pathText = liftIO $
-  try (f $ Dhall.Format.Check path) >>= \case
+  try (f Dhall.Check) >>= \case
     Left (_e :: SomeException) ->
-      f $ Dhall.Format.Modify path
+      f Dhall.Write
     Right _ -> pure ()
   where
-    f = Dhall.Format.format . Dhall.Format.Format Dhall.Pretty.ASCII Dhall.NoCensor
+    f = Dhall.Format.format . Dhall.Format.Format Dhall.Pretty.ASCII Dhall.NoCensor path
     path = Dhall.InputFile $ Text.unpack pathText
 
 
