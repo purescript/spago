@@ -48,12 +48,13 @@ test_script:
   - ps: Set-WinSystemLocale ja-JP
   - ps: Start-Sleep -s 5
   - ps: Restart-Computer
-  - set PATH=C:\projects\spago\bin;C:\projects\spago\purescript;%PATH%
-  - set XDG_CACHE_HOME=C:\cache
-  - stack test
+  - ps: Start-Sleep -s 5
+  - cmd: set PATH=C:\projects\spago\bin;C:\projects\spago\purescript;%PATH%
+  - cmd: set XDG_CACHE_HOME=C:\cache
+  - cmd: stack test
   # We install psa and rerun the tests that exercise it
-  - npm install -g purescript-psa
-  - stack test --ta "--match \"/Spago/spago run\""
+  - cmd: npm install -g purescript-psa
+  - cmd: stack test --ta "--match \"/Spago/spago run\""
 
 artifacts:
   - path: windows.tar.gz
