@@ -15,6 +15,7 @@ module Spago.Packages
   , CheckModulesUnique(..)
   , JsonFlag(..)
   , DepsOnly(..)
+  , Force(..)
   ) where
 
 import           Spago.Prelude
@@ -46,7 +47,10 @@ import           Spago.Types              as PackageSet
 --   - create `spago.dhall` to manage project config: name, deps, etc
 --   - create an example `src` folder (if needed)
 --   - create an example `test` folder (if needed)
-initProject :: Bool -> Dhall.TemplateComments -> Spago ()
+initProject 
+  :: (HasGlobalCache env, HasLogFunc env, HasConfigPath env)
+  => Force -> Dhall.TemplateComments 
+  -> RIO env ()
 initProject force comments = do
   logInfo "Initializing a sample project or migrating an existing one.."
 
@@ -114,7 +118,10 @@ getJsGlobs deps depsOnly configSourcePaths
 
 
 -- | Return the direct dependencies of the current project
-getDirectDeps :: Config -> Spago [(PackageName, Package)]
+getDirectDeps 
+  :: HasLogFunc env
+  => Config 
+  -> RIO env [(PackageName, Package)]
 getDirectDeps Config{..} = do
   let PackageSet{..} = packageSet
   for dependencies $ \dep ->
@@ -126,12 +133,18 @@ getDirectDeps Config{..} = do
 
 
 -- | Return all the transitive dependencies of the current project
-getProjectDeps :: Config -> Spago [(PackageName, Package)]
+getProjectDeps 
+  :: HasLogFunc env
+  => Config 
+  -> RIO env [(PackageName, Package)]
 getProjectDeps Config{..} = getTransitiveDeps packageSet dependencies
 
 
 -- | Return the transitive dependencies of a list of packages
-getTransitiveDeps :: PackageSet -> [PackageName] -> Spago [(PackageName, Package)]
+getTransitiveDeps
+  :: (HasLogFunc env)
+  => PackageSet -> [PackageName] 
+  -> RIO env [(PackageName, Package)]
 getTransitiveDeps PackageSet{..} deps = do
   logDebug "Getting transitive deps"
   let (packageMap, notFoundErrors, cycleErrors) = State.evalState (fold <$> traverse (go mempty) deps) mempty
@@ -193,7 +206,9 @@ getReverseDeps packageSet@PackageSet{..} dep = do
 
 
 -- | Fetch all dependencies into `.spago/`
-install :: Maybe CacheFlag -> [PackageName] -> Spago ()
+install 
+  :: (HasLogFunc env, HasGlobalCache env, HasJobs env, HasConfigPath env)
+  => Maybe CacheFlag -> [PackageName] -> RIO env ()
 install cacheFlag newPackages = do
   logDebug "Running `spago install`"
   config@Config{ packageSet = PackageSet{..}, ..} <- Config.ensureConfigUnsafe
@@ -202,7 +217,7 @@ install cacheFlag newPackages = do
 
   -- Try fetching the dependencies with the new names too
   let newConfig :: Config
-      newConfig = config { dependencies = dependencies <> existingNewPackages }
+      newConfig = config { Config.dependencies = dependencies <> existingNewPackages }
   deps <- getProjectDeps newConfig
 
   -- If the above doesn't fail, write the new packages to the config
@@ -213,7 +228,7 @@ install cacheFlag newPackages = do
 
   Fetch.fetchPackages cacheFlag deps packagesMinPursVersion
 
-reportMissingPackages :: PackagesLookupResult -> Spago [PackageName]
+reportMissingPackages :: HasLogFunc env => PackagesLookupResult -> RIO env [PackageName]
 reportMissingPackages (PackagesLookupResult found foundWithoutPrefix notFound) = do
   unless (null notFound) $
     die $
@@ -270,7 +285,7 @@ encodeJsonPackageOutput :: JsonPackageOutput -> Text
 encodeJsonPackageOutput = LT.toStrict . LT.decodeUtf8 . Aeson.encode
 
 -- | A list of the packages that can be added to this project
-listPackages :: IncludePackages -> JsonFlag -> Spago ()
+listPackages :: (HasLogFunc env, HasConfigPath env) => IncludePackages -> JsonFlag -> RIO env ()
 listPackages packagesFilter jsonFlag = do
   logDebug "Running `listPackages`"
   Config{packageSet = packageSet@PackageSet{..}, ..} <- Config.ensureConfigUnsafe
@@ -333,7 +348,7 @@ listPackages packagesFilter jsonFlag = do
 
 
 -- | Get source globs of dependencies listed in `spago.dhall`
-sources :: Spago ()
+sources :: (HasLogFunc env, HasConfigPath env) => RIO env ()
 sources = do
   logDebug "Running `spago sources`"
   config <- Config.ensureConfigUnsafe
@@ -346,7 +361,11 @@ sources = do
 
 data CheckModulesUnique = DoCheckModulesUnique | NoCheckModulesUnique
 
-verify :: Maybe CacheFlag -> CheckModulesUnique -> Maybe PackageName -> Spago ()
+verify
+  :: forall env
+  .  (HasLogFunc env, HasPurs env, HasGlobalCache env, HasJobs env, HasConfigPath env)
+  => Maybe CacheFlag -> CheckModulesUnique -> Maybe PackageName 
+  -> RIO env ()
 verify cacheFlag chkModsUniq maybePackage = do
   logDebug "Running `spago verify`"
 
@@ -383,12 +402,12 @@ verify cacheFlag chkModsUniq maybePackage = do
     DoCheckModulesUnique -> compileEverything packageSet
     NoCheckModulesUnique -> pure ()
   where
-    verifyPackages :: PackageSet -> [(PackageName, Package)] -> Spago ()
+    verifyPackages :: PackageSet -> [(PackageName, Package)] -> RIO env ()
     verifyPackages packageSet packages = do
       logInfo $ display $ Messages.verifying $ length packages
       traverse_ (verifyPackage packageSet) (fst <$> packages)
 
-    verifyPackage :: PackageSet -> PackageName -> Spago ()
+    verifyPackage :: PackageSet -> PackageName -> RIO env ()
     verifyPackage packageSet@PackageSet{..} name = do
       deps <- getTransitiveDeps packageSet [name]
       let globs = getGlobs deps DepsOnly []
@@ -398,7 +417,7 @@ verify cacheFlag chkModsUniq maybePackage = do
       Purs.compile globs []
       logInfo $ display $ "Successfully verified " <> quotedName
 
-    compileEverything :: PackageSet -> Spago ()
+    compileEverything :: PackageSet -> RIO env ()
     compileEverything PackageSet{..} = do
       let deps = Map.toList packagesDB
           globs = getGlobs deps DepsOnly []

@@ -11,13 +11,13 @@ import Spago.Prelude
 data DryRun = DryRun | NoDryRun
 
 -- | Wrapper for Spago actions that can be dry run
-data DryAction
+data DryAction env
   = DryAction
     { dryMessage :: Text
-    , dryAction  :: Spago ()
+    , dryAction  :: HasLogFunc env => RIO env ()
     }
 
-runDryActions :: DryRun -> NonEmpty DryAction -> Spago ()
+runDryActions :: HasLogFunc env => DryRun -> NonEmpty (DryAction env) -> RIO env ()
 runDryActions DryRun dryActions = do
   logWarn "this is a dry run, so these side effects were not performed:"
   for_ dryActions $ \DryAction{..} -> logWarn $ "* " <> display dryMessage

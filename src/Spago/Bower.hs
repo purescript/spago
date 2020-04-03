@@ -20,6 +20,7 @@ import qualified Turtle
 import           Web.Bower.PackageMeta      (PackageMeta (..))
 import qualified Web.Bower.PackageMeta      as Bower
 
+import qualified Spago.Async                as Async
 import           Spago.Config               (Config (..), PublishConfig (..))
 import qualified Spago.Config               as Config
 import qualified Spago.Git                  as Git
@@ -33,7 +34,7 @@ path :: IsString t => t
 path = "bower.json"
 
 
-runBower :: [Text] -> Spago (ExitCode, Text, Text)
+runBower :: [Text] -> RIO env (ExitCode, Text, Text)
 runBower args = do
   -- workaround windows issue: https://github.com/haskell/process/issues/140
   cmd <- case System.buildOS of
@@ -45,7 +46,9 @@ runBower args = do
   Turtle.procStrictWithErr cmd args empty
 
 
-generateBowerJson :: Spago ByteString.ByteString
+generateBowerJson 
+  :: (HasLogFunc env, HasJobs env, HasConfigPath env)
+  => RIO env ByteString.ByteString
 generateBowerJson = do
   logInfo "Generating a new Bower config using the package set versions.."
   config@Config{..} <- Config.ensureConfigUnsafe
@@ -72,7 +75,7 @@ generateBowerJson = do
   pure bowerJson
 
 
-runBowerInstall :: Spago ()
+runBowerInstall :: HasLogFunc env => RIO env ()
 runBowerInstall = do
   logInfo "Running `bower install` so `pulp publish` can read resolved versions from it"
   shell "bower install --silent" empty >>= \case
@@ -80,7 +83,7 @@ runBowerInstall = do
     ExitFailure _ -> die [ "Failed to run `bower install` on your package" ]
 
 
-templateBowerJson :: Spago Bower.PackageMeta
+templateBowerJson :: HasLogFunc env => RIO env Bower.PackageMeta
 templateBowerJson = do
   case Aeson.decodeStrict Templates.bowerJson of
     Just t  ->
@@ -89,7 +92,7 @@ templateBowerJson = do
       die [ "Invalid bower.json template (this is a Spago bug)" ]
 
 
-mkPackageName :: Text -> Spago Bower.PackageName
+mkPackageName :: HasLogFunc env => Text -> RIO env Bower.PackageName
 mkPackageName spagoName = do
   let psName = "purescript-" <> spagoName
   case Bower.mkPackageName psName of
@@ -101,7 +104,10 @@ mkPackageName spagoName = do
 
 -- | If the given version exists in bower, return a shorthand bower
 -- | version, otherwise return a URL#version style bower version.
-mkBowerVersion :: Bower.PackageName -> Text -> Repo -> Spago Bower.VersionRange
+mkBowerVersion 
+  :: HasLogFunc env
+  => Bower.PackageName -> Text -> Repo 
+  -> RIO env Bower.VersionRange
 mkBowerVersion packageName version (Repo repo) = do
 
   let args = ["info", "--json", Bower.runPackageName packageName <> "#" <> version]
@@ -119,17 +125,21 @@ mkBowerVersion packageName version (Repo repo) = do
     else pure $ Bower.VersionRange $ repo <> "#" <> version
 
 
-mkDependencies :: Config -> Spago [(Bower.PackageName, Bower.VersionRange)]
+mkDependencies 
+  :: forall env
+  .  (HasJobs env, HasLogFunc env)
+  => Config 
+  -> RIO env [(Bower.PackageName, Bower.VersionRange)]
 mkDependencies config = do
   deps <- Packages.getDirectDeps config
 
   jobs <- getJobs
 
-  withTaskGroup' jobs $ \taskGroup ->
-    mapTasks' taskGroup $ mkDependency <$> deps
+  Async.withTaskGroup jobs $ \taskGroup ->
+    Async.mapTasks taskGroup $ mkDependency <$> deps
 
   where
-    mkDependency :: (PackageName, Package) -> Spago (Bower.PackageName, Bower.VersionRange)
+    mkDependency :: (PackageName, Package) -> RIO env (Bower.PackageName, Bower.VersionRange)
     mkDependency (PackageName{..}, Package{..}) =
       case location of
         Local localPath ->

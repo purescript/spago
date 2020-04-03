@@ -66,3 +66,8 @@ instance Dhall.FromDhall Repo where
       makeRepo repo = case URI.parseURI $ Text.unpack repo of
         Just _uri -> Repo repo
         Nothing   -> error $ Text.unpack $ Messages.failedToParseRepoString repo
+
+
+-- | Whether to force an action
+data Force = Force | NoForce
+  deriving (Eq)

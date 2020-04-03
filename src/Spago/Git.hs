@@ -12,14 +12,14 @@ import qualified Data.Text     as Text
 import qualified Turtle
 
 
-requireCleanWorkingTree :: Spago ()
+requireCleanWorkingTree :: HasLogFunc env => RIO env ()
 requireCleanWorkingTree = do
   clean <- hasCleanWorkingTree
   unless clean $ do
     die [ "Your git working tree is dirty. Please commit or stash your changes first." ]
 
 
-hasCleanWorkingTree :: Spago Bool
+hasCleanWorkingTree :: HasLogFunc env => RIO env Bool
 hasCleanWorkingTree = do
   (code, out, err) <- Turtle.procStrictWithErr "git" ["status", "--porcelain"] empty
 

@@ -109,7 +109,10 @@ parsePackage expr = die [ display $ Messages.failedToParsePackage $ pretty expr 
 
 -- | Parse the contents of a "packages.dhall" file (or the "packages" key of an
 -- evaluated "spago.dhall")
-parsePackageSet :: Dhall.Map.Map Text (Dhall.DhallExpr Void) -> Spago PackageSet
+parsePackageSet 
+  :: HasLogFunc env
+  => Dhall.Map.Map Text (Dhall.DhallExpr Void) 
+  -> RIO env PackageSet
 parsePackageSet pkgs = do
   packages <- fmap (Map.mapKeys PackageSet.PackageName . Dhall.Map.toMap) $ traverse parsePackage pkgs
 
@@ -122,10 +125,12 @@ parsePackageSet pkgs = do
 
 
 -- | Tries to read in a Spago Config
-parseConfig :: Spago Config
+parseConfig 
+  :: (HasLogFunc env, HasConfigPath env)
+  => RIO env Config
 parseConfig = do
   -- Here we try to migrate any config that is not in the latest format
-  withConfigAST $ pure . addSourcePaths
+  void $ withConfigAST $ pure . addSourcePaths
 
   path <- view configPathL
   expr <- liftIO $ Dhall.inputExpr $ "./" <> path
@@ -154,7 +159,9 @@ parseConfig = do
 
 
 -- | Checks that the Spago config is there and readable
-ensureConfig :: Spago (Either Utf8Builder Config)
+ensureConfig 
+  :: (HasLogFunc env, HasConfigPath env)
+  => RIO env (Either Utf8Builder Config)
 ensureConfig = do
   path <- view configPathL
   exists <- testfile path
@@ -169,7 +176,9 @@ ensureConfig = do
 
 -- | Same as `ensureConfig`, but will quit with an error
 --   if it's not possible to find a config.
-ensureConfigUnsafe :: Spago Config
+ensureConfigUnsafe
+  :: (HasLogFunc env, HasConfigPath env)
+  => RIO env Config
 ensureConfigUnsafe = ensureConfig >>= \case
   Left err -> die [ err ]
   Right config -> pure config
@@ -177,10 +186,13 @@ ensureConfigUnsafe = ensureConfig >>= \case
 
 -- | Copies over `spago.dhall` to set up a Spago project.
 --   Eventually ports an existing `psc-package.json` to the new config.
-makeConfig :: Bool -> Dhall.TemplateComments -> Spago ()
+makeConfig
+  :: (HasConfigPath env, HasLogFunc env)
+  => Force -> Dhall.TemplateComments 
+  -> RIO env ()
 makeConfig force comments = do
   path <- view configPathL
-  unless force $ do
+  when (force == NoForce) $ do
     hasSpagoDhall <- testfile path
     when hasSpagoDhall $ die [ display $ Messages.foundExistingProject path ]
   writeTextFile path $ Dhall.processComments comments Templates.spagoDhall
@@ -300,7 +312,7 @@ updateName newName (Dhall.RecordLit kvs)
     $ Dhall.Map.insert "name" (Dhall.toTextLit newName) kvs
 updateName _ other = other
 
-addRawDeps :: Config -> [PackageName] -> Expr -> Spago Expr
+addRawDeps :: HasLogFunc env => Config -> [PackageName] -> Expr -> RIO env Expr
 addRawDeps config newPackages r@(Dhall.RecordLit kvs) = case Dhall.Map.lookup "dependencies" kvs of
   Just (Dhall.ListLit _ dependencies) -> do
       case NonEmpty.nonEmpty notInPackageSet of
@@ -359,7 +371,9 @@ filterDependencies expr = expr
 --   on the current config. If it succeeds, it writes back to file the result returned.
 --   Note: it will pass in the parsed AST, not the resolved one (so e.g. imports will
 --   still be in the tree). If you need the resolved one, use `ensureConfig`.
-withConfigAST :: (Expr -> Spago Expr) -> Spago Bool
+withConfigAST
+  :: (HasLogFunc env, HasConfigPath env)
+  => (Expr -> RIO env Expr) -> RIO env Bool
 withConfigAST transform = do
   path <- view configPathL
   rawConfig <- liftIO $ Dhall.readRawExpr path
@@ -391,7 +405,10 @@ transformMExpr rules =
 --   It will not add any dependency if any of them is not in the package set.
 --   If everything is fine instead, it will add the new deps, sort all the
 --   dependencies, and write the Config back to file.
-addDependencies :: Config -> [PackageName] -> Spago ()
+addDependencies
+  :: (HasLogFunc env, HasConfigPath env)
+  => Config -> [PackageName] 
+  -> RIO env ()
 addDependencies config newPackages = do
   configHasChanged <- withConfigAST $ addRawDeps config newPackages
   unless configHasChanged $

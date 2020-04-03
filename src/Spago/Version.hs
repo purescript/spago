@@ -1,3 +1,4 @@
+{-# LaNgUaGe OverloadedLists #-}
 module Spago.Version
   ( VersionBump(..)
   , DryRun(..)
@@ -51,7 +52,7 @@ unparseVersion version =
 
 
 -- | Get the highest git version tag, die if this is not a git repo with no uncommitted changes.
-getCurrentVersion :: Spago SemVer
+getCurrentVersion :: HasLogFunc env => RIO env SemVer
 getCurrentVersion = do
 
   tagTexts <- Git.getAllTags
@@ -81,7 +82,7 @@ getNextVersion spec currentV@SemVer{..} =
 
 
 -- | Make a tag for the new version.
-tagNewVersion :: SemVer -> SemVer -> Spago ()
+tagNewVersion :: HasLogFunc env => SemVer -> SemVer -> RIO env ()
 tagNewVersion oldVersion newVersion = do
 
   let oldVersionTag = unparseVersion oldVersion
@@ -92,7 +93,10 @@ tagNewVersion oldVersion newVersion = do
 
 
 -- | Bump and tag a new version in preparation for release.
-bumpVersion :: DryRun -> VersionBump -> Spago ()
+bumpVersion
+  :: (HasLogFunc env, HasConfigPath env, HasJobs env)
+  => DryRun -> VersionBump 
+  -> RIO env ()
 bumpVersion dryRun spec = do
   newBowerConfig <- Bower.generateBowerJson
 
@@ -115,5 +119,6 @@ bumpVersion dryRun spec = do
         (tagNewVersion oldVersion newVersion)
 
   runDryActions dryRun
-    $ writeBowerAction
-    :| [ tagAction ]
+    [ writeBowerAction
+    , tagAction 
+    ]

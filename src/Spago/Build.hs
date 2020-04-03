@@ -91,7 +91,11 @@ prepareBundleDefaults maybeModuleName maybeTargetPath = (moduleName, targetPath)
     targetPath = fromMaybe (Purs.TargetPath "index.js") maybeTargetPath
 
 --   eventually running some other action after the build
-build :: BuildOptions -> Maybe (Spago ()) -> Spago ()
+build 
+  :: forall env
+  .  (HasLogFunc env, HasPurs env, HasJobs env, HasConfigPath env, HasGlobalCache env)
+  => BuildOptions -> Maybe (RIO env ()) 
+  -> RIO env ()
 build buildOpts@BuildOptions{..} maybePostBuild = do
   logDebug "Running `spago build`"
   config@Config.Config{ packageSet = Types.PackageSet{..}, ..} <- Config.ensureConfigUnsafe
@@ -150,14 +154,14 @@ build buildOpts@BuildOptions{..} maybePostBuild = do
         (buildAction (wrap <$> psMatches))
 
   where
-    runCommands :: Text -> [Text] -> Spago ()
+    runCommands :: Text -> [Text] -> RIO env ()
     runCommands label = traverse_ runCommand
       where
       runCommand command = shell command empty >>= \case
         ExitSuccess   -> pure ()
         ExitFailure n -> die [ repr label <> " command failed. exit code: " <> repr n ]
 
-    partitionGlobs :: [Sys.FilePath] -> Spago ([Sys.FilePath], [Sys.FilePath])
+    partitionGlobs :: [Sys.FilePath] -> RIO env ([Sys.FilePath], [Sys.FilePath])
     partitionGlobs = foldrM go ([],[])
       where
       go sourcePath (matches, mismatches) = do
@@ -174,12 +178,13 @@ build buildOpts@BuildOptions{..} maybePostBuild = do
 
 -- | Start a repl
 repl
-  :: Maybe GlobalCache.CacheFlag
+  :: (HasJobs env, HasLogFunc env, HasGlobalCache env, HasGlobalCache env, HasGlobalCache env, HasConfigPath env)
+  => Maybe GlobalCache.CacheFlag
   -> [Types.PackageName]
   -> [Purs.SourcePath]
   -> [Purs.ExtraArg]
   -> Packages.DepsOnly
-  -> Spago ()
+  -> RIO env ()
 repl cacheFlag newPackages sourcePaths pursArgs depsOnly = do
   logDebug "Running `spago repl`"
 
@@ -187,14 +192,14 @@ repl cacheFlag newPackages sourcePaths pursArgs depsOnly = do
     Right config@Config.Config{..} -> do
       deps <- Packages.getProjectDeps config
       let globs = Packages.getGlobs deps depsOnly configSourcePaths <> sourcePaths
-      Purs.repl globs pursArgs
+      liftIO $ Purs.repl globs pursArgs
     Left (err :: SomeException) -> do
       logDebug $ display err
       cacheDir <- view globalCacheL
       Temp.withTempDirectory cacheDir "spago-repl-tmp" $ \dir -> do
         Turtle.cd (Turtle.decodeString dir)
 
-        Packages.initProject False Dhall.WithComments
+        Packages.initProject NoForce Dhall.WithComments
 
         config@Config.Config{ packageSet = Types.PackageSet{..}, ..} <- Config.ensureConfigUnsafe
 
@@ -205,12 +210,15 @@ repl cacheFlag newPackages sourcePaths pursArgs depsOnly = do
 
         Fetch.fetchPackages cacheFlag deps packagesMinPursVersion
 
-        Purs.repl globs pursArgs
+        liftIO $ Purs.repl globs pursArgs
 
 
 -- | Test the project: compile and run "Test.Main"
 --   (or the provided module name) with node
-test :: Maybe Purs.ModuleName -> BuildOptions -> [Purs.ExtraArg] -> Spago ()
+test 
+  :: (HasLogFunc env, HasConfigPath env, HasPurs env, HasJobs env, HasGlobalCache env)
+  => Maybe Purs.ModuleName -> BuildOptions -> [Purs.ExtraArg] 
+  -> RIO env ()
 test maybeModuleName buildOpts extraArgs = do
   let moduleName = fromMaybe (Purs.ModuleName "Test.Main") maybeModuleName
   Config.Config { alternateBackend, configSourcePaths } <- Config.ensureConfigUnsafe
@@ -227,7 +235,10 @@ test maybeModuleName buildOpts extraArgs = do
 
 -- | Run the project: compile and run "Main"
 --   (or the provided module name) with node
-run :: Maybe Purs.ModuleName -> BuildOptions -> [Purs.ExtraArg] -> Spago ()
+run 
+  :: (HasLogFunc env, HasConfigPath env, HasPurs env, HasJobs env, HasGlobalCache env)
+  => Maybe Purs.ModuleName -> BuildOptions -> [Purs.ExtraArg] 
+  -> RIO env ()
 run maybeModuleName buildOpts extraArgs = do
   Config.Config { alternateBackend } <- Config.ensureConfigUnsafe
   let moduleName = fromMaybe (Purs.ModuleName "Main") maybeModuleName
@@ -237,13 +248,14 @@ run maybeModuleName buildOpts extraArgs = do
 -- | Run the project with node (or the chosen alternate backend):
 --   compile and run the provided ModuleName
 runBackend
-  :: Maybe Text
+  :: (HasLogFunc env, HasConfigPath env, HasPurs env, HasJobs env, HasGlobalCache env)
+  => Maybe Text
   -> Purs.ModuleName
   -> Maybe Text
   -> Text
   -> BuildOptions
   -> [Purs.ExtraArg]
-  -> Spago ()
+  -> RIO env ()
 runBackend maybeBackend moduleName maybeSuccessMessage failureMessage buildOpts extraArgs = do
   logDebug $ display $ "Running with backend: " <> fromMaybe "nodejs" maybeBackend
   let postBuild = maybe (nodeAction =<< getOutputPath buildOpts) backendAction maybeBackend
@@ -270,12 +282,13 @@ runBackend maybeBackend moduleName maybeSuccessMessage failureMessage buildOpts 
 
 -- | Bundle the project to a js file
 bundleApp
-  :: Purs.WithMain
+  :: (HasLogFunc env, HasPurs env, HasJobs env, HasConfigPath env, HasGlobalCache env)
+  => Purs.WithMain
   -> Maybe Purs.ModuleName
   -> Maybe Purs.TargetPath
   -> NoBuild
   -> BuildOptions
-  -> Spago ()
+  -> RIO env ()
 bundleApp withMain maybeModuleName maybeTargetPath noBuild buildOpts =
   let (moduleName, targetPath) = prepareBundleDefaults maybeModuleName maybeTargetPath
       bundleAction = Purs.bundle withMain (withSourceMap buildOpts) moduleName targetPath
@@ -285,11 +298,12 @@ bundleApp withMain maybeModuleName maybeTargetPath noBuild buildOpts =
 
 -- | Bundle into a CommonJS module
 bundleModule
-  :: Maybe Purs.ModuleName
+  :: (HasLogFunc env, HasPurs env, HasJobs env, HasConfigPath env, HasGlobalCache env)
+  => Maybe Purs.ModuleName
   -> Maybe Purs.TargetPath
   -> NoBuild
   -> BuildOptions
-  -> Spago ()
+  -> RIO env ()
 bundleModule maybeModuleName maybeTargetPath noBuild buildOpts = do
   logDebug "Running `bundleModule`"
   let (moduleName, targetPath) = prepareBundleDefaults maybeModuleName maybeTargetPath
@@ -318,12 +332,13 @@ data OpenDocs = NoOpenDocs | DoOpenDocs
 
 -- | Generate docs for the `sourcePaths` and run `purescript-docs-search build-index` to patch them.
 docs
-  :: Maybe Purs.DocsFormat
+  :: (HasLogFunc env, HasConfigPath env)
+  => Maybe Purs.DocsFormat
   -> [Purs.SourcePath]
   -> Packages.DepsOnly
   -> NoSearch
   -> OpenDocs
-  -> Spago ()
+  -> RIO env ()
 docs format sourcePaths depsOnly noSearch open = do
   logDebug "Running `spago docs`"
   config@Config.Config{..} <- Config.ensureConfigUnsafe
@@ -361,7 +376,9 @@ docs format sourcePaths depsOnly noSearch open = do
     openLink link = liftIO $ Browser.openBrowser (Text.unpack link)
 
 -- | Start a search REPL.
-search :: Spago ()
+search 
+  :: (HasPurs env, HasLogFunc env, HasConfigPath env) 
+  => RIO env ()
 search = do
   config@Config.Config{..} <- Config.ensureConfigUnsafe
   deps <- Packages.getProjectDeps config
@@ -383,8 +400,9 @@ search = do
 -- | This is based on the location of packages.dhall, the shareOutput flag
 -- | and whether the user has manually specified a path in pursArgs
 getOutputPath
-  :: BuildOptions
-  -> Spago (Maybe Sys.FilePath)
+  :: (HasConfigPath env, HasLogFunc env)
+  => BuildOptions
+  -> RIO env (Maybe Sys.FilePath)
 getOutputPath buildOpts = do
   configPath <- view configPathL
   outputPath <- PackageSet.findRootOutputPath (Text.unpack configPath)
@@ -396,8 +414,9 @@ getOutputPath buildOpts = do
         ShareOutput   -> pure outputPath
 
 getOutputPathOrDefault
-  :: BuildOptions
-  -> Spago Sys.FilePath
+  :: (HasConfigPath env, HasLogFunc env)
+  => BuildOptions
+  -> RIO env Sys.FilePath
 getOutputPathOrDefault buildOpts
   = (fromMaybe "output") <$> getOutputPath buildOpts
 
@@ -406,23 +425,26 @@ data PathType
 
 -- | Used by `spago path output` command
 showOutputPath
-  :: BuildOptions
-  -> Spago ()
+  :: (HasConfigPath env, HasLogFunc env)
+  => BuildOptions
+  -> RIO env ()
 showOutputPath buildOptions =
   outputStr =<< getOutputPathOrDefault buildOptions
 
 showPaths
-  :: BuildOptions
+  :: (HasLogFunc env, HasConfigPath env)
+  => BuildOptions
   -> Maybe PathType
-  -> Spago ()
+  -> RIO env ()
 showPaths buildOptions whichPaths =
   case whichPaths of
     (Just OutputFolder) -> showOutputPath buildOptions
     Nothing             -> showAllPaths buildOptions
 
 showAllPaths
-  :: BuildOptions
-  -> Spago ()
+  :: (HasConfigPath env, HasLogFunc env)
+  => BuildOptions
+  -> RIO env ()
 showAllPaths buildOptions =
   traverse_ showPath =<< getAllPaths buildOptions
   where
@@ -430,8 +452,9 @@ showAllPaths buildOptions =
       = output (a <> ": " <> b)
 
 getAllPaths
-  :: BuildOptions
-  -> Spago [(Text, Text)]
+  :: (HasConfigPath env, HasLogFunc env)
+  => BuildOptions
+  -> RIO env [(Text, Text)]
 getAllPaths buildOptions = do
   outputPath <- getOutputPathOrDefault buildOptions
   pure [ ("output", Text.pack outputPath) ]
@@ -460,8 +483,9 @@ isOutputFlag (Purs.ExtraArg a)
 -- | If we aren't using the --no-share-output flag, calculate the extra args to
 -- | send to Purs compile
 getBuildArgsForSharedFolder
-  :: BuildOptions
-  -> Spago [Purs.ExtraArg]
+  :: (HasConfigPath env, HasLogFunc env)
+  => BuildOptions
+  -> RIO env [Purs.ExtraArg]
 getBuildArgsForSharedFolder buildOpts = do
   let pursArgs'
         = pursArgs buildOpts

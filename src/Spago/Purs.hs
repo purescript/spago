@@ -36,20 +36,13 @@ data WithMain = WithMain | WithoutMain
 
 data WithSrcMap = WithSrcMap | WithoutSrcMap
 
-compile :: [SourcePath] -> [ExtraArg] -> Spago ()
+compile 
+  :: (HasPurs env, HasLogFunc env) 
+  => [SourcePath] -> [ExtraArg] 
+  -> RIO env ()
 compile sourcePaths extraArgs = do
-  -- first we decide if we _want_ to use psa, then if we _can_
-  usePsa <- view usePsaL
-  purs <- case usePsa of
-    NoPsa -> pure "purs"
-    UsePsa -> psaVersion >>= \case
-      Right _ -> pure "psa"
-      Left err -> do
-        logDebug $ display err
-        pure "purs"
-
+  purs <- view pursL
   logDebug $ "Compiling with " <> displayShow purs
-
   let
     paths = Text.intercalate " " $ surroundQuote <$> map unSourcePath sourcePaths
     args  = Text.intercalate " " $ map unExtraArg extraArgs
@@ -58,7 +51,7 @@ compile sourcePaths extraArgs = do
     "Build succeeded."
     "Failed to build."
 
-repl :: [SourcePath] -> [ExtraArg] -> Spago ()
+repl :: [SourcePath] -> [ExtraArg] -> IO ()
 repl sourcePaths extraArgs = do
   let paths = Text.intercalate " " $ surroundQuote <$> map unSourcePath sourcePaths
       args = Text.intercalate " " $ map unExtraArg extraArgs
@@ -67,7 +60,7 @@ repl sourcePaths extraArgs = do
   viewShell $ callCommand $ Text.unpack cmd
 
 
-bundle :: WithMain -> WithSrcMap -> ModuleName -> TargetPath -> Spago ()
+bundle :: HasLogFunc env => WithMain -> WithSrcMap -> ModuleName -> TargetPath -> RIO env ()
 bundle withMain withSourceMap (ModuleName moduleName) (TargetPath targetPath) = do
   let main = case withMain of
         WithMain    -> " --main " <> moduleName
@@ -105,7 +98,7 @@ parseDocsFormat = \case
   _          -> Nothing
 
 
-docs :: DocsFormat -> [SourcePath] -> Spago ()
+docs :: HasLogFunc env => DocsFormat -> [SourcePath] -> RIO env ()
 docs format sourcePaths = do
   let
     printDocsFormat :: DocsFormat -> Text
@@ -122,12 +115,8 @@ docs format sourcePaths = do
     "Docs generation succeeded."
     "Docs generation failed."
 
-version, psaVersion :: Spago (Either Text Version.SemVer)
-version    = versionImpl "purs"
-psaVersion = versionImpl "psa"
-
-versionImpl :: Text -> Spago (Either Text Version.SemVer)
-versionImpl purs = Turtle.Bytes.shellStrictWithErr (purs <> " --version") empty >>= \case
+version :: RIO env (Either Text Version.SemVer)
+version = Turtle.Bytes.shellStrictWithErr (purs <> " --version") empty >>= \case
   (ExitSuccess, out, _err) -> do
     let versionText = headMay $ Text.split (== ' ') (Text.Encoding.decodeUtf8With lenientDecode out)
         parsed = versionText >>= (hush . Version.semver)
@@ -136,10 +125,11 @@ versionImpl purs = Turtle.Bytes.shellStrictWithErr (purs <> " --version") empty 
       Nothing -> Left $ Messages.failedToParseCommandOutput (purs <> " --version") (Text.Encoding.decodeUtf8With lenientDecode out)
       Just p -> Right p
   (_, _out, _err) -> pure $ Left $ "Failed to run '" <> purs <> " --version'"
+  where
+    purs = "purs"
 
 
-
-runWithOutput :: Text -> Text -> Text -> Spago ()
+runWithOutput :: HasLogFunc env => Text -> Text -> Text -> RIO env ()
 runWithOutput command success failure = do
   logDebug $ "Running command: `" <> display command <> "`"
   shell command empty >>= \case
