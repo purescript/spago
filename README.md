@@ -1096,6 +1096,8 @@ If you wish to develop a library with `spago` you can definitely do so, and use 
 manage and build your project, until you need to "publish" your library, where you'll need
 to use `pulp`.
 
+Be sure to set the a valid [SPDX license](https://spdx.org/licenses/) in your `spago.dhall`, this will generate a correct `bower.json` file which will be used by `pulp` later.
+
 When you decide you want to publish your library for others to use, you should:
 - run `spago bump-version --no-dry-run <BUMP>`. This will generate a `bower.json` in a new  commit in Git that is tagged with the version.
 - run `pulp publish`. This will ensure the package is registered in Bower, push the version tag to Git and upload documentation to Pursuit.
