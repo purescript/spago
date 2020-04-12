@@ -3,58 +3,43 @@ module Spago.Purs
   , repl
   , bundle
   , docs
-  , version
+  , pursVersion
   , parseDocsFormat
-  , SourcePath(..)
-  , TargetPath(..)
-  , ModuleName(..)
-  , ExtraArg(..)
-  , WithMain(..)
-  , WithSrcMap(..)
   , DocsFormat(..)
   ) where
 
 import           Spago.Prelude
+import           Spago.Env
 
 import qualified Data.Text      as Text
 import qualified Data.Text.Encoding as Text.Encoding
-import Data.Text.Encoding.Error (lenientDecode)
+import qualified Data.Text.Encoding.Error as Text.Encoding
 import qualified Data.Versions  as Version
-import qualified Spago.Dhall    as Dhall
 
 import qualified Spago.Messages as Messages
 import qualified Turtle.Bytes
 
-newtype ModuleName = ModuleName { unModuleName :: Text }
-newtype TargetPath = TargetPath { unTargetPath :: Text }
-newtype SourcePath = SourcePath { unSourcePath :: Text }
-  deriving newtype (Show, Dhall.FromDhall)
-newtype ExtraArg = ExtraArg { unExtraArg :: Text }
-  deriving newtype (Eq)
-
-data WithMain = WithMain | WithoutMain
-
-data WithSrcMap = WithSrcMap | WithoutSrcMap
 
 compile 
   :: (HasPurs env, HasLogFunc env) 
-  => [SourcePath] -> [ExtraArg] 
+  => [SourcePath] -> [PursArg] 
   -> RIO env ()
 compile sourcePaths extraArgs = do
   purs <- view pursL
   logDebug $ "Compiling with " <> displayShow purs
   let
     paths = Text.intercalate " " $ surroundQuote <$> map unSourcePath sourcePaths
-    args  = Text.intercalate " " $ map unExtraArg extraArgs
+    args  = Text.intercalate " " $ map unPursArg extraArgs
     cmd = purs <> " compile " <> args <> " " <> paths
   runWithOutput cmd
     "Build succeeded."
     "Failed to build."
 
-repl :: [SourcePath] -> [ExtraArg] -> IO ()
+-- TODO: this should use HasPurs
+repl :: [SourcePath] -> [PursArg] -> IO ()
 repl sourcePaths extraArgs = do
   let paths = Text.intercalate " " $ surroundQuote <$> map unSourcePath sourcePaths
-      args = Text.intercalate " " $ map unExtraArg extraArgs
+      args = Text.intercalate " " $ map unPursArg extraArgs
       cmd = "purs repl " <> paths <> " " <> args
 
   viewShell $ callCommand $ Text.unpack cmd
@@ -115,14 +100,16 @@ docs format sourcePaths = do
     "Docs generation succeeded."
     "Docs generation failed."
 
-version :: RIO env (Either Text Version.SemVer)
-version = Turtle.Bytes.shellStrictWithErr (purs <> " --version") empty >>= \case
+pursVersion :: RIO env (Either Text Version.SemVer)
+pursVersion = Turtle.Bytes.shellStrictWithErr (purs <> " --version") empty >>= \case
   (ExitSuccess, out, _err) -> do
     let versionText = headMay $ Text.split (== ' ') (Text.Encoding.decodeUtf8With lenientDecode out)
         parsed = versionText >>= (hush . Version.semver)
 
     pure $ case parsed of
-      Nothing -> Left $ Messages.failedToParseCommandOutput (purs <> " --version") (Text.Encoding.decodeUtf8With lenientDecode out)
+      Nothing -> Left $ Messages.failedToParseCommandOutput 
+        (purs <> " --version") 
+        (Text.Encoding.decodeUtf8With Text.Encoding.lenientDecode out)
       Just p -> Right p
   (_, _out, _err) -> pure $ Left $ "Failed to run '" <> purs <> " --version'"
   where

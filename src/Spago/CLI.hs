@@ -4,43 +4,19 @@ module Spago.CLI
   ) where
 
 import Spago.Prelude
+import Spago.Env
 
 import qualified Data.Text           as Text
 import qualified Options.Applicative as Opts
 import qualified Turtle              as CLI
-import qualified System.Environment  as Env
 
 import qualified Spago.Purs          as Purs
-import qualified Spago.Config        as Config
 import qualified Spago.Version
 
-import           Spago.Build         (BuildOptions (..), DepsOnly (..), ExtraArg (..),
-                                      ModuleName (..), NoBuild (..), NoInstall (..), NoSearch (..),
-                                      OpenDocs (..), PathType (..), ShareOutput (..),
-                                      SourcePath (..), TargetPath (..), Watch (..),
-                                      WithSrcMap (..))
-import           Spago.Dhall         (TemplateComments (..))
-import           Spago.DryRun        (DryRun (..))
-import           Spago.GlobalCache   (CacheFlag (..), getGlobalCacheDir)
-import           Spago.Packages      (CheckModulesUnique (..), JsonFlag (..), Force(..))
-import           Spago.Purs          (DocsFormat(..))
-import           Spago.Version       (VersionBump (..))
-import           Spago.Watch         (ClearScreen (..))
-
-import           Spago.Env
-import           Spago.Types
-
-data GlobalOptions = GlobalOptions
-  { globalQuiet       :: Bool
-  , globalVerbose     :: Bool
-  , globalVeryVerbose :: Bool
-  , globalUseColor    :: Bool
-  , globalUsePsa      :: UsePsa
-  , globalJobs        :: Maybe Int
-  , globalConfigPath  :: Maybe Text
-  }
-
-data IncludeTransitive = IncludeTransitive | NoIncludeTransitive
+import Spago.Dhall (TemplateComments (..))
+import Spago.DryRun (DryRun (..))
+import Spago.Purs (DocsFormat(..))
+import Spago.Version (VersionBump (..))
 
 
 -- | Commands that this program handles
@@ -50,7 +26,7 @@ data Command
   = Init Force TemplateComments
 
   -- | Install (download) dependencies defined in spago.dhall
-  | Install (Maybe CacheFlag) [PackageName]
+  | Install [PackageName]
 
   -- | Get source globs of dependencies in spago.dhall
   | Sources
@@ -88,16 +64,16 @@ data Command
   | Build BuildOptions
 
   -- | Start a REPL
-  | Repl (Maybe CacheFlag) [PackageName] [SourcePath] [ExtraArg] DepsOnly
+  | Repl [PackageName] [SourcePath] [PursArg] DepsOnly
 
   -- | Generate documentation for the project and its dependencies
   | Docs (Maybe DocsFormat) [SourcePath] DepsOnly NoSearch OpenDocs
 
   -- | Run the project with some module, default Main
-  | Run (Maybe ModuleName) BuildOptions [ExtraArg]
+  | Run (Maybe ModuleName) BuildOptions [PursArg]
  
   -- | Test the project with some module, default Test.Main
-  | Test (Maybe ModuleName) BuildOptions [ExtraArg]
+  | Test (Maybe ModuleName) BuildOptions [PursArg]
 
   -- | Bundle the project into an executable
   | BundleApp (Maybe ModuleName) (Maybe TargetPath) NoBuild BuildOptions
@@ -106,10 +82,10 @@ data Command
   | BundleModule (Maybe ModuleName) (Maybe TargetPath) NoBuild BuildOptions
  
   -- | Verify that a single package is consistent with the Package Set
-  | Verify (Maybe CacheFlag) PackageName
+  | Verify PackageName
 
   -- | Verify that the Package Set is correct
-  | VerifySet (Maybe CacheFlag) CheckModulesUnique
+  | VerifySet CheckModulesUnique
 
   -- ### Legacy commands
 
@@ -121,97 +97,6 @@ data Command
 
   -- | List available packages (deprecated, old version of ListPackages)
   | ListPackagesOld
-
-
-
-
-
--- | Given the global CLI options, it creates the Env for the Spago context
---   and runs the app
-runWithEnv :: GlobalOptions -> RIO Env a -> IO a
-runWithEnv GlobalOptions{..} app = do
-  let verbose = not globalQuiet && (globalVerbose || globalVeryVerbose)
-
-  -- https://github.com/purescript/spago/issues/579
-  maybeTerm <- Env.lookupEnv "TERM"
-  let termDumb = maybeTerm == Just "dumb" || maybeTerm == Just "win"
-  let useColor = globalUseColor && not termDumb
-
-  let logHandle = stderr
-  logOptions' <- logOptionsHandle logHandle verbose
-  let logOptions
-        = setLogUseTime globalVeryVerbose
-        $ setLogUseLoc globalVeryVerbose
-        $ setLogUseColor useColor
-        $ setLogVerboseFormat True logOptions'
-  withLogFunc logOptions $ \logFunc -> do
-    let logFunc' :: LogFunc
-        logFunc' = if globalQuiet
-          then mkLogFunc $ \_ _ _ _ -> pure ()
-          else logFunc
-
-    let configPath = fromMaybe Config.defaultPath globalConfigPath
-
-    globalCache <- runRIO logFunc' $ do
-      logDebug "Running `getGlobalCacheDir`"
-      getGlobalCacheDir
-
-    let env = Env
-          { envLogFunc = logFunc'
-          , envUsePsa = globalUsePsa
-          , envJobs = fromMaybe 20 globalJobs
-          , envConfigPath = configPath
-          , envGlobalCache = globalCache
-          }
-    runRIO env app
-
-
-runWithBuildEnv 
-  :: HasEnv env
-  => RIO BuildEnv a 
-  -> RIO env a
-runWithBuildEnv app = do
-  -- first we decide if we _want_ to use psa, then if we _can_
-  usePsa <- view usePsaL
-  pursCandidate <- case usePsa of
-    NoPsa -> pure "purs"
-    UsePsa -> findExecutable "psa" >>= \case
-      Just _  -> pure "psa"
-      Nothing -> pure "purs"
-
-  buildEnvGlobal <- view envL
-  buildEnvPurs <- findExecutableOrDie pursCandidate
-
-  runRIO BuildEnv{..} app
-
-
--- data InstallConfig =
---  {  -- cacheFlag
-
---  }
-
--- BuildConfig
-{-
-General:
-- sourcepaths
-- purs-args
-- deps-only
-- output
-- backend
-
-Test:
-- entrypoint
-
-Run:
-- entrypoint
-
-Bundle:
-- entrypoint
-- target
-
-
-
--}
 
 
 parser :: CLI.Parser (Command, GlobalOptions)
@@ -265,22 +150,19 @@ parser = do
     toTarget    = CLI.optional $ CLI.opt (Just . TargetPath) "to" 't' "The target file path"
     docsFormat  = CLI.optional $ CLI.opt Purs.parseDocsFormat "format" 'f' "Docs output format (markdown | html | etags | ctags)"
     jobsLimit   = CLI.optional (CLI.optInt "jobs" 'j' "Limit the amount of jobs that can run concurrently")
-    nodeArgs         = many $ CLI.opt (Just . ExtraArg) "node-args" 'a' "Argument to pass to node (run/test only)"
+    nodeArgs         = many $ CLI.opt (Just . PursArg) "node-args" 'a' "Argument to pass to node (run/test only)"
     replPackageNames = many $ CLI.opt (Just . PackageName) "dependency" 'D' "Package name to add to the REPL as dependency"
     sourcePaths      = many $ CLI.opt (Just . SourcePath) "path" 'p' "Source path to include"
 
     packageName     = CLI.arg (Just . PackageName) "package" "Specify a package name. You can list them with `ls packages`"
     packageNames    = many $ CLI.arg (Just . PackageName) "package" "Package name to add as dependency"
-    pursArgs        = many $ CLI.opt (Just . ExtraArg) "purs-args" 'u' "Argument to pass to purs"
-    -- See https://github.com/purescript/spago/pull/526 for why this flag is disabled
-    useSharedOutput = bool NoShareOutput NoShareOutput <$> CLI.switch "no-share-output" 'S' "DEPRECATED: Disable using a shared output folder in location of root packages.dhall"
-    buildOptions  = BuildOptions <$> cacheFlag <*> watch <*> clearScreen <*> sourcePaths <*> srcMapFlag <*> noInstall
-                    <*> pursArgs <*> depsOnly <*> useSharedOutput
-                    <*> beforeCommands <*> thenCommands <*> elseCommands
+    pursArgs        = many $ CLI.opt (Just . PursArg) "purs-args" 'u' "Argument to pass to purs"
+    buildOptions  = BuildOptions <$> watch <*> clearScreen <*> sourcePaths <*> srcMapFlag <*> noInstall
+                    <*> pursArgs <*> depsOnly <*> beforeCommands <*> thenCommands <*> elseCommands
 
     -- Note: by default we limit concurrency to 20
     globalOptions = GlobalOptions <$> quiet <*> verbose <*> veryVerbose <*> (not <$> noColor) <*> usePsa
-                    <*> jobsLimit <*> configPath
+                    <*> jobsLimit <*> configPath <*> cacheFlag
 
 
     initProject =
@@ -298,7 +180,7 @@ parser = do
     repl =
       ( "repl"
       , "Start a REPL"
-      , Repl <$> cacheFlag <*> replPackageNames <*> sourcePaths <*> pursArgs <*> depsOnly
+      , Repl <$> replPackageNames <*> sourcePaths <*> pursArgs <*> depsOnly
       )
 
     test =
@@ -365,7 +247,7 @@ parser = do
     install =
       ( "install"
       , "Install (download) all dependencies listed in spago.dhall"
-      , Install <$> cacheFlag <*> packageNames
+      , Install <$> packageNames
       )
 
     sources =
@@ -377,13 +259,13 @@ parser = do
     verify =
       ( "verify"
       , "Verify that a single package is consistent with the Package Set"
-      , Verify <$> cacheFlag <*> packageName
+      , Verify <$> packageName
       )
 
     verifySet =
       ( "verify-set"
       , "Verify that the whole Package Set builds correctly"
-      , VerifySet <$> cacheFlag <*> chkModsUniq
+      , VerifySet <$> chkModsUniq
       )
 
     upgradeSet =

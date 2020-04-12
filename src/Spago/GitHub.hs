@@ -2,6 +2,7 @@
 module Spago.GitHub where
 
 import           Spago.Prelude
+import           Spago.Env
 
 import qualified Control.Retry       as Retry
 import qualified Data.List           as List

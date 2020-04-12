@@ -1,6 +1,7 @@
 module Spago.GlobalCache where
 
 import           Spago.Prelude
+import           Spago.Env
 
 import qualified Codec.Archive.Tar      as Tar
 import qualified Codec.Compression.GZip as GZip
@@ -14,7 +15,6 @@ import qualified System.FilePath        as FilePath
 import qualified Turtle
 import           UnliftIO.Directory     (XdgDirectory(XdgCache), getXdgDirectory)
 
-import Spago.Types
 
 
 newtype CommitHash = CommitHash Text
@@ -35,7 +35,6 @@ instance ToJSON RepoMetadataV1
 
 type ReposMetadataV1 = Map PackageName RepoMetadataV1
 
-data CacheFlag = SkipCache | NewCache
 
 
 -- | A package is "globally cacheable" if:

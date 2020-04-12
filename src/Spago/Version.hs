@@ -9,7 +9,8 @@ module Spago.Version
   , unparseVersion
   ) where
 
-import           Spago.Prelude
+import Spago.Prelude
+import Spago.Env
 
 import qualified Data.ByteString.Lazy as ByteString
 import qualified Data.Text            as Text
@@ -52,7 +53,7 @@ unparseVersion version =
 
 
 -- | Get the highest git version tag, die if this is not a git repo with no uncommitted changes.
-getCurrentVersion :: HasLogFunc env => RIO env SemVer
+getCurrentVersion :: (HasLogFunc env, HasGit env) => RIO env SemVer
 getCurrentVersion = do
 
   tagTexts <- Git.getAllTags
@@ -82,7 +83,7 @@ getNextVersion spec currentV@SemVer{..} =
 
 
 -- | Make a tag for the new version.
-tagNewVersion :: HasLogFunc env => SemVer -> SemVer -> RIO env ()
+tagNewVersion :: (HasLogFunc env, HasGit env) => SemVer -> SemVer -> RIO env ()
 tagNewVersion oldVersion newVersion = do
 
   let oldVersionTag = unparseVersion oldVersion
@@ -94,7 +95,7 @@ tagNewVersion oldVersion newVersion = do
 
 -- | Bump and tag a new version in preparation for release.
 bumpVersion
-  :: (HasLogFunc env, HasConfigPath env, HasJobs env)
+  :: HasPublishEnv env
   => DryRun -> VersionBump 
   -> RIO env ()
 bumpVersion dryRun spec = do

@@ -5,57 +5,46 @@ module Spago.Bower
   ) where
 
 import Spago.Prelude hiding (encodeUtf8)
+import Spago.Env
 
 import qualified Data.Aeson                 as Aeson
 import qualified Data.Aeson.Encode.Pretty   as Pretty
 import qualified Data.ByteString.Lazy       as ByteString
 import qualified Data.HashMap.Strict        as HashMap
-import           Data.String                (IsString)
 import qualified Data.Text                  as Text
-import           Data.Text.Lazy             (fromStrict)
-import           Data.Text.Lazy.Encoding    (encodeUtf8)
-import qualified Distribution.System        as System
-import           Distribution.System        (OS (..))
+import qualified Distribution.System        as OS
 import qualified Turtle
-import           Web.Bower.PackageMeta      (PackageMeta (..))
 import qualified Web.Bower.PackageMeta      as Bower
 
+import           Data.Text.Lazy             (fromStrict)
+import           Data.Text.Lazy.Encoding    (encodeUtf8)
+import           Web.Bower.PackageMeta      (PackageMeta (..))
+
 import qualified Spago.Async                as Async
-import           Spago.Config               (Config (..), PublishConfig (..))
-import qualified Spago.Config               as Config
 import qualified Spago.Git                  as Git
 import qualified Spago.Packages             as Packages
 import qualified Spago.Templates            as Templates
 
-import Spago.Types
 
 
 path :: IsString t => t
 path = "bower.json"
 
 
-runBower :: [Text] -> RIO env (ExitCode, Text, Text)
+runBower :: HasBower env => [Text] -> RIO env (ExitCode, Text, Text)
 runBower args = do
-  -- workaround windows issue: https://github.com/haskell/process/issues/140
-  cmd <- case System.buildOS of
-    Windows -> do
-      let bowers = Turtle.inproc "where" ["bower.cmd"] empty
-      Turtle.lineToText <$> Turtle.single (Turtle.limit 1 bowers)
-    _ ->
-      pure "bower"
-  Turtle.procStrictWithErr cmd args empty
+  bower <- view bowerL
+  Turtle.procStrictWithErr bower args empty
 
 
-generateBowerJson 
-  :: (HasLogFunc env, HasJobs env, HasConfigPath env)
-  => RIO env ByteString.ByteString
+generateBowerJson :: HasPublishEnv env => RIO env ByteString.ByteString
 generateBowerJson = do
   logInfo "Generating a new Bower config using the package set versions.."
-  config@Config{..} <- Config.ensureConfigUnsafe
+  Config{..} <- view configL
   PublishConfig{..} <- throws publishConfig
 
   bowerName <- mkPackageName name
-  bowerDependencies <- mkDependencies config
+  bowerDependencies <- mkDependencies
   template <- templateBowerJson
 
   let bowerLicense = [publishLicense]
@@ -75,10 +64,11 @@ generateBowerJson = do
   pure bowerJson
 
 
-runBowerInstall :: HasLogFunc env => RIO env ()
+runBowerInstall :: (HasLogFunc env, HasBower env) => RIO env ()
 runBowerInstall = do
   logInfo "Running `bower install` so `pulp publish` can read resolved versions from it"
-  shell "bower install --silent" empty >>= \case
+  bower <- view bowerL
+  shell (bower <> " install --silent") empty >>= \case
     ExitSuccess   -> pure ()
     ExitFailure _ -> die [ "Failed to run `bower install` on your package" ]
 
@@ -105,11 +95,10 @@ mkPackageName spagoName = do
 -- | If the given version exists in bower, return a shorthand bower
 -- | version, otherwise return a URL#version style bower version.
 mkBowerVersion 
-  :: HasLogFunc env
+  :: (HasLogFunc env, HasBower env)
   => Bower.PackageName -> Text -> Repo 
   -> RIO env Bower.VersionRange
 mkBowerVersion packageName version (Repo repo) = do
-
   let args = ["info", "--json", Bower.runPackageName packageName <> "#" <> version]
   (code, out, err) <- runBower args
 
@@ -125,13 +114,10 @@ mkBowerVersion packageName version (Repo repo) = do
     else pure $ Bower.VersionRange $ repo <> "#" <> version
 
 
-mkDependencies 
-  :: forall env
-  .  (HasJobs env, HasLogFunc env)
-  => Config 
-  -> RIO env [(Bower.PackageName, Bower.VersionRange)]
-mkDependencies config = do
-  deps <- Packages.getDirectDeps config
+mkDependencies
+  :: forall env. HasPublishEnv env => RIO env [(Bower.PackageName, Bower.VersionRange)]
+mkDependencies = do
+  deps <- Packages.getDirectDeps
 
   jobs <- getJobs
 
@@ -149,8 +135,8 @@ mkDependencies config = do
           bowerVersion <- mkBowerVersion bowerName version repo
           pure (bowerName, bowerVersion)
 
-    getJobs = case System.buildOS of
+    getJobs = case OS.buildOS of
       -- Windows sucks so lets make it slow for them!
       -- (just kidding, its a bug: https://github.com/bower/spec/issues/79)
-      Windows -> pure 1
+      OS.Windows -> pure 1
       _       -> view jobsL

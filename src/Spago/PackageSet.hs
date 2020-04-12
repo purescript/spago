@@ -9,6 +9,7 @@ module Spago.PackageSet
   ) where
 
 import           Spago.Prelude
+import           Spago.Env
 
 import           Data.Ord        (comparing)
 import qualified Data.Text       as Text
@@ -21,10 +22,9 @@ import qualified System.IO
 
 import qualified Spago.Dhall     as Dhall
 import qualified Spago.GitHub    as GitHub
-import           Spago.Messages  as Messages
+import qualified Spago.Messages  as Messages
 import qualified Spago.Purs      as Purs
 import qualified Spago.Templates as Templates
-import           Spago.Types
 
 
 packagesPath :: IsString t => t
@@ -178,10 +178,11 @@ upgradePackageSet = do
     upgradeImports _ imp = imp
 
 
-checkPursIsUpToDate :: forall env. HasLogFunc env => Maybe Version.SemVer -> RIO env ()
-checkPursIsUpToDate packagesMinPursVersion = do
+checkPursIsUpToDate :: forall env. (HasLogFunc env, HasPackageSet env) => RIO env ()
+checkPursIsUpToDate = do
   logDebug "Checking if `purs` is up to date"
-  eitherCompilerVersion <- Purs.version
+  PackageSet{..} <- view packageSetL
+  eitherCompilerVersion <- Purs.pursVersion
   case (eitherCompilerVersion, packagesMinPursVersion) of
     (Right compilerVersion, Just pursVersionFromPackageSet) -> performCheck compilerVersion pursVersionFromPackageSet
     (compilerVersion, packageSetVersion) -> do

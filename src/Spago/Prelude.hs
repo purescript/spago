@@ -12,18 +12,6 @@ module Spago.Prelude
   , headMay
   , lastMay
   , empty
-
-  -- * Various environment the app runs in
-  , Env
-  , HasEnv(..)
-  , HasGlobalCache(..)
-  , HasConfigPath(..)
-  , HasJobs(..)
-  , HasPsa(..)
-  , UsePsa(..)
-  , BuildEnv
-  , HasBuildEnv(..)
-  , HasPurs(..)
   
   -- * Logging, errors, printing, etc
   , Pretty
@@ -77,6 +65,7 @@ module Spago.Prelude
   , appendonly
   , docsSearchVersion
   , githubTokenEnvVar
+  , mapRIO
   ) where
 
 
@@ -118,8 +107,6 @@ import           Turtle                                (ExitCode (..), FilePath,
                                                         systemStrictWithErr, testdir)
 import           UnliftIO.Directory                    (getModificationTime, makeAbsolute)
 import           UnliftIO.Process                      (callCommand)
-
-import           Spago.Env
 
 
 -- | Generic Error that we throw on program exit.
@@ -245,3 +232,9 @@ findExecutableOrDie cmd = do
   Directory.findExecutable cmd >>= \case 
     Nothing -> die [ "Executable was not found in path: " <> displayShow cmd ]
     Just path -> pure $ Text.pack path
+
+-- | Lift one RIO env to another.
+mapRIO :: (outer -> inner) -> RIO inner a -> RIO outer a
+mapRIO f m = do
+  outer <- ask
+  runRIO (f outer) m

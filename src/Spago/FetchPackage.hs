@@ -5,13 +5,13 @@ module Spago.FetchPackage
   ) where
 
 import           Spago.Prelude
+import           Spago.Env
 
 import qualified Data.ByteString               as ByteString
 import qualified Data.Char                     as Char
 import qualified Data.List                     as List
 import qualified Data.Text                     as Text
 import qualified Data.Text.Encoding            as Text
-import qualified Data.Versions                 as Version
 import qualified Numeric
 import qualified System.FilePath               as FilePath
 import qualified System.IO.Temp                as Temp
@@ -24,8 +24,6 @@ import qualified Spago.GlobalCache             as GlobalCache
 import qualified Spago.Messages                as Messages
 import qualified Spago.PackageSet              as PackageSet
 
-import           Spago.Types
-
 
 -- | Algorithm for fetching dependencies:
 --   * get in input a list of Packages to possibly fetch
@@ -36,15 +34,13 @@ import           Spago.Types
 --       * if yes, download the tar archive and copy it to global and then local cache
 --       * if not, run a series of git commands to get the code, and copy to local cache
 fetchPackages
-  :: (HasLogFunc env, HasGlobalCache env, HasJobs env)
-  => Maybe GlobalCache.CacheFlag
-  -> [(PackageName, Package)]
-  -> Maybe Version.SemVer
+  :: (HasEnv env, HasCacheConfig env, HasPackageSet env)
+  => [(PackageName, Package)]
   -> RIO env ()
-fetchPackages globalCacheFlag allDeps minPursVersion = do
+fetchPackages allDeps = do
   logDebug "Running `fetchPackages`"
 
-  PackageSet.checkPursIsUpToDate minPursVersion
+  PackageSet.checkPursIsUpToDate
 
   -- Ensure both local and global cache dirs are there
   globalCache <- view globalCacheL
@@ -62,6 +58,7 @@ fetchPackages globalCacheFlag allDeps minPursVersion = do
   let nOfDeps = List.length depsToFetch
   when (nOfDeps > 0) $ do
     logInfo $ "Installing " <> display nOfDeps <> " dependencies."
+    globalCacheFlag <- view cacheConfigL
     metadata <- GlobalCache.getMetadata globalCacheFlag
 
     limit <- view jobsL

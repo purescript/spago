@@ -6,7 +6,8 @@ module Spago.Git
   , isIgnored
   ) where
 
-import           Spago.Prelude
+import Spago.Prelude
+import Spago.Env
 
 import qualified Data.Text     as Text
 import qualified Turtle
@@ -30,17 +31,20 @@ hasCleanWorkingTree = do
   pure $ out == ""
 
 
-getAllTags :: MonadIO m => m [Text]
+getAllTags :: HasGit env => RIO env [Text]
 getAllTags = do
-  fmap Text.lines $ Turtle.strict $ Turtle.inproc "git" ["tag", "--list"] empty
+  git <- view gitL
+  fmap Text.lines $ Turtle.strict $ Turtle.inproc git ["tag", "--list"] empty
 
 
-commitAndTag :: MonadIO m => Text -> Text -> m ()
+commitAndTag :: HasGit env => Text -> Text -> RIO env ()
 commitAndTag tag message = do
-  Turtle.procs "git" ["commit", "--quiet", "--allow-empty", "--message=" <> message] empty
-  Turtle.procs "git" ["tag", "--annotate", "--message=" <> message, tag] empty
+  git <- view gitL
+  Turtle.procs git ["commit", "--quiet", "--allow-empty", "--message=" <> message] empty
+  Turtle.procs git ["tag", "--annotate", "--message=" <> message, tag] empty
 
 
-isIgnored :: MonadIO m => Text -> m Bool
+isIgnored :: HasGit env => Text -> RIO env Bool
 isIgnored path = do
-  (== ExitSuccess) <$> Turtle.proc "git" ["check-ignore", "--quiet", path] empty
+  git <- view gitL
+  (== ExitSuccess) <$> Turtle.proc git ["check-ignore", "--quiet", path] empty

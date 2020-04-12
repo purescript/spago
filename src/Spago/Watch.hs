@@ -1,10 +1,11 @@
 {-# LANGUAGE TupleSections #-}
-module Spago.Watch (watch, globToParent, ClearScreen (..)) where
+module Spago.Watch (watch, globToParent) where
 
 -- This code is derived from:
 -- https://github.com/commercialhaskell/stack/blob/0740444175f41e6ea5ed236cd2c53681e4730003/src/Stack/FileWatch.hs
 
 import           Spago.Prelude          hiding (FilePath)
+import           Spago.Env
 
 import           Control.Concurrent.STM (check)
 import qualified Data.Map.Strict        as Map
@@ -22,9 +23,6 @@ import qualified System.IO.Utf8         as Utf8
 import qualified UnliftIO
 import qualified UnliftIO.Async         as Async
 
--- Should we clear the screen on rebuild?
-data ClearScreen = DoClear | NoClear
-  deriving Eq
 
 watch
   :: HasLogFunc env
