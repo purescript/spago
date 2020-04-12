@@ -261,6 +261,7 @@ freeze path = do
   logInfo $ display Messages.freezePackageSet
   liftIO $
     Dhall.Freeze.freeze
+      Dhall.Write
       (Dhall.InputFile path)
       Dhall.Freeze.OnlyRemoteImports
       Dhall.Freeze.Secure
