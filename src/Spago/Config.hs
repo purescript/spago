@@ -111,13 +111,12 @@ parsePackage expr = die [ display $ Messages.failedToParsePackage $ pretty expr 
 -- evaluated "spago.dhall")
 parsePackageSet :: Dhall.Map.Map Text (Dhall.DhallExpr Void) -> Spago PackageSet
 parsePackageSet pkgs = do
-  packages <- fmap (Map.mapKeys PackageSet.PackageName . Dhall.Map.toMap) $ traverse parsePackage pkgs
+  packagesDB <- fmap (Map.mapKeys PackageSet.PackageName . Dhall.Map.toMap) $ traverse parsePackage pkgs
 
   let metadataPackageName = PackageSet.PackageName "metadata"
-  let (metadataMap, packagesDB) = Map.partitionWithKey (\k _v -> k == metadataPackageName) packages
   let packagesMinPursVersion = join
         $ fmap (hush . Version.semver . Text.replace "v" "" . PackageSet.version . PackageSet.location)
-        $ Map.lookup metadataPackageName metadataMap
+        $ Map.lookup metadataPackageName packagesDB
   pure PackageSet.PackageSet{..}
 
 
