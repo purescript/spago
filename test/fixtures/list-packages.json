@@ -147,6 +147,7 @@
 {"packageName":"maybe","version":"v4.0.1","repo":{"tag":"Remote","contents":"https://github.com/purescript/purescript-maybe.git"}}
 {"packageName":"media-types","version":"v4.0.1","repo":{"tag":"Remote","contents":"https://github.com/purescript-contrib/purescript-media-types.git"}}
 {"packageName":"memoize","version":"v5.0.0","repo":{"tag":"Remote","contents":"https://github.com/paf31/purescript-memoize.git"}}
+{"packageName":"metadata","version":"v0.13.4","repo":{"tag":"Remote","contents":"https://github.com/spacchetti/purescript-metadata.git"}}
 {"packageName":"milkis","version":"v7.2.1","repo":{"tag":"Remote","contents":"https://github.com/justinwoo/purescript-milkis.git"}}
 {"packageName":"minibench","version":"v2.0.0","repo":{"tag":"Remote","contents":"https://github.com/purescript/purescript-minibench.git"}}
 {"packageName":"mmorph","version":"v5.1.0","repo":{"tag":"Remote","contents":"https://github.com/Thimoteus/purescript-mmorph.git"}}

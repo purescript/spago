@@ -10,7 +10,7 @@ import           Turtle             (ExitCode (..), cd, cp, decodeString, empty,
                                      mkdir, mktree, mv, pwd, readTextFile, rm, shell,
                                      shellStrictWithErr, testdir, writeTextFile, (</>))
 import           Utils              (checkFileHasInfix, checkFixture, checkFileExist, outputShouldEqual,
-                                     readFixture, runFor, shouldBeFailure, shouldBeFailureOutput,
+                                     readFixture, runFor, shouldBeFailure,
                                      shouldBeFailureStderr, shouldBeSuccess, shouldBeSuccessOutput,
                                      shouldBeSuccessOutputWithErr, shouldBeSuccessStderr, spago,
                                      withCwd)
@@ -289,7 +289,7 @@ spec = around_ setup $ do
       mv "spago.dhall" "spago-configV2.dhall"
       checkFixture "spago-configV2.dhall"
 
-    it "Spago should create a local output folder when we are using --no-share-output" $ do
+    it "Spago should create a local output folder" $ do
 
       -- Create root-level packages.dhall
       mkdir "monorepo"
@@ -305,7 +305,7 @@ spec = around_ setup $ do
       writeTextFile "spago.dhall" $ "{ name = \"lib-1\", dependencies = [\"console\", \"effect\", \"prelude\"], packages = ./packages.dhall }"
       rm "packages.dhall"
       writeTextFile "packages.dhall" $ "../packages.dhall"
-      spago ["build", "--no-share-output"] >>= shouldBeSuccess
+      spago ["build"] >>= shouldBeSuccess
       testdir "output" `shouldReturn` True
 
       cd ".."
@@ -327,7 +327,7 @@ spec = around_ setup $ do
       spago ["init"] >>= shouldBeSuccess
       rm "spago.dhall"
       writeTextFile "spago.dhall" $ "{ name = \"lib-1\", dependencies = [\"console\", \"effect\", \"prelude\"], packages = ./packages.dhall }"
-      spago ["build", "--no-share-output"] >>= shouldBeSuccess
+      spago ["build"] >>= shouldBeSuccess
       testdir "output" `shouldReturn` True
 
        -- Create local 'monorepo-3' package that uses packages.dhall on top level
@@ -386,28 +386,6 @@ spec = around_ setup $ do
       testdir "output" `shouldReturn` False
 
       -- not the trick root folder
-      cd ".."
-      testdir "output" `shouldReturn` False
-
-    it "Spago should create an output folder in the root when we are not passing --no-share-output" $ do
-
-      -- Create root-level packages.dhall
-      mkdir "monorepo2"
-      cd "monorepo2"
-      spago ["init"] >>= shouldBeSuccess
-      rm "spago.dhall"
-
-      -- Create local 'lib-a' package that uses packages.dhall on top level (but also has it's own one to confuse things)
-      mkdir "lib-a"
-      cd "lib-a"
-      spago ["init"] >>= shouldBeSuccess
-      rm "packages.dhall"
-      writeTextFile "packages.dhall" $ "../packages.dhall"
-      rm "spago.dhall"
-      writeTextFile "spago.dhall" $ "{ name = \"lib-1\", license = \"MIT\", repository = \"https://github.com/fake/lib-1.git\", dependencies = [\"console\", \"effect\", \"prelude\"], sources = [\"src/**/*.purs\"], packages = ./packages.dhall }"
-      spago ["build"] >>= shouldBeSuccess
-      testdir "output" `shouldReturn` True
-
       cd ".."
       testdir "output" `shouldReturn` False
 
@@ -565,28 +543,6 @@ spec = around_ setup $ do
       cd ".."
       testdir "output" `shouldReturn` False
 
-    it "Spago should test successfully with --no-share-output" $ do
-
-      -- Create root-level packages.dhall
-      mkdir "monorepo"
-      cd "monorepo"
-      spago ["init"] >>= shouldBeSuccess
-      rm "spago.dhall"
-
-      -- Create local 'lib-a' package that uses packages.dhall on top level (but also has it's own one to confuse things)
-      mkdir "lib-a"
-      cd "lib-a"
-      spago ["init"] >>= shouldBeSuccess
-      rm "spago.dhall"
-      writeTextFile "spago.dhall" $ "{ name = \"lib-1\", dependencies = [\"console\", \"effect\", \"prelude\"], packages = ./packages.dhall }"
-      rm "packages.dhall"
-      writeTextFile "packages.dhall" $ "../packages.dhall"
-      spago ["test", "--no-share-output"] >>= shouldBeSuccess
-      testdir "output" `shouldReturn` True
-
-      cd ".."
-      testdir "output" `shouldReturn` False
-
 
   describe "spago upgrade-set" $ do
 
@@ -613,14 +569,14 @@ spec = around_ setup $ do
       spago ["build"] >>= shouldBeSuccess
 
       shell "psa --version" empty >>= \case
-        ExitSuccess -> spago ["-v", "run"] >>= shouldBeSuccessOutputWithErr "run-output.txt" "run-stderr.txt"
-        ExitFailure _ ->  spago ["-v", "run"] >>= shouldBeSuccessOutputWithErr "run-output.txt" "run-psa-not-installed-stderr.txt"
+        ExitSuccess -> spago ["-v", "run"] >>= shouldBeSuccessOutput "run-output.txt"
+        ExitFailure _ ->  spago ["-v", "run"] >>= shouldBeSuccessOutput "run-output.txt" 
 
     it "Spago should be able to not use `psa`" $ do
 
       spago ["init"] >>= shouldBeSuccess
       spago ["--no-psa", "build"] >>= shouldBeSuccess
-      spago ["-v", "--no-psa", "run"] >>= shouldBeSuccessOutputWithErr "run-output.txt" "run-no-psa-stderr.txt"
+      spago ["-v", "--no-psa", "run"] >>= shouldBeSuccessOutput "run-output.txt"
 
     it "Spago should pass stdin to the child process" $ do
 
@@ -698,7 +654,6 @@ spec = around_ setup $ do
 
   describe "spago path output" $ do
     it "Spago should output the correct path" $ do
-
       -- Create local 'monorepo-1' package that is the real root
       mkdir "monorepo-1"
       cd "monorepo-1"
@@ -713,13 +668,6 @@ spec = around_ setup $ do
       spago ["path", "output"] >>= outputShouldEqual "output\n"
       pure ()
 
-    it "Spago should output the local path when no overrides" $ do
-
-      mkdir "monorepo-1"
-      cd "monorepo-1"
-      spago ["init"] >>= shouldBeSuccess
-      spago ["path", "output", "--no-share-output"] >>= outputShouldEqual "output\n"
-
   describe "spago verify-set" $ do
     it "Spago should fail when there is no spago.dhall or packages.dhall" $ do
       spago ["init"] >>= shouldBeSuccess
@@ -730,4 +678,4 @@ spec = around_ setup $ do
     it "Spago should fail when packages.dhall is malformed" $ do
       spago ["init"] >>= shouldBeSuccess
       writeTextFile "packages.dhall" $ "abcdef"
-      spago ["verify-set"] >>= shouldBeFailureStderr "verify-set-failure-bad-packages-dhall.txt"
+      spago ["verify-set"] >>= shouldBeFailure
