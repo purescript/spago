@@ -153,7 +153,7 @@ ensureConfig = do
       Right config -> do
         PackageSet.ensureFrozen $ Text.unpack path
         pure $ Right config
-      Left (err :: Dhall.ReadError Void) -> pure $ Left $ displayShow err
+      Left (err :: SomeException) -> pure $ Left $ displayShow err
 
 
 -- | Copies over `spago.dhall` to set up a Spago project.
