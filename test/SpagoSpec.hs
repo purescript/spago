@@ -677,5 +677,6 @@ spec = around_ setup $ do
 
     it "Spago should fail when packages.dhall is malformed" $ do
       spago ["init"] >>= shouldBeSuccess
+      mv "packages.dhall" "packages-old.dhall"
       writeTextFile "packages.dhall" $ "abcdef"
       spago ["verify-set"] >>= shouldBeFailure
