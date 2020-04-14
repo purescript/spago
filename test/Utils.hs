@@ -44,8 +44,8 @@ withCwd dir cmd = do
 proc :: Text -> [Text] -> IO (ExitCode, Text, Text)
 proc cmd args = do
   let b2t
-    = Text.replace "\r\n" "\n" -- take care of Windows newlines
-    $ Text.Encoding.decodeUtf8With lenientDecode
+        = Text.replace "\r\n" "\n" -- take care of Windows newlines
+        . Text.Encoding.decodeUtf8With lenientDecode
   (c, out, err) <- Turtle.Bytes.procStrictWithErr cmd args empty
   pure (c, b2t out, b2t err)
 
