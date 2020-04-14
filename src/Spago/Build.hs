@@ -142,9 +142,9 @@ repl
 repl newPackages sourcePaths pursArgs depsOnly = do
   logDebug "Running `spago repl`"
   -- TODO: instead of using HasPurs here we just call this for now
-  findExecutableOrDie "purs"
+  purs <- Run.getPurs NoPsa
   Config.ensureConfig >>= \case
-    Right config -> Run.withInstallEnv' (Just config) replAction
+    Right config -> Run.withInstallEnv' (Just config) (replAction purs)
     Left err -> do
       logDebug err
       cacheDir <- view globalCacheL
@@ -156,14 +156,20 @@ repl newPackages sourcePaths pursArgs depsOnly = do
         
         let newConfig :: Config
             newConfig = config { Config.dependencies = dependencies <> newPackages }
-        Run.withInstallEnv' (Just newConfig) replAction
+        Run.withInstallEnv' (Just newConfig) (replAction purs)
   where
-    replAction = do
+    replAction purs = do
       Config{..} <- view configL
       deps <- Packages.getProjectDeps
+      -- we check that psci-support is in the deps, see #550
+      unless (Set.member (PackageName "psci-support") (Set.fromList (map fst deps))) $ do
+        die
+          [ "The package called 'psci-support' needs to be installed for the repl to work properly."
+          , "Run `spago install psci-support` to add it to your dependencies."
+          ]
       let globs = Packages.getGlobs deps depsOnly (configSourcePaths <> sourcePaths)
       Fetch.fetchPackages deps
-      liftIO $ Purs.repl globs pursArgs
+      liftIO $ Purs.repl purs globs pursArgs
 
 
 -- | Test the project: compile and run "Test.Main"
