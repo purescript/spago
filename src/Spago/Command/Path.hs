@@ -8,24 +8,29 @@ import qualified System.IO            as Sys
 
 
 showPaths
-  :: (HasLogFunc env)
+  :: (HasLogFunc env, HasGlobalCache env)
   => BuildOptions
   -> Maybe PathType
   -> RIO env ()
 showPaths buildOptions whichPaths =
   case whichPaths of
-    (Just OutputFolder) -> outputStr (getOutputPath buildOptions)
+    (Just PathOutput) -> outputStr (getOutputPath buildOptions)
+    (Just PathGlobalCache) -> view globalCacheL >>= outputStr 
     Nothing -> do
       let showPath (a,b) = output (a <> ": " <> b)
       getAllPaths buildOptions >>= traverse_ showPath
 
 
 getAllPaths
-  :: (HasLogFunc env)
+  :: (HasLogFunc env, HasGlobalCache env)
   => BuildOptions
   -> RIO env [(Text, Text)]
-getAllPaths buildOptions =
-  pure [ ("output", Text.pack (getOutputPath buildOptions)) ]
+getAllPaths buildOptions = do
+  globalCache <- view globalCacheL
+  pure
+    [ ("output", Text.pack (getOutputPath buildOptions))
+    , ("global-cache", Text.pack globalCache)
+    ]
 
 
 -- | Find the output path for purs compiler
