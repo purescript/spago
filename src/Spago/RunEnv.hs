@@ -120,7 +120,14 @@ getPurs usePsa = do
     UsePsa -> findExecutable "psa" >>= \case
       Just _  -> pure "psa"
       Nothing -> pure "purs"
-  findExecutableOrDie pursCandidate
+  try (findExecutableOrDie pursCandidate) >>= \case
+    Right p -> pure p
+    -- one last try for Windows
+    Left (err :: SomeException) -> case OS.buildOS of
+      OS.Windows -> do
+        logDebug $ displayShow err
+        findExecutableOrDie (pursCandidate <> ".cmd")
+      _ -> throwIO err
 
 getPackageSet :: (HasLogFunc env, HasConfigPath env) => RIO env PackageSet
 getPackageSet = do

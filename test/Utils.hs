@@ -25,12 +25,15 @@ module Utils
 import qualified Control.Concurrent as Concurrent
 import qualified Control.Exception  as Exception
 import qualified Data.Text          as Text
+import qualified Data.Text.Encoding as Text.Encoding
+import           Data.Text.Encoding.Error (lenientDecode)
 import           Prelude            hiding (FilePath)
 import           System.Directory   (removePathForcibly, doesFileExist)
 import qualified System.Process     as Process
 import           Test.Hspec         (HasCallStack, shouldBe, shouldSatisfy)
 import           Turtle             (ExitCode (..), FilePath, Text, cd, empty, encodeString, inproc,
-                                     limit, procStrictWithErr, pwd, readTextFile, strict)
+                                     limit, pwd, readTextFile, strict)
+import qualified Turtle.Bytes
 
 
 withCwd :: FilePath -> IO () -> IO ()
@@ -38,13 +41,17 @@ withCwd dir cmd = do
   oldDir <- pwd
   Exception.bracket_ (cd dir) (cd oldDir) cmd
 
+proc :: Text -> [Text] -> IO (ExitCode, Text, Text)
+proc cmd args = do
+  let b2t = Text.Encoding.decodeUtf8With lenientDecode
+  (c, out, err) <- Turtle.Bytes.procStrictWithErr cmd args empty
+  pure (c, b2t out, b2t err)
+
 spago :: [Text] -> IO (ExitCode, Text, Text)
-spago args =
-  procStrictWithErr "spago" args empty
+spago = proc "spago"
 
 git :: [Text] -> IO (ExitCode, Text, Text)
-git args =
-  procStrictWithErr "git" args empty
+git = proc "git"
 
 runFor :: Int -> String -> [String] -> IO ()
 runFor us cmd args = do
