@@ -36,11 +36,11 @@ compile sourcePaths extraArgs = do
     "Failed to build."
 
 -- TODO: this should use HasPurs
-repl :: [SourcePath] -> [PursArg] -> IO ()
-repl sourcePaths extraArgs = do
+repl :: Text -> [SourcePath] -> [PursArg] -> IO ()
+repl purs sourcePaths extraArgs = do
   let paths = Text.intercalate " " $ surroundQuote <$> map unSourcePath sourcePaths
       args = Text.intercalate " " $ map unPursArg extraArgs
-      cmd = "purs repl " <> paths <> " " <> args
+      cmd = purs <> " repl " <> paths <> " " <> args
 
   viewShell $ callCommand $ Text.unpack cmd
 
