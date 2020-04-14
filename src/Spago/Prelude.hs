@@ -1,74 +1,74 @@
 module Spago.Prelude
-  ( die
-  , Dhall.Core.throws
-  , hush
-  , pathFromText
-  , assertDirectory
-  , Env
-  , HasEnv(..)
-  , HasGlobalCache(..)
-  , HasConfigPath(..)
-  , HasJobs(..)
-  , HasPsa(..)
-  , UsePsa(..)
-  , Spago
-  , module X
+  ( 
+  -- * Basic exports
+    module X
   , Proxy(..)
   , NonEmpty (..)
   , Seq (..)
-  , Pretty
-  , FilePath
-  , ExitCode (..)
   , Validation(..)
+  , bimap
+  , first
+  , second
+  , headMay
+  , lastMay
+  , empty
+  
+  -- * Logging, errors, printing, etc
+  , Pretty
+  , pretty
+  , output
+  , outputStr
+  , die
+  , hush
+  , surroundQuote
+
+  -- * Lens
   , (</>)
   , (^..)
-  , surroundQuote
   , transformMOf
+
+  -- * Files and directories
+  , FilePath
+  , pathFromText
   , testfile
   , testdir
   , mktree
   , mv
   , cptree
-  , bimap
-  , first
-  , second
+  , assertDirectory
   , chmod
   , executable
   , readTextFile
   , writeTextFile
   , isAbsolute
   , pathSeparator
-  , headMay
-  , lastMay
   , shouldRefreshFile
   , makeAbsolute
-  , empty
+  , getModificationTime
+  , Turtle.mktempdir
+
+  -- * Running commands
+  , ExitCode (..)
   , callCommand
   , shell
   , shellStrict
   , shellStrictWithErr
   , systemStrictWithErr
   , viewShell
+  , findExecutableOrDie
+  , Directory.findExecutable
+
+  -- * Other
+  , Dhall.Core.throws
   , repr
   , with
   , appendonly
-  , async'
-  , wait'
-  , cancel'
-  , waitCatch'
-  , mapTasks'
-  , withTaskGroup'
-  , Turtle.mktempdir
-  , getModificationTime
   , docsSearchVersion
   , githubTokenEnvVar
-  , pretty
-  , output
-  , outputStr
+  , mapRIO
   ) where
 
 
-import qualified Control.Concurrent.Async.Pool         as Async
 import           Control.Monad.Catch                   (MonadMask)
 import qualified Data.Text                             as Text
 import qualified Data.Text.Prettyprint.Doc             as Pretty
@@ -108,8 +108,6 @@ import           Turtle                                (ExitCode (..), FilePath,
 import           UnliftIO.Directory                    (getModificationTime, makeAbsolute)
 import           UnliftIO.Process                      (callCommand)
 
-import           Spago.Env
-
 
 -- | Generic Error that we throw on program exit.
 --   We have it so that errors are displayed nicely to the user
@@ -118,8 +116,6 @@ instance Exception SpagoError
 instance Show SpagoError where
   show (SpagoError err) = Text.unpack err
 
-
-type Spago = RIO Env
 
 output :: MonadIO m => Text -> m ()
 output = Turtle.printf (Turtle.s Turtle.% "\n")
@@ -170,24 +166,6 @@ cptree :: MonadIO m => System.IO.FilePath -> System.IO.FilePath -> m ()
 cptree from to' = Turtle.cptree (Turtle.decodeString from) (Turtle.decodeString to')
 
 
-withTaskGroup' :: (MonadIO m, MonadReader env m, HasLogFunc env, MonadUnliftIO m) => Int -> (Async.TaskGroup -> m b) -> m b
-withTaskGroup' n action = withRunInIO $ \run -> Async.withTaskGroup n (\taskGroup -> run $ action taskGroup)
-
-async' :: (MonadIO m, MonadReader env m, HasLogFunc env, MonadUnliftIO m) => Async.TaskGroup -> m a -> m (Async.Async a)
-async' taskGroup action = withRunInIO $ \run -> Async.async taskGroup (run action)
-
-wait' :: MonadIO m => Async.Async a -> m a
-wait' = liftIO . Async.wait
-
-cancel' :: MonadIO m => Async.Async a -> m ()
-cancel' = liftIO . Async.cancel
-
-waitCatch' :: MonadIO m => Async.Async a -> m (Either SomeException a)
-waitCatch' = liftIO . Async.waitCatch
-
-mapTasks' :: Traversable t => Async.TaskGroup -> t (Spago a) -> Spago (t a)
-mapTasks' taskGroup actions = withRunInIO $ \run -> Async.mapTasks taskGroup (run <$> actions)
-
 -- | Code from: https://github.com/dhall-lang/dhall-haskell/blob/d8f2787745bb9567a4542973f15e807323de4a1a/dhall/src/Dhall/Import.hs#L578
 assertDirectory :: (MonadIO m, MonadThrow m, HasLogFunc env, MonadReader env m) => FilePath.FilePath -> m ()
 assertDirectory directory = do
@@ -228,7 +206,7 @@ githubTokenEnvVar = "SPAGO_GITHUB_TOKEN"
 
 
 -- | Check if the file is present and more recent than 1 day
-shouldRefreshFile :: FilePath.FilePath -> Spago Bool
+shouldRefreshFile :: HasLogFunc env => FilePath.FilePath -> RIO env Bool
 shouldRefreshFile path = (tryIO $ liftIO $ do
   fileExists <- testfile $ Text.pack path
   lastModified <- getModificationTime path
@@ -246,3 +224,17 @@ pretty :: Pretty.Pretty a => a -> Dhall.Text
 pretty = PrettyText.renderStrict
   . Pretty.layoutPretty Pretty.defaultLayoutOptions
   . Pretty.pretty
+
+-- | Return the full path of the executable we're trying to call,
+--   or die trying
+findExecutableOrDie :: HasLogFunc env => String -> RIO env Text
+findExecutableOrDie cmd = do
+  Directory.findExecutable cmd >>= \case 
+    Nothing -> die [ "Executable was not found in path: " <> displayShow cmd ]
+    Just path -> pure $ Text.pack path
+
+-- | Lift one RIO env to another.
+mapRIO :: (outer -> inner) -> RIO inner a -> RIO outer a
+mapRIO f m = do
+  outer <- ask
+  runRIO (f outer) m

@@ -2,43 +2,30 @@ module Spago.Packages
   ( initProject
   , install
   , sources
-  , verify
-  , listPackages
   , getGlobs
   , getJsGlobs
   , getDirectDeps
   , getProjectDeps
-  , PackageSet.upgradePackageSet
-  , PackageSet.freeze
-  , PackageSet.packagesPath
-  , IncludePackages(..)
-  , CheckModulesUnique(..)
-  , JsonFlag(..)
+  , getReverseDeps
+  , getTransitiveDeps
   , DepsOnly(..)
   ) where
 
 import           Spago.Prelude
+import           Spago.Env
 
 import qualified Control.Monad.State.Lazy as State
-import           Data.Aeson               as Aeson
 import qualified Data.List                as List
 import qualified Data.Map                 as Map
 import qualified Data.Set                 as Set
 import qualified Data.Text                as Text
-import qualified Data.Text.Lazy           as LT
-import qualified Data.Text.Lazy.Encoding  as LT
 
-import           Spago.Config             (Config (..))
 import qualified Spago.Config             as Config
 import qualified Spago.Dhall              as Dhall
 import qualified Spago.FetchPackage       as Fetch
-import           Spago.GlobalCache        (CacheFlag (..))
 import qualified Spago.Messages           as Messages
 import qualified Spago.PackageSet         as PackageSet
-import qualified Spago.Purs               as Purs
 import qualified Spago.Templates          as Templates
-
-import           Spago.Types              as PackageSet
 
 
 -- | Init a new Spago project:
@@ -46,13 +33,16 @@ import           Spago.Types              as PackageSet
 --   - create `spago.dhall` to manage project config: name, deps, etc
 --   - create an example `src` folder (if needed)
 --   - create an example `test` folder (if needed)
-initProject :: Bool -> Dhall.TemplateComments -> Spago ()
+initProject 
+  :: (HasGlobalCache env, HasLogFunc env, HasConfigPath env)
+  => Force -> Dhall.TemplateComments 
+  -> RIO env Config
 initProject force comments = do
   logInfo "Initializing a sample project or migrating an existing one.."
 
   -- packages.dhall and spago.dhall overwrite can be forced
   PackageSet.makePackageSetFile force comments
-  Config.makeConfig force comments
+  config <- Config.makeConfig force comments
 
   -- Get the latest version of the package set if possible
   PackageSet.upgradePackageSet
@@ -72,6 +62,7 @@ initProject force comments = do
 
   logInfo "Set up a local Spago project."
   logInfo "Try running `spago build`"
+  pure config
 
   where
     whenDirNotExists dir action = do
@@ -89,34 +80,33 @@ initProject force comments = do
         False -> writeTextFile dest srcTemplate
 
 
--- | Only build deps and ignore input paths
-data DepsOnly = DepsOnly | AllSources
-
-getGlobs :: [(PackageName, Package)] -> DepsOnly -> [Purs.SourcePath] -> [Purs.SourcePath]
+getGlobs :: [(PackageName, Package)] -> DepsOnly -> [SourcePath] -> [SourcePath]
 getGlobs deps depsOnly configSourcePaths
   = map (\pair
-          -> Purs.SourcePath $ Text.pack $ Fetch.getLocalCacheDir pair
+          -> SourcePath $ Text.pack $ Fetch.getLocalCacheDir pair
           <> "/src/**/*.purs") deps
   <> case depsOnly of
     DepsOnly   -> []
     AllSources -> configSourcePaths
 
 
-getJsGlobs :: [(PackageName, Package)] -> DepsOnly -> [Purs.SourcePath] -> [Purs.SourcePath]
+getJsGlobs :: [(PackageName, Package)] -> DepsOnly -> [SourcePath] -> [SourcePath]
 getJsGlobs deps depsOnly configSourcePaths
   = map (\pair
-          -> Purs.SourcePath $ Text.pack $ Fetch.getLocalCacheDir pair
+          -> SourcePath $ Text.pack $ Fetch.getLocalCacheDir pair
           <> "/src/**/*.js") deps
   <> case depsOnly of
     DepsOnly   -> []
-    AllSources -> Purs.SourcePath . Text.replace ".purs" ".js" . Purs.unSourcePath
+    AllSources -> SourcePath . Text.replace ".purs" ".js" . unSourcePath
       <$> configSourcePaths
 
 
 -- | Return the direct dependencies of the current project
-getDirectDeps :: Config -> Spago [(PackageName, Package)]
-getDirectDeps Config{..} = do
-  let PackageSet{..} = packageSet
+getDirectDeps 
+  :: (HasLogFunc env, HasConfig env)
+  => RIO env [(PackageName, Package)]
+getDirectDeps = do
+  Config { packageSet = PackageSet{..}, dependencies } <- view configL 
   for dependencies $ \dep ->
     case Map.lookup dep packagesDB of
       Nothing ->
@@ -124,20 +114,22 @@ getDirectDeps Config{..} = do
       Just pkg ->
         pure (dep, pkg)
 
-
--- | Return all the transitive dependencies of the current project
-getProjectDeps :: Config -> Spago [(PackageName, Package)]
-getProjectDeps Config{..} = getTransitiveDeps packageSet dependencies
-
+getProjectDeps 
+  :: (HasLogFunc env, HasConfig env)
+  => RIO env [(PackageName, Package)]
+getProjectDeps = do
+  Config{ dependencies } <- view configL
+  getTransitiveDeps dependencies
 
 -- | Return the transitive dependencies of a list of packages
-getTransitiveDeps :: PackageSet -> [PackageName] -> Spago [(PackageName, Package)]
-getTransitiveDeps PackageSet{..} deps = do
+getTransitiveDeps
+  :: (HasLogFunc env, HasPackageSet env)
+  => [PackageName] -> RIO env [(PackageName, Package)]
+getTransitiveDeps deps = do
   logDebug "Getting transitive deps"
-  let (packageMap, notFoundErrors, cycleErrors) = State.evalState (fold <$> traverse (go mempty) deps) mempty
+  PackageSet{..} <- view packageSetL 
 
-  handleErrors (Map.toList packageMap) (Set.toList notFoundErrors) (Set.toList cycleErrors)
-  where
+  let
     handleErrors packageMap notFoundErrors cycleErrors
       | not (null cycleErrors) = die $ [ "The following packages have circular dependencies:" ] <> fmap pkgCycleMsg cycleErrors
       | not (null notFoundErrors) = die $ [ "The following packages do not exist in your package set:" ] <> fmap (pkgNotFoundMsg packagesDB) notFoundErrors
@@ -161,6 +153,10 @@ getTransitiveDeps PackageSet{..} deps = do
               pure (allDeps, notFoundErrors, cycleErrors)
             Nothing ->
               pure (mempty, Set.singleton $ NotFoundError dep, mempty)
+  
+  let (packageMap, notFoundErrors, cycleErrors) = State.evalState (fold <$> traverse (go mempty) deps) mempty
+
+  handleErrors (Map.toList packageMap) (Set.toList notFoundErrors) (Set.toList cycleErrors)
 
 
 pkgNotFoundMsg :: Map PackageName Package -> NotFoundError PackageName -> Utf8Builder
@@ -180,40 +176,44 @@ newtype NotFoundError a = NotFoundError a deriving (Eq, Ord)
 newtype CycleError a = CycleError a deriving (Eq, Ord)
 newtype FoundWithoutPrefix = FoundWithoutPrefix PackageName
 
-getReverseDeps  :: PackageSet -> PackageName -> IO [(PackageName, Package)]
-getReverseDeps packageSet@PackageSet{..} dep = do
+getReverseDeps  :: HasPackageSet env => PackageName -> RIO env [(PackageName, Package)]
+getReverseDeps dep = do
+    PackageSet{ packagesDB } <- view packageSetL
     List.nub <$> foldMap go (Map.toList packagesDB)
   where
     go pair@(packageName, Package{..}) = do
       case dep `elem` dependencies of
         False -> return mempty
         True -> do
-          innerDeps <- getReverseDeps packageSet packageName
+          innerDeps <- getReverseDeps packageName
           return $ pair : innerDeps
 
 
 -- | Fetch all dependencies into `.spago/`
-install :: Maybe CacheFlag -> [PackageName] -> Spago ()
-install cacheFlag newPackages = do
+install 
+  :: HasInstallEnv env
+  => [PackageName] -> RIO env ()
+install newPackages = do
   logDebug "Running `spago install`"
-  config@Config{ packageSet = PackageSet{..}, ..} <- Config.ensureConfigUnsafe
+  config@Config{ packageSet = PackageSet{..}, ..} <- view configL
 
   existingNewPackages <- reportMissingPackages $ classifyPackages packagesDB newPackages
 
   -- Try fetching the dependencies with the new names too
   let newConfig :: Config
-      newConfig = config { dependencies = dependencies <> existingNewPackages }
-  deps <- getProjectDeps newConfig
+      newConfig = config { Config.dependencies = dependencies <> existingNewPackages }
+  mapRIO (set configL newConfig) $ do
+    deps <- getProjectDeps
 
-  -- If the above doesn't fail, write the new packages to the config
-  -- Also skip the write if there are no new packages to be written
-  case existingNewPackages of
-    []         -> pure ()
-    additional -> Config.addDependencies config additional
+    -- If the above doesn't fail, write the new packages to the config
+    -- Also skip the write if there are no new packages to be written
+    case existingNewPackages of
+      []         -> pure ()
+      additional -> Config.addDependencies config additional
 
-  Fetch.fetchPackages cacheFlag deps packagesMinPursVersion
+    Fetch.fetchPackages deps
 
-reportMissingPackages :: PackagesLookupResult -> Spago [PackageName]
+reportMissingPackages :: HasLogFunc env => PackagesLookupResult -> RIO env [PackageName]
 reportMissingPackages (PackagesLookupResult found foundWithoutPrefix notFound) = do
   unless (null notFound) $
     die $
@@ -250,159 +250,13 @@ stripPurescriptPrefix (PackageName name) =
   PackageName <$> Text.stripPrefix "purescript-" name
 
 
-data IncludePackages = PackageSetPackages | TransitiveDeps | DirectDeps
-
-data JsonFlag = JsonOutputNo | JsonOutputYes
-
-data JsonPackageOutput = JsonPackageOutput
-  { json_packageName :: !Text
-  , json_repo        :: !Value
-  , json_version     :: !Text
-  }
-  deriving (Eq, Show, Generic)
-
-instance ToJSON JsonPackageOutput where
-  toJSON = Aeson.genericToJSON Aeson.defaultOptions
-    { fieldLabelModifier = drop 5
-    }
-
-encodeJsonPackageOutput :: JsonPackageOutput -> Text
-encodeJsonPackageOutput = LT.toStrict . LT.decodeUtf8 . Aeson.encode
-
--- | A list of the packages that can be added to this project
-listPackages :: IncludePackages -> JsonFlag -> Spago ()
-listPackages packagesFilter jsonFlag = do
-  logDebug "Running `listPackages`"
-  Config{packageSet = packageSet@PackageSet{..}, ..} <- Config.ensureConfigUnsafe
-  packagesToList :: [(PackageName, Package)] <- case packagesFilter of
-    PackageSetPackages -> pure $ Map.toList packagesDB
-    TransitiveDeps     -> getTransitiveDeps packageSet dependencies
-    DirectDeps         -> pure $ Map.toList
-      $ Map.restrictKeys packagesDB (Set.fromList dependencies)
-
-  case packagesToList of
-    [] -> logWarn "There are no dependencies listed in your spago.dhall"
-    _  -> traverse_ output $ formatPackageNames packagesToList
-
-  where
-    formatPackageNames = case jsonFlag of
-      JsonOutputYes -> formatPackageNamesJson
-      JsonOutputNo  -> formatPackageNamesText
-
-    -- | Format all the packages from the config in JSON
-    formatPackageNamesJson :: [(PackageName, Package)] -> [Text]
-    formatPackageNamesJson pkgs =
-      let
-        asJson (PackageName{..}, Package{ location = loc@PackageSet.Remote{..}, ..})
-          = JsonPackageOutput
-              { json_packageName = packageName
-              , json_repo = toJSON loc
-              , json_version = version
-              }
-        asJson (PackageName{..}, Package { location = loc@PackageSet.Local{..}, ..})
-          = JsonPackageOutput
-              { json_packageName = packageName
-              , json_repo = toJSON loc
-              , json_version = "local"
-              }
-      in map (encodeJsonPackageOutput . asJson) pkgs
-
-    -- | Format all the package names from the configuration
-    formatPackageNamesText :: [(PackageName, Package)] -> [Text]
-    formatPackageNamesText pkgs =
-      let
-        showVersion PackageSet.Remote{..} = version
-        showVersion _                     = "local"
-
-        showLocation PackageSet.Remote{ repo = Repo repo } = "Remote " <> surroundQuote repo
-        showLocation PackageSet.Local{..}                  = "Local " <> surroundQuote localPath
-
-        longestName = maximum $ fmap (Text.length . packageName . fst) pkgs
-        longestVersion = maximum $ fmap (Text.length . showVersion . location . snd) pkgs
-
-        renderPkg (PackageName{..}, Package{..})
-          = leftPad longestName packageName <> " "
-          <> leftPad longestVersion (showVersion location) <> "   "
-          <> showLocation location
-      in map renderPkg pkgs
-
-    leftPad :: Int -> Text -> Text
-    leftPad n s
-      | Text.length s < n  = s <> Text.replicate (n - Text.length s) " "
-      | otherwise = s
-
-
 -- | Get source globs of dependencies listed in `spago.dhall`
-sources :: Spago ()
+sources :: (HasLogFunc env, HasConfig env) => RIO env ()
 sources = do
   logDebug "Running `spago sources`"
-  config <- Config.ensureConfigUnsafe
-  deps <- getProjectDeps config
+  config <- view configL
+  deps <- getProjectDeps
   traverse_ output
-    $ fmap Purs.unSourcePath
+    $ fmap unSourcePath
     $ getGlobs deps AllSources
-    $ Config.configSourcePaths config
-
-
-data CheckModulesUnique = DoCheckModulesUnique | NoCheckModulesUnique
-
-verify :: Maybe CacheFlag -> CheckModulesUnique -> Maybe PackageName -> Spago ()
-verify cacheFlag chkModsUniq maybePackage = do
-  logDebug "Running `spago verify`"
-
-  -- @TODO Swap the order of these to check for `spago.dhall` first, once
-  -- `ensureConfig` no longer calls `die` internally. See:
-  -- https://github.com/purescript/spago/pull/515#pullrequestreview-329632196
-  packageSet@PackageSet{..} <- do
-    -- Try to read a "packages.dhall" directly
-    try (liftIO (Dhall.inputExpr $ "./" <> PackageSet.packagesPath)) >>= \case
-      Right (Dhall.RecordLit ks) -> Config.parsePackageSet ks
-      (_ :: Either SomeException (Dhall.DhallExpr Void))  -> do
-          -- Try to read a "spago.dhall" and find the packages from there
-          try Config.ensureConfigUnsafe >>= \case
-            Right (Config{ packageSet = packageSet@PackageSet{..}, ..}) -> pure packageSet
-            Left (_ :: SomeException) -> die [ display Messages.couldNotVerifySet ]
-
-  case maybePackage of
-    -- If no package is specified, verify all of them
-    Nothing -> do
-      verifyPackages packageSet (Map.toList packagesDB)
-    -- In case we have a package, search in the package set for it
-    Just packageName@(PackageName actualPackageName) -> do
-      case Map.lookup packageName packagesDB of
-        Nothing -> die [ "No packages found with the name " <> displayShow actualPackageName ]
-        -- When verifying a single package we check the reverse deps/referrers
-        -- because we want to make sure the it doesn't break them
-        -- (without having to check the whole set of course, that would work
-        -- as well but would be much slower)
-        Just package -> do
-          reverseDeps <- liftIO $ getReverseDeps packageSet packageName
-          let toVerify = [(packageName, package)] <> reverseDeps
-          verifyPackages packageSet toVerify
-  case chkModsUniq of
-    DoCheckModulesUnique -> compileEverything packageSet
-    NoCheckModulesUnique -> pure ()
-  where
-    verifyPackages :: PackageSet -> [(PackageName, Package)] -> Spago ()
-    verifyPackages packageSet packages = do
-      logInfo $ display $ Messages.verifying $ length packages
-      traverse_ (verifyPackage packageSet) (fst <$> packages)
-
-    verifyPackage :: PackageSet -> PackageName -> Spago ()
-    verifyPackage packageSet@PackageSet{..} name = do
-      deps <- getTransitiveDeps packageSet [name]
-      let globs = getGlobs deps DepsOnly []
-          quotedName = surroundQuote $ packageName name
-      Fetch.fetchPackages cacheFlag deps packagesMinPursVersion
-      logInfo $ display $ "Verifying package " <> quotedName
-      Purs.compile globs []
-      logInfo $ display $ "Successfully verified " <> quotedName
-
-    compileEverything :: PackageSet -> Spago ()
-    compileEverything PackageSet{..} = do
-      let deps = Map.toList packagesDB
-          globs = getGlobs deps DepsOnly []
-      Fetch.fetchPackages cacheFlag deps packagesMinPursVersion
-      logInfo "Compiling everything (will fail if module names conflict)"
-      Purs.compile globs []
-      logInfo "Successfully compiled everything"
+    $ configSourcePaths config

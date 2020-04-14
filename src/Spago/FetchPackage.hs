@@ -5,14 +5,13 @@ module Spago.FetchPackage
   ) where
 
 import           Spago.Prelude
+import           Spago.Env
 
-import qualified Control.Concurrent.Async.Pool as Async
 import qualified Data.ByteString               as ByteString
 import qualified Data.Char                     as Char
 import qualified Data.List                     as List
 import qualified Data.Text                     as Text
 import qualified Data.Text.Encoding            as Text
-import qualified Data.Versions                 as Version
 import qualified Numeric
 import qualified System.FilePath               as FilePath
 import qualified System.IO.Temp                as Temp
@@ -20,11 +19,10 @@ import qualified System.Process                as Process
 import qualified Turtle
 import qualified UnliftIO.Directory            as Directory
 
+import qualified Spago.Async as Async
 import qualified Spago.GlobalCache             as GlobalCache
 import qualified Spago.Messages                as Messages
 import qualified Spago.PackageSet              as PackageSet
-
-import           Spago.Types
 
 
 -- | Algorithm for fetching dependencies:
@@ -36,14 +34,13 @@ import           Spago.Types
 --       * if yes, download the tar archive and copy it to global and then local cache
 --       * if not, run a series of git commands to get the code, and copy to local cache
 fetchPackages
-  :: Maybe GlobalCache.CacheFlag
-  -> [(PackageName, Package)]
-  -> Maybe Version.SemVer
-  -> Spago ()
-fetchPackages globalCacheFlag allDeps minPursVersion = do
+  :: (HasEnv env, HasCacheConfig env, HasPackageSet env)
+  => [(PackageName, Package)]
+  -> RIO env ()
+fetchPackages allDeps = do
   logDebug "Running `fetchPackages`"
 
-  PackageSet.checkPursIsUpToDate minPursVersion
+  PackageSet.checkPursIsUpToDate
 
   -- Ensure both local and global cache dirs are there
   globalCache <- view globalCacheL
@@ -61,12 +58,13 @@ fetchPackages globalCacheFlag allDeps minPursVersion = do
   let nOfDeps = List.length depsToFetch
   when (nOfDeps > 0) $ do
     logInfo $ "Installing " <> display nOfDeps <> " dependencies."
+    globalCacheFlag <- view cacheConfigL
     metadata <- GlobalCache.getMetadata globalCacheFlag
 
     limit <- view jobsL
-    withTaskGroup' limit $ \taskGroup -> do
-      asyncs <- for depsToFetch (async' taskGroup . fetchPackage metadata)
-      handle (handler asyncs) (for_ asyncs wait')
+    Async.withTaskGroup limit $ \taskGroup -> do
+      asyncs <- for depsToFetch (Async.async taskGroup . fetchPackage metadata)
+      handle (handler asyncs) (for_ asyncs Async.wait)
 
   logInfo "Installation complete."
 
@@ -84,8 +82,8 @@ fetchPackages globalCacheFlag allDeps minPursVersion = do
     handler :: (HasLogFunc env, MonadReader env m, MonadIO m) => [Async.Async ()] -> SomeException -> m ()
     handler asyncs (e :: SomeException) = do
       for_ asyncs $ \asyncTask -> do
-        cancel' asyncTask
-        waitCatch' asyncTask
+        Async.cancel asyncTask
+        Async.waitCatch asyncTask
       die [ "Installation failed", "Error:", display e ]
 
 
@@ -93,7 +91,11 @@ fetchPackages globalCacheFlag allDeps minPursVersion = do
 --   eventually caching it to the global cache, or copying it from there if it's
 --   sensible to do so.
 --   If it's a local directory do nothing
-fetchPackage :: GlobalCache.ReposMetadataV1 -> (PackageName, Package) -> Spago ()
+fetchPackage 
+  :: forall env
+  .  (HasLogFunc env, HasGlobalCache env)
+  => GlobalCache.ReposMetadataV1 -> (PackageName, Package) 
+  -> RIO env ()
 fetchPackage _ (PackageName package, Package { location = Local{..}, .. }) =
   logInfo $ display $ Messages.foundLocalPackage package localPath
 fetchPackage metadata pair@(packageName'@PackageName{..}, Package{ location = Remote{..}, .. } ) = do
@@ -118,7 +120,7 @@ fetchPackage metadata pair@(packageName'@PackageName{..}, Package{ location = Re
       else Temp.withTempDirectory globalCache (Text.unpack ("__temp-" <> "-" <> packageName <> getCacheVersionDir version)) $ \globalTemp -> do
         -- Otherwise, check if the Package is on GitHub and an "immutable" ref.
         -- If yes, download the tar archive and copy it to global and then local cache.
-        let cacheableCallback :: FilePath.FilePath -> Spago ()
+        let cacheableCallback :: FilePath.FilePath -> RIO env ()
             cacheableCallback resultDir = do
               -- The idea here is that we first copy the tree to a temp folder,
               -- then atomically move it to the correct cache location.  Since
@@ -133,7 +135,7 @@ fetchPackage metadata pair@(packageName'@PackageName{..}, Package{ location = Re
               mv resultDir packageLocalCacheDir
 
         -- If not, run a series of git commands to get the code, and move it to local cache.
-        let nonCacheableCallback :: Spago ()
+        let nonCacheableCallback :: RIO env ()
             nonCacheableCallback = do
               logInfo $ "Installing " <> display quotedName
 

@@ -28,20 +28,47 @@ flags:
 description:         Please see the README on GitHub at <https://github.com/purescript/spago#readme>
 
 default-extensions:
+- AutoDeriveTypeable
+- ApplicativeDo
+- BangPatterns
+- BinaryLiterals
+- ConstraintKinds
+- DataKinds
+- DefaultSignatures
 - DeriveDataTypeable
+- DeriveFoldable
+- DeriveFunctor
 - DeriveGeneric
+- DeriveTraversable
 - DerivingStrategies
-- DuplicateRecordFields
+- DoAndIfThenElse
+- EmptyDataDecls
+- ExistentialQuantification
+- FlexibleContexts
+- FlexibleInstances
+- FunctionalDependencies
+- GADTs
 - GeneralizedNewtypeDeriving
+- InstanceSigs
+- KindSignatures
 - LambdaCase
+- MonadFailDesugaring
+- MultiParamTypeClasses
+- MultiWayIf
+- NamedFieldPuns
+- NoImplicitPrelude
+- OverloadedStrings
+- PartialTypeSignatures
+- PatternGuards
+- PolyKinds
+- RankNTypes
 - RecordWildCards
 - ScopedTypeVariables
-- OverloadedStrings
-- FlexibleContexts
-- ConstraintKinds
-- NoImplicitPrelude
-- ApplicativeDo
-- NamedFieldPuns
+- StandaloneDeriving
+- TupleSections
+- TypeFamilies
+- TypeSynonymInstances
+- ViewPatterns
 
 
 library:
@@ -73,6 +100,7 @@ library:
   - mtl
   - network-uri
   - open-browser
+  - optparse-applicative
   - prettyprinter
   - process
   - retry
@@ -120,7 +148,6 @@ executables:
         - -with-rtsopts=-N
     dependencies:
     - base >= 4.7 && < 5
-    - optparse-applicative
     - spago
     - text < 1.3
     - turtle

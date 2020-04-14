@@ -4,7 +4,6 @@ module Spago.Config
   ( defaultPath
   , makeConfig
   , ensureConfig
-  , ensureConfigUnsafe
   , addDependencies
   , parsePackage
   , parsePackageSet
@@ -13,6 +12,7 @@ module Spago.Config
   ) where
 
 import           Spago.Prelude
+import           Spago.Env
 
 import qualified Data.List             as List
 import qualified Data.List.NonEmpty    as NonEmpty
@@ -32,33 +32,16 @@ import qualified Spago.Dhall           as Dhall
 import qualified Spago.Messages        as Messages
 import qualified Spago.PackageSet      as PackageSet
 import qualified Spago.PscPackage      as PscPackage
-import qualified Spago.Purs            as Purs
 import qualified Spago.Templates       as Templates
 
-import           Spago.Types           as PackageSet
+
+type Expr = Dhall.DhallExpr Dhall.Import
+type ResolvedExpr = Dhall.DhallExpr Void
+
 
 -- | Default path for the Spago Config
 defaultPath :: IsString t => t
 defaultPath = "spago.dhall"
-
--- | Spago configuration file type
-data Config = Config
-  { name              :: Text
-  , dependencies      :: [PackageName]
-  , packageSet        :: PackageSet
-  , alternateBackend  :: Maybe Text
-  , configSourcePaths :: [Purs.SourcePath]
-  , publishConfig     :: Either (Dhall.ReadError Void) PublishConfig
-  } deriving (Show, Generic)
-
--- | The extra fields that are only needed for publishing libraries.
-data PublishConfig = PublishConfig
-  { publishLicense    :: Text
-  , publishRepository :: Text
-  } deriving (Show, Generic)
-
-type Expr = Dhall.DhallExpr Dhall.Import
-type ResolvedExpr = Dhall.DhallExpr Void
 
 
 isLocationType :: (Eq s, Eq a) => Dhall.Expr s a -> Bool
@@ -79,11 +62,11 @@ dependenciesType = Dhall.list (Dhall.auto :: Dhall.Decoder PackageName)
 
 parsePackage :: (MonadIO m, MonadThrow m, MonadReader env m, HasLogFunc env) => ResolvedExpr -> m Package
 parsePackage (Dhall.RecordLit ks) = do
-  repo         <- Dhall.requireTypedKey ks "repo" (Dhall.auto :: Dhall.Decoder PackageSet.Repo)
+  repo         <- Dhall.requireTypedKey ks "repo" (Dhall.auto :: Dhall.Decoder Repo)
   version      <- Dhall.requireTypedKey ks "version" Dhall.strictText
   dependencies <- Dhall.requireTypedKey ks "dependencies" dependenciesType
-  let location = PackageSet.Remote{..}
-  pure PackageSet.Package{..}
+  let location = Remote{..}
+  pure Package{..}
 parsePackage (Dhall.App (Dhall.Field union "Local") (Dhall.TextLit (Dhall.Chunks [] spagoConfigPath)))
   | isLocationType union = do
       localPath <- case Text.isSuffixOf "/spago.dhall" spagoConfigPath of
@@ -102,36 +85,40 @@ parsePackage (Dhall.App (Dhall.Field union "Local") (Dhall.TextLit (Dhall.Chunks
               (set Dhall.rootDirectory (Text.unpack localPath) Dhall.defaultInputSettings)
               dependenciesType
               (pretty newExpr)
-      let location = PackageSet.Local{..}
-      pure PackageSet.Package{..}
+      let location = Local{..}
+      pure Package{..}
 parsePackage expr = die [ display $ Messages.failedToParsePackage $ pretty expr ]
 
 
 -- | Parse the contents of a "packages.dhall" file (or the "packages" key of an
 -- evaluated "spago.dhall")
-parsePackageSet :: Dhall.Map.Map Text (Dhall.DhallExpr Void) -> Spago PackageSet
+parsePackageSet 
+  :: HasLogFunc env
+  => Dhall.Map.Map Text (Dhall.DhallExpr Void) 
+  -> RIO env PackageSet
 parsePackageSet pkgs = do
-  packages <- fmap (Map.mapKeys PackageSet.PackageName . Dhall.Map.toMap) $ traverse parsePackage pkgs
+  packagesDB <- fmap (Map.mapKeys PackageName . Dhall.Map.toMap) $ traverse parsePackage pkgs
 
-  let metadataPackageName = PackageSet.PackageName "metadata"
-  let (metadataMap, packagesDB) = Map.partitionWithKey (\k _v -> k == metadataPackageName) packages
+  let metadataPackageName = PackageName "metadata"
   let packagesMinPursVersion = join
-        $ fmap (hush . Version.semver . Text.replace "v" "" . PackageSet.version . PackageSet.location)
-        $ Map.lookup metadataPackageName metadataMap
-  pure PackageSet.PackageSet{..}
+        $ fmap (hush . Version.semver . Text.replace "v" "" . version . location)
+        $ Map.lookup metadataPackageName packagesDB
+  pure PackageSet{..}
 
 
 -- | Tries to read in a Spago Config
-parseConfig :: Spago Config
+parseConfig 
+  :: (HasLogFunc env, HasConfigPath env)
+  => RIO env Config
 parseConfig = do
   -- Here we try to migrate any config that is not in the latest format
-  withConfigAST $ pure . addSourcePaths
+  void $ withConfigAST $ pure . addSourcePaths
 
   path <- view configPathL
   expr <- liftIO $ Dhall.inputExpr $ "./" <> path
   case expr of
     Dhall.RecordLit ks -> do
-      let sourcesType  = Dhall.list (Dhall.auto :: Dhall.Decoder Purs.SourcePath)
+      let sourcesType  = Dhall.list (Dhall.auto :: Dhall.Decoder SourcePath)
       name              <- Dhall.requireTypedKey ks "name" Dhall.strictText
       dependencies      <- Dhall.requireTypedKey ks "dependencies" dependenciesType
       configSourcePaths <- Dhall.requireTypedKey ks "sources" sourcesType
@@ -154,7 +141,9 @@ parseConfig = do
 
 
 -- | Checks that the Spago config is there and readable
-ensureConfig :: Spago (Either Utf8Builder Config)
+ensureConfig 
+  :: (HasLogFunc env, HasConfigPath env)
+  => RIO env (Either Utf8Builder Config)
 ensureConfig = do
   path <- view configPathL
   exists <- testfile path
@@ -167,20 +156,15 @@ ensureConfig = do
       Left (err :: Dhall.ReadError Void) -> pure $ Left $ displayShow err
 
 
--- | Same as `ensureConfig`, but will quit with an error
---   if it's not possible to find a config.
-ensureConfigUnsafe :: Spago Config
-ensureConfigUnsafe = ensureConfig >>= \case
-  Left err -> die [ err ]
-  Right config -> pure config
-
-
 -- | Copies over `spago.dhall` to set up a Spago project.
 --   Eventually ports an existing `psc-package.json` to the new config.
-makeConfig :: Bool -> Dhall.TemplateComments -> Spago ()
+makeConfig
+  :: (HasConfigPath env, HasLogFunc env)
+  => Force -> Dhall.TemplateComments 
+  -> RIO env Config
 makeConfig force comments = do
   path <- view configPathL
-  unless force $ do
+  when (force == NoForce) $ do
     hasSpagoDhall <- testfile path
     when hasSpagoDhall $ die [ display $ Messages.foundExistingProject path ]
   writeTextFile path $ Dhall.processComments comments Templates.spagoDhall
@@ -191,31 +175,31 @@ makeConfig force comments = do
   -- Otherwise we just keep the default template
   bowerFileExists <- testfile "bower.json"
   pscfileExists <- testfile PscPackage.configPath
+  eitherConfig <- ensureConfig
 
   case (pscfileExists, bowerFileExists) of
     (True, _) -> do
       -- first, read the psc-package file content
       content <- readTextFile PscPackage.configPath
-      case eitherDecodeStrict $ Text.encodeUtf8 content of
-        Left err -> logWarn $ display $ Messages.failedToReadPscFile err
-        Right pscConfig -> do
+      case (eitherDecodeStrict $ Text.encodeUtf8 content, eitherConfig) of
+        (Left err, _) -> logWarn $ display $ Messages.failedToReadPscFile err
+        (_, Left err) -> die [err]
+        (Right pscConfig, Right config) -> do
           logInfo "Found a \"psc-package.json\" file, migrating to a new Spago config.."
           -- try to update the dependencies (will fail if not found in package set)
-          let pscPackages = map PackageSet.PackageName $ PscPackage.depends pscConfig
-          config <- ensureConfigUnsafe
+          let pscPackages = map PackageName $ PscPackage.depends pscConfig
           void $ withConfigAST ( addRawDeps config pscPackages
                                . updateName (PscPackage.name pscConfig))
     (_, True) -> do
       -- read the bowerfile
       content <- readTextFile "bower.json"
-      case eitherDecodeStrict $ Text.encodeUtf8 content of
-        Left err -> die [ display $ Messages.failedToParseFile path err ]
-        Right packageMeta -> do
+      case (eitherDecodeStrict $ Text.encodeUtf8 content, eitherConfig) of
+        (Left err, _) -> logWarn $ display $ Messages.failedToParseFile path err
+        (_, Left err) -> die [err]
+        (Right packageMeta, Right config@Config{..}) -> do
           logInfo "Found a \"bower.json\" file, migrating to a new Spago config.."
           -- then try to update the dependencies. We'll migrates the ones that we can,
           -- and print a message to the user to fix the missing ones
-          config@Config{..} <- ensureConfigUnsafe
-
           let (bowerName, packageResults) = migrateBower packageMeta packageSet
               (bowerErrors, bowerPackages) = partitionEithers packageResults
 
@@ -230,6 +214,10 @@ makeConfig force comments = do
                                . updateName bowerName)
 
     _ -> pure ()
+  -- at last we return the new config
+  case eitherConfig of
+    Right c -> pure c
+    Left err -> die [err]
 
 
 migrateBower :: Bower.PackageMeta -> PackageSet -> (Text, [Either BowerDependencyError PackageName])
@@ -300,7 +288,7 @@ updateName newName (Dhall.RecordLit kvs)
     $ Dhall.Map.insert "name" (Dhall.toTextLit newName) kvs
 updateName _ other = other
 
-addRawDeps :: Config -> [PackageName] -> Expr -> Spago Expr
+addRawDeps :: HasLogFunc env => Config -> [PackageName] -> Expr -> RIO env Expr
 addRawDeps config newPackages r@(Dhall.RecordLit kvs) = case Dhall.Map.lookup "dependencies" kvs of
   Just (Dhall.ListLit _ dependencies) -> do
       case NonEmpty.nonEmpty notInPackageSet of
@@ -308,14 +296,14 @@ addRawDeps config newPackages r@(Dhall.RecordLit kvs) = case Dhall.Map.lookup "d
         Nothing -> do
           oldPackages <- traverse (throws . Dhall.fromTextLit) dependencies
           let newDepsExpr
-                = Dhall.ListLit Nothing $ fmap (Dhall.toTextLit . PackageSet.packageName)
-                $ Seq.sort $ nubSeq (Seq.fromList newPackages <> fmap PackageSet.PackageName oldPackages)
+                = Dhall.ListLit Nothing $ fmap (Dhall.toTextLit . packageName)
+                $ Seq.sort $ nubSeq (Seq.fromList newPackages <> fmap PackageName oldPackages)
           pure $ Dhall.RecordLit $ Dhall.Map.insert "dependencies" newDepsExpr kvs
         Just pkgs -> do
-          logWarn $ display $ Messages.failedToAddDeps $ NonEmpty.map PackageSet.packageName pkgs
+          logWarn $ display $ Messages.failedToAddDeps $ NonEmpty.map packageName pkgs
           pure r
     where
-      packagesDB = PackageSet.packagesDB $ packageSet config
+      Config { packageSet = PackageSet{..} } = config
       notInPackageSet = filter (\p -> Map.notMember p packagesDB) newPackages
 
       -- | Code from https://stackoverflow.com/questions/45757839
@@ -359,7 +347,9 @@ filterDependencies expr = expr
 --   on the current config. If it succeeds, it writes back to file the result returned.
 --   Note: it will pass in the parsed AST, not the resolved one (so e.g. imports will
 --   still be in the tree). If you need the resolved one, use `ensureConfig`.
-withConfigAST :: (Expr -> Spago Expr) -> Spago Bool
+withConfigAST
+  :: (HasLogFunc env, HasConfigPath env)
+  => (Expr -> RIO env Expr) -> RIO env Bool
 withConfigAST transform = do
   path <- view configPathL
   rawConfig <- liftIO $ Dhall.readRawExpr path
@@ -391,7 +381,10 @@ transformMExpr rules =
 --   It will not add any dependency if any of them is not in the package set.
 --   If everything is fine instead, it will add the new deps, sort all the
 --   dependencies, and write the Config back to file.
-addDependencies :: Config -> [PackageName] -> Spago ()
+addDependencies
+  :: (HasLogFunc env, HasConfigPath env)
+  => Config -> [PackageName] 
+  -> RIO env ()
 addDependencies config newPackages = do
   configHasChanged <- withConfigAST $ addRawDeps config newPackages
   unless configHasChanged $

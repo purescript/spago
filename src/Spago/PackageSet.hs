@@ -9,6 +9,7 @@ module Spago.PackageSet
   ) where
 
 import           Spago.Prelude
+import           Spago.Env
 
 import           Data.Ord        (comparing)
 import qualified Data.Text       as Text
@@ -16,24 +17,25 @@ import qualified Data.Versions   as Version
 import qualified Dhall.Freeze
 import qualified Dhall.Pretty
 import qualified Safe
+import qualified System.FilePath
+import qualified System.IO
 
 import qualified Spago.Dhall     as Dhall
 import qualified Spago.GitHub    as GitHub
-import           Spago.Messages  as Messages
+import qualified Spago.Messages  as Messages
 import qualified Spago.Purs      as Purs
 import qualified Spago.Templates as Templates
-import qualified System.FilePath
-import qualified System.IO
+
 
 packagesPath :: IsString t => t
 packagesPath = "packages.dhall"
 
 
 -- | Tries to create the `packages.dhall` file if needed
-makePackageSetFile :: Bool -> Dhall.TemplateComments -> Spago ()
+makePackageSetFile :: HasLogFunc env => Force -> Dhall.TemplateComments -> RIO env ()
 makePackageSetFile force comments = do
   hasPackagesDhall <- testfile packagesPath
-  if force || not hasPackagesDhall
+  if force == Force || not hasPackagesDhall
     then writeTextFile packagesPath $ Dhall.processComments comments Templates.packagesDhall
     else logWarn $ display $ Messages.foundExistingProject packagesPath
   Dhall.format packagesPath
@@ -46,7 +48,10 @@ makePackageSetFile force comments = do
 --   - try to replace the git tag to which the package-set imports point to
 --     (if they point to the Package-Sets repo. This can be eventually made GitHub generic)
 --   - if all of this succeeds, it will regenerate the hashes and write to file
-upgradePackageSet :: Spago ()
+upgradePackageSet 
+  :: forall env
+  .  (HasLogFunc env, HasGlobalCache env)
+  => RIO env ()
 upgradePackageSet = do
   logDebug "Running `spago upgrade-set`"
 
@@ -57,7 +62,7 @@ upgradePackageSet = do
       logDebug $ "Error: " <> display err
 
   where
-    updateTag :: Text -> Spago ()
+    updateTag :: HasLogFunc env => Text -> RIO env ()
     updateTag releaseTagName =  do
       let quotedTag = surroundQuote releaseTagName
       logDebug $ "Found the most recent tag for \"purescript/package-sets\": " <> display quotedTag
@@ -173,10 +178,11 @@ upgradePackageSet = do
     upgradeImports _ imp = imp
 
 
-checkPursIsUpToDate :: Maybe Version.SemVer -> Spago ()
-checkPursIsUpToDate packagesMinPursVersion = do
+checkPursIsUpToDate :: forall env. (HasLogFunc env, HasPackageSet env) => RIO env ()
+checkPursIsUpToDate = do
   logDebug "Checking if `purs` is up to date"
-  eitherCompilerVersion <- Purs.version
+  PackageSet{..} <- view packageSetL
+  eitherCompilerVersion <- Purs.pursVersion
   case (eitherCompilerVersion, packagesMinPursVersion) of
     (Right compilerVersion, Just pursVersionFromPackageSet) -> performCheck compilerVersion pursVersionFromPackageSet
     (compilerVersion, packageSetVersion) -> do
@@ -193,7 +199,7 @@ checkPursIsUpToDate packagesMinPursVersion = do
     --   - current is 0.1.2 and package-set is 0.2.3
     --   - current is 1.2.3 and package-set is 1.3.4
     --   - current is 1.2.3 and package-set is 0.2.3
-    performCheck :: Version.SemVer -> Version.SemVer -> Spago ()
+    performCheck :: Version.SemVer -> Version.SemVer -> RIO env ()
     performCheck actualPursVersion minPursVersion = do
       let versionList semver = semver ^.. (Version.major <> Version.minor <> Version.patch)
       case (versionList actualPursVersion, versionList minPursVersion) of
@@ -238,7 +244,7 @@ rootPackagePath _ = Nothing
 
 -- | In a Monorepo we don't wish to rebuild our shared packages over and over,
 -- | so we build into an output folder where our root packages.dhall lives
-findRootOutputPath :: System.IO.FilePath -> Spago (Maybe System.IO.FilePath)
+findRootOutputPath :: HasLogFunc env => System.IO.FilePath -> RIO env (Maybe System.IO.FilePath)
 findRootOutputPath path = do
   logDebug "Locating root path of packages.dhall"
   imports <- liftIO $ Dhall.readImports $ Text.pack path
@@ -250,7 +256,7 @@ findRootPath :: [System.IO.FilePath] -> Maybe System.IO.FilePath
 findRootPath = Safe.minimumByMay (comparing (length . System.FilePath.splitSearchPath))
 
 -- | Freeze the package set remote imports so they will be cached
-freeze :: System.IO.FilePath -> Spago ()
+freeze :: HasLogFunc env => System.IO.FilePath -> RIO env ()
 freeze path = do
   logInfo $ display Messages.freezePackageSet
   liftIO $
@@ -264,7 +270,7 @@ freeze path = do
 
 
 -- | Freeze the file if any of the remote imports are not frozen
-ensureFrozen :: System.IO.FilePath -> Spago ()
+ensureFrozen :: HasLogFunc env => System.IO.FilePath -> RIO env ()
 ensureFrozen path = do
   logDebug "Ensuring that the package set is frozen"
   imports <- liftIO $ Dhall.readImports $ Text.pack path

@@ -1,14 +1,14 @@
+{-# LANGUAGE DuplicateRecordFields #-}
 module Spago.Types where
 
 import           Spago.Prelude
 
 import qualified Data.Text      as Text
 import qualified Data.Versions  as Version
-import qualified Dhall
 import qualified Network.URI    as URI
 
+import qualified Spago.Dhall as Dhall
 import qualified Spago.Messages as Messages
-
 
 newtype PackageName = PackageName { packageName :: Text }
   deriving (Show, Read, Data)
@@ -66,3 +66,89 @@ instance Dhall.FromDhall Repo where
       makeRepo repo = case URI.parseURI $ Text.unpack repo of
         Just _uri -> Repo repo
         Nothing   -> error $ Text.unpack $ Messages.failedToParseRepoString repo
+
+
+-- | Whether to force an action
+data Force = Force | NoForce
+  deriving (Eq)
+
+data IncludeTransitive = IncludeTransitive | NoIncludeTransitive
+
+newtype ModuleName = ModuleName { unModuleName :: Text }
+newtype TargetPath = TargetPath { unTargetPath :: Text }
+newtype SourcePath = SourcePath { unSourcePath :: Text }
+  deriving newtype (Show, Dhall.FromDhall)
+newtype PursArg = PursArg { unPursArg :: Text }
+  deriving newtype (Eq)
+
+data WithMain = WithMain | WithoutMain
+
+data WithSrcMap = WithSrcMap | WithoutSrcMap
+
+data CacheFlag = SkipCache | NewCache
+
+data CheckModulesUnique = DoCheckModulesUnique | NoCheckModulesUnique
+
+data JsonFlag = JsonOutputNo | JsonOutputYes
+
+-- | A flag to skip patching the docs using @purescript-docs-search@.
+data NoSearch = NoSearch | AddSearch
+  deriving (Eq)
+
+-- | Flag to open generated HTML documentation in browser
+data OpenDocs = NoOpenDocs | DoOpenDocs
+  deriving (Eq)
+
+-- | Flag to disable the automatic use of `psa`
+data UsePsa = UsePsa | NoPsa
+
+data PathType
+  = OutputFolder
+
+
+-- | Only build deps and ignore project paths
+data DepsOnly = DepsOnly | AllSources
+
+data Watch = Watch | BuildOnce
+
+-- | Flag to go through with the build step
+--   or skip it, in the case of 'bundleApp' and 'bundleModule'.
+data NoBuild = NoBuild | DoBuild
+
+-- | Flag to skip the automatic installation of libraries on build
+data NoInstall = NoInstall | DoInstall
+
+-- Should we clear the screen on rebuild?
+data ClearScreen = DoClear | NoClear
+  deriving Eq
+
+
+data BuildOptions = BuildOptions
+  { shouldWatch    :: Watch
+  , shouldClear    :: ClearScreen
+  , sourcePaths    :: [SourcePath]
+  , withSourceMap  :: WithSrcMap
+  , noInstall      :: NoInstall
+  , pursArgs       :: [PursArg]
+  , depsOnly       :: DepsOnly
+  , beforeCommands :: [Text]
+  , thenCommands   :: [Text]
+  , elseCommands   :: [Text]
+  }
+
+-- | Spago configuration file type
+data Config = Config
+  { name              :: Text
+  , dependencies      :: [PackageName]
+  , packageSet        :: PackageSet
+  , alternateBackend  :: Maybe Text
+  , configSourcePaths :: [SourcePath]
+  , publishConfig     :: Either (Dhall.ReadError Void) PublishConfig
+  } deriving (Show, Generic)
+
+
+-- | The extra fields that are only needed for publishing libraries.
+data PublishConfig = PublishConfig
+  { publishLicense    :: Text
+  , publishRepository :: Text
+  } deriving (Show, Generic)

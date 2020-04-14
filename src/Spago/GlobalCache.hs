@@ -1,6 +1,7 @@
 module Spago.GlobalCache where
 
 import           Spago.Prelude
+import           Spago.Env
 
 import qualified Codec.Archive.Tar      as Tar
 import qualified Codec.Compression.GZip as GZip
@@ -14,7 +15,6 @@ import qualified System.FilePath        as FilePath
 import qualified Turtle
 import           UnliftIO.Directory     (XdgDirectory(XdgCache), getXdgDirectory)
 
-import Spago.Types
 
 
 newtype CommitHash = CommitHash Text
@@ -35,7 +35,6 @@ instance ToJSON RepoMetadataV1
 
 type ReposMetadataV1 = Map PackageName RepoMetadataV1
 
-data CacheFlag = SkipCache | NewCache
 
 
 -- | A package is "globally cacheable" if:
@@ -45,12 +44,13 @@ data CacheFlag = SkipCache | NewCache
 --   So here we check that one of the two is true, and if so we run the callback with the
 --   URL of the .tar.gz archive on GitHub, otherwise another callback for when it's not
 globallyCache
-  :: (PackageName, Repo, Text)
+  :: HasLogFunc env 
+  => (PackageName, Repo, Text)
   -> FilePath.FilePath
   -> ReposMetadataV1
-  -> (FilePath.FilePath -> Spago ())
-  -> (Spago ())
-  -> Spago ()
+  -> (FilePath.FilePath -> RIO env ())
+  -> RIO env ()
+  -> RIO env ()
 globallyCache (packageName, Repo url, ref) downloadDir metadata cacheableCallback notCacheableCallback = do
   logDebug $ "Running `globallyCache`: " <> displayShow packageName <> " " <> display url <> " " <> display ref
   case (Text.stripPrefix "https://github.com/" url)
@@ -63,8 +63,11 @@ globallyCache (packageName, Repo url, ref) downloadDir metadata cacheableCallbac
           let archiveUrl = "https://github.com/" <> owner <> "/" <> repo <> "/archive/" <> ref <> ".tar.gz"
           logDebug $ "About to fetch tarball for " <> display archiveUrl
           fetchTarball downloadDir archiveUrl
-          Just resultDir <- Turtle.fold (Turtle.ls $ Turtle.decodeString downloadDir) Fold.head
-          cacheableCallback $ Turtle.encodeString resultDir
+          Turtle.fold (Turtle.ls $ Turtle.decodeString downloadDir) Fold.head >>= \case
+            Just resultDir -> do
+              cacheableCallback $ Turtle.encodeString resultDir
+            Nothing -> do
+              die [ "Could not find the result directory when unpacking the archive " <> displayShow archiveUrl ]
       where
     _ -> do
       logDebug $ "Not caching repo because URL doesn't have the form of 'https://github.com/<ORG>/<REPO>.git': " <> display url
@@ -72,7 +75,7 @@ globallyCache (packageName, Repo url, ref) downloadDir metadata cacheableCallbac
   where
     isTag = do
       RepoMetadataV1{..} <- Map.lookup packageName metadata
-      Map.lookup (Tag ref) tags
+      void $ Map.lookup (Tag ref) tags
       return ref
 
     isCommit = do
@@ -83,7 +86,7 @@ globallyCache (packageName, Repo url, ref) downloadDir metadata cacheableCallbac
 
 
 -- | Download the GitHub Index cache from the `package-sets-metadata` repo
-getMetadata :: Maybe CacheFlag -> Spago ReposMetadataV1
+getMetadata :: HasLogFunc env => Maybe CacheFlag -> RIO env ReposMetadataV1
 getMetadata cacheFlag = do
   logDebug "Running `getMetadata`"
 
@@ -150,7 +153,7 @@ getGlobalCacheDir = do
 
 
 -- | Fetch the tarball at `archiveUrl` and unpack it into `destination`
-fetchTarball :: FilePath.FilePath -> Text -> Spago ()
+fetchTarball :: HasLogFunc env => FilePath.FilePath -> Text -> RIO env ()
 fetchTarball destination archiveUrl = do
   logDebug $ "Fetching " <> display archiveUrl
   tarballUrl <- Http.parseRequest $ Text.unpack archiveUrl

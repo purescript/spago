@@ -2,7 +2,7 @@ resolver: lts-12.21
 packages:
 - .
 extra-deps:
-- dhall-1.31.0
+- dhall-1.31.1
 - atomic-write-0.2.0.7
 - prettyprinter-1.5.1
 - github-0.24

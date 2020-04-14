@@ -5,54 +5,46 @@ module Spago.Bower
   ) where
 
 import Spago.Prelude hiding (encodeUtf8)
+import Spago.Env
 
 import qualified Data.Aeson                 as Aeson
 import qualified Data.Aeson.Encode.Pretty   as Pretty
 import qualified Data.ByteString.Lazy       as ByteString
 import qualified Data.HashMap.Strict        as HashMap
-import           Data.String                (IsString)
 import qualified Data.Text                  as Text
-import           Data.Text.Lazy             (fromStrict)
-import           Data.Text.Lazy.Encoding    (encodeUtf8)
-import qualified Distribution.System        as System
-import           Distribution.System        (OS (..))
+import qualified Distribution.System        as OS
 import qualified Turtle
-import           Web.Bower.PackageMeta      (PackageMeta (..))
 import qualified Web.Bower.PackageMeta      as Bower
 
-import           Spago.Config               (Config (..), PublishConfig (..))
-import qualified Spago.Config               as Config
+import           Data.Text.Lazy             (fromStrict)
+import           Data.Text.Lazy.Encoding    (encodeUtf8)
+import           Web.Bower.PackageMeta      (PackageMeta (..))
+
+import qualified Spago.Async                as Async
 import qualified Spago.Git                  as Git
 import qualified Spago.Packages             as Packages
 import qualified Spago.Templates            as Templates
 
-import Spago.Types
 
 
 path :: IsString t => t
 path = "bower.json"
 
 
-runBower :: [Text] -> Spago (ExitCode, Text, Text)
+runBower :: HasBower env => [Text] -> RIO env (ExitCode, Text, Text)
 runBower args = do
-  -- workaround windows issue: https://github.com/haskell/process/issues/140
-  cmd <- case System.buildOS of
-    Windows -> do
-      let bowers = Turtle.inproc "where" ["bower.cmd"] empty
-      Turtle.lineToText <$> Turtle.single (Turtle.limit 1 bowers)
-    _ ->
-      pure "bower"
-  Turtle.procStrictWithErr cmd args empty
+  bower <- view bowerL
+  Turtle.procStrictWithErr bower args empty
 
 
-generateBowerJson :: Spago ByteString.ByteString
+generateBowerJson :: HasPublishEnv env => RIO env ByteString.ByteString
 generateBowerJson = do
   logInfo "Generating a new Bower config using the package set versions.."
-  config@Config{..} <- Config.ensureConfigUnsafe
+  Config{..} <- view configL
   PublishConfig{..} <- throws publishConfig
 
   bowerName <- mkPackageName name
-  bowerDependencies <- mkDependencies config
+  bowerDependencies <- mkDependencies
   template <- templateBowerJson
 
   let bowerLicense = [publishLicense]
@@ -72,15 +64,16 @@ generateBowerJson = do
   pure bowerJson
 
 
-runBowerInstall :: Spago ()
+runBowerInstall :: (HasLogFunc env, HasBower env) => RIO env ()
 runBowerInstall = do
   logInfo "Running `bower install` so `pulp publish` can read resolved versions from it"
-  shell "bower install --silent" empty >>= \case
+  bower <- view bowerL
+  shell (bower <> " install --silent") empty >>= \case
     ExitSuccess   -> pure ()
     ExitFailure _ -> die [ "Failed to run `bower install` on your package" ]
 
 
-templateBowerJson :: Spago Bower.PackageMeta
+templateBowerJson :: HasLogFunc env => RIO env Bower.PackageMeta
 templateBowerJson = do
   case Aeson.decodeStrict Templates.bowerJson of
     Just t  ->
@@ -89,7 +82,7 @@ templateBowerJson = do
       die [ "Invalid bower.json template (this is a Spago bug)" ]
 
 
-mkPackageName :: Text -> Spago Bower.PackageName
+mkPackageName :: HasLogFunc env => Text -> RIO env Bower.PackageName
 mkPackageName spagoName = do
   let psName = "purescript-" <> spagoName
   case Bower.mkPackageName psName of
@@ -101,9 +94,11 @@ mkPackageName spagoName = do
 
 -- | If the given version exists in bower, return a shorthand bower
 -- | version, otherwise return a URL#version style bower version.
-mkBowerVersion :: Bower.PackageName -> Text -> Repo -> Spago Bower.VersionRange
+mkBowerVersion 
+  :: (HasLogFunc env, HasBower env)
+  => Bower.PackageName -> Text -> Repo 
+  -> RIO env Bower.VersionRange
 mkBowerVersion packageName version (Repo repo) = do
-
   let args = ["info", "--json", Bower.runPackageName packageName <> "#" <> version]
   (code, out, err) <- runBower args
 
@@ -119,17 +114,18 @@ mkBowerVersion packageName version (Repo repo) = do
     else pure $ Bower.VersionRange $ repo <> "#" <> version
 
 
-mkDependencies :: Config -> Spago [(Bower.PackageName, Bower.VersionRange)]
-mkDependencies config = do
-  deps <- Packages.getDirectDeps config
+mkDependencies
+  :: forall env. HasPublishEnv env => RIO env [(Bower.PackageName, Bower.VersionRange)]
+mkDependencies = do
+  deps <- Packages.getDirectDeps
 
   jobs <- getJobs
 
-  withTaskGroup' jobs $ \taskGroup ->
-    mapTasks' taskGroup $ mkDependency <$> deps
+  Async.withTaskGroup jobs $ \taskGroup ->
+    Async.mapTasks taskGroup $ mkDependency <$> deps
 
   where
-    mkDependency :: (PackageName, Package) -> Spago (Bower.PackageName, Bower.VersionRange)
+    mkDependency :: (PackageName, Package) -> RIO env (Bower.PackageName, Bower.VersionRange)
     mkDependency (PackageName{..}, Package{..}) =
       case location of
         Local localPath ->
@@ -139,8 +135,8 @@ mkDependencies config = do
           bowerVersion <- mkBowerVersion bowerName version repo
           pure (bowerName, bowerVersion)
 
-    getJobs = case System.buildOS of
+    getJobs = case OS.buildOS of
       -- Windows sucks so lets make it slow for them!
       -- (just kidding, its a bug: https://github.com/bower/spec/issues/79)
-      Windows -> pure 1
+      OS.Windows -> pure 1
       _       -> view jobsL

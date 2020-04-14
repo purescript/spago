@@ -147,6 +147,7 @@ matrices                         v4.0.0        Remote "https://github.com/kritzc
 maybe                            v4.0.1        Remote "https://github.com/purescript/purescript-maybe.git"
 media-types                      v4.0.1        Remote "https://github.com/purescript-contrib/purescript-media-types.git"
 memoize                          v5.0.0        Remote "https://github.com/paf31/purescript-memoize.git"
+metadata                         v0.13.4       Remote "https://github.com/spacchetti/purescript-metadata.git"
 milkis                           v7.2.1        Remote "https://github.com/justinwoo/purescript-milkis.git"
 minibench                        v2.0.0        Remote "https://github.com/purescript/purescript-minibench.git"
 mmorph                           v5.1.0        Remote "https://github.com/Thimoteus/purescript-mmorph.git"

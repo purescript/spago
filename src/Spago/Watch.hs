@@ -1,10 +1,11 @@
 {-# LANGUAGE TupleSections #-}
-module Spago.Watch (watch, globToParent, ClearScreen (..)) where
+module Spago.Watch (watch, globToParent) where
 
 -- This code is derived from:
 -- https://github.com/commercialhaskell/stack/blob/0740444175f41e6ea5ed236cd2c53681e4730003/src/Stack/FileWatch.hs
 
 import           Spago.Prelude          hiding (FilePath)
+import           Spago.Env
 
 import           Control.Concurrent.STM (check)
 import qualified Data.Map.Strict        as Map
@@ -22,11 +23,11 @@ import qualified System.IO.Utf8         as Utf8
 import qualified UnliftIO
 import qualified UnliftIO.Async         as Async
 
--- Should we clear the screen on rebuild?
-data ClearScreen = DoClear | NoClear
-  deriving Eq
 
-watch :: Set.Set Glob.Pattern -> ClearScreen -> Spago () -> Spago ()
+watch
+  :: HasLogFunc env
+  => Set.Set Glob.Pattern -> ClearScreen -> RIO env () 
+  -> RIO env ()
 watch globs shouldClear action = do
   let config = Watch.defaultConfig { Watch.confDebounce = Watch.NoDebounce }
   fileWatchConf config shouldClear $ \getGlobs -> do
@@ -34,7 +35,7 @@ watch globs shouldClear action = do
     action
 
 
-withManagerConf :: Watch.WatchConfig -> (Watch.WatchManager -> Spago a) -> Spago a
+withManagerConf :: Watch.WatchConfig -> (Watch.WatchManager -> RIO env a) -> RIO env a
 withManagerConf conf = UnliftIO.bracket
   (liftIO $ Watch.startManagerConf conf)
   (liftIO . Watch.stopManager)
@@ -49,10 +50,12 @@ debounceTime = 0.1
 -- The action provided takes a callback that is used to set the files to be
 -- watched. When any of those files are changed, we rerun the action again.
 fileWatchConf
-  :: Watch.WatchConfig
+  :: forall env
+  .  (HasLogFunc env)
+  => Watch.WatchConfig
   -> ClearScreen
-  -> ((Set.Set Glob.Pattern -> Spago ()) -> Spago ())
-  -> Spago ()
+  -> ((Set.Set Glob.Pattern -> RIO env ()) -> RIO env ())
+  -> RIO env ()
 fileWatchConf watchConfig shouldClear inner = withManagerConf watchConfig $ \manager -> do
     allGlobs  <- liftIO $ newTVarIO Set.empty
     dirtyVar  <- liftIO $ newTVarIO True
@@ -97,7 +100,7 @@ fileWatchConf watchConfig shouldClear inner = withManagerConf watchConfig $ \man
           when rebuilding $ do
             redisplay $ Just $ "File changed, triggered a build: " <> displayShow (Watch.eventPath event)
 
-        setWatched :: Set.Set Glob.Pattern -> Spago ()
+        setWatched :: Set.Set Glob.Pattern -> RIO env ()
         setWatched globs = do
           liftIO $ atomically $ writeTVar allGlobs globs
           watch0 <- liftIO $ readTVarIO watchVar
@@ -134,7 +137,7 @@ fileWatchConf watchConfig shouldClear inner = withManagerConf watchConfig $ \man
                   _               -> throwM ioe
               return Nothing
 
-    let watchInput :: Spago ()
+    let watchInput :: RIO env ()
         watchInput = do
           line <- Utf8.withHandle stdin (liftIO $ Text.toLower <$> Text.IO.hGetLine stdin)
           if line == "quit" then logInfo "Leaving watch mode."

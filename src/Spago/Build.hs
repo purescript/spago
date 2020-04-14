@@ -7,25 +7,10 @@ module Spago.Build
   , bundleModule
   , docs
   , search
-  , showPaths
-  , Watch (..)
-  , NoBuild (..)
-  , NoInstall (..)
-  , ShareOutput (..)
-  , BuildOptions (..)
-  , Packages.DepsOnly (..)
-  , NoSearch (..)
-  , OpenDocs (..)
-  , PathType (..)
-  , Purs.ExtraArg (..)
-  , Purs.ModuleName (..)
-  , Purs.SourcePath (..)
-  , Purs.TargetPath (..)
-  , Purs.WithMain (..)
-  , Purs.WithSrcMap (..)
   ) where
 
 import           Spago.Prelude hiding (link)
+import           Spago.Env
 
 import qualified Data.List            as List
 import qualified Data.List.NonEmpty   as NonEmpty
@@ -42,81 +27,55 @@ import qualified System.Process       as Process
 import qualified Web.Browser          as Browser
 
 import qualified Spago.Build.Parser   as Parse
+import qualified Spago.Command.Path   as Path
+import qualified Spago.RunEnv         as Run 
 import qualified Spago.Config         as Config
 import qualified Spago.Dhall          as Dhall
 import qualified Spago.FetchPackage   as Fetch
-import qualified Spago.GlobalCache    as GlobalCache
 import qualified Spago.Messages       as Messages
 import qualified Spago.Packages       as Packages
-import qualified Spago.PackageSet     as PackageSet
 import qualified Spago.Purs           as Purs
 import qualified Spago.Templates      as Templates
-import           Spago.Types          as Types
 import qualified Spago.Watch          as Watch
 
-data Watch = Watch | BuildOnce
-
--- | Flag to go through with the build step
---   or skip it, in the case of 'bundleApp' and 'bundleModule'.
-data NoBuild = NoBuild | DoBuild
-
--- | Flag to skip the automatic installation of libraries on build
-data NoInstall = NoInstall | DoInstall
-
--- | Flag to use shared output folder if possible
-data ShareOutput = ShareOutput | NoShareOutput
-
-data BuildOptions = BuildOptions
-  { cacheConfig    :: Maybe GlobalCache.CacheFlag
-  , shouldWatch    :: Watch
-  , shouldClear    :: Watch.ClearScreen
-  , sourcePaths    :: [Purs.SourcePath]
-  , withSourceMap   :: Purs.WithSrcMap
-  , noInstall      :: NoInstall
-  , pursArgs       :: [Purs.ExtraArg]
-  , depsOnly       :: Packages.DepsOnly
-  , shareOutput    :: ShareOutput
-  , beforeCommands :: [Text]
-  , thenCommands   :: [Text]
-  , elseCommands   :: [Text]
-  }
 
 prepareBundleDefaults
-  :: Maybe Purs.ModuleName
-  -> Maybe Purs.TargetPath
-  -> (Purs.ModuleName, Purs.TargetPath)
+  :: Maybe ModuleName
+  -> Maybe TargetPath
+  -> (ModuleName, TargetPath)
 prepareBundleDefaults maybeModuleName maybeTargetPath = (moduleName, targetPath)
   where
-    moduleName = fromMaybe (Purs.ModuleName "Main") maybeModuleName
-    targetPath = fromMaybe (Purs.TargetPath "index.js") maybeTargetPath
+    moduleName = fromMaybe (ModuleName "Main") maybeModuleName
+    targetPath = fromMaybe (TargetPath "index.js") maybeTargetPath
 
 --   eventually running some other action after the build
-build :: BuildOptions -> Maybe (Spago ()) -> Spago ()
-build buildOpts@BuildOptions{..} maybePostBuild = do
+build 
+  :: forall env
+  .  (HasEnv env, HasPurs env, HasCacheConfig env, HasConfig env)
+  => BuildOptions -> Maybe (RIO env ()) 
+  -> RIO env ()
+build BuildOptions{..} maybePostBuild = do
   logDebug "Running `spago build`"
-  config@Config.Config{ packageSet = Types.PackageSet{..}, ..} <- Config.ensureConfigUnsafe
-  deps <- Packages.getProjectDeps config
+  Config{..} <- view configL
+  deps <- Packages.getProjectDeps
   case noInstall of
-    DoInstall -> Fetch.fetchPackages cacheConfig deps packagesMinPursVersion
+    DoInstall -> Fetch.fetchPackages deps
     NoInstall -> pure ()
-  sharedOutputArgs <- case shareOutput of
-    ShareOutput   -> getBuildArgsForSharedFolder buildOpts
-    NoShareOutput -> pure pursArgs
   let allPsGlobs = Packages.getGlobs   deps depsOnly configSourcePaths <> sourcePaths
       allJsGlobs = Packages.getJsGlobs deps depsOnly configSourcePaths <> sourcePaths
 
       buildBackend globs = do
         case alternateBackend of
           Nothing ->
-              Purs.compile globs sharedOutputArgs
+              Purs.compile globs pursArgs
           Just backend -> do
-              when (Purs.ExtraArg "--codegen" `List.elem` pursArgs) $
+              when (PursArg "--codegen" `List.elem` pursArgs) $
                 die
                   [ "Can't pass `--codegen` option to build when using a backend"
                   , "Hint: No need to pass `--codegen corefn` explicitly when using the `backend` option."
                   , "Remove the argument to solve the error"
                   ]
-              Purs.compile globs $ pursArgs ++ [ Purs.ExtraArg "--codegen", Purs.ExtraArg "corefn" ]
+              Purs.compile globs $ pursArgs ++ [ PursArg "--codegen", PursArg "corefn" ]
 
               logDebug $ display $ "Compiling with backend \"" <> backend <> "\""
               let backendCmd = backend -- In future there will be some arguments here
@@ -150,14 +109,14 @@ build buildOpts@BuildOptions{..} maybePostBuild = do
         (buildAction (wrap <$> psMatches))
 
   where
-    runCommands :: Text -> [Text] -> Spago ()
+    runCommands :: Text -> [Text] -> RIO env ()
     runCommands label = traverse_ runCommand
       where
       runCommand command = shell command empty >>= \case
         ExitSuccess   -> pure ()
         ExitFailure n -> die [ repr label <> " command failed. exit code: " <> repr n ]
 
-    partitionGlobs :: [Sys.FilePath] -> Spago ([Sys.FilePath], [Sys.FilePath])
+    partitionGlobs :: [Sys.FilePath] -> RIO env ([Sys.FilePath], [Sys.FilePath])
     partitionGlobs = foldrM go ([],[])
       where
       go sourcePath (matches, mismatches) = do
@@ -167,92 +126,97 @@ build buildOpts@BuildOptions{..} maybePostBuild = do
           then (matches, parentDir : mismatches)
           else (sourcePath : matches, mismatches)
 
-    wrap   = Purs.SourcePath . Text.pack
-    unwrap = Text.unpack . Purs.unSourcePath
+    wrap   = SourcePath . Text.pack
+    unwrap = Text.unpack . unSourcePath
     removeDotSpago = filter (\glob -> ".spago" `notElem` (splitDirectories glob))
     collapse = Turtle.encodeString . Turtle.collapse . Turtle.decodeString
 
 -- | Start a repl
 repl
-  :: Maybe GlobalCache.CacheFlag
-  -> [Types.PackageName]
-  -> [Purs.SourcePath]
-  -> [Purs.ExtraArg]
+  :: (HasEnv env)
+  => [PackageName]
+  -> [SourcePath]
+  -> [PursArg]
   -> Packages.DepsOnly
-  -> Spago ()
-repl cacheFlag newPackages sourcePaths pursArgs depsOnly = do
+  -> RIO env ()
+repl newPackages sourcePaths pursArgs depsOnly = do
   logDebug "Running `spago repl`"
-
-  try Config.ensureConfigUnsafe >>= \case
-    Right config@Config.Config{..} -> do
-      deps <- Packages.getProjectDeps config
-      let globs = Packages.getGlobs deps depsOnly configSourcePaths <> sourcePaths
-      Purs.repl globs pursArgs
-    Left (err :: SomeException) -> do
-      logDebug $ display err
+  -- TODO: instead of using HasPurs here we just call this for now
+  findExecutableOrDie "purs"
+  Config.ensureConfig >>= \case
+    Right config -> Run.withInstallEnv' (Just config) replAction
+    Left err -> do
+      logDebug err
       cacheDir <- view globalCacheL
       Temp.withTempDirectory cacheDir "spago-repl-tmp" $ \dir -> do
         Turtle.cd (Turtle.decodeString dir)
 
-        Packages.initProject False Dhall.WithComments
-
-        config@Config.Config{ packageSet = Types.PackageSet{..}, ..} <- Config.ensureConfigUnsafe
-
-        let updatedConfig = Config.Config name (dependencies <> newPackages) (Config.packageSet config) alternateBackend configSourcePaths publishConfig
-
-        deps <- Packages.getProjectDeps updatedConfig
-        let globs = Packages.getGlobs deps depsOnly $ Config.configSourcePaths updatedConfig
-
-        Fetch.fetchPackages cacheFlag deps packagesMinPursVersion
-
-        Purs.repl globs pursArgs
+        config@Config{ packageSet = PackageSet{..}, ..} 
+          <- Packages.initProject NoForce Dhall.WithComments
+        
+        let newConfig :: Config
+            newConfig = config { Config.dependencies = dependencies <> newPackages }
+        Run.withInstallEnv' (Just newConfig) replAction
+  where
+    replAction = do
+      Config{..} <- view configL
+      deps <- Packages.getProjectDeps
+      let globs = Packages.getGlobs deps depsOnly (configSourcePaths <> sourcePaths)
+      Fetch.fetchPackages deps
+      liftIO $ Purs.repl globs pursArgs
 
 
 -- | Test the project: compile and run "Test.Main"
 --   (or the provided module name) with node
-test :: Maybe Purs.ModuleName -> BuildOptions -> [Purs.ExtraArg] -> Spago ()
+test 
+  :: (HasEnv env, HasConfig env, HasPurs env, HasCacheConfig env)
+  => Maybe ModuleName -> BuildOptions -> [PursArg] 
+  -> RIO env ()
 test maybeModuleName buildOpts extraArgs = do
-  let moduleName = fromMaybe (Purs.ModuleName "Test.Main") maybeModuleName
-  Config.Config { alternateBackend, configSourcePaths } <- Config.ensureConfigUnsafe
-  liftIO (foldMapM (Glob.glob . Text.unpack . Purs.unSourcePath) configSourcePaths) >>= \paths -> do
+  let moduleName = fromMaybe (ModuleName "Test.Main") maybeModuleName
+  Config.Config { alternateBackend, configSourcePaths } <- view configL
+  liftIO (foldMapM (Glob.glob . Text.unpack . unSourcePath) configSourcePaths) >>= \paths -> do
     results <- forM paths $ \path -> do
       content <- readFileBinary path
-      pure $ Parse.checkModuleNameMatches (encodeUtf8 $ Purs.unModuleName moduleName) content
+      pure $ Parse.checkModuleNameMatches (encodeUtf8 $ unModuleName moduleName) content
     if or results
       then do
         runBackend alternateBackend moduleName (Just "Tests succeeded.") "Tests failed: " buildOpts extraArgs
       else do
-        die [ "Module '" <> (display . Purs.unModuleName) moduleName <> "' not found! Are you including it in your build?" ]
+        die [ "Module '" <> (display . unModuleName) moduleName <> "' not found! Are you including it in your build?" ]
 
 
 -- | Run the project: compile and run "Main"
 --   (or the provided module name) with node
-run :: Maybe Purs.ModuleName -> BuildOptions -> [Purs.ExtraArg] -> Spago ()
+run 
+  :: (HasEnv env, HasConfig env, HasPurs env, HasCacheConfig env)
+  => Maybe ModuleName -> BuildOptions -> [PursArg] 
+  -> RIO env ()
 run maybeModuleName buildOpts extraArgs = do
-  Config.Config { alternateBackend } <- Config.ensureConfigUnsafe
-  let moduleName = fromMaybe (Purs.ModuleName "Main") maybeModuleName
+  Config.Config { alternateBackend } <- view configL
+  let moduleName = fromMaybe (ModuleName "Main") maybeModuleName
   runBackend alternateBackend moduleName Nothing "Running failed; " buildOpts extraArgs
 
 
 -- | Run the project with node (or the chosen alternate backend):
 --   compile and run the provided ModuleName
 runBackend
-  :: Maybe Text
-  -> Purs.ModuleName
+  :: (HasEnv env, HasPurs env, HasCacheConfig env, HasConfig env)
+  => Maybe Text
+  -> ModuleName
   -> Maybe Text
   -> Text
   -> BuildOptions
-  -> [Purs.ExtraArg]
-  -> Spago ()
+  -> [PursArg]
+  -> RIO env ()
 runBackend maybeBackend moduleName maybeSuccessMessage failureMessage buildOpts extraArgs = do
   logDebug $ display $ "Running with backend: " <> fromMaybe "nodejs" maybeBackend
-  let postBuild = maybe (nodeAction =<< getOutputPath buildOpts) backendAction maybeBackend
+  let postBuild = maybe (nodeAction $ Path.getOutputPath buildOpts) backendAction maybeBackend
   build buildOpts (Just postBuild)
   where
-    nodeArgs = Text.intercalate " " $ map Purs.unExtraArg extraArgs
+    nodeArgs = Text.intercalate " " $ map unPursArg extraArgs
     nodeContents outputPath' =
-         let path = fromMaybe "output" outputPath'
-         in "#!/usr/bin/env node\n\n" <> "require('../" <> Text.pack path <> "/" <> Purs.unModuleName moduleName <> "').main()"
+      "#!/usr/bin/env node\n\n" <> "require('../" <> Text.pack outputPath' <> "/" <> unModuleName moduleName <> "').main()"
     nodeCmd = "node .spago/run.js " <> nodeArgs
     nodeAction outputPath' = do
       logDebug "Writing .spago/run.js"
@@ -264,18 +228,19 @@ runBackend maybeBackend moduleName maybeSuccessMessage failureMessage buildOpts 
         ExitSuccess   -> maybe (pure ()) (logInfo . display) maybeSuccessMessage
         ExitFailure n -> die [ display failureMessage <> "exit code: " <> repr n ]
     backendAction backend =
-      Turtle.proc backend (["--run" {-, Purs.unModuleName moduleName-}] <> fmap Purs.unExtraArg extraArgs) empty >>= \case
+      Turtle.proc backend (["--run" {-, unModuleName moduleName-}] <> fmap unPursArg extraArgs) empty >>= \case
         ExitSuccess   -> maybe (pure ()) (logInfo . display) maybeSuccessMessage
         ExitFailure n -> die [ display failureMessage <> "Backend " <> displayShow backend <> " exited with error:" <> repr n ]
 
 -- | Bundle the project to a js file
 bundleApp
-  :: Purs.WithMain
-  -> Maybe Purs.ModuleName
-  -> Maybe Purs.TargetPath
+  :: (HasEnv env, HasPurs env, HasCacheConfig env, HasConfig env)
+  => WithMain
+  -> Maybe ModuleName
+  -> Maybe TargetPath
   -> NoBuild
   -> BuildOptions
-  -> Spago ()
+  -> RIO env ()
 bundleApp withMain maybeModuleName maybeTargetPath noBuild buildOpts =
   let (moduleName, targetPath) = prepareBundleDefaults maybeModuleName maybeTargetPath
       bundleAction = Purs.bundle withMain (withSourceMap buildOpts) moduleName targetPath
@@ -285,49 +250,44 @@ bundleApp withMain maybeModuleName maybeTargetPath noBuild buildOpts =
 
 -- | Bundle into a CommonJS module
 bundleModule
-  :: Maybe Purs.ModuleName
-  -> Maybe Purs.TargetPath
+  :: (HasEnv env, HasPurs env, HasCacheConfig env, HasConfig env)
+  => Maybe ModuleName
+  -> Maybe TargetPath
   -> NoBuild
   -> BuildOptions
-  -> Spago ()
+  -> RIO env ()
 bundleModule maybeModuleName maybeTargetPath noBuild buildOpts = do
   logDebug "Running `bundleModule`"
   let (moduleName, targetPath) = prepareBundleDefaults maybeModuleName maybeTargetPath
-      jsExport = Text.unpack $ "\nmodule.exports = PS[\""<> Purs.unModuleName moduleName <> "\"];"
+      jsExport = Text.unpack $ "\nmodule.exports = PS[\""<> unModuleName moduleName <> "\"];"
       bundleAction = do
         logInfo "Bundling first..."
-        Purs.bundle Purs.WithoutMain (withSourceMap buildOpts) moduleName targetPath
+        Purs.bundle WithoutMain (withSourceMap buildOpts) moduleName targetPath
         -- Here we append the CommonJS export line at the end of the bundle
         try (with
-              (appendonly $ pathFromText $ Purs.unTargetPath targetPath)
+              (appendonly $ pathFromText $ unTargetPath targetPath)
               (\fileHandle -> Utf8.withHandle fileHandle (Sys.hPutStrLn fileHandle jsExport)))
           >>= \case
-            Right _ -> logInfo $ display $ "Make module succeeded and output file to " <> Purs.unTargetPath targetPath
+            Right _ -> logInfo $ display $ "Make module succeeded and output file to " <> unTargetPath targetPath
             Left (n :: SomeException) -> die [ "Make module failed: " <> repr n ]
   case noBuild of
     DoBuild -> build buildOpts (Just bundleAction)
     NoBuild -> bundleAction
 
--- | A flag to skip patching the docs using @purescript-docs-search@.
-data NoSearch = NoSearch | AddSearch
-  deriving (Eq)
-
--- | Flag to open generated HTML documentation in browser
-data OpenDocs = NoOpenDocs | DoOpenDocs
-  deriving (Eq)
 
 -- | Generate docs for the `sourcePaths` and run `purescript-docs-search build-index` to patch them.
 docs
-  :: Maybe Purs.DocsFormat
-  -> [Purs.SourcePath]
+  :: (HasLogFunc env, HasConfig env)
+  => Maybe Purs.DocsFormat
+  -> [SourcePath]
   -> Packages.DepsOnly
   -> NoSearch
   -> OpenDocs
-  -> Spago ()
+  -> RIO env ()
 docs format sourcePaths depsOnly noSearch open = do
   logDebug "Running `spago docs`"
-  config@Config.Config{..} <- Config.ensureConfigUnsafe
-  deps <- Packages.getProjectDeps config
+  Config{..} <- view configL
+  deps <- Packages.getProjectDeps
   logInfo "Generating documentation for the project. This might take a while..."
   Purs.docs docsFormat $ Packages.getGlobs deps depsOnly configSourcePaths <> sourcePaths
 
@@ -361,118 +321,21 @@ docs format sourcePaths depsOnly noSearch open = do
     openLink link = liftIO $ Browser.openBrowser (Text.unpack link)
 
 -- | Start a search REPL.
-search :: Spago ()
+search 
+  :: (HasPurs env, HasLogFunc env, HasConfig env) 
+  => RIO env ()
 search = do
-  config@Config.Config{..} <- Config.ensureConfigUnsafe
-  deps <- Packages.getProjectDeps config
+  Config{..} <- view configL
+  deps <- Packages.getProjectDeps
 
   logInfo "Building module metadata..."
 
   Purs.compile (Packages.getGlobs deps Packages.AllSources configSourcePaths)
-    [ Purs.ExtraArg "--codegen"
-    , Purs.ExtraArg "docs"
+    [ PursArg "--codegen"
+    , PursArg "docs"
     ]
 
   writeTextFile ".spago/purescript-docs-search" Templates.docsSearch
   let cmd = "node .spago/purescript-docs-search search"
   logDebug $ "Running `" <> display cmd <> "`"
   viewShell $ callCommand $ Text.unpack cmd
-
-
--- | Find the output path for purs compiler
--- | This is based on the location of packages.dhall, the shareOutput flag
--- | and whether the user has manually specified a path in pursArgs
-getOutputPath
-  :: BuildOptions
-  -> Spago (Maybe Sys.FilePath)
-getOutputPath buildOpts = do
-  configPath <- view configPathL
-  outputPath <- PackageSet.findRootOutputPath (Text.unpack configPath)
-  case findOutputFlag (pursArgs buildOpts) of
-    Just path -> pure (Just path)
-    Nothing   ->
-      case shareOutput buildOpts of
-        NoShareOutput -> pure Nothing
-        ShareOutput   -> pure outputPath
-
-getOutputPathOrDefault
-  :: BuildOptions
-  -> Spago Sys.FilePath
-getOutputPathOrDefault buildOpts
-  = (fromMaybe "output") <$> getOutputPath buildOpts
-
-data PathType
-  = OutputFolder
-
--- | Used by `spago path output` command
-showOutputPath
-  :: BuildOptions
-  -> Spago ()
-showOutputPath buildOptions =
-  outputStr =<< getOutputPathOrDefault buildOptions
-
-showPaths
-  :: BuildOptions
-  -> Maybe PathType
-  -> Spago ()
-showPaths buildOptions whichPaths =
-  case whichPaths of
-    (Just OutputFolder) -> showOutputPath buildOptions
-    Nothing             -> showAllPaths buildOptions
-
-showAllPaths
-  :: BuildOptions
-  -> Spago ()
-showAllPaths buildOptions =
-  traverse_ showPath =<< getAllPaths buildOptions
-  where
-    showPath (a,b)
-      = output (a <> ": " <> b)
-
-getAllPaths
-  :: BuildOptions
-  -> Spago [(Text, Text)]
-getAllPaths buildOptions = do
-  outputPath <- getOutputPathOrDefault buildOptions
-  pure [ ("output", Text.pack outputPath) ]
-
--- | Find an output flag and then return the next item
--- | which should be the output folder
-findOutputFlag :: [Purs.ExtraArg] -> Maybe Sys.FilePath
-findOutputFlag [] = Nothing
-findOutputFlag [_] = Nothing
-findOutputFlag (x:y:xs)
-  = if isOutputFlag x
-    then Just $ Text.unpack (Purs.unExtraArg y)
-    else findOutputFlag (y : xs)
-
--- | is this argument specifying an output folder?
-isOutputFlag :: Purs.ExtraArg -> Bool
-isOutputFlag (Purs.ExtraArg a)
-  =  firstWord == "-o"
-  || firstWord == "--output"
-    where
-      firstWord
-        = fromMaybe "" $ case Text.words a of
-             []       -> Nothing
-             (word:_) -> Just word
-
--- | If we aren't using the --no-share-output flag, calculate the extra args to
--- | send to Purs compile
-getBuildArgsForSharedFolder
-  :: BuildOptions
-  -> Spago [Purs.ExtraArg]
-getBuildArgsForSharedFolder buildOpts = do
-  let pursArgs'
-        = pursArgs buildOpts
-      pathToOutputArg
-        = Purs.ExtraArg . Text.pack . ("--output " <>)
-  if any isOutputFlag pursArgs'
-    then do
-      logInfo "Output path set explicitly - not using shared output path"
-      pure pursArgs'
-    else do
-      outputFolder <- getOutputPath buildOpts
-      case pathToOutputArg <$> outputFolder of
-        Just newArg -> pure (pursArgs' <> [newArg])
-        _           -> pure pursArgs'

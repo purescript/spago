@@ -2,6 +2,7 @@
 module Spago.GitHub where
 
 import           Spago.Prelude
+import           Spago.Env
 
 import qualified Control.Retry       as Retry
 import qualified Data.List           as List
@@ -21,7 +22,7 @@ tagCacheFile = "package-sets-tag.txt"
 tokenCacheFile = "github-token.txt"
 
 
-login :: HasEnv env => RIO env ()
+login :: (HasGlobalCache env, HasLogFunc env) => RIO env ()
 login = do
  maybeToken <- liftIO (System.Environment.lookupEnv githubTokenEnvVar)
  globalCacheDir <- view globalCacheL
@@ -56,7 +57,9 @@ readToken = readFromEnv <|> readFromFile
       readTextFile $ pathFromText $ Text.pack $ globalCache </> tokenCacheFile
 
 
-getLatestPackageSetsTag :: Spago (Either SomeException Text)
+getLatestPackageSetsTag 
+  :: (HasLogFunc env, HasGlobalCache env)
+  => RIO env (Either SomeException Text)
 getLatestPackageSetsTag = do
   globalCacheDir <- view globalCacheL
   assertDirectory globalCacheDir
