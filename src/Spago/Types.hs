@@ -102,9 +102,10 @@ data OpenDocs = NoOpenDocs | DoOpenDocs
 -- | Flag to disable the automatic use of `psa`
 data UsePsa = UsePsa | NoPsa
 
+-- | The output path that can be obtained via `ls`
 data PathType
-  = OutputFolder
-
+  = PathOutput
+  | PathGlobalCache
 
 -- | Only build deps and ignore project paths
 data DepsOnly = DepsOnly | AllSources

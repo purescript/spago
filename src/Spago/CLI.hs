@@ -220,8 +220,8 @@ parser = do
       )
 
     pathSubcommand
-      =   CLI.subcommand "output" "Output path for compiled code"
-            (Path (Just OutputFolder) <$> buildOptions)
+      =   CLI.subcommand "output" "Output path for compiled code" (Path (Just PathOutput) <$> buildOptions)
+      <|> CLI.subcommand "global-cache" "Location of the global cache" (Path (Just PathGlobalCache) <$> buildOptions)
       <|> (Path Nothing <$> buildOptions)
 
     path =
