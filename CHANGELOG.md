@@ -7,6 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.15.0] - 2020-04-15
+
+Breaking changes (😱!!!):
+- **Remove the deprecated `--no-share-output` flag (#610)**
+
+  It has been disabled since some time now, so you can just remove it from your build commands.
+
+New features:
+- Add the `spago path global-cache` subcommand to output the location of the global cache (#613, #591)
+
+Bugfixes:
+- Fix encoding issues causing crashes when running in various locales (#595, #533, #507, #576)
+- Respect TERM=dumb by disabling colors when set (#581, #579)
+- Run package set commands without a project config being present (#393, #610)
+- Fail as soon as possible when not finding a necessary executable (#578, #610)
+- Don't exclude the `metadata` package from the set (#609, #610)
+- Ensure `psci-support` is installed when starting the repl (#612, #550)
+- Ensure dependencies are installed before starting the repl (#611, #610)
+
+Other improvements:
+- Errors: make the "dropping the 'purescript-' prefix" warning milder (#571, #570)
+- Docs: update README example to include source files (#574)
+- Docs: add info about SPDX license for publishing (#606)
+- CI: update Travis deployment to `dpl-v2` (#569)
+- Deps: upgrade `dhall` to `1.31.1` (#600)
+- Curator: move to its own repo (#586)
+
 ## [0.14.0] - 2020-02-09
 
 Breaking changes (😱!!!):
