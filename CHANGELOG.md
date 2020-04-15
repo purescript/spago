@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.15.1] - 2020-04-15
+## [0.15.2] - 2020-04-15
 
 Breaking changes (😱!!!):
 - **Remove the deprecated `--no-share-output` flag (#610)**
@@ -30,7 +30,7 @@ Other improvements:
 - Errors: make the "dropping the 'purescript-' prefix" warning milder (#571, #570)
 - Docs: update README example to include source files (#574)
 - Docs: add info about SPDX license for publishing (#606)
-- CI: update Travis deployment to `dpl-v2` (#569)
+- CI: update Travis deployment to `dpl-v2` (#569, #617)
 - Deps: upgrade `dhall` to `1.31.1` (#600)
 - Curator: move to its own repo (#586)
 
