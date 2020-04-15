@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+Breaking changes (😱!!!):
+
+New features:
+
+Bugfixes:
+
+Other improvements:
+- Deps: upgrade `rio` to `0.1.13.0` (#616)
+
 ## [0.15.1] - 2020-04-15
 
 Breaking changes (😱!!!):
