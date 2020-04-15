@@ -150,19 +150,15 @@ deploy:
     target_commitish: master
     file_glob: true
     file: ../uploads/*
-    skip_cleanup: true
+    cleanup: false
     edge: true
     on:
       tags: true
-    script:
-      - echo 'done'
   - provider: npm
     email: "$NPM_EMAIL"
     api_key: "$NPM_TOKEN"
-    skip_cleanup: true
+    cleanup: false
     edge: true
     on:
       condition: $TRAVIS_OS_NAME = osx
       tags: true
-    script:
-      - echo 'done'
