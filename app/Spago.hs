@@ -8,6 +8,7 @@ import qualified Paths_spago         as Pcli
 import           Main.Utf8           (withUtf8)
 import           Spago.CLI           (Command(..))
 
+import qualified Data.Text           as Text
 import qualified System.Environment  as Env
 import qualified Spago.Build
 import qualified Spago.GitHub
@@ -30,7 +31,7 @@ main = withUtf8 $ do
   Env.setEnv "GIT_TERMINAL_PROMPT" "0"
 
   (command, globalOptions@GlobalOptions{..}) 
-    <- CLI.options "Spago - manage your PureScript projects" CLI.parser
+    <- CLI.optionsExt "" "" "Spago - manage your PureScript projects" (Text.pack spagoVersion) CLI.parser
 
   Run.withEnv globalOptions $
     case command of
@@ -45,7 +46,7 @@ main = withUtf8 $ do
       Login 
         -> Spago.GitHub.login
       Version
-        -> printVersion
+        -> CLI.echo spagoVersion
       Path whichPath buildOptions 
         -> Path.showPaths buildOptions whichPath
       Repl replPackageNames paths pursArgs depsOnly
@@ -98,5 +99,5 @@ main = withUtf8 $ do
 
 
 -- | Print out Spago version
-printVersion :: RIO env ()
-printVersion = CLI.echo (showVersion Pcli.version)
+spagoVersion :: String
+spagoVersion = showVersion Pcli.version
