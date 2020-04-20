@@ -112,12 +112,13 @@ $ node .
   - [Switch from `psc-package`](#switch-from-psc-package)
   - [Switch from `bower`](#switch-from-bower)
   - [See what commands and flags are supported](#see-what-commands-and-flags-are-supported)
+  - [Install a direct dependency](#install-a-direct-dependency)
   - [Download my dependencies locally](#download-my-dependencies-locally)
   - [Build and run my project](#build-and-run-my-project)
   - [Test my project](#test-my-project)
   - [Run a repl](#run-a-repl)
   - [List available packages](#list-available-packages)
-  - [Add a direct dependency](#add-a-direct-dependency)
+  - [Install all the packages in the set](#install-all-the-packages-in-the-set)
   - [Override a package in the package set with a local one](#override-a-package-in-the-package-set-with-a-local-one)
   - [Override a package in the package set with a remote one](#override-a-package-in-the-package-set-with-a-remote-one)
   - [Add a package to the package set](#add-a-package-to-the-package-set)
@@ -252,6 +253,19 @@ This will give a detailed view of the command, and list any command-specific
 (vs global) flags.
 
 
+### Install a direct dependency
+
+You can add dependencies that are available in your package set by running:
+
+```bash
+# E.g. installing Halogen
+$ spago install halogen
+
+# This also supports multiple packages
+$ spago install foreign simple-json
+```
+
+
 ### Download my dependencies locally
 
 ```bash
@@ -273,7 +287,10 @@ We can build the project and its dependencies by running:
 $ spago build
 ```
 
-This is just a thin layer above the PureScript compiler command `purs compile`.
+This is mostly just a thin layer above the PureScript compiler command `purs compile`.
+
+*Note*: by default the `build` command will try to install any dependencies that haven't been
+fetched yet - if you wish to disable this behaviour, you can pass the `--no-install` flag.
 
 The build will produce very many JavaScript files in the `output/` folder. These
 are CommonJS modules, and you can just `require()` them e.g. on Node.
@@ -386,16 +403,29 @@ $ spago ls deps --transitive
 ```
 
 
-### Add a direct dependency
+### Install all the packages in the set
 
-You can add dependencies that are available in your package set by running:
+There might be cases where you'd like your project to depend on all the packages
+that are contained in the package set (this is sometimes called
+["acme build"](https://hackage.haskell.org/package/acme-everything)).
 
-```bash
-# E.g. installing Halogen
-$ spago install halogen
+You can accomplish this in pure Dhall in your `spago.dhall`
 
-# This also supports multiple packages
-$ spago install foreign simple-json
+It might look something like this (example from [here](https://github.com/purescript/spago/issues/607#issuecomment-612512906)):
+
+```dhall
+let packages = ./packages.dhall
+let Package = { dependencies : List Text, repo : Text, version : Text }
+let PackageAssoc = { mapKey : Text, mapValue : Package }
+let getPackageName = \(v : PackageAssoc) -> v.mapKey
+let List/map = https://prelude.dhall-lang.org/List/map
+in
+  { name = "acme"
+  , dependencies =
+        List/map PackageAssoc Text getPackageName (toMap packages)
+  , packages = packages
+  , sources = [ "src/**/*.purs" ]
+  }
 ```
 
 
