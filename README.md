@@ -1143,6 +1143,48 @@ plus a lot of diagnostic info, so you might want to use it to troubleshoot weird
 and/or crashes.
 
 
+### Install autocompletions for `bash`
+
+You can just add this to your `.bashrc`:
+
+```bash
+source <(spago --bash-completion-script `which spago`)
+```
+
+or alternatively if you don't want to edit your `~/.bashrc`:
+
+```bash
+spago --bash-completion-script $(which spago) >> ~/.bash_completion
+```
+
+### Install autocompletions for `zsh`
+
+Autocompletions for `zsh` need to be somewhere in the `fpath` - you can see the folders
+included in your by running `echo $fpath`.
+
+You can also make a new folder - e.g. `~/.my-completions` - and add it to the `fpath`
+by just adding this to your `~/.zshrc`:
+
+```bash
+fpath=(~/.my-completions $fpath)
+```
+
+Then you can obtain the completion definition for zsh and put it in a file called
+`_spago` [(yes it needs to be called like that)](https://github.com/zsh-users/zsh-completions/blob/master/zsh-completions-howto.org#telling-zsh-which-function-to-use-for-completing-a-command):
+
+```bash
+spago --zsh-completion-script $(which spago) > ~/.my-completions/_spago
+```
+
+Then, reload completions with:
+
+```bash
+compinit
+```
+
+*Note*: you might need to call this multiple times for it to work.
+
+
 ### Ignore or update the global cache
 
 There is a global cache that `spago` uses to avoid re-downloading things - its
@@ -1158,9 +1200,9 @@ that is accepted by many commands. You can either:
 
 ### Know the output path for my compiled code
 
-As there are now various factors that can affect the output path of compiled code, run 
-`spago path output` along with any flags you would pass to `spago build` (like 
-`--purs-args` or `--no-share-output`) to return the output path Spago is using. 
+As there are now various factors that can affect the output path of compiled code, run
+`spago path output` along with any flags you would pass to `spago build` (like
+`--purs-args`) to return the output path Spago is using.
 This can be useful for sharing an output folder with `webpack`, for instance.
 
 ## Explanations
