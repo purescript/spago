@@ -817,21 +817,28 @@ To start a project using Spago and Parcel together, here's the commands and file
   </html>
   ```
 
-6. Add a development script to `package.json` which will hot-bundle the PureScript code with Spago,
-  and then hot-reload the resulting JavaScript code using Parcel. Here, we'll call this script `dev`.
+6. Add a development script to `package.json` which will hot-reload the JavaScript generated
+  by the compiler using Parcel. Here, we'll call this script `dev`:
 
   ```js
   ...
     "scripts": {
-      "dev": "spago build --watch & parcel index.html",
+      "dev": "parcel index.html",
     },
   ...
   ```
 
-  This script will simultaneously run Spago and Parcel in parallel.
+  But in order for this script to pick up the changes we make to our PureScript files,
+  we should have something that hot-recompiles our code.
+
+  If you're using an editor integration then `purs ide` will take care of this
+  recompilation transparently as you save the files.
+  If not, you can run `spago build --watch` in another terminal to achieve the
+  same result.
+
   NPM scripts allow project dependencies to be treated as if they are on your `$PATH`.
-  When you run it with `npm run dev`, Parcel will tell you which port your application is being served on,
-  by default this will be `localhost:1234`.
+  When you run it with `npm run dev`, Parcel will tell you which port your application
+  is being served on, by default this will be `localhost:1234`.
 
   If you've followed this guide you can navigate there in a browser and open the JavaScript console,
   you will see the output of both `index.js` and the compiled `Main.purs` file.
