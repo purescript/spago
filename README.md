@@ -273,7 +273,10 @@ We can build the project and its dependencies by running:
 $ spago build
 ```
 
-This is just a thin layer above the PureScript compiler command `purs compile`.
+This is mostly just a thin layer above the PureScript compiler command `purs compile`.
+
+*Note*: by default the `build` command will try to install any dependencies that haven't been
+fetched yet - if you wish to disable this behaviour, you can pass the `--no-install` flag.
 
 The build will produce very many JavaScript files in the `output/` folder. These
 are CommonJS modules, and you can just `require()` them e.g. on Node.
