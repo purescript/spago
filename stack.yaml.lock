@@ -117,12 +117,12 @@ packages:
   original:
     hackage: repline-0.2.1.0
 - completed:
-    hackage: rio-0.1.12.0@sha256:a0b42682a455ffde6a4d894b135117e379aea7ed1810c2cfed471b8f5879968c,3633
+    hackage: rio-0.1.13.0@sha256:778bb30261be9789c6c848bfbdb914e4cf7490159964217e0d853dc047868cd1,3633
     pantry-tree:
       size: 4745
-      sha256: 340566441c9d1087f661fb51f95a080ffdf2da8fce6b4b8f86f158f4195894f5
+      sha256: 3f9bf28c37d33cfbeea5664025218987023b03f01f55697466c3db3074edefff
   original:
-    hackage: rio-0.1.12.0
+    hackage: rio-0.1.13.0
 - completed:
     hackage: rio-orphans-0.1.1.0@sha256:15600084c56ef4e1f22ac2091d10fa6ed62f01f531d819c6a5a19492212a76c9,1612
     pantry-tree:

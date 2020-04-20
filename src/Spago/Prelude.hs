@@ -65,7 +65,6 @@ module Spago.Prelude
   , appendonly
   , docsSearchVersion
   , githubTokenEnvVar
-  , mapRIO
   ) where
 
 
@@ -232,9 +231,3 @@ findExecutableOrDie cmd = do
   Directory.findExecutable cmd >>= \case 
     Nothing -> die [ "Executable was not found in path: " <> displayShow cmd ]
     Just path -> pure $ Text.pack path
-
--- | Lift one RIO env to another.
-mapRIO :: (outer -> inner) -> RIO inner a -> RIO outer a
-mapRIO f m = do
-  outer <- ask
-  runRIO (f outer) m
