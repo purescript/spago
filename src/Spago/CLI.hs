@@ -1,6 +1,6 @@
 module Spago.CLI
   ( module Spago.CLI
-  , CLI.options
+  , CLI.optionsExt
   ) where
 
 import Spago.Prelude

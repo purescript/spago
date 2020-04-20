@@ -152,12 +152,12 @@ packages:
   original:
     hackage: Glob-0.10.0
 - completed:
-    hackage: turtle-1.5.14@sha256:be0f9d3102e11458554d17f581a69984e511f15d6d51a4c4816743783576b566,4908
+    hackage: turtle-1.5.18@sha256:17342a1829adaaeed9bc5b61fc3da7a163674a90148bf71c5eec937d54568ccb,4843
     pantry-tree:
       size: 1114
-      sha256: 191eed87a5e8713a212ddfe4c5f4b819d07771c56becd92b8b5c6119f7ddad5d
+      sha256: d4b57091947356710e54ecc18f215c6fe0012649a9cffe869b0e637d3e83b7cf
   original:
-    hackage: turtle-1.5.14
+    hackage: turtle-1.5.18
 - completed:
     hackage: libyaml-0.1.1.0@sha256:b3fcd8c44622c75e054c2267f3fec39a58a311748000310cbc8257a4683d3f02,2090
     pantry-tree:
