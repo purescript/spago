@@ -646,7 +646,7 @@ in upstream // overrides
 }
 ```
 
-- assuming `lib1` depends on `lib2`, `lib2/spago.dhall` might look something like this:
+- assuming `lib2` depends on `lib1`, `lib2/spago.dhall` might look something like this:
 
 ```dhall
 { name =
