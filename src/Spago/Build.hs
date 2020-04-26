@@ -85,9 +85,9 @@ build BuildOptions{..} maybePostBuild = do
                 ExitFailure n -> die [ "Backend " <> displayShow backend <> " exited with error:" <> repr n ]
 
       buildAction globs = do
+        let action = buildBackend globs >> fromMaybe (pure ()) maybePostBuild
         runCommands "Before" beforeCommands
-        onException ( buildBackend globs ) $ runCommands "Else" elseCommands
-        fromMaybe (pure ()) maybePostBuild
+        action `onException` (runCommands "Else" elseCommands)
         runCommands "Then" thenCommands
 
   case shouldWatch of
