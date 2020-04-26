@@ -448,7 +448,7 @@ spec = around_ setup $ do
       test <- readTextFile dumpFile
       test `shouldBe` "before\nthen\n"
 
-    it "Spago should run an else command if there is an error" $ do
+    it "Spago should run an else command if there is an error in the build" $ do
 
       spago ["init"] >>= shouldBeSuccess
 
@@ -458,6 +458,22 @@ spec = around_ setup $ do
       writeTextFile "src/Main.purs" "Invalid Purescript code"
       spago [ "build"
             , "--then", "echo then>> " <> ( Text.pack $ encodeString dumpFile )
+            , "--else", "echo else>> " <> ( Text.pack $ encodeString dumpFile )
+            ] >>= shouldBeFailure
+      test <- readTextFile dumpFile
+      test `shouldBe` "else\n"
+
+
+    it "Spago should run an else command if there is an error in the run file" $ do
+
+      spago ["init"] >>= shouldBeSuccess
+      spago ["install", "exceptions"] >>= shouldBeSuccess
+
+      dir <- pwd
+      let dumpFile = dir </> "testOutput"
+      rm "src/Main.purs"
+      writeTextFile "src/Main.purs" "module Main where\nimport Effect.Exception\nmain = throw \"error\""
+      spago [ "run"
             , "--else", "echo else>> " <> ( Text.pack $ encodeString dumpFile )
             ] >>= shouldBeFailure
       test <- readTextFile dumpFile
