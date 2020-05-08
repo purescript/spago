@@ -307,7 +307,7 @@ $ spago build --path 'another_source/**/*.purs'
 E.g. if you wish to output your files in some other place than `output/`, you can run
 
 ```bash
-$ spago build --purs-args '-o myOutput/'
+$ spago build --purs-args "-o myOutput/"
 ```
 
 If you wish to automatically have your project rebuilt when making changes to source files
@@ -348,7 +348,7 @@ $ spago run
 $ spago run --main ModulePath.To.Main
 
 # And pass arguments through to `purs compile`
-$ spago run --main ModulePath.To.Main --purs-args '--verbose-errors'
+$ spago run --main ModulePath.To.Main --purs-args "--verbose-errors"
 
 # Or pass arguments to node
 $ spago run --node-args "arg1 arg2"
@@ -376,7 +376,7 @@ to load, and pass options to the underlying `purs repl` via `--purs-args`.
 E.g. the following opens a repl on `localhost:3200`:
 
 ```bash
-$ spago repl --purs-args '--port 3200'
+$ spago repl --purs-args "--port 3200"
 ```
 
 
@@ -1108,7 +1108,7 @@ $ spago docs --format ctags
 
 Quoting from [this tweet](https://twitter.com/jusrin00/status/1092071407356387328):
 
-1. build with `--purs-args '-g sourcemaps'`
+1. build with `--purs-args "-g sourcemaps"`
 2. source output (like `var someModule = require('./output/Whatever/index.js');`) and use
    something like `parcel`, to avoid mangling/destroying the sourcemaps
 3. now you can see your breakpoints in action
