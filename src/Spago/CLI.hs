@@ -156,7 +156,7 @@ parser = do
 
     packageName     = CLI.arg (Just . PackageName) "package" "Specify a package name. You can list them with `ls packages`"
     packageNames    = many $ CLI.arg (Just . PackageName) "package" "Package name to add as dependency"
-    pursArgs        = many $ CLI.opt (Just . PursArg) "purs-args" 'u' "Argument to pass to purs"
+    pursArgs        = many $ CLI.opt (Just . PursArg) "purs-args" 'u' "Arguments to pass to purs compile. Wrap in single quotes."
     buildOptions  = BuildOptions <$> watch <*> clearScreen <*> sourcePaths <*> srcMapFlag <*> noInstall
                     <*> pursArgs <*> depsOnly <*> beforeCommands <*> thenCommands <*> elseCommands
 
