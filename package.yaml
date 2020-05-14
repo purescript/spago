@@ -83,7 +83,7 @@ library:
   - bytestring
   - Cabal
   - containers
-  - dhall >= 1.29.0
+  - dhall >= 1.31.1
   - directory >= 1.3.4.0
   - either
   - exceptions
@@ -104,7 +104,7 @@ library:
   - prettyprinter
   - process
   - retry
-  - rio
+  - rio >= 0.1.13.0
   - rio-orphans
   - safe
   - semver-range

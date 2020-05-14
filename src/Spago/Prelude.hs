@@ -228,6 +228,9 @@ pretty = PrettyText.renderStrict
 --   or die trying
 findExecutableOrDie :: HasLogFunc env => String -> RIO env Text
 findExecutableOrDie cmd = do
-  Directory.findExecutable cmd >>= \case 
+  Directory.findExecutable cmd >>= \case
     Nothing -> die [ "Executable was not found in path: " <> displayShow cmd ]
-    Just path -> pure $ Text.pack path
+    -- Note: we ignore the path and just return the input because the one we get
+    -- here is absolute, and Windows doesn't seem to be able to deal with that.
+    -- See: https://github.com/purescript/spago/issues/635
+    Just _path -> pure $ Text.pack cmd
