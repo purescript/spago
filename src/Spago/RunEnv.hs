@@ -3,6 +3,7 @@ module Spago.RunEnv where
 import Spago.Prelude
 import Spago.Env
 
+import qualified Data.Text as Text
 import qualified System.Environment  as Env
 import qualified Distribution.System as OS
 import qualified Turtle
@@ -120,14 +121,13 @@ getPurs usePsa = do
     UsePsa -> findExecutable "psa" >>= \case
       Just _  -> pure "psa"
       Nothing -> pure "purs"
-  try (findExecutableOrDie pursCandidate) >>= \case
-    Right p -> pure p
-    -- one last try for Windows
-    Left (err :: SomeException) -> case OS.buildOS of
-      OS.Windows -> do
-        logDebug $ displayShow err
-        findExecutableOrDie (pursCandidate <> ".cmd")
-      _ -> throwIO err
+  -- We first try this for Windows
+  case OS.buildOS of
+    OS.Windows -> do
+      findExecutable (pursCandidate <> ".cmd") >>= \case
+        Just _ -> pure (Text.pack pursCandidate <> ".cmd")
+        Nothing -> findExecutableOrDie pursCandidate
+    _ -> findExecutableOrDie pursCandidate
 
 getPackageSet :: (HasLogFunc env, HasConfigPath env) => RIO env PackageSet
 getPackageSet = do
