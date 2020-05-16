@@ -15,6 +15,7 @@ Bugfixes:
 
 Other improvements:
 - Deps: upgrade `rio` to `0.1.13.0` (#616)
+- Fix typos in `spago bundle-app` help message
 
 ## [0.15.2] - 2020-04-15
 
