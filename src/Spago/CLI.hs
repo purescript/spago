@@ -119,8 +119,8 @@ parser = do
       in CLI.optional $ CLI.opt wrap "global-cache" 'c' "Configure the global caching behaviour: skip it with `skip` or force update with `update`"
 
     beforeCommands = many $ CLI.opt Just "before" 'b' "Commands to run before a build."
-    thenCommands   = many $ CLI.opt Just "then" 't' "Commands to run following a successfull build."
-    elseCommands   = many $ CLI.opt Just "else" 'e' "Commands to run following an unsuccessfull build."
+    thenCommands   = many $ CLI.opt Just "then" 't' "Commands to run following a successful build."
+    elseCommands   = many $ CLI.opt Just "else" 'e' "Commands to run following an unsuccessful build."
     versionBump = CLI.arg Spago.Version.parseVersionBump "bump" "How to bump the version. Acceptable values: 'major', 'minor', 'patch', or a version (e.g. 'v1.2.3')."
 
     quiet       = CLI.switch "quiet" 'q' "Suppress all spago logging"
