@@ -1,5 +1,5 @@
 module Spago.Prelude
-  ( 
+  (
   -- * Basic exports
     module X
   , Proxy(..)
@@ -12,7 +12,7 @@ module Spago.Prelude
   , headMay
   , lastMay
   , empty
-  
+
   -- * Logging, errors, printing, etc
   , Pretty
   , pretty
@@ -24,7 +24,6 @@ module Spago.Prelude
 
   -- * Lens
   , (</>)
-  , (^..)
   , transformMOf
 
   -- * Files and directories
@@ -95,7 +94,6 @@ import           Data.Sequence                         (Seq (..))
 import           Data.Text.Prettyprint.Doc             (Pretty)
 import           Data.Text.IO.Utf8                     (readFile, writeFile)
 import           Dhall.Optics                          (transformMOf)
-import           Lens.Family                           ((^..))
 import           RIO                                   as X hiding (FilePath, first, force, second)
 import           RIO.Orphans                           as X
 import           Safe                                  (headMay, lastMay)

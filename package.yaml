@@ -104,7 +104,7 @@ library:
   - prettyprinter
   - process
   - retry
-  - rio >= 0.1.13.0
+  - rio >= 0.1.16.0
   - rio-orphans
   - safe
   - semver-range
