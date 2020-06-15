@@ -7,15 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-Breaking changes (😱!!!):
+## [0.15.3] - 2020-06-15
 
 New features:
+- Add `--version` flag to print the version (in addition to the `version` command) (#628)
 
 Bugfixes:
+- Actually run `else` commands when `spago run` fails (#632)
+- Don't use absolute paths for executables in Windows (#639)
 
 Other improvements:
+- Docs: note that `build` also runs `install` (#624)
+- Docs: document how to install all the packages in the set (#625)
+- Docs: stop suggesting using Parcel and Spago at the same time (#626)
+- Docs: document how to install bash and zsh autocompletions (#627)
+- Docs: fix explanation in monorepo example (#631)
+- Docs: add note about using single quotes for `purs-args` (#637)
+- Docs: add quotes for all OSes with `purs-args` (#638)
+- Docs: fix typos in `spago bundle-app` help message (#641)
 - Deps: upgrade `rio` to `0.1.13.0` (#616)
-- Fix typos in `spago bundle-app` help message
+- CI: upgrade to `purs` v.13.8 (#642)
+- CI: stop upgrading broken static binary on release (#620)
+
 
 ## [0.15.2] - 2020-04-15
 
