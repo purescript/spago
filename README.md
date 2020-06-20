@@ -961,7 +961,8 @@ To start a project using Spago and Parcel together, here's the commands and file
       }),
       new HtmlWebpackPlugin({
         title: 'purescript-webpack-example',
-        template: 'index.html'
+        template: 'index.html',
+        inject: false
       })
     ].concat(plugins)
   };
