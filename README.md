@@ -1250,7 +1250,7 @@ type) of the files that `spago` expects. Let's define them in Dhall:
 let Package =
   { dependencies : List Text  -- the list of dependencies of the Package
   , repo = Text               -- the address of the git repo the Package is at
-  , version = Text            -- git tag
+  , version = Text            -- git tag, branch, or commit hash
   }
 
 -- The type of `packages.dhall` is a Record from a PackageName to a Package
