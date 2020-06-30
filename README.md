@@ -444,7 +444,7 @@ In this case we override the package with its local copy, which must have a `spa
 It might look like this:
 
 ```haskell
-let upstream = --
+let upstream = -- <package set URL here>
 in  upstream
   with simple-json = ../purescript-simple-json/spago.dhall as Location
 ```
@@ -477,7 +477,7 @@ In this case, we can just change the override to point to some commit of our for
 
 
 ```haskell
-let upstream = --
+let upstream = -- <package set URL here>
 in  upstream
   with simple-json.repo = "https://github.com/my-user/purescript-simple-json.git"
   with simple-json.verison = "701f3e44aafb1a6459281714858fadf2c4c2a977"
@@ -496,7 +496,7 @@ by changing the `additions` record in the `packages.dhall` file.
 E.g. if we want to add the `facebook` package:
 
 ```haskell
-let upstream = --
+let upstream = -- <package set URL here>
 in  upstream
   with facebook =
     { dependencies =
@@ -520,7 +520,7 @@ As you might expect, this works also in the case of adding local packages:
 Example:
 
 ```haskell
-let upstream = --
+let upstream = -- <package set URL here>
 in  upstream
   with foobar = ../foobar/spago.dhall as Location
   }
