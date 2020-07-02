@@ -80,7 +80,7 @@ spec = around_ setup $ do
       -- We don't want fixture for packages.dhall to avoid having to maintain upstream package-set URL in fixture
       dhallSource <- readTextFile "packages.dhall"
       dhallSource `shouldNotSatisfy` (Text.isInfixOf "{-") -- comments not present
-      dhallSource `shouldSatisfy` (Text.isInfixOf "let overrides = {=}") -- some dhall stuff is present
+      dhallSource `shouldSatisfy` (Text.isInfixOf "let upstream") -- some dhall stuff is present
 
   describe "spago install" $ do
 

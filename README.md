@@ -444,9 +444,9 @@ In this case we override the package with its local copy, which must have a `spa
 It might look like this:
 
 ```haskell
-let overrides =
-      { simple-json = ../purescript-simple-json/spago.dhall as Location
-      }
+let upstream = -- <package set URL here>
+in  upstream
+  with simple-json = ../purescript-simple-json/spago.dhall as Location
 ```
 
 Note that if we do `spago ls packages`, we'll see that it is now included as a local package:
@@ -477,13 +477,10 @@ In this case, we can just change the override to point to some commit of our for
 
 
 ```haskell
-let overrides =
-    { simple-json =
-          upstream.simple-json
-       // { repo = "https://github.com/my-user/purescript-simple-json.git"
-          , version = "701f3e44aafb1a6459281714858fadf2c4c2a977"
-          }
-    }
+let upstream = -- <package set URL here>
+in  upstream
+  with simple-json.repo = "https://github.com/my-user/purescript-simple-json.git"
+  with simple-json.verison = "701f3e44aafb1a6459281714858fadf2c4c2a977"
 ```
 
 **Note**: you can use a "branch", a "tag" or a "commit hash" as a `version`.
@@ -499,23 +496,23 @@ by changing the `additions` record in the `packages.dhall` file.
 E.g. if we want to add the `facebook` package:
 
 ```haskell
-let additions =
-  { facebook =
-      { dependencies =
-          [ "console"
-          , "aff"
-          , "prelude"
-          , "foreign"
-          , "foreign-generic"
-          , "errors"
-          , "effect"
-          ]
-      , repo =
-          "https://github.com/Unisay/purescript-facebook.git"
-      , version =
-          "v0.3.0"  -- branch, tag, or commit hash
-      }
-  }
+let upstream = -- <package set URL here>
+in  upstream
+  with facebook =
+    { dependencies =
+        [ "console"
+        , "aff"
+        , "prelude"
+        , "foreign"
+        , "foreign-generic"
+        , "errors"
+        , "effect"
+        ]
+    , repo =
+        "https://github.com/Unisay/purescript-facebook.git"
+    , version =
+        "v0.3.0"  -- branch, tag, or commit hash
+    }
 ```
 
 As you might expect, this works also in the case of adding local packages:
@@ -523,8 +520,9 @@ As you might expect, this works also in the case of adding local packages:
 Example:
 
 ```haskell
-let additions =
-  { foobar = ../foobar/spago.dhall as Location
+let upstream = -- <package set URL here>
+in  upstream
+  with foobar = ../foobar/spago.dhall as Location
   }
 ```
 
@@ -620,13 +618,9 @@ Then:
 
 ```dhall
 let upstream = https://github.com/purescript/package-sets/releases/download/psc-0.13.4-20191025/packages.dhall sha256:f9eb600e5c2a439c3ac9543b1f36590696342baedab2d54ae0aa03c9447ce7d4
-
-let overrides =
-  { lib1 = ./lib1/spago.dhall as Location
-  , lib2 = ./lib2/spago.dhall as Location
-  }
-
-in upstream // overrides
+in upstream
+  with lib1 = ./lib1/spago.dhall as Location
+  with lib2 = ./lib2/spago.dhall as Location
 ```
 
 - `lib1/spago.dhall` might look something like this:
@@ -1256,7 +1250,7 @@ type) of the files that `spago` expects. Let's define them in Dhall:
 let Package =
   { dependencies : List Text  -- the list of dependencies of the Package
   , repo = Text               -- the address of the git repo the Package is at
-  , version = Text            -- git tag
+  , version = Text            -- git tag, branch, or commit hash
   }
 
 -- The type of `packages.dhall` is a Record from a PackageName to a Package
