@@ -13,7 +13,7 @@ Breaking changes (😱!!!):
   Both `then` and `target` had the shorthand `t`, so the shorthand for `then` was removed.
   Since `then`, `before`, and `else` are all shared between several commands, it seemed
   natural to remove the shorthands for the other shared commands too, so as to not cause 
-  future name shorthand conflicts.
+  future shorthand name conflicts.
 
 Other improvements:
 - Docs: updated package addition/overriding syntax to use `with` syntax (#661)
