@@ -8,9 +8,9 @@ It supports nearly-all functionality of [Pursuit](https://github.com/purescript/
 
 ## Installing
 
-Run `npm install purescript-docs-search`.
+When using [spago](https://github.com/spacchetti/spago), you don't need to install this app manually: run `spago docs` or `spago search`.
 
-When using [spago](https://github.com/spacchetti/spago), you don't need to install this app. Just run `spago docs` or `spago search`.
+Otherwise, use [npx](https://github.com/npm/npx): `npx purescript-docs-search`.
 
 ## Usage
 
@@ -37,3 +37,12 @@ A quick demo:
 [![asciicast](https://asciinema.org/a/Hexie5JoWjlAqLqv2IgafIdb9.svg)](https://asciinema.org/a/Hexie5JoWjlAqLqv2IgafIdb9)
 
 You may notice that the CLI offers slightly better results than the web interface. This is a performance tradeoff.
+
+## Development
+
+```
+npm install
+npm run build # or build-dev to skip JS compression stage
+```
+
+Use `spago docs --no-search && ./dist/purescript-docs-search build-index` to generate the docs and patch them using the local version of the app.
