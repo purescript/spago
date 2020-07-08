@@ -27,11 +27,11 @@ import qualified UnliftIO.Async         as Async
 
 watch
   :: HasLogFunc env
-  => Set.Set Glob.Pattern -> ClearScreen -> RIO env () 
+  => Set.Set Glob.Pattern -> ClearScreen -> AllowIgnored -> RIO env ()
   -> RIO env ()
-watch globs shouldClear action = do
+watch globs shouldClear allowIgnored action = do
   let config = Watch.defaultConfig { Watch.confDebounce = Watch.NoDebounce }
-  fileWatchConf config shouldClear $ \getGlobs -> do
+  fileWatchConf config shouldClear allowIgnored $ \getGlobs -> do
     getGlobs globs
     action
 
@@ -55,9 +55,10 @@ fileWatchConf
   .  (HasLogFunc env)
   => Watch.WatchConfig
   -> ClearScreen
+  -> AllowIgnored
   -> ((Set.Set Glob.Pattern -> RIO env ()) -> RIO env ())
   -> RIO env ()
-fileWatchConf watchConfig shouldClear inner = withManagerConf watchConfig $ \manager -> do
+fileWatchConf watchConfig shouldClear allowIgnored inner = withManagerConf watchConfig $ \manager -> do
     allGlobs  <- liftIO $ newTVarIO Set.empty
     dirtyVar  <- liftIO $ newTVarIO True
     -- `lastEvent` is used for event debouncing.
@@ -78,7 +79,12 @@ fileWatchConf watchConfig shouldClear inner = withManagerConf watchConfig $ \man
     let onChange event = do
           timeNow <- liftIO getCurrentTime
           let eventPath = Watch.eventPath event
-          pathIgnored <- isIgnored $ Text.pack eventPath
+              isPathIgnored =
+                case allowIgnored of
+                  NoAllowIgnored -> isIgnored
+                  DoAllowIgnored -> const (pure False)
+
+          pathIgnored <- isPathIgnored $ Text.pack eventPath
 
           unless pathIgnored $ do
             rebuilding <- liftIO $ atomically $ do
