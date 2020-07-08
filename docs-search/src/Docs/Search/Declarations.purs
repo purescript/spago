@@ -4,15 +4,16 @@ import Docs.Search.DocsJson (ChildDeclType(..), ChildDeclaration(..), DeclType(.
 import Docs.Search.PackageIndex (Scores)
 import Docs.Search.SearchResult (ResultInfo(..), SearchResult(..))
 import Docs.Search.TypeDecoder (Constraint(..), QualifiedName(..), Type(..), Kind, joinForAlls)
+import Docs.Search.Types (ModuleName, PackageName)
 
 import Prelude
-
 import Control.Alt ((<|>))
 import Data.Array ((!!))
 import Data.Array as Array
 import Data.Foldable (foldr)
 import Data.List (List, (:))
 import Data.List as List
+import Data.Map as Map
 import Data.Maybe (Maybe(..), fromMaybe)
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Search.Trie (Trie, alter)
@@ -20,11 +21,6 @@ import Data.String.CodeUnits (stripPrefix, stripSuffix, toCharArray)
 import Data.String.Common (split) as String
 import Data.String.Common (toLower)
 import Data.String.Pattern (Pattern(..))
-import Data.Map as Map
-
-
-type ModuleName = String
-type PackageName = String
 
 
 newtype Declarations
@@ -191,7 +187,7 @@ getLevelAndName DeclExternKind  name = { name, declLevel: KindLevel }
 -- | Extract package name from `sourceSpan.name`, which contains path to
 -- | the source file. If `ModuleName` string starts with `Prim.`, it's a
 -- | built-in (guaranteed by the compiler).
-extractPackageName :: ModuleName -> Maybe SourceSpan -> String
+extractPackageName :: ModuleName -> Maybe SourceSpan -> PackageName
 extractPackageName moduleName _
   | String.split (Pattern ".") moduleName !! 0 == Just "Prim" = "<builtin>"
 extractPackageName _ Nothing = "<unknown>"

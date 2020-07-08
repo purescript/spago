@@ -29,12 +29,14 @@
     , "node-readline"
     , "optparse"
     , "profunctor"
+    , "profunctor-lenses"
     , "search-trie"
     , "string-parsers"
     , "strings"
     , "test-unit"
     , "web-dom"
     , "web-html"
+    , "web-storage"
     ]
 , packages =
     ./packages.dhall

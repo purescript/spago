@@ -1,6 +1,7 @@
 module Docs.Search.Engine where
 
 import Docs.Search.PackageIndex (PackageIndex, PackageResult)
+import Docs.Search.ModuleIndex (ModuleIndex)
 import Docs.Search.SearchResult (SearchResult, typeOfResult)
 import Docs.Search.TypeQuery (TypeQuery(..), parseTypeQuery, penalty)
 
@@ -36,6 +37,7 @@ type EngineState index typeIndex
   = { index :: index
     , typeIndex :: typeIndex
     , packageIndex :: PackageIndex
+    , moduleIndex :: ModuleIndex
     }
 
 
@@ -44,9 +46,10 @@ mkEngineState
   .  index
   -> typeIndex
   -> PackageIndex
+  -> ModuleIndex
   -> EngineState index typeIndex
-mkEngineState index typeIndex packageIndex =
-  { index, typeIndex, packageIndex }
+mkEngineState index typeIndex packageIndex moduleIndex =
+  { index, typeIndex, packageIndex, moduleIndex }
 
 
 data Result

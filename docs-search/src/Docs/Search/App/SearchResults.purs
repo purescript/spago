@@ -168,7 +168,7 @@ hidePageContents
 hidePageContents = do
   state <- H.get
   H.liftEffect do
-    Element.setAttribute "style" "display: none" state.contents
+    Element.setAttribute "style" "display: none;" state.contents
 
 
 render

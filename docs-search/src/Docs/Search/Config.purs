@@ -7,6 +7,9 @@ config ::
   { declIndexDirectory :: String
   , mkIndexPartLoadPath :: Int -> String
   , mkIndexPartPath :: Int -> String
+  , moduleIndexPath :: String
+  , moduleIndexLoadPath :: String
+  , groupModulesItem :: String
   , packageInfoPath :: String
   , packageInfoLoadPath :: String
   , mkShapeScriptPath :: String -> String
@@ -43,9 +46,13 @@ config =
     \(partId :: Int) -> "html/index/declarations/" <> show partId <> ".js"
   , mkIndexPartLoadPath:
     \(partId :: Int) -> "./index/declarations/" <> show partId <> ".js"
-  , packageInfoPath: "generated-docs/html/index/packages.json"
-  -- ^ Path to package index.
-  , packageInfoLoadPath: "./index/packages.json"
+  , moduleIndexPath: "generated-docs/html/index/modules.js"
+  , moduleIndexLoadPath: "./index/modules.js"
+  -- ^ Used to load mode index to the browser scope.
+  , groupModulesItem: "PureScriptDocsSearchGroupModules"
+  -- ^ localStorage key to save sidebar checkbox value to.
+  , packageInfoPath: "generated-docs/html/index/packages.js"
+  , packageInfoLoadPath: "./index/packages.js"
   -- ^ Used to load package index to the browser scope.
   , resultsCount: 25
   -- ^ How many results to show by default?

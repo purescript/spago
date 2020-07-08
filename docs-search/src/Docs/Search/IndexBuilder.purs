@@ -1,16 +1,16 @@
 module Docs.Search.IndexBuilder where
 
+import Docs.Search.BrowserEngine (getPartId)
 import Docs.Search.Config (config)
 import Docs.Search.Declarations (Declarations(..), mkDeclarations)
 import Docs.Search.DocsJson (DocsJson)
 import Docs.Search.Extra ((>#>))
-import Docs.Search.BrowserEngine (getPartId)
+import Docs.Search.ModuleIndex (ModuleIndex, mkModuleIndex)
 import Docs.Search.PackageIndex (PackageInfo, mkPackageInfo, mkScores)
 import Docs.Search.SearchResult (SearchResult)
 import Docs.Search.TypeIndex (TypeIndex, mkTypeIndex)
 
 import Prelude
-
 import Data.Argonaut.Core (stringify)
 import Data.Argonaut.Decode (decodeJson)
 import Data.Argonaut.Encode (encodeJson)
@@ -78,6 +78,7 @@ run' cfg = do
       index       = mkDeclarations scores docsJsons
       typeIndex   = mkTypeIndex scores docsJsons
       packageInfo = mkPackageInfo packageMetas
+      moduleIndex = mkModuleIndex index
 
   createDirectories cfg
 
@@ -85,6 +86,7 @@ run' cfg = do
     ignore <$> parallel (writeIndex cfg index)
            <*> parallel (writeTypeIndex cfg typeIndex)
            <*> parallel (writePackageInfo packageInfo)
+           <*> parallel (writeModuleIndex moduleIndex)
            <*> parallel (if cfg.noPatch
                          then pure unit
                          else patchDocs cfg)
@@ -105,7 +107,7 @@ run' cfg = do
       show countOfPackages <>
       " packages to the search index."
 
-  where ignore _ _ _ _ _ = unit
+  where ignore _ _ _ _ _ _ _ = unit
 
 
 -- | Exit early if something is missing.
@@ -219,6 +221,14 @@ writePackageInfo packageInfo = do
 
   where
     header = "window.DocsSearchPackageIndex = "
+
+
+writeModuleIndex :: ModuleIndex -> Aff Unit
+writeModuleIndex moduleIndex = do
+  writeTextFile UTF8 config.moduleIndexPath $
+    header <> stringify (encodeJson moduleIndex)
+  where
+    header = "window.DocsSearchModuleIndex = "
 
 -- | Get a mapping from index parts to index contents.
 getIndex :: Declarations -> Map Int (Array (Tuple String (Array SearchResult)))

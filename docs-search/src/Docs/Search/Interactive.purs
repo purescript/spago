@@ -2,6 +2,7 @@
 module Docs.Search.Interactive where
 
 import Docs.Search.Declarations (Declarations, mkDeclarations)
+import Docs.Search.ModuleIndex (mkModuleIndex)
 import Docs.Search.DocsJson (DataDeclType(..))
 import Docs.Search.Engine (mkEngineState, Result(..))
 import Docs.Search.Engine as Engine
@@ -51,7 +52,8 @@ run cfg = launchAff_ $ do
       index        = mkDeclarations scores docsJsons
       typeIndex    = docsJsons >>= resultsWithTypes scores
       packageIndex = mkPackageIndex $ mkPackageInfo packageMetas
-      engineState  = mkEngineState (unwrap index) typeIndex packageIndex
+      moduleIndex  = mkModuleIndex index
+      engineState  = mkEngineState (unwrap index) typeIndex packageIndex moduleIndex
 
   let countOfDefinitions     = Trie.size $ unwrap index
       countOfTypeDefinitions = Array.length typeIndex
