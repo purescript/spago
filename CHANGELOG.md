@@ -15,6 +15,10 @@ Breaking changes (😱!!!):
   natural to remove the shorthands for the other shared commands too, so as to not cause 
   future shorthand name conflicts.
 
+New features:
+- Ignore .gitignore files in `--watch` by default (#665)
+- Add `--allow-ignored` to allow files ignored via .gitignore to trigger rebuilds (#665)
+
 Other improvements:
 - Docs: updated package addition/overriding syntax to use `with` syntax (#661)
 
