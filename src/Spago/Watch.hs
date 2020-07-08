@@ -20,6 +20,7 @@ import           System.FilePath        (splitDirectories)
 import qualified System.FilePath.Glob   as Glob
 import qualified System.FSNotify        as Watch
 import qualified System.IO.Utf8         as Utf8
+import qualified Turtle
 import qualified UnliftIO
 import qualified UnliftIO.Async         as Async
 
@@ -76,29 +77,32 @@ fileWatchConf watchConfig shouldClear inner = withManagerConf watchConfig $ \man
 
     let onChange event = do
           timeNow <- liftIO getCurrentTime
+          let eventPath = Watch.eventPath event
+          pathIgnored <- isIgnored $ Text.pack eventPath
 
-          rebuilding <- liftIO $ atomically $ do
-            globs                <- readTVar allGlobs
-            (lastTime, lastPath) <- readTVar lastEvent
+          unless pathIgnored $ do
+            rebuilding <- liftIO $ atomically $ do
+              globs                <- readTVar allGlobs
+              (lastTime, lastPath) <- readTVar lastEvent
 
-            let matches glob = Glob.match glob $ Watch.eventPath event
-            -- We should rebuild if at least one of the globs matches the path,
-            -- and the last event either has different path, or has happened
-            -- more than `debounceTime` seconds ago.
-            let shouldRebuild =
-                   any matches globs
-                 && ( lastPath /= Watch.eventPath event
-                   || diffUTCTime timeNow lastTime > debounceTime
-                    )
+              let matches glob = Glob.match glob eventPath
+              -- We should rebuild if at least one of the globs matches the path,
+              -- and the last event either has different path, or has happened
+              -- more than `debounceTime` seconds ago.
+              let shouldRebuild =
+                     any matches globs
+                   && ( lastPath /= eventPath
+                     || diffUTCTime timeNow lastTime > debounceTime
+                      )
 
-            when shouldRebuild $ do
-              writeTVar dirtyVar True
-              writeTVar lastEvent (timeNow, Watch.eventPath event)
+              when shouldRebuild $ do
+                writeTVar dirtyVar True
+                writeTVar lastEvent (timeNow, eventPath)
 
-            pure shouldRebuild
+              pure shouldRebuild
 
-          when rebuilding $ do
-            redisplay $ Just $ "File changed, triggered a build: " <> displayShow (Watch.eventPath event)
+            when rebuilding $ do
+              redisplay $ Just $ "File changed, triggered a build: " <> displayShow eventPath
 
         setWatched :: Set.Set Glob.Pattern -> RIO env ()
         setWatched globs = do
@@ -191,3 +195,13 @@ globToParent glob = go pathHead pathRest
     go acc ("**":_rest) = acc
     go acc [_file]      = acc
     go acc (h:rest)     = go (acc </> h) rest
+
+
+-- | Check if the path is ignored by git
+--
+-- `git check-ignore` exits with 1 when path is not ignored, and 128 when
+-- a fatal error occurs (i.e. when not in a git repository).
+isIgnored :: MonadIO m => Text -> m Bool
+isIgnored path = do
+  (exitCode, _, _) <- Turtle.procStrictWithErr "git" ["check-ignore", "--quiet", path] empty
+  pure $ exitCode == ExitSuccess
