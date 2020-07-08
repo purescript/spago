@@ -44,9 +44,9 @@
   "homepage": "https://github.com/spacchetti/purescript-docs-search#readme",
   "dependencies": {},
   "devDependencies": {
-    "glob": "^7.1.4",
-    "markdown-it": "^10.0.0",
+    "glob": "^7.1.6",
+    "markdown-it": "^11.0.0",
     "parcel": "^1.12.4",
-    "spago": "^0.12.1"
+    "spago": "^0.15.3"
   }
 }
