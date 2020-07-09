@@ -1,17 +1,18 @@
 -- | This is the main module of the client-side Halogen app.
 module Docs.Search.App where
 
-import Docs.Search.App.SearchField as SearchField
-import Docs.Search.App.SearchResults as SearchResults
-import Docs.Search.App.Sidebar as Sidebar
-import Docs.Search.Extra (whenJust)
-import Docs.Search.ModuleIndex as ModuleIndex
-import Docs.Search.PackageIndex as PackageIndex
-
 import Prelude
+
 import Control.Coroutine as Coroutine
 import Data.Maybe (Maybe(..))
 import Data.Newtype (wrap)
+import Docs.Search.App.SearchField as SearchField
+import Docs.Search.App.SearchResults as SearchResults
+import Docs.Search.App.Sidebar as Sidebar
+import Docs.Search.Config (config)
+import Docs.Search.Extra (whenJust)
+import Docs.Search.ModuleIndex as ModuleIndex
+import Docs.Search.PackageIndex as PackageIndex
 import Effect (Effect)
 import Effect.Aff (launchAff_)
 import Halogen as H
@@ -26,11 +27,11 @@ import Web.DOM.ParentNode as ParentNode
 import Web.DOM.Text as Text
 import Web.Event.EventTarget (addEventListener, eventListener)
 import Web.HTML as HTML
+import Web.HTML.Event.EventTypes (focus)
 import Web.HTML.Event.HashChangeEvent.EventTypes (hashchange)
 import Web.HTML.HTMLDocument as HTMLDocument
 import Web.HTML.HTMLElement (fromElement)
 import Web.HTML.Window as Window
-import Web.HTML.Event.EventTypes (focus)
 
 
 main :: Effect Unit
@@ -39,6 +40,7 @@ main = do
   doc <- HTMLDocument.toDocument <$> Window.document win
 
   insertStyle doc
+  insertVersionInfo doc
   mbContainers <- getContainers doc
 
   -- Initialize a `markdown-it` instance (we need it to render the docs as markdown)
@@ -161,6 +163,26 @@ insertStyle doc = do
     style <- Document.createElement "style" doc
     void $ Node.appendChild (Text.toNode contents) (Element.toNode style)
     void $ Node.appendChild (Element.toNode style) (Element.toNode head)
+
+
+insertVersionInfo :: Document.Document -> Effect Unit
+insertVersionInfo doc = do
+  let docPN = Document.toParentNode doc
+  mbVersionInfo <-
+    ParentNode.querySelector (wrap ".footer > p") docPN
+  whenJust (mbVersionInfo <#> Element.toNode)
+    \versionInfo -> do
+      prefix      <- Document.createTextNode " - patched by "        doc <#> Text.toNode
+      linkElement <- Document.createElement  "a"                     doc
+      let linkNode = Element.toNode linkElement
+      Element.setAttribute "href" "https://github.com/spacchetti/purescript-docs-search" linkElement
+      Element.setAttribute "target" "_blank"  linkElement
+      linkText    <- Document.createTextNode ("docs-search")         doc <#> Text.toNode
+      suffix      <- Document.createTextNode (" " <> config.version) doc <#> Text.toNode
+      void $ Node.appendChild prefix versionInfo
+      void $ Node.appendChild linkNode versionInfo
+      void $ Node.appendChild linkText linkNode
+      void $ Node.appendChild suffix versionInfo
 
 
 -- | Query the DOM for specific elements that should always be present.
