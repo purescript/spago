@@ -4,7 +4,8 @@ import Prelude
 
 -- | Some magic constants.
 config ::
-  { declIndexDirectory :: String
+  { version :: String
+  , declIndexDirectory :: String
   , mkIndexPartLoadPath :: Int -> String
   , mkIndexPartPath :: Int -> String
   , moduleIndexPath :: String
@@ -29,7 +30,8 @@ config ::
   , typeIndexDirectory :: String
   }
 config =
-  { outputDirectory: "output"
+  { version: "0.0.8"
+  , outputDirectory: "output"
   , requiredDirectories:
     [ "generated-docs"
     , "generated-docs/html"

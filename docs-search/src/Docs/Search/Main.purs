@@ -5,6 +5,7 @@ import Prelude
 
 import Docs.Search.IndexBuilder as IndexBuilder
 import Docs.Search.Interactive as Interactive
+import Docs.Search.Config (config)
 
 import Data.Generic.Rep (class Generic)
 import Data.Generic.Rep.Show (genericShow)
@@ -27,7 +28,7 @@ main = do
   case fromMaybe defaultCommands args of
     BuildIndex cfg -> IndexBuilder.run cfg
     Search cfg -> Interactive.run cfg
-    Version -> log "0.0.8"
+    Version -> log config.version
 
 
 getArgs :: Effect (Maybe Commands)
