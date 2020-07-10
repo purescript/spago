@@ -982,6 +982,16 @@ To start a project using Spago and Parcel together, here's the commands and file
   console.log('app starting');
   ```
 
+  Also, make sure you are calling `main` properly if you are passing arguments (due to
+  PureScript specifics of [modelling effectful computations](https://stackoverflow.com/a/55750945/3067181)):
+
+  ```js
+
+  var arg1 = 'arg1';
+  require('./Main.purs').main(arg1)();
+
+  ```
+
 8. Add the following development script to `package.json`:
 
   ```js
