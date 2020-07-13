@@ -20,10 +20,10 @@ import           System.FilePath        (splitDirectories)
 import qualified System.FilePath.Glob   as Glob
 import qualified System.FSNotify        as Watch
 import qualified System.IO.Utf8         as Utf8
-import qualified Turtle
 import qualified UnliftIO
 import qualified UnliftIO.Async         as Async
 
+import qualified Spago.Git              as Git
 
 watch
   :: HasLogFunc env
@@ -81,7 +81,7 @@ fileWatchConf watchConfig shouldClear allowIgnored inner = withManagerConf watch
           let eventPath = Watch.eventPath event
               isPathIgnored =
                 case allowIgnored of
-                  NoAllowIgnored -> isIgnored
+                  NoAllowIgnored -> Git.unsafeIsIgnored
                   DoAllowIgnored -> const (pure False)
 
           pathIgnored <- isPathIgnored $ Text.pack eventPath
@@ -201,13 +201,3 @@ globToParent glob = go pathHead pathRest
     go acc ("**":_rest) = acc
     go acc [_file]      = acc
     go acc (h:rest)     = go (acc </> h) rest
-
-
--- | Check if the path is ignored by git
---
--- `git check-ignore` exits with 1 when path is not ignored, and 128 when
--- a fatal error occurs (i.e. when not in a git repository).
-isIgnored :: MonadIO m => Text -> m Bool
-isIgnored path = do
-  (exitCode, _, _) <- Turtle.procStrictWithErr "git" ["check-ignore", "--quiet", path] empty
-  pure $ exitCode == ExitSuccess

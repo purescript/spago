@@ -4,6 +4,7 @@ module Spago.Git
   , getAllTags
   , commitAndTag
   , isIgnored
+  , unsafeIsIgnored
   ) where
 
 import Spago.Prelude
@@ -44,7 +45,19 @@ commitAndTag tag message = do
   Turtle.procs git ["tag", "--annotate", "--message=" <> message, tag] empty
 
 
+-- | Check if the path is ignored by git
+--
+-- `git check-ignore` exits with 1 when path is not ignored, and 128 when
+-- a fatal error occurs (i.e. when not in a git repository).
 isIgnored :: HasGit env => Text -> RIO env Bool
-isIgnored path = do
-  git <- view gitL
-  (== ExitSuccess) <$> Turtle.proc git ["check-ignore", "--quiet", path] empty
+isIgnored = unsafeIsIgnored
+
+
+-- FIXME: Remove the unsafe variant
+--
+-- With the current constraint system, this was the easiest method
+-- to make .gitignore checking configurable via a CLI flag.
+unsafeIsIgnored :: MonadIO m => Text -> m Bool
+unsafeIsIgnored path = do
+  (exitCode, _, _) <- Turtle.procStrictWithErr "git" ["check-ignore", "--quiet", path] empty
+  pure $ exitCode == ExitSuccess
