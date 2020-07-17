@@ -6,6 +6,7 @@ import Docs.Search.TypeDecoder (Constraint(..), FunDep(..), FunDeps(..), Kind(..
 import Test.TypeQuery as TypeQuery
 import Test.IndexBuilder as IndexBuilder
 import Test.Declarations as Declarations
+import Test.ModuleIndex as ModuleIndex
 
 import Test.Extra (assertRight)
 
@@ -28,6 +29,7 @@ mainTest = do
   TypeQuery.tests
   IndexBuilder.tests
   Declarations.tests
+  ModuleIndex.tests
 
   let mkJson x = unsafePartial $ fromRight $ jsonParser x
   suite "FunDeps decoder" do

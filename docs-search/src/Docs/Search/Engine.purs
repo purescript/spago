@@ -1,19 +1,22 @@
 module Docs.Search.Engine where
 
+import Docs.Search.ModuleIndex (ModuleIndex, ModuleResult)
 import Docs.Search.PackageIndex (PackageIndex, PackageResult)
-import Docs.Search.ModuleIndex (ModuleIndex)
+import Docs.Search.Score (Scores)
 import Docs.Search.SearchResult (SearchResult, typeOfResult)
 import Docs.Search.TypeQuery (TypeQuery(..), parseTypeQuery, penalty)
+import Docs.Search.Types (PackageName, ModuleName)
 
 import Prelude
 
-import Data.Newtype (unwrap)
 import Data.Array as Array
 import Data.Either (hush)
+import Data.Function (on)
+import Data.List (List)
 import Data.Maybe (Maybe(..))
+import Data.Newtype (unwrap)
 import Data.Search.Trie (Trie)
 import Data.String.Common (toLower) as String
-import Data.List (List)
 
 
 type Index = Trie Char (List SearchResult)
@@ -30,6 +33,8 @@ type Engine m index typeIndex =
     :: Query m typeIndex TypeQuery SearchResult
   , queryPackageIndex
     :: Query m PackageIndex String PackageResult
+  , queryModuleIndex
+    :: Scores -> ModuleIndex -> String -> Array ModuleResult
   }
 
 
@@ -38,6 +43,7 @@ type EngineState index typeIndex
     , typeIndex :: typeIndex
     , packageIndex :: PackageIndex
     , moduleIndex :: ModuleIndex
+    , scores :: Scores
     }
 
 
@@ -47,27 +53,51 @@ mkEngineState
   -> typeIndex
   -> PackageIndex
   -> ModuleIndex
+  -> Scores
   -> EngineState index typeIndex
-mkEngineState index typeIndex packageIndex moduleIndex =
-  { index, typeIndex, packageIndex, moduleIndex }
+mkEngineState index typeIndex packageIndex moduleIndex scores =
+  { index, typeIndex, packageIndex, moduleIndex, scores }
 
 
 data Result
   = DeclResult SearchResult
   | TypeResult SearchResult
   | PackResult PackageResult
+  | MdlResult  ModuleResult
 
 
-sortByPopularity :: Array Result -> Array Result
-sortByPopularity =
-  Array.sortWith
-  \result ->
-    -- Sort by popularity, show packages before
-    -- ordinary definitions.
-    - case result of
-        DeclResult r -> 2 * (unwrap r).score
-        TypeResult r -> 2 * (unwrap r).score
-        PackResult r -> 2 * r.score + 1
+getResultScore :: Result -> Int
+getResultScore (DeclResult r) = (unwrap r).score
+getResultScore (TypeResult r) = (unwrap r).score
+getResultScore (PackResult r) = r.score
+getResultScore (MdlResult r) = r.score
+
+
+getResultPackageName :: Result -> PackageName
+getResultPackageName (DeclResult r) = (unwrap r).packageName
+getResultPackageName (TypeResult r) = (unwrap r).packageName
+getResultPackageName (PackResult r) = r.name
+getResultPackageName (MdlResult r) = r.package
+
+
+getResultModuleName :: Result -> ModuleName
+getResultModuleName (DeclResult r) = (unwrap r).moduleName
+getResultModuleName (TypeResult r) = (unwrap r).moduleName
+getResultModuleName (PackResult r) = ""
+getResultModuleName (MdlResult r) = r.name
+
+
+sortByPopularity
+  :: forall index typeIndex
+  .  EngineState index typeIndex
+  -> Array Result
+  -> Array Result
+sortByPopularity { packageIndex } =
+  Array.sortBy (
+    compare `on` (getResultScore >>> negate) <>
+    compare `on` getResultPackageName <>
+    compare `on` getResultModuleName
+  )
 
 
 query
@@ -80,13 +110,16 @@ query engine state input =
 
     -- A declaration/package query
     Nothing -> do
-      let lower = String.toLower input
+      let lowerCased = String.toLower input
 
-      response        <- engine.queryIndex        state.index        lower
-      packageResponse <- engine.queryPackageIndex state.packageIndex lower
+      response        <- engine.queryIndex         state.index        lowerCased
+      packageResponse <- engine.queryPackageIndex  state.packageIndex lowerCased
+      let moduleResponse =
+            engine.queryModuleIndex state.scores state.moduleIndex lowerCased
 
-      pure { results: sortByPopularity $
+      pure { results: sortByPopularity state $
              (packageResponse.results <#> PackResult) <>
+             (moduleResponse          <#> MdlResult) <>
              (response.results        <#> DeclResult)
 
              -- No need to update package index (it never changes).

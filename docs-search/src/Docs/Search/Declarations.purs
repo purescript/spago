@@ -1,12 +1,13 @@
 module Docs.Search.Declarations where
 
 import Docs.Search.DocsJson (ChildDeclType(..), ChildDeclaration(..), DeclType(..), Declaration(..), DocsJson(..), SourceSpan)
-import Docs.Search.PackageIndex (Scores)
+import Docs.Search.Score (Scores)
 import Docs.Search.SearchResult (ResultInfo(..), SearchResult(..))
 import Docs.Search.TypeDecoder (Constraint(..), QualifiedName(..), Type(..), Kind, joinForAlls)
 import Docs.Search.Types (ModuleName, PackageName)
 
 import Prelude
+
 import Control.Alt ((<|>))
 import Data.Array ((!!))
 import Data.Array as Array

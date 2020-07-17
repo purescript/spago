@@ -1,7 +1,7 @@
 module Docs.Search.App.Sidebar where
 
 import Docs.Search.Config (config)
-import Docs.Search.ModuleIndex (ModuleIndex)
+import Docs.Search.ModuleIndex (PackedModuleIndex)
 import Docs.Search.Types (ModuleName, PackageName)
 
 import Prelude
@@ -36,24 +36,32 @@ data GroupingMode = GroupByPackage | DontGroup
 
 derive instance groupingModeEq :: Eq GroupingMode
 
+-- | Whether current page is `index.html` or not. `index.html` is special, it
+-- | has no sidebar, hence the difference must be taken into account.
+data IsIndexHTML = IsIndexHTML | NotIndexHTML
+
+derive instance isIndexHTMLEq :: Eq IsIndexHTML
 
 type State = { moduleIndex :: Map PackageName (Set ModuleName)
              , groupingMode :: GroupingMode
              , moduleNames :: Array ModuleName
+             , isIndexHTML :: IsIndexHTML
              }
 
 
 mkComponent
   :: forall i
-  .  ModuleIndex
+  .  PackedModuleIndex
+  -> IsIndexHTML
   -> Aff (H.Component HH.HTML Query i Action Aff)
-mkComponent moduleIndex = do
+mkComponent moduleIndex isIndexHTML = do
   groupingMode <- H.liftEffect loadGroupingModeFromLocalStorage
   pure $
     H.mkComponent
       { initialState: const { moduleIndex
                             , groupingMode
                             , moduleNames
+                            , isIndexHTML
                             }
       , render
       , eval: H.mkEval $ H.defaultEval { handleAction = handleAction
@@ -96,9 +104,14 @@ render
   :: forall m
   .  State
   -> H.ComponentHTML Action () m
-render { moduleIndex, groupingMode, moduleNames } =
+render { moduleIndex, groupingMode, moduleNames, isIndexHTML } =
 
-  HH.div [ HP.classes [ wrap "col", wrap "col--aside" ] ]
+  HH.div [ HP.classes [ wrap "col"
+                      , wrap $ if isIndexHTML == IsIndexHTML
+                               then "col--main"
+                               else "col--aside"
+                      ]
+         ]
 
   [ HH.h3_ [ HH.text "Modules" ]
   , HH.input [ HP.id_ "group-modules__input"
