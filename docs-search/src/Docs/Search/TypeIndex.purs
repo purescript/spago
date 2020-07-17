@@ -4,7 +4,7 @@ module Docs.Search.TypeIndex where
 import Docs.Search.Config (config)
 import Docs.Search.Declarations (resultsForDeclaration)
 import Docs.Search.DocsJson (DocsJson(..))
-import Docs.Search.PackageIndex (Scores)
+import Docs.Search.Score (Scores)
 import Docs.Search.SearchResult (ResultInfo(..), SearchResult(..))
 import Docs.Search.TypeDecoder (Type)
 import Docs.Search.TypeQuery (TypeQuery)

@@ -6,10 +6,11 @@ import Docs.Search.BrowserEngine (PartialIndex, browserSearchEngine)
 import Docs.Search.Config (config)
 import Docs.Search.Declarations (DeclLevel(..), declLevelToHashAnchor)
 import Docs.Search.DocsJson (DataDeclType(..))
-import Docs.Search.Extra (homePageFromRepository, (>#>))
-import Docs.Search.PackageIndex (PackageResult)
 import Docs.Search.Engine (Result(..))
 import Docs.Search.Engine as Engine
+import Docs.Search.Extra (homePageFromRepository, (>#>))
+import Docs.Search.ModuleIndex (ModuleResult)
+import Docs.Search.PackageIndex (PackageResult)
 import Docs.Search.SearchResult (ResultInfo(..), SearchResult(..))
 import Docs.Search.TypeDecoder (Constraint(..), FunDep(..), FunDeps(..), Kind(..), QualifiedName(..), Type(..), TypeArgument(..), joinForAlls, joinRows)
 import Docs.Search.TypeIndex (TypeIndex)
@@ -230,9 +231,10 @@ renderResult
   .  MD.MarkdownIt
   -> Result
   -> Array (HH.HTML a Action)
-renderResult markdownIt (DeclResult sr) = renderSearchResult markdownIt sr
-renderResult markdownIt (TypeResult sr) = renderSearchResult markdownIt sr
-renderResult markdownIt (PackResult sr) = renderPackageResult sr
+renderResult markdownIt (DeclResult r) = renderSearchResult markdownIt r
+renderResult markdownIt (TypeResult r) = renderSearchResult markdownIt r
+renderResult markdownIt (PackResult r) = renderPackageResult r
+renderResult markdownIt (MdlResult r)  = renderModuleResult r
 
 
 renderPackageResult
@@ -260,6 +262,29 @@ renderPackageResult { name, description, repository } =
   description >#> \descriptionText ->
   [ HH.div [ HP.class_ (wrap "result__body") ]
     [ HH.text descriptionText ]
+  ]
+
+
+renderModuleResult
+  :: forall a
+  .  ModuleResult
+  -> Array (HH.HTML a Action)
+renderModuleResult { name, package } =
+  [ HH.div [ HP.class_ (wrap "result") ]
+    [ HH.h3 [ HP.class_ (wrap "result__title") ]
+      [ HH.span [ HP.classes [ wrap "result__badge"
+                             , wrap "badge"
+                             , wrap "badge--module" ]
+                , HP.title "Module"
+                ]
+        [ HH.text "M" ]
+
+      , HH.a [ HP.class_ (wrap "result__link")
+             , HP.href $ name <> ".html"
+             ]
+        [ HH.text name ]
+      ]
+    ]
   ]
 
 

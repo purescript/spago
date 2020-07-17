@@ -3,6 +3,7 @@ module Docs.Search.NodeEngine where
 
 import Docs.Search.Extra (stringToList)
 import Docs.Search.PackageIndex as PackageIndex
+import Docs.Search.ModuleIndex as ModuleIndex
 import Docs.Search.Engine (Engine, Query, Index, sortByDistance)
 import Docs.Search.SearchResult (SearchResult)
 import Docs.Search.TypeQuery (TypeQuery)
@@ -24,6 +25,7 @@ nodeEngine =
   { queryIndex
   , queryTypeIndex
   , queryPackageIndex: PackageIndex.queryPackageIndex
+  , queryModuleIndex: ModuleIndex.queryModuleIndex
   }
 
 

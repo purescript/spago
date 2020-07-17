@@ -5,8 +5,9 @@ import Docs.Search.Config (config)
 import Docs.Search.Declarations (Declarations(..), mkDeclarations)
 import Docs.Search.DocsJson (DocsJson)
 import Docs.Search.Extra ((>#>))
-import Docs.Search.ModuleIndex (ModuleIndex, mkModuleIndex)
-import Docs.Search.PackageIndex (PackageInfo, mkPackageInfo, mkScores)
+import Docs.Search.ModuleIndex (PackedModuleIndex, mkPackedModuleIndex)
+import Docs.Search.PackageIndex (PackageInfo, mkPackageInfo)
+import Docs.Search.Score (mkScores)
 import Docs.Search.SearchResult (SearchResult)
 import Docs.Search.TypeIndex (TypeIndex, mkTypeIndex)
 
@@ -78,7 +79,7 @@ run' cfg = do
       index       = mkDeclarations scores docsJsons
       typeIndex   = mkTypeIndex scores docsJsons
       packageInfo = mkPackageInfo packageMetas
-      moduleIndex = mkModuleIndex index
+      moduleIndex = mkPackedModuleIndex index
 
   createDirectories cfg
 
@@ -223,7 +224,7 @@ writePackageInfo packageInfo = do
     header = "window.DocsSearchPackageIndex = "
 
 
-writeModuleIndex :: ModuleIndex -> Aff Unit
+writeModuleIndex :: PackedModuleIndex -> Aff Unit
 writeModuleIndex moduleIndex = do
   writeTextFile UTF8 config.moduleIndexPath $
     header <> stringify (encodeJson moduleIndex)

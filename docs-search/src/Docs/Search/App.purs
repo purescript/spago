@@ -3,9 +3,12 @@ module Docs.Search.App where
 
 import Prelude
 
+import Control.Alt (alt)
 import Control.Coroutine as Coroutine
 import Data.Maybe (Maybe(..))
 import Data.Newtype (wrap)
+import Data.Tuple (Tuple(..))
+import Data.Tuple.Nested ((/\))
 import Docs.Search.App.SearchField as SearchField
 import Docs.Search.App.SearchResults as SearchResults
 import Docs.Search.App.Sidebar as Sidebar
@@ -50,28 +53,29 @@ main = do
                           , searchResults
                           , pageContents
                           , sidebarContainer
-                          , realSidebar } -> do
+                          , realSidebar
+                          , isIndexHTML
+                          } -> do
 
     -- Hide real sidebar completely - we are going to recreate it as Halogen component.
     ChildNode.remove $ Element.toChildNode realSidebar
 
     HA.runHalogenAff do
       packageIndex <- PackageIndex.loadPackageIndex
-      moduleIndex <- ModuleIndex.loadModuleIndex
+      moduleIndex <- ModuleIndex.unpackModuleIndex <$> ModuleIndex.loadModuleIndex
+      let scores = PackageIndex.mkScoresFromPackageIndex packageIndex
 
-      let initialSearchEngineState = { packageIndex: packageIndex
-                                     , moduleIndex: moduleIndex
+      let initialSearchEngineState = { packageIndex
+                                     , moduleIndex
                                      , index: mempty
                                      , typeIndex: mempty
+                                     , scores
                                      }
 
           resultsComponent =
             SearchResults.mkComponent initialSearchEngineState pageContents markdownIt
 
       sfio <- runUI SearchField.component unit searchField
-      sbio <- do
-              component <- Sidebar.mkComponent moduleIndex
-              runUI component unit sidebarContainer
       srio <- runUI resultsComponent unit searchResults
 
       sfio.subscribe $
@@ -90,6 +94,10 @@ main = do
               sfio.query $ H.tell SearchField.ReadURIHash
 
         addEventListener hashchange listener true (Window.toEventTarget win)
+
+      sbio <- do
+              component <- Sidebar.mkComponent moduleIndex.packageModules isIndexHTML
+              runUI component unit sidebarContainer
 
       -- Subscribe to window focus events
       H.liftEffect do
@@ -131,10 +139,13 @@ insertStyle doc = do
     /* Add a margin between badge icons and package/module names. */
     margin-right: 0.25em;
   }
-  .li-package {
+  .li-package > details > summary {
     font-weight: bold;
     cursor: pointer;
     color: #c4953a;
+  }
+  .li-package > details > summary:hover {
+    color: #7b5904;
   }
   /* Make spaces narrower in the sidebar */
   .li-package > details > ul {
@@ -185,7 +196,8 @@ insertVersionInfo doc = do
       void $ Node.appendChild suffix versionInfo
 
 
--- | Query the DOM for specific elements that should always be present.
+-- | Query the DOM for specific elements that should always be present and determine if we are on
+-- | `index.html` or not.
 getContainers
   :: Document.Document
   -> Effect (Maybe { searchField :: HTML.HTMLElement
@@ -193,6 +205,7 @@ getContainers
                    , pageContents :: Element.Element
                    , sidebarContainer :: HTML.HTMLElement
                    , realSidebar :: Element.Element
+                   , isIndexHTML :: Sidebar.IsIndexHTML
                    })
 getContainers doc = do
   let docPN = Document.toParentNode doc
@@ -204,19 +217,29 @@ getContainers doc = do
     ParentNode.querySelector (wrap ".everything-except-footer > .container") docPN
   mbMainContainer <-
     ParentNode.querySelector (wrap ".everything-except-footer > main") docPN
-  mbRealSidebar <-
-    ParentNode.querySelector (wrap ".col--aside") docPN
+  mbSidebarStatus <-
+    alt <$> (map (Tuple Sidebar.NotIndexHTML) <$>
+             ParentNode.querySelector (wrap ".col--aside") docPN)
+        -- If there's no sidebar, that means we are currently on `index.html`.
+        <*> (map (Tuple Sidebar.IsIndexHTML)  <$>
+             ParentNode.querySelector (wrap ".col--main") docPN)
   case unit of
     _ | Just banner        <- mbBanner
       , Just everything    <- mbEverything
       , Just pageContents  <- mbContainer
       , Just mainContainer <- mbMainContainer
-      , Just realSidebar   <- mbRealSidebar -> do
+      , Just (isIndexHTML /\ realSidebar)   <- mbSidebarStatus -> do
       search <- Document.createElement "div" doc
       void $ Node.appendChild (Element.toNode search) (Element.toNode banner)
       pure do
         searchField <- fromElement search
         searchResults <- fromElement everything
         sidebarContainer <- fromElement mainContainer
-        pure { searchField, searchResults, pageContents, realSidebar, sidebarContainer }
+        pure { searchField
+             , searchResults
+             , pageContents
+             , realSidebar
+             , sidebarContainer
+             , isIndexHTML
+             }
       | otherwise -> pure Nothing

@@ -7,6 +7,7 @@ import Docs.Search.Engine (Engine, EngineState, Index)
 import Docs.Search.SearchResult (SearchResult)
 import Docs.Search.TypeIndex (TypeIndex)
 import Docs.Search.TypeIndex as TypeIndex
+import Docs.Search.ModuleIndex as ModuleIndex
 
 import Prelude
 
@@ -112,6 +113,7 @@ browserSearchEngine =
   { queryIndex: query
   , queryTypeIndex: TypeIndex.query
   , queryPackageIndex
+  , queryModuleIndex: ModuleIndex.queryModuleIndex
   }
 
 

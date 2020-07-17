@@ -2,24 +2,24 @@ module Docs.Search.PackageIndex where
 
 import Docs.Search.Config (config)
 import Docs.Search.Extra (stringToList)
+import Docs.Search.Score (Scores, getPackageScore, mkScores, normalizePackageName)
 
 import Prelude
 
-import Data.Either (hush)
-import Data.Maybe (Maybe, fromMaybe)
-import Data.Newtype (unwrap, wrap)
-import Effect (Effect)
-import Effect.Aff (Aff)
-import Web.Bower.PackageMeta (Dependencies, PackageMeta(..))
 import Control.Promise (Promise, toAffE)
 import Data.Argonaut.Core (Json)
 import Data.Argonaut.Decode (decodeJson)
 import Data.Array as Array
+import Data.Either (hush)
 import Data.Map (Map)
 import Data.Map as Map
+import Data.Maybe (Maybe, fromMaybe)
+import Data.Newtype (unwrap)
 import Data.Search.Trie (Trie)
 import Data.Search.Trie as Trie
-import Data.String.CodeUnits as String
+import Effect (Effect)
+import Effect.Aff (Aff)
+import Web.Bower.PackageMeta (PackageMeta(..))
 
 
 type PackageResult
@@ -30,31 +30,9 @@ type PackageResult
     , repository :: Maybe String
     }
 
-type Scores = Map String Int
-
 type PackageIndex = Trie Char PackageResult
 
 type PackageInfo = Array PackageResult
-
-
--- | Construct a mapping from package names to their scores, based on number
--- of reverse dependencies.
-mkScores :: Array PackageMeta -> Scores
-mkScores =
-  Array.foldr
-  (\pm ->
-    updateScoresFor (unwrap pm).dependencies >>>
-    updateScoresFor (unwrap pm).devDependencies
-  )
-  mempty
-
-  where
-    updateScoresFor :: Dependencies -> Scores -> Scores
-    updateScoresFor deps scores =
-      Array.foldr
-      (\dep -> Map.insertWith add dep 1)
-      scores
-      (deps # unwrap >>> map (_.packageName))
 
 
 mkPackageInfo :: Array PackageMeta -> PackageInfo
@@ -65,7 +43,6 @@ mkPackageInfo pms =
 
   where
     packageScores = mkScores pms
-
 
     insert
       :: PackageMeta
@@ -82,10 +59,15 @@ mkPackageInfo pms =
           name
           { name
           , description: description
-          , score: fromMaybe 0 $ Map.lookup name packageScores
+          , score: getPackageScore packageScores name
           , dependencies: unwrap dependencies <#> (_.packageName)
           , repository: repository <#> (_.url)
           }
+
+
+mkScoresFromPackageIndex :: PackageIndex -> Scores
+mkScoresFromPackageIndex =
+  Trie.values >>> Array.foldr (\ { name, score } -> Map.insert name score) mempty
 
 
 loadPackageIndex :: Aff PackageIndex
@@ -97,16 +79,9 @@ loadPackageIndex = do
 
 mkPackageIndex :: PackageInfo -> PackageIndex
 mkPackageIndex =
-
   Array.foldr
-  (\package -> Trie.insert (shortNamePath package.name) package)
+  (\package -> Trie.insert (stringToList $ normalizePackageName package.name) package)
   mempty
-
-  where
-    shortNamePath name =
-      stringToList $
-      fromMaybe name $
-      String.stripPrefix (wrap "purescript-") name
 
 
 queryPackageIndex
@@ -117,9 +92,9 @@ queryPackageIndex
   -> m { index :: PackageIndex
        , results :: Array PackageResult
        }
-queryPackageIndex index q =
+queryPackageIndex index query =
   pure { index
-       , results: Array.fromFoldable $ Trie.queryValues (stringToList q) index
+       , results: Array.fromFoldable $ Trie.queryValues (stringToList query) index
        }
 
 

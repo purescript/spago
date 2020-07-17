@@ -1,36 +1,36 @@
 -- | Definitions for the "search REPL".
 module Docs.Search.Interactive where
 
+import Prelude
+
+import Data.Array as Array
+import Data.Identity (Identity(..))
+import Data.Maybe (fromMaybe)
+import Data.Newtype (un, unwrap, wrap)
+import Data.Search.Trie as Trie
+import Data.String (length) as String
+import Data.String.Common (split, trim) as String
+import Data.Tuple (fst)
 import Docs.Search.Declarations (Declarations, mkDeclarations)
-import Docs.Search.ModuleIndex (mkModuleIndex)
 import Docs.Search.DocsJson (DataDeclType(..))
 import Docs.Search.Engine (mkEngineState, Result(..))
 import Docs.Search.Engine as Engine
 import Docs.Search.Extra (listToString, stringToList, (>#>))
 import Docs.Search.IndexBuilder as IndexBuilder
+import Docs.Search.ModuleIndex (ModuleResult, mkPackedModuleIndex, unpackModuleIndex)
 import Docs.Search.NodeEngine (nodeEngine)
-import Docs.Search.PackageIndex (PackageResult, mkPackageIndex, mkPackageInfo, mkScores)
+import Docs.Search.PackageIndex (PackageResult, mkPackageIndex, mkPackageInfo)
+import Docs.Search.Score (mkScores)
 import Docs.Search.SearchResult (ResultInfo(..), SearchResult(..))
 import Docs.Search.Terminal (bold, cyan, green, yellow)
 import Docs.Search.TypeDecoder (Constraint, FunDeps, Kind, QualifiedName, Type, TypeArgument)
 import Docs.Search.TypeIndex (resultsWithTypes)
 import Docs.Search.TypePrinter (keyword, showConstraint, showFunDeps, showKind, showType, showTypeArgument, space, syntax)
-
-import Prelude
-
-import Data.Identity (Identity(..))
-import Data.Array as Array
-import Data.Maybe (fromMaybe)
-import Data.Search.Trie as Trie
-import Data.String (length) as String
-import Data.String.Common (split, trim) as String
-import Data.Tuple (fst)
 import Effect (Effect)
 import Effect.Aff (launchAff_)
 import Effect.Class (liftEffect)
 import Effect.Console (log)
 import Node.ReadLine (createConsoleInterface, question)
-import Data.Newtype (un, unwrap, wrap)
 
 
 type Config =
@@ -52,8 +52,8 @@ run cfg = launchAff_ $ do
       index        = mkDeclarations scores docsJsons
       typeIndex    = docsJsons >>= resultsWithTypes scores
       packageIndex = mkPackageIndex $ mkPackageInfo packageMetas
-      moduleIndex  = mkModuleIndex index
-      engineState  = mkEngineState (unwrap index) typeIndex packageIndex moduleIndex
+      moduleIndex  = unpackModuleIndex $ mkPackedModuleIndex index
+      engineState  = mkEngineState (unwrap index) typeIndex packageIndex moduleIndex scores
 
   let countOfDefinitions     = Trie.size $ unwrap index
       countOfTypeDefinitions = Array.length typeIndex
@@ -115,9 +115,10 @@ mkCompleter index input = do
 
 showResult :: Result -> String
 showResult = case _ of
-  DeclResult sr -> showSearchResult sr
-  TypeResult sr -> showSearchResult sr
-  PackResult pr -> showPackageResult pr
+  DeclResult r -> showSearchResult r
+  TypeResult r -> showSearchResult r
+  PackResult r -> showPackageResult r
+  MdlResult r -> showModuleResult r
 
 
 showSearchResult :: SearchResult -> String
@@ -136,6 +137,11 @@ showPackageResult { name, description } =
   bold (cyan "package") <> " " <> bold (yellow name) <>
 
   (description >#> \text -> "\n\n" <> leftShift 3 text <> "\n")
+
+
+showModuleResult :: ModuleResult -> String
+showModuleResult { name, package } =
+  bold (cyan "module") <> " " <> bold (green name)
 
 
 showSignature ::
