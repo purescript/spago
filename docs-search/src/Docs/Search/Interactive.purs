@@ -29,7 +29,7 @@ import Docs.Search.TypePrinter (keyword, showConstraint, showFunDeps, showKind, 
 import Effect (Effect)
 import Effect.Aff (launchAff_)
 import Effect.Class (liftEffect)
-import Effect.Console (log)
+import Effect.Console (log, clear) as Console
 import Node.ReadLine (createConsoleInterface, question)
 
 
@@ -43,7 +43,7 @@ run :: Config -> Effect Unit
 run cfg = launchAff_ $ do
 
   liftEffect do
-    log "Loading search index..."
+    Console.log "Loading search index..."
 
   docsJsons    <- IndexBuilder.decodeDocsJsons cfg
   packageMetas <- IndexBuilder.decodeBowerJsons cfg
@@ -60,7 +60,7 @@ run cfg = launchAff_ $ do
       countOfPackages        = Array.length packageMetas
 
   liftEffect do
-    log $
+    Console.log $
       "Loaded " <>
       show countOfDefinitions <>
       " definitions and " <>
@@ -81,15 +81,15 @@ run cfg = launchAff_ $ do
 
         let total = Array.length results
 
-        consoleClear
+        Console.clear
 
-        if total > 0 then do
-          log $
+        Console.log $
+          if total > 0 then do
             Array.intercalate "\n\n\n" $
-            showResult <$> Array.reverse results
-        else do
-          log $
+              showResult <$> Array.reverse results
+          else
             "Your search for " <> bold input <> " did not yield any results."
+
         call inputHandler interface
 
     interface <- createConsoleInterface (mkCompleter index)
@@ -296,6 +296,3 @@ leftPad w str = Array.fold (Array.replicate w " ") <> str
 
 rightPad :: Int -> String -> String
 rightPad w str = str <> Array.fold (Array.replicate (w - String.length str) " ")
-
-
-foreign import consoleClear :: Effect Unit
