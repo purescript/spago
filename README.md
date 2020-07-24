@@ -318,6 +318,10 @@ $ spago build --watch
 
 # or, to clear the screen on rebuild:
 $ spago build --watch --clear-screen
+
+# files ignored through git (i.e. via .gitignore) don't trigger
+# rebuild by default. If you wish to override this behavior:
+$ spago build --watch --allow-ignored
 ```
 
 To run a command before a build you can use the `--before` flag, eg to post a notification that a build has started:

@@ -123,10 +123,14 @@ data NoInstall = NoInstall | DoInstall
 data ClearScreen = DoClear | NoClear
   deriving Eq
 
+-- | Flag to allow files ignored via `.gitignore` to trigger a rebuild
+data AllowIgnored = DoAllowIgnored | NoAllowIgnored
+
 
 data BuildOptions = BuildOptions
   { shouldWatch    :: Watch
   , shouldClear    :: ClearScreen
+  , allowIgnored   :: AllowIgnored
   , sourcePaths    :: [SourcePath]
   , withSourceMap  :: WithSrcMap
   , noInstall      :: NoInstall
