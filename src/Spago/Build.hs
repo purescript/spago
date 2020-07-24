@@ -106,6 +106,7 @@ build BuildOptions{..} maybePostBuild = do
       Watch.watch
         (Set.fromAscList $ fmap (Glob.compile . collapse) . removeDotSpago $ absolutePSGlobs <> absoluteJSGlobs)
         shouldClear
+        allowIgnored
         (buildAction (wrap <$> psMatches))
 
   where

@@ -23,14 +23,15 @@ import qualified System.IO.Utf8         as Utf8
 import qualified UnliftIO
 import qualified UnliftIO.Async         as Async
 
+import qualified Spago.Git              as Git
 
 watch
   :: HasLogFunc env
-  => Set.Set Glob.Pattern -> ClearScreen -> RIO env () 
+  => Set.Set Glob.Pattern -> ClearScreen -> AllowIgnored -> RIO env ()
   -> RIO env ()
-watch globs shouldClear action = do
+watch globs shouldClear allowIgnored action = do
   let config = Watch.defaultConfig { Watch.confDebounce = Watch.NoDebounce }
-  fileWatchConf config shouldClear $ \getGlobs -> do
+  fileWatchConf config shouldClear allowIgnored $ \getGlobs -> do
     getGlobs globs
     action
 
@@ -54,9 +55,10 @@ fileWatchConf
   .  (HasLogFunc env)
   => Watch.WatchConfig
   -> ClearScreen
+  -> AllowIgnored
   -> ((Set.Set Glob.Pattern -> RIO env ()) -> RIO env ())
   -> RIO env ()
-fileWatchConf watchConfig shouldClear inner = withManagerConf watchConfig $ \manager -> do
+fileWatchConf watchConfig shouldClear allowIgnored inner = withManagerConf watchConfig $ \manager -> do
     allGlobs  <- liftIO $ newTVarIO Set.empty
     dirtyVar  <- liftIO $ newTVarIO True
     -- `lastEvent` is used for event debouncing.
@@ -76,29 +78,37 @@ fileWatchConf watchConfig shouldClear inner = withManagerConf watchConfig $ \man
 
     let onChange event = do
           timeNow <- liftIO getCurrentTime
+          let eventPath = Watch.eventPath event
+              isPathIgnored =
+                case allowIgnored of
+                  NoAllowIgnored -> Git.unsafeIsIgnored
+                  DoAllowIgnored -> const (pure False)
 
-          rebuilding <- liftIO $ atomically $ do
-            globs                <- readTVar allGlobs
-            (lastTime, lastPath) <- readTVar lastEvent
+          pathIgnored <- isPathIgnored $ Text.pack eventPath
 
-            let matches glob = Glob.match glob $ Watch.eventPath event
-            -- We should rebuild if at least one of the globs matches the path,
-            -- and the last event either has different path, or has happened
-            -- more than `debounceTime` seconds ago.
-            let shouldRebuild =
-                   any matches globs
-                 && ( lastPath /= Watch.eventPath event
-                   || diffUTCTime timeNow lastTime > debounceTime
-                    )
+          unless pathIgnored $ do
+            rebuilding <- liftIO $ atomically $ do
+              globs                <- readTVar allGlobs
+              (lastTime, lastPath) <- readTVar lastEvent
 
-            when shouldRebuild $ do
-              writeTVar dirtyVar True
-              writeTVar lastEvent (timeNow, Watch.eventPath event)
+              let matches glob = Glob.match glob eventPath
+              -- We should rebuild if at least one of the globs matches the path,
+              -- and the last event either has different path, or has happened
+              -- more than `debounceTime` seconds ago.
+              let shouldRebuild =
+                     any matches globs
+                   && ( lastPath /= eventPath
+                     || diffUTCTime timeNow lastTime > debounceTime
+                      )
 
-            pure shouldRebuild
+              when shouldRebuild $ do
+                writeTVar dirtyVar True
+                writeTVar lastEvent (timeNow, eventPath)
 
-          when rebuilding $ do
-            redisplay $ Just $ "File changed, triggered a build: " <> displayShow (Watch.eventPath event)
+              pure shouldRebuild
+
+            when rebuilding $ do
+              redisplay $ Just $ "File changed, triggered a build: " <> displayShow eventPath
 
         setWatched :: Set.Set Glob.Pattern -> RIO env ()
         setWatched globs = do
