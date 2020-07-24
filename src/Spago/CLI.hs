@@ -127,7 +127,7 @@ parser = do
     quiet       = CLI.switch "quiet" 'q' "Suppress all spago logging"
     verbose     = CLI.switch "verbose" 'v' "Enable additional debug logging, e.g. printing `purs` commands"
     veryVerbose = CLI.switch "very-verbose" 'V' "Enable more verbosity: timestamps and source locations"
-    noColor     = CLI.switch "no-color" 'C' "Log without ANSI color escape sequences"
+    noColor     = Opts.switch (Opts.long "no-color" <> Opts.help "Log without ANSI color escape sequences")
 
     -- Note: the first constructor is the default when the flag is not provided
     force        = bool NoForce Force <$> CLI.switch "force" 'f' "Overwrite any project found in the current directory"
