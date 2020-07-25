@@ -51,7 +51,7 @@ run cfg = launchAff_ $ do
   let scores       = mkScores packageMetas
       index        = mkDeclarations scores docsJsons
       typeIndex    = docsJsons >>= resultsWithTypes scores
-      packageIndex = mkPackageIndex $ mkPackageInfo packageMetas
+      packageIndex = mkPackageIndex $ mkPackageInfo scores packageMetas
       moduleIndex  = unpackModuleIndex $ mkPackedModuleIndex index
       engineState  = mkEngineState (unwrap index) typeIndex packageIndex moduleIndex scores
 
