@@ -234,8 +234,10 @@ runBackend maybeBackend moduleName maybeSuccessMessage failureMessage buildOpts 
       Turtle.system processWithStdin empty >>= \case
         ExitSuccess   -> maybe (pure ()) (logInfo . display) maybeSuccessMessage
         ExitFailure n -> die [ display failureMessage <> "exit code: " <> repr n ]
-    backendAction backend =
-      Turtle.proc backend (["--run" {-, unModuleName moduleName-}] <> fmap unPursArg extraArgs) empty >>= \case
+    backendAction backend = do
+      let args :: [Text] = ["--run", unModuleName moduleName <> ".main"] <> fmap unPursArg extraArgs
+      logDebug $ display $ "Running command `" <> backend <> " " <> Text.unwords args <> "`"
+      Turtle.proc backend args empty >>= \case
         ExitSuccess   -> maybe (pure ()) (logInfo . display) maybeSuccessMessage
         ExitFailure n -> die [ display failureMessage <> "Backend " <> displayShow backend <> " exited with error:" <> repr n ]
 

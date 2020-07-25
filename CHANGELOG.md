@@ -21,6 +21,7 @@ New features:
 
 Other improvements:
 - Docs: updated package addition/overriding syntax to use `with` syntax (#661)
+- Pass main function argument to `--run` for alternate backends
 
 ## [0.15.3] - 2020-06-15
 
