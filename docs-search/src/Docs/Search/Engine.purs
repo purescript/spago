@@ -87,6 +87,13 @@ getResultModuleName (PackResult r) = ""
 getResultModuleName (MdlResult r) = r.name
 
 
+getResultName :: Result -> String
+getResultName (DeclResult r) = (unwrap r).name
+getResultName (TypeResult r) = (unwrap r).name
+getResultName (PackResult r) = r.name
+getResultName (MdlResult r) = r.name
+
+
 sortByPopularity
   :: forall index typeIndex
   .  EngineState index typeIndex
@@ -96,7 +103,10 @@ sortByPopularity { packageIndex } =
   Array.sortBy (
     compare `on` (getResultScore >>> negate) <>
     compare `on` getResultPackageName <>
-    compare `on` getResultModuleName
+    compare `on` getResultModuleName <>
+    -- Identifier name comes last: we want to make sure no `Result`s are
+    -- equal, to avoid having unstable ordering.
+    compare `on` getResultName
   )
 
 
