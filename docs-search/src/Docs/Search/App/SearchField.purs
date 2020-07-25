@@ -18,12 +18,10 @@ import Halogen.HTML.Properties as HP
 import Halogen.Query.EventSource as ES
 import Web.DOM.Document as Document
 import Web.DOM.ParentNode as ParentNode
-import Web.HTML (window) as Web
 import Web.HTML as HTML
 import Web.HTML.HTMLDocument as HTMLDocument
-import Web.HTML.HTMLElement (blur, focus) as Web
+import Web.HTML.HTMLElement as HTMLElement
 import Web.HTML.HTMLInputElement as HTMLInputElement
-import Web.HTML.Window (document) as Web
 import Web.HTML.Window as Window
 import Web.UIEvent.KeyboardEvent (KeyboardEvent)
 import Web.UIEvent.KeyboardEvent as KE
@@ -78,7 +76,7 @@ handleAction = case _ of
 
   InitKeyboardListener -> do
 
-    document <- H.liftEffect $ Web.document =<< Web.window
+    document <- H.liftEffect $ Window.document =<< HTML.window
     H.subscribe' \sid ->
       ES.eventListenerEventSource
         KET.keyup
@@ -92,14 +90,14 @@ handleAction = case _ of
       when (not state.focused) do
         H.liftEffect do
           withSearchField HTMLInputElement.select
-          withSearchField (HTMLInputElement.toHTMLElement >>> Web.focus)
+          withSearchField (HTMLInputElement.toHTMLElement >>> HTMLElement.focus)
 
     when (KE.code ev == "Escape") do
       state <- H.get
       if state.focused
       then do
         H.liftEffect do
-          withSearchField (HTMLInputElement.toHTMLElement >>> Web.blur)
+          withSearchField (HTMLInputElement.toHTMLElement >>> HTMLElement.blur)
       else clearInput
 
   InputAction input -> do
@@ -108,16 +106,22 @@ handleAction = case _ of
   EnterPressed -> do
     state <- H.get
     H.liftEffect do
-      withSearchField (HTMLInputElement.toHTMLElement >>> Web.blur)
+      withSearchField (HTMLInputElement.toHTMLElement >>> HTMLElement.blur)
     H.liftEffect (URIHash.setInput state.input)
     H.raise $ InputUpdated state.input
 
-  FocusChanged status -> do
-    H.modify_ (_ { focused = status })
+  FocusChanged isFocused -> do
+    H.modify_ (_ { focused = isFocused })
     H.raise
-      if status
+      if isFocused
       then Focused
       else LostFocus
+    when isFocused scrollToTop
+
+scrollToTop :: H.HalogenM State Action () SearchFieldMessage Aff Unit
+scrollToTop = do
+  H.liftEffect do
+    HTML.window >>= Window.scroll 0 0
 
 clearInput :: H.HalogenM State Action () SearchFieldMessage Aff Unit
 clearInput = do
