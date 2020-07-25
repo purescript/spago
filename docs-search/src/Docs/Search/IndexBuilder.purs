@@ -78,7 +78,7 @@ run' cfg = do
   let scores      = mkScores packageMetas
       index       = mkDeclarations scores docsJsons
       typeIndex   = mkTypeIndex scores docsJsons
-      packageInfo = mkPackageInfo packageMetas
+      packageInfo = mkPackageInfo scores packageMetas
       moduleIndex = mkPackedModuleIndex index
 
   createDirectories cfg

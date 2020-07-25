@@ -2,7 +2,7 @@ module Docs.Search.PackageIndex where
 
 import Docs.Search.Config (config)
 import Docs.Search.Extra (stringToList)
-import Docs.Search.Score (Scores, getPackageScore, mkScores, normalizePackageName)
+import Docs.Search.Score (Scores, getPackageScore, normalizePackageName)
 
 import Prelude
 
@@ -35,15 +35,13 @@ type PackageIndex = Trie Char PackageResult
 type PackageInfo = Array PackageResult
 
 
-mkPackageInfo :: Array PackageMeta -> PackageInfo
-mkPackageInfo pms =
+mkPackageInfo :: Scores -> Array PackageMeta -> PackageInfo
+mkPackageInfo packageScores pms =
   Array.fromFoldable $
   Map.values $
   Array.foldr insert mempty pms
 
   where
-    packageScores = mkScores pms
-
     insert
       :: PackageMeta
       -> Map String PackageResult
@@ -59,7 +57,7 @@ mkPackageInfo pms =
           name
           { name
           , description: description
-          , score: getPackageScore packageScores name
+          , score: getPackageScore packageScores $ normalizePackageName name
           , dependencies: unwrap dependencies <#> (_.packageName)
           , repository: repository <#> (_.url)
           }
