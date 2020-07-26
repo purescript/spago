@@ -5,7 +5,7 @@ import Docs.Search.PackageIndex (PackageIndex, PackageResult)
 import Docs.Search.Score (Scores)
 import Docs.Search.SearchResult (SearchResult, typeOfResult)
 import Docs.Search.TypeQuery (TypeQuery(..), parseTypeQuery, penalty)
-import Docs.Search.Types (PackageName, ModuleName)
+import Docs.Search.Types (PackageInfo(..), PackageName(..), ModuleName(..))
 
 import Prelude
 
@@ -73,25 +73,25 @@ getResultScore (PackResult r) = r.score
 getResultScore (MdlResult r) = r.score
 
 
-getResultPackageName :: Result -> PackageName
-getResultPackageName (DeclResult r) = (unwrap r).packageName
-getResultPackageName (TypeResult r) = (unwrap r).packageName
-getResultPackageName (PackResult r) = r.name
-getResultPackageName (MdlResult r) = r.package
+getResultPackageInfo :: Result -> PackageInfo
+getResultPackageInfo (DeclResult r) = (unwrap r).packageInfo
+getResultPackageInfo (TypeResult r) = (unwrap r).packageInfo
+getResultPackageInfo (PackResult r) = Package r.name
+getResultPackageInfo (MdlResult r) = Package $ r.package
 
 
 getResultModuleName :: Result -> ModuleName
 getResultModuleName (DeclResult r) = (unwrap r).moduleName
 getResultModuleName (TypeResult r) = (unwrap r).moduleName
-getResultModuleName (PackResult r) = ""
+getResultModuleName (PackResult r) = ModuleName ""
 getResultModuleName (MdlResult r) = r.name
 
 
 getResultName :: Result -> String
 getResultName (DeclResult r) = (unwrap r).name
 getResultName (TypeResult r) = (unwrap r).name
-getResultName (PackResult r) = r.name
-getResultName (MdlResult r) = r.name
+getResultName (PackResult r) = unwrap r.name
+getResultName (MdlResult r) = unwrap r.name
 
 
 sortByPopularity
@@ -102,7 +102,7 @@ sortByPopularity
 sortByPopularity { packageIndex } =
   Array.sortBy (
     compare `on` (getResultScore >>> negate) <>
-    compare `on` getResultPackageName <>
+    compare `on` getResultPackageInfo <>
     compare `on` getResultModuleName <>
     -- Identifier name comes last: we want to make sure no `Result`s are
     -- equal, to avoid having unstable ordering.

@@ -248,7 +248,7 @@ unify query type_ = go Nil (List.singleton { q: query, t: type_ })
     -- * Functions
     go acc ({ q: QFun q1 q2
             , t: TypeApp (TypeApp (TypeConstructor
-                                    (QualifiedName { moduleName: [ "Prim" ]
+                                    (QualifiedName { moduleNameParts: [ "Prim" ]
                                                    , name: "Function" })) t1) t2 } : rest) =
       go acc ({ q: q1, t: t1 } : { q: q2, t: t2 } : rest)
     go acc ({ q: q@(QFun q1 q2), t } : rest) =
@@ -257,7 +257,7 @@ unify query type_ = go Nil (List.singleton { q: query, t: type_ })
     -- * Rows
     go acc ({ q: QApp (QConst "Record") (QRow qRows)
             , t: TypeApp (TypeConstructor
-                           (QualifiedName { moduleName: [ "Prim" ]
+                           (QualifiedName { moduleNameParts: [ "Prim" ]
                                           , name: "Record" })) row } : rest) =
       let { rows, ty } = joinRows row
           qRowsLength = List.length qRows
@@ -407,7 +407,7 @@ typeSize = go 0 <<< List.singleton
     go n (TypeOp _ : rest) =
       go (n + 1) rest
     go n (TypeApp (TypeApp (TypeConstructor
-                    (QualifiedName { moduleName: [ "Prim" ]
+                    (QualifiedName { moduleNameParts: [ "Prim" ]
                                    , name: "Function" })) t1) t2 : rest) =
       go (n + 1) (t1 : t2 : rest)
     go n (TypeApp q1 q2 : rest) =

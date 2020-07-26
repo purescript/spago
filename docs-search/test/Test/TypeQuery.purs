@@ -245,7 +245,7 @@ tests = do
           c2 = constr (qname [""] "GenericEq") [TypeVar "rep"]
 
           fun t1 t2 =
-            TypeApp (TypeApp (TypeConstructor (QualifiedName { moduleName: ["Prim"]
+            TypeApp (TypeApp (TypeConstructor (QualifiedName { moduleNameParts: ["Prim"]
                                                              , name: "Function" })) t1) t2
           type_ =
             ForAll "a" Nothing $
@@ -391,7 +391,7 @@ nl :: forall t5 t6. Foldable t6 => t5 -> t6 t5 -> NonEmptyList t5
 nl x rst = NonEmptyList.cons' x $ List.fromFoldable rst
 
 unitType :: Type
-unitType = TypeConstructor (QualifiedName { moduleName: []
+unitType = TypeConstructor (QualifiedName { moduleNameParts: []
                                           , name: "Unit"
                                           })
 
@@ -399,7 +399,7 @@ countFreeVars :: TypeQuery -> Int
 countFreeVars = getFreeVariables >>> Set.size
 
 qname :: Array String -> String -> QualifiedName
-qname m n = QualifiedName { moduleName: m, name: n }
+qname m n = QualifiedName { moduleNameParts: m, name: n }
 
 constr :: QualifiedName -> Array Type -> Constraint
 constr c a = Constraint { constraintClass: c, constraintArgs: a }

@@ -14,6 +14,7 @@ import Docs.Search.PackageIndex (PackageResult)
 import Docs.Search.SearchResult (ResultInfo(..), SearchResult(..))
 import Docs.Search.TypeDecoder (Constraint(..), FunDep(..), FunDeps(..), Kind(..), QualifiedName(..), Type(..), TypeArgument(..), joinForAlls, joinRows)
 import Docs.Search.TypeIndex (TypeIndex)
+import Docs.Search.Types (ModuleName(..), packageInfoToString)
 
 import Prelude
 
@@ -21,7 +22,7 @@ import Data.Array ((!!))
 import Data.Array as Array
 import Data.List as List
 import Data.Maybe (Maybe(..), isJust, fromMaybe)
-import Data.Newtype (wrap)
+import Data.Newtype (wrap, unwrap)
 import Data.String.CodeUnits (stripSuffix) as String
 import Data.String.Common (null, trim) as String
 import Data.String.Pattern (Pattern(..)) as String
@@ -63,7 +64,7 @@ data Query a
 
 
 data Action
-  = SearchResultClicked String
+  = SearchResultClicked ModuleName
   | MoreResultsRequested
 
 
@@ -145,7 +146,7 @@ handleAction = case _ of
       location <- Window.location window
       pathname <- Location.pathname location
       pure $ isJust $
-        String.stripSuffix (String.Pattern $ moduleName <> ".html") pathname
+        String.stripSuffix (String.Pattern $ unwrap moduleName <> ".html") pathname
 
     when onThisPage do
       showPageContents
@@ -254,7 +255,7 @@ renderPackageResult { name, description, repository } =
       , HH.a [ HP.class_ (wrap "result__link")
              , HP.href $ fromMaybe "" repository # homePageFromRepository
              ]
-        [ HH.text name ]
+        [ HH.text $ unwrap name ]
       ]
     ]
   ] <>
@@ -280,9 +281,9 @@ renderModuleResult { name, package } =
         [ HH.text "M" ]
 
       , HH.a [ HP.class_ (wrap "result__link")
-             , HP.href $ name <> ".html"
+             , HP.href $ unwrap name <> ".html"
              ]
-        [ HH.text name ]
+        [ HH.text $ unwrap name ]
       ]
     ]
   ]
@@ -300,7 +301,7 @@ renderSearchResult markdownIt (SearchResult result) =
       [ HH.a [ HP.class_ (wrap "result__link")
              , HE.onClick $ const $ Just $ SearchResultClicked result.moduleName
              , HP.href $
-               result.moduleName <> ".html#" <>
+               unwrap result.moduleName <> ".html#" <>
                result.hashAnchor <> ":" <> result.name
              ]
         [ HH.text result.name ]
@@ -321,7 +322,7 @@ renderSearchResult markdownIt (SearchResult result) =
                 , HP.title "Package"
                 ]
         [ HH.text "P" ]
-      , HH.text result.packageName
+      , HH.text $ packageInfoToString result.packageInfo
       ]
 
     , HH.span [ HP.class_ (wrap "result__actions__item") ]
@@ -331,7 +332,7 @@ renderSearchResult markdownIt (SearchResult result) =
                 , HP.title "Module"
                 ]
         [ HH.text "M" ]
-      , HH.text result.moduleName
+      , HH.text $ unwrap result.moduleName
       ]
     ]
   ]
@@ -341,7 +342,7 @@ renderResultType
   :: forall a rest
   .  { info :: ResultInfo
      , name :: String
-     , moduleName :: String
+     , moduleName :: ModuleName
      | rest
      }
  -> Array (HH.HTML a Action)
@@ -371,7 +372,7 @@ renderResultType result =
 
 renderValueSignature
   :: forall a rest
-  .  { moduleName :: String
+  .  { moduleName :: ModuleName
      , name :: String
      | rest
      }
@@ -391,7 +392,7 @@ renderTypeClassSignature
      , arguments :: Array TypeArgument
      , superclasses :: Array Constraint
      }
-  -> { name :: String, moduleName :: String | rest }
+  -> { name :: String, moduleName :: ModuleName | rest }
   -> Array (HH.HTML a Action)
 renderTypeClassSignature { fundeps, arguments, superclasses } { name, moduleName } =
   [ keyword "class"
@@ -520,14 +521,14 @@ renderType = case _ of
   TypeOp qname -> renderQualifiedName true TypeLevel qname
 
   TypeApp (TypeApp (TypeConstructor
-                    (QualifiedName { moduleName: [ "Prim" ]
+                    (QualifiedName { moduleNameParts: [ "Prim" ]
                                    , name: "Function" })) t1) t2 ->
     HH.span_ [ renderType t1
              , syntax " -> "
              , renderType t2
              ]
 
-  TypeApp (TypeConstructor (QualifiedName { moduleName: [ "Prim" ]
+  TypeApp (TypeConstructor (QualifiedName { moduleNameParts: [ "Prim" ]
                                           , name: "Record" }))
           row ->
     renderRow false row
@@ -635,6 +636,9 @@ renderRow asRow =
       opening = if asRow then "( " else "{ "
       closing = if asRow then " )" else " }"
 
+      primRecord :: QualifiedName
+      primRecord = QualifiedName { moduleNameParts: [ "Prim" ], name: "Record" }
+
 
 renderConstraint
   :: forall a
@@ -652,18 +656,18 @@ renderQualifiedName
   -> DeclLevel
   -> QualifiedName
   -> HH.HTML a Action
-renderQualifiedName isInfix level (QualifiedName { moduleName, name })
+renderQualifiedName isInfix level (QualifiedName { moduleNameParts, name })
   = if isBuiltIn then
       HH.text name
     else
       HH.a [ HE.onClick $ const $ Just $
-             SearchResultClicked moduleNameString
-           , makeHref level isInfix moduleNameString name
+             SearchResultClicked $ moduleName
+           , makeHref level isInfix moduleName name
            ]
       [ HH.text name ]
       where
-        moduleNameString = Array.intercalate "." moduleName
-        isBuiltIn = moduleName !! 0 == Just "Prim"
+        moduleName = ModuleName $ Array.intercalate "." $ moduleNameParts
+        isBuiltIn = moduleNameParts !! 0 == Just "Prim"
 
 
 renderKind
@@ -681,18 +685,14 @@ makeHref
   :: forall t rest
   .  DeclLevel
   -> Boolean
-  -> String
+  -> ModuleName
   -> String
   -> HH.IProp ( href :: String | rest ) t
 makeHref level isInfix moduleName name =
   HP.href $
-  moduleName <> ".html#" <>
+  unwrap moduleName <> ".html#" <>
   declLevelToHashAnchor level <> ":" <>
   if isInfix then "type (" <> name <> ")" else name
-
-
-primRecord :: QualifiedName
-primRecord = QualifiedName { moduleName: [ "Prim" ], name: "Record" }
 
 
 keyword

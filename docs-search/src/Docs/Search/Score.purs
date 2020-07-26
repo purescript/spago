@@ -1,6 +1,6 @@
 module Docs.Search.Score where
 
-import Docs.Search.Types (PackageName)
+import Docs.Search.Types (RawPackageName(..), PackageName(..), PackageInfo(..))
 
 import Prelude
 
@@ -15,16 +15,9 @@ import Web.Bower.PackageMeta (Dependencies, PackageMeta)
 
 type Scores = Map PackageName Int
 
-
-getPackageScore :: Scores -> PackageName -> Int
-getPackageScore _      "<builtin>" = 1000000
-getPackageScore _      "<local package>" = 2000000
-getPackageScore scores name = fromMaybe 0 $ Map.lookup name scores
-
-
-normalizePackageName :: PackageName -> PackageName
-normalizePackageName packageName =
-  fromMaybe packageName $ String.stripPrefix (wrap "purescript-") packageName
+normalizePackageName :: RawPackageName -> PackageName
+normalizePackageName (RawPackageName p) =
+  fromMaybe (PackageName p) $ map wrap $ String.stripPrefix (wrap "purescript-") p
 
 
 -- | Construct a mapping from package names to their scores, based on number
@@ -44,4 +37,16 @@ mkScores =
       Array.foldr
       (\dep -> Map.insertWith add dep 1)
       scores
-      (deps # unwrap >>> map (_.packageName >>> normalizePackageName))
+      (deps # unwrap >>> map (_.packageName >>> RawPackageName >>> normalizePackageName))
+
+
+getPackageScore :: Scores -> PackageInfo -> Int
+getPackageScore scores = case _ of
+  Package p      -> getPackageScoreForPackageName scores p
+  Builtin        -> 100000
+  LocalPackage   -> 200000
+  UnknownPackage -> 0
+
+
+getPackageScoreForPackageName :: Scores -> PackageName -> Int
+getPackageScoreForPackageName scores p = fromMaybe 0 $ Map.lookup p scores

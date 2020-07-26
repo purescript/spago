@@ -2,9 +2,10 @@ module Docs.Search.App.Sidebar where
 
 import Docs.Search.Config (config)
 import Docs.Search.ModuleIndex (PackedModuleIndex)
-import Docs.Search.Types (ModuleName, PackageName)
+import Docs.Search.Types (ModuleName, PackageName(..))
 
 import Prelude
+
 import Data.Array as Array
 import Data.Lens ((.~))
 import Data.Lens.Record (prop)
@@ -12,7 +13,7 @@ import Data.List (foldr)
 import Data.Map (Map)
 import Data.Map as Map
 import Data.Maybe (Maybe(..), isJust)
-import Data.Newtype (wrap)
+import Data.Newtype (wrap, unwrap)
 import Data.Set (Set)
 import Data.Set as Set
 import Data.Symbol (SProxy(..))
@@ -132,7 +133,7 @@ render { moduleIndex, groupingMode, moduleNames, isIndexHTML } =
   ]
   where
 
-    renderPackageEntry (packageName /\ modules) =
+    renderPackageEntry (PackageName packageName /\ modules) =
       HH.li [ HP.classes [ wrap "li-package" ] ]
       [ HH.details_
         [ HH.summary_ [ HH.text packageName ]
@@ -142,11 +143,11 @@ render { moduleIndex, groupingMode, moduleNames, isIndexHTML } =
 
     renderModuleName moduleName =
       HH.li_
-      [ HH.a [ HP.href (moduleName <> ".html") ]
-        [ HH.text moduleName ]
+      [ HH.a [ HP.href (unwrap moduleName <> ".html") ]
+        [ HH.text $ unwrap moduleName ]
       ]
 
-    packageList :: Array (String /\ Set ModuleName)
+    packageList :: Array (PackageName /\ Set ModuleName)
     packageList = Map.toUnfoldable moduleIndex
 
 

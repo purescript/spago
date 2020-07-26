@@ -21,13 +21,13 @@ showType = case _ of
   TypeOp qname -> showQualifiedName qname
 
   TypeApp (TypeApp (TypeConstructor
-                    (QualifiedName { moduleName: [ "Prim" ]
+                    (QualifiedName { moduleNameParts: [ "Prim" ]
                                    , name: "Function" }))
                    t1)
           t2 ->
     showType t1 <> syntax " -> " <> showType t2
 
-  TypeApp (TypeConstructor (QualifiedName { moduleName: [ "Prim" ]
+  TypeApp (TypeConstructor (QualifiedName { moduleNameParts: [ "Prim" ]
                                           , name: "Record" }))
           row ->
     showRow false row
