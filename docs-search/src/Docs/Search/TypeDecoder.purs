@@ -25,20 +25,20 @@ instance showQualifiedName :: Show QualifiedName where
   show = genericShow
 
 newtype QualifiedName
-  = QualifiedName { moduleName :: Array String
+  = QualifiedName { moduleNameParts :: Array String
                   , name :: String
                   }
 
 instance decodeJsonQualifiedName :: DecodeJson QualifiedName where
   decodeJson json = do
     decodeTuple
-      (\moduleName name -> QualifiedName { moduleName, name })
+      (\moduleNameParts name -> QualifiedName { moduleNameParts, name })
       (mkJsonError "QualifiedName" json)
       json
 
 instance encodeJsonQualifiedName :: EncodeJson QualifiedName where
-  encodeJson (QualifiedName { moduleName, name }) =
-    encodeTuple moduleName name
+  encodeJson (QualifiedName { moduleNameParts, name }) =
+    encodeTuple moduleNameParts name
 
 mkJsonError :: String -> Json -> (forall i. i -> String)
 mkJsonError name json _ =

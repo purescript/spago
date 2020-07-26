@@ -8,6 +8,7 @@ import Docs.Search.Score (Scores)
 import Docs.Search.SearchResult (ResultInfo(..), SearchResult(..))
 import Docs.Search.TypeDecoder (Type)
 import Docs.Search.TypeQuery (TypeQuery)
+import Docs.Search.Types (ModuleName(..))
 import Docs.Search.TypeShape (shapeOfType, shapeOfTypeQuery, stringifyShape)
 
 import Prelude
@@ -48,7 +49,8 @@ mkTypeIndex scores docsJsons =
 
 allResults :: Scores -> DocsJson -> Array SearchResult
 allResults scores (DocsJson { name, declarations }) =
-  declarations >>= (resultsForDeclaration scores name >>> map (_.result) >>> Array.fromFoldable)
+  declarations >>= (resultsForDeclaration scores (ModuleName name) >>>
+                    map (_.result) >>> Array.fromFoldable)
 
 
 resultsWithTypes :: Scores -> DocsJson -> Array SearchResult

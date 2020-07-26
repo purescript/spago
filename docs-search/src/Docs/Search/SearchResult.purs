@@ -2,6 +2,7 @@ module Docs.Search.SearchResult where
 
 import Docs.Search.DocsJson (DataDeclType)
 import Docs.Search.TypeDecoder (Constraint, FunDeps, Kind, QualifiedName, Type, TypeArgument)
+import Docs.Search.Types (PackageName, PackageInfo, ModuleName)
 
 import Prelude
 
@@ -59,8 +60,8 @@ newtype SearchResult
     { name :: String
     , comments :: Maybe String
     , hashAnchor :: String
-    , moduleName :: String
-    , packageName :: String
+    , moduleName :: ModuleName
+    , packageInfo :: PackageInfo
     , score :: Int
     , sourceSpan :: Maybe { start :: Array Int
                           , end :: Array Int

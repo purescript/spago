@@ -1,16 +1,6 @@
 -- | Definitions for the "search REPL".
 module Docs.Search.Interactive where
 
-import Prelude
-
-import Data.Array as Array
-import Data.Identity (Identity(..))
-import Data.Maybe (fromMaybe)
-import Data.Newtype (un, unwrap, wrap)
-import Data.Search.Trie as Trie
-import Data.String (length) as String
-import Data.String.Common (split, trim) as String
-import Data.Tuple (fst)
 import Docs.Search.Declarations (Declarations, mkDeclarations)
 import Docs.Search.DocsJson (DataDeclType(..))
 import Docs.Search.Engine (mkEngineState, Result(..))
@@ -26,6 +16,18 @@ import Docs.Search.Terminal (bold, cyan, green, yellow)
 import Docs.Search.TypeDecoder (Constraint, FunDeps, Kind, QualifiedName, Type, TypeArgument)
 import Docs.Search.TypeIndex (resultsWithTypes)
 import Docs.Search.TypePrinter (keyword, showConstraint, showFunDeps, showKind, showType, showTypeArgument, space, syntax)
+import Docs.Search.Types (PackageName, ModuleName, PackageInfo, packageInfoToString)
+
+import Prelude
+
+import Data.Array as Array
+import Data.Identity (Identity(..))
+import Data.Maybe (fromMaybe)
+import Data.Newtype (un, unwrap, wrap)
+import Data.Search.Trie as Trie
+import Data.String (length) as String
+import Data.String.Common (split, trim) as String
+import Data.Tuple (fst)
 import Effect (Effect)
 import Effect.Aff (launchAff_)
 import Effect.Class (liftEffect)
@@ -122,33 +124,37 @@ showResult = case _ of
 
 
 showSearchResult :: SearchResult -> String
-showSearchResult (SearchResult result@{ name, comments, moduleName, packageName }) =
+showSearchResult (SearchResult result@{ name, comments, moduleName, packageInfo }) =
   showSignature result <> "\n" <>
 
   (fromMaybe "\n" $
    comments <#> \comment ->
    "\n" <> leftShift 3 (String.trim comment) <> "\n\n") <>
 
-  bold (cyan (rightPad 40 packageName)) <> space <> bold (green moduleName)
+  bold (
+    cyan (rightPad 40 $ packageInfoToString packageInfo)
+  ) <>
+  space <>
+  bold (green $ unwrap moduleName)
 
 
 showPackageResult :: PackageResult -> String
 showPackageResult { name, description } =
-  bold (cyan "package") <> " " <> bold (yellow name) <>
+  bold (cyan "package") <> " " <> bold (yellow $ unwrap name) <>
 
   (description >#> \text -> "\n\n" <> leftShift 3 text <> "\n")
 
 
 showModuleResult :: ModuleResult -> String
 showModuleResult { name, package } =
-  bold (cyan "module") <> " " <> bold (green name)
+  bold (cyan "module") <> " " <> bold (green $ unwrap name)
 
 
 showSignature ::
   forall rest.
   { name :: String
-  , moduleName :: String
-  , packageName :: String
+  , moduleName :: ModuleName
+  , packageInfo :: PackageInfo
   , info :: ResultInfo
   | rest
   }
@@ -185,7 +191,7 @@ showTypeClassSignature
      , arguments :: Array TypeArgument
      , superclasses :: Array Constraint
      }
-  -> { name :: String, moduleName :: String | rest }
+  -> { name :: String, moduleName :: ModuleName | rest }
   -> String
 showTypeClassSignature { fundeps, arguments, superclasses } { name, moduleName } =
 

@@ -2,7 +2,8 @@ module Docs.Search.PackageIndex where
 
 import Docs.Search.Config (config)
 import Docs.Search.Extra (stringToList)
-import Docs.Search.Score (Scores, getPackageScore, normalizePackageName)
+import Docs.Search.Score (Scores, getPackageScoreForPackageName, normalizePackageName)
+import Docs.Search.Types (PackageName, RawPackageName(..))
 
 import Prelude
 
@@ -23,10 +24,10 @@ import Web.Bower.PackageMeta (PackageMeta(..))
 
 
 type PackageResult
-  = { name :: String
+  = { name :: PackageName
     , description :: Maybe String
     , score :: Int
-    , dependencies :: Array String
+    , dependencies :: Array PackageName
     , repository :: Maybe String
     }
 
@@ -44,24 +45,26 @@ mkPackageInfo packageScores pms =
   where
     insert
       :: PackageMeta
-      -> Map String PackageResult
-      -> Map String PackageResult
+      -> Map PackageName PackageResult
+      -> Map PackageName PackageResult
     insert
       (PackageMeta { name
                    , description
                    , dependencies
                    , devDependencies
                    , repository }) =
-
-          Map.insert
-          name
-          { name
+        Map.insert
+          packageName
+          { name: packageName
           , description: description
-          , score: getPackageScore packageScores $ normalizePackageName name
-          , dependencies: unwrap dependencies <#> (_.packageName)
+          , score: getPackageScoreForPackageName packageScores packageName
+          , dependencies:
+            unwrap dependencies <#>
+            (_.packageName >>> RawPackageName >>> normalizePackageName)
           , repository: repository <#> (_.url)
           }
 
+      where packageName = normalizePackageName $ RawPackageName name
 
 mkScoresFromPackageIndex :: PackageIndex -> Scores
 mkScoresFromPackageIndex =
@@ -78,7 +81,7 @@ loadPackageIndex = do
 mkPackageIndex :: PackageInfo -> PackageIndex
 mkPackageIndex =
   Array.foldr
-  (\package -> Trie.insert (stringToList $ normalizePackageName package.name) package)
+  (\package -> Trie.insert (stringToList $ unwrap package.name) package)
   mempty
 
 

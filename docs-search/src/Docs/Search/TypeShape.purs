@@ -101,7 +101,7 @@ shapeOfType ty = List.reverse $ go (pure ty) Nil
         TypeWildcard ->
           go rest (PVar : acc)
 
-        TypeApp (TypeApp (TypeConstructor (QualifiedName { moduleName: ["Prim"]
+        TypeApp (TypeApp (TypeConstructor (QualifiedName { moduleNameParts: ["Prim"]
                                                          , name: "Function" })) t1) t2 ->
           go (t1 : t2 : rest) (PFun : acc)
 

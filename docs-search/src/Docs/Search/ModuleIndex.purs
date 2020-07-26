@@ -3,9 +3,9 @@ module Docs.Search.ModuleIndex where
 import Docs.Search.Config (config)
 import Docs.Search.Declarations (Declarations(..))
 import Docs.Search.SearchResult (SearchResult(..))
-import Docs.Search.Types (ModuleName, PackageName)
+import Docs.Search.Types (ModuleName, PackageName, PackageInfo(..))
 import Docs.Search.Extra (stringToList)
-import Docs.Search.Score (Scores, normalizePackageName)
+import Docs.Search.Score (Scores)
 
 import Prelude
 
@@ -22,6 +22,7 @@ import Data.List (List, (:))
 import Data.Map (Map)
 import Data.Map as Map
 import Data.Maybe (fromMaybe)
+import Data.Newtype (unwrap)
 import Data.Search.Trie (Trie)
 import Data.Search.Trie as Trie
 import Data.Set (Set)
@@ -68,7 +69,9 @@ unpackModuleIndex packageModules =
 -- | E.g. `"Data.Array.ST" -> ["data.array.st", "array.st", "st"]`.
 extractModuleNameParts :: ModuleName -> List String
 extractModuleNameParts =
-  foldl (\acc el -> el : map (_ <> "." <> el) acc) mempty <<< String.split (Pattern ".") <<< String.toLower
+  unwrap >>> String.toLower >>>
+  String.split (Pattern ".") >>>
+  foldl (\acc el -> el : map (_ <> "." <> el) acc) mempty
 
 
 queryModuleIndex
@@ -83,7 +86,7 @@ queryModuleIndex scores { index, modulePackages } query =
   Array.nub <#>
   (\name -> do
       package <- Map.lookup name modulePackages
-      pure { name, package, score: fromMaybe 0 $ Map.lookup (normalizePackageName package) scores  }) #
+      pure { name, package, score: fromMaybe 0 $ Map.lookup package scores }) #
   Array.catMaybes
 
 
@@ -97,9 +100,9 @@ mkPackedModuleIndex (Declarations trie) =
       -> Map PackageName (Set ModuleName)
     extract = foldr (Map.unionWith Set.union) mempty <<< map mkEntry
       where
-        mkEntry (SearchResult { packageName, moduleName }) =
+        mkEntry (SearchResult { packageInfo: Package packageName, moduleName }) =
           Map.singleton packageName (Set.singleton moduleName)
-
+        mkEntry _ = mempty
 
 loadModuleIndex :: Aff PackedModuleIndex
 loadModuleIndex = do
