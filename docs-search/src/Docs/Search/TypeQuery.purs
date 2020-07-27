@@ -13,6 +13,7 @@ where
 import Docs.Search.Config (config)
 import Docs.Search.Extra (foldl1, foldr1)
 import Docs.Search.TypeDecoder (QualifiedName(..), Type(..), joinConstraints, joinRows)
+import Docs.Search.Types (Identifier(..))
 
 import Prelude
 
@@ -41,13 +42,13 @@ import Text.Parsing.StringParser.Combinators (fix, sepBy, sepBy1, sepEndBy, sepE
 -- | We need type queries because we don't have a full-featured type parser
 -- | available.
 data TypeQuery
-  = QVar String
-  | QConst String
+  = QVar Identifier
+  | QConst Identifier
   | QFun TypeQuery TypeQuery
   | QApp TypeQuery TypeQuery
-  | QForAll (NonEmptyList String) TypeQuery
-  | QConstraint String (List TypeQuery) TypeQuery
-  | QRow (List (Tuple String TypeQuery))
+  | QForAll (NonEmptyList Identifier) TypeQuery
+  | QConstraint Identifier (List TypeQuery) TypeQuery
+  | QRow (List (Tuple Identifier TypeQuery))
 
 derive instance eqTypeQuery :: Eq TypeQuery
 derive instance genericTypeQuery :: Generic TypeQuery _
@@ -69,7 +70,8 @@ typeQueryParser = fix \typeQuery ->
 
       row = string "(" *> rowFields <* string ")"
 
-      record = QApp (QConst "Record") <$> (string "{" *> rowFields <* string "}")
+      record = QApp (QConst $ Identifier "Record") <$>
+               (string "{" *> rowFields <* string "}")
 
       binders =
         string "forall" *> some space *> sepEndBy1 ident skipSpaces <* string "." <* skipSpaces
@@ -111,32 +113,32 @@ concrete :: Parser TypeQuery
 concrete =
   QConst <$> upperCaseIdent
 
-ident :: Parser String
+ident :: Parser Identifier
 ident = do
   head <- anyLetter
   rest <- Array.many (alphaNum <|> char '\'')
-  pure $ fromCharArray $ pure head <> rest
+  pure $ Identifier <$> fromCharArray $ pure head <> rest
 
-upperCaseIdent :: Parser String
+upperCaseIdent :: Parser Identifier
 upperCaseIdent = do
   head <- upperCaseChar
   rest <- Array.many (alphaNum <|> char '\'')
-  pure $ fromCharArray $ pure head <> rest
+  pure $ Identifier $ fromCharArray $ pure head <> rest
 
-lowerCaseIdent :: Parser String
+lowerCaseIdent :: Parser Identifier
 lowerCaseIdent = do
   head <- lowerCaseChar
   rest <- Array.many (alphaNum <|> char '\'')
-  pure $ fromCharArray $ pure head <> rest
+  pure $ Identifier $ fromCharArray $ pure head <> rest
 
 space :: Parser Char
 space = char ' '
 
 
 -- | Used only in `getFreeVariables`.
-data FreeVarCounterQueueEntry = Unbind (Set.Set String) | Next TypeQuery
+data FreeVarCounterQueueEntry = Unbind (Set.Set Identifier) | Next TypeQuery
 
-getFreeVariables :: TypeQuery -> Set.Set String
+getFreeVariables :: TypeQuery -> Set.Set Identifier
 getFreeVariables query = go Set.empty Set.empty (List.singleton $ Next query)
   where
     insertIfUnbound bound var free =
@@ -172,11 +174,11 @@ getFreeVariables query = go Set.empty Set.empty (List.singleton $ Next query)
 
 
 data Substitution
-  = Instantiate String Type
-  | Match String String
-  | Generalize TypeQuery String
-  | Substitute String String
-  | MatchConstraints (Set String) (Set String)
+  = Instantiate Identifier Type
+  | Match Identifier Identifier
+  | Generalize TypeQuery Identifier
+  | Substitute Identifier Identifier
+  | MatchConstraints (Set Identifier) (Set Identifier)
   | MissingConstraint
   | ExcessiveConstraint
   | RowsMismatch Int Int
@@ -225,9 +227,9 @@ unify query type_ = go Nil (List.singleton { q: query, t: type_ })
 
     -- * Type variables
     go acc ({ q: QVar q, t: TypeVar v } : rest) =
-      go (Substitute q v : acc) rest
+      go (Substitute q (Identifier v) : acc) rest
     go acc ({ q, t: TypeVar v } : rest ) =
-      go (Generalize q v : acc) rest
+      go (Generalize q (Identifier v) : acc) rest
     go acc ({ q: QVar v, t } : rest) =
       go (Instantiate v t : acc) rest
 
@@ -249,16 +251,16 @@ unify query type_ = go Nil (List.singleton { q: query, t: type_ })
     go acc ({ q: QFun q1 q2
             , t: TypeApp (TypeApp (TypeConstructor
                                     (QualifiedName { moduleNameParts: [ "Prim" ]
-                                                   , name: "Function" })) t1) t2 } : rest) =
+                                                   , name: Identifier "Function" })) t1) t2 } : rest) =
       go acc ({ q: q1, t: t1 } : { q: q2, t: t2 } : rest)
     go acc ({ q: q@(QFun q1 q2), t } : rest) =
       go (Mismatch q t : acc) rest
 
     -- * Rows
-    go acc ({ q: QApp (QConst "Record") (QRow qRows)
+    go acc ({ q: QApp (QConst (Identifier "Record")) (QRow qRows)
             , t: TypeApp (TypeConstructor
                            (QualifiedName { moduleNameParts: [ "Prim" ]
-                                          , name: "Record" })) row } : rest) =
+                                          , name: Identifier "Record" })) row } : rest) =
       let { rows, ty } = joinRows row
           qRowsLength = List.length qRows
           rowsLength = List.length rows in
@@ -319,8 +321,11 @@ typeVarPenalty substs =
       insertion v1 v2 = Map.insertWith append v1 (Set.singleton v2)
 
       varSubstMapWith
-        :: (String -> String -> Map String (Set String) -> Map String (Set String))
-        -> Map String (Set String)
+        :: (Identifier ->
+            Identifier ->
+            Map Identifier (Set Identifier) ->
+            Map Identifier (Set Identifier))
+        -> Map Identifier (Set Identifier)
       varSubstMapWith f =
         List.foldr (case _ of
                       Substitute v1 v2 ->
@@ -363,7 +368,7 @@ mismatchPenalty = go 0
 
 
 -- | Only returns a list of type class names (lists of arguments are omitted).
-joinQueryConstraints :: TypeQuery -> { constraints :: List String
+joinQueryConstraints :: TypeQuery -> { constraints :: List Identifier
                                      , ty :: TypeQuery }
 joinQueryConstraints = go Nil
   where
@@ -408,7 +413,7 @@ typeSize = go 0 <<< List.singleton
       go (n + 1) rest
     go n (TypeApp (TypeApp (TypeConstructor
                     (QualifiedName { moduleNameParts: [ "Prim" ]
-                                   , name: "Function" })) t1) t2 : rest) =
+                                   , name: Identifier "Function" })) t1) t2 : rest) =
       go (n + 1) (t1 : t2 : rest)
     go n (TypeApp q1 q2 : rest) =
       go (n + 1) (q1 : q2 : rest)

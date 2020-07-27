@@ -11,6 +11,17 @@ import Data.Generic.Rep.Show (genericShow)
 import Data.Newtype (class Newtype)
 
 
+newtype Identifier = Identifier String
+
+derive instance newtypeIdentifier :: Newtype Identifier _
+derive instance genericIdentifier :: Generic Identifier _
+derive newtype instance eqIdentifier :: Eq Identifier
+derive newtype instance ordIdentifier :: Ord Identifier
+derive newtype instance showIdentifier :: Show Identifier
+derive newtype instance decodeJsonIdentifier :: DecodeJson Identifier
+derive newtype instance encodeJsonIdentifier :: EncodeJson Identifier
+
+
 newtype ModuleName = ModuleName String
 
 derive instance newtypeModuleName :: Newtype ModuleName _
@@ -52,8 +63,14 @@ instance decodeJsonPackageInfo :: DecodeJson PackageInfo where
 instance encodeJsonPackageInfo :: EncodeJson PackageInfo where
   encodeJson = genericEncodeJson
 
-packageInfoToString :: PackageInfo -> String
-packageInfoToString (Package (PackageName p)) = p
-packageInfoToString Builtin = "<builtin>"
-packageInfoToString LocalPackage = "<local package>"
-packageInfoToString UnknownPackage = "<unknown package>"
+newtype PackageScore = PackageScore Int
+
+derive instance newtypePackageScore :: Newtype PackageScore _
+derive instance genericPackageScore :: Generic PackageScore _
+derive newtype instance eqPackageScore :: Eq PackageScore
+derive newtype instance ordPackageScore :: Ord PackageScore
+derive newtype instance semiringPackageScore :: Semiring PackageScore
+derive newtype instance ringPackageScore :: Ring PackageScore
+derive newtype instance showPackageScore :: Show PackageScore
+derive newtype instance decodeJsonPackageScore :: DecodeJson PackageScore
+derive newtype instance encodeJsonPackageScore :: EncodeJson PackageScore

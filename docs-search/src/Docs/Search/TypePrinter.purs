@@ -5,10 +5,12 @@ import Prelude
 import Docs.Search.Extra ((>#>))
 import Docs.Search.Terminal (cyan)
 import Docs.Search.TypeDecoder (Constraint(..), FunDep(..), FunDeps(..), Kind(..), QualifiedName(..), Type(..), TypeArgument(..), joinForAlls, joinRows)
+import Docs.Search.Types (Identifier(..))
 
-import Data.Maybe (Maybe(..), fromMaybe)
 import Data.Array as Array
 import Data.List as List
+import Data.Maybe (Maybe(..), fromMaybe)
+import Data.Newtype (unwrap)
 
 
 -- | A pretty-printer for types, for TTY with colors.
@@ -22,13 +24,13 @@ showType = case _ of
 
   TypeApp (TypeApp (TypeConstructor
                     (QualifiedName { moduleNameParts: [ "Prim" ]
-                                   , name: "Function" }))
+                                   , name: Identifier "Function" }))
                    t1)
           t2 ->
     showType t1 <> syntax " -> " <> showType t2
 
   TypeApp (TypeConstructor (QualifiedName { moduleNameParts: [ "Prim" ]
-                                          , name: "Record" }))
+                                          , name: Identifier "Record" }))
           row ->
     showRow false row
 
@@ -89,7 +91,7 @@ showQualifiedName
   :: QualifiedName
   -> String
 showQualifiedName (QualifiedName { name })
-  = name
+  = unwrap name
 
 
 showRow
@@ -107,7 +109,7 @@ showRow asRow =
     opening <>
     ( Array.intercalate ", " $ Array.fromFoldable $ rows <#>
       \entry ->
-      entry.row <> syntax " :: " <> showType entry.ty
+      unwrap entry.row <> syntax " :: " <> showType entry.ty
     ) <>
 
     (ty >#> \ty' -> " | " <> showType ty') <>

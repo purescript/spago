@@ -1,5 +1,7 @@
 module Docs.Search.TypeDecoder where
 
+import Docs.Search.Types (Identifier)
+
 import Prelude
 
 import Control.Alt ((<|>))
@@ -26,7 +28,7 @@ instance showQualifiedName :: Show QualifiedName where
 
 newtype QualifiedName
   = QualifiedName { moduleNameParts :: Array String
-                  , name :: String
+                  , name :: Identifier
                   }
 
 instance decodeJsonQualifiedName :: DecodeJson QualifiedName where
@@ -149,7 +151,7 @@ data Type
   -- | An empty row
   | REmpty
   -- | A non-empty row
-  | RCons String Type Type
+  | RCons Identifier Type Type
   {-
   -- | A type with a kind annotation
   | Kinded Type Kind
@@ -412,7 +414,7 @@ joinForAlls ty = go Nil ty
       go ({ name, mbKind } : acc) ty'
     go acc ty' = { binders: acc, ty: ty' }
 
-joinRows :: Type -> { rows :: List { row :: String
+joinRows :: Type -> { rows :: List { row :: Identifier
                                    , ty :: Type
                                    }
                     , ty :: Maybe Type }
@@ -428,7 +430,7 @@ joinRows = go Nil
                 }
 
 -- | Only returns a list of type class names (lists of arguments are omitted).
-joinConstraints :: Type -> { constraints :: List String
+joinConstraints :: Type -> { constraints :: List Identifier
                            , ty :: Type }
 joinConstraints = go Nil
   where

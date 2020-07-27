@@ -6,7 +6,7 @@ import Docs.Search.BrowserEngine (PartialIndex, browserSearchEngine)
 import Docs.Search.Config (config)
 import Docs.Search.Declarations (DeclLevel(..), declLevelToHashAnchor)
 import Docs.Search.DocsJson (DataDeclType(..))
-import Docs.Search.Engine (Result(..))
+import Docs.Search.Engine (Result(..), packageInfoToString)
 import Docs.Search.Engine as Engine
 import Docs.Search.Extra (homePageFromRepository, (>#>))
 import Docs.Search.ModuleIndex (ModuleResult)
@@ -14,7 +14,7 @@ import Docs.Search.PackageIndex (PackageResult)
 import Docs.Search.SearchResult (ResultInfo(..), SearchResult(..))
 import Docs.Search.TypeDecoder (Constraint(..), FunDep(..), FunDeps(..), Kind(..), QualifiedName(..), Type(..), TypeArgument(..), joinForAlls, joinRows)
 import Docs.Search.TypeIndex (TypeIndex)
-import Docs.Search.Types (ModuleName(..), packageInfoToString)
+import Docs.Search.Types (ModuleName(..), Identifier(..))
 
 import Prelude
 
@@ -302,9 +302,9 @@ renderSearchResult markdownIt (SearchResult result) =
              , HE.onClick $ const $ Just $ SearchResultClicked result.moduleName
              , HP.href $
                unwrap result.moduleName <> ".html#" <>
-               result.hashAnchor <> ":" <> result.name
+               result.hashAnchor <> ":" <> unwrap result.name
              ]
-        [ HH.text result.name ]
+        [ HH.text $ unwrap result.name ]
       ]
     ]
 
@@ -341,7 +341,7 @@ renderSearchResult markdownIt (SearchResult result) =
 renderResultType
   :: forall a rest
   .  { info :: ResultInfo
-     , name :: String
+     , name :: Identifier
      , moduleName :: ModuleName
      | rest
      }
@@ -373,7 +373,7 @@ renderResultType result =
 renderValueSignature
   :: forall a rest
   .  { moduleName :: ModuleName
-     , name :: String
+     , name :: Identifier
      | rest
      }
   -> Type
@@ -381,7 +381,7 @@ renderValueSignature
 renderValueSignature result ty =
   [ HH.a [ makeHref ValueLevel false result.moduleName result.name
          , HE.onClick $ const $ Just $ SearchResultClicked result.moduleName ]
-    [ HH.text result.name ]
+    [ HH.text $ unwrap result.name ]
   , HH.text " :: "
   , renderType ty ]
 
@@ -392,7 +392,7 @@ renderTypeClassSignature
      , arguments :: Array TypeArgument
      , superclasses :: Array Constraint
      }
-  -> { name :: String, moduleName :: ModuleName | rest }
+  -> { name :: Identifier, moduleName :: ModuleName | rest }
   -> Array (HH.HTML a Action)
 renderTypeClassSignature { fundeps, arguments, superclasses } { name, moduleName } =
   [ keyword "class"
@@ -414,7 +414,7 @@ renderTypeClassSignature { fundeps, arguments, superclasses } { name, moduleName
          , HE.onClick $ const $ Just $
            SearchResultClicked moduleName
          ]
-    [ HH.text name ]
+    [ HH.text $ unwrap name ]
   , space
   ] <> (
     Array.intercalate [ space ] $
@@ -444,10 +444,10 @@ renderTypeClassMemberSignature
      , typeClass :: QualifiedName
      , typeClassArguments :: Array TypeArgument
      }
-  -> { name :: String | rest }
+  -> { name :: Identifier | rest }
   -> Array (HH.HTML a Action)
 renderTypeClassMemberSignature { type: ty, typeClass, typeClassArguments } result =
-  [ HH.text result.name
+  [ HH.text $ unwrap result.name
   , HH.text " :: "
   , renderType ty
   ]
@@ -457,7 +457,7 @@ renderDataSignature
   :: forall a rest
   .  { typeArguments :: Array TypeArgument
      , dataDeclType :: DataDeclType }
-  -> { name :: String | rest }
+  -> { name :: Identifier | rest }
   -> Array (HH.HTML a Action)
 renderDataSignature { typeArguments, dataDeclType } { name } =
   [ keyword
@@ -465,7 +465,7 @@ renderDataSignature { typeArguments, dataDeclType } { name } =
       NewtypeDataDecl -> "newtype"
       DataDataDecl    -> "data"
   , space
-  , HH.text name
+  , HH.text $ unwrap name
   , space
   , HH.span_ $
     Array.intercalate [ space ] $
@@ -478,12 +478,12 @@ renderTypeSynonymSignature
   .  { type :: Type
      , arguments :: Array TypeArgument
      }
-  -> { name :: String | rest }
+  -> { name :: Identifier | rest }
   -> Array (HH.HTML a Action)
 renderTypeSynonymSignature { type: ty, arguments } { name } =
   [ keyword "type"
   , space
-  , HH.text name
+  , HH.text $ unwrap name
   , space
   , HH.span_ $
     Array.intercalate [ space ] $
@@ -499,10 +499,10 @@ renderTypeArgument :: forall a. TypeArgument -> Array (HH.HTML a Action)
 renderTypeArgument (TypeArgument { name, mbKind }) =
   case mbKind of
     Nothing ->
-      [ HH.text name ]
+      [ HH.text $ name ]
     Just kind ->
       [ HH.text "("
-      , HH.text name
+      , HH.text $ name
       , HH.text " :: "
       , renderKind kind
       , HH.text ")"
@@ -522,14 +522,14 @@ renderType = case _ of
 
   TypeApp (TypeApp (TypeConstructor
                     (QualifiedName { moduleNameParts: [ "Prim" ]
-                                   , name: "Function" })) t1) t2 ->
+                                   , name: Identifier "Function" })) t1) t2 ->
     HH.span_ [ renderType t1
              , syntax " -> "
              , renderType t2
              ]
 
   TypeApp (TypeConstructor (QualifiedName { moduleNameParts: [ "Prim" ]
-                                          , name: "Record" }))
+                                          , name: Identifier "Record" }))
           row ->
     renderRow false row
 
@@ -624,7 +624,7 @@ renderRow asRow =
 
     ( Array.intercalate [ HH.text ", " ] $ Array.fromFoldable $ rows <#>
       \entry ->
-      [ HH.span_ [ HH.text $ entry.row <> " :: "
+      [ HH.span_ [ HH.text $ unwrap entry.row <> " :: "
                  , renderType entry.ty ] ]
     ) <>
 
@@ -637,7 +637,7 @@ renderRow asRow =
       closing = if asRow then " )" else " }"
 
       primRecord :: QualifiedName
-      primRecord = QualifiedName { moduleNameParts: [ "Prim" ], name: "Record" }
+      primRecord = QualifiedName { moduleNameParts: [ "Prim" ], name: Identifier "Record" }
 
 
 renderConstraint
@@ -658,13 +658,13 @@ renderQualifiedName
   -> HH.HTML a Action
 renderQualifiedName isInfix level (QualifiedName { moduleNameParts, name })
   = if isBuiltIn then
-      HH.text name
+      HH.text $ unwrap name
     else
       HH.a [ HE.onClick $ const $ Just $
              SearchResultClicked $ moduleName
            , makeHref level isInfix moduleName name
            ]
-      [ HH.text name ]
+      [ HH.text $ unwrap name ]
       where
         moduleName = ModuleName $ Array.intercalate "." $ moduleNameParts
         isBuiltIn = moduleNameParts !! 0 == Just "Prim"
@@ -686,13 +686,13 @@ makeHref
   .  DeclLevel
   -> Boolean
   -> ModuleName
-  -> String
+  -> Identifier
   -> HH.IProp ( href :: String | rest ) t
 makeHref level isInfix moduleName name =
   HP.href $
   unwrap moduleName <> ".html#" <>
   declLevelToHashAnchor level <> ":" <>
-  if isInfix then "type (" <> name <> ")" else name
+  if isInfix then "type (" <> unwrap name <> ")" else unwrap name
 
 
 keyword
