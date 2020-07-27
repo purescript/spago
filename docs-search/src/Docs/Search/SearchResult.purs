@@ -2,7 +2,7 @@ module Docs.Search.SearchResult where
 
 import Docs.Search.DocsJson (DataDeclType)
 import Docs.Search.TypeDecoder (Constraint, FunDeps, Kind, QualifiedName, Type, TypeArgument)
-import Docs.Search.Types (PackageName, PackageInfo, ModuleName)
+import Docs.Search.Types (ModuleName, PackageInfo, Identifier, PackageScore)
 
 import Prelude
 
@@ -57,12 +57,12 @@ typeOf _ = Nothing
 -- | Common metadata for all types of search results.
 newtype SearchResult
   = SearchResult
-    { name :: String
+    { name :: Identifier
     , comments :: Maybe String
     , hashAnchor :: String
     , moduleName :: ModuleName
     , packageInfo :: PackageInfo
-    , score :: Int
+    , score :: PackageScore
     , sourceSpan :: Maybe { start :: Array Int
                           , end :: Array Int
                           , name :: String

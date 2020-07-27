@@ -5,6 +5,7 @@ module Docs.Search.TypeShape where
 
 import Docs.Search.TypeDecoder (QualifiedName(..), Type(..), joinForAlls, joinRows)
 import Docs.Search.TypeQuery (TypeQuery(..), getFreeVariables)
+import Docs.Search.Types (Identifier(..))
 
 import Prelude
 
@@ -102,7 +103,7 @@ shapeOfType ty = List.reverse $ go (pure ty) Nil
           go rest (PVar : acc)
 
         TypeApp (TypeApp (TypeConstructor (QualifiedName { moduleNameParts: ["Prim"]
-                                                         , name: "Function" })) t1) t2 ->
+                                                         , name: Identifier "Function" })) t1) t2 ->
           go (t1 : t2 : rest) (PFun : acc)
 
         TypeConstructor (QualifiedName { name }) ->

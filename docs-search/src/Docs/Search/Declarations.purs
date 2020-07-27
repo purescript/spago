@@ -4,7 +4,7 @@ import Docs.Search.DocsJson (ChildDeclType(..), ChildDeclaration(..), DeclType(.
 import Docs.Search.Score (Scores, getPackageScore, getPackageScoreForPackageName)
 import Docs.Search.SearchResult (ResultInfo(..), SearchResult(..))
 import Docs.Search.TypeDecoder (Constraint(..), QualifiedName(..), Type(..), Kind, joinForAlls)
-import Docs.Search.Types (ModuleName(..), PackageName(..), PackageInfo(..))
+import Docs.Search.Types (ModuleName(..), PackageName(..), PackageInfo(..), Identifier(..))
 
 import Prelude
 
@@ -83,14 +83,14 @@ resultsForDeclaration scores moduleName indexEntry@(Declaration entry) =
   case mkInfo declLevel indexEntry of
     Nothing -> mempty
     Just info' ->
-         let result = SearchResult { name: title
+         let result = SearchResult { name: Identifier title
                                    , comments
                                    , hashAnchor: declLevelToHashAnchor declLevel
                                    , moduleName
                                    , sourceSpan
                                    , packageInfo
                                    , score:
-                                     fromMaybe 0 $ getPackageScoreForPackageName scores <$> mbPackageName
+                                     fromMaybe zero $ getPackageScoreForPackageName scores <$> mbPackageName
                                    , info: info'
                                    }
          in
@@ -219,7 +219,7 @@ resultsForChildDeclaration scores packageInfo moduleName parentResult
   child@(ChildDeclaration { title, info, comments, mbSourceSpan })
   | Just resultInfo <- mkChildInfo parentResult child =
         { path: title
-        , result: SearchResult { name: title
+        , result: SearchResult { name: Identifier title
                                , comments
                                  -- `ChildDeclaration`s are always either data
                                  -- constructors, type class members or instances.

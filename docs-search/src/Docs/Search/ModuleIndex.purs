@@ -3,9 +3,9 @@ module Docs.Search.ModuleIndex where
 import Docs.Search.Config (config)
 import Docs.Search.Declarations (Declarations(..))
 import Docs.Search.SearchResult (SearchResult(..))
-import Docs.Search.Types (ModuleName, PackageName, PackageInfo(..))
+import Docs.Search.Types (ModuleName, PackageName, PackageInfo(..), PackageScore)
 import Docs.Search.Extra (stringToList)
-import Docs.Search.Score (Scores)
+import Docs.Search.Score (Scores, getPackageScoreForPackageName)
 
 import Prelude
 
@@ -50,7 +50,7 @@ type ModuleIndex = { packageModules :: Map PackageName (Set ModuleName)
 type ModuleResult
   = { name :: ModuleName
     , package :: PackageName
-    , score :: Int
+    , score :: PackageScore
     }
 
 
@@ -86,7 +86,8 @@ queryModuleIndex scores { index, modulePackages } query =
   Array.nub <#>
   (\name -> do
       package <- Map.lookup name modulePackages
-      pure { name, package, score: fromMaybe 0 $ Map.lookup package scores }) #
+      pure { name, package
+           , score: getPackageScoreForPackageName scores package }) #
   Array.catMaybes
 
 

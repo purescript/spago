@@ -3,6 +3,7 @@ module Test.TypeQuery where
 import Docs.Search.TypeDecoder (Constraint(..), QualifiedName(..), Type(..))
 import Docs.Search.TypeQuery (Substitution(..), TypeQuery(..), getFreeVariables, parseTypeQuery, penalty, typeVarPenalty)
 import Docs.Search.TypeShape (ShapeChunk(..), shapeOfType, shapeOfTypeQuery)
+import Docs.Search.Types (Identifier(..))
 
 import Prelude
 
@@ -25,193 +26,195 @@ tests = do
 
     test "test #0" do
       let input = "a"
-      assertRight (parseTypeQuery input) (QVar "a")
+      assertRight (parseTypeQuery input) (qVar "a")
 
     test "test #1" do
       let input = "ab"
-      assertRight (parseTypeQuery input) (QVar "ab")
+      assertRight (parseTypeQuery input) (qVar "ab")
 
     test "test #2" do
       let input = "a b"
-      assertRight (parseTypeQuery input) (QApp (QVar "a") (QVar "b"))
+      assertRight (parseTypeQuery input) (QApp (qVar "a") (qVar "b"))
 
     test "test #3" do
       let input = "a b c"
-      assertRight (parseTypeQuery input) (QApp (QApp (QVar "a") (QVar "b")) (QVar "c"))
+      assertRight (parseTypeQuery input) (QApp (QApp (qVar "a") (qVar "b")) (qVar "c"))
 
     test "test #4" do
       let input = "a -> b"
-      assertRight (parseTypeQuery input) (QFun (QVar "a") (QVar "b"))
+      assertRight (parseTypeQuery input) (QFun (qVar "a") (qVar "b"))
 
     test "test #5" do
       let input = "a -> b c"
-      assertRight (parseTypeQuery input) (QFun (QVar "a") (QApp (QVar "b") (QVar "c")))
+      assertRight (parseTypeQuery input) (QFun (qVar "a") (QApp (qVar "b") (qVar "c")))
 
     test "test #6" do
       let input = "a b -> c"
-      assertRight (parseTypeQuery input) (QFun (QApp (QVar "a") (QVar "b")) (QVar "c"))
+      assertRight (parseTypeQuery input) (QFun (QApp (qVar "a") (qVar "b")) (qVar "c"))
 
     test "test #7" do
       let input = "a b"
-      assertRight (parseTypeQuery input) (QApp (QVar "a") (QVar "b"))
+      assertRight (parseTypeQuery input) (QApp (qVar "a") (qVar "b"))
 
     test "test #8" do
       let input = "a (b c)"
-      assertRight (parseTypeQuery input) (QApp (QVar "a") (QApp (QVar "b") (QVar "c")))
+      assertRight (parseTypeQuery input) (QApp (qVar "a") (QApp (qVar "b") (qVar "c")))
 
     test "test #9" do
       let input = "(a b) (c d)"
       assertRight (parseTypeQuery input)
-        (QApp (QApp (QVar "a") (QVar "b"))
-              (QApp (QVar "c") (QVar "d")))
+        (QApp (QApp (qVar "a") (qVar "b"))
+              (QApp (qVar "c") (qVar "d")))
 
     test "test #10" do
       let input = "a ( b c )"
-      assertRight (parseTypeQuery input) (QApp (QVar "a") (QApp (QVar "b") (QVar "c")))
+      assertRight (parseTypeQuery input) (QApp (qVar "a") (QApp (qVar "b") (qVar "c")))
 
     test "test #11" do
       let input = "aaa"
-      assertRight (parseTypeQuery input) (QVar "aaa")
+      assertRight (parseTypeQuery input) (qVar "aaa")
 
     test "test #12" do
       let input = "aaa ( bbb ccc )"
-      assertRight (parseTypeQuery input) (QApp (QVar "aaa") (QApp (QVar "bbb") (QVar "ccc")))
+      assertRight (parseTypeQuery input) (QApp (qVar "aaa") (QApp (qVar "bbb") (qVar "ccc")))
 
     test "test #13" do
       let input = "(a -> b) ->  (c -> d)"
-      assertRight (parseTypeQuery input) (QFun (QFun (QVar "a") (QVar "b"))
-                                                  (QFun (QVar "c") (QVar "d")))
+      assertRight (parseTypeQuery input) (QFun (QFun (qVar "a") (qVar "b"))
+                                                  (QFun (qVar "c") (qVar "d")))
 
     test "test #14" do
       let input = "a -> b -> c -> d"
-      assertRight (parseTypeQuery input) (QFun (QVar "a")
-                                          (QFun (QVar "b")
-                                           (QFun (QVar "c") (QVar "d"))))
+      assertRight (parseTypeQuery input) (QFun (qVar "a")
+                                          (QFun (qVar "b")
+                                           (QFun (qVar "c") (qVar "d"))))
 
     test "test #15" do
       let input = "a -> b -> c"
-      assertRight (parseTypeQuery input) (QFun (QVar "a")
-                                          (QFun (QVar "b")
-                                           (QVar "c")))
+      assertRight (parseTypeQuery input) (QFun (qVar "a")
+                                          (QFun (qVar "b")
+                                           (qVar "c")))
 
     test "test #16" do
       let input = "forall a b c. c"
-      assertRight (parseTypeQuery input) (QForAll (nl "a" ["b", "c"]) (QVar "c"))
+      assertRight (parseTypeQuery input) (QForAll (nl "a" ["b", "c"]) (qVar "c"))
 
     test "test #17" do
       let input = "forall a. Maybe a"
-      assertRight (parseTypeQuery input) (QForAll (nl "a" $ []) (QApp (QConst "Maybe") (QVar "a")))
+      assertRight (parseTypeQuery input) (QForAll (nl "a" $ []) (QApp (qConst "Maybe") (qVar "a")))
 
     test "test #18" do
       let input = "forall m a. Monad m => a -> m a"
       assertRight (parseTypeQuery input)
         (QForAll (nl "m" ["a"])
-                 (QConstraint "Monad" (l [QVar "m"])
-                  (QFun (QVar "a")
-                        (QApp (QVar "m") (QVar "a")))))
+                 (qConstraint "Monad" (l [qVar "m"])
+                  (QFun (qVar "a")
+                        (QApp (qVar "m") (qVar "a")))))
 
     test "test #19" do
       let input = "{ a :: Int }"
       assertRight (parseTypeQuery input)
-        (QApp (QConst "Record") (QRow (pure (Tuple "a" (QConst "Int")))))
+        (QApp (qConst "Record") (QRow (pure (Tuple (Identifier "a") (qConst "Int")))))
 
     test "test #20" do
       let input = "{a::Int}"
       assertRight (parseTypeQuery input)
-        (QApp (QConst "Record") (QRow (pure (Tuple "a" (QConst "Int")))))
+        (QApp (qConst "Record") (QRow (pure (Tuple (Identifier "a") (qConst "Int")))))
 
     test "test #21" do
       let input = "Int"
-      assertRight (parseTypeQuery input) (QConst "Int")
+      assertRight (parseTypeQuery input) (qConst "Int")
 
     test "test #22" do
       let input = "a->b"
-      assertRight (parseTypeQuery input) (QFun (QVar "a") (QVar "b"))
+      assertRight (parseTypeQuery input) (QFun (qVar "a") (qVar "b"))
 
     test "test #23" do
       let input = "forall m a. MonadRec m => Process m a -> m a"
       assertRight (parseTypeQuery input) (QForAll (nl "m" ("a" : Nil))
-                                          (QConstraint "MonadRec" (l [QVar "m"])
-                                           (QFun (QApp (QApp (QConst "Process")
-                                                        (QVar "m")) (QVar "a"))
-                                            (QApp (QVar "m") (QVar "a")))))
+                                          (qConstraint "MonadRec" (l [qVar "m"])
+                                           (QFun (QApp (QApp (qConst "Process")
+                                                        (qVar "m")) (qVar "a"))
+                                            (QApp (qVar "m") (qVar "a")))))
 
     test "test #24" do
       let input = "forall t f a. Foldable1 t => Apply f => f"
       assertRight (parseTypeQuery input) (QForAll (nl "t" ["f", "a"])
-                                          (QConstraint "Foldable1" (l [QVar "t"])
-                                           (QConstraint "Apply" (l [QVar "f"]) (QVar "f"))))
+                                          (qConstraint "Foldable1" (l [qVar "t"])
+                                           (qConstraint "Apply" (l [qVar "f"]) (qVar "f"))))
 
     test "test #25" do
       let input = "forall m a.MonadRec m=>Process m a->m a"
       assertRight (parseTypeQuery input) ((QForAll (nl "m" ("a" : Nil))
-                                           (QConstraint "MonadRec" (l [QVar "m"])
-                                            (QFun (QApp (QApp (QConst "Process")
-                                                         (QVar "m")) (QVar "a"))
-                                             (QApp (QVar "m") (QVar "a"))))))
+                                           (qConstraint "MonadRec" (l [qVar "m"])
+                                            (QFun (QApp (QApp (qConst "Process")
+                                                         (qVar "m")) (qVar "a"))
+                                             (QApp (qVar "m") (qVar "a"))))))
 
     test "test #26" do
       let input = "m a -> (a -> m b) -> m b"
-      assertRight (parseTypeQuery input) (QFun (QApp (QVar "m") (QVar "a")) (QFun (QFun (QVar "a") (QApp (QVar "m") (QVar "b"))) (QApp (QVar "m") (QVar "b"))))
+      assertRight (parseTypeQuery input) (QFun (QApp (qVar "m") (qVar "a")) (QFun (QFun (qVar "a") (QApp (qVar "m") (qVar "b"))) (QApp (qVar "m") (qVar "b"))))
 
     test "test #27" do
       let input = "forall f a. Alternative f => Lazy (f (List a)) => f a -> f (List a)"
       assertRight (parseTypeQuery input) ((QForAll (nl "f" ["a"]))
-                                          (QConstraint "Alternative" (l [QVar "f"])
-                                           (QConstraint "Lazy" (l [QApp (QVar "f")
-                                                                   (QApp (QConst "List") (QVar "a"))])
-                                            (QFun (QApp (QVar "f") (QVar "a"))
-                                             (QApp (QVar "f")
-                                              (QApp (QConst "List") (QVar "a")))))))
+                                          (qConstraint "Alternative" (l [qVar "f"])
+                                           (qConstraint "Lazy" (l [QApp (qVar "f")
+                                                                   (QApp (qConst "List") (qVar "a"))])
+                                            (QFun (QApp (qVar "f") (qVar "a"))
+                                             (QApp (qVar "f")
+                                              (QApp (qConst "List") (qVar "a")))))))
 
     test "test #28" do
       let input = "forall f a. Alternative f => Lazy(f (List a))=>f a -> f (List a)"
       assertRight (parseTypeQuery input) ((QForAll (nl "f" ["a"]))
-                                          (QConstraint "Alternative" (l [QVar "f"])
-                                           (QConstraint "Lazy" (l [QApp (QVar "f")
-                                                                   (QApp (QConst "List") (QVar "a"))])
-                                            (QFun (QApp (QVar "f") (QVar "a"))
-                                             (QApp (QVar "f")
-                                              (QApp (QConst "List") (QVar "a")))))))
+                                          (qConstraint "Alternative" (l [qVar "f"])
+                                           (qConstraint "Lazy" (l [QApp (qVar "f")
+                                                                   (QApp (qConst "List") (qVar "a"))])
+                                            (QFun (QApp (qVar "f") (qVar "a"))
+                                             (QApp (qVar "f")
+                                              (QApp (qConst "List") (qVar "a")))))))
 
     test "test #29" do
       let input = "{a::Int,b::Int}"
       assertRight (parseTypeQuery input)
-        (QApp (QConst "Record") (QRow (List.fromFoldable [ Tuple "a" (QConst "Int"), Tuple "b" (QConst "Int")])))
+        (QApp (qConst "Record") (QRow (List.fromFoldable
+                                       [ Tuple (Identifier "a") (qConst "Int")
+                                       , Tuple (Identifier "b") (qConst "Int")])))
 
     test "test #30" do
       let input = "{record''' :: Int}"
       assertRight (parseTypeQuery input)
-        (QApp (QConst "Record") (QRow (List.fromFoldable [ Tuple "record'''" (QConst "Int")])))
+        (QApp (qConst "Record") (QRow (List.fromFoldable [ Tuple (Identifier "record'''") (qConst "Int")])))
 
     test "test #31" do
       let input = "(row''' :: Int)"
       assertRight (parseTypeQuery input)
-        (QRow (List.fromFoldable [ Tuple "row'''" (QConst "Int")]))
+        (QRow (List.fromFoldable [ Tuple (Identifier "row'''") (qConst "Int")]))
 
     test "test #32" do
       let input = "(row1 :: Int, row2 :: (),row3::(row4::{}))"
       assertRight (parseTypeQuery input)
-        (QRow (l [ Tuple "row1" (QConst "Int")
-                 , Tuple "row2" (QRow Nil)
-                 , Tuple "row3" (QRow (l [ Tuple "row4" (QApp (QConst "Record") (QRow Nil)) ])) ]))
+        (QRow (l [ Tuple (Identifier "row1") (qConst "Int")
+                 , Tuple (Identifier "row2") (QRow Nil)
+                 , Tuple (Identifier "row3") (QRow (l [ Tuple (Identifier "row4") (QApp (qConst "Record") (QRow Nil)) ])) ]))
 
     test "test #33" do
       let input = "Foldable1 t => Apply f => t (f a) -> f Unit"
       assertRight (parseTypeQuery input)
-        (QConstraint "Foldable1" ((QVar "t") : Nil) (QConstraint "Apply" ((QVar "f") : Nil) (QFun (QApp (QVar "t") (QApp (QVar "f") (QVar "a"))) (QApp (QVar "f") (QConst "Unit")))))
+        (qConstraint "Foldable1" ((qVar "t") : Nil) (qConstraint "Apply" ((qVar "f") : Nil) (QFun (QApp (qVar "t") (QApp (qVar "f") (qVar "a"))) (QApp (qVar "f") (qConst "Unit")))))
 
     test "test #34" do
       let input = "Foldable1 t => Apply f => t (f a) -> f a"
       assertRight (parseTypeQuery input)
-        (QConstraint "Foldable1" ((QVar "t") : Nil) (QConstraint "Apply" ((QVar "f") : Nil) (QFun (QApp (QVar "t") (QApp (QVar "f") (QVar "a"))) (QApp (QVar "f") (QVar "a")))))
+        (qConstraint "Foldable1" ((qVar "t") : Nil) (qConstraint "Apply" ((qVar "f") : Nil) (QFun (QApp (qVar "t") (QApp (qVar "f") (qVar "a"))) (QApp (qVar "f") (qVar "a")))))
 
     test "test #35" do
       let input = "Generic a rep => GenericEq rep => a -> a -> Boolean"
       assertRight (parseTypeQuery input)
-        (QConstraint "Generic" ((QVar "a") : (QVar "rep") : Nil)
-         (QConstraint "GenericEq" ((QVar "rep") : Nil)
-          (QFun (QVar "a") (QFun (QVar "a") (QConst "Boolean")))))
+        (qConstraint "Generic" ((qVar "a") : (qVar "rep") : Nil)
+         (qConstraint "GenericEq" ((qVar "rep") : Nil)
+          (QFun (qVar "a") (QFun (qVar "a") (qConst "Boolean")))))
 
   suite "polish notation" do
 
@@ -246,7 +249,7 @@ tests = do
 
           fun t1 t2 =
             TypeApp (TypeApp (TypeConstructor (QualifiedName { moduleNameParts: ["Prim"]
-                                                             , name: "Function" })) t1) t2
+                                                             , name: Identifier "Function" })) t1) t2
           type_ =
             ForAll "a" Nothing $
             ForAll "rep" Nothing $
@@ -314,70 +317,70 @@ tests = do
       Assert.equal 0 (typeVarPenalty mempty)
 
     test "#1" do
-      Assert.equal 0 (typeVarPenalty $ l [ Substitute "a" "b"
-                                         , Substitute "b" "a"
+      Assert.equal 0 (typeVarPenalty $ l [ substitute "a" "b"
+                                         , substitute "b" "a"
                                          ])
 
     test "#2" do
-      Assert.equal 0 (typeVarPenalty $ l [ Substitute "a" "b"
-                                         , Substitute "a" "b"
-                                         , Substitute "a" "b"
+      Assert.equal 0 (typeVarPenalty $ l [ substitute "a" "b"
+                                         , substitute "a" "b"
+                                         , substitute "a" "b"
                                          ])
 
     test "#3" do
-      Assert.equal 1 (typeVarPenalty $ l [ Substitute "a" "b"
-                                         , Substitute "a" "c"
+      Assert.equal 1 (typeVarPenalty $ l [ substitute "a" "b"
+                                         , substitute "a" "c"
                                          ])
 
     test "#4" do
-      Assert.equal 1 (typeVarPenalty $ l [ Substitute "a" "b"
-                                         , Substitute "b" "a"
-                                         , Substitute "b" "c"
+      Assert.equal 1 (typeVarPenalty $ l [ substitute "a" "b"
+                                         , substitute "b" "a"
+                                         , substitute "b" "c"
                                          ])
 
     test "#5" do
-      Assert.equal 0 (typeVarPenalty $ l [ Substitute "a" "b"
-                                         , Substitute "b" "c"
-                                         , Substitute "c" "a"
+      Assert.equal 0 (typeVarPenalty $ l [ substitute "a" "b"
+                                         , substitute "b" "c"
+                                         , substitute "c" "a"
                                          ])
 
     test "#6" do
-      Assert.equal 2 (typeVarPenalty $ l [ Substitute "a" "b"
-                                         , Substitute "a" "c"
-                                         , Substitute "a" "a"
+      Assert.equal 2 (typeVarPenalty $ l [ substitute "a" "b"
+                                         , substitute "a" "c"
+                                         , substitute "a" "a"
                                          ])
 
     test "#7" do
-      Assert.equal 2 (typeVarPenalty $ l [ Substitute "a" "a"
-                                         , Substitute "b" "a"
-                                         , Substitute "c" "a"
+      Assert.equal 2 (typeVarPenalty $ l [ substitute "a" "a"
+                                         , substitute "b" "a"
+                                         , substitute "c" "a"
                                          ])
 
     test "#8" do
-      Assert.equal 4 (typeVarPenalty $ l [ Substitute "a" "a"
-                                         , Substitute "b" "a"
-                                         , Substitute "c" "a"
-                                         , Substitute "a" "b"
-                                         , Substitute "a" "c"
-                                         , Substitute "a" "a"
+      Assert.equal 4 (typeVarPenalty $ l [ substitute "a" "a"
+                                         , substitute "b" "a"
+                                         , substitute "c" "a"
+                                         , substitute "a" "b"
+                                         , substitute "a" "c"
+                                         , substitute "a" "a"
                                          ])
 
     test "#9" do
-      Assert.equal 0 (typeVarPenalty $ l [ Substitute "a" "e"
-                                         , Substitute "b" "d"
-                                         , Substitute "c" "f"
+      Assert.equal 0 (typeVarPenalty $ l [ substitute "a" "e"
+                                         , substitute "b" "d"
+                                         , substitute "c" "f"
                                          ])
 
   suite "unification" do
     test "instantiation #0" do
-      let mVarQuery = QVar "m"
-          unitConstQuery = QConst "Unit"
+      let mVarQuery = qVar "m"
+          unitConstQuery = qConst "Unit"
 
       Assert.assert "instantiation #0" $
         (penalty unitConstQuery unitType < penalty mVarQuery unitType)
 
     test "generalization #0" do
-      let query = QVar "m"
+      let query = qVar "m"
           t1 = TypeVar "m"
 
       Assert.assert "qeneralization #0" $
@@ -387,19 +390,37 @@ tests = do
 l :: forall f. Foldable f => (forall a. f a -> List a)
 l = List.fromFoldable
 
-nl :: forall t5 t6. Foldable t6 => t5 -> t6 t5 -> NonEmptyList t5
-nl x rst = NonEmptyList.cons' x $ List.fromFoldable rst
+nl
+  :: forall t
+  .  Foldable t
+  => Functor t
+  => String
+  -> t String
+  -> NonEmptyList Identifier
+nl x rst = NonEmptyList.cons' (Identifier x) $ List.fromFoldable (rst <#> Identifier)
 
 unitType :: Type
 unitType = TypeConstructor (QualifiedName { moduleNameParts: []
-                                          , name: "Unit"
+                                          , name: Identifier "Unit"
                                           })
 
 countFreeVars :: TypeQuery -> Int
 countFreeVars = getFreeVariables >>> Set.size
 
 qname :: Array String -> String -> QualifiedName
-qname m n = QualifiedName { moduleNameParts: m, name: n }
+qname m n = QualifiedName { moduleNameParts: m, name: Identifier n }
 
 constr :: QualifiedName -> Array Type -> Constraint
 constr c a = Constraint { constraintClass: c, constraintArgs: a }
+
+qVar :: String -> TypeQuery
+qVar = QVar <<< Identifier
+
+qConst :: String -> TypeQuery
+qConst = QConst <<< Identifier
+
+qConstraint :: String -> List TypeQuery -> TypeQuery -> TypeQuery
+qConstraint = QConstraint <<< Identifier
+
+substitute :: String -> String -> Substitution
+substitute a b = Substitute (Identifier a) (Identifier b)

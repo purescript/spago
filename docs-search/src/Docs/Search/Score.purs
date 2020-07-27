@@ -1,6 +1,6 @@
 module Docs.Search.Score where
 
-import Docs.Search.Types (RawPackageName(..), PackageName(..), PackageInfo(..))
+import Docs.Search.Types (RawPackageName(..), PackageName(..), PackageInfo(..), PackageScore(..))
 
 import Prelude
 
@@ -13,7 +13,7 @@ import Data.String.CodeUnits as String
 import Web.Bower.PackageMeta (Dependencies, PackageMeta)
 
 
-type Scores = Map PackageName Int
+type Scores = Map PackageName PackageScore
 
 normalizePackageName :: RawPackageName -> PackageName
 normalizePackageName (RawPackageName p) =
@@ -35,18 +35,18 @@ mkScores =
     updateScoresFor :: Dependencies -> Scores -> Scores
     updateScoresFor deps scores =
       Array.foldr
-      (\dep -> Map.insertWith add dep 1)
+      (\dep -> Map.insertWith add dep one)
       scores
       (deps # unwrap >>> map (_.packageName >>> RawPackageName >>> normalizePackageName))
 
 
-getPackageScore :: Scores -> PackageInfo -> Int
+getPackageScore :: Scores -> PackageInfo -> PackageScore
 getPackageScore scores = case _ of
   Package p      -> getPackageScoreForPackageName scores p
-  Builtin        -> 100000
-  LocalPackage   -> 200000
-  UnknownPackage -> 0
+  Builtin        -> PackageScore 100000
+  LocalPackage   -> PackageScore 200000
+  UnknownPackage -> zero
 
 
-getPackageScoreForPackageName :: Scores -> PackageName -> Int
-getPackageScoreForPackageName scores p = fromMaybe 0 $ Map.lookup p scores
+getPackageScoreForPackageName :: Scores -> PackageName -> PackageScore
+getPackageScoreForPackageName scores p = fromMaybe zero $ Map.lookup p scores

@@ -3,7 +3,7 @@ module Docs.Search.Interactive where
 
 import Docs.Search.Declarations (Declarations, mkDeclarations)
 import Docs.Search.DocsJson (DataDeclType(..))
-import Docs.Search.Engine (mkEngineState, Result(..))
+import Docs.Search.Engine (mkEngineState, packageInfoToString, Result(..))
 import Docs.Search.Engine as Engine
 import Docs.Search.Extra (listToString, stringToList, (>#>))
 import Docs.Search.IndexBuilder as IndexBuilder
@@ -16,7 +16,7 @@ import Docs.Search.Terminal (bold, cyan, green, yellow)
 import Docs.Search.TypeDecoder (Constraint, FunDeps, Kind, QualifiedName, Type, TypeArgument)
 import Docs.Search.TypeIndex (resultsWithTypes)
 import Docs.Search.TypePrinter (keyword, showConstraint, showFunDeps, showKind, showType, showTypeArgument, space, syntax)
-import Docs.Search.Types (PackageName, ModuleName, PackageInfo, packageInfoToString)
+import Docs.Search.Types (ModuleName, PackageInfo, Identifier)
 
 import Prelude
 
@@ -150,19 +150,19 @@ showModuleResult { name, package } =
   bold (cyan "module") <> " " <> bold (green $ unwrap name)
 
 
-showSignature ::
-  forall rest.
-  { name :: String
-  , moduleName :: ModuleName
-  , packageInfo :: PackageInfo
-  , info :: ResultInfo
-  | rest
-  }
+showSignature
+  :: forall rest
+  . { name :: Identifier
+    , moduleName :: ModuleName
+    , packageInfo :: PackageInfo
+    , info :: ResultInfo
+    | rest
+    }
   -> String
 showSignature result@{ name, info } =
   case info of
     ValueResult { type: ty } ->
-      yellow name <> syntax " :: " <> showType ty
+      yellow (unwrap name) <> syntax " :: " <> showType ty
 
     TypeClassResult info' ->
       showTypeClassSignature info' result
@@ -180,9 +180,9 @@ showSignature result@{ name, info } =
       showExternDataSignature info' result
 
     ValueAliasResult ->
-      yellow ("(" <> name <> ")")
+      yellow ("(" <> unwrap name <> ")")
 
-    _ -> yellow name
+    _ -> yellow $ unwrap name
 
 
 showTypeClassSignature
@@ -191,7 +191,7 @@ showTypeClassSignature
      , arguments :: Array TypeArgument
      , superclasses :: Array Constraint
      }
-  -> { name :: String, moduleName :: ModuleName | rest }
+  -> { name :: Identifier, moduleName :: ModuleName | rest }
   -> String
 showTypeClassSignature { fundeps, arguments, superclasses } { name, moduleName } =
 
@@ -210,7 +210,7 @@ showTypeClassSignature { fundeps, arguments, superclasses } { name, moduleName }
       syntax "<="
   ) <>
   space <>
-  yellow name <>
+  yellow (unwrap name) <>
   space <> (
     Array.intercalate space $
       arguments <#> showTypeArgument
@@ -221,14 +221,14 @@ showTypeClassSignature { fundeps, arguments, superclasses } { name, moduleName }
 
 showTypeClassMemberSignature
   :: forall rest
-  .  { type :: Type
+  .  { "type" :: Type
      , typeClass :: QualifiedName
      , typeClassArguments :: Array TypeArgument
      }
-  -> { name :: String | rest }
+  -> { name :: Identifier | rest }
   -> String
-showTypeClassMemberSignature { type: ty, typeClass, typeClassArguments } result =
-  yellow result.name <>
+showTypeClassMemberSignature { "type": ty, typeClass, typeClassArguments } result =
+  yellow (unwrap result.name) <>
   syntax " :: " <>
   showType ty
 
@@ -237,7 +237,7 @@ showDataSignature
   :: forall rest
   .  { typeArguments :: Array TypeArgument
      , dataDeclType :: DataDeclType }
-  -> { name :: String | rest }
+  -> { name :: Identifier | rest }
   -> String
 showDataSignature { typeArguments, dataDeclType } { name } =
   ( keyword
@@ -246,7 +246,7 @@ showDataSignature { typeArguments, dataDeclType } { name } =
       DataDataDecl    -> "data"
   ) <>
   space <>
-  yellow name <>
+  yellow (unwrap name) <>
   space <> (
     Array.intercalate space $
       typeArguments <#> showTypeArgument
@@ -258,12 +258,12 @@ showTypeSynonymSignature
   .  { type :: Type
      , arguments :: Array TypeArgument
      }
-  -> { name :: String | rest }
+  -> { name :: Identifier | rest }
   -> String
 showTypeSynonymSignature { type: ty, arguments } { name } =
   keyword "type" <>
   space <>
-  yellow name <>
+  yellow (unwrap name) <>
   space <> (
     Array.intercalate space $
       arguments <#> showTypeArgument
@@ -277,12 +277,12 @@ showTypeSynonymSignature { type: ty, arguments } { name } =
 showExternDataSignature
   :: forall rest
   .  { kind :: Kind }
-  -> { name :: String | rest }
+  -> { name :: Identifier | rest }
   -> String
 showExternDataSignature { kind } { name } =
   keyword "foreign data" <>
   space <>
-  yellow name <>
+  yellow (unwrap name) <>
   space <>
   syntax " :: " <>
   showKind kind

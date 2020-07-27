@@ -3,7 +3,7 @@ module Docs.Search.PackageIndex where
 import Docs.Search.Config (config)
 import Docs.Search.Extra (stringToList)
 import Docs.Search.Score (Scores, getPackageScoreForPackageName, normalizePackageName)
-import Docs.Search.Types (PackageName, RawPackageName(..))
+import Docs.Search.Types (PackageName, RawPackageName(..), PackageScore)
 
 import Prelude
 
@@ -26,7 +26,7 @@ import Web.Bower.PackageMeta (PackageMeta(..))
 type PackageResult
   = { name :: PackageName
     , description :: Maybe String
-    , score :: Int
+    , score :: PackageScore
     , dependencies :: Array PackageName
     , repository :: Maybe String
     }

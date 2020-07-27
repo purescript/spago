@@ -5,7 +5,7 @@ import Docs.Search.PackageIndex (PackageIndex, PackageResult)
 import Docs.Search.Score (Scores)
 import Docs.Search.SearchResult (SearchResult, typeOfResult)
 import Docs.Search.TypeQuery (TypeQuery(..), parseTypeQuery, penalty)
-import Docs.Search.Types (PackageInfo(..), PackageName(..), ModuleName(..))
+import Docs.Search.Types (PackageInfo(..), ModuleName(..), PackageName(..), PackageScore)
 
 import Prelude
 
@@ -66,7 +66,7 @@ data Result
   | MdlResult  ModuleResult
 
 
-getResultScore :: Result -> Int
+getResultScore :: Result -> PackageScore
 getResultScore (DeclResult r) = (unwrap r).score
 getResultScore (TypeResult r) = (unwrap r).score
 getResultScore (PackResult r) = r.score
@@ -88,8 +88,8 @@ getResultModuleName (MdlResult r) = r.name
 
 
 getResultName :: Result -> String
-getResultName (DeclResult r) = (unwrap r).name
-getResultName (TypeResult r) = (unwrap r).name
+getResultName (DeclResult r) = unwrap (unwrap r).name
+getResultName (TypeResult r) = unwrap (unwrap r).name
 getResultName (PackResult r) = unwrap r.name
 getResultName (MdlResult r) = unwrap r.name
 
@@ -158,3 +158,10 @@ sortByDistance
   -> Array SearchResult
 sortByDistance typeQuery =
   Array.sortWith (map (penalty typeQuery) <<< typeOfResult)
+
+
+packageInfoToString :: PackageInfo -> String
+packageInfoToString (Package (PackageName p)) = p
+packageInfoToString Builtin = "<builtin>"
+packageInfoToString LocalPackage = "<local package>"
+packageInfoToString UnknownPackage = "<unknown package>"

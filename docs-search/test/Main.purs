@@ -3,6 +3,7 @@ module Test.Main where
 import Prelude
 
 import Docs.Search.TypeDecoder (Constraint(..), FunDep(..), FunDeps(..), Kind(..), QualifiedName(..), Type(..))
+import Docs.Search.Types
 import Test.TypeQuery as TypeQuery
 import Test.IndexBuilder as IndexBuilder
 import Test.Declarations as Declarations
@@ -67,10 +68,7 @@ mainTest = do
       """
 
       assertRight (decodeJson qualifiedName)
-        (QualifiedName { moduleNameParts: ["Prim"]
-                       , name: "Type"
-                       }
-        )
+        (qualified ["Prim"] "Type")
 
     test "NamedKind" do
       let namedKind = mkJson """
@@ -87,10 +85,7 @@ mainTest = do
       """
 
       assertRight (decodeJson namedKind)
-        (NamedKind $ QualifiedName { moduleNameParts: ["Prim"]
-                                   , name: "Type"
-                                   }
-        )
+        (NamedKind $ qualified ["Prim"] "Type")
 
     test "Row" do
       let row = mkJson """
@@ -110,11 +105,7 @@ mainTest = do
             }
       """
 
-      assertRight (decodeJson row)
-        (Row $ NamedKind $ QualifiedName { moduleNameParts: ["Prim"]
-                                         , name: "Type"
-                                         }
-        )
+      assertRight (decodeJson row) (Row $ NamedKind $ qualified ["Prim"] "Type")
 
     test "FunKind" do
       let funKind = mkJson """
@@ -154,14 +145,8 @@ mainTest = do
         }
         """
       assertRight (decodeJson funKind)
-        (FunKind (Row $ NamedKind $ QualifiedName { moduleNameParts: ["Prim"]
-                                                  , name: "Type"
-                                                  }
-                 )
-                 (Row $ NamedKind $ QualifiedName { moduleNameParts: ["Prim"]
-                                                  , name: "Type"
-                                                  }
-                 )
+        (FunKind (Row $ NamedKind $ qualified ["Prim"] "Type")
+                 (Row $ NamedKind $ qualified ["Prim"] "Type")
         )
 
 
@@ -181,9 +166,7 @@ mainTest = do
       }
       """
       assertRight (decodeJson constraint)
-        (Constraint { constraintClass: QualifiedName { moduleNameParts: ["Prim"]
-                                                     , name: "Partial"
-                                                     }
+        (Constraint { constraintClass: qualified ["Prim"] "Partial"
                     , constraintArgs: []
                     })
 
@@ -230,14 +213,12 @@ mainTest = do
 
       assertRight (decodeJson typeApp1) $
         TypeApp
-          (TypeConstructor (QualifiedName { moduleNameParts:
-                                            [ "Control"
-                                            , "Monad"
-                                            , "ST"
-                                            , "Internal"
-                                            ],
-                                            name: "ST"
-                                          }
+          (TypeConstructor (qualified [ "Control"
+                                      , "Monad"
+                                      , "ST"
+                                      , "Internal"
+                                      ]
+                            "ST"
                            ))
           (TypeVar "h")
 
@@ -256,9 +237,7 @@ mainTest = do
           }
       """
       assertRight (decodeJson typeOp) $
-        TypeOp $ QualifiedName { moduleNameParts: [ "Data", "NaturalTransformation" ]
-                               , name: "~>"
-                               }
+        TypeOp $ qualified [ "Data", "NaturalTransformation" ] "~>"
 
     test "BinaryNoParens" do
       let binaryNoParens = mkJson """
@@ -293,7 +272,7 @@ mainTest = do
 
       assertRight (decodeJson binaryNoParens) $
         BinaryNoParensType
-        (TypeOp $ QualifiedName { moduleNameParts: ["Data", "NaturalTransformation"], name: "~>" })
+        (TypeOp $ qualified ["Data", "NaturalTransformation"] "~>")
         (TypeVar "m")
         (TypeVar "n")
 
@@ -335,19 +314,8 @@ mainTest = do
       assertRight (decodeJson parensInType) $
         ParensInType $
           TypeApp
-          (TypeConstructor (QualifiedName { moduleNameParts:
-                                            [ "Data"
-                                            , "Maybe"
-                                            ],
-                                            name: "Maybe"
-                                          }
-                           ))
-          (TypeConstructor (QualifiedName { moduleNameParts:
-                                            [ "Prim"
-                                            ],
-                                            name: "String"
-                                          }
-                           ))
+          (TypeConstructor (qualified [ "Data", "Maybe" ] "Maybe"))
+          (TypeConstructor (qualified [ "Prim" ] "String"))
     test "RCons" do
 
       let rcons = mkJson """
@@ -388,8 +356,8 @@ mainTest = do
 
       assertRight (decodeJson rcons) $
         RCons
-          "tail"
-          (TypeApp (TypeConstructor $ QualifiedName { moduleNameParts: [ "Data", "Symbol" ], name: "SProxy" })
+          (Identifier "tail")
+          (TypeApp (TypeConstructor $ qualified [ "Data", "Symbol" ] "SProxy")
                    (TypeVar "t"))
           REmpty
 
@@ -545,8 +513,8 @@ mainTest = do
       """
       assertRight (decodeJson forallJson) $
         ForAll "f"
-        (Just (FunKind (NamedKind (QualifiedName { moduleNameParts: ["Prim","RowList"], name: "RowList" })) (NamedKind (QualifiedName { moduleNameParts: ["Prim"], name: "Type" }))))
-        (TypeApp (TypeApp (TypeConstructor (QualifiedName { moduleNameParts: ["Prim"], name: "Function" })) (TypeApp (TypeVar "f") (TypeVar "l"))) (TypeApp (TypeConstructor (QualifiedName { moduleNameParts: ["Data","List","Types"], name: "List" })) (ParensInType (TypeApp (TypeApp (TypeConstructor (QualifiedName { moduleNameParts: ["Data","Tuple"], name: "Tuple" })) (TypeConstructor (QualifiedName { moduleNameParts: ["Prim"], name: "String" }))) (TypeConstructor (QualifiedName { moduleNameParts: ["Prim"], name: "String" }))))))
+        (Just (FunKind (NamedKind (QualifiedName { moduleNameParts: ["Prim","RowList"], name: Identifier "RowList" })) (NamedKind (QualifiedName { moduleNameParts: ["Prim"], name: Identifier "Type" }))))
+        (TypeApp (TypeApp (TypeConstructor (QualifiedName { moduleNameParts: ["Prim"], name: Identifier "Function" })) (TypeApp (TypeVar "f") (TypeVar "l"))) (TypeApp (TypeConstructor (QualifiedName { moduleNameParts: ["Data","List","Types"], name: Identifier "List" })) (ParensInType (TypeApp (TypeApp (TypeConstructor (QualifiedName { moduleNameParts: ["Data","Tuple"], name: Identifier "Tuple" })) (TypeConstructor (QualifiedName { moduleNameParts: ["Prim"], name: Identifier "String" }))) (TypeConstructor (QualifiedName { moduleNameParts: ["Prim"], name: Identifier "String" }))))))
 
 
 
@@ -558,7 +526,7 @@ mainTest = do
 {"annotation":[],"tag":"ForAll","contents":["o",{"annotation":[],"tag":"ForAll","contents":["r",{"annotation":[],"tag":"ForAll","contents":["l",{"annotation":[],"tag":"ConstrainedType","contents":[{"constraintAnn":[],"constraintClass":[["Type","Data","Boolean"],"And"],"constraintArgs":[{"annotation":[],"tag":"TypeVar","contents":"l"},{"annotation":[],"tag":"TypeVar","contents":"r"},{"annotation":[],"tag":"TypeVar","contents":"o"}],"constraintData":null},{"annotation":[],"tag":"TypeApp","contents":[{"annotation":[],"tag":"TypeApp","contents":[{"annotation":[],"tag":"TypeConstructor","contents":[["Prim"],"Function"]},{"annotation":[],"tag":"TypeApp","contents":[{"annotation":[],"tag":"TypeConstructor","contents":[["Type","Data","Boolean"],"BProxy"]},{"annotation":[],"tag":"TypeVar","contents":"l"}]}]},{"annotation":[],"tag":"TypeApp","contents":[{"annotation":[],"tag":"TypeApp","contents":[{"annotation":[],"tag":"TypeConstructor","contents":[["Prim"],"Function"]},{"annotation":[],"tag":"TypeApp","contents":[{"annotation":[],"tag":"TypeConstructor","contents":[["Type","Data","Boolean"],"BProxy"]},{"annotation":[],"tag":"TypeVar","contents":"r"}]}]},{"annotation":[],"tag":"TypeApp","contents":[{"annotation":[],"tag":"TypeConstructor","contents":[["Type","Data","Boolean"],"BProxy"]},{"annotation":[],"tag":"TypeVar","contents":"o"}]}]}]}]},null]},null]},null]}
       """
 
-      assertRight (decodeJson json) $ (ForAll "o" Nothing (ForAll "r" Nothing (ForAll "l" Nothing (ConstrainedType (Constraint { constraintArgs: [(TypeVar "l"),(TypeVar "r"),(TypeVar "o")], constraintClass: (QualifiedName { moduleNameParts: ["Type","Data","Boolean"], name: "And" }) }) (TypeApp (TypeApp (TypeConstructor (QualifiedName { moduleNameParts: ["Prim"], name: "Function" })) (TypeApp (TypeConstructor (QualifiedName { moduleNameParts: ["Type","Data","Boolean"], name: "BProxy" })) (TypeVar "l"))) (TypeApp (TypeApp (TypeConstructor (QualifiedName { moduleNameParts: ["Prim"], name: "Function" })) (TypeApp (TypeConstructor (QualifiedName { moduleNameParts: ["Type","Data","Boolean"], name: "BProxy" })) (TypeVar "r"))) (TypeApp (TypeConstructor (QualifiedName { moduleNameParts: ["Type","Data","Boolean"], name: "BProxy" })) (TypeVar "o"))))))))
+      assertRight (decodeJson json) $ (ForAll "o" Nothing (ForAll "r" Nothing (ForAll "l" Nothing (ConstrainedType (Constraint { constraintArgs: [(TypeVar "l"),(TypeVar "r"),(TypeVar "o")], constraintClass: (QualifiedName { moduleNameParts: ["Type","Data","Boolean"], name: Identifier "And" }) }) (TypeApp (TypeApp (TypeConstructor (QualifiedName { moduleNameParts: ["Prim"], name: Identifier "Function" })) (TypeApp (TypeConstructor (QualifiedName { moduleNameParts: ["Type","Data","Boolean"], name: Identifier "BProxy" })) (TypeVar "l"))) (TypeApp (TypeApp (TypeConstructor (QualifiedName { moduleNameParts: ["Prim"], name: Identifier "Function" })) (TypeApp (TypeConstructor (QualifiedName { moduleNameParts: ["Type","Data","Boolean"], name: Identifier "BProxy" })) (TypeVar "r"))) (TypeApp (TypeConstructor (QualifiedName { moduleNameParts: ["Type","Data","Boolean"], name: Identifier "BProxy" })) (TypeVar "o"))))))))
 
   suite "Kind encoder" do
     test "FunKind" do
@@ -570,4 +538,4 @@ mainTest = do
 
 
 qualified :: Array String -> String -> QualifiedName
-qualified moduleNameParts name = QualifiedName { moduleNameParts, name }
+qualified moduleNameParts name = QualifiedName { moduleNameParts, name: Identifier name }
