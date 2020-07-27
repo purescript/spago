@@ -188,6 +188,7 @@ assertDirectory directory = do
       unless (accessible permissions) $ do
         die [ "Directory " <> displayShow directory <> " is not accessible. " <> displayShow permissions ]
     else do
+      logDebug $ "Directory " <> displayShow directory <> " does not exist, creating..."
       assertDirectory (FilePath.takeDirectory directory)
 
       Directory.createDirectory directory

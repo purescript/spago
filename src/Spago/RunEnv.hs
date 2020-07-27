@@ -42,7 +42,9 @@ withEnv GlobalOptions{..} app = do
 
     globalCache <- runRIO logFunc' $ do
       logDebug "Running `getGlobalCacheDir`"
-      Cache.getGlobalCacheDir
+      globalCache' <- Cache.getGlobalCacheDir
+      assertDirectory globalCache'
+      pure globalCache'
 
     let env = Env
           { envLogFunc = logFunc'
