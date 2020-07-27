@@ -63,6 +63,11 @@ cannotFindPackages = makeMessage
   , "otherwise you might want to run `spago init` to initialize a new package set file."
   ]
 
+cannotFindPackageImport :: Text
+cannotFindPackageImport = makeMessage
+  [ "Cannot find a package set import in your " <> surroundQuote "packages.dhall" <> "."
+  ]
+
 foundExistingProject :: Text -> Text
 foundExistingProject pathText = makeMessage
   [ "Found a " <> surroundQuote pathText <> " file, skipping copy. Run `spago init --force` if you wish to overwrite it."

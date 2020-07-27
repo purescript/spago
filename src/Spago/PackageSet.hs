@@ -55,34 +55,42 @@ upgradePackageSet
 upgradePackageSet = do
   logDebug "Running `spago upgrade-set`"
 
-  GitHub.getLatestPackageSetsTag >>= \case
-    Right tag -> updateTag tag
+  rawPackageSet <- liftIO $ Dhall.readRawExpr packagesPath
+  (org, repo, currentTag) <- case rawPackageSet of
+        Nothing -> die [ display Messages.cannotFindPackages ]
+        Just (_, expr)
+          | (current:_) <- foldMap getCurrentTag expr
+          -> pure current
+        Just _ -> die [ display Messages.cannotFindPackageImport ]
+
+  GitHub.getLatestPackageSetsTag org repo >>= \case
+    Right tag -> updateTag org repo currentTag tag
     Left (err :: SomeException) -> do
       logWarn "Was not possible to upgrade the package-sets release"
       logDebug $ "Error: " <> display err
 
   where
-    updateTag :: HasLogFunc env => Text -> RIO env ()
-    updateTag releaseTagName =  do
+    updateTag :: HasLogFunc env => Text -> Text -> Text -> Text -> RIO env ()
+    updateTag org repo currentTag releaseTagName =  do
       let quotedTag = surroundQuote releaseTagName
-      logDebug $ "Found the most recent tag for \"purescript/package-sets\": " <> display quotedTag
+          orgRepo = org <> "/" <> repo
+      logDebug $ "Found the most recent tag for " <> display (surroundQuote orgRepo) <> ": " <> display quotedTag
       rawPackageSet <- liftIO $ Dhall.readRawExpr packagesPath
       case rawPackageSet of
         Nothing -> die [ display Messages.cannotFindPackages ]
         -- Skip the check if the tag is already the newest
-        Just (_, expr)
-          | (currentTag:_) <- foldMap getCurrentTag expr
-          , currentTag == releaseTagName
+        Just _
+          | currentTag == releaseTagName
             -> logDebug $ "Skipping package set version upgrade, already on latest version: " <> display quotedTag
         Just (header, expr) -> do
           logInfo $ "Upgrading the package set version to " <> display quotedTag
-          let newExpr = fmap (upgradeImports releaseTagName) expr
+          let newExpr = fmap (upgradeImports org repo releaseTagName) expr
           logInfo $ display $ Messages.upgradingPackageSet releaseTagName
           liftIO $ Dhall.writeRawExpr packagesPath (header, newExpr)
           -- If everything is fine, refreeze the imports
           freeze packagesPath
 
-    getCurrentTag :: Dhall.Import -> [Text]
+    getCurrentTag :: Dhall.Import -> [(Text, Text, Text)]
     getCurrentTag Dhall.Import
       { importHashed = Dhall.ImportHashed
         { importType = Dhall.Remote Dhall.URL
@@ -91,14 +99,14 @@ upgradePackageSet = do
           , path = Dhall.File
             { file = "packages.dhall"
             , directory = Dhall.Directory
-              { components = [ currentTag, "download", "releases", "package-sets", "purescript" ]}
+              { components = [ currentTag, "download", "releases", repo, org ]}
             }
           , ..
           }
         , ..
         }
       , ..
-      } = [currentTag]
+      } = [(org, repo, currentTag)]
     -- TODO: remove this branch in 1.0
     getCurrentTag Dhall.Import
       { importHashed = Dhall.ImportHashed
@@ -115,20 +123,20 @@ upgradePackageSet = do
         , ..
         }
       , ..
-      } = [currentTag]
+      } = [("purescript", "package-sets", currentTag)]
     getCurrentTag _ = []
 
     -- | Given an import and a new purescript/package-sets tag,
     --   upgrades the import to the tag and resets the hash
-    upgradeImports :: Text -> Dhall.Import -> Dhall.Import
-    upgradeImports newTag (Dhall.Import
+    upgradeImports :: Text -> Text -> Text -> Dhall.Import -> Dhall.Import
+    upgradeImports org repo newTag (Dhall.Import
       { importHashed = Dhall.ImportHashed
         { importType = Dhall.Remote Dhall.URL
           { authority = "github.com"
           , path = Dhall.File
             { file = "packages.dhall"
             , directory = Dhall.Directory
-              { components = [ _currentTag, "download", "releases", "package-sets", "purescript" ]}
+              { components = [ _currentTag, "download", "releases", upgradeRepo, upgradeOrg ]}
             , ..
             }
           , ..
@@ -136,8 +144,8 @@ upgradePackageSet = do
         , ..
         }
       , ..
-      }) =
-      let components = [ newTag, "download", "releases", "package-sets", "purescript" ]
+      }) | upgradeRepo == repo && upgradeOrg == org =
+      let components = [ newTag, "download", "releases", repo, org ]
           directory = Dhall.Directory{..}
           newPath = Dhall.File{ file = "packages.dhall", .. }
           authority = "github.com"
@@ -146,7 +154,7 @@ upgradePackageSet = do
           importHashed = Dhall.ImportHashed { hash = newHash, ..}
       in Dhall.Import{..}
     -- TODO: remove this branch in 1.0
-    upgradeImports newTag imp@(Dhall.Import
+    upgradeImports _ _ newTag imp@(Dhall.Import
       { importHashed = Dhall.ImportHashed
         { importType = Dhall.Remote Dhall.URL
           -- Check if we're dealing with the right repo
@@ -175,7 +183,7 @@ upgradePackageSet = do
         ("spacchetti", "spacchetti")   -> newImport
         ("purescript", "package-sets") -> newImport
         _                              -> imp
-    upgradeImports _ imp = imp
+    upgradeImports _ _ _ imp = imp
 
 
 checkPursIsUpToDate :: forall env. (HasLogFunc env, HasPackageSet env) => RIO env ()

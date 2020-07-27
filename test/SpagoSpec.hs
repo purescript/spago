@@ -4,7 +4,7 @@ import           Control.Concurrent (threadDelay)
 import qualified Data.Text          as Text
 import           Prelude            hiding (FilePath)
 import qualified System.IO.Temp     as Temp
-import           Test.Hspec         (Spec, around_, describe, it, shouldBe, shouldNotSatisfy,
+import           Test.Hspec         (Spec, around_, describe, it, shouldBe, shouldNotBe, shouldNotSatisfy,
                                      shouldReturn, shouldSatisfy)
 import           Turtle             (ExitCode (..), cd, cp, decodeString, empty, encodeString,
                                      mkdir, mktree, mv, pwd, readTextFile, rm, shell,
@@ -576,6 +576,14 @@ spec = around_ setup $ do
       newPackages <- Text.strip <$> readTextFile "packages.dhall"
       newPackages `shouldBe` packageSetUrl
 
+    it "Spago should migrate a package set from an alternative repository from src/packages.dhall" $ do
+
+      spago ["init"] >>= shouldBeSuccess
+      writeTextFile "packages.dhall" "https://github.com/purerl/package-sets/releases/download/erl-0.13.6-20200713/packages.dhall sha256:6b1dcfe05ee95229b654462bf5d36864f9a0dfbc2ac120192aaa25f9fceb9967"
+      spago ["-v", "upgrade-set"] >>= shouldBeSuccess
+      newPackages <- Text.strip <$> readTextFile "packages.dhall"
+      newPackages `shouldNotBe` "https://github.com/purerl/package-sets/releases/download/erl-0.13.6-20200713/packages.dhall"
+      newPackages `shouldSatisfy` Text.isPrefixOf "https://github.com/purerl/package-sets/releases/download"
 
   describe "spago run" $ do
 

@@ -17,9 +17,11 @@ import qualified Spago.GlobalCache   as GlobalCache
 import qualified Spago.Messages      as Messages
 
 
-tagCacheFile, tokenCacheFile :: IsString t => t
-tagCacheFile = "package-sets-tag.txt"
+tokenCacheFile :: IsString t => t
 tokenCacheFile = "github-token.txt"
+
+tagCacheFile :: Text -> Text -> Text
+tagCacheFile org repo = org <> "-" <> repo <> "-tag.txt"
 
 
 login :: (HasGlobalCache env, HasLogFunc env) => RIO env ()
@@ -59,16 +61,18 @@ readToken = readFromEnv <|> readFromFile
 
 getLatestPackageSetsTag 
   :: (HasLogFunc env, HasGlobalCache env)
-  => RIO env (Either SomeException Text)
-getLatestPackageSetsTag = do
+  => Text -> Text -> RIO env (Either SomeException Text)
+getLatestPackageSetsTag org repo = do
   globalCacheDir <- view globalCacheL
   assertDirectory globalCacheDir
-  let globalPathToCachedTag = globalCacheDir </> tagCacheFile
+  let globalPathToCachedTag = globalCacheDir </> (Text.unpack $ tagCacheFile org repo)
   let writeTagCache = writeTextFile (Text.pack globalPathToCachedTag)
   let readTagCache = try $ readTextFile $ pathFromText $ Text.pack globalPathToCachedTag
   let downloadTagToCache env = try
         $ Retry.recoverAll (Retry.fullJitterBackoff 50000 <> Retry.limitRetries 5)
         $ \_ -> runReaderT (getLatestRelease1 <|> getLatestRelease2) env
+
+  logDebug $ "Getting latest release for " <> display org <> "/" <> display repo
 
   whenM (shouldRefreshFile globalPathToCachedTag) $ do
     env <- ask
@@ -87,12 +91,12 @@ getLatestPackageSetsTag = do
         Just token -> do
           logDebug "Using cached GitHub token for getting the latest release.."
           pure $ GitHub.executeRequest (GitHub.OAuth $ Data.Text.Encoding.encodeUtf8 token)
-      result <- liftIO $ f $ GitHub.latestReleaseR "purescript" "package-sets"
+      result <- liftIO $ f $ GitHub.latestReleaseR (GitHub.mkName (Proxy :: Proxy GitHub.Owner) org) (GitHub.mkName (Proxy :: Proxy GitHub.Repo) repo)
 
       case result of
         Right GitHub.Release{..} -> return releaseTagName
         Left err -> do
-          logWarn $ display $ Messages.failedToReachGitHub err
+          logWarn $ display $ "rel1" <> Messages.failedToReachGitHub err
           empty
 
     -- | The idea here is that we go to the `latest` endpoint, and then get redirected
@@ -101,7 +105,8 @@ getLatestPackageSetsTag = do
     --   last segment of the URL)
     getLatestRelease2 :: (HasLogFunc env, MonadReader env m, MonadIO m, MonadThrow m, Alternative m) => m Text
     getLatestRelease2 = do
-      request <- Http.parseRequest "https://github.com/purescript/package-sets/releases/latest"
+      logDebug "rel2"
+      request <- Http.parseRequest $ "https://github.com/" <> (Text.unpack org) <> "/" <> (Text.unpack repo) <> "/releases/latest"
       response <- Http.httpBS
         $ Http.addRequestHeader "User-Agent" "Mozilla/5.0"
         $ request { Http.redirectCount = 0 }
