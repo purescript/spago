@@ -20,10 +20,12 @@ module Utils
   , shouldBeEmptySuccess
   , spago
   , withCwd
+  , withEnvVar
   ) where
 
 import qualified Control.Concurrent as Concurrent
 import qualified Control.Exception  as Exception
+import           Data.Maybe         (fromMaybe)
 import qualified Data.Text          as Text
 import qualified Data.Text.Encoding as Text.Encoding
 import           Data.Text.Encoding.Error (lenientDecode)
@@ -31,8 +33,8 @@ import           Prelude            hiding (FilePath)
 import           System.Directory   (removePathForcibly, doesFileExist)
 import qualified System.Process     as Process
 import           Test.Hspec         (HasCallStack, shouldBe, shouldSatisfy)
-import           Turtle             (ExitCode (..), FilePath, Text, cd, empty, encodeString, inproc,
-                                     limit, pwd, readTextFile, strict)
+import           Turtle             (ExitCode (..), FilePath, Text, cd, empty, encodeString, export,
+                                     inproc, limit, need, pwd, readTextFile, strict)
 import qualified Turtle.Bytes
 
 
@@ -40,6 +42,14 @@ withCwd :: FilePath -> IO () -> IO ()
 withCwd dir cmd = do
   oldDir <- pwd
   Exception.bracket_ (cd dir) (cd oldDir) cmd
+
+withEnvVar :: Text -> Text -> IO () -> IO ()
+withEnvVar var value cmd = do
+  oldValue <- need var
+  Exception.bracket_
+    (export var value)
+    (export var (fromMaybe "" oldValue))
+    cmd
 
 proc :: Text -> [Text] -> IO (ExitCode, Text, Text)
 proc cmd args = do

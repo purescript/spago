@@ -13,7 +13,7 @@ import           Utils              (checkFileHasInfix, checkFixture, checkFileE
                                      readFixture, runFor, shouldBeFailure,
                                      shouldBeFailureStderr, shouldBeSuccess, shouldBeSuccessOutput,
                                      shouldBeSuccessOutputWithErr, shouldBeSuccessStderr, spago,
-                                     withCwd)
+                                     withCwd, withEnvVar)
 
 
 setup :: IO () -> IO ()
@@ -704,3 +704,8 @@ spec = around_ setup $ do
       mv "packages.dhall" "packages-old.dhall"
       writeTextFile "packages.dhall" $ "abcdef"
       spago ["verify-set"] >>= shouldBeFailure
+
+  describe "global cache" $ do
+    it "Spago should create global cache directory if it does not exist" $ do
+      withEnvVar "XDG_CACHE_HOME" "./nonexisting-cache" $
+        spago ["repl"] >>= shouldBeSuccess
