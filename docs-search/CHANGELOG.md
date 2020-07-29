@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.0.9 - 2020-07-29]
+
+New features:
+- Implement sorting by package popularity for declarations.
+- Add app version info to the footer.
+- Scroll to document top when search bar gets focus.
+- Group modules by package in the sidebar (#34)
+
+Bugfixes:
+- Fix CLI autocompleter (now works correctly with capital letters).
+
+## [0.0.8 - 2020-01-18]
+
+Skipped due to failed deployment.
+
+## [0.0.7 - 2020-01-18]
+
+Changes:
+- Consider something a builtin when there's no `sourceSpan` (#32)
+
 ## [0.0.6 - 2019-11-29]
 
 New features:
