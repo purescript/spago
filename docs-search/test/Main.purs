@@ -3,7 +3,7 @@ module Test.Main where
 import Prelude
 
 import Docs.Search.TypeDecoder (Constraint(..), FunDep(..), FunDeps(..), Kind(..), QualifiedName(..), Type(..))
-import Docs.Search.Types
+import Docs.Search.Types (Identifier(..))
 import Test.TypeQuery as TypeQuery
 import Test.IndexBuilder as IndexBuilder
 import Test.Declarations as Declarations
