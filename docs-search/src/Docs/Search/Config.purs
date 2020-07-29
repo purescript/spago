@@ -30,7 +30,7 @@ config ::
   , typeIndexDirectory :: String
   }
 config =
-  { version: "0.0.8"
+  { version: "0.0.9"
   , outputDirectory: "output"
   , requiredDirectories:
     [ "generated-docs"
