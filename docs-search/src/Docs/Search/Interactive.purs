@@ -5,7 +5,7 @@ import Docs.Search.Declarations (Declarations, mkDeclarations)
 import Docs.Search.DocsJson (DataDeclType(..))
 import Docs.Search.Engine (mkEngineState, packageInfoToString, Result(..))
 import Docs.Search.Engine as Engine
-import Docs.Search.Extra (listToString, stringToList, (>#>))
+import Docs.Search.Extra (stringToList, (>#>))
 import Docs.Search.IndexBuilder as IndexBuilder
 import Docs.Search.ModuleIndex (ModuleResult, mkPackedModuleIndex, unpackModuleIndex)
 import Docs.Search.NodeEngine (nodeEngine)
@@ -22,12 +22,12 @@ import Prelude
 
 import Data.Array as Array
 import Data.Identity (Identity(..))
+import Data.List as List
 import Data.Maybe (fromMaybe)
 import Data.Newtype (un, unwrap, wrap)
 import Data.Search.Trie as Trie
 import Data.String (length) as String
-import Data.String.Common (split, trim) as String
-import Data.Tuple (fst)
+import Data.String.Common (split, toLower, trim) as String
 import Effect (Effect)
 import Effect.Aff (launchAff_)
 import Effect.Class (liftEffect)
@@ -105,14 +105,13 @@ mkCompleter
   -> Effect { completions :: Array String
             , matched :: String }
 mkCompleter index input = do
-  let path = stringToList input
-  let paths =
+  let path = stringToList $ String.toLower input
+      paths =
         Array.fromFoldable $
-        listToString <$>
-        (fst <$> Trie.query path (unwrap index))
+        (\result -> unwrap (unwrap result).name) <$>
+        List.concat (Trie.queryValues path (unwrap index))
 
-  pure { completions: paths
-       , matched: input }
+  pure { completions: paths, matched: input }
 
 
 showResult :: Result -> String
