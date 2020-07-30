@@ -166,7 +166,7 @@ cptree from to' = Turtle.cptree (Turtle.decodeString from) (Turtle.decodeString 
 
 
 -- | Code from: https://github.com/dhall-lang/dhall-haskell/blob/d8f2787745bb9567a4542973f15e807323de4a1a/dhall/src/Dhall/Import.hs#L578
-assertDirectory :: (MonadIO m, MonadThrow m, HasLogFunc env, MonadReader env m) => FilePath.FilePath -> m ()
+assertDirectory :: (MonadIO m, HasLogFunc env, MonadReader env m) => FilePath.FilePath -> m ()
 assertDirectory directory = do
   let private = transform Directory.emptyPermissions
         where
@@ -188,6 +188,7 @@ assertDirectory directory = do
       unless (accessible permissions) $ do
         die [ "Directory " <> displayShow directory <> " is not accessible. " <> displayShow permissions ]
     else do
+      logDebug $ "Directory " <> displayShow directory <> " does not exist, creating..."
       assertDirectory (FilePath.takeDirectory directory)
 
       Directory.createDirectory directory
