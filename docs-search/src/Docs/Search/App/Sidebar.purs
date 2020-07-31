@@ -84,9 +84,9 @@ handleAction (ToggleGrouping groupingMode) = do
     window <- HTML.window
     localStorage <- Window.localStorage window
 
-    if groupingMode == GroupByPackage
-    then Storage.setItem    config.groupModulesItem "true" localStorage
-    else Storage.removeItem config.groupModulesItem        localStorage
+    if groupingMode == DontGroup
+    then Storage.setItem    config.groupModulesItem "false" localStorage
+    else Storage.removeItem config.groupModulesItem         localStorage
 
 
 handleQuery
@@ -156,8 +156,8 @@ loadGroupingModeFromLocalStorage :: Effect GroupingMode
 loadGroupingModeFromLocalStorage = do
   window <- HTML.window
   localStorage <- Window.localStorage window
-  mbGroupModules <- Storage.getItem config.groupModulesItem localStorage
-  pure $ if isJust mbGroupModules then GroupByPackage else DontGroup
+  mbDontGroupModules <- Storage.getItem config.groupModulesItem localStorage
+  pure $ if isJust mbDontGroupModules then DontGroup else GroupByPackage
 
 
 -- | Convert checkbox status to sidebar mode
