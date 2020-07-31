@@ -114,7 +114,7 @@ render { moduleIndex, groupingMode, moduleNames, isIndexHTML } =
                       ]
          ]
 
-  [ HH.h3_ [ HH.text "Modules" ]
+  [ HH.h3_ [ HH.text $ if groupingMode == DontGroup then "Modules" else "Packages" ]
   , HH.input [ HP.id_ "group-modules__input"
              , HP.type_ HP.InputCheckbox
              , HP.checked (groupingMode == GroupByPackage)
