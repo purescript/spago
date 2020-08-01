@@ -8,7 +8,6 @@ import qualified Paths_spago         as Pcli
 import           Main.Utf8           (withUtf8)
 import           Spago.CLI           (Command(..))
 
-import qualified Data.Text           as Text
 import qualified System.Environment  as Env
 import qualified Spago.Build
 import qualified Spago.GitHub
@@ -31,10 +30,19 @@ main = withUtf8 $ do
   Env.setEnv "GIT_TERMINAL_PROMPT" "0"
 
   (command, globalOptions@GlobalOptions{..}) 
-    <- CLI.optionsExt "" "" "Spago - manage your PureScript projects" (Text.pack spagoVersion) CLI.parser
+    <- CLI.options "Spago - manage your PureScript projects" CLI.parser
+
+  let handleDefault :: MonadIO m => ShowVersion -> m ()
+      handleDefault = \case
+        DoShowVersion -> CLI.echo spagoVersion *> exitSuccess
+        NoShowVersion -> pure ()
 
   Run.withEnv globalOptions $
     case command of
+
+      -- ### Commands that need no env
+      Default shouldShowVersion
+        -> handleDefault shouldShowVersion
 
       -- ### Commands that need only a basic global env
       Init force noComments

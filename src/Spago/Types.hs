@@ -126,6 +126,8 @@ data ClearScreen = DoClear | NoClear
 -- | Flag to allow files ignored via `.gitignore` to trigger a rebuild
 data AllowIgnored = DoAllowIgnored | NoAllowIgnored
 
+data ShowVersion = DoShowVersion | NoShowVersion
+
 
 data BuildOptions = BuildOptions
   { shouldWatch    :: Watch
