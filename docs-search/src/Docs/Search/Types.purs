@@ -74,3 +74,9 @@ derive newtype instance ringPackageScore :: Ring PackageScore
 derive newtype instance showPackageScore :: Show PackageScore
 derive newtype instance decodeJsonPackageScore :: DecodeJson PackageScore
 derive newtype instance encodeJsonPackageScore :: EncodeJson PackageScore
+
+type URL = String
+
+newtype GlobalIdentifier = GlobalIdentifier String
+
+derive instance newtypeGlobalIdentifier :: Newtype GlobalIdentifier _

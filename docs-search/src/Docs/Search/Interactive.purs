@@ -16,7 +16,7 @@ import Docs.Search.Terminal (bold, cyan, green, yellow)
 import Docs.Search.TypeDecoder (Constraint, FunDeps, Kind, QualifiedName, Type, TypeArgument)
 import Docs.Search.TypeIndex (resultsWithTypes)
 import Docs.Search.TypePrinter (keyword, showConstraint, showFunDeps, showKind, showType, showTypeArgument, space, syntax)
-import Docs.Search.Types (ModuleName, PackageInfo, Identifier)
+import Docs.Search.Types (ModuleName, PackageName, PackageInfo, Identifier)
 
 import Prelude
 
@@ -38,6 +38,7 @@ import Node.ReadLine (createConsoleInterface, question)
 type Config =
   { docsFiles :: Array String
   , bowerFiles :: Array String
+  , packageName :: PackageName
   }
 
 
@@ -88,7 +89,7 @@ run cfg = launchAff_ $ do
         Console.log $
           if total > 0 then do
             Array.intercalate "\n\n\n" $
-              showResult <$> Array.reverse results
+              showResult cfg <$> Array.reverse results
           else
             "Your search for " <> bold input <> " did not yield any results."
 
@@ -114,16 +115,16 @@ mkCompleter index input = do
   pure { completions: paths, matched: input }
 
 
-showResult :: Result -> String
-showResult = case _ of
-  DeclResult r -> showSearchResult r
-  TypeResult r -> showSearchResult r
+showResult :: Config -> Result -> String
+showResult cfg = case _ of
+  DeclResult r -> showSearchResult cfg r
+  TypeResult r -> showSearchResult cfg r
   PackResult r -> showPackageResult r
   MdlResult r -> showModuleResult r
 
 
-showSearchResult :: SearchResult -> String
-showSearchResult (SearchResult result@{ name, comments, moduleName, packageInfo }) =
+showSearchResult :: Config -> SearchResult -> String
+showSearchResult cfg (SearchResult result@{ name, comments, moduleName, packageInfo }) =
   showSignature result <> "\n" <>
 
   (fromMaybe "\n" $
@@ -131,10 +132,10 @@ showSearchResult (SearchResult result@{ name, comments, moduleName, packageInfo 
    "\n" <> leftShift 3 (String.trim comment) <> "\n\n") <>
 
   bold (
-    cyan (rightPad 40 $ packageInfoToString packageInfo)
+    cyan (rightPad 40 $ packageInfoToString cfg.packageName packageInfo)
   ) <>
   space <>
-  bold (green $ unwrap moduleName)
+  showModuleName moduleName
 
 
 showPackageResult :: PackageResult -> String
@@ -146,7 +147,11 @@ showPackageResult { name, description } =
 
 showModuleResult :: ModuleResult -> String
 showModuleResult { name, package } =
-  bold (cyan "module") <> " " <> bold (green $ unwrap name)
+  bold (cyan "module") <> " " <> showModuleName name
+
+
+showModuleName :: ModuleName -> String
+showModuleName = bold <<< green <<< unwrap
 
 
 showSignature
@@ -204,8 +209,7 @@ showTypeClassSignature { fundeps, arguments, superclasses } { name, moduleName }
           superclasses <#> showConstraint
         )
       ) <>
-      syntax ")" <>
-      space <>
+      syntax ") " <>
       syntax "<="
   ) <>
   space <>

@@ -14,7 +14,8 @@ import Docs.Search.PackageIndex (PackageResult)
 import Docs.Search.SearchResult (ResultInfo(..), SearchResult(..))
 import Docs.Search.TypeDecoder (Constraint(..), FunDep(..), FunDeps(..), Kind(..), QualifiedName(..), Type(..), TypeArgument(..), joinForAlls, joinRows)
 import Docs.Search.TypeIndex (TypeIndex)
-import Docs.Search.Types (ModuleName(..), Identifier(..))
+import Docs.Search.Types (Identifier(..), ModuleName(..), PackageName)
+import Docs.Search.Meta (Meta)
 
 import Prelude
 
@@ -56,6 +57,7 @@ type State = { engineState :: EngineState
              , resultsCount :: Int
              , mode :: Mode
              , markdownIt :: MD.MarkdownIt
+             , localPackageName :: PackageName
              }
 
 
@@ -73,8 +75,9 @@ mkComponent
   .  EngineState
   -> Element
   -> MD.MarkdownIt
+  -> Meta
   -> H.Component HH.HTML Query i o Aff
-mkComponent initialEngineState contents markdownIt =
+mkComponent initialEngineState contents markdownIt { localPackageName } =
   H.mkComponent
     { initialState: const { engineState: initialEngineState
                           , results: []
@@ -83,6 +86,7 @@ mkComponent initialEngineState contents markdownIt =
                           , resultsCount: config.resultsCount
                           , mode: Off
                           , markdownIt
+                          , localPackageName
                           }
     , render
     , eval: H.mkEval $ H.defaultEval { handleQuery = handleQuery
@@ -191,13 +195,12 @@ render state@{ mode: Active, results: [] } =
     , HH.text " did not yield any results."
     ]
   ]
-
 render state@{ mode: Active } =
   renderContainer $
   [ HH.h1_ [ HH.text "Search results" ]
 
   , HH.div_ $
-    Array.concat $ shownResults <#> renderResult state.markdownIt
+    Array.concat $ shownResults <#> renderResult state
 
   , HH.div [ HP.class_ (wrap "load_more"), HP.id_ "load-more" ]
     [ if Array.length shownResults < Array.length state.results
@@ -210,7 +213,6 @@ render state@{ mode: Active } =
   ]
   where
     shownResults = Array.take state.resultsCount state.results
-
 
 renderContainer :: forall a b. Array (HH.HTML b a) -> HH.HTML b a
 renderContainer =
@@ -229,13 +231,17 @@ renderSummary text =
 
 renderResult
   :: forall a
-  .  MD.MarkdownIt
+  .  State
   -> Result
   -> Array (HH.HTML a Action)
-renderResult markdownIt (DeclResult r) = renderSearchResult markdownIt r
-renderResult markdownIt (TypeResult r) = renderSearchResult markdownIt r
-renderResult markdownIt (PackResult r) = renderPackageResult r
-renderResult markdownIt (MdlResult r)  = renderModuleResult r
+renderResult state (DeclResult r) =
+  renderSearchResult state r
+renderResult state (TypeResult r) =
+  renderSearchResult state  r
+renderResult state (PackResult r) =
+  renderPackageResult r
+renderResult state (MdlResult r) =
+  renderModuleResult r
 
 
 renderPackageResult
@@ -291,10 +297,10 @@ renderModuleResult { name, package } =
 
 renderSearchResult
   :: forall a
-  .  MD.MarkdownIt
+  .  State
   -> SearchResult
   -> Array (HH.HTML a Action)
-renderSearchResult markdownIt (SearchResult result) =
+renderSearchResult state (SearchResult result) =
   -- class names here and below are from Pursuit.
   [ HH.div [ HP.class_ (wrap "result") ]
     [ HH.h3 [ HP.class_ (wrap "result__title") ]
@@ -311,7 +317,7 @@ renderSearchResult markdownIt (SearchResult result) =
   , HH.div [ HP.class_ (wrap "result__body") ] $
     renderResultType result <>
 
-    result.comments >#> pure <<< MDH.render_ markdownIt
+    result.comments >#> pure <<< MDH.render_ state.markdownIt
 
   , HH.div [ HP.class_ (wrap "result__actions") ]
 
@@ -322,7 +328,7 @@ renderSearchResult markdownIt (SearchResult result) =
                 , HP.title "Package"
                 ]
         [ HH.text "P" ]
-      , HH.text $ packageInfoToString result.packageInfo
+      , HH.text $ packageInfoToString state.localPackageName result.packageInfo
       ]
 
     , HH.span [ HP.class_ (wrap "result__actions__item") ]

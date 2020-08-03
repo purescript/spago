@@ -10,6 +10,8 @@ import Docs.Search.PackageIndex (PackageInfo, mkPackageInfo)
 import Docs.Search.Score (mkScores)
 import Docs.Search.SearchResult (SearchResult)
 import Docs.Search.TypeIndex (TypeIndex, mkTypeIndex)
+import Docs.Search.Types (PackageName)
+import Docs.Search.Meta (Meta)
 
 import Prelude
 import Data.Argonaut.Core (stringify)
@@ -49,6 +51,7 @@ type Config =
   , bowerFiles :: Array String
   , generatedDocs :: String
   , noPatch :: Boolean
+  , packageName :: PackageName
   }
 
 
@@ -67,12 +70,15 @@ run' cfg = do
   docsJsons    <- decodeDocsJsons cfg
   packageMetas <- decodeBowerJsons cfg
 
+  let countOfPackages = Array.length packageMetas
+      countOfModules  = Array.length docsJsons
+
   liftEffect do
     log $
       "Indexing " <>
-      show (Array.length docsJsons) <>
+      show countOfModules <>
       " modules from " <>
-      show (Array.length packageMetas) <>
+      show countOfPackages <>
       " packages..."
 
   let scores      = mkScores packageMetas
@@ -80,6 +86,7 @@ run' cfg = do
       typeIndex   = mkTypeIndex scores docsJsons
       packageInfo = mkPackageInfo scores packageMetas
       moduleIndex = mkPackedModuleIndex index
+      meta        = { localPackageName: cfg.packageName }
 
   createDirectories cfg
 
@@ -88,15 +95,13 @@ run' cfg = do
            <*> parallel (writeTypeIndex cfg typeIndex)
            <*> parallel (writePackageInfo packageInfo)
            <*> parallel (writeModuleIndex moduleIndex)
-           <*> parallel (if cfg.noPatch
-                         then pure unit
-                         else patchDocs cfg)
+           <*> parallel (writeMeta meta)
+           <*> parallel (when (not cfg.noPatch) $ patchDocs cfg)
            <*> parallel (copyAppFile cfg)
 
   let countOfDefinitions = Trie.size $ unwrap index
       countOfTypeDefinitions =
         sum $ fromMaybe 0 <$> map Array.length <$> Map.values (unwrap typeIndex)
-      countOfPackages = Array.length packageMetas
 
   liftEffect do
     log $
@@ -230,6 +235,13 @@ writeModuleIndex moduleIndex = do
     header <> stringify (encodeJson moduleIndex)
   where
     header = "window.DocsSearchModuleIndex = "
+
+writeMeta :: Meta -> Aff Unit
+writeMeta meta = do
+  writeTextFile UTF8 config.metaPath $
+    header <> stringify (encodeJson meta)
+  where
+    header = "window." <> config.metaItem <> " = "
 
 -- | Get a mapping from index parts to index contents.
 getIndex :: Declarations -> Map Int (Array (Tuple String (Array SearchResult)))

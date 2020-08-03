@@ -160,8 +160,8 @@ sortByDistance typeQuery =
   Array.sortWith (map (penalty typeQuery) <<< typeOfResult)
 
 
-packageInfoToString :: PackageInfo -> String
-packageInfoToString (Package (PackageName p)) = p
-packageInfoToString Builtin = "<builtin>"
-packageInfoToString LocalPackage = "<local package>"
-packageInfoToString UnknownPackage = "<unknown package>"
+packageInfoToString :: PackageName -> PackageInfo -> String
+packageInfoToString _ (Package (PackageName p)) = p
+packageInfoToString _ Builtin = "<builtin>"
+packageInfoToString localPackageName LocalPackage = unwrap localPackageName
+packageInfoToString _ UnknownPackage = "<unknown package>"

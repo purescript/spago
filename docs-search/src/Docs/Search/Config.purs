@@ -2,6 +2,8 @@ module Docs.Search.Config where
 
 import Prelude
 
+import Docs.Search.Types (PackageName(..))
+
 -- | Some magic constants.
 config ::
   { version :: String
@@ -10,6 +12,9 @@ config ::
   , mkIndexPartPath :: Int -> String
   , moduleIndexPath :: String
   , moduleIndexLoadPath :: String
+  , metaPath :: String
+  , metaLoadPath :: String
+  , metaItem :: String
   , groupModulesItem :: String
   , packageInfoPath :: String
   , packageInfoLoadPath :: String
@@ -28,6 +33,7 @@ config ::
   , requiredDirectories :: Array String
   , resultsCount :: Int
   , typeIndexDirectory :: String
+  , defaultPackageName :: PackageName
   }
 config =
   { version: "0.0.9"
@@ -51,6 +57,9 @@ config =
   , moduleIndexPath: "generated-docs/html/index/modules.js"
   , moduleIndexLoadPath: "./index/modules.js"
   -- ^ Used to load mode index to the browser scope.
+  , metaPath: "generated-docs/html/index/meta.js"
+  , metaLoadPath: "./index/meta.js"
+  , metaItem: "DocsSearchMeta"
   , groupModulesItem: "PureScriptDocsSearchGroupModules"
   -- ^ localStorage key to save sidebar checkbox value to.
   , packageInfoPath: "generated-docs/html/index/packages.js"
@@ -69,4 +78,5 @@ config =
                }
   -- ^ Penalties used to determine how "far" a type query is from a given type.
   -- See Docs.Search.TypeQuery
+  , defaultPackageName: PackageName "<local package>"
   }

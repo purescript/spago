@@ -16,6 +16,7 @@ import Docs.Search.Config (config)
 import Docs.Search.Extra (whenJust)
 import Docs.Search.ModuleIndex as ModuleIndex
 import Docs.Search.PackageIndex as PackageIndex
+import Docs.Search.Meta as Meta
 import Effect (Effect)
 import Effect.Aff (launchAff_)
 import Halogen as H
@@ -63,6 +64,7 @@ main = do
     HA.runHalogenAff do
       packageIndex <- PackageIndex.loadPackageIndex
       moduleIndex <- ModuleIndex.unpackModuleIndex <$> ModuleIndex.loadModuleIndex
+      meta <- Meta.load
       let scores = PackageIndex.mkScoresFromPackageIndex packageIndex
 
       let initialSearchEngineState = { packageIndex
@@ -73,7 +75,11 @@ main = do
                                      }
 
           resultsComponent =
-            SearchResults.mkComponent initialSearchEngineState pageContents markdownIt
+            SearchResults.mkComponent
+            initialSearchEngineState
+            pageContents
+            markdownIt
+            meta
 
       sfio <- runUI SearchField.component unit searchField
       srio <- runUI resultsComponent unit searchResults

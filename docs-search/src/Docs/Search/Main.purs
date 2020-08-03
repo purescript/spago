@@ -6,12 +6,14 @@ import Prelude
 import Docs.Search.IndexBuilder as IndexBuilder
 import Docs.Search.Interactive as Interactive
 import Docs.Search.Config (config)
+import Docs.Search.Types (PackageName(..))
 
 import Data.Generic.Rep (class Generic)
 import Data.Generic.Rep.Show (genericShow)
 import Data.List as List
 import Data.List.NonEmpty as NonEmpty
 import Data.Maybe (Maybe, fromMaybe, optional)
+import Data.Newtype (unwrap)
 import Data.Unfoldable (class Unfoldable)
 import Effect (Effect)
 import Effect.Console (log)
@@ -23,7 +25,10 @@ main :: Effect Unit
 main = do
 
   args <- getArgs
-  let defaultCommands = Search { docsFiles: defaultDocsFiles, bowerFiles: defaultBowerFiles }
+  let defaultCommands = Search { docsFiles: defaultDocsFiles
+                               , bowerFiles: defaultBowerFiles
+                               , packageName: config.defaultPackageName
+                               }
 
   case fromMaybe defaultCommands args of
     BuildIndex cfg -> IndexBuilder.run cfg
@@ -42,16 +47,8 @@ getArgs = execParser opts
 
 
 data Commands
-  = BuildIndex
-    { docsFiles :: Array String
-    , bowerFiles :: Array String
-    , generatedDocs :: String
-    , noPatch :: Boolean
-    }
-  | Search
-    { docsFiles :: Array String
-    , bowerFiles :: Array String
-    }
+  = BuildIndex IndexBuilder.Config
+  | Search Interactive.Config
   | Version
 
 
@@ -88,6 +85,8 @@ buildIndex = ado
 
   bowerFiles <- bowerFilesOption
 
+  packageName <- packageNameOption
+
   generatedDocs <- strOption
     ( long "generated-docs"
    <> metavar "DIR"
@@ -99,7 +98,8 @@ buildIndex = ado
    <> help "Do not patch the HTML docs, only build indices"
     )
 
-  in BuildIndex { docsFiles, bowerFiles, generatedDocs, noPatch }
+
+  in BuildIndex { docsFiles, bowerFiles, generatedDocs, noPatch, packageName }
 
 
 startInteractive :: Parser Commands
@@ -109,7 +109,9 @@ startInteractive = ado
 
   bowerFiles <- bowerFilesOption
 
-  in Search { docsFiles, bowerFiles }
+  packageName <- packageNameOption
+
+  in Search { docsFiles, bowerFiles, packageName }
 
 
 docsFilesOption :: Parser (Array String)
@@ -134,6 +136,15 @@ bowerFilesOption = fromMaybe defaultBowerFiles <$>
        )
      )
    )
+
+
+packageNameOption :: Parser PackageName
+packageNameOption =
+  PackageName <$> strOption
+  ( long "package-name"
+ <> metavar "PACKAGE"
+ <> value (unwrap $ config.defaultPackageName)
+  )
 
 
 defaultDocsFiles :: Array String
