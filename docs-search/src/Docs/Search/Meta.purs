@@ -1,6 +1,6 @@
 module Docs.Search.Meta where
 
-import Docs.Search.Config (config)
+import Docs.Search.Config as Config
 import Docs.Search.Loader as Loader
 import Docs.Search.Types (GlobalIdentifier(..), PackageName)
 
@@ -16,6 +16,6 @@ type Meta =
 
 load :: Aff Meta
 load =
-  Loader.load (GlobalIdentifier config.metaItem) config.metaLoadPath
+  Loader.load (GlobalIdentifier Config.metaItem) Config.metaLoadPath
     `catchError` const (pure defaultMeta)
-  where defaultMeta = { localPackageName: config.defaultPackageName }
+  where defaultMeta = { localPackageName: Config.defaultPackageName }

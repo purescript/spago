@@ -1,7 +1,7 @@
 -- | Partial type index, can be loaded on demand in the browser.
 module Docs.Search.TypeIndex where
 
-import Docs.Search.Config (config)
+import Docs.Search.Config as Config
 import Docs.Search.Declarations (resultsForDeclaration)
 import Docs.Search.DocsJson (DocsJson(..))
 import Docs.Search.Score (Scores)
@@ -21,7 +21,7 @@ import Data.Either (hush)
 import Data.Map (Map)
 import Data.Map as Map
 import Data.Maybe (Maybe(..), fromMaybe', isJust)
-import Data.Newtype (class Newtype, unwrap, wrap)
+import Data.Newtype (class Newtype, over)
 import Effect (Effect)
 import Effect.Aff (Aff, try)
 
@@ -80,7 +80,7 @@ lookup key index@(TypeIndex map) =
   case Map.lookup key map of
     Just results -> pure { index, results: Array.fold results }
     Nothing -> do
-      eiJson <- try (toAffE (lookup_ key $ config.mkShapeScriptPath key))
+      eiJson <- try (toAffE (lookup_ key $ Config.mkShapeScriptPath key))
       pure $ fromMaybe'
         (\_ ->  { index: insert key Nothing index, results: [] })
         do
@@ -94,7 +94,7 @@ lookup key index@(TypeIndex map) =
       -> Maybe (Array SearchResult)
       -> TypeIndex
       -> TypeIndex
-    insert k v = unwrap >>> Map.insert k v >>> wrap
+    insert k v = over TypeIndex (Map.insert k v)
 
 
 query

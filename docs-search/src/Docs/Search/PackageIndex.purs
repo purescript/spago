@@ -1,6 +1,6 @@
 module Docs.Search.PackageIndex where
 
-import Docs.Search.Config (config)
+import Docs.Search.Config as Config
 import Docs.Search.Extra (stringToList)
 import Docs.Search.Score (Scores, getPackageScoreForPackageName, normalizePackageName)
 import Docs.Search.Types (PackageName, RawPackageName(..), PackageScore)
@@ -73,7 +73,7 @@ mkScoresFromPackageIndex =
 
 loadPackageIndex :: Aff PackageIndex
 loadPackageIndex = do
-  json <- toAffE (load config.packageInfoLoadPath)
+  json <- toAffE (load Config.packageInfoLoadPath)
   let packageInfo = fromMaybe mempty $ hush $ decodeJson json
   pure $ mkPackageIndex packageInfo
 

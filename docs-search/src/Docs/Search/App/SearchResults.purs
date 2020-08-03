@@ -3,7 +3,7 @@ module Docs.Search.App.SearchResults where
 
 import Docs.Search.App.SearchField (SearchFieldMessage(..))
 import Docs.Search.BrowserEngine (PartialIndex, browserSearchEngine)
-import Docs.Search.Config (config)
+import Docs.Search.Config as Config
 import Docs.Search.Declarations (DeclLevel(..), declLevelToHashAnchor)
 import Docs.Search.DocsJson (DataDeclType(..))
 import Docs.Search.Engine (Result(..), packageInfoToString)
@@ -83,7 +83,7 @@ mkComponent initialEngineState contents markdownIt { localPackageName } =
                           , results: []
                           , input: ""
                           , contents
-                          , resultsCount: config.resultsCount
+                          , resultsCount: Config.resultsCount
                           , mode: Off
                           , markdownIt
                           , localPackageName
@@ -116,7 +116,7 @@ handleQuery (MessageFromSearchField (InputUpdated input_) next) = do
       H.modify_ (_ { mode = Off })
       showPageContents
   else do
-    H.modify_ (_ { mode = Loading, resultsCount = config.resultsCount })
+    H.modify_ (_ { mode = Loading, resultsCount = Config.resultsCount })
 
     void $ H.fork do
       { index, results } <- H.liftAff $

@@ -1,6 +1,15 @@
 -- | This is the main module of the client-side Halogen app.
 module Docs.Search.App where
 
+import Docs.Search.App.SearchField as SearchField
+import Docs.Search.App.SearchResults as SearchResults
+import Docs.Search.App.Sidebar as Sidebar
+import Docs.Search.Config as Config
+import Docs.Search.Extra (whenJust)
+import Docs.Search.ModuleIndex as ModuleIndex
+import Docs.Search.PackageIndex as PackageIndex
+import Docs.Search.Meta as Meta
+
 import Prelude
 
 import Control.Alt (alt)
@@ -9,14 +18,6 @@ import Data.Maybe (Maybe(..))
 import Data.Newtype (wrap)
 import Data.Tuple (Tuple(..))
 import Data.Tuple.Nested ((/\))
-import Docs.Search.App.SearchField as SearchField
-import Docs.Search.App.SearchResults as SearchResults
-import Docs.Search.App.Sidebar as Sidebar
-import Docs.Search.Config (config)
-import Docs.Search.Extra (whenJust)
-import Docs.Search.ModuleIndex as ModuleIndex
-import Docs.Search.PackageIndex as PackageIndex
-import Docs.Search.Meta as Meta
 import Effect (Effect)
 import Effect.Aff (launchAff_)
 import Halogen as H
@@ -195,7 +196,7 @@ insertVersionInfo doc = do
       Element.setAttribute "href" "https://github.com/spacchetti/purescript-docs-search" linkElement
       Element.setAttribute "target" "_blank"  linkElement
       linkText    <- Document.createTextNode ("docs-search")         doc <#> Text.toNode
-      suffix      <- Document.createTextNode (" " <> config.version) doc <#> Text.toNode
+      suffix      <- Document.createTextNode (" " <> Config.version) doc <#> Text.toNode
       void $ Node.appendChild prefix versionInfo
       void $ Node.appendChild linkNode versionInfo
       void $ Node.appendChild linkText linkNode

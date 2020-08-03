@@ -1,6 +1,6 @@
 module Docs.Search.App.Sidebar where
 
-import Docs.Search.Config (config)
+import Docs.Search.Config as Config
 import Docs.Search.ModuleIndex (PackedModuleIndex)
 import Docs.Search.Types (ModuleName, PackageName(..))
 
@@ -85,8 +85,8 @@ handleAction (ToggleGrouping groupingMode) = do
     localStorage <- Window.localStorage window
 
     if groupingMode == DontGroup
-    then Storage.setItem    config.groupModulesItem "false" localStorage
-    else Storage.removeItem config.groupModulesItem         localStorage
+    then Storage.setItem    Config.groupModulesItem "false" localStorage
+    else Storage.removeItem Config.groupModulesItem         localStorage
 
 
 handleQuery
@@ -156,7 +156,7 @@ loadGroupingModeFromLocalStorage :: Effect GroupingMode
 loadGroupingModeFromLocalStorage = do
   window <- HTML.window
   localStorage <- Window.localStorage window
-  mbDontGroupModules <- Storage.getItem config.groupModulesItem localStorage
+  mbDontGroupModules <- Storage.getItem Config.groupModulesItem localStorage
   pure $ if isJust mbDontGroupModules then DontGroup else GroupByPackage
 
 

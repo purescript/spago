@@ -63,6 +63,7 @@ instance decodeJsonPackageInfo :: DecodeJson PackageInfo where
 instance encodeJsonPackageInfo :: EncodeJson PackageInfo where
   encodeJson = genericEncodeJson
 
+
 newtype PackageScore = PackageScore Int
 
 derive instance newtypePackageScore :: Newtype PackageScore _
@@ -75,7 +76,11 @@ derive newtype instance showPackageScore :: Show PackageScore
 derive newtype instance decodeJsonPackageScore :: DecodeJson PackageScore
 derive newtype instance encodeJsonPackageScore :: EncodeJson PackageScore
 
-type URL = String
+
+newtype URL = URL String
+
+derive instance newtypeURL :: Newtype URL _
+
 
 newtype GlobalIdentifier = GlobalIdentifier String
 

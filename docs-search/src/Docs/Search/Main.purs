@@ -5,7 +5,7 @@ import Prelude
 
 import Docs.Search.IndexBuilder as IndexBuilder
 import Docs.Search.Interactive as Interactive
-import Docs.Search.Config (config)
+import Docs.Search.Config as Config
 import Docs.Search.Types (PackageName(..))
 
 import Data.Generic.Rep (class Generic)
@@ -27,13 +27,13 @@ main = do
   args <- getArgs
   let defaultCommands = Search { docsFiles: defaultDocsFiles
                                , bowerFiles: defaultBowerFiles
-                               , packageName: config.defaultPackageName
+                               , packageName: Config.defaultPackageName
                                }
 
   case fromMaybe defaultCommands args of
     BuildIndex cfg -> IndexBuilder.run cfg
     Search cfg -> Interactive.run cfg
-    Version -> log config.version
+    Version -> log Config.version
 
 
 getArgs :: Effect (Maybe Commands)
@@ -143,7 +143,7 @@ packageNameOption =
   PackageName <$> strOption
   ( long "package-name"
  <> metavar "PACKAGE"
- <> value (unwrap $ config.defaultPackageName)
+ <> value (unwrap Config.defaultPackageName)
   )
 
 

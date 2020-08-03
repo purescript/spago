@@ -1,6 +1,6 @@
 module Docs.Search.ModuleIndex where
 
-import Docs.Search.Config (config)
+import Docs.Search.Config as Config
 import Docs.Search.Declarations (Declarations(..))
 import Docs.Search.SearchResult (SearchResult(..))
 import Docs.Search.Types (ModuleName, PackageName, PackageInfo(..), PackageScore)
@@ -107,7 +107,7 @@ mkPackedModuleIndex (Declarations trie) =
 
 loadModuleIndex :: Aff PackedModuleIndex
 loadModuleIndex = do
-  json <- toAffE $ load config.moduleIndexLoadPath
+  json <- toAffE $ load Config.moduleIndexLoadPath
   pure $ fromMaybe mempty $ hush $ decodeJson json
 
 

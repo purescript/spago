@@ -1,7 +1,7 @@
 -- | A search engine that is used in the browser.
 module Docs.Search.BrowserEngine where
 
-import Docs.Search.Config (config)
+import Docs.Search.Config as Config
 import Docs.Search.PackageIndex (queryPackageIndex)
 import Docs.Search.Engine (Engine, EngineState, Index)
 import Docs.Search.SearchResult (SearchResult)
@@ -68,7 +68,7 @@ query index@(PartialIndex indexMap) input = do
 
 
       eiPartJson <-
-        try $ toAffE $ loadIndex_ partId $ config.mkIndexPartLoadPath partId
+        try $ toAffE $ loadIndex_ partId $ Config.mkIndexPartLoadPath partId
 
       let
         mbNewTrie :: Maybe (Trie Char (List SearchResult))
@@ -121,9 +121,9 @@ browserSearchEngine =
 -- | Find in which part of the index this path can be found.
 getPartId :: List Char -> Int
 getPartId (a : b : _) =
-  (Char.toCharCode a + Char.toCharCode b) `mod` config.numberOfIndexParts
+  (Char.toCharCode a + Char.toCharCode b) `mod` Config.numberOfIndexParts
 getPartId (a : _) =
-  Char.toCharCode a `mod` config.numberOfIndexParts
+  Char.toCharCode a `mod` Config.numberOfIndexParts
 getPartId _ = 0
 
 

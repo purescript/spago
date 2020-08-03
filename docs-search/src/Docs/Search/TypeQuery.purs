@@ -10,7 +10,7 @@ module Docs.Search.TypeQuery
        )
 where
 
-import Docs.Search.Config (config)
+import Docs.Search.Config as Config
 import Docs.Search.Extra (foldl1, foldr1)
 import Docs.Search.TypeDecoder (QualifiedName(..), Type(..), joinConstraints, joinRows)
 import Docs.Search.Types (Identifier(..))
@@ -302,7 +302,7 @@ unify query type_ = go Nil (List.singleton { q: query, t: type_ })
 penalty :: TypeQuery -> Type -> Int
 penalty typeQuery ty =
   let substs = unify typeQuery ty in
-  typeVarPenalty substs * config.penalties.typeVars +
+  typeVarPenalty substs * Config.penalties.typeVars +
   namesPenalty substs +
   mismatchPenalty substs
 
@@ -341,12 +341,12 @@ namesPenalty = go 0
     go p Nil = p
     go p (Match a b : rest)
       | a == b = go p rest
-      | otherwise = go (p + config.penalties.match) rest
+      | otherwise = go (p + Config.penalties.match) rest
     go p (MatchConstraints qcs tcs : rest)
       = let p' = Set.size (Set.union qcs tcs) -
                  Set.size (Set.intersection qcs tcs) in
-        go (p + config.penalties.matchConstraint * p') rest
-    go p (RowsMismatch n m : rest) = go (config.penalties.rowsMismatch * abs (n - m)) rest
+        go (p + Config.penalties.matchConstraint * p') rest
+    go p (RowsMismatch n m : rest) = go (Config.penalties.rowsMismatch * abs (n - m)) rest
     go p (_ : rest) = go p rest
 
 
@@ -356,11 +356,11 @@ mismatchPenalty = go 0
   where
     go n Nil = n
     go n (Instantiate q t     : rest) = go (n + typeSize t *
-                                            config.penalties.instantiate)             rest
+                                            Config.penalties.instantiate)             rest
     go n (Generalize q t      : rest) = go (n + typeQuerySize q *
-                                            config.penalties.generalize)              rest
-    go n (ExcessiveConstraint : rest) = go (n + config.penalties.excessiveConstraint) rest
-    go n (MissingConstraint   : rest) = go (n + config.penalties.missingConstraint)   rest
+                                            Config.penalties.generalize)              rest
+    go n (ExcessiveConstraint : rest) = go (n + Config.penalties.excessiveConstraint) rest
+    go n (MissingConstraint   : rest) = go (n + Config.penalties.missingConstraint)   rest
     go n (Mismatch q t        : rest) = go (n + typeQuerySize q + typeSize t)         rest
     go n (TypeMismatch t      : rest) = go (n + typeSize t)                           rest
     go n (QueryMismatch q     : rest) = go (n + typeQuerySize q)                      rest
