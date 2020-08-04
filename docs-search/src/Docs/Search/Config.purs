@@ -1,8 +1,10 @@
 module Docs.Search.Config where
 
+import Docs.Search.Types (GlobalIdentifier, PackageName, PartId, URL, FilePath)
+
 import Prelude
 
-import Docs.Search.Types
+import Data.Newtype (wrap)
 
 version :: String
 version = "0.0.9"
@@ -14,40 +16,43 @@ mkShapeScriptPath shape = "./index/types/" <> shape <> ".js"
 numberOfIndexParts :: Int
 numberOfIndexParts = 50
 
-mkIndexPartPath :: Int -> String
+mkIndexPartPath :: PartId -> String
 mkIndexPartPath partId = "html/index/declarations/" <> show partId <> ".js"
 
-mkIndexPartLoadPath :: Int -> String
-mkIndexPartLoadPath partId = "./index/declarations/" <> show partId <> ".js"
+mkIndexPartLoadPath :: PartId -> URL
+mkIndexPartLoadPath partId = wrap $ "./index/declarations/" <> show partId <> ".js"
 
-moduleIndexPath :: String
-moduleIndexPath = "generated-docs/html/index/modules.js"
+moduleIndexPath :: FilePath
+moduleIndexPath = wrap "generated-docs/html/index/modules.js"
 
 -- | Used to load mode index to the browser scope.
 moduleIndexLoadPath :: String
 moduleIndexLoadPath = "./index/modules.js"
 
-typeIndexDirectory :: String
-typeIndexDirectory = "generated-docs/html/index/types"
+typeIndexDirectory :: FilePath
+typeIndexDirectory = wrap "generated-docs/html/index/types"
 
-metaPath :: String
-metaPath = "generated-docs/html/index/meta.js"
+metaPath :: FilePath
+metaPath = wrap "generated-docs/html/index/meta.js"
 
 metaLoadPath :: URL
-metaLoadPath = URL "./index/meta.js"
+metaLoadPath = wrap "./index/meta.js"
 
-metaItem :: String
-metaItem = "DocsSearchMeta"
+metaItem :: GlobalIdentifier
+metaItem = wrap "DocsSearchMeta"
 
 -- | localStorage key to save sidebar checkbox value to.
 groupModulesItem :: String
 groupModulesItem = "PureScriptDocsSearchGroupModules"
 
-packageInfoPath :: String
-packageInfoPath = "generated-docs/html/index/packages.js"
+packageInfoPath :: FilePath
+packageInfoPath = wrap "generated-docs/html/index/packages.js"
 
-packageInfoLoadPath :: String
-packageInfoLoadPath = "./index/packages.js"
+packageInfoItem :: GlobalIdentifier
+packageInfoItem = wrap "DocsSearchPackageIndex"
+
+packageInfoLoadPath :: URL
+packageInfoLoadPath = wrap "./index/packages.js"
 
 -- | How many results to show by default?
 resultsCount :: Int
@@ -77,4 +82,4 @@ penalties =
   }
 
 defaultPackageName :: PackageName
-defaultPackageName = PackageName "<local package>"
+defaultPackageName = wrap "<local package>"

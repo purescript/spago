@@ -77,7 +77,7 @@ getResultPackageInfo :: Result -> PackageInfo
 getResultPackageInfo (DeclResult r) = (unwrap r).packageInfo
 getResultPackageInfo (TypeResult r) = (unwrap r).packageInfo
 getResultPackageInfo (PackResult r) = Package r.name
-getResultPackageInfo (MdlResult r) = Package $ r.package
+getResultPackageInfo (MdlResult r) = r.package
 
 
 getResultModuleName :: Result -> ModuleName

@@ -3,9 +3,9 @@ module Docs.Search.ModuleIndex where
 import Docs.Search.Config as Config
 import Docs.Search.Declarations (Declarations(..))
 import Docs.Search.SearchResult (SearchResult(..))
-import Docs.Search.Types (ModuleName, PackageName, PackageInfo(..), PackageScore)
+import Docs.Search.Types (ModuleName, PackageInfo, PackageScore)
 import Docs.Search.Extra (stringToList)
-import Docs.Search.Score (Scores, getPackageScoreForPackageName)
+import Docs.Search.Score (Scores, getPackageScore)
 
 import Prelude
 
@@ -38,18 +38,18 @@ import Effect.Aff (Aff)
 
 
 -- | Module index that is actually stored in a JS file.
-type PackedModuleIndex = Map PackageName (Set ModuleName)
+type PackedModuleIndex = Map PackageInfo (Set ModuleName)
 
 -- | "Expanded" module index that can be queried quickly.
-type ModuleIndex = { packageModules :: Map PackageName (Set ModuleName)
-                   , modulePackages :: Map ModuleName PackageName
+type ModuleIndex = { packageModules :: Map PackageInfo (Set ModuleName)
+                   , modulePackages :: Map ModuleName PackageInfo
                    , index :: Trie Char ModuleName
                    }
 
 
 type ModuleResult
   = { name :: ModuleName
-    , package :: PackageName
+    , package :: PackageInfo
     , score :: PackageScore
     }
 
@@ -58,9 +58,9 @@ unpackModuleIndex :: PackedModuleIndex -> ModuleIndex
 unpackModuleIndex packageModules =
   flip execState { packageModules, modulePackages: mempty, index: mempty } do
     for_ (Map.toUnfoldableUnordered packageModules :: Array _)
-      \(packageName /\ moduleNames) -> do
+      \(package /\ moduleNames) -> do
         for_ moduleNames \moduleName -> do
-          modify_ $ _modulePackages %~ Map.insert moduleName packageName
+          modify_ $ _modulePackages %~ Map.insert moduleName package
           for_ (extractModuleNameParts moduleName) \part -> do
             let partPath = Array.toUnfoldable $ String.toCharArray part
             modify_ $ _index %~ Trie.insert partPath moduleName
@@ -87,7 +87,7 @@ queryModuleIndex scores { index, modulePackages } query =
   (\name -> do
       package <- Map.lookup name modulePackages
       pure { name, package
-           , score: getPackageScoreForPackageName scores package }) #
+           , score: getPackageScore scores package }) #
   Array.catMaybes
 
 
@@ -98,12 +98,11 @@ mkPackedModuleIndex (Declarations trie) =
   where
     extract
       :: List SearchResult
-      -> Map PackageName (Set ModuleName)
+      -> Map PackageInfo (Set ModuleName)
     extract = foldr (Map.unionWith Set.union) mempty <<< map mkEntry
       where
-        mkEntry (SearchResult { packageInfo: Package packageName, moduleName }) =
-          Map.singleton packageName (Set.singleton moduleName)
-        mkEntry _ = mempty
+        mkEntry (SearchResult { packageInfo, moduleName }) =
+          Map.singleton packageInfo (Set.singleton moduleName)
 
 loadModuleIndex :: Aff PackedModuleIndex
 loadModuleIndex = do

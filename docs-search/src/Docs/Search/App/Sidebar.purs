@@ -1,8 +1,9 @@
 module Docs.Search.App.Sidebar where
 
 import Docs.Search.Config as Config
+import Docs.Search.Meta (Meta)
 import Docs.Search.ModuleIndex (PackedModuleIndex)
-import Docs.Search.Types (ModuleName, PackageName(..))
+import Docs.Search.Types (ModuleName, PackageInfo(..), PackageName)
 
 import Prelude
 
@@ -43,10 +44,11 @@ data IsIndexHTML = IsIndexHTML | NotIndexHTML
 
 derive instance isIndexHTMLEq :: Eq IsIndexHTML
 
-type State = { moduleIndex :: Map PackageName (Set ModuleName)
+type State = { moduleIndex :: Map PackageInfo (Set ModuleName)
              , groupingMode :: GroupingMode
              , moduleNames :: Array ModuleName
              , isIndexHTML :: IsIndexHTML
+             , localPackageName :: PackageName
              }
 
 
@@ -54,8 +56,9 @@ mkComponent
   :: forall i
   .  PackedModuleIndex
   -> IsIndexHTML
+  -> Meta
   -> Aff (H.Component HH.HTML Query i Action Aff)
-mkComponent moduleIndex isIndexHTML = do
+mkComponent moduleIndex isIndexHTML { localPackageName } = do
   groupingMode <- H.liftEffect loadGroupingModeFromLocalStorage
   pure $
     H.mkComponent
@@ -63,6 +66,7 @@ mkComponent moduleIndex isIndexHTML = do
                             , groupingMode
                             , moduleNames
                             , isIndexHTML
+                            , localPackageName
                             }
       , render
       , eval: H.mkEval $ H.defaultEval { handleAction = handleAction
@@ -105,7 +109,7 @@ render
   :: forall m
   .  State
   -> H.ComponentHTML Action () m
-render { moduleIndex, groupingMode, moduleNames, isIndexHTML } =
+render { moduleIndex, groupingMode, moduleNames, isIndexHTML, localPackageName } =
 
   HH.div [ HP.classes [ wrap "col"
                       , wrap $ if isIndexHTML == IsIndexHTML
@@ -133,10 +137,16 @@ render { moduleIndex, groupingMode, moduleNames, isIndexHTML } =
   ]
   where
 
-    renderPackageEntry (PackageName packageName /\ modules) =
+    renderPackageEntry (package /\ modules) =
       HH.li [ HP.classes [ wrap "li-package" ] ]
-      [ HH.details_
-        [ HH.summary_ [ HH.text packageName ]
+      [ HH.details_ $
+        [ HH.summary_ [ HH.text $
+                        case package of
+                          Package packageName -> unwrap packageName
+                          LocalPackage -> unwrap localPackageName
+                          Builtin -> "Built-in"
+                          UnknownPackage -> "Unknown package"
+                      ]
         , HH.ul_ $ Set.toUnfoldable modules <#> renderModuleName
         ]
       ]
@@ -147,7 +157,7 @@ render { moduleIndex, groupingMode, moduleNames, isIndexHTML } =
         [ HH.text $ unwrap moduleName ]
       ]
 
-    packageList :: Array (PackageName /\ Set ModuleName)
+    packageList :: Array (PackageInfo /\ Set ModuleName)
     packageList = Map.toUnfoldable moduleIndex
 
 

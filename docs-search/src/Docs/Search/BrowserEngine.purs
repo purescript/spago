@@ -7,6 +7,7 @@ import Docs.Search.Engine (Engine, EngineState, Index)
 import Docs.Search.SearchResult (SearchResult)
 import Docs.Search.TypeIndex (TypeIndex)
 import Docs.Search.TypeIndex as TypeIndex
+import Docs.Search.Types (PartId(..), URL)
 import Docs.Search.ModuleIndex as ModuleIndex
 
 import Prelude
@@ -32,7 +33,7 @@ import Effect.Aff (Aff, try)
 
 
 newtype PartialIndex
-  = PartialIndex (Map Int Index)
+  = PartialIndex (Map PartId Index)
 
 derive instance newtypePartialIndex :: Newtype PartialIndex _
 derive newtype instance semigroupPartialIndex :: Semigroup PartialIndex
@@ -52,13 +53,11 @@ query
   -> Aff { index :: PartialIndex, results :: Array SearchResult }
 query index@(PartialIndex indexMap) input = do
   let
-    path :: List Char
     path =
       List.fromFoldable $
       String.toCharArray $
       input
 
-    partId :: Int
     partId = getPartId path
 
   case Map.lookup partId indexMap of
@@ -119,16 +118,16 @@ browserSearchEngine =
 
 
 -- | Find in which part of the index this path can be found.
-getPartId :: List Char -> Int
+getPartId :: List Char -> PartId
 getPartId (a : b : _) =
-  (Char.toCharCode a + Char.toCharCode b) `mod` Config.numberOfIndexParts
+  PartId $ (Char.toCharCode a + Char.toCharCode b) `mod` Config.numberOfIndexParts
 getPartId (a : _) =
-  Char.toCharCode a `mod` Config.numberOfIndexParts
-getPartId _ = 0
+  PartId $ Char.toCharCode a `mod` Config.numberOfIndexParts
+getPartId _ = PartId 0
 
 
 -- | Load a part of the index by injecting a <script> tag into the DOM.
 foreign import loadIndex_
- :: Int
- -> String
+ :: PartId
+ -> URL
  -> Effect (Promise Json)

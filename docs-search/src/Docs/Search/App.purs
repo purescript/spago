@@ -103,8 +103,8 @@ main = do
         addEventListener hashchange listener true (Window.toEventTarget win)
 
       sbio <- do
-              component <- Sidebar.mkComponent moduleIndex.packageModules isIndexHTML
-              runUI component unit sidebarContainer
+        component <- Sidebar.mkComponent moduleIndex.packageModules isIndexHTML meta
+        runUI component unit sidebarContainer
 
       -- Subscribe to window focus events
       H.liftEffect do

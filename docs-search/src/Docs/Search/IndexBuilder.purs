@@ -10,7 +10,7 @@ import Docs.Search.PackageIndex (PackageInfo, mkPackageInfo)
 import Docs.Search.Score (mkScores)
 import Docs.Search.SearchResult (SearchResult)
 import Docs.Search.TypeIndex (TypeIndex, mkTypeIndex)
-import Docs.Search.Types (PackageName)
+import Docs.Search.Types (PackageName, PartId)
 import Docs.Search.Meta (Meta)
 
 import Prelude
@@ -209,7 +209,7 @@ decodeBowerJsons { bowerFiles } = do
 writeTypeIndex :: Config -> TypeIndex -> Aff Unit
 writeTypeIndex { generatedDocs } typeIndex =
   for_ entries \(Tuple typeShape results) -> do
-    writeTextFile UTF8 (Config.typeIndexDirectory <> "/" <> typeShape <> ".js")
+    writeTextFile UTF8 (unwrap Config.typeIndexDirectory <> "/" <> typeShape <> ".js")
       (mkHeader typeShape <> stringify (encodeJson results))
   where
     mkHeader typeShape =
@@ -222,7 +222,7 @@ writeTypeIndex { generatedDocs } typeIndex =
 writePackageInfo :: PackageInfo -> Aff Unit
 writePackageInfo packageInfo = do
 
-  writeTextFile UTF8 Config.packageInfoPath $
+  writeTextFile UTF8 (unwrap Config.packageInfoPath) $
     header <> stringify (encodeJson packageInfo)
 
   where
@@ -231,20 +231,20 @@ writePackageInfo packageInfo = do
 
 writeModuleIndex :: PackedModuleIndex -> Aff Unit
 writeModuleIndex moduleIndex = do
-  writeTextFile UTF8 Config.moduleIndexPath $
+  writeTextFile UTF8 (unwrap Config.moduleIndexPath) $
     header <> stringify (encodeJson moduleIndex)
   where
     header = "window.DocsSearchModuleIndex = "
 
 writeMeta :: Meta -> Aff Unit
 writeMeta meta = do
-  writeTextFile UTF8 Config.metaPath $
+  writeTextFile UTF8 (unwrap Config.metaPath) $
     header <> stringify (encodeJson meta)
   where
-    header = "window." <> Config.metaItem <> " = "
+    header = "window." <> unwrap Config.metaItem <> " = "
 
 -- | Get a mapping from index parts to index contents.
-getIndex :: Declarations -> Map Int (Array (Tuple String (Array SearchResult)))
+getIndex :: Declarations -> Map PartId (Array (Tuple String (Array SearchResult)))
 getIndex (Declarations trie) =
   Array.foldr insert mempty parts
     where

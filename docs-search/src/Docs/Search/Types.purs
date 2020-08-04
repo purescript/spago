@@ -50,7 +50,7 @@ derive newtype instance encodeJsonPackageName :: EncodeJson PackageName
 derive instance genericPackageName :: Generic PackageName _
 
 
-data PackageInfo = Package PackageName | Builtin | LocalPackage | UnknownPackage
+data PackageInfo = LocalPackage | Builtin | Package PackageName | UnknownPackage
 
 derive instance eqPackageInfo :: Eq PackageInfo
 derive instance ordPackageInfo :: Ord PackageInfo
@@ -80,8 +80,22 @@ derive newtype instance encodeJsonPackageScore :: EncodeJson PackageScore
 newtype URL = URL String
 
 derive instance newtypeURL :: Newtype URL _
+derive newtype instance showURL :: Show URL
 
+newtype FilePath = FilePath String
+
+derive instance newtypeFilePath :: Newtype FilePath _
+derive newtype instance showFilePath :: Show FilePath
 
 newtype GlobalIdentifier = GlobalIdentifier String
 
 derive instance newtypeGlobalIdentifier :: Newtype GlobalIdentifier _
+derive newtype instance showGlobalIdentifier :: Show GlobalIdentifier
+
+
+newtype PartId = PartId Int
+
+derive instance newtypePartId :: Newtype PartId _
+derive newtype instance eqPartId :: Eq PartId
+derive newtype instance ordPartId :: Ord PartId
+derive newtype instance showPartId :: Show PartId
