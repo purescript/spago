@@ -166,6 +166,10 @@ parser = do
     buildOptions  = BuildOptions <$> watch <*> clearScreen <*> allowIgnored <*> sourcePaths <*> srcMapFlag <*> noInstall
                     <*> pursArgs <*> depsOnly <*> beforeCommands <*> thenCommands <*> elseCommands
 
+    -- Opts.flag' creates a parser with no default value. This is intended.
+    -- We want this parser to fail if it does not get a --version flag, rather
+    -- than defaulting to NoShowVersion.  We rely on the parser failure to show
+    -- the help message.
     versionOpt  = Opts.flag' DoShowVersion (Opts.long "version" <> Opts.help "Show spago version")
 
     -- Note: by default we limit concurrency to 20
