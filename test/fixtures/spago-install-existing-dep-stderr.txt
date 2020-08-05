@@ -1,2 +1,1 @@
 [33m[warn] [0mConfiguration file was not updated.[0m
-[34m[info] [0mInstallation complete.[0m

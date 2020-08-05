@@ -23,6 +23,7 @@ Other improvements:
 - Docs: updated package addition/overriding syntax to use `with` syntax (#661)
 - Pass main function argument to `--run` for alternate backends
 - Support `upgrade set` for alternative package-set repositories
+- Do not print "Installation complete" if nothing was installed (#676)
 
 ## [0.15.3] - 2020-06-15
 
