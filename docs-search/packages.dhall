@@ -4,7 +4,7 @@ let mkPackage =
 let upstream =
       https://github.com/purescript/package-sets/releases/download/psc-0.13.8/packages.dhall sha256:0e95ec11604dc8afc1b129c4d405dcc17290ce56d7d0665a0ff15617e32bbf03
 
-let overrides = { metadata = upstream.metadata // { version = "v0.13.0" } }
+let overrides = {=}
 
 let additions =
       { halogen =
@@ -89,6 +89,18 @@ let additions =
             ]
             "https://github.com/klntsky/purescript-bower-json.git"
             "v1.0.0"
+      , toppokki =
+          mkPackage
+            [ "prelude"
+            , "record"
+            , "functions"
+            , "node-http"
+            , "aff-promise"
+            , "node-buffer"
+            , "node-fs-aff"
+            ]
+            "https://github.com/justinwoo/purescript-toppokki.git"
+            "v2.4.0"
       }
 
 in  upstream // overrides // additions

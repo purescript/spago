@@ -8,6 +8,7 @@ import Test.TypeQuery as TypeQuery
 import Test.IndexBuilder as IndexBuilder
 import Test.Declarations as Declarations
 import Test.ModuleIndex as ModuleIndex
+import Test.UI as UI
 
 import Test.Extra (assertRight)
 
@@ -24,6 +25,7 @@ import Test.Unit.Main (runTest)
 main :: Effect Unit
 main = do
   runTest mainTest
+  UI.main
 
 mainTest :: TestSuite
 mainTest = do

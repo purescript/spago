@@ -15,7 +15,7 @@
     "CHANGELOG.md"
   ],
   "scripts": {
-    "test": "spago test && npm run check-version",
+    "test": "spago docs --no-search && ./dist/purescript-docs-search build-index && spago test && npm run check-version",
     "bundle-app": "spago bundle-app --no-build --no-install -m Docs.Search.App --to dist/docs-search-app.js",
     "parcel-app": "parcel build --no-source-maps --target browser --out-file dist/docs-search-app.js dist/docs-search-app.js",
     "build-app": "npm run bundle-app && npm run parcel-app",
@@ -47,6 +47,7 @@
     "glob": "^7.1.6",
     "markdown-it": "^11.0.0",
     "parcel": "^1.12.4",
+    "puppeteer": "^5.2.1",
     "spago": "^0.15.3"
   }
 }

@@ -36,6 +36,7 @@
     , "test-unit"
     , "web-dom"
     , "web-html"
+    , "toppokki"
     , "web-storage"
     ]
 , packages =
