@@ -8,13 +8,13 @@ import Control.Alt ((<|>))
 import Data.Argonaut.Core (Json, caseJsonObject, fromArray, fromObject, jsonEmptyObject, stringify, toArray)
 import Data.Argonaut.Decode (class DecodeJson, decodeJson, (.:))
 import Data.Argonaut.Encode (class EncodeJson, encodeJson)
-import Data.Array ((!!))
+import Data.Argonaut.Decode.Error (JsonDecodeError(..))
 import Data.Either (Either(..))
 import Data.Generic.Rep (class Generic)
 import Data.Generic.Rep.Show (genericShow)
 import Data.List (List(..), (:))
 import Data.List as List
-import Data.Maybe (Maybe(..), fromMaybe)
+import Data.Maybe (Maybe(..))
 import Data.Newtype (class Newtype)
 import Data.Tuple (Tuple(..))
 import Foreign.Object as Object
@@ -42,11 +42,11 @@ instance encodeJsonQualifiedName :: EncodeJson QualifiedName where
   encodeJson (QualifiedName { moduleNameParts, name }) =
     encodeTuple moduleNameParts name
 
-mkJsonError :: String -> Json -> (forall i. i -> String)
+mkJsonError :: String -> Json -> (forall i. i -> JsonDecodeError)
 mkJsonError name json _ =
-  "Couldn't parse " <> name <> " from " <> stringify json
+  TypeMismatch $ "Couldn't parse " <> name <> " from " <> stringify json
 
-mkJsonError' :: String -> Json -> String
+mkJsonError' :: String -> Json -> JsonDecodeError
 mkJsonError' name json = mkJsonError name json unit
 
 -- | The data type of kinds
@@ -294,17 +294,16 @@ decodeTuple
   .  DecodeJson fst
   => DecodeJson sec
   => (fst -> sec -> res)
-  -> (forall a. a -> String)
+  -> (forall a. a -> JsonDecodeError)
   -> Json
-  -> Either String res
+  -> Either JsonDecodeError res
 decodeTuple cont err json =
-  fromMaybe (Left $ err unit) $
-  toArray json >>= \jsons ->
-  jsons !! 0 >>= \json1 ->
-  jsons !! 1 >>= \json2 -> pure $ do
-    fst <- decodeJson json1
-    sec <- decodeJson json2
-    pure $ cont fst sec
+  case toArray json of
+    Just [ json1, json2 ] -> do
+      fst <- decodeJson json1
+      sec <- decodeJson json2
+      pure $ cont fst sec
+    _ -> Left $ err unit
 
 -- | Decode a heterogeneous triple.
 decodeTriple
@@ -313,9 +312,9 @@ decodeTriple
   => DecodeJson sec
   => DecodeJson trd
   => (fst -> sec -> trd -> res)
-  -> (forall a. a -> String)
+  -> (forall a. a -> JsonDecodeError)
   -> Json
-  -> Either String res
+  -> Either JsonDecodeError res
 decodeTriple cont err json =
   case toArray json of
     Just [ json1, json2, json3 ] -> do
@@ -333,9 +332,9 @@ decodeQuadriple
   => DecodeJson trd
   => DecodeJson frt
   => (fst -> sec -> trd -> frt -> res)
-  -> (forall a. a -> String)
+  -> (forall a. a -> JsonDecodeError)
   -> Json
-  -> Either String res
+  -> Either JsonDecodeError res
 decodeQuadriple cont err json =
   case toArray json of
     Just [ json1, json2, json3, json4 ] -> do

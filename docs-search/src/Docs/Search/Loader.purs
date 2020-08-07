@@ -7,6 +7,7 @@ import Prelude
 import Control.Monad.Error.Class (throwError)
 import Control.Promise (Promise, toAffE)
 import Data.Argonaut.Core (Json)
+import Data.Argonaut.Decode.Error (printJsonDecodeError)
 import Data.Argonaut.Decode.Class (class DecodeJson, decodeJson)
 import Data.Either (either)
 import Data.Newtype (unwrap)
@@ -28,7 +29,7 @@ load globalIdentifier url = do
   where
     throw err = throwError $ error $
       "Couldn't load content from window." <>
-      unwrap globalIdentifier <> ": " <> err
+      unwrap globalIdentifier <> ": " <> printJsonDecodeError err
 
 
 foreign import loadFromScript

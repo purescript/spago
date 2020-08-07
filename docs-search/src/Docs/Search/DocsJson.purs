@@ -7,6 +7,7 @@ import Docs.Search.TypeDecoder (Constraint, FunDeps, Kind, Type, TypeArgument)
 
 import Data.Argonaut.Core (fromString, stringify, toString)
 import Data.Argonaut.Decode (class DecodeJson, decodeJson, (.:), (.:?))
+import Data.Argonaut.Decode.Error (JsonDecodeError(..))
 import Data.Argonaut.Encode (class EncodeJson, encodeJson)
 import Data.Either (Either(..))
 import Data.Generic.Rep (class Generic)
@@ -151,7 +152,7 @@ instance encodeJsonDeclType :: EncodeJson DeclType where
 instance decodeJsonDeclType :: DecodeJson DeclType where
   decodeJson json =
     case toString json of
-      Nothing     -> Left $ "Couldn't decode DeclType: " <> stringify json
+      Nothing     -> errorWith $ "Couldn't decode DeclType: " <> stringify json
       Just string ->
         case string of
           "value"       -> Right DeclValue
@@ -161,7 +162,7 @@ instance decodeJsonDeclType :: DecodeJson DeclType where
           "typeClass"   -> Right DeclTypeClass
           "alias"       -> Right DeclAlias
           "kind"        -> Right DeclExternKind
-          _             -> Left $ "Couldn't decode DeclType: " <> string
+          _             -> errorWith $ "Couldn't decode DeclType: " <> string
 
 
 data ChildDeclType
@@ -184,13 +185,13 @@ instance encodeJsonChildDeclType :: EncodeJson ChildDeclType where
 instance decodeJsonChildDeclType :: DecodeJson ChildDeclType where
   decodeJson json =
     case toString json of
-      Nothing     -> Left $ "Couldn't decode ChildDeclType: " <> stringify json
+      Nothing     -> errorWith $ "Couldn't decode ChildDeclType: " <> stringify json
       Just tag ->
         case tag of
           "instance" -> Right ChildDeclInstance
           "dataConstructor" -> Right ChildDeclDataConstructor
           "typeClassMember" -> Right ChildDeclTypeClassMember
-          _                 -> Left $ "Couldn't decode ChildDeclType: " <> tag
+          _                 -> errorWith $ "Couldn't decode ChildDeclType: " <> tag
 
 
 data DataDeclType
@@ -215,5 +216,9 @@ instance decodeJsonDataDeclType :: DecodeJson DataDeclType where
         case tag of
           "newtype" -> Right NewtypeDataDecl
           "data"    -> Right DataDataDecl
-          _         -> Left $ "Couldn't decode DataDeclType: " <> tag
-      Nothing     -> Left $ "Couldn't decode DataDeclType: "   <> stringify json
+          _         -> errorWith $ "Couldn't decode DataDeclType: " <> tag
+      Nothing     -> errorWith $ "Couldn't decode DataDeclType: "   <> stringify json
+
+
+errorWith :: forall a. String -> Either JsonDecodeError a
+errorWith = Left <<< TypeMismatch

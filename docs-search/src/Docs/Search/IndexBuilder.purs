@@ -14,8 +14,10 @@ import Docs.Search.Types (PackageName, PartId)
 import Docs.Search.Meta (Meta)
 
 import Prelude
+
 import Data.Argonaut.Core (stringify)
 import Data.Argonaut.Decode (decodeJson)
+import Data.Argonaut.Decode.Error (printJsonDecodeError)
 import Data.Argonaut.Encode (encodeJson)
 import Data.Argonaut.Parser (jsonParser)
 import Data.Array as Array
@@ -27,6 +29,7 @@ import Data.Map (Map)
 import Data.Map as Map
 import Data.Maybe (Maybe(..), fromMaybe)
 import Data.Newtype (unwrap)
+import Data.Profunctor.Choice (left)
 import Data.Search.Trie as Trie
 import Data.Set as Set
 import Data.String.CodePoints (contains) as String
@@ -151,7 +154,7 @@ decodeDocsJsons cfg@{ docsFiles } = do
     if doesExist then do
 
       contents <- readTextFile UTF8 jsonFile
-      let eiResult = jsonParser contents >>= decodeJson
+      let eiResult = jsonParser contents >>= left printJsonDecodeError <<< decodeJson
 
       case eiResult of
         Left error -> do
@@ -192,7 +195,7 @@ decodeBowerJsons { bowerFiles } = do
         join <$> withExisting jsonFileName
           \contents ->
             either (logError jsonFileName) pure
-            (jsonParser contents >>= decodeJson)
+            (jsonParser contents >>= left printJsonDecodeError <<< decodeJson)
 
   where
     compareNames
