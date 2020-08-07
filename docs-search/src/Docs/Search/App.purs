@@ -26,6 +26,7 @@ import Halogen.VDom.Driver (runUI)
 import MarkdownIt as MD
 import Web.DOM.ChildNode as ChildNode
 import Web.DOM.Document as Document
+import Web.DOM.Document (Document)
 import Web.DOM.Element as Element
 import Web.DOM.Node as Node
 import Web.DOM.ParentNode as ParentNode
@@ -41,12 +42,11 @@ import Web.HTML.Window as Window
 
 main :: Effect Unit
 main = do
-  win <- HTML.window
-  doc <- HTMLDocument.toDocument <$> Window.document win
+  window <- HTML.window
 
-  insertStyle doc
-  insertVersionInfo doc
-  mbContainers <- getContainers doc
+  insertStyle
+  insertVersionInfo
+  mbContainers <- getContainers
 
   -- Initialize a `markdown-it` instance (we need it to render the docs as markdown)
   markdownIt <- MD.newMarkdownIt MD.Default mempty
@@ -100,7 +100,7 @@ main = do
             launchAff_ do
               sfio.query $ H.tell SearchField.ReadURIHash
 
-        addEventListener hashchange listener true (Window.toEventTarget win)
+        addEventListener hashchange listener true (Window.toEventTarget window)
 
       sbio <- do
         component <- Sidebar.mkComponent moduleIndex isIndexHTML meta
@@ -114,11 +114,13 @@ main = do
             launchAff_ do
               sbio.query $ H.tell Sidebar.UpdateModuleGrouping
 
-        addEventListener focus listener true (Window.toEventTarget win)
+        addEventListener focus listener true (Window.toEventTarget window)
 
 
-insertStyle :: Document.Document -> Effect Unit
-insertStyle doc = do
+insertStyle :: Effect Unit
+insertStyle = do
+  doc <- getDocument
+
   let styleContents = """
   .top-banner__actions {
     width: 10%;
@@ -183,8 +185,9 @@ insertStyle doc = do
     void $ Node.appendChild (Element.toNode style) (Element.toNode head)
 
 
-insertVersionInfo :: Document.Document -> Effect Unit
-insertVersionInfo doc = do
+insertVersionInfo :: Effect Unit
+insertVersionInfo = do
+  doc <- getDocument
   let docPN = Document.toParentNode doc
   mbVersionInfo <-
     ParentNode.querySelector (wrap ".footer > p") docPN
@@ -206,15 +209,15 @@ insertVersionInfo doc = do
 -- | Query the DOM for specific elements that should always be present and determine if we are on
 -- | `index.html` or not.
 getContainers
-  :: Document.Document
-  -> Effect (Maybe { searchField :: HTML.HTMLElement
+  :: Effect (Maybe { searchField :: HTML.HTMLElement
                    , searchResults :: HTML.HTMLElement
                    , pageContents :: Element.Element
                    , sidebarContainer :: HTML.HTMLElement
                    , realSidebar :: Element.Element
                    , isIndexHTML :: Sidebar.IsIndexHTML
                    })
-getContainers doc = do
+getContainers = do
+  doc <- getDocument
   let docPN = Document.toParentNode doc
   mbBanner <-
     ParentNode.querySelector (wrap ".top-banner > .container") docPN
@@ -250,3 +253,7 @@ getContainers doc = do
              , isIndexHTML
              }
       | otherwise -> pure Nothing
+
+
+getDocument :: Effect Document
+getDocument = HTML.window >>= map HTMLDocument.toDocument <<< Window.document
