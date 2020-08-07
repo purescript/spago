@@ -103,7 +103,7 @@ main = do
         addEventListener hashchange listener true (Window.toEventTarget win)
 
       sbio <- do
-        component <- Sidebar.mkComponent moduleIndex.packageModules isIndexHTML meta
+        component <- Sidebar.mkComponent moduleIndex isIndexHTML meta
         runUI component unit sidebarContainer
 
       -- Subscribe to window focus events

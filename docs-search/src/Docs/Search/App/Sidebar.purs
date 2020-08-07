@@ -2,8 +2,8 @@ module Docs.Search.App.Sidebar where
 
 import Docs.Search.Config as Config
 import Docs.Search.Meta (Meta)
-import Docs.Search.ModuleIndex (PackedModuleIndex)
-import Docs.Search.Types (ModuleName, PackageInfo(..), PackageName)
+import Docs.Search.ModuleIndex (ModuleIndex)
+import Docs.Search.Types (ModuleName(..), PackageInfo(..), PackageName)
 
 import Prelude
 
@@ -13,7 +13,7 @@ import Data.Lens.Record (prop)
 import Data.List (foldr)
 import Data.Map (Map)
 import Data.Map as Map
-import Data.Maybe (Maybe(..), isJust)
+import Data.Maybe (Maybe(..), isJust, fromMaybe)
 import Data.Newtype (wrap, unwrap)
 import Data.Set (Set)
 import Data.Set as Set
@@ -28,6 +28,12 @@ import Halogen.HTML.Properties as HP
 import Web.HTML as HTML
 import Web.HTML.Window as Window
 import Web.Storage.Storage as Storage
+import Web.DOM.Document as Document
+import Web.DOM.Element as Element
+import Web.HTML.HTMLDocument as HTMLDocument
+import Web.DOM.ParentNode as ParentNode
+import Data.Traversable (traverse)
+import Web.DOM.Node as Node
 
 
 data Action = ToggleGrouping GroupingMode
@@ -44,29 +50,33 @@ data IsIndexHTML = IsIndexHTML | NotIndexHTML
 
 derive instance isIndexHTMLEq :: Eq IsIndexHTML
 
-type State = { moduleIndex :: Map PackageInfo (Set ModuleName)
+type State = { packageModules :: Map PackageInfo (Set ModuleName)
              , groupingMode :: GroupingMode
              , moduleNames :: Array ModuleName
              , isIndexHTML :: IsIndexHTML
              , localPackageName :: PackageName
+             , currentPackage :: PackageInfo
              }
 
 
 mkComponent
   :: forall i
-  .  PackedModuleIndex
+  .  ModuleIndex
   -> IsIndexHTML
   -> Meta
   -> Aff (H.Component HH.HTML Query i Action Aff)
-mkComponent moduleIndex isIndexHTML { localPackageName } = do
+mkComponent moduleIndex@{ packageModules } isIndexHTML { localPackageName } = do
   groupingMode <- H.liftEffect loadGroupingModeFromLocalStorage
+  mbModuleName <- H.liftEffect getCurrentModuleName
+  let currentPackage = getCurrentPackage moduleIndex mbModuleName
   pure $
     H.mkComponent
-      { initialState: const { moduleIndex
+      { initialState: const { packageModules
                             , groupingMode
                             , moduleNames
                             , isIndexHTML
                             , localPackageName
+                            , currentPackage
                             }
       , render
       , eval: H.mkEval $ H.defaultEval { handleAction = handleAction
@@ -74,7 +84,9 @@ mkComponent moduleIndex isIndexHTML { localPackageName } = do
                                        }
       }
   where
-    moduleNames = Array.sort $ Array.fromFoldable $ foldr Set.union mempty moduleIndex
+    moduleNames =
+      Array.sort $ Array.fromFoldable $
+      foldr Set.union mempty moduleIndex.packageModules
 
 
 handleAction
@@ -109,10 +121,10 @@ render
   :: forall m
   .  State
   -> H.ComponentHTML Action () m
-render { moduleIndex, groupingMode, moduleNames, isIndexHTML, localPackageName } =
+render state@{ groupingMode, moduleNames, localPackageName } =
 
   HH.div [ HP.classes [ wrap "col"
-                      , wrap $ if isIndexHTML == IsIndexHTML
+                      , wrap $ if state.isIndexHTML == IsIndexHTML
                                then "col--main"
                                else "col--aside"
                       ]
@@ -139,17 +151,26 @@ render { moduleIndex, groupingMode, moduleNames, isIndexHTML, localPackageName }
 
     renderPackageEntry (package /\ modules) =
       HH.li [ HP.classes [ wrap "li-package" ] ]
-      [ HH.details_ $
-        [ HH.summary_ [ HH.text $
-                        case package of
-                          Package packageName -> unwrap packageName
-                          LocalPackage -> unwrap localPackageName
-                          Builtin -> "Built-in"
-                          UnknownPackage -> "Unknown package"
-                      ]
+      [ HH.details
+        (if isCurrentPackage then [ HP.attr (wrap "open") "" ] else [])
+        [ HH.summary_
+          [ HH.text $
+            case package of
+              Package packageName -> unwrap packageName
+              LocalPackage -> unwrap localPackageName
+              Builtin -> "Built-in"
+              UnknownPackage -> "Unknown package"
+          ]
         , HH.ul_ $ Set.toUnfoldable modules <#> renderModuleName
         ]
       ]
+      where
+
+        isCurrentPackage =
+          state.currentPackage == package &&
+          -- If we don't know which package we are in, we don't want to expand
+          -- "Unknown package" section
+          state.currentPackage /= UnknownPackage
 
     renderModuleName moduleName =
       HH.li_
@@ -158,7 +179,7 @@ render { moduleIndex, groupingMode, moduleNames, isIndexHTML, localPackageName }
       ]
 
     packageList :: Array (PackageInfo /\ Set ModuleName)
-    packageList = Map.toUnfoldable moduleIndex
+    packageList = Map.toUnfoldable state.packageModules
 
 
 -- | Decide whether to group modules by package in the sidebar, using localStorage.
@@ -168,6 +189,22 @@ loadGroupingModeFromLocalStorage = do
   localStorage <- Window.localStorage window
   mbDontGroupModules <- Storage.getItem Config.groupModulesItem localStorage
   pure $ if isJust mbDontGroupModules then DontGroup else GroupByPackage
+
+
+-- | Extract current module name from page title element.
+getCurrentModuleName :: Effect (Maybe ModuleName)
+getCurrentModuleName = do
+  win <- HTML.window
+  docPN <- Document.toParentNode <$> HTMLDocument.toDocument <$> Window.document win
+  mbPageTitleEl <- ParentNode.querySelector (wrap ".page-title__title") docPN
+  map ModuleName <$> traverse (Node.textContent <<< Element.toNode) mbPageTitleEl
+
+
+-- | Given a module name, get `PackageInfo` for a package this module name belongs to.
+getCurrentPackage :: ModuleIndex -> Maybe ModuleName -> PackageInfo
+getCurrentPackage { modulePackages } (Just moduleName) =
+  fromMaybe UnknownPackage $ Map.lookup moduleName modulePackages
+getCurrentPackage { modulePackages } Nothing = UnknownPackage
 
 
 -- | Convert checkbox status to sidebar mode
