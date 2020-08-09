@@ -66,7 +66,7 @@ fetchPackages allDeps = do
       asyncs <- for depsToFetch (Async.async taskGroup . fetchPackage metadata)
       handle (handler asyncs) (for_ asyncs Async.wait)
 
-  logInfo "Installation complete."
+    logInfo "Installation complete."
 
   where
     -- Here we have this weird exception handling so that threads can clean after
