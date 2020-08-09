@@ -19,6 +19,9 @@ New features:
 - Ignore .gitignore files in `--watch` by default (#665)
 - Add `--allow-ignored` to allow files ignored via .gitignore to trigger rebuilds (#665)
 
+Bugfixes:
+- Make the output of `spago --version` the same with `spago version` (#675)
+
 Other improvements:
 - Docs: updated package addition/overriding syntax to use `with` syntax (#661)
 - Pass main function argument to `--run` for alternate backends
