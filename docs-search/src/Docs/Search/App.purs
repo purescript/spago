@@ -77,10 +77,10 @@ main = do
 
           resultsComponent =
             SearchResults.mkComponent
-            initialSearchEngineState
-            pageContents
-            markdownIt
-            meta
+              initialSearchEngineState
+              pageContents
+              markdownIt
+              meta
 
       sfio <- runUI SearchField.component unit searchField
       srio <- runUI resultsComponent unit searchResults

@@ -158,8 +158,8 @@ render state@{ groupingMode, moduleNames, localPackageName } =
             case package of
               Package packageName -> unwrap packageName
               LocalPackage -> unwrap localPackageName
-              Builtin -> "Built-in"
-              UnknownPackage -> "Unknown package"
+              Builtin -> "<builtins>"
+              UnknownPackage -> "<unknown>"
           ]
         , HH.ul_ $ Set.toUnfoldable modules <#> renderModuleName
         ]
