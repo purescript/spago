@@ -7,7 +7,7 @@ import Prelude
 import Data.Newtype (wrap)
 
 version :: String
-version = "0.0.9"
+version = "0.0.10"
 
 mkShapeScriptPath :: String -> String
 mkShapeScriptPath shape = "./index/types/" <> shape <> ".js"
