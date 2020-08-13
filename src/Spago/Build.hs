@@ -305,7 +305,7 @@ docs format sourcePaths depsOnly noSearch open = do
       logInfo "Making the documentation searchable..."
       writeTextFile ".spago/purescript-docs-search" Templates.docsSearch
       writeTextFile ".spago/docs-search-app.js"     Templates.docsSearchApp
-      let cmd = "node .spago/purescript-docs-search build-index"
+      let cmd = "node .spago/purescript-docs-search build-index --package-name " <> surroundQuote name
       logDebug $ "Running `" <> display cmd <> "`"
       shell cmd empty >>= \case
         ExitSuccess   -> pure ()
@@ -330,8 +330,8 @@ docs format sourcePaths depsOnly noSearch open = do
     openLink link = liftIO $ Browser.openBrowser (Text.unpack link)
 
 -- | Start a search REPL.
-search 
-  :: (HasPurs env, HasLogFunc env, HasConfig env) 
+search
+  :: (HasPurs env, HasLogFunc env, HasConfig env)
   => RIO env ()
 search = do
   Config{..} <- view configL
@@ -345,6 +345,6 @@ search = do
     ]
 
   writeTextFile ".spago/purescript-docs-search" Templates.docsSearch
-  let cmd = "node .spago/purescript-docs-search search"
+  let cmd = "node .spago/purescript-docs-search search --package-name " <> surroundQuote name
   logDebug $ "Running `" <> display cmd <> "`"
   viewShell $ callCommand $ Text.unpack cmd
