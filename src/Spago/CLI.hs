@@ -47,7 +47,7 @@ data Command
   | Login
 
   -- | Upgrade the package-set to the latest release
-  | PackageSetUpgrade
+  | PackageSetUpgrade (Maybe Text)
 
   -- | Freeze the package-set so it will be cached
   | Freeze
@@ -284,7 +284,7 @@ parser = do
     upgradeSet =
       ( "upgrade-set"
       , "Upgrade the upstream in packages.dhall to the latest package-sets release"
-      , pure PackageSetUpgrade
+      , PackageSetUpgrade <$> tag
       )
 
     freeze =

@@ -47,8 +47,8 @@ main = withUtf8 $ do
       -- ### Commands that need only a basic global env
       Init force noComments tag
         -> void $ Spago.Packages.initProject force noComments tag
-      PackageSetUpgrade
-        -> Spago.PackageSet.upgradePackageSet
+      PackageSetUpgrade tag
+        -> Spago.PackageSet.modifyPackageSetVersion tag
       Freeze 
         -> Spago.PackageSet.freeze Spago.PackageSet.packagesPath
       Login 

@@ -46,9 +46,7 @@ initProject force comments tag = do
 
   -- Use the specified version of the package set (if specified).
   -- Otherwise, get the latest version of the package set if possible
-  case tag of
-    Just t -> PackageSet.useSpecificRelease t
-    Nothing -> PackageSet.upgradePackageSet
+  PackageSet.modifyPackageSetVersion tag
 
   -- If these directories (or files) exist, we skip copying "sample sources"
   -- Because you might want to just init a project with your own source files,

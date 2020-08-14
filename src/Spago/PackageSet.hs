@@ -1,6 +1,7 @@
 module Spago.PackageSet
   ( upgradePackageSet
   , useSpecificRelease
+  , modifyPackageSetVersion
   , checkPursIsUpToDate
   , makePackageSetFile
   , freeze
@@ -40,6 +41,15 @@ makePackageSetFile force comments = do
     then writeTextFile packagesPath $ Dhall.processComments comments Templates.packagesDhall
     else logWarn $ display $ Messages.foundExistingProject packagesPath
   Dhall.format packagesPath
+
+-- | Use the specified version of the package set (if specified).
+--   Otherwise, get the latest version of the package set if possible
+modifyPackageSetVersion
+  :: forall env
+  .  (HasLogFunc env, HasGlobalCache env)
+  => Maybe Text
+  -> RIO env ()
+modifyPackageSetVersion = maybe upgradePackageSet useSpecificRelease
 
 useSpecificRelease
   :: forall env
