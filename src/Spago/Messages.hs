@@ -146,6 +146,12 @@ upgradingPackageSet newTag = makeMessage
   , "Fetching the new one and generating hashes.. (this might take some time)"
   ]
 
+changedToSpecificPackageSet :: Text -> Text
+changedToSpecificPackageSet newTag = makeMessage
+  [ "Package-set changed to tag " <> surroundQuote newTag
+  , "Fetching the new one and generating hashes.. (this might take some time)"
+  ]
+
 freezePackageSet :: Text
 freezePackageSet = makeMessage
   [ "Generating new hashes for the package set file so it will be cached.. (this might take some time)"

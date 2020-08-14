@@ -152,9 +152,9 @@ repl newPackages sourcePaths pursArgs depsOnly = do
       Temp.withTempDirectory cacheDir "spago-repl-tmp" $ \dir -> do
         Turtle.cd (Turtle.decodeString dir)
 
-        config@Config{ packageSet = PackageSet{..}, ..} 
-          <- Packages.initProject NoForce Dhall.WithComments
-        
+        config@Config{ packageSet = PackageSet{..}, ..}
+          <- Packages.initProject NoForce Dhall.WithComments Nothing
+
         let newConfig :: Config
             newConfig = config { Config.dependencies = dependencies <> newPackages }
         Run.withInstallEnv' (Just newConfig) (replAction purs)

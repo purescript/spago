@@ -45,8 +45,8 @@ main = withUtf8 $ do
         -> handleDefault shouldShowVersion
 
       -- ### Commands that need only a basic global env
-      Init force noComments
-        -> void $ Spago.Packages.initProject force noComments
+      Init force noComments tag
+        -> void $ Spago.Packages.initProject force noComments tag
       PackageSetUpgrade
         -> Spago.PackageSet.upgradePackageSet
       Freeze 
