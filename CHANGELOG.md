@@ -7,26 +7,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.16.0] - 2020-08-14
+
 Breaking changes (😱!!!):
-- **Remove shorthands for `before`, `then`, and `else` (#664)**
+- **Remove shorthands for `color`, `before`, `then`, and `else` flags (#670, #664)**
 
   Both `then` and `target` had the shorthand `t`, so the shorthand for `then` was removed.
   Since `then`, `before`, and `else` are all shared between several commands, it seemed
-  natural to remove the shorthands for the other shared commands too, so as to not cause 
+  natural to remove the shorthands for the other shared commands too, so as to not cause
   future shorthand name conflicts.
+  A similar collision problem happened with the `color` flag, so its shorthand was removed.
+- **Pass main function argument to `--run` for alternate backends (#668)**
+
+  This is a braking change because now alternate backends are expected to accept
+  an argument to their `run` flag. This change was coordinated among various backends
+  so the migration should be relatively smooth, but you should check if your backend
+  it able to support this.
 
 New features:
-- Ignore .gitignore files in `--watch` by default (#665)
-- Add `--allow-ignored` to allow files ignored via .gitignore to trigger rebuilds (#665)
+- Upgrade to `docs-search@v0.0.10`, that introduces grouping by package in local docs (#679)
+- Ignore `.gitignore`d files in `--watch` by default - you can disable this with `--allow-ignored` (#665)
+- Support `upgrade-set` for alternative package-set repositories (#671)
 
 Bugfixes:
 - Make the output of `spago --version` the same with `spago version` (#675)
+- Ensure the existence of the global cache directory (#672, #667)
 
 Other improvements:
-- Docs: updated package addition/overriding syntax to use `with` syntax (#661)
-- Pass main function argument to `--run` for alternate backends
-- Support `upgrade set` for alternative package-set repositories
-- Do not print "Installation complete" if nothing was installed (#676)
+- Docs: updated package addition/overriding syntax to use `with` syntax (#661, #663)
+- Docs: fix Webpack template (#653)
+- Docs: document how to pass arguments to `main` (#655)
+- Error messages: do not print "Installation complete" if nothing was installed (#676)
 
 ## [0.15.3] - 2020-06-15
 
