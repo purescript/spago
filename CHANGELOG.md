@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+New features:
+- **Specify the package set version via `--tag` (#680)**
+
+  Example usage: `spago init --tag psc-0.13.2-20190725` and `spago upgrade-set --tag psc-0.13.2-20190725`
+
 ## [0.16.0] - 2020-08-14
 
 Breaking changes (😱!!!):
