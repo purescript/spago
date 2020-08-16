@@ -35,7 +35,7 @@ import qualified Spago.Templates          as Templates
 --   - create an example `test` folder (if needed)
 initProject 
   :: (HasGlobalCache env, HasLogFunc env, HasConfigPath env)
-  => Force -> Dhall.TemplateComments -> Maybe Text.Text
+  => Force -> Dhall.TemplateComments -> Maybe Text
   -> RIO env Config
 initProject force comments tag = do
   logInfo "Initializing a sample project or migrating an existing one.."
