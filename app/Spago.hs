@@ -48,8 +48,8 @@ main = withUtf8 $ do
       Init force noComments tag
         -> void $ Spago.Packages.initProject force noComments tag
       PackageSetUpgrade tag
-        -> Spago.PackageSet.modifyPackageSetVersion tag
-      Freeze 
+        -> Spago.PackageSet.updatePackageSetVersion tag
+      Freeze
         -> Spago.PackageSet.freeze Spago.PackageSet.packagesPath
       Login 
         -> Spago.GitHub.login

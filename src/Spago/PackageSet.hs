@@ -1,7 +1,7 @@
 module Spago.PackageSet
-  ( upgradePackageSet
+  ( useLatestRelease
   , useSpecificRelease
-  , modifyPackageSetVersion
+  , updatePackageSetVersion
   , checkPursIsUpToDate
   , makePackageSetFile
   , freeze
@@ -44,12 +44,12 @@ makePackageSetFile force comments = do
 
 -- | Use the specified version of the package set (if specified).
 --   Otherwise, get the latest version of the package set if possible
-modifyPackageSetVersion
+updatePackageSetVersion
   :: forall env
   .  (HasLogFunc env, HasGlobalCache env)
   => Maybe Text
   -> RIO env ()
-modifyPackageSetVersion = maybe upgradePackageSet useSpecificRelease
+updatePackageSetVersion = maybe useLatestRelease useSpecificRelease
 
 useSpecificRelease
   :: forall env
@@ -144,11 +144,11 @@ useSpecificRelease tag = do
 --   - try to replace the git tag to which the package-set imports point to
 --     (if they point to the Package-Sets repo. This can be eventually made GitHub generic)
 --   - if all of this succeeds, it will regenerate the hashes and write to file
-upgradePackageSet 
+useLatestRelease
   :: forall env
   .  (HasLogFunc env, HasGlobalCache env)
   => RIO env ()
-upgradePackageSet = do
+useLatestRelease = do
   logDebug "Running `spago upgrade-set`"
 
   rawPackageSet <- liftIO $ Dhall.readRawExpr packagesPath
