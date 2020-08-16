@@ -26,7 +26,7 @@ data Command
   = Default ShowVersion
   
   -- | Initialize a new project
-  | Init Force TemplateComments (Maybe Text.Text)
+  | Init Force TemplateComments (Maybe Text)
 
   -- | Install (download) dependencies defined in spago.dhall
   | Install [PackageName]
