@@ -18,7 +18,6 @@ import qualified Data.Text       as Text
 import qualified Data.Versions   as Version
 import qualified Dhall.Freeze
 import qualified Dhall.Pretty
-import qualified Dhall.Import
 import           Dhall.Import (PrettyHttpException(..))
 import qualified Safe
 import qualified System.FilePath
@@ -85,36 +84,22 @@ useSpecificRelease tag = do
         -- Skip the check if the tag is already being used
         Just _
           | currentTag == specificTag
-            -> logDebug $ "Skipping package set version upgrade, already using specified version: " <> display quotedTag
+            -> logDebug $ "Skipping package set version update, already on version: " <> display quotedTag
         Just (header, expr) -> do
-          logDebug $ "Specified tag is different than current tag"
           let newExpr = fmap (upgradeImports org repo specificTag) expr
-          logInfo $ display $ Messages.changingToSpecificPackageSet specificTag
-          mbResolvedExpr <- (loadDhallExpression newExpr) `catch` catchHttpException
-          case mbResolvedExpr of
-            -- Package set exists, so continue as normal
-            Just resolvedExpr -> do
-              liftIO $ Dhall.writeRawExprPostVerify packagesPath (header, newExpr) resolvedExpr
+          logInfo $ display $ Messages.updatingPackageSet specificTag
+          try (liftIO $ Dhall.writeRawExpr packagesPath (header, newExpr)) >>= \case
+            Right _ -> do
               -- If everything is fine, refreeze the imports
               freeze packagesPath
-
-            -- Package set does not exist, so notify user.
-            -- Since we didn't patch the `packages.dhall` file in the
-            -- first place, there's nothing left to do here.
-            Nothing -> do
-              logWarn $ display $ Messages.nonExistentPackageSet org repo currentTag specificTag
-      where
-        loadDhallExpression expr = fmap Just (liftIO $ Dhall.Import.load expr)
-        catchHttpException e = do
-          let result = do
-                (PrettyHttpException _ httpError) <- fromException e
-                fromDynamic httpError
-          case result of
-            Just (HttpExceptionRequest _ (StatusCodeException resp _))
-              | responseStatus resp == status404 -> do
-                  pure Nothing
-            _ -> do
-              liftIO $ Exception.throwIO e
+            Left e@(PrettyHttpException _ httpError) -> do
+              case fromDynamic httpError of
+                Just (HttpExceptionRequest _ (StatusCodeException resp _))
+                  | responseStatus resp == status404 -> do
+                      -- If Dhall got a 404 when checking remote, warn user
+                      logWarn $ display $ Messages.nonExistentPackageSet org repo currentTag specificTag
+                _ -> do
+                  liftIO $ Exception.throwIO e
 
     getCurrentTag :: Dhall.Import -> [(Text, Text, Text)]
     getCurrentTag Dhall.Import
@@ -208,7 +193,7 @@ useLatestRelease = do
         Just (header, expr) -> do
           logInfo $ "Upgrading the package set version to " <> display quotedTag
           let newExpr = fmap (upgradeImports org repo releaseTagName) expr
-          logInfo $ display $ Messages.upgradingPackageSet releaseTagName
+          logInfo $ display $ Messages.updatingPackageSet releaseTagName
           liftIO $ Dhall.writeRawExpr packagesPath (header, newExpr)
           -- If everything is fine, refreeze the imports
           freeze packagesPath

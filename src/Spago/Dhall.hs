@@ -91,16 +91,8 @@ readRawExpr pathText = do
 writeRawExpr :: Text -> (Dhall.Header, DhallExpr Dhall.Import) -> IO ()
 writeRawExpr pathText (header, expr) = do
   -- Verify that the package set exists
+  -- If Dhall gets a 404, it will throw a PrettyHttpException
   resolvedExpr <- Dhall.Import.load expr
-  -- After modifying the expression, we have to check if it still typechecks
-  -- if it doesn't we don't write to file.
-  _ <- throws (Dhall.TypeCheck.typeOf resolvedExpr)
-  writeTextFile pathText $ prettyWithHeader header expr
-  format pathText
-
-
-writeRawExprPostVerify :: Text -> (Dhall.Header, DhallExpr Dhall.Import) -> DhallExpr Void -> IO ()
-writeRawExprPostVerify pathText (header, expr) resolvedExpr = do
   -- After modifying the expression, we have to check if it still typechecks
   -- if it doesn't we don't write to file.
   _ <- throws (Dhall.TypeCheck.typeOf resolvedExpr)
