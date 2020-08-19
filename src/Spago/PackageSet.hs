@@ -13,11 +13,15 @@ module Spago.PackageSet
 import           Spago.Prelude
 import           Spago.Env
 
+import qualified Control.Exception as Exception
+import           Data.Dynamic (fromDynamic)
 import           Data.Ord        (comparing)
 import qualified Data.Text       as Text
 import qualified Data.Versions   as Version
 import qualified Dhall.Freeze
 import qualified Dhall.Pretty
+import qualified Dhall.Import
+import           Dhall.Import (PrettyHttpException(..))
 import qualified Safe
 import qualified System.FilePath
 import qualified System.IO
@@ -27,6 +31,8 @@ import qualified Spago.GitHub    as GitHub
 import qualified Spago.Messages  as Messages
 import qualified Spago.Purs      as Purs
 import qualified Spago.Templates as Templates
+
+import           Network.HTTP.Client (HttpException (..), HttpExceptionContent (..))
 
 
 packagesPath :: IsString t => t
@@ -85,9 +91,21 @@ useSpecificRelease tag = do
           logInfo $ "Changing the package set version to " <> display quotedTag
           let newExpr = fmap (upgradeImports org repo specificTag) expr
           logInfo $ display $ Messages.upgradingPackageSet specificTag
-          liftIO $ Dhall.writeRawExpr packagesPath (header, newExpr)
+          resolvedExpr <- verifyPackageSetExists newExpr
+          liftIO $ Dhall.writeRawExprPostVerify packagesPath (header, newExpr) resolvedExpr
           -- If everything is fine, refreeze the imports
           freeze packagesPath
+      where
+        verifyPackageSetExists expr =
+          (liftIO $ Dhall.Import.load expr) `catch` \e -> do
+            let result = do
+                  (PrettyHttpException _ httpError) <- fromException e
+                  fromDynamic httpError
+            case result of
+              Just (HttpExceptionRequest _ (StatusCodeException _ _)) -> do
+                die [ display $ Messages.nonExistentPackageSet org repo specificTag ]
+              _ -> do
+                liftIO $ Exception.throwIO e
 
     getCurrentTag :: Dhall.Import -> [(Text, Text, Text)]
     getCurrentTag Dhall.Import

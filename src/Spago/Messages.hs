@@ -152,6 +152,11 @@ changedToSpecificPackageSet newTag = makeMessage
   , "Fetching the new one and generating hashes.. (this might take some time)"
   ]
 
+nonExistentPackageSet :: Text -> Text -> Text -> Text
+nonExistentPackageSet org repo newTag = makeMessage
+  [ "Package-set tag " <> surroundQuote newTag <> " in the repo " <> surroundQuote (org <> "/" <> repo) <> " does not exist."
+  ]
+
 freezePackageSet :: Text
 freezePackageSet = makeMessage
   [ "Generating new hashes for the package set file so it will be cached.. (this might take some time)"
