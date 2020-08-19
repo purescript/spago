@@ -53,7 +53,21 @@ updatePackageSetVersion
   .  (HasLogFunc env, HasGlobalCache env)
   => Maybe Text
   -> RIO env ()
-updatePackageSetVersion = maybe useLatestRelease useSpecificRelease
+updatePackageSetVersion mbTag = do
+  logDebug "Running `spago upgrade-set`"
+
+  rawPackageSet <- liftIO $ Dhall.readRawExpr packagesPath
+  (org, repo, currentTag) <- case rawPackageSet of
+        Nothing -> die [ display Messages.cannotFindPackages ]
+        Just (_, expr)
+          | (current:_) <- foldMap getCurrentTag expr
+          -> pure current
+        Just _ -> die [ display Messages.cannotFindPackageImport ]
+
+  maybe
+    (useLatestRelease org repo currentTag)
+    (useSpecificRelease org repo currentTag)
+    mbTag
   where
     -- | Tries to upgrade the Package-Sets release of the local package set.
     --   It will:
@@ -63,20 +77,8 @@ updatePackageSetVersion = maybe useLatestRelease useSpecificRelease
     --     (if they point to the Package-Sets repo. This can be eventually made GitHub generic)
     --   - if all of this succeeds, it will regenerate the hashes and write to file
     useLatestRelease
-      :: forall env
-      .  (HasLogFunc env, HasGlobalCache env)
-      => RIO env ()
-    useLatestRelease = do
-      logDebug "Running `spago upgrade-set`"
-
-      rawPackageSet <- liftIO $ Dhall.readRawExpr packagesPath
-      (org, repo, currentTag) <- case rawPackageSet of
-            Nothing -> die [ display Messages.cannotFindPackages ]
-            Just (_, expr)
-              | (current:_) <- foldMap getCurrentTag expr
-              -> pure current
-            Just _ -> die [ display Messages.cannotFindPackageImport ]
-
+      :: Text -> Text -> Text -> RIO env ()
+    useLatestRelease org repo currentTag = do
       GitHub.getLatestPackageSetsTag org repo >>= \case
         Right tag -> updateTag org repo currentTag tag
         Left (err :: SomeException) -> do
@@ -84,21 +86,8 @@ updatePackageSetVersion = maybe useLatestRelease useSpecificRelease
           logDebug $ "Error: " <> display err
 
     useSpecificRelease
-      :: forall env
-      .  (HasLogFunc env, HasGlobalCache env)
-      => Text
-      -> RIO env ()
-    useSpecificRelease tag = do
-      logDebug "Running `spago upgrade-set --tag`"
-
-      rawPackageSet <- liftIO $ Dhall.readRawExpr packagesPath
-      (org, repo, currentTag) <- case rawPackageSet of
-            Nothing -> die [ display Messages.cannotFindPackages ]
-            Just (_, expr)
-              | (current:_) <- foldMap getCurrentTag expr
-              -> pure current
-            Just _ -> die [ display Messages.cannotFindPackageImport ]
-
+      :: Text -> Text -> Text -> Text -> RIO env ()
+    useSpecificRelease org repo currentTag tag =
       updateTag org repo currentTag tag
 
     updateTag :: HasLogFunc env => Text -> Text -> Text -> Text -> RIO env ()
