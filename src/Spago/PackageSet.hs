@@ -32,7 +32,8 @@ import qualified Spago.Messages  as Messages
 import qualified Spago.Purs      as Purs
 import qualified Spago.Templates as Templates
 
-import           Network.HTTP.Client (HttpException (..), HttpExceptionContent (..))
+import           Network.HTTP.Client (HttpException (..), HttpExceptionContent (..), responseStatus, )
+import           Network.HTTP.Types.Status (status404)
 
 
 packagesPath :: IsString t => t
@@ -91,21 +92,31 @@ useSpecificRelease tag = do
           logDebug $ "Specified tag is different than current tag"
           let newExpr = fmap (upgradeImports org repo specificTag) expr
           logInfo $ display $ Messages.changingToSpecificPackageSet specificTag
-          resolvedExpr <- verifyPackageSetExists newExpr
-          liftIO $ Dhall.writeRawExprPostVerify packagesPath (header, newExpr) resolvedExpr
-          -- If everything is fine, refreeze the imports
-          freeze packagesPath
+          mbResolvedExpr <- (loadDhallExpression newExpr) `catch` catchHttpException
+          case mbResolvedExpr of
+            -- Package set exists, so continue as normal
+            Just resolvedExpr -> do
+              liftIO $ Dhall.writeRawExprPostVerify packagesPath (header, newExpr) resolvedExpr
+              -- If everything is fine, refreeze the imports
+              freeze packagesPath
+
+            -- Package set does not exist, so notify user.
+            -- Since we didn't patch the `packages.dhall` file in the
+            -- first place, there's nothing left to do here.
+            Nothing -> do
+              logWarn $ display $ Messages.nonExistentPackageSet org repo currentTag specificTag
       where
-        verifyPackageSetExists expr =
-          (liftIO $ Dhall.Import.load expr) `catch` \e -> do
-            let result = do
-                  (PrettyHttpException _ httpError) <- fromException e
-                  fromDynamic httpError
-            case result of
-              Just (HttpExceptionRequest _ (StatusCodeException _ _)) -> do
-                die [ display $ Messages.nonExistentPackageSet org repo currentTag specificTag ]
-              _ -> do
-                liftIO $ Exception.throwIO e
+        loadDhallExpression expr = fmap Just (liftIO $ Dhall.Import.load expr)
+        catchHttpException e = do
+          let result = do
+                (PrettyHttpException _ httpError) <- fromException e
+                fromDynamic httpError
+          case result of
+            Just (HttpExceptionRequest _ (StatusCodeException resp _))
+              | responseStatus resp == status404 -> do
+                  pure Nothing
+            _ -> do
+              liftIO $ Exception.throwIO e
 
     getCurrentTag :: Dhall.Import -> [(Text, Text, Text)]
     getCurrentTag Dhall.Import
