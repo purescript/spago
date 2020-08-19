@@ -88,9 +88,9 @@ useSpecificRelease tag = do
           | currentTag == specificTag
             -> logDebug $ "Skipping package set version upgrade, already using specified version: " <> display quotedTag
         Just (header, expr) -> do
-          logInfo $ "Changing the package set version to " <> display quotedTag
+          logDebug $ "Specified tag is different than current tag"
           let newExpr = fmap (upgradeImports org repo specificTag) expr
-          logInfo $ display $ Messages.upgradingPackageSet specificTag
+          logInfo $ display $ Messages.changingToSpecificPackageSet specificTag
           resolvedExpr <- verifyPackageSetExists newExpr
           liftIO $ Dhall.writeRawExprPostVerify packagesPath (header, newExpr) resolvedExpr
           -- If everything is fine, refreeze the imports
@@ -103,7 +103,7 @@ useSpecificRelease tag = do
                   fromDynamic httpError
             case result of
               Just (HttpExceptionRequest _ (StatusCodeException _ _)) -> do
-                die [ display $ Messages.nonExistentPackageSet org repo specificTag ]
+                die [ display $ Messages.nonExistentPackageSet org repo currentTag specificTag ]
               _ -> do
                 liftIO $ Exception.throwIO e
 

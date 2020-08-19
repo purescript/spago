@@ -146,15 +146,16 @@ upgradingPackageSet newTag = makeMessage
   , "Fetching the new one and generating hashes.. (this might take some time)"
   ]
 
-changedToSpecificPackageSet :: Text -> Text
-changedToSpecificPackageSet newTag = makeMessage
-  [ "Package-set changed to tag " <> surroundQuote newTag
+changingToSpecificPackageSet :: Text -> Text
+changingToSpecificPackageSet newTag = makeMessage
+  [ "Current tag is different from specified tag " <> surroundQuote newTag
   , "Fetching the new one and generating hashes.. (this might take some time)"
   ]
 
-nonExistentPackageSet :: Text -> Text -> Text -> Text
-nonExistentPackageSet org repo newTag = makeMessage
+nonExistentPackageSet :: Text -> Text -> Text -> Text -> Text
+nonExistentPackageSet org repo oldTag newTag = makeMessage
   [ "Package-set tag " <> surroundQuote newTag <> " in the repo " <> surroundQuote (org <> "/" <> repo) <> " does not exist."
+  , "Reverting change back to " <> surroundQuote oldTag
   ]
 
 freezePackageSet :: Text
