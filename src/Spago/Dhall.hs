@@ -6,7 +6,10 @@ module Spago.Dhall
 
 import           Spago.Prelude
 
+import qualified System.Exit                           as Exit
+import qualified Control.Exception                     as Exception
 import qualified Control.Monad.Trans.State.Strict      as State
+import           Data.Dynamic (fromDynamic)
 import qualified Data.Text                             as Text
 import qualified Data.Text.Prettyprint.Doc             as Pretty
 import qualified Data.Text.Prettyprint.Doc.Render.Text as PrettyText
@@ -14,11 +17,13 @@ import           Dhall
 import           Dhall.Core                            as Dhall hiding (pretty)
 import qualified Dhall.Format
 import qualified Dhall.Import
+import           Dhall.Import (PrettyHttpException(..))
 import qualified Dhall.Map
 import qualified Dhall.Parser                          as Parser
 import qualified Dhall.Pretty
 import           Dhall.TypeCheck                       (typeOf)
 import           Dhall.Util                            as Dhall
+import           Network.HTTP.Client (HttpException (..), HttpExceptionContent (..))
 import qualified Lens.Family
 import qualified System.FilePath                       as FilePath
 
@@ -90,9 +95,19 @@ readRawExpr pathText = do
 
 writeRawExpr :: Text -> (Dhall.Header, DhallExpr Dhall.Import) -> IO ()
 writeRawExpr pathText (header, expr) = do
+  -- Verify that the package set exists
+  resolvedExpr <- Dhall.Import.load expr `catch` \e -> do
+    let result = do
+          (PrettyHttpException _ httpError) <- fromException e
+          fromDynamic httpError
+    case result of
+      Just (HttpExceptionRequest _ (StatusCodeException _ _)) -> do
+        Exit.die "invalid package set"
+      _ -> do
+        Exception.throwIO e
+
   -- After modifying the expression, we have to check if it still typechecks
   -- if it doesn't we don't write to file.
-  resolvedExpr <- Dhall.Import.load expr
   _ <- throws (Dhall.TypeCheck.typeOf resolvedExpr)
   writeTextFile pathText $ prettyWithHeader header expr
   format pathText
