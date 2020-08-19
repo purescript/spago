@@ -1,7 +1,5 @@
 module Spago.PackageSet
-  ( useLatestRelease
-  , useSpecificRelease
-  , updatePackageSetVersion
+  ( updatePackageSetVersion
   , checkPursIsUpToDate
   , makePackageSetFile
   , freeze
