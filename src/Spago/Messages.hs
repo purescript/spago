@@ -149,7 +149,7 @@ updatingPackageSet newTag = makeMessage
 nonExistentPackageSet :: Text -> Text -> Text -> Text -> Text
 nonExistentPackageSet org repo oldTag newTag = makeMessage
   [ "Package-set tag " <> surroundQuote newTag <> " in the repo " <> surroundQuote (org <> "/" <> repo) <> " does not exist."
-  , "Reverting change back to " <> surroundQuote oldTag
+  , "Will ignore user-specified tag and continue using current tag: " <> surroundQuote oldTag
   ]
 
 freezePackageSet :: Text
