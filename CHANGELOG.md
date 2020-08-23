@@ -7,10 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-New features:
+Breaking changes (😱!!!):
 - **Specify the package set version via `--tag` (#680)**
 
-  Example usage: `spago init --tag psc-0.13.2-20190725` and `spago upgrade-set --tag psc-0.13.2-20190725`
+  Example usage: `spago init --tag psc-0.13.2-20190725` and `spago upgrade-set --tag psc-0.13.2-20190725`. This is a breaking change because we are removing support for the old spacchetti/spacchetti-style location (i.e. in the src/packages.dhall) for the upgrade-set command.
 
 ## [0.16.0] - 2020-08-14
 
