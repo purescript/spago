@@ -53,7 +53,7 @@ updatePackageSetVersion
   .  (HasLogFunc env, HasGlobalCache env)
   => Maybe Text
   -> RIO env ()
-updatePackageSetVersion mbTag = do
+updatePackageSetVersion maybeTag = do
   logDebug "Running `spago upgrade-set`"
 
   rawPackageSet <- liftIO $ Dhall.readRawExpr packagesPath
@@ -67,7 +67,7 @@ updatePackageSetVersion mbTag = do
   maybe
     (useLatestRelease org repo currentTag)
     (useSpecificRelease org repo currentTag)
-    mbTag
+    maybeTag
   where
     -- | Tries to upgrade the Package-Sets release of the local package set.
     --   It will:
