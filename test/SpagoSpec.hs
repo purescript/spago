@@ -82,6 +82,33 @@ spec = around_ setup $ do
       dhallSource `shouldNotSatisfy` (Text.isInfixOf "{-") -- comments not present
       dhallSource `shouldSatisfy` (Text.isInfixOf "let upstream") -- some dhall stuff is present
 
+    it "Spago should use user-specified tag if it exists instead of latest release" $ do
+      spago ["init", "--tag", "psc-0.13.4-20191025"] >>= shouldBeSuccess
+
+      mv "packages.dhall" "packages-older-tag.dhall"
+      checkFixture "packages-older-tag.dhall"
+
+    it "Spago should use template/packages.dhall file if user-specified tag does not exist" $ do
+      spago ["init", "--tag", "does-not-exist"] >>= shouldBeSuccess
+
+      originalPackage <- readTextFile "packages.dhall"
+      let [originalPackageSetUrl]
+            = map Text.strip
+            $ filter (not . null . Text.breakOnAll "https://github.com/purescript/package-sets")
+            $ Text.lines originalPackage
+
+      mv "packages.dhall" "original-packages.dhall"
+
+      spago ["init", "--force"] >>= shouldBeSuccess
+
+      templatePackages <- readTextFile "../../templates/packages.dhall"
+      let [templatePackageSetUrl]
+            = map Text.strip
+            $ filter (not . null . Text.breakOnAll "https://github.com/purescript/package-sets")
+            $ Text.lines templatePackages
+
+      originalPackageSetUrl `shouldBe` templatePackageSetUrl
+
   describe "spago install" $ do
 
     it "Subsequent installs should succeed after failed install" $ do
@@ -584,6 +611,33 @@ spec = around_ setup $ do
       newPackages <- Text.strip <$> readTextFile "packages.dhall"
       newPackages `shouldNotBe` "https://github.com/purerl/package-sets/releases/download/erl-0.13.6-20200713/packages.dhall"
       newPackages `shouldSatisfy` Text.isPrefixOf "https://github.com/purerl/package-sets/releases/download"
+
+    it "Spago should migrate package-set from src/packages.dhall to the user-specified one if it exists" $ do
+      -- initialize the project, so that it uses latest package set release
+      spago ["init"] >>= shouldBeSuccess
+
+      spago ["-v", "upgrade-set", "--tag", "psc-0.13.4-20191025"] >>= shouldBeSuccess
+      mv "packages.dhall" "packages-older-tag.dhall"
+      checkFixture "packages-older-tag.dhall"
+
+    it "Spago should not migrate to the user-specified package-set if does not exist" $ do
+      -- initialize the project, so that it uses latest package set release
+      spago ["init"] >>= shouldBeSuccess
+
+      originalPackages <- readTextFile "packages.dhall"
+      let [originalPackageSetUrl]
+            = map Text.strip
+            $ filter (not . null . Text.breakOnAll "https://github.com/purescript/package-sets")
+            $ Text.lines originalPackages
+
+      spago ["-v", "upgrade-set", "--tag", "does-not-exist"] >>= shouldBeSuccess
+      packages <- readTextFile "packages.dhall"
+      let [packageSetUrl]
+            = map Text.strip
+            $ filter (not . null . Text.breakOnAll "https://github.com/purescript/package-sets")
+            $ Text.lines packages
+
+      packageSetUrl `shouldBe` originalPackageSetUrl
 
   describe "spago run" $ do
 
