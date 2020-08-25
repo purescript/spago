@@ -233,7 +233,6 @@ you'll have to carefully:
 - try to run `spago install some-package` for packages in the set
 - [add the missing packages](#add-a-package-to-the-package-set) if not in the set
 
-
 ### See what commands and flags are supported
 
 For an overview of the available commands, run:
@@ -251,6 +250,14 @@ $ spago build --help
 
 This will give a detailed view of the command, and list any command-specific
 (vs global) flags.
+
+### Setup a new project using a specific package set
+
+Since `spago init` does not necessarily use the latest package set. Fortunately, you can specify which package set to use via the `--tag` argument. See the [`purescript/package-sets` repo's releases](https://github.com/purescript/package-sets/releases) for tags you can use:
+
+```bash
+$ spago init --tag "psc-0.13.8-20200822"
+```
 
 
 ### Install a direct dependency
@@ -557,23 +564,47 @@ if you could pull request it to the [Upstream package-set][package-sets] ❤️
 If you decide so, you can read up on how to do it [here][package-sets-contributing].
 
 
-### Automagically upgrade the package set
+### Upgrade the package set...
 
 The version of the package-set you depend on is fixed in the `packages.dhall` file
 (look for the `upstream` var).
 
 You can upgrade to the latest version of the package-set with the `upgrade-set`
-command, that will automatically find out the latest version, download it, and write
+command. It will download the package set and write
 the new url and hashes in the `packages.dhall` file for you.
+
+Spago can update the package set to the latest release or to a specific release automagically. If you wish to use a specific commit, you will have to manually edit one part of your `packages.dhall` file. Each is covered below.
+
+#### ...to the latest release automatically
 
 Running it would look something like this:
 
 ```bash
-$ spago upgrade-set
-Found the most recent tag for "purescript/package-sets": "psc-0.12.3-20190227"
-Package-set upgraded to latest tag "psc-0.12.3-20190227"
+$ spago  upgrade-set
+[info] Updating package-set tag to "psc-0.13.8-20200822"
 Fetching the new one and generating hashes.. (this might take some time)
-Done. Updating the local package-set file..
+[info] Generating new hashes for the package set file so it will be cached.. (this might take some time)
+```
+
+#### ...to a specific release automatically
+
+If the package set exists, running `upgrade-set` would look something like this:
+
+```bash
+$ spago upgrade-set --tag "psc-0.13.8-20200822"
+[info] Updating package-set tag to "psc-0.13.8-20200822"
+Fetching the new one and generating hashes.. (this might take some time)
+[info] Generating new hashes for the package set file so it will be cached.. (this might take some time)
+```
+
+If the package set does not exist, your `packages.dhall` file will not be touched and you will see a warning:
+
+```bash
+spago upgrade-set --tag "whoops-i-made-a-big-typo"
+[info] Updating package-set tag to "whoops-i-made-a-big-typo"
+Fetching the new one and generating hashes.. (this might take some time)
+[warn] Package-set tag "whoops-i-made-a-big-typo" in the repo "purescript/package-sets" does not exist.
+Will ignore user-specified tag and continue using current tag: "psc-0.13.4-20191025"
 ```
 
 If you wish to detach from tags for your package-set, you can of course point it to a
@@ -584,6 +615,15 @@ let upstream =
       https://raw.githubusercontent.com/purescript/package-sets/bd72269fec59950404a380a46e293bde34b4618f/src/packages.dhall
 ```
 
+#### ... to a specific tag manually
+
+If you wish to detach from tags for your package-set, you can of course point it to a
+specific commit. Just set your `upstream` to look something like this:
+
+```haskell
+let upstream =
+      https://raw.githubusercontent.com/purescript/package-sets/bd72269fec59950404a380a46e293bde34b4618f/src/packages.dhall
+```
 
 ### Monorepo
 

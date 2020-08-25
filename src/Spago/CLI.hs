@@ -26,7 +26,7 @@ data Command
   = Default ShowVersion
   
   -- | Initialize a new project
-  | Init Force TemplateComments
+  | Init Force TemplateComments (Maybe Text)
 
   -- | Install (download) dependencies defined in spago.dhall
   | Install [PackageName]
@@ -47,7 +47,7 @@ data Command
   | Login
 
   -- | Upgrade the package-set to the latest release
-  | PackageSetUpgrade
+  | PackageSetUpgrade (Maybe Text)
 
   -- | Freeze the package-set so it will be cached
   | Freeze
@@ -148,6 +148,7 @@ parser = do
     usePsa       = bool UsePsa NoPsa <$> CLI.switch "no-psa" 'P' "Don't build with `psa`, but use `purs`"
     openDocs     = bool NoOpenDocs DoOpenDocs <$> CLI.switch "open" 'o' "Open generated documentation in browser (for HTML format only)"
     noComments   = bool WithComments NoComments <$> CLI.switch "no-comments" 'C' "Generate package.dhall and spago.dhall files without tutorial comments"
+    tag          = CLI.optional $ Opts.strOption (Opts.long "tag" <> Opts.help "Optional package set tag to be used instead of the latest one.")
     configPath   = CLI.optional $ CLI.optText "config" 'x' "Optional config path to be used instead of the default spago.dhall"
     chkModsUniq  = bool DoCheckModulesUnique NoCheckModulesUnique <$> CLI.switch "no-check-modules-unique" 'M' "Skip checking whether modules names are unique across all packages."
     transitive   = bool NoIncludeTransitive IncludeTransitive <$> CLI.switch "transitive" 't' "Include transitive dependencies"
@@ -180,7 +181,7 @@ parser = do
     initProject =
       ( "init"
       , "Initialize a new sample project, or migrate a psc-package one"
-      , Init <$> force <*> noComments
+      , Init <$> force <*> noComments <*> tag
       )
 
     build =
@@ -283,7 +284,7 @@ parser = do
     upgradeSet =
       ( "upgrade-set"
       , "Upgrade the upstream in packages.dhall to the latest package-sets release"
-      , pure PackageSetUpgrade
+      , PackageSetUpgrade <$> tag
       )
 
     freeze =

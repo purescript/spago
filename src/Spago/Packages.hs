@@ -35,17 +35,18 @@ import qualified Spago.Templates          as Templates
 --   - create an example `test` folder (if needed)
 initProject 
   :: (HasGlobalCache env, HasLogFunc env, HasConfigPath env)
-  => Force -> Dhall.TemplateComments 
+  => Force -> Dhall.TemplateComments -> Maybe Text
   -> RIO env Config
-initProject force comments = do
+initProject force comments tag = do
   logInfo "Initializing a sample project or migrating an existing one.."
 
   -- packages.dhall and spago.dhall overwrite can be forced
   PackageSet.makePackageSetFile force comments
   config <- Config.makeConfig force comments
 
-  -- Get the latest version of the package set if possible
-  PackageSet.upgradePackageSet
+  -- Use the specified version of the package set (if specified).
+  -- Otherwise, get the latest version of the package set if possible
+  PackageSet.updatePackageSetVersion tag
 
   -- If these directories (or files) exist, we skip copying "sample sources"
   -- Because you might want to just init a project with your own source files,

@@ -140,10 +140,16 @@ failedToAddDeps pkgs = makeMessage $
   <> map ("- " <>) (NonEmpty.toList pkgs)
   <> [""]
 
-upgradingPackageSet :: Text -> Text
-upgradingPackageSet newTag = makeMessage
-  [ "Package-set upgraded to latest tag " <> surroundQuote newTag
+updatingPackageSet :: Text -> Text
+updatingPackageSet newTag = makeMessage
+  [ "Updating package-set tag to " <> surroundQuote newTag
   , "Fetching the new one and generating hashes.. (this might take some time)"
+  ]
+
+nonExistentPackageSet :: Text -> Text -> Text -> Text -> Text
+nonExistentPackageSet org repo oldTag newTag = makeMessage
+  [ "Package-set tag " <> surroundQuote newTag <> " in the repo " <> surroundQuote (org <> "/" <> repo) <> " does not exist."
+  , "Will ignore user-specified tag and continue using current tag: " <> surroundQuote oldTag
   ]
 
 freezePackageSet :: Text

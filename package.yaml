@@ -93,6 +93,7 @@ library:
   - fsnotify
   - github
   - Glob
+  - http-types
   - http-client
   - http-conduit
   - lens-family-core
