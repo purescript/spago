@@ -44,3 +44,8 @@ extra-deps:
 allow-newer: true
 nix:
   packages: [zlib]
+
+# This is so we don't depend on libtinfo
+flags:
+  haskeline:
+    terminfo: false
