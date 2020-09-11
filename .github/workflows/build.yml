@@ -1,0 +1,17 @@
+on: [ push ]
+name: build
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ ubuntu-latest, macOS-latest, windows-latest ]
+    steps:
+      - uses: actions/checkout@v2
+      - name: Setup Haskell
+        uses: actions/setup-haskell@v1.1
+        with:
+          ghc-version: '8.8'
+          stack-version: 'latest'
+          enable-stack: true
+      - run: stack test
