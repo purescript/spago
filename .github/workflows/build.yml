@@ -14,4 +14,16 @@ jobs:
           ghc-version: '8.8'
           stack-version: 'latest'
           enable-stack: true
+      - name: Setup node and yarn
+        uses: "actions/setup-node@v1"
+        with:
+          node-version: '10'
+      - uses: actions/cache@v2
+        with:
+          path: |
+            ~/.stack
+          key: ${{ runner.os }}-${{ hashFiles('stack.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-
+      - run: npm install -g purescript@0.13.8 psc-package@3.0.1 bower@1.8.8
       - run: stack test
