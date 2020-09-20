@@ -21,7 +21,7 @@ jobs:
       # NB: We install gnu-tar because BSD tar is buggy on Github's macos machines,
       # and it breaks the cache: https://github.com/actions/cache/issues/403
       - name: Install GNU tar (Macos)
-        if: matrix.build == 'macos'
+        if: runner.os == 'macOS'
         run: |
           brew install gnu-tar
           echo "::add-path::/usr/local/opt/gnu-tar/libexec/gnubin"
