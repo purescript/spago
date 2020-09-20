@@ -29,7 +29,7 @@ jobs:
         with:
           path: |
             ~/.stack
-          key: ${{ runner.os }}-${{ hashFiles('stack.yaml') }}
+          key: ${{ runner.os }}-${{ hashFiles('stack.yaml') }}-1
           restore-keys: |
             ${{ runner.os }}-
       - run: npm install -g purescript@0.13.8 psc-package@3.0.1 bower@1.8.8
