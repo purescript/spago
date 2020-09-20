@@ -53,11 +53,12 @@ getOutputPath buildOpts = do
 -- | Try to find the content of a certain flag in a list of PursArgs
 findFlag :: Char -> Text -> [PursArg] -> Maybe Text
 findFlag char string = \case
-  [] -> Nothing
-  [_] -> Nothing
-  (x:y:xs) -> if isFlag x
-              then Just (unPursArg y)
-              else findFlag char string (y : xs)
+  (x:xs) -> if isFlag x
+              then case Text.words (unPursArg x) of
+                (_:value:_) -> Just value
+                _ -> Nothing
+              else findFlag char string xs
+  _ -> Nothing
   where 
     isFlag :: PursArg -> Bool
     isFlag (PursArg a)
