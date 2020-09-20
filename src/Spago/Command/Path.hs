@@ -55,13 +55,13 @@ findFlag :: Char -> Text -> [PursArg] -> Maybe Text
 findFlag char string = \case
   (x:xs) -> if isFlag x
               then case xs of
-                (y:ys) -> Just (unPursArg y)
+                (y:_) -> Just (unPursArg y)
                 _ -> Nothing
               else if hasFlag x
                 then case Text.words (unPursArg x) of
                   [word] -> case Text.split (=='=') word of
-                    [one]       -> Nothing
-                    [key,value] -> Just value
+                    [_,value] -> Just value
+                    _           -> Nothing
                   (_:value:_) -> Just value
                   _ -> Nothing
                 else findFlag char string xs
@@ -81,5 +81,6 @@ findFlag char string = \case
                 []       -> Nothing
                 [word]   -> case Text.split (=='=') word of
                   [one]       -> Just one
-                  [key,value] -> Just key
+                  [key,_]     -> Just key
+                  _           -> Nothing
                 (word:_) -> Just word
