@@ -43,7 +43,7 @@ getOutputPath buildOpts = do
     Just path -> Text.unpack path
 
 
--- tests are followings: See test/Spago/Command/PathSpec.hs
+-- See tests in: test/Spago/Command/PathSpec.hs
 -- ["-o", "something"]
 -- ["--output", "something"]
 -- ["--output something"]
