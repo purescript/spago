@@ -11,13 +11,20 @@ jobs:
       - name: Setup Haskell
         uses: actions/setup-haskell@v1.1
         with:
-          ghc-version: '8.8'
+          ghc-version: '8.4.4'
           stack-version: 'latest'
           enable-stack: true
       - name: Setup node and yarn
         uses: "actions/setup-node@v1"
         with:
           node-version: '10'
+      # NB: We install gnu-tar because BSD tar is buggy on Github's macos machines,
+      # and it breaks the cache: https://github.com/actions/cache/issues/403
+      - name: Install GNU tar (Macos)
+        if: matrix.build == 'macos'
+        run: |
+          brew install gnu-tar
+          echo "::add-path::/usr/local/opt/gnu-tar/libexec/gnubin"
       - uses: actions/cache@v2
         with:
           path: |
