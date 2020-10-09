@@ -160,25 +160,6 @@ maybeTypedKey ks name typ = typify `mapM` Dhall.Map.lookup name ks
       Failure a -> throwM a
 
 
--- | Convert a Dhall expression to a given Dhall type
---
---   We first annotate the expression with the Dhall type we want to get,
---   then try to typecheck it. We then need to run `Dhall.extract` on the
---   result of the normalization (we need to normalize so that extract can work)
---   and return a `Right` only if both typecheck and normalization succeeded.
-coerceToType
-  :: Decoder a
-  -> DhallExpr Void
-  -> Validation ExpectedTypeErrors (DhallExpr Void)
-coerceToType typ expr = do
-  Dhall.Annot expr <$> Dhall.expected typ
--- TODO FIXME
---  let checkedType = typeOf annot
---  case (Dhall.extract typ $ Dhall.normalize annot, checkedType) of
---    (Success x, Right _) -> Right x
---    _                    -> Left $ WrongType typ expr
-
-
 -- | Spago configuration cannot be read
 data ReadError a where
  -- | the toplevel value is not a record
