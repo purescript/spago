@@ -1,7 +1,6 @@
 data
 test/spago-test
 .stack-work/
-*.cabal
 *~
 **/__pycache__
 templates/docs-search-app.js
@@ -9,3 +8,4 @@ templates/purescript-docs-search
 .envrc
 curator.log
 .DS_Store
+stack.yaml.lock

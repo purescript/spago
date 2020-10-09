@@ -105,7 +105,7 @@ withPublishEnv app = withInstallEnv $ do
 withBuildEnv
   :: HasEnv env
   => UsePsa
-  -> RIO BuildEnv a 
+  -> RIO BuildEnv a
   -> RIO env a
 withBuildEnv usePsa app = withInstallEnv $ do
   buildEnvPurs <- getPurs usePsa
@@ -133,7 +133,7 @@ getPackageSet :: (HasLogFunc env, HasConfigPath env) => RIO env PackageSet
 getPackageSet = do
   -- Try to read a "packages.dhall" directly
   try (liftIO (Dhall.inputExpr $ "./" <> PackageSet.packagesPath)) >>= \case
-    Right (Dhall.RecordLit ks) -> Config.parsePackageSet ks
+    Right (Dhall.RecordLit ks) -> Config.parsePackageSet (Dhall.extractRecordValues ks)
     (_ :: Either SomeException (Dhall.DhallExpr Void))  -> do
       -- Try to read a "spago.dhall" and find the packages from there
       Config.ensureConfig >>= \case

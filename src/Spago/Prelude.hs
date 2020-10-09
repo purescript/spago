@@ -1,18 +1,17 @@
 module Spago.Prelude
-  ( 
+  (
   -- * Basic exports
     module X
   , Proxy(..)
   , NonEmpty (..)
   , Seq (..)
   , Validation(..)
-  , bimap
   , first
   , second
   , headMay
   , lastMay
   , empty
-  
+
   -- * Logging, errors, printing, etc
   , Pretty
   , pretty
@@ -84,23 +83,22 @@ import           Control.Applicative                   (empty)
 import           Control.Monad                         as X
 import           Control.Monad.Reader                  as X
 import           Data.Aeson                            as X hiding (Result (..))
-import           Data.Bifunctor                        (bimap, first, second)
+import           Data.Bifunctor                        (first, second)
 import           Data.Bool                             as X
 import           Data.Either                           as X
 import           Data.Either.Validation                (Validation (..))
 import           Data.Foldable                         as X
-import           Data.List.NonEmpty                    (NonEmpty (..))
 import           Data.Maybe                            as X
 import           Data.Sequence                         (Seq (..))
 import           Data.Text.Prettyprint.Doc             (Pretty)
 import           Data.Text.IO.Utf8                     (readFile, writeFile)
 import           Dhall.Optics                          (transformMOf)
 import           Lens.Family                           ((^..))
-import           RIO                                   as X hiding (FilePath, first, force, second)
+import           RIO                                   as X hiding (FilePath, first, force, second, (^..))
 import           RIO.Orphans                           as X
 import           Safe                                  (headMay, lastMay)
 import           System.FilePath                       (isAbsolute, pathSeparator, (</>))
-import           Turtle                                (ExitCode (..), FilePath, appendonly, chmod,
+import           Turtle                                (FilePath, appendonly, chmod,
                                                         executable, mktree, repr, shell,
                                                         shellStrict, shellStrictWithErr,
                                                         systemStrictWithErr, testdir)

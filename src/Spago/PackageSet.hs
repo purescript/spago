@@ -13,7 +13,6 @@ import           Spago.Env
 
 import qualified Control.Exception as Exception
 import           Data.Dynamic (fromDynamic)
-import           Data.Ord        (comparing)
 import qualified Data.Text       as Text
 import qualified Data.Versions   as Version
 import qualified Dhall.Freeze
@@ -251,7 +250,7 @@ freeze path = do
   liftIO $
     Dhall.Freeze.freeze
       Dhall.Write
-      (Dhall.InputFile path)
+      (Dhall.PossiblyTransitiveInputFile path Dhall.NonTransitive)
       Dhall.Freeze.OnlyRemoteImports
       Dhall.Freeze.Secure
       Dhall.Pretty.ASCII

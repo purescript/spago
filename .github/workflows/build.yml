@@ -11,7 +11,7 @@ jobs:
       - name: Setup Haskell
         uses: actions/setup-haskell@v1.1
         with:
-          ghc-version: '8.4.4'
+          ghc-version: '8.8.4'
           stack-version: 'latest'
           enable-stack: true
       - name: Setup node and yarn
