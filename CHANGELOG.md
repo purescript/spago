@@ -7,10 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.17.0] - 2020-10-29
+
 Breaking changes (😱!!!):
 - **Specify the package set version via `--tag` (#680)**
 
-  Example usage: `spago init --tag psc-0.13.2-20190725` and `spago upgrade-set --tag psc-0.13.2-20190725`. This is a breaking change because we are removing support for the old spacchetti/spacchetti-style location (i.e. in the src/packages.dhall) for the upgrade-set command.
+  Example usage: `spago init --tag psc-0.13.2-20190725` and `spago upgrade-set --tag psc-0.13.2-20190725`.
+  This is a breaking change because we are removing support for the old spacchetti/spacchetti-style location (i.e. in the src/packages.dhall) for the upgrade-set command.
+
+Bugfixes:
+- Remove dependency on `libtinfo`, removing the biggest cause of friction for using the precompiled binary on various Linux distros (#684)
+- Correctly parse flags to be passed to the compiler (#688)
 
 ## [0.16.0] - 2020-08-14
 
