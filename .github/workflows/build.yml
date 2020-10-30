@@ -11,7 +11,7 @@ jobs:
       - name: Setup Haskell
         uses: actions/setup-haskell@v1.1
         with:
-          ghc-version: '8.8.4'
+          ghc-version: '8.6.5'
           stack-version: 'latest'
           enable-stack: true
       - name: Setup node and yarn
@@ -33,4 +33,4 @@ jobs:
           #restore-keys: |
           #  ${{ runner.os }}-
       - run: npm install -g purescript@0.13.8 psc-package@3.0.1 bower@1.8.8
-      - run: stack test
+      - run: stack --system-ghc test
