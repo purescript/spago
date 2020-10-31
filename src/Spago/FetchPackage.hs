@@ -2,6 +2,7 @@ module Spago.FetchPackage
   ( fetchPackages
   , getLocalCacheDir
   , getCacheVersionDir
+  , localCacheDir
   ) where
 
 import           Spago.Prelude
@@ -34,7 +35,7 @@ import qualified Spago.PackageSet              as PackageSet
 --       * if yes, download the tar archive and copy it to global and then local cache
 --       * if not, run a series of git commands to get the code, and copy to local cache
 fetchPackages
-  :: (HasEnv env, HasCacheConfig env, HasPackageSet env)
+  :: (HasLogFunc env, HasJobs env, HasGlobalCache env, HasPackageSet env)
   => [(PackageName, Package)]
   -> RIO env ()
 fetchPackages allDeps = do
@@ -43,8 +44,8 @@ fetchPackages allDeps = do
   PackageSet.checkPursIsUpToDate
 
   -- Ensure both local and global cache dirs are there
-  globalCache <- view globalCacheL
-  assertDirectory globalCache
+  GlobalCache globalCacheDir cacheFlag <- view (the @GlobalCache)
+  assertDirectory globalCacheDir
   assertDirectory localCacheDir
 
   -- We try to fetch a dep only if their local cache directory doesn't exist
@@ -58,10 +59,9 @@ fetchPackages allDeps = do
   let nOfDeps = List.length depsToFetch
   when (nOfDeps > 0) $ do
     logInfo $ "Installing " <> display nOfDeps <> " dependencies."
-    globalCacheFlag <- view cacheConfigL
-    metadata <- GlobalCache.getMetadata globalCacheFlag
+    metadata <- GlobalCache.getMetadata cacheFlag
 
-    limit <- view jobsL
+    Jobs limit <- view (the @Jobs)
     Async.withTaskGroup limit $ \taskGroup -> do
       asyncs <- for depsToFetch (Async.async taskGroup . fetchPackage metadata)
       handle (handler asyncs) (for_ asyncs Async.wait)
@@ -91,18 +91,19 @@ fetchPackages allDeps = do
 --   eventually caching it to the global cache, or copying it from there if it's
 --   sensible to do so.
 --   If it's a local directory do nothing
-fetchPackage 
+fetchPackage
   :: forall env
   .  (HasLogFunc env, HasGlobalCache env)
-  => GlobalCache.ReposMetadataV1 -> (PackageName, Package) 
+  => GlobalCache.ReposMetadataV1 -> (PackageName, Package)
   -> RIO env ()
 fetchPackage _ (PackageName package, Package { location = Local{..}, .. }) =
   logInfo $ display $ Messages.foundLocalPackage package localPath
 fetchPackage metadata pair@(packageName'@PackageName{..}, Package{ location = Remote{..}, .. } ) = do
   logDebug $ "Fetching package " <> display packageName
-  globalCache <- view globalCacheL
+  GlobalCache globalCacheDir cacheFlag <- view (the @GlobalCache)
+  let useGlobalCache = cacheFlag /= Just SkipCache
   let packageDir = getPackageDir packageName' version
-      packageGlobalCacheDir = globalCache </> packageDir
+  let packageGlobalCacheDir = globalCacheDir </> packageDir
 
   packageLocalCacheDir <- makeAbsolute $ getLocalCacheDir pair
 
@@ -111,13 +112,13 @@ fetchPackage metadata pair@(packageName'@PackageName{..}, Package{ location = Re
     let downloadDir = path </> "download"
 
     -- If a Package is in the global cache, copy it to the local cache.
-    if inGlobalCache
+    if (inGlobalCache && useGlobalCache)
       then do
         logInfo $ "Copying from global cache: " <> display quotedName
         cptree packageGlobalCacheDir downloadDir
         assertDirectory (localCacheDir </> Text.unpack packageName)
         mv downloadDir packageLocalCacheDir
-      else Temp.withTempDirectory globalCache (Text.unpack ("__temp-" <> "-" <> packageName <> getCacheVersionDir version)) $ \globalTemp -> do
+      else Temp.withTempDirectory globalCacheDir (Text.unpack ("__temp-" <> "-" <> packageName <> getCacheVersionDir version)) $ \globalTemp -> do
         -- Otherwise, check if the Package is on GitHub and an "immutable" ref.
         -- If yes, download the tar archive and copy it to global and then local cache.
         let cacheableCallback :: FilePath.FilePath -> RIO env ()
@@ -126,12 +127,15 @@ fetchPackage metadata pair@(packageName'@PackageName{..}, Package{ location = Re
               -- then atomically move it to the correct cache location.  Since
               -- `mv` will not move folders across filesystems, this temp
               -- is created inside globalDir, guaranteeing the same filesystem.
-              logInfo $ "Installing and globally caching " <> display quotedName
               let resultDir2 = globalTemp </> "download2"
               assertDirectory resultDir2
               cptree resultDir resultDir2
-              catch (mv resultDir2 packageGlobalCacheDir) $ \(err :: SomeException) ->
-                logWarn $ display $ Messages.failedToCopyToGlobalCache err
+              if useGlobalCache
+              then do
+                logInfo $ "Installing and globally caching " <> display quotedName
+                catch (mv resultDir2 packageGlobalCacheDir) $ \(err :: SomeException) ->
+                  logWarn $ display $ Messages.failedToCopyToGlobalCache err
+              else logInfo $ "Installing " <> display quotedName
               mv resultDir packageLocalCacheDir
 
         -- If not, run a series of git commands to get the code, and move it to local cache.
@@ -155,7 +159,7 @@ fetchPackage metadata pair@(packageName'@PackageName{..}, Package{ location = Re
         -- The folder to store the download:
         assertDirectory downloadDir
         -- The parent package folder in the global cache (that stores all the versions):
-        assertDirectory (globalCache </> Text.unpack packageName)
+        assertDirectory (globalCacheDir </> Text.unpack packageName)
         -- The parent package folder in the local cache (that stores all the versions):
         assertDirectory (localCacheDir </> Text.unpack packageName)
 

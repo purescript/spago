@@ -170,7 +170,7 @@ updatePackageSetVersion maybeTag = do
 checkPursIsUpToDate :: forall env. (HasLogFunc env, HasPackageSet env) => RIO env ()
 checkPursIsUpToDate = do
   logDebug "Checking if `purs` is up to date"
-  PackageSet{..} <- view packageSetL
+  PackageSet{..} <- view (the @PackageSet)
   eitherCompilerVersion <- Purs.pursVersion
   case (eitherCompilerVersion, packagesMinPursVersion) of
     (Right compilerVersion, Just pursVersionFromPackageSet) -> performCheck compilerVersion pursVersionFromPackageSet

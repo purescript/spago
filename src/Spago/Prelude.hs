@@ -1,5 +1,6 @@
+{-# LANGUAGE IncoherentInstances #-}
 module Spago.Prelude
-  ( 
+  (
   -- * Basic exports
     module X
   , Proxy(..)
@@ -12,7 +13,7 @@ module Spago.Prelude
   , headMay
   , lastMay
   , empty
-  
+
   -- * Logging, errors, printing, etc
   , Pretty
   , pretty
@@ -21,11 +22,18 @@ module Spago.Prelude
   , die
   , hush
   , surroundQuote
+  , logInfo
+  , logWarn
+  , logDebug
+  , logError
+  , HasLogFunc
 
   -- * Lens
   , (</>)
   , (^..)
   , transformMOf
+  , the
+  , HasType
 
   -- * Files and directories
   , FilePath
@@ -75,6 +83,7 @@ import qualified Data.Text.Prettyprint.Doc.Render.Text as PrettyText
 import qualified Data.Time                             as Time
 import           Dhall                                 (Text)
 import qualified Dhall.Core
+import qualified RIO
 import qualified System.FilePath                       as FilePath
 import qualified System.IO
 import qualified Turtle
@@ -89,6 +98,7 @@ import           Data.Bool                             as X
 import           Data.Either                           as X
 import           Data.Either.Validation                (Validation (..))
 import           Data.Foldable                         as X
+import           Data.Generics.Product                 (the, HasType(..))
 import           Data.List.NonEmpty                    (NonEmpty (..))
 import           Data.Maybe                            as X
 import           Data.Sequence                         (Seq (..))
@@ -96,7 +106,7 @@ import           Data.Text.Prettyprint.Doc             (Pretty)
 import           Data.Text.IO.Utf8                     (readFile, writeFile)
 import           Dhall.Optics                          (transformMOf)
 import           Lens.Family                           ((^..))
-import           RIO                                   as X hiding (FilePath, first, force, second)
+import           RIO                                   as X hiding (FilePath, first, force, second, HasLogFunc, logDebug, logError, logInfo, logWarn)
 import           RIO.Orphans                           as X
 import           Safe                                  (headMay, lastMay)
 import           System.FilePath                       (isAbsolute, pathSeparator, (</>))
@@ -235,3 +245,24 @@ findExecutableOrDie cmd = do
     -- here is absolute, and Windows doesn't seem to be able to deal with that.
     -- See: https://github.com/purescript/spago/issues/635
     Just _path -> pure $ Text.pack cmd
+
+
+type HasLogFunc env = HasType LogFunc env
+
+liftLog
+  :: (HasLogFunc env, MonadIO m, MonadReader env m)
+  => (Utf8Builder -> RIO LogFunc ())
+  -> Utf8Builder
+  -> m ()
+liftLog logImpl msg = do
+  logFunc <- view (the @LogFunc)
+  runRIO logFunc (logImpl msg)
+
+logDebug, logInfo, logWarn, logError
+  :: (HasLogFunc env, MonadIO m, MonadReader env m)
+  => Utf8Builder
+  -> m ()
+logDebug = liftLog RIO.logDebug
+logInfo = liftLog RIO.logInfo
+logWarn = liftLog RIO.logWarn
+logError = liftLog RIO.logError

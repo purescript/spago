@@ -20,12 +20,12 @@ import qualified Spago.Messages as Messages
 import qualified Turtle.Bytes
 
 
-compile 
-  :: (HasPurs env, HasLogFunc env) 
-  => [SourcePath] -> [PursArg] 
+compile
+  :: (HasPurs env, HasLogFunc env)
+  => [SourcePath] -> [PursArg]
   -> RIO env ()
 compile sourcePaths extraArgs = do
-  purs <- view pursL
+  PursCmd purs <- view (the @PursCmd)
   logDebug $ "Compiling with " <> displayShow purs
   let
     paths = Text.intercalate " " $ surroundQuote <$> map unSourcePath sourcePaths

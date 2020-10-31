@@ -34,13 +34,13 @@ hasCleanWorkingTree = do
 
 getAllTags :: HasGit env => RIO env [Text]
 getAllTags = do
-  git <- view gitL
+  GitCmd git <- view (the @GitCmd)
   fmap Text.lines $ Turtle.strict $ Turtle.inproc git ["tag", "--list"] empty
 
 
 commitAndTag :: HasGit env => Text -> Text -> RIO env ()
 commitAndTag tag message = do
-  git <- view gitL
+  GitCmd git <- view (the @GitCmd)
   Turtle.procs git ["commit", "--quiet", "--allow-empty", "--message=" <> message] empty
   Turtle.procs git ["tag", "--annotate", "--message=" <> message, tag] empty
 

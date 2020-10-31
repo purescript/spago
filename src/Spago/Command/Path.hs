@@ -15,7 +15,11 @@ showPaths
 showPaths buildOptions whichPaths =
   case whichPaths of
     (Just PathOutput) -> outputStr (getOutputPath buildOptions)
-    (Just PathGlobalCache) -> view globalCacheL >>= outputStr 
+    (Just PathGlobalCache) -> do
+      globalCache <- view (the @GlobalCache)
+      case globalCache of
+        NoGlobalCache -> die ["Global cache is disabled!"]
+        UseGlobalCache path _ -> outputStr path
     Nothing -> do
       let showPath (a,b) = output (a <> ": " <> b)
       getAllPaths buildOptions >>= traverse_ showPath
@@ -26,11 +30,13 @@ getAllPaths
   => BuildOptions
   -> RIO env [(Text, Text)]
 getAllPaths buildOptions = do
-  globalCache <- view globalCacheL
+  globalCache <- view (the @GlobalCache)
   pure
     [ ("output", Text.pack (getOutputPath buildOptions))
-    , ("global-cache", Text.pack globalCache)
-    ]
+    ] <>
+    case globalCache of
+      NoGlobalCache -> []
+      UseGlobalCache path -> ("global-cache", Text.pack path)
 
 
 -- | Find the output path for purs compiler
@@ -43,14 +49,8 @@ getOutputPath buildOpts = do
     Just path -> Text.unpack path
 
 
--- See tests in: test/Spago/Command/PathSpec.hs
--- ["-o", "something"]
--- ["--output", "something"]
--- ["--output something"]
--- [" -o something"]
--- ["--output=something"]
-
 -- | Try to find the content of a certain flag in a list of PursArgs
+-- See tests in: test/Spago/Command/PathSpec.hs
 findFlag :: Char -> Text -> [PursArg] -> Maybe Text
 findFlag char string = \case
   (x:xs) -> if isFlag x

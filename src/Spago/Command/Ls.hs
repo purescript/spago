@@ -37,7 +37,7 @@ listPackageSet
   => JsonFlag -> RIO env ()
 listPackageSet jsonFlag = do
   logDebug "Running `listPackageSet`"
-  PackageSet{..} <- view packageSetL
+  PackageSet{..} <- view (the @PackageSet)
   traverse_ output $ formatPackageNames jsonFlag (Map.toList packagesDB)
 
 listPackages 

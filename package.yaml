@@ -42,6 +42,7 @@ default-extensions:
 - DeriveTraversable
 - DerivingStrategies
 - DoAndIfThenElse
+- DuplicateRecordFields
 - EmptyDataDecls
 - ExistentialQuantification
 - FlexibleContexts
@@ -52,22 +53,27 @@ default-extensions:
 - InstanceSigs
 - KindSignatures
 - LambdaCase
+- LiberalTypeSynonyms
 - MonadFailDesugaring
 - MultiParamTypeClasses
 - MultiWayIf
 - NamedFieldPuns
 - NoImplicitPrelude
+- NoMonomorphismRestriction
 - OverloadedStrings
 - PartialTypeSignatures
 - PatternGuards
 - PolyKinds
+- QuantifiedConstraints
 - RankNTypes
 - RecordWildCards
 - ScopedTypeVariables
 - StandaloneDeriving
 - TupleSections
+- TypeApplications
 - TypeFamilies
 - TypeSynonymInstances
+- UndecidableInstances
 - ViewPatterns
 
 
@@ -91,6 +97,7 @@ library:
   - filepath
   - foldl
   - fsnotify
+  - generic-lens
   - github
   - Glob
   - http-types

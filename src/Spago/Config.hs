@@ -107,14 +107,14 @@ parsePackageSet pkgs = do
 
 
 -- | Tries to read in a Spago Config
-parseConfig 
+parseConfig
   :: (HasLogFunc env, HasConfigPath env)
   => RIO env Config
 parseConfig = do
   -- Here we try to migrate any config that is not in the latest format
   void $ withConfigAST $ pure . addSourcePaths
 
-  path <- view configPathL
+  ConfigPath path <- view (the @ConfigPath)
   expr <- liftIO $ Dhall.inputExpr $ "./" <> path
   case expr of
     Dhall.RecordLit ks -> do
@@ -141,11 +141,11 @@ parseConfig = do
 
 
 -- | Checks that the Spago config is there and readable
-ensureConfig 
+ensureConfig
   :: (HasLogFunc env, HasConfigPath env)
   => RIO env (Either Utf8Builder Config)
 ensureConfig = do
-  path <- view configPathL
+  ConfigPath path <- view (the @ConfigPath)
   exists <- testfile path
   if not exists
     then pure $ Left $ display Messages.cannotFindConfig
@@ -160,10 +160,10 @@ ensureConfig = do
 --   Eventually ports an existing `psc-package.json` to the new config.
 makeConfig
   :: (HasConfigPath env, HasLogFunc env)
-  => Force -> Dhall.TemplateComments 
+  => Force -> Dhall.TemplateComments
   -> RIO env Config
 makeConfig force comments = do
-  path <- view configPathL
+  ConfigPath path <- view (the @ConfigPath)
   when (force == NoForce) $ do
     hasSpagoDhall <- testfile path
     when hasSpagoDhall $ die [ display $ Messages.foundExistingProject path ]
@@ -351,7 +351,7 @@ withConfigAST
   :: (HasLogFunc env, HasConfigPath env)
   => (Expr -> RIO env Expr) -> RIO env Bool
 withConfigAST transform = do
-  path <- view configPathL
+  ConfigPath path <- view (the @ConfigPath)
   rawConfig <- liftIO $ Dhall.readRawExpr path
   case rawConfig of
     Nothing -> die [ display $ Messages.cannotFindConfig ]
