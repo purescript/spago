@@ -20,13 +20,15 @@ extra-deps:
 - Win32-2.8.5.0@sha256:50c11fce7ec29c750f199eec0bc97d42e9b8ca80abfbe068c0f474a3727b60ae,4277
 # Using a patched version as upstream doesn't support GHC 8.8.4 on Windows
 # See https://github.com/serokell/haskell-with-utf8/issues/9
-#- github: f-f/haskell-with-utf8
-#  commit: 8ae743ac6503a4c494ea3bd52f1fe7d72f9f125d
+- github: f-f/haskell-with-utf8
+  commit: 8ae743ac6503a4c494ea3bd52f1fe7d72f9f125d
 - base-compat-0.11.1@sha256:e49c1ce84f556621ef1142a169e4349049c516f5b3e3c3ec6830be503e7d4a93,7140
 - rio-0.1.18.0@sha256:067914d6ae9df1704902ecd1dd92b2c3d150216f7b924ce5aa57771a2ef3b99b,3688
 - time-1.8.0.4@sha256:3f6eddf238b828eb4f82683acce1c3afe64784f0d20114239b738c123316c85c,5494
-- with-utf8-1.0.2.1@sha256:95c02fffa643ddbeb092359802a512007c3e644cd509809f4716ad54592c437b,3057
+# - with-utf8-1.0.2.1@sha256:95c02fffa643ddbeb092359802a512007c3e644cd509809f4716ad54592c437b,3057
 - th-env-0.1.0.2@sha256:d8f1f37f42a8f1a22404d7d0579528af18f5dac7232cca6bdbd5117c115a0ad5,1370
+- http-client-0.7.2.1
+# allow-newer: true
 nix:
   packages: [zlib]
 
