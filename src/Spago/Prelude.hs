@@ -67,7 +67,6 @@ module Spago.Prelude
   ) where
 
 
-import           Control.Monad.Catch                   (MonadMask)
 import qualified Data.Text                             as Text
 import qualified Data.Text.Prettyprint.Doc             as Pretty
 import qualified Data.Text.Prettyprint.Doc.Render.Text as PrettyText
@@ -91,7 +90,6 @@ import           Data.Foldable                         as X
 import           Data.Maybe                            as X
 import           Data.Sequence                         (Seq (..))
 import           Data.Text.Prettyprint.Doc             (Pretty)
-import           Data.Text.IO.Utf8                     (readFile, writeFile)
 import           Dhall.Optics                          (transformMOf)
 import           Lens.Family                           ((^..))
 import           RIO                                   as X hiding (FilePath, first, force, second, (^..))
@@ -104,6 +102,13 @@ import           Turtle                                (FilePath, appendonly, ch
                                                         systemStrictWithErr, testdir)
 import           UnliftIO.Directory                    (getModificationTime, makeAbsolute)
 import           UnliftIO.Process                      (callCommand)
+
+
+
+import qualified Data.ByteString as BS
+import qualified Data.ByteString.Lazy as BSL
+import qualified Data.ByteString.Search as BSS
+import qualified Data.ByteString.UTF8 as UTF8
 
 
 -- | Generic Error that we throw on program exit.
@@ -135,13 +140,20 @@ pathFromText = Turtle.fromText
 testfile :: MonadIO m => Text -> m Bool
 testfile = Turtle.testfile . pathFromText
 
+-- | Unfortunately ByteString's readFile does not convert line endings on
+-- Windows, so we have to do it ourselves
+fixCRLF :: BS.ByteString -> BS.ByteString
+fixCRLF = BSL.toStrict . BSS.replace "\r\n" ("\n" :: BS.ByteString)
+
 readTextFile :: MonadIO m => Turtle.FilePath -> m Text
-readTextFile = readFile . Turtle.encodeString
+readTextFile inFile' = do
+  content <- liftIO $ BS.readFile $ Turtle.encodeString inFile'
+  pure (Text.pack $ UTF8.toString $ fixCRLF content)
 
-
-writeTextFile :: (MonadIO m, MonadMask m) => Text -> Text -> m ()
-writeTextFile path text = writeFile (Text.unpack path) text
-
+writeTextFile :: MonadIO m => Text -> Text -> m ()
+writeTextFile inFile text = liftIO $ BS.writeFile
+  (Text.unpack inFile)
+  (UTF8.fromString $ Text.unpack text)
 
 with :: MonadIO m => Turtle.Managed a -> (a -> IO r) -> m r
 with r f = liftIO $ Turtle.with r f

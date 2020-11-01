@@ -108,6 +108,7 @@ library:
   - safe
   - semver-range
   - stm
+  - stringsearch
   - tar
   - template-haskell
   - temporary
@@ -117,6 +118,7 @@ library:
   - turtle
   - unliftio
   - unordered-containers
+  - utf8-string
   - vector
   - versions
   - with-utf8
