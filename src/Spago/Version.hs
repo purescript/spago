@@ -99,6 +99,7 @@ bumpVersion
   -> RIO env ()
 bumpVersion dryRun spec = do
   newBowerConfig <- Bower.generateBowerJson
+  oldConfig :: Either SomeException Text <- try $ readTextFile Bower.path
 
   Git.requireCleanWorkingTree
 
@@ -112,6 +113,8 @@ bumpVersion dryRun spec = do
         Bower.runBowerInstall
         clean <- Git.hasCleanWorkingTree
         unless clean $ do
+          logDebug $ displayShow oldConfig
+          logDebug $ displayShow newBowerConfig
           die [ "A new " <> Bower.path <> " has been generated. Please commit this and run `bump-version` again." ]
 
   let tagAction = DryAction
