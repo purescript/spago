@@ -60,9 +60,7 @@ generateBowerJson = do
     die [ path <> " is being ignored by git - change this before continuing" ]
 
   logInfo "Generated a valid Bower config using the package set"
-  pure $ case OS.buildOS of
-    OS.Windows -> Text.replace "\n" "\r\n" bowerJson
-    _ -> bowerJson
+  pure bowerJson
 
 
 runBowerInstall :: (HasLogFunc env, HasBower env) => RIO env ()

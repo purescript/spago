@@ -29,11 +29,7 @@ hasCleanWorkingTree = do
     logDebug $ "git status stderr: " <> display err
     die [ "Unable to check git status. Perhaps git is not installed or this is not a git repository?" ]
 
-  if out == ""
-  then pure True
-  else do
-    logDebug $ "Git working tree is not clean: " <> displayShow out
-    pure False
+  pure $ out == ""
 
 
 getAllTags :: HasGit env => RIO env [Text]
