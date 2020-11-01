@@ -1,4 +1,4 @@
-module Spago.Command.Path (showPaths, getOutputPath) where
+module Spago.Command.Path (showPaths, getOutputPath, findFlag) where
 
 import Spago.Prelude
 import Spago.Env
@@ -43,7 +43,7 @@ getOutputPath buildOpts = do
     Just path -> Text.unpack path
 
 
--- TODO tests:
+-- See tests in: test/Spago/Command/PathSpec.hs
 -- ["-o", "something"]
 -- ["--output", "something"]
 -- ["--output something"]
@@ -53,18 +53,34 @@ getOutputPath buildOpts = do
 -- | Try to find the content of a certain flag in a list of PursArgs
 findFlag :: Char -> Text -> [PursArg] -> Maybe Text
 findFlag char string = \case
-  [] -> Nothing
-  [_] -> Nothing
-  (x:y:xs) -> if isFlag x
-              then Just (unPursArg y)
-              else findFlag char string (y : xs)
-  where 
+  (x:xs) -> if isFlag x
+              then case xs of
+                (y:_) -> Just (unPursArg y)
+                _ -> Nothing
+              else if hasFlag x
+                then case Text.words (unPursArg x) of
+                  [word] -> case Text.split (=='=') word of
+                    [_,value] -> Just value
+                    _           -> Nothing
+                  (_:value:_) -> Just value
+                  _ -> Nothing
+                else findFlag char string xs
+  _ -> Nothing
+  where
     isFlag :: PursArg -> Bool
-    isFlag (PursArg a)
+    isFlag (PursArg word)
+      =  word == (Text.pack ['-', char])
+      || word == ("--" <> string)
+    hasFlag :: PursArg -> Bool
+    hasFlag (PursArg a)
       =  firstWord == (Text.pack ['-', char])
       || firstWord == ("--" <> string)
         where
           firstWord
             = fromMaybe "" $ case Text.words a of
                 []       -> Nothing
+                [word]   -> case Text.split (=='=') word of
+                  [one]       -> Just one
+                  [key,_]     -> Just key
+                  _           -> Nothing
                 (word:_) -> Just word
