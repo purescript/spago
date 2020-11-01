@@ -12,7 +12,6 @@ module Spago.Version
 import Spago.Prelude
 import Spago.Env
 
-import qualified Data.ByteString.Lazy as ByteString
 import qualified Data.Text            as Text
 import           Data.Versions        (SemVer (..))
 import qualified Data.Versions        as Version
@@ -109,7 +108,7 @@ bumpVersion dryRun spec = do
   let writeBowerAction = DryAction
         "write the new config to the `bower.json` file and try to install its dependencies" $ do
         logInfo $ "Writing the new Bower config to " <> surroundQuote Bower.path
-        liftIO $ ByteString.writeFile Bower.path newBowerConfig
+        writeTextFile Bower.path newBowerConfig
         Bower.runBowerInstall
         clean <- Git.hasCleanWorkingTree
         unless clean $ do

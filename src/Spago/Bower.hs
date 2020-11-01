@@ -9,22 +9,21 @@ import Spago.Env
 
 import qualified Data.Aeson                 as Aeson
 import qualified Data.Aeson.Encode.Pretty   as Pretty
-import qualified Data.ByteString.Lazy       as ByteString
 import qualified Data.HashMap.Strict        as HashMap
 import qualified Data.Text                  as Text
 import qualified Distribution.System        as OS
 import qualified Turtle
 import qualified Web.Bower.PackageMeta      as Bower
+import qualified Data.Text.Lazy             as LazyText
+import qualified Data.Text.Lazy.Encoding    as LazyEncoding
+import qualified Data.Text.Encoding         as Encoding
 
-import           Data.Text.Lazy             (fromStrict)
-import           Data.Text.Lazy.Encoding    (encodeUtf8)
 import           Web.Bower.PackageMeta      (PackageMeta (..))
 
 import qualified Spago.Async                as Async
 import qualified Spago.Git                  as Git
 import qualified Spago.Packages             as Packages
 import qualified Spago.Templates            as Templates
-
 
 
 path :: IsString t => t
@@ -37,7 +36,7 @@ runBower args = do
   Turtle.procStrictWithErr bower args empty
 
 
-generateBowerJson :: HasPublishEnv env => RIO env ByteString.ByteString
+generateBowerJson :: HasPublishEnv env => RIO env Text
 generateBowerJson = do
   logInfo "Generating a new Bower config using the package set versions.."
   Config{..} <- view configL
@@ -54,7 +53,7 @@ generateBowerJson = do
         { Pretty.confCompare = Pretty.keyOrder ["name", "license", "repository", "ignore", "dependencies"] <> compare
         , Pretty.confTrailingNewline = True
         }
-      bowerJson = Pretty.encodePretty' prettyConfig bowerPkg
+      bowerJson = LazyText.toStrict $ LazyEncoding.decodeUtf8 $ Pretty.encodePretty' prettyConfig bowerPkg
 
   ignored <- Git.isIgnored path
   when ignored $ do
@@ -75,7 +74,7 @@ runBowerInstall = do
 
 templateBowerJson :: HasLogFunc env => RIO env Bower.PackageMeta
 templateBowerJson = do
-  case Aeson.decodeStrict Templates.bowerJson of
+  case Aeson.decodeStrict (Encoding.encodeUtf8 Templates.bowerJson) of
     Just t  ->
       pure t
     Nothing ->
@@ -94,7 +93,7 @@ mkPackageName spagoName = do
 
 -- | If the given version exists in bower, return a shorthand bower
 -- | version, otherwise return a URL#version style bower version.
-mkBowerVersion 
+mkBowerVersion
   :: (HasLogFunc env, HasBower env)
   => Bower.PackageName -> Text -> Repo 
   -> RIO env Bower.VersionRange
@@ -105,7 +104,7 @@ mkBowerVersion packageName version (Repo repo) = do
   when (code /= ExitSuccess) $ do
     die [ display $ "Failed to run: `bower " <> Text.intercalate " " args <> "`", display err ]
 
-  info <- case Aeson.decode $ encodeUtf8 $ fromStrict out of
+  info <- case Aeson.decode $ LazyEncoding.encodeUtf8 $ LazyText.fromStrict out of
     Just (Object obj) -> pure obj
     _ -> die [ display $ "Unable to decode output from `bower " <> Text.intercalate " " args <> "`: ", display out ]
 
