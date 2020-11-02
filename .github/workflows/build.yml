@@ -11,13 +11,19 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ ubuntu-latest, macOS-latest ]
+        os: [ ubuntu-latest, macOS-latest, windows-latest ]
     steps:
+      # We set LF endings so that the Windows environment is consistent with Appveyor
+      # See here for context: https://github.com/actions/checkout/issues/135
+      - name: Set git to use LF
+        run: |
+          git config --global core.autocrlf false
+          git config --global core.eol lf
       - uses: actions/checkout@v2
       - name: Setup Haskell
         uses: actions/setup-haskell@v1.1.3
         with:
-          ghc-version: '8.8.4'
+          ghc-version: '8.6.5'
           stack-version: 'latest'
           enable-stack: true
           stack-no-global: true
