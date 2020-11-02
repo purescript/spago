@@ -25,6 +25,7 @@ extra-deps:
 # See https://github.com/serokell/haskell-with-utf8/issues/9
 - github: f-f/haskell-with-utf8
   commit: 8ae743ac6503a4c494ea3bd52f1fe7d72f9f125d
+allow-newer: true
 nix:
   packages: [zlib]
 
