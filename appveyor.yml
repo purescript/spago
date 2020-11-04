@@ -6,12 +6,7 @@ branches:
 
 environment:
   STACK_ROOT: C:\sr
-  STACK_VERSION: 2.1.1
-
-  # Workaround a gnarly bug https://github.com/haskell/cabal/issues/5386
-  # See: https://www.fpcomplete.com/blog/2018/06/sed-a-debugging-story
-  # TODO: check if it's fixed once we switch to lst-13 and GHC 8.6
-  TMP: "c:\\tmp"
+  STACK_VERSION: 2.3.3
 
   matrix:
     - STACK_YAML: stack.yaml
@@ -37,9 +32,6 @@ install:
 
 build_script:
   - stack build
-  - stack install --local-bin-path bin
-  - cp bin\spago.exe spago.exe
-  - tar -zcvf windows.tar.gz spago.exe
 
 test_script:
   # We run the Windows CI with Japanese encoding,
@@ -55,15 +47,3 @@ test_script:
   # We install psa and rerun the tests that exercise it
   - cmd: npm install -g purescript-psa
   - cmd: stack test --ta "--match \"/Spago/spago run\""
-
-artifacts:
-  - path: windows.tar.gz
-    name: spago
-
-deploy:
-  - provider: GitHub
-    auth_token:
-      secure: fJUuBdSozxDLZP2sDiBXf4dEjdSJPBhZvwI/3FII+4RNxow0wGEX5ZzEyeK2wN7q
-    artifact: spago
-    on:
-      APPVEYOR_REPO_TAG: true

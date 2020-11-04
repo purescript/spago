@@ -29,7 +29,7 @@ jobs:
   #         prerelease: false
 
   build_release:
-    name: Build and upload release artifacts
+    name: Build/upload release
     # needs: draft_release
     runs-on: ${{ matrix.os }}
     strategy:
@@ -78,7 +78,7 @@ jobs:
         run: |
           stack install --dependencies-only
           stack build --copy-bins --local-bin-path ./artifacts
-          cp artifacts\spago spago.exe
+          cp artifacts\spago.exe spago.exe
           tar -zcvf windows.tar.gz spago.exe
 
       # - name: Upload Release Asset
