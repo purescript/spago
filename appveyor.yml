@@ -32,6 +32,7 @@ install:
 
 build_script:
   - stack build
+  - stack install --local-bin-path bin
 
 test_script:
   # We run the Windows CI with Japanese encoding,
