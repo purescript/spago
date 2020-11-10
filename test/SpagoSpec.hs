@@ -83,7 +83,7 @@ spec = around_ setup $ do
       dhallSource `shouldSatisfy` (Text.isInfixOf "let upstream") -- some dhall stuff is present
 
     it "Spago should use user-specified tag if it exists instead of latest release" $ do
-      spago ["init", "--tag", "psc-0.13.8-20200911-2"] >>= shouldBeSuccess
+      spago ["init", "--tag", "psc-0.13.4-20191025"] >>= shouldBeSuccess
 
       mv "packages.dhall" "packages-older-tag.dhall"
       checkFixture "packages-older-tag.dhall"
@@ -598,7 +598,7 @@ spec = around_ setup $ do
             = map Text.strip
             $ filter (not . null . Text.breakOnAll "https://github.com/purescript/package-sets")
             $ Text.lines packages
-      writeTextFile "packages.dhall" "https://github.com/purescript/package-sets/releases/download/psc-0.13.8-20200911-2/packages.dhall sha256:872c06349ed9c8210be43982dc6466c2ca7c5c441129826bcb9bf3672938f16e"
+      writeTextFile "packages.dhall" "https://github.com/purescript/package-sets/releases/download/psc-0.13.4-20191025/packages.dhall sha256:f9eb600e5c2a439c3ac9543b1f36590696342baedab2d54ae0aa03c9447ce7d4"
       spago ["-v", "upgrade-set"] >>= shouldBeSuccess
       newPackages <- Text.strip <$> readTextFile "packages.dhall"
       newPackages `shouldBe` packageSetUrl
@@ -620,7 +620,7 @@ spec = around_ setup $ do
       -- initialize the project, so that it uses latest package set release
       spago ["init"] >>= shouldBeSuccess
 
-      spago ["-v", "upgrade-set", "--tag", "psc-0.13.8-20200911-2"] >>= shouldBeSuccess
+      spago ["-v", "upgrade-set", "--tag", "psc-0.13.4-20191025"] >>= shouldBeSuccess
       mv "packages.dhall" "packages-older-tag.dhall"
       checkFixture "packages-older-tag.dhall"
 

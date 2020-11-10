@@ -14,7 +14,7 @@
         "output"
     ],
     "dependencies": {
-        "purescript-console": "^v4.4.0",
+        "purescript-console": "^v4.2.0",
         "purescript-effect": "^v2.0.1",
         "purescript-psci-support": "^v4.0.0",
         "purescript-tortellini": "^v5.1.0"
