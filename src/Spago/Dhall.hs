@@ -34,8 +34,11 @@ format pathText = liftIO $
       f Dhall.Write
     Right _ -> pure ()
   where
-    f = Dhall.Format.format . Dhall.Format.Format Dhall.Pretty.ASCII Dhall.NoCensor path
-    path = Dhall.InputFile $ Text.unpack pathText
+    f = Dhall.Format.format
+      . Dhall.Format.Format
+          Dhall.Pretty.ASCII
+          Dhall.NoCensor
+          (Dhall.PossiblyTransitiveInputFile (Text.unpack pathText) Dhall.NonTransitive)
 
 
 -- | Prettyprint a Dhall expression adding a comment on top
@@ -58,6 +61,10 @@ stripComments dhallSrc =
     Left _     -> dhallSrc
     Right expr -> pretty expr
 
+extractRecordValues
+  :: Dhall.Map.Map Text (Dhall.RecordField Parser.Src a)
+  -> Dhall.Map.Map Text (Dhall.Expr Parser.Src a)
+extractRecordValues = fmap (\Dhall.RecordField{..} -> recordFieldValue)
 
 -- | Return a list of all imports starting from a particular file
 readImports :: Text -> IO [Dhall.Import]
@@ -153,26 +160,8 @@ maybeTypedKey ks name typ = typify `mapM` Dhall.Map.lookup name ks
       Failure a -> throwM a
 
 
--- | Convert a Dhall expression to a given Dhall type
---
---   We first annotate the expression with the Dhall type we want to get,
---   then try to typecheck it. We then need to run `Dhall.extract` on the
---   result of the normalization (we need to normalize so that extract can work)
---   and return a `Right` only if both typecheck and normalization succeeded.
-coerceToType
-  :: Dhall.Decoder a -> DhallExpr Void -> Either (ReadError Void) a
-coerceToType typ expr = do
-  let annot = Dhall.Annot expr $ Dhall.expected typ
-  let checkedType = typeOf annot
-  case (Dhall.extract typ $ Dhall.normalize annot, checkedType) of
-    (Success x, Right _) -> Right x
-    _                    -> Left $ WrongType typ expr
-
-
 -- | Spago configuration cannot be read
 data ReadError a where
- -- | a package has the wrong type
- WrongType             :: Typeable a => Dhall.Decoder b -> DhallExpr a -> ReadError a
  -- | the toplevel value is not a record
  ConfigIsNotRecord     :: Typeable a => DhallExpr a -> ReadError a
  -- | the "packages" key is not a record
@@ -198,17 +187,6 @@ instance (Pretty a) => Show (ReadError a) where
 
     where
       msg :: ReadError a -> [Dhall.Text]
-      msg (WrongType typ val) =
-        [ "Explanation: you tried to coerce an expression to the wrong type."
-        , ""
-        , "The type was the following:"
-        , ""
-        , "↳ " <> pretty (Dhall.expected typ)
-        , ""
-        , "And the expression was the following:"
-        , ""
-        , "↳ " <> pretty val
-        ]
       msg (PackagesIsNotRecord tl) =
         [ "Explanation: The \"packages\" key must contain a record of packages."
         , ""

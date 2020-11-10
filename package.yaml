@@ -28,7 +28,6 @@ flags:
 description:         Please see the README on GitHub at <https://github.com/purescript/spago#readme>
 
 default-extensions:
-- AutoDeriveTypeable
 - ApplicativeDo
 - BangPatterns
 - BinaryLiterals
@@ -52,7 +51,6 @@ default-extensions:
 - InstanceSigs
 - KindSignatures
 - LambdaCase
-- MonadFailDesugaring
 - MultiParamTypeClasses
 - MultiWayIf
 - NamedFieldPuns
@@ -105,11 +103,12 @@ library:
   - prettyprinter
   - process
   - retry
-  - rio >= 0.1.13.0
+  - rio >= 0.1.16.0
   - rio-orphans
   - safe
   - semver-range
   - stm
+  - stringsearch
   - tar
   - template-haskell
   - temporary
@@ -119,6 +118,7 @@ library:
   - turtle
   - unliftio
   - unordered-containers
+  - utf8-string
   - vector
   - versions
   - with-utf8

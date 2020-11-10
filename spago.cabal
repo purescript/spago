@@ -1,0 +1,176 @@
+cabal-version: 1.12
+
+-- This file has been generated from package.yaml by hpack version 0.33.0.
+--
+-- see: https://github.com/sol/hpack
+--
+-- hash: b88f8100a3b763c486e0f8eef011ce424bcca172077abeb8b10114b874428683
+
+name:           spago
+version:        0.17.0
+description:    Please see the README on GitHub at <https://github.com/purescript/spago#readme>
+homepage:       https://github.com/purescript/spago#readme
+bug-reports:    https://github.com/purescript/spago/issues
+author:         Justin Woo, Fabrizio Ferrai
+maintainer:     @jusrin00, @fabferrai
+copyright:      2018-2020 Justin Woo, Fabrizio Ferrai
+license:        BSD3
+license-file:   LICENSE
+build-type:     Simple
+extra-source-files:
+    README.md
+    CHANGELOG.md
+
+source-repository head
+  type: git
+  location: https://github.com/purescript/spago
+
+flag static
+  manual: True
+  default: False
+
+library
+  exposed-modules:
+      Spago.Async
+      Spago.Bower
+      Spago.Build
+      Spago.Build.Parser
+      Spago.CLI
+      Spago.Command.Ls
+      Spago.Command.Path
+      Spago.Command.Verify
+      Spago.Config
+      Spago.Dhall
+      Spago.DryRun
+      Spago.Env
+      Spago.FetchPackage
+      Spago.Git
+      Spago.GitHub
+      Spago.GlobalCache
+      Spago.Messages
+      Spago.Packages
+      Spago.PackageSet
+      Spago.Prelude
+      Spago.PscPackage
+      Spago.Purs
+      Spago.RunEnv
+      Spago.Templates
+      Spago.TH
+      Spago.Types
+      Spago.Version
+      Spago.Watch
+  other-modules:
+      Paths_spago
+  hs-source-dirs:
+      src
+  default-extensions: ApplicativeDo BangPatterns BinaryLiterals ConstraintKinds DataKinds DefaultSignatures DeriveDataTypeable DeriveFoldable DeriveFunctor DeriveGeneric DeriveTraversable DerivingStrategies DoAndIfThenElse EmptyDataDecls ExistentialQuantification FlexibleContexts FlexibleInstances FunctionalDependencies GADTs GeneralizedNewtypeDeriving InstanceSigs KindSignatures LambdaCase MultiParamTypeClasses MultiWayIf NamedFieldPuns NoImplicitPrelude OverloadedStrings PartialTypeSignatures PatternGuards PolyKinds RankNTypes RecordWildCards ScopedTypeVariables StandaloneDeriving TupleSections TypeFamilies TypeSynonymInstances ViewPatterns
+  ghc-options: -Wall
+  build-depends:
+      Cabal
+    , Glob
+    , aeson
+    , aeson-pretty
+    , ansi-terminal
+    , async-pool
+    , base >=4.7 && <5
+    , bower-json
+    , bytestring
+    , containers
+    , dhall >=1.31.1
+    , directory >=1.3.4.0
+    , either
+    , exceptions
+    , file-embed
+    , filepath
+    , foldl
+    , fsnotify
+    , github
+    , http-client
+    , http-conduit
+    , http-types
+    , lens-family-core
+    , megaparsec >=7.0 && <8.0
+    , mtl
+    , network-uri
+    , open-browser
+    , optparse-applicative
+    , prettyprinter
+    , process
+    , retry
+    , rio >=0.1.16.0
+    , rio-orphans
+    , safe
+    , semver-range
+    , stm
+    , stringsearch
+    , tar
+    , template-haskell
+    , temporary
+    , text <1.3
+    , time
+    , transformers
+    , turtle
+    , unliftio
+    , unordered-containers
+    , utf8-string
+    , vector
+    , versions
+    , with-utf8
+    , zlib
+  default-language: Haskell2010
+
+executable spago
+  main-is: Spago.hs
+  other-modules:
+      Paths_spago
+  hs-source-dirs:
+      app
+  default-extensions: ApplicativeDo BangPatterns BinaryLiterals ConstraintKinds DataKinds DefaultSignatures DeriveDataTypeable DeriveFoldable DeriveFunctor DeriveGeneric DeriveTraversable DerivingStrategies DoAndIfThenElse EmptyDataDecls ExistentialQuantification FlexibleContexts FlexibleInstances FunctionalDependencies GADTs GeneralizedNewtypeDeriving InstanceSigs KindSignatures LambdaCase MultiParamTypeClasses MultiWayIf NamedFieldPuns NoImplicitPrelude OverloadedStrings PartialTypeSignatures PatternGuards PolyKinds RankNTypes RecordWildCards ScopedTypeVariables StandaloneDeriving TupleSections TypeFamilies TypeSynonymInstances ViewPatterns
+  ghc-options: -Wall
+  build-depends:
+      base >=4.7 && <5
+    , spago
+    , text <1.3
+    , turtle
+    , with-utf8
+  if flag(static)
+    ghc-options: -main-is Spago -threaded -rtsopts -with-rtsopts=-N -static -O2
+    cc-options: -static
+    ld-options: -static -pthread
+  else
+    ghc-options: -main-is Spago -threaded -rtsopts -with-rtsopts=-N
+  default-language: Haskell2010
+
+test-suite spec
+  type: exitcode-stdio-1.0
+  main-is: Main.hs
+  other-modules:
+      BumpVersionSpec
+      Spago.Build.ParserSpec
+      Spago.Command.PathSpec
+      SpagoSpec
+      Spec
+      UnitSpec
+      Utils
+      Paths_spago
+  hs-source-dirs:
+      test
+  default-extensions: ApplicativeDo BangPatterns BinaryLiterals ConstraintKinds DataKinds DefaultSignatures DeriveDataTypeable DeriveFoldable DeriveFunctor DeriveGeneric DeriveTraversable DerivingStrategies DoAndIfThenElse EmptyDataDecls ExistentialQuantification FlexibleContexts FlexibleInstances FunctionalDependencies GADTs GeneralizedNewtypeDeriving InstanceSigs KindSignatures LambdaCase MultiParamTypeClasses MultiWayIf NamedFieldPuns NoImplicitPrelude OverloadedStrings PartialTypeSignatures PatternGuards PolyKinds RankNTypes RecordWildCards ScopedTypeVariables StandaloneDeriving TupleSections TypeFamilies TypeSynonymInstances ViewPatterns
+  ghc-options: -Wall -threaded -rtsopts -with-rtsopts=-N -main-is Main
+  build-depends:
+      QuickCheck
+    , base >=4.7 && <5
+    , containers
+    , directory
+    , extra
+    , hspec ==2.*
+    , hspec-megaparsec >=2.0 && <2.1
+    , megaparsec >=7.0 && <8.0
+    , process
+    , spago
+    , temporary
+    , text <1.3
+    , turtle
+    , versions
+  default-language: Haskell2010
+  build-tool-depends: hspec-discover:hspec-discover == 2.*
