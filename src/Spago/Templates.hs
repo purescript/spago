@@ -1,8 +1,6 @@
 {-# LANGUAGE TemplateHaskell #-}
 module Spago.Templates where
 
-import qualified Data.ByteString.Internal as B
-import           Data.FileEmbed           (embedFile)
 import qualified Data.Text                as T
 
 import           Spago.TH                 (embedFileUtf8, embedURLWithFallback)
@@ -24,8 +22,8 @@ testMain = $(embedFileUtf8 "templates/testMain.purs")
 gitignore :: T.Text
 gitignore = $(embedFileUtf8 "templates/gitignore")
 
-bowerJson :: B.ByteString
-bowerJson = $(embedFile "templates/bower.json")
+bowerJson :: T.Text
+bowerJson = $(embedFileUtf8 "templates/bower.json")
 
 pursRepl :: T.Text
 pursRepl = $(embedFileUtf8 "templates/purs-repl")

@@ -603,6 +603,9 @@ spec = around_ setup $ do
       newPackages <- Text.strip <$> readTextFile "packages.dhall"
       newPackages `shouldBe` packageSetUrl
 
+    {-
+    -- Note: this is commented because of https://github.com/purescript/spago/issues/685#issuecomment-694342262
+
     it "Spago should migrate a package set from an alternative repository from src/packages.dhall" $ do
 
       spago ["init"] >>= shouldBeSuccess
@@ -611,6 +614,7 @@ spec = around_ setup $ do
       newPackages <- Text.strip <$> readTextFile "packages.dhall"
       newPackages `shouldNotBe` "https://github.com/purerl/package-sets/releases/download/erl-0.13.6-20200713/packages.dhall"
       newPackages `shouldSatisfy` Text.isPrefixOf "https://github.com/purerl/package-sets/releases/download"
+    -}
 
     it "Spago should migrate package-set from src/packages.dhall to the user-specified one if it exists" $ do
       -- initialize the project, so that it uses latest package set release

@@ -61,13 +61,16 @@ dependenciesType = Dhall.list (Dhall.auto :: Dhall.Decoder PackageName)
 
 
 parsePackage :: (MonadIO m, MonadThrow m, MonadReader env m, HasLogFunc env) => ResolvedExpr -> m Package
-parsePackage (Dhall.RecordLit ks) = do
+parsePackage (Dhall.RecordLit ks') = do
+  let ks = Dhall.extractRecordValues ks'
   repo         <- Dhall.requireTypedKey ks "repo" (Dhall.auto :: Dhall.Decoder Repo)
   version      <- Dhall.requireTypedKey ks "version" Dhall.strictText
   dependencies <- Dhall.requireTypedKey ks "dependencies" dependenciesType
   let location = Remote{..}
   pure Package{..}
-parsePackage (Dhall.App (Dhall.Field union "Local") (Dhall.TextLit (Dhall.Chunks [] spagoConfigPath)))
+parsePackage (Dhall.App
+               (Dhall.Field union (Dhall.FieldSelection { fieldSelectionLabel = "Local", ..}))
+               (Dhall.TextLit (Dhall.Chunks [] spagoConfigPath)))
   | isLocationType union = do
       localPath <- case Text.isSuffixOf "/spago.dhall" spagoConfigPath of
         True  -> pure $ Text.dropEnd 12 spagoConfigPath
@@ -117,7 +120,8 @@ parseConfig = do
   ConfigPath path <- view (the @ConfigPath)
   expr <- liftIO $ Dhall.inputExpr $ "./" <> path
   case expr of
-    Dhall.RecordLit ks -> do
+    Dhall.RecordLit ks' -> do
+      let ks = Dhall.extractRecordValues ks'
       let sourcesType  = Dhall.list (Dhall.auto :: Dhall.Decoder SourcePath)
       name              <- Dhall.requireTypedKey ks "name" Dhall.strictText
       dependencies      <- Dhall.requireTypedKey ks "dependencies" dependenciesType
@@ -131,7 +135,7 @@ parseConfig = do
       publishConfig <- try ensurePublishConfig
 
       packageSet <- Dhall.requireKey ks "packages" (\case
-        Dhall.RecordLit pkgs -> parsePackageSet pkgs
+        Dhall.RecordLit pkgs -> parsePackageSet (Dhall.extractRecordValues pkgs)
         something            -> throwM $ Dhall.PackagesIsNotRecord something)
 
       pure Config{..}
@@ -285,18 +289,19 @@ showBowerErrors (List.sort -> errors)
 updateName :: Text -> Expr -> Expr
 updateName newName (Dhall.RecordLit kvs)
   | Just _name <- Dhall.Map.lookup "name" kvs = Dhall.RecordLit
-    $ Dhall.Map.insert "name" (Dhall.toTextLit newName) kvs
+    $ Dhall.Map.insert "name" (Dhall.makeRecordField $ Dhall.toTextLit newName) kvs
 updateName _ other = other
 
 addRawDeps :: HasLogFunc env => Config -> [PackageName] -> Expr -> RIO env Expr
 addRawDeps config newPackages r@(Dhall.RecordLit kvs) = case Dhall.Map.lookup "dependencies" kvs of
-  Just (Dhall.ListLit _ dependencies) -> do
+  Just (Dhall.RecordField { recordFieldValue = Dhall.ListLit _ dependencies }) -> do
       case NonEmpty.nonEmpty notInPackageSet of
         -- If none of the newPackages are outside of the set, add them to existing dependencies
         Nothing -> do
           oldPackages <- traverse (throws . Dhall.fromTextLit) dependencies
           let newDepsExpr
-                = Dhall.ListLit Nothing $ fmap (Dhall.toTextLit . packageName)
+                = Dhall.makeRecordField
+                $ Dhall.ListLit Nothing $ fmap (Dhall.toTextLit . packageName)
                 $ Seq.sort $ nubSeq (Seq.fromList newPackages <> fmap PackageName oldPackages)
           pure $ Dhall.RecordLit $ Dhall.Map.insert "dependencies" newDepsExpr kvs
         Just pkgs -> do
@@ -321,8 +326,9 @@ addRawDeps _ _ other = pure other
 
 addSourcePaths :: Expr -> Expr
 addSourcePaths (Dhall.RecordLit kvs)
-  | isConfigV1 kvs = Dhall.RecordLit
-    $ Dhall.Map.insert "sources" (Dhall.ListLit Nothing $ fmap Dhall.toTextLit $ Seq.fromList ["src/**/*.purs", "test/**/*.purs"]) kvs
+  | isConfigV1 kvs =
+    let sources = Dhall.ListLit Nothing $ fmap Dhall.toTextLit $ Seq.fromList ["src/**/*.purs", "test/**/*.purs"]
+    in Dhall.RecordLit (Dhall.Map.insert "sources" (Dhall.makeRecordField sources) kvs)
 addSourcePaths expr = expr
 
 isConfigV1, isConfigV2 :: Dhall.Map.Map Text v -> Bool
@@ -339,7 +345,7 @@ isConfigV2 (Set.fromList . Dhall.Map.keys -> configKeySet) =
 
 filterDependencies :: Expr -> Expr
 filterDependencies (Dhall.RecordLit kvs)
-  | isConfigV2 kvs, Just deps <- Dhall.Map.lookup "dependencies" kvs = deps
+  | isConfigV2 kvs, Just deps <- Dhall.Map.lookup "dependencies" (Dhall.extractRecordValues kvs) = deps
 filterDependencies expr = expr
 
 

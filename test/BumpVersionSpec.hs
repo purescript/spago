@@ -135,15 +135,15 @@ spec = describe "spago bump-version" $ do
 
       before_ (initGitTag "v1.2.3") $ it "Spago should only make a tag with `--no-dry-run`" $ do
 
-        spago ["bump-version", "minor"] >>= shouldBeSuccess
+        spago ["-v", "bump-version", "minor"] >>= shouldBeSuccess
         getHighestTag `shouldReturn` Just "v1.2.3"
 
-        spago ["bump-version", "--no-dry-run", "minor"] >>= shouldBeSuccess
+        spago ["-v", "bump-version", "--no-dry-run", "minor"] >>= shouldBeSuccess
         getHighestTag `shouldReturn` Just "v1.3.0"
 
       before_ (initGitTag "not-a-version") $ it "Spago should use v0.0.0 as initial version" $ do
 
-        spago ["bump-version", "--no-dry-run", "patch"] >>= shouldBeSuccess
+        spago ["-v", "bump-version", "--no-dry-run", "patch"] >>= shouldBeSuccess
         getHighestTag `shouldReturn` Just "v0.0.1"
 
 
