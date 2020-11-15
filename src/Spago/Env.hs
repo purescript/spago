@@ -1,4 +1,3 @@
-{-# LANGUAGE DeriveAnyClass #-}
 module Spago.Env
   (
   -- | Environments
@@ -12,6 +11,7 @@ module Spago.Env
 
   -- | AAA
   , HasInstallEnv
+  , HasVerifyEnv
 
   -- | TODO
   , HasGlobalCache
@@ -27,7 +27,7 @@ module Spago.Env
   , module Spago.Types
   ) where
 
-import RIO
+import RIO (LogFunc, Generic, Maybe, Text, Bool, Int)
 
 import Data.Generics.Product (HasType)
 
@@ -45,6 +45,7 @@ data GlobalOptions = GlobalOptions
   , globalCacheConfig :: Maybe CacheFlag
   }
 
+type HasLogFunc env = HasType LogFunc env
 type HasJobs env = HasType Jobs env
 type HasGlobalCache env = HasType GlobalCache env
 type HasConfigPath env = HasType ConfigPath env
@@ -62,12 +63,15 @@ type HasEnv env =
 
 type HasConfig env = ( HasType Config env, HasPackageSet env )
 
-type HasInstallEnv env = forall env. ( HasLogFunc env
+type HasInstallEnv env =
+  ( HasEnv env
   , HasConfig env
-  , HasLogFunc env
-  , HasJobs env
-  , HasConfigPath env
-  , HasGlobalCache env
+  )
+
+type HasVerifyEnv env =
+  ( HasEnv env
+  , HasPurs env
+  , HasPackageSet env
   )
 
 

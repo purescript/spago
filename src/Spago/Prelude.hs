@@ -104,7 +104,9 @@ import           Data.Text.Prettyprint.Doc             (Pretty)
 import           Dhall.Optics                          (transformMOf)
 import           Lens.Family                           ((^..))
 import           RIO                                   as X hiding (FilePath, first, force, second, HasLogFunc, logDebug, logError, logInfo, logWarn, (^..))
+import           RIO.Orphans                           as X
 import           Safe                                  (headMay, lastMay)
+import           System.FilePath                       (isAbsolute, pathSeparator, (</>))
 import           Turtle                                (FilePath, appendonly, chmod,
                                                         executable, mktree, repr, shell,
                                                         shellStrict, shellStrictWithErr,

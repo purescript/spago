@@ -12,6 +12,10 @@ extra-source-files:
 
 ghc-options:
   - -Wall
+  - -Wcompat
+  - -Wincomplete-record-updates
+  - -Wredundant-constraints
+  - -fprint-potential-instances
 
 flags:
   static:

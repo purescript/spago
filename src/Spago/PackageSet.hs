@@ -89,7 +89,7 @@ updatePackageSetVersion maybeTag = do
     useSpecificRelease org repo currentTag tag =
       updateTag org repo currentTag tag
 
-    updateTag :: HasLogFunc env => Text -> Text -> Text -> Text -> RIO env ()
+    updateTag :: Text -> Text -> Text -> Text -> RIO env ()
     updateTag org repo currentTag specificTag =  do
       let quotedTag = surroundQuote specificTag
           orgRepo = org <> "/" <> repo
