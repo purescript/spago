@@ -50,9 +50,8 @@ prepareBundleDefaults maybeModuleName maybeTargetPath = (moduleName, targetPath)
 
 --   eventually running some other action after the build
 build
-  :: forall env
-  .  HasBuildEnv env
-  => BuildOptions -> Maybe (RIO env ()) 
+  :: (HasBuildEnv env, HasEnv env1)
+  => BuildOptions -> Maybe (RIO env1 ())
   -> RIO env ()
 build BuildOptions{..} maybePostBuild = do
   logDebug "Running `spago build`"
@@ -243,29 +242,31 @@ runBackend maybeBackend moduleName maybeSuccessMessage failureMessage buildOpts 
 
 -- | Bundle the project to a js file
 bundleApp
-  :: HasBuildEnv env
+  :: HasEnv env
   => WithMain
   -> Maybe ModuleName
   -> Maybe TargetPath
   -> NoBuild
   -> BuildOptions
+  -> UsePsa
   -> RIO env ()
-bundleApp withMain maybeModuleName maybeTargetPath noBuild buildOpts =
+bundleApp withMain maybeModuleName maybeTargetPath noBuild buildOpts usePsa =
   let (moduleName, targetPath) = prepareBundleDefaults maybeModuleName maybeTargetPath
       bundleAction = Purs.bundle withMain (withSourceMap buildOpts) moduleName targetPath
   in case noBuild of
-    DoBuild -> build buildOpts (Just bundleAction)
+    DoBuild -> Run.withBuildEnv usePsa $ build buildOpts (Just bundleAction)
     NoBuild -> bundleAction
 
 -- | Bundle into a CommonJS module
 bundleModule
-  :: HasBuildEnv env
+  :: HasEnv env
   => Maybe ModuleName
   -> Maybe TargetPath
   -> NoBuild
   -> BuildOptions
+  -> UsePsa
   -> RIO env ()
-bundleModule maybeModuleName maybeTargetPath noBuild buildOpts = do
+bundleModule maybeModuleName maybeTargetPath noBuild buildOpts usePsa = do
   logDebug "Running `bundleModule`"
   let (moduleName, targetPath) = prepareBundleDefaults maybeModuleName maybeTargetPath
       jsExport = Text.unpack $ "\nmodule.exports = PS[\""<> unModuleName moduleName <> "\"];"
@@ -280,7 +281,7 @@ bundleModule maybeModuleName maybeTargetPath noBuild buildOpts = do
             Right _ -> logInfo $ display $ "Make module succeeded and output file to " <> unTargetPath targetPath
             Left (n :: SomeException) -> die [ "Make module failed: " <> repr n ]
   case noBuild of
-    DoBuild -> build buildOpts (Just bundleAction)
+    DoBuild -> Run.withBuildEnv usePsa $ build buildOpts (Just bundleAction)
     NoBuild -> bundleAction
 
 

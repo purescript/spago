@@ -122,7 +122,7 @@ data InstallEnv = InstallEnv
   , envConfigPath :: !ConfigPath
   , envGlobalCache :: !GlobalCache
   , envPackageSet :: !PackageSet
-  , envSpagoConfig :: !Config
+  , envConfig :: !Config
   } deriving (Generic)
 
 data PublishEnv = PublishEnv

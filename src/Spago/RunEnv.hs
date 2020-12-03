@@ -76,10 +76,10 @@ withInstallEnv'
   -> RIO env a
 withInstallEnv' maybeConfig app = do
   Env{..} <- getEnv
-  envPackageSet <- getPackageSet
-  envSpagoConfig <- case maybeConfig of
+  envConfig@Config{..} <- case maybeConfig of
     Just c -> pure c
     Nothing -> getConfig
+  let envPackageSet = packageSet
   runRIO InstallEnv{..} app
 
 withInstallEnv

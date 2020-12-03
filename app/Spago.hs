@@ -86,16 +86,15 @@ main = withUtf8 $ do
         $ Spago.Build.search
       Docs format sourcePaths depsOnly noSearch openDocs -> Run.withBuildEnv globalUsePsa
         $ Spago.Build.docs format sourcePaths depsOnly noSearch openDocs
-
-      -- TODO: Bundle env: build env + bundle options
       Test modName buildOptions nodeArgs -> Run.withBuildEnv globalUsePsa
         $ Spago.Build.test modName buildOptions nodeArgs
       Run modName buildOptions nodeArgs -> Run.withBuildEnv globalUsePsa
         $ Spago.Build.run modName buildOptions nodeArgs
-      BundleApp modName tPath shouldBuild buildOptions -> Run.withBuildEnv globalUsePsa
-        $ Spago.Build.bundleApp WithMain modName tPath shouldBuild buildOptions
-      BundleModule modName tPath shouldBuild buildOptions -> Run.withBuildEnv globalUsePsa
-        $ Spago.Build.bundleModule modName tPath shouldBuild buildOptions
+
+      BundleApp modName tPath shouldBuild buildOptions -> -- Run.withBuildEnv globalUsePsa
+        Spago.Build.bundleApp WithMain modName tPath shouldBuild buildOptions globalUsePsa
+      BundleModule modName tPath shouldBuild buildOptions -> -- Run.withBuildEnv globalUsePsa
+        Spago.Build.bundleModule modName tPath shouldBuild buildOptions globalUsePsa
 
       -- ### Legacy commands, here for smoother migration path to new ones
       Bundle -> die [ display Messages.bundleCommandRenamed ]
