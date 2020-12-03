@@ -5,6 +5,7 @@ module Spago.Purs
   , docs
   , pursVersion
   , parseDocsFormat
+  , findFlag
   , DocsFormat(..)
   ) where
 
@@ -122,3 +123,40 @@ runWithOutput command success failure = do
   shell command empty >>= \case
     ExitSuccess -> logInfo $ display success
     ExitFailure _ -> die [ display failure ]
+
+
+-- | Try to find the content of a certain flag in a list of PursArgs
+-- See tests in: test/Spago/Command/PathSpec.hs
+findFlag :: Char -> Text -> [PursArg] -> Maybe Text
+findFlag char string = \case
+  (x:xs) -> if isFlag x
+              then case xs of
+                (y:_) -> Just (unPursArg y)
+                _ -> Nothing
+              else if hasFlag x
+                then case Text.words (unPursArg x) of
+                  [word] -> case Text.split (=='=') word of
+                    [_,value] -> Just value
+                    _           -> Nothing
+                  (_:value:_) -> Just value
+                  _ -> Nothing
+                else findFlag char string xs
+  _ -> Nothing
+  where
+    isFlag :: PursArg -> Bool
+    isFlag (PursArg word)
+      =  word == (Text.pack ['-', char])
+      || word == ("--" <> string)
+    hasFlag :: PursArg -> Bool
+    hasFlag (PursArg a)
+      =  firstWord == (Text.pack ['-', char])
+      || firstWord == ("--" <> string)
+        where
+          firstWord
+            = fromMaybe "" $ case Text.words a of
+                []       -> Nothing
+                [word]   -> case Text.split (=='=') word of
+                  [one]       -> Just one
+                  [key,_]     -> Just key
+                  _           -> Nothing
+                (word:_) -> Just word

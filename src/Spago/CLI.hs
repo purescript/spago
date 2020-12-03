@@ -70,10 +70,10 @@ data Command
   | Docs (Maybe DocsFormat) [SourcePath] DepsOnly NoSearch OpenDocs
 
   -- | Run the project with some module, default Main
-  | Run (Maybe ModuleName) BuildOptions [PursArg]
+  | Run (Maybe ModuleName) BuildOptions [BackendArg]
 
   -- | Test the project with some module, default Test.Main
-  | Test (Maybe ModuleName) BuildOptions [PursArg]
+  | Test (Maybe ModuleName) BuildOptions [BackendArg]
 
   -- | Bundle the project into an executable
   | BundleApp (Maybe ModuleName) (Maybe TargetPath) NoBuild BuildOptions
@@ -154,7 +154,7 @@ parser = do
     toTarget    = CLI.optional $ CLI.opt (Just . TargetPath) "to" 't' "The target file path"
     docsFormat  = CLI.optional $ CLI.opt Purs.parseDocsFormat "format" 'f' "Docs output format (markdown | html | etags | ctags)"
     jobsLimit   = CLI.optional (CLI.optInt "jobs" 'j' "Limit the amount of jobs that can run concurrently")
-    nodeArgs         = many $ CLI.opt (Just . PursArg) "node-args" 'a' "Argument to pass to node (run/test only)"
+    nodeArgs         = many $ CLI.opt (Just . BackendArg) "node-args" 'a' "Argument to pass to node (run/test only)"
     replPackageNames = many $ CLI.opt (Just . PackageName) "dependency" 'D' "Package name to add to the REPL as dependency"
     sourcePaths      = many $ CLI.opt (Just . SourcePath) "path" 'p' "Source path to include"
 

@@ -81,6 +81,8 @@ newtype SourcePath = SourcePath { unSourcePath :: Text }
   deriving newtype (Show, Dhall.FromDhall)
 newtype PursArg = PursArg { unPursArg :: Text }
   deriving newtype (Eq)
+newtype BackendArg = BackendArg { unBackendArg :: Text }
+  deriving newtype (Eq)
 
 data WithMain = WithMain | WithoutMain
 

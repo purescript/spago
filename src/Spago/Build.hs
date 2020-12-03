@@ -12,7 +12,6 @@ module Spago.Build
 import           Spago.Prelude hiding (link)
 import           Spago.Env
 
-import qualified Data.List            as List
 import qualified Data.List.NonEmpty   as NonEmpty
 import qualified Data.Set             as Set
 import qualified Data.Text            as Text
@@ -68,7 +67,7 @@ build BuildOptions{..} maybePostBuild = do
           Nothing ->
               Purs.compile globs pursArgs
           Just backend -> do
-              when (PursArg "--codegen" `List.elem` pursArgs) $
+              when (isJust $ Purs.findFlag 'g' "codegen" pursArgs) $
                 die
                   [ "Can't pass `--codegen` option to build when using a backend"
                   , "Hint: No need to pass `--codegen corefn` explicitly when using the `backend` option."
@@ -177,7 +176,7 @@ repl newPackages sourcePaths pursArgs depsOnly = do
 --   (or the provided module name) with node
 test
   :: HasBuildEnv env
-  => Maybe ModuleName -> BuildOptions -> [PursArg]
+  => Maybe ModuleName -> BuildOptions -> [BackendArg]
   -> RIO env ()
 test maybeModuleName buildOpts extraArgs = do
   let moduleName = fromMaybe (ModuleName "Test.Main") maybeModuleName
@@ -197,7 +196,7 @@ test maybeModuleName buildOpts extraArgs = do
 --   (or the provided module name) with node
 run
   :: HasBuildEnv env
-  => Maybe ModuleName -> BuildOptions -> [PursArg]
+  => Maybe ModuleName -> BuildOptions -> [BackendArg]
   -> RIO env ()
 run maybeModuleName buildOpts extraArgs = do
   Config.Config { alternateBackend } <- view (the @Config)
@@ -214,14 +213,14 @@ runBackend
   -> Maybe Text
   -> Text
   -> BuildOptions
-  -> [PursArg]
+  -> [BackendArg]
   -> RIO env ()
-runBackend maybeBackend moduleName maybeSuccessMessage failureMessage buildOpts extraArgs = do
+runBackend maybeBackend moduleName maybeSuccessMessage failureMessage buildOpts@BuildOptions{pursArgs} extraArgs = do
   logDebug $ display $ "Running with backend: " <> fromMaybe "nodejs" maybeBackend
-  let postBuild = maybe (nodeAction $ Path.getOutputPath buildOpts) backendAction maybeBackend
+  let postBuild = maybe (nodeAction $ Path.getOutputPath pursArgs) backendAction maybeBackend
   build buildOpts (Just postBuild)
   where
-    nodeArgs = Text.intercalate " " $ map unPursArg extraArgs
+    nodeArgs = Text.intercalate " " $ map unBackendArg extraArgs
     nodeContents outputPath' =
       "#!/usr/bin/env node\n\n" <> "require('../" <> Text.pack outputPath' <> "/" <> unModuleName moduleName <> "').main()"
     nodeCmd = "node .spago/run.js " <> nodeArgs
@@ -235,7 +234,7 @@ runBackend maybeBackend moduleName maybeSuccessMessage failureMessage buildOpts 
         ExitSuccess   -> maybe (pure ()) (logInfo . display) maybeSuccessMessage
         ExitFailure n -> die [ display failureMessage <> "exit code: " <> repr n ]
     backendAction backend = do
-      let args :: [Text] = ["--run", unModuleName moduleName <> ".main"] <> fmap unPursArg extraArgs
+      let args :: [Text] = ["--run", unModuleName moduleName <> ".main"] <> fmap unBackendArg extraArgs
       logDebug $ display $ "Running command `" <> backend <> " " <> Text.unwords args <> "`"
       Turtle.proc backend args empty >>= \case
         ExitSuccess   -> maybe (pure ()) (logInfo . display) maybeSuccessMessage

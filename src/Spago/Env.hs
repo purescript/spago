@@ -9,14 +9,14 @@ module Spago.Env
   , VerifyEnv(..)
   , BuildEnv(..)
 
-  -- | AAA
+  -- | Environment constraints
   , HasEnv
   , HasInstallEnv
   , HasVerifyEnv
   , HasPublishEnv
   , HasBuildEnv
 
-  -- | TODO
+  -- | Capabilities
   , HasGlobalCache
   , HasConfigPath
   , HasJobs
