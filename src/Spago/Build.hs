@@ -50,8 +50,8 @@ prepareBundleDefaults maybeModuleName maybeTargetPath = (moduleName, targetPath)
 
 --   eventually running some other action after the build
 build
-  :: (HasBuildEnv env, HasEnv env1)
-  => BuildOptions -> Maybe (RIO env1 ())
+  :: HasBuildEnv env
+  => BuildOptions -> Maybe (RIO Env ())
   -> RIO env ()
 build BuildOptions{..} maybePostBuild = do
   logDebug "Running `spago build`"
@@ -84,7 +84,8 @@ build BuildOptions{..} maybePostBuild = do
                 ExitFailure n -> die [ "Backend " <> displayShow backend <> " exited with error:" <> repr n ]
 
       buildAction globs = do
-        let action = buildBackend globs >> fromMaybe (pure ()) maybePostBuild
+        env <- Run.getEnv
+        let action = buildBackend globs >> (runRIO env $ fromMaybe (pure ()) maybePostBuild)
         runCommands "Before" beforeCommands
         action `onException` (runCommands "Else" elseCommands)
         runCommands "Then" thenCommands
@@ -109,7 +110,7 @@ build BuildOptions{..} maybePostBuild = do
         (buildAction (wrap <$> psMatches))
 
   where
-    runCommands :: Text -> [Text] -> RIO env ()
+    runCommands :: HasLogFunc env => Text -> [Text] -> RIO env ()
     runCommands label = traverse_ runCommand
       where
       runCommand command = shell command empty >>= \case
@@ -255,7 +256,7 @@ bundleApp withMain maybeModuleName maybeTargetPath noBuild buildOpts usePsa =
       bundleAction = Purs.bundle withMain (withSourceMap buildOpts) moduleName targetPath
   in case noBuild of
     DoBuild -> Run.withBuildEnv usePsa $ build buildOpts (Just bundleAction)
-    NoBuild -> bundleAction
+    NoBuild -> Run.getEnv >>= (flip runRIO) bundleAction
 
 -- | Bundle into a CommonJS module
 bundleModule
@@ -282,7 +283,7 @@ bundleModule maybeModuleName maybeTargetPath noBuild buildOpts usePsa = do
             Left (n :: SomeException) -> die [ "Make module failed: " <> repr n ]
   case noBuild of
     DoBuild -> Run.withBuildEnv usePsa $ build buildOpts (Just bundleAction)
-    NoBuild -> bundleAction
+    NoBuild -> Run.getEnv >>= (flip runRIO) bundleAction
 
 
 -- | Generate docs for the `sourcePaths` and run `purescript-docs-search build-index` to patch them.

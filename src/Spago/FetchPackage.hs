@@ -44,7 +44,7 @@ fetchPackages allDeps = do
   PackageSet.checkPursIsUpToDate
 
   -- Ensure both local and global cache dirs are there
-  GlobalCache globalCacheDir cacheFlag <- view (the @GlobalCache)
+  GlobalCache globalCacheDir _ <- view (the @GlobalCache)
   assertDirectory globalCacheDir
   assertDirectory localCacheDir
 
@@ -59,7 +59,7 @@ fetchPackages allDeps = do
   let nOfDeps = List.length depsToFetch
   when (nOfDeps > 0) $ do
     logInfo $ "Installing " <> display nOfDeps <> " dependencies."
-    metadata <- GlobalCache.getMetadata cacheFlag
+    metadata <- GlobalCache.getMetadata
 
     Jobs limit <- view (the @Jobs)
     Async.withTaskGroup limit $ \taskGroup -> do

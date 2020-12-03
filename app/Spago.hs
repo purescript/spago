@@ -56,6 +56,10 @@ main = withUtf8 $ do
         -> Path.showPaths buildOptions whichPath
       Repl replPackageNames paths pursArgs depsOnly
         -> Spago.Build.repl replPackageNames paths pursArgs depsOnly
+      BundleApp modName tPath shouldBuild buildOptions
+        -> Spago.Build.bundleApp WithMain modName tPath shouldBuild buildOptions globalUsePsa
+      BundleModule modName tPath shouldBuild buildOptions
+        -> Spago.Build.bundleModule modName tPath shouldBuild buildOptions globalUsePsa
 
       -- ### Commmands that need only a Package Set
       ListPackages jsonFlag -> Run.withPackageSetEnv
@@ -90,11 +94,6 @@ main = withUtf8 $ do
         $ Spago.Build.test modName buildOptions nodeArgs
       Run modName buildOptions nodeArgs -> Run.withBuildEnv globalUsePsa
         $ Spago.Build.run modName buildOptions nodeArgs
-
-      BundleApp modName tPath shouldBuild buildOptions -> -- Run.withBuildEnv globalUsePsa
-        Spago.Build.bundleApp WithMain modName tPath shouldBuild buildOptions globalUsePsa
-      BundleModule modName tPath shouldBuild buildOptions -> -- Run.withBuildEnv globalUsePsa
-        Spago.Build.bundleModule modName tPath shouldBuild buildOptions globalUsePsa
 
       -- ### Legacy commands, here for smoother migration path to new ones
       Bundle -> die [ display Messages.bundleCommandRenamed ]
