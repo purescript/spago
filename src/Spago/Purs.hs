@@ -36,9 +36,9 @@ compile sourcePaths extraArgs = do
     "Build succeeded."
     "Failed to build."
 
--- TODO: this should use HasPurs
-repl :: Text -> [SourcePath] -> [PursArg] -> IO ()
-repl purs sourcePaths extraArgs = do
+repl :: HasPurs env => [SourcePath] -> [PursArg] -> RIO env ()
+repl sourcePaths extraArgs = do
+  PursCmd purs <- view (the @PursCmd)
   let paths = Text.intercalate " " $ surroundQuote <$> map unSourcePath sourcePaths
       args = Text.intercalate " " $ map unPursArg extraArgs
       cmd = purs <> " repl " <> paths <> " " <> args

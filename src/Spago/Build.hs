@@ -141,8 +141,7 @@ repl
   -> RIO env ()
 repl newPackages sourcePaths pursArgs depsOnly = do
   logDebug "Running `spago repl`"
-  -- TODO: instead of using HasPurs here we just call this for now
-  PursCmd purs <- Run.getPurs NoPsa
+  purs <- Run.getPurs NoPsa
   Config.ensureConfig >>= \case
     Right config -> Run.withInstallEnv' (Just config) (replAction purs)
     Left err -> do
@@ -169,7 +168,7 @@ repl newPackages sourcePaths pursArgs depsOnly = do
           ]
       let globs = Packages.getGlobs deps depsOnly (configSourcePaths <> sourcePaths)
       Fetch.fetchPackages deps
-      liftIO $ Purs.repl purs globs pursArgs
+      runRIO purs $ Purs.repl globs pursArgs
 
 
 -- | Test the project: compile and run "Test.Main"
