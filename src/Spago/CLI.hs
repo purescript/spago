@@ -24,7 +24,7 @@ data Command
 
   -- | Default catch-all command
   = Default ShowVersion
-  
+
   -- | Initialize a new project
   | Init Force TemplateComments (Maybe Text)
 
@@ -42,9 +42,6 @@ data Command
 
   -- | Bump and tag a new version in preparation for release.
   | BumpVersion DryRun VersionBump
-
-  -- | Save a GitHub token to cache, to authenticate to various GitHub things
-  | Login
 
   -- | Upgrade the package-set to the latest release
   | PackageSetUpgrade (Maybe Text)
@@ -74,7 +71,7 @@ data Command
 
   -- | Run the project with some module, default Main
   | Run (Maybe ModuleName) BuildOptions [PursArg]
- 
+
   -- | Test the project with some module, default Test.Main
   | Test (Maybe ModuleName) BuildOptions [PursArg]
 
@@ -83,7 +80,7 @@ data Command
 
   -- | Bundle a module into a CommonJS module
   | BundleModule (Maybe ModuleName) (Maybe TargetPath) NoBuild BuildOptions
- 
+
   -- | Verify that a single package is consistent with the Package Set
   | Verify PackageName
 
@@ -293,12 +290,6 @@ parser = do
       , pure Freeze
       )
 
-    login =
-      ( "login"
-      , "Save the GitHub token to the global cache - set it with the SPAGO_GITHUB_TOKEN env variable"
-      , pure Login
-      )
-
     bumpVersion =
       ( "bump-version"
       , "Bump and tag a new version, and generate bower.json, in preparation for release."
@@ -350,8 +341,7 @@ parser = do
       , freeze
       ]
     publishCommands = CLI.subcommandGroup "Publish commands:"
-      [ login
-      , bumpVersion
+      [ bumpVersion
       ]
     oldCommands = Opts.subparser $ Opts.internal <> bundle <> makeModule <> listPackagesOld
 

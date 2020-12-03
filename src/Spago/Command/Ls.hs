@@ -32,7 +32,7 @@ encodeJsonPackageOutput :: JsonPackageOutput -> Text
 encodeJsonPackageOutput = LT.toStrict . LT.decodeUtf8 . Json.encode
 
 
-listPackageSet 
+listPackageSet
   :: (HasLogFunc env, HasPackageSet env)
   => JsonFlag -> RIO env ()
 listPackageSet jsonFlag = do
@@ -40,16 +40,16 @@ listPackageSet jsonFlag = do
   PackageSet{..} <- view (the @PackageSet)
   traverse_ output $ formatPackageNames jsonFlag (Map.toList packagesDB)
 
-listPackages 
-  :: (HasLogFunc env, HasConfig env) 
-  => IncludeTransitive -> JsonFlag 
+listPackages
+  :: (HasLogFunc env, HasConfig env)
+  => IncludeTransitive -> JsonFlag
   -> RIO env ()
 listPackages packagesFilter jsonFlag = do
   logDebug "Running `listPackages`"
   packagesToList :: [(PackageName, Package)] <- case packagesFilter of
-    IncludeTransitive -> Packages.getProjectDeps 
+    IncludeTransitive -> Packages.getProjectDeps
     _ -> do
-      Config { packageSet = PackageSet{ packagesDB }, dependencies } <- view configL
+      Config { packageSet = PackageSet{ packagesDB }, dependencies } <- view (the @Config)
       pure $ Map.toList $ Map.restrictKeys packagesDB (Set.fromList dependencies)
 
   case packagesToList of

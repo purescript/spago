@@ -10,8 +10,11 @@ module Spago.Env
   , BuildEnv(..)
 
   -- | AAA
+  , HasEnv
   , HasInstallEnv
   , HasVerifyEnv
+  , HasPublishEnv
+  , HasBuildEnv
 
   -- | TODO
   , HasGlobalCache
@@ -66,6 +69,7 @@ type HasConfig env = ( HasType Config env, HasPackageSet env )
 type HasInstallEnv env =
   ( HasEnv env
   , HasConfig env
+  , HasPackageSet env
   )
 
 type HasVerifyEnv env =
@@ -74,6 +78,20 @@ type HasVerifyEnv env =
   , HasPackageSet env
   )
 
+type HasPublishEnv env =
+  ( HasLogFunc env
+  , HasJobs env
+  , HasConfig env
+  , HasBower env
+  , HasGit env
+  )
+
+type HasBuildEnv env =
+  ( HasEnv env
+  , HasPurs env
+  , HasGit env
+  , HasConfig env
+  )
 
 -- | App configuration containing parameters and other common
 --   things it's useful to compute only once at startup.
@@ -91,24 +109,38 @@ data PackageSetEnv = PackageSetEnv
 
 data VerifyEnv = VerifyEnv
   { envLogFunc :: !LogFunc
+  , envJobs :: !Jobs
+  , envConfigPath :: !ConfigPath
+  , envGlobalCache :: !GlobalCache
   , envPursCmd :: !PursCmd
   , envPackageSet :: !PackageSet
   } deriving (Generic)
 
 data InstallEnv = InstallEnv
   { envLogFunc :: !LogFunc
+  , envJobs :: !Jobs
+  , envConfigPath :: !ConfigPath
+  , envGlobalCache :: !GlobalCache
+  , envPackageSet :: !PackageSet
   , envSpagoConfig :: !Config
   } deriving (Generic)
 
 data PublishEnv = PublishEnv
   { envLogFunc :: !LogFunc
+  , envJobs :: !Jobs
+  , envConfig :: !Config
+  , envPackageSet :: !PackageSet
   , envGitCmd :: !GitCmd
-  -- ^ git command to use
   , envBowerCmd :: !BowerCmd
-  -- ^ bower command to use
   } deriving (Generic)
 
 data BuildEnv = BuildEnv
   { envLogFunc :: !LogFunc
+  , envJobs :: !Jobs
+  , envConfigPath :: !ConfigPath
+  , envGlobalCache :: !GlobalCache
   , envPursCmd :: !PursCmd
+  , envGitCmd :: !GitCmd
+  , envPackageSet :: !PackageSet
+  , envConfig :: !Config
   } deriving (Generic)

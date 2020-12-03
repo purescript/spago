@@ -8,7 +8,7 @@ import qualified System.IO            as Sys
 
 
 showPaths
-  :: (HasLogFunc env, HasGlobalCache env)
+  :: (HasGlobalCache env)
   => BuildOptions
   -> Maybe PathType
   -> RIO env ()
@@ -16,27 +16,23 @@ showPaths buildOptions whichPaths =
   case whichPaths of
     (Just PathOutput) -> outputStr (getOutputPath buildOptions)
     (Just PathGlobalCache) -> do
-      globalCache <- view (the @GlobalCache)
-      case globalCache of
-        NoGlobalCache -> die ["Global cache is disabled!"]
-        UseGlobalCache path _ -> outputStr path
+      GlobalCache path _ <- view (the @GlobalCache)
+      outputStr path
     Nothing -> do
       let showPath (a,b) = output (a <> ": " <> b)
       getAllPaths buildOptions >>= traverse_ showPath
 
 
 getAllPaths
-  :: (HasLogFunc env, HasGlobalCache env)
+  :: (HasGlobalCache env)
   => BuildOptions
   -> RIO env [(Text, Text)]
 getAllPaths buildOptions = do
-  globalCache <- view (the @GlobalCache)
+  GlobalCache path _ <- view (the @GlobalCache)
   pure
     [ ("output", Text.pack (getOutputPath buildOptions))
-    ] <>
-    case globalCache of
-      NoGlobalCache -> []
-      UseGlobalCache path -> ("global-cache", Text.pack path)
+    , ("global-cache", Text.pack path)
+    ]
 
 
 -- | Find the output path for purs compiler

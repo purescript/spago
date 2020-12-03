@@ -28,7 +28,7 @@ import qualified Web.Browser          as Browser
 
 import qualified Spago.Build.Parser   as Parse
 import qualified Spago.Command.Path   as Path
-import qualified Spago.RunEnv         as Run 
+import qualified Spago.RunEnv         as Run
 import qualified Spago.Config         as Config
 import qualified Spago.Dhall          as Dhall
 import qualified Spago.FetchPackage   as Fetch
@@ -49,14 +49,14 @@ prepareBundleDefaults maybeModuleName maybeTargetPath = (moduleName, targetPath)
     targetPath = fromMaybe (TargetPath "index.js") maybeTargetPath
 
 --   eventually running some other action after the build
-build 
+build
   :: forall env
-  .  (HasEnv env, HasPurs env, HasCacheConfig env, HasConfig env)
+  .  HasBuildEnv env
   => BuildOptions -> Maybe (RIO env ()) 
   -> RIO env ()
 build BuildOptions{..} maybePostBuild = do
   logDebug "Running `spago build`"
-  Config{..} <- view configL
+  Config{..} <- view (the @Config)
   deps <- Packages.getProjectDeps
   case noInstall of
     DoInstall -> Fetch.fetchPackages deps
@@ -143,12 +143,12 @@ repl
 repl newPackages sourcePaths pursArgs depsOnly = do
   logDebug "Running `spago repl`"
   -- TODO: instead of using HasPurs here we just call this for now
-  purs <- Run.getPurs NoPsa
+  PursCmd purs <- Run.getPurs NoPsa
   Config.ensureConfig >>= \case
     Right config -> Run.withInstallEnv' (Just config) (replAction purs)
     Left err -> do
       logDebug err
-      cacheDir <- view globalCacheL
+      GlobalCache cacheDir _ <- view (the @GlobalCache)
       Temp.withTempDirectory cacheDir "spago-repl-tmp" $ \dir -> do
         Turtle.cd (Turtle.decodeString dir)
 
@@ -160,7 +160,7 @@ repl newPackages sourcePaths pursArgs depsOnly = do
         Run.withInstallEnv' (Just newConfig) (replAction purs)
   where
     replAction purs = do
-      Config{..} <- view configL
+      Config{..} <- view (the @Config)
       deps <- Packages.getProjectDeps
       -- we check that psci-support is in the deps, see #550
       unless (Set.member (PackageName "psci-support") (Set.fromList (map fst deps))) $ do
@@ -175,13 +175,13 @@ repl newPackages sourcePaths pursArgs depsOnly = do
 
 -- | Test the project: compile and run "Test.Main"
 --   (or the provided module name) with node
-test 
-  :: (HasEnv env, HasConfig env, HasPurs env, HasCacheConfig env)
-  => Maybe ModuleName -> BuildOptions -> [PursArg] 
+test
+  :: HasBuildEnv env
+  => Maybe ModuleName -> BuildOptions -> [PursArg]
   -> RIO env ()
 test maybeModuleName buildOpts extraArgs = do
   let moduleName = fromMaybe (ModuleName "Test.Main") maybeModuleName
-  Config.Config { alternateBackend, configSourcePaths } <- view configL
+  Config.Config { alternateBackend, configSourcePaths } <- view (the @Config)
   liftIO (foldMapM (Glob.glob . Text.unpack . unSourcePath) configSourcePaths) >>= \paths -> do
     results <- forM paths $ \path -> do
       content <- readFileBinary path
@@ -195,12 +195,12 @@ test maybeModuleName buildOpts extraArgs = do
 
 -- | Run the project: compile and run "Main"
 --   (or the provided module name) with node
-run 
-  :: (HasEnv env, HasConfig env, HasPurs env, HasCacheConfig env)
-  => Maybe ModuleName -> BuildOptions -> [PursArg] 
+run
+  :: HasBuildEnv env
+  => Maybe ModuleName -> BuildOptions -> [PursArg]
   -> RIO env ()
 run maybeModuleName buildOpts extraArgs = do
-  Config.Config { alternateBackend } <- view configL
+  Config.Config { alternateBackend } <- view (the @Config)
   let moduleName = fromMaybe (ModuleName "Main") maybeModuleName
   runBackend alternateBackend moduleName Nothing "Running failed; " buildOpts extraArgs
 
@@ -208,7 +208,7 @@ run maybeModuleName buildOpts extraArgs = do
 -- | Run the project with node (or the chosen alternate backend):
 --   compile and run the provided ModuleName
 runBackend
-  :: (HasEnv env, HasPurs env, HasCacheConfig env, HasConfig env)
+  :: HasBuildEnv env
   => Maybe Text
   -> ModuleName
   -> Maybe Text
@@ -243,7 +243,7 @@ runBackend maybeBackend moduleName maybeSuccessMessage failureMessage buildOpts 
 
 -- | Bundle the project to a js file
 bundleApp
-  :: (HasEnv env, HasPurs env, HasCacheConfig env, HasConfig env)
+  :: HasBuildEnv env
   => WithMain
   -> Maybe ModuleName
   -> Maybe TargetPath
@@ -259,7 +259,7 @@ bundleApp withMain maybeModuleName maybeTargetPath noBuild buildOpts =
 
 -- | Bundle into a CommonJS module
 bundleModule
-  :: (HasEnv env, HasPurs env, HasCacheConfig env, HasConfig env)
+  :: HasBuildEnv env
   => Maybe ModuleName
   -> Maybe TargetPath
   -> NoBuild
@@ -295,7 +295,7 @@ docs
   -> RIO env ()
 docs format sourcePaths depsOnly noSearch open = do
   logDebug "Running `spago docs`"
-  Config{..} <- view configL
+  Config{..} <- view (the @Config)
   deps <- Packages.getProjectDeps
   logInfo "Generating documentation for the project. This might take a while..."
   Purs.docs docsFormat $ Packages.getGlobs deps depsOnly configSourcePaths <> sourcePaths
@@ -334,7 +334,7 @@ search
   :: (HasPurs env, HasLogFunc env, HasConfig env)
   => RIO env ()
 search = do
-  Config{..} <- view configL
+  Config{..} <- view (the @Config)
   deps <- Packages.getProjectDeps
 
   logInfo "Building module metadata..."

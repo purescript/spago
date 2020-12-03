@@ -10,7 +10,6 @@ import           Spago.CLI           (Command(..))
 
 import qualified System.Environment  as Env
 import qualified Spago.Build
-import qualified Spago.GitHub
 import qualified Spago.Messages      as Messages
 import qualified Spago.Packages
 import qualified Spago.PackageSet
@@ -51,11 +50,9 @@ main = withUtf8 $ do
         -> Spago.PackageSet.updatePackageSetVersion tag
       Freeze
         -> Spago.PackageSet.freeze Spago.PackageSet.packagesPath
-      Login 
-        -> Spago.GitHub.login
       Version
         -> CLI.echo spagoVersion
-      Path whichPath buildOptions 
+      Path whichPath buildOptions
         -> Path.showPaths buildOptions whichPath
       Repl replPackageNames paths pursArgs depsOnly
         -> Spago.Build.repl replPackageNames paths pursArgs depsOnly
@@ -67,29 +64,29 @@ main = withUtf8 $ do
       -- ### Commands that need an "install environment": global options and a Config
       Install packageNames -> Run.withInstallEnv
         $ Spago.Packages.install packageNames
-      ListDeps jsonFlag transitiveFlag -> Run.withInstallEnv 
+      ListDeps jsonFlag transitiveFlag -> Run.withInstallEnv
         $ Ls.listPackages transitiveFlag jsonFlag
-      Sources -> Run.withInstallEnv 
+      Sources -> Run.withInstallEnv
         $ Spago.Packages.sources
-      
+
       -- ### Commands that need a "publish env": install env + git and bower
-      BumpVersion dryRun spec -> Run.withPublishEnv 
+      BumpVersion dryRun spec -> Run.withPublishEnv
         $ Spago.Version.bumpVersion dryRun spec
-      
-      -- ### Commands that need a "verification env": a Package Set + purs 
+
+      -- ### Commands that need a "verification env": a Package Set + purs
       Verify package -> Run.withVerifyEnv globalUsePsa
         $ Verify.verify NoCheckModulesUnique (Just package)
       VerifySet checkUniqueModules -> Run.withVerifyEnv globalUsePsa
         $ Verify.verify checkUniqueModules Nothing
-      
+
       -- ### Commands that need a build environment: a config, build options and access to purs
       Build buildOptions -> Run.withBuildEnv globalUsePsa
         $ Spago.Build.build buildOptions Nothing
-      Search -> Run.withBuildEnv globalUsePsa 
+      Search -> Run.withBuildEnv globalUsePsa
         $ Spago.Build.search
-      Docs format sourcePaths depsOnly noSearch openDocs -> Run.withBuildEnv globalUsePsa 
+      Docs format sourcePaths depsOnly noSearch openDocs -> Run.withBuildEnv globalUsePsa
         $ Spago.Build.docs format sourcePaths depsOnly noSearch openDocs
-      
+
       -- TODO: Bundle env: build env + bundle options
       Test modName buildOptions nodeArgs -> Run.withBuildEnv globalUsePsa
         $ Spago.Build.test modName buildOptions nodeArgs

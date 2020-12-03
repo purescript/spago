@@ -70,40 +70,44 @@ withPackageSetEnv app = do
 
 
 withInstallEnv'
-  :: (HasLogFunc env, HasConfigPath env)
+  :: (HasEnv env)
   => Maybe Config
   -> RIO InstallEnv a
   -> RIO env a
 withInstallEnv' maybeConfig app = do
-  envLogFunc <- view (the @LogFunc)
+  Env{..} <- getEnv
+  envPackageSet <- getPackageSet
   envSpagoConfig <- case maybeConfig of
     Just c -> pure c
     Nothing -> getConfig
   runRIO InstallEnv{..} app
 
 withInstallEnv
-  :: (HasLogFunc env, HasConfigPath env)
+  :: (HasEnv env)
   => RIO InstallEnv a
   -> RIO env a
 withInstallEnv = withInstallEnv' Nothing
 
 withVerifyEnv
-  :: (HasLogFunc env, HasConfigPath env)
+  :: HasEnv env
   => UsePsa
   -> RIO VerifyEnv a
   -> RIO env a
 withVerifyEnv usePsa app = do
+  Env{..} <- getEnv
   envPursCmd <- getPurs usePsa
   envPackageSet <- getPackageSet
-  envLogFunc <- view (the @LogFunc)
   runRIO VerifyEnv{..} app
 
-mkPublishEnv
-  :: (HasLogFunc env)
-  => RIO env PublishEnv
-mkPublishEnv = do
-  envLogFunc <- view (the @LogFunc)
-  envGitCmd <- GitCmd <$> findExecutableOrDie "git"
+withPublishEnv
+  :: HasEnv env
+  => RIO PublishEnv a
+  -> RIO env a
+withPublishEnv app = do
+  Env{..} <- getEnv
+  envConfig@Config{..} <- getConfig
+  let envPackageSet = packageSet
+  envGitCmd <- getGit
   envBowerCmd <- BowerCmd <$>
     -- workaround windows issue: https://github.com/haskell/process/issues/140
     case OS.buildOS of
@@ -111,20 +115,30 @@ mkPublishEnv = do
         let bowers = Turtle.inproc "where" ["bower.cmd"] empty
         Turtle.lineToText <$> Turtle.single (Turtle.limit 1 bowers)
       _ -> findExecutableOrDie "bower"
-  pure PublishEnv{..}
+  runRIO PublishEnv{..} app
 
-mkBuildEnv
-  :: (HasLogFunc env)
+withBuildEnv
+  :: HasEnv env
   => UsePsa
-  -> RIO env BuildEnv
-mkBuildEnv usePsa = do
-  envLogFunc <- view (the @LogFunc)
+  -> RIO BuildEnv a
+  -> RIO env a
+withBuildEnv usePsa app = do
+  Env{..} <- getEnv
   envPursCmd <- getPurs usePsa
-  pure BuildEnv{..}
+  envConfig@Config{..} <- getConfig
+  let envPackageSet = packageSet
+  envGitCmd <- getGit
+  runRIO BuildEnv{..} app
 
-getConfig
-  :: (HasLogFunc env, HasConfigPath env)
-  => RIO env Config
+getEnv :: HasEnv env => RIO env Env
+getEnv = do
+  envLogFunc <- view (the @LogFunc)
+  envJobs <- view (the @Jobs)
+  envConfigPath <- view (the @ConfigPath)
+  envGlobalCache <- view (the @GlobalCache)
+  pure Env{..}
+
+getConfig :: (HasLogFunc env, HasConfigPath env) => RIO env Config
 getConfig = Config.ensureConfig >>= \case
   Right c -> pure c
   Left err -> die [ "Failed to read the config. Error was:", err ]
@@ -144,6 +158,9 @@ getPurs usePsa = do
         Just _ -> pure (Text.pack pursCandidate <> ".cmd")
         Nothing -> findExecutableOrDie pursCandidate
     _ -> findExecutableOrDie pursCandidate
+
+getGit :: HasLogFunc env => RIO env GitCmd
+getGit = GitCmd <$> findExecutableOrDie "git"
 
 getPackageSet :: (HasLogFunc env, HasConfigPath env) => RIO env PackageSet
 getPackageSet = do

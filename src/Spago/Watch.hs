@@ -26,7 +26,7 @@ import qualified UnliftIO.Async         as Async
 import qualified Spago.Git              as Git
 
 watch
-  :: HasLogFunc env
+  :: (HasLogFunc env, HasGit env)
   => Set.Set Glob.Pattern -> ClearScreen -> AllowIgnored -> RIO env ()
   -> RIO env ()
 watch globs shouldClear allowIgnored action = do
@@ -52,7 +52,7 @@ debounceTime = 0.1
 -- watched. When any of those files are changed, we rerun the action again.
 fileWatchConf
   :: forall env
-  .  (HasLogFunc env)
+  .  (HasLogFunc env, HasGit env)
   => Watch.WatchConfig
   -> ClearScreen
   -> AllowIgnored
@@ -81,7 +81,7 @@ fileWatchConf watchConfig shouldClear allowIgnored inner = withManagerConf watch
           let eventPath = Watch.eventPath event
               isPathIgnored =
                 case allowIgnored of
-                  NoAllowIgnored -> Git.unsafeIsIgnored
+                  NoAllowIgnored -> Git.isIgnored
                   DoAllowIgnored -> const (pure False)
 
           pathIgnored <- isPathIgnored $ Text.pack eventPath
