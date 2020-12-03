@@ -11,12 +11,11 @@ module Spago.Env
 
   -- | Environment constraints
   , HasEnv
-  , HasInstallEnv
   , HasVerifyEnv
   , HasPublishEnv
   , HasBuildEnv
 
-  -- | Capabilities
+  -- | Simple capabilities
   , HasGlobalCache
   , HasConfigPath
   , HasJobs
@@ -66,14 +65,10 @@ type HasEnv env =
 
 type HasConfig env = ( HasType Config env, HasPackageSet env )
 
-type HasInstallEnv env =
-  ( HasEnv env
-  , HasConfig env
-  , HasPackageSet env
-  )
-
 type HasVerifyEnv env =
-  ( HasEnv env
+  ( HasLogFunc env
+  , HasJobs env
+  , HasGlobalCache env
   , HasPurs env
   , HasPackageSet env
   )
@@ -110,7 +105,6 @@ data PackageSetEnv = PackageSetEnv
 data VerifyEnv = VerifyEnv
   { envLogFunc :: !LogFunc
   , envJobs :: !Jobs
-  , envConfigPath :: !ConfigPath
   , envGlobalCache :: !GlobalCache
   , envPursCmd :: !PursCmd
   , envPackageSet :: !PackageSet
