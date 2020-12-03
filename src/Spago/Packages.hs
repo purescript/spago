@@ -103,11 +103,11 @@ getJsGlobs deps depsOnly configSourcePaths
 
 
 -- | Return the direct dependencies of the current project
-getDirectDeps 
+getDirectDeps
   :: (HasLogFunc env, HasConfig env)
   => RIO env [(PackageName, Package)]
 getDirectDeps = do
-  Config { packageSet = PackageSet{..}, dependencies } <- view configL 
+  Config { packageSet = PackageSet{..}, dependencies } <- view (the @Config)
   for dependencies $ \dep ->
     case Map.lookup dep packagesDB of
       Nothing ->
@@ -115,11 +115,11 @@ getDirectDeps = do
       Just pkg ->
         pure (dep, pkg)
 
-getProjectDeps 
+getProjectDeps
   :: (HasLogFunc env, HasConfig env)
   => RIO env [(PackageName, Package)]
 getProjectDeps = do
-  Config{ dependencies } <- view configL
+  Config{ dependencies } <- view (the @Config)
   getTransitiveDeps dependencies
 
 -- | Return the transitive dependencies of a list of packages
@@ -128,7 +128,7 @@ getTransitiveDeps
   => [PackageName] -> RIO env [(PackageName, Package)]
 getTransitiveDeps deps = do
   logDebug "Getting transitive deps"
-  PackageSet{..} <- view packageSetL 
+  PackageSet{..} <- view (the @PackageSet)
 
   let
     handleErrors packageMap notFoundErrors cycleErrors
@@ -179,7 +179,7 @@ newtype FoundWithoutPrefix = FoundWithoutPrefix PackageName
 
 getReverseDeps  :: HasPackageSet env => PackageName -> RIO env [(PackageName, Package)]
 getReverseDeps dep = do
-    PackageSet{ packagesDB } <- view packageSetL
+    PackageSet{ packagesDB } <- view (the @PackageSet)
     List.nub <$> foldMap go (Map.toList packagesDB)
   where
     go pair@(packageName, Package{..}) = do
@@ -191,19 +191,17 @@ getReverseDeps dep = do
 
 
 -- | Fetch all dependencies into `.spago/`
-install 
-  :: HasInstallEnv env
-  => [PackageName] -> RIO env ()
+install :: (HasEnv env, HasConfig env) => [PackageName] -> RIO env ()
 install newPackages = do
   logDebug "Running `spago install`"
-  config@Config{ packageSet = PackageSet{..}, ..} <- view configL
+  config@Config{ packageSet = PackageSet{..}, ..} <- view (the @Config)
 
   existingNewPackages <- reportMissingPackages $ classifyPackages packagesDB newPackages
 
   -- Try fetching the dependencies with the new names too
   let newConfig :: Config
       newConfig = config { Config.dependencies = dependencies <> existingNewPackages }
-  mapRIO (set configL newConfig) $ do
+  mapRIO (set (the @Config) newConfig) $ do
     deps <- getProjectDeps
 
     -- If the above doesn't fail, write the new packages to the config
@@ -255,7 +253,7 @@ stripPurescriptPrefix (PackageName name) =
 sources :: (HasLogFunc env, HasConfig env) => RIO env ()
 sources = do
   logDebug "Running `spago sources`"
-  config <- view configL
+  config <- view (the @Config)
   deps <- getProjectDeps
   traverse_ output
     $ fmap unSourcePath

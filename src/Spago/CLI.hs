@@ -24,7 +24,7 @@ data Command
 
   -- | Default catch-all command
   = Default ShowVersion
-  
+
   -- | Initialize a new project
   | Init Force TemplateComments (Maybe Text)
 
@@ -42,9 +42,6 @@ data Command
 
   -- | Bump and tag a new version in preparation for release.
   | BumpVersion DryRun VersionBump
-
-  -- | Save a GitHub token to cache, to authenticate to various GitHub things
-  | Login
 
   -- | Upgrade the package-set to the latest release
   | PackageSetUpgrade (Maybe Text)
@@ -73,17 +70,17 @@ data Command
   | Docs (Maybe DocsFormat) [SourcePath] DepsOnly NoSearch OpenDocs
 
   -- | Run the project with some module, default Main
-  | Run (Maybe ModuleName) BuildOptions [PursArg]
- 
+  | Run (Maybe ModuleName) BuildOptions [BackendArg]
+
   -- | Test the project with some module, default Test.Main
-  | Test (Maybe ModuleName) BuildOptions [PursArg]
+  | Test (Maybe ModuleName) BuildOptions [BackendArg]
 
   -- | Bundle the project into an executable
   | BundleApp (Maybe ModuleName) (Maybe TargetPath) NoBuild BuildOptions
 
   -- | Bundle a module into a CommonJS module
   | BundleModule (Maybe ModuleName) (Maybe TargetPath) NoBuild BuildOptions
- 
+
   -- | Verify that a single package is consistent with the Package Set
   | Verify PackageName
 
@@ -157,7 +154,7 @@ parser = do
     toTarget    = CLI.optional $ CLI.opt (Just . TargetPath) "to" 't' "The target file path"
     docsFormat  = CLI.optional $ CLI.opt Purs.parseDocsFormat "format" 'f' "Docs output format (markdown | html | etags | ctags)"
     jobsLimit   = CLI.optional (CLI.optInt "jobs" 'j' "Limit the amount of jobs that can run concurrently")
-    nodeArgs         = many $ CLI.opt (Just . PursArg) "node-args" 'a' "Argument to pass to node (run/test only)"
+    nodeArgs         = many $ CLI.opt (Just . BackendArg) "node-args" 'a' "Argument to pass to node (run/test only)"
     replPackageNames = many $ CLI.opt (Just . PackageName) "dependency" 'D' "Package name to add to the REPL as dependency"
     sourcePaths      = many $ CLI.opt (Just . SourcePath) "path" 'p' "Source path to include"
 
@@ -293,12 +290,6 @@ parser = do
       , pure Freeze
       )
 
-    login =
-      ( "login"
-      , "Save the GitHub token to the global cache - set it with the SPAGO_GITHUB_TOKEN env variable"
-      , pure Login
-      )
-
     bumpVersion =
       ( "bump-version"
       , "Bump and tag a new version, and generate bower.json, in preparation for release."
@@ -350,8 +341,7 @@ parser = do
       , freeze
       ]
     publishCommands = CLI.subcommandGroup "Publish commands:"
-      [ login
-      , bumpVersion
+      [ bumpVersion
       ]
     oldCommands = Opts.subparser $ Opts.internal <> bundle <> makeModule <> listPackagesOld
 

@@ -6,6 +6,7 @@ import           Spago.Prelude
 import qualified Data.Text      as Text
 import qualified Data.Versions  as Version
 import qualified Network.URI    as URI
+import qualified GHC.IO
 
 import qualified Spago.Dhall as Dhall
 import qualified Spago.Messages as Messages
@@ -80,12 +81,15 @@ newtype SourcePath = SourcePath { unSourcePath :: Text }
   deriving newtype (Show, Dhall.FromDhall)
 newtype PursArg = PursArg { unPursArg :: Text }
   deriving newtype (Eq)
+newtype BackendArg = BackendArg { unBackendArg :: Text }
+  deriving newtype (Eq)
 
 data WithMain = WithMain | WithoutMain
 
 data WithSrcMap = WithSrcMap | WithoutSrcMap
 
 data CacheFlag = SkipCache | NewCache
+  deriving (Eq)
 
 data CheckModulesUnique = DoCheckModulesUnique | NoCheckModulesUnique
 
@@ -159,3 +163,11 @@ data PublishConfig = PublishConfig
   { publishLicense    :: Text
   , publishRepository :: Text
   } deriving (Show, Generic)
+
+newtype Jobs = Jobs Int
+newtype ConfigPath = ConfigPath Text
+newtype PursCmd = PursCmd Text
+newtype GitCmd = GitCmd Text
+newtype BowerCmd = BowerCmd Text
+
+data GlobalCache = GlobalCache !GHC.IO.FilePath !(Maybe CacheFlag)

@@ -52,7 +52,7 @@ checkInjective f gen =
   check inputs =
     let
       collisions = findCollisions inputs
-      maxCounterexamples = 10
+      maxCounterexamples :: Int = 10
     in
       if null collisions
         then

@@ -13,13 +13,13 @@ import qualified Spago.Packages           as Packages
 
 verify
   :: forall env
-  .  HasVerifyEnv env 
-  => CheckModulesUnique -> Maybe PackageName 
+  .  HasVerifyEnv env
+  => CheckModulesUnique -> Maybe PackageName
   -> RIO env ()
 verify chkModsUniq maybePackage = do
   logDebug "Running `spago verify`"
 
-  PackageSet{..} <- view packageSetL
+  PackageSet{..} <- view (the @PackageSet)
 
   case maybePackage of
     -- If no package is specified, verify all of them
@@ -58,7 +58,7 @@ verify chkModsUniq maybePackage = do
 
     compileEverything :: RIO env ()
     compileEverything = do
-      PackageSet{ packagesDB } <- view packageSetL
+      PackageSet{ packagesDB } <- view (the @PackageSet)
       let deps = Map.toList packagesDB
           globs = Packages.getGlobs deps Packages.DepsOnly []
       Fetch.fetchPackages deps

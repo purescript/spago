@@ -32,14 +32,14 @@ path = "bower.json"
 
 runBower :: HasBower env => [Text] -> RIO env (ExitCode, Text, Text)
 runBower args = do
-  bower <- view bowerL
+  BowerCmd bower <- view (the @BowerCmd)
   Turtle.procStrictWithErr bower args empty
 
 
 generateBowerJson :: HasPublishEnv env => RIO env Text
 generateBowerJson = do
   logInfo "Generating a new Bower config using the package set versions.."
-  Config{..} <- view configL
+  Config{..} <- view (the @Config)
   PublishConfig{..} <- throws publishConfig
 
   bowerName <- mkPackageName name
@@ -66,7 +66,7 @@ generateBowerJson = do
 runBowerInstall :: (HasLogFunc env, HasBower env) => RIO env ()
 runBowerInstall = do
   logInfo "Running `bower install` so `pulp publish` can read resolved versions from it"
-  bower <- view bowerL
+  BowerCmd bower <- view (the @BowerCmd)
   shell (bower <> " install --silent") empty >>= \case
     ExitSuccess   -> pure ()
     ExitFailure _ -> die [ "Failed to run `bower install` on your package" ]
@@ -118,7 +118,7 @@ mkDependencies
 mkDependencies = do
   deps <- Packages.getDirectDeps
 
-  jobs <- getJobs
+  Jobs jobs <- getJobs
 
   Async.withTaskGroup jobs $ \taskGroup ->
     Async.mapTasks taskGroup $ mkDependency <$> deps
@@ -137,5 +137,5 @@ mkDependencies = do
     getJobs = case OS.buildOS of
       -- Windows sucks so lets make it slow for them!
       -- (just kidding, its a bug: https://github.com/bower/spec/issues/79)
-      OS.Windows -> pure 1
-      _       -> view jobsL
+      OS.Windows -> pure $ Jobs 1
+      _          -> view (the @Jobs)

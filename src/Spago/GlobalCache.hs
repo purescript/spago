@@ -86,11 +86,11 @@ globallyCache (packageName, Repo url, ref) downloadDir metadata cacheableCallbac
 
 
 -- | Download the GitHub Index cache from the `package-sets-metadata` repo
-getMetadata :: HasLogFunc env => Maybe CacheFlag -> RIO env ReposMetadataV1
-getMetadata cacheFlag = do
+getMetadata :: (HasLogFunc env, HasGlobalCache env) => RIO env ReposMetadataV1
+getMetadata = do
   logDebug "Running `getMetadata`"
 
-  globalCacheDir <- getGlobalCacheDir
+  GlobalCache globalCacheDir cacheFlag <- view (the @GlobalCache)
 
   logDebug $ "Global cache directory: " <> displayShow globalCacheDir
 

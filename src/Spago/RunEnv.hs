@@ -6,10 +6,12 @@ import Spago.Env
 import qualified Data.Text as Text
 import qualified System.Environment  as Env
 import qualified Distribution.System as OS
+import qualified RIO
 import qualified Turtle
 
 import qualified Spago.Config as Config
 import qualified Spago.GlobalCache as Cache
+import qualified Spago.FetchPackage as FetchPackage
 import qualified Spago.Dhall as Dhall
 import qualified Spago.Messages as Messages
 import qualified Spago.PackageSet as PackageSet
@@ -40,66 +42,79 @@ withEnv GlobalOptions{..} app = do
 
     let configPath = fromMaybe Config.defaultPath globalConfigPath
 
-    globalCache <- runRIO logFunc' $ do
-      logDebug "Running `getGlobalCacheDir`"
-      Cache.getGlobalCacheDir
+    globalCache <- do
+      path <- case globalCacheConfig of
+        Just SkipCache -> pure FetchPackage.localCacheDir
+        _ -> runRIO logFunc' $ do
+          RIO.logDebug "Running `getGlobalCacheDir`"
+          Cache.getGlobalCacheDir
+      pure $ GlobalCache path globalCacheConfig
 
     let env = Env
           { envLogFunc = logFunc'
-          , envJobs = fromMaybe 20 globalJobs
-          , envConfigPath = configPath
+          , envJobs = Jobs $ fromMaybe 20 globalJobs
+          , envConfigPath = ConfigPath configPath
           , envGlobalCache = globalCache
-          , envCacheConfig = globalCacheConfig
           }
     runRIO env app
 
 
 withPackageSetEnv
-  :: HasEnv env
+  :: (HasLogFunc env, HasConfigPath env)
   => RIO PackageSetEnv a
   -> RIO env a
 withPackageSetEnv app = do
-  packageSetSet <- getPackageSet
-  packageSetEnvGlobal <- view envL
+  envPackageSet <- getPackageSet
+  envLogFunc <- view (the @LogFunc)
   runRIO PackageSetEnv{..} app
 
 
 withInstallEnv'
-  :: HasEnv env
-  => Maybe Config 
+  :: (HasEnv env)
+  => Maybe Config
   -> RIO InstallEnv a
   -> RIO env a
 withInstallEnv' maybeConfig app = do
-  installSpagoConfig <- case maybeConfig of
+  Env{..} <- getEnv
+  envConfig@Config{..} <- case maybeConfig of
     Just c -> pure c
-    Nothing -> Config.ensureConfig >>= \case
-      Right c -> pure c
-      Left err -> die [ "Failed to read the config. Error was:", err ]
-  installEnvGlobal <- view envL
+    Nothing -> getConfig
+  let envPackageSet = packageSet
   runRIO InstallEnv{..} app
 
-withInstallEnv :: HasEnv env => RIO InstallEnv a -> RIO env a
+withInstallEnv
+  :: (HasEnv env)
+  => RIO InstallEnv a
+  -> RIO env a
 withInstallEnv = withInstallEnv' Nothing
 
-withVerifyEnv :: HasEnv env => UsePsa -> RIO VerifyEnv a -> RIO env a 
+withVerifyEnv
+  :: HasEnv env
+  => UsePsa
+  -> RIO VerifyEnv a
+  -> RIO env a
 withVerifyEnv usePsa app = do
-  verifyEnvPurs <- getPurs usePsa
-  verifyPackageSet <- getPackageSet
-  verifyEnvGlobal <- view envL 
+  Env{..} <- getEnv
+  envPursCmd <- getPurs usePsa
+  envPackageSet <- getPackageSet
   runRIO VerifyEnv{..} app
 
-withPublishEnv :: HasEnv env => RIO PublishEnv a -> RIO env a
-withPublishEnv app = withInstallEnv $ do
-  publishEnvGit <- findExecutableOrDie "git"
-  publishEnvBower <-
+withPublishEnv
+  :: HasEnv env
+  => RIO PublishEnv a
+  -> RIO env a
+withPublishEnv app = do
+  Env{..} <- getEnv
+  envConfig@Config{..} <- getConfig
+  let envPackageSet = packageSet
+  envGitCmd <- getGit
+  envBowerCmd <- BowerCmd <$>
     -- workaround windows issue: https://github.com/haskell/process/issues/140
     case OS.buildOS of
       OS.Windows -> do
         let bowers = Turtle.inproc "where" ["bower.cmd"] empty
         Turtle.lineToText <$> Turtle.single (Turtle.limit 1 bowers)
-      _ ->
-        findExecutableOrDie "bower"
-  publishEnvInstall <- view installEnvL
+      _ -> findExecutableOrDie "bower"
   runRIO PublishEnv{..} app
 
 withBuildEnv
@@ -107,13 +122,28 @@ withBuildEnv
   => UsePsa
   -> RIO BuildEnv a
   -> RIO env a
-withBuildEnv usePsa app = withInstallEnv $ do
-  buildEnvPurs <- getPurs usePsa
-  buildInstallEnv <- view installEnvL
+withBuildEnv usePsa app = do
+  Env{..} <- getEnv
+  envPursCmd <- getPurs usePsa
+  envConfig@Config{..} <- getConfig
+  let envPackageSet = packageSet
+  envGitCmd <- getGit
   runRIO BuildEnv{..} app
 
+getEnv :: HasEnv env => RIO env Env
+getEnv = do
+  envLogFunc <- view (the @LogFunc)
+  envJobs <- view (the @Jobs)
+  envConfigPath <- view (the @ConfigPath)
+  envGlobalCache <- view (the @GlobalCache)
+  pure Env{..}
 
-getPurs :: HasLogFunc env => UsePsa -> RIO env Text
+getConfig :: (HasLogFunc env, HasConfigPath env) => RIO env Config
+getConfig = Config.ensureConfig >>= \case
+  Right c -> pure c
+  Left err -> die [ "Failed to read the config. Error was:", err ]
+
+getPurs :: HasLogFunc env => UsePsa -> RIO env PursCmd
 getPurs usePsa = do
   -- first we decide if we _want_ to use psa, then if we _can_
   pursCandidate <- case usePsa of
@@ -122,12 +152,15 @@ getPurs usePsa = do
       Just _  -> pure "psa"
       Nothing -> pure "purs"
   -- We first try this for Windows
-  case OS.buildOS of
+  PursCmd <$> case OS.buildOS of
     OS.Windows -> do
       findExecutable (pursCandidate <> ".cmd") >>= \case
         Just _ -> pure (Text.pack pursCandidate <> ".cmd")
         Nothing -> findExecutableOrDie pursCandidate
     _ -> findExecutableOrDie pursCandidate
+
+getGit :: HasLogFunc env => RIO env GitCmd
+getGit = GitCmd <$> findExecutableOrDie "git"
 
 getPackageSet :: (HasLogFunc env, HasConfigPath env) => RIO env PackageSet
 getPackageSet = do

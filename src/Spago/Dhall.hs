@@ -108,13 +108,13 @@ writeRawExpr pathText (header, expr) = do
 
 
 -- | Returns a Dhall Text literal from a lone string
-toTextLit :: Pretty a => Text -> DhallExpr a
+toTextLit :: Text -> DhallExpr a
 toTextLit str = Dhall.TextLit (Dhall.Chunks [] str)
 
 
 -- | Casts a Dhall Text literal to a string, or fails
 fromTextLit
-  :: (Pretty a, Typeable a)
+  :: (Typeable a)
   => DhallExpr a
   -> Either (ReadError a) Text
 fromTextLit(Dhall.TextLit (Dhall.Chunks [] str)) = Right str
@@ -124,7 +124,7 @@ fromTextLit expr                                 = Left $ ExprIsNotTextLit expr
 -- | Require a key from a Dhall.Map, and run an action on it if found.
 --   If not found, return the name of the key.
 requireKey
-  :: (Typeable b, Pretty b, MonadIO m, MonadThrow m)
+  :: (Typeable b, Pretty b, MonadThrow m)
   => Dhall.Map.Map Text (DhallExpr b)
   -> Text
   -> (DhallExpr b -> m a)

@@ -12,7 +12,6 @@ module Spago.Build
 import           Spago.Prelude hiding (link)
 import           Spago.Env
 
-import qualified Data.List            as List
 import qualified Data.List.NonEmpty   as NonEmpty
 import qualified Data.Set             as Set
 import qualified Data.Text            as Text
@@ -28,7 +27,7 @@ import qualified Web.Browser          as Browser
 
 import qualified Spago.Build.Parser   as Parse
 import qualified Spago.Command.Path   as Path
-import qualified Spago.RunEnv         as Run 
+import qualified Spago.RunEnv         as Run
 import qualified Spago.Config         as Config
 import qualified Spago.Dhall          as Dhall
 import qualified Spago.FetchPackage   as Fetch
@@ -49,14 +48,13 @@ prepareBundleDefaults maybeModuleName maybeTargetPath = (moduleName, targetPath)
     targetPath = fromMaybe (TargetPath "index.js") maybeTargetPath
 
 --   eventually running some other action after the build
-build 
-  :: forall env
-  .  (HasEnv env, HasPurs env, HasCacheConfig env, HasConfig env)
-  => BuildOptions -> Maybe (RIO env ()) 
+build
+  :: HasBuildEnv env
+  => BuildOptions -> Maybe (RIO Env ())
   -> RIO env ()
 build BuildOptions{..} maybePostBuild = do
   logDebug "Running `spago build`"
-  Config{..} <- view configL
+  Config{..} <- view (the @Config)
   deps <- Packages.getProjectDeps
   case noInstall of
     DoInstall -> Fetch.fetchPackages deps
@@ -69,7 +67,7 @@ build BuildOptions{..} maybePostBuild = do
           Nothing ->
               Purs.compile globs pursArgs
           Just backend -> do
-              when (PursArg "--codegen" `List.elem` pursArgs) $
+              when (isJust $ Purs.findFlag 'g' "codegen" pursArgs) $
                 die
                   [ "Can't pass `--codegen` option to build when using a backend"
                   , "Hint: No need to pass `--codegen corefn` explicitly when using the `backend` option."
@@ -85,7 +83,8 @@ build BuildOptions{..} maybePostBuild = do
                 ExitFailure n -> die [ "Backend " <> displayShow backend <> " exited with error:" <> repr n ]
 
       buildAction globs = do
-        let action = buildBackend globs >> fromMaybe (pure ()) maybePostBuild
+        env <- Run.getEnv
+        let action = buildBackend globs >> (runRIO env $ fromMaybe (pure ()) maybePostBuild)
         runCommands "Before" beforeCommands
         action `onException` (runCommands "Else" elseCommands)
         runCommands "Then" thenCommands
@@ -110,7 +109,7 @@ build BuildOptions{..} maybePostBuild = do
         (buildAction (wrap <$> psMatches))
 
   where
-    runCommands :: Text -> [Text] -> RIO env ()
+    runCommands :: HasLogFunc env => Text -> [Text] -> RIO env ()
     runCommands label = traverse_ runCommand
       where
       runCommand command = shell command empty >>= \case
@@ -142,13 +141,12 @@ repl
   -> RIO env ()
 repl newPackages sourcePaths pursArgs depsOnly = do
   logDebug "Running `spago repl`"
-  -- TODO: instead of using HasPurs here we just call this for now
   purs <- Run.getPurs NoPsa
   Config.ensureConfig >>= \case
     Right config -> Run.withInstallEnv' (Just config) (replAction purs)
     Left err -> do
       logDebug err
-      cacheDir <- view globalCacheL
+      GlobalCache cacheDir _ <- view (the @GlobalCache)
       Temp.withTempDirectory cacheDir "spago-repl-tmp" $ \dir -> do
         Turtle.cd (Turtle.decodeString dir)
 
@@ -160,7 +158,7 @@ repl newPackages sourcePaths pursArgs depsOnly = do
         Run.withInstallEnv' (Just newConfig) (replAction purs)
   where
     replAction purs = do
-      Config{..} <- view configL
+      Config{..} <- view (the @Config)
       deps <- Packages.getProjectDeps
       -- we check that psci-support is in the deps, see #550
       unless (Set.member (PackageName "psci-support") (Set.fromList (map fst deps))) $ do
@@ -170,18 +168,18 @@ repl newPackages sourcePaths pursArgs depsOnly = do
           ]
       let globs = Packages.getGlobs deps depsOnly (configSourcePaths <> sourcePaths)
       Fetch.fetchPackages deps
-      liftIO $ Purs.repl purs globs pursArgs
+      runRIO purs $ Purs.repl globs pursArgs
 
 
 -- | Test the project: compile and run "Test.Main"
 --   (or the provided module name) with node
-test 
-  :: (HasEnv env, HasConfig env, HasPurs env, HasCacheConfig env)
-  => Maybe ModuleName -> BuildOptions -> [PursArg] 
+test
+  :: HasBuildEnv env
+  => Maybe ModuleName -> BuildOptions -> [BackendArg]
   -> RIO env ()
 test maybeModuleName buildOpts extraArgs = do
   let moduleName = fromMaybe (ModuleName "Test.Main") maybeModuleName
-  Config.Config { alternateBackend, configSourcePaths } <- view configL
+  Config.Config { alternateBackend, configSourcePaths } <- view (the @Config)
   liftIO (foldMapM (Glob.glob . Text.unpack . unSourcePath) configSourcePaths) >>= \paths -> do
     results <- forM paths $ \path -> do
       content <- readFileBinary path
@@ -195,12 +193,12 @@ test maybeModuleName buildOpts extraArgs = do
 
 -- | Run the project: compile and run "Main"
 --   (or the provided module name) with node
-run 
-  :: (HasEnv env, HasConfig env, HasPurs env, HasCacheConfig env)
-  => Maybe ModuleName -> BuildOptions -> [PursArg] 
+run
+  :: HasBuildEnv env
+  => Maybe ModuleName -> BuildOptions -> [BackendArg]
   -> RIO env ()
 run maybeModuleName buildOpts extraArgs = do
-  Config.Config { alternateBackend } <- view configL
+  Config.Config { alternateBackend } <- view (the @Config)
   let moduleName = fromMaybe (ModuleName "Main") maybeModuleName
   runBackend alternateBackend moduleName Nothing "Running failed; " buildOpts extraArgs
 
@@ -208,20 +206,20 @@ run maybeModuleName buildOpts extraArgs = do
 -- | Run the project with node (or the chosen alternate backend):
 --   compile and run the provided ModuleName
 runBackend
-  :: (HasEnv env, HasPurs env, HasCacheConfig env, HasConfig env)
+  :: HasBuildEnv env
   => Maybe Text
   -> ModuleName
   -> Maybe Text
   -> Text
   -> BuildOptions
-  -> [PursArg]
+  -> [BackendArg]
   -> RIO env ()
-runBackend maybeBackend moduleName maybeSuccessMessage failureMessage buildOpts extraArgs = do
+runBackend maybeBackend moduleName maybeSuccessMessage failureMessage buildOpts@BuildOptions{pursArgs} extraArgs = do
   logDebug $ display $ "Running with backend: " <> fromMaybe "nodejs" maybeBackend
-  let postBuild = maybe (nodeAction $ Path.getOutputPath buildOpts) backendAction maybeBackend
+  let postBuild = maybe (nodeAction $ Path.getOutputPath pursArgs) backendAction maybeBackend
   build buildOpts (Just postBuild)
   where
-    nodeArgs = Text.intercalate " " $ map unPursArg extraArgs
+    nodeArgs = Text.intercalate " " $ map unBackendArg extraArgs
     nodeContents outputPath' =
       "#!/usr/bin/env node\n\n" <> "require('../" <> Text.pack outputPath' <> "/" <> unModuleName moduleName <> "').main()"
     nodeCmd = "node .spago/run.js " <> nodeArgs
@@ -235,7 +233,7 @@ runBackend maybeBackend moduleName maybeSuccessMessage failureMessage buildOpts 
         ExitSuccess   -> maybe (pure ()) (logInfo . display) maybeSuccessMessage
         ExitFailure n -> die [ display failureMessage <> "exit code: " <> repr n ]
     backendAction backend = do
-      let args :: [Text] = ["--run", unModuleName moduleName <> ".main"] <> fmap unPursArg extraArgs
+      let args :: [Text] = ["--run", unModuleName moduleName <> ".main"] <> fmap unBackendArg extraArgs
       logDebug $ display $ "Running command `" <> backend <> " " <> Text.unwords args <> "`"
       Turtle.proc backend args empty >>= \case
         ExitSuccess   -> maybe (pure ()) (logInfo . display) maybeSuccessMessage
@@ -243,29 +241,31 @@ runBackend maybeBackend moduleName maybeSuccessMessage failureMessage buildOpts 
 
 -- | Bundle the project to a js file
 bundleApp
-  :: (HasEnv env, HasPurs env, HasCacheConfig env, HasConfig env)
+  :: HasEnv env
   => WithMain
   -> Maybe ModuleName
   -> Maybe TargetPath
   -> NoBuild
   -> BuildOptions
+  -> UsePsa
   -> RIO env ()
-bundleApp withMain maybeModuleName maybeTargetPath noBuild buildOpts =
+bundleApp withMain maybeModuleName maybeTargetPath noBuild buildOpts usePsa =
   let (moduleName, targetPath) = prepareBundleDefaults maybeModuleName maybeTargetPath
       bundleAction = Purs.bundle withMain (withSourceMap buildOpts) moduleName targetPath
   in case noBuild of
-    DoBuild -> build buildOpts (Just bundleAction)
-    NoBuild -> bundleAction
+    DoBuild -> Run.withBuildEnv usePsa $ build buildOpts (Just bundleAction)
+    NoBuild -> Run.getEnv >>= (flip runRIO) bundleAction
 
 -- | Bundle into a CommonJS module
 bundleModule
-  :: (HasEnv env, HasPurs env, HasCacheConfig env, HasConfig env)
+  :: HasEnv env
   => Maybe ModuleName
   -> Maybe TargetPath
   -> NoBuild
   -> BuildOptions
+  -> UsePsa
   -> RIO env ()
-bundleModule maybeModuleName maybeTargetPath noBuild buildOpts = do
+bundleModule maybeModuleName maybeTargetPath noBuild buildOpts usePsa = do
   logDebug "Running `bundleModule`"
   let (moduleName, targetPath) = prepareBundleDefaults maybeModuleName maybeTargetPath
       jsExport = Text.unpack $ "\nmodule.exports = PS[\""<> unModuleName moduleName <> "\"];"
@@ -280,8 +280,8 @@ bundleModule maybeModuleName maybeTargetPath noBuild buildOpts = do
             Right _ -> logInfo $ display $ "Make module succeeded and output file to " <> unTargetPath targetPath
             Left (n :: SomeException) -> die [ "Make module failed: " <> repr n ]
   case noBuild of
-    DoBuild -> build buildOpts (Just bundleAction)
-    NoBuild -> bundleAction
+    DoBuild -> Run.withBuildEnv usePsa $ build buildOpts (Just bundleAction)
+    NoBuild -> Run.getEnv >>= (flip runRIO) bundleAction
 
 
 -- | Generate docs for the `sourcePaths` and run `purescript-docs-search build-index` to patch them.
@@ -295,7 +295,7 @@ docs
   -> RIO env ()
 docs format sourcePaths depsOnly noSearch open = do
   logDebug "Running `spago docs`"
-  Config{..} <- view configL
+  Config{..} <- view (the @Config)
   deps <- Packages.getProjectDeps
   logInfo "Generating documentation for the project. This might take a while..."
   Purs.docs docsFormat $ Packages.getGlobs deps depsOnly configSourcePaths <> sourcePaths
@@ -334,7 +334,7 @@ search
   :: (HasPurs env, HasLogFunc env, HasConfig env)
   => RIO env ()
 search = do
-  Config{..} <- view configL
+  Config{..} <- view (the @Config)
   deps <- Packages.getProjectDeps
 
   logInfo "Building module metadata..."
