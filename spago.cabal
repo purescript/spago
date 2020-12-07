@@ -4,10 +4,10 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 9de92542b083d8ac067f48da2712a1fb309797a50aa0494d1590a304f069b13e
+-- hash: c5171d8aacb92261a66e4da21145765f3560a8cc8d8e794ef140a95e58c1b3de
 
 name:           spago
-version:        0.17.0
+version:        0.18.0
 description:    Please see the README on GitHub at <https://github.com/purescript/spago#readme>
 homepage:       https://github.com/purescript/spago#readme
 bug-reports:    https://github.com/purescript/spago/issues
