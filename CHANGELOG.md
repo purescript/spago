@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.18.0] - 2020-12-07
+
+Breaking changes (😱!!!):
+- **Remove `login` command (#705)**
+
+  It was introduced in preparation for a `publish` command that would require a GitHub token to be provided,
+  but it is obsolete now, as the new Registry workflow will not require it.
+  While it's technically a breaking change, it should be of very low impact since no one should be using this anyways.
+
+- **Upgrade to Dhall 20.0.0 and GHC 8.6.5 (#695, #685)**
+
+  The upgrade fixes several bugs related to the upstream dhall-haskell implementation, but introduces
+  a breaking change in the parser, as reserved words are not accepted anymore in certain positions.
+  While the upstream package sets have been patched to be compatible with the change, this is a breaking change
+  for all the existing configurations that make use of Dhall reserved words (such as `assert`, `let`, etc).
+
+Bugfixes:
+- Don't create the global cache folder at all if the user specifies `--global-cache=skip` (#705, 704)
+- Don't require a `spago.dhall` anymore when the `--no-build` flag is passed (#705, 634)
+
+Other improvements:
+- CI: switch from Travis to GitHub Actions (#695)
+
 ## [0.17.0] - 2020-10-29
 
 Breaking changes (😱!!!):
