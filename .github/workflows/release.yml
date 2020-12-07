@@ -108,7 +108,7 @@ jobs:
           cp ../CONTRIBUTING.md ./CONTRIBUTING.md
           cp ../LICENSE ./LICENSE
       - name: Publish to NPM
-        uses: pascalgn/npm-publish-action@1.3.4
+        uses: pascalgn/npm-publish-action@1.3
         with:
           workspace: "npm"
           publish_args: "--non-interactive"
