@@ -12,7 +12,7 @@ and respect and do not harass or belittle others.
 
 ## What is the correct way to ask a question?
 
-It's ok to ask questions by [opening an issue][spago-issues]!  
+It's ok to ask questions by [opening an issue][spago-issues]!
 I ([@f-f][f-f]) am also on the [Functional Programming Slack][fp-slack], so you can also ask
 questions in the `#purescript` and `#purescript-beginners` channels.
 
@@ -81,6 +81,9 @@ $ npm install -g bower
 
 # This runs the tests which make use of the `spago` executable
 $ stack test
+
+# A single test can be running by providing a pattern to the 'match' flag
+$ stack test --test-arguments='--match "/Spago/spago run/Spago should use backend-args"'
 ```
 
 

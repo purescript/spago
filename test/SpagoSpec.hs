@@ -652,7 +652,7 @@ spec = around_ setup $ do
 
       shell "psa --version" empty >>= \case
         ExitSuccess -> spago ["-v", "run"] >>= shouldBeSuccessOutput "run-output.txt"
-        ExitFailure _ ->  spago ["-v", "run"] >>= shouldBeSuccessOutput "run-output.txt" 
+        ExitFailure _ ->  spago ["-v", "run"] >>= shouldBeSuccessOutput "run-output.txt"
 
     it "Spago should be able to not use `psa`" $ do
 
@@ -667,6 +667,30 @@ spec = around_ setup $ do
       spago ["install", "node-buffer", "node-streams", "node-process"] >>= shouldBeSuccess
       spago ["build"] >>= shouldBeSuccess
       shellStrictWithErr "echo wut| spago run" empty >>= shouldBeSuccessOutput "spago-run-passthrough.txt"
+
+    it "Spago should use backend-args" $ do
+
+      spago ["init"] >>= shouldBeSuccess
+      cp "../fixtures/spago-run-args.purs" "src/Main.purs"
+      spago ["install", "node-process"] >>= shouldBeSuccess
+      spago ["build"] >>= shouldBeSuccess
+      spago ["run", "--backend-args", "hello world"] >>= shouldBeSuccessOutput "run-args-output.txt"
+
+    it "Spago should use node-args" $ do
+
+      spago ["init"] >>= shouldBeSuccess
+      cp "../fixtures/spago-run-args.purs" "src/Main.purs"
+      spago ["install", "node-process"] >>= shouldBeSuccess
+      spago ["build"] >>= shouldBeSuccess
+      spago ["run", "--node-args", "hello world"] >>= shouldBeSuccessOutput "run-args-output.txt"
+
+    it "Spago should prefer backend-args" $ do
+
+      spago ["init"] >>= shouldBeSuccess
+      cp "../fixtures/spago-run-args.purs" "src/Main.purs"
+      spago ["install", "node-process"] >>= shouldBeSuccess
+      spago ["build"] >>= shouldBeSuccess
+      spago ["run", "--backend-args", "hello world", "--node-args", "mad world"] >>= shouldBeSuccessOutput "run-args-output.txt"
 
   describe "spago bundle" $ do
 
@@ -689,7 +713,7 @@ spec = around_ setup $ do
       spago ["bundle-app", "--to", "bundle-app-src-map.js", "--source-maps"] >>= shouldBeSuccess
       checkFixture "bundle-app-src-map.js"
       checkFileExist "bundle-app-src-map.js.map"
-  
+
   describe "spago make-module" $ do
 
     it "Spago should fail but should point to the replacement command" $ do

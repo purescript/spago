@@ -155,6 +155,7 @@ parser = do
     docsFormat  = CLI.optional $ CLI.opt Purs.parseDocsFormat "format" 'f' "Docs output format (markdown | html | etags | ctags)"
     jobsLimit   = CLI.optional (CLI.optInt "jobs" 'j' "Limit the amount of jobs that can run concurrently")
     nodeArgs         = many $ CLI.opt (Just . BackendArg) "node-args" 'a' "Argument to pass to node (run/test only)"
+    backendArgs      = many $ CLI.opt (Just . BackendArg) "backend-args" 'b' "Argument to pass to the backend (run/test only)"
     replPackageNames = many $ CLI.opt (Just . PackageName) "dependency" 'D' "Package name to add to the REPL as dependency"
     sourcePaths      = many $ CLI.opt (Just . SourcePath) "path" 'p' "Source path to include"
 
@@ -174,7 +175,6 @@ parser = do
     globalOptions = GlobalOptions <$> quiet <*> verbose <*> veryVerbose <*> (not <$> noColor) <*> usePsa
                     <*> jobsLimit <*> configPath <*> cacheFlag
 
-
     initProject =
       ( "init"
       , "Initialize a new sample project, or migrate a psc-package one"
@@ -193,16 +193,19 @@ parser = do
       , Repl <$> replPackageNames <*> sourcePaths <*> pursArgs <*> depsOnly
       )
 
+    firstNonEmpty x y = if null x then y else x
+    execArgs = firstNonEmpty <$> backendArgs <*> nodeArgs
+
     test =
       ( "test"
       , "Test the project with some module, default Test.Main"
-      , Test <$> mainModule <*> buildOptions <*> nodeArgs
+      , Test <$> mainModule <*> buildOptions <*> execArgs
       )
 
     run =
       ( "run"
       , "Runs the project with some module, default Main"
-      , Run <$> mainModule <*> buildOptions <*> nodeArgs
+      , Run <$> mainModule <*> buildOptions <*> execArgs
       )
 
     bundleApp =
