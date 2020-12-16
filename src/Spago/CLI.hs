@@ -155,7 +155,7 @@ parser = do
     docsFormat  = CLI.optional $ CLI.opt Purs.parseDocsFormat "format" 'f' "Docs output format (markdown | html | etags | ctags)"
     jobsLimit   = CLI.optional (CLI.optInt "jobs" 'j' "Limit the amount of jobs that can run concurrently")
     nodeArgs         = many $ CLI.opt (Just . BackendArg) "node-args" 'a' "Argument to pass to node (run/test only)"
-    backendArgs      = many $ CLI.opt (Just . BackendArg) "backend-args" 'b' "Argument to pass to the backend (run/test only)"
+    backendArgs      = many $ CLI.opt (Just . BackendArg) "exec-args" 'b' "Argument to pass to the backend (run/test only)"
     replPackageNames = many $ CLI.opt (Just . PackageName) "dependency" 'D' "Package name to add to the REPL as dependency"
     sourcePaths      = many $ CLI.opt (Just . SourcePath) "path" 'p' "Source path to include"
 
@@ -193,8 +193,7 @@ parser = do
       , Repl <$> replPackageNames <*> sourcePaths <*> pursArgs <*> depsOnly
       )
 
-    firstNonEmpty x y = if null x then y else x
-    execArgs = firstNonEmpty <$> backendArgs <*> nodeArgs
+    execArgs = (++) <$> backendArgs <*> nodeArgs
 
     test =
       ( "test"

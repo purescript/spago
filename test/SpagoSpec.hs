@@ -668,13 +668,13 @@ spec = around_ setup $ do
       spago ["build"] >>= shouldBeSuccess
       shellStrictWithErr "echo wut| spago run" empty >>= shouldBeSuccessOutput "spago-run-passthrough.txt"
 
-    it "Spago should use backend-args" $ do
+    it "Spago should use exec-args" $ do
 
       spago ["init"] >>= shouldBeSuccess
       cp "../fixtures/spago-run-args.purs" "src/Main.purs"
       spago ["install", "node-process"] >>= shouldBeSuccess
       spago ["build"] >>= shouldBeSuccess
-      spago ["run", "--backend-args", "hello world"] >>= shouldBeSuccessOutput "run-args-output.txt"
+      spago ["run", "--exec-args", "hello world"] >>= shouldBeSuccessOutput "run-args-output.txt"
 
     it "Spago should use node-args" $ do
 
@@ -684,13 +684,13 @@ spec = around_ setup $ do
       spago ["build"] >>= shouldBeSuccess
       spago ["run", "--node-args", "hello world"] >>= shouldBeSuccessOutput "run-args-output.txt"
 
-    it "Spago should prefer backend-args" $ do
+    it "Spago should prefer exec-args" $ do
 
       spago ["init"] >>= shouldBeSuccess
       cp "../fixtures/spago-run-args.purs" "src/Main.purs"
       spago ["install", "node-process"] >>= shouldBeSuccess
       spago ["build"] >>= shouldBeSuccess
-      spago ["run", "--backend-args", "hello world", "--node-args", "mad world"] >>= shouldBeSuccessOutput "run-args-output.txt"
+      spago ["run", "--exec-args", "hello world", "--node-args", "hallo welt"] >>= shouldBeSuccessOutput "run-args-combined-output.txt"
 
   describe "spago bundle" $ do
 
