@@ -368,7 +368,7 @@ $ spago run --main ModulePath.To.Main
 $ spago run --main ModulePath.To.Main --purs-args "--verbose-errors"
 
 # Or pass arguments to the backend, in this case node
-$ spago run --backend-args "arg1 arg2"
+$ spago run --exec-args "arg1 arg2"
 
 # For versions 18 and below, use `node-args` instead:
 $ spago run --node-args "arg1 arg2"

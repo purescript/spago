@@ -83,7 +83,7 @@ $ npm install -g bower
 $ stack test
 
 # A single test can be running by providing a pattern to the 'match' flag
-$ stack test --test-arguments='--match "/Spago/spago run/Spago should use backend-args"'
+$ stack test --test-arguments='--match "/Spago/spago run/Spago should use exec-args"'
 ```
 
 
