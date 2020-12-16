@@ -72,6 +72,9 @@ data Command
   -- | Run the project with some module, default Main
   | Run (Maybe ModuleName) BuildOptions [BackendArg]
 
+  -- | Run the selected module as a script, specifying an optional package set tag, dependencies, and .purs file
+  | Script (Maybe Text) [PackageName] Text
+
   -- | Test the project with some module, default Test.Main
   | Test (Maybe ModuleName) BuildOptions [BackendArg]
 
