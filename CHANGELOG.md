@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Add `exec-args` as alias to `node-args`, to clarify that the args are
+  forwarded to whichever backend is being targeted (go, js, etc), not
+  exclusively node.
+
 ## [0.18.0] - 2020-12-07
 
 Breaking changes (😱!!!):
