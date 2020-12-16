@@ -60,6 +60,8 @@ main = withUtf8 $ do
         -> Spago.Build.bundleApp WithMain modName tPath shouldBuild buildOptions globalUsePsa
       BundleModule modName tPath shouldBuild buildOptions
         -> Spago.Build.bundleModule modName tPath shouldBuild buildOptions globalUsePsa
+      Script modulePath tag dependencies
+        -> Spago.Build.script modulePath tag dependencies
 
       -- ### Commmands that need only a Package Set
       ListPackages jsonFlag -> Run.withPackageSetEnv

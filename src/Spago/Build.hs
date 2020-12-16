@@ -203,6 +203,16 @@ run maybeModuleName buildOpts extraArgs = do
   runBackend alternateBackend moduleName Nothing "Running failed; " buildOpts extraArgs
 
 
+-- | Run the select module as a script: init, compile, and run the provided module
+script
+  :: (HasEnv env)
+  => Text
+  -> Maybe Text
+  -> [PackageName]
+  -> RIO env ()
+script modulePath tag dependencies = undefined
+
+
 -- | Run the project with node (or the chosen alternate backend):
 --   compile and run the provided ModuleName
 runBackend
