@@ -212,9 +212,10 @@ script
   -> Maybe Text
   -> [PackageName]
   -> RIO env ()
-script modulePath tag packageDeps = do
+script relModulePath tag packageDeps = do
   logDebug "Running `spago script`"
-  moduleContents <- readTextFile (pathFromText modulePath)
+  absoluteModulePath <- fmap Text.pack (makeAbsolute (Text.unpack relModulePath))
+  moduleContents <- readTextFile (pathFromText absoluteModulePath)
   moduleName <- case parse Parse.moduleDecl "" (encodeUtf8 moduleContents) of
     Left _ -> die [ "Can't extract module name from input module path" ]
     Right (Parse.PsModule name _) -> case decodeUtf8' name of
@@ -241,13 +242,13 @@ script modulePath tag packageDeps = do
 
     Run.withInstallEnv' (Just newConfig) installAction
 
-    Run.withBuildEnv' (Just newConfig) NoPsa (runAction moduleName (tmpDir, currentDir))
+    Run.withBuildEnv' (Just newConfig) NoPsa (runAction absoluteModulePath moduleName (tmpDir, currentDir))
   where
     installAction = do
       deps <- Packages.getProjectDeps
       Fetch.fetchPackages deps
 
-    runAction moduleName dirs = do
+    runAction modulePath moduleName dirs = do
       let
         buildOpts = BuildOptions
           { shouldWatch = BuildOnce
