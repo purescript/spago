@@ -161,6 +161,8 @@ parser = do
     nodeArgs         = many $ CLI.opt (Just . BackendArg) "node-args" 'a' "Argument to pass to node (run/test only)"
     backendArgs      = many $ CLI.opt (Just . BackendArg) "exec-args" 'b' "Argument to pass to the backend (run/test only)"
     replPackageNames = many $ CLI.opt (Just . PackageName) "dependency" 'D' "Package name to add to the REPL as dependency"
+    scriptPackageNames = many $ CLI.opt (Just . PackageName) "dependency" 'd' "Package name to add to the script as dependency"
+    scriptSource = CLI.arg Just "source" "Source file to run as script"
     sourcePaths      = many $ CLI.opt (Just . SourcePath) "path" 'p' "Source path to include"
 
     packageName     = CLI.arg (Just . PackageName) "package" "Specify a package name. You can list them with `ls packages`"
@@ -183,6 +185,12 @@ parser = do
       ( "init"
       , "Initialize a new sample project, or migrate a psc-package one"
       , Init <$> force <*> noComments <*> tag
+      )
+
+    script =
+      ( "script"
+      , "Run the selected file as a script with the specified dependencies and package set tag"
+      , Script <$> scriptSource <*> tag <*> scriptPackageNames
       )
 
     build =
@@ -325,6 +333,7 @@ parser = do
 
     projectCommands = CLI.subcommandGroup "Project commands:"
       [ initProject
+      , script
       , build
       , repl
       , test

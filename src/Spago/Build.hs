@@ -7,6 +7,7 @@ module Spago.Build
   , bundleModule
   , docs
   , search
+  , script
   ) where
 
 import           Spago.Prelude hiding (link)
@@ -21,6 +22,7 @@ import qualified System.FilePath.Glob as Glob
 import qualified System.IO            as Sys
 import qualified System.IO.Temp       as Temp
 import qualified System.IO.Utf8       as Utf8
+import           Text.Megaparsec      (parse)
 import qualified Turtle
 import qualified System.Process       as Process
 import qualified Web.Browser          as Browser
@@ -210,8 +212,50 @@ script
   -> Maybe Text
   -> [PackageName]
   -> RIO env ()
-script modulePath tag dependencies = undefined
+script modulePath tag packageDeps = do
+  logDebug "Running `spago script`"
+  -- Before starting with the temp directory etc, sanity check input file
+  moduleContents <- readTextFile (pathFromText modulePath)
+  moduleName <- case parse Parse.moduleDecl "" (encodeUtf8 moduleContents) of
+    Left _ -> die [ "Can't extract module name from input module path" ]
+    Right (Parse.PsModule name _) -> case decodeUtf8' name of
+      Left _ -> die [ "Can't extract module name from input module path" ]
+      Right modName -> pure (ModuleName modName)
+  GlobalCache cacheDir _ <- view (the @GlobalCache)
+  Temp.withTempDirectory cacheDir "spago-script-tmp" $ \dir -> do
+    Turtle.cd (Turtle.decodeString dir)
 
+    -- TODO: Add flag to opt in to creating src/ & test/ directory
+    config@Config { packageSet = PackageSet{..}, ..}
+      <- Packages.initProject NoForce Dhall.WithComments tag
+
+    let newConfig :: Config
+        newConfig = config { Config.dependencies = dependencies <> packageDeps }
+
+    Run.withInstallEnv' (Just newConfig) installAction
+
+    Run.withBuildEnv NoPsa (runAction moduleName)
+  where
+    installAction = do
+      deps <- Packages.getProjectDeps
+      Fetch.fetchPackages deps
+
+    runAction moduleName = do
+      let
+        buildOpts = BuildOptions
+          { shouldWatch = BuildOnce
+          , shouldClear = NoClear
+          , allowIgnored = DoAllowIgnored
+          , sourcePaths = []
+          , withSourceMap = WithoutSrcMap
+          , noInstall = NoInstall
+          , pursArgs = [] -- should we use this?
+          , depsOnly = AllSources -- should this be DepsOnly?
+          , beforeCommands = []
+          , thenCommands = []
+          , elseCommands = []
+          }
+      runBackend Nothing moduleName Nothing "error" buildOpts []
 
 -- | Run the project with node (or the chosen alternate backend):
 --   compile and run the provided ModuleName
