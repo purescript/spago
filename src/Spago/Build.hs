@@ -214,7 +214,6 @@ script
   -> RIO env ()
 script modulePath tag packageDeps = do
   logDebug "Running `spago script`"
-  -- Before starting with the temp directory etc, sanity check input file
   moduleContents <- readTextFile (pathFromText modulePath)
   moduleName <- case parse Parse.moduleDecl "" (encodeUtf8 moduleContents) of
     Left _ -> die [ "Can't extract module name from input module path" ]
@@ -226,15 +225,21 @@ script modulePath tag packageDeps = do
     Turtle.cd (Turtle.decodeString dir)
 
     -- TODO: Add flag to opt in to creating src/ & test/ directory
+    -- Do we really need all default dependencies? psci-support?
+    -- Probably a datatype for flag instead of boolean
+    -- script doesn't need psci-support or created files
     config@Config { packageSet = PackageSet{..}, ..}
       <- Packages.initProject NoForce Dhall.WithComments tag
 
     let newConfig :: Config
-        newConfig = config { Config.dependencies = dependencies <> packageDeps }
+        newConfig = config
+          { Config.dependencies = dependencies <> packageDeps
+          , Config.configSourcePaths = []
+          }
 
     Run.withInstallEnv' (Just newConfig) installAction
 
-    Run.withBuildEnv NoPsa (runAction moduleName)
+    Run.withBuildEnv' (Just newConfig) NoPsa (runAction moduleName)
   where
     installAction = do
       deps <- Packages.getProjectDeps
@@ -246,7 +251,7 @@ script modulePath tag packageDeps = do
           { shouldWatch = BuildOnce
           , shouldClear = NoClear
           , allowIgnored = DoAllowIgnored
-          , sourcePaths = []
+          , sourcePaths = [ SourcePath modulePath ]
           , withSourceMap = WithoutSrcMap
           , noInstall = NoInstall
           , pursArgs = [] -- should we use this?
