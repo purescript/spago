@@ -188,7 +188,7 @@ test maybeModuleName buildOpts extraArgs = do
       pure $ Parse.checkModuleNameMatches (encodeUtf8 $ unModuleName moduleName) content
     if or results
       then do
-        runBackend alternateBackend moduleName (Just "Tests succeeded.") "Tests failed: " buildOpts extraArgs
+        runBackend alternateBackend Nothing moduleName (Just "Tests succeeded.") "Tests failed: " buildOpts extraArgs
       else do
         die [ "Module '" <> (display . unModuleName) moduleName <> "' not found! Are you including it in your build?" ]
 
@@ -202,7 +202,7 @@ run
 run maybeModuleName buildOpts extraArgs = do
   Config.Config { alternateBackend } <- view (the @Config)
   let moduleName = fromMaybe (ModuleName "Main") maybeModuleName
-  runBackend alternateBackend moduleName Nothing "Running failed; " buildOpts extraArgs
+  runBackend alternateBackend Nothing moduleName Nothing "Running failed; " buildOpts extraArgs
 
 
 -- | Run the select module as a script: init, compile, and run the provided module
@@ -221,8 +221,10 @@ script modulePath tag packageDeps = do
       Left _ -> die [ "Can't extract module name from input module path" ]
       Right modName -> pure (ModuleName modName)
   GlobalCache cacheDir _ <- view (the @GlobalCache)
+  currentDir <- Turtle.pwd
   Temp.withTempDirectory cacheDir "spago-script-tmp" $ \dir -> do
-    Turtle.cd (Turtle.decodeString dir)
+    let tmpDir = Text.pack dir
+    Turtle.cd (Turtle.fromText tmpDir)
 
     -- TODO: Add flag to opt in to creating src/ & test/ directory
     -- Do we really need all default dependencies? psci-support?
@@ -239,13 +241,13 @@ script modulePath tag packageDeps = do
 
     Run.withInstallEnv' (Just newConfig) installAction
 
-    Run.withBuildEnv' (Just newConfig) NoPsa (runAction moduleName)
+    Run.withBuildEnv' (Just newConfig) NoPsa (runAction moduleName (tmpDir, currentDir))
   where
     installAction = do
       deps <- Packages.getProjectDeps
       Fetch.fetchPackages deps
 
-    runAction moduleName = do
+    runAction moduleName dirs = do
       let
         buildOpts = BuildOptions
           { shouldWatch = BuildOnce
@@ -260,32 +262,46 @@ script modulePath tag packageDeps = do
           , thenCommands = []
           , elseCommands = []
           }
-      runBackend Nothing moduleName Nothing "error" buildOpts []
+      runBackend Nothing (Just dirs) moduleName Nothing "error" buildOpts []
 
 -- | Run the project with node (or the chosen alternate backend):
 --   compile and run the provided ModuleName
 runBackend
   :: HasBuildEnv env
   => Maybe Text
+  -> Maybe (Text, FilePath)
   -> ModuleName
   -> Maybe Text
   -> Text
   -> BuildOptions
   -> [BackendArg]
   -> RIO env ()
-runBackend maybeBackend moduleName maybeSuccessMessage failureMessage buildOpts@BuildOptions{pursArgs} extraArgs = do
+runBackend maybeBackend maybeTmp moduleName maybeSuccessMessage failureMessage buildOpts@BuildOptions{pursArgs} extraArgs = do
   logDebug $ display $ "Running with backend: " <> fromMaybe "nodejs" maybeBackend
   let postBuild = maybe (nodeAction $ Path.getOutputPath pursArgs) backendAction maybeBackend
   build buildOpts (Just postBuild)
   where
+    sourceDirectory = case maybeTmp of
+      Nothing -> ""
+      Just (tmp, _) -> tmp <> "/"
+    runJsSource = sourceDirectory <> ".spago/run.js"
     nodeArgs = Text.intercalate " " $ map unBackendArg extraArgs
-    nodeContents outputPath' =
-      "#!/usr/bin/env node\n\n" <> "require('../" <> Text.pack outputPath' <> "/" <> unModuleName moduleName <> "').main()"
-    nodeCmd = "node .spago/run.js " <> nodeArgs
+    nodeContents outputPath' = case maybeTmp of
+      Nothing ->
+        "#!/usr/bin/env node\n\n" <> "require('../" <> Text.pack outputPath' <> "/" <> unModuleName moduleName <> "').main()"
+      Just (tmp, _) ->
+        "#!/usr/bin/env node\n\n" <> "require('" <> tmp <> "/" <> Text.pack outputPath' <> "/" <> unModuleName moduleName <> "').main()"
+    nodeCmd = "node " <> runJsSource <> nodeArgs
     nodeAction outputPath' = do
-      logDebug "Writing .spago/run.js"
-      writeTextFile ".spago/run.js" (nodeContents outputPath')
-      void $ chmod executable ".spago/run.js"
+      logDebug $ "Writing " <> displayShow @Text runJsSource
+      writeTextFile runJsSource (nodeContents outputPath')
+      void $ chmod executable $ pathFromText runJsSource
+      -- If the project source is in a temp directory, then the process should
+      -- be run from the directory which contains the temp directory.
+      for_ maybeTmp $ \(_, current) -> do
+        Turtle.cd current
+        d <- Turtle.pwd
+        logDebug $ "Executing from: " <> displayShow @FilePath d
       -- We build a process by hand here because we need to forward the stdin to the backend process
       let processWithStdin = (Process.shell (Text.unpack nodeCmd)) { Process.std_in = Process.Inherit }
       Turtle.system processWithStdin empty >>= \case
