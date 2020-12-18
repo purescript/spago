@@ -299,9 +299,8 @@ runBackend maybeBackend maybeTmp moduleName maybeSuccessMessage failureMessage b
       -- If the project source is in a temp directory, then the process should
       -- be run from the directory which contains the temp directory.
       for_ maybeTmp $ \(_, current) -> do
+        logDebug $ "Executing from: " <> displayShow @FilePath current
         Turtle.cd current
-        d <- Turtle.pwd
-        logDebug $ "Executing from: " <> displayShow @FilePath d
       -- We build a process by hand here because we need to forward the stdin to the backend process
       let processWithStdin = (Process.shell (Text.unpack nodeCmd)) { Process.std_in = Process.Inherit }
       Turtle.system processWithStdin empty >>= \case
