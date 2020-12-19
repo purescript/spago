@@ -212,25 +212,21 @@ script
   -> Maybe Text
   -> [PackageName]
   -> RIO env ()
-script relModulePath tag packageDeps = do
+script modulePath tag packageDeps = do
   logDebug "Running `spago script`"
-  absoluteModulePath <- fmap Text.pack (makeAbsolute (Text.unpack relModulePath))
+  absoluteModulePath <- fmap Text.pack (makeAbsolute (Text.unpack modulePath))
   moduleContents <- readTextFile (pathFromText absoluteModulePath)
-  moduleName <- case parse Parse.moduleDecl "" (encodeUtf8 moduleContents) of
-    Left _ -> die [ "Can't extract module name from input module path" ]
-    Right (Parse.PsModule name _) -> case decodeUtf8' name of
-      Left _ -> die [ "Can't extract module name from input module path" ]
-      Right modName -> pure (ModuleName modName)
+
+  moduleName <- case parseModuleName moduleContents of
+    Nothing -> die [ "Failed to extract module name from source file" ]
+    Just modName -> pure modName
+
   GlobalCache cacheDir _ <- view (the @GlobalCache)
   currentDir <- Turtle.pwd
   Temp.withTempDirectory cacheDir "spago-script-tmp" $ \dir -> do
     let tmpDir = Text.pack dir
     Turtle.cd (Turtle.fromText tmpDir)
 
-    -- TODO: Add flag to opt in to creating src/ & test/ directory
-    -- Do we really need all default dependencies? psci-support?
-    -- Probably a datatype for flag instead of boolean
-    -- script doesn't need psci-support or created files
     config@Config { packageSet = PackageSet{..}, ..}
       <- Packages.initProject NoForce Dhall.WithComments tag
 
@@ -242,56 +238,71 @@ script relModulePath tag packageDeps = do
 
     Run.withInstallEnv' (Just newConfig) installAction
 
-    Run.withBuildEnv' (Just newConfig) NoPsa (runAction absoluteModulePath moduleName (tmpDir, currentDir))
+    let runDirs :: RunDirectories
+        runDirs = RunDirectories tmpDir currentDir
+
+    Run.withBuildEnv' (Just newConfig) NoPsa (runAction absoluteModulePath moduleName runDirs)
   where
     installAction = do
       deps <- Packages.getProjectDeps
       Fetch.fetchPackages deps
 
-    runAction modulePath moduleName dirs = do
+    runAction absoluteModulePath moduleName dirs = do
       let
         buildOpts = BuildOptions
           { shouldWatch = BuildOnce
           , shouldClear = NoClear
           , allowIgnored = DoAllowIgnored
-          , sourcePaths = [ SourcePath modulePath ]
+          , sourcePaths = [ SourcePath absoluteModulePath ]
           , withSourceMap = WithoutSrcMap
           , noInstall = NoInstall
-          , pursArgs = [] -- should we use this?
-          , depsOnly = AllSources -- should this be DepsOnly?
+          , pursArgs = []
+          , depsOnly = AllSources
           , beforeCommands = []
           , thenCommands = []
           , elseCommands = []
           }
       runBackend Nothing (Just dirs) moduleName Nothing "error" buildOpts []
 
+    parseModuleName contents = do
+      Parse.PsModule name _ <- hush $ parse Parse.moduleDecl "" (encodeUtf8 contents)
+      hush $ ModuleName <$> decodeUtf8' name
+
+
+data RunDirectories = RunDirectories { tmpDir :: Text, executeDir :: FilePath }
+
 -- | Run the project with node (or the chosen alternate backend):
 --   compile and run the provided ModuleName
 runBackend
   :: HasBuildEnv env
   => Maybe Text
-  -> Maybe (Text, FilePath)
+  -> Maybe RunDirectories
   -> ModuleName
   -> Maybe Text
   -> Text
   -> BuildOptions
   -> [BackendArg]
   -> RIO env ()
-runBackend maybeBackend maybeTmp moduleName maybeSuccessMessage failureMessage buildOpts@BuildOptions{pursArgs} extraArgs = do
+runBackend maybeBackend maybeRunDirs moduleName maybeSuccessMessage failureMessage buildOpts@BuildOptions{pursArgs} extraArgs = do
   logDebug $ display $ "Running with backend: " <> fromMaybe "nodejs" maybeBackend
   let postBuild = maybe (nodeAction $ Path.getOutputPath pursArgs) backendAction maybeBackend
   build buildOpts (Just postBuild)
   where
-    sourceDirectory = case maybeTmp of
-      Nothing -> ""
-      Just (tmp, _) -> tmp <> "/"
+    sourceDirectory = maybe "" (flip mappend "/" . tmpDir) maybeRunDirs
     runJsSource = sourceDirectory <> ".spago/run.js"
     nodeArgs = Text.intercalate " " $ map unBackendArg extraArgs
-    nodeContents outputPath' = case maybeTmp of
-      Nothing ->
-        "#!/usr/bin/env node\n\n" <> "require('../" <> Text.pack outputPath' <> "/" <> unModuleName moduleName <> "').main()"
-      Just (tmp, _) ->
-        "#!/usr/bin/env node\n\n" <> "require('" <> tmp <> "/" <> Text.pack outputPath' <> "/" <> unModuleName moduleName <> "').main()"
+    nodeContents outputPath' = do
+      let template dir = fold
+            [ "#!/usr/bin/env node\n\n"
+            , "require('"
+            , dir
+            , "/"
+            , Text.pack outputPath'
+            , "/"
+            , unModuleName moduleName
+            , "').main()"
+            ]
+      maybe (template "..") (template . tmpDir) maybeRunDirs
     nodeCmd = "node " <> runJsSource <> nodeArgs
     nodeAction outputPath' = do
       logDebug $ "Writing " <> displayShow @Text runJsSource
@@ -299,9 +310,9 @@ runBackend maybeBackend maybeTmp moduleName maybeSuccessMessage failureMessage b
       void $ chmod executable $ pathFromText runJsSource
       -- If the project source is in a temp directory, then the process should
       -- be run from the directory which contains the temp directory.
-      for_ maybeTmp $ \(_, current) -> do
-        logDebug $ "Executing from: " <> displayShow @FilePath current
-        Turtle.cd current
+      for_ (executeDir <$> maybeRunDirs) $ \executeDir -> do
+        logDebug $ "Executing from: " <> displayShow @FilePath executeDir
+        Turtle.cd executeDir
       -- We build a process by hand here because we need to forward the stdin to the backend process
       let processWithStdin = (Process.shell (Text.unpack nodeCmd)) { Process.std_in = Process.Inherit }
       Turtle.system processWithStdin empty >>= \case

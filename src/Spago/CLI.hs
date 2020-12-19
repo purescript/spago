@@ -161,7 +161,7 @@ parser = do
     nodeArgs         = many $ CLI.opt (Just . BackendArg) "node-args" 'a' "Argument to pass to node (run/test only)"
     backendArgs      = many $ CLI.opt (Just . BackendArg) "exec-args" 'b' "Argument to pass to the backend (run/test only)"
     replPackageNames = many $ CLI.opt (Just . PackageName) "dependency" 'D' "Package name to add to the REPL as dependency"
-    scriptPackageNames = many $ CLI.opt (Just . PackageName) "dependency" 'd' "Package name to add to the script as dependency"
+    scriptPackageNames = many $ CLI.opt (Just . PackageName) "dependency" 'd' "Package name to add to the script as a dependency"
     scriptSource = CLI.arg Just "source" "Source file to run as script"
     sourcePaths      = many $ CLI.opt (Just . SourcePath) "path" 'p' "Source path to include"
 
