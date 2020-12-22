@@ -7,11 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-- Add `exec-args` as alias to `node-args`, to clarify that the args are
-  forwarded to whichever backend is being targeted (go, js, etc), not
-  exclusively node.
-
-## [0.18.0] - 2020-12-07
+## [0.18.0] - 2020-12-22
 
 Breaking changes (😱!!!):
 - **Remove `login` command (#705)**
@@ -26,6 +22,11 @@ Breaking changes (😱!!!):
   a breaking change in the parser, as reserved words are not accepted anymore in certain positions.
   While the upstream package sets have been patched to be compatible with the change, this is a breaking change
   for all the existing configurations that make use of Dhall reserved words (such as `assert`, `let`, etc).
+
+New features:
+- Add `exec-args` as alias to `node-args`, to clarify that the args are
+  forwarded to whichever backend is being targeted (go, js, etc), not
+  exclusively NodeJS (#710, #709)
 
 Bugfixes:
 - Don't create the global cache folder at all if the user specifies `--global-cache=skip` (#705, 704)
