@@ -160,8 +160,7 @@ parser = do
     jobsLimit   = CLI.optional (CLI.optInt "jobs" 'j' "Limit the amount of jobs that can run concurrently")
     nodeArgs         = many $ CLI.opt (Just . BackendArg) "node-args" 'a' "Argument to pass to node (run/test only)"
     backendArgs      = many $ CLI.opt (Just . BackendArg) "exec-args" 'b' "Argument to pass to the backend (run/test only)"
-    replPackageNames = many $ CLI.opt (Just . PackageName) "dependency" 'D' "Package name to add to the REPL as dependency"
-    scriptPackageNames = many $ CLI.opt (Just . PackageName) "dependency" 'd' "Package name to add to the script as a dependency"
+    dependencyPackageNames = many $ CLI.opt (Just . PackageName) "dependency" 'D' "Package name to add as a dependency"
     scriptSource = CLI.arg Just "source" "Source file to run as script"
     sourcePaths      = many $ CLI.opt (Just . SourcePath) "path" 'p' "Source path to include"
 
@@ -190,7 +189,7 @@ parser = do
     script =
       ( "script"
       , "Run the selected file as a script with the specified dependencies and package set tag"
-      , Script <$> scriptSource <*> tag <*> scriptPackageNames
+      , Script <$> scriptSource <*> tag <*> dependencyPackageNames
       )
 
     build =
@@ -202,7 +201,7 @@ parser = do
     repl =
       ( "repl"
       , "Start a REPL"
-      , Repl <$> replPackageNames <*> sourcePaths <*> pursArgs <*> depsOnly
+      , Repl <$> dependencyPackageNames <*> sourcePaths <*> pursArgs <*> depsOnly
       )
 
     execArgs = (++) <$> backendArgs <*> nodeArgs
@@ -311,7 +310,8 @@ parser = do
       )
 
     otherCommands = CLI.subcommandGroup "Other commands:"
-      [ version
+      [ script
+      , version
       ]
 
     version =
@@ -333,7 +333,6 @@ parser = do
 
     projectCommands = CLI.subcommandGroup "Project commands:"
       [ initProject
-      , script
       , build
       , repl
       , test
