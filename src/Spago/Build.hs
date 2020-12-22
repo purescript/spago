@@ -239,8 +239,6 @@ script modulePath tag packageDeps = do
           , Config.configSourcePaths = []
           }
 
-    Run.withInstallEnv' (Just newConfig) installAction
-
     let runDirs :: RunDirectories
         runDirs = RunDirectories tmpDir currentDir
 
@@ -258,7 +256,7 @@ script modulePath tag packageDeps = do
           , allowIgnored = DoAllowIgnored
           , sourcePaths = [ SourcePath absoluteModulePath ]
           , withSourceMap = WithoutSrcMap
-          , noInstall = NoInstall
+          , noInstall = DoInstall
           , pursArgs = []
           , depsOnly = AllSources
           , beforeCommands = []
