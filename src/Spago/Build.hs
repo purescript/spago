@@ -223,6 +223,9 @@ script modulePath tag packageDeps = do
 
   GlobalCache cacheDir _ <- view (the @GlobalCache)
   currentDir <- Turtle.pwd
+  -- TODO: right now every execution of the script will spawn a new temp directory,
+  -- but in the next iterations we'll want to use the system temp and persist the
+  -- directory across executions, identifying it by some hash
   Temp.withTempDirectory cacheDir "spago-script-tmp" $ \dir -> do
     let tmpDir = Text.pack dir
     Turtle.cd (Turtle.fromText tmpDir)
