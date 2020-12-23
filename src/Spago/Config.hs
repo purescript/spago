@@ -165,13 +165,12 @@ ensureConfig = do
 -- | For use by `spago script` and `spago repl`
 makeTempConfig
   :: (HasLogFunc env, HasGlobalCache env)
-  => Text
-  -> [PackageName]
+  => [PackageName]
   -> Maybe Text
   -> [SourcePath]
   -> Maybe Text
   -> RIO env Config
-makeTempConfig name dependencies alternateBackend configSourcePaths maybeTag = do
+makeTempConfig dependencies alternateBackend configSourcePaths maybeTag = do
   tag <- case maybeTag of
     Nothing -> GitHub.getLatestPackageSetsTag "purescript" "package-sets" >>= (\case
       Left _ -> die [ "Failed to fetch latest package set tag" ]
@@ -190,7 +189,7 @@ makeTempConfig name dependencies alternateBackend configSourcePaths maybeTag = d
 
       publishConfig <- try ensurePublishConfig
       packageSet <- parsePackageSet ks
-      pure $ Config {..}
+      pure $ Config { name = "", ..}
     _ -> die [ "invalid package set" ]
 
 -- | Copies over `spago.dhall` to set up a Spago project.

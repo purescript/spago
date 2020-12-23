@@ -30,7 +30,6 @@ import qualified Spago.Build.Parser   as Parse
 import qualified Spago.Command.Path   as Path
 import qualified Spago.RunEnv         as Run
 import qualified Spago.Config         as Config
-import qualified Spago.Dhall          as Dhall
 import qualified Spago.FetchPackage   as Fetch
 import qualified Spago.Messages       as Messages
 import qualified Spago.Packages       as Packages
@@ -151,12 +150,13 @@ repl newPackages sourcePaths pursArgs depsOnly = do
       Temp.withTempDirectory cacheDir "spago-repl-tmp" $ \dir -> do
         Turtle.cd (Turtle.decodeString dir)
 
-        config@Config{ packageSet = PackageSet{..}, ..}
-          <- Packages.initProject NoForce Dhall.WithComments Nothing
+        writeTextFile ".purs-repl" Templates.pursRepl
 
-        let newConfig :: Config
-            newConfig = config { Config.dependencies = dependencies <> newPackages }
-        Run.withInstallEnv' (Just newConfig) (replAction purs)
+        let dependencies = [ PackageName "effect", PackageName "console", PackageName "psci-support" ] <> newPackages
+
+        config <- Config.makeTempConfig dependencies Nothing [] Nothing
+
+        Run.withInstallEnv' (Just config) (replAction purs)
   where
     replAction purs = do
       Config{..} <- view (the @Config)
@@ -227,7 +227,7 @@ script modulePath tag packageDeps ScriptBuildOptions{..} = do
 
     let dependencies = [ PackageName "effect", PackageName "console" ] <> packageDeps
 
-    config <- Config.makeTempConfig "spago-script" dependencies Nothing [ SourcePath absoluteModulePath ] tag
+    config <- Config.makeTempConfig dependencies Nothing [ SourcePath absoluteModulePath ] tag
 
     let runDirs :: RunDirectories
         runDirs = RunDirectories tmpDir currentDir
