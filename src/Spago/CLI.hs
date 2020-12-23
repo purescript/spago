@@ -74,7 +74,7 @@ data Command
 
   -- | Run the selected module as a script, specifying a .purs file,
   -- | optional package set tag, dependencies
-  | Script Text (Maybe Text) [PackageName]
+  | Script Text (Maybe Text) [PackageName] ScriptBuildOptions
 
   -- | Test the project with some module, default Test.Main
   | Test (Maybe ModuleName) BuildOptions [BackendArg]
@@ -169,6 +169,7 @@ parser = do
     pursArgs        = many $ CLI.opt (Just . PursArg) "purs-args" 'u' "Arguments to pass to purs compile. Wrap in quotes."
     buildOptions  = BuildOptions <$> watch <*> clearScreen <*> allowIgnored <*> sourcePaths <*> srcMapFlag <*> noInstall
                     <*> pursArgs <*> depsOnly <*> beforeCommands <*> thenCommands <*> elseCommands
+    scriptBuildOptions = ScriptBuildOptions <$> clearScreen <*> pursArgs <*> beforeCommands <*> thenCommands <*> elseCommands
 
     -- Opts.flag' creates a parser with no default value. This is intended.
     -- We want this parser to fail if it does not get a --version flag, rather
@@ -189,7 +190,7 @@ parser = do
     script =
       ( "script"
       , "Run the selected file as a script with the specified dependencies and package set tag"
-      , Script <$> scriptSource <*> tag <*> dependencyPackageNames
+      , Script <$> scriptSource <*> tag <*> dependencyPackageNames <*> scriptBuildOptions
       )
 
     build =

@@ -147,6 +147,16 @@ data BuildOptions = BuildOptions
   , elseCommands   :: [Text]
   }
 
+-- TODO: Figure out how `Watch` would work for `spago script` and include it
+data ScriptBuildOptions = ScriptBuildOptions
+  { shouldClear    :: ClearScreen
+  , pursArgs       :: [PursArg]
+  , beforeCommands :: [Text]
+  , thenCommands   :: [Text]
+  , elseCommands   :: [Text]
+  }
+
+
 -- | Spago configuration file type
 data Config = Config
   { name              :: Text

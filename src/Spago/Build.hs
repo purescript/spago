@@ -210,8 +210,9 @@ script
   => Text
   -> Maybe Text
   -> [PackageName]
+  -> ScriptBuildOptions
   -> RIO env ()
-script modulePath tag packageDeps = do
+script modulePath tag packageDeps ScriptBuildOptions{..} = do
   logDebug "Running `spago script`"
   absoluteModulePath <- fmap Text.pack (makeAbsolute (Text.unpack modulePath))
 
@@ -237,16 +238,12 @@ script modulePath tag packageDeps = do
       let
         buildOpts = BuildOptions
           { shouldWatch = BuildOnce
-          , shouldClear = NoClear
           , allowIgnored = DoAllowIgnored
           , sourcePaths = []
           , withSourceMap = WithoutSrcMap
           , noInstall = DoInstall
-          , pursArgs = []
           , depsOnly = AllSources
-          , beforeCommands = []
-          , thenCommands = []
-          , elseCommands = []
+          , ..
           }
       runBackend Nothing (Just dirs) (ModuleName "Main") Nothing "error" buildOpts []
 
