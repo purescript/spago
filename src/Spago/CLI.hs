@@ -138,7 +138,7 @@ parser = do
     force        = bool NoForce Force <$> CLI.switch "force" 'f' "Overwrite any project found in the current directory"
     watch        = bool BuildOnce Watch <$> CLI.switch "watch" 'w' "Watch for changes in local files and automatically rebuild"
     noInstall    = bool DoInstall NoInstall <$> CLI.switch "no-install" 'n' "Don't run the automatic installation of packages"
-    depsOnly     = bool AllSources DepsOnly <$> CLI.switch "deps-only" 'd' "Only use sources from dependencies, skipping the project sources."
+    depsOnly     = bool AllSources DepsOnly <$> Opts.switch (Opts.long "deps-only" <> Opts.help "Only use sources from dependencies, skipping the project sources.")
     noSearch     = bool AddSearch NoSearch <$> CLI.switch "no-search" 'S' "Do not make the documentation searchable"
     clearScreen  = bool NoClear DoClear <$> CLI.switch "clear-screen" 'l' "Clear the screen on rebuild (watch mode only)"
     allowIgnored = bool NoAllowIgnored DoAllowIgnored <$> CLI.switch "allow-ignored" 'I' "Allow files ignored via .gitignore to trigger rebuilds (watch mode only)"
@@ -160,7 +160,7 @@ parser = do
     jobsLimit   = CLI.optional (CLI.optInt "jobs" 'j' "Limit the amount of jobs that can run concurrently")
     nodeArgs         = many $ CLI.opt (Just . BackendArg) "node-args" 'a' "Argument to pass to node (run/test only)"
     backendArgs      = many $ CLI.opt (Just . BackendArg) "exec-args" 'b' "Argument to pass to the backend (run/test only)"
-    dependencyPackageNames = many $ CLI.opt (Just . PackageName) "dependency" 'D' "Package name to add as a dependency"
+    dependencyPackageNames = many $ CLI.opt (Just . PackageName) "dependency" 'd' "Package name to add as a dependency"
     scriptSource = CLI.arg Just "source" "Source file to run as script"
     sourcePaths      = many $ CLI.opt (Just . SourcePath) "path" 'p' "Source path to include"
 
