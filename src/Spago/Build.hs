@@ -229,7 +229,7 @@ script modulePath tag packageDeps ScriptBuildOptions{..} = do
     let tmpDir = Turtle.fromText (Text.pack dir)
     Turtle.cd tmpDir
 
-    let dependencies = [ PackageName "effect", PackageName "console" ] <> packageDeps
+    let dependencies = [ PackageName "effect", PackageName "console", PackageName "prelude" ] <> packageDeps
 
     config <- Config.makeTempConfig dependencies Nothing [ SourcePath absoluteModulePath ] tag
 
