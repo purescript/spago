@@ -21,7 +21,7 @@ jobs:
           git config --global core.eol lf
       - uses: actions/checkout@v2
       - name: Setup Haskell
-        uses: actions/setup-haskell@v1.1
+        uses: haskell/actions/setup@v1
         with:
           ghc-version: '8.6.5'
           stack-version: 'latest'
