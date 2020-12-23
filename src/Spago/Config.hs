@@ -189,7 +189,7 @@ makeTempConfig name dependencies alternateBackend configSourcePaths maybeTag = d
             pure PublishConfig{..}
 
       publishConfig <- try ensurePublishConfig
-      packageSet <- parsePackageSet (Dhall.extractRecordValues ks')
+      packageSet <- parsePackageSet ks
       pure $ Config {..}
     _ -> die [ "invalid package set" ]
 

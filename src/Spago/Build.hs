@@ -22,7 +22,6 @@ import qualified System.FilePath.Glob as Glob
 import qualified System.IO            as Sys
 import qualified System.IO.Temp       as Temp
 import qualified System.IO.Utf8       as Utf8
-import           Text.Megaparsec      (parse)
 import qualified Turtle
 import qualified System.Process       as Process
 import qualified Web.Browser          as Browser
@@ -215,11 +214,6 @@ script
 script modulePath tag packageDeps = do
   logDebug "Running `spago script`"
   absoluteModulePath <- fmap Text.pack (makeAbsolute (Text.unpack modulePath))
-  moduleContents <- readTextFile (pathFromText absoluteModulePath)
-
-  moduleName <- case parseModuleName moduleContents of
-    Nothing -> die [ "Failed to extract module name from source file" ]
-    Just modName -> pure modName
 
   GlobalCache cacheDir _ <- view (the @GlobalCache)
   currentDir <- Turtle.pwd
@@ -237,9 +231,9 @@ script modulePath tag packageDeps = do
     let runDirs :: RunDirectories
         runDirs = RunDirectories tmpDir currentDir
 
-    Run.withBuildEnv' (Just config) NoPsa (runAction moduleName runDirs)
+    Run.withBuildEnv' (Just config) NoPsa (runAction runDirs)
   where
-    runAction moduleName dirs = do
+    runAction dirs = do
       let
         buildOpts = BuildOptions
           { shouldWatch = BuildOnce
@@ -254,11 +248,7 @@ script modulePath tag packageDeps = do
           , thenCommands = []
           , elseCommands = []
           }
-      runBackend Nothing (Just dirs) moduleName Nothing "error" buildOpts []
-
-    parseModuleName contents = do
-      Parse.PsModule name _ <- hush $ parse Parse.moduleDecl "" (encodeUtf8 contents)
-      hush $ ModuleName <$> decodeUtf8' name
+      runBackend Nothing (Just dirs) (ModuleName "Main") Nothing "error" buildOpts []
 
 
 data RunDirectories = RunDirectories { tmpDir :: Text, executeDir :: FilePath }
