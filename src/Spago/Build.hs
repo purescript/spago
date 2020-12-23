@@ -230,31 +230,22 @@ script modulePath tag packageDeps = do
     let tmpDir = Text.pack dir
     Turtle.cd (Turtle.fromText tmpDir)
 
-    config@Config { packageSet = PackageSet{..}, ..}
-      <- Packages.initProject NoForce Dhall.WithComments tag
+    let dependencies = [ PackageName "effect", PackageName "console" ] <> packageDeps
 
-    let newConfig :: Config
-        newConfig = config
-          { Config.dependencies = dependencies <> packageDeps
-          , Config.configSourcePaths = []
-          }
+    config <- Config.makeTempConfig "spago-script" dependencies Nothing [ SourcePath absoluteModulePath ] tag
 
     let runDirs :: RunDirectories
         runDirs = RunDirectories tmpDir currentDir
 
-    Run.withBuildEnv' (Just newConfig) NoPsa (runAction absoluteModulePath moduleName runDirs)
+    Run.withBuildEnv' (Just config) NoPsa (runAction moduleName runDirs)
   where
-    installAction = do
-      deps <- Packages.getProjectDeps
-      Fetch.fetchPackages deps
-
-    runAction absoluteModulePath moduleName dirs = do
+    runAction moduleName dirs = do
       let
         buildOpts = BuildOptions
           { shouldWatch = BuildOnce
           , shouldClear = NoClear
           , allowIgnored = DoAllowIgnored
-          , sourcePaths = [ SourcePath absoluteModulePath ]
+          , sourcePaths = []
           , withSourceMap = WithoutSrcMap
           , noInstall = DoInstall
           , pursArgs = []
