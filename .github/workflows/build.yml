@@ -11,7 +11,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ ubuntu-latest, macOS-latest, windows-latest ]
+        os: [ ubuntu-16.04, macOS-latest, windows-latest ]
     steps:
       # We set LF endings so that the Windows environment is consistent with Appveyor
       # See here for context: https://github.com/actions/checkout/issues/135
@@ -21,7 +21,7 @@ jobs:
           git config --global core.eol lf
       - uses: actions/checkout@v2
       - name: Setup Haskell
-        uses: actions/setup-haskell@v1.1.3
+        uses: haskell/actions/setup@v1
         with:
           ghc-version: '8.6.5'
           stack-version: 'latest'
@@ -29,9 +29,9 @@ jobs:
           stack-no-global: true
           stack-setup-ghc: true
       - name: Setup node and npm
-        uses: "actions/setup-node@v1"
+        uses: actions/setup-node@v2
         with:
-          node-version: '10'
+          node-version: 14
       # NB: We install gnu-tar because BSD tar is buggy on Github's macos machines,
       # and it breaks the cache: https://github.com/actions/cache/issues/403
       - name: Install GNU tar (macOS)
