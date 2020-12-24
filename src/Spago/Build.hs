@@ -285,7 +285,7 @@ runBackend maybeBackend RunDirectories{ sourceDir, executeDir } moduleName maybe
         , unModuleName moduleName
         , "').main()"
         ]
-    nodeCmd = "node " <> runJsSource <> nodeArgs
+    nodeCmd = "node " <> runJsSource <> " " <> nodeArgs
     nodeAction outputPath' = do
       logDebug $ "Writing " <> displayShow @Text runJsSource
       writeTextFile runJsSource (nodeContents outputPath')
