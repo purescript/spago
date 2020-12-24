@@ -692,6 +692,13 @@ spec = around_ setup $ do
       spago ["build"] >>= shouldBeSuccess
       spago ["run", "--exec-args", "hello world", "--node-args", "hallo welt"] >>= shouldBeSuccessOutput "run-args-combined-output.txt"
 
+  describe "spago script" $ do
+
+    it "Spago script should create file in directory where it is executed" $ do
+
+      spago ["script", "../fixtures/spago-script-make-file.purs", "-d", "node-fs"] >>= shouldBeSuccess
+      checkFixture "spago-script-result.txt"
+
   describe "spago bundle" $ do
 
     it "Spago should fail but should point to the replacement command" $ do
