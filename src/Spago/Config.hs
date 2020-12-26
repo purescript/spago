@@ -182,13 +182,8 @@ makeTempConfig dependencies alternateBackend configSourcePaths maybeTag = do
   case expr of
     Dhall.RecordLit ks' -> do
       let ks = Dhall.extractRecordValues ks'
-      let ensurePublishConfig = do
-            publishLicense    <- Dhall.requireTypedKey ks "license" Dhall.strictText
-            publishRepository <- Dhall.requireTypedKey ks "repository" Dhall.strictText
-            pure PublishConfig{..}
-
-      publishConfig <- try ensurePublishConfig
       packageSet <- parsePackageSet ks
+      let publishConfig = Left $ Dhall.RequiredKeyMissing "license" ks
       pure $ Config { name = "", ..}
     _ -> die [ "Failed to parse package set" ]
 
