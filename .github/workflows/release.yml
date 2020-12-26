@@ -31,7 +31,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ ubuntu-latest, macOS-latest, windows-latest ]
+        os: [ ubuntu-16.04, macOS-latest, windows-latest ]
     steps:
       - name: Set git to use LF
         run: |
@@ -39,7 +39,7 @@ jobs:
           git config --global core.eol lf
       - uses: actions/checkout@v2
       - name: Setup Haskell
-        uses: actions/setup-haskell@v1.1.3
+        uses: haskell/actions/setup@v1
         with:
           ghc-version: '8.6.5'
           stack-version: 'latest'
@@ -67,7 +67,7 @@ jobs:
           stack build --copy-bins --local-bin-path ./artifacts
           cp artifacts/spago spago
           strip spago
-          tar -zcvf "${{ matrix.os }}.tar.gz" spago
+          tar -zcvf "${{ runner.os }}.tar.gz" spago
 
       - name: Package binary (Windows)
         if: runner.os == 'Windows'
@@ -76,7 +76,7 @@ jobs:
           stack install --dependencies-only
           stack build --copy-bins --local-bin-path ./artifacts
           cp artifacts/spago.exe spago.exe
-          tar -zcvf ${{ matrix.os }}.tar.gz spago.exe
+          tar -zcvf ${{ runner.os }}.tar.gz spago.exe
 
       - name: Upload Release Asset
         id: upload-release-asset
@@ -85,8 +85,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ needs.draft_release.outputs.upload_url }}
-          asset_path: ./${{ matrix.os }}.tar.gz
-          asset_name: ${{ matrix.os }}.tar.gz
+          asset_path: ./${{ runner.os }}.tar.gz
+          asset_name: ${{ runner.os }}.tar.gz
           asset_content_type: application/gzip
 
   npm_publish:
@@ -95,11 +95,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
-      - uses: actions/setup-node@v1
+      - uses: actions/setup-node@v2
         with:
-          node-version: 10
-      - name: Prepare publish
+          node-version: 14
+      - name: Publish to NPM
         shell: bash
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
           sed -e "s/NPM_VERSION/$(./scripts/get-version)/g" -i npm/package.json
           sed -e "s/PACKAGE_VERSION/$(./scripts/get-version)/g" -i npm/install.js
@@ -107,11 +109,5 @@ jobs:
           cp ../README.md ./README.md
           cp ../CONTRIBUTING.md ./CONTRIBUTING.md
           cp ../LICENSE ./LICENSE
-      - name: Publish to NPM
-        uses: pascalgn/npm-publish-action@1.3
-        with:
-          workspace: "npm"
-          publish_args: "--non-interactive"
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          NPM_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          npm install
+          npm publish --non-interactive --access public
