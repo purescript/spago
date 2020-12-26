@@ -13,6 +13,7 @@ import           Spago.Env
 
 import qualified Control.Exception as Exception
 import           Data.Dynamic (fromDynamic)
+import qualified Data.Map.Strict as Map
 import qualified Data.Text       as Text
 import qualified Data.Versions   as Version
 import qualified Dhall.Freeze
@@ -65,30 +66,48 @@ updatePackageSetVersion maybeTag = do
 
   maybe
     (useLatestRelease org repo currentTag)
-    (useSpecificRelease org repo currentTag)
+    (updateTag org repo currentTag)
     maybeTag
   where
-    -- | Tries to upgrade the Package-Sets release of the local package set.
-    --   It will:
-    --   - try to read the latest tag from GitHub
-    --   - try to read the current package-set file
-    --   - try to replace the git tag to which the package-set imports point to
-    --     (if they point to the Package-Sets repo. This can be eventually made GitHub generic)
-    --   - if all of this succeeds, it will regenerate the hashes and write to file
+    -- | Try to fetch the latest compatible tag in various ways, and updates
+    --   the packages.dhall with it
     useLatestRelease
       :: Text -> Text -> Text -> RIO env ()
     useLatestRelease org repo currentTag = do
-      GitHub.getLatestPackageSetsTag org repo >>= \case
-        Right tag -> updateTag org repo currentTag tag
-        Left (err :: SomeException) -> do
-          logWarn "Was not possible to upgrade the package-sets release"
-          logDebug $ "Error: " <> display err
+      let getLatestFromGitHub = GitHub.getLatestPackageSetsTag org repo >>= \case
+            Right tag -> updateTag org repo currentTag tag
+            Left (err :: SomeException) -> do
+              logWarn "Was not possible to upgrade the package-sets release"
+              logDebug $ "Error: " <> display err
+      -- first let's get the current compiler version
+      Purs.pursVersion >>= \case
+        Left err -> do
+          -- if we cannot we just get the latest release from GitHub
+          logDebug $ display err
+          getLatestFromGitHub
+        Right compilerVersion -> do
+          logDebug $ "Got a compiler version: " <> displayShow compilerVersion
+          -- once we have a release we try getting the file with the index of the latest sets
+          eitherLatestReleases <- try $ GitHub.getLatestReleasesFile org repo
+          logDebug $ "Latest releases: " <> displayShow eitherLatestReleases
+          case eitherLatestReleases of
+            -- if we get that, we just try to pick a set for the current compiler
+            Right latestReleases -> do
+              case Map.lookup compilerVersion latestReleases of
+                -- but if the current compiler is not there we complain about compatibility
+                Nothing -> die [ display $ Messages.incompatiblePurs (Version.prettySemVer <$> Map.keys latestReleases)]
+                Just newTag -> do
+                  logDebug $ "Found a new tag in the releases file: " <> display newTag
+                  updateTag org repo currentTag newTag
+            -- if that fails then we fetch the latest set from GitHub
+            -- TODO: check that it's compatible with the current compiler
+            Left (_err :: SomeException) -> getLatestFromGitHub
 
-    useSpecificRelease
-      :: Text -> Text -> Text -> Text -> RIO env ()
-    useSpecificRelease org repo currentTag tag =
-      updateTag org repo currentTag tag
-
+    -- | Tries to upgrade the package-sets release of the local package set.
+    --   It will:
+    --   - try to read the current package-set file
+    --   - try to replace the git tag to which the package-set imports point to
+    --   - if all of this succeeds, it will regenerate the hashes and write to file
     updateTag :: Text -> Text -> Text -> Text -> RIO env ()
     updateTag org repo currentTag specificTag =  do
       let quotedTag = surroundQuote specificTag
@@ -136,7 +155,7 @@ updatePackageSetVersion maybeTag = do
       } = [(org, repo, currentTag)]
     getCurrentTag _ = []
 
-    -- | Given an import and a new purescript/package-sets tag,
+    -- | Given an import and a new package-sets tag,
     --   upgrades the import to the tag and resets the hash
     upgradeImports :: Text -> Text -> Text -> Dhall.Import -> Dhall.Import
     upgradeImports org repo newTag (Dhall.Import

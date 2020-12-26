@@ -170,6 +170,14 @@ failedToCopyToGlobalCache err = makeMessage
   , tshow err
   ]
 
+incompatiblePurs :: [Text] -> Text
+incompatiblePurs versions = makeMessage $
+  [ "It seems that you're using a compiler version that is not supported by package-sets at the moment."
+  , "Please install one of the following versions of the compiler and try again: "
+  ]
+  <> map ("- " <>) versions
+  <> [""]
+
 pursVersionMismatch :: Text -> Text -> Text
 pursVersionMismatch currentVersion minVersion = makeMessage
   [ "Oh noes! It looks like the PureScript version installed on your system is not compatible with the package-set you're using."
@@ -180,7 +188,7 @@ pursVersionMismatch currentVersion minVersion = makeMessage
   , "There are a few ways to solve this:"
   , "- install a compatible `purs` version (i.e. in the same 'semver range' as the one in the package set)"
   , "- if the `purs` version is 'too new', you can try using `spago upgrade-set` to upgrade to the latest package set"
-  , "- if you know what you're doing and you want to avoid this check, you can override the `version` of the `metadata` package in the packages.dhall:"
+  , "- if you know what you're doing and you want to disable this check, you can override the `version` of the `metadata` package in the packages.dhall:"
   , ""
   , "  let overrides = { metadata = upstream.metadata // { version = \"v" <> currentVersion <> "\" } }"
   , ""
