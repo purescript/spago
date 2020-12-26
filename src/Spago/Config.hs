@@ -190,7 +190,7 @@ makeTempConfig dependencies alternateBackend configSourcePaths maybeTag = do
       publishConfig <- try ensurePublishConfig
       packageSet <- parsePackageSet ks
       pure $ Config { name = "", ..}
-    _ -> die [ "invalid package set" ]
+    _ -> die [ "Failed to parse package set" ]
 
 -- | Copies over `spago.dhall` to set up a Spago project.
 --   Eventually ports an existing `psc-package.json` to the new config.

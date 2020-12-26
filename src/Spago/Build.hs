@@ -249,7 +249,7 @@ script modulePath tag packageDeps ScriptBuildOptions{..} = do
           , depsOnly = AllSources
           , ..
           }
-      runBackend Nothing dirs (ModuleName "Main") Nothing "error" buildOpts []
+      runBackend Nothing dirs (ModuleName "Main") Nothing "Script failed to run; " buildOpts []
 
 
 data RunDirectories = RunDirectories { sourceDir :: FilePath, executeDir :: FilePath }
