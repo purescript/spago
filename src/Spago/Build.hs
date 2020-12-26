@@ -278,7 +278,7 @@ runBackend maybeBackend RunDirectories{ sourceDir, executeDir } moduleName maybe
       fold
         [ "#!/usr/bin/env node\n\n"
         , "require('"
-        , fromFilePath sourceDir
+        , Text.replace "\\" "/" (fromFilePath sourceDir)
         , "/"
         , Text.pack outputPath'
         , "/"
