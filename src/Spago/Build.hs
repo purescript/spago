@@ -241,7 +241,8 @@ script modulePath tag packageDeps ScriptBuildOptions{..} = do
     runAction dirs = do
       let
         buildOpts = BuildOptions
-          { shouldWatch = BuildOnce
+          { shouldClear = NoClear
+          , shouldWatch = BuildOnce
           , allowIgnored = DoAllowIgnored
           , sourcePaths = []
           , withSourceMap = WithoutSrcMap
