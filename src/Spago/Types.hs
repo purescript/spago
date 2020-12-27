@@ -149,8 +149,7 @@ data BuildOptions = BuildOptions
 
 -- TODO: Figure out how `Watch` would work for `spago script` and include it
 data ScriptBuildOptions = ScriptBuildOptions
-  { shouldClear    :: ClearScreen
-  , pursArgs       :: [PursArg]
+  { pursArgs       :: [PursArg]
   , beforeCommands :: [Text]
   , thenCommands   :: [Text]
   , elseCommands   :: [Text]
