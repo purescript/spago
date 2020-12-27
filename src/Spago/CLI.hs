@@ -169,7 +169,7 @@ parser = do
     pursArgs        = many $ CLI.opt (Just . PursArg) "purs-args" 'u' "Arguments to pass to purs compile. Wrap in quotes."
     buildOptions  = BuildOptions <$> watch <*> clearScreen <*> allowIgnored <*> sourcePaths <*> srcMapFlag <*> noInstall
                     <*> pursArgs <*> depsOnly <*> beforeCommands <*> thenCommands <*> elseCommands
-    scriptBuildOptions = ScriptBuildOptions <$> clearScreen <*> pursArgs <*> beforeCommands <*> thenCommands <*> elseCommands
+    scriptBuildOptions = ScriptBuildOptions <$> pursArgs <*> beforeCommands <*> thenCommands <*> elseCommands
 
     -- Opts.flag' creates a parser with no default value. This is intended.
     -- We want this parser to fail if it does not get a --version flag, rather
