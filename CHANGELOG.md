@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+Breaking changes (😱!!!):
+- **Deprecate `-d` flag for `deps-only` (#712)** - instead only support the `--deps-only` long form
+- **Switch from `-D` to `-d` as shorthand for specifying dependencies within `spago repl` (#712)**
+
+New features:
+- Add `spago script` command. It can be used to run standalone PureScript files as scripts (#712, #683)
+
+Other improvements:
+- `spago repl` will no longer create a (mostly unused) full project skeleton in a temporary directory when a config is not found (#712)
+
 ## [0.18.1] - 2020-12-22
 
 Breaking changes (😱!!!):

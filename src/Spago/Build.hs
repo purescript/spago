@@ -7,6 +7,7 @@ module Spago.Build
   , bundleModule
   , docs
   , search
+  , script
   ) where
 
 import           Spago.Prelude hiding (link)
@@ -29,7 +30,6 @@ import qualified Spago.Build.Parser   as Parse
 import qualified Spago.Command.Path   as Path
 import qualified Spago.RunEnv         as Run
 import qualified Spago.Config         as Config
-import qualified Spago.Dhall          as Dhall
 import qualified Spago.FetchPackage   as Fetch
 import qualified Spago.Messages       as Messages
 import qualified Spago.Packages       as Packages
@@ -150,12 +150,13 @@ repl newPackages sourcePaths pursArgs depsOnly = do
       Temp.withTempDirectory cacheDir "spago-repl-tmp" $ \dir -> do
         Turtle.cd (Turtle.decodeString dir)
 
-        config@Config{ packageSet = PackageSet{..}, ..}
-          <- Packages.initProject NoForce Dhall.WithComments Nothing
+        writeTextFile ".purs-repl" Templates.pursRepl
 
-        let newConfig :: Config
-            newConfig = config { Config.dependencies = dependencies <> newPackages }
-        Run.withInstallEnv' (Just newConfig) (replAction purs)
+        let dependencies = [ PackageName "effect", PackageName "console", PackageName "psci-support" ] <> newPackages
+
+        config <- Config.makeTempConfig dependencies Nothing [] Nothing
+
+        Run.withInstallEnv' (Just config) (replAction purs)
   where
     replAction purs = do
       Config{..} <- view (the @Config)
@@ -186,7 +187,9 @@ test maybeModuleName buildOpts extraArgs = do
       pure $ Parse.checkModuleNameMatches (encodeUtf8 $ unModuleName moduleName) content
     if or results
       then do
-        runBackend alternateBackend moduleName (Just "Tests succeeded.") "Tests failed: " buildOpts extraArgs
+        sourceDir <- Turtle.pwd
+        let dirs = RunDirectories sourceDir sourceDir
+        runBackend alternateBackend dirs moduleName (Just "Tests succeeded.") "Tests failed: " buildOpts extraArgs
       else do
         die [ "Module '" <> (display . unModuleName) moduleName <> "' not found! Are you including it in your build?" ]
 
@@ -200,33 +203,97 @@ run
 run maybeModuleName buildOpts extraArgs = do
   Config.Config { alternateBackend } <- view (the @Config)
   let moduleName = fromMaybe (ModuleName "Main") maybeModuleName
-  runBackend alternateBackend moduleName Nothing "Running failed; " buildOpts extraArgs
+  sourceDir <- Turtle.pwd
+  let dirs = RunDirectories sourceDir sourceDir
+  runBackend alternateBackend dirs moduleName Nothing "Running failed; " buildOpts extraArgs
 
+
+-- | Run the select module as a script: init, compile, and run the provided module
+script
+  :: (HasEnv env)
+  => Text
+  -> Maybe Text
+  -> [PackageName]
+  -> ScriptBuildOptions
+  -> RIO env ()
+script modulePath tag packageDeps ScriptBuildOptions{..} = do
+  logDebug "Running `spago script`"
+  absoluteModulePath <- fmap Text.pack (makeAbsolute (Text.unpack modulePath))
+
+  GlobalCache cacheDir _ <- view (the @GlobalCache)
+  currentDir <- Turtle.pwd
+  -- TODO: right now every execution of the script will spawn a new temp directory,
+  -- but in the next iterations we'll want to use the system temp and persist the
+  -- directory across executions, identifying it by some hash
+  Temp.withTempDirectory cacheDir "spago-script-tmp" $ \dir -> do
+    let tmpDir = Turtle.fromText (Text.pack dir)
+    Turtle.cd tmpDir
+
+    let dependencies = [ PackageName "effect", PackageName "console", PackageName "prelude" ] <> packageDeps
+
+    config <- Config.makeTempConfig dependencies Nothing [ SourcePath absoluteModulePath ] tag
+
+    let runDirs :: RunDirectories
+        runDirs = RunDirectories tmpDir currentDir
+
+    Run.withBuildEnv' (Just config) NoPsa (runAction runDirs)
+  where
+    runAction dirs = do
+      let
+        buildOpts = BuildOptions
+          { shouldClear = NoClear
+          , shouldWatch = BuildOnce
+          , allowIgnored = DoAllowIgnored
+          , sourcePaths = []
+          , withSourceMap = WithoutSrcMap
+          , noInstall = DoInstall
+          , depsOnly = AllSources
+          , ..
+          }
+      runBackend Nothing dirs (ModuleName "Main") Nothing "Script failed to run; " buildOpts []
+
+
+data RunDirectories = RunDirectories { sourceDir :: FilePath, executeDir :: FilePath }
 
 -- | Run the project with node (or the chosen alternate backend):
 --   compile and run the provided ModuleName
 runBackend
   :: HasBuildEnv env
   => Maybe Text
+  -> RunDirectories
   -> ModuleName
   -> Maybe Text
   -> Text
   -> BuildOptions
   -> [BackendArg]
   -> RIO env ()
-runBackend maybeBackend moduleName maybeSuccessMessage failureMessage buildOpts@BuildOptions{pursArgs} extraArgs = do
+runBackend maybeBackend RunDirectories{ sourceDir, executeDir } moduleName maybeSuccessMessage failureMessage buildOpts@BuildOptions{pursArgs} extraArgs = do
   logDebug $ display $ "Running with backend: " <> fromMaybe "nodejs" maybeBackend
   let postBuild = maybe (nodeAction $ Path.getOutputPath pursArgs) backendAction maybeBackend
   build buildOpts (Just postBuild)
   where
+    fromFilePath = Text.pack . Turtle.encodeString
+    runJsSource = fromFilePath (sourceDir Turtle.</> ".spago/run.js")
     nodeArgs = Text.intercalate " " $ map unBackendArg extraArgs
     nodeContents outputPath' =
-      "#!/usr/bin/env node\n\n" <> "require('../" <> Text.pack outputPath' <> "/" <> unModuleName moduleName <> "').main()"
-    nodeCmd = "node .spago/run.js " <> nodeArgs
+      fold
+        [ "#!/usr/bin/env node\n\n"
+        , "require('"
+        , Text.replace "\\" "/" (fromFilePath sourceDir)
+        , "/"
+        , Text.pack outputPath'
+        , "/"
+        , unModuleName moduleName
+        , "').main()"
+        ]
+    nodeCmd = "node " <> runJsSource <> " " <> nodeArgs
     nodeAction outputPath' = do
-      logDebug "Writing .spago/run.js"
-      writeTextFile ".spago/run.js" (nodeContents outputPath')
-      void $ chmod executable ".spago/run.js"
+      logDebug $ "Writing " <> displayShow @Text runJsSource
+      writeTextFile runJsSource (nodeContents outputPath')
+      void $ chmod executable $ pathFromText runJsSource
+      -- cd to executeDir in case it isn't the same as sourceDir
+      logDebug $ "Executing from: " <> displayShow @FilePath executeDir
+      Turtle.cd executeDir
       -- We build a process by hand here because we need to forward the stdin to the backend process
       let processWithStdin = (Process.shell (Text.unpack nodeCmd)) { Process.std_in = Process.Inherit }
       Turtle.system processWithStdin empty >>= \case

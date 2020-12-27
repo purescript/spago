@@ -117,18 +117,28 @@ withPublishEnv app = do
       _ -> findExecutableOrDie "bower"
   runRIO PublishEnv{..} app
 
+withBuildEnv'
+  :: HasEnv env
+  => Maybe Config
+  -> UsePsa
+  -> RIO BuildEnv a
+  -> RIO env a
+withBuildEnv' maybeConfig usePsa app = do
+  Env{..} <- getEnv
+  envPursCmd <- getPurs usePsa
+  envConfig@Config{..} <- case maybeConfig of
+    Nothing -> getConfig
+    Just c -> pure c
+  let envPackageSet = packageSet
+  envGitCmd <- getGit
+  runRIO BuildEnv{..} app
+
 withBuildEnv
   :: HasEnv env
   => UsePsa
   -> RIO BuildEnv a
   -> RIO env a
-withBuildEnv usePsa app = do
-  Env{..} <- getEnv
-  envPursCmd <- getPurs usePsa
-  envConfig@Config{..} <- getConfig
-  let envPackageSet = packageSet
-  envGitCmd <- getGit
-  runRIO BuildEnv{..} app
+withBuildEnv = withBuildEnv' Nothing
 
 getEnv :: HasEnv env => RIO env Env
 getEnv = do

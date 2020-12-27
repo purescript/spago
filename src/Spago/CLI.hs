@@ -72,6 +72,10 @@ data Command
   -- | Run the project with some module, default Main
   | Run (Maybe ModuleName) BuildOptions [BackendArg]
 
+  -- | Run the selected module as a script, specifying a .purs file,
+  -- | optional package set tag, dependencies
+  | Script Text (Maybe Text) [PackageName] ScriptBuildOptions
+
   -- | Test the project with some module, default Test.Main
   | Test (Maybe ModuleName) BuildOptions [BackendArg]
 
@@ -134,7 +138,7 @@ parser = do
     force        = bool NoForce Force <$> CLI.switch "force" 'f' "Overwrite any project found in the current directory"
     watch        = bool BuildOnce Watch <$> CLI.switch "watch" 'w' "Watch for changes in local files and automatically rebuild"
     noInstall    = bool DoInstall NoInstall <$> CLI.switch "no-install" 'n' "Don't run the automatic installation of packages"
-    depsOnly     = bool AllSources DepsOnly <$> CLI.switch "deps-only" 'd' "Only use sources from dependencies, skipping the project sources."
+    depsOnly     = bool AllSources DepsOnly <$> Opts.switch (Opts.long "deps-only" <> Opts.help "Only use sources from dependencies, skipping the project sources.")
     noSearch     = bool AddSearch NoSearch <$> CLI.switch "no-search" 'S' "Do not make the documentation searchable"
     clearScreen  = bool NoClear DoClear <$> CLI.switch "clear-screen" 'l' "Clear the screen on rebuild (watch mode only)"
     allowIgnored = bool NoAllowIgnored DoAllowIgnored <$> CLI.switch "allow-ignored" 'I' "Allow files ignored via .gitignore to trigger rebuilds (watch mode only)"
@@ -156,7 +160,8 @@ parser = do
     jobsLimit   = CLI.optional (CLI.optInt "jobs" 'j' "Limit the amount of jobs that can run concurrently")
     nodeArgs         = many $ CLI.opt (Just . BackendArg) "node-args" 'a' "Argument to pass to node (run/test only)"
     backendArgs      = many $ CLI.opt (Just . BackendArg) "exec-args" 'b' "Argument to pass to the backend (run/test only)"
-    replPackageNames = many $ CLI.opt (Just . PackageName) "dependency" 'D' "Package name to add to the REPL as dependency"
+    dependencyPackageNames = many $ CLI.opt (Just . PackageName) "dependency" 'd' "Package name to add as a dependency"
+    scriptSource = CLI.arg Just "source" "Source file to run as script"
     sourcePaths      = many $ CLI.opt (Just . SourcePath) "path" 'p' "Source path to include"
 
     packageName     = CLI.arg (Just . PackageName) "package" "Specify a package name. You can list them with `ls packages`"
@@ -164,6 +169,7 @@ parser = do
     pursArgs        = many $ CLI.opt (Just . PursArg) "purs-args" 'u' "Arguments to pass to purs compile. Wrap in quotes."
     buildOptions  = BuildOptions <$> watch <*> clearScreen <*> allowIgnored <*> sourcePaths <*> srcMapFlag <*> noInstall
                     <*> pursArgs <*> depsOnly <*> beforeCommands <*> thenCommands <*> elseCommands
+    scriptBuildOptions = ScriptBuildOptions <$> pursArgs <*> beforeCommands <*> thenCommands <*> elseCommands
 
     -- Opts.flag' creates a parser with no default value. This is intended.
     -- We want this parser to fail if it does not get a --version flag, rather
@@ -181,6 +187,12 @@ parser = do
       , Init <$> force <*> noComments <*> tag
       )
 
+    script =
+      ( "script"
+      , "Run the selected file as a script with the specified dependencies and package set tag"
+      , Script <$> scriptSource <*> tag <*> dependencyPackageNames <*> scriptBuildOptions
+      )
+
     build =
       ( "build"
       , "Install the dependencies and compile the current package"
@@ -190,7 +202,7 @@ parser = do
     repl =
       ( "repl"
       , "Start a REPL"
-      , Repl <$> replPackageNames <*> sourcePaths <*> pursArgs <*> depsOnly
+      , Repl <$> dependencyPackageNames <*> sourcePaths <*> pursArgs <*> depsOnly
       )
 
     execArgs = (++) <$> backendArgs <*> nodeArgs
@@ -299,7 +311,8 @@ parser = do
       )
 
     otherCommands = CLI.subcommandGroup "Other commands:"
-      [ version
+      [ script
+      , version
       ]
 
     version =

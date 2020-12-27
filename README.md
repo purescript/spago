@@ -118,6 +118,7 @@ $ node .
   - [Build and run my project](#build-and-run-my-project)
   - [Test my project](#test-my-project)
   - [Run a repl](#run-a-repl)
+  - [Run a standalone PureScript file as a script](#run-a-standalone-purescript-file-as-a-script)
   - [List available packages](#list-available-packages)
   - [Install all the packages in the set](#install-all-the-packages-in-the-set)
   - [Override a package in the package set with a local one](#override-a-package-in-the-package-set-with-a-local-one)
@@ -399,6 +400,19 @@ E.g. the following opens a repl on `localhost:3200`:
 ```bash
 $ spago repl --purs-args "--port 3200"
 ```
+
+
+### Run a standalone PureScript file as a script
+
+You can run a standalone PureScript file as a script via `spago script`.
+Note: The module name must be `Main`, and it must export a function `main :: Effect Unit`.
+
+By default, the following dependencies are installed: `effect`, `console`, `prelude`.
+
+You can run a script via the following, optionally specifying a package set to use, and additional dependencies to pull from there:
+
+```bash
+$ spago script --tag psc-13.8 -d node-fs path/to/script.purs
 
 
 ### List available packages
