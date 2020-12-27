@@ -3,6 +3,7 @@
 module Spago.Config
   ( defaultPath
   , makeConfig
+  , makeTempConfig
   , ensureConfig
   , addDependencies
   , parsePackage
@@ -29,6 +30,7 @@ import qualified Dhall.TypeCheck
 import qualified Web.Bower.PackageMeta as Bower
 
 import qualified Spago.Dhall           as Dhall
+import qualified Spago.GitHub          as GitHub
 import qualified Spago.Messages        as Messages
 import qualified Spago.PackageSet      as PackageSet
 import qualified Spago.PscPackage      as PscPackage
@@ -159,6 +161,31 @@ ensureConfig = do
         pure $ Right config
       Left (err :: Dhall.ReadError Void) -> pure $ Left $ displayShow err
 
+-- | Create a Config in memory
+-- | For use by `spago script` and `spago repl`
+makeTempConfig
+  :: (HasLogFunc env, HasGlobalCache env)
+  => [PackageName]
+  -> Maybe Text
+  -> [SourcePath]
+  -> Maybe Text
+  -> RIO env Config
+makeTempConfig dependencies alternateBackend configSourcePaths maybeTag = do
+  tag <- case maybeTag of
+    Nothing -> GitHub.getLatestPackageSetsTag "purescript" "package-sets" >>= (\case
+      Left _ -> die [ "Failed to fetch latest package set tag" ]
+      Right tag -> pure tag)
+    Just tag -> pure tag
+
+  expr <- liftIO $ Dhall.inputExpr $ "https://github.com/purescript/package-sets/releases/download/" <> tag <> "/packages.dhall"
+
+  case expr of
+    Dhall.RecordLit ks' -> do
+      let ks = Dhall.extractRecordValues ks'
+      packageSet <- parsePackageSet ks
+      let publishConfig = Left $ Dhall.RequiredKeyMissing "license" ks
+      pure $ Config { name = "", ..}
+    _ -> die [ "Failed to parse package set" ]
 
 -- | Copies over `spago.dhall` to set up a Spago project.
 --   Eventually ports an existing `psc-package.json` to the new config.
