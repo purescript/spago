@@ -405,7 +405,7 @@ $ spago repl --purs-args "--port 3200"
 ### Run a standalone PureScript file as a script
 
 You can run a standalone PureScript file as a script via `spago script`.
-Note: The module name must be `Main`, and it must export an effectful function `main`.
+Note: The module name must be `Main`, and it must export a function `main :: Effect Unit`.
 
 By default, the following dependencies are installed: `effect`, `console`, `prelude`.
 
