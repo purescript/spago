@@ -409,11 +409,10 @@ Note: The module name must be `Main`, and it must export a function `main :: Eff
 
 By default, the following dependencies are installed: `effect`, `console`, `prelude`.
 
-You can run the script via the following:
+You can run a script via the following, optionally specifying a package set to use, and additional dependencies to pull from there:
 
 ```bash
-$ spago script path/to/script.purs
-```
+$ spago script --tag psc-13.8 -d node-fs path/to/script.purs
 
 
 ### List available packages
