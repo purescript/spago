@@ -16,6 +16,7 @@ ghc-options:
   - -Wincomplete-record-updates
   - -Wredundant-constraints
   - -fprint-potential-instances
+  - -optP-Wno-nonportable-include-path
 
 flags:
   static:
