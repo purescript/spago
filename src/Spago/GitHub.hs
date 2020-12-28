@@ -1,5 +1,8 @@
 {-# LANGUAGE ViewPatterns #-}
-module Spago.GitHub where
+module Spago.GitHub
+  ( getLatestPackageSetsTag
+  , getLatestReleasesFile
+  ) where
 
 import           Spago.Prelude
 import           Spago.Env
@@ -15,9 +18,6 @@ import qualified Data.Map.Strict     as Map
 
 import qualified Spago.Messages      as Messages
 
-
-tokenCacheFile :: IsString t => t
-tokenCacheFile = "github-token.txt"
 
 tagCacheFile :: Text -> Text -> Text
 tagCacheFile org repo = org <> "-" <> repo <> "-tag.txt"

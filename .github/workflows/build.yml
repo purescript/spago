@@ -56,7 +56,7 @@ jobs:
         shell: bash
 
       - name: Build
-        run: stack build
+        run: stack build --pedantic
         shell: bash
 
       - name: Install

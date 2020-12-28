@@ -1,5 +1,6 @@
 module Spago.PackageSet
   ( updatePackageSetVersion
+  , getLatestSetForCompilerVersion
   , checkPursIsUpToDate
   , makePackageSetFile
   , freeze
@@ -13,6 +14,7 @@ import           Spago.Env
 
 import qualified Control.Exception as Exception
 import           Data.Dynamic (fromDynamic)
+import qualified Data.List       as List
 import qualified Data.Map.Strict as Map
 import qualified Data.Text       as Text
 import qualified Data.Versions   as Version
@@ -45,6 +47,26 @@ makePackageSetFile force comments = do
     then writeTextFile packagesPath $ Dhall.processComments comments Templates.packagesDhall
     else logWarn $ display $ Messages.foundExistingProject packagesPath
   Dhall.format packagesPath
+
+getLatestSetForCompilerVersion
+  :: HasLogFunc env
+  => Version.SemVer
+  -> Text
+  -> Text
+  -> RIO env (Either SomeException Text)
+getLatestSetForCompilerVersion compilerVersion org repo = do
+  logDebug $ "Got a compiler version: " <> displayShow compilerVersion
+  -- we first try getting the file with the index of the latest sets
+  eitherLatestReleases <- try $ GitHub.getLatestReleasesFile org repo
+  logDebug $ "Latest releases: " <> displayShow eitherLatestReleases
+  for eitherLatestReleases $ \latestReleases -> do
+    -- if we get that, we just try to pick a set for the current compiler
+    case Map.lookup compilerVersion latestReleases of
+      -- but if the current compiler is not there we complain about compatibility
+      Nothing -> die [ display $ Messages.incompatiblePurs (Version.prettySemVer <$> List.reverse (Map.keys latestReleases))]
+      Just newTag -> do
+        logDebug $ "Found a new tag in the releases file: " <> display newTag
+        pure $ newTag
 
 -- | Use the specified version of the package set (if specified).
 --   Otherwise, get the latest version of the package set if possible
@@ -85,23 +107,12 @@ updatePackageSetVersion maybeTag = do
           -- if we cannot we just get the latest release from GitHub
           logDebug $ display err
           getLatestFromGitHub
-        Right compilerVersion -> do
-          logDebug $ "Got a compiler version: " <> displayShow compilerVersion
-          -- once we have a release we try getting the file with the index of the latest sets
-          eitherLatestReleases <- try $ GitHub.getLatestReleasesFile org repo
-          logDebug $ "Latest releases: " <> displayShow eitherLatestReleases
-          case eitherLatestReleases of
-            -- if we get that, we just try to pick a set for the current compiler
-            Right latestReleases -> do
-              case Map.lookup compilerVersion latestReleases of
-                -- but if the current compiler is not there we complain about compatibility
-                Nothing -> die [ display $ Messages.incompatiblePurs (Version.prettySemVer <$> Map.keys latestReleases)]
-                Just newTag -> do
-                  logDebug $ "Found a new tag in the releases file: " <> display newTag
-                  updateTag org repo currentTag newTag
+        Right compilerVersion ->
+          getLatestSetForCompilerVersion compilerVersion org repo >>= \case
+            Right newTag -> updateTag org repo currentTag newTag
             -- if that fails then we fetch the latest set from GitHub
             -- TODO: check that it's compatible with the current compiler
-            Left (_err :: SomeException) -> getLatestFromGitHub
+            Left _err -> getLatestFromGitHub
 
     -- | Tries to upgrade the package-sets release of the local package set.
     --   It will:
