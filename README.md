@@ -413,6 +413,7 @@ You can run a script via the following, optionally specifying a package set to u
 
 ```bash
 $ spago script --tag psc-13.8 -d node-fs path/to/script.purs
+```
 
 
 ### List available packages
