@@ -1,5 +1,8 @@
 {-# LANGUAGE ViewPatterns #-}
-module Spago.GitHub where
+module Spago.GitHub
+  ( getLatestPackageSetsTag
+  , getLatestReleasesFile
+  ) where
 
 import           Spago.Prelude
 import           Spago.Env
@@ -10,12 +13,11 @@ import qualified Data.Text           as Text
 import qualified Data.Text.Encoding
 import qualified Network.HTTP.Client as Http
 import qualified Network.HTTP.Simple as Http
+import qualified Data.Versions       as Version
+import qualified Data.Map.Strict     as Map
 
 import qualified Spago.Messages      as Messages
 
-
-tokenCacheFile :: IsString t => t
-tokenCacheFile = "github-token.txt"
 
 tagCacheFile :: Text -> Text -> Text
 tagCacheFile org repo = org <> "-" <> repo <> "-tag.txt"
@@ -63,3 +65,15 @@ getLatestPackageSetsTag org repo = do
           logWarn "Error following GitHub redirect, response:"
           logWarn $ displayShow response
           empty
+
+getLatestReleasesFile
+  :: (HasLogFunc env, MonadReader env m, MonadThrow m, MonadIO m)
+  => Text -> Text -> m (Map Version.SemVer Text)
+getLatestReleasesFile org repo = do
+  logDebug $ "Getting `latest-compatible-sets.json` from " <> display org <> "/" <> display repo
+  request <- Http.parseRequest $ "https://raw.githubusercontent.com/" <> (Text.unpack org) <> "/" <> (Text.unpack repo) <> "/master/latest-compatible-sets.json"
+  response <- Http.responseBody <$> Http.httpJSON request
+  let parseVersion (k, v) = case Version.semver k of
+        Left _ -> Nothing
+        Right version -> Just (version, v)
+  pure $ Map.fromList $ mapMaybe parseVersion $ Map.toList response
