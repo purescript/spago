@@ -13,6 +13,7 @@ module Spago.Build
 import           Spago.Prelude hiding (link)
 import           Spago.Env
 
+import qualified Crypto.Hash          as Hash
 import qualified Data.List.NonEmpty   as NonEmpty
 import qualified Data.Set             as Set
 import qualified Data.Text            as Text
@@ -216,27 +217,35 @@ script
   -> [PackageName]
   -> ScriptBuildOptions
   -> RIO env ()
-script modulePath tag packageDeps ScriptBuildOptions{..} = do
+script modulePath tag packageDeps opts@ScriptBuildOptions{..} = do
   logDebug "Running `spago script`"
   absoluteModulePath <- fmap Text.pack (makeAbsolute (Text.unpack modulePath))
-
-  GlobalCache cacheDir _ <- view (the @GlobalCache)
   currentDir <- Turtle.pwd
-  -- TODO: right now every execution of the script will spawn a new temp directory,
-  -- but in the next iterations we'll want to use the system temp and persist the
-  -- directory across executions, identifying it by some hash
-  Temp.withTempDirectory cacheDir "spago-script-tmp" $ \dir -> do
-    let tmpDir = Turtle.fromText (Text.pack dir)
-    Turtle.cd tmpDir
 
-    let dependencies = [ PackageName "effect", PackageName "console", PackageName "prelude" ] <> packageDeps
+  -- This is the part where we make sure that the script reuses the same folder
+  -- if run with the same options more than once. We do that by making a folder
+  -- in the system temp directory, and naming it with the hash of the script
+  -- path together with the command options
+  let sha256 :: String -> String
+      sha256 = show . (Hash.hash :: ByteString -> Hash.Digest Hash.SHA256) . Turtle.fromString
+  systemTemp <- liftIO $ Temp.getCanonicalTemporaryDirectory
+  let stableHash = sha256 (Text.unpack absoluteModulePath <> show tag <> show packageDeps <> show opts)
+  let scriptDirPath = Turtle.decodeString (systemTemp </> "spago-script-tmp-" <> stableHash)
+  logDebug $ "Found a system temp directory: " <> displayShow systemTemp
 
-    config <- Config.makeTempConfig dependencies Nothing [ SourcePath absoluteModulePath ] tag
+  -- We now create and cd into this new temp directory
+  logWarn $ "Creating semi-temp directory to run the script: " <> displayShow scriptDirPath
+  Turtle.mktree scriptDirPath
+  Turtle.cd scriptDirPath
 
-    let runDirs :: RunDirectories
-        runDirs = RunDirectories tmpDir currentDir
+  let dependencies = [ PackageName "effect", PackageName "console", PackageName "prelude" ] <> packageDeps
 
-    Run.withBuildEnv' (Just config) NoPsa (runAction runDirs)
+  config <- Config.makeTempConfig dependencies Nothing [ SourcePath absoluteModulePath ] tag
+
+  let runDirs :: RunDirectories
+      runDirs = RunDirectories scriptDirPath currentDir
+
+  Run.withBuildEnv' (Just config) NoPsa (runAction runDirs)
   where
     runAction dirs = do
       let

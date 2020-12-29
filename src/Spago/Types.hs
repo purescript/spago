@@ -80,7 +80,7 @@ newtype TargetPath = TargetPath { unTargetPath :: Text }
 newtype SourcePath = SourcePath { unSourcePath :: Text }
   deriving newtype (Show, Dhall.FromDhall)
 newtype PursArg = PursArg { unPursArg :: Text }
-  deriving newtype (Eq)
+  deriving newtype (Eq, Show)
 newtype BackendArg = BackendArg { unBackendArg :: Text }
   deriving newtype (Eq)
 
@@ -153,7 +153,7 @@ data ScriptBuildOptions = ScriptBuildOptions
   , beforeCommands :: [Text]
   , thenCommands   :: [Text]
   , elseCommands   :: [Text]
-  }
+  } deriving (Eq, Generic, Show)
 
 
 -- | Spago configuration file type
