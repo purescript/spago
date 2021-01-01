@@ -7,7 +7,7 @@ on:
 
 jobs:
   draft_release:
-    name: Create draft release
+    name: Create release
     runs-on: ubuntu-latest
     outputs:
       upload_url: ${{ steps.create_release.outputs.upload_url }}
@@ -22,8 +22,9 @@ jobs:
           tag_name: ${{ github.ref }}
           release_name: ${{ github.ref }}
           body: ""
-          draft: true
+          draft: false
           prerelease: false
+          commitish: master
 
   build_release:
     name: Build/upload release

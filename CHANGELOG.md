@@ -12,10 +12,11 @@ Breaking changes (😱!!!):
 - **Switch from `-D` to `-d` as shorthand for specifying dependencies within `spago repl` (#712)**
 
 New features:
-- Add `spago script` command. It can be used to run standalone PureScript files as scripts (#712, #683)
+- Add `spago script` command. It can be used to run standalone PureScript files as scripts (#712, #724, #683)
 
 Other improvements:
 - `spago repl` will no longer create a (mostly unused) full project skeleton in a temporary directory when a config is not found (#712)
+- `spago init` and `spago upgrade-set` will now pick the latest set for the available compiler, rathen than just the latest (#721, #687, #657, #666)
 
 ## [0.18.1] - 2020-12-22
 
