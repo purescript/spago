@@ -15,6 +15,7 @@ import           Spago.Env
 
 import qualified Crypto.Hash          as Hash
 import qualified Data.List.NonEmpty   as NonEmpty
+import qualified Data.Map             as Map
 import qualified Data.Set             as Set
 import qualified Data.Text            as Text
 import           System.Directory     (getCurrentDirectory)
@@ -35,6 +36,7 @@ import qualified Spago.FetchPackage   as Fetch
 import qualified Spago.Messages       as Messages
 import qualified Spago.Packages       as Packages
 import qualified Spago.Purs           as Purs
+import           Spago.Purs.Graph
 import qualified Spago.Templates      as Templates
 import qualified Spago.Watch          as Watch
 
@@ -63,6 +65,22 @@ build BuildOptions{..} maybePostBuild = do
   let allPsGlobs = Packages.getGlobs   deps depsOnly configSourcePaths <> sourcePaths
       allJsGlobs = Packages.getJsGlobs deps depsOnly configSourcePaths <> sourcePaths
 
+      checkImports globs = do
+        graph <- Purs.graph globs
+        case graph of
+          Left err -> die [ displayShow err ]
+          Right (ModuleGraph moduleGraph) -> do
+            let
+              getPackage = fmap PackageName . headMay . drop 1 . dropWhile (/= ".spago") . Text.split (== '/')
+              spagoPackages = Map.fromList $ mapMaybe (\((moduleName, ModuleGraphNode{..})) -> (moduleName,) <$> getPackage path) $ Map.toList moduleGraph
+              sourceModuleDeps = Set.fromList (depends . snd =<< filter (isNothing . getPackage . path . snd) (Map.toList moduleGraph))
+              importedPackages = Set.fromList $ mapMaybe (flip Map.lookup spagoPackages) (Set.toList sourceModuleDeps)
+              importedTransitive = importedPackages `Set.difference` Set.fromList dependencies
+            case Set.toList importedTransitive of
+              [] -> pure ()
+              transitive -> die [ display (Messages.sourceImportsTransitiveDependency (map packageName transitive)) ]
+
+
       buildBackend globs = do
         case alternateBackend of
           Nothing ->
@@ -82,6 +100,7 @@ build BuildOptions{..} maybePostBuild = do
               shell backendCmd empty >>= \case
                 ExitSuccess   -> pure ()
                 ExitFailure n -> die [ "Backend " <> displayShow backend <> " exited with error:" <> repr n ]
+        checkImports globs
 
       buildAction globs = do
         env <- Run.getEnv

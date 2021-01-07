@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: dcc2a8871af2db9eb05f8143f9ce2ff0c422d58560e4bcd7c06e5e3cdeb9d36a
+-- hash: adc6f1739429a3be6ab012ed75cef007ef4c38ed850c9a1acf8fcaf1a924002e
 
 name:           spago
 version:        0.19.0
@@ -62,6 +62,7 @@ library
       Spago.Prelude
       Spago.PscPackage
       Spago.Purs
+      Spago.Purs.Graph
       Spago.RunEnv
       Spago.Templates
       Spago.TH

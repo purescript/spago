@@ -228,3 +228,7 @@ globsDoNotMatchWhenWatching patterns = makeMessage $
 
 makeMessage :: [Text] -> Text
 makeMessage = Text.intercalate "\n"
+
+sourceImportsTransitiveDependency :: [Text] -> Text
+sourceImportsTransitiveDependency transitive =
+  "source files import transative dependency " <> Text.intercalate " " transitive

@@ -76,6 +76,7 @@ data Force = Force | NoForce
 data IncludeTransitive = IncludeTransitive | NoIncludeTransitive
 
 newtype ModuleName = ModuleName { unModuleName :: Text }
+  deriving newtype (Eq, FromJSON, FromJSONKey, Ord)
 newtype TargetPath = TargetPath { unTargetPath :: Text }
 newtype SourcePath = SourcePath { unSourcePath :: Text }
   deriving newtype (Show, Dhall.FromDhall)

@@ -1,5 +1,6 @@
 module Spago.Purs
   ( compile
+  , graph
   , repl
   , bundle
   , docs
@@ -11,7 +12,9 @@ module Spago.Purs
 
 import           Spago.Prelude
 import           Spago.Env
+import           Spago.Purs.Graph
 
+import qualified Data.ByteString.Lazy as BSL
 import qualified Data.Text      as Text
 import qualified Data.Text.Encoding as Text.Encoding
 import qualified Data.Text.Encoding.Error as Text.Encoding
@@ -35,6 +38,30 @@ compile sourcePaths extraArgs = do
   runWithOutput cmd
     "Build succeeded."
     "Failed to build."
+
+
+graph
+  :: (HasPurs env, HasLogFunc env)
+  => [SourcePath]
+  -> RIO env (Either Text ModuleGraph)
+graph sourcePaths = do
+  PursCmd purs <- view (the @PursCmd)
+  logDebug $ "Getting module graph with " <> displayShow purs
+  let
+    paths = Text.intercalate " " $ surroundQuote <$> map unSourcePath sourcePaths
+    cmd = purs <> " graph " <> paths
+  Turtle.Bytes.shellStrictWithErr cmd empty >>= \case
+    (ExitSuccess, out, _err) -> do
+      let graphText = Text.Encoding.decodeUtf8With lenientDecode out
+          parsed = decode $ BSL.fromStrict $ encodeUtf8 graphText
+
+      pure $ case parsed of
+        Nothing -> Left $ Messages.failedToParseCommandOutput cmd graphText
+        Just p -> Right p
+
+    (_, _out, _err) ->
+      pure $ Left $ "Failed to run '" <> cmd <> "''"
+
 
 repl :: HasPurs env => [SourcePath] -> [PursArg] -> RIO env ()
 repl sourcePaths extraArgs = do
