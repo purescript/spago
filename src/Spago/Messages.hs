@@ -231,4 +231,4 @@ makeMessage = Text.intercalate "\n"
 
 sourceImportsTransitiveDependency :: [Text] -> Text
 sourceImportsTransitiveDependency transitive =
-  "source files import transative dependency " <> Text.intercalate " " transitive
+  "Source files import from transative dependency: " <> Text.intercalate ", " transitive
