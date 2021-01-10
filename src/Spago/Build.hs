@@ -161,9 +161,8 @@ repl
   -> RIO env ()
 repl newPackages sourcePaths pursArgs depsOnly = do
   logDebug "Running `spago repl`"
-  purs <- Run.getPurs NoPsa
   Config.ensureConfig >>= \case
-    Right config -> Run.withInstallEnv' (Just config) (replAction purs)
+    Right config -> Run.withInstallEnv' (Just config) NoPsa replAction
     Left err -> do
       logDebug err
       GlobalCache cacheDir _ <- view (the @GlobalCache)
@@ -174,11 +173,12 @@ repl newPackages sourcePaths pursArgs depsOnly = do
 
         let dependencies = [ PackageName "effect", PackageName "console", PackageName "psci-support" ] <> newPackages
 
-        config <- Config.makeTempConfig dependencies Nothing [] Nothing
+        config <- Run.withPursEnv NoPsa $ do
+          Config.makeTempConfig dependencies Nothing [] Nothing
 
-        Run.withInstallEnv' (Just config) (replAction purs)
+        Run.withInstallEnv' (Just config) NoPsa replAction
   where
-    replAction purs = do
+    replAction = do
       Config{..} <- view (the @Config)
       deps <- Packages.getProjectDeps
       -- we check that psci-support is in the deps, see #550
@@ -189,7 +189,7 @@ repl newPackages sourcePaths pursArgs depsOnly = do
           ]
       let globs = Packages.getGlobs deps depsOnly (configSourcePaths <> sourcePaths)
       Fetch.fetchPackages deps
-      runRIO purs $ Purs.repl globs pursArgs
+      Purs.repl globs pursArgs
 
 
 -- | Test the project: compile and run "Test.Main"
@@ -259,7 +259,9 @@ script modulePath tag packageDeps opts@ScriptBuildOptions{..} = do
 
   let dependencies = [ PackageName "effect", PackageName "console", PackageName "prelude" ] <> packageDeps
 
-  config <- Config.makeTempConfig dependencies Nothing [ SourcePath absoluteModulePath ] tag
+  PursCmd{..} <- Run.getPurs NoPsa
+  config <- Run.withPursEnv NoPsa $ do
+    Config.makeTempConfig dependencies Nothing [ SourcePath absoluteModulePath ] tag
 
   let runDirs :: RunDirectories
       runDirs = RunDirectories scriptDirPath currentDir

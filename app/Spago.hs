@@ -46,8 +46,6 @@ main = withUtf8 $ do
       -- ### Commands that need only a basic global env
       Init force noComments tag
         -> void $ Spago.Packages.initProject force noComments tag
-      PackageSetUpgrade tag
-        -> Spago.PackageSet.updatePackageSetVersion tag
       Freeze
         -> Spago.PackageSet.freeze Spago.PackageSet.packagesPath
       Version
@@ -63,16 +61,20 @@ main = withUtf8 $ do
       Script modulePath tag dependencies scriptBuildOptions
         -> Spago.Build.script modulePath tag dependencies scriptBuildOptions
 
+      -- ### Commands that need an Env and a PureScript executable
+      PackageSetUpgrade tag -> Run.withPursEnv NoPsa
+        $ Spago.PackageSet.updatePackageSetVersion tag
+
       -- ### Commmands that need only a Package Set
       ListPackages jsonFlag -> Run.withPackageSetEnv
         $ Ls.listPackageSet jsonFlag
 
       -- ### Commands that need an "install environment": global options and a Config
-      Install packageNames -> Run.withInstallEnv
+      Install packageNames -> Run.withInstallEnv NoPsa
         $ Spago.Packages.install packageNames
-      ListDeps jsonFlag transitiveFlag -> Run.withInstallEnv
+      ListDeps jsonFlag transitiveFlag -> Run.withInstallEnv NoPsa
         $ Ls.listPackages transitiveFlag jsonFlag
-      Sources -> Run.withInstallEnv
+      Sources -> Run.withInstallEnv NoPsa
         $ Spago.Packages.sources
 
       -- ### Commands that need a "publish env": install env + git and bower

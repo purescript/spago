@@ -29,7 +29,7 @@ compile
   => [SourcePath] -> [PursArg]
   -> RIO env ()
 compile sourcePaths extraArgs = do
-  PursCmd purs <- view (the @PursCmd)
+  PursCmd { purs } <- view (the @PursCmd)
   logDebug $ "Compiling with " <> displayShow purs
   let
     paths = Text.intercalate " " $ surroundQuote <$> map unSourcePath sourcePaths
@@ -45,7 +45,7 @@ graph
   => [SourcePath]
   -> RIO env (Either Text ModuleGraph)
 graph sourcePaths = do
-  PursCmd purs <- view (the @PursCmd)
+  PursCmd { purs } <- view (the @PursCmd)
   logDebug $ "Getting module graph with " <> displayShow purs
   let
     paths = Text.intercalate " " $ surroundQuote <$> map unSourcePath sourcePaths
@@ -65,7 +65,7 @@ graph sourcePaths = do
 
 repl :: HasPurs env => [SourcePath] -> [PursArg] -> RIO env ()
 repl sourcePaths extraArgs = do
-  PursCmd purs <- view (the @PursCmd)
+  PursCmd { purs } <- view (the @PursCmd)
   let paths = Text.intercalate " " $ surroundQuote <$> map unSourcePath sourcePaths
       args = Text.intercalate " " $ map unPursArg extraArgs
       cmd = purs <> " repl " <> paths <> " " <> args
@@ -128,8 +128,8 @@ docs format sourcePaths = do
     "Docs generation succeeded."
     "Docs generation failed."
 
-pursVersion :: RIO env (Either Text Version.SemVer)
-pursVersion = Turtle.Bytes.shellStrictWithErr (purs <> " --version") empty >>= \case
+pursVersion :: Text -> RIO env (Either Text Version.SemVer)
+pursVersion purs = Turtle.Bytes.shellStrictWithErr (purs <> " --version") empty >>= \case
   (ExitSuccess, out, _err) -> do
     let versionText = headMay $ Text.split (== ' ') (Text.Encoding.decodeUtf8With lenientDecode out)
         parsed = versionText >>= (hush . Version.semver)
@@ -140,8 +140,6 @@ pursVersion = Turtle.Bytes.shellStrictWithErr (purs <> " --version") empty >>= \
         (Text.Encoding.decodeUtf8With Text.Encoding.lenientDecode out)
       Just p -> Right p
   (_, _out, _err) -> pure $ Left $ "Failed to run '" <> purs <> " --version'"
-  where
-    purs = "purs"
 
 
 runWithOutput :: HasLogFunc env => Text -> Text -> Text -> RIO env ()

@@ -15,6 +15,7 @@ import qualified Spago.FetchPackage as FetchPackage
 import qualified Spago.Dhall as Dhall
 import qualified Spago.Messages as Messages
 import qualified Spago.PackageSet as PackageSet
+import qualified Spago.Purs as Purs
 
 -- | Given the global CLI options, it creates the Env for the Spago context
 --   and runs the app
@@ -72,19 +73,22 @@ withPackageSetEnv app = do
 withInstallEnv'
   :: (HasEnv env)
   => Maybe Config
+  -> UsePsa
   -> RIO InstallEnv a
   -> RIO env a
-withInstallEnv' maybeConfig app = do
+withInstallEnv' maybeConfig usePsa app = do
   Env{..} <- getEnv
   envConfig@Config{..} <- case maybeConfig of
     Just c -> pure c
     Nothing -> getConfig
   let envPackageSet = packageSet
+  envPursCmd <- getPurs usePsa
   runRIO InstallEnv{..} app
 
 withInstallEnv
   :: (HasEnv env)
-  => RIO InstallEnv a
+  => UsePsa
+  -> RIO InstallEnv a
   -> RIO env a
 withInstallEnv = withInstallEnv' Nothing
 
@@ -140,6 +144,16 @@ withBuildEnv
   -> RIO env a
 withBuildEnv = withBuildEnv' Nothing
 
+withPursEnv
+  :: HasEnv env
+  => UsePsa
+  -> RIO PursEnv a
+  -> RIO env a
+withPursEnv usePsa app = do
+  Env{..} <- getEnv
+  envPursCmd <- getPurs usePsa
+  runRIO PursEnv{..} app
+
 getEnv :: HasEnv env => RIO env Env
 getEnv = do
   envLogFunc <- view (the @LogFunc)
@@ -162,12 +176,16 @@ getPurs usePsa = do
       Just _  -> pure "psa"
       Nothing -> pure "purs"
   -- We first try this for Windows
-  PursCmd <$> case OS.buildOS of
+  purs <- case OS.buildOS of
     OS.Windows -> do
       findExecutable (pursCandidate <> ".cmd") >>= \case
         Just _ -> pure (Text.pack pursCandidate <> ".cmd")
         Nothing -> findExecutableOrDie pursCandidate
     _ -> findExecutableOrDie pursCandidate
+  compilerVersion <- Purs.pursVersion purs >>= \case
+    Left _ -> die [ "Failed to fetch purs version" ]
+    Right version -> pure version
+  return $ PursCmd {..}
 
 getGit :: HasLogFunc env => RIO env GitCmd
 getGit = GitCmd <$> findExecutableOrDie "git"

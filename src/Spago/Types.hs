@@ -174,9 +174,13 @@ data PublishConfig = PublishConfig
   , publishRepository :: Text
   } deriving (Show, Generic)
 
+data PursCmd = PursCmd
+  { purs :: Text
+  , compilerVersion :: Version.SemVer
+  } deriving (Generic)
+
 newtype Jobs = Jobs Int
 newtype ConfigPath = ConfigPath Text
-newtype PursCmd = PursCmd Text
 newtype GitCmd = GitCmd Text
 newtype BowerCmd = BowerCmd Text
 

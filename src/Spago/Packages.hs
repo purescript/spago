@@ -26,6 +26,7 @@ import qualified Spago.FetchPackage       as Fetch
 import qualified Spago.Messages           as Messages
 import qualified Spago.PackageSet         as PackageSet
 import qualified Spago.Templates          as Templates
+import qualified Spago.RunEnv             as Run
 
 
 -- | Init a new Spago project:
@@ -33,8 +34,8 @@ import qualified Spago.Templates          as Templates
 --   - create `spago.dhall` to manage project config: name, deps, etc
 --   - create an example `src` folder (if needed)
 --   - create an example `test` folder (if needed)
-initProject 
-  :: (HasGlobalCache env, HasLogFunc env, HasConfigPath env)
+initProject
+  :: HasEnv env
   => Force -> Dhall.TemplateComments -> Maybe Text
   -> RIO env Config
 initProject force comments tag = do
@@ -46,7 +47,8 @@ initProject force comments tag = do
 
   -- Use the specified version of the package set (if specified).
   -- Otherwise, get the latest version of the package set if possible
-  PackageSet.updatePackageSetVersion tag
+  Run.withPursEnv NoPsa $ do
+    PackageSet.updatePackageSetVersion tag
 
   -- If these directories (or files) exist, we skip copying "sample sources"
   -- Because you might want to just init a project with your own source files,
@@ -191,7 +193,7 @@ getReverseDeps dep = do
 
 
 -- | Fetch all dependencies into `.spago/`
-install :: (HasEnv env, HasConfig env) => [PackageName] -> RIO env ()
+install :: (HasEnv env, HasConfig env, HasPurs env) => [PackageName] -> RIO env ()
 install newPackages = do
   logDebug "Running `spago install`"
   config@Config{ packageSet = PackageSet{..}, ..} <- view (the @Config)

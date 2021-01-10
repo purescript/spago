@@ -28,7 +28,6 @@ import qualified System.IO
 import qualified Spago.Dhall     as Dhall
 import qualified Spago.GitHub    as GitHub
 import qualified Spago.Messages  as Messages
-import qualified Spago.Purs      as Purs
 import qualified Spago.Templates as Templates
 
 import           Network.HTTP.Client (HttpException (..), HttpExceptionContent (..), responseStatus, )
@@ -72,7 +71,7 @@ getLatestSetForCompilerVersion compilerVersion org repo = do
 --   Otherwise, get the latest version of the package set if possible
 updatePackageSetVersion
   :: forall env
-  .  (HasLogFunc env, HasGlobalCache env)
+  .  (HasLogFunc env, HasGlobalCache env, HasPurs env)
   => Maybe Text
   -> RIO env ()
 updatePackageSetVersion maybeTag = do
@@ -101,18 +100,12 @@ updatePackageSetVersion maybeTag = do
             Left (err :: SomeException) -> do
               logWarn "Was not possible to upgrade the package-sets release"
               logDebug $ "Error: " <> display err
-      -- first let's get the current compiler version
-      Purs.pursVersion >>= \case
-        Left err -> do
-          -- if we cannot we just get the latest release from GitHub
-          logDebug $ display err
-          getLatestFromGitHub
-        Right compilerVersion ->
-          getLatestSetForCompilerVersion compilerVersion org repo >>= \case
-            Right newTag -> updateTag org repo currentTag newTag
-            -- if that fails then we fetch the latest set from GitHub
-            -- TODO: check that it's compatible with the current compiler
-            Left _err -> getLatestFromGitHub
+      PursCmd { compilerVersion } <- view (the @PursCmd)
+      getLatestSetForCompilerVersion compilerVersion org repo >>= \case
+        Right newTag -> updateTag org repo currentTag newTag
+        -- if that fails then we fetch the latest set from GitHub
+        -- TODO: check that it's compatible with the current compiler
+        Left _err -> getLatestFromGitHub
 
     -- | Tries to upgrade the package-sets release of the local package set.
     --   It will:
@@ -196,15 +189,15 @@ updatePackageSetVersion maybeTag = do
     upgradeImports _ _ _ imp = imp
 
 
-checkPursIsUpToDate :: forall env. (HasLogFunc env, HasPackageSet env) => RIO env ()
+checkPursIsUpToDate :: forall env. (HasLogFunc env, HasPackageSet env, HasPurs env) => RIO env ()
 checkPursIsUpToDate = do
   logDebug "Checking if `purs` is up to date"
   PackageSet{..} <- view (the @PackageSet)
-  eitherCompilerVersion <- Purs.pursVersion
-  case (eitherCompilerVersion, packagesMinPursVersion) of
-    (Right compilerVersion, Just pursVersionFromPackageSet) -> performCheck compilerVersion pursVersionFromPackageSet
-    (compilerVersion, packageSetVersion) -> do
-      logWarn "Unable to parse compiler and package set versions, not checking if `purs` is compatible with it.."
+  PursCmd { compilerVersion } <- view (the @PursCmd)
+  case packagesMinPursVersion of
+    Just pursVersionFromPackageSet -> performCheck compilerVersion pursVersionFromPackageSet
+    packageSetVersion -> do
+      logWarn "Unable to parse package set version, not checking if `purs` is compatible with it.."
       logDebug $ "Versions we got:"
       logDebug $ " - from the compiler: " <> displayShow compilerVersion
       logDebug $ " - in package set: " <> displayShow packageSetVersion

@@ -35,7 +35,7 @@ import qualified Spago.PackageSet              as PackageSet
 --       * if yes, download the tar archive and copy it to global and then local cache
 --       * if not, run a series of git commands to get the code, and copy to local cache
 fetchPackages
-  :: (HasLogFunc env, HasJobs env, HasGlobalCache env, HasPackageSet env)
+  :: (HasLogFunc env, HasJobs env, HasGlobalCache env, HasPackageSet env, HasPurs env)
   => [(PackageName, Package)]
   -> RIO env ()
 fetchPackages allDeps = do
