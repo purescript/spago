@@ -18,6 +18,7 @@ import qualified Data.List.NonEmpty   as NonEmpty
 import qualified Data.Map             as Map
 import qualified Data.Set             as Set
 import qualified Data.Text            as Text
+import qualified Data.Versions        as Version
 import           System.Directory     (getCurrentDirectory)
 import           System.FilePath      (splitDirectories)
 import qualified System.FilePath.Glob as Glob
@@ -58,6 +59,7 @@ build
 build BuildOptions{..} maybePostBuild = do
   logDebug "Running `spago build`"
   Config{..} <- view (the @Config)
+  PursCmd { compilerVersion } <- view (the @PursCmd)
   deps <- Packages.getProjectDeps
   case noInstall of
     DoInstall -> Fetch.fetchPackages deps
@@ -66,19 +68,23 @@ build BuildOptions{..} maybePostBuild = do
       allJsGlobs = Packages.getJsGlobs deps depsOnly configSourcePaths <> sourcePaths
 
       checkImports globs = do
-        graph <- Purs.graph globs
-        case graph of
-          Left err -> die [ displayShow err ]
-          Right (ModuleGraph moduleGraph) -> do
-            let
-              getPackage = fmap PackageName . headMay . drop 1 . dropWhile (/= ".spago") . Text.split (== '/')
-              spagoPackages = Map.fromList $ mapMaybe (\((moduleName, ModuleGraphNode{..})) -> (moduleName,) <$> getPackage path) $ Map.toList moduleGraph
-              sourceModuleDeps = Set.fromList (depends . snd =<< filter (isNothing . getPackage . path . snd) (Map.toList moduleGraph))
-              importedPackages = Set.fromList $ mapMaybe (flip Map.lookup spagoPackages) (Set.toList sourceModuleDeps)
-              importedTransitive = importedPackages `Set.difference` Set.fromList dependencies
-            case Set.toList importedTransitive of
-              [] -> pure ()
-              transitive -> die [ display (Messages.sourceImportsTransitiveDependency (map packageName transitive)) ]
+        minVersion <- case Version.semver "0.13.8" of
+          Left _ -> die [ "Unable to parse min version for imports check" ]
+          Right minVersion -> pure minVersion
+        when (compilerVersion >= minVersion) $ do
+          graph <- Purs.graph globs
+          case graph of
+            Left err -> die [ displayShow err ]
+            Right (ModuleGraph moduleGraph) -> do
+              let
+                getPackage = fmap PackageName . headMay . drop 1 . dropWhile (/= ".spago") . Text.split (== '/')
+                spagoPackages = Map.fromList $ mapMaybe (\((moduleName, ModuleGraphNode{..})) -> (moduleName,) <$> getPackage path) $ Map.toList moduleGraph
+                sourceModuleDeps = Set.fromList (depends . snd =<< filter (isNothing . getPackage . path . snd) (Map.toList moduleGraph))
+                importedPackages = Set.fromList $ mapMaybe (flip Map.lookup spagoPackages) (Set.toList sourceModuleDeps)
+                importedTransitive = importedPackages `Set.difference` Set.fromList dependencies
+              case Set.toList importedTransitive of
+                [] -> pure ()
+                transitive -> die [ display (Messages.sourceImportsTransitiveDependency (map packageName transitive)) ]
 
 
       buildBackend globs = do
