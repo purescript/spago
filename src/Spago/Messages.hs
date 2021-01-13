@@ -230,5 +230,7 @@ makeMessage :: [Text] -> Text
 makeMessage = Text.intercalate "\n"
 
 sourceImportsTransitiveDependency :: [Text] -> Text
-sourceImportsTransitiveDependency transitive =
-  "Source files import from transative dependency: " <> Text.intercalate ", " transitive
+sourceImportsTransitiveDependency transitive = makeMessage $
+  [ "Some of your project files import modules from packages that are not in the direct dependencies of your project."
+  , "To fix this error add the following packages to the list of dependencies in your config:"
+  ] <> map (\package -> "- " <> package) transitive
