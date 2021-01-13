@@ -3,12 +3,15 @@ module Spago.Packages
   , install
   , sources
   , getGlobs
+  , getGlobs'
+  , getGlobsSourcePaths
   , getJsGlobs
   , getDirectDeps
   , getProjectDeps
   , getReverseDeps
   , getTransitiveDeps
   , DepsOnly(..)
+  , Globs(..)
   ) where
 
 import           Spago.Prelude
@@ -83,14 +86,28 @@ initProject force comments tag = do
         False -> writeTextFile dest srcTemplate
 
 
+data Globs = Globs
+  { depsGlobs :: Map PackageName SourcePath
+  , projectGlobs :: Maybe [SourcePath]
+  }
+
+getGlobsSourcePaths :: Globs -> [SourcePath]
+getGlobsSourcePaths Globs{..} = Map.elems depsGlobs <> fromMaybe [] projectGlobs
+
 getGlobs :: [(PackageName, Package)] -> DepsOnly -> [SourcePath] -> [SourcePath]
-getGlobs deps depsOnly configSourcePaths
-  = map (\pair
-          -> SourcePath $ Text.pack $ Fetch.getLocalCacheDir pair
-          <> "/src/**/*.purs") deps
-  <> case depsOnly of
-    DepsOnly   -> []
-    AllSources -> configSourcePaths
+getGlobs deps depsOnly configSourcePaths = getGlobsSourcePaths $ getGlobs' deps depsOnly configSourcePaths
+
+getGlobs' :: [(PackageName, Package)] -> DepsOnly -> [SourcePath] -> Globs
+getGlobs' deps depsOnly configSourcePaths = do
+  let
+    projectGlobs = case depsOnly of
+      DepsOnly   -> Nothing
+      AllSources -> Just configSourcePaths
+
+    depsGlobs = Map.fromList $
+      map (\pair@(packageName,_) -> (packageName, SourcePath $ Text.pack $ Fetch.getLocalCacheDir pair <> "/src/**/*.purs")) deps
+
+  Globs{..}
 
 
 getJsGlobs :: [(PackageName, Package)] -> DepsOnly -> [SourcePath] -> [SourcePath]

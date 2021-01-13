@@ -64,7 +64,8 @@ build BuildOptions{..} maybePostBuild = do
   case noInstall of
     DoInstall -> Fetch.fetchPackages deps
     NoInstall -> pure ()
-  let allPsGlobs = Packages.getGlobs   deps depsOnly configSourcePaths <> sourcePaths
+  let partitionedGlobs = Packages.getGlobs' deps depsOnly configSourcePaths
+      allPsGlobs = Packages.getGlobsSourcePaths partitionedGlobs <> sourcePaths
       allJsGlobs = Packages.getJsGlobs deps depsOnly configSourcePaths <> sourcePaths
 
       checkImports globs = do
@@ -193,7 +194,7 @@ repl newPackages sourcePaths pursArgs depsOnly = do
           [ "The package called 'psci-support' needs to be installed for the repl to work properly."
           , "Run `spago install psci-support` to add it to your dependencies."
           ]
-      let globs = Packages.getGlobs deps depsOnly (configSourcePaths <> sourcePaths)
+      let globs = Packages.getGlobs deps depsOnly configSourcePaths <> sourcePaths
       Fetch.fetchPackages deps
       Purs.repl globs pursArgs
 
