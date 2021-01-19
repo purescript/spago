@@ -64,7 +64,7 @@ build BuildOptions{..} maybePostBuild = do
   case noInstall of
     DoInstall -> Fetch.fetchPackages deps
     NoInstall -> pure ()
-  let partitionedGlobs = Packages.getGlobs' deps depsOnly configSourcePaths
+  let partitionedGlobs@(Packages.Globs{..}) = Packages.getGlobs' deps depsOnly configSourcePaths
       allPsGlobs = Packages.getGlobsSourcePaths partitionedGlobs <> sourcePaths
       allJsGlobs = Packages.getJsGlobs deps depsOnly configSourcePaths <> sourcePaths
 
@@ -78,14 +78,48 @@ build BuildOptions{..} maybePostBuild = do
             Left err -> die [ displayShow err ]
             Right (ModuleGraph moduleGraph) -> do
               let
-                getPackage = fmap PackageName . headMay . drop 1 . dropWhile (/= ".spago") . Text.split (== '/')
-                spagoPackages = Map.fromList $ mapMaybe (\((moduleName, ModuleGraphNode{..})) -> (moduleName,) <$> getPackage path) $ Map.toList moduleGraph
-                sourceModuleDeps = Set.fromList (depends . snd =<< filter (isNothing . getPackage . path . snd) (Map.toList moduleGraph))
-                importedPackages = Set.fromList $ mapMaybe (flip Map.lookup spagoPackages) (Set.toList sourceModuleDeps)
-                importedTransitive = importedPackages `Set.difference` Set.fromList dependencies
-              case Set.toList importedTransitive of
-                [] -> pure ()
-                transitive -> die [ display (Messages.sourceImportsTransitiveDependency (map packageName transitive)) ]
+                anyMatch :: Sys.FilePath -> [SourcePath] -> Bool
+                anyMatch path = any (\sourcePath -> Glob.match (Glob.compile (Text.unpack (unSourcePath sourcePath))) path)
+
+                projectModules :: [ModuleName]
+                projectModules = map fst $ filter (\(_, ModuleGraphNode{..}) -> anyMatch (Text.unpack path) (fromMaybe [] projectGlobs)) $ Map.toList moduleGraph
+
+                getImports :: ModuleName -> Set ModuleName
+                getImports = maybe Set.empty (Set.fromList . depends) . flip Map.lookup moduleGraph
+
+                -- All package modules that are imported from our project files
+                importedPackageModules :: Set ModuleName
+                importedPackageModules = foldMap getImports projectModules `Set.difference` Set.fromList projectModules
+
+                getPackage :: Text -> PackageName
+                getPackage path =
+                  maybe undefined id
+                    $ fmap fst
+                    $ find (\(_, sourcePath) -> Glob.match (Glob.compile (Text.unpack (unSourcePath sourcePath))) (Text.unpack path))
+                    $ Map.toList depsGlobs
+
+                importedPackages :: Set PackageName
+                importedPackages = Set.fromList $ mapMaybe (fmap (getPackage . path) . flip Map.lookup moduleGraph) (Set.toList importedPackageModules)
+
+                dependencyPackages :: Set PackageName
+                dependencyPackages = Set.fromList dependencies
+
+              let
+                unusedPackages =
+                  fmap packageName
+                    $ Set.toList
+                    $ Set.difference dependencyPackages importedPackages
+
+                transitivePackages =
+                  fmap packageName
+                    $ Set.toList
+                    $ Set.difference importedPackages dependencyPackages
+
+              unless (null unusedPackages) $ do
+                logWarn $ display $ Messages.unusedDependency unusedPackages
+
+              unless (null transitivePackages) $ do
+                die [ display $ Messages.sourceImportsTransitiveDependency transitivePackages ]
 
 
       buildBackend globs = do
