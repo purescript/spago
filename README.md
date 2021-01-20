@@ -559,7 +559,6 @@ Example:
 let upstream = -- <package set URL here>
 in  upstream
   with foobar = ../foobar/spago.dhall as Location
-  }
 ```
 
 
