@@ -69,7 +69,7 @@ build BuildOptions{..} maybePostBuild = do
       allJsGlobs = Packages.getJsGlobs deps depsOnly configSourcePaths <> sourcePaths
 
       checkImports globs = do
-        minVersion <- case Version.semver "0.13.8" of
+        minVersion <- case Version.semver "0.14.0" of
           Left _ -> die [ "Unable to parse min version for imports check" ]
           Right minVersion -> pure minVersion
         when (compilerVersion >= minVersion) $ do
