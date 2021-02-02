@@ -36,7 +36,7 @@ format pathText = liftIO $
   where
     f = Dhall.Format.format
       . Dhall.Format.Format
-          Dhall.Pretty.ASCII
+          (Just Dhall.Pretty.ASCII)
           Dhall.NoCensor
           (Dhall.PossiblyTransitiveInputFile (Text.unpack pathText) Dhall.NonTransitive)
 

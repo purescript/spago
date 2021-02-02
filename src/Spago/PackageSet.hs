@@ -283,7 +283,7 @@ freeze path = do
       (Dhall.PossiblyTransitiveInputFile path Dhall.NonTransitive)
       Dhall.Freeze.OnlyRemoteImports
       Dhall.Freeze.Secure
-      Dhall.Pretty.ASCII
+      (Just Dhall.Pretty.ASCII)
       Dhall.NoCensor
 
 
