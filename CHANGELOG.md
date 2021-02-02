@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+Other improvements:
+- Bump `dhall` dependency from 1.37.1 to 1.38.0 (#739)
+
+## [0.19.0] - 2021-01-02
+
 Breaking changes (😱!!!):
 - **Deprecate `-d` flag for `deps-only` (#712)** - instead only support the `--deps-only` long form
 - **Switch from `-D` to `-d` as shorthand for specifying dependencies within `spago repl` (#712)**
