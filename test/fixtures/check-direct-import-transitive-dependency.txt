@@ -1,0 +1,3 @@
+[31m[error] [0mSome of your project files import modules from packages that are not in the direct dependencies of your project.^[[0m
+[31m[error] [0mTo fix this error add the following packages to the list of dependencies in your config:[0m
+[31m[error] [0m- prelude[0m
