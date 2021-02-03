@@ -3,7 +3,6 @@ module Spago.RunEnv where
 import Spago.Prelude
 import Spago.Env
 
-import qualified Data.Text as Text
 import qualified System.Environment  as Env
 import qualified Distribution.System as OS
 import qualified RIO
@@ -161,13 +160,7 @@ getPurs usePsa = do
     UsePsa -> findExecutable "psa" >>= \case
       Just _  -> pure "psa"
       Nothing -> pure "purs"
-  -- We first try this for Windows
-  PursCmd <$> case OS.buildOS of
-    OS.Windows -> do
-      findExecutable (pursCandidate <> ".cmd") >>= \case
-        Just _ -> pure (Text.pack pursCandidate <> ".cmd")
-        Nothing -> findExecutableOrDie pursCandidate
-    _ -> findExecutableOrDie pursCandidate
+  PursCmd <$> findExecutableOrDie pursCandidate
 
 getGit :: HasLogFunc env => RIO env GitCmd
 getGit = GitCmd <$> findExecutableOrDie "git"
