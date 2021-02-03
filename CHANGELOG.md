@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Other improvements:
 - Bump `dhall` dependency from 1.37.1 to 1.38.0 (#739)
+- Fix `psa` not being found on Windows (#740, #693)
 
 ## [0.19.0] - 2021-01-02
 
