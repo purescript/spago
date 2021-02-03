@@ -7,11 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-Other improvements:
-- Bump `dhall` dependency from 1.37.1 to 1.38.0 (#739)
+## [0.19.1] - 2021-02-04
+
+Bugfixes:
 - Fix `psa` not being found on Windows (#740, #693)
 
-## [0.19.0] - 2021-01-02
+Other improvements:
+- Bump `dhall` dependency from 1.37.1 to 1.38.0 (#739)
+- Fix caching on Windows CI (#728, #741)
+
+## [0.19.0] - 2021-01-06
 
 Breaking changes (😱!!!):
 - **Deprecate `-d` flag for `deps-only` (#712)** - instead only support the `--deps-only` long form

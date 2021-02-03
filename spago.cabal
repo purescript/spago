@@ -7,7 +7,7 @@ cabal-version: 1.12
 -- hash: dcc2a8871af2db9eb05f8143f9ce2ff0c422d58560e4bcd7c06e5e3cdeb9d36a
 
 name:           spago
-version:        0.19.0
+version:        0.19.1
 description:    Please see the README on GitHub at <https://github.com/purescript/spago#readme>
 homepage:       https://github.com/purescript/spago#readme
 bug-reports:    https://github.com/purescript/spago/issues
