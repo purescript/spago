@@ -4,7 +4,7 @@ import           Control.Concurrent (threadDelay)
 import qualified Data.Text          as Text
 import           Prelude            hiding (FilePath)
 import qualified System.IO.Temp     as Temp
-import           Test.Hspec         (Spec, around_, describe, it, shouldBe, shouldNotBe, shouldNotSatisfy,
+import           Test.Hspec         (Spec, around_, describe, it, shouldBe, shouldNotSatisfy,
                                      shouldReturn, shouldSatisfy)
 import           Turtle             (ExitCode (..), cd, cp, decodeString, empty, encodeString,
                                      mkdir, mktree, mv, pwd, readTextFile, rm, shell,
