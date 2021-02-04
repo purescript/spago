@@ -71,7 +71,7 @@ parsePackage (Dhall.RecordLit ks') = do
   let location = Remote{..}
   pure Package{..}
 parsePackage (Dhall.App
-               (Dhall.Field union (Dhall.FieldSelection { fieldSelectionLabel = "Local", ..}))
+               (Dhall.Field union (Dhall.FieldSelection { fieldSelectionLabel = "Local" }))
                (Dhall.TextLit (Dhall.Chunks [] spagoConfigPath)))
   | isLocationType union = do
       localPath <- case Text.isSuffixOf "/spago.dhall" spagoConfigPath of
@@ -272,7 +272,7 @@ migrateBower Bower.PackageMeta{..} PackageSet{..} = (packageName, dependencies)
           Nothing -> Left $ NonPureScript name
           Just packageSetName | package <- PackageName packageSetName -> case Map.lookup package packagesDB of
             Nothing -> Left $ MissingFromTheSet package
-            Just Package{ location = Local {..} } -> Right package
+            Just Package{ location = Local _ } -> Right package
             Just Package{ location = Remote {..} } -> case SemVer.parseSemVer version of
               Right v | SemVer.matches range v -> Right package
               _                                -> Left $ WrongVersion package range version

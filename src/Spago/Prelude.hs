@@ -98,7 +98,6 @@ import           Data.Either                           as X
 import           Data.Either.Validation                (Validation (..))
 import           Data.Foldable                         as X
 import           Data.Generics.Product                 (the, HasType(..))
-import           Data.List.NonEmpty                    (NonEmpty (..))
 import           Data.Maybe                            as X
 import           Data.Sequence                         (Seq (..))
 import           Data.Text.Prettyprint.Doc             (Pretty)

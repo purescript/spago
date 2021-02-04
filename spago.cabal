@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: dcc2a8871af2db9eb05f8143f9ce2ff0c422d58560e4bcd7c06e5e3cdeb9d36a
+-- hash: f2c71e520a80a0ecc2f0c247093b9182e61b764534b164604f24e13b1ebcb722
 
 name:           spago
 version:        0.19.1
@@ -72,7 +72,7 @@ library
       Paths_spago
   hs-source-dirs:
       src
-  default-extensions: ApplicativeDo BangPatterns BinaryLiterals ConstraintKinds DataKinds DefaultSignatures DeriveDataTypeable DeriveFoldable DeriveFunctor DeriveGeneric DeriveTraversable DerivingStrategies DoAndIfThenElse DuplicateRecordFields EmptyDataDecls ExistentialQuantification FlexibleContexts FlexibleInstances FunctionalDependencies GADTs GeneralizedNewtypeDeriving InstanceSigs KindSignatures LambdaCase LiberalTypeSynonyms MonadFailDesugaring MultiParamTypeClasses MultiWayIf NamedFieldPuns NoImplicitPrelude NoMonomorphismRestriction OverloadedStrings PartialTypeSignatures PatternGuards PolyKinds QuantifiedConstraints RankNTypes RecordWildCards ScopedTypeVariables StandaloneDeriving TupleSections TypeApplications TypeFamilies TypeSynonymInstances UndecidableInstances ViewPatterns
+  default-extensions: ApplicativeDo BangPatterns BinaryLiterals ConstraintKinds DataKinds DefaultSignatures DeriveDataTypeable DeriveFoldable DeriveFunctor DeriveGeneric DeriveTraversable DerivingStrategies DoAndIfThenElse DuplicateRecordFields EmptyDataDecls ExistentialQuantification FlexibleContexts FlexibleInstances FunctionalDependencies GADTs GeneralizedNewtypeDeriving InstanceSigs KindSignatures LambdaCase LiberalTypeSynonyms MultiParamTypeClasses MultiWayIf NamedFieldPuns NoImplicitPrelude NoMonomorphismRestriction OverloadedStrings PartialTypeSignatures PatternGuards PolyKinds QuantifiedConstraints RankNTypes RecordWildCards ScopedTypeVariables StandaloneDeriving TupleSections TypeApplications TypeFamilies TypeSynonymInstances UndecidableInstances ViewPatterns
   ghc-options: -Wall -Wcompat -Wincomplete-record-updates -Wredundant-constraints -fprint-potential-instances -optP-Wno-nonportable-include-path
   build-depends:
       Cabal
@@ -86,7 +86,7 @@ library
     , bytestring
     , containers
     , cryptonite
-    , dhall >=1.38.0
+    , dhall >=1.31.1
     , directory >=1.3.4.0
     , either
     , exceptions
@@ -136,7 +136,7 @@ executable spago
       Paths_spago
   hs-source-dirs:
       app
-  default-extensions: ApplicativeDo BangPatterns BinaryLiterals ConstraintKinds DataKinds DefaultSignatures DeriveDataTypeable DeriveFoldable DeriveFunctor DeriveGeneric DeriveTraversable DerivingStrategies DoAndIfThenElse DuplicateRecordFields EmptyDataDecls ExistentialQuantification FlexibleContexts FlexibleInstances FunctionalDependencies GADTs GeneralizedNewtypeDeriving InstanceSigs KindSignatures LambdaCase LiberalTypeSynonyms MonadFailDesugaring MultiParamTypeClasses MultiWayIf NamedFieldPuns NoImplicitPrelude NoMonomorphismRestriction OverloadedStrings PartialTypeSignatures PatternGuards PolyKinds QuantifiedConstraints RankNTypes RecordWildCards ScopedTypeVariables StandaloneDeriving TupleSections TypeApplications TypeFamilies TypeSynonymInstances UndecidableInstances ViewPatterns
+  default-extensions: ApplicativeDo BangPatterns BinaryLiterals ConstraintKinds DataKinds DefaultSignatures DeriveDataTypeable DeriveFoldable DeriveFunctor DeriveGeneric DeriveTraversable DerivingStrategies DoAndIfThenElse DuplicateRecordFields EmptyDataDecls ExistentialQuantification FlexibleContexts FlexibleInstances FunctionalDependencies GADTs GeneralizedNewtypeDeriving InstanceSigs KindSignatures LambdaCase LiberalTypeSynonyms MultiParamTypeClasses MultiWayIf NamedFieldPuns NoImplicitPrelude NoMonomorphismRestriction OverloadedStrings PartialTypeSignatures PatternGuards PolyKinds QuantifiedConstraints RankNTypes RecordWildCards ScopedTypeVariables StandaloneDeriving TupleSections TypeApplications TypeFamilies TypeSynonymInstances UndecidableInstances ViewPatterns
   ghc-options: -Wall -Wcompat -Wincomplete-record-updates -Wredundant-constraints -fprint-potential-instances -optP-Wno-nonportable-include-path
   build-depends:
       base >=4.7 && <5
@@ -166,7 +166,7 @@ test-suite spec
       Paths_spago
   hs-source-dirs:
       test
-  default-extensions: ApplicativeDo BangPatterns BinaryLiterals ConstraintKinds DataKinds DefaultSignatures DeriveDataTypeable DeriveFoldable DeriveFunctor DeriveGeneric DeriveTraversable DerivingStrategies DoAndIfThenElse DuplicateRecordFields EmptyDataDecls ExistentialQuantification FlexibleContexts FlexibleInstances FunctionalDependencies GADTs GeneralizedNewtypeDeriving InstanceSigs KindSignatures LambdaCase LiberalTypeSynonyms MonadFailDesugaring MultiParamTypeClasses MultiWayIf NamedFieldPuns NoImplicitPrelude NoMonomorphismRestriction OverloadedStrings PartialTypeSignatures PatternGuards PolyKinds QuantifiedConstraints RankNTypes RecordWildCards ScopedTypeVariables StandaloneDeriving TupleSections TypeApplications TypeFamilies TypeSynonymInstances UndecidableInstances ViewPatterns
+  default-extensions: ApplicativeDo BangPatterns BinaryLiterals ConstraintKinds DataKinds DefaultSignatures DeriveDataTypeable DeriveFoldable DeriveFunctor DeriveGeneric DeriveTraversable DerivingStrategies DoAndIfThenElse DuplicateRecordFields EmptyDataDecls ExistentialQuantification FlexibleContexts FlexibleInstances FunctionalDependencies GADTs GeneralizedNewtypeDeriving InstanceSigs KindSignatures LambdaCase LiberalTypeSynonyms MultiParamTypeClasses MultiWayIf NamedFieldPuns NoImplicitPrelude NoMonomorphismRestriction OverloadedStrings PartialTypeSignatures PatternGuards PolyKinds QuantifiedConstraints RankNTypes RecordWildCards ScopedTypeVariables StandaloneDeriving TupleSections TypeApplications TypeFamilies TypeSynonymInstances UndecidableInstances ViewPatterns
   ghc-options: -Wall -Wcompat -Wincomplete-record-updates -Wredundant-constraints -fprint-potential-instances -optP-Wno-nonportable-include-path -threaded -rtsopts -with-rtsopts=-N -main-is Main
   build-depends:
       QuickCheck

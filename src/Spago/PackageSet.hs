@@ -158,11 +158,8 @@ updatePackageSetVersion maybeTag = do
             , directory = Dhall.Directory
               { components = [ currentTag, "download", "releases", repo, org ]}
             }
-          , ..
           }
-        , ..
         }
-      , ..
       } = [(org, repo, currentTag)]
     getCurrentTag _ = []
 
@@ -177,11 +174,9 @@ updatePackageSetVersion maybeTag = do
             { file = "packages.dhall"
             , directory = Dhall.Directory
               { components = [ _currentTag, "download", "releases", upgradeRepo, upgradeOrg ]}
-            , ..
             }
           , ..
           }
-        , ..
         }
       , ..
       }) | upgradeRepo == repo && upgradeOrg == org =
@@ -234,9 +229,7 @@ isRemoteFrozen (Dhall.Import
   { importHashed = Dhall.ImportHashed
     { importType = Dhall.Remote _
     , hash
-    , ..
     }
-  , ..
   })             = [isJust hash]
 isRemoteFrozen _ = []
 

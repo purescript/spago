@@ -59,7 +59,6 @@ default-extensions:
 - KindSignatures
 - LambdaCase
 - LiberalTypeSynonyms
-- MonadFailDesugaring
 - MultiParamTypeClasses
 - MultiWayIf
 - NamedFieldPuns
