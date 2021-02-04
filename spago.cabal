@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 4be47db416691d32f9f0feb68eca30e77b2f21479f1c84cdee5344b0e748155b
+-- hash: 5b94bf4bab7e561d3cd4fe83ab43b446d46e5b9dd936bcc391c8fbe8876fac2a
 
 name:           spago
 version:        0.19.1
@@ -175,8 +175,8 @@ test-suite spec
     , directory
     , extra
     , hspec ==2.*
-    , hspec-megaparsec >=2.0 && <2.1
-    , megaparsec >=7.0 && <8.0
+    , hspec-megaparsec
+    , megaparsec
     , process
     , spago
     , temporary
