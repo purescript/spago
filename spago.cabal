@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: d56076aca9be1fe8c3cc051b8636cb76453b81cc7c3b057152119a53bfe64bcf
+-- hash: 4be47db416691d32f9f0feb68eca30e77b2f21479f1c84cdee5344b0e748155b
 
 name:           spago
 version:        0.19.1
@@ -100,7 +100,7 @@ library
     , http-conduit
     , http-types
     , lens-family-core
-    , megaparsec >=7.0 && <8.0
+    , megaparsec
     , mtl
     , network-uri
     , open-browser

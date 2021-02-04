@@ -109,7 +109,7 @@ library:
   - http-client
   - http-conduit
   - lens-family-core
-  - megaparsec >=7.0 && <8.0
+  - megaparsec
   - mtl
   - network-uri
   - open-browser
