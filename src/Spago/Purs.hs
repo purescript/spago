@@ -104,7 +104,7 @@ docs format sourcePaths = do
 pursVersion :: RIO env (Either Text Version.SemVer)
 pursVersion = Turtle.Bytes.shellStrictWithErr (purs <> " --version") empty >>= \case
   (ExitSuccess, out, _err) -> do
-    let versionText = headMay $ Text.split (== ' ') (Text.Encoding.decodeUtf8With lenientDecode out)
+    let versionText = headMay $ Text.split (== ' ') (Text.strip $ Text.Encoding.decodeUtf8With lenientDecode out)
         parsed = versionText >>= (hush . Version.semver)
 
     pure $ case parsed of
