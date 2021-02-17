@@ -94,7 +94,7 @@ getMetadata = do
 
   logDebug $ "Global cache directory: " <> displayShow globalCacheDir
 
-  let metaURL = "https://raw.githubusercontent.com/spacchetti/package-sets-metadata/master/metadataV1.json"
+  let metaURL = "https://cdn.jsdelivr.net/gh/spacchetti/package-sets-metadata@master/metadataV1.json"
 
       globalPathToMeta = globalCacheDir </> "metadataV1.json"
 

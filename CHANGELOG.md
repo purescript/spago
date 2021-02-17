@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+Other improvements:
+- Fetch global cache metadata file via CDN (_jsDelivr_)
+
 ## [0.19.1] - 2021-02-04
 
 Bugfixes:
