@@ -192,6 +192,10 @@ spec = around_ setup $ do
       spago ["-x", "alternative1.dhall", "install", "simple-json"] >>= shouldBeSuccess
       checkFixture "alternative1.dhall"
 
+    it "Spago should fail when the alternate config file doesn't exist" $ do
+      spago ["init"] >>= shouldBeSuccess
+      spago ["install", "-x", "test.dhall"] >>= shouldBeFailureStderr "alternate-config-missing.txt"
+
     it "Spago should install successfully when the config file is in another directory" $ do
 
       spago ["init"] >>= shouldBeSuccess
