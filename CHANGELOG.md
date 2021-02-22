@@ -7,10 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.19.1] - 2021-02-04
+## [0.19.1] - 2021-02-22
 
 Bugfixes:
 - Fix `psa` not being found on Windows (#740, #693)
+- Use the correct path when erroring out about alternate configurations missing (#746, #747)
 
 Other improvements:
 - Bump `dhall` dependency from 1.37.1 to 1.38.0 (#739)

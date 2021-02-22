@@ -5,7 +5,7 @@ import qualified Data.Text          as Text
 import           Prelude            hiding (FilePath)
 import qualified System.IO.Temp     as Temp
 import           Test.Hspec         (Spec, around_, describe, it, shouldBe, shouldNotSatisfy,
-                                     shouldReturn, shouldSatisfy)
+                                     shouldNotBe, shouldReturn, shouldSatisfy)
 import           Turtle             (ExitCode (..), cd, cp, decodeString, empty, encodeString,
                                      mkdir, mktree, mv, pwd, readTextFile, rm, shell,
                                      shellStrictWithErr, testdir, writeTextFile, (</>))
@@ -191,6 +191,10 @@ spec = around_ setup $ do
       writeTextFile "alternative1.dhall" "./spago.dhall // {dependencies = [\"prelude\"]}"
       spago ["-x", "alternative1.dhall", "install", "simple-json"] >>= shouldBeSuccess
       checkFixture "alternative1.dhall"
+
+    it "Spago should fail when the alternate config file doesn't exist" $ do
+      spago ["init"] >>= shouldBeSuccess
+      spago ["install", "-x", "test.dhall"] >>= shouldBeFailureStderr "alternate-config-missing.txt"
 
     it "Spago should install successfully when the config file is in another directory" $ do
 
@@ -603,9 +607,6 @@ spec = around_ setup $ do
       newPackages <- Text.strip <$> readTextFile "packages.dhall"
       newPackages `shouldBe` packageSetUrl
 
-    {-
-    -- Note: this is commented because of https://github.com/purescript/spago/issues/685#issuecomment-694342262
-
     it "Spago should migrate a package set from an alternative repository from src/packages.dhall" $ do
 
       spago ["init"] >>= shouldBeSuccess
@@ -614,7 +615,6 @@ spec = around_ setup $ do
       newPackages <- Text.strip <$> readTextFile "packages.dhall"
       newPackages `shouldNotBe` "https://github.com/purerl/package-sets/releases/download/erl-0.13.6-20200713/packages.dhall"
       newPackages `shouldSatisfy` Text.isPrefixOf "https://github.com/purerl/package-sets/releases/download"
-    -}
 
     it "Spago should migrate package-set from src/packages.dhall to the user-specified one if it exists" $ do
       -- initialize the project, so that it uses latest package set release
