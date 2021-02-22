@@ -154,7 +154,7 @@ ensureConfig = do
   ConfigPath path <- view (the @ConfigPath)
   exists <- testfile path
   if not exists
-    then pure $ Left $ display Messages.cannotFindConfig
+    then pure $ Left $ display $ Messages.cannotFindConfig path
     else try parseConfig >>= \case
       Right config -> do
         PackageSet.ensureFrozen $ Text.unpack path
@@ -390,7 +390,7 @@ withConfigAST transform = do
   ConfigPath path <- view (the @ConfigPath)
   rawConfig <- liftIO $ Dhall.readRawExpr path
   case rawConfig of
-    Nothing -> die [ display $ Messages.cannotFindConfig ]
+    Nothing -> die [ display $ Messages.cannotFindConfig path ]
     Just (header, expr) -> do
       newExpr <- transformMExpr transform expr
       -- Write the new expression only if it has actually changed
