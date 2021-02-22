@@ -96,9 +96,9 @@ fetchPackage
   .  (HasLogFunc env, HasGlobalCache env)
   => GlobalCache.ReposMetadataV1 -> (PackageName, Package)
   -> RIO env ()
-fetchPackage _ (PackageName package, Package { location = Local{..}, .. }) =
+fetchPackage _ (PackageName package, Package { location = Local{..} }) =
   logInfo $ display $ Messages.foundLocalPackage package localPath
-fetchPackage metadata pair@(packageName'@PackageName{..}, Package{ location = Remote{..}, .. } ) = do
+fetchPackage metadata pair@(packageName'@PackageName{..}, Package{ location = Remote{..} } ) = do
   logDebug $ "Fetching package " <> display packageName
   GlobalCache globalCacheDir cacheFlag <- view (the @GlobalCache)
   let useGlobalCache = cacheFlag /= Just SkipCache
@@ -194,9 +194,9 @@ getPackageDir PackageName{..} version = Text.unpack packageName <> "/" <> Text.u
 --   If the package is from a remote git repo, return the folder inside the local cache
 --   Otherwise return the local folder
 getLocalCacheDir :: (PackageName, Package) -> FilePath.FilePath
-getLocalCacheDir (packageName, Package{ location = Remote{..}, .. }) = do
+getLocalCacheDir (packageName, Package{ location = Remote{..} }) = do
   localCacheDir <> "/" <> getPackageDir packageName version
-getLocalCacheDir (_, Package{ location = Local{..}, .. }) =
+getLocalCacheDir (_, Package{ location = Local{..} }) =
   Text.unpack localPath
 
 

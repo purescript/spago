@@ -65,13 +65,13 @@ formatPackageNames = \case
     formatPackageNamesJson :: [(PackageName, Package)] -> [Text]
     formatPackageNamesJson pkgs =
       let
-        asJson (PackageName{..}, Package{ location = loc@Remote{..}, ..})
+        asJson (PackageName{..}, Package{ location = loc@Remote{..} })
           = JsonPackageOutput
               { json_packageName = packageName
               , json_repo = toJSON loc
               , json_version = version
               }
-        asJson (PackageName{..}, Package { location = loc@Local{..}, ..})
+        asJson (PackageName{..}, Package { location = loc@(Local _), ..})
           = JsonPackageOutput
               { json_packageName = packageName
               , json_repo = toJSON loc
