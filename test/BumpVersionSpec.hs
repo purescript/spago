@@ -1,3 +1,4 @@
+{-# LANGUAGE OverloadedLists #-}
 module BumpVersionSpec (spec) where
 
 import           Data.Versions         (SemVer (..), VUnit (..))
