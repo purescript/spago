@@ -96,6 +96,7 @@ withVerifyEnv usePsa app = do
   Env{..} <- getEnv
   envPursCmd <- getPurs usePsa
   envPackageSet <- getPackageSet
+  envConfig <- hush <$> Config.ensureConfig 
   runRIO VerifyEnv{..} app
 
 withPublishEnv
