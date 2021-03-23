@@ -1,4 +1,4 @@
-resolver: nightly-2021-03-14
+resolver: lts-17.7
 packages:
 - .
 extra-deps:
@@ -10,10 +10,7 @@ extra-deps:
 - time-1.9.3@sha256:8f1b5448722a12a952248b356c9eb366e351226543d9086a2da71270522d5f45,5679
 - unix-2.7.2.2@sha256:ddb8fc5d5eede81dfad7846eceb65267fe4cf8b4f324bc74542f694a32335ef2,3496
 - Win32-2.8.5.0@sha256:50c11fce7ec29c750f199eec0bc97d42e9b8ca80abfbe068c0f474a3727b60ae,4277
-# Using a patched version as upstream doesn't support GHC 8.6.5 (and newer) on Windows
-# See https://github.com/serokell/haskell-with-utf8/issues/9
-- github: f-f/haskell-with-utf8
-  commit: 8ae743ac6503a4c494ea3bd52f1fe7d72f9f125d
+- with-utf8-1.0.2.2
 nix:
   packages: [zlib]
 
