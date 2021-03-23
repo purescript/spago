@@ -99,18 +99,18 @@ mkBowerVersion
   -> RIO env Bower.VersionRange
 mkBowerVersion packageName version (Repo repo) = do
   let args = ["info", "--json", Bower.runPackageName packageName <> "#" <> version]
-  (code, out, err) <- runBower args
+  (code, out, _) <- runBower args
 
-  when (code /= ExitSuccess) $ do
-    die [ display $ "Failed to run: `bower " <> Text.intercalate " " args <> "`", display err ]
+  if (code /= ExitSuccess) then
+    pure $ Bower.VersionRange $ repo <> "#" <> version
+  else do
+    info <- case Aeson.decode $ LazyEncoding.encodeUtf8 $ LazyText.fromStrict out of
+      Just (Object obj) -> pure obj
+      _ -> die [ display $ "Unable to decode output from `bower " <> Text.intercalate " " args <> "`: ", display out ]
 
-  info <- case Aeson.decode $ LazyEncoding.encodeUtf8 $ LazyText.fromStrict out of
-    Just (Object obj) -> pure obj
-    _ -> die [ display $ "Unable to decode output from `bower " <> Text.intercalate " " args <> "`: ", display out ]
-
-  if HashMap.member "version" info
-    then pure $ Bower.VersionRange $ "^" <> version
-    else pure $ Bower.VersionRange $ repo <> "#" <> version
+    if HashMap.member "version" info
+      then pure $ Bower.VersionRange $ "^" <> version
+      else pure $ Bower.VersionRange $ repo <> "#" <> version
 
 
 mkDependencies
