@@ -100,7 +100,8 @@ mkBowerVersion
 mkBowerVersion packageName version (Repo repo) = do
   let args = ["info", "--json", Bower.runPackageName packageName <> "#" <> version]
   (code, out, _) <- runBower args
-
+  -- Here `bower info` likely fails because the package is not in the Bower registry.
+  -- So we just include the full repo for the package - see #682 for more info
   if (code /= ExitSuccess) then
     pure $ Bower.VersionRange $ repo <> "#" <> version
   else do
