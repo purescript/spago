@@ -4,6 +4,7 @@ import Spago.Prelude
 import Spago.Env
 
 import qualified System.Environment  as Env
+import qualified Data.Text           as Text
 import qualified Distribution.System as OS
 import qualified RIO
 import qualified Turtle
