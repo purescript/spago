@@ -429,6 +429,7 @@ spec = around_ setup $ do
         rm "src/Main.purs"
         writeTextFile "src/Main.purs" "module Main where\nimport Prelude\nmain = unit"
         rm "test/Main.purs"
+        spago ["build"]
         spago ["build"] >>= shouldBeFailureStderr "check-direct-import-transitive-dependency.txt"
 
       it "Spago should warn on unused dependencies" $ do
@@ -438,6 +439,7 @@ spec = around_ setup $ do
         rm "src/Main.purs"
         writeTextFile "src/Main.purs" "module Main where\nimport Prelude\nmain :: Unit\nmain = unit"
         rm "test/Main.purs"
+        spago ["build"]
         spago ["build"] >>= shouldBeSuccessStderr "check-unused-dependency.txt"
 
     describe "alternate backend" $ do
