@@ -1,3 +1,70 @@
-[31m[error] [0mSome of your project files import modules from packages that are not in the direct dependencies of your project.^[[0m
-[31m[error] [0mTo fix this error add the following packages to the list of dependencies in your config:[0m
-[31m[error] [0m- prelude[0m
+[34m[info] [0mInstalling 2 dependencies.[0m
+[34m[info] [0mSearching for packages cache metadata..[0m
+[34m[info] [0mRecent packages cache metadata found, using it..[0m
+[34m[info] [0mInstalling "effect"[0m
+[34m[info] [0mInstalling "prelude"[0m
+[34m[info] [0mInstallation complete.[0m
+purs compile: No files found using pattern: test/**/*.purs
+Compiling Type.Data.RowList
+Compiling Type.Data.Row
+Compiling Type.Proxy
+Compiling Record.Unsafe
+Compiling Data.NaturalTransformation
+Compiling Data.Boolean
+Compiling Control.Semigroupoid
+Compiling Control.Category
+Compiling Data.Symbol
+Compiling Data.Show
+Compiling Data.Unit
+Compiling Data.Void
+Compiling Data.Semiring
+Compiling Data.HeytingAlgebra
+Compiling Data.Semigroup
+Compiling Data.Generic.Rep
+Compiling Data.Ring
+Compiling Data.BooleanAlgebra
+Compiling Data.Eq
+Compiling Data.CommutativeRing
+Compiling Data.Ordering
+Compiling Data.EuclideanRing
+Compiling Data.Ord
+Compiling Data.DivisionRing
+Compiling Data.Field
+Compiling Data.Monoid
+Compiling Data.Bounded
+Compiling Data.Function
+Compiling Data.Functor
+Compiling Data.Monoid.Generic
+Compiling Control.Apply
+Compiling Data.Bounded.Generic
+Compiling Control.Applicative
+Compiling Control.Bind
+Compiling Control.Monad
+Compiling Prelude
+Compiling Data.Eq.Generic
+Compiling Data.Monoid.Dual
+Compiling Data.Semigroup.First
+Compiling Data.Ring.Generic
+Compiling Data.Semigroup.Last
+Compiling Data.Monoid.Additive
+Compiling Data.Show.Generic
+Compiling Data.Semiring.Generic
+Compiling Data.Monoid.Multiplicative
+Compiling Data.Monoid.Endo
+Compiling Data.Monoid.Disj
+Compiling Effect
+Compiling Data.Monoid.Conj
+Compiling Data.HeytingAlgebra.Generic
+Compiling Data.Semigroup.Generic
+Compiling Data.Ord.Generic
+Compiling Main
+Compiling Effect.Unsafe
+Compiling Effect.Class
+Compiling Effect.Uncurried
+34m[info] [0mBuild succeeded.[0m
+[33m[warn] [0mNone of your project files import modules from some projects that are in the direct dependencies of your project.
+These dependencies are unused. To fix this warning, remove the following packages from the list of dependencies in your config:
+- effect[0m
+[31m[error] [0mSome of your project files import modules from packages that are not in the direct dependencies of your project.
+To fix this error add the following packages to the list of dependencies in your config:
+- prelude[0m

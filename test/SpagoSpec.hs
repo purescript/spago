@@ -436,9 +436,9 @@ spec = around_ setup $ do
         rm "spago.dhall"
         writeTextFile "spago.dhall" $ "{ name = \"check-imports\", dependencies = [\"effect\", \"prelude\"], packages = ./packages.dhall }"
         rm "src/Main.purs"
-        writeTextFile "src/Main.purs" "module Main where\nimport Prelude\nmain = unit"
+        writeTextFile "src/Main.purs" "module Main where\nimport Prelude\nmain :: Unit\nmain = unit"
         rm "test/Main.purs"
-        spago ["build"] >>= shouldBeFailureStderr "check-unused-dependency.txt"
+        spago ["build"] >>= shouldBeSuccessStderr "check-unused-dependency.txt"
 
     describe "alternate backend" $ do
 
