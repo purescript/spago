@@ -53,7 +53,7 @@ verify chkModsUniq maybePackage = do
           quotedName = surroundQuote $ packageName name
       Fetch.fetchPackages deps
       logInfo $ display $ "Verifying package " <> quotedName
-      Purs.compile globs []
+      compile globs
       logInfo $ display $ "Successfully verified " <> quotedName
 
     compileEverything :: RIO env ()
@@ -63,5 +63,19 @@ verify chkModsUniq maybePackage = do
           globs = Packages.getGlobs deps Packages.DepsOnly []
       Fetch.fetchPackages deps
       logInfo "Compiling everything (will fail if module names conflict)"
-      Purs.compile globs []
+      compile globs
       logInfo "Successfully compiled everything"
+
+    compile :: [SourcePath] -> RIO env ()
+    compile globs = do
+      config <- view (the @(Maybe Config))
+      case config >>= alternateBackend of
+        Nothing ->
+          Purs.compile globs []
+        Just backend -> do
+          Purs.compile globs [ PursArg "--codegen", PursArg "corefn" ]
+          let backendCmd = backend -- In future there will be some arguments here
+          logDebug $ "Running command `" <> display backendCmd <> "`"
+          shell backendCmd empty >>= \case
+            ExitSuccess   -> pure ()
+            ExitFailure n -> die [ "Backend " <> displayShow backend <> " exited with error:" <> repr n ]

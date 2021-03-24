@@ -70,7 +70,7 @@ parsePackage (Dhall.RecordLit ks') = do
   let location = Remote{..}
   pure Package{..}
 parsePackage (Dhall.App
-               (Dhall.Field union (Dhall.FieldSelection { fieldSelectionLabel = "Local", ..}))
+               (Dhall.Field union (Dhall.FieldSelection { fieldSelectionLabel = "Local" }))
                (Dhall.TextLit (Dhall.Chunks [] spagoConfigPath)))
   | isLocationType union = do
       localPath <- case Text.isSuffixOf "/spago.dhall" spagoConfigPath of
@@ -153,7 +153,7 @@ ensureConfig = do
   ConfigPath path <- view (the @ConfigPath)
   exists <- testfile path
   if not exists
-    then pure $ Left $ display Messages.cannotFindConfig
+    then pure $ Left $ display $ Messages.cannotFindConfig path
     else try parseConfig >>= \case
       Right config -> do
         PackageSet.ensureFrozen $ Text.unpack path
@@ -270,7 +270,7 @@ migrateBower Bower.PackageMeta{..} PackageSet{..} = (packageName, dependencies)
           Nothing -> Left $ NonPureScript name
           Just packageSetName | package <- PackageName packageSetName -> case Map.lookup package packagesDB of
             Nothing -> Left $ MissingFromTheSet package
-            Just Package{ location = Local {..} } -> Right package
+            Just Package{ location = Local _ } -> Right package
             Just Package{ location = Remote {..} } -> case SemVer.parseSemVer version of
               Right v | SemVer.matches range v -> Right package
               _                                -> Left $ WrongVersion package range version
@@ -388,7 +388,7 @@ withConfigAST transform = do
   ConfigPath path <- view (the @ConfigPath)
   rawConfig <- liftIO $ Dhall.readRawExpr path
   case rawConfig of
-    Nothing -> die [ display $ Messages.cannotFindConfig ]
+    Nothing -> die [ display $ Messages.cannotFindConfig path ]
     Just (header, expr) -> do
       newExpr <- transformMExpr transform expr
       -- Write the new expression only if it has actually changed

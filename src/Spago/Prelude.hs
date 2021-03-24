@@ -63,7 +63,7 @@ module Spago.Prelude
   , systemStrictWithErr
   , viewShell
   , findExecutableOrDie
-  , Directory.findExecutable
+  , findExecutable
 
   -- * Other
   , Dhall.Core.throws
@@ -81,6 +81,7 @@ import qualified Data.Text.Prettyprint.Doc.Render.Text as PrettyText
 import qualified Data.Time                             as Time
 import           Dhall                                 (Text)
 import qualified Dhall.Core
+import qualified Distribution.System                   as OS
 import qualified RIO
 import qualified System.FilePath                       as FilePath
 import qualified System.IO
@@ -246,11 +247,22 @@ pretty = PrettyText.renderStrict
   . Pretty.layoutPretty Pretty.defaultLayoutOptions
   . Pretty.pretty
 
+-- | Return the full path of the executable we're trying to call. On Windows we
+--   first try the `.cmd` version.
+findExecutable :: MonadIO m => String -> m (Maybe String)
+findExecutable x =
+  case OS.buildOS of
+    OS.Windows -> Directory.findExecutable (x <> ".cmd") >>= \case
+      Nothing -> Directory.findExecutable x
+      success -> pure success
+    _ -> Directory.findExecutable x
+
+
 -- | Return the full path of the executable we're trying to call,
 --   or die trying
 findExecutableOrDie :: HasLogFunc env => String -> RIO env Text
 findExecutableOrDie cmd = do
-  Directory.findExecutable cmd >>= \case
+  findExecutable cmd >>= \case
     Nothing -> die [ "Executable was not found in path: " <> displayShow cmd ]
     -- Note: we ignore the path and just return the input because the one we get
     -- here is absolute, and Windows doesn't seem to be able to deal with that.

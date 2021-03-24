@@ -3,7 +3,6 @@ module Spago.RunEnv where
 import Spago.Prelude
 import Spago.Env
 
-import qualified Data.Text as Text
 import qualified System.Environment  as Env
 import qualified Distribution.System as OS
 import qualified RIO
@@ -101,6 +100,7 @@ withVerifyEnv usePsa app = do
   Env{..} <- getEnv
   envPursCmd <- getPurs usePsa
   envPackageSet <- getPackageSet
+  envConfig <- hush <$> Config.ensureConfig 
   runRIO VerifyEnv{..} app
 
 withPublishEnv

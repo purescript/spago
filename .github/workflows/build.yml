@@ -43,11 +43,33 @@ jobs:
         run: mkdir -p "$HOME/.local/bin"
       - name: Add ~/.local/bin to PATH
         run: echo "$HOME/.local/bin" >> $GITHUB_PATH
-      - uses: actions/cache@v2
+
+      # Caching
+      #
+      # `haskell/actions/setup` will overwrite the STACK_ROOT variable
+      # to "C:\sr" on Windows and `$HOME/.stack` on non-Windows OS.
+      # So, we use OS-specific caching rules to workaround this difference
+      # between OSes.
+      # For Windows, we also cache the folder that stores the GHC we use
+      # as well as other programs it uses.
+      - name: Cache ~/.stack on non-Windows OS
+        uses: actions/cache@v2
+        if: runner.os != 'Windows'
         with:
           path: |
             ~/.stack
           key: ${{ runner.os }}-${{ hashFiles('stack.yaml') }}-1
+      - name: Cache C:\sr on Windows OS
+        uses: actions/cache@v2
+        if: runner.os == 'Windows'
+        with:
+          # Cache both STACK_ROOT and the folder containing
+          # Stack-related files
+          path: |
+            C:\sr
+            $HOME\AppData\Local\Programs\stack\x86_64-windows
+          key: ${{ runner.os }}-${{ hashFiles('stack.yaml') }}-1
+
       - run: npm install -g purescript@0.13.8 psc-package@3.0.1 bower@1.8.8
 
       - name: Install dependencies

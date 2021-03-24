@@ -66,6 +66,7 @@ type HasEnv env =
   )
 
 type HasConfig env = ( HasType Config env, HasPackageSet env )
+type HasMaybeConfig env = ( HasType (Maybe Config) env, HasPackageSet env )
 
 type HasVerifyEnv env =
   ( HasLogFunc env
@@ -73,6 +74,7 @@ type HasVerifyEnv env =
   , HasGlobalCache env
   , HasPurs env
   , HasPackageSet env
+  , HasMaybeConfig env
   )
 
 type HasPublishEnv env =
@@ -115,6 +117,7 @@ data VerifyEnv = VerifyEnv
   , envGlobalCache :: !GlobalCache
   , envPursCmd :: !PursCmd
   , envPackageSet :: !PackageSet
+  , envConfig :: !(Maybe Config)
   } deriving (Generic)
 
 data InstallEnv = InstallEnv

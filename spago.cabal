@@ -7,7 +7,7 @@ cabal-version: 1.12
 -- hash: adc6f1739429a3be6ab012ed75cef007ef4c38ed850c9a1acf8fcaf1a924002e
 
 name:           spago
-version:        0.19.0
+version:        0.19.1
 description:    Please see the README on GitHub at <https://github.com/purescript/spago#readme>
 homepage:       https://github.com/purescript/spago#readme
 bug-reports:    https://github.com/purescript/spago/issues
@@ -87,7 +87,7 @@ library
     , bytestring
     , containers
     , cryptonite
-    , dhall >=1.31.1
+    , dhall >=1.38.0
     , directory >=1.3.4.0
     , either
     , exceptions

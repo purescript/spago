@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+Other improvements:
+- Allow `verify` and `verify-set` to work with alternate backends (when run in the context
+  of a `spago.dhall` with `backend` set)
+
+## [0.19.1] - 2021-02-22
+
+Bugfixes:
+- Fix `psa` not being found on Windows (#740, #693)
+- Use the correct path when erroring out about alternate configurations missing (#746, #747)
+
+Other improvements:
+- Bump `dhall` dependency from 1.37.1 to 1.38.0 (#739)
+- Fix caching on Windows CI (#728, #741)
+
+## [0.19.0] - 2021-01-06
+
 Breaking changes (😱!!!):
 - **Deprecate `-d` flag for `deps-only` (#712)** - instead only support the `--deps-only` long form
 - **Switch from `-D` to `-d` as shorthand for specifying dependencies within `spago repl` (#712)**

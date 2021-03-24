@@ -99,18 +99,19 @@ mkBowerVersion
   -> RIO env Bower.VersionRange
 mkBowerVersion packageName version (Repo repo) = do
   let args = ["info", "--json", Bower.runPackageName packageName <> "#" <> version]
-  (code, out, err) <- runBower args
+  (code, out, _) <- runBower args
+  -- Here `bower info` likely fails because the package is not in the Bower registry.
+  -- So we just include the full repo for the package - see #682 for more info
+  if (code /= ExitSuccess) then
+    pure $ Bower.VersionRange $ repo <> "#" <> version
+  else do
+    info <- case Aeson.decode $ LazyEncoding.encodeUtf8 $ LazyText.fromStrict out of
+      Just (Object obj) -> pure obj
+      _ -> die [ display $ "Unable to decode output from `bower " <> Text.intercalate " " args <> "`: ", display out ]
 
-  when (code /= ExitSuccess) $ do
-    die [ display $ "Failed to run: `bower " <> Text.intercalate " " args <> "`", display err ]
-
-  info <- case Aeson.decode $ LazyEncoding.encodeUtf8 $ LazyText.fromStrict out of
-    Just (Object obj) -> pure obj
-    _ -> die [ display $ "Unable to decode output from `bower " <> Text.intercalate " " args <> "`: ", display out ]
-
-  if HashMap.member "version" info
-    then pure $ Bower.VersionRange $ "^" <> version
-    else pure $ Bower.VersionRange $ repo <> "#" <> version
+    if HashMap.member "version" info
+      then pure $ Bower.VersionRange $ "^" <> version
+      else pure $ Bower.VersionRange $ repo <> "#" <> version
 
 
 mkDependencies
