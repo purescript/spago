@@ -417,20 +417,23 @@ spec = around_ setup $ do
       testdir "output" `shouldReturn` False
 
     describe "import checking" $ do
+
       it "Spago should fail on direct project imports from transitive dependencies" $ do
         spago ["init"] >>= shouldBeSuccess
         rm "spago.dhall"
-        writeTextFile "spago.dhall" $ "{ name = \"check-imports\", dependencies = [\"effect\"], packages = ../packages.dhall }"
+        writeTextFile "spago.dhall" $ "{ name = \"check-imports\", dependencies = [\"effect\"], packages = ./packages.dhall }"
         rm "src/Main.purs"
         writeTextFile "src/Main.purs" "module Main where\nimport Prelude\nmain = unit"
+        rm "test/Main.purs"
         spago ["build"] >>= shouldBeFailureStderr "check-direct-import-transitive-dependency.txt"
 
-     it "Spago should warn on unused dependencies" $ do
+      it "Spago should warn on unused dependencies" $ do
         spago ["init"] >>= shouldBeSuccess
         rm "spago.dhall"
-        writeTextFile "spago.dhall" $ "{ name = \"check-imports\", dependencies = [\"effect\", \"prelude\"], packages = ../packages.dhall }"
+        writeTextFile "spago.dhall" $ "{ name = \"check-imports\", dependencies = [\"effect\", \"prelude\"], packages = ./packages.dhall }"
         rm "src/Main.purs"
         writeTextFile "src/Main.purs" "module Main where\nimport Prelude\nmain = unit"
+        rm "test/Main.purs"
         spago ["build"] >>= shouldBeFailureStderr "check-unused-dependency.txt"
 
     describe "alternate backend" $ do
