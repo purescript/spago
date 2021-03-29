@@ -26,6 +26,7 @@ Other installation methods available:
 - Download the binary from the [latest GitHub release][spago-latest-release]
 - Compile from source by cloning this repo and running `stack install`
 - With Nix, using [easy-purescript-nix][spago-nix]
+- On FreeBSD, install with `pkg install hs-spago`.
 
 **General notes:**
 - The assumption is that you already installed the [PureScript compiler][purescript].
