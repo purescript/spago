@@ -44,6 +44,7 @@ test_script:
   - ps: Start-Sleep -s 5
   - cmd: set PATH=C:\projects\spago\bin;C:\projects\spago\purescript;%PATH%
   - cmd: set XDG_CACHE_HOME=C:\cache
+  - cmd: git config --global core.longpaths true
   - cmd: stack test
   # We install psa and rerun the tests that exercise it
   - cmd: npm install -g purescript-psa
