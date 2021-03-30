@@ -19,6 +19,7 @@ jobs:
         run: |
           git config --global core.autocrlf false
           git config --global core.eol lf
+          git config --global core.longpaths true
       - uses: actions/checkout@v2
       - name: Setup Haskell
         uses: haskell/actions/setup@v1
@@ -70,7 +71,7 @@ jobs:
             $HOME\AppData\Local\Programs\stack\x86_64-windows
           key: ${{ runner.os }}-${{ hashFiles('stack.yaml') }}-1
 
-      - run: npm install -g purescript@0.13.8 psc-package@3.0.1 bower@1.8.8
+      - run: npm install -g purescript@0.14.0 psc-package@3.0.1 bower@1.8.8
 
       - name: Install dependencies
         run: |
