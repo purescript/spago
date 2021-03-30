@@ -162,7 +162,7 @@ parser = do
     backendArgs      = many $ CLI.opt (Just . BackendArg) "exec-args" 'b' "Argument to pass to the backend (run/test only)"
     dependencyPackageNames = many $ CLI.opt (Just . PackageName) "dependency" 'd' "Package name to add as a dependency"
     scriptSource = CLI.arg Just "source" "Source file to run as script"
-    sourcePaths      = many $ CLI.opt (Just . SourcePath) "path" 'p' "Source path to include"
+    sourcePaths      = many $ CLI.opt (Just . SourcePath) "path" 'p' "Source path to include (in addition to paths in spago.dhall)"
 
     packageName     = CLI.arg (Just . PackageName) "package" "Specify a package name. You can list them with `ls packages`"
     packageNames    = many $ CLI.arg (Just . PackageName) "package" "Package name to add as dependency"
