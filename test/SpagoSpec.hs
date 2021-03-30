@@ -129,7 +129,7 @@ spec = around_ setup $ do
     it "Spago should strip 'purescript-' prefix and give warning if package without prefix is present in package set" $ do
 
       spago ["init"] >>= shouldBeSuccess
-      spago ["install"] >>= shouldBeSuccess
+      spago ["install", "safe-coerce"] >>= shouldBeSuccess
       spago ["install", "purescript-newtype"] >>= shouldBeSuccessStderr "spago-install-purescript-prefix-stderr.txt"
       -- dep added without "purescript-" prefix
       checkFileHasInfix "spago.dhall" "\"newtype\""
