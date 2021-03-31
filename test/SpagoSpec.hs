@@ -694,7 +694,7 @@ spec = around_ setup $ do
 
       spago ["init"] >>= shouldBeSuccess
       cp "../fixtures/spago-run-args.purs" "src/Main.purs"
-      spago ["install", "node-process"] >>= shouldBeSuccess
+      spago ["install", "node-process", "arrays"] >>= shouldBeSuccess
       spago ["build"] >>= shouldBeSuccess
       spago ["run", "--exec-args", "hello world"] >>= shouldBeSuccessOutput "run-args-output.txt"
 
@@ -702,7 +702,7 @@ spec = around_ setup $ do
 
       spago ["init"] >>= shouldBeSuccess
       cp "../fixtures/spago-run-args.purs" "src/Main.purs"
-      spago ["install", "node-process"] >>= shouldBeSuccess
+      spago ["install", "node-process", "arrays"] >>= shouldBeSuccess
       spago ["build"] >>= shouldBeSuccess
       spago ["run", "--node-args", "hello world"] >>= shouldBeSuccessOutput "run-args-output.txt"
 
@@ -710,18 +710,18 @@ spec = around_ setup $ do
 
       spago ["init"] >>= shouldBeSuccess
       cp "../fixtures/spago-run-args.purs" "src/Main.purs"
-      spago ["install", "node-process"] >>= shouldBeSuccess
+      spago ["install", "node-process", "arrays"] >>= shouldBeSuccess
       spago ["build"] >>= shouldBeSuccess
       spago ["run", "--exec-args", "hello world", "--node-args", "hallo welt"] >>= shouldBeSuccessOutput "run-args-combined-output.txt"
 
   describe "spago script" $ do
 
-    -- TODO: Once 0.14 of the compiler is released, compilation logs will be sent to `stderr`
+    -- TODO: Once 0.14 of , "arrays"the compiler is released, compilation logs will be sent to `stderr`
     -- At that time, we should add more tests checking the output of the script
 
     it "Spago script should create file in directory where it is executed" $ do
 
-      spago ["script", "../fixtures/spago-script-make-file.purs", "-d", "node-fs"] >>= shouldBeSuccess
+      spago ["script", "../fixtures/spago-script-make-file.purs", "-d", "node-fs", "-d", "node-buffer"] >>= shouldBeSuccess
       checkFixture "spago-script-result.txt"
 
   describe "spago bundle" $ do
