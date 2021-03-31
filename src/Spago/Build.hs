@@ -98,8 +98,14 @@ build BuildOptions{..} maybePostBuild = do
                     $ find (\(_, sourcePath) -> Glob.match (Glob.compile (Text.unpack (unSourcePath sourcePath))) (Text.unpack path))
                     $ Map.toList depsGlobs
 
+                defaultPackages :: Set PackageName
+                defaultPackages = Set.singleton (PackageName "psci-support")
+
                 importedPackages :: Set PackageName
-                importedPackages = Set.fromList $ mapMaybe (fmap (getPackage . path) . flip Map.lookup moduleGraph) (Set.toList importedPackageModules)
+                importedPackages =
+                  Set.fromList
+                    $ mapMaybe (fmap (getPackage . path) . flip Map.lookup moduleGraph)
+                    $ Set.toList importedPackageModules
 
                 dependencyPackages :: Set PackageName
                 dependencyPackages = Set.fromList dependencies
@@ -108,7 +114,8 @@ build BuildOptions{..} maybePostBuild = do
                 unusedPackages =
                   fmap packageName
                     $ Set.toList
-                    $ Set.difference dependencyPackages importedPackages
+                    $ Set.difference dependencyPackages
+                    $ Set.union defaultPackages importedPackages
 
                 transitivePackages =
                   fmap packageName
