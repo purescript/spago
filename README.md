@@ -119,6 +119,8 @@ $ node .
   - [Build and run my project](#build-and-run-my-project)
   - [Test my project](#test-my-project)
   - [Run a repl](#run-a-repl)
+  - [Detect unused dependencies](#detect-unused-dependencies)
+  - [Detect directly imported transitive dependencies](#detect-directly-imported-transitive-dependencies)
   - [Run a standalone PureScript file as a script](#run-a-standalone-purescript-file-as-a-script)
   - [List available packages](#list-available-packages)
   - [Install all the packages in the set](#install-all-the-packages-in-the-set)
@@ -401,6 +403,18 @@ E.g. the following opens a repl on `localhost:3200`:
 ```bash
 $ spago repl --purs-args "--port 3200"
 ```
+
+
+### Detect unused dependencies
+
+`spago build` automatically warns you when your project contains unused dependencies.
+
+
+### Detect direct imports from transitive dependencies
+
+`spago build` will fail when your source files directly import from a transitive dependency.
+This can be help avoid confusing errors when upgrading dependencies,
+such as if one of your dependencies removes the dependency on the package you are importing.
 
 
 ### Run a standalone PureScript file as a script

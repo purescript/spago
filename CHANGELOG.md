@@ -11,6 +11,8 @@ Other improvements:
 - Allow `verify` and `verify-set` to work with alternate backends (when run in the context
   of a `spago.dhall` with `backend` set)
 - Bump `purescript` version used in CI to 0.14.0
+- `spago build` warns on unused dependencies
+- `spago build` fails when source files directly import transitive dependencies
 
 ## [0.19.1] - 2021-02-22
 
