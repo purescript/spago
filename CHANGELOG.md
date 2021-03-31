@@ -10,11 +10,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Breaking changes (😱!!!):
 - `spago build` fails when source files directly import transitive dependencies
 
+## [0.19.2] - 2021-03-31
+
+New features:
+- Allow `verify` and `verify-set` to work with alternate backends, when run in the context of a `spago.dhall` with `backend` set (#754)
+
+Bugfixes:
+- Don't fail `bump-version` if the packages don't exist in the Bower registry (#682)
+
 Other improvements:
-- Allow `verify` and `verify-set` to work with alternate backends (when run in the context
-  of a `spago.dhall` with `backend` set)
-- Bump `purescript` version used in CI to 0.14.0
-- `spago build` warns on unused dependencies
+- CI: bump `purescript` version to 0.14.0 (#759)
+- Docs: add FreeBSD installation instructions (#760)
+- Docs: clarify description for `--path` flag (#762, #761)
 
 ## [0.19.1] - 2021-02-22
 
