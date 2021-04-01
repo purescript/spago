@@ -141,7 +141,7 @@ pursVersion = Turtle.Bytes.shellStrictWithErr (purs <> " --version") empty >>= \
       Just p -> Right p
   (_, _out, _err) -> pure $ Left $ "Failed to run '" <> purs <> " --version'"
   where
-  purs = "purs"
+    purs = "purs"
 
 
 runWithOutput :: HasLogFunc env => Text -> Text -> Text -> RIO env ()
