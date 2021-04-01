@@ -183,7 +183,7 @@ getPurs usePsa = do
         Just _ -> pure (Text.pack pursCandidate <> ".cmd")
         Nothing -> findExecutableOrDie pursCandidate
     _ -> findExecutableOrDie pursCandidate
-  compilerVersion <- Purs.pursVersion purs >>= \case
+  compilerVersion <- Purs.pursVersion >>= \case
     Left _ -> die [ "Failed to fetch purs version" ]
     Right version -> pure version
   return $ PursCmd {..}

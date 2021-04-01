@@ -128,8 +128,8 @@ docs format sourcePaths = do
     "Docs generation succeeded."
     "Docs generation failed."
 
-pursVersion :: Text -> RIO env (Either Text Version.SemVer)
-pursVersion purs = Turtle.Bytes.shellStrictWithErr (purs <> " --version") empty >>= \case
+pursVersion :: RIO env (Either Text Version.SemVer)
+pursVersion = Turtle.Bytes.shellStrictWithErr (purs <> " --version") empty >>= \case
   (ExitSuccess, out, _err) -> do
     let versionText = headMay $ Text.split (== ' ') (Text.strip $ Text.Encoding.decodeUtf8With lenientDecode out)
         parsed = versionText >>= (hush . Version.semver)
@@ -140,6 +140,8 @@ pursVersion purs = Turtle.Bytes.shellStrictWithErr (purs <> " --version") empty 
         (Text.Encoding.decodeUtf8With Text.Encoding.lenientDecode out)
       Just p -> Right p
   (_, _out, _err) -> pure $ Left $ "Failed to run '" <> purs <> " --version'"
+  where
+  purs = "purs"
 
 
 runWithOutput :: HasLogFunc env => Text -> Text -> Text -> RIO env ()
