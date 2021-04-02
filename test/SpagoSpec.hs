@@ -716,7 +716,6 @@ spec = around_ setup $ do
 
   describe "spago script" $ do
 
-    -- TODO: Once 0.14 of , "arrays"the compiler is released, compilation logs will be sent to `stderr`
     -- At that time, we should add more tests checking the output of the script
 
     it "Spago script should create file in directory where it is executed" $ do
