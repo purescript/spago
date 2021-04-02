@@ -29,12 +29,13 @@ compile
   => [SourcePath] -> [PursArg]
   -> RIO env ()
 compile sourcePaths extraArgs = do
-  PursCmd { purs } <- view (the @PursCmd)
-  logDebug $ "Compiling with " <> displayShow purs
+  PursCmd { purs, psa } <- view (the @PursCmd)
+  logDebug $ "Compiling with " <> displayShow (fromMaybe purs psa)
   let
     paths = Text.intercalate " " $ surroundQuote <$> map unSourcePath sourcePaths
     args  = Text.intercalate " " $ map unPursArg extraArgs
-    cmd = purs <> " compile " <> args <> " " <> paths
+    pursCompile = purs <> " compile"
+    cmd = fromMaybe pursCompile psa <> " " <> args <> " " <> paths
   runWithOutput cmd
     "Build succeeded."
     "Failed to build."

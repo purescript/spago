@@ -176,6 +176,7 @@ data PublishConfig = PublishConfig
 
 data PursCmd = PursCmd
   { purs :: Text
+  , psa :: Maybe Text
   , compilerVersion :: Version.SemVer
   } deriving (Generic)
 

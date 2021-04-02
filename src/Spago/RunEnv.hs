@@ -4,7 +4,6 @@ import Spago.Prelude
 import Spago.Env
 
 import qualified System.Environment  as Env
-import qualified Data.Text           as Text
 import qualified Distribution.System as OS
 import qualified RIO
 import qualified Turtle
@@ -170,19 +169,10 @@ getConfig = Config.ensureConfig >>= \case
 
 getPurs :: HasLogFunc env => UsePsa -> RIO env PursCmd
 getPurs usePsa = do
-  -- first we decide if we _want_ to use psa, then if we _can_
-  pursCandidate <- case usePsa of
-    NoPsa -> pure "purs"
-    UsePsa -> findExecutable "psa" >>= \case
-      Just _  -> pure "psa"
-      Nothing -> pure "purs"
-  -- We first try this for Windows
-  purs <- case OS.buildOS of
-    OS.Windows -> do
-      findExecutable (pursCandidate <> ".cmd") >>= \case
-        Just _ -> pure (Text.pack pursCandidate <> ".cmd")
-        Nothing -> findExecutableOrDie pursCandidate
-    _ -> findExecutableOrDie pursCandidate
+  purs <- findExecutableOrDie "purs"
+  psa <- case usePsa of
+    NoPsa -> pure Nothing
+    UsePsa -> findExecutable "psa"
   compilerVersion <- Purs.pursVersion >>= \case
     Left _ -> die [ "Failed to fetch purs version" ]
     Right version -> pure version
