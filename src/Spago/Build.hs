@@ -63,7 +63,7 @@ build BuildOptions{..} maybePostBuild = do
   case noInstall of
     DoInstall -> Fetch.fetchPackages deps
     NoInstall -> pure ()
-  let partitionedGlobs@(Packages.Globs{..}) = Packages.getGlobs' deps depsOnly configSourcePaths
+  let partitionedGlobs@(Packages.Globs{..}) = Packages.getGlobs deps depsOnly configSourcePaths
       allPsGlobs = Packages.getGlobsSourcePaths partitionedGlobs <> sourcePaths
       allJsGlobs = Packages.getJsGlobs deps depsOnly configSourcePaths <> sourcePaths
 
@@ -234,7 +234,9 @@ repl newPackages sourcePaths pursArgs depsOnly = do
           [ "The package called 'psci-support' needs to be installed for the repl to work properly."
           , "Run `spago install psci-support` to add it to your dependencies."
           ]
-      let globs = Packages.getGlobs deps depsOnly configSourcePaths <> sourcePaths
+      let
+        globs =
+          Packages.getGlobsSourcePaths (Packages.getGlobs deps depsOnly configSourcePaths) <> sourcePaths
       Fetch.fetchPackages deps
       Purs.repl globs pursArgs
 
@@ -442,7 +444,7 @@ docs format sourcePaths depsOnly noSearch open = do
   Config{..} <- view (the @Config)
   deps <- Packages.getProjectDeps
   logInfo "Generating documentation for the project. This might take a while..."
-  Purs.docs docsFormat $ Packages.getGlobs deps depsOnly configSourcePaths <> sourcePaths
+  Purs.docs docsFormat $ Packages.getGlobsSourcePaths (Packages.getGlobs deps depsOnly configSourcePaths) <> sourcePaths
 
   when isHTMLFormat $ do
     when (noSearch == AddSearch) $ do
@@ -483,7 +485,7 @@ search = do
 
   logInfo "Building module metadata..."
 
-  Purs.compile (Packages.getGlobs deps Packages.AllSources configSourcePaths)
+  Purs.compile (Packages.getGlobsSourcePaths (Packages.getGlobs deps Packages.AllSources configSourcePaths))
     [ PursArg "--codegen"
     , PursArg "docs"
     ]

@@ -3,7 +3,6 @@ module Spago.Packages
   , install
   , sources
   , getGlobs
-  , getGlobs'
   , getGlobsSourcePaths
   , getJsGlobs
   , getDirectDeps
@@ -94,11 +93,8 @@ data Globs = Globs
 getGlobsSourcePaths :: Globs -> [SourcePath]
 getGlobsSourcePaths Globs{..} = Map.elems depsGlobs <> fromMaybe [] projectGlobs
 
-getGlobs :: [(PackageName, Package)] -> DepsOnly -> [SourcePath] -> [SourcePath]
-getGlobs deps depsOnly configSourcePaths = getGlobsSourcePaths $ getGlobs' deps depsOnly configSourcePaths
-
-getGlobs' :: [(PackageName, Package)] -> DepsOnly -> [SourcePath] -> Globs
-getGlobs' deps depsOnly configSourcePaths = do
+getGlobs :: [(PackageName, Package)] -> DepsOnly -> [SourcePath] -> Globs
+getGlobs deps depsOnly configSourcePaths = do
   let
     projectGlobs = case depsOnly of
       DepsOnly   -> Nothing
@@ -276,5 +272,6 @@ sources = do
   deps <- getProjectDeps
   traverse_ output
     $ fmap unSourcePath
+    $ getGlobsSourcePaths
     $ getGlobs deps AllSources
     $ configSourcePaths config
