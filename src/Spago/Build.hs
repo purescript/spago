@@ -77,24 +77,35 @@ build BuildOptions{..} maybePostBuild = do
             Left err -> logWarn $ displayShow err
             Right (Purs.ModuleGraph moduleGraph) -> do
               let
-                anyMatch :: Sys.FilePath -> [SourcePath] -> Bool
-                anyMatch path = any (\sourcePath -> Glob.match (Glob.compile (Text.unpack (unSourcePath sourcePath))) path)
+                matchesGlob :: Sys.FilePath -> SourcePath -> Bool
+                matchesGlob path sourcePath =
+                  Glob.match (Glob.compile (Text.unpack (unSourcePath sourcePath))) path
+
+                isProjectFile :: Sys.FilePath -> Bool
+                isProjectFile path =
+                  any (matchesGlob path) (fromMaybe [] projectGlobs)
 
                 projectModules :: [ModuleName]
-                projectModules = map fst $ filter (\(_, Purs.ModuleGraphNode{..}) -> anyMatch (Text.unpack path) (fromMaybe [] projectGlobs)) $ Map.toList moduleGraph
+                projectModules =
+                  map fst
+                    $ filter (\(_, Purs.ModuleGraphNode{..}) -> isProjectFile (Text.unpack path))
+                    $ Map.toList moduleGraph
 
                 getImports :: ModuleName -> Set ModuleName
                 getImports = maybe Set.empty (Set.fromList . Purs.depends) . flip Map.lookup moduleGraph
 
                 -- All package modules that are imported from our project files
                 importedPackageModules :: Set ModuleName
-                importedPackageModules = foldMap getImports projectModules `Set.difference` Set.fromList projectModules
+                importedPackageModules =
+                  Set.difference
+                    (foldMap getImports projectModules)
+                    (Set.fromList projectModules)
 
                 getPackage :: Text -> PackageName
                 getPackage path =
                   maybe undefined id
                     $ fmap fst
-                    $ find (\(_, sourcePath) -> Glob.match (Glob.compile (Text.unpack (unSourcePath sourcePath))) (Text.unpack path))
+                    $ find (\(_, sourcePath) -> matchesGlob (Text.unpack path) sourcePath)
                     $ Map.toList depsGlobs
 
                 defaultPackages :: Set PackageName
