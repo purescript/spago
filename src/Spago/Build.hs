@@ -319,7 +319,6 @@ script modulePath tag packageDeps opts@ScriptBuildOptions{..} = do
 
   let dependencies = [ PackageName "effect", PackageName "console", PackageName "prelude" ] <> packageDeps
 
-  PursCmd{..} <- Run.getPurs NoPsa
   config <- Run.withPursEnv NoPsa $ do
     Config.makeTempConfig dependencies Nothing [ SourcePath absoluteModulePath ] tag
 
