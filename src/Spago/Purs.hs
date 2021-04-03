@@ -8,11 +8,12 @@ module Spago.Purs
   , parseDocsFormat
   , findFlag
   , DocsFormat(..)
+  , ModuleGraph(..)
+  , ModuleGraphNode(..)
   ) where
 
 import           Spago.Prelude
 import           Spago.Env
-import           Spago.Purs.Graph
 
 import qualified Data.ByteString.Lazy as BSL
 import qualified Data.Text      as Text
@@ -39,6 +40,17 @@ compile sourcePaths extraArgs = do
   runWithOutput cmd
     "Build succeeded."
     "Failed to build."
+
+
+newtype ModuleGraph = ModuleGraph { unModuleGraph :: Map ModuleName ModuleGraphNode }
+  deriving newtype (FromJSON)
+
+data ModuleGraphNode = ModuleGraphNode
+  { path :: Text
+  , depends :: [ModuleName]
+  } deriving (Generic)
+
+instance FromJSON ModuleGraphNode
 
 
 graph

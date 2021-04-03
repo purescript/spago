@@ -37,7 +37,6 @@ import qualified Spago.FetchPackage   as Fetch
 import qualified Spago.Messages       as Messages
 import qualified Spago.Packages       as Packages
 import qualified Spago.Purs           as Purs
-import           Spago.Purs.Graph
 import qualified Spago.Templates      as Templates
 import qualified Spago.Watch          as Watch
 
@@ -76,16 +75,16 @@ build BuildOptions{..} maybePostBuild = do
           graph <- Purs.graph globs
           case graph of
             Left err -> die [ displayShow err ]
-            Right (ModuleGraph moduleGraph) -> do
+            Right (Purs.ModuleGraph moduleGraph) -> do
               let
                 anyMatch :: Sys.FilePath -> [SourcePath] -> Bool
                 anyMatch path = any (\sourcePath -> Glob.match (Glob.compile (Text.unpack (unSourcePath sourcePath))) path)
 
                 projectModules :: [ModuleName]
-                projectModules = map fst $ filter (\(_, ModuleGraphNode{..}) -> anyMatch (Text.unpack path) (fromMaybe [] projectGlobs)) $ Map.toList moduleGraph
+                projectModules = map fst $ filter (\(_, Purs.ModuleGraphNode{..}) -> anyMatch (Text.unpack path) (fromMaybe [] projectGlobs)) $ Map.toList moduleGraph
 
                 getImports :: ModuleName -> Set ModuleName
-                getImports = maybe Set.empty (Set.fromList . depends) . flip Map.lookup moduleGraph
+                getImports = maybe Set.empty (Set.fromList . Purs.depends) . flip Map.lookup moduleGraph
 
                 -- All package modules that are imported from our project files
                 importedPackageModules :: Set ModuleName
@@ -104,7 +103,7 @@ build BuildOptions{..} maybePostBuild = do
                 importedPackages :: Set PackageName
                 importedPackages =
                   Set.fromList
-                    $ mapMaybe (fmap (getPackage . path) . flip Map.lookup moduleGraph)
+                    $ mapMaybe (fmap (getPackage . Purs.path) . flip Map.lookup moduleGraph)
                     $ Set.toList importedPackageModules
 
                 dependencyPackages :: Set PackageName

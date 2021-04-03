@@ -62,7 +62,6 @@ library
       Spago.Prelude
       Spago.PscPackage
       Spago.Purs
-      Spago.Purs.Graph
       Spago.RunEnv
       Spago.Templates
       Spago.TH
