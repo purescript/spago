@@ -171,7 +171,7 @@ getPurs usePsa = do
     NoPsa -> pure Nothing
     UsePsa -> findExecutable "psa"
   compilerVersion <- Purs.pursVersion >>= \case
-    Left _ -> die [ "Failed to fetch purs version" ]
+    Left err -> die [ "Failed to fetch purs version. Error was:", display err ]
     Right version -> pure version
   return $ PursCmd {..}
 
