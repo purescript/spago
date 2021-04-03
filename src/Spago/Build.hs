@@ -236,7 +236,7 @@ repl newPackages sourcePaths pursArgs depsOnly = do
           ]
       let
         globs =
-          Packages.getGlobsSourcePaths (Packages.getGlobs deps depsOnly configSourcePaths) <> sourcePaths
+          Packages.getGlobsSourcePaths $ Packages.getGlobs deps depsOnly (configSourcePaths <> sourcePaths)
       Fetch.fetchPackages deps
       Purs.repl globs pursArgs
 
