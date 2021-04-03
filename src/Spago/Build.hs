@@ -101,8 +101,8 @@ build BuildOptions{..} maybePostBuild = do
                     (foldMap getImports projectModules)
                     (Set.fromList projectModules)
 
-                getPackage :: Text -> PackageName
-                getPackage path =
+                getPackageFromPath :: Text -> PackageName
+                getPackageFromPath path =
                   maybe undefined id
                     $ fmap fst
                     $ find (\(_, sourcePath) -> matchesGlob (Text.unpack path) sourcePath)
@@ -114,7 +114,7 @@ build BuildOptions{..} maybePostBuild = do
                 importedPackages :: Set PackageName
                 importedPackages =
                   Set.fromList
-                    $ mapMaybe (fmap (getPackage . Purs.path) . flip Map.lookup moduleGraph)
+                    $ mapMaybe (fmap (getPackageFromPath . Purs.path) . flip Map.lookup moduleGraph)
                     $ Set.toList importedPackageModules
 
                 dependencyPackages :: Set PackageName
