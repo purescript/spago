@@ -3,12 +3,14 @@ module Spago.Packages
   , install
   , sources
   , getGlobs
+  , getGlobsSourcePaths
   , getJsGlobs
   , getDirectDeps
   , getProjectDeps
   , getReverseDeps
   , getTransitiveDeps
   , DepsOnly(..)
+  , Globs(..)
   ) where
 
 import           Spago.Prelude
@@ -26,6 +28,7 @@ import qualified Spago.FetchPackage       as Fetch
 import qualified Spago.Messages           as Messages
 import qualified Spago.PackageSet         as PackageSet
 import qualified Spago.Templates          as Templates
+import qualified Spago.RunEnv             as Run
 
 
 -- | Init a new Spago project:
@@ -33,8 +36,8 @@ import qualified Spago.Templates          as Templates
 --   - create `spago.dhall` to manage project config: name, deps, etc
 --   - create an example `src` folder (if needed)
 --   - create an example `test` folder (if needed)
-initProject 
-  :: (HasGlobalCache env, HasLogFunc env, HasConfigPath env)
+initProject
+  :: HasEnv env
   => Force -> Dhall.TemplateComments -> Maybe Text
   -> RIO env Config
 initProject force comments tag = do
@@ -46,7 +49,8 @@ initProject force comments tag = do
 
   -- Use the specified version of the package set (if specified).
   -- Otherwise, get the latest version of the package set if possible
-  PackageSet.updatePackageSetVersion tag
+  Run.withPursEnv NoPsa $ do
+    PackageSet.updatePackageSetVersion tag
 
   -- If these directories (or files) exist, we skip copying "sample sources"
   -- Because you might want to just init a project with your own source files,
@@ -81,14 +85,25 @@ initProject force comments tag = do
         False -> writeTextFile dest srcTemplate
 
 
-getGlobs :: [(PackageName, Package)] -> DepsOnly -> [SourcePath] -> [SourcePath]
-getGlobs deps depsOnly configSourcePaths
-  = map (\pair
-          -> SourcePath $ Text.pack $ Fetch.getLocalCacheDir pair
-          <> "/src/**/*.purs") deps
-  <> case depsOnly of
-    DepsOnly   -> []
-    AllSources -> configSourcePaths
+data Globs = Globs
+  { depsGlobs :: Map PackageName SourcePath
+  , projectGlobs :: Maybe [SourcePath]
+  }
+
+getGlobsSourcePaths :: Globs -> [SourcePath]
+getGlobsSourcePaths Globs{..} = Map.elems depsGlobs <> fromMaybe [] projectGlobs
+
+getGlobs :: [(PackageName, Package)] -> DepsOnly -> [SourcePath] -> Globs
+getGlobs deps depsOnly configSourcePaths = do
+  let
+    projectGlobs = case depsOnly of
+      DepsOnly   -> Nothing
+      AllSources -> Just configSourcePaths
+
+    depsGlobs = Map.fromList $
+      map (\pair@(packageName,_) -> (packageName, SourcePath $ Text.pack $ Fetch.getLocalCacheDir pair <> "/src/**/*.purs")) deps
+
+  Globs{..}
 
 
 getJsGlobs :: [(PackageName, Package)] -> DepsOnly -> [SourcePath] -> [SourcePath]
@@ -257,5 +272,6 @@ sources = do
   deps <- getProjectDeps
   traverse_ output
     $ fmap unSourcePath
+    $ getGlobsSourcePaths
     $ getGlobs deps AllSources
     $ configSourcePaths config

@@ -15,8 +15,10 @@ import           Spago.Env
 
 import qualified Crypto.Hash          as Hash
 import qualified Data.List.NonEmpty   as NonEmpty
+import qualified Data.Map             as Map
 import qualified Data.Set             as Set
 import qualified Data.Text            as Text
+import qualified Data.Versions        as Version
 import           System.Directory     (getCurrentDirectory)
 import           System.FilePath      (splitDirectories)
 import qualified System.FilePath.Glob as Glob
@@ -56,12 +58,85 @@ build
 build BuildOptions{..} maybePostBuild = do
   logDebug "Running `spago build`"
   Config{..} <- view (the @Config)
+  PursCmd { compilerVersion } <- view (the @PursCmd)
   deps <- Packages.getProjectDeps
   case noInstall of
     DoInstall -> Fetch.fetchPackages deps
     NoInstall -> pure ()
-  let allPsGlobs = Packages.getGlobs   deps depsOnly configSourcePaths <> sourcePaths
+  let partitionedGlobs@(Packages.Globs{..}) = Packages.getGlobs deps depsOnly configSourcePaths
+      allPsGlobs = Packages.getGlobsSourcePaths partitionedGlobs <> sourcePaths
       allJsGlobs = Packages.getJsGlobs deps depsOnly configSourcePaths <> sourcePaths
+
+      checkImports globs = do
+        minVersion <- case Version.semver "0.14.0" of
+          Left _ -> die [ "Unable to parse min version for imports check" ]
+          Right minVersion -> pure minVersion
+        when (compilerVersion >= minVersion) $ do
+          graph <- Purs.graph globs
+          case graph of
+            Left err -> logWarn $ displayShow err
+            Right (Purs.ModuleGraph moduleGraph) -> do
+              let
+                matchesGlob :: Sys.FilePath -> SourcePath -> Bool
+                matchesGlob path sourcePath =
+                  Glob.match (Glob.compile (Text.unpack (unSourcePath sourcePath))) path
+
+                isProjectFile :: Sys.FilePath -> Bool
+                isProjectFile path =
+                  any (matchesGlob path) (fromMaybe [] projectGlobs)
+
+                projectModules :: [ModuleName]
+                projectModules =
+                  map fst
+                    $ filter (\(_, Purs.ModuleGraphNode{..}) -> isProjectFile (Text.unpack path))
+                    $ Map.toList moduleGraph
+
+                getImports :: ModuleName -> Set ModuleName
+                getImports = maybe Set.empty (Set.fromList . Purs.depends) . flip Map.lookup moduleGraph
+
+                -- All package modules that are imported from our project files
+                importedPackageModules :: Set ModuleName
+                importedPackageModules =
+                  Set.difference
+                    (foldMap getImports projectModules)
+                    (Set.fromList projectModules)
+
+                getPackageFromPath :: Text -> Maybe PackageName
+                getPackageFromPath path =
+                  fmap fst
+                    $ find (\(_, sourcePath) -> matchesGlob (Text.unpack path) sourcePath)
+                    $ Map.toList depsGlobs
+
+                defaultPackages :: Set PackageName
+                defaultPackages = Set.singleton (PackageName "psci-support")
+
+                importedPackages :: Set PackageName
+                importedPackages =
+                  Set.fromList
+                    $ mapMaybe (getPackageFromPath . Purs.path <=< flip Map.lookup moduleGraph)
+                    $ Set.toList importedPackageModules
+
+                dependencyPackages :: Set PackageName
+                dependencyPackages = Set.fromList dependencies
+
+              let
+                unusedPackages =
+                  fmap packageName
+                    $ Set.toList
+                    $ Set.difference dependencyPackages
+                    $ Set.union defaultPackages importedPackages
+
+                transitivePackages =
+                  fmap packageName
+                    $ Set.toList
+                    $ Set.difference importedPackages dependencyPackages
+
+              unless (null unusedPackages) $ do
+                logWarn $ display $ Messages.unusedDependency unusedPackages
+
+              unless (null transitivePackages) $ do
+                die [ display $ Messages.sourceImportsTransitiveDependency transitivePackages ]
+
 
       buildBackend globs = do
         case alternateBackend of
@@ -82,6 +157,7 @@ build BuildOptions{..} maybePostBuild = do
               shell backendCmd empty >>= \case
                 ExitSuccess   -> pure ()
                 ExitFailure n -> die [ "Backend " <> displayShow backend <> " exited with error:" <> repr n ]
+        checkImports globs
 
       buildAction globs = do
         env <- Run.getEnv
@@ -155,7 +231,8 @@ repl newPackages sourcePaths pursArgs depsOnly = do
 
         let dependencies = [ PackageName "effect", PackageName "console", PackageName "psci-support" ] <> newPackages
 
-        config <- Config.makeTempConfig dependencies Nothing [] Nothing
+        config <- Run.withPursEnv NoPsa $ do
+          Config.makeTempConfig dependencies Nothing [] Nothing
 
         Run.withInstallEnv' (Just config) (replAction purs)
   where
@@ -168,7 +245,9 @@ repl newPackages sourcePaths pursArgs depsOnly = do
           [ "The package called 'psci-support' needs to be installed for the repl to work properly."
           , "Run `spago install psci-support` to add it to your dependencies."
           ]
-      let globs = Packages.getGlobs deps depsOnly (configSourcePaths <> sourcePaths)
+      let
+        globs =
+          Packages.getGlobsSourcePaths $ Packages.getGlobs deps depsOnly (configSourcePaths <> sourcePaths)
       Fetch.fetchPackages deps
       runRIO purs $ Purs.repl globs pursArgs
 
@@ -240,7 +319,8 @@ script modulePath tag packageDeps opts@ScriptBuildOptions{..} = do
 
   let dependencies = [ PackageName "effect", PackageName "console", PackageName "prelude" ] <> packageDeps
 
-  config <- Config.makeTempConfig dependencies Nothing [ SourcePath absoluteModulePath ] tag
+  config <- Run.withPursEnv NoPsa $ do
+    Config.makeTempConfig dependencies Nothing [ SourcePath absoluteModulePath ] tag
 
   let runDirs :: RunDirectories
       runDirs = RunDirectories scriptDirPath currentDir
@@ -374,7 +454,7 @@ docs format sourcePaths depsOnly noSearch open = do
   Config{..} <- view (the @Config)
   deps <- Packages.getProjectDeps
   logInfo "Generating documentation for the project. This might take a while..."
-  Purs.docs docsFormat $ Packages.getGlobs deps depsOnly configSourcePaths <> sourcePaths
+  Purs.docs docsFormat $ Packages.getGlobsSourcePaths (Packages.getGlobs deps depsOnly configSourcePaths) <> sourcePaths
 
   when isHTMLFormat $ do
     when (noSearch == AddSearch) $ do
@@ -415,7 +495,7 @@ search = do
 
   logInfo "Building module metadata..."
 
-  Purs.compile (Packages.getGlobs deps Packages.AllSources configSourcePaths)
+  Purs.compile (Packages.getGlobsSourcePaths (Packages.getGlobs deps Packages.AllSources configSourcePaths))
     [ PursArg "--codegen"
     , PursArg "docs"
     ]

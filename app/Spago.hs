@@ -46,8 +46,6 @@ main = withUtf8 $ do
       -- ### Commands that need only a basic global env
       Init force noComments tag
         -> void $ Spago.Packages.initProject force noComments tag
-      PackageSetUpgrade tag
-        -> Spago.PackageSet.updatePackageSetVersion tag
       Freeze
         -> Spago.PackageSet.freeze Spago.PackageSet.packagesPath
       Version
@@ -62,6 +60,10 @@ main = withUtf8 $ do
         -> Spago.Build.bundleModule modName tPath shouldBuild buildOptions globalUsePsa
       Script modulePath tag dependencies scriptBuildOptions
         -> Spago.Build.script modulePath tag dependencies scriptBuildOptions
+
+      -- ### Commands that need an Env and a PureScript executable
+      PackageSetUpgrade tag -> Run.withPursEnv NoPsa
+        $ Spago.PackageSet.updatePackageSetVersion tag
 
       -- ### Commmands that need only a Package Set
       ListPackages jsonFlag -> Run.withPackageSetEnv

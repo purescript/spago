@@ -14,6 +14,7 @@ import qualified Spago.FetchPackage as FetchPackage
 import qualified Spago.Dhall as Dhall
 import qualified Spago.Messages as Messages
 import qualified Spago.PackageSet as PackageSet
+import qualified Spago.Purs as Purs
 
 -- | Given the global CLI options, it creates the Env for the Spago context
 --   and runs the app
@@ -140,6 +141,16 @@ withBuildEnv
   -> RIO env a
 withBuildEnv = withBuildEnv' Nothing
 
+withPursEnv
+  :: HasEnv env
+  => UsePsa
+  -> RIO PursEnv a
+  -> RIO env a
+withPursEnv usePsa app = do
+  Env{..} <- getEnv
+  envPursCmd <- getPurs usePsa
+  runRIO PursEnv{..} app
+
 getEnv :: HasEnv env => RIO env Env
 getEnv = do
   envLogFunc <- view (the @LogFunc)
@@ -155,13 +166,14 @@ getConfig = Config.ensureConfig >>= \case
 
 getPurs :: HasLogFunc env => UsePsa -> RIO env PursCmd
 getPurs usePsa = do
-  -- first we decide if we _want_ to use psa, then if we _can_
-  pursCandidate <- case usePsa of
-    NoPsa -> pure "purs"
-    UsePsa -> findExecutable "psa" >>= \case
-      Just _  -> pure "psa"
-      Nothing -> pure "purs"
-  PursCmd <$> findExecutableOrDie pursCandidate
+  purs <- findExecutableOrDie "purs"
+  psa <- case usePsa of
+    NoPsa -> pure Nothing
+    UsePsa -> findExecutable "psa"
+  compilerVersion <- Purs.pursVersion >>= \case
+    Left err -> die [ "Failed to fetch purs version. Error was:", display err ]
+    Right version -> pure version
+  return $ PursCmd {..}
 
 getGit :: HasLogFunc env => RIO env GitCmd
 getGit = GitCmd <$> findExecutableOrDie "git"

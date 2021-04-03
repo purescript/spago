@@ -230,3 +230,15 @@ globsDoNotMatchWhenWatching patterns = makeMessage $
 
 makeMessage :: [Text] -> Text
 makeMessage = Text.intercalate "\n"
+
+unusedDependency :: [Text] -> Text
+unusedDependency unused = makeMessage $
+  [ "None of your project files import modules from some projects that are in the direct dependencies of your project."
+  , "These dependencies are unused. To fix this warning, remove the following packages from the list of dependencies in your config:"
+  ] <> map (\package -> "- " <> package) unused
+
+sourceImportsTransitiveDependency :: [Text] -> Text
+sourceImportsTransitiveDependency transitive = makeMessage $
+  [ "Some of your project files import modules from packages that are not in the direct dependencies of your project."
+  , "To fix this error add the following packages to the list of dependencies in your config:"
+  ] <> map (\package -> "- " <> package) transitive
