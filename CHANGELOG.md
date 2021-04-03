@@ -10,6 +10,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Breaking changes (😱!!!):
 - `spago build` fails when source files directly import transitive dependencies
 
+Bugfixes:
+- Fixed call to `psa` to avoid warning being printed
+
+Other improvements:
+- `spago build` detects and warns about unused dependencies
+
 ## [0.19.2] - 2021-03-31
 
 New features:
