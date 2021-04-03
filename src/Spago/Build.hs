@@ -218,8 +218,9 @@ repl
   -> RIO env ()
 repl newPackages sourcePaths pursArgs depsOnly = do
   logDebug "Running `spago repl`"
+  purs <- Run.getPurs NoPsa
   Config.ensureConfig >>= \case
-    Right config -> Run.withInstallEnv' (Just config) NoPsa replAction
+    Right config -> Run.withInstallEnv' (Just config) (replAction purs)
     Left err -> do
       logDebug err
       GlobalCache cacheDir _ <- view (the @GlobalCache)
@@ -233,9 +234,9 @@ repl newPackages sourcePaths pursArgs depsOnly = do
         config <- Run.withPursEnv NoPsa $ do
           Config.makeTempConfig dependencies Nothing [] Nothing
 
-        Run.withInstallEnv' (Just config) NoPsa replAction
+        Run.withInstallEnv' (Just config) (replAction purs)
   where
-    replAction = do
+    replAction purs = do
       Config{..} <- view (the @Config)
       deps <- Packages.getProjectDeps
       -- we check that psci-support is in the deps, see #550
@@ -248,7 +249,7 @@ repl newPackages sourcePaths pursArgs depsOnly = do
         globs =
           Packages.getGlobsSourcePaths $ Packages.getGlobs deps depsOnly (configSourcePaths <> sourcePaths)
       Fetch.fetchPackages deps
-      Purs.repl globs pursArgs
+      runRIO purs $ Purs.repl globs pursArgs
 
 
 -- | Test the project: compile and run "Test.Main"

@@ -126,7 +126,6 @@ data InstallEnv = InstallEnv
   , envConfigPath :: !ConfigPath
   , envGlobalCache :: !GlobalCache
   , envPackageSet :: !PackageSet
-  , envPursCmd :: !PursCmd
   , envConfig :: !Config
   } deriving (Generic)
 

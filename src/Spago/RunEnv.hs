@@ -72,22 +72,19 @@ withPackageSetEnv app = do
 withInstallEnv'
   :: (HasEnv env)
   => Maybe Config
-  -> UsePsa
   -> RIO InstallEnv a
   -> RIO env a
-withInstallEnv' maybeConfig usePsa app = do
+withInstallEnv' maybeConfig app = do
   Env{..} <- getEnv
   envConfig@Config{..} <- case maybeConfig of
     Just c -> pure c
     Nothing -> getConfig
   let envPackageSet = packageSet
-  envPursCmd <- getPurs usePsa
   runRIO InstallEnv{..} app
 
 withInstallEnv
   :: (HasEnv env)
-  => UsePsa
-  -> RIO InstallEnv a
+  => RIO InstallEnv a
   -> RIO env a
 withInstallEnv = withInstallEnv' Nothing
 

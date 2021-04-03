@@ -29,6 +29,7 @@ import qualified Spago.Dhall     as Dhall
 import qualified Spago.GitHub    as GitHub
 import qualified Spago.Messages  as Messages
 import qualified Spago.Templates as Templates
+import qualified Spago.Purs      as Purs
 
 import           Network.HTTP.Client (HttpException (..), HttpExceptionContent (..), responseStatus, )
 import           Network.HTTP.Types.Status (status404)
@@ -184,15 +185,15 @@ updatePackageSetVersion maybeTag = do
     upgradeImports _ _ _ imp = imp
 
 
-checkPursIsUpToDate :: forall env. (HasLogFunc env, HasPackageSet env, HasPurs env) => RIO env ()
+checkPursIsUpToDate :: forall env. (HasLogFunc env, HasPackageSet env) => RIO env ()
 checkPursIsUpToDate = do
   logDebug "Checking if `purs` is up to date"
   PackageSet{..} <- view (the @PackageSet)
-  PursCmd { compilerVersion } <- view (the @PursCmd)
-  case packagesMinPursVersion of
-    Just pursVersionFromPackageSet -> performCheck compilerVersion pursVersionFromPackageSet
-    packageSetVersion -> do
-      logWarn "Unable to parse package set version, not checking if `purs` is compatible with it.."
+  eitherCompilerVersion <- Purs.pursVersion
+  case (eitherCompilerVersion, packagesMinPursVersion) of
+    (Right compilerVersion, Just pursVersionFromPackageSet) -> performCheck compilerVersion pursVersionFromPackageSet
+    (compilerVersion, packageSetVersion) -> do
+      logWarn "Unable to parse compiler and package set versions, not checking if `purs` is compatible with it.."
       logDebug $ "Versions we got:"
       logDebug $ " - from the compiler: " <> displayShow compilerVersion
       logDebug $ " - in package set: " <> displayShow packageSetVersion

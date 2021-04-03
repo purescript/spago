@@ -206,7 +206,7 @@ getReverseDeps dep = do
 
 
 -- | Fetch all dependencies into `.spago/`
-install :: (HasEnv env, HasConfig env, HasPurs env) => [PackageName] -> RIO env ()
+install :: (HasEnv env, HasConfig env) => [PackageName] -> RIO env ()
 install newPackages = do
   logDebug "Running `spago install`"
   config@Config{ packageSet = PackageSet{..}, ..} <- view (the @Config)
