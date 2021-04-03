@@ -74,7 +74,7 @@ build BuildOptions{..} maybePostBuild = do
         when (compilerVersion >= minVersion) $ do
           graph <- Purs.graph globs
           case graph of
-            Left err -> die [ displayShow err ]
+            Left err -> logWarn $ displayShow err
             Right (Purs.ModuleGraph moduleGraph) -> do
               let
                 anyMatch :: Sys.FilePath -> [SourcePath] -> Bool
