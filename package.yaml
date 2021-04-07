@@ -1,5 +1,5 @@
 name:                spago
-version:             0.19.2
+version:             0.20.0
 github:              "purescript/spago"
 license:             BSD3
 author:              "Justin Woo, Fabrizio Ferrai"
@@ -95,7 +95,7 @@ library:
   - Cabal
   - containers
   - cryptonite
-  - dhall >= 1.31.1
+  - dhall >= 1.38.0
   - directory >= 1.3.4.0
   - either
   - exceptions
