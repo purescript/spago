@@ -14,6 +14,7 @@ Breaking changes (😱!!!):
 
 Bugfixes:
 - Properly call `psa` to avoid warnings (#730)
+- Color output now works on Windows (#749)
 
 Other improvements:
 - `spago build` now detects and warns about unused dependencies (#730, #598)

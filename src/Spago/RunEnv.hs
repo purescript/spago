@@ -3,6 +3,7 @@ module Spago.RunEnv where
 import Spago.Prelude
 import Spago.Env
 
+import           System.Console.ANSI (hSupportsANSIWithoutEmulation)
 import qualified System.Environment  as Env
 import qualified Distribution.System as OS
 import qualified RIO
@@ -20,14 +21,17 @@ import qualified Spago.Purs as Purs
 --   and runs the app
 withEnv :: GlobalOptions -> RIO Env a -> IO a
 withEnv GlobalOptions{..} app = do
+  let logHandle = stderr
   let verbose = not globalQuiet && (globalVerbose || globalVeryVerbose)
 
   -- https://github.com/purescript/spago/issues/579
   maybeTerm <- Env.lookupEnv "TERM"
   let termDumb = maybeTerm == Just "dumb" || maybeTerm == Just "win"
-  let useColor = globalUseColor && not termDumb
+  supportsAnsi <- hSupportsANSIWithoutEmulation logHandle
+  let useColor = case supportsAnsi of
+        Just True -> globalUseColor && not termDumb
+        _ -> False
 
-  let logHandle = stderr
   logOptions' <- logOptionsHandle logHandle verbose
   let logOptions
         = setLogUseTime globalVeryVerbose
