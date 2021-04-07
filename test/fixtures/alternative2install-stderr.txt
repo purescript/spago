@@ -1,2 +1,2 @@
-[33m[warn] [0mFailed to add dependencies. You should have a record with the `dependencies` key for this to work.[0m
-[33m[warn] [0mConfiguration file was not updated.[0m
+[warn] Failed to add dependencies. You should have a record with the `dependencies` key for this to work.
+[warn] Configuration file was not updated.

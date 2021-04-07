@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+Bugfixes:
+- Color output now works correctly or is disabled on Windows (#768, #749)
+
+Other improvements:
+- Color output is now automatically disabled when output is redirected to a file.
+  Also respects a [`NO_COLOR`](https://no-color.org/) environment variable (#768)
+
 ## [0.20.0] - 2021-04-07
 
 Breaking changes (😱!!!):
@@ -14,7 +21,6 @@ Breaking changes (😱!!!):
 
 Bugfixes:
 - Properly call `psa` to avoid warnings (#730)
-- Color output now works on Windows (#749)
 
 Other improvements:
 - `spago build` now detects and warns about unused dependencies (#730, #598)

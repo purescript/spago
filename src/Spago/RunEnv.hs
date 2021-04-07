@@ -27,10 +27,12 @@ withEnv GlobalOptions{..} app = do
   -- https://github.com/purescript/spago/issues/579
   maybeTerm <- Env.lookupEnv "TERM"
   let termDumb = maybeTerm == Just "dumb" || maybeTerm == Just "win"
-  supportsAnsi <- hSupportsANSIWithoutEmulation logHandle
-  let useColor = case supportsAnsi of
-        Just True -> globalUseColor && not termDumb
-        _ -> False
+  -- Check if the terminal supports color. On Windows 10, terminal colors are enabled
+  -- here as a side effect. Returns Nothing if output is redirected to a file.
+  supportsAnsi <- hSupportsANSIWithoutEmulation logHandle <&> (== Just True)
+  -- Also support NO_COLOR spec https://no-color.org/
+  noColor <- Env.lookupEnv "NO_COLOR" <&> isJust
+  let useColor = globalUseColor && not termDumb && not noColor && supportsAnsi
 
   logOptions' <- logOptionsHandle logHandle verbose
   let logOptions

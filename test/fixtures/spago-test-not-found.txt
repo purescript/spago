@@ -1,1 +1,1 @@
-[31m[error] [0mModule 'Test.Main' not found! Are you including it in your build?[0m
+[error] Module 'Test.Main' not found! Are you including it in your build?
