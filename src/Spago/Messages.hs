@@ -242,3 +242,5 @@ sourceImportsTransitiveDependency transitive = makeMessage $
   [ "Some of your project files import modules from packages that are not in the direct dependencies of your project."
   , "To fix this error add the following packages to the list of dependencies in your config:"
   ] <> map (\package -> "- " <> package) transitive
+  <> [ "You may install those packages by running the following command:"
+  , "spago install " <> Text.intercalate " " transitive ]

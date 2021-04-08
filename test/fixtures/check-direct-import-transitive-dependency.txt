@@ -5,4 +5,6 @@ These dependencies are unused. To fix this warning, remove the following package
 - effect[0m
 [31m[error] [0mSome of your project files import modules from packages that are not in the direct dependencies of your project.
 To fix this error add the following packages to the list of dependencies in your config:
-- prelude[0m
+- prelude
+You may install those packages by running the following command:
+spago install prelude[0m
