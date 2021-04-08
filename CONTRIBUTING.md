@@ -86,6 +86,7 @@ $ stack test
 $ stack test --test-arguments='--match "/Spago/spago run/Spago should use exec-args"'
 ```
 
+Note that you may need to uninstall [`purescript-psa`](https://github.com/natefaubion/purescript-psa) for tests to pass.
 
 ## Merging changes
 
