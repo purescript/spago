@@ -1,1 +1,1 @@
-[31m[error] [0mCould not find a valid "spago.dhall" or "packages.dhall"[0m
+[error] Could not find a valid "spago.dhall" or "packages.dhall"

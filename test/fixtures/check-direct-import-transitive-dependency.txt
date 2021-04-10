@@ -1,9 +1,9 @@
 purs compile: No files found using pattern: test/**/*.purs
-[34m[info] [0mBuild succeeded.[0m
-[33m[warn] [0mNone of your project files import modules from some projects that are in the direct dependencies of your project.
+[info] Build succeeded.
+[warn] None of your project files import modules from some projects that are in the direct dependencies of your project.
 These dependencies are unused. To fix this warning, remove the following packages from the list of dependencies in your config:
-- effect[0m
-[31m[error] [0mSome of your project files import modules from packages that are not in the direct dependencies of your project.
+- effect
+[error] Some of your project files import modules from packages that are not in the direct dependencies of your project.
 To fix this error add the following packages to the list of dependencies in your config:
 - maybe
 - prelude

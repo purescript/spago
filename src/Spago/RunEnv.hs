@@ -3,6 +3,7 @@ module Spago.RunEnv where
 import Spago.Prelude
 import Spago.Env
 
+import           System.Console.ANSI (hSupportsANSIWithoutEmulation)
 import qualified System.Environment  as Env
 import qualified Distribution.System as OS
 import qualified RIO
@@ -20,14 +21,19 @@ import qualified Spago.Purs as Purs
 --   and runs the app
 withEnv :: GlobalOptions -> RIO Env a -> IO a
 withEnv GlobalOptions{..} app = do
+  let logHandle = stderr
   let verbose = not globalQuiet && (globalVerbose || globalVeryVerbose)
 
   -- https://github.com/purescript/spago/issues/579
   maybeTerm <- Env.lookupEnv "TERM"
   let termDumb = maybeTerm == Just "dumb" || maybeTerm == Just "win"
-  let useColor = globalUseColor && not termDumb
+  -- Check if the terminal supports color. On Windows 10, terminal colors are enabled
+  -- here as a side effect. Returns Nothing if output is redirected to a file.
+  supportsAnsi <- hSupportsANSIWithoutEmulation logHandle <&> (== Just True)
+  -- Also support NO_COLOR spec https://no-color.org/
+  noColor <- Env.lookupEnv "NO_COLOR" <&> isJust
+  let useColor = globalUseColor && not termDumb && not noColor && supportsAnsi
 
-  let logHandle = stderr
   logOptions' <- logOptionsHandle logHandle verbose
   let logOptions
         = setLogUseTime globalVeryVerbose
