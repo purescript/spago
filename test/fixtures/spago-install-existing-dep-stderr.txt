@@ -1,1 +1,1 @@
-[33m[warn] [0mConfiguration file was not updated.[0m
+[warn] Configuration file was not updated.

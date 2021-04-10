@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+Bugfixes:
+- Color output now works correctly or is disabled on Windows (#768, #749)
+
+Other improvements:
+- Color output is now automatically disabled when output is redirected to a file.
+  Also respects a [`NO_COLOR`](https://no-color.org/) environment variable (#768)
+
 ## [0.20.0] - 2021-04-07
 
 Breaking changes (😱!!!):
