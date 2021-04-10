@@ -123,6 +123,7 @@ data NoBuild = NoBuild | DoBuild
 
 -- | Flag to skip the automatic installation of libraries on build
 data NoInstall = NoInstall | DoInstall
+  deriving Eq
 
 -- Should we clear the screen on rebuild?
 data ClearScreen = DoClear | NoClear

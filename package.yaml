@@ -163,6 +163,7 @@ executables:
         - -rtsopts
         - -with-rtsopts=-N
     dependencies:
+    - ansi-terminal
     - base >= 4.7 && < 5
     - spago
     - text < 1.3
