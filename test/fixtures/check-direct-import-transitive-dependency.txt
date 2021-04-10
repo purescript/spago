@@ -5,4 +5,7 @@ These dependencies are unused. To fix this warning, remove the following package
 - effect
 [error] Some of your project files import modules from packages that are not in the direct dependencies of your project.
 To fix this error add the following packages to the list of dependencies in your config:
+- maybe
 - prelude
+You may add these dependencies by running the following command:
+spago install maybe prelude

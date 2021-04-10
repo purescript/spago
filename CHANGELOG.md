@@ -14,6 +14,7 @@ Other improvements:
 - Color output is now automatically disabled when output is redirected to a file.
   Also respects a [`NO_COLOR`](https://no-color.org/) environment variable (#768)
 - Fixes tests failing if the test platform has psa installed (#772)
+- Print `spago install` command to fix missing transitive dependencies (#770)
 
 ## [0.20.0] - 2021-04-07
 
