@@ -8,4 +8,4 @@ To fix this error add the following packages to the list of dependencies in your
 - maybe
 - prelude
 You may add these dependencies by running the following command:
-spago install maybe prelude[0m
+spago install maybe prelude
