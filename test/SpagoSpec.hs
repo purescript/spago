@@ -430,7 +430,7 @@ spec = around_ setup $ do
         writeTextFile "src/Main.purs" "module Main where\nimport Prelude\nmain = unit"
         rm "test/Main.purs"
         spago ["build"]
-        spago ["build"] >>= shouldBeFailureStderr "check-direct-import-transitive-dependency.txt"
+        spago ["--no-psa", "build"] >>= shouldBeFailureStderr "check-direct-import-transitive-dependency.txt"
 
       it "Spago should warn on unused dependencies" $ do
         spago ["init"] >>= shouldBeSuccess
@@ -440,7 +440,7 @@ spec = around_ setup $ do
         writeTextFile "src/Main.purs" "module Main where\nimport Prelude\nmain :: Unit\nmain = unit"
         rm "test/Main.purs"
         spago ["build"]
-        spago ["build"] >>= shouldBeSuccessStderr "check-unused-dependency.txt"
+        spago ["--no-psa", "build"] >>= shouldBeSuccessStderr "check-unused-dependency.txt"
 
     describe "alternate backend" $ do
 
@@ -576,7 +576,7 @@ spec = around_ setup $ do
 
       spago ["init"] >>= shouldBeSuccess
       spago ["build"] >>= shouldBeSuccess
-      spago ["test"] >>= shouldBeSuccessOutputWithErr "test-output-stdout.txt" "test-output-stderr.txt"
+      spago ["--no-psa", "test"] >>= shouldBeSuccessOutputWithErr "test-output-stdout.txt" "test-output-stderr.txt"
 
     it "Spago should fail nicely when the test module is not found" $ do
 
