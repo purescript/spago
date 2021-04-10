@@ -425,7 +425,7 @@ spec = around_ setup $ do
       it "Spago should fail on direct project imports from transitive dependencies" $ do
         spago ["init"] >>= shouldBeSuccess
         rm "spago.dhall"
-        writeTextFile "spago.dhall" $ "{ name = \"check-imports\", dependencies = [\"lists\"], packages = ./packages.dhall }"
+        writeTextFile "spago.dhall" $ "{ name = \"check-imports\", dependencies = [\"effect\", \"lists\"], packages = ./packages.dhall }"
         rm "src/Main.purs"
         writeTextFile "src/Main.purs" "module Main where\nimport Prelude\nimport Data.Maybe\nimport Data.List\nmain = unit"
         rm "test/Main.purs"
