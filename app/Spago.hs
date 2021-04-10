@@ -19,6 +19,7 @@ import qualified Spago.Version
 import qualified Spago.Command.Ls as Ls
 import qualified Spago.Command.Path as Path
 import qualified Spago.Command.Verify as Verify
+import qualified Spago.Command.Init as Init
 
 
 main :: IO ()
@@ -45,7 +46,7 @@ main = withUtf8 $ do
 
       -- ### Commands that need only a basic global env
       Init force noComments tag
-        -> void $ Spago.Packages.initProject force noComments tag
+        -> void $ Init.initProject force noComments tag
       Freeze
         -> Spago.PackageSet.freeze Spago.PackageSet.packagesPath
       Version
@@ -88,16 +89,19 @@ main = withUtf8 $ do
         $ Verify.verify checkUniqueModules Nothing
 
       -- ### Commands that need a build environment: a config, build options and access to purs
-      Build buildOptions -> Run.withBuildEnv globalUsePsa
-        $ Spago.Build.build buildOptions Nothing
-      Search -> Run.withBuildEnv globalUsePsa
+      Build buildOptions -> Run.withBuildEnv globalUsePsa buildOptions
+        $ Spago.Build.build Nothing
+      Search -> Run.withBuildEnv globalUsePsa defaultBuildOptions
         $ Spago.Build.search
-      Docs format sourcePaths depsOnly noSearch openDocs -> Run.withBuildEnv globalUsePsa
-        $ Spago.Build.docs format sourcePaths depsOnly noSearch openDocs
-      Test modName buildOptions nodeArgs -> Run.withBuildEnv globalUsePsa
-        $ Spago.Build.test modName buildOptions nodeArgs
-      Run modName buildOptions nodeArgs -> Run.withBuildEnv globalUsePsa
-        $ Spago.Build.run modName buildOptions nodeArgs
+      Docs format sourcePaths depsOnly noSearch openDocs ->
+        let
+          opts = defaultBuildOptions { depsOnly = depsOnly, sourcePaths = sourcePaths }
+        in Run.withBuildEnv globalUsePsa opts
+            $ Spago.Build.docs format noSearch openDocs
+      Test modName buildOptions nodeArgs -> Run.withBuildEnv globalUsePsa buildOptions
+        $ Spago.Build.test modName nodeArgs
+      Run modName buildOptions nodeArgs -> Run.withBuildEnv globalUsePsa buildOptions
+        $ Spago.Build.run modName nodeArgs
 
       -- ### Legacy commands, here for smoother migration path to new ones
       Bundle -> die [ display Messages.bundleCommandRenamed ]

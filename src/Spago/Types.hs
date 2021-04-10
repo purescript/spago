@@ -148,6 +148,29 @@ data BuildOptions = BuildOptions
   , elseCommands   :: [Text]
   }
 
+defaultBuildOptions :: BuildOptions
+defaultBuildOptions = BuildOptions
+  { shouldClear = NoClear
+  , shouldWatch = BuildOnce
+  , allowIgnored = DoAllowIgnored
+  , sourcePaths = []
+  , withSourceMap = WithoutSrcMap
+  , noInstall = DoInstall
+  , depsOnly = AllSources
+  , pursArgs = []
+  , beforeCommands = []
+  , thenCommands = []
+  , elseCommands = []
+  }
+
+fromScriptOptions :: BuildOptions -> ScriptBuildOptions -> BuildOptions
+fromScriptOptions opts ScriptBuildOptions{..} = opts
+  { pursArgs = pursArgs
+  , beforeCommands = beforeCommands
+  , thenCommands = thenCommands
+  , elseCommands = elseCommands
+  }
+
 -- TODO: Figure out how `Watch` would work for `spago script` and include it
 data ScriptBuildOptions = ScriptBuildOptions
   { pursArgs       :: [PursArg]
@@ -186,3 +209,19 @@ newtype GitCmd = GitCmd Text
 newtype BowerCmd = BowerCmd Text
 
 data GlobalCache = GlobalCache !GHC.IO.FilePath !(Maybe CacheFlag)
+
+newtype ModuleGraph = ModuleGraph { unModuleGraph :: Map ModuleName ModuleGraphNode }
+  deriving newtype (FromJSON)
+
+data ModuleGraphNode = ModuleGraphNode
+  { graphNodePath :: Text
+  , graphNodeDepends :: [ModuleName]
+  } deriving (Generic)
+
+instance FromJSON ModuleGraphNode where
+  parseJSON = withObject "ModuleGraphNode" $ \o ->
+    ModuleGraphNode
+      <$> o .: "path"
+      <*> o .: "depends"
+
+type Graph = Maybe ModuleGraph

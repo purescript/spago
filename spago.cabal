@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: ab7469432b7c2f686c6414d0dae5b3cd0c8204f64bdd993199ec586d21964698
+-- hash: caa08ba67249680542babf78c5648c380886075508ba513c2e5e89ce7328acb1
 
 name:           spago
 version:        0.20.0
@@ -43,8 +43,8 @@ library
       Spago.Async
       Spago.Bower
       Spago.Build
-      Spago.Build.Parser
       Spago.CLI
+      Spago.Command.Init
       Spago.Command.Ls
       Spago.Command.Path
       Spago.Command.Verify
@@ -158,7 +158,6 @@ test-suite spec
   main-is: Main.hs
   other-modules:
       BumpVersionSpec
-      Spago.Build.ParserSpec
       Spago.PursSpec
       SpagoSpec
       Spec
