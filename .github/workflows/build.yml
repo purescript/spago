@@ -24,7 +24,7 @@ jobs:
       - name: Setup Haskell
         uses: haskell/actions/setup@v1
         with:
-          ghc-version: '8.6.5'
+          ghc-version: '8.10'
           stack-version: 'latest'
           enable-stack: true
           stack-no-global: true
