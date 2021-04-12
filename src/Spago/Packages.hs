@@ -1,14 +1,15 @@
 module Spago.Packages
-  ( initProject
-  , install
+  ( install
   , sources
   , getGlobs
+  , getGlobsSourcePaths
   , getJsGlobs
   , getDirectDeps
   , getProjectDeps
   , getReverseDeps
   , getTransitiveDeps
   , DepsOnly(..)
+  , Globs(..)
   ) where
 
 import           Spago.Prelude
@@ -21,74 +22,28 @@ import qualified Data.Set                 as Set
 import qualified Data.Text                as Text
 
 import qualified Spago.Config             as Config
-import qualified Spago.Dhall              as Dhall
 import qualified Spago.FetchPackage       as Fetch
-import qualified Spago.Messages           as Messages
-import qualified Spago.PackageSet         as PackageSet
-import qualified Spago.Templates          as Templates
 
 
--- | Init a new Spago project:
---   - create `packages.dhall` to manage the package set, overrides, etc
---   - create `spago.dhall` to manage project config: name, deps, etc
---   - create an example `src` folder (if needed)
---   - create an example `test` folder (if needed)
-initProject 
-  :: (HasGlobalCache env, HasLogFunc env, HasConfigPath env)
-  => Force -> Dhall.TemplateComments -> Maybe Text
-  -> RIO env Config
-initProject force comments tag = do
-  logInfo "Initializing a sample project or migrating an existing one.."
+data Globs = Globs
+  { depsGlobs :: Map PackageName SourcePath
+  , projectGlobs :: Maybe [SourcePath]
+  }
 
-  -- packages.dhall and spago.dhall overwrite can be forced
-  PackageSet.makePackageSetFile force comments
-  config <- Config.makeConfig force comments
+getGlobsSourcePaths :: Globs -> [SourcePath]
+getGlobsSourcePaths Globs{..} = Map.elems depsGlobs <> fromMaybe [] projectGlobs
 
-  -- Use the specified version of the package set (if specified).
-  -- Otherwise, get the latest version of the package set if possible
-  PackageSet.updatePackageSetVersion tag
+getGlobs :: [(PackageName, Package)] -> DepsOnly -> [SourcePath] -> Globs
+getGlobs deps depsOnly configSourcePaths = do
+  let
+    projectGlobs = case depsOnly of
+      DepsOnly   -> Nothing
+      AllSources -> Just configSourcePaths
 
-  -- If these directories (or files) exist, we skip copying "sample sources"
-  -- Because you might want to just init a project with your own source files,
-  -- or just migrate a psc-package project
-  whenDirNotExists "src" $ do
-    copyIfNotExists "src/Main.purs" Templates.srcMain
+    depsGlobs = Map.fromList $
+      map (\pair@(packageName,_) -> (packageName, SourcePath $ Text.pack $ Fetch.getLocalCacheDir pair <> "/src/**/*.purs")) deps
 
-  whenDirNotExists "test" $ do
-    copyIfNotExists "test/Main.purs" Templates.testMain
-
-  copyIfNotExists ".gitignore" Templates.gitignore
-
-  copyIfNotExists ".purs-repl" Templates.pursRepl
-
-  logInfo "Set up a local Spago project."
-  logInfo "Try running `spago build`"
-  pure config
-
-  where
-    whenDirNotExists dir action = do
-      let dirPath = pathFromText dir
-      dirExists <- testdir dirPath
-      case dirExists of
-        True -> logInfo $ display $ Messages.foundExistingDirectory dir
-        False -> do
-          mktree dirPath
-          action
-
-    copyIfNotExists dest srcTemplate = do
-      testfile dest >>= \case
-        True  -> logInfo $ display $ Messages.foundExistingFile dest
-        False -> writeTextFile dest srcTemplate
-
-
-getGlobs :: [(PackageName, Package)] -> DepsOnly -> [SourcePath] -> [SourcePath]
-getGlobs deps depsOnly configSourcePaths
-  = map (\pair
-          -> SourcePath $ Text.pack $ Fetch.getLocalCacheDir pair
-          <> "/src/**/*.purs") deps
-  <> case depsOnly of
-    DepsOnly   -> []
-    AllSources -> configSourcePaths
+  Globs{..}
 
 
 getJsGlobs :: [(PackageName, Package)] -> DepsOnly -> [SourcePath] -> [SourcePath]
@@ -257,5 +212,6 @@ sources = do
   deps <- getProjectDeps
   traverse_ output
     $ fmap unSourcePath
+    $ getGlobsSourcePaths
     $ getGlobs deps AllSources
     $ configSourcePaths config

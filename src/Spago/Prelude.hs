@@ -248,9 +248,9 @@ pretty = PrettyText.renderStrict
 
 -- | Return the full path of the executable we're trying to call. On Windows we
 --   first try the `.cmd` version.
-findExecutable :: MonadIO m => String -> m (Maybe String)
+findExecutable :: MonadIO m => String -> m (Maybe Text)
 findExecutable x =
-  case OS.buildOS of
+  fmap (fmap Text.pack) $ case OS.buildOS of
     OS.Windows -> Directory.findExecutable (x <> ".cmd") >>= \case
       Nothing -> Directory.findExecutable x
       success -> pure success

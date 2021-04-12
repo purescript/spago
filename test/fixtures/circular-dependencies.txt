@@ -1,3 +1,3 @@
-[31m[error] [0mThe following packages have circular dependencies:[0m
-[31m[error] [0m  - a[0m
-[31m[error] [0m  - b[0m
+[error] The following packages have circular dependencies:
+[error]   - a
+[error]   - b

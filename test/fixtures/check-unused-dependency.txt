@@ -1,0 +1,5 @@
+purs compile: No files found using pattern: test/**/*.purs
+[info] Build succeeded.
+[warn] None of your project files import modules from some projects that are in the direct dependencies of your project.
+These dependencies are unused. To fix this warning, remove the following packages from the list of dependencies in your config:
+- effect

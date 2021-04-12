@@ -4,10 +4,10 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 5b94bf4bab7e561d3cd4fe83ab43b446d46e5b9dd936bcc391c8fbe8876fac2a
+-- hash: 77b5d785b2feb191ce5732a72494d5d950758a3c9dd77a3c98827bf19c3bafa3
 
 name:           spago
-version:        0.19.1
+version:        0.20.0
 description:    Please see the README on GitHub at <https://github.com/purescript/spago#readme>
 homepage:       https://github.com/purescript/spago#readme
 bug-reports:    https://github.com/purescript/spago/issues
@@ -43,8 +43,8 @@ library
       Spago.Async
       Spago.Bower
       Spago.Build
-      Spago.Build.Parser
       Spago.CLI
+      Spago.Command.Init
       Spago.Command.Ls
       Spago.Command.Path
       Spago.Command.Verify
@@ -89,13 +89,11 @@ library
     , dhall >=1.38.0
     , directory >=1.3.4.0
     , either
-    , exceptions
     , file-embed
     , filepath
     , foldl
     , fsnotify
     , generic-lens
-    , github
     , http-client
     , http-conduit
     , http-types
@@ -124,7 +122,6 @@ library
     , unliftio
     , unordered-containers
     , utf8-string
-    , vector
     , versions
     , with-utf8
     , zlib
@@ -139,7 +136,8 @@ executable spago
   default-extensions: ApplicativeDo BangPatterns BinaryLiterals ConstraintKinds DataKinds DefaultSignatures DeriveDataTypeable DeriveFoldable DeriveFunctor DeriveGeneric DeriveTraversable DerivingStrategies DoAndIfThenElse DuplicateRecordFields EmptyDataDecls ExistentialQuantification FlexibleContexts FlexibleInstances FunctionalDependencies GADTs GeneralizedNewtypeDeriving InstanceSigs KindSignatures LambdaCase LiberalTypeSynonyms MultiParamTypeClasses MultiWayIf NamedFieldPuns NoImplicitPrelude NoMonomorphismRestriction OverloadedStrings PartialTypeSignatures PatternGuards PolyKinds QuantifiedConstraints RankNTypes RecordWildCards ScopedTypeVariables StandaloneDeriving TupleSections TypeApplications TypeFamilies TypeSynonymInstances UndecidableInstances ViewPatterns
   ghc-options: -Wall -Wcompat -Wincomplete-record-updates -Wredundant-constraints -fprint-potential-instances -optP-Wno-nonportable-include-path
   build-depends:
-      base >=4.7 && <5
+      ansi-terminal
+    , base >=4.7 && <5
     , spago
     , text <1.3
     , turtle
@@ -157,7 +155,6 @@ test-suite spec
   main-is: Main.hs
   other-modules:
       BumpVersionSpec
-      Spago.Build.ParserSpec
       Spago.PursSpec
       SpagoSpec
       Spec

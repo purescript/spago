@@ -1,6 +1,6 @@
-[34m[info] [0mThe package 'purescript-newtype' was resolved to the 'newtype' package[0m
-[34m[info] [0mInstalling 1 dependencies.[0m
-[34m[info] [0mSearching for packages cache metadata..[0m
-[34m[info] [0mRecent packages cache metadata found, using it..[0m
-[34m[info] [0mCopying from global cache: "newtype"[0m
-[34m[info] [0mInstallation complete.[0m
+[info] The package 'purescript-newtype' was resolved to the 'newtype' package
+[info] Installing 1 dependencies.
+[info] Searching for packages cache metadata..
+[info] Recent packages cache metadata found, using it..
+[info] Installing "newtype"
+[info] Installation complete.

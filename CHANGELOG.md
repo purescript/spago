@@ -7,9 +7,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+Bugfixes:
+- Color output now works correctly or is disabled on Windows (#768, #749)
+
 Other improvements:
-- Allow `verify` and `verify-set` to work with alternate backends (when run in the context
-  of a `spago.dhall` with `backend` set)
+- Color output is now automatically disabled when output is redirected to a file.
+  Also respects a [`NO_COLOR`](https://no-color.org/) environment variable (#768)
+- Fixes tests failing if the test platform has psa installed (#772)
+- Print `spago install` command to fix missing transitive dependencies (#770)
+
+## [0.20.0] - 2021-04-07
+
+Breaking changes (😱!!!):
+- `spago build` fails when source files directly import transitive dependencies (#730, #598)
+
+Bugfixes:
+- Properly call `psa` to avoid warnings (#730)
+
+Other improvements:
+- `spago build` now detects and warns about unused dependencies (#730, #598)
+
+## [0.19.2] - 2021-03-31
+
+New features:
+- Allow `verify` and `verify-set` to work with alternate backends, when run in the context of a `spago.dhall` with `backend` set (#754)
+
+Bugfixes:
+- Don't fail `bump-version` if the packages don't exist in the Bower registry (#682)
+
+Other improvements:
+- CI: bump `purescript` version to 0.14.0 (#759)
+- Docs: add FreeBSD installation instructions (#760)
+- Docs: clarify description for `--path` flag (#762, #761)
 
 ## [0.19.1] - 2021-02-22
 

@@ -10,7 +10,7 @@ import           Turtle             (ExitCode (..), cd, cp, decodeString, empty,
                                      mkdir, mktree, mv, pwd, readTextFile, rm, shell,
                                      shellStrictWithErr, testdir, writeTextFile, (</>))
 import           Utils              (checkFileHasInfix, checkFixture, checkFileExist, outputShouldEqual,
-                                     readFixture, runFor, shouldBeFailure,
+                                     readFixture, runFor, shouldBeFailure, shouldBeFailureInfix,
                                      shouldBeFailureStderr, shouldBeSuccess, shouldBeSuccessOutput,
                                      shouldBeSuccessOutputWithErr, shouldBeSuccessStderr, spago,
                                      withCwd, withEnvVar)
@@ -129,7 +129,7 @@ spec = around_ setup $ do
     it "Spago should strip 'purescript-' prefix and give warning if package without prefix is present in package set" $ do
 
       spago ["init"] >>= shouldBeSuccess
-      spago ["install"] >>= shouldBeSuccess
+      spago ["install", "safe-coerce"] >>= shouldBeSuccess
       spago ["install", "purescript-newtype"] >>= shouldBeSuccessStderr "spago-install-purescript-prefix-stderr.txt"
       -- dep added without "purescript-" prefix
       checkFileHasInfix "spago.dhall" "\"newtype\""
@@ -420,6 +420,28 @@ spec = around_ setup $ do
       cd ".."
       testdir "output" `shouldReturn` False
 
+    describe "import checking" $ do
+
+      it "Spago should fail on direct project imports from transitive dependencies" $ do
+        spago ["init"] >>= shouldBeSuccess
+        rm "spago.dhall"
+        writeTextFile "spago.dhall" $ "{ name = \"check-imports\", dependencies = [\"effect\", \"lists\"], packages = ./packages.dhall }"
+        rm "src/Main.purs"
+        writeTextFile "src/Main.purs" "module Main where\nimport Prelude\nimport Data.Maybe\nimport Data.List\nmain = unit"
+        rm "test/Main.purs"
+        spago ["build"]
+        spago ["--no-psa", "build"] >>= shouldBeFailureStderr "check-direct-import-transitive-dependency.txt"
+
+      it "Spago should warn on unused dependencies" $ do
+        spago ["init"] >>= shouldBeSuccess
+        rm "spago.dhall"
+        writeTextFile "spago.dhall" $ "{ name = \"check-imports\", dependencies = [\"effect\", \"prelude\"], packages = ./packages.dhall }"
+        rm "src/Main.purs"
+        writeTextFile "src/Main.purs" "module Main where\nimport Prelude\nmain :: Unit\nmain = unit"
+        rm "test/Main.purs"
+        spago ["build"]
+        spago ["--no-psa", "build"] >>= shouldBeSuccessStderr "check-unused-dependency.txt"
+
     describe "alternate backend" $ do
 
       it "Spago should use alternate backend if option is specified" $ do
@@ -554,13 +576,13 @@ spec = around_ setup $ do
 
       spago ["init"] >>= shouldBeSuccess
       spago ["build"] >>= shouldBeSuccess
-      spago ["test"] >>= shouldBeSuccessOutputWithErr "test-output-stdout.txt" "test-output-stderr.txt"
+      spago ["--no-psa", "test"] >>= shouldBeSuccessOutputWithErr "test-output-stdout.txt" "test-output-stderr.txt"
 
     it "Spago should fail nicely when the test module is not found" $ do
 
       spago ["init"] >>= shouldBeSuccess
       mv "test" "test2"
-      spago ["test"] >>= shouldBeFailureStderr "spago-test-not-found.txt"
+      spago ["test"] >>= shouldBeFailureInfix "Module 'Test.Main' not found! Are you including it in your build?"
 
     it "Spago should test in custom output folder" $ do
 
@@ -672,7 +694,7 @@ spec = around_ setup $ do
 
       spago ["init"] >>= shouldBeSuccess
       cp "../fixtures/spago-run-args.purs" "src/Main.purs"
-      spago ["install", "node-process"] >>= shouldBeSuccess
+      spago ["install", "node-process", "arrays"] >>= shouldBeSuccess
       spago ["build"] >>= shouldBeSuccess
       spago ["run", "--exec-args", "hello world"] >>= shouldBeSuccessOutput "run-args-output.txt"
 
@@ -680,7 +702,7 @@ spec = around_ setup $ do
 
       spago ["init"] >>= shouldBeSuccess
       cp "../fixtures/spago-run-args.purs" "src/Main.purs"
-      spago ["install", "node-process"] >>= shouldBeSuccess
+      spago ["install", "node-process", "arrays"] >>= shouldBeSuccess
       spago ["build"] >>= shouldBeSuccess
       spago ["run", "--node-args", "hello world"] >>= shouldBeSuccessOutput "run-args-output.txt"
 
@@ -688,18 +710,17 @@ spec = around_ setup $ do
 
       spago ["init"] >>= shouldBeSuccess
       cp "../fixtures/spago-run-args.purs" "src/Main.purs"
-      spago ["install", "node-process"] >>= shouldBeSuccess
+      spago ["install", "node-process", "arrays"] >>= shouldBeSuccess
       spago ["build"] >>= shouldBeSuccess
       spago ["run", "--exec-args", "hello world", "--node-args", "hallo welt"] >>= shouldBeSuccessOutput "run-args-combined-output.txt"
 
   describe "spago script" $ do
 
-    -- TODO: Once 0.14 of the compiler is released, compilation logs will be sent to `stderr`
     -- At that time, we should add more tests checking the output of the script
 
     it "Spago script should create file in directory where it is executed" $ do
 
-      spago ["script", "../fixtures/spago-script-make-file.purs", "-d", "node-fs"] >>= shouldBeSuccess
+      spago ["script", "../fixtures/spago-script-make-file.purs", "-d", "node-fs", "-d", "node-buffer"] >>= shouldBeSuccess
       checkFixture "spago-script-result.txt"
 
   describe "spago bundle" $ do

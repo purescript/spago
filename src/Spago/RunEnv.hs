@@ -3,8 +3,10 @@ module Spago.RunEnv where
 import Spago.Prelude
 import Spago.Env
 
+import           System.Console.ANSI (hSupportsANSIWithoutEmulation)
 import qualified System.Environment  as Env
 import qualified Distribution.System as OS
+import qualified Data.Versions       as Version
 import qualified RIO
 import qualified Turtle
 
@@ -14,19 +16,26 @@ import qualified Spago.FetchPackage as FetchPackage
 import qualified Spago.Dhall as Dhall
 import qualified Spago.Messages as Messages
 import qualified Spago.PackageSet as PackageSet
+import qualified Spago.Packages as Packages
+import qualified Spago.Purs as Purs
 
 -- | Given the global CLI options, it creates the Env for the Spago context
 --   and runs the app
 withEnv :: GlobalOptions -> RIO Env a -> IO a
 withEnv GlobalOptions{..} app = do
+  let logHandle = stderr
   let verbose = not globalQuiet && (globalVerbose || globalVeryVerbose)
 
   -- https://github.com/purescript/spago/issues/579
   maybeTerm <- Env.lookupEnv "TERM"
   let termDumb = maybeTerm == Just "dumb" || maybeTerm == Just "win"
-  let useColor = globalUseColor && not termDumb
+  -- Check if the terminal supports color. On Windows 10, terminal colors are enabled
+  -- here as a side effect. Returns Nothing if output is redirected to a file.
+  supportsAnsi <- hSupportsANSIWithoutEmulation logHandle <&> (== Just True)
+  -- Also support NO_COLOR spec https://no-color.org/
+  noColor <- Env.lookupEnv "NO_COLOR" <&> isJust
+  let useColor = globalUseColor && not termDumb && not noColor && supportsAnsi
 
-  let logHandle = stderr
   logOptions' <- logOptionsHandle logHandle verbose
   let logOptions
         = setLogUseTime globalVeryVerbose
@@ -121,24 +130,41 @@ withBuildEnv'
   :: HasEnv env
   => Maybe Config
   -> UsePsa
+  -> BuildOptions
   -> RIO BuildEnv a
   -> RIO env a
-withBuildEnv' maybeConfig usePsa app = do
+withBuildEnv' maybeConfig usePsa envBuildOptions@BuildOptions{ noInstall } app = do
   Env{..} <- getEnv
   envPursCmd <- getPurs usePsa
   envConfig@Config{..} <- case maybeConfig of
     Nothing -> getConfig
     Just c -> pure c
   let envPackageSet = packageSet
+  deps <- runRIO InstallEnv{..} $ do
+    deps <- Packages.getProjectDeps
+    when (noInstall == DoInstall) $ FetchPackage.fetchPackages deps
+    pure deps
+  envGraph <- runRIO PursEnv{..} (getMaybeGraph envBuildOptions envConfig deps)
   envGitCmd <- getGit
   runRIO BuildEnv{..} app
 
 withBuildEnv
   :: HasEnv env
   => UsePsa
+  -> BuildOptions
   -> RIO BuildEnv a
   -> RIO env a
 withBuildEnv = withBuildEnv' Nothing
+
+withPursEnv
+  :: HasEnv env
+  => UsePsa
+  -> RIO PursEnv a
+  -> RIO env a
+withPursEnv usePsa app = do
+  Env{..} <- getEnv
+  envPursCmd <- getPurs usePsa
+  runRIO PursEnv{..} app
 
 getEnv :: HasEnv env => RIO env Env
 getEnv = do
@@ -155,13 +181,14 @@ getConfig = Config.ensureConfig >>= \case
 
 getPurs :: HasLogFunc env => UsePsa -> RIO env PursCmd
 getPurs usePsa = do
-  -- first we decide if we _want_ to use psa, then if we _can_
-  pursCandidate <- case usePsa of
-    NoPsa -> pure "purs"
-    UsePsa -> findExecutable "psa" >>= \case
-      Just _  -> pure "psa"
-      Nothing -> pure "purs"
-  PursCmd <$> findExecutableOrDie pursCandidate
+  purs <- findExecutableOrDie "purs"
+  psa <- case usePsa of
+    NoPsa -> pure Nothing
+    UsePsa -> findExecutable "psa"
+  compilerVersion <- Purs.pursVersion >>= \case
+    Left err -> die [ "Failed to fetch purs version. Error was:", display err ]
+    Right version -> pure version
+  return $ PursCmd {..}
 
 getGit :: HasLogFunc env => RIO env GitCmd
 getGit = GitCmd <$> findExecutableOrDie "git"
@@ -176,3 +203,21 @@ getPackageSet = do
       Config.ensureConfig >>= \case
         Right Config{ packageSet } -> pure packageSet
         Left err -> die [ display Messages.couldNotVerifySet, "Error was:", display err ]
+
+getMaybeGraph :: HasPursEnv env => BuildOptions -> Config -> [(PackageName, Package)] -> RIO env Graph
+getMaybeGraph BuildOptions{ depsOnly, sourcePaths } Config{ configSourcePaths } deps = do
+  let partitionedGlobs@(Packages.Globs{..}) = Packages.getGlobs deps depsOnly configSourcePaths
+      globs = Packages.getGlobsSourcePaths partitionedGlobs <> sourcePaths
+  PursCmd { compilerVersion } <- view (the @PursCmd)
+  minVersion <- case Version.semver "0.14.0" of
+    Left _ -> die [ "Unable to parse min version for imports check" ]
+    Right minVersion -> pure minVersion
+  if compilerVersion < minVersion
+  then pure Nothing
+  else do
+    maybeGraph <- Purs.graph globs
+    case maybeGraph of
+      Right graph -> pure $ Just graph
+      Left err -> do
+        logWarn $ displayShow err
+        pure Nothing

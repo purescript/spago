@@ -1,2 +1,2 @@
-[34m[info] [0mBuild succeeded.[0m
-[34m[info] [0mTests succeeded.[0m
+[info] Build succeeded.
+[info] Tests succeeded.

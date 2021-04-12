@@ -24,7 +24,7 @@ install:
   - npm install -g bower
   - ps: |
       $releases = "https://api.github.com/repos/purescript/purescript/releases"
-      $tag = "v0.13.8"
+      $tag = "v0.14.0"
       $download = "https://github.com/purescript/purescript/releases/download/$tag/win64.tar.gz"
       Invoke-WebRequest $download -Out purescript.tar.gz
   - tar -xvf purescript.tar.gz
@@ -44,6 +44,7 @@ test_script:
   - ps: Start-Sleep -s 5
   - cmd: set PATH=C:\projects\spago\bin;C:\projects\spago\purescript;%PATH%
   - cmd: set XDG_CACHE_HOME=C:\cache
+  - cmd: git config --global core.longpaths true
   - cmd: stack test
   # We install psa and rerun the tests that exercise it
   - cmd: npm install -g purescript-psa

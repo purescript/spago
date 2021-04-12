@@ -8,12 +8,14 @@ module Spago.Env
   , PublishEnv(..)
   , VerifyEnv(..)
   , BuildEnv(..)
+  , PursEnv(..)
 
   -- | Environment constraints
   , HasEnv
   , HasVerifyEnv
   , HasPublishEnv
   , HasBuildEnv
+  , HasPursEnv
 
   -- | Simple capabilities
   , HasGlobalCache
@@ -65,6 +67,8 @@ type HasEnv env =
 
 type HasConfig env = ( HasType Config env, HasPackageSet env )
 type HasMaybeConfig env = ( HasType (Maybe Config) env, HasPackageSet env )
+type HasMaybeGraph env = HasType (Maybe ModuleGraph) env
+type HasBuildOptions env = HasType BuildOptions env
 
 type HasVerifyEnv env =
   ( HasLogFunc env
@@ -88,6 +92,13 @@ type HasBuildEnv env =
   , HasPurs env
   , HasGit env
   , HasConfig env
+  , HasMaybeGraph env
+  , HasBuildOptions env
+  )
+
+type HasPursEnv env =
+  ( HasEnv env
+  , HasPurs env
   )
 
 -- | App configuration containing parameters and other common
@@ -140,4 +151,14 @@ data BuildEnv = BuildEnv
   , envGitCmd :: !GitCmd
   , envPackageSet :: !PackageSet
   , envConfig :: !Config
+  , envGraph :: !(Maybe ModuleGraph)
+  , envBuildOptions :: !BuildOptions
+  } deriving (Generic)
+
+data PursEnv = PursEnv
+  { envLogFunc :: !LogFunc
+  , envJobs :: !Jobs
+  , envConfigPath :: !ConfigPath
+  , envGlobalCache :: !GlobalCache
+  , envPursCmd :: !PursCmd
   } deriving (Generic)

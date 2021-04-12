@@ -34,7 +34,6 @@ import qualified Spago.Messages        as Messages
 import qualified Spago.PackageSet      as PackageSet
 import qualified Spago.PscPackage      as PscPackage
 import qualified Spago.Templates       as Templates
-import qualified Spago.Purs            as Purs
 
 
 type Expr = Dhall.DhallExpr Dhall.Import
@@ -164,20 +163,19 @@ ensureConfig = do
 -- | Create a Config in memory
 -- | For use by `spago script` and `spago repl`
 makeTempConfig
-  :: HasLogFunc env
+  :: (HasLogFunc env, HasPurs env)
   => [PackageName]
   -> Maybe Text
   -> [SourcePath]
   -> Maybe Text
   -> RIO env Config
 makeTempConfig dependencies alternateBackend configSourcePaths maybeTag = do
+  PursCmd { compilerVersion } <- view (the @PursCmd)
   tag <- case maybeTag of
-    Nothing -> do
-      Purs.pursVersion >>= \case
-        Left err -> die [ display err ]
-        Right compilerVersion -> (PackageSet.getLatestSetForCompilerVersion compilerVersion "purescript" "package-sets") >>= \case
-          Left _ -> die [ "spago script: failed to fetch latest package set tag" ]
-          Right tag -> pure tag
+    Nothing ->
+      PackageSet.getLatestSetForCompilerVersion compilerVersion "purescript" "package-sets" >>= \case
+        Left _ -> die [ "spago script: failed to fetch latest package set tag" ]
+        Right tag -> pure tag
     Just tag -> pure tag
 
   expr <- liftIO $ Dhall.inputExpr $ "https://github.com/purescript/package-sets/releases/download/" <> tag <> "/packages.dhall"

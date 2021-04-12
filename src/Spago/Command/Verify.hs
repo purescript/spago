@@ -49,7 +49,7 @@ verify chkModsUniq maybePackage = do
     verifyPackage :: PackageName -> RIO env ()
     verifyPackage name = do
       deps <- Packages.getTransitiveDeps [name]
-      let globs = Packages.getGlobs deps Packages.DepsOnly []
+      let globs = Packages.getGlobsSourcePaths $ Packages.getGlobs deps Packages.DepsOnly []
           quotedName = surroundQuote $ packageName name
       Fetch.fetchPackages deps
       logInfo $ display $ "Verifying package " <> quotedName
@@ -60,7 +60,7 @@ verify chkModsUniq maybePackage = do
     compileEverything = do
       PackageSet{ packagesDB } <- view (the @PackageSet)
       let deps = Map.toList packagesDB
-          globs = Packages.getGlobs deps Packages.DepsOnly []
+          globs = Packages.getGlobsSourcePaths $ Packages.getGlobs deps Packages.DepsOnly []
       Fetch.fetchPackages deps
       logInfo "Compiling everything (will fail if module names conflict)"
       compile globs
