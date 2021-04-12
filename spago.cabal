@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: ab7469432b7c2f686c6414d0dae5b3cd0c8204f64bdd993199ec586d21964698
+-- hash: 77b5d785b2feb191ce5732a72494d5d950758a3c9dd77a3c98827bf19c3bafa3
 
 name:           spago
 version:        0.20.0
@@ -43,8 +43,8 @@ library
       Spago.Async
       Spago.Bower
       Spago.Build
-      Spago.Build.Parser
       Spago.CLI
+      Spago.Command.Init
       Spago.Command.Ls
       Spago.Command.Path
       Spago.Command.Verify
@@ -89,13 +89,11 @@ library
     , dhall >=1.38.0
     , directory >=1.3.4.0
     , either
-    , exceptions
     , file-embed
     , filepath
     , foldl
     , fsnotify
     , generic-lens
-    , github
     , http-client
     , http-conduit
     , http-types
@@ -124,7 +122,6 @@ library
     , unliftio
     , unordered-containers
     , utf8-string
-    , vector
     , versions
     , with-utf8
     , zlib
@@ -158,7 +155,6 @@ test-suite spec
   main-is: Main.hs
   other-modules:
       BumpVersionSpec
-      Spago.Build.ParserSpec
       Spago.PursSpec
       SpagoSpec
       Spec

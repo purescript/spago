@@ -10,7 +10,7 @@ import           Turtle             (ExitCode (..), cd, cp, decodeString, empty,
                                      mkdir, mktree, mv, pwd, readTextFile, rm, shell,
                                      shellStrictWithErr, testdir, writeTextFile, (</>))
 import           Utils              (checkFileHasInfix, checkFixture, checkFileExist, outputShouldEqual,
-                                     readFixture, runFor, shouldBeFailure,
+                                     readFixture, runFor, shouldBeFailure, shouldBeFailureInfix,
                                      shouldBeFailureStderr, shouldBeSuccess, shouldBeSuccessOutput,
                                      shouldBeSuccessOutputWithErr, shouldBeSuccessStderr, spago,
                                      withCwd, withEnvVar)
@@ -582,7 +582,7 @@ spec = around_ setup $ do
 
       spago ["init"] >>= shouldBeSuccess
       mv "test" "test2"
-      spago ["test"] >>= shouldBeFailureStderr "spago-test-not-found.txt"
+      spago ["test"] >>= shouldBeFailureInfix "Module 'Test.Main' not found! Are you including it in your build?"
 
     it "Spago should test in custom output folder" $ do
 

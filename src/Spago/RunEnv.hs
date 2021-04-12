@@ -6,6 +6,7 @@ import Spago.Env
 import           System.Console.ANSI (hSupportsANSIWithoutEmulation)
 import qualified System.Environment  as Env
 import qualified Distribution.System as OS
+import qualified Data.Versions       as Version
 import qualified RIO
 import qualified Turtle
 
@@ -15,6 +16,7 @@ import qualified Spago.FetchPackage as FetchPackage
 import qualified Spago.Dhall as Dhall
 import qualified Spago.Messages as Messages
 import qualified Spago.PackageSet as PackageSet
+import qualified Spago.Packages as Packages
 import qualified Spago.Purs as Purs
 
 -- | Given the global CLI options, it creates the Env for the Spago context
@@ -128,21 +130,28 @@ withBuildEnv'
   :: HasEnv env
   => Maybe Config
   -> UsePsa
+  -> BuildOptions
   -> RIO BuildEnv a
   -> RIO env a
-withBuildEnv' maybeConfig usePsa app = do
+withBuildEnv' maybeConfig usePsa envBuildOptions@BuildOptions{ noInstall } app = do
   Env{..} <- getEnv
   envPursCmd <- getPurs usePsa
   envConfig@Config{..} <- case maybeConfig of
     Nothing -> getConfig
     Just c -> pure c
   let envPackageSet = packageSet
+  deps <- runRIO InstallEnv{..} $ do
+    deps <- Packages.getProjectDeps
+    when (noInstall == DoInstall) $ FetchPackage.fetchPackages deps
+    pure deps
+  envGraph <- runRIO PursEnv{..} (getMaybeGraph envBuildOptions envConfig deps)
   envGitCmd <- getGit
   runRIO BuildEnv{..} app
 
 withBuildEnv
   :: HasEnv env
   => UsePsa
+  -> BuildOptions
   -> RIO BuildEnv a
   -> RIO env a
 withBuildEnv = withBuildEnv' Nothing
@@ -194,3 +203,21 @@ getPackageSet = do
       Config.ensureConfig >>= \case
         Right Config{ packageSet } -> pure packageSet
         Left err -> die [ display Messages.couldNotVerifySet, "Error was:", display err ]
+
+getMaybeGraph :: HasPursEnv env => BuildOptions -> Config -> [(PackageName, Package)] -> RIO env Graph
+getMaybeGraph BuildOptions{ depsOnly, sourcePaths } Config{ configSourcePaths } deps = do
+  let partitionedGlobs@(Packages.Globs{..}) = Packages.getGlobs deps depsOnly configSourcePaths
+      globs = Packages.getGlobsSourcePaths partitionedGlobs <> sourcePaths
+  PursCmd { compilerVersion } <- view (the @PursCmd)
+  minVersion <- case Version.semver "0.14.0" of
+    Left _ -> die [ "Unable to parse min version for imports check" ]
+    Right minVersion -> pure minVersion
+  if compilerVersion < minVersion
+  then pure Nothing
+  else do
+    maybeGraph <- Purs.graph globs
+    case maybeGraph of
+      Right graph -> pure $ Just graph
+      Left err -> do
+        logWarn $ displayShow err
+        pure Nothing

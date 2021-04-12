@@ -41,18 +41,6 @@ compile sourcePaths extraArgs = do
     "Build succeeded."
     "Failed to build."
 
-
-newtype ModuleGraph = ModuleGraph { unModuleGraph :: Map ModuleName ModuleGraphNode }
-  deriving newtype (FromJSON)
-
-data ModuleGraphNode = ModuleGraphNode
-  { path :: Text
-  , depends :: [ModuleName]
-  } deriving (Generic)
-
-instance FromJSON ModuleGraphNode
-
-
 graph
   :: (HasPurs env, HasLogFunc env)
   => [SourcePath]
@@ -72,8 +60,8 @@ graph sourcePaths = do
         Nothing -> Left $ Messages.failedToParseCommandOutput cmd graphText
         Just p -> Right p
 
-    (_, _out, _err) ->
-      pure $ Left $ "Failed to run '" <> cmd <> "''"
+    (_, _out, err) ->
+      pure $ Left $ "Failed to run `" <> cmd <> "`. Error was:\n" <> tshow err
 
 
 repl :: HasPurs env => [SourcePath] -> [PursArg] -> RIO env ()

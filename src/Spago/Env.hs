@@ -67,6 +67,8 @@ type HasEnv env =
 
 type HasConfig env = ( HasType Config env, HasPackageSet env )
 type HasMaybeConfig env = ( HasType (Maybe Config) env, HasPackageSet env )
+type HasMaybeGraph env = HasType (Maybe ModuleGraph) env
+type HasBuildOptions env = HasType BuildOptions env
 
 type HasVerifyEnv env =
   ( HasLogFunc env
@@ -90,6 +92,8 @@ type HasBuildEnv env =
   , HasPurs env
   , HasGit env
   , HasConfig env
+  , HasMaybeGraph env
+  , HasBuildOptions env
   )
 
 type HasPursEnv env =
@@ -147,6 +151,8 @@ data BuildEnv = BuildEnv
   , envGitCmd :: !GitCmd
   , envPackageSet :: !PackageSet
   , envConfig :: !Config
+  , envGraph :: !(Maybe ModuleGraph)
+  , envBuildOptions :: !BuildOptions
   } deriving (Generic)
 
 data PursEnv = PursEnv

@@ -18,7 +18,6 @@ import qualified Data.List.NonEmpty   as NonEmpty
 import qualified Data.Map             as Map
 import qualified Data.Set             as Set
 import qualified Data.Text            as Text
-import qualified Data.Versions        as Version
 import           System.Directory     (getCurrentDirectory)
 import           System.FilePath      (splitDirectories)
 import qualified System.FilePath.Glob as Glob
@@ -29,7 +28,6 @@ import qualified Turtle
 import qualified System.Process       as Process
 import qualified Web.Browser          as Browser
 
-import qualified Spago.Build.Parser   as Parse
 import qualified Spago.Command.Path   as Path
 import qualified Spago.RunEnv         as Run
 import qualified Spago.Config         as Config
@@ -51,31 +49,19 @@ prepareBundleDefaults maybeModuleName maybeTargetPath = (moduleName, targetPath)
     targetPath = fromMaybe (TargetPath "index.js") maybeTargetPath
 
 --   eventually running some other action after the build
-build
-  :: HasBuildEnv env
-  => BuildOptions -> Maybe (RIO Env ())
-  -> RIO env ()
-build BuildOptions{..} maybePostBuild = do
+build :: HasBuildEnv env => Maybe (RIO Env ()) -> RIO env ()
+build maybePostBuild = do
   logDebug "Running `spago build`"
+  BuildOptions{..} <- view (the @BuildOptions)
   Config{..} <- view (the @Config)
-  PursCmd { compilerVersion } <- view (the @PursCmd)
   deps <- Packages.getProjectDeps
-  case noInstall of
-    DoInstall -> Fetch.fetchPackages deps
-    NoInstall -> pure ()
   let partitionedGlobs@(Packages.Globs{..}) = Packages.getGlobs deps depsOnly configSourcePaths
       allPsGlobs = Packages.getGlobsSourcePaths partitionedGlobs <> sourcePaths
       allJsGlobs = Packages.getJsGlobs deps depsOnly configSourcePaths <> sourcePaths
 
-      checkImports globs = do
-        minVersion <- case Version.semver "0.14.0" of
-          Left _ -> die [ "Unable to parse min version for imports check" ]
-          Right minVersion -> pure minVersion
-        when (compilerVersion >= minVersion) $ do
-          graph <- Purs.graph globs
-          case graph of
-            Left err -> logWarn $ displayShow err
-            Right (Purs.ModuleGraph moduleGraph) -> do
+      checkImports = do
+        maybeGraph <- view (the @Graph)
+        for_ maybeGraph $ \(Purs.ModuleGraph moduleGraph) -> do
               let
                 matchesGlob :: Sys.FilePath -> SourcePath -> Bool
                 matchesGlob path sourcePath =
@@ -88,11 +74,11 @@ build BuildOptions{..} maybePostBuild = do
                 projectModules :: [ModuleName]
                 projectModules =
                   map fst
-                    $ filter (\(_, Purs.ModuleGraphNode{..}) -> isProjectFile (Text.unpack path))
+                    $ filter (\(_, Purs.ModuleGraphNode{..}) -> isProjectFile (Text.unpack graphNodePath))
                     $ Map.toList moduleGraph
 
                 getImports :: ModuleName -> Set ModuleName
-                getImports = maybe Set.empty (Set.fromList . Purs.depends) . flip Map.lookup moduleGraph
+                getImports = maybe Set.empty (Set.fromList . graphNodeDepends) . flip Map.lookup moduleGraph
 
                 -- All package modules that are imported from our project files
                 importedPackageModules :: Set ModuleName
@@ -113,7 +99,7 @@ build BuildOptions{..} maybePostBuild = do
                 importedPackages :: Set PackageName
                 importedPackages =
                   Set.fromList
-                    $ mapMaybe (getPackageFromPath . Purs.path <=< flip Map.lookup moduleGraph)
+                    $ mapMaybe (getPackageFromPath . graphNodePath <=< flip Map.lookup moduleGraph)
                     $ Set.toList importedPackageModules
 
                 dependencyPackages :: Set PackageName
@@ -157,7 +143,7 @@ build BuildOptions{..} maybePostBuild = do
               shell backendCmd empty >>= \case
                 ExitSuccess   -> pure ()
                 ExitFailure n -> die [ "Backend " <> displayShow backend <> " exited with error:" <> repr n ]
-        checkImports globs
+        checkImports
 
       buildAction globs = do
         env <- Run.getEnv
@@ -254,38 +240,29 @@ repl newPackages sourcePaths pursArgs depsOnly = do
 
 -- | Test the project: compile and run "Test.Main"
 --   (or the provided module name) with node
-test
-  :: HasBuildEnv env
-  => Maybe ModuleName -> BuildOptions -> [BackendArg]
-  -> RIO env ()
-test maybeModuleName buildOpts extraArgs = do
+test :: HasBuildEnv env => Maybe ModuleName -> [BackendArg] -> RIO env ()
+test maybeModuleName extraArgs = do
   let moduleName = fromMaybe (ModuleName "Test.Main") maybeModuleName
-  Config.Config { alternateBackend, configSourcePaths } <- view (the @Config)
-  liftIO (foldMapM (Glob.glob . Text.unpack . unSourcePath) configSourcePaths) >>= \paths -> do
-    results <- forM paths $ \path -> do
-      content <- readFileBinary path
-      pure $ Parse.checkModuleNameMatches (encodeUtf8 $ unModuleName moduleName) content
-    if or results
-      then do
+  Config.Config { alternateBackend } <- view (the @Config)
+  maybeGraph <- view (the @Graph)
+  -- We check if the test module is included in the build and spit out a nice error if it isn't (see #383)
+  for_ maybeGraph $ \(ModuleGraph moduleMap) -> case Map.lookup moduleName moduleMap of
+    Nothing -> die [ "Module '" <> (display . unModuleName) moduleName <> "' not found! Are you including it in your build?" ]
+    Just _ -> do
         sourceDir <- Turtle.pwd
         let dirs = RunDirectories sourceDir sourceDir
-        runBackend alternateBackend dirs moduleName (Just "Tests succeeded.") "Tests failed: " buildOpts extraArgs
-      else do
-        die [ "Module '" <> (display . unModuleName) moduleName <> "' not found! Are you including it in your build?" ]
+        runBackend alternateBackend dirs moduleName (Just "Tests succeeded.") "Tests failed: " extraArgs
 
 
 -- | Run the project: compile and run "Main"
 --   (or the provided module name) with node
-run
-  :: HasBuildEnv env
-  => Maybe ModuleName -> BuildOptions -> [BackendArg]
-  -> RIO env ()
-run maybeModuleName buildOpts extraArgs = do
+run :: HasBuildEnv env => Maybe ModuleName -> [BackendArg] -> RIO env ()
+run maybeModuleName extraArgs = do
   Config.Config { alternateBackend } <- view (the @Config)
   let moduleName = fromMaybe (ModuleName "Main") maybeModuleName
   sourceDir <- Turtle.pwd
   let dirs = RunDirectories sourceDir sourceDir
-  runBackend alternateBackend dirs moduleName Nothing "Running failed; " buildOpts extraArgs
+  runBackend alternateBackend dirs moduleName Nothing "Running failed; " extraArgs
 
 
 -- | Run the select module as a script: init, compile, and run the provided module
@@ -296,7 +273,7 @@ script
   -> [PackageName]
   -> ScriptBuildOptions
   -> RIO env ()
-script modulePath tag packageDeps opts@ScriptBuildOptions{..} = do
+script modulePath tag packageDeps opts = do
   logDebug "Running `spago script`"
   absoluteModulePath <- fmap Text.pack (makeAbsolute (Text.unpack modulePath))
   currentDir <- Turtle.pwd
@@ -325,21 +302,10 @@ script modulePath tag packageDeps opts@ScriptBuildOptions{..} = do
   let runDirs :: RunDirectories
       runDirs = RunDirectories scriptDirPath currentDir
 
-  Run.withBuildEnv' (Just config) NoPsa (runAction runDirs)
+  Run.withBuildEnv' (Just config) NoPsa buildOpts (runAction runDirs)
   where
-    runAction dirs = do
-      let
-        buildOpts = BuildOptions
-          { shouldClear = NoClear
-          , shouldWatch = BuildOnce
-          , allowIgnored = DoAllowIgnored
-          , sourcePaths = []
-          , withSourceMap = WithoutSrcMap
-          , noInstall = DoInstall
-          , depsOnly = AllSources
-          , ..
-          }
-      runBackend Nothing dirs (ModuleName "Main") Nothing "Script failed to run; " buildOpts []
+    buildOpts = fromScriptOptions defaultBuildOptions opts
+    runAction dirs = runBackend Nothing dirs (ModuleName "Main") Nothing "Script failed to run; " []
 
 
 data RunDirectories = RunDirectories { sourceDir :: FilePath, executeDir :: FilePath }
@@ -353,13 +319,13 @@ runBackend
   -> ModuleName
   -> Maybe Text
   -> Text
-  -> BuildOptions
   -> [BackendArg]
   -> RIO env ()
-runBackend maybeBackend RunDirectories{ sourceDir, executeDir } moduleName maybeSuccessMessage failureMessage buildOpts@BuildOptions{pursArgs} extraArgs = do
+runBackend maybeBackend RunDirectories{ sourceDir, executeDir } moduleName maybeSuccessMessage failureMessage extraArgs = do
   logDebug $ display $ "Running with backend: " <> fromMaybe "nodejs" maybeBackend
+  BuildOptions{ pursArgs } <- view (the @BuildOptions)
   let postBuild = maybe (nodeAction $ Path.getOutputPath pursArgs) backendAction maybeBackend
-  build buildOpts (Just postBuild)
+  build (Just postBuild)
   where
     fromFilePath = Text.pack . Turtle.encodeString
     runJsSource = fromFilePath (sourceDir Turtle.</> ".spago/run.js")
@@ -409,7 +375,7 @@ bundleApp withMain maybeModuleName maybeTargetPath noBuild buildOpts usePsa =
   let (moduleName, targetPath) = prepareBundleDefaults maybeModuleName maybeTargetPath
       bundleAction = Purs.bundle withMain (withSourceMap buildOpts) moduleName targetPath
   in case noBuild of
-    DoBuild -> Run.withBuildEnv usePsa $ build buildOpts (Just bundleAction)
+    DoBuild -> Run.withBuildEnv usePsa buildOpts $ build (Just bundleAction)
     NoBuild -> Run.getEnv >>= (flip runRIO) bundleAction
 
 -- | Bundle into a CommonJS module
@@ -436,21 +402,20 @@ bundleModule maybeModuleName maybeTargetPath noBuild buildOpts usePsa = do
             Right _ -> logInfo $ display $ "Make module succeeded and output file to " <> unTargetPath targetPath
             Left (n :: SomeException) -> die [ "Make module failed: " <> repr n ]
   case noBuild of
-    DoBuild -> Run.withBuildEnv usePsa $ build buildOpts (Just bundleAction)
+    DoBuild -> Run.withBuildEnv usePsa buildOpts $ build (Just bundleAction)
     NoBuild -> Run.getEnv >>= (flip runRIO) bundleAction
 
 
 -- | Generate docs for the `sourcePaths` and run `purescript-docs-search build-index` to patch them.
 docs
-  :: (HasLogFunc env, HasConfig env)
+  :: HasBuildEnv env
   => Maybe Purs.DocsFormat
-  -> [SourcePath]
-  -> Packages.DepsOnly
   -> NoSearch
   -> OpenDocs
   -> RIO env ()
-docs format sourcePaths depsOnly noSearch open = do
+docs format noSearch open = do
   logDebug "Running `spago docs`"
+  BuildOptions { sourcePaths, depsOnly } <- view (the @BuildOptions)
   Config{..} <- view (the @Config)
   deps <- Packages.getProjectDeps
   logInfo "Generating documentation for the project. This might take a while..."
@@ -486,9 +451,7 @@ docs format sourcePaths depsOnly noSearch open = do
     openLink link = liftIO $ Browser.openBrowser (Text.unpack link)
 
 -- | Start a search REPL.
-search
-  :: (HasPurs env, HasLogFunc env, HasConfig env)
-  => RIO env ()
+search :: HasBuildEnv env => RIO env ()
 search = do
   Config{..} <- view (the @Config)
   deps <- Packages.getProjectDeps
