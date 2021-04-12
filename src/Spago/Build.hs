@@ -245,7 +245,7 @@ test maybeModuleName extraArgs = do
   let moduleName = fromMaybe (ModuleName "Test.Main") maybeModuleName
   Config.Config { alternateBackend } <- view (the @Config)
   maybeGraph <- view (the @Graph)
-  -- We check if the test module is included in the build and spit out a nice error if so (see #383)
+  -- We check if the test module is included in the build and spit out a nice error if it isn't (see #383)
   for_ maybeGraph $ \(ModuleGraph moduleMap) -> case Map.lookup moduleName moduleMap of
     Nothing -> die [ "Module '" <> (display . unModuleName) moduleName <> "' not found! Are you including it in your build?" ]
     Just _ -> do
