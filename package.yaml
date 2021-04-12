@@ -91,7 +91,6 @@ library:
   - base >= 4.7 && < 5
   - bower-json
   - bytestring
-  - Cabal
   - containers
   - cryptonite
   - dhall >= 1.38.0

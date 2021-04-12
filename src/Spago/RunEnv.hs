@@ -5,9 +5,9 @@ import Spago.Env
 
 import           System.Console.ANSI (hSupportsANSIWithoutEmulation)
 import qualified System.Environment  as Env
-import qualified Distribution.System as OS
 import qualified Data.Versions       as Version
 import qualified RIO
+import qualified System.Info
 import qualified Turtle
 
 import qualified Spago.Config as Config
@@ -119,8 +119,8 @@ withPublishEnv app = do
   envGitCmd <- getGit
   envBowerCmd <- BowerCmd <$>
     -- workaround windows issue: https://github.com/haskell/process/issues/140
-    case OS.buildOS of
-      OS.Windows -> do
+    case System.Info.os of
+      "mingw32" -> do
         let bowers = Turtle.inproc "where" ["bower.cmd"] empty
         Turtle.lineToText <$> Turtle.single (Turtle.limit 1 bowers)
       _ -> findExecutableOrDie "bower"

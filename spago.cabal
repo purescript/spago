@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 0b6a9312fa516e95a2f57ba46b4f5a58c3a218a4aecd03144360911d764ee7bd
+-- hash: ac6c7b73f4367ffbd9ff397b2c7bd980742a83db71e6bab100e720900307a08b
 
 name:           spago
 version:        0.20.0
@@ -75,8 +75,7 @@ library
   default-extensions: ApplicativeDo BangPatterns BinaryLiterals ConstraintKinds DataKinds DefaultSignatures DeriveDataTypeable DeriveFoldable DeriveFunctor DeriveGeneric DeriveTraversable DerivingStrategies DoAndIfThenElse DuplicateRecordFields EmptyDataDecls ExistentialQuantification FlexibleContexts FlexibleInstances FunctionalDependencies GADTs GeneralizedNewtypeDeriving InstanceSigs KindSignatures LambdaCase LiberalTypeSynonyms MultiParamTypeClasses MultiWayIf NamedFieldPuns NoImplicitPrelude NoMonomorphismRestriction OverloadedStrings PartialTypeSignatures PatternGuards PolyKinds QuantifiedConstraints RankNTypes RecordWildCards ScopedTypeVariables StandaloneDeriving TupleSections TypeApplications TypeFamilies TypeSynonymInstances UndecidableInstances ViewPatterns
   ghc-options: -Wall -Wcompat -Wincomplete-record-updates -Wredundant-constraints -fprint-potential-instances -optP-Wno-nonportable-include-path
   build-depends:
-      Cabal
-    , Glob
+      Glob
     , aeson
     , aeson-pretty
     , ansi-terminal

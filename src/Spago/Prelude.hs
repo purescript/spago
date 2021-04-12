@@ -81,9 +81,9 @@ import qualified Data.Text.Prettyprint.Doc.Render.Text as PrettyText
 import qualified Data.Time                             as Time
 import           Dhall                                 (Text)
 import qualified Dhall.Core
-import qualified Distribution.System                   as OS
 import qualified RIO
 import qualified System.FilePath                       as FilePath
+import qualified System.Info
 import qualified System.IO
 import qualified Turtle
 import qualified UnliftIO.Directory                    as Directory
@@ -250,8 +250,8 @@ pretty = PrettyText.renderStrict
 --   first try the `.cmd` version.
 findExecutable :: MonadIO m => String -> m (Maybe Text)
 findExecutable x =
-  fmap (fmap Text.pack) $ case OS.buildOS of
-    OS.Windows -> Directory.findExecutable (x <> ".cmd") >>= \case
+  fmap (fmap Text.pack) $ case System.Info.os of
+    "mingw32" -> Directory.findExecutable (x <> ".cmd") >>= \case
       Nothing -> Directory.findExecutable x
       success -> pure success
     _ -> Directory.findExecutable x
