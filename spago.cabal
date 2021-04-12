@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 77b5d785b2feb191ce5732a72494d5d950758a3c9dd77a3c98827bf19c3bafa3
+-- hash: 0b6a9312fa516e95a2f57ba46b4f5a58c3a218a4aecd03144360911d764ee7bd
 
 name:           spago
 version:        0.20.0
