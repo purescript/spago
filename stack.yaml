@@ -9,7 +9,7 @@ extra-deps:
 - semver-range-0.2.8
 - time-1.9.3
 - unix-2.7.2.2
-- Win32-2.10.1.0
+- Win32-2.9.0.0
 - with-utf8-1.0.2.2
 nix:
   packages: [zlib]
@@ -20,3 +20,4 @@ flags:
   # This is so we don't depend on libtinfo
   haskeline:
     terminfo: false
+    examples: false
