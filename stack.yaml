@@ -2,14 +2,8 @@ resolver: nightly-2021-04-06
 packages:
 - .
 extra-deps:
-        # - Cabal-3.4.0.0
-        # - directory-1.3.6.1
 - dhall-1.38.1
-  # - process-1.6.11.0
 - semver-range-0.2.8
-  # - time-1.9.3
-  # - unix-2.7.2.2
-  # - Win32-2.9.0.0
 - with-utf8-1.0.2.2
 nix:
   packages: [zlib]
