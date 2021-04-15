@@ -16,12 +16,12 @@ import Docs.Search.TypeDecoder (QualifiedName(..), Type(..), joinConstraints, jo
 import Docs.Search.Types (Identifier(..))
 
 import Prelude
-
+import Prim hiding (Type)
 import Control.Alt ((<|>))
 import Data.Array as Array
 import Data.Either (Either)
 import Data.Generic.Rep (class Generic)
-import Data.Generic.Rep.Show (genericShow)
+import Data.Show.Generic (genericShow)
 import Data.List (List(..), many, some, (:))
 import Data.List as List
 import Data.List.NonEmpty (NonEmptyList)
@@ -331,7 +331,7 @@ typeVarPenalty substs =
                       Substitute v1 v2 ->
                         f v1 v2
                       _ -> identity
-                   ) mempty substs
+                   ) Map.empty substs
 
 
 -- | Penalty for name mismatches.

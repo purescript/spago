@@ -2,8 +2,8 @@
 module Docs.Search.DocsJson where
 
 import Prelude
-
-import Docs.Search.TypeDecoder (Constraint, FunDeps, Kind, Type, TypeArgument)
+import Prim hiding (Type, Constraint)
+import Docs.Search.TypeDecoder (Constraint, FunDeps, Type, TypeArgument)
 
 import Data.Argonaut.Core (fromString, stringify, toString)
 import Data.Argonaut.Decode (class DecodeJson, decodeJson, (.:), (.:?))
@@ -11,7 +11,7 @@ import Data.Argonaut.Decode.Error (JsonDecodeError(..))
 import Data.Argonaut.Encode (class EncodeJson, encodeJson)
 import Data.Either (Either(..))
 import Data.Generic.Rep (class Generic)
-import Data.Generic.Rep.Show (genericShow)
+import Data.Show.Generic (genericShow)
 import Data.Maybe (Maybe(..))
 import Data.Newtype (class Newtype, unwrap)
 
@@ -44,7 +44,7 @@ newtype Declaration
                , comments :: Maybe String
                , info :: { declType      :: DeclType
                          , dataDeclType  :: Maybe DataDeclType
-                         , kind          :: Maybe Kind
+                         , kind          :: Maybe Type
                          , typeArguments :: Maybe (Array TypeArgument)
                          , type          :: Maybe Type
                          , superclasses  :: Maybe (Array Constraint)

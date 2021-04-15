@@ -12,13 +12,13 @@ import Docs.Search.Extra (homePageFromRepository, (>#>))
 import Docs.Search.ModuleIndex (ModuleResult)
 import Docs.Search.PackageIndex (PackageResult)
 import Docs.Search.SearchResult (ResultInfo(..), SearchResult(..))
-import Docs.Search.TypeDecoder (Constraint(..), FunDep(..), FunDeps(..), Kind(..), QualifiedName(..), Type(..), TypeArgument(..), joinForAlls, joinRows)
+import Docs.Search.TypeDecoder (Constraint(..), FunDep(..), FunDeps(..), QualifiedName(..), Type(..), TypeArgument(..), joinForAlls, joinRows)
 import Docs.Search.TypeIndex (TypeIndex)
 import Docs.Search.Types (Identifier(..), ModuleName(..), PackageName)
 import Docs.Search.Meta (Meta)
 
 import Prelude
-
+import Prim hiding (Type, Constraint)
 import Data.Array ((!!))
 import Data.Array as Array
 import Data.List as List
@@ -76,7 +76,7 @@ mkComponent
   -> Element
   -> MD.MarkdownIt
   -> Meta
-  -> H.Component HH.HTML Query i o Aff
+  -> H.Component Query i o Aff
 mkComponent initialEngineState contents markdownIt { localPackageName } =
   H.mkComponent
     { initialState: const { engineState: initialEngineState
@@ -205,7 +205,7 @@ render state@{ mode: Active } =
   , HH.div [ HP.class_ (wrap "load_more"), HP.id_ "load-more" ]
     [ if Array.length shownResults < Array.length state.results
       then HH.a [ HP.id_ "load-more-link"
-                , HE.onClick $ const $ Just MoreResultsRequested ]
+                , HE.onClick $ const MoreResultsRequested ]
            [ HH.text "Show more results" ]
       else HH.p_
            [ HH.text "No further results." ]
@@ -305,7 +305,7 @@ renderSearchResult state (SearchResult result) =
   [ HH.div [ HP.class_ (wrap "result") ]
     [ HH.h3 [ HP.class_ (wrap "result__title") ]
       [ HH.a [ HP.class_ (wrap "result__link")
-             , HE.onClick $ const $ Just $ SearchResultClicked result.moduleName
+             , HE.onClick $ const $ SearchResultClicked result.moduleName
              , HP.href $
                unwrap result.moduleName <> ".html#" <>
                result.hashAnchor <> ":" <> unwrap result.name
@@ -386,7 +386,7 @@ renderValueSignature
   -> Array (HH.HTML a Action)
 renderValueSignature result ty =
   [ HH.a [ makeHref ValueLevel false result.moduleName result.name
-         , HE.onClick $ const $ Just $ SearchResultClicked result.moduleName ]
+         , HE.onClick $ const $ SearchResultClicked result.moduleName ]
     [ HH.text $ unwrap result.name ]
   , HH.text " :: "
   , renderType ty ]
@@ -417,7 +417,7 @@ renderTypeClassSignature { fundeps, arguments, superclasses } { name, moduleName
       ]
   , space
   , HH.a [ makeHref TypeLevel false moduleName name
-         , HE.onClick $ const $ Just $
+         , HE.onClick $ const $
            SearchResultClicked moduleName
          ]
     [ HH.text $ unwrap name ]
@@ -510,7 +510,7 @@ renderTypeArgument (TypeArgument { name, mbKind }) =
       [ HH.text "("
       , HH.text $ name
       , HH.text " :: "
-      , renderKind kind
+      , renderType kind
       , HH.text ")"
       ]
 
@@ -592,7 +592,7 @@ renderForAll ty =
         HH.span_ [ HH.text $ " (" <> name <> " "
                  , syntax "::"
                  , space
-                 , renderKind kind
+                 , renderType kind
                  , HH.text ")" ]
   ) <>
 
@@ -666,7 +666,7 @@ renderQualifiedName isInfix level (QualifiedName { moduleNameParts, name })
   = if isBuiltIn then
       HH.text $ unwrap name
     else
-      HH.a [ HE.onClick $ const $ Just $
+      HH.a [ HE.onClick $ const $
              SearchResultClicked $ moduleName
            , makeHref level isInfix moduleName name
            ]
@@ -674,16 +674,6 @@ renderQualifiedName isInfix level (QualifiedName { moduleNameParts, name })
       where
         moduleName = ModuleName $ Array.intercalate "." $ moduleNameParts
         isBuiltIn = moduleNameParts !! 0 == Just "Prim"
-
-
-renderKind
-  :: forall a
-  .  Kind
-  -> HH.HTML a Action
-renderKind = case _ of
-  Row k1          -> HH.span_ [ HH.text "# ", renderKind k1 ]
-  FunKind k1 k2   -> HH.span_ [ renderKind k1, syntax " -> ", renderKind k2 ]
-  NamedKind qname -> renderQualifiedName false KindLevel qname
 
 
 -- | Construct a `href` property value w.r.t. `DeclLevel`.

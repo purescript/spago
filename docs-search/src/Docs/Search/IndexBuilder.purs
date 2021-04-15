@@ -249,7 +249,7 @@ writeMeta meta = do
 -- | Get a mapping from index parts to index contents.
 getIndex :: Declarations -> Map PartId (Array (Tuple String (Array SearchResult)))
 getIndex (Declarations trie) =
-  Array.foldr insert mempty parts
+  Array.foldr insert Map.empty parts
     where
       insert part = Map.insertWith append (getPartId part.prefix) part.results
 

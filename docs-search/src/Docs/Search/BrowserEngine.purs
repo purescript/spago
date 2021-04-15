@@ -36,9 +36,6 @@ newtype PartialIndex
   = PartialIndex (Map PartId Index)
 
 derive instance newtypePartialIndex :: Newtype PartialIndex _
-derive newtype instance semigroupPartialIndex :: Semigroup PartialIndex
-derive newtype instance monoidPartialIndex :: Monoid PartialIndex
-
 
 type BrowserEngineState = EngineState PartialIndex TypeIndex
 

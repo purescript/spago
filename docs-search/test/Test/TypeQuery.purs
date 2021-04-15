@@ -6,7 +6,7 @@ import Docs.Search.TypeShape (ShapeChunk(..), shapeOfType, shapeOfTypeQuery)
 import Docs.Search.Types (Identifier(..))
 
 import Prelude
-
+import Prim hiding (Constraint, Type)
 import Data.Foldable (class Foldable)
 import Data.List (List(..), (:))
 import Data.List as List

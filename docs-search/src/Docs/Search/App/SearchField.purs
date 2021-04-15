@@ -15,7 +15,7 @@ import Halogen.HTML as HH
 import Halogen.HTML.CSS as HS
 import Halogen.HTML.Events as HE
 import Halogen.HTML.Properties as HP
-import Halogen.Query.EventSource as ES
+import Halogen.Query.Event as ES
 import Web.DOM.Document as Document
 import Web.DOM.ParentNode as ParentNode
 import Web.HTML as HTML
@@ -36,6 +36,7 @@ data Action
   | FocusChanged Boolean
   | InitKeyboardListener
   | HandleKey H.SubscriptionId KeyboardEvent
+  | NoOp
 
 data Query a
   = ReadURIHash a
@@ -46,7 +47,7 @@ data SearchFieldMessage
   | Focused
   | LostFocus
 
-component :: forall i. H.Component HH.HTML Query i SearchFieldMessage Aff
+component :: forall i. H.Component Query i SearchFieldMessage Aff
 component =
   H.mkComponent
     { initialState
@@ -73,12 +74,12 @@ initialState _ = { input: "", focused: false }
 
 handleAction :: Action -> H.HalogenM State Action () SearchFieldMessage Aff Unit
 handleAction = case _ of
-
+  NoOp -> pure unit
   InitKeyboardListener -> do
 
     document <- H.liftEffect $ Window.document =<< HTML.window
     H.subscribe' \sid ->
-      ES.eventListenerEventSource
+      ES.eventListener
         KET.keyup
         (HTMLDocument.toEventTarget document)
         (map (HandleKey sid) <<< KE.fromEvent)
@@ -159,11 +160,11 @@ render state =
     , HP.type_ HP.InputText
     , HE.onKeyUp (\event ->
                    case KeyboardEvent.code event of
-                     "Enter"  -> Just EnterPressed
-                     _        -> Nothing)
-    , HE.onValueInput (Just <<< InputAction)
-    , HE.onFocusIn  $ const $ Just $ FocusChanged true
-    , HE.onFocusOut $ const $ Just $ FocusChanged false
+                     "Enter"  -> EnterPressed
+                     _        -> NoOp)
+    , HE.onValueInput InputAction
+    , HE.onFocusIn  $ const $ FocusChanged true
+    , HE.onFocusOut $ const $ FocusChanged false
     , HS.style do
 
       let pursuitColor = rgb 0x1d 0x22 0x2d

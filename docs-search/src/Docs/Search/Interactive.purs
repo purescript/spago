@@ -13,13 +13,13 @@ import Docs.Search.PackageIndex (PackageResult, mkPackageIndex, mkPackageInfo)
 import Docs.Search.Score (mkScores)
 import Docs.Search.SearchResult (ResultInfo(..), SearchResult(..))
 import Docs.Search.Terminal (bold, cyan, green, yellow)
-import Docs.Search.TypeDecoder (Constraint, FunDeps, Kind, QualifiedName, Type, TypeArgument)
+import Docs.Search.TypeDecoder (Constraint, FunDeps, QualifiedName, Type, TypeArgument)
 import Docs.Search.TypeIndex (resultsWithTypes)
-import Docs.Search.TypePrinter (keyword, showConstraint, showFunDeps, showKind, showType, showTypeArgument, space, syntax)
+import Docs.Search.TypePrinter (keyword, showConstraint, showFunDeps, showType, showTypeArgument, space, syntax)
 import Docs.Search.Types (ModuleName, PackageName, PackageInfo, Identifier)
 
 import Prelude
-
+import Prim hiding (Type, Constraint)
 import Data.Array as Array
 import Data.Identity (Identity(..))
 import Data.List as List
@@ -279,7 +279,7 @@ showTypeSynonymSignature { type: ty, arguments } { name } =
 
 showExternDataSignature
   :: forall rest
-  .  { kind :: Kind }
+  .  { kind :: Type }
   -> { name :: Identifier | rest }
   -> String
 showExternDataSignature { kind } { name } =
@@ -288,7 +288,7 @@ showExternDataSignature { kind } { name } =
   yellow (unwrap name) <>
   space <>
   syntax " :: " <>
-  showKind kind
+  showType kind
 
 
 leftShift :: Int -> String -> String

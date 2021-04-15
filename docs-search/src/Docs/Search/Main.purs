@@ -9,7 +9,7 @@ import Docs.Search.Config as Config
 import Docs.Search.Types (PackageName(..))
 
 import Data.Generic.Rep (class Generic)
-import Data.Generic.Rep.Show (genericShow)
+import Data.Show.Generic (genericShow)
 import Data.List as List
 import Data.List.NonEmpty as NonEmpty
 import Data.Maybe (Maybe, fromMaybe, optional)

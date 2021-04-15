@@ -12,12 +12,13 @@ import Docs.Search.Types (ModuleName(..))
 import Docs.Search.TypeShape (shapeOfType, shapeOfTypeQuery, stringifyShape)
 
 import Prelude
-
+import Prim hiding (Type)
 import Control.Promise (Promise, toAffE)
 import Data.Argonaut.Core (Json)
 import Data.Argonaut.Decode (decodeJson)
 import Data.Array as Array
 import Data.Either (hush)
+import Data.Foldable (fold, foldr)
 import Data.Map (Map)
 import Data.Map as Map
 import Data.Maybe (Maybe(..), fromMaybe', isJust)
@@ -28,14 +29,12 @@ import Effect.Aff (Aff, try)
 
 newtype TypeIndex = TypeIndex (Map String (Maybe (Array SearchResult)))
 
-derive newtype instance semigroupTypeIndex :: Semigroup TypeIndex
-derive newtype instance monoidTypeIndex :: Monoid TypeIndex
 derive instance newtypeTypeIndex :: Newtype TypeIndex _
 
 
 mkTypeIndex :: Scores -> Array DocsJson -> TypeIndex
 mkTypeIndex scores docsJsons =
-  TypeIndex $ map Just $ Array.foldr insert mempty docsJsons
+  TypeIndex $ map Just $ foldr insert Map.empty docsJsons
   where
     insert :: DocsJson -> Map String (Array SearchResult) -> Map String (Array SearchResult)
     insert docsJson mp =
@@ -78,7 +77,7 @@ lookup
   -> Aff { index :: TypeIndex, results :: Array SearchResult }
 lookup key index@(TypeIndex map) =
   case Map.lookup key map of
-    Just results -> pure { index, results: Array.fold results }
+    Just results -> pure { index, results: fold results }
     Nothing -> do
       eiJson <- try (toAffE (lookup_ key $ Config.mkShapeScriptPath key))
       pure $ fromMaybe'

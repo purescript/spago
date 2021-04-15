@@ -29,7 +29,7 @@ mkScores =
     updateScoresFor (unwrap pm).dependencies >>>
     updateScoresFor (unwrap pm).devDependencies
   )
-  mempty
+  Map.empty
 
   where
     updateScoresFor :: Dependencies -> Scores -> Scores

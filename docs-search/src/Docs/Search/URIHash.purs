@@ -10,7 +10,7 @@ import Prelude
 import Data.Maybe (Maybe(Just), fromMaybe)
 import Data.String.CodeUnits as String
 import Effect (Effect)
-import Global (decodeURIComponent, encodeURIComponent)
+import JSURI (decodeURIComponent, encodeURIComponent)
 import Web.HTML as HTML
 import Web.HTML.Location as Location
 import Web.HTML.Window as Window

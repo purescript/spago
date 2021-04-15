@@ -36,7 +36,7 @@ mkPackageInfo :: Scores -> Array PackageMeta -> PackageInfo
 mkPackageInfo packageScores pms =
   Array.fromFoldable $
   Map.values $
-  Array.foldr insert mempty pms
+  Array.foldr insert Map.empty pms
 
   where
     insert
@@ -64,7 +64,8 @@ mkPackageInfo packageScores pms =
 
 mkScoresFromPackageIndex :: PackageIndex -> Scores
 mkScoresFromPackageIndex =
-  Trie.values >>> Array.foldr (\ { name, score } -> Map.insert name score) mempty
+  Trie.values >>> Array.fromFoldable >>>
+  Array.foldr (\ { name, score } -> Map.insert name score) Map.empty
 
 
 loadPackageIndex :: Aff PackageIndex

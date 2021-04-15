@@ -64,7 +64,7 @@ mkComponent
   .  ModuleIndex
   -> IsIndexHTML
   -> Meta
-  -> Aff (H.Component HH.HTML Query i Action Aff)
+  -> Aff (H.Component Query i Action Aff)
 mkComponent moduleIndex@{ packageModules } isIndexHTML { localPackageName } = do
   groupingMode <- H.liftEffect loadGroupingModeFromLocalStorage
   mbModuleName <- H.liftEffect getCurrentModuleName
@@ -134,7 +134,7 @@ render state@{ groupingMode, moduleNames, localPackageName } =
   , HH.input [ HP.id_ "group-modules__input"
              , HP.type_ HP.InputCheckbox
              , HP.checked (groupingMode == GroupByPackage)
-             , HE.onChecked $ Just <<< ToggleGrouping <<< isCheckedToGroupingMode
+             , HE.onChecked $ ToggleGrouping <<< isCheckedToGroupingMode
              ]
 
   , HH.text " "

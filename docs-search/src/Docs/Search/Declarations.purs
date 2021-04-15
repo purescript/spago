@@ -3,11 +3,11 @@ module Docs.Search.Declarations where
 import Docs.Search.DocsJson (ChildDeclType(..), ChildDeclaration(..), DeclType(..), Declaration(..), DocsJson(..), SourceSpan)
 import Docs.Search.Score (Scores, getPackageScore, getPackageScoreForPackageName)
 import Docs.Search.SearchResult (ResultInfo(..), SearchResult(..))
-import Docs.Search.TypeDecoder (Constraint(..), QualifiedName(..), Type(..), Kind, joinForAlls)
+import Docs.Search.TypeDecoder (Constraint(..), QualifiedName(..), Type(..), joinForAlls)
 import Docs.Search.Types (ModuleName(..), PackageName(..), PackageInfo(..), Identifier(..))
 
 import Prelude
-
+import Prim hiding (Type)
 import Control.Alt ((<|>))
 import Data.Array ((!!))
 import Data.Array as Array
@@ -271,7 +271,7 @@ mkChildInfo
         -- We concatenate two lists:
         -- * a list of type parameters of the type class, and
         -- * a list of quantified variables of the unconstrained type
-        allArguments :: Array { name :: String, mbKind :: Maybe Kind }
+        allArguments :: Array { name :: String, mbKind :: Maybe Type }
         allArguments =
           (arguments <#> unwrap) <> List.toUnfoldable binders
 

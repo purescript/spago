@@ -56,7 +56,7 @@ type ModuleResult
 
 unpackModuleIndex :: PackedModuleIndex -> ModuleIndex
 unpackModuleIndex packageModules =
-  flip execState { packageModules, modulePackages: mempty, index: mempty } do
+  flip execState { packageModules, modulePackages: Map.empty, index: mempty } do
     for_ (Map.toUnfoldableUnordered packageModules :: Array _)
       \(package /\ moduleNames) -> do
         for_ moduleNames \moduleName -> do
@@ -94,12 +94,12 @@ queryModuleIndex scores { index, modulePackages } query =
 -- | Constructs a mapping from packages to modules
 mkPackedModuleIndex :: Declarations -> PackedModuleIndex
 mkPackedModuleIndex (Declarations trie) =
-  foldr (Map.unionWith Set.union) mempty $ extract <$> Trie.values trie
+  foldr (Map.unionWith Set.union) Map.empty $ extract <$> Trie.values trie
   where
     extract
       :: List SearchResult
       -> Map PackageInfo (Set ModuleName)
-    extract = foldr (Map.unionWith Set.union) mempty <<< map mkEntry
+    extract = foldr (Map.unionWith Set.union) Map.empty <<< map mkEntry
       where
         mkEntry (SearchResult { packageInfo, moduleName }) =
           Map.singleton packageInfo (Set.singleton moduleName)
@@ -107,7 +107,7 @@ mkPackedModuleIndex (Declarations trie) =
 loadModuleIndex :: Aff PackedModuleIndex
 loadModuleIndex = do
   json <- toAffE $ load Config.moduleIndexLoadPath
-  pure $ fromMaybe mempty $ hush $ decodeJson json
+  pure $ fromMaybe Map.empty $ hush $ decodeJson json
 
 
 foreign import load
