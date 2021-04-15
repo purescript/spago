@@ -5,6 +5,7 @@ module Spago.Purs
   , bundle
   , docs
   , pursVersion
+  , hasMinPursVersion
   , parseDocsFormat
   , findFlag
   , DocsFormat(..)
@@ -144,6 +145,13 @@ pursVersion = Turtle.Bytes.shellStrictWithErr (purs <> " --version") empty >>= \
   where
     purs = "purs"
 
+hasMinPursVersion :: (HasLogFunc env, HasPurs env) => Text -> RIO env Bool
+hasMinPursVersion maybeMinVersion = do
+  PursCmd { compilerVersion } <- view (the @PursCmd)
+  minVersion <- case Version.semver maybeMinVersion of
+    Left _ -> die [ "Unable to parse min version: " <> displayShow maybeMinVersion ]
+    Right minVersion -> pure minVersion
+  pure $ compilerVersion >= minVersion
 
 runWithOutput :: HasLogFunc env => Text -> Text -> Text -> RIO env ()
 runWithOutput command success failure = do

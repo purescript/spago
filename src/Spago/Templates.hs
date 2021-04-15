@@ -3,9 +3,7 @@ module Spago.Templates where
 
 import qualified Data.Text                as T
 
-import           Spago.TH                 (embedFileUtf8, embedURLWithFallback)
-import           Spago.Prelude
-
+import           Spago.TH                 (embedFileUtf8)
 
 packagesDhall :: T.Text
 packagesDhall = $(embedFileUtf8 "templates/packages.dhall")
@@ -28,20 +26,14 @@ bowerJson = $(embedFileUtf8 "templates/bower.json")
 pursRepl :: T.Text
 pursRepl = $(embedFileUtf8 "templates/purs-repl")
 
-docsSearchApp :: T.Text
-docsSearchApp =
-  $(embedURLWithFallback
-    ( "https://github.com/spacchetti/purescript-docs-search/releases/download/"
-   <> T.unpack docsSearchVersion
-   <> "/docs-search-app.js"
-    )
-    "templates/docs-search-app.js")
+docsSearchApp0010 :: T.Text
+docsSearchApp0010 = $(embedFileUtf8 "templates/docs-search-app-0.0.10.js")
 
-docsSearch :: T.Text
-docsSearch =
-  $(embedURLWithFallback
-     ( "https://github.com/spacchetti/purescript-docs-search/releases/download/"
-    <> T.unpack docsSearchVersion
-    <> "/purescript-docs-search"
-     )
-     "templates/purescript-docs-search")
+docsSearch0010 :: T.Text
+docsSearch0010 = $(embedFileUtf8 "templates/purescript-docs-search-0.0.10")
+
+docsSearchApp0011 :: T.Text
+docsSearchApp0011 = $(embedFileUtf8 "templates/docs-search-app-0.0.11.js")
+
+docsSearch0011 :: T.Text
+docsSearch0011 = $(embedFileUtf8 "templates/purescript-docs-search-0.0.11")

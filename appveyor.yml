@@ -31,6 +31,7 @@ install:
   - chmod a+x purescript
 
 build_script:
+  - make
   - stack build
   - stack install --local-bin-path bin
 
