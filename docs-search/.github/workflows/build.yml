@@ -1,0 +1,44 @@
+name: build
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+
+      - uses: actions/setup-node@v2
+        with:
+          node-version: "14"
+
+      - uses: purescript-contrib/setup-purescript@main
+
+      - uses: actions/cache@v2
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-node-${{ hashFiles('./**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-
+
+      - name: Cache PureScript dependencies
+        uses: actions/cache@v2
+        with:
+          key: ${{ runner.os }}-spago-${{ hashFiles('./**/*.dhall') }}
+          path: |
+            .spago
+            output
+
+      - name: Install
+        run: |
+          npm ci
+          spago install
+
+      - name: Build
+        run: |
+          npm run build
+          npm test
+          spago docs --no-search
+          ./dist/purescript-docs-search build-index
