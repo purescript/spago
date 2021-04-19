@@ -42,6 +42,7 @@ in  upstream
   with halogen.repo = "https://example.com/path/to/git/repo.git"
 
   with halogen-vdom.version = "v4.0.0"
+  with halogen-vdom.dependencies = ["extra-dependency"] # halogen-vdom.dependencies
 -------------------------------
 
 ### Additions
