@@ -39,6 +39,7 @@ If you'd like to develop spago locally, the recommended tool to use is [stack][s
 To compile the project from source you can do
 
 ```bash
+$ make
 $ stack build --fast
 ```
 

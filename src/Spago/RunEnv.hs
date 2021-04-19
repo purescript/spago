@@ -6,7 +6,6 @@ import Spago.Env
 import           System.Console.ANSI (hSupportsANSIWithoutEmulation)
 import qualified System.Environment  as Env
 import qualified Distribution.System as OS
-import qualified Data.Versions       as Version
 import qualified RIO
 import qualified Turtle
 
@@ -208,11 +207,8 @@ getMaybeGraph :: HasPursEnv env => BuildOptions -> Config -> [(PackageName, Pack
 getMaybeGraph BuildOptions{ depsOnly, sourcePaths } Config{ configSourcePaths } deps = do
   let partitionedGlobs@(Packages.Globs{..}) = Packages.getGlobs deps depsOnly configSourcePaths
       globs = Packages.getGlobsSourcePaths partitionedGlobs <> sourcePaths
-  PursCmd { compilerVersion } <- view (the @PursCmd)
-  minVersion <- case Version.semver "0.14.0" of
-    Left _ -> die [ "Unable to parse min version for imports check" ]
-    Right minVersion -> pure minVersion
-  if compilerVersion < minVersion
+  supportsGraph <- Purs.hasMinPursVersion "0.14.0"
+  if not supportsGraph
   then pure Nothing
   else do
     maybeGraph <- Purs.graph globs

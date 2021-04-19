@@ -405,6 +405,15 @@ bundleModule maybeModuleName maybeTargetPath noBuild buildOpts usePsa = do
     DoBuild -> Run.withBuildEnv usePsa buildOpts $ build (Just bundleAction)
     NoBuild -> Run.getEnv >>= (flip runRIO) bundleAction
 
+docsSearchTemplate :: (HasType LogFunc env, HasType PursCmd env) => RIO env Text
+docsSearchTemplate = ifM (Purs.hasMinPursVersion "0.14.0")
+  (pure Templates.docsSearch0011)
+  (pure Templates.docsSearch0010)
+
+docsSearchAppTemplate :: (HasType LogFunc env, HasType PursCmd env) => RIO env Text
+docsSearchAppTemplate = ifM (Purs.hasMinPursVersion "0.14.0")
+  (pure Templates.docsSearchApp0011)
+  (pure Templates.docsSearchApp0010)
 
 -- | Generate docs for the `sourcePaths` and run `purescript-docs-search build-index` to patch them.
 docs
@@ -424,8 +433,8 @@ docs format noSearch open = do
   when isHTMLFormat $ do
     when (noSearch == AddSearch) $ do
       logInfo "Making the documentation searchable..."
-      writeTextFile ".spago/purescript-docs-search" Templates.docsSearch
-      writeTextFile ".spago/docs-search-app.js"     Templates.docsSearchApp
+      writeTextFile ".spago/purescript-docs-search" =<< docsSearchTemplate
+      writeTextFile ".spago/docs-search-app.js" =<< docsSearchAppTemplate
       let cmd = "node .spago/purescript-docs-search build-index --package-name " <> surroundQuote name
       logDebug $ "Running `" <> display cmd <> "`"
       shell cmd empty >>= \case
@@ -463,7 +472,7 @@ search = do
     , PursArg "docs"
     ]
 
-  writeTextFile ".spago/purescript-docs-search" Templates.docsSearch
+  writeTextFile ".spago/purescript-docs-search" =<< docsSearchTemplate
   let cmd = "node .spago/purescript-docs-search search --package-name " <> surroundQuote name
   logDebug $ "Running `" <> display cmd <> "`"
   viewShell $ callCommand $ Text.unpack cmd
