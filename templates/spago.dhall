@@ -3,9 +3,8 @@ Welcome to a Spago project!
 You can edit this file as you like.
 
 Need help? See the following resources:
-- Spago project:        https://github.com/purescript/spago
-- Package-Sets project: https://github.com/purescript/package-sets
-- Dhall language:       https://dhall-lang.org/
+- Spago documentation: https://github.com/purescript/spago
+- Dhall language tour: https://docs.dhall-lang.org/tutorials/Language-Tour.html
 
 When creating a new Spago project, you can use
 `spago init --no-comments` or `spago init -C`
