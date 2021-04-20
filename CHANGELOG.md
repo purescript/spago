@@ -7,14 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.20.1] - 2021-04-20
+
 Bugfixes:
 - Color output now works correctly or is disabled on Windows (#768, #749)
+- Fix `spago docs` for PureScript 0.14, by updating `docs-search` to `0.0.11` (#775, #752)
 
 Other improvements:
 - Color output is now automatically disabled when output is redirected to a file.
   Also respects a [`NO_COLOR`](https://no-color.org/) environment variable (#768)
-- Fixes tests failing if the test platform has psa installed (#772)
-- Print `spago install` command to fix missing transitive dependencies (#770)
+- Fixes tests failing if the test platform has `psa` installed (#772)
+- Print `spago install` command to fix missing transitive dependencies (#770, #769, #776)
+- Refactor the graph support to remove the custom module name parser (#773)
 
 ## [0.20.0] - 2021-04-07
 
