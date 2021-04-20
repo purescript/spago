@@ -6,7 +6,7 @@ branches:
 
 environment:
   STACK_ROOT: C:\sr
-  STACK_VERSION: 2.3.3
+  STACK_VERSION: 2.5.1
 
   matrix:
     - STACK_YAML: stack.yaml

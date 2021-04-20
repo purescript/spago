@@ -71,7 +71,7 @@ formatPackageNames = \case
               , json_repo = toJSON loc
               , json_version = version
               }
-        asJson (PackageName{..}, Package { location = loc@(Local _), ..})
+        asJson (PackageName{..}, Package { location = loc@(Local _) })
           = JsonPackageOutput
               { json_packageName = packageName
               , json_repo = toJSON loc
