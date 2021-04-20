@@ -64,6 +64,7 @@ jobs:
         if: runner.os != 'Windows'
         shell: bash
         run: |
+          make
           stack install --dependencies-only
           mkdir artifacts
           stack build --copy-bins --local-bin-path ./artifacts
@@ -75,6 +76,7 @@ jobs:
         if: runner.os == 'Windows'
         shell: bash
         run: |
+          make
           stack install --dependencies-only
           stack build --copy-bins --local-bin-path ./artifacts
           cp artifacts/spago.exe spago.exe

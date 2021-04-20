@@ -16,6 +16,7 @@ cache:
   - '.stack-work -> %STACK_YAML%, appveyor.yml'
 
 install:
+  - choco install -y make
   # http://help.appveyor.com/discussions/problems/6312-curl-command-not-found
   - set PATH=C:\Program Files\Git\mingw64\bin;%PATH%
   - curl --silent --show-error --output stack.zip --location "https://github.com/commercialhaskell/stack/releases/download/v%STACK_VERSION%/stack-%STACK_VERSION%-windows-x86_64.zip"
@@ -31,6 +32,7 @@ install:
   - chmod a+x purescript
 
 build_script:
+  - make
   - stack build
   - stack install --local-bin-path bin
 

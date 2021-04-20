@@ -79,7 +79,9 @@ jobs:
         shell: bash
 
       - name: Build
-        run: stack build --pedantic
+        run: |
+          make
+          stack build --pedantic
         shell: bash
 
       - name: Install

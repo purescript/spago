@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 77b5d785b2feb191ce5732a72494d5d950758a3c9dd77a3c98827bf19c3bafa3
+-- hash: 64b3d7194bb34705b51fef4eaafd1841f1900b6826a9cda155ba8d6572b9bd46
 
 name:           spago
 version:        0.20.0
@@ -21,10 +21,12 @@ extra-source-files:
     README.md
     CHANGELOG.md
     templates/bower.json
-    templates/docs-search-app.js
+    templates/docs-search-app-0.0.10.js
+    templates/docs-search-app-0.0.11.js
     templates/gitignore
     templates/packages.dhall
-    templates/purescript-docs-search
+    templates/purescript-docs-search-0.0.10
+    templates/purescript-docs-search-0.0.11
     templates/purs-repl
     templates/spago.dhall
     templates/srcMain.purs
