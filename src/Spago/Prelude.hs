@@ -12,6 +12,7 @@ module Spago.Prelude
   , headMay
   , lastMay
   , empty
+  , ifM
 
   -- * Logging, errors, printing, etc
   , Pretty
@@ -70,7 +71,6 @@ module Spago.Prelude
   , repr
   , with
   , appendonly
-  , docsSearchVersion
   , githubTokenEnvVar
   ) where
 
@@ -140,6 +140,9 @@ die :: (MonadIO m, HasLogFunc env, MonadReader env m) => [Utf8Builder] -> m a
 die reasons = do
   traverse_ logError reasons
   exitFailure
+
+ifM :: Monad m => m Bool -> m a -> m a -> m a
+ifM p x y = p >>= \b -> if b then x else y
 
 -- | Suppress the 'Left' value of an 'Either'
 hush :: Either a b -> Maybe b
@@ -215,11 +218,6 @@ assertDirectory directory = do
       Directory.createDirectory directory
 
       Directory.setPermissions directory private
-
-
--- | Release tag for the `purescript-docs-search` app.
-docsSearchVersion :: Text
-docsSearchVersion = "v0.0.10"
 
 
 githubTokenEnvVar :: IsString t => t

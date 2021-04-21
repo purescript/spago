@@ -1,7 +1,7 @@
 cabal-version: 2.4
 
 name:           spago
-version:        0.20.0
+version:        0.20.1
 description:    Please see the README on GitHub at <https://github.com/purescript/spago#readme>
 homepage:       https://github.com/purescript/spago#readme
 bug-reports:    https://github.com/purescript/spago/issues
@@ -15,10 +15,12 @@ extra-source-files:
     README.md
     CHANGELOG.md
     templates/bower.json
-    templates/docs-search-app.js
+    templates/docs-search-app-0.0.10.js
+    templates/docs-search-app-0.0.11.js
     templates/gitignore
     templates/packages.dhall
-    templates/purescript-docs-search
+    templates/purescript-docs-search-0.0.10
+    templates/purescript-docs-search-0.0.11
     templates/purs-repl
     templates/spago.dhall
     templates/srcMain.purs
