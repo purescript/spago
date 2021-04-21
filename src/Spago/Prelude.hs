@@ -81,9 +81,9 @@ import qualified Data.Text.Prettyprint.Doc.Render.Text as PrettyText
 import qualified Data.Time                             as Time
 import           Dhall                                 (Text)
 import qualified Dhall.Core
-import qualified Distribution.System                   as OS
 import qualified RIO
 import qualified System.FilePath                       as FilePath
+import qualified System.Info
 import qualified System.IO
 import qualified Turtle
 import qualified UnliftIO.Directory                    as Directory
@@ -98,7 +98,6 @@ import           Data.Either                           as X
 import           Data.Either.Validation                (Validation (..))
 import           Data.Foldable                         as X
 import           Data.Generics.Product                 (the, HasType(..))
-import           Data.List.NonEmpty                    (NonEmpty (..))
 import           Data.Maybe                            as X
 import           Data.Sequence                         (Seq (..))
 import           Data.Text.Prettyprint.Doc             (Pretty)
@@ -249,8 +248,8 @@ pretty = PrettyText.renderStrict
 --   first try the `.cmd` version.
 findExecutable :: MonadIO m => String -> m (Maybe Text)
 findExecutable x =
-  fmap (fmap Text.pack) $ case OS.buildOS of
-    OS.Windows -> Directory.findExecutable (x <> ".cmd") >>= \case
+  fmap (fmap Text.pack) $ case System.Info.os of
+    "mingw32" -> Directory.findExecutable (x <> ".cmd") >>= \case
       Nothing -> Directory.findExecutable x
       success -> pure success
     _ -> Directory.findExecutable x

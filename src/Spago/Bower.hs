@@ -11,7 +11,7 @@ import qualified Data.Aeson                 as Aeson
 import qualified Data.Aeson.Encode.Pretty   as Pretty
 import qualified Data.HashMap.Strict        as HashMap
 import qualified Data.Text                  as Text
-import qualified Distribution.System        as OS
+import qualified System.Info
 import qualified Turtle
 import qualified Web.Bower.PackageMeta      as Bower
 import qualified Data.Text.Lazy             as LazyText
@@ -135,8 +135,8 @@ mkDependencies = do
           bowerVersion <- mkBowerVersion bowerName version repo
           pure (bowerName, bowerVersion)
 
-    getJobs = case OS.buildOS of
+    getJobs = case System.Info.os of
       -- Windows sucks so lets make it slow for them!
       -- (just kidding, its a bug: https://github.com/bower/spec/issues/79)
-      OS.Windows -> pure $ Jobs 1
-      _          -> view (the @Jobs)
+      "mingw32" -> pure $ Jobs 1
+      _         -> view (the @Jobs)
