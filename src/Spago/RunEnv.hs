@@ -205,7 +205,7 @@ getPackageSet = do
 
 getMaybeGraph :: HasPursEnv env => BuildOptions -> Config -> [(PackageName, Package)] -> RIO env Graph
 getMaybeGraph BuildOptions{ depsOnly, sourcePaths } Config{ configSourcePaths } deps = do
-  let partitionedGlobs@(Packages.Globs{..}) = Packages.getGlobs deps depsOnly configSourcePaths
+  let partitionedGlobs = Packages.getGlobs deps depsOnly configSourcePaths
       globs = Packages.getGlobsSourcePaths partitionedGlobs <> sourcePaths
   supportsGraph <- Purs.hasMinPursVersion "0.14.0"
   if not supportsGraph

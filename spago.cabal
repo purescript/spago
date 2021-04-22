@@ -58,7 +58,6 @@ common defaults
     KindSignatures
     LambdaCase
     LiberalTypeSynonyms
-    MonadFailDesugaring
     MultiParamTypeClasses
     MultiWayIf
     NamedFieldPuns
@@ -140,7 +139,7 @@ library
     , http-conduit
     , http-types
     , lens-family-core
-    , megaparsec >=7.0 && <8.0
+    , megaparsec
     , mtl
     , network-uri
     , open-browser
@@ -206,8 +205,8 @@ test-suite spec
     , directory
     , extra
     , hspec ==2.*
-    , hspec-megaparsec >=2.0 && <2.1
-    , megaparsec >=7.0 && <8.0
+    , hspec-megaparsec
+    , megaparsec
     , process
     , spago
     , temporary
