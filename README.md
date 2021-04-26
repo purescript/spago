@@ -24,7 +24,7 @@ npm install -g spago
 
 Other installation methods available:
 - Download the binary from the [latest GitHub release][spago-latest-release]
-- Compile from source by cloning this repo and running `stack install`
+- Compile from source by cloning this repo and running `make install`
 - With Nix, using [easy-purescript-nix][spago-nix]
 - On FreeBSD, install with `pkg install hs-spago`.
 
