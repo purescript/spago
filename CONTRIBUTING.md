@@ -34,19 +34,22 @@ If you wish to contribute documentation, [this is a suggested read](https://www.
 
 ## Developing `spago`
 
-If you'd like to develop spago locally, the recommended tool to use is [stack][stack]
+If you'd like to develop spago locally, the recommended tool to use is [stack][stack].
 
-To compile the project from source you can do
+We use `make` to coordinate the build, here's a compilation of useful targets:
 
 ```bash
+# To compile the project from source:
 $ make
-$ stack build --fast
-```
 
-To install the version you're developing system-wide, do
+# File-watching build:
+$ make dev
 
-```bash
-$ stack install
+# Running tests:
+$ make test
+
+# Installing system-wide the current build:
+$ make install
 ```
 
 If you edit any title in the readme, run `doctoc` to update the Table of Contents:

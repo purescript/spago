@@ -1,10 +1,16 @@
-all: fetch-templates
+all: build
 
 fetch-templates:
-	@curl https://github.com/purescript/purescript-docs-search/releases/download/v0.0.10/docs-search-app.js -o templates/docs-search-app-0.0.10.js
-	@curl https://github.com/purescript/purescript-docs-search/releases/download/v0.0.10/purescript-docs-search -o templates/purescript-docs-search-0.0.10
-	@chmod +x templates/purescript-docs-search-0.0.10
-	@curl https://github.com/purescript/purescript-docs-search/releases/download/v0.0.11/docs-search-app.js -o templates/docs-search-app-0.0.11.js
-	@curl https://github.com/purescript/purescript-docs-search/releases/download/v0.0.11/purescript-docs-search -o templates/purescript-docs-search-0.0.11
-	@chmod +x templates/purescript-docs-search-0.0.11
+	@./scripts/fetch-templates
 
+dev: fetch-templates
+	@stack build --fast --file-watch
+
+build: fetch-templates
+	@stack build --fast
+
+test: fetch-templates
+	@stack test --fast --pedantic
+
+install: build
+	@stack install --fast
