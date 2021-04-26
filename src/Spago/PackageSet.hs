@@ -62,11 +62,16 @@ getLatestSetForCompilerVersion compilerVersion org repo = do
   for eitherLatestReleases $ \latestReleases -> do
     -- if we get that, we just try to pick a set for the current compiler
     case Map.lookup compilerVersion latestReleases of
-      -- but if the current compiler is not there we complain about compatibility
-      Nothing -> die [ display $ Messages.incompatiblePurs (Version.prettySemVer <$> List.reverse (Map.keys latestReleases))]
+      -- but if the current compiler is not there we check that it's compatible with the latest (see issue #777)
+      Nothing ->
+        let releasesList = List.reverse $ Map.toList latestReleases
+        in case releasesList of
+          ((latestVersion,latestSet):_) | isVersionCompatible compilerVersion latestVersion -> pure latestSet
+          -- otherwise error explaining the non-compatibility
+          _ -> die [ display $ Messages.incompatiblePurs (Version.prettySemVer <$> List.reverse (Map.keys latestReleases))]
       Just newTag -> do
         logDebug $ "Found a new tag in the releases file: " <> display newTag
-        pure $ newTag
+        pure newTag
 
 -- | Use the specified version of the package set (if specified).
 --   Otherwise, get the latest version of the package set if possible
@@ -191,32 +196,33 @@ checkPursIsUpToDate = do
   PackageSet{..} <- view (the @PackageSet)
   eitherCompilerVersion <- Purs.pursVersion
   case (eitherCompilerVersion, packagesMinPursVersion) of
-    (Right compilerVersion, Just pursVersionFromPackageSet) -> performCheck compilerVersion pursVersionFromPackageSet
+    (Right compilerVersion, Just pursVersionFromPackageSet) ->
+      unless (isVersionCompatible compilerVersion pursVersionFromPackageSet) $ do
+        die [ display
+              $ Messages.pursVersionMismatch
+              (Version.prettySemVer compilerVersion)
+              (Version.prettySemVer pursVersionFromPackageSet) ]
     (compilerVersion, packageSetVersion) -> do
       logWarn "Unable to parse compiler and package set versions, not checking if `purs` is compatible with it.."
-      logDebug $ "Versions we got:"
+      logDebug "Versions we got:"
       logDebug $ " - from the compiler: " <> displayShow compilerVersion
       logDebug $ " - in package set: " <> displayShow packageSetVersion
-  where
-    -- | The check is successful only when the installed compiler is "slightly"
-    --   greater (or equal of course) to the minimum version. E.g. fine cases are:
-    --   - current is 0.12.2 and package-set is on 0.12.1
-    --   - current is 1.4.3 and package-set is on 1.3.4
-    --   Not fine cases are e.g.:
-    --   - current is 0.1.2 and package-set is 0.2.3
-    --   - current is 1.2.3 and package-set is 1.3.4
-    --   - current is 1.2.3 and package-set is 0.2.3
-    performCheck :: Version.SemVer -> Version.SemVer -> RIO env ()
-    performCheck actualPursVersion minPursVersion = do
-      let versionList semver = semver ^.. (Version.major <> Version.minor <> Version.patch)
-      case (versionList actualPursVersion, versionList minPursVersion) of
-        ([0, b, c], [0, y, z]) | b == y && c >= z -> pure ()
-        ([a, b, _c], [x, y, _z]) | a /= 0 && a == x && b >= y -> pure ()
-        _ -> die [ display
-                   $ Messages.pursVersionMismatch
-                   (Version.prettySemVer actualPursVersion)
-                   (Version.prettySemVer minPursVersion) ]
 
+-- | The check is successful only when the installed compiler is "slightly"
+--   greater or equal to the minimum version. E.g. fine cases are:
+--   - current is 0.12.2 and package-set is on 0.12.1
+--   - current is 1.4.3 and package-set is on 1.3.4
+--   Not fine cases are e.g.:
+--   - current is 0.1.2 and package-set is 0.2.3
+--   - current is 1.2.3 and package-set is 1.3.4
+--   - current is 1.2.3 and package-set is 0.2.3
+isVersionCompatible :: Version.SemVer -> Version.SemVer -> Bool
+isVersionCompatible installedVersion minVersion =
+  let versionList semver = semver ^.. (Version.major <> Version.minor <> Version.patch)
+  in case (versionList installedVersion, versionList minVersion) of
+    ([0, b, c], [0, y, z]) | b == y && c >= z -> True
+    ([a, b, _c], [x, y, _z]) | a /= 0 && a == x && b >= y -> True
+    _ -> False
 
 isRemoteFrozen :: Dhall.Import -> [Bool]
 isRemoteFrozen (Dhall.Import
