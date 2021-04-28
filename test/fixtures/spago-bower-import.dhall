@@ -19,7 +19,6 @@ to generate this file without the comments in this block.
   , "exceptions"
   , "foreign"
   , "foreign-object"
-  , "generics-rep"
   , "nullable"
   , "prelude"
   , "psci-support"
