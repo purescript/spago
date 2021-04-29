@@ -268,13 +268,6 @@ spec = around_ setup $ do
       spago ["init"] >>= shouldBeSuccess
       spago ["sources"] >>= shouldBeSuccessOutput "sources-output.txt"
 
-  -- -- This is currently commented because it requires a GitHub token and Travis makes it hard to do it securely
-  -- describe "spago login" $ do
-  --
-  --  it "Spago should login correctly" $ do
-  --
-  --    spago ["login"] >>= shouldBeSuccessOutput "login-output.txt"
-
   describe "spago build" $ do
 
     it "Spago should build successfully" $ do
@@ -450,20 +443,19 @@ spec = around_ setup $ do
         mv "spago.dhall" "spago-old.dhall"
         writeTextFile "spago.dhall" configWithBackend
 
-        -- Blocked by https://github.com/purescript/purescript/issues/3743
-        -- spago ["-j", "5", "build"] >>= shouldBeSuccess
-        -- checkFixture "alternate-backend-output.txt"
+        spago ["-j", "5", "build"] >>= shouldBeSuccess
+        checkFixture "alternate-backend-output.txt"
 
       it "Passing `--codegen corefn` with backend option should fail" $ do
         configWithBackend <- readFixture "spago-configWithBackend.dhall"
+        expectedErr <- readFixture "codegen-opt-with-backend.txt"
         spago ["init"] >>= shouldBeSuccess
         mv "spago.dhall" "spago-old.dhall"
         writeTextFile "spago.dhall" configWithBackend
 
-        -- Blocked by https://github.com/purescript/purescript/issues/3743
-        -- spago ["-j", "5", "build"] >>= shouldBeSuccess
-        -- spago ["build", "--purs-args", "--codegen", "--purs-args", "corefn"] >>= shouldBeFailureOutput "codegen-opt-with-backend.txt"
-        -- spago ["build", "--purs-args", "--codegen", "--purs-args", "docs"] >>= shouldBeFailureOutput "codegen-opt-with-backend.txt"
+        spago ["-j", "5", "build"] >>= shouldBeSuccess
+        spago ["build", "--purs-args", "--codegen", "--purs-args", "corefn"] >>= shouldBeFailureInfix expectedErr
+        spago ["build", "--purs-args", "--codegen", "--purs-args", "docs"] >>= shouldBeFailureInfix expectedErr
 
     it "Spago should run a before command" $ do
 
@@ -772,6 +764,18 @@ spec = around_ setup $ do
       spago ["bundle-module", "--to", "bundle-module-src-map.js", "--no-build", "--source-maps"] >>= shouldBeSuccess
       checkFixture "bundle-module-src-map.js"
       checkFileExist "bundle-module-src-map.js.map"
+
+  describe "spago graph" $ do
+
+    it "spago graph modules" $ do
+
+      spago ["init", "--tag", "psc-0.14.0-20210409"] >>= shouldBeSuccess
+      spago ["graph", "modules"] >>= shouldBeSuccessOutput "graph-modules.json"
+
+    it "spago graph packages" $ do
+
+      spago ["init", "--tag", "psc-0.14.0-20210409"] >>= shouldBeSuccess
+      spago ["graph", "packages"] >>= shouldBeSuccessOutput "graph-packages.json"
 
   describe "spago ls packages" $ do
 

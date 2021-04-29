@@ -54,7 +54,6 @@ graphPackages = do
 
         -- Then we take the module graph Map, and:
         -- * key becomes package
-        -- * value.path becomes the path of the package
         -- * value.depends now contains packages
         moduleToMaybePackage :: (ModuleName, ModuleGraphNode) -> Maybe (Map PackageName PackageGraphNode)
         moduleToMaybePackage (moduleName, ModuleGraphNode{ graphNodeDepends }) =
@@ -65,7 +64,7 @@ graphPackages = do
                 $ mapMaybe (`Map.lookup` moduleToPackageMap)
                 $ Set.toList graphNodeDepends
 
-        -- We fold all the singletons together merging their dependencies
+        -- ..while we fold all the singletons together merging their dependencies
         packageGraph
           = Map.delete (PackageName "psci-support")
           $ Map.unionsWith (<>)
