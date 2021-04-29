@@ -56,22 +56,26 @@ graphPackages = do
         -- * key becomes package
         -- * value.path becomes the path of the package
         -- * value.depends now contains packages
-        moduleToMaybePackage :: (ModuleName, ModuleGraphNode) -> Maybe (Map PackageName ModuleGraphNode)
-        moduleToMaybePackage a@(moduleName, ModuleGraphNode{ graphNodeDepends, graphNodePath }) =
-          case Map.lookup moduleName moduleToPackageMap of
-            Nothing -> traceShow a Nothing
-            Just pkgName -> Just $ Map.singleton pkgName $
-              ModuleGraphNode (toPackagePath graphNodePath)
+        moduleToMaybePackage :: (ModuleName, ModuleGraphNode) -> Maybe (Map PackageName PackageGraphNode)
+        moduleToMaybePackage (moduleName, ModuleGraphNode{ graphNodeDepends }) =
+          flip fmap (Map.lookup moduleName moduleToPackageMap) $ \pkgName ->
+            Map.singleton pkgName $
+              PackageGraphNode
                 $ Set.fromList
-                $ mapMaybe (\m -> ModuleName . packageName <$> Map.lookup m moduleToPackageMap)
+                $ mapMaybe (`Map.lookup` moduleToPackageMap)
                 $ Set.toList graphNodeDepends
-          where
-            toPackagePath = id -- FIXME
 
         -- We fold all the singletons together merging their dependencies
         packageGraph
-          = Map.unionsWith (<>)
+          = Map.delete (PackageName "psci-support")
+          $ Map.unionsWith (<>)
           $ mapMaybe moduleToMaybePackage
           $ Map.toList moduleGraph
 
       output $ jsonToTextPretty packageGraph
+
+newtype PackageGraphNode = PackageGraphNode { pkgNodeDepends :: Set PackageName }
+  deriving newtype (Eq, Semigroup)
+
+instance ToJSON PackageGraphNode where
+  toJSON PackageGraphNode{..} = object [ "depends" .= pkgNodeDepends ]
