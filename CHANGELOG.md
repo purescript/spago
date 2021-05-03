@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+Bugfixes:
+- Remove npm install from release.yml to prevent overwriting the spago file 
+  with the Linux binary (#783)
+
 ## [0.20.1] - 2021-04-20
 
 Bugfixes:
