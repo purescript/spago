@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+Bugfixes:
+- Use spago.cabal instead of package.yaml to get version number (#787)
+
 ## [0.20.1] - 2021-04-20
 
 Bugfixes:
