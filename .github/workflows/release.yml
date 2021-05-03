@@ -113,5 +113,4 @@ jobs:
           cp ../README.md ./README.md
           cp ../CONTRIBUTING.md ./CONTRIBUTING.md
           cp ../LICENSE ./LICENSE
-          npm install
           npm publish --non-interactive --access public
