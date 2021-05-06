@@ -135,9 +135,7 @@ withBuildEnv'
 withBuildEnv' maybeConfig usePsa envBuildOptions@BuildOptions{ noInstall } app = do
   Env{..} <- getEnv
   envPursCmd <- getPurs usePsa
-  envConfig@Config{..} <- case maybeConfig of
-    Nothing -> getConfig
-    Just c -> pure c
+  envConfig@Config{..} <- maybe getConfig pure maybeConfig
   let envPackageSet = packageSet
   deps <- runRIO InstallEnv{..} $ do
     deps <- Packages.getProjectDeps
@@ -145,6 +143,7 @@ withBuildEnv' maybeConfig usePsa envBuildOptions@BuildOptions{ noInstall } app =
     pure deps
   envGraph <- runRIO PursEnv{..} (getMaybeGraph envBuildOptions envConfig deps)
   envGitCmd <- getGit
+  logDebug "Running in `BuildEnv`"
   runRIO BuildEnv{..} app
 
 withBuildEnv
@@ -205,6 +204,7 @@ getPackageSet = do
 
 getMaybeGraph :: HasPursEnv env => BuildOptions -> Config -> [(PackageName, Package)] -> RIO env Graph
 getMaybeGraph BuildOptions{ depsOnly, sourcePaths } Config{ configSourcePaths } deps = do
+  logDebug "Running `getMaybeGraph`"
   let partitionedGlobs = Packages.getGlobs deps depsOnly configSourcePaths
       globs = Packages.getGlobsSourcePaths partitionedGlobs <> sourcePaths
   supportsGraph <- Purs.hasMinPursVersion "0.14.0"
