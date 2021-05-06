@@ -12,6 +12,8 @@ import qualified System.IO as Sys
 import qualified Spago.Packages as Packages
 
 
+-- TODO: dot flag
+
 graphNotSupportedError :: IsString p => p
 graphNotSupportedError = "`spago graph` only works on PureScript v0.14.0 or higher. Please upgrade your compiler"
 
@@ -20,7 +22,7 @@ graphModules = do
   logDebug "Running `spago graph modules`"
   view (the @Graph) >>= \case
     Nothing -> logError graphNotSupportedError
-    Just moduleGraph -> output $ jsonToTextPretty moduleGraph
+    Just (ModuleGraph moduleGraph) -> output $ modulesToDot moduleGraph -- jsonToTextPretty moduleGraph
 
 graphPackages :: HasBuildEnv env => RIO env ()
 graphPackages = do
@@ -31,6 +33,7 @@ graphPackages = do
     Just (ModuleGraph moduleGraph) -> do
       BuildOptions{ depsOnly } <- view (the @BuildOptions)
       Config{ name, configSourcePaths } <- view (the @Config)
+      PackageSet { packagesDB } <- view (the @PackageSet)
       deps <- Packages.getProjectDeps
       let Packages.Globs{..} = Packages.getGlobs deps depsOnly configSourcePaths
       let
@@ -60,6 +63,7 @@ graphPackages = do
           flip fmap (Map.lookup moduleName moduleToPackageMap) $ \pkgName ->
             Map.singleton pkgName $
               PackageGraphNode
+                $ Set.delete pkgName -- this is to remove self-loops
                 $ Set.fromList
                 $ mapMaybe (`Map.lookup` moduleToPackageMap)
                 $ Set.toList graphNodeDepends
@@ -71,10 +75,34 @@ graphPackages = do
           $ mapMaybe moduleToMaybePackage
           $ Map.toList moduleGraph
 
-      output $ jsonToTextPretty packageGraph
+      output $ packagesToDot (PackageName name) packageGraph -- jsonToTextPretty packageGraph
 
-newtype PackageGraphNode = PackageGraphNode { pkgNodeDepends :: Set PackageName }
-  deriving newtype (Eq, Semigroup)
+data PackageGraphNode = PackageGraphNode
+  { pkgNodeLocation :: !PackageLocation
+  , pkgNodeDepends :: !(Set PackageName)
+  }
+  deriving (Eq)
 
 instance ToJSON PackageGraphNode where
   toJSON PackageGraphNode{..} = object [ "depends" .= pkgNodeDepends ]
+
+packagesToDot :: PackageName -> Map PackageName PackageGraphNode -> Text
+packagesToDot (PackageName currentPackage) packageGraph
+  = "strict digraph deps {\n"
+  <> tshow currentPackage <> " [style=dashed];\n"
+  <> Map.foldMapWithKey nodeToDot packageGraph
+  <> "}\n"
+  where
+    nodeToDot :: PackageName -> PackageGraphNode -> Text
+    nodeToDot (PackageName pkg) PackageGraphNode{..}
+      = foldMap (\(PackageName dep) -> tshow pkg <> " -> " <> tshow dep <> ";\n") pkgNodeDepends
+
+modulesToDot :: Map ModuleName ModuleGraphNode -> Text
+modulesToDot moduleGraph
+  = "strict digraph modules {\n"
+  <> Map.foldMapWithKey nodeToDot moduleGraph
+  <> "}\n"
+  where
+    nodeToDot :: ModuleName -> ModuleGraphNode -> Text
+    nodeToDot (ModuleName m) ModuleGraphNode{ graphNodeDepends }
+      = foldMap (\(ModuleName dep) -> tshow m <> " -> " <> tshow dep <> ";\n") graphNodeDepends
