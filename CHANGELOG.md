@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+Bugfixes:
+- Fix `docs` command error due to bad templates (#792)
+
 ## [0.20.2] - 2021-05-06
 
 Bugfixes:

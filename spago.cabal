@@ -1,7 +1,7 @@
 cabal-version: 2.4
 
 name:           spago
-version:        0.20.2
+version:        0.20.3
 description:    Please see the README on GitHub at <https://github.com/purescript/spago#readme>
 homepage:       https://github.com/purescript/spago#readme
 bug-reports:    https://github.com/purescript/spago/issues

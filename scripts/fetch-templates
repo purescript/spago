@@ -6,12 +6,12 @@ for version in $versions; do
   file1="${templatesDir}/docs-search-app-${version}.js"
   if [ ! -f "${file1}" ]; then
     echo "Fetching ${file1}";
-    curl "https://github.com/purescript/purescript-docs-search/releases/download/v${version}/docs-search-app.js" -o ${file1}
+    curl -L "https://github.com/purescript/purescript-docs-search/releases/download/v${version}/docs-search-app.js" -o ${file1}
   fi
   file2="${templatesDir}/purescript-docs-search-${version}"
   if [ ! -f "${file2}" ]; then
     echo "Fetching ${file2}";
-    curl "https://github.com/purescript/purescript-docs-search/releases/download/v${version}/purescript-docs-search" -o ${file2}
+    curl -L "https://github.com/purescript/purescript-docs-search/releases/download/v${version}/purescript-docs-search" -o ${file2}
     chmod +x "${file2}"
   fi
 done
