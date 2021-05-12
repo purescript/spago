@@ -8,9 +8,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 Bugfixes:
-- Remove npm install from release.yml to prevent overwriting the spago file 
-  with the Linux binary (#783, #786)
+- Fix `docs` command error due to bad templates (#792)
+
+## [0.20.2] - 2021-05-06
+
+Bugfixes:
+- Remove `npm install` from release CI to prevent overwriting the install script with the Linux binary (#783, #786)
 - Use spago.cabal instead of package.yaml to get version number (#787, #788)
+- Assume compatibility with newer minor versions of `purs` (#782, #777)
+- Fix `test` command not working on `purs` older than `v0.14.0` (#790, #789)
+
+Other improvements:
+- Docs: add more useful comments in spago.dhall (#778, 708)
+- Dev: remove package.yaml, use only cabal file (#780)
+- Dev: use make to orchestrate builds (#781)
+- Deps: upgrade to GHC8.10 and lts-17 (#743)
 
 ## [0.20.1] - 2021-04-20
 

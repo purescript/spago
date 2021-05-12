@@ -242,16 +242,18 @@ repl newPackages sourcePaths pursArgs depsOnly = do
 --   (or the provided module name) with node
 test :: HasBuildEnv env => Maybe ModuleName -> [BackendArg] -> RIO env ()
 test maybeModuleName extraArgs = do
+  logDebug "Running `Spago.Build.test`"
   let moduleName = fromMaybe (ModuleName "Test.Main") maybeModuleName
   Config.Config { alternateBackend } <- view (the @Config)
-  maybeGraph <- view (the @Graph)
+
   -- We check if the test module is included in the build and spit out a nice error if it isn't (see #383)
-  for_ maybeGraph $ \(ModuleGraph moduleMap) -> case Map.lookup moduleName moduleMap of
-    Nothing -> die [ "Module '" <> (display . unModuleName) moduleName <> "' not found! Are you including it in your build?" ]
-    Just _ -> do
-        sourceDir <- Turtle.pwd
-        let dirs = RunDirectories sourceDir sourceDir
-        runBackend alternateBackend dirs moduleName (Just "Tests succeeded.") "Tests failed: " extraArgs
+  maybeGraph <- view (the @Graph)
+  for_ maybeGraph $ \(ModuleGraph moduleMap) -> when (isNothing $ Map.lookup moduleName moduleMap) $
+    die [ "Module '" <> (display . unModuleName) moduleName <> "' not found! Are you including it in your build?" ]
+
+  sourceDir <- Turtle.pwd
+  let dirs = RunDirectories sourceDir sourceDir
+  runBackend alternateBackend dirs moduleName (Just "Tests succeeded.") "Tests failed: " extraArgs
 
 
 -- | Run the project: compile and run "Main"
