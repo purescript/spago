@@ -442,6 +442,16 @@ spec = around_ setup $ do
         spago ["build"]
         spago ["--no-psa", "build"] >>= shouldBeSuccessStderr "check-unused-dependency.txt"
 
+      it "Spago should not warn on unused dependencies when building deps-only" $ do
+        spago ["init"] >>= shouldBeSuccess
+        rm "spago.dhall"
+        writeTextFile "spago.dhall" $ "{ name = \"check-imports\", dependencies = [\"effect\", \"prelude\"], packages = ./packages.dhall }"
+        rm "src/Main.purs"
+        writeTextFile "src/Main.purs" "module Main where\nimport Prelude\nmain :: Unit\nmain = unit"
+        rm "test/Main.purs"
+        spago ["build"]
+        spago ["--no-psa", "build", "--deps-only"] >>= shouldBeSuccessStderr "spago-build-succeeded-stderr.txt"
+
     describe "alternate backend" $ do
 
       it "Spago should use alternate backend if option is specified" $ do
