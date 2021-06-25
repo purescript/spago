@@ -15,3 +15,6 @@ flags:
   haskeline:
     terminfo: false
     examples: false
+  cryptonite:
+    use_target_attributes: false
+
