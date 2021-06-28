@@ -70,9 +70,9 @@ getCurrentVersion = do
 getNextVersion :: VersionBump -> SemVer -> Either Text SemVer
 getNextVersion spec currentV@SemVer{..} =
   case spec of
-    Major -> Right $ SemVer (_svMajor + 1) 0 0 [] []
-    Minor -> Right $ SemVer _svMajor (_svMinor + 1) 0 [] []
-    Patch -> Right $ SemVer _svMajor _svMinor (_svPatch + 1) [] []
+    Major -> Right $ SemVer (_svMajor + 1) 0 0 [] mempty
+    Minor -> Right $ SemVer _svMajor (_svMinor + 1) 0 [] mempty
+    Patch -> Right $ SemVer _svMajor _svMinor (_svPatch + 1) [] mempty
     Exact newV
       | currentV < newV -> Right newV
       | otherwise -> do
