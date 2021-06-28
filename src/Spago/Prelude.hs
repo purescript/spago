@@ -24,6 +24,7 @@ module Spago.Prelude
   , die
   , hush
   , surroundQuote
+  , withLineBuffering
   , logInfo
   , logWarn
   , logDebug
@@ -125,6 +126,7 @@ import qualified Data.ByteString.Search as BSS
 import qualified Data.ByteString.UTF8 as UTF8
 import qualified Data.Text.Lazy as LT
 import qualified Data.Text.Lazy.Encoding as LT
+import qualified System.IO as IO
 
 
 -- | Generic Error that we throw on program exit.
@@ -173,6 +175,13 @@ writeTextFile :: MonadIO m => Text -> Text -> m ()
 writeTextFile inFile text = liftIO $ BS.writeFile
   (Text.unpack inFile)
   (UTF8.fromString $ Text.unpack text)
+
+withLineBuffering :: MonadIO m => m a -> m ()
+withLineBuffering action = do
+  previousBuffering <- liftIO $ IO.hGetBuffering IO.stderr
+  liftIO $ IO.hSetBuffering IO.stderr IO.LineBuffering
+  action
+  liftIO $ IO.hSetBuffering IO.stderr previousBuffering
 
 with :: MonadIO m => Turtle.Managed a -> (a -> IO r) -> m r
 with r f = liftIO $ Turtle.with r f

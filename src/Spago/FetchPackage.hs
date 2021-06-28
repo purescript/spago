@@ -62,7 +62,10 @@ fetchPackages allDeps = do
     metadata <- GlobalCache.getMetadata
 
     Jobs limit <- view (the @Jobs)
-    Async.withTaskGroup limit $ \taskGroup -> do
+    -- Note that here we run this parallel stuff with line buffering, to prevent the threads.
+    -- from writing on each other's output in case the console doesn't prevent this.
+    -- See https://github.com/purescript/spago/issues/729
+    withLineBuffering $ Async.withTaskGroup limit $ \taskGroup -> do
       asyncs <- for depsToFetch (Async.async taskGroup . fetchPackage metadata)
       handle (handler asyncs) (for_ asyncs Async.wait)
 
