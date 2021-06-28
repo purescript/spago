@@ -8,6 +8,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 Bugfixes:
+- Don't warn on unused deps when building --deps-only. (#794)
+
+## [0.20.3] - 2021-05-12
+
+Bugfixes:
 - Fix `docs` command error due to bad templates (#792)
 
 ## [0.20.2] - 2021-05-06

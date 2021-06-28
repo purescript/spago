@@ -114,6 +114,7 @@ data PathType
 
 -- | Only build deps and ignore project paths
 data DepsOnly = DepsOnly | AllSources
+  deriving (Eq)
 
 data Watch = Watch | BuildOnce
 

@@ -117,7 +117,7 @@ build maybePostBuild = do
                     $ Set.toList
                     $ Set.difference importedPackages dependencyPackages
 
-              unless (null unusedPackages) $ do
+              unless (null unusedPackages || depsOnly == DepsOnly) $ do
                 logWarn $ display $ Messages.unusedDependency unusedPackages
 
               unless (null transitivePackages) $ do
