@@ -147,11 +147,16 @@ getMetadata = do
 --   `$XDG_CACHE_HOME`, otherwise it uses:
 --   - (on Linux/MacOS) the folder pointed by `$HOME/.cache`, or
 --   - (on Windows) the folder pointed by `LocalAppData`
-getGlobalCacheDir :: (MonadIO m, HasLogFunc env, MonadReader env m) => m FilePath.FilePath
+getGlobalCacheDir :: (MonadUnliftIO m, HasLogFunc env, MonadReader env m) => m FilePath.FilePath
 getGlobalCacheDir = do
   globalCache <- liftIO $ getXdgDirectory XdgCache "spago" <|> pure ".spago-global-cache"
-  assertDirectory globalCache
+  -- N.B. `assertDirectory` will `die` internally which immediately prints the
+  -- filesystem-related error message prior to us catching it.
+  assertDirectory globalCache `catch` annotate
   pure globalCache
+    where annotate (ExitFailure _) = die . pure $ e
+            where e = "hint: The global cache is located at $XDG_CACHE_HOME/spago. Set $XDG_CACHE_HOME to control its location."
+          annotate _ = pure ()
 
 
 -- | Fetch the tarball at `archiveUrl` and unpack it into `destination`
