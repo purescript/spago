@@ -12,20 +12,20 @@ import qualified System.IO as Sys
 import qualified Spago.Packages as Packages
 
 
--- TODO: dot flag
-
 graphNotSupportedError :: IsString p => p
 graphNotSupportedError = "`spago graph` only works on PureScript v0.14.0 or higher. Please upgrade your compiler"
 
-graphModules :: HasBuildEnv env => RIO env ()
-graphModules = do
+graphModules :: HasBuildEnv env => JsonFlag -> RIO env ()
+graphModules json = do
   logDebug "Running `spago graph modules`"
   view (the @Graph) >>= \case
     Nothing -> logError graphNotSupportedError
-    Just (ModuleGraph moduleGraph) -> output $ modulesToDot moduleGraph -- jsonToTextPretty moduleGraph
+    Just (ModuleGraph moduleGraph) -> output $ case json of
+      JsonOutputNo -> modulesToDot moduleGraph
+      JsonOutputYes -> jsonToTextPretty moduleGraph
 
-graphPackages :: HasBuildEnv env => RIO env ()
-graphPackages = do
+graphPackages :: HasBuildEnv env => JsonFlag -> RIO env ()
+graphPackages json = do
   logDebug "Running `spago graph packages`"
   maybeGraph <- view (the @Graph)
   case maybeGraph of
@@ -59,23 +59,27 @@ graphPackages = do
         -- * key becomes package
         -- * value.depends now contains packages
         moduleToMaybePackage :: (ModuleName, ModuleGraphNode) -> Maybe (Map PackageName PackageGraphNode)
-        moduleToMaybePackage (moduleName, ModuleGraphNode{ graphNodeDepends }) =
-          flip fmap (Map.lookup moduleName moduleToPackageMap) $ \pkgName ->
-            Map.singleton pkgName $
-              PackageGraphNode
-                $ Set.delete pkgName -- this is to remove self-loops
-                $ Set.fromList
-                $ mapMaybe (`Map.lookup` moduleToPackageMap)
-                $ Set.toList graphNodeDepends
+        moduleToMaybePackage (moduleName, ModuleGraphNode{ graphNodeDepends }) = do
+          pkgName <- Map.lookup moduleName moduleToPackageMap
+          Package{ location } <- Map.lookup pkgName packagesDB
+          pure $ Map.singleton pkgName $
+            PackageGraphNode
+              location
+              $ Set.delete pkgName -- this is to remove self-loops
+              $ Set.fromList
+              $ mapMaybe (`Map.lookup` moduleToPackageMap)
+              $ Set.toList graphNodeDepends
 
         -- ..while we fold all the singletons together merging their dependencies
         packageGraph
           = Map.delete (PackageName "psci-support")
-          $ Map.unionsWith (<>)
+          $ Map.unionsWith const
           $ mapMaybe moduleToMaybePackage
           $ Map.toList moduleGraph
 
-      output $ packagesToDot (PackageName name) packageGraph -- jsonToTextPretty packageGraph
+      output $ case json of
+        JsonOutputNo -> packagesToDot (PackageName name) packageGraph
+        JsonOutputYes  -> jsonToTextPretty packageGraph
 
 data PackageGraphNode = PackageGraphNode
   { pkgNodeLocation :: !PackageLocation
@@ -84,7 +88,10 @@ data PackageGraphNode = PackageGraphNode
   deriving (Eq)
 
 instance ToJSON PackageGraphNode where
-  toJSON PackageGraphNode{..} = object [ "depends" .= pkgNodeDepends ]
+  toJSON PackageGraphNode{..} = object
+    [ "depends" .= pkgNodeDepends
+    , "location" .= pkgNodeLocation
+    ]
 
 packagesToDot :: PackageName -> Map PackageName PackageGraphNode -> Text
 packagesToDot (PackageName currentPackage) packageGraph

@@ -1,27 +1,28 @@
 {
     "console": {
+        "location": {
+            "tag": "Remote",
+            "contents": "https://github.com/purescript/purescript-console.git"
+        },
         "depends": [
-            "console",
             "effect",
             "prelude"
         ]
     },
     "effect": {
+        "location": {
+            "tag": "Remote",
+            "contents": "https://github.com/purescript/purescript-effect.git"
+        },
         "depends": [
-            "effect",
-            "prelude"
-        ]
-    },
-    "my-project": {
-        "depends": [
-            "console",
-            "effect",
             "prelude"
         ]
     },
     "prelude": {
-        "depends": [
-            "prelude"
-        ]
+        "location": {
+            "tag": "Remote",
+            "contents": "https://github.com/purescript/purescript-prelude.git"
+        },
+        "depends": []
     }
 }

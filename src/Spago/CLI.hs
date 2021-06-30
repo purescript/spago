@@ -61,10 +61,10 @@ data Command
   -- ### Build commands - i.e. they all call Purs at some point
 
   -- | Produce a graph representation of all the Modules in the build
-  | GraphModules
+  | GraphModules JsonFlag
 
   -- | Produce a graph representation of all the Packages in the build
-  | GraphPackages
+  | GraphPackages JsonFlag
 
     -- | Build the project
   | Build BuildOptions
@@ -276,11 +276,11 @@ parser = do
 
     graphPackages
       = CLI.subcommand "packages" "Graph all the packages in the build to their dependencies"
-        (pure GraphPackages)
+        (GraphPackages <$> jsonFlag)
 
     graphModules
       = CLI.subcommand "modules" "Graph all the modules in the build to their dependencies"
-        (pure GraphModules)
+        (GraphModules <$> jsonFlag)
 
     graph =
       ( "graph"

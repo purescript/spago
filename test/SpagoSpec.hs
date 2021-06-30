@@ -777,15 +777,25 @@ spec = around_ setup $ do
 
   describe "spago graph" $ do
 
-    it "spago graph modules" $ do
+    it "spago graph modules - dot" $ do
 
       spago ["init", "--tag", "psc-0.14.0-20210409"] >>= shouldBeSuccess
-      spago ["graph", "modules"] >>= shouldBeSuccessOutput "graph-modules.json"
+      spago ["graph", "modules"] >>= shouldBeSuccessOutput "graph-modules.dot"
 
-    it "spago graph packages" $ do
+    it "spago graph modules - json" $ do
 
       spago ["init", "--tag", "psc-0.14.0-20210409"] >>= shouldBeSuccess
-      spago ["graph", "packages"] >>= shouldBeSuccessOutput "graph-packages.json"
+      spago ["graph", "modules", "--json"] >>= shouldBeSuccessOutput "graph-modules.json"
+
+    it "spago graph packages - dot" $ do
+
+      spago ["init", "--tag", "psc-0.14.0-20210409"] >>= shouldBeSuccess
+      spago ["graph", "packages"] >>= shouldBeSuccessOutput "graph-packages.dot"
+
+    it "spago graph packages - json" $ do
+
+      spago ["init", "--tag", "psc-0.14.0-20210409"] >>= shouldBeSuccess
+      spago ["graph", "packages", "--json"] >>= shouldBeSuccessOutput "graph-packages.json"
 
   describe "spago ls packages" $ do
 

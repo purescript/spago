@@ -94,7 +94,7 @@ import qualified UnliftIO.Directory                    as Directory
 import           Control.Applicative                   (empty)
 import           Control.Monad                         as X
 import           Control.Monad.Reader                  as X
-import           Data.Aeson                            as X hiding (Result (..))
+import           Data.Aeson                            as X hiding (Result (..), json)
 import           Data.Bifunctor                        (first, second)
 import           Data.Bool                             as X
 import           Data.Either                           as X

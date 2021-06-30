@@ -103,8 +103,8 @@ main = withUtf8 $ do
         $ Spago.Build.test modName nodeArgs
       Run modName buildOptions nodeArgs -> Run.withBuildEnv globalUsePsa buildOptions
         $ Spago.Build.run modName nodeArgs
-      GraphModules -> Run.withBuildEnv globalUsePsa defaultBuildOptions Graph.graphModules
-      GraphPackages -> Run.withBuildEnv globalUsePsa defaultBuildOptions Graph.graphPackages
+      GraphModules json -> Run.withBuildEnv globalUsePsa defaultBuildOptions $ Graph.graphModules json
+      GraphPackages json -> Run.withBuildEnv globalUsePsa defaultBuildOptions $ Graph.graphPackages json
 
       -- ### Legacy commands, here for smoother migration path to new ones
       Bundle -> die [ display Messages.bundleCommandRenamed ]
