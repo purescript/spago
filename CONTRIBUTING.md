@@ -13,8 +13,8 @@ and respect and do not harass or belittle others.
 ## What is the correct way to ask a question?
 
 It's ok to ask questions by [opening an issue][spago-issues]!
-I ([@f-f][f-f]) am also on the [Functional Programming Slack][fp-slack], so you can also ask
-questions in the `#purescript` and `#purescript-beginners` channels.
+I ([@f-f][f-f]) am also on the [PureScript Discord][discord], so you can also ask
+questions in the `#spago` channel.
 
 
 ## I'd like to help, how do I pick something to work on?
@@ -113,5 +113,5 @@ Learn by doing and get your hands dirty!
 
 [f-f]: https://github.com/f-f
 [stack]: http://haskellstack.org/
-[fp-slack]: https://fpchat-invite.herokuapp.com/
+[discord]: https://discord.gg/sMqwYUbvz6
 [spago-issues]: https://github.com/purescript/spago/issues
