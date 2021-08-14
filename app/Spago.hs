@@ -75,8 +75,8 @@ main = withUtf8 $ do
         $ Spago.Packages.install packageNames
       ListDeps _ jsonFlag transitiveFlag -> Run.withInstallEnv
         $ Ls.listPackages transitiveFlag jsonFlag
-      Sources _ -> Run.withInstallEnv
-        $ Spago.Packages.sources
+      Sources targetName -> Run.withInstallEnv
+        $ Spago.Packages.sources targetName
 
       -- ### Commands that need a "publish env": install env + git and bower
       BumpVersion dryRun spec -> Run.withPublishEnv
