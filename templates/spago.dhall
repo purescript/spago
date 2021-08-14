@@ -10,8 +10,20 @@ When creating a new Spago project, you can use
 `spago init --no-comments` or `spago init -C`
 to generate this file without the comments in this block.
 -}
-{ name = "my-project"
-, dependencies = [ "console", "effect", "prelude", "psci-support" ]
-, packages = ./packages.dhall
-, sources = [ "src/**/*.purs", "test/**/*.purs" ]
-}
+let main = 
+  { dependencies = [ "console", "effect", "prelude", "psci-support" ]
+  , sources = [ "src/**/*.purs" ]
+  }
+let test = 
+  { dependencies = main.dependencies # [ "spec" ]
+  , sources = main.sources # [ "test/**/*.purs" ]
+  }
+
+in
+  { name = "my-project"
+  , packages = ./packages.dhall
+  , targets = 
+    { main = main 
+    , test = test
+    }
+  }
