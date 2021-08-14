@@ -25,6 +25,7 @@ module Spago.Env
   , HasConfig
   , HasGit
   , HasBower
+  , HasTarget
   , HasPurs
 
   -- | Other types
@@ -57,6 +58,7 @@ type HasPackageSet env = HasType PackageSet env
 type HasPurs env = HasType PursCmd env
 type HasGit env = HasType GitCmd env
 type HasBower env = HasType BowerCmd env
+type HasTarget env = HasType Target env
 
 type HasEnv env =
   ( HasLogFunc env
