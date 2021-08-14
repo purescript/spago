@@ -26,7 +26,6 @@ import qualified Data.Text                as Text
 import qualified Spago.Config             as Config
 import qualified Spago.FetchPackage       as Fetch
 import qualified Spago.Messages           as Messages
-import qualified Spago.Targets            as Targets
 
 
 data Globs = Globs
@@ -231,24 +230,17 @@ stripPurescriptPrefix (PackageName name) =
 
 
 -- | Get source globs of dependencies listed in `spago.dhall`
-sources :: (HasLogFunc env, HasConfig env) => Maybe TargetName -> RIO env ()
-sources maybeTargetName = do
+sources :: (HasLogFunc env, HasConfig env) => TargetName -> RIO env ()
+sources tgtName = do
   logDebug "Running `spago sources`"
-  -- Note: we'll use this later when looking up the target
-  -- from within the config file
   config <- view (the @Config)
-  let
-    maybeTargetInfo = do
-      targetName <- maybeTargetName <|> pure Targets.mainTarget
-      target <- Map.lookup targetName placeholderTargetMap
-      pure (targetName, target)
-  case maybeTargetInfo of
-    Just (name, Target{..}) -> do
-      logDebug $ "Using target '" <> display (targetName name) <> "'"
+  case Map.lookup tgtName (targets config) of
+    Just Target{..} -> do
+      logDebug $ "Using target '" <> display (targetName tgtName) <> "'"
       deps <- getTransitiveDeps targetDependencies
       traverse_ output
         $ fmap unSourcePath
         $ getGlobsSourcePaths
         $ getGlobs deps AllSources targetSourcePaths
     Nothing ->
-      die $ [ display $ Messages.cannotFindTarget (targetName <$> maybeTargetName) (targetName Targets.mainTarget) ]
+      die $ [ display $ Messages.cannotFindTarget (targetName tgtName) ]
