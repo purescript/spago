@@ -192,6 +192,14 @@ data Config = Config
   , publishConfig     :: Either (Dhall.ReadError Void) PublishConfig
   } deriving (Show, Generic)
 
+newtype TargetName = TargetName { targetName :: Text }
+  deriving (Show, Read, Data)
+  deriving newtype (Eq, Ord, ToJSON, FromJSON, ToJSONKey, FromJSONKey, Dhall.FromDhall)
+
+data Target = Target
+  { targetDependencies :: [PackageName]
+  , targetSourcePaths  :: [SourcePath]
+  } deriving (Show, Generic)
 
 -- | The extra fields that are only needed for publishing libraries.
 data PublishConfig = PublishConfig
