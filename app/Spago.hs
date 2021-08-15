@@ -71,7 +71,7 @@ main = withUtf8 $ do
         $ Ls.listPackageSet jsonFlag
 
       -- ### Commands that need an "install environment": global options and a Config
-      Install _ packageNames -> Run.withInstallEnv
+      Install targetName packageNames -> Run.withInstallEnv2 targetName
         $ Spago.Packages.install packageNames
       ListDeps targetName jsonFlag transitiveFlag -> Run.withInstallEnv2 targetName
         $ Ls.listPackages transitiveFlag jsonFlag

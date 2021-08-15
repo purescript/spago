@@ -170,18 +170,25 @@ getReverseDeps dep = do
 
 
 -- | Fetch all dependencies into `.spago/`
-install :: (HasEnv env, HasConfig env) => [PackageName] -> RIO env ()
+install :: (HasEnv env, HasConfig env, HasTarget env, HasTargetName env) => [PackageName] -> RIO env ()
 install newPackages = do
   logDebug "Running `spago install`"
   config@Config{ packageSet = PackageSet{..}, ..} <- view (the @Config)
+  tgtName <- view (the @TargetName)
+  target@Target{..} <- view (the @Target)
 
   existingNewPackages <- reportMissingPackages $ classifyPackages packagesDB newPackages
 
   -- Try fetching the dependencies with the new names too
-  let newConfig :: Config
-      newConfig = config { Config.dependencies = dependencies <> existingNewPackages }
+  let
+    newTarget = target { targetDependencies = targetDependencies <> existingNewPackages }
+    newConfig :: Config
+    newConfig = config
+      { Config.dependencies = dependencies <> existingNewPackages
+      , Config.targets = Map.adjust (const newTarget) tgtName targets
+      }
   mapRIO (set (the @Config) newConfig) $ do
-    deps <- getProjectDeps
+    deps <- getTransitiveTargetDeps
 
     -- If the above doesn't fail, write the new packages to the config
     -- Also skip the write if there are no new packages to be written
