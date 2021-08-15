@@ -73,7 +73,7 @@ main = withUtf8 $ do
       -- ### Commands that need an "install environment": global options and a Config
       Install _ packageNames -> Run.withInstallEnv
         $ Spago.Packages.install packageNames
-      ListDeps _ jsonFlag transitiveFlag -> Run.withInstallEnv
+      ListDeps targetName jsonFlag transitiveFlag -> Run.withLsEnv targetName
         $ Ls.listPackages transitiveFlag jsonFlag
       Sources targetName -> Run.withInstallEnv
         $ Spago.Packages.sources targetName

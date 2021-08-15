@@ -8,6 +8,7 @@ import qualified System.Environment  as Env
 import qualified RIO
 import qualified System.Info
 import qualified Turtle
+import qualified Data.Map as Map
 
 import qualified Spago.Config as Config
 import qualified Spago.GlobalCache as Cache
@@ -106,6 +107,22 @@ withInstallEnv
   => RIO InstallEnv a
   -> RIO env a
 withInstallEnv = withInstallEnv' Nothing
+
+withLsEnv
+  :: (HasEnv env)
+  => TargetName
+  -> RIO LsEnv a
+  -> RIO env a
+withLsEnv tgtName app = do
+  Env{..} <- getEnv
+  envConfig@Config{..} <- getConfig
+  case Map.lookup tgtName targets of
+    Nothing -> do
+      die $ [ display $ Messages.cannotFindTarget (targetName tgtName) ]
+    Just envTarget -> do
+      let envPackageSet = packageSet
+          envTargetName = tgtName
+      runRIO LsEnv{..} app
 
 withVerifyEnv
   :: HasEnv env

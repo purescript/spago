@@ -5,6 +5,7 @@ module Spago.Env
   , Env(..)
   , PackageSetEnv(..)
   , ReplEnv(..)
+  , LsEnv(..)
   , InstallEnv(..)
   , PublishEnv(..)
   , VerifyEnv(..)
@@ -27,6 +28,7 @@ module Spago.Env
   , HasGit
   , HasBower
   , HasTarget
+  , HasTargetName
   , HasPurs
 
   -- | Other types
@@ -60,6 +62,7 @@ type HasPurs env = HasType PursCmd env
 type HasGit env = HasType GitCmd env
 type HasBower env = HasType BowerCmd env
 type HasTarget env = HasType Target env
+type HasTargetName env = HasType TargetName env
 
 type HasEnv env =
   ( HasLogFunc env
@@ -134,6 +137,17 @@ data ReplEnv = ReplEnv
   , envGlobalCache :: !GlobalCache
   , envPackageSet :: !PackageSet
   , envTarget :: !Target
+  } deriving (Generic)
+
+data LsEnv = LsEnv
+  { envLogFunc :: !LogFunc
+  , envJobs :: !Jobs
+  , envConfigPath :: !ConfigPath
+  , envGlobalCache :: !GlobalCache
+  , envPackageSet :: !PackageSet
+  , envConfig :: !Config
+  , envTarget :: !Target
+  , envTargetName :: !TargetName
   } deriving (Generic)
 
 data InstallEnv = InstallEnv
