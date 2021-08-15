@@ -187,6 +187,7 @@ data Config = Config
   { name              :: Text
   , dependencies      :: [PackageName]
   , packageSet        :: PackageSet
+  , targets           :: Map TargetName Target
   , alternateBackend  :: Maybe Text
   , configSourcePaths :: [SourcePath]
   , publishConfig     :: Either (Dhall.ReadError Void) PublishConfig

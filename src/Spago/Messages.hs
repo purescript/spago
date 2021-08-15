@@ -32,6 +32,15 @@ failedToParsePackage expr = makeMessage
   , expr
   ]
 
+failedToParseTarget :: Text -> Text
+failedToParseTarget expr = makeMessage
+  [ "Failed to parse the `targets` key in your spago.dhall file."
+  , ""
+  , "Your 'targets' declaration was the following expression:"
+  , ""
+  , expr
+  ]
+
 failedToParseRepoString :: Text -> Text
 failedToParseRepoString repo = makeMessage
   [ "ERROR: was not able to parse the address to the remote repo: " <> surroundQuote repo

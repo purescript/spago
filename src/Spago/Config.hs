@@ -33,6 +33,7 @@ import qualified Spago.Dhall           as Dhall
 import qualified Spago.Messages        as Messages
 import qualified Spago.PackageSet      as PackageSet
 import qualified Spago.PscPackage      as PscPackage
+import qualified Spago.Targets         as Targets
 import qualified Spago.Templates       as Templates
 
 
@@ -60,6 +61,9 @@ isLocationType _ = False
 dependenciesType :: Dhall.Decoder [PackageName]
 dependenciesType = Dhall.list (Dhall.auto :: Dhall.Decoder PackageName)
 
+
+sourcesType :: Dhall.Decoder [SourcePath]
+sourcesType  = Dhall.list (Dhall.auto :: Dhall.Decoder SourcePath)
 
 parsePackage :: (MonadIO m, MonadThrow m, MonadReader env m, HasLogFunc env) => ResolvedExpr -> m Package
 parsePackage (Dhall.RecordLit ks') = do
@@ -93,6 +97,13 @@ parsePackage (Dhall.App
       pure Package{..}
 parsePackage expr = die [ display $ Messages.failedToParsePackage $ pretty expr ]
 
+parseTarget :: (MonadIO m, MonadThrow m, MonadReader env m, HasLogFunc env) => ResolvedExpr -> m Target
+parseTarget (Dhall.RecordLit ks') = do
+  let ks = Dhall.extractRecordValues ks'
+  targetDependencies <- Dhall.requireTypedKey ks "dependencies" dependenciesType
+  targetSourcePaths <- Dhall.requireTypedKey ks "sources" sourcesType
+  pure Target{..}
+parseTarget expr = die [ display $ Messages.failedToParseTarget $ pretty expr ]
 
 -- | Parse the contents of a "packages.dhall" file (or the "packages" key of an
 -- evaluated "spago.dhall")
@@ -110,6 +121,14 @@ parsePackageSet pkgs = do
   pure PackageSet{..}
 
 
+-- | Parse the contents of the "targets" key of an evaluated "spago.dhall")
+parseTargets
+  :: HasLogFunc env
+  => Dhall.Map.Map Text (Dhall.DhallExpr Void)
+  -> RIO env (Map TargetName Target)
+parseTargets config = do
+  fmap (Map.mapKeys TargetName . Dhall.Map.toMap) $ traverse parseTarget config
+
 -- | Tries to read in a Spago Config
 parseConfig
   :: (HasLogFunc env, HasConfigPath env)
@@ -123,10 +142,12 @@ parseConfig = do
   case expr of
     Dhall.RecordLit ks' -> do
       let ks = Dhall.extractRecordValues ks'
-      let sourcesType  = Dhall.list (Dhall.auto :: Dhall.Decoder SourcePath)
       name              <- Dhall.requireTypedKey ks "name" Dhall.strictText
       dependencies      <- Dhall.requireTypedKey ks "dependencies" dependenciesType
       configSourcePaths <- Dhall.requireTypedKey ks "sources" sourcesType
+      targets           <- Dhall.requireKey ks "targets" (\case
+        Dhall.RecordLit tgts -> parseTargets (Dhall.extractRecordValues tgts)
+        something            -> throwM $ Dhall.TargetsIsNotRecord something)
       alternateBackend  <- Dhall.maybeTypedKey ks "backend" Dhall.strictText
 
       let ensurePublishConfig = do
@@ -171,6 +192,7 @@ makeTempConfig
   -> RIO env Config
 makeTempConfig dependencies alternateBackend configSourcePaths maybeTag = do
   PursCmd { compilerVersion } <- view (the @PursCmd)
+  let targets = Map.singleton Targets.mainTarget (Target { targetDependencies = dependencies, targetSourcePaths = configSourcePaths })
   tag <- case maybeTag of
     Nothing ->
       PackageSet.getLatestSetForCompilerVersion compilerVersion "purescript" "package-sets" >>= \case
