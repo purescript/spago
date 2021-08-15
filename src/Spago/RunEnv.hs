@@ -116,13 +116,10 @@ withLsEnv
 withLsEnv tgtName app = do
   Env{..} <- getEnv
   envConfig@Config{..} <- getConfig
-  case Map.lookup tgtName targets of
-    Nothing -> do
-      die $ [ display $ Messages.cannotFindTarget (targetName tgtName) ]
-    Just envTarget -> do
-      let envPackageSet = packageSet
-          envTargetName = tgtName
-      runRIO LsEnv{..} app
+  envTarget <- getTarget tgtName targets
+  let envPackageSet = packageSet
+      envTargetName = tgtName
+  runRIO LsEnv{..} app
 
 withVerifyEnv
   :: HasEnv env
@@ -205,6 +202,15 @@ getConfig :: (HasLogFunc env, HasConfigPath env) => RIO env Config
 getConfig = Config.ensureConfig >>= \case
   Right c -> pure c
   Left err -> die [ "Failed to read the config. Error was:", err ]
+
+getTarget :: (HasLogFunc env) => TargetName -> Map TargetName Target -> RIO env Target
+getTarget tgtName targets = do
+  logDebug $ "Using target '" <> display (targetName tgtName) <> "'"
+  case Map.lookup tgtName targets of
+    Nothing -> do
+      die [ display $ Messages.cannotFindTarget (targetName tgtName) ]
+    Just target -> do
+      pure target
 
 getPurs :: HasLogFunc env => UsePsa -> RIO env PursCmd
 getPurs usePsa = do

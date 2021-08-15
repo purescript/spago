@@ -208,12 +208,8 @@ repl tgtName newPackages sourcePaths pursArgs depsOnly = do
   purs <- Run.getPurs NoPsa
   Config.ensureConfig >>= \case
     Right config -> do
-      case Map.lookup tgtName $ targets config of
-        Just target -> do
-          logDebug $ "Using target '" <> display (targetName tgtName) <> "'"
-          Run.withReplEnv config target (replAction purs)
-        Nothing ->
-          die $ [ display $ Messages.cannotFindTarget (targetName tgtName) ]
+      target <- Run.getTarget tgtName (targets config)
+      Run.withReplEnv config target (replAction purs)
     Left err -> do
       logDebug err
       GlobalCache cacheDir _ <- view (the @GlobalCache)
