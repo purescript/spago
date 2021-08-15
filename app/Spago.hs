@@ -53,11 +53,11 @@ main = withUtf8 $ do
         -> CLI.echo spagoVersion
       Path whichPath buildOptions
         -> Path.showPaths buildOptions whichPath
-      Repl replPackageNames paths pursArgs depsOnly
+      Repl _ replPackageNames paths pursArgs depsOnly
         -> Spago.Build.repl replPackageNames paths pursArgs depsOnly
-      BundleApp modName tPath shouldBuild buildOptions
+      BundleApp _ modName tPath shouldBuild buildOptions
         -> Spago.Build.bundleApp WithMain modName tPath shouldBuild buildOptions globalUsePsa
-      BundleModule modName tPath shouldBuild buildOptions
+      BundleModule _ modName tPath shouldBuild buildOptions
         -> Spago.Build.bundleModule modName tPath shouldBuild buildOptions globalUsePsa
       Script modulePath tag dependencies scriptBuildOptions
         -> Spago.Build.script modulePath tag dependencies scriptBuildOptions
@@ -71,11 +71,11 @@ main = withUtf8 $ do
         $ Ls.listPackageSet jsonFlag
 
       -- ### Commands that need an "install environment": global options and a Config
-      Install packageNames -> Run.withInstallEnv
+      Install _ packageNames -> Run.withInstallEnv
         $ Spago.Packages.install packageNames
-      ListDeps jsonFlag transitiveFlag -> Run.withInstallEnv
+      ListDeps _ jsonFlag transitiveFlag -> Run.withInstallEnv
         $ Ls.listPackages transitiveFlag jsonFlag
-      Sources -> Run.withInstallEnv
+      Sources _ -> Run.withInstallEnv
         $ Spago.Packages.sources
 
       -- ### Commands that need a "publish env": install env + git and bower
@@ -89,18 +89,18 @@ main = withUtf8 $ do
         $ Verify.verify checkUniqueModules Nothing
 
       -- ### Commands that need a build environment: a config, build options and access to purs
-      Build buildOptions -> Run.withBuildEnv globalUsePsa buildOptions
+      Build _ buildOptions -> Run.withBuildEnv globalUsePsa buildOptions
         $ Spago.Build.build Nothing
-      Search -> Run.withBuildEnv globalUsePsa defaultBuildOptions
+      Search _ -> Run.withBuildEnv globalUsePsa defaultBuildOptions
         $ Spago.Build.search
-      Docs format sourcePaths depsOnly noSearch openDocs ->
+      Docs _ format sourcePaths depsOnly noSearch openDocs ->
         let
           opts = defaultBuildOptions { depsOnly = depsOnly, sourcePaths = sourcePaths }
         in Run.withBuildEnv globalUsePsa opts
             $ Spago.Build.docs format noSearch openDocs
-      Test modName buildOptions nodeArgs -> Run.withBuildEnv globalUsePsa buildOptions
+      Test _ modName buildOptions nodeArgs -> Run.withBuildEnv globalUsePsa buildOptions
         $ Spago.Build.test modName nodeArgs
-      Run modName buildOptions nodeArgs -> Run.withBuildEnv globalUsePsa buildOptions
+      Run _ modName buildOptions nodeArgs -> Run.withBuildEnv globalUsePsa buildOptions
         $ Spago.Build.run modName nodeArgs
 
       -- ### Legacy commands, here for smoother migration path to new ones

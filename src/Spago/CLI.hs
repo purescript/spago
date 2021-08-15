@@ -29,16 +29,16 @@ data Command
   | Init Force TemplateComments (Maybe Text)
 
   -- | Install (download) dependencies defined in spago.dhall
-  | Install [PackageName]
+  | Install TargetName [PackageName]
 
   -- | Get source globs of dependencies in spago.dhall
-  | Sources
+  | Sources TargetName
 
   -- | List available packages
   | ListPackages JsonFlag
 
   -- | List dependencies of the project
-  | ListDeps JsonFlag IncludeTransitive
+  | ListDeps TargetName JsonFlag IncludeTransitive
 
   -- | Bump and tag a new version in preparation for release.
   | BumpVersion DryRun VersionBump
@@ -50,7 +50,7 @@ data Command
   | Freeze
 
   -- | Runs `purescript-docs-search search`.
-  | Search
+  | Search TargetName
 
   -- | Returns info about paths used by Spago
   | Path (Maybe PathType) BuildOptions
@@ -61,29 +61,29 @@ data Command
   -- ### Build commands - i.e. they all call Purs at some point
 
     -- | Build the project
-  | Build BuildOptions
+  | Build TargetName BuildOptions
 
   -- | Start a REPL
-  | Repl [PackageName] [SourcePath] [PursArg] DepsOnly
+  | Repl TargetName [PackageName] [SourcePath] [PursArg] DepsOnly
 
   -- | Generate documentation for the project and its dependencies
-  | Docs (Maybe DocsFormat) [SourcePath] DepsOnly NoSearch OpenDocs
+  | Docs TargetName (Maybe DocsFormat) [SourcePath] DepsOnly NoSearch OpenDocs
 
   -- | Run the project with some module, default Main
-  | Run (Maybe ModuleName) BuildOptions [BackendArg]
+  | Run TargetName (Maybe ModuleName) BuildOptions [BackendArg]
 
   -- | Run the selected module as a script, specifying a .purs file,
   -- | optional package set tag, dependencies
   | Script Text (Maybe Text) [PackageName] ScriptBuildOptions
 
   -- | Test the project with some module, default Test.Main
-  | Test (Maybe ModuleName) BuildOptions [BackendArg]
+  | Test TargetName (Maybe ModuleName) BuildOptions [BackendArg]
 
   -- | Bundle the project into an executable
-  | BundleApp (Maybe ModuleName) (Maybe TargetPath) NoBuild BuildOptions
+  | BundleApp TargetName (Maybe ModuleName) (Maybe TargetPath) NoBuild BuildOptions
 
   -- | Bundle a module into a CommonJS module
-  | BundleModule (Maybe ModuleName) (Maybe TargetPath) NoBuild BuildOptions
+  | BundleModule TargetName (Maybe ModuleName) (Maybe TargetPath) NoBuild BuildOptions
 
   -- | Verify that a single package is consistent with the Package Set
   | Verify PackageName
@@ -154,6 +154,11 @@ parser = do
     chkModsUniq  = bool DoCheckModulesUnique NoCheckModulesUnique <$> CLI.switch "no-check-modules-unique" 'M' "Skip checking whether modules names are unique across all packages."
     transitive   = bool NoIncludeTransitive IncludeTransitive <$> CLI.switch "transitive" 't' "Include transitive dependencies"
 
+    mkTargetNameOption val = TargetName <$> Opts.strOption (Opts.long "target" <> Opts.short 'o' <> Opts.help "Which target to use as defined in `spago.dhall`" <> Opts.value val <> Opts.showDefault)
+
+    targetNameDefaultMain = mkTargetNameOption "main"
+    targetNameDefaultTest = mkTargetNameOption "test"
+
     mainModule  = CLI.optional $ CLI.opt (Just . ModuleName) "main" 'm' "Module to be used as the application's entry point"
     toTarget    = CLI.optional $ CLI.opt (Just . TargetPath) "to" 't' "The target file path"
     docsFormat  = CLI.optional $ CLI.opt Purs.parseDocsFormat "format" 'f' "Docs output format (markdown | html | etags | ctags)"
@@ -196,13 +201,13 @@ parser = do
     build =
       ( "build"
       , "Install the dependencies and compile the current package"
-      , Build <$> buildOptions
+      , Build <$> targetNameDefaultMain <*> buildOptions
       )
 
     repl =
       ( "repl"
       , "Start a REPL"
-      , Repl <$> dependencyPackageNames <*> sourcePaths <*> pursArgs <*> depsOnly
+      , Repl <$> targetNameDefaultMain <*> dependencyPackageNames <*> sourcePaths <*> pursArgs <*> depsOnly
       )
 
     execArgs = (++) <$> backendArgs <*> nodeArgs
@@ -210,37 +215,37 @@ parser = do
     test =
       ( "test"
       , "Test the project with some module, default Test.Main"
-      , Test <$> mainModule <*> buildOptions <*> execArgs
+      , Test <$> targetNameDefaultTest <*> mainModule <*> buildOptions <*> execArgs
       )
 
     run =
       ( "run"
       , "Runs the project with some module, default Main"
-      , Run <$> mainModule <*> buildOptions <*> execArgs
+      , Run <$> targetNameDefaultMain <*> mainModule <*> buildOptions <*> execArgs
       )
 
     bundleApp =
       ( "bundle-app"
       , "Bundle the project into an executable"
-      , BundleApp <$> mainModule <*> toTarget <*> noBuild <*> buildOptions
+      , BundleApp <$> targetNameDefaultMain <*> mainModule <*> toTarget <*> noBuild <*> buildOptions
       )
 
     bundleModule =
       ( "bundle-module"
       , "Bundle the project into a CommonJS module"
-      , BundleModule <$> mainModule <*> toTarget <*> noBuild <*> buildOptions
+      , BundleModule <$> targetNameDefaultMain <*> mainModule <*> toTarget <*> noBuild <*> buildOptions
       )
 
     docs =
       ( "docs"
       , "Generate docs for the project and its dependencies"
-      , Docs <$> docsFormat <*> sourcePaths <*> depsOnly <*> noSearch <*> openDocs
+      , Docs <$> targetNameDefaultMain <*> docsFormat <*> sourcePaths <*> depsOnly <*> noSearch <*> openDocs
       )
 
     search =
       ( "search"
       , "Start a search REPL to find definitions matching names and types"
-      , pure Search
+      , Search <$> targetNameDefaultMain
       )
 
     pathSubcommand
@@ -260,7 +265,7 @@ parser = do
 
     listDeps
       = CLI.subcommand "deps" "List dependencies of the project"
-        (ListDeps <$> jsonFlag <*> transitive)
+        (ListDeps <$> targetNameDefaultMain <*> jsonFlag <*> transitive)
 
     list =
       ( "ls"
@@ -271,13 +276,13 @@ parser = do
     install =
       ( "install"
       , "Install (download) all dependencies listed in spago.dhall"
-      , Install <$> packageNames
+      , Install <$> targetNameDefaultMain <*> packageNames
       )
 
     sources =
       ( "sources"
       , "List all the source paths (globs) for the dependencies of the project"
-      , pure Sources
+      , Sources <$> targetNameDefaultMain
       )
 
     verify =
