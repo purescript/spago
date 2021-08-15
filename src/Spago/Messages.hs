@@ -64,6 +64,13 @@ cannotFindConfig configPath = makeMessage
   , "otherwise you might want to run `spago init` to initialize a new project."
   ]
 
+cannotFindTarget :: Text -> Text
+cannotFindTarget targetName = makeMessage
+    [ "There's no target named " <> surroundQuote targetName <> " in your spago.dhall file"
+    , ""
+    , "Did you mispell the name? Does it exist?"
+    ]
+
 cannotFindPackages :: Text
 cannotFindPackages = makeMessage
   [ "There's no " <> surroundQuote "packages.dhall" <> " in your current location."

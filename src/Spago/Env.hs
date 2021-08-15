@@ -4,6 +4,7 @@ module Spago.Env
     GlobalOptions(..)
   , Env(..)
   , PackageSetEnv(..)
+  , ReplEnv(..)
   , InstallEnv(..)
   , PublishEnv(..)
   , VerifyEnv(..)
@@ -124,6 +125,15 @@ data VerifyEnv = VerifyEnv
   , envPursCmd :: !PursCmd
   , envPackageSet :: !PackageSet
   , envConfig :: !(Maybe Config)
+  } deriving (Generic)
+
+data ReplEnv = ReplEnv
+  { envLogFunc :: !LogFunc
+  , envJobs :: !Jobs
+  , envConfigPath :: !ConfigPath
+  , envGlobalCache :: !GlobalCache
+  , envPackageSet :: !PackageSet
+  , envTarget :: !Target
   } deriving (Generic)
 
 data InstallEnv = InstallEnv

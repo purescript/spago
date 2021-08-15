@@ -4,6 +4,8 @@ module Spago.Packages
   , getGlobs
   , getGlobsSourcePaths
   , getJsGlobs
+  , getDirectTargetDeps
+  , getTransitiveTargetDeps
   , getDirectDeps
   , getProjectDeps
   , getReverseDeps
@@ -56,6 +58,28 @@ getJsGlobs deps depsOnly configSourcePaths
     AllSources -> SourcePath . Text.replace ".purs" ".js" . unSourcePath
       <$> configSourcePaths
 
+
+-- | Return the direct dependencies of the current target
+getDirectTargetDeps
+  :: (HasLogFunc env, HasPackageSet env, HasTarget env)
+  => RIO env [(PackageName, Package)]
+getDirectTargetDeps = do
+  PackageSet{..} <- view (the @PackageSet)
+  Target { targetDependencies } <- view (the @Target)
+  for targetDependencies $ \dep ->
+    case Map.lookup dep packagesDB of
+      Nothing ->
+        die [ display $ pkgNotFoundMsg packagesDB (NotFoundError dep) ]
+      Just pkg ->
+        pure (dep, pkg)
+
+-- | Return the transitive dependencies of the current target
+getTransitiveTargetDeps
+  :: (HasLogFunc env, HasPackageSet env, HasTarget env)
+  => RIO env [(PackageName, Package)]
+getTransitiveTargetDeps = do
+  Target{ targetDependencies } <- view (the @Target)
+  getTransitiveDeps targetDependencies
 
 -- | Return the direct dependencies of the current project
 getDirectDeps

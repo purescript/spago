@@ -76,6 +76,18 @@ withPackageSetEnv app = do
   runRIO PackageSetEnv{..} app
 
 
+withReplEnv
+  :: (HasEnv env)
+  => Config
+  -> Target
+  -> RIO ReplEnv a
+  -> RIO env a
+withReplEnv Config{..} target app = do
+  Env{..} <- getEnv
+  let envPackageSet = packageSet
+      envTarget = target
+  runRIO ReplEnv{..} app
+
 withInstallEnv'
   :: (HasEnv env)
   => Maybe Config

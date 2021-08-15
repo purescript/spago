@@ -197,16 +197,23 @@ build maybePostBuild = do
 -- | Start a repl
 repl
   :: (HasEnv env)
-  => [PackageName]
+  => TargetName
+  -> [PackageName]
   -> [SourcePath]
   -> [PursArg]
   -> Packages.DepsOnly
   -> RIO env ()
-repl newPackages sourcePaths pursArgs depsOnly = do
+repl tgtName newPackages sourcePaths pursArgs depsOnly = do
   logDebug "Running `spago repl`"
   purs <- Run.getPurs NoPsa
   Config.ensureConfig >>= \case
-    Right config -> Run.withInstallEnv' (Just config) (replAction purs)
+    Right config -> do
+      case Map.lookup tgtName $ targets config of
+        Just target -> do
+          logDebug $ "Using target '" <> display (targetName tgtName) <> "'"
+          Run.withReplEnv config target (replAction purs)
+        Nothing ->
+          die $ [ display $ Messages.cannotFindTarget (targetName tgtName) ]
     Left err -> do
       logDebug err
       GlobalCache cacheDir _ <- view (the @GlobalCache)
@@ -215,16 +222,20 @@ repl newPackages sourcePaths pursArgs depsOnly = do
 
         writeTextFile ".purs-repl" Templates.pursRepl
 
-        let dependencies = [ PackageName "effect", PackageName "console", PackageName "psci-support" ] <> newPackages
+        let
+          dependencies = [ PackageName "effect", PackageName "console", PackageName "psci-support" ] <> newPackages
+          srcPaths = []
+          target = Target { targetDependencies = dependencies, targetSourcePaths = srcPaths }
 
         config <- Run.withPursEnv NoPsa $ do
-          Config.makeTempConfig dependencies Nothing [] Nothing
+          Config.makeTempConfig dependencies Nothing srcPaths Nothing
 
-        Run.withInstallEnv' (Just config) (replAction purs)
+        Run.withReplEnv config target (replAction purs)
   where
+    replAction :: PursCmd -> RIO ReplEnv ()
     replAction purs = do
-      Config{..} <- view (the @Config)
-      deps <- Packages.getProjectDeps
+      Target{ targetSourcePaths } <- view (the @Target)
+      deps <- Packages.getTransitiveTargetDeps
       -- we check that psci-support is in the deps, see #550
       unless (Set.member (PackageName "psci-support") (Set.fromList (map fst deps))) $ do
         die
@@ -233,7 +244,7 @@ repl newPackages sourcePaths pursArgs depsOnly = do
           ]
       let
         globs =
-          Packages.getGlobsSourcePaths $ Packages.getGlobs deps depsOnly (configSourcePaths <> sourcePaths)
+          Packages.getGlobsSourcePaths $ Packages.getGlobs deps depsOnly (targetSourcePaths <> sourcePaths)
       Fetch.fetchPackages deps
       runRIO purs $ Purs.repl globs pursArgs
 
