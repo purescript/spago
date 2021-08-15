@@ -108,18 +108,18 @@ withInstallEnv
   -> RIO env a
 withInstallEnv = withInstallEnv' Nothing
 
-withLsEnv
+withInstallEnv2
   :: (HasEnv env)
   => TargetName
-  -> RIO LsEnv a
+  -> RIO InstallEnv2 a
   -> RIO env a
-withLsEnv tgtName app = do
+withInstallEnv2 tgtName app = do
   Env{..} <- getEnv
   envConfig@Config{..} <- getConfig
   envTarget <- getTarget tgtName targets
   let envPackageSet = packageSet
       envTargetName = tgtName
-  runRIO LsEnv{..} app
+  runRIO InstallEnv2{..} app
 
 withVerifyEnv
   :: HasEnv env

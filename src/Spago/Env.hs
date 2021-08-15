@@ -5,7 +5,7 @@ module Spago.Env
   , Env(..)
   , PackageSetEnv(..)
   , ReplEnv(..)
-  , LsEnv(..)
+  , InstallEnv2(..)
   , InstallEnv(..)
   , PublishEnv(..)
   , VerifyEnv(..)
@@ -139,7 +139,7 @@ data ReplEnv = ReplEnv
   , envTarget :: !Target
   } deriving (Generic)
 
-data LsEnv = LsEnv
+data InstallEnv2 = InstallEnv2
   { envLogFunc :: !LogFunc
   , envJobs :: !Jobs
   , envConfigPath :: !ConfigPath
