@@ -134,13 +134,13 @@ withPublishEnv app = do
 
 withBuildEnv'
   :: HasEnv env
-  => TargetName
-  -> Maybe Config
+  => Maybe Config
+  -> TargetName
   -> UsePsa
   -> BuildOptions
   -> RIO BuildEnv a
   -> RIO env a
-withBuildEnv' tgtName maybeConfig usePsa envBuildOptions@BuildOptions{ noInstall } app = do
+withBuildEnv' maybeConfig tgtName usePsa envBuildOptions@BuildOptions{ noInstall } app = do
   Env{..} <- getEnv
   envPursCmd <- getPurs usePsa
   envConfig@Config{..} <- maybe getConfig pure maybeConfig
@@ -163,7 +163,7 @@ withBuildEnv
   -> BuildOptions
   -> RIO BuildEnv a
   -> RIO env a
-withBuildEnv tgtName = withBuildEnv' tgtName Nothing
+withBuildEnv = withBuildEnv' Nothing
 
 withPursEnv
   :: HasEnv env

@@ -313,7 +313,7 @@ script modulePath tag packageDeps opts = do
   let runDirs :: RunDirectories
       runDirs = RunDirectories scriptDirPath currentDir
 
-  Run.withBuildEnv' Targets.mainTarget (Just config) NoPsa buildOpts (runAction runDirs)
+  Run.withBuildEnv' (Just config) Targets.mainTarget NoPsa buildOpts (runAction runDirs)
   where
     buildOpts = fromScriptOptions defaultBuildOptions opts
     runAction dirs = runBackend Nothing dirs (ModuleName "Main") Nothing "Script failed to run; " []
