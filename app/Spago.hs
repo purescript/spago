@@ -55,10 +55,10 @@ main = withUtf8 $ do
         -> Path.showPaths buildOptions whichPath
       Repl targetName replPackageNames paths pursArgs depsOnly
         -> Spago.Build.repl targetName replPackageNames paths pursArgs depsOnly
-      BundleApp _ modName tPath shouldBuild buildOptions
-        -> Spago.Build.bundleApp WithMain modName tPath shouldBuild buildOptions globalUsePsa
-      BundleModule _ modName tPath shouldBuild buildOptions
-        -> Spago.Build.bundleModule modName tPath shouldBuild buildOptions globalUsePsa
+      BundleApp targetName modName tPath shouldBuild buildOptions
+        -> Spago.Build.bundleApp targetName WithMain modName tPath shouldBuild buildOptions globalUsePsa
+      BundleModule targetName modName tPath shouldBuild buildOptions
+        -> Spago.Build.bundleModule targetName modName tPath shouldBuild buildOptions globalUsePsa
       Script modulePath tag dependencies scriptBuildOptions
         -> Spago.Build.script modulePath tag dependencies scriptBuildOptions
 
@@ -89,7 +89,7 @@ main = withUtf8 $ do
         $ Verify.verify checkUniqueModules Nothing
 
       -- ### Commands that need a build environment: a config, build options and access to purs
-      Build _ buildOptions -> Run.withBuildEnv globalUsePsa buildOptions
+      Build targetName buildOptions -> Run.withBuildEnv2 targetName globalUsePsa buildOptions
         $ Spago.Build.build Nothing
       Search _ -> Run.withBuildEnv globalUsePsa defaultBuildOptions
         $ Spago.Build.search
@@ -98,9 +98,9 @@ main = withUtf8 $ do
           opts = defaultBuildOptions { depsOnly = depsOnly, sourcePaths = sourcePaths }
         in Run.withBuildEnv globalUsePsa opts
             $ Spago.Build.docs format noSearch openDocs
-      Test _ modName buildOptions nodeArgs -> Run.withBuildEnv globalUsePsa buildOptions
+      Test targetName modName buildOptions nodeArgs -> Run.withBuildEnv2 targetName globalUsePsa buildOptions
         $ Spago.Build.test modName nodeArgs
-      Run _ modName buildOptions nodeArgs -> Run.withBuildEnv globalUsePsa buildOptions
+      Run targetName modName buildOptions nodeArgs -> Run.withBuildEnv2 targetName globalUsePsa buildOptions
         $ Spago.Build.run modName nodeArgs
 
       -- ### Legacy commands, here for smoother migration path to new ones

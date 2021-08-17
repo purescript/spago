@@ -151,6 +151,39 @@ withPublishEnv app = do
       _ -> findExecutableOrDie "bower"
   runRIO PublishEnv{..} app
 
+withBuildEnv2'
+  :: HasEnv env
+  => TargetName
+  -> Maybe Config
+  -> UsePsa
+  -> BuildOptions
+  -> RIO BuildEnv2 a
+  -> RIO env a
+withBuildEnv2' tgtName maybeConfig usePsa envBuildOptions@BuildOptions{ noInstall } app = do
+  Env{..} <- getEnv
+  envPursCmd <- getPurs usePsa
+  envConfig@Config{..} <- maybe getConfig pure maybeConfig
+  envTarget <- getTarget tgtName targets
+  let envPackageSet = packageSet
+  let envTargetName = tgtName
+  deps <- runRIO InstallEnv2{..} $ do
+    deps <- Packages.getTransitiveTargetDeps
+    when (noInstall == DoInstall) $ FetchPackage.fetchPackages deps
+    pure deps
+  envGraph <- runRIO PursEnv{..} (getMaybeGraph envBuildOptions envConfig deps)
+  envGitCmd <- getGit
+  logDebug "Running in `BuildEnv`"
+  runRIO BuildEnv2{..} app
+
+withBuildEnv2
+  :: HasEnv env
+  => TargetName
+  -> UsePsa
+  -> BuildOptions
+  -> RIO BuildEnv2 a
+  -> RIO env a
+withBuildEnv2 tgtName = withBuildEnv2' tgtName Nothing
+
 withBuildEnv'
   :: HasEnv env
   => Maybe Config

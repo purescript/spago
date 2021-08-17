@@ -35,6 +35,7 @@ import qualified Spago.FetchPackage   as Fetch
 import qualified Spago.Messages       as Messages
 import qualified Spago.Packages       as Packages
 import qualified Spago.Purs           as Purs
+import qualified Spago.Targets        as Targets
 import qualified Spago.Templates      as Templates
 import qualified Spago.Watch          as Watch
 
@@ -49,15 +50,16 @@ prepareBundleDefaults maybeModuleName maybeTargetPath = (moduleName, targetPath)
     targetPath = fromMaybe (TargetPath "index.js") maybeTargetPath
 
 --   eventually running some other action after the build
-build :: HasBuildEnv env => Maybe (RIO Env ()) -> RIO env ()
+build :: HasBuildEnv2 env => Maybe (RIO Env ()) -> RIO env ()
 build maybePostBuild = do
   logDebug "Running `spago build`"
   BuildOptions{..} <- view (the @BuildOptions)
   Config{..} <- view (the @Config)
-  deps <- Packages.getProjectDeps
-  let partitionedGlobs@(Packages.Globs{..}) = Packages.getGlobs deps depsOnly configSourcePaths
+  Target{..} <- view (the @Target)
+  deps <- Packages.getTransitiveTargetDeps
+  let partitionedGlobs@(Packages.Globs{..}) = Packages.getGlobs deps depsOnly targetSourcePaths
       allPsGlobs = Packages.getGlobsSourcePaths partitionedGlobs <> sourcePaths
-      allJsGlobs = Packages.getJsGlobs deps depsOnly configSourcePaths <> sourcePaths
+      allJsGlobs = Packages.getJsGlobs deps depsOnly targetSourcePaths <> sourcePaths
 
       checkImports = do
         maybeGraph <- view (the @Graph)
@@ -247,7 +249,7 @@ repl tgtName newPackages sourcePaths pursArgs depsOnly = do
 
 -- | Test the project: compile and run "Test.Main"
 --   (or the provided module name) with node
-test :: HasBuildEnv env => Maybe ModuleName -> [BackendArg] -> RIO env ()
+test :: HasBuildEnv2 env => Maybe ModuleName -> [BackendArg] -> RIO env ()
 test maybeModuleName extraArgs = do
   logDebug "Running `Spago.Build.test`"
   let moduleName = fromMaybe (ModuleName "Test.Main") maybeModuleName
@@ -265,7 +267,7 @@ test maybeModuleName extraArgs = do
 
 -- | Run the project: compile and run "Main"
 --   (or the provided module name) with node
-run :: HasBuildEnv env => Maybe ModuleName -> [BackendArg] -> RIO env ()
+run :: HasBuildEnv2 env => Maybe ModuleName -> [BackendArg] -> RIO env ()
 run maybeModuleName extraArgs = do
   Config.Config { alternateBackend } <- view (the @Config)
   let moduleName = fromMaybe (ModuleName "Main") maybeModuleName
@@ -311,7 +313,7 @@ script modulePath tag packageDeps opts = do
   let runDirs :: RunDirectories
       runDirs = RunDirectories scriptDirPath currentDir
 
-  Run.withBuildEnv' (Just config) NoPsa buildOpts (runAction runDirs)
+  Run.withBuildEnv2' Targets.mainTarget (Just config) NoPsa buildOpts (runAction runDirs)
   where
     buildOpts = fromScriptOptions defaultBuildOptions opts
     runAction dirs = runBackend Nothing dirs (ModuleName "Main") Nothing "Script failed to run; " []
@@ -322,7 +324,7 @@ data RunDirectories = RunDirectories { sourceDir :: FilePath, executeDir :: File
 -- | Run the project with node (or the chosen alternate backend):
 --   compile and run the provided ModuleName
 runBackend
-  :: HasBuildEnv env
+  :: HasBuildEnv2 env
   => Maybe Text
   -> RunDirectories
   -> ModuleName
@@ -373,30 +375,32 @@ runBackend maybeBackend RunDirectories{ sourceDir, executeDir } moduleName maybe
 -- | Bundle the project to a js file
 bundleApp
   :: HasEnv env
-  => WithMain
+  => TargetName
+  -> WithMain
   -> Maybe ModuleName
   -> Maybe TargetPath
   -> NoBuild
   -> BuildOptions
   -> UsePsa
   -> RIO env ()
-bundleApp withMain maybeModuleName maybeTargetPath noBuild buildOpts usePsa =
+bundleApp tgtName withMain maybeModuleName maybeTargetPath noBuild buildOpts usePsa =
   let (moduleName, targetPath) = prepareBundleDefaults maybeModuleName maybeTargetPath
       bundleAction = Purs.bundle withMain (withSourceMap buildOpts) moduleName targetPath
   in case noBuild of
-    DoBuild -> Run.withBuildEnv usePsa buildOpts $ build (Just bundleAction)
+    DoBuild -> Run.withBuildEnv2 tgtName usePsa buildOpts $ build (Just bundleAction)
     NoBuild -> Run.getEnv >>= (flip runRIO) bundleAction
 
 -- | Bundle into a CommonJS module
 bundleModule
   :: HasEnv env
-  => Maybe ModuleName
+  => TargetName
+  -> Maybe ModuleName
   -> Maybe TargetPath
   -> NoBuild
   -> BuildOptions
   -> UsePsa
   -> RIO env ()
-bundleModule maybeModuleName maybeTargetPath noBuild buildOpts usePsa = do
+bundleModule tgtName maybeModuleName maybeTargetPath noBuild buildOpts usePsa = do
   logDebug "Running `bundleModule`"
   let (moduleName, targetPath) = prepareBundleDefaults maybeModuleName maybeTargetPath
       jsExport = Text.unpack $ "\nmodule.exports = PS[\""<> unModuleName moduleName <> "\"];"
@@ -411,7 +415,7 @@ bundleModule maybeModuleName maybeTargetPath noBuild buildOpts usePsa = do
             Right _ -> logInfo $ display $ "Make module succeeded and output file to " <> unTargetPath targetPath
             Left (n :: SomeException) -> die [ "Make module failed: " <> repr n ]
   case noBuild of
-    DoBuild -> Run.withBuildEnv usePsa buildOpts $ build (Just bundleAction)
+    DoBuild -> Run.withBuildEnv2 tgtName usePsa buildOpts $ build (Just bundleAction)
     NoBuild -> Run.getEnv >>= (flip runRIO) bundleAction
 
 docsSearchTemplate :: (HasType LogFunc env, HasType PursCmd env) => RIO env Text
