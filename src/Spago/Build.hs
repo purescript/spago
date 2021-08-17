@@ -473,14 +473,15 @@ docs format noSearch open = do
     openLink link = liftIO $ Browser.openBrowser (Text.unpack link)
 
 -- | Start a search REPL.
-search :: HasBuildEnv env => RIO env ()
+search :: HasBuildEnv2 env => RIO env ()
 search = do
   Config{..} <- view (the @Config)
-  deps <- Packages.getProjectDeps
+  Target{..} <- view (the @Target)
+  deps <- Packages.getTransitiveTargetDeps
 
   logInfo "Building module metadata..."
 
-  Purs.compile (Packages.getGlobsSourcePaths (Packages.getGlobs deps Packages.AllSources configSourcePaths))
+  Purs.compile (Packages.getGlobsSourcePaths (Packages.getGlobs deps Packages.AllSources targetSourcePaths))
     [ PursArg "--codegen"
     , PursArg "docs"
     ]

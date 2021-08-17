@@ -91,7 +91,7 @@ main = withUtf8 $ do
       -- ### Commands that need a build environment: a config, build options and access to purs
       Build targetName buildOptions -> Run.withBuildEnv2 targetName globalUsePsa buildOptions
         $ Spago.Build.build Nothing
-      Search _ -> Run.withBuildEnv globalUsePsa defaultBuildOptions
+      Search targetName -> Run.withBuildEnv2 targetName globalUsePsa defaultBuildOptions
         $ Spago.Build.search
       Docs _ format sourcePaths depsOnly noSearch openDocs ->
         let
