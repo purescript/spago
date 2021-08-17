@@ -89,37 +89,18 @@ withReplEnv Config{..} target app = do
       envTarget = target
   runRIO ReplEnv{..} app
 
-withInstallEnv'
-  :: (HasEnv env)
-  => Maybe Config
-  -> RIO InstallEnv a
-  -> RIO env a
-withInstallEnv' maybeConfig app = do
-  Env{..} <- getEnv
-  envConfig@Config{..} <- case maybeConfig of
-    Just c -> pure c
-    Nothing -> getConfig
-  let envPackageSet = packageSet
-  runRIO InstallEnv{..} app
-
 withInstallEnv
   :: (HasEnv env)
-  => RIO InstallEnv a
-  -> RIO env a
-withInstallEnv = withInstallEnv' Nothing
-
-withInstallEnv2
-  :: (HasEnv env)
   => TargetName
-  -> RIO InstallEnv2 a
+  -> RIO InstallEnv a
   -> RIO env a
-withInstallEnv2 tgtName app = do
+withInstallEnv tgtName app = do
   Env{..} <- getEnv
   envConfig@Config{..} <- getConfig
   envTarget <- getTarget tgtName targets
   let envPackageSet = packageSet
       envTargetName = tgtName
-  runRIO InstallEnv2{..} app
+  runRIO InstallEnv{..} app
 
 withVerifyEnv
   :: HasEnv env
@@ -151,53 +132,23 @@ withPublishEnv app = do
       _ -> findExecutableOrDie "bower"
   runRIO PublishEnv{..} app
 
-withBuildEnv2'
+withBuildEnv'
   :: HasEnv env
   => TargetName
   -> Maybe Config
   -> UsePsa
   -> BuildOptions
-  -> RIO BuildEnv2 a
+  -> RIO BuildEnv a
   -> RIO env a
-withBuildEnv2' tgtName maybeConfig usePsa envBuildOptions@BuildOptions{ noInstall } app = do
+withBuildEnv' tgtName maybeConfig usePsa envBuildOptions@BuildOptions{ noInstall } app = do
   Env{..} <- getEnv
   envPursCmd <- getPurs usePsa
   envConfig@Config{..} <- maybe getConfig pure maybeConfig
   envTarget <- getTarget tgtName targets
   let envPackageSet = packageSet
   let envTargetName = tgtName
-  deps <- runRIO InstallEnv2{..} $ do
-    deps <- Packages.getTransitiveTargetDeps
-    when (noInstall == DoInstall) $ FetchPackage.fetchPackages deps
-    pure deps
-  envGraph <- runRIO PursEnv{..} (getMaybeGraph envBuildOptions envConfig deps)
-  envGitCmd <- getGit
-  logDebug "Running in `BuildEnv`"
-  runRIO BuildEnv2{..} app
-
-withBuildEnv2
-  :: HasEnv env
-  => TargetName
-  -> UsePsa
-  -> BuildOptions
-  -> RIO BuildEnv2 a
-  -> RIO env a
-withBuildEnv2 tgtName = withBuildEnv2' tgtName Nothing
-
-withBuildEnv'
-  :: HasEnv env
-  => Maybe Config
-  -> UsePsa
-  -> BuildOptions
-  -> RIO BuildEnv a
-  -> RIO env a
-withBuildEnv' maybeConfig usePsa envBuildOptions@BuildOptions{ noInstall } app = do
-  Env{..} <- getEnv
-  envPursCmd <- getPurs usePsa
-  envConfig@Config{..} <- maybe getConfig pure maybeConfig
-  let envPackageSet = packageSet
   deps <- runRIO InstallEnv{..} $ do
-    deps <- Packages.getProjectDeps
+    deps <- Packages.getTransitiveTargetDeps
     when (noInstall == DoInstall) $ FetchPackage.fetchPackages deps
     pure deps
   envGraph <- runRIO PursEnv{..} (getMaybeGraph envBuildOptions envConfig deps)
@@ -207,11 +158,12 @@ withBuildEnv' maybeConfig usePsa envBuildOptions@BuildOptions{ noInstall } app =
 
 withBuildEnv
   :: HasEnv env
-  => UsePsa
+  => TargetName
+  -> UsePsa
   -> BuildOptions
   -> RIO BuildEnv a
   -> RIO env a
-withBuildEnv = withBuildEnv' Nothing
+withBuildEnv tgtName = withBuildEnv' tgtName Nothing
 
 withPursEnv
   :: HasEnv env

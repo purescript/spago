@@ -71,11 +71,11 @@ main = withUtf8 $ do
         $ Ls.listPackageSet jsonFlag
 
       -- ### Commands that need an "install environment": global options and a Config
-      Install targetName packageNames -> Run.withInstallEnv2 targetName
+      Install targetName packageNames -> Run.withInstallEnv targetName
         $ Spago.Packages.install packageNames
-      ListDeps targetName jsonFlag transitiveFlag -> Run.withInstallEnv2 targetName
+      ListDeps targetName jsonFlag transitiveFlag -> Run.withInstallEnv targetName
         $ Ls.listPackages transitiveFlag jsonFlag
-      Sources targetName -> Run.withInstallEnv2 targetName
+      Sources targetName -> Run.withInstallEnv targetName
         $ Spago.Packages.sources
 
       -- ### Commands that need a "publish env": install env + git and bower
@@ -89,18 +89,18 @@ main = withUtf8 $ do
         $ Verify.verify checkUniqueModules Nothing
 
       -- ### Commands that need a build environment: a config, build options and access to purs
-      Build targetName buildOptions -> Run.withBuildEnv2 targetName globalUsePsa buildOptions
+      Build targetName buildOptions -> Run.withBuildEnv targetName globalUsePsa buildOptions
         $ Spago.Build.build Nothing
-      Search targetName -> Run.withBuildEnv2 targetName globalUsePsa defaultBuildOptions
+      Search targetName -> Run.withBuildEnv targetName globalUsePsa defaultBuildOptions
         $ Spago.Build.search
       Docs targetName format sourcePaths depsOnly noSearch openDocs ->
         let
           opts = defaultBuildOptions { depsOnly = depsOnly, sourcePaths = sourcePaths }
-        in Run.withBuildEnv2 targetName globalUsePsa opts
+        in Run.withBuildEnv targetName globalUsePsa opts
             $ Spago.Build.docs format noSearch openDocs
-      Test targetName modName buildOptions nodeArgs -> Run.withBuildEnv2 targetName globalUsePsa buildOptions
+      Test targetName modName buildOptions nodeArgs -> Run.withBuildEnv targetName globalUsePsa buildOptions
         $ Spago.Build.test modName nodeArgs
-      Run targetName modName buildOptions nodeArgs -> Run.withBuildEnv2 targetName globalUsePsa buildOptions
+      Run targetName modName buildOptions nodeArgs -> Run.withBuildEnv targetName globalUsePsa buildOptions
         $ Spago.Build.run modName nodeArgs
 
       -- ### Legacy commands, here for smoother migration path to new ones

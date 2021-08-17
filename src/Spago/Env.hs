@@ -5,11 +5,9 @@ module Spago.Env
   , Env(..)
   , PackageSetEnv(..)
   , ReplEnv(..)
-  , InstallEnv2(..)
   , InstallEnv(..)
   , PublishEnv(..)
   , VerifyEnv(..)
-  , BuildEnv2(..)
   , BuildEnv(..)
   , PursEnv(..)
 
@@ -18,7 +16,6 @@ module Spago.Env
   , HasVerifyEnv
   , HasPublishEnv
   , HasBuildEnv
-  , HasBuildEnv2
   , HasPursEnv
 
   -- | Simple capabilities
@@ -102,15 +99,6 @@ type HasBuildEnv env =
   , HasConfig env
   , HasMaybeGraph env
   , HasBuildOptions env
-  )
-
-type HasBuildEnv2 env =
-  ( HasEnv env
-  , HasPurs env
-  , HasGit env
-  , HasConfig env
-  , HasMaybeGraph env
-  , HasBuildOptions env
   , HasTarget env
   , HasTargetName env
   )
@@ -152,7 +140,7 @@ data ReplEnv = ReplEnv
   , envTarget :: !Target
   } deriving (Generic)
 
-data InstallEnv2 = InstallEnv2
+data InstallEnv = InstallEnv
   { envLogFunc :: !LogFunc
   , envJobs :: !Jobs
   , envConfigPath :: !ConfigPath
@@ -161,15 +149,6 @@ data InstallEnv2 = InstallEnv2
   , envConfig :: !Config
   , envTarget :: !Target
   , envTargetName :: !TargetName
-  } deriving (Generic)
-
-data InstallEnv = InstallEnv
-  { envLogFunc :: !LogFunc
-  , envJobs :: !Jobs
-  , envConfigPath :: !ConfigPath
-  , envGlobalCache :: !GlobalCache
-  , envPackageSet :: !PackageSet
-  , envConfig :: !Config
   } deriving (Generic)
 
 data PublishEnv = PublishEnv
@@ -179,21 +158,6 @@ data PublishEnv = PublishEnv
   , envPackageSet :: !PackageSet
   , envGitCmd :: !GitCmd
   , envBowerCmd :: !BowerCmd
-  } deriving (Generic)
-
-data BuildEnv2 = BuildEnv2
-  { envLogFunc :: !LogFunc
-  , envJobs :: !Jobs
-  , envConfigPath :: !ConfigPath
-  , envGlobalCache :: !GlobalCache
-  , envPursCmd :: !PursCmd
-  , envGitCmd :: !GitCmd
-  , envPackageSet :: !PackageSet
-  , envConfig :: !Config
-  , envGraph :: !(Maybe ModuleGraph)
-  , envBuildOptions :: !BuildOptions
-  , envTarget :: !Target
-  , envTargetName :: !TargetName
   } deriving (Generic)
 
 data BuildEnv = BuildEnv
@@ -207,6 +171,8 @@ data BuildEnv = BuildEnv
   , envConfig :: !Config
   , envGraph :: !(Maybe ModuleGraph)
   , envBuildOptions :: !BuildOptions
+  , envTarget :: !Target
+  , envTargetName :: !TargetName
   } deriving (Generic)
 
 data PursEnv = PursEnv

@@ -50,7 +50,7 @@ prepareBundleDefaults maybeModuleName maybeTargetPath = (moduleName, targetPath)
     targetPath = fromMaybe (TargetPath "index.js") maybeTargetPath
 
 --   eventually running some other action after the build
-build :: HasBuildEnv2 env => Maybe (RIO Env ()) -> RIO env ()
+build :: HasBuildEnv env => Maybe (RIO Env ()) -> RIO env ()
 build maybePostBuild = do
   logDebug "Running `spago build`"
   BuildOptions{..} <- view (the @BuildOptions)
@@ -249,7 +249,7 @@ repl tgtName newPackages sourcePaths pursArgs depsOnly = do
 
 -- | Test the project: compile and run "Test.Main"
 --   (or the provided module name) with node
-test :: HasBuildEnv2 env => Maybe ModuleName -> [BackendArg] -> RIO env ()
+test :: HasBuildEnv env => Maybe ModuleName -> [BackendArg] -> RIO env ()
 test maybeModuleName extraArgs = do
   logDebug "Running `Spago.Build.test`"
   let moduleName = fromMaybe (ModuleName "Test.Main") maybeModuleName
@@ -267,7 +267,7 @@ test maybeModuleName extraArgs = do
 
 -- | Run the project: compile and run "Main"
 --   (or the provided module name) with node
-run :: HasBuildEnv2 env => Maybe ModuleName -> [BackendArg] -> RIO env ()
+run :: HasBuildEnv env => Maybe ModuleName -> [BackendArg] -> RIO env ()
 run maybeModuleName extraArgs = do
   Config.Config { alternateBackend } <- view (the @Config)
   let moduleName = fromMaybe (ModuleName "Main") maybeModuleName
@@ -313,7 +313,7 @@ script modulePath tag packageDeps opts = do
   let runDirs :: RunDirectories
       runDirs = RunDirectories scriptDirPath currentDir
 
-  Run.withBuildEnv2' Targets.mainTarget (Just config) NoPsa buildOpts (runAction runDirs)
+  Run.withBuildEnv' Targets.mainTarget (Just config) NoPsa buildOpts (runAction runDirs)
   where
     buildOpts = fromScriptOptions defaultBuildOptions opts
     runAction dirs = runBackend Nothing dirs (ModuleName "Main") Nothing "Script failed to run; " []
@@ -324,7 +324,7 @@ data RunDirectories = RunDirectories { sourceDir :: FilePath, executeDir :: File
 -- | Run the project with node (or the chosen alternate backend):
 --   compile and run the provided ModuleName
 runBackend
-  :: HasBuildEnv2 env
+  :: HasBuildEnv env
   => Maybe Text
   -> RunDirectories
   -> ModuleName
@@ -387,7 +387,7 @@ bundleApp tgtName withMain maybeModuleName maybeTargetPath noBuild buildOpts use
   let (moduleName, targetPath) = prepareBundleDefaults maybeModuleName maybeTargetPath
       bundleAction = Purs.bundle withMain (withSourceMap buildOpts) moduleName targetPath
   in case noBuild of
-    DoBuild -> Run.withBuildEnv2 tgtName usePsa buildOpts $ build (Just bundleAction)
+    DoBuild -> Run.withBuildEnv tgtName usePsa buildOpts $ build (Just bundleAction)
     NoBuild -> Run.getEnv >>= (flip runRIO) bundleAction
 
 -- | Bundle into a CommonJS module
@@ -415,7 +415,7 @@ bundleModule tgtName maybeModuleName maybeTargetPath noBuild buildOpts usePsa = 
             Right _ -> logInfo $ display $ "Make module succeeded and output file to " <> unTargetPath targetPath
             Left (n :: SomeException) -> die [ "Make module failed: " <> repr n ]
   case noBuild of
-    DoBuild -> Run.withBuildEnv2 tgtName usePsa buildOpts $ build (Just bundleAction)
+    DoBuild -> Run.withBuildEnv tgtName usePsa buildOpts $ build (Just bundleAction)
     NoBuild -> Run.getEnv >>= (flip runRIO) bundleAction
 
 docsSearchTemplate :: (HasType LogFunc env, HasType PursCmd env) => RIO env Text
@@ -430,7 +430,7 @@ docsSearchAppTemplate = ifM (Purs.hasMinPursVersion "0.14.0")
 
 -- | Generate docs for the `sourcePaths` and run `purescript-docs-search build-index` to patch them.
 docs
-  :: HasBuildEnv2 env
+  :: HasBuildEnv env
   => Maybe Purs.DocsFormat
   -> NoSearch
   -> OpenDocs
@@ -474,7 +474,7 @@ docs format noSearch open = do
     openLink link = liftIO $ Browser.openBrowser (Text.unpack link)
 
 -- | Start a search REPL.
-search :: HasBuildEnv2 env => RIO env ()
+search :: HasBuildEnv env => RIO env ()
 search = do
   Config{..} <- view (the @Config)
   Target{..} <- view (the @Target)
