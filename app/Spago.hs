@@ -93,10 +93,10 @@ main = withUtf8 $ do
         $ Spago.Build.build Nothing
       Search targetName -> Run.withBuildEnv2 targetName globalUsePsa defaultBuildOptions
         $ Spago.Build.search
-      Docs _ format sourcePaths depsOnly noSearch openDocs ->
+      Docs targetName format sourcePaths depsOnly noSearch openDocs ->
         let
           opts = defaultBuildOptions { depsOnly = depsOnly, sourcePaths = sourcePaths }
-        in Run.withBuildEnv globalUsePsa opts
+        in Run.withBuildEnv2 targetName globalUsePsa opts
             $ Spago.Build.docs format noSearch openDocs
       Test targetName modName buildOptions nodeArgs -> Run.withBuildEnv2 targetName globalUsePsa buildOptions
         $ Spago.Build.test modName nodeArgs

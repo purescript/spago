@@ -430,7 +430,7 @@ docsSearchAppTemplate = ifM (Purs.hasMinPursVersion "0.14.0")
 
 -- | Generate docs for the `sourcePaths` and run `purescript-docs-search build-index` to patch them.
 docs
-  :: HasBuildEnv env
+  :: HasBuildEnv2 env
   => Maybe Purs.DocsFormat
   -> NoSearch
   -> OpenDocs
@@ -439,9 +439,10 @@ docs format noSearch open = do
   logDebug "Running `spago docs`"
   BuildOptions { sourcePaths, depsOnly } <- view (the @BuildOptions)
   Config{..} <- view (the @Config)
-  deps <- Packages.getProjectDeps
+  Target{..} <- view (the @Target)
+  deps <- Packages.getTransitiveTargetDeps
   logInfo "Generating documentation for the project. This might take a while..."
-  Purs.docs docsFormat $ Packages.getGlobsSourcePaths (Packages.getGlobs deps depsOnly configSourcePaths) <> sourcePaths
+  Purs.docs docsFormat $ Packages.getGlobsSourcePaths (Packages.getGlobs deps depsOnly targetSourcePaths) <> sourcePaths
 
   when isHTMLFormat $ do
     when (noSearch == AddSearch) $ do
