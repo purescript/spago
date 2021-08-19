@@ -348,21 +348,23 @@ updateName newName (Dhall.RecordLit kvs)
 updateName _ other = other
 
 addRawDeps2 :: HasLogFunc env => Config -> TargetName -> [PackageName] -> Expr -> RIO env Expr
-addRawDeps2 config tgtName newPackages rawExpr = 
+addRawDeps2 config tgtName newPackages rawExpr =
   case NonEmpty.nonEmpty notInPackageSet of
     Just pkgs -> do
       logWarn $ display $ Messages.failedToAddDeps $ NonEmpty.map packageName pkgs
       pure rawExpr
     Nothing -> case rawExpr of
       Dhall.RecordLit kvs -> Dhall.RecordLit <$> insertDepsIntoTargetsMap kvs
-      l@(Dhall.Let b inExpr) -> do
-        bindingName <- findBindingName l
-        case bindingName of
-          Just name ->
-            insertDepsIntoBinding name l
-          Nothing ->
-            Dhall.Let b <$> insertDepsIntoLetExpr inExpr
-        pure $ Dhall.Let b inExpr
+      Dhall.Let b@Dhall.Binding { variable = varName, value = v } inExpr -> do
+        (mbBindingName, newInExpr) <- updateOrFindBindingName inExpr
+        case mbBindingName of
+          Nothing -> pure $ Dhall.Let b newInExpr
+          Just bindingName
+            | bindingName == varName -> do
+                (\newV -> Dhall.Let (Dhall.makeBinding varName newV) inExpr) <$> insertDepsIntoTarget v
+            | otherwise -> do
+                logWarn $ "Binding for variable '" <> display bindingName <> "' could not be found."
+                pure rawExpr
       other -> do
         logWarn $ "Expression was not a record but was " <> display (pretty other)
         pure rawExpr
@@ -399,40 +401,58 @@ addRawDeps2 config tgtName newPackages rawExpr =
         $ fmap (Dhall.toTextLit . packageName)
         $ Seq.sort $ nubSeq (Seq.fromList newPackages <> fmap PackageName oldPackages)
 
-    -- | Finds the corresponding binding name that contains target info (if any)
-    findBindingName = \case
-      Dhall.RecordLit kvs -> case Dhall.Map.lookup "targets" kvs of
+    -- | This functions traversals down the AST to determine whether the target is a literal value
+    -- | in the final `RecordLit`'s "targets" field or whether it will refer to a binding
+    -- | declared previously in the AST. Once identified, the traversal up the AST will
+    -- | reconstruct the AST with the update. Either the packages will be added in the final
+    -- | `RecordLit` when no bindings are used or it will be added at the binding. 
+    -- |
+    -- | Since this returns `(Maybe Text, expr)`. the `Maybe Text` represents whether
+    -- | a binding was used. If it is `Nothing`, then either no binding was used or
+    -- | a binding was used but the update has already occurred at a binding "lower"
+    -- | in the AST. If it is `Just bindingName`, then a binding was used and hasn't
+    -- | yet been updated.
+    updateOrFindBindingName = \case
+      expr@(Dhall.RecordLit kvs) -> case Dhall.Map.lookup "targets" kvs of
         Nothing -> do
-          pure Nothing
+          logWarn "The 'targets' field was not found"
+          pure (Nothing, expr)
         Just Dhall.RecordField { recordFieldValue = targetsFieldVal } -> case targetsFieldVal of
           Dhall.RecordLit targets -> case Dhall.Map.lookup (targetName tgtName) targets of
             Nothing -> do
-              pure Nothing
+              logWarn $ "The target named '" <> display (targetName tgtName) <> "' was not found"
+              pure (Nothing, expr)
             Just Dhall.RecordField { recordFieldValue = tgt } -> case tgt of
-              Dhall.Var (Dhall.V bindingName _) -> pure $ Just bindingName
-              _ -> pure Nothing
+              Dhall.RecordLit _ -> do
+                -- no binding was used, so do the update in the record
+                newTarget <- insertDepsIntoTarget tgt
+                let
+                  newExpr =
+                    Dhall.RecordLit
+                      $ flip (Dhall.Map.insert "targets") kvs
+                      $ Dhall.makeRecordField
+                      $ Dhall.RecordLit
+                      $ flip (Dhall.Map.insert (targetName tgtName)) targets
+                      $ Dhall.makeRecordField newTarget
+                pure (Nothing, newExpr)
+              Dhall.Var (Dhall.V bindingName _) ->
+                -- binding was used, so return the binding name
+                pure (Just bindingName, expr)
+              _ ->
+                pure (Nothing, expr)
           _ -> do
-            pure Nothing
-      Dhall.Let _ inExpr -> findBindingName inExpr
-      _ -> pure Nothing
-
-    -- | Inserts the new dependencies into the target's corresponding binding
-    insertDepsIntoBinding name = \case
-      Dhall.Let b@Dhall.Binding { variable = varName, value = v } inExpr
-        | varName == name ->
-          (\newV -> Dhall.Let (Dhall.makeBinding varName newV) inExpr) <$> insertDepsIntoTarget v
-        | otherwise ->
-          Dhall.Let b <$> insertDepsIntoBinding name inExpr
-      other -> pure other
-
-    -- | Although "let bindings" are used in the expression, the target does not use a binding
-    -- | but stores the target 'as is' in the final RecordLit expresion.
-    insertDepsIntoLetExpr = \case
-      Dhall.RecordLit kvs ->
-        Dhall.RecordLit <$> insertDepsIntoTargetsMap kvs
-      Dhall.Let b inExpr ->
-        Dhall.Let b <$> insertDepsIntoLetExpr inExpr
-      other -> pure other
+            pure (Nothing, expr)
+      l@(Dhall.Let b@Dhall.Binding { variable = varName, value = v } inExpr) -> do
+        (mbBindingName, newInExpr) <- updateOrFindBindingName inExpr
+        case mbBindingName of
+          Nothing -> pure (Nothing, Dhall.Let b newInExpr)
+          Just bindingName
+            | bindingName == varName -> do
+                newTarget <- insertDepsIntoTarget v
+                pure (Nothing, Dhall.Let (Dhall.makeBinding varName newTarget) inExpr)
+            | otherwise -> do
+                pure (mbBindingName, l)
+      other -> pure (Nothing, other)
 
     -- | Inserts the new dependencies into the 'targets' field of a RecordLit
     insertDepsIntoTargetsMap kvs = case Dhall.Map.lookup "targets" kvs of
