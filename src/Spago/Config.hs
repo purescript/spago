@@ -242,7 +242,7 @@ makeConfig force comments = do
           logInfo "Found a \"psc-package.json\" file, migrating to a new Spago config.."
           -- try to update the dependencies (will fail if not found in package set)
           let pscPackages = map PackageName $ PscPackage.depends pscConfig
-          void $ withConfigAST ( addRawDeps config pscPackages
+          void $ withConfigAST ( addRawDeps2 config Targets.mainTarget pscPackages
                                . updateName (PscPackage.name pscConfig))
     (_, True) -> do
       -- read the bowerfile
