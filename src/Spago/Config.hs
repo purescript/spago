@@ -254,8 +254,10 @@ makeConfig force comments = do
           logInfo "Found a \"bower.json\" file, migrating to a new Spago config.."
           -- then try to update the dependencies. We'll migrates the ones that we can,
           -- and print a message to the user to fix the missing ones
-          let (bowerName, packageResults) = migrateBower packageMeta packageSet
-              (bowerErrors, bowerPackages) = partitionEithers packageResults
+          let (bowerName, deps, devDeps) = migrateBower packageMeta packageSet
+              (bowerMainErrors, bowerMainPackages) = partitionEithers deps
+              (bowerDevErrors, bowerDevPackages) = partitionEithers devDeps
+              bowerErrors = bowerMainErrors <> bowerDevErrors
 
           if null bowerErrors
             then do
@@ -264,8 +266,10 @@ makeConfig force comments = do
             else do
               logWarn $ display $ showBowerErrors bowerErrors
 
-          void $ withConfigAST ( addRawDeps config bowerPackages
-                               . updateName bowerName)
+          void $ withConfigAST $ \expr -> do
+            let withBowerName = updateName bowerName expr
+            addRawDeps2 config Targets.mainTarget bowerMainPackages withBowerName
+              >>= addRawDeps2 config Targets.testTarget bowerDevPackages
 
     _ -> pure ()
   -- at last we return the new config
@@ -274,10 +278,11 @@ makeConfig force comments = do
     Left err -> die [err]
 
 
-migrateBower :: Bower.PackageMeta -> PackageSet -> (Text, [Either BowerDependencyError PackageName])
-migrateBower Bower.PackageMeta{..} PackageSet{..} = (packageName, dependencies)
+migrateBower :: Bower.PackageMeta -> PackageSet -> (Text, [Either BowerDependencyError PackageName], [Either BowerDependencyError PackageName])
+migrateBower Bower.PackageMeta{..} PackageSet{..} = (packageName, dependencies, devDependencies)
   where
-    dependencies = map migratePackage (bowerDependencies <> bowerDevDependencies)
+    dependencies = map migratePackage bowerDependencies
+    devDependencies = map migratePackage bowerDevDependencies
 
     -- | For each Bower dependency, we:
     --   * try to parse the range into a SemVer.Range
