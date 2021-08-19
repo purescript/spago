@@ -342,6 +342,138 @@ updateName newName (Dhall.RecordLit kvs)
     $ Dhall.Map.insert "name" (Dhall.makeRecordField $ Dhall.toTextLit newName) kvs
 updateName _ other = other
 
+addRawDeps2 :: HasLogFunc env => Config -> TargetName -> [PackageName] -> Expr -> RIO env Expr
+addRawDeps2 config tgtName newPackages rawExpr = 
+  case NonEmpty.nonEmpty notInPackageSet of
+    Just pkgs -> do
+      logWarn $ display $ Messages.failedToAddDeps $ NonEmpty.map packageName pkgs
+      pure rawExpr
+    Nothing -> case rawExpr of
+      Dhall.RecordLit kvs -> Dhall.RecordLit <$> insertDepsIntoTargetsMap kvs
+      l@(Dhall.Let b inExpr) -> do
+        bindingName <- findBindingName l
+        case bindingName of
+          Just name ->
+            insertDepsIntoBinding name l
+          Nothing ->
+            Dhall.Let b <$> insertDepsIntoLetExpr inExpr
+        pure $ Dhall.Let b inExpr
+      other -> do
+        logWarn $ "Expression was not a record but was " <> display (pretty other)
+        pure rawExpr
+  where
+    Config { packageSet = PackageSet{..} } = config
+    notInPackageSet = filter (\p -> Map.notMember p packagesDB) newPackages
+
+    -- | Code from https://stackoverflow.com/questions/45757839
+    nubSeq :: Ord a => Seq a -> Seq a
+    nubSeq xs = (fmap fst . Seq.filter (uncurry notElem)) (Seq.zip xs seens)
+      where
+        seens = Seq.scanl (flip Set.insert) Set.empty xs
+
+    -- | Adds the new packages to the rightmost `ListLit` in case there are multiple
+    -- | `ListAppend` values
+    -- |
+    -- | ```
+    -- | [ "old" ] -> [ "old", "new" ]
+    -- | list # [ "old" ] -> list # [ "old", "new" ]
+    -- | list1 # list2 # [ "old" ] -> list1 # list2 # [ "old", "new" ]
+    -- | ```
+    modifyRightmostListLit = \case
+      Dhall.ListLit x dependencies -> do
+        Dhall.ListLit x <$> addNewDeps dependencies
+      Dhall.ListAppend leftList rightList -> do
+        Dhall.ListAppend leftList <$> modifyRightmostListLit rightList
+      other -> pure other
+
+    -- | Takes the rightmost `ListLit`'s `dependencies` value
+    -- | and combines the newPackages with the original dependencies
+    addNewDeps dependencies = do
+      oldPackages <- traverse (throws . Dhall.fromTextLit) dependencies
+      pure
+        $ fmap (Dhall.toTextLit . packageName)
+        $ Seq.sort $ nubSeq (Seq.fromList newPackages <> fmap PackageName oldPackages)
+
+    -- | Finds the corresponding binding name that contains target info (if any)
+    findBindingName = \case
+      Dhall.RecordLit kvs -> case Dhall.Map.lookup "targets" kvs of
+        Nothing -> do
+          pure Nothing
+        Just Dhall.RecordField { recordFieldValue = targetsFieldVal } -> case targetsFieldVal of
+          Dhall.RecordLit targets -> case Dhall.Map.lookup (targetName tgtName) targets of
+            Nothing -> do
+              pure Nothing
+            Just Dhall.RecordField { recordFieldValue = tgt } -> case tgt of
+              Dhall.Var (Dhall.V bindingName _) -> pure $ Just bindingName
+              _ -> pure Nothing
+          _ -> do
+            pure Nothing
+      Dhall.Let _ inExpr -> findBindingName inExpr
+      _ -> pure Nothing
+
+    -- | Inserts the new dependencies into the target's corresponding binding
+    insertDepsIntoBinding name = \case
+      Dhall.Let b@Dhall.Binding { variable = varName, value = v } inExpr
+        | varName == name ->
+          (\newV -> Dhall.Let (Dhall.makeBinding varName newV) inExpr) <$> insertDepsIntoTarget v
+        | otherwise ->
+          Dhall.Let b <$> insertDepsIntoBinding name inExpr
+      other -> pure other
+
+    -- | Although "let bindings" are used in the expression, the target does not use a binding
+    -- | but stores the target 'as is' in the final RecordLit expresion.
+    insertDepsIntoLetExpr = \case
+      Dhall.RecordLit kvs ->
+        Dhall.RecordLit <$> insertDepsIntoTargetsMap kvs
+      Dhall.Let b inExpr ->
+        Dhall.Let b <$> insertDepsIntoLetExpr inExpr
+      other -> pure other
+
+    -- | Inserts the new dependencies into the 'targets' field of a RecordLit
+    insertDepsIntoTargetsMap kvs = case Dhall.Map.lookup "targets" kvs of
+      Nothing -> do
+        logWarn "Failed to find the 'targets' field in the record."
+        pure kvs
+      Just Dhall.RecordField { recordFieldValue = targetsFieldVal } -> case targetsFieldVal of
+        Dhall.RecordLit targets -> case Dhall.Map.lookup (targetName tgtName) targets of
+          Nothing -> do
+            logWarn $ "Failed to find the target '" <> display (targetName tgtName) <> "' in the 'targets' field"
+            pure kvs
+          Just Dhall.RecordField { recordFieldValue = tgt } -> do
+            newTarget <- insertDepsIntoTarget tgt
+            pure
+              $ flip (Dhall.Map.insert "targets") kvs
+              $ Dhall.makeRecordField
+              $ Dhall.RecordLit
+              $ flip (Dhall.Map.insert (targetName tgtName)) targets
+              $ Dhall.makeRecordField newTarget
+        other -> do
+          logWarn $ "The 'targets' field's value was not a record but was " <> display (pretty other)
+          pure kvs
+
+    -- | Inserts the new packages into the target's `dependencies` list
+    insertDepsIntoTarget tgt = case tgt of
+      Dhall.RecordLit tgtValue -> case Dhall.Map.lookup "dependencies" tgtValue of
+        Nothing -> do
+          logWarn $ "Target '" <> display (targetName tgtName) <> "' does not have a 'dependencies' field."
+          pure tgt
+        Just Dhall.RecordField { recordFieldValue = depsFieldVal } -> do
+          newVal <- case depsFieldVal of
+            Dhall.ListLit x dependencies -> do
+              newDeps <- addNewDeps dependencies
+              pure $ Dhall.ListLit x newDeps
+            Dhall.ListAppend leftList rightList -> do
+              newRight <- modifyRightmostListLit rightList
+              pure $ Dhall.ListAppend leftList newRight
+            other -> pure other
+          pure
+            $ Dhall.RecordLit
+            $ flip (Dhall.Map.insert "dependencies") tgtValue
+            $ Dhall.makeRecordField newVal
+      other -> do
+        logWarn $ "The target '" <> display (targetName tgtName) <> "' was not a record but was " <> display (pretty other)
+        pure other
+
 addRawDeps :: HasLogFunc env => Config -> [PackageName] -> Expr -> RIO env Expr
 addRawDeps config newPackages r@(Dhall.RecordLit kvs) = case Dhall.Map.lookup "dependencies" kvs of
   Just (Dhall.RecordField { recordFieldValue = Dhall.ListLit _ dependencies }) -> do
