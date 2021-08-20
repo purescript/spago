@@ -117,7 +117,7 @@ mkBowerVersion packageName version (Repo repo) = do
 mkDependencies
   :: forall env. HasPublishEnv env => RIO env [(Bower.PackageName, Bower.VersionRange)]
 mkDependencies = do
-  deps <- Packages.getDirectDeps
+  deps <- Packages.getTransitiveTargetDeps
 
   Jobs jobs <- getJobs
 

@@ -90,6 +90,8 @@ type HasPublishEnv env =
   , HasConfig env
   , HasBower env
   , HasGit env
+  , HasTarget env
+  , HasTargetName env
   )
 
 type HasBuildEnv env =
