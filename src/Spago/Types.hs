@@ -189,7 +189,6 @@ data Config = Config
   , packageSet        :: PackageSet
   , targets           :: Map TargetName Target
   , alternateBackend  :: Maybe Text
-  , configSourcePaths :: [SourcePath]
   , publishConfig     :: Either (Dhall.ReadError Void) PublishConfig
   } deriving (Show, Generic)
 

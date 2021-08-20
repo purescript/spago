@@ -155,7 +155,7 @@ withBuildEnv' maybeConfig tgtName usePsa envBuildOptions@BuildOptions{ noInstall
     deps <- Packages.getTransitiveTargetDeps
     when (noInstall == DoInstall) $ FetchPackage.fetchPackages deps
     pure deps
-  envGraph <- runRIO PursEnv{..} (getMaybeGraph envBuildOptions envConfig deps)
+  envGraph <- runRIO PursEnv{..} (getMaybeGraph envBuildOptions envTarget deps)
   envGitCmd <- getGit
   logDebug "Running in `BuildEnv`"
   runRIO BuildEnv{..} app
@@ -226,10 +226,10 @@ getPackageSet = do
         Right Config{ packageSet } -> pure packageSet
         Left err -> die [ display Messages.couldNotVerifySet, "Error was:", display err ]
 
-getMaybeGraph :: HasPursEnv env => BuildOptions -> Config -> [(PackageName, Package)] -> RIO env Graph
-getMaybeGraph BuildOptions{ depsOnly, sourcePaths } Config{ configSourcePaths } deps = do
+getMaybeGraph :: HasPursEnv env => BuildOptions -> Target -> [(PackageName, Package)] -> RIO env Graph
+getMaybeGraph BuildOptions{ depsOnly, sourcePaths } Target{ targetSourcePaths } deps = do
   logDebug "Running `getMaybeGraph`"
-  let partitionedGlobs = Packages.getGlobs deps depsOnly configSourcePaths
+  let partitionedGlobs = Packages.getGlobs deps depsOnly targetSourcePaths
       globs = Packages.getGlobsSourcePaths partitionedGlobs <> sourcePaths
   supportsGraph <- Purs.hasMinPursVersion "0.14.0"
   if not supportsGraph

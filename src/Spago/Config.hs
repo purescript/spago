@@ -144,7 +144,6 @@ parseConfig = do
       let ks = Dhall.extractRecordValues ks'
       name              <- Dhall.requireTypedKey ks "name" Dhall.strictText
       dependencies      <- Dhall.requireTypedKey ks "dependencies" dependenciesType
-      configSourcePaths <- Dhall.requireTypedKey ks "sources" sourcesType
       targets           <- Dhall.requireKey ks "targets" (\case
         Dhall.RecordLit tgts -> parseTargets (Dhall.extractRecordValues tgts)
         something            -> throwM $ Dhall.TargetsIsNotRecord something)
@@ -190,9 +189,9 @@ makeTempConfig
   -> [SourcePath]
   -> Maybe Text
   -> RIO env Config
-makeTempConfig dependencies alternateBackend configSourcePaths maybeTag = do
+makeTempConfig dependencies alternateBackend targetSourcePaths maybeTag = do
   PursCmd { compilerVersion } <- view (the @PursCmd)
-  let targets = Map.singleton Targets.mainTarget (Target { targetDependencies = dependencies, targetSourcePaths = configSourcePaths })
+  let targets = Map.singleton Targets.mainTarget (Target { targetDependencies = dependencies, targetSourcePaths = targetSourcePaths })
   tag <- case maybeTag of
     Nothing ->
       PackageSet.getLatestSetForCompilerVersion compilerVersion "purescript" "package-sets" >>= \case

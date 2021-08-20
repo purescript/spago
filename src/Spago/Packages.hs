@@ -36,11 +36,11 @@ getGlobsSourcePaths :: Globs -> [SourcePath]
 getGlobsSourcePaths Globs{..} = Map.elems depsGlobs <> fromMaybe [] projectGlobs
 
 getGlobs :: [(PackageName, Package)] -> DepsOnly -> [SourcePath] -> Globs
-getGlobs deps depsOnly configSourcePaths = do
+getGlobs deps depsOnly targetSourcePaths = do
   let
     projectGlobs = case depsOnly of
       DepsOnly   -> Nothing
-      AllSources -> Just configSourcePaths
+      AllSources -> Just targetSourcePaths
 
     depsGlobs = Map.fromList $
       map (\pair@(packageName,_) -> (packageName, SourcePath $ Text.pack $ Fetch.getLocalCacheDir pair <> "/src/**/*.purs")) deps
@@ -49,14 +49,14 @@ getGlobs deps depsOnly configSourcePaths = do
 
 
 getJsGlobs :: [(PackageName, Package)] -> DepsOnly -> [SourcePath] -> [SourcePath]
-getJsGlobs deps depsOnly configSourcePaths
+getJsGlobs deps depsOnly targetSourcePaths
   = map (\pair
           -> SourcePath $ Text.pack $ Fetch.getLocalCacheDir pair
           <> "/src/**/*.js") deps
   <> case depsOnly of
     DepsOnly   -> []
     AllSources -> SourcePath . Text.replace ".purs" ".js" . unSourcePath
-      <$> configSourcePaths
+      <$> targetSourcePaths
 
 
 -- | Return the direct dependencies of the current target
