@@ -154,7 +154,7 @@ parser = do
     chkModsUniq  = bool DoCheckModulesUnique NoCheckModulesUnique <$> CLI.switch "no-check-modules-unique" 'M' "Skip checking whether modules names are unique across all packages."
     transitive   = bool NoIncludeTransitive IncludeTransitive <$> CLI.switch "transitive" 't' "Include transitive dependencies"
 
-    mkTargetNameOption val = TargetName <$> Opts.strOption (Opts.long "target" <> Opts.short 'o' <> Opts.help "Which target to use as defined in `spago.dhall`" <> Opts.value val <> Opts.showDefault)
+    mkTargetNameOption val = TargetName <$> Opts.strOption (Opts.long "target" <> Opts.help "Which target to use as defined in `spago.dhall`" <> Opts.value val <> Opts.showDefault)
 
     targetNameDefaultMain = mkTargetNameOption "main"
     targetNameDefaultTest = mkTargetNameOption "test"
