@@ -158,6 +158,8 @@ data PublishEnv = PublishEnv
   , envPackageSet :: !PackageSet
   , envGitCmd :: !GitCmd
   , envBowerCmd :: !BowerCmd
+  , envTarget :: !Target
+  , envTargetName :: !TargetName
   } deriving (Generic)
 
 data BuildEnv = BuildEnv

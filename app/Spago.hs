@@ -79,7 +79,7 @@ main = withUtf8 $ do
         $ Spago.Packages.sources
 
       -- ### Commands that need a "publish env": install env + git and bower
-      BumpVersion dryRun spec -> Run.withPublishEnv
+      BumpVersion targetName dryRun spec -> Run.withPublishEnv targetName
         $ Spago.Version.bumpVersion dryRun spec
 
       -- ### Commands that need a "verification env": a Package Set + purs

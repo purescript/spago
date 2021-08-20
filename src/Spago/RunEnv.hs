@@ -116,12 +116,16 @@ withVerifyEnv usePsa app = do
 
 withPublishEnv
   :: HasEnv env
-  => RIO PublishEnv a
+  => TargetName
+  -> RIO PublishEnv a
   -> RIO env a
-withPublishEnv app = do
+withPublishEnv tgtName app = do
   Env{..} <- getEnv
   envConfig@Config{..} <- getConfig
-  let envPackageSet = packageSet
+  envTarget <- getTarget tgtName targets
+  let
+    envPackageSet = packageSet
+    envTargetName = tgtName
   envGitCmd <- getGit
   envBowerCmd <- BowerCmd <$>
     -- workaround windows issue: https://github.com/haskell/process/issues/140

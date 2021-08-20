@@ -41,7 +41,7 @@ data Command
   | ListDeps TargetName JsonFlag IncludeTransitive
 
   -- | Bump and tag a new version in preparation for release.
-  | BumpVersion DryRun VersionBump
+  | BumpVersion TargetName DryRun VersionBump
 
   -- | Upgrade the package-set to the latest release
   | PackageSetUpgrade (Maybe Text)
@@ -312,7 +312,7 @@ parser = do
     bumpVersion =
       ( "bump-version"
       , "Bump and tag a new version, and generate bower.json, in preparation for release."
-      , BumpVersion <$> dryRun <*> versionBump
+      , BumpVersion <$> targetNameDefaultMain <*> dryRun <*> versionBump
       )
 
     otherCommands = CLI.subcommandGroup "Other commands:"
