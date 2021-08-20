@@ -242,7 +242,7 @@ makeConfig force comments = do
           logInfo "Found a \"psc-package.json\" file, migrating to a new Spago config.."
           -- try to update the dependencies (will fail if not found in package set)
           let pscPackages = map PackageName $ PscPackage.depends pscConfig
-          void $ withConfigAST ( addRawDeps2 config Targets.mainTarget pscPackages
+          void $ withConfigAST ( addRawDeps config Targets.mainTarget pscPackages
                                . updateName (PscPackage.name pscConfig))
     (_, True) -> do
       -- read the bowerfile
@@ -268,8 +268,8 @@ makeConfig force comments = do
 
           void $ withConfigAST $ \expr -> do
             let withBowerName = updateName bowerName expr
-            addRawDeps2 config Targets.mainTarget bowerMainPackages withBowerName
-              >>= addRawDeps2 config Targets.testTarget bowerDevPackages
+            addRawDeps config Targets.mainTarget bowerMainPackages withBowerName
+              >>= addRawDeps config Targets.testTarget bowerDevPackages
 
     _ -> pure ()
   -- at last we return the new config
@@ -347,8 +347,8 @@ updateName newName (Dhall.RecordLit kvs)
     $ Dhall.Map.insert "name" (Dhall.makeRecordField $ Dhall.toTextLit newName) kvs
 updateName _ other = other
 
-addRawDeps2 :: HasLogFunc env => Config -> TargetName -> [PackageName] -> Expr -> RIO env Expr
-addRawDeps2 config tgtName newPackages rawExpr =
+addRawDeps :: HasLogFunc env => Config -> TargetName -> [PackageName] -> Expr -> RIO env Expr
+addRawDeps config tgtName newPackages rawExpr =
   case NonEmpty.nonEmpty notInPackageSet of
     Just pkgs -> do
       logWarn $ display $ Messages.failedToAddDeps $ NonEmpty.map packageName pkgs
@@ -499,38 +499,6 @@ addRawDeps2 config tgtName newPackages rawExpr =
         logWarn $ "The target '" <> display (targetName tgtName) <> "' was not a record but was " <> display (pretty other)
         pure other
 
-addRawDeps :: HasLogFunc env => Config -> [PackageName] -> Expr -> RIO env Expr
-addRawDeps config newPackages r@(Dhall.RecordLit kvs) = case Dhall.Map.lookup "dependencies" kvs of
-  Just (Dhall.RecordField { recordFieldValue = Dhall.ListLit _ dependencies }) -> do
-      case NonEmpty.nonEmpty notInPackageSet of
-        -- If none of the newPackages are outside of the set, add them to existing dependencies
-        Nothing -> do
-          oldPackages <- traverse (throws . Dhall.fromTextLit) dependencies
-          let newDepsExpr
-                = Dhall.makeRecordField
-                $ Dhall.ListLit Nothing $ fmap (Dhall.toTextLit . packageName)
-                $ Seq.sort $ nubSeq (Seq.fromList newPackages <> fmap PackageName oldPackages)
-          pure $ Dhall.RecordLit $ Dhall.Map.insert "dependencies" newDepsExpr kvs
-        Just pkgs -> do
-          logWarn $ display $ Messages.failedToAddDeps $ NonEmpty.map packageName pkgs
-          pure r
-    where
-      Config { packageSet = PackageSet{..} } = config
-      notInPackageSet = filter (\p -> Map.notMember p packagesDB) newPackages
-
-      -- | Code from https://stackoverflow.com/questions/45757839
-      nubSeq :: Ord a => Seq a -> Seq a
-      nubSeq xs = (fmap fst . Seq.filter (uncurry notElem)) (Seq.zip xs seens)
-        where
-          seens = Seq.scanl (flip Set.insert) Set.empty xs
-  Just _ -> do
-    logWarn "Failed to add dependencies. The `dependencies` field wasn't a List of Strings."
-    pure r
-  Nothing -> do
-    logWarn "Failed to add dependencies. You should have a record with the `dependencies` key for this to work."
-    pure r
-addRawDeps _ _ other = pure other
-
 addSourcePaths :: Expr -> Expr
 addSourcePaths (Dhall.RecordLit kvs)
   | isConfigV1 kvs =
@@ -596,9 +564,9 @@ transformMExpr rules =
 --   dependencies, and write the Config back to file.
 addDependencies
   :: (HasLogFunc env, HasConfigPath env)
-  => Config -> [PackageName] 
+  => Config -> TargetName -> [PackageName] 
   -> RIO env ()
-addDependencies config newPackages = do
-  configHasChanged <- withConfigAST $ addRawDeps config newPackages
+addDependencies config tgtName newPackages = do
+  configHasChanged <- withConfigAST $ addRawDeps config tgtName newPackages
   unless configHasChanged $
     logWarn "Configuration file was not updated."
