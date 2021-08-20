@@ -500,11 +500,46 @@ addRawDeps config tgtName newPackages rawExpr =
         pure other
 
 addSourcePaths :: Expr -> Expr
-addSourcePaths (Dhall.RecordLit kvs)
-  | isConfigV1 kvs =
-    let sources = Dhall.ListLit Nothing $ fmap Dhall.toTextLit $ Seq.fromList ["src/**/*.purs", "test/**/*.purs"]
-    in Dhall.RecordLit (Dhall.Map.insert "sources" (Dhall.makeRecordField sources) kvs)
-addSourcePaths expr = expr
+addSourcePaths = \case
+  Dhall.RecordLit kvs
+    | isConfigV1 kvs -> do
+        let
+          mainDeps = fromMaybe (Dhall.makeRecordField $ Dhall.ListLit Nothing [] ) $ Dhall.Map.lookup "dependencies" kvs
+          mainSources = Dhall.makeRecordField $ mkSources "src/**/*.purs"
+        Dhall.Let (mainTargetBinding mainDeps mainSources)
+          $ Dhall.Let testTargetBinding
+          $ Dhall.RecordLit
+          $ Dhall.Map.delete "dependencies"
+          $ Dhall.Map.delete "sources" kvs
+    | isConfigV2 kvs -> do
+        let
+          mainDeps = fromMaybe (Dhall.makeRecordField $ Dhall.ListLit Nothing [] ) $ Dhall.Map.lookup "dependencies" kvs
+          mainSources = fromMaybe (Dhall.makeRecordField $ Dhall.ListLit Nothing [] ) $ Dhall.Map.lookup "sources" kvs
+        Dhall.Let (mainTargetBinding mainDeps mainSources)
+          $ Dhall.Let testTargetBinding
+          $ Dhall.RecordLit
+          $ Dhall.Map.delete "dependencies"
+          $ Dhall.Map.delete "sources" kvs
+  expr -> expr
+  where
+    mkSources txt = Dhall.ListLit Nothing [ Dhall.toTextLit txt ]
+
+    mainTargetBinding deps sources =
+      Dhall.makeBinding "main"
+        $ Dhall.RecordLit
+        $ Dhall.Map.fromList
+          [ ("dependencies", deps )
+          , ("sources", sources )
+          ]
+    testTargetBinding =
+      Dhall.makeBinding "test"
+        $ Dhall.RecordLit
+        $ Dhall.Map.fromList
+          [ ("dependencies", Dhall.makeRecordField $ Dhall.ListAppend (referToRecordBinding "main" 0 "dependencies") $ Dhall.ListLit Nothing [] )
+          , ("sources", Dhall.makeRecordField $ Dhall.ListAppend (referToRecordBinding "main" 0 "sources") (mkSources "test/**/*.purs") )
+          ]
+
+    referToRecordBinding varName idx field = Dhall.Field (Dhall.Var (Dhall.V varName idx)) $ Dhall.makeFieldSelection field
 
 isConfigV1, isConfigV2 :: Dhall.Map.Map Text v -> Bool
 isConfigV1 (Set.fromList . Dhall.Map.keys -> configKeySet) =
