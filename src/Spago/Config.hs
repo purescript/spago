@@ -139,7 +139,7 @@ parseConfig = do
 
   ConfigPath path <- view (the @ConfigPath)
   expr <- liftIO $ Dhall.inputExpr $ "./" <> path
-  case expr of
+  case Dhall.normalize expr of
     Dhall.RecordLit ks' -> do
       let ks = Dhall.extractRecordValues ks'
       name              <- Dhall.requireTypedKey ks "name" Dhall.strictText
@@ -161,7 +161,7 @@ parseConfig = do
         something            -> throwM $ Dhall.PackagesIsNotRecord something)
 
       pure Config{..}
-    _ -> case Dhall.TypeCheck.typeOf expr of
+    _ -> case Dhall.TypeCheck.typeOf $ Dhall.normalize expr of
       Right e  -> throwM $ Dhall.ConfigIsNotRecord e
       Left err -> throwM err
 
