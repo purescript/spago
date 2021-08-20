@@ -185,7 +185,6 @@ data ScriptBuildOptions = ScriptBuildOptions
 -- | Spago configuration file type
 data Config = Config
   { name              :: Text
-  , dependencies      :: [PackageName]
   , packageSet        :: PackageSet
   , targets           :: Map TargetName Target
   , alternateBackend  :: Maybe Text

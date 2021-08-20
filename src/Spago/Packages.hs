@@ -6,8 +6,6 @@ module Spago.Packages
   , getJsGlobs
   , getDirectTargetDeps
   , getTransitiveTargetDeps
-  , getDirectDeps
-  , getProjectDeps
   , getReverseDeps
   , getTransitiveDeps
   , DepsOnly(..)
@@ -80,26 +78,6 @@ getTransitiveTargetDeps
 getTransitiveTargetDeps = do
   Target{ targetDependencies } <- view (the @Target)
   getTransitiveDeps targetDependencies
-
--- | Return the direct dependencies of the current project
-getDirectDeps
-  :: (HasLogFunc env, HasConfig env)
-  => RIO env [(PackageName, Package)]
-getDirectDeps = do
-  Config { packageSet = PackageSet{..}, dependencies } <- view (the @Config)
-  for dependencies $ \dep ->
-    case Map.lookup dep packagesDB of
-      Nothing ->
-        die [ display $ pkgNotFoundMsg packagesDB (NotFoundError dep) ]
-      Just pkg ->
-        pure (dep, pkg)
-
-getProjectDeps
-  :: (HasLogFunc env, HasConfig env)
-  => RIO env [(PackageName, Package)]
-getProjectDeps = do
-  Config{ dependencies } <- view (the @Config)
-  getTransitiveDeps dependencies
 
 -- | Return the transitive dependencies of a list of packages
 getTransitiveDeps
@@ -183,10 +161,7 @@ install newPackages = do
   let
     newTarget = target { targetDependencies = targetDependencies <> existingNewPackages }
     newConfig :: Config
-    newConfig = config
-      { Config.dependencies = dependencies <> existingNewPackages
-      , Config.targets = Map.adjust (const newTarget) tgtName targets
-      }
+    newConfig = config { Config.targets = Map.adjust (const newTarget) tgtName targets }
   mapRIO (set (the @Config) newConfig) $ do
     deps <- getTransitiveTargetDeps
 

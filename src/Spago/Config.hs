@@ -143,7 +143,6 @@ parseConfig = do
     Dhall.RecordLit ks' -> do
       let ks = Dhall.extractRecordValues ks'
       name              <- Dhall.requireTypedKey ks "name" Dhall.strictText
-      dependencies      <- Dhall.requireTypedKey ks "dependencies" dependenciesType
       targets           <- Dhall.requireKey ks "targets" (\case
         Dhall.RecordLit tgts -> parseTargets (Dhall.extractRecordValues tgts)
         something            -> throwM $ Dhall.TargetsIsNotRecord something)

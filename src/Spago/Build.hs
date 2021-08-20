@@ -105,7 +105,7 @@ build maybePostBuild = do
                     $ Set.toList importedPackageModules
 
                 dependencyPackages :: Set PackageName
-                dependencyPackages = Set.fromList dependencies
+                dependencyPackages = Set.fromList targetDependencies
 
               let
                 unusedPackages =
