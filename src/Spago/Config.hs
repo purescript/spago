@@ -376,20 +376,31 @@ addRawDeps config tgtName newPackages rawExpr =
       where
         seens = Seq.scanl (flip Set.insert) Set.empty xs
 
-    -- | Adds the new packages to the rightmost `ListLit` in case there are multiple
-    -- | `ListAppend` values
+    -- | Adds the new packages to the first `ListLit` it finds, traversing from
+    -- | left to right,  in case there are multiple `ListAppend` values
     -- |
     -- | ```
     -- | [ "old" ] -> [ "old", "new" ]
+    -- | [ "old" ] # list1 -> [ "old", "new" ] # list1
     -- | list # [ "old" ] -> list # [ "old", "new" ]
     -- | list1 # list2 # [ "old" ] -> list1 # list2 # [ "old", "new" ]
     -- | ```
-    modifyRightmostListLit = \case
+    modifyFirstListLitIfExist = \case
       Dhall.ListLit x dependencies -> do
-        Dhall.ListLit x <$> addNewDeps dependencies
+        Just . Dhall.ListLit x <$> addNewDeps dependencies
       Dhall.ListAppend leftList rightList -> do
-        Dhall.ListAppend leftList <$> modifyRightmostListLit rightList
-      other -> pure other
+        mbLeft <- modifyFirstListLitIfExist leftList
+        case mbLeft of
+          Just left -> do
+            pure $ Just $ Dhall.ListAppend left rightList
+          Nothing -> do
+            mbRight <- modifyFirstListLitIfExist rightList
+            case mbRight of
+              Just right -> do
+                pure $ Just $ Dhall.ListAppend leftList right
+              Nothing -> do
+                pure Nothing
+      _ -> pure Nothing
 
     -- | Takes the rightmost `ListLit`'s `dependencies` value
     -- | and combines the newPackages with the original dependencies
@@ -485,9 +496,23 @@ addRawDeps config tgtName newPackages rawExpr =
             Dhall.ListLit x dependencies -> do
               newDeps <- addNewDeps dependencies
               pure $ Dhall.ListLit x newDeps
-            Dhall.ListAppend leftList rightList -> do
-              newRight <- modifyRightmostListLit rightList
-              pure $ Dhall.ListAppend leftList newRight
+            original@(Dhall.ListAppend leftList rightList) -> do
+              mbLeft <- modifyFirstListLitIfExist leftList
+              case mbLeft of
+                Just newLeft -> do
+                  pure $ Dhall.ListAppend newLeft rightList
+                Nothing -> do
+                  mbRight <- modifyFirstListLitIfExist rightList
+                  case mbRight of
+                    Just newRight -> do
+                      pure $ Dhall.ListAppend leftList newRight
+                    Nothing -> do
+                      -- if a ListLit was not found (e.g. `one.deps # two.deps`),
+                      -- then we add one ourselves (e.g. `one.deps # two.deps # [ "new "]`)
+                      newListLit <- Dhall.ListLit Nothing <$> addNewDeps []
+                      let
+                        newRight = Dhall.ListAppend rightList newListLit
+                      pure $ Dhall.ListAppend leftList newRight
             other -> pure other
           pure
             $ Dhall.RecordLit
