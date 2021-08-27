@@ -35,6 +35,7 @@ import qualified Spago.FetchPackage   as Fetch
 import qualified Spago.Messages       as Messages
 import qualified Spago.Packages       as Packages
 import qualified Spago.Purs           as Purs
+import qualified Spago.Targets        as Targets
 import qualified Spago.Templates      as Templates
 import qualified Spago.Watch          as Watch
 
@@ -54,10 +55,11 @@ build maybePostBuild = do
   logDebug "Running `spago build`"
   BuildOptions{..} <- view (the @BuildOptions)
   Config{..} <- view (the @Config)
-  deps <- Packages.getProjectDeps
-  let partitionedGlobs@(Packages.Globs{..}) = Packages.getGlobs deps depsOnly configSourcePaths
+  Target{..} <- view (the @Target)
+  deps <- Packages.getTransitiveTargetDeps
+  let partitionedGlobs@(Packages.Globs{..}) = Packages.getGlobs deps depsOnly targetSourcePaths
       allPsGlobs = Packages.getGlobsSourcePaths partitionedGlobs <> sourcePaths
-      allJsGlobs = Packages.getJsGlobs deps depsOnly configSourcePaths <> sourcePaths
+      allJsGlobs = Packages.getJsGlobs deps depsOnly targetSourcePaths <> sourcePaths
 
       checkImports = do
         maybeGraph <- view (the @Graph)
@@ -103,7 +105,7 @@ build maybePostBuild = do
                     $ Set.toList importedPackageModules
 
                 dependencyPackages :: Set PackageName
-                dependencyPackages = Set.fromList dependencies
+                dependencyPackages = Set.fromList targetDependencies
 
               let
                 unusedPackages =
@@ -197,16 +199,19 @@ build maybePostBuild = do
 -- | Start a repl
 repl
   :: (HasEnv env)
-  => [PackageName]
+  => TargetName
+  -> [PackageName]
   -> [SourcePath]
   -> [PursArg]
   -> Packages.DepsOnly
   -> RIO env ()
-repl newPackages sourcePaths pursArgs depsOnly = do
+repl tgtName newPackages sourcePaths pursArgs depsOnly = do
   logDebug "Running `spago repl`"
   purs <- Run.getPurs NoPsa
   Config.ensureConfig >>= \case
-    Right config -> Run.withInstallEnv' (Just config) (replAction purs)
+    Right config -> do
+      target <- Run.getTarget tgtName (targets config)
+      Run.withReplEnv config target (replAction purs)
     Left err -> do
       logDebug err
       GlobalCache cacheDir _ <- view (the @GlobalCache)
@@ -215,16 +220,20 @@ repl newPackages sourcePaths pursArgs depsOnly = do
 
         writeTextFile ".purs-repl" Templates.pursRepl
 
-        let dependencies = [ PackageName "effect", PackageName "console", PackageName "psci-support" ] <> newPackages
+        let
+          dependencies = [ PackageName "effect", PackageName "console", PackageName "psci-support" ] <> newPackages
+          srcPaths = []
+          target = Target { targetDependencies = dependencies, targetSourcePaths = srcPaths }
 
         config <- Run.withPursEnv NoPsa $ do
-          Config.makeTempConfig dependencies Nothing [] Nothing
+          Config.makeTempConfig dependencies Nothing srcPaths Nothing
 
-        Run.withInstallEnv' (Just config) (replAction purs)
+        Run.withReplEnv config target (replAction purs)
   where
+    replAction :: PursCmd -> RIO ReplEnv ()
     replAction purs = do
-      Config{..} <- view (the @Config)
-      deps <- Packages.getProjectDeps
+      Target{ targetSourcePaths } <- view (the @Target)
+      deps <- Packages.getTransitiveTargetDeps
       -- we check that psci-support is in the deps, see #550
       unless (Set.member (PackageName "psci-support") (Set.fromList (map fst deps))) $ do
         die
@@ -233,7 +242,7 @@ repl newPackages sourcePaths pursArgs depsOnly = do
           ]
       let
         globs =
-          Packages.getGlobsSourcePaths $ Packages.getGlobs deps depsOnly (configSourcePaths <> sourcePaths)
+          Packages.getGlobsSourcePaths $ Packages.getGlobs deps depsOnly (targetSourcePaths <> sourcePaths)
       Fetch.fetchPackages deps
       runRIO purs $ Purs.repl globs pursArgs
 
@@ -304,7 +313,7 @@ script modulePath tag packageDeps opts = do
   let runDirs :: RunDirectories
       runDirs = RunDirectories scriptDirPath currentDir
 
-  Run.withBuildEnv' (Just config) NoPsa buildOpts (runAction runDirs)
+  Run.withBuildEnv' (Just config) Targets.mainTarget NoPsa buildOpts (runAction runDirs)
   where
     buildOpts = fromScriptOptions defaultBuildOptions opts
     runAction dirs = runBackend Nothing dirs (ModuleName "Main") Nothing "Script failed to run; " []
@@ -366,30 +375,32 @@ runBackend maybeBackend RunDirectories{ sourceDir, executeDir } moduleName maybe
 -- | Bundle the project to a js file
 bundleApp
   :: HasEnv env
-  => WithMain
+  => TargetName
+  -> WithMain
   -> Maybe ModuleName
   -> Maybe TargetPath
   -> NoBuild
   -> BuildOptions
   -> UsePsa
   -> RIO env ()
-bundleApp withMain maybeModuleName maybeTargetPath noBuild buildOpts usePsa =
+bundleApp tgtName withMain maybeModuleName maybeTargetPath noBuild buildOpts usePsa =
   let (moduleName, targetPath) = prepareBundleDefaults maybeModuleName maybeTargetPath
       bundleAction = Purs.bundle withMain (withSourceMap buildOpts) moduleName targetPath
   in case noBuild of
-    DoBuild -> Run.withBuildEnv usePsa buildOpts $ build (Just bundleAction)
+    DoBuild -> Run.withBuildEnv tgtName usePsa buildOpts $ build (Just bundleAction)
     NoBuild -> Run.getEnv >>= (flip runRIO) bundleAction
 
 -- | Bundle into a CommonJS module
 bundleModule
   :: HasEnv env
-  => Maybe ModuleName
+  => TargetName
+  -> Maybe ModuleName
   -> Maybe TargetPath
   -> NoBuild
   -> BuildOptions
   -> UsePsa
   -> RIO env ()
-bundleModule maybeModuleName maybeTargetPath noBuild buildOpts usePsa = do
+bundleModule tgtName maybeModuleName maybeTargetPath noBuild buildOpts usePsa = do
   logDebug "Running `bundleModule`"
   let (moduleName, targetPath) = prepareBundleDefaults maybeModuleName maybeTargetPath
       jsExport = Text.unpack $ "\nmodule.exports = PS[\""<> unModuleName moduleName <> "\"];"
@@ -404,7 +415,7 @@ bundleModule maybeModuleName maybeTargetPath noBuild buildOpts usePsa = do
             Right _ -> logInfo $ display $ "Make module succeeded and output file to " <> unTargetPath targetPath
             Left (n :: SomeException) -> die [ "Make module failed: " <> repr n ]
   case noBuild of
-    DoBuild -> Run.withBuildEnv usePsa buildOpts $ build (Just bundleAction)
+    DoBuild -> Run.withBuildEnv tgtName usePsa buildOpts $ build (Just bundleAction)
     NoBuild -> Run.getEnv >>= (flip runRIO) bundleAction
 
 docsSearchTemplate :: (HasType LogFunc env, HasType PursCmd env) => RIO env Text
@@ -428,9 +439,10 @@ docs format noSearch open = do
   logDebug "Running `spago docs`"
   BuildOptions { sourcePaths, depsOnly } <- view (the @BuildOptions)
   Config{..} <- view (the @Config)
-  deps <- Packages.getProjectDeps
+  Target{..} <- view (the @Target)
+  deps <- Packages.getTransitiveTargetDeps
   logInfo "Generating documentation for the project. This might take a while..."
-  Purs.docs docsFormat $ Packages.getGlobsSourcePaths (Packages.getGlobs deps depsOnly configSourcePaths) <> sourcePaths
+  Purs.docs docsFormat $ Packages.getGlobsSourcePaths (Packages.getGlobs deps depsOnly targetSourcePaths) <> sourcePaths
 
   when isHTMLFormat $ do
     when (noSearch == AddSearch) $ do
@@ -465,11 +477,12 @@ docs format noSearch open = do
 search :: HasBuildEnv env => RIO env ()
 search = do
   Config{..} <- view (the @Config)
-  deps <- Packages.getProjectDeps
+  Target{..} <- view (the @Target)
+  deps <- Packages.getTransitiveTargetDeps
 
   logInfo "Building module metadata..."
 
-  Purs.compile (Packages.getGlobsSourcePaths (Packages.getGlobs deps Packages.AllSources configSourcePaths))
+  Purs.compile (Packages.getGlobsSourcePaths (Packages.getGlobs deps Packages.AllSources targetSourcePaths))
     [ PursArg "--codegen"
     , PursArg "docs"
     ]

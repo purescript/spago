@@ -166,6 +166,8 @@ data ReadError a where
  ConfigIsNotRecord     :: Typeable a => DhallExpr a -> ReadError a
  -- | the "packages" key is not a record
  PackagesIsNotRecord   :: Typeable a => DhallExpr a -> ReadError a
+ -- | the "targets" key is not a record
+ TargetsIsNotRecord   :: Typeable a => DhallExpr a -> ReadError a
  -- | the "dependencies" key is not a list
  DependenciesIsNotList :: Typeable a => DhallExpr a -> ReadError a
  -- | the expression is not a Text Literal
@@ -189,6 +191,13 @@ instance (Pretty a) => Show (ReadError a) where
       msg :: ReadError a -> [Dhall.Text]
       msg (PackagesIsNotRecord tl) =
         [ "Explanation: The \"packages\" key must contain a record of packages."
+        , ""
+        , "The value was instead:"
+        , ""
+        , "↳ " <> pretty tl
+        ]
+      msg (TargetsIsNotRecord tl) =
+        [ "Explanation: The \"targets\" key must contain a record of targets."
         , ""
         , "The value was instead:"
         , ""

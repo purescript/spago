@@ -106,6 +106,7 @@ library
     Spago.PscPackage
     Spago.Purs
     Spago.RunEnv
+    Spago.Targets
     Spago.Templates
     Spago.TH
     Spago.Types

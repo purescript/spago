@@ -4,6 +4,7 @@ module Spago.Env
     GlobalOptions(..)
   , Env(..)
   , PackageSetEnv(..)
+  , ReplEnv(..)
   , InstallEnv(..)
   , PublishEnv(..)
   , VerifyEnv(..)
@@ -25,6 +26,8 @@ module Spago.Env
   , HasConfig
   , HasGit
   , HasBower
+  , HasTarget
+  , HasTargetName
   , HasPurs
 
   -- | Other types
@@ -57,6 +60,8 @@ type HasPackageSet env = HasType PackageSet env
 type HasPurs env = HasType PursCmd env
 type HasGit env = HasType GitCmd env
 type HasBower env = HasType BowerCmd env
+type HasTarget env = HasType Target env
+type HasTargetName env = HasType TargetName env
 
 type HasEnv env =
   ( HasLogFunc env
@@ -85,6 +90,8 @@ type HasPublishEnv env =
   , HasConfig env
   , HasBower env
   , HasGit env
+  , HasTarget env
+  , HasTargetName env
   )
 
 type HasBuildEnv env =
@@ -94,6 +101,8 @@ type HasBuildEnv env =
   , HasConfig env
   , HasMaybeGraph env
   , HasBuildOptions env
+  , HasTarget env
+  , HasTargetName env
   )
 
 type HasPursEnv env =
@@ -124,6 +133,15 @@ data VerifyEnv = VerifyEnv
   , envConfig :: !(Maybe Config)
   } deriving (Generic)
 
+data ReplEnv = ReplEnv
+  { envLogFunc :: !LogFunc
+  , envJobs :: !Jobs
+  , envConfigPath :: !ConfigPath
+  , envGlobalCache :: !GlobalCache
+  , envPackageSet :: !PackageSet
+  , envTarget :: !Target
+  } deriving (Generic)
+
 data InstallEnv = InstallEnv
   { envLogFunc :: !LogFunc
   , envJobs :: !Jobs
@@ -131,6 +149,8 @@ data InstallEnv = InstallEnv
   , envGlobalCache :: !GlobalCache
   , envPackageSet :: !PackageSet
   , envConfig :: !Config
+  , envTarget :: !Target
+  , envTargetName :: !TargetName
   } deriving (Generic)
 
 data PublishEnv = PublishEnv
@@ -140,6 +160,8 @@ data PublishEnv = PublishEnv
   , envPackageSet :: !PackageSet
   , envGitCmd :: !GitCmd
   , envBowerCmd :: !BowerCmd
+  , envTarget :: !Target
+  , envTargetName :: !TargetName
   } deriving (Generic)
 
 data BuildEnv = BuildEnv
@@ -153,6 +175,8 @@ data BuildEnv = BuildEnv
   , envConfig :: !Config
   , envGraph :: !(Maybe ModuleGraph)
   , envBuildOptions :: !BuildOptions
+  , envTarget :: !Target
+  , envTargetName :: !TargetName
   } deriving (Generic)
 
 data PursEnv = PursEnv

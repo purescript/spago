@@ -32,6 +32,15 @@ failedToParsePackage expr = makeMessage
   , expr
   ]
 
+failedToParseTarget :: Text -> Text
+failedToParseTarget expr = makeMessage
+  [ "Failed to parse the `targets` key in your spago.dhall file."
+  , ""
+  , "Your 'targets' declaration was the following expression:"
+  , ""
+  , expr
+  ]
+
 failedToParseRepoString :: Text -> Text
 failedToParseRepoString repo = makeMessage
   [ "ERROR: was not able to parse the address to the remote repo: " <> surroundQuote repo
@@ -54,6 +63,13 @@ cannotFindConfig configPath = makeMessage
   , "If you already have a spago project you might be in the wrong subdirectory,"
   , "otherwise you might want to run `spago init` to initialize a new project."
   ]
+
+cannotFindTarget :: Text -> Text
+cannotFindTarget targetName = makeMessage
+    [ "There's no target named " <> surroundQuote targetName <> " in your spago.dhall file"
+    , ""
+    , "Did you mispell the name? Does it exist?"
+    ]
 
 cannotFindPackages :: Text
 cannotFindPackages = makeMessage

@@ -4,8 +4,8 @@ module Spago.Packages
   , getGlobs
   , getGlobsSourcePaths
   , getJsGlobs
-  , getDirectDeps
-  , getProjectDeps
+  , getDirectTargetDeps
+  , getTransitiveTargetDeps
   , getReverseDeps
   , getTransitiveDeps
   , DepsOnly(..)
@@ -34,11 +34,11 @@ getGlobsSourcePaths :: Globs -> [SourcePath]
 getGlobsSourcePaths Globs{..} = Map.elems depsGlobs <> fromMaybe [] projectGlobs
 
 getGlobs :: [(PackageName, Package)] -> DepsOnly -> [SourcePath] -> Globs
-getGlobs deps depsOnly configSourcePaths = do
+getGlobs deps depsOnly targetSourcePaths = do
   let
     projectGlobs = case depsOnly of
       DepsOnly   -> Nothing
-      AllSources -> Just configSourcePaths
+      AllSources -> Just targetSourcePaths
 
     depsGlobs = Map.fromList $
       map (\pair@(packageName,_) -> (packageName, SourcePath $ Text.pack $ Fetch.getLocalCacheDir pair <> "/src/**/*.purs")) deps
@@ -47,35 +47,37 @@ getGlobs deps depsOnly configSourcePaths = do
 
 
 getJsGlobs :: [(PackageName, Package)] -> DepsOnly -> [SourcePath] -> [SourcePath]
-getJsGlobs deps depsOnly configSourcePaths
+getJsGlobs deps depsOnly targetSourcePaths
   = map (\pair
           -> SourcePath $ Text.pack $ Fetch.getLocalCacheDir pair
           <> "/src/**/*.js") deps
   <> case depsOnly of
     DepsOnly   -> []
     AllSources -> SourcePath . Text.replace ".purs" ".js" . unSourcePath
-      <$> configSourcePaths
+      <$> targetSourcePaths
 
 
--- | Return the direct dependencies of the current project
-getDirectDeps
-  :: (HasLogFunc env, HasConfig env)
+-- | Return the direct dependencies of the current target
+getDirectTargetDeps
+  :: (HasLogFunc env, HasPackageSet env, HasTarget env)
   => RIO env [(PackageName, Package)]
-getDirectDeps = do
-  Config { packageSet = PackageSet{..}, dependencies } <- view (the @Config)
-  for dependencies $ \dep ->
+getDirectTargetDeps = do
+  PackageSet{..} <- view (the @PackageSet)
+  Target { targetDependencies } <- view (the @Target)
+  for targetDependencies $ \dep ->
     case Map.lookup dep packagesDB of
       Nothing ->
         die [ display $ pkgNotFoundMsg packagesDB (NotFoundError dep) ]
       Just pkg ->
         pure (dep, pkg)
 
-getProjectDeps
-  :: (HasLogFunc env, HasConfig env)
+-- | Return the transitive dependencies of the current target
+getTransitiveTargetDeps
+  :: (HasLogFunc env, HasPackageSet env, HasTarget env)
   => RIO env [(PackageName, Package)]
-getProjectDeps = do
-  Config{ dependencies } <- view (the @Config)
-  getTransitiveDeps dependencies
+getTransitiveTargetDeps = do
+  Target{ targetDependencies } <- view (the @Target)
+  getTransitiveDeps targetDependencies
 
 -- | Return the transitive dependencies of a list of packages
 getTransitiveDeps
@@ -146,24 +148,28 @@ getReverseDeps dep = do
 
 
 -- | Fetch all dependencies into `.spago/`
-install :: (HasEnv env, HasConfig env) => [PackageName] -> RIO env ()
+install :: (HasEnv env, HasConfig env, HasTarget env, HasTargetName env) => [PackageName] -> RIO env ()
 install newPackages = do
   logDebug "Running `spago install`"
   config@Config{ packageSet = PackageSet{..}, ..} <- view (the @Config)
+  tgtName <- view (the @TargetName)
+  target@Target{..} <- view (the @Target)
 
   existingNewPackages <- reportMissingPackages $ classifyPackages packagesDB newPackages
 
   -- Try fetching the dependencies with the new names too
-  let newConfig :: Config
-      newConfig = config { Config.dependencies = dependencies <> existingNewPackages }
+  let
+    newTarget = target { targetDependencies = targetDependencies <> existingNewPackages }
+    newConfig :: Config
+    newConfig = config { Config.targets = Map.adjust (const newTarget) tgtName targets }
   mapRIO (set (the @Config) newConfig) $ do
-    deps <- getProjectDeps
+    deps <- getTransitiveTargetDeps
 
     -- If the above doesn't fail, write the new packages to the config
     -- Also skip the write if there are no new packages to be written
     case existingNewPackages of
       []         -> pure ()
-      additional -> Config.addDependencies config additional
+      additional -> Config.addDependencies config tgtName additional
 
     Fetch.fetchPackages deps
 
@@ -205,13 +211,12 @@ stripPurescriptPrefix (PackageName name) =
 
 
 -- | Get source globs of dependencies listed in `spago.dhall`
-sources :: (HasLogFunc env, HasConfig env) => RIO env ()
+sources :: (HasLogFunc env, HasConfig env, HasTarget env) => RIO env ()
 sources = do
   logDebug "Running `spago sources`"
-  config <- view (the @Config)
-  deps <- getProjectDeps
+  Target{..} <- view (the @Target)
+  deps <- getTransitiveDeps targetDependencies
   traverse_ output
     $ fmap unSourcePath
     $ getGlobsSourcePaths
-    $ getGlobs deps AllSources
-    $ configSourcePaths config
+    $ getGlobs deps AllSources targetSourcePaths

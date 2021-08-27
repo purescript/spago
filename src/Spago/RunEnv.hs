@@ -8,6 +8,7 @@ import qualified System.Environment  as Env
 import qualified RIO
 import qualified System.Info
 import qualified Turtle
+import qualified Data.Map as Map
 
 import qualified Spago.Config as Config
 import qualified Spago.GlobalCache as Cache
@@ -76,24 +77,30 @@ withPackageSetEnv app = do
   runRIO PackageSetEnv{..} app
 
 
-withInstallEnv'
+withReplEnv
   :: (HasEnv env)
-  => Maybe Config
-  -> RIO InstallEnv a
+  => Config
+  -> Target
+  -> RIO ReplEnv a
   -> RIO env a
-withInstallEnv' maybeConfig app = do
+withReplEnv Config{..} target app = do
   Env{..} <- getEnv
-  envConfig@Config{..} <- case maybeConfig of
-    Just c -> pure c
-    Nothing -> getConfig
   let envPackageSet = packageSet
-  runRIO InstallEnv{..} app
+      envTarget = target
+  runRIO ReplEnv{..} app
 
 withInstallEnv
   :: (HasEnv env)
-  => RIO InstallEnv a
+  => TargetName
+  -> RIO InstallEnv a
   -> RIO env a
-withInstallEnv = withInstallEnv' Nothing
+withInstallEnv tgtName app = do
+  Env{..} <- getEnv
+  envConfig@Config{..} <- getConfig
+  envTarget <- getTarget tgtName targets
+  let envPackageSet = packageSet
+      envTargetName = tgtName
+  runRIO InstallEnv{..} app
 
 withVerifyEnv
   :: HasEnv env
@@ -109,12 +116,16 @@ withVerifyEnv usePsa app = do
 
 withPublishEnv
   :: HasEnv env
-  => RIO PublishEnv a
+  => TargetName
+  -> RIO PublishEnv a
   -> RIO env a
-withPublishEnv app = do
+withPublishEnv tgtName app = do
   Env{..} <- getEnv
   envConfig@Config{..} <- getConfig
-  let envPackageSet = packageSet
+  envTarget <- getTarget tgtName targets
+  let
+    envPackageSet = packageSet
+    envTargetName = tgtName
   envGitCmd <- getGit
   envBowerCmd <- BowerCmd <$>
     -- workaround windows issue: https://github.com/haskell/process/issues/140
@@ -128,27 +139,31 @@ withPublishEnv app = do
 withBuildEnv'
   :: HasEnv env
   => Maybe Config
+  -> TargetName
   -> UsePsa
   -> BuildOptions
   -> RIO BuildEnv a
   -> RIO env a
-withBuildEnv' maybeConfig usePsa envBuildOptions@BuildOptions{ noInstall } app = do
+withBuildEnv' maybeConfig tgtName usePsa envBuildOptions@BuildOptions{ noInstall } app = do
   Env{..} <- getEnv
   envPursCmd <- getPurs usePsa
   envConfig@Config{..} <- maybe getConfig pure maybeConfig
+  envTarget <- getTarget tgtName targets
   let envPackageSet = packageSet
+  let envTargetName = tgtName
   deps <- runRIO InstallEnv{..} $ do
-    deps <- Packages.getProjectDeps
+    deps <- Packages.getTransitiveTargetDeps
     when (noInstall == DoInstall) $ FetchPackage.fetchPackages deps
     pure deps
-  envGraph <- runRIO PursEnv{..} (getMaybeGraph envBuildOptions envConfig deps)
+  envGraph <- runRIO PursEnv{..} (getMaybeGraph envBuildOptions envTarget deps)
   envGitCmd <- getGit
   logDebug "Running in `BuildEnv`"
   runRIO BuildEnv{..} app
 
 withBuildEnv
   :: HasEnv env
-  => UsePsa
+  => TargetName
+  -> UsePsa
   -> BuildOptions
   -> RIO BuildEnv a
   -> RIO env a
@@ -177,6 +192,15 @@ getConfig = Config.ensureConfig >>= \case
   Right c -> pure c
   Left err -> die [ "Failed to read the config. Error was:", err ]
 
+getTarget :: (HasLogFunc env) => TargetName -> Map TargetName Target -> RIO env Target
+getTarget tgtName targets = do
+  logDebug $ "Using target '" <> display (targetName tgtName) <> "'"
+  case Map.lookup tgtName targets of
+    Nothing -> do
+      die [ display $ Messages.cannotFindTarget (targetName tgtName) ]
+    Just target -> do
+      pure target
+
 getPurs :: HasLogFunc env => UsePsa -> RIO env PursCmd
 getPurs usePsa = do
   purs <- findExecutableOrDie "purs"
@@ -202,10 +226,10 @@ getPackageSet = do
         Right Config{ packageSet } -> pure packageSet
         Left err -> die [ display Messages.couldNotVerifySet, "Error was:", display err ]
 
-getMaybeGraph :: HasPursEnv env => BuildOptions -> Config -> [(PackageName, Package)] -> RIO env Graph
-getMaybeGraph BuildOptions{ depsOnly, sourcePaths } Config{ configSourcePaths } deps = do
+getMaybeGraph :: HasPursEnv env => BuildOptions -> Target -> [(PackageName, Package)] -> RIO env Graph
+getMaybeGraph BuildOptions{ depsOnly, sourcePaths } Target{ targetSourcePaths } deps = do
   logDebug "Running `getMaybeGraph`"
-  let partitionedGlobs = Packages.getGlobs deps depsOnly configSourcePaths
+  let partitionedGlobs = Packages.getGlobs deps depsOnly targetSourcePaths
       globs = Packages.getGlobsSourcePaths partitionedGlobs <> sourcePaths
   supportsGraph <- Purs.hasMinPursVersion "0.14.0"
   if not supportsGraph

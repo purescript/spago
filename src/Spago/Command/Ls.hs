@@ -41,19 +41,22 @@ listPackageSet jsonFlag = do
   traverse_ output $ formatPackageNames jsonFlag (Map.toList packagesDB)
 
 listPackages
-  :: (HasLogFunc env, HasConfig env)
-  => IncludeTransitive -> JsonFlag
+  :: (HasLogFunc env, HasConfig env, HasTarget env, HasTargetName env)
+  => IncludeTransitive
+  -> JsonFlag
   -> RIO env ()
 listPackages packagesFilter jsonFlag = do
   logDebug "Running `listPackages`"
+  tgtName <- view (the @TargetName)
   packagesToList :: [(PackageName, Package)] <- case packagesFilter of
-    IncludeTransitive -> Packages.getProjectDeps
+    IncludeTransitive -> Packages.getTransitiveTargetDeps
     _ -> do
-      Config { packageSet = PackageSet{ packagesDB }, dependencies } <- view (the @Config)
-      pure $ Map.toList $ Map.restrictKeys packagesDB (Set.fromList dependencies)
+      Config { packageSet = PackageSet{ packagesDB } } <- view (the @Config)
+      Target { targetDependencies } <- view (the @Target)
+      pure $ Map.toList $ Map.restrictKeys packagesDB (Set.fromList targetDependencies)
 
   case packagesToList of
-    [] -> logWarn "There are no dependencies listed in your spago.dhall"
+    [] -> logWarn $ "There are no dependencies listed in your spago.dhall for the target '" <> display (targetName tgtName) <> "'"
     _  -> traverse_ output $ formatPackageNames jsonFlag packagesToList
 
 formatPackageNames :: JsonFlag -> [(PackageName, Package)] -> [Text]

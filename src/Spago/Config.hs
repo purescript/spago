@@ -33,6 +33,7 @@ import qualified Spago.Dhall           as Dhall
 import qualified Spago.Messages        as Messages
 import qualified Spago.PackageSet      as PackageSet
 import qualified Spago.PscPackage      as PscPackage
+import qualified Spago.Targets         as Targets
 import qualified Spago.Templates       as Templates
 
 
@@ -60,6 +61,9 @@ isLocationType _ = False
 dependenciesType :: Dhall.Decoder [PackageName]
 dependenciesType = Dhall.list (Dhall.auto :: Dhall.Decoder PackageName)
 
+
+sourcesType :: Dhall.Decoder [SourcePath]
+sourcesType  = Dhall.list (Dhall.auto :: Dhall.Decoder SourcePath)
 
 parsePackage :: (MonadIO m, MonadThrow m, MonadReader env m, HasLogFunc env) => ResolvedExpr -> m Package
 parsePackage (Dhall.RecordLit ks') = do
@@ -93,6 +97,13 @@ parsePackage (Dhall.App
       pure Package{..}
 parsePackage expr = die [ display $ Messages.failedToParsePackage $ pretty expr ]
 
+parseTarget :: (MonadIO m, MonadThrow m, MonadReader env m, HasLogFunc env) => ResolvedExpr -> m Target
+parseTarget (Dhall.RecordLit ks') = do
+  let ks = Dhall.extractRecordValues ks'
+  targetDependencies <- Dhall.requireTypedKey ks "dependencies" dependenciesType
+  targetSourcePaths <- Dhall.requireTypedKey ks "sources" sourcesType
+  pure Target{..}
+parseTarget expr = die [ display $ Messages.failedToParseTarget $ pretty expr ]
 
 -- | Parse the contents of a "packages.dhall" file (or the "packages" key of an
 -- evaluated "spago.dhall")
@@ -110,6 +121,14 @@ parsePackageSet pkgs = do
   pure PackageSet{..}
 
 
+-- | Parse the contents of the "targets" key of an evaluated "spago.dhall")
+parseTargets
+  :: HasLogFunc env
+  => Dhall.Map.Map Text (Dhall.DhallExpr Void)
+  -> RIO env (Map TargetName Target)
+parseTargets config = do
+  fmap (Map.mapKeys TargetName . Dhall.Map.toMap) $ traverse parseTarget config
+
 -- | Tries to read in a Spago Config
 parseConfig
   :: (HasLogFunc env, HasConfigPath env)
@@ -120,13 +139,13 @@ parseConfig = do
 
   ConfigPath path <- view (the @ConfigPath)
   expr <- liftIO $ Dhall.inputExpr $ "./" <> path
-  case expr of
+  case Dhall.normalize expr of
     Dhall.RecordLit ks' -> do
       let ks = Dhall.extractRecordValues ks'
-      let sourcesType  = Dhall.list (Dhall.auto :: Dhall.Decoder SourcePath)
       name              <- Dhall.requireTypedKey ks "name" Dhall.strictText
-      dependencies      <- Dhall.requireTypedKey ks "dependencies" dependenciesType
-      configSourcePaths <- Dhall.requireTypedKey ks "sources" sourcesType
+      targets           <- Dhall.requireKey ks "targets" (\case
+        Dhall.RecordLit tgts -> parseTargets (Dhall.extractRecordValues tgts)
+        something            -> throwM $ Dhall.TargetsIsNotRecord something)
       alternateBackend  <- Dhall.maybeTypedKey ks "backend" Dhall.strictText
 
       let ensurePublishConfig = do
@@ -140,7 +159,7 @@ parseConfig = do
         something            -> throwM $ Dhall.PackagesIsNotRecord something)
 
       pure Config{..}
-    _ -> case Dhall.TypeCheck.typeOf expr of
+    _ -> case Dhall.TypeCheck.typeOf $ Dhall.normalize expr of
       Right e  -> throwM $ Dhall.ConfigIsNotRecord e
       Left err -> throwM err
 
@@ -169,8 +188,9 @@ makeTempConfig
   -> [SourcePath]
   -> Maybe Text
   -> RIO env Config
-makeTempConfig dependencies alternateBackend configSourcePaths maybeTag = do
+makeTempConfig dependencies alternateBackend targetSourcePaths maybeTag = do
   PursCmd { compilerVersion } <- view (the @PursCmd)
+  let targets = Map.singleton Targets.mainTarget (Target { targetDependencies = dependencies, targetSourcePaths = targetSourcePaths })
   tag <- case maybeTag of
     Nothing ->
       PackageSet.getLatestSetForCompilerVersion compilerVersion "purescript" "package-sets" >>= \case
@@ -220,7 +240,7 @@ makeConfig force comments = do
           logInfo "Found a \"psc-package.json\" file, migrating to a new Spago config.."
           -- try to update the dependencies (will fail if not found in package set)
           let pscPackages = map PackageName $ PscPackage.depends pscConfig
-          void $ withConfigAST ( addRawDeps config pscPackages
+          void $ withConfigAST ( addRawDeps config Targets.mainTarget pscPackages
                                . updateName (PscPackage.name pscConfig))
     (_, True) -> do
       -- read the bowerfile
@@ -232,8 +252,10 @@ makeConfig force comments = do
           logInfo "Found a \"bower.json\" file, migrating to a new Spago config.."
           -- then try to update the dependencies. We'll migrates the ones that we can,
           -- and print a message to the user to fix the missing ones
-          let (bowerName, packageResults) = migrateBower packageMeta packageSet
-              (bowerErrors, bowerPackages) = partitionEithers packageResults
+          let (bowerName, deps, devDeps) = migrateBower packageMeta packageSet
+              (bowerMainErrors, bowerMainPackages) = partitionEithers deps
+              (bowerDevErrors, bowerDevPackages) = partitionEithers devDeps
+              bowerErrors = bowerMainErrors <> bowerDevErrors
 
           if null bowerErrors
             then do
@@ -242,8 +264,10 @@ makeConfig force comments = do
             else do
               logWarn $ display $ showBowerErrors bowerErrors
 
-          void $ withConfigAST ( addRawDeps config bowerPackages
-                               . updateName bowerName)
+          void $ withConfigAST $ \expr -> do
+            let withBowerName = updateName bowerName expr
+            addRawDeps config Targets.mainTarget bowerMainPackages withBowerName
+              >>= addRawDeps config Targets.testTarget bowerDevPackages
 
     _ -> pure ()
   -- at last we return the new config
@@ -252,10 +276,11 @@ makeConfig force comments = do
     Left err -> die [err]
 
 
-migrateBower :: Bower.PackageMeta -> PackageSet -> (Text, [Either BowerDependencyError PackageName])
-migrateBower Bower.PackageMeta{..} PackageSet{..} = (packageName, dependencies)
+migrateBower :: Bower.PackageMeta -> PackageSet -> (Text, [Either BowerDependencyError PackageName], [Either BowerDependencyError PackageName])
+migrateBower Bower.PackageMeta{..} PackageSet{..} = (packageName, dependencies, devDependencies)
   where
-    dependencies = map migratePackage (bowerDependencies <> bowerDevDependencies)
+    dependencies = map migratePackage bowerDependencies
+    devDependencies = map migratePackage bowerDevDependencies
 
     -- | For each Bower dependency, we:
     --   * try to parse the range into a SemVer.Range
@@ -320,44 +345,224 @@ updateName newName (Dhall.RecordLit kvs)
     $ Dhall.Map.insert "name" (Dhall.makeRecordField $ Dhall.toTextLit newName) kvs
 updateName _ other = other
 
-addRawDeps :: HasLogFunc env => Config -> [PackageName] -> Expr -> RIO env Expr
-addRawDeps config newPackages r@(Dhall.RecordLit kvs) = case Dhall.Map.lookup "dependencies" kvs of
-  Just (Dhall.RecordField { recordFieldValue = Dhall.ListLit _ dependencies }) -> do
-      case NonEmpty.nonEmpty notInPackageSet of
-        -- If none of the newPackages are outside of the set, add them to existing dependencies
-        Nothing -> do
-          oldPackages <- traverse (throws . Dhall.fromTextLit) dependencies
-          let newDepsExpr
-                = Dhall.makeRecordField
-                $ Dhall.ListLit Nothing $ fmap (Dhall.toTextLit . packageName)
-                $ Seq.sort $ nubSeq (Seq.fromList newPackages <> fmap PackageName oldPackages)
-          pure $ Dhall.RecordLit $ Dhall.Map.insert "dependencies" newDepsExpr kvs
-        Just pkgs -> do
-          logWarn $ display $ Messages.failedToAddDeps $ NonEmpty.map packageName pkgs
-          pure r
-    where
-      Config { packageSet = PackageSet{..} } = config
-      notInPackageSet = filter (\p -> Map.notMember p packagesDB) newPackages
+addRawDeps :: HasLogFunc env => Config -> TargetName -> [PackageName] -> Expr -> RIO env Expr
+addRawDeps config tgtName newPackages rawExpr =
+  case NonEmpty.nonEmpty notInPackageSet of
+    Just pkgs -> do
+      logWarn $ display $ Messages.failedToAddDeps $ NonEmpty.map packageName pkgs
+      pure rawExpr
+    Nothing -> case rawExpr of
+      Dhall.RecordLit kvs -> Dhall.RecordLit <$> insertDepsIntoTargetsMap kvs
+      Dhall.Let b@Dhall.Binding { variable = varName, value = v } inExpr -> do
+        (mbBindingName, newInExpr) <- updateOrFindBindingName inExpr
+        case mbBindingName of
+          Nothing -> pure $ Dhall.Let b newInExpr
+          Just bindingName
+            | bindingName == varName -> do
+                (\newV -> Dhall.Let (Dhall.makeBinding varName newV) inExpr) <$> insertDepsIntoTarget v
+            | otherwise -> do
+                logWarn $ "Binding for variable '" <> display bindingName <> "' could not be found."
+                pure rawExpr
+      other -> do
+        logWarn $ "Expression was not a record but was " <> display (pretty other)
+        pure rawExpr
+  where
+    Config { packageSet = PackageSet{..} } = config
+    notInPackageSet = filter (\p -> Map.notMember p packagesDB) newPackages
 
-      -- | Code from https://stackoverflow.com/questions/45757839
-      nubSeq :: Ord a => Seq a -> Seq a
-      nubSeq xs = (fmap fst . Seq.filter (uncurry notElem)) (Seq.zip xs seens)
-        where
-          seens = Seq.scanl (flip Set.insert) Set.empty xs
-  Just _ -> do
-    logWarn "Failed to add dependencies. The `dependencies` field wasn't a List of Strings."
-    pure r
-  Nothing -> do
-    logWarn "Failed to add dependencies. You should have a record with the `dependencies` key for this to work."
-    pure r
-addRawDeps _ _ other = pure other
+    -- | Code from https://stackoverflow.com/questions/45757839
+    nubSeq :: Ord a => Seq a -> Seq a
+    nubSeq xs = (fmap fst . Seq.filter (uncurry notElem)) (Seq.zip xs seens)
+      where
+        seens = Seq.scanl (flip Set.insert) Set.empty xs
+
+    -- | Adds the new packages to the first `ListLit` it finds, traversing from
+    -- | left to right,  in case there are multiple `ListAppend` values
+    -- |
+    -- | ```
+    -- | [ "old" ] -> [ "old", "new" ]
+    -- | [ "old" ] # list1 -> [ "old", "new" ] # list1
+    -- | list # [ "old" ] -> list # [ "old", "new" ]
+    -- | list1 # list2 # [ "old" ] -> list1 # list2 # [ "old", "new" ]
+    -- | ```
+    modifyFirstListLitIfExist = \case
+      Dhall.ListLit x dependencies -> do
+        Just . Dhall.ListLit x <$> addNewDeps dependencies
+      Dhall.ListAppend leftList rightList -> do
+        mbLeft <- modifyFirstListLitIfExist leftList
+        case mbLeft of
+          Just left -> do
+            pure $ Just $ Dhall.ListAppend left rightList
+          Nothing -> do
+            mbRight <- modifyFirstListLitIfExist rightList
+            case mbRight of
+              Just right -> do
+                pure $ Just $ Dhall.ListAppend leftList right
+              Nothing -> do
+                pure Nothing
+      _ -> pure Nothing
+
+    -- | Takes the rightmost `ListLit`'s `dependencies` value
+    -- | and combines the newPackages with the original dependencies
+    addNewDeps dependencies = do
+      oldPackages <- traverse (throws . Dhall.fromTextLit) dependencies
+      pure
+        $ fmap (Dhall.toTextLit . packageName)
+        $ Seq.sort $ nubSeq (Seq.fromList newPackages <> fmap PackageName oldPackages)
+
+    -- | This functions traversals down the AST to determine whether the target is a literal value
+    -- | in the final `RecordLit`'s "targets" field or whether it will refer to a binding
+    -- | declared previously in the AST. Once identified, the traversal up the AST will
+    -- | reconstruct the AST with the update. Either the packages will be added in the final
+    -- | `RecordLit` when no bindings are used or it will be added at the binding. 
+    -- |
+    -- | Since this returns `(Maybe Text, expr)`. the `Maybe Text` represents whether
+    -- | a binding was used. If it is `Nothing`, then either no binding was used or
+    -- | a binding was used but the update has already occurred at a binding "lower"
+    -- | in the AST. If it is `Just bindingName`, then a binding was used and hasn't
+    -- | yet been updated.
+    updateOrFindBindingName = \case
+      expr@(Dhall.RecordLit kvs) -> case Dhall.Map.lookup "targets" kvs of
+        Nothing -> do
+          logWarn "The 'targets' field was not found"
+          pure (Nothing, expr)
+        Just Dhall.RecordField { recordFieldValue = targetsFieldVal } -> case targetsFieldVal of
+          Dhall.RecordLit targets -> case Dhall.Map.lookup (targetName tgtName) targets of
+            Nothing -> do
+              logWarn $ "The target named '" <> display (targetName tgtName) <> "' was not found"
+              pure (Nothing, expr)
+            Just Dhall.RecordField { recordFieldValue = tgt } -> case tgt of
+              Dhall.RecordLit _ -> do
+                -- no binding was used, so do the update in the record
+                newTarget <- insertDepsIntoTarget tgt
+                let
+                  newExpr =
+                    Dhall.RecordLit
+                      $ flip (Dhall.Map.insert "targets") kvs
+                      $ Dhall.makeRecordField
+                      $ Dhall.RecordLit
+                      $ flip (Dhall.Map.insert (targetName tgtName)) targets
+                      $ Dhall.makeRecordField newTarget
+                pure (Nothing, newExpr)
+              Dhall.Var (Dhall.V bindingName _) ->
+                -- binding was used, so return the binding name
+                pure (Just bindingName, expr)
+              _ ->
+                pure (Nothing, expr)
+          _ -> do
+            pure (Nothing, expr)
+      l@(Dhall.Let b@Dhall.Binding { variable = varName, value = v } inExpr) -> do
+        (mbBindingName, newInExpr) <- updateOrFindBindingName inExpr
+        case mbBindingName of
+          Nothing -> pure (Nothing, Dhall.Let b newInExpr)
+          Just bindingName
+            | bindingName == varName -> do
+                newTarget <- insertDepsIntoTarget v
+                pure (Nothing, Dhall.Let (Dhall.makeBinding varName newTarget) inExpr)
+            | otherwise -> do
+                pure (mbBindingName, l)
+      other -> pure (Nothing, other)
+
+    -- | Inserts the new dependencies into the 'targets' field of a RecordLit
+    insertDepsIntoTargetsMap kvs = case Dhall.Map.lookup "targets" kvs of
+      Nothing -> do
+        logWarn "Failed to find the 'targets' field in the record."
+        pure kvs
+      Just Dhall.RecordField { recordFieldValue = targetsFieldVal } -> case targetsFieldVal of
+        Dhall.RecordLit targets -> case Dhall.Map.lookup (targetName tgtName) targets of
+          Nothing -> do
+            logWarn $ "Failed to find the target '" <> display (targetName tgtName) <> "' in the 'targets' field"
+            pure kvs
+          Just Dhall.RecordField { recordFieldValue = tgt } -> do
+            newTarget <- insertDepsIntoTarget tgt
+            pure
+              $ flip (Dhall.Map.insert "targets") kvs
+              $ Dhall.makeRecordField
+              $ Dhall.RecordLit
+              $ flip (Dhall.Map.insert (targetName tgtName)) targets
+              $ Dhall.makeRecordField newTarget
+        other -> do
+          logWarn $ "The 'targets' field's value was not a record but was " <> display (pretty other)
+          pure kvs
+
+    -- | Inserts the new packages into the target's `dependencies` list
+    insertDepsIntoTarget tgt = case tgt of
+      Dhall.RecordLit tgtValue -> case Dhall.Map.lookup "dependencies" tgtValue of
+        Nothing -> do
+          logWarn $ "Target '" <> display (targetName tgtName) <> "' does not have a 'dependencies' field."
+          pure tgt
+        Just Dhall.RecordField { recordFieldValue = depsFieldVal } -> do
+          newVal <- case depsFieldVal of
+            Dhall.ListLit x dependencies -> do
+              newDeps <- addNewDeps dependencies
+              pure $ Dhall.ListLit x newDeps
+            original@(Dhall.ListAppend leftList rightList) -> do
+              mbLeft <- modifyFirstListLitIfExist leftList
+              case mbLeft of
+                Just newLeft -> do
+                  pure $ Dhall.ListAppend newLeft rightList
+                Nothing -> do
+                  mbRight <- modifyFirstListLitIfExist rightList
+                  case mbRight of
+                    Just newRight -> do
+                      pure $ Dhall.ListAppend leftList newRight
+                    Nothing -> do
+                      -- if a ListLit was not found (e.g. `one.deps # two.deps`),
+                      -- then we add one ourselves (e.g. `one.deps # two.deps # [ "new "]`)
+                      newListLit <- Dhall.ListLit Nothing <$> addNewDeps []
+                      let
+                        newRight = Dhall.ListAppend rightList newListLit
+                      pure $ Dhall.ListAppend leftList newRight
+            other -> pure other
+          pure
+            $ Dhall.RecordLit
+            $ flip (Dhall.Map.insert "dependencies") tgtValue
+            $ Dhall.makeRecordField newVal
+      other -> do
+        logWarn $ "The target '" <> display (targetName tgtName) <> "' was not a record but was " <> display (pretty other)
+        pure other
 
 addSourcePaths :: Expr -> Expr
-addSourcePaths (Dhall.RecordLit kvs)
-  | isConfigV1 kvs =
-    let sources = Dhall.ListLit Nothing $ fmap Dhall.toTextLit $ Seq.fromList ["src/**/*.purs", "test/**/*.purs"]
-    in Dhall.RecordLit (Dhall.Map.insert "sources" (Dhall.makeRecordField sources) kvs)
-addSourcePaths expr = expr
+addSourcePaths = \case
+  Dhall.RecordLit kvs
+    | isConfigV1 kvs -> do
+        let
+          mainDeps = fromMaybe (Dhall.makeRecordField $ Dhall.ListLit Nothing [] ) $ Dhall.Map.lookup "dependencies" kvs
+          mainSources = Dhall.makeRecordField $ mkSources "src/**/*.purs"
+        Dhall.Let (mainTargetBinding mainDeps mainSources)
+          $ Dhall.Let testTargetBinding
+          $ Dhall.RecordLit
+          $ Dhall.Map.delete "dependencies"
+          $ Dhall.Map.delete "sources" kvs
+    | isConfigV2 kvs -> do
+        let
+          mainDeps = fromMaybe (Dhall.makeRecordField $ Dhall.ListLit Nothing [] ) $ Dhall.Map.lookup "dependencies" kvs
+          mainSources = fromMaybe (Dhall.makeRecordField $ Dhall.ListLit Nothing [] ) $ Dhall.Map.lookup "sources" kvs
+        Dhall.Let (mainTargetBinding mainDeps mainSources)
+          $ Dhall.Let testTargetBinding
+          $ Dhall.RecordLit
+          $ Dhall.Map.delete "dependencies"
+          $ Dhall.Map.delete "sources" kvs
+  expr -> expr
+  where
+    mkSources txt = Dhall.ListLit Nothing [ Dhall.toTextLit txt ]
+
+    mainTargetBinding deps sources =
+      Dhall.makeBinding "main"
+        $ Dhall.RecordLit
+        $ Dhall.Map.fromList
+          [ ("dependencies", deps )
+          , ("sources", sources )
+          ]
+    testTargetBinding =
+      Dhall.makeBinding "test"
+        $ Dhall.RecordLit
+        $ Dhall.Map.fromList
+          [ ("dependencies", Dhall.makeRecordField $ Dhall.ListAppend (referToRecordBinding "main" 0 "dependencies") $ Dhall.ListLit Nothing [] )
+          , ("sources", Dhall.makeRecordField $ Dhall.ListAppend (referToRecordBinding "main" 0 "sources") (mkSources "test/**/*.purs") )
+          ]
+
+    referToRecordBinding varName idx field = Dhall.Field (Dhall.Var (Dhall.V varName idx)) $ Dhall.makeFieldSelection field
 
 isConfigV1, isConfigV2 :: Dhall.Map.Map Text v -> Bool
 isConfigV1 (Set.fromList . Dhall.Map.keys -> configKeySet) =
@@ -417,9 +622,9 @@ transformMExpr rules =
 --   dependencies, and write the Config back to file.
 addDependencies
   :: (HasLogFunc env, HasConfigPath env)
-  => Config -> [PackageName] 
+  => Config -> TargetName -> [PackageName] 
   -> RIO env ()
-addDependencies config newPackages = do
-  configHasChanged <- withConfigAST $ addRawDeps config newPackages
+addDependencies config tgtName newPackages = do
+  configHasChanged <- withConfigAST $ addRawDeps config tgtName newPackages
   unless configHasChanged $
     logWarn "Configuration file was not updated."
