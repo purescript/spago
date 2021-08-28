@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Bugfixes:
 - Don't warn on unused deps when building --deps-only. (#794)
+- Parse `dependencies` and `source` expressions of `list1 # list2` (#814)
 
 ## [0.20.3] - 2021-05-12
 
