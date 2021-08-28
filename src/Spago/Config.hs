@@ -327,19 +327,70 @@ addRawDeps config newPackages r@(Dhall.RecordLit kvs) = case NonEmpty.nonEmpty n
     pure r
   -- If none of the newPackages are outside of the set, add them to existing dependencies
   Nothing -> case Dhall.Map.lookup "dependencies" kvs of
-    Just (Dhall.RecordField { recordFieldValue = Dhall.ListLit _ dependencies }) -> do
-      oldPackages <- traverse (throws . Dhall.fromTextLit) dependencies
-      let newDepsExpr
-            = Dhall.makeRecordField
-            $ Dhall.ListLit Nothing $ fmap (Dhall.toTextLit . packageName)
-            $ Seq.sort $ nubSeq (Seq.fromList newPackages <> fmap PackageName oldPackages)
-      pure $ Dhall.RecordLit $ Dhall.Map.insert "dependencies" newDepsExpr kvs
+    Just Dhall.RecordField { recordFieldValue }
+      | Dhall.ListLit _ dependencies <- recordFieldValue -> do
+          newListLit <- Dhall.ListLit Nothing <$> addDeps (Seq.fromList newPackages) dependencies
+          pure
+            $ Dhall.RecordLit
+            $ flip (Dhall.Map.insert "dependencies") kvs
+            $ Dhall.makeRecordField newListLit
+      | oldListAppend@(Dhall.ListAppend left right) <- recordFieldValue -> do
+          allInstalledPkgs <- getInstalledPkgs oldListAppend
+          let
+            pkgsToInstall = Seq.filter (`notElem` allInstalledPkgs) $ Seq.fromList newPackages
+          newListLit <- do
+            mbLeft <- traverseAddDeps pkgsToInstall left
+            case mbLeft of
+              Just l' -> do
+                pure $ Dhall.ListAppend l' right
+              Nothing -> do
+                mbRight <- traverseAddDeps pkgsToInstall right
+                case mbRight of
+                  Just r' -> do
+                    pure $ Dhall.ListAppend left r'
+                  Nothing -> do
+                    pure
+                      $ Dhall.ListAppend left
+                      $ Dhall.ListAppend right
+                      $ Dhall.ListLit Nothing
+                      $ fmap (Dhall.toTextLit . packageName)
+                      $ Seq.sort pkgsToInstall
+          pure
+            $ Dhall.RecordLit
+            $ flip (Dhall.Map.insert "dependencies") kvs
+            $ Dhall.makeRecordField newListLit
       where
         -- | Code from https://stackoverflow.com/questions/45757839
         nubSeq :: Ord a => Seq a -> Seq a
         nubSeq xs = (fmap fst . Seq.filter (uncurry notElem)) (Seq.zip xs seens)
           where
             seens = Seq.scanl (flip Set.insert) Set.empty xs
+
+        addDeps newPackages' dependencies = do
+          oldPackages <- fmap PackageName <$> traverse (throws . Dhall.fromTextLit) dependencies
+          let
+            newDependencies =
+              fmap (Dhall.toTextLit . packageName)
+                $ Seq.sort $ nubSeq (newPackages' <> oldPackages)
+          pure newDependencies
+
+        getInstalledPkgs = \case
+          Dhall.ListLit _ dependencies -> fmap PackageName <$> traverse (throws . Dhall.fromTextLit) dependencies
+          Dhall.ListAppend left right -> (Seq.><) <$> getInstalledPkgs left <*> getInstalledPkgs right
+          _ -> pure Seq.empty
+
+        traverseAddDeps newPackages' = \case
+          Dhall.ListLit _ dependencies -> do
+            Just . Dhall.ListLit Nothing <$> addDeps newPackages' dependencies
+          Dhall.ListAppend left right -> do
+            mbLeft <- traverseAddDeps newPackages' left
+            case mbLeft of
+              Just l' -> do
+                pure $ Just $ Dhall.ListAppend l' right
+              Nothing -> do
+                fmap (Dhall.ListAppend left) <$> traverseAddDeps newPackages' right
+          _ -> pure Nothing
+
     Just _ -> do
       logWarn "Failed to add dependencies. The `dependencies` field wasn't a List of Strings."
       pure r
