@@ -58,7 +58,7 @@ isLocationType _ = False
 
 
 dependenciesType :: Dhall.Decoder [PackageName]
-dependenciesType = Dhall.list (Dhall.auto :: Dhall.Decoder PackageName)
+dependenciesType = listAll (Dhall.auto :: Dhall.Decoder PackageName)
 
 
 parsePackage :: (MonadIO m, MonadThrow m, MonadReader env m, HasLogFunc env) => ResolvedExpr -> m Package
@@ -109,6 +109,17 @@ parsePackageSet pkgs = do
         $ Map.lookup metadataPackageName packagesDB
   pure PackageSet{..}
 
+-- |
+-- Like `Dhall.list` but it parses `ListAppend`s as well.
+-- Note: this is not stack safe and its a naive implementation.
+listAll :: Dhall.Decoder a -> Dhall.Decoder [a]
+listAll (Dhall.Decoder extractIn expectedIn) = Dhall.Decoder extractOut expectedOut
+  where
+    extractOut (Dhall.ListLit _ es) = toList <$> traverse extractIn es
+    extractOut (Dhall.ListAppend l r) = (++) <$> extractOut l <*> extractOut r
+    extractOut expr           = Dhall.typeError expectedOut expr
+
+    expectedOut = Dhall.App Dhall.List <$> expectedIn
 
 -- | Tries to read in a Spago Config
 parseConfig
@@ -123,7 +134,7 @@ parseConfig = do
   case expr of
     Dhall.RecordLit ks' -> do
       let ks = Dhall.extractRecordValues ks'
-      let sourcesType  = Dhall.list (Dhall.auto :: Dhall.Decoder SourcePath)
+      let sourcesType  = listAll (Dhall.auto :: Dhall.Decoder SourcePath)
       name              <- Dhall.requireTypedKey ks "name" Dhall.strictText
       dependencies      <- Dhall.requireTypedKey ks "dependencies" dependenciesType
       configSourcePaths <- Dhall.requireTypedKey ks "sources" sourcesType
