@@ -343,23 +343,7 @@ addRawDeps config newPackages r = case NonEmpty.nonEmpty notInPackageSet of
             then do
               pure r
             else do
-              newListAppend <- do
-                mbLeft <- traverseAddDeps pkgsToInstall left
-                case mbLeft of
-                  Just l' -> do
-                    pure $ Dhall.ListAppend l' right
-                  Nothing -> do
-                    mbRight <- traverseAddDeps pkgsToInstall right
-                    case mbRight of
-                      Just r' -> do
-                        pure $ Dhall.ListAppend left r'
-                      Nothing -> do
-                        pure
-                          $ Dhall.ListAppend left
-                          $ Dhall.ListAppend right
-                          $ Dhall.ListLit Nothing
-                          $ fmap (Dhall.toTextLit . packageName)
-                          $ Seq.sort pkgsToInstall
+              newListAppend <- mkNewListAppend pkgsToInstall left right
               pure
                 $ Dhall.RecordLit
                 $ flip (Dhall.Map.insert "dependencies") kvs
@@ -405,6 +389,27 @@ addRawDeps config newPackages r = case NonEmpty.nonEmpty notInPackageSet of
           Nothing -> do
             fmap (Dhall.ListAppend left) <$> traverseAddDeps newPackages' right
       _ -> pure Nothing
+
+    -- |
+    -- Installs the packages in the first `ListLit` found or
+    -- adds a new ListLit if none were found
+    mkNewListAppend pkgsToInstall left right = do
+      mbLeft <- traverseAddDeps pkgsToInstall left
+      case mbLeft of
+        Just l' -> do
+          pure $ Dhall.ListAppend l' right
+        Nothing -> do
+          mbRight <- traverseAddDeps pkgsToInstall right
+          case mbRight of
+            Just r' -> do
+              pure $ Dhall.ListAppend left r'
+            Nothing -> do
+              pure
+                $ Dhall.ListAppend left
+                $ Dhall.ListAppend right
+                $ Dhall.ListLit Nothing
+                $ fmap (Dhall.toTextLit . packageName)
+                $ Seq.sort pkgsToInstall
 
 addSourcePaths :: Expr -> Expr
 addSourcePaths (Dhall.RecordLit kvs)
