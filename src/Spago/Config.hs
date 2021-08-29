@@ -365,6 +365,8 @@ addRawDeps config newPackages r = case NonEmpty.nonEmpty notInPackageSet of
       where
         seens = Seq.scanl (flip Set.insert) Set.empty xs
 
+    -- |
+    -- Adds the packages to the `ListLit`'s `Seq` argument
     addDeps newPackages' dependencies = do
       oldPackages <- fmap PackageName <$> traverse (throws . Dhall.fromTextLit) dependencies
       let
@@ -373,11 +375,19 @@ addRawDeps config newPackages r = case NonEmpty.nonEmpty notInPackageSet of
             $ Seq.sort $ nubSeq (newPackages' <> oldPackages)
       pure newDependencies
 
+    -- |
+    -- Gets all the packages currently installed in te configuration
+    -- so the same package isn't installed multiple times.
     getInstalledPkgs = \case
       Dhall.ListLit _ dependencies -> fmap PackageName <$> traverse (throws . Dhall.fromTextLit) dependencies
       Dhall.ListAppend left right -> (Seq.><) <$> getInstalledPkgs left <*> getInstalledPkgs right
       _ -> pure Seq.empty
 
+    -- |
+    -- Attempts to add the new packages to the first `ListLit` found,
+    -- traversing down `ListAppend`s as needed.
+    -- A returned `Just` indicates the packages were added
+    -- while a returned `Nothing` means they weren't.
     traverseAddDeps newPackages' = \case
       Dhall.ListLit _ dependencies -> do
         Just . Dhall.ListLit Nothing <$> addDeps newPackages' dependencies
