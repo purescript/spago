@@ -321,12 +321,12 @@ updateName newName (Dhall.RecordLit kvs)
 updateName _ other = other
 
 addRawDeps :: HasLogFunc env => Config -> [PackageName] -> Expr -> RIO env Expr
-addRawDeps config newPackages r = case NonEmpty.nonEmpty notInPackageSet of
+addRawDeps config newPackages expr = case NonEmpty.nonEmpty notInPackageSet of
   Just pkgs -> do
     logWarn $ display $ Messages.failedToAddDeps $ NonEmpty.map packageName pkgs
-    pure r
+    pure expr
   -- If none of the newPackages are outside of the set, add them to existing dependencies
-  Nothing -> case r of
+  Nothing -> case expr of
     Dhall.RecordLit kvs -> case Dhall.Map.lookup "dependencies" kvs of
       Just Dhall.RecordField { recordFieldValue }
         | Dhall.ListLit _ dependencies <- recordFieldValue -> do
@@ -341,7 +341,7 @@ addRawDeps config newPackages r = case NonEmpty.nonEmpty notInPackageSet of
               pkgsToInstall = nubSeq $ Seq.filter (`notElem` allInstalledPkgs) $ Seq.fromList newPackages
             if null pkgsToInstall
             then do
-              pure r
+              pure expr
             else do
               newListAppend <- mkNewListAppend pkgsToInstall left right
               pure
@@ -350,10 +350,10 @@ addRawDeps config newPackages r = case NonEmpty.nonEmpty notInPackageSet of
                 $ Dhall.makeRecordField newListAppend
       Just _ -> do
         logWarn "Failed to add dependencies. The `dependencies` field wasn't a List of Strings."
-        pure r
+        pure expr
       Nothing -> do
         logWarn "Failed to add dependencies. You should have a record with the `dependencies` key for this to work."
-        pure r
+        pure expr
     other -> pure other
   where
     Config { packageSet = PackageSet{..} } = config
