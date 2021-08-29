@@ -327,12 +327,22 @@ addRawDeps config newPackages expr = case NonEmpty.nonEmpty notInPackageSet of
     pure expr
   -- If none of the newPackages are outside of the set, add them to existing dependencies
   Nothing -> case expr of
-    Dhall.RecordLit kvs -> installDepsInRecordLitKey Map.empty kvs
-    Dhall.Let Dhall.Binding { variable, value } inExpr -> installDepsInLet (Map.singleton variable value) inExpr
-    other -> pure other
+    Dhall.RecordLit kvs -> do
+      result <- installDepsInRecordLitKey Map.empty kvs
+      pure $ maybe expr Dhall.RecordLit result
+    Dhall.Let binding@Dhall.Binding { variable, value } inExpr -> do
+      result <- installDepsInLet (Map.singleton variable value) inExpr
+      pure $ maybe expr (Dhall.Let binding) result
+    other -> do
+      logWarn $ display $ failedToAddDepsExpectedRecordKey other
+      pure other
   where
     Config { packageSet = PackageSet{..} } = config
     notInPackageSet = filter (\p -> Map.notMember p packagesDB) newPackages
+
+    failedToAddDepsExpectedRecordKey e =
+      "Failed to add dependencies. You should have a record with the `dependencies` key for this to work.\n" <>
+      "Expression was: " <> pretty e
 
     -- | Code from https://stackoverflow.com/questions/45757839
     nubSeq :: Ord a => Seq a -> Seq a
@@ -342,17 +352,19 @@ addRawDeps config newPackages expr = case NonEmpty.nonEmpty notInPackageSet of
 
     installDepsInLet bindingsMap = \case
       Dhall.RecordLit kvs -> do
-        installDepsInRecordLitKey bindingsMap kvs
-      Dhall.Let Dhall.Binding { variable, value } inExpr -> do
-        installDepsInLet (Map.insert variable value bindingsMap) inExpr
-      other -> pure other
+        fmap Dhall.RecordLit <$> installDepsInRecordLitKey bindingsMap kvs
+      Dhall.Let binding@Dhall.Binding { variable, value } inExpr -> do
+        fmap (Dhall.Let binding) <$> installDepsInLet (Map.insert variable value bindingsMap) inExpr
+      other -> do
+        logWarn $ display $ failedToAddDepsExpectedRecordKey other
+        pure Nothing
 
     installDepsInRecordLitKey bindingsMap kvs = case Dhall.Map.lookup "dependencies" kvs of
       Just Dhall.RecordField { recordFieldValue }
         | Dhall.ListLit _ dependencies <- recordFieldValue -> do
             newListLit <- Dhall.ListLit Nothing <$> addDeps (Seq.fromList newPackages) dependencies
             pure
-              $ Dhall.RecordLit
+              $ Just
               $ flip (Dhall.Map.insert "dependencies") kvs
               $ Dhall.makeRecordField newListLit
         | oldListAppend@(Dhall.ListAppend left right) <- recordFieldValue -> do
@@ -361,20 +373,19 @@ addRawDeps config newPackages expr = case NonEmpty.nonEmpty notInPackageSet of
               pkgsToInstall = nubSeq $ Seq.filter (`notElem` allInstalledPkgs) $ Seq.fromList newPackages
             if null pkgsToInstall
             then do
-              logWarn "Failed to add dependencies. All dependencies provided are already installed."
-              pure expr
+              pure Nothing
             else do
               newListAppend <- mkNewListAppend pkgsToInstall left right
               pure
-                $ Dhall.RecordLit
+                $ Just
                 $ flip (Dhall.Map.insert "dependencies") kvs
                 $ Dhall.makeRecordField newListAppend
       Just _ -> do
         logWarn "Failed to add dependencies. The `dependencies` field wasn't a List of Strings."
-        pure expr
+        pure Nothing
       Nothing -> do
         logWarn "Failed to add dependencies. You should have a record with the `dependencies` key for this to work."
-        pure expr
+        pure Nothing
 
     -- |
     -- Adds the packages to the `ListLit`'s `Seq` argument
@@ -481,6 +492,27 @@ withConfigAST transform = do
         else logDebug "Transformed config is the same as the read one, not overwriting it"
       pure exprHasChanged
 
+-- | Takes a function that manipulates the Dhall AST of the Config, and tries to run it
+--   on the current config. If it succeeds, it writes back to file the result returned.
+--   Note: it will pass in the parsed AST, not the resolved one (so e.g. imports will
+--   still be in the tree). If you need the resolved one, use `ensureConfig`.
+withConfigAST'
+  :: (HasLogFunc env, HasConfigPath env)
+  => (Expr -> RIO env Expr) -> RIO env Bool
+withConfigAST' transform = do
+  ConfigPath path <- view (the @ConfigPath)
+  rawConfig <- liftIO $ Dhall.readRawExpr path
+  case rawConfig of
+    Nothing -> die [ display $ Messages.cannotFindConfig path ]
+    Just (header, expr) -> do
+      newExpr <- transform $ Dhall.Core.denote expr
+      -- Write the new expression only if it has actually changed
+      let exprHasChanged = Dhall.Core.denote expr /= newExpr
+      if exprHasChanged
+        then liftIO $ Dhall.writeRawExpr path (header, newExpr)
+        else logDebug "Transformed config is the same as the read one, not overwriting it"
+      pure exprHasChanged
+
 
 transformMExpr
   :: MonadIO m
@@ -503,6 +535,6 @@ addDependencies
   => Config -> [PackageName] 
   -> RIO env ()
 addDependencies config newPackages = do
-  configHasChanged <- withConfigAST $ addRawDeps config newPackages
+  configHasChanged <- withConfigAST' $ addRawDeps config newPackages
   unless configHasChanged $
     logWarn "Configuration file was not updated."
