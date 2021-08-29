@@ -146,6 +146,52 @@ spec = around_ setup $ do
         mv "spago.dhall" "spago-install-success.dhall"
         checkFixture "spago-install-success.dhall"
 
+      describe "when a `list1 # list2` expression is used..." $ do
+
+        it "append-right: otherDeps # [ \"actualDeps\" ]" $ do
+
+          spago ["init"] >>= shouldBeSuccess
+          spago ["install"] >>= shouldBeSuccess
+
+          spagoFileContent <- readFixture "spago-install-append-right-before.dhall"
+          writeTextFile "spago.dhall" spagoFileContent
+          spago ["-j 10", "install", "arrays"] >>= shouldBeSuccess
+          mv "spago.dhall" "spago-install-append-right-success.dhall"
+          checkFixture "spago-install-append-right-success.dhall"
+
+        it "append-left: [ \"actualDeps\" ] # otherDeps" $ do
+
+          spago ["init"] >>= shouldBeSuccess
+          spago ["install"] >>= shouldBeSuccess
+
+          spagoFileContent <- readFixture "spago-install-append-left-before.dhall"
+          writeTextFile "spago.dhall" spagoFileContent
+          spago ["-j 10", "install", "arrays"] >>= shouldBeSuccess
+          mv "spago.dhall" "spago-install-append-left-success.dhall"
+          checkFixture "spago-install-append-left-success.dhall"
+
+        it "append-middle: otherDeps1 # [ \"actualDeps\" ] # otherDeps2" $ do
+
+          spago ["init"] >>= shouldBeSuccess
+          spago ["install"] >>= shouldBeSuccess
+
+          spagoFileContent <- readFixture "spago-install-append-middle-before.dhall"
+          writeTextFile "spago.dhall" spagoFileContent
+          spago ["-j 10", "install", "arrays"] >>= shouldBeSuccess
+          mv "spago.dhall" "spago-install-append-middle-success.dhall"
+          checkFixture "spago-install-append-middle-success.dhall"
+
+        it "... and only dependencies not yet installed are actually installed" $ do
+
+          spago ["init"] >>= shouldBeSuccess
+          spago ["install"] >>= shouldBeSuccess
+
+          spagoFileContent <- readFixture "spago-install-append-some-before.dhall"
+          writeTextFile "spago.dhall" spagoFileContent
+          spago ["-j 10", "install", "console", "effect", "newtype" ] >>= shouldBeSuccess
+          mv "spago.dhall" "spago-install-append-some-before.dhall"
+          checkFixture "spago-install-append-some-success.dhall"
+
     it "Spago should not add dependencies that are not in the package set" $ do
 
       writeTextFile "psc-package.json" "{ \"name\": \"aaa\", \"depends\": [ \"prelude\" ], \"set\": \"foo\", \"source\": \"bar\" }"
