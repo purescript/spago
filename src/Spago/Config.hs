@@ -327,7 +327,19 @@ addRawDeps config newPackages expr = case NonEmpty.nonEmpty notInPackageSet of
     pure expr
   -- If none of the newPackages are outside of the set, add them to existing dependencies
   Nothing -> case expr of
-    Dhall.RecordLit kvs -> case Dhall.Map.lookup "dependencies" kvs of
+    Dhall.RecordLit kvs -> installDepsInRecordLitKey kvs
+    other -> pure other
+  where
+    Config { packageSet = PackageSet{..} } = config
+    notInPackageSet = filter (\p -> Map.notMember p packagesDB) newPackages
+
+    -- | Code from https://stackoverflow.com/questions/45757839
+    nubSeq :: Ord a => Seq a -> Seq a
+    nubSeq xs = (fmap fst . Seq.filter (uncurry notElem)) (Seq.zip xs seens)
+      where
+        seens = Seq.scanl (flip Set.insert) Set.empty xs
+
+    installDepsInRecordLitKey kvs = case Dhall.Map.lookup "dependencies" kvs of
       Just Dhall.RecordField { recordFieldValue }
         | Dhall.ListLit _ dependencies <- recordFieldValue -> do
             newListLit <- Dhall.ListLit Nothing <$> addDeps (Seq.fromList newPackages) dependencies
@@ -355,16 +367,6 @@ addRawDeps config newPackages expr = case NonEmpty.nonEmpty notInPackageSet of
       Nothing -> do
         logWarn "Failed to add dependencies. You should have a record with the `dependencies` key for this to work."
         pure expr
-    other -> pure other
-  where
-    Config { packageSet = PackageSet{..} } = config
-    notInPackageSet = filter (\p -> Map.notMember p packagesDB) newPackages
-
-    -- | Code from https://stackoverflow.com/questions/45757839
-    nubSeq :: Ord a => Seq a -> Seq a
-    nubSeq xs = (fmap fst . Seq.filter (uncurry notElem)) (Seq.zip xs seens)
-      where
-        seens = Seq.scanl (flip Set.insert) Set.empty xs
 
     -- |
     -- Adds the packages to the `ListLit`'s `Seq` argument
