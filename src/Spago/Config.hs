@@ -321,13 +321,13 @@ updateName newName (Dhall.RecordLit kvs)
 updateName _ other = other
 
 addRawDeps :: HasLogFunc env => Config -> [PackageName] -> Expr -> RIO env Expr
-addRawDeps config newPackages r@(Dhall.RecordLit kvs) = case NonEmpty.nonEmpty notInPackageSet of
+addRawDeps config newPackages r = case NonEmpty.nonEmpty notInPackageSet of
   Just pkgs -> do
     logWarn $ display $ Messages.failedToAddDeps $ NonEmpty.map packageName pkgs
     pure r
   -- If none of the newPackages are outside of the set, add them to existing dependencies
-  Nothing ->
-    case Dhall.Map.lookup "dependencies" kvs of
+  Nothing -> case r of
+    Dhall.RecordLit kvs -> case Dhall.Map.lookup "dependencies" kvs of
       Just Dhall.RecordField { recordFieldValue }
         | Dhall.ListLit _ dependencies <- recordFieldValue -> do
             newListLit <- Dhall.ListLit Nothing <$> addDeps (Seq.fromList newPackages) dependencies
@@ -370,6 +370,7 @@ addRawDeps config newPackages r@(Dhall.RecordLit kvs) = case NonEmpty.nonEmpty n
       Nothing -> do
         logWarn "Failed to add dependencies. You should have a record with the `dependencies` key for this to work."
         pure r
+    other -> pure other
   where
     Config { packageSet = PackageSet{..} } = config
     notInPackageSet = filter (\p -> Map.notMember p packagesDB) newPackages
@@ -404,7 +405,6 @@ addRawDeps config newPackages r@(Dhall.RecordLit kvs) = case NonEmpty.nonEmpty n
           Nothing -> do
             fmap (Dhall.ListAppend left) <$> traverseAddDeps newPackages' right
       _ -> pure Nothing
-addRawDeps _ _ other = pure other
 
 addSourcePaths :: Expr -> Expr
 addSourcePaths (Dhall.RecordLit kvs)
