@@ -128,6 +128,22 @@ spec = around_ setup $ do
         spago ["install"] >>= shouldBeSuccess
         spago ["install", "effect"] >>= shouldBeSuccessStderr "spago-install-existing-dep-stderr.txt"
 
+      it "... when a `list1 # list2` expression is used" $ do
+
+        spago ["init"] >>= shouldBeSuccess
+        spago ["-j 10", "install", "console", "prelude" ] >>= shouldBeSuccess
+
+        spagoFileContent <- readFixture "spago-install-append-no-op-success.dhall"
+        writeTextFile "spago.dhall" spagoFileContent
+        -- spago ["-j 10", "install", "console", "prelude"] >>= shouldBeFailureStderr "spago-install-existing-dep-stderr.txt"
+        spago ["-j 10", "install", "console", "prelude"] >>= \(_, _out, _err) -> do
+          putStrLn $ show _out
+          putStrLn $ show _err
+          -- shouldBeSuccessOutput "spago-install-existing-dep-stderr.txt"
+        -- spago ["-j 10", "install", "console", "prelude"] >>= shouldBeSuccess
+        mv "spago.dhall" "spago-install-append-no-op-success.dhall"
+        checkFixture "spago-install-append-no-op-success.dhall"
+
     it "Spago should strip 'purescript-' prefix and give warning if package without prefix is present in package set" $ do
 
       spago ["init"] >>= shouldBeSuccess
