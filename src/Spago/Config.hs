@@ -327,7 +327,8 @@ addRawDeps config newPackages expr = case NonEmpty.nonEmpty notInPackageSet of
     pure expr
   -- If none of the newPackages are outside of the set, add them to existing dependencies
   Nothing -> case expr of
-    Dhall.RecordLit kvs -> installDepsInRecordLitKey kvs
+    Dhall.RecordLit kvs -> installDepsInRecordLitKey Map.empty kvs
+    Dhall.Let Dhall.Binding { variable, value } inExpr -> installDepsInLet (Map.singleton variable value) inExpr
     other -> pure other
   where
     Config { packageSet = PackageSet{..} } = config
@@ -339,7 +340,14 @@ addRawDeps config newPackages expr = case NonEmpty.nonEmpty notInPackageSet of
       where
         seens = Seq.scanl (flip Set.insert) Set.empty xs
 
-    installDepsInRecordLitKey kvs = case Dhall.Map.lookup "dependencies" kvs of
+    installDepsInLet bindingsMap = \case
+      Dhall.RecordLit kvs -> do
+        installDepsInRecordLitKey bindingsMap kvs
+      Dhall.Let Dhall.Binding { variable, value } inExpr -> do
+        installDepsInLet (Map.insert variable value bindingsMap) inExpr
+      other -> pure other
+
+    installDepsInRecordLitKey bindingsMap kvs = case Dhall.Map.lookup "dependencies" kvs of
       Just Dhall.RecordField { recordFieldValue }
         | Dhall.ListLit _ dependencies <- recordFieldValue -> do
             newListLit <- Dhall.ListLit Nothing <$> addDeps (Seq.fromList newPackages) dependencies
@@ -348,7 +356,7 @@ addRawDeps config newPackages expr = case NonEmpty.nonEmpty notInPackageSet of
               $ flip (Dhall.Map.insert "dependencies") kvs
               $ Dhall.makeRecordField newListLit
         | oldListAppend@(Dhall.ListAppend left right) <- recordFieldValue -> do
-            allInstalledPkgs <- getInstalledPkgs oldListAppend
+            allInstalledPkgs <- getInstalledPkgs bindingsMap oldListAppend
             let
               pkgsToInstall = nubSeq $ Seq.filter (`notElem` allInstalledPkgs) $ Seq.fromList newPackages
             if null pkgsToInstall
@@ -381,9 +389,12 @@ addRawDeps config newPackages expr = case NonEmpty.nonEmpty notInPackageSet of
     -- |
     -- Gets all the packages currently installed in te configuration
     -- so the same package isn't installed multiple times.
-    getInstalledPkgs = \case
+    getInstalledPkgs bindingsMap = \case
       Dhall.ListLit _ dependencies -> fmap PackageName <$> traverse (throws . Dhall.fromTextLit) dependencies
-      Dhall.ListAppend left right -> (Seq.><) <$> getInstalledPkgs left <*> getInstalledPkgs right
+      Dhall.ListAppend left right -> (Seq.><) <$> getInstalledPkgs bindingsMap left <*> getInstalledPkgs bindingsMap right
+      Dhall.Var (Dhall.V variableName _) -> case Map.lookup variableName bindingsMap of
+        Just bindingExpr -> getInstalledPkgs bindingsMap bindingExpr
+        Nothing -> pure Seq.empty
       _ -> pure Seq.empty
 
     -- |
