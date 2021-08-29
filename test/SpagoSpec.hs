@@ -200,7 +200,7 @@ spec = around_ setup $ do
           spagoFileContent <- readFixture "spago-install-append-some-before.dhall"
           writeTextFile "spago.dhall" spagoFileContent
           spago ["-j 10", "install", "console", "effect", "newtype" ] >>= shouldBeSuccess
-          mv "spago.dhall" "spago-install-append-some-before.dhall"
+          mv "spago.dhall" "spago-install-append-some-success.dhall"
           checkFixture "spago-install-append-some-success.dhall"
 
     it "Spago should not add dependencies that are not in the package set" $ do
