@@ -337,28 +337,32 @@ addRawDeps config newPackages r@(Dhall.RecordLit kvs) = case NonEmpty.nonEmpty n
       | oldListAppend@(Dhall.ListAppend left right) <- recordFieldValue -> do
           allInstalledPkgs <- getInstalledPkgs oldListAppend
           let
-            pkgsToInstall = Seq.filter (`notElem` allInstalledPkgs) $ Seq.fromList newPackages
-          newListLit <- do
-            mbLeft <- traverseAddDeps pkgsToInstall left
-            case mbLeft of
-              Just l' -> do
-                pure $ Dhall.ListAppend l' right
-              Nothing -> do
-                mbRight <- traverseAddDeps pkgsToInstall right
-                case mbRight of
-                  Just r' -> do
-                    pure $ Dhall.ListAppend left r'
-                  Nothing -> do
-                    pure
-                      $ Dhall.ListAppend left
-                      $ Dhall.ListAppend right
-                      $ Dhall.ListLit Nothing
-                      $ fmap (Dhall.toTextLit . packageName)
-                      $ Seq.sort pkgsToInstall
-          pure
-            $ Dhall.RecordLit
-            $ flip (Dhall.Map.insert "dependencies") kvs
-            $ Dhall.makeRecordField newListLit
+            pkgsToInstall = nubSeq $ Seq.filter (`notElem` allInstalledPkgs) $ Seq.fromList newPackages
+          if null pkgsToInstall
+          then do
+            pure r
+          else do
+            newListAppend <- do
+              mbLeft <- traverseAddDeps pkgsToInstall left
+              case mbLeft of
+                Just l' -> do
+                  pure $ Dhall.ListAppend l' right
+                Nothing -> do
+                  mbRight <- traverseAddDeps pkgsToInstall right
+                  case mbRight of
+                    Just r' -> do
+                      pure $ Dhall.ListAppend left r'
+                    Nothing -> do
+                      pure
+                        $ Dhall.ListAppend left
+                        $ Dhall.ListAppend right
+                        $ Dhall.ListLit Nothing
+                        $ fmap (Dhall.toTextLit . packageName)
+                        $ Seq.sort pkgsToInstall
+            pure
+              $ Dhall.RecordLit
+              $ flip (Dhall.Map.insert "dependencies") kvs
+              $ Dhall.makeRecordField newListAppend
       where
         -- | Code from https://stackoverflow.com/questions/45757839
         nubSeq :: Ord a => Seq a -> Seq a
