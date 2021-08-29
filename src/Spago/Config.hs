@@ -363,38 +363,6 @@ addRawDeps config newPackages r@(Dhall.RecordLit kvs) = case NonEmpty.nonEmpty n
               $ Dhall.RecordLit
               $ flip (Dhall.Map.insert "dependencies") kvs
               $ Dhall.makeRecordField newListAppend
-      where
-        -- | Code from https://stackoverflow.com/questions/45757839
-        nubSeq :: Ord a => Seq a -> Seq a
-        nubSeq xs = (fmap fst . Seq.filter (uncurry notElem)) (Seq.zip xs seens)
-          where
-            seens = Seq.scanl (flip Set.insert) Set.empty xs
-
-        addDeps newPackages' dependencies = do
-          oldPackages <- fmap PackageName <$> traverse (throws . Dhall.fromTextLit) dependencies
-          let
-            newDependencies =
-              fmap (Dhall.toTextLit . packageName)
-                $ Seq.sort $ nubSeq (newPackages' <> oldPackages)
-          pure newDependencies
-
-        getInstalledPkgs = \case
-          Dhall.ListLit _ dependencies -> fmap PackageName <$> traverse (throws . Dhall.fromTextLit) dependencies
-          Dhall.ListAppend left right -> (Seq.><) <$> getInstalledPkgs left <*> getInstalledPkgs right
-          _ -> pure Seq.empty
-
-        traverseAddDeps newPackages' = \case
-          Dhall.ListLit _ dependencies -> do
-            Just . Dhall.ListLit Nothing <$> addDeps newPackages' dependencies
-          Dhall.ListAppend left right -> do
-            mbLeft <- traverseAddDeps newPackages' left
-            case mbLeft of
-              Just l' -> do
-                pure $ Just $ Dhall.ListAppend l' right
-              Nothing -> do
-                fmap (Dhall.ListAppend left) <$> traverseAddDeps newPackages' right
-          _ -> pure Nothing
-
     Just _ -> do
       logWarn "Failed to add dependencies. The `dependencies` field wasn't a List of Strings."
       pure r
@@ -404,6 +372,37 @@ addRawDeps config newPackages r@(Dhall.RecordLit kvs) = case NonEmpty.nonEmpty n
   where
     Config { packageSet = PackageSet{..} } = config
     notInPackageSet = filter (\p -> Map.notMember p packagesDB) newPackages
+
+    -- | Code from https://stackoverflow.com/questions/45757839
+    nubSeq :: Ord a => Seq a -> Seq a
+    nubSeq xs = (fmap fst . Seq.filter (uncurry notElem)) (Seq.zip xs seens)
+      where
+        seens = Seq.scanl (flip Set.insert) Set.empty xs
+
+    addDeps newPackages' dependencies = do
+      oldPackages <- fmap PackageName <$> traverse (throws . Dhall.fromTextLit) dependencies
+      let
+        newDependencies =
+          fmap (Dhall.toTextLit . packageName)
+            $ Seq.sort $ nubSeq (newPackages' <> oldPackages)
+      pure newDependencies
+
+    getInstalledPkgs = \case
+      Dhall.ListLit _ dependencies -> fmap PackageName <$> traverse (throws . Dhall.fromTextLit) dependencies
+      Dhall.ListAppend left right -> (Seq.><) <$> getInstalledPkgs left <*> getInstalledPkgs right
+      _ -> pure Seq.empty
+
+    traverseAddDeps newPackages' = \case
+      Dhall.ListLit _ dependencies -> do
+        Just . Dhall.ListLit Nothing <$> addDeps newPackages' dependencies
+      Dhall.ListAppend left right -> do
+        mbLeft <- traverseAddDeps newPackages' left
+        case mbLeft of
+          Just l' -> do
+            pure $ Just $ Dhall.ListAppend l' right
+          Nothing -> do
+            fmap (Dhall.ListAppend left) <$> traverseAddDeps newPackages' right
+      _ -> pure Nothing
 addRawDeps _ _ other = pure other
 
 addSourcePaths :: Expr -> Expr
