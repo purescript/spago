@@ -341,6 +341,7 @@ addRawDeps config newPackages expr = case NonEmpty.nonEmpty notInPackageSet of
               pkgsToInstall = nubSeq $ Seq.filter (`notElem` allInstalledPkgs) $ Seq.fromList newPackages
             if null pkgsToInstall
             then do
+              logWarn "Failed to add dependencies. All dependencies provided are already installed."
               pure expr
             else do
               newListAppend <- mkNewListAppend pkgsToInstall left right
