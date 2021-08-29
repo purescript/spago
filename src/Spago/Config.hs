@@ -326,49 +326,50 @@ addRawDeps config newPackages r@(Dhall.RecordLit kvs) = case NonEmpty.nonEmpty n
     logWarn $ display $ Messages.failedToAddDeps $ NonEmpty.map packageName pkgs
     pure r
   -- If none of the newPackages are outside of the set, add them to existing dependencies
-  Nothing -> case Dhall.Map.lookup "dependencies" kvs of
-    Just Dhall.RecordField { recordFieldValue }
-      | Dhall.ListLit _ dependencies <- recordFieldValue -> do
-          newListLit <- Dhall.ListLit Nothing <$> addDeps (Seq.fromList newPackages) dependencies
-          pure
-            $ Dhall.RecordLit
-            $ flip (Dhall.Map.insert "dependencies") kvs
-            $ Dhall.makeRecordField newListLit
-      | oldListAppend@(Dhall.ListAppend left right) <- recordFieldValue -> do
-          allInstalledPkgs <- getInstalledPkgs oldListAppend
-          let
-            pkgsToInstall = nubSeq $ Seq.filter (`notElem` allInstalledPkgs) $ Seq.fromList newPackages
-          if null pkgsToInstall
-          then do
-            pure r
-          else do
-            newListAppend <- do
-              mbLeft <- traverseAddDeps pkgsToInstall left
-              case mbLeft of
-                Just l' -> do
-                  pure $ Dhall.ListAppend l' right
-                Nothing -> do
-                  mbRight <- traverseAddDeps pkgsToInstall right
-                  case mbRight of
-                    Just r' -> do
-                      pure $ Dhall.ListAppend left r'
-                    Nothing -> do
-                      pure
-                        $ Dhall.ListAppend left
-                        $ Dhall.ListAppend right
-                        $ Dhall.ListLit Nothing
-                        $ fmap (Dhall.toTextLit . packageName)
-                        $ Seq.sort pkgsToInstall
+  Nothing ->
+    case Dhall.Map.lookup "dependencies" kvs of
+      Just Dhall.RecordField { recordFieldValue }
+        | Dhall.ListLit _ dependencies <- recordFieldValue -> do
+            newListLit <- Dhall.ListLit Nothing <$> addDeps (Seq.fromList newPackages) dependencies
             pure
               $ Dhall.RecordLit
               $ flip (Dhall.Map.insert "dependencies") kvs
-              $ Dhall.makeRecordField newListAppend
-    Just _ -> do
-      logWarn "Failed to add dependencies. The `dependencies` field wasn't a List of Strings."
-      pure r
-    Nothing -> do
-      logWarn "Failed to add dependencies. You should have a record with the `dependencies` key for this to work."
-      pure r
+              $ Dhall.makeRecordField newListLit
+        | oldListAppend@(Dhall.ListAppend left right) <- recordFieldValue -> do
+            allInstalledPkgs <- getInstalledPkgs oldListAppend
+            let
+              pkgsToInstall = nubSeq $ Seq.filter (`notElem` allInstalledPkgs) $ Seq.fromList newPackages
+            if null pkgsToInstall
+            then do
+              pure r
+            else do
+              newListAppend <- do
+                mbLeft <- traverseAddDeps pkgsToInstall left
+                case mbLeft of
+                  Just l' -> do
+                    pure $ Dhall.ListAppend l' right
+                  Nothing -> do
+                    mbRight <- traverseAddDeps pkgsToInstall right
+                    case mbRight of
+                      Just r' -> do
+                        pure $ Dhall.ListAppend left r'
+                      Nothing -> do
+                        pure
+                          $ Dhall.ListAppend left
+                          $ Dhall.ListAppend right
+                          $ Dhall.ListLit Nothing
+                          $ fmap (Dhall.toTextLit . packageName)
+                          $ Seq.sort pkgsToInstall
+              pure
+                $ Dhall.RecordLit
+                $ flip (Dhall.Map.insert "dependencies") kvs
+                $ Dhall.makeRecordField newListAppend
+      Just _ -> do
+        logWarn "Failed to add dependencies. The `dependencies` field wasn't a List of Strings."
+        pure r
+      Nothing -> do
+        logWarn "Failed to add dependencies. You should have a record with the `dependencies` key for this to work."
+        pure r
   where
     Config { packageSet = PackageSet{..} } = config
     notInPackageSet = filter (\p -> Map.notMember p packagesDB) newPackages
