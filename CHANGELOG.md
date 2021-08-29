@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Bugfixes:
 - Don't warn on unused deps when building --deps-only. (#794)
+- `spago install` works when using `list1 # [ "package"]` expressions (#815)
 
 ## [0.20.3] - 2021-05-12
 

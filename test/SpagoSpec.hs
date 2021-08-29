@@ -120,11 +120,29 @@ spec = around_ setup $ do
       threadDelay 1000000
       spago ["install", "-j", "10"] >>= shouldBeSuccess
 
-    it "Spago should warn that config was not changed, when trying to install package already present in project dependencies" $ do
+    describe "Spago should warn that config was not changed, when trying to install package already present in project dependencies" $ do
 
-      spago ["init"] >>= shouldBeSuccess
-      spago ["install"] >>= shouldBeSuccess
-      spago ["install", "effect"] >>= shouldBeSuccessStderr "spago-install-existing-dep-stderr.txt"
+      it "... when a `[ \"actualDependency\", ... ]` expression is used" $ do
+
+        spago ["init"] >>= shouldBeSuccess
+        spago ["install"] >>= shouldBeSuccess
+        spago ["install", "effect"] >>= shouldBeSuccessStderr "spago-install-existing-dep-stderr.txt"
+
+      it "... when a `list1 # list2` expression is used" $ do
+
+        spago ["init"] >>= shouldBeSuccess
+        spago ["-j 10", "install", "console", "prelude" ] >>= shouldBeSuccess
+
+        spagoFileContent <- readFixture "spago-install-append-no-op-success.dhall"
+        writeTextFile "spago.dhall" spagoFileContent
+        -- spago ["-j 10", "install", "console", "prelude"] >>= shouldBeFailureStderr "spago-install-existing-dep-stderr.txt"
+        spago ["-j 10", "install", "console", "prelude"] >>= \(_, _out, _err) -> do
+          putStrLn $ show _out
+          putStrLn $ show _err
+          -- shouldBeSuccessOutput "spago-install-existing-dep-stderr.txt"
+        -- spago ["-j 10", "install", "console", "prelude"] >>= shouldBeSuccess
+        mv "spago.dhall" "spago-install-append-no-op-success.dhall"
+        checkFixture "spago-install-append-no-op-success.dhall"
 
     it "Spago should strip 'purescript-' prefix and give warning if package without prefix is present in package set" $ do
 
@@ -134,13 +152,61 @@ spec = around_ setup $ do
       -- dep added without "purescript-" prefix
       checkFileHasInfix "spago.dhall" "\"newtype\""
 
-    it "Spago should be able to add dependencies" $ do
+    describe "Spago should be able to add dependencies" $ do
 
-      writeTextFile "psc-package.json" "{ \"name\": \"aaa\", \"depends\": [ \"prelude\" ], \"set\": \"foo\", \"source\": \"bar\" }"
-      spago ["init"] >>= shouldBeSuccess
-      spago ["-j 10", "install", "simple-json", "foreign"] >>= shouldBeSuccess
-      mv "spago.dhall" "spago-install-success.dhall"
-      checkFixture "spago-install-success.dhall"
+      it "... when a `[ \"actualDependency\", ... ]` expression is used" $ do
+
+        writeTextFile "psc-package.json" "{ \"name\": \"aaa\", \"depends\": [ \"prelude\" ], \"set\": \"foo\", \"source\": \"bar\" }"
+        spago ["init"] >>= shouldBeSuccess
+        spago ["-j 10", "install", "simple-json", "foreign"] >>= shouldBeSuccess
+        mv "spago.dhall" "spago-install-success.dhall"
+        checkFixture "spago-install-success.dhall"
+
+      describe "when a `list1 # list2` expression is used..." $ do
+
+        it "append-right: otherDeps # [ \"actualDeps\" ]" $ do
+
+          spago ["init"] >>= shouldBeSuccess
+          spago ["install"] >>= shouldBeSuccess
+
+          spagoFileContent <- readFixture "spago-install-append-right-before.dhall"
+          writeTextFile "spago.dhall" spagoFileContent
+          spago ["-j 10", "install", "arrays"] >>= shouldBeSuccess
+          mv "spago.dhall" "spago-install-append-right-success.dhall"
+          checkFixture "spago-install-append-right-success.dhall"
+
+        it "append-left: [ \"actualDeps\" ] # otherDeps" $ do
+
+          spago ["init"] >>= shouldBeSuccess
+          spago ["install"] >>= shouldBeSuccess
+
+          spagoFileContent <- readFixture "spago-install-append-left-before.dhall"
+          writeTextFile "spago.dhall" spagoFileContent
+          spago ["-j 10", "install", "arrays"] >>= shouldBeSuccess
+          mv "spago.dhall" "spago-install-append-left-success.dhall"
+          checkFixture "spago-install-append-left-success.dhall"
+
+        it "append-middle: otherDeps1 # [ \"actualDeps\" ] # otherDeps2" $ do
+
+          spago ["init"] >>= shouldBeSuccess
+          spago ["install"] >>= shouldBeSuccess
+
+          spagoFileContent <- readFixture "spago-install-append-middle-before.dhall"
+          writeTextFile "spago.dhall" spagoFileContent
+          spago ["-j 10", "install", "arrays"] >>= shouldBeSuccess
+          mv "spago.dhall" "spago-install-append-middle-success.dhall"
+          checkFixture "spago-install-append-middle-success.dhall"
+
+        it "... and only dependencies not yet installed are actually installed" $ do
+
+          spago ["init"] >>= shouldBeSuccess
+          spago ["install"] >>= shouldBeSuccess
+
+          spagoFileContent <- readFixture "spago-install-append-some-before.dhall"
+          writeTextFile "spago.dhall" spagoFileContent
+          spago ["-j 10", "install", "console", "effect", "newtype" ] >>= shouldBeSuccess
+          mv "spago.dhall" "spago-install-append-some-before.dhall"
+          checkFixture "spago-install-append-some-success.dhall"
 
     it "Spago should not add dependencies that are not in the package set" $ do
 
