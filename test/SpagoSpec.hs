@@ -120,11 +120,13 @@ spec = around_ setup $ do
       threadDelay 1000000
       spago ["install", "-j", "10"] >>= shouldBeSuccess
 
-    it "Spago should warn that config was not changed, when trying to install package already present in project dependencies" $ do
+    describe "Spago should warn that config was not changed, when trying to install package already present in project dependencies" $ do
 
-      spago ["init"] >>= shouldBeSuccess
-      spago ["install"] >>= shouldBeSuccess
-      spago ["install", "effect"] >>= shouldBeSuccessStderr "spago-install-existing-dep-stderr.txt"
+      it "... when a `[ \"actualDependency\", ... ]` expression is used" $ do
+
+        spago ["init"] >>= shouldBeSuccess
+        spago ["install"] >>= shouldBeSuccess
+        spago ["install", "effect"] >>= shouldBeSuccessStderr "spago-install-existing-dep-stderr.txt"
 
     it "Spago should strip 'purescript-' prefix and give warning if package without prefix is present in package set" $ do
 
@@ -134,13 +136,15 @@ spec = around_ setup $ do
       -- dep added without "purescript-" prefix
       checkFileHasInfix "spago.dhall" "\"newtype\""
 
-    it "Spago should be able to add dependencies" $ do
+    describe "Spago should be able to add dependencies" $ do
 
-      writeTextFile "psc-package.json" "{ \"name\": \"aaa\", \"depends\": [ \"prelude\" ], \"set\": \"foo\", \"source\": \"bar\" }"
-      spago ["init"] >>= shouldBeSuccess
-      spago ["-j 10", "install", "simple-json", "foreign"] >>= shouldBeSuccess
-      mv "spago.dhall" "spago-install-success.dhall"
-      checkFixture "spago-install-success.dhall"
+      it "... when a `[ \"actualDependency\", ... ]` expression is used" $ do
+
+        writeTextFile "psc-package.json" "{ \"name\": \"aaa\", \"depends\": [ \"prelude\" ], \"set\": \"foo\", \"source\": \"bar\" }"
+        spago ["init"] >>= shouldBeSuccess
+        spago ["-j 10", "install", "simple-json", "foreign"] >>= shouldBeSuccess
+        mv "spago.dhall" "spago-install-success.dhall"
+        checkFixture "spago-install-success.dhall"
 
     it "Spago should not add dependencies that are not in the package set" $ do
 
