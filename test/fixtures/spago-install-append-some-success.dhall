@@ -16,7 +16,9 @@ let otherDependencies2 = [ "effect" ]
 
 in  { name = "aaa"
     , dependencies =
-        otherDependencies1 # [ "newtype", "prelude", "psci-support" ] # otherDependencies2
+          otherDependencies1
+        # [ "newtype", "prelude", "psci-support" ]
+        # otherDependencies2
     , packages = ./packages.dhall
     , sources = [ "src/**/*.purs", "test/**/*.purs" ]
     }
