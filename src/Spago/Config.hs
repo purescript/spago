@@ -121,30 +121,38 @@ parseConfig = do
 
   ConfigPath path <- view (the @ConfigPath)
   expr <- liftIO $ Dhall.inputExpr $ "./" <> path
-  case expr of
-    Dhall.RecordLit ks' -> do
-      let ks = Dhall.extractRecordValues ks'
-      let sourcesType  = Dhall.list (Dhall.auto :: Dhall.Decoder SourcePath)
-      name              <- Dhall.requireTypedKey ks "name" Dhall.strictText
-      dependencies      <- Dhall.requireTypedKey ks "dependencies" dependenciesType
-      configSourcePaths <- Dhall.requireTypedKey ks "sources" sourcesType
-      alternateBackend  <- Dhall.maybeTypedKey ks "backend" Dhall.strictText
-
-      let ensurePublishConfig = do
-            publishLicense    <- Dhall.requireTypedKey ks "license" Dhall.strictText
-            publishRepository <- Dhall.requireTypedKey ks "repository" Dhall.strictText
-            pure PublishConfig{..}
-      publishConfig <- try ensurePublishConfig
-
-      packageSet <- Dhall.requireKey ks "packages" (\case
-        Dhall.RecordLit pkgs -> parsePackageSet (Dhall.extractRecordValues pkgs)
-        something            -> throwM $ Dhall.PackagesIsNotRecord something)
-
-      pure Config{..}
-    _ -> case Dhall.TypeCheck.typeOf expr of
+  mbConfig <- parseConfig' expr
+  case mbConfig of
+    Just config -> pure config
+    Nothing -> case Dhall.TypeCheck.typeOf expr of
       Right e  -> throwM $ Dhall.ConfigIsNotRecord e
       Left err -> throwM err
 
+parseConfig'
+  :: (HasLogFunc env)
+  => ResolvedExpr -> RIO env (Maybe Config)
+parseConfig' = \case
+  Dhall.RecordLit ks' -> do
+    let ks = Dhall.extractRecordValues ks'
+    let sourcesType  = Dhall.list (Dhall.auto :: Dhall.Decoder SourcePath)
+    name              <- Dhall.requireTypedKey ks "name" Dhall.strictText
+    dependencies      <- Dhall.requireTypedKey ks "dependencies" dependenciesType
+    configSourcePaths <- Dhall.requireTypedKey ks "sources" sourcesType
+    alternateBackend  <- Dhall.maybeTypedKey ks "backend" Dhall.strictText
+
+    let ensurePublishConfig = do
+          publishLicense    <- Dhall.requireTypedKey ks "license" Dhall.strictText
+          publishRepository <- Dhall.requireTypedKey ks "repository" Dhall.strictText
+          pure PublishConfig{..}
+    publishConfig <- try ensurePublishConfig
+
+    packageSet <- Dhall.requireKey ks "packages" (\case
+      Dhall.RecordLit pkgs -> parsePackageSet (Dhall.extractRecordValues pkgs)
+      something            -> throwM $ Dhall.PackagesIsNotRecord something)
+
+    pure $ Just Config{..}
+  _ ->
+    pure Nothing
 
 -- | Checks that the Spago config is there and readable
 ensureConfig
