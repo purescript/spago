@@ -550,7 +550,20 @@ addDependencies Config { packageSet = PackageSet{..} } newPackages = do
       logWarn $ display $ Messages.failedToAddDeps $ NonEmpty.map packageName pkgsNotInPackageSet
       pure False
     Nothing -> do
-      withRawConfigAST $ AST.addRawDeps newPackages
+      withRawConfigAST $ \resolvedExpr expr -> do
+        newExpr <- AST.addRawDeps newPackages resolvedExpr expr
+        -- Verify that returned expression can produce a `Config` value if parsed
+        -- before we return it.
+        normalizedExpr <- liftIO $ Dhall.inputExpr $ pretty newExpr
+        mbResult <- (Just newExpr <$ parseConfig' normalizedExpr) `catch` (\(_ :: SomeException) -> pure Nothing)
+        case mbResult of
+          Just validatedExpr -> do
+            pure validatedExpr
+          Nothing -> do
+            logWarn "Failed to add dependencies."
+            logDebug "Raw AST modification did not produce a valid `spago.dhall` file."
+            pure expr
+
   unless configHasChanged $
     logWarn "Configuration file was not updated."
   where

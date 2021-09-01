@@ -140,6 +140,9 @@ addRawDeps newPackages normalizedExpr originalExpr = do
 -- - Nothing = the attempted update failed
 -- - Just Right = the attempted update succeeded
 -- - Just Left = the attempted update should succeed, but we need to update the binding, not the expression.
+--
+-- Since this is modifying the raw AST and might produce an invalid configuration file,
+-- the returned expression should be verified to produce a valid configuration format.
 addRawDeps' :: HasLogFunc env => Seq Expr -> Expr -> RIO env Expr
 addRawDeps' pkgsToInstall originalExpr = do
   result <- updateRootLevelExpr originalExpr
@@ -147,7 +150,6 @@ addRawDeps' pkgsToInstall originalExpr = do
     Just newExpr -> do
       pure newExpr
     Nothing -> do
-      logWarn "Failed to add dependencies."
       pure originalExpr
   where
     -- |
