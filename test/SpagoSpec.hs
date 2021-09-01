@@ -270,8 +270,12 @@ spec = around_ setup $ do
       spago ["init"] >>= shouldBeSuccess
       writeTextFile "alternative2.dhall" "./spago.dhall // { sources = [ \"src/**/*.purs\" ] }\n"
       spago ["-x", "alternative2.dhall", "install", "simple-json"] >>= shouldBeSuccess
-      spago ["-x", "alternative2.dhall", "install", "simple-json"] >>= shouldBeSuccessStderr "alternative2install-stderr.txt"
-      checkFixture "alternative2.dhall"
+      cp "alternative2.dhall" "alternative2-post-install.dhall"
+      checkFixture "alternative2-post-install.dhall"
+      rm "alternative2-post-install.dhall"
+      spago ["-x", "alternative2.dhall", "install", "simple-json"] >>= shouldBeSuccessStderr "alternative2-post-install2-stderr.txt"
+      cp "alternative2.dhall" "alternative2-post-install.dhall"
+      checkFixture "alternative2-post-install.dhall"
 
     it "Spago should install successfully when there are local dependencies sharing the same packages.dhall" $ do
 
