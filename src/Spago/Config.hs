@@ -31,6 +31,7 @@ import qualified Web.Bower.PackageMeta as Bower
 
 import qualified Spago.Dhall           as Dhall
 import qualified Spago.Messages        as Messages
+import qualified Spago.Config.AST      as AST
 import qualified Spago.PackageSet      as PackageSet
 import qualified Spago.PscPackage      as PscPackage
 import qualified Spago.Templates       as Templates
@@ -496,16 +497,17 @@ withConfigAST transform = do
 --   on the current config. If it succeeds, it writes back to file the result returned.
 --   Note: it will pass in the parsed AST, not the resolved one (so e.g. imports will
 --   still be in the tree). If you need the resolved one, use `ensureConfig`.
-withConfigAST'
+withRawConfigAST
   :: (HasLogFunc env, HasConfigPath env)
-  => (Expr -> RIO env Expr) -> RIO env Bool
-withConfigAST' transform = do
+  => (ResolvedExpr -> Expr -> RIO env Expr) -> RIO env Bool
+withRawConfigAST transform = do
   ConfigPath path <- view (the @ConfigPath)
   rawConfig <- liftIO $ Dhall.readRawExpr path
+  normalizedExpr <- liftIO $ Dhall.inputExpr $ "./" <> path
   case rawConfig of
     Nothing -> die [ display $ Messages.cannotFindConfig path ]
     Just (header, expr) -> do
-      newExpr <- transform $ Dhall.Core.denote expr
+      newExpr <- transform normalizedExpr $ Dhall.Core.denote expr
       -- Write the new expression only if it has actually changed
       let exprHasChanged = Dhall.Core.denote expr /= newExpr
       if exprHasChanged
@@ -534,7 +536,14 @@ addDependencies
   :: (HasLogFunc env, HasConfigPath env)
   => Config -> [PackageName] 
   -> RIO env ()
-addDependencies config newPackages = do
-  configHasChanged <- withConfigAST' $ addRawDeps config newPackages
+addDependencies Config { packageSet = PackageSet{..} } newPackages = do
+  configHasChanged <- case NonEmpty.nonEmpty notInPackageSet of
+    Just pkgsNotInPackageSet -> do
+      logWarn $ display $ Messages.failedToAddDeps $ NonEmpty.map packageName pkgsNotInPackageSet
+      pure False
+    Nothing -> do
+      withRawConfigAST $ AST.addRawDeps newPackages
   unless configHasChanged $
     logWarn "Configuration file was not updated."
+  where
+    notInPackageSet = filter (\p -> Map.notMember p packagesDB) newPackages
