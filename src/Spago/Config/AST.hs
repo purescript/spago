@@ -155,6 +155,11 @@ addRawDeps' pkgsToInstall originalExpr = do
     updateDependencies :: Seq Expr -> Seq Expr
     updateDependencies dependencies = Seq.sort (pkgsToInstall <> dependencies)
 
+    isEmbed :: Expr -> Bool
+    isEmbed = \case
+      Dhall.Embed _ -> True
+      _ -> False
+
     -- | Updates a "root-level" expression
     updateRootLevelExpr :: HasLogFunc env => Expr -> RIO env (Maybe Expr)
     updateRootLevelExpr expr = case expr of
@@ -194,13 +199,51 @@ addRawDeps' pkgsToInstall originalExpr = do
         mbRight <- updateRootLevelExpr right
         case mbRight of
           Just newRight -> pure $ Just $ Dhall.Prefer charSet preferAnn left newRight
-          Nothing -> do
-            fmap (\newLeft -> Dhall.Prefer charSet preferAnn newLeft right) <$> updateRootLevelExpr left
+          Nothing
+            | isEmbed left -> do
+                --    ./spago.dhall // recordExpr
+                -- becomes
+                --    let __embed = .spago.dhall
+                --    in __embed // recordExpr // { dependencies = __embed.dependencies # <pkgsToInstall> }
+                let
+                  varName = "__embed"
+                  var = Dhall.Var (Dhall.V varName 0)
+                pure $ Just $ Dhall.Let (Dhall.makeBinding varName left)
+                  (Dhall.Prefer charSet preferAnn  var
+                    $ Dhall.Prefer charSet Dhall.PreferFromSource right
+                    $ Dhall.RecordLit
+                    $ Dhall.Map.singleton "dependencies"
+                    $ Dhall.makeRecordField
+                    $ Dhall.ListAppend
+                        (Dhall.Field var (Dhall.makeFieldSelection "dependencies"))
+                        (Dhall.ListLit Nothing $ updateDependencies Seq.empty)
+                    )
+            | otherwise -> do
+                fmap (\newLeft -> Dhall.Prefer charSet preferAnn newLeft right) <$> updateRootLevelExpr left
 
       -- recordExpr with field1.field2.field3 = update
       Dhall.With recordExpr field update
         | field == "dependencies" :| [] -> do
             fmap (\newUpdate -> Dhall.With recordExpr field newUpdate) <$> updateLeafExpr Map.empty update
+        | isEmbed recordExpr -> do
+            --    ./spago.dhall with sources = [ "bar" ]
+                -- becomes
+                --    let __embed = .spago.dhall
+                --    in __embed with sources = [ "bar"] with dependencies = __embed.dependencies # <pkgsToInstall>
+                let
+                  varName = "__embed"
+                  var = Dhall.Var (Dhall.V varName 0)
+                pure $ Just $ Dhall.Let (Dhall.makeBinding varName recordExpr)
+                  (Dhall.With 
+                    (Dhall.With var field update)
+                    ("dependencies" :| [])
+                    $ Dhall.RecordLit
+                    $ Dhall.Map.singleton "dependencies"
+                    $ Dhall.makeRecordField
+                    $ Dhall.ListAppend
+                        (Dhall.Field var (Dhall.makeFieldSelection "dependencies"))
+                        (Dhall.ListLit Nothing $ updateDependencies Seq.empty)
+                    )
         | otherwise -> do
             fmap (\newRecordExpr -> Dhall.With newRecordExpr field update) <$> updateRootLevelExpr recordExpr
 
