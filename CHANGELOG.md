@@ -9,7 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Bugfixes:
 - Don't warn on unused deps when building --deps-only. (#794)
-- `spago install` works when using `list1 # [ "package"]` expressions (#815)
+- Make `spago install` work on more advanced Dhall expressions (#815)
+
+  - Support `ListAppend`: `{ dependencies = list1 # [ "package"] }`
+  - Support `Prefer`: `let config = ... in config // { dependencies = config.dependencies # [ "foo" ] }`
+  - Support `With`: `let config = ... in config with dependencies = config.dependencies # [ "foo" ]`
+  - Support `Field`: `let multiConfig = ... in multiConfig.thisProjectConfig`
+  - Support `Let`: `let config = ... in config`
+  - Support `Embed`: `./spago.dhall`
+  - Support `Var`: `let deps = ... in { ..., dependencies = deps }`
 
 ## [0.20.3] - 2021-05-12
 
