@@ -53,6 +53,12 @@ addRawDeps newPackages normalizedExpr originalExpr = do
       else do
         addRawDeps' (Dhall.toTextLit . packageName <$> pkgsToInstall) originalExpr
   where
+    -- | Code from https://stackoverflow.com/questions/45757839
+    nubSeq :: Ord a => Seq a -> Seq a
+    nubSeq xs = (fmap fst . Seq.filter (uncurry notElem)) (Seq.zip xs seens)
+      where
+        seens = Seq.scanl (flip Set.insert) Set.empty xs
+
     findInstalledPackages :: HasLogFunc env => RIO env (Maybe (Seq PackageName))
     findInstalledPackages = case normalizedExpr of
       Dhall.RecordLit kvs -> case Dhall.Map.lookup "dependencies" kvs of
@@ -656,9 +662,3 @@ addRawDeps' pkgsToInstall originalExpr = do
 
       _ -> do
         pure Nothing
-
--- | Code from https://stackoverflow.com/questions/45757839
-nubSeq :: Ord a => Seq a -> Seq a
-nubSeq xs = (fmap fst . Seq.filter (uncurry notElem)) (Seq.zip xs seens)
-  where
-    seens = Seq.scanl (flip Set.insert) Set.empty xs
