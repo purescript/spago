@@ -7,10 +7,8 @@ module Spago.Config.AST
 import           Spago.Prelude
 import           Spago.Env
 
-import qualified Data.Map              as Map
 import qualified Data.Sequence         as Seq
 import qualified Data.Set              as Set
-import qualified Data.Text             as Text
 import qualified Dhall.Core
 import qualified Dhall.Map
 import qualified Dhall.Parser          as Parser
@@ -36,8 +34,11 @@ type ResolvedExpr = Dhall.Expr Parser.Src Void
 --
 -- Second, by confirming below that the normalized expression found in the `spago.dhall` file
 -- IS a `RecordLit` with a `dependencies` field, we can make some assumptions about
--- the `Expr` passed into `addRawDeps'` and avoid handling some cases. In other words,
--- `addRawDeps'` can actually succeed for the cases we support.
+-- the `Expr` passed into `addRawDeps'`. For example, we don't need to know what `Embed` cases
+-- are because we can infer based on where we are in the expression whether they are a
+-- Record expression with a "dependencies" key or a List expression.
+--
+-- In other words, `addRawDeps'` can actually succeed for the cases we support.
 addRawDeps :: HasLogFunc env => [PackageName] -> ResolvedExpr -> Expr -> RIO env Expr
 addRawDeps newPackages normalizedExpr originalExpr = do
   mbAllInstalledPkgs <- findInstalledPackages
@@ -72,29 +73,56 @@ addRawDeps newPackages normalizedExpr originalExpr = do
           "Failed to add dependencies. You should have a record with the `dependencies` key for this to work.\n" <>
           "Expression was: " <> pretty e
 
+-- | Indicates where we are in the expresion
+data ExprLevel
+  = AtRootExpression
+  -- ^ The outermost expression
+  | SearchingForDependenciesField ![Text]
+  -- ^ An expression within the root expression
+  --   where we still haven't found the record with the
+  --   `dependencies` field key.
+  --   The list of Text values is a stack of keys. We use
+  --   the key on the head of the list when we encounter a
+  --   `RecordLit` to loookup a field within that record.
+  --   `Field` pushes new keys on top of the stack
+  --   `RecordLit` looks up those fields and drops the keys on the stack
+  --   Transitioning from `AtRootExpression` to `SearchingForDependenciesField`
+  --   should therefore always have `"dependencies"` at the bottom of the stack.
+  | WithinDependenciesField
+  -- ^ This expression is the value associated with the `dependencies` field.
+  --   It must be a `List`-like structure, so immediately append the new packages
+  --   to the expression via a `ListAppend` or merge `ListLit`s together
+  --   if it's a `ListAppend`.
+  deriving (Eq, Show)
+
+data UpdateResult
+  = Updated !Expr
+  -- ^ The expression was succesfully updated with the new packages
+  | VariableName !Text
+  -- ^ The expression to update is the binding value with this name
+  | EncounteredEmbed
+  -- ^ We encountered an `Embed` constructor. We can make only
+  --   two assumptions about it:
+  --    1. If we are `WithinDependenciesField`, then this must be an
+  --       expression that produces a `List`-like structure.
+  --    2. We are NOT `WithinDependenciesField`, then this must be an
+  --       expression that produces a `Record`-like Config-schema structure.
+  --       Thus, a "dependencies" key should exist. If it doesn't, the
+  --       Dhall expression is invalid (as verified by our prior normalized expression)
+
+-- |
+-- Basically `fmap` but only for the `Updated` case.
+mapUpdated :: (Expr -> Expr) -> UpdateResult -> UpdateResult
+mapUpdated f (Updated e) = Updated (f e)
+mapUpdated _ other = other
+
 -- |
 -- A Configuration's Dhall expression is anything that, when normalized, produces a
 -- "record expression" whose `dependencies` key contains a "list expression" of text that
 -- corresponds to package names.
 --
--- Below is an explanation of terms used in the code below. In short, is our current position
--- within the Dhall expression "before" or "after" the "dependencies" key and are we inside
--- or outside a "let binding" expression?
--- - Root Level = the outermost/topmost expression(s) where we haven't
---     discovered the "record expression" containing the "dependencies" key
---     and haven't discovered a "let binding" expression.
--- - Leaf Level = we found the "record expression" containing the "dependencies" key
---     and are now within it. There are no "let binding" expressions that may force us
---     to travere back "out" of the expression to do the update.
--- - Recursive Level = we found a "let binding" expression before discovering
---     the "record expression" with the "dependencies" key. Once in this level, if we
---     later enter the Leaf Level, we may have to back "out" of the Leaf Level
---     to find the correct expression to update. Once found, we may enter
---     the correct expression as though it was a Root Level and may need to back "out"
---     again in case its expression refers to another even earlier binding.
---
 -- To make this implementation cover most of the usual cases while still making this simple,
--- the following cases will NOT be supported at both the root and leaf levels:
+-- the following cases will NOT be supported:
 -- - Lam binding expr - `λ(binding : Text) -> { dependencies = [ x ] }`
 --     Although a `Lam` can't be a root-level expression, it could still appear in various places.
 --     We could try to update the function's body, but without greater context, it's possible
@@ -109,8 +137,24 @@ addRawDeps newPackages normalizedExpr originalExpr = do
 --     and requires a bit more work due to the type for `keys`, we won't support it below.
 --
 -- The below cases will be supported. Each is described below with a small description of how to update them:
--- - RecordLit - `{ dependencies = ["bar"] }`
---     This is ultimately what we're looking for, so we can update the `dependencies`' field's list
+-- - Embed _ - `./spago.dhall`
+--     This refers to another Dhall expression elssewhere. Without normalizing it, we don't know what it is
+--     but we can make assumptions about it. See the `EncounteredEmbed` constructor for `UpdateResult`.
+-- - ListLit - ["a", "literal", "list", "of", "values"]
+--     This is what will often be the expression associated with the "dependencies" key.
+--     Updating it merely means adding the new packages to its list.
+-- - ListAppend - `["list1"] # ["list2"]`
+--     Similar to `ListLit` except it appends two list expressions together.
+--     If it doesn't contain a `ListLit` (e.g. `expr1 # expr2`), we can wrap the entire
+--     expression in a `ListAppend originalExpr listExprWithNewPkgs`.
+-- - RecordLit - `{ key = value }`
+--     This is ultimately what we're looking for, so we can update the `dependencies`' field's list.
+--     However, due to supporting `Field`, which selects values within a record,
+--     we need to support looking up other keys besides the "dependencies" key.
+-- - Field recordExpr selection - `{ key = { dependencies = ["bar"] } }.key`
+--     This can produce a record expression. Depending on the record expression,
+--     we might need to update the values within the record expression
+--     that are ultimately exposed via the key (e.g. `{ config = { ..., dependencies = []} }.config`)
 -- - Prefer recordExpr overrides - `{ dependencies = ["foo"] } // { dependencies = ["bar"] }`
 --     This produces a record expression. If we update the `recordExpr`
 --     arg and its `dependencies` is overridden by `overrides`, then the update is pointless.
@@ -120,36 +164,23 @@ addRawDeps newPackages normalizedExpr originalExpr = do
 -- - With recordExpr field update - `{ dependencies = ["foo"] } with dependencies = ["bar"]`
 --     This produces a record expression. Similar to `Prefer`,
 --     we should attempt to update the `update` value first before attempting to update `recordExpr`.
--- - Field recordExpr selection - `{ key = { dependencies = ["bar"] } }.key`
---     This can produce a record expression. If the expression can be updated, then we try to update it.
 -- - Let binding expr - `let binding = value in expr`
---     This expression is what makes implementing this update difficult. The record
---     will most likely be in `expr` (e.g. `let pkg = "foo" in { dependencies = [ pkg ] }`),
---     so updating it should be straight forward. However, it can also exist in the binding
+--     The expression we need to update will often be in the `expr` (i.e. after the 'in' keyword;
+--     ``let src = [ "src" ] in { ..., dependencies = [ "old" ], sources = src }`).
+--     However, we might need to update the expression associated with the bound variable name.
 --     (e.g. `let config = { dependencies = [ "foo" ] } in config`). We won't know
---     until we have reached the terminating record expression before finding out that
+--     until we have looked at what the "dependencies" key refers to before finding out that
 --     the binding for the variable name `config` is what we need to update.
---
--- When attempting to update an expression not in a "let binding" expression,
--- we typically return `Maybe Expr`:
--- - Nothing = the attempted update failed
--- - Just = the attempted update succeeded
---
--- When attempting to update an expression within a "let binding" expression,
--- we return `Maybe (Either Text expr)`:
--- - Nothing = the attempted update failed
--- - Just Right = the attempted update succeeded
--- - Just Left = the attempted update should succeed, but we need to update the binding, not the expression.
 --
 -- Since this is modifying the raw AST and might produce an invalid configuration file,
 -- the returned expression should be verified to produce a valid configuration format.
 addRawDeps' :: HasLogFunc env => Seq Expr -> Expr -> RIO env Expr
 addRawDeps' pkgsToInstall originalExpr = do
-  result <- updateRootLevelExpr originalExpr
+  result <- updateExpr AtRootExpression originalExpr
   case result of
-    Just newExpr -> do
+    Just (Updated newExpr) -> do
       pure newExpr
-    Nothing -> do
+    _ -> do
       pure originalExpr
   where
     -- |
@@ -157,325 +188,457 @@ addRawDeps' pkgsToInstall originalExpr = do
     updateDependencies :: Seq Expr -> Seq Expr
     updateDependencies dependencies = Seq.sort (pkgsToInstall <> dependencies)
 
-    isEmbed :: Expr -> Bool
-    isEmbed = \case
-      Dhall.Embed _ -> True
-      _ -> False
-
-    -- | Updates a "root-level" expression
-    updateRootLevelExpr :: HasLogFunc env => Expr -> RIO env (Maybe Expr)
-    updateRootLevelExpr expr = case expr of
-      -- { key = value, ... }
-      Dhall.RecordLit kvs -> do
-        case Dhall.Map.lookup "dependencies" kvs of
-          Nothing -> do
-            pure Nothing
-          Just Dhall.RecordField { recordFieldValue } -> do
-            let
-              updateRecordLit =
-                Dhall.RecordLit
-                  . flip (Dhall.Map.insert "dependencies") kvs
-                  . Dhall.makeRecordField
-
-            fmap updateRecordLit <$> updateLeafExpr Map.empty recordFieldValue
-
-      -- recordExpr.selection
-      Dhall.Field fieldExpr selection@Dhall.FieldSelection { fieldSelectionLabel } -> do
-        case fieldExpr of
-          Dhall.RecordLit kvs -> 
-            case Dhall.Map.lookup fieldSelectionLabel kvs of
-              Just Dhall.RecordField { recordFieldValue } -> do
-                let
-                  rewrapInRecordLit =
-                    Dhall.RecordLit
-                      . flip (Dhall.Map.insert fieldSelectionLabel) kvs
-                      . Dhall.makeRecordField
-                fmap ((\x -> Dhall.Field x selection) . rewrapInRecordLit) <$> updateRootLevelExpr recordFieldValue
-              Nothing -> do
-                pure Nothing
-          _ -> do
-            pure Nothing
-
-      -- left // right
-      Dhall.Prefer charSet preferAnn left right -> do
-        mbRight <- updateRootLevelExpr right
-        case mbRight of
-          Just newRight -> pure $ Just $ Dhall.Prefer charSet preferAnn left newRight
-          Nothing
-            | isEmbed left -> do
-                --    ./spago.dhall // recordExpr
-                -- becomes
-                --    let __embed = .spago.dhall
-                --    in __embed // recordExpr // { dependencies = __embed.dependencies # <pkgsToInstall> }
-                let
-                  varName = "__embed"
-                  var = Dhall.Var (Dhall.V varName 0)
-                pure $ Just $ Dhall.Let (Dhall.makeBinding varName left)
-                  (Dhall.Prefer charSet preferAnn  var
-                    $ Dhall.Prefer charSet Dhall.PreferFromSource right
-                    $ Dhall.RecordLit
-                    $ Dhall.Map.singleton "dependencies"
-                    $ Dhall.makeRecordField
-                    $ Dhall.ListAppend
-                        (Dhall.Field var (Dhall.makeFieldSelection "dependencies"))
-                        (Dhall.ListLit Nothing $ updateDependencies Seq.empty)
-                    )
-            | otherwise -> do
-                fmap (\newLeft -> Dhall.Prefer charSet preferAnn newLeft right) <$> updateRootLevelExpr left
-
-      -- recordExpr with field1.field2.field3 = update
-      Dhall.With recordExpr field update
-        | field == "dependencies" :| [] -> do
-            fmap (\newUpdate -> Dhall.With recordExpr field newUpdate) <$> updateLeafExpr Map.empty update
-        | isEmbed recordExpr -> do
-            --    ./spago.dhall with sources = [ "bar" ]
-                -- becomes
-                --    let __embed = .spago.dhall
-                --    in __embed with sources = [ "bar"] with dependencies = __embed.dependencies # <pkgsToInstall>
-                let
-                  varName = "__embed"
-                  var = Dhall.Var (Dhall.V varName 0)
-                pure $ Just $ Dhall.Let (Dhall.makeBinding varName recordExpr)
-                  (Dhall.With 
-                    (Dhall.With var field update)
-                    ("dependencies" :| [])
-                    $ Dhall.RecordLit
-                    $ Dhall.Map.singleton "dependencies"
-                    $ Dhall.makeRecordField
-                    $ Dhall.ListAppend
-                        (Dhall.Field var (Dhall.makeFieldSelection "dependencies"))
-                        (Dhall.ListLit Nothing $ updateDependencies Seq.empty)
-                    )
-        | otherwise -> do
-            fmap (\newRecordExpr -> Dhall.With newRecordExpr field update) <$> updateRootLevelExpr recordExpr
-
-      Dhall.Let binding@Dhall.Binding { variable, value } inExpr -> do
-        result <- updateRecursiveExpr (Map.singleton variable value) inExpr
-        case result of
-          Nothing -> pure Nothing
-          Just update -> case update of
-            Right newInExpr -> pure $ Just $ Dhall.Let binding newInExpr
-            Left varName
-              | varName == variable -> do
-                  fmap (\newValue -> Dhall.Let (Dhall.makeBinding variable newValue) inExpr) <$> updateRootLevelExpr value
-              | otherwise -> do
-                  pure Nothing
-
-      other -> do
-        logWarn $ display $ Text.intercalate "\n"
-          [ "Failed to add dependencies."
-          , ""
-          , "Expected a top-level expression that produces a record with a `dependencies` key."
-          , ""
-          , "Valid top-level expressions are:"
-          , " - RecordLit - `{ key = value, ... }`"
-          , " - Let - `let binding = value in expr`"
-          , " - Prefer - `expr1 // expr2`"
-          , " - With - `expr1 with expr2`"
-          , " - Field - `expr.value`"
-          , ""
-          , "Invalid top-level expressions include but are not limited to: "
-          , " - Lam - λ(x : A) -> x (doesn't produce a Record-like expression)"
-          , " - App - `(λ(x : A) -> x) 4` (it's safer to let the user handle these unique cases)"
-          , " - Project - `{ key1 = value1, key2 = value2}.{ key }` (less frequently used)"
-          , ""
-          , "Top-level expression was: " <> pretty other
-          ]
-        pure Nothing
-
     -- |
-    -- Same as `updateRootExpr` but
-    -- - has a `Dhall.Var` case
-    -- - includes a `bindingsMap` argument
-    -- - uses `updateLeafLetBinding` rather than `updateLeafExpr`
-    --     so that we return `Maybe (Either Text Expr)` rather than `Maybe Expr`
-    updateRecursiveExpr :: Map Text Expr -> Expr -> RIO env (Maybe (Either Text Expr))
-    updateRecursiveExpr bindingsMap expr = case expr of
-      Dhall.Var (Dhall.V varName _) -> do
-        pure $ Just $ Left varName
+    -- Removes some boilerplate: changes `expr` to `expr # ["new"]`
+    updateByWrappingListAppend :: Expr -> Expr
+    updateByWrappingListAppend expr =
+      Dhall.ListAppend expr $ Dhall.ListLit Nothing $ updateDependencies Seq.empty
 
-      -- { key = value, ... }
-      Dhall.RecordLit kvs -> do
-        case Dhall.Map.lookup "dependencies" kvs of
-          Nothing -> do
-            pure Nothing
-          Just Dhall.RecordField { recordFieldValue } -> do
-            let
-              updateRecordLit =
-                Dhall.RecordLit
-                  . flip (Dhall.Map.insert "dependencies") kvs
-                  . Dhall.makeRecordField
-
-            fmap (fmap updateRecordLit) <$> updateLeafLetBinding bindingsMap recordFieldValue
-
-      Dhall.Field fieldExpr selection@Dhall.FieldSelection { fieldSelectionLabel } -> do
-        case fieldExpr of
-          Dhall.RecordLit kvs ->
-            case Dhall.Map.lookup fieldSelectionLabel kvs of
-              Just Dhall.RecordField { recordFieldValue } -> do
-                let
-                  rewrapInRecordLit =
-                    Dhall.RecordLit
-                      . flip (Dhall.Map.insert fieldSelectionLabel) kvs
-                      . Dhall.makeRecordField
-                fmap (fmap ((\x -> Dhall.Field x selection) . rewrapInRecordLit)) <$> updateRecursiveExpr bindingsMap recordFieldValue
-              Nothing -> do
-                pure Nothing
-          _ -> do
-            pure Nothing
-
-      Dhall.Prefer charSet preferAnn left right -> do
-        mbRight <- updateRecursiveExpr bindingsMap right
-        case mbRight of
-          Just (Right newRight) -> do
-            pure $ Just $ Right $ Dhall.Prefer charSet preferAnn left newRight
-          Just (Left _) -> do
-            pure Nothing
-          Nothing -> do
-            fmap (fmap (\newLeft -> Dhall.Prefer charSet preferAnn newLeft right)) <$> updateRecursiveExpr bindingsMap left
-
-      Dhall.With recordExpr field update
-        | field == "dependencies" :| [] -> do
-            -- fmap (\newUpdate -> Dhall.With recordExpr field newUpdate) <$> updateLeafExpr Map.empty update
-            pure Nothing
-        | otherwise -> do
-            fmap (fmap (\newRecordExpr -> Dhall.With newRecordExpr field update)) <$> updateRecursiveExpr bindingsMap recordExpr
-
-      Dhall.Let binding@Dhall.Binding { variable, value } inExpr -> do
-        result <- updateRecursiveExpr (Map.insert variable value bindingsMap) inExpr
-        case result of
-          Nothing -> pure Nothing
-          Just update -> case update of
-            Right newInExpr -> pure $ Just $ Right $ Dhall.Let binding newInExpr
-            l@(Left varName)
-              | varName == variable -> do
-                  fmap (\newValue -> Right $ Dhall.Let (Dhall.makeBinding variable newValue) inExpr) <$> updateLeafExpr bindingsMap value
-              | otherwise -> do
-                  pure $ Just l
-
-      _ -> pure Nothing
-
-    -- |
-    -- Handles the update that installs the packages to the correct location
-    -- within the Dhall AST
-    --
-    -- Is pretty much the same as `updateRootLevelExpr` but
-    -- doesn't have a `RecordLit` case.
-    updateLeafExpr :: Map Text Expr -> Expr -> RIO env (Maybe Expr)
-    updateLeafExpr bindingsMap expr = case expr of
-      Dhall.ListLit ty dependencies -> do
-        pure $ Just $ Dhall.ListLit ty $ updateDependencies dependencies
-
-      Dhall.ListAppend l r -> do
-        let
-          result = (\left -> Dhall.ListAppend left r) <$> updateListAppend l
-            <|> (\right -> Dhall.ListAppend l right) <$> updateListAppend r
-
-        pure $ case result of
-          Just listAppend ->
-            Just listAppend
-          Nothing ->
-            Just
-            $ Dhall.ListAppend l
-            $ Dhall.ListAppend r
-            $ Dhall.ListLit Nothing $ updateDependencies Seq.empty
-
-      Dhall.Field fieldExpr selection@Dhall.FieldSelection { fieldSelectionLabel } -> do
-        case fieldExpr of
-          Dhall.RecordLit kvs ->
-            case Dhall.Map.lookup fieldSelectionLabel kvs of
-              Just Dhall.RecordField { recordFieldValue } -> do
-                let
-                  rewrapResult =
-                    Dhall.RecordLit
-                      . flip (Dhall.Map.insert fieldSelectionLabel) kvs
-                      . Dhall.makeRecordField
-                fmap (\newFieldExpr -> Dhall.Field (rewrapResult newFieldExpr) selection) <$> updateLeafExpr bindingsMap recordFieldValue
-
-              _ -> pure Nothing
-
-          _ -> pure Nothing
-
-      Dhall.Let binding@Dhall.Binding { variable, value } inExpr -> do
-        result <- updateLeafLetBinding (Map.insert variable value bindingsMap) inExpr
-        case result of
-          Nothing -> pure Nothing
-          Just update -> case update of
-            Right newInExpr -> do
-              pure $ Just $ Dhall.Let binding newInExpr
-            Left varName
-              | varName == variable -> do
-                  updateLeafExpr bindingsMap value
-              | otherwise -> do
-                  pure Nothing
-
-      _ -> do
-        pure Nothing
-
-    -- |
-    -- Updates the first `LisLit` found, traversing nested `ListAppend`s.
-    updateListAppend :: Expr -> Maybe Expr
-    updateListAppend = \case
-      Dhall.ListLit _ dependencies -> do
-        Just . Dhall.ListLit Nothing $ updateDependencies dependencies
+    updateByMergingListLits :: Expr -> Maybe Expr
+    updateByMergingListLits expr = case expr of
+      Dhall.ListLit _ ls -> Just $ Dhall.ListLit Nothing $ updateDependencies ls
       Dhall.ListAppend left right -> do
-        (\l -> Dhall.ListAppend l right) <$> updateListAppend left
-          <|> (Dhall.ListAppend left) <$> updateListAppend right
+        (\newLeft -> Dhall.ListAppend newLeft right) <$> updateByMergingListLits left
+        <|> (\newRight -> Dhall.ListAppend left newRight) <$> updateByMergingListLits right
       _ -> Nothing
 
     -- |
-    -- `Nothing` = update could not be done at all
-    -- `Just Right` = update could be done in `inExpr`
-    -- `Just Left` = update should be done in binding's `value`.
-    updateLeafLetBinding :: Map Text Expr -> Expr -> RIO env (Maybe (Either Text Expr))
-    updateLeafLetBinding bindingsMap expr = case expr of
+    --    `./spago.dhall` (or some other expression where the required update is within the embed (e.g. `./spago.dhall // { sources = ["foo"] }`)
+    -- to
+    --    `let varname = ./spago.dhall in varName with dependencies = varName.dependencies # ["new"]`
+    updateByWrappingLetBinding :: Text -> Expr -> Expr
+    updateByWrappingLetBinding varName expr = do
+      let
+        var = Dhall.Var (Dhall.V varName 0)
+
+        -- `let __embed = expr`
+        binding = Dhall.makeBinding varName expr
+
+        -- `__embed.dependencies # ["new"]`
+        lsAppend =
+          Dhall.ListAppend
+            (Dhall.Field var (Dhall.makeFieldSelection "dependencies"))
+            (Dhall.ListLit Nothing $ updateDependencies Seq.empty)
+      Dhall.Let binding $ Dhall.With var ("dependencies" :| []) lsAppend
+
+    -- | Updates a "root-level" expression
+    updateExpr :: HasLogFunc env => ExprLevel -> Expr -> RIO env (Maybe UpdateResult)
+    updateExpr level expr = case expr of
+      -- ./spago.dhall
+      Dhall.Embed _ -> do
+        case level of
+          AtRootExpression -> do
+            pure $ Just $ Updated $ updateByWrappingLetBinding "__embed" expr
+
+          SearchingForDependenciesField _ ->
+            pure $ Just EncounteredEmbed
+
+          WithinDependenciesField ->
+            pure $ Just EncounteredEmbed
+
+      -- let varname = ... in ... varName
       Dhall.Var (Dhall.V varName _) -> do
-        pure $ Just $ Left varName
+        case level of
+          AtRootExpression -> do
+            -- This should never happen because we've already verified that the normalized expression
+            -- produces a RecordLit with a dependencies field that stores a list of text values.
+            pure Nothing
 
-      Dhall.ListLit ty dependencies -> do
-        pure $ Just $ Right $ Dhall.ListLit ty $ updateDependencies dependencies
+          WithinDependenciesField -> do
+            --  `let pkg = [ "package" ] in { ..., dependencies = pkg }
+            -- to
+            --  `let pkg = [ "package" ] in { ..., dependencies = pkg # [ "newPackage" ] }
+            -- For this expression, we wrap it in a `ListAppend`
+            pure $ Just $ Updated $ updateByWrappingListAppend expr
 
-      Dhall.ListAppend l r -> do
-        let
-          res = (\left -> Dhall.ListAppend left r) <$> updateListAppend l
-            <|> (\right -> Dhall.ListAppend l right) <$> updateListAppend r
-          listAppend = case res of
-            Just ls -> ls
-            Nothing -> do
-              Dhall.ListAppend l
-                $ Dhall.ListAppend r
-                $ Dhall.ListLit Nothing
-                $ updateDependencies Seq.empty
-        pure $ Just $ Right listAppend
+          SearchingForDependenciesField _ -> do
+            -- We got to the final expression and find that the real expression is stored
+            -- in a binding. For example, the second `config` in
+            --    `let config = { ..., dependencies = ... } in config`
+            pure $ Just $ VariableName varName
 
-      Dhall.Field fieldExpr selection@Dhall.FieldSelection { fieldSelectionLabel } -> do
-        case fieldExpr of
-          Dhall.RecordLit kvs ->
-            case Dhall.Map.lookup fieldSelectionLabel kvs of
+      -- ["foo", "bar"]
+      Dhall.ListLit _ ls -> do
+        case level of
+          AtRootExpression -> do
+            -- This should never happen because we've already verified that the normalized expression
+            -- produces a RecordLit with a dependencies field that stores a list of text values.
+            pure Nothing
+
+          SearchingForDependenciesField _ -> do
+            -- This could arise if one was storing a list at one point and then trying to access
+            -- an element within the list at another point. Since it's uncommon, we won't
+            -- support it here.
+            pure Nothing
+
+          WithinDependenciesField -> do
+            pure $ Just $ Updated $ Dhall.ListLit Nothing $ updateDependencies ls
+
+      -- left # right
+      Dhall.ListAppend left right -> do
+        case level of
+          AtRootExpression -> do
+            -- This should never happen because we've already verified that the normalized expression
+            -- produces a RecordLit with a dependencies field that stores a list of text values.
+            pure Nothing
+
+          SearchingForDependenciesField _ -> do
+            -- This could arise if one was storing a list at one point and then trying to access
+            -- an element within the list at another point. Since it's uncommon, we won't
+            -- support it here.
+            pure Nothing
+
+          WithinDependenciesField -> do
+            --  `["foo"] # expr` -> `["old", "new"] # expr`
+            --  `expr # ["old"]` -> `expr # ["old", "new"]`
+            --  `expr1 # expr2` -> `expr1 # expr2 # ["new"]`
+            Just . Updated <$> do
+              let
+                mergeResult =
+                  (\newLeft -> Dhall.ListAppend newLeft right) <$> updateByMergingListLits left
+                  <|> (\newRight -> Dhall.ListAppend left newRight) <$> updateByMergingListLits right
+              case mergeResult of
+                Just lsAppend -> do
+                  pure lsAppend
+                Nothing -> do
+                  mbLeft <- updateExpr level left
+                  case mbLeft of
+                    Just (Updated newLeft) -> do
+                      pure $ Dhall.ListAppend newLeft right
+                    _ -> do
+                      mbRight <- updateExpr level right
+                      case mbRight of
+                        Just (Updated newRight) -> do
+                          pure $ Dhall.ListAppend left newRight
+                        _ -> do
+                          pure $ Dhall.ListAppend left $ updateByWrappingListAppend right
+
+      -- { key = value, ... }
+      Dhall.RecordLit kvs -> do
+        case level of
+          WithinDependenciesField ->
+            -- This should never happen because we've already verified that the normalized expression
+            -- produces a RecordLit with a dependencies field that stores a list of text values.
+            pure Nothing
+
+          SearchingForDependenciesField [] -> do
+            -- We're trying to resolve a record expression but can't lookup anything
+            -- if we don't have a key. This should never happen.
+            pure Nothing
+
+          SearchingForDependenciesField (key:keys) -> do
+            case Dhall.Map.lookup key kvs of
+              Nothing -> do
+                pure Nothing
               Just Dhall.RecordField { recordFieldValue } -> do
                 let
-                  rewrapResult =
+                  updateRecordLit =
                     Dhall.RecordLit
-                      . flip (Dhall.Map.insert fieldSelectionLabel) kvs
+                      . flip (Dhall.Map.insert key) kvs
                       . Dhall.makeRecordField
-                fmap (fmap (\newFieldExpr -> Dhall.Field (rewrapResult newFieldExpr) selection)) <$> updateLeafLetBinding bindingsMap recordFieldValue
 
-              _ -> pure Nothing
+                  newLevel = case keys of
+                    [] -> WithinDependenciesField
+                    ["dependencies"] -> WithinDependenciesField
+                    _ -> SearchingForDependenciesField keys
 
-          _ -> pure Nothing
+                fmap (mapUpdated updateRecordLit) <$> updateExpr newLevel recordFieldValue
+
+          AtRootExpression -> do
+            case Dhall.Map.lookup "dependencies" kvs of
+              Nothing -> do
+                pure Nothing
+              Just Dhall.RecordField { recordFieldValue } -> do
+                let
+                  updateRecordLit =
+                    Dhall.RecordLit
+                      . flip (Dhall.Map.insert "dependencies") kvs
+                      . Dhall.makeRecordField
+
+                fmap (mapUpdated updateRecordLit) <$> updateExpr WithinDependenciesField recordFieldValue
+
+      -- recordExpr.selection
+      Dhall.Field recordExpr selection@Dhall.FieldSelection { fieldSelectionLabel } -> do
+        case level of
+          WithinDependenciesField -> do
+            --  `{ dependencies = otherConfig.someKey }`
+            -- to
+            --  `{ dependencies = otherConfig.someKey # [ "new" ] }`
+            pure $ Just $ Updated $ updateByWrappingListAppend expr
+
+          AtRootExpression -> do
+            --  `{ config = { ..., dependencies = [ "package" ] } }.config`
+            -- to
+            --  `{ config = { ..., dependencies = [ "package", "new" ] } }.config`
+            let
+              newLevel = SearchingForDependenciesField [ fieldSelectionLabel, "dependencies" ]
+            mbResult <- fmap (mapUpdated (\newRecord -> Dhall.Field newRecord selection)) <$> updateExpr newLevel recordExpr
+            case mbResult of
+              Just EncounteredEmbed -> do
+                pure $ Just $ Updated $ Dhall.Field (updateByWrappingLetBinding "__embed" expr) selection
+
+              _ -> do
+                -- Nothing, Just Updated, or Just VariableName
+                pure mbResult
+
+          SearchingForDependenciesField keys -> do
+            let
+              newLevel = SearchingForDependenciesField (fieldSelectionLabel:keys)
+            fmap (mapUpdated (\newRecord -> Dhall.Field newRecord selection)) <$> updateExpr newLevel recordExpr
+
+      -- left // right
+      Dhall.Prefer charSet preferAnn left right -> do
+        case level of
+          WithinDependenciesField -> do
+            --  `{ dependencies = someRec.depsList // otherRec.depsList }`
+            -- to
+            --  `{ dependencies = (someRec.depsList // otherRec.depsList) # ["new packages"] }`
+            pure $ Just $ Updated $ updateByWrappingListAppend expr
+
+          AtRootExpression -> do
+            -- Two possibilities:
+            --  Override:
+            --    `{ ..., dependencies = ["old"] } // { dependencies = ["package"] }`
+            --   to
+            --    `{ ..., dependencies = ["old"] } // { dependencies = ["package", "new"] }`
+            --  Irrelvant:
+            --    `{ ..., dependencies = ["old"] } // { sources = ["src"] }`
+            --   to
+            --    `{ ..., dependencies = ["old", "new"] } // { sources = ["src"] }`
+            let
+              newLevel = SearchingForDependenciesField ["dependencies"]
+            mbRight <- updateExpr newLevel right
+            case mbRight of
+              Just EncounteredEmbed -> do
+                pure $ Just $ Updated $ Dhall.Prefer charSet preferAnn left $ updateByWrappingLetBinding "__embed" right
+
+              varName@(Just (VariableName _)) -> do
+                -- `The `Just VariableName` can't happen here because this is `AtRootExpression`
+                pure varName
+
+              Just (Updated newRight) -> do
+                pure $ Just $ Updated $ Dhall.Prefer charSet preferAnn left newRight
+
+              Nothing -> do
+                mbLeft <- updateExpr newLevel left
+                case mbLeft of
+                  Just EncounteredEmbed -> do
+                    pure $ Just $ Updated $ Dhall.Prefer charSet preferAnn (updateByWrappingLetBinding "__embed" left) right
+
+                  varName@(Just (VariableName _)) -> do
+                    -- `The `Just VariableName` can't happen here because this is `AtRootExpression`
+                    pure varName
+
+                  Just (Updated newLeft) -> do
+                    pure $ Just $ Updated $ Dhall.Prefer charSet preferAnn newLeft right
+
+                  Nothing -> pure Nothing
+
+          SearchingForDependenciesField _ -> do
+            -- See Dhall.Prefer's `AtRootExpression` case
+            -- but for this situation, we're trying to find a record, so we don't match against a "dependencies" field
+            mpRight <- updateExpr level right
+            case mpRight of
+              embedded@(Just EncounteredEmbed) -> do
+                pure embedded
+
+              varName@(Just (VariableName _)) -> do
+                pure varName
+
+              Just (Updated newRight) -> do
+                pure $ Just $ Updated $ Dhall.Prefer charSet preferAnn left newRight
+
+              Nothing -> do
+                mbLeft <- updateExpr level left
+                case mbLeft of
+                  embedded@(Just EncounteredEmbed) -> do
+                    pure embedded
+
+                  varName@(Just (VariableName _)) -> do
+                    pure varName
+
+                  Just (Updated newLeft) -> do
+                    pure $ Just $ Updated $ Dhall.Prefer charSet preferAnn newLeft right
+
+                  Nothing -> do
+                    pure Nothing
+
+      -- recordExpr with field1.field2.field3 = update
+      Dhall.With recordExpr field update ->
+        case level of
+          WithinDependenciesField -> do
+            pure $ Just $ Updated $ updateByWrappingListAppend expr
+
+          AtRootExpression | field == "dependencies" :| [] -> do
+            --    `{ ..., dependencies = ["old"] } with dependencies = ["package"]`
+            --  to
+            --    `{ ..., dependencies = ["old"] } with dependencies = ["package", "new"]`
+            mbResult <- updateExpr WithinDependenciesField update
+            case mbResult of
+              Just EncounteredEmbed -> do
+                --    `{ ..., dependencies = ["old"] } with dependencies = ./deps.dhall`
+                --  to
+                --    `{ ..., dependencies = ["old"] } with dependencies = ./deps.dhall # ["new"]`
+                pure $ Just $ Updated $ Dhall.With recordExpr field $ updateByWrappingListAppend update
+
+              varName@(Just (VariableName _)) -> do
+                -- This can't happen because the Dhall expression is invalid. There can't be a variable name
+                -- if there isn't a let binding.
+                --    `{ ..., dependencies = ["old"] } with dependencies = x`
+                pure varName
+
+              Just (Updated newUpdate) -> do
+                pure $ Just $ Updated $ Dhall.With recordExpr field newUpdate
+
+              Nothing -> do
+                -- This can't happen because the Dhall expression is invalid. If this is a Root level With, then
+                -- recordExpr must be an expression that produces our Config schema, which means it will have
+                -- a dependencies field. So, if we failed to update that dependencies field, then the expression
+                -- itself is invalid.
+                pure Nothing
+
+          AtRootExpression -> do
+            let
+              newLevel = SearchingForDependenciesField ["dependencies"]
+            mbResult <- updateExpr newLevel recordExpr
+            case mbResult of
+              Just EncounteredEmbed -> do
+                --     ```
+                --     ./spago.dhall
+                --       with someField = update
+                --     ```
+                --  to
+                --     ```
+                --     let __embed = ./spago.dhall
+                --     in embed
+                --          with field = update
+                --          with dependencies = embed.dependencies # ["new"]
+                --     ```
+                let
+                  varName = "__embed"
+                  var = Dhall.Var (Dhall.V varName 0)
+
+                  -- `let __embed = recordExpr`
+                  binding = Dhall.makeBinding varName recordExpr
+
+                  -- `var.dependencies # ["new"]`
+                  lsAppendUpdate =
+                    Dhall.ListAppend (Dhall.Field var (Dhall.makeFieldSelection "dependencies"))
+                      $ Dhall.ListLit Nothing $ updateDependencies Seq.empty
+                pure $ Just $ Updated
+                  $ Dhall.Let binding
+                  -- Note: we can't use `Prefer` here to merge two `With` updates into a single record update
+                  -- (e.g. `foo with key1 = x with key2 = x` -> foo // { key1 = x, key2 = y }` )
+                  -- because we might have a nested selector
+                  -- (e.g. `{ outer = { inner = [] } } with outer.inner = ["foo"]` ).
+                  -- So, we must instead wrap it in another `With`
+                  -- (e.g. `{ outer = { inner = [] }, dependencies = [] } with outer.inner = ["foo"] with dependencies = ["foo"]` ).
+                  $ Dhall.With (Dhall.With var field update) ("dependencies" :| []) lsAppendUpdate
+
+
+              varName@(Just (VariableName _)) -> do
+                -- `The `Just VariableName` can't happen here because this is `AtRootExpression`
+                pure varName
+
+              Just (Updated newUpdate) -> do
+                pure $ Just $ Updated $ Dhall.With recordExpr field newUpdate
+
+              nothing@Nothing -> do
+                pure nothing
+
+          SearchingForDependenciesField _ -> do
+            mbUpdate <- updateExpr level update
+            case mbUpdate of
+              embedded@(Just EncounteredEmbed) -> do
+                pure embedded
+
+              varName@(Just (VariableName _)) -> do
+                pure varName
+
+              Just (Updated newUpdate) -> do
+                pure $ Just $ Updated $ Dhall.With recordExpr field newUpdate
+
+              nothing@Nothing -> do
+                pure nothing
 
       Dhall.Let binding@Dhall.Binding { variable, value } inExpr -> do
-        result <- updateLeafLetBinding (Map.insert variable value bindingsMap) inExpr
-        case result of
-          Nothing -> pure Nothing
-          Just update -> case update of
-            Right newInExpr -> do
-              pure $ Just $ Right $ Dhall.Let binding newInExpr
-            l@(Left varName)
-              | varName == variable -> do
-                  fmap (\newValue -> Right $ Dhall.Let (Dhall.makeBinding variable newValue) inExpr) <$> updateLeafExpr bindingsMap value
-              | otherwise -> do
-                  pure $ Just l
+        case level of
+          WithinDependenciesField -> do
+            pure $ Just $ Updated $ updateByWrappingListAppend expr
+
+          AtRootExpression -> do
+            let
+              newLevel = SearchingForDependenciesField ["dependencies"]
+            result <- updateExpr newLevel inExpr
+            case result of
+              Just EncounteredEmbed -> do
+                --  `let useless = "foo" in ./spago.dhall`
+                -- to
+                --  ```
+                --  let useless = "foo"
+                --  let __embed = ./spago.dhall
+                --  in  __embed with dependencies = __embed.dependencies # ["new"]
+                --  ```
+                pure $ Just $ Updated $ Dhall.Let binding $ updateByWrappingLetBinding "__embed" inExpr
+
+              Just (Updated newInExpr) -> do
+                pure $ Just $ Updated $ Dhall.Let binding newInExpr
+
+              Just (VariableName name) | name == variable -> do
+                mbValue <- updateExpr newLevel value
+                case mbValue of
+                  Just EncounteredEmbed -> do
+                    pure $ Just $ Updated $ Dhall.Let (Dhall.makeBinding variable $ updateByWrappingLetBinding "__embed" value) inExpr
+
+                  Just (Updated newValue) -> do
+                    pure $ Just $ Updated $ Dhall.Let (Dhall.makeBinding variable newValue) inExpr
+
+                  varName@(Just (VariableName _)) -> do
+                    -- invalid Dhall expression because this is AtRootExpression
+                    pure varName
+
+                  nothing@Nothing -> do
+                    pure nothing
+
+              varName@(Just (VariableName _)) -> do
+                -- Invalid Dhall expression because this is AtRootExpression
+                pure varName
+
+              nothing@Nothing -> do
+                pure nothing
+
+          SearchingForDependenciesField _ -> do
+            result <- updateExpr level inExpr
+            case result of
+              embedded@(Just EncounteredEmbed) -> do
+                pure embedded
+
+              Just (Updated newInExpr) -> do
+                pure $ Just $ Updated $ Dhall.Let binding newInExpr
+
+              Just (VariableName name) | name == variable -> do
+                mbValue <- updateExpr level value
+                case mbValue of
+                  Just EncounteredEmbed -> do
+                    pure $ Just $ Updated $ Dhall.Let (Dhall.makeBinding variable $ updateByWrappingLetBinding "__embed" value) inExpr
+
+                  Just (Updated newValue) -> do
+                    pure $ Just $ Updated $ Dhall.Let (Dhall.makeBinding variable newValue) inExpr
+
+                  varName@(Just (VariableName _)) -> do
+                    -- `let x = "foo" let y = x in y`
+                    -- This binding refers to another binding
+                    pure varName
+
+                  nothing@Nothing -> do
+                    pure nothing
+
+              varName@(Just (VariableName _)) -> do
+                -- Variable name doesn't match this let binding's name
+                pure varName
+
+              nothing@Nothing -> do
+                pure nothing
 
       _ -> do
         pure Nothing
