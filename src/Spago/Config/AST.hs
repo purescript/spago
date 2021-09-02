@@ -132,6 +132,10 @@ mapUpdated _ other = other
 --     This can produce a record expression and unlike `Lam` can be a root-level expression.
 --     However, this is a complex feature and can be difficult to update correctly like `Lam`.
 --     Thus, we won't be covering it and instead will force the user to update the file manually.
+-- - BoolIf condition thenPath elsePath - `if x then y else z`
+--     If the update is in either the `thenPath` or the `elsePath`, which one is it?
+--     Withought more context, we can't know and might update the value incorrectly.
+--     Thus, we force the user to manually add the dependencies if this is used.
 -- - Project expr keys - `{ dependencies = ["bar"], other = "foo" }.{ dependencies }`
 --     This can produce a record expresion. Since this is unlikely to be used frequently,
 --     and requires a bit more work due to the type for `keys`, we won't support it below.
@@ -423,7 +427,17 @@ addRawDeps' pkgsToInstall originalExpr = do
                 mbLeft <- updateExpr newLevel left
                 case mbLeft of
                   Just EncounteredEmbed -> do
-                    pure $ Just $ Updated $ Dhall.Prefer charSet preferAnn (updateByWrappingLetBinding "__embed" left) right
+                    case right of
+                      Dhall.RecordLit kvs -> do
+                        let
+                          newRight =
+                            Dhall.RecordLit
+                            $ flip (Dhall.Map.insert "dependencies")  kvs
+                            $ Dhall.makeRecordField
+                            $ Dhall.ListLit Nothing $ updateDependencies Seq.empty
+                        pure $ Just $ Updated $ Dhall.Prefer charSet preferAnn left newRight
+                      _ -> do
+                        pure $ Just $ Updated $ Dhall.Prefer charSet preferAnn (updateByWrappingLetBinding "__embed" left) right
 
                   varName@(Just (VariableName _)) -> do
                     -- `The `Just VariableName` can't happen here because this is `AtRootExpression`
