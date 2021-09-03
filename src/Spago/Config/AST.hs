@@ -86,8 +86,10 @@ dependenciesText = "dependencies"
 
 -- | Indicates where we are in the expresion
 data ExprLevel
-  = AtRootExpression
+  = AtRootExpression Text
   -- ^ The outermost expression
+  --   that indicates which field within the record
+  --   expression we want to update.
   | SearchingForField !(NonEmpty Text)
   -- ^ An expression within the root expression
   --   where we still haven't found the record with the
@@ -191,7 +193,7 @@ mapUpdated _ other = other
 -- the returned expression should be verified to produce a valid configuration format.
 addRawDeps' :: HasLogFunc env => Seq Expr -> Expr -> RIO env Expr
 addRawDeps' pkgsToInstall originalExpr = do
-  result <- updateExpr AtRootExpression originalExpr
+  result <- updateExpr (AtRootExpression dependenciesText) originalExpr
   case result of
     Just (Updated newExpr) -> do
       pure newExpr
@@ -245,7 +247,7 @@ addRawDeps' pkgsToInstall originalExpr = do
       -- ./spago.dhall
       Dhall.Embed _ -> do
         case level of
-          AtRootExpression -> do
+          AtRootExpression _ -> do
             pure $ Just $ Updated $ updateByWrappingLetBinding "__embed" expr
 
           SearchingForField _ ->
@@ -257,7 +259,7 @@ addRawDeps' pkgsToInstall originalExpr = do
       -- let varname = ... in ... varName
       Dhall.Var (Dhall.V varName _) -> do
         case level of
-          AtRootExpression -> do
+          AtRootExpression _ -> do
             -- This should never happen because we've already verified that the normalized expression
             -- produces a RecordLit with a dependencies field that stores a list of text values.
             pure Nothing
@@ -278,7 +280,7 @@ addRawDeps' pkgsToInstall originalExpr = do
       -- ["foo", "bar"]
       Dhall.ListLit ann ls -> do
         case level of
-          AtRootExpression -> do
+          AtRootExpression _ -> do
             -- This should never happen because we've already verified that the normalized expression
             -- produces a RecordLit with a dependencies field that stores a list of text values.
             pure Nothing
@@ -295,7 +297,7 @@ addRawDeps' pkgsToInstall originalExpr = do
       -- left # right
       Dhall.ListAppend left right -> do
         case level of
-          AtRootExpression -> do
+          AtRootExpression _ -> do
             -- This should never happen because we've already verified that the normalized expression
             -- produces a RecordLit with a dependencies field that stores a list of text values.
             pure Nothing
@@ -348,15 +350,15 @@ addRawDeps' pkgsToInstall originalExpr = do
 
                 fmap (mapUpdated updateRecordLit) <$> updateExpr newLevel recordFieldValue
 
-          AtRootExpression -> do
-            case Dhall.Map.lookup dependenciesText kvs of
+          AtRootExpression key -> do
+            case Dhall.Map.lookup key kvs of
               Nothing -> do
                 pure Nothing
               Just Dhall.RecordField { recordFieldValue } -> do
                 let
                   updateRecordLit =
                     Dhall.RecordLit
-                      . flip (Dhall.Map.insert dependenciesText) kvs
+                      . flip (Dhall.Map.insert key) kvs
                       . Dhall.makeRecordField
 
                 fmap (mapUpdated updateRecordLit) <$> updateExpr WithinField recordFieldValue
@@ -370,12 +372,12 @@ addRawDeps' pkgsToInstall originalExpr = do
             --  `{ dependencies = otherConfig.someKey # [ "new" ] }`
             pure $ Just $ Updated $ updateByWrappingListAppend expr
 
-          AtRootExpression -> do
+          AtRootExpression key -> do
             --  `{ config = { ..., dependencies = [ "package" ] } }.config`
             -- to
             --  `{ config = { ..., dependencies = [ "package", "new" ] } }.config`
             let
-              newLevel = SearchingForField (fieldSelectionLabel :| [dependenciesText])
+              newLevel = SearchingForField (fieldSelectionLabel :| [key])
             mbResult <- fmap (mapUpdated (\newRecord -> Dhall.Field newRecord selection)) <$> updateExpr newLevel recordExpr
             case mbResult of
               Just EncounteredEmbed -> do
@@ -399,7 +401,7 @@ addRawDeps' pkgsToInstall originalExpr = do
             --  `{ dependencies = (someRec.depsList // otherRec.depsList) # ["new packages"] }`
             pure $ Just $ Updated $ updateByWrappingListAppend expr
 
-          AtRootExpression -> do
+          AtRootExpression key -> do
             -- Two possibilities:
             --  Override:
             --    `{ ..., dependencies = ["old"] } // { dependencies = ["package"] }`
@@ -410,7 +412,7 @@ addRawDeps' pkgsToInstall originalExpr = do
             --   to
             --    `{ ..., dependencies = ["old", "new"] } // { sources = ["src"] }`
             let
-              newLevel = SearchingForField nonEmptyDependencies
+              newLevel = SearchingForField (key :| [])
             mbRight <- updateExpr newLevel right
             case mbRight of
               Just EncounteredEmbed -> do
@@ -483,7 +485,7 @@ addRawDeps' pkgsToInstall originalExpr = do
           WithinField -> do
             pure $ Just $ Updated $ updateByWrappingListAppend expr
 
-          AtRootExpression | field == nonEmptyDependencies -> do
+          AtRootExpression key | field == (key :| []) -> do
             --    `{ ..., dependencies = ["old"] } with dependencies = ["package"]`
             --  to
             --    `{ ..., dependencies = ["old"] } with dependencies = ["package", "new"]`
@@ -511,9 +513,9 @@ addRawDeps' pkgsToInstall originalExpr = do
                 -- itself is invalid.
                 pure Nothing
 
-          AtRootExpression -> do
+          AtRootExpression key -> do
             let
-              newLevel = SearchingForField nonEmptyDependencies
+              newLevel = SearchingForField (key :| [])
             mbResult <- updateExpr newLevel recordExpr
             case mbResult of
               Just EncounteredEmbed -> do
@@ -619,9 +621,9 @@ addRawDeps' pkgsToInstall originalExpr = do
           WithinField -> do
             pure $ Just $ Updated $ updateByWrappingListAppend expr
 
-          AtRootExpression -> do
+          AtRootExpression key -> do
             let
-              newLevel = SearchingForField nonEmptyDependencies
+              newLevel = SearchingForField (key :| [])
             result <- updateExpr newLevel inExpr
             case result of
               Just EncounteredEmbed -> do
