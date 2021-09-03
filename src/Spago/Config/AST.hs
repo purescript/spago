@@ -1,7 +1,8 @@
 {-# LANGUAGE ViewPatterns #-}
 {-# LANGUAGE OverloadedLists #-}
 module Spago.Config.AST
-  ( addRawDeps
+  ( AstModification(..)
+  , addRawDeps
   ) where
 
 import           Spago.Prelude
@@ -18,6 +19,9 @@ import qualified Data.List.NonEmpty    as NonEmpty
 
 type Expr = Dhall.Expr Parser.Src Dhall.Import
 type ResolvedExpr = Dhall.Expr Parser.Src Void
+
+data AstModification addPkgs
+  = AddPackages !addPkgs
 
 -- |
 -- Since the user may be requesting to add packages that don't exist in the package set,
@@ -40,19 +44,20 @@ type ResolvedExpr = Dhall.Expr Parser.Src Void
 -- Record expression with a "dependencies" key or a List expression.
 --
 -- In other words, `addRawDeps'` can actually succeed for the cases we support.
-addRawDeps :: HasLogFunc env => [PackageName] -> ResolvedExpr -> Expr -> RIO env Expr
-addRawDeps newPackages normalizedExpr originalExpr = do
-  mbAllInstalledPkgs <- findInstalledPackages
-  case mbAllInstalledPkgs of
-    Nothing -> do
-      pure originalExpr
-    Just allInstalledPkgs -> do
-      let pkgsToInstall = nubSeq $ Seq.filter (`notElem` allInstalledPkgs) $ Seq.fromList newPackages
-      if null pkgsToInstall
-      then do
+addRawDeps :: HasLogFunc env => AstModification [PackageName] -> ResolvedExpr -> Expr -> RIO env Expr
+addRawDeps astMod normalizedExpr originalExpr = case astMod of
+  AddPackages newPackages -> do
+    mbAllInstalledPkgs <- findInstalledPackages
+    case mbAllInstalledPkgs of
+      Nothing -> do
         pure originalExpr
-      else do
-        addRawDeps' (Dhall.toTextLit . packageName <$> pkgsToInstall) originalExpr
+      Just allInstalledPkgs -> do
+        let pkgsToInstall = nubSeq $ Seq.filter (`notElem` allInstalledPkgs) $ Seq.fromList newPackages
+        if null pkgsToInstall
+        then do
+          pure originalExpr
+        else do
+          addRawDeps' (AddPackages (Dhall.toTextLit . packageName <$> pkgsToInstall)) originalExpr
   where
     -- | Code from https://stackoverflow.com/questions/45757839
     nubSeq :: Ord a => Seq a -> Seq a
@@ -191,8 +196,8 @@ mapUpdated _ other = other
 --
 -- Since this is modifying the raw AST and might produce an invalid configuration file,
 -- the returned expression should be verified to produce a valid configuration format.
-addRawDeps' :: HasLogFunc env => Seq Expr -> Expr -> RIO env Expr
-addRawDeps' pkgsToInstall originalExpr = do
+addRawDeps' :: HasLogFunc env => AstModification (Seq Expr) -> Expr -> RIO env Expr
+addRawDeps' (AddPackages pkgsToInstall) originalExpr = do
   result <- updateExpr (AtRootExpression dependenciesText) originalExpr
   case result of
     Just (Updated newExpr) -> do
