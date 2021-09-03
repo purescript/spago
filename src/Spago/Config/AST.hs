@@ -62,7 +62,7 @@ addRawDeps newPackages normalizedExpr originalExpr = do
 
     findInstalledPackages :: HasLogFunc env => RIO env (Maybe (Seq PackageName))
     findInstalledPackages = case normalizedExpr of
-      Dhall.RecordLit kvs -> case Dhall.Map.lookup "dependencies" kvs of
+      Dhall.RecordLit kvs -> case Dhall.Map.lookup dependenciesText kvs of
         Just Dhall.RecordField { recordFieldValue } -> case recordFieldValue of
           Dhall.ListLit _ dependencies -> do
             Just . fmap PackageName <$> traverse (throws . Dhall.fromTextLit) dependencies
@@ -79,6 +79,10 @@ addRawDeps newPackages normalizedExpr originalExpr = do
         failedToAddDepsExpectedRecordKey e =
           "Failed to add dependencies. You should have a record with the `dependencies` key for this to work.\n" <>
           "Expression was: " <> pretty e
+
+-- | "dependencies" - Reduce chance of spelling mistakes/typos
+dependenciesText :: Text
+dependenciesText = "dependencies"
 
 -- | Indicates where we are in the expresion
 data ExprLevel
@@ -199,6 +203,9 @@ addRawDeps' pkgsToInstall originalExpr = do
     updateDependencies :: Seq Expr -> Seq Expr
     updateDependencies dependencies = Seq.sort (pkgsToInstall <> dependencies)
 
+    nonEmptyDependencies :: NonEmpty Text
+    nonEmptyDependencies = dependenciesText :| []
+
     -- |
     -- Removes some boilerplate: changes `expr` to `expr # ["new"]`
     updateByWrappingListAppend :: Expr -> Expr
@@ -228,9 +235,9 @@ addRawDeps' pkgsToInstall originalExpr = do
         -- `__embed.dependencies # ["new"]`
         lsAppend =
           Dhall.ListAppend
-            (Dhall.Field var (Dhall.makeFieldSelection "dependencies"))
+            (Dhall.Field var (Dhall.makeFieldSelection dependenciesText))
             (Dhall.ListLit Nothing $ updateDependencies Seq.empty)
-      Dhall.Let binding $ Dhall.With var ("dependencies" :| []) lsAppend
+      Dhall.Let binding $ Dhall.With var nonEmptyDependencies lsAppend
 
     -- | Updates a "root-level" expression
     updateExpr :: HasLogFunc env => ExprLevel -> Expr -> RIO env (Maybe UpdateResult)
@@ -342,14 +349,14 @@ addRawDeps' pkgsToInstall originalExpr = do
                 fmap (mapUpdated updateRecordLit) <$> updateExpr newLevel recordFieldValue
 
           AtRootExpression -> do
-            case Dhall.Map.lookup "dependencies" kvs of
+            case Dhall.Map.lookup dependenciesText kvs of
               Nothing -> do
                 pure Nothing
               Just Dhall.RecordField { recordFieldValue } -> do
                 let
                   updateRecordLit =
                     Dhall.RecordLit
-                      . flip (Dhall.Map.insert "dependencies") kvs
+                      . flip (Dhall.Map.insert dependenciesText) kvs
                       . Dhall.makeRecordField
 
                 fmap (mapUpdated updateRecordLit) <$> updateExpr WithinDependenciesField recordFieldValue
@@ -368,7 +375,7 @@ addRawDeps' pkgsToInstall originalExpr = do
             -- to
             --  `{ config = { ..., dependencies = [ "package", "new" ] } }.config`
             let
-              newLevel = SearchingForDependenciesField (fieldSelectionLabel :| ["dependencies"])
+              newLevel = SearchingForDependenciesField (fieldSelectionLabel :| [dependenciesText])
             mbResult <- fmap (mapUpdated (\newRecord -> Dhall.Field newRecord selection)) <$> updateExpr newLevel recordExpr
             case mbResult of
               Just EncounteredEmbed -> do
@@ -403,7 +410,7 @@ addRawDeps' pkgsToInstall originalExpr = do
             --   to
             --    `{ ..., dependencies = ["old", "new"] } // { sources = ["src"] }`
             let
-              newLevel = SearchingForDependenciesField ("dependencies" :| [])
+              newLevel = SearchingForDependenciesField nonEmptyDependencies
             mbRight <- updateExpr newLevel right
             case mbRight of
               Just EncounteredEmbed -> do
@@ -425,7 +432,7 @@ addRawDeps' pkgsToInstall originalExpr = do
                         let
                           newRight =
                             Dhall.RecordLit
-                            $ flip (Dhall.Map.insert "dependencies")  kvs
+                            $ flip (Dhall.Map.insert dependenciesText)  kvs
                             $ Dhall.makeRecordField
                             $ Dhall.ListLit Nothing $ updateDependencies Seq.empty
                         pure $ Just $ Updated $ Dhall.Prefer charSet preferAnn left newRight
@@ -476,7 +483,7 @@ addRawDeps' pkgsToInstall originalExpr = do
           WithinDependenciesField -> do
             pure $ Just $ Updated $ updateByWrappingListAppend expr
 
-          AtRootExpression | field == "dependencies" :| [] -> do
+          AtRootExpression | field == nonEmptyDependencies -> do
             --    `{ ..., dependencies = ["old"] } with dependencies = ["package"]`
             --  to
             --    `{ ..., dependencies = ["old"] } with dependencies = ["package", "new"]`
@@ -506,7 +513,7 @@ addRawDeps' pkgsToInstall originalExpr = do
 
           AtRootExpression -> do
             let
-              newLevel = SearchingForDependenciesField ("dependencies" :| [])
+              newLevel = SearchingForDependenciesField nonEmptyDependencies
             mbResult <- updateExpr newLevel recordExpr
             case mbResult of
               Just EncounteredEmbed -> do
@@ -530,7 +537,7 @@ addRawDeps' pkgsToInstall originalExpr = do
 
                   -- `var.dependencies # ["new"]`
                   lsAppendUpdate =
-                    Dhall.ListAppend (Dhall.Field var (Dhall.makeFieldSelection "dependencies"))
+                    Dhall.ListAppend (Dhall.Field var (Dhall.makeFieldSelection dependenciesText))
                       $ Dhall.ListLit Nothing $ updateDependencies Seq.empty
                 pure $ Just $ Updated
                   $ Dhall.Let binding
@@ -540,7 +547,7 @@ addRawDeps' pkgsToInstall originalExpr = do
                   -- (e.g. `{ outer = { inner = [] } } with outer.inner = ["foo"]` ).
                   -- So, we must instead wrap it in another `With`
                   -- (e.g. `{ outer = { inner = [] }, dependencies = [] } with outer.inner = ["foo"] with dependencies = ["foo"]` ).
-                  $ Dhall.With (Dhall.With var field update) ("dependencies" :| []) lsAppendUpdate
+                  $ Dhall.With (Dhall.With var field update) nonEmptyDependencies lsAppendUpdate
 
               varName@(Just (VariableName _)) -> do
                 -- `The `Just VariableName` can't happen here because this is `AtRootExpression`
@@ -614,7 +621,7 @@ addRawDeps' pkgsToInstall originalExpr = do
 
           AtRootExpression -> do
             let
-              newLevel = SearchingForDependenciesField ("dependencies" :| [])
+              newLevel = SearchingForDependenciesField nonEmptyDependencies
             result <- updateExpr newLevel inExpr
             case result of
               Just EncounteredEmbed -> do
