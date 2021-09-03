@@ -566,8 +566,31 @@ addRawDeps' pkgsToInstall originalExpr = do
               nothing@Nothing -> do
                 pure nothing
 
-          SearchingForDependenciesField _ -> do
-            mbUpdate <- updateExpr level update
+          SearchingForDependenciesField [] -> do
+            -- This should never happen as it would imply that we found the
+            -- "dependencies" field but forgot to transition to the `WithinDependenciesField` level
+            pure Nothing
+
+          SearchingForDependenciesField (key:keys) -> do
+            let
+              levelForUpdateSearch = case (key :| keys == field, key :| [] == field) of
+                --    `({ config = ... } with config.dependencies = ["foo"] }).config`
+                -- to
+                --    `({ config = ... } with config.dependencies = ["foo", "new"] }).config`
+                (True, _) -> WithinDependenciesField
+
+                --    `({ config = ... } with config = { dependencies = ["foo"] }).config`
+                -- to
+                --    `({ config = ... } with config = { dependencies = ["foo", "new"] }).config`
+                (_, True) -> SearchingForDependenciesField keys
+
+                --    `({ config = ... } with config = { sources = ["foo"] }).config`
+                -- to
+                --    `( { config = { dependencies = ["foo", "new"] } }
+                --           with config = { sources = ["foo"] }
+                --     ).config`
+                _ -> level
+            mbUpdate <- updateExpr levelForUpdateSearch update
             case mbUpdate of
               embedded@(Just EncounteredEmbed) -> do
                 pure embedded
