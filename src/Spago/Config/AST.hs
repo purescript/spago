@@ -578,8 +578,20 @@ addRawDeps' pkgsToInstall originalExpr = do
               Just (Updated newUpdate) -> do
                 pure $ Just $ Updated $ Dhall.With recordExpr field newUpdate
 
-              nothing@Nothing -> do
-                pure nothing
+              Nothing -> do
+                mbRecordExpr <- updateExpr level recordExpr
+                case mbRecordExpr of
+                  embedded@(Just EncounteredEmbed) -> do
+                    pure embedded
+
+                  varName@(Just (VariableName _)) -> do
+                    pure varName
+
+                  Just (Updated newRecordExpr) -> do
+                    pure $ Just $ Updated $ Dhall.With newRecordExpr field update
+
+                  nothing@Nothing -> do
+                    pure nothing
 
       Dhall.Let binding@Dhall.Binding { variable, value } inExpr -> do
         case level of
