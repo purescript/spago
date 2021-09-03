@@ -2,7 +2,7 @@
 {-# LANGUAGE OverloadedLists #-}
 module Spago.Config.AST
   ( AstModification(..)
-  , addRawDeps
+  , modifyRawAST
   ) where
 
 import           Spago.Prelude
@@ -39,13 +39,13 @@ data AstModification addPkgs
 --
 -- Second, by confirming below that the normalized expression found in the `spago.dhall` file
 -- IS a `RecordLit` with a `dependencies` field, we can make some assumptions about
--- the `Expr` passed into `addRawDeps'`. For example, we don't need to know what `Embed` cases
+-- the `Expr` passed into `modifyRawAST'`. For example, we don't need to know what `Embed` cases
 -- are because we can infer based on where we are in the expression whether they are a
 -- Record expression with a "dependencies" key or a List expression.
 --
--- In other words, `addRawDeps'` can actually succeed for the cases we support.
-addRawDeps :: HasLogFunc env => AstModification [PackageName] -> ResolvedExpr -> Expr -> RIO env Expr
-addRawDeps astMod normalizedExpr originalExpr = case astMod of
+-- In other words, `modifyRawAST'` can actually succeed for the cases we support.
+modifyRawAST :: HasLogFunc env => AstModification [PackageName] -> ResolvedExpr -> Expr -> RIO env Expr
+modifyRawAST astMod normalizedExpr originalExpr = case astMod of
   AddPackages newPackages -> do
     mbAllInstalledPkgs <- findInstalledPackages
     case mbAllInstalledPkgs of
@@ -57,7 +57,7 @@ addRawDeps astMod normalizedExpr originalExpr = case astMod of
         then do
           pure originalExpr
         else do
-          addRawDeps' (AddPackages (Dhall.toTextLit . packageName <$> pkgsToInstall)) originalExpr
+          modifyRawAST' (AddPackages (Dhall.toTextLit . packageName <$> pkgsToInstall)) originalExpr
   where
     -- | Code from https://stackoverflow.com/questions/45757839
     nubSeq :: Ord a => Seq a -> Seq a
@@ -196,8 +196,8 @@ mapUpdated _ other = other
 --
 -- Since this is modifying the raw AST and might produce an invalid configuration file,
 -- the returned expression should be verified to produce a valid configuration format.
-addRawDeps' :: HasLogFunc env => AstModification (Seq Expr) -> Expr -> RIO env Expr
-addRawDeps' (AddPackages pkgsToInstall) originalExpr = do
+modifyRawAST' :: HasLogFunc env => AstModification (Seq Expr) -> Expr -> RIO env Expr
+modifyRawAST' (AddPackages pkgsToInstall) originalExpr = do
   result <- updateExpr (AtRootExpression dependenciesText) originalExpr
   case result of
     Just (Updated newExpr) -> do
