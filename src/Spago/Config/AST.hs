@@ -341,7 +341,6 @@ addRawDeps' pkgsToInstall originalExpr = do
 
                   newLevel = case keys of
                     [] -> WithinDependenciesField
-                    ["dependencies"] -> WithinDependenciesField
                     _ -> SearchingForDependenciesField keys
 
                 fmap (mapUpdated updateRecordLit) <$> updateExpr newLevel recordFieldValue
