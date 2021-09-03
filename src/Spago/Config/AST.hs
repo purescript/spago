@@ -25,11 +25,13 @@ type ResolvedExpr = Dhall.Expr Parser.Src Void
 data AstModification
   = AddPackages ![PackageName]
   | AddSources ![Text]
+  | SetName Text
 
 -- |
 -- Indicates the change to make once inside the expression
 data AstUpdate
   = InsertListText (Seq Expr)
+  | SetText Expr
 
 -- |
 -- Since the user may be requesting to add packages that don't exist in the package set,
@@ -78,6 +80,17 @@ modifyRawAST astMod normalizedExpr originalExpr = case astMod of
           pure originalExpr
         else do
           modifyRawAST' sourcesText (InsertListText (Dhall.toTextLit <$> sourcesToInstall)) originalExpr
+
+  SetName newName -> do
+    mbName <- findTextValue nameText
+    case mbName of
+      Nothing -> do
+        pure originalExpr
+      Just originalName
+        | originalName == newName -> do
+            pure originalExpr
+        | otherwise -> do
+            modifyRawAST' nameText (SetText (Dhall.TextLit (Dhall.Chunks [] newName))) originalExpr
   where
     -- | Code from https://stackoverflow.com/questions/45757839
     nubSeq :: Ord a => Seq a -> Seq a
@@ -105,6 +118,25 @@ modifyRawAST astMod normalizedExpr originalExpr = case astMod of
           "Failed to add dependencies. You should have a record with the `" <> key <> "` key for this to work.\n" <>
           "Expression was: " <> pretty e
 
+    findTextValue :: HasLogFunc env => Text -> RIO env (Maybe Text)
+    findTextValue key = case normalizedExpr of
+      Dhall.RecordLit kvs -> case Dhall.Map.lookup key kvs of
+        Just Dhall.RecordField { recordFieldValue } -> case recordFieldValue of
+          Dhall.TextLit (Dhall.Chunks [] txt) -> pure $ Just txt
+          other -> do
+            logWarn $ display $ "not listlit: " <> failedToAddDepsExpectedRecordKey other
+            pure Nothing
+        _ -> do
+          logWarn $ display $ "no record lit: " <> failedToAddDepsExpectedRecordKey (Dhall.RecordLit kvs)
+          pure Nothing
+      other -> do
+        logWarn $ display $ "other: " <> failedToAddDepsExpectedRecordKey other
+        pure Nothing
+      where
+        failedToAddDepsExpectedRecordKey e =
+          "Failed to add dependencies. You should have a record with the `" <> key <> "` key for this to work.\n" <>
+          "Expression was: " <> pretty e
+
 -- | "dependencies" - Reduce chance of spelling mistakes/typos
 dependenciesText :: Text
 dependenciesText = "dependencies"
@@ -112,6 +144,10 @@ dependenciesText = "dependencies"
 -- | "sources" - Reduce chance of spelling mistakes/typos
 sourcesText :: Text
 sourcesText = "sources"
+
+-- | "name" - Reduce chance of spelling mistakes/typos
+nameText :: Text
+nameText = "name"
 
 -- | Indicates where we are in the expresion
 data ExprLevel
@@ -281,6 +317,9 @@ modifyRawAST' initialKey astMod originalExpr = do
               InsertListText additions -> do
                 pure $ Just $ Updated $ updateListTextByWrappingLetBinding (key :| []) additions "__embed" expr
 
+              SetText t -> do
+                pure $ Just $ Updated $ Dhall.With expr (key :| []) t
+
           SearchingForField _ ->
             pure $ Just EncounteredEmbed
 
@@ -303,6 +342,9 @@ modifyRawAST' initialKey astMod originalExpr = do
             case astMod of
               InsertListText additions -> do
                 pure $ Just $ Updated $ updateListTextByWrappingListAppend additions expr
+
+              SetText _ -> do
+                pure $ Just $ VariableName varName
 
           SearchingForField _ -> do
             -- We got to the final expression and find that the real expression is stored
@@ -328,6 +370,9 @@ modifyRawAST' initialKey astMod originalExpr = do
             case astMod of
               InsertListText additions -> do
                 pure $ Just $ Updated $ Dhall.ListLit ann $ updateListTextByAppending additions ls
+
+              SetText _ -> do
+                pure Nothing
 
       -- left # right
       Dhall.ListAppend left right -> do
@@ -361,6 +406,9 @@ modifyRawAST' initialKey astMod originalExpr = do
                       -- Since we couldn't add the update to an existing ListLit
                       -- we'll just add it the the end
                       pure $ updateListTextByWrappingListAppend additions expr
+
+              SetText _ -> do
+                pure Nothing
 
       -- { key = value, ... }
       Dhall.RecordLit kvs -> do
@@ -411,6 +459,9 @@ modifyRawAST' initialKey astMod originalExpr = do
               InsertListText additions -> do
                 pure $ Just $ Updated $ updateListTextByWrappingListAppend additions expr
 
+              SetText _ -> do
+                fmap (mapUpdated (\newRecord -> Dhall.Field newRecord selection)) <$> updateExpr level recordExpr
+
           AtRootExpression key -> do
             --  `{ config = { ..., dependencies = [ "package" ] } }.config`
             -- to
@@ -423,6 +474,9 @@ modifyRawAST' initialKey astMod originalExpr = do
                 case astMod of
                   InsertListText additions -> do
                     pure $ Just $ Updated $ Dhall.Field (updateListTextByWrappingLetBinding (key :| []) additions "__embed" expr) selection
+
+                  SetText t -> do
+                    pure $ Just $ Updated $ Dhall.Field (Dhall.With expr (key :| []) t) selection
 
               _ -> do
                 -- Nothing, Just Updated, or Just VariableName
@@ -441,8 +495,15 @@ modifyRawAST' initialKey astMod originalExpr = do
             -- to
             --  `{ dependencies = (someRec.depsList // otherRec.depsList) # ["new packages"] }`
             case astMod of
-              InsertListText additions -> do
-                pure $ Just $ Updated $ updateListTextByWrappingListAppend additions expr
+              InsertListText _ -> do
+                -- Can't insert a list of text values into a record expression.
+                -- Prefer only works on record expressions, so this is an invalid expression.
+                pure Nothing
+
+              SetText _ -> do
+                -- Can't insert a list of text values into a record expression.
+                -- Prefer only works on record expressions, so this is an invalid expression.
+                pure Nothing
 
           AtRootExpression key -> do
             -- Two possibilities:
@@ -464,6 +525,9 @@ modifyRawAST' initialKey astMod originalExpr = do
                     pure $ Just $ Updated $ Dhall.Prefer charSet preferAnn left
                       $ updateListTextByWrappingLetBinding (key :| []) additions "__embed" right
 
+                  SetText t -> do
+                    pure $ Just $ Updated $ Dhall.With expr (key :| []) t
+
               varName@(Just (VariableName _)) -> do
                 -- `The `Just VariableName` can't happen here because this is `AtRootExpression`
                 pure varName
@@ -482,12 +546,24 @@ modifyRawAST' initialKey astMod originalExpr = do
                             let
                               newRight =
                                 Dhall.RecordLit
-                                $ flip (Dhall.Map.insert key)  kvs
+                                $ flip (Dhall.Map.insert key) kvs
                                 $ Dhall.makeRecordField
                                 $ Dhall.ListLit Nothing $ updateListTextByAppending additions Seq.empty
                             pure $ Just $ Updated $ Dhall.Prefer charSet preferAnn left newRight
                           _ -> do
                             pure $ Just $ Updated $ Dhall.Prefer charSet preferAnn (updateListTextByWrappingLetBinding (key :| []) additions "__embed" left) right
+
+                      SetText t -> do
+                        case right of
+                          Dhall.RecordLit kvs -> do
+                            let
+                              newRight =
+                                Dhall.RecordLit
+                                $ flip (Dhall.Map.insert key) kvs
+                                $ Dhall.makeRecordField t
+                            pure $ Just $ Updated $ Dhall.Prefer charSet preferAnn left newRight
+                          _ -> do
+                            pure $ Just $ Updated $ Dhall.Prefer charSet preferAnn (Dhall.With left (key :| []) t) right
 
                   varName@(Just (VariableName _)) -> do
                     -- `The `Just VariableName` can't happen here because this is `AtRootExpression`
@@ -532,8 +608,11 @@ modifyRawAST' initialKey astMod originalExpr = do
         case level of
           WithinField -> do
             case astMod of
-              InsertListText additions -> do
-                pure $ Just $ Updated $ updateListTextByWrappingListAppend additions expr
+              InsertListText _ -> do
+                pure Nothing
+
+              SetText _ -> do
+                pure Nothing
 
           AtRootExpression key | field == (key :| []) -> do
             --    `{ ..., dependencies = ["old"] } with dependencies = ["package"]`
@@ -548,6 +627,9 @@ modifyRawAST' initialKey astMod originalExpr = do
                 case astMod of
                   InsertListText additions -> do
                     pure $ Just $ Updated $ Dhall.With recordExpr field $ updateListTextByWrappingListAppend additions update
+
+                  SetText t -> do
+                    pure $ Just $ Updated $ Dhall.With recordExpr field t
 
               varName@(Just (VariableName _)) -> do
                 -- This can't happen because the Dhall expression is invalid. There can't be a variable name
@@ -571,39 +653,42 @@ modifyRawAST' initialKey astMod originalExpr = do
             mbResult <- updateExpr newLevel recordExpr
             case mbResult of
               Just EncounteredEmbed -> do
-                case astMod of
-                  InsertListText additions -> do
-                    --     ```
-                    --     ./spago.dhall
-                    --       with someField = update
-                    --     ```
-                    --  to
-                    --     ```
-                    --     let __embed = ./spago.dhall
-                    --     in embed
-                    --          with field = update
-                    --          with dependencies = embed.dependencies # ["new"]
-                    --     ```
-                    let
-                      varName = "__embed"
-                      var = Dhall.Var (Dhall.V varName 0)
+                --     ```
+                --     ./spago.dhall
+                --       with someField = update
+                --     ```
+                --  to
+                --     ```
+                --     let __embed = ./spago.dhall
+                --     in embed
+                --          with field = update
+                --          with dependencies = embed.dependencies # ["new"]
+                --     ```
+                let
+                  varName = "__embed"
+                  var = Dhall.Var (Dhall.V varName 0)
 
-                      -- `let __embed = recordExpr`
-                      binding = Dhall.makeBinding varName recordExpr
+                  -- `let __embed = recordExpr`
+                  binding = Dhall.makeBinding varName recordExpr
 
-                      -- `var.dependencies # ["new"]`
-                      lsAppendUpdate =
-                        Dhall.ListAppend (Dhall.Field var (Dhall.makeFieldSelection key))
-                          $ Dhall.ListLit Nothing $ updateListTextByAppending additions Seq.empty
-                    pure $ Just $ Updated
-                      $ Dhall.Let binding
-                      -- Note: we can't use `Prefer` here to merge two `With` updates into a single record update
-                      -- (e.g. `foo with key1 = x with key2 = x` -> foo // { key1 = x, key2 = y }` )
-                      -- because we might have a nested selector
-                      -- (e.g. `{ outer = { inner = [] } } with outer.inner = ["foo"]` ).
-                      -- So, we must instead wrap it in another `With`
-                      -- (e.g. `{ outer = { inner = [] }, dependencies = [] } with outer.inner = ["foo"] with dependencies = ["foo"]` ).
-                      $ Dhall.With (Dhall.With var field update) (key :| []) lsAppendUpdate
+                  -- `var.dependencies # ["new"]`
+                  astUpdate = case astMod of
+                    InsertListText additions ->
+                      Dhall.ListAppend (Dhall.Field var (Dhall.makeFieldSelection key))
+                        $ Dhall.ListLit Nothing $ updateListTextByAppending additions Seq.empty
+
+                    SetText t ->
+                      t
+
+                pure $ Just $ Updated
+                  $ Dhall.Let binding
+                  -- Note: we can't use `Prefer` here to merge two `With` updates into a single record update
+                  -- (e.g. `foo with key1 = x with key2 = x` -> foo // { key1 = x, key2 = y }` )
+                  -- because we might have a nested selector
+                  -- (e.g. `{ outer = { inner = [] } } with outer.inner = ["foo"]` ).
+                  -- So, we must instead wrap it in another `With`
+                  -- (e.g. `{ outer = { inner = [] }, dependencies = [] } with outer.inner = ["foo"] with dependencies = ["foo"]` ).
+                  $ Dhall.With (Dhall.With var field update) (key :| []) astUpdate
 
               varName@(Just (VariableName _)) -> do
                 -- `The `Just VariableName` can't happen here because this is `AtRootExpression`
@@ -677,6 +762,9 @@ modifyRawAST' initialKey astMod originalExpr = do
               InsertListText additions -> do
                 pure $ Just $ Updated $ updateListTextByWrappingListAppend additions expr
 
+              SetText t -> do
+                pure $ Just $ Updated t
+
           AtRootExpression key -> do
             let
               newLevel = SearchingForField (key :| [])
@@ -694,6 +782,9 @@ modifyRawAST' initialKey astMod originalExpr = do
                   InsertListText additions -> do
                     pure $ Just $ Updated $ Dhall.Let binding $ updateListTextByWrappingLetBinding (key :| []) additions "__embed" inExpr
 
+                  SetText t -> do
+                    pure $ Just $ Updated $ Dhall.Let binding $ Dhall.With inExpr (key :| []) t
+
               Just (Updated newInExpr) -> do
                 pure $ Just $ Updated $ Dhall.Let binding newInExpr
 
@@ -705,6 +796,9 @@ modifyRawAST' initialKey astMod originalExpr = do
                       InsertListText additions -> do
                         pure $ Just $ Updated $ Dhall.Let (Dhall.makeBinding variable
                           $ updateListTextByWrappingLetBinding (key :| []) additions "__embed" value) inExpr
+
+                      SetText t -> do
+                        pure $ Just $ Updated $ Dhall.Let (Dhall.makeBinding variable (Dhall.With value (key :| []) t)) inExpr
 
                   Just (Updated newValue) -> do
                     pure $ Just $ Updated $ Dhall.Let (Dhall.makeBinding variable newValue) inExpr
@@ -740,6 +834,10 @@ modifyRawAST' initialKey astMod originalExpr = do
                       InsertListText additions -> do
                         pure $ Just $ Updated $ Dhall.Let (Dhall.makeBinding variable
                           $ updateListTextByWrappingLetBinding keyStack additions "__embed" value) inExpr
+
+                      SetText t -> do
+                        pure $ Just $ Updated $ Dhall.Let (Dhall.makeBinding variable
+                          $ Dhall.With value keyStack t) inExpr
 
                   Just (Updated newValue) -> do
                     pure $ Just $ Updated $ Dhall.Let (Dhall.makeBinding variable newValue) inExpr
