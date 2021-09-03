@@ -352,6 +352,14 @@ modifyRawAST' initialKey astMod originalExpr = do
             --    `let config = { ..., dependencies = ... } in config`
             pure $ Just $ VariableName varName
 
+      Dhall.TextLit _ -> do
+        case level of
+          AtRootExpression _ -> pure Nothing
+          SearchingForField _ -> pure Nothing
+          WithinField -> case astMod of
+            SetText t -> pure $ Just $ Updated t
+            InsertListText _ -> pure Nothing
+
       -- ["foo", "bar"]
       Dhall.ListLit ann ls -> do
         case level of
@@ -798,7 +806,10 @@ modifyRawAST' initialKey astMod originalExpr = do
                           $ updateListTextByWrappingLetBinding (key :| []) additions "__embed" value) inExpr
 
                       SetText t -> do
-                        pure $ Just $ Updated $ Dhall.Let (Dhall.makeBinding variable (Dhall.With value (key :| []) t)) inExpr
+                        pure $ Just $ Updated
+                          $ Dhall.Let
+                              (Dhall.makeBinding variable (Dhall.With value (key :| []) t))
+                              inExpr
 
                   Just (Updated newValue) -> do
                     pure $ Just $ Updated $ Dhall.Let (Dhall.makeBinding variable newValue) inExpr
