@@ -206,7 +206,7 @@ addRawDeps' pkgsToInstall originalExpr = do
 
     updateByMergingListLits :: Expr -> Maybe Expr
     updateByMergingListLits expr = case expr of
-      Dhall.ListLit _ ls -> Just $ Dhall.ListLit Nothing $ updateDependencies ls
+      Dhall.ListLit ann ls -> Just $ Dhall.ListLit ann $ updateDependencies ls
       Dhall.ListAppend left right -> do
         (\newLeft -> Dhall.ListAppend newLeft right) <$> updateByMergingListLits left
         <|> (\newRight -> Dhall.ListAppend left newRight) <$> updateByMergingListLits right
@@ -268,7 +268,7 @@ addRawDeps' pkgsToInstall originalExpr = do
             pure $ Just $ VariableName varName
 
       -- ["foo", "bar"]
-      Dhall.ListLit _ ls -> do
+      Dhall.ListLit ann ls -> do
         case level of
           AtRootExpression -> do
             -- This should never happen because we've already verified that the normalized expression
@@ -282,7 +282,7 @@ addRawDeps' pkgsToInstall originalExpr = do
             pure Nothing
 
           WithinDependenciesField -> do
-            pure $ Just $ Updated $ Dhall.ListLit Nothing $ updateDependencies ls
+            pure $ Just $ Updated $ Dhall.ListLit ann $ updateDependencies ls
 
       -- left # right
       Dhall.ListAppend left right -> do
