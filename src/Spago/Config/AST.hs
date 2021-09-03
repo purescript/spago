@@ -47,7 +47,7 @@ data AstModification addPkgs
 modifyRawAST :: HasLogFunc env => AstModification [PackageName] -> ResolvedExpr -> Expr -> RIO env Expr
 modifyRawAST astMod normalizedExpr originalExpr = case astMod of
   AddPackages newPackages -> do
-    mbAllInstalledPkgs <- findInstalledPackages
+    mbAllInstalledPkgs <- findListTextValues dependenciesText PackageName
     case mbAllInstalledPkgs of
       Nothing -> do
         pure originalExpr
@@ -65,12 +65,12 @@ modifyRawAST astMod normalizedExpr originalExpr = case astMod of
       where
         seens = Seq.scanl (flip Set.insert) Set.empty xs
 
-    findInstalledPackages :: HasLogFunc env => RIO env (Maybe (Seq PackageName))
-    findInstalledPackages = case normalizedExpr of
-      Dhall.RecordLit kvs -> case Dhall.Map.lookup dependenciesText kvs of
+    findListTextValues :: HasLogFunc env => Text -> (Text -> a) -> RIO env (Maybe (Seq a))
+    findListTextValues key f = case normalizedExpr of
+      Dhall.RecordLit kvs -> case Dhall.Map.lookup key kvs of
         Just Dhall.RecordField { recordFieldValue } -> case recordFieldValue of
           Dhall.ListLit _ dependencies -> do
-            Just . fmap PackageName <$> traverse (throws . Dhall.fromTextLit) dependencies
+            Just . fmap f <$> traverse (throws . Dhall.fromTextLit) dependencies
           other -> do
             logWarn $ display $ "not listlit: " <> failedToAddDepsExpectedRecordKey other
             pure Nothing
