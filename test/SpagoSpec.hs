@@ -246,12 +246,23 @@ spec = around_ setup $ do
       writeTextFile "packages.dhall" "let pkgs = ./packagesBase.dhall in pkgs // { spago = { dependencies = [\"prelude\"], repo = \"https://github.com/purescript/spago.git\", version = \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\" }}"
       spago ["install", "spago"] >>= shouldBeFailure
 
-    it "Spago should be able to update dependencies in an alternative config" $ do
+    describe "Spago should be able to update dependencies in an alternative config" $ do
 
-      spago ["init"] >>= shouldBeSuccess
-      writeTextFile "alternative1.dhall" "./spago.dhall // {dependencies = [\"prelude\"]}"
-      spago ["-x", "alternative1.dhall", "install", "simple-json"] >>= shouldBeSuccess
-      checkFixture "alternative1.dhall"
+      it "... alternative1.dhall" $ do
+
+        spago ["init"] >>= shouldBeSuccess
+        writeTextFile "alternative1.dhall" "./spago.dhall // {dependencies = [\"prelude\"]}"
+        spago ["-x", "alternative1.dhall", "install", "simple-json"] >>= shouldBeSuccess
+        checkFixture "alternative1.dhall"
+
+      it "... alternative3-insane.dhall qw" $ do
+
+        spago ["init"] >>= shouldBeSuccess
+        spagoFileContent <- readFixture "alternative3-before.dhall"
+        writeTextFile "alternative3.dhall" spagoFileContent
+        spago ["-x", "alternative3.dhall", "install", "newtype" ] >>= shouldBeSuccess
+        mv "alternative3.dhall" "alternative3-success.dhall"
+        checkFixture "alternative3-success.dhall"
 
     it "Spago should fail when the alternate config file doesn't exist" $ do
       spago ["init"] >>= shouldBeSuccess
