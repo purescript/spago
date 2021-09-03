@@ -24,6 +24,7 @@ type ResolvedExpr = Dhall.Expr Parser.Src Void
 -- Indicates the change Spago wants to make to the expression
 data AstModification
   = AddPackages ![PackageName]
+  | AddSources ![Text]
 
 -- |
 -- Indicates the change to make once inside the expression
@@ -65,6 +66,18 @@ modifyRawAST astMod normalizedExpr originalExpr = case astMod of
           pure originalExpr
         else do
           modifyRawAST' dependenciesText (InsertListText (Dhall.toTextLit . packageName <$> pkgsToInstall)) originalExpr
+  AddSources newSources -> do
+    mbAllInstalledPkgs <- findListTextValues sourcesText (\x -> x)
+    case mbAllInstalledPkgs of
+      Nothing -> do
+        pure originalExpr
+      Just allInstalledPkgs -> do
+        let sourcesToInstall = nubSeq $ Seq.filter (`notElem` allInstalledPkgs) $ Seq.fromList newSources
+        if null sourcesToInstall
+        then do
+          pure originalExpr
+        else do
+          modifyRawAST' sourcesText (InsertListText (Dhall.toTextLit <$> sourcesToInstall)) originalExpr
   where
     -- | Code from https://stackoverflow.com/questions/45757839
     nubSeq :: Ord a => Seq a -> Seq a
@@ -89,12 +102,16 @@ modifyRawAST astMod normalizedExpr originalExpr = case astMod of
         pure Nothing
       where
         failedToAddDepsExpectedRecordKey e =
-          "Failed to add dependencies. You should have a record with the `dependencies` key for this to work.\n" <>
+          "Failed to add dependencies. You should have a record with the `" <> key <> "` key for this to work.\n" <>
           "Expression was: " <> pretty e
 
 -- | "dependencies" - Reduce chance of spelling mistakes/typos
 dependenciesText :: Text
 dependenciesText = "dependencies"
+
+-- | "sources" - Reduce chance of spelling mistakes/typos
+sourcesText :: Text
+sourcesText = "sources"
 
 -- | Indicates where we are in the expresion
 data ExprLevel
