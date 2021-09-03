@@ -311,17 +311,9 @@ addRawDeps' pkgsToInstall originalExpr = do
                 Just lsAppend -> do
                   pure lsAppend
                 Nothing -> do
-                  mbLeft <- updateExpr level left
-                  case mbLeft of
-                    Just (Updated newLeft) -> do
-                      pure $ Dhall.ListAppend newLeft right
-                    _ -> do
-                      mbRight <- updateExpr level right
-                      case mbRight of
-                        Just (Updated newRight) -> do
-                          pure $ Dhall.ListAppend left newRight
-                        _ -> do
-                          pure $ Dhall.ListAppend left $ updateByWrappingListAppend right
+                  -- Since we couldn't add the update to an existing ListLit
+                  -- we'll just add it the the end
+                  pure $ updateByWrappingListAppend expr
 
       -- { key = value, ... }
       Dhall.RecordLit kvs -> do
