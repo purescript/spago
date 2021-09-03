@@ -555,7 +555,6 @@ addRawDeps' pkgsToInstall originalExpr = do
                   -- (e.g. `{ outer = { inner = [] }, dependencies = [] } with outer.inner = ["foo"] with dependencies = ["foo"]` ).
                   $ Dhall.With (Dhall.With var field update) ("dependencies" :| []) lsAppendUpdate
 
-
               varName@(Just (VariableName _)) -> do
                 -- `The `Just VariableName` can't happen here because this is `AtRootExpression`
                 pure varName
