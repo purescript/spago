@@ -197,7 +197,7 @@ mapUpdated _ other = other
 -- Since this is modifying the raw AST and might produce an invalid configuration file,
 -- the returned expression should be verified to produce a valid configuration format.
 modifyRawAST' :: HasLogFunc env => AstModification (Seq Expr) -> Expr -> RIO env Expr
-modifyRawAST' (AddPackages pkgsToInstall) originalExpr = do
+modifyRawAST' astMod originalExpr = do
   result <- updateExpr (AtRootExpression dependenciesText) originalExpr
   case result of
     Just (Updated newExpr) -> do
@@ -207,32 +207,32 @@ modifyRawAST' (AddPackages pkgsToInstall) originalExpr = do
   where
     -- |
     -- Adds the packages to the `ListLit`'s `Seq` argument
-    updateDependencies :: Seq Expr -> Seq Expr
-    updateDependencies dependencies = Seq.sort (pkgsToInstall <> dependencies)
+    updateDependencies :: Seq Expr -> Seq Expr -> Seq Expr
+    updateDependencies additions dependencies = Seq.sort (additions <> dependencies)
 
     nonEmptyDependencies :: NonEmpty Text
     nonEmptyDependencies = dependenciesText :| []
 
     -- |
     -- Removes some boilerplate: changes `expr` to `expr # ["new"]`
-    updateByWrappingListAppend :: Expr -> Expr
-    updateByWrappingListAppend expr =
-      Dhall.ListAppend expr $ Dhall.ListLit Nothing $ updateDependencies Seq.empty
+    updateByWrappingListAppend :: Seq Expr -> Expr -> Expr
+    updateByWrappingListAppend additions expr =
+      Dhall.ListAppend expr $ Dhall.ListLit Nothing $ updateDependencies additions Seq.empty
 
-    updateByMergingListLits :: Expr -> Maybe Expr
-    updateByMergingListLits expr = case expr of
-      Dhall.ListLit ann ls -> Just $ Dhall.ListLit ann $ updateDependencies ls
+    updateByMergingListLits :: Seq Expr -> Expr -> Maybe Expr
+    updateByMergingListLits additions expr = case expr of
+      Dhall.ListLit ann ls -> Just $ Dhall.ListLit ann $ updateDependencies additions ls
       Dhall.ListAppend left right -> do
-        (\newLeft -> Dhall.ListAppend newLeft right) <$> updateByMergingListLits left
-        <|> (\newRight -> Dhall.ListAppend left newRight) <$> updateByMergingListLits right
+        (\newLeft -> Dhall.ListAppend newLeft right) <$> updateByMergingListLits additions left
+        <|> (\newRight -> Dhall.ListAppend left newRight) <$> updateByMergingListLits additions right
       _ -> Nothing
 
     -- |
     --    `./spago.dhall` (or some other expression where the required update is within the embed (e.g. `./spago.dhall // { sources = ["foo"] }`)
     -- to
     --    `let varname = ./spago.dhall in varName with dependencies = varName.dependencies # ["new"]`
-    updateByWrappingLetBinding :: Text -> Expr -> Expr
-    updateByWrappingLetBinding varName expr = do
+    updateByWrappingLetBinding :: Seq Expr -> Text -> Expr -> Expr
+    updateByWrappingLetBinding additions varName expr = do
       let
         var = Dhall.Var (Dhall.V varName 0)
 
@@ -243,7 +243,7 @@ modifyRawAST' (AddPackages pkgsToInstall) originalExpr = do
         lsAppend =
           Dhall.ListAppend
             (Dhall.Field var (Dhall.makeFieldSelection dependenciesText))
-            (Dhall.ListLit Nothing $ updateDependencies Seq.empty)
+            (Dhall.ListLit Nothing $ updateDependencies additions Seq.empty)
       Dhall.Let binding $ Dhall.With var nonEmptyDependencies lsAppend
 
     -- | Updates a "root-level" expression
@@ -253,7 +253,9 @@ modifyRawAST' (AddPackages pkgsToInstall) originalExpr = do
       Dhall.Embed _ -> do
         case level of
           AtRootExpression _ -> do
-            pure $ Just $ Updated $ updateByWrappingLetBinding "__embed" expr
+            case astMod of
+              AddPackages pkgsToInstall -> do
+                pure $ Just $ Updated $ updateByWrappingLetBinding pkgsToInstall "__embed" expr
 
           SearchingForField _ ->
             pure $ Just EncounteredEmbed
@@ -274,7 +276,9 @@ modifyRawAST' (AddPackages pkgsToInstall) originalExpr = do
             -- to
             --  `let pkg = [ "package" ] in { ..., dependencies = pkg # [ "newPackage" ] }
             -- For this expression, we wrap it in a `ListAppend`
-            pure $ Just $ Updated $ updateByWrappingListAppend expr
+            case astMod of
+              AddPackages pkgsToInstall -> do
+                pure $ Just $ Updated $ updateByWrappingListAppend pkgsToInstall expr
 
           SearchingForField _ -> do
             -- We got to the final expression and find that the real expression is stored
@@ -297,7 +301,9 @@ modifyRawAST' (AddPackages pkgsToInstall) originalExpr = do
             pure Nothing
 
           WithinField -> do
-            pure $ Just $ Updated $ Dhall.ListLit ann $ updateDependencies ls
+            case astMod of
+              AddPackages pkgsToInstall -> do
+                pure $ Just $ Updated $ Dhall.ListLit ann $ updateDependencies pkgsToInstall ls
 
       -- left # right
       Dhall.ListAppend left right -> do
@@ -317,18 +323,20 @@ modifyRawAST' (AddPackages pkgsToInstall) originalExpr = do
             --  `["foo"] # expr` -> `["old", "new"] # expr`
             --  `expr # ["old"]` -> `expr # ["old", "new"]`
             --  `expr1 # expr2` -> `expr1 # expr2 # ["new"]`
-            Just . Updated <$> do
-              let
-                mergeResult =
-                  (\newLeft -> Dhall.ListAppend newLeft right) <$> updateByMergingListLits left
-                  <|> (\newRight -> Dhall.ListAppend left newRight) <$> updateByMergingListLits right
-              case mergeResult of
-                Just lsAppend -> do
-                  pure lsAppend
-                Nothing -> do
-                  -- Since we couldn't add the update to an existing ListLit
-                  -- we'll just add it the the end
-                  pure $ updateByWrappingListAppend expr
+            case astMod of
+              AddPackages pkgsToInstall -> do
+                Just . Updated <$> do
+                  let
+                    mergeResult =
+                      (\newLeft -> Dhall.ListAppend newLeft right) <$> updateByMergingListLits pkgsToInstall left
+                      <|> (\newRight -> Dhall.ListAppend left newRight) <$> updateByMergingListLits pkgsToInstall right
+                  case mergeResult of
+                    Just lsAppend -> do
+                      pure lsAppend
+                    Nothing -> do
+                      -- Since we couldn't add the update to an existing ListLit
+                      -- we'll just add it the the end
+                      pure $ updateByWrappingListAppend pkgsToInstall expr
 
       -- { key = value, ... }
       Dhall.RecordLit kvs -> do
@@ -375,7 +383,9 @@ modifyRawAST' (AddPackages pkgsToInstall) originalExpr = do
             --  `{ dependencies = otherConfig.someKey }`
             -- to
             --  `{ dependencies = otherConfig.someKey # [ "new" ] }`
-            pure $ Just $ Updated $ updateByWrappingListAppend expr
+            case astMod of
+              AddPackages pkgsToInstall -> do
+                pure $ Just $ Updated $ updateByWrappingListAppend pkgsToInstall expr
 
           AtRootExpression key -> do
             --  `{ config = { ..., dependencies = [ "package" ] } }.config`
@@ -386,7 +396,9 @@ modifyRawAST' (AddPackages pkgsToInstall) originalExpr = do
             mbResult <- fmap (mapUpdated (\newRecord -> Dhall.Field newRecord selection)) <$> updateExpr newLevel recordExpr
             case mbResult of
               Just EncounteredEmbed -> do
-                pure $ Just $ Updated $ Dhall.Field (updateByWrappingLetBinding "__embed" expr) selection
+                case astMod of
+                  AddPackages pkgsToInstall -> do
+                    pure $ Just $ Updated $ Dhall.Field (updateByWrappingLetBinding pkgsToInstall "__embed" expr) selection
 
               _ -> do
                 -- Nothing, Just Updated, or Just VariableName
@@ -404,7 +416,9 @@ modifyRawAST' (AddPackages pkgsToInstall) originalExpr = do
             --  `{ dependencies = someRec.depsList // otherRec.depsList }`
             -- to
             --  `{ dependencies = (someRec.depsList // otherRec.depsList) # ["new packages"] }`
-            pure $ Just $ Updated $ updateByWrappingListAppend expr
+            case astMod of
+              AddPackages pkgsToInstall -> do
+                pure $ Just $ Updated $ updateByWrappingListAppend pkgsToInstall expr
 
           AtRootExpression key -> do
             -- Two possibilities:
@@ -421,7 +435,10 @@ modifyRawAST' (AddPackages pkgsToInstall) originalExpr = do
             mbRight <- updateExpr newLevel right
             case mbRight of
               Just EncounteredEmbed -> do
-                pure $ Just $ Updated $ Dhall.Prefer charSet preferAnn left $ updateByWrappingLetBinding "__embed" right
+                case astMod of
+                  AddPackages pkgsToInstall -> do
+                    pure $ Just $ Updated $ Dhall.Prefer charSet preferAnn left
+                      $ updateByWrappingLetBinding pkgsToInstall "__embed" right
 
               varName@(Just (VariableName _)) -> do
                 -- `The `Just VariableName` can't happen here because this is `AtRootExpression`
@@ -434,17 +451,19 @@ modifyRawAST' (AddPackages pkgsToInstall) originalExpr = do
                 mbLeft <- updateExpr newLevel left
                 case mbLeft of
                   Just EncounteredEmbed -> do
-                    case right of
-                      Dhall.RecordLit kvs -> do
-                        let
-                          newRight =
-                            Dhall.RecordLit
-                            $ flip (Dhall.Map.insert dependenciesText)  kvs
-                            $ Dhall.makeRecordField
-                            $ Dhall.ListLit Nothing $ updateDependencies Seq.empty
-                        pure $ Just $ Updated $ Dhall.Prefer charSet preferAnn left newRight
-                      _ -> do
-                        pure $ Just $ Updated $ Dhall.Prefer charSet preferAnn (updateByWrappingLetBinding "__embed" left) right
+                    case astMod of
+                      AddPackages pkgsToInstall -> do
+                        case right of
+                          Dhall.RecordLit kvs -> do
+                            let
+                              newRight =
+                                Dhall.RecordLit
+                                $ flip (Dhall.Map.insert dependenciesText)  kvs
+                                $ Dhall.makeRecordField
+                                $ Dhall.ListLit Nothing $ updateDependencies pkgsToInstall Seq.empty
+                            pure $ Just $ Updated $ Dhall.Prefer charSet preferAnn left newRight
+                          _ -> do
+                            pure $ Just $ Updated $ Dhall.Prefer charSet preferAnn (updateByWrappingLetBinding pkgsToInstall "__embed" left) right
 
                   varName@(Just (VariableName _)) -> do
                     -- `The `Just VariableName` can't happen here because this is `AtRootExpression`
@@ -488,7 +507,9 @@ modifyRawAST' (AddPackages pkgsToInstall) originalExpr = do
       Dhall.With recordExpr field update ->
         case level of
           WithinField -> do
-            pure $ Just $ Updated $ updateByWrappingListAppend expr
+            case astMod of
+              AddPackages pkgsToInstall -> do
+                pure $ Just $ Updated $ updateByWrappingListAppend pkgsToInstall expr
 
           AtRootExpression key | field == (key :| []) -> do
             --    `{ ..., dependencies = ["old"] } with dependencies = ["package"]`
@@ -500,7 +521,9 @@ modifyRawAST' (AddPackages pkgsToInstall) originalExpr = do
                 --    `{ ..., dependencies = ["old"] } with dependencies = ./deps.dhall`
                 --  to
                 --    `{ ..., dependencies = ["old"] } with dependencies = ./deps.dhall # ["new"]`
-                pure $ Just $ Updated $ Dhall.With recordExpr field $ updateByWrappingListAppend update
+                case astMod of
+                  AddPackages pkgsToInstall -> do
+                    pure $ Just $ Updated $ Dhall.With recordExpr field $ updateByWrappingListAppend pkgsToInstall update
 
               varName@(Just (VariableName _)) -> do
                 -- This can't happen because the Dhall expression is invalid. There can't be a variable name
@@ -524,37 +547,39 @@ modifyRawAST' (AddPackages pkgsToInstall) originalExpr = do
             mbResult <- updateExpr newLevel recordExpr
             case mbResult of
               Just EncounteredEmbed -> do
-                --     ```
-                --     ./spago.dhall
-                --       with someField = update
-                --     ```
-                --  to
-                --     ```
-                --     let __embed = ./spago.dhall
-                --     in embed
-                --          with field = update
-                --          with dependencies = embed.dependencies # ["new"]
-                --     ```
-                let
-                  varName = "__embed"
-                  var = Dhall.Var (Dhall.V varName 0)
+                case astMod of
+                  AddPackages pkgsToInstall -> do
+                    --     ```
+                    --     ./spago.dhall
+                    --       with someField = update
+                    --     ```
+                    --  to
+                    --     ```
+                    --     let __embed = ./spago.dhall
+                    --     in embed
+                    --          with field = update
+                    --          with dependencies = embed.dependencies # ["new"]
+                    --     ```
+                    let
+                      varName = "__embed"
+                      var = Dhall.Var (Dhall.V varName 0)
 
-                  -- `let __embed = recordExpr`
-                  binding = Dhall.makeBinding varName recordExpr
+                      -- `let __embed = recordExpr`
+                      binding = Dhall.makeBinding varName recordExpr
 
-                  -- `var.dependencies # ["new"]`
-                  lsAppendUpdate =
-                    Dhall.ListAppend (Dhall.Field var (Dhall.makeFieldSelection dependenciesText))
-                      $ Dhall.ListLit Nothing $ updateDependencies Seq.empty
-                pure $ Just $ Updated
-                  $ Dhall.Let binding
-                  -- Note: we can't use `Prefer` here to merge two `With` updates into a single record update
-                  -- (e.g. `foo with key1 = x with key2 = x` -> foo // { key1 = x, key2 = y }` )
-                  -- because we might have a nested selector
-                  -- (e.g. `{ outer = { inner = [] } } with outer.inner = ["foo"]` ).
-                  -- So, we must instead wrap it in another `With`
-                  -- (e.g. `{ outer = { inner = [] }, dependencies = [] } with outer.inner = ["foo"] with dependencies = ["foo"]` ).
-                  $ Dhall.With (Dhall.With var field update) nonEmptyDependencies lsAppendUpdate
+                      -- `var.dependencies # ["new"]`
+                      lsAppendUpdate =
+                        Dhall.ListAppend (Dhall.Field var (Dhall.makeFieldSelection dependenciesText))
+                          $ Dhall.ListLit Nothing $ updateDependencies pkgsToInstall Seq.empty
+                    pure $ Just $ Updated
+                      $ Dhall.Let binding
+                      -- Note: we can't use `Prefer` here to merge two `With` updates into a single record update
+                      -- (e.g. `foo with key1 = x with key2 = x` -> foo // { key1 = x, key2 = y }` )
+                      -- because we might have a nested selector
+                      -- (e.g. `{ outer = { inner = [] } } with outer.inner = ["foo"]` ).
+                      -- So, we must instead wrap it in another `With`
+                      -- (e.g. `{ outer = { inner = [] }, dependencies = [] } with outer.inner = ["foo"] with dependencies = ["foo"]` ).
+                      $ Dhall.With (Dhall.With var field update) nonEmptyDependencies lsAppendUpdate
 
               varName@(Just (VariableName _)) -> do
                 -- `The `Just VariableName` can't happen here because this is `AtRootExpression`
@@ -624,7 +649,9 @@ modifyRawAST' (AddPackages pkgsToInstall) originalExpr = do
       Dhall.Let binding@Dhall.Binding { variable, value } inExpr -> do
         case level of
           WithinField -> do
-            pure $ Just $ Updated $ updateByWrappingListAppend expr
+            case astMod of
+              AddPackages pkgsToInstall -> do
+                pure $ Just $ Updated $ updateByWrappingListAppend pkgsToInstall expr
 
           AtRootExpression key -> do
             let
@@ -639,7 +666,9 @@ modifyRawAST' (AddPackages pkgsToInstall) originalExpr = do
                 --  let __embed = ./spago.dhall
                 --  in  __embed with dependencies = __embed.dependencies # ["new"]
                 --  ```
-                pure $ Just $ Updated $ Dhall.Let binding $ updateByWrappingLetBinding "__embed" inExpr
+                case astMod of
+                  AddPackages pkgsToInstall -> do
+                    pure $ Just $ Updated $ Dhall.Let binding $ updateByWrappingLetBinding pkgsToInstall "__embed" inExpr
 
               Just (Updated newInExpr) -> do
                 pure $ Just $ Updated $ Dhall.Let binding newInExpr
@@ -648,7 +677,10 @@ modifyRawAST' (AddPackages pkgsToInstall) originalExpr = do
                 mbValue <- updateExpr newLevel value
                 case mbValue of
                   Just EncounteredEmbed -> do
-                    pure $ Just $ Updated $ Dhall.Let (Dhall.makeBinding variable $ updateByWrappingLetBinding "__embed" value) inExpr
+                    case astMod of
+                      AddPackages pkgsToInstall -> do
+                        pure $ Just $ Updated $ Dhall.Let (Dhall.makeBinding variable
+                          $ updateByWrappingLetBinding pkgsToInstall "__embed" value) inExpr
 
                   Just (Updated newValue) -> do
                     pure $ Just $ Updated $ Dhall.Let (Dhall.makeBinding variable newValue) inExpr
@@ -680,7 +712,10 @@ modifyRawAST' (AddPackages pkgsToInstall) originalExpr = do
                 mbValue <- updateExpr level value
                 case mbValue of
                   Just EncounteredEmbed -> do
-                    pure $ Just $ Updated $ Dhall.Let (Dhall.makeBinding variable $ updateByWrappingLetBinding "__embed" value) inExpr
+                    case astMod of
+                      AddPackages pkgsToInstall -> do
+                        pure $ Just $ Updated $ Dhall.Let (Dhall.makeBinding variable
+                          $ updateByWrappingLetBinding pkgsToInstall "__embed" value) inExpr
 
                   Just (Updated newValue) -> do
                     pure $ Just $ Updated $ Dhall.Let (Dhall.makeBinding variable newValue) inExpr
