@@ -69,7 +69,7 @@ modifyRawAST astMod normalizedExpr originalExpr = case astMod of
         else do
           modifyRawAST' dependenciesText (InsertListText (Dhall.toTextLit . packageName <$> pkgsToInstall)) originalExpr
   AddSources newSources -> do
-    mbAllInstalledPkgs <- findListTextValues sourcesText (\x -> x)
+    mbAllInstalledPkgs <- findListTextValues sourcesText id
     case mbAllInstalledPkgs of
       Nothing -> do
         pure originalExpr
