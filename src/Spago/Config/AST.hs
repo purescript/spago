@@ -88,7 +88,7 @@ dependenciesText = "dependencies"
 data ExprLevel
   = AtRootExpression
   -- ^ The outermost expression
-  | SearchingForDependenciesField !(NonEmpty Text)
+  | SearchingForField !(NonEmpty Text)
   -- ^ An expression within the root expression
   --   where we still haven't found the record with the
   --   `dependencies` field key.
@@ -97,9 +97,9 @@ data ExprLevel
   --   `RecordLit` to loookup a field within that record.
   --   `Field` pushes new keys on top of the stack
   --   `RecordLit` looks up those fields and drops the keys on the stack
-  --   Transitioning from `AtRootExpression` to `SearchingForDependenciesField`
+  --   Transitioning from `AtRootExpression` to `SearchingForField`
   --   should therefore always have `"dependencies"` at the bottom of the stack.
-  | WithinDependenciesField
+  | WithinField
   -- ^ This expression is the value associated with the `dependencies` field.
   --   It must be a `List`-like structure, so immediately append the new packages
   --   to the expression via a `ListAppend` or merge `ListLit`s together
@@ -114,9 +114,9 @@ data UpdateResult
   | EncounteredEmbed
   -- ^ We encountered an `Embed` constructor. We can make only
   --   two assumptions about it:
-  --    1. If we are `WithinDependenciesField`, then this must be an
+  --    1. If we are `WithinField`, then this must be an
   --       expression that produces a `List`-like structure.
-  --    2. We are NOT `WithinDependenciesField`, then this must be an
+  --    2. We are NOT `WithinField`, then this must be an
   --       expression that produces a `Record`-like Config-schema structure.
   --       Thus, a "dependencies" key should exist. If it doesn't, the
   --       Dhall expression is invalid (as verified by our prior normalized expression)
@@ -248,10 +248,10 @@ addRawDeps' pkgsToInstall originalExpr = do
           AtRootExpression -> do
             pure $ Just $ Updated $ updateByWrappingLetBinding "__embed" expr
 
-          SearchingForDependenciesField _ ->
+          SearchingForField _ ->
             pure $ Just EncounteredEmbed
 
-          WithinDependenciesField ->
+          WithinField ->
             pure $ Just EncounteredEmbed
 
       -- let varname = ... in ... varName
@@ -262,14 +262,14 @@ addRawDeps' pkgsToInstall originalExpr = do
             -- produces a RecordLit with a dependencies field that stores a list of text values.
             pure Nothing
 
-          WithinDependenciesField -> do
+          WithinField -> do
             --  `let pkg = [ "package" ] in { ..., dependencies = pkg }
             -- to
             --  `let pkg = [ "package" ] in { ..., dependencies = pkg # [ "newPackage" ] }
             -- For this expression, we wrap it in a `ListAppend`
             pure $ Just $ Updated $ updateByWrappingListAppend expr
 
-          SearchingForDependenciesField _ -> do
+          SearchingForField _ -> do
             -- We got to the final expression and find that the real expression is stored
             -- in a binding. For example, the second `config` in
             --    `let config = { ..., dependencies = ... } in config`
@@ -283,13 +283,13 @@ addRawDeps' pkgsToInstall originalExpr = do
             -- produces a RecordLit with a dependencies field that stores a list of text values.
             pure Nothing
 
-          SearchingForDependenciesField _ -> do
+          SearchingForField _ -> do
             -- This could arise if one was storing a list at one point and then trying to access
             -- an element within the list at another point. Since it's uncommon, we won't
             -- support it here.
             pure Nothing
 
-          WithinDependenciesField -> do
+          WithinField -> do
             pure $ Just $ Updated $ Dhall.ListLit ann $ updateDependencies ls
 
       -- left # right
@@ -300,13 +300,13 @@ addRawDeps' pkgsToInstall originalExpr = do
             -- produces a RecordLit with a dependencies field that stores a list of text values.
             pure Nothing
 
-          SearchingForDependenciesField _ -> do
+          SearchingForField _ -> do
             -- This could arise if one was storing a list at one point and then trying to access
             -- an element within the list at another point. Since it's uncommon, we won't
             -- support it here.
             pure Nothing
 
-          WithinDependenciesField -> do
+          WithinField -> do
             --  `["foo"] # expr` -> `["old", "new"] # expr`
             --  `expr # ["old"]` -> `expr # ["old", "new"]`
             --  `expr1 # expr2` -> `expr1 # expr2 # ["new"]`
@@ -326,12 +326,12 @@ addRawDeps' pkgsToInstall originalExpr = do
       -- { key = value, ... }
       Dhall.RecordLit kvs -> do
         case level of
-          WithinDependenciesField ->
+          WithinField ->
             -- This should never happen because we've already verified that the normalized expression
             -- produces a RecordLit with a dependencies field that stores a list of text values.
             pure Nothing
 
-          SearchingForDependenciesField (key :| keys) -> do
+          SearchingForField (key :| keys) -> do
             case Dhall.Map.lookup key kvs of
               Nothing -> do
                 pure Nothing
@@ -343,8 +343,8 @@ addRawDeps' pkgsToInstall originalExpr = do
                       . Dhall.makeRecordField
 
                   newLevel = case keys of
-                    [] -> WithinDependenciesField
-                    (nextKey:tail) -> SearchingForDependenciesField (nextKey :| tail)
+                    [] -> WithinField
+                    (nextKey:tail) -> SearchingForField (nextKey :| tail)
 
                 fmap (mapUpdated updateRecordLit) <$> updateExpr newLevel recordFieldValue
 
@@ -359,12 +359,12 @@ addRawDeps' pkgsToInstall originalExpr = do
                       . flip (Dhall.Map.insert dependenciesText) kvs
                       . Dhall.makeRecordField
 
-                fmap (mapUpdated updateRecordLit) <$> updateExpr WithinDependenciesField recordFieldValue
+                fmap (mapUpdated updateRecordLit) <$> updateExpr WithinField recordFieldValue
 
       -- recordExpr.selection
       Dhall.Field recordExpr selection@Dhall.FieldSelection { fieldSelectionLabel } -> do
         case level of
-          WithinDependenciesField -> do
+          WithinField -> do
             --  `{ dependencies = otherConfig.someKey }`
             -- to
             --  `{ dependencies = otherConfig.someKey # [ "new" ] }`
@@ -375,7 +375,7 @@ addRawDeps' pkgsToInstall originalExpr = do
             -- to
             --  `{ config = { ..., dependencies = [ "package", "new" ] } }.config`
             let
-              newLevel = SearchingForDependenciesField (fieldSelectionLabel :| [dependenciesText])
+              newLevel = SearchingForField (fieldSelectionLabel :| [dependenciesText])
             mbResult <- fmap (mapUpdated (\newRecord -> Dhall.Field newRecord selection)) <$> updateExpr newLevel recordExpr
             case mbResult of
               Just EncounteredEmbed -> do
@@ -385,15 +385,15 @@ addRawDeps' pkgsToInstall originalExpr = do
                 -- Nothing, Just Updated, or Just VariableName
                 pure mbResult
 
-          SearchingForDependenciesField keys -> do
+          SearchingForField keys -> do
             let
-              newLevel = SearchingForDependenciesField (fieldSelectionLabel `NonEmpty.cons` keys)
+              newLevel = SearchingForField (fieldSelectionLabel `NonEmpty.cons` keys)
             fmap (mapUpdated (\newRecord -> Dhall.Field newRecord selection)) <$> updateExpr newLevel recordExpr
 
       -- left // right
       Dhall.Prefer charSet preferAnn left right -> do
         case level of
-          WithinDependenciesField -> do
+          WithinField -> do
             --  `{ dependencies = someRec.depsList // otherRec.depsList }`
             -- to
             --  `{ dependencies = (someRec.depsList // otherRec.depsList) # ["new packages"] }`
@@ -410,7 +410,7 @@ addRawDeps' pkgsToInstall originalExpr = do
             --   to
             --    `{ ..., dependencies = ["old", "new"] } // { sources = ["src"] }`
             let
-              newLevel = SearchingForDependenciesField nonEmptyDependencies
+              newLevel = SearchingForField nonEmptyDependencies
             mbRight <- updateExpr newLevel right
             case mbRight of
               Just EncounteredEmbed -> do
@@ -448,7 +448,7 @@ addRawDeps' pkgsToInstall originalExpr = do
 
                   Nothing -> pure Nothing
 
-          SearchingForDependenciesField _ -> do
+          SearchingForField _ -> do
             -- See Dhall.Prefer's `AtRootExpression` case
             -- but for this situation, we're trying to find a record, so we don't match against a "dependencies" field
             mpRight <- updateExpr level right
@@ -480,14 +480,14 @@ addRawDeps' pkgsToInstall originalExpr = do
       -- recordExpr with field1.field2.field3 = update
       Dhall.With recordExpr field update ->
         case level of
-          WithinDependenciesField -> do
+          WithinField -> do
             pure $ Just $ Updated $ updateByWrappingListAppend expr
 
           AtRootExpression | field == nonEmptyDependencies -> do
             --    `{ ..., dependencies = ["old"] } with dependencies = ["package"]`
             --  to
             --    `{ ..., dependencies = ["old"] } with dependencies = ["package", "new"]`
-            mbResult <- updateExpr WithinDependenciesField update
+            mbResult <- updateExpr WithinField update
             case mbResult of
               Just EncounteredEmbed -> do
                 --    `{ ..., dependencies = ["old"] } with dependencies = ./deps.dhall`
@@ -513,7 +513,7 @@ addRawDeps' pkgsToInstall originalExpr = do
 
           AtRootExpression -> do
             let
-              newLevel = SearchingForDependenciesField nonEmptyDependencies
+              newLevel = SearchingForField nonEmptyDependencies
             mbResult <- updateExpr newLevel recordExpr
             case mbResult of
               Just EncounteredEmbed -> do
@@ -559,7 +559,7 @@ addRawDeps' pkgsToInstall originalExpr = do
               nothing@Nothing -> do
                 pure nothing
 
-          SearchingForDependenciesField keyStack -> do
+          SearchingForField keyStack -> do
             {-
               ```
               ({ outer = { config = { dependencies = ... } } }
@@ -571,9 +571,9 @@ addRawDeps' pkgsToInstall originalExpr = do
               levelForUpdate (fieldKey :| fieldKeys) (nextKey :| nextKeys)
                 | fieldKey == nextKey = case (fieldKeys, nextKeys) of
                     ([], []) ->
-                      Just WithinDependenciesField
+                      Just WithinField
                     ([], nextKey':nextKeys') ->
-                      Just $ SearchingForDependenciesField (nextKey' :| nextKeys')
+                      Just $ SearchingForField (nextKey' :| nextKeys')
                     (_:_, []) -> Nothing
                     (fieldKey':fieldKeys', nextKey': nextKeys') ->
                       levelForUpdate (fieldKey' :| fieldKeys') (nextKey' :| nextKeys')
@@ -616,12 +616,12 @@ addRawDeps' pkgsToInstall originalExpr = do
 
       Dhall.Let binding@Dhall.Binding { variable, value } inExpr -> do
         case level of
-          WithinDependenciesField -> do
+          WithinField -> do
             pure $ Just $ Updated $ updateByWrappingListAppend expr
 
           AtRootExpression -> do
             let
-              newLevel = SearchingForDependenciesField nonEmptyDependencies
+              newLevel = SearchingForField nonEmptyDependencies
             result <- updateExpr newLevel inExpr
             case result of
               Just EncounteredEmbed -> do
@@ -660,7 +660,7 @@ addRawDeps' pkgsToInstall originalExpr = do
               nothing@Nothing -> do
                 pure nothing
 
-          SearchingForDependenciesField _ -> do
+          SearchingForField _ -> do
             result <- updateExpr level inExpr
             case result of
               embedded@(Just EncounteredEmbed) -> do
