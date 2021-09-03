@@ -13,6 +13,7 @@ import qualified Dhall.Core
 import qualified Dhall.Map
 import qualified Dhall.Parser          as Parser
 import qualified Spago.Dhall           as Dhall
+import qualified Data.List.NonEmpty    as NonEmpty
 
 
 type Expr = Dhall.Expr Parser.Src Dhall.Import
@@ -83,7 +84,7 @@ addRawDeps newPackages normalizedExpr originalExpr = do
 data ExprLevel
   = AtRootExpression
   -- ^ The outermost expression
-  | SearchingForDependenciesField ![Text]
+  | SearchingForDependenciesField !(NonEmpty Text)
   -- ^ An expression within the root expression
   --   where we still haven't found the record with the
   --   `dependencies` field key.
@@ -323,12 +324,7 @@ addRawDeps' pkgsToInstall originalExpr = do
             -- produces a RecordLit with a dependencies field that stores a list of text values.
             pure Nothing
 
-          SearchingForDependenciesField [] -> do
-            -- We're trying to resolve a record expression but can't lookup anything
-            -- if we don't have a key. This should never happen.
-            pure Nothing
-
-          SearchingForDependenciesField (key:keys) -> do
+          SearchingForDependenciesField (key :| keys) -> do
             case Dhall.Map.lookup key kvs of
               Nothing -> do
                 pure Nothing
@@ -341,7 +337,7 @@ addRawDeps' pkgsToInstall originalExpr = do
 
                   newLevel = case keys of
                     [] -> WithinDependenciesField
-                    _ -> SearchingForDependenciesField keys
+                    (nextKey:tail) -> SearchingForDependenciesField (nextKey :| tail)
 
                 fmap (mapUpdated updateRecordLit) <$> updateExpr newLevel recordFieldValue
 
@@ -372,7 +368,7 @@ addRawDeps' pkgsToInstall originalExpr = do
             -- to
             --  `{ config = { ..., dependencies = [ "package", "new" ] } }.config`
             let
-              newLevel = SearchingForDependenciesField [ fieldSelectionLabel, "dependencies" ]
+              newLevel = SearchingForDependenciesField (fieldSelectionLabel :| ["dependencies"])
             mbResult <- fmap (mapUpdated (\newRecord -> Dhall.Field newRecord selection)) <$> updateExpr newLevel recordExpr
             case mbResult of
               Just EncounteredEmbed -> do
@@ -384,7 +380,7 @@ addRawDeps' pkgsToInstall originalExpr = do
 
           SearchingForDependenciesField keys -> do
             let
-              newLevel = SearchingForDependenciesField (fieldSelectionLabel:keys)
+              newLevel = SearchingForDependenciesField (fieldSelectionLabel `NonEmpty.cons` keys)
             fmap (mapUpdated (\newRecord -> Dhall.Field newRecord selection)) <$> updateExpr newLevel recordExpr
 
       -- left // right
@@ -407,7 +403,7 @@ addRawDeps' pkgsToInstall originalExpr = do
             --   to
             --    `{ ..., dependencies = ["old", "new"] } // { sources = ["src"] }`
             let
-              newLevel = SearchingForDependenciesField ["dependencies"]
+              newLevel = SearchingForDependenciesField ("dependencies" :| [])
             mbRight <- updateExpr newLevel right
             case mbRight of
               Just EncounteredEmbed -> do
@@ -510,7 +506,7 @@ addRawDeps' pkgsToInstall originalExpr = do
 
           AtRootExpression -> do
             let
-              newLevel = SearchingForDependenciesField ["dependencies"]
+              newLevel = SearchingForDependenciesField ("dependencies" :| [])
             mbResult <- updateExpr newLevel recordExpr
             case mbResult of
               Just EncounteredEmbed -> do
@@ -556,42 +552,47 @@ addRawDeps' pkgsToInstall originalExpr = do
               nothing@Nothing -> do
                 pure nothing
 
-          SearchingForDependenciesField [] -> do
-            -- This should never happen as it would imply that we found the
-            -- "dependencies" field but forgot to transition to the `WithinDependenciesField` level
-            pure Nothing
-
-          SearchingForDependenciesField (key:keys) -> do
+          SearchingForDependenciesField keyStack -> do
+            {-
+              ```
+              ({ outer = { config = { dependencies = ... } } }
+                with outer = { config = { dependencies = ... } }
+              ).outer.config
+            -}
             let
-              levelForUpdateSearch = case (key :| keys == field, key :| [] == field) of
-                --    `({ config = ... } with config.dependencies = ["foo"] }).config`
-                -- to
-                --    `({ config = ... } with config.dependencies = ["foo", "new"] }).config`
-                (True, _) -> WithinDependenciesField
+              levelForUpdate :: NonEmpty Text -> NonEmpty Text -> Maybe ExprLevel
+              levelForUpdate (fieldKey :| fieldKeys) (nextKey :| nextKeys)
+                | fieldKey == nextKey = case (fieldKeys, nextKeys) of
+                    ([], []) ->
+                      Just WithinDependenciesField
+                    ([], nextKey':nextKeys') ->
+                      Just $ SearchingForDependenciesField (nextKey' :| nextKeys')
+                    (_:_, []) -> Nothing
+                    (fieldKey':fieldKeys', nextKey': nextKeys') ->
+                      levelForUpdate (fieldKey' :| fieldKeys') (nextKey' :| nextKeys')
+                | otherwise = Nothing
 
-                --    `({ config = ... } with config = { dependencies = ["foo"] }).config`
-                -- to
-                --    `({ config = ... } with config = { dependencies = ["foo", "new"] }).config`
-                (_, True) -> SearchingForDependenciesField keys
+            case levelForUpdate field keyStack of
+              Just levelForUpdateSearch -> do
+                mbUpdate <- updateExpr levelForUpdateSearch update
+                case mbUpdate of
+                  embedded@(Just EncounteredEmbed) -> do
+                    pure embedded
 
-                --    `({ config = ... } with config = { sources = ["foo"] }).config`
-                -- to
-                --    `( { config = { dependencies = ["foo", "new"] } }
-                --           with config = { sources = ["foo"] }
-                --     ).config`
-                _ -> level
-            mbUpdate <- updateExpr levelForUpdateSearch update
-            case mbUpdate of
-              embedded@(Just EncounteredEmbed) -> do
-                pure embedded
+                  varName@(Just (VariableName _)) -> do
+                    pure varName
 
-              varName@(Just (VariableName _)) -> do
-                pure varName
+                  Just (Updated newUpdate) -> do
+                    pure $ Just $ Updated $ Dhall.With recordExpr field newUpdate
 
-              Just (Updated newUpdate) -> do
-                pure $ Just $ Updated $ Dhall.With recordExpr field newUpdate
+                  Nothing ->
+                    updateRecordExpr
 
               Nothing -> do
+                updateRecordExpr
+
+            where
+              updateRecordExpr = do
                 mbRecordExpr <- updateExpr level recordExpr
                 case mbRecordExpr of
                   embedded@(Just EncounteredEmbed) -> do
@@ -613,7 +614,7 @@ addRawDeps' pkgsToInstall originalExpr = do
 
           AtRootExpression -> do
             let
-              newLevel = SearchingForDependenciesField ["dependencies"]
+              newLevel = SearchingForDependenciesField ("dependencies" :| [])
             result <- updateExpr newLevel inExpr
             case result of
               Just EncounteredEmbed -> do
