@@ -568,11 +568,39 @@ modifyRawAST' initialKey astMod originalExpr = do
                 case mbLeft of
                   Just EncounteredEmbed -> do
                     case astMod of
-                      --    `./spago.dhall // { irrelevantKey = "irrelevantValue" }`
-                      -- to
-                      --    `let __embed = ./spago.dhall in embed with key = embed.key # ["new"] // { irrelevantKey = "irrelevantValue" }`
                       InsertListText additions -> do
-                        pure $ Just $ Updated $ Dhall.Prefer charSet preferAnn (updateListTextByWrappingLetBinding (key :| []) additions "__embed" left) right
+                        case right of
+                          --    `./spago.dhall // { irrelevantKey = "irrelevantValue" }`
+                          -- to
+                          --    `let __embed = ./spago.dhall in embed // { irrelevantKey = "irrelevantValue", dependencies = embed.dependencies # ["new" ] }`
+                          Dhall.RecordLit kvs -> do
+                            let
+                              varName = "__embed"
+                              var = Dhall.Var (Dhall.V varName 0)
+
+                              -- `let __embed = ./spago.dhall`
+                              binding = Dhall.makeBinding varName left
+
+                              -- `__embed.dependencies # ["new" ]`
+                              lsAppend =
+                                updateListTextByWrappingListAppend additions
+                                  $ Dhall.Field var (Dhall.makeFieldSelection key)
+
+                              -- `{ irrelevantKey = "irrelevantValue", key = __embed.dependencies # ["new"] }`
+                              newRight =
+                                Dhall.RecordLit
+                                $ flip (Dhall.Map.insert key) kvs
+                                $ Dhall.makeRecordField lsAppend
+                            pure $ Just $ Updated $ Dhall.Let binding (Dhall.Prefer charSet preferAnn var newRight)
+
+                          --    `./spago.dhall // { x = { irrelevantKey = "irrelevantValue" } }.x`
+                          -- to
+                          --    `( let __embed = ./spago.dhall
+                          --       in  __embed with dependencies = __embed.dependencies # ["name"]
+                          --     ) // { x = { irrelevantKey = "irrelevantValue" } }.x`
+                          _ -> do
+                            pure $ Just $ Updated
+                              $ Dhall.Prefer charSet preferAnn (updateListTextByWrappingLetBinding (key :| []) additions "__embed" left) right
 
                       SetText t -> do
                         case right of
@@ -587,9 +615,9 @@ modifyRawAST' initialKey astMod originalExpr = do
                                 $ Dhall.makeRecordField t
                             pure $ Just $ Updated $ Dhall.Prefer charSet preferAnn left newRight
 
-                          --    `./spago.dhall // { x = { irrelevantKey = "irrelevantValue" }.x`
+                          --    `./spago.dhall // { x = { irrelevantKey = "irrelevantValue" } }.x`
                           -- to
-                          --    `./spago.dhall with name = "name" // { x = { irrelevantKey = "irrelevantValue" }.x`
+                          --    `./spago.dhall with name = "name" // { x = { irrelevantKey = "irrelevantValue" } }.x`
                           _ -> do
                             pure $ Just $ Updated $ Dhall.Prefer charSet preferAnn (Dhall.With left (key :| []) t) right
 
