@@ -412,8 +412,6 @@ withConfigAST transform = do
 
 -- | Takes a function that manipulates the Dhall AST of the Config, and tries to run it
 --   on the current config. If it succeeds, it writes back to file the result returned.
---   Note: it will pass in the parsed AST, not the resolved one (so e.g. imports will
---   still be in the tree). If you need the resolved one, use `ensureConfig`.
 withRawConfigAST
   :: (HasLogFunc env, HasConfigPath env)
   => (ResolvedExpr -> Expr -> RIO env Expr) -> RIO env Bool
