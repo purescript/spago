@@ -568,21 +568,17 @@ modifyRawAST' initialKey astMod originalExpr = do
                 case mbLeft of
                   Just EncounteredEmbed -> do
                     case astMod of
+                      --    `./spago.dhall // { irrelevantKey = "irrelevantValue" }`
+                      -- to
+                      --    `let __embed = ./spago.dhall in embed with key = embed.key # ["new"] // { irrelevantKey = "irrelevantValue" }`
                       InsertListText additions -> do
-                        case right of
-                          Dhall.RecordLit kvs -> do
-                            let
-                              newRight =
-                                Dhall.RecordLit
-                                $ flip (Dhall.Map.insert key) kvs
-                                $ Dhall.makeRecordField
-                                $ Dhall.ListLit Nothing $ updateListTextByAppending additions Seq.empty
-                            pure $ Just $ Updated $ Dhall.Prefer charSet preferAnn left newRight
-                          _ -> do
-                            pure $ Just $ Updated $ Dhall.Prefer charSet preferAnn (updateListTextByWrappingLetBinding (key :| []) additions "__embed" left) right
+                        pure $ Just $ Updated $ Dhall.Prefer charSet preferAnn (updateListTextByWrappingLetBinding (key :| []) additions "__embed" left) right
 
                       SetText t -> do
                         case right of
+                          --    `./spago.dhall // { irrelevantKey = "irrelevantValue" }`
+                          -- to
+                          --    `./spago.dhall // { irrelevantKey = "irrelevantValue", name = "new" }`
                           Dhall.RecordLit kvs -> do
                             let
                               newRight =
@@ -590,6 +586,10 @@ modifyRawAST' initialKey astMod originalExpr = do
                                 $ flip (Dhall.Map.insert key) kvs
                                 $ Dhall.makeRecordField t
                             pure $ Just $ Updated $ Dhall.Prefer charSet preferAnn left newRight
+
+                          --    `./spago.dhall // { x = { irrelevantKey = "irrelevantValue" }.x`
+                          -- to
+                          --    `./spago.dhall with name = "name" // { x = { irrelevantKey = "irrelevantValue" }.x`
                           _ -> do
                             pure $ Just $ Updated $ Dhall.Prefer charSet preferAnn (Dhall.With left (key :| []) t) right
 
