@@ -314,9 +314,15 @@ modifyRawAST' initialKey astMod originalExpr = do
         case level of
           AtRootExpression key -> do
             case astMod of
+              --    `./spago.dhall`
+              -- to
+              --    `let __embed = ./spago.dhall in __embed with key = __embed.key # additions`
               InsertListText additions -> do
                 pure $ Just $ Updated $ updateListTextByWrappingLetBinding (key :| []) additions "__embed" expr
 
+              --    `./spago.dhall`
+              -- to
+              --    `./spago.dhall with key = "new"`
               SetText t -> do
                 pure $ Just $ Updated $ Dhall.With expr (key :| []) t
 
@@ -335,14 +341,17 @@ modifyRawAST' initialKey astMod originalExpr = do
             pure Nothing
 
           WithinField -> do
-            --  `let pkg = [ "package" ] in { ..., dependencies = pkg }
-            -- to
-            --  `let pkg = [ "package" ] in { ..., dependencies = pkg # [ "newPackage" ] }
-            -- For this expression, we wrap it in a `ListAppend`
             case astMod of
+              --  `let pkg = [ "package" ] in { ..., dependencies = pkg }
+              -- to
+              --  `let pkg = [ "package" ] in { ..., dependencies = pkg # [ "newPackage" ] }
+              -- For this expression, we wrap it in a `ListAppend`
               InsertListText additions -> do
                 pure $ Just $ Updated $ updateListTextByWrappingListAppend additions expr
 
+              --  `let x = "old" in { ..., name = x }
+              -- to
+              --  `let x = "new" in { ..., name = x }
               SetText _ -> do
                 pure $ Just $ VariableName varName
 
@@ -357,6 +366,9 @@ modifyRawAST' initialKey astMod originalExpr = do
           AtRootExpression _ -> pure Nothing
           SearchingForField _ -> pure Nothing
           WithinField -> case astMod of
+            --  `{ ..., name = "old" }
+            -- to
+            --  `{ ..., name = "new" }
             SetText t -> pure $ Just $ Updated t
             InsertListText _ -> pure Nothing
 
@@ -376,6 +388,9 @@ modifyRawAST' initialKey astMod originalExpr = do
 
           WithinField -> do
             case astMod of
+              --  `{ ..., dependencies = ["old"] }
+              -- to
+              --  `{ ..., dependencies = ["old", "new"] }
               InsertListText additions -> do
                 pure $ Just $ Updated $ Dhall.ListLit ann $ updateListTextByAppending additions ls
 
@@ -397,10 +412,10 @@ modifyRawAST' initialKey astMod originalExpr = do
             pure Nothing
 
           WithinField -> do
-            --  `["foo"] # expr` -> `["old", "new"] # expr`
-            --  `expr # ["old"]` -> `expr # ["old", "new"]`
-            --  `expr1 # expr2` -> `expr1 # expr2 # ["new"]`
             case astMod of
+              --  `["foo"] # expr` -> `["old", "new"] # expr`
+              --  `expr # ["old"]` -> `expr # ["old", "new"]`
+              --  `expr1 # expr2` -> `expr1 # expr2 # ["new"]`
               InsertListText additions -> do
                 Just . Updated <$> do
                   let
@@ -460,13 +475,16 @@ modifyRawAST' initialKey astMod originalExpr = do
       Dhall.Field recordExpr selection@Dhall.FieldSelection { fieldSelectionLabel } -> do
         case level of
           WithinField -> do
-            --  `{ dependencies = otherConfig.someKey }`
-            -- to
-            --  `{ dependencies = otherConfig.someKey # [ "new" ] }`
             case astMod of
+              --  `{ dependencies = otherConfig.someKey }`
+              -- to
+              --  `{ dependencies = otherConfig.someKey # [ "new" ] }`
               InsertListText additions -> do
                 pure $ Just $ Updated $ updateListTextByWrappingListAppend additions expr
 
+              --  `let x = { someKey = "foo" } in { ..., name = otherConfig.someKey }`
+              -- to
+              --  `let x = { someKey = "new" } in { ..., name = otherConfig.someKey }`
               SetText _ -> do
                 fmap (mapUpdated (\newRecord -> Dhall.Field newRecord selection)) <$> updateExpr level recordExpr
 
@@ -499,9 +517,6 @@ modifyRawAST' initialKey astMod originalExpr = do
       Dhall.Prefer charSet preferAnn left right -> do
         case level of
           WithinField -> do
-            --  `{ dependencies = someRec.depsList // otherRec.depsList }`
-            -- to
-            --  `{ dependencies = (someRec.depsList // otherRec.depsList) # ["new packages"] }`
             case astMod of
               InsertListText _ -> do
                 -- Can't insert a list of text values into a record expression.
@@ -515,10 +530,12 @@ modifyRawAST' initialKey astMod originalExpr = do
 
           AtRootExpression key -> do
             -- Two possibilities:
+            --
             --  Override:
             --    `{ ..., dependencies = ["old"] } // { dependencies = ["package"] }`
             --   to
             --    `{ ..., dependencies = ["old"] } // { dependencies = ["package", "new"] }`
+            --
             --  Irrelvant:
             --    `{ ..., dependencies = ["old"] } // { sources = ["src"] }`
             --   to
@@ -533,6 +550,9 @@ modifyRawAST' initialKey astMod originalExpr = do
                     pure $ Just $ Updated $ Dhall.Prefer charSet preferAnn left
                       $ updateListTextByWrappingLetBinding (key :| []) additions "__embed" right
 
+                  --    ` { ..., name = "old1" } // ./spago.dhall`
+                  -- to
+                  --    `({ ..., name = "old1" } // ./spago.dhall) with key = "new"`
                   SetText t -> do
                     pure $ Just $ Updated $ Dhall.With expr (key :| []) t
 
@@ -616,9 +636,11 @@ modifyRawAST' initialKey astMod originalExpr = do
         case level of
           WithinField -> do
             case astMod of
+              -- The field we're updating is a `List Text` value, not a record.
               InsertListText _ -> do
                 pure Nothing
 
+              -- The field we're updating is a `List Text` value, not a record.
               SetText _ -> do
                 pure Nothing
 
@@ -629,13 +651,16 @@ modifyRawAST' initialKey astMod originalExpr = do
             mbResult <- updateExpr WithinField update
             case mbResult of
               Just EncounteredEmbed -> do
-                --    `{ ..., dependencies = ["old"] } with dependencies = ./deps.dhall`
-                --  to
-                --    `{ ..., dependencies = ["old"] } with dependencies = ./deps.dhall # ["new"]`
                 case astMod of
+                  --    `{ ..., dependencies = ["old"] } with dependencies = ./deps.dhall`
+                  --  to
+                  --    `{ ..., dependencies = ["old"] } with dependencies = ./deps.dhall # ["new"]`
                   InsertListText additions -> do
                     pure $ Just $ Updated $ Dhall.With recordExpr field $ updateListTextByWrappingListAppend additions update
 
+                  --    `{ ..., name = ["old"] } with name = ./deps.dhall`
+                  --  to
+                  --    `{ ..., name = ["old"] } with name = "new"`
                   SetText t -> do
                     pure $ Just $ Updated $ Dhall.With recordExpr field t
 
@@ -661,42 +686,53 @@ modifyRawAST' initialKey astMod originalExpr = do
             mbResult <- updateExpr newLevel recordExpr
             case mbResult of
               Just EncounteredEmbed -> do
-                --     ```
-                --     ./spago.dhall
-                --       with someField = update
-                --     ```
-                --  to
-                --     ```
-                --     let __embed = ./spago.dhall
-                --     in embed
-                --          with field = update
-                --          with dependencies = embed.dependencies # ["new"]
-                --     ```
-                let
-                  varName = "__embed"
-                  var = Dhall.Var (Dhall.V varName 0)
+                case astMod of
+                  --     ```
+                  --     ./spago.dhall
+                  --       with someField = update
+                  --     ```
+                  --  to
+                  --     ```
+                  --     let __embed = ./spago.dhall
+                  --     in embed
+                  --          with field = update
+                  --          with dependencies = embed.dependencies # ["new"]
+                  --     ```
+                  InsertListText additions -> do
+                    let
+                      varName = "__embed"
+                      var = Dhall.Var (Dhall.V varName 0)
 
-                  -- `let __embed = recordExpr`
-                  binding = Dhall.makeBinding varName recordExpr
+                      -- `let __embed = recordExpr`
+                      binding = Dhall.makeBinding varName recordExpr
 
-                  -- `var.dependencies # ["new"]`
-                  astUpdate = case astMod of
-                    InsertListText additions ->
-                      Dhall.ListAppend (Dhall.Field var (Dhall.makeFieldSelection key))
-                        $ Dhall.ListLit Nothing $ updateListTextByAppending additions Seq.empty
+                      -- `var.dependencies # ["new"]`
+                      astUpdate =
+                        Dhall.ListAppend (Dhall.Field var (Dhall.makeFieldSelection key))
+                          $ Dhall.ListLit Nothing $ updateListTextByAppending additions Seq.empty
 
-                    SetText t ->
-                      t
+                    pure $ Just $ Updated
+                      $ Dhall.Let binding
+                      -- Note: we can't use `Prefer` here to merge two `With` updates into a single record update
+                      -- (e.g. `foo with key1 = x with key2 = x` -> foo // { key1 = x, key2 = y }` )
+                      -- because we might have a nested selector
+                      -- (e.g. `{ outer = { inner = [] } } with outer.inner = ["foo"]` ).
+                      -- So, we must instead wrap it in another `With`
+                      -- (e.g. `{ outer = { inner = [] }, dependencies = [] } with outer.inner = ["foo"] with dependencies = ["foo"]` ).
+                      $ Dhall.With (Dhall.With var field update) (key :| []) astUpdate
 
-                pure $ Just $ Updated
-                  $ Dhall.Let binding
-                  -- Note: we can't use `Prefer` here to merge two `With` updates into a single record update
-                  -- (e.g. `foo with key1 = x with key2 = x` -> foo // { key1 = x, key2 = y }` )
-                  -- because we might have a nested selector
-                  -- (e.g. `{ outer = { inner = [] } } with outer.inner = ["foo"]` ).
-                  -- So, we must instead wrap it in another `With`
-                  -- (e.g. `{ outer = { inner = [] }, dependencies = [] } with outer.inner = ["foo"] with dependencies = ["foo"]` ).
-                  $ Dhall.With (Dhall.With var field update) (key :| []) astUpdate
+                  --     ```
+                  --     ./spago.dhall
+                  --        with someField = update
+                  --     ```
+                  --  to
+                  --     ```
+                  --     ./spago.dhall
+                  --        with field = update
+                  --        with name = "new"
+                  --     ```
+                  SetText t -> do
+                    pure $ Just $ Updated $ Dhall.With expr (key :| []) t
 
               varName@(Just (VariableName _)) -> do
                 -- `The `Just VariableName` can't happen here because this is `AtRootExpression`
@@ -767,9 +803,15 @@ modifyRawAST' initialKey astMod originalExpr = do
         case level of
           WithinField -> do
             case astMod of
+              --    `let lsBinding = ["old"] ... in { dependencies =  let x = lsBinding in x }`
+              -- to
+              --    `let lsBinding = ["old"] ... in { dependencies = (let x = lsBinding in x) # ["new"] }`
               InsertListText additions -> do
                 pure $ Just $ Updated $ updateListTextByWrappingListAppend additions expr
 
+              --    `let lsBinding = "old" ... in { name = let x = lsBinding in x }`
+              -- to
+              --    `let lsBinding = "old" ... in { name = "new" }`
               SetText t -> do
                 pure $ Just $ Updated t
 
@@ -779,17 +821,23 @@ modifyRawAST' initialKey astMod originalExpr = do
             result <- updateExpr newLevel inExpr
             case result of
               Just EncounteredEmbed -> do
-                --  `let useless = "foo" in ./spago.dhall`
-                -- to
-                --  ```
-                --  let useless = "foo"
-                --  let __embed = ./spago.dhall
-                --  in  __embed with dependencies = __embed.dependencies # ["new"]
-                --  ```
                 case astMod of
+                  --  `let useless = "foo" in ./spago.dhall`
+                  -- to
+                  --  ```
+                  --  let useless = "foo"
+                  --  let __embed = ./spago.dhall
+                  --  in  __embed with dependencies = __embed.dependencies # ["new"]
+                  --  ```
                   InsertListText additions -> do
                     pure $ Just $ Updated $ Dhall.Let binding $ updateListTextByWrappingLetBinding (key :| []) additions "__embed" inExpr
 
+                  --  `let useless = "foo" in ./spago.dhall`
+                  -- to
+                  --  ```
+                  --  let useless = "foo"
+                  --  in ./spago.dhall with name = "new"
+                  --  ```
                   SetText t -> do
                     pure $ Just $ Updated $ Dhall.Let binding $ Dhall.With inExpr (key :| []) t
 
@@ -801,10 +849,16 @@ modifyRawAST' initialKey astMod originalExpr = do
                 case mbValue of
                   Just EncounteredEmbed -> do
                     case astMod of
+                      --    `let x = ./spago.dhall in x`
+                      -- to
+                      --    `let x = (let __embed = ./spago.dhall in __embed with key = __embed.key # additions) in x`
                       InsertListText additions -> do
                         pure $ Just $ Updated $ Dhall.Let (Dhall.makeBinding variable
                           $ updateListTextByWrappingLetBinding (key :| []) additions "__embed" value) inExpr
 
+                      --    `let x = ./spago.dhall in x`
+                      -- to
+                      --    `let x = ./spago.dhall with name = "new" in x`
                       SetText t -> do
                         pure $ Just $ Updated
                           $ Dhall.Let
@@ -842,10 +896,16 @@ modifyRawAST' initialKey astMod originalExpr = do
                 case mbValue of
                   Just EncounteredEmbed -> do
                     case astMod of
+                      --    `let x = { key1 = ./spago.dhall } in x.key1`
+                      -- to
+                      --    `let x = { key1 = ./spago.dhall } with key1.dependencies = key.dependencies # ["new"] in x.key1`
                       InsertListText additions -> do
                         pure $ Just $ Updated $ Dhall.Let (Dhall.makeBinding variable
                           $ updateListTextByWrappingLetBinding keyStack additions "__embed" value) inExpr
 
+                      --    `let x = { key1 = ./spago.dhall } in x.key1`
+                      -- to
+                      --    `let x = { key1 = ./spago.dhall } with key.name = "new" in x.key1`
                       SetText t -> do
                         pure $ Just $ Updated $ Dhall.Let (Dhall.makeBinding variable
                           $ Dhall.With value keyStack t) inExpr
