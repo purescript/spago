@@ -350,11 +350,11 @@ modifyRawAST' initialKey astMod originalExpr = do
               InsertListText additions -> do
                 pure $ Just $ Updated $ updateListTextByWrappingListAppend additions expr
 
-              --  `let x = "old" in { ..., name = x }
+              --  `let x = "old" in { ..., name = x, otherKey = x }
               -- to
-              --  `let x = "new" in { ..., name = x }
-              SetText _ -> do
-                pure $ Just $ VariableName (varName, deBrujinIndex)
+              --  `let x = "old" in { ..., name = "new", otherKey = x }
+              SetText t -> do
+                pure $ Just $ Updated t
 
           SearchingForField _ -> do
             -- We got to the final expression and find that the real expression is stored
