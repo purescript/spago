@@ -176,8 +176,9 @@ data ExprLevel
 data UpdateResult
   = Updated !Expr
   -- ^ The expression was succesfully updated with the new packages
-  | VariableName !Text
+  | VariableName !(Text, Int)
   -- ^ The expression to update is the binding value with this name
+  --   that corresponds to the specified de Brujin index
   | EncounteredEmbed
   -- ^ We encountered an `Embed` constructor. We can make only
   --   two assumptions about it:
@@ -333,7 +334,7 @@ modifyRawAST' initialKey astMod originalExpr = do
             pure $ Just EncounteredEmbed
 
       -- let varname = ... in ... varName
-      Dhall.Var (Dhall.V varName _) -> do
+      Dhall.Var (Dhall.V varName deBrujinIndex) -> do
         case level of
           AtRootExpression _ -> do
             -- This should never happen because we've already verified that the normalized expression
@@ -353,13 +354,13 @@ modifyRawAST' initialKey astMod originalExpr = do
               -- to
               --  `let x = "new" in { ..., name = x }
               SetText _ -> do
-                pure $ Just $ VariableName varName
+                pure $ Just $ VariableName (varName, deBrujinIndex)
 
           SearchingForField _ -> do
             -- We got to the final expression and find that the real expression is stored
             -- in a binding. For example, the second `config` in
             --    `let config = { ..., dependencies = ... } in config`
-            pure $ Just $ VariableName varName
+            pure $ Just $ VariableName (varName, deBrujinIndex)
 
       Dhall.TextLit _ -> do
         case level of
@@ -872,7 +873,7 @@ modifyRawAST' initialKey astMod originalExpr = do
               Just (Updated newInExpr) -> do
                 pure $ Just $ Updated $ Dhall.Let binding newInExpr
 
-              Just (VariableName name) | name == variable -> do
+              Just (VariableName (name, deBrujinIndex)) | name == variable && deBrujinIndex == 0 -> do
                 mbValue <- updateExpr newLevel value
                 case mbValue of
                   Just EncounteredEmbed -> do
@@ -919,7 +920,10 @@ modifyRawAST' initialKey astMod originalExpr = do
               Just (Updated newInExpr) -> do
                 pure $ Just $ Updated $ Dhall.Let binding newInExpr
 
-              Just (VariableName name) | name == variable -> do
+              Just (VariableName (name, deBrujinIndex)) | name == variable, deBrujinIndex > 0 -> do
+                pure $ Just $ VariableName (name, deBrujinIndex - 1)
+
+              Just (VariableName (name, deBrujinIndex)) | name == variable && deBrujinIndex == 0 -> do
                 mbValue <- updateExpr level value
                 case mbValue of
                   Just EncounteredEmbed -> do
