@@ -39,24 +39,28 @@ data AstUpdate
   | SetText Expr
 
 -- |
--- Since the user may be requesting to add packages that don't exist in the package set,
--- we only continue if all of them exist.
---
--- We then need to determine which of the user-requested packages
--- haven't been added yet and only add those (e.g. if user wants to add `foo` and `bar`,
--- but `bar` is already added, we only add `foo`).
+-- Since the user may be requesting to changes that result in a no-op
+-- (e.g. add packages that don't exist in the package set),
+-- we first determine if a change needs to be made,
+-- and then attempt to make that change.
 --
 -- To accomplish this goal, we normalize the expression first. There are two reasons why.
--- First, it makes the implementation simpler. Rather than figuring out which have been added
--- while we're trying to add the new packages, we break this into two steps: 1) determining
--- what those not-yet-added package are and 2) where to add them in the AST.
+-- First, it makes the implementation simpler. Rather than figuring out what the expression
+-- currently contains (e.g. whether its dependencies field has the packages we want to add)
+-- while we're trying to make a change (e.g. adding new packages to the dependencies field),
+-- we break this into two steps: 1) determining what change we actually need to make
+-- (e.g. if we're trying to add packages, "foo" and "bar", to the dependencies field
+-- but "foo" is already added, then we need to add only "bar")
+-- and 2) where to make the change in the AST.
+--
 -- Breaking this down into two problems makes the solving the second problem easier.
 --
 -- Second, by confirming below that the normalized expression found in the `spago.dhall` file
--- IS a `RecordLit` with a `dependencies` field, we can make some assumptions about
--- the `Expr` passed into `modifyRawAST'`. For example, we don't need to know what `Embed` cases
--- are because we can infer based on where we are in the expression whether they are a
--- Record expression with a "dependencies" key or a List expression.
+-- IS a `RecordLit` with the field we need to modify (e.g. it has a `dependencies` field),
+-- we can make some assumptions about the `Expr` passed into `modifyRawAST'`.
+-- For example, we don't need to know what `Embed` data constructor cases are because we can infer
+-- based on where we are in the expression whether they are a Record expression that has
+-- our desired field (e.g. the "dependencies" field) or a List expression.
 --
 -- In other words, `modifyRawAST'` can actually succeed for the cases we support.
 modifyRawAST :: HasLogFunc env => ConfigModification -> ResolvedExpr -> Expr -> RIO env Expr
