@@ -7,8 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-Bugfixes:
-- Don't warn on unused deps when building --deps-only. (#794)
+Features:
 - Make `spago install` work on more advanced Dhall expressions (#815)
 
   - Support `ListAppend`: `{ dependencies = list1 # [ "package"] }`
@@ -18,6 +17,9 @@ Bugfixes:
   - Support `Let`: `let config = ... in config`
   - Support `Embed`: `./spago.dhall`
   - Support `Var`: `let deps = ... in { ..., dependencies = deps }`
+
+Bugfixes:
+- Don't warn on unused deps when building --deps-only. (#794)
 
 ## [0.20.3] - 2021-05-12
 
