@@ -335,7 +335,7 @@ updateName _ other = other
 
 addRawDeps :: HasLogFunc env => Config -> [PackageName] -> Expr -> RIO env Expr
 addRawDeps config newPackages expr =
-  case NonEmpty.nonEmpty notInPackageSet of
+  case notInPackageSet config newPackages of
     Just pkgs -> do
       logWarn $ display $ Messages.failedToAddDeps $ NonEmpty.map packageName pkgs
       pure expr
@@ -364,9 +364,6 @@ addRawDeps config newPackages expr =
             pure r
       _ ->
         pure expr
-  where
-    Config { packageSet = PackageSet{..} } = config
-    notInPackageSet = filter (\p -> Map.notMember p packagesDB) newPackages
 
 addSourcePaths :: Expr -> Expr
 addSourcePaths (Dhall.RecordLit kvs)
@@ -459,8 +456,8 @@ addDependencies
   :: (HasLogFunc env, HasConfigPath env)
   => Config -> [PackageName] 
   -> RIO env ()
-addDependencies Config { packageSet = PackageSet{..} } newPackages = do
-  configHasChanged <- case NonEmpty.nonEmpty notInPackageSet of
+addDependencies config newPackages = do
+  configHasChanged <- case notInPackageSet config newPackages of
     Just pkgsNotInPackageSet -> do
       logWarn $ display $ Messages.failedToAddDeps $ NonEmpty.map packageName pkgsNotInPackageSet
       pure False
@@ -481,5 +478,11 @@ addDependencies Config { packageSet = PackageSet{..} } newPackages = do
 
   unless configHasChanged $
     logWarn "Configuration file was not updated."
-  where
-    notInPackageSet = filter (\p -> Map.notMember p packagesDB) newPackages
+
+-- |
+-- Returns a non-empty list of packages not found in the package set
+-- or @Nothing@ if all are found in the package set.
+notInPackageSet
+  :: Config -> [PackageName] -> Maybe (NonEmpty PackageName)
+notInPackageSet Config { packageSet = PackageSet{..} } newPackages =
+   NonEmpty.nonEmpty $ filter (\p -> Map.notMember p packagesDB) newPackages
