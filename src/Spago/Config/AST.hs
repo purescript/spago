@@ -297,7 +297,11 @@ modifyRawAST' initialKey astMod originalExpr = do
     -- |
     --    `./spago.dhall` (or some other expression where the required update is within the embed (e.g. `./spago.dhall // { sources = ["foo"] }`)
     -- to
-    --    `let varname = ./spago.dhall in varName with dependencies = varName.dependencies # ["new"]`
+    --    ```
+    --    let varName = ./spago.dhall
+    --    in  varName
+    --          with dependencies = varName.dependencies # ["new"]
+    --    ```
     updateListTextByWrappingLetBinding :: NonEmpty Text -> Seq Expr -> Text -> Expr -> Expr
     updateListTextByWrappingLetBinding keyStack additions varName expr = do
       let
