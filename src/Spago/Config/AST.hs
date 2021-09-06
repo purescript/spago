@@ -276,9 +276,9 @@ modifyRawAST' initialKey astMod originalExpr = do
       pure originalExpr
   where
     -- |
-    -- Adds the packages to the `ListLit`'s `Seq` argument
+    -- Adds the additions to a `ListLit`'s `Seq` argument
     updateListTextByAppending :: Seq Expr -> Seq Expr -> Seq Expr
-    updateListTextByAppending additions dependencies = Seq.sort (additions <> dependencies)
+    updateListTextByAppending additions listLitSeqArg = Seq.sort (additions <> listLitSeqArg)
 
     -- |
     -- Removes some boilerplate: changes `expr` to `expr # ["new"]`
