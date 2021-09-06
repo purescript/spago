@@ -10,7 +10,6 @@ import           Spago.Prelude
 import           Spago.Env
 
 import qualified Data.Sequence         as Seq
-import qualified Data.Set              as Set
 import qualified Dhall.Core
 import qualified Dhall.Map
 import qualified Dhall.Parser          as Parser
@@ -121,12 +120,6 @@ modifyRawConfigExpression astMod ResolvedUnresolvedExpr { resolvedUnresolvedExpr
         | otherwise -> do
             modifyRawDhallExpression nameText (SetText (Dhall.TextLit (Dhall.Chunks [] newName))) originalExpr
   where
-    -- | Code from https://stackoverflow.com/questions/45757839
-    nubSeq :: Ord a => Seq a -> Seq a
-    nubSeq xs = (fmap fst . Seq.filter (uncurry notElem)) (Seq.zip xs seens)
-      where
-        seens = Seq.scanl (flip Set.insert) Set.empty xs
-
     findListTextValues :: HasLogFunc env => Text -> (Text -> a) -> RIO env (Maybe (Seq a))
     findListTextValues key f = case normalizedExpr of
       Dhall.RecordLit kvs -> case Dhall.Map.lookup key kvs of

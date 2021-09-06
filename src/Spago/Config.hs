@@ -350,12 +350,6 @@ addRawDeps config newPackages expr =
                   $ Dhall.ListLit Nothing $ fmap (Dhall.toTextLit . packageName)
                   $ Seq.sort $ nubSeq (Seq.fromList newPackages <> fmap PackageName oldPackages)
             pure $ Dhall.RecordLit $ Dhall.Map.insert "dependencies" newDepsExpr kvs
-            where
-              -- | Code from https://stackoverflow.com/questions/45757839
-              nubSeq :: Ord a => Seq a -> Seq a
-              nubSeq xs = (fmap fst . Seq.filter (uncurry notElem)) (Seq.zip xs seens)
-                where
-                  seens = Seq.scanl (flip Set.insert) Set.empty xs
           Just _ -> do
             logWarn "Failed to add dependencies. The `dependencies` field wasn't a List of Strings."
             pure r
