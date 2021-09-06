@@ -673,13 +673,13 @@ modifyRawDhallExpression initialKey astMod originalExpr = do
           SearchingForField _ -> do
             -- See Dhall.Prefer's `AtRootExpression` case
             -- but for this situation, we're trying to find a record, so we don't match against a "dependencies" field
-            mpRight <- updateExpr level right
-            case mpRight of
+            maybeRight <- updateExpr level right
+            case maybeRight of
               Just EncounteredEmbed -> do
-                pure mpRight
+                pure maybeRight
 
               Just (VariableName _) -> do
-                pure mpRight
+                pure maybeRight
 
               Just (Updated newRight) -> do
                 pure $ Just $ Updated $ Dhall.Prefer charSet preferAnn left newRight
