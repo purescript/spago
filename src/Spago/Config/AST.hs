@@ -118,7 +118,7 @@ modifyRawConfigExpression astMod ResolvedUnresolvedExpr { resolvedUnresolvedExpr
         | originalName == newName -> do
             pure originalExpr
         | otherwise -> do
-            modifyRawDhallExpression nameText (SetText (Dhall.TextLit (Dhall.Chunks [] newName))) originalExpr
+            modifyRawDhallExpression nameText (SetText (Dhall.toTextLit newName)) originalExpr
   where
     findListTextValues :: HasLogFunc env => Text -> (Text -> a) -> RIO env (Maybe (Seq a))
     findListTextValues key f = case normalizedExpr of
