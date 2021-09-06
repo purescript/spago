@@ -458,7 +458,7 @@ addDependencies Config { packageSet = PackageSet{..} } newPackages = do
       pure False
     Nothing -> do
       withRawConfigAST $ \resolvedExpr expr -> do
-        newExpr <- AST.modifyRawAST (AST.AddPackages newPackages) resolvedExpr expr
+        newExpr <- AST.modifyRawConfigExpression (AST.AddPackages newPackages) resolvedExpr expr
         -- Verify that returned expression can produce a `Config` value if parsed
         -- before we return it.
         normalizedExpr <- liftIO $ Dhall.inputExpr $ pretty newExpr

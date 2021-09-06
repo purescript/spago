@@ -2,7 +2,7 @@
 {-# LANGUAGE OverloadedLists #-}
 module Spago.Config.AST
   ( ConfigModification(..)
-  , modifyRawAST
+  , modifyRawConfigExpression
   ) where
 
 import           Spago.Prelude
@@ -39,6 +39,17 @@ data AstUpdate
   | SetText Expr
 
 -- |
+--
+-- Modifies a Dhall expression that can be parsed to produce a `Spago.Config.Config` value.
+--
+-- Such an expression is anything that, when normalized, produces a
+-- \"record expression\" whose
+-- * @dependencies@ key contains a \"list expression\" of text that
+--   corresponds to package names.
+-- * @name@ key corresponds to a text expression containing the name of the project
+-- * @sources@ key contains a \"list expression\" of text that
+--   corresponds to source globs.
+--
 -- Since the user may be requesting changes that result in a no-op
 -- (e.g. add packages that have already been added),
 -- we first determine if a change needs to be made,
@@ -58,14 +69,14 @@ data AstUpdate
 --
 -- Second, by confirming below that the normalized expression found in the @spago.dhall@ file
 -- IS a @RecordLit@ with the field we need to modify (e.g. it has a @dependencies@ field),
--- we can make some assumptions about the @Expr@ passed into `modifyRawAST'`.
+-- we can make some assumptions about the @Expr@ passed into `modifyRawDhallExpression`.
 -- For example, we don't need to know what @Embed@ data constructor cases are because we can infer
 -- based on where we are in the expression whether they are a Record expression that has
 -- our desired field (e.g. the @dependencies@ field) or a List expression.
 --
--- In other words, `modifyRawAST'` can actually succeed for the cases we support.
-modifyRawAST :: HasLogFunc env => ConfigModification -> ResolvedExpr -> Expr -> RIO env Expr
-modifyRawAST astMod normalizedExpr originalExpr = case astMod of
+-- In other words, `modifyRawDhallExpression` can actually succeed for the cases we support.
+modifyRawConfigExpression :: HasLogFunc env => ConfigModification -> ResolvedExpr -> Expr -> RIO env Expr
+modifyRawConfigExpression astMod normalizedExpr originalExpr = case astMod of
   AddPackages newPackages -> do
     maybeAllInstalledPkgs <- findListTextValues dependenciesText PackageName
     case maybeAllInstalledPkgs of
@@ -77,7 +88,7 @@ modifyRawAST astMod normalizedExpr originalExpr = case astMod of
         then do
           pure originalExpr
         else do
-          modifyRawAST' dependenciesText (InsertListText (Dhall.toTextLit . packageName <$> pkgsToInstall)) originalExpr
+          modifyRawDhallExpression dependenciesText (InsertListText (Dhall.toTextLit . packageName <$> pkgsToInstall)) originalExpr
   AddSources newSources -> do
     maybeAllSources <- findListTextValues sourcesText id
     case maybeAllSources of
@@ -89,7 +100,7 @@ modifyRawAST astMod normalizedExpr originalExpr = case astMod of
         then do
           pure originalExpr
         else do
-          modifyRawAST' sourcesText (InsertListText (Dhall.toTextLit <$> sourcesToInstall)) originalExpr
+          modifyRawDhallExpression sourcesText (InsertListText (Dhall.toTextLit <$> sourcesToInstall)) originalExpr
 
   SetName newName -> do
     maybeName <- findTextValue nameText
@@ -100,7 +111,7 @@ modifyRawAST astMod normalizedExpr originalExpr = case astMod of
         | originalName == newName -> do
             pure originalExpr
         | otherwise -> do
-            modifyRawAST' nameText (SetText (Dhall.TextLit (Dhall.Chunks [] newName))) originalExpr
+            modifyRawDhallExpression nameText (SetText (Dhall.TextLit (Dhall.Chunks [] newName))) originalExpr
   where
     -- | Code from https://stackoverflow.com/questions/45757839
     nubSeq :: Ord a => Seq a -> Seq a
@@ -212,13 +223,7 @@ mapUpdated f (Updated e) = Updated (f e)
 mapUpdated _ other = other
 
 -- |
--- A Configuration\'s Dhall expression is anything that, when normalized, produces a
--- \"record expression\" whose
--- * @dependencies@ key contains a \"list expression\" of text that
---   corresponds to package names.
--- * @name@ key corresponds to a text expression containing the name of the project
--- * @sources@ key contains a \"list expression\" of text that
---   corresponds to source globs.
+-- Modifies any supported Dhall expression with the requested changes.
 --
 -- To make this implementation cover most of the usual cases while still making this simple,
 -- the following cases will NOT be supported:
@@ -277,8 +282,8 @@ mapUpdated _ other = other
 --
 -- Since this is modifying the raw AST and might produce an invalid configuration file,
 -- the returned expression should be verified to produce a valid configuration format.
-modifyRawAST' :: HasLogFunc env => Text -> AstUpdate -> Expr -> RIO env Expr
-modifyRawAST' initialKey astMod originalExpr = do
+modifyRawDhallExpression :: HasLogFunc env => Text -> AstUpdate -> Expr -> RIO env Expr
+modifyRawDhallExpression initialKey astMod originalExpr = do
   result <- updateExpr (AtRootExpression initialKey) originalExpr
   case result of
     Just (Updated newExpr) -> do
