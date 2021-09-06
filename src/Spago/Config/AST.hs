@@ -32,7 +32,8 @@ data ConfigModification
   -- ^ Sets the `name` field to the provided name
 
 -- |
--- Indicates the change to make once inside the expression
+-- Indicates the change to make once inside the Dhall expression,
+-- regardless of what value(s) it produces
 data AstUpdate
   = InsertListText (Seq Expr)
   | SetText Expr
