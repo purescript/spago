@@ -532,8 +532,13 @@ modifyRawAST' initialKey astMod originalExpr = do
                   SetText t -> do
                     pure $ Just $ Updated $ Dhall.Field (Dhall.With expr (key :| []) t) selection
 
-              _ -> do
-                -- Nothing, Just Updated, or Just VariableName
+              Just (Updated _) -> do
+                pure mbResult
+
+              Just (VariableName _) -> do
+                pure mbResult
+
+              Nothing -> do
                 pure mbResult
 
           SearchingForField keys -> do
@@ -584,9 +589,9 @@ modifyRawAST' initialKey astMod originalExpr = do
                   SetText t -> do
                     pure $ Just $ Updated $ Dhall.With expr (key :| []) t
 
-              varName@(Just (VariableName _)) -> do
+              Just (VariableName _) -> do
                 -- `The `Just VariableName` can't happen here because this is `AtRootExpression`
-                pure varName
+                pure mbRight
 
               Just (Updated newRight) -> do
                 pure $ Just $ Updated $ Dhall.Prefer charSet preferAnn left newRight
@@ -649,25 +654,26 @@ modifyRawAST' initialKey astMod originalExpr = do
                           _ -> do
                             pure $ Just $ Updated $ Dhall.Prefer charSet preferAnn (Dhall.With left (key :| []) t) right
 
-                  varName@(Just (VariableName _)) -> do
+                  Just (VariableName _) -> do
                     -- `The `Just VariableName` can't happen here because this is `AtRootExpression`
-                    pure varName
+                    pure mbLeft
 
                   Just (Updated newLeft) -> do
                     pure $ Just $ Updated $ Dhall.Prefer charSet preferAnn newLeft right
 
-                  Nothing -> pure Nothing
+                  Nothing -> do
+                    pure mbLeft
 
           SearchingForField _ -> do
             -- See Dhall.Prefer's `AtRootExpression` case
             -- but for this situation, we're trying to find a record, so we don't match against a "dependencies" field
             mpRight <- updateExpr level right
             case mpRight of
-              embedded@(Just EncounteredEmbed) -> do
-                pure embedded
+              Just EncounteredEmbed -> do
+                pure mpRight
 
-              varName@(Just (VariableName _)) -> do
-                pure varName
+              Just (VariableName _) -> do
+                pure mpRight
 
               Just (Updated newRight) -> do
                 pure $ Just $ Updated $ Dhall.Prefer charSet preferAnn left newRight
@@ -675,17 +681,17 @@ modifyRawAST' initialKey astMod originalExpr = do
               Nothing -> do
                 mbLeft <- updateExpr level left
                 case mbLeft of
-                  embedded@(Just EncounteredEmbed) -> do
-                    pure embedded
+                  Just EncounteredEmbed -> do
+                    pure mbLeft
 
-                  varName@(Just (VariableName _)) -> do
-                    pure varName
+                  Just (VariableName _) -> do
+                    pure mbLeft
 
                   Just (Updated newLeft) -> do
                     pure $ Just $ Updated $ Dhall.Prefer charSet preferAnn newLeft right
 
                   Nothing -> do
-                    pure Nothing
+                    pure mbLeft
 
       -- recordExpr with field1.field2.field3 = update
       Dhall.With recordExpr field update ->
@@ -720,11 +726,11 @@ modifyRawAST' initialKey astMod originalExpr = do
                   SetText t -> do
                     pure $ Just $ Updated $ Dhall.With recordExpr field t
 
-              varName@(Just (VariableName _)) -> do
+              Just (VariableName _) -> do
                 -- This can't happen because the Dhall expression is invalid. There can't be a variable name
                 -- if there isn't a let binding.
                 --    `{ ..., dependencies = ["old"] } with dependencies = x`
-                pure varName
+                pure mbResult
 
               Just (Updated newUpdate) -> do
                 pure $ Just $ Updated $ Dhall.With recordExpr field newUpdate
@@ -734,7 +740,7 @@ modifyRawAST' initialKey astMod originalExpr = do
                 -- recordExpr must be an expression that produces our Config schema, which means it will have
                 -- a dependencies field. So, if we failed to update that dependencies field, then the expression
                 -- itself is invalid.
-                pure Nothing
+                pure mbResult
 
           AtRootExpression key -> do
             let
@@ -790,15 +796,15 @@ modifyRawAST' initialKey astMod originalExpr = do
                   SetText t -> do
                     pure $ Just $ Updated $ Dhall.With expr (key :| []) t
 
-              varName@(Just (VariableName _)) -> do
+              Just (VariableName _) -> do
                 -- `The `Just VariableName` can't happen here because this is `AtRootExpression`
-                pure varName
+                pure mbResult
 
               Just (Updated newUpdate) -> do
                 pure $ Just $ Updated $ Dhall.With recordExpr field newUpdate
 
-              nothing@Nothing -> do
-                pure nothing
+              Nothing -> do
+                pure mbResult
 
           SearchingForField keyStack -> do
             {-
@@ -824,11 +830,11 @@ modifyRawAST' initialKey astMod originalExpr = do
               Just levelForUpdateSearch -> do
                 mbUpdate <- updateExpr levelForUpdateSearch update
                 case mbUpdate of
-                  embedded@(Just EncounteredEmbed) -> do
-                    pure embedded
+                  Just EncounteredEmbed -> do
+                    pure mbUpdate
 
-                  varName@(Just (VariableName _)) -> do
-                    pure varName
+                  Just (VariableName _) -> do
+                    pure mbUpdate
 
                   Just (Updated newUpdate) -> do
                     pure $ Just $ Updated $ Dhall.With recordExpr field newUpdate
@@ -843,17 +849,17 @@ modifyRawAST' initialKey astMod originalExpr = do
               updateRecordExpr = do
                 mbRecordExpr <- updateExpr level recordExpr
                 case mbRecordExpr of
-                  embedded@(Just EncounteredEmbed) -> do
-                    pure embedded
+                  Just EncounteredEmbed -> do
+                    pure mbRecordExpr
 
-                  varName@(Just (VariableName _)) -> do
-                    pure varName
+                  Just (VariableName _) -> do
+                    pure mbRecordExpr
 
                   Just (Updated newRecordExpr) -> do
                     pure $ Just $ Updated $ Dhall.With newRecordExpr field update
 
-                  nothing@Nothing -> do
-                    pure nothing
+                  Nothing -> do
+                    pure mbRecordExpr
 
       Dhall.Let binding@Dhall.Binding { variable, value } inExpr -> do
         case level of
@@ -874,8 +880,8 @@ modifyRawAST' initialKey astMod originalExpr = do
           AtRootExpression key -> do
             let
               newLevel = SearchingForField (key :| [])
-            result <- updateExpr newLevel inExpr
-            case result of
+            mbResult <- updateExpr newLevel inExpr
+            case mbResult of
               Just EncounteredEmbed -> do
                 case astMod of
                   --  `let useless = "foo" in ./spago.dhall`
@@ -924,23 +930,23 @@ modifyRawAST' initialKey astMod originalExpr = do
                   Just (Updated newValue) -> do
                     pure $ Just $ Updated $ Dhall.Let (Dhall.makeBinding variable newValue) inExpr
 
-                  varName@(Just (VariableName _)) -> do
+                  Just (VariableName _) -> do
                     -- invalid Dhall expression because this is AtRootExpression
-                    pure varName
+                    pure mbValue
 
-                  nothing@Nothing -> do
-                    pure nothing
+                  Nothing -> do
+                    pure mbValue
 
-              varName@(Just (VariableName _)) -> do
+              Just (VariableName _) -> do
                 -- Invalid Dhall expression because this is AtRootExpression
-                pure varName
+                pure mbResult
 
-              nothing@Nothing -> do
-                pure nothing
+              Nothing -> do
+                pure mbResult
 
           SearchingForField keyStack -> do
-            result <- updateExpr level inExpr
-            case result of
+            mbResult <- updateExpr level inExpr
+            case mbResult of
               embedded@(Just EncounteredEmbed) -> do
                 pure embedded
 
@@ -972,20 +978,20 @@ modifyRawAST' initialKey astMod originalExpr = do
                   Just (Updated newValue) -> do
                     pure $ Just $ Updated $ Dhall.Let (Dhall.makeBinding variable newValue) inExpr
 
-                  varName@(Just (VariableName _)) -> do
+                  Just (VariableName _) -> do
                     -- `let x = "foo" let y = x in y`
                     -- This binding refers to another binding
-                    pure varName
+                    pure mbValue
 
-                  nothing@Nothing -> do
-                    pure nothing
+                  Nothing -> do
+                    pure mbValue
 
-              varName@(Just (VariableName _)) -> do
+              Just (VariableName _) -> do
                 -- Variable name doesn't match this let binding's name
-                pure varName
+                pure mbResult
 
-              nothing@Nothing -> do
-                pure nothing
+              Nothing -> do
+                pure mbResult
 
       _ -> do
         pure Nothing
