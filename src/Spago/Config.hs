@@ -111,7 +111,8 @@ parsePackageSet pkgs = do
   pure PackageSet{..}
 
 
--- | Tries to read in a Spago Config
+-- | Tries to parse the raw Dhall expression stored
+-- in the @./spago.dhall@ file into a `Config` value.
 parseConfig
   :: (HasLogFunc env, HasConfigPath env)
   => RIO env Config
@@ -121,17 +122,20 @@ parseConfig = do
 
   ConfigPath path <- view (the @ConfigPath)
   expr <- liftIO $ Dhall.inputExpr $ "./" <> path
-  maybeConfig <- parseConfig' expr
+  maybeConfig <- parseConfigNormalizedExpr expr
   case maybeConfig of
     Just config -> pure config
     Nothing -> case Dhall.TypeCheck.typeOf expr of
       Right e  -> throwM $ Dhall.ConfigIsNotRecord e
       Left err -> throwM err
 
-parseConfig'
+-- |
+-- Attempts to parse a normalized Dhall expression (i.e. all imports have been resolved)
+-- into a `Config` value.
+parseConfigNormalizedExpr
   :: (HasLogFunc env)
   => ResolvedExpr -> RIO env (Maybe Config)
-parseConfig' = \case
+parseConfigNormalizedExpr = \case
   Dhall.RecordLit ks' -> do
     let ks = Dhall.extractRecordValues ks'
     let sourcesType  = Dhall.list (Dhall.auto :: Dhall.Decoder SourcePath)
@@ -462,7 +466,7 @@ addDependencies Config { packageSet = PackageSet{..} } newPackages = do
         -- Verify that returned expression can produce a `Config` value if parsed
         -- before we return it.
         normalizedExpr <- liftIO $ Dhall.inputExpr $ pretty newExpr
-        maybeResult <- (Just newExpr <$ parseConfig' normalizedExpr) `catch` (\(_ :: SomeException) -> pure Nothing)
+        maybeResult <- (Just newExpr <$ parseConfigNormalizedExpr normalizedExpr) `catch` (\(_ :: SomeException) -> pure Nothing)
         case maybeResult of
           Just validatedExpr -> do
             pure validatedExpr
