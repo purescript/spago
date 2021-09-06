@@ -22,45 +22,46 @@ type ResolvedExpr = Dhall.Expr Parser.Src Void
 
 -- |
 -- Indicates the change Spago wants to make to the Dhall expression
--- used to produce a @Config@ value.
+-- used to produce a 'Spago.Config.Config' value.
 data ConfigModification
   = AddPackages ![PackageName]
-  -- ^ Adds packages to the `dependencies` field
+  -- ^ Adds packages to the @dependencies@ field
   | AddSources ![Text]
-  -- ^ Adds sources to the `sources` field
+  -- ^ Adds sources to the @sources@ field
   | SetName Text
-  -- ^ Sets the `name` field to the provided name
+  -- ^ Sets the @name@ field to the provided name
 
 -- |
 -- Indicates the change to make once inside the Dhall expression,
--- regardless of what value(s) it produces
+-- regardless of what value(s) it produces.
 data AstUpdate
   = InsertListText (Seq Expr)
   | SetText Expr
 
 -- |
--- Since the user may be requesting to changes that result in a no-op
--- (e.g. add packages that don't exist in the package set),
+-- Since the user may be requesting changes that result in a no-op
+-- (e.g. add packages that have already been added),
 -- we first determine if a change needs to be made,
 -- and then attempt to make that change.
 --
 -- To accomplish this goal, we normalize the expression first. There are two reasons why.
 -- First, it makes the implementation simpler. Rather than figuring out what the expression
--- currently contains (e.g. whether its dependencies field has the packages we want to add)
--- while we're trying to make a change (e.g. adding new packages to the dependencies field),
--- we break this into two steps: 1) determining what change we actually need to make
--- (e.g. if we're trying to add packages, "foo" and "bar", to the dependencies field
--- but "foo" is already added, then we need to add only "bar")
--- and 2) where to make the change in the AST.
+-- currently contains (e.g. whether its @dependencies@ field has the packages we want to add)
+-- while we are trying to make a change (e.g. adding new packages to the @dependencies@ field),
+-- we break this into two steps:
+-- 1. determining what change we actually need to make
+-- (e.g. if we are trying to add packages, @foo@ and @bar@, to the @dependencies@ field
+-- but @foo@ is already added, then we need to add only @bar@), and
+-- 2. where to make the change in the AST.
 --
 -- Breaking this down into two problems makes the solving the second problem easier.
 --
--- Second, by confirming below that the normalized expression found in the `spago.dhall` file
--- IS a `RecordLit` with the field we need to modify (e.g. it has a `dependencies` field),
--- we can make some assumptions about the `Expr` passed into `modifyRawAST'`.
--- For example, we don't need to know what `Embed` data constructor cases are because we can infer
+-- Second, by confirming below that the normalized expression found in the @spago.dhall@ file
+-- IS a @RecordLit@ with the field we need to modify (e.g. it has a @dependencies@ field),
+-- we can make some assumptions about the @Expr@ passed into `modifyRawAST'`.
+-- For example, we don't need to know what @Embed@ data constructor cases are because we can infer
 -- based on where we are in the expression whether they are a Record expression that has
--- our desired field (e.g. the "dependencies" field) or a List expression.
+-- our desired field (e.g. the @dependencies@ field) or a List expression.
 --
 -- In other words, `modifyRawAST'` can actually succeed for the cases we support.
 modifyRawAST :: HasLogFunc env => ConfigModification -> ResolvedExpr -> Expr -> RIO env Expr
@@ -146,15 +147,15 @@ modifyRawAST astMod normalizedExpr originalExpr = case astMod of
           "Failed to add dependencies. You should have a record with the `" <> key <> "` key for this to work.\n" <>
           "Expression was: " <> pretty e
 
--- | "dependencies" - Reduce chance of spelling mistakes/typos
+-- | \"dependencies\" - Reduce chance of spelling mistakes/typos
 dependenciesText :: Text
 dependenciesText = "dependencies"
 
--- | "sources" - Reduce chance of spelling mistakes/typos
+-- | \"sources\" - Reduce chance of spelling mistakes/typos
 sourcesText :: Text
 sourcesText = "sources"
 
--- | "name" - Reduce chance of spelling mistakes/typos
+-- | \"name\" - Reduce chance of spelling mistakes/typos
 nameText :: Text
 nameText = "name"
 
@@ -166,114 +167,113 @@ data ExprLevel
   --   expression we want to update.
   | SearchingForField !(NonEmpty Text)
   -- ^ An expression within the root expression
-  --   where we still haven't found the record with the
-  --   `dependencies` field key.
-  --   The list of Text values is a stack of keys. We use
-  --   the key on the head of the list when we encounter a
-  --   `RecordLit` to loookup a field within that record.
-  --   `Field` pushes new keys on top of the stack
-  --   `RecordLit` looks up those fields and drops the keys on the stack
-  --   Transitioning from `AtRootExpression` to `SearchingForField`
-  --   should therefore always have `"dependencies"` at the bottom of the stack.
+  --   where we still haven't found the record-like expression
+  --   that has the next @key@ in the @keyStack@.
+  --
+  --   The @NonEmpty Text@ arg is a stack of keys.
+  --   - @Field@ pushes new keys on top of the stack
+  --   - @RecordLit@ pops off the key at the top of the stack
+  --   and looks up the field corresponding do it
+  --   - @With@ sometimes also pops off one or more of the keys in
+  --   the @keyStack@.
   | WithinField
-  -- ^ This expression is the value associated with the `dependencies` field.
-  --   It must be a `List`-like structure, so immediately append the new packages
-  --   to the expression via a `ListAppend` or merge `ListLit`s together
-  --   if it's a `ListAppend`.
+  -- ^ This expression is the expression we wish to update
+  --   (e.g. the value associated with the @dependencies@ field when
+  --   we are adding new packages).
   deriving (Eq, Show)
 
 data UpdateResult
   = Updated !Expr
-  -- ^ The expression was succesfully updated with the new packages
+  -- ^ The expression was succesfully updated with the requested change.
   | VariableName !(Text, Int)
   -- ^ The expression to update is the binding value with this name
-  --   that corresponds to the specified de Brujin index
+  --   that corresponds to the specified de Brujin index.
+  --   See "Dhall.Core#t:Var".
   | EncounteredEmbed
   -- ^ As long as we have previously normalized the original expression
-  --   and verified that it will produce the "shape" we're expecting,
-  --   then when we encounter an `Embed` constructor, we can make
+  --   and verified that it will produce the \"shape\" we are expecting,
+  --   then when we encounter an @Embed@ constructor, we can make
   --   one assumption about it: the type of the expression
-  --   must match what we're looking for in the current `ExprLevel`.
+  --   must match what we are looking for in the current @ExprLevel@.
   --
-  --   For example, if we are `WithinField` and we encounter an `Embed` case, then we know
+  --   For example, if we are @WithinField@ and we encounter an @Embed@ case, then we know
   --   the import will produce an expression that matches the type of the one we
   --   are trying to update. For example, if it will produce an expression that has
-  --   type, `List Text`, then we can wrap it in a `ListAppend embedExpr newListLitExpr`.
+  --   type, @List Text@, then we can wrap it in a @ListAppend embedExpr newListLitExpr@.
   --
-  --   If we are `SearchingForField` and we encounter an `Embed` case, then we know
+  --   If we are @SearchingForField@ and we encounter an @Embed@ case, then we know
   --   the import will produce a record expression. In this case, we can refer to
   --   its underlying values via the @keyStack@ provided via the @SearchingForField@.
 
 -- |
--- Basically `fmap` but only for the `Updated` case.
+-- Basically 'Prelude.fmap' but only for the @Updated@ case.
 mapUpdated :: (Expr -> Expr) -> UpdateResult -> UpdateResult
 mapUpdated f (Updated e) = Updated (f e)
 mapUpdated _ other = other
 
 -- |
--- A Configuration's Dhall expression is anything that, when normalized, produces a
--- "record expression" whose
--- * `dependencies` key contains a "list expression" of text that
+-- A Configuration\'s Dhall expression is anything that, when normalized, produces a
+-- \"record expression\" whose
+-- * @dependencies@ key contains a \"list expression\" of text that
 --   corresponds to package names.
--- * `name` key corresponds to a text expression containing the name of the project
--- * `sources` key contains a "list expression" of text that
+-- * @name@ key corresponds to a text expression containing the name of the project
+-- * @sources@ key contains a \"list expression\" of text that
 --   corresponds to source globs.
 --
 -- To make this implementation cover most of the usual cases while still making this simple,
 -- the following cases will NOT be supported:
--- - Lam binding expr - `λ(binding : Text) -> { dependencies = [ x ] }`
---     Although a `Lam` can't be a root-level expression, it could still appear in various places.
---     We could try to update the function's body, but without greater context, it's possible
+-- - Lam binding expr - @λ(binding : Text) -> { dependencies = [ x ] }@
+--     Although a @Lam@ ca not be a root-level expression, it could still appear in various places.
+--     We could try to update the function\'s body, but without greater context, it\'s possible
 --     that updating the body could affect other things, too. If someone is using something as
---     complicated as lambdas, we'll force them to update the file manually.
--- - App func arg - `(λ(x : A) -> { dependencies = [ x ] }) "bar"`
---     This can produce a record expression and unlike `Lam` can be a root-level expression.
---     However, this is a complex feature and can be difficult to update correctly like `Lam`.
+--     complicated as lambdas, we will force them to update the file manually.
+-- - App func arg - @(λ(x : A) -> { dependencies = [ x ] }) \"bar\"@
+--     This can produce a record expression and unlike @Lam@ can be a root-level expression.
+--     However, this is a complex feature and can be difficult to update correctly like @Lam@.
 --     Thus, we won't be covering it and instead will force the user to update the file manually.
--- - BoolIf condition thenPath elsePath - `if x then y else z`
---     If the update is in either the `thenPath` or the `elsePath`, which one do we update?
---     Without more context, we can't know and might update the value incorrectly.
+-- - BoolIf condition thenPath elsePath - @if x then y else z@
+--     If the update is in either the @thenPath@ or the @elsePath@, which one do we update?
+--     Without more context, we can not know and might update the value incorrectly.
 --     Thus, we force the user to manually add the dependencies if this is used.
--- - Project expr keys - `{ dependencies = ["bar"], other = "foo" }.{ dependencies }`
+-- - Project expr keys - @{ dependencies = [\"bar\"], other = \"foo\" }.{ dependencies }@
 --     This can produce a record expresion. Since this is unlikely to be used frequently,
---     and requires a bit more work due to the type for `keys`, we won't support it below.
+--     and requires a bit more work due to the type for @keys@, we will not support it below.
 --     However, this could be added in a future PR.
 --
 -- The below cases will be supported. Each is described below with a small description of how to update them:
--- - Embed _ - `./spago.dhall`
---     This refers to another Dhall expression elsewhere. Without normalizing it, we don't know what it is
---     but we can make assumptions about it. See the `EncounteredEmbed` constructor for `UpdateResult`.
--- - ListLit - ["a", "literal", "list", "of", "values"]
---     This is what will often be the expression associated with the "dependencies" key.
---     Updating it merely means adding the new packages to its list.
--- - ListAppend - `["list1"] # ["list2"]`
---     Similar to `ListLit` except it appends two list expressions together.
---     If it doesn't contain a `ListLit` (e.g. `expr1 # expr2`), we can wrap the entire
---     expression in a `ListAppend originalExpr listExprWithNewPkgs`.
--- - RecordLit - `{ key = value }`
---     This is ultimately what we're looking for, so we can update the `dependencies`' field's list.
---     However, due to supporting `Field`, which selects values within a record,
---     we need to support looking up other keys besides the "dependencies" key.
--- - Field recordExpr selection - `{ key = { dependencies = ["bar"] } }.key`
+-- - Embed _ - @./spago.dhall@
+--     This imports and refers to another Dhall expression elsewhere. Without normalizing it, we do not know what it is
+--     but we can make assumptions about it. See the @EncounteredEmbed@ constructor for `UpdateResult`.
+-- - ListLit - @[\"a\", \"literal\", \"list\", \"of\", \"values\"]@
+--     When the `AstUpdate` is a @InsertListText additions@, updating this expression merely means adding the @additions@ to its list.
+-- - ListAppend - @[\"list1\"] # [\"list2\"]@
+--     Similar to @ListLit@ except it appends two list expressions together.
+--     If it doesn't contain a @ListLit@ (e.g. @expr1 # expr2@), we can wrap the entire
+--     expression in a @ListAppend originalExpr listExprWithNewPkgs@.
+-- - RecordLit - @{ key = value }@
+--     This is ultimately what we are looking for, so we can update the respective field.
+--     However, due to supporting @Field@, which selects values within a record,
+--     we need to support looking up other keys besides the main key (e.g @dependencies@).
+-- - Field recordExpr selection - @{ key = { dependencies = [\"bar\"] } }.key@
 --     This can produce a record expression. Depending on the record expression,
 --     we might need to update the values within the record expression
---     that are ultimately exposed via the key (e.g. `{ config = { ..., dependencies = []} }.config`)
--- - Prefer recordExpr overrides - `{ dependencies = ["foo"] } // { dependencies = ["bar"] }`
---     This produces a record expression. If we update the `recordExpr`
---     arg and its `dependencies` is overridden by `overrides`, then the update is pointless.
---     If the `overrides` value overrides something irrelevant to the record's `dependencies` field,
---     then we need to update the `recordExpr`. So, we need to try to update the `overrides` arg first
---     and only if that fails do we attempt to update the `recordExpr`.
--- - With recordExpr field update - `{ dependencies = ["foo"] } with dependencies = ["bar"]`
---     This produces a record expression. Similar to `Prefer`,
---     we should attempt to update the `update` value first before attempting to update `recordExpr`.
--- - Let binding expr - `let binding = value in expr`
---     The expression we need to update will often be in the `expr` (i.e. after the 'in' keyword;
---     ``let src = [ "src" ] in { ..., dependencies = [ "old" ], sources = src }`).
+--     that are ultimately exposed via the key (e.g. @{ config = { ..., dependencies = []} }.config@)
+-- - Prefer recordExpr overrides - @{ dependencies = [\"foo\"] } \/\/ { dependencies = [\"bar\"] }@
+--     This produces a record expression. If we update the @recordExpr@
+--     arg and its @dependencies@ is overridden by @overrides@, then the update is pointless.
+--     If the @overrides@ value overrides something irrelevant to the record\'s @dependencies@ field,
+--     then we need to update the @recordExpr@. So, we need to try to update the @overrides@ arg first
+--     and only if that fails do we attempt to update the @recordExpr@.
+-- - With recordExpr field update - @{ dependencies = [\"foo\"] } with dependencies = [\"bar\"]@
+--     This produces a record expression. Similar to @Prefer@,
+--     we should attempt to update the @update@ value first before attempting to update @recordExpr@.
+-- - Let binding expr - @let binding = value in expr@
+--     The expression we need to update will often be in the @expr@ (i.e. after the @in@ keyword;
+--     > let src = [ "src" ] in { ..., dependencies = [ "old" ], sources = src }`)
 --     However, we might need to update the expression associated with the bound variable name.
---     (e.g. `let config = { dependencies = [ "foo" ] } in config`). We won't know
---     until we have looked at what the "dependencies" key refers to before finding out that
---     the binding for the variable name `config` is what we need to update.
+--     (e.g. @let config = { dependencies = [ \"foo\" ] } in config@). We will not know
+--     until we have looked at what the @dependencies@ key refers to before finding out that
+--     the binding for the variable name @config@ is what we need to update.
 --
 -- Since this is modifying the raw AST and might produce an invalid configuration file,
 -- the returned expression should be verified to produce a valid configuration format.
@@ -287,12 +287,12 @@ modifyRawAST' initialKey astMod originalExpr = do
       pure originalExpr
   where
     -- |
-    -- Adds the additions to a `ListLit`'s `Seq` argument
+    -- Adds the additions to a @ListLit@'s @Seq@ argument
     updateListTextByAppending :: Seq Expr -> Seq Expr -> Seq Expr
     updateListTextByAppending additions listLitSeqArg = Seq.sort (additions <> listLitSeqArg)
 
     -- |
-    -- Removes some boilerplate: changes `expr` to `expr # ["new"]`
+    -- Removes some boilerplate: changes @expr@ to @expr # [\"new\"]@
     updateListTextByWrappingListAppend :: Seq Expr -> Expr -> Expr
     updateListTextByWrappingListAppend additions expr =
       Dhall.ListAppend expr $ Dhall.ListLit Nothing $ updateListTextByAppending additions Seq.empty
@@ -306,13 +306,12 @@ modifyRawAST' initialKey astMod originalExpr = do
       _ -> Nothing
 
     -- |
-    --    `./spago.dhall` (or some other expression where the required update is within the embed (e.g. `./spago.dhall // { sources = ["foo"] }`)
+    -- > ./spago.dhall
+    -- (or some other expression where the required update is within the embed (e.g. @./spago.dhall // { sources = [\"foo\"] }@)
     -- to
-    --    ```
-    --    let varName = ./spago.dhall
-    --    in  varName
-    --          with dependencies = varName.dependencies # ["new"]
-    --    ```
+    -- > let varName = ./spago.dhall
+    -- > in  varName
+    -- >       with dependencies = varName.dependencies # ["new"]
     updateListTextByWrappingLetBinding :: NonEmpty Text -> Seq Expr -> Text -> Expr -> Expr
     updateListTextByWrappingLetBinding keyStack additions varName expr = do
       let
@@ -321,7 +320,7 @@ modifyRawAST' initialKey astMod originalExpr = do
         -- `let __embed = expr`
         binding = Dhall.makeBinding varName expr
 
-        -- `__embed.key1.key2.key3
+        -- `__embed.key1.key2.key3`
         varSelect = foldl' (\acc nextKey -> Dhall.Field acc (Dhall.makeFieldSelection nextKey)) var keyStack
 
         -- `__embed.dependencies # ["new"]`
@@ -331,7 +330,11 @@ modifyRawAST' initialKey astMod originalExpr = do
             (Dhall.ListLit Nothing $ updateListTextByAppending additions Seq.empty)
       Dhall.Let binding $ Dhall.With var keyStack lsAppend
 
-    -- | Updates a "root-level" expression
+    -- | Updates an expression by recursively updating any subexpressions
+    -- until the update succeeds (@Just Updated@) or fails (@Nothing@). If called
+    -- on a \"root-level\" expression, @Just EncounteredEmbed@ and @Just VariableName@ also
+    -- count as failure. For subexpressions, these returned values may be used to determine how to
+    -- update a subexpression found within the \"root-level\" expression.
     updateExpr :: HasLogFunc env => ExprLevel -> Expr -> RIO env (Maybe UpdateResult)
     updateExpr level expr = case expr of
       -- ./spago.dhall
