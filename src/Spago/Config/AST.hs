@@ -171,7 +171,7 @@ sourcesText = "sources"
 nameText :: Text
 nameText = "name"
 
--- | Indicates where we are in the expresion
+-- | Indicates where we are in the expression
 data ExprLevel
   = AtRootExpression Text
   -- ^ The outermost expression
