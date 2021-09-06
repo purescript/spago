@@ -121,8 +121,8 @@ parseConfig = do
 
   ConfigPath path <- view (the @ConfigPath)
   expr <- liftIO $ Dhall.inputExpr $ "./" <> path
-  mbConfig <- parseConfig' expr
-  case mbConfig of
+  maybeConfig <- parseConfig' expr
+  case maybeConfig of
     Just config -> pure config
     Nothing -> case Dhall.TypeCheck.typeOf expr of
       Right e  -> throwM $ Dhall.ConfigIsNotRecord e
@@ -462,8 +462,8 @@ addDependencies Config { packageSet = PackageSet{..} } newPackages = do
         -- Verify that returned expression can produce a `Config` value if parsed
         -- before we return it.
         normalizedExpr <- liftIO $ Dhall.inputExpr $ pretty newExpr
-        mbResult <- (Just newExpr <$ parseConfig' normalizedExpr) `catch` (\(_ :: SomeException) -> pure Nothing)
-        case mbResult of
+        maybeResult <- (Just newExpr <$ parseConfig' normalizedExpr) `catch` (\(_ :: SomeException) -> pure Nothing)
+        case maybeResult of
           Just validatedExpr -> do
             pure validatedExpr
           Nothing -> do

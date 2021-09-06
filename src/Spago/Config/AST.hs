@@ -67,8 +67,8 @@ data AstUpdate
 modifyRawAST :: HasLogFunc env => ConfigModification -> ResolvedExpr -> Expr -> RIO env Expr
 modifyRawAST astMod normalizedExpr originalExpr = case astMod of
   AddPackages newPackages -> do
-    mbAllInstalledPkgs <- findListTextValues dependenciesText PackageName
-    case mbAllInstalledPkgs of
+    maybeAllInstalledPkgs <- findListTextValues dependenciesText PackageName
+    case maybeAllInstalledPkgs of
       Nothing -> do
         pure originalExpr
       Just allInstalledPkgs -> do
@@ -79,12 +79,12 @@ modifyRawAST astMod normalizedExpr originalExpr = case astMod of
         else do
           modifyRawAST' dependenciesText (InsertListText (Dhall.toTextLit . packageName <$> pkgsToInstall)) originalExpr
   AddSources newSources -> do
-    mbAllInstalledPkgs <- findListTextValues sourcesText id
-    case mbAllInstalledPkgs of
+    maybeAllSources <- findListTextValues sourcesText id
+    case maybeAllSources of
       Nothing -> do
         pure originalExpr
-      Just allInstalledPkgs -> do
-        let sourcesToInstall = nubSeq $ Seq.filter (`notElem` allInstalledPkgs) $ Seq.fromList newSources
+      Just allSources -> do
+        let sourcesToInstall = nubSeq $ Seq.filter (`notElem` allSources) $ Seq.fromList newSources
         if null sourcesToInstall
         then do
           pure originalExpr
@@ -92,8 +92,8 @@ modifyRawAST astMod normalizedExpr originalExpr = case astMod of
           modifyRawAST' sourcesText (InsertListText (Dhall.toTextLit <$> sourcesToInstall)) originalExpr
 
   SetName newName -> do
-    mbName <- findTextValue nameText
-    case mbName of
+    maybeName <- findTextValue nameText
+    case maybeName of
       Nothing -> do
         pure originalExpr
       Just originalName
@@ -522,8 +522,8 @@ modifyRawAST' initialKey astMod originalExpr = do
             --  `{ config = { ..., dependencies = [ "package", "new" ] } }.config`
             let
               newLevel = SearchingForField (fieldSelectionLabel :| [key])
-            mbResult <- fmap (mapUpdated (\newRecord -> Dhall.Field newRecord selection)) <$> updateExpr newLevel recordExpr
-            case mbResult of
+            maybeResult <- fmap (mapUpdated (\newRecord -> Dhall.Field newRecord selection)) <$> updateExpr newLevel recordExpr
+            case maybeResult of
               Just EncounteredEmbed -> do
                 case astMod of
                   InsertListText additions -> do
@@ -533,13 +533,13 @@ modifyRawAST' initialKey astMod originalExpr = do
                     pure $ Just $ Updated $ Dhall.Field (Dhall.With expr (key :| []) t) selection
 
               Just (Updated _) -> do
-                pure mbResult
+                pure maybeResult
 
               Just (VariableName _) -> do
-                pure mbResult
+                pure maybeResult
 
               Nothing -> do
-                pure mbResult
+                pure maybeResult
 
           SearchingForField keys -> do
             let
@@ -575,8 +575,8 @@ modifyRawAST' initialKey astMod originalExpr = do
             --    `{ ..., dependencies = ["old", "new"] } // { sources = ["src"] }`
             let
               newLevel = SearchingForField (key :| [])
-            mbRight <- updateExpr newLevel right
-            case mbRight of
+            maybeRight <- updateExpr newLevel right
+            case maybeRight of
               Just EncounteredEmbed -> do
                 case astMod of
                   InsertListText additions -> do
@@ -591,14 +591,14 @@ modifyRawAST' initialKey astMod originalExpr = do
 
               Just (VariableName _) -> do
                 -- `The `Just VariableName` can't happen here because this is `AtRootExpression`
-                pure mbRight
+                pure maybeRight
 
               Just (Updated newRight) -> do
                 pure $ Just $ Updated $ Dhall.Prefer charSet preferAnn left newRight
 
               Nothing -> do
-                mbLeft <- updateExpr newLevel left
-                case mbLeft of
+                maybeLeft <- updateExpr newLevel left
+                case maybeLeft of
                   Just EncounteredEmbed -> do
                     case astMod of
                       InsertListText additions -> do
@@ -656,13 +656,13 @@ modifyRawAST' initialKey astMod originalExpr = do
 
                   Just (VariableName _) -> do
                     -- `The `Just VariableName` can't happen here because this is `AtRootExpression`
-                    pure mbLeft
+                    pure maybeLeft
 
                   Just (Updated newLeft) -> do
                     pure $ Just $ Updated $ Dhall.Prefer charSet preferAnn newLeft right
 
                   Nothing -> do
-                    pure mbLeft
+                    pure maybeLeft
 
           SearchingForField _ -> do
             -- See Dhall.Prefer's `AtRootExpression` case
@@ -679,19 +679,19 @@ modifyRawAST' initialKey astMod originalExpr = do
                 pure $ Just $ Updated $ Dhall.Prefer charSet preferAnn left newRight
 
               Nothing -> do
-                mbLeft <- updateExpr level left
-                case mbLeft of
+                maybeLeft <- updateExpr level left
+                case maybeLeft of
                   Just EncounteredEmbed -> do
-                    pure mbLeft
+                    pure maybeLeft
 
                   Just (VariableName _) -> do
-                    pure mbLeft
+                    pure maybeLeft
 
                   Just (Updated newLeft) -> do
                     pure $ Just $ Updated $ Dhall.Prefer charSet preferAnn newLeft right
 
                   Nothing -> do
-                    pure mbLeft
+                    pure maybeLeft
 
       -- recordExpr with field1.field2.field3 = update
       Dhall.With recordExpr field update ->
@@ -710,8 +710,8 @@ modifyRawAST' initialKey astMod originalExpr = do
             --    `{ ..., dependencies = ["old"] } with dependencies = ["package"]`
             --  to
             --    `{ ..., dependencies = ["old"] } with dependencies = ["package", "new"]`
-            mbResult <- updateExpr WithinField update
-            case mbResult of
+            maybeResult <- updateExpr WithinField update
+            case maybeResult of
               Just EncounteredEmbed -> do
                 case astMod of
                   --    `{ ..., dependencies = ["old"] } with dependencies = ./deps.dhall`
@@ -730,7 +730,7 @@ modifyRawAST' initialKey astMod originalExpr = do
                 -- This can't happen because the Dhall expression is invalid. There can't be a variable name
                 -- if there isn't a let binding.
                 --    `{ ..., dependencies = ["old"] } with dependencies = x`
-                pure mbResult
+                pure maybeResult
 
               Just (Updated newUpdate) -> do
                 pure $ Just $ Updated $ Dhall.With recordExpr field newUpdate
@@ -740,13 +740,13 @@ modifyRawAST' initialKey astMod originalExpr = do
                 -- recordExpr must be an expression that produces our Config schema, which means it will have
                 -- a dependencies field. So, if we failed to update that dependencies field, then the expression
                 -- itself is invalid.
-                pure mbResult
+                pure maybeResult
 
           AtRootExpression key -> do
             let
               newLevel = SearchingForField (key :| [])
-            mbResult <- updateExpr newLevel recordExpr
-            case mbResult of
+            maybeResult <- updateExpr newLevel recordExpr
+            case maybeResult of
               Just EncounteredEmbed -> do
                 case astMod of
                   --     ```
@@ -798,13 +798,13 @@ modifyRawAST' initialKey astMod originalExpr = do
 
               Just (VariableName _) -> do
                 -- `The `Just VariableName` can't happen here because this is `AtRootExpression`
-                pure mbResult
+                pure maybeResult
 
               Just (Updated newUpdate) -> do
                 pure $ Just $ Updated $ Dhall.With recordExpr field newUpdate
 
               Nothing -> do
-                pure mbResult
+                pure maybeResult
 
           SearchingForField keyStack -> do
             {-
@@ -828,13 +828,13 @@ modifyRawAST' initialKey astMod originalExpr = do
 
             case levelForUpdate field keyStack of
               Just levelForUpdateSearch -> do
-                mbUpdate <- updateExpr levelForUpdateSearch update
-                case mbUpdate of
+                maybeUpdate <- updateExpr levelForUpdateSearch update
+                case maybeUpdate of
                   Just EncounteredEmbed -> do
-                    pure mbUpdate
+                    pure maybeUpdate
 
                   Just (VariableName _) -> do
-                    pure mbUpdate
+                    pure maybeUpdate
 
                   Just (Updated newUpdate) -> do
                     pure $ Just $ Updated $ Dhall.With recordExpr field newUpdate
@@ -847,19 +847,19 @@ modifyRawAST' initialKey astMod originalExpr = do
 
             where
               updateRecordExpr = do
-                mbRecordExpr <- updateExpr level recordExpr
-                case mbRecordExpr of
+                maybeRecordExpr <- updateExpr level recordExpr
+                case maybeRecordExpr of
                   Just EncounteredEmbed -> do
-                    pure mbRecordExpr
+                    pure maybeRecordExpr
 
                   Just (VariableName _) -> do
-                    pure mbRecordExpr
+                    pure maybeRecordExpr
 
                   Just (Updated newRecordExpr) -> do
                     pure $ Just $ Updated $ Dhall.With newRecordExpr field update
 
                   Nothing -> do
-                    pure mbRecordExpr
+                    pure maybeRecordExpr
 
       Dhall.Let binding@Dhall.Binding { variable, value } inExpr -> do
         case level of
@@ -880,8 +880,8 @@ modifyRawAST' initialKey astMod originalExpr = do
           AtRootExpression key -> do
             let
               newLevel = SearchingForField (key :| [])
-            mbResult <- updateExpr newLevel inExpr
-            case mbResult of
+            maybeResult <- updateExpr newLevel inExpr
+            case maybeResult of
               Just EncounteredEmbed -> do
                 case astMod of
                   --  `let useless = "foo" in ./spago.dhall`
@@ -907,8 +907,8 @@ modifyRawAST' initialKey astMod originalExpr = do
                 pure $ Just $ Updated $ Dhall.Let binding newInExpr
 
               Just (VariableName (name, deBrujinIndex)) | name == variable && deBrujinIndex == 0 -> do
-                mbValue <- updateExpr newLevel value
-                case mbValue of
+                maybeValue <- updateExpr newLevel value
+                case maybeValue of
                   Just EncounteredEmbed -> do
                     case astMod of
                       --    `let x = ./spago.dhall in x`
@@ -932,21 +932,21 @@ modifyRawAST' initialKey astMod originalExpr = do
 
                   Just (VariableName _) -> do
                     -- invalid Dhall expression because this is AtRootExpression
-                    pure mbValue
+                    pure maybeValue
 
                   Nothing -> do
-                    pure mbValue
+                    pure maybeValue
 
               Just (VariableName _) -> do
                 -- Invalid Dhall expression because this is AtRootExpression
-                pure mbResult
+                pure maybeResult
 
               Nothing -> do
-                pure mbResult
+                pure maybeResult
 
           SearchingForField keyStack -> do
-            mbResult <- updateExpr level inExpr
-            case mbResult of
+            maybeResult <- updateExpr level inExpr
+            case maybeResult of
               embedded@(Just EncounteredEmbed) -> do
                 pure embedded
 
@@ -957,8 +957,8 @@ modifyRawAST' initialKey astMod originalExpr = do
                 pure $ Just $ VariableName (name, deBrujinIndex - 1)
 
               Just (VariableName (name, deBrujinIndex)) | name == variable && deBrujinIndex == 0 -> do
-                mbValue <- updateExpr level value
-                case mbValue of
+                maybeValue <- updateExpr level value
+                case maybeValue of
                   Just EncounteredEmbed -> do
                     case astMod of
                       --    `let x = { key1 = ./spago.dhall } in x.key1`
@@ -981,17 +981,17 @@ modifyRawAST' initialKey astMod originalExpr = do
                   Just (VariableName _) -> do
                     -- `let x = "foo" let y = x in y`
                     -- This binding refers to another binding
-                    pure mbValue
+                    pure maybeValue
 
                   Nothing -> do
-                    pure mbValue
+                    pure maybeValue
 
               Just (VariableName _) -> do
                 -- Variable name doesn't match this let binding's name
-                pure mbResult
+                pure maybeResult
 
               Nothing -> do
-                pure mbResult
+                pure maybeResult
 
       _ -> do
         pure Nothing
