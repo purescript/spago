@@ -189,14 +189,20 @@ data UpdateResult
   -- ^ The expression to update is the binding value with this name
   --   that corresponds to the specified de Brujin index
   | EncounteredEmbed
-  -- ^ We encountered an `Embed` constructor. We can make only
-  --   two assumptions about it:
-  --    1. If we are `WithinField`, then this must be an
-  --       expression that produces a `List`-like structure.
-  --    2. We are NOT `WithinField`, then this must be an
-  --       expression that produces a `Record`-like Config-schema structure.
-  --       Thus, a "dependencies" key should exist. If it doesn't, the
-  --       Dhall expression is invalid (as verified by our prior normalized expression)
+  -- ^ As long as we have previously normalized the original expression
+  --   and verified that it will produce the "shape" we're expecting,
+  --   then when we encounter an `Embed` constructor, we can make
+  --   one assumption about it: the type of the expression
+  --   must match what we're looking for in the current `ExprLevel`.
+  --
+  --   For example, if we are `WithinField` and we encounter an `Embed` case, then we know
+  --   the import will produce an expression that matches the type of the one we
+  --   are trying to update. For example, if it will produce an expression that has
+  --   type, `List Text`, then we can wrap it in a `ListAppend embedExpr newListLitExpr`.
+  --
+  --   If we are `SearchingForField` and we encounter an `Embed` case, then we know
+  --   the import will produce a record expression. In this case, we can refer to
+  --   its underlying values via the @keyStack@ provided via the @SearchingForField@.
 
 -- |
 -- Basically `fmap` but only for the `Updated` case.
@@ -206,8 +212,12 @@ mapUpdated _ other = other
 
 -- |
 -- A Configuration's Dhall expression is anything that, when normalized, produces a
--- "record expression" whose `dependencies` key contains a "list expression" of text that
--- corresponds to package names.
+-- "record expression" whose
+-- * `dependencies` key contains a "list expression" of text that
+--   corresponds to package names.
+-- * `name` key corresponds to a text expression containing the name of the project
+-- * `sources` key contains a "list expression" of text that
+--   corresponds to source globs.
 --
 -- To make this implementation cover most of the usual cases while still making this simple,
 -- the following cases will NOT be supported:
@@ -221,16 +231,17 @@ mapUpdated _ other = other
 --     However, this is a complex feature and can be difficult to update correctly like `Lam`.
 --     Thus, we won't be covering it and instead will force the user to update the file manually.
 -- - BoolIf condition thenPath elsePath - `if x then y else z`
---     If the update is in either the `thenPath` or the `elsePath`, which one is it?
---     Withought more context, we can't know and might update the value incorrectly.
+--     If the update is in either the `thenPath` or the `elsePath`, which one do we update?
+--     Without more context, we can't know and might update the value incorrectly.
 --     Thus, we force the user to manually add the dependencies if this is used.
 -- - Project expr keys - `{ dependencies = ["bar"], other = "foo" }.{ dependencies }`
 --     This can produce a record expresion. Since this is unlikely to be used frequently,
 --     and requires a bit more work due to the type for `keys`, we won't support it below.
+--     However, this could be added in a future PR.
 --
 -- The below cases will be supported. Each is described below with a small description of how to update them:
 -- - Embed _ - `./spago.dhall`
---     This refers to another Dhall expression elssewhere. Without normalizing it, we don't know what it is
+--     This refers to another Dhall expression elsewhere. Without normalizing it, we don't know what it is
 --     but we can make assumptions about it. See the `EncounteredEmbed` constructor for `UpdateResult`.
 -- - ListLit - ["a", "literal", "list", "of", "values"]
 --     This is what will often be the expression associated with the "dependencies" key.
