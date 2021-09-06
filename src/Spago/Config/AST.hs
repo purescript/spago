@@ -1,7 +1,7 @@
 {-# LANGUAGE ViewPatterns #-}
 {-# LANGUAGE OverloadedLists #-}
 module Spago.Config.AST
-  ( AstModification(..)
+  ( ConfigModification(..)
   , modifyRawAST
   ) where
 
@@ -21,11 +21,15 @@ type Expr = Dhall.Expr Parser.Src Dhall.Import
 type ResolvedExpr = Dhall.Expr Parser.Src Void
 
 -- |
--- Indicates the change Spago wants to make to the expression
-data AstModification
+-- Indicates the change Spago wants to make to the Dhall expression
+-- used to produce a @Config@ value.
+data ConfigModification
   = AddPackages ![PackageName]
+  -- ^ Adds packages to the `dependencies` field
   | AddSources ![Text]
+  -- ^ Adds sources to the `sources` field
   | SetName Text
+  -- ^ Sets the `name` field to the provided name
 
 -- |
 -- Indicates the change to make once inside the expression
@@ -54,7 +58,7 @@ data AstUpdate
 -- Record expression with a "dependencies" key or a List expression.
 --
 -- In other words, `modifyRawAST'` can actually succeed for the cases we support.
-modifyRawAST :: HasLogFunc env => AstModification -> ResolvedExpr -> Expr -> RIO env Expr
+modifyRawAST :: HasLogFunc env => ConfigModification -> ResolvedExpr -> Expr -> RIO env Expr
 modifyRawAST astMod normalizedExpr originalExpr = case astMod of
   AddPackages newPackages -> do
     mbAllInstalledPkgs <- findListTextValues dependenciesText PackageName
