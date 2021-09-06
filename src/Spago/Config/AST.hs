@@ -2,6 +2,7 @@
 {-# LANGUAGE OverloadedLists #-}
 module Spago.Config.AST
   ( ConfigModification(..)
+  , ResolvedUnresolvedExpr(..)
   , modifyRawConfigExpression
   ) where
 
@@ -37,6 +38,13 @@ data ConfigModification
 data AstUpdate
   = InsertListText (Seq Expr)
   | SetText Expr
+
+-- |
+-- Newtype over a Tuple that stores the same expression
+-- in the version where its imports are resolved (i.e. @Expr Src Void@)
+-- and the version where its imports are not resolved  (i.e. @Expr Src Import@).
+newtype ResolvedUnresolvedExpr =
+  ResolvedUnresolvedExpr { resolvedUnresolvedExpr :: (ResolvedExpr, Expr) }
 
 -- |
 --
@@ -75,8 +83,8 @@ data AstUpdate
 -- our desired field (e.g. the @dependencies@ field) or a List expression.
 --
 -- In other words, `modifyRawDhallExpression` can actually succeed for the cases we support.
-modifyRawConfigExpression :: HasLogFunc env => ConfigModification -> ResolvedExpr -> Expr -> RIO env Expr
-modifyRawConfigExpression astMod normalizedExpr originalExpr = case astMod of
+modifyRawConfigExpression :: HasLogFunc env => ConfigModification -> ResolvedUnresolvedExpr -> RIO env Expr
+modifyRawConfigExpression astMod ResolvedUnresolvedExpr { resolvedUnresolvedExpr = (normalizedExpr, originalExpr) } = case astMod of
   AddPackages newPackages -> do
     maybeAllInstalledPkgs <- findListTextValues dependenciesText PackageName
     case maybeAllInstalledPkgs of

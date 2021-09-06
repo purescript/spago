@@ -418,7 +418,7 @@ withConfigAST transform = do
 --   on the current config. If it succeeds, it writes back to file the result returned.
 withRawConfigAST
   :: (HasLogFunc env, HasConfigPath env)
-  => (ResolvedExpr -> Expr -> RIO env Expr) -> RIO env Bool
+  => (AST.ResolvedUnresolvedExpr -> RIO env Expr) -> RIO env Bool
 withRawConfigAST transform = do
   ConfigPath path <- view (the @ConfigPath)
   rawConfig <- liftIO $ Dhall.readRawExpr path
@@ -426,7 +426,11 @@ withRawConfigAST transform = do
   case rawConfig of
     Nothing -> die [ display $ Messages.cannotFindConfig path ]
     Just (header, expr) -> do
-      newExpr <- transform normalizedExpr $ Dhall.Core.denote expr
+      let
+        unresolved = Dhall.Core.denote expr
+        resolved = normalizedExpr
+
+      newExpr <- transform $ AST.ResolvedUnresolvedExpr (resolved, unresolved)
       -- Write the new expression only if it has actually changed
       let exprHasChanged = Dhall.Core.denote expr /= newExpr
       if exprHasChanged
@@ -461,8 +465,8 @@ addDependencies Config { packageSet = PackageSet{..} } newPackages = do
       logWarn $ display $ Messages.failedToAddDeps $ NonEmpty.map packageName pkgsNotInPackageSet
       pure False
     Nothing -> do
-      withRawConfigAST $ \resolvedExpr expr -> do
-        newExpr <- AST.modifyRawConfigExpression (AST.AddPackages newPackages) resolvedExpr expr
+      withRawConfigAST $ \sameExpr -> do
+        newExpr <- AST.modifyRawConfigExpression (AST.AddPackages newPackages) sameExpr
         -- Verify that returned expression can produce a `Config` value if parsed
         -- before we return it.
         normalizedExpr <- liftIO $ Dhall.inputExpr $ pretty newExpr
@@ -473,7 +477,7 @@ addDependencies Config { packageSet = PackageSet{..} } newPackages = do
           Nothing -> do
             logWarn "Failed to add dependencies."
             logDebug "Raw AST modification did not produce a valid `spago.dhall` file."
-            pure expr
+            pure $ snd $ AST.resolvedUnresolvedExpr sameExpr
 
   unless configHasChanged $
     logWarn "Configuration file was not updated."
