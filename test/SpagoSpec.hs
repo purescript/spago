@@ -255,7 +255,7 @@ spec = around_ setup $ do
         spago ["-x", "alternative1.dhall", "install", "simple-json"] >>= shouldBeSuccess
         checkFixture "alternative1.dhall"
 
-      it "... alternative3-insane.dhall qw" $ do
+      it "... alternative3.dhall" $ do
 
         spago ["init"] >>= shouldBeSuccess
         spagoFileContent <- readFixture "alternative3-before.dhall"
