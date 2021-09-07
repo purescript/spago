@@ -126,38 +126,30 @@ modifyRawConfigExpression astMod ResolvedUnresolvedExpr { resolvedUnresolvedExpr
         Just Dhall.RecordField { recordFieldValue } -> case recordFieldValue of
           Dhall.ListLit _ dependencies -> do
             Just . fmap f <$> traverse (throws . Dhall.fromTextLit) dependencies
-          other -> do
-            logWarn $ display $ "not listlit: " <> failedToAddDepsExpectedRecordKey other
+          _ -> do
+            logDebug $ display $ "In normalized expression, did not find a `ListLit` for key, '" <> key <> "'."
             pure Nothing
         _ -> do
-          logWarn $ display $ "no record lit: " <> failedToAddDepsExpectedRecordKey (Dhall.RecordLit kvs)
+          logDebug $ display $ "In normalized expression, did not find a field for key, '" <> key <> "'."
           pure Nothing
-      other -> do
-        logWarn $ display $ "other: " <> failedToAddDepsExpectedRecordKey other
+      _ -> do
+        logDebug "In normalized expression, did not find a `RecordLit`."
         pure Nothing
-      where
-        failedToAddDepsExpectedRecordKey e =
-          "Failed to add dependencies. You should have a record with the `" <> key <> "` key for this to work.\n" <>
-          "Expression was: " <> pretty e
 
     findTextValue :: HasLogFunc env => Text -> RIO env (Maybe Text)
     findTextValue key = case normalizedExpr of
       Dhall.RecordLit kvs -> case Dhall.Map.lookup key kvs of
         Just Dhall.RecordField { recordFieldValue } -> case recordFieldValue of
           Dhall.TextLit (Dhall.Chunks [] txt) -> pure $ Just txt
-          other -> do
-            logWarn $ display $ "not listlit: " <> failedToAddDepsExpectedRecordKey other
+          _ -> do
+            logDebug $ display $ "In normalized expression, did not find a `TextLit` for key, '" <> key <> "'."
             pure Nothing
         _ -> do
-          logWarn $ display $ "no record lit: " <> failedToAddDepsExpectedRecordKey (Dhall.RecordLit kvs)
+          logDebug $ display $ "In normalized expression, did not find a field for key, '" <> key <> "'."
           pure Nothing
-      other -> do
-        logWarn $ display $ "other: " <> failedToAddDepsExpectedRecordKey other
+      _ -> do
+        logDebug "In normalized expression, did not find a `RecordLit`."
         pure Nothing
-      where
-        failedToAddDepsExpectedRecordKey e =
-          "Failed to add dependencies. You should have a record with the `" <> key <> "` key for this to work.\n" <>
-          "Expression was: " <> pretty e
 
 -- | \"dependencies\" - Reduce chance of spelling mistakes/typos
 dependenciesText :: Text
