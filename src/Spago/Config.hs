@@ -450,21 +450,30 @@ addDependencies
   :: (HasLogFunc env, HasConfigPath env)
   => Config -> [PackageName] 
   -> RIO env ()
-addDependencies config newPackages = do
+addDependencies config@Config { dependencies = deps } newPackages = do
   configHasChanged <- case notInPackageSet config newPackages of
     Just pkgsNotInPackageSet -> do
       logWarn $ display $ Messages.failedToAddDeps $ NonEmpty.map packageName pkgsNotInPackageSet
       pure False
     Nothing -> do
+      let
+        expectedConfig :: Config
+        expectedConfig = config { dependencies = List.nub $ List.sort $ deps <> newPackages }
       withRawConfigAST $ \sameExpr -> do
         newExpr <- AST.modifyRawConfigExpression (AST.AddPackages newPackages) sameExpr
-        -- Verify that returned expression can produce a `Config` value if parsed
+        -- Verify that returned expression produces the expected `Config` value if parsed
         -- before we return it.
         normalizedExpr <- liftIO $ Dhall.inputExpr $ pretty newExpr
-        maybeResult <- (Just newExpr <$ parseConfigNormalizedExpr normalizedExpr) `catch` (\(_ :: SomeException) -> pure Nothing)
+        maybeResult <- parseConfigNormalizedExpr normalizedExpr `catch` (\(_ :: SomeException) -> pure Nothing)
         case maybeResult of
-          Just validatedExpr -> do
-            pure validatedExpr
+          Just parsedConfig | expectedConfigEqualsActualConfig expectedConfig parsedConfig -> do
+            pure newExpr
+          Just _ -> do
+            logWarn "Failed to add dependencies."
+            logDebug $
+              "Raw AST modification did not produce the expected Dhall expression. " <>
+              "If parsed in a future command, the AST would not produce the expected `Config` value."
+            pure $ snd $ AST.resolvedUnresolvedExpr sameExpr
           Nothing -> do
             logWarn "Failed to add dependencies."
             logDebug "Raw AST modification did not produce a valid `spago.dhall` file."
@@ -480,3 +489,26 @@ notInPackageSet
   :: Config -> [PackageName] -> Maybe (NonEmpty PackageName)
 notInPackageSet Config { packageSet = PackageSet{..} } newPackages =
    NonEmpty.nonEmpty $ filter (\p -> Map.notMember p packagesDB) newPackages
+
+-- |
+-- We can't add an @Eq constraint to @Config@ because
+-- @publishConfig@'s @Either (Dhall.ReadError Void) PublishConfig@ does not
+-- have an @Eq@ instance for @Dhall.ReadError@.
+-- So, we define a function that does almost the same thing.
+-- All values are checked for equality (like a typical @Eq@) except for
+-- the @publishConfig@ value, which only counts as equal if
+-- both contain a @Right@ and the wrapped values are equal.
+expectedConfigEqualsActualConfig :: Config -> Config -> Bool
+expectedConfigEqualsActualConfig
+  Config { name = expN, dependencies = expDeps, packageSet = expPS, alternateBackend = expAB, configSourcePaths = expCSP, publishConfig = expPC }
+  Config { name = actN, dependencies = actDeps, packageSet = actPS, alternateBackend = actAB, configSourcePaths = actCSP, publishConfig = actPC }
+    | expN == actN
+    , expDeps == actDeps
+    , expPS == actPS
+    , expAB == actAB
+    , expCSP == actCSP
+    , Right expPub <- expPC
+    , Right actPub <- actPC
+    , expPub == actPub = True
+
+    | otherwise = False

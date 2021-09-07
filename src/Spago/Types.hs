@@ -50,7 +50,7 @@ data PackageSet = PackageSet
   { packagesDB             :: Map PackageName Package
   , packagesMinPursVersion :: Maybe Version.SemVer
   }
-  deriving (Show, Generic)
+  deriving (Eq, Show, Generic)
 
 
 -- | We consider a "Repo" a "box of source to include in the build"
@@ -79,7 +79,7 @@ newtype ModuleName = ModuleName { unModuleName :: Text }
   deriving newtype (Eq, FromJSON, FromJSONKey, Ord)
 newtype TargetPath = TargetPath { unTargetPath :: Text }
 newtype SourcePath = SourcePath { unSourcePath :: Text }
-  deriving newtype (Show, Dhall.FromDhall)
+  deriving newtype (Eq, Show, Dhall.FromDhall)
 newtype PursArg = PursArg { unPursArg :: Text }
   deriving newtype (Eq, Show)
 newtype BackendArg = BackendArg { unBackendArg :: Text }
@@ -197,7 +197,7 @@ data Config = Config
 data PublishConfig = PublishConfig
   { publishLicense    :: Text
   , publishRepository :: Text
-  } deriving (Show, Generic)
+  } deriving (Eq, Show, Generic)
 
 data PursCmd = PursCmd
   { purs :: Text
