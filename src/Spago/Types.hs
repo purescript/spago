@@ -190,7 +190,7 @@ data Config = Config
   , alternateBackend  :: Maybe Text
   , configSourcePaths :: [SourcePath]
   , publishConfig     :: Either (Dhall.ReadError Void) PublishConfig
-  } deriving (Show, Generic)
+  } deriving (Eq, Show, Generic)
 
 
 -- | The extra fields that are only needed for publishing libraries.

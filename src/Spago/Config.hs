@@ -466,7 +466,7 @@ addDependencies config@Config { dependencies = deps } newPackages = do
         normalizedExpr <- liftIO $ Dhall.inputExpr $ pretty newExpr
         maybeResult <- parseConfigNormalizedExpr normalizedExpr `catch` (\(_ :: SomeException) -> pure Nothing)
         case maybeResult of
-          Just parsedConfig | expectedConfigEqualsActualConfig expectedConfig parsedConfig -> do
+          Just parsedConfig | expectedConfig == parsedConfig -> do
             pure newExpr
           Just _ -> do
             logWarn "Failed to add dependencies."
@@ -489,26 +489,3 @@ notInPackageSet
   :: Config -> [PackageName] -> Maybe (NonEmpty PackageName)
 notInPackageSet Config { packageSet = PackageSet{..} } newPackages =
    NonEmpty.nonEmpty $ filter (\p -> Map.notMember p packagesDB) newPackages
-
--- |
--- We can't add an @Eq constraint to @Config@ because
--- @publishConfig@'s @Either (Dhall.ReadError Void) PublishConfig@ does not
--- have an @Eq@ instance for @Dhall.ReadError@.
--- So, we define a function that does almost the same thing.
--- All values are checked for equality (like a typical @Eq@) except for
--- the @publishConfig@ value, which only counts as equal if
--- both contain a @Right@ and the wrapped values are equal.
-expectedConfigEqualsActualConfig :: Config -> Config -> Bool
-expectedConfigEqualsActualConfig
-  Config { name = expN, dependencies = expDeps, packageSet = expPS, alternateBackend = expAB, configSourcePaths = expCSP, publishConfig = expPC }
-  Config { name = actN, dependencies = actDeps, packageSet = actPS, alternateBackend = actAB, configSourcePaths = actCSP, publishConfig = actPC }
-    | expN == actN
-    , expDeps == actDeps
-    , expPS == actPS
-    , expAB == actAB
-    , expCSP == actCSP
-    , Right expPub <- expPC
-    , Right actPub <- actPC
-    , expPub == actPub = True
-
-    | otherwise = False
