@@ -1,0 +1,2 @@
+{ config = ["invalid"] # ["expr"]
+}.config

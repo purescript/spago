@@ -331,6 +331,82 @@ spec = around_ setup $ do
 
           checkInstallFixtureFail "alternative4-root-textlit.dhall"
 
+      describe "... alternative4.dhall files - complex root-level field expressions" $ do
+
+        it "... alternative4-root-field-embed.dhall" $ do
+
+          checkInstallFixtureSucceed
+            "alternative4-root-field-embed-before.dhall"
+            "alternative4-root-field-embed-success.dhall"
+
+        it "... alternative4-root-field-field-before.dhall" $ do
+
+          checkInstallFixtureSucceed
+            "alternative4-root-field-field-before.dhall"
+            "alternative4-root-field-field-success.dhall"
+
+        it "... alternative4-root-field-let-inExpr-before.dhall" $ do
+
+          checkInstallFixtureSucceed
+            "alternative4-root-field-let-inExpr-before.dhall"
+            "alternative4-root-field-let-inExpr-success.dhall"
+
+        it "... alternative4-root-field-let-skip-before.dhall" $ do
+
+          checkInstallFixtureSucceed
+            "alternative4-root-field-let-skip-before.dhall"
+            "alternative4-root-field-let-skip-success.dhall"
+
+        it "... alternative4-root-field-let-value-before.dhall" $ do
+
+          checkInstallFixtureSucceed
+            "alternative4-root-field-let-value-before.dhall"
+            "alternative4-root-field-let-value-success.dhall"
+
+        it "... alternative4-root-field-listappend.dhall" $ do
+
+          checkInstallFixtureFail "alternative4-root-field-listappend.dhall"
+
+        it "... alternative4-root-field-listlit.dhall" $ do
+
+          checkInstallFixtureFail "alternative4-root-field-listlit.dhall"
+
+        it "... alternative4-root-field-prefer-left.dhall" $ do
+
+          checkInstallFixtureSucceed
+            "alternative4-root-field-prefer-left-before.dhall"
+            "alternative4-root-field-prefer-left-success.dhall"
+
+        it "... alternative4-root-field-prefer-right.dhall" $ do
+
+          checkInstallFixtureSucceed
+            "alternative4-root-field-prefer-right-before.dhall"
+            "alternative4-root-field-prefer-right-success.dhall"
+
+        it "... alternative4-root-field-textlit.dhall" $ do
+
+          checkInstallFixtureFail "alternative4-root-field-textlit.dhall"
+
+        it "... alternative4-root-field-var.dhall" $ do
+
+          checkInstallFixtureFail "alternative4-root-field-var.dhall"
+
+        it "... alternative4-root-field-with-left.dhall" $ do
+
+          checkInstallFixtureSucceed
+            "alternative4-root-field-with-left-before.dhall"
+            "alternative4-root-field-with-left-success.dhall"
+
+        it "... alternative4-root-field-with-right.dhall" $ do
+
+          checkInstallFixtureSucceed
+            "alternative4-root-field-with-right-before.dhall"
+            "alternative4-root-field-with-right-success.dhall"
+
+        it "... alternative4-root-field-textlit.dhall" $ do
+
+          checkInstallFixtureFail "alternative4-root-field-textlit.dhall"
+
     it "Spago should fail when the alternate config file doesn't exist" $ do
       spago ["init"] >>= shouldBeSuccess
       spago ["install", "-x", "test.dhall"] >>= shouldBeFailureStderr "alternate-config-missing.txt"
