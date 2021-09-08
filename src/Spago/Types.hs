@@ -79,7 +79,7 @@ newtype ModuleName = ModuleName { unModuleName :: Text }
   deriving newtype (Eq, FromJSON, FromJSONKey, Ord)
 newtype TargetPath = TargetPath { unTargetPath :: Text }
 newtype SourcePath = SourcePath { unSourcePath :: Text }
-  deriving newtype (Eq, Show, Dhall.FromDhall)
+  deriving newtype (Eq, Ord, Show, Dhall.FromDhall)
 newtype PursArg = PursArg { unPursArg :: Text }
   deriving newtype (Eq, Show)
 newtype BackendArg = BackendArg { unBackendArg :: Text }

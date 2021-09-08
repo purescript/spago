@@ -447,7 +447,8 @@ transformMExpr rules =
 --   If everything is fine instead, it will add the new deps, sort all the
 --   dependencies, and write the Config back to file.
 addDependencies
-  :: (HasLogFunc env, HasConfigPath env)
+  :: forall env
+   . (HasLogFunc env, HasConfigPath env)
   => Config -> [PackageName] 
   -> RIO env ()
 addDependencies config@Config { dependencies = deps, publishConfig = pubConfig } newPackages = do
@@ -466,15 +467,16 @@ addDependencies config@Config { dependencies = deps, publishConfig = pubConfig }
         normalizedExpr <- liftIO $ Dhall.inputExpr $ pretty newExpr
         maybeResult <- parseConfigNormalizedExpr normalizedExpr `catch` (\(_ :: SomeException) -> pure Nothing)
         case maybeResult of
-          Just parsedConfig
-            | expectedConfig == parsedConfig -> do
-                pure newExpr
-            | otherwise -> do
-                logWarn "Failed to add dependencies."
-                logDebug $
-                  "Raw AST modification did not produce the expected Dhall expression. " <>
-                  "If parsed in a future command, the AST would not produce the expected `Config` value."
-                pure $ snd $ AST.resolvedUnresolvedExpr sameExpr
+          Just parsedConfig -> do
+            validModification <- expectedConfig `isSemanticallyEquivalentTo` parsedConfig
+            if validModification then do
+              pure newExpr
+            else do
+              logWarn "Failed to add dependencies."
+              logDebug $
+                "Raw AST modification did not produce the expected Dhall expression. " <>
+                "If parsed in a future command, the AST would not produce the expected `Config` value."
+              pure $ snd $ AST.resolvedUnresolvedExpr sameExpr
           Nothing -> do
             logWarn "Failed to add dependencies."
             logDebug "Raw AST modification did not produce a valid `spago.dhall` file."
@@ -494,7 +496,7 @@ addDependencies config@Config { dependencies = deps, publishConfig = pubConfig }
     --
     -- Thus, we need to update the map in the expected config, so the equality check will pass.
     mkExpectedPubConifg = case pubConfig of
-      (Left (Dhall.RequiredKeyMissing key kvs)) ->
+      Left (Dhall.RequiredKeyMissing key kvs) ->
         Left (Dhall.RequiredKeyMissing key newKvs)
         where
           newKvs = Dhall.Map.insertWith insertNewPackages "dependencies" newPackagesExpr kvs
@@ -504,9 +506,79 @@ addDependencies config@Config { dependencies = deps, publishConfig = pubConfig }
 
           insertNewPackages :: ResolvedExpr -> ResolvedExpr -> ResolvedExpr
           insertNewPackages (Dhall.ListLit an left) (Dhall.ListLit _ right) =
-            Dhall.ListLit an $ nubSeq $ Seq.sort $ left <> right
+            Dhall.ListLit an $ nubSeq $ left <> right
           insertNewPackages other _ = other
+
       x -> x
+
+    -- |
+    -- Unfortunately, we cannot just check whether the expected config is equal to the actual config
+    -- because "Dhall.Map.Map" keeps track of order when equating two maps.
+    -- For some cases, this \"values are only equal if ordered the same\" check will cause a failure when
+    -- we attempt to parse the @PublishConfig@ and fail. In such circumstances, the failure
+    -- message will be @Left (Dhall.RequiredKeyMissing licenseOrRepositoryText map)@ and @map@ will have a different
+    -- order in the expected config than it will in the parsed config.
+    --
+    -- Moreover, if the config equality check below fails, it is more helpful to understand what parts of
+    -- the @Config@ values were considered unequal. Thus, besides doing a typical @expected == actual@ check,
+    -- we will log debug messages to the console while checking all values in case there are multiple
+    -- values that are different.
+    isSemanticallyEquivalentTo :: Config -> Config -> RIO env Bool
+    isSemanticallyEquivalentTo
+      Config { name = expN, dependencies = expD, packageSet = expPS, alternateBackend = expAB, configSourcePaths = expCSP, publishConfig = expPC }
+      Config { name = actN, dependencies = actD, packageSet = actPS, alternateBackend = actAB, configSourcePaths = actCSP, publishConfig = actPC }
+      = checkAll
+          [ checkValue expN actN "Config: name"
+          , checkValue expD actD "Config: dependencies"
+          , checkValue expPS actPS "Config: package set"
+          , checkValue expAB actAB "Config: alternate backend"
+          , checkValue expCSP actCSP "Config: config source paths"
+          , checkPC expPC actPC
+          ]
+
+    checkAll :: [RIO env Bool] -> RIO env Bool
+    checkAll = foldl' (\acc n -> do
+      prev <- acc
+      next <- n
+      pure $ prev && next) (pure True)
+
+    checkValue :: forall a. Eq a => Show a => a -> a -> _ -> RIO env Bool
+    checkValue expected actual msg
+      | expected == actual = do
+          logDebug $ msg <> " - No problem here."
+          pure True
+      | otherwise = do
+          logDebug $ msg <> " - Found mismatch"
+          logDebug $ displayShow expected
+          logDebug $ displayShow actual
+          pure False
+
+    checkPC :: Either (Dhall.ReadError Void) PublishConfig -> Either (Dhall.ReadError Void) PublishConfig -> RIO env Bool
+    checkPC (Right l) (Right r) = do
+      checkValue l r "Config: pubConfig - Right"
+    checkPC (Left (Dhall.RequiredKeyMissing k1 kvs1)) (Left (Dhall.RequiredKeyMissing k2 kvs2)) = do
+      checkAll
+        [ checkValue k1 k2 "Config: pubConfig - Left RequiredKeyMissing: keys"
+        , checkValue (sortDependencies kvs1) (sortDependencies kvs2) "Config: pubConfig - Left RequiredKeyMissing: maps"
+        ]
+    checkPC l r = do
+      logDebug "Config: pubConfig: unexpected error in both"
+      logDebug $ "Expected value's error: " <> displayShow l
+      logDebug $ "Actual value's error: " <> displayShow r
+      pure False
+
+    sortDependencies :: Dhall.Map.Map Text ResolvedExpr -> Dhall.Map.Map Text ResolvedExpr
+    sortDependencies x = case Dhall.Map.lookup dependenciesText x of
+      Just (Dhall.ListLit a pkgs) ->
+        Dhall.Map.insert dependenciesText (Dhall.ListLit a (Seq.sortOn toText pkgs)) x
+      _ ->
+        x
+      where
+        dependenciesText = "dependencies"
+
+        toText = \case
+          Dhall.TextLit (Dhall.Chunks [] t) -> t
+          _ -> error "impossible: A normalized expression that produced a valid `Config` value should only have a `TextLit` here"
 
 -- |
 -- Returns a non-empty list of packages not found in the package set
