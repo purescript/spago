@@ -450,7 +450,7 @@ addDependencies
   :: (HasLogFunc env, HasConfigPath env)
   => Config -> [PackageName] 
   -> RIO env ()
-addDependencies config@Config { dependencies = deps } newPackages = do
+addDependencies config@Config { dependencies = deps, publishConfig = pubConfig } newPackages = do
   configHasChanged <- case notInPackageSet config newPackages of
     Just pkgsNotInPackageSet -> do
       logWarn $ display $ Messages.failedToAddDeps $ NonEmpty.map packageName pkgsNotInPackageSet
@@ -458,7 +458,7 @@ addDependencies config@Config { dependencies = deps } newPackages = do
     Nothing -> do
       let
         expectedConfig :: Config
-        expectedConfig = config { dependencies = List.nub $ List.sort $ deps <> newPackages }
+        expectedConfig = config { dependencies = mkExpectedConfigDeps, publishConfig = mkExpectedPubConifg }
       withRawConfigAST $ \sameExpr -> do
         newExpr <- AST.modifyRawConfigExpression (AST.AddPackages newPackages) sameExpr
         -- Verify that returned expression produces the expected `Config` value if parsed
@@ -466,14 +466,15 @@ addDependencies config@Config { dependencies = deps } newPackages = do
         normalizedExpr <- liftIO $ Dhall.inputExpr $ pretty newExpr
         maybeResult <- parseConfigNormalizedExpr normalizedExpr `catch` (\(_ :: SomeException) -> pure Nothing)
         case maybeResult of
-          Just parsedConfig | expectedConfig == parsedConfig -> do
-            pure newExpr
-          Just _ -> do
-            logWarn "Failed to add dependencies."
-            logDebug $
-              "Raw AST modification did not produce the expected Dhall expression. " <>
-              "If parsed in a future command, the AST would not produce the expected `Config` value."
-            pure $ snd $ AST.resolvedUnresolvedExpr sameExpr
+          Just parsedConfig
+            | expectedConfig == parsedConfig -> do
+                pure newExpr
+            | otherwise -> do
+                logWarn "Failed to add dependencies."
+                logDebug $
+                  "Raw AST modification did not produce the expected Dhall expression. " <>
+                  "If parsed in a future command, the AST would not produce the expected `Config` value."
+                pure $ snd $ AST.resolvedUnresolvedExpr sameExpr
           Nothing -> do
             logWarn "Failed to add dependencies."
             logDebug "Raw AST modification did not produce a valid `spago.dhall` file."
@@ -481,6 +482,31 @@ addDependencies config@Config { dependencies = deps } newPackages = do
 
   unless configHasChanged $
     logWarn "Configuration file was not updated."
+
+  where
+    mkExpectedConfigDeps = List.nub $ List.sort $ deps <> newPackages
+
+    -- |
+    -- If the @pubConfig@ parsing fails, it will fail on the first key checked (i.e. the @license@ key).
+    -- When it does fail, it records a map of the expression and that map does not include the new packages
+    -- When the modified expression is parsed, it will also fail at the @license@ key. However, it\'s
+    -- map will include the new packages.
+    --
+    -- Thus, we need to update the map in the expected config, so the equality check will pass.
+    mkExpectedPubConifg = case pubConfig of
+      (Left (Dhall.RequiredKeyMissing key kvs)) ->
+        Left (Dhall.RequiredKeyMissing key newKvs)
+        where
+          newKvs = Dhall.Map.insertWith insertNewPackages "dependencies" newPackagesExpr kvs
+
+          newPackagesExpr :: ResolvedExpr
+          newPackagesExpr = Dhall.ListLit Nothing $ Seq.fromList $ fmap (Dhall.toTextLit . packageName) newPackages
+
+          insertNewPackages :: ResolvedExpr -> ResolvedExpr -> ResolvedExpr
+          insertNewPackages (Dhall.ListLit an left) (Dhall.ListLit _ right) =
+            Dhall.ListLit an $ nubSeq $ Seq.sort $ left <> right
+          insertNewPackages other _ = other
+      x -> x
 
 -- |
 -- Returns a non-empty list of packages not found in the package set
