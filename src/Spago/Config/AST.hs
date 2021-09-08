@@ -525,7 +525,7 @@ modifyRawDhallExpression initialKey astMod originalExpr = do
               Just EncounteredEmbed -> do
                 case astMod of
                   InsertListText additions -> do
-                    pure $ Just $ Updated $ Dhall.Field (updateListTextByWrappingLetBinding (key :| []) additions "__embed" expr) selection
+                    pure $ Just $ Updated $ Dhall.Field (updateListTextByWrappingLetBinding (fieldSelectionLabel :| [key]) additions "__embed" recordExpr) selection
 
                   SetText t -> do
                     pure $ Just $ Updated $ Dhall.Field (Dhall.With expr (key :| []) t) selection
