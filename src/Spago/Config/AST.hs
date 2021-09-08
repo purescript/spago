@@ -798,8 +798,8 @@ modifyRawDhallExpression initialKey astMod originalExpr = do
                 -- `The `Just VariableName` can't happen here because this is `AtRootExpression`
                 pure maybeResult
 
-              Just (Updated newUpdate) -> do
-                pure $ Just $ Updated $ Dhall.With recordExpr field newUpdate
+              Just (Updated newRecordExpr) -> do
+                pure $ Just $ Updated $ Dhall.With newRecordExpr field update
 
               Nothing -> do
                 pure maybeResult
