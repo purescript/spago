@@ -542,7 +542,7 @@ addDependencies config@Config { dependencies = deps, publishConfig = pubConfig }
       next <- n
       pure $ prev && next) (pure True)
 
-    checkValue :: forall a. Eq a => Show a => a -> a -> _ -> RIO env Bool
+    checkValue :: forall a. Eq a => Show a => a -> a -> Utf8Builder -> RIO env Bool
     checkValue expected actual msg
       | expected == actual = do
           logDebug $ msg <> " - No problem here."
