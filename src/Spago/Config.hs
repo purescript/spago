@@ -140,8 +140,8 @@ parseConfigNormalizedExpr = \case
     let ks = Dhall.extractRecordValues ks'
     let sourcesType  = Dhall.list (Dhall.auto :: Dhall.Decoder SourcePath)
     name              <- Dhall.requireTypedKey ks "name" Dhall.strictText
-    dependencies      <- Dhall.requireTypedKey ks "dependencies" dependenciesType
-    configSourcePaths <- Dhall.requireTypedKey ks "sources" sourcesType
+    dependencies      <- List.sort <$> Dhall.requireTypedKey ks "dependencies" dependenciesType
+    configSourcePaths <- List.sort <$> Dhall.requireTypedKey ks "sources" sourcesType
     alternateBackend  <- Dhall.maybeTypedKey ks "backend" Dhall.strictText
 
     let ensurePublishConfig = do
