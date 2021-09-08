@@ -9,7 +9,7 @@ import           Test.Hspec         (Spec, around_, describe, it, shouldBe, shou
 import           Turtle             (ExitCode (..), cd, cp, decodeString, empty, encodeString,
                                      mkdir, mktree, mv, pwd, readTextFile, rm, shell,
                                      shellStrictWithErr, testdir, writeTextFile, (</>))
-import           Utils              (checkFileHasInfix, checkFixture, checkFileExist, outputShouldEqual,
+import           Utils              (checkFileHasInfix, checkFixture, checkFileExist, checkInstallFixtureFail, checkInstallFixtureSucceed, outputShouldEqual,
                                      readFixture, runFor, shouldBeFailure, shouldBeFailureInfix,
                                      shouldBeFailureStderr, shouldBeSuccess, shouldBeSuccessOutput,
                                      shouldBeSuccessOutputWithErr, shouldBeSuccessStderr, spago,
@@ -257,12 +257,77 @@ spec = around_ setup $ do
 
       it "... alternative3.dhall" $ do
 
-        spago ["init"] >>= shouldBeSuccess
-        spagoFileContent <- readFixture "alternative3-before.dhall"
-        writeTextFile "alternative3.dhall" spagoFileContent
-        spago ["-x", "alternative3.dhall", "install", "newtype" ] >>= shouldBeSuccess
-        mv "alternative3.dhall" "alternative3-success.dhall"
-        checkFixture "alternative3-success.dhall"
+        checkInstallFixtureSucceed
+          "alternative3-before.dhall"
+          "alternative3-success.dhall"
+
+      it "... alternative4-root-embed.dhall" $ do
+
+        checkInstallFixtureSucceed
+          "alternative4-root-embed-before.dhall"
+          "alternative4-root-embed-success.dhall"
+
+      it "... alternative4-root-field-before.dhall" $ do
+
+        checkInstallFixtureSucceed
+          "alternative4-root-field-before.dhall"
+          "alternative4-root-field-success.dhall"
+
+      it "... alternative4-root-let-inExpr-before.dhall" $ do
+
+        checkInstallFixtureSucceed
+          "alternative4-root-let-inExpr-before.dhall"
+          "alternative4-root-let-inExpr-success.dhall"
+
+      it "... alternative4-root-let-value-before.dhall" $ do
+
+        checkInstallFixtureSucceed
+          "alternative4-root-let-value-before.dhall"
+          "alternative4-root-let-value-success.dhall"
+
+      it "... alternative4-root-listappend.dhall" $ do
+
+        checkInstallFixtureFail "alternative4-root-listappend.dhall"
+
+      it "... alternative4-root-listlit.dhall" $ do
+
+        checkInstallFixtureFail "alternative4-root-listlit.dhall"
+
+      it "... alternative4-root-prefer-left.dhall" $ do
+
+        checkInstallFixtureSucceed
+          "alternative4-root-prefer-left-before.dhall"
+          "alternative4-root-prefer-left-success.dhall"
+
+      it "... alternative4-root-prefer-right.dhall" $ do
+
+        checkInstallFixtureSucceed
+          "alternative4-root-prefer-right-before.dhall"
+          "alternative4-root-prefer-right-success.dhall"
+
+      it "... alternative4-root-textlit.dhall" $ do
+
+        checkInstallFixtureFail "alternative4-root-textlit.dhall"
+
+      it "... alternative4-root-var.dhall" $ do
+
+        checkInstallFixtureFail "alternative4-root-var.dhall"
+
+      it "... alternative4-root-with-left.dhall" $ do
+
+        checkInstallFixtureSucceed
+          "alternative4-root-with-left-before.dhall"
+          "alternative4-root-with-left-success.dhall"
+
+      it "... alternative4-root-with-right.dhall" $ do
+
+        checkInstallFixtureSucceed
+          "alternative4-root-with-right-before.dhall"
+          "alternative4-root-with-right-success.dhall"
+
+      it "... alternative4-root-textlit.dhall" $ do
+
+        checkInstallFixtureFail "alternative4-root-textlit.dhall"
 
     it "Spago should fail when the alternate config file doesn't exist" $ do
       spago ["init"] >>= shouldBeSuccess
