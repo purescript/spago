@@ -562,9 +562,9 @@ addDependencies config@Config { dependencies = deps, publishConfig = pubConfig }
         , checkValue (sortDependencies kvs1) (sortDependencies kvs2) "Config: pubConfig - Left RequiredKeyMissing: maps"
         ]
     checkPC l r = do
-      logDebug "Config: pubConfig: unexpected error in both"
-      logDebug $ "Expected value's error: " <> displayShow l
-      logDebug $ "Actual value's error: " <> displayShow r
+      logDebug "Config: pubConfig: unexpected value in both"
+      logDebug $ "Expected value: " <> displayShow l
+      logDebug $ "Actual value: " <> displayShow r
       pure False
 
     sortDependencies :: Dhall.Map.Map Text ResolvedExpr -> Dhall.Map.Map Text ResolvedExpr
