@@ -75,8 +75,8 @@ runFor us cmd args = do
 
 shouldBeSuccess :: HasCallStack => (ExitCode, Text, Text) -> IO ()
 shouldBeSuccess result@(_code, _stdout, _stderr) = do
-  print $ "STDOUT: " <> _stdout
-  print $ "STDERR: " <> _stderr
+  -- print $ "STDOUT: " <> _stdout
+  -- print $ "STDERR: " <> _stderr
   result `shouldSatisfy` (\(code, _, _) -> code == ExitSuccess)
 
 outputShouldEqual :: HasCallStack => Text -> (ExitCode, Text, Text) -> IO ()
