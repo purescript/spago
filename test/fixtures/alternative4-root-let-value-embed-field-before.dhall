@@ -1,0 +1,1 @@
+let x = { key1 = ./spago.dhall } in x.key1
