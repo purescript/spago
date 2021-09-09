@@ -139,10 +139,15 @@ data ExprLevel
 data UpdateResult
   = Updated !Expr
   -- ^ The expression was succesfully updated with the requested change.
-  | VariableName !(Text, Int)
+  | VariableName !(Text, Int) (NonEmpty Text)
   -- ^ The expression to update is the binding value with this name
   --   that corresponds to the specified de Brujin index.
   --   See "Dhall.Core#t:Var".
+  --
+  --  The @NonEmpty Text@ arg is the accumulated @keyStack@ at the time
+  --  the variable that needs to be updated was found. This value
+  --  should be used instead of whatever the keyStack is for a given level
+  --  once the correct binding is found.
   | EncounteredEmbed
   -- ^ As long as we have previously normalized the original expression
   --   and verified that it will produce the \"shape\" we are expecting,
@@ -167,9 +172,12 @@ mapUpdated _ other = other
 
 printUpdateResult :: UpdateResult -> Text
 printUpdateResult = \case
-  Updated _ -> "Updated <expr>"
-  VariableName (name, idx) -> "VariableName " <> name <> " " <> Text.pack (show idx)
-  EncounteredEmbed -> "EncounteredEmbed"
+  Updated _ ->
+    "Updated <expr>"
+  VariableName (name, idx) newKeyStack ->
+    "VariableName " <> name <> " " <> Text.pack (show idx) <> " [" <> Text.intercalate ", " (toList newKeyStack) <> "]"
+  EncounteredEmbed ->
+    "EncounteredEmbed"
 
 -- |
 -- Modifies any supported Dhall expression with the requested changes.
@@ -337,11 +345,11 @@ modifyRawDhallExpression initialKey astMod originalExpr = do
               InsertListText additions -> do
                 pure $ Just $ Updated $ updateListTextByWrappingListAppend additions expr
 
-          SearchingForField _ -> do
+          SearchingForField keyStack -> do
             -- We got to the final expression and find that the real expression is stored
             -- in a binding. For example, the second `config` in
             --    `let config = { ..., dependencies = ... } in config`
-            pure $ Just $ VariableName (varName, deBrujinIndex)
+            pure $ Just $ VariableName (varName, deBrujinIndex) keyStack
 
       -- ["foo", "bar"]
       Dhall.ListLit ann ls -> do
@@ -473,7 +481,7 @@ modifyRawDhallExpression initialKey astMod originalExpr = do
               Just (Updated _) -> do
                 pure maybeResult
 
-              Just (VariableName _) -> do
+              Just (VariableName _ _) -> do
                 pure maybeResult
 
               Nothing -> do
@@ -520,7 +528,7 @@ modifyRawDhallExpression initialKey astMod originalExpr = do
                     pure $ Just $ Updated $ Dhall.Prefer charSet preferAnn left
                       $ updateListTextByWrappingLetBinding (key :| []) additions "__embed" right
 
-              Just (VariableName _) -> do
+              Just (VariableName _ _) -> do
                 -- `The `Just VariableName` can't happen here because this is `AtRootExpression`
                 pure maybeRight
 
@@ -567,7 +575,7 @@ modifyRawDhallExpression initialKey astMod originalExpr = do
                             pure $ Just $ Updated
                               $ Dhall.Prefer charSet preferAnn (updateListTextByWrappingLetBinding (key :| []) additions "__embed" left) right
 
-                  Just (VariableName _) -> do
+                  Just (VariableName _ _) -> do
                     -- `The `Just VariableName` can't happen here because this is `AtRootExpression`
                     pure maybeLeft
 
@@ -586,7 +594,7 @@ modifyRawDhallExpression initialKey astMod originalExpr = do
               Just EncounteredEmbed -> do
                 pure maybeRight
 
-              Just (VariableName _) -> do
+              Just (VariableName _ _) -> do
                 pure maybeRight
 
               Just (Updated newRight) -> do
@@ -599,7 +607,7 @@ modifyRawDhallExpression initialKey astMod originalExpr = do
                   Just EncounteredEmbed -> do
                     pure maybeLeft
 
-                  Just (VariableName _) -> do
+                  Just (VariableName _ _) -> do
                     pure maybeLeft
 
                   Just (Updated newLeft) -> do
@@ -634,7 +642,7 @@ modifyRawDhallExpression initialKey astMod originalExpr = do
                   InsertListText additions -> do
                     pure $ Just $ Updated $ Dhall.With recordExpr field $ updateListTextByWrappingListAppend additions update
 
-              Just (VariableName _) -> do
+              Just (VariableName _ _) -> do
                 -- This can't happen because the Dhall expression is invalid. There can't be a variable name
                 -- if there isn't a let binding.
                 --    `{ ..., dependencies = ["old"] } with dependencies = x`
@@ -692,7 +700,7 @@ modifyRawDhallExpression initialKey astMod originalExpr = do
                       -- (e.g. `{ outer = { inner = [] }, dependencies = [] } with outer.inner = ["foo"] with dependencies = ["foo"]` ).
                       $ Dhall.With (Dhall.With var field update) (key :| []) astUpdate
 
-              Just (VariableName _) -> do
+              Just (VariableName _ _) -> do
                 -- `The `Just VariableName` can't happen here because this is `AtRootExpression`
                 pure maybeResult
 
@@ -730,7 +738,7 @@ modifyRawDhallExpression initialKey astMod originalExpr = do
                   Just EncounteredEmbed -> do
                     pure maybeUpdate
 
-                  Just (VariableName _) -> do
+                  Just (VariableName _ _) -> do
                     pure maybeUpdate
 
                   Just (Updated newUpdate) -> do
@@ -750,7 +758,7 @@ modifyRawDhallExpression initialKey astMod originalExpr = do
                   Just EncounteredEmbed -> do
                     pure maybeRecordExpr
 
-                  Just (VariableName _) -> do
+                  Just (VariableName _ _) -> do
                     pure maybeRecordExpr
 
                   Just (Updated newRecordExpr) -> do
@@ -792,8 +800,9 @@ modifyRawDhallExpression initialKey astMod originalExpr = do
               Just (Updated newInExpr) -> do
                 pure $ Just $ Updated $ Dhall.Let binding newInExpr
 
-              Just (VariableName (name, deBrujinIndex)) | name == variable && deBrujinIndex == 0 -> do
-                maybeValue <- updateExpr newLevel value
+              Just (VariableName (name, deBrujinIndex) newKeyStack) | name == variable && deBrujinIndex == 0 -> do
+                let valueLevel = SearchingForField newKeyStack
+                maybeValue <- updateExpr valueLevel value
                 void $ debugResult level (caseMsg <> " - value") maybeValue
                 case maybeValue of
                   Just EncounteredEmbed -> do
@@ -803,19 +812,19 @@ modifyRawDhallExpression initialKey astMod originalExpr = do
                       --    `let x = (let __embed = ./spago.dhall in __embed with key = __embed.key # additions) in x`
                       InsertListText additions -> do
                         pure $ Just $ Updated $ Dhall.Let (Dhall.makeBinding variable
-                          $ updateListTextByWrappingLetBinding (key :| []) additions "__embed" value) inExpr
+                          $ updateListTextByWrappingLetBinding newKeyStack additions "__embed" value) inExpr
 
                   Just (Updated newValue) -> do
                     pure $ Just $ Updated $ Dhall.Let (Dhall.makeBinding variable newValue) inExpr
 
-                  Just (VariableName _) -> do
+                  Just (VariableName _ _) -> do
                     -- invalid Dhall expression because this is AtRootExpression
                     pure maybeValue
 
                   Nothing -> do
                     pure maybeValue
 
-              Just (VariableName _) -> do
+              Just (VariableName _ _) -> do
                 -- Invalid Dhall expression because this is AtRootExpression
                 pure maybeResult
 
@@ -832,11 +841,12 @@ modifyRawDhallExpression initialKey astMod originalExpr = do
               Just (Updated newInExpr) -> do
                 pure $ Just $ Updated $ Dhall.Let binding newInExpr
 
-              Just (VariableName (name, deBrujinIndex)) | name == variable, deBrujinIndex > 0 -> do
-                pure $ Just $ VariableName (name, deBrujinIndex - 1)
+              Just (VariableName (name, deBrujinIndex) newKeyStack) | name == variable, deBrujinIndex > 0 -> do
+                pure $ Just $ VariableName (name, deBrujinIndex - 1) newKeyStack
 
-              Just (VariableName (name, deBrujinIndex)) | name == variable && deBrujinIndex == 0 -> do
-                maybeValue <- updateExpr level value
+              Just (VariableName (name, deBrujinIndex) newKeyStack) | name == variable && deBrujinIndex == 0 -> do
+                let valueLevel = SearchingForField newKeyStack
+                maybeValue <- updateExpr valueLevel value
                 void $ debugResult level (caseMsg <> " - value") maybeValue
                 case maybeValue of
                   Just EncounteredEmbed -> do
@@ -846,12 +856,12 @@ modifyRawDhallExpression initialKey astMod originalExpr = do
                       --    `let x = { key1 = ./spago.dhall } with key1.dependencies = key.dependencies # ["new"] in x.key1`
                       InsertListText additions -> do
                         pure $ Just $ Updated $ Dhall.Let (Dhall.makeBinding variable
-                          $ updateListTextByWrappingLetBinding keyStack additions "__embed" value) inExpr
+                          $ updateListTextByWrappingLetBinding newKeyStack additions "__embed" value) inExpr
 
                   Just (Updated newValue) -> do
                     pure $ Just $ Updated $ Dhall.Let (Dhall.makeBinding variable newValue) inExpr
 
-                  Just (VariableName _) -> do
+                  Just (VariableName _ _) -> do
                     -- `let x = "foo" let y = x in y`
                     -- This binding refers to another binding
                     pure maybeValue
@@ -859,7 +869,7 @@ modifyRawDhallExpression initialKey astMod originalExpr = do
                   Nothing -> do
                     pure maybeValue
 
-              Just (VariableName _) -> do
+              Just (VariableName _ _) -> do
                 -- Variable name doesn't match this let binding's name
                 pure maybeResult
 
