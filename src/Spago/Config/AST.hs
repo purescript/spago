@@ -187,8 +187,21 @@ printUpdateResult = \case
 --
 -- The below cases will be supported. Each is described below with a small description of how to update them:
 -- - Embed _ - @./spago.dhall@
---     This imports and refers to another Dhall expression elsewhere. Without normalizing it, we do not know what it is
---     but we can make assumptions about it. See the @EncounteredEmbed@ constructor for `UpdateResult`.
+--     This imports and refers to another Dhall expression elsewhere.
+--     As long as we have previously normalized the original expression
+--     and verified that it will produce the \"shape\" we are expecting,
+--     then when we encounter an @Embed@ constructor, we can make
+--     one assumption about it: the type of the expression
+--     must match what we are looking for in the current @ExprLevel@.
+--
+--     For example, if we are @WithinField@ and we encounter an @Embed@ case, then we know
+--     the import will produce an expression that matches the type of the one we
+--     are trying to update. For example, if it will produce an expression that has
+--     type, @List Text@, then we can wrap it in a @ListAppend embedExpr newListLitExpr@.
+--
+--     If we are @SearchingForField@ and we encounter an @Embed@ case, then we know
+--     the import will produce a record expression. In this case, we can refer to
+--     its underlying values via the @keyStack@ provided via the @SearchingForField@.
 -- - ListLit - @[\"a\", \"literal\", \"list\", \"of\", \"values\"]@
 --     When the `AstUpdate` is a @InsertListText additions@, updating this expression merely means adding the @additions@ to its list.
 -- - ListAppend - @[\"list1\"] # [\"list2\"]@
