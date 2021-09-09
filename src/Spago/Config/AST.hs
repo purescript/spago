@@ -458,9 +458,9 @@ modifyRawDhallExpression initialKey astMod originalExpr = do
         case level of
           WithinField -> do
             case astMod of
-              --  `{ dependencies = otherConfig.someKey }`
+              --  `let x = { deps = ["foo" ] } in { ..., dependencies = x.deps }`
               -- to
-              --  `{ dependencies = otherConfig.someKey # [ "new" ] }`
+              --  `let x = { deps = ["foo" ] } in { ..., dependencies = x.deps # ["new"] }`
               InsertListText additions -> do
                 pure $ Just $ Updated $ updateListTextByWrappingListAppend additions expr
 
