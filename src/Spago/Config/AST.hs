@@ -10,6 +10,7 @@ import           Spago.Prelude
 import           Spago.Env
 
 import qualified Data.Sequence         as Seq
+import qualified Data.Text             as Text
 import qualified Dhall.Core
 import qualified Dhall.Map
 import qualified Dhall.Parser          as Parser
@@ -164,6 +165,12 @@ mapUpdated :: (Expr -> Expr) -> UpdateResult -> UpdateResult
 mapUpdated f (Updated e) = Updated (f e)
 mapUpdated _ other = other
 
+printUpdateResult :: UpdateResult -> Text
+printUpdateResult = \case
+  Updated _ -> "Updated <expr>"
+  VariableName (name, idx) -> "VariableName " <> name <> " " <> Text.pack (show idx)
+  EncounteredEmbed -> "EncounteredEmbed"
+
 -- |
 -- Modifies any supported Dhall expression with the requested changes.
 --
@@ -277,6 +284,16 @@ modifyRawDhallExpression initialKey astMod originalExpr = do
             (Dhall.ListLit Nothing $ updateListTextByAppending additions Seq.empty)
       Dhall.Let binding $ Dhall.With var keyStack lsAppend
 
+    -- Change @logDebug@ to @logWarn@ to see results in tests
+    logFunction = logDebug
+
+    debugCase level caseMsg =
+      logFunction $ "Level: " <> displayShow level <> " - " <> caseMsg
+
+    debugResult level caseMsg maybeResult = do
+      logFunction $ "Level: " <> displayShow level <> " - " <> caseMsg <> " - got: " <> displayShow (fmap printUpdateResult maybeResult)
+      pure maybeResult
+
     -- | Updates an expression by recursively updating any subexpressions
     -- until the update succeeds (@Just Updated@) or fails (@Nothing@). If called
     -- on a \"root-level\" expression, @Just EncounteredEmbed@ and @Just VariableName@ also
@@ -286,6 +303,7 @@ modifyRawDhallExpression initialKey astMod originalExpr = do
     updateExpr level expr = case expr of
       -- ./spago.dhall
       Dhall.Embed _ -> do
+        debugCase level "Embed"
         case level of
           AtRootExpression key -> do
             case astMod of
@@ -295,14 +313,15 @@ modifyRawDhallExpression initialKey astMod originalExpr = do
               InsertListText additions -> do
                 pure $ Just $ Updated $ updateListTextByWrappingLetBinding (key :| []) additions "__embed" expr
 
-          SearchingForField _ ->
+          SearchingForField _ -> do
             pure $ Just EncounteredEmbed
 
-          WithinField ->
+          WithinField -> do
             pure $ Just EncounteredEmbed
 
       -- let varname = ... in ... varName
       Dhall.Var (Dhall.V varName deBrujinIndex) -> do
+        debugCase level $ "Var(varName =" <> displayShow varName <> ", deBrujin Index = " <> displayShow deBrujinIndex <> ")"
         case level of
           AtRootExpression _ -> do
             -- This should never happen because we've already verified that the normalized expression
@@ -326,6 +345,7 @@ modifyRawDhallExpression initialKey astMod originalExpr = do
 
       -- ["foo", "bar"]
       Dhall.ListLit ann ls -> do
+        debugCase level $ "ListLit( ls =" <> displayShow ls <> ")"
         case level of
           AtRootExpression _ -> do
             -- This should never happen because we've already verified that the normalized expression
@@ -348,6 +368,7 @@ modifyRawDhallExpression initialKey astMod originalExpr = do
 
       -- left # right
       Dhall.ListAppend left right -> do
+        debugCase level $ "ListAppend( left = " <> displayShow left <> ", right = " <> displayShow right <> ")"
         case level of
           AtRootExpression _ -> do
             -- This should never happen because we've already verified that the normalized expression
@@ -381,6 +402,9 @@ modifyRawDhallExpression initialKey astMod originalExpr = do
 
       -- { key = value, ... }
       Dhall.RecordLit kvs -> do
+        let
+          caseMsg = "RecordLit( keys = " <> displayShow (Dhall.Map.keys kvs)
+        debugCase level caseMsg
         case level of
           WithinField ->
             -- This should never happen because we've already verified that the normalized expression
@@ -402,7 +426,8 @@ modifyRawDhallExpression initialKey astMod originalExpr = do
                     [] -> WithinField
                     (nextKey:tail) -> SearchingForField (nextKey :| tail)
 
-                fmap (mapUpdated updateRecordLit) <$> updateExpr newLevel recordFieldValue
+                maybeResult <- fmap (mapUpdated updateRecordLit) <$> updateExpr newLevel recordFieldValue
+                debugResult level caseMsg maybeResult
 
           AtRootExpression key -> do
             case Dhall.Map.lookup key kvs of
@@ -415,10 +440,13 @@ modifyRawDhallExpression initialKey astMod originalExpr = do
                       . flip (Dhall.Map.insert key) kvs
                       . Dhall.makeRecordField
 
-                fmap (mapUpdated updateRecordLit) <$> updateExpr WithinField recordFieldValue
+                maybeResult <- fmap (mapUpdated updateRecordLit) <$> updateExpr WithinField recordFieldValue
+                debugResult level caseMsg maybeResult
 
       -- recordExpr.selection
       Dhall.Field recordExpr selection@Dhall.FieldSelection { fieldSelectionLabel } -> do
+        let caseMsg = "Field( fieldSelectionLabel = " <> displayShow fieldSelectionLabel <> ")"
+        debugCase level caseMsg
         case level of
           WithinField -> do
             case astMod of
@@ -435,6 +463,7 @@ modifyRawDhallExpression initialKey astMod originalExpr = do
             let
               newLevel = SearchingForField (fieldSelectionLabel :| [key])
             maybeResult <- fmap (mapUpdated (\newRecord -> Dhall.Field newRecord selection)) <$> updateExpr newLevel recordExpr
+            void $ debugResult level caseMsg maybeResult
             case maybeResult of
               Just EncounteredEmbed -> do
                 case astMod of
@@ -453,10 +482,13 @@ modifyRawDhallExpression initialKey astMod originalExpr = do
           SearchingForField keys -> do
             let
               newLevel = SearchingForField (fieldSelectionLabel `NonEmpty.cons` keys)
-            fmap (mapUpdated (\newRecord -> Dhall.Field newRecord selection)) <$> updateExpr newLevel recordExpr
+            maybeResult <- fmap (mapUpdated (\newRecord -> Dhall.Field newRecord selection)) <$> updateExpr newLevel recordExpr
+            debugResult level caseMsg maybeResult
 
       -- left // right
       Dhall.Prefer charSet preferAnn left right -> do
+        let caseMsg = "Prefer"
+        debugCase level caseMsg
         case level of
           WithinField -> do
             case astMod of
@@ -480,6 +512,7 @@ modifyRawDhallExpression initialKey astMod originalExpr = do
             let
               newLevel = SearchingForField (key :| [])
             maybeRight <- updateExpr newLevel right
+            void $ debugResult level (caseMsg <> " - right") maybeRight
             case maybeRight of
               Just EncounteredEmbed -> do
                 case astMod of
@@ -496,6 +529,7 @@ modifyRawDhallExpression initialKey astMod originalExpr = do
 
               Nothing -> do
                 maybeLeft <- updateExpr newLevel left
+                void $ debugResult level (caseMsg <> " - left") maybeRight
                 case maybeLeft of
                   Just EncounteredEmbed -> do
                     case astMod of
@@ -547,6 +581,7 @@ modifyRawDhallExpression initialKey astMod originalExpr = do
             -- See Dhall.Prefer's `AtRootExpression` case
             -- but for this situation, we're trying to find a record, so we don't match against a "dependencies" field
             maybeRight <- updateExpr level right
+            void $ debugResult level (caseMsg <> " - right") maybeRight
             case maybeRight of
               Just EncounteredEmbed -> do
                 pure maybeRight
@@ -559,6 +594,7 @@ modifyRawDhallExpression initialKey astMod originalExpr = do
 
               Nothing -> do
                 maybeLeft <- updateExpr level left
+                void $ debugResult level (caseMsg <> " - left") maybeLeft
                 case maybeLeft of
                   Just EncounteredEmbed -> do
                     pure maybeLeft
@@ -573,7 +609,9 @@ modifyRawDhallExpression initialKey astMod originalExpr = do
                     pure maybeLeft
 
       -- recordExpr with field1.field2.field3 = update
-      Dhall.With recordExpr field update ->
+      Dhall.With recordExpr field update -> do
+        let caseMsg = "With( field = " <> displayShow field <> ")"
+        debugCase level caseMsg
         case level of
           WithinField -> do
             case astMod of
@@ -586,6 +624,7 @@ modifyRawDhallExpression initialKey astMod originalExpr = do
             --  to
             --    `{ ..., dependencies = ["old"] } with dependencies = ["package", "new"]`
             maybeResult <- updateExpr WithinField update
+            void $ debugResult level caseMsg maybeResult
             case maybeResult of
               Just EncounteredEmbed -> do
                 case astMod of
@@ -615,6 +654,7 @@ modifyRawDhallExpression initialKey astMod originalExpr = do
             let
               newLevel = SearchingForField (key :| [])
             maybeResult <- updateExpr newLevel recordExpr
+            void $ debugResult level (caseMsg <> " - recordExpr") maybeResult
             case maybeResult of
               Just EncounteredEmbed -> do
                 case astMod of
@@ -685,6 +725,7 @@ modifyRawDhallExpression initialKey astMod originalExpr = do
             case levelForUpdate field keyStack of
               Just levelForUpdateSearch -> do
                 maybeUpdate <- updateExpr levelForUpdateSearch update
+                void $ debugResult level (caseMsg <> " - update") maybeUpdate
                 case maybeUpdate of
                   Just EncounteredEmbed -> do
                     pure maybeUpdate
@@ -704,6 +745,7 @@ modifyRawDhallExpression initialKey astMod originalExpr = do
             where
               updateRecordExpr = do
                 maybeRecordExpr <- updateExpr level recordExpr
+                void $ debugResult level (caseMsg <> " - recordExpr") maybeRecordExpr
                 case maybeRecordExpr of
                   Just EncounteredEmbed -> do
                     pure maybeRecordExpr
@@ -718,6 +760,8 @@ modifyRawDhallExpression initialKey astMod originalExpr = do
                     pure maybeRecordExpr
 
       Dhall.Let binding@Dhall.Binding { variable, value } inExpr -> do
+        let caseMsg = "Let( variable = " <> displayShow variable <> ")"
+        debugCase level caseMsg
         case level of
           WithinField -> do
             case astMod of
@@ -731,6 +775,7 @@ modifyRawDhallExpression initialKey astMod originalExpr = do
             let
               newLevel = SearchingForField (key :| [])
             maybeResult <- updateExpr newLevel inExpr
+            void $ debugResult level (caseMsg <> " - inExpr") maybeResult
             case maybeResult of
               Just EncounteredEmbed -> do
                 case astMod of
@@ -749,6 +794,7 @@ modifyRawDhallExpression initialKey astMod originalExpr = do
 
               Just (VariableName (name, deBrujinIndex)) | name == variable && deBrujinIndex == 0 -> do
                 maybeValue <- updateExpr newLevel value
+                void $ debugResult level (caseMsg <> " - value") maybeValue
                 case maybeValue of
                   Just EncounteredEmbed -> do
                     case astMod of
@@ -778,6 +824,7 @@ modifyRawDhallExpression initialKey astMod originalExpr = do
 
           SearchingForField keyStack -> do
             maybeResult <- updateExpr level inExpr
+            void $ debugResult level (caseMsg <> " - inExpr") maybeResult
             case maybeResult of
               embedded@(Just EncounteredEmbed) -> do
                 pure embedded
@@ -790,6 +837,7 @@ modifyRawDhallExpression initialKey astMod originalExpr = do
 
               Just (VariableName (name, deBrujinIndex)) | name == variable && deBrujinIndex == 0 -> do
                 maybeValue <- updateExpr level value
+                void $ debugResult level (caseMsg <> " - value") maybeValue
                 case maybeValue of
                   Just EncounteredEmbed -> do
                     case astMod of
@@ -819,4 +867,5 @@ modifyRawDhallExpression initialKey astMod originalExpr = do
                 pure maybeResult
 
       _ -> do
+        debugCase level "Unsupported case"
         pure Nothing
