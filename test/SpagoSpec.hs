@@ -437,6 +437,18 @@ spec = around_ setup $ do
           "alternative4-root-prefer-prefer-right-before.dhall"
           "alternative4-root-prefer-prefer-right-success.dhall"
 
+      it "... alternative4-root-field-with-left-nested.dhall" $ do
+
+        checkInstallFixtureSucceed
+          "alternative4-root-field-with-left-nested-before.dhall"
+          "alternative4-root-field-with-left-nested-success.dhall"
+
+      it "... alternative4-root-field-with-right-nested.dhall" $ do
+
+        checkInstallFixtureSucceed
+          "alternative4-root-field-with-right-nested-before.dhall"
+          "alternative4-root-field-with-right-nested-success.dhall"
+
     it "Spago should fail when the alternate config file doesn't exist" $ do
       spago ["init"] >>= shouldBeSuccess
       spago ["install", "-x", "test.dhall"] >>= shouldBeFailureStderr "alternate-config-missing.txt"
