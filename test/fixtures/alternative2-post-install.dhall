@@ -1,6 +1,6 @@
-let __embed = ./spago.dhall
+    ( let __embed = ./spago.dhall
 
-in      __embed
-    //  { dependencies = __embed.dependencies # [ "simple-json" ]
-        , sources = [ "src/**/*.purs" ]
-        }
+      in  __embed
+        with dependencies = __embed.dependencies # [ "simple-json" ]
+    )
+//  { sources = [ "src/**/*.purs" ] }
