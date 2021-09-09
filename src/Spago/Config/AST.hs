@@ -321,8 +321,10 @@ modifyRawDhallExpression initialKey astMod originalExpr = do
               InsertListText additions -> do
                 pure $ Just $ Updated $ updateListTextByWrappingLetBinding (key :| []) additions "__embed" expr
 
-          SearchingForField _ -> do
-            pure $ Just EncounteredEmbed
+          SearchingForField keyStack -> do
+            case astMod of
+              InsertListText additions -> do
+                pure $ Just $ Updated $ updateListTextByWrappingLetBinding keyStack additions "__embed" expr
 
           WithinField -> do
             pure $ Just EncounteredEmbed
