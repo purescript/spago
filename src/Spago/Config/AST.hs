@@ -148,21 +148,6 @@ data UpdateResult
   --  the variable that needs to be updated was found. This value
   --  should be used instead of whatever the keyStack is for a given level
   --  once the correct binding is found.
-  | EncounteredEmbed
-  -- ^ As long as we have previously normalized the original expression
-  --   and verified that it will produce the \"shape\" we are expecting,
-  --   then when we encounter an @Embed@ constructor, we can make
-  --   one assumption about it: the type of the expression
-  --   must match what we are looking for in the current @ExprLevel@.
-  --
-  --   For example, if we are @WithinField@ and we encounter an @Embed@ case, then we know
-  --   the import will produce an expression that matches the type of the one we
-  --   are trying to update. For example, if it will produce an expression that has
-  --   type, @List Text@, then we can wrap it in a @ListAppend embedExpr newListLitExpr@.
-  --
-  --   If we are @SearchingForField@ and we encounter an @Embed@ case, then we know
-  --   the import will produce a record expression. In this case, we can refer to
-  --   its underlying values via the @keyStack@ provided via the @SearchingForField@.
 
 -- |
 -- Basically 'Prelude.fmap' but only for the @Updated@ case.
@@ -176,8 +161,6 @@ printUpdateResult = \case
     "Updated <expr>"
   VariableName (name, idx) newKeyStack ->
     "VariableName " <> name <> " " <> Text.pack (show idx) <> " [" <> Text.intercalate ", " (toList newKeyStack) <> "]"
-  EncounteredEmbed ->
-    "EncounteredEmbed"
 
 -- |
 -- Modifies any supported Dhall expression with the requested changes.
@@ -475,21 +458,7 @@ modifyRawDhallExpression initialKey astMod originalExpr = do
             let
               newLevel = SearchingForField (fieldSelectionLabel :| [key])
             maybeResult <- fmap (mapUpdated (\newRecord -> Dhall.Field newRecord selection)) <$> updateExpr newLevel recordExpr
-            void $ debugResult level caseMsg maybeResult
-            case maybeResult of
-              Just EncounteredEmbed -> do
-                case astMod of
-                  InsertListText additions -> do
-                    pure $ Just $ Updated $ Dhall.Field (updateListTextByWrappingLetBinding (fieldSelectionLabel :| [key]) additions "__embed" recordExpr) selection
-
-              Just (Updated _) -> do
-                pure maybeResult
-
-              Just (VariableName _ _) -> do
-                pure maybeResult
-
-              Nothing -> do
-                pure maybeResult
+            debugResult level caseMsg maybeResult
 
           SearchingForField keys -> do
             let
@@ -526,12 +495,6 @@ modifyRawDhallExpression initialKey astMod originalExpr = do
             maybeRight <- updateExpr newLevel right
             void $ debugResult level (caseMsg <> " - right") maybeRight
             case maybeRight of
-              Just EncounteredEmbed -> do
-                case astMod of
-                  InsertListText additions -> do
-                    pure $ Just $ Updated $ Dhall.Prefer charSet preferAnn left
-                      $ updateListTextByWrappingLetBinding (key :| []) additions "__embed" right
-
               Just (VariableName _ _) -> do
                 -- `The `Just VariableName` can't happen here because this is `AtRootExpression`
                 pure maybeRight
@@ -543,42 +506,6 @@ modifyRawDhallExpression initialKey astMod originalExpr = do
                 maybeLeft <- updateExpr newLevel left
                 void $ debugResult level (caseMsg <> " - left") maybeRight
                 case maybeLeft of
-                  Just EncounteredEmbed -> do
-                    case astMod of
-                      InsertListText additions -> do
-                        case right of
-                          --    `./spago.dhall // { irrelevantKey = "irrelevantValue" }`
-                          -- to
-                          --    `let __embed = ./spago.dhall in embed // { irrelevantKey = "irrelevantValue", dependencies = embed.dependencies # ["new" ] }`
-                          Dhall.RecordLit kvs -> do
-                            let
-                              varName = "__embed"
-                              var = Dhall.Var (Dhall.V varName 0)
-
-                              -- `let __embed = ./spago.dhall`
-                              binding = Dhall.makeBinding varName left
-
-                              -- `__embed.dependencies # ["new" ]`
-                              lsAppend =
-                                updateListTextByWrappingListAppend additions
-                                  $ Dhall.Field var (Dhall.makeFieldSelection key)
-
-                              -- `{ irrelevantKey = "irrelevantValue", key = __embed.dependencies # ["new"] }`
-                              newRight =
-                                Dhall.RecordLit
-                                $ flip (Dhall.Map.insert key) kvs
-                                $ Dhall.makeRecordField lsAppend
-                            pure $ Just $ Updated $ Dhall.Let binding (Dhall.Prefer charSet preferAnn var newRight)
-
-                          --    `./spago.dhall // { x = { irrelevantKey = "irrelevantValue" } }.x`
-                          -- to
-                          --    `( let __embed = ./spago.dhall
-                          --       in  __embed with dependencies = __embed.dependencies # ["name"]
-                          --     ) // { x = { irrelevantKey = "irrelevantValue" } }.x`
-                          _ -> do
-                            pure $ Just $ Updated
-                              $ Dhall.Prefer charSet preferAnn (updateListTextByWrappingLetBinding (key :| []) additions "__embed" left) right
-
                   Just (VariableName _ _) -> do
                     -- `The `Just VariableName` can't happen here because this is `AtRootExpression`
                     pure maybeLeft
@@ -595,9 +522,6 @@ modifyRawDhallExpression initialKey astMod originalExpr = do
             maybeRight <- updateExpr level right
             void $ debugResult level (caseMsg <> " - right") maybeRight
             case maybeRight of
-              Just EncounteredEmbed -> do
-                pure maybeRight
-
               Just (VariableName _ _) -> do
                 pure maybeRight
 
@@ -608,9 +532,6 @@ modifyRawDhallExpression initialKey astMod originalExpr = do
                 maybeLeft <- updateExpr level left
                 void $ debugResult level (caseMsg <> " - left") maybeLeft
                 case maybeLeft of
-                  Just EncounteredEmbed -> do
-                    pure maybeLeft
-
                   Just (VariableName _ _) -> do
                     pure maybeLeft
 
@@ -638,14 +559,6 @@ modifyRawDhallExpression initialKey astMod originalExpr = do
             maybeResult <- updateExpr WithinField update
             void $ debugResult level caseMsg maybeResult
             case maybeResult of
-              Just EncounteredEmbed -> do
-                case astMod of
-                  --    `{ ..., dependencies = ["old"] } with dependencies = ./deps.dhall`
-                  --  to
-                  --    `{ ..., dependencies = ["old"] } with dependencies = ./deps.dhall # ["new"]`
-                  InsertListText additions -> do
-                    pure $ Just $ Updated $ Dhall.With recordExpr field $ updateListTextByWrappingListAppend additions update
-
               Just (VariableName _ _) -> do
                 -- This can't happen because the Dhall expression is invalid. There can't be a variable name
                 -- if there isn't a let binding.
@@ -668,42 +581,6 @@ modifyRawDhallExpression initialKey astMod originalExpr = do
             maybeResult <- updateExpr newLevel recordExpr
             void $ debugResult level (caseMsg <> " - recordExpr") maybeResult
             case maybeResult of
-              Just EncounteredEmbed -> do
-                case astMod of
-                  --     ```
-                  --     ./spago.dhall
-                  --       with someField = update
-                  --     ```
-                  --  to
-                  --     ```
-                  --     let __embed = ./spago.dhall
-                  --     in embed
-                  --          with field = update
-                  --          with dependencies = embed.dependencies # ["new"]
-                  --     ```
-                  InsertListText additions -> do
-                    let
-                      varName = "__embed"
-                      var = Dhall.Var (Dhall.V varName 0)
-
-                      -- `let __embed = recordExpr`
-                      binding = Dhall.makeBinding varName recordExpr
-
-                      -- `var.dependencies # ["new"]`
-                      astUpdate =
-                        Dhall.ListAppend (Dhall.Field var (Dhall.makeFieldSelection key))
-                          $ Dhall.ListLit Nothing $ updateListTextByAppending additions Seq.empty
-
-                    pure $ Just $ Updated
-                      $ Dhall.Let binding
-                      -- Note: we can't use `Prefer` here to merge two `With` updates into a single record update
-                      -- (e.g. `foo with key1 = x with key2 = x` -> foo // { key1 = x, key2 = y }` )
-                      -- because we might have a nested selector
-                      -- (e.g. `{ outer = { inner = [] } } with outer.inner = ["foo"]` ).
-                      -- So, we must instead wrap it in another `With`
-                      -- (e.g. `{ outer = { inner = [] }, dependencies = [] } with outer.inner = ["foo"] with dependencies = ["foo"]` ).
-                      $ Dhall.With (Dhall.With var field update) (key :| []) astUpdate
-
               Just (VariableName _ _) -> do
                 -- `The `Just VariableName` can't happen here because this is `AtRootExpression`
                 pure maybeResult
@@ -739,9 +616,6 @@ modifyRawDhallExpression initialKey astMod originalExpr = do
                 maybeUpdate <- updateExpr levelForUpdateSearch update
                 void $ debugResult level (caseMsg <> " - update") maybeUpdate
                 case maybeUpdate of
-                  Just EncounteredEmbed -> do
-                    pure maybeUpdate
-
                   Just (VariableName _ _) -> do
                     pure maybeUpdate
 
@@ -759,9 +633,6 @@ modifyRawDhallExpression initialKey astMod originalExpr = do
                 maybeRecordExpr <- updateExpr level recordExpr
                 void $ debugResult level (caseMsg <> " - recordExpr") maybeRecordExpr
                 case maybeRecordExpr of
-                  Just EncounteredEmbed -> do
-                    pure maybeRecordExpr
-
                   Just (VariableName _ _) -> do
                     pure maybeRecordExpr
 
@@ -789,18 +660,6 @@ modifyRawDhallExpression initialKey astMod originalExpr = do
             maybeResult <- updateExpr newLevel inExpr
             void $ debugResult level (caseMsg <> " - inExpr") maybeResult
             case maybeResult of
-              Just EncounteredEmbed -> do
-                case astMod of
-                  --  `let useless = "foo" in ./spago.dhall`
-                  -- to
-                  --  ```
-                  --  let useless = "foo"
-                  --  let __embed = ./spago.dhall
-                  --  in  __embed with dependencies = __embed.dependencies # ["new"]
-                  --  ```
-                  InsertListText additions -> do
-                    pure $ Just $ Updated $ Dhall.Let binding $ updateListTextByWrappingLetBinding (key :| []) additions "__embed" inExpr
-
               Just (Updated newInExpr) -> do
                 pure $ Just $ Updated $ Dhall.Let binding newInExpr
 
@@ -809,15 +668,6 @@ modifyRawDhallExpression initialKey astMod originalExpr = do
                 maybeValue <- updateExpr valueLevel value
                 void $ debugResult level (caseMsg <> " - value") maybeValue
                 case maybeValue of
-                  Just EncounteredEmbed -> do
-                    case astMod of
-                      --    `let x = ./spago.dhall in x`
-                      -- to
-                      --    `let x = (let __embed = ./spago.dhall in __embed with key = __embed.key # additions) in x`
-                      InsertListText additions -> do
-                        pure $ Just $ Updated $ Dhall.Let (Dhall.makeBinding variable
-                          $ updateListTextByWrappingLetBinding newKeyStack additions "__embed" value) inExpr
-
                   Just (Updated newValue) -> do
                     pure $ Just $ Updated $ Dhall.Let (Dhall.makeBinding variable newValue) inExpr
 
@@ -839,9 +689,6 @@ modifyRawDhallExpression initialKey astMod originalExpr = do
             maybeResult <- updateExpr level inExpr
             void $ debugResult level (caseMsg <> " - inExpr") maybeResult
             case maybeResult of
-              embedded@(Just EncounteredEmbed) -> do
-                pure embedded
-
               Just (Updated newInExpr) -> do
                 pure $ Just $ Updated $ Dhall.Let binding newInExpr
 
@@ -853,15 +700,6 @@ modifyRawDhallExpression initialKey astMod originalExpr = do
                 maybeValue <- updateExpr valueLevel value
                 void $ debugResult level (caseMsg <> " - value") maybeValue
                 case maybeValue of
-                  Just EncounteredEmbed -> do
-                    case astMod of
-                      --    `let x = { key1 = ./spago.dhall } in x.key1`
-                      -- to
-                      --    `let x = { key1 = ./spago.dhall } with key1.dependencies = key.dependencies # ["new"] in x.key1`
-                      InsertListText additions -> do
-                        pure $ Just $ Updated $ Dhall.Let (Dhall.makeBinding variable
-                          $ updateListTextByWrappingLetBinding newKeyStack additions "__embed" value) inExpr
-
                   Just (Updated newValue) -> do
                     pure $ Just $ Updated $ Dhall.Let (Dhall.makeBinding variable newValue) inExpr
 
