@@ -419,7 +419,7 @@ spec = around_ setup $ do
           "alternative4-dependencies-embed-before.dhall"
           "alternative4-dependencies-embed-success.dhall"
 
-      it "... alternative4-root-let-inExpr-field.dhall qw" $ do
+      it "... alternative4-root-let-inExpr-field.dhall" $ do
 
         checkInstallFixtureSucceed
           "alternative4-root-let-inExpr-field-before.dhall"
