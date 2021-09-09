@@ -835,7 +835,7 @@ modifyRawDhallExpression initialKey astMod originalExpr = do
               Nothing -> do
                 pure maybeResult
 
-          SearchingForField keyStack -> do
+          SearchingForField _ -> do
             maybeResult <- updateExpr level inExpr
             void $ debugResult level (caseMsg <> " - inExpr") maybeResult
             case maybeResult of
