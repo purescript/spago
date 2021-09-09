@@ -1,5 +1,6 @@
-( let __embed = { config = ./spago.dhall }
+{ config =
+    let __embed = ./spago.dhall
 
-  in  __embed
-    with config.dependencies = __embed.config.dependencies # [ "newtype" ]
-).config
+    in  __embed
+      with dependencies = __embed.dependencies # [ "newtype" ]
+}.config
