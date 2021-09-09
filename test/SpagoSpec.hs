@@ -351,11 +351,17 @@ spec = around_ setup $ do
             "alternative4-root-field-let-inExpr-before.dhall"
             "alternative4-root-field-let-inExpr-success.dhall"
 
-        it "... alternative4-root-field-let-skip-before.dhall" $ do
+        it "... alternative4-root-field-let-skip1-before.dhall" $ do
 
           checkInstallFixtureSucceed
-            "alternative4-root-field-let-skip-before.dhall"
-            "alternative4-root-field-let-skip-success.dhall"
+            "alternative4-root-field-let-skip1-before.dhall"
+            "alternative4-root-field-let-skip1-success.dhall"
+
+        it "... alternative4-root-field-let-skip2-before.dhall" $ do
+
+          checkInstallFixtureSucceed
+            "alternative4-root-field-let-skip2-before.dhall"
+            "alternative4-root-field-let-skip2-success.dhall"
 
         it "... alternative4-root-field-let-value-before.dhall" $ do
 
