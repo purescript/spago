@@ -413,6 +413,12 @@ spec = around_ setup $ do
           "alternative4-root-let-value-embed-field-before.dhall"
           "alternative4-root-let-value-embed-field-success.dhall"
 
+      it "... alternative4-dependencies-embed.dhall" $ do
+
+        checkInstallFixtureSucceed
+          "alternative4-dependencies-embed-before.dhall"
+          "alternative4-dependencies-embed-success.dhall"
+
     it "Spago should fail when the alternate config file doesn't exist" $ do
       spago ["init"] >>= shouldBeSuccess
       spago ["install", "-x", "test.dhall"] >>= shouldBeFailureStderr "alternate-config-missing.txt"

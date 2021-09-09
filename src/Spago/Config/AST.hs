@@ -327,7 +327,9 @@ modifyRawDhallExpression initialKey astMod originalExpr = do
                 pure $ Just $ Updated $ updateListTextByWrappingLetBinding keyStack additions "__embed" expr
 
           WithinField -> do
-            pure $ Just EncounteredEmbed
+            case astMod of
+              InsertListText additions -> do
+                pure $ Just $ Updated $ updateListTextByWrappingListAppend additions expr
 
       -- let varname = ... in ... varName
       Dhall.Var (Dhall.V varName deBrujinIndex) -> do

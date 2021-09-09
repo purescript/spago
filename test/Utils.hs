@@ -159,10 +159,15 @@ checkInstallFixtureSucceed beforeInstallFilePath successFilePath = do
   spago ["init"] >>= shouldBeSuccess
   spago ["install"] >>= shouldBeSuccess
 
-  let embedFilePath = "embed-name.dhall"
+  let embedNameFilePath = "embed-name.dhall"
 
-  embedExpression <- readFixture embedFilePath
-  writeTextFile embedFilePath embedExpression
+  embedName <- readFixture embedNameFilePath
+  writeTextFile embedNameFilePath embedName
+
+  let embedDependenciesFilePath = "embed-dependencies.dhall"
+
+  embedDeps <- readFixture embedDependenciesFilePath
+  writeTextFile embedDependenciesFilePath embedDeps
 
   let beforeFilePathArg = either (error . Text.unpack) id $ toText beforeInstallFilePath
 
