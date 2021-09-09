@@ -1,1 +1,7 @@
-let x = { key1 = let __embed = ./spago.dhall in __embed.dependencies # ["newtype"] } in x.key1
+let x =
+      let __embed = { key1 = ./spago.dhall }
+
+      in  __embed
+        with key1.dependencies = __embed.key1.dependencies # [ "newtype" ]
+
+in  x.key1
