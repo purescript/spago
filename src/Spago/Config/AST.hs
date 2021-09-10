@@ -115,7 +115,7 @@ dependenciesText = "dependencies"
 
 -- | Indicates where we are in the expression
 data ExprLevel
-  = AtRootExpression Text
+  = AtRootExpression !Text
   -- ^ The outermost expression
   --   that indicates which field within the record
   --   expression we want to update.
