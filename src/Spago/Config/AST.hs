@@ -113,22 +113,19 @@ dependenciesText :: Text
 dependenciesText = "dependencies"
 
 -- | Indicates where we are in the expression
-data ExprLevel
-  = AtRootExpression !Text
-  -- ^ The outermost expression
-  --   that indicates which field within the record
-  --   expression we want to update.
-  | SearchingForField ![Text]
-  -- ^ An expression within the root expression
-  --   where we still haven't found the record-like expression
-  --   that has the next @key@ in the @keyStack@.
-  --
-  --   The @NonEmpty Text@ arg is a stack of keys.
-  --   - @Field@ pushes new keys on top of the stack
-  --   - @RecordLit@ pops off the key at the top of the stack
-  --   and looks up the field corresponding do it
-  --   - @With@ sometimes also pops off one or more of the keys in
-  --   the @keyStack@.
+-- |
+-- When the stack is empty, we are at the place in the expression
+-- where we should do the update.
+-- Otherwise, we are trying to find a record expression
+-- that has the next key on the stack
+--
+-- Here's how the keyStack gets modified
+--   - @Field@ pushes new keys on top of the stack
+--   - @RecordLit@ pops off the key at the top of the stack
+--   and looks up the field corresponding to it
+--   - @With@ sometimes pops off one or more of the keys in
+--   the @keyStack@ when it can update that part of it.
+newtype ExprLevel = ExprLevel { levelKeyStack :: [Text] }
   deriving (Eq, Show)
 
 data UpdateResult
@@ -232,7 +229,7 @@ printUpdateResult = \case
 -- the returned expression should be verified to produce a valid configuration format.
 modifyRawDhallExpression :: HasLogFunc env => Text -> AstUpdate -> Expr -> RIO env Expr
 modifyRawDhallExpression initialKey astMod originalExpr = do
-  result <- updateExpr (AtRootExpression initialKey) originalExpr
+  result <- updateExpr (ExprLevel { levelKeyStack = [initialKey] }) originalExpr
   case result of
     Just (Updated newExpr) -> do
       pure newExpr
@@ -299,60 +296,42 @@ modifyRawDhallExpression initialKey astMod originalExpr = do
     -- count as failure. For subexpressions, these returned values may be used to determine how to
     -- update a subexpression found within the \"root-level\" expression.
     updateExpr :: HasLogFunc env => ExprLevel -> Expr -> RIO env (Maybe UpdateResult)
-    updateExpr level expr = case expr of
+    updateExpr level@ExprLevel{..} expr = case expr of
       -- ./spago.dhall
       Dhall.Embed _ -> do
         debugCase level "Embed"
-        case level of
-          AtRootExpression key -> do
-            case astMod of
-              --    `./spago.dhall`
-              -- to
-              --    `let __embed = ./spago.dhall in __embed with key = __embed.key # additions`
-              InsertListText additions -> do
-                pure $ Just $ Updated $ updateListTextByWrappingLetBinding (key :| []) additions "__embed" expr
+        case astMod of
+          --    `./spago.dhall`
+          -- to
+          --    `let __embed = ./spago.dhall in __embed with key = __embed.key # additions`
+          InsertListText additions -> do
+            case levelKeyStack of
+              [] -> do
+                pure Nothing
 
-          SearchingForField (key:keys) -> do
-            case astMod of
-              InsertListText additions -> do
+              (key:keys) -> do
                 pure $ Just $ Updated $ updateListTextByWrappingLetBinding (key :| keys) additions "__embed" expr
-
-          SearchingForField [] -> do
-            case astMod of
-              InsertListText additions -> do
-                pure $ Just $ Updated $ updateListTextByWrappingListAppend additions expr
 
       -- let varname = ... in ... varName
       Dhall.Var (Dhall.V varName deBrujinIndex) -> do
         debugCase level $ "Var(varName =" <> displayShow varName <> ", deBrujin Index = " <> displayShow deBrujinIndex <> ")"
-        case level of
-          AtRootExpression _ -> do
-            -- This should never happen because we've already verified that the normalized expression
-            -- produces a RecordLit with a dependencies field that stores a list of text values.
-            pure Nothing
 
-          SearchingForField keyStack -> do
-            -- We got to the final expression and find that the real expression is stored
-            -- in a binding. For example, the second `config` in
-            --    `let config = { ..., dependencies = ... } in config`
-            pure $ Just $ VariableName (varName, deBrujinIndex) (toList keyStack)
+        -- We got to the final expression and find that the real expression is stored
+        -- in a binding. For example, the second `config` in
+        --    `let config = { ..., dependencies = ... } in config`
+        pure $ Just $ VariableName (varName, deBrujinIndex) levelKeyStack
 
       -- ["foo", "bar"]
       Dhall.ListLit ann ls -> do
         debugCase level $ "ListLit( ls =" <> displayShow ls <> ")"
-        case level of
-          AtRootExpression _ -> do
-            -- This should never happen because we've already verified that the normalized expression
-            -- produces a RecordLit with a dependencies field that stores a list of text values.
-            pure Nothing
-
-          SearchingForField (_:_) -> do
+        case levelKeyStack of
+          (_:_) -> do
             -- This could arise if one was storing a list at one point and then trying to access
             -- an element within the list at another point. Since it's uncommon, we won't
             -- support it here.
             pure Nothing
 
-          SearchingForField [] -> do
+          [] -> do
             case astMod of
               --  `{ ..., dependencies = ["old"] }
               -- to
@@ -363,19 +342,14 @@ modifyRawDhallExpression initialKey astMod originalExpr = do
       -- left # right
       Dhall.ListAppend left right -> do
         debugCase level $ "ListAppend( left = " <> displayShow left <> ", right = " <> displayShow right <> ")"
-        case level of
-          AtRootExpression _ -> do
-            -- This should never happen because we've already verified that the normalized expression
-            -- produces a RecordLit with a dependencies field that stores a list of text values.
-            pure Nothing
-
-          SearchingForField (_:_) -> do
+        case levelKeyStack of
+          (_:_) -> do
             -- This could arise if one was storing a list at one point and then trying to access
             -- an element within the list at another point. Since it's uncommon, we won't
             -- support it here.
             pure Nothing
 
-          SearchingForField [] -> do
+          [] -> do
             case astMod of
               --  `["foo"] # expr` -> `["old", "new"] # expr`
               --  `expr # ["old"]` -> `expr # ["old", "new"]`
@@ -399,10 +373,11 @@ modifyRawDhallExpression initialKey astMod originalExpr = do
         let
           caseMsg = "RecordLit( keys = " <> displayShow (Dhall.Map.keys kvs)
         debugCase level caseMsg
-        case level of
-          SearchingForField [] -> do
+        case levelKeyStack of
+          [] -> do
             pure Nothing
-          SearchingForField (key:keys) ->
+
+          (key:keys) ->
             case Dhall.Map.lookup key kvs of
               Nothing -> do
                 pure Nothing
@@ -413,23 +388,7 @@ modifyRawDhallExpression initialKey astMod originalExpr = do
                       . flip (Dhall.Map.insert key) kvs
                       . Dhall.makeRecordField
 
-                  newLevel = SearchingForField keys
-
-                maybeResult <- fmap (mapUpdated updateRecordLit) <$> updateExpr newLevel recordFieldValue
-                debugResult level caseMsg maybeResult
-
-          AtRootExpression key -> do
-            case Dhall.Map.lookup key kvs of
-              Nothing -> do
-                pure Nothing
-              Just Dhall.RecordField { recordFieldValue } -> do
-                let
-                  updateRecordLit =
-                    Dhall.RecordLit
-                      . flip (Dhall.Map.insert key) kvs
-                      . Dhall.makeRecordField
-
-                  newLevel = SearchingForField []
+                  newLevel = ExprLevel { levelKeyStack = keys }
 
                 maybeResult <- fmap (mapUpdated updateRecordLit) <$> updateExpr newLevel recordFieldValue
                 debugResult level caseMsg maybeResult
@@ -438,96 +397,87 @@ modifyRawDhallExpression initialKey astMod originalExpr = do
       Dhall.Field recordExpr selection@Dhall.FieldSelection { fieldSelectionLabel } -> do
         let caseMsg = "Field( fieldSelectionLabel = " <> displayShow fieldSelectionLabel <> ")"
         debugCase level caseMsg
-        case level of
-          AtRootExpression key -> do
-            --  `{ config = { ..., dependencies = [ "package" ] } }.config`
-            -- to
-            --  `{ config = { ..., dependencies = [ "package", "new" ] } }.config`
-            let
-              newLevel = SearchingForField (fieldSelectionLabel : [key])
-            maybeResult <- fmap (mapUpdated (\newRecord -> Dhall.Field newRecord selection)) <$> updateExpr newLevel recordExpr
-            debugResult level caseMsg maybeResult
+        --  `{ config = { ..., dependencies = [ "package" ] } }.config`
+        -- to
+        --  `{ config = { ..., dependencies = [ "package", "new" ] } }.config`
+        let
+          newLevel = ExprLevel { levelKeyStack = fieldSelectionLabel : levelKeyStack }
+        maybeResult <- updateExpr newLevel recordExpr
+        debugResult level caseMsg maybeResult
+        case maybeResult of
+          Just (Updated newRecordExpr) -> do
+            pure $ Just $ Updated $ Dhall.Field newRecordExpr selection
 
-          SearchingForField keys -> do
-            let
-              newLevel = SearchingForField (fieldSelectionLabel : keys)
-            maybeResult <- fmap (mapUpdated (\newRecord -> Dhall.Field newRecord selection)) <$> updateExpr newLevel recordExpr
-            debugResult level caseMsg maybeResult
+          Just (VariableName _ _) -> do
+            case levelKeyStack of
+              [] -> do
+                -- don't traverse back up the let binding because it goes outside of the scope
+                case astMod of
+                  InsertListText additions -> do
+                    pure $ Just $ Updated $ updateListTextByWrappingListAppend additions expr
+
+              _ -> do
+                pure maybeResult
+
+          Nothing -> do
+            pure maybeResult
 
       -- left // right
       Dhall.Prefer charSet preferAnn left right -> do
         let caseMsg = "Prefer"
         debugCase level caseMsg
-        case level of
-          AtRootExpression key -> do
-            -- Two possibilities:
-            --
-            --  Override:
-            --    `{ ..., dependencies = ["old"] } // { dependencies = ["package"] }`
-            --   to
-            --    `{ ..., dependencies = ["old"] } // { dependencies = ["package", "new"] }`
-            --
-            --  Irrelvant:
-            --    `{ ..., dependencies = ["old"] } // { sources = ["src"] }`
-            --   to
-            --    `{ ..., dependencies = ["old", "new"] } // { sources = ["src"] }`
-            let
-              newLevel = SearchingForField [key]
-            maybeRight <- updateExpr newLevel right
-            void $ debugResult level (caseMsg <> " - right") maybeRight
-            case maybeRight of
-              Just (VariableName _ _) -> do
-                -- `The `Just VariableName` can't happen here because this is `AtRootExpression`
-                pure maybeRight
 
-              Just (Updated newRight) -> do
-                pure $ Just $ Updated $ Dhall.Prefer charSet preferAnn left newRight
+        maybeRight <- updateExpr level right
+        void $ debugResult level (caseMsg <> " - right") maybeRight
+        case maybeRight of
+          Just (VariableName _ _) -> do
+            pure maybeRight
+
+          Just (Updated newRight) -> do
+            pure $ Just $ Updated $ Dhall.Prefer charSet preferAnn left newRight
+
+          Nothing -> do
+            maybeLeft <- updateExpr level left
+            void $ debugResult level (caseMsg <> " - left") maybeLeft
+            case maybeLeft of
+              Just (VariableName _ _) -> do
+                pure maybeLeft
+
+              Just (Updated newLeft) -> do
+                pure $ Just $ Updated $ Dhall.Prefer charSet preferAnn newLeft right
 
               Nothing -> do
-                maybeLeft <- updateExpr newLevel left
-                void $ debugResult level (caseMsg <> " - left") maybeRight
-                case maybeLeft of
-                  Just (VariableName _ _) -> do
-                    -- `The `Just VariableName` can't happen here because this is `AtRootExpression`
-                    pure maybeLeft
-
-                  Just (Updated newLeft) -> do
-                    pure $ Just $ Updated $ Dhall.Prefer charSet preferAnn newLeft right
-
-                  Nothing -> do
-                    pure maybeLeft
-
-          SearchingForField _ -> do
-            -- See Dhall.Prefer's `AtRootExpression` case
-            -- but for this situation, we're trying to find a record, so we don't match against a "dependencies" field
-            maybeRight <- updateExpr level right
-            void $ debugResult level (caseMsg <> " - right") maybeRight
-            case maybeRight of
-              Just (VariableName _ _) -> do
-                pure maybeRight
-
-              Just (Updated newRight) -> do
-                pure $ Just $ Updated $ Dhall.Prefer charSet preferAnn left newRight
-
-              Nothing -> do
-                maybeLeft <- updateExpr level left
-                void $ debugResult level (caseMsg <> " - left") maybeLeft
-                case maybeLeft of
-                  Just (VariableName _ _) -> do
-                    pure maybeLeft
-
-                  Just (Updated newLeft) -> do
-                    pure $ Just $ Updated $ Dhall.Prefer charSet preferAnn newLeft right
-
-                  Nothing -> do
-                    pure maybeLeft
+                pure maybeLeft
 
       -- recordExpr with field1.field2.field3 = update
       Dhall.With recordExpr field update -> do
         let caseMsg = "With( field = " <> displayShow field <> ")"
         debugCase level caseMsg
-        case level of
-          SearchingForField keyStack -> do
+        case levelKeyStack of
+          (key:keys) | field == key :| keys -> do
+            --    `{ ..., dependencies = ["old"] } with dependencies = ["package"]`
+            --  to
+            --    `{ ..., dependencies = ["old"] } with dependencies = ["package", "new"]`
+            maybeResult <- updateExpr (ExprLevel { levelKeyStack = [] }) update
+            void $ debugResult level caseMsg maybeResult
+            case maybeResult of
+              Just (VariableName _ _) -> do
+                -- This can't happen because the Dhall expression is invalid. There can't be a variable name
+                -- if there isn't a let binding.
+                --    `{ ..., dependencies = ["old"] } with dependencies = x`
+                pure maybeResult
+
+              Just (Updated newUpdate) -> do
+                pure $ Just $ Updated $ Dhall.With recordExpr field newUpdate
+
+              Nothing -> do
+                -- This can't happen because the Dhall expression is invalid. If this is a Root level With, then
+                -- recordExpr must be an expression that produces our Config schema, which means it will have
+                -- a dependencies field. So, if we failed to update that dependencies field, then the expression
+                -- itself is invalid.
+                pure maybeResult
+
+          _ -> do
             {-
               ```
               ({ outer = { config = { dependencies = ... } } }
@@ -539,10 +489,10 @@ modifyRawDhallExpression initialKey astMod originalExpr = do
               levelForUpdate fieldKeys nextKeys = case (fieldKeys, nextKeys) of
                 (fieldKey:fieldKeys', nextKey:nextKeys')
                   | fieldKey == nextKey -> levelForUpdate fieldKeys' nextKeys'
-                ([], nextKeys') -> Just $ SearchingForField nextKeys'
+                ([], nextKeys') -> Just $ ExprLevel { levelKeyStack = nextKeys' }
                 (_, _) -> Nothing
 
-            case levelForUpdate (toList field) keyStack of
+            case levelForUpdate (toList field) levelKeyStack of
               Just levelForUpdateSearch -> do
                 maybeUpdate <- updateExpr levelForUpdateSearch update
                 void $ debugResult level (caseMsg <> " - update") maybeUpdate
@@ -573,126 +523,54 @@ modifyRawDhallExpression initialKey astMod originalExpr = do
                   Nothing -> do
                     pure maybeRecordExpr
 
-          AtRootExpression key | field == (key :| []) -> do
-            --    `{ ..., dependencies = ["old"] } with dependencies = ["package"]`
-            --  to
-            --    `{ ..., dependencies = ["old"] } with dependencies = ["package", "new"]`
-            maybeResult <- updateExpr (SearchingForField []) update
-            void $ debugResult level caseMsg maybeResult
-            case maybeResult of
-              Just (VariableName _ _) -> do
-                -- This can't happen because the Dhall expression is invalid. There can't be a variable name
-                -- if there isn't a let binding.
-                --    `{ ..., dependencies = ["old"] } with dependencies = x`
-                pure maybeResult
-
-              Just (Updated newUpdate) -> do
-                pure $ Just $ Updated $ Dhall.With recordExpr field newUpdate
-
-              Nothing -> do
-                -- This can't happen because the Dhall expression is invalid. If this is a Root level With, then
-                -- recordExpr must be an expression that produces our Config schema, which means it will have
-                -- a dependencies field. So, if we failed to update that dependencies field, then the expression
-                -- itself is invalid.
-                pure maybeResult
-
-          AtRootExpression key -> do
-            let
-              newLevel = SearchingForField [key]
-            maybeResult <- updateExpr newLevel recordExpr
-            void $ debugResult level (caseMsg <> " - recordExpr") maybeResult
-            case maybeResult of
-              Just (VariableName _ _) -> do
-                -- `The `Just VariableName` can't happen here because this is `AtRootExpression`
-                pure maybeResult
-
-              Just (Updated newRecordExpr) -> do
-                pure $ Just $ Updated $ Dhall.With newRecordExpr field update
-
-              Nothing -> do
-                pure maybeResult
-
       Dhall.Let binding@Dhall.Binding { variable, value } inExpr -> do
         let caseMsg = "Let( variable = " <> displayShow variable <> ")"
         debugCase level caseMsg
-        case level of
-          SearchingForField keyStack -> do
-            maybeResult <- updateExpr level inExpr
-            void $ debugResult level (caseMsg <> " - inExpr") maybeResult
-            case maybeResult of
-              Just (Updated newInExpr) -> do
-                pure $ Just $ Updated $ Dhall.Let binding newInExpr
+        maybeResult <- updateExpr level inExpr
+        void $ debugResult level (caseMsg <> " - inExpr") maybeResult
+        case maybeResult of
+          Just (Updated newInExpr) -> do
+            pure $ Just $ Updated $ Dhall.Let binding newInExpr
 
-              Just (VariableName (name, deBrujinIndex) newKeyStack) | name == variable, deBrujinIndex > 0 -> do
-                case keyStack of
-                  -- normally, we would continue traversing up the expression and update the
-                  -- referenced variable. However, since we are WithinField and the keystack is empty,
-                  -- then traversing up the expression would go outside of the `WithinField` level
-                  -- and potentially introduce a side-effect.
-                  -- So, instead, we'll stop here and make the update.
-                  [] -> do
-                    case astMod of
-                      --    `let lsBinding = ["old"] ... in { dependencies =  let x = lsBinding in x }`
-                      -- to
-                      --    `let lsBinding = ["old"] ... in { dependencies = (let x = lsBinding in x) # ["new"] }`
-                      InsertListText additions -> do
-                        pure $ Just $ Updated $ updateListTextByWrappingListAppend additions expr
-                  _ -> do
-                    pure $ Just $ VariableName (name, deBrujinIndex - 1) newKeyStack
+          Just (VariableName (name, deBrujinIndex) newKeyStack) | name == variable, deBrujinIndex > 0 -> do
+            case levelKeyStack of
+              -- normally, we would continue traversing up the expression and update the
+              -- referenced variable. However, since we are WithinField and the keystack is empty,
+              -- then traversing up the expression would go outside of the `WithinField` level
+              -- and potentially introduce a side-effect.
+              -- So, instead, we'll stop here and make the update.
+              [] -> do
+                case astMod of
+                  --    `let lsBinding = ["old"] ... in { dependencies =  let x = lsBinding in x }`
+                  -- to
+                  --    `let lsBinding = ["old"] ... in { dependencies = (let x = lsBinding in x) # ["new"] }`
+                  InsertListText additions -> do
+                    pure $ Just $ Updated $ updateListTextByWrappingListAppend additions expr
+              _ -> do
+                pure $ Just $ VariableName (name, deBrujinIndex - 1) newKeyStack
 
-              Just (VariableName (name, deBrujinIndex) newKeyStack) | name == variable && deBrujinIndex == 0 -> do
-                let valueLevel = SearchingForField (toList newKeyStack)
-                maybeValue <- updateExpr valueLevel value
-                void $ debugResult level (caseMsg <> " - value") maybeValue
-                case maybeValue of
-                  Just (Updated newValue) -> do
-                    pure $ Just $ Updated $ Dhall.Let (Dhall.makeBinding variable newValue) inExpr
-
-                  Just (VariableName _ _) -> do
-                    -- `let x = "foo" let y = x in y`
-                    -- This binding refers to another binding
-                    pure maybeValue
-
-                  Nothing -> do
-                    pure maybeValue
+          Just (VariableName (name, deBrujinIndex) newKeyStack) | name == variable && deBrujinIndex == 0 -> do
+            let valueLevel = ExprLevel { levelKeyStack = newKeyStack }
+            maybeValue <- updateExpr valueLevel value
+            void $ debugResult level (caseMsg <> " - value") maybeValue
+            case maybeValue of
+              Just (Updated newValue) -> do
+                pure $ Just $ Updated $ Dhall.Let (Dhall.makeBinding variable newValue) inExpr
 
               Just (VariableName _ _) -> do
-                -- Variable name doesn't match this let binding's name
-                pure maybeResult
+                -- `let x = "foo" let y = x in y`
+                -- This binding refers to another binding
+                pure maybeValue
 
               Nothing -> do
-                pure maybeResult
+                pure maybeValue
 
-          AtRootExpression key -> do
-            let
-              newLevel = SearchingForField [key]
-            maybeResult <- updateExpr newLevel inExpr
-            void $ debugResult level (caseMsg <> " - inExpr") maybeResult
-            case maybeResult of
-              Just (Updated newInExpr) -> do
-                pure $ Just $ Updated $ Dhall.Let binding newInExpr
+          Just (VariableName _ _) -> do
+            -- Variable name doesn't match this let binding's name
+            pure maybeResult
 
-              Just (VariableName (name, deBrujinIndex) newKeyStack) | name == variable && deBrujinIndex == 0 -> do
-                let valueLevel = SearchingForField newKeyStack
-                maybeValue <- updateExpr valueLevel value
-                void $ debugResult level (caseMsg <> " - value") maybeValue
-                case maybeValue of
-                  Just (Updated newValue) -> do
-                    pure $ Just $ Updated $ Dhall.Let (Dhall.makeBinding variable newValue) inExpr
-
-                  Just (VariableName _ _) -> do
-                    -- invalid Dhall expression because this is AtRootExpression
-                    pure maybeValue
-
-                  Nothing -> do
-                    pure maybeValue
-
-              Just (VariableName _ _) -> do
-                -- Invalid Dhall expression because this is AtRootExpression
-                pure maybeResult
-
-              Nothing -> do
-                pure maybeResult
+          Nothing -> do
+            pure maybeResult
 
       _ -> do
         debugCase level "Unsupported case"
