@@ -130,7 +130,7 @@ data ExprLevel
   --   and looks up the field corresponding do it
   --   - @With@ sometimes also pops off one or more of the keys in
   --   the @keyStack@.
-  | WithinField
+  | WithinField ![Text]
   -- ^ This expression is the expression we wish to update
   --   (e.g. the value associated with the @dependencies@ field when
   --   we are adding new packages).
@@ -322,7 +322,7 @@ modifyRawDhallExpression initialKey astMod originalExpr = do
               InsertListText additions -> do
                 pure $ Just $ Updated $ updateListTextByWrappingLetBinding keyStack additions "__embed" expr
 
-          WithinField -> do
+          WithinField _ -> do
             case astMod of
               InsertListText additions -> do
                 pure $ Just $ Updated $ updateListTextByWrappingListAppend additions expr
@@ -336,7 +336,7 @@ modifyRawDhallExpression initialKey astMod originalExpr = do
             -- produces a RecordLit with a dependencies field that stores a list of text values.
             pure Nothing
 
-          WithinField -> do
+          WithinField _ -> do
             case astMod of
               --  `let pkg = [ "package" ] in { ..., dependencies = pkg }
               -- to
@@ -366,7 +366,7 @@ modifyRawDhallExpression initialKey astMod originalExpr = do
             -- support it here.
             pure Nothing
 
-          WithinField -> do
+          WithinField _ -> do
             case astMod of
               --  `{ ..., dependencies = ["old"] }
               -- to
@@ -389,7 +389,7 @@ modifyRawDhallExpression initialKey astMod originalExpr = do
             -- support it here.
             pure Nothing
 
-          WithinField -> do
+          WithinField _ -> do
             case astMod of
               --  `["foo"] # expr` -> `["old", "new"] # expr`
               --  `expr # ["old"]` -> `expr # ["old", "new"]`
@@ -414,7 +414,7 @@ modifyRawDhallExpression initialKey astMod originalExpr = do
           caseMsg = "RecordLit( keys = " <> displayShow (Dhall.Map.keys kvs)
         debugCase level caseMsg
         case level of
-          WithinField ->
+          WithinField _ ->
             -- This should never happen because we've already verified that the normalized expression
             -- produces a RecordLit with a dependencies field that stores a list of text values.
             pure Nothing
@@ -431,7 +431,7 @@ modifyRawDhallExpression initialKey astMod originalExpr = do
                       . Dhall.makeRecordField
 
                   newLevel = case keys of
-                    [] -> WithinField
+                    [] -> WithinField []
                     (nextKey:tail) -> SearchingForField (nextKey :| tail)
 
                 maybeResult <- fmap (mapUpdated updateRecordLit) <$> updateExpr newLevel recordFieldValue
@@ -448,7 +448,7 @@ modifyRawDhallExpression initialKey astMod originalExpr = do
                       . flip (Dhall.Map.insert key) kvs
                       . Dhall.makeRecordField
 
-                maybeResult <- fmap (mapUpdated updateRecordLit) <$> updateExpr WithinField recordFieldValue
+                maybeResult <- fmap (mapUpdated updateRecordLit) <$> updateExpr (WithinField []) recordFieldValue
                 debugResult level caseMsg maybeResult
 
       -- recordExpr.selection
@@ -456,7 +456,7 @@ modifyRawDhallExpression initialKey astMod originalExpr = do
         let caseMsg = "Field( fieldSelectionLabel = " <> displayShow fieldSelectionLabel <> ")"
         debugCase level caseMsg
         case level of
-          WithinField -> do
+          WithinField _ -> do
             case astMod of
               --  `let x = { deps = ["foo" ] } in { ..., dependencies = x.deps }`
               -- to
@@ -484,7 +484,7 @@ modifyRawDhallExpression initialKey astMod originalExpr = do
         let caseMsg = "Prefer"
         debugCase level caseMsg
         case level of
-          WithinField -> do
+          WithinField _ -> do
             case astMod of
               InsertListText _ -> do
                 -- Can't insert a list of text values into a record expression.
@@ -559,7 +559,7 @@ modifyRawDhallExpression initialKey astMod originalExpr = do
         let caseMsg = "With( field = " <> displayShow field <> ")"
         debugCase level caseMsg
         case level of
-          WithinField -> do
+          WithinField _ -> do
             case astMod of
               -- The field we're updating is a `List Text` value, not a record.
               InsertListText _ -> do
@@ -569,7 +569,7 @@ modifyRawDhallExpression initialKey astMod originalExpr = do
             --    `{ ..., dependencies = ["old"] } with dependencies = ["package"]`
             --  to
             --    `{ ..., dependencies = ["old"] } with dependencies = ["package", "new"]`
-            maybeResult <- updateExpr WithinField update
+            maybeResult <- updateExpr (WithinField []) update
             void $ debugResult level caseMsg maybeResult
             case maybeResult of
               Just (VariableName _ _) -> do
@@ -616,7 +616,7 @@ modifyRawDhallExpression initialKey astMod originalExpr = do
               levelForUpdate (fieldKey :| fieldKeys) (nextKey :| nextKeys)
                 | fieldKey == nextKey = case (fieldKeys, nextKeys) of
                     ([], []) ->
-                      Just WithinField
+                      Just (WithinField [])
                     ([], nextKey':nextKeys') ->
                       Just $ SearchingForField (nextKey' :| nextKeys')
                     (_:_, []) -> Nothing
@@ -659,7 +659,7 @@ modifyRawDhallExpression initialKey astMod originalExpr = do
         let caseMsg = "Let( variable = " <> displayShow variable <> ")"
         debugCase level caseMsg
         case level of
-          WithinField -> do
+          WithinField _ -> do
             case astMod of
               --    `let lsBinding = ["old"] ... in { dependencies =  let x = lsBinding in x }`
               -- to
