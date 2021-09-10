@@ -307,7 +307,7 @@ modifyRawDhallExpression initialKey astMod originalExpr = do
           InsertListText additions -> do
             case levelKeyStack of
               [] -> do
-                pure Nothing
+                pure $ Just $ Updated $ updateListTextByWrappingListAppend additions expr
 
               (key:keys) -> do
                 pure $ Just $ Updated $ updateListTextByWrappingLetBinding (key :| keys) additions "__embed" expr
