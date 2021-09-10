@@ -659,13 +659,52 @@ modifyRawDhallExpression initialKey astMod originalExpr = do
         let caseMsg = "Let( variable = " <> displayShow variable <> ")"
         debugCase level caseMsg
         case level of
-          WithinField _ -> do
-            case astMod of
-              --    `let lsBinding = ["old"] ... in { dependencies =  let x = lsBinding in x }`
-              -- to
-              --    `let lsBinding = ["old"] ... in { dependencies = (let x = lsBinding in x) # ["new"] }`
-              InsertListText additions -> do
-                pure $ Just $ Updated $ updateListTextByWrappingListAppend additions expr
+          WithinField letBindingKeyStack -> do
+            maybeResult <- updateExpr level inExpr
+            void $ debugResult level (caseMsg <> " - inExpr") maybeResult
+            case maybeResult of
+              Just (Updated newInExpr) -> do
+                pure $ Just $ Updated $ Dhall.Let binding newInExpr
+
+              Just (VariableName (name, deBrujinIndex) newKeyStack) | name == variable, deBrujinIndex > 0 -> do
+                case letBindingKeyStack of
+                  -- normally, we would continue traversing up the expression and update the
+                  -- referenced variable. However, since we are WithinField and the keystack is empty,
+                  -- then traversing up the expression would go outside of the `WithinField` level
+                  -- and potentially introduce a side-effect.
+                  -- So, instead, we'll stop here and make the update.
+                  [] -> do
+                    case astMod of
+                      --    `let lsBinding = ["old"] ... in { dependencies =  let x = lsBinding in x }`
+                      -- to
+                      --    `let lsBinding = ["old"] ... in { dependencies = (let x = lsBinding in x) # ["new"] }`
+                      InsertListText additions -> do
+                        pure $ Just $ Updated $ updateListTextByWrappingListAppend additions expr
+                  _ -> do
+                    pure $ Just $ VariableName (name, deBrujinIndex - 1) newKeyStack
+
+              Just (VariableName (name, deBrujinIndex) newKeyStack) | name == variable && deBrujinIndex == 0 -> do
+                let valueLevel = WithinField (toList newKeyStack)
+                maybeValue <- updateExpr valueLevel value
+                void $ debugResult level (caseMsg <> " - value") maybeValue
+                case maybeValue of
+                  Just (Updated newValue) -> do
+                    pure $ Just $ Updated $ Dhall.Let (Dhall.makeBinding variable newValue) inExpr
+
+                  Just (VariableName _ _) -> do
+                    -- `let x = "foo" let y = x in y`
+                    -- This binding refers to another binding
+                    pure maybeValue
+
+                  Nothing -> do
+                    pure maybeValue
+
+              Just (VariableName _ _) -> do
+                -- Variable name doesn't match this let binding's name
+                pure maybeResult
+
+              Nothing -> do
+                pure maybeResult
 
           AtRootExpression key -> do
             let
