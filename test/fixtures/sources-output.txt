@@ -1,6 +1,5 @@
 .spago/console/v5.0.0/src/**/*.purs
 .spago/effect/v3.0.0/src/**/*.purs
 .spago/prelude/v5.0.0/src/**/*.purs
-.spago/psci-support/v5.0.0/src/**/*.purs
 src/**/*.purs
 test/**/*.purs
