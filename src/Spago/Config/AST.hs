@@ -172,10 +172,10 @@ printUpdateResult = \case
 --     If the update is in either the @thenPath@ or the @elsePath@, which one do we update?
 --     Without more context, we can not know and might update the value incorrectly.
 --     Thus, we force the user to manually add the dependencies if this is used.
--- - Project expr keys - @{ dependencies = [\"bar\"], other = \"foo\" }.{ dependencies }@
---     This can produce a record expresion. Since this is unlikely to be used frequently,
---     and requires a bit more work due to the type for @keys@, we will not support it below.
---     However, this could be added in a future PR.
+-- - Project expr (Right typeExpr) - @let P = { a : Text } in { a = \"1\", b = 2 }.(P)@
+--     This only produces a record expresion. We don't support the @Right@ version of @Project@
+--     because it requires traversing type-level constructors correctly. We will, however,
+--     support its @Left@ version.
 --
 -- The below cases will be supported. Each is described below with a small description of how to update them:
 -- - Embed _ - @./spago.dhall@
@@ -208,6 +208,9 @@ printUpdateResult = \case
 --     This can produce a record expression. Depending on the record expression,
 --     we might need to update the values within the record expression
 --     that are ultimately exposed via the key (e.g. @{ config = { ..., dependencies = []} }.config@)
+-- - Project expr (Left keys) - @{ dependencies = [\"bar\"], other = \"foo\" }.{ dependencies }@
+--     This produces a record expresion. We only need to update this expression if
+--     one of its keys is the next key on the @keyStack@ we want to update.
 -- - Prefer recordExpr overrides - @{ dependencies = [\"foo\"] } \/\/ { dependencies = [\"bar\"] }@
 --     This produces a record expression. If we update the @recordExpr@
 --     arg and its @dependencies@ is overridden by @overrides@, then the update is pointless.
@@ -421,6 +424,30 @@ modifyRawDhallExpression initialKey astMod originalExpr = do
 
           Nothing -> do
             pure maybeResult
+
+      -- { foo = "bar", baz = "2" }.foo == "bar"
+      Dhall.Project recordExpr projectKeys@(Left keysExposed) -> do
+        let caseMsg = "Project( Left keys = (" <> displayShow keysExposed <> ")"
+        debugCase level caseMsg
+        case levelKeyStack of
+          [] -> do
+            pure Nothing
+
+          (key:_) | key `elem` keysExposed -> do
+            maybeRecordExpr <- updateExpr level recordExpr
+            void $ debugResult level caseMsg maybeRecordExpr
+            case maybeRecordExpr of
+              Just (Updated newRecordExpr) -> do
+                pure $ Just $ Updated $ Dhall.Project newRecordExpr projectKeys
+
+              Just VariableName{} -> do
+                pure maybeRecordExpr
+
+              Nothing -> do
+                pure maybeRecordExpr
+
+          (_:_) -> do
+            pure Nothing
 
       -- left // right
       Dhall.Prefer charSet preferAnn left right -> do

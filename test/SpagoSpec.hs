@@ -443,6 +443,12 @@ spec = around_ setup $ do
           "alternative4-root-prefer-prefer-right-before.dhall"
           "alternative4-root-prefer-prefer-right-success.dhall"
 
+      it "... alternative4-root-project_left.dhall" $ do
+
+        checkInstallFixtureSucceed
+          "alternative4-root-project_left-before.dhall"
+          "alternative4-root-project_left-success.dhall"
+
       it "... alternative4-root-field-with-left-nested.dhall" $ do
 
         checkInstallFixtureSucceed

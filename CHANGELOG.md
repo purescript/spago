@@ -14,6 +14,7 @@ Features:
   - Support `Prefer`: `let config = ... in config // { dependencies = config.dependencies # [ "foo" ] }`
   - Support `With`: `let config = ... in config with dependencies = config.dependencies # [ "foo" ]`
   - Support `Field`: `let multiConfig = ... in multiConfig.thisProjectConfig`
+  - Support `Project _ Left`: `{ name, packages, sources, dependencies = [], otherName }.{ name, packages, sources, dependencies }`
   - Support `Let`: `let config = ... in config`
   - Support `Embed`: `./spago.dhall`
   - Support `Var`: `let deps = ... in { ..., dependencies = deps }`
