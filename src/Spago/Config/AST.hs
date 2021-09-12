@@ -304,14 +304,17 @@ modifyRawDhallExpression initialKey astMod originalExpr = do
       Dhall.Embed _ -> do
         debugCase level "Embed"
         case astMod of
-          --    `./spago.dhall`
-          -- to
-          --    `let __embed = ./spago.dhall in __embed with key = __embed.key # additions`
           InsertListText additions -> do
             case levelKeyStack of
+              --    `{ ..., dependencies = ./spago-deps.dhall }`
+              -- to
+              --    `{ ..., dependencies = ./spago-deps.dhall # additions }`
               [] -> do
                 pure $ Just $ Updated $ updateListTextByWrappingListAppend additions expr
 
+              --    `./spago.dhall`
+              -- to
+              --    `let __embed = ./spago.dhall in __embed with key = __embed.key # additions`
               (key:keys) -> do
                 pure $ Just $ Updated $ updateListTextByWrappingLetBinding (key :| keys) additions "__embed" expr
 
@@ -329,9 +332,8 @@ modifyRawDhallExpression initialKey astMod originalExpr = do
         debugCase level $ "ListLit( ls =" <> displayShow ls <> ")"
         case levelKeyStack of
           (_:_) -> do
-            -- This could arise if one was storing a list at one point and then trying to access
-            -- an element within the list at another point. Since it's uncommon, we won't
-            -- support it here.
+            -- This could happen if one was accessing part of a list via `List/head` or something.
+            -- However, since we don't support functions yet, we don't need to do anything here.
             pure Nothing
 
           [] -> do
@@ -347,15 +349,15 @@ modifyRawDhallExpression initialKey astMod originalExpr = do
         debugCase level $ "ListAppend( left = " <> displayShow left <> ", right = " <> displayShow right <> ")"
         case levelKeyStack of
           (_:_) -> do
-            -- This could arise if one was storing a list at one point and then trying to access
-            -- an element within the list at another point. Since it's uncommon, we won't
-            -- support it here.
+            -- This could happen if one was accessing part of a list via `List/head` or something.
+            -- However, since we don't support functions yet, we don't need to do anything here.
             pure Nothing
 
           [] -> do
             case astMod of
               --  `["foo"] # expr` -> `["old", "new"] # expr`
               --  `expr # ["old"]` -> `expr # ["old", "new"]`
+              --  `expr1 # ["old"] # expr2` -> `expr1 # ["old", "new"] # expr2`
               --  `expr1 # expr2` -> `expr1 # expr2 # ["new"]`
               InsertListText additions -> do
                 Just . Updated <$> do
@@ -367,7 +369,7 @@ modifyRawDhallExpression initialKey astMod originalExpr = do
                     Just lsAppend -> do
                       pure lsAppend
                     Nothing -> do
-                      -- Since we couldn't add the update to an existing ListLit
+                      -- Since we couldn't add the update to an existing ListLit,
                       -- we'll just add it the the end
                       pure $ updateListTextByWrappingListAppend additions expr
 
@@ -377,6 +379,7 @@ modifyRawDhallExpression initialKey astMod originalExpr = do
           caseMsg = "RecordLit( keys = " <> displayShow (Dhall.Map.keys kvs)
         debugCase level caseMsg
         case levelKeyStack of
+          -- Invalid Dhall expression
           [] -> do
             pure Nothing
 
@@ -413,26 +416,42 @@ modifyRawDhallExpression initialKey astMod originalExpr = do
 
           Just (VariableName _ _) -> do
             case levelKeyStack of
+              -- Don't traverse back up the let binding because it will introduce a side-effect.
+              -- For example, if we were updating the `dependencies` field...
+              -- Given: `let x = ["foo"]        in { name = x, dependencies =  { useX = x }.useX,              ... }`
+              -- Wrong: `let x = ["foo", "new"] in { name = x, dependencies =  { useX = x }.useX,              ... }`
+              -- Right: `let x = ["foo"]        in { name = x, dependencies = ({ useX = x }.useX) # [ "new" ], ... }`
               [] -> do
-                -- don't traverse back up the let binding because it goes outside of the scope
                 case astMod of
                   InsertListText additions -> do
                     pure $ Just $ Updated $ updateListTextByWrappingListAppend additions expr
 
+              -- We still need to lookup a key, so it's safe to update a previous let binding.
               _ -> do
                 pure maybeResult
 
           Nothing -> do
             pure maybeResult
 
-      -- { foo = "bar", baz = "2" }.foo == "bar"
+      -- { foo = "bar", baz = "2" }.{ foo } == { foo = "bar" }
       Dhall.Project recordExpr projectKeys@(Left keysExposed) -> do
         let caseMsg = "Project( Left keys = (" <> displayShow keysExposed <> ")"
         debugCase level caseMsg
         case levelKeyStack of
+          -- We could only do an update here if we were replacing an entire record expression
+          -- with a new one. We don't currently support that and likely never will.
+          -- The below example shows how the `rec` value is replaced with a new record expresion.
+          --    `{ a = "foo", rec = { value = "bar" } }`
+          -- to
+          --    `{ a = "foo", rec = { something = "else" } }`
           [] -> do
             pure Nothing
 
+          -- We can only update the underlying record expression if
+          -- one of the keys exposed by the projection is the next key we're trying to find.
+          --    `({ config = { dependencies = ["old"], ... } }.{ config }).config`
+          -- to
+          --    `({ config = { dependencies = ["old", "new"], ... } }.{ config }).config`
           (key:_) | key `elem` keysExposed -> do
             maybeRecordExpr <- updateExpr level recordExpr
             void $ debugResult level caseMsg maybeRecordExpr
@@ -446,6 +465,13 @@ modifyRawDhallExpression initialKey astMod originalExpr = do
               Nothing -> do
                 pure maybeRecordExpr
 
+          -- None of the keys exposed by the projection are ones we're interestd in.
+          -- For example, if we are trying to update the `dependencies` field,
+          -- we would update the record expression on the left of the `Prefer` / `//`
+          -- rather than the right record expression.
+          --    `{ dependencies = ["old"] }        // { hiddenKey = "bar", exposedKey = ["foo" ] }.{ exposedKey }
+          -- to
+          --    `{ dependencies = ["old", "new"] } // { hiddenKey = "bar", exposedKey = ["foo" ] }.{ exposedKey }
           (_:_) -> do
             pure Nothing
 
