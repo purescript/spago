@@ -321,11 +321,29 @@ modifyRawDhallExpression initialKey astMod originalExpr = do
       -- let varname = ... in ... varName
       Dhall.Var (Dhall.V varName deBrujinIndex) -> do
         debugCase level $ "Var(varName =" <> displayShow varName <> ", deBrujin Index = " <> displayShow deBrujinIndex <> ")"
+        case levelKeyStack of
+          -- Since the keyStack is empty, we should do the update here rather than
+          -- traversing back up those let bindings because we don't know if those
+          -- let bindings are used in two or more places.
+          --
+          -- This means the update won't be as nice sylistically in some circumstances,
+          -- but it does guarantee that modification is made safely. Otherwise,
+          -- the let binding might be used elsewhere in a way we weren't anticipating.
+          --
+          -- For example:
+          --    `let x = ["foo"] let y = x let z = y in z`
+          -- to
+          --    `let x = ["foo"] let y = x let z = y in z # ["new"]`
+          [] -> do
+            case astMod of
+              InsertListText additions -> do
+                pure $ Just $ Updated $ updateListTextByWrappingListAppend additions expr
 
-        -- We got to the final expression and find that the real expression is stored
-        -- in a binding. For example, the second `config` in
-        --    `let config = { ..., dependencies = ... } in config`
-        pure $ Just $ VariableName (varName, deBrujinIndex) levelKeyStack
+          -- Since, we still need to go "down" fields in various record expressions,
+          -- we can't do the update here. For example, the second `config` in
+          --    `let config = { ..., dependencies = ... } in config`
+          _ -> do
+            pure $ Just $ VariableName (varName, deBrujinIndex) levelKeyStack
 
       -- ["foo", "bar"]
       Dhall.ListLit ann ls -> do
@@ -560,7 +578,6 @@ modifyRawDhallExpression initialKey astMod originalExpr = do
                 pure maybeRecordExpr
 
       Dhall.Let binding@Dhall.Binding { variable, value } inExpr -> do
-        let caseMsg = "Let( variable = " <> displayShow variable <> ")"
         debugCase level caseMsg
         maybeResult <- updateExpr level inExpr
         void $ debugResult level (caseMsg <> " - inExpr") maybeResult
@@ -577,30 +594,17 @@ modifyRawDhallExpression initialKey astMod originalExpr = do
           --    `let x = 1 let x = 2 in x@0 == 2`
           --    `let x = 1 let x = 2 in x@1 == 1`
           Just (VariableName (name, deBrujinIndex) newKeyStack) | name == variable, deBrujinIndex > 0 -> do
-            case levelKeyStack of
-              -- Normally, we would continue traversing up the expression and update the
-              -- referenced variable. However, since the keystack is empty, we are currently
-              -- at the location within the expression that we want to update.
-              -- If we go leave the current expression and go back "up" to its parent expression,
-              -- we might update a let binding's value in such a way that it produces a side-effect.
-              -- If the let binding is used in two places, then we want to update it for one
-              -- usage but not the other. To ensure that happens, we'll stop here and make the update.
-              --
-              -- It would be safe to update the let binding if we confirmed that it's only being used
-              -- in a single place, but such a check would require traversing the entire expression.
-              [] -> do
-                case astMod of
-                  --    `let lsBinding = ["old"] ... in { dependencies =  let x = lsBinding in x }`
-                  -- to
-                  --    `let lsBinding = ["old"] ... in { dependencies = (let x = lsBinding in x) # ["new"] }`
-                  InsertListText additions -> do
-                    pure $ Just $ Updated $ updateListTextByWrappingListAppend additions expr
-
-              -- We are not at the place in the expression we want to update yet (e.g. there are more
-              -- fields within record expressions to go "down"). So, we can allow this variable
-              -- to be passed back up to the parent expression.
-              _ -> do
-                pure $ Just $ VariableName (name, deBrujinIndex - 1) newKeyStack
+            if shouldStopUpdwardsTraversal then do
+              debugUpwardsTraversalStop
+              case astMod of
+                --    `let lsBinding = ["old"] ... in { dependencies =  let x = lsBinding in x }`
+                -- to
+                --    `let lsBinding = ["old"] ... in { dependencies = (let x = lsBinding in x) # ["new"] }`
+                InsertListText additions -> do
+                  pure $ Just $ Updated $ updateListTextByWrappingListAppend additions expr
+            else do
+              debugUpwardsTraversalAllow
+              pure $ Just $ VariableName (name, deBrujinIndex - 1) newKeyStack
 
           -- This expression is the binding whose value we need to update.
           Just (VariableName (name, deBrujinIndex) newKeyStack) | name == variable && deBrujinIndex == 0 -> do
@@ -612,9 +616,21 @@ modifyRawDhallExpression initialKey astMod originalExpr = do
                 pure $ Just $ Updated $ Dhall.Let (Dhall.makeBinding variable newValue) inExpr
 
               Just (VariableName _ _) -> do
-                -- `let x = "foo" let y = x in y`
-                -- This binding refers to another binding
-                pure maybeValue
+                if shouldStopUpdwardsTraversal then do
+                  debugUpwardsTraversalStop
+                  case astMod of
+                    --    `let lsBinding = ["old"] ... in { dependencies =  let x = lsBinding in x }`
+                    -- to
+                    --    `let lsBinding = ["old"] ... in { dependencies = (let x = lsBinding in x) # ["new"] }`
+                    InsertListText additions -> do
+                      pure $ Just $ Updated $ Dhall.Let (Dhall.makeBinding variable
+                        $ updateListTextByWrappingListAppend additions value) inExpr
+
+                else do
+                  debugUpwardsTraversalAllow
+                  -- `let x = "foo" let y = x in y`
+                  -- This binding refers to another binding
+                  pure maybeValue
 
               Nothing -> do
                 pure maybeValue
@@ -625,6 +641,22 @@ modifyRawDhallExpression initialKey astMod originalExpr = do
 
           Nothing -> do
             pure maybeResult
+        where
+          caseMsg = "Let( variable = " <> displayShow variable <> ")"
+          debugUpwardsTraversalStop = debugCase level (caseMsg <> " - stopping upwards traversal and updating here")
+          debugUpwardsTraversalAllow = debugCase level (caseMsg <> " - allowing upwards traversal")
+
+          -- Normally, we would continue traversing up the expression and update the
+          -- referenced variable. However, since the keystack is empty, we are currently
+          -- at the location within the expression that we want to update.
+          -- If we leave the current expression and go back "up" to its parent expression,
+          -- we might update a let binding's value in such a way that it produces a side-effect.
+          -- If the let binding is used in two places, then we only want to update it for one
+          -- usage but not the other. To ensure that happens, we'll stop here and make the update.
+          --
+          -- It would be safe to update the let binding if we confirmed that it's only being used
+          -- in a single place, but such a check would require traversing the entire expression.
+          shouldStopUpdwardsTraversal = null levelKeyStack
 
       _ -> do
         debugCase level "Unsupported case"

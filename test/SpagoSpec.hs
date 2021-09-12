@@ -467,6 +467,12 @@ spec = around_ setup $ do
           "alternative4-root-recordlit-let-before.dhall"
           "alternative4-root-recordlit-let-success.dhall"
 
+      it "... alternative4-root-let-trap-let.dhall" $ do
+
+        checkInstallFixtureSucceed
+          "alternative4-root-let-trap-before.dhall"
+          "alternative4-root-let-trap-success.dhall"
+
     it "Spago should fail when the alternate config file doesn't exist" $ do
       spago ["init"] >>= shouldBeSuccess
       spago ["install", "-x", "test.dhall"] >>= shouldBeFailureStderr "alternate-config-missing.txt"
