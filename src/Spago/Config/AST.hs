@@ -504,77 +504,60 @@ modifyRawDhallExpression initialKey astMod originalExpr = do
 
       -- recordExpr with field1.field2.field3 = update
       Dhall.With recordExpr field update -> do
-        let caseMsg = "With( field = " <> displayShow field <> ")"
         debugCase level caseMsg
-        case levelKeyStack of
-          (key:keys) | field == key :| keys -> do
-            --    `{ ..., dependencies = ["old"] } with dependencies = ["package"]`
-            --  to
-            --    `{ ..., dependencies = ["old"] } with dependencies = ["package", "new"]`
-            maybeResult <- updateExpr (ExprLevel { levelKeyStack = [] }) update
-            void $ debugResult level caseMsg maybeResult
-            case maybeResult of
+        --    ```
+        --    { outer =
+        --       { config =
+        --          { ..., dependencies = ["old"] }
+        --       } with config.dependencies = ["package"]`
+        --    }.outer.config
+        --    ```
+        --  to
+        --    { outer =
+        --       { config =
+        --          { ..., dependencies = ["old"] }
+        --       } with config.dependencies = ["package", "new"]`
+        --    }.outer.config
+        --    ```
+        let
+          levelForUpdate :: [Text] -> [Text] -> Maybe ExprLevel
+          levelForUpdate (fieldKey:fieldKeys') (nextKey:nextKeys')
+            | fieldKey == nextKey = levelForUpdate fieldKeys' nextKeys'
+          levelForUpdate [] nextKeys' = Just $ ExprLevel { levelKeyStack = nextKeys' }
+          levelForUpdate _ _ = Nothing
+
+        case levelForUpdate (toList field) levelKeyStack of
+          Just levelForUpdateSearch -> do
+            maybeUpdate <- updateExpr levelForUpdateSearch update
+            void $ debugResult level (caseMsg <> " - update") maybeUpdate
+            case maybeUpdate of
               Just (VariableName _ _) -> do
-                -- This can't happen because the Dhall expression is invalid. There can't be a variable name
-                -- if there isn't a let binding.
-                --    `{ ..., dependencies = ["old"] } with dependencies = x`
-                pure maybeResult
+                pure maybeUpdate
 
               Just (Updated newUpdate) -> do
                 pure $ Just $ Updated $ Dhall.With recordExpr field newUpdate
 
-              Nothing -> do
-                -- This can't happen because the Dhall expression is invalid. If this is a Root level With, then
-                -- recordExpr must be an expression that produces our Config schema, which means it will have
-                -- a dependencies field. So, if we failed to update that dependencies field, then the expression
-                -- itself is invalid.
-                pure maybeResult
-
-          _ -> do
-            {-
-              ```
-              ({ outer = { config = { dependencies = ... } } }
-                with outer = { config = { dependencies = ... } }
-              ).outer.config
-            -}
-            let
-              levelForUpdate :: [Text] -> [Text] -> Maybe ExprLevel
-              levelForUpdate fieldKeys nextKeys = case (fieldKeys, nextKeys) of
-                (fieldKey:fieldKeys', nextKey:nextKeys')
-                  | fieldKey == nextKey -> levelForUpdate fieldKeys' nextKeys'
-                ([], nextKeys') -> Just $ ExprLevel { levelKeyStack = nextKeys' }
-                (_, _) -> Nothing
-
-            case levelForUpdate (toList field) levelKeyStack of
-              Just levelForUpdateSearch -> do
-                maybeUpdate <- updateExpr levelForUpdateSearch update
-                void $ debugResult level (caseMsg <> " - update") maybeUpdate
-                case maybeUpdate of
-                  Just (VariableName _ _) -> do
-                    pure maybeUpdate
-
-                  Just (Updated newUpdate) -> do
-                    pure $ Just $ Updated $ Dhall.With recordExpr field newUpdate
-
-                  Nothing ->
-                    updateRecordExpr
-
-              Nothing -> do
+              Nothing ->
                 updateRecordExpr
 
-            where
-              updateRecordExpr = do
-                maybeRecordExpr <- updateExpr level recordExpr
-                void $ debugResult level (caseMsg <> " - recordExpr") maybeRecordExpr
-                case maybeRecordExpr of
-                  Just (VariableName _ _) -> do
-                    pure maybeRecordExpr
+          Nothing -> do
+            updateRecordExpr
 
-                  Just (Updated newRecordExpr) -> do
-                    pure $ Just $ Updated $ Dhall.With newRecordExpr field update
+        where
+          caseMsg = "With( field = " <> displayShow field <> ")"
 
-                  Nothing -> do
-                    pure maybeRecordExpr
+          updateRecordExpr = do
+            maybeRecordExpr <- updateExpr level recordExpr
+            void $ debugResult level (caseMsg <> " - recordExpr") maybeRecordExpr
+            case maybeRecordExpr of
+              Just (VariableName _ _) -> do
+                pure maybeRecordExpr
+
+              Just (Updated newRecordExpr) -> do
+                pure $ Just $ Updated $ Dhall.With newRecordExpr field update
+
+              Nothing -> do
+                pure maybeRecordExpr
 
       Dhall.Let binding@Dhall.Binding { variable, value } inExpr -> do
         let caseMsg = "Let( variable = " <> displayShow variable <> ")"
