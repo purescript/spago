@@ -283,11 +283,9 @@ modifyRawDhallExpression initialKey astMod originalExpr = do
             (Dhall.ListLit Nothing $ updateListTextByAppending additions Seq.empty)
       Dhall.Let binding $ Dhall.With var keyStack lsAppend
 
-    -- Change @logDebug@ to @logWarn@ to see results in tests
-    logFunction = logWarn
-
     debugCase level caseMsg =
-      logFunction $ "Level: " <> displayShow level <> " - " <> caseMsg
+    -- Change @logDebug@ to @logWarn@ to see results in tests
+      logDebug $ "Level: " <> displayShow level <> " - " <> caseMsg
 
     debugResult level caseMsg maybeResult = do
       debugCase level (caseMsg <> " - got: " <> displayShow (fmap printUpdateResult maybeResult))
