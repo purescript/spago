@@ -568,13 +568,26 @@ modifyRawDhallExpression initialKey astMod originalExpr = do
           Just (Updated newInExpr) -> do
             pure $ Just $ Updated $ Dhall.Let binding newInExpr
 
+          -- We've learned that we need to update a let binding's value, but
+          -- the variable below is referring to a binding with the same name,
+          -- but which appeared earlier in the expression.
+          -- So, we need to update that binding, not this one.
+          --
+          --    `let x = 1 let x = 2 in x   == 2`
+          --    `let x = 1 let x = 2 in x@0 == 2`
+          --    `let x = 1 let x = 2 in x@1 == 1`
           Just (VariableName (name, deBrujinIndex) newKeyStack) | name == variable, deBrujinIndex > 0 -> do
             case levelKeyStack of
-              -- normally, we would continue traversing up the expression and update the
-              -- referenced variable. However, since we are WithinField and the keystack is empty,
-              -- then traversing up the expression would go outside of the `WithinField` level
-              -- and potentially introduce a side-effect.
-              -- So, instead, we'll stop here and make the update.
+              -- Normally, we would continue traversing up the expression and update the
+              -- referenced variable. However, since the keystack is empty, we are currently
+              -- at the location within the expression that we want to update.
+              -- If we go leave the current expression and go back "up" to its parent expression,
+              -- we might update a let binding's value in such a way that it produces a side-effect.
+              -- If the let binding is used in two places, then we want to update it for one
+              -- usage but not the other. To ensure that happens, we'll stop here and make the update.
+              --
+              -- It would be safe to update the let binding if we confirmed that it's only being used
+              -- in a single place, but such a check would require traversing the entire expression.
               [] -> do
                 case astMod of
                   --    `let lsBinding = ["old"] ... in { dependencies =  let x = lsBinding in x }`
@@ -582,9 +595,14 @@ modifyRawDhallExpression initialKey astMod originalExpr = do
                   --    `let lsBinding = ["old"] ... in { dependencies = (let x = lsBinding in x) # ["new"] }`
                   InsertListText additions -> do
                     pure $ Just $ Updated $ updateListTextByWrappingListAppend additions expr
+
+              -- We are not at the place in the expression we want to update yet (e.g. there are more
+              -- fields within record expressions to go "down"). So, we can allow this variable
+              -- to be passed back up to the parent expression.
               _ -> do
                 pure $ Just $ VariableName (name, deBrujinIndex - 1) newKeyStack
 
+          -- This expression is the binding whose value we need to update.
           Just (VariableName (name, deBrujinIndex) newKeyStack) | name == variable && deBrujinIndex == 0 -> do
             let valueLevel = ExprLevel { levelKeyStack = newKeyStack }
             maybeValue <- updateExpr valueLevel value
