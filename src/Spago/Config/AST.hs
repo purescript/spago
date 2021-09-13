@@ -458,7 +458,7 @@ modifyRawDhallExpression initialKey astMod originalExpr = do
           Just (Updated newRecordExpr) -> do
             pure $ Just $ Updated $ Dhall.Field newRecordExpr selection
 
-          Just (VariableName _ _) -> do
+          Just VariableName{} -> do
             case levelKeyStack of
               -- Don't traverse back up the let binding because it will introduce a side-effect.
               -- For example, if we were updating the `dependencies` field...
@@ -527,7 +527,7 @@ modifyRawDhallExpression initialKey astMod originalExpr = do
         maybeRight <- updateExpr level right
         void $ debugResult level (caseMsg <> " - right") maybeRight
         case maybeRight of
-          Just (VariableName _ _) -> do
+          Just VariableName{} -> do
             pure maybeRight
 
           Just (Updated newRight) -> do
@@ -537,7 +537,7 @@ modifyRawDhallExpression initialKey astMod originalExpr = do
             maybeLeft <- updateExpr level left
             void $ debugResult level (caseMsg <> " - left") maybeLeft
             case maybeLeft of
-              Just (VariableName _ _) -> do
+              Just VariableName{} -> do
                 pure maybeLeft
 
               Just (Updated newLeft) -> do
@@ -575,7 +575,7 @@ modifyRawDhallExpression initialKey astMod originalExpr = do
             maybeUpdate <- updateExpr levelForUpdateSearch update
             void $ debugResult level (caseMsg <> " - update") maybeUpdate
             case maybeUpdate of
-              Just (VariableName _ _) -> do
+              Just VariableName{} -> do
                 pure maybeUpdate
 
               Just (Updated newUpdate) -> do
@@ -594,7 +594,7 @@ modifyRawDhallExpression initialKey astMod originalExpr = do
             maybeRecordExpr <- updateExpr level recordExpr
             void $ debugResult level (caseMsg <> " - recordExpr") maybeRecordExpr
             case maybeRecordExpr of
-              Just (VariableName _ _) -> do
+              Just VariableName{} -> do
                 pure maybeRecordExpr
 
               Just (Updated newRecordExpr) -> do
@@ -641,7 +641,7 @@ modifyRawDhallExpression initialKey astMod originalExpr = do
               Just (Updated newValue) -> do
                 pure $ Just $ Updated $ Dhall.Let (Dhall.makeBinding variable newValue) inExpr
 
-              Just (VariableName _ _) -> do
+              Just VariableName{} -> do
                 if shouldStopUpdwardsTraversal then do
                   debugUpwardsTraversalStop
                   case astMod of
@@ -661,7 +661,7 @@ modifyRawDhallExpression initialKey astMod originalExpr = do
               Nothing -> do
                 pure maybeValue
 
-          Just (VariableName _ _) -> do
+          Just VariableName{} -> do
             -- Variable name doesn't match this let binding's name
             pure maybeResult
 
