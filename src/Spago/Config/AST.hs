@@ -44,13 +44,10 @@ newtype ResolvedUnresolvedExpr =
 --
 -- Modifies a Dhall expression that can be parsed to produce a `Spago.Config.Config` value.
 --
--- Such an expression is anything that, when normalized, produces a
+-- For now, such an expression is anything that, when normalized, produces a
 -- \"record expression\" whose
 -- * @dependencies@ key contains a \"list expression\" of text that
 --   corresponds to package names.
--- * @name@ key corresponds to a text expression containing the name of the project
--- * @sources@ key contains a \"list expression\" of text that
---   corresponds to source globs.
 --
 -- Since the user may be requesting changes that result in a no-op
 -- (e.g. add packages that have already been added),
@@ -64,7 +61,7 @@ newtype ResolvedUnresolvedExpr =
 -- we break this into two steps:
 -- 1. determining what change we actually need to make
 -- (e.g. if we are trying to add packages, @foo@ and @bar@, to the @dependencies@ field
--- but @foo@ is already added, then we need to add only @bar@), and
+-- but @foo@ is already added, then we only need to add @bar@), and
 -- 2. where to make the change in the AST.
 --
 -- Breaking this down into two problems makes the solving the second problem easier.
@@ -72,6 +69,7 @@ newtype ResolvedUnresolvedExpr =
 -- Second, by confirming below that the normalized expression found in the @spago.dhall@ file
 -- IS a @RecordLit@ with the field we need to modify (e.g. it has a @dependencies@ field),
 -- we can make some assumptions about the @Expr@ passed into `modifyRawDhallExpression`.
+--
 -- For example, we don't need to know what @Embed@ data constructor cases are because we can infer
 -- based on where we are in the expression whether they are a Record expression that has
 -- our desired field (e.g. the @dependencies@ field) or a List expression.
@@ -113,7 +111,7 @@ dependenciesText :: Text
 dependenciesText = "dependencies"
 
 -- | Indicates where we are in the expression
--- |
+--
 -- When the stack is empty, we are at the place in the expression
 -- where we should do the update.
 -- Otherwise, we are trying to find a record expression
@@ -136,7 +134,7 @@ data UpdateResult
   --   that corresponds to the specified de Brujin index.
   --   See "Dhall.Core#t:Var".
   --
-  --  The @NonEmpty Text@ arg is the accumulated @keyStack@ at the time
+  --  The @[Text]@ arg stores the @keyStack@ at the time
   --  the variable that needs to be updated was found. This value
   --  should be used instead of whatever the keyStack is for a given level
   --  once the correct binding is found.
@@ -166,7 +164,9 @@ printUpdateResult = \case
 --     complicated as lambdas, we will force them to update the file manually.
 -- - App func arg - @(λ(x : A) -> { dependencies = [ x ] }) \"bar\"@
 --     This can produce a record expression and unlike @Lam@ can be a root-level expression.
---     However, this is a complex feature and can be difficult to update correctly like @Lam@.
+--     While we could update this using the same logic for @Embed@,
+--     it is likely better to let the user manually update their file instead. If one is using
+--     an advanced feature like this, there are likely reasons why that we can not anticipate here.
 --     Thus, we won't be covering it and instead will force the user to update the file manually.
 -- - BoolIf condition thenPath elsePath - @if x then y else z@
 --     If the update is in either the @thenPath@ or the @elsePath@, which one do we update?
@@ -186,16 +186,18 @@ printUpdateResult = \case
 --     one assumption about it: the type of the expression
 --     must match what we are looking for in the current @ExprLevel@.
 --
---     For example, if we are @WithinField@ and we encounter an @Embed@ case, then we know
---     the import will produce an expression that matches the type of the one we
---     are trying to update. For example, if it will produce an expression that has
---     type, @List Text@, then we can wrap it in a @ListAppend embedExpr newListLitExpr@.
+--     For example, if the @levelKeyStack@ is empty and we encounter an @Embed@ case
+--     and we are trying to add packages to the @dependencies@ field, then we know
+--     the import will produce an @List Text@-like expression. In such a case,
+--     we can wrap it in a @ListAppend embedExpr newListLitExpr@.
 --
---     If we are @SearchingForField@ and we encounter an @Embed@ case, then we know
---     the import will produce a record expression. In this case, we can refer to
---     its underlying values via the @keyStack@ provided via the @SearchingForField@.
+--     If we the @levelKeyStack@ is not empty and we encounter an @Embed@ case, then we know
+--     the import will produce a record expression. In such a case, we can wrap
+--     it in a let binding and do the update with a @With@ expression that
+--     appends the update to the part of the record we wish to update.
 -- - ListLit - @[\"a\", \"literal\", \"list\", \"of\", \"values\"]@
---     When the `AstUpdate` is a @InsertListText additions@, updating this expression merely means adding the @additions@ to its list.
+--     When the `AstUpdate` is a @InsertListText additions@, updating this expression 
+--     merely means adding the @additions@ to its list.
 -- - ListAppend - @[\"list1\"] # [\"list2\"]@
 --     Similar to @ListLit@ except it appends two list expressions together.
 --     If it doesn't contain a @ListLit@ (e.g. @expr1 # expr2@), we can wrap the entire
@@ -203,30 +205,52 @@ printUpdateResult = \case
 -- - RecordLit - @{ key = value }@
 --     This is ultimately what we are looking for, so we can update the respective field.
 --     However, due to supporting @Field@, which selects values within a record,
---     we need to support looking up other keys besides the main key (e.g @dependencies@).
+--     we need to support looking up keys besides the main key (e.g @dependencies@).
 -- - Field recordExpr selection - @{ key = { dependencies = [\"bar\"] } }.key@
---     This can produce a record expression. Depending on the record expression,
---     we might need to update the values within the record expression
---     that are ultimately exposed via the key (e.g. @{ config = { ..., dependencies = []} }.config@)
+--     This can produce any expression since it is extracting the field within a record expression.
+--     Let's say we were originally going to update a record expression's @depenencies@ field.
+--     In such a case, we're looking for a record expression that has such a field. However,
+--     when we come across a @Field@, it informs us that we must now find a record expression
+--     that has a key matching the field being selected, and go "down" that key before
+--     we can continue our original search (i.e. the record expression that has a @dependencies@ field),
 -- - Project expr (Left keys) - @{ dependencies = [\"bar\"], other = \"foo\" }.{ dependencies }@
 --     This produces a record expresion. We only need to update this expression if
 --     one of its keys is the next key on the @keyStack@ we want to update.
--- - Prefer recordExpr overrides - @{ dependencies = [\"foo\"] } \/\/ { dependencies = [\"bar\"] }@
+-- - Prefer recordExpr overrideRecordExpr - @{ dependencies = [\"foo\"] } \/\/ { dependencies = [\"bar\"] }@
 --     This produces a record expression. If we update the @recordExpr@
---     arg and its @dependencies@ is overridden by @overrides@, then the update is pointless.
---     If the @overrides@ value overrides something irrelevant to the record\'s @dependencies@ field,
---     then we need to update the @recordExpr@. So, we need to try to update the @overrides@ arg first
+--     arg and the field we are updating (e.g. @dependencies@) is overridden by @overrideRecordExpr@,
+--     then the update is pointless.
+--     If the @overrideRecordExpr@ value overrides something that we are not trying to update
+--     (e.g. the @sources@ field when updating the @dependencies@ field),
+--     then we need to update the @recordExpr@. So, we need to try to update the @overrideRecordExpr@ arg first
 --     and only if that fails do we attempt to update the @recordExpr@.
 -- - With recordExpr field update - @{ dependencies = [\"foo\"] } with dependencies = [\"bar\"]@
 --     This produces a record expression. Similar to @Prefer@,
 --     we should attempt to update the @update@ value first before attempting to update @recordExpr@.
--- - Let binding expr - @let binding = value in expr@
---     The expression we need to update will often be in the @expr@ (i.e. after the @in@ keyword;
+--     Since a @With@ can use nested fields (e.g. @recordExpr with outer.inner.dependencies = update@),
+--     we will see whether all of the values at the top of the @levelKeyStack@ match the nested fields
+--     the @With@ is using to update part of the record expression. If it does, then we
+--     try to update the @update@ expression. If that fails or if the match fails,
+--     then we update the record expression as the update is updating something
+--     irrelevant to our request.
+-- - Let binding inExpr - @let binding = value in expr@
+--     The expression we need to update will often be in the @inExpr@ (i.e. after the @in@ keyword;
 --     > let src = [ "src" ] in { ..., dependencies = [ "old" ], sources = src }`)
 --     However, we might need to update the expression associated with the bound variable name.
 --     (e.g. @let config = { dependencies = [ \"foo\" ] } in config@). We will not know
---     until we have looked at what the @dependencies@ key refers to before finding out that
---     the binding for the variable name @config@ is what we need to update.
+--     where we need to update the value to which the binding refers until after we have
+--     learned how it is used.
+--
+--     However, updating the value to which a binding refers can introduce a side-effect if
+--     the binding is used in two or more places.
+--     > let x = "foo" in { usage1 = x, usage2 = x }
+--     If we update the value for @x@ with the intent of updating @usage1@, we will also update
+--     @usage2@, which might be invalid. On the other hand, sometimes this side-effect
+--     is actually intentional if one binding is building off of another. Consider:
+--     > let x = "foo" let y = x # ["bar"] in { useX = x, useY = y }
+--
+--     Thus, for this implementation, we assume that we should update the binding's value
+--     if the @levelKeyStack@ is not empty. Otherwise, we do the update in the @inExpr@.
 --
 -- Since this is modifying the raw AST and might produce an invalid configuration file,
 -- the returned expression should be verified to produce a valid configuration format.
@@ -250,6 +274,9 @@ modifyRawDhallExpression initialKey astMod originalExpr = do
     updateListTextByWrappingListAppend additions expr =
       Dhall.ListAppend expr $ Dhall.ListLit Nothing $ updateListTextByAppending additions Seq.empty
 
+    -- |
+    -- Tries to find a @ListLit@ in a potentially-nested @ListAppend@ expression
+    -- and tries to append the additions to that @ListLit@
     updateListTextByMergingListLits :: Seq Expr -> Expr -> Maybe Expr
     updateListTextByMergingListLits additions expr = case expr of
       Dhall.ListLit ann ls -> Just $ Dhall.ListLit ann $ updateListTextByAppending additions ls
@@ -291,10 +318,11 @@ modifyRawDhallExpression initialKey astMod originalExpr = do
       debugCase level (caseMsg <> " - got: " <> displayShow (fmap printUpdateResult maybeResult))
       pure maybeResult
 
-    -- | Updates an expression by recursively updating any subexpressions
+    -- |
+    -- Updates an expression by recursively updating any subexpressions
     -- until the update succeeds (@Just Updated@) or fails (@Nothing@). If called
-    -- on a \"root-level\" expression, @Just EncounteredEmbed@ and @Just VariableName@ also
-    -- count as failure. For subexpressions, these returned values may be used to determine how to
+    -- on a \"root-level\" expression, a @Just VariableName@ also
+    -- counts as failure. For subexpressions, a returned @Just VariableName@ value may be used to determine how to
     -- update a subexpression found within the \"root-level\" expression.
     updateExpr :: HasLogFunc env => ExprLevel -> Expr -> RIO env (Maybe UpdateResult)
     updateExpr level@ExprLevel{..} expr = case expr of
