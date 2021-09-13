@@ -26,6 +26,10 @@ type ResolvedExpr = Dhall.Expr Parser.Src Void
 data ConfigModification
   = AddPackages ![PackageName]
   -- ^ Adds packages to the @dependencies@ field
+  | AddSources ![SourcePath]
+  -- ^ Adds sources to the @sources@ field
+  | UpdateName Text
+  -- ^ Sets the @name@ field to the provided value
 
 -- |
 -- Indicates the change to make once inside the Dhall expression,
@@ -89,6 +93,10 @@ modifyRawConfigExpression configMod ResolvedUnresolvedExpr { resolvedUnresolvedE
           pure originalExpr
         else do
           modifyRawDhallExpression dependenciesText (InsertListText (Dhall.toTextLit . packageName <$> pkgsToInstall)) originalExpr
+  AddSources _ -> do
+    pure originalExpr
+  UpdateName _ -> do
+    pure originalExpr
   where
     findField :: forall a env. HasLogFunc env => Text -> (ResolvedExpr -> RIO env (Maybe a)) -> RIO env (Maybe a)
     findField key f = case normalizedExpr of
