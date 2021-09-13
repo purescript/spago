@@ -76,7 +76,7 @@ newtype ResolvedUnresolvedExpr =
 --
 -- In other words, `modifyRawDhallExpression` can actually succeed for the cases we support.
 modifyRawConfigExpression :: HasLogFunc env => ConfigModification -> ResolvedUnresolvedExpr -> RIO env Expr
-modifyRawConfigExpression astMod ResolvedUnresolvedExpr { resolvedUnresolvedExpr = (normalizedExpr, originalExpr) } = case astMod of
+modifyRawConfigExpression configMod ResolvedUnresolvedExpr { resolvedUnresolvedExpr = (normalizedExpr, originalExpr) } = case configMod of
   AddPackages newPackages -> do
     maybeAllInstalledPkgs <- findListTextValues dependenciesText PackageName
     case maybeAllInstalledPkgs of
