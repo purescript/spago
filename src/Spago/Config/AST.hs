@@ -150,7 +150,7 @@ printUpdateResult = \case
   Updated _ ->
     "Updated <expr>"
   VariableName (name, idx) newKeyStack ->
-    "VariableName " <> name <> " " <> Text.pack (show idx) <> " [" <> Text.intercalate ", " (toList newKeyStack) <> "]"
+    "VariableName " <> name <> " " <> Text.pack (show idx) <> " [" <> Text.intercalate ", " newKeyStack <> "]"
 
 -- |
 -- Modifies any supported Dhall expression with the requested changes.
