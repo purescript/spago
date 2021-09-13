@@ -36,6 +36,9 @@ data ConfigModification
 -- regardless of what value(s) it produces.
 data AstUpdate
   = InsertListText (Seq Expr)
+  -- ^ Appends the given sequence of @TextLit@ values to the update location
+  | SetText Text
+  -- ^ Overwrites the update location with the given @TextLit@ value
 
 -- |
 -- Newtype over a Tuple that stores the same expression
@@ -107,8 +110,14 @@ modifyRawConfigExpression configMod ResolvedUnresolvedExpr { resolvedUnresolvedE
         else do
           modifyRawDhallExpression sourcesText (InsertListText (Dhall.toTextLit . unSourcePath <$> sourcesToAdd)) originalExpr
 
-  UpdateName _ -> do
-    pure originalExpr
+  UpdateName newName -> do
+    maybeName <- findField nameText (findText id)
+    case maybeName of
+      Just oldName | oldName /= newName -> do
+          modifyRawDhallExpression sourcesText (SetText newName) originalExpr
+      _ -> do
+        pure originalExpr
+
   where
     findField :: forall a env. HasLogFunc env => Text -> (ResolvedExpr -> RIO env (Maybe a)) -> RIO env (Maybe a)
     findField key f = case normalizedExpr of
@@ -146,6 +155,10 @@ dependenciesText = "dependencies"
 -- | \"sources\" - Reduce chance of spelling mistakes/typos
 sourcesText :: Text
 sourcesText = "sources"
+
+-- | \"name\" - Reduce chance of spelling mistakes/typos
+nameText :: Text
+nameText = "name"
 
 -- | Indicates where we are in the expression
 --
@@ -381,6 +394,9 @@ modifyRawDhallExpression initialKey astMod originalExpr = do
               (key:keys) -> do
                 pure $ Just $ Updated $ updateListTextByWrappingLetBinding (key :| keys) additions "__embed" expr
 
+          SetText t -> do
+            pure $ Just $ Updated $ Dhall.toTextLit t
+
       -- let varname = ... in ... varName
       Dhall.Var (Dhall.V varName deBrujinIndex) -> do
         debugCase level $ "Var(varName =" <> displayShow varName <> ", deBrujin Index = " <> displayShow deBrujinIndex <> ")"
@@ -402,11 +418,42 @@ modifyRawDhallExpression initialKey astMod originalExpr = do
               InsertListText additions -> do
                 pure $ Just $ Updated $ updateListTextByWrappingListAppend additions expr
 
+              SetText t -> do
+                pure $ Just $ Updated $ Dhall.toTextLit t
+
           -- Since, we still need to go "down" fields in various record expressions,
           -- we can't do the update here. For example, the second `config` in
           --    `let config = { ..., dependencies = ... } in config`
           _ -> do
             pure $ Just $ VariableName (varName, deBrujinIndex) levelKeyStack
+
+      Dhall.TextLit (Dhall.Chunks chunks lastTxt) -> do
+        debugCase level $ "TextLit( " <> displayShow (fold $ ((\(t,_) -> t <> "${expr}") <$> chunks) <> [lastTxt]) <> ")"
+        case levelKeyStack of
+          [] ->
+            case astMod of
+              SetText t -> do
+                pure $ Just $ Updated $ Dhall.toTextLit t
+
+              InsertListText{} -> do
+                pure Nothing
+
+          (_:_) -> do
+            pure Nothing
+
+      Dhall.TextAppend{} -> do
+        debugCase level "TextAppend"
+        case levelKeyStack of
+          [] ->
+            case astMod of
+              SetText t -> do
+                pure $ Just $ Updated $ Dhall.toTextLit t
+
+              InsertListText{} -> do
+                pure Nothing
+
+          (_:_) -> do
+            pure Nothing
 
       -- ["foo", "bar"]
       Dhall.ListLit ann ls -> do
@@ -424,6 +471,10 @@ modifyRawDhallExpression initialKey astMod originalExpr = do
               --  `{ ..., dependencies = ["old", "new"] }
               InsertListText additions -> do
                 pure $ Just $ Updated $ Dhall.ListLit ann $ updateListTextByAppending additions ls
+
+              -- Changing a `ListLit` value to a `TextLit` is invalid
+              SetText{} -> do
+                pure Nothing
 
       -- left # right
       Dhall.ListAppend left right -> do
@@ -453,6 +504,9 @@ modifyRawDhallExpression initialKey astMod originalExpr = do
                       -- Since we couldn't add the update to an existing ListLit,
                       -- we'll just add it the the end
                       pure $ updateListTextByWrappingListAppend additions expr
+
+              SetText{} -> do
+                pure Nothing
 
       -- { key = value, ... }
       Dhall.RecordLit kvs -> do
@@ -506,6 +560,9 @@ modifyRawDhallExpression initialKey astMod originalExpr = do
                 case astMod of
                   InsertListText additions -> do
                     pure $ Just $ Updated $ updateListTextByWrappingListAppend additions expr
+
+                  SetText t -> do
+                    pure $ Just $ Updated $ Dhall.toTextLit t
 
               -- We still need to lookup a key, so it's safe to update a previous let binding.
               _ -> do
@@ -665,6 +722,9 @@ modifyRawDhallExpression initialKey astMod originalExpr = do
                 --    `let lsBinding = ["old"] ... in { dependencies = (let x = lsBinding in x) # ["new"] }`
                 InsertListText additions -> do
                   pure $ Just $ Updated $ updateListTextByWrappingListAppend additions expr
+
+                SetText t -> do
+                  pure $ Just $ Updated $ Dhall.toTextLit t
             else do
               debugUpwardsTraversalAllow
               pure $ Just $ VariableName (name, deBrujinIndex - 1) newKeyStack
@@ -688,6 +748,9 @@ modifyRawDhallExpression initialKey astMod originalExpr = do
                     InsertListText additions -> do
                       pure $ Just $ Updated $ Dhall.Let (Dhall.makeBinding variable
                         $ updateListTextByWrappingListAppend additions value) inExpr
+
+                    SetText t -> do
+                      pure $ Just $ Updated $ Dhall.toTextLit t
 
                 else do
                   debugUpwardsTraversalAllow
