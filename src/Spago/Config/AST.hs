@@ -78,7 +78,7 @@ newtype ResolvedUnresolvedExpr =
 modifyRawConfigExpression :: HasLogFunc env => ConfigModification -> ResolvedUnresolvedExpr -> RIO env Expr
 modifyRawConfigExpression configMod ResolvedUnresolvedExpr { resolvedUnresolvedExpr = (normalizedExpr, originalExpr) } = case configMod of
   AddPackages newPackages -> do
-    maybeAllInstalledPkgs <- findListTextValues dependenciesText PackageName
+    maybeAllInstalledPkgs <- findField dependenciesText $ findListText PackageName
     case maybeAllInstalledPkgs of
       Nothing -> do
         pure originalExpr
@@ -90,20 +90,25 @@ modifyRawConfigExpression configMod ResolvedUnresolvedExpr { resolvedUnresolvedE
         else do
           modifyRawDhallExpression dependenciesText (InsertListText (Dhall.toTextLit . packageName <$> pkgsToInstall)) originalExpr
   where
-    findListTextValues :: HasLogFunc env => Text -> (Text -> a) -> RIO env (Maybe (Seq a))
-    findListTextValues key f = case normalizedExpr of
+    findField :: forall a env. HasLogFunc env => Text -> (ResolvedExpr -> RIO env (Maybe a)) -> RIO env (Maybe a)
+    findField key f = case normalizedExpr of
       Dhall.RecordLit kvs -> case Dhall.Map.lookup key kvs of
-        Just Dhall.RecordField { recordFieldValue } -> case recordFieldValue of
-          Dhall.ListLit _ dependencies -> do
-            Just . fmap f <$> traverse (throws . Dhall.fromTextLit) dependencies
-          _ -> do
-            logDebug $ display $ "In normalized expression, did not find a `ListLit` for key, '" <> key <> "'."
-            pure Nothing
+        Just Dhall.RecordField { recordFieldValue } -> do
+          logDebug $ display $ "In normalized expression, found a field for key, '" <> key <> "'."
+          f recordFieldValue
         _ -> do
           logDebug $ display $ "In normalized expression, did not find a field for key, '" <> key <> "'."
           pure Nothing
       _ -> do
         logDebug "In normalized expression, did not find a `RecordLit`."
+        pure Nothing
+
+    findListText :: forall a env. HasLogFunc env => (Text -> a) -> ResolvedExpr -> RIO env (Maybe (Seq a))
+    findListText f = \case
+      Dhall.ListLit _ dependencies -> do
+        Just . fmap f <$> traverse (throws . Dhall.fromTextLit) dependencies
+      _ -> do
+        logDebug "In normalized expression, did not find a `ListLit`."
         pure Nothing
 
 -- | \"dependencies\" - Reduce chance of spelling mistakes/typos
