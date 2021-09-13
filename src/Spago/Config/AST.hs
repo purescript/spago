@@ -117,12 +117,12 @@ dependenciesText = "dependencies"
 -- Otherwise, we are trying to find a record expression
 -- that has the next key on the stack
 --
--- Here's how the keyStack gets modified
+-- Here's how the @levelKeyStack@ gets modified
 --   - @Field@ pushes new keys on top of the stack
 --   - @RecordLit@ pops off the key at the top of the stack
 --   and looks up the field corresponding to it
 --   - @With@ sometimes pops off one or more of the keys in
---   the @keyStack@ when it can update that part of it.
+--   the @levelKeyStack@ when it can update that part of it.
 newtype ExprLevel = ExprLevel { levelKeyStack :: [Text] }
   deriving (Eq, Show)
 
@@ -134,7 +134,7 @@ data UpdateResult
   --   that corresponds to the specified de Brujin index.
   --   See "Dhall.Core#t:Var".
   --
-  --  The @[Text]@ arg stores the @keyStack@ at the time
+  --  The @[Text]@ arg stores the @levelKeyStack@ at the time
   --  the variable that needs to be updated was found. This value
   --  should be used instead of whatever the keyStack is for a given level
   --  once the correct binding is found.
@@ -215,7 +215,7 @@ printUpdateResult = \case
 --     we can continue our original search (i.e. the record expression that has a @dependencies@ field),
 -- - Project expr (Left keys) - @{ dependencies = [\"bar\"], other = \"foo\" }.{ dependencies }@
 --     This produces a record expresion. We only need to update this expression if
---     one of its keys is the next key on the @keyStack@ we want to update.
+--     one of its keys is the next key on the @levelKeyStack@ we want to update.
 -- - Prefer recordExpr overrideRecordExpr - @{ dependencies = [\"foo\"] } \/\/ { dependencies = [\"bar\"] }@
 --     This produces a record expression. If we update the @recordExpr@
 --     arg and the field we are updating (e.g. @dependencies@) is overridden by @overrideRecordExpr@,
@@ -348,7 +348,7 @@ modifyRawDhallExpression initialKey astMod originalExpr = do
       Dhall.Var (Dhall.V varName deBrujinIndex) -> do
         debugCase level $ "Var(varName =" <> displayShow varName <> ", deBrujin Index = " <> displayShow deBrujinIndex <> ")"
         case levelKeyStack of
-          -- Since the keyStack is empty, we should do the update here rather than
+          -- Since the @levelKeyStack@ is empty, we should do the update here rather than
           -- traversing back up those let bindings because we don't know if those
           -- let bindings are used in two or more places.
           --
@@ -673,7 +673,7 @@ modifyRawDhallExpression initialKey astMod originalExpr = do
           debugUpwardsTraversalAllow = debugCase level (caseMsg <> " - allowing upwards traversal")
 
           -- Normally, we would continue traversing up the expression and update the
-          -- referenced variable. However, since the keystack is empty, we are currently
+          -- referenced variable. However, since the @levelKeyStack@ is empty, we are currently
           -- at the location within the expression that we want to update.
           -- If we leave the current expression and go back "up" to its parent expression,
           -- we might update a let binding's value in such a way that it produces a side-effect.
