@@ -14,6 +14,7 @@ import           Spago.Prelude hiding (link)
 import           Spago.Env
 
 import qualified Crypto.Hash          as Hash
+import qualified UnliftIO.IORef       as IORef
 import qualified Data.List.NonEmpty   as NonEmpty
 import qualified Data.Map             as Map
 import qualified Data.Set             as Set
@@ -24,8 +25,9 @@ import qualified System.FilePath.Glob as Glob
 import qualified System.IO            as Sys
 import qualified System.IO.Temp       as Temp
 import qualified System.IO.Utf8       as Utf8
+import qualified System.Process       
 import qualified Turtle
-import qualified System.Process       as Process
+import qualified UnliftIO.Process       as Process
 import qualified Web.Browser          as Browser
 
 import qualified Spago.Command.Path   as Path
@@ -49,7 +51,7 @@ prepareBundleDefaults maybeModuleName maybeTargetPath = (moduleName, targetPath)
     targetPath = fromMaybe (TargetPath "index.js") maybeTargetPath
 
 --   eventually running some other action after the build
-build :: HasBuildEnv env => Maybe (RIO Env ()) -> RIO env ()
+build :: HasBuildEnv env => Maybe (IORef.IORef (Maybe Process.ProcessHandle) -> RIO Env ()) -> RIO env ()
 build maybePostBuild = do
   logDebug "Running `spago build`"
   BuildOptions{..} <- view (the @BuildOptions)
@@ -144,16 +146,26 @@ build maybePostBuild = do
                 ExitSuccess   -> pure ()
                 ExitFailure n -> die [ "Backend " <> displayShow backend <> " exited with error:" <> repr n ]
         checkImports
-
-      buildAction globs = do
+      
+      buildAction handleRef globs = do
         env <- Run.getEnv
-        let action = buildBackend globs >> (runRIO env $ fromMaybe (pure ()) maybePostBuild)
+        maybeHandle <- IORef.readIORef handleRef
+        for_ maybeHandle $ \h -> do
+          pid <- liftIO $ System.Process.getPid h
+          logDebug $ "Terminating process: " <> displayShow pid
+          Process.terminateProcess h
+
+        let action = buildBackend globs >> (runRIO env $ case maybePostBuild of
+              Nothing -> pure ()
+              Just postBuild -> postBuild handleRef)
         runCommands "Before" beforeCommands
         action `onException` (runCommands "Else" elseCommands)
         runCommands "Then" thenCommands
 
+  handleRef <- IORef.newIORef Nothing
+
   case shouldWatch of
-    BuildOnce -> buildAction allPsGlobs
+    BuildOnce -> buildAction handleRef allPsGlobs
     Watch -> do
       (psMatches, psMismatches) <- partitionGlobs $ unwrap <$> allPsGlobs
       (jsMatches, jsMismatches) <- partitionGlobs $ unwrap <$> allJsGlobs
@@ -169,7 +181,7 @@ build maybePostBuild = do
         (Set.fromAscList $ fmap (Glob.compile . collapse) . removeDotSpago $ absolutePSGlobs <> absoluteJSGlobs)
         shouldClear
         allowIgnored
-        (buildAction (wrap <$> psMatches))
+        (buildAction handleRef (wrap <$> psMatches))
 
   where
     runCommands :: HasLogFunc env => Text -> [Text] -> RIO env ()
@@ -326,7 +338,7 @@ runBackend
 runBackend maybeBackend RunDirectories{ sourceDir, executeDir } moduleName maybeSuccessMessage failureMessage extraArgs = do
   logDebug $ display $ "Running with backend: " <> fromMaybe "nodejs" maybeBackend
   BuildOptions{ pursArgs } <- view (the @BuildOptions)
-  let postBuild = maybe (nodeAction $ Path.getOutputPath pursArgs) backendAction maybeBackend
+  let postBuild handleRef = maybe (nodeAction handleRef $ Path.getOutputPath pursArgs) backendAction maybeBackend
   build (Just postBuild)
   where
     fromFilePath = Text.pack . Turtle.encodeString
@@ -344,7 +356,7 @@ runBackend maybeBackend RunDirectories{ sourceDir, executeDir } moduleName maybe
         , "').main()"
         ]
     nodeCmd = "node " <> runJsSource <> " " <> nodeArgs
-    nodeAction outputPath' = do
+    nodeAction handleRef outputPath' = do
       logDebug $ "Writing " <> displayShow @Text runJsSource
       writeTextFile runJsSource (nodeContents outputPath')
       void $ chmod executable $ pathFromText runJsSource
@@ -353,7 +365,10 @@ runBackend maybeBackend RunDirectories{ sourceDir, executeDir } moduleName maybe
       Turtle.cd executeDir
       -- We build a process by hand here because we need to forward the stdin to the backend process
       let processWithStdin = (Process.shell (Text.unpack nodeCmd)) { Process.std_in = Process.Inherit }
-      Turtle.system processWithStdin empty >>= \case
+      -- use createProcess
+      (_, _, _, processHandle) <- Process.createProcess processWithStdin
+      IORef.writeIORef handleRef (Just processHandle)
+      Process.waitForProcess processHandle >>= \case
         ExitSuccess   -> maybe (pure ()) (logInfo . display) maybeSuccessMessage
         ExitFailure n -> die [ display failureMessage <> "exit code: " <> repr n ]
     backendAction backend = do
@@ -377,7 +392,7 @@ bundleApp withMain maybeModuleName maybeTargetPath noBuild buildOpts usePsa =
   let (moduleName, targetPath) = prepareBundleDefaults maybeModuleName maybeTargetPath
       bundleAction = Purs.bundle withMain (withSourceMap buildOpts) moduleName targetPath
   in case noBuild of
-    DoBuild -> Run.withBuildEnv usePsa buildOpts $ build (Just bundleAction)
+    DoBuild -> Run.withBuildEnv usePsa buildOpts $ build (Just $ const bundleAction)
     NoBuild -> Run.getEnv >>= (flip runRIO) bundleAction
 
 -- | Bundle into a CommonJS module
@@ -404,7 +419,7 @@ bundleModule maybeModuleName maybeTargetPath noBuild buildOpts usePsa = do
             Right _ -> logInfo $ display $ "Make module succeeded and output file to " <> unTargetPath targetPath
             Left (n :: SomeException) -> die [ "Make module failed: " <> repr n ]
   case noBuild of
-    DoBuild -> Run.withBuildEnv usePsa buildOpts $ build (Just bundleAction)
+    DoBuild -> Run.withBuildEnv usePsa buildOpts $ build (Just $ const bundleAction)
     NoBuild -> Run.getEnv >>= (flip runRIO) bundleAction
 
 docsSearchTemplate :: (HasType LogFunc env, HasType PursCmd env) => RIO env Text
