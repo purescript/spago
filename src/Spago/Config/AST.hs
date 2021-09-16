@@ -26,8 +26,6 @@ type ResolvedExpr = Dhall.Expr Parser.Src Void
 data ConfigModification
   = AddPackages ![PackageName]
   -- ^ Adds packages to the @dependencies@ field
-  | AddSources ![SourcePath]
-  -- ^ Adds sources to the @sources@ field
   | UpdateName Text
   -- ^ Sets the @name@ field to the provided value
   | MigrateFromV1
@@ -106,19 +104,6 @@ modifyRawConfigExpression configMod ResolvedUnresolvedExpr { resolvedUnresolvedE
           pure originalExpr
         else do
           modifyRawDhallExpression dependenciesText (InsertListText (Dhall.toTextLit . packageName <$> pkgsToInstall)) originalExpr
-
-  AddSources newSources -> do
-    maybeAllSources <- findField sourcesText $ findListText SourcePath
-    case maybeAllSources of
-      Nothing -> do
-        pure originalExpr
-      Just allSources -> do
-        let sourcesToAdd = nubSeq $ Seq.filter (`notElem` allSources) $ Seq.fromList newSources
-        if null sourcesToAdd
-        then do
-          pure originalExpr
-        else do
-          modifyRawDhallExpression sourcesText (InsertListText (Dhall.toTextLit . unSourcePath <$> sourcesToAdd)) originalExpr
 
   UpdateName newName -> do
     maybeName <- findField nameText (findText id)
