@@ -234,7 +234,7 @@ makeConfig force comments = do
           -- try to update the dependencies (will fail if not found in package set)
           let pscPackages = map PackageName $ PscPackage.depends pscConfig
           updateName config (PscPackage.name pscConfig)
-          void $ withConfigAST $ addRawDeps config pscPackages
+          addDependencies config pscPackages
     (_, True) -> do
       -- read the bowerfile
       content <- readTextFile "bower.json"
@@ -256,7 +256,7 @@ makeConfig force comments = do
               logWarn $ display $ showBowerErrors bowerErrors
 
           updateName config bowerName
-          void $ withConfigAST $ addRawDeps config bowerPackages
+          addDependencies config bowerPackages
 
     _ -> pure ()
   -- at last we return the new config
@@ -325,32 +325,6 @@ showBowerErrors (List.sort -> errors)
     showE (NonPureScript name) = surroundQuote name
     showE (MissingFromTheSet (PackageName name)) = surroundQuote name
     showE (WrongVersion (PackageName name) range version) = surroundQuote name <> " has version " <> version <> ", but range is " <> tshow range
-
-addRawDeps :: HasLogFunc env => Config -> [PackageName] -> Expr -> RIO env Expr
-addRawDeps config newPackages expr =
-  case notInPackageSet config newPackages of
-    Just pkgs -> do
-      logWarn $ display $ Messages.failedToAddDeps $ NonEmpty.map packageName pkgs
-      pure expr
-    -- If none of the newPackages are outside of the set, add them to existing dependencies
-    Nothing -> case expr of
-      r@(Dhall.RecordLit kvs) ->
-        case Dhall.Map.lookup "dependencies" kvs of
-          Just Dhall.RecordField { recordFieldValue = Dhall.ListLit _ dependencies } -> do
-            oldPackages <- traverse (throws . Dhall.fromTextLit) dependencies
-            let newDepsExpr
-                  = Dhall.makeRecordField
-                  $ Dhall.ListLit Nothing $ fmap (Dhall.toTextLit . packageName)
-                  $ Seq.sort $ nubSeq (Seq.fromList newPackages <> fmap PackageName oldPackages)
-            pure $ Dhall.RecordLit $ Dhall.Map.insert "dependencies" newDepsExpr kvs
-          Just _ -> do
-            logWarn "Failed to add dependencies. The `dependencies` field wasn't a List of Strings."
-            pure r
-          Nothing -> do
-            logWarn "Failed to add dependencies. You should have a record with the `dependencies` key for this to work."
-            pure r
-      _ ->
-        pure expr
 
 addSourcePaths :: Expr -> Expr
 addSourcePaths (Dhall.RecordLit kvs)
