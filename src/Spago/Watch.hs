@@ -20,18 +20,21 @@ import           System.FilePath        (splitDirectories)
 import qualified System.FilePath.Glob   as Glob
 import qualified System.FSNotify        as Watch
 import qualified System.IO.Utf8         as Utf8
+import qualified System.Process       
 import qualified UnliftIO
 import qualified UnliftIO.Async         as Async
+import qualified UnliftIO.IORef         as IORef
+import qualified UnliftIO.Process       as Process
 
 import qualified Spago.Git              as Git
 
 watch
   :: (HasLogFunc env, HasGit env)
-  => Set.Set Glob.Pattern -> ClearScreen -> AllowIgnored -> RIO env ()
+  => Set.Set Glob.Pattern -> ClearScreen -> AllowIgnored -> IORef (Maybe Process.ProcessHandle) -> RIO env ()
   -> RIO env ()
-watch globs shouldClear allowIgnored action = do
+watch globs shouldClear allowIgnored handleRef action = do
   let config = Watch.defaultConfig { Watch.confDebounce = Watch.NoDebounce }
-  fileWatchConf config shouldClear allowIgnored $ \getGlobs -> do
+  fileWatchConf config shouldClear allowIgnored handleRef $ \getGlobs -> do
     getGlobs globs
     action
 
@@ -56,9 +59,10 @@ fileWatchConf
   => Watch.WatchConfig
   -> ClearScreen
   -> AllowIgnored
+  -> IORef (Maybe Process.ProcessHandle)
   -> ((Set.Set Glob.Pattern -> RIO env ()) -> RIO env ())
   -> RIO env ()
-fileWatchConf watchConfig shouldClear allowIgnored inner = withManagerConf watchConfig $ \manager -> do
+fileWatchConf watchConfig shouldClear allowIgnored handleRef inner = withManagerConf watchConfig $ \manager -> do
     allGlobs  <- liftIO $ newTVarIO Set.empty
     dirtyVar  <- liftIO $ newTVarIO True
     -- `lastEvent` is used for event debouncing.
@@ -108,6 +112,11 @@ fileWatchConf watchConfig shouldClear allowIgnored inner = withManagerConf watch
               pure shouldRebuild
 
             when rebuilding $ do
+              maybeHandle <- IORef.readIORef handleRef
+              for_ maybeHandle $ \h -> do
+                pid <- liftIO $ System.Process.getPid h
+                logDebug $ "Terminating process: " <> displayShow pid
+                Process.terminateProcess h
               redisplay $ Just $ "File changed, triggered a build: " <> displayShow eventPath
 
         setWatched :: Set.Set Glob.Pattern -> RIO env ()

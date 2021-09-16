@@ -27,7 +27,7 @@ import qualified System.IO.Temp       as Temp
 import qualified System.IO.Utf8       as Utf8
 import qualified System.Process       
 import qualified Turtle
-import qualified UnliftIO.Process       as Process
+import qualified UnliftIO.Process     as Process
 import qualified Web.Browser          as Browser
 
 import qualified Spago.Command.Path   as Path
@@ -181,6 +181,7 @@ build maybePostBuild = do
         (Set.fromAscList $ fmap (Glob.compile . collapse) . removeDotSpago $ absolutePSGlobs <> absoluteJSGlobs)
         shouldClear
         allowIgnored
+        handleRef
         (buildAction handleRef (wrap <$> psMatches))
 
   where
