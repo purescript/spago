@@ -118,7 +118,7 @@ parseConfig
   => RIO env Config
 parseConfig = do
   -- Here we try to migrate any config that is not in the latest format
-  void $ withConfigAST $ pure . addSourcePaths
+  void $ withRawConfigAST $ AST.modifyRawConfigExpression AST.MigrateFromV1
 
   ConfigPath path <- view (the @ConfigPath)
   expr <- liftIO $ Dhall.inputExpr $ "./" <> path

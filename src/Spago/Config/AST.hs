@@ -30,6 +30,16 @@ data ConfigModification
   -- ^ Adds sources to the @sources@ field
   | UpdateName Text
   -- ^ Sets the @name@ field to the provided value
+  | MigrateFromV1
+  -- ^ Migrates from v1 config to the latest config.
+  --
+  -- v1 config only has the following type:
+  -- @
+  -- { name : Text
+  -- , packages : packageMap
+  -- , dependencies : List Text
+  -- }
+  -- @
 
 -- |
 -- Indicates the change to make once inside the Dhall expression,
@@ -117,6 +127,21 @@ modifyRawConfigExpression configMod ResolvedUnresolvedExpr { resolvedUnresolvedE
           modifyRawDhallExpression sourcesText (SetText newName) originalExpr
       _ -> do
         pure originalExpr
+
+  MigrateFromV1 -> do
+    maybeSources <- findField sourcesText (const $ pure $ Just ())
+    case maybeSources of
+      Just{} -> do
+        pure originalExpr
+      Nothing -> do
+        pure
+          $ Dhall.With originalExpr (sourcesText :| [])
+          $ Dhall.ListLit Nothing
+          $ Seq.fromList
+          $ Dhall.toTextLit <$>
+          [ "src/**/*.purs"
+          , "text/**/*.purs"
+          ]
 
   where
     findField :: forall a env. HasLogFunc env => Text -> (ResolvedExpr -> RIO env (Maybe a)) -> RIO env (Maybe a)
