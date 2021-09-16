@@ -119,14 +119,25 @@ modifyRawConfigExpression configMod ResolvedUnresolvedExpr { resolvedUnresolvedE
       Just{} -> do
         pure originalExpr
       Nothing -> do
-        pure
-          $ Dhall.With originalExpr (sourcesText :| [])
-          $ Dhall.ListLit Nothing
-          $ Seq.fromList
-          $ Dhall.toTextLit <$>
-          [ "src/**/*.purs"
-          , "test/**/*.purs"
-          ]
+        case originalExpr of
+          Dhall.RecordLit kvs ->
+            pure
+              $ Dhall.RecordLit
+              $ flip (Dhall.Map.insert sourcesText) kvs
+              $ Dhall.makeRecordField listExpr
+
+          _ ->
+            pure
+              $ Dhall.With originalExpr (sourcesText :| [])
+              $ listExpr
+        where
+          listExpr =
+            Dhall.ListLit Nothing
+              $ Seq.fromList
+              $ Dhall.toTextLit <$>
+              [ "src/**/*.purs"
+              , "test/**/*.purs"
+              ]
 
   where
     findField :: forall a env. HasLogFunc env => Text -> (ResolvedExpr -> RIO env (Maybe a)) -> RIO env (Maybe a)
