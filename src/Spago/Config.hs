@@ -19,8 +19,6 @@ import qualified Data.List             as List
 import qualified Data.List.NonEmpty    as NonEmpty
 import qualified Data.Map              as Map
 import qualified Data.SemVer           as SemVer
-import qualified Data.Sequence         as Seq
-import qualified Data.Set              as Set
 import qualified Data.Text             as Text
 import qualified Data.Text.Encoding    as Text
 import qualified Data.Versions         as Version
@@ -256,8 +254,8 @@ makeConfig force comments = do
           logInfo "Found a \"psc-package.json\" file, migrating to a new Spago config.."
           -- try to update the dependencies (will fail if not found in package set)
           let pscPackages = map PackageName $ PscPackage.depends pscConfig
-          updateName config (PscPackage.name pscConfig)
-          addDependencies config pscPackages
+          configWithUpdatedName <- updateName config (PscPackage.name pscConfig)
+          void $ addDependencies configWithUpdatedName pscPackages
     (_, True) -> do
       -- read the bowerfile
       content <- readTextFile "bower.json"
@@ -278,8 +276,8 @@ makeConfig force comments = do
             else do
               logWarn $ display $ showBowerErrors bowerErrors
 
-          updateName config bowerName
-          addDependencies config bowerPackages
+          configWithUpdatedName <- updateName config bowerName
+          void $ addDependencies configWithUpdatedName bowerPackages
 
     _ -> pure ()
   -- at last we return the new config
@@ -400,12 +398,12 @@ updateName
    . (HasLogFunc env, HasConfigPath env)
   => Config
   -> Text
-  -> RIO env ()
+  -> RIO env Config
 updateName config newName = do
+  let
+    expectedConfig :: Config
+    expectedConfig = config { name = newName }
   configHasChanged <- withRawConfigAST $ \sameExpr -> do
-    let
-      expectedConfig :: Config
-      expectedConfig = config { name = newName }
     newExpr <- AST.modifyRawConfigExpression (AST.UpdateName newName) sameExpr
     -- Verify that returned expression produces the expected `Config` value if parsed
     -- before we return it.
@@ -426,8 +424,12 @@ updateName config newName = do
         logWarn "Failed to update name."
         logDebug "Raw AST modification did not produce a valid `spago.dhall` file."
         pure $ snd $ AST.resolvedUnresolvedExpr sameExpr
-  unless configHasChanged $
+
+  if configHasChanged then do
+    pure expectedConfig
+  else do
     logWarn "Configuration file was not updated."
+    pure config
 
 -- | Try to add the `newPackages` to the "dependencies" list in the Config.
 --   It will not add any dependency if any of them is not in the package set.
@@ -437,17 +439,17 @@ addDependencies
   :: forall env
    . (HasLogFunc env, HasConfigPath env)
   => Config -> [PackageName] 
-  -> RIO env ()
-addDependencies config@Config { dependencies = deps, publishConfig = pubConfig } newPackages = do
-  configHasChanged <- case notInPackageSet config newPackages of
+  -> RIO env Config
+addDependencies config@Config { dependencies = deps } newPackages = do
+  (configHasChanged, updatedConfig) <- case notInPackageSet config newPackages of
     Just pkgsNotInPackageSet -> do
       logWarn $ display $ Messages.failedToAddDeps $ NonEmpty.map packageName pkgsNotInPackageSet
-      pure False
+      pure (False, config)
     Nothing -> do
       let
         expectedConfig :: Config
-        expectedConfig = config { dependencies = mkExpectedConfigDeps, publishConfig = mkExpectedPubConifg }
-      withRawConfigAST $ \sameExpr -> do
+        expectedConfig = config { dependencies = List.nub $ List.sort $ deps <> newPackages }
+      configChanged <- withRawConfigAST $ \sameExpr -> do
         newExpr <- AST.modifyRawConfigExpression (AST.AddPackages newPackages) sameExpr
         -- Verify that returned expression produces the expected `Config` value if parsed
         -- before we return it.
@@ -468,35 +470,12 @@ addDependencies config@Config { dependencies = deps, publishConfig = pubConfig }
             logWarn "Failed to add dependencies."
             logDebug "Raw AST modification did not produce a valid `spago.dhall` file."
             pure $ snd $ AST.resolvedUnresolvedExpr sameExpr
+      pure (configChanged, if configChanged then expectedConfig else config)
 
   unless configHasChanged $
     logWarn "Configuration file was not updated."
+  pure updatedConfig
 
-  where
-    mkExpectedConfigDeps = List.nub $ List.sort $ deps <> newPackages
-
-    -- |
-    -- If the @pubConfig@ parsing fails, it will fail on the first key checked (i.e. the @license@ key).
-    -- When it does fail, it records a map of the expression and that map does not include the new packages
-    -- When the modified expression is parsed, it will also fail at the @license@ key. However, it\'s
-    -- map will include the new packages.
-    --
-    -- Thus, we need to update the map in the expected config, so the equality check will pass.
-    mkExpectedPubConifg = case pubConfig of
-      Left (Dhall.RequiredKeyMissing key kvs) ->
-        Left (Dhall.RequiredKeyMissing key newKvs)
-        where
-          newKvs = Dhall.Map.insertWith insertNewPackages "dependencies" newPackagesExpr kvs
-
-          newPackagesExpr :: ResolvedExpr
-          newPackagesExpr = Dhall.ListLit Nothing $ Seq.fromList $ fmap (Dhall.toTextLit . packageName) newPackages
-
-          insertNewPackages :: ResolvedExpr -> ResolvedExpr -> ResolvedExpr
-          insertNewPackages (Dhall.ListLit an left) (Dhall.ListLit _ right) =
-            Dhall.ListLit an $ nubSeq $ left <> right
-          insertNewPackages other _ = other
-
-      x -> x
 
 -- |
 -- Unfortunately, we cannot just check whether the expected config is equal to the actual config
@@ -538,9 +517,9 @@ isSemanticallyEquivalentTo
           logDebug $ msg <> " - No problem here."
           pure True
       | otherwise = do
-          logDebug $ msg <> " - Found mismatch"
-          logDebug $ displayShow expected
-          logDebug $ displayShow actual
+          logWarn $ msg <> " - Found mismatch"
+          logWarn $ displayShow expected
+          logWarn $ displayShow actual
           pure False
 
     checkPC :: Either (Dhall.ReadError Void) PublishConfig -> Either (Dhall.ReadError Void) PublishConfig -> RIO env Bool
@@ -548,27 +527,14 @@ isSemanticallyEquivalentTo
       checkValue l r "Config: pubConfig - Right"
     checkPC (Left (Dhall.RequiredKeyMissing k1 kvs1)) (Left (Dhall.RequiredKeyMissing k2 kvs2)) = do
       checkAll
-        [ checkValue k1 k2 "Config: pubConfig - Left RequiredKeyMissing: keys"
-        , checkValue (sortDependencies kvs1) (sortDependencies kvs2) "Config: pubConfig - Left RequiredKeyMissing: maps"
+        [ checkValue k1 k2 "Config: pubConfig - Left RequiredKeyMissing: key check"
+        , checkValue (Dhall.Map.keys kvs1) (Dhall.Map.keys kvs2) "Config: pubConfig - Left RequiredKeyMissing: maps' keys"
         ]
     checkPC l r = do
       logDebug "Config: pubConfig: unexpected value in both"
       logDebug $ "Expected value: " <> displayShow l
       logDebug $ "Actual value: " <> displayShow r
       pure False
-
-    sortDependencies :: Dhall.Map.Map Text ResolvedExpr -> Dhall.Map.Map Text ResolvedExpr
-    sortDependencies x = case Dhall.Map.lookup dependenciesText x of
-      Just (Dhall.ListLit a pkgs) ->
-        Dhall.Map.insert dependenciesText (Dhall.ListLit a (Seq.sortOn toText pkgs)) x
-      _ ->
-        x
-      where
-        dependenciesText = "dependencies"
-
-        toText = \case
-          Dhall.TextLit (Dhall.Chunks [] t) -> t
-          _ -> error "impossible: A normalized expression that produced a valid `Config` value should only have a `TextLit` here"
 
 -- |
 -- Returns a non-empty list of packages not found in the package set
