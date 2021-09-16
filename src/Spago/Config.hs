@@ -141,7 +141,7 @@ parseConfig
   => RIO env Config
 parseConfig = do
   -- Here we try to migrate any config that is not in the latest format
-  void $ withRawConfigAST $ AST.modifyRawConfigExpression AST.MigrateFromV1
+  migrateFromV1Config
 
   ConfigPath path <- view (the @ConfigPath)
   expr <- liftIO $ Dhall.inputExpr $ "./" <> path
@@ -386,6 +386,14 @@ withRawConfigAST transform = do
         then liftIO $ Dhall.writeRawExpr path (header, newExpr)
         else logDebug "Transformed config is the same as the read one, not overwriting it"
       pure exprHasChanged
+
+migrateFromV1Config
+  :: forall env
+   . (HasLogFunc env, HasConfigPath env)
+  => RIO env ()
+migrateFromV1Config = do
+  void $ withRawConfigAST $ AST.modifyRawConfigExpression AST.MigrateFromV1
+
 
 updateName
   :: forall env
