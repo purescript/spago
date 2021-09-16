@@ -176,6 +176,8 @@ data ReadError a where
  ImportCannotBeUpdated :: Typeable a => Dhall.Import -> ReadError a
  -- | a key is missing from a Dhall map
  RequiredKeyMissing    :: Typeable a => Text -> Dhall.Map.Map Text (DhallExpr a) -> ReadError a
+ -- | a problem was encountered with a local dependency
+ ProblemInLocalDependency :: Typeable a => Text -> ReadError a -> ReadError a
 
 deriving instance (Eq a) => Eq (ReadError a)
 
@@ -189,6 +191,12 @@ instance (Pretty a) => Show (ReadError a) where
 
     where
       msg :: ReadError a -> [Dhall.Text]
+      msg (ProblemInLocalDependency spagoConfigPath problem) =
+        [ "Explanation: The local dependency found via the path '" <> spagoConfigPath <> "' had the following problem."
+        , ""
+        , "Problem:"
+        , Text.intercalate "\n" $ msg problem
+        ]
       msg (PackagesIsNotRecord tl) =
         [ "Explanation: The \"packages\" key must contain a record of packages."
         , ""

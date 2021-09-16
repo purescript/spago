@@ -81,15 +81,38 @@ parsePackage (Dhall.App
       dependencies <- case rawConfig of
         Nothing -> die [ display $ Messages.cannotFindConfigLocalPackage spagoConfigPath ]
         Just (_header, expr) -> do
-          newExpr <- transformMExpr (pure . filterDependencies . addSourcePaths) expr
           -- Note: we have to use inputWithSettings here because we're about to resolve
           -- the raw config from the local project. So if that has any imports they
           -- should be relative to the directory of that package
-          liftIO $
-            Dhall.inputWithSettings
+          normalizedExpr <- liftIO $
+            Dhall.inputExprWithSettings
               (set Dhall.rootDirectory (Text.unpack localPath) Dhall.defaultInputSettings)
-              dependenciesType
-              (pretty newExpr)
+              (pretty expr)
+          case normalizedExpr of
+            Dhall.RecordLit kvs' -> do
+              let kvs = Dhall.extractRecordValues kvs'
+              case Dhall.Map.lookup "dependencies" kvs of
+                Just listResult -> do
+                  case Dhall.extract dependenciesType listResult of
+                    Success deps -> do
+                      pure deps
+                    Failure _ -> do
+                      throwM
+                        $ Dhall.ProblemInLocalDependency spagoConfigPath
+                        $ Dhall.DependenciesIsNotList listResult
+                Nothing -> do
+                  throwM
+                    $ Dhall.ProblemInLocalDependency spagoConfigPath
+                    $ Dhall.RequiredKeyMissing "dependencies" kvs
+            _ -> do
+               case Dhall.TypeCheck.typeOf normalizedExpr of
+                Right e  -> do
+                  throwM
+                    $ Dhall.ProblemInLocalDependency spagoConfigPath
+                    $ Dhall.ConfigIsNotRecord e
+                Left err -> do
+                  logError $ "Problem in local dependency: '" <> display spagoConfigPath <> "'"
+                  throwM err
       let location = Local{..}
       pure Package{..}
 parsePackage expr = die [ display $ Messages.failedToParsePackage $ pretty expr ]
