@@ -125,7 +125,7 @@ modifyRawConfigExpression configMod ResolvedUnresolvedExpr { resolvedUnresolvedE
           $ Seq.fromList
           $ Dhall.toTextLit <$>
           [ "src/**/*.purs"
-          , "text/**/*.purs"
+          , "test/**/*.purs"
           ]
 
   where
