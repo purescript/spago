@@ -349,51 +349,19 @@ showBowerErrors (List.sort -> errors)
     showE (MissingFromTheSet (PackageName name)) = surroundQuote name
     showE (WrongVersion (PackageName name) range version) = surroundQuote name <> " has version " <> version <> ", but range is " <> tshow range
 
-addSourcePaths :: Expr -> Expr
-addSourcePaths (Dhall.RecordLit kvs)
-  | isConfigV1 kvs =
-    let sources = Dhall.ListLit Nothing $ fmap Dhall.toTextLit $ Seq.fromList ["src/**/*.purs", "test/**/*.purs"]
-    in Dhall.RecordLit (Dhall.Map.insert "sources" (Dhall.makeRecordField sources) kvs)
-addSourcePaths expr = expr
+-- -- Note: The below function reminds us what the v1 config was
+-- isConfigV1 :: Dhall.Map.Map Text v -> Bool
+-- isConfigV1 (Set.fromList . Dhall.Map.keys -> configKeySet) =
+--   let configV1Keys = ["name", "dependencies", "packages"]
+--   in configKeySet == configV1Keys
 
-isConfigV1, isConfigV2 :: Dhall.Map.Map Text v -> Bool
-isConfigV1 (Set.fromList . Dhall.Map.keys -> configKeySet) =
-  let configV1Keys = ["name", "dependencies", "packages"]
-  in configKeySet == configV1Keys
+-- -- Note: The below function reminds us what the v1 config was
+-- isConfigV2 :: Dhall.Map.Map Text v -> Bool
+-- isConfigV2 (Set.fromList . Dhall.Map.keys -> configKeySet) =
+--   let configV2Keys = ["name", "dependencies", "packages", "sources"]
+--       optionalKeys = ["backend", "license", "repository"]
+--   in Set.difference configKeySet optionalKeys == configV2Keys
 
-
-isConfigV2 (Set.fromList . Dhall.Map.keys -> configKeySet) =
-  let configV2Keys = ["name", "dependencies", "packages", "sources"]
-      optionalKeys = ["backend", "license", "repository"]
-  in Set.difference configKeySet optionalKeys == configV2Keys
-
-
-filterDependencies :: Expr -> Expr
-filterDependencies (Dhall.RecordLit kvs)
-  | isConfigV2 kvs, Just deps <- Dhall.Map.lookup "dependencies" (Dhall.extractRecordValues kvs) = deps
-filterDependencies expr = expr
-
-
--- | Takes a function that manipulates the Dhall AST of the Config, and tries to run it
---   on the current config. If it succeeds, it writes back to file the result returned.
---   Note: it will pass in the parsed AST, not the resolved one (so e.g. imports will
---   still be in the tree). If you need the resolved one, use `ensureConfig`.
-withConfigAST
-  :: (HasLogFunc env, HasConfigPath env)
-  => (Expr -> RIO env Expr) -> RIO env Bool
-withConfigAST transform = do
-  ConfigPath path <- view (the @ConfigPath)
-  rawConfig <- liftIO $ Dhall.readRawExpr path
-  case rawConfig of
-    Nothing -> die [ display $ Messages.cannotFindConfig path ]
-    Just (header, expr) -> do
-      newExpr <- transformMExpr transform expr
-      -- Write the new expression only if it has actually changed
-      let exprHasChanged = Dhall.Core.denote expr /= newExpr
-      if exprHasChanged
-        then liftIO $ Dhall.writeRawExpr path (header, newExpr)
-        else logDebug "Transformed config is the same as the read one, not overwriting it"
-      pure exprHasChanged
 
 -- | Takes a function that manipulates the Dhall AST of the Config, and tries to run it
 --   on the current config. If it succeeds, it writes back to file the result returned.
@@ -418,18 +386,6 @@ withRawConfigAST transform = do
         then liftIO $ Dhall.writeRawExpr path (header, newExpr)
         else logDebug "Transformed config is the same as the read one, not overwriting it"
       pure exprHasChanged
-
-
-transformMExpr
-  :: MonadIO m
-  => (Dhall.Expr s Dhall.Import -> m (Dhall.Expr s Dhall.Import))
-  -> Dhall.Expr s Dhall.Import
-  -> m (Dhall.Expr s Dhall.Import)
-transformMExpr rules =
-  transformMOf
-    Dhall.subExpressions
-    rules
-    . Dhall.Core.denote
 
 updateName
   :: forall env
