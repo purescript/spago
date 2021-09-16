@@ -233,8 +233,8 @@ makeConfig force comments = do
           logInfo "Found a \"psc-package.json\" file, migrating to a new Spago config.."
           -- try to update the dependencies (will fail if not found in package set)
           let pscPackages = map PackageName $ PscPackage.depends pscConfig
-          void $ withConfigAST ( addRawDeps config pscPackages
-                               . updateName (PscPackage.name pscConfig))
+          updateName config (PscPackage.name pscConfig)
+          void $ withConfigAST $ addRawDeps config pscPackages
     (_, True) -> do
       -- read the bowerfile
       content <- readTextFile "bower.json"
@@ -255,8 +255,8 @@ makeConfig force comments = do
             else do
               logWarn $ display $ showBowerErrors bowerErrors
 
-          void $ withConfigAST ( addRawDeps config bowerPackages
-                               . updateName bowerName)
+          updateName config bowerName
+          void $ withConfigAST $ addRawDeps config bowerPackages
 
     _ -> pure ()
   -- at last we return the new config
@@ -325,13 +325,6 @@ showBowerErrors (List.sort -> errors)
     showE (NonPureScript name) = surroundQuote name
     showE (MissingFromTheSet (PackageName name)) = surroundQuote name
     showE (WrongVersion (PackageName name) range version) = surroundQuote name <> " has version " <> version <> ", but range is " <> tshow range
-
-
-updateName :: Text -> Expr -> Expr
-updateName newName (Dhall.RecordLit kvs)
-  | Just _name <- Dhall.Map.lookup "name" kvs = Dhall.RecordLit
-    $ Dhall.Map.insert "name" (Dhall.makeRecordField $ Dhall.toTextLit newName) kvs
-updateName _ other = other
 
 addRawDeps :: HasLogFunc env => Config -> [PackageName] -> Expr -> RIO env Expr
 addRawDeps config newPackages expr =
@@ -441,6 +434,39 @@ transformMExpr rules =
     rules
     . Dhall.Core.denote
 
+updateName
+  :: forall env
+   . (HasLogFunc env, HasConfigPath env)
+  => Config
+  -> Text
+  -> RIO env ()
+updateName config newName = do
+  configHasChanged <- withRawConfigAST $ \sameExpr -> do
+    let
+      expectedConfig :: Config
+      expectedConfig = config { name = newName }
+    newExpr <- AST.modifyRawConfigExpression (AST.UpdateName newName) sameExpr
+    -- Verify that returned expression produces the expected `Config` value if parsed
+    -- before we return it.
+    normalizedExpr <- liftIO $ Dhall.inputExpr $ pretty newExpr
+    maybeResult <- parseConfigNormalizedExpr normalizedExpr `catch` (\(_ :: SomeException) -> pure Nothing)
+    case maybeResult of
+      Just parsedConfig -> do
+        validModification <- expectedConfig `isSemanticallyEquivalentTo` parsedConfig
+        if validModification then do
+          pure newExpr
+        else do
+          logWarn "Failed to update name."
+          logDebug $
+            "Raw AST modification did not produce the expected Dhall expression. " <>
+            "If parsed in a future command, the AST would not produce the expected `Config` value."
+          pure $ snd $ AST.resolvedUnresolvedExpr sameExpr
+      Nothing -> do
+        logWarn "Failed to update name."
+        logDebug "Raw AST modification did not produce a valid `spago.dhall` file."
+        pure $ snd $ AST.resolvedUnresolvedExpr sameExpr
+  unless configHasChanged $
+    logWarn "Configuration file was not updated."
 
 -- | Try to add the `newPackages` to the "dependencies" list in the Config.
 --   It will not add any dependency if any of them is not in the package set.
@@ -511,31 +537,34 @@ addDependencies config@Config { dependencies = deps, publishConfig = pubConfig }
 
       x -> x
 
-    -- |
-    -- Unfortunately, we cannot just check whether the expected config is equal to the actual config
-    -- because "Dhall.Map.Map" keeps track of order when equating two maps.
-    -- For some cases, this \"values are only equal if ordered the same\" check will cause a failure when
-    -- we attempt to parse the @PublishConfig@ and fail. In such circumstances, the failure
-    -- message will be @Left (Dhall.RequiredKeyMissing licenseOrRepositoryText map)@ and @map@ will have a different
-    -- order in the expected config than it will in the parsed config.
-    --
-    -- Moreover, if the config equality check below fails, it is more helpful to understand what parts of
-    -- the @Config@ values were considered unequal. Thus, besides doing a typical @expected == actual@ check,
-    -- we will log debug messages to the console while checking all values in case there are multiple
-    -- values that are different.
-    isSemanticallyEquivalentTo :: Config -> Config -> RIO env Bool
-    isSemanticallyEquivalentTo
-      Config { name = expN, dependencies = expD, packageSet = expPS, alternateBackend = expAB, configSourcePaths = expCSP, publishConfig = expPC }
-      Config { name = actN, dependencies = actD, packageSet = actPS, alternateBackend = actAB, configSourcePaths = actCSP, publishConfig = actPC }
-      = checkAll
-          [ checkValue expN actN "Config: name"
-          , checkValue expD actD "Config: dependencies"
-          , checkValue expPS actPS "Config: package set"
-          , checkValue expAB actAB "Config: alternate backend"
-          , checkValue expCSP actCSP "Config: config source paths"
-          , checkPC expPC actPC
-          ]
-
+-- |
+-- Unfortunately, we cannot just check whether the expected config is equal to the actual config
+-- because "Dhall.Map.Map" keeps track of order when equating two maps.
+-- For some cases, this \"values are only equal if ordered the same\" check will cause a failure when
+-- we attempt to parse the @PublishConfig@ and fail. In such circumstances, the failure
+-- message will be @Left (Dhall.RequiredKeyMissing licenseOrRepositoryText map)@ and @map@ will have a different
+-- order in the expected config than it will in the parsed config.
+--
+-- Moreover, if the config equality check below fails, it is more helpful to understand what parts of
+-- the @Config@ values were considered unequal. Thus, besides doing a typical @expected == actual@ check,
+-- we will log debug messages to the console while checking all values in case there are multiple
+-- values that are different.
+isSemanticallyEquivalentTo
+  :: forall env
+   . (HasLogFunc env)
+  => Config -> Config -> RIO env Bool
+isSemanticallyEquivalentTo
+  Config { name = expN, dependencies = expD, packageSet = expPS, alternateBackend = expAB, configSourcePaths = expCSP, publishConfig = expPC }
+  Config { name = actN, dependencies = actD, packageSet = actPS, alternateBackend = actAB, configSourcePaths = actCSP, publishConfig = actPC }
+  = checkAll
+      [ checkValue expN actN "Config: name"
+      , checkValue expD actD "Config: dependencies"
+      , checkValue expPS actPS "Config: package set"
+      , checkValue expAB actAB "Config: alternate backend"
+      , checkValue expCSP actCSP "Config: config source paths"
+      , checkPC expPC actPC
+      ]
+  where
     checkAll :: [RIO env Bool] -> RIO env Bool
     checkAll = foldl' (\acc n -> do
       prev <- acc
