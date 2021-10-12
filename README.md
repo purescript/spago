@@ -868,7 +868,7 @@ To start a project using Spago and Parcel together, here's the commands and file
 
   <body>
     <div id="app"></div>
-    <script src="./index.js"></script>
+    <script src="./index.js" type="module"></script>
   </body>
   </html>
   ```
