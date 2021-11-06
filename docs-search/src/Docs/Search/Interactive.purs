@@ -297,7 +297,6 @@ showExternDataSignature { kind } { name } =
   keyword "foreign data" <>
   space <>
   yellow (unwrap name) <>
-  space <>
   syntax " :: " <>
   showType kind
 
