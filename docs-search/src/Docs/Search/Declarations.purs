@@ -11,7 +11,7 @@ import Prim hiding (Type)
 import Control.Alt ((<|>))
 import Data.Array ((!!))
 import Data.Array as Array
-import Data.Foldable (foldr)
+import Data.Foldable (foldl, foldr)
 import Data.List (List, (:))
 import Data.List as List
 import Data.Maybe (Maybe(..), fromMaybe)
@@ -244,8 +244,33 @@ mkChildInfo
   (SearchResult { info: parentInfo, moduleName, name: resultName })
   (ChildDeclaration { info } )
 
-  | ChildDeclDataConstructor <- info.declType =
-      info.arguments <#> \arguments -> DataConstructorResult { arguments }
+  | ChildDeclDataConstructor <- info.declType
+  , DataResult { dataDeclType, typeArguments } <- parentInfo =
+      let
+        parentTypeCtor :: Type
+        parentTypeCtor = TypeConstructor
+          $ QualifiedName { moduleNameParts:
+                            String.split (wrap ".") (unwrap moduleName)
+                          , name: resultName }
+
+        parentTypeArgs :: Array Type
+        parentTypeArgs = typeArguments <#> unwrap >>> \{ name } -> TypeVar name
+
+        parentType :: Type
+        parentType = foldl TypeApp parentTypeCtor parentTypeArgs
+
+        typeArrow :: Type -> Type
+        typeArrow =
+          TypeApp (TypeConstructor (QualifiedName { moduleNameParts: [ "Prim" ]
+                                                  , name: Identifier "Function" }))
+
+        makeType :: Array Type -> Type
+        makeType = foldr (\a b -> TypeApp (typeArrow a) b) parentType
+      in
+       info.arguments <#> \arguments ->
+         DataConstructorResult { dataDeclType
+                               , "type": makeType arguments
+                               }
 
   | ChildDeclTypeClassMember <- info.declType
   , TypeClassResult { arguments } <- parentInfo =

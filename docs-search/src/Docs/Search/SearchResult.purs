@@ -22,7 +22,8 @@ data ResultInfo
   | ExternDataResult      { kind :: Type }
   | TypeSynonymResult     { arguments :: Array TypeArgument
                           , type :: Type }
-  | DataConstructorResult { arguments :: Array Type }
+  | DataConstructorResult { dataDeclType :: DataDeclType
+                          , type :: Type }
   | TypeClassMemberResult { type :: Type
                           , typeClass :: QualifiedName
                           , typeClassArguments :: Array TypeArgument }
