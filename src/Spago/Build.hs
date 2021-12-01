@@ -223,7 +223,7 @@ repl newPackages sourcePaths pursArgs depsOnly = do
     ensurePsciSupportIncluded :: Config -> Config
     ensurePsciSupportIncluded originalConfig@Config{dependencies = originalDeps}
       | packagePsciSupport `elem` originalDeps = originalConfig
-      | otherwise = originalConfig { dependencies = packagePsciSupport : originalDeps }
+      | otherwise = originalConfig { dependencies = Set.insert packagePsciSupport originalDeps }
 
     replAction purs = do
       Config{..} <- view (the @Config)
