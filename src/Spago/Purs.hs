@@ -87,7 +87,7 @@ bundle withMain withSourceMap (ModuleName moduleName) (TargetPath targetPath) = 
 
       cmd
         = "purs bundle \"output/*/*.js\""
-        <> " -m " <> moduleName
+        <> " --main " <> moduleName
         <> main
         <> " -o " <> targetPath
         <> sourceMap
