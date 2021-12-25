@@ -8,7 +8,6 @@ import Spago.Env
 
 import qualified Data.Aeson               as Json
 import qualified Data.Map                 as Map
-import qualified Data.Set                 as Set
 import qualified Data.Text                as Text
 import qualified Data.Text.Lazy           as LT
 import qualified Data.Text.Lazy.Encoding  as LT
@@ -50,7 +49,7 @@ listPackages packagesFilter jsonFlag = do
     IncludeTransitive -> Packages.getProjectDeps
     _ -> do
       Config { packageSet = PackageSet{ packagesDB }, dependencies } <- view (the @Config)
-      pure $ Map.toList $ Map.restrictKeys packagesDB (Set.fromList dependencies)
+      pure $ Map.toList $ Map.restrictKeys packagesDB dependencies
 
   case packagesToList of
     [] -> logWarn "There are no dependencies listed in your spago.dhall"

@@ -63,7 +63,7 @@ getDirectDeps
   => RIO env [(PackageName, Package)]
 getDirectDeps = do
   Config { packageSet = PackageSet{..}, dependencies } <- view (the @Config)
-  for dependencies $ \dep ->
+  for (toList dependencies) $ \dep ->
     case Map.lookup dep packagesDB of
       Nothing ->
         die [ display $ pkgNotFoundMsg packagesDB (NotFoundError dep) ]
@@ -75,7 +75,7 @@ getProjectDeps
   => RIO env [(PackageName, Package)]
 getProjectDeps = do
   Config{ dependencies } <- view (the @Config)
-  getTransitiveDeps dependencies
+  getTransitiveDeps (toList dependencies)
 
 -- | Return the transitive dependencies of a list of packages
 getTransitiveDeps
@@ -155,7 +155,7 @@ install newPackages = do
 
   -- Try fetching the dependencies with the new names too
   let newConfig :: Config
-      newConfig = config { Config.dependencies = dependencies <> existingNewPackages }
+      newConfig = config { Config.dependencies = dependencies <> Set.fromList existingNewPackages }
   mapRIO (set (the @Config) newConfig) $ do
     deps <- getProjectDeps
 
@@ -214,4 +214,5 @@ sources = do
     $ fmap unSourcePath
     $ getGlobsSourcePaths
     $ getGlobs deps AllSources
+    $ toList
     $ configSourcePaths config

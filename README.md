@@ -868,7 +868,7 @@ To start a project using Spago and Parcel together, here's the commands and file
 
   <body>
     <div id="app"></div>
-    <script src="./index.js"></script>
+    <script src="./index.js" type="module"></script>
   </body>
   </html>
   ```
@@ -1196,17 +1196,38 @@ The value of the `backend` entry should be the name of the backend executable.
 
 ### Publish my library
 
+
 If you wish to develop a library with `spago` you can definitely do so, and use it to
 manage and build your project, until you need to "publish" your library, where you'll need
 to use `pulp`.
 
-Be sure to set the a valid [SPDX license](https://spdx.org/licenses/) in your `spago.dhall`, this will generate a correct `bower.json` file which will be used by `pulp` later.
+Before you start you need to have instaled pulp and bower, both of these can be installed using npm
+
+You also need to add some keys to your `spago.dhall` file:
+  * The first one is `license` it need to be a valid [SPDX license](https://spdx.org/licenses/). 
+  * You also need to add a `repository` key that references the location of the project repository
+here is a example
+``` dhall
+{ name = "my-first-package"
+, dependencies =
+  [ "console", "prelude", "psci-support" ]
+, packages = ./packages.dhall
+, sources = [ "src/**/*.purs", "test/**/*.purs" ]
+, license = "MIT"
+, repository = "https://github.com/me/purescript-my-first-project"
+}
+```
+
+This will generate a correct `bower.json` file which will be used by `pulp` later.
+
 
 When you decide you want to publish your library for others to use, you should:
 - run `spago bump-version --no-dry-run <BUMP>`. This will generate a `bower.json` in a new  commit in Git that is tagged with the version.
+- run `pulp login`. This will ensure that you are logged in befor you try to publish a package
 - run `pulp publish`. This will ensure the package is registered in Bower, push the version tag to Git and upload documentation to Pursuit.
+- create a PR to add your package to https://github.com/purescript/registry/blob/master/new-packages.json
 
-This is because the PureScript ecosystem uses the Bower registry as a "unique names registry".
+The PureScript ecosystem uses the Bower registry as a "unique names registry".
 So in order to "publish" a package one needs to add it there, and eventually to [`package-sets`][package-sets].
 Consequentially, package-sets requires (full instructions [here][package-sets-contributing])
 that packages in it:
