@@ -103,8 +103,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ needs.draft_release.outputs.upload_url }}
-          asset_path: ./${{ runner.os }}.sha
-          asset_name: ${{ runner.os }}.sha
+          asset_path: ./${{ runner.os }}.sha1
+          asset_name: ${{ runner.os }}.sha1
           asset_content_type: text/plain
 
   npm_publish:
