@@ -17,4 +17,7 @@ flags:
     examples: false
   cryptonite:
     use_target_attributes: false
+system-ghc: true
+compiler: ghc-8.10.7
+compiler-check: match-exact
 

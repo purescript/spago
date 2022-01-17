@@ -330,18 +330,21 @@ runBackend maybeBackend RunDirectories{ sourceDir, executeDir } moduleName maybe
   build (Just postBuild)
   where
     fromFilePath = Text.pack . Turtle.encodeString
-    runJsSource = fromFilePath (sourceDir Turtle.</> ".spago/run.js")
+    runJsSource = fromFilePath (sourceDir Turtle.</> ".spago/run.mjs")
     nodeArgs = Text.intercalate " " $ map unBackendArg extraArgs
     nodeContents outputPath' =
       fold
         [ "#!/usr/bin/env node\n\n"
-        , "require('"
+        , "import { main } from '"
         , Text.replace "\\" "/" (fromFilePath sourceDir)
         , "/"
         , Text.pack outputPath'
         , "/"
         , unModuleName moduleName
-        , "').main()"
+        , "/"
+        , "index.js"
+        , "'\n\n"
+        , "main()"
         ]
     nodeCmd = "node " <> runJsSource <> " " <> nodeArgs
     nodeAction outputPath' = do

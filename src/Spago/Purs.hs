@@ -82,14 +82,15 @@ bundle withMain withSourceMap (ModuleName moduleName) (TargetPath targetPath) = 
         WithoutMain -> ""
 
       sourceMap = case withSourceMap of 
-        WithSrcMap    -> " --source-maps"
+        WithSrcMap    -> ""
         WithoutSrcMap -> ""
 
       cmd
-        = "purs bundle \"output/*/*.js\""
-        <> " -m " <> moduleName
+        = "esbuild --bundlebundle \"output/"
+        <> moduleName
+        <> "*/*.js\""
         <> main
-        <> " -o " <> targetPath
+        <> " --outfile " <> targetPath
         <> sourceMap
 
   runWithOutput cmd
