@@ -1,0 +1,29 @@
+#!/bin/bash
+echoerr() {
+    echo "$@" 1>&2;
+}
+
+hash() {
+    if command -v openssl &> /dev/null; then
+        openssl sha1 $1 | cut -f 2 -d " "
+    elif command -v shasum &> /dev/null; then
+        shasum $1 | cut -f 1 -d " "
+    elif command -v sha1sum &> /dev/null; then
+        sha1sum $1 | cut -f 1 -d " "
+    else
+        echoerr "could not find any hashing tool"
+        exit 1
+    fi
+}
+
+check() {
+    if $(hash $1 | grep $(cat $2) &> /dev/null); then
+        echoerr "SHA1 in $2: $(cat $2)"
+    else
+        echoerr "FAIL"
+        exit 1
+    fi
+}
+
+hash $1 > $2
+check $1 $2

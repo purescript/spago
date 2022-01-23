@@ -59,7 +59,6 @@ jobs:
         run: |
           brew install gnu-tar
           echo "/usr/local/opt/gnu-tar/libexec/gnubin" >> $GITHUB_PATH
-
       - name: Package binary (Linux and macOS)
         if: runner.os != 'Windows'
         shell: bash
@@ -92,6 +91,21 @@ jobs:
           asset_path: ./${{ runner.os }}.tar.gz
           asset_name: ${{ runner.os }}.tar.gz
           asset_content_type: application/gzip
+
+      - name: Package Checksum
+        shell: bash
+        run: ./scripts/checksum ${{ runner.os }}.tar.gz ${{ runner.os }}.sha1
+
+      - name: Upload Checksum Asset
+        id: upload-checksum-asset
+        uses: actions/upload-checksum-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.draft_release.outputs.upload_url }}
+          asset_path: ./${{ runner.os }}.sha1
+          asset_name: ${{ runner.os }}.sha1
+          asset_content_type: text/plain
 
   npm_publish:
     name: Publish package on npm
