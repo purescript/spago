@@ -15,8 +15,8 @@
     "spago": "./spago"
   },
   "dependencies": {
-    "request": "^2.88.0",
-    "tar": "^4.4.8"
+    "make-fetch-happen": "^9.1.0",
+    "tar": "^6.1.11"
   },
   "keywords": [
     "purescript",
