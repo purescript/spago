@@ -92,6 +92,9 @@ data WithSrcMap = WithSrcMap | WithoutSrcMap
 data CacheFlag = SkipCache | NewCache
   deriving (Eq)
 
+data GlobalOffline = Offline | Online
+  deriving (Eq)
+
 data CheckModulesUnique = DoCheckModulesUnique | NoCheckModulesUnique
 
 data JsonFlag = JsonOutputNo | JsonOutputYes

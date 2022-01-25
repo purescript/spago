@@ -157,6 +157,18 @@ freezePackageSet = makeMessage
   [ "Generating new hashes for the package set file so it will be cached.. (this might take some time)"
   ]
 
+freezePackageSetOffline :: Text
+freezePackageSetOffline = makeMessage
+  [ "Could not generate new hashes for the package set file because the `--offline` flag was set."
+  , "Rerun this command without the `--offline` flag when the internet is available to fix this issue."
+  ]
+
+fetchPackagesOffline :: Text
+fetchPackagesOffline = makeMessage
+  [ "Could not fetch packages while the `--offline` flag is enabled."
+  , "Rerun this command without the `--offline` flag when the internet is available to fix this issue."
+  ]
+
 failedToCheckPackageSetFrozen :: Text
 failedToCheckPackageSetFrozen = makeMessage
   [ "WARNING: wasn't able to check if your package set import is frozen"

@@ -49,7 +49,7 @@ withEnv GlobalOptions{..} app = do
 
     let configPath = fromMaybe Config.defaultPath globalConfigPath
 
-    when globalOffline $ runRIO logFunc' $ do
+    when (globalOffline == Offline) $ runRIO logFunc' $ do
       RIO.logWarn "The --offline flag is very experimental and only works for the `build` command."
 
     globalCache <- do
@@ -65,12 +65,13 @@ withEnv GlobalOptions{..} app = do
           , envJobs = Jobs $ fromMaybe 20 globalJobs
           , envConfigPath = ConfigPath configPath
           , envGlobalCache = globalCache
+          , envGlobalOffline = globalOffline
           }
     runRIO env app
 
 
 withPackageSetEnv
-  :: (HasLogFunc env, HasConfigPath env)
+  :: (HasLogFunc env, HasConfigPath env, HasGlobalOffline env)
   => RIO PackageSetEnv a
   -> RIO env a
 withPackageSetEnv app = do
@@ -173,9 +174,10 @@ getEnv = do
   envJobs <- view (the @Jobs)
   envConfigPath <- view (the @ConfigPath)
   envGlobalCache <- view (the @GlobalCache)
+  envGlobalOffline <- view (the @GlobalOffline)
   pure Env{..}
 
-getConfig :: (HasLogFunc env, HasConfigPath env) => RIO env Config
+getConfig :: (HasLogFunc env, HasConfigPath env, HasGlobalOffline env) => RIO env Config
 getConfig = Config.ensureConfig >>= \case
   Right c -> pure c
   Left err -> die [ "Failed to read the config. Error was:", err ]
@@ -194,7 +196,7 @@ getPurs usePsa = do
 getGit :: HasLogFunc env => RIO env GitCmd
 getGit = GitCmd <$> findExecutableOrDie "git"
 
-getPackageSet :: (HasLogFunc env, HasConfigPath env) => RIO env PackageSet
+getPackageSet :: (HasLogFunc env, HasConfigPath env, HasGlobalOffline env) => RIO env PackageSet
 getPackageSet = do
   -- Try to read a "packages.dhall" directly
   try (liftIO (Dhall.inputExpr $ "./" <> PackageSet.packagesPath)) >>= \case

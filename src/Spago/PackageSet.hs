@@ -77,7 +77,7 @@ getLatestSetForCompilerVersion compilerVersion org repo = do
 --   Otherwise, get the latest version of the package set if possible
 updatePackageSetVersion
   :: forall env
-  .  (HasLogFunc env, HasGlobalCache env, HasPurs env)
+  .  (HasLogFunc env, HasGlobalCache env, HasPurs env, HasGlobalOffline env)
   => Maybe Text
   -> RIO env ()
 updatePackageSetVersion maybeTag = do
@@ -267,8 +267,11 @@ findRootPath :: [System.IO.FilePath] -> Maybe System.IO.FilePath
 findRootPath = Safe.minimumByMay (comparing (length . System.FilePath.splitSearchPath))
 
 -- | Freeze the package set remote imports so they will be cached
-freeze :: HasLogFunc env => System.IO.FilePath -> RIO env ()
+freeze :: HasLogFunc env => HasGlobalOffline env => System.IO.FilePath -> RIO env ()
 freeze path = do
+  internetAccess <- view (the @GlobalOffline)
+  when (internetAccess == Offline) $ do
+    logError $ display Messages.freezePackageSetOffline
   logInfo $ display Messages.freezePackageSet
   liftIO $
     Dhall.Freeze.freeze
@@ -281,7 +284,7 @@ freeze path = do
 
 
 -- | Freeze the file if any of the remote imports are not frozen
-ensureFrozen :: HasLogFunc env => System.IO.FilePath -> RIO env ()
+ensureFrozen :: HasLogFunc env => HasGlobalOffline env => System.IO.FilePath -> RIO env ()
 ensureFrozen path = do
   logDebug "Ensuring that the package set is frozen"
   imports <- liftIO $ Dhall.readImports $ Text.pack path

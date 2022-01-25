@@ -147,7 +147,7 @@ parseConfig = do
 
 -- | Checks that the Spago config is there and readable
 ensureConfig
-  :: (HasLogFunc env, HasConfigPath env)
+  :: (HasLogFunc env, HasConfigPath env, HasGlobalOffline env)
   => RIO env (Either Utf8Builder Config)
 ensureConfig = do
   ConfigPath path <- view (the @ConfigPath)
@@ -191,7 +191,7 @@ makeTempConfig dependencies alternateBackend configSourcePaths maybeTag = do
 -- | Copies over `spago.dhall` to set up a Spago project.
 --   Eventually ports an existing `psc-package.json` to the new config.
 makeConfig
-  :: (HasConfigPath env, HasLogFunc env)
+  :: (HasConfigPath env, HasLogFunc env, HasGlobalOffline env)
   => Force -> Dhall.TemplateComments
   -> RIO env Config
 makeConfig force comments = do

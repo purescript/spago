@@ -19,6 +19,7 @@ module Spago.Env
 
   -- | Simple capabilities
   , HasGlobalCache
+  , HasGlobalOffline
   , HasConfigPath
   , HasJobs
   , HasPackageSet
@@ -47,13 +48,14 @@ data GlobalOptions = GlobalOptions
   , globalJobs        :: Maybe Int
   , globalConfigPath  :: Maybe Text
   , globalCacheConfig :: Maybe CacheFlag
-  , globalOffline     :: Bool
+  , globalOffline     :: GlobalOffline
   }
 
 type HasLogFunc env = HasType LogFunc env
 type HasJobs env = HasType Jobs env
 type HasGlobalCache env = HasType GlobalCache env
 type HasConfigPath env = HasType ConfigPath env
+type HasGlobalOffline env = HasType GlobalOffline env
 type HasPackageSet env = HasType PackageSet env
 type HasPurs env = HasType PursCmd env
 type HasGit env = HasType GitCmd env
@@ -64,6 +66,7 @@ type HasEnv env =
   , HasJobs env
   , HasConfigPath env
   , HasGlobalCache env
+  , HasGlobalOffline env
   )
 
 type HasConfig env = ( HasType Config env, HasPackageSet env )
@@ -75,6 +78,7 @@ type HasVerifyEnv env =
   ( HasLogFunc env
   , HasJobs env
   , HasGlobalCache env
+  , HasGlobalOffline env
   , HasPurs env
   , HasPackageSet env
   , HasMaybeConfig env
@@ -109,6 +113,7 @@ data Env = Env
   , envJobs :: !Jobs
   , envConfigPath :: !ConfigPath
   , envGlobalCache :: !GlobalCache
+  , envGlobalOffline :: !GlobalOffline
   } deriving (Generic)
 
 data PackageSetEnv = PackageSetEnv
@@ -120,6 +125,7 @@ data VerifyEnv = VerifyEnv
   { envLogFunc :: !LogFunc
   , envJobs :: !Jobs
   , envGlobalCache :: !GlobalCache
+  , envGlobalOffline :: !GlobalOffline
   , envPursCmd :: !PursCmd
   , envPackageSet :: !PackageSet
   , envConfig :: !(Maybe Config)
@@ -130,6 +136,7 @@ data InstallEnv = InstallEnv
   , envJobs :: !Jobs
   , envConfigPath :: !ConfigPath
   , envGlobalCache :: !GlobalCache
+  , envGlobalOffline :: !GlobalOffline
   , envPackageSet :: !PackageSet
   , envConfig :: !Config
   } deriving (Generic)
@@ -148,6 +155,7 @@ data BuildEnv = BuildEnv
   , envJobs :: !Jobs
   , envConfigPath :: !ConfigPath
   , envGlobalCache :: !GlobalCache
+  , envGlobalOffline :: !GlobalOffline
   , envPursCmd :: !PursCmd
   , envGitCmd :: !GitCmd
   , envPackageSet :: !PackageSet
@@ -161,5 +169,6 @@ data PursEnv = PursEnv
   , envJobs :: !Jobs
   , envConfigPath :: !ConfigPath
   , envGlobalCache :: !GlobalCache
+  , envGlobalOffline :: !GlobalOffline
   , envPursCmd :: !PursCmd
   } deriving (Generic)
