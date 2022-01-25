@@ -47,6 +47,7 @@ data GlobalOptions = GlobalOptions
   , globalJobs        :: Maybe Int
   , globalConfigPath  :: Maybe Text
   , globalCacheConfig :: Maybe CacheFlag
+  , globalOffline     :: Bool
   }
 
 type HasLogFunc env = HasType LogFunc env
