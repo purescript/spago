@@ -79,7 +79,7 @@ newtype ModuleName = ModuleName { unModuleName :: Text }
   deriving newtype (Show, Eq, Ord, FromJSON, FromJSONKey, ToJSON, ToJSONKey)
 newtype TargetPath = TargetPath { unTargetPath :: Text }
 newtype SourcePath = SourcePath { unSourcePath :: Text }
-  deriving newtype (Show, Dhall.FromDhall)
+  deriving newtype (Eq, Ord, Show, Dhall.FromDhall)
 newtype PursArg = PursArg { unPursArg :: Text }
   deriving newtype (Eq, Show)
 newtype BackendArg = BackendArg { unBackendArg :: Text }
@@ -185,10 +185,10 @@ data ScriptBuildOptions = ScriptBuildOptions
 -- | Spago configuration file type
 data Config = Config
   { name              :: Text
-  , dependencies      :: [PackageName]
+  , dependencies      :: Set PackageName
   , packageSet        :: PackageSet
   , alternateBackend  :: Maybe Text
-  , configSourcePaths :: [SourcePath]
+  , configSourcePaths :: Set SourcePath
   , publishConfig     :: Either (Dhall.ReadError Void) PublishConfig
   } deriving (Show, Generic)
 

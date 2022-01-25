@@ -10,6 +10,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Bugfixes:
 - Don't warn on unused deps when building --deps-only. (#794)
 
+Other improvements:
+- CI: Add sha256 checksum generation on the release workflow (#816)
+- Replacing deprecated `request` by `make-fetch-happen` for NPM installation (#840)
+
 ## [0.20.3] - 2021-05-12
 
 Bugfixes:

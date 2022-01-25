@@ -1,8 +1,10 @@
 # spago
 
 [![npm](https://img.shields.io/npm/v/spago.svg)][spago-npm]
-[![Build Status](https://travis-ci.com/purescript/spago.svg?branch=master)][travis-spago]
+[![Latest release](https://img.shields.io/github/v/release/purescript/spago.svg)](https://github.com/purescript/spago/releases)
+[![build](https://github.com/purescript/spago/actions/workflows/build.yml/badge.svg)](https://github.com/purescript/spago/actions/workflows/build.yml)
 [![Build status](https://ci.appveyor.com/api/projects/status/jydvr4sur6j6816e/branch/master?svg=true)](https://ci.appveyor.com/project/f-f/spago/branch/master)
+[![Maintainer: f-f](https://img.shields.io/badge/maintainer-f%2d-f-teal.svg)](http://github.com/f-f)
 
 *(IPA: /ˈspaɡo/)*
 
@@ -106,7 +108,6 @@ $ node .
 <!-- START doctoc generated TOC please keep comment here to allow auto update -->
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 
-
 - [Design goals and reasons](#design-goals-and-reasons)
   - [Brief survey of other package managers and build tools available](#brief-survey-of-other-package-managers-and-build-tools-available)
 - [Developing and contributing](#developing-and-contributing)
@@ -131,7 +132,7 @@ $ node .
   - [Upgrade the package set...](#upgrade-the-package-set)
     - [...to the latest release automatically](#to-the-latest-release-automatically)
     - [...to a specific release automatically](#to-a-specific-release-automatically)
-    - [... to a specific tag manually](#-to-a-specific-tag-manually)
+    - [...to a specific tag manually](#to-a-specific-tag-manually)
   - [Monorepo](#monorepo)
   - [`devDependencies`, `testDependencies`, or in general a situation with many configurations](#devdependencies-testdependencies-or-in-general-a-situation-with-many-configurations)
   - [Bundle a project into a single JS file](#bundle-a-project-into-a-single-js-file)
@@ -608,7 +609,7 @@ Spago can update the package set to the latest release or to a specific release 
 Running it would look something like this:
 
 ```bash
-$ spago  upgrade-set
+$ spago upgrade-set
 [info] Updating package-set tag to "psc-0.13.8-20200822"
 Fetching the new one and generating hashes.. (this might take some time)
 [info] Generating new hashes for the package set file so it will be cached.. (this might take some time)
@@ -635,15 +636,7 @@ Fetching the new one and generating hashes.. (this might take some time)
 Will ignore user-specified tag and continue using current tag: "psc-0.13.4-20191025"
 ```
 
-If you wish to detach from tags for your package-set, you can of course point it to a
-specific commit. Just set your `upstream` to look something like this:
-
-```haskell
-let upstream =
-      https://raw.githubusercontent.com/purescript/package-sets/bd72269fec59950404a380a46e293bde34b4618f/src/packages.dhall
-```
-
-#### ... to a specific tag manually
+#### ...to a specific tag manually
 
 If you wish to detach from tags for your package-set, you can of course point it to a
 specific commit. Just set your `upstream` to look something like this:
@@ -878,7 +871,7 @@ To start a project using Spago and Parcel together, here's the commands and file
 
   <body>
     <div id="app"></div>
-    <script src="./index.js"></script>
+    <script src="./index.js" type="module"></script>
   </body>
   </html>
   ```
@@ -1124,7 +1117,7 @@ To start a project using Spago and Parcel together, here's the commands and file
 
 5. At this point we should be able to run our program by calling `spago build` followed by `node index.js`.
   If you see `🍝` as output then this was successful!
-6. Now we want to enable Nodemon, which will watch for file changes in the dependancy tree and
+6. Now we want to enable Nodemon, which will watch for file changes in the dependency tree and
   reload our Node program every time there is a new change.
   We'll also tell Spago to watch our PureScript source files so that they are compiled,
   which in turn will trigger a Nodemon reload.
@@ -1206,17 +1199,38 @@ The value of the `backend` entry should be the name of the backend executable.
 
 ### Publish my library
 
+
 If you wish to develop a library with `spago` you can definitely do so, and use it to
 manage and build your project, until you need to "publish" your library, where you'll need
 to use `pulp`.
 
-Be sure to set the a valid [SPDX license](https://spdx.org/licenses/) in your `spago.dhall`, this will generate a correct `bower.json` file which will be used by `pulp` later.
+Before you start you need to have instaled pulp and bower, both of these can be installed using npm
+
+You also need to add some keys to your `spago.dhall` file:
+  * The first one is `license` it need to be a valid [SPDX license](https://spdx.org/licenses/). 
+  * You also need to add a `repository` key that references the location of the project repository
+here is a example
+``` dhall
+{ name = "my-first-package"
+, dependencies =
+  [ "console", "prelude", "psci-support" ]
+, packages = ./packages.dhall
+, sources = [ "src/**/*.purs", "test/**/*.purs" ]
+, license = "MIT"
+, repository = "https://github.com/me/purescript-my-first-project"
+}
+```
+
+This will generate a correct `bower.json` file which will be used by `pulp` later.
+
 
 When you decide you want to publish your library for others to use, you should:
 - run `spago bump-version --no-dry-run <BUMP>`. This will generate a `bower.json` in a new  commit in Git that is tagged with the version.
+- run `pulp login`. This will ensure that you are logged in befor you try to publish a package
 - run `pulp publish`. This will ensure the package is registered in Bower, push the version tag to Git and upload documentation to Pursuit.
+- create a PR to add your package to https://github.com/purescript/registry/blob/master/new-packages.json
 
-This is because the PureScript ecosystem uses the Bower registry as a "unique names registry".
+The PureScript ecosystem uses the Bower registry as a "unique names registry".
 So in order to "publish" a package one needs to add it there, and eventually to [`package-sets`][package-sets].
 Consequentially, package-sets requires (full instructions [here][package-sets-contributing])
 that packages in it:

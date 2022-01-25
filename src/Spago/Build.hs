@@ -55,9 +55,9 @@ build maybePostBuild = do
   BuildOptions{..} <- view (the @BuildOptions)
   Config{..} <- view (the @Config)
   deps <- Packages.getProjectDeps
-  let partitionedGlobs@Packages.Globs{..} = Packages.getGlobs deps depsOnly configSourcePaths
+  let partitionedGlobs@Packages.Globs{..} = Packages.getGlobs deps depsOnly (toList configSourcePaths)
       allPsGlobs = Packages.getGlobsSourcePaths partitionedGlobs <> sourcePaths
-      allJsGlobs = Packages.getJsGlobs deps depsOnly configSourcePaths <> sourcePaths
+      allJsGlobs = Packages.getJsGlobs deps depsOnly (toList configSourcePaths) <> sourcePaths
 
       checkImports = do
         maybeGraph <- view (the @Graph)
@@ -103,7 +103,7 @@ build maybePostBuild = do
                     $ Set.toList importedPackageModules
 
                 dependencyPackages :: Set PackageName
-                dependencyPackages = Set.fromList dependencies
+                dependencyPackages = dependencies
 
               let
                 unusedPackages =
@@ -215,10 +215,10 @@ repl newPackages sourcePaths pursArgs depsOnly = do
 
         writeTextFile ".purs-repl" Templates.pursRepl
 
-        let dependencies = [ PackageName "effect", PackageName "console", PackageName "psci-support" ] <> newPackages
+        let dependencies = Set.fromList $ [ PackageName "effect", PackageName "console", PackageName "psci-support" ] <> newPackages
 
         config <- Run.withPursEnv NoPsa $ do
-          Config.makeTempConfig dependencies Nothing [] Nothing
+          Config.makeTempConfig dependencies Nothing Set.empty Nothing
 
         Run.withInstallEnv' (Just config) (replAction purs)
   where
@@ -233,7 +233,7 @@ repl newPackages sourcePaths pursArgs depsOnly = do
           ]
       let
         globs =
-          Packages.getGlobsSourcePaths $ Packages.getGlobs deps depsOnly (configSourcePaths <> sourcePaths)
+          Packages.getGlobsSourcePaths $ Packages.getGlobs deps depsOnly (toList $ configSourcePaths <> Set.fromList sourcePaths)
       Fetch.fetchPackages deps
       runRIO purs $ Purs.repl globs pursArgs
 
@@ -296,10 +296,10 @@ script modulePath tag packageDeps opts = do
   Turtle.mktree scriptDirPath
   Turtle.cd scriptDirPath
 
-  let dependencies = [ PackageName "effect", PackageName "console", PackageName "prelude" ] <> packageDeps
+  let dependencies = Set.fromList $ [ PackageName "effect", PackageName "console", PackageName "prelude" ] <> packageDeps
 
   config <- Run.withPursEnv NoPsa $ do
-    Config.makeTempConfig dependencies Nothing [ SourcePath absoluteModulePath ] tag
+    Config.makeTempConfig dependencies Nothing (Set.fromList [ SourcePath absoluteModulePath ]) tag
 
   let runDirs :: RunDirectories
       runDirs = RunDirectories scriptDirPath currentDir
@@ -430,7 +430,7 @@ docs format noSearch open = do
   Config{..} <- view (the @Config)
   deps <- Packages.getProjectDeps
   logInfo "Generating documentation for the project. This might take a while..."
-  Purs.docs docsFormat $ Packages.getGlobsSourcePaths (Packages.getGlobs deps depsOnly configSourcePaths) <> sourcePaths
+  Purs.docs docsFormat $ Packages.getGlobsSourcePaths (Packages.getGlobs deps depsOnly (toList configSourcePaths)) <> sourcePaths
 
   when isHTMLFormat $ do
     when (noSearch == AddSearch) $ do
@@ -469,7 +469,7 @@ search = do
 
   logInfo "Building module metadata..."
 
-  Purs.compile (Packages.getGlobsSourcePaths (Packages.getGlobs deps Packages.AllSources configSourcePaths))
+  Purs.compile (Packages.getGlobsSourcePaths (Packages.getGlobs deps Packages.AllSources (toList configSourcePaths)))
     [ PursArg "--codegen"
     , PursArg "docs"
     ]
