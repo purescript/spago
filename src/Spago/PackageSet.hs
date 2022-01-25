@@ -271,7 +271,7 @@ freeze :: HasLogFunc env => HasGlobalOffline env => System.IO.FilePath -> RIO en
 freeze path = do
   internetAccess <- view (the @GlobalOffline)
   when (internetAccess == Offline) $ do
-    logError $ display Messages.freezePackageSetOffline
+    die [ display Messages.freezePackageSetOffline ]
   logInfo $ display Messages.freezePackageSet
   liftIO $
     Dhall.Freeze.freeze

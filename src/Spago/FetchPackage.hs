@@ -43,7 +43,7 @@ fetchPackages allDeps = do
 
   internetAccess <- view (the @GlobalOffline)
   when (internetAccess == Offline) $ do
-    logError $ display Messages.fetchPackagesOffline
+    die [ display Messages.fetchPackagesOffline ]
 
   PackageSet.checkPursIsUpToDate
 
