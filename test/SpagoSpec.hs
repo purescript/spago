@@ -308,6 +308,12 @@ spec = around_ setup $ do
       spago ["install"] >>= shouldBeSuccess
       spago ["build", "--no-install"] >>= shouldBeSuccess
 
+    it "Spago should build successfully when passing the --offline flag" $ do
+
+      spago ["init"] >>= shouldBeSuccess
+      spago ["install"] >>= shouldBeSuccess
+      spago ["build", "--no-install", "--offline"] >>= shouldBeSuccess
+
     it "Spago should add sources to config when key is missing" $ do
 
       configV1 <- readFixture "spago-configV1.dhall"
