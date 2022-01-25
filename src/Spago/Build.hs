@@ -376,11 +376,36 @@ bundleApp
   -> BuildOptions
   -> UsePsa
   -> RIO env ()
-bundleApp withMain maybeModuleName maybeTargetPath noBuild buildOpts usePsa =
-  let (moduleName, targetPath) = prepareBundleDefaults maybeModuleName maybeTargetPath
+bundleApp withMain maybeModuleName maybeTargetPath noBuild buildOpts@(BuildOptions{ pursArgs }) usePsa = do
+  sourceDir <- Turtle.pwd
+  let 
+      fromFilePath = Text.pack . Turtle.encodeString
+      bundleJsSource = fromFilePath (sourceDir Turtle.</> ".spago/bundle.js")
+
+      bundleJsContents outputPath' =
+        fold
+          [ "import { main } from '"
+          , Text.replace "\\" "/" (fromFilePath sourceDir)
+          , "/"
+          , Text.pack outputPath'
+          , "/"
+          , unModuleName moduleName
+          , "/"
+          , "index.js"
+          , "'\n\n"
+          , "main()"
+          ]
+      (moduleName, targetPath) = prepareBundleDefaults maybeModuleName maybeTargetPath
+      writeBundleJs outputPath' = do
+        logDebug $ "Writing " <> displayShow @Text bundleJsSource
+        sourceDir <- Turtle.pwd
+        writeTextFile bundleJsSource (bundleJsContents outputPath')
+      
       bundleAction = Purs.bundle withMain (withSourceMap buildOpts) moduleName targetPath
-  in case noBuild of
-    DoBuild -> Run.withBuildEnv usePsa buildOpts $ build (Just bundleAction)
+  case noBuild of
+    DoBuild -> do
+      writeBundleJs $ Path.getOutputPath pursArgs
+      Run.withBuildEnv usePsa buildOpts $ build (Just bundleAction)
     NoBuild -> Run.getEnv >>= (flip runRIO) bundleAction
 
 -- | Bundle into a CommonJS module

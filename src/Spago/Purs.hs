@@ -78,11 +78,14 @@ repl sourcePaths extraArgs = do
 bundle :: HasLogFunc env => WithMain -> WithSrcMap -> ModuleName -> TargetPath -> RIO env ()
 bundle withMain withSourceMap (ModuleName moduleName) (TargetPath targetPath) = do
   let 
+      path = case withMain of
+          WithMain -> ".spago/bundle.js"
+          WithoutMain -> "\"output/" <> moduleName <> "/index.js\""
+          
       -- [TODO]: We probably want a flag here for node/browser
       cmd
-        = "esbuild --platform=node --bundle \"output/"
-        <> moduleName
-        <> "/index.js\""
+        = "esbuild --platform=browser --bundle " 
+        <> path
         <> " --outfile=" <> targetPath
 
   runWithOutput cmd
