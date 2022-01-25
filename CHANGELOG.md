@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+New Features:
+- Added `--offline` flag primarily for `spago build --no-install --offline` (#841)
+
 Bugfixes:
 - Don't warn on unused deps when building --deps-only. (#794)
 
