@@ -49,6 +49,9 @@ withEnv GlobalOptions{..} app = do
 
     let configPath = fromMaybe Config.defaultPath globalConfigPath
 
+    when globalOffline $ runRIO logFunc' $ do
+      RIO.logWarn "The --offline flag is very experimental and only works for the `build` command."
+
     globalCache <- do
       path <- case globalCacheConfig of
         Just SkipCache -> pure FetchPackage.localCacheDir
