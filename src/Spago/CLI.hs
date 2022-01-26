@@ -133,7 +133,7 @@ parser = do
     verbose     = CLI.switch "verbose" 'v' "Enable additional debug logging, e.g. printing `purs` commands"
     veryVerbose = CLI.switch "very-verbose" 'V' "Enable more verbosity: timestamps and source locations"
     noColor     = Opts.switch (Opts.long "no-color" <> Opts.help "Log without ANSI color escape sequences")
-    offlineFlag = bool Online Offline <$> Opts.switch (Opts.long "offline" <> Opts.help "VERY EXPERIMENTAL. Attempts to run Spago commands without using the internet or exits unsuccesfully otherwise.")
+    offlineFlag = bool Online Offline <$> Opts.switch (Opts.long "offline" <> Opts.help "EXPERIMENTAL. Attempts to run Spago commands without using the internet or exits unsuccesfully otherwise.")
 
     -- Note: the first constructor is the default when the flag is not provided
     force        = bool NoForce Force <$> CLI.switch "force" 'f' "Overwrite any project found in the current directory"
