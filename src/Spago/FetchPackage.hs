@@ -41,10 +41,6 @@ fetchPackages
 fetchPackages allDeps = do
   logDebug "Running `fetchPackages`"
 
-  internetAccess <- view (the @GlobalOffline)
-  when (internetAccess == Offline) $ do
-    die [ display Messages.fetchPackagesOffline ]
-
   PackageSet.checkPursIsUpToDate
 
   -- Ensure both local and global cache dirs are there
@@ -62,6 +58,9 @@ fetchPackages allDeps = do
   -- Note: it might be empty depending on the cacheFlag
   let nOfDeps = List.length depsToFetch
   when (nOfDeps > 0) $ do
+    internetAccess <- view (the @GlobalOffline)
+    when (internetAccess == Offline) $ do
+      die [ display Messages.fetchPackagesOffline ]
     logInfo $ "Installing " <> display nOfDeps <> " dependencies."
     metadata <- GlobalCache.getMetadata
 
