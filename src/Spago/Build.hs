@@ -329,28 +329,9 @@ runBackend maybeBackend RunDirectories{ sourceDir, executeDir } moduleName maybe
   let postBuild = maybe (nodeAction $ Path.getOutputPath pursArgs) backendAction maybeBackend
   build (Just postBuild)
   where
-    fromFilePath = Text.pack . Turtle.encodeString
-    runJsSource = fromFilePath (sourceDir Turtle.</> ".spago/run.mjs")
     nodeArgs = Text.intercalate " " $ map unBackendArg extraArgs
-    nodeContents outputPath' =
-      fold
-        [ "#!/usr/bin/env node\n\n"
-        , "import { main } from '"
-        , Text.replace "\\" "/" (fromFilePath sourceDir)
-        , "/"
-        , Text.pack outputPath'
-        , "/"
-        , unModuleName moduleName
-        , "/"
-        , "index.js"
-        , "'\n\n"
-        , "main()"
-        ]
-    nodeCmd = "node " <> runJsSource <> " " <> nodeArgs
+    nodeCmd = "node --input-type=module -e \"import { main } from './output/Main/index.js'\nmain()\" " <> nodeArgs
     nodeAction outputPath' = do
-      logDebug $ "Writing " <> displayShow @Text runJsSource
-      writeTextFile runJsSource (nodeContents outputPath')
-      void $ chmod executable $ pathFromText runJsSource
       -- cd to executeDir in case it isn't the same as sourceDir
       logDebug $ "Executing from: " <> displayShow @FilePath executeDir
       Turtle.cd executeDir
@@ -377,35 +358,11 @@ bundleApp
   -> UsePsa
   -> RIO env ()
 bundleApp withMain maybeModuleName maybeTargetPath noBuild buildOpts@(BuildOptions{ pursArgs }) usePsa = do
-  sourceDir <- Turtle.pwd
   let 
-      fromFilePath = Text.pack . Turtle.encodeString
-      bundleJsSource = fromFilePath (sourceDir Turtle.</> ".spago/bundle.js")
-
-      bundleJsContents outputPath' =
-        fold
-          [ "import { main } from '"
-          , Text.replace "\\" "/" (fromFilePath sourceDir)
-          , "/"
-          , Text.pack outputPath'
-          , "/"
-          , unModuleName moduleName
-          , "/"
-          , "index.js"
-          , "'\n\n"
-          , "main()"
-          ]
-      (moduleName, targetPath) = prepareBundleDefaults maybeModuleName maybeTargetPath
-      writeBundleJs outputPath' = do
-        logDebug $ "Writing " <> displayShow @Text bundleJsSource
-        sourceDir <- Turtle.pwd
-        writeTextFile bundleJsSource (bundleJsContents outputPath')
-      
+      (moduleName, targetPath) = prepareBundleDefaults maybeModuleName maybeTargetPath      
       bundleAction = Purs.bundle withMain (withSourceMap buildOpts) moduleName targetPath
   case noBuild of
-    DoBuild -> do
-      writeBundleJs $ Path.getOutputPath pursArgs
-      Run.withBuildEnv usePsa buildOpts $ build (Just bundleAction)
+    DoBuild -> Run.withBuildEnv usePsa buildOpts $ build (Just bundleAction)
     NoBuild -> Run.getEnv >>= (flip runRIO) bundleAction
 
 -- | Bundle into a CommonJS module
@@ -419,18 +376,9 @@ bundleModule
   -> RIO env ()
 bundleModule maybeModuleName maybeTargetPath noBuild buildOpts usePsa = do
   logDebug "Running `bundleModule`"
-  let (moduleName, targetPath) = prepareBundleDefaults maybeModuleName maybeTargetPath
-      jsExport = Text.unpack $ "\nmodule.exports = PS[\""<> unModuleName moduleName <> "\"];"
-      bundleAction = do
-        logInfo "Bundling first..."
-        Purs.bundle WithoutMain (withSourceMap buildOpts) moduleName targetPath
-        -- Here we append the CommonJS export line at the end of the bundle
-        try (with
-              (appendonly $ pathFromText $ unTargetPath targetPath)
-              (\fileHandle -> Utf8.withHandle fileHandle (Sys.hPutStrLn fileHandle jsExport)))
-          >>= \case
-            Right _ -> logInfo $ display $ "Make module succeeded and output file to " <> unTargetPath targetPath
-            Left (n :: SomeException) -> die [ "Make module failed: " <> repr n ]
+  let 
+      (moduleName, targetPath) = prepareBundleDefaults maybeModuleName maybeTargetPath
+      bundleAction = Purs.bundle WithoutMain (withSourceMap buildOpts) moduleName targetPath
   case noBuild of
     DoBuild -> Run.withBuildEnv usePsa buildOpts $ build (Just bundleAction)
     NoBuild -> Run.getEnv >>= (flip runRIO) bundleAction
