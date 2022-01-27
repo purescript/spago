@@ -90,7 +90,7 @@ bundle withMain withSourceMap (ModuleName moduleName) (TargetPath targetPath) pl
         <> "esbuild --platform=" <> platformOpt <> minifyOpt <> " --bundle "
         <> " --outfile=" <> targetPath
       WithoutMain -> 
-        "esbuild --platform=browser" <> platformOpt <> minifyOpt <> " --bundle " 
+        "esbuild --platform=" <> platformOpt <> minifyOpt <> " --bundle " 
         <> "output/" <> moduleName <> "/index.js" 
         <> " --outfile=" <> targetPath
 
