@@ -329,14 +329,29 @@ runBackend maybeBackend RunDirectories{ sourceDir, executeDir } moduleName maybe
   let postBuild = maybe (nodeAction $ Path.getOutputPath pursArgs) backendAction maybeBackend
   build (Just postBuild)
   where
+    fromFilePath = Text.pack . Turtle.encodeString
     nodeArgs = Text.intercalate " " $ map unBackendArg extraArgs
-    nodeCmd = "node --input-type=module -e \"import { main } from './output/Main/index.js'\nmain()\" " <> nodeArgs
+    nodeCmd evalScript = "node --input-type=module -e \"" <> evalScript <> "\"" <> nodeArgs
+    nodeEval outputPath' =
+      fold
+        [ "import { main } from '"
+        , Text.replace "\\" "/" (fromFilePath sourceDir)
+        , "/"
+        , Text.pack outputPath'
+        , "/"
+        , unModuleName moduleName
+        , "/"
+        , "index.js"
+        , "'\n\n"
+        , "main()"
+        ]
     nodeAction outputPath' = do
+      let evalScript = nodeEval outputPath'
       -- cd to executeDir in case it isn't the same as sourceDir
       logDebug $ "Executing from: " <> displayShow @FilePath executeDir
       Turtle.cd executeDir
       -- We build a process by hand here because we need to forward the stdin to the backend process
-      let processWithStdin = (Process.shell (Text.unpack nodeCmd)) { Process.std_in = Process.Inherit }
+      let processWithStdin = (Process.shell (Text.unpack $ nodeCmd evalScript)) { Process.std_in = Process.Inherit }
       Turtle.system processWithStdin empty >>= \case
         ExitSuccess   -> maybe (pure ()) (logInfo . display) maybeSuccessMessage
         ExitFailure n -> die [ display failureMessage <> "exit code: " <> repr n ]
