@@ -80,7 +80,7 @@ bundle withMain withSourceMap (ModuleName moduleName) (TargetPath targetPath) = 
   let 
       cmd = case withMain of
         WithMain -> 
-          "echo \"import { main } from './output/Main/index.js'\nmain()\" | "
+          "echo \"import { main } from './output/" <> moduleName <> "/index.js'\nmain()\" | "
           <> "esbuild --platform=browser --bundle " 
           <> " --outfile=" <> targetPath
         WithoutMain -> 
