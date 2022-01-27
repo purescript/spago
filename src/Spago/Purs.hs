@@ -75,18 +75,24 @@ repl sourcePaths extraArgs = do
   viewShell $ callCommand $ Text.unpack cmd
 
 
-bundle :: HasLogFunc env => WithMain -> WithSrcMap -> ModuleName -> TargetPath -> RIO env ()
-bundle withMain withSourceMap (ModuleName moduleName) (TargetPath targetPath) = do
+bundle :: HasLogFunc env => WithMain -> WithSrcMap -> ModuleName -> TargetPath -> Platform -> Minify -> RIO env ()
+bundle withMain withSourceMap (ModuleName moduleName) (TargetPath targetPath) platform minify = do
   let 
-      cmd = case withMain of
-        WithMain -> 
-          "echo \"import { main } from './output/" <> moduleName <> "/index.js'\nmain()\" | "
-          <> "esbuild --platform=browser --bundle " 
-          <> " --outfile=" <> targetPath
-        WithoutMain -> 
-          "esbuild --platform=browser --bundle " 
-          <> "output/" <> moduleName <> "/index.js" 
-          <> " --outfile=" <> targetPath
+    platformOpt = case platform of 
+      Browser -> "browser"
+      Node -> "node"
+    minifyOpt = case minify of 
+      NoMinify -> ""
+      Minify -> " --minify"
+    cmd = case withMain of
+      WithMain -> 
+        "echo \"import { main } from './output/" <> moduleName <> "/index.js'\nmain()\" | "
+        <> "esbuild --platform=" <> platformOpt <> minifyOpt <> " --bundle "
+        <> " --outfile=" <> targetPath
+      WithoutMain -> 
+        "esbuild --platform=browser" <> platformOpt <> minifyOpt <> " --bundle " 
+        <> "output/" <> moduleName <> "/index.js" 
+        <> " --outfile=" <> targetPath
 
   runWithOutput cmd
     ("Bundle succeeded and output file to " <> targetPath)

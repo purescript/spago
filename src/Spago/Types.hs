@@ -89,6 +89,10 @@ data WithMain = WithMain | WithoutMain
 
 data WithSrcMap = WithSrcMap | WithoutSrcMap
 
+data Platform = Browser | Node 
+
+data Minify = Minify | NoMinify
+
 data CacheFlag = SkipCache | NewCache
   deriving (Eq)
 

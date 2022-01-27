@@ -80,10 +80,10 @@ data Command
   | Test (Maybe ModuleName) BuildOptions [BackendArg]
 
   -- | Bundle the project into an executable
-  | BundleApp (Maybe ModuleName) (Maybe TargetPath) NoBuild BuildOptions
+  | BundleApp (Maybe ModuleName) (Maybe TargetPath) (Maybe Platform) (Minify) NoBuild BuildOptions
 
-  -- | Bundle a module into a CommonJS module
-  | BundleModule (Maybe ModuleName) (Maybe TargetPath) NoBuild BuildOptions
+  -- | Bundle a module into an ES module
+  | BundleModule (Maybe ModuleName) (Maybe TargetPath) (Maybe Platform) (Minify) NoBuild BuildOptions
 
   -- | Verify that a single package is consistent with the Package Set
   | Verify PackageName
@@ -156,6 +156,15 @@ parser = do
 
     mainModule  = CLI.optional $ CLI.opt (Just . ModuleName) "main" 'm' "Module to be used as the application's entry point"
     toTarget    = CLI.optional $ CLI.opt (Just . TargetPath) "to" 't' "The target file path"
+    
+    platform =
+      let wrap = \case
+            "node" -> Just Node
+            "browser" -> Just Browser
+            _ -> Nothing
+      in CLI.optional $ CLI.opt wrap "platform" 'p' "Bundle platform 'browser' (default) or 'node'"
+    minifyFlag     = bool NoMinify Minify <$> CLI.switch "minify" 'y' "Minifies the bundle"
+
     docsFormat  = CLI.optional $ CLI.opt Purs.parseDocsFormat "format" 'f' "Docs output format (markdown | html | etags | ctags)"
     jobsLimit   = CLI.optional (CLI.optInt "jobs" 'j' "Limit the amount of jobs that can run concurrently")
     nodeArgs         = many $ CLI.opt (Just . BackendArg) "node-args" 'a' "Argument to pass to node (run/test only)"
@@ -222,13 +231,13 @@ parser = do
     bundleApp =
       ( "bundle-app"
       , "Bundle the project into an executable"
-      , BundleApp <$> mainModule <*> toTarget <*> noBuild <*> buildOptions
+      , BundleApp <$> mainModule <*> toTarget <*> platform <*> minifyFlag <*> noBuild <*> buildOptions
       )
 
     bundleModule =
       ( "bundle-module"
       , "Bundle the project into a CommonJS module"
-      , BundleModule <$> mainModule <*> toTarget <*> noBuild <*> buildOptions
+      , BundleModule <$> mainModule <*> toTarget <*> platform <*> minifyFlag <*> noBuild <*> buildOptions
       )
 
     docs =

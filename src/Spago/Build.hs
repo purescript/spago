@@ -42,11 +42,13 @@ import qualified Spago.Watch          as Watch
 prepareBundleDefaults
   :: Maybe ModuleName
   -> Maybe TargetPath
-  -> (ModuleName, TargetPath)
-prepareBundleDefaults maybeModuleName maybeTargetPath = (moduleName, targetPath)
+  -> Maybe Platform
+  -> (ModuleName, TargetPath, Platform)
+prepareBundleDefaults maybeModuleName maybeTargetPath maybePlatform = (moduleName, targetPath, platform)
   where
     moduleName = fromMaybe (ModuleName "Main") maybeModuleName
     targetPath = fromMaybe (TargetPath "index.js") maybeTargetPath
+    platform = fromMaybe Browser maybePlatform
 
 --   eventually running some other action after the build
 build :: HasBuildEnv env => Maybe (RIO Env ()) -> RIO env ()
@@ -362,38 +364,42 @@ runBackend maybeBackend RunDirectories{ sourceDir, executeDir } moduleName maybe
         ExitSuccess   -> maybe (pure ()) (logInfo . display) maybeSuccessMessage
         ExitFailure n -> die [ display failureMessage <> "Backend " <> displayShow backend <> " exited with error:" <> repr n ]
 
--- | Bundle the project to a js file
+-- | Bundle the project to an executable ES module
 bundleApp
   :: HasEnv env
   => WithMain
   -> Maybe ModuleName
   -> Maybe TargetPath
+  -> Maybe Platform
+  -> Minify
   -> NoBuild
   -> BuildOptions
   -> UsePsa
   -> RIO env ()
-bundleApp withMain maybeModuleName maybeTargetPath noBuild buildOpts@(BuildOptions{ pursArgs }) usePsa = do
+bundleApp withMain maybeModuleName maybeTargetPath maybePlatform minify noBuild buildOpts@(BuildOptions{ pursArgs }) usePsa = do
   let 
-      (moduleName, targetPath) = prepareBundleDefaults maybeModuleName maybeTargetPath      
-      bundleAction = Purs.bundle withMain (withSourceMap buildOpts) moduleName targetPath
+      (moduleName, targetPath, platform) = prepareBundleDefaults maybeModuleName maybeTargetPath maybePlatform
+      bundleAction = Purs.bundle withMain (withSourceMap buildOpts) moduleName targetPath platform minify
   case noBuild of
     DoBuild -> Run.withBuildEnv usePsa buildOpts $ build (Just bundleAction)
     NoBuild -> Run.getEnv >>= (flip runRIO) bundleAction
 
--- | Bundle into a CommonJS module
+-- | Bundle into an ES module
 bundleModule
   :: HasEnv env
   => Maybe ModuleName
   -> Maybe TargetPath
+  -> Maybe Platform
+  -> Minify
   -> NoBuild
   -> BuildOptions
   -> UsePsa
   -> RIO env ()
-bundleModule maybeModuleName maybeTargetPath noBuild buildOpts usePsa = do
+bundleModule maybeModuleName maybeTargetPath maybePlatform minify noBuild buildOpts usePsa = do
   logDebug "Running `bundleModule`"
   let 
-      (moduleName, targetPath) = prepareBundleDefaults maybeModuleName maybeTargetPath
-      bundleAction = Purs.bundle WithoutMain (withSourceMap buildOpts) moduleName targetPath
+      (moduleName, targetPath, platform) = prepareBundleDefaults maybeModuleName maybeTargetPath maybePlatform
+      bundleAction = Purs.bundle WithoutMain (withSourceMap buildOpts) moduleName targetPath platform minify
   case noBuild of
     DoBuild -> Run.withBuildEnv usePsa buildOpts $ build (Just bundleAction)
     NoBuild -> Run.getEnv >>= (flip runRIO) bundleAction
