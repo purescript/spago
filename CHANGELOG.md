@@ -7,12 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.20.4] - 2022-01-29
+
 Bugfixes:
-- Don't warn on unused deps when building --deps-only. (#794)
+- Don't warn on unused deps when building with `--deps-only` (#794)
+- Add line buffering for console output when doing parallel work (#800, #729)
 
 Other improvements:
 - CI: Add sha256 checksum generation on the release workflow (#816)
-- Replacing deprecated `request` by `make-fetch-happen` for NPM installation (#840)
+- CI: Update the Ubuntu runner to a non-deprecated version (#826)
+- Install: replace deprecated `request` by `make-fetch-happen` for NPM installation (#840)
+- Error messages: output additional info when failing to access cache directory (#799)
+- Deps: add compatibility with versions-5.0.0 (#798)
+- Internals: convert deps and source paths from List to Set (#818)
+- Docs: various improvements (#802, #803, #806, #809, #823, #824)
 
 ## [0.20.3] - 2021-05-12
 
