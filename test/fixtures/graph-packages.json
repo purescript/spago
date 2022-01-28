@@ -18,6 +18,17 @@
             "prelude"
         ]
     },
+    "my-project": {
+        "location": {
+            "tag": "Local",
+            "contents": "."
+        },
+        "depends": [
+            "console",
+            "effect",
+            "prelude"
+        ]
+    },
     "prelude": {
         "location": {
             "tag": "Remote",

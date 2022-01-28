@@ -3,5 +3,8 @@ strict digraph deps {
 "console" -> "effect";
 "console" -> "prelude";
 "effect" -> "prelude";
+"my-project" -> "console";
+"my-project" -> "effect";
+"my-project" -> "prelude";
 }
 

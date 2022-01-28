@@ -114,6 +114,7 @@ $ node .
 - [How do I...](#how-do-i)
   - [Switch from `psc-package`](#switch-from-psc-package)
   - [Switch from `bower`](#switch-from-bower)
+  - [Graph packages and module dependencies](#graph-packages-and-module-dependencies)
   - [See what commands and flags are supported](#see-what-commands-and-flags-are-supported)
   - [Setup a new project using a specific package set](#setup-a-new-project-using-a-specific-package-set)
   - [Install a direct dependency](#install-a-direct-dependency)
@@ -243,7 +244,13 @@ you'll have to carefully:
 - try to run `spago install some-package` for packages in the set
 - [add the missing packages](#add-a-package-to-the-package-set) if not in the set
 
-### TODO: graph
+### Graph packages and module dependencies
+
+```
+spago graph packages | dot -Tpdf -o spago.pdf
+```
+
+![Package dot diagram](./diagrams/package-graph.png)
 
 ### See what commands and flags are supported
 

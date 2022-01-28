@@ -27,14 +27,17 @@ graphModules json = do
 graphPackages :: HasBuildEnv env => JsonFlag -> RIO env ()
 graphPackages json = do
   logDebug "Running `spago graph packages`"
-  maybeGraph <- view (the @Graph)
-  case maybeGraph of
+  view (the @Graph) >>= \case
     Nothing -> logError graphNotSupportedError
     Just (ModuleGraph moduleGraph) -> do
       BuildOptions{ depsOnly } <- view (the @BuildOptions)
       Config{ name, configSourcePaths } <- view (the @Config)
       PackageSet { packagesDB } <- view (the @PackageSet)
       deps <- Packages.getProjectDeps
+      let projectPackage = PackageName name
+      -- the current package is not in the package set, we add it here so that
+      -- it can be included in the graph
+      let db = Map.insert projectPackage (Package [] (Local ".")) packagesDB
       let Packages.Globs{..} = Packages.getGlobs deps depsOnly configSourcePaths
       let
         matchesGlob :: Sys.FilePath -> SourcePath -> Bool
@@ -61,7 +64,7 @@ graphPackages json = do
         moduleToMaybePackage :: (ModuleName, ModuleGraphNode) -> Maybe (Map PackageName PackageGraphNode)
         moduleToMaybePackage (moduleName, ModuleGraphNode{ graphNodeDepends }) = do
           pkgName <- Map.lookup moduleName moduleToPackageMap
-          Package{ location } <- Map.lookup pkgName packagesDB
+          Package{ location } <- Map.lookup pkgName db
           pure $ Map.singleton pkgName $
             PackageGraphNode
               location
@@ -73,12 +76,12 @@ graphPackages json = do
         -- ..while we fold all the singletons together merging their dependencies
         packageGraph
           = Map.delete (PackageName "psci-support")
-          $ Map.unionsWith const
+          $ Map.unionsWith (\p1 p2 -> PackageGraphNode (pkgNodeLocation p1) (pkgNodeDepends p1 <> pkgNodeDepends p2))
           $ mapMaybe moduleToMaybePackage
           $ Map.toList moduleGraph
 
       output $ case json of
-        JsonOutputNo -> packagesToDot (PackageName name) packageGraph
+        JsonOutputNo -> packagesToDot projectPackage packageGraph
         JsonOutputYes  -> jsonToTextPretty packageGraph
 
 data PackageGraphNode = PackageGraphNode
