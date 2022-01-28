@@ -519,6 +519,7 @@ let upstream = -- <package set URL here>
 in  upstream
   with simple-json.repo = "https://github.com/my-user/purescript-simple-json.git"
   with simple-json.version = "701f3e44aafb1a6459281714858fadf2c4c2a977"
+  with simple-json.dependencies = ([] : List Text)
 ```
 
 **Note**: you can use a "branch", a "tag" or a "commit hash" as a `version`.
