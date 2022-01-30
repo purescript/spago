@@ -330,12 +330,10 @@ runBackend maybeBackend RunDirectories{ sourceDir, executeDir } moduleName maybe
   build (Just postBuild)
   where
     fromFilePath = Text.pack . Turtle.encodeString
-    runJsSource = fromFilePath (sourceDir Turtle.</> ".spago/run.js")
     nodeArgs = Text.intercalate " " $ map unBackendArg extraArgs
     nodeContents outputPath' =
       fold
-        [ "#!/usr/bin/env node\n\n"
-        , "require('"
+        [ "require('"
         , Text.replace "\\" "/" (fromFilePath sourceDir)
         , "/"
         , Text.pack outputPath'
@@ -343,16 +341,10 @@ runBackend maybeBackend RunDirectories{ sourceDir, executeDir } moduleName maybe
         , unModuleName moduleName
         , "').main()"
         ]
-    nodeCmd = "node " <> runJsSource <> " " <> nodeArgs
+    nodeCmd outputPath'= "node -e \"" <> nodeContents outputPath' <> "\" " <> nodeArgs
     nodeAction outputPath' = do
-      logDebug $ "Writing " <> displayShow @Text runJsSource
-      writeTextFile runJsSource (nodeContents outputPath')
-      void $ chmod executable $ pathFromText runJsSource
-      -- cd to executeDir in case it isn't the same as sourceDir
-      logDebug $ "Executing from: " <> displayShow @FilePath executeDir
-      Turtle.cd executeDir
       -- We build a process by hand here because we need to forward the stdin to the backend process
-      let processWithStdin = (Process.shell (Text.unpack nodeCmd)) { Process.std_in = Process.Inherit }
+      let processWithStdin = (Process.shell (Text.unpack $ nodeCmd outputPath')) { Process.std_in = Process.Inherit }
       Turtle.system processWithStdin empty >>= \case
         ExitSuccess   -> maybe (pure ()) (logInfo . display) maybeSuccessMessage
         ExitFailure n -> die [ display failureMessage <> "exit code: " <> repr n ]
