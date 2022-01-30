@@ -347,6 +347,7 @@ runBackend maybeBackend RunDirectories{ sourceDir, executeDir } moduleName maybe
       logDebug $ "Executing from: " <> displayShow @FilePath executeDir
       Turtle.cd executeDir
       -- We build a process by hand here because we need to forward the stdin to the backend process
+      logDebug $ "Running node command: `" <> nodeCmd outputPath' <> "`"
       let processWithStdin = (Process.shell (Text.unpack $ nodeCmd outputPath')) { Process.std_in = Process.Inherit }
       Turtle.system processWithStdin empty >>= \case
         ExitSuccess   -> maybe (pure ()) (logInfo . display) maybeSuccessMessage
