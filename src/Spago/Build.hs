@@ -343,6 +343,9 @@ runBackend maybeBackend RunDirectories{ sourceDir, executeDir } moduleName maybe
         ]
     nodeCmd outputPath'= "node -e \"" <> nodeContents outputPath' <> "\" " <> nodeArgs
     nodeAction outputPath' = do
+      -- cd to executeDir in case it isn't the same as sourceDir
+      logDebug $ "Executing from: " <> displayShow @FilePath executeDir
+      Turtle.cd executeDir
       -- We build a process by hand here because we need to forward the stdin to the backend process
       let processWithStdin = (Process.shell (Text.unpack $ nodeCmd outputPath')) { Process.std_in = Process.Inherit }
       Turtle.system processWithStdin empty >>= \case
