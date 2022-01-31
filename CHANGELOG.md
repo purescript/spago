@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+Other improvements:
+- Avoid writing a JS file when executing `spago run` (#845, #846)
+
 ## [0.20.4] - 2022-01-29
 
 Bugfixes:
