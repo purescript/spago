@@ -98,7 +98,7 @@ jobs:
 
       - name: Upload Checksum Asset
         id: upload-checksum-asset
-        uses: actions/upload-checksum-asset@v1
+        uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
