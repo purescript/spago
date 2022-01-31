@@ -7,14 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-Other improvements:
-- Avoid writing a JS file when executing `spago run` (#845, #846)
-
 ## [0.20.4] - 2022-01-29
 
 Bugfixes:
 - Don't warn on unused deps when building with `--deps-only` (#794)
 - Add line buffering for console output when doing parallel work (#800, #729)
+- Avoid writing a JS file when executing `spago run` (#845, #846, #822)
 
 Other improvements:
 - CI: Add sha256 checksum generation on the release workflow (#816)
