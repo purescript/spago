@@ -161,7 +161,7 @@ parser = do
     nodeArgs         = many $ CLI.opt (Just . BackendArg) "node-args" 'a' "Argument to pass to node (run/test only)"
     backendArgs      = many $ CLI.opt (Just . BackendArg) "exec-args" 'b' "Argument to pass to the backend (run/test only)"
     dependencyPackageNames = many $ CLI.opt (Just . PackageName) "dependency" 'd' "Package name to add as a dependency"
-    replPackageName = PackageName <$> Opts.strOption (Opts.long "repl-package" <> Opts.value "psci-support" <> Opts.help "The REPL package to use for evaluating expressions")
+    replPackageName = PackageName <$> Opts.strOption (Opts.long "repl-package" <> Opts.value "psci-support" <> Opts.showDefault <> Opts.metavar "PACKAGE" <> Opts.help "The REPL package to use for evaluating expressions")
     scriptSource = CLI.arg Just "source" "Source file to run as script"
     sourcePaths      = many $ CLI.opt (Just . SourcePath) "path" 'p' "Source path to include (in addition to paths in spago.dhall)"
 
