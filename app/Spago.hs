@@ -53,8 +53,8 @@ main = withUtf8 $ do
         -> CLI.echo spagoVersion
       Path whichPath buildOptions
         -> Path.showPaths buildOptions whichPath
-      Repl replPackageNames paths pursArgs depsOnly
-        -> Spago.Build.repl replPackageNames paths pursArgs depsOnly
+      Repl replPackageNames paths pursArgs depsOnly replPackage
+        -> Spago.Build.repl replPackageNames paths pursArgs depsOnly replPackage
       BundleApp modName tPath shouldBuild buildOptions
         -> Spago.Build.bundleApp WithMain modName tPath shouldBuild buildOptions globalUsePsa
       BundleModule modName tPath shouldBuild buildOptions

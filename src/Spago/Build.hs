@@ -197,8 +197,9 @@ repl
   -> [SourcePath]
   -> [PursArg]
   -> Packages.DepsOnly
+  -> PackageName
   -> RIO env ()
-repl newPackages sourcePaths pursArgs depsOnly = do
+repl newPackages sourcePaths pursArgs depsOnly replPackage = do
   logDebug "Running `spago repl`"
   purs <- Run.getPurs NoPsa
   Config.ensureConfig >>= \case
@@ -218,12 +219,10 @@ repl newPackages sourcePaths pursArgs depsOnly = do
 
         Run.withInstallEnv' (Just (ensurePsciSupportIncluded config)) (replAction purs)
   where
-    packagePsciSupport = PackageName "psci-support"
-
     ensurePsciSupportIncluded :: Config -> Config
     ensurePsciSupportIncluded originalConfig@Config{dependencies = originalDeps}
-      | packagePsciSupport `elem` originalDeps = originalConfig
-      | otherwise = originalConfig { dependencies = Set.insert packagePsciSupport originalDeps }
+      | replPackage `elem` originalDeps = originalConfig
+      | otherwise = originalConfig { dependencies = Set.insert replPackage originalDeps }
 
     replAction purs = do
       Config{..} <- view (the @Config)
