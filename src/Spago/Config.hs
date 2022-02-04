@@ -16,7 +16,7 @@ import           Spago.Prelude
 import           Spago.Env
 
 import qualified Data.List             as List
-import qualified Data.List.NonEmpty    as NonEmpty
+import qualified Data.Foldable         as Foldable
 import qualified Data.Map              as Map
 import qualified Data.SemVer           as SemVer
 import qualified Data.Sequence         as Seq
@@ -31,6 +31,7 @@ import qualified Web.Bower.PackageMeta as Bower
 
 import qualified Spago.Dhall           as Dhall
 import qualified Spago.Messages        as Messages
+import qualified Spago.Config.AST      as AST
 import qualified Spago.PackageSet      as PackageSet
 import qualified Spago.PscPackage      as PscPackage
 import qualified Spago.Templates       as Templates
@@ -110,7 +111,8 @@ parsePackageSet pkgs = do
   pure PackageSet{..}
 
 
--- | Tries to read in a Spago Config
+-- | Tries to parse the raw Dhall expression stored
+-- in the @./spago.dhall@ file into a `Config` value.
 parseConfig
   :: (HasLogFunc env, HasConfigPath env)
   => RIO env Config
@@ -120,30 +122,41 @@ parseConfig = do
 
   ConfigPath path <- view (the @ConfigPath)
   expr <- liftIO $ Dhall.inputExpr $ "./" <> path
-  case expr of
-    Dhall.RecordLit ks' -> do
-      let ks = Dhall.extractRecordValues ks'
-      let sourcesType  = Dhall.list (Dhall.auto :: Dhall.Decoder SourcePath)
-      name              <- Dhall.requireTypedKey ks "name" Dhall.strictText
-      dependencies      <- Set.fromList <$> Dhall.requireTypedKey ks "dependencies" dependenciesType
-      configSourcePaths <- Set.fromList <$> Dhall.requireTypedKey ks "sources" sourcesType
-      alternateBackend  <- Dhall.maybeTypedKey ks "backend" Dhall.strictText
-
-      let ensurePublishConfig = do
-            publishLicense    <- Dhall.requireTypedKey ks "license" Dhall.strictText
-            publishRepository <- Dhall.requireTypedKey ks "repository" Dhall.strictText
-            pure PublishConfig{..}
-      publishConfig <- try ensurePublishConfig
-
-      packageSet <- Dhall.requireKey ks "packages" (\case
-        Dhall.RecordLit pkgs -> parsePackageSet (Dhall.extractRecordValues pkgs)
-        something            -> throwM $ Dhall.PackagesIsNotRecord something)
-
-      pure Config{..}
-    _ -> case Dhall.TypeCheck.typeOf expr of
+  maybeConfig <- parseConfigNormalizedExpr expr
+  case maybeConfig of
+    Just config -> pure config
+    Nothing -> case Dhall.TypeCheck.typeOf expr of
       Right e  -> throwM $ Dhall.ConfigIsNotRecord e
       Left err -> throwM err
 
+-- |
+-- Attempts to parse a normalized Dhall expression (i.e. all imports have been resolved)
+-- into a `Config` value.
+parseConfigNormalizedExpr
+  :: (HasLogFunc env)
+  => ResolvedExpr -> RIO env (Maybe Config)
+parseConfigNormalizedExpr = \case
+  Dhall.RecordLit ks' -> do
+    let ks = Dhall.extractRecordValues ks'
+    let sourcesType  = Dhall.list (Dhall.auto :: Dhall.Decoder SourcePath)
+    name              <- Dhall.requireTypedKey ks "name" Dhall.strictText
+    dependencies      <- Set.fromList <$> Dhall.requireTypedKey ks "dependencies" dependenciesType
+    configSourcePaths <- Set.fromList <$> Dhall.requireTypedKey ks "sources" sourcesType
+    alternateBackend  <- Dhall.maybeTypedKey ks "backend" Dhall.strictText
+
+    let ensurePublishConfig = do
+          publishLicense    <- Dhall.requireTypedKey ks "license" Dhall.strictText
+          publishRepository <- Dhall.requireTypedKey ks "repository" Dhall.strictText
+          pure PublishConfig{..}
+    publishConfig <- try ensurePublishConfig
+
+    packageSet <- Dhall.requireKey ks "packages" (\case
+      Dhall.RecordLit pkgs -> parsePackageSet (Dhall.extractRecordValues pkgs)
+      something            -> throwM $ Dhall.PackagesIsNotRecord something)
+
+    pure $ Just Config{..}
+  _ ->
+    pure Nothing
 
 -- | Checks that the Spago config is there and readable
 ensureConfig
@@ -220,7 +233,7 @@ makeConfig force comments = do
           logInfo "Found a \"psc-package.json\" file, migrating to a new Spago config.."
           -- try to update the dependencies (will fail if not found in package set)
           let pscPackages = map PackageName $ PscPackage.depends pscConfig
-          void $ withConfigAST ( addRawDeps config pscPackages
+          void $ withConfigAST ( addRawDeps config (Set.fromList pscPackages)
                                . updateName (PscPackage.name pscConfig))
     (_, True) -> do
       -- read the bowerfile
@@ -242,7 +255,7 @@ makeConfig force comments = do
             else do
               logWarn $ display $ showBowerErrors bowerErrors
 
-          void $ withConfigAST ( addRawDeps config bowerPackages
+          void $ withConfigAST ( addRawDeps config (Set.fromList bowerPackages)
                                . updateName bowerName)
 
     _ -> pure ()
@@ -320,37 +333,33 @@ updateName newName (Dhall.RecordLit kvs)
     $ Dhall.Map.insert "name" (Dhall.makeRecordField $ Dhall.toTextLit newName) kvs
 updateName _ other = other
 
-addRawDeps :: HasLogFunc env => Config -> [PackageName] -> Expr -> RIO env Expr
-addRawDeps config newPackages r@(Dhall.RecordLit kvs) = case Dhall.Map.lookup "dependencies" kvs of
-  Just (Dhall.RecordField { recordFieldValue = Dhall.ListLit _ dependencies }) -> do
-      case NonEmpty.nonEmpty notInPackageSet of
-        -- If none of the newPackages are outside of the set, add them to existing dependencies
-        Nothing -> do
-          oldPackages <- traverse (throws . Dhall.fromTextLit) dependencies
-          let newDepsExpr
-                = Dhall.makeRecordField
-                $ Dhall.ListLit Nothing $ fmap (Dhall.toTextLit . packageName)
-                $ Seq.sort $ nubSeq (Seq.fromList newPackages <> fmap PackageName oldPackages)
-          pure $ Dhall.RecordLit $ Dhall.Map.insert "dependencies" newDepsExpr kvs
-        Just pkgs -> do
-          logWarn $ display $ Messages.failedToAddDeps $ NonEmpty.map packageName pkgs
-          pure r
-    where
-      Config { packageSet = PackageSet{..} } = config
-      notInPackageSet = filter (\p -> Map.notMember p packagesDB) newPackages
-
-      -- | Code from https://stackoverflow.com/questions/45757839
-      nubSeq :: Ord a => Seq a -> Seq a
-      nubSeq xs = (fmap fst . Seq.filter (uncurry notElem)) (Seq.zip xs seens)
-        where
-          seens = Seq.scanl (flip Set.insert) Set.empty xs
-  Just _ -> do
-    logWarn "Failed to add dependencies. The `dependencies` field wasn't a List of Strings."
-    pure r
-  Nothing -> do
-    logWarn "Failed to add dependencies. You should have a record with the `dependencies` key for this to work."
-    pure r
-addRawDeps _ _ other = pure other
+addRawDeps :: HasLogFunc env => Config -> Set PackageName -> Expr -> RIO env Expr
+addRawDeps config newPackages expr =
+  case notInPackageSet config newPackages of
+    pkgsNotInSet
+      | not $ Set.null pkgsNotInSet -> do
+          logWarn $ display $ Messages.failedToAddDeps $ Set.map packageName pkgsNotInSet
+          pure expr
+    -- If none of the newPackages are outside of the set, add them to existing dependencies
+      | otherwise -> case expr of
+          r@(Dhall.RecordLit kvs) ->
+            case Dhall.Map.lookup "dependencies" kvs of
+              Just Dhall.RecordField { recordFieldValue = Dhall.ListLit _ dependencies } -> do
+                oldPackages <- traverse (throws . Dhall.fromTextLit) dependencies
+                let uniquePkgs = newPackages <> Set.fromList (PackageName <$> Foldable.toList oldPackages)
+                let newDepsExpr
+                      = Dhall.makeRecordField
+                      $ Dhall.ListLit Nothing $ fmap (Dhall.toTextLit . packageName)
+                      $ Seq.sort $ nubSeq (Seq.fromList $ Set.toList uniquePkgs)
+                pure $ Dhall.RecordLit $ Dhall.Map.insert "dependencies" newDepsExpr kvs
+              Just _ -> do
+                logWarn "Failed to add dependencies. The `dependencies` field wasn't a List of Strings."
+                pure r
+              Nothing -> do
+                logWarn "Failed to add dependencies. You should have a record with the `dependencies` key for this to work."
+                pure r
+          _ ->
+            pure expr
 
 addSourcePaths :: Expr -> Expr
 addSourcePaths (Dhall.RecordLit kvs)
@@ -398,6 +407,30 @@ withConfigAST transform = do
         else logDebug "Transformed config is the same as the read one, not overwriting it"
       pure exprHasChanged
 
+-- | Takes a function that manipulates the Dhall AST of the Config, and tries to run it
+--   on the current config. If it succeeds, it writes back to file the result returned.
+withRawConfigAST
+  :: (HasLogFunc env, HasConfigPath env)
+  => (AST.ResolvedUnresolvedExpr -> RIO env Expr) -> RIO env Bool
+withRawConfigAST transform = do
+  ConfigPath path <- view (the @ConfigPath)
+  rawConfig <- liftIO $ Dhall.readRawExpr path
+  normalizedExpr <- liftIO $ Dhall.inputExpr $ "./" <> path
+  case rawConfig of
+    Nothing -> die [ display $ Messages.cannotFindConfig path ]
+    Just (header, expr) -> do
+      let
+        unresolved = Dhall.Core.denote expr
+        resolved = normalizedExpr
+
+      newExpr <- transform $ AST.ResolvedUnresolvedExpr (resolved, unresolved)
+      -- Write the new expression only if it has actually changed
+      let exprHasChanged = Dhall.Core.denote expr /= newExpr
+      if exprHasChanged
+        then liftIO $ Dhall.writeRawExpr path (header, newExpr)
+        else logDebug "Transformed config is the same as the read one, not overwriting it"
+      pure exprHasChanged
+
 
 transformMExpr
   :: MonadIO m
@@ -416,10 +449,143 @@ transformMExpr rules =
 --   If everything is fine instead, it will add the new deps, sort all the
 --   dependencies, and write the Config back to file.
 addDependencies
-  :: (HasLogFunc env, HasConfigPath env)
-  => Config -> [PackageName] 
+  :: forall env
+   . (HasLogFunc env, HasConfigPath env)
+  => Config -> Set PackageName
   -> RIO env ()
-addDependencies config newPackages = do
-  configHasChanged <- withConfigAST $ addRawDeps config newPackages
+addDependencies config@Config { dependencies = deps, publishConfig = pubConfig } newPackages = do
+  configHasChanged <- case notInPackageSet config newPackages of
+    pkgsNotInSet
+      | not $ Set.null pkgsNotInSet -> do
+          logWarn $ display $ Messages.failedToAddDeps $ Set.map packageName pkgsNotInSet
+          pure False
+      | otherwise -> do
+          let
+            expectedConfig :: Config
+            expectedConfig = config { dependencies = mkExpectedConfigDeps, publishConfig = mkExpectedPubConifg }
+          withRawConfigAST $ \sameExpr -> do
+            newExpr <- AST.modifyRawConfigExpression (AST.AddPackages newPackages) sameExpr
+            -- Verify that returned expression produces the expected `Config` value if parsed
+            -- before we return it.
+            normalizedExpr <- liftIO $ Dhall.inputExpr $ pretty newExpr
+            maybeResult <- parseConfigNormalizedExpr normalizedExpr `catch` (\(_ :: SomeException) -> pure Nothing)
+            case maybeResult of
+              Just parsedConfig -> do
+                validModification <- expectedConfig `isSemanticallyEquivalentTo` parsedConfig
+                if validModification then do
+                  pure newExpr
+                else do
+                  logWarn "Failed to add dependencies."
+                  logDebug $
+                    "Raw AST modification did not produce the expected Dhall expression. " <>
+                    "If parsed in a future command, the AST would not produce the expected `Config` value."
+                  pure $ snd $ AST.resolvedUnresolvedExpr sameExpr
+              Nothing -> do
+                logWarn "Failed to add dependencies."
+                logDebug "Raw AST modification did not produce a valid `spago.dhall` file."
+                pure $ snd $ AST.resolvedUnresolvedExpr sameExpr
+
   unless configHasChanged $
     logWarn "Configuration file was not updated."
+
+  where
+    mkExpectedConfigDeps = deps <> newPackages
+
+    -- |
+    -- If the @pubConfig@ parsing fails, it will fail on the first key checked (i.e. the @license@ key).
+    -- When it does fail, it records a map of the expression and that map does not include the new packages
+    -- When the modified expression is parsed, it will also fail at the @license@ key. However, it\'s
+    -- map will include the new packages.
+    --
+    -- Thus, we need to update the map in the expected config, so the equality check will pass.
+    mkExpectedPubConifg = case pubConfig of
+      Left (Dhall.RequiredKeyMissing key kvs) ->
+        Left (Dhall.RequiredKeyMissing key newKvs)
+        where
+          newKvs = Dhall.Map.insertWith insertNewPackages "dependencies" newPackagesExpr kvs
+
+          newPackagesExpr :: ResolvedExpr
+          newPackagesExpr = Dhall.ListLit Nothing $ Seq.fromList $ Set.toList $ Set.map (Dhall.toTextLit . packageName) newPackages
+
+          insertNewPackages :: ResolvedExpr -> ResolvedExpr -> ResolvedExpr
+          insertNewPackages (Dhall.ListLit an left) (Dhall.ListLit _ right) =
+            Dhall.ListLit an $ nubSeq $ left <> right
+          insertNewPackages other _ = other
+
+      x -> x
+
+    -- |
+    -- Unfortunately, we cannot just check whether the expected config is equal to the actual config
+    -- because "Dhall.Map.Map" keeps track of order when equating two maps.
+    -- For some cases, this \"values are only equal if ordered the same\" check will cause a failure when
+    -- we attempt to parse the @PublishConfig@ and fail. In such circumstances, the failure
+    -- message will be @Left (Dhall.RequiredKeyMissing licenseOrRepositoryText map)@ and @map@ will have a different
+    -- order in the expected config than it will in the parsed config.
+    --
+    -- Moreover, if the config equality check below fails, it is more helpful to understand what parts of
+    -- the @Config@ values were considered unequal. Thus, besides doing a typical @expected == actual@ check,
+    -- we will log debug messages to the console while checking all values in case there are multiple
+    -- values that are different.
+    isSemanticallyEquivalentTo :: Config -> Config -> RIO env Bool
+    isSemanticallyEquivalentTo
+      Config { name = expN, dependencies = expD, packageSet = expPS, alternateBackend = expAB, configSourcePaths = expCSP, publishConfig = expPC }
+      Config { name = actN, dependencies = actD, packageSet = actPS, alternateBackend = actAB, configSourcePaths = actCSP, publishConfig = actPC }
+      = checkAll
+          [ checkValue expN actN "Config: name"
+          , checkValue expD actD "Config: dependencies"
+          , checkValue expPS actPS "Config: package set"
+          , checkValue expAB actAB "Config: alternate backend"
+          , checkValue expCSP actCSP "Config: config source paths"
+          , checkPC expPC actPC
+          ]
+
+    checkAll :: [RIO env Bool] -> RIO env Bool
+    checkAll = foldl' (\acc n -> do
+      prev <- acc
+      next <- n
+      pure $ prev && next) (pure True)
+
+    checkValue :: forall a. Eq a => Show a => a -> a -> Utf8Builder -> RIO env Bool
+    checkValue expected actual msg
+      | expected == actual = do
+          logDebug $ msg <> " - No problem here."
+          pure True
+      | otherwise = do
+          logDebug $ msg <> " - Found mismatch"
+          logDebug $ displayShow expected
+          logDebug $ displayShow actual
+          pure False
+
+    checkPC :: Either (Dhall.ReadError Void) PublishConfig -> Either (Dhall.ReadError Void) PublishConfig -> RIO env Bool
+    checkPC (Right l) (Right r) = do
+      checkValue l r "Config: pubConfig - Right"
+    checkPC (Left (Dhall.RequiredKeyMissing k1 kvs1)) (Left (Dhall.RequiredKeyMissing k2 kvs2)) = do
+      checkAll
+        [ checkValue k1 k2 "Config: pubConfig - Left RequiredKeyMissing: keys"
+        , checkValue (sortDependencies kvs1) (sortDependencies kvs2) "Config: pubConfig - Left RequiredKeyMissing: maps"
+        ]
+    checkPC l r = do
+      logDebug "Config: pubConfig: unexpected value in both"
+      logDebug $ "Expected value: " <> displayShow l
+      logDebug $ "Actual value: " <> displayShow r
+      pure False
+
+    sortDependencies :: Dhall.Map.Map Text ResolvedExpr -> Dhall.Map.Map Text ResolvedExpr
+    sortDependencies x = case Dhall.Map.lookup dependenciesText x of
+      Just (Dhall.ListLit a pkgs) ->
+        Dhall.Map.insert dependenciesText (Dhall.ListLit a (Seq.sortOn toText pkgs)) x
+      _ ->
+        x
+      where
+        dependenciesText = "dependencies"
+
+        toText = \case
+          Dhall.TextLit (Dhall.Chunks [] t) -> t
+          _ -> error "impossible: A normalized expression that produced a valid `Config` value should only have a `TextLit` here"
+
+-- |
+-- Returns a possibly empty set of packages not found in the package set.
+notInPackageSet
+  :: Config -> Set PackageName -> Set PackageName
+notInPackageSet Config { packageSet = PackageSet{..} } newPackages =
+  Set.filter (\p -> Map.notMember p packagesDB) newPackages

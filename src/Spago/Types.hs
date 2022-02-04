@@ -50,7 +50,7 @@ data PackageSet = PackageSet
   { packagesDB             :: Map PackageName Package
   , packagesMinPursVersion :: Maybe Version.SemVer
   }
-  deriving (Show, Generic)
+  deriving (Eq, Show, Generic)
 
 
 -- | We consider a "Repo" a "box of source to include in the build"
@@ -190,14 +190,14 @@ data Config = Config
   , alternateBackend  :: Maybe Text
   , configSourcePaths :: Set SourcePath
   , publishConfig     :: Either (Dhall.ReadError Void) PublishConfig
-  } deriving (Show, Generic)
+  } deriving (Eq, Show, Generic)
 
 
 -- | The extra fields that are only needed for publishing libraries.
 data PublishConfig = PublishConfig
   { publishLicense    :: Text
   , publishRepository :: Text
-  } deriving (Show, Generic)
+  } deriving (Eq, Show, Generic)
 
 data PursCmd = PursCmd
   { purs :: Text

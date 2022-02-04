@@ -92,6 +92,7 @@ library
     Spago.Command.Path
     Spago.Command.Verify
     Spago.Config
+    Spago.Config.AST
     Spago.Dhall
     Spago.DryRun
     Spago.Env

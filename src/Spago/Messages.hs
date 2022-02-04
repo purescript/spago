@@ -2,6 +2,7 @@ module Spago.Messages where
 
 import           Spago.Prelude
 
+import qualified Data.Set           as Set
 import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Text          as Text
 
@@ -131,13 +132,13 @@ failedToReachGitHub err = makeMessage
   , tshow err
   ]
 
-failedToAddDeps :: NonEmpty Text -> Text
+failedToAddDeps :: Set Text -> Text
 failedToAddDeps pkgs = makeMessage $
   [ "Some of the dependencies you tried to add were not found in the package-set."
   , "Not adding any new dependencies to your new spago config."
   , "We didn't find:"
   ]
-  <> map ("- " <>) (NonEmpty.toList pkgs)
+  <> map ("- " <>) (Set.toList pkgs)
   <> [""]
 
 updatingPackageSet :: Text -> Text

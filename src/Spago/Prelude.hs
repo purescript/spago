@@ -13,6 +13,7 @@ module Spago.Prelude
   , lastMay
   , empty
   , ifM
+  , nubSeq
 
   -- * Logging, errors, printing, etc
   , Pretty
@@ -122,6 +123,8 @@ import qualified Data.ByteString.Lazy as BSL
 import qualified Data.ByteString.Search as BSS
 import qualified Data.ByteString.UTF8 as UTF8
 import qualified System.IO as IO
+import qualified Data.Sequence as Seq
+import qualified Data.Set as Set
 
 
 -- | Generic Error that we throw on program exit.
@@ -149,6 +152,15 @@ ifM p x y = p >>= \b -> if b then x else y
 -- | Suppress the 'Left' value of an 'Either'
 hush :: Either a b -> Maybe b
 hush = either (const Nothing) Just
+
+-- |
+-- Removes duplicate elements in a @Seq@.
+--
+-- Code from https://stackoverflow.com/questions/45757839
+nubSeq :: Ord a => Seq a -> Seq a
+nubSeq xs = (fmap fst . Seq.filter (uncurry notElem)) (Seq.zip xs seens)
+  where
+    seens = Seq.scanl (flip Set.insert) Set.empty xs
 
 pathFromText :: Text -> Turtle.FilePath
 pathFromText = Turtle.fromText

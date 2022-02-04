@@ -8,6 +8,7 @@ import qualified System.Environment  as Env
 import qualified RIO
 import qualified System.Info
 import qualified Turtle
+import qualified Data.Set as Set
 
 import qualified Spago.Config as Config
 import qualified Spago.GlobalCache as Cache
@@ -205,7 +206,7 @@ getPackageSet = do
 getMaybeGraph :: HasPursEnv env => BuildOptions -> Config -> [(PackageName, Package)] -> RIO env Graph
 getMaybeGraph BuildOptions{ depsOnly, sourcePaths } Config{ configSourcePaths } deps = do
   logDebug "Running `getMaybeGraph`"
-  let partitionedGlobs = Packages.getGlobs deps depsOnly $ toList configSourcePaths
+  let partitionedGlobs = Packages.getGlobs deps depsOnly $ Set.toList configSourcePaths
       globs = Packages.getGlobsSourcePaths partitionedGlobs <> sourcePaths
   supportsGraph <- Purs.hasMinPursVersion "0.14.0"
   if not supportsGraph

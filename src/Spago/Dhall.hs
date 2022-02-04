@@ -177,6 +177,8 @@ data ReadError a where
  -- | a key is missing from a Dhall map
  RequiredKeyMissing    :: Typeable a => Text -> Dhall.Map.Map Text (DhallExpr a) -> ReadError a
 
+deriving instance (Eq a) => Eq (ReadError a)
+
 instance (Pretty a, Typeable a) => Exception (ReadError a)
 
 instance (Pretty a) => Show (ReadError a) where

@@ -163,7 +163,7 @@ install newPackages = do
     -- Also skip the write if there are no new packages to be written
     case existingNewPackages of
       []         -> pure ()
-      additional -> Config.addDependencies config additional
+      additional -> Config.addDependencies config $ Set.fromList additional
 
     Fetch.fetchPackages deps
 
