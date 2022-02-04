@@ -1,0 +1,2 @@
+{ config = ./spago.dhall
+}.config

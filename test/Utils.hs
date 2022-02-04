@@ -2,6 +2,8 @@ module Utils
   ( checkFixture
   , checkFileHasInfix
   , checkFileExist
+  , checkInstallFixtureSucceed
+  , checkInstallFixtureFail
   , readFixture
   , getHighestTag
   , git
@@ -34,7 +36,7 @@ import           System.Directory   (removePathForcibly, doesFileExist)
 import qualified System.Process     as Process
 import           Test.Hspec         (HasCallStack, shouldBe, shouldSatisfy)
 import           Turtle             (ExitCode (..), FilePath, Text, cd, empty, encodeString, export,
-                                     inproc, limit, need, pwd, readTextFile, strict)
+                                     inproc, limit, mv, need, pwd, readTextFile, strict, toText, writeTextFile)
 import qualified Turtle.Bytes
 
 
@@ -151,6 +153,40 @@ checkFileHasInfix :: HasCallStack => FilePath -> Text -> IO ()
 checkFileHasInfix path needle = do
   actual <- readTextFile path
   actual `shouldSatisfy` Text.isInfixOf needle
+
+checkInstallFixtureSucceed :: HasCallStack => FilePath -> FilePath -> IO ()
+checkInstallFixtureSucceed beforeInstallFilePath successFilePath = do
+  spago ["init"] >>= shouldBeSuccess
+  spago ["install"] >>= shouldBeSuccess
+
+  let embedNameFilePath = "embed-name.dhall"
+
+  embedName <- readFixture embedNameFilePath
+  writeTextFile embedNameFilePath embedName
+
+  let embedDependenciesFilePath = "embed-dependencies.dhall"
+
+  embedDeps <- readFixture embedDependenciesFilePath
+  writeTextFile embedDependenciesFilePath embedDeps
+
+  let beforeFilePathArg = either (error . Text.unpack) id $ toText beforeInstallFilePath
+
+  spagoFileContent <- readFixture beforeInstallFilePath
+  writeTextFile beforeInstallFilePath spagoFileContent
+  spago ["-x", beforeFilePathArg, "install", "newtype"] >>= shouldBeSuccess
+  mv beforeInstallFilePath successFilePath
+  checkFixture successFilePath
+
+checkInstallFixtureFail :: HasCallStack => FilePath -> IO ()
+checkInstallFixtureFail beforeInstallFilePath = do
+  spago ["init"] >>= shouldBeSuccess
+  spago ["install"] >>= shouldBeSuccess
+
+  let beforeFilePathArg = either (error . Text.unpack) id $ toText beforeInstallFilePath
+
+  spagoFileContent <- readFixture beforeInstallFilePath
+  writeTextFile beforeInstallFilePath spagoFileContent
+  spago ["-x", beforeFilePathArg, "install", "newtype"] >>= shouldBeFailure
 
 rmtree :: FilePath -> IO ()
 rmtree = removePathForcibly . encodeString

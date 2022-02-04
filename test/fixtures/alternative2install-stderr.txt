@@ -1,2 +1,0 @@
-[warn] Failed to add dependencies. You should have a record with the `dependencies` key for this to work.
-[warn] Configuration file was not updated.

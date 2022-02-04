@@ -9,7 +9,7 @@ import           Test.Hspec         (Spec, around_, describe, it, shouldBe, shou
 import           Turtle             (ExitCode (..), cd, cp, decodeString, empty, encodeString,
                                      mkdir, mktree, mv, pwd, readTextFile, rm, shell,
                                      shellStrictWithErr, testdir, writeTextFile, (</>))
-import           Utils              (checkFileHasInfix, checkFixture, checkFileExist, outputShouldEqual,
+import           Utils              (checkFileHasInfix, checkFixture, checkFileExist, checkInstallFixtureFail, checkInstallFixtureSucceed, outputShouldEqual,
                                      readFixture, runFor, shouldBeFailure, shouldBeFailureInfix,
                                      shouldBeFailureStderr, shouldBeSuccess, shouldBeSuccessOutput,
                                      shouldBeSuccessOutputWithErr, shouldBeSuccessStderr, spago,
@@ -120,11 +120,24 @@ spec = around_ setup $ do
       threadDelay 1000000
       spago ["install", "-j", "10"] >>= shouldBeSuccess
 
-    it "Spago should warn that config was not changed, when trying to install package already present in project dependencies" $ do
+    describe "Spago should warn that config was not changed, when trying to install package already present in project dependencies" $ do
 
-      spago ["init"] >>= shouldBeSuccess
-      spago ["install"] >>= shouldBeSuccess
-      spago ["install", "effect"] >>= shouldBeSuccessStderr "spago-install-existing-dep-stderr.txt"
+      it "... when a `[ \"actualDependency\", ... ]` expression is used" $ do
+
+        spago ["init"] >>= shouldBeSuccess
+        spago ["install"] >>= shouldBeSuccess
+        spago ["install", "effect"] >>= shouldBeSuccessStderr "spago-install-existing-dep-stderr.txt"
+
+      it "... when a `list1 # list2` expression is used" $ do
+
+        spago ["init"] >>= shouldBeSuccess
+        spago ["install"] >>= shouldBeSuccess
+
+        spagoFileContent <- readFixture "spago-install-append-no-op-success.dhall"
+        writeTextFile "spago.dhall" spagoFileContent
+        spago ["-j 10", "install", "console", "prelude"] >>= shouldBeSuccessStderr "spago-install-existing-dep-stderr.txt"
+        mv "spago.dhall" "spago-install-append-no-op-success.dhall"
+        checkFixture "spago-install-append-no-op-success.dhall"
 
     it "Spago should strip 'purescript-' prefix and give warning if package without prefix is present in package set" $ do
 
@@ -134,13 +147,61 @@ spec = around_ setup $ do
       -- dep added without "purescript-" prefix
       checkFileHasInfix "spago.dhall" "\"newtype\""
 
-    it "Spago should be able to add dependencies" $ do
+    describe "Spago should be able to add dependencies" $ do
 
-      writeTextFile "psc-package.json" "{ \"name\": \"aaa\", \"depends\": [ \"prelude\" ], \"set\": \"foo\", \"source\": \"bar\" }"
-      spago ["init"] >>= shouldBeSuccess
-      spago ["-j 10", "install", "simple-json", "foreign"] >>= shouldBeSuccess
-      mv "spago.dhall" "spago-install-success.dhall"
-      checkFixture "spago-install-success.dhall"
+      it "... when a `[ \"actualDependency\", ... ]` expression is used" $ do
+
+        writeTextFile "psc-package.json" "{ \"name\": \"aaa\", \"depends\": [ \"prelude\" ], \"set\": \"foo\", \"source\": \"bar\" }"
+        spago ["init"] >>= shouldBeSuccess
+        spago ["-j 10", "install", "simple-json", "foreign"] >>= shouldBeSuccess
+        mv "spago.dhall" "spago-install-success.dhall"
+        checkFixture "spago-install-success.dhall"
+
+      describe "when a `list1 # list2` expression is used..." $ do
+
+        it "append-right: otherDeps # [ \"actualDeps\" ]" $ do
+
+          spago ["init"] >>= shouldBeSuccess
+          spago ["install"] >>= shouldBeSuccess
+
+          spagoFileContent <- readFixture "spago-install-append-right-before.dhall"
+          writeTextFile "spago.dhall" spagoFileContent
+          spago ["-j 10", "install", "arrays"] >>= shouldBeSuccess
+          mv "spago.dhall" "spago-install-append-right-success.dhall"
+          checkFixture "spago-install-append-right-success.dhall"
+
+        it "append-left: [ \"actualDeps\" ] # otherDeps" $ do
+
+          spago ["init"] >>= shouldBeSuccess
+          spago ["install"] >>= shouldBeSuccess
+
+          spagoFileContent <- readFixture "spago-install-append-left-before.dhall"
+          writeTextFile "spago.dhall" spagoFileContent
+          spago ["-j 10", "install", "arrays"] >>= shouldBeSuccess
+          mv "spago.dhall" "spago-install-append-left-success.dhall"
+          checkFixture "spago-install-append-left-success.dhall"
+
+        it "append-middle: otherDeps1 # [ \"actualDeps\" ] # otherDeps2" $ do
+
+          spago ["init"] >>= shouldBeSuccess
+          spago ["install"] >>= shouldBeSuccess
+
+          spagoFileContent <- readFixture "spago-install-append-middle-before.dhall"
+          writeTextFile "spago.dhall" spagoFileContent
+          spago ["-j 10", "install", "arrays"] >>= shouldBeSuccess
+          mv "spago.dhall" "spago-install-append-middle-success.dhall"
+          checkFixture "spago-install-append-middle-success.dhall"
+
+        it "... and only dependencies not yet installed are actually installed" $ do
+
+          spago ["init"] >>= shouldBeSuccess
+          spago ["install"] >>= shouldBeSuccess
+
+          spagoFileContent <- readFixture "spago-install-append-some-before.dhall"
+          writeTextFile "spago.dhall" spagoFileContent
+          spago ["-j 10", "install", "console", "effect", "newtype" ] >>= shouldBeSuccess
+          mv "spago.dhall" "spago-install-append-some-success.dhall"
+          checkFixture "spago-install-append-some-success.dhall"
 
     it "Spago should not add dependencies that are not in the package set" $ do
 
@@ -185,12 +246,232 @@ spec = around_ setup $ do
       writeTextFile "packages.dhall" "let pkgs = ./packagesBase.dhall in pkgs // { spago = { dependencies = [\"prelude\"], repo = \"https://github.com/purescript/spago.git\", version = \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\" }}"
       spago ["install", "spago"] >>= shouldBeFailure
 
-    it "Spago should be able to update dependencies in an alternative config" $ do
+    describe "Spago should be able to update dependencies in an alternative config" $ do
 
-      spago ["init"] >>= shouldBeSuccess
-      writeTextFile "alternative1.dhall" "./spago.dhall // {dependencies = [\"prelude\"]}"
-      spago ["-x", "alternative1.dhall", "install", "simple-json"] >>= shouldBeSuccess
-      checkFixture "alternative1.dhall"
+      it "... alternative1.dhall" $ do
+
+        spago ["init"] >>= shouldBeSuccess
+        writeTextFile "alternative1.dhall" "./spago.dhall // {dependencies = [\"prelude\"]}"
+        spago ["-x", "alternative1.dhall", "install", "simple-json"] >>= shouldBeSuccess
+        checkFixture "alternative1.dhall"
+
+      it "... alternative3.dhall" $ do
+
+        checkInstallFixtureSucceed
+          "alternative3-before.dhall"
+          "alternative3-success.dhall"
+
+      describe "... alternative4.dhall files - simple root-level expressions" $ do
+
+        it "... alternative4-root-embed.dhall" $ do
+
+          checkInstallFixtureSucceed
+            "alternative4-root-embed-before.dhall"
+            "alternative4-root-embed-success.dhall"
+
+        it "... alternative4-root-field-before.dhall" $ do
+
+          checkInstallFixtureSucceed
+            "alternative4-root-field-before.dhall"
+            "alternative4-root-field-success.dhall"
+
+        it "... alternative4-root-let-inExpr-before.dhall" $ do
+
+          checkInstallFixtureSucceed
+            "alternative4-root-let-inExpr-before.dhall"
+            "alternative4-root-let-inExpr-success.dhall"
+
+        it "... alternative4-root-let-value-before.dhall" $ do
+
+          checkInstallFixtureSucceed
+            "alternative4-root-let-value-before.dhall"
+            "alternative4-root-let-value-success.dhall"
+
+        it "... alternative4-root-listappend.dhall" $ do
+
+          checkInstallFixtureFail "alternative4-root-listappend.dhall"
+
+        it "... alternative4-root-listlit.dhall" $ do
+
+          checkInstallFixtureFail "alternative4-root-listlit.dhall"
+
+        it "... alternative4-root-prefer-left.dhall" $ do
+
+          checkInstallFixtureSucceed
+            "alternative4-root-prefer-left-before.dhall"
+            "alternative4-root-prefer-left-success.dhall"
+
+        it "... alternative4-root-prefer-right.dhall" $ do
+
+          checkInstallFixtureSucceed
+            "alternative4-root-prefer-right-before.dhall"
+            "alternative4-root-prefer-right-success.dhall"
+
+        it "... alternative4-root-textlit.dhall" $ do
+
+          checkInstallFixtureFail "alternative4-root-textlit.dhall"
+
+        it "... alternative4-root-var.dhall" $ do
+
+          checkInstallFixtureFail "alternative4-root-var.dhall"
+
+        it "... alternative4-root-with-left.dhall" $ do
+
+          checkInstallFixtureSucceed
+            "alternative4-root-with-left-before.dhall"
+            "alternative4-root-with-left-success.dhall"
+
+        it "... alternative4-root-with-right.dhall" $ do
+
+          checkInstallFixtureSucceed
+            "alternative4-root-with-right-before.dhall"
+            "alternative4-root-with-right-success.dhall"
+
+        it "... alternative4-root-textlit.dhall" $ do
+
+          checkInstallFixtureFail "alternative4-root-textlit.dhall"
+
+      describe "... alternative4.dhall files - complex root-level field expressions" $ do
+
+        it "... alternative4-root-field-embed.dhall" $ do
+
+          checkInstallFixtureSucceed
+            "alternative4-root-field-embed-before.dhall"
+            "alternative4-root-field-embed-success.dhall"
+
+        it "... alternative4-root-field-field-before.dhall" $ do
+
+          checkInstallFixtureSucceed
+            "alternative4-root-field-field-before.dhall"
+            "alternative4-root-field-field-success.dhall"
+
+        it "... alternative4-root-field-let-inExpr-before.dhall" $ do
+
+          checkInstallFixtureSucceed
+            "alternative4-root-field-let-inExpr-before.dhall"
+            "alternative4-root-field-let-inExpr-success.dhall"
+
+        it "... alternative4-root-field-let-skip1-before.dhall" $ do
+
+          checkInstallFixtureSucceed
+            "alternative4-root-field-let-skip1-before.dhall"
+            "alternative4-root-field-let-skip1-success.dhall"
+
+        it "... alternative4-root-field-let-skip2-before.dhall" $ do
+
+          checkInstallFixtureSucceed
+            "alternative4-root-field-let-skip2-before.dhall"
+            "alternative4-root-field-let-skip2-success.dhall"
+
+        it "... alternative4-root-field-let-value-before.dhall" $ do
+
+          checkInstallFixtureSucceed
+            "alternative4-root-field-let-value-before.dhall"
+            "alternative4-root-field-let-value-success.dhall"
+
+        it "... alternative4-root-field-listappend.dhall" $ do
+
+          checkInstallFixtureFail "alternative4-root-field-listappend.dhall"
+
+        it "... alternative4-root-field-listlit.dhall" $ do
+
+          checkInstallFixtureFail "alternative4-root-field-listlit.dhall"
+
+        it "... alternative4-root-field-prefer-left.dhall" $ do
+
+          checkInstallFixtureSucceed
+            "alternative4-root-field-prefer-left-before.dhall"
+            "alternative4-root-field-prefer-left-success.dhall"
+
+        it "... alternative4-root-field-prefer-right.dhall" $ do
+
+          checkInstallFixtureSucceed
+            "alternative4-root-field-prefer-right-before.dhall"
+            "alternative4-root-field-prefer-right-success.dhall"
+
+        it "... alternative4-root-field-textlit.dhall" $ do
+
+          checkInstallFixtureFail "alternative4-root-field-textlit.dhall"
+
+        it "... alternative4-root-field-var.dhall" $ do
+
+          checkInstallFixtureFail "alternative4-root-field-var.dhall"
+
+        it "... alternative4-root-field-with-left.dhall" $ do
+
+          checkInstallFixtureSucceed
+            "alternative4-root-field-with-left-before.dhall"
+            "alternative4-root-field-with-left-success.dhall"
+
+        it "... alternative4-root-field-with-right.dhall" $ do
+
+          checkInstallFixtureSucceed
+            "alternative4-root-field-with-right-before.dhall"
+            "alternative4-root-field-with-right-success.dhall"
+
+        it "... alternative4-root-field-textlit.dhall" $ do
+
+          checkInstallFixtureFail "alternative4-root-field-textlit.dhall"
+
+      it "... alternative4-root-let-value-embed-field.dhall" $ do
+
+        checkInstallFixtureSucceed
+          "alternative4-root-let-value-embed-field-before.dhall"
+          "alternative4-root-let-value-embed-field-success.dhall"
+
+      it "... alternative4-dependencies-embed.dhall" $ do
+
+        checkInstallFixtureSucceed
+          "alternative4-dependencies-embed-before.dhall"
+          "alternative4-dependencies-embed-success.dhall"
+
+      it "... alternative4-root-let-inExpr-field.dhall" $ do
+
+        checkInstallFixtureSucceed
+          "alternative4-root-let-inExpr-field-before.dhall"
+          "alternative4-root-let-inExpr-field-success.dhall"
+
+      it "... alternative4-root-prefer-prefer-left.dhall" $ do
+
+        checkInstallFixtureSucceed
+          "alternative4-root-prefer-prefer-left-before.dhall"
+          "alternative4-root-prefer-prefer-left-success.dhall"
+
+      it "... alternative4-root-prefer-prefer-right.dhall" $ do
+
+        checkInstallFixtureSucceed
+          "alternative4-root-prefer-prefer-right-before.dhall"
+          "alternative4-root-prefer-prefer-right-success.dhall"
+
+      it "... alternative4-root-project_left.dhall" $ do
+
+        checkInstallFixtureSucceed
+          "alternative4-root-project_left-before.dhall"
+          "alternative4-root-project_left-success.dhall"
+
+      it "... alternative4-root-field-with-left-nested.dhall" $ do
+
+        checkInstallFixtureSucceed
+          "alternative4-root-field-with-left-nested-before.dhall"
+          "alternative4-root-field-with-left-nested-success.dhall"
+
+      it "... alternative4-root-field-with-right-nested.dhall" $ do
+
+        checkInstallFixtureSucceed
+          "alternative4-root-field-with-right-nested-before.dhall"
+          "alternative4-root-field-with-right-nested-success.dhall"
+
+      it "... alternative4-root-recordlit-let.dhall" $ do
+
+        checkInstallFixtureSucceed
+          "alternative4-root-recordlit-let-before.dhall"
+          "alternative4-root-recordlit-let-success.dhall"
+
+      it "... alternative4-root-let-trap-let.dhall" $ do
+
+        checkInstallFixtureSucceed
+          "alternative4-root-let-trap-before.dhall"
+          "alternative4-root-let-trap-success.dhall"
 
     it "Spago should fail when the alternate config file doesn't exist" $ do
       spago ["init"] >>= shouldBeSuccess
@@ -209,8 +490,12 @@ spec = around_ setup $ do
       spago ["init"] >>= shouldBeSuccess
       writeTextFile "alternative2.dhall" "./spago.dhall // { sources = [ \"src/**/*.purs\" ] }\n"
       spago ["-x", "alternative2.dhall", "install", "simple-json"] >>= shouldBeSuccess
-      spago ["-x", "alternative2.dhall", "install", "simple-json"] >>= shouldBeSuccessStderr "alternative2install-stderr.txt"
-      checkFixture "alternative2.dhall"
+      cp "alternative2.dhall" "alternative2-post-install.dhall"
+      checkFixture "alternative2-post-install.dhall"
+      rm "alternative2-post-install.dhall"
+      spago ["-x", "alternative2.dhall", "install", "simple-json"] >>= shouldBeSuccessStderr "alternative2-post-install2-stderr.txt"
+      cp "alternative2.dhall" "alternative2-post-install.dhall"
+      checkFixture "alternative2-post-install.dhall"
 
     it "Spago should install successfully when there are local dependencies sharing the same packages.dhall" $ do
 
