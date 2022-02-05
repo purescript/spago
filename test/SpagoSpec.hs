@@ -13,7 +13,7 @@ import           Utils              (checkFileHasInfix, checkFixture, checkFileE
                                      readFixture, runFor, shouldBeFailure, shouldBeFailureInfix,
                                      shouldBeFailureStderr, shouldBeSuccess, shouldBeSuccessOutput,
                                      shouldBeSuccessOutputWithErr, shouldBeSuccessStderr, spago,
-                                     withCwd, withEnvVar)
+                                     withCwd, withEnvVar, unshare)
 
 
 setup :: IO () -> IO ()
@@ -308,11 +308,11 @@ spec = around_ setup $ do
       spago ["install"] >>= shouldBeSuccess
       spago ["build", "--no-install"] >>= shouldBeSuccess
 
-    it "Spago should build successfully when passing the --offline flag" $ do
+    it "Spago should build successfully when passing the --offline flag qw" $ do
 
       spago ["init"] >>= shouldBeSuccess
       spago ["install"] >>= shouldBeSuccess
-      spago ["build", "--no-install", "--offline"] >>= shouldBeSuccess
+      unshare ["-r", "-n", "spago", "build", "--no-install", "--offline"] >>= shouldBeSuccess
 
     it "Spago should add sources to config when key is missing" $ do
 

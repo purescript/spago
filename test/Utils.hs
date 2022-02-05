@@ -19,6 +19,7 @@ module Utils
   , shouldBeFailureStderr
   , shouldBeEmptySuccess
   , spago
+  , unshare
   , withCwd
   , withEnvVar
   ) where
@@ -64,6 +65,9 @@ spago = proc "spago"
 
 git :: [Text] -> IO (ExitCode, Text, Text)
 git = proc "git"
+
+unshare :: [Text] -> IO (ExitCode, Text, Text)
+unshare = proc "unshare"
 
 runFor :: Int -> String -> [String] -> IO ()
 runFor us cmd args = do
