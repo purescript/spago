@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+New Features
+- `spago install` works on more advanced Dhall expressions as stored in `spago.dhall (#849)
+
 ## [0.20.4] - 2022-01-29
 
 Bugfixes:
