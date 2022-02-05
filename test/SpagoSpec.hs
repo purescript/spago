@@ -308,7 +308,7 @@ spec = around_ setup $ do
       spago ["install"] >>= shouldBeSuccess
       spago ["build", "--no-install"] >>= shouldBeSuccess
 
-    it "Spago should build successfully when passing the --offline flag qw" $ do
+    it "Spago should build successfully when passing the --offline flag" $ do
 
       spago ["init"] >>= shouldBeSuccess
       spago ["install"] >>= shouldBeSuccess
