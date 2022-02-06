@@ -17,7 +17,6 @@
         "purescript-console": "^v4.2.0",
         "purescript-effect": "^v2.0.1",
         "purescript-prelude": "^v4.1.1",
-        "purescript-psci-support": "^v4.0.0",
         "purescript-tortellini": "^v5.1.0"
     }
 }

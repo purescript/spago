@@ -93,9 +93,6 @@ build maybePostBuild = do
                     $ find (\(_, sourcePath) -> matchesGlob (Text.unpack path) sourcePath)
                     $ Map.toList depsGlobs
 
-                defaultPackages :: Set PackageName
-                defaultPackages = Set.singleton (PackageName "psci-support")
-
                 importedPackages :: Set PackageName
                 importedPackages =
                   Set.fromList
@@ -109,8 +106,7 @@ build maybePostBuild = do
                 unusedPackages =
                   fmap packageName
                     $ Set.toList
-                    $ Set.difference dependencyPackages
-                    $ Set.union defaultPackages importedPackages
+                    $ Set.difference dependencyPackages importedPackages
 
                 transitivePackages =
                   fmap packageName
@@ -201,12 +197,13 @@ repl
   -> [SourcePath]
   -> [PursArg]
   -> Packages.DepsOnly
+  -> PackageName
   -> RIO env ()
-repl newPackages sourcePaths pursArgs depsOnly = do
+repl newPackages sourcePaths pursArgs depsOnly replPackage = do
   logDebug "Running `spago repl`"
   purs <- Run.getPurs NoPsa
   Config.ensureConfig >>= \case
-    Right config -> Run.withInstallEnv' (Just config) (replAction purs)
+    Right config -> Run.withInstallEnv' (Just (ensurePsciSupportIncluded config)) (replAction purs)
     Left err -> do
       logDebug err
       GlobalCache cacheDir _ <- view (the @GlobalCache)
@@ -215,22 +212,21 @@ repl newPackages sourcePaths pursArgs depsOnly = do
 
         writeTextFile ".purs-repl" Templates.pursRepl
 
-        let dependencies = Set.fromList $ [ PackageName "effect", PackageName "console", PackageName "psci-support" ] <> newPackages
+        let dependencies = Set.fromList $ [ PackageName "effect", PackageName "console" ] <> newPackages
 
         config <- Run.withPursEnv NoPsa $ do
           Config.makeTempConfig dependencies Nothing Set.empty Nothing
 
-        Run.withInstallEnv' (Just config) (replAction purs)
+        Run.withInstallEnv' (Just (ensurePsciSupportIncluded config)) (replAction purs)
   where
+    ensurePsciSupportIncluded :: Config -> Config
+    ensurePsciSupportIncluded originalConfig@Config{dependencies = originalDeps}
+      | replPackage `elem` originalDeps = originalConfig
+      | otherwise = originalConfig { dependencies = Set.insert replPackage originalDeps }
+
     replAction purs = do
       Config{..} <- view (the @Config)
       deps <- Packages.getProjectDeps
-      -- we check that psci-support is in the deps, see #550
-      unless (Set.member (PackageName "psci-support") (Set.fromList (map fst deps))) $ do
-        die
-          [ "The package called 'psci-support' needs to be installed for the repl to work properly."
-          , "Run `spago install psci-support` to add it to your dependencies."
-          ]
       let
         globs =
           Packages.getGlobsSourcePaths $ Packages.getGlobs deps depsOnly (toList $ configSourcePaths <> Set.fromList sourcePaths)
