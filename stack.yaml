@@ -1,10 +1,9 @@
-resolver: lts-17.9
+resolver: lts-18.24
 packages:
-- .
+  - .
 extra-deps:
-- dhall-1.38.1
-- semver-range-0.2.8
-- with-utf8-1.0.2.2
+  - semver-range-0.2.8
+  - with-utf8-1.0.2.2
 allow-newer: true
 nix:
   packages: [zlib]
@@ -17,4 +16,3 @@ flags:
     examples: false
   cryptonite:
     use_target_attributes: false
-

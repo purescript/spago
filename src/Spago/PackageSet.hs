@@ -1,3 +1,4 @@
+{-# LANGUAGE OverloadedLists #-}
 module Spago.PackageSet
   ( updatePackageSetVersion
   , getLatestSetForCompilerVersion
@@ -273,7 +274,8 @@ freeze path = do
   liftIO $
     Dhall.Freeze.freeze
       Dhall.Write
-      (Dhall.PossiblyTransitiveInputFile path Dhall.NonTransitive)
+      Dhall.NonTransitive
+      [Dhall.InputFile path]
       Dhall.Freeze.OnlyRemoteImports
       Dhall.Freeze.Secure
       (Just Dhall.Pretty.ASCII)

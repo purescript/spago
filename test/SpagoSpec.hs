@@ -636,7 +636,7 @@ spec = around_ setup $ do
             $ Text.lines packages
       writeTextFile "packages.dhall" "https://github.com/purescript/package-sets/releases/download/psc-0.13.4-20191025/packages.dhall sha256:f9eb600e5c2a439c3ac9543b1f36590696342baedab2d54ae0aa03c9447ce7d4"
       spago ["-v", "upgrade-set"] >>= shouldBeSuccess
-      newPackages <- Text.strip <$> readTextFile "packages.dhall"
+      newPackages <- Text.strip . head . Text.lines <$> readTextFile "packages.dhall"
       newPackages `shouldBe` packageSetUrl
 
     it "Spago should migrate a package set from an alternative repository from src/packages.dhall" $ do
