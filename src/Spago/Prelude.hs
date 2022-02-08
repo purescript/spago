@@ -77,8 +77,8 @@ module Spago.Prelude
 
 
 import qualified Data.Text                             as Text
-import qualified Data.Text.Prettyprint.Doc             as Pretty
-import qualified Data.Text.Prettyprint.Doc.Render.Text as PrettyText
+import qualified Prettyprinter as Pretty
+import qualified Prettyprinter.Render.Text as PrettyText
 import qualified Data.Time                             as Time
 import           Dhall                                 (Text)
 import qualified Dhall.Core
@@ -101,7 +101,7 @@ import           Data.Foldable                         as X
 import           Data.Generics.Product                 (the, HasType(..))
 import           Data.Maybe                            as X
 import           Data.Sequence                         (Seq (..))
-import           Data.Text.Prettyprint.Doc             (Pretty)
+import Prettyprinter (Pretty)
 import           Dhall.Optics                          (transformMOf)
 import           Lens.Family                           ((^..))
 import           RIO                                   as X hiding (FilePath, first, force, second, HasLogFunc, logDebug, logError, logInfo, logWarn, (^..))

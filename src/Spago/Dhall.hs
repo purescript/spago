@@ -1,45 +1,48 @@
 {-# LANGUAGE GADTs #-}
+{-# LANGUAGE OverloadedLists #-}
+
 module Spago.Dhall
-  ( module Spago.Dhall
-  , module Dhall
-  ) where
+  ( module Spago.Dhall,
+    module Dhall,
+  )
+where
 
-import           Spago.Prelude
-
-import qualified Control.Monad.Trans.State.Strict      as State
-import qualified Data.Text                             as Text
-import qualified Data.Text.Prettyprint.Doc             as Pretty
-import qualified Data.Text.Prettyprint.Doc.Render.Text as PrettyText
-import           Dhall
-import           Dhall.Core                            as Dhall hiding (pretty)
+import qualified Control.Monad.Trans.State.Strict as State
+import qualified Data.Text as Text
+import Dhall
+import Dhall.Core as Dhall hiding (pretty)
 import qualified Dhall.Format
 import qualified Dhall.Import
 import qualified Dhall.Map
-import qualified Dhall.Parser                          as Parser
-import qualified Dhall.Pretty
-import           Dhall.TypeCheck                       (typeOf)
-import           Dhall.Util                            as Dhall
+import qualified Dhall.Parser as Parser
+import Dhall.TypeCheck (typeOf)
+import Dhall.Util as Dhall hiding (input)
 import qualified Lens.Family
-import qualified System.FilePath                       as FilePath
+import qualified Prettyprinter as Pretty
+import qualified Prettyprinter.Render.Text as PrettyText
+import Spago.Prelude
+import qualified System.FilePath as FilePath
+import qualified Dhall.Pretty
 
 type DhallExpr a = Dhall.Expr Parser.Src a
-
 
 -- | Format a Dhall file in ASCII
 --   We first check if it's already formatted, if not we reformat it.
 format :: MonadIO m => Text -> m ()
-format pathText = liftIO $
-  try (f Dhall.Check) >>= \case
-    Left (_e :: SomeException) ->
-      f Dhall.Write
-    Right _ -> pure ()
+format pathText =
+  liftIO $
+    try (f Dhall.Check) >>= \case
+      Left (_e :: SomeException) ->
+        f Dhall.Write
+      Right _ -> pure ()
   where
-    f = Dhall.Format.format
-      . Dhall.Format.Format
+    f =
+      Dhall.Format.format
+        . Dhall.Format.Format
           (Just Dhall.Pretty.ASCII)
           Dhall.NoCensor
-          (Dhall.PossiblyTransitiveInputFile (Text.unpack pathText) Dhall.NonTransitive)
-
+          Dhall.NonTransitive
+          [Dhall.InputFile (Text.unpack pathText)]
 
 -- | Prettyprint a Dhall expression adding a comment on top
 prettyWithHeader :: Pretty.Pretty a => Dhall.Header -> DhallExpr a -> Dhall.Text

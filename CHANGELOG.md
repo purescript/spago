@@ -7,10 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.20.5] - 2022-02-08
+
 Features:
 - Drop need for `psci-support` to be defined in `dependencies` field (#817)
 
-## [0.20.4] - 2022-01-29
+Other improvements:
+- Upgrade to latest Dhall version (#848, #851)
+
+## [0.20.4] - 2022-01-31
 
 Bugfixes:
 - Don't warn on unused deps when building with `--deps-only` (#794)

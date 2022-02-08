@@ -127,7 +127,7 @@ library
     , bytestring
     , containers
     , cryptonite
-    , dhall >=1.38.0
+    , dhall >=1.39.0
     , directory >=1.3.4.0
     , either
     , file-embed
