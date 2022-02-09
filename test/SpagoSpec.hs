@@ -715,6 +715,7 @@ spec = around_ setup $ do
       spago ["install", "node-process", "arrays"] >>= shouldBeSuccess
       spago ["build"] >>= shouldBeSuccess
       spago ["run", "--node-args", "hello world"] >>= shouldBeSuccessOutput "run-args-output.txt"
+      spago ["run", "--node-args", "--flagName"] >>= shouldBeSuccess
 
     it "Spago should prefer exec-args" $ do
 
