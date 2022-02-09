@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.20.6] - 2022-02-09
+
+Bugfixes:
+- Oh no, not libtinfo again (#853, #854)
+
 ## [0.20.5] - 2022-02-08
 
 Features:
