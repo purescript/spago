@@ -1,7 +1,9 @@
-resolver: lts-17.15
+resolver: lts-18.24
 packages:
   - .
 extra-deps:
+  - Cabal-3.6.2.0
+  - process-1.6.13.1
   - dhall-1.39.0
   - semver-range-0.2.8
   - with-utf8-1.0.2.2
