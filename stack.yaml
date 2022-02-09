@@ -1,7 +1,8 @@
-resolver: lts-18.24
+resolver: lts-17.15
 packages:
   - .
 extra-deps:
+  - dhall-1.39.0
   - semver-range-0.2.8
   - with-utf8-1.0.2.2
 allow-newer: true
