@@ -322,12 +322,26 @@ runBackend
 runBackend maybeBackend RunDirectories{ sourceDir, executeDir } moduleName maybeSuccessMessage failureMessage extraArgs = do
   logDebug $ display $ "Running with backend: " <> fromMaybe "nodejs" maybeBackend
   BuildOptions{ pursArgs } <- view (the @BuildOptions)
-  let postBuild = maybe (nodeAction $ Path.getOutputPath pursArgs) backendAction maybeBackend
+  isES <- Purs.hasMinPursVersion "0.15.0"
+  let postBuild = maybe (nodeAction isES $ Path.getOutputPath pursArgs) backendAction maybeBackend
   build (Just postBuild)
   where
     fromFilePath = Text.pack . Turtle.encodeString
     nodeArgs = Text.intercalate " " $ map unBackendArg extraArgs
-    nodeContents outputPath' =
+    esContents outputPath' =
+      fold
+        [ "import { main } from '"
+        , Text.replace "\\" "/" (fromFilePath sourceDir)
+        , "/"
+        , Text.pack outputPath'
+        , "/"
+        , unModuleName moduleName
+        , "/"
+        , "index.js"
+        , "'\n\n"
+        , "main()"
+        ]
+    cjsContents outputPath' =
       fold
         [ "require('"
         , Text.replace "\\" "/" (fromFilePath sourceDir)
@@ -337,14 +351,19 @@ runBackend maybeBackend RunDirectories{ sourceDir, executeDir } moduleName maybe
         , unModuleName moduleName
         , "').main()"
         ]
-    nodeCmd outputPath'= "node -e \"" <> nodeContents outputPath' <> "\" -- " <> nodeArgs
-    nodeAction outputPath' = do
+    nodeCmd isES outputPath'=
+      if isES then
+        "node --input-type=module -e \"" <> esContents outputPath'  <> "\" -- " <> nodeArgs
+      else
+        "node -e \"" <> cjsContents outputPath' <> "\" -- " <> nodeArgs
+
+    nodeAction isES outputPath' = do
       -- cd to executeDir in case it isn't the same as sourceDir
       logDebug $ "Executing from: " <> displayShow @FilePath executeDir
       Turtle.cd executeDir
       -- We build a process by hand here because we need to forward the stdin to the backend process
-      logDebug $ "Running node command: `" <> (display $ nodeCmd outputPath') <> "`"
-      let processWithStdin = (Process.shell (Text.unpack $ nodeCmd outputPath')) { Process.std_in = Process.Inherit }
+      logDebug $ "Running node command: `" <> display (nodeCmd isES outputPath') <> "`"
+      let processWithStdin = (Process.shell (Text.unpack $ nodeCmd isES outputPath')) { Process.std_in = Process.Inherit }
       Turtle.system processWithStdin empty >>= \case
         ExitSuccess   -> maybe (pure ()) (logInfo . display) maybeSuccessMessage
         ExitFailure n -> die [ display failureMessage <> "exit code: " <> repr n ]
