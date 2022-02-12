@@ -337,7 +337,7 @@ runBackend maybeBackend RunDirectories{ sourceDir, executeDir } moduleName maybe
         , unModuleName moduleName
         , "').main()"
         ]
-    nodeCmd outputPath'= "node -e \"" <> nodeContents outputPath' <> "\" " <> nodeArgs
+    nodeCmd outputPath'= "node -e \"" <> nodeContents outputPath' <> "\" -- " <> nodeArgs
     nodeAction outputPath' = do
       -- cd to executeDir in case it isn't the same as sourceDir
       logDebug $ "Executing from: " <> displayShow @FilePath executeDir
