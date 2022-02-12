@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.20.7] - 2022-02-12
+
 Bugfixes
 - Make `spago run` work when `node-args` includes flag-like value (#856)
 
