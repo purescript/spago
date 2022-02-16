@@ -123,7 +123,7 @@ library
     , ansi-terminal
     , async-pool
     , base >=4.7 && <5
-    , bower-json
+    , bower-json >= 0.5.0.0
     , bytestring
     , containers
     , cryptonite
