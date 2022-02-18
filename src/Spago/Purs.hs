@@ -83,26 +83,26 @@ getESBuild = do
 
 bundle :: HasLogFunc env => ModuleSystem -> WithMain -> WithSrcMap -> ModuleName -> TargetPath -> Platform -> Minify -> RIO env ()
 bundle ESM withMain _ (ModuleName moduleName) (TargetPath targetPath) platform minify = do
-      esbuild <- getESBuild
-      let 
-        platformOpt = case platform of 
-          Browser -> "browser"
-          Node -> "node"
-        minifyOpt = case minify of 
-          NoMinify -> ""
-          Minify -> " --minify"
-        cmd = case withMain of
-          WithMain -> 
-            "echo \"import { main } from './output/" <> moduleName <> "/index.js'\nmain()\" | "
-            <> esbuild <> " --platform=" <> platformOpt <> minifyOpt <> " --bundle "
-            <> " --outfile=" <> targetPath
-          WithoutMain -> 
-            esbuild <> " --platform=" <> platformOpt <> minifyOpt <> " --bundle " 
-            <> "output/" <> moduleName <> "/index.js" 
-            <> " --outfile=" <> targetPath
-      runWithOutput cmd
-        ("Bundle succeeded and output file to " <> targetPath)
-        "Bundle failed."
+  esbuild <- getESBuild
+  let 
+    platformOpt = case platform of 
+      Browser -> "browser"
+      Node -> "node"
+    minifyOpt = case minify of 
+      NoMinify -> ""
+      Minify -> " --minify"
+    cmd = case withMain of
+      WithMain -> 
+        "echo \"import { main } from './output/" <> moduleName <> "/index.js'\nmain()\" | "
+        <> esbuild <> " --platform=" <> platformOpt <> minifyOpt <> " --bundle "
+        <> " --outfile=" <> targetPath
+      WithoutMain -> 
+        esbuild <> " --platform=" <> platformOpt <> minifyOpt <> " --bundle " 
+        <> "output/" <> moduleName <> "/index.js" 
+        <> " --outfile=" <> targetPath
+  runWithOutput cmd
+    ("Bundle succeeded and output file to " <> targetPath)
+    "Bundle failed."
 bundle CJS withMain withSourceMap (ModuleName moduleName) (TargetPath targetPath) _ _ = do
   let 
     main = case withMain of

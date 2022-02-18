@@ -376,7 +376,7 @@ runBackend maybeBackend RunDirectories{ sourceDir, executeDir } moduleName maybe
         ExitSuccess   -> maybe (pure ()) (logInfo . display) maybeSuccessMessage
         ExitFailure n -> die [ display failureMessage <> "Backend " <> displayShow backend <> " exited with error:" <> repr n ]
 
--- | Bundle the project to a js file or executable ES module
+-- | Bundle the project to a js file (CJS) or executable ES module
 bundleApp
   :: (HasEnv env, HasPurs env)
   => WithMain
