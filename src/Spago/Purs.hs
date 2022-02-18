@@ -74,24 +74,50 @@ repl sourcePaths extraArgs = do
 
   viewShell $ callCommand $ Text.unpack cmd
 
+getESBuild :: HasLogFunc env => RIO env Text
+getESBuild = do
+  maybeESBuild <- findExecutable "esbuild"
+  case maybeESBuild of
+    Nothing -> die [ "Failed to find esbuild. See https://esbuild.github.io/getting-started/#install-esbuild for ways to install esbuild." ]
+    Just esBuild -> pure esBuild
 
-bundle :: HasLogFunc env => WithMain -> WithSrcMap -> ModuleName -> TargetPath -> RIO env ()
-bundle withMain withSourceMap (ModuleName moduleName) (TargetPath targetPath) = do
-  let main = case withMain of
-        WithMain    -> " --main " <> moduleName
-        WithoutMain -> ""
+bundle :: HasLogFunc env => ModuleSystem -> WithMain -> WithSrcMap -> ModuleName -> TargetPath -> Platform -> Minify -> RIO env ()
+bundle ESM withMain _ (ModuleName moduleName) (TargetPath targetPath) platform minify = do
+      esbuild <- getESBuild
+      let 
+        platformOpt = case platform of 
+          Browser -> "browser"
+          Node -> "node"
+        minifyOpt = case minify of 
+          NoMinify -> ""
+          Minify -> " --minify"
+        cmd = case withMain of
+          WithMain -> 
+            "echo \"import { main } from './output/" <> moduleName <> "/index.js'\nmain()\" | "
+            <> esbuild <> " --platform=" <> platformOpt <> minifyOpt <> " --bundle "
+            <> " --outfile=" <> targetPath
+          WithoutMain -> 
+            esbuild <> " --platform=" <> platformOpt <> minifyOpt <> " --bundle " 
+            <> "output/" <> moduleName <> "/index.js" 
+            <> " --outfile=" <> targetPath
+      runWithOutput cmd
+        ("Bundle succeeded and output file to " <> targetPath)
+        "Bundle failed."
+bundle CJS withMain withSourceMap (ModuleName moduleName) (TargetPath targetPath) _ _ = do
+  let 
+    main = case withMain of
+      WithMain    -> " --main " <> moduleName
+      WithoutMain -> ""
 
-      sourceMap = case withSourceMap of 
-        WithSrcMap    -> " --source-maps"
-        WithoutSrcMap -> ""
+    sourceMap = case withSourceMap of 
+      WithSrcMap    -> " --source-maps"
+      WithoutSrcMap -> ""
 
-      cmd
-        = "purs bundle \"output/*/*.js\""
-        <> " -m " <> moduleName
-        <> main
-        <> " -o " <> targetPath
-        <> sourceMap
-
+    cmd = "purs bundle \"output/*/*.js\""
+      <> " -m " <> moduleName
+      <> main
+      <> " -o " <> targetPath
+      <> sourceMap
   runWithOutput cmd
     ("Bundle succeeded and output file to " <> targetPath)
     "Bundle failed."

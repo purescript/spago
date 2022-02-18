@@ -85,9 +85,15 @@ newtype PursArg = PursArg { unPursArg :: Text }
 newtype BackendArg = BackendArg { unBackendArg :: Text }
   deriving newtype (Eq)
 
+data ModuleSystem = ESM | CJS
+
 data WithMain = WithMain | WithoutMain
 
 data WithSrcMap = WithSrcMap | WithoutSrcMap
+
+data Platform = Browser | Node 
+
+data Minify = Minify | NoMinify
 
 data CacheFlag = SkipCache | NewCache
   deriving (Eq)
