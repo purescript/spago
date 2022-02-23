@@ -66,7 +66,7 @@ module Spago.Prelude
   , viewShell
   , findExecutableOrDie
   , findExecutable
-
+  , runWithOutput
   -- * Other
   , Dhall.Core.throws
   , repr
@@ -263,6 +263,13 @@ findExecutable x =
       success -> pure success
     _ -> Directory.findExecutable x
 
+-- | Run the given command.
+runWithOutput :: HasLogFunc env => Text -> Text -> Text -> RIO env ()
+runWithOutput command success failure = do
+  logDebug $ "Running command: `" <> display command <> "`"
+  shell command empty >>= \case
+    ExitSuccess -> logInfo $ display success
+    ExitFailure _ -> die [ display failure ]
 
 -- | Return the full path of the executable we're trying to call,
 --   or die trying

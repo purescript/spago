@@ -85,8 +85,6 @@ newtype PursArg = PursArg { unPursArg :: Text }
 newtype BackendArg = BackendArg { unBackendArg :: Text }
   deriving newtype (Eq)
 
-data ModuleSystem = ESM | CJS
-
 data WithMain = WithMain | WithoutMain
 
 data WithSrcMap = WithSrcMap | WithoutSrcMap
