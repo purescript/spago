@@ -169,6 +169,14 @@ defaultBuildOptions = BuildOptions
   , elseCommands = []
   }
 
+data BundleOptions = BundleOptions
+  { maybeModuleName :: Maybe ModuleName
+  , maybeTargetPath :: Maybe TargetPath
+  , maybePlatform :: Maybe Platform
+  , minify :: Minify
+  , noBuild :: NoBuild
+  }
+
 fromScriptOptions :: BuildOptions -> ScriptBuildOptions -> BuildOptions
 fromScriptOptions opts ScriptBuildOptions{..} = opts
   { pursArgs = pursArgs

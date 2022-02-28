@@ -3,7 +3,6 @@ module Spago.Build
   , test
   , run
   , repl
-  , bundleApp
   , bundleModule
   , docs
   , search
@@ -378,23 +377,23 @@ runBackend maybeBackend RunDirectories{ sourceDir, executeDir } moduleName maybe
 
 
 bundleWithEsbuild :: HasLogFunc env => WithMain -> ModuleName -> TargetPath -> Platform -> Minify -> RIO env ()
-bundleWithEsbuild withMain (ModuleName moduleName) (TargetPath targetPath) platform minify = do 
+bundleWithEsbuild withMain (ModuleName moduleName) (TargetPath targetPath) platform minify = do
   esbuild <- getESBuild
-  let 
-    platformOpt = case platform of 
+  let
+    platformOpt = case platform of
       Browser -> "browser"
       Node -> "node"
-    minifyOpt = case minify of 
+    minifyOpt = case minify of
       NoMinify -> ""
       Minify -> " --minify"
     cmd = case withMain of
-      WithMain -> 
+      WithMain ->
         "echo \"import { main } from './output/" <> moduleName <> "/index.js'\nmain()\" | "
         <> esbuild <> " --platform=" <> platformOpt <> minifyOpt <> " --bundle "
         <> " --outfile=" <> targetPath
-      WithoutMain -> 
-        esbuild <> " --platform=" <> platformOpt <> minifyOpt <> " --bundle " 
-        <> "output/" <> moduleName <> "/index.js" 
+      WithoutMain ->
+        esbuild <> " --platform=" <> platformOpt <> minifyOpt <> " --bundle "
+        <> "output/" <> moduleName <> "/index.js"
         <> " --outfile=" <> targetPath
   runWithOutput cmd
     ("Bundle succeeded and output file to " <> targetPath)
@@ -406,63 +405,36 @@ bundleWithEsbuild withMain (ModuleName moduleName) (TargetPath targetPath) platf
       Nothing -> die [ "Failed to find esbuild. See https://esbuild.github.io/getting-started/#install-esbuild for ways to install esbuild." ]
       Just esBuild -> pure esBuild
 
--- | Bundle the project to a js file (CJS) or executable ES module
-bundleApp
-  :: (HasEnv env, HasPurs env)
-  => WithMain
-  -> Maybe ModuleName
-  -> Maybe TargetPath
-  -> Maybe Platform
-  -> Minify
-  -> NoBuild
-  -> BuildOptions
-  -> UsePsa
-  -> RIO env ()
-bundleApp withMain maybeModuleName maybeTargetPath maybePlatform minify noBuild buildOpts usePsa = do
-  isES <- Purs.hasMinPursVersion "0.15.0"
-  let 
-    (moduleName, targetPath, platform) = prepareBundleDefaults maybeModuleName maybeTargetPath maybePlatform
-    bundleAction =  
-      if isES then 
-        bundleWithEsbuild withMain moduleName targetPath platform minify
-      else 
-        Purs.bundle withMain (withSourceMap buildOpts) moduleName targetPath
-  case noBuild of
-    DoBuild -> Run.withBuildEnv usePsa buildOpts $ build (Just bundleAction)
-    NoBuild -> Run.getEnv >>= (flip runRIO) bundleAction
-
--- | Bundle into a CommonJS module or ES module
+-- | Bundle the project to a CommonJs module/app or an ES module
 bundleModule
   :: (HasEnv env, HasPurs env)
-  => Maybe ModuleName
-  -> Maybe TargetPath
-  -> Maybe Platform
-  -> Minify
-  -> NoBuild
+  => WithMain
+  -> BundleOptions
   -> BuildOptions
   -> UsePsa
   -> RIO env ()
-bundleModule maybeModuleName maybeTargetPath maybePlatform minify noBuild buildOpts usePsa = do
+bundleModule withMain BundleOptions { maybeModuleName, maybeTargetPath, maybePlatform, minify, noBuild }  buildOpts usePsa = do
   isES <- Purs.hasMinPursVersion "0.15.0"
-  logDebug "Running `bundleModule`"
-  let 
+  let
     (moduleName, targetPath, platform) = prepareBundleDefaults maybeModuleName maybeTargetPath maybePlatform
-    bundleAction = 
+    bundleAction =
       if isES then
-        bundleWithEsbuild WithoutMain moduleName targetPath platform minify
-      else
-        let
-          jsExport = Text.unpack $ "\nmodule.exports = PS[\""<> unModuleName moduleName <> "\"];"
-        in do
-            logInfo "Bundling first..."
-            Purs.bundle WithoutMain (withSourceMap buildOpts) moduleName targetPath
-            -- Here we append the CommonJS export line at the end of the bundle
-            try (with
-                  (appendonly $ pathFromText $ unTargetPath targetPath)
-                  (\fileHandle -> Utf8.withHandle fileHandle (Sys.hPutStrLn fileHandle jsExport)))
-              >>= \case
-                Right _ -> logInfo $ display $ "Make module succeeded and output file to " <> unTargetPath targetPath
-                Left (n :: SomeException) -> die [ "Make module failed: " <> repr n ]
+        bundleWithEsbuild withMain moduleName targetPath platform minify
+      else case withMain of
+        WithMain -> Purs.bundle WithMain (withSourceMap buildOpts) moduleName targetPath
+        WithoutMain ->
+          let
+            jsExport = Text.unpack $ "\nmodule.exports = PS[\""<> unModuleName moduleName <> "\"];"
+          in do
+              logInfo "Bundling first..."
+              Purs.bundle WithoutMain (withSourceMap buildOpts) moduleName targetPath
+              -- Here we append the CommonJS export line at the end of the bundle
+              try (with
+                    (appendonly $ pathFromText $ unTargetPath targetPath)
+                    (\fileHandle -> Utf8.withHandle fileHandle (Sys.hPutStrLn fileHandle jsExport)))
+                >>= \case
+                  Right _ -> logInfo $ display $ "Make module succeeded and output file to " <> unTargetPath targetPath
+                  Left (n :: SomeException) -> die [ "Make module failed: " <> repr n ]
   case noBuild of
     DoBuild -> Run.withBuildEnv usePsa buildOpts $ build (Just bundleAction)
     NoBuild -> Run.getEnv >>= (flip runRIO) bundleAction

@@ -79,11 +79,8 @@ data Command
   -- | Test the project with some module, default Test.Main
   | Test (Maybe ModuleName) BuildOptions [BackendArg]
 
-  -- | Bundle the project into an executable
-  | BundleApp (Maybe ModuleName) (Maybe TargetPath) (Maybe Platform) Minify NoBuild BuildOptions
-
   -- | Bundle a module into a CommonJS or ES module
-  | BundleModule (Maybe ModuleName) (Maybe TargetPath) (Maybe Platform) Minify NoBuild BuildOptions
+  | BundleModule WithMain BundleOptions BuildOptions
 
   -- | Verify that a single package is consistent with the Package Set
   | Verify PackageName
@@ -177,6 +174,7 @@ parser = do
     pursArgs        = many $ CLI.opt (Just . PursArg) "purs-args" 'u' "Arguments to pass to purs compile. Wrap in quotes."
     buildOptions  = BuildOptions <$> watch <*> clearScreen <*> allowIgnored <*> sourcePaths <*> srcMapFlag <*> noInstall
                     <*> pursArgs <*> depsOnly <*> beforeCommands <*> thenCommands <*> elseCommands
+    bundleOptions = BundleOptions <$> mainModule <*> toTarget <*> platform <*> minifyFlag <*> noBuild
     scriptBuildOptions = ScriptBuildOptions <$> pursArgs <*> beforeCommands <*> thenCommands <*> elseCommands
 
     -- Opts.flag' creates a parser with no default value. This is intended.
@@ -230,13 +228,13 @@ parser = do
     bundleApp =
       ( "bundle-app"
       , "Bundle the project into an executable"
-      , BundleApp <$> mainModule <*> toTarget <*> platform <*> minifyFlag <*> noBuild <*> buildOptions
+      , BundleModule WithMain <$> bundleOptions <*> buildOptions
       )
 
     bundleModule =
       ( "bundle-module"
-      , "Bundle the project into a CommonJS module"
-      , BundleModule <$> mainModule <*> toTarget <*> platform <*> minifyFlag <*> noBuild <*> buildOptions
+      , "Bundle the project into a module"
+      , BundleModule WithoutMain <$> bundleOptions <*> buildOptions
       )
 
     docs =
