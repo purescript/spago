@@ -79,11 +79,8 @@ data Command
   -- | Test the project with some module, default Test.Main
   | Test (Maybe ModuleName) BuildOptions [BackendArg]
 
-  -- | Bundle the project into an executable
-  | BundleApp (Maybe ModuleName) (Maybe TargetPath) NoBuild BuildOptions
-
-  -- | Bundle a module into a CommonJS module
-  | BundleModule (Maybe ModuleName) (Maybe TargetPath) NoBuild BuildOptions
+  -- | Bundle a module into a CommonJS or ES module
+  | BundleModule WithMain BundleOptions BuildOptions
 
   -- | Verify that a single package is consistent with the Package Set
   | Verify PackageName
@@ -156,6 +153,13 @@ parser = do
 
     mainModule  = CLI.optional $ CLI.opt (Just . ModuleName) "main" 'm' "Module to be used as the application's entry point"
     toTarget    = CLI.optional $ CLI.opt (Just . TargetPath) "to" 't' "The target file path"
+    platform =
+      let wrap = \case
+            "node" -> Just Node
+            "browser" -> Just Browser
+            _ -> Nothing
+      in CLI.optional $ CLI.opt wrap "platform" 'p' "Bundle platform 'browser' (default) or 'node'"
+    minifyFlag     = bool NoMinify Minify <$> CLI.switch "minify" 'y' "Minifies the bundle"
     docsFormat  = CLI.optional $ CLI.opt Purs.parseDocsFormat "format" 'f' "Docs output format (markdown | html | etags | ctags)"
     jobsLimit   = CLI.optional (CLI.optInt "jobs" 'j' "Limit the amount of jobs that can run concurrently")
     nodeArgs         = many $ CLI.opt (Just . BackendArg) "node-args" 'a' "Argument to pass to node (run/test only)"
@@ -170,6 +174,7 @@ parser = do
     pursArgs        = many $ CLI.opt (Just . PursArg) "purs-args" 'u' "Arguments to pass to purs compile. Wrap in quotes."
     buildOptions  = BuildOptions <$> watch <*> clearScreen <*> allowIgnored <*> sourcePaths <*> srcMapFlag <*> noInstall
                     <*> pursArgs <*> depsOnly <*> beforeCommands <*> thenCommands <*> elseCommands
+    bundleOptions = BundleOptions <$> mainModule <*> toTarget <*> platform <*> minifyFlag <*> noBuild
     scriptBuildOptions = ScriptBuildOptions <$> pursArgs <*> beforeCommands <*> thenCommands <*> elseCommands
 
     -- Opts.flag' creates a parser with no default value. This is intended.
@@ -223,13 +228,13 @@ parser = do
     bundleApp =
       ( "bundle-app"
       , "Bundle the project into an executable"
-      , BundleApp <$> mainModule <*> toTarget <*> noBuild <*> buildOptions
+      , BundleModule WithMain <$> bundleOptions <*> buildOptions
       )
 
     bundleModule =
       ( "bundle-module"
-      , "Bundle the project into a CommonJS module"
-      , BundleModule <$> mainModule <*> toTarget <*> noBuild <*> buildOptions
+      , "Bundle the project into a module"
+      , BundleModule WithoutMain <$> bundleOptions <*> buildOptions
       )
 
     docs =

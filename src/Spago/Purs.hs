@@ -77,21 +77,20 @@ repl sourcePaths extraArgs = do
 
 bundle :: HasLogFunc env => WithMain -> WithSrcMap -> ModuleName -> TargetPath -> RIO env ()
 bundle withMain withSourceMap (ModuleName moduleName) (TargetPath targetPath) = do
-  let main = case withMain of
-        WithMain    -> " --main " <> moduleName
-        WithoutMain -> ""
+  let 
+    main = case withMain of
+      WithMain    -> " --main " <> moduleName
+      WithoutMain -> ""
 
-      sourceMap = case withSourceMap of 
-        WithSrcMap    -> " --source-maps"
-        WithoutSrcMap -> ""
+    sourceMap = case withSourceMap of 
+      WithSrcMap    -> " --source-maps"
+      WithoutSrcMap -> ""
 
-      cmd
-        = "purs bundle \"output/*/*.js\""
-        <> " -m " <> moduleName
-        <> main
-        <> " -o " <> targetPath
-        <> sourceMap
-
+    cmd = "purs bundle \"output/*/*.js\""
+      <> " -m " <> moduleName
+      <> main
+      <> " -o " <> targetPath
+      <> sourceMap
   runWithOutput cmd
     ("Bundle succeeded and output file to " <> targetPath)
     "Bundle failed."
@@ -152,13 +151,6 @@ hasMinPursVersion maybeMinVersion = do
     Left _ -> die [ "Unable to parse min version: " <> displayShow maybeMinVersion ]
     Right minVersion -> pure minVersion
   pure $ compilerVersion >= minVersion
-
-runWithOutput :: HasLogFunc env => Text -> Text -> Text -> RIO env ()
-runWithOutput command success failure = do
-  logDebug $ "Running command: `" <> display command <> "`"
-  shell command empty >>= \case
-    ExitSuccess -> logInfo $ display success
-    ExitFailure _ -> die [ display failure ]
 
 
 -- | Try to find the content of a certain flag in a list of PursArgs

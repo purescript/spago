@@ -89,6 +89,10 @@ data WithMain = WithMain | WithoutMain
 
 data WithSrcMap = WithSrcMap | WithoutSrcMap
 
+data Platform = Browser | Node 
+
+data Minify = Minify | NoMinify
+
 data CacheFlag = SkipCache | NewCache
   deriving (Eq)
 
@@ -163,6 +167,14 @@ defaultBuildOptions = BuildOptions
   , beforeCommands = []
   , thenCommands = []
   , elseCommands = []
+  }
+
+data BundleOptions = BundleOptions
+  { maybeModuleName :: Maybe ModuleName
+  , maybeTargetPath :: Maybe TargetPath
+  , maybePlatform :: Maybe Platform
+  , minify :: Minify
+  , noBuild :: NoBuild
   }
 
 fromScriptOptions :: BuildOptions -> ScriptBuildOptions -> BuildOptions

@@ -55,10 +55,8 @@ main = withUtf8 $ do
         -> Path.showPaths buildOptions whichPath
       Repl replPackageNames paths pursArgs depsOnly replPackage
         -> Spago.Build.repl replPackageNames paths pursArgs depsOnly replPackage
-      BundleApp modName tPath shouldBuild buildOptions
-        -> Spago.Build.bundleApp WithMain modName tPath shouldBuild buildOptions globalUsePsa
-      BundleModule modName tPath shouldBuild buildOptions
-        -> Spago.Build.bundleModule modName tPath shouldBuild buildOptions globalUsePsa
+      BundleModule withMain bundleOptions buildOptions
+        -> Run.withPursEnv globalUsePsa $ Spago.Build.bundleModule withMain bundleOptions buildOptions globalUsePsa
       Script modulePath tag dependencies scriptBuildOptions
         -> Spago.Build.script modulePath tag dependencies scriptBuildOptions
 
