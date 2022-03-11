@@ -10,5 +10,5 @@ import Data.Show (show)
 main :: Effect Unit
 main = do
   args <- argv
-  -- dropping the first arg, node path to make test stable
-  log $ show $ drop 1 args
+  -- dropping the first two args, node path and script name, to make test stable
+  log $ show $ drop 2 args

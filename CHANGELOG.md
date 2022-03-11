@@ -12,6 +12,9 @@ Features:
 - Make `spago run` use es modules for projects >= v0.15 
 - Support Glibc versions >= `2.24`
 
+Bugfixes
+- Undo removing `run.js` as this does not work for cli programs. Generate `run.mjs` for projects >= 0.15
+
 ## [0.20.7] - 2022-02-12
 
 Bugfixes

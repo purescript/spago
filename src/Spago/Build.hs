@@ -323,11 +323,14 @@ runBackend
 runBackend maybeBackend RunDirectories{ sourceDir, executeDir } moduleName maybeSuccessMessage failureMessage extraArgs = do
   logDebug $ display $ "Running with backend: " <> fromMaybe "nodejs" maybeBackend
   BuildOptions{ pursArgs } <- view (the @BuildOptions)
-  isES <- Purs.hasMinPursVersion "0.15.0"
+  isES <- Purs.hasMinPursVersion "0.15.0-alpha-01"
   let postBuild = maybe (nodeAction isES $ Path.getOutputPath pursArgs) backendAction maybeBackend
   build (Just postBuild)
   where
     fromFilePath = Text.pack . Turtle.encodeString
+    runJsSource isES =
+      let file = if isES then "run.mjs" else "run.js"
+      in fromFilePath (sourceDir Turtle.</> ".spago" Turtle.</> file)
     nodeArgs = Text.intercalate " " $ map unBackendArg extraArgs
     esContents outputPath' =
       fold
@@ -352,19 +355,22 @@ runBackend maybeBackend RunDirectories{ sourceDir, executeDir } moduleName maybe
         , unModuleName moduleName
         , "').main()"
         ]
-    nodeCmd isES outputPath'=
-      if isES then
-        "node --input-type=module -e \"" <> esContents outputPath'  <> "\" -- " <> nodeArgs
-      else
-        "node -e \"" <> cjsContents outputPath' <> "\" -- " <> nodeArgs
+    nodeContents isES outputPath' =
+      if isES then esContents outputPath'
+      else cjsContents outputPath'
+
+    nodeCmd isES = "node " <> runJsSource isES <> " " <> nodeArgs
 
     nodeAction isES outputPath' = do
+      logDebug $ "Writing " <> displayShow @Text (runJsSource isES)
+      writeTextFile (runJsSource isES) (nodeContents isES outputPath')
+      void $ chmod executable $ pathFromText $ runJsSource isES
       -- cd to executeDir in case it isn't the same as sourceDir
       logDebug $ "Executing from: " <> displayShow @FilePath executeDir
       Turtle.cd executeDir
       -- We build a process by hand here because we need to forward the stdin to the backend process
-      logDebug $ "Running node command: `" <> display (nodeCmd isES outputPath') <> "`"
-      let processWithStdin = (Process.shell (Text.unpack $ nodeCmd isES outputPath')) { Process.std_in = Process.Inherit }
+      logDebug $ "Running node command: `" <> display (nodeCmd isES) <> "`"
+      let processWithStdin = (Process.shell (Text.unpack $ nodeCmd isES)) { Process.std_in = Process.Inherit }
       Turtle.system processWithStdin empty >>= \case
         ExitSuccess   -> maybe (pure ()) (logInfo . display) maybeSuccessMessage
         ExitFailure n -> die [ display failureMessage <> "exit code: " <> repr n ]
@@ -414,7 +420,7 @@ bundleModule
   -> UsePsa
   -> RIO env ()
 bundleModule withMain BundleOptions { maybeModuleName, maybeTargetPath, maybePlatform, minify, noBuild }  buildOpts usePsa = do
-  isES <- Purs.hasMinPursVersion "0.15.0"
+  isES <- Purs.hasMinPursVersion "0.15.0-alpha-01"
   let
     (moduleName, targetPath, platform) = prepareBundleDefaults maybeModuleName maybeTargetPath maybePlatform
     bundleAction =
