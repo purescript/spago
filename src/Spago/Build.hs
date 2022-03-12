@@ -17,6 +17,7 @@ import qualified Data.List.NonEmpty   as NonEmpty
 import qualified Data.Map             as Map
 import qualified Data.Set             as Set
 import qualified Data.Text            as Text
+import qualified Data.Versions        as Version
 import           System.Directory     (getCurrentDirectory)
 import           System.FilePath      (splitDirectories)
 import qualified System.FilePath.Glob as Glob
@@ -36,6 +37,7 @@ import qualified Spago.Packages       as Packages
 import qualified Spago.Purs           as Purs
 import qualified Spago.Templates      as Templates
 import qualified Spago.Watch          as Watch
+import qualified Spago.Cmd            as Cmd
 
 
 prepareBundleDefaults
@@ -309,6 +311,24 @@ script modulePath tag packageDeps opts = do
 
 data RunDirectories = RunDirectories { sourceDir :: FilePath, executeDir :: FilePath }
 
+data NodeEsSupport = Unsupported Version.SemVer | Experimental | Supported
+
+hasNodeEsSupport :: (HasLogFunc env) => RIO env NodeEsSupport
+hasNodeEsSupport = do
+  let
+    esVersions :: Either Version.ParsingError (Version.SemVer, Version.SemVer)
+    esVersions = bisequence (Version.semver "12.0.0", Version.semver "13.0.0")
+  nodeVersion <- Cmd.getCmdVersion "node"
+  case (nodeVersion, esVersions)  of
+    (Left err, _) -> do
+      logDebug $ display $ "Unable to parse min version: " <> displayShow err
+      pure Supported
+    (Right nv, Right (expVersion, _)) | nv < expVersion -> 
+      pure $ Unsupported nv
+    (Right nv, Right (expVersion, supVersion)) | nv >= expVersion && nv < supVersion -> pure Experimental
+    (Right _, _) -> pure Supported
+    
+
 -- | Run the project with node (or the chosen alternate backend):
 --   compile and run the provided ModuleName
 runBackend
@@ -324,8 +344,13 @@ runBackend maybeBackend RunDirectories{ sourceDir, executeDir } moduleName maybe
   logDebug $ display $ "Running with backend: " <> fromMaybe "nodejs" maybeBackend
   BuildOptions{ pursArgs } <- view (the @BuildOptions)
   isES <- Purs.hasMinPursVersion "0.15.0-alpha-01"
-  let postBuild = maybe (nodeAction isES $ Path.getOutputPath pursArgs) backendAction maybeBackend
-  build (Just postBuild)
+  nodeEsSupport <- hasNodeEsSupport
+  case (isES, nodeEsSupport) of
+    (True, Unsupported nv) -> die [ "Unsupported node version: ", display $ Version.prettySemVer nv, "Required Node.js version >=12." ]
+    _ -> 
+      let 
+        postBuild = maybe (nodeAction isES nodeEsSupport $ Path.getOutputPath pursArgs) backendAction maybeBackend
+      in build (Just postBuild)
   where
     fromFilePath = Text.pack . Turtle.encodeString
     runJsSource isES =
@@ -359,9 +384,10 @@ runBackend maybeBackend RunDirectories{ sourceDir, executeDir } moduleName maybe
       if isES then esContents outputPath'
       else cjsContents outputPath'
 
-    nodeCmd isES = "node " <> runJsSource isES <> " " <> nodeArgs
+    nodeCmd isES Experimental | isES = "node --experimental-modules " <> runJsSource isES <> " " <> nodeArgs
+    nodeCmd isES _ = "node " <> runJsSource isES <> " " <> nodeArgs
 
-    nodeAction isES outputPath' = do
+    nodeAction isES nodeVersion outputPath' = do
       logDebug $ "Writing " <> displayShow @Text (runJsSource isES)
       writeTextFile (runJsSource isES) (nodeContents isES outputPath')
       void $ chmod executable $ pathFromText $ runJsSource isES
@@ -369,8 +395,8 @@ runBackend maybeBackend RunDirectories{ sourceDir, executeDir } moduleName maybe
       logDebug $ "Executing from: " <> displayShow @FilePath executeDir
       Turtle.cd executeDir
       -- We build a process by hand here because we need to forward the stdin to the backend process
-      logDebug $ "Running node command: `" <> display (nodeCmd isES) <> "`"
-      let processWithStdin = (Process.shell (Text.unpack $ nodeCmd isES)) { Process.std_in = Process.Inherit }
+      logDebug $ "Running node command: `" <> display (nodeCmd isES nodeVersion) <> "`"
+      let processWithStdin = (Process.shell (Text.unpack $ nodeCmd isES nodeVersion)) { Process.std_in = Process.Inherit }
       Turtle.system processWithStdin empty >>= \case
         ExitSuccess   -> maybe (pure ()) (logInfo . display) maybeSuccessMessage
         ExitFailure n -> die [ display failureMessage <> "exit code: " <> repr n ]
