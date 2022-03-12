@@ -346,7 +346,7 @@ runBackend maybeBackend RunDirectories{ sourceDir, executeDir } moduleName maybe
   isES <- Purs.hasMinPursVersion "0.15.0-alpha-01"
   nodeEsSupport <- hasNodeEsSupport
   case (isES, nodeEsSupport) of
-    (True, Unsupported nv) -> die [ "Unsupported node version: ", display $ Version.prettySemVer nv, "Required Node.js version >=12." ]
+    (True, Unsupported nv) -> die [ "Unsupported node version: " <> display (Version.prettySemVer nv), "Required Node.js version >=12." ]
     _ -> 
       let 
         postBuild = maybe (nodeAction isES nodeEsSupport $ Path.getOutputPath pursArgs) backendAction maybeBackend
