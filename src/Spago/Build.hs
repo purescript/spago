@@ -323,11 +323,11 @@ hasNodeEsSupport = do
     (Left err, _) -> do
       logDebug $ display $ "Unable to parse min version: " <> displayShow err
       pure Supported
-    (Right nv, Right (expVersion, _)) | nv < expVersion -> 
+    (Right nv, Right (expVersion, _)) | nv < expVersion ->
       pure $ Unsupported nv
     (Right nv, Right (expVersion, supVersion)) | nv >= expVersion && nv < supVersion -> pure Experimental
     (Right _, _) -> pure Supported
-    
+
 
 -- | Run the project with node (or the chosen alternate backend):
 --   compile and run the provided ModuleName
@@ -347,15 +347,14 @@ runBackend maybeBackend RunDirectories{ sourceDir, executeDir } moduleName maybe
   nodeEsSupport <- hasNodeEsSupport
   case (isES, nodeEsSupport) of
     (True, Unsupported nv) -> die [ "Unsupported node version: " <> display (Version.prettySemVer nv), "Required Node.js version >=12." ]
-    _ -> 
-      let 
+    _ ->
+      let
         postBuild = maybe (nodeAction isES nodeEsSupport $ Path.getOutputPath pursArgs) backendAction maybeBackend
       in build (Just postBuild)
   where
     fromFilePath = Text.pack . Turtle.encodeString
-    runJsSource isES =
-      let file = if isES then "run.mjs" else "run.js"
-      in fromFilePath (sourceDir Turtle.</> ".spago" Turtle.</> file)
+    runJsSource = fromFilePath (sourceDir Turtle.</> ".spago/run.js")
+    packageJson = fromFilePath (sourceDir Turtle.</> ".spago/package.json")
     nodeArgs = Text.intercalate " " $ map unBackendArg extraArgs
     esContents outputPath' =
       fold
@@ -384,13 +383,19 @@ runBackend maybeBackend RunDirectories{ sourceDir, executeDir } moduleName maybe
       if isES then esContents outputPath'
       else cjsContents outputPath'
 
-    nodeCmd isES Experimental | isES = "node --experimental-modules " <> runJsSource isES <> " " <> nodeArgs
-    nodeCmd isES _ = "node " <> runJsSource isES <> " " <> nodeArgs
+    packageJsonContents = "{\"type\":\"module\" }"
+
+    nodeCmd isES Experimental | isES = "node --experimental-modules " <> runJsSource <> " " <> nodeArgs
+    nodeCmd _ _ = "node " <> runJsSource <> " " <> nodeArgs
 
     nodeAction isES nodeVersion outputPath' = do
-      logDebug $ "Writing " <> displayShow @Text (runJsSource isES)
-      writeTextFile (runJsSource isES) (nodeContents isES outputPath')
-      void $ chmod executable $ pathFromText $ runJsSource isES
+      logDebug $ "Writing " <> displayShow @Text runJsSource
+      writeTextFile runJsSource (nodeContents isES outputPath')
+      void $ chmod executable $ pathFromText runJsSource
+      if isES then do
+        logDebug $ "Writing " <> displayShow @Text packageJson
+        writeTextFile packageJson packageJsonContents
+      else pure ()
       -- cd to executeDir in case it isn't the same as sourceDir
       logDebug $ "Executing from: " <> displayShow @FilePath executeDir
       Turtle.cd executeDir
