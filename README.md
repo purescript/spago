@@ -92,7 +92,7 @@ $ spago run
 ..which is basically equivalent to the following command:
 
 ```bash
-$ node -e "require('./output/Main/index').main()"
+$ node -e "import('./output/Main/index').then(m => m.main())"
 ```
 
 ..which imports the JS file you just looked at, and runs the `main` with Node.
@@ -398,10 +398,8 @@ Tests succeeded.
 As with the `build` and `test` commands, you can add custom source paths
 to load, and pass options to the underlying `purs repl` via `--purs-args`.
 
-E.g. the following opens a repl on `localhost:3200`:
-
 ```bash
-$ spago repl --purs-args "--port 3200"
+$ spago repl
 ```
 
 
@@ -769,6 +767,27 @@ there are basically two ways to do that:
 
 This will produce a single, executable, dead-code-eliminated file:
 
+**>= v0.15.0**
+
+Since v0.15.0 spago uses `esbuild` as the underlying default bundler. See the [`esbuild` getting started](https://esbuild.github.io/getting-started/#install-esbuild) for installation instructions.
+```bash
+# You can specify the main module and the target file, or these defaults will be used. This will bundle for the browser by default.
+$ spago bundle-app --main Main --to index.js
+Bundle succeeded and output file to index.js
+
+# If you want to minify the build, use 
+$ spago bundle-app --main Main --to index.js --minify
+
+# Or if you want to bundle for node
+$ spago bundle-app --main Main --to index.js --platform node
+Bundle succeeded and output file to index.js
+
+
+# We can then run it with node:
+$ node .
+```
+
+**<= v0.14.0**
 ```bash
 # You can specify the main module and the target file, or these defaults will be used
 $ spago bundle-app --main Main --to index.js
@@ -780,9 +799,23 @@ $ node .
 
 #### 2. `spago bundle-module`
 
-If you wish to produce a single, dead-code-eliminated JS module that you can `require` from
+If you wish to produce a single, dead-code-eliminated JS module that you can `import` from
 JavaScript:
 
+**>= v0.15.0**
+
+```bash
+# You can specify the main module and the target file, or these defaults will be used
+$ spago bundle-module --main Main --to index.js
+Bundling first...
+Bundle succeeded and output file to index.js
+Make module succeeded and output file to index.js
+
+$ node -e "import('./index.js').then(m => console.log(m.main))"                              
+[Function]
+```
+
+**<= v0.14.0**
 ```bash
 # You can specify the main module and the target file, or these defaults will be used
 $ spago bundle-module --main Main --to index.js
@@ -821,6 +854,44 @@ To start a project using Spago and Parcel together, here's the commands and file
   It is recommended to read any environment variables in the JavaScript file and pass them as
   arguments to `main`. Here is an example JavaScript file:
 
+  **>= v0.15.0**
+  ```js
+  import * as Main from './output/Main/index';
+
+  function main () {
+      /*
+      Here we could add variables such as
+
+      var baseUrl = process.env.BASE_URL;
+
+      Parcel will replace `process.env.BASE_URL`
+      with the string contents of the BASE_URL environment
+      variable at bundle/build time.
+      A .env file can also be used to override shell variables
+      for more information, see https://en.parceljs.org/env.html
+
+      These variables can be supplied to the Main.main function.
+      However, you will need to change the type to accept variables, by default it is an Effect.
+      You will probably want to make it a function from String -> Effect ()
+    */
+
+    Main.main();
+  }
+
+  // HMR setup. For more info see: https://parceljs.org/hmr.html
+  if (module.hot) {
+    module.hot.accept(function () {
+      console.log('Reloaded, running main again');
+      main();
+    });
+  }
+
+  console.log('Starting app');
+
+  main();
+  ```
+
+  **<= v0.14.0**
   ```js
   var Main = require('./output/Main');
 
@@ -918,8 +989,15 @@ To start a project using Spago and Parcel together, here's the commands and file
 1. Follow [Spago's "Super quick tutorial"](#super-quick-tutorial)
 2. Initialise a JavaScript/npm project with `npm init`
 3. Add Webpack and purescript-psa as development-time dependencies: `npm install --save-dev webpack webpack-cli webpack-dev-server purescript-psa`
-4. Install the PureScript loader and HTML plugin for WebPack `npm install --save-dev purs-loader html-webpack-plugin`.
+4. **>= v0.15.0** 
+
+  Install the HTML plugin for WebPack `npm install --save-dev html-webpack-plugin`.
+
+  **<= v0.14.0** 
+  
+  Install the PureScript loader and HTML plugin for WebPack `npm install --save-dev purs-loader html-webpack-plugin`.
   Note that you may require additional loaders for css/scss, image files, etc. Please refer to the [Webpack documentation](https://webpack.js.org/) for more information.
+  
 5. Create an HTML file that will serve as the entry point for your application.
   Typically this is `index.html`. In your HTML file, be sure to pull in the `bundle.js` file, which will be Webpack's output. Here is an example HTML file:
 
@@ -939,6 +1017,80 @@ To start a project using Spago and Parcel together, here's the commands and file
 
 6. Create a `webpack.config.js` file in the root of your project. Here is an example webpack configuration:
 
+  **>= v0.15.0** 
+  ```js
+  import path from 'path'
+  import HtmlWebpackPlugin from 'html-webpack-plugin'
+  import webpack from 'webpack'
+  import { dirname } from 'path';
+  import { fileURLToPath } from 'url';
+
+  const __dirname = dirname(fileURLToPath(import.meta.url));
+  const isWebpackDevServer = process.argv.some(a => path.basename(a) === 'webpack-dev-server')
+  const isWatch = process.argv.some(a => a === '--watch')
+
+  const plugins =
+    isWebpackDevServer || !isWatch ? [] : [
+      function () {
+        this.plugin('done', function (stats) {
+          process.stderr.write(stats.toString('errors-only'))
+        })
+      }
+    ]
+
+
+  export default {
+    devtool: 'eval-source-map',
+    mode: 'development',
+    devServer: {
+      port: 4008,
+      static: {
+        directory: path.resolve(__dirname,'dist'),
+      },
+    },
+
+    entry: './index.js',
+
+    output: {
+      path: path.resolve(__dirname,'dist'),
+      filename: 'bundle.js'
+    },
+
+    module: {
+      rules: [
+        {
+          test: /\.(png|jpg|gif)$/i,
+          use: [
+            {
+              loader: 'url-loader',
+              options: {
+                limit: 8192,
+              },
+            },
+          ],
+        },
+      ]
+    },
+
+    resolve: {
+      modules: ['node_modules'],
+      extensions: ['.js']
+    },
+
+    plugins: [
+      new webpack.LoaderOptionsPlugin({
+        debug: true
+      }),
+      new HtmlWebpackPlugin({
+        title: 'purescript-webpack-example',
+        template: 'index.html',
+        inject: false  // See stackoverflow.com/a/38292765/3067181
+      })
+    ].concat(plugins)
+  }
+  ```
+
+  **<= v0.14.0**
   ```js
 
   'use strict';
@@ -1032,6 +1184,15 @@ To start a project using Spago and Parcel together, here's the commands and file
   Please refer to the Webpack documentation on environment variable replacement during bundling.
   Here is an example `index.js` file:
 
+  **>= v0.15.0**
+  ```js
+  import { main } from '../output/Main/index'
+
+  main()
+  console.log('app starting');
+  ```
+
+  **<= v0.14.0**
   ```js
 
   'use strict';
@@ -1048,6 +1209,16 @@ To start a project using Spago and Parcel together, here's the commands and file
   Also, make sure you are calling `main` properly if you are passing arguments (due to
   PureScript specifics of [modelling effectful computations](https://stackoverflow.com/a/55750945/3067181)):
 
+  **>= v0.15.0**
+
+  ```js
+
+  var arg1 = 'arg1';
+  main(arg1)();
+
+  ```
+
+  **<= v0.14.0**
   ```js
 
   var arg1 = 'arg1';
@@ -1057,11 +1228,22 @@ To start a project using Spago and Parcel together, here's the commands and file
 
 8. Add the following development script to `package.json`:
 
+  **>= v0.15.0**
   ```js
   ...
     "scripts": {
       ...,
-      "webpack:server": "webpack-dev-server --progress --inline --hot"
+      "webpack:server": "spago build -w & webpack-dev-server --progress --hot"
+    },
+  ...
+  ```
+
+  **<= v0.14.0**
+  ```js
+  ...
+    "scripts": {
+      ...,
+      "webpack:server": "webpack-dev-server --progress --hot"
     },
   ...
   ```
@@ -1088,7 +1270,31 @@ To start a project using Spago and Parcel together, here's the commands and file
   It is recommended to read any environment variables in the JavaScript file and pass them as arguments to `main`.
 
   Here is an example JavaScript file:
+  
+  **>= v0.15.0**
+  ```js
+  import * as Main from './output/Main';
 
+  function main () {
+      /*
+      Here we could add variables such as
+
+      var baseUrl = process.env.BASE_URL;
+
+      Node will replace `process.env.BASE_URL`
+      with the string contents of the BASE_URL environment
+      variable at bundle/build time.
+
+      These variables can be supplied to the Main.main function,
+      however, you will need to change the type to accept variables, by default it is an Effect.
+      You will probably want to make it a function from String -> Effect ()
+    */
+
+    Main.main();
+  }
+  ```
+
+  **<= v0.14.0**
   ```js
   'use strict'
 
@@ -1181,6 +1387,7 @@ Quoting from [this tweet](https://twitter.com/jusrin00/status/109207140735638732
    something like `parcel`, to avoid mangling/destroying the sourcemaps
 3. now you can see your breakpoints in action
 
+**Note**: In >= v0.15.0 this needs to be `import * as someModule from './output/Whatever/index.js'`
 
 ### Use alternate backends to compile to Go, C++, Kotlin, etc
 
