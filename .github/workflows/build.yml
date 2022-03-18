@@ -6,13 +6,29 @@ on:
   pull_request:
     branches: [ master ]
 
+env:
+  STACK_VERSION: '2.7.3'
+
 jobs:
   build:
     runs-on: ${{ matrix.os }}
+    container: ${{ matrix.image }}
     strategy:
       matrix:
-        os: [ ubuntu-18.04, macOS-latest, windows-latest ]
+        include:
+          - os: ubuntu-latest
+            image: haskell:8.10.7-stretch@sha256:100f8fb7d7d8d64adb5e106fe8136b8d4cbdc03aeb2cbd145a7597d74b69bafb
+          - os: macOS-latest
+          - os: windows-latest
     steps:
+      # We need a proper Git repository, but the checkout step will unpack a tarball instead of doing a clone
+      # if the Git version is less than 2.18.
+      - name: Install a newer version of Git (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          . /etc/os-release
+          echo deb http://deb.debian.org/debian "$VERSION_CODENAME"-backports main >> /etc/apt/sources.list
+          apt-get update && apt-get install -y git/"$VERSION_CODENAME"-backports
       # We set LF endings so that the Windows environment is consistent with Appveyor
       # See here for context: https://github.com/actions/checkout/issues/135
       - name: Set git to use LF
@@ -21,14 +37,21 @@ jobs:
           git config --global core.eol lf
           git config --global core.longpaths true
       - uses: actions/checkout@v2
-      - name: Setup Haskell
+      - name: Setup Haskell (macOS and Windows)
+        if: runner.os != 'Linux'
         uses: haskell/actions/setup@v1
         with:
-          ghc-version: '8.10'
-          stack-version: 'latest'
+          ghc-version: '8.10.7'
+          stack-version: ${{ env.STACK_VERSION }}
           enable-stack: true
           stack-no-global: true
           stack-setup-ghc: true
+      - name: Check Stack version and fix root access (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          [ "$(stack --numeric-version)" = "$STACK_VERSION" ]
+          chown root:root .
+          echo '{"allow_root":true}' > /root/.bowerrc
       - name: Setup node and npm
         uses: actions/setup-node@v2
         with:
@@ -58,8 +81,9 @@ jobs:
         if: runner.os != 'Windows'
         with:
           path: |
+            /root/.stack
             ~/.stack
-          key: ${{ runner.os }}-${{ hashFiles('stack.yaml') }}-1
+          key: ${{ runner.os }}-${{ hashFiles('stack.yaml') }}-2
       - name: Cache C:\sr on Windows OS
         uses: actions/cache@v2
         if: runner.os == 'Windows'
@@ -75,19 +99,19 @@ jobs:
 
       - name: Install dependencies
         run: |
-          stack install --dependencies-only
+          ./scripts/fix-home stack install --dependencies-only
         shell: bash
 
       - name: Build
         run: |
-          make
-          stack build --pedantic
+          ./scripts/fix-home make
+          ./scripts/fix-home stack build --pedantic
         shell: bash
 
       - name: Install
-        run: stack install
+        run: ./scripts/fix-home stack install
         shell: bash
 
       - name: Run tests
-        run: stack test
+        run: ./scripts/fix-home stack test
         shell: bash
