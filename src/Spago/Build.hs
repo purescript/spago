@@ -413,8 +413,8 @@ runBackend maybeBackend RunDirectories{ sourceDir, executeDir } moduleName maybe
         ExitFailure n -> die [ display failureMessage <> "Backend " <> displayShow backend <> " exited with error:" <> repr n ]
 
 
-bundleWithEsbuild :: HasLogFunc env => WithMain -> ModuleName -> TargetPath -> Platform -> Minify -> RIO env ()
-bundleWithEsbuild withMain (ModuleName moduleName) (TargetPath targetPath) platform minify = do
+bundleWithEsbuild :: HasLogFunc env => WithMain -> WithSrcMap -> ModuleName -> TargetPath -> Platform -> Minify -> RIO env ()
+bundleWithEsbuild withMain srcMap (ModuleName moduleName) (TargetPath targetPath) platform minify = do
   esbuild <- getESBuild
   let
     platformOpt = case platform of
@@ -423,13 +423,16 @@ bundleWithEsbuild withMain (ModuleName moduleName) (TargetPath targetPath) platf
     minifyOpt = case minify of
       NoMinify -> ""
       Minify -> " --minify"
+    srcMapOpt = case srcMap of
+      WithSrcMap -> " --sourcemap"
+      WithoutSrcMap -> ""
     cmd = case withMain of
       WithMain ->
         "echo \"import { main } from './output/" <> moduleName <> "/index.js'\nmain()\" | "
-        <> esbuild <> platformOpt <> minifyOpt <> " --bundle "
+        <> esbuild <> platformOpt <> minifyOpt <> srcMapOpt <> " --bundle "
         <> " --outfile=" <> targetPath
       WithoutMain ->
-        esbuild <> platformOpt <> minifyOpt <> " --bundle "
+        esbuild <> platformOpt <> minifyOpt <> srcMapOpt <> " --bundle "
         <> "output/" <> moduleName <> "/index.js"
         <> " --outfile=" <> targetPath
   runWithOutput cmd
@@ -456,7 +459,7 @@ bundleModule withMain BundleOptions { maybeModuleName, maybeTargetPath, maybePla
     (moduleName, targetPath, platform) = prepareBundleDefaults maybeModuleName maybeTargetPath maybePlatform
     bundleAction =
       if isES then
-        bundleWithEsbuild withMain moduleName targetPath platform minify
+        bundleWithEsbuild withMain (withSourceMap buildOpts) moduleName targetPath platform minify
       else case withMain of
         WithMain -> Purs.bundle WithMain (withSourceMap buildOpts) moduleName targetPath
         WithoutMain ->
