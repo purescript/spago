@@ -418,18 +418,18 @@ bundleWithEsbuild withMain (ModuleName moduleName) (TargetPath targetPath) platf
   esbuild <- getESBuild
   let
     platformOpt = case platform of
-      Browser -> "browser"
-      Node -> "node"
+      Browser -> " --platform=browser"
+      Node -> " --platform=node --format=esm"
     minifyOpt = case minify of
       NoMinify -> ""
       Minify -> " --minify"
     cmd = case withMain of
       WithMain ->
         "echo \"import { main } from './output/" <> moduleName <> "/index.js'\nmain()\" | "
-        <> esbuild <> " --platform=" <> platformOpt <> minifyOpt <> " --bundle "
+        <> esbuild <> platformOpt <> minifyOpt <> " --bundle "
         <> " --outfile=" <> targetPath
       WithoutMain ->
-        esbuild <> " --platform=" <> platformOpt <> minifyOpt <> " --bundle "
+        esbuild <> platformOpt <> minifyOpt <> " --bundle "
         <> "output/" <> moduleName <> "/index.js"
         <> " --outfile=" <> targetPath
   runWithOutput cmd
