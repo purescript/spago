@@ -385,8 +385,8 @@ runBackend maybeBackend RunDirectories{ sourceDir, executeDir } moduleName maybe
 
     packageJsonContents = "{\"type\":\"module\" }"
 
-    nodeCmd isES Experimental | isES = "node --experimental-modules " <> runJsSource <> " " <> nodeArgs
-    nodeCmd _ _ = "node " <> runJsSource <> " " <> nodeArgs
+    nodeCmd isES Experimental | isES = "node --experimental-modules \"" <> runJsSource <> "\" " <> nodeArgs
+    nodeCmd _ _ = "node \"" <> runJsSource <> "\" " <> nodeArgs
 
     nodeAction isES nodeVersion outputPath' = do
       logDebug $ "Writing " <> displayShow @Text runJsSource
