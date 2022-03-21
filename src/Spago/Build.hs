@@ -315,18 +315,16 @@ data NodeEsSupport = Unsupported Version.SemVer | Experimental | Supported
 
 hasNodeEsSupport :: (HasLogFunc env) => RIO env NodeEsSupport
 hasNodeEsSupport = do
-  let
-    esVersions :: Either Version.ParsingError (Version.SemVer, Version.SemVer)
-    esVersions = bisequence (Version.semver "12.0.0", Version.semver "13.0.0")
   nodeVersion <- Cmd.getCmdVersion "node"
-  case (nodeVersion, esVersions)  of
-    (Left err, _) -> do
-      logDebug $ display $ "Unable to parse min version: " <> displayShow err
+  case nodeVersion  of
+    Left err -> do
+      logDebug $ display $ "Unable to get Node.js version: " <> displayShow err
       pure Supported
-    (Right nv, Right (expVersion, _)) | nv < expVersion ->
+    Right nv@Version.SemVer{} | Version._svMajor nv < 12 ->
       pure $ Unsupported nv
-    (Right nv, Right (expVersion, supVersion)) | nv >= expVersion && nv < supVersion -> pure Experimental
-    (Right _, _) -> pure Supported
+    Right nv@Version.SemVer{} | Version._svMajor nv >= 12 && Version._svMajor nv < 13 ->
+      pure Experimental
+    _ -> pure Supported
 
 
 -- | Run the project with node (or the chosen alternate backend):
@@ -346,7 +344,7 @@ runBackend maybeBackend RunDirectories{ sourceDir, executeDir } moduleName maybe
   isES <- Purs.hasMinPursVersion "0.15.0-alpha-01"
   nodeEsSupport <- hasNodeEsSupport
   case (isES, nodeEsSupport) of
-    (True, Unsupported nv) -> die [ "Unsupported node version: " <> display (Version.prettySemVer nv), "Required Node.js version >=12." ]
+    (True, Unsupported nv) -> die [ "Unsupported Node.js version: " <> display (Version.prettySemVer nv), "Required Node.js version >=12." ]
     _ ->
       let
         postBuild = maybe (nodeAction isES nodeEsSupport $ Path.getOutputPath pursArgs) backendAction maybeBackend
