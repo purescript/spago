@@ -13,7 +13,10 @@ Features:
 - Support Glibc versions >= `2.24`
 
 Bugfixes
-- Undo removing `run.js` as this does not work for cli programs. Generate `run.mjs` for projects >= 0.15
+- Undo removing `run.js` as this does not work for cli programs.
+- Make spago escape filepaths so that spaces in paths are allowed
+- Fix adding experimental flag for node version 12
+- Remove support for node versions < 12 because they do not work with es modules
 
 ## [0.20.7] - 2022-02-12
 
