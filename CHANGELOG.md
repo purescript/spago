@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Features:
 - Make `spago bundle-app` and `spago bundle-module` use esbuild and es modules for projects >= v0.15
 - Make `spago run` use es modules for projects >= v0.15 
+- Support Glibc versions >= `2.24`
 
 ## [0.20.7] - 2022-02-12
 
