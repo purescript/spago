@@ -20,7 +20,7 @@ import qualified Spago.Cmd as Cmd
 
 setup :: IO () -> IO ()
 setup cmd = do
-  Temp.withTempDirectory "test/" "spago test" $ \temp -> do
+  Temp.withTempDirectory "test/" "spago-test" $ \temp -> do
     -- print ("Running in " <> temp)
     withCwd (decodeString temp) cmd
 
@@ -170,7 +170,7 @@ spec = around_ setup $ do
 
       spago ["init"] >>= shouldBeSuccess
       mv "packages.dhall" "packagesBase.dhall"
-      writeTextFile "packages.dhall" "let pkgs = ./packagesBase.dhall in pkgs // { metadata_ = { dependencies = [\"prelude\"], repo = \"https://github.com/spacchetti/purescript-metadata.git\", version = \"spago test/branch-with-slash\" }}"
+      writeTextFile "packages.dhall" "let pkgs = ./packagesBase.dhall in pkgs // { metadata_ = { dependencies = [\"prelude\"], repo = \"https://github.com/spacchetti/purescript-metadata.git\", version = \"spago-test/branch-with-slash\" }}"
       spago ["install", "metadata_"] >>= shouldBeSuccess
 
     it "Spago should be able to install a package not in the set from a commit hash" $ do
