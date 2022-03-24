@@ -9,7 +9,7 @@ import qualified Data.Text.Encoding.Error as Text.Encoding
 import qualified Data.Versions  as Version
 
 -- | Get the semantic version of a command, e.g. purs --version
-getCmdVersion :: Text -> RIO env (Either Text Version.SemVer)
+getCmdVersion :: forall io. MonadIO io => Text -> io (Either Text Version.SemVer)
 getCmdVersion cmd =
   Turtle.Bytes.shellStrictWithErr (cmd <> " --version") empty >>= \case
     (ExitSuccess, out, _err) -> do

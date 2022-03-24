@@ -8,17 +8,19 @@ import           Test.Hspec         (Spec, around_, describe, it, shouldBe, shou
                                      shouldNotBe, shouldReturn, shouldSatisfy)
 import           Turtle             (ExitCode (..), cd, cp, decodeString, empty, encodeString,
                                      mkdir, mktree, mv, pwd, readTextFile, rm, shell,
-                                     shellStrictWithErr, testdir, writeTextFile, (</>))
+                                     shellStrictWithErr, testdir, writeTextFile, (</>), die)
 import           Utils              (checkFileHasInfix, checkFixture, checkFileExist, outputShouldEqual,
                                      readFixture, runFor, shouldBeFailure, shouldBeFailureInfix,
                                      shouldBeFailureStderr, shouldBeSuccess, shouldBeSuccessOutput,
                                      shouldBeSuccessOutputWithErr, shouldBeSuccessStderr, spago,
                                      withCwd, withEnvVar)
+import qualified Data.Versions as Version
+import qualified Spago.Cmd as Cmd
 
 
 setup :: IO () -> IO ()
 setup cmd = do
-  Temp.withTempDirectory "test/" "spago-test" $ \temp -> do
+  Temp.withTempDirectory "test/" "spago test" $ \temp -> do
     -- print ("Running in " <> temp)
     withCwd (decodeString temp) cmd
 
@@ -168,7 +170,7 @@ spec = around_ setup $ do
 
       spago ["init"] >>= shouldBeSuccess
       mv "packages.dhall" "packagesBase.dhall"
-      writeTextFile "packages.dhall" "let pkgs = ./packagesBase.dhall in pkgs // { metadata_ = { dependencies = [\"prelude\"], repo = \"https://github.com/spacchetti/purescript-metadata.git\", version = \"spago-test/branch-with-slash\" }}"
+      writeTextFile "packages.dhall" "let pkgs = ./packagesBase.dhall in pkgs // { metadata_ = { dependencies = [\"prelude\"], repo = \"https://github.com/spacchetti/purescript-metadata.git\", version = \"spago test/branch-with-slash\" }}"
       spago ["install", "metadata_"] >>= shouldBeSuccess
 
     it "Spago should be able to install a package not in the set from a commit hash" $ do
@@ -740,21 +742,36 @@ spec = around_ setup $ do
 
       spago ["bundle", "--to", "bundle.js"] >>= shouldBeFailureStderr "bundle-stderr.txt"
 
+  let
+    getPursVersion = Cmd.getCmdVersion "purs" >>= either die pure
+    esmVersion = either (const $ die "Failed to parse purs version") pure $ Version.semver "0.15.0-alpha-02"
 
   describe "spago bundle-app" $ do
-
     it "Spago should bundle successfully" $ do
+      pursVersion :: Version.SemVer <- getPursVersion
+      purs0_15_0 :: Version.SemVer <- esmVersion
 
       spago ["init"] >>= shouldBeSuccess
-      spago ["bundle-app", "--to", "bundle-app.js"] >>= shouldBeSuccess
-      checkFixture "bundle-app.js"
+      if pursVersion >= purs0_15_0 then do
+        spago ["bundle-app", "--to", "bundle-app-esm.js"] >>= shouldBeSuccess
+        checkFixture "bundle-app-esm.js" 
+      else do
+        spago ["bundle-app", "--to", "bundle-app.js"] >>= shouldBeSuccess
+        checkFixture "bundle-app.js" 
 
     it "Spago should bundle successfully with source map" $ do
+      pursVersion :: Version.SemVer <- getPursVersion
+      purs0_15_0 :: Version.SemVer <- esmVersion
 
       spago ["init"] >>= shouldBeSuccess
-      spago ["bundle-app", "--to", "bundle-app-src-map.js", "--source-maps"] >>= shouldBeSuccess
-      checkFixture "bundle-app-src-map.js"
-      checkFileExist "bundle-app-src-map.js.map"
+      if pursVersion >= purs0_15_0 then do
+        spago ["bundle-app", "--to", "bundle-app-src-map-esm.js", "--source-maps"] >>= shouldBeSuccess
+        checkFixture "bundle-app-src-map-esm.js" 
+        checkFileExist "bundle-app-src-map-esm.js.map"
+      else do
+        spago ["bundle-app", "--to", "bundle-app-src-map.js", "--source-maps"] >>= shouldBeSuccess
+        checkFixture "bundle-app-src-map.js"
+        checkFileExist "bundle-app-src-map.js.map"
 
   describe "spago make-module" $ do
 
@@ -766,23 +783,36 @@ spec = around_ setup $ do
   describe "spago bundle-module" $ do
 
     it "Spago should successfully make a module" $ do
+      pursVersion :: Version.SemVer <- getPursVersion
+      purs0_15_0 :: Version.SemVer <- esmVersion
 
       spago ["init"] >>= shouldBeSuccess
       spago ["build"] >>= shouldBeSuccess
       -- Now we don't remove the output folder, but we pass the `--no-build`
       -- flag to skip rebuilding (i.e. we are counting on the previous command
       -- to have built stuff for us)
-      spago ["bundle-module", "--to", "bundle-module.js", "--no-build"] >>= shouldBeSuccess
-      checkFixture "bundle-module.js"
+      if pursVersion >= purs0_15_0 then do
+        spago ["bundle-module", "--to", "bundle-module.js", "--no-build"] >>= shouldBeSuccess
+        checkFixture "bundle-module-esm.js"
+      else do
+        spago ["bundle-module", "--to", "bundle-module.js", "--no-build"] >>= shouldBeSuccess
+        checkFixture "bundle-module.js"
 
     it "Spago should successfully make a module with source map" $ do
+      pursVersion :: Version.SemVer <- getPursVersion
+      purs0_15_0 :: Version.SemVer <- esmVersion
 
       spago ["init"] >>= shouldBeSuccess
       spago ["build"] >>= shouldBeSuccess
 
-      spago ["bundle-module", "--to", "bundle-module-src-map.js", "--no-build", "--source-maps"] >>= shouldBeSuccess
-      checkFixture "bundle-module-src-map.js"
-      checkFileExist "bundle-module-src-map.js.map"
+      if pursVersion >= purs0_15_0 then do
+        spago ["bundle-module", "--to", "bundle-module-src-map-esm.js", "--no-build", "--source-maps"] >>= shouldBeSuccess
+        checkFixture "bundle-module-src-map-esm.js"
+        checkFileExist "bundle-module-src-map-esm.js.map"      
+      else do
+        spago ["bundle-module", "--to", "bundle-module-src-map.js", "--no-build", "--source-maps"] >>= shouldBeSuccess
+        checkFixture "bundle-module-src-map.js"
+        checkFileExist "bundle-module-src-map.js.map"
 
   describe "spago ls packages" $ do
 
