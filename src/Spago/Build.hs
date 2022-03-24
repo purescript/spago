@@ -417,7 +417,7 @@ bundleWithEsbuild withMain srcMap (ModuleName moduleName) (TargetPath targetPath
   let
     platformOpt = case platform of
       Browser -> " --platform=browser"
-      Node -> " --platform=node --format=esm"
+      Node -> " --platform=node"
     minifyOpt = case minify of
       NoMinify -> ""
       Minify -> " --minify"
@@ -430,7 +430,7 @@ bundleWithEsbuild withMain srcMap (ModuleName moduleName) (TargetPath targetPath
         <> esbuild <> platformOpt <> minifyOpt <> srcMapOpt <> " --bundle "
         <> " --outfile=" <> targetPath
       WithoutMain ->
-        esbuild <> platformOpt <> minifyOpt <> srcMapOpt <> " --bundle "
+        esbuild <> platformOpt <> minifyOpt <> srcMapOpt <> " --format=esm --bundle "
         <> "output/" <> moduleName <> "/index.js"
         <> " --outfile=" <> targetPath
   runWithOutput cmd
