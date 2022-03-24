@@ -792,7 +792,7 @@ spec = around_ setup $ do
       -- flag to skip rebuilding (i.e. we are counting on the previous command
       -- to have built stuff for us)
       if pursVersion >= purs0_15_0 then do
-        spago ["bundle-module", "--to", "bundle-module.js", "--no-build"] >>= shouldBeSuccess
+        spago ["bundle-module", "--to", "bundle-module-esm.js", "--no-build"] >>= shouldBeSuccess
         checkFixture "bundle-module-esm.js"
       else do
         spago ["bundle-module", "--to", "bundle-module.js", "--no-build"] >>= shouldBeSuccess
