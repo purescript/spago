@@ -20,19 +20,16 @@ module Utils
   , shouldBeEmptySuccess
   , spago
   , withCwd
-  , withEnvVar
-  , escapeSpace) where
+  , withEnvVar) where
 
 import qualified Control.Concurrent as Concurrent
 import qualified Control.Exception  as Exception
 import           Data.Maybe         (fromMaybe)
-import           Data.Foldable      (foldl')
 import qualified Data.Text          as Text
 import qualified Data.Text.Encoding as Text.Encoding
 import           Data.Text.Encoding.Error (lenientDecode)
 import           Prelude            hiding (FilePath)
 import           System.Directory   (removePathForcibly, doesFileExist)
-import qualified System.Info.Extra  as SysInfoExtra
 import qualified System.Process     as Process
 import           Test.Hspec         (HasCallStack, shouldBe, shouldSatisfy)
 import           Turtle             (ExitCode (..), FilePath, Text, cd, empty, encodeString, export,
@@ -163,12 +160,3 @@ getHighestTag = do
   pure $ case Text.strip tag of
     ""   -> Nothing
     tag' -> Just tag'
-
-escapeSpace :: String -> String
-escapeSpace
-  | SysInfoExtra.isWindows = id
-  | otherwise = reverse . foldl' escSpace ""
-  where
-    escSpace acc x
-      | x == ' ' = x : '\\' : acc
-      | otherwise = x : acc
