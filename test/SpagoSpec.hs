@@ -13,7 +13,7 @@ import           Utils              (checkFileHasInfix, checkFixture, checkFileE
                                      readFixture, runFor, shouldBeFailure, shouldBeFailureInfix,
                                      shouldBeFailureStderr, shouldBeSuccess, shouldBeSuccessOutput,
                                      shouldBeSuccessOutputWithErr, shouldBeSuccessStderr, spago,
-                                     withCwd, withEnvVar, escapeFilePath)
+                                     withCwd, withEnvVar, escapeSpace)
 import qualified Data.Versions as Version
 import qualified Spago.Cmd as Cmd
 
@@ -483,7 +483,7 @@ spec = around_ setup $ do
 
       dir <- pwd
       let dumpFile = dir </> "testOutput"
-      spago ["build", "--before", "echo before>> " <> Text.pack (escapeFilePath $ encodeString dumpFile)] >>= shouldBeSuccess
+      spago ["build", "--before", "echo before>> " <> Text.pack (escapeSpace $ encodeString dumpFile)] >>= shouldBeSuccess
       test <- readTextFile dumpFile
       test `shouldBe` "before\n"
 
@@ -494,8 +494,8 @@ spec = around_ setup $ do
       dir <- pwd
       let dumpFile = dir </> "testOutput"
       spago [ "build"
-            , "--then", "echo then>> " <> ( Text.pack $ escapeFilePath $ encodeString dumpFile )
-            , "--else", "echo else>> " <> ( Text.pack $ escapeFilePath $ encodeString dumpFile )
+            , "--then", "echo then>> " <> ( Text.pack $ escapeSpace $ encodeString dumpFile )
+            , "--else", "echo else>> " <> ( Text.pack $ escapeSpace $ encodeString dumpFile )
             ] >>= shouldBeSuccess
       test <- readTextFile dumpFile
       test `shouldBe` "then\n"
@@ -507,8 +507,8 @@ spec = around_ setup $ do
       dir <- pwd
       let dumpFile = dir </> "testOutput"
       spago [ "build"
-            , "--before", "echo before>> " <> Text.pack (escapeFilePath $ encodeString dumpFile)
-            , "--then", "echo then>> " <> Text.pack (escapeFilePath $ encodeString dumpFile)
+            , "--before", "echo before>> " <> Text.pack (escapeSpace $ encodeString dumpFile)
+            , "--then", "echo then>> " <> Text.pack (escapeSpace $ encodeString dumpFile)
             ] >>= shouldBeSuccess
       test <- readTextFile dumpFile
       test `shouldBe` "before\nthen\n"
@@ -522,8 +522,8 @@ spec = around_ setup $ do
       rm "src/Main.purs"
       writeTextFile "src/Main.purs" "Invalid Purescript code"
       spago [ "build"
-            , "--then", "echo then>> " <> ( Text.pack $ escapeFilePath $ encodeString dumpFile )
-            , "--else", "echo else>> " <> ( Text.pack $ escapeFilePath $ encodeString dumpFile )
+            , "--then", "echo then>> " <> ( Text.pack $ escapeSpace $ encodeString dumpFile )
+            , "--else", "echo else>> " <> ( Text.pack $ escapeSpace $ encodeString dumpFile )
             ] >>= shouldBeFailure
       test <- readTextFile dumpFile
       test `shouldBe` "else\n"
@@ -539,7 +539,7 @@ spec = around_ setup $ do
       rm "src/Main.purs"
       writeTextFile "src/Main.purs" "module Main where\nimport Effect.Exception\nmain = throw \"error\""
       spago [ "run"
-            , "--else", "echo else>> " <> Text.pack (escapeFilePath $ encodeString dumpFile)
+            , "--else", "echo else>> " <> Text.pack (escapeSpace $ encodeString dumpFile)
             ] >>= shouldBeFailure
       test <- readTextFile dumpFile
       test `shouldBe` "else\n"
@@ -551,10 +551,10 @@ spec = around_ setup $ do
       dir <- pwd
       let dumpFile = dir </> "testOutput"
       spago [ "build"
-            , "--before", "echo before1>> " <> ( Text.pack $ escapeFilePath $ encodeString dumpFile )
-            , "--before", "echo before2>> " <> ( Text.pack $ escapeFilePath $ encodeString dumpFile )
-            , "--then", "echo then1>> " <> ( Text.pack $ escapeFilePath $ encodeString dumpFile )
-            , "--then", "echo then2>> " <> ( Text.pack $ escapeFilePath $ encodeString dumpFile )
+            , "--before", "echo before1>> " <> ( Text.pack $ escapeSpace $ encodeString dumpFile )
+            , "--before", "echo before2>> " <> ( Text.pack $ escapeSpace $ encodeString dumpFile )
+            , "--then", "echo then1>> " <> ( Text.pack $ escapeSpace $ encodeString dumpFile )
+            , "--then", "echo then2>> " <> ( Text.pack $ escapeSpace $ encodeString dumpFile )
             ] >>= shouldBeSuccess
       test <- readTextFile dumpFile
       test `shouldBe` "before1\nbefore2\nthen1\nthen2\n"

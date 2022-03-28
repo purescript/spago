@@ -21,7 +21,7 @@ module Utils
   , spago
   , withCwd
   , withEnvVar
-  , escapeFilePath) where
+  , escapeSpace) where
 
 import qualified Control.Concurrent as Concurrent
 import qualified Control.Exception  as Exception
@@ -164,8 +164,8 @@ getHighestTag = do
     ""   -> Nothing
     tag' -> Just tag'
 
-escapeFilePath :: String -> String
-escapeFilePath
+escapeSpace :: String -> String
+escapeSpace
   | SysInfoExtra.isWindows = id
   | otherwise = reverse . foldl' escSpace ""
   where
