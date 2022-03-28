@@ -32,6 +32,7 @@ import qualified Data.Text.Encoding as Text.Encoding
 import           Data.Text.Encoding.Error (lenientDecode)
 import           Prelude            hiding (FilePath)
 import           System.Directory   (removePathForcibly, doesFileExist)
+import qualified System.Info.Extra  as SysInfoExtra
 import qualified System.Process     as Process
 import           Test.Hspec         (HasCallStack, shouldBe, shouldSatisfy)
 import           Turtle             (ExitCode (..), FilePath, Text, cd, empty, encodeString, export,
@@ -164,7 +165,9 @@ getHighestTag = do
     tag' -> Just tag'
 
 escapeFilePath :: String -> String
-escapeFilePath = reverse . foldl' escSpace ""
+escapeFilePath
+  | SysInfoExtra.isWindows = id
+  | otherwise = reverse . foldl' escSpace ""
   where
     escSpace acc x
       | x == ' ' = x : '\\' : acc
