@@ -18,15 +18,15 @@ import qualified Data.Versions as Version
 import qualified Spago.Cmd as Cmd
 
 
-setup :: IO () -> IO ()
-setup cmd = do
-  Temp.withTempDirectory "test/" "spago-test" $ \temp -> do
+setup :: String -> IO () -> IO ()
+setup dir cmd = do
+  Temp.withTempDirectory "test/" dir $ \temp -> do
     -- print ("Running in " <> temp)
     withCwd (decodeString temp) cmd
 
 spec :: Spec
 spec = do
-  around_ setup $ do
+  around_ (setup "spago-test") $ do
 
     describe "spago init" $ do
 
@@ -771,6 +771,8 @@ spec = do
       it "Spago should create global cache directory if it does not exist" $ do
         withEnvVar "XDG_CACHE_HOME" "./nonexisting-cache" $
           spago ["repl"] >>= shouldBeSuccess
+
+  around_ (setup "spago test") $ do
 
     describe "spago run" $ do
 
