@@ -20,7 +20,7 @@ import qualified Spago.Cmd as Cmd
 
 setup :: IO () -> IO ()
 setup cmd = do
-  Temp.withTempDirectory "test/" "spago-test" $ \temp -> do
+  Temp.withTempDirectory "test/" "spago test" $ \temp -> do
     -- print ("Running in " <> temp)
     withCwd (decodeString temp) cmd
 
