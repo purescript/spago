@@ -21,11 +21,12 @@ module Utils
   , spago
   , withCwd
   , withEnvVar
-  ) where
+  , escapeFilePath) where
 
 import qualified Control.Concurrent as Concurrent
 import qualified Control.Exception  as Exception
 import           Data.Maybe         (fromMaybe)
+import           Data.Foldable      (foldl')
 import qualified Data.Text          as Text
 import qualified Data.Text.Encoding as Text.Encoding
 import           Data.Text.Encoding.Error (lenientDecode)
@@ -161,3 +162,10 @@ getHighestTag = do
   pure $ case Text.strip tag of
     ""   -> Nothing
     tag' -> Just tag'
+
+escapeFilePath :: String -> String
+escapeFilePath = reverse . foldl' escSpace ""
+  where
+    escSpace acc x
+      | x == ' ' = x : '\\' : acc
+      | otherwise = x : acc
