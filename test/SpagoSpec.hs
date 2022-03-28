@@ -25,7 +25,8 @@ setup cmd = do
     withCwd (decodeString temp) cmd
 
 spec :: Spec
-spec = around_ setup $ do
+spec = do
+  around_ setup $ do
 
     describe "spago init" $ do
 
