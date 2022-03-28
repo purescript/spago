@@ -583,49 +583,6 @@ spec = do
               , "--else", "exit 1"
               ] >>= shouldBeFailure
 
-    describe "spago test" $ do
-
-      it "Spago should test successfully" $ do
-
-        spago ["init"] >>= shouldBeSuccess
-        spago ["build"] >>= shouldBeSuccess
-        spago ["--no-psa", "test"] >>= shouldBeSuccessOutputWithErr "test-output-stdout.txt" "test-output-stderr.txt"
-
-      it "Spago should fail nicely when the test module is not found" $ do
-
-        spago ["init"] >>= shouldBeSuccess
-        mv "test" "test2"
-        spago ["test"] >>= shouldBeFailureInfix "Module 'Test.Main' not found! Are you including it in your build?"
-
-      it "Spago should test in custom output folder" $ do
-
-        spago ["init"] >>= shouldBeSuccess
-        spago ["test", "--purs-args", "-o", "--purs-args", "myOutput"] >>= shouldBeSuccess
-        testdir "myOutput" `shouldReturn` True
-
-      it "Spago should test successfully with a different output folder" $ do
-
-        -- Create root-level packages.dhall
-        mkdir "monorepo"
-        cd "monorepo"
-        spago ["init"] >>= shouldBeSuccess
-        rm "spago.dhall"
-
-        -- Create local 'lib-a' package that uses packages.dhall on top level (but also has it's own one to confuse things)
-        mkdir "lib-a"
-        cd "lib-a"
-        spago ["init"] >>= shouldBeSuccess
-        rm "spago.dhall"
-        writeTextFile "spago.dhall" $ "{ name = \"lib-1\", dependencies = [\"console\", \"effect\", \"prelude\"], packages = ./packages.dhall }"
-        rm "packages.dhall"
-        writeTextFile "packages.dhall" $ "../packages.dhall"
-        spago ["test"] >>= shouldBeSuccess
-        testdir "output" `shouldReturn` True
-
-        cd ".."
-        testdir "output" `shouldReturn` False
-
-
     describe "spago upgrade-set" $ do
 
       it "Spago should migrate package-sets from src/packages.dhall to the released one" $ do
@@ -677,56 +634,6 @@ spec = do
               $ Text.lines packages
 
         packageSetUrl `shouldBe` originalPackageSetUrl
-
-    describe "spago run" $ do
-
-      it "Spago should run successfully" $ do
-
-        spago ["init"] >>= shouldBeSuccess
-        spago ["build"] >>= shouldBeSuccess
-
-        shell "psa --version" empty >>= \case
-          ExitSuccess -> spago ["-v", "run"] >>= shouldBeSuccessOutput "run-output.txt"
-          ExitFailure _ ->  spago ["-v", "run"] >>= shouldBeSuccessOutput "run-output.txt"
-
-      it "Spago should be able to not use `psa`" $ do
-
-        spago ["init"] >>= shouldBeSuccess
-        spago ["--no-psa", "build"] >>= shouldBeSuccess
-        spago ["-v", "--no-psa", "run"] >>= shouldBeSuccessOutput "run-output.txt"
-
-      it "Spago should pass stdin to the child process" $ do
-
-        spago ["init"] >>= shouldBeSuccess
-        cp "../fixtures/spago-run-stdin.purs" "src/Main.purs"
-        spago ["install", "node-buffer", "node-streams", "node-process"] >>= shouldBeSuccess
-        spago ["build"] >>= shouldBeSuccess
-        shellStrictWithErr "echo wut| spago run" empty >>= shouldBeSuccessOutput "spago-run-passthrough.txt"
-
-      it "Spago should use exec-args" $ do
-
-        spago ["init"] >>= shouldBeSuccess
-        cp "../fixtures/spago-run-args.purs" "src/Main.purs"
-        spago ["install", "node-process", "arrays"] >>= shouldBeSuccess
-        spago ["build"] >>= shouldBeSuccess
-        spago ["run", "--exec-args", "hello world"] >>= shouldBeSuccessOutput "run-args-output.txt"
-
-      it "Spago should use node-args" $ do
-
-        spago ["init"] >>= shouldBeSuccess
-        cp "../fixtures/spago-run-args.purs" "src/Main.purs"
-        spago ["install", "node-process", "arrays"] >>= shouldBeSuccess
-        spago ["build"] >>= shouldBeSuccess
-        spago ["run", "--node-args", "hello world"] >>= shouldBeSuccessOutput "run-args-output.txt"
-        spago ["run", "--node-args", "--flagName"] >>= shouldBeSuccess
-
-      it "Spago should prefer exec-args" $ do
-
-        spago ["init"] >>= shouldBeSuccess
-        cp "../fixtures/spago-run-args.purs" "src/Main.purs"
-        spago ["install", "node-process", "arrays"] >>= shouldBeSuccess
-        spago ["build"] >>= shouldBeSuccess
-        spago ["run", "--exec-args", "hello world", "--node-args", "hallo welt"] >>= shouldBeSuccessOutput "run-args-combined-output.txt"
 
     describe "spago script" $ do
 
@@ -864,3 +771,95 @@ spec = do
       it "Spago should create global cache directory if it does not exist" $ do
         withEnvVar "XDG_CACHE_HOME" "./nonexisting-cache" $
           spago ["repl"] >>= shouldBeSuccess
+
+    describe "spago run" $ do
+
+      it "Spago should run successfully" $ do
+
+        spago ["init"] >>= shouldBeSuccess
+        spago ["build"] >>= shouldBeSuccess
+
+        shell "psa --version" empty >>= \case
+          ExitSuccess -> spago ["-v", "run"] >>= shouldBeSuccessOutput "run-output.txt"
+          ExitFailure _ ->  spago ["-v", "run"] >>= shouldBeSuccessOutput "run-output.txt"
+
+      it "Spago should be able to not use `psa`" $ do
+
+        spago ["init"] >>= shouldBeSuccess
+        spago ["--no-psa", "build"] >>= shouldBeSuccess
+        spago ["-v", "--no-psa", "run"] >>= shouldBeSuccessOutput "run-output.txt"
+
+      it "Spago should pass stdin to the child process" $ do
+
+        spago ["init"] >>= shouldBeSuccess
+        cp "../fixtures/spago-run-stdin.purs" "src/Main.purs"
+        spago ["install", "node-buffer", "node-streams", "node-process"] >>= shouldBeSuccess
+        spago ["build"] >>= shouldBeSuccess
+        shellStrictWithErr "echo wut| spago run" empty >>= shouldBeSuccessOutput "spago-run-passthrough.txt"
+
+      it "Spago should use exec-args" $ do
+
+        spago ["init"] >>= shouldBeSuccess
+        cp "../fixtures/spago-run-args.purs" "src/Main.purs"
+        spago ["install", "node-process", "arrays"] >>= shouldBeSuccess
+        spago ["build"] >>= shouldBeSuccess
+        spago ["run", "--exec-args", "hello world"] >>= shouldBeSuccessOutput "run-args-output.txt"
+
+      it "Spago should use node-args" $ do
+
+        spago ["init"] >>= shouldBeSuccess
+        cp "../fixtures/spago-run-args.purs" "src/Main.purs"
+        spago ["install", "node-process", "arrays"] >>= shouldBeSuccess
+        spago ["build"] >>= shouldBeSuccess
+        spago ["run", "--node-args", "hello world"] >>= shouldBeSuccessOutput "run-args-output.txt"
+        spago ["run", "--node-args", "--flagName"] >>= shouldBeSuccess
+
+      it "Spago should prefer exec-args" $ do
+
+        spago ["init"] >>= shouldBeSuccess
+        cp "../fixtures/spago-run-args.purs" "src/Main.purs"
+        spago ["install", "node-process", "arrays"] >>= shouldBeSuccess
+        spago ["build"] >>= shouldBeSuccess
+        spago ["run", "--exec-args", "hello world", "--node-args", "hallo welt"] >>= shouldBeSuccessOutput "run-args-combined-output.txt"
+
+    describe "spago test" $ do
+
+      it "Spago should test successfully" $ do
+
+        spago ["init"] >>= shouldBeSuccess
+        spago ["build"] >>= shouldBeSuccess
+        spago ["--no-psa", "test"] >>= shouldBeSuccessOutputWithErr "test-output-stdout.txt" "test-output-stderr.txt"
+
+      it "Spago should fail nicely when the test module is not found" $ do
+
+        spago ["init"] >>= shouldBeSuccess
+        mv "test" "test2"
+        spago ["test"] >>= shouldBeFailureInfix "Module 'Test.Main' not found! Are you including it in your build?"
+
+      it "Spago should test in custom output folder" $ do
+
+        spago ["init"] >>= shouldBeSuccess
+        spago ["test", "--purs-args", "-o", "--purs-args", "myOutput"] >>= shouldBeSuccess
+        testdir "myOutput" `shouldReturn` True
+
+      it "Spago should test successfully with a different output folder" $ do
+
+        -- Create root-level packages.dhall
+        mkdir "monorepo"
+        cd "monorepo"
+        spago ["init"] >>= shouldBeSuccess
+        rm "spago.dhall"
+
+        -- Create local 'lib-a' package that uses packages.dhall on top level (but also has it's own one to confuse things)
+        mkdir "lib-a"
+        cd "lib-a"
+        spago ["init"] >>= shouldBeSuccess
+        rm "spago.dhall"
+        writeTextFile "spago.dhall" $ "{ name = \"lib-1\", dependencies = [\"console\", \"effect\", \"prelude\"], packages = ./packages.dhall }"
+        rm "packages.dhall"
+        writeTextFile "packages.dhall" $ "../packages.dhall"
+        spago ["test"] >>= shouldBeSuccess
+        testdir "output" `shouldReturn` True
+
+        cd ".."
+        testdir "output" `shouldReturn` False
