@@ -123,7 +123,7 @@ jobs:
         run: |
           DIR="$HOME/bin/purescript-$PS_0_15_0_VERSION"
           mkdir -p "$DIR"
-          wget -O "$DIR/purescript.tar.gz" "https://github.com/purescript/purescript/releases/download/$PS_0_15_0_VERSION/linux64.tar.gz"
+          curl -o "$DIR/purescript.tar.gz" -L "https://github.com/purescript/purescript/releases/download/$PS_0_15_0_VERSION/linux64.tar.gz"
           tar -xvf "$DIR/purescript.tar.gz" -C "$DIR" --strip-components 1 purescript/purs
           chmod a+x "$DIR/purs"
 
