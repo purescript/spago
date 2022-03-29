@@ -323,7 +323,7 @@ runBackend
 runBackend maybeBackend RunDirectories{ sourceDir, executeDir } moduleName maybeSuccessMessage failureMessage extraArgs = do
   logDebug $ display $ "Running with backend: " <> fromMaybe "nodejs" maybeBackend
   BuildOptions{ pursArgs } <- view (the @BuildOptions)
-  isES <- Purs.hasMinPursVersion "0.15.0"
+  isES <- Purs.hasMinPursVersion "0.15.0-alpha-01"
   let postBuild = maybe (nodeAction isES $ Path.getOutputPath pursArgs) backendAction maybeBackend
   build (Just postBuild)
   where
@@ -414,7 +414,7 @@ bundleModule
   -> UsePsa
   -> RIO env ()
 bundleModule withMain BundleOptions { maybeModuleName, maybeTargetPath, maybePlatform, minify, noBuild }  buildOpts usePsa = do
-  isES <- Purs.hasMinPursVersion "0.15.0"
+  isES <- Purs.hasMinPursVersion "0.15.0-alpha-01"
   let
     (moduleName, targetPath, platform) = prepareBundleDefaults maybeModuleName maybeTargetPath maybePlatform
     bundleAction =
