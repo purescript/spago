@@ -5,7 +5,7 @@ import qualified Data.Text          as Text
 import           Prelude            hiding (FilePath)
 import qualified System.IO.Temp     as Temp
 import           Test.Hspec         (Spec, around_, describe, it, shouldBe, shouldNotSatisfy,
-                                     shouldNotBe, shouldReturn, shouldSatisfy)
+                                     shouldNotBe, shouldReturn, shouldSatisfy, runIO)
 import           Turtle             (ExitCode (..), cd, cp, decodeString, empty, encodeString,
                                      mkdir, mktree, mv, pwd, readTextFile, rm, shell,
                                      shellStrictWithErr, testdir, writeTextFile, (</>), die)
@@ -13,7 +13,7 @@ import           Utils              (checkFileHasInfix, checkFixture, checkFileE
                                      readFixture, runFor, shouldBeFailure, shouldBeFailureInfix,
                                      shouldBeFailureStderr, shouldBeSuccess, shouldBeSuccessOutput,
                                      shouldBeSuccessOutputWithErr, shouldBeSuccessStderr, spago,
-                                     withCwd, withEnvVar)
+                                     withCwd, withEnvVar, dhall)
 import qualified Data.Versions as Version
 import qualified Spago.Cmd as Cmd
 
@@ -26,6 +26,21 @@ setup dir cmd = do
 
 spec :: Spec
 spec = do
+  usingEsModules <- runIO $ do
+    pursVersion <- Cmd.getCmdVersion "purs" >>= either die pure
+    esmVersion <- either (const $ die "Failed to parse `0.15.0` static version") pure $ Version.semver "0.15.0-alpha-02"
+    pure $ pursVersion >= esmVersion
+  let
+    spagoInit
+      | usingEsModules = do
+          -- The prepare-0.15 package set's contents can change.
+          -- So, we copy an unfrozen one into the directory
+          -- and then freeze it before running `spago init`.
+          cp "../fixtures/packages-prepare-0-15.dhall" "packages.dhall"
+          dhall ["freeze", "packages.dhall"] >>= shouldBeSuccess
+          spago ["init"]
+      | otherwise = do
+          spago ["init"]
   around_ (setup "spago-test") $ do
 
     describe "spago init" $ do
@@ -650,17 +665,10 @@ spec = do
 
         spago ["bundle", "--to", "bundle.js"] >>= shouldBeFailureStderr "bundle-stderr.txt"
 
-    let
-      getPursVersion = Cmd.getCmdVersion "purs" >>= either die pure
-      esmVersion = either (const $ die "Failed to parse purs version") pure $ Version.semver "0.15.0-alpha-02"
-
     describe "spago bundle-app" $ do
       it "Spago should bundle successfully" $ do
-        pursVersion :: Version.SemVer <- getPursVersion
-        purs0_15_0 :: Version.SemVer <- esmVersion
-
-        spago ["init"] >>= shouldBeSuccess
-        if pursVersion >= purs0_15_0 then do
+        spagoInit >>= shouldBeSuccess
+        if usingEsModules then do
           spago ["bundle-app", "--to", "bundle-app-esm.js"] >>= shouldBeSuccess
           checkFixture "bundle-app-esm.js"
         else do
@@ -668,11 +676,8 @@ spec = do
           checkFixture "bundle-app.js"
 
       it "Spago should bundle successfully with source map" $ do
-        pursVersion :: Version.SemVer <- getPursVersion
-        purs0_15_0 :: Version.SemVer <- esmVersion
-
-        spago ["init"] >>= shouldBeSuccess
-        if pursVersion >= purs0_15_0 then do
+        spagoInit >>= shouldBeSuccess
+        if usingEsModules then do
           spago ["bundle-app", "--to", "bundle-app-src-map-esm.js", "--source-maps"] >>= shouldBeSuccess
           checkFixture "bundle-app-src-map-esm.js"
           checkFileExist "bundle-app-src-map-esm.js.map"
@@ -691,15 +696,12 @@ spec = do
     describe "spago bundle-module" $ do
 
       it "Spago should successfully make a module" $ do
-        pursVersion :: Version.SemVer <- getPursVersion
-        purs0_15_0 :: Version.SemVer <- esmVersion
-
-        spago ["init"] >>= shouldBeSuccess
+        spagoInit >>= shouldBeSuccess
         spago ["build"] >>= shouldBeSuccess
         -- Now we don't remove the output folder, but we pass the `--no-build`
         -- flag to skip rebuilding (i.e. we are counting on the previous command
         -- to have built stuff for us)
-        if pursVersion >= purs0_15_0 then do
+        if usingEsModules then do
           spago ["bundle-module", "--to", "bundle-module-esm.js", "--no-build"] >>= shouldBeSuccess
           checkFixture "bundle-module-esm.js"
         else do
@@ -707,13 +709,10 @@ spec = do
           checkFixture "bundle-module.js"
 
       it "Spago should successfully make a module with source map" $ do
-        pursVersion :: Version.SemVer <- getPursVersion
-        purs0_15_0 :: Version.SemVer <- esmVersion
-
-        spago ["init"] >>= shouldBeSuccess
+        spagoInit >>= shouldBeSuccess
         spago ["build"] >>= shouldBeSuccess
 
-        if pursVersion >= purs0_15_0 then do
+        if usingEsModules then do
           spago ["bundle-module", "--to", "bundle-module-src-map-esm.js", "--no-build", "--source-maps"] >>= shouldBeSuccess
           checkFixture "bundle-module-src-map-esm.js"
           checkFileExist "bundle-module-src-map-esm.js.map"

@@ -19,6 +19,7 @@ module Utils
   , shouldBeFailureStderr
   , shouldBeEmptySuccess
   , spago
+  , dhall
   , withCwd
   , withEnvVar) where
 
@@ -57,6 +58,9 @@ proc cmd args = do
         . Text.Encoding.decodeUtf8With lenientDecode
   (c, out, err) <- Turtle.Bytes.procStrictWithErr cmd args empty
   pure (c, b2t out, b2t err)
+
+dhall :: [Text] -> IO (ExitCode, Text, Text)
+dhall = proc "dhall"
 
 spago :: [Text] -> IO (ExitCode, Text, Text)
 spago = proc "spago"
