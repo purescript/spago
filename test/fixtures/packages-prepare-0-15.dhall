@@ -99,6 +99,6 @@ in  upstream
 -------------------------------
 -}
 let upstream =
-      https://raw.githubusercontent.com/purescript/package-sets/prepare-0.15/src/packages.dhall
+      https://github.com/JordanMartinez/package-sets/releases/download/psc-0.15.0-20220329/packages.dhall
 
 in  upstream
