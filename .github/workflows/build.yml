@@ -8,6 +8,7 @@ on:
 
 env:
   STACK_VERSION: '2.7.3'
+  PS_0_15_0_VERSION: '0.15.0-alpha-02'
 
 jobs:
   build:
@@ -112,6 +113,43 @@ jobs:
         run: ./scripts/fix-home stack install
         shell: bash
 
-      - name: Run tests
+      - name: Run tests (PureScript < 0.15.0)
         run: ./scripts/fix-home stack test
         shell: bash
+
+      - name: non-Windows - Download PureScript 0.15.0
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          DIR="$HOME/bin/purescript-$PS_0_15_0_VERSION"
+          mkdir -p "$DIR"
+          wget -O "$DIR/purescript.tar.gz" "https://github.com/purescript/purescript/releases/download/$PS_0_15_0_VERSION/linux64.tar.gz"
+          tar -xvf "$DIR/purescript.tar.gz" -C "$DIR" --strip-components 1 purescript/purs
+          chmod a+x "$DIR/purs"
+
+      - name: non-Windows - Run tests (PureScript >= 0.15.0)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          PATH="$HOME/bin/purescript-$PS_0_15_0_VERSION:$PATH"
+          purs --version
+          ./scripts/fix-home stack test --ta "match purs-0.15"
+
+      - name: Windows - Download PureScript 0.15.0
+        if: runner.os == 'Windows'
+        shell: bash
+        run: |
+          pushd C:\\tools
+          DIR="$HOME/bin/$PS_0_15_0_VERSION"
+          mkdir -p "$DIR"
+          curl -opurescript.tar.gz -L "https://github.com/purescript/purescript/releases/download/$PS_0_15_0_VERSION/win64.tar.gz"
+          tar -xvzf purescript.tar.gz -C "$DIR" --strip-components 1 purescript/purs.exe
+          popd
+
+      - name: Windows - Run tests (PureScript >= 0.15.0)
+        if: runner.os == 'Windows'
+        shell: bash
+        run: |
+          $env:Path="C:\tools\purescript-$env:PS_0_15_0_VERSION;$env:Path"
+          purs.exe --version
+          ./scripts/fix-home stack test --ta "match purs-0.15"
