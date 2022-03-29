@@ -665,61 +665,11 @@ spec = do
 
         spago ["bundle", "--to", "bundle.js"] >>= shouldBeFailureStderr "bundle-stderr.txt"
 
-    describe "spago bundle-app" $ do
-      it "Spago should bundle successfully" $ do
-        spagoInit >>= shouldBeSuccess
-        if usingEsModules then do
-          spago ["bundle-app", "--to", "bundle-app-esm.js"] >>= shouldBeSuccess
-          checkFixture "bundle-app-esm.js"
-        else do
-          spago ["bundle-app", "--to", "bundle-app.js"] >>= shouldBeSuccess
-          checkFixture "bundle-app.js"
-
-      it "Spago should bundle successfully with source map" $ do
-        spagoInit >>= shouldBeSuccess
-        if usingEsModules then do
-          spago ["bundle-app", "--to", "bundle-app-src-map-esm.js", "--source-maps"] >>= shouldBeSuccess
-          checkFixture "bundle-app-src-map-esm.js"
-          checkFileExist "bundle-app-src-map-esm.js.map"
-        else do
-          spago ["bundle-app", "--to", "bundle-app-src-map.js", "--source-maps"] >>= shouldBeSuccess
-          checkFixture "bundle-app-src-map.js"
-          checkFileExist "bundle-app-src-map.js.map"
-
     describe "spago make-module" $ do
 
       it "Spago should fail but should point to the replacement command" $ do
 
         spago ["make-module", "--to", "make-module.js"] >>= shouldBeFailureStderr "make-module-stderr.txt"
-
-
-    describe "spago bundle-module" $ do
-
-      it "Spago should successfully make a module" $ do
-        spagoInit >>= shouldBeSuccess
-        spago ["build"] >>= shouldBeSuccess
-        -- Now we don't remove the output folder, but we pass the `--no-build`
-        -- flag to skip rebuilding (i.e. we are counting on the previous command
-        -- to have built stuff for us)
-        if usingEsModules then do
-          spago ["bundle-module", "--to", "bundle-module-esm.js", "--no-build"] >>= shouldBeSuccess
-          checkFixture "bundle-module-esm.js"
-        else do
-          spago ["bundle-module", "--to", "bundle-module.js", "--no-build"] >>= shouldBeSuccess
-          checkFixture "bundle-module.js"
-
-      it "Spago should successfully make a module with source map" $ do
-        spagoInit >>= shouldBeSuccess
-        spago ["build"] >>= shouldBeSuccess
-
-        if usingEsModules then do
-          spago ["bundle-module", "--to", "bundle-module-src-map-esm.js", "--no-build", "--source-maps"] >>= shouldBeSuccess
-          checkFixture "bundle-module-src-map-esm.js"
-          checkFileExist "bundle-module-src-map-esm.js.map"
-        else do
-          spago ["bundle-module", "--to", "bundle-module-src-map.js", "--no-build", "--source-maps"] >>= shouldBeSuccess
-          checkFixture "bundle-module-src-map.js"
-          checkFileExist "bundle-module-src-map.js.map"
 
     describe "spago ls packages" $ do
 
@@ -770,6 +720,54 @@ spec = do
       it "Spago should create global cache directory if it does not exist" $ do
         withEnvVar "XDG_CACHE_HOME" "./nonexisting-cache" $
           spago ["repl"] >>= shouldBeSuccess
+
+    describe "spago bundle-app" $ do
+      it "Spago should bundle successfully" $ do
+        spagoInit >>= shouldBeSuccess
+        if usingEsModules then do
+          spago ["bundle-app", "--to", "bundle-app-esm.js"] >>= shouldBeSuccess
+          checkFixture "bundle-app-esm.js"
+        else do
+          spago ["bundle-app", "--to", "bundle-app.js"] >>= shouldBeSuccess
+          checkFixture "bundle-app.js"
+
+      it "Spago should bundle successfully with source map" $ do
+        spagoInit >>= shouldBeSuccess
+        if usingEsModules then do
+          spago ["bundle-app", "--to", "bundle-app-src-map-esm.js", "--source-maps"] >>= shouldBeSuccess
+          checkFixture "bundle-app-src-map-esm.js"
+          checkFileExist "bundle-app-src-map-esm.js.map"
+        else do
+          spago ["bundle-app", "--to", "bundle-app-src-map.js", "--source-maps"] >>= shouldBeSuccess
+          checkFixture "bundle-app-src-map.js"
+          checkFileExist "bundle-app-src-map.js.map"
+
+    describe "spago bundle-module" $ do
+      it "Spago should successfully make a module" $ do
+        spagoInit >>= shouldBeSuccess
+        spago ["build"] >>= shouldBeSuccess
+        -- Now we don't remove the output folder, but we pass the `--no-build`
+        -- flag to skip rebuilding (i.e. we are counting on the previous command
+        -- to have built stuff for us)
+        if usingEsModules then do
+          spago ["bundle-module", "--to", "bundle-module-esm.js", "--no-build"] >>= shouldBeSuccess
+          checkFixture "bundle-module-esm.js"
+        else do
+          spago ["bundle-module", "--to", "bundle-module.js", "--no-build"] >>= shouldBeSuccess
+          checkFixture "bundle-module.js"
+
+      it "Spago should successfully make a module with source map" $ do
+        spagoInit >>= shouldBeSuccess
+        spago ["build"] >>= shouldBeSuccess
+
+        if usingEsModules then do
+          spago ["bundle-module", "--to", "bundle-module-src-map-esm.js", "--no-build", "--source-maps"] >>= shouldBeSuccess
+          checkFixture "bundle-module-src-map-esm.js"
+          checkFileExist "bundle-module-src-map-esm.js.map"
+        else do
+          spago ["bundle-module", "--to", "bundle-module-src-map.js", "--no-build", "--source-maps"] >>= shouldBeSuccess
+          checkFixture "bundle-module-src-map.js"
+          checkFileExist "bundle-module-src-map.js.map"
 
   around_ (setup "spago test") $ do
 
