@@ -15,6 +15,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     container: ${{ matrix.image }}
     strategy:
+      fail-fast: false
       matrix:
         include:
           - os: ubuntu-latest
