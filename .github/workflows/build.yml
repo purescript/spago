@@ -8,7 +8,7 @@ on:
 
 env:
   STACK_VERSION: '2.7.3'
-  PS_0_15_0_VERSION: '0.15.0-alpha-02'
+  PS_0_15_0_VERSION: 'v0.15.0-alpha-02'
 
 jobs:
   build:
