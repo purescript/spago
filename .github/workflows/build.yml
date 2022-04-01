@@ -140,17 +140,15 @@ jobs:
         if: runner.os == 'Windows'
         shell: bash
         run: |
-          pushd C:\\tools
-          DIR="$HOME/bin/$PS_0_15_0_VERSION"
+          DIR="$HOME/bin/purescript-$PS_0_15_0_VERSION"
           mkdir -p "$DIR"
           curl -opurescript.tar.gz -L "https://github.com/purescript/purescript/releases/download/$PS_0_15_0_VERSION/win64.tar.gz"
           tar -xvzf purescript.tar.gz -C "$DIR" --strip-components 1 purescript/purs.exe
-          popd
+          chmod a+x "$DIR/purs.exe"
 
       - name: Windows - Run tests (PureScript >= 0.15.0)
         if: runner.os == 'Windows'
         shell: bash
         run: |
-          $env:Path="C:\tools\purescript-$env:PS_0_15_0_VERSION;$env:Path"
-          purs.exe --version
+          PATH="$HOME/bin/purescript-$PS_0_15_0_VERSION:$PATH"
           ./scripts/fix-home stack test --ta "match purs-0.15"
