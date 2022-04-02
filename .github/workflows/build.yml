@@ -114,9 +114,9 @@ jobs:
         run: ./scripts/fix-home stack install
         shell: bash
 
-      - name: Run tests (PureScript < 0.15.0)
-        run: ./scripts/fix-home stack test
-        shell: bash
+      # - name: Run tests (PureScript < 0.15.0)
+      #   run: ./scripts/fix-home stack test
+      #   shell: bash
 
       - name: non-Windows - Download PureScript 0.15.0
         if: runner.os != 'Windows'
