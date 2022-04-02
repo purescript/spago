@@ -356,7 +356,7 @@ runBackend maybeBackend RunDirectories{ sourceDir, executeDir } moduleName maybe
     nodeArgs = Text.intercalate " " $ map unBackendArg extraArgs
     esContents outputPath' =
       fold
-        [ "import { main } from '"
+        [ "import { main } from 'file://"
         , Text.replace "\\" "/" (fromFilePath sourceDir)
         , "/"
         , Text.pack outputPath'
