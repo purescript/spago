@@ -20,8 +20,6 @@ module Utils
   , shouldBeEmptySuccess
   , spago
   , dhall
-  , ls
-  , cat
   , withCwd
   , withEnvVar) where
 
@@ -60,16 +58,6 @@ proc cmd args = do
         . Text.Encoding.decodeUtf8With lenientDecode
   (c, out, err) <- Turtle.Bytes.procStrictWithErr cmd args empty
   pure (c, b2t out, b2t err)
-
-ls :: [Text] -> IO ()
-ls args = proc "ls" args >>= \(_, _stdout, _stderr) -> do
-    print $ "STDOUT: " <> _stdout
-    print $ "STDERR: " <> _stderr
-
-cat :: [Text] -> IO ()
-cat args = proc "cat" args >>= \(_, _stdout, _stderr) -> do
-    print $ "STDOUT: " <> _stdout
-    print $ "STDERR: " <> _stderr
 
 dhall :: [Text] -> IO (ExitCode, Text, Text)
 dhall = proc "dhall"
