@@ -8,7 +8,7 @@ import           Test.Hspec         (Spec, around_, describe, it, shouldBe, shou
                                      shouldNotBe, shouldReturn, shouldSatisfy, runIO)
 import           Turtle             (ExitCode (..), cd, cp, decodeString, empty, encodeString,
                                      mkdir, mktree, mv, pwd, readTextFile, rm, shell,
-                                     shellStrictWithErr, testdir, writeTextFile, (</>), die)
+                                     shellStrictWithErr, testdir, writeTextFile, (</>), die, when, void)
 import           Utils              (checkFileHasInfix, checkFixture, checkFileExist, outputShouldEqual,
                                      readFixture, runFor, shouldBeFailure, shouldBeFailureInfix,
                                      shouldBeFailureStderr, shouldBeSuccess, shouldBeSuccessOutput,
@@ -850,12 +850,18 @@ spec = do
           -- Create root-level packages.dhall
           mkdir "monorepo"
           cd "monorepo"
+          when usingEsModules $ do
+            cp "../../fixtures/packages-prepare-0-15.dhall" "packages.dhall"
+            void $ dhall ["freeze", "packages.dhall"]
           spago ["init"] >>= shouldBeSuccess
           rm "spago.dhall"
 
           -- Create local 'lib-a' package that uses packages.dhall on top level (but also has it's own one to confuse things)
           mkdir "lib-a"
           cd "lib-a"
+          when usingEsModules $ do
+            cp "../../../fixtures/packages-prepare-0-15.dhall" "packages.dhall"
+            void $ dhall ["freeze", "packages.dhall"]
           spago ["init"] >>= shouldBeSuccess
           rm "spago.dhall"
           writeTextFile "spago.dhall" $ "{ name = \"lib-1\", dependencies = [\"console\", \"effect\", \"prelude\"], packages = ./packages.dhall }"
