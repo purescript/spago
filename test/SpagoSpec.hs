@@ -32,16 +32,13 @@ spec = do
     pure $ pursVersion >= esmVersion
   let
     purs0_15_0TestMsg = "purs-0.15"
-    spagoInit
-      | usingEsModules = do
-          -- The prepare-0.15 package set's contents can change.
-          -- So, we copy an unfrozen one into the directory
-          -- and then freeze it before running `spago init`.
-          cp "../fixtures/packages-prepare-0-15.dhall" "packages.dhall"
-          dhall ["freeze", "packages.dhall"] >>= shouldBeSuccess
-          spago ["init"]
-      | otherwise = do
-          spago ["init"]
+    whenUsingEsModulesFixPackagesDhall = when usingEsModules $ do
+      -- The prepare-0.15 package set's contents can change.
+      -- So, we copy an unfrozen one into the directory
+      -- and then freeze it before running `spago init`.
+      cp "../fixtures/packages-prepare-0-15.dhall" "packages.dhall"
+      dhall ["freeze", "packages.dhall"] >>= shouldBeSuccess
+
   around_ (setup "spago-test") $ do
 
     describe "spago init" $ do
@@ -725,7 +722,8 @@ spec = do
     describe purs0_15_0TestMsg $ do
       describe "spago bundle-app" $ do
         it "Spago should bundle successfully" $ do
-          spagoInit >>= shouldBeSuccess
+          whenUsingEsModulesFixPackagesDhall
+          spago ["init"] >>= shouldBeSuccess
           if usingEsModules then do
             spago ["bundle-app", "--to", "bundle-app-esm.js"] >>= shouldBeSuccess
             checkFixture "bundle-app-esm.js"
@@ -734,7 +732,8 @@ spec = do
             checkFixture "bundle-app.js"
 
         it "Spago should bundle successfully with source map" $ do
-          spagoInit >>= shouldBeSuccess
+          whenUsingEsModulesFixPackagesDhall
+          spago ["init"] >>= shouldBeSuccess
           if usingEsModules then do
             spago ["bundle-app", "--to", "bundle-app-src-map-esm.js", "--source-maps"] >>= shouldBeSuccess
             checkFixture "bundle-app-src-map-esm.js"
@@ -746,7 +745,8 @@ spec = do
 
       describe "spago bundle-module" $ do
         it "Spago should successfully make a module" $ do
-          spagoInit >>= shouldBeSuccess
+          whenUsingEsModulesFixPackagesDhall
+          spago ["init"] >>= shouldBeSuccess
           spago ["build"] >>= shouldBeSuccess
           -- Now we don't remove the output folder, but we pass the `--no-build`
           -- flag to skip rebuilding (i.e. we are counting on the previous command
@@ -759,7 +759,8 @@ spec = do
             checkFixture "bundle-module.js"
 
         it "Spago should successfully make a module with source map" $ do
-          spagoInit >>= shouldBeSuccess
+          whenUsingEsModulesFixPackagesDhall
+          spago ["init"] >>= shouldBeSuccess
           spago ["build"] >>= shouldBeSuccess
 
           if usingEsModules then do
@@ -779,7 +780,8 @@ spec = do
 
         it "Spago should run successfully" $ do
 
-          spagoInit >>= shouldBeSuccess
+          whenUsingEsModulesFixPackagesDhall
+          spago ["init"] >>= shouldBeSuccess
           spago ["build"] >>= shouldBeSuccess
 
           shell "psa --version" empty >>= \case
@@ -788,13 +790,15 @@ spec = do
 
         it "Spago should be able to not use `psa`" $ do
 
-          spagoInit >>= shouldBeSuccess
+          whenUsingEsModulesFixPackagesDhall
+          spago ["init"] >>= shouldBeSuccess
           spago ["--no-psa", "build"] >>= shouldBeSuccess
           spago ["-v", "--no-psa", "run"] >>= shouldBeSuccessOutput "run-output.txt"
 
         it "Spago should pass stdin to the child process" $ do
 
-          spagoInit >>= shouldBeSuccess
+          whenUsingEsModulesFixPackagesDhall
+          spago ["init"] >>= shouldBeSuccess
           cp "../fixtures/spago-run-stdin.purs" "src/Main.purs"
           spago ["install", "node-buffer", "node-streams", "node-process"] >>= shouldBeSuccess
           spago ["build"] >>= shouldBeSuccess
@@ -802,7 +806,8 @@ spec = do
 
         it "Spago should use exec-args" $ do
 
-          spagoInit >>= shouldBeSuccess
+          whenUsingEsModulesFixPackagesDhall
+          spago ["init"] >>= shouldBeSuccess
           cp "../fixtures/spago-run-args.purs" "src/Main.purs"
           spago ["install", "node-process", "arrays"] >>= shouldBeSuccess
           spago ["build"] >>= shouldBeSuccess
@@ -810,7 +815,8 @@ spec = do
 
         it "Spago should use node-args" $ do
 
-          spagoInit >>= shouldBeSuccess
+          whenUsingEsModulesFixPackagesDhall
+          spago ["init"] >>= shouldBeSuccess
           cp "../fixtures/spago-run-args.purs" "src/Main.purs"
           spago ["install", "node-process", "arrays"] >>= shouldBeSuccess
           spago ["build"] >>= shouldBeSuccess
@@ -819,7 +825,8 @@ spec = do
 
         it "Spago should prefer exec-args" $ do
 
-          spagoInit >>= shouldBeSuccess
+          whenUsingEsModulesFixPackagesDhall
+          spago ["init"] >>= shouldBeSuccess
           cp "../fixtures/spago-run-args.purs" "src/Main.purs"
           spago ["install", "node-process", "arrays"] >>= shouldBeSuccess
           spago ["build"] >>= shouldBeSuccess
@@ -829,19 +836,22 @@ spec = do
 
         it "Spago should test successfully" $ do
 
-          spagoInit >>= shouldBeSuccess
+          whenUsingEsModulesFixPackagesDhall
+          spago ["init"] >>= shouldBeSuccess
           spago ["build"] >>= shouldBeSuccess
           spago ["--no-psa", "test"] >>= shouldBeSuccessOutputWithErr "test-output-stdout.txt" "test-output-stderr.txt"
 
         it "Spago should fail nicely when the test module is not found" $ do
 
-          spagoInit >>= shouldBeSuccess
+          whenUsingEsModulesFixPackagesDhall
+          spago ["init"] >>= shouldBeSuccess
           mv "test" "test2"
           spago ["test"] >>= shouldBeFailureInfix "Module 'Test.Main' not found! Are you including it in your build?"
 
         it "Spago should test in custom output folder" $ do
 
-          spagoInit >>= shouldBeSuccess
+          whenUsingEsModulesFixPackagesDhall
+          spago ["init"] >>= shouldBeSuccess
           spago ["test", "--purs-args", "-o", "--purs-args", "myOutput"] >>= shouldBeSuccess
           testdir "myOutput" `shouldReturn` True
 
