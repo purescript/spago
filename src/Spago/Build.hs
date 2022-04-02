@@ -426,7 +426,7 @@ bundleWithEsbuild withMain srcMap (ModuleName moduleName) (TargetPath targetPath
       WithoutSrcMap -> ""
     cmd = case withMain of
       WithMain ->
-        "echo \"import { main } from './output/" <> moduleName <> "/index.js'\nmain()\" | "
+        "echo \"import { main } from './output/" <> moduleName <> "/index.js'; main();\" | "
         <> esbuild <> platformOpt <> minifyOpt <> srcMapOpt <> " --bundle "
         <> " --outfile=" <> targetPath
       WithoutMain ->
