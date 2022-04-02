@@ -20,7 +20,9 @@ jobs:
         include:
           - os: ubuntu-latest
             image: haskell:8.10.7-stretch@sha256:100f8fb7d7d8d64adb5e106fe8136b8d4cbdc03aeb2cbd145a7597d74b69bafb
+            purs_0_15_file: linux64
           - os: macOS-latest
+            purs_0_15_file: macos
           - os: windows-latest
     steps:
       # We need a proper Git repository, but the checkout step will unpack a tarball instead of doing a clone
@@ -121,10 +123,12 @@ jobs:
       - name: non-Windows - Download PureScript 0.15.0
         if: runner.os != 'Windows'
         shell: bash
+        env:
+          FILE: ${{ matrix.purs_0_15_file }}
         run: |
           DIR="$HOME/bin/purescript-$PS_0_15_0_VERSION"
           mkdir -p "$DIR"
-          curl -o "$DIR/purescript.tar.gz" -L "https://github.com/purescript/purescript/releases/download/$PS_0_15_0_VERSION/linux64.tar.gz"
+          curl -o "$DIR/purescript.tar.gz" -L "https://github.com/purescript/purescript/releases/download/$PS_0_15_0_VERSION/$FILE.tar.gz"
           tar -xvf "$DIR/purescript.tar.gz" -C "$DIR" --strip-components 1 purescript/purs
           chmod a+x "$DIR/purs"
 
