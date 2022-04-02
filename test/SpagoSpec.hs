@@ -13,7 +13,7 @@ import           Utils              (checkFileHasInfix, checkFixture, checkFileE
                                      readFixture, runFor, shouldBeFailure, shouldBeFailureInfix,
                                      shouldBeFailureStderr, shouldBeSuccess, shouldBeSuccessOutput,
                                      shouldBeSuccessOutputWithErr, shouldBeSuccessStderr, spago,
-                                     withCwd, withEnvVar, dhall)
+                                     withCwd, withEnvVar, dhall, ls, cat)
 import qualified Data.Versions as Version
 import qualified Spago.Cmd as Cmd
 
@@ -726,6 +726,8 @@ spec = do
           spago ["init"] >>= shouldBeSuccess
           if usingEsModules then do
             spago ["bundle-app", "--to", "bundle-app-esm.js"] >>= shouldBeSuccess
+            ls []
+            cat ["bundle-app-esm.js"]
             checkFixture "bundle-app-esm.js"
           else do
             spago ["bundle-app", "--to", "bundle-app.js"] >>= shouldBeSuccess
@@ -736,6 +738,8 @@ spec = do
           spago ["init"] >>= shouldBeSuccess
           if usingEsModules then do
             spago ["bundle-app", "--to", "bundle-app-src-map-esm.js", "--source-maps"] >>= shouldBeSuccess
+            ls []
+            cat ["bundle-app-src-map-esm.js"]
             checkFixture "bundle-app-src-map-esm.js"
             checkFileExist "bundle-app-src-map-esm.js.map"
           else do
