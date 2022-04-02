@@ -779,7 +779,7 @@ spec = do
 
         it "Spago should run successfully" $ do
 
-          spago ["init"] >>= shouldBeSuccess
+          spagoInit >>= shouldBeSuccess
           spago ["build"] >>= shouldBeSuccess
 
           shell "psa --version" empty >>= \case
@@ -788,13 +788,13 @@ spec = do
 
         it "Spago should be able to not use `psa`" $ do
 
-          spago ["init"] >>= shouldBeSuccess
+          spagoInit >>= shouldBeSuccess
           spago ["--no-psa", "build"] >>= shouldBeSuccess
           spago ["-v", "--no-psa", "run"] >>= shouldBeSuccessOutput "run-output.txt"
 
         it "Spago should pass stdin to the child process" $ do
 
-          spago ["init"] >>= shouldBeSuccess
+          spagoInit >>= shouldBeSuccess
           cp "../fixtures/spago-run-stdin.purs" "src/Main.purs"
           spago ["install", "node-buffer", "node-streams", "node-process"] >>= shouldBeSuccess
           spago ["build"] >>= shouldBeSuccess
@@ -802,7 +802,7 @@ spec = do
 
         it "Spago should use exec-args" $ do
 
-          spago ["init"] >>= shouldBeSuccess
+          spagoInit >>= shouldBeSuccess
           cp "../fixtures/spago-run-args.purs" "src/Main.purs"
           spago ["install", "node-process", "arrays"] >>= shouldBeSuccess
           spago ["build"] >>= shouldBeSuccess
@@ -810,7 +810,7 @@ spec = do
 
         it "Spago should use node-args" $ do
 
-          spago ["init"] >>= shouldBeSuccess
+          spagoInit >>= shouldBeSuccess
           cp "../fixtures/spago-run-args.purs" "src/Main.purs"
           spago ["install", "node-process", "arrays"] >>= shouldBeSuccess
           spago ["build"] >>= shouldBeSuccess
@@ -819,7 +819,7 @@ spec = do
 
         it "Spago should prefer exec-args" $ do
 
-          spago ["init"] >>= shouldBeSuccess
+          spagoInit >>= shouldBeSuccess
           cp "../fixtures/spago-run-args.purs" "src/Main.purs"
           spago ["install", "node-process", "arrays"] >>= shouldBeSuccess
           spago ["build"] >>= shouldBeSuccess
@@ -829,19 +829,19 @@ spec = do
 
         it "Spago should test successfully" $ do
 
-          spago ["init"] >>= shouldBeSuccess
+          spagoInit >>= shouldBeSuccess
           spago ["build"] >>= shouldBeSuccess
           spago ["--no-psa", "test"] >>= shouldBeSuccessOutputWithErr "test-output-stdout.txt" "test-output-stderr.txt"
 
         it "Spago should fail nicely when the test module is not found" $ do
 
-          spago ["init"] >>= shouldBeSuccess
+          spagoInit >>= shouldBeSuccess
           mv "test" "test2"
           spago ["test"] >>= shouldBeFailureInfix "Module 'Test.Main' not found! Are you including it in your build?"
 
         it "Spago should test in custom output folder" $ do
 
-          spago ["init"] >>= shouldBeSuccess
+          spagoInit >>= shouldBeSuccess
           spago ["test", "--purs-args", "-o", "--purs-args", "myOutput"] >>= shouldBeSuccess
           testdir "myOutput" `shouldReturn` True
 
