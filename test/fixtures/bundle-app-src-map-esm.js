@@ -9,7 +9,7 @@
   // output/Main/index.js
   var main = /* @__PURE__ */ log("\u{1F35D}");
 
-  // index.js
+  // <stdin>
   main();
 })();
 //# sourceMappingURL=bundle-app-src-map-esm.js.map
