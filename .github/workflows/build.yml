@@ -134,7 +134,7 @@ jobs:
         run: |
           PATH="$HOME/bin/purescript-$PS_0_15_0_VERSION:$PATH"
           purs --version
-          ./scripts/fix-home stack test --ta "match purs-0.15"
+          ./scripts/fix-home stack test --ta "--match purs-0.15"
 
       - name: Windows - Download PureScript 0.15.0
         if: runner.os == 'Windows'
@@ -151,4 +151,4 @@ jobs:
         shell: bash
         run: |
           PATH="$HOME/bin/purescript-$PS_0_15_0_VERSION:$PATH"
-          ./scripts/fix-home stack test --ta "match purs-0.15"
+          ./scripts/fix-home stack test --ta "--match purs-0.15"
