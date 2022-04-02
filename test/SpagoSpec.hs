@@ -725,7 +725,7 @@ spec = do
           whenUsingEsModulesFixPackagesDhall
           spago ["init"] >>= shouldBeSuccess
           if usingEsModules then do
-            spago ["bundle-app", "--to", "bundle-app-esm.js"] >>= shouldBeSuccess
+            spago [ "-V", "bundle-app", "--to", "bundle-app-esm.js"] >>= shouldBeSuccess
             ls []
             cat ["bundle-app-esm.js"]
             checkFixture "bundle-app-esm.js"
@@ -737,7 +737,7 @@ spec = do
           whenUsingEsModulesFixPackagesDhall
           spago ["init"] >>= shouldBeSuccess
           if usingEsModules then do
-            spago ["bundle-app", "--to", "bundle-app-src-map-esm.js", "--source-maps"] >>= shouldBeSuccess
+            spago ["-V", "bundle-app", "--to", "bundle-app-src-map-esm.js", "--source-maps"] >>= shouldBeSuccess
             ls []
             cat ["bundle-app-src-map-esm.js"]
             checkFixture "bundle-app-src-map-esm.js"
