@@ -128,13 +128,6 @@ jobs:
           tar -xvf "$DIR/purescript.tar.gz" -C "$DIR" --strip-components 1 purescript/purs
           chmod a+x "$DIR/purs"
 
-      - name: non-Windows - Run tests (PureScript >= 0.15.0)
-        if: runner.os != 'Windows'
-        shell: bash
-        run: |
-          PATH="$HOME/bin/purescript-$PS_0_15_0_VERSION:$PATH"
-          ./scripts/fix-home stack test --ta "--match purs-0.15"
-
       - name: Windows - Download PureScript 0.15.0
         if: runner.os == 'Windows'
         shell: bash
@@ -145,8 +138,7 @@ jobs:
           tar -xvzf purescript.tar.gz -C "$DIR" --strip-components 1 purescript/purs.exe
           chmod a+x "$DIR/purs.exe"
 
-      - name: Windows - Run tests (PureScript >= 0.15.0)
-        if: runner.os == 'Windows'
+      - name: Run tests (PureScript >= 0.15.0)
         shell: bash
         run: |
           PATH="$HOME/bin/purescript-$PS_0_15_0_VERSION:$PATH"
