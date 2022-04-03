@@ -426,7 +426,7 @@ bundleWithEsbuild withMain srcMap (ModuleName moduleName) (TargetPath targetPath
       WithSrcMap -> " --sourcemap"
       WithoutSrcMap -> ""
     echoLine = case System.Info.os of
-      "mingw3" -> "echo import { main } from 'file://./output/" <> moduleName <> "/index.js'; main(); | "
+      "mingw3" -> "echo import { main } from \"file://./output/" <> moduleName <> "/index.js\"; main(); | "
       _ -> "echo \"import { main } from './output/" <> moduleName <> "/index.js'; main();\" | "
     cmd = case withMain of
       WithMain ->
