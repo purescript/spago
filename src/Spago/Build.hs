@@ -426,17 +426,16 @@ bundleWithEsbuild withMain srcMap (ModuleName moduleName) (TargetPath targetPath
       WithoutSrcMap -> ""
     successMsg = "Bundle succeeded and output file to " <> targetPath
     failMsg = "Bundle failed."
+    esbuildBase = esbuild <> platformOpt <> minifyOpt <> srcMapOpt <> " --format=esm --bundle --outfile=" <> targetPath
   case withMain of
       WithMain -> do
-        let
-          cmd = esbuild <> platformOpt <> minifyOpt <> srcMapOpt <> " --format=esm --bundle "
-                <> " --outfile=" <> targetPath <> " --allow-overwrite " <> targetPath
+        -- Since `targetPath` is used as both input/output,
+        -- we also need the `--allow-overwrite` flag.
+        let cmd = esbuildBase <> " --allow-overwrite " <> targetPath
         writeTextFile targetPath $ "import { main } from './output/" <> moduleName <> "/index.js'; main();"
         runWithOutput cmd successMsg failMsg
       WithoutMain -> do
-        let
-          cmd = esbuild <> platformOpt <> minifyOpt <> srcMapOpt <> " --format=esm --bundle "
-                <> " --outfile=" <> targetPath <> " output/" <> moduleName <> "/index.js"
+        let cmd = esbuildBase <> " output/" <> moduleName <> "/index.js"
         runWithOutput cmd successMsg failMsg
   where
   getESBuild = do
