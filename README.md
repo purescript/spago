@@ -395,8 +395,7 @@ Tests succeeded.
 
 ### Run a repl
 
-As with the `build` and `test` commands, you can add custom source paths
-to load, and pass options to the underlying `purs repl` via `--purs-args`.
+You can start a repl with the following command:
 
 ```bash
 $ spago repl
