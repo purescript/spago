@@ -44,7 +44,7 @@ Other installation methods available:
 
 Let's set up a new project!
 
-```bash
+```console
 $ mkdir purescript-unicorns
 $ cd purescript-unicorns
 $ spago init
@@ -75,7 +75,7 @@ Let's take a look at the two [Dhall][dhall] configuration files that `spago` req
 
 To build your project, run:
 
-```bash
+```console
 $ spago build
 ```
 
@@ -85,13 +85,13 @@ of JavaScript has been generated from your new `Main.purs` file.
 
 You can already see your project running, by doing
 
-```bash
+```console
 $ spago run
 ```
 
 ..which is basically equivalent to the following command:
 
-```bash
+```console
 $ node -e "import('./output/Main/index').then(m => m.main())"
 ```
 
@@ -99,7 +99,7 @@ $ node -e "import('./output/Main/index').then(m => m.main())"
 
 You can also bundle the project in a single file with an entry point, so it can be run directly (useful for CLI apps):
 
-```bash
+```console
 $ spago bundle-app
 $ node .
 ```
@@ -247,14 +247,14 @@ you'll have to carefully:
 
 For an overview of the available commands, run:
 
-```bash
+```console
 $ spago --help
 ```
 
 You will see several subcommands (e.g. `build`, `test`); you can ask for help
 about them by invoking the command with `--help`, e.g.:
 
-```bash
+```console
 $ spago build --help
 ```
 
@@ -265,7 +265,7 @@ This will give a detailed view of the command, and list any command-specific
 
 Since `spago init` does not necessarily use the latest package set. Fortunately, you can specify which package set to use via the `--tag` argument. See the [`purescript/package-sets` repo's releases](https://github.com/purescript/package-sets/releases) for tags you can use:
 
-```bash
+```console
 $ spago init --tag "psc-0.13.8-20200822"
 ```
 
@@ -274,7 +274,7 @@ $ spago init --tag "psc-0.13.8-20200822"
 
 You can add dependencies that are available in your package set by running:
 
-```bash
+```console
 # E.g. installing Halogen
 $ spago install halogen
 
@@ -285,7 +285,7 @@ $ spago install foreign simple-json
 
 ### Download my dependencies locally
 
-```bash
+```console
 $ spago install
 ```
 
@@ -300,7 +300,7 @@ to be installed will run this for you.
 
 We can build the project and its dependencies by running:
 
-```bash
+```console
 $ spago build
 ```
 
@@ -315,7 +315,7 @@ are CommonJS modules, and you can just `require()` them e.g. on Node.
 It's also possible to include custom source paths when building (the ones declared in your
 `sources` config are always included):
 
-```bash
+```console
 $ spago build --path 'another_source/**/*.purs'
 
 ```
@@ -323,14 +323,14 @@ $ spago build --path 'another_source/**/*.purs'
 **Note**: the wrapper on the compiler is so thin that you can pass options to `purs`.
 E.g. if you wish to output your files in some other place than `output/`, you can run
 
-```bash
+```console
 $ spago build --purs-args "-o myOutput/"
 ```
 
 If you wish to automatically have your project rebuilt when making changes to source files
 you can use the `--watch` flag:
 
-```bash
+```console
 $ spago build --watch
 
 # or, to clear the screen on rebuild:
@@ -343,25 +343,25 @@ $ spago build --watch --allow-ignored
 
 To run a command before a build you can use the `--before` flag, eg to post a notification that a build has started:
 
-```bash
+```console
 $ spago build --watch --before "notify-send 'Building'"
 ```
 
 To run a command after the build, use `--then` for successful builds, or `--else` for unsuccessful builds:
 
-```bash
+```console
 $ spago build --watch --then "notify-send 'Built successfully'" --else "notify-send 'Build failed'"
 ```
 
 Multiple commands are possible - they will be run in the order specified:
 
-```bash
+```console
 $ spago build --watch --before clear --before "notify-send 'Building'"
 ```
 
 
 If you want to run the program (akin to `pulp run`), just use `run`:
-```bash
+```console
 # The main module defaults to "Main"
 $ spago run
 
@@ -384,7 +384,7 @@ $ spago run --node-args "arg1 arg2"
 
 You can also test your project with `spago`:
 
-```bash
+```console
 # Test.Main is the default here, but you can override it as usual
 $ spago test --main Test.Main
 Build succeeded.
@@ -397,7 +397,7 @@ Tests succeeded.
 
 You can start a repl with the following command:
 
-```bash
+```console
 $ spago repl
 ```
 
@@ -411,7 +411,7 @@ By default, the following dependencies are installed: `effect`, `console`, `prel
 
 You can run a script via the following, optionally specifying a package set to use, and additional dependencies to pull from there:
 
-```bash
+```console
 $ spago script --tag psc-13.8 -d node-fs path/to/script.purs
 ```
 
@@ -424,13 +424,13 @@ It is sometimes useful to know which packages are contained in our package set
 You can get a complete list of the packages your `packages.dhall` imports (together
 with their versions and URLs) by running:
 
-```bash
+```console
 $ spago ls packages
 ```
 
 By using the `ls deps` command instead you can restrict the list to direct or transitive dependencies:
 
-```bash
+```console
 # Direct dependencies, i.e. only the ones listed in spago.dhall
 $ spago ls deps
 
@@ -487,7 +487,7 @@ in  upstream
 
 Note that if we do `spago ls packages`, we'll see that it is now included as a local package:
 
-```bash
+```console
 $ spago ls packages
 ...
 signal                v10.1.0   Remote "https://github.com/bodil/purescript-signal.git"
@@ -578,7 +578,7 @@ E.g. if you patched the `foreign` package, and added it as a local package to yo
 you can check that you didn't break its dependents (also called "reverse dependencies")
 by running:
 
-```bash
+```console
 $ spago verify foreign
 ```
 
@@ -603,7 +603,7 @@ Spago can update the package set to the latest release or to a specific release 
 
 Running it would look something like this:
 
-```bash
+```console
 $ spago upgrade-set
 [info] Updating package-set tag to "psc-0.13.8-20200822"
 Fetching the new one and generating hashes.. (this might take some time)
@@ -614,7 +614,7 @@ Fetching the new one and generating hashes.. (this might take some time)
 
 If the package set exists, running `upgrade-set` would look something like this:
 
-```bash
+```console
 $ spago upgrade-set --tag "psc-0.13.8-20200822"
 [info] Updating package-set tag to "psc-0.13.8-20200822"
 Fetching the new one and generating hashes.. (this might take some time)
@@ -623,7 +623,7 @@ Fetching the new one and generating hashes.. (this might take some time)
 
 If the package set does not exist, your `packages.dhall` file will not be touched and you will see a warning:
 
-```bash
+```console
 spago upgrade-set --tag "whoops-i-made-a-big-typo"
 [info] Updating package-set tag to "whoops-i-made-a-big-typo"
 Fetching the new one and generating hashes.. (this might take some time)
@@ -753,7 +753,7 @@ in conf // {
 ```
 
 And then you can run tests like this:
-```bash
+```console
 $ spago -x test.dhall test
 ```
 
@@ -769,7 +769,7 @@ This will produce a single, executable, dead-code-eliminated file:
 **>= v0.15.0**
 
 Since v0.15.0 spago uses `esbuild` as the underlying default bundler. See the [`esbuild` getting started](https://esbuild.github.io/getting-started/#install-esbuild) for installation instructions.
-```bash
+```console
 # You can specify the main module and the target file, or these defaults will be used. This will bundle for the browser by default.
 $ spago bundle-app --main Main --to index.js
 Bundle succeeded and output file to index.js
@@ -787,7 +787,7 @@ $ node .
 ```
 
 **<= v0.14.0**
-```bash
+```console
 # You can specify the main module and the target file, or these defaults will be used
 $ spago bundle-app --main Main --to index.js
 Bundle succeeded and output file to index.js
@@ -803,7 +803,7 @@ JavaScript:
 
 **>= v0.15.0**
 
-```bash
+```console
 # You can specify the main module and the target file, or these defaults will be used
 $ spago bundle-module --main Main --to index.js
 Bundling first...
@@ -815,7 +815,7 @@ $ node -e "import('./index.js').then(m => console.log(m.main))"
 ```
 
 **<= v0.14.0**
-```bash
+```console
 # You can specify the main module and the target file, or these defaults will be used
 $ spago bundle-module --main Main --to index.js
 Bundling first...
@@ -1359,7 +1359,7 @@ it is recommended that you pre-compile your PureScript project before distributi
 
 To build documentation for your project and its dependencies (i.e. a "project-local
 [Pursuit][pursuit]"), you can use the `docs` command:
-```bash
+```console
 $ spago docs
 ```
 
@@ -1367,13 +1367,13 @@ This will generate all the documentation in the `./generated-docs` folder of you
 You might then want to open the `index.html` file in there.
 
 If you wish for the documentation to be opened in browser when generated, you can pass an `open` flag:
-```bash
+```console
 $ spago docs --open
 ```
 
 To build the documentation as Markdown instead of HTML, or to generate tags for your project,
 you can pass a `format` flag:
-```bash
+```console
 $ spago docs --format ctags
 ```
 
@@ -1684,7 +1684,7 @@ To get a ballpark value for the `j` flag you can take the result of the `ulimit 
 If you encounter any issues with the hashes for the package-set (e.g. the hash is not deemed
 correct by `spago`), then you can have the hashes recomputed by running the `freeze` command:
 
-```bash
+```console
 $ spago freeze
 ```
 
