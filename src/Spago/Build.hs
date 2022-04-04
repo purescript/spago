@@ -21,7 +21,6 @@ import qualified Data.Versions        as Version
 import           System.Directory     (getCurrentDirectory)
 import           System.FilePath      (splitDirectories)
 import qualified System.FilePath.Glob as Glob
-import qualified System.Info
 import qualified System.IO            as Sys
 import qualified System.IO.Temp       as Temp
 import qualified System.IO.Utf8       as Utf8
@@ -425,21 +424,20 @@ bundleWithEsbuild withMain srcMap (ModuleName moduleName) (TargetPath targetPath
     srcMapOpt = case srcMap of
       WithSrcMap -> " --sourcemap"
       WithoutSrcMap -> ""
-    echoLine = case System.Info.os of
-      "mingw32" -> "echo import { main } from './output/" <> moduleName <> "/index.js'; main(); | "
-      _ -> "echo \"import { main } from './output/" <> moduleName <> "/index.js'; main();\" | "
-    cmd = case withMain of
-      WithMain ->
-        echoLine
-        <> esbuild <> platformOpt <> minifyOpt <> srcMapOpt <> " --bundle "
-        <> " --outfile=" <> targetPath
-      WithoutMain ->
-        esbuild <> platformOpt <> minifyOpt <> srcMapOpt <> " --format=esm --bundle "
-        <> "output/" <> moduleName <> "/index.js"
-        <> " --outfile=" <> targetPath
-  runWithOutput cmd
-    ("Bundle succeeded and output file to " <> targetPath)
-    "Bundle failed."
+    successMsg = "Bundle succeeded and output file to " <> targetPath
+    failMsg = "Bundle failed."
+  case withMain of
+      WithMain -> do
+        let
+          cmd = esbuild <> platformOpt <> minifyOpt <> srcMapOpt <> " --format=esm --bundle "
+                <> " --outfile=" <> targetPath <> " --allow-overwrite " <> targetPath
+        writeTextFile targetPath $ "import { main } from './output/" <> moduleName <> "/index.js'; main();"
+        runWithOutput cmd successMsg failMsg
+      WithoutMain -> do
+        let
+          cmd = esbuild <> platformOpt <> minifyOpt <> srcMapOpt <> " --format=esm --bundle "
+                <> " --outfile=" <> targetPath <> " output/" <> moduleName <> "/index.js"
+        runWithOutput cmd successMsg failMsg
   where
   getESBuild = do
     maybeESBuild <- findExecutable "esbuild"
