@@ -67,6 +67,7 @@ module Spago.Prelude
   , findExecutableOrDie
   , findExecutable
   , runWithOutput
+  , runProcessWithOutput
   -- * Other
   , Dhall.Core.throws
   , repr
@@ -108,7 +109,7 @@ import           RIO                                   as X hiding (FilePath, fi
 import           RIO.Orphans                           as X
 import           Safe                                  (headMay, lastMay)
 import           System.FilePath                       (isAbsolute, pathSeparator, (</>))
-import           Turtle                                (FilePath, appendonly, chmod,
+import           Turtle                                (FilePath, Line, appendonly, chmod,
                                                         executable, mktree, repr, shell,
                                                         shellStrict, shellStrictWithErr,
                                                         systemStrictWithErr, testdir)
@@ -268,6 +269,14 @@ runWithOutput :: HasLogFunc env => Text -> Text -> Text -> RIO env ()
 runWithOutput command success failure = do
   logDebug $ "Running command: `" <> display command <> "`"
   shell command empty >>= \case
+    ExitSuccess -> logInfo $ display success
+    ExitFailure _ -> die [ display failure ]
+
+-- | Run the given command.
+runProcessWithOutput :: HasLogFunc env => NonEmpty Text -> Maybe Line -> Text -> Text -> RIO env ()
+runProcessWithOutput (command :| arguments) input success failure = do
+  logDebug $ "Running command: `" <> display (Text.intercalate " " $ command : arguments) <> "`"
+  Turtle.proc command arguments (Turtle.select input) >>= \case
     ExitSuccess -> logInfo $ display success
     ExitFailure _ -> die [ display failure ]
 
