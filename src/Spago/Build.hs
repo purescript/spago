@@ -52,7 +52,7 @@ prepareBundleDefaults maybeModuleName maybeTargetPath maybePlatform = (moduleNam
     platform = fromMaybe Browser maybePlatform
 
 --   eventually running some other action after the build
-build :: HasBuildEnv env => Maybe (RIO Env ()) -> RIO env ()
+build :: HasBuildEnv env => Maybe (RIO env ()) -> RIO env ()
 build maybePostBuild = do
   logDebug "Running `spago build`"
   BuildOptions{..} <- view (the @BuildOptions)
@@ -145,8 +145,7 @@ build maybePostBuild = do
         checkImports
 
       buildAction globs = do
-        env <- Run.getEnv
-        let action = buildBackend globs >> (runRIO env $ fromMaybe (pure ()) maybePostBuild)
+        let action = buildBackend globs >> (fromMaybe (pure ()) maybePostBuild)
         runCommands "Before" beforeCommands
         action `onException` (runCommands "Else" elseCommands)
         runCommands "Then" thenCommands
@@ -341,14 +340,9 @@ runBackend
 runBackend maybeBackend RunDirectories{ sourceDir, executeDir } moduleName maybeSuccessMessage failureMessage extraArgs = do
   logDebug $ display $ "Running with backend: " <> fromMaybe "nodejs" maybeBackend
   BuildOptions{ pursArgs } <- view (the @BuildOptions)
-  isES <- Purs.hasMinPursVersion "0.15.0-alpha-01"
-  nodeEsSupport <- hasNodeEsSupport
-  case (isES, nodeEsSupport) of
-    (True, Unsupported nv) -> die [ "Unsupported Node.js version: " <> display (Version.prettySemVer nv), "Required Node.js version >=12." ]
-    _ ->
-      let
-        postBuild = maybe (nodeAction isES nodeEsSupport $ Path.getOutputPath pursArgs) backendAction maybeBackend
-      in build (Just postBuild)
+  let
+    postBuild = maybe (nodeAction $ Path.getOutputPath pursArgs) backendAction maybeBackend
+  build (Just postBuild)
   where
     fromFilePath = Text.pack . Turtle.encodeString
     runJsSource = fromFilePath (sourceDir Turtle.</> ".spago/run.js")
@@ -386,7 +380,14 @@ runBackend maybeBackend RunDirectories{ sourceDir, executeDir } moduleName maybe
     nodeCmd isES Experimental | isES = "node --experimental-modules \"" <> runJsSource <> "\" " <> nodeArgs
     nodeCmd _ _ = "node \"" <> runJsSource <> "\" " <> nodeArgs
 
-    nodeAction isES nodeVersion outputPath' = do
+    nodeAction outputPath' = do
+      isES <- Purs.hasMinPursVersion "0.15.0-alpha-01"
+      nodeVersion <- hasNodeEsSupport
+      case (isES, nodeVersion) of
+        (True, Unsupported nv) ->
+          die [ "Unsupported Node.js version: " <> display (Version.prettySemVer nv), "Required Node.js version >=12." ]
+        _ ->
+          pure ()
       logDebug $ "Writing " <> displayShow @Text runJsSource
       writeTextFile runJsSource (nodeContents isES outputPath')
       void $ chmod executable $ pathFromText runJsSource
@@ -474,7 +475,7 @@ bundleModule withMain BundleOptions { maybeModuleName, maybeTargetPath, maybePla
                   Left (n :: SomeException) -> die [ "Make module failed: " <> repr n ]
   case noBuild of
     DoBuild -> Run.withBuildEnv usePsa buildOpts $ build (Just bundleAction)
-    NoBuild -> Run.getEnv >>= (flip runRIO) bundleAction
+    NoBuild -> Run.withBuildEnv usePsa buildOpts bundleAction
 
 docsSearchTemplate :: (HasType LogFunc env, HasType PursCmd env) => RIO env Text
 docsSearchTemplate = ifM (Purs.hasMinPursVersion "0.14.0")
