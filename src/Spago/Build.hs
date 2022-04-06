@@ -21,7 +21,6 @@ import qualified Data.Versions        as Version
 import           System.Directory     (getCurrentDirectory)
 import           System.FilePath      (splitDirectories)
 import qualified System.FilePath.Glob as Glob
-import qualified System.Info          as SysInfo
 import qualified System.IO            as Sys
 import qualified System.IO.Temp       as Temp
 import qualified System.IO.Utf8       as Utf8
@@ -417,25 +416,23 @@ bundleWithEsbuild withMain srcMap (ModuleName moduleName) (TargetPath targetPath
   esbuild <- getESBuild
   let
     platformOpt = case platform of
-      Browser -> " --platform=browser"
-      Node -> " --platform=node"
+      Browser -> ["--platform=browser"]
+      Node -> ["--platform=node"]
     minifyOpt = case minify of
-      NoMinify -> ""
-      Minify -> " --minify"
+      NoMinify -> []
+      Minify -> ["--minify"]
     srcMapOpt = case srcMap of
-      WithSrcMap -> " --sourcemap"
-      WithoutSrcMap -> ""
-    esbuildBase = esbuild <> platformOpt <> minifyOpt <> srcMapOpt <> " --format=esm --bundle --outfile=" <> targetPath
-    cmd = case withMain of
+      WithSrcMap -> ["--sourcemap"]
+      WithoutSrcMap -> []
+    esbuildBase = platformOpt <> minifyOpt <> srcMapOpt <> ["--format=esm", "--bundle", "--outfile=" <> targetPath]
+    (input, cmd) = case withMain of
       WithMain -> do
         let
-          echoLine = case SysInfo.os of
-            "mingw32" -> "echo import { main } from './output/" <> moduleName <> "/index.js'; main(); | "
-            _ -> "echo \"import { main } from './output/" <> moduleName <> "/index.js'; main();\" | "
-        echoLine <> esbuildBase
+          echoLine = "import { main } from './output/" <> moduleName <> "/index.js'; main();"
+        (Turtle.textToLine echoLine, esbuild :| esbuildBase)
       WithoutMain ->
-        esbuildBase <> " output/" <> moduleName <> "/index.js"
-  runWithOutput cmd
+        (Nothing, esbuild :| esbuildBase <> ["output/" <> moduleName <> "/index.js"])
+  runProcessWithOutput cmd input
     ("Bundle succeeded and output file to " <> targetPath)
     "Bundle failed."
   where
