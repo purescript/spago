@@ -8,5 +8,5 @@ var log = function(s) {
 // output/Main/index.js
 var main = /* @__PURE__ */ log("\u{1F35D}");
 
-// bundle-app-esm.js
+// <stdin>
 main();

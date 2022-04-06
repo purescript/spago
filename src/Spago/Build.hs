@@ -21,6 +21,7 @@ import qualified Data.Versions        as Version
 import           System.Directory     (getCurrentDirectory)
 import           System.FilePath      (splitDirectories)
 import qualified System.FilePath.Glob as Glob
+import qualified System.Info          as SysInfo
 import qualified System.IO            as Sys
 import qualified System.IO.Temp       as Temp
 import qualified System.IO.Utf8       as Utf8
@@ -424,19 +425,19 @@ bundleWithEsbuild withMain srcMap (ModuleName moduleName) (TargetPath targetPath
     srcMapOpt = case srcMap of
       WithSrcMap -> " --sourcemap"
       WithoutSrcMap -> ""
-    successMsg = "Bundle succeeded and output file to " <> targetPath
-    failMsg = "Bundle failed."
     esbuildBase = esbuild <> platformOpt <> minifyOpt <> srcMapOpt <> " --format=esm --bundle --outfile=" <> targetPath
-  case withMain of
+    cmd = case withMain of
       WithMain -> do
-        -- Since `targetPath` is used as both input/output,
-        -- we also need the `--allow-overwrite` flag.
-        let cmd = esbuildBase <> " --allow-overwrite " <> targetPath
-        writeTextFile targetPath $ "import { main } from './output/" <> moduleName <> "/index.js'; main();"
-        runWithOutput cmd successMsg failMsg
-      WithoutMain -> do
-        let cmd = esbuildBase <> " output/" <> moduleName <> "/index.js"
-        runWithOutput cmd successMsg failMsg
+        let
+          echoLine = case SysInfo.os of
+            "mingw32" -> "echo import { main } from './output/" <> moduleName <> "/index.js'; main(); | "
+            _ -> "echo \"import { main } from './output/" <> moduleName <> "/index.js'; main();\" | "
+        echoLine <> esbuildBase
+      WithoutMain ->
+        esbuildBase <> " output/" <> moduleName <> "/index.js"
+  runWithOutput cmd
+    ("Bundle succeeded and output file to " <> targetPath)
+    "Bundle failed."
   where
   getESBuild = do
     maybeESBuild <- findExecutable "esbuild"

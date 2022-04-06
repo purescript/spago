@@ -8,6 +8,6 @@ var log = function(s) {
 // output/Main/index.js
 var main = /* @__PURE__ */ log("\u{1F35D}");
 
-// bundle-app-src-map-esm.js
+// <stdin>
 main();
 //# sourceMappingURL=bundle-app-src-map-esm.js.map
