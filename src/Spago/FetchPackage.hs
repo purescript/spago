@@ -8,6 +8,7 @@ module Spago.FetchPackage
 import           Spago.Prelude
 import           Spago.Env
 
+import qualified Control.Retry                 as Retry
 import qualified Data.ByteString               as ByteString
 import qualified Data.Char                     as Char
 import qualified Data.List                     as List
@@ -153,9 +154,10 @@ fetchPackage metadata pair@(packageName'@PackageName{..}, Package{ location = Re
               let processWithNewCwd = (Process.shell (Text.unpack git))
                     { Process.cwd = Just downloadDir }
 
-              systemStrictWithErr processWithNewCwd empty >>= \case
-                (ExitSuccess, _, _) -> mv downloadDir packageLocalCacheDir
-                (_, _out, err) -> die [ display $ Messages.failedToInstallDep quotedName err ]
+              Retry.recoverAll (Retry.fullJitterBackoff 100000 <> Retry.limitRetries 2)
+                  $ \_retryStatus -> systemStrictWithErr processWithNewCwd empty >>= \case
+                     (ExitSuccess, _, _) -> mv downloadDir packageLocalCacheDir
+                     (_, _out, err) -> die [ display $ Messages.failedToInstallDep quotedName err ]
 
         -- Make sure that the following folders exist first.
         --

@@ -11,6 +11,7 @@ Features:
 - Make `spago bundle-app` and `spago bundle-module` use esbuild and es modules for projects >= v0.15
 - Make `spago run` use es modules for projects >= v0.15 
 - Support Glibc versions >= `2.24`
+- Retry git clone up to two times
 
 ## [0.20.7] - 2022-02-12
 
