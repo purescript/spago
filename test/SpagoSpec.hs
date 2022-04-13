@@ -779,6 +779,7 @@ spec = runIO getUsingEsModules >>= \usingEsModules -> around_ (setup "spago-test
 
       spago ["bundle", "--to", "bundle.js"] >>= shouldBeFailureStderr "bundle-stderr.txt"
 
+
   describe "spago bundle-app" $ describe purs0_15_0TestMsg $ do
 
     it "Spago should bundle successfully" $ do
@@ -810,6 +811,7 @@ spec = runIO getUsingEsModules >>= \usingEsModules -> around_ (setup "spago-test
     it "Spago should fail but should point to the replacement command" $ do
 
       spago ["make-module", "--to", "make-module.js"] >>= shouldBeFailureStderr "make-module-stderr.txt"
+
 
   describe "spago bundle-module" $ describe purs0_15_0TestMsg $ do
 
