@@ -386,7 +386,7 @@ noSpacesInParentDir usingEsModules = around_ (setup "spago-test") $ do
       spago ["build"] >>= shouldBeSuccess
       testdir "output" `shouldReturn` True
 
-      -- Create local 'monorepo-3' package that uses packages.dhall on top level
+       -- Create local 'monorepo-3' package that uses packages.dhall on top level
       mkdir "monorepo-3"
       cd "monorepo-3"
       spago ["init"] >>= shouldBeSuccess
@@ -506,7 +506,7 @@ noSpacesInParentDir usingEsModules = around_ (setup "spago-test") $ do
 
       dir <- pwd
       let dumpFile = dir </> "testOutput"
-      spago ["build", "--before", "echo before>> " <> (Text.pack $ encodeString dumpFile)] >>= shouldBeSuccess
+      spago ["build", "--before", "echo before>> " <> ( Text.pack $ encodeString dumpFile )] >>= shouldBeSuccess
       test <- readTextFile dumpFile
       test `shouldBe` "before\n"
 
@@ -530,8 +530,8 @@ noSpacesInParentDir usingEsModules = around_ (setup "spago-test") $ do
       dir <- pwd
       let dumpFile = dir </> "testOutput"
       spago [ "build"
-            , "--before", "echo before>> " <> Text.pack (encodeString dumpFile)
-            , "--then", "echo then>> " <> Text.pack (encodeString dumpFile)
+            , "--before", "echo before>> " <> ( Text.pack $ encodeString dumpFile )
+            , "--then", "echo then>> " <> ( Text.pack $ encodeString dumpFile )
             ] >>= shouldBeSuccess
       test <- readTextFile dumpFile
       test `shouldBe` "before\nthen\n"
@@ -562,7 +562,7 @@ noSpacesInParentDir usingEsModules = around_ (setup "spago-test") $ do
       rm "src/Main.purs"
       writeTextFile "src/Main.purs" "module Main where\nimport Effect.Exception\nmain = throw \"error\""
       spago [ "run"
-            , "--else", "echo else>> " <> Text.pack (encodeString dumpFile)
+            , "--else", "echo else>> " <> ( Text.pack $ encodeString dumpFile )
             ] >>= shouldBeFailure
       test <- readTextFile dumpFile
       test `shouldBe` "else\n"
@@ -701,7 +701,7 @@ noSpacesInParentDir usingEsModules = around_ (setup "spago-test") $ do
       cd "monorepo-1"
       spago ["init"] >>= shouldBeSuccess
 
-      -- Create local 'monorepo-2' package that uses packages.dhall on top level
+       -- Create local 'monorepo-2' package that uses packages.dhall on top level
       mkdir "monorepo-2"
       cd "monorepo-2"
       spago ["init"] >>= shouldBeSuccess
