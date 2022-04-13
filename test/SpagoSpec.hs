@@ -28,9 +28,7 @@ setup dir cmd = do
 setup' :: String -> IO () -> IO ()
 setup' dir cmd = do
   currentDir <- getCurrentDirectory
-  Temp.withTempDirectory "test/" (currentDir <> "/" <> dir) $ \temp -> do
-    -- print ("Running in " <> temp)
-    withCwd (decodeString temp) cmd
+  setup (currentDir <> "/" <> dir) cmd
 
 purs0_15_0TestMsg :: String
 purs0_15_0TestMsg = "purs-0.15"
