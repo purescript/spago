@@ -731,7 +731,7 @@ spec = runIO getUsingEsModules >>= \usingEsModules -> around_ (setup "spago-test
 
       fixPackagesDhall usingEsModules
       spago ["init"] >>= shouldBeSuccess
-      cp "../../fixtures/spago-run-stdin.purs" "src/Main.purs"
+      cpFixture "spago-run-stdin.purs" "src/Main.purs"
       spago ["install", "node-buffer", "node-streams", "node-process"] >>= shouldBeSuccess
       spago ["build"] >>= shouldBeSuccess
       shellStrictWithErr "echo wut| spago run" empty >>= shouldBeSuccessOutput "spago-run-passthrough.txt"
@@ -740,7 +740,7 @@ spec = runIO getUsingEsModules >>= \usingEsModules -> around_ (setup "spago-test
 
       fixPackagesDhall usingEsModules
       spago ["init"] >>= shouldBeSuccess
-      cp "../../fixtures/spago-run-args.purs" "src/Main.purs"
+      cpFixture "spago-run-args.purs" "src/Main.purs"
       spago ["install", "node-process", "arrays"] >>= shouldBeSuccess
       spago ["build"] >>= shouldBeSuccess
       spago ["run", "--exec-args", "hello world"] >>= shouldBeSuccessOutput "run-args-output.txt"
@@ -749,7 +749,7 @@ spec = runIO getUsingEsModules >>= \usingEsModules -> around_ (setup "spago-test
 
       fixPackagesDhall usingEsModules
       spago ["init"] >>= shouldBeSuccess
-      cp "../../fixtures/spago-run-args.purs" "src/Main.purs"
+      cpFixture "spago-run-args.purs" "src/Main.purs"
       spago ["install", "node-process", "arrays"] >>= shouldBeSuccess
       spago ["build"] >>= shouldBeSuccess
       spago ["run", "--node-args", "hello world"] >>= shouldBeSuccessOutput "run-args-output.txt"
@@ -759,7 +759,7 @@ spec = runIO getUsingEsModules >>= \usingEsModules -> around_ (setup "spago-test
 
       fixPackagesDhall usingEsModules
       spago ["init"] >>= shouldBeSuccess
-      cp "../../fixtures/spago-run-args.purs" "src/Main.purs"
+      cpFixture "spago-run-args.purs" "src/Main.purs"
       spago ["install", "node-process", "arrays"] >>= shouldBeSuccess
       spago ["build"] >>= shouldBeSuccess
       spago ["run", "--exec-args", "hello world", "--node-args", "hallo welt"] >>= shouldBeSuccessOutput "run-args-combined-output.txt"
