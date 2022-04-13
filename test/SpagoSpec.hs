@@ -13,7 +13,7 @@ import           Utils              (checkFileHasInfix, checkFixture, checkFileE
                                      readFixture, runFor, shouldBeFailure, shouldBeFailureInfix,
                                      shouldBeFailureStderr, shouldBeSuccess, shouldBeSuccessOutput,
                                      shouldBeSuccessOutputWithErr, shouldBeSuccessStderr, spago,
-                                     withCwd, withEnvVar, dhall, getFixturesDir)
+                                     withCwd, withEnvVar, dhall, cpFixture)
 import qualified Spago.Cmd as Cmd
 import qualified Data.Versions as Version
 import System.Directory.Extra (getCurrentDirectory)
@@ -35,11 +35,10 @@ purs0_15_0TestMsg = "purs-0.15"
 
 fixPackagesDhall :: Bool -> IO ()
 fixPackagesDhall usingEsModules = when usingEsModules $ do
-  fixturesDir <- getFixturesDir
   -- The prepare-0.15 package set's contents can change.
   -- So, we copy an unfrozen one into the directory
   -- and then freeze it before running `spago init`.
-  cp (fixturesDir </> "packages-prepare-0-15.dhall") "packages.dhall"
+  cpFixture "packages-prepare-0-15.dhall" "packages.dhall"
   dhall ["freeze", "packages.dhall"] >>= shouldBeSuccess
 
 getUsingEsModules :: IO Bool

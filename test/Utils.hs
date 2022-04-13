@@ -4,6 +4,7 @@ module Utils
   , checkFileExist
   , getFixturesDir
   , readFixture
+  , cpFixture
   , getHighestTag
   , git
   , outputShouldEqual
@@ -35,7 +36,7 @@ import           System.Directory   (removePathForcibly, doesFileExist)
 import qualified System.Process     as Process
 import           Test.Hspec         (HasCallStack, shouldBe, shouldSatisfy)
 import           Turtle             (ExitCode (..), FilePath, Text, cd, empty, encodeString, export,
-                                     inproc, limit, need, pwd, readTextFile, strict, testdir, (</>), parent)
+                                     inproc, limit, need, pwd, readTextFile, strict, testdir, (</>), parent, cp)
 import qualified Turtle.Bytes
 
 
@@ -149,6 +150,11 @@ getFixturesDir = pwd >>= go
 
 readFixture :: FilePath -> IO Text
 readFixture filePath = getFixturesDir >>= \fixturesDir -> readTextFile $ fixturesDir </> filePath
+
+cpFixture :: FilePath -> FilePath -> IO ()
+cpFixture fixture path = do
+  fixturesDir <- getFixturesDir
+  cp (fixturesDir </> fixture) path
 
 checkFixture :: HasCallStack => FilePath -> IO ()
 checkFixture path = do
