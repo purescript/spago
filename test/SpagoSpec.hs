@@ -30,6 +30,9 @@ setup' dir cmd = do
   currentDir <- getCurrentDirectory
   setup (currentDir <> "/" <> dir) cmd
 
+-- | This label is used to describe
+-- tests that can be run on an
+-- alpha release of PureScript @0.15.0@.
 purs0_15_0TestMsg :: String
 purs0_15_0TestMsg = "purs-0.15"
 
