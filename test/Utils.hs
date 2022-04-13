@@ -2,6 +2,7 @@ module Utils
   ( checkFixture
   , checkFileHasInfix
   , checkFileExist
+  , getFixturesDir
   , readFixture
   , getHighestTag
   , git
@@ -34,7 +35,7 @@ import           System.Directory   (removePathForcibly, doesFileExist)
 import qualified System.Process     as Process
 import           Test.Hspec         (HasCallStack, shouldBe, shouldSatisfy)
 import           Turtle             (ExitCode (..), FilePath, Text, cd, empty, encodeString, export,
-                                     inproc, limit, need, pwd, readTextFile, strict)
+                                     inproc, limit, need, pwd, readTextFile, strict, testdir, (</>), parent)
 import qualified Turtle.Bytes
 
 
@@ -135,9 +136,19 @@ shouldBeFailureInfix :: HasCallStack => Text -> (ExitCode, Text, Text) -> IO ()
 shouldBeFailureInfix expected result = do
   result `shouldSatisfy` (\(code, _stdout, stderr) -> code == ExitFailure 1 && Text.isInfixOf expected stderr)
 
+getFixturesDir :: IO FilePath
+getFixturesDir = pwd >>= go
+  where
+  fixturesDirName = "fixtures"
+  go accumPath = do
+    let fixturesDir = accumPath </> fixturesDirName
+    hasFixturesDir <- testdir fixturesDir
+    if hasFixturesDir
+      then pure fixturesDir
+      else go (parent accumPath)
+
 readFixture :: FilePath -> IO Text
-readFixture path =
-  readTextFile $ "../fixtures/" <> path
+readFixture filePath = getFixturesDir >>= \fixturesDir -> readTextFile $ fixturesDir </> filePath
 
 checkFixture :: HasCallStack => FilePath -> IO ()
 checkFixture path = do
