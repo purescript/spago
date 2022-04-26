@@ -8,7 +8,6 @@ on:
 
 env:
   STACK_VERSION: '2.7.3'
-  PS_0_15_0_VERSION: 'v0.15.0-alpha-04'
 
 jobs:
   build:
@@ -19,14 +18,8 @@ jobs:
         include:
           - os: ubuntu-latest
             image: haskell:8.10.7-stretch@sha256:100f8fb7d7d8d64adb5e106fe8136b8d4cbdc03aeb2cbd145a7597d74b69bafb
-            purs_download_file: linux64
-            purs_binary_file: purs
           - os: macOS-latest
-            purs_download_file: macos
-            purs_binary_file: purs
           - os: windows-latest
-            purs_download_file: win64
-            purs_binary_file: purs.exe
     steps:
       # We need a proper Git repository, but the checkout step will unpack a tarball instead of doing a clone
       # if the Git version is less than 2.18.
