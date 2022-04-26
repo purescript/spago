@@ -19,14 +19,14 @@ jobs:
         include:
           - os: ubuntu-latest
             image: haskell:8.10.7-stretch@sha256:100f8fb7d7d8d64adb5e106fe8136b8d4cbdc03aeb2cbd145a7597d74b69bafb
-            purs_0_15_download_file: linux64
-            purs_0_15_binary_file: purs
+            purs_download_file: linux64
+            purs_binary_file: purs
           - os: macOS-latest
-            purs_0_15_download_file: macos
-            purs_0_15_binary_file: purs
+            purs_download_file: macos
+            purs_binary_file: purs
           - os: windows-latest
-            purs_0_15_download_file: win64
-            purs_0_15_binary_file: purs.exe
+            purs_download_file: win64
+            purs_binary_file: purs.exe
     steps:
       # We need a proper Git repository, but the checkout step will unpack a tarball instead of doing a clone
       # if the Git version is less than 2.18.
@@ -123,20 +123,9 @@ jobs:
         run: ./scripts/fix-home stack test
         shell: bash
 
-      - name: Download PureScript 0.15.0
-        shell: bash
-        env:
-          DL_FILE: ${{ matrix.purs_0_15_download_file }}
-          BIN_FILE: ${{ matrix.purs_0_15_binary_file }}
-        run: |
-          DIR="$HOME/bin/purescript-$PS_0_15_0_VERSION"
-          mkdir -p "$DIR"
-          curl -o "$DIR/purescript.tar.gz" -L "https://github.com/purescript/purescript/releases/download/$PS_0_15_0_VERSION/$DL_FILE.tar.gz"
-          tar -xvf "$DIR/purescript.tar.gz" -C "$DIR" --strip-components 1 "purescript/$BIN_FILE"
-          chmod a+x "$DIR/$BIN_FILE"
+      - name: Install PureScript 0.15.0
+        run: npm install -g purescript@next
 
       - name: Run tests (PureScript >= 0.15.0)
         shell: bash
-        run: |
-          PATH="$HOME/bin/purescript-$PS_0_15_0_VERSION:$PATH"
-          ./scripts/fix-home stack test --ta "--match purs-0.15"
+        run: ./scripts/fix-home stack test --ta "--match purs-0.15"
