@@ -17,6 +17,9 @@ Bugfixes
 - Fix `spago run` and `spago test` to accept command line arguments correctly, by writing a JS file to run (#865, #866)
 - Remove support for node versions older than 12.0.0 as they do not work with es modules (#866)
 
+Other improvements:
+- Update README.md with documentation for v0.15
+
 ## [0.20.7] - 2022-02-12
 
 Bugfixes
