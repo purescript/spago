@@ -7,22 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-Features:
-- Make `spago bundle-app` and `spago bundle-module` use esbuild and es modules for projects >= v0.15
-- Make `spago run` use es modules for projects >= v0.15 
-- Support Glibc versions >= `2.24`
-- Retry git clone up to two times (#834, #873)
+## [0.20.8] - 2022-04-27
 
-Bugfixes
+Features:
+- Make `spago bundle-app` and `spago bundle-module` use esbuild and es modules for projects >= v0.15 (#862)
+- Make `spago run` use es modules for projects >= v0.15 (#858)
+
+Bugfixes:
 - Fix `spago run` and `spago test` to accept command line arguments correctly, by writing a JS file to run (#865, #866)
 - Remove support for node versions older than 12.0.0 as they do not work with es modules (#866)
+- Retry git clone up to two times (#834, #873)
 
 Other improvements:
-- Update README.md with documentation for v0.15
+- Docs: update README with documentation for PureScript v0.15 (#867)
+- Linux: support Glibc versions >= `2.24`
 
 ## [0.20.7] - 2022-02-12
 
-Bugfixes
+Bugfixes:
 - Make `spago run` work when `node-args` includes flag-like value (#856)
 
 ## [0.20.6] - 2022-02-09
