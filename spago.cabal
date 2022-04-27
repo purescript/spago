@@ -87,6 +87,7 @@ library
     Spago.Bower
     Spago.Build
     Spago.CLI
+    Spago.Cmd
     Spago.Command.Init
     Spago.Command.Ls
     Spago.Command.Path

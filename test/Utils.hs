@@ -2,7 +2,9 @@ module Utils
   ( checkFixture
   , checkFileHasInfix
   , checkFileExist
+  , getFixturesDir
   , readFixture
+  , cpFixture
   , getHighestTag
   , git
   , outputShouldEqual
@@ -19,9 +21,9 @@ module Utils
   , shouldBeFailureStderr
   , shouldBeEmptySuccess
   , spago
+  , dhall
   , withCwd
-  , withEnvVar
-  ) where
+  , withEnvVar) where
 
 import qualified Control.Concurrent as Concurrent
 import qualified Control.Exception  as Exception
@@ -34,7 +36,7 @@ import           System.Directory   (removePathForcibly, doesFileExist)
 import qualified System.Process     as Process
 import           Test.Hspec         (HasCallStack, shouldBe, shouldSatisfy)
 import           Turtle             (ExitCode (..), FilePath, Text, cd, empty, encodeString, export,
-                                     inproc, limit, need, pwd, readTextFile, strict)
+                                     inproc, limit, need, pwd, readTextFile, strict, testdir, (</>), parent, cp)
 import qualified Turtle.Bytes
 
 
@@ -58,6 +60,9 @@ proc cmd args = do
         . Text.Encoding.decodeUtf8With lenientDecode
   (c, out, err) <- Turtle.Bytes.procStrictWithErr cmd args empty
   pure (c, b2t out, b2t err)
+
+dhall :: [Text] -> IO (ExitCode, Text, Text)
+dhall = proc "dhall"
 
 spago :: [Text] -> IO (ExitCode, Text, Text)
 spago = proc "spago"
@@ -132,9 +137,24 @@ shouldBeFailureInfix :: HasCallStack => Text -> (ExitCode, Text, Text) -> IO ()
 shouldBeFailureInfix expected result = do
   result `shouldSatisfy` (\(code, _stdout, stderr) -> code == ExitFailure 1 && Text.isInfixOf expected stderr)
 
+getFixturesDir :: IO FilePath
+getFixturesDir = pwd >>= go
+  where
+  fixturesDirName = "fixtures"
+  go accumPath = do
+    let fixturesDir = accumPath </> fixturesDirName
+    hasFixturesDir <- testdir fixturesDir
+    if hasFixturesDir
+      then pure fixturesDir
+      else go (parent accumPath)
+
 readFixture :: FilePath -> IO Text
-readFixture path =
-  readTextFile $ "../fixtures/" <> path
+readFixture filePath = getFixturesDir >>= \fixturesDir -> readTextFile $ fixturesDir </> filePath
+
+cpFixture :: FilePath -> FilePath -> IO ()
+cpFixture fixture path = do
+  fixturesDir <- getFixturesDir
+  cp (fixturesDir </> fixture) path
 
 checkFixture :: HasCallStack => FilePath -> IO ()
 checkFixture path = do

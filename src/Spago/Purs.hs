@@ -19,12 +19,11 @@ import           Spago.Env
 import qualified Data.ByteString.Lazy as BSL
 import qualified Data.Text      as Text
 import qualified Data.Text.Encoding as Text.Encoding
-import qualified Data.Text.Encoding.Error as Text.Encoding
 import qualified Data.Versions  as Version
 
 import qualified Spago.Messages as Messages
 import qualified Turtle.Bytes
-
+import qualified Spago.Cmd      as Cmd
 
 compile
   :: (HasPurs env, HasLogFunc env)
@@ -130,19 +129,7 @@ docs format sourcePaths = do
     "Docs generation failed."
 
 pursVersion :: RIO env (Either Text Version.SemVer)
-pursVersion = Turtle.Bytes.shellStrictWithErr (purs <> " --version") empty >>= \case
-  (ExitSuccess, out, _err) -> do
-    let versionText = headMay $ Text.split (== ' ') (Text.strip $ Text.Encoding.decodeUtf8With lenientDecode out)
-        parsed = versionText >>= (hush . Version.semver)
-
-    pure $ case parsed of
-      Nothing -> Left $ Messages.failedToParseCommandOutput 
-        (purs <> " --version") 
-        (Text.Encoding.decodeUtf8With Text.Encoding.lenientDecode out)
-      Just p -> Right p
-  (_, _out, _err) -> pure $ Left $ "Failed to run '" <> purs <> " --version'"
-  where
-    purs = "purs"
+pursVersion = Cmd.getCmdVersion "purs"
 
 hasMinPursVersion :: (HasLogFunc env, HasPurs env) => Text -> RIO env Bool
 hasMinPursVersion maybeMinVersion = do

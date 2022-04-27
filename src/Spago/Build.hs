@@ -17,6 +17,7 @@ import qualified Data.List.NonEmpty   as NonEmpty
 import qualified Data.Map             as Map
 import qualified Data.Set             as Set
 import qualified Data.Text            as Text
+import qualified Data.Versions        as Version
 import           System.Directory     (getCurrentDirectory)
 import           System.FilePath      (splitDirectories)
 import qualified System.FilePath.Glob as Glob
@@ -36,6 +37,7 @@ import qualified Spago.Packages       as Packages
 import qualified Spago.Purs           as Purs
 import qualified Spago.Templates      as Templates
 import qualified Spago.Watch          as Watch
+import qualified Spago.Cmd            as Cmd
 
 
 prepareBundleDefaults
@@ -50,7 +52,7 @@ prepareBundleDefaults maybeModuleName maybeTargetPath maybePlatform = (moduleNam
     platform = fromMaybe Browser maybePlatform
 
 --   eventually running some other action after the build
-build :: HasBuildEnv env => Maybe (RIO Env ()) -> RIO env ()
+build :: HasBuildEnv env => Maybe (RIO env ()) -> RIO env ()
 build maybePostBuild = do
   logDebug "Running `spago build`"
   BuildOptions{..} <- view (the @BuildOptions)
@@ -143,8 +145,7 @@ build maybePostBuild = do
         checkImports
 
       buildAction globs = do
-        env <- Run.getEnv
-        let action = buildBackend globs >> (runRIO env $ fromMaybe (pure ()) maybePostBuild)
+        let action = buildBackend globs >> (fromMaybe (pure ()) maybePostBuild)
         runCommands "Before" beforeCommands
         action `onException` (runCommands "Else" elseCommands)
         runCommands "Then" thenCommands
@@ -309,6 +310,22 @@ script modulePath tag packageDeps opts = do
 
 data RunDirectories = RunDirectories { sourceDir :: FilePath, executeDir :: FilePath }
 
+data NodeEsSupport = Unsupported Version.SemVer | Experimental | Supported
+
+hasNodeEsSupport :: (HasLogFunc env) => RIO env NodeEsSupport
+hasNodeEsSupport = do
+  nodeVersion <- Cmd.getCmdVersion "node"
+  case nodeVersion  of
+    Left err -> do
+      logDebug $ display $ "Unable to get Node.js version: " <> displayShow err
+      pure Supported
+    Right nv@Version.SemVer{} | Version._svMajor nv < 12 ->
+      pure $ Unsupported nv
+    Right nv@Version.SemVer{} | Version._svMajor nv >= 12 && Version._svMajor nv < 13 ->
+      pure Experimental
+    _ -> pure Supported
+
+
 -- | Run the project with node (or the chosen alternate backend):
 --   compile and run the provided ModuleName
 runBackend
@@ -323,15 +340,17 @@ runBackend
 runBackend maybeBackend RunDirectories{ sourceDir, executeDir } moduleName maybeSuccessMessage failureMessage extraArgs = do
   logDebug $ display $ "Running with backend: " <> fromMaybe "nodejs" maybeBackend
   BuildOptions{ pursArgs } <- view (the @BuildOptions)
-  isES <- Purs.hasMinPursVersion "0.15.0"
-  let postBuild = maybe (nodeAction isES $ Path.getOutputPath pursArgs) backendAction maybeBackend
+  let
+    postBuild = maybe (nodeAction $ Path.getOutputPath pursArgs) backendAction maybeBackend
   build (Just postBuild)
   where
     fromFilePath = Text.pack . Turtle.encodeString
+    runJsSource = fromFilePath (sourceDir Turtle.</> ".spago/run.js")
+    packageJson = fromFilePath (sourceDir Turtle.</> ".spago/package.json")
     nodeArgs = Text.intercalate " " $ map unBackendArg extraArgs
     esContents outputPath' =
       fold
-        [ "import { main } from '"
+        [ "import { main } from 'file://"
         , Text.replace "\\" "/" (fromFilePath sourceDir)
         , "/"
         , Text.pack outputPath'
@@ -352,19 +371,36 @@ runBackend maybeBackend RunDirectories{ sourceDir, executeDir } moduleName maybe
         , unModuleName moduleName
         , "').main()"
         ]
-    nodeCmd isES outputPath'=
-      if isES then
-        "node --input-type=module -e \"" <> esContents outputPath'  <> "\" -- " <> nodeArgs
-      else
-        "node -e \"" <> cjsContents outputPath' <> "\" -- " <> nodeArgs
+    nodeContents isES outputPath' =
+      if isES then esContents outputPath'
+      else cjsContents outputPath'
 
-    nodeAction isES outputPath' = do
+    packageJsonContents = "{\"type\":\"module\" }"
+
+    nodeCmd isES Experimental | isES = "node --experimental-modules \"" <> runJsSource <> "\" " <> nodeArgs
+    nodeCmd _ _ = "node \"" <> runJsSource <> "\" " <> nodeArgs
+
+    nodeAction outputPath' = do
+      isES <- Purs.hasMinPursVersion "0.15.0-alpha-01"
+      nodeVersion <- hasNodeEsSupport
+      case (isES, nodeVersion) of
+        (True, Unsupported nv) ->
+          die [ "Unsupported Node.js version: " <> display (Version.prettySemVer nv), "Required Node.js version >=12." ]
+        _ ->
+          pure ()
+      logDebug $ "Writing " <> displayShow @Text runJsSource
+      writeTextFile runJsSource (nodeContents isES outputPath')
+      void $ chmod executable $ pathFromText runJsSource
+      if isES then do
+        logDebug $ "Writing " <> displayShow @Text packageJson
+        writeTextFile packageJson packageJsonContents
+      else pure ()
       -- cd to executeDir in case it isn't the same as sourceDir
       logDebug $ "Executing from: " <> displayShow @FilePath executeDir
       Turtle.cd executeDir
       -- We build a process by hand here because we need to forward the stdin to the backend process
-      logDebug $ "Running node command: `" <> display (nodeCmd isES outputPath') <> "`"
-      let processWithStdin = (Process.shell (Text.unpack $ nodeCmd isES outputPath')) { Process.std_in = Process.Inherit }
+      logDebug $ "Running node command: `" <> display (nodeCmd isES nodeVersion) <> "`"
+      let processWithStdin = (Process.shell (Text.unpack $ nodeCmd isES nodeVersion)) { Process.std_in = Process.Inherit }
       Turtle.system processWithStdin empty >>= \case
         ExitSuccess   -> maybe (pure ()) (logInfo . display) maybeSuccessMessage
         ExitFailure n -> die [ display failureMessage <> "exit code: " <> repr n ]
@@ -376,26 +412,28 @@ runBackend maybeBackend RunDirectories{ sourceDir, executeDir } moduleName maybe
         ExitFailure n -> die [ display failureMessage <> "Backend " <> displayShow backend <> " exited with error:" <> repr n ]
 
 
-bundleWithEsbuild :: HasLogFunc env => WithMain -> ModuleName -> TargetPath -> Platform -> Minify -> RIO env ()
-bundleWithEsbuild withMain (ModuleName moduleName) (TargetPath targetPath) platform minify = do
+bundleWithEsbuild :: HasLogFunc env => WithMain -> WithSrcMap -> ModuleName -> TargetPath -> Platform -> Minify -> RIO env ()
+bundleWithEsbuild withMain srcMap (ModuleName moduleName) (TargetPath targetPath) platform minify = do
   esbuild <- getESBuild
   let
     platformOpt = case platform of
-      Browser -> "browser"
-      Node -> "node"
+      Browser -> ["--platform=browser"]
+      Node -> ["--platform=node"]
     minifyOpt = case minify of
-      NoMinify -> ""
-      Minify -> " --minify"
-    cmd = case withMain of
-      WithMain ->
-        "echo \"import { main } from './output/" <> moduleName <> "/index.js'\nmain()\" | "
-        <> esbuild <> " --platform=" <> platformOpt <> minifyOpt <> " --bundle "
-        <> " --outfile=" <> targetPath
+      NoMinify -> []
+      Minify -> ["--minify"]
+    srcMapOpt = case srcMap of
+      WithSrcMap -> ["--sourcemap"]
+      WithoutSrcMap -> []
+    esbuildBase = platformOpt <> minifyOpt <> srcMapOpt <> ["--format=esm", "--bundle", "--outfile=" <> targetPath]
+    (input, cmd) = case withMain of
+      WithMain -> do
+        let
+          echoLine = "import { main } from './output/" <> moduleName <> "/index.js'; main();"
+        (Turtle.textToLine echoLine, esbuild :| esbuildBase)
       WithoutMain ->
-        esbuild <> " --platform=" <> platformOpt <> minifyOpt <> " --bundle "
-        <> "output/" <> moduleName <> "/index.js"
-        <> " --outfile=" <> targetPath
-  runWithOutput cmd
+        (Nothing, esbuild :| esbuildBase <> ["output/" <> moduleName <> "/index.js"])
+  runProcessWithOutput cmd input
     ("Bundle succeeded and output file to " <> targetPath)
     "Bundle failed."
   where
@@ -414,12 +452,12 @@ bundleModule
   -> UsePsa
   -> RIO env ()
 bundleModule withMain BundleOptions { maybeModuleName, maybeTargetPath, maybePlatform, minify, noBuild }  buildOpts usePsa = do
-  isES <- Purs.hasMinPursVersion "0.15.0"
+  isES <- Purs.hasMinPursVersion "0.15.0-alpha-01"
   let
     (moduleName, targetPath, platform) = prepareBundleDefaults maybeModuleName maybeTargetPath maybePlatform
     bundleAction =
       if isES then
-        bundleWithEsbuild withMain moduleName targetPath platform minify
+        bundleWithEsbuild withMain (withSourceMap buildOpts) moduleName targetPath platform minify
       else case withMain of
         WithMain -> Purs.bundle WithMain (withSourceMap buildOpts) moduleName targetPath
         WithoutMain ->
@@ -437,7 +475,7 @@ bundleModule withMain BundleOptions { maybeModuleName, maybeTargetPath, maybePla
                   Left (n :: SomeException) -> die [ "Make module failed: " <> repr n ]
   case noBuild of
     DoBuild -> Run.withBuildEnv usePsa buildOpts $ build (Just bundleAction)
-    NoBuild -> Run.getEnv >>= (flip runRIO) bundleAction
+    NoBuild -> Run.withBuildEnv usePsa buildOpts bundleAction
 
 docsSearchTemplate :: (HasType LogFunc env, HasType PursCmd env) => RIO env Text
 docsSearchTemplate = ifM (Purs.hasMinPursVersion "0.14.0")
