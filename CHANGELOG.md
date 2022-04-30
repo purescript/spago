@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+Other improvements:
+- CI: cleanup CI for 0.15.0 PureScript updates (#879)
+
 ## [0.20.8] - 2022-04-27
 
 Features:
