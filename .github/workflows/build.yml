@@ -95,7 +95,7 @@ jobs:
             $HOME\AppData\Local\Programs\stack\x86_64-windows
           key: ${{ runner.os }}-${{ hashFiles('stack.yaml') }}-1
 
-      - run: npm install -g purescript@0.14.0 psc-package@3.0.1 bower@1.8.8 esbuild@0.14.28
+      - run: npm install -g purescript@0.15.0 psc-package@3.0.1 bower@1.8.8 esbuild@0.14.28
 
       - name: Install dependencies
         run: |
@@ -112,13 +112,13 @@ jobs:
         run: ./scripts/fix-home stack install
         shell: bash
 
-      - name: Run tests (PureScript < 0.15.0)
+      - name: Run tests (PureScript >= 0.15.0)
         run: ./scripts/fix-home stack test
         shell: bash
 
-      - name: Install PureScript 0.15.0
-        run: npm install -g purescript@next
+      - name: Install PureScript 0.14.0
+        run: npm install -g purescript@0.14.0
 
-      - name: Run tests (PureScript >= 0.15.0)
+      - name: Run tests (PureScript < 0.15.0)
         shell: bash
-        run: ./scripts/fix-home stack test --ta "--match purs-0.15"
+        run: ./scripts/fix-home stack test --ta "--match purs-0.14"
