@@ -425,7 +425,10 @@ bundleWithEsbuild withMain srcMap (ModuleName moduleName) (TargetPath targetPath
     srcMapOpt = case srcMap of
       WithSrcMap -> ["--sourcemap"]
       WithoutSrcMap -> []
-    esbuildBase = platformOpt <> minifyOpt <> srcMapOpt <> ["--format=esm", "--bundle", "--outfile=" <> targetPath]
+    formatOpt = case (platform, withMain) of
+      (Browser, WithMain) -> ["--format=iife"]
+      (_,_) -> ["--format=esm"]
+    esbuildBase = platformOpt <> minifyOpt <> srcMapOpt <> formatOpt <> ["--bundle", "--outfile=" <> targetPath]
     (input, cmd) = case withMain of
       WithMain -> do
         let
