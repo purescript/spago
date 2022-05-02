@@ -282,7 +282,10 @@ spec = runIO getUsingEsModules >>= \usingEsModules -> around_ (setup "spago-test
     it "Spago should print both dependencies and project sources" $ do
 
       spago ["init"] >>= shouldBeSuccess
-      spago ["sources"] >>= shouldBeSuccessOutput "sources-output.txt"
+      if usingEsModules then do
+        spago ["sources"] >>= shouldBeSuccessOutput "sources-output-15.txt"
+      else do
+        spago ["sources"] >>= shouldBeSuccessOutput "sources-output-before-15.txt"
 
   -- -- This is currently commented because it requires a GitHub token and Travis makes it hard to do it securely
   -- describe "spago login" $ do
