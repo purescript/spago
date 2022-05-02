@@ -23,13 +23,21 @@ install:
   - 7z x stack.zip stack.exe
   - stack setup > nul
   - npm install -g bower
+  - mkdir ps-0.14
+  - mkdir ps-0.15
   - ps: |
       $releases = "https://api.github.com/repos/purescript/purescript/releases"
       $tag = "v0.14.0"
       $download = "https://github.com/purescript/purescript/releases/download/$tag/win64.tar.gz"
-      Invoke-WebRequest $download -Out purescript.tar.gz
-  - tar -xvf purescript.tar.gz
-  - chmod a+x purescript
+      Invoke-WebRequest $download -Out ps-0.14\purescript.tar.gz
+
+      $tag = "v0.15.0"
+      $download = "https://github.com/purescript/purescript/releases/download/$tag/win64.tar.gz"
+      Invoke-WebRequest $download -Out ps-0.15\purescript.tar.gz
+  - tar -xvf ps-0.14\purescript.tar.gz -C ps-0.14
+  - chmod a+x ps-0.14\purescript
+  - tar -xvf ps-0.15\purescript.tar.gz -C ps-0.15
+  - chmod a+x ps-0.15\purescript
 
 build_script:
   - make
@@ -44,10 +52,17 @@ test_script:
   - ps: Start-Sleep -s 5
   - ps: Restart-Computer
   - ps: Start-Sleep -s 5
-  - cmd: set PATH=C:\projects\spago\bin;C:\projects\spago\purescript;%PATH%
+  - cmd: set ORIGINAL_PATH=%PATH%
   - cmd: set XDG_CACHE_HOME=C:\cache
+  - cmd: set PATH=C:\projects\spago\bin;C:\projects\spago\ps-0.15\purescript;%ORIGINAL_PATH%
   - cmd: git config --global core.longpaths true
   - cmd: stack test
   # We install psa and rerun the tests that exercise it
+  - cmd: npm install -g purescript-psa
+  - cmd: stack test --ta "--match \"/Spago/spago run\""
+  - cmd: npm uninstall -g purescript-psa
+  # We rerun the same tests on PureScript 0.14.0
+  - cmd: set PATH=C:\projects\spago\bin;C:\projects\spago\ps-0.14\purescript;%ORIGINAL_PATH%
+  - cmd: stack test
   - cmd: npm install -g purescript-psa
   - cmd: stack test --ta "--match \"/Spago/spago run\""
