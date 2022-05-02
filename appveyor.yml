@@ -22,7 +22,7 @@ install:
   - curl --silent --show-error --output stack.zip --location "https://github.com/commercialhaskell/stack/releases/download/v%STACK_VERSION%/stack-%STACK_VERSION%-windows-x86_64.zip"
   - 7z x stack.zip stack.exe
   - stack setup > nul
-  - npm install -g bower
+  - npm install -g bower@1.8.8
   - mkdir ps-0.14
   - mkdir ps-0.15
   - ps: |
