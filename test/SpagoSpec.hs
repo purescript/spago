@@ -30,12 +30,6 @@ setup' dir cmd = do
   currentDir <- getCurrentDirectory
   setup (currentDir <> "/" <> dir) cmd
 
--- | This label is used to describe
--- tests that can be run on an
--- release of PureScript @0.15.0@.
-purs0_15_0TestMsg :: String
-purs0_15_0TestMsg = "purs-0.14"
-
 getUsingEsModules :: IO Bool
 getUsingEsModules = do
   pursVersion <- Cmd.getCmdVersion "purs" >>= either die pure
