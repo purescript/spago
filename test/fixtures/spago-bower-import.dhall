@@ -10,20 +10,15 @@ When creating a new Spago project, you can use
 `spago init --no-comments` or `spago init -C`
 to generate this file without the comments in this block.
 -}
-{ name = "simple-json"
+{ name = "either"
 , dependencies =
-  [ "arrays"
-  , "assert"
+  [ "assert"
   , "console"
+  , "control"
   , "effect"
-  , "exceptions"
-  , "foreign"
-  , "foreign-object"
-  , "nullable"
+  , "invariant"
+  , "maybe"
   , "prelude"
-  , "record"
-  , "typelevel-prelude"
-  , "variant"
   ]
 , packages = ./packages.dhall
 , sources = [ "src/**/*.purs", "test/**/*.purs" ]

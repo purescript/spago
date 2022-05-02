@@ -84,8 +84,9 @@ spec = runIO getUsingEsModules >>= \usingEsModules -> around_ (setup "spago-test
 
     it "Spago should import configs from Bower" $ do
 
-      shellStrictWithErr "git clone https://github.com/justinwoo/purescript-simple-json.git ." empty
-      shellStrictWithErr "git checkout v8.0.0" empty
+      -- https://github.com/purescript/purescript-either/blob/v6.0.0/bower.json
+      shellStrictWithErr "git clone https://github.com/purescript/purescript-either.git ." empty
+      shellStrictWithErr "git checkout v6.0.0" empty
       spago ["init"] >>= shouldBeSuccess
       mv "spago.dhall" "spago-bower-import.dhall"
       checkFixture "spago-bower-import.dhall"
@@ -158,7 +159,7 @@ spec = runIO getUsingEsModules >>= \usingEsModules -> around_ (setup "spago-test
 
       writeTextFile "psc-package.json" "{ \"name\": \"aaa\", \"depends\": [ \"prelude\" ], \"set\": \"foo\", \"source\": \"bar\" }"
       spago ["init"] >>= shouldBeSuccess
-      spago ["-j 10", "install", "simple-json", "foreign"] >>= shouldBeSuccess
+      spago ["-j 10", "install", "foreign"] >>= shouldBeSuccess
       mv "spago.dhall" "spago-install-success.dhall"
       checkFixture "spago-install-success.dhall"
 
@@ -181,8 +182,9 @@ spec = runIO getUsingEsModules >>= \usingEsModules -> around_ (setup "spago-test
 
       spago ["init"] >>= shouldBeSuccess
       mv "packages.dhall" "packagesBase.dhall"
-      writeTextFile "packages.dhall" "let pkgs = ./packagesBase.dhall in pkgs // { simple-json = pkgs.simple-json // { version = \"d45590f493d68baae174b2d3062d502c0cc4c265\" } }"
-      spago ["install", "simple-json"] >>= shouldBeSuccess
+      -- The commit for `either` is for the `v5.0.0` release
+      writeTextFile "packages.dhall" "let pkgs = ./packagesBase.dhall in pkgs // { either = pkgs.either // { version = \"c1a1af35684f10eecaf6ac7d38dbf6bd48af2ced\" } }"
+      spago ["install", "either"] >>= shouldBeSuccess
 
     it "Spago should be able to install a package version by branch name with / in it" $ do
 
@@ -209,7 +211,7 @@ spec = runIO getUsingEsModules >>= \usingEsModules -> around_ (setup "spago-test
 
       spago ["init"] >>= shouldBeSuccess
       writeTextFile "alternative1.dhall" "./spago.dhall // {dependencies = [\"prelude\"]}"
-      spago ["-x", "alternative1.dhall", "install", "simple-json"] >>= shouldBeSuccess
+      spago ["-x", "alternative1.dhall", "install", "either"] >>= shouldBeSuccess
       checkFixture "alternative1.dhall"
 
     it "Spago should fail when the alternate config file doesn't exist" $ do
@@ -228,8 +230,8 @@ spec = runIO getUsingEsModules >>= \usingEsModules -> around_ (setup "spago-test
 
       spago ["init"] >>= shouldBeSuccess
       writeTextFile "alternative2.dhall" "./spago.dhall // { sources = [ \"src/**/*.purs\" ] }\n"
-      spago ["-x", "alternative2.dhall", "install", "simple-json"] >>= shouldBeSuccess
-      spago ["-x", "alternative2.dhall", "install", "simple-json"] >>= shouldBeSuccessStderr "alternative2install-stderr.txt"
+      spago ["-x", "alternative2.dhall", "install", "either"] >>= shouldBeSuccess
+      spago ["-x", "alternative2.dhall", "install", "either"] >>= shouldBeSuccessStderr "alternative2install-stderr.txt"
       checkFixture "alternative2.dhall"
 
     it "Spago should install successfully when there are local dependencies sharing the same packages.dhall" $ do
