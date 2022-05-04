@@ -12,14 +12,7 @@ to generate this file without the comments in this block.
 -}
 { name = "either"
 , dependencies =
-  [ "assert"
-  , "console"
-  , "control"
-  , "effect"
-  , "invariant"
-  , "maybe"
-  , "prelude"
-  ]
+  [ "assert", "console", "control", "effect", "invariant", "maybe", "prelude" ]
 , packages = ./packages.dhall
 , sources = [ "src/**/*.purs", "test/**/*.purs" ]
 }
