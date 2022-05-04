@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Other improvements:
 - CI: cleanup CI for 0.15.0 PureScript updates (#879)
+
+## [0.20.9] - 2022-05-03
+
+Bugfixes:
 - Use `iife` format when bundling browser apps (#880)
 
 ## [0.20.8] - 2022-04-27
