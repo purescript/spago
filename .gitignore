@@ -10,3 +10,6 @@ curator.log
 .DS_Store
 stack.yaml.lock
 !npm/.npmrc
+
+# nix result symlinks
+result
