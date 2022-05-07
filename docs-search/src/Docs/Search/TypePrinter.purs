@@ -37,6 +37,9 @@ showType = case _ of
   TypeApp t1 t2 ->
     showType t1 <> " " <> showType t2
 
+  KindApp t1 t2 ->
+    showType t1 <> " " <> showType t2
+
   ty@(ForAll _ _ _) ->
     showForAll ty
 

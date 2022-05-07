@@ -115,6 +115,9 @@ shapeOfType ty = List.reverse $ go (pure ty) Nil
         TypeApp child1 child2 ->
           go (child1 : child2 : rest) (PApp : acc)
 
+        KindApp child1 child2 ->
+          go (child1 : child2 : rest) (PApp : acc)
+
         forallType@(ForAll _ _ _) ->
           go (foralls.ty : rest) (PForAll (List.length foralls.binders) : acc)
           where foralls = joinForAlls forallType

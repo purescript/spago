@@ -545,6 +545,9 @@ renderType = case _ of
              , renderType t2
              ]
 
+  KindApp t1 t2 ->
+    HH.span_ [ renderType t1, space, renderType t2 ]
+
   ty@(ForAll _ _ _) ->
     renderForAll ty
 

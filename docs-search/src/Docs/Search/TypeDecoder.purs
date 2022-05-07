@@ -98,6 +98,8 @@ data Type
   | TypeOp QualifiedName
   -- | A type application
   | TypeApp Type Type
+  -- | Explicit kind application
+  | KindApp Type Type
   -- | Forall quantifier
   | ForAll String (Maybe Type) Type
   -- | A type withset of type class constraints
@@ -139,6 +141,9 @@ instance decodeJsonType :: DecodeJson Type where
       "TypeApp" ->
         decodeContents (decodeTuple TypeApp (const err)) (Left err) json
         where err = mkJsonError' "TypeApp" json
+      "KindApp" ->
+        decodeContents (decodeTuple KindApp (const err)) (Left err) json
+        where err = mkJsonError' "KindApp" json
       "ForAll" ->
         decodeContents
         (decodeTriple
@@ -180,6 +185,7 @@ instance encodeJsonType :: EncodeJson Type where
     TypeConstructor val    -> tagged "TypeConstructor" (encodeJson val)
     TypeOp          val    -> tagged "TypeOp"          (encodeJson val)
     TypeApp t1 t2          -> tagged "TypeApp"         (encodeTuple t1 t2)
+    KindApp t1 t2          -> tagged "KindApp"         (encodeTuple t1 t2)
     ForAll str Nothing ty  -> tagged "ForAll"          (encodeTriple str ty emptySkolemScope)
     ForAll str (Just k) ty -> tagged "ForAll"          (encodeQuadriple str k ty emptySkolemScope)
     ConstrainedType c t    -> tagged "ConstrainedType" (encodeTuple c t)

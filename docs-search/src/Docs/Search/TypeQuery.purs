@@ -297,6 +297,9 @@ unify query type_ = go Nil (List.singleton { q: query, t: type_ })
     go acc ({ q, t: REmpty } : rest) =
       go (QueryMismatch q : acc) rest
 
+    go acc ({ q, t: t@(KindApp _ _) } : rest) =
+      go (TypeMismatch t : acc) rest
+
 
 -- | Sum various penalties.
 penalty :: TypeQuery -> Type -> Int
@@ -411,6 +414,7 @@ typeSize = go 0 <<< List.singleton
       go (n + 1) rest
     go n (TypeOp _ : rest) =
       go (n + 1) rest
+    go n (KindApp t1 t2 : res) = go n (t1 : t2 : res)
     go n (TypeApp (TypeApp (TypeConstructor
                     (QualifiedName { moduleNameParts: [ "Prim" ]
                                    , name: Identifier "Function" })) t1) t2 : rest) =
