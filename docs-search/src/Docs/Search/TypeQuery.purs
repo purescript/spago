@@ -236,13 +236,13 @@ unify query type_ = go Nil (List.singleton { q: query, t: type_ })
     -- * Names
     go acc ({ q: QConst qname, t: TypeConstructor (QualifiedName { name }) } : rest) =
       go (Match qname name : acc) rest
-    go acc ({ q: QConst qname, t } : rest) =
+    go acc ({ q: QConst _, t } : rest) =
       go (TypeMismatch t : acc) rest
-    go acc ({ q, t: TypeConstructor (QualifiedName { name }) } : rest) =
+    go acc ({ q, t: TypeConstructor (QualifiedName _) } : rest) =
       go (QueryMismatch q : acc) rest
 
     -- type operators can't appear in type queries: this is always a mismatch
-    go acc ({ q, t: TypeOp (QualifiedName { name }) } : rest) =
+    go acc ({ q, t: TypeOp (QualifiedName _) } : rest) =
       go (QueryMismatch q : acc) rest
     go acc ({ q, t: t@(BinaryNoParensType _ _ _) } : rest) =
       go (Mismatch q t : acc) rest
@@ -253,7 +253,7 @@ unify query type_ = go Nil (List.singleton { q: query, t: type_ })
                                     (QualifiedName { moduleNameParts: [ "Prim" ]
                                                    , name: Identifier "Function" })) t1) t2 } : rest) =
       go acc ({ q: q1, t: t1 } : { q: q2, t: t2 } : rest)
-    go acc ({ q: q@(QFun q1 q2), t } : rest) =
+    go acc ({ q: q@(QFun _ _), t } : rest) =
       go (Mismatch q t : acc) rest
 
     -- * Rows
@@ -261,7 +261,7 @@ unify query type_ = go Nil (List.singleton { q: query, t: type_ })
             , t: TypeApp (TypeConstructor
                            (QualifiedName { moduleNameParts: [ "Prim" ]
                                           , name: Identifier "Record" })) row } : rest) =
-      let { rows, ty } = joinRows row
+      let { rows } = joinRows row
           qRowsLength = List.length qRows
           rowsLength = List.length rows in
         if rowsLength == qRowsLength then
@@ -297,7 +297,10 @@ unify query type_ = go Nil (List.singleton { q: query, t: type_ })
     go acc ({ q, t: REmpty } : rest) =
       go (QueryMismatch q : acc) rest
 
-    go acc ({ q, t: t@(KindApp _ _) } : rest) =
+    go acc ({ q, t: Kinded _ _} : rest) =
+      go (QueryMismatch q : acc) rest
+
+    go acc ({ t: t@(KindApp _ _) } : rest) =
       go (TypeMismatch t : acc) rest
 
 
@@ -429,6 +432,8 @@ typeSize = go 0 <<< List.singleton
       go (n + 1) (t1 : t2 : rest)
     go n (REmpty : rest) =
       go (n + 1) rest
+    go n (Kinded t1 t2 : rest) =
+      go n (t1 : t2 : rest)
     go n (BinaryNoParensType op t1 t2 : rest) =
       go (n + 1) (t1 : t2 : rest)
     go n (ParensInType t : rest) =

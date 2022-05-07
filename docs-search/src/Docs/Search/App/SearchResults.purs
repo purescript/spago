@@ -561,6 +561,9 @@ renderType = case _ of
   ty@REmpty -> renderRow true ty
   ty@(RCons _ _ _) -> renderRow true ty
 
+  Kinded t1 t2 ->
+    HH.span_ [ renderType t1, space, syntax "::", space, renderType t2 ]
+
   BinaryNoParensType op t1 t2 ->
     HH.span_
     [ renderType t1

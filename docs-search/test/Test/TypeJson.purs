@@ -268,6 +268,19 @@ tests = do
       """
       assertRight (decodeJson kindAppJson) $
         KindApp REmpty (TypeConstructor (qualified ["Prim"] "Type"))
+    test "KindedType" do
+      let kindedTypeJson = mkJson """
+      {"annotation":[],"tag":"KindedType","contents":[{"annotation":[],"tag":"TypeApp","contents":[{"annotation":[],"tag":"TypeConstructor","contents":[["Data","Const"],"Const"]},{"annotation":[],"tag":"TypeConstructor","contents":[["Data","Void"],"Void"]}]},{"annotation":[],"tag":"TypeApp","contents":[{"annotation":[],"tag":"TypeApp","contents":[{"annotation":[],"tag":"TypeConstructor","contents":[["Prim"],"Function"]},{"annotation":[],"tag":"TypeConstructor","contents":[["Prim"],"Type"]}]},{"annotation":[],"tag":"TypeConstructor","contents":[["Prim"],"Type"]}]}]}
+      """
+      assertRight (decodeJson kindedTypeJson) $
+        Kinded
+        (TypeApp
+         (TypeConstructor (qualified ["Data","Const"] "Const"))
+         (TypeConstructor (qualified ["Data","Void"] "Void")))
+        (TypeApp (TypeApp
+                  (TypeConstructor (qualified ["Prim"] "Function"))
+                  (TypeConstructor (qualified ["Prim"] "Type" )))
+         (TypeConstructor (qualified ["Prim"] "Type")))
   suite "jsons" do
 
     test "jsons #1" do

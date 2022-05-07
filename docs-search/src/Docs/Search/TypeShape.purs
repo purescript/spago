@@ -139,6 +139,8 @@ shapeOfType ty = List.reverse $ go (pure ty) Nil
             sorted = List.sortBy (\x y -> compare x.row y.row) joined.rows
             typesInRow = sorted <#> (_.ty)
 
+        Kinded t1 _t2 -> go (t1 : rest) acc
+
         BinaryNoParensType op l r ->
           go (TypeApp (TypeApp op l) r : rest) acc
 

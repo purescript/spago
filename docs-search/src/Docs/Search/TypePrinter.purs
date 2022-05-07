@@ -51,6 +51,8 @@ showType = case _ of
   ty@REmpty -> showRow true ty
   ty@(RCons _ _ _) -> showRow true ty
 
+  Kinded t1 t2 -> showType t1 <> " :: " <> showType t2
+
   BinaryNoParensType op t1 t2 ->
     showType t1 <>
     space <>
