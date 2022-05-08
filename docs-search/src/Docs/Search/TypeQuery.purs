@@ -34,9 +34,9 @@ import Data.Set as Set
 import Data.String.CodeUnits (fromCharArray)
 import Data.String.Common (trim) as String
 import Data.Tuple (Tuple(..), fst, snd)
-import Text.Parsing.StringParser (ParseError, Parser, runParser, try)
-import Text.Parsing.StringParser.CodePoints (alphaNum, anyLetter, char, eof, lowerCaseChar, skipSpaces, string, upperCaseChar)
-import Text.Parsing.StringParser.Combinators (fix, sepBy, sepBy1, sepEndBy, sepEndBy1)
+import StringParser (ParseError, Parser, runParser, try)
+import StringParser.CodePoints (alphaNum, anyLetter, char, eof, lowerCaseChar, skipSpaces, string, upperCaseChar)
+import StringParser.Combinators (fix, sepBy, sepBy1, sepEndBy, sepEndBy1)
 
 
 -- | We need type queries because we don't have a full-featured type parser

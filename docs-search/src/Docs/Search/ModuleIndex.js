@@ -1,6 +1,6 @@
 /* global exports */
 
-exports.load = function (url) {
+export function load (url) {
   return function () {
     return new Promise(function (resolve, reject) {
       if (typeof window.DocsSearchModuleIndex === 'undefined') {

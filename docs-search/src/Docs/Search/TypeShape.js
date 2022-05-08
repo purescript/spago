@@ -1,6 +1,6 @@
 /* global exports */
 
-exports.hash = function (string) {
+export function hash (string) {
   var hash = Math.floor(Number.MAX_SAFE_INTEGER / 2);
   if (string.length == 0) {
     return hash;

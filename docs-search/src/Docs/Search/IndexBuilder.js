@@ -1,14 +1,13 @@
 /* global __dirname require exports */
 
-var path = require('path');
-var glob = require('glob');
+import globMain from "glob";
 
-exports.getDirname = function () {
+export function getDirname () {
   return __dirname;
 };
 
-exports.glob = function (pattern) {
+export function glob (pattern) {
   return function () {
-    return glob.sync(pattern);
+    return globMain.sync(pattern);
   };
 };

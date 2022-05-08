@@ -1,6 +1,6 @@
 /* global exports */
 
-exports.lookup_ = function (shape) {
+export function lookup_ (shape) {
   return function (url) {
     return function () {
       return new Promise(function (resolve, reject) {

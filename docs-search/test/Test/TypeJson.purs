@@ -15,13 +15,13 @@ import Data.Argonaut.Parser (jsonParser)
 import Data.Either (Either(..))
 import Data.Maybe (Maybe(..))
 import Partial.Unsafe (unsafePartial)
-import Test.Unit (TestSuite, suite, test)
+import Test.Spec (Spec, describe, it)
 
 
-tests :: TestSuite
+tests :: Spec Unit
 tests = do
-  suite "FunDeps decoder" do
-    test "FunDeps" do
+  describe "FunDeps decoder" do
+    it "FunDeps" do
       let
         funDeps = mkJson """
           [
@@ -42,8 +42,8 @@ tests = do
                           }
                  ])
 
-  suite "Constraint decoder" do
-    test "Constraint" do
+  describe "Constraint decoder" do
+    it "Constraint" do
       let constraint = mkJson """
       {
         "constraintAnn": [],
@@ -62,8 +62,8 @@ tests = do
                     , constraintArgs: []
                     })
 
-  suite "Type decoder" do
-    test "TypeVar" do
+  describe "Type decoder" do
+    it "TypeVar" do
       let typeVar = mkJson """
       {
         "annotation": [],
@@ -75,7 +75,7 @@ tests = do
       assertRight (decodeJson typeVar)
        (TypeVar "m")
 
-    test "TypeApp" do
+    it "TypeApp" do
       let typeApp1 = mkJson """
         {
           "annotation": [],
@@ -114,7 +114,7 @@ tests = do
                            ))
           (TypeVar "h")
 
-    test "TypeOp" do
+    it "TypeOp" do
       let typeOp = mkJson """
           {
             "annotation": [],
@@ -131,7 +131,7 @@ tests = do
       assertRight (decodeJson typeOp) $
         TypeOp $ qualified [ "Data", "NaturalTransformation" ] "~>"
 
-    test "BinaryNoParens" do
+    it "BinaryNoParens" do
       let binaryNoParens = mkJson """
       {
         "annotation": [],
@@ -168,7 +168,7 @@ tests = do
         (TypeVar "m")
         (TypeVar "n")
 
-    test "ParensInType" do
+    it "ParensInType" do
       let parensInType = mkJson """
         {
           "annotation": [],
@@ -208,7 +208,7 @@ tests = do
           TypeApp
           (TypeConstructor (qualified [ "Data", "Maybe" ] "Maybe"))
           (TypeConstructor (qualified [ "Prim" ] "String"))
-    test "RCons" do
+    it "RCons" do
 
       let rcons = mkJson """
       {
@@ -253,7 +253,7 @@ tests = do
                    (TypeVar "t"))
           REmpty
 
-    test "ForAll #1" do
+    it "ForAll #1" do
       let forallJson = mkJson """
       {"annotation":[],"tag":"ForAll","contents":["a",{"annotation":[],"tag":"TypeApp","contents":[{"annotation":[],"tag":"TypeApp","contents":[{"annotation":[],"tag":"TypeConstructor","contents":[["Prim"],"Function"]},{"annotation":[],"tag":"TypeConstructor","contents":[["Prim"],"String"]}]},{"annotation":[],"tag":"TypeVar","contents":"a"}]},null]}
       """
@@ -262,13 +262,13 @@ tests = do
                                      (TypeConstructor $ qualified ["Prim"] "String"))
                             (TypeVar "a"))
 
-    test "KindApp" do
+    it "KindApp" do
       let kindAppJson = mkJson """
         {"annotation":[],"tag":"KindApp","contents":[{"annotation":[],"tag":"REmpty"},{"annotation":[],"tag":"TypeConstructor","contents":[["Prim"],"Type"]}]}
       """
       assertRight (decodeJson kindAppJson) $
         KindApp REmpty (TypeConstructor (qualified ["Prim"] "Type"))
-    test "KindedType" do
+    it "KindedType" do
       let kindedTypeJson = mkJson """
       {"annotation":[],"tag":"KindedType","contents":[{"annotation":[],"tag":"TypeApp","contents":[{"annotation":[],"tag":"TypeConstructor","contents":[["Data","Const"],"Const"]},{"annotation":[],"tag":"TypeConstructor","contents":[["Data","Void"],"Void"]}]},{"annotation":[],"tag":"TypeApp","contents":[{"annotation":[],"tag":"TypeApp","contents":[{"annotation":[],"tag":"TypeConstructor","contents":[["Prim"],"Function"]},{"annotation":[],"tag":"TypeConstructor","contents":[["Prim"],"Type"]}]},{"annotation":[],"tag":"TypeConstructor","contents":[["Prim"],"Type"]}]}]}
       """
@@ -281,9 +281,9 @@ tests = do
                   (TypeConstructor (qualified ["Prim"] "Function"))
                   (TypeConstructor (qualified ["Prim"] "Type" )))
          (TypeConstructor (qualified ["Prim"] "Type")))
-  suite "jsons" do
+  describe "jsons" do
 
-    test "jsons #1" do
+    it "jsons #1" do
       let json = mkJson """
 {"annotation":[],"tag":"ForAll","contents":["o",{"annotation":[],"tag":"ForAll","contents":["r",{"annotation":[],"tag":"ForAll","contents":["l",{"annotation":[],"tag":"ConstrainedType","contents":[{"constraintAnn":[],"constraintClass":[["Type","Data","Boolean"],"And"],"constraintArgs":[{"annotation":[],"tag":"TypeVar","contents":"l"},{"annotation":[],"tag":"TypeVar","contents":"r"},{"annotation":[],"tag":"TypeVar","contents":"o"}],"constraintData":null},{"annotation":[],"tag":"TypeApp","contents":[{"annotation":[],"tag":"TypeApp","contents":[{"annotation":[],"tag":"TypeConstructor","contents":[["Prim"],"Function"]},{"annotation":[],"tag":"TypeApp","contents":[{"annotation":[],"tag":"TypeConstructor","contents":[["Type","Data","Boolean"],"BProxy"]},{"annotation":[],"tag":"TypeVar","contents":"l"}]}]},{"annotation":[],"tag":"TypeApp","contents":[{"annotation":[],"tag":"TypeApp","contents":[{"annotation":[],"tag":"TypeConstructor","contents":[["Prim"],"Function"]},{"annotation":[],"tag":"TypeApp","contents":[{"annotation":[],"tag":"TypeConstructor","contents":[["Type","Data","Boolean"],"BProxy"]},{"annotation":[],"tag":"TypeVar","contents":"r"}]}]},{"annotation":[],"tag":"TypeApp","contents":[{"annotation":[],"tag":"TypeConstructor","contents":[["Type","Data","Boolean"],"BProxy"]},{"annotation":[],"tag":"TypeVar","contents":"o"}]}]}]}]},null]},null]},null]}
       """

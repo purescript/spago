@@ -7,7 +7,7 @@ where
 
 import Prelude
 
-import Data.Maybe (Maybe(Just), fromMaybe)
+import Data.Maybe (fromMaybe)
 import Data.String.CodeUnits as String
 import Effect (Effect)
 import JSURI (decodeURIComponent, encodeURIComponent)
@@ -31,7 +31,7 @@ getInput = do
   location <- Window.location window
   hash <- Location.hash location
   pure $
-    if String.slice 0 8 hash == Just "#search:"
+    if String.slice 0 8 hash == "#search:"
     then fromMaybe "" $
          decodeURIComponent $
          String.drop 8 hash

@@ -86,7 +86,7 @@ main = do
       srio <- runUI resultsComponent unit searchResults
 
       void $ H.liftEffect $ subscribe sfio.messages $ \sfm -> do
-        launchAff_ do
+        launchAff_ $ void do
           srio.query (SearchResults.MessageFromSearchField sfm unit)
 
       -- We need to read the URI hash only when both components are initialized and
@@ -97,8 +97,8 @@ main = do
       H.liftEffect do
 
         listener <-
-          eventListener \event ->
-            launchAff_ do
+          eventListener \_event ->
+            launchAff_ $ void do
               sfio.query $ SearchField.ReadURIHash unit
 
         addEventListener hashchange listener true (Window.toEventTarget window)
@@ -111,8 +111,8 @@ main = do
       H.liftEffect do
 
         listener <-
-          eventListener \event ->
-            launchAff_ do
+          eventListener \_event ->
+            launchAff_ $ void do
               sbio.query $ Sidebar.UpdateModuleGrouping unit
 
         addEventListener focus listener true (Window.toEventTarget window)

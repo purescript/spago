@@ -30,12 +30,11 @@ import Data.Set as Set
 import Data.String.CodeUnits (toCharArray) as String
 import Data.String.Common (split, toLower) as String
 import Data.String.Pattern (Pattern(..))
-import Data.Symbol (SProxy(..))
 import Data.Traversable (foldr, for_)
 import Data.Tuple.Nested ((/\))
 import Effect (Effect)
 import Effect.Aff (Aff)
-
+import Type.Proxy (Proxy(..))
 
 -- | Module index that is actually stored in a JS file.
 type PackedModuleIndex = Map PackageInfo (Set ModuleName)
@@ -116,7 +115,7 @@ foreign import load
 
 
 _modulePackages :: forall a b rest.  (a -> b) -> { modulePackages :: a | rest } -> { modulePackages :: b | rest }
-_modulePackages = prop (SProxy :: SProxy "modulePackages")
+_modulePackages = prop (Proxy :: Proxy "modulePackages")
 
 _index :: forall a b rest.  (a -> b) -> { index :: a | rest } -> { index :: b | rest }
-_index = prop (SProxy :: SProxy "index")
+_index = prop (Proxy :: Proxy "index")

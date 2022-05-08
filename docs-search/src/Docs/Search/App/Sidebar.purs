@@ -17,7 +17,6 @@ import Data.Maybe (Maybe(..), isJust, fromMaybe)
 import Data.Newtype (wrap, unwrap)
 import Data.Set (Set)
 import Data.Set as Set
-import Data.Symbol (SProxy(..))
 import Data.Tuple.Nested (type (/\), (/\))
 import Effect (Effect)
 import Effect.Aff (Aff)
@@ -25,6 +24,7 @@ import Halogen as H
 import Halogen.HTML as HH
 import Halogen.HTML.Events as HE
 import Halogen.HTML.Properties as HP
+import Type.Proxy (Proxy(..))
 import Web.HTML as HTML
 import Web.HTML.Window as Window
 import Web.Storage.Storage as Storage
@@ -131,7 +131,7 @@ render state@{ groupingMode, moduleNames, localPackageName } =
          ]
 
   [ HH.h3_ [ HH.text $ if groupingMode == DontGroup then "Modules" else "Packages" ]
-  , HH.input [ HP.id_ "group-modules__input"
+  , HH.input [ HP.id "group-modules__input"
              , HP.type_ HP.InputCheckbox
              , HP.checked (groupingMode == GroupByPackage)
              , HE.onChecked $ ToggleGrouping <<< isCheckedToGroupingMode
@@ -139,7 +139,7 @@ render state@{ groupingMode, moduleNames, localPackageName } =
 
   , HH.text " "
   , HH.label [ HP.for "group-modules__input"
-             , HP.id_ "group-modules__label"
+             , HP.id "group-modules__label"
              ]
     [ HH.text " GROUP BY PACKAGE" ]
 
@@ -215,4 +215,4 @@ isCheckedToGroupingMode = if _ then GroupByPackage else DontGroup
 -- Some optics:
 
 _groupingMode :: forall a b rest.  (a -> b) -> { groupingMode :: a | rest } -> { groupingMode :: b | rest }
-_groupingMode = prop (SProxy :: SProxy "groupingMode")
+_groupingMode = prop (Proxy :: Proxy "groupingMode")

@@ -6,20 +6,18 @@ import Prelude
 
 import Data.List as List
 import Data.Newtype (wrap)
-import Test.Unit (TestSuite, suite, test)
-import Test.Unit.Assert as Assert
+import Test.Spec (Spec, describe, it)
+import Test.Spec.Assertions (shouldEqual)
 
 
-tests :: TestSuite
+tests :: Spec Unit
 tests = do
-  suite "ModuleIndex" do
+  describe "ModuleIndex" do
 
-    test "test #0" do
-      Assert.equal (extractModuleNameParts $ wrap "Data.Array.ST") (
+    it "test #0" do
+      extractModuleNameParts (wrap "Data.Array.ST") `shouldEqual`
         List.fromFoldable [ "st", "array.st", "data.array.st" ]
-      )
 
-    test "test #1" do
-      Assert.equal (extractModuleNameParts $ wrap "Foo") (
+    it "test #1" do
+      extractModuleNameParts (wrap "Foo") `shouldEqual`
         List.fromFoldable [ "foo" ]
-      )

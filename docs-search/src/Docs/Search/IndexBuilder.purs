@@ -43,7 +43,8 @@ import Effect.Aff (Aff, launchAff_, parallel, sequential)
 import Effect.Class (liftEffect)
 import Effect.Console (log)
 import Node.Encoding (Encoding(UTF8))
-import Node.FS.Aff (exists, mkdir, readFile, readTextFile, readdir, stat, writeFile, writeTextFile)
+import Node.FS.Aff (mkdir, readFile, readTextFile, readdir, stat, writeFile, writeTextFile)
+import Node.FS.Sync (exists)
 import Node.FS.Stats (isDirectory, isFile)
 import Node.Process as Process
 import Web.Bower.PackageMeta (PackageMeta(..))
@@ -369,7 +370,7 @@ copyAppFile { generatedDocs } = do
 
 directoryExists :: String -> Aff Boolean
 directoryExists path = do
-  doesExist <- exists path
+  doesExist <- liftEffect $ exists path
   case doesExist of
     false -> pure false
     true -> isDirectory <$> stat path
@@ -377,7 +378,7 @@ directoryExists path = do
 
 fileExists :: String -> Aff Boolean
 fileExists path = do
-  doesExist <- exists path
+  doesExist <- liftEffect $ exists path
   case doesExist of
     false -> pure false
     true -> isFile <$> stat path

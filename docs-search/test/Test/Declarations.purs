@@ -7,33 +7,32 @@ import Docs.Search.Types (PackageName(..), PackageInfo(..))
 
 import Data.Maybe (Maybe(..))
 import Data.Newtype (wrap)
+import Test.Spec (Spec, describe, it)
+import Test.Spec.Assertions (shouldEqual)
 
-import Test.Unit (TestSuite, suite, test)
-import Test.Unit.Assert as Assert
-
-tests :: TestSuite
+tests :: Spec Unit
 tests = do
-  suite "Declarations" do
-    test "extractPackageName" do
-      Assert.equal Builtin (extractPackageName (wrap "Prim") Nothing)
-      Assert.equal Builtin (extractPackageName (wrap "Prim.Foo") Nothing)
-      Assert.equal Builtin (extractPackageName (wrap "Prim.Foo.Bar") Nothing)
-      Assert.equal UnknownPackage (extractPackageName (wrap "Primitive") Nothing)
-      Assert.equal (Package $ PackageName "foo")
+  describe "Declarations" do
+    it "extractPackageName works correctly" do
+      Builtin `shouldEqual` (extractPackageName (wrap "Prim") Nothing)
+      Builtin `shouldEqual` (extractPackageName (wrap "Prim.Foo") Nothing)
+      Builtin `shouldEqual` (extractPackageName (wrap "Prim.Foo.Bar") Nothing)
+      UnknownPackage `shouldEqual` (extractPackageName (wrap "Primitive") Nothing)
+      Package (PackageName "foo") `shouldEqual`
         (extractPackageName (wrap "Foo") $
          Just { start: []
               , end: []
               , name: ".spago/foo/src/Foo.purs"
               }
         )
-      Assert.equal (Package $ PackageName "bar")
+      Package (PackageName "bar") `shouldEqual`
         (extractPackageName (wrap "Bar") $
          Just { start: []
               , end: []
               , name: "/path/to/somewhere/bower_components/bar/src/Bar.purs"
               }
         )
-      Assert.equal LocalPackage
+      LocalPackage `shouldEqual`
         (extractPackageName (wrap "Bar") $
          Just { start: []
               , end: []

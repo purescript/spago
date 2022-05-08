@@ -202,9 +202,9 @@ render state@{ mode: Active } =
   , HH.div_ $
     Array.concat $ shownResults <#> renderResult state
 
-  , HH.div [ HP.class_ (wrap "load_more"), HP.id_ "load-more" ]
+  , HH.div [ HP.class_ (wrap "load_more"), HP.id "load-more" ]
     [ if Array.length shownResults < Array.length state.results
-      then HH.a [ HP.id_ "load-more-link"
+      then HH.a [ HP.id "load-more-link"
                 , HE.onClick $ const MoreResultsRequested ]
            [ HH.text "Show more results" ]
       else HH.p_

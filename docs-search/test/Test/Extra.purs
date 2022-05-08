@@ -4,7 +4,8 @@ import Prelude
 
 import Data.Either (Either(..))
 import Effect.Aff (Aff)
-import Test.Unit.Assert as Assert
+import Test.Spec.Assertions (shouldEqual)
+
 
 assertRight
   :: forall a b
@@ -17,7 +18,7 @@ assertRight
   -> Aff Unit
 assertRight eiActual expected =
   case eiActual of
-    Left string -> do
-      Assert.equal (Right expected) eiActual
-    Right actual -> do
-      Assert.equal (Right expected) eiActual
+    Left _ -> do
+      Right expected `shouldEqual` eiActual
+    Right _ -> do
+      Right expected `shouldEqual` eiActual

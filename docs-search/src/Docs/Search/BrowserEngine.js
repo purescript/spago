@@ -1,6 +1,6 @@
 /* global exports */
 
-exports.loadIndex_ = function (partId) {
+export function loadIndex_ (partId) {
   return function (url) {
     return function () {
       return new Promise(function(resolve, reject) {

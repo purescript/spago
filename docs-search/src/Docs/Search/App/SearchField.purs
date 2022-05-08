@@ -156,7 +156,7 @@ render state =
   [ HH.input
     [ HP.value state.input
     , HP.placeholder "Search for definitions... (S to focus)"
-    , HP.id_ "docs-search-query-field"
+    , HP.id "docs-search-query-field"
     , HP.type_ HP.InputText
     , HE.onKeyUp (\event ->
                    case KeyboardEvent.code event of

@@ -5,16 +5,16 @@ import Prelude
 import Docs.Search.IndexBuilder (patchHTML)
 
 import Data.Tuple (snd)
-import Test.Unit (TestSuite, suite, test)
-import Test.Unit.Assert as Assert
+import Test.Spec (Spec, describe, it)
+import Test.Spec.Assertions (shouldEqual, shouldNotSatisfy)
 
-tests :: TestSuite
+tests :: Spec Unit
 tests = do
-  suite "IndexBuilder" do
-    suite "patchHTML" do
-      test "works" do
+  describe "IndexBuilder" do
+    describe "patchHTML" do
+      it "works" do
         let input = "</body>"
-        Assert.assertFalse "patchHTML works" (snd (patchHTML input) == input)
-      test "is idempotent" do
+        shouldNotSatisfy (snd (patchHTML input)) (eq input)
+      it "is idempotent" do
         let input = "</body>"
-        Assert.equal (snd $ patchHTML $ snd $ patchHTML input) (snd $ patchHTML input)
+        shouldEqual (snd $ patchHTML $ snd $ patchHTML input) (snd $ patchHTML input)

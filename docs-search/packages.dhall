@@ -1,8 +1,10 @@
 let mkPackage =
-      https://raw.githubusercontent.com/purescript/package-sets/psc-0.13.2-20190725/src/mkPackage.dhall sha256:0b197efa1d397ace6eb46b243ff2d73a3da5638d8d0ac8473e8e4a8fc528cf57
+      https://raw.githubusercontent.com/purescript/package-sets/psc-0.13.2-20190725/src/mkPackage.dhall
+        sha256:0b197efa1d397ace6eb46b243ff2d73a3da5638d8d0ac8473e8e4a8fc528cf57
 
 let upstream =
-      https://github.com/purescript/package-sets/releases/download/psc-0.14.0-20210409/packages.dhall sha256:e81c2f2ce790c0e0d79869d22f7a37d16caeb5bd81cfda71d46c58f6199fd33f
+      https://github.com/purescript/package-sets/releases/download/psc-0.15.0-20220506/packages.dhall
+        sha256:f83b68ff07cf6557e82379e749118e6ff11eecc6be5754540aae855cd1e46917
 
 let overrides = {=}
 
@@ -33,12 +35,7 @@ let additions =
             , "web-uievents"
             ]
             "https://github.com/purescript-halogen/purescript-halogen.git"
-            "v6.1.0"
-      , halogen-css =
-          mkPackage
-            [ "halogen" ]
-            "https://github.com/slamdata/purescript-halogen-css.git"
-            "v8.0.0"
+            "v7.0.0"
       , memoize =
           mkPackage
             [ "prelude"
@@ -67,8 +64,8 @@ let additions =
             , "free"
             , "memoize"
             ]
-            "https://github.com/srghma/purescript-optparse.git"
-            "d49b03fcd35f5be167e9c5c44ab1c17ca0956fb1"
+            "https://github.com/klntsky/purescript-optparse.git"
+            "2fe4265b7c6b09744c11190a43ca06777c752473"
       , exitcodes =
           mkPackage
             [ "enums" ]
@@ -77,30 +74,42 @@ let additions =
       , markdown-it =
           mkPackage
             [ "prelude", "effect", "options" ]
-            "https://github.com/nonbili/purescript-markdown-it.git"
-            "v0.4.0"
+            "https://github.com/klntsky/purescript-markdown-it.git"
+            "f3b7654783a83a80d7c09b6caaa7cd40b93ddce1"
+      , string-parsers =
+          mkPackage
+            [ "arrays"
+            , "assert"
+            , "bifunctors"
+            , "console"
+            , "control"
+            , "effect"
+            , "either"
+            , "enums"
+            , "foldable-traversable"
+            , "lists"
+            , "maybe"
+            , "minibench"
+            , "nonempty"
+            , "partial"
+            , "prelude"
+            , "strings"
+            , "tailrec"
+            , "transformers"
+            , "unfoldable"
+            ]
+            "https://github.com/purescript-contrib/purescript-string-parsers.git"
+            "v8.0.0"
       , html-parser-halogen =
           mkPackage
             [ "string-parsers", "halogen" ]
-            "https://github.com/rnons/purescript-html-parser-halogen.git"
-            "458e492e441fcf69a66911b7b64beea5849e0dad"
+            "https://github.com/klntsky/purescript-html-parser-halogen.git"
+            "5c31890d060d5abd0038fed6acd3f999a9362369"
       , markdown-it-halogen =
           mkPackage
             [ "markdown-it", "html-parser-halogen" ]
             "https://github.com/nonbili/purescript-markdown-it-halogen.git"
             "08c9625015bf04214be14e45230e8ce12f3fa2bf"
-      , toppokki =
-          mkPackage
-            [ "prelude"
-            , "record"
-            , "functions"
-            , "node-http"
-            , "aff-promise"
-            , "node-buffer"
-            , "node-fs-aff"
-            ]
-            "https://github.com/justinwoo/purescript-toppokki.git"
-            "v2.4.0"
       , search-trie =
           mkPackage
             [ "prelude"
@@ -126,7 +135,18 @@ let additions =
             , "transformers"
             ]
             "https://github.com/purescript-contrib/purescript-css.git"
-            "5c1a44ee95c259352a2b4570b060de14130540bc"
+            "710d6a742beb88299faf08aaeb997ee1e24483ab"
+      , jest =
+          mkPackage
+            [ "aff"
+            , "aff-promise"
+            , "effect"
+            , "prelude"
+            , "psci-support"
+            , "foldable-traversable"
+            ]
+            "https://github.com/klntsky/purescript-jest.git"
+            "7feaa5a880fc75002c4eca312993174e7220252b"
       }
 
 in  upstream // overrides // additions

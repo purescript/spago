@@ -1,6 +1,6 @@
 /* global exports */
 
-exports.loadFromScript = function (globalIdentifier) {
+export function loadFromScript (globalIdentifier) {
   return function (url) {
     return function () {
       return new Promise(function (resolve, reject) {
