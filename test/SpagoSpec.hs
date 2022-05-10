@@ -80,7 +80,10 @@ spec = runIO getUsingEsModules >>= \usingEsModules -> around_ (setup "spago-test
 
       -- https://github.com/purescript/purescript-either/blob/v6.0.0/bower.json
       shellStrictWithErr "git clone https://github.com/purescript/purescript-either.git ." empty
-      shellStrictWithErr "git checkout v6.0.0" empty
+      if usingEsModules then do
+        shellStrictWithErr "git checkout v6.0.0" empty
+      else do
+        shellStrictWithErr "git checkout v5.0.0" empty
       spago [ "-V", "init"] >>= shouldBeSuccess
       mv "spago.dhall" "spago-bower-import.dhall"
       checkFixture "spago-bower-import.dhall"
