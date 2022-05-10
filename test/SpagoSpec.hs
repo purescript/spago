@@ -81,7 +81,7 @@ spec = runIO getUsingEsModules >>= \usingEsModules -> around_ (setup "spago-test
       -- https://github.com/purescript/purescript-either/blob/v6.0.0/bower.json
       shellStrictWithErr "git clone https://github.com/purescript/purescript-either.git ." empty
       shellStrictWithErr "git checkout v6.0.0" empty
-      spago ["init"] >>= shouldBeSuccess
+      spago [ "-V", "init"] >>= shouldBeSuccess
       mv "spago.dhall" "spago-bower-import.dhall"
       checkFixture "spago-bower-import.dhall"
 
@@ -750,7 +750,7 @@ spec = runIO getUsingEsModules >>= \usingEsModules -> around_ (setup "spago-test
 
     it "Spago script should create file in directory where it is executed" $ do
 
-      spago ["script", "../fixtures/spago-script-make-file.purs", "-d", "node-fs", "-d", "node-buffer"] >>= shouldBeSuccess
+      spago [ "-V", "script", "../fixtures/spago-script-make-file.purs", "-d", "node-fs", "-d", "node-buffer"] >>= shouldBeSuccess
       checkFixture "spago-script-result.txt"
 
   describe "spago bundle" $ do
