@@ -12,3 +12,6 @@ const spago = cp.spawn(__dirname + '/spago.exe', process.argv.slice(2), {stdio: 
 spago.on('error', (err) => {
     console.log("Downloading the spago binary failed. Please try reinstalling the spago npm package.");
 });
+spago.on('exit', (code) => {
+    process.exit(code);
+});
