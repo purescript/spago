@@ -53,11 +53,13 @@ graph sourcePaths = do
     cmd = purs <> " graph " <> paths
   Turtle.Bytes.shellStrictWithErr cmd empty >>= \case
     (ExitSuccess, out, _err) -> do
-      let graphText = Text.Encoding.decodeUtf8With lenientDecode out
+      let
+          graphText = Text.Encoding.decodeUtf8With lenientDecode out
+          errText = Text.Encoding.decodeUtf8With lenientDecode _err
           parsed = decode $ BSL.fromStrict $ encodeUtf8 graphText
 
       pure $ case parsed of
-        Nothing -> Left $ Messages.failedToParseCommandOutput cmd graphText
+        Nothing -> Left $ Messages.failedToParseCommandOutput cmd graphText errText
         Just p -> Right p
 
     (_, _out, err) ->
