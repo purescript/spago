@@ -278,9 +278,11 @@ script modulePath tag packageDeps opts = do
   absoluteModulePath <- fmap Text.pack (makeAbsolute (Text.unpack modulePath))
   currentDir <- Turtle.pwd
 
-  (Version.SemVer major minor _ _ _) <- Purs.pursVersion >>= \case
-    Left t -> die [ "Could not determine PureScript compiler version: " <> display t ]
-    Right v -> pure v
+  compilerVer <- Purs.pursVersion >>= \case
+    Left t ->
+      pure $ Text.unpack t
+    Right v ->
+      pure $ show v
 
   -- This is the part where we make sure that the script reuses the same folder
   -- if run with the same options more than once. We do that by making a folder
@@ -289,7 +291,6 @@ script modulePath tag packageDeps opts = do
   let sha256 :: String -> String
       sha256 = show . (Hash.hash :: ByteString -> Hash.Digest Hash.SHA256) . Turtle.fromString
   systemTemp <- liftIO $ Temp.getCanonicalTemporaryDirectory
-  let compilerVer = show major <> if major == 0 then "." <> show minor else ""
   let stableHash = sha256 (compilerVer <> Text.unpack absoluteModulePath <> show tag <> show packageDeps <> show opts)
   let scriptDirPath = Turtle.decodeString (systemTemp </> "spago-script-tmp-" <> stableHash)
   logDebug $ "Found a system temp directory: " <> displayShow systemTemp
