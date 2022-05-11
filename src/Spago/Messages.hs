@@ -118,10 +118,11 @@ failedToParseFile file err = makeMessage
   , tshow err
   ]
 
-failedToParseCommandOutput :: Text -> Text -> Text
-failedToParseCommandOutput command outputText = makeMessage
+failedToParseCommandOutput :: Text -> Text -> Text -> Text
+failedToParseCommandOutput command outputText errText = makeMessage
   [ "Failed to parse '" <> command <> "' output: "
   , surroundQuote outputText
+  , surroundQuote errText
   ]
 
 failedToReachGitHub :: Show a => a -> Text

@@ -22,5 +22,6 @@ getCmdVersion cmd =
             Messages.failedToParseCommandOutput
               (cmd <> " --version")
               (Text.Encoding.decodeUtf8With Text.Encoding.lenientDecode out)
+              (Text.Encoding.decodeUtf8With Text.Encoding.lenientDecode _err)
         Just p -> Right p
     (_, _out, _err) -> pure $ Left $ "Failed to run '" <> cmd <> " --version'"
