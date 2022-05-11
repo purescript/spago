@@ -1,0 +1,5 @@
+.spago/console/v6.0.0/src/**/*.purs
+.spago/effect/v4.0.0/src/**/*.purs
+.spago/prelude/v6.0.0/src/**/*.purs
+src/**/*.purs
+test/**/*.purs

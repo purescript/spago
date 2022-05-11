@@ -8,7 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 Bugfixes:
-- Windows: forward the proper exit code when running spago via NPM (#883)
+- Windows: forward the proper exit code when running spago via NPM (#883, #884)
+
+Other improvements:
+- CI: cleanup CI for 0.15.0 PureScript updates (#879)
 
 ## [0.20.9] - 2022-05-03
 

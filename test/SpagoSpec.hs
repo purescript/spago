@@ -8,12 +8,12 @@ import           Test.Hspec         (Spec, around_, describe, it, shouldBe, shou
                                      shouldNotBe, shouldReturn, shouldSatisfy, runIO)
 import           Turtle             (ExitCode (..), cd, cp, decodeString, empty, encodeString,
                                      mkdir, mktree, mv, pwd, readTextFile, rm, shell,
-                                     shellStrictWithErr, testdir, writeTextFile, (</>), die, when)
+                                     shellStrictWithErr, testdir, writeTextFile, (</>), die)
 import           Utils              (checkFileHasInfix, checkFixture, checkFileExist, outputShouldEqual,
                                      readFixture, runFor, shouldBeFailure, shouldBeFailureInfix,
                                      shouldBeFailureStderr, shouldBeSuccess, shouldBeSuccessOutput,
                                      shouldBeSuccessOutputWithErr, shouldBeSuccessStderr, spago,
-                                     withCwd, withEnvVar, dhall, cpFixture)
+                                     withCwd, withEnvVar, cpFixture)
 import qualified Spago.Cmd as Cmd
 import qualified Data.Versions as Version
 import System.Directory.Extra (getCurrentDirectory)
@@ -29,20 +29,6 @@ setup' :: String -> IO () -> IO ()
 setup' dir cmd = do
   currentDir <- getCurrentDirectory
   setup (currentDir <> "/" <> dir) cmd
-
--- | This label is used to describe
--- tests that can be run on an
--- alpha release of PureScript @0.15.0@.
-purs0_15_0TestMsg :: String
-purs0_15_0TestMsg = "purs-0.15"
-
-fixPackagesDhall :: Bool -> IO ()
-fixPackagesDhall usingEsModules = when usingEsModules $ do
-  -- The prepare-0.15 package set's contents can change.
-  -- So, we copy an unfrozen one into the directory
-  -- and then freeze it before running `spago init`.
-  cpFixture "packages-prepare-0-15.dhall" "packages.dhall"
-  dhall ["freeze", "packages.dhall"] >>= shouldBeSuccess
 
 getUsingEsModules :: IO Bool
 getUsingEsModules = do
@@ -92,9 +78,13 @@ spec = runIO getUsingEsModules >>= \usingEsModules -> around_ (setup "spago-test
 
     it "Spago should import configs from Bower" $ do
 
-      shellStrictWithErr "git clone https://github.com/justinwoo/purescript-simple-json.git ." empty
-      shellStrictWithErr "git checkout v8.0.0" empty
-      spago ["init"] >>= shouldBeSuccess
+      -- https://github.com/purescript/purescript-either/blob/v6.0.0/bower.json
+      shellStrictWithErr "git clone https://github.com/purescript/purescript-either.git ." empty
+      if usingEsModules then do
+        shellStrictWithErr "git checkout v6.0.0" empty
+      else do
+        shellStrictWithErr "git checkout v5.0.0" empty
+      spago [ "-V", "init"] >>= shouldBeSuccess
       mv "spago.dhall" "spago-bower-import.dhall"
       checkFixture "spago-bower-import.dhall"
 
@@ -166,7 +156,7 @@ spec = runIO getUsingEsModules >>= \usingEsModules -> around_ (setup "spago-test
 
       writeTextFile "psc-package.json" "{ \"name\": \"aaa\", \"depends\": [ \"prelude\" ], \"set\": \"foo\", \"source\": \"bar\" }"
       spago ["init"] >>= shouldBeSuccess
-      spago ["-j 10", "install", "simple-json", "foreign"] >>= shouldBeSuccess
+      spago ["-j 10", "install", "foreign"] >>= shouldBeSuccess
       mv "spago.dhall" "spago-install-success.dhall"
       checkFixture "spago-install-success.dhall"
 
@@ -189,8 +179,9 @@ spec = runIO getUsingEsModules >>= \usingEsModules -> around_ (setup "spago-test
 
       spago ["init"] >>= shouldBeSuccess
       mv "packages.dhall" "packagesBase.dhall"
-      writeTextFile "packages.dhall" "let pkgs = ./packagesBase.dhall in pkgs // { simple-json = pkgs.simple-json // { version = \"d45590f493d68baae174b2d3062d502c0cc4c265\" } }"
-      spago ["install", "simple-json"] >>= shouldBeSuccess
+      -- The commit for `either` is for the `v5.0.0` release
+      writeTextFile "packages.dhall" "let pkgs = ./packagesBase.dhall in pkgs // { either = pkgs.either // { version = \"c1a1af35684f10eecaf6ac7d38dbf6bd48af2ced\" } }"
+      spago ["install", "either"] >>= shouldBeSuccess
 
     it "Spago should be able to install a package version by branch name with / in it" $ do
 
@@ -217,7 +208,7 @@ spec = runIO getUsingEsModules >>= \usingEsModules -> around_ (setup "spago-test
 
       spago ["init"] >>= shouldBeSuccess
       writeTextFile "alternative1.dhall" "./spago.dhall // {dependencies = [\"prelude\"]}"
-      spago ["-x", "alternative1.dhall", "install", "simple-json"] >>= shouldBeSuccess
+      spago ["-x", "alternative1.dhall", "install", "either"] >>= shouldBeSuccess
       checkFixture "alternative1.dhall"
 
     it "Spago should fail when the alternate config file doesn't exist" $ do
@@ -236,8 +227,8 @@ spec = runIO getUsingEsModules >>= \usingEsModules -> around_ (setup "spago-test
 
       spago ["init"] >>= shouldBeSuccess
       writeTextFile "alternative2.dhall" "./spago.dhall // { sources = [ \"src/**/*.purs\" ] }\n"
-      spago ["-x", "alternative2.dhall", "install", "simple-json"] >>= shouldBeSuccess
-      spago ["-x", "alternative2.dhall", "install", "simple-json"] >>= shouldBeSuccessStderr "alternative2install-stderr.txt"
+      spago ["-x", "alternative2.dhall", "install", "either"] >>= shouldBeSuccess
+      spago ["-x", "alternative2.dhall", "install", "either"] >>= shouldBeSuccessStderr "alternative2install-stderr.txt"
       checkFixture "alternative2.dhall"
 
     it "Spago should install successfully when there are local dependencies sharing the same packages.dhall" $ do
@@ -294,7 +285,10 @@ spec = runIO getUsingEsModules >>= \usingEsModules -> around_ (setup "spago-test
     it "Spago should print both dependencies and project sources" $ do
 
       spago ["init"] >>= shouldBeSuccess
-      spago ["sources"] >>= shouldBeSuccessOutput "sources-output.txt"
+      if usingEsModules then do
+        spago ["sources"] >>= shouldBeSuccessOutput "sources-output-15.txt"
+      else do
+        spago ["sources"] >>= shouldBeSuccessOutput "sources-output-before-15.txt"
 
   -- -- This is currently commented because it requires a GitHub token and Travis makes it hard to do it securely
   -- describe "spago login" $ do
@@ -608,25 +602,22 @@ spec = runIO getUsingEsModules >>= \usingEsModules -> around_ (setup "spago-test
             , "--else", "exit 1"
             ] >>= shouldBeFailure
 
-  describe "spago test" $ describe purs0_15_0TestMsg $ around_ (setup' "spago test") $ do
+  describe "spago test" $ around_ (setup' "spago test") $ do
 
     it "Spago should test successfully" $ do
 
-      fixPackagesDhall usingEsModules
       spago ["init"] >>= shouldBeSuccess
       spago ["build"] >>= shouldBeSuccess
       spago ["--no-psa", "test"] >>= shouldBeSuccessOutputWithErr "test-output-stdout.txt" "test-output-stderr.txt"
 
     it "Spago should fail nicely when the test module is not found" $ do
 
-      fixPackagesDhall usingEsModules
       spago ["init"] >>= shouldBeSuccess
       mv "test" "test2"
       spago ["test"] >>= shouldBeFailureInfix "Module 'Test.Main' not found! Are you including it in your build?"
 
     it "Spago should test in custom output folder" $ do
 
-      fixPackagesDhall usingEsModules
       spago ["init"] >>= shouldBeSuccess
       spago ["test", "--purs-args", "-o", "--purs-args", "myOutput"] >>= shouldBeSuccess
       testdir "myOutput" `shouldReturn` True
@@ -636,14 +627,12 @@ spec = runIO getUsingEsModules >>= \usingEsModules -> around_ (setup "spago-test
       -- Create root-level packages.dhall
       mkdir "monorepo"
       cd "monorepo"
-      fixPackagesDhall usingEsModules
       spago ["init"] >>= shouldBeSuccess
       rm "spago.dhall"
 
       -- Create local 'lib-a' package that uses packages.dhall on top level (but also has it's own one to confuse things)
       mkdir "lib-a"
       cd "lib-a"
-      fixPackagesDhall usingEsModules
       spago ["init"] >>= shouldBeSuccess
       rm "spago.dhall"
       writeTextFile "spago.dhall" $ "{ name = \"lib-1\", dependencies = [\"console\", \"effect\", \"prelude\"], packages = ./packages.dhall }"
@@ -708,11 +697,10 @@ spec = runIO getUsingEsModules >>= \usingEsModules -> around_ (setup "spago-test
 
       packageSetUrl `shouldBe` originalPackageSetUrl
 
-  describe "spago run" $ describe purs0_15_0TestMsg $ around_ (setup' "spago test") $ do
+  describe "spago run" $ around_ (setup' "spago test") $ do
 
     it "Spago should run successfully" $ do
 
-      fixPackagesDhall usingEsModules
       spago ["init"] >>= shouldBeSuccess
       spago ["build"] >>= shouldBeSuccess
 
@@ -722,14 +710,12 @@ spec = runIO getUsingEsModules >>= \usingEsModules -> around_ (setup "spago-test
 
     it "Spago should be able to not use `psa`" $ do
 
-      fixPackagesDhall usingEsModules
       spago ["init"] >>= shouldBeSuccess
       spago ["--no-psa", "build"] >>= shouldBeSuccess
       spago ["-v", "--no-psa", "run"] >>= shouldBeSuccessOutput "run-output.txt"
 
     it "Spago should pass stdin to the child process" $ do
 
-      fixPackagesDhall usingEsModules
       spago ["init"] >>= shouldBeSuccess
       cpFixture "spago-run-stdin.purs" "src/Main.purs"
       spago ["install", "node-buffer", "node-streams", "node-process"] >>= shouldBeSuccess
@@ -738,7 +724,6 @@ spec = runIO getUsingEsModules >>= \usingEsModules -> around_ (setup "spago-test
 
     it "Spago should use exec-args" $ do
 
-      fixPackagesDhall usingEsModules
       spago ["init"] >>= shouldBeSuccess
       cpFixture "spago-run-args.purs" "src/Main.purs"
       spago ["install", "node-process", "arrays"] >>= shouldBeSuccess
@@ -747,7 +732,6 @@ spec = runIO getUsingEsModules >>= \usingEsModules -> around_ (setup "spago-test
 
     it "Spago should use node-args" $ do
 
-      fixPackagesDhall usingEsModules
       spago ["init"] >>= shouldBeSuccess
       cpFixture "spago-run-args.purs" "src/Main.purs"
       spago ["install", "node-process", "arrays"] >>= shouldBeSuccess
@@ -757,7 +741,6 @@ spec = runIO getUsingEsModules >>= \usingEsModules -> around_ (setup "spago-test
 
     it "Spago should prefer exec-args" $ do
 
-      fixPackagesDhall usingEsModules
       spago ["init"] >>= shouldBeSuccess
       cpFixture "spago-run-args.purs" "src/Main.purs"
       spago ["install", "node-process", "arrays"] >>= shouldBeSuccess
@@ -770,7 +753,7 @@ spec = runIO getUsingEsModules >>= \usingEsModules -> around_ (setup "spago-test
 
     it "Spago script should create file in directory where it is executed" $ do
 
-      spago ["script", "../fixtures/spago-script-make-file.purs", "-d", "node-fs", "-d", "node-buffer"] >>= shouldBeSuccess
+      spago [ "-V", "script", "../fixtures/spago-script-make-file.purs", "-d", "node-fs", "-d", "node-buffer"] >>= shouldBeSuccess
       checkFixture "spago-script-result.txt"
 
   describe "spago bundle" $ do
@@ -780,11 +763,10 @@ spec = runIO getUsingEsModules >>= \usingEsModules -> around_ (setup "spago-test
       spago ["bundle", "--to", "bundle.js"] >>= shouldBeFailureStderr "bundle-stderr.txt"
 
 
-  describe "spago bundle-app" $ describe purs0_15_0TestMsg $ do
+  describe "spago bundle-app" $ do
 
     it "Spago should bundle successfully" $ do
 
-      fixPackagesDhall usingEsModules
       spago ["init"] >>= shouldBeSuccess
       if usingEsModules then do
         spago [ "-V", "bundle-app", "--to", "bundle-app-esm.js"] >>= shouldBeSuccess
@@ -795,7 +777,6 @@ spec = runIO getUsingEsModules >>= \usingEsModules -> around_ (setup "spago-test
 
     it "Spago should bundle successfully with source map" $ do
 
-      fixPackagesDhall usingEsModules
       spago ["init"] >>= shouldBeSuccess
       if usingEsModules then do
         spago ["-V", "bundle-app", "--to", "bundle-app-src-map-esm.js", "--source-maps"] >>= shouldBeSuccess
@@ -813,11 +794,10 @@ spec = runIO getUsingEsModules >>= \usingEsModules -> around_ (setup "spago-test
       spago ["make-module", "--to", "make-module.js"] >>= shouldBeFailureStderr "make-module-stderr.txt"
 
 
-  describe "spago bundle-module" $ describe purs0_15_0TestMsg $ do
+  describe "spago bundle-module" $ do
 
     it "Spago should successfully make a module" $ do
 
-      fixPackagesDhall usingEsModules
       spago ["init"] >>= shouldBeSuccess
       spago ["build"] >>= shouldBeSuccess
       -- Now we don't remove the output folder, but we pass the `--no-build`
@@ -832,7 +812,6 @@ spec = runIO getUsingEsModules >>= \usingEsModules -> around_ (setup "spago-test
 
     it "Spago should successfully make a module with source map" $ do
 
-      fixPackagesDhall usingEsModules
       spago ["init"] >>= shouldBeSuccess
       spago ["build"] >>= shouldBeSuccess
 

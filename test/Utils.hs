@@ -21,7 +21,6 @@ module Utils
   , shouldBeFailureStderr
   , shouldBeEmptySuccess
   , spago
-  , dhall
   , withCwd
   , withEnvVar) where
 
@@ -32,6 +31,7 @@ import qualified Data.Text          as Text
 import qualified Data.Text.Encoding as Text.Encoding
 import           Data.Text.Encoding.Error (lenientDecode)
 import           Prelude            hiding (FilePath)
+import           Spago.Prelude      (when)
 import           System.Directory   (removePathForcibly, doesFileExist)
 import qualified System.Process     as Process
 import           Test.Hspec         (HasCallStack, shouldBe, shouldSatisfy)
@@ -61,9 +61,6 @@ proc cmd args = do
   (c, out, err) <- Turtle.Bytes.procStrictWithErr cmd args empty
   pure (c, b2t out, b2t err)
 
-dhall :: [Text] -> IO (ExitCode, Text, Text)
-dhall = proc "dhall"
-
 spago :: [Text] -> IO (ExitCode, Text, Text)
 spago = proc "spago"
 
@@ -78,8 +75,9 @@ runFor us cmd args = do
 
 shouldBeSuccess :: HasCallStack => (ExitCode, Text, Text) -> IO ()
 shouldBeSuccess result@(_code, _stdout, _stderr) = do
-  -- print $ "STDOUT: " <> _stdout
-  -- print $ "STDERR: " <> _stderr
+  when (_code /= ExitSuccess) $ do
+    print $ "STDOUT: " <> _stdout
+    print $ "STDERR: " <> _stderr
   result `shouldSatisfy` (\(code, _, _) -> code == ExitSuccess)
 
 outputShouldEqual :: HasCallStack => Text -> (ExitCode, Text, Text) -> IO ()

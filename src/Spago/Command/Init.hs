@@ -25,12 +25,13 @@ initProject force comments tag = do
 
   -- packages.dhall and spago.dhall overwrite can be forced
   PackageSet.makePackageSetFile force comments
-  config <- Config.makeConfig force comments
 
   -- Use the specified version of the package set (if specified).
   -- Otherwise, get the latest version of the package set if possible
   Run.withPursEnv NoPsa $ do
     PackageSet.updatePackageSetVersion tag
+
+  config <- Config.makeConfig force comments
 
   -- If these directories (or files) exist, we skip copying "sample sources"
   -- Because you might want to just init a project with your own source files,

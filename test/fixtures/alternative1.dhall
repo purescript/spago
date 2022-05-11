@@ -1,1 +1,1 @@
-./spago.dhall // { dependencies = [ "prelude", "simple-json" ] }
+./spago.dhall // { dependencies = [ "either", "prelude" ] }
