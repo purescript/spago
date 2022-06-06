@@ -119,7 +119,7 @@ library
   ghc-options: -Wall -Wcompat -Wincomplete-record-updates -Wredundant-constraints
   build-depends:
       Glob
-    , aeson >=2
+    , aeson >=2.0.3.0
     , aeson-pretty
     , ansi-terminal
     , async-pool
