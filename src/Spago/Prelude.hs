@@ -276,7 +276,7 @@ runWithOutput command success failure = do
 runProcessWithOutput :: HasLogFunc env => NonEmpty Text -> Maybe Line -> Text -> Text -> RIO env ()
 runProcessWithOutput (command :| arguments) input success failure = do
   logDebug $ "Running command: `" <> display (Text.intercalate " " $ command : arguments) <> "`"
-  Turtle.shell (Text.intercalate $ command : arguments) (Turtle.select input) >>= \case
+  Turtle.shell (Text.intercalate " "$ command : arguments) (Turtle.select input) >>= \case
     ExitSuccess -> logInfo $ display success
     ExitFailure _ -> die [ display failure ]
 
