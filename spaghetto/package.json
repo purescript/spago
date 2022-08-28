@@ -1,0 +1,5 @@
+{
+  "dependencies": {
+    "@iarna/toml": "github:iarna/iarna-toml"
+  }
+}
