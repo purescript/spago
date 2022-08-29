@@ -1,7 +1,7 @@
 -- | This module defines a data type and various functions for creating and
 -- | manipulating JSON values. The README contains additional documentation
 -- | for this module.
-module Data.Argonaut.Core
+module Toml.Core
   ( Toml
   , caseToml
   , caseTomlNull

@@ -34,8 +34,8 @@ import Prelude
 
 import Control.Monad.State (State, runState)
 import Control.Monad.State as State
-import Data.Argonaut.Core (Toml, stringify) as Exports
-import Data.Argonaut.Core as Core
+import Toml.Core (Toml, stringify) as Exports
+import Toml.Core as Core
 import Data.Array.NonEmpty (NonEmptyArray)
 import Data.Array.NonEmpty as NEA
 import Data.Bifunctor (lmap)

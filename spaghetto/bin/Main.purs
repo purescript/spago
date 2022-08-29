@@ -31,6 +31,14 @@ import Node.Path (FilePath)
 import Node.Path as Path
 import Node.Process as Process
 import Node.Stream as Stream
+import Record as Record
+import Registry.PackageName (PackageName)
+import Registry.PackageName as PackageName
+import Registry.Schema (Manifest)
+import Registry.Version (Version)
+import Spago.Commands.Fetch as Fetch
+import Spago.Prelude as Either
+import Type.Proxy (Proxy(..))
 import Unsafe.Coerce (unsafeCoerce)
 
 type GlobalArgs = {}
@@ -106,11 +114,19 @@ main _cliRoot =
     Left err ->
       Console.error $ ArgParser.printArgError err
     Right cmd -> launchAff_ case cmd of
-      Fetch args -> fetchCmd args
+      Fetch args -> do
+        env <- mkFetchEnv args
+        let { right: packageNames, left: failedPackageNames } = partitionMap PackageName.parse (Array.fromFoldable args.packages)
+        if (Array.null failedPackageNames) then
+          runSpago env (Fetch.run packageNames)
+        else do
+          log $ "Failed to parse some package name: " <> show failedPackageNames
       Install args -> installCmd args
       Build args -> buildCmd args
 
   where
   installCmd _ = pure unit
-  fetchCmd args = Console.logShow args
   buildCmd _ = pure unit
+
+  mkFetchEnv :: FetchArgs -> Aff (Fetch.FetchEnv ())
+  mkFetchEnv args = pure { registryIndex: Map.empty :: Map PackageName (Map Version Manifest) }
