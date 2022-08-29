@@ -1,4 +1,4 @@
-module Main where
+module Min where
 
 import Prelude
 
@@ -18,3 +18,14 @@ main = do
       bar = [1,2,3]
         """
   logShow a
+
+{-
+
+TODO:
+- read workspace files, figure out how to handle targets
+- implement fetch
+- implement install
+- implement build
+
+
+-}
