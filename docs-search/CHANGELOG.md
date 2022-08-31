@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.0.12 - 2022-08-31]
+
+Changes:
+- Package structure change: `dist/purescript-docs-search.cjs` has been moved to `dist/purescript-docs-search.cjs` due to NodeJS restrictions for `type: module` packages.
+
+New features:
+- Docs for each CLI option
+- New `--source-files` option that allows to specify `.purs` sources (see below)
+
+Bugfixes:
+- Include modules with only re-exports in the module list ([#62](https://github.com/purescript/purescript-docs-search/issues/62))
+- Fix `docs.json` parser for some types
+
 ## [0.0.11 - 2021-04-15]
 
 Changes:

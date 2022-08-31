@@ -1,19 +1,19 @@
 -- | The main module of the CLI interface app.
 module Docs.Search.Main where
 
-import Prelude
-
+import Docs.Search.Config as Config
 import Docs.Search.IndexBuilder as IndexBuilder
 import Docs.Search.Interactive as Interactive
-import Docs.Search.Config as Config
 import Docs.Search.Types (PackageName(..))
 
+import Prelude
+
 import Data.Generic.Rep (class Generic)
-import Data.Show.Generic (genericShow)
 import Data.List as List
 import Data.List.NonEmpty as NonEmpty
 import Data.Maybe (Maybe, fromMaybe, optional)
 import Data.Newtype (unwrap)
+import Data.Show.Generic (genericShow)
 import Data.Unfoldable (class Unfoldable)
 import Effect (Effect)
 import Effect.Console (log)
@@ -85,6 +85,7 @@ buildIndex = ado
     ( long "generated-docs"
    <> metavar "DIR"
    <> value "./generated-docs/"
+   <> help "Path to the generated documentation HTML that will be patched. Search app will be injected into each HTML document."
     )
   noPatch <- flag false true
     ( long "no-patch"
@@ -108,6 +109,7 @@ docsFilesOption = fromMaybe defaultDocsFiles <$>
      ( strOption
        ( long "docs-files"
       <> metavar "GLOB"
+      <> help "Glob that captures `docs.json` files that should be used to build the index"
        )
      )
    )
@@ -119,6 +121,7 @@ bowerFilesOption = fromMaybe defaultBowerFiles <$>
      ( strOption
        ( long "bower-jsons"
       <> metavar "GLOB"
+      <> help "Glob that captures `bower.json` files. These files are used to build dependency trees to compute package popularity scores based on how many dependants a package has."
        )
      )
    )
@@ -129,6 +132,7 @@ packageNameOption =
   ( long "package-name"
  <> metavar "PACKAGE"
  <> value (unwrap Config.defaultPackageName)
+ <> help "Local package name as it should appear in the search results"
   )
 
 sourceFilesOption :: Parser (Array String)
@@ -138,6 +142,7 @@ sourceFilesOption = fromMaybe defaultSourceFiles <$>
      ( strOption
        ( long "source-files"
       <> metavar "GLOB"
+      <> help "Path to project source files, used for more precise module indexing (see #62). Default: src/**/*.purs"
        )
      )
    )

@@ -11,7 +11,7 @@ jobs:
 
       - uses: actions/setup-node@v2
         with:
-          node-version: "14"
+          node-version: "18"
 
       - uses: purescript-contrib/setup-purescript@main
 
@@ -41,7 +41,7 @@ jobs:
         with:
           files: |
             dist/docs-search-app.js
-            dist/purescript-docs-search
+            dist/purescript-docs-search.cjs
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 

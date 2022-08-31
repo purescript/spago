@@ -192,6 +192,10 @@ decodeDocsJsons cfg@{ docsFiles } = do
 parseModuleHeaders :: Array String -> Aff (Array ModuleName)
 parseModuleHeaders globs = do
   files <- getPathsByGlobs globs
+
+  -- we are not checking if the globs match at least one file, because
+  -- we want to support scenarios where there is no "current project"
+
   concat <$> for files \filePath -> do
     fileContents <- readTextFile UTF8 filePath
     case parseModuleName fileContents of
