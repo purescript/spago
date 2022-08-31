@@ -31,6 +31,9 @@ derive newtype instance ordModuleName :: Ord ModuleName
 derive newtype instance decodeJsonModuleName :: DecodeJson ModuleName
 derive newtype instance encodeJsonModuleName :: EncodeJson ModuleName
 
+instance Show ModuleName where
+  show = genericShow
+
 
 -- | Non-normalized package name, e.g. `purescript-prelude` or just `prelude`.
 newtype RawPackageName = RawPackageName String
@@ -55,13 +58,13 @@ data PackageInfo = LocalPackage | Builtin | Package PackageName | UnknownPackage
 derive instance eqPackageInfo :: Eq PackageInfo
 derive instance ordPackageInfo :: Ord PackageInfo
 derive instance genericPackageInfo :: Generic PackageInfo _
-instance showPackageInfo :: Show PackageInfo where
-  show = genericShow
-
 instance decodeJsonPackageInfo :: DecodeJson PackageInfo where
   decodeJson = genericDecodeJson
 instance encodeJsonPackageInfo :: EncodeJson PackageInfo where
   encodeJson = genericEncodeJson
+
+instance showPackageInfo :: Show PackageInfo where
+  show = genericShow
 
 
 newtype PackageScore = PackageScore Int
