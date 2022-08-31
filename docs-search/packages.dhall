@@ -3,8 +3,8 @@ let mkPackage =
         sha256:0b197efa1d397ace6eb46b243ff2d73a3da5638d8d0ac8473e8e4a8fc528cf57
 
 let upstream =
-      https://github.com/purescript/package-sets/releases/download/psc-0.15.0-20220506/packages.dhall
-        sha256:f83b68ff07cf6557e82379e749118e6ff11eecc6be5754540aae855cd1e46917
+      https://github.com/purescript/package-sets/releases/download/psc-0.15.4-20220829/packages.dhall
+        sha256:9ec64ed24ec308770ccdd3d0edb74a814fcfbe34c7df5c28266935f0b5e585d7
 
 let overrides = {=}
 
@@ -103,8 +103,8 @@ let additions =
       , html-parser-halogen =
           mkPackage
             [ "string-parsers", "halogen" ]
-            "https://github.com/klntsky/purescript-html-parser-halogen.git"
-            "5c31890d060d5abd0038fed6acd3f999a9362369"
+            "https://github.com/rnons/purescript-html-parser-halogen.git"
+            "035a51d02ba9f8b70c3ffd9fe31a3f5bed19941c"
       , markdown-it-halogen =
           mkPackage
             [ "markdown-it", "html-parser-halogen" ]
@@ -147,6 +147,36 @@ let additions =
             ]
             "https://github.com/klntsky/purescript-jest.git"
             "7feaa5a880fc75002c4eca312993174e7220252b"
+      , literals =
+          mkPackage
+            [ "assert"
+            , "effect"
+            , "console"
+            , "integers"
+            , "numbers"
+            , "partial"
+            , "psci-support"
+            , "unsafe-coerce"
+            , "typelevel-prelude"
+            ]
+            "https://github.com/jvliwanag/purescript-literals.git"
+            "ae3ef4e9c1ae7c57ec77bd13906fa60ae8abba4a"
+      , untagged-union =
+          mkPackage
+            [ "assert"
+            , "console"
+            , "effect"
+            , "foreign"
+            , "foreign-object"
+            , "literals"
+            , "maybe"
+            , "newtype"
+            , "psci-support"
+            , "tuples"
+            , "unsafe-coerce"
+            ]
+            "https://github.com/jvliwanag/purescript-untagged-union.git"
+            "ed8262a966e15e751322c327e2759a9b9c0ef3f3"
       }
 
 in  upstream // overrides // additions

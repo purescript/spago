@@ -15,7 +15,6 @@
   , "either"
   , "exceptions"
   , "foldable-traversable"
-  , "foreign"
   , "foreign-object"
   , "halogen"
   , "halogen-css"
