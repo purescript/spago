@@ -22,6 +22,7 @@ dependencies:
   - transformers
   - tuples
 packages_db:
+  # TODO: should not be registry-preview
   set: https://raw.githubusercontent.com/purescript/registry-preview/main/package-sets/8.0.1.json
   extra_packages:
     registry-lib:

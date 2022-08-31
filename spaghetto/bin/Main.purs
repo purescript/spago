@@ -37,6 +37,8 @@ import Registry.PackageName as PackageName
 import Registry.Schema (Manifest)
 import Registry.Version (Version)
 import Spago.Commands.Fetch as Fetch
+import Spago.FS as FS
+import Spago.Paths as Paths
 import Spago.Prelude as Either
 import Type.Proxy (Proxy(..))
 import Unsafe.Coerce (unsafeCoerce)
@@ -76,6 +78,8 @@ argParser =
     verbose     = CLI.switch "verbose" 'v' "Enable additional debug logging, e.g. printing `purs` commands"
     veryVerbose = CLI.switch "very-verbose" 'V' "Enable more verbosity: timestamps and source locations"
     noColor     = Opts.switch (Opts.long "no-color" <> Opts.help "Log without ANSI color escape sequences")
+
+TODO: add flag for overriding the cache location
 
 -}
 
@@ -129,4 +133,11 @@ main _cliRoot =
   buildCmd _ = pure unit
 
   mkFetchEnv :: FetchArgs -> Aff (Fetch.FetchEnv ())
-  mkFetchEnv args = pure { registryIndex: Map.empty :: Map PackageName (Map Version Manifest) }
+  mkFetchEnv args = do
+    let registryIndex = Map.empty :: Map PackageName (Map Version Manifest)
+    cwd <- liftEffect Process.cwd
+    let globalCachePath = Paths.paths.cache
+    let localCachePath = Path.concat [ cwd, ".spaghetto" ] -- TODO: change to spago
+    FS.mkdirp globalCachePath
+    FS.mkdirp localCachePath
+    pure { registryIndex, globalCachePath, localCachePath }

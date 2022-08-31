@@ -9,8 +9,8 @@ import Prelude
 
 import Control.Alt ((<|>)) as Extra
 import Control.Monad.Error.Class (class MonadThrow)
-import Control.Monad.Reader (class MonadAsk, ReaderT, runReaderT)
 import Control.Monad.Reader (ask, asks) as Extra
+import Control.Monad.Reader (class MonadAsk, ReaderT, runReaderT)
 import Data.Array ((..)) as Extra
 import Data.DateTime.Instant (Instant) as Extra
 import Data.Either (Either(..), isLeft, isRight) as Extra
@@ -23,16 +23,18 @@ import Data.Map (Map) as Extra
 import Data.Maybe (Maybe(..), isJust, isNothing, fromMaybe, maybe) as Extra
 import Data.Newtype (class Newtype, unwrap) as Extra
 import Data.Show.Generic (genericShow) as Extra
-import Data.Traversable (for) as Extra
+import Data.Traversable (for, traverse) as Extra
 import Data.TraversableWithIndex (forWithIndex) as Extra
 import Data.Tuple (Tuple(..)) as Extra
 import Data.Tuple.Nested ((/\)) as Extra
 import Effect (Effect) as Extra
 import Effect.Aff (Aff, Error) as Extra
 import Effect.Aff.Class (class MonadAff)
+import Effect.Aff.Class (liftAff) as Extra
 import Effect.Class (class MonadEffect)
 import Effect.Exception.Unsafe (unsafeThrow) as Extra
 import Effect.Ref (Ref) as Extra
+import Node.Path (FilePath) as Extra
 import Spago.Log (log, logShow) as Extra
 
 newtype Spago env a = Spago (ReaderT env Extra.Aff a)

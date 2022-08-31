@@ -2,6 +2,7 @@
 , dependencies =
   [ "aff"
   , "ansi"
+  , "argonaut-core"
   , "argparse-basic"
   , "arrays"
   , "bifunctors"
