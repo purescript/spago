@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Changes:
 - Package structure change: `dist/purescript-docs-search.cjs` has been moved to `dist/purescript-docs-search.cjs` due to NodeJS restrictions for `type: module` packages.
+- Improve output for data and newtype constuctors ([#58](https://github.com/purescript/purescript-docs-search/pull/58))
 
 New features:
 - Docs for each CLI option
