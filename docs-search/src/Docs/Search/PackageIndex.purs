@@ -56,7 +56,7 @@ mkPackageInfo packageScores pms =
           , score: getPackageScoreForPackageName packageScores packageName
           , dependencies:
             unwrap dependencies <#>
-            (_.packageName >>> RawPackageName >>> normalizePackageName)
+            _.packageName >>> RawPackageName >>> normalizePackageName
           , repository: repository <#> (_.url)
           }
 

@@ -6,6 +6,7 @@ import Docs.Search.DocsJson (DataDeclType(..))
 import Docs.Search.Engine (mkEngineState, packageInfoToString, Result(..))
 import Docs.Search.Engine as Engine
 import Docs.Search.Extra (stringToList, (>#>))
+import Docs.Search.IndexBuilder (parseModuleHeaders)
 import Docs.Search.IndexBuilder as IndexBuilder
 import Docs.Search.ModuleIndex (ModuleResult, mkPackedModuleIndex, unpackModuleIndex)
 import Docs.Search.NodeEngine (nodeEngine)
@@ -19,7 +20,8 @@ import Docs.Search.TypePrinter (keyword, showConstraint, showFunDeps, showType, 
 import Docs.Search.Types (ModuleName, PackageName, PackageInfo, Identifier)
 
 import Prelude
-import Prim hiding (Type, Constraint)
+
+import Control.Parallel (parallel, sequential)
 import Data.Array as Array
 import Data.Identity (Identity(..))
 import Data.List as List
@@ -28,17 +30,20 @@ import Data.Newtype (un, unwrap, wrap)
 import Data.Search.Trie as Trie
 import Data.String (length) as String
 import Data.String.Common (split, toLower, trim) as String
+import Data.Tuple.Nested ((/\))
 import Effect (Effect)
 import Effect.Aff (launchAff_)
 import Effect.Class (liftEffect)
 import Effect.Console (log, clear) as Console
 import Node.ReadLine (createConsoleInterface, question)
+import Prim hiding (Type, Constraint)
 
 
 type Config =
   { docsFiles :: Array String
   , bowerFiles :: Array String
   , packageName :: PackageName
+  , sourceFiles :: Array String
   }
 
 
@@ -48,14 +53,17 @@ run cfg = launchAff_ $ do
   liftEffect do
     Console.log "Loading search index..."
 
-  docsJsons    <- IndexBuilder.decodeDocsJsons cfg
-  packageMetas <- IndexBuilder.decodeBowerJsons cfg
+  docsJsons /\ moduleNames /\ packageMetas <- sequential $
+    (\d h m -> d /\ h /\ m)
+      <$> parallel (IndexBuilder.decodeDocsJsons cfg)
+      <*> parallel (parseModuleHeaders cfg.sourceFiles)
+      <*> parallel (IndexBuilder.decodeBowerJsons cfg)
 
   let scores       = mkScores packageMetas
       index        = mkDeclarations scores docsJsons
       typeIndex    = docsJsons >>= resultsWithTypes scores
       packageIndex = mkPackageIndex $ mkPackageInfo scores packageMetas
-      moduleIndex  = unpackModuleIndex $ mkPackedModuleIndex index
+      moduleIndex  = unpackModuleIndex $ mkPackedModuleIndex index moduleNames
       engineState  = mkEngineState (unwrap index) typeIndex packageIndex moduleIndex scores
 
   let countOfDefinitions     = Trie.size $ unwrap index

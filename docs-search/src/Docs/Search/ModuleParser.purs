@@ -8,6 +8,7 @@ import Data.Foldable (intercalate)
 import Data.Maybe (Maybe)
 import Data.Newtype (wrap)
 import Docs.Search.Types (ModuleName)
+import Effect (Effect)
 import StringParser (Parser, char, choice, fix, many, manyTill, noneOf, regex, runParser, sepBy, sepBy1, string, try, whiteSpace)
 
 parseModuleName :: String -> Maybe ModuleName
@@ -33,7 +34,6 @@ singleLineComment = do
   void $ string "--"
   void $ manyTill (void $ noneOf ['\n']) (char '\n')
 
-
 moduleHeader :: Parser String
 moduleHeader = do
   void $ string "module"
@@ -46,5 +46,5 @@ moduleName = sepBy1 moduleNameWord (string ".") <#> intercalate "."
 moduleNameWord :: Parser String
 moduleNameWord = do
   first <- regex "[A-Z]"
-  rest <- regex "[a-z0-9]*"
+  rest <- regex "[A-Za-z0-9]*"
   pure $ first <> rest

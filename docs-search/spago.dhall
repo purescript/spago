@@ -33,6 +33,7 @@
   , "node-readline"
   , "optparse"
   , "ordered-collections"
+  , "parallel"
   , "partial"
   , "prelude"
   , "profunctor"

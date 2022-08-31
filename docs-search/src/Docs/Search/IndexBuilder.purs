@@ -5,13 +5,14 @@ import Docs.Search.Config as Config
 import Docs.Search.Declarations (Declarations(..), mkDeclarations)
 import Docs.Search.DocsJson (DocsJson)
 import Docs.Search.Extra ((>#>))
+import Docs.Search.Meta (Meta)
 import Docs.Search.ModuleIndex (PackedModuleIndex, mkPackedModuleIndex)
+import Docs.Search.ModuleParser (parseModuleName)
 import Docs.Search.PackageIndex (PackageInfo, mkPackageInfo)
 import Docs.Search.Score (mkScores)
 import Docs.Search.SearchResult (SearchResult)
 import Docs.Search.TypeIndex (TypeIndex, mkTypeIndex)
-import Docs.Search.Types (PackageName, PartId)
-import Docs.Search.Meta (Meta)
+import Docs.Search.Types (ModuleName, PackageName, PartId)
 
 import Prelude
 
@@ -20,6 +21,7 @@ import Data.Argonaut.Decode (decodeJson)
 import Data.Argonaut.Decode.Error (printJsonDecodeError)
 import Data.Argonaut.Encode (encodeJson)
 import Data.Argonaut.Parser (jsonParser)
+import Data.Array (concat)
 import Data.Array as Array
 import Data.Either (Either(..), either)
 import Data.Foldable (sum)
@@ -38,14 +40,15 @@ import Data.String.Common (replace) as String
 import Data.String.Pattern (Pattern(..), Replacement(..))
 import Data.Traversable (for, for_)
 import Data.Tuple (Tuple(..), fst)
+import Data.Tuple.Nested ((/\))
 import Effect (Effect)
 import Effect.Aff (Aff, launchAff_, parallel, sequential)
 import Effect.Class (liftEffect)
 import Effect.Console (log)
 import Node.Encoding (Encoding(UTF8))
 import Node.FS.Aff (mkdir, readFile, readTextFile, readdir, stat, writeFile, writeTextFile)
-import Node.FS.Sync (exists)
 import Node.FS.Stats (isDirectory, isFile)
+import Node.FS.Sync (exists)
 import Node.Process as Process
 import Web.Bower.PackageMeta (PackageMeta(..))
 
@@ -56,6 +59,7 @@ type Config =
   , generatedDocs :: String
   , noPatch :: Boolean
   , packageName :: PackageName
+  , sourceFiles :: Array String
   }
 
 
@@ -71,8 +75,11 @@ run' cfg = do
   liftEffect do
     log "Building the search index..."
 
-  docsJsons    <- decodeDocsJsons cfg
-  packageMetas <- decodeBowerJsons cfg
+  docsJsons /\ moduleNames /\ packageMetas <- sequential $
+    (\d h m -> d /\ h /\ m)
+      <$> parallel (decodeDocsJsons cfg)
+      <*> parallel (parseModuleHeaders cfg.sourceFiles)
+      <*> parallel (decodeBowerJsons cfg)
 
   let countOfPackages = Array.length packageMetas
       countOfModules  = Array.length docsJsons
@@ -89,14 +96,14 @@ run' cfg = do
       index       = mkDeclarations scores docsJsons
       typeIndex   = mkTypeIndex scores docsJsons
       packageInfo = mkPackageInfo scores packageMetas
-      moduleIndex = mkPackedModuleIndex index
+      moduleIndex = mkPackedModuleIndex index moduleNames
       meta        = { localPackageName: cfg.packageName }
 
   createDirectories cfg
 
   void $ sequential do
     ignore <$> parallel (writeIndex cfg index)
-           <*> parallel (writeTypeIndex cfg typeIndex)
+           <*> parallel (writeTypeIndex typeIndex)
            <*> parallel (writePackageInfo packageInfo)
            <*> parallel (writeModuleIndex moduleIndex)
            <*> parallel (writeMeta meta)
@@ -176,6 +183,24 @@ decodeDocsJsons cfg@{ docsFiles } = do
 
   pure docsJsons
 
+-- | This function accepts an array of globs pointing to project sources
+-- | and returns a list of module names extracted from these files.
+-- | Unfortunately, we can't get all module names from `docs.json`s, because
+-- | reexport-only modules do not have a single declaration in them, so we can't
+-- | count them normally in `mkPackedModuleIndex.extract`, where we only look at
+-- | exported declarations.
+parseModuleHeaders :: Array String -> Aff (Array ModuleName)
+parseModuleHeaders globs = do
+  files <- getPathsByGlobs globs
+  concat <$> for files \filePath -> do
+    fileContents <- readTextFile UTF8 filePath
+    case parseModuleName fileContents of
+      Nothing -> do
+        liftEffect $ log $
+          "Module header decoding failed for " <> filePath <>
+          ", unable to extract module name"
+        pure []
+      Just res -> pure [res]
 
 decodeBowerJsons
   :: forall rest
@@ -210,8 +235,8 @@ decodeBowerJsons { bowerFiles } = do
 
 
 -- | Write type index parts to files.
-writeTypeIndex :: Config -> TypeIndex -> Aff Unit
-writeTypeIndex { generatedDocs } typeIndex =
+writeTypeIndex :: TypeIndex -> Aff Unit
+writeTypeIndex typeIndex =
   for_ entries \(Tuple typeShape results) -> do
     writeTextFile UTF8 (unwrap Config.typeIndexDirectory <> "/" <> typeShape <> ".js")
       (mkHeader typeShape <> stringify (encodeJson results))
@@ -265,7 +290,7 @@ getIndex (Declarations trie) =
                  Trie.query prefix trie
               else
                 -- Entries with path lengths > 1 have been added already.
-                List.filter (\(Tuple path value) -> List.length path == 1) (
+                List.filter (\(Tuple path _value) -> List.length path == 1) (
                   Trie.query prefix trie
                 )
         in
