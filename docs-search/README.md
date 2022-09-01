@@ -1,8 +1,8 @@
 # purescript-docs-search
 
-[![Build status](https://travis-ci.org/spacchetti/purescript-docs-search.svg?branch=master)](https://travis-ci.org/spacchetti/purescript-docs-search)
+[![Build status](https://github.com/purescript/purescript-docs-search/actions/workflows/build.yml/badge.svg)](https://github.com/purescript/purescript-docs-search/actions/workflows/build.yml)
 
-An app that adds search capabilities to generated documentation for purescript code.
+An app that adds search capabilities to generated documentation for PureScript code.
 
 It supports nearly-all functionality of [Pursuit](https://github.com/purescript/pursuit), including querying by type.
 
@@ -10,7 +10,7 @@ It supports nearly-all functionality of [Pursuit](https://github.com/purescript/
 
 When using [spago](https://github.com/spacchetti/spago), you don't need to install this app manually: run `spago docs` or `spago search`.
 
-Otherwise, use [npx](https://github.com/npm/npx): `npx purescript-docs-search`.
+Otherwise, use NPM (`npm install purescript-docs-search`) or [npx](https://github.com/npm/npx): `npx purescript-docs-search`.
 
 ## Usage
 
@@ -45,4 +45,4 @@ npm install
 npm run build # or build-dev to skip JS compression stage
 ```
 
-Use `spago docs --no-search && ./dist/purescript-docs-search build-index` to generate the docs and patch them using the local version of the app.
+Use `spago docs --no-search && ./dist/purescript-docs-search.cjs build-index` to generate the docs and patch them using the local version of the app.
