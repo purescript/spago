@@ -57,9 +57,12 @@ import Foreign.Object as Object
 import Node.Encoding (Encoding(..))
 import Node.FS.Aff as FS
 import Node.Path (FilePath)
+import Parsing as Parsing
 import Prim.Row as Row
 import Prim.RowList as RL
 import Record as Record
+import Registry.PackageName (PackageName)
+import Registry.PackageName as PackageName
 import Type.Proxy (Proxy(..))
 
 foreign import _yamlParser :: forall a. Fn3 (String -> a) (Core.Json -> a) String a
@@ -141,6 +144,10 @@ instance StringEncodable String where
   toEncodableString = identity
   fromEncodableString = Right
 
+instance StringEncodable PackageName where
+  toEncodableString = PackageName.print
+  fromEncodableString = lmap Parsing.parseErrorMessage <<< PackageName.parse
+
 -- | A class for encoding and decoding YAML
 class ToYaml a where
   encode :: a -> Core.Json
@@ -157,6 +164,10 @@ instance ToYaml Boolean where
 instance ToYaml String where
   encode = Core.fromString
   decode = Core.caseJsonString (Left "Expected String") Right
+
+instance ToYaml PackageName where
+  encode = PackageName.print >>> encode
+  decode = (lmap Parsing.parseErrorMessage <<< PackageName.parse) <=< decode
 
 instance ToYaml Number where
   encode = Core.fromNumber

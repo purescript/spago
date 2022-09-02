@@ -1,4 +1,4 @@
-name: "spaghetto"
+name: spaghetto
 dependencies:
   - aff
   - arrays
@@ -22,9 +22,66 @@ dependencies:
   - transformers
   - tuples
 packages_db:
-  # TODO: should not be registry-preview
-  set: https://raw.githubusercontent.com/purescript/registry-preview/main/package-sets/8.0.1.json
+  set: 8.1.0
   extra_packages:
     registry-lib:
-      git: https://github.com/purescript/registry
-      ref: master
+      git: https://github.com/purescript/registry.git
+      ref: 663db9a952e09f6510e62b29a369f5bc35453081
+      dependencies:
+        - aff
+        - aff-promise
+        - affjax
+        - affjax-node
+        - argonaut-core
+        - arrays
+        - b64
+        - bifunctors
+        - console
+        - control
+        - convertable-options
+        - datetime
+        - dodo-printer
+        - dotenv
+        - effect
+        - either
+        - exceptions
+        - filterable
+        - foldable-traversable
+        - foreign-object
+        - formatters
+        - functions
+        - graphs
+        - http-methods
+        - identity
+        - integers
+        - interpolate
+        - js-date
+        - js-uri
+        - lists
+        - maybe
+        - media-types
+        - newtype
+        - node-buffer
+        - node-child-process
+        - node-fs
+        - node-fs-aff
+        - node-path
+        - node-process
+        - now
+        - nullable
+        - ordered-collections
+        - parallel
+        - parsing
+        - partial
+        - precise-datetime
+        - prelude
+        - record
+        - refs
+        - safe-coerce
+        - spec
+        - strings
+        - sunde
+        - these
+        - transformers
+        - tuples
+        - uncurried-transformers
