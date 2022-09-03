@@ -3,12 +3,14 @@ module Spago.Prelude
   , module Extra
   , Spago(..)
   , runSpago
+  , crash
   ) where
 
 import Prelude
 
 import Control.Alt ((<|>)) as Extra
 import Control.Monad.Error.Class (class MonadThrow)
+import Control.Monad.Error.Class (try, catchError) as Extra
 import Control.Monad.Reader (ask, asks) as Extra
 import Control.Monad.Reader (class MonadAsk, ReaderT, runReaderT)
 import Data.Array ((..)) as Extra
@@ -32,9 +34,11 @@ import Effect.Aff (Aff, Error) as Extra
 import Effect.Aff.Class (class MonadAff)
 import Effect.Aff.Class (liftAff) as Extra
 import Effect.Class (class MonadEffect)
+import Effect.Class (liftEffect) as Extra
 import Effect.Exception.Unsafe (unsafeThrow) as Extra
 import Effect.Ref (Ref) as Extra
 import Node.Path (FilePath) as Extra
+import Node.Process as Process
 import Spago.Log (log, logShow) as Extra
 
 newtype Spago env a = Spago (ReaderT env Extra.Aff a)
@@ -53,3 +57,9 @@ derive newtype instance MonadAsk env (Spago env)
 
 runSpago :: forall a env. env -> Spago env a -> Extra.Aff a
 runSpago env (Spago m) = runReaderT m env
+
+-- TODO: better logging/crashing
+crash :: forall a m. MonadEffect m => String -> m a
+crash msg = do
+  Extra.log msg
+  Extra.liftEffect $ Process.exit 1
