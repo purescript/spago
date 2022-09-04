@@ -17,15 +17,17 @@ dependencies:
   - ordered-collections
   - prelude
   - record
-  - registry-lib
+  - registry-dev
   - strings
   - transformers
   - tuples
+workspace_root: true # TODO: implement workspace globbing and auto-search for packages
+license: MIT
 packages_db:
-  set: 8.1.0
+  set: 0.1.0
   extra_packages:
-    registry-lib:
-      git: https://github.com/purescript/registry.git
+    registry-dev:
+      git: https://github.com/purescript/registry-dev.git
       ref: 663db9a952e09f6510e62b29a369f5bc35453081
       dependencies:
         - aff

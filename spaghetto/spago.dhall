@@ -34,6 +34,7 @@
   , "ordered-collections"
   , "parsing"
   , "partial"
+  , "posix-types"
   , "prelude"
   , "record"
   , "refs"

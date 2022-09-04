@@ -29,26 +29,25 @@ import Spago.FS as FS
 import Spago.Git as Git
 import Spago.PackageSet (Package(..), PackageSet)
 import Spago.PackageSet as PackageSet
+import Spago.Paths as Paths
 import Spago.Tar as Tar
 
-type FetchEnv a =
-  { getManifestFromIndex :: PackageName -> Version -> Aff (Maybe Manifest)
+type FetchEnvRow a =
+  ( getManifestFromIndex :: PackageName -> Version -> Aff (Maybe Manifest)
   , getMetadata :: PackageName -> Aff (Either String Metadata)
   , config :: Config
   , packageSet :: PackageSet
-  , globalCachePath :: FilePath
-  , localCachePath :: FilePath
   | a
-  }
+  )
 
-run :: forall a. Array PackageName -> Spago (FetchEnv a) Unit
+type FetchEnv a = Record (FetchEnvRow a)
+
+run :: forall a. Array PackageName -> Spago (FetchEnv a) (Map PackageName Package)
 run packages = do
   logShow packages
 
   { getMetadata
   , config
-  , globalCachePath
-  , localCachePath
   } <- ask
 
   -- lookup the dependencies in the package set, so we get their version numbers
@@ -60,18 +59,18 @@ run packages = do
 
   -- then for every package we have we try to download it, and copy it in the local cache
   -- TODO: this should all happen in parallel, and we need a process pool to limit concurrency
-  void $ for transitivePackages \{ name, package } -> case package of
-    GitPackage gitPackage -> do
-      -- Easy, just git clone it in the local cache
-      liftAff do
-        -- TODO: error handling here
-        Git.fetchRepo gitPackage (localCachePackagePath localCachePath name gitPackage.ref)
-    Version v -> do
-      -- if the version comes from the registry then we have a longer list of things to do
-      -- first of all, we check if we have the package in the local cache. If so, we don't even do the work
-      let versionString = Registry.Version.printVersion v
-      let localVersionPath = Path.concat [ localCachePath, PackageName.print name <> "-" <> versionString ]
-      unlessM (liftEffect $ FS.Sync.exists localVersionPath) do
+  void $ for (Map.toUnfoldable transitivePackages :: Array (Tuple PackageName Package)) \(Tuple name package) -> do
+    let localPackageLocation = Paths.getPackageLocation name package
+    -- first of all, we check if we have the package in the local cache. If so, we don't even do the work
+    unlessM (liftEffect $ FS.Sync.exists localPackageLocation) case package of
+      GitPackage gitPackage -> do
+        -- Easy, just git clone it in the local cache
+        liftAff do
+          -- TODO: error handling here
+          Git.fetchRepo gitPackage localPackageLocation
+      Version v -> do
+        -- if the version comes from the registry then we have a longer list of things to do
+        let versionString = Registry.Version.printVersion v
         -- get the metadata for the package, so we have access to the hash and other info
         metadata <- liftAff (getMetadata name)
         case (metadata >>= (\meta -> Either.note "Didn't find version in the metadata file" $ Map.lookup v meta.published)) of
@@ -79,7 +78,7 @@ run packages = do
           Right versionMetadata -> do
             log $ "Metadata read: " <> show versionMetadata
             -- then check if we have a tarball cached. If not, download it
-            let globalCachePackagePath = Path.concat [ globalCachePath, "packages", PackageName.print name ]
+            let globalCachePackagePath = Path.concat [ Paths.globalCachePath, "packages", PackageName.print name ]
             let tarballPath = Path.concat [ globalCachePackagePath, versionString <> ".tar.gz" ]
             liftAff $ FS.mkdirp globalCachePackagePath
             unlessM (liftEffect $ FS.Sync.exists tarballPath) do
@@ -110,10 +109,9 @@ run packages = do
                   log $ "Copying tarball to global cache: " <> tarballPath
                   liftAff $ FS.writeFile tarballPath tarballBuffer
             -- unpack the tars in the local cache
-            log $ "Unpacking tarball to local cache: " <> localVersionPath
-            let localPackagesPath = Path.concat [ localCachePath, "packages" ]
-            liftAff $ FS.mkdirp localPackagesPath
-            liftEffect $ Tar.extract { filename: tarballPath, cwd: localPackagesPath }
+            log $ "Unpacking tarball to local cache: " <> localPackageLocation
+            liftEffect $ Tar.extract { filename: tarballPath, cwd: Paths.localCachePackagesPath }
+  pure transitivePackages
 
 getPackageDependencies :: forall a. PackageName -> PackageSet.Package -> Spago (FetchEnv a) (Maybe (Map PackageName Range))
 getPackageDependencies packageName package = case package of
@@ -121,17 +119,13 @@ getPackageDependencies packageName package = case package of
     { getManifestFromIndex } <- ask
     maybeManifest <- liftAff $ getManifestFromIndex packageName v
     pure $ map (_.dependencies <<< unwrap) maybeManifest
-  GitPackage p -> do
-    localCachePath <- asks _.localCachePath
-    liftAff do
-      -- TODO: error handling here
-      Git.fetchRepo p (localCachePackagePath localCachePath packageName p.ref)
-      -- TODO: try to see if the package has a manifest, and if not we require the package.dependencies array to be there
-      let fakeRange = Either.fromRight' (\_ -> unsafeCrashWith "Fake range failed") (Registry.Version.parseRange Registry.Version.Lenient ">=0.0.0 <2147483647.0.0")
-      let dependencies = Registry.Prelude.fromJust' (\_ -> unsafeCrashWith $ "Dependencies are not there: " <> show p) p.dependencies
-      pure $ Just $ Map.fromFoldable $ map (\d -> Tuple d fakeRange) dependencies
-
-localCachePackagePath localCachePath packageName ref = Path.concat [ localCachePath, "packages", PackageName.print packageName, ref ]
+  GitPackage p -> liftAff do
+    -- TODO: error handling here
+    Git.fetchRepo p (Paths.getPackageLocation packageName package)
+    -- TODO: try to see if the package has a manifest, and if not we require the package.dependencies array to be there
+    let fakeRange = Either.fromRight' (\_ -> unsafeCrashWith "Fake range failed") (Registry.Version.parseRange Registry.Version.Lenient ">=0.0.0 <2147483647.0.0")
+    let dependencies = Registry.Prelude.fromJust' (\_ -> unsafeCrashWith $ "Dependencies are not there: " <> show p) p.dependencies
+    pure $ Just $ Map.fromFoldable $ map (\d -> Tuple d fakeRange) dependencies
 
 type TransitiveDepsResult =
   { packages :: Map PackageName Package
@@ -143,7 +137,7 @@ type TransitiveDepsResult =
   }
 
 -- | Return the transitive dependencies of a list of packages
-getTransitiveDeps :: forall a. Array PackageName -> Spago (FetchEnv a) (Array { name :: PackageName, package :: Package })
+getTransitiveDeps :: forall a. Array PackageName -> Spago (FetchEnv a) (Map PackageName Package)
 getTransitiveDeps deps = do
   log "Getting transitive deps"
   { packageSet } <- ask
@@ -198,4 +192,4 @@ getTransitiveDeps deps = do
     crash $ "The following packages do not exist in your package set:\n" <> foldMap printPackageError errors.notInPackageSet
   when (not (Set.isEmpty errors.notInIndex)) do
     crash $ "The following packages do not exist in the package index:\n" <> foldMap printPackageError errors.notInPackageSet
-  pure (map (\(Tuple name package) -> { name, package }) $ Map.toUnfoldable packages)
+  pure packages
