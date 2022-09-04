@@ -58,6 +58,7 @@ type FetchArgs = { packages :: List String }
 type InstallArgs = FetchArgs
 type BuildArgs = {}
 
+-- TODO command for creating a manifest? Or should we just create it upon reading the config?
 data Command
   = Fetch FetchArgs
   | Install InstallArgs
@@ -139,7 +140,9 @@ main _cliRoot =
       Build args -> buildCmd args
 
   where
+  -- FIXME: fetch + build dependencies
   installCmd _ = pure unit
+  -- FIXME: install + build the project
   buildCmd _ = pure unit
 
   mkFetchEnv :: FetchArgs -> Aff (Fetch.FetchEnv ())

@@ -5,7 +5,7 @@ import Spago.Prelude
 import Affjax.Node as Http
 import Affjax.ResponseFormat as Response
 import Affjax.StatusCode (StatusCode(..))
-import Data.Array as Array
+import Control.Monad.State as State
 import Data.Either as Either
 import Data.HTTP.Method as Method
 import Data.Int as Int
@@ -47,30 +47,16 @@ run packages = do
 
   { getMetadata
   , config
-  , packageSet
   , globalCachePath
   , localCachePath
   } <- ask
 
   -- lookup the dependencies in the package set, so we get their version numbers
   let (Dependencies deps) = config.dependencies
-  depsFromPackageSet <- lookupPackagesInPackageSet packageSet (Map.toUnfoldable deps)
 
-  -- lookup all the dependencies in the index, so we get their manifests, that we can use to pull their dependencies
-  { left: packagesNotInTheIndex, right: transitiveDeps } <- partitionMap identity <$> for depsFromPackageSet \{ name, package } -> getPackageDependencies name package >>= case _ of
-    Nothing -> pure $ Left { name, package }
-    -- TODO: this is the other place where we should care about solving the ranges: need to add a solver constraint with them
-    Just deps -> pure $ Right $ [ name ] <> Array.fromFoldable (Map.keys deps)
-  when (not (Array.null packagesNotInTheIndex)) do
-    crash $ "Some packages were not found in the index: " <> show packagesNotInTheIndex
-  let allDependencies = Set.fromFoldable $ join transitiveDeps
-  log "Collected all transitive dependencies"
-  logShow allDependencies
-
-  -- solve: make sure that all the transitive deps are in the set
-  -- so we, once again, run this list through the package set and get all the versions out, and fail if any are missing.
-  -- FIXME: aaaaah, this is fetching only the first level of transitive deps, we need to recur
-  transitivePackages <- lookupPackagesInPackageSet packageSet (map (\p -> Tuple p Nothing) $ Array.fromFoldable allDependencies)
+  -- here get transitive packages
+  -- TODO: here we are throwing away the ranges from the config, but we should care about them
+  transitivePackages <- getTransitiveDeps (Set.toUnfoldable $ Map.keys deps)
 
   -- then for every package we have we try to download it, and copy it in the local cache
   -- TODO: this should all happen in parallel, and we need a process pool to limit concurrency
@@ -145,15 +131,71 @@ getPackageDependencies packageName package = case package of
       let dependencies = Registry.Prelude.fromJust' (\_ -> unsafeCrashWith $ "Dependencies are not there: " <> show p) p.dependencies
       pure $ Just $ Map.fromFoldable $ map (\d -> Tuple d fakeRange) dependencies
 
-lookupPackagesInPackageSet packageSet packages = do
-  let
-    -- TODO: we are just ignoring the ranges for now, but we should use them for solving if we don't get a package set
-    { left: packagesNotInTheSet, right: packagesInTheSet } = (flip partitionMap) packages \(Tuple name maybeRange) -> case Map.lookup name packageSet of
-      Nothing -> Left name
-      Just package -> Right { name, package }
-  when (not (Array.null packagesNotInTheSet)) do
-    crash $ "Some packages were not found in the set: " <> show packagesNotInTheSet
-  log "Found all the packages in the set"
-  pure packagesInTheSet
-
 localCachePackagePath localCachePath packageName ref = Path.concat [ localCachePath, "packages", PackageName.print packageName, ref ]
+
+type TransitiveDepsResult =
+  { packages :: Map PackageName Package
+  , errors ::
+      { cycle :: Set PackageName
+      , notInIndex :: Set PackageName
+      , notInPackageSet :: Set PackageName
+      }
+  }
+
+-- | Return the transitive dependencies of a list of packages
+getTransitiveDeps :: forall a. Array PackageName -> Spago (FetchEnv a) (Array { name :: PackageName, package :: Package })
+getTransitiveDeps deps = do
+  log "Getting transitive deps"
+  { packageSet } <- ask
+  let
+    printPackageError :: PackageName -> String
+    printPackageError p = "  - " <> PackageName.print p <> "\n"
+
+    init :: TransitiveDepsResult
+    init = { packages: (Map.empty :: Map PackageName Package), errors: mempty }
+
+    mergeResults :: TransitiveDepsResult -> TransitiveDepsResult -> TransitiveDepsResult
+    mergeResults r1 r2 =
+      { packages: Map.union r1.packages r2.packages
+      , errors: r1.errors <> r2.errors
+      }
+
+    go :: Set PackageName -> PackageName -> StateT (Map PackageName (Map PackageName Package)) (Spago (FetchEnv a)) TransitiveDepsResult
+    go seen dep =
+      if (Set.member dep seen) then do
+        pure (init { errors { cycle = Set.singleton dep } })
+      else do
+        cache <- State.get
+        case Map.lookup dep cache of
+          Just allDeps ->
+            pure (init { packages = allDeps })
+          Nothing ->
+            -- First look for the package in the set to get a version number out,
+            -- then use that version to look it up in the index and get the dependencies
+            case Map.lookup dep packageSet of
+              Nothing -> pure (init { errors { notInPackageSet = Set.singleton dep } })
+              Just package -> do
+                maybeDeps <- State.lift $ getPackageDependencies dep package
+                case maybeDeps of
+                  Nothing -> pure (init { errors { notInIndex = Set.singleton dep } })
+                  Just dependenciesMap -> do
+                    -- recur here, as we need to get the transitive tree, not just the first level
+                    { packages: childDeps, errors } <-
+                      -- TODO: we are just ignoring the ranges for now, but we should use them for solving if we don't get a package set
+                      for (Map.toUnfoldable dependenciesMap :: Array (Tuple PackageName Range)) (\(Tuple d _) -> go (Set.insert dep seen) d)
+                        >>= (pure <<< foldl mergeResults init)
+                    let allDeps = Map.insert dep package childDeps
+                    when (Set.isEmpty (errors.cycle <> errors.notInIndex <> errors.notInPackageSet)) do
+                      State.modify_ $ Map.insert dep allDeps
+                    pure { packages: allDeps, errors }
+
+  { packages, errors } <-
+    for deps (\d -> State.evalStateT (go mempty d) Map.empty) >>= (pure <<< foldl mergeResults init)
+
+  when (not (Set.isEmpty errors.cycle)) do
+    crash $ "The following packages have circular dependencies:\n" <> foldMap printPackageError (Set.toUnfoldable errors.cycle :: Array PackageName)
+  when (not (Set.isEmpty errors.notInPackageSet)) do
+    crash $ "The following packages do not exist in your package set:\n" <> foldMap printPackageError errors.notInPackageSet
+  when (not (Set.isEmpty errors.notInIndex)) do
+    crash $ "The following packages do not exist in the package index:\n" <> foldMap printPackageError errors.notInPackageSet
+  pure (map (\(Tuple name package) -> { name, package }) $ Map.toUnfoldable packages)

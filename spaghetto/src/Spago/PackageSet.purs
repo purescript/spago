@@ -20,5 +20,5 @@ instance Show Package where
 type GitPackage =
   { git :: String
   , ref :: String
-  , dependencies :: Maybe (Array PackageName)
+  , dependencies :: Maybe (Array PackageName) -- TODO document that this is possible
   }
