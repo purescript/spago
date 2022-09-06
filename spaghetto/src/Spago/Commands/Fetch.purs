@@ -25,6 +25,7 @@ import Registry.Schema (Manifest, Metadata)
 import Registry.Version (Range, Version)
 import Registry.Version as Registry.Version
 import Spago.Config (Config, Dependencies(..))
+import Spago.Config as Config
 import Spago.FS as FS
 import Spago.Git as Git
 import Spago.PackageSet (Package(..), PackageSet)
@@ -46,9 +47,7 @@ run :: forall a. Array PackageName -> Spago (FetchEnv a) (Map PackageName Packag
 run packages = do
   logShow packages
 
-  { getMetadata
-  , config
-  } <- ask
+  { getMetadata, config } <- ask
 
   -- lookup the dependencies in the package set, so we get their version numbers
   let (Dependencies deps) = config.dependencies
@@ -121,11 +120,17 @@ getPackageDependencies packageName package = case package of
     pure $ map (_.dependencies <<< unwrap) maybeManifest
   GitPackage p -> liftAff do
     -- TODO: error handling here
-    Git.fetchRepo p (Paths.getPackageLocation packageName package)
-    -- TODO: try to see if the package has a manifest, and if not we require the package.dependencies array to be there
-    let fakeRange = Either.fromRight' (\_ -> unsafeCrashWith "Fake range failed") (Registry.Version.parseRange Registry.Version.Lenient ">=0.0.0 <2147483647.0.0")
-    let dependencies = Registry.Prelude.fromJust' (\_ -> unsafeCrashWith $ "Dependencies are not there: " <> show p) p.dependencies
-    pure $ Just $ Map.fromFoldable $ map (\d -> Tuple d fakeRange) dependencies
+    let packageLocation = Paths.getPackageLocation packageName package
+    Git.fetchRepo p packageLocation
+    -- try to see if the package has a spago config, and if it's there we read it
+    -- TODO: make this work with manifests
+    try (liftAff $ Config.readConfig (Path.concat [ packageLocation, "spago.yaml" ])) >>= case _ of
+      Right { dependencies: (Dependencies deps) } -> do
+        pure (Just (map (fromMaybe widestRange) deps))
+      -- if we don't have any config then we require the package.dependencies array to be there
+      Left err -> do
+        let dependencies = Registry.Prelude.fromJust' (\_ -> unsafeCrashWith $ "Dependencies are not there: " <> show p) p.dependencies
+        pure $ Just $ Map.fromFoldable $ map (\d -> Tuple d widestRange) dependencies
 
 type TransitiveDepsResult =
   { packages :: Map PackageName Package
@@ -193,3 +198,7 @@ getTransitiveDeps deps = do
   when (not (Set.isEmpty errors.notInIndex)) do
     crash $ "The following packages do not exist in the package index:\n" <> foldMap printPackageError errors.notInPackageSet
   pure packages
+
+widestRange :: Range
+widestRange = Either.fromRight' (\_ -> unsafeCrashWith "Fake range failed")
+  $ Registry.Version.parseRange Registry.Version.Lenient ">=0.0.0 <2147483647.0.0"

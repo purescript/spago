@@ -54,6 +54,7 @@ import Effect.Aff (Aff, try)
 import Effect.Aff as Aff
 import Foreign.Object (Object)
 import Foreign.Object as Object
+import Foreign.SPDX (License)
 import Node.Encoding (Encoding(..))
 import Node.FS.Aff as FS
 import Node.Path (FilePath)
@@ -61,6 +62,7 @@ import Parsing as Parsing
 import Prim.Row as Row
 import Prim.RowList as RL
 import Record as Record
+import Registry.Json as Registry.Json
 import Registry.PackageName (PackageName)
 import Registry.PackageName as PackageName
 import Type.Proxy (Proxy(..))
@@ -166,8 +168,12 @@ instance ToYaml String where
   decode = Core.caseJsonString (Left "Expected String") Right
 
 instance ToYaml PackageName where
-  encode = PackageName.print >>> encode
-  decode = (lmap Parsing.parseErrorMessage <<< PackageName.parse) <=< decode
+  encode = Registry.Json.encode
+  decode = Registry.Json.decode
+
+instance ToYaml License where
+  encode = Registry.Json.encode
+  decode = Registry.Json.decode
 
 instance ToYaml Number where
   encode = Core.fromNumber

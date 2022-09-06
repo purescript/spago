@@ -23,6 +23,7 @@ import Effect.Aff (Aff, attempt, effectCanceler, error, launchAff_, makeAff, thr
 import Effect.Class (liftEffect)
 import Effect.Class.Console as Console
 import Effect.Ref as Ref
+import Foreign.SPDX as Registry.License
 import Node.Encoding (Encoding(..))
 import Node.FS.Aff (writeTextFile)
 import Node.FS.Aff as FS
@@ -42,9 +43,11 @@ import Registry.PackageName as PackageName
 import Registry.Schema (Manifest(..), Metadata)
 import Registry.Schema as Registry
 import Registry.Version (Version)
+import Registry.Version as Registry.Version
 import Spago.Command.Build as Build
 import Spago.Commands.Fetch as Fetch
 import Spago.Config (Config)
+import Spago.Config as Config
 import Spago.FS as FS
 import Spago.Git as Git
 import Spago.PackageSet (Package)
@@ -60,11 +63,12 @@ type FetchArgs = { packages :: List String }
 type InstallArgs = FetchArgs
 type BuildArgs = {}
 
--- TODO command for creating a manifest? Or should we just create it upon reading the config?
 data Command
   = Fetch FetchArgs
   | Install InstallArgs
   | Build BuildArgs
+
+-- FIXME bundle
 
 argParser :: ArgParser Command
 argParser =
@@ -227,37 +231,30 @@ mkFetchEnv args = do
     Left _err -> do
       log "Couldn't refresh the registry, will proceed anyways"
 
-  -- read the config
-  log "Reading config.."
-  eitherConfig :: Either String Config <- liftAff $ Yaml.readYamlFile "./spago.yaml"
-  case eitherConfig of
-    Left err -> crash $ "Can't read config: " <> err -- TODO: better error here
-    Right config -> do
-      log "Read config:"
-      log (Yaml.printYaml config)
+  config <- Config.readConfig "spago.yaml"
 
-      -- read in the package set
-      -- TODO: try to parse that field, it might be a URL instead of a version number
-      log "Reading the package set"
-      let packageSetPath = Path.concat [ registryPath, "package-sets", config.packages_db.set <> ".json" ]
-      liftAff (RegistryJson.readJsonFile packageSetPath) >>= case _ of
-        Left err -> crash $ "Couldn't read the package set: " <> err
-        Right (Registry.PackageSet registryPackageSet) -> do
-          log "Read the package set from the registry"
+  -- read in the package set
+  -- TODO: try to parse that field, it might be a URL instead of a version number
+  log "Reading the package set"
+  let packageSetPath = Path.concat [ registryPath, "package-sets", config.packages_db.set <> ".json" ]
+  liftAff (RegistryJson.readJsonFile packageSetPath) >>= case _ of
+    Left err -> crash $ "Couldn't read the package set: " <> err
+    Right (Registry.PackageSet registryPackageSet) -> do
+      log "Read the package set from the registry"
 
-          -- Mix in the package set the ExtraPackages from the config
-          -- Note: if there are duplicate packages we prefer the ones from the extra_packages
-          let
-            packageSet = Map.union
-              (map PackageSet.GitPackage config.packages_db.extra_packages)
-              (map PackageSet.Version registryPackageSet.packages)
+      -- Mix in the package set the ExtraPackages from the config
+      -- Note: if there are duplicate packages we prefer the ones from the extra_packages
+      let
+        packageSet = Map.union
+          (map PackageSet.GitPackage (fromMaybe Map.empty config.packages_db.extra_packages))
+          (map PackageSet.Version registryPackageSet.packages)
 
-          pure
-            { packageNames
-            , env:
-                { getManifestFromIndex
-                , getMetadata
-                , config
-                , packageSet
-                }
+      pure
+        { packageNames
+        , env:
+            { getManifestFromIndex
+            , getMetadata
+            , config
+            , packageSet
             }
+        }

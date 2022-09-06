@@ -9,6 +9,7 @@ import Node.FS.Sync as FS.Sync
 
 -- TODO: port the rest of the git stuff here from the registry
 
+-- TODO: refactor this thing. Like there should be a common path after the checkout
 fetchRepo :: forall a. { git :: String, ref :: String | a } -> FilePath -> Aff Unit
 fetchRepo { git, ref } path = liftEffect (FS.Sync.exists path) >>= case _ of
   true -> do
@@ -29,6 +30,9 @@ fetchRepo { git, ref } path = liftEffect (FS.Sync.exists path) >>= case _ of
       Right _ -> pure unit
   _ -> do
     log $ "Didn't find " <> git <> " repo, cloning..."
-    Except.runExceptT (Registry.runGit [ "clone", git, path ] Nothing) >>= case _ of
+    result <- Except.runExceptT do
+      _ <- Registry.runGit [ "clone", git, path ] Nothing
+      Registry.runGit [ "checkout", ref ] (Just path)
+    case result of
       Left err -> Aff.throwError $ Aff.error err
       Right _ -> pure unit
