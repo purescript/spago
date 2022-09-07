@@ -1,3 +1,10 @@
 #!/usr/bin/env bash
 
-node bin/bundle.js $1
+set -euo pipefail
+
+# TODO use purescript-spaghetto instead
+./bin/index.dev.js bundle --entrypoint=bin/index.dev.js --outfile=bin/bundle.js
+
+echo ""
+
+./bin/bundle.js $1

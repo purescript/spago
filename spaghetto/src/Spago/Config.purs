@@ -5,6 +5,7 @@ import Spago.Prelude
 import Data.Argonaut.Core as Core
 import Data.Array as Array
 import Data.Bifunctor (lmap)
+import Data.Either as Either
 import Data.Map as Map
 import Foreign.Object (Object)
 import Foreign.Object as Object
@@ -15,6 +16,7 @@ import Registry.PackageName as PackageName
 import Registry.Version (Range)
 import Registry.Version as Registry.Version
 import Spago.PackageSet (GitPackage)
+import Yaml (class ToYaml)
 import Yaml as Yaml
 
 type Config =
@@ -22,6 +24,7 @@ type Config =
   , license :: Registry.License
   , dependencies :: Dependencies
   , packages_db :: PackagesDb
+  , bundle :: Maybe BundleConfig
   }
 
 newtype Dependencies = Dependencies (Map PackageName (Maybe Range))
@@ -70,6 +73,30 @@ type PackagesDb =
 -- TODO alternateBackend
 -- TODO publish config
 
+type BundleConfig =
+  { minify :: Maybe Boolean
+  , entrypoint :: Maybe FilePath
+  , outfile :: Maybe FilePath
+  , platform :: Maybe Platform
+  }
+
+data Platform = PlatformNode | PlatformBrowser
+
+instance Show Platform where
+  show = case _ of
+    PlatformNode -> "node"
+    PlatformBrowser -> "browser"
+
+parsePlatform :: String -> Maybe Platform
+parsePlatform = case _ of
+  "node" -> Just PlatformNode
+  "browser" -> Just PlatformBrowser
+  _ -> Nothing
+
+instance ToYaml Platform where
+  encode = Core.fromString <<< show
+  decode = Either.note "Expected BundlePlatform" <<< parsePlatform <=< Yaml.decode
+
 readConfig :: FilePath -> Aff Config
 readConfig path = do
   log "Reading config.."
@@ -80,3 +107,4 @@ readConfig path = do
       log "Read config:"
       -- log (Yaml.printYaml config)
       pure config
+

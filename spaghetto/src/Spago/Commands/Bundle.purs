@@ -3,24 +3,12 @@ module Spago.Command.Bundle where
 import Spago.Prelude
 
 import Data.Function.Uncurried (Fn1, runFn1)
+import Spago.Config (Platform)
 
 type BundleEnv a =
   { esbuild :: FilePath
   | a
   }
-
-data Platform = PlatformNode | PlatformBrowser
-
-instance Show Platform where
-  show = case _ of
-    PlatformNode -> "node"
-    PlatformBrowser -> "browser"
-
-parsePlatform :: String -> Maybe Platform
-parsePlatform = case _ of
-  "node" -> Just PlatformNode
-  "browser" -> Just PlatformBrowser
-  _ -> Nothing
 
 type BundleOptions =
   { minify :: Boolean
@@ -37,20 +25,30 @@ type RawBundleOptions =
   , format :: String
   }
 
--- TODO: we could wire in the watch here: https://esbuild.github.io/api/#watch
-
 -- TODO: return a promise here, so we can display the return value
 foreign import bundleImpl :: Fn1 RawBundleOptions (Effect Unit)
 
 run :: forall a. BundleOptions -> Spago (BundleEnv a) Unit
 run opts = do
+  { esbuild } <- ask
+  let command = esbuild
   -- TODO: here we can select the right glob for a monorepo setup
+  let minify = if opts.minify then [ "--minify" ] else []
   let
-    options =
-      { minify: opts.minify
-      , entryPoints: [ opts.entrypoint ]
-      , format: "esm" -- TODO have this as input
-      , platform: show opts.platform
-      , outfile: opts.outfile
-      }
-  liftEffect $ runFn1 bundleImpl options
+    args =
+      [ "--bundle"
+      , opts.entrypoint
+      , "--outfile=" <> opts.outfile
+      , "--platform=" <> show opts.platform
+      -- See https://github.com/evanw/esbuild/issues/1921
+      , "--banner:js=import __module from \'module\';import __path from \'path\';import __url from \'url\';const require = __module.createRequire(import.meta.url);"
+      , "--format=esm" -- TODO: have this as input
+      ] <> minify
+  log $ "Running esbuild: " <> show args
+  result <- liftAff $ spawnFromParentWithStdin
+    { command
+    , args
+    , input: Nothing
+    , cwd: Nothing
+    }
+  logShow result

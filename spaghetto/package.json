@@ -1,5 +1,39 @@
 {
+  "name": "purescript-spaghetto",
+  "version": "0.0.1",
+  "type": "module",
+  "bin": {
+    "spaghetto": "bin/bundle.js"
+  },
+  "files": [
+    "bin/index.js",
+    "bundle/**/*.js"
+  ],
+  "main": "bin/index.dev.js",
+  "scripts": {
+    "format": "purs-tidy format-in-place src bin",
+    "format:check": "purs-tidy check src bin",
+    "build": "./spaghetto build",
+    "bundle": "./spaghetto bundle",
+    "prepublishOnly": "rm -rf output bin/bundle.js && npm run bundle"
+  },
   "dependencies": {
-    "@iarna/toml": "github:iarna/iarna-toml"
+    "@octokit/plugin-retry": "^3.0.9",
+    "@octokit/plugin-throttling": "^3.7.0",
+    "@octokit/rest": "^18.12.0",
+    "aws-sdk": "^2.1210.0",
+    "decimal.js": "^10.3.1",
+    "env-paths": "^3.0.0",
+    "esbuild": "^0.15.5",
+    "fast-glob": "^3.2.11",
+    "fs-extra": "^10.0.0",
+    "fuse.js": "^6.5.3",
+    "jsonrepair": "^2.2.1",
+    "semver": "^7.3.5",
+    "spdx-expression-parse": "^3.0.1",
+    "tar": "^6.1.11",
+    "tmp": "^0.2.1",
+    "which": "^2.0.2",
+    "yaml": "^2.1.1"
   }
 }

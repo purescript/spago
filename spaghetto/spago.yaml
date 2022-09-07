@@ -44,6 +44,11 @@ dependencies:
   - tuples
   - unsafe-coerce
 license: BSD-3-Clause
+bundle:
+  entrypoint: bin/index.dev.js
+  outfile: bin/bundle.js
+  minify: true
+  format: esm
 packages_db:
   set: 0.1.1
   extra_packages:

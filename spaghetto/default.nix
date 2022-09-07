@@ -23,9 +23,9 @@ with nixpkgs;
 mkShell {
   buildInputs = with pkgs; [
     easy-ps.purs-0_15_4
-    easy-ps.spago
     easy-ps.psa
     easy-ps.purescript-language-server
     easy-ps.purs-tidy
+    nodejs
   ];
 }

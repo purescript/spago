@@ -4,36 +4,14 @@ import Spago.Prelude
 
 import ArgParse.Basic (ArgParser)
 import ArgParse.Basic as ArgParser
-import Control.Plus (empty)
 import Data.Array as Array
 import Data.Array.NonEmpty as NonEmptyArray
-import Data.Either (Either(..), isRight)
-import Data.Foldable (foldMap, for_, oneOf)
 import Data.Map as Map
-import Data.Maybe (Maybe(..), fromMaybe, maybe)
-import Data.Monoid (guard, power)
-import Data.Newtype (unwrap)
-import Data.Set as Set
-import Data.String (Pattern(..))
-import Data.String as String
-import Data.String.CodeUnits as SCU
-import Data.Traversable (traverse)
-import Effect (Effect)
-import Effect.Aff (Aff, attempt, effectCanceler, error, launchAff_, makeAff, throwError)
-import Effect.Class (liftEffect)
+import Effect.Aff as Aff
 import Effect.Class.Console as Console
 import Effect.Ref as Ref
-import Foreign.SPDX as Registry.License
-import Node.Encoding (Encoding(..))
-import Node.FS.Aff (writeTextFile)
-import Node.FS.Aff as FS
-import Node.FS.Perms as Perms
-import Node.FS.Stats as Stats
-import Node.FS.Stream (createReadStream, createWriteStream)
-import Node.Path (FilePath)
 import Node.Path as Path
 import Node.Process as Process
-import Node.Stream as Stream
 import Record as Record
 import Registry.API as Registry.API
 import Registry.Index as Index
@@ -43,21 +21,16 @@ import Registry.PackageName as PackageName
 import Registry.Schema (Manifest(..), Metadata)
 import Registry.Schema as Registry
 import Registry.Version (Version)
-import Registry.Version as Registry.Version
 import Spago.Command.Build as Build
 import Spago.Command.Bundle as Bundle
 import Spago.Commands.Fetch as Fetch
-import Spago.Config (Config)
+import Spago.Config (Platform(..), BundleConfig)
 import Spago.Config as Config
 import Spago.FS as FS
 import Spago.Git as Git
 import Spago.PackageSet (Package)
 import Spago.PackageSet as PackageSet
 import Spago.Paths as Paths
-import Spago.Prelude as Either
-import Type.Proxy (Proxy(..))
-import Unsafe.Coerce (unsafeCoerce)
-import Yaml as Yaml
 
 type GlobalArgs = {}
 type FetchArgs = { packages :: List String }
@@ -173,7 +146,7 @@ main =
   parseArgs >>= case _ of
     Left err ->
       Console.error $ ArgParser.printArgError err
-    Right cmd -> launchAff_ case cmd of
+    Right cmd -> Aff.launchAff_ case cmd of
       Fetch args -> do
         { env, packageNames } <- mkFetchEnv args
         void $ runSpago env (Fetch.run packageNames)
@@ -202,18 +175,25 @@ main =
         { bundleEnv, bundleOptions } <- mkBundleEnv buildEnv args
         runSpago bundleEnv (Bundle.run bundleOptions)
 
-mkBundleEnv :: forall a. Build.BuildEnv a -> BundleArgs -> Aff { bundleEnv :: Bundle.BundleEnv (), bundleOptions :: Bundle.BundleOptions }
-mkBundleEnv buildEnv bundleArgs = do
+mkBundleEnv :: forall a. Fetch.FetchEnv a -> BundleArgs -> Aff { bundleEnv :: (Bundle.BundleEnv ()), bundleOptions :: Bundle.BundleOptions }
+mkBundleEnv { config } bundleArgs = do
   logShow bundleArgs
-  let bundleEnv = { esbuild: "esbuild" } -- TODO which esbuild
-  -- TODO we should also lookup some of these options in the config
-  -- which is why we are not adding default on the command line, but leaving everything optional
-  let minify = fromMaybe false bundleArgs.minify
-  let entrypoint = fromMaybe "main.js" bundleArgs.entrypoint
-  let outfile = fromMaybe "index.js" bundleArgs.outfile
-  let platform = fromMaybe Bundle.PlatformNode (Bundle.parsePlatform =<< bundleArgs.platform)
+  -- the reason why we don't have a default on the CLI is that we look some of these
+  -- up in the config - though the flags take precedence
+  let
+    bundleConf :: forall x. (BundleConfig -> Maybe x) -> Maybe x
+    bundleConf f = config.bundle >>= f
+  let minify = fromMaybe false (bundleArgs.minify <|> bundleConf _.minify)
+  let entrypoint = fromMaybe "main.js" (bundleArgs.entrypoint <|> bundleConf _.entrypoint)
+  let outfile = fromMaybe "index.js" (bundleArgs.outfile <|> bundleConf _.outfile)
+  let
+    platform = fromMaybe PlatformNode
+      ( (Config.parsePlatform =<< bundleArgs.platform)
+          <|> bundleConf _.platform
+      )
   let bundleOptions = { minify, entrypoint, outfile, platform }
-  pure { bundleEnv, bundleOptions }
+  let bundleEnv = { esbuild: "esbuild" } -- TODO: which esbuild
+  pure { bundleOptions, bundleEnv }
 
 mkBuildEnv :: forall a. Fetch.FetchEnv a -> Map PackageName Package -> Aff (Build.BuildEnv (Fetch.FetchEnvRow a))
 mkBuildEnv fetchEnv dependencies = do

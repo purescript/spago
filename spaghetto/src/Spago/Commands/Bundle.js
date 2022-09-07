@@ -2,10 +2,11 @@ import { build } from "esbuild";
 
 /** @type {import('esbuild').BuildOptions} */
 const defaultOptions = {
-  minify: true,
+  minify: false,
   bundle: true,
   target: "node16",
   banner: {
+    // https://github.com/evanw/esbuild/issues/1921
     js: `
 import __module from 'module';
 import __path from 'path';
