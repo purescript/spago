@@ -45,6 +45,7 @@ import Registry.Schema as Registry
 import Registry.Version (Version)
 import Registry.Version as Registry.Version
 import Spago.Command.Build as Build
+import Spago.Command.Bundle as Bundle
 import Spago.Commands.Fetch as Fetch
 import Spago.Config (Config)
 import Spago.Config as Config
@@ -62,13 +63,18 @@ type GlobalArgs = {}
 type FetchArgs = { packages :: List String }
 type InstallArgs = FetchArgs
 type BuildArgs = {}
+type BundleArgs =
+  { minify :: Maybe Boolean
+  , entrypoint :: Maybe FilePath
+  , outfile :: Maybe FilePath
+  , platform :: Maybe String
+  }
 
 data Command
   = Fetch FetchArgs
   | Install InstallArgs
   | Build BuildArgs
-
--- FIXME bundle
+  | Bundle BundleArgs
 
 argParser :: ArgParser Command
 argParser =
@@ -85,6 +91,10 @@ argParser =
         "Compile the project"
         do
           (Build <$> buildArgsParser) <* ArgParser.flagHelp
+    , ArgParser.command [ "bundle" ]
+        "Bundle the project in a single file"
+        do
+          (Bundle <$> bundleArgsParser) <* ArgParser.flagHelp
     ]
     <* ArgParser.flagHelp
     <* ArgParser.flagInfo [ "--version", "-v" ] "Show the current version" "0.0.1" -- TODO: version. Like, with an embedded build meta module
@@ -128,6 +138,28 @@ installArgsParser = fetchArgsParser
 buildArgsParser :: ArgParser BuildArgs
 buildArgsParser = ArgParser.fromRecord {}
 
+bundleArgsParser :: ArgParser BundleArgs
+bundleArgsParser =
+  ArgParser.fromRecord
+    { minify:
+        ArgParser.flag [ "--minify" ]
+          "Minify the bundle"
+          # ArgParser.boolean
+          # ArgParser.optional
+    , entrypoint:
+        ArgParser.argument [ "--entrypoint" ]
+          "The module to bundle as the entrypoint"
+          # ArgParser.optional
+    , outfile:
+        ArgParser.argument [ "--outfile" ]
+          "Destination path for the bundle"
+          # ArgParser.optional
+    , platform:
+        ArgParser.argument [ "--platform" ]
+          "The bundle platform. 'node' or 'browser'"
+          # ArgParser.optional
+    }
+
 parseArgs :: Effect (Either ArgParser.ArgError Command)
 parseArgs = do
   cliArgs <- Array.drop 2 <$> Process.argv
@@ -136,8 +168,8 @@ parseArgs = do
     argParser
     cliArgs
 
-main :: FilePath -> Effect Unit
-main _cliRoot =
+main :: Effect Unit
+main =
   parseArgs >>= case _ of
     Left err ->
       Console.error $ ArgParser.printArgError err
@@ -156,9 +188,32 @@ main _cliRoot =
         { env, packageNames } <- mkFetchEnv { packages: mempty }
         -- TODO: --no-fetch flag
         dependencies <- runSpago env (Fetch.run packageNames)
-        env' <- mkBuildEnv env dependencies
+        buildEnv <- mkBuildEnv env dependencies
         let options = { depsOnly: false }
-        runSpago env' (Build.run options)
+        runSpago buildEnv (Build.run options)
+      Bundle args -> do
+        { env, packageNames } <- mkFetchEnv { packages: mempty }
+        -- TODO: --no-fetch flag
+        dependencies <- runSpago env (Fetch.run packageNames)
+        -- TODO: --no-build flag
+        buildEnv <- mkBuildEnv env dependencies
+        let options = { depsOnly: false }
+        runSpago buildEnv (Build.run options)
+        { bundleEnv, bundleOptions } <- mkBundleEnv buildEnv args
+        runSpago bundleEnv (Bundle.run bundleOptions)
+
+mkBundleEnv :: forall a. Build.BuildEnv a -> BundleArgs -> Aff { bundleEnv :: Bundle.BundleEnv (), bundleOptions :: Bundle.BundleOptions }
+mkBundleEnv buildEnv bundleArgs = do
+  logShow bundleArgs
+  let bundleEnv = { esbuild: "esbuild" } -- TODO which esbuild
+  -- TODO we should also lookup some of these options in the config
+  -- which is why we are not adding default on the command line, but leaving everything optional
+  let minify = fromMaybe false bundleArgs.minify
+  let entrypoint = fromMaybe "main.js" bundleArgs.entrypoint
+  let outfile = fromMaybe "index.js" bundleArgs.outfile
+  let platform = fromMaybe Bundle.PlatformNode (Bundle.parsePlatform =<< bundleArgs.platform)
+  let bundleOptions = { minify, entrypoint, outfile, platform }
+  pure { bundleEnv, bundleOptions }
 
 mkBuildEnv :: forall a. Fetch.FetchEnv a -> Map PackageName Package -> Aff (Build.BuildEnv (Fetch.FetchEnvRow a))
 mkBuildEnv fetchEnv dependencies = do
@@ -172,8 +227,7 @@ mkFetchEnv args = do
   unless (Array.null failedPackageNames) do
     crash $ "Failed to parse some package name: " <> show failedPackageNames
 
-  cwd <- liftEffect Process.cwd
-  log $ "CWD: " <> cwd
+  log $ "CWD: " <> Paths.cwd
 
   -- Take care of the caches
   FS.mkdirp Paths.globalCachePath

@@ -1,26 +1,48 @@
 name: spaghetto
 dependencies:
   - aff
+  - affjax
+  - affjax-node
+  - ansi
+  - argonaut-core
+  - argparse-basic
   - arrays
   - bifunctors
   - console
+  - control
+  - datetime
   - effect
   - either
+  - exceptions
+  - filterable
   - foldable-traversable
   - foreign-object
   - functions
+  - http-methods
+  - identity
   - integers
+  - lists
   - maybe
+  - newtype
   - node-buffer
+  - node-child-process
+  - node-fs
   - node-fs-aff
   - node-path
+  - node-process
+  - node-streams
   - ordered-collections
+  - parsing
+  - partial
+  - posix-types
   - prelude
   - record
+  - refs
   - registry-dev
   - strings
   - transformers
   - tuples
+  - unsafe-coerce
 license: BSD-3-Clause
 packages_db:
   set: 0.1.1

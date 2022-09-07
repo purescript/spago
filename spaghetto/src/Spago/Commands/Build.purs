@@ -20,6 +20,7 @@ type BuildOptions =
 
 run :: forall a. BuildOptions -> Spago (BuildEnv a) Unit
 run opts = do
+  void $ liftAff $ spawnFromParentWithStdin { command: "purs", args: [ "--version" ], input: Nothing, cwd: Nothing }
   { purs, dependencies } <- ask
   let command = purs
   let dependencyGlobs = map (Tuple.uncurry Paths.sourceGlob) (Map.toUnfoldable dependencies)
