@@ -6,8 +6,7 @@
     "spaghetto": "bin/bundle.js"
   },
   "files": [
-    "bin/index.js",
-    "bundle/**/*.js"
+    "bin/bundle.js"
   ],
   "main": "bin/index.dev.js",
   "scripts": {
@@ -15,7 +14,7 @@
     "format:check": "purs-tidy check src bin",
     "build": "./spaghetto build",
     "bundle": "./spaghetto bundle",
-    "prepublishOnly": "rm -rf output bin/bundle.js && npm run bundle"
+    "prepublishOnly": "rm -rf bin/bundle.js && npm run bundle"
   },
   "dependencies": {
     "@octokit/plugin-retry": "^3.0.9",
