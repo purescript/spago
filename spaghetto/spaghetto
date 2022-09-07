@@ -2,9 +2,9 @@
 
 set -euo pipefail
 
-# TODO use purescript-spaghetto instead
-./bin/index.dev.js bundle --entrypoint=bin/index.dev.js --outfile=bin/bundle.js
+# Note: this is using a previous version that should already be installed in the system
+spaghetto build
 
 echo ""
 
-./bin/bundle.js $1
+./bin/index.dev.js $1
