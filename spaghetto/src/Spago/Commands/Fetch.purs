@@ -34,10 +34,11 @@ import Spago.Paths as Paths
 import Spago.Tar as Tar
 
 type FetchEnvRow a =
-  ( getManifestFromIndex :: PackageName -> Version -> Aff (Maybe Manifest)
-  , getMetadata :: PackageName -> Aff (Either String Metadata)
+  ( getManifestFromIndex :: PackageName -> Version -> Spago (LogEnv ()) (Maybe Manifest)
+  , getMetadata :: PackageName -> Spago (LogEnv ()) (Either String Metadata)
   , config :: Config
   , packageSet :: PackageSet
+  , logOptions :: LogOptions
   | a
   )
 
@@ -45,37 +46,38 @@ type FetchEnv a = Record (FetchEnvRow a)
 
 run :: forall a. Array PackageName -> Spago (FetchEnv a) (Map PackageName Package)
 run packages = do
-  logShow packages
+  logDebug $ "Requested to install these packages: " <> show packages
 
-  { getMetadata, config } <- ask
+  { getMetadata, config, logOptions } <- ask
 
   -- lookup the dependencies in the package set, so we get their version numbers
   let (Dependencies deps) = config.dependencies
+
+  -- FIXME: we should manipulate the yaml so we can insert the new packages in the config file
 
   -- here get transitive packages
   -- TODO: here we are throwing away the ranges from the config, but we should care about them
   transitivePackages <- getTransitiveDeps (Set.toUnfoldable $ Map.keys deps)
 
   -- then for every package we have we try to download it, and copy it in the local cache
-  -- TODO: this should all happen in parallel, and we need a process pool to limit concurrency
+  -- FIXME: this should all happen in parallel, and we need a process pool to limit concurrency
   void $ for (Map.toUnfoldable transitivePackages :: Array (Tuple PackageName Package)) \(Tuple name package) -> do
     let localPackageLocation = Paths.getPackageLocation name package
     -- first of all, we check if we have the package in the local cache. If so, we don't even do the work
     unlessM (liftEffect $ FS.Sync.exists localPackageLocation) case package of
       GitPackage gitPackage -> do
         -- Easy, just git clone it in the local cache
-        liftAff do
-          -- TODO: error handling here
-          Git.fetchRepo gitPackage localPackageLocation
+        -- TODO: error handling here
+        Git.fetchRepo gitPackage localPackageLocation
       Version v -> do
         -- if the version comes from the registry then we have a longer list of things to do
         let versionString = Registry.Version.printVersion v
         -- get the metadata for the package, so we have access to the hash and other info
-        metadata <- liftAff (getMetadata name)
+        metadata <- liftAff (runSpago { logOptions } $ getMetadata name)
         case (metadata >>= (\meta -> Either.note "Didn't find version in the metadata file" $ Map.lookup v meta.published)) of
-          Left err -> crash $ "Couldn't read metadata, reason: " <> err
+          Left err -> die $ "Couldn't read metadata, reason:\n  " <> err
           Right versionMetadata -> do
-            log $ "Metadata read: " <> show versionMetadata
+            logDebug $ "Metadata read: " <> show versionMetadata
             -- then check if we have a tarball cached. If not, download it
             let globalCachePackagePath = Path.concat [ Paths.globalCachePath, "packages", PackageName.print name ]
             let tarballPath = Path.concat [ globalCachePackagePath, versionString <> ".tar.gz" ]
@@ -89,46 +91,47 @@ run packages = do
                     }
                 )
               case response of
-                Left err -> crash $ "Couldn't fetch package" <> Http.printError err
+                Left err -> die $ "Couldn't fetch package:\n  " <> Http.printError err
                 Right { status, body } | status /= StatusCode 200 -> do
                   (buf :: Buffer) <- liftEffect $ Buffer.fromArrayBuffer body
                   bodyString <- liftEffect $ Buffer.toString Encoding.UTF8 buf
-                  crash $ "Couldn't fetch package, status was not ok " <> show status <> ", got answer: " <> bodyString
+                  die $ "Couldn't fetch package, status was not ok " <> show status <> ", got answer:\n  " <> bodyString
                 Right r@{ body: tarballArrayBuffer } -> do
-                  logShow r.status
+                  logDebug $ "Got status: " <> show r.status
                   -- check the size and hash of the tar against the metadata
                   tarballBuffer <- liftEffect $ Buffer.fromArrayBuffer tarballArrayBuffer
                   tarballSize <- liftEffect $ Buffer.size tarballBuffer
                   tarballSha <- liftEffect $ Registry.Hash.sha256Buffer tarballBuffer
                   unless (Int.toNumber tarballSize == versionMetadata.bytes) do
-                    crash $ "Fetched tarball has a different size (" <> show tarballSize <> ") than expected (" <> show versionMetadata.bytes <> ")"
+                    die $ "Fetched tarball has a different size (" <> show tarballSize <> ") than expected (" <> show versionMetadata.bytes <> ")"
                   unless (tarballSha == versionMetadata.hash) do
-                    crash $ "Fetched tarball has a different hash (" <> show tarballSha <> ") than expected (" <> show versionMetadata.hash <> ")"
+                    die $ "Fetched tarball has a different hash (" <> show tarballSha <> ") than expected (" <> show versionMetadata.hash <> ")"
                   -- if everything's alright we stash the tar in the global cache
-                  log $ "Copying tarball to global cache: " <> tarballPath
+                  logInfo $ "Copying tarball to global cache: " <> tarballPath
                   liftAff $ FS.writeFile tarballPath tarballBuffer
             -- unpack the tars in the local cache
-            log $ "Unpacking tarball to local cache: " <> localPackageLocation
+            logInfo $ "Unpacking tarball to local cache: " <> localPackageLocation
             liftEffect $ Tar.extract { filename: tarballPath, cwd: Paths.localCachePackagesPath }
   pure transitivePackages
 
 getPackageDependencies :: forall a. PackageName -> PackageSet.Package -> Spago (FetchEnv a) (Maybe (Map PackageName Range))
 getPackageDependencies packageName package = case package of
   Version v -> do
-    { getManifestFromIndex } <- ask
-    maybeManifest <- liftAff $ getManifestFromIndex packageName v
+    { getManifestFromIndex, logOptions } <- ask
+    maybeManifest <- runSpago { logOptions } $ getManifestFromIndex packageName v
     pure $ map (_.dependencies <<< unwrap) maybeManifest
-  GitPackage p -> liftAff do
+  GitPackage p -> do
     -- TODO: error handling here
     let packageLocation = Paths.getPackageLocation packageName package
     Git.fetchRepo p packageLocation
     -- try to see if the package has a spago config, and if it's there we read it
     -- TODO: make this work with manifests
-    try (liftAff $ Config.readConfig (Path.concat [ packageLocation, "spago.yaml" ])) >>= case _ of
+    Config.readConfig (Path.concat [ packageLocation, "spago.yaml" ]) >>= case _ of
       Right { dependencies: (Dependencies deps) } -> do
         pure (Just (map (fromMaybe widestRange) deps))
       -- if we don't have any config then we require the package.dependencies array to be there
       Left err -> do
+        logDebug $ "Failed to read config of dependency, error: " <> err
         let dependencies = Registry.Prelude.fromJust' (\_ -> unsafeCrashWith $ "Dependencies are not there: " <> show p) p.dependencies
         pure $ Just $ Map.fromFoldable $ map (\d -> Tuple d widestRange) dependencies
 
@@ -144,7 +147,7 @@ type TransitiveDepsResult =
 -- | Return the transitive dependencies of a list of packages
 getTransitiveDeps :: forall a. Array PackageName -> Spago (FetchEnv a) (Map PackageName Package)
 getTransitiveDeps deps = do
-  log "Getting transitive deps"
+  logDebug "Getting transitive deps"
   { packageSet } <- ask
   let
     printPackageError :: PackageName -> String
@@ -192,11 +195,11 @@ getTransitiveDeps deps = do
     for deps (\d -> State.evalStateT (go mempty d) Map.empty) >>= (pure <<< foldl mergeResults init)
 
   when (not (Set.isEmpty errors.cycle)) do
-    crash $ "The following packages have circular dependencies:\n" <> foldMap printPackageError (Set.toUnfoldable errors.cycle :: Array PackageName)
+    die $ "The following packages have circular dependencies:\n" <> foldMap printPackageError (Set.toUnfoldable errors.cycle :: Array PackageName)
   when (not (Set.isEmpty errors.notInPackageSet)) do
-    crash $ "The following packages do not exist in your package set:\n" <> foldMap printPackageError errors.notInPackageSet
+    die $ "The following packages do not exist in your package set:\n" <> foldMap printPackageError errors.notInPackageSet
   when (not (Set.isEmpty errors.notInIndex)) do
-    crash $ "The following packages do not exist in the package index:\n" <> foldMap printPackageError errors.notInPackageSet
+    die $ "The following packages do not exist in the package index:\n" <> foldMap printPackageError errors.notInPackageSet
   pure packages
 
 widestRange :: Range

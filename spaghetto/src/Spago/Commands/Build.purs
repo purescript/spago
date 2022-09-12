@@ -12,6 +12,7 @@ type BuildEnv a =
   { purs :: FilePath
   , git :: FilePath
   , dependencies :: Map PackageName Package
+  , logOptions :: LogOptions
   | a
   }
 
@@ -27,11 +28,11 @@ run opts = do
   -- TODO: here we can select the right glob for a monorepo setup
   let projectSources = if opts.depsOnly then [] else [ "src/**/*.purs" ]
   let args = [ "compile" ] <> projectSources <> dependencyGlobs
-  log $ "Running purs: " <> show args
-  result <- liftAff $ spawnFromParentWithStdin
+  logDebug [ "Running command: purs", "With args: " <> show args ]
+  void $ liftAff $ spawnFromParentWithStdin
     { command
     , args
     , input: Nothing
     , cwd: Nothing
     }
-  logShow result
+  logInfo (foreground Green $ toDoc "\n  ✓ Build succeeded.")

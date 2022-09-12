@@ -2,11 +2,11 @@ module Spago.Command.Bundle where
 
 import Spago.Prelude
 
-import Data.Function.Uncurried (Fn1, runFn1)
 import Spago.Config (Platform)
 
 type BundleEnv a =
   { esbuild :: FilePath
+  , logOptions :: LogOptions
   | a
   }
 
@@ -25,9 +25,6 @@ type RawBundleOptions =
   , format :: String
   }
 
--- TODO: return a promise here, so we can display the return value
-foreign import bundleImpl :: Fn1 RawBundleOptions (Effect Unit)
-
 run :: forall a. BundleOptions -> Spago (BundleEnv a) Unit
 run opts = do
   { esbuild } <- ask
@@ -44,11 +41,10 @@ run opts = do
       , "--banner:js=import __module from \'module\';import __path from \'path\';import __url from \'url\';const require = __module.createRequire(import.meta.url);"
       , "--format=esm" -- TODO: have this as input
       ] <> minify
-  log $ "Running esbuild: " <> show args
-  result <- liftAff $ spawnFromParentWithStdin
+  logDebug $ "Running esbuild: " <> show args
+  void $ liftAff $ spawnFromParentWithStdin
     { command
     , args
     , input: Nothing
     , cwd: Nothing
     }
-  logShow result

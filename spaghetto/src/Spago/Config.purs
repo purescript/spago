@@ -27,6 +27,8 @@ type Config =
   , bundle :: Maybe BundleConfig
   }
 
+-- FIXME: workspace and multi-package
+
 newtype Dependencies = Dependencies (Map PackageName (Maybe Range))
 
 instance Yaml.ToYaml Dependencies where
@@ -70,7 +72,7 @@ type PackagesDb =
   , extra_packages :: Maybe (Map PackageName GitPackage)
   }
 
--- TODO alternateBackend
+-- FIXME alternateBackend
 -- TODO publish config
 
 type BundleConfig =
@@ -97,14 +99,7 @@ instance ToYaml Platform where
   encode = Core.fromString <<< show
   decode = Either.note "Expected BundlePlatform" <<< parsePlatform <=< Yaml.decode
 
-readConfig :: FilePath -> Aff Config
+readConfig :: forall a. FilePath -> Spago (LogEnv a) (Either String Config)
 readConfig path = do
-  log "Reading config.."
-  eitherConfig :: Either String Config <- liftAff $ Yaml.readYamlFile path
-  case eitherConfig of
-    Left err -> crash $ "Can't read config: " <> err -- TODO: better error here
-    Right config -> do
-      log "Read config:"
-      -- log (Yaml.printYaml config)
-      pure config
-
+  logDebug "Reading config.."
+  liftAff $ Yaml.readYamlFile path

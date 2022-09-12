@@ -7,7 +7,7 @@ import Registry.Version (Version)
 
 type PackageSet = Map PackageName Package
 
--- TODO: local packages too
+-- FIXME: local packages too
 data Package
   = Version Version
   | GitPackage GitPackage

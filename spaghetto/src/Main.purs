@@ -12,7 +12,6 @@ import Effect.Class.Console as Console
 import Effect.Ref as Ref
 import Node.Path as Path
 import Node.Process as Process
-import Record as Record
 import Registry.API as Registry.API
 import Registry.Index as Index
 import Registry.Json as RegistryJson
@@ -28,11 +27,17 @@ import Spago.Config (Platform(..), BundleConfig)
 import Spago.Config as Config
 import Spago.FS as FS
 import Spago.Git as Git
+import Spago.Log (LogVerbosity(..), supportsColor)
 import Spago.PackageSet (Package)
 import Spago.PackageSet as PackageSet
 import Spago.Paths as Paths
 
-type GlobalArgs = {}
+type GlobalArgs =
+  { noColor :: Boolean
+  , quiet :: Boolean
+  , verbose :: Boolean
+  }
+
 type FetchArgs = { packages :: List String }
 type InstallArgs = FetchArgs
 type BuildArgs = {}
@@ -43,57 +48,65 @@ type BundleArgs =
   , platform :: Maybe String
   }
 
+data SpagoCmd = SpagoCmd GlobalArgs Command
+
 data Command
   = Fetch FetchArgs
   | Install InstallArgs
   | Build BuildArgs
   | Bundle BundleArgs
 
-argParser :: ArgParser Command
+argParser :: ArgParser SpagoCmd
 argParser =
   ArgParser.choose "command"
     [ ArgParser.command [ "fetch" ]
         "Downloads all of the project's dependencies"
         do
-          (Fetch <$> fetchArgsParser) <* ArgParser.flagHelp
+          (SpagoCmd <$> globalArgsParser <*> (Fetch <$> fetchArgsParser)) <* ArgParser.flagHelp
     , ArgParser.command [ "install" ]
         "Compile the project's dependencies"
         do
-          (Install <$> installArgsParser) <* ArgParser.flagHelp
+          (SpagoCmd <$> globalArgsParser <*> (Install <$> installArgsParser)) <* ArgParser.flagHelp
     , ArgParser.command [ "build" ]
         "Compile the project"
         do
-          (Build <$> buildArgsParser) <* ArgParser.flagHelp
+          (SpagoCmd <$> globalArgsParser <*> (Build <$> buildArgsParser)) <* ArgParser.flagHelp
     , ArgParser.command [ "bundle" ]
         "Bundle the project in a single file"
         do
-          (Bundle <$> bundleArgsParser) <* ArgParser.flagHelp
+          (SpagoCmd <$> globalArgsParser <*> (Bundle <$> bundleArgsParser)) <* ArgParser.flagHelp
     ]
     <* ArgParser.flagHelp
     <* ArgParser.flagInfo [ "--version", "-v" ] "Show the current version" "0.0.1" -- TODO: version. Like, with an embedded build meta module
 
 {-
 
-    quiet       = CLI.switch "quiet" 'q' "Suppress all spago logging"
-    verbose     = CLI.switch "verbose" 'v' "Enable additional debug logging, e.g. printing `purs` commands"
-    veryVerbose = CLI.switch "very-verbose" 'V' "Enable more verbosity: timestamps and source locations"
-    noColor     = Opts.switch (Opts.long "no-color" <> Opts.help "Log without ANSI color escape sequences")
-
 TODO: add flag for overriding the cache location
-
--}
-
-{-
 
     buildOptions  = BuildOptions <$> watch <*> clearScreen <*> allowIgnored <*> sourcePaths <*> srcMapFlag <*> noInstall
                     <*> pursArgs <*> depsOnly <*> beforeCommands <*> thenCommands <*> elseCommands
 
 -}
 
+-- TODO: veryVerbose = CLI.switch "very-verbose" 'V' "Enable more verbosity: timestamps and source locations"
 globalArgsParser :: ArgParser GlobalArgs
 globalArgsParser =
   ArgParser.fromRecord
-    {
+    { quiet:
+        ArgParser.flag [ "--quiet", "-q" ]
+          "Suppress all spago logging"
+          # ArgParser.boolean
+          # ArgParser.default false
+    , verbose:
+        ArgParser.flag [ "--verbose", "-v" ]
+          "Enable additional debug logging, e.g. printing `purs` commands"
+          # ArgParser.boolean
+          # ArgParser.default false
+    , noColor:
+        ArgParser.flag [ "--no-color" ]
+          "Force logging without ANSI color escape sequences"
+          # ArgParser.boolean
+          # ArgParser.default false
     }
 
 fetchArgsParser :: ArgParser FetchArgs
@@ -133,7 +146,7 @@ bundleArgsParser =
           # ArgParser.optional
     }
 
-parseArgs :: Effect (Either ArgParser.ArgError Command)
+parseArgs :: Effect (Either ArgParser.ArgError SpagoCmd)
 parseArgs = do
   cliArgs <- Array.drop 2 <$> Process.argv
   pure $ ArgParser.parseArgs "spago"
@@ -146,38 +159,56 @@ main =
   parseArgs >>= case _ of
     Left err ->
       Console.error $ ArgParser.printArgError err
-    Right cmd -> Aff.launchAff_ case cmd of
-      Fetch args -> do
-        { env, packageNames } <- mkFetchEnv args
-        void $ runSpago env (Fetch.run packageNames)
-      Install args -> do
-        { env, packageNames } <- mkFetchEnv args
-        -- TODO: --no-fetch flag
-        dependencies <- runSpago env (Fetch.run packageNames)
-        env' <- mkBuildEnv env dependencies
-        let options = { depsOnly: true }
-        runSpago env' (Build.run options)
-      Build args -> do
-        { env, packageNames } <- mkFetchEnv { packages: mempty }
-        -- TODO: --no-fetch flag
-        dependencies <- runSpago env (Fetch.run packageNames)
-        buildEnv <- mkBuildEnv env dependencies
-        let options = { depsOnly: false }
-        runSpago buildEnv (Build.run options)
-      Bundle args -> do
-        { env, packageNames } <- mkFetchEnv { packages: mempty }
-        -- TODO: --no-fetch flag
-        dependencies <- runSpago env (Fetch.run packageNames)
-        -- TODO: --no-build flag
-        buildEnv <- mkBuildEnv env dependencies
-        let options = { depsOnly: false }
-        runSpago buildEnv (Build.run options)
-        { bundleEnv, bundleOptions } <- mkBundleEnv buildEnv args
-        runSpago bundleEnv (Bundle.run bundleOptions)
+    Right c -> Aff.launchAff_ case c of
+      SpagoCmd globalArgs command -> do
+        logOptions <- mkLogOptions globalArgs
+        runSpago { logOptions } case command of
+          Fetch args -> do
+            { env, packageNames } <- mkFetchEnv args
+            void $ runSpago env (Fetch.run packageNames)
+          Install args -> do
+            { env, packageNames } <- mkFetchEnv args
+            -- TODO: --no-fetch flag
+            dependencies <- runSpago env (Fetch.run packageNames)
+            env' <- runSpago env (mkBuildEnv dependencies)
+            let options = { depsOnly: true }
+            runSpago env' (Build.run options)
+          Build args -> do
+            { env, packageNames } <- mkFetchEnv { packages: mempty }
+            -- TODO: --no-fetch flag
+            dependencies <- runSpago env (Fetch.run packageNames)
+            buildEnv <- runSpago env (mkBuildEnv dependencies)
+            let options = { depsOnly: false }
+            runSpago buildEnv (Build.run options)
+          Bundle args -> do
+            { env, packageNames } <- mkFetchEnv { packages: mempty }
+            -- TODO: --no-fetch flag
+            dependencies <- runSpago env (Fetch.run packageNames)
+            -- TODO: --no-build flag
+            buildEnv <- runSpago env (mkBuildEnv dependencies)
+            let options = { depsOnly: false }
+            runSpago buildEnv (Build.run options)
+            { bundleEnv, bundleOptions } <- runSpago env (mkBundleEnv args)
+            runSpago bundleEnv (Bundle.run bundleOptions)
 
-mkBundleEnv :: forall a. Fetch.FetchEnv a -> BundleArgs -> Aff { bundleEnv :: (Bundle.BundleEnv ()), bundleOptions :: Bundle.BundleOptions }
-mkBundleEnv { config } bundleArgs = do
-  logShow bundleArgs
+-- FIXME: do the thing
+mkLogOptions :: GlobalArgs -> Aff LogOptions
+mkLogOptions { noColor, quiet, verbose } = do
+  supports <- liftEffect supportsColor
+  let color = and [ supports, not noColor ]
+  let
+    verbosity =
+      if quiet then
+        LogQuiet
+      else if verbose then
+        LogVerbose
+      else LogNormal
+  pure { color, verbosity }
+
+mkBundleEnv :: forall a. BundleArgs -> Spago (Fetch.FetchEnv a) { bundleEnv :: (Bundle.BundleEnv ()), bundleOptions :: Bundle.BundleOptions }
+mkBundleEnv bundleArgs = do
+  { config, logOptions } <- ask
+  logDebug $ "Bundle args: " <> show bundleArgs
   -- the reason why we don't have a default on the CLI is that we look some of these
   -- up in the config - though the flags take precedence
   let
@@ -192,29 +223,30 @@ mkBundleEnv { config } bundleArgs = do
           <|> bundleConf _.platform
       )
   let bundleOptions = { minify, entrypoint, outfile, platform }
-  let bundleEnv = { esbuild: "esbuild" } -- TODO: which esbuild
+  let bundleEnv = { esbuild: "esbuild", logOptions } -- TODO: which esbuild
   pure { bundleOptions, bundleEnv }
 
-mkBuildEnv :: forall a. Fetch.FetchEnv a -> Map PackageName Package -> Aff (Build.BuildEnv (Fetch.FetchEnvRow a))
-mkBuildEnv fetchEnv dependencies = do
+mkBuildEnv :: forall a. Map PackageName Package -> Spago (Fetch.FetchEnv a) (Build.BuildEnv ())
+mkBuildEnv dependencies = do
+  { logOptions } <- ask
   -- FIXME: find executables in path, parse compiler version, etc etc
-  let buildEnv = { purs: "purs", git: "git", dependencies }
-  pure $ Record.union buildEnv fetchEnv
+  pure { logOptions, purs: "purs", git: "git", dependencies }
 
-mkFetchEnv :: FetchArgs -> Aff { env :: Fetch.FetchEnv (), packageNames :: Array PackageName }
+mkFetchEnv :: forall a. FetchArgs -> Spago (LogEnv a) { env :: Fetch.FetchEnv (), packageNames :: Array PackageName }
 mkFetchEnv args = do
   let { right: packageNames, left: failedPackageNames } = partitionMap PackageName.parse (Array.fromFoldable args.packages)
   unless (Array.null failedPackageNames) do
-    crash $ "Failed to parse some package name: " <> show failedPackageNames
+    die $ "Failed to parse some package name: " <> show failedPackageNames
 
-  log $ "CWD: " <> Paths.cwd
+  logDebug $ "CWD: " <> Paths.cwd
 
   -- Take care of the caches
-  FS.mkdirp Paths.globalCachePath
-  FS.mkdirp Paths.localCachePath
-  FS.mkdirp Paths.localCachePackagesPath
-  log $ "Global cache: " <> show Paths.globalCachePath
-  log $ "Local cache: " <> show Paths.localCachePath
+  liftAff do
+    FS.mkdirp Paths.globalCachePath
+    FS.mkdirp Paths.localCachePath
+    FS.mkdirp Paths.localCachePackagesPath
+  logDebug $ "Global cache: " <> show Paths.globalCachePath
+  logDebug $ "Local cache: " <> show Paths.localCachePath
   let registryPath = Path.concat [ Paths.globalCachePath, "registry" ]
   let registryIndexPath = Path.concat [ Paths.globalCachePath, "registry-index" ]
 
@@ -222,15 +254,15 @@ mkFetchEnv args = do
   -- and we don't have to read it all together
   indexRef <- liftEffect $ Ref.new (Map.empty :: Map PackageName (Map Version Manifest))
   let
-    getManifestFromIndex :: PackageName -> Version -> Aff (Maybe Manifest)
+    getManifestFromIndex :: PackageName -> Version -> Spago (LogEnv ()) (Maybe Manifest)
     getManifestFromIndex name version = do
       indexMap <- liftEffect (Ref.read indexRef)
       case Map.lookup name indexMap of
         Just meta -> pure (Map.lookup version meta)
         Nothing -> do
           -- if we don't have it we try reading it from file
-          log $ "Reading package from Index: " <> show name
-          maybeManifests <- Index.readPackage registryIndexPath name
+          logDebug $ "Reading package from Index: " <> show name
+          maybeManifests <- liftAff $ Index.readPackage registryIndexPath name
           let manifests = map (\m@(Manifest m') -> Tuple m'.version m) $ fromMaybe [] $ map NonEmptyArray.toUnfoldable maybeManifests
           let versions = Map.fromFoldable manifests
           liftEffect (Ref.write (Map.insert name versions indexMap) indexRef)
@@ -239,7 +271,7 @@ mkFetchEnv args = do
   -- same deal for the metadata files
   metadataRef <- liftEffect $ Ref.new (Map.empty :: Map PackageName Metadata)
   let
-    getMetadata :: PackageName -> Aff (Either String Metadata)
+    getMetadata :: PackageName -> Spago (LogEnv ()) (Either String Metadata)
     getMetadata name = do
       metadataMap <- liftEffect (Ref.read metadataRef)
       case Map.lookup name metadataMap of
@@ -247,8 +279,8 @@ mkFetchEnv args = do
         Nothing -> do
           -- if we don't have it we try reading it from file
           let metadataFilePath = Registry.API.metadataFile registryPath name
-          log $ "Reading metadata from file: " <> metadataFilePath
-          (RegistryJson.readJsonFile metadataFilePath) >>= case _ of
+          logDebug $ "Reading metadata from file: " <> metadataFilePath
+          liftAff (RegistryJson.readJsonFile metadataFilePath) >>= case _ of
             Left e -> pure (Left e)
             Right m -> do
               -- and memoize it
@@ -258,37 +290,39 @@ mkFetchEnv args = do
   -- clone the registry and index repo, or update them
   try (Git.fetchRepo { git: "https://github.com/purescript/registry-index.git", ref: "main" } registryIndexPath) >>= case _ of
     Right _ -> pure unit
-    Left _err -> do
-      log "Couldn't refresh the registry-index, will proceed anyways"
+    Left _err -> logWarn "Couldn't refresh the registry-index, will proceed anyways"
   try (Git.fetchRepo { git: "https://github.com/purescript/registry-preview.git", ref: "main" } registryPath) >>= case _ of
     Right _ -> pure unit
-    Left _err -> do
-      log "Couldn't refresh the registry, will proceed anyways"
+    Left _err -> logWarn "Couldn't refresh the registry, will proceed anyways"
 
-  config <- Config.readConfig "spago.yaml"
+  Config.readConfig "spago.yaml" >>= case _ of
+    Left err -> die $ "Couldn't parse Spago config, error:\n  " <> err
+    Right config -> do
+      -- read in the package set
+      -- TODO: try to parse that field, it might be a URL instead of a version number
+      -- FIXME: this makes us support old package sets too
+      logDebug "Reading the package set"
+      let packageSetPath = Path.concat [ registryPath, "package-sets", config.packages_db.set <> ".json" ]
+      liftAff (RegistryJson.readJsonFile packageSetPath) >>= case _ of
+        Left err -> die $ "Couldn't read the package set: " <> err
+        Right (Registry.PackageSet registryPackageSet) -> do
+          logInfo "Read the package set from the registry"
 
-  -- read in the package set
-  -- TODO: try to parse that field, it might be a URL instead of a version number
-  log "Reading the package set"
-  let packageSetPath = Path.concat [ registryPath, "package-sets", config.packages_db.set <> ".json" ]
-  liftAff (RegistryJson.readJsonFile packageSetPath) >>= case _ of
-    Left err -> crash $ "Couldn't read the package set: " <> err
-    Right (Registry.PackageSet registryPackageSet) -> do
-      log "Read the package set from the registry"
+          -- Mix in the package set the ExtraPackages from the config
+          -- Note: if there are duplicate packages we prefer the ones from the extra_packages
+          let
+            packageSet = Map.union
+              (map PackageSet.GitPackage (fromMaybe Map.empty config.packages_db.extra_packages))
+              (map PackageSet.Version registryPackageSet.packages)
 
-      -- Mix in the package set the ExtraPackages from the config
-      -- Note: if there are duplicate packages we prefer the ones from the extra_packages
-      let
-        packageSet = Map.union
-          (map PackageSet.GitPackage (fromMaybe Map.empty config.packages_db.extra_packages))
-          (map PackageSet.Version registryPackageSet.packages)
-
-      pure
-        { packageNames
-        , env:
-            { getManifestFromIndex
-            , getMetadata
-            , config
-            , packageSet
+          { logOptions } <- ask
+          pure
+            { packageNames
+            , env:
+                { getManifestFromIndex
+                , getMetadata
+                , config
+                , packageSet
+                , logOptions
+                }
             }
-        }

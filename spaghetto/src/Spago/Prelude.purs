@@ -3,14 +3,14 @@ module Spago.Prelude
   , module Extra
   , Spago(..)
   , runSpago
-  , crash
+  , throwError
   , spawnFromParentWithStdin
   ) where
 
 import Prelude
 
 import Control.Alt ((<|>)) as Extra
-import Control.Monad.Error.Class (class MonadThrow)
+import Control.Monad.Error.Class (class MonadError, class MonadThrow)
 import Control.Monad.Error.Class (try, catchError) as Extra
 import Control.Monad.Reader (ask, asks) as Extra
 import Control.Monad.Reader (class MonadAsk, ReaderT, runReaderT)
@@ -19,7 +19,7 @@ import Data.Array ((..)) as Extra
 import Data.DateTime.Instant (Instant) as Extra
 import Data.Either (Either(..), isLeft, isRight) as Extra
 import Data.Filterable (partition, partitionMap) as Extra
-import Data.Foldable (foldMap, for_, foldl) as Extra
+import Data.Foldable (foldMap, for_, foldl, and, or) as Extra
 import Data.Generic.Rep (class Generic) as Extra
 import Data.Identity (Identity(..)) as Extra
 import Data.List (List, (:)) as Extra
@@ -48,7 +48,7 @@ import Node.Encoding (Encoding(..)) as Extra
 import Node.Path (FilePath) as Extra
 import Node.Process as Process
 import Node.Stream as Stream
-import Spago.Log (log, logShow) as Extra
+import Spago.Log (logDebug, logError, logInfo, logWarn, die, LogOptions, LogEnv, foreground, Color(..), toDoc) as Extra
 import Unsafe.Coerce (unsafeCoerce)
 
 newtype Spago env a = Spago (ReaderT env Extra.Aff a)
@@ -63,16 +63,17 @@ derive newtype instance Monad (Spago env)
 derive newtype instance MonadEffect (Spago env)
 derive newtype instance MonadAff (Spago env)
 derive newtype instance MonadThrow Extra.Error (Spago env)
+derive newtype instance MonadError Extra.Error (Spago env)
 derive newtype instance MonadAsk env (Spago env)
 
-runSpago :: forall a env. env -> Spago env a -> Extra.Aff a
-runSpago env (Spago m) = runReaderT m env
+runSpago' :: forall a env. env -> Spago env a -> Extra.Aff a
+runSpago' env (Spago m) = runReaderT m env
 
--- TODO: better logging/crashing
-crash :: forall a m. MonadEffect m => String -> m a
-crash msg = do
-  Extra.log msg
-  Extra.liftEffect $ Process.exit 1
+runSpago :: forall m a env. MonadAff m => env -> Spago env a -> m a
+runSpago env a = Extra.liftAff (runSpago' env a)
+
+throwError :: forall a m. MonadThrow Extra.Error m => String -> m a
+throwError = Aff.throwError <<< Aff.error
 
 type SpawnArgs =
   { command :: String

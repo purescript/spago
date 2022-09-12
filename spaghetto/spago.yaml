@@ -55,3 +55,35 @@ packages_db:
     registry-dev:
       git: https://github.com/purescript/registry-dev.git
       ref: 1ab36aa1d5eae392dfe47c488d1eb47fb67ccac7
+    dodo-printer:
+      git: https://github.com/natefaubion/purescript-dodo-printer.git
+      ref: 831c5c963a57ca4bfd62f96335267d7d0785851d
+      dependencies:
+        - aff
+        - ansi
+        - arrays
+        - avar
+        - console
+        - control
+        - effect
+        - either
+        - exceptions
+        - foldable-traversable
+        - integers
+        - lists
+        - maybe
+        - minibench
+        - newtype
+        - node-buffer
+        - node-child-process
+        - node-fs-aff
+        - node-path
+        - node-process
+        - node-streams
+        - parallel
+        - partial
+        - posix-types
+        - prelude
+        - safe-coerce
+        - strings
+        - tuples

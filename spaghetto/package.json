@@ -30,9 +30,11 @@
     "jsonrepair": "^2.2.1",
     "semver": "^7.3.5",
     "spdx-expression-parse": "^3.0.1",
+    "supports-color": "^9.2.3",
     "tar": "^6.1.11",
     "tmp": "^0.2.1",
     "which": "^2.0.2",
+    "xhr2": "^0.2.1",
     "yaml": "^2.1.1"
   }
 }
