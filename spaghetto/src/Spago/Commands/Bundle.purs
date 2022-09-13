@@ -41,6 +41,7 @@ run opts = do
       , "--banner:js=import __module from \'module\';import __path from \'path\';import __url from \'url\';const require = __module.createRequire(import.meta.url);"
       , "--format=esm" -- TODO: have this as input
       ] <> minify
+  logInfo "Bundling..."
   logDebug $ "Running esbuild: " <> show args
   void $ liftAff $ spawnFromParentWithStdin
     { command
@@ -48,3 +49,4 @@ run opts = do
     , input: Nothing
     , cwd: Nothing
     }
+  logSuccess "Bundle succeeded."

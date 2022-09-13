@@ -62,22 +62,22 @@ argParser =
     [ ArgParser.command [ "fetch" ]
         "Downloads all of the project's dependencies"
         do
-          (SpagoCmd <$> globalArgsParser <*> (Fetch <$> fetchArgsParser)) <* ArgParser.flagHelp
+          (SpagoCmd <$> globalArgsParser <*> (Fetch <$> fetchArgsParser) <* ArgParser.flagHelp)
     , ArgParser.command [ "install" ]
         "Compile the project's dependencies"
         do
-          (SpagoCmd <$> globalArgsParser <*> (Install <$> installArgsParser)) <* ArgParser.flagHelp
+          (SpagoCmd <$> globalArgsParser <*> (Install <$> installArgsParser) <* ArgParser.flagHelp)
     , ArgParser.command [ "build" ]
         "Compile the project"
         do
-          (SpagoCmd <$> globalArgsParser <*> (Build <$> buildArgsParser)) <* ArgParser.flagHelp
+          (SpagoCmd <$> globalArgsParser <*> (Build <$> buildArgsParser) <* ArgParser.flagHelp)
     , ArgParser.command [ "bundle" ]
         "Bundle the project in a single file"
         do
-          (SpagoCmd <$> globalArgsParser <*> (Bundle <$> bundleArgsParser)) <* ArgParser.flagHelp
+          (SpagoCmd <$> globalArgsParser <*> (Bundle <$> bundleArgsParser) <* ArgParser.flagHelp)
     ]
     <* ArgParser.flagHelp
-    <* ArgParser.flagInfo [ "--version", "-v" ] "Show the current version" "0.0.1" -- TODO: version. Like, with an embedded build meta module
+    <* ArgParser.flagInfo [ "--version" ] "Show the current version" "0.0.1" -- TODO: version. Like, with an embedded build meta module
 
 {-
 
@@ -191,7 +191,6 @@ main =
             { bundleEnv, bundleOptions } <- runSpago env (mkBundleEnv args)
             runSpago bundleEnv (Bundle.run bundleOptions)
 
--- FIXME: do the thing
 mkLogOptions :: GlobalArgs -> Aff LogOptions
 mkLogOptions { noColor, quiet, verbose } = do
   supports <- liftEffect supportsColor

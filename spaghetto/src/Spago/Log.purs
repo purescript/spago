@@ -7,10 +7,10 @@ module Spago.Log
   , logDebug
   , logError
   , logInfo
+  , logSuccess
   , logWarn
   , supportsColor
   , toDoc
-  , module Extra
   ) where
 
 import Prelude
@@ -21,7 +21,6 @@ import Dodo (Doc)
 import Dodo as Log
 import Dodo.Ansi (GraphicsParam)
 import Dodo.Ansi as Ansi
-import Dodo.Ansi (foreground, Color(..)) as Extra
 import Effect (Effect)
 import Effect.Class (class MonadEffect)
 import Effect.Class as Effect
@@ -57,7 +56,7 @@ instance Loggable String where
   toDoc = Log.text
 
 instance Loggable a => Loggable (Array a) where
-  toDoc = Log.foldWithSeparator Log.break <<< map toDoc
+  toDoc = Log.lines <<< map toDoc
 
 log :: forall a m. MonadEffect m => MonadAsk (LogEnv a) m => Log -> m Unit
 log { content, level } = do
@@ -70,6 +69,13 @@ log { content, level } = do
 
 logInfo :: forall a b m. MonadEffect m => MonadAsk (LogEnv b) m => Loggable a => a -> m Unit
 logInfo l = log { level: LogInfo, content: toDoc l }
+
+logSuccess :: forall a b m. MonadEffect m => MonadAsk (LogEnv b) m => Loggable a => a -> m Unit
+logSuccess l = log
+  { level: LogInfo
+  , content: Ansi.foreground Ansi.Green
+      (Log.break <> Ansi.bold (toDoc " ✓" <> Log.space <> toDoc l) <> Log.break)
+  }
 
 logDebug :: forall a b m. MonadEffect m => MonadAsk (LogEnv b) m => Loggable a => a -> m Unit
 logDebug l = log { level: LogDebug, content: Ansi.foreground Ansi.Blue (toDoc l) }

@@ -21,6 +21,7 @@ type BuildOptions =
 
 run :: forall a. BuildOptions -> Spago (BuildEnv a) Unit
 run opts = do
+  logInfo "Building..."
   void $ liftAff $ spawnFromParentWithStdin { command: "purs", args: [ "--version" ], input: Nothing, cwd: Nothing }
   { purs, dependencies } <- ask
   let command = purs
@@ -35,4 +36,4 @@ run opts = do
     , input: Nothing
     , cwd: Nothing
     }
-  logInfo (foreground Green $ toDoc "\n  ✓ Build succeeded.")
+  logSuccess "Build succeeded."
