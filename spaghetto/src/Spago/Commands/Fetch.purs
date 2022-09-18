@@ -24,20 +24,17 @@ import Registry.Prelude as Registry.Prelude
 import Registry.Schema (Manifest, Metadata)
 import Registry.Version (Range, Version)
 import Registry.Version as Registry.Version
-import Spago.Config (Config, Dependencies(..))
+import Spago.Config (Dependencies(..), Package(..), Workspace)
 import Spago.Config as Config
 import Spago.FS as FS
 import Spago.Git as Git
-import Spago.PackageSet (Package(..), PackageSet)
-import Spago.PackageSet as PackageSet
 import Spago.Paths as Paths
 import Spago.Tar as Tar
 
 type FetchEnvRow a =
   ( getManifestFromIndex :: PackageName -> Version -> Spago (LogEnv ()) (Maybe Manifest)
   , getMetadata :: PackageName -> Spago (LogEnv ()) (Either String Metadata)
-  , config :: Config
-  , packageSet :: PackageSet
+  , workspace :: Workspace
   , logOptions :: LogOptions
   | a
   )
@@ -48,10 +45,10 @@ run :: forall a. Array PackageName -> Spago (FetchEnv a) (Map PackageName Packag
 run packages = do
   logDebug $ "Requested to install these packages: " <> show packages
 
-  { getMetadata, config, logOptions } <- ask
+  { getMetadata, workspace, logOptions } <- ask
 
   -- lookup the dependencies in the package set, so we get their version numbers
-  let (Dependencies deps) = config.dependencies
+  let (Dependencies deps) = workspace.selected.package.dependencies
 
   -- FIXME: we should manipulate the yaml so we can insert the new packages in the config file
 
@@ -62,14 +59,14 @@ run packages = do
   -- then for every package we have we try to download it, and copy it in the local cache
   -- FIXME: this should all happen in parallel, and we need a process pool to limit concurrency
   void $ for (Map.toUnfoldable transitivePackages :: Array (Tuple PackageName Package)) \(Tuple name package) -> do
-    let localPackageLocation = Paths.getPackageLocation name package
+    let localPackageLocation = Config.getPackageLocation name package
     -- first of all, we check if we have the package in the local cache. If so, we don't even do the work
     unlessM (liftEffect $ FS.Sync.exists localPackageLocation) case package of
-      GitPackage gitPackage -> do
+      RemoteGitPackage gitPackage -> do
         -- Easy, just git clone it in the local cache
         -- TODO: error handling here
         Git.fetchRepo gitPackage localPackageLocation
-      Version v -> do
+      RegistryVersion v -> do
         -- if the version comes from the registry then we have a longer list of things to do
         let versionString = Registry.Version.printVersion v
         -- get the metadata for the package, so we have access to the hash and other info
@@ -112,28 +109,40 @@ run packages = do
             -- unpack the tars in the local cache
             logInfo $ "Unpacking tarball to local cache: " <> localPackageLocation
             liftEffect $ Tar.extract { filename: tarballPath, cwd: Paths.localCachePackagesPath }
+      -- Local package, no work to be done
+      LocalPackage _ -> pure unit
+      WorkspacePackage _ -> pure unit
   pure transitivePackages
 
-getPackageDependencies :: forall a. PackageName -> PackageSet.Package -> Spago (FetchEnv a) (Maybe (Map PackageName Range))
+getPackageDependencies :: forall a. PackageName -> Package -> Spago (FetchEnv a) (Maybe (Map PackageName Range))
 getPackageDependencies packageName package = case package of
-  Version v -> do
+  RegistryVersion v -> do
     { getManifestFromIndex, logOptions } <- ask
     maybeManifest <- runSpago { logOptions } $ getManifestFromIndex packageName v
     pure $ map (_.dependencies <<< unwrap) maybeManifest
-  GitPackage p -> do
+  RemoteGitPackage p -> do
     -- TODO: error handling here
-    let packageLocation = Paths.getPackageLocation packageName package
+    let packageLocation = Config.getPackageLocation packageName package
     Git.fetchRepo p packageLocation
+    readLocalDependencies p packageLocation p.dependencies
+  LocalPackage p -> do
+    readLocalDependencies p p.path p.dependencies
+  WorkspacePackage { package: { dependencies: (Dependencies deps) } } ->
+    pure (Just (map (fromMaybe widestRange) deps))
+  where
+  readLocalDependencies :: forall b. Show b => b -> FilePath -> Maybe Dependencies -> Spago (FetchEnv a) (Maybe (Map PackageName Range))
+  readLocalDependencies p packageLocation maybeDependencies = do
     -- try to see if the package has a spago config, and if it's there we read it
     -- TODO: make this work with manifests
     Config.readConfig (Path.concat [ packageLocation, "spago.yaml" ]) >>= case _ of
-      Right { dependencies: (Dependencies deps) } -> do
+      Right { package: Just { dependencies: (Dependencies deps) } } -> do
         pure (Just (map (fromMaybe widestRange) deps))
       -- if we don't have any config then we require the package.dependencies array to be there
-      Left err -> do
-        logDebug $ "Failed to read config of dependency, error: " <> err
-        let dependencies = Registry.Prelude.fromJust' (\_ -> unsafeCrashWith $ "Dependencies are not there: " <> show p) p.dependencies
-        pure $ Just $ Map.fromFoldable $ map (\d -> Tuple d widestRange) dependencies
+      other -> do
+        logDebug $ "Failed to read config of dependency, error: " <> show other
+        -- TODO: this should really be a nicer crash
+        let (Dependencies deps) = Registry.Prelude.fromJust' (\_ -> unsafeCrashWith $ "Dependencies are not there: " <> show p) maybeDependencies
+        pure (Just (map (fromMaybe widestRange) deps))
 
 type TransitiveDepsResult =
   { packages :: Map PackageName Package
@@ -148,7 +157,7 @@ type TransitiveDepsResult =
 getTransitiveDeps :: forall a. Array PackageName -> Spago (FetchEnv a) (Map PackageName Package)
 getTransitiveDeps deps = do
   logDebug "Getting transitive deps"
-  { packageSet } <- ask
+  { workspace } <- ask
   let
     printPackageError :: PackageName -> String
     printPackageError p = "  - " <> PackageName.print p <> "\n"
@@ -174,7 +183,7 @@ getTransitiveDeps deps = do
           Nothing ->
             -- First look for the package in the set to get a version number out,
             -- then use that version to look it up in the index and get the dependencies
-            case Map.lookup dep packageSet of
+            case Map.lookup dep workspace.packageSet of
               Nothing -> pure (init { errors { notInPackageSet = Set.singleton dep } })
               Just package -> do
                 maybeDeps <- State.lift $ getPackageDependencies dep package

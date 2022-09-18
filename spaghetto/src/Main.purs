@@ -10,7 +10,6 @@ import Data.Map as Map
 import Effect.Aff as Aff
 import Effect.Class.Console as Console
 import Effect.Ref as Ref
-import Node.Path as Path
 import Node.Process as Process
 import Registry.API as Registry.API
 import Registry.Index as Index
@@ -18,18 +17,15 @@ import Registry.Json as RegistryJson
 import Registry.PackageName (PackageName)
 import Registry.PackageName as PackageName
 import Registry.Schema (Manifest(..), Metadata)
-import Registry.Schema as Registry
 import Registry.Version (Version)
 import Spago.Command.Build as Build
 import Spago.Command.Bundle as Bundle
 import Spago.Commands.Fetch as Fetch
-import Spago.Config (Platform(..), BundleConfig)
+import Spago.Config (BundleConfig, Package, Platform(..))
 import Spago.Config as Config
 import Spago.FS as FS
 import Spago.Git as Git
 import Spago.Log (LogVerbosity(..), supportsColor)
-import Spago.PackageSet (Package)
-import Spago.PackageSet as PackageSet
 import Spago.Paths as Paths
 
 type GlobalArgs =
@@ -38,14 +34,22 @@ type GlobalArgs =
   , verbose :: Boolean
   }
 
-type FetchArgs = { packages :: List String }
+type FetchArgs =
+  { packages :: List String
+  , selectedPackage :: Maybe String
+  }
+
 type InstallArgs = FetchArgs
-type BuildArgs = {}
+type BuildArgs =
+  { selectedPackage :: Maybe String
+  }
+
 type BundleArgs =
   { minify :: Maybe Boolean
   , entrypoint :: Maybe FilePath
   , outfile :: Maybe FilePath
   , platform :: Maybe String
+  , selectedPackage :: Maybe String
   }
 
 data SpagoCmd = SpagoCmd GlobalArgs Command
@@ -109,6 +113,13 @@ globalArgsParser =
           # ArgParser.default false
     }
 
+flags =
+  { selectedPackage:
+      ArgParser.argument [ "--package", "-p" ]
+        "Select the local project to build"
+        # ArgParser.optional
+  }
+
 fetchArgsParser :: ArgParser FetchArgs
 fetchArgsParser =
   ArgParser.fromRecord
@@ -116,13 +127,20 @@ fetchArgsParser =
         ArgParser.anyNotFlag "PACKAGE"
           "Package name to add as dependency"
           # ArgParser.many
+    , selectedPackage
     }
+  where
+  { selectedPackage } = flags
 
 installArgsParser :: ArgParser InstallArgs
 installArgsParser = fetchArgsParser
 
 buildArgsParser :: ArgParser BuildArgs
-buildArgsParser = ArgParser.fromRecord {}
+buildArgsParser = ArgParser.fromRecord
+  { selectedPackage
+  }
+  where
+  { selectedPackage } = flags
 
 bundleArgsParser :: ArgParser BundleArgs
 bundleArgsParser =
@@ -144,7 +162,10 @@ bundleArgsParser =
         ArgParser.argument [ "--platform" ]
           "The bundle platform. 'node' or 'browser'"
           # ArgParser.optional
+    , selectedPackage
     }
+  where
+  { selectedPackage } = flags
 
 parseArgs :: Effect (Either ArgParser.ArgError SpagoCmd)
 parseArgs = do
@@ -174,14 +195,14 @@ main =
             let options = { depsOnly: true }
             runSpago env' (Build.run options)
           Build args -> do
-            { env, packageNames } <- mkFetchEnv { packages: mempty }
+            { env, packageNames } <- mkFetchEnv { packages: mempty, selectedPackage: args.selectedPackage }
             -- TODO: --no-fetch flag
             dependencies <- runSpago env (Fetch.run packageNames)
             buildEnv <- runSpago env (mkBuildEnv dependencies)
             let options = { depsOnly: false }
             runSpago buildEnv (Build.run options)
           Bundle args -> do
-            { env, packageNames } <- mkFetchEnv { packages: mempty }
+            { env, packageNames } <- mkFetchEnv { packages: mempty, selectedPackage: args.selectedPackage }
             -- TODO: --no-fetch flag
             dependencies <- runSpago env (Fetch.run packageNames)
             -- TODO: --no-build flag
@@ -206,13 +227,13 @@ mkLogOptions { noColor, quiet, verbose } = do
 
 mkBundleEnv :: forall a. BundleArgs -> Spago (Fetch.FetchEnv a) { bundleEnv :: (Bundle.BundleEnv ()), bundleOptions :: Bundle.BundleOptions }
 mkBundleEnv bundleArgs = do
-  { config, logOptions } <- ask
+  { workspace, logOptions } <- ask
   logDebug $ "Bundle args: " <> show bundleArgs
   -- the reason why we don't have a default on the CLI is that we look some of these
   -- up in the config - though the flags take precedence
   let
     bundleConf :: forall x. (BundleConfig -> Maybe x) -> Maybe x
-    bundleConf f = config.bundle >>= f
+    bundleConf f = workspace.selected.package.bundle >>= f
   let minify = fromMaybe false (bundleArgs.minify <|> bundleConf _.minify)
   let entrypoint = fromMaybe "main.js" (bundleArgs.entrypoint <|> bundleConf _.entrypoint)
   let outfile = fromMaybe "index.js" (bundleArgs.outfile <|> bundleConf _.outfile)
@@ -237,6 +258,12 @@ mkFetchEnv args = do
   unless (Array.null failedPackageNames) do
     die $ "Failed to parse some package name: " <> show failedPackageNames
 
+  -- TODO: refactor this
+  maybeSelectedPackage <- case map PackageName.parse args.selectedPackage of
+    Nothing -> pure Nothing
+    Just (Left err) -> die $ "Failed to parse selected package name, was: " <> show args.selectedPackage
+    Just (Right p) -> pure (Just p)
+
   logDebug $ "CWD: " <> Paths.cwd
 
   -- Take care of the caches
@@ -246,8 +273,6 @@ mkFetchEnv args = do
     FS.mkdirp Paths.localCachePackagesPath
   logDebug $ "Global cache: " <> show Paths.globalCachePath
   logDebug $ "Local cache: " <> show Paths.localCachePath
-  let registryPath = Path.concat [ Paths.globalCachePath, "registry" ]
-  let registryIndexPath = Path.concat [ Paths.globalCachePath, "registry-index" ]
 
   -- we make a Ref for the Index so that we can memoize the lookup of packages
   -- and we don't have to read it all together
@@ -261,7 +286,7 @@ mkFetchEnv args = do
         Nothing -> do
           -- if we don't have it we try reading it from file
           logDebug $ "Reading package from Index: " <> show name
-          maybeManifests <- liftAff $ Index.readPackage registryIndexPath name
+          maybeManifests <- liftAff $ Index.readPackage Paths.registryIndexPath name
           let manifests = map (\m@(Manifest m') -> Tuple m'.version m) $ fromMaybe [] $ map NonEmptyArray.toUnfoldable maybeManifests
           let versions = Map.fromFoldable manifests
           liftEffect (Ref.write (Map.insert name versions indexMap) indexRef)
@@ -277,7 +302,7 @@ mkFetchEnv args = do
         Just meta -> pure (Right meta)
         Nothing -> do
           -- if we don't have it we try reading it from file
-          let metadataFilePath = Registry.API.metadataFile registryPath name
+          let metadataFilePath = Registry.API.metadataFile Paths.registryPath name
           logDebug $ "Reading metadata from file: " <> metadataFilePath
           liftAff (RegistryJson.readJsonFile metadataFilePath) >>= case _ of
             Left e -> pure (Left e)
@@ -287,41 +312,23 @@ mkFetchEnv args = do
               pure (Right m)
 
   -- clone the registry and index repo, or update them
-  try (Git.fetchRepo { git: "https://github.com/purescript/registry-index.git", ref: "main" } registryIndexPath) >>= case _ of
+  logInfo "Refreshing the Registry Index..."
+  try (Git.fetchRepo { git: "https://github.com/purescript/registry-index.git", ref: "main" } Paths.registryIndexPath) >>= case _ of
     Right _ -> pure unit
     Left _err -> logWarn "Couldn't refresh the registry-index, will proceed anyways"
-  try (Git.fetchRepo { git: "https://github.com/purescript/registry-preview.git", ref: "main" } registryPath) >>= case _ of
+  try (Git.fetchRepo { git: "https://github.com/purescript/registry-preview.git", ref: "main" } Paths.registryPath) >>= case _ of
     Right _ -> pure unit
     Left _err -> logWarn "Couldn't refresh the registry, will proceed anyways"
 
-  Config.readConfig "spago.yaml" >>= case _ of
-    Left err -> die $ "Couldn't parse Spago config, error:\n  " <> err
-    Right config -> do
-      -- read in the package set
-      -- TODO: try to parse that field, it might be a URL instead of a version number
-      -- FIXME: this makes us support old package sets too
-      logDebug "Reading the package set"
-      let packageSetPath = Path.concat [ registryPath, "package-sets", config.packages_db.set <> ".json" ]
-      liftAff (RegistryJson.readJsonFile packageSetPath) >>= case _ of
-        Left err -> die $ "Couldn't read the package set: " <> err
-        Right (Registry.PackageSet registryPackageSet) -> do
-          logInfo "Read the package set from the registry"
+  workspace <- Config.readWorkspace maybeSelectedPackage
 
-          -- Mix in the package set the ExtraPackages from the config
-          -- Note: if there are duplicate packages we prefer the ones from the extra_packages
-          let
-            packageSet = Map.union
-              (map PackageSet.GitPackage (fromMaybe Map.empty config.packages_db.extra_packages))
-              (map PackageSet.Version registryPackageSet.packages)
-
-          { logOptions } <- ask
-          pure
-            { packageNames
-            , env:
-                { getManifestFromIndex
-                , getMetadata
-                , config
-                , packageSet
-                , logOptions
-                }
-            }
+  { logOptions } <- ask
+  pure
+    { packageNames
+    , env:
+        { getManifestFromIndex
+        , getMetadata
+        , workspace
+        , logOptions
+        }
+    }
