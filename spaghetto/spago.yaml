@@ -1,60 +1,56 @@
-name: spaghetto
-dependencies:
-  - aff
-  - affjax
-  - affjax-node
-  - ansi
-  - argonaut-core
-  - argparse-basic
-  - arrays
-  - bifunctors
-  - console
-  - control
-  - datetime
-  - effect
-  - either
-  - exceptions
-  - filterable
-  - foldable-traversable
-  - foreign-object
-  - functions
-  - http-methods
-  - identity
-  - integers
-  - lists
-  - maybe
-  - newtype
-  - node-buffer
-  - node-child-process
-  - node-fs
-  - node-fs-aff
-  - node-path
-  - node-process
-  - node-streams
-  - ordered-collections
-  - parsing
-  - partial
-  - posix-types
-  - prelude
-  - record
-  - refs
-  - registry-dev
-  - strings
-  - transformers
-  - tuples
-  - unsafe-coerce
-license: BSD-3-Clause
-bundle:
-  entrypoint: bin/index.dev.js
-  outfile: bin/bundle.js
-  minify: true
-  format: esm
-packages_db:
+package:
+  name: spaghetto
+  dependencies:
+    - aff
+    - affjax
+    - affjax-node
+    - ansi
+    - argonaut-core
+    - argparse-basic
+    - arrays
+    - bifunctors
+    - console
+    - control
+    - datetime
+    - effect
+    - either
+    - exceptions
+    - filterable
+    - foldable-traversable
+    - foreign-object
+    - functions
+    - http-methods
+    - identity
+    - integers
+    - lists
+    - maybe
+    - newtype
+    - node-buffer
+    - node-child-process
+    - node-fs
+    - node-fs-aff
+    - node-path
+    - node-process
+    - node-streams
+    - ordered-collections
+    - parsing
+    - partial
+    - posix-types
+    - prelude
+    - record
+    - refs
+    - registry-dev
+    - strings
+    - transformers
+    - tuples
+    - unsafe-coerce
+  license: BSD-3-Clause
+workspace:
   set: 0.1.1
   extra_packages:
     registry-dev:
       git: https://github.com/purescript/registry-dev.git
-      ref: 1ab36aa1d5eae392dfe47c488d1eb47fb67ccac7
+      ref: cfa3b385ca718d6361864fda4112bc638a321517
     dodo-printer:
       git: https://github.com/natefaubion/purescript-dodo-printer.git
       ref: 831c5c963a57ca4bfd62f96335267d7d0785851d

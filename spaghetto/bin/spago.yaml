@@ -1,0 +1,10 @@
+package:
+  name: spaghetto-bin
+  dependencies:
+    - spaghetto
+  license: BSD-3-Clause
+  bundle:
+    entrypoint: index.dev.js
+    outfile: bundle.js
+    minify: true
+    format: esm

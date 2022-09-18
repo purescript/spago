@@ -243,7 +243,7 @@ mkBundleEnv bundleArgs = do
           <|> bundleConf _.platform
       )
   let bundleOptions = { minify, entrypoint, outfile, platform }
-  let bundleEnv = { esbuild: "esbuild", logOptions } -- TODO: which esbuild
+  let bundleEnv = { esbuild: "esbuild", logOptions, workspace } -- TODO: which esbuild
   pure { bundleOptions, bundleEnv }
 
 mkBuildEnv :: forall a. Map PackageName Package -> Spago (Fetch.FetchEnv a) (Build.BuildEnv ())

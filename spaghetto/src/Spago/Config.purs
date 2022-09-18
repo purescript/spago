@@ -179,7 +179,9 @@ readWorkspace maybeSelectedPackage = do
       pure $ case maybeConfig of
         Left e -> Left $ "Could not read config at path " <> path <> "\nError was: " <> e
         Right { package: Nothing } -> Left $ "No package found for config at path: " <> path
-        Right { package: Just package } -> Right $ Tuple package.name { path, package }
+        Right { package: Just package } ->
+          -- We store the path of the package, so we can treat is basically as a LocalPackage
+          Right $ Tuple package.name { path: Path.dirname path, package }
   { right: otherPackages, left: failedPackages } <- partitionMap identity <$> traverse readWorkspaceConfig otherConfigPaths
 
   -- TODO do we fail here?
@@ -234,6 +236,7 @@ readWorkspace maybeSelectedPackage = do
             (map RegistryVersion registryPackageSet.packages)
 
   logSuccess $ "Selecting package " <> show selected.package.name
+  logDebug $ "Package path: " <> selected.path
 
   pure { selected, packageSet, backend: workspace.backend }
 
@@ -242,9 +245,7 @@ getPackageLocation name = case _ of
   RegistryVersion v -> Path.concat [ Paths.localCachePackagesPath, PackageName.print name <> "-" <> Version.printVersion v ]
   RemoteGitPackage p -> Path.concat [ Paths.localCachePackagesPath, PackageName.print name, p.ref ]
   LocalPackage p -> p.path
-  WorkspacePackage { path } -> case String.stripSuffix (Pattern "spago.yaml") path of
-    Nothing -> path
-    Just p -> p
+  WorkspacePackage { path } -> path
 
 sourceGlob :: PackageName -> Package -> String
 sourceGlob name package = Path.concat [ getPackageLocation name package, "src/**/*.purs" ]

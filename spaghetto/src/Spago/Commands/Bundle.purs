@@ -2,11 +2,13 @@ module Spago.Command.Bundle where
 
 import Spago.Prelude
 
-import Spago.Config (Platform)
+import Node.Path as Path
+import Spago.Config (Platform, Workspace)
 
 type BundleEnv a =
   { esbuild :: FilePath
   , logOptions :: LogOptions
+  , workspace :: Workspace
   | a
   }
 
@@ -27,15 +29,17 @@ type RawBundleOptions =
 
 run :: forall a. BundleOptions -> Spago (BundleEnv a) Unit
 run opts = do
-  { esbuild } <- ask
+  { esbuild, workspace } <- ask
   let command = esbuild
   -- TODO: here we can select the right glob for a monorepo setup
   let minify = if opts.minify then [ "--minify" ] else []
+  let entrypoint = Path.concat [ workspace.selected.path, opts.entrypoint ]
+  let outfile = Path.concat [ workspace.selected.path, opts.outfile ]
   let
     args =
       [ "--bundle"
-      , opts.entrypoint
-      , "--outfile=" <> opts.outfile
+      , entrypoint
+      , "--outfile=" <> outfile
       , "--platform=" <> show opts.platform
       -- See https://github.com/evanw/esbuild/issues/1921
       , "--banner:js=import __module from \'module\';import __path from \'path\';import __url from \'url\';const require = __module.createRequire(import.meta.url);"
