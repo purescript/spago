@@ -3,8 +3,8 @@
 set -euo pipefail
 
 # Note: this is using a previous version that should already be installed in the system
-spaghetto build
+spaghetto build -p spaghetto-bin
 
 echo ""
 
-./bin/index.dev.js $1
+./bin/index.dev.js "$@"
