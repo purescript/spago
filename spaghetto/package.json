@@ -1,6 +1,6 @@
 {
   "name": "purescript-spaghetto",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "type": "module",
   "bin": {
     "spaghetto": "bin/bundle.js"
@@ -12,9 +12,8 @@
   "scripts": {
     "format": "purs-tidy format-in-place src bin",
     "format:check": "purs-tidy check src bin",
-    "build": "./spaghetto build",
-    "bundle": "./spaghetto bundle",
-    "prepublishOnly": "rm -rf bin/bundle.js && npm run bundle"
+    "bundle": "./spaghetto bundle -p spaghetto-bin",
+    "prepublishOnly": "rm bin/bundle.js && npm run bundle"
   },
   "dependencies": {
     "@octokit/plugin-retry": "^3.0.9",

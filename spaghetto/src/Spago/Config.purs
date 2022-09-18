@@ -7,8 +7,7 @@ import Data.Array as Array
 import Data.Bifunctor (lmap)
 import Data.Either as Either
 import Data.Map as Map
-import Data.String (Pattern(..))
-import Data.String as String
+import Dodo as Log
 import Foreign.FastGlob as Glob
 import Foreign.Object (Object)
 import Foreign.Object as Object
@@ -168,6 +167,7 @@ readWorkspace maybeSelectedPackage = do
 
   -- Then gather all the spago other configs in the tree.
   { succeeded: otherConfigPaths, failed } <- liftAff $ Glob.match' Paths.cwd [ "**/spago.yaml" ] { ignore: [ ".spago", "spago.yaml" ] }
+  logDebug $ [ toDoc "Found packages at these paths:", Log.indent $ Log.lines (map toDoc otherConfigPaths) ]
   logDebug $ "Failed to sanitise some of the glob matches: " <> show failed
 
   -- We read all of them in, and only read the package section, if any.
@@ -190,7 +190,7 @@ readWorkspace maybeSelectedPackage = do
   let
     workspacePackages = Map.fromFoldable $ otherPackages <> case maybePackage of
       Nothing -> []
-      Just package -> [ Tuple package.name { path: "spago.yaml", package } ]
+      Just package -> [ Tuple package.name { path: ".", package } ]
 
   -- Select the package for spago to handle during the rest of the execution
   selected <- case maybeSelectedPackage, maybePackage of
@@ -202,7 +202,7 @@ readWorkspace maybeSelectedPackage = do
         pure package
       -- TODO: well, in some cases we'd like to build all the packages in the workspace together, so maybe we should have some AllPackages selection?
       _ -> die [ "No local package was selected for the build, halting.", "Available packages: " <> show (Map.keys workspacePackages) ]
-    Nothing, Just package -> pure { path: "spago.yaml", package }
+    Nothing, Just package -> pure { path: ".", package }
     Just name, _ -> case Map.lookup name workspacePackages of
       Nothing -> die [ "Selected package " <> show name <> " was not found in the local packages.", "Available packages: " <> show workspacePackages ]
       Just p -> pure p
