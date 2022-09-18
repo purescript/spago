@@ -233,7 +233,7 @@ readWorkspace maybeSelectedPackage = do
             overrides
             (map RegistryVersion registryPackageSet.packages)
 
-  logSuccess $ "Selecting package " <> show selected
+  logSuccess $ "Selecting package " <> show selected.package.name
 
   pure { selected, packageSet, backend: workspace.backend }
 

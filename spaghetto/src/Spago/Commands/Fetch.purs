@@ -58,6 +58,7 @@ run packages = do
 
   -- then for every package we have we try to download it, and copy it in the local cache
   -- FIXME: this should all happen in parallel, and we need a process pool to limit concurrency
+  logInfo "Downloading dependencies..."
   void $ for (Map.toUnfoldable transitivePackages :: Array (Tuple PackageName Package)) \(Tuple name package) -> do
     let localPackageLocation = Config.getPackageLocation name package
     -- first of all, we check if we have the package in the local cache. If so, we don't even do the work
@@ -107,7 +108,7 @@ run packages = do
                   logInfo $ "Copying tarball to global cache: " <> tarballPath
                   liftAff $ FS.writeFile tarballPath tarballBuffer
             -- unpack the tars in the local cache
-            logInfo $ "Unpacking tarball to local cache: " <> localPackageLocation
+            logDebug $ "Unpacking tarball to local cache: " <> localPackageLocation
             liftEffect $ Tar.extract { filename: tarballPath, cwd: Paths.localCachePackagesPath }
       -- Local package, no work to be done
       LocalPackage _ -> pure unit
