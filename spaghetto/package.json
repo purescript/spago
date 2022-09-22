@@ -5,6 +5,9 @@
   "bin": {
     "spago": "bin/bundle.js"
   },
+  "files": [
+    "bin/bundle.js"
+  ],
   "main": "bin/bundle.js",
   "scripts": {
     "format": "purs-tidy format-in-place src bin",
