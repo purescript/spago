@@ -33,6 +33,7 @@ type Config =
 
 type PackageConfig =
   { name :: PackageName
+  , version :: Version
   , license :: License
   , dependencies :: Dependencies
   , testDependencies :: Maybe Dependencies

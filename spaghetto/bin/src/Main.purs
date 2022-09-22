@@ -27,6 +27,7 @@ import Spago.Commands.Sources as Sources
 import Spago.Config (BundleConfig, Package, Platform(..))
 import Spago.Config as Config
 import Spago.FS as FS
+import Spago.Generated.BuildInfo as BuildInfo
 import Spago.Git as Git
 import Spago.Log (LogVerbosity(..), supportsColor)
 import Spago.Paths as Paths
@@ -100,7 +101,7 @@ argParser =
           (SpagoCmd <$> globalArgsParser <*> (Sources <$> sourcesArgsParser) <* ArgParser.flagHelp)
     ]
     <* ArgParser.flagHelp
-    <* ArgParser.flagInfo [ "--version" ] "Show the current version" "0.0.1" -- TODO: version. Like, with an embedded build meta module
+    <* ArgParser.flagInfo [ "--version" ] "Show the current version" Build.currentSpagoVersion
 
 {-
 

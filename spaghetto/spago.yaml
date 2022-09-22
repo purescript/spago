@@ -1,5 +1,6 @@
 package:
   name: spago
+  version: 0.0.2
   dependencies:
     - aff
     - affjax
@@ -50,7 +51,7 @@ workspace:
   extra_packages:
     registry-dev:
       git: https://github.com/purescript/registry-dev.git
-      ref: cfa3b385ca718d6361864fda4112bc638a321517
+      ref: 87c512335fe90eefcb6e8fd7110850192ebe1e34
     dodo-printer:
       git: https://github.com/natefaubion/purescript-dodo-printer.git
       ref: 831c5c963a57ca4bfd62f96335267d7d0785851d

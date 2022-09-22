@@ -10,10 +10,12 @@
   ],
   "main": "bin/bundle.js",
   "scripts": {
+    "version": "sed -i'' -e \"s|version:.*|version: $npm_package_version|g\" {spago,bin/spago}.yaml && git add spago.yaml bin/spago.yaml && exit 1",
+    "postversion": "git push && git push --tags",
     "format": "purs-tidy format-in-place src bin",
     "format:check": "purs-tidy check src bin",
-    "bundle": "./spaghetto bundle -p spaghetto-bin",
-    "_prepublishOnly": "rm -rf bin/bundle.js && npm run bundle"
+    "bundle": "spago bundle -p spago-bin",
+    "prepublishOnly": "rm -rf bin/bundle.js && npm run bundle"
   },
   "dependencies": {
     "@octokit/plugin-retry": "^3.0.9",

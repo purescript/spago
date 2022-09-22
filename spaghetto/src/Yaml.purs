@@ -65,6 +65,7 @@ import Record as Record
 import Registry.Json as Registry.Json
 import Registry.PackageName (PackageName)
 import Registry.PackageName as PackageName
+import Registry.Version (Version)
 import Type.Proxy (Proxy(..))
 
 foreign import _yamlParser :: forall a. Fn3 (String -> a) (Core.Json -> a) String a
@@ -168,6 +169,10 @@ instance ToYaml String where
   decode = Core.caseJsonString (Left "Expected String") Right
 
 instance ToYaml PackageName where
+  encode = Registry.Json.encode
+  decode = Registry.Json.decode
+
+instance ToYaml Version where
   encode = Registry.Json.encode
   decode = Registry.Json.decode
 
