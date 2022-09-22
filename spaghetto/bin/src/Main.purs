@@ -22,6 +22,7 @@ import Registry.Version (Version)
 import Spago.Command.Build as Build
 import Spago.Command.Bundle as Bundle
 import Spago.Commands.Fetch as Fetch
+import Spago.Commands.Sources as Sources
 import Spago.Config (BundleConfig, Package, Platform(..))
 import Spago.Config as Config
 import Spago.FS as FS
@@ -45,6 +46,10 @@ type BuildArgs =
   { selectedPackage :: Maybe String
   }
 
+type SourcesArgs =
+  { selectedPackage :: Maybe String
+  }
+
 type BundleArgs =
   { minify :: Maybe Boolean
   , entrypoint :: Maybe FilePath
@@ -60,6 +65,7 @@ data Command
   | Install InstallArgs
   | Build BuildArgs
   | Bundle BundleArgs
+  | Sources SourcesArgs
 
 argParser :: ArgParser SpagoCmd
 argParser =
@@ -80,6 +86,10 @@ argParser =
         "Bundle the project in a single file"
         do
           (SpagoCmd <$> globalArgsParser <*> (Bundle <$> bundleArgsParser) <* ArgParser.flagHelp)
+    , ArgParser.command [ "sources" ]
+        "List all the source paths (globs) for the dependencies of the project"
+        do
+          (SpagoCmd <$> globalArgsParser <*> (Sources <$> sourcesArgsParser) <* ArgParser.flagHelp)
     ]
     <* ArgParser.flagHelp
     <* ArgParser.flagInfo [ "--version" ] "Show the current version" "0.0.1" -- TODO: version. Like, with an embedded build meta module
@@ -97,21 +107,9 @@ TODO: add flag for overriding the cache location
 globalArgsParser :: ArgParser GlobalArgs
 globalArgsParser =
   ArgParser.fromRecord
-    { quiet:
-        ArgParser.flag [ "--quiet", "-q" ]
-          "Suppress all spago logging"
-          # ArgParser.boolean
-          # ArgParser.default false
-    , verbose:
-        ArgParser.flag [ "--verbose", "-v" ]
-          "Enable additional debug logging, e.g. printing `purs` commands"
-          # ArgParser.boolean
-          # ArgParser.default false
-    , noColor:
-        ArgParser.flag [ "--no-color" ]
-          "Force logging without ANSI color escape sequences"
-          # ArgParser.boolean
-          # ArgParser.default false
+    { quiet: Flags.quiet
+    , verbose: Flags.verbose
+    , noColor: Flags.noColor
     }
 
 fetchArgsParser :: ArgParser FetchArgs
@@ -122,6 +120,12 @@ fetchArgsParser =
           "Package name to add as dependency"
           # ArgParser.many
     , selectedPackage: Flags.selectedPackage
+    }
+
+sourcesArgsParser :: ArgParser SourcesArgs
+sourcesArgsParser =
+  ArgParser.fromRecord
+    { selectedPackage: Flags.selectedPackage
     }
 
 installArgsParser :: ArgParser InstallArgs
@@ -135,23 +139,10 @@ buildArgsParser = ArgParser.fromRecord
 bundleArgsParser :: ArgParser BundleArgs
 bundleArgsParser =
   ArgParser.fromRecord
-    { minify:
-        ArgParser.flag [ "--minify" ]
-          "Minify the bundle"
-          # ArgParser.boolean
-          # ArgParser.optional
-    , entrypoint:
-        ArgParser.argument [ "--entrypoint" ]
-          "The module to bundle as the entrypoint"
-          # ArgParser.optional
-    , outfile:
-        ArgParser.argument [ "--outfile" ]
-          "Destination path for the bundle"
-          # ArgParser.optional
-    , platform:
-        ArgParser.argument [ "--platform" ]
-          "The bundle platform. 'node' or 'browser'"
-          # ArgParser.optional
+    { minify: Flags.minify
+    , entrypoint: Flags.entrypoint
+    , outfile: Flags.outfile
+    , platform: Flags.platform
     , selectedPackage: Flags.selectedPackage
     }
 
@@ -172,6 +163,9 @@ main =
       SpagoCmd globalArgs command -> do
         logOptions <- mkLogOptions globalArgs
         runSpago { logOptions } case command of
+          Sources args -> do
+            { env, packageNames } <- mkFetchEnv { packages: mempty, selectedPackage: args.selectedPackage }
+            void $ runSpago env Sources.run
           Fetch args -> do
             { env, packageNames } <- mkFetchEnv args
             void $ runSpago env (Fetch.run packageNames)

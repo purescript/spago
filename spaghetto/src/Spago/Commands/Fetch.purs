@@ -24,7 +24,7 @@ import Registry.Prelude as Registry.Prelude
 import Registry.Schema (Manifest, Metadata)
 import Registry.Version (Range, Version)
 import Registry.Version as Registry.Version
-import Spago.Config (Dependencies(..), Package(..), Workspace)
+import Spago.Config (Dependencies(..), Package(..), Workspace, PackageSet)
 import Spago.Config as Config
 import Spago.FS as FS
 import Spago.Git as Git
@@ -41,7 +41,7 @@ type FetchEnvRow a =
 
 type FetchEnv a = Record (FetchEnvRow a)
 
-run :: forall a. Array PackageName -> Spago (FetchEnv a) (Map PackageName Package)
+run :: forall a. Array PackageName -> Spago (FetchEnv a) PackageSet
 run packages = do
   logDebug $ "Requested to install these packages: " <> show packages
 
@@ -129,7 +129,8 @@ getPackageDependencies packageName package = case package of
   RemoteGitPackage p -> do
     -- TODO: error handling here
     let packageLocation = Config.getPackageLocation packageName package
-    Git.fetchRepo p packageLocation
+    unlessM (liftEffect $ FS.Sync.exists packageLocation) do
+      Git.fetchRepo p packageLocation
     readLocalDependencies p packageLocation p.dependencies
   LocalPackage p -> do
     readLocalDependencies p p.path p.dependencies

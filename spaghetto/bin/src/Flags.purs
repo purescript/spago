@@ -29,3 +29,21 @@ platform =
   ArgParser.argument [ "--platform" ]
     "The bundle platform. 'node' or 'browser'"
     # ArgParser.optional
+
+quiet =
+  ArgParser.flag [ "--quiet", "-q" ]
+    "Suppress all spago logging"
+    # ArgParser.boolean
+    # ArgParser.default false
+
+verbose =
+  ArgParser.flag [ "--verbose", "-v" ]
+    "Enable additional debug logging, e.g. printing `purs` commands"
+    # ArgParser.boolean
+    # ArgParser.default false
+
+noColor =
+  ArgParser.flag [ "--no-color" ]
+    "Force logging without ANSI color escape sequences"
+    # ArgParser.boolean
+    # ArgParser.default false

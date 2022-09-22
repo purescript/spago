@@ -11,7 +11,9 @@ module Spago.Log
   , logWarn
   , supportsColor
   , toDoc
+  , output
   , module DodoExport
+  , indent2
   ) where
 
 import Prelude
@@ -81,14 +83,17 @@ logSuccess :: forall a b m. MonadEffect m => MonadAsk (LogEnv b) m => Loggable a
 logSuccess l = log
   { level: LogInfo
   , content: Ansi.foreground Ansi.Green
-      (Log.break <> Ansi.bold (toDoc " ✓" <> Log.space <> toDoc l) <> Log.break)
+      (Log.break <> Ansi.bold (toDoc "✅" <> Log.space <> toDoc l) <> Log.break)
   }
 
 logDebug :: forall a b m. MonadEffect m => MonadAsk (LogEnv b) m => Loggable a => a -> m Unit
 logDebug l = log { level: LogDebug, content: Ansi.foreground Ansi.Blue (toDoc l) }
 
 logWarn :: forall a b m. MonadEffect m => MonadAsk (LogEnv b) m => Loggable a => a -> m Unit
-logWarn l = log { level: LogWarning, content: Ansi.foreground Ansi.Yellow (toDoc l) }
+logWarn l = log
+  { level: LogWarning
+  , content: Ansi.foreground Ansi.Yellow (Ansi.bold (toDoc "⚠️" <> Log.space <> toDoc l))
+  }
 
 logError :: forall a b m. MonadEffect m => MonadAsk (LogEnv b) m => Loggable a => a -> m Unit
 logError l = log { level: LogError, content: Ansi.foreground Ansi.Red (toDoc l) }
@@ -98,4 +103,9 @@ die msg = do
   logError msg
   Effect.liftEffect $ Process.exit 1
 
+output :: forall m. MonadEffect m => String -> m Unit
+output = Console.log
+
 foreign import supportsColor :: Effect Boolean
+
+indent2 = Log.indent <<< Log.indent
