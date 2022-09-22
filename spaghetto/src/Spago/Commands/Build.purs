@@ -18,7 +18,9 @@ type BuildEnv a =
   }
 
 type BuildOptions =
-  { depsOnly :: Boolean }
+  { depsOnly :: Boolean
+  , pursArgs :: Array String
+  }
 
 run :: forall a. BuildOptions -> Spago (BuildEnv a) Unit
 run opts = do
@@ -40,7 +42,7 @@ run opts = do
         Nothing -> map workspacePackageGlob (Config.getWorkspacePackages workspace.packageSet)
   logDebug $ "Project sources: " <> show projectSources
 
-  let args = [ "compile" ] <> projectSources <> dependencyGlobs
+  let args = [ "compile" ] <> opts.pursArgs <> projectSources <> dependencyGlobs
   logDebug [ "Running command: purs", "With args: " <> show args ]
   void $ liftAff $ spawnFromParentWithStdin
     { command

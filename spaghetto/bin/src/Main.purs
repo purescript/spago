@@ -6,6 +6,7 @@ import ArgParse.Basic (ArgParser)
 import ArgParse.Basic as ArgParser
 import Data.Array as Array
 import Data.Array.NonEmpty as NonEmptyArray
+import Data.List as List
 import Data.Map as Map
 import Effect.Aff as Aff
 import Effect.Class.Console as Console
@@ -41,9 +42,15 @@ type FetchArgs =
   , selectedPackage :: Maybe String
   }
 
-type InstallArgs = FetchArgs
+type InstallArgs =
+  { packages :: List String
+  , selectedPackage :: Maybe String
+  , pursArgs :: List String
+  }
+
 type BuildArgs =
   { selectedPackage :: Maybe String
+  , pursArgs :: List String
   }
 
 type SourcesArgs =
@@ -56,6 +63,7 @@ type BundleArgs =
   , outfile :: Maybe FilePath
   , platform :: Maybe String
   , selectedPackage :: Maybe String
+  , pursArgs :: List String
   }
 
 data SpagoCmd = SpagoCmd GlobalArgs Command
@@ -115,10 +123,7 @@ globalArgsParser =
 fetchArgsParser :: ArgParser FetchArgs
 fetchArgsParser =
   ArgParser.fromRecord
-    { packages:
-        ArgParser.anyNotFlag "PACKAGE"
-          "Package name to add as dependency"
-          # ArgParser.many
+    { packages: Flags.packages
     , selectedPackage: Flags.selectedPackage
     }
 
@@ -129,11 +134,17 @@ sourcesArgsParser =
     }
 
 installArgsParser :: ArgParser InstallArgs
-installArgsParser = fetchArgsParser
+installArgsParser =
+  ArgParser.fromRecord
+    { packages: Flags.packages
+    , selectedPackage: Flags.selectedPackage
+    , pursArgs: Flags.pursArgs
+    }
 
 buildArgsParser :: ArgParser BuildArgs
 buildArgsParser = ArgParser.fromRecord
   { selectedPackage: Flags.selectedPackage
+  , pursArgs: Flags.pursArgs
   }
 
 bundleArgsParser :: ArgParser BundleArgs
@@ -144,6 +155,7 @@ bundleArgsParser =
     , outfile: Flags.outfile
     , platform: Flags.platform
     , selectedPackage: Flags.selectedPackage
+    , pursArgs: Flags.pursArgs
     }
 
 parseArgs :: Effect (Either ArgParser.ArgError SpagoCmd)
@@ -164,24 +176,24 @@ main =
         logOptions <- mkLogOptions globalArgs
         runSpago { logOptions } case command of
           Sources args -> do
-            { env, packageNames } <- mkFetchEnv { packages: mempty, selectedPackage: args.selectedPackage }
+            { env } <- mkFetchEnv { packages: mempty, selectedPackage: args.selectedPackage }
             void $ runSpago env Sources.run
           Fetch args -> do
             { env, packageNames } <- mkFetchEnv args
             void $ runSpago env (Fetch.run packageNames)
-          Install args -> do
-            { env, packageNames } <- mkFetchEnv args
+          Install args@{ packages, selectedPackage } -> do
+            { env, packageNames } <- mkFetchEnv { packages, selectedPackage }
             -- TODO: --no-fetch flag
             dependencies <- runSpago env (Fetch.run packageNames)
             env' <- runSpago env (mkBuildEnv dependencies)
-            let options = { depsOnly: true }
+            let options = { depsOnly: true, pursArgs: List.toUnfoldable args.pursArgs }
             runSpago env' (Build.run options)
           Build args -> do
             { env, packageNames } <- mkFetchEnv { packages: mempty, selectedPackage: args.selectedPackage }
             -- TODO: --no-fetch flag
             dependencies <- runSpago env (Fetch.run packageNames)
             buildEnv <- runSpago env (mkBuildEnv dependencies)
-            let options = { depsOnly: false }
+            let options = { depsOnly: false, pursArgs: List.toUnfoldable args.pursArgs }
             runSpago buildEnv (Build.run options)
           Bundle args -> do
             { env, packageNames } <- mkFetchEnv { packages: mempty, selectedPackage: args.selectedPackage }
@@ -189,7 +201,7 @@ main =
             dependencies <- runSpago env (Fetch.run packageNames)
             -- TODO: --no-build flag
             buildEnv <- runSpago env (mkBuildEnv dependencies)
-            let options = { depsOnly: false }
+            let options = { depsOnly: false, pursArgs: List.toUnfoldable args.pursArgs }
             runSpago buildEnv (Build.run options)
             { bundleEnv, bundleOptions } <- runSpago env (mkBundleEnv args)
             runSpago bundleEnv (Bundle.run bundleOptions)
@@ -255,7 +267,7 @@ mkFetchEnv args = do
   -- TODO: refactor this
   maybeSelectedPackage <- case map PackageName.parse args.selectedPackage of
     Nothing -> pure Nothing
-    Just (Left err) -> die $ "Failed to parse selected package name, was: " <> show args.selectedPackage
+    Just (Left _err) -> die $ "Failed to parse selected package name, was: " <> show args.selectedPackage
     Just (Right p) -> pure (Just p)
 
   logDebug $ "CWD: " <> Paths.cwd

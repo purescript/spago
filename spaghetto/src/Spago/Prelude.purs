@@ -48,7 +48,7 @@ import Node.Encoding (Encoding(..)) as Extra
 import Node.Path (FilePath) as Extra
 import Node.Process as Process
 import Node.Stream as Stream
-import Spago.Log (logDebug, logError, logInfo, logSuccess, logWarn, die, LogOptions, LogEnv, toDoc) as Extra
+import Spago.Log (logDebug, logError, logInfo, logSuccess, logWarn, die, LogOptions, LogEnv, toDoc, indent, indent2, output) as Extra
 import Unsafe.Coerce (unsafeCoerce)
 
 newtype Spago env a = Spago (ReaderT env Extra.Aff a)

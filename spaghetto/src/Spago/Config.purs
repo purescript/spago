@@ -218,7 +218,11 @@ readWorkspace maybeSelectedPackage = do
       -- If no package has been selected and we have many packages, then we build all of them but select none
       _ -> pure Nothing
     Just name -> case Map.lookup name workspacePackages of
-      Nothing -> die [ "Selected package " <> show name <> " was not found in the local packages.", "Available packages: " <> show workspacePackages ]
+      Nothing -> die
+        [ toDoc $ "Selected package " <> show name <> " was not found in the local packages."
+        , toDoc "Available packages:"
+        , indent (toDoc (Array.fromFoldable $ Map.keys workspacePackages))
+        ]
       Just p -> pure (Just p)
 
   -- Read in the package database
@@ -256,7 +260,7 @@ readWorkspace maybeSelectedPackage = do
     Nothing -> do
       logSuccess
         [ toDoc $ "Selecting " <> show (Map.size workspacePackages) <> " packages to build:"
-        , indent $ indent (toDoc (Set.toUnfoldable $ Map.keys workspacePackages :: Array PackageName))
+        , indent2 (toDoc (Set.toUnfoldable $ Map.keys workspacePackages :: Array PackageName))
         ]
 
   pure { selected: maybeSelected, packageSet, backend: workspace.backend }
