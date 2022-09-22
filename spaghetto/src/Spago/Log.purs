@@ -11,6 +11,7 @@ module Spago.Log
   , logWarn
   , supportsColor
   , toDoc
+  , module DodoExport
   ) where
 
 import Prelude
@@ -19,6 +20,7 @@ import Control.Monad.Reader (class MonadAsk)
 import Control.Monad.Reader as Reader
 import Dodo (Doc)
 import Dodo as Log
+import Dodo (indent) as DodoExport
 import Dodo.Ansi (GraphicsParam)
 import Dodo.Ansi as Ansi
 import Effect (Effect)
@@ -26,6 +28,8 @@ import Effect.Class (class MonadEffect)
 import Effect.Class as Effect
 import Effect.Class.Console as Console
 import Node.Process as Process
+import Registry.PackageName (PackageName)
+import Registry.PackageName as PackageName
 
 type LogEnv a = { logOptions :: LogOptions | a }
 
@@ -54,6 +58,9 @@ instance Loggable (Doc GraphicsParam) where
 
 instance Loggable String where
   toDoc = Log.text
+
+instance Loggable PackageName where
+  toDoc = PackageName.print >>> toDoc
 
 instance Loggable a => Loggable (Array a) where
   toDoc = Log.lines <<< map toDoc

@@ -10,6 +10,7 @@ import Data.Map as Map
 import Effect.Aff as Aff
 import Effect.Class.Console as Console
 import Effect.Ref as Ref
+import Flags as Flags
 import Node.Process as Process
 import Registry.API as Registry.API
 import Registry.Index as Index
@@ -113,13 +114,6 @@ globalArgsParser =
           # ArgParser.default false
     }
 
-flags =
-  { selectedPackage:
-      ArgParser.argument [ "--package", "-p" ]
-        "Select the local project to build"
-        # ArgParser.optional
-  }
-
 fetchArgsParser :: ArgParser FetchArgs
 fetchArgsParser =
   ArgParser.fromRecord
@@ -127,20 +121,16 @@ fetchArgsParser =
         ArgParser.anyNotFlag "PACKAGE"
           "Package name to add as dependency"
           # ArgParser.many
-    , selectedPackage
+    , selectedPackage: Flags.selectedPackage
     }
-  where
-  { selectedPackage } = flags
 
 installArgsParser :: ArgParser InstallArgs
 installArgsParser = fetchArgsParser
 
 buildArgsParser :: ArgParser BuildArgs
 buildArgsParser = ArgParser.fromRecord
-  { selectedPackage
+  { selectedPackage: Flags.selectedPackage
   }
-  where
-  { selectedPackage } = flags
 
 bundleArgsParser :: ArgParser BundleArgs
 bundleArgsParser =
@@ -162,10 +152,8 @@ bundleArgsParser =
         ArgParser.argument [ "--platform" ]
           "The bundle platform. 'node' or 'browser'"
           # ArgParser.optional
-    , selectedPackage
+    , selectedPackage: Flags.selectedPackage
     }
-  where
-  { selectedPackage } = flags
 
 parseArgs :: Effect (Either ArgParser.ArgError SpagoCmd)
 parseArgs = do
@@ -229,11 +217,23 @@ mkBundleEnv :: forall a. BundleArgs -> Spago (Fetch.FetchEnv a) { bundleEnv :: (
 mkBundleEnv bundleArgs = do
   { workspace, logOptions } <- ask
   logDebug $ "Bundle args: " <> show bundleArgs
+
+  selected <- case workspace.selected of
+    Just s -> pure s
+    Nothing ->
+      let
+        workspacePackageNames = map _.package.name (Config.getWorkspacePackages workspace.packageSet)
+      in
+        die [ toDoc "No package was selected for bundling. Please select (with -p) one of the following packages:", indent (toDoc workspacePackageNames) ]
+
+  logDebug $ "Selected package to bundle: " <> show selected.package.name
+
   -- the reason why we don't have a default on the CLI is that we look some of these
   -- up in the config - though the flags take precedence
   let
     bundleConf :: forall x. (BundleConfig -> Maybe x) -> Maybe x
-    bundleConf f = workspace.selected.package.bundle >>= f
+    bundleConf f = selected.package.bundle >>= f
+  -- TODO: there should be no defaults here actually?
   let minify = fromMaybe false (bundleArgs.minify <|> bundleConf _.minify)
   let entrypoint = fromMaybe "main.js" (bundleArgs.entrypoint <|> bundleConf _.entrypoint)
   let outfile = fromMaybe "index.js" (bundleArgs.outfile <|> bundleConf _.outfile)
@@ -243,14 +243,14 @@ mkBundleEnv bundleArgs = do
           <|> bundleConf _.platform
       )
   let bundleOptions = { minify, entrypoint, outfile, platform }
-  let bundleEnv = { esbuild: "esbuild", logOptions, workspace } -- TODO: which esbuild
+  let bundleEnv = { esbuild: "esbuild", logOptions, workspace, selected } -- TODO: which esbuild
   pure { bundleOptions, bundleEnv }
 
 mkBuildEnv :: forall a. Map PackageName Package -> Spago (Fetch.FetchEnv a) (Build.BuildEnv ())
 mkBuildEnv dependencies = do
-  { logOptions } <- ask
+  { logOptions, workspace } <- ask
   -- FIXME: find executables in path, parse compiler version, etc etc
-  pure { logOptions, purs: "purs", git: "git", dependencies }
+  pure { logOptions, purs: "purs", git: "git", dependencies, workspace }
 
 mkFetchEnv :: forall a. FetchArgs -> Spago (LogEnv a) { env :: Fetch.FetchEnv (), packageNames :: Array PackageName }
 mkFetchEnv args = do

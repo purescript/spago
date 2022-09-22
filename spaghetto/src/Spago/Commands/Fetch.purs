@@ -48,7 +48,12 @@ run packages = do
   { getMetadata, workspace, logOptions } <- ask
 
   -- lookup the dependencies in the package set, so we get their version numbers
-  let (Dependencies deps) = workspace.selected.package.dependencies
+  let
+    (Dependencies deps) = case workspace.selected of
+      Just selected -> selected.package.dependencies
+      Nothing ->
+        -- get all the dependencies of all the workspace packages if none was selected
+        foldMap _.package.dependencies (Config.getWorkspacePackages workspace.packageSet)
 
   -- FIXME: we should manipulate the yaml so we can insert the new packages in the config file
 

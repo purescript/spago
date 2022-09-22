@@ -7,6 +7,7 @@ import Data.Array as Array
 import Data.Bifunctor (lmap)
 import Data.Either as Either
 import Data.Map as Map
+import Data.Set as Set
 import Dodo as Log
 import Foreign.FastGlob as Glob
 import Foreign.Object (Object)
@@ -48,7 +49,7 @@ type WorkspaceConfig =
   }
 
 type Workspace =
-  { selected :: WorkspacePackage
+  { selected :: Maybe WorkspacePackage
   , packageSet :: PackageSet
   , backend :: Maybe String
   }
@@ -84,6 +85,20 @@ type GitPackage =
   }
 
 newtype Dependencies = Dependencies (Map PackageName (Maybe Range))
+
+instance Semigroup Dependencies where
+  append (Dependencies d1) (Dependencies d2) = Dependencies $ Map.unionWith
+    ( case _, _ of
+        Nothing, Nothing -> Nothing
+        Just r, Nothing -> Just r
+        Nothing, Just r -> Just r
+        Just r1, Just r2 -> Version.intersect r1 r2
+    )
+    d1
+    d2
+
+instance Monoid Dependencies where
+  mempty = Dependencies (Map.empty)
 
 instance Show Dependencies where
   show (Dependencies ds) = show ds
@@ -193,26 +208,25 @@ readWorkspace maybeSelectedPackage = do
       Just package -> [ Tuple package.name { path: ".", package } ]
 
   -- Select the package for spago to handle during the rest of the execution
-  selected <- case maybeSelectedPackage, maybePackage of
-    Nothing, Nothing -> case Array.uncons (Map.toUnfoldable workspacePackages) of
+  maybeSelected <- case maybeSelectedPackage of
+    Nothing -> case Array.uncons (Map.toUnfoldable workspacePackages) of
       Nothing -> die "No valid packages found in the current project, halting."
       -- If there's only one package and it's not in the root we still select that
       Just { head: (Tuple packageName package), tail: [] } -> do
         logDebug $ "Selecting package " <> show packageName <> " from " <> package.path
-        pure package
-      -- TODO: well, in some cases we'd like to build all the packages in the workspace together, so maybe we should have some AllPackages selection?
-      _ -> die [ "No local package was selected for the build, halting.", "Available packages: " <> show (Map.keys workspacePackages) ]
-    Nothing, Just package -> pure { path: ".", package }
-    Just name, _ -> case Map.lookup name workspacePackages of
+        pure (Just package)
+      -- If no package has been selected and we have many packages, then we build all of them but select none
+      _ -> pure Nothing
+    Just name -> case Map.lookup name workspacePackages of
       Nothing -> die [ "Selected package " <> show name <> " was not found in the local packages.", "Available packages: " <> show workspacePackages ]
-      Just p -> pure p
+      Just p -> pure (Just p)
 
   -- Read in the package database
   packageSet <- case workspace.set of
     Nothing -> do
       die $ "Registry solver is not supported yet - please specify a package set"
     Just set -> do
-      logDebug "Reading the package set"
+      logDebug "Reading the package set..."
       -- TODO: try to parse the set field, it might be a URL instead of a version number
       -- FIXME: this allows us to support old-style package sets too
       let packageSetPath = Path.concat [ Paths.registryPath, "package-sets", set <> ".json" ]
@@ -235,10 +249,17 @@ readWorkspace maybeSelectedPackage = do
             overrides
             (map RegistryVersion registryPackageSet.packages)
 
-  logSuccess $ "Selecting package " <> show selected.package.name
-  logDebug $ "Package path: " <> selected.path
+  case maybeSelected of
+    Just selected -> do
+      logSuccess $ "Selecting package to build: " <> show selected.package.name
+      logDebug $ "Package path: " <> selected.path
+    Nothing -> do
+      logSuccess
+        [ toDoc $ "Selecting " <> show (Map.size workspacePackages) <> " packages to build:"
+        , indent $ indent (toDoc (Set.toUnfoldable $ Map.keys workspacePackages :: Array PackageName))
+        ]
 
-  pure { selected, packageSet, backend: workspace.backend }
+  pure { selected: maybeSelected, packageSet, backend: workspace.backend }
 
 getPackageLocation :: PackageName -> Package -> FilePath
 getPackageLocation name = case _ of
@@ -249,3 +270,10 @@ getPackageLocation name = case _ of
 
 sourceGlob :: PackageName -> Package -> String
 sourceGlob name package = Path.concat [ getPackageLocation name package, "src/**/*.purs" ]
+
+getWorkspacePackages :: PackageSet -> Array WorkspacePackage
+getWorkspacePackages = Array.mapMaybe extractWorkspacePackage <<< Map.toUnfoldable
+  where
+  extractWorkspacePackage = case _ of
+    Tuple _ (WorkspacePackage p) -> Just p
+    _ -> Nothing
