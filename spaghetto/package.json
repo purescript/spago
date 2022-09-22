@@ -10,7 +10,7 @@
   ],
   "main": "bin/bundle.js",
   "scripts": {
-    "version": "sed -i'' -e \"s|version:.*|version: $npm_package_version|g\" {spago,bin/spago}.yaml && git add spago.yaml bin/spago.yaml && exit 1",
+    "version": "sed -i'' -e \"s|version:.*|version: $npm_package_version|g\" {spago,bin/spago}.yaml && git add spago.yaml bin/spago.yaml",
     "postversion": "git push && git push --tags",
     "format": "purs-tidy format-in-place src bin",
     "format:check": "purs-tidy check src bin",
