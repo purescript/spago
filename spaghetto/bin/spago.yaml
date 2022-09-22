@@ -1,7 +1,7 @@
 package:
-  name: spaghetto-bin
+  name: spago-bin
   dependencies:
-    - spaghetto
+    - spago
   license: BSD-3-Clause
   bundle:
     entrypoint: index.dev.js

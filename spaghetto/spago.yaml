@@ -1,5 +1,5 @@
 package:
-  name: spaghetto
+  name: spago
   dependencies:
     - aff
     - affjax

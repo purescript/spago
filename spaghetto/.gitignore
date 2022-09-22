@@ -9,5 +9,4 @@
 /.purs*
 /.psa*
 /.spago
-/.spaghetto
 /bin/bundle.js
