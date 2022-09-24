@@ -68,7 +68,7 @@ run packages = do
     let localPackageLocation = Config.getPackageLocation name package
     -- first of all, we check if we have the package in the local cache. If so, we don't even do the work
     unlessM (liftEffect $ FS.Sync.exists localPackageLocation) case package of
-      RemoteGitPackage gitPackage -> do
+      GitPackage gitPackage -> do
         -- Easy, just git clone it in the local cache
         -- TODO: error handling here
         Git.fetchRepo gitPackage localPackageLocation
@@ -126,7 +126,7 @@ getPackageDependencies packageName package = case package of
     { getManifestFromIndex, logOptions } <- ask
     maybeManifest <- runSpago { logOptions } $ getManifestFromIndex packageName v
     pure $ map (_.dependencies <<< unwrap) maybeManifest
-  RemoteGitPackage p -> do
+  GitPackage p -> do
     -- TODO: error handling here
     let packageLocation = Config.getPackageLocation packageName package
     unlessM (liftEffect $ FS.Sync.exists packageLocation) do

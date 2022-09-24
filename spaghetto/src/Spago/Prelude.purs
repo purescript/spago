@@ -5,6 +5,7 @@ module Spago.Prelude
   , runSpago
   , throwError
   , spawnFromParentWithStdin
+  , parseUrl
   ) where
 
 import Prelude
@@ -20,6 +21,7 @@ import Data.DateTime.Instant (Instant) as Extra
 import Data.Either (Either(..), isLeft, isRight) as Extra
 import Data.Filterable (partition, partitionMap) as Extra
 import Data.Foldable (foldMap, for_, foldl, and, or) as Extra
+import Data.Function.Uncurried (Fn3, runFn3)
 import Data.Generic.Rep (class Generic) as Extra
 import Data.Identity (Identity(..)) as Extra
 import Data.List (List, (:)) as Extra
@@ -123,3 +125,10 @@ spawnFromParentWithStdin { command, args, input, cwd } = Aff.makeAff \k -> do
 
   pure $ Aff.effectCanceler do
     ChildProcess.kill SIGABRT childProc
+
+parseUrl :: String -> Extra.Either String URL
+parseUrl = runFn3 parseUrlImpl Extra.Left (Extra.Right <<< unsafeCoerce)
+
+type URL = { href :: String }
+
+foreign import parseUrlImpl :: forall r. Fn3 (String -> r) (String -> r) String r

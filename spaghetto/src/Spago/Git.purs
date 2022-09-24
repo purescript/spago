@@ -32,6 +32,7 @@ runGitSilent args cwd = ExceptT do
       pure $ Right stdout
     _ -> pure $ Left $ "Failed to run git command via runGitSilent."
 
+-- FIXME: if user hits ctrl-c while this is cloning, it will leave things half-cloned
 fetchRepo :: forall a b. { git :: String, ref :: String | a } -> FilePath -> Spago (LogEnv b) Unit
 fetchRepo { git, ref } path = do
   let runE = liftAff <<< Except.runExceptT
@@ -41,7 +42,7 @@ fetchRepo { git, ref } path = do
       logDebug $ "Found the " <> git <> " repo locally, pulling..."
       runE $ runGit_ [ "fetch", "origin" ] (Just path)
     false -> do
-      logDebug $ "Didn't find " <> git <> " repo, cloning..."
+      logInfo $ "Didn't find " <> git <> " repo, cloning..."
       runE $ runGit_ [ "clone", git, path ] Nothing
   result <- runE do
     Except.ExceptT $ pure cloneOrFetchResult

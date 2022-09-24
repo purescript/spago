@@ -323,7 +323,7 @@ mkFetchEnv args = do
   try (Git.fetchRepo { git: "https://github.com/purescript/registry-index.git", ref: "main" } Paths.registryIndexPath) >>= case _ of
     Right _ -> pure unit
     Left _err -> logWarn "Couldn't refresh the registry-index, will proceed anyways"
-  try (Git.fetchRepo { git: "https://github.com/purescript/registry-preview.git", ref: "main" } Paths.registryPath) >>= case _ of
+  try (Git.fetchRepo { git: "https://github.com/purescript/registry.git", ref: "main" } Paths.registryPath) >>= case _ of
     Right _ -> pure unit
     Left _err -> logWarn "Couldn't refresh the registry, will proceed anyways"
 
