@@ -27,7 +27,6 @@ import Spago.Commands.Sources as Sources
 import Spago.Config (BundleConfig, Package, Platform(..))
 import Spago.Config as Config
 import Spago.FS as FS
-import Spago.Generated.BuildInfo as BuildInfo
 import Spago.Git as Git
 import Spago.Log (LogVerbosity(..), supportsColor)
 import Spago.Paths as Paths

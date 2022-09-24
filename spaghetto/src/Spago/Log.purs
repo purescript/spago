@@ -108,4 +108,5 @@ output = Console.log
 
 foreign import supportsColor :: Effect Boolean
 
+indent2 :: forall a. Doc a -> Doc a
 indent2 = Log.indent <<< Log.indent

@@ -4,7 +4,6 @@ import Spago.Prelude
 
 import Node.Path as Path
 import Spago.Config (Platform, Workspace, WorkspacePackage)
-import Spago.Config as Config
 
 type BundleEnv a =
   { esbuild :: FilePath
@@ -31,9 +30,8 @@ type RawBundleOptions =
 
 run :: forall a. BundleOptions -> Spago (BundleEnv a) Unit
 run opts = do
-  { esbuild, workspace, selected } <- ask
+  { esbuild, selected } <- ask
   let command = esbuild
-  -- TODO: here we can select the right glob for a monorepo setup
   let minify = if opts.minify then [ "--minify" ] else []
   let entrypoint = Path.concat [ selected.path, opts.entrypoint ]
   let outfile = Path.concat [ selected.path, opts.outfile ]
