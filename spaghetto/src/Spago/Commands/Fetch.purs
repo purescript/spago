@@ -142,7 +142,7 @@ getPackageDependencies packageName package = case package of
     -- try to see if the package has a spago config, and if it's there we read it
     -- TODO: make this work with manifests
     Config.readConfig (Path.concat [ packageLocation, "spago.yaml" ]) >>= case _ of
-      Right { package: Just { dependencies: (Dependencies deps) } } -> do
+      Right { yaml: { package: Just { dependencies: (Dependencies deps) } } } -> do
         pure (Just (map (fromMaybe widestRange) deps))
       -- if we don't have any config then we require the package.dependencies array to be there
       other -> do

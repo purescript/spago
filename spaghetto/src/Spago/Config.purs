@@ -13,23 +13,26 @@ import Data.HTTP.Method as Method
 import Data.Map as Map
 import Data.Set as Set
 import Dodo as Log
+import Effect.Uncurried (EffectFn2, runEffectFn2)
 import Foreign.FastGlob as Glob
 import Foreign.Object (Object)
 import Foreign.Object as Object
 import Foreign.SPDX (License)
+import Node.FS.Sync as FS.Sync
 import Node.Path as Path
 import Parsing as Parsing
+import Registry.Hash (Sha256)
 import Registry.Hash as Registry.Hash
 import Registry.Json as RegistryJson
 import Registry.Legacy.PackageSet as Registry.PackageSet
 import Registry.PackageName (PackageName)
 import Registry.PackageName as PackageName
-import Registry.Schema as Registry
 import Registry.Version (Range, Version)
 import Registry.Version as Registry.Version
 import Registry.Version as Version
 import Spago.Paths as Paths
-import Yaml (class ToYaml, (.:), (.:?))
+import Spago.FS as FS
+import Yaml (class ToYaml, YamlDoc, (.:), (.:?))
 import Yaml as Yaml
 
 type Config =
@@ -50,7 +53,7 @@ type PackageConfig =
 type PublishConfig = {} -- FIXME: publishing. Does license go here instead?
 
 type WorkspaceConfig =
-  { set :: Maybe SetAddress -- TODO: package set string is optional, if not specified we use the solver
+  { set :: Maybe SetAddress
   , extra_packages :: Maybe (Map PackageName GitPackage)
   , backend :: Maybe String -- FIXME support alternate backends
   }
@@ -123,6 +126,7 @@ type PackageSet = Map PackageName Package
 type WorkspacePackage =
   { path :: FilePath
   , package :: PackageConfig
+  , doc :: YamlDoc Config
   }
 
 data Package
@@ -136,7 +140,7 @@ instance Show Package where
     RegistryVersion v -> show v
     GitPackage p -> show p
     LocalPackage p -> show p
-    WorkspacePackage p -> show p
+    WorkspacePackage { path, package } -> show { path, package }
 
 type LocalPackage =
   { path :: FilePath
@@ -212,7 +216,7 @@ instance RegistryJson.RegistryJson Dependencies where
 
 data SetAddress
   = SetFromRegistry { registry :: String }
-  | SetFromUrl { url :: String, hash :: Maybe String }
+  | SetFromUrl { url :: String, hash :: Maybe Sha256 }
 
 instance Show SetAddress where
   show (SetFromRegistry s) = show s
@@ -256,10 +260,10 @@ instance ToYaml Platform where
   encode = Core.fromString <<< show
   decode = Either.note "Expected BundlePlatform" <<< parsePlatform <=< Yaml.decode
 
-readConfig :: forall a. FilePath -> Spago (LogEnv a) (Either String Config)
+readConfig :: forall a. FilePath -> Spago (LogEnv a) (Either String { doc :: YamlDoc Config, yaml :: Config })
 readConfig path = do
   logDebug $ "Reading config from " <> path
-  liftAff $ Yaml.readYamlFile path
+  liftAff $ Yaml.readYamlDocFile path
 
 -- | Reads all the configurations in the tree and builds up the Map of local
 -- | packages to be integrated in the package set
@@ -268,15 +272,16 @@ readWorkspace maybeSelectedPackage = do
   logInfo "Reading Spago workspace configuration..."
   -- First try to read the config in the root. It _has_ to contain a workspace
   -- configuration, or we fail early.
-  { workspace, package: maybePackage } <- readConfig "spago.yaml" >>= case _ of
+  { workspace, package: maybePackage, workspaceDoc } <- readConfig "spago.yaml" >>= case _ of
     Left err -> die $ "Couldn't parse Spago config, error:\n  " <> err
-    Right { workspace: Nothing } -> die $ "Your spago.yaml doesn't contain a workspace section" -- TODO refer to the docs
-    Right { workspace: Just workspace, package } -> pure { workspace, package }
+    Right { yaml: { workspace: Nothing } } -> die $ "Your spago.yaml doesn't contain a workspace section" -- TODO refer to the docs
+    Right { yaml: { workspace: Just workspace, package }, doc } -> pure { workspace, package, workspaceDoc: doc }
 
   -- Then gather all the spago other configs in the tree.
   { succeeded: otherConfigPaths, failed } <- liftAff $ Glob.match' Paths.cwd [ "**/spago.yaml" ] { ignore: [ ".spago", "spago.yaml" ] }
   logDebug $ [ toDoc "Found packages at these paths:", Log.indent $ Log.lines (map toDoc otherConfigPaths) ]
-  logDebug $ "Failed to sanitise some of the glob matches: " <> show failed
+  unless (Array.null failed) do
+    logDebug $ "Failed to sanitise some of the glob matches: " <> show failed
 
   -- We read all of them in, and only read the package section, if any.
   -- TODO: we should probably not include at all the configs that contain a
@@ -286,19 +291,20 @@ readWorkspace maybeSelectedPackage = do
       maybeConfig <- readConfig path
       pure $ case maybeConfig of
         Left e -> Left $ "Could not read config at path " <> path <> "\nError was: " <> e
-        Right { package: Nothing } -> Left $ "No package found for config at path: " <> path
-        Right { package: Just package } ->
+        Right { yaml: { package: Nothing } } -> Left $ "No package found for config at path: " <> path
+        Right { yaml: { package: Just package }, doc } ->
           -- We store the path of the package, so we can treat is basically as a LocalPackage
-          Right $ Tuple package.name { path: Path.dirname path, package }
+          Right $ Tuple package.name { path: Path.dirname path, package, doc }
   { right: otherPackages, left: failedPackages } <- partitionMap identity <$> traverse readWorkspaceConfig otherConfigPaths
 
-  -- TODO do we fail here?
-  logDebug $ [ "Failed to read some configs:" ] <> failedPackages
+  unless (Array.null failedPackages) do
+    -- TODO do we fail here?
+    logWarn $ [ "Failed to read some configs:" ] <> failedPackages
 
   let
     workspacePackages = Map.fromFoldable $ otherPackages <> case maybePackage of
       Nothing -> []
-      Just package -> [ Tuple package.name { path: ".", package } ]
+      Just package -> [ Tuple package.name { path: ".", package, doc: workspaceDoc } ]
 
   -- Select the package for spago to handle during the rest of the execution
   maybeSelected <- case maybeSelectedPackage of
@@ -336,31 +342,39 @@ readWorkspace maybeSelectedPackage = do
             , remotePackageSet: registryPackageSet.packages
             }
     Just (SetFromUrl { url: rawUrl, hash: maybeHash }) -> do
-      logDebug $ "Reading the package set from URL: " <> rawUrl
-      -- TODO: do something with the hash. If there is a hash then we look up in the CAS, if not we compute a hash and store it there
-      -- TODO: use Registry.Hash.sha256String
-      url <- case parseUrl rawUrl of
-        Left err -> die $ "Could not parse URL for the package set, error: " <> show err
-        Right u -> pure u.href
-      response <- liftAff $ Http.request (Http.defaultRequest { method = Left Method.GET, responseFormat = Response.string, url = url })
-      case response of
-        Left err -> die $ "Couldn't fetch package set:\n  " <> Http.printError err
-        Right { status, body } | status /= StatusCode 200 -> do
-          die $ "Couldn't fetch package set, status was not ok " <> show status <> ", got answer:\n  " <> body
-        Right r@{ body } -> do
-          logDebug $ "Fetching package set - got status: " <> show r.status
-          case RegistryJson.parseJson body of
-            Right (RemotePackageSet set) -> do
-              logDebug "Read a new-format package set from URL"
-              pure { maybeCompiler: Just set.compiler, remotePackageSet: set.packages }
-            Left err -> do
-              logDebug [ "Couldn't parse remote package set in modern format, error:", show err, "Trying with the legacy format..." ]
+      -- If there is a hash then we look up in the CAS, if not we fetch stuff, compute a hash and store it there
+      case maybeHash of
+        Just hash -> readPackageSetFromHash hash
+        Nothing -> do
+          logDebug $ "Reading the package set from URL: " <> rawUrl
+          url <- case parseUrl rawUrl of
+            Left err -> die $ "Could not parse URL for the package set, error: " <> show err
+            Right u -> pure u.href
+          response <- liftAff $ Http.request (Http.defaultRequest { method = Left Method.GET, responseFormat = Response.string, url = url })
+          result <- case response of
+            Left err -> die $ "Couldn't fetch package set:\n  " <> Http.printError err
+            Right { status, body } | status /= StatusCode 200 -> do
+              die $ "Couldn't fetch package set, status was not ok " <> show status <> ", got answer:\n  " <> body
+            Right r@{ body } -> do
+              logDebug $ "Fetching package set - got status: " <> show r.status
               case RegistryJson.parseJson body of
-                Left err' -> die $ "Couldn't parse remote package set, error: " <> show err'
-                Right (Registry.PackageSet.LegacyPackageSet set) -> do
-                  logDebug "Read legacy package set from URL"
-                  -- TODO: fetch compiler version from Metadata package
-                  pure { maybeCompiler: Nothing, remotePackageSet: map RemoteLegacyPackage set }
+                Right (RemotePackageSet set) -> do
+                  logDebug "Read a new-format package set from URL"
+                  pure { maybeCompiler: Just set.compiler, remotePackageSet: set.packages }
+                Left err -> do
+                  logDebug [ "Couldn't parse remote package set in modern format, error:", show err, "Trying with the legacy format..." ]
+                  case RegistryJson.parseJson body of
+                    Left err' -> die $ "Couldn't parse remote package set, error: " <> show err'
+                    Right (Registry.PackageSet.LegacyPackageSet set) -> do
+                      logDebug "Read legacy package set from URL"
+                      -- TODO: fetch compiler version from Metadata package
+                      pure { maybeCompiler: Nothing, remotePackageSet: map RemoteLegacyPackage set }
+          logWarn $ "Did not find a hash for your package set import, adding it to your config..."
+          newHash <- writePackageSetToHash result
+          logDebug $ "Package set hash: " <> show newHash
+          liftEffect $ updatePackageSetHashInConfig workspaceDoc newHash
+          liftAff $ Yaml.writeYamlDocFile "spago.yaml" workspaceDoc
+          pure result
 
   -- Mix in the package set (a) the workspace packages, and (b) the extra_packages
   -- Note: if there are duplicate packages we pick the "most local ones first",
@@ -407,3 +421,35 @@ getWorkspacePackages = Array.mapMaybe extractWorkspacePackage <<< Map.toUnfoldab
   extractWorkspacePackage = case _ of
     Tuple _ (WorkspacePackage p) -> Just p
     _ -> Nothing
+
+type PackageSetResult = { maybeCompiler :: Maybe Version, remotePackageSet :: Map PackageName RemotePackage }
+
+readPackageSetFromHash :: forall a. Sha256 -> Spago (LogEnv a) PackageSetResult
+readPackageSetFromHash hash = do
+  let path = packageSetCachePath hash
+  logDebug $ "Reading cached package set entry from " <> path
+  (liftEffect $ FS.Sync.exists path) >>= case _ of
+    false -> die $ "Did not find a package set cached with hash " <> show hash
+    true -> (liftAff $ RegistryJson.readJsonFile path) >>= case _ of
+      Left err -> die $ "Error while reading cached package set " <> show hash <> ": " <> err
+      Right res -> pure res
+
+writePackageSetToHash :: forall a. PackageSetResult -> Spago (LogEnv a) Sha256
+writePackageSetToHash result = do
+  let serialised = RegistryJson.printJson result
+  hash <- liftEffect $ Registry.Hash.sha256String serialised
+  liftAff do
+    FS.mkdirp packageSetsCachePath
+    FS.writeTextFile UTF8 (packageSetCachePath hash) serialised
+  pure hash
+
+packageSetsCachePath :: FilePath
+packageSetsCachePath = Path.concat [ Paths.globalCachePath, "setsCAS" ]
+
+packageSetCachePath :: forall a. Show a ⇒ a → String
+packageSetCachePath hash = Path.concat [ packageSetsCachePath, show hash ]
+
+foreign import updatePackageSetHashInConfigImpl :: EffectFn2 (YamlDoc Config) String Unit
+
+updatePackageSetHashInConfig :: YamlDoc Config -> Sha256 -> Effect Unit
+updatePackageSetHashInConfig doc sha = runEffectFn2 updatePackageSetHashInConfigImpl doc (show sha)

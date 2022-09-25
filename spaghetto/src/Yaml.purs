@@ -3,7 +3,9 @@ module Yaml
   , stringifyYaml
   , parseYaml
   , writeYamlFile
+  , writeYamlDocFile
   , readYamlFile
+  , readYamlDocFile
   , encodeObject
   , insert
   , (:=)
@@ -27,6 +29,7 @@ module Yaml
   , encodeRecordField
   , class DecodeRecordField
   , decodeRecordField
+  , YamlDoc
   ) where
 
 import Prelude
@@ -39,7 +42,7 @@ import Data.Array.NonEmpty as NEA
 import Data.Bifunctor (lmap)
 import Data.Bitraversable (ltraverse)
 import Data.Either (Either(..), note)
-import Data.Function.Uncurried (Fn3, runFn3)
+import Data.Function.Uncurried (Fn1, Fn3, runFn1, runFn3)
 import Data.Int as Int
 import Data.Map (Map)
 import Data.Map as Map
@@ -62,18 +65,30 @@ import Parsing as Parsing
 import Prim.Row as Row
 import Prim.RowList as RL
 import Record as Record
+import Registry.Hash (Sha256)
 import Registry.Json as Registry.Json
 import Registry.PackageName (PackageName)
 import Registry.PackageName as PackageName
 import Registry.Version (Version)
 import Type.Proxy (Proxy(..))
 
-foreign import _yamlParser :: forall a. Fn3 (String -> a) (Core.Json -> a) String a
+foreign import yamlParserImpl :: forall a. Fn3 (String -> a) (Core.Json -> a) String a
+
+foreign import yamlDocParserImpl :: forall a b. Fn3 (String -> a) (YamlDoc b -> a) String a
+
+foreign import toJsonImpl :: forall a. Fn1 (YamlDoc a) Core.Json
+
+foreign import toStringImpl :: forall a. Fn1 (YamlDoc a) String
+
+foreign import data YamlDoc :: Type -> Type
+
+instance Show (YamlDoc a) where
+  show = toStringImpl
 
 -- | Parse a JSON string, constructing the `Toml` value described by the string.
 -- | To convert a string into a `Toml` string, see `fromString`.
-yamlParser :: String -> Either String Core.Json
-yamlParser j = runFn3 _yamlParser Left Right j
+yamlParser :: forall a. String -> Either String (YamlDoc a)
+yamlParser j = runFn3 yamlDocParserImpl Left Right j
 
 -- | Converts a `Toml` value to a JSON string. To retrieve a string from a `Toml`
 -- | string value, see `fromString`.
@@ -93,8 +108,14 @@ stringifyYaml :: forall a. ToYaml a => a -> String
 stringifyYaml = stringify <<< encode
 
 -- | Parse a type from a string of YAML data.
+parseYamlDoc :: forall a. ToYaml a => String -> Either String { doc :: YamlDoc a, yaml :: a }
+parseYamlDoc yamlStr = do
+  doc <- yamlParser yamlStr
+  yaml <- decode (runFn1 toJsonImpl doc)
+  pure { doc, yaml }
+
 parseYaml :: forall a. ToYaml a => String -> Either String a
-parseYaml = decode <=< yamlParser
+parseYaml = parseYamlDoc >>> map _.yaml
 
 -- | Encode data as formatted YAML and write it to the provided filepath
 writeYamlFile :: forall a. ToYaml a => FilePath -> a -> Aff Unit
@@ -105,6 +126,14 @@ readYamlFile :: forall a. ToYaml a => FilePath -> Aff (Either String a)
 readYamlFile path = do
   result <- try $ FS.readTextFile UTF8 path
   pure (lmap Aff.message result >>= parseYaml)
+
+writeYamlDocFile :: forall a. ToYaml a => FilePath -> YamlDoc a -> Aff Unit
+writeYamlDocFile path = FS.writeTextFile UTF8 path <<< (_ <> "\n") <<< runFn1 toStringImpl
+
+readYamlDocFile :: forall a. ToYaml a => FilePath -> Aff (Either String { doc :: YamlDoc a, yaml :: a })
+readYamlDocFile path = do
+  result <- try $ FS.readTextFile UTF8 path
+  pure (lmap Aff.message result >>= parseYamlDoc)
 
 -- | Encode a YAML object by running a series of calls to `putField`
 encodeObject :: State (Object Core.Json) Unit -> Core.Json
@@ -177,6 +206,10 @@ instance ToYaml Version where
   decode = Registry.Json.decode
 
 instance ToYaml License where
+  encode = Registry.Json.encode
+  decode = Registry.Json.decode
+
+instance ToYaml Sha256 where
   encode = Registry.Json.encode
   decode = Registry.Json.decode
 
