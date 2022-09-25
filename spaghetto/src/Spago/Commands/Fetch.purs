@@ -6,6 +6,7 @@ import Affjax.Node as Http
 import Affjax.ResponseFormat as Response
 import Affjax.StatusCode (StatusCode(..))
 import Control.Monad.State as State
+import Data.Array as Array
 import Data.Either as Either
 import Data.HTTP.Method as Method
 import Data.Int as Int
@@ -30,6 +31,7 @@ import Spago.FS as FS
 import Spago.Git as Git
 import Spago.Paths as Paths
 import Spago.Tar as Tar
+import Yaml as Yaml
 
 type FetchEnvRow a =
   ( getManifestFromIndex :: PackageName -> Version -> Spago (LogEnv ()) (Maybe Manifest)
@@ -55,11 +57,19 @@ run packages = do
         -- get all the dependencies of all the workspace packages if none was selected
         foldMap _.package.dependencies (Config.getWorkspacePackages workspace.packageSet)
 
-  -- FIXME: we should manipulate the yaml so we can insert the new packages in the config file
-
   -- here get transitive packages
   -- TODO: here we are throwing away the ranges from the config, but we should care about them
   transitivePackages <- getTransitiveDeps (Set.toUnfoldable $ Map.keys deps)
+
+  -- write to the config file if we are adding new packages
+  unless (Array.null packages) do
+    let
+      { configPath, yamlDoc } = case workspace.selected of
+        Nothing -> { configPath: "spago.yaml", yamlDoc: workspace.doc }
+        Just { path, doc } -> { configPath: Path.concat [ path, "spago.yaml" ], yamlDoc: doc }
+    logInfo $ "Adding " <> show (Array.length packages) <> " packages to the config in " <> configPath
+    liftEffect $ Config.addPackagesToConfig yamlDoc packages
+    liftAff $ Yaml.writeYamlDocFile configPath yamlDoc
 
   -- then for every package we have we try to download it, and copy it in the local cache
   logInfo "Downloading dependencies..."

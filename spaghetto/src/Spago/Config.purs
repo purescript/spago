@@ -30,8 +30,8 @@ import Registry.PackageName as PackageName
 import Registry.Version (Range, Version)
 import Registry.Version as Registry.Version
 import Registry.Version as Version
-import Spago.Paths as Paths
 import Spago.FS as FS
+import Spago.Paths as Paths
 import Yaml (class ToYaml, YamlDoc, (.:), (.:?))
 import Yaml as Yaml
 
@@ -62,6 +62,7 @@ type Workspace =
   { selected :: Maybe WorkspacePackage
   , packageSet :: PackageSet
   , backend :: Maybe String
+  , doc :: YamlDoc Config
   }
 
 fromRemotePackage :: RemotePackage -> Package
@@ -304,7 +305,7 @@ readWorkspace maybeSelectedPackage = do
   let
     workspacePackages = Map.fromFoldable $ otherPackages <> case maybePackage of
       Nothing -> []
-      Just package -> [ Tuple package.name { path: ".", package, doc: workspaceDoc } ]
+      Just package -> [ Tuple package.name { path: "./", package, doc: workspaceDoc } ]
 
   -- Select the package for spago to handle during the rest of the execution
   maybeSelected <- case maybeSelectedPackage of
@@ -403,7 +404,7 @@ readWorkspace maybeSelectedPackage = do
         , indent2 (toDoc (Set.toUnfoldable $ Map.keys workspacePackages :: Array PackageName))
         ]
 
-  pure { selected: maybeSelected, packageSet, backend: workspace.backend }
+  pure { selected: maybeSelected, packageSet, backend: workspace.backend, doc: workspaceDoc }
 
 getPackageLocation :: PackageName -> Package -> FilePath
 getPackageLocation name = case _ of
@@ -453,3 +454,8 @@ foreign import updatePackageSetHashInConfigImpl :: EffectFn2 (YamlDoc Config) St
 
 updatePackageSetHashInConfig :: YamlDoc Config -> Sha256 -> Effect Unit
 updatePackageSetHashInConfig doc sha = runEffectFn2 updatePackageSetHashInConfigImpl doc (show sha)
+
+foreign import addPackagesToConfigImpl :: EffectFn2 (YamlDoc Config) (Array String) Unit
+
+addPackagesToConfig :: YamlDoc Config -> Array PackageName -> Effect Unit
+addPackagesToConfig doc pkgs = runEffectFn2 addPackagesToConfigImpl doc (map PackageName.print pkgs)

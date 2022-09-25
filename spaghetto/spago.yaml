@@ -34,6 +34,7 @@ package:
     - node-process
     - node-streams
     - ordered-collections
+    - parallel
     - parsing
     - partial
     - posix-types
