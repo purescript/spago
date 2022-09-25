@@ -6,6 +6,7 @@ module Spago.Prelude
   , throwError
   , spawnFromParentWithStdin
   , parseUrl
+  , parallelise
   ) where
 
 import Prelude
@@ -16,6 +17,7 @@ import Control.Monad.Error.Class (try, catchError) as Extra
 import Control.Monad.Reader (ask, asks) as Extra
 import Control.Monad.Reader (class MonadAsk, ReaderT, runReaderT)
 import Control.Monad.State (StateT) as Extra
+import Control.Parallel as Parallel
 import Data.Array ((..)) as Extra
 import Data.DateTime.Instant (Instant) as Extra
 import Data.Either (Either(..), isLeft, isRight) as Extra
@@ -132,3 +134,9 @@ parseUrl = runFn3 parseUrlImpl Extra.Left (Extra.Right <<< unsafeCoerce)
 type URL = { href :: String }
 
 foreign import parseUrlImpl :: forall r. Fn3 (String -> r) (String -> r) String r
+
+parallelise :: forall env a. Array (Spago env a) -> Spago env Unit
+parallelise actions = do
+  env <- Extra.ask
+  fibers <- Extra.liftAff $ Parallel.parSequence (map (Aff.forkAff <<< runSpago env) actions :: Array _)
+  Extra.liftAff $ Extra.for_ fibers Aff.joinFiber

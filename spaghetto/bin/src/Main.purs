@@ -319,12 +319,16 @@ mkFetchEnv args = do
 
   -- clone the registry and index repo, or update them
   logInfo "Refreshing the Registry Index..."
-  try (Git.fetchRepo { git: "https://github.com/purescript/registry-index.git", ref: "main" } Paths.registryIndexPath) >>= case _ of
-    Right _ -> pure unit
-    Left _err -> logWarn "Couldn't refresh the registry-index, will proceed anyways"
-  try (Git.fetchRepo { git: "https://github.com/purescript/registry.git", ref: "main" } Paths.registryPath) >>= case _ of
-    Right _ -> pure unit
-    Left _err -> logWarn "Couldn't refresh the registry, will proceed anyways"
+  -- TODO: we will want to keep track how old the latest pull was - here we just wait on the fibers, but if the last
+  -- pull was recent then we might just want to move on
+  parallelise
+    [ try (Git.fetchRepo { git: "https://github.com/purescript/registry-index.git", ref: "main" } Paths.registryIndexPath) >>= case _ of
+        Right _ -> pure unit
+        Left _err -> logWarn "Couldn't refresh the registry-index, will proceed anyways"
+    , try (Git.fetchRepo { git: "https://github.com/purescript/registry.git", ref: "main" } Paths.registryPath) >>= case _ of
+        Right _ -> pure unit
+        Left _err -> logWarn "Couldn't refresh the registry, will proceed anyways"
+    ]
 
   workspace <- Config.readWorkspace maybeSelectedPackage
 

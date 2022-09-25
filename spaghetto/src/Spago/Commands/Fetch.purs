@@ -62,9 +62,9 @@ run packages = do
   transitivePackages <- getTransitiveDeps (Set.toUnfoldable $ Map.keys deps)
 
   -- then for every package we have we try to download it, and copy it in the local cache
-  -- FIXME: this should all happen in parallel, and we need a process pool to limit concurrency
   logInfo "Downloading dependencies..."
-  void $ for (Map.toUnfoldable transitivePackages :: Array (Tuple PackageName Package)) \(Tuple name package) -> do
+
+  parallelise $ (flip map) (Map.toUnfoldable transitivePackages :: Array (Tuple PackageName Package)) \(Tuple name package) -> do
     let localPackageLocation = Config.getPackageLocation name package
     -- first of all, we check if we have the package in the local cache. If so, we don't even do the work
     unlessM (liftEffect $ FS.Sync.exists localPackageLocation) case package of
