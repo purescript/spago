@@ -127,6 +127,14 @@ spec = runIO getUsingEsModules >>= \usingEsModules -> around_ (setup "spago-test
 
       originalPackageSetUrl `shouldBe` templatePackageSetUrl
 
+  describe "spago migrate" $ do
+    it "Should migrate a spago.dhall to a new-style spago.yaml" $ do
+      spago ["init", "--tag", "psc-0.15.4-20220921"] >>= shouldBeSuccess
+      writeTextFile "spago.dhall" "{ name = \"foo\", version = \"0.0.1\", license = \"MIT\", dependencies = [ \"effect\", \"console\", \"prelude\" ] , packages = ./packages.dhall, sources = [] }"
+      spago ["migrate"] >>= shouldBeSuccess
+      mv "spago.yaml" "new-spago-config.yaml"
+      checkFixture "new-spago-config.yaml"
+
   describe "spago install" $ do
 
     it "Subsequent installs should succeed after failed install" $ do

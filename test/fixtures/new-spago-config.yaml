@@ -1,0 +1,11 @@
+workspace:
+  set:
+    url: https://raw.githubusercontent.com/purescript/package-sets/psc-0.15.4-20220921/packages.json
+package:
+  dependencies:
+  - console
+  - effect
+  - prelude
+  name: foo
+  version: 0.0.1
+  license: MIT

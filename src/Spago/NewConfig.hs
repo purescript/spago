@@ -57,12 +57,13 @@ migrate = do
           | (current:_) <- foldMap newPackageSetUrl expr
           -> pure (renderUrl current)
         Just _ -> die [ display Messages.cannotFindPackageImport ]
-  logInfo (display packageSetUrl)
+  logDebug $ "New package-set URL: " <> display packageSetUrl
   -- Get the config, and the fields that we want
   Config { alternateBackend, name, dependencies, migrateConfig } <- view (the @Config)
   (license, version) <- case migrateConfig of
     Left _ -> die [ "Please add the following keys to your spago.dhall: license, version"]
     Right (MigrateConfig {..}) -> pure (migrateLicense, migrateVersion)
+  -- TODO: we probably want a flag that says "nevermind my package set, give me the latest set from the registry"
   let workspace = WorkspaceConfig { set = PackageSetAddress packageSetUrl, backend = alternateBackend}
   let package = PackageConfig{..}
   let newConfig = NewConfig{..}
@@ -70,6 +71,7 @@ migrate = do
   -- FIXME: we might want to do something about porting these overrides, but it's a lot of work.
   -- One avenue could be to parse the original package set (from the URL that we get), see which packages are different in the one
   -- that Spago reads in, and then stick the differing ones in extra_packages
+  -- TODO: at least we should link to the docs of spaghetto to show how it's done
   logWarn "Any overrides you added to the packages.dhall file were not ported - please add them again to the new configuration"
   logInfo "Writing the new config format to spago.yaml..."
   liftIO $ Data.Yaml.encodeFile "spago.yaml" newConfig
