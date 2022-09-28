@@ -202,8 +202,14 @@ data Config = Config
   , alternateBackend  :: Maybe Text
   , configSourcePaths :: Set SourcePath
   , publishConfig     :: Either (Dhall.ReadError Void) PublishConfig
+  , migrateConfig     :: Either (Dhall.ReadError Void) MigrateConfig
   } deriving (Show, Generic)
 
+-- | Extra fields only needed when migrating to the new Spago
+data MigrateConfig = MigrateConfig
+  { migrateLicense :: Text
+  , migrateVersion :: Text
+  } deriving (Show, Generic)
 
 -- | The extra fields that are only needed for publishing libraries.
 data PublishConfig = PublishConfig

@@ -135,6 +135,12 @@ parseConfig = do
             pure PublishConfig{..}
       publishConfig <- try ensurePublishConfig
 
+      let ensureMigrateConfig = do
+            migrateLicense <- Dhall.requireTypedKey ks "license" Dhall.strictText
+            migrateVersion <- Dhall.requireTypedKey ks "version" Dhall.strictText
+            pure MigrateConfig{..}
+      migrateConfig <- try ensureMigrateConfig
+
       packageSet <- Dhall.requireKey ks "packages" (\case
         Dhall.RecordLit pkgs -> parsePackageSet (Dhall.extractRecordValues pkgs)
         something            -> throwM $ Dhall.PackagesIsNotRecord something)
@@ -185,6 +191,7 @@ makeTempConfig dependencies alternateBackend configSourcePaths maybeTag = do
       let ks = Dhall.extractRecordValues ks'
       packageSet <- parsePackageSet ks
       let publishConfig = Left $ Dhall.RequiredKeyMissing "license" ks
+      let migrateConfig = Left $ Dhall.RequiredKeyMissing "license" ks
       pure $ Config { name = "", ..}
     _ -> die [ "Failed to parse package set" ]
 
