@@ -4,13 +4,18 @@ The next iteration of [Spago](https://github.com/purescript/spago).
 
 This project is still _extremely_ alpha-quality software, use at your own risk.
 
-## Installing
+## Installing & Developing
+
+> NOTE! The npm package will install an executable called `spago`, so be careful not to mix it up with the Haskell-based one.
 
 ```bash
 # Install dependencies
 npm ci
-# For bootstrap
+# Bootstrap
 npm install -g purescript-spaghetto
-# From here on you can use the `./spaghetto` script to run the local version, e.g.:
-./spaghetto build
+spago bundle -p spago-bin
+# From now on you can build with the local files in the output folder, e.g.:
+./bin/index.dev.js bundle -p spago-bin
+# Or from the built bundle:
+./bin/bundle.js bundle -p spago-bin
 ```
