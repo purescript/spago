@@ -22,6 +22,8 @@ export function addPackagesToConfigImpl(doc, newPkgs) {
       depsSet.delete(el.value);
       newItems.push(el);
     }
+    // FIXME: we need to handle the case where this is not a scalar, which is
+    // when it's an object because we have a version range
   }
   // any remaining values in the set are the new packages. We add them too
   for (const newPkg of depsSet) {
