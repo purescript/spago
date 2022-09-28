@@ -1,0 +1,41 @@
+{
+  "name": "purescript-spaghetto",
+  "version": "0.0.7",
+  "type": "module",
+  "bin": {
+    "spago": "bin/bundle.js"
+  },
+  "files": [
+    "bin/bundle.js"
+  ],
+  "main": "bin/bundle.js",
+  "scripts": {
+    "version": "sed -i'' -e \"s|version:.*|version: $npm_package_version|g\" {spago,bin/spago}.yaml && git add spago.yaml bin/spago.yaml",
+    "postversion": "git push && git push --tags",
+    "format": "purs-tidy format-in-place src bin",
+    "format:check": "purs-tidy check src bin",
+    "bundle": "spago bundle -p spago-bin",
+    "prepublishOnly": "rm -rf bin/bundle.js && npm run bundle"
+  },
+  "dependencies": {
+    "@octokit/plugin-retry": "^3.0.9",
+    "@octokit/plugin-throttling": "^3.7.0",
+    "@octokit/rest": "^18.12.0",
+    "aws-sdk": "^2.1210.0",
+    "decimal.js": "^10.3.1",
+    "env-paths": "^3.0.0",
+    "esbuild": "^0.15.5",
+    "fast-glob": "^3.2.11",
+    "fs-extra": "^10.0.0",
+    "fuse.js": "^6.5.3",
+    "jsonrepair": "^2.2.1",
+    "semver": "^7.3.5",
+    "spdx-expression-parse": "^3.0.1",
+    "supports-color": "^9.2.3",
+    "tar": "^6.1.11",
+    "tmp": "^0.2.1",
+    "which": "^2.0.2",
+    "xhr2": "^0.2.1",
+    "yaml": "^2.1.1"
+  }
+}

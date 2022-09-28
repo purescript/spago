@@ -1,0 +1,11 @@
+package:
+  name: spago-bin
+  version: 0.0.7
+  dependencies:
+    - spago
+  license: BSD-3-Clause
+  bundle:
+    entrypoint: index.dev.js
+    outfile: bundle.js
+    minify: true
+    format: esm
