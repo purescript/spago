@@ -54,7 +54,7 @@ type PublishConfig = {} -- FIXME: publishing. Does license go here instead?
 
 type WorkspaceConfig =
   { set :: Maybe SetAddress
-  , extra_packages :: Maybe (Map PackageName GitPackage)
+  , extra_packages :: Maybe (Map PackageName RemotePackage)
   , backend :: Maybe String -- FIXME support alternate backends
   }
 
@@ -113,6 +113,10 @@ instance RegistryJson.RegistryJson RemotePackage where
       version <- obj RegistryJson..: "version"
       pure (RemoteLegacyPackage { dependencies, repo, version })
     decodeVersion = map RemoteRegistryVersion <<< (RegistryJson.fromEncodableString :: String -> Either String Version)
+
+instance ToYaml RemotePackage where
+  encode = RegistryJson.encode
+  decode = RegistryJson.decode
 
 derive instance Newtype RemotePackageSet _
 derive newtype instance Eq RemotePackageSet
@@ -387,7 +391,7 @@ readWorkspace maybeSelectedPackage = do
       let
         overrides = Map.union
           (map WorkspacePackage workspacePackages)
-          (map GitPackage (fromMaybe Map.empty workspace.extra_packages))
+          (map fromRemotePackage (fromMaybe Map.empty workspace.extra_packages))
 
       in
         Map.union
