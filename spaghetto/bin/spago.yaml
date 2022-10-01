@@ -1,6 +1,6 @@
 package:
   name: spago-bin
-  version: 0.0.7
+  version: 0.0.9
   dependencies:
     - spago
   license: BSD-3-Clause
