@@ -10,8 +10,8 @@ import Data.Array as Array
 import Data.Bifunctor (lmap)
 import Data.Either as Either
 import Data.HTTP.Method as Method
+import Data.List as List
 import Data.Map as Map
-import Data.Set as Set
 import Dodo as Log
 import Effect.Uncurried (EffectFn2, runEffectFn2)
 import Foreign.FastGlob as Glob
@@ -45,7 +45,7 @@ type PackageConfig =
   , version :: Version
   , license :: License
   , dependencies :: Dependencies
-  , testDependencies :: Maybe Dependencies
+  , test_dependencies :: Maybe Dependencies
   , bundle :: Maybe BundleConfig
   , publish :: Maybe PublishConfig
   }
@@ -132,6 +132,7 @@ type WorkspacePackage =
   { path :: FilePath
   , package :: PackageConfig
   , doc :: YamlDoc Config
+  , glob :: String
   }
 
 data Package
@@ -299,7 +300,7 @@ readWorkspace maybeSelectedPackage = do
         Right { yaml: { package: Nothing } } -> Left $ "No package found for config at path: " <> path
         Right { yaml: { package: Just package }, doc } ->
           -- We store the path of the package, so we can treat is basically as a LocalPackage
-          Right $ Tuple package.name { path: Path.dirname path, package, doc }
+          Right $ Tuple package.name { path: Path.dirname path, package, doc, glob: basicGlob }
   { right: otherPackages, left: failedPackages } <- partitionMap identity <$> traverse readWorkspaceConfig otherConfigPaths
 
   unless (Array.null failedPackages) do
@@ -309,7 +310,34 @@ readWorkspace maybeSelectedPackage = do
   let
     workspacePackages = Map.fromFoldable $ otherPackages <> case maybePackage of
       Nothing -> []
-      Just package -> [ Tuple package.name { path: "./", package, doc: workspaceDoc } ]
+      Just package -> [ Tuple package.name { path: "./", package, doc: workspaceDoc, glob: basicGlob } ]
+
+    mkWorkspaceTestPackage :: WorkspacePackage -> Spago (LogEnv a) (Maybe (Tuple PackageName WorkspacePackage))
+    mkWorkspaceTestPackage { path, package, doc } = do
+      -- We try to figure out if we need a test package for this package - look for test sources
+      (liftEffect $ FS.Sync.exists (Path.concat [ path, "test" ])) >>= case _ of
+        false -> pure Nothing
+        true -> do
+          logDebug $ "Found a test package for package " <> show (show package.name)
+          pure do
+            -- TODO: should we prevent packages from having the `-test` suffix? I'd say it makes sense
+            testPkgName <- Either.hush $ PackageName.parse (PackageName.print package.name <> "-test")
+            let
+              glob = "test/**/*.purs"
+              dependencies = fromMaybe (Dependencies Map.empty) package.test_dependencies
+              testPackage = package
+                { name = testPkgName
+                -- Tests depend on the package that it's being tested
+                , dependencies = dependencies <> Dependencies (Map.singleton package.name Nothing)
+                , test_dependencies = Nothing
+                , bundle = Nothing
+                , publish = Nothing
+                }
+            Just $ Tuple testPackage.name { path, doc, package: testPackage, glob }
+
+  workspaceTestPackages <- map (Map.fromFoldable <<< List.catMaybes)
+    $ traverse mkWorkspaceTestPackage
+    $ Map.values workspacePackages
 
   -- Select the package for spago to handle during the rest of the execution
   maybeSelected <- case maybeSelectedPackage of
@@ -389,8 +417,12 @@ readWorkspace maybeSelectedPackage = do
   let
     packageSet =
       let
-        overrides = Map.union
+        localPackages = Map.union
+          (map WorkspacePackage workspaceTestPackages)
           (map WorkspacePackage workspacePackages)
+
+        overrides = Map.union
+          localPackages
           (map fromRemotePackage (fromMaybe Map.empty workspace.extra_packages))
 
       in
@@ -403,9 +435,10 @@ readWorkspace maybeSelectedPackage = do
       logSuccess $ "Selecting package to build: " <> show selected.package.name
       logDebug $ "Package path: " <> selected.path
     Nothing -> do
+      let allWorkspacePackages = getWorkspacePackages packageSet
       logSuccess
-        [ toDoc $ "Selecting " <> show (Map.size workspacePackages) <> " packages to build:"
-        , indent2 (toDoc (Set.toUnfoldable $ Map.keys workspacePackages :: Array PackageName))
+        [ toDoc $ "Selecting " <> show (Array.length allWorkspacePackages) <> " packages to build:"
+        , indent2 (toDoc (map _.package.name allWorkspacePackages))
         ]
 
   pure { selected: maybeSelected, packageSet, backend: workspace.backend, doc: workspaceDoc }
@@ -418,7 +451,15 @@ getPackageLocation name = case _ of
   WorkspacePackage { path } -> path
 
 sourceGlob :: PackageName -> Package -> String
-sourceGlob name package = Path.concat [ getPackageLocation name package, "src/**/*.purs" ]
+sourceGlob name package = Path.concat
+  [ getPackageLocation name package
+  , case package of
+      WorkspacePackage { glob } -> glob
+      _ -> basicGlob
+  ]
+
+basicGlob :: String
+basicGlob = "src/**/*.purs"
 
 getWorkspacePackages :: PackageSet -> Array WorkspacePackage
 getWorkspacePackages = Array.mapMaybe extractWorkspacePackage <<< Map.toUnfoldable
