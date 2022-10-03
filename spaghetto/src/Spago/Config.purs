@@ -54,8 +54,8 @@ type PublishConfig = {} -- FIXME: publishing. Does license go here instead?
 
 type WorkspaceConfig =
   { set :: Maybe SetAddress
-  , extra_packages :: Maybe (Map PackageName RemotePackage)
-  , backend :: Maybe String -- FIXME support alternate backends
+  , extra_packages :: Maybe (Map PackageName RemotePackage) -- TODO: this can be a local package too..
+  , backend :: Maybe String
   }
 
 type Workspace =
