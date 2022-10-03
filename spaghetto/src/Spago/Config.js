@@ -22,8 +22,11 @@ export function addPackagesToConfigImpl(doc, newPkgs) {
       depsSet.delete(el.value);
       newItems.push(el);
     }
-    // FIXME: we need to handle the case where this is not a scalar, which is
-    // when it's an object because we have a version range
+    // If it's not a scalar then we have a version range, and we are dealing with a map
+    if (Yaml.isMap(el) && depsSet.has(el.items[0].key)) {
+      depsSet.delete(el.value);
+      newItems.push(el);
+    }
   }
   // any remaining values in the set are the new packages. We add them too
   for (const newPkg of depsSet) {
