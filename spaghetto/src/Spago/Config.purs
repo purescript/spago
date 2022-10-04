@@ -42,8 +42,8 @@ type Config =
 
 type PackageConfig =
   { name :: PackageName
-  , version :: Version
-  , license :: License
+  , version :: Maybe Version
+  , license :: Maybe License
   , dependencies :: Dependencies
   , test_dependencies :: Maybe Dependencies
   , bundle :: Maybe BundleConfig
