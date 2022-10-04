@@ -69,10 +69,10 @@ buildInfoPath = Path.concat [ Paths.localCachePath, "BuildInfo.purs" ]
 
 -- TODO: maybe more elegant
 currentSpagoVersion :: String
-currentSpagoVersion = fromMaybe "0.0.1" $ map _.version $ Array.head BuildInfo.buildInfo.packages
+currentSpagoVersion = fromMaybe "0.0.0" $ map _.version $ Array.head BuildInfo.buildInfo.packages
 
 mkPackageBuildInfo :: WorkspacePackage -> { name :: String, version :: String }
 mkPackageBuildInfo { package } =
   { name: PackageName.print package.name
-  , version: Version.printVersion package.version
+  , version: fromMaybe "0.0.0" $ map Version.printVersion package.version
   }
