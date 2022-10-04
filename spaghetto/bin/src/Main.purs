@@ -20,6 +20,7 @@ import Registry.PackageName (PackageName)
 import Registry.PackageName as PackageName
 import Registry.Schema (Manifest(..), Metadata)
 import Registry.Version (Version)
+import Spago.BuildInfo as BuildInfo
 import Spago.Command.Build as Build
 import Spago.Command.Bundle as Bundle
 import Spago.Commands.Fetch as Fetch
@@ -100,7 +101,7 @@ argParser =
           (SpagoCmd <$> globalArgsParser <*> (Sources <$> sourcesArgsParser) <* ArgParser.flagHelp)
     ]
     <* ArgParser.flagHelp
-    <* ArgParser.flagInfo [ "--version" ] "Show the current version" Build.currentSpagoVersion
+    <* ArgParser.flagInfo [ "--version" ] "Show the current version" BuildInfo.currentSpagoVersion
 
 {-
 
