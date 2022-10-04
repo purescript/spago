@@ -157,15 +157,15 @@ getPackageDependencies packageName package = case package of
         let packageLocation = Config.getPackageLocation packageName package
         unlessM (liftEffect $ FS.Sync.exists packageLocation) do
           getGitPackageInLocalCache packageName p
-        readLocalDependencies p packageLocation
+        readLocalDependencies packageLocation
   LocalPackage p -> do
-    readLocalDependencies p p.path
+    readLocalDependencies p.path
   WorkspacePackage { package: { dependencies: (Dependencies deps) } } ->
     pure (Just (map (fromMaybe widestRange) deps))
   where
   -- try to see if the package has a spago config, and if it's there we read it
-  readLocalDependencies :: forall b. Show b => b -> FilePath -> Spago (FetchEnv a) (Maybe (Map PackageName Range))
-  readLocalDependencies p packageLocation = do
+  readLocalDependencies :: FilePath -> Spago (FetchEnv a) (Maybe (Map PackageName Range))
+  readLocalDependencies packageLocation = do
     -- TODO: make this work with manifests
     Config.readConfig (Path.concat [ packageLocation, "spago.yaml" ]) >>= case _ of
       Right { yaml: { package: Just { dependencies: (Dependencies deps) } } } -> do
