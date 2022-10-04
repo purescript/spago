@@ -6,6 +6,8 @@ module Spago.Prelude
   , throwError
   , spawnFromParentWithStdin
   , parseUrl
+  , shaToHex
+  , HexString(..)
   , parallelise
   ) where
 
@@ -47,11 +49,13 @@ import Effect.Class (liftEffect) as Extra
 import Effect.Exception.Unsafe (unsafeThrow) as Extra
 import Effect.Ref (Ref) as Extra
 import Effect.Ref as Ref
+import Node.Buffer as Buffer
 import Node.ChildProcess as ChildProcess
 import Node.Encoding (Encoding(..)) as Extra
 import Node.Path (FilePath) as Extra
 import Node.Process as Process
 import Node.Stream as Stream
+import Registry.Hash (Sha256)
 import Spago.Log (logDebug, logError, logInfo, logSuccess, logWarn, die, LogOptions, LogEnv, toDoc, indent, indent2, output) as Extra
 import Unsafe.Coerce (unsafeCoerce)
 
@@ -140,3 +144,11 @@ parallelise actions = do
   env <- Extra.ask
   fibers <- Extra.liftAff $ Parallel.parSequence (map (Aff.forkAff <<< runSpago env) actions :: Array _)
   Extra.liftAff $ Extra.for_ fibers Aff.joinFiber
+
+shaToHex :: Sha256 -> Extra.Effect HexString
+shaToHex s = do
+  (buffer :: Buffer.Buffer) <- Buffer.fromString (show s) Extra.UTF8
+  string <- Buffer.toString Extra.Hex buffer
+  pure $ HexString string
+
+newtype HexString = HexString String

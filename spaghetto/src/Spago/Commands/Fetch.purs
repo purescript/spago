@@ -12,20 +12,22 @@ import Data.HTTP.Method as Method
 import Data.Int as Int
 import Data.Map as Map
 import Data.Set as Set
+import Effect.Now as Now
 import Node.Buffer (Buffer)
 import Node.Buffer as Buffer
 import Node.Encoding as Encoding
 import Node.FS.Sync as FS.Sync
 import Node.Path as Path
 import Partial.Unsafe (unsafeCrashWith)
+import Registry.Hash as Hash
 import Registry.Hash as Registry.Hash
 import Registry.PackageName (PackageName)
 import Registry.PackageName as PackageName
-import Registry.Prelude as Registry.Prelude
 import Registry.Schema (Manifest, Metadata)
 import Registry.Version (Range, Version)
 import Registry.Version as Registry.Version
-import Spago.Config (Dependencies(..), Package(..), Workspace, PackageSet)
+import Registry.Version as Version
+import Spago.Config (Dependencies(..), Package(..), PackageSet, Workspace, GitPackage)
 import Spago.Config as Config
 import Spago.FS as FS
 import Spago.Git as Git
@@ -78,10 +80,7 @@ run packages = do
     let localPackageLocation = Config.getPackageLocation name package
     -- first of all, we check if we have the package in the local cache. If so, we don't even do the work
     unlessM (liftEffect $ FS.Sync.exists localPackageLocation) case package of
-      GitPackage gitPackage -> do
-        -- Easy, just git clone it in the local cache
-        -- TODO: error handling here
-        Git.fetchRepo gitPackage localPackageLocation
+      GitPackage gitPackage -> getGitPackageInLocalCache name gitPackage
       RegistryVersion v -> do
         -- if the version comes from the registry then we have a longer list of things to do
         let versionString = Registry.Version.printVersion v
@@ -122,13 +121,28 @@ run packages = do
                   -- if everything's alright we stash the tar in the global cache
                   logInfo $ "Copying tarball to global cache: " <> tarballPath
                   liftAff $ FS.writeFile tarballPath tarballBuffer
-            -- unpack the tars in the local cache
-            logDebug $ "Unpacking tarball to local cache: " <> localPackageLocation
-            liftEffect $ Tar.extract { filename: tarballPath, cwd: Paths.localCachePackagesPath }
+            -- unpack the tars in a temp folder, then move to local cache
+            let tarInnerFolder = PackageName.print name <> "-" <> Version.printVersion v
+            tempDir <- liftAff mkTemp
+            liftAff $ FS.mkdirp tempDir
+            logDebug $ "Unpacking tarball to temp folder: " <> tempDir
+            liftEffect $ Tar.extract { filename: tarballPath, cwd: tempDir }
+            logDebug $ "Moving extracted file to local cache:" <> localPackageLocation
+            liftAff $ FS.rename (Path.concat [ tempDir, tarInnerFolder ]) localPackageLocation
       -- Local package, no work to be done
       LocalPackage _ -> pure unit
       WorkspacePackage _ -> pure unit
   pure transitivePackages
+
+getGitPackageInLocalCache :: forall a. PackageName -> GitPackage -> Spago (LogEnv a) Unit
+getGitPackageInLocalCache name package = do
+  let localPackageLocation = Config.getPackageLocation name (GitPackage package)
+  tempDir <- liftAff $ mkTemp' (Just $ show package)
+  logDebug $ "Cloning repo in " <> tempDir
+  Git.fetchRepo package tempDir
+  logDebug $ "Repo cloned. Moving to " <> localPackageLocation
+  liftAff $ FS.mkdirp $ Path.concat [ Paths.localCachePackagesPath, PackageName.print name ]
+  liftAff $ FS.rename tempDir localPackageLocation
 
 getPackageDependencies :: forall a. PackageName -> Package -> Spago (FetchEnv a) (Maybe (Map PackageName Range))
 getPackageDependencies packageName package = case package of
@@ -137,29 +151,27 @@ getPackageDependencies packageName package = case package of
     maybeManifest <- runSpago { logOptions } $ getManifestFromIndex packageName v
     pure $ map (_.dependencies <<< unwrap) maybeManifest
   GitPackage p -> do
-    -- TODO: error handling here
-    let packageLocation = Config.getPackageLocation packageName package
-    unlessM (liftEffect $ FS.Sync.exists packageLocation) do
-      Git.fetchRepo p packageLocation
-    readLocalDependencies p packageLocation p.dependencies
+    case p.dependencies of
+      Just (Dependencies dependencies) -> pure (Just (map (fromMaybe widestRange) dependencies))
+      Nothing -> do
+        let packageLocation = Config.getPackageLocation packageName package
+        unlessM (liftEffect $ FS.Sync.exists packageLocation) do
+          getGitPackageInLocalCache packageName p
+        readLocalDependencies packageLocation
   LocalPackage p -> do
-    readLocalDependencies p p.path p.dependencies
+    readLocalDependencies p.path
   WorkspacePackage { package: { dependencies: (Dependencies deps) } } ->
     pure (Just (map (fromMaybe widestRange) deps))
   where
-  readLocalDependencies :: forall b. Show b => b -> FilePath -> Maybe Dependencies -> Spago (FetchEnv a) (Maybe (Map PackageName Range))
-  readLocalDependencies p packageLocation maybeDependencies = do
-    -- try to see if the package has a spago config, and if it's there we read it
+  -- try to see if the package has a spago config, and if it's there we read it
+  readLocalDependencies :: FilePath -> Spago (FetchEnv a) (Maybe (Map PackageName Range))
+  readLocalDependencies packageLocation = do
     -- TODO: make this work with manifests
     Config.readConfig (Path.concat [ packageLocation, "spago.yaml" ]) >>= case _ of
       Right { yaml: { package: Just { dependencies: (Dependencies deps) } } } -> do
         pure (Just (map (fromMaybe widestRange) deps))
-      -- if we don't have any config then we require the package.dependencies array to be there
-      other -> do
-        logDebug $ "Failed to read config of dependency, error: " <> show other
-        -- TODO: this should really be a nicer crash
-        let (Dependencies deps) = Registry.Prelude.fromJust' (\_ -> unsafeCrashWith $ "Dependencies are not there: " <> show p) maybeDependencies
-        pure (Just (map (fromMaybe widestRange) deps))
+      Right _ -> die [ "Read valid configuration from " <> packageLocation, "However, there was no `package` section to be read." ]
+      Left err -> die [ "Could not read config at " <> packageLocation, "Error: " <> err ]
 
 type TransitiveDepsResult =
   { packages :: Map PackageName Package
@@ -231,3 +243,17 @@ getTransitiveDeps deps = do
 widestRange :: Range
 widestRange = Either.fromRight' (\_ -> unsafeCrashWith "Fake range failed")
   $ Registry.Version.parseRange Registry.Version.Lenient ">=0.0.0 <2147483647.0.0"
+
+mkTemp' :: Maybe String -> Aff FilePath
+mkTemp' maybeSuffix = do
+  -- Get a random string
+  (HexString random) <- liftEffect do
+    now <- Now.now
+    sha <- Hash.sha256String $ show now <> fromMaybe "" maybeSuffix
+    shaToHex sha
+  -- Return the dir, but don't make it - that's the responsibility of the client
+  let tempDirPath = Path.concat [ Paths.paths.temp, random ]
+  pure tempDirPath
+
+mkTemp :: Aff FilePath
+mkTemp = mkTemp' Nothing

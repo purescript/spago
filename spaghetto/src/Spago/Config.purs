@@ -12,6 +12,7 @@ import Data.Either as Either
 import Data.HTTP.Method as Method
 import Data.List as List
 import Data.Map as Map
+import Data.Set as Set
 import Dodo as Log
 import Effect.Uncurried (EffectFn2, runEffectFn2)
 import Foreign.FastGlob as Glob
@@ -148,10 +149,7 @@ instance Show Package where
     LocalPackage p -> show p
     WorkspacePackage { path, package } -> show { path, package }
 
-type LocalPackage =
-  { path :: FilePath
-  , dependencies :: Maybe Dependencies
-  }
+type LocalPackage = { path :: FilePath }
 
 type GitPackage =
   { git :: String
@@ -285,7 +283,8 @@ readWorkspace maybeSelectedPackage = do
 
   -- Then gather all the spago other configs in the tree.
   { succeeded: otherConfigPaths, failed } <- liftAff $ Glob.match' Paths.cwd [ "**/spago.yaml" ] { ignore: [ ".spago", "spago.yaml" ] }
-  logDebug $ [ toDoc "Found packages at these paths:", Log.indent $ Log.lines (map toDoc otherConfigPaths) ]
+  unless (Array.null otherConfigPaths) do
+    logDebug $ [ toDoc "Found packages at these paths:", Log.indent $ Log.lines (map toDoc otherConfigPaths) ]
   unless (Array.null failed) do
     logDebug $ "Failed to sanitise some of the glob matches: " <> show failed
 
@@ -339,9 +338,11 @@ readWorkspace maybeSelectedPackage = do
     $ traverse mkWorkspaceTestPackage
     $ Map.values workspacePackages
 
+  let localPackages = Map.union workspaceTestPackages workspacePackages
+
   -- Select the package for spago to handle during the rest of the execution
   maybeSelected <- case maybeSelectedPackage of
-    Nothing -> case Array.uncons (Map.toUnfoldable workspacePackages) of
+    Nothing -> case Array.uncons (Map.toUnfoldable localPackages) of
       Nothing -> die "No valid packages found in the current project, halting."
       -- If there's only one package and it's not in the root we still select that
       Just { head: (Tuple packageName package), tail: [] } -> do
@@ -349,11 +350,11 @@ readWorkspace maybeSelectedPackage = do
         pure (Just package)
       -- If no package has been selected and we have many packages, then we build all of them but select none
       _ -> pure Nothing
-    Just name -> case Map.lookup name workspacePackages of
+    Just name -> case Map.lookup name localPackages of
       Nothing -> die
         [ toDoc $ "Selected package " <> show name <> " was not found in the local packages."
         , toDoc "Available packages:"
-        , indent (toDoc (Array.fromFoldable $ Map.keys workspacePackages))
+        , indent (toDoc (Array.fromFoldable $ Map.keys localPackages))
         ]
       Just p -> pure (Just p)
 
@@ -395,7 +396,7 @@ readWorkspace maybeSelectedPackage = do
                   logDebug "Read a new-format package set from URL"
                   pure { maybeCompiler: Just set.compiler, remotePackageSet: set.packages }
                 Left err -> do
-                  logDebug [ "Couldn't parse remote package set in modern format, error:", show err, "Trying with the legacy format..." ]
+                  logDebug [ "Couldn't parse remote package set in modern format, error:", "  " <> show err, "Trying with the legacy format..." ]
                   case RegistryJson.parseJson body of
                     Left err' -> die $ "Couldn't parse remote package set, error: " <> show err'
                     Right (Registry.PackageSet.LegacyPackageSet set) -> do
@@ -417,12 +418,8 @@ readWorkspace maybeSelectedPackage = do
   let
     packageSet =
       let
-        localPackages = Map.union
-          (map WorkspacePackage workspaceTestPackages)
-          (map WorkspacePackage workspacePackages)
-
         overrides = Map.union
-          localPackages
+          (map WorkspacePackage localPackages)
           (map fromRemotePackage (fromMaybe Map.empty workspace.extra_packages))
 
       in
@@ -435,10 +432,9 @@ readWorkspace maybeSelectedPackage = do
       logSuccess $ "Selecting package to build: " <> show selected.package.name
       logDebug $ "Package path: " <> selected.path
     Nothing -> do
-      let allWorkspacePackages = getWorkspacePackages packageSet
       logSuccess
-        [ toDoc $ "Selecting " <> show (Array.length allWorkspacePackages) <> " packages to build:"
-        , indent2 (toDoc (map _.package.name allWorkspacePackages))
+        [ toDoc $ "Selecting " <> show (Map.size localPackages) <> " packages to build:"
+        , indent2 (toDoc (Set.toUnfoldable $ Map.keys localPackages :: Array PackageName))
         ]
 
   pure { selected: maybeSelected, packageSet, backend: workspace.backend, doc: workspaceDoc }
@@ -472,7 +468,8 @@ type PackageSetResult = { maybeCompiler :: Maybe Version, remotePackageSet :: Ma
 
 readPackageSetFromHash :: forall a. Sha256 -> Spago (LogEnv a) PackageSetResult
 readPackageSetFromHash hash = do
-  let path = packageSetCachePath hash
+  hex <- liftEffect (shaToHex hash)
+  let path = packageSetCachePath hex
   logDebug $ "Reading cached package set entry from " <> path
   (liftEffect $ FS.Sync.exists path) >>= case _ of
     false -> die $ "Did not find a package set cached with hash " <> show hash
@@ -484,16 +481,17 @@ writePackageSetToHash :: forall a. PackageSetResult -> Spago (LogEnv a) Sha256
 writePackageSetToHash result = do
   let serialised = RegistryJson.printJson result
   hash <- liftEffect $ Registry.Hash.sha256String serialised
+  hex <- liftEffect (shaToHex hash)
   liftAff do
     FS.mkdirp packageSetsCachePath
-    FS.writeTextFile UTF8 (packageSetCachePath hash) serialised
+    FS.writeTextFile UTF8 (packageSetCachePath hex) serialised
   pure hash
 
 packageSetsCachePath :: FilePath
 packageSetsCachePath = Path.concat [ Paths.globalCachePath, "setsCAS" ]
 
-packageSetCachePath :: forall a. Show a ⇒ a → String
-packageSetCachePath hash = Path.concat [ packageSetsCachePath, show hash ]
+packageSetCachePath :: HexString → String
+packageSetCachePath (HexString hash) = Path.concat [ packageSetsCachePath, hash ]
 
 foreign import updatePackageSetHashInConfigImpl :: EffectFn2 (YamlDoc Config) String Unit
 

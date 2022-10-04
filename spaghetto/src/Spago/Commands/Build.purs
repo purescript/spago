@@ -61,7 +61,7 @@ run opts = do
               ]
           Purs.compile globs $ opts.pursArgs <> [ "--codegen", "corefn" ]
 
-          logDebug $ "Compiling with backend \"" <> backend <> "\""
+          logInfo $ "Compiling with backend \"" <> backend <> "\""
           let backendCmd = backend -- TODO: we might want to pass args to the backend here
           logDebug $ "Running command `" <> backendCmd <> "`"
           void $ liftAff $ spawnFromParentWithStdin
