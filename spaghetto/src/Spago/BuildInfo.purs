@@ -4,8 +4,7 @@ import Spago.Prelude
 
 import Data.Array as Array
 import Data.String as String
-import Node.FS.Aff as FS
-import Node.FS.Sync as FS.Sync
+import Spago.FS as FS
 import Node.Path as Path
 import Registry.PackageName as PackageName
 import Registry.Version as Version
@@ -41,7 +40,7 @@ writeBuildInfo = do
     buildInfoString = mkBuildInfo buildInfo
     writeIt = liftAff $ FS.writeTextFile UTF8 buildInfoPath buildInfoString
   -- try to write the new build info only if necessary
-  (liftEffect $ FS.Sync.exists buildInfoPath) >>= case _ of
+  (liftEffect $ FS.exists buildInfoPath) >>= case _ of
     false -> writeIt
     true -> do
       currentContent <- liftAff $ FS.readTextFile UTF8 buildInfoPath

@@ -6,7 +6,7 @@ import Control.Monad.Except (ExceptT(..))
 import Control.Monad.Except as Except
 import Data.String as String
 import Node.ChildProcess as NodeProcess
-import Node.FS.Sync as FS.Sync
+import Spago.FS as FS
 import Sunde as Process
 
 runGit_ :: Array String -> Maybe FilePath -> ExceptT String Aff Unit
@@ -35,7 +35,7 @@ runGitSilent args cwd = ExceptT do
 fetchRepo :: forall a b. { git :: String, ref :: String | a } -> FilePath -> Spago (LogEnv b) Unit
 fetchRepo { git, ref } path = do
   let runE = liftAff <<< Except.runExceptT
-  repoExists <- liftEffect (FS.Sync.exists path)
+  repoExists <- liftEffect (FS.exists path)
   cloneOrFetchResult <- case repoExists of
     true -> do
       logDebug $ "Found the " <> git <> " repo locally, pulling..."

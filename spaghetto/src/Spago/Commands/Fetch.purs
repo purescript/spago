@@ -16,7 +16,6 @@ import Effect.Now as Now
 import Node.Buffer (Buffer)
 import Node.Buffer as Buffer
 import Node.Encoding as Encoding
-import Node.FS.Sync as FS.Sync
 import Node.Path as Path
 import Partial.Unsafe (unsafeCrashWith)
 import Registry.Hash as Hash
@@ -79,7 +78,7 @@ run packages = do
   parallelise $ (flip map) (Map.toUnfoldable transitivePackages :: Array (Tuple PackageName Package)) \(Tuple name package) -> do
     let localPackageLocation = Config.getPackageLocation name package
     -- first of all, we check if we have the package in the local cache. If so, we don't even do the work
-    unlessM (liftEffect $ FS.Sync.exists localPackageLocation) case package of
+    unlessM (liftEffect $ FS.exists localPackageLocation) case package of
       GitPackage gitPackage -> getGitPackageInLocalCache name gitPackage
       RegistryVersion v -> do
         -- if the version comes from the registry then we have a longer list of things to do
@@ -94,7 +93,7 @@ run packages = do
             let globalCachePackagePath = Path.concat [ Paths.globalCachePath, "packages", PackageName.print name ]
             let tarballPath = Path.concat [ globalCachePackagePath, versionString <> ".tar.gz" ]
             liftAff $ FS.mkdirp globalCachePackagePath
-            unlessM (liftEffect $ FS.Sync.exists tarballPath) do
+            unlessM (liftEffect $ FS.exists tarballPath) do
               response <- liftAff $ Http.request
                 ( Http.defaultRequest
                     { method = Left Method.GET
@@ -128,7 +127,7 @@ run packages = do
             logDebug $ "Unpacking tarball to temp folder: " <> tempDir
             liftEffect $ Tar.extract { filename: tarballPath, cwd: tempDir }
             logDebug $ "Moving extracted file to local cache:" <> localPackageLocation
-            liftAff $ FS.rename (Path.concat [ tempDir, tarInnerFolder ]) localPackageLocation
+            liftEffect $ FS.moveSync { src: (Path.concat [ tempDir, tarInnerFolder ]), dst: localPackageLocation }
       -- Local package, no work to be done
       LocalPackage _ -> pure unit
       WorkspacePackage _ -> pure unit
@@ -142,7 +141,7 @@ getGitPackageInLocalCache name package = do
   Git.fetchRepo package tempDir
   logDebug $ "Repo cloned. Moving to " <> localPackageLocation
   liftAff $ FS.mkdirp $ Path.concat [ Paths.localCachePackagesPath, PackageName.print name ]
-  liftAff $ FS.rename tempDir localPackageLocation
+  liftEffect $ FS.moveSync { src: tempDir, dst: localPackageLocation }
 
 getPackageDependencies :: forall a. PackageName -> Package -> Spago (FetchEnv a) (Maybe (Map PackageName Range))
 getPackageDependencies packageName package = case package of
@@ -155,7 +154,7 @@ getPackageDependencies packageName package = case package of
       Just (Dependencies dependencies) -> pure (Just (map (fromMaybe widestRange) dependencies))
       Nothing -> do
         let packageLocation = Config.getPackageLocation packageName package
-        unlessM (liftEffect $ FS.Sync.exists packageLocation) do
+        unlessM (liftEffect $ FS.exists packageLocation) do
           getGitPackageInLocalCache packageName p
         readLocalDependencies packageLocation
   LocalPackage p -> do
