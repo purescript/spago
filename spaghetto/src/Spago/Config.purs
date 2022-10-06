@@ -19,7 +19,6 @@ import Foreign.FastGlob as Glob
 import Foreign.Object (Object)
 import Foreign.Object as Object
 import Foreign.SPDX (License)
-import Node.FS.Sync as FS.Sync
 import Node.Path as Path
 import Parsing as Parsing
 import Registry.Hash (Sha256)
@@ -314,7 +313,7 @@ readWorkspace maybeSelectedPackage = do
     mkWorkspaceTestPackage :: WorkspacePackage -> Spago (LogEnv a) (Maybe (Tuple PackageName WorkspacePackage))
     mkWorkspaceTestPackage { path, package, doc } = do
       -- We try to figure out if we need a test package for this package - look for test sources
-      (liftEffect $ FS.Sync.exists (Path.concat [ path, "test" ])) >>= case _ of
+      (liftEffect $ FS.exists (Path.concat [ path, "test" ])) >>= case _ of
         false -> pure Nothing
         true -> do
           logDebug $ "Found a test package for package " <> show (show package.name)
@@ -377,15 +376,14 @@ readWorkspace maybeSelectedPackage = do
             }
     Just (SetFromUrl { url: rawUrl, hash: maybeHash }) -> do
       -- If there is a hash then we look up in the CAS, if not we fetch stuff, compute a hash and store it there
-      case maybeHash of
-        Just hash -> readPackageSetFromHash hash
-        Nothing -> do
+      let
+        fetchPackageSet = do
           logDebug $ "Reading the package set from URL: " <> rawUrl
           url <- case parseUrl rawUrl of
             Left err -> die $ "Could not parse URL for the package set, error: " <> show err
             Right u -> pure u.href
           response <- liftAff $ Http.request (Http.defaultRequest { method = Left Method.GET, responseFormat = Response.string, url = url })
-          result <- case response of
+          case response of
             Left err -> die $ "Couldn't fetch package set:\n  " <> Http.printError err
             Right { status, body } | status /= StatusCode 200 -> do
               die $ "Couldn't fetch package set, status was not ok " <> show status <> ", got answer:\n  " <> body
@@ -403,12 +401,20 @@ readWorkspace maybeSelectedPackage = do
                       logDebug "Read legacy package set from URL"
                       -- TODO: fetch compiler version from Metadata package
                       pure { maybeCompiler: Nothing, remotePackageSet: map RemoteLegacyPackage set }
+      result <- case maybeHash of
+        Just hash -> readPackageSetFromHash hash >>= case _ of
+          Left err -> do
+            logDebug $ show err
+            fetchPackageSet
+          Right r -> pure r
+        Nothing -> do
           logWarn $ "Did not find a hash for your package set import, adding it to your config..."
-          newHash <- writePackageSetToHash result
-          logDebug $ "Package set hash: " <> show newHash
-          liftEffect $ updatePackageSetHashInConfig workspaceDoc newHash
-          liftAff $ Yaml.writeYamlDocFile "spago.yaml" workspaceDoc
-          pure result
+          fetchPackageSet
+      newHash <- writePackageSetToHash result
+      logDebug $ "Package set hash: " <> show newHash
+      liftEffect $ updatePackageSetHashInConfig workspaceDoc newHash
+      liftAff $ Yaml.writeYamlDocFile "spago.yaml" workspaceDoc
+      pure result
 
   -- Mix in the package set (a) the workspace packages, and (b) the extra_packages
   -- Note: if there are duplicate packages we pick the "most local ones first",
@@ -466,16 +472,16 @@ getWorkspacePackages = Array.mapMaybe extractWorkspacePackage <<< Map.toUnfoldab
 
 type PackageSetResult = { maybeCompiler :: Maybe Version, remotePackageSet :: Map PackageName RemotePackage }
 
-readPackageSetFromHash :: forall a. Sha256 -> Spago (LogEnv a) PackageSetResult
+readPackageSetFromHash :: forall a. Sha256 -> Spago (LogEnv a) (Either String PackageSetResult)
 readPackageSetFromHash hash = do
   hex <- liftEffect (shaToHex hash)
   let path = packageSetCachePath hex
   logDebug $ "Reading cached package set entry from " <> path
-  (liftEffect $ FS.Sync.exists path) >>= case _ of
-    false -> die $ "Did not find a package set cached with hash " <> show hash
+  (liftEffect $ FS.exists path) >>= case _ of
+    false -> pure $ Left $ "Did not find a package set cached with hash " <> show hash
     true -> (liftAff $ RegistryJson.readJsonFile path) >>= case _ of
-      Left err -> die $ "Error while reading cached package set " <> show hash <> ": " <> err
-      Right res -> pure res
+      Left err -> pure $ Left $ "Error while reading cached package set " <> show hash <> ": " <> err
+      Right res -> pure $ Right res
 
 writePackageSetToHash :: forall a. PackageSetResult -> Spago (LogEnv a) Sha256
 writePackageSetToHash result = do
