@@ -13,6 +13,7 @@ import Effect.Class.Console as Console
 import Effect.Ref as Ref
 import Flags as Flags
 import Node.Process as Process
+import Psa (ErrorCode, StatVerbosity)
 import Registry.API as Registry.API
 import Registry.Index as Index
 import Registry.Json as RegistryJson
@@ -52,6 +53,18 @@ type InstallArgs =
 type BuildArgs =
   { selectedPackage :: Maybe String
   , pursArgs :: List String
+  , psaCensorWarnings :: Boolean
+  , psaCensorLib :: Boolean
+  , psaCensorSrc :: Boolean
+  , psaCensorCodes :: Set ErrorCode
+  , psaFilterCodes :: Set ErrorCode
+  , psaStatVerbosity :: StatVerbosity
+  , psaLibDirs :: Maybe (Array String)
+  , psaStrict :: Boolean
+  , psaAnsi :: Boolean
+  , psaShowSource :: Boolean
+  , psaStash :: Boolean
+  , psaStashFile :: String
   }
 
 type SourcesArgs =
@@ -146,6 +159,18 @@ buildArgsParser :: ArgParser BuildArgs
 buildArgsParser = ArgParser.fromRecord
   { selectedPackage: Flags.selectedPackage
   , pursArgs: Flags.pursArgs
+  , psaCensorWarnings: Flags.psaCensorWarnings
+  , psaCensorLib: Flags.psaCensorLib
+  , psaCensorSrc: Flags.psaCensorSrc
+  , psaCensorCodes: Flags.psaCensorCodes
+  , psaFilterCodes: Flags.psaFilterCodes
+  , psaStatVerbosity: Flags.psaStatVerbosity
+  , psaLibDirs: Flags.psaLibDirs
+  , psaStrict: Flags.psaStrict
+  , psaAnsi: Flags.psaAnsi
+  , psaShowSource: Flags.psaShowSource
+  , psaStash: Flags.psaStash
+  , psaStashFile: Flags.psaStashFile
   }
 
 bundleArgsParser :: ArgParser BundleArgs
