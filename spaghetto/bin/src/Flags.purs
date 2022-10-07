@@ -36,6 +36,12 @@ platform =
     "The bundle platform. 'node' or 'browser'"
     # ArgParser.optional
 
+output :: ArgParser (Maybe String)
+output =
+  ArgParser.argument [ "--output" ]
+    "The output directory for compiled files (default: \"output\")"
+    # ArgParser.optional
+
 quiet ∷ ArgParser Boolean
 quiet =
   ArgParser.flag [ "--quiet", "-q" ]

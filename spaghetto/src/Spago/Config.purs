@@ -56,12 +56,14 @@ type WorkspaceConfig =
   { set :: Maybe SetAddress
   , extra_packages :: Maybe (Map PackageName RemotePackage) -- TODO: this can be a local package too..
   , backend :: Maybe String
+  , output :: Maybe FilePath
   }
 
 type Workspace =
   { selected :: Maybe WorkspacePackage
   , packageSet :: PackageSet
   , backend :: Maybe String
+  , output :: Maybe String
   , doc :: YamlDoc Config
   }
 
@@ -443,7 +445,13 @@ readWorkspace maybeSelectedPackage = do
         , indent2 (toDoc (Set.toUnfoldable $ Map.keys localPackages :: Array PackageName))
         ]
 
-  pure { selected: maybeSelected, packageSet, backend: workspace.backend, doc: workspaceDoc }
+  pure
+    { selected: maybeSelected
+    , packageSet
+    , backend: workspace.backend
+    , output: workspace.output
+    , doc: workspaceDoc
+    }
 
 getPackageLocation :: PackageName -> Package -> FilePath
 getPackageLocation name = case _ of

@@ -47,19 +47,30 @@ run opts = do
 
   BuildInfo.writeBuildInfo
 
+  -- find the output flag and die if it's there - Spago handles it
+  when (isJust $ Cmd.findFlag { flags: [ "-o", "--output" ], args: opts.pursArgs }) do
+    die
+      [ "Can't pass `--output` option directly to purs."
+      , "Use the --output flag for Spago, or add it to your config file."
+      ]
+  let
+    args = case workspace.output of
+      Nothing -> opts.pursArgs
+      Just output -> opts.pursArgs <> [ "--output", output ]
+
   let
     buildBackend globs = do
       case workspace.backend of
         Nothing ->
-          Purs.compile globs opts.pursArgs
+          Purs.compile globs args
         Just backend -> do
-          when (isJust $ Cmd.findFlag { flags: [ "-g", "--codegen" ], args: opts.pursArgs }) do
+          when (isJust $ Cmd.findFlag { flags: [ "-g", "--codegen" ], args }) do
             die
               [ "Can't pass `--codegen` option to build when using a backend"
               , "Hint: No need to pass `--codegen corefn` explicitly when using the `backend` option."
               , "Remove the argument to solve the error"
               ]
-          Purs.compile globs $ opts.pursArgs <> [ "--codegen", "corefn" ]
+          Purs.compile globs $ args <> [ "--codegen", "corefn" ]
 
           logInfo $ "Compiling with backend \"" <> backend <> "\""
           let backendCmd = backend -- TODO: we might want to pass args to the backend here
