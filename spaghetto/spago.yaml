@@ -39,6 +39,7 @@ package:
     - partial
     - posix-types
     - prelude
+    - psa-utils
     - record
     - refs
     - registry-dev
@@ -58,3 +59,4 @@ workspace:
     registry-dev:
       git: https://github.com/purescript/registry-dev.git
       ref: 04364360f1e5a91173f3b88a5e807773dc06aca5
+
