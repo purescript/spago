@@ -30,6 +30,7 @@ type RawBundleOptions =
 
 run :: forall a. BundleOptions -> Spago (BundleEnv a) Unit
 run opts = do
+  logDebug $ "Bundle options: " <> show opts
   { esbuild, selected } <- ask
   let command = esbuild
   let minify = if opts.minify then [ "--minify" ] else []

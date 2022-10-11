@@ -61,7 +61,7 @@ type SourcesArgs =
   }
 
 type BundleArgs =
-  { minify :: Maybe Boolean
+  { minify :: Boolean
   , entrypoint :: Maybe FilePath
   , outfile :: Maybe FilePath
   , platform :: Maybe String
@@ -249,7 +249,7 @@ mkBundleEnv bundleArgs = do
     bundleConf :: forall x. (BundleConfig -> Maybe x) -> Maybe x
     bundleConf f = selected.package.bundle >>= f
   -- TODO: there should be no defaults here actually?
-  let minify = fromMaybe false (bundleArgs.minify <|> bundleConf _.minify)
+  let minify = Array.any (_ == true) [ bundleArgs.minify, fromMaybe false (_.minify =<< selected.package.bundle) ]
   let entrypoint = fromMaybe "main.js" (bundleArgs.entrypoint <|> bundleConf _.entrypoint)
   let outfile = fromMaybe "index.js" (bundleArgs.outfile <|> bundleConf _.outfile)
   let

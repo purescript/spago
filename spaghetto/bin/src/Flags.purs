@@ -11,12 +11,11 @@ selectedPackage =
     "Select the local project to build"
     # ArgParser.optional
 
-minify ∷ ArgParser (Maybe Boolean)
+minify ∷ ArgParser Boolean
 minify =
   ArgParser.flag [ "--minify" ]
     "Minify the bundle"
     # ArgParser.boolean
-    # ArgParser.optional
 
 entrypoint ∷ ArgParser (Maybe String)
 entrypoint =
