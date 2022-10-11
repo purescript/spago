@@ -56,6 +56,30 @@ workspace:
     registry: 0.0.2
   extra_packages:
     dodo-printer: 2.2.1
+    psa-utils:
+      git: https://github.com/JordanMartinez/purescript-psa-utils.git
+      ref: 0ea8aceb45f9fabbb5252b68861013120ef49302
+      dependencies:
+        - "ansi"
+        - "argonaut-codecs"
+        - "argonaut-core"
+        - "arrays"
+        - "bifunctors"
+        - "console"
+        - "control"
+        - "effect"
+        - "either"
+        - "foldable-traversable"
+        - "foreign-object"
+        - "lists"
+        - "maybe"
+        - "node-path"
+        - "ordered-collections"
+        - "prelude"
+        - "psci-support"
+        - "strings"
+        - "tuples"
+        - "unsafe-coerce"
     registry-dev:
       git: https://github.com/purescript/registry-dev.git
       ref: 04364360f1e5a91173f3b88a5e807773dc06aca5
