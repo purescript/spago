@@ -74,6 +74,7 @@ fromRemotePackage = case _ of
   RemoteLegacyPackage e -> GitPackage
     { git: e.repo
     , ref: unwrap e.version
+    , subdir: Nothing
     , dependencies: Just $ Dependencies $ Map.fromFoldable $ map (\p -> Tuple p Nothing) e.dependencies
     }
 
@@ -106,9 +107,10 @@ instance RegistryJson.RegistryJson RemotePackage where
     where
     decodePkg obj = do
       dependencies <- obj RegistryJson..:? "dependencies"
+      subdir <- obj RegistryJson..:? "subdir"
       git <- obj RegistryJson..: "git"
       ref <- obj RegistryJson..: "ref"
-      pure (RemoteGitPackage { dependencies, git, ref })
+      pure (RemoteGitPackage { dependencies, git, ref, subdir })
     decodeLegacyPkg obj = do
       dependencies <- obj RegistryJson..: "dependencies"
       repo <- obj RegistryJson..: "repo"
@@ -155,6 +157,7 @@ type LocalPackage = { path :: FilePath }
 type GitPackage =
   { git :: String
   , ref :: String
+  , subdir :: Maybe FilePath -- TODO: document that this is possible
   , dependencies :: Maybe Dependencies -- TODO document that this is possible
   }
 
@@ -465,6 +468,7 @@ sourceGlob name package = Path.concat
   [ getPackageLocation name package
   , case package of
       WorkspacePackage { glob } -> glob
+      GitPackage { subdir: Just s } -> Path.concat [ s, basicGlob ]
       _ -> basicGlob
   ]
 

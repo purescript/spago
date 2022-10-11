@@ -156,7 +156,9 @@ getPackageDependencies packageName package = case package of
         let packageLocation = Config.getPackageLocation packageName package
         unlessM (liftEffect $ FS.exists packageLocation) do
           getGitPackageInLocalCache packageName p
-        readLocalDependencies packageLocation
+        readLocalDependencies case p.subdir of
+          Nothing -> packageLocation
+          Just s -> Path.concat [ packageLocation, s ]
   LocalPackage p -> do
     readLocalDependencies p.path
   WorkspacePackage { package: { dependencies: (Dependencies deps) } } ->
@@ -164,13 +166,13 @@ getPackageDependencies packageName package = case package of
   where
   -- try to see if the package has a spago config, and if it's there we read it
   readLocalDependencies :: FilePath -> Spago (FetchEnv a) (Maybe (Map PackageName Range))
-  readLocalDependencies packageLocation = do
+  readLocalDependencies configLocation = do
     -- TODO: make this work with manifests
-    Config.readConfig (Path.concat [ packageLocation, "spago.yaml" ]) >>= case _ of
+    Config.readConfig (Path.concat [ configLocation, "spago.yaml" ]) >>= case _ of
       Right { yaml: { package: Just { dependencies: (Dependencies deps) } } } -> do
         pure (Just (map (fromMaybe widestRange) deps))
-      Right _ -> die [ "Read valid configuration from " <> packageLocation, "However, there was no `package` section to be read." ]
-      Left err -> die [ "Could not read config at " <> packageLocation, "Error: " <> err ]
+      Right _ -> die [ "Read valid configuration from " <> configLocation, "However, there was no `package` section to be read." ]
+      Left err -> die [ "Could not read config at " <> configLocation, "Error: " <> err ]
 
 type TransitiveDepsResult =
   { packages :: Map PackageName Package
