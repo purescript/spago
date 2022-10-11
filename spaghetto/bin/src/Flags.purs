@@ -107,12 +107,11 @@ psaStashFile =
     # ArgParser.unformat "FILE" Right
     # ArgParser.default ".psa-stash"
 
-minify ∷ ArgParser (Maybe Boolean)
+minify ∷ ArgParser Boolean
 minify =
   ArgParser.flag [ "--minify" ]
     "Minify the bundle"
     # ArgParser.boolean
-    # ArgParser.optional
 
 entrypoint ∷ ArgParser (Maybe String)
 entrypoint =
@@ -130,6 +129,12 @@ platform ∷ ArgParser (Maybe String)
 platform =
   ArgParser.argument [ "--platform" ]
     "The bundle platform. 'node' or 'browser'"
+    # ArgParser.optional
+
+output :: ArgParser (Maybe String)
+output =
+  ArgParser.argument [ "--output" ]
+    "The output directory for compiled files (default: \"output\")"
     # ArgParser.optional
 
 quiet ∷ ArgParser Boolean

@@ -49,6 +49,7 @@ package:
     - unsafe-coerce
   license: BSD-3-Clause
 workspace:
+  # output: src/purs-output
   # backend: ./backend-test.sh
   set:
     # url: https://raw.githubusercontent.com/purescript/package-sets/psc-0.15.4-20220901/packages.json

@@ -60,7 +60,7 @@ run packages = do
 
   -- here get transitive packages
   -- TODO: here we are throwing away the ranges from the config, but we should care about them
-  transitivePackages <- getTransitiveDeps (Set.toUnfoldable $ Map.keys deps)
+  transitivePackages <- getTransitiveDeps $ (Set.toUnfoldable $ Map.keys deps) <> packages
 
   -- write to the config file if we are adding new packages
   unless (Array.null packages) do

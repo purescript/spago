@@ -64,12 +64,14 @@ type InstallArgs =
   , selectedPackage :: Maybe String
   , pursArgs :: List String
   , psaArgs :: PsaArgs
+  , output :: Maybe String
   }
 
 type BuildArgs =
   { selectedPackage :: Maybe String
   , pursArgs :: List String
   , psaArgs :: PsaArgs
+  , output :: Maybe String
   }
 
 type SourcesArgs =
@@ -77,13 +79,14 @@ type SourcesArgs =
   }
 
 type BundleArgs =
-  { minify :: Maybe Boolean
+  { minify :: Boolean
   , entrypoint :: Maybe FilePath
   , outfile :: Maybe FilePath
   , platform :: Maybe String
   , selectedPackage :: Maybe String
   , pursArgs :: List String
   , psaArgs :: PsaArgs
+  , output :: Maybe String
   }
 
 data SpagoCmd = SpagoCmd GlobalArgs Command
@@ -160,6 +163,7 @@ installArgsParser =
     , selectedPackage: Flags.selectedPackage
     , pursArgs: Flags.pursArgs
     , psaArgs: psaArgsParser
+    , output: Flags.output
     }
 
 buildArgsParser :: ArgParser BuildArgs
@@ -167,6 +171,7 @@ buildArgsParser = ArgParser.fromRecord
   { selectedPackage: Flags.selectedPackage
   , pursArgs: Flags.pursArgs
   , psaArgs: psaArgsParser
+  , output: Flags.output
   }
 
 bundleArgsParser :: ArgParser BundleArgs
@@ -179,6 +184,7 @@ bundleArgsParser =
     , selectedPackage: Flags.selectedPackage
     , pursArgs: Flags.pursArgs
     , psaArgs: psaArgsParser
+    , output: Flags.output
     }
 
 psaArgsParser :: ArgParser PsaArgs
@@ -220,26 +226,28 @@ main =
           Fetch args -> do
             { env, packageNames } <- mkFetchEnv args
             void $ runSpago env (Fetch.run packageNames)
-          Install args@{ packages, selectedPackage } -> do
+          Install args@{ packages, selectedPackage, output, pursArgs, psaArgs } -> do
             { env, packageNames } <- mkFetchEnv { packages, selectedPackage }
             -- TODO: --no-fetch flag
             dependencies <- runSpago env (Fetch.run packageNames)
-            env' <- runSpago env (mkBuildEnv dependencies)
+            let buildArgs = { selectedPackage, pursArgs, psaArgs, output }
+            env' <- runSpago env (mkBuildEnv buildArgs dependencies)
             let options = { depsOnly: true, pursArgs: List.toUnfoldable args.pursArgs }
             runSpago env' (Build.run options)
           Build args -> do
             { env, packageNames } <- mkFetchEnv { packages: mempty, selectedPackage: args.selectedPackage }
             -- TODO: --no-fetch flag
             dependencies <- runSpago env (Fetch.run packageNames)
-            buildEnv <- runSpago env (mkBuildEnv dependencies)
+            buildEnv <- runSpago env (mkBuildEnv args dependencies)
             let options = { depsOnly: false, pursArgs: List.toUnfoldable args.pursArgs }
             runSpago buildEnv (Build.run options)
-          Bundle args -> do
-            { env, packageNames } <- mkFetchEnv { packages: mempty, selectedPackage: args.selectedPackage }
+          Bundle args@{ selectedPackage, pursArgs, psaArgs, output } -> do
+            { env, packageNames } <- mkFetchEnv { packages: mempty, selectedPackage }
             -- TODO: --no-fetch flag
             dependencies <- runSpago env (Fetch.run packageNames)
             -- TODO: --no-build flag
-            buildEnv <- runSpago env (mkBuildEnv dependencies)
+            let buildArgs = { selectedPackage, pursArgs, psaArgs, output }
+            buildEnv <- runSpago env (mkBuildEnv buildArgs dependencies)
             let options = { depsOnly: false, pursArgs: List.toUnfoldable args.pursArgs }
             runSpago buildEnv (Build.run options)
             { bundleEnv, bundleOptions } <- runSpago env (mkBundleEnv args)
@@ -279,7 +287,7 @@ mkBundleEnv bundleArgs = do
     bundleConf :: forall x. (BundleConfig -> Maybe x) -> Maybe x
     bundleConf f = selected.package.bundle >>= f
   -- TODO: there should be no defaults here actually?
-  let minify = fromMaybe false (bundleArgs.minify <|> bundleConf _.minify)
+  let minify = Array.any (_ == true) [ bundleArgs.minify, fromMaybe false (_.minify =<< selected.package.bundle) ]
   let entrypoint = fromMaybe "main.js" (bundleArgs.entrypoint <|> bundleConf _.entrypoint)
   let outfile = fromMaybe "index.js" (bundleArgs.outfile <|> bundleConf _.outfile)
   let
@@ -288,14 +296,16 @@ mkBundleEnv bundleArgs = do
           <|> bundleConf _.platform
       )
   let bundleOptions = { minify, entrypoint, outfile, platform }
-  let bundleEnv = { esbuild: "esbuild", logOptions, workspace, selected } -- TODO: which esbuild
+  let newWorkspace = workspace { output = bundleArgs.output <|> workspace.output }
+  let bundleEnv = { esbuild: "esbuild", logOptions, workspace: newWorkspace, selected } -- TODO: which esbuild
   pure { bundleOptions, bundleEnv }
 
-mkBuildEnv :: forall a. Map PackageName Package -> Spago (Fetch.FetchEnv a) (Build.BuildEnv ())
-mkBuildEnv dependencies = do
+mkBuildEnv :: forall a. BuildArgs -> Map PackageName Package -> Spago (Fetch.FetchEnv a) (Build.BuildEnv ())
+mkBuildEnv buildArgs dependencies = do
   { logOptions, workspace } <- ask
   -- FIXME: find executables in path, parse compiler version, etc etc
-  pure { logOptions, purs: "purs", git: "git", dependencies, workspace }
+  let newWorkspace = workspace { output = buildArgs.output <|> workspace.output }
+  pure { logOptions, purs: "purs", git: "git", dependencies, workspace: newWorkspace }
 
 mkFetchEnv :: forall a. FetchArgs -> Spago (LogEnv a) { env :: Fetch.FetchEnv (), packageNames :: Array PackageName }
 mkFetchEnv args = do
