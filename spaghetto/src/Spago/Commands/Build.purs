@@ -54,30 +54,31 @@ run opts = do
       , "Use the --output flag for Spago, or add it to your config file."
       ]
   let
-    args = case workspace.output of
-      Nothing -> opts.pursArgs
-      Just output -> opts.pursArgs <> [ "--output", output ]
+    addOutputArgs args = case workspace.output of
+      Nothing -> args
+      Just output -> args <> [ "--output", output ]
 
   let
     buildBackend globs = do
       case workspace.backend of
         Nothing ->
-          Purs.compile globs args
+          Purs.compile globs (addOutputArgs opts.pursArgs)
         Just backend -> do
-          when (isJust $ Cmd.findFlag { flags: [ "-g", "--codegen" ], args }) do
+          when (isJust $ Cmd.findFlag { flags: [ "-g", "--codegen" ], args: opts.pursArgs }) do
             die
               [ "Can't pass `--codegen` option to build when using a backend"
               , "Hint: No need to pass `--codegen corefn` explicitly when using the `backend` option."
               , "Remove the argument to solve the error"
               ]
-          Purs.compile globs $ args <> [ "--codegen", "corefn" ]
+          Purs.compile globs $ (addOutputArgs opts.pursArgs) <> [ "--codegen", "corefn" ]
 
           logInfo $ "Compiling with backend \"" <> backend <> "\""
-          let backendCmd = backend -- TODO: we might want to pass args to the backend here
+          let backendCmd = backend
           logDebug $ "Running command `" <> backendCmd <> "`"
           void $ liftAff $ spawnFromParentWithStdin
             { command: backendCmd
-            , args: []
+            -- TODO: add a way to pass other args to the backend
+            , args: addOutputArgs []
             , input: Nothing
             , cwd: Nothing
             }
