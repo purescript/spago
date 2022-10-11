@@ -38,14 +38,6 @@ psaStrict =
     "Promotes `src` warnings to errors"
     # ArgParser.boolean
 
-psaAnsi ∷ ArgParser Boolean
-psaAnsi =
-  ArgParser.flag [ "--no-colors", "--monochrome" ]
-    "Disable ANSI colors"
-    # ArgParser.boolean
-    <#> not
-    # ArgParser.default true
-
 psaShowSource ∷ ArgParser Boolean
 psaShowSource =
   ArgParser.flag [ "--no-source" ]
@@ -159,7 +151,7 @@ verbose =
 
 noColor ∷ ArgParser Boolean
 noColor =
-  ArgParser.flag [ "--no-color" ]
+  ArgParser.flag [ "--no-color", "--monochrome" ]
     "Force logging without ANSI color escape sequences"
     # ArgParser.boolean
     # ArgParser.default false

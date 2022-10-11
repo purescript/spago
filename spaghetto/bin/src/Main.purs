@@ -53,7 +53,6 @@ type PsaArgs =
   , statVerbosity :: StatVerbosity
   , libDirs :: Maybe (Array String)
   , strict :: Boolean
-  , ansi :: Boolean
   , showSource :: Boolean
   , stash :: Boolean
   , stashFile :: String
@@ -198,7 +197,6 @@ psaArgsParser = ArgParser.fromRecord
   , statVerbosity: Flags.psaStatVerbosity
   , libDirs: Flags.psaLibDirs
   , strict: Flags.psaStrict
-  , ansi: Flags.psaAnsi
   , showSource: Flags.psaShowSource
   , stash: Flags.psaStash
   , stashFile: Flags.psaStashFile
