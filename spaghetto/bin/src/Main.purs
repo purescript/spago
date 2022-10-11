@@ -44,27 +44,32 @@ type FetchArgs =
   , selectedPackage :: Maybe String
   }
 
+type PsaArgs =
+  { censorWarnings :: Boolean
+  , censorLib :: Boolean
+  , censorSrc :: Boolean
+  , censorCodes :: Set ErrorCode
+  , filterCodes :: Set ErrorCode
+  , statVerbosity :: StatVerbosity
+  , libDirs :: Maybe (Array String)
+  , strict :: Boolean
+  , ansi :: Boolean
+  , showSource :: Boolean
+  , stash :: Boolean
+  , stashFile :: String
+  }
+
 type InstallArgs =
   { packages :: List String
   , selectedPackage :: Maybe String
   , pursArgs :: List String
+  , psaArgs :: PsaArgs
   }
 
 type BuildArgs =
   { selectedPackage :: Maybe String
   , pursArgs :: List String
-  , psaCensorWarnings :: Boolean
-  , psaCensorLib :: Boolean
-  , psaCensorSrc :: Boolean
-  , psaCensorCodes :: Set ErrorCode
-  , psaFilterCodes :: Set ErrorCode
-  , psaStatVerbosity :: StatVerbosity
-  , psaLibDirs :: Maybe (Array String)
-  , psaStrict :: Boolean
-  , psaAnsi :: Boolean
-  , psaShowSource :: Boolean
-  , psaStash :: Boolean
-  , psaStashFile :: String
+  , psaArgs :: PsaArgs
   }
 
 type SourcesArgs =
@@ -78,6 +83,7 @@ type BundleArgs =
   , platform :: Maybe String
   , selectedPackage :: Maybe String
   , pursArgs :: List String
+  , psaArgs :: PsaArgs
   }
 
 data SpagoCmd = SpagoCmd GlobalArgs Command
@@ -153,24 +159,14 @@ installArgsParser =
     { packages: Flags.packages
     , selectedPackage: Flags.selectedPackage
     , pursArgs: Flags.pursArgs
+    , psaArgs: psaArgsParser
     }
 
 buildArgsParser :: ArgParser BuildArgs
 buildArgsParser = ArgParser.fromRecord
   { selectedPackage: Flags.selectedPackage
   , pursArgs: Flags.pursArgs
-  , psaCensorWarnings: Flags.psaCensorWarnings
-  , psaCensorLib: Flags.psaCensorLib
-  , psaCensorSrc: Flags.psaCensorSrc
-  , psaCensorCodes: Flags.psaCensorCodes
-  , psaFilterCodes: Flags.psaFilterCodes
-  , psaStatVerbosity: Flags.psaStatVerbosity
-  , psaLibDirs: Flags.psaLibDirs
-  , psaStrict: Flags.psaStrict
-  , psaAnsi: Flags.psaAnsi
-  , psaShowSource: Flags.psaShowSource
-  , psaStash: Flags.psaStash
-  , psaStashFile: Flags.psaStashFile
+  , psaArgs: psaArgsParser
   }
 
 bundleArgsParser :: ArgParser BundleArgs
@@ -182,7 +178,24 @@ bundleArgsParser =
     , platform: Flags.platform
     , selectedPackage: Flags.selectedPackage
     , pursArgs: Flags.pursArgs
+    , psaArgs: psaArgsParser
     }
+
+psaArgsParser :: ArgParser PsaArgs
+psaArgsParser = ArgParser.fromRecord
+  { censorWarnings: Flags.psaCensorWarnings
+  , censorLib: Flags.psaCensorLib
+  , censorSrc: Flags.psaCensorSrc
+  , censorCodes: Flags.psaCensorCodes
+  , filterCodes: Flags.psaFilterCodes
+  , statVerbosity: Flags.psaStatVerbosity
+  , libDirs: Flags.psaLibDirs
+  , strict: Flags.psaStrict
+  , ansi: Flags.psaAnsi
+  , showSource: Flags.psaShowSource
+  , stash: Flags.psaStash
+  , stashFile: Flags.psaStashFile
+  }
 
 parseArgs :: Effect (Either ArgParser.ArgError SpagoCmd)
 parseArgs = do
