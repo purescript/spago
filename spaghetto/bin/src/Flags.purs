@@ -107,6 +107,12 @@ psaStashFile =
     # ArgParser.unformat "FILE" Right
     # ArgParser.default ".psa-stash"
 
+psaJsonErrors ∷ ArgParser Boolean
+psaJsonErrors =
+  ArgParser.flag [ "--json-errors" ]
+    "Output compiler warnings/error as JSON"
+    # ArgParser.boolean
+
 minify ∷ ArgParser Boolean
 minify =
   ArgParser.flag [ "--minify" ]

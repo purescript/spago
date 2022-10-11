@@ -57,6 +57,7 @@ type PsaArgs =
   , showSource :: Boolean
   , stash :: Boolean
   , stashFile :: String
+  , jsonErrors :: Boolean
   }
 
 type InstallArgs =
@@ -201,6 +202,7 @@ psaArgsParser = ArgParser.fromRecord
   , showSource: Flags.psaShowSource
   , stash: Flags.psaStash
   , stashFile: Flags.psaStashFile
+  , jsonErrors: Flags.psaJsonErrors
   }
 
 parseArgs :: Effect (Either ArgParser.ArgError SpagoCmd)
