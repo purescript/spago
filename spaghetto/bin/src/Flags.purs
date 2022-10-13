@@ -73,3 +73,14 @@ packages =
   ArgParser.anyNotFlag "PACKAGE"
     "Package name to add as dependency"
     # ArgParser.many
+
+package :: ArgParser String
+package =
+  ArgParser.anyNotFlag "PACKAGE"
+    "Package name"
+
+maybeVersion :: ArgParser (Maybe String)
+maybeVersion =
+  ArgParser.anyNotFlag "VERSION"
+    "Package version"
+    # ArgParser.optional

@@ -24,6 +24,7 @@ import Spago.BuildInfo as BuildInfo
 import Spago.Command.Build as Build
 import Spago.Command.Bundle as Bundle
 import Spago.Commands.Fetch as Fetch
+import Spago.Commands.Registry as Registry
 import Spago.Commands.Sources as Sources
 import Spago.Config (BundleConfig, Package, Platform(..))
 import Spago.Config as Config
@@ -60,6 +61,15 @@ type SourcesArgs =
   { selectedPackage :: Maybe String
   }
 
+type RegistrySearchArgs =
+  { package :: String
+  }
+
+type RegistryInfoArgs =
+  { package :: String
+  , maybeVersion :: Maybe String
+  }
+
 type BundleArgs =
   { minify :: Boolean
   , entrypoint :: Maybe FilePath
@@ -78,6 +88,8 @@ data Command
   | Build BuildArgs
   | Bundle BundleArgs
   | Sources SourcesArgs
+  | RegistrySearch RegistrySearchArgs
+  | RegistryInfo RegistryInfoArgs
 
 argParser :: ArgParser SpagoCmd
 argParser =
@@ -102,6 +114,17 @@ argParser =
         "List all the source paths (globs) for the dependencies of the project"
         do
           (SpagoCmd <$> globalArgsParser <*> (Sources <$> sourcesArgsParser) <* ArgParser.flagHelp)
+    , ArgParser.command [ "registry" ]
+        "Commands to interact with the Registry"
+        do
+          ArgParser.choose "registry-subcommand"
+            [ ArgParser.command [ "search" ]
+                "Search for package names in the Registry"
+                (SpagoCmd <$> globalArgsParser <*> (RegistrySearch <$> registrySearchArgsParser) <* ArgParser.flagHelp)
+            , ArgParser.command [ "info" ]
+                "Query the Registry for information about packages and versions"
+                (SpagoCmd <$> globalArgsParser <*> (RegistryInfo <$> registryInfoArgsParser) <* ArgParser.flagHelp)
+            ] <* ArgParser.flagHelp
     ]
     <* ArgParser.flagHelp
     <* ArgParser.flagInfo [ "--version" ] "Show the current version" BuildInfo.currentSpagoVersion
@@ -165,6 +188,18 @@ bundleArgsParser =
     , output: Flags.output
     }
 
+registrySearchArgsParser :: ArgParser RegistrySearchArgs
+registrySearchArgsParser =
+  ArgParser.fromRecord
+    { package: Flags.package
+    }
+
+registryInfoArgsParser :: ArgParser RegistryInfoArgs
+registryInfoArgsParser = ado
+  package <- Flags.package
+  maybeVersion <- Flags.maybeVersion
+  in { package, maybeVersion }
+
 parseArgs :: Effect (Either ArgParser.ArgError SpagoCmd)
 parseArgs = do
   cliArgs <- Array.drop 2 <$> Process.argv
@@ -176,8 +211,7 @@ parseArgs = do
 main :: Effect Unit
 main =
   parseArgs >>= case _ of
-    Left err ->
-      Console.error $ ArgParser.printArgError err
+    Left err -> Console.error $ ArgParser.printArgError err
     Right c -> Aff.launchAff_ case c of
       SpagoCmd globalArgs command -> do
         logOptions <- mkLogOptions globalArgs
@@ -188,6 +222,12 @@ main =
           Fetch args -> do
             { env, packageNames } <- mkFetchEnv args
             void $ runSpago env (Fetch.run packageNames)
+          RegistrySearch { package } -> do
+            env <- mkRegistryEnv
+            void $ runSpago env (Registry.search package)
+          RegistryInfo args -> do
+            env <- mkRegistryEnv
+            void $ runSpago env (Registry.info args)
           Install args@{ packages, selectedPackage, output, pursArgs } -> do
             { env, packageNames } <- mkFetchEnv { packages, selectedPackage }
             -- TODO: --no-fetch flag
@@ -271,6 +311,8 @@ mkBuildEnv buildArgs dependencies = do
 
 mkFetchEnv :: forall a. FetchArgs -> Spago (LogEnv a) { env :: Fetch.FetchEnv (), packageNames :: Array PackageName }
 mkFetchEnv args = do
+  { getManifestFromIndex, getMetadata, logOptions } <- mkRegistryEnv
+
   let { right: packageNames, left: failedPackageNames } = partitionMap PackageName.parse (Array.fromFoldable args.packages)
   unless (Array.null failedPackageNames) do
     die $ "Failed to parse some package name: " <> show failedPackageNames
@@ -281,6 +323,20 @@ mkFetchEnv args = do
     Just (Left _err) -> die $ "Failed to parse selected package name, was: " <> show args.selectedPackage
     Just (Right p) -> pure (Just p)
 
+  workspace <- Config.readWorkspace maybeSelectedPackage
+
+  pure
+    { packageNames
+    , env:
+        { getManifestFromIndex
+        , getMetadata
+        , workspace
+        , logOptions
+        }
+    }
+
+mkRegistryEnv :: forall a. Spago (LogEnv a) (Registry.RegistryEnv ())
+mkRegistryEnv = do
   logDebug $ "CWD: " <> Paths.cwd
 
   -- Take care of the caches
@@ -341,15 +397,9 @@ mkFetchEnv args = do
         Left _err -> logWarn "Couldn't refresh the registry, will proceed anyways"
     ]
 
-  workspace <- Config.readWorkspace maybeSelectedPackage
-
   { logOptions } <- ask
   pure
-    { packageNames
-    , env:
-        { getManifestFromIndex
-        , getMetadata
-        , workspace
-        , logOptions
-        }
+    { getManifestFromIndex
+    , getMetadata
+    , logOptions
     }

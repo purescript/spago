@@ -6,9 +6,9 @@ module Spago.FS
 
 import Spago.Prelude
 
-import Node.FS.Aff (writeTextFile, readTextFile, writeFile, mkdir') as FS
-import Node.FS.Sync (exists) as FS
+import Node.FS.Aff (writeTextFile, readTextFile, writeFile, mkdir', readdir) as FS
 import Node.FS.Perms as Perms
+import Node.FS.Sync (exists) as FS
 
 mkdirp :: FilePath -> Aff Unit
 mkdirp = flip FS.mkdir' { recursive: true, mode: Perms.mkPerms Perms.all Perms.all Perms.all }
