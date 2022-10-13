@@ -14,7 +14,7 @@
     "format": "purs-tidy format-in-place src bin",
     "format:check": "purs-tidy check src bin",
     "bundle": "spago bundle -p spago-bin",
-    "_prepublishOnly": "rm -rf bin/bundle.js && npm run bundle"
+    "prepublishOnly": "./bin/index.dev.js bundle -p spago-bin"
   },
   "dependencies": {
     "@octokit/plugin-retry": "^3.0.9",
