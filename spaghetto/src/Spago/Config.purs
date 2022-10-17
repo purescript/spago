@@ -312,7 +312,7 @@ readWorkspace maybeSelectedPackage = do
     readWorkspaceConfig path = do
       maybeConfig <- readConfig path
       -- We try to figure out if this package has tests - look for test sources
-      hasTests <- liftEffect $ FS.exists (Path.concat [ path, "test" ])
+      hasTests <- liftEffect $ FS.exists (Path.concat [ Path.dirname path, "test" ])
       pure $ case maybeConfig of
         Left e -> Left $ "Could not read config at path " <> path <> "\nError was: " <> e
         Right { yaml: { package: Nothing } } -> Left $ "No package found for config at path: " <> path

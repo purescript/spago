@@ -362,9 +362,17 @@ mkRunEnv runArgs { isTest } = do
     Just s -> pure s
     Nothing ->
       let
-        workspacePackageNames = map _.package.name (Config.getWorkspacePackages workspace.packageSet)
+        workspacePackages = Config.getWorkspacePackages workspace.packageSet
       in
-        die [ toDoc "No package was selected for running. Please select (with -p) one of the following packages:", indent (toDoc workspacePackageNames) ]
+        -- If there's only one test package, select that one
+        case isTest, Array.filter (_.hasTests) workspacePackages of
+          true, [ singlePkg ] -> pure singlePkg
+          _, _ -> do
+            logDebug $ show $ Array.filter (_.hasTests) workspacePackages
+            die
+              [ toDoc "No package was selected for running. Please select (with -p) one of the following packages:"
+              , indent (toDoc $ map _.package.name workspacePackages)
+              ]
 
   logDebug $ "Selected package to run: " <> show selected.package.name
 
@@ -381,7 +389,7 @@ mkRunEnv runArgs { isTest } = do
       { moduleName
       , execArgs
       , sourceDir: Paths.cwd
-      , executeDir: Paths.cwd
+      , executeDir: selected.path
       , successMessage: Nothing
       , failureMessage: "Running failed."
       }

@@ -82,7 +82,7 @@ run opts = do
           logDebug $ "Running command `" <> backendCmd <> "`"
           -- TODO: add a way to pass other args to the backend?
           liftAff (Cmd.exec backendCmd (addOutputArgs []) Cmd.defaultExecOptions) >>= case _ of
-            Right r -> logSuccess "Backend build succeeded."
+            Right _r -> logSuccess "Backend build succeeded."
             Left err -> do
               logDebug $ show err
               die [ "Failed to build with backend " <> backendCmd ]

@@ -1,6 +1,21 @@
 {
   "name": "purescript-spaghetto",
-  "version": "0.0.15",
+  "version": "0.90.0",
+  "license": "BSD-3-Clause",
+  "description": "🍝 PureScript package manager and build tool",
+  "keywords": [
+    "purescript",
+    "spago",
+    "package sets",
+    "package manager",
+    "registry"
+  ],
+  "homepage": "https://github.com/purescript/spago",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/purescript/spago.git"
+  },
+  "author": "Fabrizio Ferrai",
   "type": "module",
   "bin": {
     "spago": "bin/bundle.js"
