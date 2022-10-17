@@ -4,7 +4,6 @@ module Spago.Prelude
   , Spago(..)
   , runSpago
   , throwError
-  , spawnFromParentWithStdin
   , parseUrl
   , shaToHex
   , HexString(..)
@@ -32,7 +31,6 @@ import Data.List (List, (:)) as Extra
 import Data.Map (Map) as Extra
 import Data.Maybe (Maybe(..), isJust, isNothing, fromMaybe, maybe) as Extra
 import Data.Newtype (class Newtype, unwrap) as Extra
-import Data.Posix.Signal (Signal(..))
 import Data.Set (Set) as Extra
 import Data.Show.Generic (genericShow) as Extra
 import Data.Traversable (for, traverse) as Extra
@@ -48,13 +46,9 @@ import Effect.Class (class MonadEffect)
 import Effect.Class (liftEffect) as Extra
 import Effect.Exception.Unsafe (unsafeThrow) as Extra
 import Effect.Ref (Ref) as Extra
-import Effect.Ref as Ref
 import Node.Buffer as Buffer
-import Node.ChildProcess as ChildProcess
 import Node.Encoding (Encoding(..)) as Extra
 import Node.Path (FilePath) as Extra
-import Node.Process as Process
-import Node.Stream as Stream
 import Registry.Hash (Sha256)
 import Spago.Log (logDebug, logError, logInfo, logSuccess, logWarn, die, LogOptions, LogEnv, toDoc, indent, indent2, output) as Extra
 import Unsafe.Coerce (unsafeCoerce)
@@ -82,55 +76,6 @@ runSpago env a = Extra.liftAff (runSpago' env a)
 
 throwError :: forall a m. MonadThrow Extra.Error m => String -> m a
 throwError = Aff.throwError <<< Aff.error
-
-type SpawnArgs =
-  { command :: String
-  , args :: Array String
-  , input :: Extra.Maybe String
-  , cwd :: Extra.Maybe String
-  }
-
-spawnFromParentWithStdin
-  :: SpawnArgs
-  -> Extra.Aff
-       { stdout :: String
-       , stderr :: String
-       , code :: Int
-       }
-spawnFromParentWithStdin { command, args, input, cwd } = Aff.makeAff \k -> do
-  stdoutRef <- Ref.new ""
-  stderrRef <- Ref.new ""
-  childProc <- ChildProcess.spawn command args (ChildProcess.defaultSpawnOptions { cwd = cwd })
-    { stdio = map Extra.Just $
-        [ ChildProcess.ShareStream (unsafeCoerce Process.stdin)
-        , ChildProcess.ShareStream (unsafeCoerce Process.stdout)
-        , ChildProcess.ShareStream (unsafeCoerce Process.stderr)
-        ]
-    }
-  Extra.for_ input \inp -> do
-    _ <- Stream.writeString (ChildProcess.stdin childProc) Extra.UTF8 inp mempty
-    Stream.end (ChildProcess.stdin childProc) mempty
-
-  -- Stream.onDataString (ChildProcess.stdout childProc) Extra.UTF8 \string ->
-  --   Ref.modify_ (_ <> string) stdoutRef
-
-  -- Stream.onDataString (ChildProcess.stderr childProc) Extra.UTF8 \string ->
-  --   Ref.modify_ (_ <> string) stderrRef
-
-  ChildProcess.onError childProc (k <<< Extra.Left <<< ChildProcess.toStandardError)
-
-  ChildProcess.onExit childProc case _ of
-    ChildProcess.Normally code
-      | code > 0 -> Process.exit code
-      | otherwise -> do
-          stdout <- Ref.read stdoutRef
-          stderr <- Ref.read stderrRef
-          k (Extra.Right { stdout, stderr, code })
-    ChildProcess.BySignal _ ->
-      Process.exit 1
-
-  pure $ Aff.effectCanceler do
-    ChildProcess.kill SIGABRT childProc
 
 parseUrl :: String -> Extra.Either String URL
 parseUrl = runFn3 parseUrlImpl Extra.Left (Extra.Right <<< unsafeCoerce)

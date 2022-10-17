@@ -3,11 +3,13 @@ module Spago.Command.Bundle where
 import Spago.Prelude
 
 import Node.Path as Path
+import Spago.Cmd as Cmd
 import Spago.Config (Platform, Workspace, WorkspacePackage)
 
 type BundleEnv a =
   { esbuild :: FilePath
   , logOptions :: LogOptions
+  , bundleOptions :: BundleOptions
   , workspace :: Workspace
   , selected :: WorkspacePackage
   | a
@@ -28,10 +30,10 @@ type RawBundleOptions =
   , format :: String
   }
 
-run :: forall a. BundleOptions -> Spago (BundleEnv a) Unit
-run opts = do
+run :: forall a. Spago (BundleEnv a) Unit
+run = do
+  { esbuild, selected, bundleOptions: opts } <- ask
   logDebug $ "Bundle options: " <> show opts
-  { esbuild, selected } <- ask
   let command = esbuild
   let minify = if opts.minify then [ "--minify" ] else []
   let entrypoint = Path.concat [ selected.path, opts.entrypoint ]
@@ -48,10 +50,8 @@ run opts = do
       ] <> minify
   logInfo "Bundling..."
   logDebug $ "Running esbuild: " <> show args
-  void $ liftAff $ spawnFromParentWithStdin
-    { command
-    , args
-    , input: Nothing
-    , cwd: Nothing
-    }
-  logSuccess "Bundle succeeded."
+  liftAff (Cmd.exec command args Cmd.defaultExecOptions) >>= case _ of
+    Right _r -> logSuccess "Bundle succeeded."
+    Left err -> do
+      logDebug $ show err
+      die [ "Failed to bundle." ]

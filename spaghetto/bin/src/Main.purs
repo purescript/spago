@@ -1,4 +1,4 @@
-module Main where
+module Main (main) where
 
 import Spago.Prelude
 
@@ -25,8 +25,10 @@ import Spago.Command.Build as Build
 import Spago.Command.Bundle as Bundle
 import Spago.Commands.Fetch as Fetch
 import Spago.Commands.Registry as Registry
+import Spago.Commands.Run as Run
 import Spago.Commands.Sources as Sources
-import Spago.Config (BundleConfig, Package, Platform(..))
+import Spago.Commands.Test as Test
+import Spago.Config (BundleConfig, Package, Platform(..), RunConfig)
 import Spago.Config as Config
 import Spago.FS as FS
 import Spago.Git as Git
@@ -55,6 +57,14 @@ type BuildArgs =
   { selectedPackage :: Maybe String
   , pursArgs :: List String
   , output :: Maybe String
+  }
+
+type RunArgs =
+  { selectedPackage :: Maybe String
+  , pursArgs :: List String
+  , output :: Maybe String
+  , execArgs :: Maybe (Array String)
+  , main :: Maybe String
   }
 
 type SourcesArgs =
@@ -87,6 +97,8 @@ data Command
   | Install InstallArgs
   | Build BuildArgs
   | Bundle BundleArgs
+  | Run RunArgs
+  | Test RunArgs
   | Sources SourcesArgs
   | RegistrySearch RegistrySearchArgs
   | RegistryInfo RegistryInfoArgs
@@ -106,6 +118,14 @@ argParser =
         "Compile the project"
         do
           (SpagoCmd <$> globalArgsParser <*> (Build <$> buildArgsParser) <* ArgParser.flagHelp)
+    , ArgParser.command [ "run" ]
+        "Run the project"
+        do
+          (SpagoCmd <$> globalArgsParser <*> (Run <$> runArgsParser) <* ArgParser.flagHelp)
+    , ArgParser.command [ "test" ]
+        "Test the project"
+        do
+          (SpagoCmd <$> globalArgsParser <*> (Test <$> runArgsParser) <* ArgParser.flagHelp)
     , ArgParser.command [ "bundle" ]
         "Bundle the project in a single file"
         do
@@ -174,6 +194,15 @@ buildArgsParser = ArgParser.fromRecord
   { selectedPackage: Flags.selectedPackage
   , pursArgs: Flags.pursArgs
   , output: Flags.output
+  }
+
+runArgsParser :: ArgParser RunArgs
+runArgsParser = ArgParser.fromRecord
+  { selectedPackage: Flags.selectedPackage
+  , pursArgs: Flags.pursArgs
+  , output: Flags.output
+  , execArgs: Flags.backendArgs
+  , main: Flags.moduleName
   }
 
 bundleArgsParser :: ArgParser BundleArgs
@@ -252,8 +281,30 @@ main =
             buildEnv <- runSpago env (mkBuildEnv buildArgs dependencies)
             let options = { depsOnly: false, pursArgs: List.toUnfoldable args.pursArgs }
             runSpago buildEnv (Build.run options)
-            { bundleEnv, bundleOptions } <- runSpago env (mkBundleEnv args)
-            runSpago bundleEnv (Bundle.run bundleOptions)
+            bundleEnv <- runSpago env (mkBundleEnv args)
+            runSpago bundleEnv Bundle.run
+          Run args@{ selectedPackage, pursArgs, output } -> do
+            { env, packageNames } <- mkFetchEnv { packages: mempty, selectedPackage }
+            -- TODO: --no-fetch flag
+            dependencies <- runSpago env (Fetch.run packageNames)
+            -- TODO: --no-build flag
+            let buildArgs = { selectedPackage, pursArgs, output }
+            buildEnv <- runSpago env (mkBuildEnv buildArgs dependencies)
+            let options = { depsOnly: false, pursArgs: List.toUnfoldable args.pursArgs }
+            runSpago buildEnv (Build.run options)
+            runEnv <- runSpago env (mkRunEnv args { isTest: false })
+            runSpago runEnv Run.run
+          Test args@{ selectedPackage, pursArgs, output } -> do
+            { env, packageNames } <- mkFetchEnv { packages: mempty, selectedPackage }
+            -- TODO: --no-fetch flag
+            dependencies <- runSpago env (Fetch.run packageNames)
+            -- TODO: --no-build flag
+            let buildArgs = { selectedPackage, pursArgs, output }
+            buildEnv <- runSpago env (mkBuildEnv buildArgs dependencies)
+            let options = { depsOnly: false, pursArgs: List.toUnfoldable args.pursArgs }
+            runSpago buildEnv (Build.run options)
+            runEnv <- runSpago env (mkRunEnv args { isTest: true })
+            runSpago runEnv Test.run
 
 mkLogOptions :: GlobalArgs -> Aff LogOptions
 mkLogOptions { noColor, quiet, verbose } = do
@@ -268,7 +319,7 @@ mkLogOptions { noColor, quiet, verbose } = do
       else LogNormal
   pure { color, verbosity }
 
-mkBundleEnv :: forall a. BundleArgs -> Spago (Fetch.FetchEnv a) { bundleEnv :: (Bundle.BundleEnv ()), bundleOptions :: Bundle.BundleOptions }
+mkBundleEnv :: forall a. BundleArgs -> Spago (Fetch.FetchEnv a) (Bundle.BundleEnv ())
 mkBundleEnv bundleArgs = do
   { workspace, logOptions } <- ask
   logDebug $ "Bundle args: " <> show bundleArgs
@@ -299,8 +350,44 @@ mkBundleEnv bundleArgs = do
       )
   let bundleOptions = { minify, entrypoint, outfile, platform }
   let newWorkspace = workspace { output = bundleArgs.output <|> workspace.output }
-  let bundleEnv = { esbuild: "esbuild", logOptions, workspace: newWorkspace, selected } -- TODO: which esbuild
-  pure { bundleOptions, bundleEnv }
+  let bundleEnv = { esbuild: "esbuild", logOptions, workspace: newWorkspace, selected, bundleOptions } -- TODO: which esbuild
+  pure bundleEnv
+
+mkRunEnv :: forall a. RunArgs -> { isTest :: Boolean } -> Spago (Fetch.FetchEnv a) (Run.RunEnv ())
+mkRunEnv runArgs { isTest } = do
+  { workspace, logOptions } <- ask
+  logDebug $ "Run args: " <> show runArgs
+
+  selected <- case workspace.selected of
+    Just s -> pure s
+    Nothing ->
+      let
+        workspacePackageNames = map _.package.name (Config.getWorkspacePackages workspace.packageSet)
+      in
+        die [ toDoc "No package was selected for running. Please select (with -p) one of the following packages:", indent (toDoc workspacePackageNames) ]
+
+  logDebug $ "Selected package to run: " <> show selected.package.name
+
+  -- the reason why we don't have a default on the CLI is that we look some of these
+  -- up in the config - though the flags take precedence
+  let
+    runConf :: forall x. (RunConfig -> Maybe x) -> Maybe x
+    runConf f = selected.package.run >>= f
+
+    moduleName = fromMaybe (if isTest then "Test.Main" else "Main") (runArgs.main <|> runConf _.main)
+    execArgs = fromMaybe [] (runArgs.execArgs <|> runConf _.execArgs)
+
+    runOptions =
+      { moduleName
+      , execArgs
+      , sourceDir: Paths.cwd
+      , executeDir: Paths.cwd
+      , successMessage: Nothing
+      , failureMessage: "Running failed."
+      }
+  let newWorkspace = workspace { output = runArgs.output <|> workspace.output }
+  let runEnv = { logOptions, workspace: newWorkspace, selected, runOptions }
+  pure runEnv
 
 mkBuildEnv :: forall a. BuildArgs -> Map PackageName Package -> Spago (Fetch.FetchEnv a) (Build.BuildEnv ())
 mkBuildEnv buildArgs dependencies = do

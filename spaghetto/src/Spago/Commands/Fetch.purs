@@ -26,7 +26,7 @@ import Registry.Schema (Manifest, Metadata)
 import Registry.Version (Range, Version)
 import Registry.Version as Registry.Version
 import Registry.Version as Version
-import Spago.Config (Dependencies(..), Package(..), PackageSet, Workspace, GitPackage)
+import Spago.Config (Dependencies(..), GitPackage, Package(..), PackageSet, Workspace, WorkspacePackage)
 import Spago.Config as Config
 import Spago.FS as FS
 import Spago.Git as Git
@@ -53,10 +53,10 @@ run packages = do
   -- lookup the dependencies in the package set, so we get their version numbers
   let
     (Dependencies deps) = case workspace.selected of
-      Just selected -> selected.package.dependencies
+      Just selected -> getWorkspacePackageDeps selected
       Nothing ->
         -- get all the dependencies of all the workspace packages if none was selected
-        foldMap _.package.dependencies (Config.getWorkspacePackages workspace.packageSet)
+        foldMap getWorkspacePackageDeps (Config.getWorkspacePackages workspace.packageSet)
 
   -- here get transitive packages
   -- TODO: here we are throwing away the ranges from the config, but we should care about them
@@ -161,8 +161,8 @@ getPackageDependencies packageName package = case package of
           Just s -> Path.concat [ packageLocation, s ]
   LocalPackage p -> do
     readLocalDependencies p.path
-  WorkspacePackage { package: { dependencies: (Dependencies deps) } } ->
-    pure (Just (map (fromMaybe widestRange) deps))
+  WorkspacePackage p ->
+    pure (Just (map (fromMaybe widestRange) (unwrap $ getWorkspacePackageDeps p)))
   where
   -- try to see if the package has a spago config, and if it's there we read it
   readLocalDependencies :: FilePath -> Spago (FetchEnv a) (Maybe (Map PackageName Range))
@@ -173,6 +173,12 @@ getPackageDependencies packageName package = case package of
         pure (Just (map (fromMaybe widestRange) deps))
       Right _ -> die [ "Read valid configuration from " <> configLocation, "However, there was no `package` section to be read." ]
       Left err -> die [ "Could not read config at " <> configLocation, "Error: " <> err ]
+
+getWorkspacePackageDeps :: WorkspacePackage -> Dependencies
+getWorkspacePackageDeps pkg =
+  if pkg.hasTests then
+    pkg.package.dependencies <> fromMaybe mempty pkg.package.test_dependencies
+  else pkg.package.dependencies
 
 type TransitiveDepsResult =
   { packages :: Map PackageName Package

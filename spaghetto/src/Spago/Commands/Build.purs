@@ -29,14 +29,19 @@ type BuildOptions =
 run :: forall a. BuildOptions -> Spago (BuildEnv a) Unit
 run opts = do
   logInfo "Building..."
-  void $ liftAff $ spawnFromParentWithStdin { command: "purs", args: [ "--version" ], input: Nothing, cwd: Nothing }
+  liftAff (Cmd.exec "purs" [ "--version" ] Cmd.defaultExecOptions { pipeStdout = false, pipeStderr = false }) >>= case _ of
+    Right r -> logInfo r.stdout
+    Left err -> do
+      logDebug $ show err
+      die [ "Failed to find purs." ]
   { dependencies, workspace } <- ask
   let dependencyGlobs = map (Tuple.uncurry Config.sourceGlob) (Map.toUnfoldable dependencies)
 
   -- Here we select the right globs for a monorepo setup
   let
-    workspacePackageGlob :: WorkspacePackage -> String
+    workspacePackageGlob :: WorkspacePackage -> Array String
     workspacePackageGlob p = Config.sourceGlob p.package.name (WorkspacePackage p)
+
     projectSources =
       if opts.depsOnly then []
       else case workspace.selected of
@@ -75,14 +80,12 @@ run opts = do
           logInfo $ "Compiling with backend \"" <> backend <> "\""
           let backendCmd = backend
           logDebug $ "Running command `" <> backendCmd <> "`"
-          void $ liftAff $ spawnFromParentWithStdin
-            { command: backendCmd
-            -- TODO: add a way to pass other args to the backend
-            , args: addOutputArgs []
-            , input: Nothing
-            , cwd: Nothing
-            }
-          logSuccess "Backend build succeeded."
+          -- TODO: add a way to pass other args to the backend?
+          liftAff (Cmd.exec backendCmd (addOutputArgs []) Cmd.defaultExecOptions) >>= case _ of
+            Right r -> logSuccess "Backend build succeeded."
+            Left err -> do
+              logDebug $ show err
+              die [ "Failed to build with backend " <> backendCmd ]
 
   {-
   TODO:
@@ -93,5 +96,5 @@ run opts = do
         runCommands "Then" thenCommands
   -}
 
-  buildBackend (Set.fromFoldable $ projectSources <> dependencyGlobs <> [ BuildInfo.buildInfoPath ])
+  buildBackend (Set.fromFoldable $ join projectSources <> join dependencyGlobs <> [ BuildInfo.buildInfoPath ])
 

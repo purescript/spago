@@ -68,6 +68,18 @@ pursArgs =
     "Arguments to pass to purs compile. Wrap in quotes."
     # ArgParser.many
 
+backendArgs :: ArgParser (Maybe (Array String))
+backendArgs =
+  ArgParser.rest
+    "Arguments to pass to the running script"
+    # ArgParser.optional
+
+moduleName :: ArgParser (Maybe String)
+moduleName =
+  ArgParser.argument [ "--main", "-m" ]
+    "Module to be used as the application's entry point"
+    # ArgParser.optional
+
 packages ∷ ArgParser (List String)
 packages =
   ArgParser.anyNotFlag "PACKAGE"

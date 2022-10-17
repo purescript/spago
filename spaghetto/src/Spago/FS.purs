@@ -6,7 +6,7 @@ module Spago.FS
 
 import Spago.Prelude
 
-import Node.FS.Aff (writeTextFile, readTextFile, writeFile, mkdir', readdir) as FS
+import Node.FS.Aff (writeTextFile, readTextFile, writeFile, mkdir', readdir, chmod) as FS
 import Node.FS.Perms as Perms
 import Node.FS.Sync (exists) as FS
 

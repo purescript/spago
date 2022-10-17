@@ -13,6 +13,8 @@ import Data.HTTP.Method as Method
 import Data.List as List
 import Data.Map as Map
 import Data.Set as Set
+import Data.String (Pattern(..))
+import Data.String as String
 import Dodo as Log
 import Effect.Uncurried (EffectFn2, runEffectFn2)
 import Foreign.FastGlob as Glob
@@ -42,15 +44,22 @@ type Config =
 
 type PackageConfig =
   { name :: PackageName
-  , version :: Maybe Version
-  , license :: Maybe License
   , dependencies :: Dependencies
   , test_dependencies :: Maybe Dependencies
   , bundle :: Maybe BundleConfig
+  , run :: Maybe RunConfig
   , publish :: Maybe PublishConfig
   }
 
-type PublishConfig = {} -- FIXME: publishing. Does license go here instead?
+type PublishConfig =
+  { version :: Maybe Version
+  , license :: Maybe License
+  } -- FIXME: implement publishing
+
+type RunConfig =
+  { main :: Maybe String
+  , execArgs :: Maybe (Array String)
+  }
 
 type WorkspaceConfig =
   { set :: Maybe SetAddress
@@ -136,7 +145,7 @@ type WorkspacePackage =
   { path :: FilePath
   , package :: PackageConfig
   , doc :: YamlDoc Config
-  , glob :: String
+  , hasTests :: Boolean
   }
 
 data Package
@@ -164,6 +173,7 @@ type GitPackage =
 newtype Dependencies = Dependencies (Map PackageName (Maybe Range))
 
 derive instance Eq Dependencies
+derive instance Newtype Dependencies _
 
 instance Semigroup Dependencies where
   append (Dependencies d1) (Dependencies d2) = Dependencies $ Map.unionWith
@@ -285,6 +295,9 @@ readWorkspace maybeSelectedPackage = do
     Right { yaml: { workspace: Nothing } } -> die $ "Your spago.yaml doesn't contain a workspace section" -- TODO refer to the docs
     Right { yaml: { workspace: Just workspace, package }, doc } -> pure { workspace, package, workspaceDoc: doc }
 
+  -- We try to figure out if the root package has tests - look for test sources
+  rootPackageHasTests <- liftEffect $ FS.exists "test"
+
   -- Then gather all the spago other configs in the tree.
   { succeeded: otherConfigPaths, failed } <- liftAff $ Glob.match' Paths.cwd [ "**/spago.yaml" ] { ignore: [ ".spago", "spago.yaml" ] }
   unless (Array.null otherConfigPaths) do
@@ -298,12 +311,14 @@ readWorkspace maybeSelectedPackage = do
   let
     readWorkspaceConfig path = do
       maybeConfig <- readConfig path
+      -- We try to figure out if this package has tests - look for test sources
+      hasTests <- liftEffect $ FS.exists (Path.concat [ path, "test" ])
       pure $ case maybeConfig of
         Left e -> Left $ "Could not read config at path " <> path <> "\nError was: " <> e
         Right { yaml: { package: Nothing } } -> Left $ "No package found for config at path: " <> path
-        Right { yaml: { package: Just package }, doc } ->
+        Right { yaml: { package: Just package }, doc } -> do
           -- We store the path of the package, so we can treat is basically as a LocalPackage
-          Right $ Tuple package.name { path: Path.dirname path, package, doc, glob: basicGlob }
+          Right $ Tuple package.name { path: Path.dirname path, package, doc, hasTests }
   { right: otherPackages, left: failedPackages } <- partitionMap identity <$> traverse readWorkspaceConfig otherConfigPaths
 
   unless (Array.null failedPackages) do
@@ -313,40 +328,11 @@ readWorkspace maybeSelectedPackage = do
   let
     workspacePackages = Map.fromFoldable $ otherPackages <> case maybePackage of
       Nothing -> []
-      Just package -> [ Tuple package.name { path: "./", package, doc: workspaceDoc, glob: basicGlob } ]
-
-    mkWorkspaceTestPackage :: WorkspacePackage -> Spago (LogEnv a) (Maybe (Tuple PackageName WorkspacePackage))
-    mkWorkspaceTestPackage { path, package, doc } = do
-      -- We try to figure out if we need a test package for this package - look for test sources
-      (liftEffect $ FS.exists (Path.concat [ path, "test" ])) >>= case _ of
-        false -> pure Nothing
-        true -> do
-          logDebug $ "Found a test package for package " <> show (show package.name)
-          pure do
-            -- TODO: should we prevent packages from having the `-test` suffix? I'd say it makes sense
-            testPkgName <- Either.hush $ PackageName.parse (PackageName.print package.name <> "-test")
-            let
-              glob = "test/**/*.purs"
-              dependencies = fromMaybe (Dependencies Map.empty) package.test_dependencies
-              testPackage = package
-                { name = testPkgName
-                -- Tests depend on the package that it's being tested
-                , dependencies = dependencies <> Dependencies (Map.singleton package.name Nothing)
-                , test_dependencies = Nothing
-                , bundle = Nothing
-                , publish = Nothing
-                }
-            Just $ Tuple testPackage.name { path, doc, package: testPackage, glob }
-
-  workspaceTestPackages <- map (Map.fromFoldable <<< List.catMaybes)
-    $ traverse mkWorkspaceTestPackage
-    $ Map.values workspacePackages
-
-  let localPackages = Map.union workspaceTestPackages workspacePackages
+      Just package -> [ Tuple package.name { path: "./", package, doc: workspaceDoc, hasTests: rootPackageHasTests } ]
 
   -- Select the package for spago to handle during the rest of the execution
   maybeSelected <- case maybeSelectedPackage of
-    Nothing -> case Array.uncons (Map.toUnfoldable localPackages) of
+    Nothing -> case Array.uncons (Map.toUnfoldable workspacePackages) of
       Nothing -> die "No valid packages found in the current project, halting."
       -- If there's only one package and it's not in the root we still select that
       Just { head: (Tuple packageName package), tail: [] } -> do
@@ -354,11 +340,11 @@ readWorkspace maybeSelectedPackage = do
         pure (Just package)
       -- If no package has been selected and we have many packages, then we build all of them but select none
       _ -> pure Nothing
-    Just name -> case Map.lookup name localPackages of
+    Just name -> case Map.lookup name workspacePackages of
       Nothing -> die
         [ toDoc $ "Selected package " <> show name <> " was not found in the local packages."
         , toDoc "Available packages:"
-        , indent (toDoc (Array.fromFoldable $ Map.keys localPackages))
+        , indent (toDoc (Array.fromFoldable $ Map.keys workspacePackages))
         ]
       Just p -> pure (Just p)
 
@@ -430,7 +416,7 @@ readWorkspace maybeSelectedPackage = do
     packageSet =
       let
         overrides = Map.union
-          (map WorkspacePackage localPackages)
+          (map WorkspacePackage workspacePackages)
           (map fromRemotePackage (fromMaybe Map.empty workspace.extra_packages))
 
       in
@@ -444,8 +430,8 @@ readWorkspace maybeSelectedPackage = do
       logDebug $ "Package path: " <> selected.path
     Nothing -> do
       logSuccess
-        [ toDoc $ "Selecting " <> show (Map.size localPackages) <> " packages to build:"
-        , indent2 (toDoc (Set.toUnfoldable $ Map.keys localPackages :: Array PackageName))
+        [ toDoc $ "Selecting " <> show (Map.size workspacePackages) <> " packages to build:"
+        , indent2 (toDoc (Set.toUnfoldable $ Map.keys workspacePackages :: Array PackageName))
         ]
 
   pure
@@ -463,17 +449,22 @@ getPackageLocation name = case _ of
   LocalPackage p -> p.path
   WorkspacePackage { path } -> path
 
-sourceGlob :: PackageName -> Package -> String
-sourceGlob name package = Path.concat
-  [ getPackageLocation name package
-  , case package of
-      WorkspacePackage { glob } -> glob
-      GitPackage { subdir: Just s } -> Path.concat [ s, basicGlob ]
-      _ -> basicGlob
-  ]
+sourceGlob :: PackageName -> Package -> Array String
+sourceGlob name package = map (\p -> Path.concat [ getPackageLocation name package, p ])
+  case package of
+    WorkspacePackage { hasTests } ->
+      if hasTests then
+        [ srcGlob, testGlob ]
+      else
+        [ srcGlob ]
+    GitPackage { subdir: Just s } -> [ Path.concat [ s, srcGlob ] ]
+    _ -> [ srcGlob ]
 
-basicGlob :: String
-basicGlob = "src/**/*.purs"
+srcGlob :: String
+srcGlob = "src/**/*.purs"
+
+testGlob :: String
+testGlob = "test/**/*.purs"
 
 getWorkspacePackages :: PackageSet -> Array WorkspacePackage
 getWorkspacePackages = Array.mapMaybe extractWorkspacePackage <<< Map.toUnfoldable

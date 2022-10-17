@@ -24,6 +24,7 @@
     "decimal.js": "^10.3.1",
     "env-paths": "^3.0.0",
     "esbuild": "^0.15.5",
+    "execa": "^6.1.0",
     "fast-glob": "^3.2.11",
     "fs-extra": "^10.0.0",
     "fuse.js": "^6.5.3",
