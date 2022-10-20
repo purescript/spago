@@ -20,8 +20,9 @@ import Control.Monad.Reader (class MonadAsk, ReaderT, runReaderT)
 import Control.Monad.State (StateT) as Extra
 import Control.Parallel as Parallel
 import Data.Array ((..)) as Extra
+import Data.Bifunctor (bimap) as Extra
 import Data.DateTime.Instant (Instant) as Extra
-import Data.Either (Either(..), isLeft, isRight) as Extra
+import Data.Either (Either(..), isLeft, isRight, either) as Extra
 import Data.Filterable (partition, partitionMap) as Extra
 import Data.Foldable (foldMap, for_, foldl, and, or) as Extra
 import Data.Function.Uncurried (Fn3, runFn3)

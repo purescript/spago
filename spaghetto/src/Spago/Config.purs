@@ -10,11 +10,8 @@ import Data.Array as Array
 import Data.Bifunctor (lmap)
 import Data.Either as Either
 import Data.HTTP.Method as Method
-import Data.List as List
 import Data.Map as Map
 import Data.Set as Set
-import Data.String (Pattern(..))
-import Data.String as String
 import Dodo as Log
 import Effect.Uncurried (EffectFn2, runEffectFn2)
 import Foreign.FastGlob as Glob
@@ -33,6 +30,7 @@ import Registry.Version (Range, Version)
 import Registry.Version as Registry.Version
 import Registry.Version as Version
 import Spago.FS as FS
+import Spago.Git as Git
 import Spago.Paths as Paths
 import Yaml (class ToYaml, YamlDoc, (.:), (.:?))
 import Yaml as Yaml
@@ -299,11 +297,22 @@ readWorkspace maybeSelectedPackage = do
   rootPackageHasTests <- liftEffect $ FS.exists "test"
 
   -- Then gather all the spago other configs in the tree.
-  { succeeded: otherConfigPaths, failed } <- liftAff $ Glob.match' Paths.cwd [ "**/spago.yaml" ] { ignore: [ ".spago", "spago.yaml" ] }
+  { succeeded: otherConfigPaths, failed, ignored } <- do
+    result <- liftAff $ Glob.match' Paths.cwd [ "**/spago.yaml" ] { ignore: [ ".spago", "spago.yaml" ] }
+    -- If a file is gitignored then we don't include it as a package
+    let
+      filterGitignored path = do
+        Git.isIgnored path >>= case _ of
+          true -> pure $ Left path
+          false -> pure $ Right path
+    { right: newSucceeded, left: ignored } <- partitionMap identity <$> traverse filterGitignored result.succeeded
+    pure { succeeded: newSucceeded, failed: result.failed, ignored }
   unless (Array.null otherConfigPaths) do
     logDebug $ [ toDoc "Found packages at these paths:", Log.indent $ Log.lines (map toDoc otherConfigPaths) ]
   unless (Array.null failed) do
     logDebug $ "Failed to sanitise some of the glob matches: " <> show failed
+  unless (Array.null ignored) do
+    logDebug $ "Ignored some of the glob matches as they are gitignored: " <> show ignored
 
   -- We read all of them in, and only read the package section, if any.
   -- TODO: we should probably not include at all the configs that contain a
