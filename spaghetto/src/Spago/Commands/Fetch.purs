@@ -32,7 +32,7 @@ import Spago.FS as FS
 import Spago.Git as Git
 import Spago.Paths as Paths
 import Spago.Tar as Tar
-import Yaml as Yaml
+import Spago.Yaml as Yaml
 
 type FetchEnvRow a =
   ( getManifestFromIndex :: PackageName -> Version -> Spago (LogEnv ()) (Maybe Manifest)

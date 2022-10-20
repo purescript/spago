@@ -26,14 +26,16 @@ import Registry.Json as RegistryJson
 import Registry.Legacy.PackageSet as Registry.PackageSet
 import Registry.PackageName (PackageName)
 import Registry.PackageName as PackageName
+import Registry.Schema (Location, Manifest(..))
 import Registry.Version (Range, Version)
 import Registry.Version as Registry.Version
 import Registry.Version as Version
 import Spago.FS as FS
 import Spago.Git as Git
 import Spago.Paths as Paths
-import Yaml (class ToYaml, YamlDoc, (.:), (.:?))
-import Yaml as Yaml
+import Spago.Yaml (class ToYaml, YamlDoc, (.:), (.:?))
+import Spago.Yaml as Yaml
+import Unsafe.Coerce (unsafeCoerce)
 
 type Config =
   { package :: Maybe PackageConfig
@@ -42,6 +44,7 @@ type Config =
 
 type PackageConfig =
   { name :: PackageName
+  , description :: Maybe String
   , dependencies :: Dependencies
   , test_dependencies :: Maybe Dependencies
   , bundle :: Maybe BundleConfig
@@ -52,6 +55,7 @@ type PackageConfig =
 type PublishConfig =
   { version :: Maybe Version
   , license :: Maybe License
+  , location :: Maybe Location
   } -- FIXME: implement publishing
 
 type RunConfig =
@@ -520,3 +524,27 @@ foreign import addPackagesToConfigImpl :: EffectFn2 (YamlDoc Config) (Array Stri
 
 addPackagesToConfig :: YamlDoc Config -> Array PackageName -> Effect Unit
 addPackagesToConfig doc pkgs = runEffectFn2 addPackagesToConfigImpl doc (map PackageName.print pkgs)
+
+toManifest :: Config -> Either String Manifest
+toManifest config = do
+  package@{ name, description, dependencies: Dependencies deps } <- Either.note "Did not find a package in the config" config.package
+  publishConfig <- Either.note "Did not find a `publish` section in the package config" package.publish
+  version <- Either.note "Did not find a `version` field in the package config" publishConfig.version
+  license <- Either.note "Did not find a `license` field in the package config" publishConfig.license
+  location <- Either.note "Did not find a `location` field in the package config" publishConfig.location
+  let
+    checkRange :: Tuple PackageName (Maybe Range) -> Either String (Tuple PackageName Range)
+    checkRange (Tuple packageName maybeRange) = case maybeRange of
+      Nothing -> Left $ "Could not get dependency range for package " <> show packageName
+      Just r -> Right (Tuple packageName r)
+  dependencies <- map Map.fromFoldable $ traverse checkRange (Map.toUnfoldable deps :: Array (Tuple PackageName (Maybe Range)))
+  pure $ Manifest
+    { version
+    , license
+    , name
+    , location
+    , description
+    , dependencies
+    , owners: Nothing -- TODO?
+    , files: Nothing -- TODO
+    }

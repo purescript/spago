@@ -1,4 +1,4 @@
-module Yaml
+module Spago.Yaml
   ( printYaml
   , stringifyYaml
   , parseYaml
@@ -69,6 +69,7 @@ import Registry.Hash (Sha256)
 import Registry.Json as Registry.Json
 import Registry.PackageName (PackageName)
 import Registry.PackageName as PackageName
+import Registry.Schema (Location)
 import Registry.Version (Version)
 import Type.Proxy (Proxy(..))
 
@@ -206,6 +207,10 @@ instance ToYaml Version where
   decode = Registry.Json.decode
 
 instance ToYaml License where
+  encode = Registry.Json.encode
+  decode = Registry.Json.decode
+
+instance ToYaml Location where
   encode = Registry.Json.encode
   decode = Registry.Json.decode
 
