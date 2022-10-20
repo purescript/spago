@@ -1,6 +1,6 @@
 {
   "name": "purescript-spaghetto",
-  "version": "0.90.0",
+  "version": "0.91.0",
   "license": "BSD-3-Clause",
   "description": "🍝 PureScript package manager and build tool",
   "keywords": [
