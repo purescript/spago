@@ -28,7 +28,7 @@ import Spago.Commands.Registry as Registry
 import Spago.Commands.Run as Run
 import Spago.Commands.Sources as Sources
 import Spago.Commands.Test as Test
-import Spago.Config (BundleConfig, Package, Platform(..), RunConfig)
+import Spago.Config (BundleConfig, Package, Platform(..), RunConfig, TestConfig)
 import Spago.Config as Config
 import Spago.FS as FS
 import Spago.Git as Git
@@ -382,14 +382,20 @@ mkRunEnv runArgs { isTest } = do
     runConf :: forall x. (RunConfig -> Maybe x) -> Maybe x
     runConf f = selected.package.run >>= f
 
-    moduleName = fromMaybe (if isTest then "Test.Main" else "Main") (runArgs.main <|> runConf _.main)
-    execArgs = fromMaybe [] (runArgs.execArgs <|> runConf _.execArgs)
+    testConf :: forall x. (TestConfig -> Maybe x) -> Maybe x
+    testConf f = selected.package.test >>= f
+
+    moduleName =
+      if isTest then
+        fromMaybe "Test.Main" (runArgs.main <|> testConf _.main)
+      else fromMaybe "Main" (runArgs.main <|> runConf _.main)
+    execArgs = fromMaybe [] (runArgs.execArgs <|> (if isTest then testConf _.execArgs else runConf _.execArgs))
 
     runOptions =
       { moduleName
       , execArgs
       , sourceDir: Paths.cwd
-      , executeDir: selected.path
+      , executeDir: Paths.cwd
       , successMessage: Nothing
       , failureMessage: "Running failed."
       }

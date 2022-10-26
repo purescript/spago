@@ -177,7 +177,7 @@ getPackageDependencies packageName package = case package of
 getWorkspacePackageDeps :: WorkspacePackage -> Dependencies
 getWorkspacePackageDeps pkg =
   if pkg.hasTests then
-    pkg.package.dependencies <> fromMaybe mempty pkg.package.test_dependencies
+    pkg.package.dependencies <> fromMaybe mempty (map _.dependencies pkg.package.test)
   else pkg.package.dependencies
 
 type TransitiveDepsResult =

@@ -35,7 +35,6 @@ import Spago.Git as Git
 import Spago.Paths as Paths
 import Spago.Yaml (class ToYaml, YamlDoc, (.:), (.:?))
 import Spago.Yaml as Yaml
-import Unsafe.Coerce (unsafeCoerce)
 
 type Config =
   { package :: Maybe PackageConfig
@@ -46,9 +45,9 @@ type PackageConfig =
   { name :: PackageName
   , description :: Maybe String
   , dependencies :: Dependencies
-  , test_dependencies :: Maybe Dependencies
   , bundle :: Maybe BundleConfig
   , run :: Maybe RunConfig
+  , test :: Maybe TestConfig
   , publish :: Maybe PublishConfig
   }
 
@@ -61,6 +60,12 @@ type PublishConfig =
 type RunConfig =
   { main :: Maybe String
   , execArgs :: Maybe (Array String)
+  }
+
+type TestConfig =
+  { main :: Maybe String
+  , execArgs :: Maybe (Array String)
+  , dependencies :: Dependencies
   }
 
 type WorkspaceConfig =

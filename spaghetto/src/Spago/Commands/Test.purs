@@ -13,6 +13,7 @@ run = do
         { runOptions
             { successMessage = Just "Test succeeded."
             , failureMessage = "Tests failed."
+            , executeDir = runEnv.selected.path
             }
         }
 

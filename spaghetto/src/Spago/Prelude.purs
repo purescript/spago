@@ -8,6 +8,7 @@ module Spago.Prelude
   , shaToHex
   , HexString(..)
   , parallelise
+  , unsafeFromRight
   ) where
 
 import Prelude
@@ -23,6 +24,7 @@ import Data.Array ((..)) as Extra
 import Data.Bifunctor (bimap) as Extra
 import Data.DateTime.Instant (Instant) as Extra
 import Data.Either (Either(..), isLeft, isRight, either) as Extra
+import Data.Either as Either
 import Data.Filterable (partition, partitionMap) as Extra
 import Data.Foldable (foldMap, for_, foldl, and, or) as Extra
 import Data.Function.Uncurried (Fn3, runFn3)
@@ -50,6 +52,7 @@ import Effect.Ref (Ref) as Extra
 import Node.Buffer as Buffer
 import Node.Encoding (Encoding(..)) as Extra
 import Node.Path (FilePath) as Extra
+import Partial.Unsafe (unsafeCrashWith)
 import Registry.Hash (Sha256)
 import Spago.Log (logDebug, logError, logInfo, logSuccess, logWarn, die, LogOptions, LogEnv, toDoc, indent, indent2, output) as Extra
 import Unsafe.Coerce (unsafeCoerce)
@@ -77,6 +80,9 @@ runSpago env a = Extra.liftAff (runSpago' env a)
 
 throwError :: forall a m. MonadThrow Extra.Error m => String -> m a
 throwError = Aff.throwError <<< Aff.error
+
+unsafeFromRight :: forall e a. Extra.Either e a -> a
+unsafeFromRight = Either.fromRight' (\_ -> unsafeCrashWith "Unexpected Left")
 
 parseUrl :: String -> Extra.Either String URL
 parseUrl = runFn3 parseUrlImpl Extra.Left (Extra.Right <<< unsafeCoerce)
