@@ -33,7 +33,7 @@ run opts = do
     Right r -> logInfo r.stdout
     Left err -> do
       logDebug $ show err
-      die [ "Failed to find purs." ]
+      die [ "Failed to find purs. Have you installed it, and is it in your PATH?" ]
   { dependencies, workspace } <- ask
   let dependencyGlobs = map (Tuple.uncurry Config.sourceGlob) (Map.toUnfoldable dependencies)
 

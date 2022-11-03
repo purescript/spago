@@ -30,10 +30,15 @@ export function pipeStderrImpl(cp) {
   cp.stderr.pipe(process.stderr);
 }
 
-
 export function joinImpl(cp, onError, onSuccess) {
   return cp.then((data) => onSuccess(data))
-    .catch((err) => onError(err));
+    .catch((err) => {
+      // WTFFFF, this is because on ENOENT we don't get an exitCode
+      if (err.exitCode === undefined) {
+        err.exitCode = -1;
+      }
+      return onError(err);
+    });
 };
 
 export function killImpl(cp) {
