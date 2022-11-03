@@ -55,9 +55,18 @@ fetchRepo { git, ref } path = do
 -- a fatal error occurs (i.e. when not in a git repository).
 isIgnored :: forall a. FilePath -> Spago (LogEnv a) Boolean
 isIgnored path = do
-  let args = [ "check-ignore", "--quiet", path ]
   -- TODO which git
-  result <- liftAff $ Cmd.exec "git" args (Cmd.defaultExecOptions { pipeStdout = false, pipeStderr = false })
-  pure $ case result of
-    Right { exitCode: 0 } -> true
-    _ -> false
+  result <- liftAff $ Cmd.exec "git" [ "check-ignore", "--quiet", path ] (Cmd.defaultExecOptions { pipeStdout = false, pipeStderr = false })
+  case result of
+    -- Git is successful if it's an ignored file
+    Right { exitCode: 0 } -> pure true
+    -- Git will fail with exitCode 128 if dealing with a link.
+    -- We ignore those! I mean, do we really want to deal with recursive links?!?
+    Left { exitCode: 128 } -> pure true
+    -- Git will fail with 1 when a file is just, like, normally ignored
+    Left { exitCode: 1 } -> pure false
+    _ -> do
+      logDebug "IsIgnored encountered an interesting exitCode"
+      logDebug $ show result
+      -- We still do not ignore it, just in case
+      pure false
