@@ -7,3 +7,7 @@ export const parseUrlImpl = (onError, onSuccess, rawUrl) => {
     return onError(err);
   }
 };
+
+export const unsafeLog = (a) => () => {
+  console.log(a)
+}

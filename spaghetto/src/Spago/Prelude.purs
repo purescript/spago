@@ -9,6 +9,7 @@ module Spago.Prelude
   , HexString(..)
   , parallelise
   , unsafeFromRight
+  , unsafeLog
   ) where
 
 import Prelude
@@ -90,6 +91,8 @@ parseUrl = runFn3 parseUrlImpl Extra.Left (Extra.Right <<< unsafeCoerce)
 type URL = { href :: String }
 
 foreign import parseUrlImpl :: forall r. Fn3 (String -> r) (String -> r) String r
+
+foreign import unsafeLog :: forall a. a -> Extra.Effect Unit
 
 parallelise :: forall env a. Array (Spago env a) -> Spago env Unit
 parallelise actions = do
