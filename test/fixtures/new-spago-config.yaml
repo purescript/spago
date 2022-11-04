@@ -1,11 +1,18 @@
 workspace:
   set:
     url: https://raw.githubusercontent.com/purescript/package-sets/psc-0.15.4-20220921/packages.json
+  extra_packages:
+    effect:
+      dependencies:
+      - prelude
+      git: https://github.com/purescript/purescript-effect.git
+      ref: bar
 package:
   dependencies:
   - console
   - effect
   - prelude
   name: foo
-  version: 0.0.1
-  license: MIT
+  publish:
+    version: 0.0.1
+    license: MIT
