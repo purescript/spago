@@ -3,7 +3,12 @@ module Spago.NewConfig where
 import Spago.Prelude
 import Spago.Env
 
+import qualified Data.Map as Map
+import qualified Data.Set as Set
+import qualified Data.Text as Text
 import qualified Data.Yaml
+import qualified Network.HTTP.Client as Http
+import qualified Network.HTTP.Simple as Http
 import qualified Spago.PackageSet
 import qualified Spago.Dhall as Dhall
 import qualified Spago.Messages as Messages
@@ -21,17 +26,33 @@ instance ToJSON NewConfig where
 
 data PackageConfig = PackageConfig
   { name :: Text
-  , version :: Text
-  , license :: Text
+  , publish :: Maybe NewPublishConfig
   , dependencies :: Set PackageName
   } deriving (Generic)
 
 instance ToJSON PackageConfig where
   toJSON = genericToJSON customOptions
 
+data NewPublishConfig = NewPublishConfig
+  { version :: Maybe Text
+  , license :: Maybe Text
+  } deriving (Generic)
+
+instance ToJSON NewPublishConfig where
+  toJSON = genericToJSON customOptions
+
+data ExtraPackage = ExtraPackage
+  { git :: Text
+  , ref :: Text
+  , dependencies :: Set PackageName
+  } deriving (Generic)
+
+instance ToJSON ExtraPackage
+
 data WorkspaceConfig = WorkspaceConfig
   { set :: PackageSetAddress
   , backend :: Maybe Text
+  , extra_packages :: Map PackageName ExtraPackage
   } deriving (Generic)
 
 instance ToJSON WorkspaceConfig where
@@ -47,6 +68,11 @@ customOptions = defaultOptions
   { omitNothingFields = True
   }
 
+toExtraPackage :: Package -> Maybe ExtraPackage
+toExtraPackage Package { dependencies, location } = case location of
+  Local {} -> Nothing
+  Remote { repo, version } -> Just (ExtraPackage { git = unRepo repo, ref = version, dependencies = Set.fromList dependencies })
+
 migrate :: (HasLogFunc env, HasConfig env) => RIO env ()
 migrate = do
   -- Fish out the package set url from the packages.dhall
@@ -58,21 +84,26 @@ migrate = do
           -> pure (renderUrl current)
         Just _ -> die [ display Messages.cannotFindPackageImport ]
   logDebug $ "New package-set URL: " <> display packageSetUrl
+  -- Now we _fetch_ this package set, so that we know which packages are there
+  logDebug "Fetching the package set.."
+  request <- Http.parseRequest $ Text.unpack packageSetUrl
+  PackageSet { packagesDB = remotePackagesDB } <- Http.responseBody <$> Http.httpJSON request
+  -- Then we get the current package set as read by spago - this includes overrides
+  logDebug "Reading the local package set.."
+  PackageSet { packagesDB } <- view (the @PackageSet)
+  -- Now we can run the difference between them, and add it as extra_packages in the new config
+  -- Note: we don't just look for things that are not in the remote set, also things that are different!
+  let extra_packages = Map.mapMaybe toExtraPackage $ Map.differenceWith (\p r -> if p == r then Nothing else Just p) packagesDB remotePackagesDB
   -- Get the config, and the fields that we want
   Config { alternateBackend, name, dependencies, migrateConfig } <- view (the @Config)
-  (license, version) <- case migrateConfig of
-    Left _ -> die [ "Please add the following keys to your spago.dhall: license, version"]
-    Right (MigrateConfig {..}) -> pure (migrateLicense, migrateVersion)
+  let publish = case migrateConfig of
+        Left _ -> Nothing
+        Right (MigrateConfig {..}) -> Just $ NewPublishConfig { version = Just migrateVersion, license = Just migrateLicense }
   -- TODO: we probably want a flag that says "nevermind my package set, give me the latest set from the registry"
-  let workspace = WorkspaceConfig { set = PackageSetAddress packageSetUrl, backend = alternateBackend}
+  let workspace = WorkspaceConfig { set = PackageSetAddress packageSetUrl, backend = alternateBackend, extra_packages = extra_packages }
   let package = PackageConfig{..}
   let newConfig = NewConfig{..}
   -- Write the new one to YAML
-  -- FIXME: we might want to do something about porting these overrides, but it's a lot of work.
-  -- One avenue could be to parse the original package set (from the URL that we get), see which packages are different in the one
-  -- that Spago reads in, and then stick the differing ones in extra_packages
-  -- TODO: at least we should link to the docs of spaghetto to show how it's done
-  logWarn "Any overrides you added to the packages.dhall file were not ported - please add them again to the new configuration"
   logInfo "Writing the new config format to spago.yaml..."
   liftIO $ Data.Yaml.encodeFile "spago.yaml" newConfig
 
