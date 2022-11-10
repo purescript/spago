@@ -275,10 +275,9 @@ main =
             packageName <- case PackageName.parse (stripPureScriptPrefix (Path.basename Paths.cwd)) of
               Left err -> die [ "Could not figure out a name for the new package. Error:", show err ]
               Right p -> pure p
-            setVersion <- case map (Version.parseVersion Version.Lenient) args.setVersion of
-              Nothing -> pure Nothing
-              Just (Left err) -> die [ "Could not parse provided set version. Error:", show err ]
-              Just (Right v) -> pure (Just v)
+            setVersion <- for args.setVersion $ Version.parseVersion Version.Lenient >>> case _ of
+              Left err -> die [ "Could not parse provided set version. Error:", show err ]
+              Right v -> pure v
             logDebug [ "Got packageName and setVersion:", show packageName, show setVersion ]
             let initOpts = { packageName, setVersion }
             void $ runSpago { logOptions, purs } $ Init.run initOpts
@@ -454,11 +453,9 @@ mkFetchEnv args = do
   unless (Array.null failedPackageNames) do
     die $ "Failed to parse some package name: " <> show failedPackageNames
 
-  -- TODO: refactor this
-  maybeSelectedPackage <- case map PackageName.parse args.selectedPackage of
-    Nothing -> pure Nothing
-    Just (Left _err) -> die $ "Failed to parse selected package name, was: " <> show args.selectedPackage
-    Just (Right p) -> pure (Just p)
+  maybeSelectedPackage <- for args.selectedPackage $ PackageName.parse >>> case _ of
+    Right p -> pure p
+    Left _err -> die $ "Failed to parse selected package name, was: " <> show args.selectedPackage
 
   workspace <- runSpago { logOptions, git } do
     Config.readWorkspace maybeSelectedPackage
