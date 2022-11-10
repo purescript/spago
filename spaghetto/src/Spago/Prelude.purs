@@ -44,12 +44,11 @@ import Data.Tuple.Nested ((/\)) as Extra
 import Effect (Effect) as Extra
 import Effect.Aff (Aff, Error) as Extra
 import Effect.Aff as Aff
-import Effect.Aff.Class (class MonadAff)
-import Effect.Aff.Class (liftAff) as Extra
-import Effect.Class (class MonadEffect)
-import Effect.Class (liftEffect) as Extra
+import Effect.Aff.Class (class MonadAff, liftAff) as Extra
+import Effect.Class (class MonadEffect, liftEffect) as Extra
 import Effect.Exception.Unsafe (unsafeThrow) as Extra
 import Effect.Ref (Ref) as Extra
+import Node.Buffer (Buffer) as Extra
 import Node.Buffer as Buffer
 import Node.Encoding (Encoding(..)) as Extra
 import Node.Path (FilePath) as Extra
@@ -67,8 +66,8 @@ derive newtype instance Apply (Spago env)
 derive newtype instance Applicative (Spago env)
 derive newtype instance Bind (Spago env)
 derive newtype instance Monad (Spago env)
-derive newtype instance MonadEffect (Spago env)
-derive newtype instance MonadAff (Spago env)
+derive newtype instance Extra.MonadEffect (Spago env)
+derive newtype instance Extra.MonadAff (Spago env)
 derive newtype instance MonadThrow Extra.Error (Spago env)
 derive newtype instance MonadError Extra.Error (Spago env)
 derive newtype instance MonadAsk env (Spago env)
@@ -76,7 +75,7 @@ derive newtype instance MonadAsk env (Spago env)
 runSpago' :: forall a env. env -> Spago env a -> Extra.Aff a
 runSpago' env (Spago m) = runReaderT m env
 
-runSpago :: forall m a env. MonadAff m => env -> Spago env a -> m a
+runSpago :: forall m a env. Extra.MonadAff m => env -> Spago env a -> m a
 runSpago env a = Extra.liftAff (runSpago' env a)
 
 throwError :: forall a m. MonadThrow Extra.Error m => String -> m a

@@ -1,4 +1,4 @@
-module Spago.Commands.Registry where
+module Spago.Command.Registry where
 
 import Spago.Prelude
 
@@ -14,12 +14,14 @@ import Registry.Schema (Manifest, Metadata)
 import Registry.Version (Version)
 import Registry.Version as Version
 import Spago.FS as FS
+import Spago.Git as Git
 import Spago.Paths as Paths
 
 type RegistryEnv a =
   { getManifestFromIndex :: PackageName -> Version -> Spago (LogEnv ()) (Maybe Manifest)
   , getMetadata :: PackageName -> Spago (LogEnv ()) (Either String Metadata)
   , logOptions :: LogOptions
+  , git :: Git.Git
   | a
   }
 
@@ -29,7 +31,7 @@ type RegistryEnv a =
 search :: forall a. String -> Spago (RegistryEnv a) Unit
 search searchString = do
   logInfo $ "Searching for " <> show searchString <> " in the Registry package names..."
-  metadataFiles <- liftAff $ FS.readdir $ Path.concat [ Paths.registryPath, "metadata" ]
+  metadataFiles <- FS.ls $ Path.concat [ Paths.registryPath, "metadata" ]
 
   let matches = Array.filter (String.contains (Pattern searchString)) (Array.mapMaybe (String.stripSuffix (Pattern ".json")) metadataFiles)
 

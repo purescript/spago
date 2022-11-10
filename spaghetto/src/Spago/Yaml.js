@@ -2,8 +2,8 @@ import Yaml from 'yaml';
 
 export function yamlParserImpl(fail, succ, s) {
   try {
-    // TODO:
-    // We should only support JSON values in the parsing, because we convert to JSON right after parsing.
+    // TODO: we should only support JSON values in the parsing,
+    // because we convert to JSON right after parsing.
     // But to parse YAML we need to have a separate AST I guess?
     return succ(Yaml.parse(s, { schema: 'core' }));
   }

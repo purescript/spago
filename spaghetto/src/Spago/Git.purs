@@ -1,4 +1,10 @@
-module Spago.Git where
+module Spago.Git
+  ( Git
+  , GitEnv
+  , fetchRepo
+  , getGit
+  , isIgnored
+  ) where
 
 import Spago.Prelude
 
@@ -7,33 +13,30 @@ import Control.Monad.Except as Except
 import Spago.Cmd as Cmd
 import Spago.FS as FS
 
-runGit_ :: Array String -> Maybe FilePath -> ExceptT String Aff Unit
+type Git = { cmd :: String, version :: String }
+
+type GitEnv a = { git :: Git, logOptions :: LogOptions | a }
+
+runGit_ :: forall a. Array String -> Maybe FilePath -> ExceptT String (Spago (GitEnv a)) Unit
 runGit_ args cwd = void $ runGit args cwd
 
-runGit :: Array String -> Maybe FilePath -> ExceptT String Aff String
+runGit :: forall a. Array String -> Maybe FilePath -> ExceptT String (Spago (GitEnv a)) String
 runGit args cwd = ExceptT do
-  -- TODO which git
-  result <- Cmd.exec "git" args (Cmd.defaultExecOptions { pipeStdout = false, pipeStderr = false, cwd = cwd })
+  { git } <- ask
+  result <- Cmd.exec git.cmd args (Cmd.defaultExecOptions { pipeStdout = false, pipeStderr = false, cwd = cwd })
   pure $ bimap _.stderr _.stdout result
 
-runGitSilent :: Array String -> Maybe FilePath -> ExceptT String Aff String
-runGitSilent args cwd = ExceptT do
-  -- TODO: which git
-  result <- Cmd.exec "git" args (Cmd.defaultExecOptions { pipeStdout = false, pipeStderr = false, cwd = cwd })
-  pure $ bimap (\_ -> "Failed to run git command via runGitSilent.") _.stdout result
-
-fetchRepo :: forall a b. { git :: String, ref :: String | a } -> FilePath -> Spago (LogEnv b) Unit
+fetchRepo :: forall a b. { git :: String, ref :: String | a } -> FilePath -> Spago (GitEnv b) Unit
 fetchRepo { git, ref } path = do
-  let runE = liftAff <<< Except.runExceptT
-  repoExists <- liftEffect (FS.exists path)
+  repoExists <- FS.exists path
   cloneOrFetchResult <- case repoExists of
     true -> do
       logDebug $ "Found the " <> git <> " repo locally, pulling..."
-      runE $ runGit_ [ "fetch", "origin" ] (Just path)
+      Except.runExceptT $ runGit_ [ "fetch", "origin" ] (Just path)
     false -> do
       logInfo $ "Didn't find " <> git <> " repo, cloning..."
-      runE $ runGit_ [ "clone", git, path ] Nothing
-  result <- runE do
+      Except.runExceptT $ runGit_ [ "clone", git, path ] Nothing
+  result <- Except.runExceptT do
     Except.ExceptT $ pure cloneOrFetchResult
     _ <- runGit [ "checkout", ref ] (Just path)
     -- if we are on a branch and not on a detached head, then we need to pull
@@ -53,10 +56,10 @@ fetchRepo { git, ref } path = do
 --
 -- `git check-ignore` exits with 1 when path is not ignored, and 128 when
 -- a fatal error occurs (i.e. when not in a git repository).
-isIgnored :: forall a. FilePath -> Spago (LogEnv a) Boolean
+isIgnored :: forall a. FilePath -> Spago (GitEnv a) Boolean
 isIgnored path = do
-  -- TODO which git
-  result <- liftAff $ Cmd.exec "git" [ "check-ignore", "--quiet", path ] (Cmd.defaultExecOptions { pipeStdout = false, pipeStderr = false })
+  { git } <- ask
+  result <- Cmd.exec git.cmd [ "check-ignore", "--quiet", path ] (Cmd.defaultExecOptions { pipeStdout = false, pipeStderr = false })
   case result of
     -- Git is successful if it's an ignored file
     Right { exitCode: 0 } -> pure true
@@ -70,3 +73,11 @@ isIgnored path = do
       logDebug $ show result
       -- We still do not ignore it, just in case
       pure false
+
+getGit :: forall a. Spago (LogEnv a) Git
+getGit = do
+  Cmd.exec "git" [ "-v" ] Cmd.defaultExecOptions { pipeStdout = false, pipeStderr = false } >>= case _ of
+    Right r -> pure { cmd: "git", version: r.stdout }
+    Left err -> do
+      logDebug $ show err
+      die [ "Failed to find git. Have you installed it, and is it in your PATH?" ]
