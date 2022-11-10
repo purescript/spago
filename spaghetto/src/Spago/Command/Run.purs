@@ -1,4 +1,10 @@
-module Spago.Commands.Run where
+module Spago.Command.Run
+  ( getNode
+  , run
+  , RunEnv
+  , Node
+  , RunOptions
+  ) where
 
 import Spago.Prelude
 
@@ -19,6 +25,7 @@ type RunEnv a =
   , workspace :: Workspace
   , runOptions :: RunOptions
   , selected :: WorkspacePackage
+  , node :: Node
   | a
   }
 
@@ -31,45 +38,43 @@ type RunOptions =
   , failureMessage :: String
   }
 
-data NodeEsSupport
-  = Unsupported Version
-  | Experimental
-  | Supported
+type Node = { cmd :: String, version :: Version }
 
-{-
-TODO:
-
-hasNodeEsSupport :: (HasLogFunc env) => RIO env NodeEsSupport
-hasNodeEsSupport = do
-  nodeVersion <- Cmd.getCmdVersion "node"
-  case nodeVersion  of
+nodeVersion :: forall a. Spago (LogEnv a) Version
+nodeVersion =
+  Cmd.exec "node" [ "--version" ] Cmd.defaultExecOptions { pipeStdout = false, pipeStderr = false } >>= case _ of
     Left err -> do
-      logDebug $ display $ "Unable to get Node.js version: " <> displayShow err
-      pure Supported
-    Right nv@Version.SemVer{} | Version._svMajor nv < 12 ->
-      pure $ Unsupported nv
-    Right nv@Version.SemVer{} | Version._svMajor nv >= 12 && Version._svMajor nv < 13 ->
-      pure Experimental
-    _ -> pure Supported
+      logDebug $ show err
+      die [ "Failed to find node. Have you installed it, and is it in your PATH?" ]
+    Right r -> case Version.parseVersion Version.Lenient r.stdout of
+      Left _err -> die $ "Failed to parse NodeJS version. Was: " <> r.stdout
+      Right v ->
+        if Version.major v >= 13 then
+          pure v
+        else
+          die [ "Unsupported Node version " <> Version.printVersion v, "Please install a Node v13 or higher." ]
 
--}
+getNode :: forall a. Spago (LogEnv a) Node
+getNode = do
+  version <- nodeVersion
+  pure { cmd: "node", version }
 
 run :: forall a. Spago (RunEnv a) Unit
 run = do
-  { workspace, runOptions: opts } <- ask
+  { workspace, node, runOptions: opts } <- ask
   let execOptions = Cmd.defaultExecOptions { pipeStdin = Cmd.StdinPipeParent }
 
   case workspace.backend of
     Nothing -> do
+      logDebug "Running with backend: nodejs"
       let runDir = Path.concat [ Paths.localCachePath, "run" ]
-      liftAff $ FS.mkdirp runDir
+      FS.mkdirp runDir
       let
         runJsPath = Path.concat [ runDir, "run.js" ]
         packageJsonPath = Path.concat [ runDir, "package.json" ]
         packageJsonContents = "{\"type\":\"module\" }"
 
-        nodeArgs Experimental = [ "--experimental-modules", runJsPath ] <> opts.execArgs
-        nodeArgs _ = [ runJsPath ] <> opts.execArgs
+        nodeArgs = [ runJsPath ] <> opts.execArgs
 
         nodeContents =
           Array.fold
@@ -85,23 +90,14 @@ run = do
             , "main()"
             ]
 
-      logDebug "Running with backend: nodejs"
-      -- TODO: fail if we are not dealing with at least PS 0.15.4
-      -- TODO: nodeVersion <- hasNodeEsSupport
-      let nodeVersion = Supported
-      case nodeVersion of
-        Unsupported nv ->
-          die [ "Unsupported Node.js version: " <> show (Version.printVersion nv), "Required Node.js version >=12." ]
-        _ -> pure unit
       logDebug $ "Writing " <> show runJsPath
-      liftAff $ FS.writeTextFile UTF8 runJsPath nodeContents
-      liftAff $ FS.chmod runJsPath (Perms.mkPerms Perms.all Perms.all Perms.all)
+      FS.writeTextFile runJsPath nodeContents
+      FS.chmod runJsPath (Perms.mkPerms Perms.all Perms.all Perms.all)
       logDebug $ "Writing " <> show packageJsonPath
-      liftAff $ FS.writeTextFile UTF8 packageJsonPath packageJsonContents
+      FS.writeTextFile packageJsonPath packageJsonContents
       logDebug $ "Executing from: " <> show opts.executeDir
-      logDebug $ "Running node command with args: `" <> show (nodeArgs nodeVersion) <> "`"
-      -- TODO: which node
-      liftAff (Cmd.exec "node" (nodeArgs nodeVersion) (execOptions { cwd = Just opts.executeDir })) >>= case _ of
+      logDebug $ "Running node command with args: `" <> show nodeArgs <> "`"
+      Cmd.exec node.cmd nodeArgs (execOptions { cwd = Just opts.executeDir }) >>= case _ of
         Right _r -> case opts.successMessage of
           Just m -> logSuccess m
           Nothing -> pure unit
@@ -111,7 +107,7 @@ run = do
     Just backend -> do
       let args = [ "--run", opts.moduleName <> ".main" ] <> opts.execArgs
       logDebug $ "Running command `" <> backend <> " " <> show args <> "`"
-      liftAff (Cmd.exec backend args execOptions) >>= case _ of
+      Cmd.exec backend args execOptions >>= case _ of
         Right _r -> case opts.successMessage of
           Just m -> logSuccess m
           Nothing -> pure unit

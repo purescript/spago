@@ -50,7 +50,7 @@ run = do
       ] <> minify
   logInfo "Bundling..."
   logDebug $ "Running esbuild: " <> show args
-  liftAff (Cmd.exec command args Cmd.defaultExecOptions) >>= case _ of
+  Cmd.exec command args Cmd.defaultExecOptions >>= case _ of
     Right _r -> logSuccess "Bundle succeeded."
     Left err -> do
       logDebug $ show err

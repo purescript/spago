@@ -11,34 +11,43 @@ import Data.Map as Map
 import Effect.Aff as Aff
 import Effect.Class.Console as Console
 import Effect.Ref as Ref
-import Flags as Flags
+import Node.Path as Path
 import Node.Process as Process
 import Registry.API as Registry.API
 import Registry.Index as Index
 import Registry.Json as RegistryJson
 import Registry.PackageName (PackageName)
 import Registry.PackageName as PackageName
+import Registry.Prelude (stripPureScriptPrefix)
 import Registry.Schema (Manifest(..), Metadata)
 import Registry.Version (Version)
+import Registry.Version as Version
+import Spago.Bin.Flags as Flags
 import Spago.BuildInfo as BuildInfo
 import Spago.Command.Build as Build
 import Spago.Command.Bundle as Bundle
-import Spago.Commands.Fetch as Fetch
-import Spago.Commands.Registry as Registry
-import Spago.Commands.Run as Run
-import Spago.Commands.Sources as Sources
-import Spago.Commands.Test as Test
+import Spago.Command.Fetch as Fetch
+import Spago.Command.Init as Init
+import Spago.Command.Registry as Registry
+import Spago.Command.Run as Run
+import Spago.Command.Sources as Sources
+import Spago.Command.Test as Test
 import Spago.Config (BundleConfig, Package, Platform(..), RunConfig, TestConfig)
 import Spago.Config as Config
 import Spago.FS as FS
 import Spago.Git as Git
 import Spago.Log (LogVerbosity(..), supportsColor)
 import Spago.Paths as Paths
+import Spago.Purs as Purs
 
 type GlobalArgs =
   { noColor :: Boolean
   , quiet :: Boolean
   , verbose :: Boolean
+  }
+
+type InitArgs =
+  { setVersion :: Maybe String
   }
 
 type FetchArgs =
@@ -93,7 +102,8 @@ type BundleArgs =
 data SpagoCmd = SpagoCmd GlobalArgs Command
 
 data Command
-  = Fetch FetchArgs
+  = Init InitArgs
+  | Fetch FetchArgs
   | Install InstallArgs
   | Build BuildArgs
   | Bundle BundleArgs
@@ -106,7 +116,11 @@ data Command
 argParser :: ArgParser SpagoCmd
 argParser =
   ArgParser.choose "command"
-    [ ArgParser.command [ "fetch" ]
+    [ ArgParser.command [ "init" ]
+        "Initialise a new project"
+        do
+          (SpagoCmd <$> globalArgsParser <*> (Init <$> initArgsParser) <* ArgParser.flagHelp)
+    , ArgParser.command [ "fetch" ]
         "Downloads all of the project's dependencies"
         do
           (SpagoCmd <$> globalArgsParser <*> (Fetch <$> fetchArgsParser) <* ArgParser.flagHelp)
@@ -165,6 +179,12 @@ globalArgsParser =
     { quiet: Flags.quiet
     , verbose: Flags.verbose
     , noColor: Flags.noColor
+    }
+
+initArgsParser :: ArgParser InitArgs
+initArgsParser =
+  ArgParser.fromRecord
+    { setVersion: Flags.maybeSetVersion
     }
 
 fetchArgsParser :: ArgParser FetchArgs
@@ -248,6 +268,20 @@ main =
           Sources args -> do
             { env } <- mkFetchEnv { packages: mempty, selectedPackage: args.selectedPackage }
             void $ runSpago env Sources.run
+          Init args -> do
+            purs <- Purs.getPurs
+            -- Figure out the package name from the current dir
+            logDebug [ show Paths.cwd, show (Path.basename Paths.cwd) ]
+            packageName <- case PackageName.parse (stripPureScriptPrefix (Path.basename Paths.cwd)) of
+              Left err -> die [ "Could not figure out a name for the new package. Error:", show err ]
+              Right p -> pure p
+            setVersion <- case map (Version.parseVersion Version.Lenient) args.setVersion of
+              Nothing -> pure Nothing
+              Just (Left err) -> die [ "Could not parse provided set version. Error:", show err ]
+              Just (Right v) -> pure (Just v)
+            logDebug [ "Got packageName and setVersion:", show packageName, show setVersion ]
+            let initOpts = { packageName, setVersion }
+            void $ runSpago { logOptions, purs } $ Init.run initOpts
           Fetch args -> do
             { env, packageNames } <- mkFetchEnv args
             void $ runSpago env (Fetch.run packageNames)
@@ -350,13 +384,15 @@ mkBundleEnv bundleArgs = do
       )
   let bundleOptions = { minify, entrypoint, outfile, platform }
   let newWorkspace = workspace { output = bundleArgs.output <|> workspace.output }
-  let bundleEnv = { esbuild: "esbuild", logOptions, workspace: newWorkspace, selected, bundleOptions } -- TODO: which esbuild
+  let bundleEnv = { esbuild: "esbuild", logOptions, workspace: newWorkspace, selected, bundleOptions }
   pure bundleEnv
 
 mkRunEnv :: forall a. RunArgs -> { isTest :: Boolean } -> Spago (Fetch.FetchEnv a) (Run.RunEnv ())
 mkRunEnv runArgs { isTest } = do
   { workspace, logOptions } <- ask
   logDebug $ "Run args: " <> show runArgs
+
+  node <- Run.getNode
 
   selected <- case workspace.selected of
     Just s -> pure s
@@ -400,19 +436,19 @@ mkRunEnv runArgs { isTest } = do
       , failureMessage: "Running failed."
       }
   let newWorkspace = workspace { output = runArgs.output <|> workspace.output }
-  let runEnv = { logOptions, workspace: newWorkspace, selected, runOptions }
+  let runEnv = { logOptions, workspace: newWorkspace, selected, node, runOptions }
   pure runEnv
 
 mkBuildEnv :: forall a. BuildArgs -> Map PackageName Package -> Spago (Fetch.FetchEnv a) (Build.BuildEnv ())
 mkBuildEnv buildArgs dependencies = do
-  { logOptions, workspace } <- ask
-  -- FIXME: find executables in path, parse compiler version, etc etc
+  { logOptions, workspace, git } <- ask
+  purs <- Purs.getPurs
   let newWorkspace = workspace { output = buildArgs.output <|> workspace.output }
-  pure { logOptions, purs: "purs", git: "git", dependencies, workspace: newWorkspace }
+  pure { logOptions, purs, git, dependencies, workspace: newWorkspace }
 
 mkFetchEnv :: forall a. FetchArgs -> Spago (LogEnv a) { env :: Fetch.FetchEnv (), packageNames :: Array PackageName }
 mkFetchEnv args = do
-  { getManifestFromIndex, getMetadata, logOptions } <- mkRegistryEnv
+  { getManifestFromIndex, getMetadata, logOptions, git } <- mkRegistryEnv
 
   let { right: packageNames, left: failedPackageNames } = partitionMap PackageName.parse (Array.fromFoldable args.packages)
   unless (Array.null failedPackageNames) do
@@ -424,7 +460,8 @@ mkFetchEnv args = do
     Just (Left _err) -> die $ "Failed to parse selected package name, was: " <> show args.selectedPackage
     Just (Right p) -> pure (Just p)
 
-  workspace <- Config.readWorkspace maybeSelectedPackage
+  workspace <- runSpago { logOptions, git } do
+    Config.readWorkspace maybeSelectedPackage
 
   pure
     { packageNames
@@ -433,6 +470,7 @@ mkFetchEnv args = do
         , getMetadata
         , workspace
         , logOptions
+        , git
         }
     }
 
@@ -441,12 +479,14 @@ mkRegistryEnv = do
   logDebug $ "CWD: " <> Paths.cwd
 
   -- Take care of the caches
-  liftAff do
-    FS.mkdirp Paths.globalCachePath
-    FS.mkdirp Paths.localCachePath
-    FS.mkdirp Paths.localCachePackagesPath
+  FS.mkdirp Paths.globalCachePath
+  FS.mkdirp Paths.localCachePath
+  FS.mkdirp Paths.localCachePackagesPath
   logDebug $ "Global cache: " <> show Paths.globalCachePath
   logDebug $ "Local cache: " <> show Paths.localCachePath
+
+  -- Make sure we have git
+  git <- Git.getGit
 
   -- we make a Ref for the Index so that we can memoize the lookup of packages
   -- and we don't have to read it all together
@@ -487,9 +527,10 @@ mkRegistryEnv = do
 
   -- clone the registry and index repo, or update them
   logInfo "Refreshing the Registry Index..."
+  { logOptions } <- ask
   -- TODO: we will want to keep track how old the latest pull was - here we just wait on the fibers, but if the last
   -- pull was recent then we might just want to move on
-  parallelise
+  runSpago { logOptions, git } $ parallelise
     [ try (Git.fetchRepo { git: "https://github.com/purescript/registry-index.git", ref: "main" } Paths.registryIndexPath) >>= case _ of
         Right _ -> pure unit
         Left _err -> logWarn "Couldn't refresh the registry-index, will proceed anyways"
@@ -498,9 +539,9 @@ mkRegistryEnv = do
         Left _err -> logWarn "Couldn't refresh the registry, will proceed anyways"
     ]
 
-  { logOptions } <- ask
   pure
     { getManifestFromIndex
     , getMetadata
     , logOptions
+    , git
     }

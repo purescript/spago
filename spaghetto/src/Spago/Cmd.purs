@@ -69,8 +69,8 @@ defaultExecOptions =
   , cwd: Nothing
   }
 
-spawn :: String -> Array String -> ExecOptions -> Effect ChildProcess
-spawn cmd args opts = do
+spawn :: forall m. MonadEffect m => String -> Array String -> ExecOptions -> m ChildProcess
+spawn cmd args opts = liftEffect do
   subprocess <- runEffectFn3 spawnImpl cmd args
     { cwd: Nullable.toNullable opts.cwd
     , input: case opts.pipeStdin of
@@ -89,14 +89,14 @@ spawn cmd args opts = do
 
   pure subprocess
 
-joinProcess :: ChildProcess -> Aff (Either ExecError ExecResult)
-joinProcess cp = do
+joinProcess :: forall m. MonadAff m => ChildProcess -> m (Either ExecError ExecResult)
+joinProcess cp = liftAff do
   let res = runEffectFn3 joinImpl cp Left Right
   Promise.toAffE res
 
-exec :: String -> Array String -> ExecOptions -> Aff (Either ExecError ExecResult)
+exec :: forall m. MonadAff m => String -> Array String -> ExecOptions -> m (Either ExecError ExecResult)
 exec cmd args opts = do
-  res <- liftEffect (spawn cmd args opts)
+  res <- spawn cmd args opts
   joinProcess res
 
 kill :: ChildProcess -> Aff ExecError

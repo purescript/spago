@@ -1,4 +1,4 @@
-module Flags where
+module Spago.Bin.Flags where
 
 import Spago.Prelude
 
@@ -95,4 +95,10 @@ maybeVersion :: ArgParser (Maybe String)
 maybeVersion =
   ArgParser.anyNotFlag "VERSION"
     "Package version"
+    # ArgParser.optional
+
+maybeSetVersion :: ArgParser (Maybe String)
+maybeSetVersion =
+  ArgParser.argument [ "--set" ]
+    "Optional package set version to be used instead of the latest one."
     # ArgParser.optional
