@@ -106,8 +106,8 @@ run = do
           die opts.failureMessage
     Just backend -> do
       let args = [ "--run", opts.moduleName <> ".main" ] <> opts.execArgs
-      logDebug $ "Running command `" <> backend <> " " <> show args <> "`"
-      Cmd.exec backend args execOptions >>= case _ of
+      logDebug $ "Running command `" <> backend.cmd <> " " <> show args <> "`"
+      Cmd.exec backend.cmd args execOptions >>= case _ of
         Right _r -> case opts.successMessage of
           Just m -> logSuccess m
           Nothing -> pure unit

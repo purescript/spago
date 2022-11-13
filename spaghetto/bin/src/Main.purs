@@ -59,19 +59,22 @@ type InstallArgs =
   { packages :: List String
   , selectedPackage :: Maybe String
   , pursArgs :: List String
+  , backendArgs :: List String
   , output :: Maybe String
   }
 
 type BuildArgs =
   { selectedPackage :: Maybe String
   , pursArgs :: List String
+  , backendArgs :: List String
   , output :: Maybe String
   }
 
 type RunArgs =
   { selectedPackage :: Maybe String
-  , pursArgs :: List String
   , output :: Maybe String
+  , pursArgs :: List String
+  , backendArgs :: List String
   , execArgs :: Maybe (Array String)
   , main :: Maybe String
   }
@@ -96,6 +99,7 @@ type BundleArgs =
   , platform :: Maybe String
   , selectedPackage :: Maybe String
   , pursArgs :: List String
+  , backendArgs :: List String
   , output :: Maybe String
   }
 
@@ -206,6 +210,7 @@ installArgsParser =
     { packages: Flags.packages
     , selectedPackage: Flags.selectedPackage
     , pursArgs: Flags.pursArgs
+    , backendArgs: Flags.backendArgs
     , output: Flags.output
     }
 
@@ -213,6 +218,7 @@ buildArgsParser :: ArgParser BuildArgs
 buildArgsParser = ArgParser.fromRecord
   { selectedPackage: Flags.selectedPackage
   , pursArgs: Flags.pursArgs
+  , backendArgs: Flags.backendArgs
   , output: Flags.output
   }
 
@@ -220,8 +226,9 @@ runArgsParser :: ArgParser RunArgs
 runArgsParser = ArgParser.fromRecord
   { selectedPackage: Flags.selectedPackage
   , pursArgs: Flags.pursArgs
+  , backendArgs: Flags.backendArgs
+  , execArgs: Flags.execArgs
   , output: Flags.output
-  , execArgs: Flags.backendArgs
   , main: Flags.moduleName
   }
 
@@ -234,6 +241,7 @@ bundleArgsParser =
     , platform: Flags.platform
     , selectedPackage: Flags.selectedPackage
     , pursArgs: Flags.pursArgs
+    , backendArgs: Flags.backendArgs
     , output: Flags.output
     }
 
@@ -290,11 +298,11 @@ main =
           RegistryInfo args -> do
             env <- mkRegistryEnv
             void $ runSpago env (Registry.info args)
-          Install args@{ packages, selectedPackage, output, pursArgs } -> do
+          Install args@{ packages, selectedPackage, output, pursArgs, backendArgs } -> do
             { env, packageNames } <- mkFetchEnv { packages, selectedPackage }
             -- TODO: --no-fetch flag
             dependencies <- runSpago env (Fetch.run packageNames)
-            let buildArgs = { selectedPackage, pursArgs, output }
+            let buildArgs = { selectedPackage, pursArgs, backendArgs, output }
             env' <- runSpago env (mkBuildEnv buildArgs dependencies)
             let options = { depsOnly: true, pursArgs: List.toUnfoldable args.pursArgs }
             runSpago env' (Build.run options)
@@ -305,34 +313,34 @@ main =
             buildEnv <- runSpago env (mkBuildEnv args dependencies)
             let options = { depsOnly: false, pursArgs: List.toUnfoldable args.pursArgs }
             runSpago buildEnv (Build.run options)
-          Bundle args@{ selectedPackage, pursArgs, output } -> do
+          Bundle args@{ selectedPackage, pursArgs, backendArgs, output } -> do
             { env, packageNames } <- mkFetchEnv { packages: mempty, selectedPackage }
             -- TODO: --no-fetch flag
             dependencies <- runSpago env (Fetch.run packageNames)
             -- TODO: --no-build flag
-            let buildArgs = { selectedPackage, pursArgs, output }
+            let buildArgs = { selectedPackage, pursArgs, backendArgs, output }
             buildEnv <- runSpago env (mkBuildEnv buildArgs dependencies)
             let options = { depsOnly: false, pursArgs: List.toUnfoldable args.pursArgs }
             runSpago buildEnv (Build.run options)
             bundleEnv <- runSpago env (mkBundleEnv args)
             runSpago bundleEnv Bundle.run
-          Run args@{ selectedPackage, pursArgs, output } -> do
+          Run args@{ selectedPackage, pursArgs, backendArgs, output } -> do
             { env, packageNames } <- mkFetchEnv { packages: mempty, selectedPackage }
             -- TODO: --no-fetch flag
             dependencies <- runSpago env (Fetch.run packageNames)
             -- TODO: --no-build flag
-            let buildArgs = { selectedPackage, pursArgs, output }
+            let buildArgs = { selectedPackage, pursArgs, backendArgs, output }
             buildEnv <- runSpago env (mkBuildEnv buildArgs dependencies)
             let options = { depsOnly: false, pursArgs: List.toUnfoldable args.pursArgs }
             runSpago buildEnv (Build.run options)
             runEnv <- runSpago env (mkRunEnv args { isTest: false })
             runSpago runEnv Run.run
-          Test args@{ selectedPackage, pursArgs, output } -> do
+          Test args@{ selectedPackage, pursArgs, backendArgs, output } -> do
             { env, packageNames } <- mkFetchEnv { packages: mempty, selectedPackage }
             -- TODO: --no-fetch flag
             dependencies <- runSpago env (Fetch.run packageNames)
             -- TODO: --no-build flag
-            let buildArgs = { selectedPackage, pursArgs, output }
+            let buildArgs = { selectedPackage, pursArgs, backendArgs, output }
             buildEnv <- runSpago env (mkBuildEnv buildArgs dependencies)
             let options = { depsOnly: false, pursArgs: List.toUnfoldable args.pursArgs }
             runSpago buildEnv (Build.run options)
@@ -442,7 +450,17 @@ mkBuildEnv :: forall a. BuildArgs -> Map PackageName Package -> Spago (Fetch.Fet
 mkBuildEnv buildArgs dependencies = do
   { logOptions, workspace, git } <- ask
   purs <- Purs.getPurs
-  let newWorkspace = workspace { output = buildArgs.output <|> workspace.output }
+  let
+    newWorkspace = workspace
+      { output = buildArgs.output <|> workspace.output
+      -- Override the backend args from the config if they are passed in through a flag
+      , backend = map
+          ( \b -> case List.null buildArgs.backendArgs of
+              true -> b
+              false -> b { args = Just (Array.fromFoldable buildArgs.backendArgs) }
+          )
+          workspace.backend
+      }
   pure { logOptions, purs, git, dependencies, workspace: newWorkspace }
 
 mkFetchEnv :: forall a. FetchArgs -> Spago (LogEnv a) { env :: Fetch.FetchEnv (), packageNames :: Array PackageName }

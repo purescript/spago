@@ -4,6 +4,7 @@ module Spago.Config
   , WorkspaceConfig
   , Dependencies(..)
   , BundleConfig
+  , BackendConfig
   , RunConfig
   , TestConfig
   , PublishConfig
@@ -100,17 +101,22 @@ type TestConfig =
   , dependencies :: Dependencies
   }
 
+type BackendConfig =
+  { cmd :: String
+  , args :: Maybe (Array String)
+  }
+
 type WorkspaceConfig =
   { set :: Maybe SetAddress
   , extra_packages :: Maybe (Map PackageName RemotePackage) -- TODO: this can be a local package too..
-  , backend :: Maybe String
+  , backend :: Maybe BackendConfig
   , output :: Maybe FilePath
   }
 
 type Workspace =
   { selected :: Maybe WorkspacePackage
   , packageSet :: PackageSet
-  , backend :: Maybe String
+  , backend :: Maybe BackendConfig
   , output :: Maybe String
   , doc :: YamlDoc Config
   }
