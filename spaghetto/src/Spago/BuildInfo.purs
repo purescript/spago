@@ -21,7 +21,7 @@ type BuildInfo =
         { name :: String
         , version :: String
         }
-  -- , buildTime :: String -- TODO
+  -- , buildTime :: String -- TODO add build time to build info
   , pursVersion :: String
   }
 
@@ -38,12 +38,12 @@ writeBuildInfo = do
           Nothing -> Config.getWorkspacePackages workspace.packageSet
       }
     buildInfoString = mkBuildInfo buildInfo
-    writeIt = liftAff $ FS.writeTextFile UTF8 buildInfoPath buildInfoString
+    writeIt = FS.writeTextFile buildInfoPath buildInfoString
   -- try to write the new build info only if necessary
-  (liftEffect $ FS.exists buildInfoPath) >>= case _ of
+  FS.exists buildInfoPath >>= case _ of
     false -> writeIt
     true -> do
-      currentContent <- liftAff $ FS.readTextFile UTF8 buildInfoPath
+      currentContent <- FS.readTextFile buildInfoPath
       when (currentContent /= buildInfoString) do
         writeIt
 

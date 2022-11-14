@@ -1,4 +1,32 @@
-module Spago.Config where
+module Spago.Config
+  ( Config
+  , PackageConfig
+  , WorkspaceConfig
+  , Dependencies(..)
+  , BundleConfig
+  , BackendConfig
+  , RunConfig
+  , TestConfig
+  , PublishConfig
+  , SetAddress(..)
+  , RemotePackage(..)
+  , GitPackage
+  , LocalPackage
+  , Platform(..)
+  , Workspace
+  , WorkspacePackage
+  , PackageSet
+  , Package(..)
+  , getWorkspacePackages
+  , getPackageLocation
+  , readConfig
+  , findPackageSet
+  , sourceGlob
+  , addPackagesToConfig
+  , readWorkspace
+  , parsePlatform
+  , toManifest
+  ) where
 
 import Spago.Prelude
 
@@ -9,9 +37,12 @@ import Data.Argonaut.Core as Core
 import Data.Array as Array
 import Data.Bifunctor (lmap)
 import Data.Either as Either
+import Data.Foldable as Foldable
 import Data.HTTP.Method as Method
 import Data.Map as Map
 import Data.Set as Set
+import Data.String (Pattern(..))
+import Data.String as String
 import Dodo as Log
 import Effect.Uncurried (EffectFn2, runEffectFn2)
 import Foreign.FastGlob as Glob
@@ -26,6 +57,7 @@ import Registry.Json as RegistryJson
 import Registry.Legacy.PackageSet as Registry.PackageSet
 import Registry.PackageName (PackageName)
 import Registry.PackageName as PackageName
+import Registry.Prelude (partitionEithers)
 import Registry.Schema (Location, Manifest(..))
 import Registry.Version (Range, Version)
 import Registry.Version as Registry.Version
@@ -33,6 +65,7 @@ import Registry.Version as Version
 import Spago.FS as FS
 import Spago.Git as Git
 import Spago.Paths as Paths
+import Spago.Purs (PursEnv)
 import Spago.Yaml (class ToYaml, YamlDoc, (.:), (.:?))
 import Spago.Yaml as Yaml
 
@@ -68,17 +101,22 @@ type TestConfig =
   , dependencies :: Dependencies
   }
 
+type BackendConfig =
+  { cmd :: String
+  , args :: Maybe (Array String)
+  }
+
 type WorkspaceConfig =
   { set :: Maybe SetAddress
   , extra_packages :: Maybe (Map PackageName RemotePackage) -- TODO: this can be a local package too..
-  , backend :: Maybe String
+  , backend :: Maybe BackendConfig
   , output :: Maybe FilePath
   }
 
 type Workspace =
   { selected :: Maybe WorkspacePackage
   , packageSet :: PackageSet
-  , backend :: Maybe String
+  , backend :: Maybe BackendConfig
   , output :: Maybe String
   , doc :: YamlDoc Config
   }
@@ -240,7 +278,7 @@ instance RegistryJson.RegistryJson Dependencies where
   decode = Yaml.decode
 
 data SetAddress
-  = SetFromRegistry { registry :: String }
+  = SetFromRegistry { registry :: Version }
   | SetFromUrl { url :: String, hash :: Maybe Sha256 }
 
 instance Show SetAddress where
@@ -288,11 +326,13 @@ instance ToYaml Platform where
 readConfig :: forall a. FilePath -> Spago (LogEnv a) (Either String { doc :: YamlDoc Config, yaml :: Config })
 readConfig path = do
   logDebug $ "Reading config from " <> path
-  liftAff $ Yaml.readYamlDocFile path
+  FS.exists path >>= case _ of
+    false -> pure (Left $ "Did not find " <> path <> " file. Run `spago init` to initialise a new project.")
+    true -> liftAff $ Yaml.readYamlDocFile path
 
 -- | Reads all the configurations in the tree and builds up the Map of local
 -- | packages to be integrated in the package set
-readWorkspace :: forall a. Maybe PackageName -> Spago (LogEnv a) Workspace
+readWorkspace :: forall a. Maybe PackageName -> Spago (Git.GitEnv a) Workspace
 readWorkspace maybeSelectedPackage = do
   logInfo "Reading Spago workspace configuration..."
   -- First try to read the config in the root. It _has_ to contain a workspace
@@ -303,7 +343,7 @@ readWorkspace maybeSelectedPackage = do
     Right { yaml: { workspace: Just workspace, package }, doc } -> pure { workspace, package, workspaceDoc: doc }
 
   -- We try to figure out if the root package has tests - look for test sources
-  rootPackageHasTests <- liftEffect $ FS.exists "test"
+  rootPackageHasTests <- FS.exists "test"
 
   -- Then gather all the spago other configs in the tree.
   { succeeded: otherConfigPaths, failed, ignored } <- do
@@ -330,7 +370,7 @@ readWorkspace maybeSelectedPackage = do
     readWorkspaceConfig path = do
       maybeConfig <- readConfig path
       -- We try to figure out if this package has tests - look for test sources
-      hasTests <- liftEffect $ FS.exists (Path.concat [ Path.dirname path, "test" ])
+      hasTests <- FS.exists (Path.concat [ Path.dirname path, "test" ])
       pure $ case maybeConfig of
         Left e -> Left $ "Could not read config at path " <> path <> "\nError was: " <> e
         Right { yaml: { package: Nothing } } -> Left $ "No package found for config at path: " <> path
@@ -340,7 +380,6 @@ readWorkspace maybeSelectedPackage = do
   { right: otherPackages, left: failedPackages } <- partitionMap identity <$> traverse readWorkspaceConfig otherConfigPaths
 
   unless (Array.null failedPackages) do
-    -- TODO do we fail here?
     logWarn $ [ "Failed to read some configs:" ] <> failedPackages
 
   let
@@ -374,7 +413,7 @@ readWorkspace maybeSelectedPackage = do
       die $ "Registry solver is not supported yet - please specify a package set"
     Just (SetFromRegistry { registry: v }) -> do
       logDebug "Reading the package set from the Registry repo..."
-      let packageSetPath = Path.concat [ Paths.registryPath, "package-sets", v <> ".json" ]
+      let packageSetPath = Path.concat [ Paths.registryPath, "package-sets", Version.printVersion v <> ".json" ]
       liftAff (RegistryJson.readJsonFile packageSetPath) >>= case _ of
         Left err -> die $ "Couldn't read the package set: " <> err
         Right (RemotePackageSet registryPackageSet) -> do
@@ -498,7 +537,7 @@ readPackageSetFromHash hash = do
   hex <- liftEffect (shaToHex hash)
   let path = packageSetCachePath hex
   logDebug $ "Reading cached package set entry from " <> path
-  (liftEffect $ FS.exists path) >>= case _ of
+  FS.exists path >>= case _ of
     false -> pure $ Left $ "Did not find a package set cached with hash " <> show hash
     true -> (liftAff $ RegistryJson.readJsonFile path) >>= case _ of
       Left err -> pure $ Left $ "Error while reading cached package set " <> show hash <> ": " <> err
@@ -509,9 +548,8 @@ writePackageSetToHash result = do
   let serialised = RegistryJson.printJson result
   hash <- liftEffect $ Registry.Hash.sha256String serialised
   hex <- liftEffect (shaToHex hash)
-  liftAff do
-    FS.mkdirp packageSetsCachePath
-    FS.writeTextFile UTF8 (packageSetCachePath hex) serialised
+  FS.mkdirp packageSetsCachePath
+  FS.writeTextFile (packageSetCachePath hex) serialised
   pure hash
 
 packageSetsCachePath :: FilePath
@@ -550,6 +588,67 @@ toManifest config = do
     , location
     , description
     , dependencies
-    , owners: Nothing -- TODO?
-    , files: Nothing -- TODO
+    , owners: Nothing -- TODO specify owners in spago config
+    , files: Nothing -- TODO specify files in spago config
     }
+
+findPackageSet :: forall a. Maybe Version -> Spago (PursEnv a) Version
+findPackageSet maybeSet = do
+  -- first we read in the list of sets
+  let
+    parseSetVersion str = Version.parseVersion Version.Lenient case String.stripSuffix (Pattern ".json") str of
+      Nothing -> str
+      Just v -> v
+    packageSetsPath = Path.concat [ Paths.registryPath, "package-sets" ]
+  { success: setVersions, fail: parseFailures } <- map (partitionEithers <<< map parseSetVersion) $ FS.ls packageSetsPath
+
+  unless (Array.null parseFailures) do
+    logDebug $ [ toDoc "Failed to parse some package-sets versions:" ] <> map (indent <<< toDoc <<< show) parseFailures
+
+  case maybeSet of
+    -- if our input param is in the list of sets just return that
+    Just desiredSet -> case Array.find (_ == desiredSet) setVersions of
+      Just _ -> pure desiredSet
+      Nothing -> die $ [ toDoc $ "Could not find desired set " <> show desiredSet <> " in the list of available set versions:" ]
+        <> map (indent <<< toDoc <<< show) setVersions
+    -- no set in input: read the compiler version, look through the latest set by major version until we match the compiler version
+    Nothing -> do
+      -- build an index from compiler version to latest set, only looking at major versions
+      -- TODO: we should probably cache this, like it's done in the legacy package sets
+      let
+        readPackageSet setVersion = do
+          logDebug "Reading the package set from the Registry repo..."
+          let packageSetPath = Path.concat [ packageSetsPath, Version.printVersion setVersion <> ".json" ]
+          liftAff (RegistryJson.readJsonFile packageSetPath) >>= case _ of
+            Left err -> die $ "Couldn't read the package set: " <> err
+            Right (RemotePackageSet registryPackageSet) -> do
+              logDebug $ "Read the package set " <> show setVersion <> " from the registry"
+              pure registryPackageSet
+        accVersions index newSetVersion = do
+          -- first thing we check if we already have the latest set for this major version
+          let maybeResult = Foldable.find (\(Tuple _c s) -> Version.major s == Version.major newSetVersion) (Map.toUnfoldable index :: Array (Tuple Version Version))
+          case maybeResult of
+            -- We have a version with the same major. If it's higher then we can just replace it (because we know it supports the same compiler)
+            -- If it's not, we just return the current index and move on
+            Just (Tuple currentCompiler currentVersion) ->
+              if newSetVersion > currentVersion then do
+                logDebug $ "Updating to set " <> show newSetVersion <> " for compiler " <> show currentCompiler
+                pure (Map.insert currentCompiler newSetVersion index)
+              else pure index
+            -- Didn't find a version with the same major, so we could be supporting a different compiler here.
+            -- Read the set, check what we have for the compiler it supports
+            Nothing -> do
+              packageSet <- readPackageSet newSetVersion
+              logDebug $ "Inserting set " <> show newSetVersion <> " for compiler " <> show packageSet.compiler
+              pure $ Map.insert packageSet.compiler newSetVersion index
+      index :: Map Version Version <- Array.foldM accVersions Map.empty setVersions
+      logDebug $ [ "Package set index", show index ]
+
+      -- now check if the compiler version is in the index
+      { purs } <- ask
+      case Map.lookup purs.version index of
+        Just v -> pure v
+        -- TODO: well we could approximate with any minor version really? See old Spago:
+        -- https://github.com/purescript/spago/blob/01eecf041851ca0fbced1d4f7147fcbdd8bf168d/src/Spago/PackageSet.hs#L66
+        Nothing -> die $ [ toDoc $ "No set is compatible with your compiler version " <> show purs.version, toDoc "Compatible versions:" ]
+          <> map (indent <<< toDoc <<< show) (Array.fromFoldable $ Map.keys index)

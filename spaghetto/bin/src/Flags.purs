@@ -1,4 +1,4 @@
-module Flags where
+module Spago.Bin.Flags where
 
 import Spago.Prelude
 
@@ -68,11 +68,17 @@ pursArgs =
     "Arguments to pass to purs compile. Wrap in quotes."
     # ArgParser.many
 
-backendArgs :: ArgParser (Maybe (Array String))
-backendArgs =
+execArgs :: ArgParser (Maybe (Array String))
+execArgs =
   ArgParser.rest
     "Arguments to pass to the running script"
     # ArgParser.optional
+
+backendArgs :: ArgParser (List String)
+backendArgs =
+  ArgParser.argument [ "--backend-args" ]
+    "Arguments to pass to the backend compile step. Wrap in quotes."
+    # ArgParser.many
 
 moduleName :: ArgParser (Maybe String)
 moduleName =
@@ -95,4 +101,10 @@ maybeVersion :: ArgParser (Maybe String)
 maybeVersion =
   ArgParser.anyNotFlag "VERSION"
     "Package version"
+    # ArgParser.optional
+
+maybeSetVersion :: ArgParser (Maybe String)
+maybeSetVersion =
+  ArgParser.argument [ "--set" ]
+    "Optional package set version to be used instead of the latest one."
     # ArgParser.optional

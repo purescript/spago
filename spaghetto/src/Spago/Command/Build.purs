@@ -1,7 +1,11 @@
-module Spago.Command.Build where
+module Spago.Command.Build
+  ( run
+  , BuildEnv
+  ) where
 
 import Spago.Prelude
 
+import Data.Array as Array
 import Data.Map as Map
 import Data.Set as Set
 import Data.Tuple as Tuple
@@ -10,11 +14,13 @@ import Spago.BuildInfo as BuildInfo
 import Spago.Cmd as Cmd
 import Spago.Config (Package(..), Workspace, WorkspacePackage)
 import Spago.Config as Config
+import Spago.Git (Git)
+import Spago.Purs (Purs)
 import Spago.Purs as Purs
 
 type BuildEnv a =
-  { purs :: FilePath
-  , git :: FilePath
+  { purs :: Purs
+  , git :: Git
   , dependencies :: Map PackageName Package
   , logOptions :: LogOptions
   , workspace :: Workspace
@@ -29,11 +35,6 @@ type BuildOptions =
 run :: forall a. BuildOptions -> Spago (BuildEnv a) Unit
 run opts = do
   logInfo "Building..."
-  liftAff (Cmd.exec "purs" [ "--version" ] Cmd.defaultExecOptions { pipeStdout = false, pipeStderr = false }) >>= case _ of
-    Right r -> logInfo r.stdout
-    Left err -> do
-      logDebug $ show err
-      die [ "Failed to find purs. Have you installed it, and is it in your PATH?" ]
   { dependencies, workspace } <- ask
   let dependencyGlobs = map (Tuple.uncurry Config.sourceGlob) (Map.toUnfoldable dependencies)
 
@@ -77,18 +78,20 @@ run opts = do
               ]
           Purs.compile globs $ (addOutputArgs opts.pursArgs) <> [ "--codegen", "corefn" ]
 
-          logInfo $ "Compiling with backend \"" <> backend <> "\""
-          let backendCmd = backend
-          logDebug $ "Running command `" <> backendCmd <> "`"
-          -- TODO: add a way to pass other args to the backend?
-          liftAff (Cmd.exec backendCmd (addOutputArgs []) Cmd.defaultExecOptions) >>= case _ of
+          logInfo $ "Compiling with backend \"" <> backend.cmd <> "\""
+          logDebug $ "Running command `" <> backend.cmd <> "`"
+          let
+            moreBackendArgs = case backend.args of
+              Just as | Array.length as > 0 -> as
+              _ -> []
+          Cmd.exec backend.cmd (addOutputArgs moreBackendArgs) Cmd.defaultExecOptions >>= case _ of
             Right _r -> logSuccess "Backend build succeeded."
             Left err -> do
               logDebug $ show err
-              die [ "Failed to build with backend " <> backendCmd ]
+              die [ "Failed to build with backend " <> backend.cmd ]
 
   {-
-  TODO:
+  TODO: before, then, else
       buildAction globs = do
         let action = buildBackend globs >> (fromMaybe (pure ()) maybePostBuild)
         runCommands "Before" beforeCommands

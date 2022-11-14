@@ -1,8 +1,8 @@
-module Spago.Commands.Test where
+module Spago.Command.Test where
 
 import Spago.Prelude
 
-import Spago.Commands.Run as Run
+import Spago.Command.Run as Run
 
 run :: forall a. Spago (Run.RunEnv a) Unit
 run = do
