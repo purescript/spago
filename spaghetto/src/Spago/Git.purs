@@ -76,7 +76,7 @@ isIgnored path = do
 
 getGit :: forall a. Spago (LogEnv a) Git
 getGit = do
-  Cmd.exec "git" [ "-v" ] Cmd.defaultExecOptions { pipeStdout = false, pipeStderr = false } >>= case _ of
+  Cmd.exec "git" [ "--version" ] Cmd.defaultExecOptions { pipeStdout = false, pipeStderr = false } >>= case _ of
     Right r -> pure { cmd: "git", version: r.stdout }
     Left err -> do
       logDebug $ show err
