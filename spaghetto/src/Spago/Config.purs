@@ -10,6 +10,7 @@ module Spago.Config
   , PublishConfig
   , SetAddress(..)
   , RemotePackage(..)
+  , ExtraPackage(..)
   , GitPackage
   , LocalPackage
   , Platform(..)
@@ -108,7 +109,7 @@ type BackendConfig =
 
 type WorkspaceConfig =
   { set :: Maybe SetAddress
-  , extra_packages :: Maybe (Map PackageName RemotePackage) -- TODO: this can be a local package too..
+  , extra_packages :: Maybe (Map PackageName ExtraPackage)
   , backend :: Maybe BackendConfig
   , output :: Maybe FilePath
   }
@@ -116,10 +117,29 @@ type WorkspaceConfig =
 type Workspace =
   { selected :: Maybe WorkspacePackage
   , packageSet :: PackageSet
+  , compatibleCompiler :: Range
   , backend :: Maybe BackendConfig
   , output :: Maybe String
   , doc :: YamlDoc Config
   }
+
+data ExtraPackage
+  = ExtraLocalPackage LocalPackage
+  | ExtraRemotePackage RemotePackage
+
+instance ToYaml ExtraPackage where
+  encode (ExtraLocalPackage lp) = Yaml.encode lp
+  encode (ExtraRemotePackage rp) = Yaml.encode rp
+
+  decode yaml = decodeLocal <|> decodeRemote
+    where
+    decodeLocal = map ExtraLocalPackage (Yaml.decode yaml)
+    decodeRemote = map ExtraRemotePackage (Yaml.decode yaml)
+
+fromExtraPackage :: ExtraPackage -> Package
+fromExtraPackage = case _ of
+  ExtraLocalPackage lp -> LocalPackage lp
+  ExtraRemotePackage rp -> fromRemotePackage rp
 
 fromRemotePackage :: RemotePackage -> Package
 fromRemotePackage = case _ of
@@ -406,9 +426,7 @@ readWorkspace maybeSelectedPackage = do
       Just p -> pure (Just p)
 
   -- Read in the package database
-  -- TODO: actually should the compiler be a maybe??
-  -- TODO: stick the compiler in the environment?
-  { maybeCompiler, remotePackageSet } <- case workspace.set of
+  { compiler: packageSetCompiler, remotePackageSet } <- case workspace.set of
     Nothing -> do
       die $ "Registry solver is not supported yet - please specify a package set"
     Just (SetFromRegistry { registry: v }) -> do
@@ -419,7 +437,7 @@ readWorkspace maybeSelectedPackage = do
         Right (RemotePackageSet registryPackageSet) -> do
           logInfo "Read the package set from the registry"
           pure
-            { maybeCompiler: Just registryPackageSet.compiler
+            { compiler: registryPackageSet.compiler
             , remotePackageSet: registryPackageSet.packages
             }
     Just (SetFromUrl { url: rawUrl, hash: maybeHash }) -> do
@@ -440,15 +458,17 @@ readWorkspace maybeSelectedPackage = do
               case RegistryJson.parseJson body of
                 Right (RemotePackageSet set) -> do
                   logDebug "Read a new-format package set from URL"
-                  pure { maybeCompiler: Just set.compiler, remotePackageSet: set.packages }
+                  pure { compiler: set.compiler, remotePackageSet: set.packages }
                 Left err -> do
                   logDebug [ "Couldn't parse remote package set in modern format, error:", "  " <> show err, "Trying with the legacy format..." ]
                   case RegistryJson.parseJson body of
                     Left err' -> die $ "Couldn't parse remote package set, error: " <> show err'
                     Right (Registry.PackageSet.LegacyPackageSet set) -> do
                       logDebug "Read legacy package set from URL"
-                      -- TODO: fetch compiler version from Metadata package
-                      pure { maybeCompiler: Nothing, remotePackageSet: map RemoteLegacyPackage set }
+                      version <- case Map.lookup (unsafeFromRight (PackageName.parse "metadata")) set of
+                        Just { version } -> pure (unsafeFromRight (Version.parseVersion Version.Lenient (unwrap version)))
+                        Nothing -> die $ "Couldn't find 'metadata' package in legacy package set."
+                      pure { compiler: version, remotePackageSet: map RemoteLegacyPackage set }
       result <- case maybeHash of
         Just hash -> readPackageSetFromHash hash >>= case _ of
           Left err -> do
@@ -464,6 +484,14 @@ readWorkspace maybeSelectedPackage = do
       liftAff $ Yaml.writeYamlDocFile "spago.yaml" workspaceDoc
       pure result
 
+  -- TODO: add a function to make a range from a version and its highest bump
+  let
+    compatibleCompiler = unsafeFromRight $ Version.parseRange Version.Lenient
+      $ ">= "
+      <> Version.printVersion packageSetCompiler
+      <> " <"
+      <> Version.printVersion (Version.bumpHighest packageSetCompiler)
+
   -- Mix in the package set (a) the workspace packages, and (b) the extra_packages
   -- Note: if there are duplicate packages we pick the "most local ones first",
   -- i.e. first workspace, then extra, then registry packages.
@@ -474,7 +502,7 @@ readWorkspace maybeSelectedPackage = do
       let
         overrides = Map.union
           (map WorkspacePackage workspacePackages)
-          (map fromRemotePackage (fromMaybe Map.empty workspace.extra_packages))
+          (map fromExtraPackage (fromMaybe Map.empty workspace.extra_packages))
 
       in
         Map.union
@@ -494,6 +522,7 @@ readWorkspace maybeSelectedPackage = do
   pure
     { selected: maybeSelected
     , packageSet
+    , compatibleCompiler
     , backend: workspace.backend
     , output: workspace.output
     , doc: workspaceDoc
@@ -530,7 +559,7 @@ getWorkspacePackages = Array.mapMaybe extractWorkspacePackage <<< Map.toUnfoldab
     Tuple _ (WorkspacePackage p) -> Just p
     _ -> Nothing
 
-type PackageSetResult = { maybeCompiler :: Maybe Version, remotePackageSet :: Map PackageName RemotePackage }
+type PackageSetResult = { compiler :: Version, remotePackageSet :: Map PackageName RemotePackage }
 
 readPackageSetFromHash :: forall a. Sha256 -> Spago (LogEnv a) (Either String PackageSetResult)
 readPackageSetFromHash hash = do
