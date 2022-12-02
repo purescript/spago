@@ -12,6 +12,7 @@ Bugfixes:
 
 Other improvements:
 - CI: cleanup CI for 0.15.0 PureScript updates (#879)
+- Install: upgrade `make-fetch-happen` to `^11.0.1` (#925)
 
 ## [0.20.9] - 2022-05-03
 

@@ -15,7 +15,7 @@
     "spago": "./spago"
   },
   "dependencies": {
-    "make-fetch-happen": "^9.1.0",
+    "make-fetch-happen": "^11.0.1",
     "tar": "^6.1.11"
   },
   "keywords": [
