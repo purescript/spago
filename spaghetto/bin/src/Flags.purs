@@ -68,11 +68,17 @@ pursArgs =
     "Arguments to pass to purs compile. Wrap in quotes."
     # ArgParser.many
 
-backendArgs :: ArgParser (Maybe (Array String))
-backendArgs =
+execArgs :: ArgParser (Maybe (Array String))
+execArgs =
   ArgParser.rest
     "Arguments to pass to the running script"
     # ArgParser.optional
+
+backendArgs :: ArgParser (List String)
+backendArgs =
+  ArgParser.argument [ "--backend-args" ]
+    "Arguments to pass to the backend compile step. Wrap in quotes."
+    # ArgParser.many
 
 moduleName :: ArgParser (Maybe String)
 moduleName =

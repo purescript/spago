@@ -785,6 +785,7 @@ Bundle succeeded and output file to index.js
 # We can then run it with node:
 $ node .
 ```
+`spago bundle-app` uses the [esbuild bundle format](https://esbuild.github.io/api/#format) [IIFE](https://esbuild.github.io/api/#format-iife).
 
 **<= v0.14.0**
 ```console

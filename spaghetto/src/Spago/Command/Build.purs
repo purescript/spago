@@ -5,6 +5,7 @@ module Spago.Command.Build
 
 import Spago.Prelude
 
+import Data.Array as Array
 import Data.Map as Map
 import Data.Set as Set
 import Data.Tuple as Tuple
@@ -77,15 +78,17 @@ run opts = do
               ]
           Purs.compile globs $ (addOutputArgs opts.pursArgs) <> [ "--codegen", "corefn" ]
 
-          logInfo $ "Compiling with backend \"" <> backend <> "\""
-          let backendCmd = backend
-          logDebug $ "Running command `" <> backendCmd <> "`"
-          -- TODO: add a way to pass other args to the backend?
-          Cmd.exec backendCmd (addOutputArgs []) Cmd.defaultExecOptions >>= case _ of
+          logInfo $ "Compiling with backend \"" <> backend.cmd <> "\""
+          logDebug $ "Running command `" <> backend.cmd <> "`"
+          let
+            moreBackendArgs = case backend.args of
+              Just as | Array.length as > 0 -> as
+              _ -> []
+          Cmd.exec backend.cmd (addOutputArgs moreBackendArgs) Cmd.defaultExecOptions >>= case _ of
             Right _r -> logSuccess "Backend build succeeded."
             Left err -> do
               logDebug $ show err
-              die [ "Failed to build with backend " <> backendCmd ]
+              die [ "Failed to build with backend " <> backend.cmd ]
 
   {-
   TODO: before, then, else
