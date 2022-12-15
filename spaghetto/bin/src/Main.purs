@@ -6,6 +6,7 @@ import ArgParse.Basic (ArgParser)
 import ArgParse.Basic as ArgParser
 import Data.Array as Array
 import Data.Array.NonEmpty as NonEmptyArray
+import Data.Array.NonEmpty as NonEmptyArray
 import Data.List as List
 import Data.Map as Map
 import Effect.Aff as Aff
@@ -79,6 +80,14 @@ type RunArgs =
   , main :: Maybe String
   }
 
+type TestArgs =
+  { selectedPackage :: Maybe String
+  , output :: Maybe String
+  , pursArgs :: List String
+  , backendArgs :: List String
+  , execArgs :: Maybe (Array String)
+  }
+
 type SourcesArgs =
   { selectedPackage :: Maybe String
   }
@@ -112,7 +121,7 @@ data Command
   | Build BuildArgs
   | Bundle BundleArgs
   | Run RunArgs
-  | Test RunArgs
+  | Test TestArgs
   | Sources SourcesArgs
   | RegistrySearch RegistrySearchArgs
   | RegistryInfo RegistryInfoArgs
@@ -143,7 +152,7 @@ argParser =
     , ArgParser.command [ "test" ]
         "Test the project"
         do
-          (SpagoCmd <$> globalArgsParser <*> (Test <$> runArgsParser) <* ArgParser.flagHelp)
+          (SpagoCmd <$> globalArgsParser <*> (Test <$> testArgsParser) <* ArgParser.flagHelp)
     , ArgParser.command [ "bundle" ]
         "Bundle the project in a single file"
         do
@@ -230,6 +239,15 @@ runArgsParser = ArgParser.fromRecord
   , execArgs: Flags.execArgs
   , output: Flags.output
   , main: Flags.moduleName
+  }
+
+testArgsParser :: ArgParser TestArgs
+testArgsParser = ArgParser.fromRecord
+  { selectedPackage: Flags.selectedPackage
+  , pursArgs: Flags.pursArgs
+  , backendArgs: Flags.backendArgs
+  , execArgs: Flags.execArgs
+  , output: Flags.output
   }
 
 bundleArgsParser :: ArgParser BundleArgs
@@ -333,7 +351,7 @@ main =
             buildEnv <- runSpago env (mkBuildEnv buildArgs dependencies)
             let options = { depsOnly: false, pursArgs: List.toUnfoldable args.pursArgs }
             runSpago buildEnv (Build.run options)
-            runEnv <- runSpago env (mkRunEnv args { isTest: false })
+            runEnv <- runSpago env (mkRunEnv args)
             runSpago runEnv Run.run
           Test args@{ selectedPackage, pursArgs, backendArgs, output } -> do
             { env, packageNames } <- mkFetchEnv { packages: mempty, selectedPackage }
@@ -344,8 +362,8 @@ main =
             buildEnv <- runSpago env (mkBuildEnv buildArgs dependencies)
             let options = { depsOnly: false, pursArgs: List.toUnfoldable args.pursArgs }
             runSpago buildEnv (Build.run options)
-            runEnv <- runSpago env (mkRunEnv args { isTest: true })
-            runSpago runEnv Test.run
+            testEnv <- runSpago env (mkTestEnv args)
+            runSpago testEnv Test.run
 
 mkLogOptions :: GlobalArgs -> Aff LogOptions
 mkLogOptions { noColor, quiet, verbose } = do
@@ -394,8 +412,8 @@ mkBundleEnv bundleArgs = do
   let bundleEnv = { esbuild: "esbuild", logOptions, workspace: newWorkspace, selected, bundleOptions }
   pure bundleEnv
 
-mkRunEnv :: forall a. RunArgs -> { isTest :: Boolean } -> Spago (Fetch.FetchEnv a) (Run.RunEnv ())
-mkRunEnv runArgs { isTest } = do
+mkRunEnv :: forall a. RunArgs -> Spago (Fetch.FetchEnv a) (Run.RunEnv ())
+mkRunEnv runArgs = do
   { workspace, logOptions } <- ask
   logDebug $ "Run args: " <> show runArgs
 
@@ -407,11 +425,11 @@ mkRunEnv runArgs { isTest } = do
       let
         workspacePackages = Config.getWorkspacePackages workspace.packageSet
       in
-        -- If there's only one test package, select that one
-        case isTest, Array.filter (_.hasTests) workspacePackages of
-          true, [ singlePkg ] -> pure singlePkg
-          _, _ -> do
-            logDebug $ show $ Array.filter (_.hasTests) workspacePackages
+        -- If there's only one package, select that one
+        case workspacePackages of
+          [ singlePkg ] -> pure singlePkg
+          _ -> do
+            logDebug $ show workspacePackages
             die
               [ toDoc "No package was selected for running. Please select (with -p) one of the following packages:"
               , indent (toDoc $ map _.package.name workspacePackages)
@@ -425,14 +443,8 @@ mkRunEnv runArgs { isTest } = do
     runConf :: forall x. (RunConfig -> Maybe x) -> Maybe x
     runConf f = selected.package.run >>= f
 
-    testConf :: forall x. (TestConfig -> Maybe x) -> Maybe x
-    testConf f = selected.package.test >>= f
-
-    moduleName =
-      if isTest then
-        fromMaybe "Test.Main" (runArgs.main <|> testConf _.main)
-      else fromMaybe "Main" (runArgs.main <|> runConf _.main)
-    execArgs = fromMaybe [] (runArgs.execArgs <|> (if isTest then testConf _.execArgs else runConf _.execArgs))
+    moduleName = fromMaybe "Main" (runArgs.main <|> runConf _.main)
+    execArgs = fromMaybe [] (runArgs.execArgs <|> runConf _.execArgs)
 
     runOptions =
       { moduleName
@@ -445,6 +457,46 @@ mkRunEnv runArgs { isTest } = do
   let newWorkspace = workspace { output = runArgs.output <|> workspace.output }
   let runEnv = { logOptions, workspace: newWorkspace, selected, node, runOptions }
   pure runEnv
+
+mkTestEnv :: forall a. TestArgs -> Spago (Fetch.FetchEnv a) (Test.TestEnv ())
+mkTestEnv testArgs = do
+  { workspace, logOptions } <- ask
+  logDebug $ "Test args: " <> show testArgs
+
+  node <- Run.getNode
+
+  let
+    mkSelectedTest selected =
+      -- the reason why we don't have a default on the CLI is that we look some of these
+      -- up in the config - though the flags take precedence
+      let
+        testConf :: forall x. (TestConfig -> Maybe x) -> Maybe x
+        testConf f = selected.package.test >>= f
+
+        moduleName = fromMaybe "Test.Main" (testConf (_.main >>> Just))
+        execArgs = fromMaybe [] (testArgs.execArgs <|> testConf _.execArgs)
+      in
+        { moduleName
+        , execArgs
+        , selected
+        }
+
+  -- Build a NonEmptyList of selected packages - we can run more than one test suite
+  selectedPackages <- case workspace.selected of
+    Just s -> pure (NonEmptyArray.singleton (mkSelectedTest s))
+    Nothing ->
+      let
+        workspacePackages = Config.getWorkspacePackages workspace.packageSet
+      in
+        case Array.uncons (Array.filter (_.hasTests) workspacePackages) of
+          Just { head, tail } -> pure $ map mkSelectedTest $ NonEmptyArray.cons' head tail
+          Nothing -> die "No package found to test."
+
+  logDebug $ "Selected packages to test: " <> show (map _.selected.package.name selectedPackages)
+
+  let newWorkspace = workspace { output = testArgs.output <|> workspace.output }
+  let testEnv = { logOptions, workspace: newWorkspace, selectedPackages, node }
+  pure testEnv
 
 mkBuildEnv :: forall a. BuildArgs -> Map PackageName Package -> Spago (Fetch.FetchEnv a) (Build.BuildEnv ())
 mkBuildEnv buildArgs dependencies = do

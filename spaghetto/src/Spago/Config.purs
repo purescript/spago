@@ -1,31 +1,31 @@
 module Spago.Config
-  ( Config
-  , PackageConfig
-  , WorkspaceConfig
-  , Dependencies(..)
+  ( BackendConfig
   , BundleConfig
-  , BackendConfig
-  , RunConfig
-  , TestConfig
-  , PublishConfig
-  , SetAddress(..)
-  , RemotePackage(..)
+  , Config
+  , Dependencies(..)
   , ExtraPackage(..)
   , GitPackage
   , LocalPackage
-  , Platform(..)
-  , Workspace
-  , WorkspacePackage
-  , PackageSet
   , Package(..)
-  , getWorkspacePackages
-  , getPackageLocation
-  , readConfig
-  , findPackageSet
-  , sourceGlob
+  , PackageConfig
+  , PackageSet
+  , Platform(..)
+  , PublishConfig
+  , RemotePackage(..)
+  , RunConfig
+  , SetAddress(..)
+  , TestConfig
+  , Workspace
+  , WorkspaceConfig
+  , WorkspacePackage
   , addPackagesToConfig
-  , readWorkspace
+  , findPackageSet
+  , getPackageLocation
+  , getWorkspacePackages
   , parsePlatform
+  , readConfig
+  , readWorkspace
+  , sourceGlob
   , toManifest
   ) where
 
@@ -97,7 +97,7 @@ type RunConfig =
   }
 
 type TestConfig =
-  { main :: Maybe String
+  { main :: String
   , execArgs :: Maybe (Array String)
   , dependencies :: Dependencies
   }
