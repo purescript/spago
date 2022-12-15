@@ -18,7 +18,7 @@ newtype PackageName = PackageName { packageName :: Text }
 -- | A package-set package.
 --   Matches the packages definition in Package.dhall from package-sets
 data Package = Package
-  { dependencies :: ![PackageName]   -- ^ list of dependency package names
+  { dependencies :: !(Set PackageName)   -- ^ set of dependency package names
   , location     :: !PackageLocation -- ^ info about where the package is located
   }
   deriving (Eq, Show, Generic)

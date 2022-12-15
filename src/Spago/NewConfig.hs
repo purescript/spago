@@ -4,7 +4,6 @@ import Spago.Prelude
 import Spago.Env
 
 import qualified Data.Map as Map
-import qualified Data.Set as Set
 import qualified Data.Text as Text
 import qualified Data.Yaml
 import qualified Network.HTTP.Client as Http
@@ -76,7 +75,7 @@ customOptions = defaultOptions
 toExtraPackage :: Package -> Maybe ExtraPackage
 toExtraPackage Package { dependencies, location } = case location of
   Local {} -> Nothing
-  Remote { repo, version } -> Just (ExtraPackage { git = unRepo repo, ref = version, dependencies = Set.fromList dependencies })
+  Remote { repo, version } -> Just (ExtraPackage { git = unRepo repo, ref = version, dependencies = dependencies })
 
 migrate :: (HasLogFunc env, HasConfig env) => RIO env ()
 migrate = do

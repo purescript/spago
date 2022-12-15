@@ -102,7 +102,7 @@ getTransitiveDeps deps = do
             Just allDeps ->
               pure (allDeps, mempty, mempty)
             Nothing | Just packageInfo@Package{..} <- Map.lookup dep packagesDB -> do
-              (childDeps, notFoundErrors, cycleErrors) <- fold <$> traverse (go (Set.insert dep seen)) dependencies
+              (childDeps, notFoundErrors, cycleErrors) <- fold <$> traverse (go (Set.insert dep seen)) (Set.toList dependencies)
               let allDeps = Map.insert dep packageInfo childDeps
               when (null notFoundErrors && null cycleErrors) $ do
                 State.modify $ Map.insert dep allDeps

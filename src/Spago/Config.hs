@@ -66,7 +66,8 @@ parsePackage (Dhall.RecordLit ks') = do
   let ks = Dhall.extractRecordValues ks'
   repo         <- Dhall.requireTypedKey ks "repo" (Dhall.auto :: Dhall.Decoder Repo)
   version      <- Dhall.requireTypedKey ks "version" Dhall.strictText
-  dependencies <- Dhall.requireTypedKey ks "dependencies" dependenciesType
+  dependenciesList <- Dhall.requireTypedKey ks "dependencies" dependenciesType
+  let dependencies = Set.fromList dependenciesList
   let location = Remote{..}
   pure Package{..}
 parsePackage (Dhall.App
@@ -77,7 +78,7 @@ parsePackage (Dhall.App
         True  -> pure $ Text.dropEnd 12 spagoConfigPath
         False -> die [ display $ Messages.failedToParseLocalRepo spagoConfigPath ]
       rawConfig <- liftIO $ Dhall.readRawExpr spagoConfigPath
-      dependencies <- case rawConfig of
+      dependenciesList <- case rawConfig of
         Nothing -> die [ display $ Messages.cannotFindConfigLocalPackage spagoConfigPath ]
         Just (_header, expr) -> do
           newExpr <- transformMExpr (pure . filterDependencies . addSourcePaths) expr
@@ -89,6 +90,7 @@ parsePackage (Dhall.App
               (set Dhall.rootDirectory (Text.unpack localPath) Dhall.defaultInputSettings)
               dependenciesType
               (pretty newExpr)
+      let dependencies = Set.fromList dependenciesList
       let location = Local{..}
       pure Package{..}
 parsePackage expr = die [ display $ Messages.failedToParsePackage $ pretty expr ]
