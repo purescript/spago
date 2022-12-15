@@ -88,7 +88,7 @@ defaultConfig name set =
       , test: Just
           { dependencies: Dependencies Map.empty
           , execArgs: Nothing
-          , main: Just "Test.Main"
+          , main: "Test.Main"
           }
       , publish: Nothing
       , bundle: Nothing
