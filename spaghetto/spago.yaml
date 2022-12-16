@@ -1,6 +1,6 @@
 package:
   name: spago
-  version: 0.91.1
+  version: 0.92.0
   dependencies:
     - aff
     - affjax

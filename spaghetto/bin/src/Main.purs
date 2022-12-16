@@ -6,7 +6,6 @@ import ArgParse.Basic (ArgParser)
 import ArgParse.Basic as ArgParser
 import Data.Array as Array
 import Data.Array.NonEmpty as NonEmptyArray
-import Data.Array.NonEmpty as NonEmptyArray
 import Data.List as List
 import Data.Map as Map
 import Effect.Aff as Aff
