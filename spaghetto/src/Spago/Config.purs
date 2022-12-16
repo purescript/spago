@@ -1,6 +1,8 @@
 module Spago.Config
   ( BackendConfig
   , BundleConfig
+  , BundlePlatform(..)
+  , BundleType(..)
   , Config
   , Dependencies(..)
   , ExtraPackage(..)
@@ -9,7 +11,6 @@ module Spago.Config
   , Package(..)
   , PackageConfig
   , PackageSet
-  , Platform(..)
   , PublishConfig
   , RemotePackage(..)
   , RunConfig
@@ -22,6 +23,7 @@ module Spago.Config
   , findPackageSet
   , getPackageLocation
   , getWorkspacePackages
+  , parseBundleType
   , parsePlatform
   , readConfig
   , readWorkspace
@@ -224,7 +226,7 @@ instance Show Package where
     RegistryVersion v -> show v
     GitPackage p -> show p
     LocalPackage p -> show p
-    WorkspacePackage { path, package } -> show { path, package }
+    WorkspacePackage p -> show p
 
 type LocalPackage = { path :: FilePath }
 
@@ -321,27 +323,47 @@ instance ToYaml SetAddress where
 
 type BundleConfig =
   { minify :: Maybe Boolean
-  , entrypoint :: Maybe FilePath
+  , module :: Maybe String
   , outfile :: Maybe FilePath
-  , platform :: Maybe Platform
+  , platform :: Maybe BundlePlatform
+  , type :: Maybe BundleType
   }
 
-data Platform = PlatformNode | PlatformBrowser
+data BundlePlatform = BundleNode | BundleBrowser
 
-instance Show Platform where
+instance Show BundlePlatform where
   show = case _ of
-    PlatformNode -> "node"
-    PlatformBrowser -> "browser"
+    BundleNode -> "node"
+    BundleBrowser -> "browser"
 
-parsePlatform :: String -> Maybe Platform
+parsePlatform :: String -> Maybe BundlePlatform
 parsePlatform = case _ of
-  "node" -> Just PlatformNode
-  "browser" -> Just PlatformBrowser
+  "node" -> Just BundleNode
+  "browser" -> Just BundleBrowser
   _ -> Nothing
 
-instance ToYaml Platform where
+instance ToYaml BundlePlatform where
   encode = Core.fromString <<< show
   decode = Either.note "Expected BundlePlatform" <<< parsePlatform <=< Yaml.decode
+
+-- | This is the equivalent of "WithMain" in the old Spago.
+-- App bundles with a main fn, while Module does not include a main.
+data BundleType = BundleApp | BundleModule
+
+instance Show BundleType where
+  show = case _ of
+    BundleApp -> "node"
+    BundleModule -> "browser"
+
+parseBundleType :: String -> Maybe BundleType
+parseBundleType = case _ of
+  "app" -> Just BundleApp
+  "module" -> Just BundleModule
+  _ -> Nothing
+
+instance ToYaml BundleType where
+  encode = Core.fromString <<< show
+  decode = Either.note "Expected BundleType" <<< parseBundleType <=< Yaml.decode
 
 readConfig :: forall a. FilePath -> Spago (LogEnv a) (Either String { doc :: YamlDoc Config, yaml :: Config })
 readConfig path = do

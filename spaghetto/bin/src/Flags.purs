@@ -19,8 +19,14 @@ minify =
 
 entrypoint ∷ ArgParser (Maybe String)
 entrypoint =
-  ArgParser.argument [ "--entrypoint" ]
+  ArgParser.argument [ "--module" ]
     "The module to bundle as the entrypoint"
+    # ArgParser.optional
+
+bundleType ∷ ArgParser (Maybe String)
+bundleType =
+  ArgParser.argument [ "--type" ]
+    "The type of the module produced. 'app' will call main, 'module' will just export the contents."
     # ArgParser.optional
 
 outfile ∷ ArgParser (Maybe String)

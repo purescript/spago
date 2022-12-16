@@ -32,7 +32,7 @@ import Spago.Command.Registry as Registry
 import Spago.Command.Run as Run
 import Spago.Command.Sources as Sources
 import Spago.Command.Test as Test
-import Spago.Config (BundleConfig, Package, Platform(..), RunConfig, TestConfig)
+import Spago.Config (BundleConfig, BundlePlatform(..), BundleType(..), Package, RunConfig, TestConfig)
 import Spago.Config as Config
 import Spago.FS as FS
 import Spago.Git as Git
@@ -102,13 +102,14 @@ type RegistryInfoArgs =
 
 type BundleArgs =
   { minify :: Boolean
-  , entrypoint :: Maybe FilePath
+  , module :: Maybe String
   , outfile :: Maybe FilePath
   , platform :: Maybe String
   , selectedPackage :: Maybe String
   , pursArgs :: List String
   , backendArgs :: List String
   , output :: Maybe String
+  , type :: Maybe String
   }
 
 data SpagoCmd = SpagoCmd GlobalArgs Command
@@ -253,7 +254,8 @@ bundleArgsParser :: ArgParser BundleArgs
 bundleArgsParser =
   ArgParser.fromRecord
     { minify: Flags.minify
-    , entrypoint: Flags.entrypoint
+    , module: Flags.entrypoint
+    , type: Flags.bundleType
     , outfile: Flags.outfile
     , platform: Flags.platform
     , selectedPackage: Flags.selectedPackage
@@ -399,14 +401,19 @@ mkBundleEnv bundleArgs = do
     bundleConf f = selected.package.bundle >>= f
   -- TODO: there should be no defaults here actually?
   let minify = Array.any (_ == true) [ bundleArgs.minify, fromMaybe false (_.minify =<< selected.package.bundle) ]
-  let entrypoint = fromMaybe "main.js" (bundleArgs.entrypoint <|> bundleConf _.entrypoint)
+  let entrypoint = fromMaybe "Main" (bundleArgs.module <|> bundleConf _.module)
   let outfile = fromMaybe "index.js" (bundleArgs.outfile <|> bundleConf _.outfile)
   let
-    platform = fromMaybe PlatformNode
+    platform = fromMaybe BundleBrowser
       ( (Config.parsePlatform =<< bundleArgs.platform)
           <|> bundleConf _.platform
       )
-  let bundleOptions = { minify, entrypoint, outfile, platform }
+  let
+    bundleType = fromMaybe BundleApp
+      ( (Config.parseBundleType =<< bundleArgs.type)
+          <|> bundleConf _.type
+      )
+  let bundleOptions = { minify, module: entrypoint, outfile, platform, type: bundleType }
   let newWorkspace = workspace { output = bundleArgs.output <|> workspace.output }
   let bundleEnv = { esbuild: "esbuild", logOptions, workspace: newWorkspace, selected, bundleOptions }
   pure bundleEnv
