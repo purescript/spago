@@ -352,8 +352,8 @@ data BundleType = BundleApp | BundleModule
 
 instance Show BundleType where
   show = case _ of
-    BundleApp -> "node"
-    BundleModule -> "browser"
+    BundleApp -> "app"
+    BundleModule -> "module"
 
 parseBundleType :: String -> Maybe BundleType
 parseBundleType = case _ of

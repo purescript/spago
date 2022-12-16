@@ -55,7 +55,7 @@ run = do
     mainPath = Path.concat [ output, opts.module, "index.js" ]
 
     { input, entrypoint } = case opts.type of
-      BundleApp -> { entrypoint: [], input: Cmd.StdinWrite ("import { main } from './" <> mainPath <> "'; main();") }
+      BundleApp -> { entrypoint: [], input: Cmd.StdinWrite ("#!/usr/bin/env node\n\nimport { main } from './" <> mainPath <> "'; main();") }
       BundleModule -> { entrypoint: [ mainPath ], input: Cmd.StdinNewPipe }
     execOptions = Cmd.defaultExecOptions { pipeStdin = input }
 
