@@ -1,7 +1,7 @@
 name: build
 
 on:
-  push:
+  push: hussain2022a
     branches: [ master ]
   pull_request:
     branches: [ master ]
