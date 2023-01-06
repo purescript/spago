@@ -43,6 +43,7 @@ run opts = do
     workspacePackageGlob :: WorkspacePackage -> Array String
     workspacePackageGlob p = Config.sourceGlob p.package.name (WorkspacePackage p)
 
+    -- TODO: here depsOnly means "no packages from the monorepo", but right now we include local dependencies from the monorepo
     projectSources =
       if opts.depsOnly then []
       else case workspace.selected of
