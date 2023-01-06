@@ -60,5 +60,4 @@ workspace:
   extra_packages:
     dodo-printer: 2.2.1
     registry-dev:
-      git: https://github.com/purescript/registry-dev.git
-      ref: 04364360f1e5a91173f3b88a5e807773dc06aca5
+      path: "../../registry-dev/lib"

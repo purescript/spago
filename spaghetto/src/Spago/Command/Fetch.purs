@@ -37,7 +37,6 @@ import Spago.FS as FS
 import Spago.Git as Git
 import Spago.Paths as Paths
 import Spago.Tar as Tar
-import Spago.Yaml as Yaml
 
 type FetchEnvRow a =
   ( getManifestFromIndex :: PackageName -> Version -> Spago (LogEnv ()) (Maybe Manifest)
@@ -76,7 +75,7 @@ run packages = do
         Just { path, doc } -> { configPath: Path.concat [ path, "spago.yaml" ], yamlDoc: doc }
     logInfo $ "Adding " <> show (Array.length packages) <> " packages to the config in " <> configPath
     liftEffect $ Config.addPackagesToConfig yamlDoc packages
-    liftAff $ Yaml.writeYamlDocFile configPath yamlDoc
+    liftAff $ FS.writeYamlDocFile configPath yamlDoc
 
   -- then for every package we have we try to download it, and copy it in the local cache
   logInfo "Downloading dependencies..."

@@ -14,7 +14,6 @@ import Spago.Config (Dependencies(..), SetAddress(..), Config)
 import Spago.Config as Config
 import Spago.FS as FS
 import Spago.Purs (PursEnv)
-import Spago.Yaml as Yaml
 
 type InitOptions =
   { setVersion :: Maybe Version
@@ -39,7 +38,7 @@ run opts = do
   let configPath = "spago.yaml"
   (FS.exists configPath) >>= case _ of
     true -> logInfo $ foundExistingProject configPath
-    false -> liftAff $ Yaml.writeYamlFile configPath config
+    false -> liftAff $ FS.writeYamlFile Config.configCodec configPath config
 
   -- If these directories (or files) exist, we skip copying "sample sources"
   -- Because you might want to just init a project with your own source files,

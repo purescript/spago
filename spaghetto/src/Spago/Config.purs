@@ -20,6 +20,7 @@ module Spago.Config
   , WorkspaceConfig
   , WorkspacePackage
   , addPackagesToConfig
+  , configCodec
   , findPackageSet
   , getPackageLocation
   , getWorkspacePackages
@@ -40,7 +41,9 @@ import Affjax.StatusCode (StatusCode(..))
 import Data.Argonaut.Core as Core
 import Data.Array as Array
 import Data.Codec.Argonaut as CA
-import Data.Codec.Argonaut.Record as CA.Record
+import Data.Codec.Argonaut as Codec
+import Data.Codec.Argonaut.Record as CAR
+import Data.Codec.Argonaut.Sum as CA.Sum
 import Data.Either as Either
 import Data.Foldable as Foldable
 import Data.HTTP.Method as Method
@@ -51,10 +54,10 @@ import Data.String (Pattern(..))
 import Data.String as String
 import Dodo as Log
 import Effect.Uncurried (EffectFn2, runEffectFn2)
-import Foreign.Object (Object)
-import Foreign.Object as Object
 import Node.Path as Path
 import Registry.Internal.Codec as Internal.Codec
+import Registry.License as License
+import Registry.Location as Location
 import Registry.PackageName as PackageName
 import Registry.Range as Range
 import Registry.Sha256 as Sha256
@@ -65,12 +68,17 @@ import Spago.FastGlob as Glob
 import Spago.Git as Git
 import Spago.Paths as Paths
 import Spago.Purs (PursEnv)
-import Spago.Yaml (class ToYaml, YamlDoc, (.:), (.:?))
-import Spago.Yaml as Yaml
+import Unsafe.Coerce (unsafeCoerce)
 
 type Config =
   { package :: Maybe PackageConfig
   , workspace :: Maybe WorkspaceConfig
+  }
+
+configCodec :: JsonCodec Config
+configCodec = CAR.object "Config"
+  { package: CAR.optional packageConfigCodec
+  , workspace: CAR.optional workspaceConfigCodec
   }
 
 type PackageConfig =
@@ -83,15 +91,39 @@ type PackageConfig =
   , publish :: Maybe PublishConfig
   }
 
+packageConfigCodec :: JsonCodec PackageConfig
+packageConfigCodec = CAR.object "PackageConfig"
+  { name: PackageName.codec
+  , description: CAR.optional CA.string
+  , dependencies: dependenciesCodec
+  , bundle: CAR.optional bundleConfigCodec
+  , run: CAR.optional runConfigCodec
+  , test: CAR.optional testConfigCodec
+  , publish: CAR.optional publishConfigCodec
+  }
+
 type PublishConfig =
   { version :: Maybe Version
   , license :: Maybe License
   , location :: Maybe Location
   } -- FIXME: implement publishing
 
+publishConfigCodec :: JsonCodec PublishConfig
+publishConfigCodec = CAR.object "PublishConfig"
+  { version: CAR.optional Version.codec
+  , license: CAR.optional License.codec
+  , location: CAR.optional Location.codec
+  }
+
 type RunConfig =
   { main :: Maybe String
   , execArgs :: Maybe (Array String)
+  }
+
+runConfigCodec :: JsonCodec RunConfig
+runConfigCodec = CAR.object "RunConfig"
+  { main: CAR.optional CA.string
+  , execArgs: CAR.optional (CA.array CA.string)
   }
 
 type TestConfig =
@@ -100,9 +132,22 @@ type TestConfig =
   , dependencies :: Dependencies
   }
 
+testConfigCodec :: JsonCodec TestConfig
+testConfigCodec = CAR.object "TestConfig"
+  { main: CA.string
+  , execArgs: CAR.optional (CA.array CA.string)
+  , dependencies: dependenciesCodec
+  }
+
 type BackendConfig =
   { cmd :: String
   , args :: Maybe (Array String)
+  }
+
+backendConfigCodec :: JsonCodec BackendConfig
+backendConfigCodec = CAR.object "BackendConfig"
+  { cmd: CA.string
+  , args: CAR.optional (CA.array CA.string)
   }
 
 type WorkspaceConfig =
@@ -110,6 +155,14 @@ type WorkspaceConfig =
   , extra_packages :: Maybe (Map PackageName ExtraPackage)
   , backend :: Maybe BackendConfig
   , output :: Maybe FilePath
+  }
+
+workspaceConfigCodec :: JsonCodec WorkspaceConfig
+workspaceConfigCodec = CAR.object "WorkspaceConfig"
+  { set: CAR.optional setAddressCodec
+  , extra_packages: CAR.optional (Internal.Codec.packageMap extraPackageCodec)
+  , backend: CAR.optional backendConfigCodec
+  , output: CAR.optional CA.string
   }
 
 type Workspace =
@@ -125,14 +178,14 @@ data ExtraPackage
   = ExtraLocalPackage LocalPackage
   | ExtraRemotePackage RemotePackage
 
-instance ToYaml ExtraPackage where
-  encode (ExtraLocalPackage lp) = Yaml.encode lp
-  encode (ExtraRemotePackage rp) = Yaml.encode rp
+extraPackageCodec :: JsonCodec ExtraPackage
+extraPackageCodec = Codec.codec' decode encode
+  where
+  encode (ExtraLocalPackage lp) = CA.encode localPackageCodec lp
+  encode (ExtraRemotePackage rp) = CA.encode remotePackageCodec rp
 
-  decode yaml = decodeLocal <|> decodeRemote
-    where
-    decodeLocal = map ExtraLocalPackage (Yaml.decode yaml)
-    decodeRemote = map ExtraRemotePackage (Yaml.decode yaml)
+  decode json = map ExtraLocalPackage (CA.decode localPackageCodec json)
+    <|> map ExtraRemotePackage (CA.decode remotePackageCodec json)
 
 fromExtraPackage :: ExtraPackage -> Package
 fromExtraPackage = case _ of
@@ -162,7 +215,7 @@ legacyPackageSetCodec =
     $ Internal.Codec.packageMap legacyPackageSetEntryCodec
 
 legacyPackageSetEntryCodec :: JsonCodec LegacyPackageSetEntry
-legacyPackageSetEntryCodec = CA.Record.object "LegacyPackageSetEntry"
+legacyPackageSetEntryCodec = CAR.object "LegacyPackageSetEntry"
   { dependencies: CA.array PackageName.codec
   , repo: CA.string
   , version: CA.string
@@ -190,63 +243,25 @@ newtype RemotePackageSet = RemotePackageSet
   }
 
 remotePackageSetCodec :: JsonCodec RemotePackageSet
-remotePackageSetCodec = Profunctor.wrapIso RemotePackageSet $ CA.Record.object "PackageSet"
+remotePackageSetCodec = Profunctor.wrapIso RemotePackageSet $ CAR.object "PackageSet"
   { version: Version.codec
   , compiler: Version.codec
   , packages: Internal.Codec.packageMap remotePackageCodec
   }
 
 remotePackageCodec :: JsonCodec RemotePackage
-remotePackageCodec = CA.prismaticCodec "RemotePackage" decode encode CA.json
+remotePackageCodec = Codec.codec' decode encode
   where
-  encode (RemoteRegistryVersion v) = Yaml.encode v
-  encode (RemoteGitPackage p) = Yaml.encode p
-  encode (RemoteLegacyPackage p) = Yaml.encode p
+  encode (RemoteRegistryVersion v) = CA.encode Version.codec v
+  encode (RemoteGitPackage p) = CA.encode gitPackageCodec p
+  encode (RemoteLegacyPackage p) = CA.encode legacyPackageSetEntryCodec p
 
-  decode json = (Core.caseJsonString Nothing decodeVersion json)
-    <|> (Core.caseJsonObject Nothing (\j -> hush (decodePkg j <|> decodeLegacyPkg j)) json)
-    where
-    decodePkg obj = do
-      dependencies <- obj Yaml..:? "dependencies"
-      subdir <- obj Yaml..:? "subdir"
-      git <- obj Yaml..: "git"
-      ref <- obj Yaml..: "ref"
-      pure (RemoteGitPackage { dependencies, git, ref, subdir })
-    decodeLegacyPkg obj = do
-      dependencies <- obj Yaml..: "dependencies"
-      repo <- obj Yaml..: "repo"
-      version <- obj Yaml..: "version"
-      pure (RemoteLegacyPackage { dependencies, repo, version })
-    decodeVersion = map RemoteRegistryVersion <<< hush <<< Version.parse
-
-instance Yaml.ToYaml RemotePackage where
-  encode (RemoteRegistryVersion v) = Yaml.encode v
-  encode (RemoteGitPackage p) = Yaml.encode p
-  encode (RemoteLegacyPackage p) = Yaml.encode p
-
-  decode json =
-    (Core.caseJsonString (Left "Expected String RemotePackage") decodeVersion json)
-      <|> (Core.caseJsonObject (Left "Expected Object RemotePackage") (\j -> decodePkg j <|> decodeLegacyPkg j) json)
-    where
-    decodePkg obj = do
-      dependencies <- obj Yaml..:? "dependencies"
-      subdir <- obj Yaml..:? "subdir"
-      git <- obj Yaml..: "git"
-      ref <- obj Yaml..: "ref"
-      pure (RemoteGitPackage { dependencies, git, ref, subdir })
-    decodeLegacyPkg obj = do
-      dependencies <- obj Yaml..: "dependencies"
-      repo <- obj Yaml..: "repo"
-      version <- obj Yaml..: "version"
-      pure (RemoteLegacyPackage { dependencies, repo, version })
-    decodeVersion = map RemoteRegistryVersion <<< (Yaml.fromEncodableString :: String -> Either String Version)
+  decode json = map RemoteRegistryVersion (CA.decode Version.codec json)
+    <|> map RemoteGitPackage (CA.decode gitPackageCodec json)
+    <|> map RemoteLegacyPackage (CA.decode legacyPackageSetEntryCodec json)
 
 derive instance Newtype RemotePackageSet _
 derive newtype instance Eq RemotePackageSet
-
-instance Yaml.ToYaml RemotePackageSet where
-  encode (RemotePackageSet plan) = Yaml.encode plan
-  decode = map RemotePackageSet <<< Yaml.decode
 
 type PackageSet = Map PackageName Package
 
@@ -265,6 +280,9 @@ data Package
 
 type LocalPackage = { path :: FilePath }
 
+localPackageCodec :: JsonCodec LocalPackage
+localPackageCodec = CAR.object "LocalPackage" { path: CA.string }
+
 type GitPackage =
   { git :: String
   , ref :: String
@@ -273,11 +291,11 @@ type GitPackage =
   }
 
 gitPackageCodec :: JsonCodec GitPackage
-gitPackageCodec = CA.Record.object "GitPackage"
+gitPackageCodec = CAR.object "GitPackage"
   { git: CA.string
   , ref: CA.string
-  , subdir: CA.Record.optional CA.string
-  , dependencies: CA.Record.optional dependenciesCodec
+  , subdir: CAR.optional CA.string
+  , dependencies: CAR.optional dependenciesCodec
   }
 
 newtype Dependencies = Dependencies (Map PackageName (Maybe Range))
@@ -300,65 +318,65 @@ instance Monoid Dependencies where
   mempty = Dependencies (Map.empty)
 
 dependenciesCodec :: JsonCodec Dependencies
-dependenciesCodec = CA.prismaticCodec "Dependencies" (hush <<< Yaml.decode) (Yaml.encode) CA.json
+dependenciesCodec = CA.prismaticCodec "Dependencies" decode encode CA.json
+  where
+  packageSingletonCodec = Internal.Codec.packageMap Range.codec
 
-instance ToYaml Dependencies where
   encode (Dependencies deps) = Core.fromArray
     $ Array.fromFoldable
     $ Map.mapMaybeWithKey
         ( \name maybeRange -> Just $ case maybeRange of
-            Nothing -> Core.fromString (PackageName.print name)
-            Just range -> Core.jsonSingletonObject (PackageName.print name) (Core.fromString (Range.print range))
+            Nothing -> CA.encode PackageName.codec name
+            Just range -> CA.encode packageSingletonCodec (Map.singleton name range)
         )
         deps
-  decode =
-    let
-      decodePkgWithRange :: Object Core.Json -> Either String (Tuple PackageName (Maybe Range))
-      decodePkgWithRange obj = do
-        o <- traverse Yaml.decode obj
-        let maybeTuple = Object.toAscUnfoldable o
-        case maybeTuple of
-          Nothing -> Left "Expected Object here"
-          Just (Tuple rawPkg rawRange) -> do
-            pkgName <- PackageName.parse rawPkg
-            range <- Range.parse rawRange
-            Right (Tuple pkgName (Just range))
 
-      decodePkg :: String -> Either String (Tuple PackageName (Maybe Range))
-      decodePkg str = case PackageName.parse str of
-        Left e -> Left e
-        Right p -> Right (Tuple p Nothing)
-    in
-      Core.caseJsonArray (Left "Expected Array of Dependencies")
-        ( \arrayOfJson -> map
-            (Dependencies <<< Map.fromFoldable)
-            ( for arrayOfJson \el ->
-                (Core.caseJsonString (Left "Expected String Dependency") decodePkg el)
-                  <|> (Core.caseJsonObject (Left "Expected Object Dependency") decodePkgWithRange el)
-            )
-        )
+  decode = unsafeCoerce 1
+
+{-
+  let
+    decodePkgWithRange :: Object Core.Json -> Either String (Tuple PackageName (Maybe Range))
+    decodePkgWithRange obj = do
+      o <- traverse Yaml.decode obj
+      let maybeTuple = Object.toAscUnfoldable o
+      case maybeTuple of
+        Nothing -> Left "Expected Object here"
+        Just (Tuple rawPkg rawRange) -> do
+          pkgName <- PackageName.parse rawPkg
+          range <- Range.parse rawRange
+          Right (Tuple pkgName (Just range))
+
+    decodePkg :: String -> Either String (Tuple PackageName (Maybe Range))
+    decodePkg str = case PackageName.parse str of
+      Left e -> Left e
+      Right p -> Right (Tuple p Nothing)
+  in
+    
+    Core.caseJsonArray (Left "Expected Array of Dependencies")
+      ( \arrayOfJson -> map
+          (Dependencies <<< Map.fromFoldable)
+          ( for arrayOfJson \el ->
+              (Core.caseJsonString (Left "Expected String Dependency") decodePkg el)
+                <|> (Core.caseJsonObject (Left "Expected Object Dependency") decodePkgWithRange el)
+          )
+      )
+-}
 
 data SetAddress
   = SetFromRegistry { registry :: Version }
   | SetFromUrl { url :: String, hash :: Maybe Sha256 }
 
-instance Show SetAddress where
-  show (SetFromRegistry { registry }) = show { registry: Version.print registry }
-  show (SetFromUrl { hash, url }) = show { hash: map Sha256.print hash, url }
+setAddressCodec :: JsonCodec SetAddress
+setAddressCodec = Codec.codec' decode encode
+  where
+  setFromRegistryCodec = CAR.object "SetFromRegistry" { registry: Version.codec }
+  setFromUrlCodec = CAR.object "SetFromUrl" { url: CA.string, hash: CAR.optional Sha256.codec }
 
-instance ToYaml SetAddress where
-  encode (SetFromRegistry r) = Yaml.encode r
-  encode (SetFromUrl u) = Yaml.encode u
+  encode (SetFromRegistry r) = CA.encode setFromRegistryCodec r
+  encode (SetFromUrl u) = CA.encode setFromUrlCodec u
 
-  decode yaml = do
-    obj <- Yaml.decode yaml
-    registry <- obj .:? "registry"
-    case registry of
-      Just v -> pure (SetFromRegistry { registry: v })
-      Nothing -> do
-        url <- obj .: "url"
-        hash <- obj .:? "hash"
-        pure (SetFromUrl { url, hash })
+  decode json = map SetFromRegistry (CA.decode setFromRegistryCodec json)
+    <|> map SetFromUrl (CA.decode setFromUrlCodec json)
 
 type BundleConfig =
   { minify :: Maybe Boolean
@@ -366,6 +384,15 @@ type BundleConfig =
   , outfile :: Maybe FilePath
   , platform :: Maybe BundlePlatform
   , type :: Maybe BundleType
+  }
+
+bundleConfigCodec :: JsonCodec BundleConfig
+bundleConfigCodec = CAR.object "BundleConfig"
+  { minify: CAR.optional CA.boolean
+  , module: CAR.optional CA.string
+  , outfile: CAR.optional CA.string
+  , platform: CAR.optional bundlePlatformCodec
+  , type: CAR.optional bundleTypeCodec
   }
 
 data BundlePlatform = BundleNode | BundleBrowser
@@ -381,9 +408,8 @@ parsePlatform = case _ of
   "browser" -> Just BundleBrowser
   _ -> Nothing
 
-instance ToYaml BundlePlatform where
-  encode = Core.fromString <<< show
-  decode = Either.note "Expected BundlePlatform" <<< parsePlatform <=< Yaml.decode
+bundlePlatformCodec :: JsonCodec BundlePlatform
+bundlePlatformCodec = CA.Sum.enumSum show (parsePlatform)
 
 -- | This is the equivalent of "WithMain" in the old Spago.
 -- App bundles with a main fn, while Module does not include a main.
@@ -400,16 +426,15 @@ parseBundleType = case _ of
   "module" -> Just BundleModule
   _ -> Nothing
 
-instance ToYaml BundleType where
-  encode = Core.fromString <<< show
-  decode = Either.note "Expected BundleType" <<< parseBundleType <=< Yaml.decode
+bundleTypeCodec :: JsonCodec BundleType
+bundleTypeCodec = CA.Sum.enumSum show (parseBundleType)
 
 readConfig :: forall a. FilePath -> Spago (LogEnv a) (Either String { doc :: YamlDoc Config, yaml :: Config })
 readConfig path = do
   logDebug $ "Reading config from " <> path
   FS.exists path >>= case _ of
     false -> pure (Left $ "Did not find " <> path <> " file. Run `spago init` to initialise a new project.")
-    true -> liftAff $ Yaml.readYamlDocFile path
+    true -> liftAff $ FS.readYamlDocFile configCodec path
 
 -- | Reads all the configurations in the tree and builds up the Map of local
 -- | packages to be integrated in the package set
@@ -542,13 +567,10 @@ readWorkspace maybeSelectedPackage = do
       newHash <- writePackageSetToHash result
       logDebug $ "Package set hash: " <> Sha256.print newHash
       liftEffect $ updatePackageSetHashInConfig workspaceDoc newHash
-      liftAff $ Yaml.writeYamlDocFile "spago.yaml" workspaceDoc
+      liftAff $ FS.writeYamlDocFile "spago.yaml" workspaceDoc
       pure result
 
-  -- TODO: add a function to make a range from a version and its highest bump
-  let
-    rawRange = ">=" <> Version.print packageSetCompiler <> " <" <> Version.print (Version.bumpHighest packageSetCompiler)
-    compatibleCompiler = unsafeFromRight $ Range.parse rawRange
+  let compatibleCompiler = Range.caret packageSetCompiler
 
   -- Mix in the package set (a) the workspace packages, and (b) the extra_packages
   -- Note: if there are duplicate packages we pick the "most local ones first",
@@ -620,7 +642,7 @@ getWorkspacePackages = Array.mapMaybe extractWorkspacePackage <<< Map.toUnfoldab
 type PackageSetResult = { compiler :: Version, remotePackageSet :: Map PackageName RemotePackage }
 
 packageSetResultCodec :: JsonCodec PackageSetResult
-packageSetResultCodec = CA.Record.object "PackageSetResult"
+packageSetResultCodec = CAR.object "PackageSetResult"
   { compiler: Version.codec
   , remotePackageSet: Internal.Codec.packageMap remotePackageCodec
   }

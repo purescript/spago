@@ -1,20 +1,24 @@
 module Spago.Prelude
   ( module Prelude
   , module Extra
-  , Spago(..)
-  , runSpago
-  , throwError
-  , parseUrl
-  , shaToHex
   , HexString(..)
+  , Spago(..)
   , parallelise
+  , parseJson
+  , parseUrl
+  , parseYaml
+  , parseYamlDoc
   , partitionEithers
   , printJson
-  , parseJson
+  , printYaml
+  , runSpago
+  , shaToHex
   , stringifyJson
-  , unsafeStringify
+  , stringifyYaml
+  , throwError
   , unsafeFromRight
   , unsafeLog
+  , unsafeStringify
   ) where
 
 import Prelude
@@ -66,6 +70,8 @@ import Partial.Unsafe (unsafeCrashWith)
 import Registry.Sha256 (Sha256)
 import Registry.Sha256 as Registry.Sha256
 import Spago.Log (logDebug, logError, logInfo, logSuccess, logWarn, die, LogOptions, LogEnv, toDoc, indent, indent2, output) as Extra
+import Spago.Yaml (YamlDoc) as Extra
+import Spago.Yaml as Yaml
 import Unsafe.Coerce (unsafeCoerce)
 
 newtype Spago env a = Spago (ReaderT env Extra.Aff a)
@@ -135,6 +141,25 @@ stringifyJson codec = Argonaut.stringify <<< CA.encode codec
 -- | Parse a type from a string of JSON data.
 parseJson :: forall a. Extra.JsonCodec a -> String -> Either.Either Extra.JsonDecodeError a
 parseJson codec = CA.decode codec <=< Extra.lmap (\err -> CA.TypeMismatch ("JSON: " <> err)) <<< Argonaut.Parser.jsonParser
+
+-- | Print a type as a formatted YAML string
+printYaml :: forall a. Extra.JsonCodec a -> a -> String
+printYaml codec = Yaml.stringifyWithIndent 2 <<< CA.encode codec
+
+-- | Print a type as a YAML string without formatting
+stringifyYaml :: forall a. Extra.JsonCodec a -> a -> String
+stringifyYaml codec = Yaml.stringify <<< CA.encode codec
+
+-- | Parse a type from a string of JSON data.
+parseYaml :: forall a. Extra.JsonCodec a -> String -> Either.Either Extra.JsonDecodeError a
+parseYaml codec = parseYamlDoc codec >>> map _.yaml
+
+-- | Parse a type from a string of YAML data.
+parseYamlDoc :: forall a. Extra.JsonCodec a -> String -> Extra.Either Extra.JsonDecodeError { doc :: Yaml.YamlDoc a, yaml :: a }
+parseYamlDoc codec yamlStr = do
+  doc <- Extra.lmap (\err -> CA.TypeMismatch ("YAML: " <> err)) (Yaml.yamlParser yamlStr)
+  yaml <- CA.decode codec (Yaml.toJson doc)
+  pure { doc, yaml }
 
 -- | Unsafely stringify a value by coercing it to `Json` and stringifying it.
 unsafeStringify :: forall a. a -> String
