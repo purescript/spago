@@ -13,6 +13,7 @@ import Affjax.ResponseFormat as Response
 import Affjax.StatusCode (StatusCode(..))
 import Control.Monad.State as State
 import Data.Array as Array
+import Data.Codec.Argonaut as CA
 import Data.Either as Either
 import Data.HTTP.Method as Method
 import Data.Int as Int
@@ -23,12 +24,11 @@ import Node.Buffer as Buffer
 import Node.Encoding as Encoding
 import Node.Path as Path
 import Partial.Unsafe (unsafeCrashWith)
-import Registry.Hash as Hash
-import Registry.Hash as Registry.Hash
-import Registry.PackageName (PackageName)
+import Registry.Metadata as Metadata
 import Registry.PackageName as PackageName
-import Registry.Schema (Manifest, Metadata)
-import Registry.Version (Range, Version)
+import Registry.Range as Range
+import Registry.Sha256 as Sha256
+import Registry.Types (Range, Version, PackageName, Manifest, Metadata(..))
 import Registry.Version as Registry.Version
 import Registry.Version as Version
 import Spago.Config (Dependencies(..), GitPackage, Package(..), PackageSet, Workspace, WorkspacePackage)
@@ -52,7 +52,7 @@ type FetchEnv a = Record (FetchEnvRow a)
 
 run :: forall a. Array PackageName -> Spago (FetchEnv a) PackageSet
 run packages = do
-  logDebug $ "Requested to install these packages: " <> show packages
+  logDebug $ "Requested to install these packages: " <> printJson (CA.array PackageName.codec) packages
 
   { getMetadata, workspace, logOptions } <- ask
 
@@ -88,13 +88,13 @@ run packages = do
       GitPackage gitPackage -> getGitPackageInLocalCache name gitPackage
       RegistryVersion v -> do
         -- if the version comes from the registry then we have a longer list of things to do
-        let versionString = Registry.Version.printVersion v
+        let versionString = Registry.Version.print v
         -- get the metadata for the package, so we have access to the hash and other info
         metadata <- runSpago { logOptions } $ getMetadata name
-        case (metadata >>= (\meta -> Either.note "Didn't find version in the metadata file" $ Map.lookup v meta.published)) of
+        case (metadata >>= (\(Metadata meta) -> Either.note "Didn't find version in the metadata file" $ Map.lookup v meta.published)) of
           Left err -> die $ "Couldn't read metadata, reason:\n  " <> err
           Right versionMetadata -> do
-            logDebug $ "Metadata read: " <> show versionMetadata
+            logDebug $ "Metadata read: " <> printJson Metadata.publishedMetadataCodec versionMetadata
             -- then check if we have a tarball cached. If not, download it
             let globalCachePackagePath = Path.concat [ Paths.globalCachePath, "packages", PackageName.print name ]
             let tarballPath = Path.concat [ globalCachePackagePath, versionString <> ".tar.gz" ]
@@ -118,16 +118,16 @@ run packages = do
                   -- check the size and hash of the tar against the metadata
                   tarballBuffer <- liftEffect $ Buffer.fromArrayBuffer tarballArrayBuffer
                   tarballSize <- liftEffect $ Buffer.size tarballBuffer
-                  tarballSha <- liftEffect $ Registry.Hash.sha256Buffer tarballBuffer
+                  tarballSha <- liftEffect $ Sha256.hashBuffer tarballBuffer
                   unless (Int.toNumber tarballSize == versionMetadata.bytes) do
                     die $ "Fetched tarball has a different size (" <> show tarballSize <> ") than expected (" <> show versionMetadata.bytes <> ")"
                   unless (tarballSha == versionMetadata.hash) do
-                    die $ "Fetched tarball has a different hash (" <> show tarballSha <> ") than expected (" <> show versionMetadata.hash <> ")"
+                    die $ "Fetched tarball has a different hash (" <> Sha256.print tarballSha <> ") than expected (" <> Sha256.print versionMetadata.hash <> ")"
                   -- if everything's alright we stash the tar in the global cache
                   logInfo $ "Copying tarball to global cache: " <> tarballPath
                   FS.writeFile tarballPath tarballBuffer
             -- unpack the tars in a temp folder, then move to local cache
-            let tarInnerFolder = PackageName.print name <> "-" <> Version.printVersion v
+            let tarInnerFolder = PackageName.print name <> "-" <> Version.print v
             tempDir <- mkTemp
             FS.mkdirp tempDir
             logDebug $ "Unpacking tarball to temp folder: " <> tempDir
@@ -142,7 +142,7 @@ run packages = do
 getGitPackageInLocalCache :: forall a. PackageName -> GitPackage -> Spago (Git.GitEnv a) Unit
 getGitPackageInLocalCache name package = do
   let localPackageLocation = Config.getPackageLocation name (GitPackage package)
-  tempDir <- mkTemp' (Just $ show package)
+  tempDir <- mkTemp' (Just $ printJson Config.gitPackageCodec package)
   logDebug $ "Cloning repo in " <> tempDir
   Git.fetchRepo package tempDir
   logDebug $ "Repo cloned. Moving to " <> localPackageLocation
@@ -255,14 +255,14 @@ getTransitiveDeps deps = do
 
 widestRange :: Range
 widestRange = Either.fromRight' (\_ -> unsafeCrashWith "Fake range failed")
-  $ Registry.Version.parseRange Registry.Version.Lenient ">=0.0.0 <2147483647.0.0"
+  $ Range.parse ">=0.0.0 <2147483647.0.0"
 
 mkTemp' :: forall m. MonadAff m => Maybe String -> m FilePath
 mkTemp' maybeSuffix = liftAff do
   -- Get a random string
   (HexString random) <- liftEffect do
     now <- Now.now
-    sha <- Hash.sha256String $ show now <> fromMaybe "" maybeSuffix
+    sha <- Sha256.hashString $ show now <> fromMaybe "" maybeSuffix
     shaToHex sha
   -- Return the dir, but don't make it - that's the responsibility of the client
   let tempDirPath = Path.concat [ Paths.paths.temp, random ]

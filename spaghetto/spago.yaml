@@ -3,6 +3,7 @@ package:
   version: 0.92.2
   dependencies:
     - aff
+    - aff-promise
     - affjax
     - affjax-node
     - ansi
@@ -11,8 +12,10 @@ package:
     - arrays
     - bifunctors
     - console
+    - convertable-options
     - control
     - datetime
+    - dodo-printer
     - effect
     - either
     - exceptions
@@ -53,7 +56,7 @@ workspace:
   set:
     # url: https://raw.githubusercontent.com/purescript/package-sets/psc-0.15.4-20220901/packages.json
     # url: https://raw.githubusercontent.com/purescript/registry/main/package-sets/0.0.2.json
-    registry: 0.0.2
+    registry: 2.2.0
   extra_packages:
     dodo-printer: 2.2.1
     registry-dev:

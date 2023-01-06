@@ -6,6 +6,7 @@ import ArgParse.Basic (ArgParser)
 import ArgParse.Basic as ArgParser
 import Data.Array as Array
 import Data.Array.NonEmpty as NonEmptyArray
+import Data.Codec.Argonaut.Common as CA.Common
 import Data.List as List
 import Data.Map as Map
 import Effect.Aff as Aff
@@ -13,14 +14,11 @@ import Effect.Class.Console as Console
 import Effect.Ref as Ref
 import Node.Path as Path
 import Node.Process as Process
-import Registry.API as Registry.API
-import Registry.Index as Index
-import Registry.Json as RegistryJson
-import Registry.PackageName (PackageName)
+import Registry.Constants as Registry.Constants
+import Registry.ManifestIndex as ManifestIndex
+import Registry.Metadata as Metadata
 import Registry.PackageName as PackageName
-import Registry.Prelude (stripPureScriptPrefix)
-import Registry.Schema (Manifest(..), Metadata)
-import Registry.Version (Version)
+import Registry.Types (PackageName, Version, Manifest(..), Metadata)
 import Registry.Version as Version
 import Spago.Bin.Flags as Flags
 import Spago.BuildInfo as BuildInfo
@@ -299,13 +297,13 @@ main =
             purs <- Purs.getPurs
             -- Figure out the package name from the current dir
             logDebug [ show Paths.cwd, show (Path.basename Paths.cwd) ]
-            packageName <- case PackageName.parse (stripPureScriptPrefix (Path.basename Paths.cwd)) of
+            packageName <- case PackageName.parse (PackageName.stripPureScriptPrefix (Path.basename Paths.cwd)) of
               Left err -> die [ "Could not figure out a name for the new package. Error:", show err ]
               Right p -> pure p
-            setVersion <- for args.setVersion $ Version.parseVersion Version.Lenient >>> case _ of
+            setVersion <- for args.setVersion $ Version.parse >>> case _ of
               Left err -> die [ "Could not parse provided set version. Error:", show err ]
               Right v -> pure v
-            logDebug [ "Got packageName and setVersion:", show packageName, show setVersion ]
+            logDebug [ "Got packageName and setVersion:", PackageName.print packageName, unsafeStringify setVersion ]
             let initOpts = { packageName, setVersion }
             void $ runSpago { logOptions, purs } $ Init.run initOpts
           Fetch args -> do
@@ -392,7 +390,7 @@ mkBundleEnv bundleArgs = do
       in
         die [ toDoc "No package was selected for bundling. Please select (with -p) one of the following packages:", indent (toDoc workspacePackageNames) ]
 
-  logDebug $ "Selected package to bundle: " <> show selected.package.name
+  logDebug $ "Selected package to bundle: " <> PackageName.print selected.package.name
 
   -- the reason why we don't have a default on the CLI is that we look some of these
   -- up in the config - though the flags take precedence
@@ -435,13 +433,13 @@ mkRunEnv runArgs = do
         case workspacePackages of
           [ singlePkg ] -> pure singlePkg
           _ -> do
-            logDebug $ show workspacePackages
+            logDebug $ unsafeStringify workspacePackages
             die
               [ toDoc "No package was selected for running. Please select (with -p) one of the following packages:"
               , indent (toDoc $ map _.package.name workspacePackages)
               ]
 
-  logDebug $ "Selected package to run: " <> show selected.package.name
+  logDebug $ "Selected package to run: " <> PackageName.print selected.package.name
 
   -- the reason why we don't have a default on the CLI is that we look some of these
   -- up in the config - though the flags take precedence
@@ -498,7 +496,7 @@ mkTestEnv testArgs = do
           Just { head, tail } -> pure $ map mkSelectedTest $ NonEmptyArray.cons' head tail
           Nothing -> die "No package found to test."
 
-  logDebug $ "Selected packages to test: " <> show (map _.selected.package.name selectedPackages)
+  logDebug $ "Selected packages to test: " <> stringifyJson (CA.Common.nonEmptyArray PackageName.codec) (map _.selected.package.name selectedPackages)
 
   let newWorkspace = workspace { output = testArgs.output <|> workspace.output }
   let testEnv = { logOptions, workspace: newWorkspace, selectedPackages, node }
@@ -572,9 +570,13 @@ mkRegistryEnv = do
         Just meta -> pure (Map.lookup version meta)
         Nothing -> do
           -- if we don't have it we try reading it from file
-          logDebug $ "Reading package from Index: " <> show name
-          maybeManifests <- liftAff $ Index.readPackage Paths.registryIndexPath name
-          let manifests = map (\m@(Manifest m') -> Tuple m'.version m) $ fromMaybe [] $ map NonEmptyArray.toUnfoldable maybeManifests
+          logDebug $ "Reading package from Index: " <> PackageName.print name
+          maybeManifests <- liftAff $ ManifestIndex.readEntryFile Paths.registryIndexPath name
+          manifests <- map (map (\m@(Manifest m') -> Tuple m'.version m)) case maybeManifests of
+            Right ms -> pure $ NonEmptyArray.toUnfoldable ms
+            Left err -> do
+              logWarn $ "Could not read package manifests from index, proceeding anyways. Error: " <> err
+              pure []
           let versions = Map.fromFoldable manifests
           liftEffect (Ref.write (Map.insert name versions indexMap) indexRef)
           pure (Map.lookup version versions)
@@ -589,9 +591,9 @@ mkRegistryEnv = do
         Just meta -> pure (Right meta)
         Nothing -> do
           -- if we don't have it we try reading it from file
-          let metadataFilePath = Registry.API.metadataFile Paths.registryPath name
+          let metadataFilePath = Path.concat [ Paths.registryPath, Registry.Constants.metadataDirectory, PackageName.print name <> ".json" ]
           logDebug $ "Reading metadata from file: " <> metadataFilePath
-          liftAff (RegistryJson.readJsonFile metadataFilePath) >>= case _ of
+          liftAff (FS.readJsonFile Metadata.codec metadataFilePath) >>= case _ of
             Left e -> pure (Left e)
             Right m -> do
               -- and memoize it

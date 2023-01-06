@@ -8,6 +8,11 @@ module Spago.Prelude
   , shaToHex
   , HexString(..)
   , parallelise
+  , partitionEithers
+  , printJson
+  , parseJson
+  , stringifyJson
+  , unsafeStringify
   , unsafeFromRight
   , unsafeLog
   ) where
@@ -21,10 +26,15 @@ import Control.Monad.Reader (ask, asks) as Extra
 import Control.Monad.Reader (class MonadAsk, ReaderT, runReaderT)
 import Control.Monad.State (StateT) as Extra
 import Control.Parallel as Parallel
+import Data.Argonaut.Core as Argonaut
+import Data.Argonaut.Parser as Argonaut.Parser
 import Data.Array ((..)) as Extra
-import Data.Bifunctor (bimap) as Extra
+import Data.Array as Array
+import Data.Bifunctor (bimap, rmap, lmap) as Extra
+import Data.Codec.Argonaut (JsonCodec, JsonDecodeError) as Extra
+import Data.Codec.Argonaut as CA
 import Data.DateTime.Instant (Instant) as Extra
-import Data.Either (Either(..), isLeft, isRight, either) as Extra
+import Data.Either (Either(..), isLeft, isRight, either, hush) as Extra
 import Data.Either as Either
 import Data.Filterable (partition, partitionMap) as Extra
 import Data.Foldable (foldMap, for_, foldl, and, or) as Extra
@@ -53,7 +63,8 @@ import Node.Buffer as Buffer
 import Node.Encoding (Encoding(..)) as Extra
 import Node.Path (FilePath) as Extra
 import Partial.Unsafe (unsafeCrashWith)
-import Registry.Hash (Sha256)
+import Registry.Sha256 (Sha256)
+import Registry.Sha256 as Registry.Sha256
 import Spago.Log (logDebug, logError, logInfo, logSuccess, logWarn, die, LogOptions, LogEnv, toDoc, indent, indent2, output) as Extra
 import Unsafe.Coerce (unsafeCoerce)
 
@@ -82,7 +93,7 @@ throwError :: forall a m. MonadThrow Extra.Error m => String -> m a
 throwError = Aff.throwError <<< Aff.error
 
 unsafeFromRight :: forall e a. Extra.Either e a -> a
-unsafeFromRight = Either.fromRight' (\_ -> unsafeCrashWith "Unexpected Left")
+unsafeFromRight v = Either.fromRight' (\_ -> unsafeCrashWith $ "Unexpected Left: " <> unsafeStringify v) v
 
 parseUrl :: String -> Extra.Either String URL
 parseUrl = runFn3 parseUrlImpl Extra.Left (Extra.Right <<< unsafeCoerce)
@@ -101,8 +112,30 @@ parallelise actions = do
 
 shaToHex :: Sha256 -> Extra.Effect HexString
 shaToHex s = do
-  (buffer :: Buffer.Buffer) <- Buffer.fromString (show s) Extra.UTF8
+  (buffer :: Buffer.Buffer) <- Buffer.fromString (Registry.Sha256.print s) Extra.UTF8
   string <- Buffer.toString Extra.Hex buffer
   pure $ HexString string
 
 newtype HexString = HexString String
+
+-- | Partition an array of `Either` values into failure and success  values
+partitionEithers :: forall e a. Array (Either.Either e a) -> { fail :: Array e, success :: Array a }
+partitionEithers = Array.foldMap case _ of
+  Either.Left err -> { fail: [ err ], success: [] }
+  Either.Right res -> { fail: [], success: [ res ] }
+
+-- | Print a type as a formatted JSON string
+printJson :: forall a. Extra.JsonCodec a -> a -> String
+printJson codec = Argonaut.stringifyWithIndent 2 <<< CA.encode codec
+
+-- | Print a type as a JSON string without formatting
+stringifyJson :: forall a. Extra.JsonCodec a -> a -> String
+stringifyJson codec = Argonaut.stringify <<< CA.encode codec
+
+-- | Parse a type from a string of JSON data.
+parseJson :: forall a. Extra.JsonCodec a -> String -> Either.Either Extra.JsonDecodeError a
+parseJson codec = CA.decode codec <=< Extra.lmap (\err -> CA.TypeMismatch ("JSON: " <> err)) <<< Argonaut.Parser.jsonParser
+
+-- | Unsafely stringify a value by coercing it to `Json` and stringifying it.
+unsafeStringify :: forall a. a -> String
+unsafeStringify a = Argonaut.stringify (unsafeCoerce a :: Argonaut.Json)

@@ -7,10 +7,14 @@ module Spago.FS
   , readTextFile
   , writeFile
   , writeTextFile
+  , readJsonFile
+  , writeJsonFile
   ) where
 
 import Spago.Prelude
 
+import Data.Codec.Argonaut as CA
+import Effect.Aff as Aff
 import Node.FS.Aff as FS.Aff
 import Node.FS.Perms (Perms)
 import Node.FS.Perms as Perms
@@ -41,3 +45,14 @@ ls = liftAff <<< FS.Aff.readdir
 
 chmod :: forall m. MonadAff m => FilePath -> Perms -> m Unit
 chmod path perms = liftAff $ FS.Aff.chmod path perms
+
+-- | Encode data as formatted JSON and write it to the provided filepath
+writeJsonFile :: forall a. JsonCodec a -> FilePath -> a -> Aff Unit
+writeJsonFile codec path = FS.Aff.writeTextFile UTF8 path <<< (_ <> "\n") <<< printJson codec
+
+-- | Decode data from a JSON file at the provided filepath
+readJsonFile :: forall a. JsonCodec a -> FilePath -> Aff (Either String a)
+readJsonFile codec path = do
+  result <- Aff.attempt $ FS.Aff.readTextFile UTF8 path
+  pure (lmap Aff.message result >>= parseJson codec >>> lmap CA.printJsonDecodeError)
+

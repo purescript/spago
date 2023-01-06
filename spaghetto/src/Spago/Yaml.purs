@@ -41,6 +41,7 @@ import Data.Array.NonEmpty (NonEmptyArray)
 import Data.Array.NonEmpty as NEA
 import Data.Bifunctor (lmap)
 import Data.Bitraversable (ltraverse)
+import Data.Codec.Argonaut as CA
 import Data.Either (Either(..), note)
 import Data.Function.Uncurried (Fn1, Fn3, runFn1, runFn3)
 import Data.Int as Int
@@ -57,20 +58,22 @@ import Effect.Aff (Aff, try)
 import Effect.Aff as Aff
 import Foreign.Object (Object)
 import Foreign.Object as Object
-import Foreign.SPDX (License)
 import Node.Encoding (Encoding(..))
 import Node.FS.Aff as FS
 import Node.Path (FilePath)
-import Parsing as Parsing
 import Prim.Row as Row
 import Prim.RowList as RL
 import Record as Record
-import Registry.Hash (Sha256)
-import Registry.Json as Registry.Json
+import Registry.License (License)
+import Registry.License as License
+import Registry.Location as Location
 import Registry.PackageName (PackageName)
 import Registry.PackageName as PackageName
-import Registry.Schema (Location)
+import Registry.Sha256 (Sha256)
+import Registry.Sha256 as Sha256
+import Registry.Types (Location)
 import Registry.Version (Version)
+import Registry.Version as Version
 import Type.Proxy (Proxy(..))
 
 foreign import yamlParserImpl :: forall a. Fn3 (String -> a) (Core.Json -> a) String a
@@ -179,7 +182,11 @@ instance StringEncodable String where
 
 instance StringEncodable PackageName where
   toEncodableString = PackageName.print
-  fromEncodableString = lmap Parsing.parseErrorMessage <<< PackageName.parse
+  fromEncodableString = PackageName.parse
+
+instance StringEncodable Version where
+  toEncodableString = Version.print
+  fromEncodableString = Version.parse
 
 -- | A class for encoding and decoding YAML
 class ToYaml a where
@@ -191,36 +198,36 @@ instance ToYaml Core.Json where
   decode = Right
 
 instance ToYaml Boolean where
-  encode = Core.fromBoolean
-  decode = Core.caseJsonBoolean (Left "Expected Boolean") Right
+  encode = CA.encode CA.boolean
+  decode = lmap (CA.printJsonDecodeError) <<< CA.decode CA.boolean
 
 instance ToYaml String where
-  encode = Core.fromString
-  decode = Core.caseJsonString (Left "Expected String") Right
+  encode = CA.encode CA.string
+  decode = lmap (CA.printJsonDecodeError) <<< CA.decode CA.string
 
 instance ToYaml PackageName where
-  encode = Registry.Json.encode
-  decode = Registry.Json.decode
+  encode = CA.encode PackageName.codec
+  decode = lmap (CA.printJsonDecodeError) <<< CA.decode PackageName.codec
 
 instance ToYaml Version where
-  encode = Registry.Json.encode
-  decode = Registry.Json.decode
+  encode = CA.encode Version.codec
+  decode = lmap (CA.printJsonDecodeError) <<< CA.decode Version.codec
 
 instance ToYaml License where
-  encode = Registry.Json.encode
-  decode = Registry.Json.decode
+  encode = CA.encode License.codec
+  decode = lmap (CA.printJsonDecodeError) <<< CA.decode License.codec
 
 instance ToYaml Location where
-  encode = Registry.Json.encode
-  decode = Registry.Json.decode
+  encode = CA.encode Location.codec
+  decode = lmap (CA.printJsonDecodeError) <<< CA.decode Location.codec
 
 instance ToYaml Sha256 where
-  encode = Registry.Json.encode
-  decode = Registry.Json.decode
+  encode = CA.encode Sha256.codec
+  decode = lmap (CA.printJsonDecodeError) <<< CA.decode Sha256.codec
 
 instance ToYaml Number where
-  encode = Core.fromNumber
-  decode = Core.caseJsonNumber (Left "Expected Number") Right
+  encode = CA.encode CA.number
+  decode = lmap (CA.printJsonDecodeError) <<< CA.decode CA.number
 
 instance ToYaml Int where
   encode = Core.fromNumber <<< Int.toNumber

@@ -12,7 +12,7 @@ module Spago.Config
   , PackageConfig
   , PackageSet
   , PublishConfig
-  , RemotePackage(..)
+  , RemotePackage
   , RunConfig
   , SetAddress(..)
   , TestConfig
@@ -29,6 +29,7 @@ module Spago.Config
   , readWorkspace
   , sourceGlob
   , toManifest
+  , gitPackageCodec
   ) where
 
 import Spago.Prelude
@@ -38,34 +39,29 @@ import Affjax.ResponseFormat as Response
 import Affjax.StatusCode (StatusCode(..))
 import Data.Argonaut.Core as Core
 import Data.Array as Array
-import Data.Bifunctor (lmap)
+import Data.Codec.Argonaut as CA
+import Data.Codec.Argonaut.Record as CA.Record
 import Data.Either as Either
 import Data.Foldable as Foldable
 import Data.HTTP.Method as Method
 import Data.Map as Map
+import Data.Profunctor as Profunctor
 import Data.Set as Set
 import Data.String (Pattern(..))
 import Data.String as String
 import Dodo as Log
 import Effect.Uncurried (EffectFn2, runEffectFn2)
-import Foreign.FastGlob as Glob
 import Foreign.Object (Object)
 import Foreign.Object as Object
-import Foreign.SPDX (License)
 import Node.Path as Path
-import Parsing as Parsing
-import Registry.Hash (Sha256)
-import Registry.Hash as Registry.Hash
-import Registry.Json as RegistryJson
-import Registry.Legacy.PackageSet as Registry.PackageSet
-import Registry.PackageName (PackageName)
+import Registry.Internal.Codec as Internal.Codec
 import Registry.PackageName as PackageName
-import Registry.Prelude (partitionEithers)
-import Registry.Schema (Location, Manifest(..))
-import Registry.Version (Range, Version)
-import Registry.Version as Registry.Version
+import Registry.Range as Range
+import Registry.Sha256 as Sha256
+import Registry.Types (Range, Version, PackageName, Sha256, License, Location, Manifest(..))
 import Registry.Version as Version
 import Spago.FS as FS
+import Spago.FastGlob as Glob
 import Spago.Git as Git
 import Spago.Paths as Paths
 import Spago.Purs (PursEnv)
@@ -149,62 +145,108 @@ fromRemotePackage = case _ of
   RemoteRegistryVersion v -> RegistryVersion v
   RemoteLegacyPackage e -> GitPackage
     { git: e.repo
-    , ref: unwrap e.version
+    , ref: e.version
     , subdir: Nothing
     , dependencies: Just $ Dependencies $ Map.fromFoldable $ map (\p -> Tuple p Nothing) e.dependencies
     }
 
+-- | The format of a legacy packages.json package set file
+newtype LegacyPackageSet = LegacyPackageSet (Map PackageName LegacyPackageSetEntry)
+
+derive instance Newtype LegacyPackageSet _
+derive newtype instance Eq LegacyPackageSet
+
+legacyPackageSetCodec :: JsonCodec LegacyPackageSet
+legacyPackageSetCodec =
+  Profunctor.wrapIso LegacyPackageSet
+    $ Internal.Codec.packageMap legacyPackageSetEntryCodec
+
+legacyPackageSetEntryCodec :: JsonCodec LegacyPackageSetEntry
+legacyPackageSetEntryCodec = CA.Record.object "LegacyPackageSetEntry"
+  { dependencies: CA.array PackageName.codec
+  , repo: CA.string
+  , version: CA.string
+  }
+
+-- | The format of a legacy packages.json package set entry for an individual
+-- | package.
+type LegacyPackageSetEntry =
+  { dependencies :: Array PackageName
+  , repo :: String
+  , version :: String
+  }
+
 data RemotePackage
   = RemoteGitPackage GitPackage
   | RemoteRegistryVersion Version
-  | RemoteLegacyPackage Registry.PackageSet.LegacyPackageSetEntry
+  | RemoteLegacyPackage LegacyPackageSetEntry
 
 derive instance Eq RemotePackage
-
-instance Show RemotePackage where
-  show = case _ of
-    RemoteRegistryVersion v -> show v
-    RemoteGitPackage p -> show p
-    RemoteLegacyPackage p -> show p
 
 newtype RemotePackageSet = RemotePackageSet
   { compiler :: Version
   , packages :: Map PackageName RemotePackage
+  , version :: Version
   }
 
-instance RegistryJson.RegistryJson RemotePackage where
-  encode (RemoteRegistryVersion v) = RegistryJson.encode v
-  encode (RemoteGitPackage p) = RegistryJson.encode p
-  encode (RemoteLegacyPackage p) = RegistryJson.encode p
+remotePackageSetCodec :: JsonCodec RemotePackageSet
+remotePackageSetCodec = Profunctor.wrapIso RemotePackageSet $ CA.Record.object "PackageSet"
+  { version: Version.codec
+  , compiler: Version.codec
+  , packages: Internal.Codec.packageMap remotePackageCodec
+  }
+
+remotePackageCodec :: JsonCodec RemotePackage
+remotePackageCodec = CA.prismaticCodec "RemotePackage" decode encode CA.json
+  where
+  encode (RemoteRegistryVersion v) = Yaml.encode v
+  encode (RemoteGitPackage p) = Yaml.encode p
+  encode (RemoteLegacyPackage p) = Yaml.encode p
+
+  decode json = (Core.caseJsonString Nothing decodeVersion json)
+    <|> (Core.caseJsonObject Nothing (\j -> hush (decodePkg j <|> decodeLegacyPkg j)) json)
+    where
+    decodePkg obj = do
+      dependencies <- obj Yaml..:? "dependencies"
+      subdir <- obj Yaml..:? "subdir"
+      git <- obj Yaml..: "git"
+      ref <- obj Yaml..: "ref"
+      pure (RemoteGitPackage { dependencies, git, ref, subdir })
+    decodeLegacyPkg obj = do
+      dependencies <- obj Yaml..: "dependencies"
+      repo <- obj Yaml..: "repo"
+      version <- obj Yaml..: "version"
+      pure (RemoteLegacyPackage { dependencies, repo, version })
+    decodeVersion = map RemoteRegistryVersion <<< hush <<< Version.parse
+
+instance Yaml.ToYaml RemotePackage where
+  encode (RemoteRegistryVersion v) = Yaml.encode v
+  encode (RemoteGitPackage p) = Yaml.encode p
+  encode (RemoteLegacyPackage p) = Yaml.encode p
 
   decode json =
     (Core.caseJsonString (Left "Expected String RemotePackage") decodeVersion json)
       <|> (Core.caseJsonObject (Left "Expected Object RemotePackage") (\j -> decodePkg j <|> decodeLegacyPkg j) json)
     where
     decodePkg obj = do
-      dependencies <- obj RegistryJson..:? "dependencies"
-      subdir <- obj RegistryJson..:? "subdir"
-      git <- obj RegistryJson..: "git"
-      ref <- obj RegistryJson..: "ref"
+      dependencies <- obj Yaml..:? "dependencies"
+      subdir <- obj Yaml..:? "subdir"
+      git <- obj Yaml..: "git"
+      ref <- obj Yaml..: "ref"
       pure (RemoteGitPackage { dependencies, git, ref, subdir })
     decodeLegacyPkg obj = do
-      dependencies <- obj RegistryJson..: "dependencies"
-      repo <- obj RegistryJson..: "repo"
-      version <- obj RegistryJson..: "version"
+      dependencies <- obj Yaml..: "dependencies"
+      repo <- obj Yaml..: "repo"
+      version <- obj Yaml..: "version"
       pure (RemoteLegacyPackage { dependencies, repo, version })
-    decodeVersion = map RemoteRegistryVersion <<< (RegistryJson.fromEncodableString :: String -> Either String Version)
-
-instance ToYaml RemotePackage where
-  encode = RegistryJson.encode
-  decode = RegistryJson.decode
+    decodeVersion = map RemoteRegistryVersion <<< (Yaml.fromEncodableString :: String -> Either String Version)
 
 derive instance Newtype RemotePackageSet _
 derive newtype instance Eq RemotePackageSet
-derive newtype instance Show RemotePackageSet
 
-instance RegistryJson.RegistryJson RemotePackageSet where
-  encode (RemotePackageSet plan) = RegistryJson.encode plan
-  decode = map RemotePackageSet <<< RegistryJson.decode
+instance Yaml.ToYaml RemotePackageSet where
+  encode (RemotePackageSet plan) = Yaml.encode plan
+  decode = map RemotePackageSet <<< Yaml.decode
 
 type PackageSet = Map PackageName Package
 
@@ -221,13 +263,6 @@ data Package
   | LocalPackage LocalPackage
   | WorkspacePackage WorkspacePackage
 
-instance Show Package where
-  show = case _ of
-    RegistryVersion v -> show v
-    GitPackage p -> show p
-    LocalPackage p -> show p
-    WorkspacePackage p -> show p
-
 type LocalPackage = { path :: FilePath }
 
 type GitPackage =
@@ -235,6 +270,14 @@ type GitPackage =
   , ref :: String
   , subdir :: Maybe FilePath -- TODO: document that this is possible
   , dependencies :: Maybe Dependencies -- TODO document that this is possible
+  }
+
+gitPackageCodec :: JsonCodec GitPackage
+gitPackageCodec = CA.Record.object "GitPackage"
+  { git: CA.string
+  , ref: CA.string
+  , subdir: CA.Record.optional CA.string
+  , dependencies: CA.Record.optional dependenciesCodec
   }
 
 newtype Dependencies = Dependencies (Map PackageName (Maybe Range))
@@ -248,7 +291,7 @@ instance Semigroup Dependencies where
         Nothing, Nothing -> Nothing
         Just r, Nothing -> Just r
         Nothing, Just r -> Just r
-        Just r1, Just r2 -> Version.intersect r1 r2
+        Just r1, Just r2 -> Range.intersect r1 r2
     )
     d1
     d2
@@ -256,8 +299,8 @@ instance Semigroup Dependencies where
 instance Monoid Dependencies where
   mempty = Dependencies (Map.empty)
 
-instance Show Dependencies where
-  show (Dependencies ds) = show ds
+dependenciesCodec :: JsonCodec Dependencies
+dependenciesCodec = CA.prismaticCodec "Dependencies" (hush <<< Yaml.decode) (Yaml.encode) CA.json
 
 instance ToYaml Dependencies where
   encode (Dependencies deps) = Core.fromArray
@@ -265,7 +308,7 @@ instance ToYaml Dependencies where
     $ Map.mapMaybeWithKey
         ( \name maybeRange -> Just $ case maybeRange of
             Nothing -> Core.fromString (PackageName.print name)
-            Just range -> Core.jsonSingletonObject (PackageName.print name) (Core.fromString (Registry.Version.printRange range))
+            Just range -> Core.jsonSingletonObject (PackageName.print name) (Core.fromString (Range.print range))
         )
         deps
   decode =
@@ -277,13 +320,13 @@ instance ToYaml Dependencies where
         case maybeTuple of
           Nothing -> Left "Expected Object here"
           Just (Tuple rawPkg rawRange) -> do
-            pkgName <- lmap Parsing.parseErrorMessage $ PackageName.parse rawPkg
-            range <- lmap Parsing.parseErrorMessage $ Registry.Version.parseRange Registry.Version.Lenient rawRange
+            pkgName <- PackageName.parse rawPkg
+            range <- Range.parse rawRange
             Right (Tuple pkgName (Just range))
 
       decodePkg :: String -> Either String (Tuple PackageName (Maybe Range))
       decodePkg str = case PackageName.parse str of
-        Left e -> Left (Parsing.parseErrorMessage e)
+        Left e -> Left e
         Right p -> Right (Tuple p Nothing)
     in
       Core.caseJsonArray (Left "Expected Array of Dependencies")
@@ -295,17 +338,13 @@ instance ToYaml Dependencies where
             )
         )
 
-instance RegistryJson.RegistryJson Dependencies where
-  encode = Yaml.encode
-  decode = Yaml.decode
-
 data SetAddress
   = SetFromRegistry { registry :: Version }
   | SetFromUrl { url :: String, hash :: Maybe Sha256 }
 
 instance Show SetAddress where
-  show (SetFromRegistry s) = show s
-  show (SetFromUrl s) = show s
+  show (SetFromRegistry { registry }) = show { registry: Version.print registry }
+  show (SetFromUrl { hash, url }) = show { hash: map Sha256.print hash, url }
 
 instance ToYaml SetAddress where
   encode (SetFromRegistry r) = Yaml.encode r
@@ -435,13 +474,13 @@ readWorkspace maybeSelectedPackage = do
       Nothing -> die "No valid packages found in the current project, halting."
       -- If there's only one package and it's not in the root we still select that
       Just { head: (Tuple packageName package), tail: [] } -> do
-        logDebug $ "Selecting package " <> show packageName <> " from " <> package.path
+        logDebug $ "Selecting package " <> PackageName.print packageName <> " from " <> package.path
         pure (Just package)
       -- If no package has been selected and we have many packages, then we build all of them but select none
       _ -> pure Nothing
     Just name -> case Map.lookup name workspacePackages of
       Nothing -> die
-        [ toDoc $ "Selected package " <> show name <> " was not found in the local packages."
+        [ toDoc $ "Selected package " <> PackageName.print name <> " was not found in the local packages."
         , toDoc "Available packages:"
         , indent (toDoc (Array.fromFoldable $ Map.keys workspacePackages))
         ]
@@ -453,8 +492,8 @@ readWorkspace maybeSelectedPackage = do
       die $ "Registry solver is not supported yet - please specify a package set"
     Just (SetFromRegistry { registry: v }) -> do
       logDebug "Reading the package set from the Registry repo..."
-      let packageSetPath = Path.concat [ Paths.registryPath, "package-sets", Version.printVersion v <> ".json" ]
-      liftAff (RegistryJson.readJsonFile packageSetPath) >>= case _ of
+      let packageSetPath = Path.concat [ Paths.registryPath, "package-sets", Version.print v <> ".json" ]
+      liftAff (FS.readJsonFile remotePackageSetCodec packageSetPath) >>= case _ of
         Left err -> die $ "Couldn't read the package set: " <> err
         Right (RemotePackageSet registryPackageSet) -> do
           logInfo "Read the package set from the registry"
@@ -477,18 +516,18 @@ readWorkspace maybeSelectedPackage = do
               die $ "Couldn't fetch package set, status was not ok " <> show status <> ", got answer:\n  " <> body
             Right r@{ body } -> do
               logDebug $ "Fetching package set - got status: " <> show r.status
-              case RegistryJson.parseJson body of
+              case parseJson remotePackageSetCodec body of
                 Right (RemotePackageSet set) -> do
                   logDebug "Read a new-format package set from URL"
                   pure { compiler: set.compiler, remotePackageSet: set.packages }
                 Left err -> do
                   logDebug [ "Couldn't parse remote package set in modern format, error:", "  " <> show err, "Trying with the legacy format..." ]
-                  case RegistryJson.parseJson body of
+                  case parseJson legacyPackageSetCodec body of
                     Left err' -> die $ "Couldn't parse remote package set, error: " <> show err'
-                    Right (Registry.PackageSet.LegacyPackageSet set) -> do
+                    Right (LegacyPackageSet set) -> do
                       logDebug "Read legacy package set from URL"
                       version <- case Map.lookup (unsafeFromRight (PackageName.parse "metadata")) set of
-                        Just { version } -> pure (unsafeFromRight (Version.parseVersion Version.Lenient (unwrap version)))
+                        Just { version } -> pure (unsafeFromRight (Version.parse version))
                         Nothing -> die $ "Couldn't find 'metadata' package in legacy package set."
                       pure { compiler: version, remotePackageSet: map RemoteLegacyPackage set }
       result <- case maybeHash of
@@ -501,18 +540,15 @@ readWorkspace maybeSelectedPackage = do
           logWarn $ "Did not find a hash for your package set import, adding it to your config..."
           fetchPackageSet
       newHash <- writePackageSetToHash result
-      logDebug $ "Package set hash: " <> show newHash
+      logDebug $ "Package set hash: " <> Sha256.print newHash
       liftEffect $ updatePackageSetHashInConfig workspaceDoc newHash
       liftAff $ Yaml.writeYamlDocFile "spago.yaml" workspaceDoc
       pure result
 
   -- TODO: add a function to make a range from a version and its highest bump
   let
-    compatibleCompiler = unsafeFromRight $ Version.parseRange Version.Lenient
-      $ ">= "
-      <> Version.printVersion packageSetCompiler
-      <> " <"
-      <> Version.printVersion (Version.bumpHighest packageSetCompiler)
+    rawRange = ">=" <> Version.print packageSetCompiler <> " <" <> Version.print (Version.bumpHighest packageSetCompiler)
+    compatibleCompiler = unsafeFromRight $ Range.parse rawRange
 
   -- Mix in the package set (a) the workspace packages, and (b) the extra_packages
   -- Note: if there are duplicate packages we pick the "most local ones first",
@@ -533,7 +569,7 @@ readWorkspace maybeSelectedPackage = do
 
   case maybeSelected of
     Just selected -> do
-      logSuccess $ "Selecting package to build: " <> show selected.package.name
+      logSuccess $ "Selecting package to build: " <> PackageName.print selected.package.name
       logDebug $ "Package path: " <> selected.path
     Nothing -> do
       logSuccess
@@ -552,7 +588,7 @@ readWorkspace maybeSelectedPackage = do
 
 getPackageLocation :: PackageName -> Package -> FilePath
 getPackageLocation name = case _ of
-  RegistryVersion v -> Path.concat [ Paths.localCachePackagesPath, PackageName.print name <> "-" <> Version.printVersion v ]
+  RegistryVersion v -> Path.concat [ Paths.localCachePackagesPath, PackageName.print name <> "-" <> Version.print v ]
   GitPackage p -> Path.concat [ Paths.localCachePackagesPath, PackageName.print name, p.ref ]
   LocalPackage p -> p.path
   WorkspacePackage { path } -> path
@@ -583,21 +619,27 @@ getWorkspacePackages = Array.mapMaybe extractWorkspacePackage <<< Map.toUnfoldab
 
 type PackageSetResult = { compiler :: Version, remotePackageSet :: Map PackageName RemotePackage }
 
+packageSetResultCodec :: JsonCodec PackageSetResult
+packageSetResultCodec = CA.Record.object "PackageSetResult"
+  { compiler: Version.codec
+  , remotePackageSet: Internal.Codec.packageMap remotePackageCodec
+  }
+
 readPackageSetFromHash :: forall a. Sha256 -> Spago (LogEnv a) (Either String PackageSetResult)
 readPackageSetFromHash hash = do
   hex <- liftEffect (shaToHex hash)
   let path = packageSetCachePath hex
   logDebug $ "Reading cached package set entry from " <> path
   FS.exists path >>= case _ of
-    false -> pure $ Left $ "Did not find a package set cached with hash " <> show hash
-    true -> (liftAff $ RegistryJson.readJsonFile path) >>= case _ of
-      Left err -> pure $ Left $ "Error while reading cached package set " <> show hash <> ": " <> err
+    false -> pure $ Left $ "Did not find a package set cached with hash " <> Sha256.print hash
+    true -> (liftAff $ FS.readJsonFile packageSetResultCodec path) >>= case _ of
+      Left err -> pure $ Left $ "Error while reading cached package set " <> Sha256.print hash <> ": " <> err
       Right res -> pure $ Right res
 
 writePackageSetToHash :: forall a. PackageSetResult -> Spago (LogEnv a) Sha256
 writePackageSetToHash result = do
-  let serialised = RegistryJson.printJson result
-  hash <- liftEffect $ Registry.Hash.sha256String serialised
+  let serialised = printJson packageSetResultCodec result
+  hash <- liftEffect $ Sha256.hashString serialised
   hex <- liftEffect (shaToHex hash)
   FS.mkdirp packageSetsCachePath
   FS.writeTextFile (packageSetCachePath hex) serialised
@@ -612,7 +654,7 @@ packageSetCachePath (HexString hash) = Path.concat [ packageSetsCachePath, hash 
 foreign import updatePackageSetHashInConfigImpl :: EffectFn2 (YamlDoc Config) String Unit
 
 updatePackageSetHashInConfig :: YamlDoc Config -> Sha256 -> Effect Unit
-updatePackageSetHashInConfig doc sha = runEffectFn2 updatePackageSetHashInConfigImpl doc (show sha)
+updatePackageSetHashInConfig doc sha = runEffectFn2 updatePackageSetHashInConfigImpl doc (Sha256.print sha)
 
 foreign import addPackagesToConfigImpl :: EffectFn2 (YamlDoc Config) (Array String) Unit
 
@@ -629,7 +671,7 @@ toManifest config = do
   let
     checkRange :: Tuple PackageName (Maybe Range) -> Either String (Tuple PackageName Range)
     checkRange (Tuple packageName maybeRange) = case maybeRange of
-      Nothing -> Left $ "Could not get dependency range for package " <> show packageName
+      Nothing -> Left $ "Could not get dependency range for package " <> PackageName.print packageName
       Just r -> Right (Tuple packageName r)
   dependencies <- map Map.fromFoldable $ traverse checkRange (Map.toUnfoldable deps :: Array (Tuple PackageName (Maybe Range)))
   pure $ Manifest
@@ -647,7 +689,7 @@ findPackageSet :: forall a. Maybe Version -> Spago (PursEnv a) Version
 findPackageSet maybeSet = do
   -- first we read in the list of sets
   let
-    parseSetVersion str = Version.parseVersion Version.Lenient case String.stripSuffix (Pattern ".json") str of
+    parseSetVersion str = Version.parse case String.stripSuffix (Pattern ".json") str of
       Nothing -> str
       Just v -> v
     packageSetsPath = Path.concat [ Paths.registryPath, "package-sets" ]
@@ -660,8 +702,8 @@ findPackageSet maybeSet = do
     -- if our input param is in the list of sets just return that
     Just desiredSet -> case Array.find (_ == desiredSet) setVersions of
       Just _ -> pure desiredSet
-      Nothing -> die $ [ toDoc $ "Could not find desired set " <> show desiredSet <> " in the list of available set versions:" ]
-        <> map (indent <<< toDoc <<< show) setVersions
+      Nothing -> die $ [ toDoc $ "Could not find desired set " <> Version.print desiredSet <> " in the list of available set versions:" ]
+        <> map (indent <<< toDoc <<< Version.print) setVersions
     -- no set in input: read the compiler version, look through the latest set by major version until we match the compiler version
     Nothing -> do
       -- build an index from compiler version to latest set, only looking at major versions
@@ -669,11 +711,11 @@ findPackageSet maybeSet = do
       let
         readPackageSet setVersion = do
           logDebug "Reading the package set from the Registry repo..."
-          let packageSetPath = Path.concat [ packageSetsPath, Version.printVersion setVersion <> ".json" ]
-          liftAff (RegistryJson.readJsonFile packageSetPath) >>= case _ of
+          let packageSetPath = Path.concat [ packageSetsPath, Version.print setVersion <> ".json" ]
+          liftAff (FS.readJsonFile remotePackageSetCodec packageSetPath) >>= case _ of
             Left err -> die $ "Couldn't read the package set: " <> err
             Right (RemotePackageSet registryPackageSet) -> do
-              logDebug $ "Read the package set " <> show setVersion <> " from the registry"
+              logDebug $ "Read the package set " <> Version.print setVersion <> " from the registry"
               pure registryPackageSet
         accVersions index newSetVersion = do
           -- first thing we check if we already have the latest set for this major version
@@ -683,17 +725,17 @@ findPackageSet maybeSet = do
             -- If it's not, we just return the current index and move on
             Just (Tuple currentCompiler currentVersion) ->
               if newSetVersion > currentVersion then do
-                logDebug $ "Updating to set " <> show newSetVersion <> " for compiler " <> show currentCompiler
+                logDebug $ "Updating to set " <> Version.print newSetVersion <> " for compiler " <> Version.print currentCompiler
                 pure (Map.insert currentCompiler newSetVersion index)
               else pure index
             -- Didn't find a version with the same major, so we could be supporting a different compiler here.
             -- Read the set, check what we have for the compiler it supports
             Nothing -> do
               packageSet <- readPackageSet newSetVersion
-              logDebug $ "Inserting set " <> show newSetVersion <> " for compiler " <> show packageSet.compiler
+              logDebug $ "Inserting set " <> Version.print newSetVersion <> " for compiler " <> Version.print packageSet.compiler
               pure $ Map.insert packageSet.compiler newSetVersion index
       index :: Map Version Version <- Array.foldM accVersions Map.empty setVersions
-      logDebug $ [ "Package set index", show index ]
+      logDebug $ [ "Package set index", printJson (Internal.Codec.versionMap Version.codec) index ]
 
       -- now check if the compiler version is in the index
       { purs } <- ask
@@ -701,5 +743,5 @@ findPackageSet maybeSet = do
         Just v -> pure v
         -- TODO: well we could approximate with any minor version really? See old Spago:
         -- https://github.com/purescript/spago/blob/01eecf041851ca0fbced1d4f7147fcbdd8bf168d/src/Spago/PackageSet.hs#L66
-        Nothing -> die $ [ toDoc $ "No set is compatible with your compiler version " <> show purs.version, toDoc "Compatible versions:" ]
-          <> map (indent <<< toDoc <<< show) (Array.fromFoldable $ Map.keys index)
+        Nothing -> die $ [ toDoc $ "No set is compatible with your compiler version " <> Version.print purs.version, toDoc "Compatible versions:" ]
+          <> map (indent <<< toDoc <<< Version.print) (Array.fromFoldable $ Map.keys index)

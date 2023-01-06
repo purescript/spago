@@ -9,6 +9,7 @@ import Data.Map as Map
 import Registry.PackageName (PackageName)
 import Registry.PackageName as PackageName
 import Registry.Version (Version)
+import Registry.Version as Version
 import Spago.Config (Dependencies(..), SetAddress(..), Config)
 import Spago.Config as Config
 import Spago.FS as FS
@@ -31,7 +32,7 @@ run opts = do
   packageSetVersion <- Config.findPackageSet opts.setVersion
 
   { purs } <- ask
-  logInfo $ "Initialising a new project with PureScript " <> show purs.version <> " and package set " <> show packageSetVersion
+  logInfo $ "Initialising a new project with PureScript " <> Version.print purs.version <> " and package set " <> Version.print packageSetVersion
 
   -- Write config
   let config = defaultConfig opts.packageName packageSetVersion

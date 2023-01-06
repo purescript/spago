@@ -7,12 +7,12 @@ import Data.Map as Map
 import Data.String (Pattern(..))
 import Data.String as String
 import Node.Path as Path
-import Registry.Json as Json
+import Registry.Metadata as Metadata
 import Registry.PackageName (PackageName)
 import Registry.PackageName as PackageName
-import Registry.Schema (Manifest, Metadata)
 import Registry.Version (Version)
 import Registry.Version as Version
+import Registry.Types (Manifest, Metadata(..))
 import Spago.FS as FS
 import Spago.Git as Git
 import Spago.Paths as Paths
@@ -50,7 +50,7 @@ info args = do
 
   maybeVersion <- case args.maybeVersion of
     Nothing -> pure Nothing
-    Just v -> case Version.parseVersion Version.Lenient v of
+    Just v -> case Version.parse v of
       Left err -> die [ toDoc "Could not parse version, error:", indent (toDoc $ show err) ]
       Right version -> pure $ Just version
 
@@ -58,13 +58,12 @@ info args = do
   runSpago { logOptions } (getMetadata packageName) >>= case _ of
     Left err -> do
       logDebug err
-      die $ "Could not find package " <> show packageName
-    Right metadata -> case maybeVersion of
+      die $ "Could not find package " <> PackageName.print packageName
+    Right (Metadata metadata) -> case maybeVersion of
       Nothing -> do
-        logInfo $ "Use `spago registry info " <> show packageName <> " $version` to get more details on a version."
+        logInfo $ "Use `spago registry info " <> PackageName.print packageName <> " $version` to get more details on a version."
         logInfo "Found the following versions:\n"
-        void $ for (Array.fromFoldable $ Map.keys $ metadata.published) (output <<< Version.printVersion)
+        void $ for (Array.fromFoldable $ Map.keys $ metadata.published) (output <<< Version.print)
       Just version -> case Map.lookup version metadata.published of
-        Nothing -> die $ "Version " <> show version <> " does not exist for package " <> show packageName
-        Just pubInfo -> output $ Json.printJson pubInfo
-
+        Nothing -> die $ "Version " <> Version.print version <> " does not exist for package " <> PackageName.print packageName
+        Just pubInfo -> output $ printJson Metadata.publishedMetadataCodec pubInfo
