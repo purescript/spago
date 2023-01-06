@@ -1,6 +1,6 @@
 {
   "name": "spago",
-  "version": "0.92.2",
+  "version": "0.92.3",
   "license": "BSD-3-Clause",
   "description": "🍝 PureScript package manager and build tool",
   "keywords": [
