@@ -68,6 +68,13 @@ type BuildArgs =
   , output :: Maybe String
   }
 
+-- TODO: more repl arguments: dependencies, repl-package
+type ReplArgs =
+  { selectedPackage :: Maybe String
+  , pursArgs :: List String
+  , backendArgs :: List String
+  }
+
 type RunArgs =
   { selectedPackage :: Maybe String
   , output :: Maybe String
@@ -118,6 +125,7 @@ data Command
   | Install InstallArgs
   | Build BuildArgs
   | Bundle BundleArgs
+  | Repl ReplArgs
   | Run RunArgs
   | Test TestArgs
   | Sources SourcesArgs
@@ -159,6 +167,10 @@ argParser =
         "List all the source paths (globs) for the dependencies of the project"
         do
           (SpagoCmd <$> globalArgsParser <*> (Sources <$> sourcesArgsParser) <* ArgParser.flagHelp)
+    , ArgParser.command [ "repl" ]
+        "Start a REPL"
+        do
+          (SpagoCmd <$> globalArgsParser <*> (Repl <$> replArgsParser) <* ArgParser.flagHelp)
     , ArgParser.command [ "registry" ]
         "Commands to interact with the Registry"
         do
@@ -227,6 +239,13 @@ buildArgsParser = ArgParser.fromRecord
   , pursArgs: Flags.pursArgs
   , backendArgs: Flags.backendArgs
   , output: Flags.output
+  }
+
+replArgsParser :: ArgParser ReplArgs
+replArgsParser = ArgParser.fromRecord
+  { selectedPackage: Flags.selectedPackage
+  , pursArgs: Flags.pursArgs
+  , backendArgs: Flags.backendArgs
   }
 
 runArgsParser :: ArgParser RunArgs
@@ -330,6 +349,9 @@ main =
             buildEnv <- runSpago env (mkBuildEnv args dependencies)
             let options = { depsOnly: false, pursArgs: List.toUnfoldable args.pursArgs }
             runSpago buildEnv (Build.run options)
+          Repl args -> do
+            -- TODO implement
+            pure unit
           Bundle args@{ selectedPackage, pursArgs, backendArgs, output } -> do
             { env, packageNames } <- mkFetchEnv { packages: mempty, selectedPackage }
             -- TODO: --no-fetch flag
