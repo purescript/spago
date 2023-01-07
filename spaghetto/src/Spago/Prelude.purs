@@ -16,6 +16,7 @@ module Spago.Prelude
   , stringifyJson
   , stringifyYaml
   , throwError
+  , unsafeFromJust
   , unsafeFromRight
   , unsafeLog
   , unsafeStringify
@@ -48,6 +49,7 @@ import Data.Identity (Identity(..)) as Extra
 import Data.List (List, (:)) as Extra
 import Data.Map (Map) as Extra
 import Data.Maybe (Maybe(..), isJust, isNothing, fromMaybe, maybe) as Extra
+import Data.Maybe as Maybe
 import Data.Newtype (class Newtype, unwrap) as Extra
 import Data.Set (Set) as Extra
 import Data.Show.Generic (genericShow) as Extra
@@ -100,6 +102,9 @@ throwError = Aff.throwError <<< Aff.error
 
 unsafeFromRight :: forall e a. Extra.Either e a -> a
 unsafeFromRight v = Either.fromRight' (\_ -> unsafeCrashWith $ "Unexpected Left: " <> unsafeStringify v) v
+
+unsafeFromJust :: forall a. Extra.Maybe a -> a
+unsafeFromJust = Maybe.fromMaybe' (\_ -> unsafeCrashWith $ "Unexpected Nothing")
 
 parseUrl :: String -> Extra.Either String URL
 parseUrl = runFn3 parseUrlImpl Extra.Left (Extra.Right <<< unsafeCoerce)

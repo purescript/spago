@@ -38,7 +38,6 @@ import Spago.Prelude
 import Affjax.Node as Http
 import Affjax.ResponseFormat as Response
 import Affjax.StatusCode (StatusCode(..))
-import Data.Argonaut.Core as Core
 import Data.Array as Array
 import Data.Codec.Argonaut as CA
 import Data.Codec.Argonaut as Codec
@@ -47,6 +46,7 @@ import Data.Codec.Argonaut.Sum as CA.Sum
 import Data.Either as Either
 import Data.Foldable as Foldable
 import Data.HTTP.Method as Method
+import Data.List as List
 import Data.Map as Map
 import Data.Profunctor as Profunctor
 import Data.Set as Set
@@ -68,7 +68,6 @@ import Spago.FastGlob as Glob
 import Spago.Git as Git
 import Spago.Paths as Paths
 import Spago.Purs (PursEnv)
-import Unsafe.Coerce (unsafeCoerce)
 
 type Config =
   { package :: Maybe PackageConfig
@@ -318,49 +317,36 @@ instance Monoid Dependencies where
   mempty = Dependencies (Map.empty)
 
 dependenciesCodec :: JsonCodec Dependencies
-dependenciesCodec = CA.prismaticCodec "Dependencies" decode encode CA.json
+dependenciesCodec = Profunctor.dimap to from $ CA.array dependencyCodec
   where
   packageSingletonCodec = Internal.Codec.packageMap Range.codec
 
-  encode (Dependencies deps) = Core.fromArray
-    $ Array.fromFoldable
-    $ Map.mapMaybeWithKey
-        ( \name maybeRange -> Just $ case maybeRange of
-            Nothing -> CA.encode PackageName.codec name
-            Just range -> CA.encode packageSingletonCodec (Map.singleton name range)
-        )
-        deps
-
-  decode = unsafeCoerce 1
-
-{-
-  let
-    decodePkgWithRange :: Object Core.Json -> Either String (Tuple PackageName (Maybe Range))
-    decodePkgWithRange obj = do
-      o <- traverse Yaml.decode obj
-      let maybeTuple = Object.toAscUnfoldable o
-      case maybeTuple of
-        Nothing -> Left "Expected Object here"
-        Just (Tuple rawPkg rawRange) -> do
-          pkgName <- PackageName.parse rawPkg
-          range <- Range.parse rawRange
-          Right (Tuple pkgName (Just range))
-
-    decodePkg :: String -> Either String (Tuple PackageName (Maybe Range))
-    decodePkg str = case PackageName.parse str of
-      Left e -> Left e
-      Right p -> Right (Tuple p Nothing)
-  in
-    
-    Core.caseJsonArray (Left "Expected Array of Dependencies")
-      ( \arrayOfJson -> map
-          (Dependencies <<< Map.fromFoldable)
-          ( for arrayOfJson \el ->
-              (Core.caseJsonString (Left "Expected String Dependency") decodePkg el)
-                <|> (Core.caseJsonObject (Left "Expected Object Dependency") decodePkgWithRange el)
-          )
+  to :: Dependencies -> Array (Either PackageName (Map PackageName Range))
+  to (Dependencies deps) =
+    map
+      ( \(Tuple name maybeRange) -> case maybeRange of
+          Nothing -> Left name
+          Just r -> Right (Map.singleton name r)
       )
--}
+      $ Map.toUnfoldable deps :: Array _
+
+  from :: Array (Either PackageName (Map PackageName Range)) -> Dependencies
+  from = Dependencies <<< Map.fromFoldable <<< map
+    ( case _ of
+        Left name -> Tuple name Nothing
+        Right m -> rmap Just $ unsafeFromJust (List.head (Map.toUnfoldable m))
+    )
+
+  dependencyCodec :: JsonCodec (Either PackageName (Map PackageName Range))
+  dependencyCodec = CA.codec' decode encode
+    where
+    encode = case _ of
+      Left name -> CA.encode PackageName.codec name
+      Right singletonMap -> CA.encode packageSingletonCodec singletonMap
+
+    decode json =
+      map Left (CA.decode PackageName.codec json)
+        <|> map Right (CA.decode packageSingletonCodec json)
 
 data SetAddress
   = SetFromRegistry { registry :: Version }

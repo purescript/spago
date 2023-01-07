@@ -38,7 +38,7 @@ writeBuildInfo = do
   { workspace, purs } <- ask
   let
     buildInfo =
-      { pursVersion: Version.printVersion purs.version
+      { pursVersion: Version.print purs.version
       , packages: map mkPackageBuildInfo case workspace.selected of
           Just p -> [ p ]
           Nothing -> Config.getWorkspacePackages workspace.packageSet
