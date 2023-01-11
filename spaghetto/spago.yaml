@@ -51,8 +51,6 @@ package:
     - unsafe-coerce
   license: BSD-3-Clause
 workspace:
-  # output: src/purs-output
-  # backend: ./backend-test.sh
   set:
     # url: https://raw.githubusercontent.com/purescript/package-sets/psc-0.15.4-20220901/packages.json
     # url: https://raw.githubusercontent.com/purescript/registry/main/package-sets/0.0.2.json
@@ -61,6 +59,6 @@ workspace:
     dodo-printer: 2.2.1
     registry-dev:
       git: https://github.com/purescript/registry-dev.git
-      ref: bf76d1baa87e1035deabd9188c42fe2e1ef81590
+      ref: 690b6b21e30c16c0b396ad58856830b123de5e00
       subdir: lib
       # path: "../../registry-dev/lib"
