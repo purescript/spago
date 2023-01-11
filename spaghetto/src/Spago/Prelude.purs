@@ -71,7 +71,7 @@ import Node.Path (FilePath) as Extra
 import Partial.Unsafe (unsafeCrashWith)
 import Registry.Sha256 (Sha256)
 import Registry.Sha256 as Registry.Sha256
-import Registry.Types (PackageName, Version, Range, Location, License, Manifest(..), Metadata(..)) as Extra
+import Registry.Types (PackageName, Version, Range, Location, License, Manifest(..), Metadata(..), Sha256) as Extra
 import Spago.Log (logDebug, logError, logInfo, logSuccess, logWarn, die, LogOptions, LogEnv, toDoc, indent, indent2, output) as Extra
 import Spago.Yaml (YamlDoc) as Extra
 import Spago.Yaml as Yaml

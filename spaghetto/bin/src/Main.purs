@@ -18,7 +18,6 @@ import Registry.Constants as Registry.Constants
 import Registry.ManifestIndex as ManifestIndex
 import Registry.Metadata as Metadata
 import Registry.PackageName as PackageName
-import Registry.Types (PackageName, Version, Manifest(..), Metadata)
 import Registry.Version as Version
 import Spago.Bin.Flags as Flags
 import Spago.BuildInfo as BuildInfo

@@ -61,10 +61,9 @@ import Registry.Location as Location
 import Registry.PackageName as PackageName
 import Registry.Range as Range
 import Registry.Sha256 as Sha256
-import Registry.Types (Range, Version, PackageName, Sha256, License, Location, Manifest(..))
 import Registry.Version as Version
 import Spago.FS as FS
-import Spago.FastGlob as Glob
+import Registry.Foreign.FastGlob as Glob
 import Spago.Git as Git
 import Spago.Paths as Paths
 import Spago.Purs (PursEnv)

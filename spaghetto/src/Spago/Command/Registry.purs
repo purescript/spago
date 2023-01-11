@@ -8,11 +8,8 @@ import Data.String (Pattern(..))
 import Data.String as String
 import Node.Path as Path
 import Registry.Metadata as Metadata
-import Registry.PackageName (PackageName)
 import Registry.PackageName as PackageName
-import Registry.Version (Version)
 import Registry.Version as Version
-import Registry.Types (Manifest, Metadata(..))
 import Spago.FS as FS
 import Spago.Git as Git
 import Spago.Paths as Paths

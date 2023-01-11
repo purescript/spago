@@ -44,7 +44,8 @@ package:
     - prelude
     - record
     - refs
-    - registry-dev
+    - registry-lib
+    - registry-foreign
     - strings
     - transformers
     - tuples
@@ -57,8 +58,12 @@ workspace:
     registry: 2.2.0
   extra_packages:
     dodo-printer: 2.2.1
-    registry-dev:
+    registry-lib:
       git: https://github.com/purescript/registry-dev.git
       ref: 690b6b21e30c16c0b396ad58856830b123de5e00
       subdir: lib
       # path: "../../registry-dev/lib"
+    registry-foreign:
+      git: https://github.com/purescript/registry-dev.git
+      ref: 690b6b21e30c16c0b396ad58856830b123de5e00
+      subdir: foreign

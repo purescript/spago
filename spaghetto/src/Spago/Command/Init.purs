@@ -6,9 +6,7 @@ module Spago.Command.Init
 import Spago.Prelude
 
 import Data.Map as Map
-import Registry.PackageName (PackageName)
 import Registry.PackageName as PackageName
-import Registry.Version (Version)
 import Registry.Version as Version
 import Spago.Config (Dependencies(..), SetAddress(..), Config)
 import Spago.Config as Config

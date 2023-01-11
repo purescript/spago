@@ -13,7 +13,6 @@ import Data.String (Pattern(..), Replacement(..))
 import Data.String as String
 import Node.FS.Perms as Perms
 import Node.Path as Path
-import Registry.Version (Version)
 import Registry.Version as Version
 import Spago.Cmd as Cmd
 import Spago.Config (Workspace, WorkspacePackage)

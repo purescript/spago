@@ -28,7 +28,6 @@ import Registry.Metadata as Metadata
 import Registry.PackageName as PackageName
 import Registry.Range as Range
 import Registry.Sha256 as Sha256
-import Registry.Types (Range, Version, PackageName, Manifest, Metadata(..))
 import Registry.Version as Registry.Version
 import Registry.Version as Version
 import Spago.Config (Dependencies(..), GitPackage, Package(..), PackageSet, Workspace, WorkspacePackage)

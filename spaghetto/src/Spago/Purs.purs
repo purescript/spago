@@ -5,7 +5,6 @@ import Spago.Prelude
 import Data.Array as Array
 import Data.Set as Set
 import Data.String as String
-import Registry.Version (Version)
 import Registry.Version as Version
 import Spago.Cmd as Cmd
 
