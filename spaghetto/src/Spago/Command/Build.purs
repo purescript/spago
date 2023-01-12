@@ -9,7 +9,6 @@ import Data.Array as Array
 import Data.Map as Map
 import Data.Set as Set
 import Data.Tuple as Tuple
-import Registry.PackageName (PackageName)
 import Spago.BuildInfo as BuildInfo
 import Spago.Cmd as Cmd
 import Spago.Config (Package(..), Workspace, WorkspacePackage)

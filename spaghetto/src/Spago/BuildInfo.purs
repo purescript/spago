@@ -38,7 +38,7 @@ writeBuildInfo = do
   { workspace, purs } <- ask
   let
     buildInfo =
-      { pursVersion: Version.printVersion purs.version
+      { pursVersion: Version.print purs.version
       , packages: map mkPackageBuildInfo case workspace.selected of
           Just p -> [ p ]
           Nothing -> Config.getWorkspacePackages workspace.packageSet
@@ -79,5 +79,5 @@ currentSpagoVersion = fromMaybe "0.0.0" $ map _.version $ Array.head BuildInfo.b
 mkPackageBuildInfo :: WorkspacePackage -> { name :: String, version :: String }
 mkPackageBuildInfo { package } =
   { name: PackageName.print package.name
-  , version: fromMaybe "0.0.0" $ map Version.printVersion (package.publish >>= _.version)
+  , version: fromMaybe "0.0.0" $ map Version.print (package.publish >>= _.version)
   }

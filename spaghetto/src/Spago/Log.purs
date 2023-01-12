@@ -8,6 +8,7 @@ module Spago.Log
   , logError
   , logInfo
   , logSuccess
+  , logFailure
   , logWarn
   , supportsColor
   , toDoc
@@ -84,6 +85,13 @@ logSuccess l = log
   { level: LogInfo
   , content: Ansi.foreground Ansi.Green
       (Log.break <> Ansi.bold (toDoc "✅" <> Log.space <> toDoc l) <> Log.break)
+  }
+
+logFailure :: forall a b m. MonadEffect m => MonadAsk (LogEnv b) m => Loggable a => a -> m Unit
+logFailure l = log
+  { level: LogInfo
+  , content: Ansi.foreground Ansi.Red
+      (Log.break <> Ansi.bold (toDoc "❌" <> Log.space <> toDoc l) <> Log.break)
   }
 
 logDebug :: forall a b m. MonadEffect m => MonadAsk (LogEnv b) m => Loggable a => a -> m Unit

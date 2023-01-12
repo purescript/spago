@@ -3,10 +3,8 @@ module Spago.Purs where
 import Spago.Prelude
 
 import Data.Array as Array
-import Data.Maybe (fromMaybe)
 import Data.Set as Set
 import Data.String as String
-import Registry.Version (Version)
 import Registry.Version as Version
 import Spago.Cmd as Cmd
 
@@ -39,11 +37,11 @@ getPurs =
       logDebug $ show err
       die [ "Failed to find purs. Have you installed it, and is it in your PATH?" ]
     -- Drop the stuff after a space: dev builds look like this: 0.15.6 [development build; commit: 8da7e96005f717f03d6eee3c12b1f1416659a919]
-    Right r -> case Version.parseVersion Version.Lenient (fromMaybe "" (Array.head (String.split (String.Pattern " ") r.stdout))) of
+    Right r -> case Version.parse (fromMaybe "" (Array.head (String.split (String.Pattern " ") r.stdout))) of
       Left _err -> die $ "Failed to parse purs version. Was: " <> r.stdout
       -- Fail if Purs is lower than 0.15.4
       Right v ->
         if Version.minor v >= 15 && Version.patch v >= 4 then
           pure { cmd: "purs", version: v }
         else
-          die [ "Unsupported PureScript version " <> Version.printVersion v, "Please install PureScript v0.15.4 or higher." ]
+          die [ "Unsupported PureScript version " <> Version.print v, "Please install PureScript v0.15.4 or higher." ]

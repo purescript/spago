@@ -5,7 +5,6 @@ import Spago.Prelude
 import Data.Array as Array
 import Data.Map as Map
 import Data.Set as Set
-import Registry.PackageName (PackageName)
 import Spago.Command.Fetch (FetchEnv)
 import Spago.Command.Fetch as Fetch
 import Spago.Config (Package(..), Dependencies(..))

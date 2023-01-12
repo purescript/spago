@@ -6,14 +6,12 @@ module Spago.Command.Init
 import Spago.Prelude
 
 import Data.Map as Map
-import Registry.PackageName (PackageName)
 import Registry.PackageName as PackageName
-import Registry.Version (Version)
+import Registry.Version as Version
 import Spago.Config (Dependencies(..), SetAddress(..), Config)
 import Spago.Config as Config
 import Spago.FS as FS
 import Spago.Purs (PursEnv)
-import Spago.Yaml as Yaml
 
 type InitOptions =
   { setVersion :: Maybe Version
@@ -31,14 +29,14 @@ run opts = do
   packageSetVersion <- Config.findPackageSet opts.setVersion
 
   { purs } <- ask
-  logInfo $ "Initialising a new project with PureScript " <> show purs.version <> " and package set " <> show packageSetVersion
+  logInfo $ "Initialising a new project with PureScript " <> Version.print purs.version <> " and package set " <> Version.print packageSetVersion
 
   -- Write config
   let config = defaultConfig opts.packageName packageSetVersion
   let configPath = "spago.yaml"
   (FS.exists configPath) >>= case _ of
     true -> logInfo $ foundExistingProject configPath
-    false -> liftAff $ Yaml.writeYamlFile configPath config
+    false -> liftAff $ FS.writeYamlFile Config.configCodec configPath config
 
   -- If these directories (or files) exist, we skip copying "sample sources"
   -- Because you might want to just init a project with your own source files,

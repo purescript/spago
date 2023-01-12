@@ -3,6 +3,7 @@ module Spago.Command.Test where
 import Spago.Prelude
 
 import Data.Array.NonEmpty (NonEmptyArray)
+import Registry.PackageName as PackageName
 import Spago.Command.Run (Node)
 import Spago.Command.Run as Run
 import Spago.Config (Workspace, WorkspacePackage)
@@ -30,8 +31,8 @@ run = do
     let
       name = selected.package.name
       runOptions =
-        { successMessage: Just $ "Test succeeded for package \"" <> show name <> "\"."
-        , failureMessage: "Tests failed for package \"" <> show name <> "\"."
+        { successMessage: Just $ "Test succeeded for package \"" <> PackageName.print name <> "\"."
+        , failureMessage: "Tests failed for package \"" <> PackageName.print name <> "\"."
         , executeDir: selected.path
         , sourceDir: Paths.cwd
         , execArgs
@@ -46,5 +47,5 @@ run = do
     --   for_ maybeGraph $ \(ModuleGraph moduleMap) -> when (isNothing $ Map.lookup moduleName moduleMap) $
     --     die [ "Module '" <> (display . unModuleName) moduleName <> "' not found! Are you including it in your build?" ]
 
-    logInfo $ "Running tests for package: " <> show name
+    logInfo $ "Running tests for package: " <> PackageName.print name
     runSpago runEnv Run.run
