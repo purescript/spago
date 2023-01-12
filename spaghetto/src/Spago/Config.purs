@@ -40,7 +40,6 @@ import Affjax.ResponseFormat as Response
 import Affjax.StatusCode (StatusCode(..))
 import Data.Array as Array
 import Data.Codec.Argonaut as CA
-import Data.Codec.Argonaut as Codec
 import Data.Codec.Argonaut.Record as CAR
 import Data.Codec.Argonaut.Sum as CA.Sum
 import Data.Either as Either
@@ -177,7 +176,7 @@ data ExtraPackage
   | ExtraRemotePackage RemotePackage
 
 extraPackageCodec :: JsonCodec ExtraPackage
-extraPackageCodec = Codec.codec' decode encode
+extraPackageCodec = CA.codec' decode encode
   where
   encode (ExtraLocalPackage lp) = CA.encode localPackageCodec lp
   encode (ExtraRemotePackage rp) = CA.encode remotePackageCodec rp
@@ -248,7 +247,7 @@ remotePackageSetCodec = Profunctor.wrapIso RemotePackageSet $ CAR.object "Packag
   }
 
 remotePackageCodec :: JsonCodec RemotePackage
-remotePackageCodec = Codec.codec' decode encode
+remotePackageCodec = CA.codec' decode encode
   where
   encode (RemoteRegistryVersion v) = CA.encode Version.codec v
   encode (RemoteGitPackage p) = CA.encode gitPackageCodec p
@@ -352,7 +351,7 @@ data SetAddress
   | SetFromUrl { url :: String, hash :: Maybe Sha256 }
 
 setAddressCodec :: JsonCodec SetAddress
-setAddressCodec = Codec.codec' decode encode
+setAddressCodec = CA.codec' decode encode
   where
   setFromRegistryCodec = CAR.object "SetFromRegistry" { registry: Version.codec }
   setFromUrlCodec = CAR.object "SetFromUrl" { url: CA.string, hash: CAR.optional Sha256.codec }
