@@ -248,7 +248,7 @@ getTransitiveDeps deps = do
   when (not (Set.isEmpty errors.notInPackageSet)) do
     die $ "The following packages do not exist in your package set:\n" <> foldMap printPackageError errors.notInPackageSet
   when (not (Set.isEmpty errors.notInIndex)) do
-    die $ "The following packages do not exist in the package index:\n" <> foldMap printPackageError errors.notInPackageSet
+    die $ "The following packages do not exist in the package index:\n" <> foldMap printPackageError errors.notInIndex
   pure packages
 
 widestRange :: Range
