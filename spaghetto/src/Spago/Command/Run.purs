@@ -45,7 +45,7 @@ nodeVersion =
     Left err -> do
       logDebug $ show err
       die [ "Failed to find node. Have you installed it, and is it in your PATH?" ]
-    Right r -> case Version.parse r.stdout of
+    Right r -> case Version.parse $ fromMaybe r.stdout (String.stripPrefix (String.Pattern "v") r.stdout) of
       Left _err -> die $ "Failed to parse NodeJS version. Was: " <> r.stdout
       Right v ->
         if Version.major v >= 13 then
