@@ -3,8 +3,12 @@ module Spago.Purs where
 import Spago.Prelude
 
 import Data.Array as Array
+import Data.Codec.Argonaut as CA
+import Data.Codec.Argonaut.Record as CAR
+import Data.Profunctor as Profunctor
 import Data.Set as Set
 import Data.String as String
+import Registry.Internal.Codec as Internal.Codec
 import Registry.Version as Version
 import Spago.Cmd as Cmd
 
@@ -18,17 +22,6 @@ type Purs =
   { cmd :: FilePath
   , version :: Version
   }
-
-compile :: forall a. Set FilePath -> Array String -> Spago (PursEnv a) Unit
-compile globs pursArgs = do
-  { purs } <- ask
-  let args = [ "compile" ] <> pursArgs <> Set.toUnfoldable globs
-  logDebug [ "Running command: purs", "With args: " <> show args ]
-  Cmd.exec purs.cmd args Cmd.defaultExecOptions >>= case _ of
-    Right _r -> logSuccess "Build succeeded."
-    Left err -> do
-      logDebug $ show err
-      die [ "Failed to build." ]
 
 getPurs :: forall a. Spago (LogEnv a) Purs
 getPurs =
@@ -45,3 +38,51 @@ getPurs =
           pure { cmd: "purs", version: v }
         else
           die [ "Unsupported PureScript version " <> Version.print v, "Please install PureScript v0.15.4 or higher." ]
+
+compile :: forall a. Set FilePath -> Array String -> Spago (PursEnv a) Unit
+compile globs pursArgs = do
+  { purs } <- ask
+  let args = [ "compile" ] <> pursArgs <> Set.toUnfoldable globs
+  logDebug [ "Running command: purs", "With args: " <> show args ]
+  Cmd.exec purs.cmd args Cmd.defaultExecOptions >>= case _ of
+    Right _r -> logSuccess "Build succeeded."
+    Left err -> do
+      logDebug $ show err
+      die [ "Failed to build." ]
+
+--------------------------------------------------------------------------------
+-- Graph
+
+type ModuleName = String
+
+newtype ModuleGraph = ModuleGraph (Map ModuleName ModuleGraphNode)
+
+derive instance Newtype ModuleGraph _
+
+moduleGraphCodec :: JsonCodec ModuleGraph
+moduleGraphCodec = Profunctor.wrapIso ModuleGraph (Internal.Codec.strMap "ModuleGraph" Just identity moduleGraphNodeCodec)
+
+type ModuleGraphNode =
+  { path :: String
+  , depends :: Array ModuleName
+  }
+
+moduleGraphNodeCodec :: JsonCodec ModuleGraphNode
+moduleGraphNodeCodec = CAR.object "ModuleGraphNode"
+  { path: CA.string
+  , depends: CA.array CA.string
+  }
+
+graph :: forall a. Set FilePath -> Array String -> Spago (PursEnv a) (Either JsonDecodeError ModuleGraph)
+graph globs pursArgs = do
+  { purs } <- ask
+  let args = [ "graph" ] <> pursArgs <> Set.toUnfoldable globs
+  logDebug [ "Running command: purs", "With args: " <> show args ]
+  let execOpts = Cmd.defaultExecOptions { pipeStdout = false, pipeStderr = false }
+  Cmd.exec purs.cmd args execOpts >>= case _ of
+    Right { stdout } -> do
+      logDebug "Called `purs graph`, decoding.."
+      pure $ parseJson moduleGraphCodec stdout
+    Left err -> do
+      logDebug $ show err
+      die [ "Failed to call `purs graph`, error: " <> err.shortMessage ]

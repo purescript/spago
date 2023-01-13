@@ -55,7 +55,7 @@ import Data.Set (Set) as Extra
 import Data.Show.Generic (genericShow) as Extra
 import Data.Traversable (for, traverse) as Extra
 import Data.TraversableWithIndex (forWithIndex) as Extra
-import Data.Tuple (Tuple(..)) as Extra
+import Data.Tuple (Tuple(..), fst, snd) as Extra
 import Data.Tuple.Nested ((/\)) as Extra
 import Effect (Effect) as Extra
 import Effect.Aff (Aff, Error) as Extra
