@@ -2,28 +2,31 @@ module Spago.Log
   ( LogEnv
   , LogOptions
   , LogVerbosity(..)
+  , OutputFormat(..)
   , class Loggable
   , die
+  , indent2
   , logDebug
   , logError
+  , logFailure
   , logInfo
   , logSuccess
-  , logFailure
   , logWarn
+  , module DodoExport
+  , output
   , supportsColor
   , toDoc
-  , output
-  , module DodoExport
-  , indent2
   ) where
 
 import Prelude
 
 import Control.Monad.Reader (class MonadAsk)
 import Control.Monad.Reader as Reader
+import Data.Codec.Argonaut (JsonCodec)
+import Data.String as String
 import Dodo (Doc)
-import Dodo as Log
 import Dodo (indent) as DodoExport
+import Dodo as Log
 import Dodo.Ansi (GraphicsParam)
 import Dodo.Ansi as Ansi
 import Effect (Effect)
@@ -33,6 +36,7 @@ import Effect.Class.Console as Console
 import Node.Process as Process
 import Registry.PackageName (PackageName)
 import Registry.PackageName as PackageName
+import Spago.Json as Json
 
 type LogEnv a = { logOptions :: LogOptions | a }
 
@@ -111,8 +115,17 @@ die msg = do
   logError msg
   Effect.liftEffect $ Process.exit 1
 
-output :: forall m. MonadEffect m => String -> m Unit
-output = Console.log
+data OutputFormat a
+  = OutputJson (JsonCodec a) a
+  | OutputTable { titles :: Array String, rows :: Array (Array String) }
+  | OutputLines (Array String)
+
+output :: forall a m. MonadEffect m => OutputFormat a -> m Unit
+output format = Console.log case format of
+  OutputJson codec json -> Json.printJson codec json
+  OutputLines lines -> String.joinWith "\n" lines
+  -- https://github.com/natefaubion/purescript-dodo-printer/blob/master/test/snapshots/DodoBox.purs
+  OutputTable { titles, rows } -> "TODO: Unimplemented"
 
 foreign import supportsColor :: Effect Boolean
 

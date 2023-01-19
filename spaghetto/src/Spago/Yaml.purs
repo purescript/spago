@@ -1,13 +1,18 @@
 module Spago.Yaml
-  ( yamlParser
+  ( YamlDoc
+  , parseYaml
+  , parseYamlDoc
+  , printYaml
+  , stringifyYaml
   , toString
-  , stringifyWithIndent
-  , stringify
-  , toJson
-  , YamlDoc
   ) where
 
+import Prelude
+
 import Data.Argonaut.Core as Core
+import Data.Bifunctor (lmap)
+import Data.Codec.Argonaut (JsonCodec, JsonDecodeError)
+import Data.Codec.Argonaut as CA
 import Data.Either (Either(..))
 import Data.Function.Uncurried (Fn1, Fn3, runFn1, runFn3)
 
@@ -41,3 +46,21 @@ foreign import stringify :: Core.Json -> String
 -- | This number is capped at 10 (if it is greater, the value is just 10). Values less than 1 indicate that no space should be used.
 foreign import stringifyWithIndent :: Int -> Core.Json -> String
 
+-- | Print a type as a formatted YAML string
+printYaml :: forall a. JsonCodec a -> a -> String
+printYaml codec = stringifyWithIndent 2 <<< CA.encode codec
+
+-- | Print a type as a YAML string without formatting
+stringifyYaml :: forall a. JsonCodec a -> a -> String
+stringifyYaml codec = stringify <<< CA.encode codec
+
+-- | Parse a type from a string of JSON data.
+parseYaml :: forall a. JsonCodec a -> String -> Either JsonDecodeError a
+parseYaml codec = parseYamlDoc codec >>> map _.yaml
+
+-- | Parse a type from a string of YAML data.
+parseYamlDoc :: forall a. JsonCodec a -> String -> Either JsonDecodeError { doc :: YamlDoc a, yaml :: a }
+parseYamlDoc codec yamlStr = do
+  doc <- lmap (\err -> CA.TypeMismatch ("YAML: " <> err)) (yamlParser yamlStr)
+  yaml <- CA.decode codec (toJson doc)
+  pure { doc, yaml }

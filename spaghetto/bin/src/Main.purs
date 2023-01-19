@@ -33,6 +33,7 @@ import Spago.Config (BundleConfig, BundlePlatform(..), BundleType(..), Package, 
 import Spago.Config as Config
 import Spago.FS as FS
 import Spago.Git as Git
+import Spago.Json as Json
 import Spago.Log (LogVerbosity(..), supportsColor)
 import Spago.Paths as Paths
 import Spago.Purs as Purs
@@ -93,6 +94,7 @@ type TestArgs =
 
 type SourcesArgs =
   { selectedPackage :: Maybe String
+  , json :: Boolean
   }
 
 type RegistrySearchArgs =
@@ -220,6 +222,7 @@ sourcesArgsParser :: ArgParser SourcesArgs
 sourcesArgsParser =
   ArgParser.fromRecord
     { selectedPackage: Flags.selectedPackage
+    , json: Flags.json
     }
 
 installArgsParser :: ArgParser InstallArgs
@@ -310,7 +313,7 @@ main =
         runSpago { logOptions } case command of
           Sources args -> do
             { env } <- mkFetchEnv { packages: mempty, selectedPackage: args.selectedPackage }
-            void $ runSpago env Sources.run
+            void $ runSpago env (Sources.run { json: args.json })
           Init args -> do
             purs <- Purs.getPurs
             -- Figure out the package name from the current dir
@@ -517,7 +520,7 @@ mkTestEnv testArgs = do
           Just { head, tail } -> pure $ map mkSelectedTest $ NonEmptyArray.cons' head tail
           Nothing -> die "No package found to test."
 
-  logDebug $ "Selected packages to test: " <> stringifyJson (CA.Common.nonEmptyArray PackageName.codec) (map _.selected.package.name selectedPackages)
+  logDebug $ "Selected packages to test: " <> Json.stringifyJson (CA.Common.nonEmptyArray PackageName.codec) (map _.selected.package.name selectedPackages)
 
   let newWorkspace = workspace { output = testArgs.output <|> workspace.output }
   let testEnv = { logOptions, workspace: newWorkspace, selectedPackages, node }

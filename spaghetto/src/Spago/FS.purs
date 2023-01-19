@@ -77,4 +77,4 @@ writeYamlDocFile path = FS.Aff.writeTextFile UTF8 path <<< (_ <> "\n") <<< Yaml.
 readYamlDocFile :: forall a. JsonCodec a -> FilePath -> Aff (Either String { doc :: Yaml.YamlDoc a, yaml :: a })
 readYamlDocFile codec path = do
   result <- Aff.attempt $ FS.Aff.readTextFile UTF8 path
-  pure (lmap Aff.message result >>= parseYamlDoc codec >>> lmap CA.printJsonDecodeError)
+  pure (lmap Aff.message result >>= Yaml.parseYamlDoc codec >>> lmap CA.printJsonDecodeError)

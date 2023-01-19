@@ -68,6 +68,13 @@ noColor =
     # ArgParser.boolean
     # ArgParser.default false
 
+json ∷ ArgParser Boolean
+json =
+  ArgParser.flag [ "--json" ]
+    "Format the output as JSON"
+    # ArgParser.boolean
+    # ArgParser.default false
+
 pursArgs ∷ ArgParser (List String)
 pursArgs =
   ArgParser.argument [ "--purs-args" ]

@@ -4,17 +4,10 @@ module Spago.Prelude
   , HexString(..)
   , Spago(..)
   , parallelise
-  , parseJson
   , parseUrl
-  , parseYaml
-  , parseYamlDoc
   , partitionEithers
-  , printJson
-  , printYaml
   , runSpago
   , shaToHex
-  , stringifyJson
-  , stringifyYaml
   , throwError
   , unsafeFromJust
   , unsafeFromRight
@@ -32,12 +25,10 @@ import Control.Monad.Reader (class MonadAsk, ReaderT, runReaderT)
 import Control.Monad.State (StateT) as Extra
 import Control.Parallel as Parallel
 import Data.Argonaut.Core as Argonaut
-import Data.Argonaut.Parser as Argonaut.Parser
 import Data.Array ((..)) as Extra
 import Data.Array as Array
 import Data.Bifunctor (bimap, rmap, lmap) as Extra
 import Data.Codec.Argonaut (JsonCodec, JsonDecodeError) as Extra
-import Data.Codec.Argonaut as CA
 import Data.DateTime.Instant (Instant) as Extra
 import Data.Either (Either(..), isLeft, isRight, either, hush) as Extra
 import Data.Either as Either
@@ -72,9 +63,9 @@ import Partial.Unsafe (unsafeCrashWith)
 import Registry.Sha256 (Sha256)
 import Registry.Sha256 as Registry.Sha256
 import Registry.Types (PackageName, Version, Range, Location, License, Manifest(..), Metadata(..), Sha256) as Extra
-import Spago.Log (logDebug, logError, logInfo, logSuccess, logWarn, die, LogOptions, LogEnv, toDoc, indent, indent2, output) as Extra
-import Spago.Yaml (YamlDoc) as Extra
-import Spago.Yaml as Yaml
+import Spago.Json (printJson, parseJson) as Extra
+import Spago.Log (logDebug, logError, logInfo, logSuccess, logWarn, die, LogOptions, LogEnv, toDoc, indent, indent2, output, OutputFormat(..)) as Extra
+import Spago.Yaml (YamlDoc, printYaml, parseYaml) as Extra
 import Unsafe.Coerce (unsafeCoerce)
 
 newtype Spago env a = Spago (ReaderT env Extra.Aff a)
@@ -135,37 +126,6 @@ partitionEithers :: forall e a. Array (Either.Either e a) -> { fail :: Array e, 
 partitionEithers = Array.foldMap case _ of
   Either.Left err -> { fail: [ err ], success: [] }
   Either.Right res -> { fail: [], success: [ res ] }
-
--- | Print a type as a formatted JSON string
-printJson :: forall a. Extra.JsonCodec a -> a -> String
-printJson codec = Argonaut.stringifyWithIndent 2 <<< CA.encode codec
-
--- | Print a type as a JSON string without formatting
-stringifyJson :: forall a. Extra.JsonCodec a -> a -> String
-stringifyJson codec = Argonaut.stringify <<< CA.encode codec
-
--- | Parse a type from a string of JSON data.
-parseJson :: forall a. Extra.JsonCodec a -> String -> Either.Either Extra.JsonDecodeError a
-parseJson codec = CA.decode codec <=< Extra.lmap (\err -> CA.TypeMismatch ("JSON: " <> err)) <<< Argonaut.Parser.jsonParser
-
--- | Print a type as a formatted YAML string
-printYaml :: forall a. Extra.JsonCodec a -> a -> String
-printYaml codec = Yaml.stringifyWithIndent 2 <<< CA.encode codec
-
--- | Print a type as a YAML string without formatting
-stringifyYaml :: forall a. Extra.JsonCodec a -> a -> String
-stringifyYaml codec = Yaml.stringify <<< CA.encode codec
-
--- | Parse a type from a string of JSON data.
-parseYaml :: forall a. Extra.JsonCodec a -> String -> Either.Either Extra.JsonDecodeError a
-parseYaml codec = parseYamlDoc codec >>> map _.yaml
-
--- | Parse a type from a string of YAML data.
-parseYamlDoc :: forall a. Extra.JsonCodec a -> String -> Extra.Either Extra.JsonDecodeError { doc :: Yaml.YamlDoc a, yaml :: a }
-parseYamlDoc codec yamlStr = do
-  doc <- Extra.lmap (\err -> CA.TypeMismatch ("YAML: " <> err)) (Yaml.yamlParser yamlStr)
-  yaml <- CA.decode codec (Yaml.toJson doc)
-  pure { doc, yaml }
 
 -- | Unsafely stringify a value by coercing it to `Json` and stringifying it.
 unsafeStringify :: forall a. a -> String

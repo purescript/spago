@@ -35,9 +35,8 @@ search searchString = do
   if Array.null matches then
     logError "Did not find any packages matching the search string."
   else do
+    output $ OutputLines matches
     logInfo "Use `spago registry info $package` to get more details on a package."
-    logInfo "Found the following packages:\n"
-    void $ for matches output
 
 info :: forall a. { package :: String, maybeVersion :: Maybe String } -> Spago (RegistryEnv a) Unit
 info args = do
@@ -58,9 +57,9 @@ info args = do
       die $ "Could not find package " <> PackageName.print packageName
     Right (Metadata metadata) -> case maybeVersion of
       Nothing -> do
+        output $ OutputLines $ map Version.print $ Array.fromFoldable $ Map.keys $ metadata.published
         logInfo $ "Use `spago registry info " <> PackageName.print packageName <> " $version` to get more details on a version."
-        logInfo "Found the following versions:\n"
-        void $ for (Array.fromFoldable $ Map.keys $ metadata.published) (output <<< Version.print)
       Just version -> case Map.lookup version metadata.published of
         Nothing -> die $ "Version " <> Version.print version <> " does not exist for package " <> PackageName.print packageName
-        Just pubInfo -> output $ printJson Metadata.publishedMetadataCodec pubInfo
+        -- TODO: unify the formats. Here we output json, above just lines, this is terrible
+        Just pubInfo -> output $ OutputJson Metadata.publishedMetadataCodec pubInfo
