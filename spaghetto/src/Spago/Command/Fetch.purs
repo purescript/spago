@@ -87,6 +87,7 @@ run packages = do
       RegistryVersion v -> do
         -- if the version comes from the registry then we have a longer list of things to do
         let versionString = Registry.Version.print v
+        let packageVersion = PackageName.print name <> "@" <> versionString
         -- get the metadata for the package, so we have access to the hash and other info
         metadata <- runSpago { logOptions } $ getMetadata name
         case (metadata >>= (\(Metadata meta) -> Either.note "Didn't find version in the metadata file" $ Map.lookup v meta.published)) of
@@ -106,11 +107,11 @@ run packages = do
                     }
                 )
               case response of
-                Left err -> die $ "Couldn't fetch package:\n  " <> Http.printError err
+                Left err -> die $ "Couldn't fetch package " <> packageVersion <> ":\n  " <> Http.printError err
                 Right { status, body } | status /= StatusCode 200 -> do
                   (buf :: Buffer) <- liftEffect $ Buffer.fromArrayBuffer body
                   bodyString <- liftEffect $ Buffer.toString Encoding.UTF8 buf
-                  die $ "Couldn't fetch package, status was not ok " <> show status <> ", got answer:\n  " <> bodyString
+                  die $ "Couldn't fetch package " <> packageVersion <> ", status was not ok " <> show status <> ", got answer:\n  " <> bodyString
                 Right r@{ body: tarballArrayBuffer } -> do
                   logDebug $ "Got status: " <> show r.status
                   -- check the size and hash of the tar against the metadata
@@ -118,11 +119,11 @@ run packages = do
                   tarballSize <- liftEffect $ Buffer.size tarballBuffer
                   tarballSha <- liftEffect $ Sha256.hashBuffer tarballBuffer
                   unless (Int.toNumber tarballSize == versionMetadata.bytes) do
-                    die $ "Fetched tarball has a different size (" <> show tarballSize <> ") than expected (" <> show versionMetadata.bytes <> ")"
+                    die $ "Tarball fetched for " <> packageVersion <> " has a different size (" <> show tarballSize <> ") than expected (" <> show versionMetadata.bytes <> ")"
                   unless (tarballSha == versionMetadata.hash) do
-                    die $ "Fetched tarball has a different hash (" <> Sha256.print tarballSha <> ") than expected (" <> Sha256.print versionMetadata.hash <> ")"
+                    die $ "Tarball fetched for " <> packageVersion <> " has a different hash (" <> Sha256.print tarballSha <> ") than expected (" <> Sha256.print versionMetadata.hash <> ")"
                   -- if everything's alright we stash the tar in the global cache
-                  logInfo $ "Copying tarball to global cache: " <> tarballPath
+                  logInfo $ "Copying tarball for " <> packageVersion <> " to global cache: " <> tarballPath
                   FS.writeFile tarballPath tarballBuffer
             -- unpack the tars in a temp folder, then move to local cache
             let tarInnerFolder = PackageName.print name <> "-" <> Version.print v
