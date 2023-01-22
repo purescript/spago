@@ -64,7 +64,7 @@ import Registry.Sha256 (Sha256)
 import Registry.Sha256 as Registry.Sha256
 import Registry.Types (PackageName, Version, Range, Location, License, Manifest(..), Metadata(..), Sha256) as Extra
 import Spago.Json (printJson, parseJson) as Extra
-import Spago.Log (logDebug, logError, logInfo, logSuccess, logWarn, die, LogOptions, LogEnv, toDoc, indent, indent2, output, OutputFormat(..)) as Extra
+import Spago.Log (logDebug, logError, logInfo, Docc, logSuccess, logWarn, die, LogOptions, LogEnv, toDoc, indent, indent2, output, OutputFormat(..)) as Extra
 import Spago.Yaml (YamlDoc, printYaml, parseYaml) as Extra
 import Unsafe.Coerce (unsafeCoerce)
 

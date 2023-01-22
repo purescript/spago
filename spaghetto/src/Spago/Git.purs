@@ -31,10 +31,10 @@ fetchRepo { git, ref } path = do
   repoExists <- FS.exists path
   cloneOrFetchResult <- case repoExists of
     true -> do
-      logDebug $ "Found the " <> git <> " repo locally, pulling..."
+      logDebug $ "Found " <> git <> " locally, pulling..."
       Except.runExceptT $ runGit_ [ "fetch", "origin" ] (Just path)
     false -> do
-      logInfo $ "Didn't find " <> git <> " repo, cloning..."
+      logInfo $ "Cloning " <> git
       Except.runExceptT $ runGit_ [ "clone", git, path ] Nothing
   result <- Except.runExceptT do
     Except.ExceptT $ pure cloneOrFetchResult

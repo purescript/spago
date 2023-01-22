@@ -1,5 +1,6 @@
 module Spago.Log
-  ( LogEnv
+  ( Docc
+  , LogEnv
   , LogOptions
   , LogVerbosity(..)
   , OutputFormat(..)
@@ -55,12 +56,14 @@ data LogLevel
   | LogWarning
   | LogError
 
-type Log = { content :: Doc GraphicsParam, level :: LogLevel }
+type Docc = Doc GraphicsParam
+
+type Log = { content :: Docc, level :: LogLevel }
 
 class Loggable a where
-  toDoc :: a -> Doc GraphicsParam
+  toDoc :: a -> Docc
 
-instance Loggable (Doc GraphicsParam) where
+instance Loggable Docc where
   toDoc = identity
 
 instance Loggable String where
