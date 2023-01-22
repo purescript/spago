@@ -72,7 +72,7 @@ readYamlFile codec path = do
   pure (lmap Aff.message result >>= parseYaml codec >>> lmap CA.printJsonDecodeError)
 
 writeYamlDocFile :: forall a. FilePath -> Yaml.YamlDoc a -> Aff Unit
-writeYamlDocFile path = FS.Aff.writeTextFile UTF8 path <<< (_ <> "\n") <<< Yaml.toString
+writeYamlDocFile path = FS.Aff.writeTextFile UTF8 path <<< Yaml.toString
 
 readYamlDocFile :: forall a. JsonCodec a -> FilePath -> Aff (Either String { doc :: Yaml.YamlDoc a, yaml :: a })
 readYamlDocFile codec path = do

@@ -48,7 +48,7 @@ run = do
       BundleNode -> [ "--banner:js=import __module from \'module\';import __path from \'path\';import __url from \'url\';const require = __module.createRequire(import.meta.url);" ]
       _ -> []
 
-    output = case workspace.output of
+    output = case workspace.buildOptions.output of
       Nothing -> "output"
       Just o -> o
     -- TODO: we might need to use `Path.relative selected.path output` instead of just output there

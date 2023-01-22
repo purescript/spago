@@ -80,7 +80,7 @@ run = do
             [ "import { main } from 'file://"
             , String.replace (Pattern "\\") (Replacement "/") opts.sourceDir
             , "/"
-            , fromMaybe "output" workspace.output
+            , fromMaybe "output" workspace.buildOptions.output
             , "/"
             , opts.moduleName
             , "/"

@@ -5,17 +5,24 @@ module Spago.Command.Build
 
 import Spago.Prelude
 
+import Ansi.Codes (GraphicsParam)
 import Data.Array as Array
+import Data.Codec.Argonaut as CA
 import Data.Map as Map
 import Data.Set as Set
+import Data.String as String
 import Data.Tuple as Tuple
+import Dodo (Doc)
+import Registry.PackageName as PackageName
 import Spago.BuildInfo as BuildInfo
 import Spago.Cmd as Cmd
 import Spago.Config (Package(..), Workspace, WorkspacePackage)
 import Spago.Config as Config
 import Spago.Git (Git)
+import Spago.Log as Log
 import Spago.Purs (Purs)
 import Spago.Purs as Purs
+import Spago.Purs.Graph as Graph
 
 type BuildEnv a =
   { purs :: Purs
@@ -39,9 +46,6 @@ run opts = do
 
   -- Here we select the right globs for a monorepo setup
   let
-    workspacePackageGlob :: WorkspacePackage -> Array String
-    workspacePackageGlob p = Config.sourceGlob p.package.name (WorkspacePackage p)
-
     -- TODO: here depsOnly means "no packages from the monorepo", but right now we include local dependencies from the monorepo
     projectSources =
       if opts.depsOnly then []
@@ -60,7 +64,7 @@ run opts = do
       , "Use the --output flag for Spago, or add it to your config file."
       ]
   let
-    addOutputArgs args = case workspace.output of
+    addOutputArgs args = case workspace.buildOptions.output of
       Nothing -> args
       Just output -> args <> [ "--output", output ]
 
@@ -85,10 +89,11 @@ run opts = do
               Just as | Array.length as > 0 -> as
               _ -> []
           Cmd.exec backend.cmd (addOutputArgs moreBackendArgs) Cmd.defaultExecOptions >>= case _ of
-            Right _r -> logSuccess "Backend build succeeded."
             Left err -> do
               logDebug $ show err
               die [ "Failed to build with backend " <> backend.cmd ]
+            Right _r ->
+              logSuccess "Backend build succeeded."
 
   {-
   TODO: before, then, else
@@ -99,5 +104,81 @@ run opts = do
         runCommands "Then" thenCommands
   -}
 
-  buildBackend (Set.fromFoldable $ join projectSources <> join dependencyGlobs <> [ BuildInfo.buildInfoPath ])
+  let globs = Set.fromFoldable $ join projectSources <> join dependencyGlobs <> [ BuildInfo.buildInfoPath ]
+  buildBackend globs
+
+  when workspace.buildOptions.pedanticPackages do
+    logInfo $ "Looking for unused and undeclared transitive dependencies..."
+    case workspace.selected of
+      Just selected -> runGraphCheck selected globs >>= die
+      Nothing -> do
+        -- TODO: here we could go through all the workspace packages and run the check for each
+        -- The complication is that "dependencies" includes all the dependencies for all packages
+        errors <- for (Config.getWorkspacePackages workspace.packageSet) \selected -> do
+          let pkgGlobs = Set.fromFoldable $ join projectSources <> join dependencyGlobs <> [ BuildInfo.buildInfoPath ]
+          runGraphCheck selected pkgGlobs
+        die errors
+
+  where
+
+  workspacePackageGlob :: WorkspacePackage -> Array String
+  workspacePackageGlob p = Config.sourceGlob p.package.name (WorkspacePackage p)
+
+  runGraphCheck :: _ -> _ -> Spago (BuildEnv a) (Array (Array (Doc GraphicsParam)))
+  runGraphCheck selected globs = do
+    { logOptions, dependencies } <- ask
+    maybeGraph <- Purs.graph globs opts.pursArgs
+    case maybeGraph of
+      Left err -> do
+        logWarn $ "Could not decode the output of `purs graph`, error: " <> CA.printJsonDecodeError err
+        pure []
+      Right graph -> do
+        let graphEnv = { graph, selected, dependencies, logOptions }
+        { unused, transitive } <- runSpago graphEnv Graph.checkImports
+
+        let
+          result =
+            case Set.isEmpty unused of
+              true -> []
+              false -> [ unusedError selected unused ]
+              <> case Map.isEmpty transitive of
+                true -> []
+                false -> [ transitiveError selected transitive ]
+
+        pure result
+
+  unusedError selected unused =
+    [ Log.break
+    , toDoc $ "Package '" <> PackageName.print selected.package.name <> "' declares unused dependencies - please remove them from the project config:"
+    , indent (toDoc (map (\p -> PackageName.print p) (Set.toUnfoldable unused) :: Array _))
+    ]
+  transitiveError selected transitive =
+    [ Log.break
+    , toDoc $ "Package '" <> PackageName.print selected.package.name <> "' imports the following transitive dependencies - please add them to the project dependencies, or remove the imports:"
+    , indent $ toDoc
+        ( map
+            ( \(Tuple p modules) -> toDoc
+                [ toDoc $ PackageName.print p
+                , indent $ toDoc
+                    ( map
+                        ( \(Tuple mod importedOnes) -> toDoc
+                            [ toDoc $ "from `" <> mod <> "`, which imports:"
+                            , indent $ toDoc (Array.fromFoldable importedOnes)
+                            ]
+                        )
+                        (Map.toUnfoldable modules :: Array _)
+                    )
+                ]
+            )
+            (Map.toUnfoldable transitive)
+            :: Array _
+        )
+    , Log.break
+    , toDoc "Run the following command to install them all:"
+    , indent $ toDoc
+        $ "spago install -p "
+        <> PackageName.print selected.package.name
+        <> " "
+        <> String.joinWith " " (map PackageName.print $ Set.toUnfoldable $ Map.keys transitive)
+    ]
 

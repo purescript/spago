@@ -43,7 +43,7 @@ compile :: forall a. Set FilePath -> Array String -> Spago (PursEnv a) Unit
 compile globs pursArgs = do
   { purs } <- ask
   let args = [ "compile" ] <> pursArgs <> Set.toUnfoldable globs
-  logDebug [ "Running command: purs", "With args: " <> show args ]
+  logDebug [ "Running command:", "purs " <> String.joinWith " " args ]
   Cmd.exec purs.cmd args Cmd.defaultExecOptions >>= case _ of
     Right _r -> logSuccess "Build succeeded."
     Left err -> do
@@ -77,7 +77,7 @@ graph :: forall a. Set FilePath -> Array String -> Spago (PursEnv a) (Either Jso
 graph globs pursArgs = do
   { purs } <- ask
   let args = [ "graph" ] <> pursArgs <> Set.toUnfoldable globs
-  logDebug [ "Running command: purs", "With args: " <> show args ]
+  logDebug [ "Running command:", "purs " <> String.joinWith " " args ]
   let execOpts = Cmd.defaultExecOptions { pipeStdout = false, pipeStderr = false }
   Cmd.exec purs.cmd args execOpts >>= case _ of
     Right { stdout } -> do

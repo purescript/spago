@@ -25,7 +25,7 @@ import Control.Monad.Reader as Reader
 import Data.Codec.Argonaut (JsonCodec)
 import Data.String as String
 import Dodo (Doc)
-import Dodo (indent) as DodoExport
+import Dodo (indent, break) as DodoExport
 import Dodo as Log
 import Dodo.Ansi (GraphicsParam)
 import Dodo.Ansi as Ansi

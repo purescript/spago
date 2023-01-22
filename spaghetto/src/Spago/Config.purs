@@ -1,5 +1,7 @@
 module Spago.Config
   ( BackendConfig
+  , BuildOptionsInput
+  , BuildOptions
   , BundleConfig
   , BundlePlatform(..)
   , BundleType(..)
@@ -54,6 +56,7 @@ import Data.String as String
 import Dodo as Log
 import Effect.Uncurried (EffectFn2, runEffectFn2)
 import Node.Path as Path
+import Registry.Foreign.FastGlob as Glob
 import Registry.Internal.Codec as Internal.Codec
 import Registry.License as License
 import Registry.Location as Location
@@ -62,7 +65,6 @@ import Registry.Range as Range
 import Registry.Sha256 as Sha256
 import Registry.Version as Version
 import Spago.FS as FS
-import Registry.Foreign.FastGlob as Glob
 import Spago.Git as Git
 import Spago.Paths as Paths
 import Spago.Purs (PursEnv)
@@ -147,11 +149,22 @@ backendConfigCodec = CAR.object "BackendConfig"
   , args: CAR.optional (CA.array CA.string)
   }
 
+type BuildOptionsInput =
+  { output :: Maybe FilePath
+  , pedantic_packages :: Maybe Boolean
+  }
+
+buildOptionsCodec :: JsonCodec BuildOptionsInput
+buildOptionsCodec = CAR.object "CompileOptionsInput"
+  { output: CAR.optional CA.string
+  , pedantic_packages: CAR.optional CA.boolean
+  }
+
 type WorkspaceConfig =
   { set :: Maybe SetAddress
   , extra_packages :: Maybe (Map PackageName ExtraPackage)
   , backend :: Maybe BackendConfig
-  , output :: Maybe FilePath
+  , build_opts :: Maybe BuildOptionsInput
   }
 
 workspaceConfigCodec :: JsonCodec WorkspaceConfig
@@ -159,7 +172,7 @@ workspaceConfigCodec = CAR.object "WorkspaceConfig"
   { set: CAR.optional setAddressCodec
   , extra_packages: CAR.optional (Internal.Codec.packageMap extraPackageCodec)
   , backend: CAR.optional backendConfigCodec
-  , output: CAR.optional CA.string
+  , build_opts: CAR.optional buildOptionsCodec
   }
 
 type Workspace =
@@ -167,8 +180,13 @@ type Workspace =
   , packageSet :: PackageSet
   , compatibleCompiler :: Range
   , backend :: Maybe BackendConfig
-  , output :: Maybe String
+  , buildOptions :: BuildOptions
   , doc :: YamlDoc Config
+  }
+
+type BuildOptions =
+  { output :: Maybe FilePath
+  , pedanticPackages :: Boolean
   }
 
 data ExtraPackage
@@ -583,17 +601,23 @@ readWorkspace maybeSelectedPackage = do
         , indent2 (toDoc (Set.toUnfoldable $ Map.keys workspacePackages :: Array PackageName))
         ]
 
+  let
+    (buildOptions :: BuildOptions) =
+      { output: _.output =<< workspace.build_opts
+      , pedanticPackages: fromMaybe false (_.pedantic_packages =<< workspace.build_opts)
+      }
+
   pure
     { selected: maybeSelected
     , packageSet
     , compatibleCompiler
     , backend: workspace.backend
-    , output: workspace.output
+    , buildOptions
     , doc: workspaceDoc
     }
 
 getPackageLocation :: PackageName -> Package -> FilePath
-getPackageLocation name = case _ of
+getPackageLocation name = Paths.mkRelative <<< case _ of
   RegistryVersion v -> Path.concat [ Paths.localCachePackagesPath, PackageName.print name <> "-" <> Version.print v ]
   GitPackage p -> Path.concat [ Paths.localCachePackagesPath, PackageName.print name, p.ref ]
   LocalPackage p -> p.path

@@ -19,6 +19,9 @@ foreign import paths :: NodePaths
 cwd :: FilePath
 cwd = unsafePerformEffect (Process.cwd)
 
+mkRelative :: FilePath -> FilePath
+mkRelative = Path.relative cwd
+
 globalCachePath :: FilePath
 globalCachePath = paths.cache
 

@@ -19,6 +19,7 @@ import Registry.ManifestIndex as ManifestIndex
 import Registry.Metadata as Metadata
 import Registry.PackageName as PackageName
 import Registry.Version as Version
+import Spago.Bin.Flags as Flag
 import Spago.Bin.Flags as Flags
 import Spago.BuildInfo as BuildInfo
 import Spago.Command.Build as Build
@@ -59,6 +60,7 @@ type InstallArgs =
   , pursArgs :: List String
   , backendArgs :: List String
   , output :: Maybe String
+  , pedanticPackages :: Boolean
   }
 
 type BuildArgs =
@@ -66,6 +68,7 @@ type BuildArgs =
   , pursArgs :: List String
   , backendArgs :: List String
   , output :: Maybe String
+  , pedanticPackages :: Boolean
   }
 
 -- TODO: more repl arguments: dependencies, repl-package
@@ -78,6 +81,7 @@ type ReplArgs =
 type RunArgs =
   { selectedPackage :: Maybe String
   , output :: Maybe String
+  , pedanticPackages :: Boolean
   , pursArgs :: List String
   , backendArgs :: List String
   , execArgs :: Maybe (Array String)
@@ -87,6 +91,7 @@ type RunArgs =
 type TestArgs =
   { selectedPackage :: Maybe String
   , output :: Maybe String
+  , pedanticPackages :: Boolean
   , pursArgs :: List String
   , backendArgs :: List String
   , execArgs :: Maybe (Array String)
@@ -115,6 +120,7 @@ type BundleArgs =
   , pursArgs :: List String
   , backendArgs :: List String
   , output :: Maybe String
+  , pedanticPackages :: Boolean
   , type :: Maybe String
   }
 
@@ -233,6 +239,7 @@ installArgsParser =
     , pursArgs: Flags.pursArgs
     , backendArgs: Flags.backendArgs
     , output: Flags.output
+    , pedanticPackages: Flag.pedanticPackages
     }
 
 buildArgsParser :: ArgParser BuildArgs
@@ -241,6 +248,7 @@ buildArgsParser = ArgParser.fromRecord
   , pursArgs: Flags.pursArgs
   , backendArgs: Flags.backendArgs
   , output: Flags.output
+  , pedanticPackages: Flags.pedanticPackages
   }
 
 replArgsParser :: ArgParser ReplArgs
@@ -257,6 +265,7 @@ runArgsParser = ArgParser.fromRecord
   , backendArgs: Flags.backendArgs
   , execArgs: Flags.execArgs
   , output: Flags.output
+  , pedanticPackages: Flags.pedanticPackages
   , main: Flags.moduleName
   }
 
@@ -267,6 +276,7 @@ testArgsParser = ArgParser.fromRecord
   , backendArgs: Flags.backendArgs
   , execArgs: Flags.execArgs
   , output: Flags.output
+  , pedanticPackages: Flags.pedanticPackages
   }
 
 bundleArgsParser :: ArgParser BundleArgs
@@ -281,6 +291,7 @@ bundleArgsParser =
     , pursArgs: Flags.pursArgs
     , backendArgs: Flags.backendArgs
     , output: Flags.output
+    , pedanticPackages: Flags.pedanticPackages
     }
 
 registrySearchArgsParser :: ArgParser RegistrySearchArgs
@@ -336,11 +347,11 @@ main =
           RegistryInfo args -> do
             env <- mkRegistryEnv
             void $ runSpago env (Registry.info args)
-          Install args@{ packages, selectedPackage, output, pursArgs, backendArgs } -> do
+          Install args@{ packages, selectedPackage, output, pursArgs, backendArgs, pedanticPackages } -> do
             { env, packageNames } <- mkFetchEnv { packages, selectedPackage }
             -- TODO: --no-fetch flag
             dependencies <- runSpago env (Fetch.run packageNames)
-            let buildArgs = { selectedPackage, pursArgs, backendArgs, output }
+            let buildArgs = { selectedPackage, pursArgs, backendArgs, output, pedanticPackages }
             env' <- runSpago env (mkBuildEnv buildArgs dependencies)
             let options = { depsOnly: true, pursArgs: List.toUnfoldable args.pursArgs }
             runSpago env' (Build.run options)
@@ -354,34 +365,34 @@ main =
           Repl args -> do
             -- TODO implement
             pure unit
-          Bundle args@{ selectedPackage, pursArgs, backendArgs, output } -> do
+          Bundle args@{ selectedPackage, pursArgs, backendArgs, output, pedanticPackages } -> do
             { env, packageNames } <- mkFetchEnv { packages: mempty, selectedPackage }
             -- TODO: --no-fetch flag
             dependencies <- runSpago env (Fetch.run packageNames)
             -- TODO: --no-build flag
-            let buildArgs = { selectedPackage, pursArgs, backendArgs, output }
+            let buildArgs = { selectedPackage, pursArgs, backendArgs, output, pedanticPackages }
             buildEnv <- runSpago env (mkBuildEnv buildArgs dependencies)
             let options = { depsOnly: false, pursArgs: List.toUnfoldable args.pursArgs }
             runSpago buildEnv (Build.run options)
             bundleEnv <- runSpago env (mkBundleEnv args)
             runSpago bundleEnv Bundle.run
-          Run args@{ selectedPackage, pursArgs, backendArgs, output } -> do
+          Run args@{ selectedPackage, pursArgs, backendArgs, output, pedanticPackages } -> do
             { env, packageNames } <- mkFetchEnv { packages: mempty, selectedPackage }
             -- TODO: --no-fetch flag
             dependencies <- runSpago env (Fetch.run packageNames)
             -- TODO: --no-build flag
-            let buildArgs = { selectedPackage, pursArgs, backendArgs, output }
+            let buildArgs = { selectedPackage, pursArgs, backendArgs, output, pedanticPackages }
             buildEnv <- runSpago env (mkBuildEnv buildArgs dependencies)
             let options = { depsOnly: false, pursArgs: List.toUnfoldable args.pursArgs }
             runSpago buildEnv (Build.run options)
             runEnv <- runSpago env (mkRunEnv args)
             runSpago runEnv Run.run
-          Test args@{ selectedPackage, pursArgs, backendArgs, output } -> do
+          Test args@{ selectedPackage, pursArgs, backendArgs, output, pedanticPackages } -> do
             { env, packageNames } <- mkFetchEnv { packages: mempty, selectedPackage }
             -- TODO: --no-fetch flag
             dependencies <- runSpago env (Fetch.run packageNames)
             -- TODO: --no-build flag
-            let buildArgs = { selectedPackage, pursArgs, backendArgs, output }
+            let buildArgs = { selectedPackage, pursArgs, backendArgs, output, pedanticPackages }
             buildEnv <- runSpago env (mkBuildEnv buildArgs dependencies)
             let options = { depsOnly: false, pursArgs: List.toUnfoldable args.pursArgs }
             runSpago buildEnv (Build.run options)
@@ -436,7 +447,13 @@ mkBundleEnv bundleArgs = do
           <|> bundleConf _.type
       )
   let bundleOptions = { minify, module: entrypoint, outfile, platform, type: bundleType }
-  let newWorkspace = workspace { output = bundleArgs.output <|> workspace.output }
+  let
+    newWorkspace = workspace
+      { buildOptions
+          { output = bundleArgs.output <|> workspace.buildOptions.output
+          , pedanticPackages = bundleArgs.pedanticPackages || workspace.buildOptions.pedanticPackages
+          }
+      }
   let bundleEnv = { esbuild: "esbuild", logOptions, workspace: newWorkspace, selected, bundleOptions }
   pure bundleEnv
 
@@ -482,7 +499,7 @@ mkRunEnv runArgs = do
       , successMessage: Nothing
       , failureMessage: "Running failed."
       }
-  let newWorkspace = workspace { output = runArgs.output <|> workspace.output }
+  let newWorkspace = workspace { buildOptions { output = runArgs.output <|> workspace.buildOptions.output } }
   let runEnv = { logOptions, workspace: newWorkspace, selected, node, runOptions }
   pure runEnv
 
@@ -522,7 +539,7 @@ mkTestEnv testArgs = do
 
   logDebug $ "Selected packages to test: " <> Json.stringifyJson (CA.Common.nonEmptyArray PackageName.codec) (map _.selected.package.name selectedPackages)
 
-  let newWorkspace = workspace { output = testArgs.output <|> workspace.output }
+  let newWorkspace = workspace { buildOptions { output = testArgs.output <|> workspace.buildOptions.output } }
   let testEnv = { logOptions, workspace: newWorkspace, selectedPackages, node }
   pure testEnv
 
@@ -532,7 +549,10 @@ mkBuildEnv buildArgs dependencies = do
   purs <- Purs.getPurs
   let
     newWorkspace = workspace
-      { output = buildArgs.output <|> workspace.output
+      { buildOptions
+          { output = buildArgs.output <|> workspace.buildOptions.output
+          , pedanticPackages = buildArgs.pedanticPackages || workspace.buildOptions.pedanticPackages
+          }
       -- Override the backend args from the config if they are passed in through a flag
       , backend = map
           ( \b -> case List.null buildArgs.backendArgs of

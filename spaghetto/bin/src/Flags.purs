@@ -75,6 +75,13 @@ json =
     # ArgParser.boolean
     # ArgParser.default false
 
+pedanticPackages ∷ ArgParser Boolean
+pedanticPackages =
+  ArgParser.flag [ "--pedantic-packages" ]
+    "Check for redundant or missing packages in the config and fail the build if any"
+    # ArgParser.boolean
+    # ArgParser.default false
+
 pursArgs ∷ ArgParser (List String)
 pursArgs =
   ArgParser.argument [ "--purs-args" ]
