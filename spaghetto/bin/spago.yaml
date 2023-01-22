@@ -3,6 +3,17 @@ package:
   publish:
     version: 0.92.6
   dependencies:
+    - aff
+    - argparse-basic
+    - arrays
+    - codec-argonaut
+    - console
+    - lists
+    - node-path
+    - node-process
+    - ordered-collections
+    - refs
+    - registry-lib
     - spago
   license: BSD-3-Clause
   bundle:

@@ -6,13 +6,11 @@ package:
     - aff-promise
     - affjax
     - affjax-node
-    - ansi
     - argonaut-core
-    - argparse-basic
     - arrays
     - bifunctors
+    - codec-argonaut
     - console
-    - convertable-options
     - control
     - datetime
     - dodo-printer
@@ -21,7 +19,6 @@ package:
     - exceptions
     - filterable
     - foldable-traversable
-    - foreign-object
     - functions
     - http-methods
     - identity
@@ -30,22 +27,20 @@ package:
     - maybe
     - newtype
     - node-buffer
-    - node-child-process
     - node-fs
     - node-fs-aff
     - node-path
     - node-process
-    - node-streams
+    - nullable
     - ordered-collections
     - parallel
-    - parsing
     - partial
-    - posix-types
     - prelude
+    - profunctor
     - record
     - refs
-    - registry-lib
     - registry-foreign
+    - registry-lib
     - strings
     - transformers
     - tuples
@@ -60,10 +55,10 @@ workspace:
     dodo-printer: 2.2.1
     registry-lib:
       git: https://github.com/purescript/registry-dev.git
-      ref: 690b6b21e30c16c0b396ad58856830b123de5e00
+      ref: 30b2fc0d7cb6ff5d125bd618f46dd68d435f0040
       subdir: lib
       # path: "../../registry-dev/lib"
     registry-foreign:
       git: https://github.com/purescript/registry-dev.git
-      ref: 690b6b21e30c16c0b396ad58856830b123de5e00
+      ref: 30b2fc0d7cb6ff5d125bd618f46dd68d435f0040
       subdir: foreign
