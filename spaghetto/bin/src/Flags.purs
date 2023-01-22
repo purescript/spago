@@ -106,6 +106,13 @@ moduleName =
     "Module to be used as the application's entry point"
     # ArgParser.optional
 
+testDeps :: ArgParser Boolean
+testDeps =
+  ArgParser.flag [ "--test-deps" ]
+    "Act on the test config rather than the main one"
+    # ArgParser.boolean
+    # ArgParser.default false
+
 packages ∷ ArgParser (List String)
 packages =
   ArgParser.anyNotFlag "PACKAGE"

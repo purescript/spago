@@ -18,6 +18,7 @@ module Spago.Config
   , RunConfig
   , SetAddress(..)
   , TestConfig
+  , WithTestGlobs(..)
   , Workspace
   , WorkspaceConfig
   , WorkspacePackage
@@ -623,14 +624,21 @@ getPackageLocation name = Paths.mkRelative <<< case _ of
   LocalPackage p -> p.path
   WorkspacePackage { path } -> path
 
-sourceGlob :: PackageName -> Package -> Array String
-sourceGlob name package = map (\p -> Path.concat [ getPackageLocation name package, p ])
+data WithTestGlobs
+  = WithTestGlobs
+  | NoTestGlobs
+  | OnlyTestGlobs
+
+sourceGlob :: WithTestGlobs -> PackageName -> Package -> Array String
+sourceGlob withTestGlobs name package = map (\p -> Path.concat [ getPackageLocation name package, p ])
   case package of
     WorkspacePackage { hasTests } ->
-      if hasTests then
-        [ srcGlob, testGlob ]
-      else
-        [ srcGlob ]
+      case hasTests, withTestGlobs of
+        false, OnlyTestGlobs -> []
+        false, _ -> [ srcGlob ]
+        true, OnlyTestGlobs -> [ testGlob ]
+        true, NoTestGlobs -> [ srcGlob ]
+        true, WithTestGlobs -> [ srcGlob, testGlob ]
     GitPackage { subdir: Just s } -> [ Path.concat [ s, srcGlob ] ]
     _ -> [ srcGlob ]
 

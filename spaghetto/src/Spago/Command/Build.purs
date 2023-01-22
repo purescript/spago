@@ -11,7 +11,7 @@ import Data.Set as Set
 import Data.Tuple as Tuple
 import Spago.BuildInfo as BuildInfo
 import Spago.Cmd as Cmd
-import Spago.Config (Package(..), Workspace, WorkspacePackage)
+import Spago.Config (Package(..), WithTestGlobs(..), Workspace, WorkspacePackage)
 import Spago.Config as Config
 import Spago.Git (Git)
 import Spago.Purs (Purs)
@@ -36,11 +36,18 @@ run :: forall a. BuildOptions -> Spago (BuildEnv a) Unit
 run opts = do
   logInfo "Building..."
   { dependencies, workspace } <- ask
-  let dependencyGlobs = map (Tuple.uncurry Config.sourceGlob) (Map.toUnfoldable dependencies)
-
-  -- Here we select the right globs for a monorepo setup
   let
-    -- TODO: here depsOnly means "no packages from the monorepo", but right now we include local dependencies from the monorepo
+    -- depsOnly means "no packages from the monorepo", so we filter out the workspace packages
+    dependencyGlobs = map (Tuple.uncurry $ Config.sourceGlob WithTestGlobs) case opts.depsOnly of
+      false -> Map.toUnfoldable dependencies
+      true -> Map.toUnfoldable $ Map.filter
+        ( case _ of
+            WorkspacePackage _ -> false
+            _ -> true
+        )
+        dependencies
+
+    -- Here we select the right globs for a monorepo setup with a bunch of packages
     projectSources =
       if opts.depsOnly then []
       else case workspace.selected of
@@ -103,17 +110,17 @@ run opts = do
 
   when workspace.buildOptions.pedanticPackages do
     logInfo $ "Looking for unused and undeclared transitive dependencies..."
-    case workspace.selected of
-      Just selected -> Graph.runGraphCheck selected globs opts.pursArgs >>= die
+    errors <- case workspace.selected of
+      Just selected -> Graph.runGraphCheck selected globs opts.pursArgs
       Nothing -> do
         -- TODO: here we could go through all the workspace packages and run the check for each
         -- The complication is that "dependencies" includes all the dependencies for all packages
-        errors <- for (Config.getWorkspacePackages workspace.packageSet) \selected -> do
-          let pkgGlobs = Set.fromFoldable $ join projectSources <> join dependencyGlobs <> [ BuildInfo.buildInfoPath ]
-          Graph.runGraphCheck selected pkgGlobs opts.pursArgs
-        die errors
+        map Array.fold $ for (Config.getWorkspacePackages workspace.packageSet) \selected -> do
+          Graph.runGraphCheck selected globs opts.pursArgs
+    unless (Array.null errors) do
+      die errors
 
   where
 
   workspacePackageGlob :: WorkspacePackage -> Array String
-  workspacePackageGlob p = Config.sourceGlob p.package.name (WorkspacePackage p)
+  workspacePackageGlob p = Config.sourceGlob WithTestGlobs p.package.name (WorkspacePackage p)

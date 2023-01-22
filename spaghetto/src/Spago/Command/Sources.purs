@@ -8,7 +8,7 @@ import Data.Map as Map
 import Data.Set as Set
 import Spago.Command.Fetch (FetchEnv)
 import Spago.Command.Fetch as Fetch
-import Spago.Config (Package(..), Dependencies(..))
+import Spago.Config (Dependencies(..), Package(..), WithTestGlobs(..))
 import Spago.Config as Config
 
 type SourcesOpts = { json :: Boolean }
@@ -31,7 +31,7 @@ run { json } = do
 
   let
     globs = Array.foldMap
-      (\(Tuple packageName package) -> Config.sourceGlob packageName package)
+      (\(Tuple packageName package) -> Config.sourceGlob WithTestGlobs packageName package)
       (Map.toUnfoldable transitivePackages :: Array (Tuple PackageName Package))
 
   output case json of
