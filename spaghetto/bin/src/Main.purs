@@ -14,6 +14,7 @@ import Effect.Class.Console as Console
 import Effect.Ref as Ref
 import Node.Path as Path
 import Node.Process as Process
+import Record as Record
 import Registry.Constants as Registry.Constants
 import Registry.ManifestIndex as ManifestIndex
 import Registry.Metadata as Metadata
@@ -63,12 +64,13 @@ type InstallArgs =
   , pedanticPackages :: Boolean
   }
 
-type BuildArgs =
+type BuildArgs a =
   { selectedPackage :: Maybe String
   , pursArgs :: List String
   , backendArgs :: List String
   , output :: Maybe String
   , pedanticPackages :: Boolean
+  | a
   }
 
 -- TODO: more repl arguments: dependencies, repl-package
@@ -124,13 +126,13 @@ type BundleArgs =
   , type :: Maybe String
   }
 
-data SpagoCmd = SpagoCmd GlobalArgs Command
+data SpagoCmd a = SpagoCmd GlobalArgs (Command a)
 
-data Command
+data Command a
   = Init InitArgs
   | Fetch FetchArgs
   | Install InstallArgs
-  | Build BuildArgs
+  | Build (BuildArgs a)
   | Bundle BundleArgs
   | Repl ReplArgs
   | Run RunArgs
@@ -139,7 +141,7 @@ data Command
   | RegistrySearch RegistrySearchArgs
   | RegistryInfo RegistryInfoArgs
 
-argParser :: ArgParser SpagoCmd
+argParser :: ArgParser (SpagoCmd ())
 argParser =
   ArgParser.choose "command"
     [ ArgParser.command [ "init" ]
@@ -242,7 +244,7 @@ installArgsParser =
     , pedanticPackages: Flag.pedanticPackages
     }
 
-buildArgsParser :: ArgParser BuildArgs
+buildArgsParser :: ArgParser (BuildArgs ())
 buildArgsParser = ArgParser.fromRecord
   { selectedPackage: Flags.selectedPackage
   , pursArgs: Flags.pursArgs
@@ -306,7 +308,7 @@ registryInfoArgsParser = ado
   maybeVersion <- Flags.maybeVersion
   in { package, maybeVersion }
 
-parseArgs :: Effect (Either ArgParser.ArgError SpagoCmd)
+parseArgs :: Effect (Either ArgParser.ArgError (SpagoCmd ()))
 parseArgs = do
   cliArgs <- Array.drop 2 <$> Process.argv
   pure $ ArgParser.parseArgs "spago"
@@ -347,12 +349,11 @@ main =
           RegistryInfo args -> do
             env <- mkRegistryEnv
             void $ runSpago env (Registry.info args)
-          Install args@{ packages, selectedPackage, output, pursArgs, backendArgs, pedanticPackages } -> do
+          Install args@{ packages, selectedPackage } -> do
             { env, packageNames } <- mkFetchEnv { packages, selectedPackage }
             -- TODO: --no-fetch flag
             dependencies <- runSpago env (Fetch.run packageNames)
-            let buildArgs = { selectedPackage, pursArgs, backendArgs, output, pedanticPackages }
-            env' <- runSpago env (mkBuildEnv buildArgs dependencies)
+            env' <- runSpago env (mkBuildEnv args dependencies)
             let options = { depsOnly: true, pursArgs: List.toUnfoldable args.pursArgs }
             runSpago env' (Build.run options)
           Build args -> do
@@ -365,35 +366,32 @@ main =
           Repl args -> do
             -- TODO implement
             pure unit
-          Bundle args@{ selectedPackage, pursArgs, backendArgs, output, pedanticPackages } -> do
+          Bundle args@{ selectedPackage } -> do
             { env, packageNames } <- mkFetchEnv { packages: mempty, selectedPackage }
             -- TODO: --no-fetch flag
             dependencies <- runSpago env (Fetch.run packageNames)
             -- TODO: --no-build flag
-            let buildArgs = { selectedPackage, pursArgs, backendArgs, output, pedanticPackages }
-            buildEnv <- runSpago env (mkBuildEnv buildArgs dependencies)
+            buildEnv <- runSpago env (mkBuildEnv args dependencies)
             let options = { depsOnly: false, pursArgs: List.toUnfoldable args.pursArgs }
             runSpago buildEnv (Build.run options)
             bundleEnv <- runSpago env (mkBundleEnv args)
             runSpago bundleEnv Bundle.run
-          Run args@{ selectedPackage, pursArgs, backendArgs, output, pedanticPackages } -> do
+          Run args@{ selectedPackage } -> do
             { env, packageNames } <- mkFetchEnv { packages: mempty, selectedPackage }
             -- TODO: --no-fetch flag
             dependencies <- runSpago env (Fetch.run packageNames)
             -- TODO: --no-build flag
-            let buildArgs = { selectedPackage, pursArgs, backendArgs, output, pedanticPackages }
-            buildEnv <- runSpago env (mkBuildEnv buildArgs dependencies)
+            buildEnv <- runSpago env (mkBuildEnv args dependencies)
             let options = { depsOnly: false, pursArgs: List.toUnfoldable args.pursArgs }
             runSpago buildEnv (Build.run options)
             runEnv <- runSpago env (mkRunEnv args)
             runSpago runEnv Run.run
-          Test args@{ selectedPackage, pursArgs, backendArgs, output, pedanticPackages } -> do
+          Test args@{ selectedPackage } -> do
             { env, packageNames } <- mkFetchEnv { packages: mempty, selectedPackage }
             -- TODO: --no-fetch flag
             dependencies <- runSpago env (Fetch.run packageNames)
             -- TODO: --no-build flag
-            let buildArgs = { selectedPackage, pursArgs, backendArgs, output, pedanticPackages }
-            buildEnv <- runSpago env (mkBuildEnv buildArgs dependencies)
+            buildEnv <- runSpago env (mkBuildEnv args dependencies)
             let options = { depsOnly: false, pursArgs: List.toUnfoldable args.pursArgs }
             runSpago buildEnv (Build.run options)
             testEnv <- runSpago env (mkTestEnv args)
@@ -543,7 +541,7 @@ mkTestEnv testArgs = do
   let testEnv = { logOptions, workspace: newWorkspace, selectedPackages, node }
   pure testEnv
 
-mkBuildEnv :: forall a. BuildArgs -> Map PackageName Package -> Spago (Fetch.FetchEnv a) (Build.BuildEnv ())
+mkBuildEnv :: forall a b. BuildArgs b -> Map PackageName Package -> Spago (Fetch.FetchEnv a) (Build.BuildEnv ())
 mkBuildEnv buildArgs dependencies = do
   { logOptions, workspace, git } <- ask
   purs <- Purs.getPurs
@@ -565,8 +563,6 @@ mkBuildEnv buildArgs dependencies = do
 
 mkFetchEnv :: forall a. FetchArgs -> Spago (LogEnv a) { env :: Fetch.FetchEnv (), packageNames :: Array PackageName }
 mkFetchEnv args = do
-  { getManifestFromIndex, getMetadata, logOptions, git } <- mkRegistryEnv
-
   let { right: packageNames, left: failedPackageNames } = partitionMap PackageName.parse (Array.fromFoldable args.packages)
   unless (Array.null failedPackageNames) do
     die $ "Failed to parse some package name: " <> show failedPackageNames
@@ -575,19 +571,9 @@ mkFetchEnv args = do
     Right p -> pure p
     Left _err -> die $ "Failed to parse selected package name, was: " <> show args.selectedPackage
 
-  workspace <- runSpago { logOptions, git } do
-    Config.readWorkspace maybeSelectedPackage
-
-  pure
-    { packageNames
-    , env:
-        { getManifestFromIndex
-        , getMetadata
-        , workspace
-        , logOptions
-        , git
-        }
-    }
+  env <- mkRegistryEnv
+  workspace <- runSpago env (Config.readWorkspace maybeSelectedPackage)
+  pure { packageNames, env: Record.union { workspace } env }
 
 mkRegistryEnv :: forall a. Spago (LogEnv a) (Registry.RegistryEnv ())
 mkRegistryEnv = do

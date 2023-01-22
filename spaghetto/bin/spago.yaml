@@ -12,6 +12,7 @@ package:
     - node-path
     - node-process
     - ordered-collections
+    - record
     - refs
     - registry-lib
     - spago
