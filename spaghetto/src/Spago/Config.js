@@ -1,7 +1,7 @@
 import Yaml from "yaml";
 
 export function updatePackageSetHashInConfigImpl(doc, sha) {
-  doc.get("workspace").get("set").set("hash", sha);
+  doc.get("workspace").get("package_set").set("hash", sha);
 }
 
 export function addPackagesToConfigImpl(doc, newPkgs) {
