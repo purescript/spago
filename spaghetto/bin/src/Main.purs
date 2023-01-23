@@ -19,7 +19,6 @@ import Registry.Constants as Registry.Constants
 import Registry.ManifestIndex as ManifestIndex
 import Registry.Metadata as Metadata
 import Registry.PackageName as PackageName
-import Registry.Version as Version
 import Spago.Bin.Flags as Flag
 import Spago.Bin.Flags as Flags
 import Spago.BuildInfo as BuildInfo
@@ -334,7 +333,7 @@ main =
             packageName <- case PackageName.parse (PackageName.stripPureScriptPrefix (Path.basename Paths.cwd)) of
               Left err -> die [ "Could not figure out a name for the new package. Error:", show err ]
               Right p -> pure p
-            setVersion <- for args.setVersion $ Version.parse >>> case _ of
+            setVersion <- for args.setVersion $ parseLenientVersion >>> case _ of
               Left err -> die [ "Could not parse provided set version. Error:", show err ]
               Right v -> pure v
             logDebug [ "Got packageName and setVersion:", PackageName.print packageName, unsafeStringify setVersion ]

@@ -46,7 +46,7 @@ info args = do
 
   maybeVersion <- case args.maybeVersion of
     Nothing -> pure Nothing
-    Just v -> case Version.parse v of
+    Just v -> case parseLenientVersion v of
       Left err -> die [ toDoc "Could not parse version, error:", indent (toDoc $ show err) ]
       Right version -> pure $ Just version
 

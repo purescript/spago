@@ -3,6 +3,7 @@ module Spago.Prelude
   , module Extra
   , HexString(..)
   , Spago(..)
+  , parseLenientVersion
   , parallelise
   , parseUrl
   , partitionEithers
@@ -37,6 +38,7 @@ import Data.Foldable (foldMap, for_, foldl, and, or) as Extra
 import Data.Function.Uncurried (Fn3, runFn3)
 import Data.Generic.Rep (class Generic) as Extra
 import Data.Identity (Identity(..)) as Extra
+import Data.Int as Int
 import Data.List (List, (:)) as Extra
 import Data.Map (Map) as Extra
 import Data.Maybe (Maybe(..), isJust, isNothing, fromMaybe, maybe) as Extra
@@ -44,6 +46,7 @@ import Data.Maybe as Maybe
 import Data.Newtype (class Newtype, unwrap) as Extra
 import Data.Set (Set) as Extra
 import Data.Show.Generic (genericShow) as Extra
+import Data.String as String
 import Data.Traversable (for, traverse) as Extra
 import Data.TraversableWithIndex (forWithIndex) as Extra
 import Data.Tuple (Tuple(..), fst, snd) as Extra
@@ -63,6 +66,7 @@ import Partial.Unsafe (unsafeCrashWith)
 import Registry.Sha256 (Sha256)
 import Registry.Sha256 as Registry.Sha256
 import Registry.Types (PackageName, Version, Range, Location, License, Manifest(..), Metadata(..), Sha256) as Extra
+import Registry.Version as Version
 import Spago.Json (printJson, parseJson) as Extra
 import Spago.Log (logDebug, logError, logInfo, Docc, logSuccess, logWarn, die, LogOptions, LogEnv, toDoc, indent, indent2, output, OutputFormat(..)) as Extra
 import Spago.Yaml (YamlDoc, printYaml, parseYaml) as Extra
@@ -130,3 +134,19 @@ partitionEithers = Array.foldMap case _ of
 -- | Unsafely stringify a value by coercing it to `Json` and stringifying it.
 unsafeStringify :: forall a. a -> String
 unsafeStringify a = Argonaut.stringify (unsafeCoerce a :: Argonaut.Json)
+
+parseLenientVersion :: String -> Extra.Either String Version.Version
+parseLenientVersion input = Version.parse do
+  -- First we ensure there are no leading or trailing spaces.
+  String.trim input
+    -- Then we remove a 'v' prefix, if present.
+    # maybeIdentity (String.stripPrefix (String.Pattern "v"))
+    -- Then we group by where the version digits ought to be...
+    # String.split (String.Pattern ".")
+    -- ...so that we can trim any leading zeros
+    # map (maybeIdentity dropLeadingZeros)
+    -- and rejoin the string.
+    # String.joinWith "."
+  where
+  maybeIdentity k x = Maybe.fromMaybe x (k x)
+  dropLeadingZeros = map (Int.toStringAs Int.decimal) <<< Int.fromString

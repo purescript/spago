@@ -555,7 +555,7 @@ readWorkspace maybeSelectedPackage = do
                     Right (LegacyPackageSet set) -> do
                       logDebug "Read legacy package set from URL"
                       version <- case Map.lookup (unsafeFromRight (PackageName.parse "metadata")) set of
-                        Just { version } -> pure (unsafeFromRight (Version.parse version))
+                        Just { version } -> pure (unsafeFromRight (parseLenientVersion version))
                         Nothing -> die $ "Couldn't find 'metadata' package in legacy package set."
                       pure { compiler: version, remotePackageSet: map RemoteLegacyPackage set }
       result <- case maybeHash of

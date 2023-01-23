@@ -56,10 +56,10 @@ workspace:
     dodo-printer: 2.2.1
     registry-lib:
       git: https://github.com/purescript/registry-dev.git
-      ref: 30b2fc0d7cb6ff5d125bd618f46dd68d435f0040
+      ref: 8113deecae25410ba62c31a5842c6ebbf1c12461
       subdir: lib
       # path: "../../registry-dev/lib"
     registry-foreign:
       git: https://github.com/purescript/registry-dev.git
-      ref: 30b2fc0d7cb6ff5d125bd618f46dd68d435f0040
+      ref: 8113deecae25410ba62c31a5842c6ebbf1c12461
       subdir: foreign
