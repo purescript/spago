@@ -93,7 +93,7 @@ defaultConfig name set =
       }
   , workspace: Just
       { extra_packages: Just Map.empty
-      , set: Just (SetFromRegistry { registry: set })
+      , package_set: Just (SetFromRegistry { registry: set })
       , build_opts: Nothing
       , backend: Nothing
       }

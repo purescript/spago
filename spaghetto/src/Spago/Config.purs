@@ -162,7 +162,7 @@ buildOptionsCodec = CAR.object "CompileOptionsInput"
   }
 
 type WorkspaceConfig =
-  { set :: Maybe SetAddress
+  { package_set :: Maybe SetAddress
   , extra_packages :: Maybe (Map PackageName ExtraPackage)
   , backend :: Maybe BackendConfig
   , build_opts :: Maybe BuildOptionsInput
@@ -170,7 +170,7 @@ type WorkspaceConfig =
 
 workspaceConfigCodec :: JsonCodec WorkspaceConfig
 workspaceConfigCodec = CAR.object "WorkspaceConfig"
-  { set: CAR.optional setAddressCodec
+  { package_set: CAR.optional setAddressCodec
   , extra_packages: CAR.optional (Internal.Codec.packageMap extraPackageCodec)
   , backend: CAR.optional backendConfigCodec
   , build_opts: CAR.optional buildOptionsCodec
@@ -515,7 +515,7 @@ readWorkspace maybeSelectedPackage = do
       Just p -> pure (Just p)
 
   -- Read in the package database
-  { compiler: packageSetCompiler, remotePackageSet } <- case workspace.set of
+  { compiler: packageSetCompiler, remotePackageSet } <- case workspace.package_set of
     Nothing -> do
       die $ "Registry solver is not supported yet - please specify a package set"
     Just (SetFromRegistry { registry: v }) -> do
@@ -763,14 +763,14 @@ findPackageSet maybeSet = do
             -- If it's not, we just return the current index and move on
             Just (Tuple currentCompiler currentVersion) ->
               if newSetVersion > currentVersion then do
-                logDebug $ "Updating to set " <> Version.print newSetVersion <> " for compiler " <> Version.print currentCompiler
+                logDebug $ "Updating to package set " <> Version.print newSetVersion <> " for compiler " <> Version.print currentCompiler
                 pure (Map.insert currentCompiler newSetVersion index)
               else pure index
             -- Didn't find a version with the same major, so we could be supporting a different compiler here.
             -- Read the set, check what we have for the compiler it supports
             Nothing -> do
               packageSet <- readPackageSet newSetVersion
-              logDebug $ "Inserting set " <> Version.print newSetVersion <> " for compiler " <> Version.print packageSet.compiler
+              logDebug $ "Inserting package set " <> Version.print newSetVersion <> " for compiler " <> Version.print packageSet.compiler
               pure $ Map.insert packageSet.compiler newSetVersion index
       index :: Map Version Version <- Array.foldM accVersions Map.empty setVersions
       logDebug $ [ "Package set index", printJson (Internal.Codec.versionMap Version.codec) index ]
@@ -781,5 +781,5 @@ findPackageSet maybeSet = do
         Just v -> pure v
         -- TODO: well we could approximate with any minor version really? See old Spago:
         -- https://github.com/purescript/spago/blob/01eecf041851ca0fbced1d4f7147fcbdd8bf168d/src/Spago/PackageSet.hs#L66
-        Nothing -> die $ [ toDoc $ "No set is compatible with your compiler version " <> Version.print purs.version, toDoc "Compatible versions:" ]
+        Nothing -> die $ [ toDoc $ "No package set is compatible with your compiler version " <> Version.print purs.version, toDoc "Compatible versions:" ]
           <> map (indent <<< toDoc <<< Version.print) (Array.fromFoldable $ Map.keys index)
