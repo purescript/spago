@@ -96,41 +96,56 @@ run packages = do
             logDebug $ "Metadata read: " <> printJson Metadata.publishedMetadataCodec versionMetadata
             -- then check if we have a tarball cached. If not, download it
             let globalCachePackagePath = Path.concat [ Paths.globalCachePath, "packages", PackageName.print name ]
-            let tarballPath = Path.concat [ globalCachePackagePath, versionString <> ".tar.gz" ]
+            let archivePath = Path.concat [ globalCachePackagePath, versionString <> ".tar.gz" ]
             FS.mkdirp globalCachePackagePath
-            unlessM (FS.exists tarballPath) do
-              response <- liftAff $ Http.request
-                ( Http.defaultRequest
-                    { method = Left Method.GET
-                    , responseFormat = Response.arrayBuffer
-                    , url = "https://packages.registry.purescript.org/" <> PackageName.print name <> "/" <> versionString <> ".tar.gz"
-                    }
-                )
-              case response of
-                Left err -> die $ "Couldn't fetch package " <> packageVersion <> ":\n  " <> Http.printError err
-                Right { status, body } | status /= StatusCode 200 -> do
-                  (buf :: Buffer) <- liftEffect $ Buffer.fromArrayBuffer body
-                  bodyString <- liftEffect $ Buffer.toString Encoding.UTF8 buf
-                  die $ "Couldn't fetch package " <> packageVersion <> ", status was not ok " <> show status <> ", got answer:\n  " <> bodyString
-                Right r@{ body: tarballArrayBuffer } -> do
-                  logDebug $ "Got status: " <> show r.status
-                  -- check the size and hash of the tar against the metadata
-                  tarballBuffer <- liftEffect $ Buffer.fromArrayBuffer tarballArrayBuffer
-                  tarballSize <- liftEffect $ Buffer.size tarballBuffer
-                  tarballSha <- liftEffect $ Sha256.hashBuffer tarballBuffer
-                  unless (Int.toNumber tarballSize == versionMetadata.bytes) do
-                    die $ "Tarball fetched for " <> packageVersion <> " has a different size (" <> show tarballSize <> ") than expected (" <> show versionMetadata.bytes <> ")"
-                  unless (tarballSha == versionMetadata.hash) do
-                    die $ "Tarball fetched for " <> packageVersion <> " has a different hash (" <> Sha256.print tarballSha <> ") than expected (" <> Sha256.print versionMetadata.hash <> ")"
-                  -- if everything's alright we stash the tar in the global cache
-                  logInfo $ "Copying tarball for " <> packageVersion <> " to global cache: " <> tarballPath
-                  FS.writeFile tarballPath tarballBuffer
+            -- We need to see if the tarball is there, and if we can decompress it.
+            -- This is because if Spago is killed while it's writing the tar, then it might leave it corrupted.
+            -- By checking that it's broken we can try to redownload it here.
+            tarExists <- FS.exists archivePath
             -- unpack the tars in a temp folder, then move to local cache
             let tarInnerFolder = PackageName.print name <> "-" <> Version.print v
             tempDir <- mkTemp
             FS.mkdirp tempDir
-            logDebug $ "Unpacking tarball to temp folder: " <> tempDir
-            liftEffect $ Tar.extract { filename: tarballPath, cwd: tempDir }
+            tarIsGood <-
+              if tarExists then do
+                logDebug $ "Trying to unpack archive to temp folder: " <> tempDir
+                map (either (const false) (const true)) $ liftEffect $ Tar.extract { filename: archivePath, cwd: tempDir }
+              else
+                pure false
+            case tarExists, tarIsGood of
+              true, true -> pure unit -- Tar exists and is good, and we already unpacked it. Happy days!
+              _, _ -> do
+                logInfo $ "Fetching package " <> packageVersion
+                response <- liftAff $ Http.request
+                  ( Http.defaultRequest
+                      { method = Left Method.GET
+                      , responseFormat = Response.arrayBuffer
+                      , url = "https://packages.registry.purescript.org/" <> PackageName.print name <> "/" <> versionString <> ".tar.gz"
+                      }
+                  )
+                case response of
+                  Left err -> die $ "Couldn't fetch package " <> packageVersion <> ":\n  " <> Http.printError err
+                  Right { status, body } | status /= StatusCode 200 -> do
+                    (buf :: Buffer) <- liftEffect $ Buffer.fromArrayBuffer body
+                    bodyString <- liftEffect $ Buffer.toString Encoding.UTF8 buf
+                    die $ "Couldn't fetch package " <> packageVersion <> ", status was not ok " <> show status <> ", got answer:\n  " <> bodyString
+                  Right r@{ body: archiveArrayBuffer } -> do
+                    logDebug $ "Got status: " <> show r.status
+                    -- check the size and hash of the tar against the metadata
+                    archiveBuffer <- liftEffect $ Buffer.fromArrayBuffer archiveArrayBuffer
+                    archiveSize <- liftEffect $ Buffer.size archiveBuffer
+                    archiveSha <- liftEffect $ Sha256.hashBuffer archiveBuffer
+                    unless (Int.toNumber archiveSize == versionMetadata.bytes) do
+                      die $ "Archive fetched for " <> packageVersion <> " has a different size (" <> show archiveSize <> ") than expected (" <> show versionMetadata.bytes <> ")"
+                    unless (archiveSha == versionMetadata.hash) do
+                      die $ "Archive fetched for " <> packageVersion <> " has a different hash (" <> Sha256.print archiveSha <> ") than expected (" <> Sha256.print versionMetadata.hash <> ")"
+                    -- if everything's alright we stash the tar in the global cache
+                    logDebug $ "Fetched archive for " <> packageVersion <> ", saving it in the global cache: " <> archivePath
+                    FS.writeFile archivePath archiveBuffer
+                    logDebug $ "Unpacking archive to temp folder: " <> tempDir
+                    (liftEffect $ Tar.extract { filename: archivePath, cwd: tempDir }) >>= case _ of
+                      Right _ -> pure unit
+                      Left err -> die [ "Failed to decode downloaded package " <> packageVersion <> ", error:", show err ]
             logDebug $ "Moving extracted file to local cache:" <> localPackageLocation
             FS.moveSync { src: (Path.concat [ tempDir, tarInnerFolder ]), dst: localPackageLocation }
       -- Local package, no work to be done
