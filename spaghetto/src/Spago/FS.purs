@@ -8,6 +8,8 @@ module Spago.FS
   , readTextFile
   , readYamlDocFile
   , readYamlFile
+  , stat
+  , touch
   , writeFile
   , writeJsonFile
   , writeTextFile
@@ -22,6 +24,7 @@ import Effect.Aff as Aff
 import Node.FS.Aff as FS.Aff
 import Node.FS.Perms (Perms)
 import Node.FS.Perms as Perms
+import Node.FS.Stats (Stats)
 import Node.FS.Sync as FS.Sync
 import Spago.Yaml as Yaml
 
@@ -32,6 +35,11 @@ foreign import moveSyncImpl :: String -> String -> Effect Unit
 
 moveSync :: forall m. MonadEffect m => { src :: FilePath, dst :: FilePath } -> m Unit
 moveSync { src, dst } = liftEffect $ moveSyncImpl src dst
+
+foreign import ensureFileSyncImpl :: String -> Effect Unit
+
+ensureFileSync :: forall m. MonadEffect m => FilePath -> m Unit
+ensureFileSync file = liftEffect $ ensureFileSyncImpl file
 
 exists :: forall m. MonadEffect m => String -> m Boolean
 exists = liftEffect <<< FS.Sync.exists
@@ -78,3 +86,16 @@ readYamlDocFile :: forall a. JsonCodec a -> FilePath -> Aff (Either String { doc
 readYamlDocFile codec path = do
   result <- Aff.attempt $ FS.Aff.readTextFile UTF8 path
   pure (lmap Aff.message result >>= Yaml.parseYamlDoc codec >>> lmap CA.printJsonDecodeError)
+
+stat :: forall m. MonadAff m => FilePath -> m (Either Error Stats)
+stat path = liftAff $ try (FS.Aff.stat path)
+
+touch :: forall m. MonadAff m => FilePath -> m Unit
+touch path = do
+  ensureFileSync path
+  -- now <- liftEffect $ Now.nowDateTime
+  -- utimes path { atime: now, mtime: now } -- This doesn't seem to work on mac
+  liftAff $ FS.Aff.appendTextFile UTF8 path ""
+
+-- utimes :: forall m. MonadAff m => FilePath -> { atime :: DateTime, mtime :: DateTime } -> m Unit
+-- utimes path { atime, mtime } = liftAff $ FS.Aff.utimes path atime mtime

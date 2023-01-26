@@ -20,6 +20,7 @@ import Data.Int as Int
 import Data.Map as Map
 import Data.Set as Set
 import Effect.Now as Now
+import Effect.Ref as Ref
 import Node.Buffer as Buffer
 import Node.Encoding as Encoding
 import Node.Path as Path
@@ -214,7 +215,19 @@ getTransitiveDeps :: forall a. Array PackageName -> Spago (FetchEnv a) (Map Pack
 getTransitiveDeps deps = do
   logDebug "Getting transitive deps"
   { workspace } <- ask
+  packageDependenciesCache <- liftEffect $ Ref.new Map.empty
   let
+    memoisedGetPackageDependencies :: PackageName -> Package -> Spago (FetchEnv a) (Maybe (Map PackageName Range))
+    memoisedGetPackageDependencies packageName package = do
+      cache <- liftEffect $ Ref.read packageDependenciesCache
+      case Map.lookup packageName cache of
+        Just cached -> pure cached
+        Nothing -> do
+          -- Not cached. Compute it, write to ref, return it
+          res <- getPackageDependencies packageName package
+          liftEffect $ Ref.modify_ (Map.insert packageName res) packageDependenciesCache
+          pure res
+
     printPackageError :: PackageName -> String
     printPackageError p = "  - " <> PackageName.print p <> "\n"
 
@@ -242,7 +255,7 @@ getTransitiveDeps deps = do
             case Map.lookup dep workspace.packageSet of
               Nothing -> pure (init { errors { notInPackageSet = Set.singleton dep } })
               Just package -> do
-                maybeDeps <- State.lift $ getPackageDependencies dep package
+                maybeDeps <- State.lift $ memoisedGetPackageDependencies dep package
                 case maybeDeps of
                   Nothing -> pure (init { errors { notInIndex = Set.singleton dep } })
                   Just dependenciesMap -> do
