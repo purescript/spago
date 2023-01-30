@@ -340,6 +340,8 @@ main =
               Right v -> pure v
             logDebug [ "Got packageName and setVersion:", PackageName.print packageName, unsafeStringify setVersion ]
             let initOpts = { packageName, setVersion }
+            -- Fetch the registry here so we can select the right package set later
+            void mkRegistryEnv
             void $ runSpago { logOptions, purs } $ Init.run initOpts
           Fetch args -> do
             { env, packageNames } <- mkFetchEnv args
