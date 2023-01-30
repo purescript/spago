@@ -7,11 +7,13 @@ import ArgParse.Basic as ArgParser
 import Data.Array as Array
 import Data.Array.NonEmpty as NonEmptyArray
 import Data.Codec.Argonaut.Common as CA.Common
+import Data.JSDate as JSDate
 import Data.List as List
 import Data.Map as Map
 import Effect.Aff as Aff
 import Effect.Class.Console as Console
 import Effect.Ref as Ref
+import Node.FS.Stats (Stats(..))
 import Node.Path as Path
 import Node.Process as Process
 import Record as Record
@@ -630,19 +632,20 @@ mkRegistryEnv = do
               liftEffect (Ref.write (Map.insert name m metadataMap) metadataRef)
               pure (Right m)
 
-  -- clone the registry and index repo, or update them
-  logInfo "Refreshing the Registry Index..."
   { logOptions } <- ask
-  -- TODO: we will want to keep track how old the latest pull was - here we just wait on the fibers, but if the last
-  -- pull was recent then we might just want to move on
-  runSpago { logOptions, git } $ parallelise
-    [ try (Git.fetchRepo { git: "https://github.com/purescript/registry-index.git", ref: "main" } Paths.registryIndexPath) >>= case _ of
-        Right _ -> pure unit
-        Left _err -> logWarn "Couldn't refresh the registry-index, will proceed anyways"
-    , try (Git.fetchRepo { git: "https://github.com/purescript/registry.git", ref: "main" } Paths.registryPath) >>= case _ of
-        Right _ -> pure unit
-        Left _err -> logWarn "Couldn't refresh the registry, will proceed anyways"
-    ]
+  -- we keep track of how old the latest pull was - if the last pull was recent enough
+  -- we just move on, otherwise run the fibers
+  whenM shouldFetchRegistryRepos do
+    -- clone the registry and index repo, or update them
+    logInfo "Refreshing the Registry Index..."
+    runSpago { logOptions, git } $ parallelise
+      [ try (Git.fetchRepo { git: "https://github.com/purescript/registry-index.git", ref: "main" } Paths.registryIndexPath) >>= case _ of
+          Right _ -> pure unit
+          Left _err -> logWarn "Couldn't refresh the registry-index, will proceed anyways"
+      , try (Git.fetchRepo { git: "https://github.com/purescript/registry.git", ref: "main" } Paths.registryPath) >>= case _ of
+          Right _ -> pure unit
+          Left _err -> logWarn "Couldn't refresh the registry, will proceed anyways"
+      ]
 
   pure
     { getManifestFromIndex
@@ -650,3 +653,26 @@ mkRegistryEnv = do
     , logOptions
     , git
     }
+
+shouldFetchRegistryRepos :: forall a. Spago (LogEnv a) Boolean
+shouldFetchRegistryRepos = do
+  let freshRegistryCanary = Path.concat [ Paths.globalCachePath, "fresh-registry-canary.txt" ]
+  FS.stat freshRegistryCanary >>= case _ of
+    Left err -> do
+      -- If the stat fails the file probably does not exist
+      logDebug [ "Could not stat " <> freshRegistryCanary, show err ]
+      -- in which case we touch it and fetch
+      FS.touch freshRegistryCanary
+      pure true
+    Right (Stats { mtime }) -> do
+      -- it does exist here, see if it's old enough, and fetch if it is
+      now <- liftEffect $ JSDate.now
+      let minutes = 15.0
+      let staleAfter = 1000.0 * 60.0 * minutes -- need this in millis
+      let isOldEnough = (JSDate.getTime now) > (JSDate.getTime mtime + staleAfter)
+      if isOldEnough then do
+        FS.touch freshRegistryCanary
+        pure true
+      else do
+        logDebug "Registry index is fresh enough, moving on..."
+        pure false

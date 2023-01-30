@@ -1,6 +1,6 @@
 {
   "name": "spago",
-  "version": "0.92.7",
+  "version": "0.92.8",
   "license": "BSD-3-Clause",
   "description": "🍝 PureScript package manager and build tool",
   "keywords": [
@@ -32,18 +32,12 @@
     "prepublishOnly": "./bin/index.dev.js bundle -p spago-bin"
   },
   "dependencies": {
-    "@octokit/plugin-retry": "^3.0.9",
-    "@octokit/plugin-throttling": "^3.7.0",
-    "@octokit/rest": "^18.12.0",
-    "aws-sdk": "^2.1210.0",
-    "decimal.js": "^10.3.1",
     "env-paths": "^3.0.0",
     "esbuild": "^0.15.5",
     "execa": "^6.1.0",
     "fast-glob": "^3.2.11",
     "fs-extra": "^10.0.0",
     "fuse.js": "^6.5.3",
-    "jsonrepair": "^2.2.1",
     "semver": "^7.3.5",
     "spdx-expression-parse": "^3.0.1",
     "supports-color": "^9.2.3",
