@@ -3,6 +3,7 @@ module Spago.Git
   , GitEnv
   , fetchRepo
   , getGit
+  , getRef
   , isIgnored
   ) where
 
@@ -10,6 +11,8 @@ import Spago.Prelude
 
 import Control.Monad.Except (ExceptT(..))
 import Control.Monad.Except as Except
+import Data.String (Pattern(..))
+import Data.String as String
 import Spago.Cmd as Cmd
 import Spago.FS as FS
 
@@ -51,6 +54,28 @@ fetchRepo { git, ref } path = do
   case result of
     Left err -> throwError err
     Right _ -> pure unit
+
+getRef :: forall a. Spago (GitEnv a) (Either Docc String)
+getRef = do
+  let opts = Cmd.defaultExecOptions { pipeStdout = false, pipeStderr = false }
+  { git } <- ask
+  Cmd.exec git.cmd [ "status", "--porcelain" ] opts >>= case _ of
+    Left err -> do
+      pure $ Left $ toDoc [ "Could not run `git status`. Error:", err.shortMessage ]
+    Right res -> do
+      case res.stdout of
+        "" -> do
+          -- Tree is clean, get the ref
+          Cmd.exec git.cmd [ "rev-parse", "HEAD" ] opts >>= case _ of
+            Left err -> pure $ Left $ toDoc
+              [ "Could not run `git rev-parse HEAD` to determine the current ref. Error:"
+              , err.shortMessage
+              ]
+            Right res' -> pure $ Right res'.stdout
+        _ -> pure $ Left $ toDoc
+          [ toDoc "Git tree is not clean, aborting. Commit or stash these files:"
+          , indent $ toDoc (String.split (Pattern "\n") res.stdout)
+          ]
 
 -- | Check if the path is ignored by git
 --
