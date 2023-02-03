@@ -4,6 +4,7 @@ module Spago.Command.Fetch
   , getTransitiveDeps
   , FetchEnv
   , FetchEnvRow
+  , FetchOpts
   ) where
 
 import Spago.Prelude
@@ -49,8 +50,13 @@ type FetchEnvRow a =
 
 type FetchEnv a = Record (FetchEnvRow a)
 
-run :: forall a. Array PackageName -> Spago (FetchEnv a) PackageSet
-run packages = do
+type FetchOpts =
+  { packages :: Array PackageName
+  , ensureRanges :: Boolean
+  }
+
+run :: forall a. FetchOpts -> Spago (FetchEnv a) PackageSet
+run { packages, ensureRanges } = do
   logDebug $ "Requested to install these packages: " <> printJson (CA.array PackageName.codec) packages
 
   { getMetadata, workspace, logOptions } <- ask
@@ -68,13 +74,21 @@ run packages = do
   transitivePackages <- getTransitiveDeps $ (Set.toUnfoldable $ Map.keys deps) <> packages
 
   -- write to the config file if we are adding new packages
+  let
+    { configPath, yamlDoc } = case workspace.selected of
+      Nothing -> { configPath: "spago.yaml", yamlDoc: workspace.doc }
+      Just { path, doc } -> { configPath: Path.concat [ path, "spago.yaml" ], yamlDoc: doc }
   unless (Array.null packages) do
-    let
-      { configPath, yamlDoc } = case workspace.selected of
-        Nothing -> { configPath: "spago.yaml", yamlDoc: workspace.doc }
-        Just { path, doc } -> { configPath: Path.concat [ path, "spago.yaml" ], yamlDoc: doc }
     logInfo $ "Adding " <> show (Array.length packages) <> " packages to the config in " <> configPath
     liftEffect $ Config.addPackagesToConfig yamlDoc packages
+    liftAff $ FS.writeYamlDocFile configPath yamlDoc
+
+  -- TODO: add ranges
+  -- if the flag is selected, we kick off the
+  when ensureRanges do
+    logInfo $ "Adding ranges to dependencies to the config in " <> configPath
+    let rangeMap = map getRangeFromPackage transitivePackages
+    liftEffect $ Config.addRangesToConfig yamlDoc rangeMap
     liftAff $ FS.writeYamlDocFile configPath yamlDoc
 
   -- then for every package we have we try to download it, and copy it in the local cache
@@ -283,6 +297,13 @@ getTransitiveDeps deps = do
 widestRange :: Range
 widestRange = Either.fromRight' (\_ -> unsafeCrashWith "Fake range failed")
   $ Range.parse ">=0.0.0 <2147483647.0.0"
+
+-- | Given a Package, figure out a reasonable range.
+-- We default to the widest range for packages that are not pointing to the Registry.
+getRangeFromPackage :: Package -> Range
+getRangeFromPackage = case _ of
+  RegistryVersion v -> Range.caret v
+  _ -> widestRange
 
 mkTemp' :: forall m. MonadAff m => Maybe String -> m FilePath
 mkTemp' maybeSuffix = liftAff do

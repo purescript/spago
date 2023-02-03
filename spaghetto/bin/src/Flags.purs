@@ -135,3 +135,10 @@ maybeSetVersion =
   ArgParser.argument [ "--set" ]
     "Optional package set version to be used instead of the latest one."
     # ArgParser.optional
+
+ensureRanges :: ArgParser Boolean
+ensureRanges =
+  ArgParser.flag [ "--ensure-ranges" ]
+    "Add version bounds for all the dependencies of the selected project"
+    # ArgParser.boolean
+    # ArgParser.default false

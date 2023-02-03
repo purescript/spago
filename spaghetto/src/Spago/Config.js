@@ -36,3 +36,25 @@ export function addPackagesToConfigImpl(doc, newPkgs) {
   newItems.sort();
   deps.items = newItems;
 }
+
+export function addRangesToConfigImpl(doc, rangesMap) {
+  const deps = doc.get("package").get("dependencies");
+
+  // if a dependency is an object then we know it has a range, otherwise we
+  // look up in the map of ranges and add it from there.
+  let newItems = [];
+  for (const el of deps.items) {
+    // If it's not a scalar then we have a version range, let it be
+    if (Yaml.isMap(el)) {
+      newItems.push(el);
+    }
+    if (Yaml.isScalar(el)) {
+      let newEl = new Map();
+      newEl.set(el.value, rangesMap[el.value]);
+      newItems.push(doc.createNode(newEl));
+    }
+  }
+
+  newItems.sort();
+  deps.items = newItems;
+}

@@ -23,6 +23,7 @@ module Spago.Config
   , WorkspaceConfig
   , WorkspacePackage
   , addPackagesToConfig
+  , addRangesToConfig
   , configCodec
   , findPackageSet
   , getPackageLocation
@@ -55,7 +56,8 @@ import Data.Set as Set
 import Data.String (Pattern(..))
 import Data.String as String
 import Dodo as Log
-import Effect.Uncurried (EffectFn2, runEffectFn2)
+import Effect.Uncurried (EffectFn1, EffectFn2, runEffectFn1, runEffectFn2)
+import Foreign.Object as Foreign
 import Node.Path as Path
 import Registry.Foreign.FastGlob as Glob
 import Registry.Internal.Codec as Internal.Codec
@@ -698,6 +700,14 @@ foreign import addPackagesToConfigImpl :: EffectFn2 (YamlDoc Config) (Array Stri
 
 addPackagesToConfig :: YamlDoc Config -> Array PackageName -> Effect Unit
 addPackagesToConfig doc pkgs = runEffectFn2 addPackagesToConfigImpl doc (map PackageName.print pkgs)
+
+foreign import addRangesToConfigImpl :: EffectFn2 (YamlDoc Config) (Foreign.Object String) Unit
+
+addRangesToConfig :: YamlDoc Config -> Map PackageName Range -> Effect Unit
+addRangesToConfig doc = runEffectFn2 addRangesToConfigImpl doc
+  <<< Foreign.fromFoldable
+  <<< map (\(Tuple name range) -> Tuple (PackageName.print name) (Range.print range))
+  <<< (Map.toUnfoldable :: Map _ _ -> Array _)
 
 toManifest :: Config -> Either String Manifest
 toManifest config = do
