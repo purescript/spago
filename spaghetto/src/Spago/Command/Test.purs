@@ -49,3 +49,7 @@ run = do
 
     logInfo $ "Running tests for package: " <> PackageName.print name
     runSpago runEnv Run.run
+
+-- TODO: it'd be nice to have a --coverage flag.
+-- For triggering that we'd have to call purs asking for `sourcemaps`, then use `rimraf` and `c8`, likely as FFI bindings
+-- See https://github.com/rowtype-yoga/purescript-yoga-json/blob/main/package.json

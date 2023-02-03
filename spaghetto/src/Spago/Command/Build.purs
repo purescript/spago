@@ -120,6 +120,9 @@ run opts = do
     unless (Array.null errors) do
       die errors
 
+  -- TODO: if we are building with all the packages (i.e. selected = Nothing),
+  -- then we can use the graph to remove outdated modules from `output`!
+
   where
 
   workspacePackageGlob :: WorkspacePackage -> Array String
