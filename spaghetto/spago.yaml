@@ -1,6 +1,6 @@
 package:
   name: spago
-  version: 0.92.8
+  version: 0.92.9
   dependencies:
     - aff
     - aff-promise
