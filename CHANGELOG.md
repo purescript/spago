@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Bugfixes:
 - Windows: forward the proper exit code when running spago via NPM (#883, #884)
 - Windows: replace all backward slashes in run path
+- Windows: bundle with the proper import path of a compiled entry module
 
 Other improvements:
 - CI: cleanup CI for 0.15.0 PureScript updates (#879)
