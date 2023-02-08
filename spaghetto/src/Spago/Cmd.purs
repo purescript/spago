@@ -26,14 +26,6 @@ type ExecResult = Execa.ExecaSuccess
 
 type ExecError = Execa.ExecaError
 
-type ExecOptionsJS =
-  { cwd :: Nullable String
-  , shell :: Boolean
-  , input :: Nullable String
-  }
-
-foreign import data ChildProcess :: Type
-
 defaultExecOptions :: ExecOptions
 defaultExecOptions =
   { pipeStdin: StdinNewPipe
