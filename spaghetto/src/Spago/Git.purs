@@ -90,9 +90,9 @@ isIgnored path = do
     Right { exitCode: 0 } -> pure true
     -- Git will fail with exitCode 128 if dealing with a link.
     -- We ignore those! I mean, do we really want to deal with recursive links?!?
-    Left { exitCode: 128 } -> pure true
+    Left { exitCode: Just 128 } -> pure true
     -- Git will fail with 1 when a file is just, like, normally ignored
-    Left { exitCode: 1 } -> pure false
+    Left { exitCode: Just 1 } -> pure false
     _ -> do
       logDebug "IsIgnored encountered an interesting exitCode"
       logDebug $ show result
