@@ -27,6 +27,7 @@ package:
     - maybe
     - newtype
     - node-buffer
+    - node-execa
     - node-fs
     - node-fs-aff
     - node-path
@@ -63,3 +64,6 @@ workspace:
       git: https://github.com/purescript/registry-dev.git
       ref: 8113deecae25410ba62c31a5842c6ebbf1c12461
       subdir: foreign
+    node-execa: 1.1.0
+    node-event-emitter: 1.0.1
+    node-human-signals: 1.0.0
