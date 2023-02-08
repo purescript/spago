@@ -56,7 +56,7 @@ import Data.Set as Set
 import Data.String (Pattern(..))
 import Data.String as String
 import Dodo as Log
-import Effect.Uncurried (EffectFn1, EffectFn2, runEffectFn1, runEffectFn2)
+import Effect.Uncurried (EffectFn2, runEffectFn2)
 import Foreign.Object as Foreign
 import Node.Path as Path
 import Registry.Foreign.FastGlob as Glob

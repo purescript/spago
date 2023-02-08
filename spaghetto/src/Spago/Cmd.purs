@@ -2,15 +2,13 @@ module Spago.Cmd where
 
 import Spago.Prelude
 
-import Control.Promise (Promise)
-import Control.Promise as Promise
 import Data.Array as Array
 import Data.Nullable (Nullable)
-import Data.Nullable as Nullable
 import Data.String (Pattern(..))
 import Data.String as String
-import Effect.Uncurried (EffectFn1, EffectFn2, EffectFn3, runEffectFn1, runEffectFn3)
+import Node.Library.Execa as Execa
 import Partial.Unsafe (unsafeCrashWith)
+import Data.Time.Duration (Milliseconds(..))
 
 data StdinConfig
   = StdinPipeParent
@@ -24,42 +22,9 @@ type ExecOptions =
   , cwd :: Maybe FilePath
   }
 
-type ExecResult =
-  { stdout :: String
-  , stderr :: String
-  , exitCode :: Int
-  , failed :: Boolean
-  , timedOut :: Boolean
-  , isCanceled :: Boolean
-  , killed :: Boolean
-  }
+type ExecResult = Execa.ExecaSuccess
 
-type ExecError =
-  { shortMessage :: String
-  , exitCode :: Int
-  , stdout :: String
-  , stderr :: String
-  , failed :: Boolean
-  , timedOut :: Boolean
-  , isCanceled :: Boolean
-  , killed :: Boolean
-  }
-
-type ExecOptionsJS =
-  { cwd :: Nullable String
-  , shell :: Boolean
-  , input :: Nullable String
-  }
-
-foreign import data ChildProcess :: Type
-
-foreign import spawnImpl :: EffectFn3 String (Array String) ExecOptionsJS ChildProcess
-foreign import spawnCommandImpl :: EffectFn2 String ExecOptionsJS ChildProcess
-foreign import killImpl :: EffectFn1 ChildProcess Unit
-foreign import pipeStdinImpl :: EffectFn1 ChildProcess Unit
-foreign import pipeStdoutImpl :: EffectFn1 ChildProcess Unit
-foreign import pipeStderrImpl :: EffectFn1 ChildProcess Unit
-foreign import joinImpl :: forall a b r. EffectFn3 ChildProcess (a -> r) (b -> r) (Promise r)
+type ExecError = Execa.ExecaError
 
 defaultExecOptions :: ExecOptions
 defaultExecOptions =
@@ -69,40 +34,33 @@ defaultExecOptions =
   , cwd: Nothing
   }
 
-spawn :: forall m. MonadEffect m => String -> Array String -> ExecOptions -> m ChildProcess
-spawn cmd args opts = liftEffect do
-  subprocess <- runEffectFn3 spawnImpl cmd args
-    { cwd: Nullable.toNullable opts.cwd
-    , input: case opts.pipeStdin of
-        StdinWrite s -> Nullable.notNull s
-        _ -> Nullable.null
-    , shell: false
-    }
+spawn :: forall m. MonadAff m => String -> Array String -> ExecOptions -> m Execa.ExecaProcess
+spawn cmd args opts = liftAff do
+  subprocess <- Execa.execa cmd args (_ { cwd = opts.cwd })
 
   case opts.pipeStdin of
-    StdinPipeParent -> runEffectFn1 pipeStdinImpl subprocess
+    StdinPipeParent -> subprocess.stdin.shareParentProcessStdin
+    StdinWrite s -> subprocess.stdin.writeUtf8End s
     _ -> pure unit
   when (opts.pipeStderr) do
-    runEffectFn1 pipeStderrImpl subprocess
+    subprocess.stderr.pipeToParentStderr
   when (opts.pipeStdout) do
-    runEffectFn1 pipeStdoutImpl subprocess
+    subprocess.stdout.pipeToParentStdout
 
   pure subprocess
 
-joinProcess :: forall m. MonadAff m => ChildProcess -> m (Either ExecError ExecResult)
-joinProcess cp = liftAff do
-  let res = runEffectFn3 joinImpl cp Left Right
-  Promise.toAffE res
+joinProcess :: forall m. MonadAff m => Execa.ExecaProcess -> m (Either ExecError ExecResult)
+joinProcess cp = liftAff $ cp.result
 
 exec :: forall m. MonadAff m => String -> Array String -> ExecOptions -> m (Either ExecError ExecResult)
-exec cmd args opts = do
-  res <- spawn cmd args opts
-  joinProcess res
+exec cmd args opts = liftAff do
+  subprocess <- spawn cmd args opts
+  subprocess.result
 
-kill :: ChildProcess -> Aff ExecError
-kill cp = do
-  liftEffect (runEffectFn1 killImpl cp)
-  joinProcess cp >>= case _ of
+kill :: Execa.ExecaProcess -> Aff ExecError
+kill cp = liftAff do
+  void $ cp.killForced $ Milliseconds 2_000.0
+  cp.result >>= case _ of
     Left e -> pure e
     Right res -> unsafeCrashWith ("Tried to kill the process, failed. Result: " <> show res)
 
