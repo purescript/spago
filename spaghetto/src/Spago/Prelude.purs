@@ -63,6 +63,7 @@ import Node.Buffer as Buffer
 import Node.Encoding (Encoding(..)) as Extra
 import Node.Path (FilePath) as Extra
 import Partial.Unsafe (unsafeCrashWith)
+import Registry.ManifestIndex (ManifestIndex) as Extra
 import Registry.Sha256 (Sha256)
 import Registry.Sha256 as Registry.Sha256
 import Registry.Types (PackageName, Version, Range, Location, License, Manifest(..), Metadata(..), Sha256) as Extra

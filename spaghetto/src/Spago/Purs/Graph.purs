@@ -153,7 +153,7 @@ compileGlob sourcePath = do
   { succeeded } <- Glob.match Paths.cwd [ sourcePath ]
   pure succeeded
 
-runGraphCheck :: forall a. WorkspacePackage -> Set FilePath -> Array String -> Spago (PreGraphEnv a) (Array (Array Docc))
+runGraphCheck :: forall a. WorkspacePackage -> Set FilePath -> Array String -> Spago (PreGraphEnv a) (Array Docc)
 runGraphCheck selected globs pursArgs = do
   env <- ask
   maybeGraph <- Purs.graph globs pursArgs
@@ -173,8 +173,8 @@ runGraphCheck selected globs pursArgs = do
 
       pure result
 
-unusedError :: Boolean -> WorkspacePackage -> Set PackageName -> Array Docc
-unusedError isTest selected unused =
+unusedError :: Boolean -> WorkspacePackage -> Set PackageName -> Docc
+unusedError isTest selected unused = toDoc
   [ Log.break
   , toDoc $ (if isTest then "Tests for package '" else "Sources for package '")
       <> PackageName.print selected.package.name
@@ -182,8 +182,8 @@ unusedError isTest selected unused =
   , indent (toDoc (map (\p -> PackageName.print p) (Set.toUnfoldable unused) :: Array _))
   ]
 
-transitiveError :: Boolean -> WorkspacePackage -> ImportedPackages -> Array Docc
-transitiveError isTest selected transitive =
+transitiveError :: Boolean -> WorkspacePackage -> ImportedPackages -> Docc
+transitiveError isTest selected transitive = toDoc
   [ Log.break
   , toDoc
       $ (if isTest then "Tests for package '" else "Sources for package '")

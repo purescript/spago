@@ -42,6 +42,7 @@ import Spago.Tar as Tar
 type FetchEnvRow a =
   ( getManifestFromIndex :: PackageName -> Version -> Spago (LogEnv ()) (Maybe Manifest)
   , getMetadata :: PackageName -> Spago (LogEnv ()) (Either String Metadata)
+  , getCachedIndex :: Effect ManifestIndex
   , workspace :: Workspace
   , logOptions :: LogOptions
   , git :: Git.Git

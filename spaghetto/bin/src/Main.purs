@@ -41,6 +41,7 @@ import Spago.Json as Json
 import Spago.Log (LogVerbosity(..), supportsColor)
 import Spago.Paths as Paths
 import Spago.Purs as Purs
+import Unsafe.Coerce (unsafeCoerce)
 
 type GlobalArgs =
   { noColor :: Boolean
@@ -608,6 +609,9 @@ mkRegistryEnv = do
   -- and we don't have to read it all together
   indexRef <- liftEffect $ Ref.new (Map.empty :: Map PackageName (Map Version Manifest))
   let
+    getCachedIndex :: Effect ManifestIndex
+    getCachedIndex = map unsafeCoerce $ Ref.read indexRef
+
     getManifestFromIndex :: PackageName -> Version -> Spago (LogEnv ()) (Maybe Manifest)
     getManifestFromIndex name version = do
       indexMap <- liftEffect (Ref.read indexRef)
@@ -662,6 +666,7 @@ mkRegistryEnv = do
 
   pure
     { getManifestFromIndex
+    , getCachedIndex
     , getMetadata
     , logOptions
     , git
