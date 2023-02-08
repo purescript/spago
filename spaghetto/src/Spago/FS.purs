@@ -1,6 +1,7 @@
 module Spago.FS
   ( chmod
   , exists
+  , isLink
   , ls
   , mkdirp
   , moveSync
@@ -25,6 +26,7 @@ import Node.FS.Aff as FS.Aff
 import Node.FS.Perms (Perms)
 import Node.FS.Perms as Perms
 import Node.FS.Stats (Stats)
+import Node.FS.Stats as Stats
 import Node.FS.Sync as FS.Sync
 import Spago.Yaml as Yaml
 
@@ -89,6 +91,11 @@ readYamlDocFile codec path = do
 
 stat :: forall m. MonadAff m => FilePath -> m (Either Error Stats)
 stat path = liftAff $ try (FS.Aff.stat path)
+
+isLink :: forall m. MonadEffect m => FilePath -> m Boolean
+isLink path = liftEffect $ try (FS.Sync.lstat path) >>= case _ of
+  Left _err -> pure true -- TODO: we should bubble this up instead
+  Right stats -> pure $ Stats.isSymbolicLink stats
 
 touch :: forall m. MonadAff m => FilePath -> m Unit
 touch path = do

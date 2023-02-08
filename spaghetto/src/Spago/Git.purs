@@ -88,9 +88,9 @@ isIgnored path = do
   case result of
     -- Git is successful if it's an ignored file
     Right { exitCode: 0 } -> pure true
-    -- Git will fail with exitCode 128 if dealing with a link.
-    -- We ignore those! I mean, do we really want to deal with recursive links?!?
-    Left { exitCode: Just 128 } -> pure true
+    -- Git will fail with exitCode 128 if this is not a git repo or if it's dealing with a link.
+    -- We ignore links - I mean, do we really want to deal with recursive links?!?
+    Left { exitCode: Just 128 } -> FS.isLink path
     -- Git will fail with 1 when a file is just, like, normally ignored
     Left { exitCode: Just 1 } -> pure false
     _ -> do
