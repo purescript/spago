@@ -22,26 +22,9 @@ type ExecOptions =
   , cwd :: Maybe FilePath
   }
 
-type ExecResult =
-  { stdout :: String
-  , stderr :: String
-  , exitCode :: Int
-  , failed :: Boolean
-  , timedOut :: Boolean
-  , isCanceled :: Boolean
-  , killed :: Boolean
-  }
+type ExecResult = Execa.ExecaSuccess
 
-type ExecError =
-  { shortMessage :: String
-  , exitCode :: Maybe Int
-  , stdout :: String
-  , stderr :: String
-  , failed :: Boolean
-  , timedOut :: Boolean
-  , isCanceled :: Boolean
-  , killed :: Boolean
-  }
+type ExecError = Execa.ExecaError
 
 type ExecOptionsJS =
   { cwd :: Nullable String
@@ -75,28 +58,18 @@ spawn cmd args opts = liftAff do
   pure subprocess
 
 joinProcess :: forall m. MonadAff m => Execa.ExecaProcess -> m (Either ExecError ExecResult)
-joinProcess cp = liftAff do
-  bimap execaErrorToExecError execaSuccessToExecResult <$> cp.result
-
-execaErrorToExecError :: Execa.ExecaError -> ExecError
-execaErrorToExecError { shortMessage, exitCode, stdout, stderr, failed, timedOut, isCanceled, killed } =
-  { shortMessage, exitCode, stdout, stderr, failed, timedOut, isCanceled, killed }
-
-execaSuccessToExecResult :: Execa.ExecaSuccess -> ExecResult
-execaSuccessToExecResult { stdout, stderr, exitCode } =
-  { stdout, stderr, exitCode, failed: false, timedOut: false, isCanceled: false, killed: false }
+joinProcess cp = liftAff $ cp.result
 
 exec :: forall m. MonadAff m => String -> Array String -> ExecOptions -> m (Either ExecError ExecResult)
 exec cmd args opts = liftAff do
   subprocess <- spawn cmd args opts
-  result <- subprocess.result
-  pure $ bimap execaErrorToExecError execaSuccessToExecResult result
+  subprocess.result
 
 kill :: Execa.ExecaProcess -> Aff ExecError
 kill cp = liftAff do
   void $ cp.killForced $ Milliseconds 2_000.0
   cp.result >>= case _ of
-    Left e -> pure $ execaErrorToExecError e
+    Left e -> pure e
     Right res -> unsafeCrashWith ("Tried to kill the process, failed. Result: " <> show res)
 
 -- | Try to find one of the flags in a list of Purs args
