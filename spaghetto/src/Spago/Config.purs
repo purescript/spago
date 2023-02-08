@@ -510,10 +510,10 @@ readWorkspace maybeSelectedPackage = do
       _ -> pure Nothing
     Just name -> case Map.lookup name workspacePackages of
       Nothing -> die
-        [ toDoc $ "Selected package " <> PackageName.print name <> " was not found in the local packages."
-        , toDoc "Available packages:"
-        , indent (toDoc (Array.fromFoldable $ Map.keys workspacePackages))
-        ]
+        $ [ toDoc $ "Selected package " <> PackageName.print name <> " was not found in the local packages." ]
+        <> case (Array.fromFoldable $ Map.keys workspacePackages) of
+          [] -> [ toDoc "No available packages." ]
+          pkgs -> [ toDoc "Available packages:", indent (toDoc pkgs) ]
       Just p -> pure (Just p)
 
   -- Read in the package database
