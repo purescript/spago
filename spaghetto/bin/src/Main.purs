@@ -28,7 +28,7 @@ import Spago.Command.Build as Build
 import Spago.Command.Bundle as Bundle
 import Spago.Command.Fetch as Fetch
 import Spago.Command.Init as Init
-import Spago.Command.Ls (IncludeTransitive(..))
+import Spago.Command.Ls (IncludeTransitive(..), JsonFlag(..))
 import Spago.Command.Ls as Ls
 import Spago.Command.Registry as Registry
 import Spago.Command.Run as Run
@@ -426,12 +426,13 @@ main =
             runSpago buildEnv (Build.run options)
             testEnv <- runSpago env (mkTestEnv args)
             runSpago testEnv Test.run
-          Ls _args -> do
+          Ls args -> do
             let fetchArgs = { packages: mempty, selectedPackage: Nothing, ensureRanges: false }
             { env, fetchOpts } <- mkFetchEnv fetchArgs
             -- TODO: --no-fetch flag
             dependencies <- runSpago env (Fetch.run fetchOpts)
-            runSpago { dependencies } (Ls.listPackages IncludeTransitive "")
+            lsEnv <- runSpago env (mkLsEnv args dependencies)
+            runSpago lsEnv (Ls.listPackageSet JsonOutputNo)
 
 mkLogOptions :: GlobalArgs -> Aff LogOptions
 mkLogOptions { noColor, quiet, verbose } = do
@@ -692,6 +693,11 @@ mkRegistryEnv = do
     , logOptions
     , git
     }
+
+mkLsEnv :: forall a b. LsArgs -> Map PackageName Package -> Spago (Fetch.FetchEnv a) Ls.LsEnv
+mkLsEnv lsArgs dependencies = do
+  { logOptions, workspace, git } <- ask
+  pure { logOptions, dependencies }
 
 shouldFetchRegistryRepos :: forall a. Spago (LogEnv a) Boolean
 shouldFetchRegistryRepos = do

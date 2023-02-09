@@ -1,4 +1,4 @@
-module Spago.Command.Ls (listPackages, IncludeTransitive(..)) where
+module Spago.Command.Ls (listPackages, listPackageSet, LsEnv(..), JsonFlag(..), IncludeTransitive(..)) where
 
 import Spago.Prelude
 
@@ -12,11 +12,15 @@ import Spago.Command.Registry (RegistryEnv)
 import Spago.Config (Package)
 
 data IncludeTransitive = IncludeTransitive | NoIncludeTransitive
+data JsonFlag = JsonOutputNo | JsonOutputYes
 
-type Env = { dependencies :: Map PackageName Package }
+type LsEnv =
+  { dependencies :: Map PackageName Package
+  , logOptions :: LogOptions
+  }
 
-listPackages :: forall a. IncludeTransitive -> String -> Spago Env Unit
-listPackages includeTransitive jsonFlag = do
+listPackageSet :: forall a. JsonFlag -> Spago LsEnv Unit
+listPackageSet jsonFlag = do
   -- logDebug "Running `listPackages`"
   { dependencies } <- ask
   let packagesToList = Map.toUnfoldable dependencies
@@ -25,7 +29,17 @@ listPackages includeTransitive jsonFlag = do
     [] -> pure unit
     _ -> output $ OutputLines $ formatPackageNames jsonFlag packagesToList
 
-formatPackageNames :: String -> Array (PackageName /\ Package) -> Array String
+listPackages :: forall a. IncludeTransitive -> JsonFlag -> Spago LsEnv Unit
+listPackages includeTransitive jsonFlag = do
+  -- logDebug "Running `listPackages`"
+  { dependencies } <- ask
+  let packagesToList = Map.toUnfoldable dependencies
+  case packagesToList of
+    -- [] -> logWarn "There are no dependencies listed in your spago.dhall"
+    [] -> pure unit
+    _ -> output $ OutputLines $ formatPackageNames jsonFlag []
+
+formatPackageNames :: JsonFlag -> Array (PackageName /\ Package) -> Array String
 formatPackageNames jsonFlag packagesToList = render <$> packagesToList
   where
   render (packageName /\ _) = PackageName.print packageName
