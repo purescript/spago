@@ -1,61 +1,122 @@
 module Spago.Command.Ls (listPackages, listPackageSet, LsEnv(..), JsonFlag(..), IncludeTransitive(..)) where
 
+import Data.String.CodeUnits
 import Spago.Prelude
 
+import Data.Array (replicate)
+import Data.Foldable (maximum)
 import Data.Map as Map
 import Data.Traversable (traverse_)
 import Data.Tuple.Nested (type (/\), (/\))
-import Registry.PackageName (PackageName)
+import Registry.Types (PackageName(..))
+import Registry.Version as Version
 import Registry.PackageName as PackageName
 import Spago.Command.Build (BuildEnv)
 import Spago.Command.Registry (RegistryEnv)
-import Spago.Config (Package)
+import Spago.Config (Package(..), PackageSet(..), getPackageLocation)
 
 data IncludeTransitive = IncludeTransitive | NoIncludeTransitive
 data JsonFlag = JsonOutputNo | JsonOutputYes
 
 type LsEnv =
-  { dependencies :: Map PackageName Package
+  { dependencies :: PackageSet
   , logOptions :: LogOptions
   }
 
-listPackageSet :: forall a. JsonFlag -> Spago LsEnv Unit
+data JsonPackageOutput = JsonPackageOutput
+  { json_packageName :: String
+  , json_repo :: String
+  , json_version :: String
+  }
+
+-- deriving (Eq, Show, Generic)
+
+-- instance ToJSON JsonPackageOutput where
+--   toJSON = Json.genericToJSON Json.defaultOptions
+--     { fieldLabelModifier = drop 5
+--     }
+
+-- encodeJsonPackageOutput :: JsonPackageOutput -> Text
+-- encodeJsonPackageOutput = LT.toStrict . LT.decodeUtf8 . Json.encode
+
+listPackageSet :: JsonFlag -> Spago LsEnv Unit
 listPackageSet jsonFlag = do
-  -- logDebug "Running `listPackages`"
-  { dependencies } <- ask
-  let packagesToList = Map.toUnfoldable dependencies
-  case packagesToList of
-    -- [] -> logWarn "There are no dependencies listed in your spago.dhall"
-    [] -> pure unit
-    _ -> output $ OutputLines $ formatPackageNames jsonFlag packagesToList
+  logDebug "Running `listPackageSet`"
+  { dependencies: packagesDB } <- ask
+  output $ formatPackageNames jsonFlag (Map.toUnfoldable packagesDB)
 
-listPackages :: forall a. IncludeTransitive -> JsonFlag -> Spago LsEnv Unit
+-- let packagesToList = Map.toUnfoldable dependencies
+-- case packagesToList of
+--   -- [] -> logWarn "There are no dependencies listed in your spago.dhall"
+--   [] -> pure unit
+--   _ -> output $ OutputLines $ formatPackageNames jsonFlag packagesToList
+
+listPackages :: IncludeTransitive -> JsonFlag -> Spago LsEnv Unit
 listPackages includeTransitive jsonFlag = do
-  -- logDebug "Running `listPackages`"
+  logDebug "Running `listPackages`"
   { dependencies } <- ask
   let packagesToList = Map.toUnfoldable dependencies
   case packagesToList of
     -- [] -> logWarn "There are no dependencies listed in your spago.dhall"
     [] -> pure unit
-    _ -> output $ OutputLines $ formatPackageNames jsonFlag []
+    _ -> output $ formatPackageNames jsonFlag []
 
-formatPackageNames :: JsonFlag -> Array (PackageName /\ Package) -> Array String
-formatPackageNames jsonFlag packagesToList = render <$> packagesToList
+formatPackageNames :: forall a. JsonFlag -> Array (PackageName /\ Package) -> OutputFormat a
+formatPackageNames = case _ of
+  JsonOutputYes -> OutputLines <<< formatPackageNamesJson
+  JsonOutputNo -> OutputLines <<< formatPackageNamesText
   where
-  render (packageName /\ _) = PackageName.print packageName
+  -- | Format all the packages from the config in JSON
+  formatPackageNamesJson :: Array (PackageName /\ Package) -> Array String
+  formatPackageNamesJson pkgs = []
 
--- listPackages :: forall a. IncludeTransitive -> String -> Spago (RegistryEnv a) Unit
--- listPackages packagesFilter jsonFlag = do
---   logDebug "Running `listPackages`"
---   packagesToList :: List (PackageName /\ Package) <- case packagesFilter of
---     IncludeTransitive -> Packages.getProjectDeps
---     _ -> do
---       { workspace } <- ask
+  -- let
+  --   asJson (packageName /\ (Package { location: loc@(Remote { repo, version }) })) = JsonPackageOutput
+  --     { json_packageName = print packageName
+  --     , json_repo = toJSON loc
+  --     , json_version = version
+  --     }
+  --   asJson (packageName /\ Package { location: loc@(Local { localPath }) }) = JsonPackageOutput
+  --     { json_packageName = print packageName
+  --     , json_repo = toJSON loc
+  --     , json_version = "local"
+  --     }
+  -- in
+  --   map (encodeJsonPackageOutput.asJson) pkgs
 
---       let packagesDB = config.packageSet.packagesDB
---       let dependencies = config.dependencies
---       pure $ Map.toList $ Map.restrictKeys packagesDB dependencies
+  -- data Package
+  --   = RegistryVersion Version
+  --   | GitPackage GitPackage
+  --   | LocalPackage LocalPackage
+  --   | WorkspacePackage WorkspacePackage
 
---   case packagesToList of
---     [] -> logWarn "There are no dependencies listed in your spago.dhall"
---     _ -> traverse_ output $ formatPackageNames jsonFlag packagesToList
+  -- | Format all the package names from the configuration
+  formatPackageNamesText :: Array (PackageName /\ Package) -> Array String
+  formatPackageNamesText pkgs =
+    let
+      showVersion (RegistryVersion version) = Version.print version
+      showVersion (LocalPackage _) = "local"
+      showVersion (GitPackage _) = "git"
+      showVersion (WorkspacePackage _) = "workspace"
+
+      -- showLocation (Remote { repo: Repo repo }) = "Remote " <> surroundQuote repo
+      -- showLocation (Local { localPath }) = "Local " <> surroundQuote localPath
+      -- TODO: Probably not what we want
+      showLocation :: PackageName -> Package -> String
+      showLocation packageName package = getPackageLocation packageName package
+
+      longestName = fromMaybe 0 $ maximum $ (length <<< PackageName.print <<< fst) <$> pkgs
+      longestVersion = fromMaybe 0 $ maximum $ (length <<< showVersion <<< snd) <$> pkgs
+
+      renderPkg :: PackageName /\ Package -> String
+      renderPkg (packageName /\ package) = leftPad longestName (PackageName.print packageName) <> " "
+        <> leftPad longestVersion (showVersion package)
+        <> "   "
+        <> showLocation packageName package
+    in
+      map renderPkg pkgs
+
+  leftPad :: Int -> String -> String
+  leftPad n s
+    | length s < n = s <> (fromCharArray $ replicate (n - length s) ' ')
+    | otherwise = s
