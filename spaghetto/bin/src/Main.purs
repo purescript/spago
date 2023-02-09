@@ -21,7 +21,6 @@ import Registry.Constants as Registry.Constants
 import Registry.ManifestIndex as ManifestIndex
 import Registry.Metadata as Metadata
 import Registry.PackageName as PackageName
-import Spago.Bin.Flags (ensureRanges)
 import Spago.Bin.Flags as Flag
 import Spago.Bin.Flags as Flags
 import Spago.BuildInfo as BuildInfo
@@ -29,6 +28,8 @@ import Spago.Command.Build as Build
 import Spago.Command.Bundle as Bundle
 import Spago.Command.Fetch as Fetch
 import Spago.Command.Init as Init
+import Spago.Command.Ls (IncludeTransitive(..))
+import Spago.Command.Ls as Ls
 import Spago.Command.Registry as Registry
 import Spago.Command.Run as Run
 import Spago.Command.Sources as Sources
@@ -134,6 +135,10 @@ type BundleArgs =
   , ensureRanges :: Boolean
   }
 
+type LsArgs =
+  { json :: Boolean
+  }
+
 data SpagoCmd a = SpagoCmd GlobalArgs (Command a)
 
 data Command a
@@ -148,6 +153,7 @@ data Command a
   | Sources SourcesArgs
   | RegistrySearch RegistrySearchArgs
   | RegistryInfo RegistryInfoArgs
+  | Ls LsArgs
 
 argParser :: ArgParser (SpagoCmd ())
 argParser =
@@ -199,6 +205,10 @@ argParser =
                 "Query the Registry for information about packages and versions"
                 (SpagoCmd <$> globalArgsParser <*> (RegistryInfo <$> registryInfoArgsParser) <* ArgParser.flagHelp)
             ] <* ArgParser.flagHelp
+    , ArgParser.command [ "ls" ]
+        "List packages or dependencies"
+        do
+          (SpagoCmd <$> globalArgsParser <*> (Ls <$> lsArgsParser) <* ArgParser.flagHelp)
     ]
     <* ArgParser.flagHelp
     <* ArgParser.flagInfo [ "--version" ] "Show the current version" BuildInfo.currentSpagoVersion
@@ -321,6 +331,11 @@ registryInfoArgsParser = ado
   maybeVersion <- Flags.maybeVersion
   in { package, maybeVersion }
 
+lsArgsParser :: ArgParser LsArgs
+lsArgsParser = ArgParser.fromRecord
+  { json: Flags.json
+  }
+
 parseArgs :: Effect (Either ArgParser.ArgError (SpagoCmd ()))
 parseArgs = do
   cliArgs <- Array.drop 2 <$> Process.argv
@@ -411,6 +426,12 @@ main =
             runSpago buildEnv (Build.run options)
             testEnv <- runSpago env (mkTestEnv args)
             runSpago testEnv Test.run
+          Ls _args -> do
+            let fetchArgs = { packages: mempty, selectedPackage: Nothing, ensureRanges: false }
+            { env, fetchOpts } <- mkFetchEnv fetchArgs
+            -- TODO: --no-fetch flag
+            dependencies <- runSpago env (Fetch.run fetchOpts)
+            runSpago { dependencies } (Ls.listPackages IncludeTransitive "")
 
 mkLogOptions :: GlobalArgs -> Aff LogOptions
 mkLogOptions { noColor, quiet, verbose } = do
