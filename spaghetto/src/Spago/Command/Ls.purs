@@ -3,12 +3,15 @@ module Spago.Command.Ls (listPackages, listPackageSet, LsEnv(..), JsonFlag(..), 
 import Spago.Prelude
 
 import Data.Array (replicate)
-import Data.String.CodeUnits (fromCharArray, length)
+import Data.Codec.Argonaut as CA
+import Data.Codec.Argonaut.Record as CAR
 import Data.Foldable (elem, maximum)
 import Data.Map (filterKeys)
 import Data.Map as Map
 import Data.Set (unions)
+import Data.String.CodeUnits (fromCharArray, length)
 import Data.Tuple.Nested (type (/\))
+import Registry.PackageName (PackageName)
 import Registry.PackageName as PackageName
 import Registry.Version as Version
 import Spago.Config (Dependencies(..), Package(..), PackageSet, Workspace, getPackageLocation)
@@ -23,25 +26,18 @@ type LsEnv =
   , workspace :: Workspace
   }
 
-data JsonPackageOutput = JsonPackageOutput
-  { json_packageName :: String
-  , json_repo :: String
-  , json_version :: String
+type JsonPackageOutput =
+  { packageName :: String
+  , repo :: String -- TODO: Was Value, has tag
+  , version :: String
   }
 
--- deriving (Eq, Show, Generic)
-
--- instance ToJSON JsonPackageOutput where
---   toJSON = Json.genericToJSON Json.defaultOptions
---     { fieldLabelModifier = drop 5
---     }
-
--- encodeJsonPackageOutput :: JsonPackageOutput -> Text
--- encodeJsonPackageOutput = LT.toStrict . LT.decodeUtf8 . Json.encode
-
--- ls packages 300
--- ls deps 30
--- ls deps -t 72
+jsonPackageOutputCodec :: JsonCodec JsonPackageOutput
+jsonPackageOutputCodec = CAR.object "JsonPackageOutput"
+  { packageName: CA.string
+  , repo: CA.string
+  , version: CA.string
+  }
 
 listPackageSet :: JsonFlag -> Spago LsEnv Unit
 listPackageSet jsonFlag = do
@@ -69,12 +65,15 @@ listPackages packagesFilter jsonFlag = do
 
 formatPackageNames :: forall a. JsonFlag -> Array (PackageName /\ Package) -> OutputFormat a
 formatPackageNames = case _ of
-  JsonOutputYes -> OutputLines <<< formatPackageNamesJson
+  JsonOutputYes -> OutputLines <<< formatPackageNamesText -- TODO: formatPackageNamesJson
   JsonOutputNo -> OutputLines <<< formatPackageNamesText
   where
+  -- TODO: JSON encoding
   -- | Format all the packages from the config in JSON
-  formatPackageNamesJson :: Array (PackageName /\ Package) -> Array String
-  formatPackageNamesJson _pkgs = []
+  formatPackageNamesJson :: Array (PackageName /\ Package) -> Array JsonPackageOutput
+  formatPackageNamesJson pkgs = (asJson <$> pkgs)
+    where
+    asJson (name /\ package) = { packageName: PackageName.print name, repo: "TODO", version: "TODO" }
 
   -- let
   --   asJson (packageName /\ (Package { location: loc@(Remote { repo, version }) })) = JsonPackageOutput
@@ -99,9 +98,7 @@ formatPackageNames = case _ of
       showVersion (GitPackage _) = "git"
       showVersion (WorkspacePackage _) = "workspace"
 
-      -- showLocation (Remote { repo: Repo repo }) = "Remote " <> surroundQuote repo
-      -- showLocation (Local { localPath }) = "Local " <> surroundQuote localPath
-      -- TODO: Probably not what we want
+      -- TODO: Currently prints all as local packages
       showLocation :: PackageName -> Package -> String
       showLocation _ (GitPackage gitPackage) = "Remote " <> surroundQuote gitPackage.git
       showLocation packageName package = "Local " <> surroundQuote (getPackageLocation packageName package)
