@@ -137,6 +137,8 @@ type BundleArgs =
 
 type LsArgs =
   { json :: Boolean
+  -- TODO: Transitive only makes sense for deps, bot for packages
+  , transitive :: Boolean
   }
 
 data SpagoCmd a = SpagoCmd GlobalArgs (Command a)
@@ -334,6 +336,7 @@ registryInfoArgsParser = ado
 lsArgsParser :: ArgParser LsArgs
 lsArgsParser = ArgParser.fromRecord
   { json: Flags.json
+  , transitive: Flags.transitive
   }
 
 parseArgs :: Effect (Either ArgParser.ArgError (SpagoCmd ()))
@@ -432,7 +435,9 @@ main =
             -- TODO: --no-fetch flag
             dependencies <- runSpago env (Fetch.run fetchOpts)
             lsEnv <- runSpago env (mkLsEnv args dependencies)
-            runSpago lsEnv (Ls.listPackageSet JsonOutputNo)
+            let t = if args.transitive then IncludeTransitive else NoIncludeTransitive
+            let j = if args.json then JsonOutputYes else JsonOutputNo
+            runSpago lsEnv (Ls.listPackages t j)
 
 mkLogOptions :: GlobalArgs -> Aff LogOptions
 mkLogOptions { noColor, quiet, verbose } = do
@@ -696,8 +701,8 @@ mkRegistryEnv = do
 
 mkLsEnv :: forall a b. LsArgs -> Map PackageName Package -> Spago (Fetch.FetchEnv a) Ls.LsEnv
 mkLsEnv lsArgs dependencies = do
-  { logOptions, workspace, git } <- ask
-  pure { logOptions, dependencies }
+  { logOptions, workspace } <- ask
+  pure { logOptions, workspace, dependencies }
 
 shouldFetchRegistryRepos :: forall a. Spago (LogEnv a) Boolean
 shouldFetchRegistryRepos = do
