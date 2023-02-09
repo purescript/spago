@@ -135,9 +135,12 @@ type BundleArgs =
   , ensureRanges :: Boolean
   }
 
-type LsArgs =
+type LsPackagesArgs =
   { json :: Boolean
-  -- TODO: Transitive only makes sense for deps, bot for packages
+  }
+
+type LsDepsArgs =
+  { json :: Boolean
   , transitive :: Boolean
   }
 
@@ -155,7 +158,8 @@ data Command a
   | Sources SourcesArgs
   | RegistrySearch RegistrySearchArgs
   | RegistryInfo RegistryInfoArgs
-  | Ls LsArgs
+  | LsDeps LsDepsArgs
+  | LsPackages LsPackagesArgs
 
 argParser :: ArgParser (SpagoCmd ())
 argParser =
@@ -207,10 +211,15 @@ argParser =
                 "Query the Registry for information about packages and versions"
                 (SpagoCmd <$> globalArgsParser <*> (RegistryInfo <$> registryInfoArgsParser) <* ArgParser.flagHelp)
             ] <* ArgParser.flagHelp
-    , ArgParser.command [ "ls" ]
-        "List packages or dependencies"
-        do
-          (SpagoCmd <$> globalArgsParser <*> (Ls <$> lsArgsParser) <* ArgParser.flagHelp)
+    , ArgParser.command [ "ls" ] "List packages or dependencies" do
+        ArgParser.choose "ls-subcommand"
+          [ ArgParser.command [ "packages" ]
+              "List packages available in the local package set"
+              (SpagoCmd <$> globalArgsParser <*> (LsPackages <$> lsPackagesArgsParser) <* ArgParser.flagHelp)
+          , ArgParser.command [ "deps" ]
+              "List dependencies of the project"
+              (SpagoCmd <$> globalArgsParser <*> (LsDeps <$> lsDepsArgsParser) <* ArgParser.flagHelp)
+          ] <* ArgParser.flagHelp
     ]
     <* ArgParser.flagHelp
     <* ArgParser.flagInfo [ "--version" ] "Show the current version" BuildInfo.currentSpagoVersion
@@ -333,8 +342,13 @@ registryInfoArgsParser = ado
   maybeVersion <- Flags.maybeVersion
   in { package, maybeVersion }
 
-lsArgsParser :: ArgParser LsArgs
-lsArgsParser = ArgParser.fromRecord
+lsPackagesArgsParser :: ArgParser LsPackagesArgs
+lsPackagesArgsParser = ArgParser.fromRecord
+  { json: Flags.json
+  }
+
+lsDepsArgsParser :: ArgParser LsDepsArgs
+lsDepsArgsParser = ArgParser.fromRecord
   { json: Flags.json
   , transitive: Flags.transitive
   }
@@ -429,12 +443,20 @@ main =
             runSpago buildEnv (Build.run options)
             testEnv <- runSpago env (mkTestEnv args)
             runSpago testEnv Test.run
-          Ls args -> do
+          LsPackages args -> do
             let fetchArgs = { packages: mempty, selectedPackage: Nothing, ensureRanges: false }
             { env, fetchOpts } <- mkFetchEnv fetchArgs
             -- TODO: --no-fetch flag
             dependencies <- runSpago env (Fetch.run fetchOpts)
-            lsEnv <- runSpago env (mkLsEnv args dependencies)
+            lsEnv <- runSpago env (mkLsEnv dependencies)
+            let j = if args.json then JsonOutputYes else JsonOutputNo
+            runSpago lsEnv (Ls.listPackageSet j)
+          LsDeps args -> do
+            let fetchArgs = { packages: mempty, selectedPackage: Nothing, ensureRanges: false }
+            { env, fetchOpts } <- mkFetchEnv fetchArgs
+            -- TODO: --no-fetch flag
+            dependencies <- runSpago env (Fetch.run fetchOpts)
+            lsEnv <- runSpago env (mkLsEnv dependencies)
             let t = if args.transitive then IncludeTransitive else NoIncludeTransitive
             let j = if args.json then JsonOutputYes else JsonOutputNo
             runSpago lsEnv (Ls.listPackages t j)
@@ -699,8 +721,8 @@ mkRegistryEnv = do
     , git
     }
 
-mkLsEnv :: forall a b. LsArgs -> Map PackageName Package -> Spago (Fetch.FetchEnv a) Ls.LsEnv
-mkLsEnv lsArgs dependencies = do
+mkLsEnv :: forall a. Map PackageName Package -> Spago (Fetch.FetchEnv a) Ls.LsEnv
+mkLsEnv dependencies = do
   { logOptions, workspace } <- ask
   pure { logOptions, workspace, dependencies }
 
