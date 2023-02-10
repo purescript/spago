@@ -11,11 +11,11 @@ import Data.Map as Map
 import Data.Set (unions)
 import Data.String.CodeUnits (fromCharArray, length)
 import Data.Tuple.Nested (type (/\))
-import Registry.PackageName (PackageName)
 import Registry.PackageName as PackageName
 import Registry.Version as Version
 import Spago.Config (Dependencies(..), Package(..), PackageSet, Workspace, getPackageLocation)
 import Spago.Config as Config
+import Spago.Json (stringifyJson)
 
 data IncludeTransitive = IncludeTransitive | NoIncludeTransitive
 data JsonFlag = JsonOutputNo | JsonOutputYes
@@ -58,22 +58,23 @@ listPackages packagesFilter jsonFlag = do
           toDependencyNames (Dependencies deps) = Map.keys deps
           directDependencies = unions $ ((toDependencyNames <<< _.dependencies <<< _.package) <$> workspacePackages)
         in
-          filterKeys (\k -> k `elem` directDependencies) dependencies
+          filterKeys (_ `elem` directDependencies) dependencies
   case packagesToList of
     [] -> logWarn "There are no dependencies listed in your spago.dhall"
     _ -> output $ formatPackageNames jsonFlag packagesToList
 
 formatPackageNames :: forall a. JsonFlag -> Array (PackageName /\ Package) -> OutputFormat a
 formatPackageNames = case _ of
-  JsonOutputYes -> OutputLines <<< formatPackageNamesText -- TODO: formatPackageNamesJson
+  JsonOutputYes -> OutputLines <<< formatPackageNamesJson
   JsonOutputNo -> OutputLines <<< formatPackageNamesText
   where
   -- TODO: JSON encoding
   -- | Format all the packages from the config in JSON
-  formatPackageNamesJson :: Array (PackageName /\ Package) -> Array JsonPackageOutput
-  formatPackageNamesJson pkgs = (asJson <$> pkgs)
+  formatPackageNamesJson :: Array (PackageName /\ Package) -> Array String
+  formatPackageNamesJson pkgs = (stringifyJson jsonPackageOutputCodec <<< asJson <$> pkgs)
     where
-    asJson (name /\ package) = { packageName: PackageName.print name, repo: "TODO", version: "TODO" }
+    asJson (name /\ package) =
+      { packageName: PackageName.print name, repo: "TODO", version: showVersion package }
 
   -- let
   --   asJson (packageName /\ (Package { location: loc@(Remote { repo, version }) })) = JsonPackageOutput
@@ -93,26 +94,31 @@ formatPackageNames = case _ of
   formatPackageNamesText :: Array (PackageName /\ Package) -> Array String
   formatPackageNamesText pkgs =
     let
-      showVersion (RegistryVersion version) = Version.print version
-      showVersion (LocalPackage _) = "local"
-      showVersion (GitPackage _) = "git"
-      showVersion (WorkspacePackage _) = "workspace"
 
       -- TODO: Currently prints all as local packages
       showLocation :: PackageName -> Package -> String
       showLocation _ (GitPackage gitPackage) = "Remote " <> surroundQuote gitPackage.git
       showLocation packageName package = "Local " <> surroundQuote (getPackageLocation packageName package)
 
+      -- Calculated for indentation
       longestName = fromMaybe 0 $ maximum $ (length <<< PackageName.print <<< fst) <$> pkgs
       longestVersion = fromMaybe 0 $ maximum $ (length <<< showVersion <<< snd) <$> pkgs
 
       renderPkg :: PackageName /\ Package -> String
-      renderPkg (packageName /\ package) = leftPad longestName (PackageName.print packageName) <> " "
-        <> leftPad longestVersion (showVersion package)
-        <> "   "
-        <> showLocation packageName package
+      renderPkg (packageName /\ package) =
+        leftPad longestName (PackageName.print packageName)
+          <> " "
+          <> leftPad longestVersion (showVersion package)
+          <> "   "
+          <> showLocation packageName package
     in
       map renderPkg pkgs
+
+  showVersion :: Package -> String
+  showVersion (RegistryVersion version) = "v" <> Version.print version
+  showVersion (LocalPackage _) = "local"
+  showVersion (GitPackage _) = "git"
+  showVersion (WorkspacePackage _) = "workspace"
 
   leftPad :: Int -> String -> String
   leftPad n s
