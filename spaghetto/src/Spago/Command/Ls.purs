@@ -1,4 +1,4 @@
-module Spago.Command.Ls (listPackages, listPackageSet, LsEnv(..), JsonFlag(..), IncludeTransitive(..)) where
+module Spago.Command.Ls (listPackages, listPackageSet, LsEnv(..), JsonFlag(..)) where
 
 import Spago.Prelude
 
@@ -13,11 +13,11 @@ import Data.String.CodeUnits (fromCharArray, length)
 import Data.Tuple.Nested (type (/\))
 import Registry.PackageName as PackageName
 import Registry.Version as Version
+import Spago.Bin.Flags (IncludeTransitive(..))
 import Spago.Config (Dependencies(..), Package(..), PackageSet, Workspace, getPackageLocation)
 import Spago.Config as Config
 import Spago.Json (stringifyJson)
 
-data IncludeTransitive = IncludeTransitive | NoIncludeTransitive
 data JsonFlag = JsonOutputNo | JsonOutputYes
 
 type LsEnv =
@@ -28,7 +28,9 @@ type LsEnv =
 
 type JsonPackageOutput =
   { packageName :: String
-  , repo :: String -- TODO: Was Value, has tag
+  -- TODO: Was Json Value, has tag
+  -- See https://github.com/purescript/spago/blob/ec22308d181340382494e5bd6ef9102a3c87c0bb/src/Spago/Types.hs#L38-L47
+  , repo :: String
   , version :: String
   }
 
@@ -68,34 +70,23 @@ formatPackageNames = case _ of
   JsonOutputYes -> OutputLines <<< formatPackageNamesJson
   JsonOutputNo -> OutputLines <<< formatPackageNamesText
   where
-  -- TODO: JSON encoding
-  -- | Format all the packages from the config in JSON
   formatPackageNamesJson :: Array (PackageName /\ Package) -> Array String
   formatPackageNamesJson pkgs = (stringifyJson jsonPackageOutputCodec <<< asJson <$> pkgs)
     where
     asJson (name /\ package) =
-      { packageName: PackageName.print name, repo: "TODO", version: showVersion package }
-
-  -- let
-  --   asJson (packageName /\ (Package { location: loc@(Remote { repo, version }) })) = JsonPackageOutput
-  --     { json_packageName = print packageName
-  --     , json_repo = toJSON loc
-  --     , json_version = version
-  --     }
-  --   asJson (packageName /\ Package { location: loc@(Local { localPath }) }) = JsonPackageOutput
-  --     { json_packageName = print packageName
-  --     , json_repo = toJSON loc
-  --     , json_version = "local"
-  --     }
-  -- in
-  --   map (encodeJsonPackageOutput.asJson) pkgs
+      { packageName: PackageName.print name
+      -- TODO: Do we want to stay backward compatible and have a tagged remote and local type?
+      -- Or do we create a codec for package (with 4 variants)?
+      , repo: "TODO"
+      , version: showVersion package
+      }
 
   -- | Format all the package names from the configuration
   formatPackageNamesText :: Array (PackageName /\ Package) -> Array String
   formatPackageNamesText pkgs =
     let
 
-      -- TODO: Currently prints all as local packages
+      -- TODO: Currently prints git/remote packages as local packages
       showLocation :: PackageName -> Package -> String
       showLocation _ (GitPackage gitPackage) = "Remote " <> surroundQuote gitPackage.git
       showLocation packageName package = "Local " <> surroundQuote (getPackageLocation packageName package)

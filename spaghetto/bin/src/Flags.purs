@@ -75,12 +75,17 @@ json =
     # ArgParser.boolean
     # ArgParser.default false
 
-transitive ∷ ArgParser Boolean
+-- TODO: Discuss if we want to use sum types for flags or go with boolean
+-- Depending on the decision, revert or change the json flag, too
+data IncludeTransitive = IncludeTransitive | NoIncludeTransitive
+
+transitive ∷ ArgParser IncludeTransitive
 transitive =
   ArgParser.flag [ "--transitive", "-t" ]
     "Include transitive dependencies"
     # ArgParser.boolean
     # ArgParser.default false
+    # map (if _ then IncludeTransitive else NoIncludeTransitive)
 
 pedanticPackages ∷ ArgParser Boolean
 pedanticPackages =

@@ -21,6 +21,7 @@ import Registry.Constants as Registry.Constants
 import Registry.ManifestIndex as ManifestIndex
 import Registry.Metadata as Metadata
 import Registry.PackageName as PackageName
+import Spago.Bin.Flags (IncludeTransitive)
 import Spago.Bin.Flags as Flag
 import Spago.Bin.Flags as Flags
 import Spago.BuildInfo as BuildInfo
@@ -28,7 +29,7 @@ import Spago.Command.Build as Build
 import Spago.Command.Bundle as Bundle
 import Spago.Command.Fetch as Fetch
 import Spago.Command.Init as Init
-import Spago.Command.Ls (IncludeTransitive(..), JsonFlag(..))
+import Spago.Command.Ls (JsonFlag(..))
 import Spago.Command.Ls as Ls
 import Spago.Command.Registry as Registry
 import Spago.Command.Run as Run
@@ -141,7 +142,7 @@ type LsPackagesArgs =
 
 type LsDepsArgs =
   { json :: Boolean
-  , transitive :: Boolean
+  , transitive :: IncludeTransitive
   }
 
 data SpagoCmd a = SpagoCmd GlobalArgs (Command a)
@@ -451,15 +452,14 @@ main =
             lsEnv <- runSpago env (mkLsEnv dependencies)
             let j = if args.json then JsonOutputYes else JsonOutputNo
             runSpago lsEnv (Ls.listPackageSet j)
-          LsDeps args -> do
+          LsDeps args@{ transitive } -> do
             let fetchArgs = { packages: mempty, selectedPackage: Nothing, ensureRanges: false }
             { env, fetchOpts } <- mkFetchEnv fetchArgs
             -- TODO: --no-fetch flag
             dependencies <- runSpago env (Fetch.run fetchOpts)
             lsEnv <- runSpago env (mkLsEnv dependencies)
-            let t = if args.transitive then IncludeTransitive else NoIncludeTransitive
             let j = if args.json then JsonOutputYes else JsonOutputNo
-            runSpago lsEnv (Ls.listPackages t j)
+            runSpago lsEnv (Ls.listPackages transitive j)
 
 mkLogOptions :: GlobalArgs -> Aff LogOptions
 mkLogOptions { noColor, quiet, verbose } = do
