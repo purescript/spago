@@ -1,4 +1,4 @@
-module Spago.Command.Ls (listPackages, listPackageSet, LsEnv(..), JsonFlag(..)) where
+module Spago.Command.Ls (listPackages, listPackageSet, LsEnv(..), LsDepsArgs, LsPackagesArgs) where
 
 import Spago.Prelude
 
@@ -13,12 +13,18 @@ import Data.String.CodeUnits (fromCharArray, length)
 import Data.Tuple.Nested (type (/\))
 import Registry.PackageName as PackageName
 import Registry.Version as Version
-import Spago.Bin.Flags (IncludeTransitive(..))
 import Spago.Config (Dependencies(..), Package(..), PackageSet, Workspace, getPackageLocation)
 import Spago.Config as Config
 import Spago.Json (stringifyJson)
 
-data JsonFlag = JsonOutputNo | JsonOutputYes
+type LsPackagesArgs =
+  { json :: Boolean
+  }
+
+type LsDepsArgs =
+  { json :: Boolean
+  , transitive :: Boolean
+  }
 
 type LsEnv =
   { dependencies :: PackageSet
@@ -41,20 +47,20 @@ jsonPackageOutputCodec = CAR.object "JsonPackageOutput"
   , version: CA.string
   }
 
-listPackageSet :: JsonFlag -> Spago LsEnv Unit
-listPackageSet jsonFlag = do
+listPackageSet :: LsPackagesArgs -> Spago LsEnv Unit
+listPackageSet { json: jsonFlag } = do
   logDebug "Running `listPackageSet`"
   { workspace } <- ask
   output $ formatPackageNames jsonFlag (Map.toUnfoldable workspace.packageSet)
 
-listPackages :: IncludeTransitive -> JsonFlag -> Spago LsEnv Unit
-listPackages packagesFilter jsonFlag = do
+listPackages :: LsDepsArgs -> Spago LsEnv Unit
+listPackages { transitive: packagesFilter, json: jsonFlag } = do
   logDebug "Running `listPackages`"
   { dependencies, workspace } <- ask
   let
     packagesToList = Map.toUnfoldable case packagesFilter of
-      IncludeTransitive -> dependencies
-      NoIncludeTransitive ->
+      true -> dependencies
+      false ->
         let
           workspacePackages = Config.getWorkspacePackages workspace.packageSet
           toDependencyNames (Dependencies deps) = Map.keys deps
@@ -65,10 +71,10 @@ listPackages packagesFilter jsonFlag = do
     [] -> logWarn "There are no dependencies listed in your spago.dhall"
     _ -> output $ formatPackageNames jsonFlag packagesToList
 
-formatPackageNames :: forall a. JsonFlag -> Array (PackageName /\ Package) -> OutputFormat a
+formatPackageNames :: forall a. Boolean -> Array (PackageName /\ Package) -> OutputFormat a
 formatPackageNames = case _ of
-  JsonOutputYes -> OutputLines <<< formatPackageNamesJson
-  JsonOutputNo -> OutputLines <<< formatPackageNamesText
+  true -> OutputLines <<< formatPackageNamesJson
+  false -> OutputLines <<< formatPackageNamesText
   where
   formatPackageNamesJson :: Array (PackageName /\ Package) -> Array String
   formatPackageNamesJson pkgs = (stringifyJson jsonPackageOutputCodec <<< asJson <$> pkgs)

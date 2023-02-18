@@ -21,16 +21,14 @@ import Registry.Constants as Registry.Constants
 import Registry.ManifestIndex as ManifestIndex
 import Registry.Metadata as Metadata
 import Registry.PackageName as PackageName
-import Spago.Bin.Flags (IncludeTransitive)
-import Spago.Bin.Flags as Flag
 import Spago.Bin.Flags as Flags
 import Spago.BuildInfo as BuildInfo
 import Spago.Command.Build as Build
 import Spago.Command.Bundle as Bundle
 import Spago.Command.Fetch as Fetch
 import Spago.Command.Init as Init
-import Spago.Command.Ls (JsonFlag(..))
 import Spago.Command.Ls as Ls
+import Spago.Command.Ls (LsDepsArgs, LsPackagesArgs)
 import Spago.Command.Registry as Registry
 import Spago.Command.Run as Run
 import Spago.Command.Sources as Sources
@@ -134,15 +132,6 @@ type BundleArgs =
   , pedanticPackages :: Boolean
   , type :: Maybe String
   , ensureRanges :: Boolean
-  }
-
-type LsPackagesArgs =
-  { json :: Boolean
-  }
-
-type LsDepsArgs =
-  { json :: Boolean
-  , transitive :: IncludeTransitive
   }
 
 data SpagoCmd a = SpagoCmd GlobalArgs (Command a)
@@ -272,8 +261,8 @@ installArgsParser =
     , pursArgs: Flags.pursArgs
     , backendArgs: Flags.backendArgs
     , output: Flags.output
-    , pedanticPackages: Flag.pedanticPackages
-    , ensureRanges: Flag.ensureRanges
+    , pedanticPackages: Flags.pedanticPackages
+    , ensureRanges: Flags.ensureRanges
     }
 
 buildArgsParser :: ArgParser (BuildArgs ())
@@ -328,7 +317,7 @@ bundleArgsParser =
     , backendArgs: Flags.backendArgs
     , output: Flags.output
     , pedanticPackages: Flags.pedanticPackages
-    , ensureRanges: Flag.ensureRanges
+    , ensureRanges: Flags.ensureRanges
     }
 
 registrySearchArgsParser :: ArgParser RegistrySearchArgs
@@ -450,16 +439,14 @@ main =
             -- TODO: --no-fetch flag
             dependencies <- runSpago env (Fetch.run fetchOpts)
             lsEnv <- runSpago env (mkLsEnv dependencies)
-            let j = if args.json then JsonOutputYes else JsonOutputNo
-            runSpago lsEnv (Ls.listPackageSet j)
-          LsDeps args@{ transitive } -> do
+            runSpago lsEnv (Ls.listPackageSet args)
+          LsDeps args -> do
             let fetchArgs = { packages: mempty, selectedPackage: Nothing, ensureRanges: false }
             { env, fetchOpts } <- mkFetchEnv fetchArgs
             -- TODO: --no-fetch flag
             dependencies <- runSpago env (Fetch.run fetchOpts)
             lsEnv <- runSpago env (mkLsEnv dependencies)
-            let j = if args.json then JsonOutputYes else JsonOutputNo
-            runSpago lsEnv (Ls.listPackages transitive j)
+            runSpago lsEnv (Ls.listPackages args)
 
 mkLogOptions :: GlobalArgs -> Aff LogOptions
 mkLogOptions { noColor, quiet, verbose } = do
