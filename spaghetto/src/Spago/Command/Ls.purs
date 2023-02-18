@@ -2,17 +2,15 @@ module Spago.Command.Ls (listPackages, listPackageSet, LsEnv(..), LsDepsArgs, Ls
 
 import Spago.Prelude
 
-import Data.Array (replicate)
-import Data.Foldable (elem, maximum)
+import Data.Foldable (elem)
 import Data.Map (filterKeys)
 import Data.Map as Map
 import Data.Set (unions)
-import Data.String.CodeUnits (fromCharArray, length)
 import Data.Tuple.Nested (type (/\))
 import Registry.Internal.Codec (packageMap)
 import Registry.PackageName as PackageName
 import Registry.Version as Version
-import Spago.Config (Dependencies(..), Package(..), PackageSet, Workspace, getPackageLocation, packageCodec)
+import Spago.Config (Dependencies(..), Package(..), PackageSet, Workspace, packageCodec)
 import Spago.Config as Config
 
 type LsPackagesArgs =
@@ -41,9 +39,9 @@ listPackages { transitive, json } = do
   logDebug "Running `listPackages`"
   { dependencies, workspace } <- ask
   let
-    packagesToList = Map.toUnfoldable case transitive of
-      true -> dependencies
-      false ->
+    packagesToList = Map.toUnfoldable $
+      if transitive then dependencies
+      else
         let
           workspacePackages = Config.getWorkspacePackages workspace.packageSet
           toDependencyNames (Dependencies deps) = Map.keys deps
@@ -55,46 +53,30 @@ listPackages { transitive, json } = do
     _ -> output $ formatPackageNames json packagesToList
 
 formatPackageNames :: Boolean -> Array (PackageName /\ Package) -> OutputFormat (Map PackageName Package)
-formatPackageNames json = case json of
-  true -> formatPackageNamesJson
-  false -> formatPackageNamesText
+formatPackageNames json pkgs =
+  if json then OutputJson (packageMap packageCodec) (Map.fromFoldable pkgs)
+  else formatPackagesTable
   where
-  formatPackageNamesJson :: Array (PackageName /\ Package) -> OutputFormat (Map PackageName Package)
-  formatPackageNamesJson pkgs = OutputJson (packageMap packageCodec) (Map.fromFoldable pkgs)
+  formatPackagesTable = OutputTable
+    { titles: [ "Package Type", "Version", "Location" ]
+    , rows: toRow <$> pkgs
+    }
+    where
+    toRow :: (PackageName /\ Package) -> Array String
+    toRow (packageName /\ package) =
+      [ PackageName.print packageName
+      , showVersion package
+      , showLocation package
+      ]
 
-  -- | Format all the package names from the configuration
-  formatPackageNamesText :: Array (PackageName /\ Package) -> OutputFormat (Map PackageName Package)
-  formatPackageNamesText pkgs =
-    let
-      -- TODO: Currently prints git/remote packages as local packages
-      showLocation :: PackageName -> Package -> String
-      showLocation _ (GitPackage gitPackage) = "Remote " <> surroundQuote gitPackage.git
-      showLocation packageName package = "Local " <> surroundQuote (getPackageLocation packageName package)
+    showLocation :: Package -> String
+    showLocation (RegistryVersion _) = "-"
+    showLocation (GitPackage { git }) = git
+    showLocation (LocalPackage { path }) = path
+    showLocation (WorkspacePackage { path }) = path
 
-      -- Calculated for indentation
-      longestName = fromMaybe 0 $ maximum $ (length <<< PackageName.print <<< fst) <$> pkgs
-      longestVersion = fromMaybe 0 $ maximum $ (length <<< showVersion <<< snd) <$> pkgs
-
-      renderPkg :: PackageName /\ Package -> String
-      renderPkg (packageName /\ package) =
-        leftPad longestName (PackageName.print packageName)
-          <> " "
-          <> leftPad longestVersion (showVersion package)
-          <> "   "
-          <> showLocation packageName package
-    in
-      OutputLines $ renderPkg <$> pkgs
-
-  showVersion :: Package -> String
-  showVersion (RegistryVersion version) = "v" <> Version.print version
-  showVersion (LocalPackage _) = "local"
-  showVersion (GitPackage _) = "git"
-  showVersion (WorkspacePackage _) = "workspace"
-
-  leftPad :: Int -> String -> String
-  leftPad n s
-    | length s < n = s <> (fromCharArray $ replicate (n - length s) ' ')
-    | otherwise = s
-
-  surroundQuote :: String -> String
-  surroundQuote y = "\"" <> y <> "\""
+    showVersion :: Package -> String
+    showVersion (RegistryVersion version) = Version.print version
+    showVersion (GitPackage { ref }) = ref
+    showVersion (LocalPackage _) = "local"
+    showVersion (WorkspacePackage _) = "workspace"
