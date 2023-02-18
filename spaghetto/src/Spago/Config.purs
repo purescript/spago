@@ -43,7 +43,6 @@ import Spago.Prelude
 import Affjax.Node as Http
 import Affjax.ResponseFormat as Response
 import Affjax.StatusCode (StatusCode(..))
-import Data.Argonaut.Core (Json)
 import Data.Array as Array
 import Data.Codec.Argonaut (JsonDecodeError(..))
 import Data.Codec.Argonaut as CA
@@ -319,19 +318,16 @@ data Package
 packageCodec :: JsonCodec Package
 packageCodec = CA.codec' decode encode
   where
-  packageFromRegistryVersion = CAR.object "RegistryVersion" { version: Version.codec }
-  packageFromGitPackage = gitPackageCodec
-  packageFromLocalPackage = localPackageCodec
-  packageFromWorkspacePackage = workspacePackageCodec
+  packageFromRegistryVersion = Version.codec
 
-  encode (RegistryVersion r) = CA.encode packageFromRegistryVersion { version: r }
-  encode (GitPackage u) = CA.encode packageFromGitPackage u
+  encode (RegistryVersion x) = CA.encode packageFromRegistryVersion x
+  encode (GitPackage u) = CA.encode gitPackageCodec u
   encode (LocalPackage u) = CA.encode localPackageCodec u
   encode (WorkspacePackage u) = CA.encode workspacePackageCodec u
 
   decode json =
-    map (RegistryVersion <<< _.version) (CA.decode packageFromRegistryVersion json)
-      <|> map GitPackage (CA.decode packageFromGitPackage json)
+    map RegistryVersion (CA.decode packageFromRegistryVersion json)
+      <|> map GitPackage (CA.decode gitPackageCodec json)
       <|> map LocalPackage (CA.decode localPackageCodec json)
       <|> map WorkspacePackage (CA.decode workspacePackageCodec json)
 
