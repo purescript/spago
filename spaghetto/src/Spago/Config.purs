@@ -304,7 +304,7 @@ yamlDocCodec :: JsonCodec (YamlDoc Config)
 yamlDocCodec = CA.codec' decode encode
   where
   -- TODO: implementation of encode
-  encode _x = CA.encode CA.string "todo"
+  encode _x = CA.encode CA.null unit
 
   -- TODO: implementation of decode if needed
   decode _json = Left MissingValue
@@ -318,15 +318,13 @@ data Package
 packageCodec :: JsonCodec Package
 packageCodec = CA.codec' decode encode
   where
-  packageFromRegistryVersion = Version.codec
-
-  encode (RegistryVersion x) = CA.encode packageFromRegistryVersion x
-  encode (GitPackage u) = CA.encode gitPackageCodec u
-  encode (LocalPackage u) = CA.encode localPackageCodec u
-  encode (WorkspacePackage u) = CA.encode workspacePackageCodec u
+  encode (RegistryVersion x) = CA.encode Version.codec x
+  encode (GitPackage x) = CA.encode gitPackageCodec x
+  encode (LocalPackage x) = CA.encode localPackageCodec x
+  encode (WorkspacePackage x) = CA.encode workspacePackageCodec x
 
   decode json =
-    map RegistryVersion (CA.decode packageFromRegistryVersion json)
+    map RegistryVersion (CA.decode Version.codec json)
       <|> map GitPackage (CA.decode gitPackageCodec json)
       <|> map LocalPackage (CA.decode localPackageCodec json)
       <|> map WorkspacePackage (CA.decode workspacePackageCodec json)
