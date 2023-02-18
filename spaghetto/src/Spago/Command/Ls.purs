@@ -48,17 +48,17 @@ jsonPackageOutputCodec = CAR.object "JsonPackageOutput"
   }
 
 listPackageSet :: LsPackagesArgs -> Spago LsEnv Unit
-listPackageSet { json: jsonFlag } = do
+listPackageSet { json } = do
   logDebug "Running `listPackageSet`"
   { workspace } <- ask
-  output $ formatPackageNames jsonFlag (Map.toUnfoldable workspace.packageSet)
+  output $ formatPackageNames json (Map.toUnfoldable workspace.packageSet)
 
 listPackages :: LsDepsArgs -> Spago LsEnv Unit
-listPackages { transitive: packagesFilter, json: jsonFlag } = do
+listPackages { transitive, json } = do
   logDebug "Running `listPackages`"
   { dependencies, workspace } <- ask
   let
-    packagesToList = Map.toUnfoldable case packagesFilter of
+    packagesToList = Map.toUnfoldable case transitive of
       true -> dependencies
       false ->
         let
@@ -69,10 +69,10 @@ listPackages { transitive: packagesFilter, json: jsonFlag } = do
           filterKeys (_ `elem` directDependencies) dependencies
   case packagesToList of
     [] -> logWarn "There are no dependencies listed in your spago.dhall"
-    _ -> output $ formatPackageNames jsonFlag packagesToList
+    _ -> output $ formatPackageNames json packagesToList
 
 formatPackageNames :: forall a. Boolean -> Array (PackageName /\ Package) -> OutputFormat a
-formatPackageNames = case _ of
+formatPackageNames json = case json of
   true -> OutputLines <<< formatPackageNamesJson
   false -> OutputLines <<< formatPackageNamesText
   where
@@ -91,7 +91,6 @@ formatPackageNames = case _ of
   formatPackageNamesText :: Array (PackageName /\ Package) -> Array String
   formatPackageNamesText pkgs =
     let
-
       -- TODO: Currently prints git/remote packages as local packages
       showLocation :: PackageName -> Package -> String
       showLocation _ (GitPackage gitPackage) = "Remote " <> surroundQuote gitPackage.git
