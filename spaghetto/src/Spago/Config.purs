@@ -25,6 +25,7 @@ module Spago.Config
   , addPackagesToConfig
   , addRangesToConfig
   , configCodec
+  , packageCodec
   , findPackageSet
   , getPackageLocation
   , getWorkspacePackages
@@ -42,7 +43,9 @@ import Spago.Prelude
 import Affjax.Node as Http
 import Affjax.ResponseFormat as Response
 import Affjax.StatusCode (StatusCode(..))
+import Data.Argonaut.Core (Json)
 import Data.Array as Array
+import Data.Codec.Argonaut (JsonDecodeError(..))
 import Data.Codec.Argonaut as CA
 import Data.Codec.Argonaut.Record as CAR
 import Data.Codec.Argonaut.Sum as CA.Sum
@@ -290,11 +293,47 @@ type WorkspacePackage =
   , hasTests :: Boolean
   }
 
+workspacePackageCodec :: JsonCodec WorkspacePackage
+workspacePackageCodec = CAR.object "WorkspacePackage"
+  { path: CA.string
+  , package: packageConfigCodec
+  , doc: yamlDocCodec
+  , hasTests: CA.boolean
+  }
+
+yamlDocCodec :: JsonCodec (YamlDoc Config)
+yamlDocCodec = CA.codec' decode encode
+  where
+  -- TODO: implementation of encode
+  encode _x = CA.encode CA.string "todo"
+
+  -- TODO: implementation of decode if needed
+  decode _json = Left MissingValue
+
 data Package
   = RegistryVersion Version
   | GitPackage GitPackage
   | LocalPackage LocalPackage
   | WorkspacePackage WorkspacePackage
+
+packageCodec :: JsonCodec Package
+packageCodec = CA.codec' decode encode
+  where
+  packageFromRegistryVersion = CAR.object "RegistryVersion" { version: Version.codec }
+  packageFromGitPackage = gitPackageCodec
+  packageFromLocalPackage = localPackageCodec
+  packageFromWorkspacePackage = workspacePackageCodec
+
+  encode (RegistryVersion r) = CA.encode packageFromRegistryVersion { version: r }
+  encode (GitPackage u) = CA.encode packageFromGitPackage u
+  encode (LocalPackage u) = CA.encode localPackageCodec u
+  encode (WorkspacePackage u) = CA.encode workspacePackageCodec u
+
+  decode json =
+    map (RegistryVersion <<< _.version) (CA.decode packageFromRegistryVersion json)
+      <|> map GitPackage (CA.decode packageFromGitPackage json)
+      <|> map LocalPackage (CA.decode localPackageCodec json)
+      <|> map WorkspacePackage (CA.decode workspacePackageCodec json)
 
 type LocalPackage = { path :: FilePath }
 
