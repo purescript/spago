@@ -39,18 +39,19 @@ listPackages { transitive, json } = do
   logDebug "Running `listPackages`"
   { dependencies, workspace } <- ask
   let
-    packagesToList = Map.toUnfoldable $
-      if transitive then dependencies
-      else
-        let
-          workspacePackages = Config.getWorkspacePackages workspace.packageSet
-          toDependencyNames (Dependencies deps) = Map.keys deps
-          directDependencies = unions $ ((toDependencyNames <<< _.dependencies <<< _.package) <$> workspacePackages)
-        in
-          filterKeys (_ `elem` directDependencies) dependencies
-  case packagesToList of
+    directDependencies = filterKeys (_ `elem` direct) dependencies
+      where
+      toDependencyNames (Dependencies deps) = Map.keys deps
+      packagesToNames = toDependencyNames <<< _.dependencies <<< _.package
+      direct = unions (packagesToNames <$> workspacePackages)
+      workspacePackages = case workspace.selected of
+        Just p -> [ p ]
+        Nothing -> Config.getWorkspacePackages workspace.packageSet
+
+  let packages = Map.toUnfoldable $ if transitive then dependencies else directDependencies
+  case packages of
     [] -> logWarn "There are no dependencies listed in your spago.dhall"
-    _ -> output $ formatPackageNames json packagesToList
+    _ -> output $ formatPackageNames json packages
 
 formatPackageNames :: Boolean -> Array (PackageName /\ Package) -> OutputFormat (Map PackageName Package)
 formatPackageNames json pkgs =
