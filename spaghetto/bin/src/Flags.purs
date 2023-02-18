@@ -70,14 +70,14 @@ noColor =
 
 json ∷ ArgParser Boolean
 json =
-  ArgParser.flag [ "--json", "-j" ]
+  ArgParser.flag [ "--json" ]
     "Format the output as JSON"
     # ArgParser.boolean
     # ArgParser.default false
 
 transitive ∷ ArgParser Boolean
 transitive =
-  ArgParser.flag [ "--transitive", "-t" ]
+  ArgParser.flag [ "--transitive" ]
     "Include transitive dependencies"
     # ArgParser.boolean
     # ArgParser.default false
