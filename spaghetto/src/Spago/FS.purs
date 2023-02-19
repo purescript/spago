@@ -1,5 +1,6 @@
 module Spago.FS
   ( chmod
+  , ensureFileSync
   , exists
   , isLink
   , ls
@@ -10,7 +11,6 @@ module Spago.FS
   , readYamlDocFile
   , readYamlFile
   , stat
-  , touch
   , writeFile
   , writeJsonFile
   , writeTextFile
@@ -96,13 +96,3 @@ isLink :: forall m. MonadEffect m => FilePath -> m Boolean
 isLink path = liftEffect $ try (FS.Sync.lstat path) >>= case _ of
   Left _err -> pure true -- TODO: we should bubble this up instead
   Right stats -> pure $ Stats.isSymbolicLink stats
-
-touch :: forall m. MonadAff m => FilePath -> m Unit
-touch path = do
-  ensureFileSync path
-  -- now <- liftEffect $ Now.nowDateTime
-  -- utimes path { atime: now, mtime: now } -- This doesn't seem to work on mac
-  liftAff $ FS.Aff.appendTextFile UTF8 path ""
-
--- utimes :: forall m. MonadAff m => FilePath -> { atime :: DateTime, mtime :: DateTime } -> m Unit
--- utimes path { atime, mtime } = liftAff $ FS.Aff.utimes path atime mtime

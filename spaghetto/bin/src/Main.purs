@@ -680,7 +680,7 @@ shouldFetchRegistryRepos = do
       -- If the stat fails the file probably does not exist
       logDebug [ "Could not stat " <> freshRegistryCanary, show err ]
       -- in which case we touch it and fetch
-      FS.touch freshRegistryCanary
+      touch freshRegistryCanary
       pure true
     Right (Stats { mtime }) -> do
       -- it does exist here, see if it's old enough, and fetch if it is
@@ -689,8 +689,13 @@ shouldFetchRegistryRepos = do
       let staleAfter = 1000.0 * 60.0 * minutes -- need this in millis
       let isOldEnough = (JSDate.getTime now) > (JSDate.getTime mtime + staleAfter)
       if isOldEnough then do
-        FS.touch freshRegistryCanary
+        logDebug "Registry is old enough, refreshing canary"
+        touch freshRegistryCanary
         pure true
       else do
         logDebug "Registry index is fresh enough, moving on..."
         pure false
+  where
+  touch path = do
+    FS.ensureFileSync path
+    FS.writeTextFile path ""
