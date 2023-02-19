@@ -38,7 +38,9 @@ fetchRepo { git, ref } path = do
       Except.runExceptT $ runGit_ [ "fetch", "origin" ] (Just path)
     false -> do
       logInfo $ "Cloning " <> git
-      Except.runExceptT $ runGit_ [ "clone", git, path ] Nothing
+      -- For the reasoning on the filter options, see:
+      -- https://github.com/purescript/spago/issues/701#issuecomment-1317192919
+      Except.runExceptT $ runGit_ [ "clone", "--filter=tree:0", git, path ] Nothing
   result <- Except.runExceptT do
     Except.ExceptT $ pure cloneOrFetchResult
     _ <- runGit [ "checkout", ref ] (Just path)
