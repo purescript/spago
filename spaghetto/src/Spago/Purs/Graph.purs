@@ -73,18 +73,18 @@ checkImports = do
       # Map.insert packageName (WorkspacePackage selected)
   pathToPackage :: Map FilePath PackageName <- map (Map.fromFoldable <<< Array.fold)
     $ for (Map.toUnfoldable allPackages)
-        \(Tuple name package) -> liftAff do
+        \(Tuple name package) -> do
           -- Basically partition the modules of the current package by in src and test packages
           let withTestGlobs = if name == testPackageName then OnlyTestGlobs else NoTestGlobs
           globMatches :: Array FilePath <- map Array.fold $ traverse compileGlob (Config.sourceGlob withTestGlobs name package)
           pure $ map (\p -> Tuple p name) globMatches
 
   -- Compile the globs for the project, we get the set of source files in the project
-  projectGlob :: Set FilePath <- map Set.fromFoldable $ liftAff do
+  projectGlob :: Set FilePath <- map Set.fromFoldable do
     map Array.fold $ traverse compileGlob (Config.sourceGlob NoTestGlobs packageName (WorkspacePackage selected))
 
   -- Same but for tests
-  projectTestsGlob :: Set FilePath <- map Set.fromFoldable $ liftAff do
+  projectTestsGlob :: Set FilePath <- map Set.fromFoldable do
     map Array.fold $ traverse compileGlob (Config.sourceGlob OnlyTestGlobs packageName (WorkspacePackage selected))
 
   let
@@ -148,10 +148,12 @@ checkImports = do
 
   pure { unused, transitive, unusedTest, transitiveTest }
 
-compileGlob :: FilePath -> Aff (Array FilePath)
+compileGlob :: forall a. FilePath -> Spago (LogEnv a) (Array FilePath)
 compileGlob sourcePath = do
-  { succeeded } <- Glob.match Paths.cwd [ sourcePath ]
-  pure succeeded
+  { succeeded, failed } <- Glob.match Paths.cwd [ sourcePath ]
+  unless (Array.null failed) do
+    logDebug [ toDoc "Encountered some globs that are not in cwd, proceeding anyways:", indent $ toDoc failed ]
+  pure (succeeded <> failed)
 
 runGraphCheck :: forall a. WorkspacePackage -> Set FilePath -> Array String -> Spago (PreGraphEnv a) (Array Docc)
 runGraphCheck selected globs pursArgs = do
@@ -175,8 +177,7 @@ runGraphCheck selected globs pursArgs = do
 
 unusedError :: Boolean -> WorkspacePackage -> Set PackageName -> Docc
 unusedError isTest selected unused = toDoc
-  [ Log.break
-  , toDoc $ (if isTest then "Tests for package '" else "Sources for package '")
+  [ toDoc $ (if isTest then "Tests for package '" else "Sources for package '")
       <> PackageName.print selected.package.name
       <> "' declares unused dependencies - please remove them from the project config:"
   , indent (toDoc (map (\p -> PackageName.print p) (Set.toUnfoldable unused) :: Array _))
@@ -184,8 +185,7 @@ unusedError isTest selected unused = toDoc
 
 transitiveError :: Boolean -> WorkspacePackage -> ImportedPackages -> Docc
 transitiveError isTest selected transitive = toDoc
-  [ Log.break
-  , toDoc
+  [ toDoc
       $ (if isTest then "Tests for package '" else "Sources for package '")
       <> PackageName.print selected.package.name
       <> "' import the following transitive dependencies - please add them to the project dependencies, or remove the imports:"
