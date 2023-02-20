@@ -25,7 +25,6 @@ import Effect.Ref as Ref
 import Node.Buffer as Buffer
 import Node.Encoding as Encoding
 import Node.Path as Path
-import Partial.Unsafe (unsafeCrashWith)
 import Registry.Metadata as Metadata
 import Registry.PackageName as PackageName
 import Registry.Range as Range
@@ -187,7 +186,7 @@ getPackageDependencies packageName package = case package of
     pure $ map (_.dependencies <<< unwrap) maybeManifest
   GitPackage p -> do
     case p.dependencies of
-      Just (Dependencies dependencies) -> pure (Just (map (fromMaybe widestRange) dependencies))
+      Just (Dependencies dependencies) -> pure (Just (map (fromMaybe Config.widestRange) dependencies))
       Nothing -> do
         let packageLocation = Config.getPackageLocation packageName package
         unlessM (FS.exists packageLocation) do
@@ -198,7 +197,7 @@ getPackageDependencies packageName package = case package of
   LocalPackage p -> do
     readLocalDependencies p.path
   WorkspacePackage p ->
-    pure (Just (map (fromMaybe widestRange) (unwrap $ getWorkspacePackageDeps p)))
+    pure (Just (map (fromMaybe Config.widestRange) (unwrap $ getWorkspacePackageDeps p)))
   where
   -- try to see if the package has a spago config, and if it's there we read it
   readLocalDependencies :: FilePath -> Spago (FetchEnv a) (Maybe (Map PackageName Range))
@@ -206,7 +205,7 @@ getPackageDependencies packageName package = case package of
     -- TODO: make this work with manifests
     Config.readConfig (Path.concat [ configLocation, "spago.yaml" ]) >>= case _ of
       Right { yaml: { package: Just { dependencies: (Dependencies deps) } } } -> do
-        pure (Just (map (fromMaybe widestRange) deps))
+        pure (Just (map (fromMaybe Config.widestRange) deps))
       Right _ -> die [ "Read valid configuration from " <> configLocation, "However, there was no `package` section to be read." ]
       Left err -> die [ "Could not read config at " <> configLocation, "Error: " <> err ]
 
@@ -295,16 +294,12 @@ getTransitiveDeps deps = do
     die $ "The following packages do not exist in the package index:\n" <> foldMap printPackageError errors.notInIndex
   pure packages
 
-widestRange :: Range
-widestRange = Either.fromRight' (\_ -> unsafeCrashWith "Fake range failed")
-  $ Range.parse ">=0.0.0 <2147483647.0.0"
-
 -- | Given a Package, figure out a reasonable range.
 -- We default to the widest range for packages that are not pointing to the Registry.
 getRangeFromPackage :: Package -> Range
 getRangeFromPackage = case _ of
   RegistryVersion v -> Range.caret v
-  _ -> widestRange
+  _ -> Config.widestRange
 
 mkTemp' :: forall m. MonadAff m => Maybe String -> m FilePath
 mkTemp' maybeSuffix = liftAff do

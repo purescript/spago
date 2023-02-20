@@ -24,7 +24,6 @@ import Spago.Config as Config
 import Spago.Git (Git)
 import Spago.Git as Git
 import Spago.Json as Json
-import Spago.Log (logFailure)
 import Spago.Log as Log
 import Spago.Purs (Purs)
 import Spago.Purs.Graph as Graph

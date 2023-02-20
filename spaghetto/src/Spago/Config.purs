@@ -34,6 +34,7 @@ module Spago.Config
   , readWorkspace
   , sourceGlob
   , gitPackageCodec
+  , widestRange
   ) where
 
 import Spago.Prelude
@@ -45,6 +46,7 @@ import Data.Array as Array
 import Data.Codec.Argonaut as CA
 import Data.Codec.Argonaut.Record as CAR
 import Data.Codec.Argonaut.Sum as CA.Sum
+import Data.Either as Either
 import Data.Foldable as Foldable
 import Data.HTTP.Method as Method
 import Data.List as List
@@ -57,6 +59,7 @@ import Dodo as Log
 import Effect.Uncurried (EffectFn2, runEffectFn2)
 import Foreign.Object as Foreign
 import Node.Path as Path
+import Partial.Unsafe (unsafeCrashWith)
 import Registry.Foreign.FastGlob as Glob
 import Registry.Internal.Codec as Internal.Codec
 import Registry.License as License
@@ -336,7 +339,7 @@ instance Monoid Dependencies where
 dependenciesCodec :: JsonCodec Dependencies
 dependenciesCodec = Profunctor.dimap to from $ CA.array dependencyCodec
   where
-  packageSingletonCodec = Internal.Codec.packageMap Range.codec
+  packageSingletonCodec = Internal.Codec.packageMap spagoRangeCodec
 
   to :: Dependencies -> Array (Either PackageName (Map PackageName Range))
   to (Dependencies deps) =
@@ -364,6 +367,22 @@ dependenciesCodec = Profunctor.dimap to from $ CA.array dependencyCodec
     decode json =
       map Left (CA.decode PackageName.codec json)
         <|> map Right (CA.decode packageSingletonCodec json)
+
+widestRange :: Range
+widestRange = Either.fromRight' (\_ -> unsafeCrashWith "Fake range failed")
+  $ Range.parse ">=0.0.0 <2147483647.0.0"
+
+spagoRangeCodec :: JsonCodec Range
+spagoRangeCodec = CA.prismaticCodec "SpagoRange" rangeParse printSpagoRange CA.string
+  where
+  rangeParse str =
+    if str == "*" then Just widestRange
+    else hush $ Range.parse str
+
+printSpagoRange :: Range -> String
+printSpagoRange range =
+  if range == widestRange then "*"
+  else Range.print range
 
 data SetAddress
   = SetFromRegistry { registry :: Version }
@@ -704,7 +723,7 @@ foreign import addRangesToConfigImpl :: EffectFn2 (YamlDoc Config) (Foreign.Obje
 addRangesToConfig :: YamlDoc Config -> Map PackageName Range -> Effect Unit
 addRangesToConfig doc = runEffectFn2 addRangesToConfigImpl doc
   <<< Foreign.fromFoldable
-  <<< map (\(Tuple name range) -> Tuple (PackageName.print name) (Range.print range))
+  <<< map (\(Tuple name range) -> Tuple (PackageName.print name) (printSpagoRange range))
   <<< (Map.toUnfoldable :: Map _ _ -> Array _)
 
 findPackageSet :: forall a. Maybe Version -> Spago (PursEnv a) Version
