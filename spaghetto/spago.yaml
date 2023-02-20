@@ -1,9 +1,13 @@
 package:
   name: spago
-  version: 0.92.9
+  publish:
+    version: 0.92.9
+    license: BSD-3-Clause
+    location:
+      githubOwner: purescript
+      githubRepo: spago
   dependencies:
     - aff
-    - aff-promise
     - affjax
     - affjax-node
     - argonaut-core
@@ -19,6 +23,7 @@ package:
     - exceptions
     - filterable
     - foldable-traversable
+    - foreign-object
     - functions
     - http-methods
     - identity
@@ -47,7 +52,6 @@ package:
     - transformers
     - tuples
     - unsafe-coerce
-  license: BSD-3-Clause
 workspace:
   package_set:
     # url: https://raw.githubusercontent.com/purescript/package-sets/psc-0.15.7-20230207/packages.json
@@ -56,10 +60,9 @@ workspace:
   extra_packages:
     registry-lib:
       git: https://github.com/purescript/registry-dev.git
-      ref: 8113deecae25410ba62c31a5842c6ebbf1c12461
+      ref: 68dddd9351f256980454bc2c1d0aea20e4d53fa9
       subdir: lib
-      # path: "../../registry-dev/lib"
     registry-foreign:
       git: https://github.com/purescript/registry-dev.git
-      ref: 8113deecae25410ba62c31a5842c6ebbf1c12461
+      ref: 68dddd9351f256980454bc2c1d0aea20e4d53fa9
       subdir: foreign

@@ -33,7 +33,6 @@ module Spago.Config
   , readConfig
   , readWorkspace
   , sourceGlob
-  , toManifest
   , gitPackageCodec
   ) where
 
@@ -46,7 +45,6 @@ import Data.Array as Array
 import Data.Codec.Argonaut as CA
 import Data.Codec.Argonaut.Record as CAR
 import Data.Codec.Argonaut.Sum as CA.Sum
-import Data.Either as Either
 import Data.Foldable as Foldable
 import Data.HTTP.Method as Method
 import Data.List as List
@@ -105,15 +103,15 @@ packageConfigCodec = CAR.object "PackageConfig"
   }
 
 type PublishConfig =
-  { version :: Maybe Version
-  , license :: Maybe License
+  { version :: Version
+  , license :: License
   , location :: Maybe Location
-  } -- FIXME: implement publishing
+  }
 
 publishConfigCodec :: JsonCodec PublishConfig
 publishConfigCodec = CAR.object "PublishConfig"
-  { version: CAR.optional Version.codec
-  , license: CAR.optional License.codec
+  { version: Version.codec
+  , license: License.codec
   , location: CAR.optional Location.codec
   }
 
@@ -708,30 +706,6 @@ addRangesToConfig doc = runEffectFn2 addRangesToConfigImpl doc
   <<< Foreign.fromFoldable
   <<< map (\(Tuple name range) -> Tuple (PackageName.print name) (Range.print range))
   <<< (Map.toUnfoldable :: Map _ _ -> Array _)
-
-toManifest :: Config -> Either String Manifest
-toManifest config = do
-  package@{ name, description, dependencies: Dependencies deps } <- Either.note "Did not find a package in the config" config.package
-  publishConfig <- Either.note "Did not find a `publish` section in the package config" package.publish
-  version <- Either.note "Did not find a `version` field in the package config" publishConfig.version
-  license <- Either.note "Did not find a `license` field in the package config" publishConfig.license
-  location <- Either.note "Did not find a `location` field in the package config" publishConfig.location
-  let
-    checkRange :: Tuple PackageName (Maybe Range) -> Either String (Tuple PackageName Range)
-    checkRange (Tuple packageName maybeRange) = case maybeRange of
-      Nothing -> Left $ "Could not get dependency range for package " <> PackageName.print packageName
-      Just r -> Right (Tuple packageName r)
-  dependencies <- map Map.fromFoldable $ traverse checkRange (Map.toUnfoldable deps :: Array (Tuple PackageName (Maybe Range)))
-  pure $ Manifest
-    { version
-    , license
-    , name
-    , location
-    , description
-    , dependencies
-    , owners: Nothing -- TODO specify owners in spago config
-    , files: Nothing -- TODO specify files in spago config
-    }
 
 findPackageSet :: forall a. Maybe Version -> Spago (PursEnv a) Version
 findPackageSet maybeSet = do

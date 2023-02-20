@@ -118,7 +118,7 @@ run opts = do
         map Array.fold $ for (Config.getWorkspacePackages workspace.packageSet) \selected -> do
           Graph.runGraphCheck selected globs opts.pursArgs
     unless (Array.null errors) do
-      die errors
+      die' errors
 
   -- TODO: if we are building with all the packages (i.e. selected = Nothing),
   -- then we can use the graph to remove outdated modules from `output`!

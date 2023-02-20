@@ -6,6 +6,7 @@ module Spago.Log
   , OutputFormat(..)
   , class Loggable
   , die
+  , die'
   , indent2
   , logDebug
   , logError
@@ -25,10 +26,12 @@ import Control.Monad.Reader (class MonadAsk)
 import Control.Monad.Reader as Reader
 import Data.Codec.Argonaut (JsonCodec)
 import Data.String as String
+import Data.Traversable (traverse)
 import Dodo (Doc)
 import Dodo (indent, break) as DodoExport
 import Dodo as Log
 import Dodo.Ansi (GraphicsParam)
+import Dodo.Ansi (bold) as DodoExport
 import Dodo.Ansi as Ansi
 import Effect (Effect)
 import Effect.Class (class MonadEffect)
@@ -115,7 +118,13 @@ logError l = log { level: LogError, content: Ansi.foreground Ansi.Red (toDoc l) 
 
 die :: forall a b m u. MonadEffect m => MonadAsk (LogEnv b) m => Loggable a => a -> m u
 die msg = do
-  logError msg
+  logFailure msg
+  Effect.liftEffect $ Process.exit 1
+
+-- | Same as `die`, but with multiple failures
+die' :: forall a b m u. MonadEffect m => MonadAsk (LogEnv b) m => Loggable a => Array a -> m u
+die' msgs = do
+  _ <- traverse logFailure msgs
   Effect.liftEffect $ Process.exit 1
 
 data OutputFormat a

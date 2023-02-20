@@ -21,7 +21,6 @@ import Registry.Constants as Registry.Constants
 import Registry.ManifestIndex as ManifestIndex
 import Registry.Metadata as Metadata
 import Registry.PackageName as PackageName
-import Spago.Bin.Flags (ensureRanges)
 import Spago.Bin.Flags as Flag
 import Spago.Bin.Flags as Flags
 import Spago.BuildInfo as BuildInfo
@@ -29,6 +28,7 @@ import Spago.Command.Build as Build
 import Spago.Command.Bundle as Bundle
 import Spago.Command.Fetch as Fetch
 import Spago.Command.Init as Init
+import Spago.Command.Publish as Publish
 import Spago.Command.Registry as Registry
 import Spago.Command.Run as Run
 import Spago.Command.Sources as Sources
@@ -134,6 +134,10 @@ type BundleArgs =
   , ensureRanges :: Boolean
   }
 
+type PublishArgs =
+  { selectedPackage :: Maybe String
+  }
+
 data SpagoCmd a = SpagoCmd GlobalArgs (Command a)
 
 data Command a
@@ -148,6 +152,7 @@ data Command a
   | Sources SourcesArgs
   | RegistrySearch RegistrySearchArgs
   | RegistryInfo RegistryInfoArgs
+  | Publish PublishArgs
 
 argParser :: ArgParser (SpagoCmd ())
 argParser =
@@ -188,6 +193,10 @@ argParser =
         "Start a REPL"
         do
           (SpagoCmd <$> globalArgsParser <*> (Repl <$> replArgsParser) <* ArgParser.flagHelp)
+    , ArgParser.command [ "publish" ]
+        "Publish a package"
+        do
+          (SpagoCmd <$> globalArgsParser <*> (Publish <$> publishArgsParser) <* ArgParser.flagHelp)
     , ArgParser.command [ "registry" ]
         "Commands to interact with the Registry"
         do
@@ -309,6 +318,12 @@ bundleArgsParser =
     , ensureRanges: Flag.ensureRanges
     }
 
+publishArgsParser :: ArgParser PublishArgs
+publishArgsParser =
+  ArgParser.fromRecord
+    { selectedPackage: Flags.selectedPackage
+    }
+
 registrySearchArgsParser :: ArgParser RegistrySearchArgs
 registrySearchArgsParser =
   ArgParser.fromRecord
@@ -378,6 +393,12 @@ main =
             buildEnv <- runSpago env (mkBuildEnv args dependencies)
             let options = { depsOnly: false, pursArgs: List.toUnfoldable args.pursArgs }
             runSpago buildEnv (Build.run options)
+          Publish { selectedPackage } -> do
+            { env, fetchOpts } <- mkFetchEnv { packages: mempty, selectedPackage, ensureRanges: false }
+            publishEnv <- runSpago env do
+              dependencies <- Fetch.run fetchOpts
+              mkPublishEnv dependencies
+            void $ runSpago publishEnv (Publish.publish {})
           Repl args -> do
             -- TODO implement
             pure unit
@@ -575,6 +596,27 @@ mkBuildEnv buildArgs dependencies = do
           workspace.backend
       }
   pure { logOptions, purs, git, dependencies, workspace: newWorkspace }
+
+mkPublishEnv :: forall a. Map PackageName Package -> Spago (Fetch.FetchEnv a) (Publish.PublishEnv a)
+mkPublishEnv dependencies = do
+  env <- ask
+  purs <- Purs.getPurs
+  selected <- case env.workspace.selected of
+    Just s -> pure s
+    Nothing ->
+      let
+        workspacePackages = Config.getWorkspacePackages env.workspace.packageSet
+      in
+        -- If there's only one package, select that one
+        case workspacePackages of
+          [ singlePkg ] -> pure singlePkg
+          _ -> do
+            logDebug $ unsafeStringify workspacePackages
+            die
+              [ toDoc "No package was selected for publishing. Please select (with -p) one of the following packages:"
+              , indent (toDoc $ map _.package.name workspacePackages)
+              ]
+  pure (Record.union { purs, selected, dependencies } env)
 
 mkFetchEnv :: forall a. FetchArgs -> Spago (LogEnv a) { env :: Fetch.FetchEnv (), fetchOpts :: Fetch.FetchOpts }
 mkFetchEnv args = do

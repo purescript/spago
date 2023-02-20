@@ -9,5 +9,5 @@ export const parseUrlImpl = (onError, onSuccess, rawUrl) => {
 };
 
 export const unsafeLog = (a) => () => {
-  console.log(a)
+  console.dir(a, { showHidden: false, depth: null, colors: true, maxArrayLength: null });
 }
