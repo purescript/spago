@@ -82,6 +82,8 @@ newtype SourcePath = SourcePath { unSourcePath :: Text }
   deriving newtype (Eq, Ord, Show, Dhall.FromDhall)
 newtype PursArg = PursArg { unPursArg :: Text }
   deriving newtype (Eq, Show)
+newtype ExternalArg = ExternalArg { unExternalArg :: Text }
+  deriving newtype (Eq, Show)
 newtype BackendArg = BackendArg { unBackendArg :: Text }
   deriving newtype (Eq)
 
@@ -175,6 +177,7 @@ data BundleOptions = BundleOptions
   , maybePlatform :: Maybe Platform
   , minify :: Minify
   , noBuild :: NoBuild
+  , maybeExternalArg :: Maybe ExternalArg
   }
 
 fromScriptOptions :: BuildOptions -> ScriptBuildOptions -> BuildOptions

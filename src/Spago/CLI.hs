@@ -172,9 +172,10 @@ parser = do
     packageName     = CLI.arg (Just . PackageName) "package" "Specify a package name. You can list them with `ls packages`"
     packageNames    = many $ CLI.arg (Just . PackageName) "package" "Package name to add as dependency"
     pursArgs        = many $ CLI.opt (Just . PursArg) "purs-args" 'u' "Arguments to pass to purs compile. Wrap in quotes."
+    externalArg     = CLI.optional $ CLI.opt (Just . ExternalArg) "external" 'e' "Arguments to pass to esbuild bundle."
     buildOptions  = BuildOptions <$> watch <*> clearScreen <*> allowIgnored <*> sourcePaths <*> srcMapFlag <*> noInstall
                     <*> pursArgs <*> depsOnly <*> beforeCommands <*> thenCommands <*> elseCommands
-    bundleOptions = BundleOptions <$> mainModule <*> toTarget <*> platform <*> minifyFlag <*> noBuild
+    bundleOptions = BundleOptions <$> mainModule <*> toTarget <*> platform <*> minifyFlag <*> noBuild <*> externalArg
     scriptBuildOptions = ScriptBuildOptions <$> pursArgs <*> beforeCommands <*> thenCommands <*> elseCommands
 
     -- Opts.flag' creates a parser with no default value. This is intended.

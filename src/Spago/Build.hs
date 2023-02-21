@@ -418,8 +418,8 @@ runBackend maybeBackend RunDirectories{ sourceDir, executeDir } moduleName maybe
         ExitFailure n -> die [ display failureMessage <> "Backend " <> displayShow backend <> " exited with error:" <> repr n ]
 
 
-bundleWithEsbuild :: HasLogFunc env => WithMain -> WithSrcMap -> ModuleName -> TargetPath -> Platform -> Minify -> RIO env ()
-bundleWithEsbuild withMain srcMap (ModuleName moduleName) (TargetPath targetPath) platform minify = do
+bundleWithEsbuild :: HasLogFunc env => WithMain -> WithSrcMap -> ModuleName -> TargetPath -> Platform -> Minify -> Maybe ExternalArg -> RIO env ()
+bundleWithEsbuild withMain srcMap (ModuleName moduleName) (TargetPath targetPath) platform minify externalArg = do
   esbuild <- getESBuild
   let
     platformOpt = case platform of
@@ -434,7 +434,10 @@ bundleWithEsbuild withMain srcMap (ModuleName moduleName) (TargetPath targetPath
     formatOpt = case (platform, withMain) of
       (Browser, WithMain) -> ["--format=iife"]
       (_,_) -> ["--format=esm"]
-    esbuildBase = platformOpt <> minifyOpt <> srcMapOpt <> formatOpt <> ["--bundle", "--outfile=" <> targetPath]
+    externalOpt = case externalArg of
+      Nothing -> []
+      Just arg -> ["--external:" <> unExternalArg arg]
+    esbuildBase = platformOpt <> minifyOpt <> srcMapOpt <> formatOpt <> ["--bundle", "--outfile=" <> targetPath] <> externalOpt
     (input, cmd) = case withMain of
       WithMain -> do
         let
@@ -460,13 +463,13 @@ bundleModule
   -> BuildOptions
   -> UsePsa
   -> RIO env ()
-bundleModule withMain BundleOptions { maybeModuleName, maybeTargetPath, maybePlatform, minify, noBuild }  buildOpts usePsa = do
+bundleModule withMain BundleOptions { maybeModuleName, maybeTargetPath, maybePlatform, minify, noBuild, maybeExternalArg } buildOpts usePsa = do
   isES <- Purs.hasMinPursVersion "0.15.0-alpha-01"
   let
     (moduleName, targetPath, platform) = prepareBundleDefaults maybeModuleName maybeTargetPath maybePlatform
     bundleAction =
       if isES then
-        bundleWithEsbuild withMain (withSourceMap buildOpts) moduleName targetPath platform minify
+        bundleWithEsbuild withMain (withSourceMap buildOpts) moduleName targetPath platform minify maybeExternalArg
       else case withMain of
         WithMain -> Purs.bundle WithMain (withSourceMap buildOpts) moduleName targetPath
         WithoutMain ->
