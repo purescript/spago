@@ -104,50 +104,50 @@ defaultConfig name set =
 srcMainTemplate ∷ String
 srcMainTemplate =
   """
-  module Main where
+module Main where
 
-  import Prelude
+import Prelude
 
-  import Effect (Effect)
-  import Effect.Console (log)
+import Effect (Effect)
+import Effect.Console (log)
 
-  main :: Effect Unit
-  main = do
-    log "🍝"
+main :: Effect Unit
+main = do
+  log "🍝"
 
-  """
+"""
 
 testMainTemplate ∷ String
 testMainTemplate =
   """
-  module Test.Main where
+module Test.Main where
 
-  import Prelude
+import Prelude
 
-  import Effect (Effect)
-  import Effect.Class.Console (log)
+import Effect (Effect)
+import Effect.Class.Console (log)
 
-  main :: Effect Unit
-  main = do
-    log "🍕"
-    log "You should add some tests."
+main :: Effect Unit
+main = do
+  log "🍕"
+  log "You should add some tests."
 
-  """
+"""
 
 gitignoreTemplate ∷ String
 gitignoreTemplate =
   """
-  /bower_components/
-  /node_modules/
-  /.pulp-cache/
-  /output/
-  /generated-docs/
-  /.psc-package/
-  /.psc*
-  /.purs*
-  /.psa*
-  /.spago
-  """
+bower_components/
+node_modules/
+.pulp-cache/
+output/
+generated-docs/
+.psc-package/
+.psc*
+.purs*
+.psa*
+.spago
+"""
 
 pursReplTemplate :: String
 pursReplTemplate =

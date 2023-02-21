@@ -29,6 +29,7 @@ import Spago.Command.Fetch as Fetch
 import Spago.Command.Init as Init
 import Spago.Command.Ls as Ls
 import Spago.Command.Ls (LsDepsArgs, LsPackagesArgs)
+import Spago.Command.Publish as Publish
 import Spago.Command.Registry as Registry
 import Spago.Command.Run as Run
 import Spago.Command.Sources as Sources
@@ -134,6 +135,10 @@ type BundleArgs =
   , ensureRanges :: Boolean
   }
 
+type PublishArgs =
+  { selectedPackage :: Maybe String
+  }
+
 data SpagoCmd a = SpagoCmd GlobalArgs (Command a)
 
 data Command a
@@ -150,6 +155,7 @@ data Command a
   | RegistryInfo RegistryInfoArgs
   | LsDeps LsDepsArgs
   | LsPackages LsPackagesArgs
+  | Publish PublishArgs
 
 argParser :: ArgParser (SpagoCmd ())
 argParser =
@@ -190,6 +196,10 @@ argParser =
         "Start a REPL"
         do
           (SpagoCmd <$> globalArgsParser <*> (Repl <$> replArgsParser) <* ArgParser.flagHelp)
+    , ArgParser.command [ "publish" ]
+        "Publish a package"
+        do
+          (SpagoCmd <$> globalArgsParser <*> (Publish <$> publishArgsParser) <* ArgParser.flagHelp)
     , ArgParser.command [ "registry" ]
         "Commands to interact with the Registry"
         do
@@ -320,6 +330,12 @@ bundleArgsParser =
     , ensureRanges: Flags.ensureRanges
     }
 
+publishArgsParser :: ArgParser PublishArgs
+publishArgsParser =
+  ArgParser.fromRecord
+    { selectedPackage: Flags.selectedPackage
+    }
+
 registrySearchArgsParser :: ArgParser RegistrySearchArgs
 registrySearchArgsParser =
   ArgParser.fromRecord
@@ -400,6 +416,12 @@ main =
             buildEnv <- runSpago env (mkBuildEnv args dependencies)
             let options = { depsOnly: false, pursArgs: List.toUnfoldable args.pursArgs }
             runSpago buildEnv (Build.run options)
+          Publish { selectedPackage } -> do
+            { env, fetchOpts } <- mkFetchEnv { packages: mempty, selectedPackage, ensureRanges: false }
+            publishEnv <- runSpago env do
+              dependencies <- Fetch.run fetchOpts
+              mkPublishEnv dependencies
+            void $ runSpago publishEnv (Publish.publish {})
           Repl args -> do
             -- TODO implement
             pure unit
@@ -612,6 +634,27 @@ mkBuildEnv buildArgs dependencies = do
       }
   pure { logOptions, purs, git, dependencies, workspace: newWorkspace }
 
+mkPublishEnv :: forall a. Map PackageName Package -> Spago (Fetch.FetchEnv a) (Publish.PublishEnv a)
+mkPublishEnv dependencies = do
+  env <- ask
+  purs <- Purs.getPurs
+  selected <- case env.workspace.selected of
+    Just s -> pure s
+    Nothing ->
+      let
+        workspacePackages = Config.getWorkspacePackages env.workspace.packageSet
+      in
+        -- If there's only one package, select that one
+        case workspacePackages of
+          [ singlePkg ] -> pure singlePkg
+          _ -> do
+            logDebug $ unsafeStringify workspacePackages
+            die
+              [ toDoc "No package was selected for publishing. Please select (with -p) one of the following packages:"
+              , indent (toDoc $ map _.package.name workspacePackages)
+              ]
+  pure (Record.union { purs, selected, dependencies } env)
+
 mkFetchEnv :: forall a. FetchArgs -> Spago (LogEnv a) { env :: Fetch.FetchEnv (), fetchOpts :: Fetch.FetchOpts }
 mkFetchEnv args = do
   let { right: packageNames, left: failedPackageNames } = partitionMap PackageName.parse (Array.fromFoldable args.packages)
@@ -721,7 +764,7 @@ shouldFetchRegistryRepos = do
       -- If the stat fails the file probably does not exist
       logDebug [ "Could not stat " <> freshRegistryCanary, show err ]
       -- in which case we touch it and fetch
-      FS.touch freshRegistryCanary
+      touch freshRegistryCanary
       pure true
     Right (Stats { mtime }) -> do
       -- it does exist here, see if it's old enough, and fetch if it is
@@ -730,8 +773,13 @@ shouldFetchRegistryRepos = do
       let staleAfter = 1000.0 * 60.0 * minutes -- need this in millis
       let isOldEnough = (JSDate.getTime now) > (JSDate.getTime mtime + staleAfter)
       if isOldEnough then do
-        FS.touch freshRegistryCanary
+        logDebug "Registry is old enough, refreshing canary"
+        touch freshRegistryCanary
         pure true
       else do
         logDebug "Registry index is fresh enough, moving on..."
         pure false
+  where
+  touch path = do
+    FS.ensureFileSync path
+    FS.writeTextFile path ""

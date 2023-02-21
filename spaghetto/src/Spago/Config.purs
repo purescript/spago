@@ -34,8 +34,8 @@ module Spago.Config
   , readConfig
   , readWorkspace
   , sourceGlob
-  , toManifest
   , gitPackageCodec
+  , widestRange
   ) where
 
 import Spago.Prelude
@@ -61,6 +61,7 @@ import Dodo as Log
 import Effect.Uncurried (EffectFn2, runEffectFn2)
 import Foreign.Object as Foreign
 import Node.Path as Path
+import Partial.Unsafe (unsafeCrashWith)
 import Registry.Foreign.FastGlob as Glob
 import Registry.Internal.Codec as Internal.Codec
 import Registry.License as License
@@ -107,15 +108,15 @@ packageConfigCodec = CAR.object "PackageConfig"
   }
 
 type PublishConfig =
-  { version :: Maybe Version
-  , license :: Maybe License
+  { version :: Version
+  , license :: License
   , location :: Maybe Location
-  } -- FIXME: implement publishing
+  }
 
 publishConfigCodec :: JsonCodec PublishConfig
 publishConfigCodec = CAR.object "PublishConfig"
-  { version: CAR.optional Version.codec
-  , license: CAR.optional License.codec
+  { version: Version.codec
+  , license: License.codec
   , location: CAR.optional Location.codec
   }
 
@@ -371,7 +372,7 @@ instance Monoid Dependencies where
 dependenciesCodec :: JsonCodec Dependencies
 dependenciesCodec = Profunctor.dimap to from $ CA.array dependencyCodec
   where
-  packageSingletonCodec = Internal.Codec.packageMap Range.codec
+  packageSingletonCodec = Internal.Codec.packageMap spagoRangeCodec
 
   to :: Dependencies -> Array (Either PackageName (Map PackageName Range))
   to (Dependencies deps) =
@@ -399,6 +400,22 @@ dependenciesCodec = Profunctor.dimap to from $ CA.array dependencyCodec
     decode json =
       map Left (CA.decode PackageName.codec json)
         <|> map Right (CA.decode packageSingletonCodec json)
+
+widestRange :: Range
+widestRange = Either.fromRight' (\_ -> unsafeCrashWith "Fake range failed")
+  $ Range.parse ">=0.0.0 <2147483647.0.0"
+
+spagoRangeCodec :: JsonCodec Range
+spagoRangeCodec = CA.prismaticCodec "SpagoRange" rangeParse printSpagoRange CA.string
+  where
+  rangeParse str =
+    if str == "*" then Just widestRange
+    else hush $ Range.parse str
+
+printSpagoRange :: Range -> String
+printSpagoRange range =
+  if range == widestRange then "*"
+  else Range.print range
 
 data SetAddress
   = SetFromRegistry { registry :: Version }
@@ -739,32 +756,8 @@ foreign import addRangesToConfigImpl :: EffectFn2 (YamlDoc Config) (Foreign.Obje
 addRangesToConfig :: YamlDoc Config -> Map PackageName Range -> Effect Unit
 addRangesToConfig doc = runEffectFn2 addRangesToConfigImpl doc
   <<< Foreign.fromFoldable
-  <<< map (\(Tuple name range) -> Tuple (PackageName.print name) (Range.print range))
+  <<< map (\(Tuple name range) -> Tuple (PackageName.print name) (printSpagoRange range))
   <<< (Map.toUnfoldable :: Map _ _ -> Array _)
-
-toManifest :: Config -> Either String Manifest
-toManifest config = do
-  package@{ name, description, dependencies: Dependencies deps } <- Either.note "Did not find a package in the config" config.package
-  publishConfig <- Either.note "Did not find a `publish` section in the package config" package.publish
-  version <- Either.note "Did not find a `version` field in the package config" publishConfig.version
-  license <- Either.note "Did not find a `license` field in the package config" publishConfig.license
-  location <- Either.note "Did not find a `location` field in the package config" publishConfig.location
-  let
-    checkRange :: Tuple PackageName (Maybe Range) -> Either String (Tuple PackageName Range)
-    checkRange (Tuple packageName maybeRange) = case maybeRange of
-      Nothing -> Left $ "Could not get dependency range for package " <> PackageName.print packageName
-      Just r -> Right (Tuple packageName r)
-  dependencies <- map Map.fromFoldable $ traverse checkRange (Map.toUnfoldable deps :: Array (Tuple PackageName (Maybe Range)))
-  pure $ Manifest
-    { version
-    , license
-    , name
-    , location
-    , description
-    , dependencies
-    , owners: Nothing -- TODO specify owners in spago config
-    , files: Nothing -- TODO specify files in spago config
-    }
 
 findPackageSet :: forall a. Maybe Version -> Spago (PursEnv a) Version
 findPackageSet maybeSet = do

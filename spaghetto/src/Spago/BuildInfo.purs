@@ -79,5 +79,5 @@ currentSpagoVersion = fromMaybe "0.0.0" $ map _.version $ Array.head BuildInfo.b
 mkPackageBuildInfo :: WorkspacePackage -> { name :: String, version :: String }
 mkPackageBuildInfo { package } =
   { name: PackageName.print package.name
-  , version: fromMaybe "0.0.0" $ map Version.print (package.publish >>= _.version)
+  , version: fromMaybe "0.0.0" $ map Version.print (map _.version package.publish)
   }
