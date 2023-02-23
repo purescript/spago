@@ -25,6 +25,7 @@ module Spago.Config
   , addPackagesToConfig
   , addRangesToConfig
   , configCodec
+  , packageCodec
   , findPackageSet
   , getPackageLocation
   , getWorkspacePackages
@@ -43,6 +44,7 @@ import Affjax.Node as Http
 import Affjax.ResponseFormat as Response
 import Affjax.StatusCode (StatusCode(..))
 import Data.Array as Array
+import Data.Codec.Argonaut (JsonDecodeError(..))
 import Data.Codec.Argonaut as CA
 import Data.Codec.Argonaut.Record as CAR
 import Data.Codec.Argonaut.Sum as CA.Sum
@@ -291,11 +293,42 @@ type WorkspacePackage =
   , hasTests :: Boolean
   }
 
+workspacePackageCodec :: JsonCodec WorkspacePackage
+workspacePackageCodec = CAR.object "WorkspacePackage"
+  { path: CA.string
+  , package: packageConfigCodec
+  , doc: yamlDocCodec
+  , hasTests: CA.boolean
+  }
+
+yamlDocCodec :: JsonCodec (YamlDoc Config)
+yamlDocCodec = CA.codec' decode encode
+  where
+  -- TODO: implementation of encode
+  encode _x = CA.encode CA.null unit
+
+  -- TODO: implementation of decode if needed
+  decode _json = Left MissingValue
+
 data Package
   = RegistryVersion Version
   | GitPackage GitPackage
   | LocalPackage LocalPackage
   | WorkspacePackage WorkspacePackage
+
+packageCodec :: JsonCodec Package
+packageCodec = CA.codec' decode encode
+  where
+  encode (RegistryVersion x) = CA.encode Version.codec x
+  encode (GitPackage x) = CA.encode gitPackageCodec x
+  encode (LocalPackage x) = CA.encode localPackageCodec x
+  encode (WorkspacePackage x) = CA.encode workspacePackageCodec x
+
+  decode json =
+    map RegistryVersion (CA.decode Version.codec json)
+      <|> map GitPackage (CA.decode gitPackageCodec json)
+      <|> map LocalPackage (CA.decode localPackageCodec json)
+      <|> map WorkspacePackage (CA.decode workspacePackageCodec json)
 
 type LocalPackage = { path :: FilePath }
 

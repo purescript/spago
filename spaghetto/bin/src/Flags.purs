@@ -75,6 +75,13 @@ json =
     # ArgParser.boolean
     # ArgParser.default false
 
+transitive ∷ ArgParser Boolean
+transitive =
+  ArgParser.flag [ "--transitive" ]
+    "Include transitive dependencies"
+    # ArgParser.boolean
+    # ArgParser.default false
+
 pedanticPackages ∷ ArgParser Boolean
 pedanticPackages =
   ArgParser.flag [ "--pedantic-packages" ]
