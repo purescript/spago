@@ -16,7 +16,6 @@ module Spago.Log
   , logWarn
   , module DodoExport
   , output
-  , supportsColor
   , toDoc
   ) where
 
@@ -39,7 +38,6 @@ import Dodo.Ansi (bold) as DodoExport
 import Dodo.Ansi as Ansi
 import Dodo.Box (DocBox)
 import Dodo.Box as Box
-import Effect (Effect)
 import Effect.Class (class MonadEffect)
 import Effect.Class as Effect
 import Effect.Class.Console as Console
@@ -138,11 +136,6 @@ data OutputFormat a
   | OutputTable { titles :: Array String, rows :: Array (Array String) }
   | OutputLines (Array String)
 
-foreign import supportsColor :: Effect Boolean
-
-indent2 :: forall a. Doc a -> Doc a
-indent2 = Log.indent <<< Log.indent
-
 output :: forall a m. MonadEffect m => OutputFormat a -> m Unit
 output format = Console.log case format of
   OutputJson codec json -> Json.printJson codec json
@@ -211,3 +204,6 @@ logTable { headers, rows } =
           rows
     )
     headers
+
+indent2 :: forall a. Doc a -> Doc a
+indent2 = Log.indent <<< Log.indent

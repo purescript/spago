@@ -39,7 +39,7 @@ import Spago.Config as Config
 import Spago.FS as FS
 import Spago.Git as Git
 import Spago.Json as Json
-import Spago.Log (LogVerbosity(..), supportsColor)
+import Spago.Log (LogVerbosity(..))
 import Spago.Paths as Paths
 import Spago.Purs as Purs
 import Unsafe.Coerce (unsafeCoerce)
@@ -783,3 +783,5 @@ shouldFetchRegistryRepos = do
   touch path = do
     FS.ensureFileSync path
     FS.writeTextFile path ""
+
+foreign import supportsColor :: Effect Boolean

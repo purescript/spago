@@ -19,6 +19,7 @@ package:
     - refs
     - registry-lib
     - spago
+    - spago-core
     - unsafe-coerce
   bundle:
     module: Main

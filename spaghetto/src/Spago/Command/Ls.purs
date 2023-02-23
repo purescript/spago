@@ -10,8 +10,9 @@ import Data.Tuple.Nested (type (/\))
 import Registry.Internal.Codec (packageMap)
 import Registry.PackageName as PackageName
 import Registry.Version as Version
-import Spago.Config (Dependencies(..), Package(..), PackageSet, Workspace, packageCodec)
+import Spago.Config (Dependencies(..), Package(..), PackageSet, Workspace)
 import Spago.Config as Config
+import Unsafe.Coerce (unsafeCoerce)
 
 type LsPackagesArgs =
   { json :: Boolean
@@ -55,7 +56,7 @@ listPackages { transitive, json } = do
 
 formatPackageNames :: Boolean -> Array (PackageName /\ Package) -> OutputFormat (Map PackageName Package)
 formatPackageNames json pkgs =
-  if json then OutputJson (packageMap packageCodec) (Map.fromFoldable pkgs)
+  if json then OutputJson (packageMap (unsafeCoerce 1)) (Map.fromFoldable pkgs) -- TODO
   else formatPackagesTable
   where
   formatPackagesTable = OutputTable
