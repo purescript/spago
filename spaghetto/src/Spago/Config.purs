@@ -39,7 +39,7 @@ import Registry.PackageName as PackageName
 import Registry.Range as Range
 import Registry.Sha256 as Sha256
 import Registry.Version as Version
-import Spago.Core.Config (BackendConfig, BuildOptionsInput, BundleConfig, BundlePlatform(..), BundleType(..), Config, Dependencies(..), ExtraPackage(..), GitPackage, LegacyPackageSetEntry, LocalPackage, PackageConfig, PublishConfig, RemotePackage(..), RunConfig, SetAddress(..), TestConfig, WorkspaceConfig, configCodec, gitPackageCodec, legacyPackageSetEntryCodec, parseBundleType, parsePlatform, printSpagoRange, readConfig, remotePackageCodec, widestRange) as Core
+import Spago.Core.Config as Core
 import Spago.FS as FS
 import Spago.Git as Git
 import Spago.Paths as Paths

@@ -357,6 +357,7 @@ lsDepsArgsParser :: ArgParser LsDepsArgs
 lsDepsArgsParser = ArgParser.fromRecord
   { json: Flags.json
   , transitive: Flags.transitive
+  , selectedPackage: Flags.selectedPackage
   }
 
 parseArgs :: Effect (Either ArgParser.ArgError (SpagoCmd ()))
@@ -457,18 +458,18 @@ main =
             runSpago testEnv Test.run
           LsPackages args -> do
             let fetchArgs = { packages: mempty, selectedPackage: Nothing, ensureRanges: false }
-            { env, fetchOpts } <- mkFetchEnv fetchArgs
+            { env: env@{ workspace }, fetchOpts } <- mkFetchEnv fetchArgs
             -- TODO: --no-fetch flag
             dependencies <- runSpago env (Fetch.run fetchOpts)
-            lsEnv <- runSpago env (mkLsEnv dependencies)
+            let lsEnv = { workspace, dependencies, logOptions }
             runSpago lsEnv (Ls.listPackageSet args)
-          LsDeps args -> do
-            let fetchArgs = { packages: mempty, selectedPackage: Nothing, ensureRanges: false }
+          LsDeps { selectedPackage, json, transitive } -> do
+            let fetchArgs = { packages: mempty, selectedPackage, ensureRanges: false }
             { env, fetchOpts } <- mkFetchEnv fetchArgs
             -- TODO: --no-fetch flag
             dependencies <- runSpago env (Fetch.run fetchOpts)
             lsEnv <- runSpago env (mkLsEnv dependencies)
-            runSpago lsEnv (Ls.listPackages args)
+            runSpago lsEnv (Ls.listPackages { json, transitive })
 
 mkLogOptions :: GlobalArgs -> Aff LogOptions
 mkLogOptions { noColor, quiet, verbose } = do
@@ -754,7 +755,22 @@ mkRegistryEnv = do
 mkLsEnv :: forall a. Map PackageName Package -> Spago (Fetch.FetchEnv a) Ls.LsEnv
 mkLsEnv dependencies = do
   { logOptions, workspace } <- ask
-  pure { logOptions, workspace, dependencies }
+  selected <- case workspace.selected of
+    Just s -> pure s
+    Nothing ->
+      let
+        workspacePackages = Config.getWorkspacePackages workspace.packageSet
+      in
+        -- If there's only one package, select that one
+        case workspacePackages of
+          [ singlePkg ] -> pure singlePkg
+          _ -> do
+            logDebug $ unsafeStringify workspacePackages
+            die
+              [ toDoc "No package was selected. Please select (with -p) one of the following packages:"
+              , indent (toDoc $ map _.package.name workspacePackages)
+              ]
+  pure { logOptions, workspace, dependencies, selected }
 
 shouldFetchRegistryRepos :: forall a. Spago (LogEnv a) Boolean
 shouldFetchRegistryRepos = do

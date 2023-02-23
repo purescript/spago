@@ -149,7 +149,6 @@ output format = Console.log case format of
 textBox :: forall a. String -> DocBox a
 textBox = print Box.docBox twoSpaces <<< Dodo.text
 
--- TODO: Change visual appearance
 logTable
   :: forall a
    . { headers :: Array (DocBox a), rows :: Array (Array (DocBox a)) }

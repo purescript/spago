@@ -20,8 +20,10 @@ module Spago.Core.Config
   , configCodec
   , gitPackageCodec
   , legacyPackageSetEntryCodec
+  , localPackageCodec
   , parseBundleType
   , parsePlatform
+  , packageConfigCodec
   , printSpagoRange
   , readConfig
   , remotePackageCodec
