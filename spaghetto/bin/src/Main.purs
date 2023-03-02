@@ -21,13 +21,14 @@ import Registry.Constants as Registry.Constants
 import Registry.ManifestIndex as ManifestIndex
 import Registry.Metadata as Metadata
 import Registry.PackageName as PackageName
-import Spago.Bin.Flags as Flag
 import Spago.Bin.Flags as Flags
 import Spago.BuildInfo as BuildInfo
 import Spago.Command.Build as Build
 import Spago.Command.Bundle as Bundle
 import Spago.Command.Fetch as Fetch
 import Spago.Command.Init as Init
+import Spago.Command.Ls as Ls
+import Spago.Command.Ls (LsDepsArgs, LsPackagesArgs)
 import Spago.Command.Publish as Publish
 import Spago.Command.Registry as Registry
 import Spago.Command.Run as Run
@@ -38,7 +39,7 @@ import Spago.Config as Config
 import Spago.FS as FS
 import Spago.Git as Git
 import Spago.Json as Json
-import Spago.Log (LogVerbosity(..), supportsColor)
+import Spago.Log (LogVerbosity(..))
 import Spago.Paths as Paths
 import Spago.Purs as Purs
 import Unsafe.Coerce (unsafeCoerce)
@@ -152,6 +153,8 @@ data Command a
   | Sources SourcesArgs
   | RegistrySearch RegistrySearchArgs
   | RegistryInfo RegistryInfoArgs
+  | LsDeps LsDepsArgs
+  | LsPackages LsPackagesArgs
   | Publish PublishArgs
 
 argParser :: ArgParser (SpagoCmd ())
@@ -208,6 +211,15 @@ argParser =
                 "Query the Registry for information about packages and versions"
                 (SpagoCmd <$> globalArgsParser <*> (RegistryInfo <$> registryInfoArgsParser) <* ArgParser.flagHelp)
             ] <* ArgParser.flagHelp
+    , ArgParser.command [ "ls" ] "List packages or dependencies" do
+        ArgParser.choose "ls-subcommand"
+          [ ArgParser.command [ "packages" ]
+              "List packages available in the local package set"
+              (SpagoCmd <$> globalArgsParser <*> (LsPackages <$> lsPackagesArgsParser) <* ArgParser.flagHelp)
+          , ArgParser.command [ "deps" ]
+              "List dependencies of the project"
+              (SpagoCmd <$> globalArgsParser <*> (LsDeps <$> lsDepsArgsParser) <* ArgParser.flagHelp)
+          ] <* ArgParser.flagHelp
     ]
     <* ArgParser.flagHelp
     <* ArgParser.flagInfo [ "--version" ] "Show the current version" BuildInfo.currentSpagoVersion
@@ -259,8 +271,8 @@ installArgsParser =
     , pursArgs: Flags.pursArgs
     , backendArgs: Flags.backendArgs
     , output: Flags.output
-    , pedanticPackages: Flag.pedanticPackages
-    , ensureRanges: Flag.ensureRanges
+    , pedanticPackages: Flags.pedanticPackages
+    , ensureRanges: Flags.ensureRanges
     }
 
 buildArgsParser :: ArgParser (BuildArgs ())
@@ -315,7 +327,7 @@ bundleArgsParser =
     , backendArgs: Flags.backendArgs
     , output: Flags.output
     , pedanticPackages: Flags.pedanticPackages
-    , ensureRanges: Flag.ensureRanges
+    , ensureRanges: Flags.ensureRanges
     }
 
 publishArgsParser :: ArgParser PublishArgs
@@ -335,6 +347,18 @@ registryInfoArgsParser = ado
   package <- Flags.package
   maybeVersion <- Flags.maybeVersion
   in { package, maybeVersion }
+
+lsPackagesArgsParser :: ArgParser LsPackagesArgs
+lsPackagesArgsParser = ArgParser.fromRecord
+  { json: Flags.json
+  }
+
+lsDepsArgsParser :: ArgParser LsDepsArgs
+lsDepsArgsParser = ArgParser.fromRecord
+  { json: Flags.json
+  , transitive: Flags.transitive
+  , selectedPackage: Flags.selectedPackage
+  }
 
 parseArgs :: Effect (Either ArgParser.ArgError (SpagoCmd ()))
 parseArgs = do
@@ -432,6 +456,20 @@ main =
             runSpago buildEnv (Build.run options)
             testEnv <- runSpago env (mkTestEnv args)
             runSpago testEnv Test.run
+          LsPackages args -> do
+            let fetchArgs = { packages: mempty, selectedPackage: Nothing, ensureRanges: false }
+            { env: env@{ workspace }, fetchOpts } <- mkFetchEnv fetchArgs
+            -- TODO: --no-fetch flag
+            dependencies <- runSpago env (Fetch.run fetchOpts)
+            let lsEnv = { workspace, dependencies, logOptions }
+            runSpago lsEnv (Ls.listPackageSet args)
+          LsDeps { selectedPackage, json, transitive } -> do
+            let fetchArgs = { packages: mempty, selectedPackage, ensureRanges: false }
+            { env, fetchOpts } <- mkFetchEnv fetchArgs
+            -- TODO: --no-fetch flag
+            dependencies <- runSpago env (Fetch.run fetchOpts)
+            lsEnv <- runSpago env (mkLsEnv dependencies)
+            runSpago lsEnv (Ls.listPackages { json, transitive })
 
 mkLogOptions :: GlobalArgs -> Aff LogOptions
 mkLogOptions { noColor, quiet, verbose } = do
@@ -714,6 +752,26 @@ mkRegistryEnv = do
     , git
     }
 
+mkLsEnv :: forall a. Map PackageName Package -> Spago (Fetch.FetchEnv a) Ls.LsEnv
+mkLsEnv dependencies = do
+  { logOptions, workspace } <- ask
+  selected <- case workspace.selected of
+    Just s -> pure s
+    Nothing ->
+      let
+        workspacePackages = Config.getWorkspacePackages workspace.packageSet
+      in
+        -- If there's only one package, select that one
+        case workspacePackages of
+          [ singlePkg ] -> pure singlePkg
+          _ -> do
+            logDebug $ unsafeStringify workspacePackages
+            die
+              [ toDoc "No package was selected. Please select (with -p) one of the following packages:"
+              , indent (toDoc $ map _.package.name workspacePackages)
+              ]
+  pure { logOptions, workspace, dependencies, selected }
+
 shouldFetchRegistryRepos :: forall a. Spago (LogEnv a) Boolean
 shouldFetchRegistryRepos = do
   let freshRegistryCanary = Path.concat [ Paths.globalCachePath, "fresh-registry-canary.txt" ]
@@ -741,3 +799,5 @@ shouldFetchRegistryRepos = do
   touch path = do
     FS.ensureFileSync path
     FS.writeTextFile path ""
+
+foreign import supportsColor :: Effect Boolean
