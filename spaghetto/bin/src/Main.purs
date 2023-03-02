@@ -126,6 +126,7 @@ type BundleArgs =
   , module :: Maybe String
   , outfile :: Maybe FilePath
   , platform :: Maybe String
+  , external :: Maybe String
   , selectedPackage :: Maybe String
   , pursArgs :: List String
   , backendArgs :: List String
@@ -322,6 +323,7 @@ bundleArgsParser =
     , type: Flags.bundleType
     , outfile: Flags.outfile
     , platform: Flags.platform
+    , external: Flags.external
     , selectedPackage: Flags.selectedPackage
     , pursArgs: Flags.pursArgs
     , backendArgs: Flags.backendArgs
@@ -508,6 +510,7 @@ mkBundleEnv bundleArgs = do
   let minify = Array.any (_ == true) [ bundleArgs.minify, fromMaybe false (_.minify =<< selected.package.bundle) ]
   let entrypoint = fromMaybe "Main" (bundleArgs.module <|> bundleConf _.module)
   let outfile = fromMaybe "index.js" (bundleArgs.outfile <|> bundleConf _.outfile)
+  let external = bundleArgs.external <|> bundleConf _.external
   let
     platform = fromMaybe BundleBrowser
       ( (Config.parsePlatform =<< bundleArgs.platform)
@@ -518,7 +521,7 @@ mkBundleEnv bundleArgs = do
       ( (Config.parseBundleType =<< bundleArgs.type)
           <|> bundleConf _.type
       )
-  let bundleOptions = { minify, module: entrypoint, outfile, platform, type: bundleType }
+  let bundleOptions = { minify, module: entrypoint, outfile, platform, type: bundleType, external }
   let
     newWorkspace = workspace
       { buildOptions

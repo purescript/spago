@@ -23,6 +23,7 @@ type BundleOptions =
   , outfile :: FilePath
   , platform :: BundlePlatform
   , type :: BundleType
+  , external :: Maybe String
   }
 
 type RawBundleOptions =
@@ -31,6 +32,7 @@ type RawBundleOptions =
   , outfile :: FilePath
   , platform :: String
   , type :: String
+  , external :: Maybe String
   }
 
 run :: forall a. Spago (BundleEnv a) Unit
@@ -45,6 +47,10 @@ run = do
       BundleBrowser, BundleApp -> "--format=iife"
       _, _ -> "--format=esm"
 
+    external = case opts.external of
+      Nothing -> []
+      Just ext -> [ "--external:" <> ext ]
+
     -- See https://github.com/evanw/esbuild/issues/1921
     nodePatch = case opts.platform of
       BundleNode -> [ "--banner:js=import __module from \'module\';import __path from \'path\';import __url from \'url\';const require = __module.createRequire(import.meta.url);" ]
@@ -55,8 +61,7 @@ run = do
       Just o -> o
     -- TODO: we might need to use `Path.relative selected.path output` instead of just output there
     mainPath =
-      String.replaceAll (Pattern "\\") (Replacement "/") $
-      Path.concat [ output, opts.module, "index.js" ]
+      String.replaceAll (Pattern "\\") (Replacement "/") $ Path.concat [ output, opts.module, "index.js" ]
 
     { input, entrypoint } = case opts.type of
       BundleApp -> { entrypoint: [], input: Cmd.StdinWrite ("#!/usr/bin/env node\n\nimport { main } from './" <> mainPath <> "'; main();") }
@@ -68,7 +73,8 @@ run = do
       , "--outfile=" <> outfile
       , "--platform=" <> show opts.platform
       , format
-      ] <> minify <> entrypoint <> nodePatch
+      ] <> minify <> entrypoint <> nodePatch <> external
+  logDebug $ "mainPath=" <> mainPath
   logInfo "Bundling..."
   logDebug $ "Running esbuild: " <> show args
   Cmd.exec command args execOptions >>= case _ of

@@ -41,6 +41,12 @@ platform =
     "The bundle platform. 'node' or 'browser'"
     # ArgParser.optional
 
+external ∷ ArgParser (Maybe String)
+external =
+  ArgParser.argument [ "--external" ]
+    "Modules not imported by the bundler (comma separated, no spaces)"
+    # ArgParser.optional
+
 output :: ArgParser (Maybe String)
 output =
   ArgParser.argument [ "--output" ]

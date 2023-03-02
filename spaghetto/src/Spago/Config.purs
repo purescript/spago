@@ -117,6 +117,167 @@ data Package
   | LocalPackage Core.LocalPackage
   | WorkspacePackage WorkspacePackage
 
+type LocalPackage = { path :: FilePath }
+
+localPackageCodec :: JsonCodec LocalPackage
+localPackageCodec = CAR.object "LocalPackage" { path: CA.string }
+
+type GitPackage =
+  { git :: String
+  , ref :: String
+  , subdir :: Maybe FilePath -- TODO: document that this is possible
+  , dependencies :: Maybe Dependencies -- TODO document that this is possible
+  }
+
+gitPackageCodec :: JsonCodec GitPackage
+gitPackageCodec = CAR.object "GitPackage"
+  { git: CA.string
+  , ref: CA.string
+  , subdir: CAR.optional CA.string
+  , dependencies: CAR.optional dependenciesCodec
+  }
+
+newtype Dependencies = Dependencies (Map PackageName (Maybe Range))
+
+derive instance Eq Dependencies
+derive instance Newtype Dependencies _
+
+instance Semigroup Dependencies where
+  append (Dependencies d1) (Dependencies d2) = Dependencies $ Map.unionWith
+    ( case _, _ of
+        Nothing, Nothing -> Nothing
+        Just r, Nothing -> Just r
+        Nothing, Just r -> Just r
+        Just r1, Just r2 -> Range.intersect r1 r2
+    )
+    d1
+    d2
+
+instance Monoid Dependencies where
+  mempty = Dependencies (Map.empty)
+
+dependenciesCodec :: JsonCodec Dependencies
+dependenciesCodec = Profunctor.dimap to from $ CA.array dependencyCodec
+  where
+  packageSingletonCodec = Internal.Codec.packageMap spagoRangeCodec
+
+  to :: Dependencies -> Array (Either PackageName (Map PackageName Range))
+  to (Dependencies deps) =
+    map
+      ( \(Tuple name maybeRange) -> case maybeRange of
+          Nothing -> Left name
+          Just r -> Right (Map.singleton name r)
+      )
+      $ Map.toUnfoldable deps :: Array _
+
+  from :: Array (Either PackageName (Map PackageName Range)) -> Dependencies
+  from = Dependencies <<< Map.fromFoldable <<< map
+    ( case _ of
+        Left name -> Tuple name Nothing
+        Right m -> rmap Just $ unsafeFromJust (List.head (Map.toUnfoldable m))
+    )
+
+  dependencyCodec :: JsonCodec (Either PackageName (Map PackageName Range))
+  dependencyCodec = CA.codec' decode encode
+    where
+    encode = case _ of
+      Left name -> CA.encode PackageName.codec name
+      Right singletonMap -> CA.encode packageSingletonCodec singletonMap
+
+    decode json =
+      map Left (CA.decode PackageName.codec json)
+        <|> map Right (CA.decode packageSingletonCodec json)
+
+widestRange :: Range
+widestRange = Either.fromRight' (\_ -> unsafeCrashWith "Fake range failed")
+  $ Range.parse ">=0.0.0 <2147483647.0.0"
+
+spagoRangeCodec :: JsonCodec Range
+spagoRangeCodec = CA.prismaticCodec "SpagoRange" rangeParse printSpagoRange CA.string
+  where
+  rangeParse str =
+    if str == "*" then Just widestRange
+    else hush $ Range.parse str
+
+printSpagoRange :: Range -> String
+printSpagoRange range =
+  if range == widestRange then "*"
+  else Range.print range
+
+data SetAddress
+  = SetFromRegistry { registry :: Version }
+  | SetFromUrl { url :: String, hash :: Maybe Sha256 }
+
+setAddressCodec :: JsonCodec SetAddress
+setAddressCodec = CA.codec' decode encode
+  where
+  setFromRegistryCodec = CAR.object "SetFromRegistry" { registry: Version.codec }
+  setFromUrlCodec = CAR.object "SetFromUrl" { url: CA.string, hash: CAR.optional Sha256.codec }
+
+  encode (SetFromRegistry r) = CA.encode setFromRegistryCodec r
+  encode (SetFromUrl u) = CA.encode setFromUrlCodec u
+
+  decode json = map SetFromRegistry (CA.decode setFromRegistryCodec json)
+    <|> map SetFromUrl (CA.decode setFromUrlCodec json)
+
+type BundleConfig =
+  { minify :: Maybe Boolean
+  , module :: Maybe String
+  , outfile :: Maybe FilePath
+  , platform :: Maybe BundlePlatform
+  , type :: Maybe BundleType
+  }
+
+bundleConfigCodec :: JsonCodec BundleConfig
+bundleConfigCodec = CAR.object "BundleConfig"
+  { minify: CAR.optional CA.boolean
+  , module: CAR.optional CA.string
+  , outfile: CAR.optional CA.string
+  , platform: CAR.optional bundlePlatformCodec
+  , type: CAR.optional bundleTypeCodec
+  }
+
+data BundlePlatform = BundleNode | BundleBrowser
+
+instance Show BundlePlatform where
+  show = case _ of
+    BundleNode -> "node"
+    BundleBrowser -> "browser"
+
+parsePlatform :: String -> Maybe BundlePlatform
+parsePlatform = case _ of
+  "node" -> Just BundleNode
+  "browser" -> Just BundleBrowser
+  _ -> Nothing
+
+bundlePlatformCodec :: JsonCodec BundlePlatform
+bundlePlatformCodec = CA.Sum.enumSum show (parsePlatform)
+
+-- | This is the equivalent of "WithMain" in the old Spago.
+-- App bundles with a main fn, while Module does not include a main.
+data BundleType = BundleApp | BundleModule
+
+instance Show BundleType where
+  show = case _ of
+    BundleApp -> "app"
+    BundleModule -> "module"
+
+parseBundleType :: String -> Maybe BundleType
+parseBundleType = case _ of
+  "app" -> Just BundleApp
+  "module" -> Just BundleModule
+  _ -> Nothing
+
+bundleTypeCodec :: JsonCodec BundleType
+bundleTypeCodec = CA.Sum.enumSum show (parseBundleType)
+
+readConfig :: forall a. FilePath -> Spago (LogEnv a) (Either String { doc :: YamlDoc Config, yaml :: Config })
+readConfig path = do
+  logDebug $ "Reading config from " <> path
+  FS.exists path >>= case _ of
+    false -> pure (Left $ "Did not find " <> path <> " file. Run `spago init` to initialise a new project.")
+    true -> liftAff $ FS.readYamlDocFile configCodec path
+
 -- | Reads all the configurations in the tree and builds up the Map of local
 -- | packages to be integrated in the package set
 readWorkspace :: forall a. Maybe PackageName -> Spago (Git.GitEnv a) Workspace
