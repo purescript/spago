@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+Features:
+- add --external argument to exclude modules from bundling
+
 Bugfixes:
 - Windows: forward the proper exit code when running spago via NPM (#883, #884)
 
