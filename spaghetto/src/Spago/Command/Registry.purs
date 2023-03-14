@@ -7,11 +7,8 @@ import Data.Map as Map
 import Data.String (Pattern(..))
 import Data.String as String
 import Node.Path as Path
-import Registry.Json as Json
-import Registry.PackageName (PackageName)
+import Registry.Metadata as Metadata
 import Registry.PackageName as PackageName
-import Registry.Schema (Manifest, Metadata)
-import Registry.Version (Version)
 import Registry.Version as Version
 import Spago.FS as FS
 import Spago.Git as Git
@@ -20,6 +17,7 @@ import Spago.Paths as Paths
 type RegistryEnv a =
   { getManifestFromIndex :: PackageName -> Version -> Spago (LogEnv ()) (Maybe Manifest)
   , getMetadata :: PackageName -> Spago (LogEnv ()) (Either String Metadata)
+  , getCachedIndex :: Effect ManifestIndex
   , logOptions :: LogOptions
   , git :: Git.Git
   | a
@@ -38,9 +36,8 @@ search searchString = do
   if Array.null matches then
     logError "Did not find any packages matching the search string."
   else do
+    output $ OutputLines matches
     logInfo "Use `spago registry info $package` to get more details on a package."
-    logInfo "Found the following packages:\n"
-    void $ for matches output
 
 info :: forall a. { package :: String, maybeVersion :: Maybe String } -> Spago (RegistryEnv a) Unit
 info args = do
@@ -50,7 +47,7 @@ info args = do
 
   maybeVersion <- case args.maybeVersion of
     Nothing -> pure Nothing
-    Just v -> case Version.parseVersion Version.Lenient v of
+    Just v -> case parseLenientVersion v of
       Left err -> die [ toDoc "Could not parse version, error:", indent (toDoc $ show err) ]
       Right version -> pure $ Just version
 
@@ -58,13 +55,12 @@ info args = do
   runSpago { logOptions } (getMetadata packageName) >>= case _ of
     Left err -> do
       logDebug err
-      die $ "Could not find package " <> show packageName
-    Right metadata -> case maybeVersion of
+      die $ "Could not find package " <> PackageName.print packageName
+    Right (Metadata metadata) -> case maybeVersion of
       Nothing -> do
-        logInfo $ "Use `spago registry info " <> show packageName <> " $version` to get more details on a version."
-        logInfo "Found the following versions:\n"
-        void $ for (Array.fromFoldable $ Map.keys $ metadata.published) (output <<< Version.printVersion)
+        output $ OutputLines $ map Version.print $ Array.fromFoldable $ Map.keys $ metadata.published
+        logInfo $ "Use `spago registry info " <> PackageName.print packageName <> " $version` to get more details on a version."
       Just version -> case Map.lookup version metadata.published of
-        Nothing -> die $ "Version " <> show version <> " does not exist for package " <> show packageName
-        Just pubInfo -> output $ Json.printJson pubInfo
-
+        Nothing -> die $ "Version " <> Version.print version <> " does not exist for package " <> PackageName.print packageName
+        -- TODO: unify the formats. Here we output json, above just lines, this is terrible
+        Just pubInfo -> output $ OutputJson Metadata.publishedMetadataCodec pubInfo

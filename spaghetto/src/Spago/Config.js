@@ -1,7 +1,7 @@
 import Yaml from "yaml";
 
 export function updatePackageSetHashInConfigImpl(doc, sha) {
-  doc.get("workspace").get("set").set("hash", sha);
+  doc.get("workspace").get("package_set").set("hash", sha);
 }
 
 export function addPackagesToConfigImpl(doc, newPkgs) {
@@ -31,6 +31,28 @@ export function addPackagesToConfigImpl(doc, newPkgs) {
   // any remaining values in the set are the new packages. We add them too
   for (const newPkg of depsSet) {
     newItems.push(doc.createNode(newPkg));
+  }
+
+  newItems.sort();
+  deps.items = newItems;
+}
+
+export function addRangesToConfigImpl(doc, rangesMap) {
+  const deps = doc.get("package").get("dependencies");
+
+  // if a dependency is an object then we know it has a range, otherwise we
+  // look up in the map of ranges and add it from there.
+  let newItems = [];
+  for (const el of deps.items) {
+    // If it's not a scalar then we have a version range, let it be
+    if (Yaml.isMap(el)) {
+      newItems.push(el);
+    }
+    if (Yaml.isScalar(el)) {
+      let newEl = new Map();
+      newEl.set(el.value, rangesMap[el.value]);
+      newItems.push(doc.createNode(newEl));
+    }
   }
 
   newItems.sort();

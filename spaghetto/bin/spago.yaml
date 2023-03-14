@@ -1,12 +1,29 @@
 package:
   name: spago-bin
   publish:
-    version: 0.91.1
+    version: 0.92.9
+    license: BSD-3-Clause
   dependencies:
+    - aff
+    - argparse-basic
+    - arrays
+    - codec-argonaut
+    - console
+    - js-date
+    - lists
+    - node-fs
+    - node-path
+    - node-process
+    - ordered-collections
+    - record
+    - refs
+    - registry-lib
     - spago
-  license: BSD-3-Clause
+    - spago-core
+    - unsafe-coerce
   bundle:
-    entrypoint: index.dev.js
+    module: Main
     outfile: bundle.js
     minify: true
-    format: esm
+    platform: node
+    type: app

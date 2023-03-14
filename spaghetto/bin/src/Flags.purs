@@ -19,8 +19,14 @@ minify =
 
 entrypoint ∷ ArgParser (Maybe String)
 entrypoint =
-  ArgParser.argument [ "--entrypoint" ]
+  ArgParser.argument [ "--module" ]
     "The module to bundle as the entrypoint"
+    # ArgParser.optional
+
+bundleType ∷ ArgParser (Maybe String)
+bundleType =
+  ArgParser.argument [ "--type" ]
+    "The type of the module produced. 'app' will call main, 'module' will just export the contents."
     # ArgParser.optional
 
 outfile ∷ ArgParser (Maybe String)
@@ -62,6 +68,27 @@ noColor =
     # ArgParser.boolean
     # ArgParser.default false
 
+json ∷ ArgParser Boolean
+json =
+  ArgParser.flag [ "--json" ]
+    "Format the output as JSON"
+    # ArgParser.boolean
+    # ArgParser.default false
+
+transitive ∷ ArgParser Boolean
+transitive =
+  ArgParser.flag [ "--transitive" ]
+    "Include transitive dependencies"
+    # ArgParser.boolean
+    # ArgParser.default false
+
+pedanticPackages ∷ ArgParser Boolean
+pedanticPackages =
+  ArgParser.flag [ "--pedantic-packages" ]
+    "Check for redundant or missing packages in the config and fail the build if any"
+    # ArgParser.boolean
+    # ArgParser.default false
+
 pursArgs ∷ ArgParser (List String)
 pursArgs =
   ArgParser.argument [ "--purs-args" ]
@@ -86,6 +113,13 @@ moduleName =
     "Module to be used as the application's entry point"
     # ArgParser.optional
 
+testDeps :: ArgParser Boolean
+testDeps =
+  ArgParser.flag [ "--test-deps" ]
+    "Act on the test config rather than the main one"
+    # ArgParser.boolean
+    # ArgParser.default false
+
 packages ∷ ArgParser (List String)
 packages =
   ArgParser.anyNotFlag "PACKAGE"
@@ -108,3 +142,10 @@ maybeSetVersion =
   ArgParser.argument [ "--set" ]
     "Optional package set version to be used instead of the latest one."
     # ArgParser.optional
+
+ensureRanges :: ArgParser Boolean
+ensureRanges =
+  ArgParser.flag [ "--ensure-ranges" ]
+    "Add version bounds for all the dependencies of the selected project"
+    # ArgParser.boolean
+    # ArgParser.default false

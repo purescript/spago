@@ -6,40 +6,43 @@ import ArgParse.Basic (ArgParser)
 import ArgParse.Basic as ArgParser
 import Data.Array as Array
 import Data.Array.NonEmpty as NonEmptyArray
-import Data.Array.NonEmpty as NonEmptyArray
+import Data.Codec.Argonaut.Common as CA.Common
+import Data.JSDate as JSDate
 import Data.List as List
 import Data.Map as Map
 import Effect.Aff as Aff
 import Effect.Class.Console as Console
 import Effect.Ref as Ref
+import Node.FS.Stats (Stats(..))
 import Node.Path as Path
 import Node.Process as Process
-import Registry.API as Registry.API
-import Registry.Index as Index
-import Registry.Json as RegistryJson
-import Registry.PackageName (PackageName)
+import Record as Record
+import Registry.Constants as Registry.Constants
+import Registry.ManifestIndex as ManifestIndex
+import Registry.Metadata as Metadata
 import Registry.PackageName as PackageName
-import Registry.Prelude (stripPureScriptPrefix)
-import Registry.Schema (Manifest(..), Metadata)
-import Registry.Version (Version)
-import Registry.Version as Version
 import Spago.Bin.Flags as Flags
 import Spago.BuildInfo as BuildInfo
 import Spago.Command.Build as Build
 import Spago.Command.Bundle as Bundle
 import Spago.Command.Fetch as Fetch
 import Spago.Command.Init as Init
+import Spago.Command.Ls as Ls
+import Spago.Command.Ls (LsDepsArgs, LsPackagesArgs)
+import Spago.Command.Publish as Publish
 import Spago.Command.Registry as Registry
 import Spago.Command.Run as Run
 import Spago.Command.Sources as Sources
 import Spago.Command.Test as Test
-import Spago.Config (BundleConfig, Package, Platform(..), RunConfig, TestConfig)
+import Spago.Config (BundleConfig, BundlePlatform(..), BundleType(..), Package, RunConfig, TestConfig)
 import Spago.Config as Config
 import Spago.FS as FS
 import Spago.Git as Git
-import Spago.Log (LogVerbosity(..), supportsColor)
+import Spago.Json as Json
+import Spago.Log (LogVerbosity(..))
 import Spago.Paths as Paths
 import Spago.Purs as Purs
+import Unsafe.Coerce (unsafeCoerce)
 
 type GlobalArgs =
   { noColor :: Boolean
@@ -54,6 +57,7 @@ type InitArgs =
 type FetchArgs =
   { packages :: List String
   , selectedPackage :: Maybe String
+  , ensureRanges :: Boolean
   }
 
 type InstallArgs =
@@ -62,27 +66,42 @@ type InstallArgs =
   , pursArgs :: List String
   , backendArgs :: List String
   , output :: Maybe String
+  , pedanticPackages :: Boolean
+  , ensureRanges :: Boolean
   }
 
-type BuildArgs =
+type BuildArgs a =
   { selectedPackage :: Maybe String
   , pursArgs :: List String
   , backendArgs :: List String
   , output :: Maybe String
+  , pedanticPackages :: Boolean
+  , ensureRanges :: Boolean
+  | a
+  }
+
+-- TODO: more repl arguments: dependencies, repl-package
+type ReplArgs =
+  { selectedPackage :: Maybe String
+  , pursArgs :: List String
+  , backendArgs :: List String
   }
 
 type RunArgs =
   { selectedPackage :: Maybe String
   , output :: Maybe String
+  , pedanticPackages :: Boolean
   , pursArgs :: List String
   , backendArgs :: List String
   , execArgs :: Maybe (Array String)
   , main :: Maybe String
+  , ensureRanges :: Boolean
   }
 
 type TestArgs =
   { selectedPackage :: Maybe String
   , output :: Maybe String
+  , pedanticPackages :: Boolean
   , pursArgs :: List String
   , backendArgs :: List String
   , execArgs :: Maybe (Array String)
@@ -90,6 +109,7 @@ type TestArgs =
 
 type SourcesArgs =
   { selectedPackage :: Maybe String
+  , json :: Boolean
   }
 
 type RegistrySearchArgs =
@@ -103,30 +123,41 @@ type RegistryInfoArgs =
 
 type BundleArgs =
   { minify :: Boolean
-  , entrypoint :: Maybe FilePath
+  , module :: Maybe String
   , outfile :: Maybe FilePath
   , platform :: Maybe String
   , selectedPackage :: Maybe String
   , pursArgs :: List String
   , backendArgs :: List String
   , output :: Maybe String
+  , pedanticPackages :: Boolean
+  , type :: Maybe String
+  , ensureRanges :: Boolean
   }
 
-data SpagoCmd = SpagoCmd GlobalArgs Command
+type PublishArgs =
+  { selectedPackage :: Maybe String
+  }
 
-data Command
+data SpagoCmd a = SpagoCmd GlobalArgs (Command a)
+
+data Command a
   = Init InitArgs
   | Fetch FetchArgs
   | Install InstallArgs
-  | Build BuildArgs
+  | Build (BuildArgs a)
   | Bundle BundleArgs
+  | Repl ReplArgs
   | Run RunArgs
   | Test TestArgs
   | Sources SourcesArgs
   | RegistrySearch RegistrySearchArgs
   | RegistryInfo RegistryInfoArgs
+  | LsDeps LsDepsArgs
+  | LsPackages LsPackagesArgs
+  | Publish PublishArgs
 
-argParser :: ArgParser SpagoCmd
+argParser :: ArgParser (SpagoCmd ())
 argParser =
   ArgParser.choose "command"
     [ ArgParser.command [ "init" ]
@@ -161,6 +192,14 @@ argParser =
         "List all the source paths (globs) for the dependencies of the project"
         do
           (SpagoCmd <$> globalArgsParser <*> (Sources <$> sourcesArgsParser) <* ArgParser.flagHelp)
+    , ArgParser.command [ "repl" ]
+        "Start a REPL"
+        do
+          (SpagoCmd <$> globalArgsParser <*> (Repl <$> replArgsParser) <* ArgParser.flagHelp)
+    , ArgParser.command [ "publish" ]
+        "Publish a package"
+        do
+          (SpagoCmd <$> globalArgsParser <*> (Publish <$> publishArgsParser) <* ArgParser.flagHelp)
     , ArgParser.command [ "registry" ]
         "Commands to interact with the Registry"
         do
@@ -172,6 +211,15 @@ argParser =
                 "Query the Registry for information about packages and versions"
                 (SpagoCmd <$> globalArgsParser <*> (RegistryInfo <$> registryInfoArgsParser) <* ArgParser.flagHelp)
             ] <* ArgParser.flagHelp
+    , ArgParser.command [ "ls" ] "List packages or dependencies" do
+        ArgParser.choose "ls-subcommand"
+          [ ArgParser.command [ "packages" ]
+              "List packages available in the local package set"
+              (SpagoCmd <$> globalArgsParser <*> (LsPackages <$> lsPackagesArgsParser) <* ArgParser.flagHelp)
+          , ArgParser.command [ "deps" ]
+              "List dependencies of the project"
+              (SpagoCmd <$> globalArgsParser <*> (LsDeps <$> lsDepsArgsParser) <* ArgParser.flagHelp)
+          ] <* ArgParser.flagHelp
     ]
     <* ArgParser.flagHelp
     <* ArgParser.flagInfo [ "--version" ] "Show the current version" BuildInfo.currentSpagoVersion
@@ -205,12 +253,14 @@ fetchArgsParser =
   ArgParser.fromRecord
     { packages: Flags.packages
     , selectedPackage: Flags.selectedPackage
+    , ensureRanges: Flags.ensureRanges
     }
 
 sourcesArgsParser :: ArgParser SourcesArgs
 sourcesArgsParser =
   ArgParser.fromRecord
     { selectedPackage: Flags.selectedPackage
+    , json: Flags.json
     }
 
 installArgsParser :: ArgParser InstallArgs
@@ -221,14 +271,25 @@ installArgsParser =
     , pursArgs: Flags.pursArgs
     , backendArgs: Flags.backendArgs
     , output: Flags.output
+    , pedanticPackages: Flags.pedanticPackages
+    , ensureRanges: Flags.ensureRanges
     }
 
-buildArgsParser :: ArgParser BuildArgs
+buildArgsParser :: ArgParser (BuildArgs ())
 buildArgsParser = ArgParser.fromRecord
   { selectedPackage: Flags.selectedPackage
   , pursArgs: Flags.pursArgs
   , backendArgs: Flags.backendArgs
   , output: Flags.output
+  , pedanticPackages: Flags.pedanticPackages
+  , ensureRanges: Flags.ensureRanges
+  }
+
+replArgsParser :: ArgParser ReplArgs
+replArgsParser = ArgParser.fromRecord
+  { selectedPackage: Flags.selectedPackage
+  , pursArgs: Flags.pursArgs
+  , backendArgs: Flags.backendArgs
   }
 
 runArgsParser :: ArgParser RunArgs
@@ -238,7 +299,9 @@ runArgsParser = ArgParser.fromRecord
   , backendArgs: Flags.backendArgs
   , execArgs: Flags.execArgs
   , output: Flags.output
+  , pedanticPackages: Flags.pedanticPackages
   , main: Flags.moduleName
+  , ensureRanges: Flags.ensureRanges
   }
 
 testArgsParser :: ArgParser TestArgs
@@ -248,19 +311,29 @@ testArgsParser = ArgParser.fromRecord
   , backendArgs: Flags.backendArgs
   , execArgs: Flags.execArgs
   , output: Flags.output
+  , pedanticPackages: Flags.pedanticPackages
   }
 
 bundleArgsParser :: ArgParser BundleArgs
 bundleArgsParser =
   ArgParser.fromRecord
     { minify: Flags.minify
-    , entrypoint: Flags.entrypoint
+    , module: Flags.entrypoint
+    , type: Flags.bundleType
     , outfile: Flags.outfile
     , platform: Flags.platform
     , selectedPackage: Flags.selectedPackage
     , pursArgs: Flags.pursArgs
     , backendArgs: Flags.backendArgs
     , output: Flags.output
+    , pedanticPackages: Flags.pedanticPackages
+    , ensureRanges: Flags.ensureRanges
+    }
+
+publishArgsParser :: ArgParser PublishArgs
+publishArgsParser =
+  ArgParser.fromRecord
+    { selectedPackage: Flags.selectedPackage
     }
 
 registrySearchArgsParser :: ArgParser RegistrySearchArgs
@@ -275,7 +348,19 @@ registryInfoArgsParser = ado
   maybeVersion <- Flags.maybeVersion
   in { package, maybeVersion }
 
-parseArgs :: Effect (Either ArgParser.ArgError SpagoCmd)
+lsPackagesArgsParser :: ArgParser LsPackagesArgs
+lsPackagesArgsParser = ArgParser.fromRecord
+  { json: Flags.json
+  }
+
+lsDepsArgsParser :: ArgParser LsDepsArgs
+lsDepsArgsParser = ArgParser.fromRecord
+  { json: Flags.json
+  , transitive: Flags.transitive
+  , selectedPackage: Flags.selectedPackage
+  }
+
+parseArgs :: Effect (Either ArgParser.ArgError (SpagoCmd ()))
 parseArgs = do
   cliArgs <- Array.drop 2 <$> Process.argv
   pure $ ArgParser.parseArgs "spago"
@@ -292,78 +377,99 @@ main =
         logOptions <- mkLogOptions globalArgs
         runSpago { logOptions } case command of
           Sources args -> do
-            { env } <- mkFetchEnv { packages: mempty, selectedPackage: args.selectedPackage }
-            void $ runSpago env Sources.run
+            { env } <- mkFetchEnv { packages: mempty, selectedPackage: args.selectedPackage, ensureRanges: false }
+            void $ runSpago env (Sources.run { json: args.json })
           Init args -> do
             purs <- Purs.getPurs
             -- Figure out the package name from the current dir
             logDebug [ show Paths.cwd, show (Path.basename Paths.cwd) ]
-            packageName <- case PackageName.parse (stripPureScriptPrefix (Path.basename Paths.cwd)) of
+            packageName <- case PackageName.parse (PackageName.stripPureScriptPrefix (Path.basename Paths.cwd)) of
               Left err -> die [ "Could not figure out a name for the new package. Error:", show err ]
               Right p -> pure p
-            setVersion <- for args.setVersion $ Version.parseVersion Version.Lenient >>> case _ of
+            setVersion <- for args.setVersion $ parseLenientVersion >>> case _ of
               Left err -> die [ "Could not parse provided set version. Error:", show err ]
               Right v -> pure v
-            logDebug [ "Got packageName and setVersion:", show packageName, show setVersion ]
+            logDebug [ "Got packageName and setVersion:", PackageName.print packageName, unsafeStringify setVersion ]
             let initOpts = { packageName, setVersion }
+            -- Fetch the registry here so we can select the right package set later
+            void mkRegistryEnv
             void $ runSpago { logOptions, purs } $ Init.run initOpts
           Fetch args -> do
-            { env, packageNames } <- mkFetchEnv args
-            void $ runSpago env (Fetch.run packageNames)
+            { env, fetchOpts } <- mkFetchEnv args
+            void $ runSpago env (Fetch.run fetchOpts)
           RegistrySearch { package } -> do
             env <- mkRegistryEnv
             void $ runSpago env (Registry.search package)
           RegistryInfo args -> do
             env <- mkRegistryEnv
             void $ runSpago env (Registry.info args)
-          Install args@{ packages, selectedPackage, output, pursArgs, backendArgs } -> do
-            { env, packageNames } <- mkFetchEnv { packages, selectedPackage }
+          Install args@{ packages, selectedPackage, ensureRanges } -> do
+            { env, fetchOpts } <- mkFetchEnv { packages, selectedPackage, ensureRanges }
             -- TODO: --no-fetch flag
-            dependencies <- runSpago env (Fetch.run packageNames)
-            let buildArgs = { selectedPackage, pursArgs, backendArgs, output }
-            env' <- runSpago env (mkBuildEnv buildArgs dependencies)
+            dependencies <- runSpago env (Fetch.run fetchOpts)
+            env' <- runSpago env (mkBuildEnv args dependencies)
             let options = { depsOnly: true, pursArgs: List.toUnfoldable args.pursArgs }
             runSpago env' (Build.run options)
-          Build args -> do
-            { env, packageNames } <- mkFetchEnv { packages: mempty, selectedPackage: args.selectedPackage }
+          Build args@{ selectedPackage, ensureRanges } -> do
+            { env, fetchOpts } <- mkFetchEnv { packages: mempty, selectedPackage, ensureRanges }
             -- TODO: --no-fetch flag
-            dependencies <- runSpago env (Fetch.run packageNames)
+            dependencies <- runSpago env (Fetch.run fetchOpts)
             buildEnv <- runSpago env (mkBuildEnv args dependencies)
             let options = { depsOnly: false, pursArgs: List.toUnfoldable args.pursArgs }
             runSpago buildEnv (Build.run options)
-          Bundle args@{ selectedPackage, pursArgs, backendArgs, output } -> do
-            { env, packageNames } <- mkFetchEnv { packages: mempty, selectedPackage }
+          Publish { selectedPackage } -> do
+            { env, fetchOpts } <- mkFetchEnv { packages: mempty, selectedPackage, ensureRanges: false }
+            publishEnv <- runSpago env do
+              dependencies <- Fetch.run fetchOpts
+              mkPublishEnv dependencies
+            void $ runSpago publishEnv (Publish.publish {})
+          Repl args -> do
+            -- TODO implement
+            pure unit
+          Bundle args@{ selectedPackage, ensureRanges } -> do
+            { env, fetchOpts } <- mkFetchEnv { packages: mempty, selectedPackage, ensureRanges }
             -- TODO: --no-fetch flag
-            dependencies <- runSpago env (Fetch.run packageNames)
+            dependencies <- runSpago env (Fetch.run fetchOpts)
             -- TODO: --no-build flag
-            let buildArgs = { selectedPackage, pursArgs, backendArgs, output }
-            buildEnv <- runSpago env (mkBuildEnv buildArgs dependencies)
+            buildEnv <- runSpago env (mkBuildEnv args dependencies)
             let options = { depsOnly: false, pursArgs: List.toUnfoldable args.pursArgs }
             runSpago buildEnv (Build.run options)
             bundleEnv <- runSpago env (mkBundleEnv args)
             runSpago bundleEnv Bundle.run
-          Run args@{ selectedPackage, pursArgs, backendArgs, output } -> do
-            { env, packageNames } <- mkFetchEnv { packages: mempty, selectedPackage }
+          Run args@{ selectedPackage, ensureRanges } -> do
+            { env, fetchOpts } <- mkFetchEnv { packages: mempty, selectedPackage, ensureRanges }
             -- TODO: --no-fetch flag
-            dependencies <- runSpago env (Fetch.run packageNames)
+            dependencies <- runSpago env (Fetch.run fetchOpts)
             -- TODO: --no-build flag
-            let buildArgs = { selectedPackage, pursArgs, backendArgs, output }
-            buildEnv <- runSpago env (mkBuildEnv buildArgs dependencies)
+            buildEnv <- runSpago env (mkBuildEnv args dependencies)
             let options = { depsOnly: false, pursArgs: List.toUnfoldable args.pursArgs }
             runSpago buildEnv (Build.run options)
             runEnv <- runSpago env (mkRunEnv args)
             runSpago runEnv Run.run
-          Test args@{ selectedPackage, pursArgs, backendArgs, output } -> do
-            { env, packageNames } <- mkFetchEnv { packages: mempty, selectedPackage }
+          Test args@{ selectedPackage } -> do
+            { env, fetchOpts } <- mkFetchEnv { packages: mempty, selectedPackage, ensureRanges: false }
             -- TODO: --no-fetch flag
-            dependencies <- runSpago env (Fetch.run packageNames)
+            dependencies <- runSpago env (Fetch.run fetchOpts)
             -- TODO: --no-build flag
-            let buildArgs = { selectedPackage, pursArgs, backendArgs, output }
-            buildEnv <- runSpago env (mkBuildEnv buildArgs dependencies)
+            buildEnv <- runSpago env (mkBuildEnv (Record.union args { ensureRanges: false }) dependencies)
             let options = { depsOnly: false, pursArgs: List.toUnfoldable args.pursArgs }
             runSpago buildEnv (Build.run options)
             testEnv <- runSpago env (mkTestEnv args)
             runSpago testEnv Test.run
+          LsPackages args -> do
+            let fetchArgs = { packages: mempty, selectedPackage: Nothing, ensureRanges: false }
+            { env: env@{ workspace }, fetchOpts } <- mkFetchEnv fetchArgs
+            -- TODO: --no-fetch flag
+            dependencies <- runSpago env (Fetch.run fetchOpts)
+            let lsEnv = { workspace, dependencies, logOptions }
+            runSpago lsEnv (Ls.listPackageSet args)
+          LsDeps { selectedPackage, json, transitive } -> do
+            let fetchArgs = { packages: mempty, selectedPackage, ensureRanges: false }
+            { env, fetchOpts } <- mkFetchEnv fetchArgs
+            -- TODO: --no-fetch flag
+            dependencies <- runSpago env (Fetch.run fetchOpts)
+            lsEnv <- runSpago env (mkLsEnv dependencies)
+            runSpago lsEnv (Ls.listPackages { json, transitive })
 
 mkLogOptions :: GlobalArgs -> Aff LogOptions
 mkLogOptions { noColor, quiet, verbose } = do
@@ -391,7 +497,7 @@ mkBundleEnv bundleArgs = do
       in
         die [ toDoc "No package was selected for bundling. Please select (with -p) one of the following packages:", indent (toDoc workspacePackageNames) ]
 
-  logDebug $ "Selected package to bundle: " <> show selected.package.name
+  logDebug $ "Selected package to bundle: " <> PackageName.print selected.package.name
 
   -- the reason why we don't have a default on the CLI is that we look some of these
   -- up in the config - though the flags take precedence
@@ -400,15 +506,26 @@ mkBundleEnv bundleArgs = do
     bundleConf f = selected.package.bundle >>= f
   -- TODO: there should be no defaults here actually?
   let minify = Array.any (_ == true) [ bundleArgs.minify, fromMaybe false (_.minify =<< selected.package.bundle) ]
-  let entrypoint = fromMaybe "main.js" (bundleArgs.entrypoint <|> bundleConf _.entrypoint)
+  let entrypoint = fromMaybe "Main" (bundleArgs.module <|> bundleConf _.module)
   let outfile = fromMaybe "index.js" (bundleArgs.outfile <|> bundleConf _.outfile)
   let
-    platform = fromMaybe PlatformNode
+    platform = fromMaybe BundleBrowser
       ( (Config.parsePlatform =<< bundleArgs.platform)
           <|> bundleConf _.platform
       )
-  let bundleOptions = { minify, entrypoint, outfile, platform }
-  let newWorkspace = workspace { output = bundleArgs.output <|> workspace.output }
+  let
+    bundleType = fromMaybe BundleApp
+      ( (Config.parseBundleType =<< bundleArgs.type)
+          <|> bundleConf _.type
+      )
+  let bundleOptions = { minify, module: entrypoint, outfile, platform, type: bundleType }
+  let
+    newWorkspace = workspace
+      { buildOptions
+          { output = bundleArgs.output <|> workspace.buildOptions.output
+          , pedanticPackages = bundleArgs.pedanticPackages || workspace.buildOptions.pedanticPackages
+          }
+      }
   let bundleEnv = { esbuild: "esbuild", logOptions, workspace: newWorkspace, selected, bundleOptions }
   pure bundleEnv
 
@@ -429,13 +546,13 @@ mkRunEnv runArgs = do
         case workspacePackages of
           [ singlePkg ] -> pure singlePkg
           _ -> do
-            logDebug $ show workspacePackages
+            logDebug $ unsafeStringify workspacePackages
             die
               [ toDoc "No package was selected for running. Please select (with -p) one of the following packages:"
               , indent (toDoc $ map _.package.name workspacePackages)
               ]
 
-  logDebug $ "Selected package to run: " <> show selected.package.name
+  logDebug $ "Selected package to run: " <> PackageName.print selected.package.name
 
   -- the reason why we don't have a default on the CLI is that we look some of these
   -- up in the config - though the flags take precedence
@@ -454,7 +571,7 @@ mkRunEnv runArgs = do
       , successMessage: Nothing
       , failureMessage: "Running failed."
       }
-  let newWorkspace = workspace { output = runArgs.output <|> workspace.output }
+  let newWorkspace = workspace { buildOptions { output = runArgs.output <|> workspace.buildOptions.output } }
   let runEnv = { logOptions, workspace: newWorkspace, selected, node, runOptions }
   pure runEnv
 
@@ -492,19 +609,22 @@ mkTestEnv testArgs = do
           Just { head, tail } -> pure $ map mkSelectedTest $ NonEmptyArray.cons' head tail
           Nothing -> die "No package found to test."
 
-  logDebug $ "Selected packages to test: " <> show (map _.selected.package.name selectedPackages)
+  logDebug $ "Selected packages to test: " <> Json.stringifyJson (CA.Common.nonEmptyArray PackageName.codec) (map _.selected.package.name selectedPackages)
 
-  let newWorkspace = workspace { output = testArgs.output <|> workspace.output }
+  let newWorkspace = workspace { buildOptions { output = testArgs.output <|> workspace.buildOptions.output } }
   let testEnv = { logOptions, workspace: newWorkspace, selectedPackages, node }
   pure testEnv
 
-mkBuildEnv :: forall a. BuildArgs -> Map PackageName Package -> Spago (Fetch.FetchEnv a) (Build.BuildEnv ())
+mkBuildEnv :: forall a b. BuildArgs b -> Map PackageName Package -> Spago (Fetch.FetchEnv a) (Build.BuildEnv ())
 mkBuildEnv buildArgs dependencies = do
   { logOptions, workspace, git } <- ask
   purs <- Purs.getPurs
   let
     newWorkspace = workspace
-      { output = buildArgs.output <|> workspace.output
+      { buildOptions
+          { output = buildArgs.output <|> workspace.buildOptions.output
+          , pedanticPackages = buildArgs.pedanticPackages || workspace.buildOptions.pedanticPackages
+          }
       -- Override the backend args from the config if they are passed in through a flag
       , backend = map
           ( \b -> case List.null buildArgs.backendArgs of
@@ -515,10 +635,29 @@ mkBuildEnv buildArgs dependencies = do
       }
   pure { logOptions, purs, git, dependencies, workspace: newWorkspace }
 
-mkFetchEnv :: forall a. FetchArgs -> Spago (LogEnv a) { env :: Fetch.FetchEnv (), packageNames :: Array PackageName }
-mkFetchEnv args = do
-  { getManifestFromIndex, getMetadata, logOptions, git } <- mkRegistryEnv
+mkPublishEnv :: forall a. Map PackageName Package -> Spago (Fetch.FetchEnv a) (Publish.PublishEnv a)
+mkPublishEnv dependencies = do
+  env <- ask
+  purs <- Purs.getPurs
+  selected <- case env.workspace.selected of
+    Just s -> pure s
+    Nothing ->
+      let
+        workspacePackages = Config.getWorkspacePackages env.workspace.packageSet
+      in
+        -- If there's only one package, select that one
+        case workspacePackages of
+          [ singlePkg ] -> pure singlePkg
+          _ -> do
+            logDebug $ unsafeStringify workspacePackages
+            die
+              [ toDoc "No package was selected for publishing. Please select (with -p) one of the following packages:"
+              , indent (toDoc $ map _.package.name workspacePackages)
+              ]
+  pure (Record.union { purs, selected, dependencies } env)
 
+mkFetchEnv :: forall a. FetchArgs -> Spago (LogEnv a) { env :: Fetch.FetchEnv (), fetchOpts :: Fetch.FetchOpts }
+mkFetchEnv args = do
   let { right: packageNames, left: failedPackageNames } = partitionMap PackageName.parse (Array.fromFoldable args.packages)
   unless (Array.null failedPackageNames) do
     die $ "Failed to parse some package name: " <> show failedPackageNames
@@ -527,19 +666,10 @@ mkFetchEnv args = do
     Right p -> pure p
     Left _err -> die $ "Failed to parse selected package name, was: " <> show args.selectedPackage
 
-  workspace <- runSpago { logOptions, git } do
-    Config.readWorkspace maybeSelectedPackage
-
-  pure
-    { packageNames
-    , env:
-        { getManifestFromIndex
-        , getMetadata
-        , workspace
-        , logOptions
-        , git
-        }
-    }
+  env <- mkRegistryEnv
+  workspace <- runSpago env (Config.readWorkspace maybeSelectedPackage)
+  let fetchOpts = { packages: packageNames, ensureRanges: args.ensureRanges }
+  pure { fetchOpts, env: Record.union { workspace } env }
 
 mkRegistryEnv :: forall a. Spago (LogEnv a) (Registry.RegistryEnv ())
 mkRegistryEnv = do
@@ -559,6 +689,9 @@ mkRegistryEnv = do
   -- and we don't have to read it all together
   indexRef <- liftEffect $ Ref.new (Map.empty :: Map PackageName (Map Version Manifest))
   let
+    getCachedIndex :: Effect ManifestIndex
+    getCachedIndex = map unsafeCoerce $ Ref.read indexRef
+
     getManifestFromIndex :: PackageName -> Version -> Spago (LogEnv ()) (Maybe Manifest)
     getManifestFromIndex name version = do
       indexMap <- liftEffect (Ref.read indexRef)
@@ -566,9 +699,13 @@ mkRegistryEnv = do
         Just meta -> pure (Map.lookup version meta)
         Nothing -> do
           -- if we don't have it we try reading it from file
-          logDebug $ "Reading package from Index: " <> show name
-          maybeManifests <- liftAff $ Index.readPackage Paths.registryIndexPath name
-          let manifests = map (\m@(Manifest m') -> Tuple m'.version m) $ fromMaybe [] $ map NonEmptyArray.toUnfoldable maybeManifests
+          logDebug $ "Reading package from Index: " <> PackageName.print name
+          maybeManifests <- liftAff $ ManifestIndex.readEntryFile Paths.registryIndexPath name
+          manifests <- map (map (\m@(Manifest m') -> Tuple m'.version m)) case maybeManifests of
+            Right ms -> pure $ NonEmptyArray.toUnfoldable ms
+            Left err -> do
+              logWarn $ "Could not read package manifests from index, proceeding anyways. Error: " <> err
+              pure []
           let versions = Map.fromFoldable manifests
           liftEffect (Ref.write (Map.insert name versions indexMap) indexRef)
           pure (Map.lookup version versions)
@@ -583,32 +720,84 @@ mkRegistryEnv = do
         Just meta -> pure (Right meta)
         Nothing -> do
           -- if we don't have it we try reading it from file
-          let metadataFilePath = Registry.API.metadataFile Paths.registryPath name
+          let metadataFilePath = Path.concat [ Paths.registryPath, Registry.Constants.metadataDirectory, PackageName.print name <> ".json" ]
           logDebug $ "Reading metadata from file: " <> metadataFilePath
-          liftAff (RegistryJson.readJsonFile metadataFilePath) >>= case _ of
+          liftAff (FS.readJsonFile Metadata.codec metadataFilePath) >>= case _ of
             Left e -> pure (Left e)
             Right m -> do
               -- and memoize it
               liftEffect (Ref.write (Map.insert name m metadataMap) metadataRef)
               pure (Right m)
 
-  -- clone the registry and index repo, or update them
-  logInfo "Refreshing the Registry Index..."
   { logOptions } <- ask
-  -- TODO: we will want to keep track how old the latest pull was - here we just wait on the fibers, but if the last
-  -- pull was recent then we might just want to move on
-  runSpago { logOptions, git } $ parallelise
-    [ try (Git.fetchRepo { git: "https://github.com/purescript/registry-index.git", ref: "main" } Paths.registryIndexPath) >>= case _ of
-        Right _ -> pure unit
-        Left _err -> logWarn "Couldn't refresh the registry-index, will proceed anyways"
-    , try (Git.fetchRepo { git: "https://github.com/purescript/registry.git", ref: "main" } Paths.registryPath) >>= case _ of
-        Right _ -> pure unit
-        Left _err -> logWarn "Couldn't refresh the registry, will proceed anyways"
-    ]
+  -- we keep track of how old the latest pull was - if the last pull was recent enough
+  -- we just move on, otherwise run the fibers
+  whenM shouldFetchRegistryRepos do
+    -- clone the registry and index repo, or update them
+    logInfo "Refreshing the Registry Index..."
+    runSpago { logOptions, git } $ parallelise
+      [ try (Git.fetchRepo { git: "https://github.com/purescript/registry-index.git", ref: "main" } Paths.registryIndexPath) >>= case _ of
+          Right _ -> pure unit
+          Left _err -> logWarn "Couldn't refresh the registry-index, will proceed anyways"
+      , try (Git.fetchRepo { git: "https://github.com/purescript/registry.git", ref: "main" } Paths.registryPath) >>= case _ of
+          Right _ -> pure unit
+          Left _err -> logWarn "Couldn't refresh the registry, will proceed anyways"
+      ]
 
   pure
     { getManifestFromIndex
+    , getCachedIndex
     , getMetadata
     , logOptions
     , git
     }
+
+mkLsEnv :: forall a. Map PackageName Package -> Spago (Fetch.FetchEnv a) Ls.LsEnv
+mkLsEnv dependencies = do
+  { logOptions, workspace } <- ask
+  selected <- case workspace.selected of
+    Just s -> pure s
+    Nothing ->
+      let
+        workspacePackages = Config.getWorkspacePackages workspace.packageSet
+      in
+        -- If there's only one package, select that one
+        case workspacePackages of
+          [ singlePkg ] -> pure singlePkg
+          _ -> do
+            logDebug $ unsafeStringify workspacePackages
+            die
+              [ toDoc "No package was selected. Please select (with -p) one of the following packages:"
+              , indent (toDoc $ map _.package.name workspacePackages)
+              ]
+  pure { logOptions, workspace, dependencies, selected }
+
+shouldFetchRegistryRepos :: forall a. Spago (LogEnv a) Boolean
+shouldFetchRegistryRepos = do
+  let freshRegistryCanary = Path.concat [ Paths.globalCachePath, "fresh-registry-canary.txt" ]
+  FS.stat freshRegistryCanary >>= case _ of
+    Left err -> do
+      -- If the stat fails the file probably does not exist
+      logDebug [ "Could not stat " <> freshRegistryCanary, show err ]
+      -- in which case we touch it and fetch
+      touch freshRegistryCanary
+      pure true
+    Right (Stats { mtime }) -> do
+      -- it does exist here, see if it's old enough, and fetch if it is
+      now <- liftEffect $ JSDate.now
+      let minutes = 15.0
+      let staleAfter = 1000.0 * 60.0 * minutes -- need this in millis
+      let isOldEnough = (JSDate.getTime now) > (JSDate.getTime mtime + staleAfter)
+      if isOldEnough then do
+        logDebug "Registry is old enough, refreshing canary"
+        touch freshRegistryCanary
+        pure true
+      else do
+        logDebug "Registry index is fresh enough, moving on..."
+        pure false
+  where
+  touch path = do
+    FS.ensureFileSync path
+    FS.writeTextFile path ""
+
+foreign import supportsColor :: Effect Boolean

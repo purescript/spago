@@ -3,6 +3,7 @@ module Spago.Git
   , GitEnv
   , fetchRepo
   , getGit
+  , getRef
   , isIgnored
   ) where
 
@@ -10,6 +11,8 @@ import Spago.Prelude
 
 import Control.Monad.Except (ExceptT(..))
 import Control.Monad.Except as Except
+import Data.String (Pattern(..))
+import Data.String as String
 import Spago.Cmd as Cmd
 import Spago.FS as FS
 
@@ -31,11 +34,13 @@ fetchRepo { git, ref } path = do
   repoExists <- FS.exists path
   cloneOrFetchResult <- case repoExists of
     true -> do
-      logDebug $ "Found the " <> git <> " repo locally, pulling..."
+      logDebug $ "Found " <> git <> " locally, pulling..."
       Except.runExceptT $ runGit_ [ "fetch", "origin" ] (Just path)
     false -> do
-      logInfo $ "Didn't find " <> git <> " repo, cloning..."
-      Except.runExceptT $ runGit_ [ "clone", git, path ] Nothing
+      logInfo $ "Cloning " <> git
+      -- For the reasoning on the filter options, see:
+      -- https://github.com/purescript/spago/issues/701#issuecomment-1317192919
+      Except.runExceptT $ runGit_ [ "clone", "--filter=tree:0", git, path ] Nothing
   result <- Except.runExceptT do
     Except.ExceptT $ pure cloneOrFetchResult
     _ <- runGit [ "checkout", ref ] (Just path)
@@ -52,6 +57,28 @@ fetchRepo { git, ref } path = do
     Left err -> throwError err
     Right _ -> pure unit
 
+getRef :: forall a. Spago (GitEnv a) (Either Docc String)
+getRef = do
+  let opts = Cmd.defaultExecOptions { pipeStdout = false, pipeStderr = false }
+  { git } <- ask
+  Cmd.exec git.cmd [ "status", "--porcelain" ] opts >>= case _ of
+    Left err -> do
+      pure $ Left $ toDoc [ "Could not run `git status`. Error:", err.shortMessage ]
+    Right res -> do
+      case res.stdout of
+        "" -> do
+          -- Tree is clean, get the ref
+          Cmd.exec git.cmd [ "rev-parse", "HEAD" ] opts >>= case _ of
+            Left err -> pure $ Left $ toDoc
+              [ "Could not run `git rev-parse HEAD` to determine the current ref. Error:"
+              , err.shortMessage
+              ]
+            Right res' -> pure $ Right res'.stdout
+        _ -> pure $ Left $ toDoc
+          [ toDoc "Git tree is not clean, aborting. Commit or stash these files:"
+          , indent $ toDoc (String.split (Pattern "\n") res.stdout)
+          ]
+
 -- | Check if the path is ignored by git
 --
 -- `git check-ignore` exits with 1 when path is not ignored, and 128 when
@@ -63,11 +90,11 @@ isIgnored path = do
   case result of
     -- Git is successful if it's an ignored file
     Right { exitCode: 0 } -> pure true
-    -- Git will fail with exitCode 128 if dealing with a link.
-    -- We ignore those! I mean, do we really want to deal with recursive links?!?
-    Left { exitCode: 128 } -> pure true
+    -- Git will fail with exitCode 128 if this is not a git repo or if it's dealing with a link.
+    -- We ignore links - I mean, do we really want to deal with recursive links?!?
+    Left { exitCode: Just 128 } -> FS.isLink path
     -- Git will fail with 1 when a file is just, like, normally ignored
-    Left { exitCode: 1 } -> pure false
+    Left { exitCode: Just 1 } -> pure false
     _ -> do
       logDebug "IsIgnored encountered an interesting exitCode"
       logDebug $ show result

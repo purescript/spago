@@ -13,7 +13,6 @@ import Data.String (Pattern(..), Replacement(..))
 import Data.String as String
 import Node.FS.Perms as Perms
 import Node.Path as Path
-import Registry.Version (Version)
 import Registry.Version as Version
 import Spago.Cmd as Cmd
 import Spago.Config (Workspace, WorkspacePackage)
@@ -46,13 +45,13 @@ nodeVersion =
     Left err -> do
       logDebug $ show err
       die [ "Failed to find node. Have you installed it, and is it in your PATH?" ]
-    Right r -> case Version.parseVersion Version.Lenient r.stdout of
+    Right r -> case parseLenientVersion r.stdout of
       Left _err -> die $ "Failed to parse NodeJS version. Was: " <> r.stdout
       Right v ->
         if Version.major v >= 13 then
           pure v
         else
-          die [ "Unsupported Node version " <> Version.printVersion v, "Please install a Node v13 or higher." ]
+          die [ "Unsupported Node version " <> Version.print v, "Please install a Node v13 or higher." ]
 
 getNode :: forall a. Spago (LogEnv a) Node
 getNode = do
@@ -79,9 +78,9 @@ run = do
         nodeContents =
           Array.fold
             [ "import { main } from 'file://"
-            , String.replace (Pattern "\\") (Replacement "/") opts.sourceDir
+            , String.replaceAll (Pattern "\\") (Replacement "/") opts.sourceDir
             , "/"
-            , fromMaybe "output" workspace.output
+            , fromMaybe "output" workspace.buildOptions.output
             , "/"
             , opts.moduleName
             , "/"

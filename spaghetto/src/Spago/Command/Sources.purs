@@ -3,16 +3,18 @@ module Spago.Command.Sources where
 import Spago.Prelude
 
 import Data.Array as Array
+import Data.Codec.Argonaut as CA
 import Data.Map as Map
 import Data.Set as Set
-import Registry.PackageName (PackageName)
 import Spago.Command.Fetch (FetchEnv)
 import Spago.Command.Fetch as Fetch
-import Spago.Config (Package(..), Dependencies(..))
+import Spago.Config (Dependencies(..), Package(..), WithTestGlobs(..))
 import Spago.Config as Config
 
-run :: forall a. Spago (FetchEnv a) Unit
-run = do
+type SourcesOpts = { json :: Boolean }
+
+run :: forall a. SourcesOpts -> Spago (FetchEnv a) Unit
+run { json } = do
   { workspace } <- ask
   -- lookup the dependencies in the package set, so we get their version numbers
   let
@@ -29,7 +31,9 @@ run = do
 
   let
     globs = Array.foldMap
-      (\(Tuple packageName package) -> Config.sourceGlob packageName package)
+      (\(Tuple packageName package) -> Config.sourceGlob WithTestGlobs packageName package)
       (Map.toUnfoldable transitivePackages :: Array (Tuple PackageName Package))
 
-  void $ for globs \g -> output g
+  output case json of
+    true -> OutputJson (CA.array CA.string) globs
+    false -> OutputLines globs

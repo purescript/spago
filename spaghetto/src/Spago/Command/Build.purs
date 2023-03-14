@@ -9,14 +9,14 @@ import Data.Array as Array
 import Data.Map as Map
 import Data.Set as Set
 import Data.Tuple as Tuple
-import Registry.PackageName (PackageName)
 import Spago.BuildInfo as BuildInfo
 import Spago.Cmd as Cmd
-import Spago.Config (Package(..), Workspace, WorkspacePackage)
+import Spago.Config (Package(..), WithTestGlobs(..), Workspace, WorkspacePackage)
 import Spago.Config as Config
 import Spago.Git (Git)
 import Spago.Purs (Purs)
 import Spago.Purs as Purs
+import Spago.Purs.Graph as Graph
 
 type BuildEnv a =
   { purs :: Purs
@@ -36,13 +36,18 @@ run :: forall a. BuildOptions -> Spago (BuildEnv a) Unit
 run opts = do
   logInfo "Building..."
   { dependencies, workspace } <- ask
-  let dependencyGlobs = map (Tuple.uncurry Config.sourceGlob) (Map.toUnfoldable dependencies)
-
-  -- Here we select the right globs for a monorepo setup
   let
-    workspacePackageGlob :: WorkspacePackage -> Array String
-    workspacePackageGlob p = Config.sourceGlob p.package.name (WorkspacePackage p)
+    -- depsOnly means "no packages from the monorepo", so we filter out the workspace packages
+    dependencyGlobs = map (Tuple.uncurry $ Config.sourceGlob WithTestGlobs) case opts.depsOnly of
+      false -> Map.toUnfoldable dependencies
+      true -> Map.toUnfoldable $ Map.filter
+        ( case _ of
+            WorkspacePackage _ -> false
+            _ -> true
+        )
+        dependencies
 
+    -- Here we select the right globs for a monorepo setup with a bunch of packages
     projectSources =
       if opts.depsOnly then []
       else case workspace.selected of
@@ -60,7 +65,7 @@ run opts = do
       , "Use the --output flag for Spago, or add it to your config file."
       ]
   let
-    addOutputArgs args = case workspace.output of
+    addOutputArgs args = case workspace.buildOptions.output of
       Nothing -> args
       Just output -> args <> [ "--output", output ]
 
@@ -85,10 +90,11 @@ run opts = do
               Just as | Array.length as > 0 -> as
               _ -> []
           Cmd.exec backend.cmd (addOutputArgs moreBackendArgs) Cmd.defaultExecOptions >>= case _ of
-            Right _r -> logSuccess "Backend build succeeded."
             Left err -> do
               logDebug $ show err
               die [ "Failed to build with backend " <> backend.cmd ]
+            Right _r ->
+              logSuccess "Backend build succeeded."
 
   {-
   TODO: before, then, else
@@ -99,5 +105,25 @@ run opts = do
         runCommands "Then" thenCommands
   -}
 
-  buildBackend (Set.fromFoldable $ join projectSources <> join dependencyGlobs <> [ BuildInfo.buildInfoPath ])
+  let globs = Set.fromFoldable $ join projectSources <> join dependencyGlobs <> [ BuildInfo.buildInfoPath ]
+  buildBackend globs
 
+  when workspace.buildOptions.pedanticPackages do
+    logInfo $ "Looking for unused and undeclared transitive dependencies..."
+    errors <- case workspace.selected of
+      Just selected -> Graph.runGraphCheck selected globs opts.pursArgs
+      Nothing -> do
+        -- TODO: here we could go through all the workspace packages and run the check for each
+        -- The complication is that "dependencies" includes all the dependencies for all packages
+        map Array.fold $ for (Config.getWorkspacePackages workspace.packageSet) \selected -> do
+          Graph.runGraphCheck selected globs opts.pursArgs
+    unless (Array.null errors) do
+      die' errors
+
+  -- TODO: if we are building with all the packages (i.e. selected = Nothing),
+  -- then we can use the graph to remove outdated modules from `output`!
+
+  where
+
+  workspacePackageGlob :: WorkspacePackage -> Array String
+  workspacePackageGlob p = Config.sourceGlob WithTestGlobs p.package.name (WorkspacePackage p)

@@ -4,14 +4,15 @@ import Spago.Prelude
 
 import Data.Array as Array
 import Data.String as String
-import Spago.FS as FS
 import Node.Path as Path
 import Registry.PackageName as PackageName
 import Registry.Version as Version
 import Spago.Config (Workspace, WorkspacePackage)
 import Spago.Config as Config
+import Spago.FS as FS
 import Spago.Generated.BuildInfo as BuildInfo
 import Spago.Paths as Paths
+import Spago.Purs (Purs)
 
 -- Inspiration: https://github.com/sbt/sbt-buildinfo
 -- See https://github.com/purescript/spago/issues/599
@@ -25,14 +26,19 @@ type BuildInfo =
   , pursVersion :: String
   }
 
-type BuildInfoEnv a = { workspace :: Workspace, logOptions :: LogOptions | a }
+type BuildInfoEnv a =
+  { workspace :: Workspace
+  , logOptions :: LogOptions
+  , purs :: Purs
+  | a
+  }
 
 writeBuildInfo :: forall a. Spago (BuildInfoEnv a) Unit
 writeBuildInfo = do
-  { workspace } <- ask
+  { workspace, purs } <- ask
   let
     buildInfo =
-      { pursVersion: "TODO"
+      { pursVersion: Version.print purs.version
       , packages: map mkPackageBuildInfo case workspace.selected of
           Just p -> [ p ]
           Nothing -> Config.getWorkspacePackages workspace.packageSet
@@ -73,5 +79,5 @@ currentSpagoVersion = fromMaybe "0.0.0" $ map _.version $ Array.head BuildInfo.b
 mkPackageBuildInfo :: WorkspacePackage -> { name :: String, version :: String }
 mkPackageBuildInfo { package } =
   { name: PackageName.print package.name
-  , version: fromMaybe "0.0.0" $ map Version.printVersion (package.publish >>= _.version)
+  , version: fromMaybe "0.0.0" $ map Version.print (map _.version package.publish)
   }
