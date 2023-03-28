@@ -10,3 +10,5 @@ curator.log
 .DS_Store
 stack.yaml.lock
 !npm/.npmrc
+**/.vscode
+.psc*
