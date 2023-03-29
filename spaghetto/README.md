@@ -41,6 +41,7 @@ To better support [monorepos and multirepos/polyrepos](https://monorepo.tools/),
 `spago.yml` files can be used primarily in three different ways depending on whether the `workspace` and/or `package` field(s) are used:
 
 | -- | has `workspace` | lacks `workspace` |
+| - | - | - |
 | has `package` | <ul><li>**Concept**: monorepo root with a single primary application</li><li>**Location**: for normal repos or monorepos, stored in the root directory. For polyrepos, stored in the root folder of that project</li><li>**Usage**: for polyrepos, defines a single backend-specific output target (e.g. Erlang server)</li></ul> | <ul><li>**Concept**: defines another package in a monorepo/polyrepo.</li><li>**Location**: stored in a subdirectory of a folder containing a workspace config file</li><li>**Usage**: usually defines a shared local library used by other local packages or defines a local script to automate some task</li></ul> |
 | lacks `package` | <ul><li>**Concept**: monorepo with no single primary application</li><li>**Location**: for monorepos, stored in the root directory.</li><li>**Usage**: defines the backend and source of dependencies used by all other packages in the workspace</li></ul>  | invalid `spago.yml` file |
 
