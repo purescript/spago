@@ -128,6 +128,13 @@ parsePsaResult obj =
   } <$> (obj .: "warnings" >>= traverse parsePsaError)
     <*> (obj .: "errors" >>= traverse parsePsaError)
 
+encodePsaResult :: PsaResult -> Json
+encodePsaResult res = encodeJson $ FO.runST do
+  obj <- FOST.new
+  _ <- FOST.poke "warnings" (encodeJson (encodePsaError <$> res.warnings)) obj
+  _ <- FOST.poke "errors" (encodeJson (encodePsaError <$> res.errors)) obj
+  pure obj
+
 parsePsaError :: FO.Object Json -> Either String PsaError
 parsePsaError obj =
   { moduleName: _
@@ -164,13 +171,6 @@ parseSuggestion =
     , replaceRange: _
     } <$> obj .: "replacement"
       <*> (obj .:? "replaceRange" >>= parsePosition)
-
-encodePsaResult :: PsaResult -> Json
-encodePsaResult res = encodeJson $ FO.runST do
-  obj <- FOST.new
-  _ <- FOST.poke "warnings" (encodeJson (encodePsaError <$> res.warnings)) obj
-  _ <- FOST.poke "errors" (encodeJson (encodePsaError <$> res.errors)) obj
-  pure obj
 
 encodePsaError :: PsaError -> Json
 encodePsaError error = encodeJson $ FO.runST do
