@@ -176,6 +176,9 @@ parsePosition =
       <*> obj .: "endLine"
       <*> obj .: "endColumn"
 
+encodePosition :: Position -> Json
+encodePosition = unsafeCoerce
+
 parseSuggestion :: Maybe (FO.Object Json) -> Either String (Maybe Suggestion)
 parseSuggestion =
   maybe (pure Nothing) \obj -> map Just $
@@ -183,9 +186,6 @@ parseSuggestion =
     , replaceRange: _
     } <$> obj .: "replacement"
       <*> (obj .:? "replaceRange" >>= parsePosition)
-
-encodePosition :: Position -> Json
-encodePosition = unsafeCoerce
 
 encodeSuggestion :: Suggestion -> Json
 encodeSuggestion suggestion = encodeJson $ FO.runST do
