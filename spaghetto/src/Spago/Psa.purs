@@ -62,9 +62,7 @@ defaultOptions =
   }
 
 type ParseOptions =
-  { extra :: Array String
-  , opts :: PsaOptions
-  , purs :: String
+  { opts :: PsaOptions
   , showSource :: Boolean
   , stash :: Boolean
   , stashFile :: String
@@ -78,9 +76,7 @@ parseOptions
 parseOptions opts args =
   defaultLibDir <$>
     Array.foldM parse
-      { extra: []
-      , purs: "purs"
-      , showSource: true
+      { showSource: true
       , stash: false
       , stashFile: ".psa-stash"
       , jsonErrors: false
@@ -131,13 +127,10 @@ parseOptions opts args =
     | isPrefix "--is-lib=" arg =
         pure p { opts = p.opts { libDirs = Array.snoc p.opts.libDirs (Str.drop 9 arg) } }
 
-    | isPrefix "--purs=" arg =
-        pure p { purs = Str.drop 7 arg }
-
     | isPrefix "--stash=" arg =
         pure p { stash = true, stashFile = Str.drop 8 arg }
 
-    | otherwise = pure p { extra = Array.snoc p.extra arg }
+    | otherwise = pure p
 
   isPrefix s str =
     case Str.indexOf (Str.Pattern s) str of
@@ -150,12 +143,12 @@ parseOptions opts args =
     | otherwise = x
 
 usePsa :: ParseOptions -> Aff Unit
-usePsa { extra, opts, purs, showSource, stash, stashFile, jsonErrors } = do
+usePsa { opts, showSource, stash, stashFile, jsonErrors } = do
   stashData <-
     if stash then readStashFile stashFile
     else emptyStash
 
-  result <- Cmd.exec purs [ "compile", "--json-errors" ] Cmd.defaultExecOptions
+  result <- Cmd.exec "purs" [ "compile", "--json-errors" ] Cmd.defaultExecOptions
   let
     result' = case result of
       Left err -> { output: err.stdout, exitCode: err.exitCode }
@@ -253,7 +246,6 @@ Usage: psa [--censor-lib] [--censor-src]
            [--censor-codes=CODES] [--filter-codes=CODES]
            [--no-colors] [--no-source]
            [--is-lib=DIR] [--purs=PURS] [--stash]
-           PSC_OPTIONS
 
 Available options:
   -h,--help              Show this help text
@@ -270,8 +262,6 @@ Available options:
   --stash                Enable persistent warnings (defaults to .psa-stash)
   --stash=FILE           Enable persistent warnings using a specific stash file
   --is-lib=DIR           Distinguishing library path (defaults to 'bower_components')
-  --purs=PURS            Name of purs executable (defaults to 'purs')
 
   CODES                  Comma-separated list of purs error codes
-  PSC_OPTIONS            Any extra options are passed to 'purs compile'
 """
