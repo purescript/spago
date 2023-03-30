@@ -45,6 +45,7 @@ package:
     - transformers
     - tuples
     - unsafe-coerce
+    - versions
 workspace:
   package_set:
     # url: https://raw.githubusercontent.com/purescript/package-sets/psc-0.15.7-20230207/packages.json

@@ -9,10 +9,10 @@ module Spago.Psa where
 import Prelude
 
 import Data.Argonaut.Core (stringify)
-import Data.Argonaut.Decode (decodeJson)
-import Data.Argonaut.Encode (encodeJson)
 import Data.Argonaut.Parser (jsonParser)
 import Data.Array as Array
+import Data.Bifunctor (lmap)
+import Data.Codec.Argonaut as CA
 import Data.DateTime (DateTime)
 import Data.DateTime.Instant (toDateTime)
 import Data.Either (Either(..))
@@ -38,7 +38,8 @@ import Node.Platform (Platform(Win32))
 import Node.Process as Process
 import Node.Stream as Stream
 import Partial.Unsafe (unsafePartial)
-import Spago.Psa (PsaOptions, StatVerbosity(..), parsePsaResult, parsePsaError, encodePsaError, output)
+import Spago.Psa.Types (PsaOptions, StatVerbosity(..), psaResultCodec, psaErrorCodec)
+import Spago.Psa.Output (output)
 import Spago.Psa.Printer.Default as DefaultPrinter
 import Spago.Psa.Printer.Json as JsonPrinter
 
@@ -180,7 +181,7 @@ main = void do
         else Stderr
     spawn' outputStream purs args \pursResult -> do
       for_ (Str.split (Str.Pattern "\n") pursResult.output) \err ->
-        case jsonParser err >>= decodeJson >>= parsePsaResult of
+        case jsonParser err >>= CA.decode psaResultCodec >>> lmap CA.printJsonDecodeError of
           Left _ -> Console.error err
           Right out -> do
             files <- Ref.new FO.empty
@@ -273,8 +274,8 @@ main = void do
         let source = Array.slice (pos.startLine - 1) (pos.endLine) contents
         pure $ Just source
 
-  decodeStash s = jsonParser s >>= decodeJson >>= traverse parsePsaError
-  encodeStash s = encodeJson (encodePsaError <$> s)
+  decodeStash s = jsonParser s >>= CA.decode (CA.array psaErrorCodec) >>> lmap CA.printJsonDecodeError
+  encodeStash s = CA.encode (CA.array psaErrorCodec) s
 
   emptyStash :: forall a. Effect { date :: DateTime, stash :: Array a }
   emptyStash = { date: _, stash: [] } <$> toDateTime <$> now

@@ -17,19 +17,18 @@ module Spago.Psa.Types
   , Position
   , Suggestion
   , Lines
-  , parsePsaResult
-  , parsePsaError
-  , encodePsaResult
-  , encodePsaError
+  , psaResultCodec
+  , psaErrorCodec
   , compareByLocation
   ) where
 
 import Prelude
 
-import Data.Argonaut.Core (Json, jsonNull)
-import Data.Argonaut.Decode (class DecodeJson, decodeJson, printJsonDecodeError)
-import Data.Argonaut.Decode.Combinators as Decode.Combinators
-import Data.Argonaut.Encode (encodeJson)
+import Data.Argonaut.Core (Json)
+import Data.Codec.Argonaut.Record as CAR
+import Data.Codec.Argonaut as CA
+import Data.Codec.Argonaut.Common as CAC
+import Data.Codec.Argonaut.Compat as CACompat
 import Data.Bifunctor (lmap)
 import Data.Either (Either(..))
 import Data.Maybe (Maybe(..), maybe)
@@ -121,85 +120,33 @@ compareByLocation err1 err2 =
             (Tuple b.startLine b.startColumn)
     x -> x
 
-parsePsaResult :: FO.Object Json -> Either String PsaResult
-parsePsaResult obj =
-  { warnings: _
-  , errors: _
-  } <$> (obj .: "warnings" >>= traverse parsePsaError)
-    <*> (obj .: "errors" >>= traverse parsePsaError)
+psaResultCodec :: CA.JsonCodec PsaResult
+psaResultCodec = CAR.object "PsaResult"
+  { warnings: CA.array psaErrorCodec
+  , errors: CA.array psaErrorCodec
+  }
 
-encodePsaResult :: PsaResult -> Json
-encodePsaResult res = encodeJson $ FO.runST do
-  obj <- FOST.new
-  _ <- FOST.poke "warnings" (encodeJson (encodePsaError <$> res.warnings)) obj
-  _ <- FOST.poke "errors" (encodeJson (encodePsaError <$> res.errors)) obj
-  pure obj
+psaErrorCodec :: CA.JsonCodec PsaError
+psaErrorCodec = CAR.object "PsaError"
+  { moduleName: CAC.maybe CA.string
+  , errorCode: CA.string
+  , errorLink: CA.string
+  , message: CA.string
+  , filename: CAC.maybe CA.string
+  , position: CACompat.maybe positionCodec
+  , suggestion: CACompat.maybe suggestionCodec
+  }
 
-parsePsaError :: FO.Object Json -> Either String PsaError
-parsePsaError obj =
-  { moduleName: _
-  , errorCode: _
-  , errorLink: _
-  , message: _
-  , filename: _
-  , position: _
-  , suggestion: _
-  } <$> obj .: "moduleName"
-    <*> obj .: "errorCode"
-    <*> obj .: "errorLink"
-    <*> obj .: "message"
-    <*> obj .: "filename"
-    <*> (obj .: "position" >>= parsePosition)
-    <*> (obj .: "suggestion" >>= parseSuggestion)
+positionCodec :: CA.JsonCodec Position
+positionCodec = CAR.object "Position"
+  { startLine: CA.int
+  , startColumn: CA.int
+  , endLine: CA.int
+  , endColumn: CA.int
+  }
 
-encodePsaError :: PsaError -> Json
-encodePsaError error = encodeJson $ FO.runST do
-  obj <- FOST.new
-  _ <- FOST.poke "moduleName" (encodeJson error.moduleName) obj
-  _ <- FOST.poke "errorCode" (encodeJson error.errorCode) obj
-  _ <- FOST.poke "errorLink" (encodeJson error.errorLink) obj
-  _ <- FOST.poke "message" (encodeJson error.message) obj
-  _ <- FOST.poke "filename" (encodeJson error.filename) obj
-  _ <- FOST.poke "position" (encodeJson (maybe jsonNull encodePosition error.position)) obj
-  _ <- FOST.poke "suggestion" (encodeJson (maybe jsonNull encodeSuggestion error.suggestion)) obj
-  pure obj
-
-parsePosition :: Maybe (FO.Object Json) -> Either String (Maybe Position)
-parsePosition =
-  maybe (pure Nothing) \obj -> map Just $
-    { startLine: _
-    , startColumn: _
-    , endLine: _
-    , endColumn: _
-    } <$> obj .: "startLine"
-      <*> obj .: "startColumn"
-      <*> obj .: "endLine"
-      <*> obj .: "endColumn"
-
-encodePosition :: Position -> Json
-encodePosition = unsafeCoerce
-
-parseSuggestion :: Maybe (FO.Object Json) -> Either String (Maybe Suggestion)
-parseSuggestion =
-  maybe (pure Nothing) \obj -> map Just $
-    { replacement: _
-    , replaceRange: _
-    } <$> obj .: "replacement"
-      <*> (obj .:? "replaceRange" >>= parsePosition)
-
-encodeSuggestion :: Suggestion -> Json
-encodeSuggestion suggestion = encodeJson $ FO.runST do
-  obj <- FOST.new
-  _ <- FOST.poke "replacement" (encodeJson suggestion.replacement) obj
-  _ <- FOST.poke "replaceRange" (encodeJson (maybe jsonNull encodePosition suggestion.replaceRange)) obj
-  pure obj
-
-maybeProp :: forall a. (DecodeJson a) => FO.Object Json -> String -> Either String (Maybe a)
-maybeProp obj key = maybe (Right Nothing) (lmap printJsonDecodeError <<< decodeJson) (FO.lookup key obj)
-
-infix 7 maybeProp as .:?
-
-getField :: forall a. (DecodeJson a) => FO.Object Json -> String -> Either String a
-getField obj key = lmap printJsonDecodeError (Decode.Combinators.getField obj key)
-
-infix 7 getField as .:
+suggestionCodec :: CA.JsonCodec Suggestion
+suggestionCodec = CAR.object "Suggestion"
+  { replacement: CA.string
+  , replaceRange: CACompat.maybe positionCodec
+  }
