@@ -14,15 +14,20 @@ module Spago.Psa.Printer.Default
 
 import Prelude
 
+import Control.Alternative as Alternative
 import Ansi.Codes as Ansi
-import Ansi.Output (foreground, dim)
 import Data.Array as Array
 import Data.Foldable (sum, maximum)
 import Data.List.NonEmpty (NonEmptyList)
-import Data.Maybe (Maybe(..), fromMaybe)
+import Data.Maybe (Maybe(..), fromMaybe, maybe)
+import Data.Monoid (power)
+import Data.Foldable (fold, maximumBy, maximum, foldMap)
 import Data.FoldableWithIndex (forWithIndex_)
+import Data.Unfoldable (unfoldr)
 import Data.String as Str
 import Data.Tuple (Tuple(..))
+import Dodo as D
+import Dodo.Ansi as DA
 import Effect (Effect)
 import Effect.Console as Console
 import Foreign.Object as FO
@@ -35,17 +40,19 @@ import Spago.Psa.Util (replicate)
 print :: PsaOptions -> Output -> Effect Unit
 print options output = do
   forWithIndex_ output.warnings \i warning -> do
-    Console.error $ toString (renderWarning lenWarnings (i + 1) warning)
+    Console.error $ printDoc (renderWarning lenWarnings (i + 1) warning)
     Console.error ""
 
   forWithIndex_ output.errors \i error -> do
-    Console.error $ toString (renderError lenErrors (i + 1) error)
+    Console.error $ printDoc (renderError lenErrors (i + 1) error)
     Console.error ""
 
-  Console.error $ toString (renderStats' output.stats)
+  Console.error $ printDoc (renderStats' output.stats)
 
   where
-  toString = render options.ansi
+  printDoc
+    | options.ansi = D.print DA.ansiGraphics D.twoSpaces
+    | otherwise = D.print D.plainText D.twoSpaces
   lenWarnings = Array.length output.warnings
   lenErrors = Array.length output.errors
   renderStats' = case options.statVerbosity of
@@ -53,75 +60,63 @@ print options output = do
     CompactStats -> renderStats
     VerboseStats -> renderVerboseStats
 
-renderWarning :: Int -> Int -> PsaAnnotedError -> Rendered
-renderWarning = renderWrapper (foreground Ansi.Yellow)
+renderWarning :: Int -> Int -> PsaAnnotedError -> D.Doc Ansi.GraphicsParam
+renderWarning = renderWrapper Ansi.Yellow
 
-renderError :: Int -> Int -> PsaAnnotedError -> Rendered
-renderError = renderWrapper (foreground Ansi.Red)
+renderError :: Int -> Int -> PsaAnnotedError -> D.Doc Ansi.GraphicsParam
+renderError = renderWrapper Ansi.Red
 
-renderWrapper :: NonEmptyList Ansi.GraphicsParam -> Int -> Int -> PsaAnnotedError -> Rendered
-renderWrapper gfx total index { error, path, position, source, message } =
-  para
-    [ line $
-        [ renderStatus gfx total index error.errorCode
-        , plain " "
-        , renderPath path error.moduleName
-        ] <> fromMaybe mempty (renderPosition <$> position)
-    , emptyLine
-    , indented
-        $ fromMaybe mempty (renderSource' <$> position <*> source)
-            <> toLines message
+renderWrapper :: Ansi.Color -> Int -> Int -> PsaAnnotedError -> D.Doc Ansi.GraphicsParam
+renderWrapper color total index { error, path, position, source, message } =
+  D.lines
+    [ D.words $
+        [ renderStatus color total index error.errorCode
+        , renderPath path error.moduleName <> foldMap renderPosition position
+        ]
+    , D.text ""
+    , D.indent $ D.lines
+        [ fromMaybe mempty (renderSource' <$> position <*> source)
+        , toLines message
+        ]
     ]
 
-toLines :: String -> Rendered
-toLines = para <<< map (line <<< Array.singleton <<< plain) <<< Str.split (Str.Pattern "\n")
+toLines :: String -> D.Doc Ansi.GraphicsParam
+toLines = D.lines <<< map D.text <<< Str.split (Str.Pattern "\n")
 
-emptyLine :: Rendered
-emptyLine = line [ plain "" ]
+renderStatus :: Ansi.Color -> Int -> Int -> String -> D.Doc Ansi.GraphicsParam
+renderStatus color total index code =
+  DA.foreground color $ D.text $ "[" <> show index <> "/" <> show total <> " " <> code <> "]"
 
-indented :: Rendered -> Rendered
-indented = indent [ plain "  " ]
+renderModuleName :: Maybe String -> D.Doc Ansi.GraphicsParam
+renderModuleName Nothing = DA.dim $ D.text "(unknown module)"
+renderModuleName (Just m) = D.text m
 
-renderStatus :: NonEmptyList Ansi.GraphicsParam -> Int -> Int -> String -> AnsiText
-renderStatus gfx total index code =
-  style gfx $ "[" <> show index <> "/" <> show total <> " " <> code <> "]"
-
-renderModuleName :: Maybe String -> AnsiText
-renderModuleName Nothing = style dim "(unknown module)"
-renderModuleName (Just m) = plain m
-
-renderPath :: PsaPath -> Maybe String -> AnsiText
-renderPath (Src f) _ = plain f
-renderPath (Lib f) _ = plain f
+renderPath :: PsaPath -> Maybe String -> D.Doc Ansi.GraphicsParam
+renderPath (Src f) _ = D.text f
+renderPath (Lib f) _ = D.text f
 renderPath _ m = renderModuleName m
 
-renderPosition :: Position -> Array AnsiText
-renderPosition pos =
-  [ style dim ":"
-  , plain (show pos.startLine)
-  , style dim ":"
-  , plain (show pos.startColumn)
+renderPosition :: Position -> D.Doc Ansi.GraphicsParam
+renderPosition pos = fold
+  [ DA.dim $ D.text ":"
+  , D.text $ show pos.startLine
+  , DA.dim $ D.text ":"
+  , D.text $ show pos.startColumn
   ]
 
-renderSource' :: Position -> Lines -> Rendered
-renderSource' pos lines = renderSource pos lines <> emptyLine
+renderSource' :: Position -> Lines -> D.Doc Ansi.GraphicsParam
+renderSource' pos lines = renderSource pos lines <> D.break
 
-renderStats :: OutputStats -> Rendered
+renderStats :: OutputStats -> D.Doc Ansi.GraphicsParam
 renderStats stats =
   renderStatCols
-    [ [ style (foreground Ansi.Yellow) "Warnings" ]
-    , [ style (foreground Ansi.Red) "Errors" ]
-    ]
-    [ renderStat srcWarnings
-    , renderStat srcErrors
-    ]
-    [ renderStat libWarnings
-    , renderStat libErrors
-    ]
-    [ renderStat allWarnings
-    , renderStat allErrors
-    ]
+    { col1: [ renderLabel Ansi.Yellow "Warnings", renderLabel Ansi.Red "Errors"]
+    , col2: [ renderStat srcWarnings, renderStat srcErrors ]
+    , col3: [ renderStat libWarnings, renderStat libErrors ]
+    , col4: [ renderStat allWarnings, renderStat allErrors ]
+    }
   where
+  renderLabel color lbl = { width: Str.length lbl, alignLeft: true, doc: DA.foreground color $ D.text lbl }
   sumRatio (Tuple a b) _ (Tuple c d) = Tuple (a + c) (b + d)
   srcWarnings = FO.fold sumRatio (Tuple 0 0) stats.srcWarnings
   srcErrors = FO.fold sumRatio (Tuple 0 0) stats.srcErrors
@@ -130,19 +125,26 @@ renderStats stats =
   allWarnings = FO.fold sumRatio (Tuple 0 0) stats.allWarnings
   allErrors = FO.fold sumRatio (Tuple 0 0) stats.allErrors
 
-renderVerboseStats :: OutputStats -> Rendered
+renderVerboseStats :: OutputStats -> D.Doc Ansi.GraphicsParam
 renderVerboseStats stats =
   renderStatCols
-    (warningLabels <> errorLabels)
-    (srcWarnings <> srcErrors)
-    (libWarnings <> libErrors)
-    (allWarnings <> allErrors)
+    { col1: warningLabels <> errorLabels
+    , col2: srcWarnings <> srcErrors
+    , col3: libWarnings <> libErrors
+    , col4: allWarnings <> allErrors
+    }
   where
   warnings = Array.sort (FO.keys stats.allWarnings)
   errors = Array.sort (FO.keys stats.allErrors)
 
-  warningLabels = Array.singleton <<< style (foreground Ansi.Yellow) <$> warnings
-  errorLabels = Array.singleton <<< style (foreground Ansi.Red) <$> errors
+  renderLabel color lbl = 
+    { width: Str.length lbl
+    , alignLeft: true
+    , doc: DA.foreground color $ D.text lbl
+    }
+
+  warningLabels = renderLabel Ansi.Yellow <$> warnings
+  errorLabels = renderLabel Ansi.Red <$> errors
 
   getStat key x = fromMaybe (Tuple 0 0) $ FO.lookup key x
   getStats ks x = (\k -> renderStat $ getStat k x) <$> ks
@@ -154,34 +156,79 @@ renderVerboseStats stats =
   allWarnings = getStats warnings stats.allWarnings
   allErrors = getStats errors stats.allErrors
 
-renderStatCols :: Array (Array AnsiText) -> Array (Array AnsiText) -> Array (Array AnsiText) -> Array (Array AnsiText) -> Rendered
-renderStatCols col1 col2 col3 col4 = para $
-  catRow
-    `map` alignLeft ([ [ plain "" ] ] <> col1)
-    `Array.zipWith ($)`
-      alignLeft ([ [ plain "Src" ] ] <> col2)
-    `Array.zipWith ($)`
-      alignLeft ([ [ plain "Lib" ] ] <> col3)
-    `Array.zipWith ($)`
-      alignLeft ([ [ plain "All" ] ] <> col4)
+renderStatCols
+  :: { col1 :: Array DocColumn
+     , col2 :: Array DocColumn
+     , col3 :: Array DocColumn
+     , col4 :: Array DocColumn
+     }
+  -> D.Doc Ansi.GraphicsParam
+renderStatCols columns = 
+  renderStatCols' $ columns
+    { col1 = Array.cons { width: 0, alignLeft: true, doc: mempty } columns.col1
+    , col2 = Array.cons { width: 3, alignLeft: true, doc: D.text "Src" } columns.col2
+    , col3 = Array.cons { width: 3, alignLeft: true, doc: D.text "Lib" } columns.col3
+    , col4 = Array.cons { width: 3, alignLeft: true, doc: D.text "All" } columns.col4
+    }
 
+type DocColumn =
+  { width :: Int
+  , alignLeft :: Boolean
+  , doc :: D.Doc Ansi.GraphicsParam
+  }
+
+renderStatCols'
+  :: { col1 :: Array DocColumn
+     , col2 :: Array DocColumn
+     , col3 :: Array DocColumn
+     , col4 :: Array DocColumn
+     }
+  -> D.Doc Ansi.GraphicsParam
+renderStatCols' { col1, col2, col3, col4 } = D.lines rows
   where
-  gutter = [ plain "   " ]
-  catRow c1 c2 c3 c4 =
-    line $ c1 <> gutter <> c2 <> gutter <> c3 <> gutter <> c4
+  maxColWidth :: Array DocColumn -> Int
+  maxColWidth = maybe 0 _.width <<< maximumBy (comparing _.width)
+  col1Width = maxColWidth col1
+  col2Width = maxColWidth col2
+  col3Width = maxColWidth col3
+  col4Width = maxColWidth col4
 
-  lineLength = sum <<< map ansiLength
-  alignRight = align \a as -> Array.cons a as
-  alignLeft = align \a as -> Array.snoc as a
-  align f ls = map pad ls
-    where
-    max = fromMaybe 0 $ maximum (map lineLength ls)
-    pad l = f (plain $ replicate (max - lineLength l) " ") l
+  numOfRows = fromMaybe 0 $ maximum $ map Array.length [ col1, col2, col3, col4 ]
+  guttered = D.foldWithSeparator (D.text "   ")
 
-renderStat :: Tuple Int Int -> Array AnsiText
-renderStat (Tuple 0 0) = [ style (foreground Ansi.Green) "0" ]
-renderStat (Tuple a b) | a == b = [ plain $ show a ]
-renderStat (Tuple a b) =
-  [ plain $ show a
-  , style dim $ "/" <> show b
-  ]
+  rows :: Array (D.Doc Ansi.GraphicsParam)
+  rows = flip unfoldr 0 buildRow
+
+  buildColumn :: Array DocColumn -> Int -> Int -> Maybe (D.Doc Ansi.GraphicsParam)
+  buildColumn column colWidth rowIdx = do
+    { width, alignLeft, doc } <- Array.index column rowIdx
+    let 
+      padding = colWidth - width
+      padText = D.text $ power " " padding
+    if padding == 0 then
+      pure doc
+    else if alignLeft then
+      pure $ doc <> padText
+    else
+      pure $ padText <> doc
+
+  buildRow rowIdx = do
+    Alternative.guard (rowIdx /= numOfRows)
+    c1 <- buildColumn col1 col1Width rowIdx
+    c2 <- buildColumn col2 col2Width rowIdx
+    c3 <- buildColumn col3 col3Width rowIdx
+    c4 <- buildColumn col4 col4Width rowIdx
+    pure $ flip Tuple (rowIdx + 1) $ guttered [ c1, c2, c3, c4 ]
+
+renderStat :: Tuple Int Int -> DocColumn
+renderStat (Tuple 0 0) = { width: 1, alignLeft: false, doc: DA.foreground Ansi.Green $ D.text "0" }
+renderStat (Tuple a b)
+  | a == b = do
+      let aText = show a
+      { width: Str.length aText, alignLeft: false, doc: D.text aText }
+  | otherwise = do
+      let aText = show a
+      let bText = show b
+      let width = 1 + Str.length aText + Str.length bText
+      { width, alignLeft: false, doc: fold [ D.text aText, DA.dim $ D.text "/", D.text bText ] }
+
