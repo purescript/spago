@@ -19,22 +19,22 @@ import Ansi.Codes as Ansi
 import Data.Array as Array
 import Data.Foldable (sum, maximum)
 import Data.List.NonEmpty (NonEmptyList)
+import Data.List.NonEmpty as NEL
 import Data.Maybe (Maybe(..), fromMaybe, maybe)
 import Data.Monoid (power)
 import Data.Foldable (fold, maximumBy, maximum, foldMap)
 import Data.FoldableWithIndex (forWithIndex_)
 import Data.Unfoldable (unfoldr)
 import Data.String as Str
-import Data.Tuple (Tuple(..))
+import Data.Tuple (Tuple(..), uncurry)
 import Dodo as D
 import Dodo.Ansi as DA
 import Effect (Effect)
 import Effect.Console as Console
 import Foreign.Object as FO
 import Spago.Psa.Output (OutputStats, Output)
-import Spago.Psa.Printer (Rendered, AnsiText, ansiLength, renderSource, plain, style, indent, line, para, render)
 import Spago.Psa.Types (Lines, Position, PsaAnnotedError, PsaOptions, PsaPath(..), StatVerbosity(..))
-import Spago.Psa.Util (replicate)
+import Spago.Psa.Util (replicate, padLeft)
 
 -- | Prints output to the console.
 print :: PsaOptions -> Output -> Effect Unit
@@ -232,3 +232,45 @@ renderStat (Tuple a b)
       let width = 1 + Str.length aText + Str.length bText
       { width, alignLeft: false, doc: fold [ D.text aText, DA.dim $ D.text "/", D.text bText ] }
 
+renderSource :: Position -> Lines -> D.Doc Ansi.GraphicsParam
+renderSource pos lines = renderAnnotation (gutter + 2) pos source'
+  where
+  lineNums = Array.range pos.startLine pos.endLine
+  gutter = Str.length (show pos.endLine)
+  source = uncurry (sourceLine gutter "  ") <$> Array.zip lineNums lines
+  source' =
+    if Array.length source > 7 then Array.take 3 source
+      <> [ (D.text $ replicate (gutter + 2) " ") <> (DA.dim $ D.text "..." ) ]
+      <> Array.drop (Array.length source - 3) source
+    else source
+
+renderAnnotation :: Int -> Position -> Array (D.Doc Ansi.GraphicsParam) -> D.Doc Ansi.GraphicsParam
+renderAnnotation offset pos lines = 
+  D.lines case lines of
+    [ l ] ->
+      [ l
+      , renderErrorRange (pos.startColumn + offset) (pos.endColumn - pos.startColumn)
+      ]
+    _ ->
+      [ renderErrorTick (pos.startColumn + offset) "v"
+      , D.lines lines
+      , renderErrorTick (pos.endColumn + offset - 1) "^"
+      ]
+
+sourceLine :: Int -> String -> Int -> String -> D.Doc Ansi.GraphicsParam
+sourceLine gutter sep num code = fold
+  [ DA.dim $ D.text $ padLeft gutter (show num) <> sep
+  , D.text code
+  ]
+
+renderErrorRange :: Int -> Int -> D.Doc Ansi.GraphicsParam
+renderErrorRange start len = fold
+  [ D.text $ replicate (start - 1) " "
+  , DA.foreground Ansi.Red $ D.text $ replicate len "^"
+  ]
+
+renderErrorTick :: Int -> String -> D.Doc Ansi.GraphicsParam
+renderErrorTick start char = fold
+  [ D.text $ replicate (start - 1) " "
+  , DA.foreground Ansi.Red $ D.text char
+  ]
