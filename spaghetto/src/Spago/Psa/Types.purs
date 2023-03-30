@@ -152,6 +152,18 @@ parsePsaError obj =
     <*> (obj .: "position" >>= parsePosition)
     <*> (obj .: "suggestion" >>= parseSuggestion)
 
+encodePsaError :: PsaError -> Json
+encodePsaError error = encodeJson $ FO.runST do
+  obj <- FOST.new
+  _ <- FOST.poke "moduleName" (encodeJson error.moduleName) obj
+  _ <- FOST.poke "errorCode" (encodeJson error.errorCode) obj
+  _ <- FOST.poke "errorLink" (encodeJson error.errorLink) obj
+  _ <- FOST.poke "message" (encodeJson error.message) obj
+  _ <- FOST.poke "filename" (encodeJson error.filename) obj
+  _ <- FOST.poke "position" (encodeJson (maybe jsonNull encodePosition error.position)) obj
+  _ <- FOST.poke "suggestion" (encodeJson (maybe jsonNull encodeSuggestion error.suggestion)) obj
+  pure obj
+
 parsePosition :: Maybe (FO.Object Json) -> Either String (Maybe Position)
 parsePosition =
   maybe (pure Nothing) \obj -> map Just $
@@ -171,18 +183,6 @@ parseSuggestion =
     , replaceRange: _
     } <$> obj .: "replacement"
       <*> (obj .:? "replaceRange" >>= parsePosition)
-
-encodePsaError :: PsaError -> Json
-encodePsaError error = encodeJson $ FO.runST do
-  obj <- FOST.new
-  _ <- FOST.poke "moduleName" (encodeJson error.moduleName) obj
-  _ <- FOST.poke "errorCode" (encodeJson error.errorCode) obj
-  _ <- FOST.poke "errorLink" (encodeJson error.errorLink) obj
-  _ <- FOST.poke "message" (encodeJson error.message) obj
-  _ <- FOST.poke "filename" (encodeJson error.filename) obj
-  _ <- FOST.poke "position" (encodeJson (maybe jsonNull encodePosition error.position)) obj
-  _ <- FOST.poke "suggestion" (encodeJson (maybe jsonNull encodeSuggestion error.suggestion)) obj
-  pure obj
 
 encodePosition :: Position -> Json
 encodePosition = unsafeCoerce
