@@ -52,25 +52,13 @@ data StatVerbosity = NoStats | CompactStats | VerboseStats
 -- | because some psc errors are inter-module and aren't reported with a
 -- | canonical file.
 data PsaPath
-  = Src String
+  = Unknown
   | Lib String
-  | Unknown
+  | Src String
 
-instance eqPsaPath :: Eq PsaPath where
-  eq (Src a) (Src b) = eq a b
-  eq (Lib a) (Lib b) = eq a b
-  eq Unknown Unknown = true
-  eq _ _ = false
+derive instance Eq PsaPath
 
-instance ordPsaPath :: Ord PsaPath where
-  compare (Src a) (Src b) = compare a b
-  compare (Src _) (Lib _) = GT
-  compare (Src _) Unknown = GT
-  compare (Lib _) (Src _) = LT
-  compare (Lib a) (Lib b) = compare a b
-  compare (Lib _) Unknown = GT
-  compare Unknown Unknown = EQ
-  compare Unknown _ = LT
+derive instance Ord PsaPath
 
 type PsaOptions =
   { ansi :: Boolean
