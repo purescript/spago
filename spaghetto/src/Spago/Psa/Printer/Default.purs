@@ -25,10 +25,10 @@ import Data.Tuple (Tuple(..))
 import Effect (Effect)
 import Effect.Console as Console
 import Foreign.Object as FO
-import Psa.Output (OutputStats, Output)
-import Psa.Printer (Rendered, AnsiText, ansiLength, renderSource, plain, style, indent, line, para, render)
-import Psa.Types (Lines, Position, PsaAnnotedError, PsaOptions, PsaPath(..), StatVerbosity(..))
-import Psa.Util (replicate, iter_)
+import Spago.Psa.Output (OutputStats, Output)
+import Spago.Psa.Printer (Rendered, AnsiText, ansiLength, renderSource, plain, style, indent, line, para, render)
+import Spago.Psa.Types (Lines, Position, PsaAnnotedError, PsaOptions, PsaPath(..), StatVerbosity(..))
+import Spago.Psa.Util (replicate, iter_)
 
 -- | Prints output to the console.
 print :: PsaOptions -> Output -> Effect Unit

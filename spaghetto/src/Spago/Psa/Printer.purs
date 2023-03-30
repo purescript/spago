@@ -30,8 +30,8 @@ import Data.List.NonEmpty (NonEmptyList)
 import Data.List.NonEmpty as NEL
 import Data.String as Str
 import Data.Tuple (uncurry)
-import Psa.Types (Position, Lines)
-import Psa.Util (replicate, padLeft)
+import Spago.Psa.Types (Position, Lines)
+import Spago.Psa.Util (replicate, padLeft)
 
 type Rendered = Row (Array AnsiText)
 

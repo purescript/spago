@@ -23,7 +23,7 @@ import Data.String as Str
 import Data.Tuple (Tuple(..))
 import Foreign.Object as FO
 import Node.Path as Path
-import Psa.Types (PsaOptions, PsaError, PsaAnnotedError, PsaPath(..), PsaResult, Position, Filename, Lines, compareByLocation)
+import Spago.Psa.Types (PsaOptions, PsaError, PsaAnnotedError, PsaPath(..), PsaResult, Position, Filename, Lines, compareByLocation)
 
 data ErrorTag = Error | Warning
 

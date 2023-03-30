@@ -38,9 +38,9 @@ import Node.Platform (Platform(Win32))
 import Node.Process as Process
 import Node.Stream as Stream
 import Partial.Unsafe (unsafePartial)
-import Psa (PsaOptions, StatVerbosity(..), parsePsaResult, parsePsaError, encodePsaError, output)
-import Psa.Printer.Default as DefaultPrinter
-import Psa.Printer.Json as JsonPrinter
+import Spago.Psa (PsaOptions, StatVerbosity(..), parsePsaResult, parsePsaError, encodePsaError, output)
+import Spago.Psa.Printer.Default as DefaultPrinter
+import Spago.Psa.Printer.Json as JsonPrinter
 
 foreign import version :: String
 

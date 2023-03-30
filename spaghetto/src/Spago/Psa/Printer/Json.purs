@@ -7,8 +7,8 @@ import Prelude
 import Data.Argonaut.Core (stringify)
 import Effect (Effect)
 import Effect.Console as Console
-import Psa.Output (Output)
-import Psa.Types (encodePsaResult)
+import Spago.Psa.Output (Output)
+import Spago.Psa.Types (encodePsaResult)
 
 print :: Output -> Effect Unit
 print output = do
