@@ -34,7 +34,6 @@ import Effect.Console as Console
 import Foreign.Object as FO
 import Spago.Psa.Output (OutputStats, Output)
 import Spago.Psa.Types (Lines, Position, PsaAnnotedError, PsaOptions, PsaPath(..), StatVerbosity(..))
-import Spago.Psa.Util (padLeft)
 
 -- | Prints output to the console.
 print :: PsaOptions -> Output -> Effect Unit
@@ -274,3 +273,6 @@ renderErrorTick start char = fold
   [ D.text $ power " " (start - 1)
   , DA.foreground Ansi.Red $ D.text char
   ]
+
+padLeft :: Int -> String -> String
+padLeft width str = power " " (width - Str.length str) <> str
