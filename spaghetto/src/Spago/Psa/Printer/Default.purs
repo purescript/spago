@@ -20,6 +20,7 @@ import Data.Array as Array
 import Data.Foldable (sum, maximum)
 import Data.List.NonEmpty (NonEmptyList)
 import Data.Maybe (Maybe(..), fromMaybe)
+import Data.FoldableWithIndex (forWithIndex_)
 import Data.String as Str
 import Data.Tuple (Tuple(..))
 import Effect (Effect)
@@ -28,16 +29,16 @@ import Foreign.Object as FO
 import Spago.Psa.Output (OutputStats, Output)
 import Spago.Psa.Printer (Rendered, AnsiText, ansiLength, renderSource, plain, style, indent, line, para, render)
 import Spago.Psa.Types (Lines, Position, PsaAnnotedError, PsaOptions, PsaPath(..), StatVerbosity(..))
-import Spago.Psa.Util (replicate, iter_)
+import Spago.Psa.Util (replicate)
 
 -- | Prints output to the console.
 print :: PsaOptions -> Output -> Effect Unit
 print options output = do
-  iter_ output.warnings \i warning -> do
+  forWithIndex_ output.warnings \i warning -> do
     Console.error $ toString (renderWarning lenWarnings (i + 1) warning)
     Console.error ""
 
-  iter_ output.errors \i error -> do
+  forWithIndex_ output.errors \i error -> do
     Console.error $ toString (renderError lenErrors (i + 1) error)
     Console.error ""
 
