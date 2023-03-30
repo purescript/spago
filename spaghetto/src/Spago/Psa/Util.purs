@@ -9,16 +9,10 @@ module Spago.Psa.Util where
 import Prelude
 
 import Data.String as Str
-
-replicate :: forall m. (Monoid m) => Int -> m -> m
-replicate n m = go n mempty
-  where
-  go i x
-    | i <= 0 = x
-    | otherwise = go (i - 1) (x <> m)
+import Data.Monoid (power)
 
 padLeft :: Int -> String -> String
-padLeft width str = replicate (width - Str.length str) " " <> str
+padLeft width str = power " " (width - Str.length str) <> str
 
 padRight :: Int -> String -> String
-padRight width str = str <> replicate (width - Str.length str) " "
+padRight width str = str <> power " " (width - Str.length str)

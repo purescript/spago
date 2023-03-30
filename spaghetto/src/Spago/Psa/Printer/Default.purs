@@ -34,7 +34,7 @@ import Effect.Console as Console
 import Foreign.Object as FO
 import Spago.Psa.Output (OutputStats, Output)
 import Spago.Psa.Types (Lines, Position, PsaAnnotedError, PsaOptions, PsaPath(..), StatVerbosity(..))
-import Spago.Psa.Util (replicate, padLeft)
+import Spago.Psa.Util (padLeft)
 
 -- | Prints output to the console.
 print :: PsaOptions -> Output -> Effect Unit
@@ -240,7 +240,7 @@ renderSource pos lines = renderAnnotation (gutter + 2) pos source'
   source = uncurry (sourceLine gutter "  ") <$> Array.zip lineNums lines
   source' =
     if Array.length source > 7 then Array.take 3 source
-      <> [ (D.text $ replicate (gutter + 2) " ") <> (DA.dim $ D.text "..." ) ]
+      <> [ (D.text $ power " " (gutter + 2)) <> (DA.dim $ D.text "..." ) ]
       <> Array.drop (Array.length source - 3) source
     else source
 
@@ -265,12 +265,12 @@ sourceLine gutter sep num code = fold
 
 renderErrorRange :: Int -> Int -> D.Doc Ansi.GraphicsParam
 renderErrorRange start len = fold
-  [ D.text $ replicate (start - 1) " "
-  , DA.foreground Ansi.Red $ D.text $ replicate len "^"
+  [ D.text $ power " " (start - 1)
+  , DA.foreground Ansi.Red $ D.text $ power "^" len
   ]
 
 renderErrorTick :: Int -> String -> D.Doc Ansi.GraphicsParam
 renderErrorTick start char = fold
-  [ D.text $ replicate (start - 1) " "
+  [ D.text $ power " " (start - 1)
   , DA.foreground Ansi.Red $ D.text char
   ]
