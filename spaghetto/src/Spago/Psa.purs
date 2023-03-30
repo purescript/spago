@@ -42,8 +42,6 @@ import Spago.Psa (PsaOptions, StatVerbosity(..), parsePsaResult, parsePsaError, 
 import Spago.Psa.Printer.Default as DefaultPrinter
 import Spago.Psa.Printer.Json as JsonPrinter
 
-foreign import version :: String
-
 defaultOptions :: PsaOptions
 defaultOptions =
   { ansi: true
@@ -86,9 +84,6 @@ parseOptions opts args =
       args
   where
   parse p arg
-    | arg == "--version" || arg == "-v" =
-        Console.log version *> Process.exit 0
-
     | arg == "--help" || arg == "-h" =
         Console.log usage *> Process.exit 0
 
@@ -327,7 +322,6 @@ Usage: psa [--censor-lib] [--censor-src]
            PSC_OPTIONS
 
 Available options:
-  -v,--version           Show the version number
   -h,--help              Show this help text
   --verbose-stats        Show counts for each warning type
   --censor-stats         Censor warning/error summary
