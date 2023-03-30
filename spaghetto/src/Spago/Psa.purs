@@ -15,7 +15,7 @@ import Data.Bifunctor (lmap)
 import Data.Codec.Argonaut as CA
 import Data.DateTime (DateTime)
 import Data.DateTime.Instant (toDateTime)
-import Data.Either (Either(..))
+import Data.Either (Either(..), either)
 import Data.Foldable (foldr, fold, for_)
 import Data.Maybe (Maybe(..), maybe)
 import Data.Set as Set
@@ -24,6 +24,8 @@ import Data.Traversable (traverse)
 import Data.Tuple (Tuple(..))
 import Data.Version as Version
 import Effect (Effect)
+import Effect.Aff (Aff, attempt)
+import Effect.Class (liftEffect)
 import Effect.Console as Console
 import Effect.Exception (catchException, throw, throwException)
 import Effect.Now (now)
@@ -33,11 +35,13 @@ import Node.ChildProcess as Child
 import Node.Encoding as Encoding
 import Node.FS.Stats as Stats
 import Node.FS.Sync as File
+import Node.FS.Aff as FSA
 import Node.Path as Path
 import Node.Platform (Platform(Win32))
 import Node.Process as Process
 import Node.Stream as Stream
 import Partial.Unsafe (unsafePartial)
+import Spago.Cmd as Cmd
 import Spago.Psa.Types (PsaOptions, StatVerbosity(..), psaResultCodec, psaErrorCodec)
 import Spago.Psa.Output (output)
 import Spago.Psa.Printer.Default as DefaultPrinter
@@ -145,113 +149,41 @@ parseOptions opts args =
         x { opts = x.opts { libDirs = [ "bower_components", ".spago" ] } }
     | otherwise = x
 
-main :: Effect Unit
-main = void do
-  cwd <- Process.cwd
-  argv <- Array.drop 2 <$> Process.argv
-
-  { extra
-  , opts
-  , purs
-  , showSource
-  , stash
-  , stashFile
-  , jsonErrors
-  } <- parseOptions (defaultOptions { cwd = cwd }) argv
-
-  libDirs <- traverse (Path.resolve [ cwd ] >>> map (_ <> Path.sep)) opts.libDirs
-  let
-    opts' = opts { libDirs = libDirs }
-    args = Array.cons "compile" $ Array.cons "--json-errors" extra
-
+usePsa :: ParseOptions -> Aff Unit
+usePsa { extra, opts, purs, showSource, stash, stashFile, jsonErrors } = do
   stashData <-
     if stash then readStashFile stashFile
     else emptyStash
 
-  readPursVersion purs \pursVer -> do
-    let
-      outputStream =
-        -- As of 0.14.0, JSON errors/warnings are written to stdout, but
-        -- beforehand they were written to stderr.
-        --
-        -- We need to use Tuple like this because prerelease versions compare
-        -- less than normal versions with the same major, minor, and patch
-        -- numbers according to the semver spec.
-        if Tuple (Version.major pursVer) (Version.minor pursVer) >= Tuple 0 14 then Stdout
-        else Stderr
-    spawn' outputStream purs args \pursResult -> do
-      for_ (Str.split (Str.Pattern "\n") pursResult.output) \err ->
-        case jsonParser err >>= CA.decode psaResultCodec >>> lmap CA.printJsonDecodeError of
-          Left _ -> Console.error err
-          Right out -> do
-            files <- Ref.new FO.empty
-            let
-              loadLinesImpl = if showSource then loadLines files else loadNothing
-              filenames = insertFilenames (insertFilenames Set.empty out.errors) out.warnings
-            merged <- mergeWarnings filenames stashData.date stashData.stash out.warnings
-            when stash $ writeStashFile stashFile merged
-            out' <- output loadLinesImpl opts' out { warnings = merged }
-            if jsonErrors then JsonPrinter.print out'
-            else DefaultPrinter.print opts' out'
-            if FO.isEmpty out'.stats.allErrors then Process.exit pursResult.exitCode
-            else Process.exit 1
+  result <- Cmd.exec purs [ "compile", "--json-errors" ] Cmd.defaultExecOptions
+  let
+    result' = case result of
+      Left err -> { output: err.stdout, exitCode: err.exitCode }
+      Right success -> { output: success.stdout, exitCode: Just success.exitCode }
+  for_ (Str.split (Str.Pattern "\n") result'.output) \err ->
+    case jsonParser err >>= CA.decode psaResultCodec >>> lmap CA.printJsonDecodeError of
+      Left _ -> do
+        liftEffect $ Console.error err
+      Right out -> do
+        files <- liftEffect $ Ref.new FO.empty
+        let
+          loadLinesImpl = if showSource then loadLines files else loadNothing
+          filenames = insertFilenames (insertFilenames Set.empty out.errors) out.warnings
+        merged <- mergeWarnings filenames stashData.date stashData.stash out.warnings
+        when stash $ writeStashFile stashFile merged
+
+        out' <- output loadLinesImpl opts out { warnings = merged }
+
+        liftEffect $ if jsonErrors then JsonPrinter.print out' else DefaultPrinter.print opts out'
+
+        liftEffect do
+          if FO.isEmpty out'.stats.allErrors then
+            for_ result'.exitCode Process.exit
+          else Process.exit 1
 
   where
   insertFilenames = foldr \x s -> maybe s (flip Set.insert s) x.filename
   loadNothing _ _ = pure Nothing
-
-  spawn' outputStream cmd args onExit = do
-    let
-      stdio =
-        case outputStream of
-          Stdout -> [ Just Child.Pipe, Just Child.Pipe, unsafePartial (Array.unsafeIndex Child.inherit 2) ]
-          Stderr -> [ Just Child.Pipe, unsafePartial (Array.unsafeIndex Child.inherit 1), Just Child.Pipe ]
-
-    child <- Child.spawn cmd args Child.defaultSpawnOptions { stdio = stdio }
-    buffer <- Ref.new ""
-    fillBuffer buffer $
-      case outputStream of
-        Stdout -> Child.stdout child
-        Stderr -> Child.stderr child
-    Child.onExit child \status ->
-      case status of
-        Child.Normally n -> do
-          output <- Ref.read buffer
-          onExit { output, exitCode: n }
-        Child.BySignal s -> do
-          Console.error (show s)
-          Process.exit 1
-    Child.onError child (retryWithCmd outputStream cmd args onExit)
-
-  fillBuffer buffer stream =
-    Stream.onDataString stream Encoding.UTF8 \chunk ->
-      Ref.modify_ (_ <> chunk) buffer
-
-  readPursVersion :: String -> (Version.Version -> Effect Unit) -> Effect Unit
-  readPursVersion purs cb = do
-    spawn' Stdout purs [ "--version" ] \{ output } -> do
-      let verStr = Str.takeWhile (_ /= Str.codePointFromChar ' ') $ Str.trim output
-      case Version.parseVersion verStr of
-        Right v ->
-          cb v
-        Left err -> do
-          throw $ fold
-            [ "Unable to parse the version from `purs`. (Saw: "
-            , verStr
-            , "). Please check that the right executable is on your PATH."
-            ]
-
-  retryWithCmd outputStream cmd args onExit err
-    | err.code == "ENOENT" = do
-        -- On windows, if the executable wasn't found, try adding .cmd
-        if Process.platform == Just Win32 then
-          case Str.stripSuffix (Str.Pattern ".cmd") cmd of
-            Nothing -> spawn' outputStream (cmd <> ".cmd") args onExit
-            Just bareCmd -> throw $ "`" <> bareCmd <> "` executable not found. (nor `" <> cmd <> "`)"
-        else
-          throw $ "`" <> cmd <> "` executable not found."
-    | otherwise =
-        throwException (Child.toStandardError err)
 
   isEmptySpan filename pos =
     filename == "" ||
@@ -262,55 +194,56 @@ main = void do
   -- TODO: Handle exceptions
   loadLines files filename pos
     | isEmptySpan filename pos = pure Nothing
-    | otherwise = catchException (const (pure Nothing)) do
-        cache <- FO.lookup filename <$> Ref.read files
-        contents <-
-          case cache of
-            Just lines -> pure lines
-            Nothing -> do
-              lines <- Str.split (Str.Pattern "\n") <$> File.readTextFile Encoding.UTF8 filename
-              Ref.modify_ (FO.insert filename lines) files
-              pure lines
-        let source = Array.slice (pos.startLine - 1) (pos.endLine) contents
-        pure $ Just source
+    | otherwise = do
+        result <- attempt do
+          cache <- liftEffect $ FO.lookup filename <$> Ref.read files
+          contents <-
+            case cache of
+              Just lines -> pure lines
+              Nothing -> do
+                lines <- Str.split (Str.Pattern "\n") <$> FSA.readTextFile Encoding.UTF8 filename
+                liftEffect $ Ref.modify_ (FO.insert filename lines) files
+                pure lines
+          let source = Array.slice (pos.startLine - 1) (pos.endLine) contents
+          pure $ Just source
+        either (const (pure Nothing)) pure result
 
   decodeStash s = jsonParser s >>= CA.decode (CA.array psaErrorCodec) >>> lmap CA.printJsonDecodeError
   encodeStash s = CA.encode (CA.array psaErrorCodec) s
 
-  emptyStash :: forall a. Effect { date :: DateTime, stash :: Array a }
-  emptyStash = { date: _, stash: [] } <$> toDateTime <$> now
+  emptyStash :: forall a. Aff { date :: DateTime, stash :: Array a }
+  emptyStash = liftEffect $ { date: _, stash: [] } <$> toDateTime <$> now
 
-  readStashFile stashFile = catchException (const emptyStash) do
-    stat <- File.stat stashFile
-    file <- File.readTextFile Encoding.UTF8 stashFile
-    case decodeStash file of
-      Left _ -> emptyStash
-      Right stash -> pure { date: Stats.modifiedTime stat, stash }
+  readStashFile stashFile = do
+    result <- attempt do
+      stat <- FSA.stat stashFile
+      file <- FSA.readTextFile Encoding.UTF8 stashFile
+      case decodeStash file of
+        Left _ -> emptyStash
+        Right stash -> pure { date: Stats.modifiedTime stat, stash }
+    either (const emptyStash) pure $ result
 
   writeStashFile stashFile warnings = do
     let file = stringify (encodeStash warnings)
-    File.writeTextFile Encoding.UTF8 stashFile file
+    FSA.writeTextFile Encoding.UTF8 stashFile file
 
   mergeWarnings filenames date old new = do
-    fileStat <- Ref.new FO.empty
+    fileStat <- liftEffect $ Ref.new FO.empty
     old' <- flip Array.filterA old \x ->
       case x.filename of
         Nothing -> pure false
         Just f ->
           if Set.member f filenames then pure false
           else do
-            stat <- FO.lookup f <$> Ref.read fileStat
+            stat <- liftEffect $ FO.lookup f <$> Ref.read fileStat
             case stat of
               Just s -> pure s
               Nothing -> do
-                s <- catchException (\_ -> pure false) $
-                  (date > _) <<< Stats.modifiedTime <$> File.stat f
-                _ <- Ref.modify_ (FO.insert f s) fileStat
-                pure s
+                s <- attempt $ (date > _) <<< Stats.modifiedTime <$> FSA.stat f
+                let s' = either (const false) identity s
+                _ <- liftEffect $ Ref.modify_ (FO.insert f s') fileStat
+                pure s'
     pure $ old' <> new
-
--- Indicates which output stream we are interested in when spawning a child process.
-data OutputStream = Stdout | Stderr
 
 usage :: String
 usage =
