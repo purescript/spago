@@ -85,9 +85,6 @@ parseOptions opts args =
       args
   where
   parse p arg
-    | arg == "--help" || arg == "-h" =
-        Console.log usage *> Process.exit 0
-
     | arg == "--stash" =
         pure p { stash = true }
 
@@ -248,7 +245,6 @@ Usage: psa [--censor-lib] [--censor-src]
            [--is-lib=DIR] [--purs=PURS] [--stash]
 
 Available options:
-  -h,--help              Show this help text
   --verbose-stats        Show counts for each warning type
   --censor-stats         Censor warning/error summary
   --censor-warnings      Censor all warnings
