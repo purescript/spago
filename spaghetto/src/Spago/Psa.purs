@@ -23,8 +23,9 @@ import Foreign.Object as FO
 import Node.Encoding as Encoding
 import Node.FS.Stats as Stats
 import Node.FS.Aff as FSA
+import Spago.Core.Config as Core
 import Spago.Purs as Purs
-import Spago.Psa.Types (PsaOutputOptions, StatVerbosity(..), psaResultCodec, psaErrorCodec)
+import Spago.Psa.Types (PsaOutputOptions, psaResultCodec, psaErrorCodec)
 import Spago.Psa.Output (buildOutput)
 import Spago.Psa.Printer.Default as DefaultPrinter
 import Spago.Psa.Printer.Json as JsonPrinter
@@ -37,7 +38,7 @@ defaultOptions =
   , censorSrc: false
   , censorCodes: Set.empty
   , filterCodes: Set.empty
-  , statVerbosity: CompactStats
+  , statVerbosity: Core.CompactStats
   , libDirs: []
   , strict: false
   }
@@ -74,10 +75,10 @@ parseOptions args =
         pure p { opts = p.opts { ansi = false } }
 
     | arg == "--verbose-stats" =
-        pure p { opts = p.opts { statVerbosity = VerboseStats } }
+        pure p { opts = p.opts { statVerbosity = Core.VerboseStats } }
 
     | arg == "--censor-stats" =
-        pure p { opts = p.opts { statVerbosity = NoStats } }
+        pure p { opts = p.opts { statVerbosity = Core.NoStats } }
 
     | arg == "--strict" =
         pure p { opts = p.opts { strict = true } }

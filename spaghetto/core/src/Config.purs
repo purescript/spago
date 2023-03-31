@@ -1,6 +1,7 @@
 module Spago.Core.Config
   ( BackendConfig
   , BuildOptionsInput
+  , StatVerbosity(..)
   , BundleConfig
   , BundlePlatform(..)
   , BundleType(..)
@@ -69,6 +70,30 @@ type PackageConfig =
   , test :: Maybe TestConfig
   , publish :: Maybe PublishConfig
   }
+
+data StatVerbosity
+  = NoStats
+  | CompactStats
+  | VerboseStats
+
+instance Show StatVerbosity where
+  show = case _ of
+    NoStats -> "NoStats"
+    CompactStats -> "CompactStats"
+    VerboseStats -> "VerboseStats"
+
+statVerbosityCodec :: JsonCodec StatVerbosity
+statVerbosityCodec = CA.Sum.enumSum print parse
+  where
+  print = case _ of
+    NoStats -> "no-stats"
+    CompactStats -> "compact-stats"
+    VerboseStats -> "verbose-stats"
+  parse = case _ of
+    "no-stats" -> Just NoStats
+    "compact-stats" -> Just CompactStats
+    "verbose-stats" -> Just VerboseStats
+    _ -> Nothing
 
 packageConfigCodec :: JsonCodec PackageConfig
 packageConfigCodec = CAR.object "PackageConfig"

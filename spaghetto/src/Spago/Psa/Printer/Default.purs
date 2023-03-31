@@ -29,8 +29,9 @@ import Dodo.Ansi as DA
 import Effect (Effect)
 import Effect.Console as Console
 import Foreign.Object as FO
+import Spago.Core.Config as Core
 import Spago.Psa.Output (OutputStats, Output)
-import Spago.Psa.Types (Lines, Position, PsaAnnotedError, PsaOutputOptions, PsaPath(..), StatVerbosity(..))
+import Spago.Psa.Types (Lines, Position, PsaAnnotedError, PsaOutputOptions, PsaPath(..))
 
 -- | Prints output to the console.
 print :: PsaOutputOptions -> Output -> Effect Unit
@@ -52,9 +53,9 @@ print options output = do
   lenWarnings = Array.length output.warnings
   lenErrors = Array.length output.errors
   renderStats' = case options.statVerbosity of
-    NoStats -> mempty
-    CompactStats -> renderStats
-    VerboseStats -> renderVerboseStats
+    Core.NoStats -> mempty
+    Core.CompactStats -> renderStats
+    Core.VerboseStats -> renderVerboseStats
 
 renderWarning :: Int -> Int -> PsaAnnotedError -> D.Doc Ansi.GraphicsParam
 renderWarning = renderWrapper Ansi.Yellow

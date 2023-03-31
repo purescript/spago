@@ -8,7 +8,6 @@ module Spago.Psa.Types
   ( ErrorCode
   , ModuleName
   , Filename
-  , StatVerbosity(..)
   , PsaOutputOptions
   , PsaResult
   , PsaError
@@ -31,13 +30,12 @@ import Data.Codec.Argonaut.Compat as CACompat
 import Data.Maybe (Maybe(..))
 import Data.Set (Set)
 import Data.Tuple (Tuple(..))
+import Spago.Core.Config as Core
 
 type ErrorCode = String
 type ModuleName = String
 type Filename = String
 type Lines = Array String
-
-data StatVerbosity = NoStats | CompactStats | VerboseStats
 
 -- | Relative files paths from the cwd, tagged as either being part of the
 -- | source files or library files of a project. The `Unknown` variant exists
@@ -59,7 +57,7 @@ type PsaOutputOptions =
   , censorSrc :: Boolean
   , censorCodes :: Set ErrorCode
   , filterCodes :: Set ErrorCode
-  , statVerbosity :: StatVerbosity
+  , statVerbosity :: Core.StatVerbosity
   , libDirs :: Array String
   , strict :: Boolean
   }
