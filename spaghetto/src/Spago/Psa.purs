@@ -58,59 +58,6 @@ type ParseOptions =
   , jsonErrors :: Boolean
   }
 
-parseOptions
-  :: Array String
-  -> Effect ParseOptions
-parseOptions args =
-  Array.foldM parse defaultParseOptions args
-  where
-  parse p arg
-    | arg == "--json-errors" =
-        pure p { jsonErrors = true }
-
-    | arg == "--no-source" =
-        pure p { showSource = false }
-
-    | arg == "--no-colors" || arg == "--monochrome" =
-        pure p { opts = p.opts { ansi = false } }
-
-    | arg == "--verbose-stats" =
-        pure p { opts = p.opts { statVerbosity = Core.VerboseStats } }
-
-    | arg == "--censor-stats" =
-        pure p { opts = p.opts { statVerbosity = Core.NoStats } }
-
-    | arg == "--strict" =
-        pure p { opts = p.opts { strict = true } }
-
-    | arg == "--censor-warnings" =
-        pure p { opts = p.opts { censorWarnings = true } }
-
-    | arg == "--censor-lib" =
-        pure p { opts = p.opts { censorLib = true } }
-
-    | arg == "--censor-src" =
-        pure p { opts = p.opts { censorSrc = true } }
-
-    | isPrefix "--censor-codes=" arg =
-        pure p { opts = p.opts { censorCodes = foldr Set.insert p.opts.censorCodes (Str.split (Str.Pattern ",") (Str.drop 15 arg)) } }
-
-    | isPrefix "--filter-codes=" arg =
-        pure p { opts = p.opts { filterCodes = foldr Set.insert p.opts.filterCodes (Str.split (Str.Pattern ",") (Str.drop 15 arg)) } }
-
-    | isPrefix "--is-lib=" arg =
-        pure p { opts = p.opts { libDirs = Array.snoc p.opts.libDirs (Str.drop 9 arg) } }
-
-    | isPrefix "--stash=" arg =
-        pure p { stashFile = Just $ Str.drop 8 arg }
-
-    | otherwise = pure p
-
-  isPrefix s str =
-    case Str.indexOf (Str.Pattern s) str of
-      Just x | x == 0 -> true
-      _ -> false
-
 psaCompile :: forall a. Set.Set FilePath -> Array String -> Array String -> Spago (Purs.PursEnv a) Unit
 psaCompile globs pursArgs libDirs = psaCompile' globs pursArgs
   $ defaultParseOptions
@@ -237,29 +184,3 @@ psaCompile' globs pursArgs { opts, showSource, stashFile, jsonErrors } = do
                 _ <- liftEffect $ Ref.modify_ (FO.insert f s') fileStat
                 pure s'
     pure $ old' <> new
-
-usage :: String
-usage =
-  """psa - Error/Warning reporting frontend for 'purs compile'
-
-Usage: psa [--censor-lib] [--censor-src]
-           [--censor-codes=CODES] [--filter-codes=CODES]
-           [--no-colors] [--no-source]
-           [--is-lib=DIR] [--purs=PURS] [--stash]
-
-Available options:
-  --verbose-stats        Show counts for each warning type
-  --censor-stats         Censor warning/error summary
-  --censor-warnings      Censor all warnings
-  --censor-lib           Censor warnings from library sources
-  --censor-src           Censor warnings from project sources
-  --censor-codes=CODES   Censor specific error codes
-  --filter-codes=CODES   Only show specific error codes
-  --no-colors            Disable ANSI colors
-  --no-source            Disable original source code printing
-  --strict               Promotes src warnings to errors
-  --stash=FILE           Enable persistent warnings using a specific stash file
-  --is-lib=DIR           Distinguishing library path (defaults to 'bower_components')
-
-  CODES                  Comma-separated list of purs error codes
-"""

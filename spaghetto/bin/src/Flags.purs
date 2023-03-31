@@ -4,12 +4,79 @@ import Spago.Prelude
 
 import ArgParse.Basic (ArgParser)
 import ArgParse.Basic as ArgParser
+import Data.String as String
+import Spago.Core.Config as Core
+import Data.Set (Set)
+import Data.Set as Set
 
 selectedPackage ∷ ArgParser (Maybe String)
 selectedPackage =
   ArgParser.argument [ "--package", "-p" ]
     "Select the local project to build"
     # ArgParser.optional
+
+psaStrict ∷ ArgParser Boolean
+psaStrict =
+  ArgParser.flag [ "--strict" ]
+    "Promotes project sources' warnings to errors"
+    # ArgParser.boolean
+
+psaCensorWarnings ∷ ArgParser Boolean
+psaCensorWarnings =
+  ArgParser.flag [ "--psa-censor-warnings" ]
+    "Censor all warnings"
+    # ArgParser.boolean
+
+psaCensorLib ∷ ArgParser Boolean
+psaCensorLib =
+  ArgParser.flag [ "--psa-censor-lib" ]
+    "Censor warnings from library sources"
+    # ArgParser.boolean
+
+psaCensorSrc ∷ ArgParser Boolean
+psaCensorSrc =
+  ArgParser.flag [ "--psa-censor-src" ]
+    "Censor warnings from project sources"
+    # ArgParser.boolean
+
+psaShowSource ∷ ArgParser Boolean
+psaShowSource =
+  ArgParser.flag [ "--psa-no-source" ]
+    "Disable original source code printing"
+    # ArgParser.boolean
+
+psaCensorCodes :: ArgParser (Set String)
+psaCensorCodes =
+  ArgParser.argument [ "--psa-censor-codes" ]
+    "Censor specific error codes (comma-separated list)"
+    # ArgParser.unformat "CODE1,CODE2,...,CODEX" (Right <<< foldMap Set.singleton <<< String.split (String.Pattern ","))
+    # ArgParser.default Set.empty
+
+psaFilterCodes :: ArgParser (Set String)
+psaFilterCodes =
+  ArgParser.argument [ "--psa-filter-codes" ]
+    "Only show specific error codes (comma-separated list)"
+    # ArgParser.unformat "CODE1,CODE2,...,CODEX" (Right <<< foldMap Set.singleton <<< String.split (String.Pattern ","))
+    # ArgParser.default Set.empty
+
+psaStatVerbosity :: ArgParser Core.StatVerbosity
+psaStatVerbosity = ArgParser.choose "StatVerbosity"
+  [ Core.VerboseStats <$ ArgParser.flag [ "--psa-verbose-stats" ] "Show counts for each warning type"
+  , ArgParser.default Core.CompactStats $ Core.NoStats <$ ArgParser.flag [ "--psa-censor-stats" ] "Censor warning/error summary"
+  ]
+
+psaStashFile ∷ ArgParser (Either Boolean String)
+psaStashFile = ArgParser.choose "stash"
+  [ ArgParser.argument [ "--psa-stash" ] "Enable persistent warnings using a specific stash file"
+      # ArgParser.unformat "FILE" (Right <<< Right)
+  , ArgParser.default (Left false) $ (Left true) <$ ArgParser.flag [ "--psa-stash" ] "Enable persistent warnings using default stash file location"
+  ]
+
+jsonErrors ∷ ArgParser Boolean
+jsonErrors =
+  ArgParser.flag [ "--json-errors" ]
+    "Output compiler warnings/errors as JSON"
+    # ArgParser.boolean
 
 minify ∷ ArgParser Boolean
 minify =
@@ -63,7 +130,7 @@ verbose =
 
 noColor ∷ ArgParser Boolean
 noColor =
-  ArgParser.flag [ "--no-color" ]
+  ArgParser.flag [ "--no-color", "--monochrome" ]
     "Force logging without ANSI color escape sequences"
     # ArgParser.boolean
     # ArgParser.default false
