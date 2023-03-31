@@ -12,6 +12,7 @@ module Spago.Config
   , getWorkspacePackages
   , readWorkspace
   , sourceGlob
+  , sourceGlob'
   , module Core
   ) where
 
@@ -322,7 +323,10 @@ data WithTestGlobs
   | OnlyTestGlobs
 
 sourceGlob :: WithTestGlobs -> PackageName -> Package -> Array String
-sourceGlob withTestGlobs name package = map (\p -> Path.concat [ getPackageLocation name package, p ])
+sourceGlob withTestGlobs name package = map _.glob $ sourceGlob' withTestGlobs name package
+
+sourceGlob' :: WithTestGlobs -> PackageName -> Package -> Array { globPrefix :: String, glob :: String }
+sourceGlob' withTestGlobs name package =
   case package of
     WorkspacePackage { hasTests } ->
       case hasTests, withTestGlobs of
@@ -331,14 +335,17 @@ sourceGlob withTestGlobs name package = map (\p -> Path.concat [ getPackageLocat
         true, OnlyTestGlobs -> [ testGlob ]
         true, NoTestGlobs -> [ srcGlob ]
         true, WithTestGlobs -> [ srcGlob, testGlob ]
-    GitPackage { subdir: Just s } -> [ Path.concat [ s, srcGlob ] ]
+    GitPackage { subdir: Just s } -> [ subdirSrcGlob s ]
     _ -> [ srcGlob ]
-
-srcGlob :: String
-srcGlob = "src/**/*.purs"
-
-testGlob :: String
-testGlob = "test/**/*.purs"
+  where
+  pkgLocation = getPackageLocation name package
+  srcGlob = fullDirGlob $ Path.concat [ pkgLocation, "src" ]
+  subdirSrcGlob subdir = fullDirGlob $ Path.concat [ pkgLocation, subdir, "src" ]
+  testGlob = fullDirGlob $ Path.concat [ pkgLocation, "test" ]
+  fullDirGlob dir =
+    { globPrefix: dir
+    , glob: Path.concat [ dir, "**/*.purs" ]
+    }
 
 getWorkspacePackages :: PackageSet -> Array WorkspacePackage
 getWorkspacePackages = Array.mapMaybe extractWorkspacePackage <<< Map.toUnfoldable
