@@ -323,9 +323,9 @@ data WithTestGlobs
   | OnlyTestGlobs
 
 sourceGlob :: WithTestGlobs -> PackageName -> Package -> Array String
-sourceGlob withTestGlobs name package = map _.glob $ sourceGlob' withTestGlobs name package
+sourceGlob withTestGlobs name package = map snd $ sourceGlob' withTestGlobs name package
 
-sourceGlob' :: WithTestGlobs -> PackageName -> Package -> Array { globPrefix :: String, glob :: String }
+sourceGlob' :: WithTestGlobs -> PackageName -> Package -> Array (Tuple String String)
 sourceGlob' withTestGlobs name package =
   case package of
     WorkspacePackage { hasTests } ->
@@ -339,13 +339,15 @@ sourceGlob' withTestGlobs name package =
     _ -> [ srcGlob ]
   where
   pkgLocation = getPackageLocation name package
-  srcGlob = fullDirGlob $ Path.concat [ pkgLocation, "src" ]
-  subdirSrcGlob subdir = fullDirGlob $ Path.concat [ pkgLocation, subdir, "src" ]
-  testGlob = fullDirGlob $ Path.concat [ pkgLocation, "test" ]
-  fullDirGlob dir =
-    { globPrefix: dir
-    , glob: Path.concat [ dir, "**/*.purs" ]
-    }
+  srcGlob = Tuple
+    (Path.concat [ pkgLocation, "src" ])
+    (Path.concat [ pkgLocation, "src/**/*.purs" ])
+  subdirSrcGlob subdir = Tuple
+    (Path.concat [ pkgLocation, subdir, "src" ])
+    (Path.concat [ pkgLocation, subdir, "src/**/*.purs" ])
+  testGlob = Tuple
+    (Path.concat [ pkgLocation, "test" ])
+    (Path.concat [ pkgLocation, "test/**/*.purs" ])
 
 getWorkspacePackages :: PackageSet -> Array WorkspacePackage
 getWorkspacePackages = Array.mapMaybe extractWorkspacePackage <<< Map.toUnfoldable

@@ -38,7 +38,7 @@ run opts = do
   { dependencies, workspace } <- ask
   let
     -- depsOnly means "no packages from the monorepo", so we filter out the workspace packages
-    dependencyGlobs = map (Tuple.uncurry $ Config.sourceGlob WithTestGlobs) case opts.depsOnly of
+    Tuple dependencyLibs dependencyGlobs = Array.unzip $ (Tuple.uncurry $ Config.sourceGlob' WithTestGlobs) =<< case opts.depsOnly of
       false -> Map.toUnfoldable dependencies
       true -> Map.toUnfoldable $ Map.filter
         ( case _ of
@@ -48,7 +48,7 @@ run opts = do
         dependencies
 
     -- Here we select the right globs for a monorepo setup with a bunch of packages
-    projectSources =
+    projectSources = join
       if opts.depsOnly then []
       else case workspace.selected of
         Just p -> [ workspacePackageGlob p ]
@@ -77,11 +77,10 @@ run opts = do
       ]
 
   let
-    psaLibDirs = [ "bower_components", ".spago" ]
     buildBackend globs = do
       case workspace.backend of
         Nothing ->
-          Psa.psaCompile globs (addOutputArgs opts.pursArgs) psaLibDirs
+          Psa.psaCompile globs (addOutputArgs opts.pursArgs) dependencyLibs
         Just backend -> do
           when (isJust $ Cmd.findFlag { flags: [ "-g", "--codegen" ], args: opts.pursArgs }) do
             die
@@ -90,7 +89,7 @@ run opts = do
               , "Remove the argument to solve the error"
               ]
           let args = (addOutputArgs opts.pursArgs) <> [ "--codegen", "corefn" ]
-          Psa.psaCompile globs args psaLibDirs
+          Psa.psaCompile globs args dependencyLibs
 
           logInfo $ "Compiling with backend \"" <> backend.cmd <> "\""
           logDebug $ "Running command `" <> backend.cmd <> "`"
@@ -114,7 +113,7 @@ run opts = do
         runCommands "Then" thenCommands
   -}
 
-  let globs = Set.fromFoldable $ join projectSources <> join dependencyGlobs <> [ BuildInfo.buildInfoPath ]
+  let globs = Set.fromFoldable $ projectSources <> dependencyGlobs <> [ BuildInfo.buildInfoPath ]
   buildBackend globs
 
   when workspace.buildOptions.pedanticPackages do
