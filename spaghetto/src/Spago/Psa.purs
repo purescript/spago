@@ -64,8 +64,7 @@ parseOptions
   :: Array String
   -> Effect ParseOptions
 parseOptions args =
-  defaultLibDir <$>
-    Array.foldM parse defaultParseOptions args
+  Array.foldM parse defaultParseOptions args
   where
   parse p arg
     | arg == "--stash" =
@@ -117,13 +116,11 @@ parseOptions args =
       Just x | x == 0 -> true
       _ -> false
 
-  defaultLibDir x
-    | Array.length x.opts.libDirs == 0 =
-        x { opts = x.opts { libDirs = [ "bower_components", ".spago" ] } }
-    | otherwise = x
-
-psaCompile :: forall a. Set.Set FilePath -> Array String -> Spago (Purs.PursEnv a) Unit
-psaCompile globs pursArgs = psaCompile' globs pursArgs defaultParseOptions
+psaCompile :: forall a. Set.Set FilePath -> Array String -> Array String -> Spago (Purs.PursEnv a) Unit
+psaCompile globs pursArgs libDirs = psaCompile' globs pursArgs
+  $ defaultParseOptions
+      { opts = defaultParseOptions.opts { libDirs = libDirs }
+      }
 
 psaCompile' :: forall a. Set.Set FilePath -> Array String -> ParseOptions -> Spago (Purs.PursEnv a) Unit
 psaCompile' globs pursArgs { opts, showSource, stash, stashFile, jsonErrors } = do

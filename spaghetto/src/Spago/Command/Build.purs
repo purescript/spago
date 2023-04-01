@@ -77,10 +77,11 @@ run opts = do
       ]
 
   let
+    psaLibDirs = [ "bower_components", ".spago" ]
     buildBackend globs = do
       case workspace.backend of
         Nothing ->
-          Psa.psaCompile globs (addOutputArgs opts.pursArgs)
+          Psa.psaCompile globs (addOutputArgs opts.pursArgs) psaLibDirs
         Just backend -> do
           when (isJust $ Cmd.findFlag { flags: [ "-g", "--codegen" ], args: opts.pursArgs }) do
             die
@@ -89,7 +90,7 @@ run opts = do
               , "Remove the argument to solve the error"
               ]
           let args = (addOutputArgs opts.pursArgs) <> [ "--codegen", "corefn" ]
-          Psa.psaCompile globs args
+          Psa.psaCompile globs args psaLibDirs
 
           logInfo $ "Compiling with backend \"" <> backend.cmd <> "\""
           logDebug $ "Running command `" <> backend.cmd <> "`"
