@@ -164,13 +164,13 @@ errorPath libDirs path short =
       _ -> false
 
 onTag :: forall a b. (a -> b) -> (a -> b) -> ErrorTag -> a -> b
-onTag f g Error x = f x
-onTag f g Warning x = g x
+onTag f _ Error x = f x
+onTag _ g Warning x = g x
 
 onPath :: forall a. (a -> a) -> (a -> a) -> PsaPath -> a -> a
-onPath f g (Src _) x = f x
-onPath f g (Lib _) x = g x
-onPath f g _ x = x
+onPath f _ (Src _) x = f x
+onPath _ g (Lib _) x = g x
+onPath _ _ _ x = x
 
 isLib :: PsaPath -> Boolean
 isLib (Lib _) = true
