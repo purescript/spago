@@ -33,7 +33,7 @@ import Node.FS.Aff as FSA
 import Node.Process as Process
 import Spago.Cmd as Cmd
 import Spago.Psa.Types (PsaOutputOptions, StatVerbosity(..), psaResultCodec, psaErrorCodec)
-import Spago.Psa.Output (output)
+import Spago.Psa.Output (buildOutput)
 import Spago.Psa.Printer.Default as DefaultPrinter
 import Spago.Psa.Printer.Json as JsonPrinter
 
@@ -152,7 +152,7 @@ usePsa { opts, showSource, stash, stashFile, jsonErrors } = do
         merged <- mergeWarnings filenames stashData.date stashData.stash out.warnings
         when stash $ writeStashFile stashFile merged
 
-        out' <- output loadLinesImpl opts out { warnings = merged }
+        out' <- buildOutput loadLinesImpl opts out { warnings = merged }
 
         liftEffect $ if jsonErrors then JsonPrinter.print out' else DefaultPrinter.print opts out'
 

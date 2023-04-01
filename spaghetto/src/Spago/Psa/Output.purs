@@ -5,7 +5,7 @@
 --   Copyright © Nathan Faubion
 --   https://opensource.org/license/mit/
 module Spago.Psa.Output
-  ( output
+  ( buildOutput
   , Output
   , OutputStats
   , annotatedError
@@ -57,14 +57,14 @@ initialStats =
 -- | positions, and semantic paths (lib vs src). The callback should load the
 -- | requested set of lines from the absolute filename based on the tentative
 -- | position information.
-output
+buildOutput
   :: forall m
    . (Monad m)
   => (Filename -> Position -> m (Maybe Lines))
   -> PsaOutputOptions
   -> PsaResult
   -> m Output
-output loadLines options result = do
+buildOutput loadLines options result = do
   let
     result' =
       { warnings: pathOf <$> result.warnings
