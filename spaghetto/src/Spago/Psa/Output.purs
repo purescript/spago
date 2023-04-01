@@ -123,13 +123,6 @@ annotatedError path lines error = { path, position, message, source, error }
   message = trimMessage error.message
   source = (\p -> Array.take (p.endLine - p.startLine + 1)) <$> position <*> lines
 
-partition :: forall a. (a -> Boolean) -> Array a -> { pass :: Array a, fail :: Array a }
-partition f = foldl go { pass: [], fail: [] }
-  where
-  go { pass, fail } x =
-    if f x then { pass: Array.snoc pass x, fail }
-    else { pass, fail: Array.snoc fail x }
-
 updateStats
   :: ErrorTag
   -> PsaPath
@@ -186,10 +179,6 @@ isLib _ = false
 isSrc :: PsaPath -> Boolean
 isSrc (Src _) = true
 isSrc _ = false
-
-isWarning :: ErrorTag -> Boolean
-isWarning Warning = true
-isWarning _ = false
 
 -- | Finds the true bounds of the source. The PureScript compiler is greedy
 -- | when it comes to matching whitespace at the end of an expression, so the
