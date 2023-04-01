@@ -194,18 +194,18 @@ usePsa { opts, showSource, stash, stashFile, jsonErrors } = do
   emptyStash :: forall a. Aff { date :: DateTime, stash :: Array a }
   emptyStash = liftEffect $ { date: _, stash: [] } <$> toDateTime <$> now
 
-  readStashFile stashFile = do
+  readStashFile stashFile' = do
     result <- attempt do
-      stat <- FSA.stat stashFile
-      file <- FSA.readTextFile Encoding.UTF8 stashFile
+      stat <- FSA.stat stashFile'
+      file <- FSA.readTextFile Encoding.UTF8 stashFile'
       case decodeStash file of
         Left _ -> emptyStash
-        Right stash -> pure { date: Stats.modifiedTime stat, stash }
+        Right stash' -> pure { date: Stats.modifiedTime stat, stash: stash' }
     either (const emptyStash) pure $ result
 
-  writeStashFile stashFile warnings = do
+  writeStashFile stashFile' warnings = do
     let file = stringify (encodeStash warnings)
-    FSA.writeTextFile Encoding.UTF8 stashFile file
+    FSA.writeTextFile Encoding.UTF8 stashFile' file
 
   mergeWarnings filenames date old new = do
     fileStat <- liftEffect $ Ref.new FO.empty
