@@ -23,6 +23,7 @@ import Data.String as Str
 import Data.Tuple (Tuple(..))
 import Foreign.Object as FO
 import Node.Path as Path
+import Spago.Paths as Paths
 import Spago.Psa.Types (PsaOutputOptions, PsaError, PsaAnnotedError, PsaPath(..), PsaResult, Position, Filename, Lines, compareByLocation)
 
 data ErrorTag = Error | Warning
@@ -90,7 +91,7 @@ buildOutput loadLines options result = do
         let
           path
             | Path.isAbsolute f = f
-            | otherwise = Path.concat [ options.cwd, f ]
+            | otherwise = Path.concat [ Paths.cwd, f ]
         in
           Tuple (errorPath options.libDirs path f) x
       _ -> Tuple Unknown x

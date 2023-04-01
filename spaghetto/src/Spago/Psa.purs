@@ -40,7 +40,6 @@ defaultOptions =
   , statVerbosity: CompactStats
   , libDirs: []
   , strict: false
-  , cwd: ""
   }
 
 defaultParseOptions :: ParseOptions

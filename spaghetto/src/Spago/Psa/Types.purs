@@ -62,7 +62,6 @@ type PsaOutputOptions =
   , statVerbosity :: StatVerbosity
   , libDirs :: Array String
   , strict :: Boolean
-  , cwd :: String
   }
 
 type PsaResult =
