@@ -34,6 +34,7 @@ import Spago.Command.Registry as Registry
 import Spago.Command.Run as Run
 import Spago.Command.Sources as Sources
 import Spago.Command.Test as Test
+import Spago.Core.Config as Core
 import Spago.Config (BundleConfig, BundlePlatform(..), BundleType(..), Package, RunConfig, TestConfig)
 import Spago.Config as Config
 import Spago.FS as FS
@@ -68,6 +69,20 @@ type InstallArgs =
   , output :: Maybe String
   , pedanticPackages :: Boolean
   , ensureRanges :: Boolean
+  , jsonErrors :: Boolean
+  , psaArgs :: PsaArgs
+  }
+
+type PsaArgs =
+  { strict :: Boolean
+  , censorWarnings :: Boolean
+  , censorLib :: Boolean
+  , censorSrc :: Boolean
+  , showSource :: Boolean
+  , censorCodes :: Set String
+  , filterCodes :: Set String
+  , statVerbosity :: Core.StatVerbosity
+  , stashFile :: Either Boolean String
   }
 
 type BuildArgs a =
@@ -77,6 +92,8 @@ type BuildArgs a =
   , output :: Maybe String
   , pedanticPackages :: Boolean
   , ensureRanges :: Boolean
+  , jsonErrors :: Boolean
+  , psaArgs :: PsaArgs
   | a
   }
 
@@ -96,6 +113,8 @@ type RunArgs =
   , execArgs :: Maybe (Array String)
   , main :: Maybe String
   , ensureRanges :: Boolean
+  , jsonErrors :: Boolean
+  , psaArgs :: PsaArgs
   }
 
 type TestArgs =
@@ -105,6 +124,8 @@ type TestArgs =
   , pursArgs :: List String
   , backendArgs :: List String
   , execArgs :: Maybe (Array String)
+  , jsonErrors :: Boolean
+  , psaArgs :: PsaArgs
   }
 
 type SourcesArgs =
@@ -133,6 +154,8 @@ type BundleArgs =
   , pedanticPackages :: Boolean
   , type :: Maybe String
   , ensureRanges :: Boolean
+  , jsonErrors :: Boolean
+  , psaArgs :: PsaArgs
   }
 
 type PublishArgs =
@@ -273,7 +296,22 @@ installArgsParser =
     , output: Flags.output
     , pedanticPackages: Flags.pedanticPackages
     , ensureRanges: Flags.ensureRanges
+    , jsonErrors: Flags.jsonErrors
+    , psaArgs: psaArgsParser
     }
+
+psaArgsParser :: ArgParser PsaArgs
+psaArgsParser = ArgParser.fromRecord
+  { strict: Flags.psaStrict
+  , censorWarnings: Flags.psaCensorWarnings
+  , censorLib: Flags.psaCensorLib
+  , censorSrc: Flags.psaCensorSrc
+  , showSource: Flags.psaShowSource
+  , censorCodes: Flags.psaCensorCodes
+  , filterCodes: Flags.psaFilterCodes
+  , statVerbosity: Flags.psaStatVerbosity
+  , stashFile: Flags.psaStashFile
+  }
 
 buildArgsParser :: ArgParser (BuildArgs ())
 buildArgsParser = ArgParser.fromRecord
@@ -283,6 +321,8 @@ buildArgsParser = ArgParser.fromRecord
   , output: Flags.output
   , pedanticPackages: Flags.pedanticPackages
   , ensureRanges: Flags.ensureRanges
+  , jsonErrors: Flags.jsonErrors
+  , psaArgs: psaArgsParser
   }
 
 replArgsParser :: ArgParser ReplArgs
@@ -302,6 +342,8 @@ runArgsParser = ArgParser.fromRecord
   , pedanticPackages: Flags.pedanticPackages
   , main: Flags.moduleName
   , ensureRanges: Flags.ensureRanges
+  , jsonErrors: Flags.jsonErrors
+  , psaArgs: psaArgsParser
   }
 
 testArgsParser :: ArgParser TestArgs
@@ -312,6 +354,8 @@ testArgsParser = ArgParser.fromRecord
   , execArgs: Flags.execArgs
   , output: Flags.output
   , pedanticPackages: Flags.pedanticPackages
+  , jsonErrors: Flags.jsonErrors
+  , psaArgs: psaArgsParser
   }
 
 bundleArgsParser :: ArgParser BundleArgs
@@ -328,6 +372,8 @@ bundleArgsParser =
     , output: Flags.output
     , pedanticPackages: Flags.pedanticPackages
     , ensureRanges: Flags.ensureRanges
+    , jsonErrors: Flags.jsonErrors
+    , psaArgs: psaArgsParser
     }
 
 publishArgsParser :: ArgParser PublishArgs
