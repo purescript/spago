@@ -45,8 +45,7 @@ defaultOptions =
 defaultParseOptions :: ParseOptions
 defaultParseOptions =
   { showSource: true
-  , stash: false
-  , stashFile: ".psa-stash"
+  , stashFile: Nothing -- ".psa-stash"
   , jsonErrors: false
   , opts: defaultOptions
   }
@@ -54,8 +53,7 @@ defaultParseOptions =
 type ParseOptions =
   { opts :: PsaOutputOptions
   , showSource :: Boolean
-  , stash :: Boolean
-  , stashFile :: String
+  , stashFile :: Maybe String
   , jsonErrors :: Boolean
   }
 
@@ -66,9 +64,6 @@ parseOptions args =
   Array.foldM parse defaultParseOptions args
   where
   parse p arg
-    | arg == "--stash" =
-        pure p { stash = true }
-
     | arg == "--json-errors" =
         pure p { jsonErrors = true }
 
@@ -106,7 +101,7 @@ parseOptions args =
         pure p { opts = p.opts { libDirs = Array.snoc p.opts.libDirs (Str.drop 9 arg) } }
 
     | isPrefix "--stash=" arg =
-        pure p { stash = true, stashFile = Str.drop 8 arg }
+        pure p { stashFile = Just $ Str.drop 8 arg }
 
     | otherwise = pure p
 
@@ -122,10 +117,10 @@ psaCompile globs pursArgs libDirs = psaCompile' globs pursArgs
       }
 
 psaCompile' :: forall a. Set.Set FilePath -> Array String -> ParseOptions -> Spago (Purs.PursEnv a) Unit
-psaCompile' globs pursArgs { opts, showSource, stash, stashFile, jsonErrors } = do
-  stashData <-
-    if stash then readStashFile stashFile
-    else emptyStash
+psaCompile' globs pursArgs { opts, showSource, stashFile, jsonErrors } = do
+  stashData <- case stashFile of
+    Just f -> readStashFile f
+    Nothing -> emptyStash
 
   result <- Purs.compile globs (Array.snoc pursArgs "--json-errors")
   let
@@ -148,7 +143,7 @@ psaCompile' globs pursArgs { opts, showSource, stash, stashFile, jsonErrors } = 
           loadLinesImpl = if showSource then loadLines files else loadNothing
           filenames = insertFilenames (insertFilenames Set.empty out.errors) out.warnings
         merged <- mergeWarnings filenames stashData.date stashData.stash out.warnings
-        when stash $ writeStashFile stashFile merged
+        for_ stashFile \f -> writeStashFile f merged
 
         out' <- buildOutput loadLinesImpl opts out { warnings = merged }
 
@@ -262,7 +257,6 @@ Available options:
   --no-colors            Disable ANSI colors
   --no-source            Disable original source code printing
   --strict               Promotes src warnings to errors
-  --stash                Enable persistent warnings (defaults to .psa-stash)
   --stash=FILE           Enable persistent warnings using a specific stash file
   --is-lib=DIR           Distinguishing library path (defaults to 'bower_components')
 
