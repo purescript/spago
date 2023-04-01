@@ -24,20 +24,13 @@ module Spago.Psa.Types
 
 import Prelude
 
-import Data.Argonaut.Core (Json)
 import Data.Codec.Argonaut.Record as CAR
 import Data.Codec.Argonaut as CA
 import Data.Codec.Argonaut.Common as CAC
 import Data.Codec.Argonaut.Compat as CACompat
-import Data.Bifunctor (lmap)
-import Data.Either (Either(..))
-import Data.Maybe (Maybe(..), maybe)
+import Data.Maybe (Maybe(..))
 import Data.Set (Set)
-import Data.Traversable (traverse)
 import Data.Tuple (Tuple(..))
-import Foreign.Object as FO
-import Foreign.Object.ST as FOST
-import Unsafe.Coerce (unsafeCoerce)
 
 type ErrorCode = String
 type ModuleName = String

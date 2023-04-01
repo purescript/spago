@@ -17,12 +17,9 @@ import Prelude
 import Control.Alternative as Alternative
 import Ansi.Codes as Ansi
 import Data.Array as Array
-import Data.Foldable (sum, maximum)
-import Data.List.NonEmpty (NonEmptyList)
-import Data.List.NonEmpty as NEL
+import Data.Foldable (fold, foldMap, maximum, maximumBy)
 import Data.Maybe (Maybe(..), fromMaybe, maybe)
 import Data.Monoid (power)
-import Data.Foldable (fold, maximumBy, maximum, foldMap)
 import Data.FoldableWithIndex (forWithIndex_)
 import Data.Unfoldable (unfoldr)
 import Data.String as Str
@@ -109,7 +106,7 @@ renderSource' pos lines = renderSource pos lines <> D.break
 renderStats :: OutputStats -> D.Doc Ansi.GraphicsParam
 renderStats stats =
   renderStatCols
-    { col1: [ renderLabel Ansi.Yellow "Warnings", renderLabel Ansi.Red "Errors"]
+    { col1: [ renderLabel Ansi.Yellow "Warnings", renderLabel Ansi.Red "Errors" ]
     , col2: [ renderStat srcWarnings, renderStat srcErrors ]
     , col3: [ renderStat libWarnings, renderStat libErrors ]
     , col4: [ renderStat allWarnings, renderStat allErrors ]
@@ -136,7 +133,7 @@ renderVerboseStats stats =
   warnings = Array.sort (FO.keys stats.allWarnings)
   errors = Array.sort (FO.keys stats.allErrors)
 
-  renderLabel color lbl = 
+  renderLabel color lbl =
     { width: Str.length lbl
     , alignLeft: true
     , doc: DA.foreground color $ D.text lbl
@@ -162,7 +159,7 @@ renderStatCols
      , col4 :: Array DocColumn
      }
   -> D.Doc Ansi.GraphicsParam
-renderStatCols columns = 
+renderStatCols columns =
   renderStatCols' $ columns
     { col1 = Array.cons { width: 0, alignLeft: true, doc: mempty } columns.col1
     , col2 = Array.cons { width: 3, alignLeft: true, doc: D.text "Src" } columns.col2
@@ -201,7 +198,7 @@ renderStatCols' { col1, col2, col3, col4 } = D.lines rows
   buildColumn :: Array DocColumn -> Int -> Int -> Maybe (D.Doc Ansi.GraphicsParam)
   buildColumn column colWidth rowIdx = do
     { width, alignLeft, doc } <- Array.index column rowIdx
-    let 
+    let
       padding = colWidth - width
       padText = D.text $ power " " padding
     if padding == 0 then
@@ -239,12 +236,12 @@ renderSource pos lines = renderAnnotation (gutter + 2) pos source'
   source = uncurry (sourceLine gutter "  ") <$> Array.zip lineNums lines
   source' =
     if Array.length source > 7 then Array.take 3 source
-      <> [ (D.text $ power " " (gutter + 2)) <> (DA.dim $ D.text "..." ) ]
+      <> [ (D.text $ power " " (gutter + 2)) <> (DA.dim $ D.text "...") ]
       <> Array.drop (Array.length source - 3) source
     else source
 
 renderAnnotation :: Int -> Position -> Array (D.Doc Ansi.GraphicsParam) -> D.Doc Ansi.GraphicsParam
-renderAnnotation offset pos lines = 
+renderAnnotation offset pos lines =
   D.lines case lines of
     [ l ] ->
       [ l

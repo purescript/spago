@@ -16,31 +16,21 @@ import Data.Codec.Argonaut as CA
 import Data.DateTime (DateTime)
 import Data.DateTime.Instant (toDateTime)
 import Data.Either (Either(..), either)
-import Data.Foldable (foldr, fold, for_)
+import Data.Foldable (foldr, for_)
 import Data.Maybe (Maybe(..), maybe)
 import Data.Set as Set
 import Data.String as Str
-import Data.Traversable (traverse)
-import Data.Tuple (Tuple(..))
-import Data.Version as Version
 import Effect (Effect)
 import Effect.Aff (Aff, attempt)
 import Effect.Class (liftEffect)
 import Effect.Console as Console
-import Effect.Exception (catchException, throw, throwException)
 import Effect.Now (now)
 import Effect.Ref as Ref
 import Foreign.Object as FO
-import Node.ChildProcess as Child
 import Node.Encoding as Encoding
 import Node.FS.Stats as Stats
-import Node.FS.Sync as File
 import Node.FS.Aff as FSA
-import Node.Path as Path
-import Node.Platform (Platform(Win32))
 import Node.Process as Process
-import Node.Stream as Stream
-import Partial.Unsafe (unsafePartial)
 import Spago.Cmd as Cmd
 import Spago.Psa.Types (PsaOptions, StatVerbosity(..), psaResultCodec, psaErrorCodec)
 import Spago.Psa.Output (output)
