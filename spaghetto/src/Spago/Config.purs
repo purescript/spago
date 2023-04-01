@@ -60,6 +60,7 @@ type Workspace =
 type BuildOptions =
   { output :: Maybe FilePath
   , pedanticPackages :: Boolean
+  , psaOptions :: Maybe Core.PsaConfig
   }
 
 fromExtraPackage :: Core.ExtraPackage -> Package
@@ -299,6 +300,7 @@ readWorkspace maybeSelectedPackage = do
     (buildOptions :: BuildOptions) =
       { output: _.output =<< workspace.build_opts
       , pedanticPackages: fromMaybe false (_.pedantic_packages =<< workspace.build_opts)
+      , psaOptions: _.psaOptions =<< workspace.build_opts
       }
 
   pure

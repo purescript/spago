@@ -1,6 +1,9 @@
 module Spago.Core.Config
   ( BackendConfig
   , BuildOptionsInput
+  , BuildConfig
+  , PsaConfig
+  , ShowSourceCode(..)
   , StatVerbosity(..)
   , BundleConfig
   , BundlePlatform(..)
@@ -34,12 +37,15 @@ module Spago.Core.Config
 import Spago.Core.Prelude
 
 import Data.Codec.Argonaut as CA
+import Data.Codec.Argonaut.Common as CA.Common
 import Data.Codec.Argonaut.Record as CAR
 import Data.Codec.Argonaut.Sum as CA.Sum
 import Data.Either as Either
 import Data.List as List
 import Data.Map as Map
+import Data.Profunctor (dimap)
 import Data.Profunctor as Profunctor
+import Data.Set.NonEmpty as NonEmptySet
 import Partial.Unsafe (unsafeCrashWith)
 import Registry.Internal.Codec as Internal.Codec
 import Registry.License as License
@@ -65,11 +71,73 @@ type PackageConfig =
   { name :: PackageName
   , description :: Maybe String
   , dependencies :: Dependencies
+  , build :: Maybe BuildConfig
   , bundle :: Maybe BundleConfig
   , run :: Maybe RunConfig
   , test :: Maybe TestConfig
   , publish :: Maybe PublishConfig
   }
+
+type BuildConfig =
+  { psaOptions :: Maybe PsaConfig
+  }
+
+buildConfigCodec :: JsonCodec BuildConfig
+buildConfigCodec = CAR.object "BuildConfig"
+  { psaOptions: CAR.optional psaConfigCodec
+  }
+
+type PsaConfig =
+  { censorWarnings :: Maybe Boolean
+  , censorLib :: Maybe Boolean
+  , censorSrc :: Maybe Boolean
+  , censorCodes :: Maybe (NonEmptySet.NonEmptySet String)
+  , filterCodes :: Maybe (NonEmptySet.NonEmptySet String)
+  , statVerbosity :: Maybe StatVerbosity
+  , showSource :: Maybe ShowSourceCode
+  , strict :: Maybe Boolean
+  , stashFile :: Maybe (Either Boolean String)
+  }
+
+psaConfigCodec :: JsonCodec PsaConfig
+psaConfigCodec = CAR.object "PsaConfig"
+  { censorWarnings: CAR.optional CA.boolean
+  , censorLib: CAR.optional CA.boolean
+  , censorSrc: CAR.optional CA.boolean
+  , censorCodes: CAR.optional $ CA.Common.nonEmptySet CA.string
+  , filterCodes: CAR.optional $ CA.Common.nonEmptySet CA.string
+  , statVerbosity: CAR.optional statVerbosityCodec
+  , showSource: CAR.optional showSourceCodec
+  , strict: CAR.optional CA.boolean
+  , stashFile: CAR.optional stashFileCodec
+  }
+
+stashFileCodec :: JsonCodec (Either Boolean String)
+stashFileCodec = CA.Sum.enumSum (either show identity) case _ of
+  "true" -> Just $ Left true
+  "false" -> Just $ Left false
+  x -> Just $ Right x
+
+data ShowSourceCode
+  = ShowSourceCode
+  | NoSourceCode
+
+derive instance Eq ShowSourceCode
+
+showSourceCodec :: JsonCodec ShowSourceCode
+showSourceCodec = dimap to from CA.boolean
+  where
+  to = case _ of
+    ShowSourceCode -> true
+    NoSourceCode -> false
+  from = case _ of
+    false -> NoSourceCode
+    true -> ShowSourceCode
+
+instance Show ShowSourceCode where
+  show = case _ of
+    ShowSourceCode -> "ShowSourceCode"
+    NoSourceCode -> "NoSourceCode"
 
 data StatVerbosity
   = NoStats
@@ -100,6 +168,7 @@ packageConfigCodec = CAR.object "PackageConfig"
   { name: PackageName.codec
   , description: CAR.optional CA.string
   , dependencies: dependenciesCodec
+  , build: CAR.optional buildConfigCodec
   , bundle: CAR.optional bundleConfigCodec
   , run: CAR.optional runConfigCodec
   , test: CAR.optional testConfigCodec
@@ -134,6 +203,7 @@ type TestConfig =
   { main :: String
   , execArgs :: Maybe (Array String)
   , dependencies :: Dependencies
+  , psaOptions :: Maybe PsaConfig
   }
 
 testConfigCodec :: JsonCodec TestConfig
@@ -141,6 +211,7 @@ testConfigCodec = CAR.object "TestConfig"
   { main: CA.string
   , execArgs: CAR.optional (CA.array CA.string)
   , dependencies: dependenciesCodec
+  , psaOptions: CAR.optional psaConfigCodec
   }
 
 type BackendConfig =
@@ -290,12 +361,14 @@ workspaceConfigCodec = CAR.object "WorkspaceConfig"
 type BuildOptionsInput =
   { output :: Maybe FilePath
   , pedantic_packages :: Maybe Boolean
+  , psaOptions :: Maybe PsaConfig
   }
 
 buildOptionsCodec :: JsonCodec BuildOptionsInput
 buildOptionsCodec = CAR.object "CompileOptionsInput"
   { output: CAR.optional CA.string
   , pedantic_packages: CAR.optional CA.boolean
+  , psaOptions: CAR.optional psaConfigCodec
   }
 
 data SetAddress

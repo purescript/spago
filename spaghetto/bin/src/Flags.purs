@@ -4,10 +4,12 @@ import Spago.Prelude
 
 import ArgParse.Basic (ArgParser)
 import ArgParse.Basic as ArgParser
+import Data.Array.NonEmpty as NEA
+import Data.Set.NonEmpty (NonEmptySet)
+import Data.Set.NonEmpty as NonEmptySet
 import Data.String as String
+import Spago.Core.Config (ShowSourceCode(..))
 import Spago.Core.Config as Core
-import Data.Set (Set)
-import Data.Set as Set
 
 selectedPackage ∷ ArgParser (Maybe String)
 selectedPackage =
@@ -15,61 +17,73 @@ selectedPackage =
     "Select the local project to build"
     # ArgParser.optional
 
-psaStrict ∷ ArgParser Boolean
+configBoolean' :: Boolean -> ArgParser Unit -> ArgParser (Maybe Boolean)
+configBoolean' b p = ArgParser.default (Just b) $ Just (not b) <$ p
+
+configBooleanTrue :: ArgParser Unit -> ArgParser (Maybe Boolean)
+configBooleanTrue = configBoolean' true
+
+configBooleanFalse :: ArgParser Unit -> ArgParser (Maybe Boolean)
+configBooleanFalse = configBoolean' false
+
+psaStrict ∷ ArgParser (Maybe Boolean)
 psaStrict =
   ArgParser.flag [ "--strict" ]
     "Promotes project sources' warnings to errors"
-    # ArgParser.boolean
+    # configBooleanFalse
 
-psaCensorWarnings ∷ ArgParser Boolean
+psaCensorWarnings ∷ ArgParser (Maybe Boolean)
 psaCensorWarnings =
   ArgParser.flag [ "--psa-censor-warnings" ]
     "Censor all warnings"
-    # ArgParser.boolean
+    # configBooleanFalse
 
-psaCensorLib ∷ ArgParser Boolean
+psaCensorLib ∷ ArgParser (Maybe Boolean)
 psaCensorLib =
   ArgParser.flag [ "--psa-censor-lib" ]
     "Censor warnings from library sources"
-    # ArgParser.boolean
+    # configBooleanFalse
 
-psaCensorSrc ∷ ArgParser Boolean
+psaCensorSrc ∷ ArgParser (Maybe Boolean)
 psaCensorSrc =
   ArgParser.flag [ "--psa-censor-src" ]
     "Censor warnings from project sources"
-    # ArgParser.boolean
+    # configBooleanFalse
 
-psaShowSource ∷ ArgParser Boolean
+psaShowSource ∷ ArgParser (Maybe ShowSourceCode)
 psaShowSource =
-  ArgParser.flag [ "--psa-no-source" ]
-    "Disable original source code printing"
-    # ArgParser.boolean
+  NoSourceCode
+    <$ ArgParser.flag [ "--psa-no-source" ]
+      "Disable original source code printing"
+    # ArgParser.optional
 
-psaCensorCodes :: ArgParser (Set String)
+psaCensorCodes :: ArgParser (Maybe (NonEmptySet String))
 psaCensorCodes =
   ArgParser.argument [ "--psa-censor-codes" ]
     "Censor specific error codes (comma-separated list)"
-    # ArgParser.unformat "CODE1,CODE2,...,CODEX" (Right <<< foldMap Set.singleton <<< String.split (String.Pattern ","))
-    # ArgParser.default Set.empty
+    # ArgParser.unformat "CODE1,CODE2,...,CODEX"
+        (maybe (Left "Did not get a set of values") (Right <<< NonEmptySet.fromFoldable1) <<< NEA.fromArray <<< String.split (String.Pattern ","))
+    # ArgParser.optional
 
-psaFilterCodes :: ArgParser (Set String)
+psaFilterCodes :: ArgParser (Maybe (NonEmptySet String))
 psaFilterCodes =
   ArgParser.argument [ "--psa-filter-codes" ]
     "Only show specific error codes (comma-separated list)"
-    # ArgParser.unformat "CODE1,CODE2,...,CODEX" (Right <<< foldMap Set.singleton <<< String.split (String.Pattern ","))
-    # ArgParser.default Set.empty
+    # ArgParser.unformat "CODE1,CODE2,...,CODEX"
+        (maybe (Left "Did not get a set of values") (Right <<< NonEmptySet.fromFoldable1) <<< NEA.fromArray <<< String.split (String.Pattern ","))
+    # ArgParser.optional
 
-psaStatVerbosity :: ArgParser Core.StatVerbosity
-psaStatVerbosity = ArgParser.choose "StatVerbosity"
+psaStatVerbosity :: ArgParser (Maybe Core.StatVerbosity)
+psaStatVerbosity = ArgParser.optional $ ArgParser.choose "StatVerbosity"
   [ Core.VerboseStats <$ ArgParser.flag [ "--psa-verbose-stats" ] "Show counts for each warning type"
-  , ArgParser.default Core.CompactStats $ Core.NoStats <$ ArgParser.flag [ "--psa-censor-stats" ] "Censor warning/error summary"
+  , Core.NoStats <$ ArgParser.flag [ "--psa-censor-stats" ] "Censor warning/error summary"
   ]
 
-psaStashFile ∷ ArgParser (Either Boolean String)
-psaStashFile = ArgParser.choose "stash"
+psaStashFile ∷ ArgParser (Maybe (Either Boolean String))
+psaStashFile = ArgParser.optional $ ArgParser.choose "stash"
   [ ArgParser.argument [ "--psa-stash" ] "Enable persistent warnings using a specific stash file"
       # ArgParser.unformat "FILE" (Right <<< Right)
-  , ArgParser.default (Left false) $ (Left true) <$ ArgParser.flag [ "--psa-stash" ] "Enable persistent warnings using default stash file location"
+  , Left true <$ ArgParser.flag [ "--psa-stash" ] "Enable persistent warnings using default stash file location"
   ]
 
 jsonErrors ∷ ArgParser Boolean

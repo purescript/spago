@@ -5,15 +5,20 @@ module Spago.Command.Build
 
 import Spago.Prelude
 
+import Control.Alternative as Alternative
 import Data.Array as Array
 import Data.Map as Map
 import Data.Set as Set
+import Data.Set.NonEmpty as NonEmptySet
 import Data.Tuple as Tuple
+import Node.Path as Path
+import Registry.PackageName as PackageName
 import Spago.BuildInfo as BuildInfo
 import Spago.Cmd as Cmd
-import Spago.Config (Package(..), WithTestGlobs(..), Workspace, WorkspacePackage)
+import Spago.Config (Package(..), WithTestGlobs(..), Workspace, WorkspacePackage, PsaConfig)
 import Spago.Config as Config
 import Spago.Git (Git)
+import Spago.Paths as Paths
 import Spago.Psa as Psa
 import Spago.Purs (Purs)
 import Spago.Purs.Graph as Graph
@@ -24,6 +29,7 @@ type BuildEnv a =
   , dependencies :: Map PackageName Package
   , logOptions :: LogOptions
   , workspace :: Workspace
+  , psaConfig :: PsaConfig
   | a
   }
 
@@ -35,7 +41,7 @@ type BuildOptions =
 run :: forall a. BuildOptions -> Spago (BuildEnv a) Unit
 run opts = do
   logInfo "Building..."
-  { dependencies, workspace, logOptions } <- ask
+  { dependencies, workspace, logOptions, psaConfig } <- ask
   let
     -- depsOnly means "no packages from the monorepo", so we filter out the workspace packages
     Tuple dependencyLibs dependencyGlobs = Array.unzip $ (Tuple.uncurry $ Config.sourceGlob' WithTestGlobs) =<< case opts.depsOnly of
@@ -82,10 +88,29 @@ run opts = do
       , color: logOptions.color
       , jsonErrors: false
       }
+    stashFileFallback = case workspace.selected of
+      Just p -> Just $ Path.concat [ Paths.localCacheStashesPath, "." <> PackageName.print p.package.name ]
+      Nothing -> Just Paths.localCachesStashEntireWorkspace
+    psaOptions =
+      { strict: fromMaybe Psa.defaultParseOptions.strict psaConfig.strict
+      , censorWarnings: fromMaybe Psa.defaultParseOptions.censorWarnings psaConfig.censorWarnings
+      , censorLib: fromMaybe Psa.defaultParseOptions.censorLib psaConfig.censorLib
+      , censorSrc: fromMaybe Psa.defaultParseOptions.censorSrc psaConfig.censorSrc
+      , showSource: fromMaybe Psa.defaultParseOptions.showSource psaConfig.showSource
+      , censorCodes: maybe Psa.defaultParseOptions.censorCodes NonEmptySet.toSet psaConfig.censorCodes
+      , filterCodes: maybe Psa.defaultParseOptions.filterCodes NonEmptySet.toSet psaConfig.filterCodes
+      , statVerbosity: fromMaybe Psa.defaultParseOptions.statVerbosity psaConfig.statVerbosity
+      , stashFile: do
+          Alternative.guard (not opts.depsOnly)
+          psaConfig.stashFile >>= case _ of
+            Left true -> stashFileFallback
+            Left false -> Nothing
+            Right f -> Just f
+      }
     buildBackend globs = do
       case workspace.backend of
         Nothing ->
-          Psa.psaCompile globs (addOutputArgs opts.pursArgs) psaArgs
+          Psa.psaCompile globs (addOutputArgs opts.pursArgs) psaArgs psaOptions
         Just backend -> do
           when (isJust $ Cmd.findFlag { flags: [ "-g", "--codegen" ], args: opts.pursArgs }) do
             die
@@ -94,7 +119,7 @@ run opts = do
               , "Remove the argument to solve the error"
               ]
           let args = (addOutputArgs opts.pursArgs) <> [ "--codegen", "corefn" ]
-          Psa.psaCompile globs args psaArgs
+          Psa.psaCompile globs args psaArgs psaOptions
 
           logInfo $ "Compiling with backend \"" <> backend.cmd <> "\""
           logDebug $ "Running command `" <> backend.cmd <> "`"

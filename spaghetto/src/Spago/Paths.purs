@@ -36,3 +36,9 @@ registryPath = Path.concat [ globalCachePath, "registry" ]
 
 registryIndexPath ∷ FilePath
 registryIndexPath = Path.concat [ globalCachePath, "registry-index" ]
+
+localCacheStashesPath :: FilePath
+localCacheStashesPath = Path.concat [ localCachePath, "stashes" ]
+
+localCachesStashEntireWorkspace :: FilePath
+localCachesStashEntireWorkspace = Path.concat [ localCacheStashesPath, ".entire-workspace" ]

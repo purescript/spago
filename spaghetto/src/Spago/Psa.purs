@@ -38,7 +38,7 @@ type PsaArgs =
 
 defaultParseOptions :: PsaOptions
 defaultParseOptions =
-  { showSource: true
+  { showSource: Core.ShowSourceCode
   , stashFile: Nothing -- ".psa-stash"
   , censorWarnings: false
   , censorLib: false
@@ -50,7 +50,7 @@ defaultParseOptions =
   }
 
 type PsaOptions =
-  { showSource :: Boolean
+  { showSource :: Core.ShowSourceCode
   , stashFile :: Maybe String
   , censorWarnings :: Boolean
   , censorLib :: Boolean
@@ -74,11 +74,8 @@ toOutputOptions { libraryDirs, color } options =
   , strict: options.strict
   }
 
-psaCompile :: forall a. Set.Set FilePath -> Array String -> PsaArgs -> Spago (Purs.PursEnv a) Unit
-psaCompile globs pursArgs psaArgs = psaCompile' globs pursArgs psaArgs defaultParseOptions
-
-psaCompile' :: forall a. Set.Set FilePath -> Array String -> PsaArgs -> PsaOptions -> Spago (Purs.PursEnv a) Unit
-psaCompile' globs pursArgs psaArgs options@{ showSource, stashFile } = do
+psaCompile :: forall a. Set.Set FilePath -> Array String -> PsaArgs -> PsaOptions -> Spago (Purs.PursEnv a) Unit
+psaCompile globs pursArgs psaArgs options@{ showSource, stashFile } = do
   let outputOptions = toOutputOptions psaArgs options
   stashData <- case stashFile of
     Just f -> readStashFile f
@@ -102,7 +99,7 @@ psaCompile' globs pursArgs psaArgs options@{ showSource, stashFile } = do
       Right out -> do
         files <- liftEffect $ Ref.new FO.empty
         let
-          loadLinesImpl = if showSource then loadLines files else loadNothing
+          loadLinesImpl = if showSource == Core.ShowSourceCode then loadLines files else loadNothing
           filenames = insertFilenames (insertFilenames Set.empty out.errors) out.warnings
         merged <- mergeWarnings filenames stashData.date stashData.stash out.warnings
         for_ stashFile \f -> writeStashFile f merged

@@ -4,12 +4,16 @@ import Spago.Prelude
 
 import ArgParse.Basic (ArgParser)
 import ArgParse.Basic as ArgParser
+import Control.Alt (alt)
 import Data.Array as Array
 import Data.Array.NonEmpty as NonEmptyArray
 import Data.Codec.Argonaut.Common as CA.Common
 import Data.JSDate as JSDate
 import Data.List as List
 import Data.Map as Map
+import Data.Set as Set
+import Data.Set.NonEmpty (NonEmptySet)
+import Data.Set.NonEmpty as NonEmptySet
 import Effect.Aff as Aff
 import Effect.Class.Console as Console
 import Effect.Ref as Ref
@@ -27,21 +31,22 @@ import Spago.Command.Build as Build
 import Spago.Command.Bundle as Bundle
 import Spago.Command.Fetch as Fetch
 import Spago.Command.Init as Init
-import Spago.Command.Ls as Ls
 import Spago.Command.Ls (LsDepsArgs, LsPackagesArgs)
+import Spago.Command.Ls as Ls
 import Spago.Command.Publish as Publish
 import Spago.Command.Registry as Registry
 import Spago.Command.Run as Run
 import Spago.Command.Sources as Sources
 import Spago.Command.Test as Test
-import Spago.Core.Config as Core
 import Spago.Config (BundleConfig, BundlePlatform(..), BundleType(..), Package, RunConfig, TestConfig)
 import Spago.Config as Config
+import Spago.Core.Config as Core
 import Spago.FS as FS
 import Spago.Git as Git
 import Spago.Json as Json
 import Spago.Log (LogVerbosity(..))
 import Spago.Paths as Paths
+import Spago.Psa (PsaOptions)
 import Spago.Purs as Purs
 import Unsafe.Coerce (unsafeCoerce)
 
@@ -74,15 +79,15 @@ type InstallArgs =
   }
 
 type PsaArgs =
-  { strict :: Boolean
-  , censorWarnings :: Boolean
-  , censorLib :: Boolean
-  , censorSrc :: Boolean
-  , showSource :: Boolean
-  , censorCodes :: Set String
-  , filterCodes :: Set String
-  , statVerbosity :: Core.StatVerbosity
-  , stashFile :: Either Boolean String
+  { strict :: Maybe Boolean
+  , censorWarnings :: Maybe Boolean
+  , censorLib :: Maybe Boolean
+  , censorSrc :: Maybe Boolean
+  , showSource :: Maybe Core.ShowSourceCode
+  , censorCodes :: Maybe (NonEmptySet String)
+  , filterCodes :: Maybe (NonEmptySet String)
+  , statVerbosity :: Maybe Core.StatVerbosity
+  , stashFile :: Maybe (Either Boolean String)
   }
 
 type BuildArgs a =
@@ -465,9 +470,10 @@ main =
             runSpago buildEnv (Build.run options)
           Publish { selectedPackage } -> do
             { env, fetchOpts } <- mkFetchEnv { packages: mempty, selectedPackage, ensureRanges: false }
-            publishEnv <- runSpago env do
-              dependencies <- Fetch.run fetchOpts
-              mkPublishEnv dependencies
+            -- TODO: --no-fetch flag
+            dependencies <- runSpago env (Fetch.run fetchOpts)
+            env' <- runSpago env (mkBuildEnv { depsOnly: false, pursArgs: [] } dependencies)
+            publishEnv <- runSpago env' (mkPublishEnv dependencies)
             void $ runSpago publishEnv (Publish.publish {})
           Repl args -> do
             -- TODO implement
@@ -679,9 +685,28 @@ mkBuildEnv buildArgs dependencies = do
           )
           workspace.backend
       }
-  pure { logOptions, purs, git, dependencies, workspace: newWorkspace }
 
-mkPublishEnv :: forall a. Map PackageName Package -> Spago (Fetch.FetchEnv a) (Publish.PublishEnv a)
+    psaConfig :: Core.PsaConfig
+    psaConfig =
+      { strict: alt buildArgs.psaArgs.strict $ config >>= _.strict
+      , censorWarnings: alt buildArgs.psaArgs.censorWarnings $ config >>= _.censorWarnings
+      , censorLib: alt buildArgs.psaArgs.censorWarnings $ config >>= _.censorLib
+      , censorSrc: alt buildArgs.psaArgs.censorSrc $ config >>= _.censorSrc
+      , showSource: alt buildArgs.psaArgs.showSource $ config >>= _.showSource
+      , censorCodes: alt buildArgs.psaArgs.censorCodes $ config >>= _.censorCodes
+      , filterCodes: alt buildArgs.psaArgs.filterCodes $ config >>= _.filterCodes
+      , statVerbosity: alt buildArgs.psaArgs.statVerbosity $ config >>= _.statVerbosity
+      , stashFile: alt buildArgs.psaArgs.stashFile $ config >>= _.stashFile
+      }
+      where
+      config :: Maybe Core.PsaConfig
+      config = case workspace.selected of
+        Just p -> p.package.build >>= _.psaOptions
+        Nothing -> workspace.buildOptions.psaOptions
+
+  pure { logOptions, purs, git, dependencies, workspace: newWorkspace, psaConfig }
+
+mkPublishEnv :: forall a. Map PackageName Package -> Spago (Build.BuildEnv a) (Publish.PublishEnv a)
 mkPublishEnv dependencies = do
   env <- ask
   purs <- Purs.getPurs

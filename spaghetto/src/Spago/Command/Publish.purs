@@ -19,7 +19,7 @@ import Registry.Solver as Registry.Solver
 import Registry.Version as Version
 import Spago.BuildInfo as BuildInfo
 import Spago.Command.Build as Build
-import Spago.Config (Package(..), WithTestGlobs(..), Workspace, WorkspacePackage)
+import Spago.Config (Package(..), WithTestGlobs(..), Workspace, WorkspacePackage, PsaConfig)
 import Spago.Config as Config
 import Spago.Git (Git)
 import Spago.Git as Git
@@ -46,6 +46,7 @@ type PublishEnv a =
   , purs :: Purs
   , selected :: WorkspacePackage
   , dependencies :: Map PackageName Package
+  , psaConfig :: PsaConfig
   | a
   }
 

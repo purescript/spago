@@ -82,11 +82,13 @@ defaultConfig name set =
                 ]
             )
       , description: Nothing
+      , build: Nothing
       , run: Nothing
       , test: Just
           { dependencies: Dependencies Map.empty
           , execArgs: Nothing
           , main: "Test.Main"
+          , psaOptions: Nothing
           }
       , publish: Nothing
       , bundle: Nothing
