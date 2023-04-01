@@ -30,10 +30,10 @@ import Effect (Effect)
 import Effect.Console as Console
 import Foreign.Object as FO
 import Spago.Psa.Output (OutputStats, Output)
-import Spago.Psa.Types (Lines, Position, PsaAnnotedError, PsaOptions, PsaPath(..), StatVerbosity(..))
+import Spago.Psa.Types (Lines, Position, PsaAnnotedError, PsaOutputOptions, PsaPath(..), StatVerbosity(..))
 
 -- | Prints output to the console.
-print :: PsaOptions -> Output -> Effect Unit
+print :: PsaOutputOptions -> Output -> Effect Unit
 print options output = do
   forWithIndex_ output.warnings \i warning -> do
     Console.error $ printDoc (renderWarning lenWarnings (i + 1) warning)

@@ -9,7 +9,7 @@ module Spago.Psa.Types
   , ModuleName
   , Filename
   , StatVerbosity(..)
-  , PsaOptions
+  , PsaOutputOptions
   , PsaResult
   , PsaError
   , PsaAnnotedError
@@ -52,7 +52,7 @@ derive instance Eq PsaPath
 
 derive instance Ord PsaPath
 
-type PsaOptions =
+type PsaOutputOptions =
   { ansi :: Boolean
   , censorWarnings :: Boolean
   , censorLib :: Boolean

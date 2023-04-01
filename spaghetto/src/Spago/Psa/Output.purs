@@ -23,7 +23,7 @@ import Data.String as Str
 import Data.Tuple (Tuple(..))
 import Foreign.Object as FO
 import Node.Path as Path
-import Spago.Psa.Types (PsaOptions, PsaError, PsaAnnotedError, PsaPath(..), PsaResult, Position, Filename, Lines, compareByLocation)
+import Spago.Psa.Types (PsaOutputOptions, PsaError, PsaAnnotedError, PsaPath(..), PsaResult, Position, Filename, Lines, compareByLocation)
 
 data ErrorTag = Error | Warning
 
@@ -61,7 +61,7 @@ output
   :: forall m
    . (Monad m)
   => (Filename -> Position -> m (Maybe Lines))
-  -> PsaOptions
+  -> PsaOutputOptions
   -> PsaResult
   -> m Output
 output loadLines options result = do
@@ -145,7 +145,7 @@ updateStats tag path code printed s =
   alterStat Nothing = Just (bump (Tuple 0 0))
   alterStat (Just x) = Just (bump x)
 
-shouldShowError :: PsaOptions -> ErrorTag -> PsaPath -> String -> Boolean
+shouldShowError :: PsaOutputOptions -> ErrorTag -> PsaPath -> String -> Boolean
 shouldShowError _ Error _ _ = true
 shouldShowError { filterCodes, censorCodes, censorSrc, censorLib, censorWarnings } _ path code =
   not censorWarnings

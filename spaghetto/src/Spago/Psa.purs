@@ -32,12 +32,12 @@ import Node.FS.Stats as Stats
 import Node.FS.Aff as FSA
 import Node.Process as Process
 import Spago.Cmd as Cmd
-import Spago.Psa.Types (PsaOptions, StatVerbosity(..), psaResultCodec, psaErrorCodec)
+import Spago.Psa.Types (PsaOutputOptions, StatVerbosity(..), psaResultCodec, psaErrorCodec)
 import Spago.Psa.Output (output)
 import Spago.Psa.Printer.Default as DefaultPrinter
 import Spago.Psa.Printer.Json as JsonPrinter
 
-defaultOptions :: PsaOptions
+defaultOptions :: PsaOutputOptions
 defaultOptions =
   { ansi: true
   , censorWarnings: false
@@ -52,7 +52,7 @@ defaultOptions =
   }
 
 type ParseOptions =
-  { opts :: PsaOptions
+  { opts :: PsaOutputOptions
   , showSource :: Boolean
   , stash :: Boolean
   , stashFile :: String
@@ -60,7 +60,7 @@ type ParseOptions =
   }
 
 parseOptions
-  :: PsaOptions
+  :: PsaOutputOptions
   -> Array String
   -> Effect ParseOptions
 parseOptions opts args =
