@@ -35,7 +35,7 @@ type BuildOptions =
 run :: forall a. BuildOptions -> Spago (BuildEnv a) Unit
 run opts = do
   logInfo "Building..."
-  { dependencies, workspace } <- ask
+  { dependencies, workspace, logOptions } <- ask
   let
     -- depsOnly means "no packages from the monorepo", so we filter out the workspace packages
     Tuple dependencyLibs dependencyGlobs = Array.unzip $ (Tuple.uncurry $ Config.sourceGlob' WithTestGlobs) =<< case opts.depsOnly of
@@ -77,10 +77,15 @@ run opts = do
       ]
 
   let
+    psaArgs =
+      { libraryDirs: dependencyLibs
+      , color: logOptions.color
+      , jsonErrors: false
+      }
     buildBackend globs = do
       case workspace.backend of
         Nothing ->
-          Psa.psaCompile globs (addOutputArgs opts.pursArgs) dependencyLibs
+          Psa.psaCompile globs (addOutputArgs opts.pursArgs) psaArgs
         Just backend -> do
           when (isJust $ Cmd.findFlag { flags: [ "-g", "--codegen" ], args: opts.pursArgs }) do
             die
@@ -89,7 +94,7 @@ run opts = do
               , "Remove the argument to solve the error"
               ]
           let args = (addOutputArgs opts.pursArgs) <> [ "--codegen", "corefn" ]
-          Psa.psaCompile globs args dependencyLibs
+          Psa.psaCompile globs args psaArgs
 
           logInfo $ "Compiling with backend \"" <> backend.cmd <> "\""
           logDebug $ "Running command `" <> backend.cmd <> "`"

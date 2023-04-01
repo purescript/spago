@@ -93,7 +93,7 @@ buildOutput loadLines options result = do
             | Path.isAbsolute f = f
             | otherwise = Path.concat [ Paths.cwd, f ]
         in
-          Tuple (errorPath options.libDirs path f) x
+          Tuple (errorPath options.libraryDirs path f) x
       _ -> Tuple Unknown x
 
   onError :: ErrorTag -> Output -> Tuple PsaPath PsaError -> m Output

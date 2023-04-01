@@ -51,14 +51,14 @@ derive instance Eq PsaPath
 derive instance Ord PsaPath
 
 type PsaOutputOptions =
-  { ansi :: Boolean
+  { color :: Boolean
   , censorWarnings :: Boolean
   , censorLib :: Boolean
   , censorSrc :: Boolean
   , censorCodes :: Set ErrorCode
   , filterCodes :: Set ErrorCode
   , statVerbosity :: Core.StatVerbosity
-  , libDirs :: Array String
+  , libraryDirs :: Array String
   , strict :: Boolean
   }
 

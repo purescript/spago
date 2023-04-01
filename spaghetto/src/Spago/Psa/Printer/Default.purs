@@ -48,7 +48,7 @@ print options output = do
 
   where
   printDoc
-    | options.ansi = D.print DA.ansiGraphics D.twoSpaces
+    | options.color = D.print DA.ansiGraphics D.twoSpaces
     | otherwise = D.print D.plainText D.twoSpaces
   lenWarnings = Array.length output.warnings
   lenErrors = Array.length output.errors

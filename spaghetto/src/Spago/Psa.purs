@@ -15,57 +15,71 @@ import Data.Codec.Argonaut as CA
 import Data.DateTime.Instant (toDateTime)
 import Data.Foldable (foldr)
 import Data.Set as Set
-import Effect.Exception as Exception
 import Data.String as Str
+import Effect.Exception as Exception
 import Effect.Now (now)
 import Effect.Ref as Ref
 import Foreign.Object as FO
 import Node.Encoding as Encoding
-import Node.FS.Stats as Stats
 import Node.FS.Aff as FSA
+import Node.FS.Stats as Stats
 import Spago.Core.Config as Core
-import Spago.Purs as Purs
-import Spago.Psa.Types (PsaOutputOptions, psaResultCodec, psaErrorCodec)
 import Spago.Psa.Output (buildOutput)
 import Spago.Psa.Printer.Default as DefaultPrinter
 import Spago.Psa.Printer.Json as JsonPrinter
+import Spago.Psa.Types (PsaOutputOptions, ErrorCode, psaErrorCodec, psaResultCodec)
+import Spago.Purs as Purs
 
-defaultOptions :: PsaOutputOptions
-defaultOptions =
-  { ansi: true
+type PsaArgs =
+  { libraryDirs :: Array String
+  , jsonErrors :: Boolean
+  , color :: Boolean
+  }
+
+defaultParseOptions :: PsaOptions
+defaultParseOptions =
+  { showSource: true
+  , stashFile: Nothing -- ".psa-stash"
   , censorWarnings: false
   , censorLib: false
   , censorSrc: false
   , censorCodes: Set.empty
   , filterCodes: Set.empty
   , statVerbosity: Core.CompactStats
-  , libDirs: []
   , strict: false
   }
 
-defaultParseOptions :: ParseOptions
-defaultParseOptions =
-  { showSource: true
-  , stashFile: Nothing -- ".psa-stash"
-  , jsonErrors: false
-  , opts: defaultOptions
-  }
-
-type ParseOptions =
-  { opts :: PsaOutputOptions
-  , showSource :: Boolean
+type PsaOptions =
+  { showSource :: Boolean
   , stashFile :: Maybe String
-  , jsonErrors :: Boolean
+  , censorWarnings :: Boolean
+  , censorLib :: Boolean
+  , censorSrc :: Boolean
+  , censorCodes :: Set ErrorCode
+  , filterCodes :: Set ErrorCode
+  , statVerbosity :: Core.StatVerbosity
+  , strict :: Boolean
   }
 
-psaCompile :: forall a. Set.Set FilePath -> Array String -> Array String -> Spago (Purs.PursEnv a) Unit
-psaCompile globs pursArgs libDirs = psaCompile' globs pursArgs
-  $ defaultParseOptions
-      { opts = defaultParseOptions.opts { libDirs = libDirs }
-      }
+toOutputOptions :: PsaArgs -> PsaOptions -> PsaOutputOptions
+toOutputOptions { libraryDirs, color } options =
+  { color
+  , censorWarnings: options.censorWarnings
+  , censorLib: options.censorLib
+  , censorSrc: options.censorSrc
+  , censorCodes: options.censorCodes
+  , filterCodes: options.filterCodes
+  , statVerbosity: options.statVerbosity
+  , libraryDirs
+  , strict: options.strict
+  }
 
-psaCompile' :: forall a. Set.Set FilePath -> Array String -> ParseOptions -> Spago (Purs.PursEnv a) Unit
-psaCompile' globs pursArgs { opts, showSource, stashFile, jsonErrors } = do
+psaCompile :: forall a. Set.Set FilePath -> Array String -> PsaArgs -> Spago (Purs.PursEnv a) Unit
+psaCompile globs pursArgs psaArgs = psaCompile' globs pursArgs psaArgs defaultParseOptions
+
+psaCompile' :: forall a. Set.Set FilePath -> Array String -> PsaArgs -> PsaOptions -> Spago (Purs.PursEnv a) Unit
+psaCompile' globs pursArgs psaArgs options@{ showSource, stashFile } = do
+  let outputOptions = toOutputOptions psaArgs options
   stashData <- case stashFile of
     Just f -> readStashFile f
     Nothing -> emptyStash
@@ -93,9 +107,9 @@ psaCompile' globs pursArgs { opts, showSource, stashFile, jsonErrors } = do
         merged <- mergeWarnings filenames stashData.date stashData.stash out.warnings
         for_ stashFile \f -> writeStashFile f merged
 
-        out' <- buildOutput loadLinesImpl opts out { warnings = merged }
+        out' <- buildOutput loadLinesImpl outputOptions out { warnings = merged }
 
-        liftEffect $ if jsonErrors then JsonPrinter.print out' else DefaultPrinter.print opts out'
+        liftEffect $ if psaArgs.jsonErrors then JsonPrinter.print out' else DefaultPrinter.print outputOptions out'
 
         pure $ FO.isEmpty out'.stats.allErrors
 
