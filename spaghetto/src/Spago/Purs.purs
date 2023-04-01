@@ -8,6 +8,7 @@ import Data.Codec.Argonaut.Record as CAR
 import Data.Profunctor as Profunctor
 import Data.Set as Set
 import Data.String as String
+import Node.Library.Execa as Execa
 import Registry.Internal.Codec as Internal.Codec
 import Registry.Version as Version
 import Spago.Cmd as Cmd
@@ -42,16 +43,12 @@ getPurs =
   where
   dropStuff pattern = fromMaybe "" <<< Array.head <<< String.split (String.Pattern pattern)
 
-compile :: forall a. Set FilePath -> Array String -> Spago (PursEnv a) Unit
+compile :: forall a. Set FilePath -> Array String -> Spago (PursEnv a) (Either Cmd.ExecError Cmd.ExecResult)
 compile globs pursArgs = do
   { purs } <- ask
   let args = [ "compile" ] <> pursArgs <> Set.toUnfoldable globs
   logDebug [ "Running command:", "purs " <> String.joinWith " " args ]
-  Cmd.exec purs.cmd args Cmd.defaultExecOptions >>= case _ of
-    Right _r -> logSuccess "Build succeeded."
-    Left err -> do
-      logDebug $ show err
-      die [ "Failed to build." ]
+  Cmd.exec purs.cmd args Cmd.defaultExecOptions
 
 --------------------------------------------------------------------------------
 -- Graph

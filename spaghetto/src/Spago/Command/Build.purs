@@ -14,8 +14,8 @@ import Spago.Cmd as Cmd
 import Spago.Config (Package(..), WithTestGlobs(..), Workspace, WorkspacePackage)
 import Spago.Config as Config
 import Spago.Git (Git)
+import Spago.Psa as Psa
 import Spago.Purs (Purs)
-import Spago.Purs as Purs
 import Spago.Purs.Graph as Graph
 
 type BuildEnv a =
@@ -69,11 +69,18 @@ run opts = do
       Nothing -> args
       Just output -> args <> [ "--output", output ]
 
+  -- find the output flag and die if it's there - Spago handles it
+  when (isJust $ Cmd.findFlag { flags: [ "--json-errors" ], args: opts.pursArgs }) do
+    die
+      [ "Can't pass `--json-errors` option directly to purs."
+      , "Use the --json-errors flag for Spago, or add it to your config file."
+      ]
+
   let
     buildBackend globs = do
       case workspace.backend of
         Nothing ->
-          Purs.compile globs (addOutputArgs opts.pursArgs)
+          Psa.psaCompile globs (addOutputArgs opts.pursArgs)
         Just backend -> do
           when (isJust $ Cmd.findFlag { flags: [ "-g", "--codegen" ], args: opts.pursArgs }) do
             die
@@ -81,7 +88,8 @@ run opts = do
               , "Hint: No need to pass `--codegen corefn` explicitly when using the `backend` option."
               , "Remove the argument to solve the error"
               ]
-          Purs.compile globs $ (addOutputArgs opts.pursArgs) <> [ "--codegen", "corefn" ]
+          let args = (addOutputArgs opts.pursArgs) <> [ "--codegen", "corefn" ]
+          Psa.psaCompile globs args
 
           logInfo $ "Compiling with backend \"" <> backend.cmd <> "\""
           logDebug $ "Running command `" <> backend.cmd <> "`"

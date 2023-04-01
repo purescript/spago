@@ -6,32 +6,24 @@
 --   https://opensource.org/license/mit/
 module Spago.Psa where
 
-import Prelude
+import Spago.Prelude
 
 import Data.Argonaut.Core (stringify)
 import Data.Argonaut.Parser (jsonParser)
 import Data.Array as Array
-import Data.Bifunctor (lmap)
 import Data.Codec.Argonaut as CA
-import Data.DateTime (DateTime)
 import Data.DateTime.Instant (toDateTime)
-import Data.Either (Either(..), either)
-import Data.Foldable (foldr, for_)
-import Data.Maybe (Maybe(..), maybe)
+import Data.Foldable (foldr)
 import Data.Set as Set
+import Effect.Exception as Exception
 import Data.String as Str
-import Effect (Effect)
-import Effect.Aff (Aff, attempt)
-import Effect.Class (liftEffect)
-import Effect.Console as Console
 import Effect.Now (now)
 import Effect.Ref as Ref
 import Foreign.Object as FO
 import Node.Encoding as Encoding
 import Node.FS.Stats as Stats
 import Node.FS.Aff as FSA
-import Node.Process as Process
-import Spago.Cmd as Cmd
+import Spago.Purs as Purs
 import Spago.Psa.Types (PsaOutputOptions, StatVerbosity(..), psaResultCodec, psaErrorCodec)
 import Spago.Psa.Output (buildOutput)
 import Spago.Psa.Printer.Default as DefaultPrinter
@@ -51,6 +43,15 @@ defaultOptions =
   , cwd: ""
   }
 
+defaultParseOptions :: ParseOptions
+defaultParseOptions =
+  { showSource: true
+  , stash: false
+  , stashFile: ".psa-stash"
+  , jsonErrors: false
+  , opts: defaultOptions
+  }
+
 type ParseOptions =
   { opts :: PsaOutputOptions
   , showSource :: Boolean
@@ -60,19 +61,11 @@ type ParseOptions =
   }
 
 parseOptions
-  :: PsaOutputOptions
-  -> Array String
+  :: Array String
   -> Effect ParseOptions
-parseOptions opts args =
+parseOptions args =
   defaultLibDir <$>
-    Array.foldM parse
-      { showSource: true
-      , stash: false
-      , stashFile: ".psa-stash"
-      , jsonErrors: false
-      , opts
-      }
-      args
+    Array.foldM parse defaultParseOptions args
   where
   parse p arg
     | arg == "--stash" =
@@ -129,21 +122,30 @@ parseOptions opts args =
         x { opts = x.opts { libDirs = [ "bower_components", ".spago" ] } }
     | otherwise = x
 
-usePsa :: ParseOptions -> Aff Unit
-usePsa { opts, showSource, stash, stashFile, jsonErrors } = do
+psaCompile :: forall a. Set.Set FilePath -> Array String -> Spago (Purs.PursEnv a) Unit
+psaCompile globs pursArgs = psaCompile' globs pursArgs defaultParseOptions
+
+psaCompile' :: forall a. Set.Set FilePath -> Array String -> ParseOptions -> Spago (Purs.PursEnv a) Unit
+psaCompile' globs pursArgs { opts, showSource, stash, stashFile, jsonErrors } = do
   stashData <-
     if stash then readStashFile stashFile
     else emptyStash
 
-  result <- Cmd.exec "purs" [ "compile", "--json-errors" ] Cmd.defaultExecOptions
+  result <- Purs.compile globs (Array.snoc pursArgs "--json-errors")
   let
     result' = case result of
-      Left err -> { output: err.stdout, exitCode: err.exitCode }
-      Right success -> { output: success.stdout, exitCode: Just success.exitCode }
-  for_ (Str.split (Str.Pattern "\n") result'.output) \err ->
+      Left err -> { output: err.stdout, exitCode: err.exitCode, err: Just err }
+      Right success -> { output: success.stdout, exitCode: Just success.exitCode, err: Nothing }
+  arrErrorsIsEmpty <- forWithIndex (Str.split (Str.Pattern "\n") result'.output) \idx err ->
     case jsonParser err >>= CA.decode psaResultCodec >>> lmap CA.printJsonDecodeError of
-      Left _ -> do
-        liftEffect $ Console.error err
+      Left decodeErrMsg -> do
+        logDebug $ Array.intercalate "\n"
+          [ "Failed to decode PsaResult at index '" <> show idx <> "': " <> decodeErrMsg
+          , "Json was: " <> err
+          ]
+        -- Note to reviewer:
+        -- Should a stash decode error cause a non-zero exit?
+        pure false
       Right out -> do
         files <- liftEffect $ Ref.new FO.empty
         let
@@ -156,32 +158,40 @@ usePsa { opts, showSource, stash, stashFile, jsonErrors } = do
 
         liftEffect $ if jsonErrors then JsonPrinter.print out' else DefaultPrinter.print opts out'
 
-        liftEffect do
-          if FO.isEmpty out'.stats.allErrors then
-            for_ result'.exitCode Process.exit
-          else Process.exit 1
+        pure $ FO.isEmpty out'.stats.allErrors
+
+  if Array.all identity arrErrorsIsEmpty then do
+    logSuccess "Build succeeded."
+  else do
+    for_ result'.err $ logDebug <<< show
+    die [ "Failed to build." ]
 
   where
   insertFilenames = foldr \x s -> maybe s (flip Set.insert s) x.filename
   loadNothing _ _ = pure Nothing
 
   isEmptySpan filename pos =
-    filename == "" ||
-      pos.startLine == 0 && pos.endLine == 0
-        && pos.startColumn == 0
-        && pos.endColumn == 0
+    filename == ""
+      || pos.startLine
+      == 0
+      && pos.endLine
+      == 0
+      && pos.startColumn
+      == 0
+      && pos.endColumn
+      == 0
 
   -- TODO: Handle exceptions
   loadLines files filename pos
     | isEmptySpan filename pos = pure Nothing
     | otherwise = do
-        result <- attempt do
+        result <- try do
           cache <- liftEffect $ FO.lookup filename <$> Ref.read files
           contents <-
             case cache of
               Just lines -> pure lines
               Nothing -> do
-                lines <- Str.split (Str.Pattern "\n") <$> FSA.readTextFile Encoding.UTF8 filename
+                lines <- liftAff $ Str.split (Str.Pattern "\n") <$> FSA.readTextFile Encoding.UTF8 filename
                 liftEffect $ Ref.modify_ (FO.insert filename lines) files
                 pure lines
           let source = Array.slice (pos.startLine - 1) (pos.endLine) contents
@@ -191,21 +201,32 @@ usePsa { opts, showSource, stash, stashFile, jsonErrors } = do
   decodeStash s = jsonParser s >>= CA.decode (CA.array psaErrorCodec) >>> lmap CA.printJsonDecodeError
   encodeStash s = CA.encode (CA.array psaErrorCodec) s
 
-  emptyStash :: forall a. Aff { date :: DateTime, stash :: Array a }
-  emptyStash = liftEffect $ { date: _, stash: [] } <$> toDateTime <$> now
+  emptyStash = do
+    logDebug $ "Using empty stash"
+    liftEffect $ { date: _, stash: [] } <$> toDateTime <$> now
 
   readStashFile stashFile' = do
-    result <- attempt do
-      stat <- FSA.stat stashFile'
-      file <- FSA.readTextFile Encoding.UTF8 stashFile'
+    logDebug $ "About to read stash file: " <> stashFile'
+    result <- try do
+      stat <- liftAff $ FSA.stat stashFile'
+      file <- liftAff $ FSA.readTextFile Encoding.UTF8 stashFile'
       case decodeStash file of
-        Left _ -> emptyStash
-        Right stash' -> pure { date: Stats.modifiedTime stat, stash: stash' }
-    either (const emptyStash) pure $ result
+        Left err -> do
+          logDebug $ "Error decoding stash file: " <> err
+          emptyStash
+        Right stash' -> do
+          logDebug $ "Successfully decoded stash file"
+          pure { date: Stats.modifiedTime stat, stash: stash' }
+    case result of
+      Left err -> do
+        logDebug $ "Reading stash file failed: " <> Exception.message err
+        emptyStash
+      Right cache -> pure cache
 
   writeStashFile stashFile' warnings = do
+    logDebug $ "Writing stash file: " <> stashFile'
     let file = stringify (encodeStash warnings)
-    FSA.writeTextFile Encoding.UTF8 stashFile' file
+    liftAff $ FSA.writeTextFile Encoding.UTF8 stashFile' file
 
   mergeWarnings filenames date old new = do
     fileStat <- liftEffect $ Ref.new FO.empty
@@ -219,7 +240,7 @@ usePsa { opts, showSource, stash, stashFile, jsonErrors } = do
             case stat of
               Just s -> pure s
               Nothing -> do
-                s <- attempt $ (date > _) <<< Stats.modifiedTime <$> FSA.stat f
+                s <- liftAff $ try $ (date > _) <<< Stats.modifiedTime <$> FSA.stat f
                 let s' = either (const false) identity s
                 _ <- liftEffect $ Ref.modify_ (FO.insert f s') fileStat
                 pure s'
