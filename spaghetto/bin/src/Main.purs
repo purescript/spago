@@ -47,6 +47,7 @@ import Spago.Json as Json
 import Spago.Log (LogVerbosity(..))
 import Spago.Paths as Paths
 import Spago.Psa (PsaOptions)
+import Spago.Purs (Purs)
 import Spago.Purs as Purs
 import Unsafe.Coerce (unsafeCoerce)
 
@@ -165,6 +166,7 @@ type BundleArgs =
 
 type PublishArgs =
   { selectedPackage :: Maybe String
+  , psaArgs :: PsaArgs
   }
 
 data SpagoCmd a = SpagoCmd GlobalArgs (Command a)
@@ -385,6 +387,7 @@ publishArgsParser :: ArgParser PublishArgs
 publishArgsParser =
   ArgParser.fromRecord
     { selectedPackage: Flags.selectedPackage
+    , psaArgs: psaArgsParser
     }
 
 registrySearchArgsParser :: ArgParser RegistrySearchArgs
@@ -468,12 +471,23 @@ main =
             buildEnv <- runSpago env (mkBuildEnv args dependencies)
             let options = { depsOnly: false, pursArgs: List.toUnfoldable args.pursArgs }
             runSpago buildEnv (Build.run options)
-          Publish { selectedPackage } -> do
+          Publish { selectedPackage, psaArgs } -> do
             { env, fetchOpts } <- mkFetchEnv { packages: mempty, selectedPackage, ensureRanges: false }
             -- TODO: --no-fetch flag
             dependencies <- runSpago env (Fetch.run fetchOpts)
-            env' <- runSpago env (mkBuildEnv { depsOnly: false, pursArgs: [] } dependencies)
-            publishEnv <- runSpago env' (mkPublishEnv dependencies)
+            let
+              buildArgs =
+                { selectedPackage
+                , psaArgs
+                , pursArgs: mempty
+                , backendArgs: mempty
+                , output: mempty
+                , pedanticPackages: false
+                , ensureRanges: false
+                , jsonErrors: false
+                }
+            { purs, psaConfig } <- runSpago env (mkBuildEnv buildArgs dependencies)
+            publishEnv <- runSpago env (mkPublishEnv dependencies purs psaConfig)
             void $ runSpago publishEnv (Publish.publish {})
           Repl args -> do
             -- TODO implement
@@ -706,10 +720,9 @@ mkBuildEnv buildArgs dependencies = do
 
   pure { logOptions, purs, git, dependencies, workspace: newWorkspace, psaConfig }
 
-mkPublishEnv :: forall a. Map PackageName Package -> Spago (Build.BuildEnv a) (Publish.PublishEnv a)
-mkPublishEnv dependencies = do
+mkPublishEnv :: forall a. Map PackageName Package -> Purs -> Config.PsaConfig -> Spago (Fetch.FetchEnv a) (Publish.PublishEnv a)
+mkPublishEnv dependencies purs psaConfig = do
   env <- ask
-  purs <- Purs.getPurs
   selected <- case env.workspace.selected of
     Just s -> pure s
     Nothing ->
@@ -725,7 +738,7 @@ mkPublishEnv dependencies = do
               [ toDoc "No package was selected for publishing. Please select (with -p) one of the following packages:"
               , indent (toDoc $ map _.package.name workspacePackages)
               ]
-  pure (Record.union { purs, selected, dependencies } env)
+  pure (Record.union { purs, selected, dependencies, psaConfig } env)
 
 mkFetchEnv :: forall a. FetchArgs -> Spago (LogEnv a) { env :: Fetch.FetchEnv (), fetchOpts :: Fetch.FetchOpts }
 mkFetchEnv args = do
