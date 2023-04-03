@@ -8,7 +8,6 @@ import Data.Codec.Argonaut.Record as CAR
 import Data.Profunctor as Profunctor
 import Data.Set as Set
 import Data.String as String
-import Node.Library.Execa as Execa
 import Registry.Internal.Codec as Internal.Codec
 import Registry.Version as Version
 import Spago.Cmd as Cmd
