@@ -124,15 +124,7 @@ psaCompile globs pursArgs psaArgs options@{ showSource, stashFile } = do
   loadNothing _ _ = pure Nothing
 
   isEmptySpan filename pos =
-    filename == ""
-      || pos.startLine
-      == 0
-      && pos.endLine
-      == 0
-      && pos.startColumn
-      == 0
-      && pos.endColumn
-      == 0
+    filename == "" || pos.startLine == 0 && pos.endLine == 0 && pos.startColumn == 0 && pos.endColumn == 0
 
   -- TODO: Handle exceptions
   loadLines files filename pos
