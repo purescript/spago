@@ -170,7 +170,7 @@ pedanticPackages =
 pursArgs ∷ ArgParser (List String)
 pursArgs =
   ArgParser.argument [ "--purs-args" ]
-    "Arguments to pass to purs compile. Wrap in quotes."
+    "Arguments to pass to purs compile. Wrap in quotes. `--output` and `--json-errors` must be passed to Spago directly."
     # ArgParser.many
 
 execArgs :: ArgParser (Maybe (Array String))
