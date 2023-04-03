@@ -11,7 +11,6 @@ import Data.Map as Map
 import Data.Set as Set
 import Data.Set.NonEmpty as NonEmptySet
 import Data.Tuple as Tuple
-import Node.Path as Path
 import Registry.PackageName as PackageName
 import Spago.BuildInfo as BuildInfo
 import Spago.Cmd as Cmd
@@ -90,7 +89,7 @@ run opts = do
       , jsonErrors: opts.jsonErrors
       }
     stashFileFallback = case workspace.selected of
-      Just p -> Just $ Path.concat [ Paths.localCacheStashesPath, "." <> PackageName.print p.package.name ]
+      Just p -> Just $ Paths.mkLocalCachesStashFile $ PackageName.print p.package.name
       Nothing -> Just Paths.localCachesStashEntireWorkspace
     psaOptions =
       { strict: fromMaybe Psa.defaultParseOptions.strict psaConfig.strict

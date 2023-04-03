@@ -41,4 +41,7 @@ localCacheStashesPath :: FilePath
 localCacheStashesPath = Path.concat [ localCachePath, "stashes" ]
 
 localCachesStashEntireWorkspace :: FilePath
-localCachesStashEntireWorkspace = Path.concat [ localCacheStashesPath, ".entire-workspace" ]
+localCachesStashEntireWorkspace = mkLocalCachesStashFile "entire-workspace"
+
+mkLocalCachesStashFile :: String -> FilePath
+mkLocalCachesStashFile fileName = Path.concat [ localCacheStashesPath, fileName <> ".stash" ]
