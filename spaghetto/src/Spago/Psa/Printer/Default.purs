@@ -14,16 +14,16 @@ module Spago.Psa.Printer.Default
 
 import Prelude
 
-import Control.Alternative as Alternative
 import Ansi.Codes as Ansi
+import Control.Alternative as Alternative
 import Data.Array as Array
 import Data.Foldable (fold, foldMap, maximum, maximumBy)
+import Data.FoldableWithIndex (forWithIndex_)
 import Data.Maybe (Maybe(..), fromMaybe, maybe)
 import Data.Monoid (power)
-import Data.FoldableWithIndex (forWithIndex_)
-import Data.Unfoldable (unfoldr)
 import Data.String as Str
 import Data.Tuple (Tuple(..), uncurry)
+import Data.Unfoldable (unfoldr)
 import Dodo as D
 import Dodo.Ansi as DA
 import Effect (Effect)
