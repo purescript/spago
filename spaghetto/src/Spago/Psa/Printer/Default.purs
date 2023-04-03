@@ -58,10 +58,10 @@ print options output = do
     Core.VerboseStats -> renderVerboseStats
 
 renderWarning :: Int -> Int -> PsaAnnotedError -> D.Doc Ansi.GraphicsParam
-renderWarning = renderWrapper Ansi.Yellow
+renderWarning = renderWrapper Ansi.BrightYellow
 
 renderError :: Int -> Int -> PsaAnnotedError -> D.Doc Ansi.GraphicsParam
-renderError = renderWrapper Ansi.Red
+renderError = renderWrapper Ansi.BrightRed
 
 renderWrapper :: Ansi.Color -> Int -> Int -> PsaAnnotedError -> D.Doc Ansi.GraphicsParam
 renderWrapper color total index { error, path, position, source, message } =
@@ -106,7 +106,7 @@ renderSource' pos lines = renderSource pos lines <> D.break
 renderStats :: OutputStats -> D.Doc Ansi.GraphicsParam
 renderStats stats =
   renderStatCols
-    { col1: [ renderLabel Ansi.Yellow "Warnings", renderLabel Ansi.Red "Errors" ]
+    { col1: [ renderLabel Ansi.BrightYellow "Warnings", renderLabel Ansi.BrightRed "Errors" ]
     , col2: [ renderStat srcWarnings, renderStat srcErrors ]
     , col3: [ renderStat libWarnings, renderStat libErrors ]
     , col4: [ renderStat allWarnings, renderStat allErrors ]
@@ -139,8 +139,8 @@ renderVerboseStats stats =
     , doc: DA.foreground color $ D.text lbl
     }
 
-  warningLabels = renderLabel Ansi.Yellow <$> warnings
-  errorLabels = renderLabel Ansi.Red <$> errors
+  warningLabels = renderLabel Ansi.BrightYellow <$> warnings
+  errorLabels = renderLabel Ansi.BrightRed <$> errors
 
   getStat key x = fromMaybe (Tuple 0 0) $ FO.lookup key x
   getStats ks x = (\k -> renderStat $ getStat k x) <$> ks
@@ -217,7 +217,7 @@ renderStatCols' { col1, col2, col3, col4 } = D.lines rows
     pure $ flip Tuple (rowIdx + 1) $ guttered [ c1, c2, c3, c4 ]
 
 renderStat :: Tuple Int Int -> DocColumn
-renderStat (Tuple 0 0) = { width: 1, alignLeft: false, doc: DA.foreground Ansi.Green $ D.text "0" }
+renderStat (Tuple 0 0) = { width: 1, alignLeft: false, doc: DA.foreground Ansi.BrightGreen $ D.text "0" }
 renderStat (Tuple a b)
   | a == b = do
       let aText = show a
@@ -262,13 +262,13 @@ sourceLine gutter sep num code = fold
 renderErrorRange :: Int -> Int -> D.Doc Ansi.GraphicsParam
 renderErrorRange start len = fold
   [ D.text $ power " " (start - 1)
-  , DA.foreground Ansi.Red $ D.text $ power "^" len
+  , DA.foreground Ansi.BrightRed $ D.text $ power "^" len
   ]
 
 renderErrorTick :: Int -> String -> D.Doc Ansi.GraphicsParam
 renderErrorTick start char = fold
   [ D.text $ power " " (start - 1)
-  , DA.foreground Ansi.Red $ D.text char
+  , DA.foreground Ansi.BrightRed $ D.text char
   ]
 
 padLeft :: Int -> String -> String
