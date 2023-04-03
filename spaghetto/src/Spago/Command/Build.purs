@@ -79,7 +79,7 @@ run opts = do
   when (isJust $ Cmd.findFlag { flags: [ "--json-errors" ], args: opts.pursArgs }) do
     die
       [ "Can't pass `--json-errors` option directly to purs."
-      , "Use the --json-errors flag for Spago, or add it to your config file."
+      , "Use the --json-errors flag for Spago."
       ]
 
   let
