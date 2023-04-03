@@ -17,38 +17,33 @@ selectedPackage =
     "Select the local project to build"
     # ArgParser.optional
 
-configBoolean' :: Boolean -> ArgParser Unit -> ArgParser (Maybe Boolean)
-configBoolean' b p = ArgParser.default (Just b) $ Just (not b) <$ p
-
-configBooleanTrue :: ArgParser Unit -> ArgParser (Maybe Boolean)
-configBooleanTrue = configBoolean' true
-
-configBooleanFalse :: ArgParser Unit -> ArgParser (Maybe Boolean)
-configBooleanFalse = configBoolean' false
-
 psaStrict ∷ ArgParser (Maybe Boolean)
 psaStrict =
   ArgParser.flag [ "--strict" ]
     "Promotes project sources' warnings to errors"
-    # configBooleanFalse
+    # ArgParser.boolean
+    # ArgParser.optional
 
 psaCensorWarnings ∷ ArgParser (Maybe Boolean)
 psaCensorWarnings =
   ArgParser.flag [ "--psa-censor-warnings" ]
     "Censor all warnings"
-    # configBooleanFalse
+    # ArgParser.boolean
+    # ArgParser.optional
 
 psaCensorLib ∷ ArgParser (Maybe Boolean)
 psaCensorLib =
   ArgParser.flag [ "--psa-censor-lib" ]
     "Censor warnings from library sources"
-    # configBooleanFalse
+    # ArgParser.boolean
+    # ArgParser.optional
 
 psaCensorSrc ∷ ArgParser (Maybe Boolean)
 psaCensorSrc =
   ArgParser.flag [ "--psa-censor-src" ]
     "Censor warnings from project sources"
-    # configBooleanFalse
+    # ArgParser.boolean
+    # ArgParser.optional
 
 psaShowSource ∷ ArgParser (Maybe ShowSourceCode)
 psaShowSource =
