@@ -4,10 +4,8 @@ import Spago.Prelude
 
 import ArgParse.Basic (ArgParser)
 import ArgParse.Basic as ArgParser
-import Data.Array.NonEmpty as NEA
 import Data.Set.NonEmpty (NonEmptySet)
 import Data.Set.NonEmpty as NonEmptySet
-import Data.String as String
 import Node.Path as Path
 import Spago.Core.Config (ShowSourceCode(..))
 import Spago.Core.Config as Core
@@ -56,19 +54,17 @@ psaShowSource =
 
 psaCensorCodes :: ArgParser (Maybe (NonEmptySet String))
 psaCensorCodes =
-  ArgParser.argument [ "--psa-censor-codes" ]
-    "Censor specific error codes (comma-separated list)"
-    # ArgParser.unformat "CODE1,CODE2,...,CODEX"
-        (maybe (Left "Did not get a set of values") (Right <<< NonEmptySet.fromFoldable1) <<< NEA.fromArray <<< String.split (String.Pattern ","))
-    # ArgParser.optional
+  ArgParser.argument [ "--psa-censor-code" ]
+    "Censor a specific error code (e.g. `ShadowedName`)"
+    # ArgParser.many
+    <#> NonEmptySet.fromFoldable
 
 psaFilterCodes :: ArgParser (Maybe (NonEmptySet String))
 psaFilterCodes =
-  ArgParser.argument [ "--psa-filter-codes" ]
-    "Only show specific error codes (comma-separated list)"
-    # ArgParser.unformat "CODE1,CODE2,...,CODEX"
-        (maybe (Left "Did not get a set of values") (Right <<< NonEmptySet.fromFoldable1) <<< NEA.fromArray <<< String.split (String.Pattern ","))
-    # ArgParser.optional
+  ArgParser.argument [ "--psa-filter-code" ]
+    "Only show a specific error code (e.g. `TypesDoNotUnify`)"
+    # ArgParser.many
+    <#> NonEmptySet.fromFoldable
 
 psaStatVerbosity :: ArgParser (Maybe Core.StatVerbosity)
 psaStatVerbosity = ArgParser.optional $ ArgParser.choose "StatVerbosity"
