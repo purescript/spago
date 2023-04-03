@@ -11,9 +11,7 @@ import Data.Codec.Argonaut.Common as CA.Common
 import Data.JSDate as JSDate
 import Data.List as List
 import Data.Map as Map
-import Data.Set as Set
 import Data.Set.NonEmpty (NonEmptySet)
-import Data.Set.NonEmpty as NonEmptySet
 import Effect.Aff as Aff
 import Effect.Class.Console as Console
 import Effect.Ref as Ref
@@ -46,7 +44,6 @@ import Spago.Git as Git
 import Spago.Json as Json
 import Spago.Log (LogVerbosity(..))
 import Spago.Paths as Paths
-import Spago.Psa (PsaOptions)
 import Spago.Purs (Purs)
 import Spago.Purs as Purs
 import Unsafe.Coerce (unsafeCoerce)
