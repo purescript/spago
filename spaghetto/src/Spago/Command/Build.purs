@@ -36,6 +36,7 @@ type BuildEnv a =
 type BuildOptions =
   { depsOnly :: Boolean
   , pursArgs :: Array String
+  , jsonErrors :: Boolean
   }
 
 run :: forall a. BuildOptions -> Spago (BuildEnv a) Unit
@@ -86,7 +87,7 @@ run opts = do
     psaArgs =
       { libraryDirs: dependencyLibs
       , color: logOptions.color
-      , jsonErrors: false
+      , jsonErrors: opts.jsonErrors
       }
     stashFileFallback = case workspace.selected of
       Just p -> Just $ Path.concat [ Paths.localCacheStashesPath, "." <> PackageName.print p.package.name ]

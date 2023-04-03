@@ -454,19 +454,19 @@ main =
           RegistryInfo args -> do
             env <- mkRegistryEnv
             void $ runSpago env (Registry.info args)
-          Install args@{ packages, selectedPackage, ensureRanges } -> do
+          Install args@{ packages, selectedPackage, ensureRanges, jsonErrors } -> do
             { env, fetchOpts } <- mkFetchEnv { packages, selectedPackage, ensureRanges }
             -- TODO: --no-fetch flag
             dependencies <- runSpago env (Fetch.run fetchOpts)
             env' <- runSpago env (mkBuildEnv args dependencies)
-            let options = { depsOnly: true, pursArgs: List.toUnfoldable args.pursArgs }
+            let options = { depsOnly: true, pursArgs: List.toUnfoldable args.pursArgs, jsonErrors }
             runSpago env' (Build.run options)
-          Build args@{ selectedPackage, ensureRanges } -> do
+          Build args@{ selectedPackage, ensureRanges, jsonErrors } -> do
             { env, fetchOpts } <- mkFetchEnv { packages: mempty, selectedPackage, ensureRanges }
             -- TODO: --no-fetch flag
             dependencies <- runSpago env (Fetch.run fetchOpts)
             buildEnv <- runSpago env (mkBuildEnv args dependencies)
-            let options = { depsOnly: false, pursArgs: List.toUnfoldable args.pursArgs }
+            let options = { depsOnly: false, pursArgs: List.toUnfoldable args.pursArgs, jsonErrors }
             runSpago buildEnv (Build.run options)
           Publish { selectedPackage, psaArgs } -> do
             { env, fetchOpts } <- mkFetchEnv { packages: mempty, selectedPackage, ensureRanges: false }
@@ -489,33 +489,33 @@ main =
           Repl args -> do
             -- TODO implement
             pure unit
-          Bundle args@{ selectedPackage, ensureRanges } -> do
+          Bundle args@{ selectedPackage, ensureRanges, jsonErrors } -> do
             { env, fetchOpts } <- mkFetchEnv { packages: mempty, selectedPackage, ensureRanges }
             -- TODO: --no-fetch flag
             dependencies <- runSpago env (Fetch.run fetchOpts)
             -- TODO: --no-build flag
             buildEnv <- runSpago env (mkBuildEnv args dependencies)
-            let options = { depsOnly: false, pursArgs: List.toUnfoldable args.pursArgs }
+            let options = { depsOnly: false, pursArgs: List.toUnfoldable args.pursArgs, jsonErrors }
             runSpago buildEnv (Build.run options)
             bundleEnv <- runSpago env (mkBundleEnv args)
             runSpago bundleEnv Bundle.run
-          Run args@{ selectedPackage, ensureRanges } -> do
+          Run args@{ selectedPackage, ensureRanges, jsonErrors } -> do
             { env, fetchOpts } <- mkFetchEnv { packages: mempty, selectedPackage, ensureRanges }
             -- TODO: --no-fetch flag
             dependencies <- runSpago env (Fetch.run fetchOpts)
             -- TODO: --no-build flag
             buildEnv <- runSpago env (mkBuildEnv args dependencies)
-            let options = { depsOnly: false, pursArgs: List.toUnfoldable args.pursArgs }
+            let options = { depsOnly: false, pursArgs: List.toUnfoldable args.pursArgs, jsonErrors }
             runSpago buildEnv (Build.run options)
             runEnv <- runSpago env (mkRunEnv args)
             runSpago runEnv Run.run
-          Test args@{ selectedPackage } -> do
+          Test args@{ selectedPackage, jsonErrors } -> do
             { env, fetchOpts } <- mkFetchEnv { packages: mempty, selectedPackage, ensureRanges: false }
             -- TODO: --no-fetch flag
             dependencies <- runSpago env (Fetch.run fetchOpts)
             -- TODO: --no-build flag
             buildEnv <- runSpago env (mkBuildEnv (Record.union args { ensureRanges: false }) dependencies)
-            let options = { depsOnly: false, pursArgs: List.toUnfoldable args.pursArgs }
+            let options = { depsOnly: false, pursArgs: List.toUnfoldable args.pursArgs, jsonErrors }
             runSpago buildEnv (Build.run options)
             testEnv <- runSpago env (mkTestEnv args)
             runSpago testEnv Test.run

@@ -91,7 +91,7 @@ publish _args = do
   -- As first thing we run a build to make sure the package compiles at all
   runSpago
     (env { workspace = workspace { selected = Just selected } })
-    (Build.run { depsOnly: false, pursArgs: [] })
+    (Build.run { depsOnly: false, pursArgs: [], jsonErrors: false })
 
   -- We then need to check that the dependency graph is accurate. If not, queue the errors
   let globs = getGlobs selected dependencies
@@ -237,7 +237,7 @@ publish _args = do
             , dependencies = buildPlanDependencies
             }
         )
-        (Build.run { depsOnly: false, pursArgs: [] })
+        (Build.run { depsOnly: false, pursArgs: [], jsonErrors: false })
 
       logDebug $ unsafeStringify publishingData
       logSuccess "Ready for publishing. Calling the registry.."
