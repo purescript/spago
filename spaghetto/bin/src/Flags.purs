@@ -74,7 +74,7 @@ psaStatVerbosity = ArgParser.optional $ ArgParser.choose "StatVerbosity"
 
 psaStashFile ∷ ArgParser (Maybe (Either Boolean String))
 psaStashFile = ArgParser.optional $ ArgParser.choose "stash"
-  [ ArgParser.argument [ "--psa-stash-file" ] "Enable persistent warnings using a specific stash file relative to the current working directory"
+  [ ArgParser.argument [ "--psa-stash-file" ] "Enable persistent warnings using a specific stash file"
       # ArgParser.unformat "FILE" (Right <<< Right <<< Paths.mkLocalCachesCustomStashFile <<< Path.basename)
   , Left true <$ ArgParser.flag [ "--psa-stash" ] "Enable persistent warnings using default stash file location"
   ]
