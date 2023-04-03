@@ -48,7 +48,8 @@ compile globs pursArgs = do
   { purs } <- ask
   let args = [ "compile" ] <> pursArgs <> Set.toUnfoldable globs
   logDebug [ "Running command:", "purs " <> String.joinWith " " args ]
-  Cmd.exec purs.cmd args Cmd.defaultExecOptions
+  Cmd.exec purs.cmd args $ Cmd.defaultExecOptions
+    { pipeStdout = false }
 
 --------------------------------------------------------------------------------
 -- Graph
