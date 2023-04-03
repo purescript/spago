@@ -89,7 +89,7 @@ run opts = do
       , jsonErrors: opts.jsonErrors
       }
     stashFileFallback = case workspace.selected of
-      Just p -> Just $ Paths.mkLocalCachesStashFile $ PackageName.print p.package.name
+      Just p -> Just $ Paths.mkLocalCachesDefaultStashFile $ PackageName.print p.package.name
       Nothing -> Just Paths.localCachesStashEntireWorkspace
     psaOptions =
       { strict: fromMaybe Psa.defaultParseOptions.strict psaConfig.strict

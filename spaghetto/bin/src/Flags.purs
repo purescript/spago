@@ -8,8 +8,10 @@ import Data.Array.NonEmpty as NEA
 import Data.Set.NonEmpty (NonEmptySet)
 import Data.Set.NonEmpty as NonEmptySet
 import Data.String as String
+import Node.Path as Path
 import Spago.Core.Config (ShowSourceCode(..))
 import Spago.Core.Config as Core
+import Spago.Paths as Paths
 
 selectedPackage ∷ ArgParser (Maybe String)
 selectedPackage =
@@ -77,7 +79,7 @@ psaStatVerbosity = ArgParser.optional $ ArgParser.choose "StatVerbosity"
 psaStashFile ∷ ArgParser (Maybe (Either Boolean String))
 psaStashFile = ArgParser.optional $ ArgParser.choose "stash"
   [ ArgParser.argument [ "--psa-stash-file" ] "Enable persistent warnings using a specific stash file relative to the current working directory"
-      # ArgParser.unformat "FILE" (Right <<< Right)
+      # ArgParser.unformat "FILE" (Right <<< Right <<< Paths.mkLocalCachesCustomStashFile <<< Path.basename)
   , Left true <$ ArgParser.flag [ "--psa-stash" ] "Enable persistent warnings using default stash file location"
   ]
 

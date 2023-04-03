@@ -40,8 +40,17 @@ registryIndexPath = Path.concat [ globalCachePath, "registry-index" ]
 localCacheStashesPath :: FilePath
 localCacheStashesPath = Path.concat [ localCachePath, "stashes" ]
 
-localCachesStashEntireWorkspace :: FilePath
-localCachesStashEntireWorkspace = mkLocalCachesStashFile "entire-workspace"
+localCacheStashesDefaultsPath :: FilePath
+localCacheStashesDefaultsPath = Path.concat [ localCacheStashesPath, "defaults" ]
 
-mkLocalCachesStashFile :: String -> FilePath
-mkLocalCachesStashFile fileName = Path.concat [ localCacheStashesPath, fileName <> ".stash" ]
+localCacheStashesCustomPath :: FilePath
+localCacheStashesCustomPath = Path.concat [ localCacheStashesPath, "custom" ]
+
+localCachesStashEntireWorkspace :: FilePath
+localCachesStashEntireWorkspace = mkLocalCachesDefaultStashFile "entire-workspace"
+
+mkLocalCachesDefaultStashFile :: String -> FilePath
+mkLocalCachesDefaultStashFile fileName = Path.concat [ localCacheStashesDefaultsPath, fileName <> ".stash" ]
+
+mkLocalCachesCustomStashFile :: String -> FilePath
+mkLocalCachesCustomStashFile fileName = Path.concat [ localCacheStashesCustomPath, fileName <> ".stash" ]
