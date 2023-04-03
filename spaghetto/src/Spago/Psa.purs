@@ -42,7 +42,7 @@ type PsaArgs =
 defaultParseOptions :: PsaOptions
 defaultParseOptions =
   { showSource: Core.ShowSourceCode
-  , stashFile: Nothing -- ".psa-stash"
+  , stashFile: Nothing
   , censorWarnings: false
   , censorLib: false
   , censorSrc: false
