@@ -22,7 +22,10 @@ import Effect.Ref as Ref
 import Foreign.Object as FO
 import Node.Encoding as Encoding
 import Node.FS.Aff as FSA
+import Node.FS.Perms (permsAll)
 import Node.FS.Stats as Stats
+import Node.FS.Sync as FSSync
+import Node.Path (dirname)
 import Spago.Core.Config as Core
 import Spago.Psa.Output (buildOutput)
 import Spago.Psa.Printer.Default as DefaultPrinter
@@ -175,7 +178,12 @@ psaCompile globs pursArgs psaArgs options@{ showSource, stashFile } = do
 
   writeStashFile stashFile' warnings = do
     logDebug $ "Writing stash file: " <> stashFile'
-    let file = stringify (encodeStash warnings)
+    let
+      file = stringify (encodeStash warnings)
+      dir = dirname stashFile'
+    dirExists <- liftEffect $ FSSync.exists dir
+    unless dirExists do
+      liftAff $ FSA.mkdir' dir { recursive: true, mode: permsAll }
     liftAff $ FSA.writeTextFile Encoding.UTF8 stashFile' file
 
   mergeWarnings filenames date old new = do
