@@ -25,7 +25,6 @@ import Prelude
 
 import Data.Codec.Argonaut.Record as CAR
 import Data.Codec.Argonaut as CA
-import Data.Codec.Argonaut.Common as CAC
 import Data.Codec.Argonaut.Compat as CACompat
 import Data.Maybe (Maybe(..))
 import Data.Set (Set)
@@ -118,11 +117,11 @@ psaResultCodec = CAR.object "PsaResult"
 
 psaErrorCodec :: CA.JsonCodec PsaError
 psaErrorCodec = CAR.object "PsaError"
-  { moduleName: CAC.maybe CA.string
+  { moduleName: CACompat.maybe CA.string
   , errorCode: CA.string
   , errorLink: CA.string
   , message: CA.string
-  , filename: CAC.maybe CA.string
+  , filename: CACompat.maybe CA.string
   , position: CACompat.maybe positionCodec
   , suggestion: CACompat.maybe suggestionCodec
   }
