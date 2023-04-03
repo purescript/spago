@@ -19,4 +19,4 @@ print output = do
       , errors: _.error <$> output.errors
       }
 
-  Console.error (stringify result)
+  Console.log (stringify result)
