@@ -65,12 +65,11 @@ renderError = renderWrapper Ansi.Red
 
 renderWrapper :: Ansi.Color -> Int -> Int -> PsaAnnotedError -> D.Doc Ansi.GraphicsParam
 renderWrapper color total index { error, path, position, source, message } =
-  D.lines
+  D.foldWithSeparator (D.break <> D.break)
     [ D.words $
         [ renderStatus color total index error.errorCode
         , renderPath path error.moduleName <> foldMap renderPosition position
         ]
-    , D.text ""
     , D.indent $ D.lines
         [ fromMaybe mempty (renderSource' <$> position <*> source)
         , toLines message
