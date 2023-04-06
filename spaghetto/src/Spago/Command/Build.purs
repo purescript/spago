@@ -14,7 +14,7 @@ import Data.Tuple as Tuple
 import Registry.PackageName as PackageName
 import Spago.BuildInfo as BuildInfo
 import Spago.Cmd as Cmd
-import Spago.Config (Package(..), WithTestGlobs(..), Workspace, WorkspacePackage, PsaConfig)
+import Spago.Config (Package(..), PsaConfig, WithTestGlobs(..), Workspace, WorkspacePackage)
 import Spago.Config as Config
 import Spago.Git (Git)
 import Spago.Paths as Paths
@@ -43,15 +43,18 @@ run opts = do
   logInfo "Building..."
   { dependencies, workspace, logOptions, psaConfig } <- ask
   let
+    isWorkspacePackage = case _ of
+      Tuple _ (WorkspacePackage _) -> true
+      _ -> false
+
+    { yes: monorepoPkgs, no: dependencyPkgs } = partition isWorkspacePackage $ Map.toUnfoldable dependencies
     -- depsOnly means "no packages from the monorepo", so we filter out the workspace packages
-    Tuple dependencyLibs dependencyGlobs = Array.unzip $ (Tuple.uncurry $ Config.sourceGlob' WithTestGlobs) =<< case opts.depsOnly of
-      false -> Map.toUnfoldable dependencies
-      true -> Map.toUnfoldable $ Map.filter
-        ( case _ of
-            WorkspacePackage _ -> false
-            _ -> true
-        )
-        dependencies
+    dependencyGlobs = (Tuple.uncurry $ Config.sourceGlob WithTestGlobs) =<< dependencyPkgs
+    monorepoPkgGlobs
+      | opts.depsOnly = []
+      | otherwise = (Tuple.uncurry $ Config.sourceGlob WithTestGlobs) =<< monorepoPkgs
+
+    dependencyLibs = map (Tuple.uncurry Config.getPackageLocation) dependencyPkgs
 
     -- Here we select the right globs for a monorepo setup with a bunch of packages
     projectSources = join
@@ -141,7 +144,7 @@ run opts = do
         runCommands "Then" thenCommands
   -}
 
-  let globs = Set.fromFoldable $ projectSources <> dependencyGlobs <> [ BuildInfo.buildInfoPath ]
+  let globs = Set.fromFoldable $ projectSources <> monorepoPkgGlobs <> dependencyGlobs <> [ BuildInfo.buildInfoPath ]
   buildBackend globs
 
   when workspace.buildOptions.pedanticPackages do
