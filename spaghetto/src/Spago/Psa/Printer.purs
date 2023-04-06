@@ -9,14 +9,17 @@ module Spago.Psa.Printer
   , renderError
   , renderStats
   , renderVerboseStats
-  , print
+  , printDefaultOutputToErr
+  , printJsonOutputToOut
   ) where
 
 import Prelude
 
 import Ansi.Codes as Ansi
 import Control.Alternative as Alternative
+import Data.Argonaut.Core (stringify)
 import Data.Array as Array
+import Data.Codec.Argonaut as CA
 import Data.Foldable (fold, foldMap, maximum, maximumBy)
 import Data.FoldableWithIndex (forWithIndex_)
 import Data.Maybe (Maybe(..), fromMaybe, maybe)
@@ -31,11 +34,21 @@ import Effect.Console as Console
 import Foreign.Object as FO
 import Spago.Core.Config as Core
 import Spago.Psa.Output (OutputStats, Output)
-import Spago.Psa.Types (Lines, Position, PsaAnnotedError, PsaOutputOptions, PsaPath(..))
+import Spago.Psa.Types (Lines, Position, PsaAnnotedError, PsaOutputOptions, PsaPath(..), psaResultCodec)
+
+printJsonOutputToOut :: Output -> Effect Unit
+printJsonOutputToOut output = do
+  let
+    result = CA.encode psaResultCodec
+      { warnings: _.error <$> output.warnings
+      , errors: _.error <$> output.errors
+      }
+
+  Console.log (stringify result)
 
 -- | Prints output to the console.
-print :: PsaOutputOptions -> Output -> Effect Unit
-print options output = do
+printDefaultOutputToErr :: PsaOutputOptions -> Output -> Effect Unit
+printDefaultOutputToErr options output = do
   forWithIndex_ output.warnings \i warning -> do
     Console.error $ printDoc (renderWarning lenWarnings (i + 1) warning)
     Console.error ""

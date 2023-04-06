@@ -28,8 +28,7 @@ import Node.FS.Sync as FSSync
 import Node.Path (dirname)
 import Spago.Core.Config as Core
 import Spago.Psa.Output (buildOutput)
-import Spago.Psa.Printer as DefaultPrinter
-import Spago.Psa.Printer.Json as JsonPrinter
+import Spago.Psa.Printer (printDefaultOutputToErr, printJsonOutputToOut)
 import Spago.Psa.Types (PsaOutputOptions, ErrorCode, psaErrorCodec, psaResultCodec)
 import Spago.Purs as Purs
 
@@ -103,7 +102,7 @@ psaCompile globs pursArgs psaArgs options@{ showSource, stashFile } = do
 
         out' <- buildOutput loadLinesImpl outputOptions out { warnings = merged }
 
-        liftEffect $ if psaArgs.jsonErrors then JsonPrinter.print out' else DefaultPrinter.print outputOptions out'
+        liftEffect $ if psaArgs.jsonErrors then printJsonOutputToOut out' else printDefaultOutputToErr outputOptions out'
 
         pure $ FO.isEmpty out'.stats.allErrors
 
