@@ -4,7 +4,7 @@
 -- To fullfil license requirements
 --   Copyright © Nathan Faubion
 --   https://opensource.org/license/mit/
-module Spago.Psa.Printer.Default
+module Spago.Psa.Printer
   ( renderWarning
   , renderError
   , renderStats

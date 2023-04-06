@@ -28,7 +28,7 @@ import Node.FS.Sync as FSSync
 import Node.Path (dirname)
 import Spago.Core.Config as Core
 import Spago.Psa.Output (buildOutput)
-import Spago.Psa.Printer.Default as DefaultPrinter
+import Spago.Psa.Printer as DefaultPrinter
 import Spago.Psa.Printer.Json as JsonPrinter
 import Spago.Psa.Types (PsaOutputOptions, ErrorCode, psaErrorCodec, psaResultCodec)
 import Spago.Purs as Purs
