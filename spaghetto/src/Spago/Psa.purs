@@ -86,13 +86,13 @@ psaCompile globs pursArgs psaArgs options@{ showSource, stashFile } = do
   arrErrorsIsEmpty <- forWithIndex (Str.split (Str.Pattern "\n") result'.output) \idx err ->
     case jsonParser err >>= CA.decode psaResultCodec >>> lmap CA.printJsonDecodeError of
       Left decodeErrMsg -> do
-        logDebug $ Array.intercalate "\n"
+        logWarn $ Array.intercalate "\n"
           [ "Failed to decode PsaResult at index '" <> show idx <> "': " <> decodeErrMsg
           , "Json was: " <> err
           ]
-        -- Note to reviewer:
-        -- Should a stash decode error cause a non-zero exit?
-        pure false
+        -- If we can't decode the error, then there's likely a codec issue on Spago's side.
+        -- So, this shouldn't fail the build.
+        pure true
       Right out -> do
         files <- liftEffect $ Ref.new FO.empty
         let
