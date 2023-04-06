@@ -284,6 +284,7 @@ package:
         #    2. Enable it using default location (.spago/default/)
         true
         #    3. Enable it using custom location (.spago/custom)
+        "foo"
 
 # optional
   bundle:
