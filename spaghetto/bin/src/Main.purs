@@ -72,7 +72,6 @@ type InstallArgs =
   , output :: Maybe String
   , pedanticPackages :: Boolean
   , ensureRanges :: Boolean
-  , jsonErrors :: Boolean
   , psaArgs :: PsaArgs
   }
 
@@ -116,7 +115,6 @@ type RunArgs =
   , execArgs :: Maybe (Array String)
   , main :: Maybe String
   , ensureRanges :: Boolean
-  , jsonErrors :: Boolean
   , psaArgs :: PsaArgs
   }
 
@@ -127,7 +125,6 @@ type TestArgs =
   , pursArgs :: List String
   , backendArgs :: List String
   , execArgs :: Maybe (Array String)
-  , jsonErrors :: Boolean
   , psaArgs :: PsaArgs
   }
 
@@ -157,7 +154,6 @@ type BundleArgs =
   , pedanticPackages :: Boolean
   , type :: Maybe String
   , ensureRanges :: Boolean
-  , jsonErrors :: Boolean
   , psaArgs :: PsaArgs
   }
 
@@ -300,7 +296,6 @@ installArgsParser =
     , output: Flags.output
     , pedanticPackages: Flags.pedanticPackages
     , ensureRanges: Flags.ensureRanges
-    , jsonErrors: Flags.jsonErrors
     , psaArgs: psaArgsParser
     }
 
@@ -346,7 +341,6 @@ runArgsParser = ArgParser.fromRecord
   , pedanticPackages: Flags.pedanticPackages
   , main: Flags.moduleName
   , ensureRanges: Flags.ensureRanges
-  , jsonErrors: Flags.jsonErrors
   , psaArgs: psaArgsParser
   }
 
@@ -358,7 +352,6 @@ testArgsParser = ArgParser.fromRecord
   , execArgs: Flags.execArgs
   , output: Flags.output
   , pedanticPackages: Flags.pedanticPackages
-  , jsonErrors: Flags.jsonErrors
   , psaArgs: psaArgsParser
   }
 
@@ -376,7 +369,6 @@ bundleArgsParser =
     , output: Flags.output
     , pedanticPackages: Flags.pedanticPackages
     , ensureRanges: Flags.ensureRanges
-    , jsonErrors: Flags.jsonErrors
     , psaArgs: psaArgsParser
     }
 
@@ -454,12 +446,12 @@ main =
           RegistryInfo args -> do
             env <- mkRegistryEnv
             void $ runSpago env (Registry.info args)
-          Install args@{ packages, selectedPackage, ensureRanges, jsonErrors } -> do
+          Install args@{ packages, selectedPackage, ensureRanges } -> do
             { env, fetchOpts } <- mkFetchEnv { packages, selectedPackage, ensureRanges }
             -- TODO: --no-fetch flag
             dependencies <- runSpago env (Fetch.run fetchOpts)
             env' <- runSpago env (mkBuildEnv args dependencies)
-            let options = { depsOnly: true, pursArgs: List.toUnfoldable args.pursArgs, jsonErrors }
+            let options = { depsOnly: true, pursArgs: List.toUnfoldable args.pursArgs, jsonErrors: false }
             runSpago env' (Build.run options)
           Build args@{ selectedPackage, ensureRanges, jsonErrors } -> do
             { env, fetchOpts } <- mkFetchEnv { packages: mempty, selectedPackage, ensureRanges }
@@ -476,7 +468,7 @@ main =
               buildArgs =
                 { selectedPackage
                 , psaArgs
-                , pursArgs: mempty
+                -- , pursArgs: mempty
                 , backendArgs: mempty
                 , output: mempty
                 , pedanticPackages: false
@@ -489,33 +481,33 @@ main =
           Repl args -> do
             -- TODO implement
             pure unit
-          Bundle args@{ selectedPackage, ensureRanges, jsonErrors } -> do
+          Bundle args@{ selectedPackage, ensureRanges } -> do
             { env, fetchOpts } <- mkFetchEnv { packages: mempty, selectedPackage, ensureRanges }
             -- TODO: --no-fetch flag
             dependencies <- runSpago env (Fetch.run fetchOpts)
             -- TODO: --no-build flag
             buildEnv <- runSpago env (mkBuildEnv args dependencies)
-            let options = { depsOnly: false, pursArgs: List.toUnfoldable args.pursArgs, jsonErrors }
+            let options = { depsOnly: false, pursArgs: List.toUnfoldable args.pursArgs, jsonErrors: false }
             runSpago buildEnv (Build.run options)
             bundleEnv <- runSpago env (mkBundleEnv args)
             runSpago bundleEnv Bundle.run
-          Run args@{ selectedPackage, ensureRanges, jsonErrors } -> do
+          Run args@{ selectedPackage, ensureRanges } -> do
             { env, fetchOpts } <- mkFetchEnv { packages: mempty, selectedPackage, ensureRanges }
             -- TODO: --no-fetch flag
             dependencies <- runSpago env (Fetch.run fetchOpts)
             -- TODO: --no-build flag
             buildEnv <- runSpago env (mkBuildEnv args dependencies)
-            let options = { depsOnly: false, pursArgs: List.toUnfoldable args.pursArgs, jsonErrors }
+            let options = { depsOnly: false, pursArgs: List.toUnfoldable args.pursArgs, jsonErrors: false }
             runSpago buildEnv (Build.run options)
             runEnv <- runSpago env (mkRunEnv args)
             runSpago runEnv Run.run
-          Test args@{ selectedPackage, jsonErrors } -> do
+          Test args@{ selectedPackage } -> do
             { env, fetchOpts } <- mkFetchEnv { packages: mempty, selectedPackage, ensureRanges: false }
             -- TODO: --no-fetch flag
             dependencies <- runSpago env (Fetch.run fetchOpts)
             -- TODO: --no-build flag
             buildEnv <- runSpago env (mkBuildEnv (Record.union args { ensureRanges: false }) dependencies)
-            let options = { depsOnly: false, pursArgs: List.toUnfoldable args.pursArgs, jsonErrors }
+            let options = { depsOnly: false, pursArgs: List.toUnfoldable args.pursArgs, jsonErrors: false }
             runSpago buildEnv (Build.run options)
             testEnv <- runSpago env (mkTestEnv args)
             runSpago testEnv Test.run
@@ -678,7 +670,16 @@ mkTestEnv testArgs = do
   let testEnv = { logOptions, workspace: newWorkspace, selectedPackages, node }
   pure testEnv
 
-mkBuildEnv :: forall a b. BuildArgs b -> Map PackageName Package -> Spago (Fetch.FetchEnv a) (Build.BuildEnv ())
+mkBuildEnv
+  :: forall r
+   . { backendArgs :: List String
+     , output :: Maybe String
+     , pedanticPackages :: Boolean
+     , psaArgs :: PsaArgs
+     | r
+     }
+  -> Map PackageName Package
+  -> Spago (Fetch.FetchEnv ()) (Build.BuildEnv ())
 mkBuildEnv buildArgs dependencies = do
   { logOptions, workspace, git } <- ask
   purs <- Purs.getPurs
