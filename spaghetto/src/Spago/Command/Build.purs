@@ -75,7 +75,7 @@ run opts = do
       Nothing -> args
       Just output -> args <> [ "--output", output ]
 
-  -- find the output flag and die if it's there - Spago handles it
+  -- find the `--json-errors` flag and die if it's there - Spago handles it
   when (isJust $ Cmd.findFlag { flags: [ "--json-errors" ], args: opts.pursArgs }) do
     die
       [ "Can't pass `--json-errors` option directly to purs."
