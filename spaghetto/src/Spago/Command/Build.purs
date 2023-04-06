@@ -93,9 +93,7 @@ run opts = do
       Nothing -> Just Paths.localCachesStashEntireWorkspace
     psaOptions =
       { strict: fromMaybe Psa.defaultParseOptions.strict psaConfig.strict
-      , censorWarnings: fromMaybe Psa.defaultParseOptions.censorWarnings psaConfig.censorWarnings
-      , censorLib: fromMaybe Psa.defaultParseOptions.censorLib psaConfig.censorLib
-      , censorSrc: fromMaybe Psa.defaultParseOptions.censorSrc psaConfig.censorSrc
+      , censorBuildWarnings: fromMaybe Psa.defaultParseOptions.censorBuildWarnings psaConfig.censorBuildWarnings
       , showSource: fromMaybe Psa.defaultParseOptions.showSource psaConfig.showSource
       , censorCodes: maybe Psa.defaultParseOptions.censorCodes NonEmptySet.toSet psaConfig.censorCodes
       , filterCodes: maybe Psa.defaultParseOptions.filterCodes NonEmptySet.toSet psaConfig.filterCodes

@@ -23,6 +23,8 @@ import Data.String as Str
 import Data.Tuple (Tuple(..))
 import Foreign.Object as FO
 import Node.Path as Path
+import Spago.Core.Config (CensorBuildWarnings(..))
+import Spago.Core.Config as Core
 import Spago.Paths as Paths
 import Spago.Psa.Types (PsaOutputOptions, PsaError, PsaAnnotedError, PsaPath(..), PsaResult, Position, Filename, Lines, compareByLocation)
 
@@ -146,11 +148,22 @@ updateStats tag path code printed s =
   alterStat Nothing = Just (bump (Tuple 0 0))
   alterStat (Just x) = Just (bump x)
 
+censorSrc :: Core.CensorBuildWarnings -> Boolean
+censorSrc = case _ of
+  CensorAllWarnings -> true
+  CensorProjectWarnings -> true
+  _ -> false
+
+censorLib :: Core.CensorBuildWarnings -> Boolean
+censorLib = case _ of
+  CensorAllWarnings -> true
+  CensorProjectWarnings -> true
+  _ -> false
+
 shouldShowError :: PsaOutputOptions -> ErrorTag -> PsaPath -> String -> Boolean
 shouldShowError _ Error _ _ = true
-shouldShowError { filterCodes, censorCodes, censorSrc, censorLib, censorWarnings } _ path code =
-  not censorWarnings
-    && not (censorSrc && isSrc path || censorLib && isLib path)
+shouldShowError { filterCodes, censorCodes, censorBuildWarnings } _ path code =
+  not (censorSrc censorBuildWarnings && isSrc path || censorLib censorBuildWarnings && isLib path)
     && (Set.isEmpty filterCodes || Set.member code filterCodes)
     && (Set.isEmpty censorCodes || not (Set.member code censorCodes))
 

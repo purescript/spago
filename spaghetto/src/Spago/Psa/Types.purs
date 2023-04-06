@@ -51,9 +51,7 @@ derive instance Ord PsaPath
 
 type PsaOutputOptions =
   { color :: Boolean
-  , censorWarnings :: Boolean
-  , censorLib :: Boolean
-  , censorSrc :: Boolean
+  , censorBuildWarnings :: Core.CensorBuildWarnings
   , censorCodes :: Set ErrorCode
   , filterCodes :: Set ErrorCode
   , statVerbosity :: Core.StatVerbosity

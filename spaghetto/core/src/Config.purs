@@ -3,6 +3,7 @@ module Spago.Core.Config
   , BuildOptionsInput
   , BuildConfig
   , PsaConfig
+  , CensorBuildWarnings(..)
   , ShowSourceCode(..)
   , StatVerbosity(..)
   , BundleConfig
@@ -88,9 +89,7 @@ buildConfigCodec = CAR.object "BuildConfig"
   }
 
 type PsaConfig =
-  { censorWarnings :: Maybe Boolean
-  , censorLib :: Maybe Boolean
-  , censorSrc :: Maybe Boolean
+  { censorBuildWarnings :: Maybe CensorBuildWarnings
   , censorCodes :: Maybe (NonEmptySet.NonEmptySet String)
   , filterCodes :: Maybe (NonEmptySet.NonEmptySet String)
   , statVerbosity :: Maybe StatVerbosity
@@ -101,9 +100,7 @@ type PsaConfig =
 
 psaConfigCodec :: JsonCodec PsaConfig
 psaConfigCodec = CAR.object "PsaConfig"
-  { censorWarnings: CAR.optional CA.boolean
-  , censorLib: CAR.optional CA.boolean
-  , censorSrc: CAR.optional CA.boolean
+  { censorBuildWarnings: CAR.optional censorBuildWarningsCodec
   , censorCodes: CAR.optional $ CA.Common.nonEmptySet CA.string
   , filterCodes: CAR.optional $ CA.Common.nonEmptySet CA.string
   , statVerbosity: CAR.optional statVerbosityCodec
@@ -117,6 +114,37 @@ stashFileCodec = CA.Sum.enumSum (either show identity) case _ of
   "true" -> Just $ Left true
   "false" -> Just $ Left false
   x -> Just $ Right x
+
+data CensorBuildWarnings
+  = CensorNoWarnings
+  | CensorDependencyWarnings
+  | CensorProjectWarnings
+  | CensorAllWarnings
+
+derive instance Eq CensorBuildWarnings
+
+instance Show CensorBuildWarnings where
+  show = case _ of
+    CensorNoWarnings -> "CensorNoWarnings"
+    CensorDependencyWarnings -> "CensorDependencyWarnings"
+    CensorProjectWarnings -> "CensorProjectWarnings"
+    CensorAllWarnings -> "CensorAllWarnings"
+
+censorBuildWarningsCodec :: JsonCodec CensorBuildWarnings
+censorBuildWarningsCodec = CA.Sum.enumSum print parse
+  where
+  print = case _ of
+    CensorNoWarnings -> "none"
+    CensorDependencyWarnings -> "dependency"
+    CensorProjectWarnings -> "project"
+    CensorAllWarnings -> "all"
+
+  parse = case _ of
+    "none" -> Just CensorNoWarnings
+    "dependency" -> Just CensorDependencyWarnings
+    "project" -> Just CensorProjectWarnings
+    "all" -> Just CensorAllWarnings
+    _ -> Nothing
 
 data ShowSourceCode
   = ShowSourceCode

@@ -77,9 +77,7 @@ type InstallArgs =
 
 type PsaArgs =
   { strict :: Maybe Boolean
-  , censorWarnings :: Maybe Boolean
-  , censorLib :: Maybe Boolean
-  , censorSrc :: Maybe Boolean
+  , censorBuildWarnings :: Maybe Core.CensorBuildWarnings
   , showSource :: Maybe Core.ShowSourceCode
   , censorCodes :: Maybe (NonEmptySet String)
   , filterCodes :: Maybe (NonEmptySet String)
@@ -302,9 +300,7 @@ installArgsParser =
 psaArgsParser :: ArgParser PsaArgs
 psaArgsParser = ArgParser.fromRecord
   { strict: Flags.strict
-  , censorWarnings: Flags.censorWarnings
-  , censorLib: Flags.censorLib
-  , censorSrc: Flags.censorSrc
+  , censorBuildWarnings: Flags.censorBuildWarnings
   , showSource: Flags.showSource
   , censorCodes: Flags.censorCodes
   , filterCodes: Flags.filterCodes
@@ -701,9 +697,7 @@ mkBuildEnv buildArgs dependencies = do
     psaConfig :: Core.PsaConfig
     psaConfig =
       { strict: alt buildArgs.psaArgs.strict $ config >>= _.strict
-      , censorWarnings: alt buildArgs.psaArgs.censorWarnings $ config >>= _.censorWarnings
-      , censorLib: alt buildArgs.psaArgs.censorWarnings $ config >>= _.censorLib
-      , censorSrc: alt buildArgs.psaArgs.censorSrc $ config >>= _.censorSrc
+      , censorBuildWarnings: alt buildArgs.psaArgs.censorBuildWarnings $ config >>= _.censorBuildWarnings
       , showSource: alt buildArgs.psaArgs.showSource $ config >>= _.showSource
       , censorCodes: alt buildArgs.psaArgs.censorCodes $ config >>= _.censorCodes
       , filterCodes: alt buildArgs.psaArgs.filterCodes $ config >>= _.filterCodes

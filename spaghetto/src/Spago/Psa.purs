@@ -43,9 +43,7 @@ defaultParseOptions :: PsaOptions
 defaultParseOptions =
   { showSource: Core.ShowSourceCode
   , stashFile: Nothing
-  , censorWarnings: false
-  , censorLib: false
-  , censorSrc: false
+  , censorBuildWarnings: Core.CensorNoWarnings
   , censorCodes: Set.empty
   , filterCodes: Set.empty
   , statVerbosity: Core.CompactStats
@@ -55,9 +53,7 @@ defaultParseOptions =
 type PsaOptions =
   { showSource :: Core.ShowSourceCode
   , stashFile :: Maybe String
-  , censorWarnings :: Boolean
-  , censorLib :: Boolean
-  , censorSrc :: Boolean
+  , censorBuildWarnings :: Core.CensorBuildWarnings
   , censorCodes :: Set ErrorCode
   , filterCodes :: Set ErrorCode
   , statVerbosity :: Core.StatVerbosity
@@ -67,9 +63,7 @@ type PsaOptions =
 toOutputOptions :: PsaArgs -> PsaOptions -> PsaOutputOptions
 toOutputOptions { libraryDirs, color } options =
   { color
-  , censorWarnings: options.censorWarnings
-  , censorLib: options.censorLib
-  , censorSrc: options.censorSrc
+  , censorBuildWarnings: options.censorBuildWarnings
   , censorCodes: options.censorCodes
   , filterCodes: options.filterCodes
   , statVerbosity: options.statVerbosity

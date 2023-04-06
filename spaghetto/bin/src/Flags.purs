@@ -24,25 +24,17 @@ strict =
     # ArgParser.boolean
     # ArgParser.optional
 
-censorWarnings ∷ ArgParser (Maybe Boolean)
-censorWarnings =
-  ArgParser.flag [ "---censor-warnings" ]
-    "Censor all warnings"
-    # ArgParser.boolean
-    # ArgParser.optional
-
-censorLib ∷ ArgParser (Maybe Boolean)
-censorLib =
-  ArgParser.flag [ "---censor-lib" ]
-    "Censor warnings from library sources"
-    # ArgParser.boolean
-    # ArgParser.optional
-
-censorSrc ∷ ArgParser (Maybe Boolean)
-censorSrc =
-  ArgParser.flag [ "---censor-src" ]
-    "Censor warnings from project sources"
-    # ArgParser.boolean
+censorBuildWarnings ∷ ArgParser (Maybe Core.CensorBuildWarnings)
+censorBuildWarnings =
+  ArgParser.argument [ "---censor-build-warnings" ]
+    "Censor compiler warnings based on file's location: 'dependency', 'project', or 'all'"
+    # ArgParser.unformat "ARG"
+        ( case _ of
+            "all" -> Right Core.CensorAllWarnings
+            "project" -> Right Core.CensorProjectWarnings
+            "dependency" -> Right Core.CensorDependencyWarnings
+            _ -> Left $ "Expected 'all', 'project', or 'dependency'"
+        )
     # ArgParser.optional
 
 showSource ∷ ArgParser (Maybe ShowSourceCode)
