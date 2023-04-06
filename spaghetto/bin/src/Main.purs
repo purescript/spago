@@ -306,15 +306,15 @@ installArgsParser =
 
 psaArgsParser :: ArgParser PsaArgs
 psaArgsParser = ArgParser.fromRecord
-  { strict: Flags.psaStrict
-  , censorWarnings: Flags.psaCensorWarnings
-  , censorLib: Flags.psaCensorLib
-  , censorSrc: Flags.psaCensorSrc
-  , showSource: Flags.psaShowSource
-  , censorCodes: Flags.psaCensorCodes
-  , filterCodes: Flags.psaFilterCodes
-  , statVerbosity: Flags.psaStatVerbosity
-  , stashFile: Flags.psaStashFile
+  { strict: Flags.strict
+  , censorWarnings: Flags.censorWarnings
+  , censorLib: Flags.censorLib
+  , censorSrc: Flags.censorSrc
+  , showSource: Flags.showSource
+  , censorCodes: Flags.censorCodes
+  , filterCodes: Flags.filterCodes
+  , statVerbosity: Flags.statVerbosity
+  , stashFile: Flags.stashFile
   }
 
 buildArgsParser :: ArgParser (BuildArgs ())

@@ -17,66 +17,66 @@ selectedPackage =
     "Select the local project to build"
     # ArgParser.optional
 
-psaStrict ∷ ArgParser (Maybe Boolean)
-psaStrict =
+strict ∷ ArgParser (Maybe Boolean)
+strict =
   ArgParser.flag [ "--strict" ]
     "Promotes project sources' warnings to errors"
     # ArgParser.boolean
     # ArgParser.optional
 
-psaCensorWarnings ∷ ArgParser (Maybe Boolean)
-psaCensorWarnings =
-  ArgParser.flag [ "--psa-censor-warnings" ]
+censorWarnings ∷ ArgParser (Maybe Boolean)
+censorWarnings =
+  ArgParser.flag [ "---censor-warnings" ]
     "Censor all warnings"
     # ArgParser.boolean
     # ArgParser.optional
 
-psaCensorLib ∷ ArgParser (Maybe Boolean)
-psaCensorLib =
-  ArgParser.flag [ "--psa-censor-lib" ]
+censorLib ∷ ArgParser (Maybe Boolean)
+censorLib =
+  ArgParser.flag [ "---censor-lib" ]
     "Censor warnings from library sources"
     # ArgParser.boolean
     # ArgParser.optional
 
-psaCensorSrc ∷ ArgParser (Maybe Boolean)
-psaCensorSrc =
-  ArgParser.flag [ "--psa-censor-src" ]
+censorSrc ∷ ArgParser (Maybe Boolean)
+censorSrc =
+  ArgParser.flag [ "---censor-src" ]
     "Censor warnings from project sources"
     # ArgParser.boolean
     # ArgParser.optional
 
-psaShowSource ∷ ArgParser (Maybe ShowSourceCode)
-psaShowSource =
+showSource ∷ ArgParser (Maybe ShowSourceCode)
+showSource =
   NoSourceCode
-    <$ ArgParser.flag [ "--psa-no-source" ]
+    <$ ArgParser.flag [ "---no-source" ]
       "Disable original source code printing"
     # ArgParser.optional
 
-psaCensorCodes :: ArgParser (Maybe (NonEmptySet String))
-psaCensorCodes =
-  ArgParser.argument [ "--psa-censor-code" ]
+censorCodes :: ArgParser (Maybe (NonEmptySet String))
+censorCodes =
+  ArgParser.argument [ "---censor-code" ]
     "Censor a specific error code (e.g. `ShadowedName`)"
     # ArgParser.many
     <#> NonEmptySet.fromFoldable
 
-psaFilterCodes :: ArgParser (Maybe (NonEmptySet String))
-psaFilterCodes =
-  ArgParser.argument [ "--psa-filter-code" ]
+filterCodes :: ArgParser (Maybe (NonEmptySet String))
+filterCodes =
+  ArgParser.argument [ "---filter-code" ]
     "Only show a specific error code (e.g. `TypesDoNotUnify`)"
     # ArgParser.many
     <#> NonEmptySet.fromFoldable
 
-psaStatVerbosity :: ArgParser (Maybe Core.StatVerbosity)
-psaStatVerbosity = ArgParser.optional $ ArgParser.choose "StatVerbosity"
-  [ Core.VerboseStats <$ ArgParser.flag [ "--psa-verbose-stats" ] "Show counts for each warning type"
-  , Core.NoStats <$ ArgParser.flag [ "--psa-censor-stats" ] "Censor warning/error summary"
+statVerbosity :: ArgParser (Maybe Core.StatVerbosity)
+statVerbosity = ArgParser.optional $ ArgParser.choose "StatVerbosity"
+  [ Core.VerboseStats <$ ArgParser.flag [ "---verbose-stats" ] "Show counts for each warning type"
+  , Core.NoStats <$ ArgParser.flag [ "---censor-stats" ] "Censor warning/error summary"
   ]
 
-psaStashFile ∷ ArgParser (Maybe (Either Boolean String))
-psaStashFile = ArgParser.optional $ ArgParser.choose "stash"
-  [ ArgParser.argument [ "--psa-stash-file" ] "Enable persistent warnings using a specific stash file"
+stashFile ∷ ArgParser (Maybe (Either Boolean String))
+stashFile = ArgParser.optional $ ArgParser.choose "stash"
+  [ ArgParser.argument [ "---stash-file" ] "Enable persistent warnings using a specific stash file"
       # ArgParser.unformat "FILE" (Right <<< Right <<< Paths.mkLocalCachesCustomStashFile <<< Path.basename)
-  , Left true <$ ArgParser.flag [ "--psa-stash" ] "Enable persistent warnings using default stash file location"
+  , Left true <$ ArgParser.flag [ "---stash" ] "Enable persistent warnings using default stash file location"
   ]
 
 jsonErrors ∷ ArgParser Boolean
