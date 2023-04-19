@@ -380,8 +380,7 @@ workspace:
     # optional, Boolean, fail the build if `spago.yml` has redundant/missing packages
     pedantic_packages: false
     # optional, PsaOptions
-    # These options only take affect when
-    # a package is not selected (e.g. `spago build` vs `spago build -p pkgName`)
+    # These options apply when a package does not specify the same value.
     psaOptions:
       # see the Package's `psaOptions` field
 ```

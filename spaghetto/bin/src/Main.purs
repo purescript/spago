@@ -4,10 +4,10 @@ import Spago.Prelude
 
 import ArgParse.Basic (ArgParser)
 import ArgParse.Basic as ArgParser
-import Control.Alt (alt)
 import Data.Array as Array
 import Data.Array.NonEmpty as NonEmptyArray
 import Data.Codec.Argonaut.Common as CA.Common
+import Data.Foldable (oneOf)
 import Data.JSDate as JSDate
 import Data.List as List
 import Data.Map as Map
@@ -46,6 +46,7 @@ import Spago.Log (LogVerbosity(..))
 import Spago.Paths as Paths
 import Spago.Purs (Purs)
 import Spago.Purs as Purs
+import Type.Proxy (Proxy(..))
 import Unsafe.Coerce (unsafeCoerce)
 
 type GlobalArgs =
@@ -696,19 +697,27 @@ mkBuildEnv buildArgs dependencies = do
 
     psaConfig :: Core.PsaConfig
     psaConfig =
-      { strict: alt buildArgs.psaArgs.strict $ config >>= _.strict
-      , censorBuildWarnings: alt buildArgs.psaArgs.censorBuildWarnings $ config >>= _.censorBuildWarnings
-      , showSource: alt buildArgs.psaArgs.showSource $ config >>= _.showSource
-      , censorCodes: alt buildArgs.psaArgs.censorCodes $ config >>= _.censorCodes
-      , filterCodes: alt buildArgs.psaArgs.filterCodes $ config >>= _.filterCodes
-      , statVerbosity: alt buildArgs.psaArgs.statVerbosity $ config >>= _.statVerbosity
-      , stash: alt buildArgs.psaArgs.stash $ config >>= _.stash
+      { strict: getField $ Record.get (Proxy :: Proxy "strict")
+      , censorBuildWarnings: getField $ Record.get (Proxy :: Proxy "censorBuildWarnings")
+      , showSource: getField $ Record.get (Proxy :: Proxy "showSource")
+      , censorCodes: getField $ Record.get (Proxy :: Proxy "censorCodes")
+      , filterCodes: getField $ Record.get (Proxy :: Proxy "filterCodes")
+      , statVerbosity: getField $ Record.get (Proxy :: Proxy "statVerbosity")
+      , stash: getField $ Record.get (Proxy :: Proxy "stash")
       }
       where
-      config :: Maybe Core.PsaConfig
-      config = case workspace.selected of
-        Just p -> p.package.build >>= _.psaOptions
-        Nothing -> workspace.buildOptions.psaOptions
+      getField :: forall a. (Core.PsaConfig -> Maybe a) -> Maybe a
+      getField getLabel = oneOf
+        [ getLabel buildArgs.psaArgs
+        , packagePsaConfig >>= getLabel
+        , workspacePsaConfig >>= getLabel
+        ]
+
+      packagePsaConfig :: Maybe Core.PsaConfig
+      packagePsaConfig = workspace.selected >>= \p -> p.package.build >>= _.psaOptions
+
+      workspacePsaConfig :: Maybe Core.PsaConfig
+      workspacePsaConfig = workspace.buildOptions.psaOptions
 
   pure { logOptions, purs, git, dependencies, workspace: newWorkspace, psaConfig }
 
