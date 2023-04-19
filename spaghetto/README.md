@@ -240,9 +240,9 @@ package:
     # One of three options
     #   1. just the package
     - packageName
-    #   2. the package, using the widest possible vesrion range
+    #   2. the package, using the widest possible version range
     - packageName: "*"
-    #   2. the package, using a specified vesrion range
+    #   2. the package, using a specified version range
     - packageName: ">=1.1.1 <2.0.0"
 
 # optional
