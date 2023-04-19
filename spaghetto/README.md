@@ -222,6 +222,8 @@ When ran from the directory `foo`, Spago will search for a "workspace" config fi
 
 At the end of this process, `foo` and `baz` are the only packages considered.
 
+</details>
+
 ### `spago.yml` fields and their meaning
 
 ```yml
