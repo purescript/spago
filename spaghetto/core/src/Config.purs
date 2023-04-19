@@ -85,7 +85,7 @@ type BuildConfig =
   , statVerbosity :: Maybe StatVerbosity
   , showSource :: Maybe ShowSourceCode
   , strict :: Maybe Boolean
-  , stash :: Maybe Boolean
+  , persistWarnings :: Maybe Boolean
   }
 
 buildConfigCodec :: JsonCodec BuildConfig
@@ -96,7 +96,7 @@ buildConfigCodec = CAR.object "BuildConfig"
   , statVerbosity: CAR.optional statVerbosityCodec
   , showSource: CAR.optional showSourceCodec
   , strict: CAR.optional CA.boolean
-  , stash: CAR.optional CA.boolean
+  , persistWarnings: CAR.optional CA.boolean
   }
 
 data CensorBuildWarnings
@@ -221,7 +221,7 @@ type TestConfig =
   , statVerbosity :: Maybe StatVerbosity
   , showSource :: Maybe ShowSourceCode
   , strict :: Maybe Boolean
-  , stash :: Maybe Boolean
+  , persistWarnings :: Maybe Boolean
   }
 
 testConfigCodec :: JsonCodec TestConfig
@@ -235,7 +235,7 @@ testConfigCodec = CAR.object "TestConfig"
   , statVerbosity: CAR.optional statVerbosityCodec
   , showSource: CAR.optional showSourceCodec
   , strict: CAR.optional CA.boolean
-  , stash: CAR.optional CA.boolean
+  , persistWarnings: CAR.optional CA.boolean
   }
 
 type BackendConfig =
@@ -391,7 +391,7 @@ type BuildOptionsInput =
   , statVerbosity :: Maybe StatVerbosity
   , showSource :: Maybe ShowSourceCode
   , strict :: Maybe Boolean
-  , stash :: Maybe Boolean
+  , persistWarnings :: Maybe Boolean
   }
 
 buildOptionsCodec :: JsonCodec BuildOptionsInput
@@ -404,7 +404,7 @@ buildOptionsCodec = CAR.object "CompileOptionsInput"
   , statVerbosity: CAR.optional statVerbosityCodec
   , showSource: CAR.optional showSourceCodec
   , strict: CAR.optional CA.boolean
-  , stash: CAR.optional CA.boolean
+  , persistWarnings: CAR.optional CA.boolean
   }
 
 data SetAddress

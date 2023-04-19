@@ -106,7 +106,7 @@ publish _args = do
     , statVerbosity: (Nothing :: Maybe Core.StatVerbosity)
     , showSource: (Nothing :: Maybe Core.ShowSourceCode)
     , strict: (Nothing :: Maybe Boolean)
-    , stash: (Nothing :: Maybe Boolean)
+    , persistWarnings: (Nothing :: Maybe Boolean)
     }
     ( Build.run
         { depsOnly: false
@@ -270,7 +270,7 @@ publish _args = do
         , statVerbosity: (Nothing :: Maybe Core.StatVerbosity)
         , showSource: (Nothing :: Maybe Core.ShowSourceCode)
         , strict: (Nothing :: Maybe Boolean)
-        , stash: (Nothing :: Maybe Boolean)
+        , persistWarnings: (Nothing :: Maybe Boolean)
         }
         ( Build.run
             { depsOnly: false

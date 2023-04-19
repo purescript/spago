@@ -36,7 +36,7 @@ type BuildEnv a =
   , statVerbosity :: Maybe Core.StatVerbosity
   , showSource :: Maybe Core.ShowSourceCode
   , strict :: Maybe Boolean
-  , stash :: Maybe Boolean
+  , persistWarnings :: Maybe Boolean
   | a
   }
 
@@ -58,7 +58,7 @@ run opts = do
   , statVerbosity
   , showSource
   , strict
-  , stash
+  , persistWarnings
   } <- ask
   let
     isWorkspacePackage = case _ of
@@ -118,11 +118,11 @@ run opts = do
       , statVerbosity: fromMaybe Psa.defaultParseOptions.statVerbosity statVerbosity
       , stashFile: do
           Alternative.guard (not opts.depsOnly)
-          shouldStashWarnings <- stash
+          shouldStashWarnings <- persistWarnings
           Alternative.guard shouldStashWarnings
           case workspace.selected of
-            Just p -> Just $ Paths.mkLocalCachesStashFile $ PackageName.print p.package.name
-            Nothing -> Just Paths.localCachesStashEntireWorkspace
+            Just p -> Just $ Paths.mkLocalCachesPersistentWarningsFile $ PackageName.print p.package.name
+            Nothing -> Just Paths.localCachesPersistedWarningsEntireWorkspace
       }
     buildBackend globs = do
       case workspace.backend of

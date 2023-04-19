@@ -62,9 +62,9 @@ statVerbosity = ArgParser.optional $ ArgParser.choose "StatVerbosity"
   , Core.NoStats <$ ArgParser.flag [ "--censor-stats" ] "Censor warning/error summary"
   ]
 
-stash ∷ ArgParser (Maybe Boolean)
-stash =
-  ArgParser.flag [ "--stash" ] "Enable persistent warnings using default stash file location"
+persistWarnings ∷ ArgParser (Maybe Boolean)
+persistWarnings =
+  ArgParser.flag [ "--persist-warnings" ] "Enable persistent warnings using default persist-warnings file location"
     # ArgParser.boolean
     # ArgParser.optional
 

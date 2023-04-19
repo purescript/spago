@@ -66,7 +66,7 @@ type BuildOptions =
   , statVerbosity :: Maybe Core.StatVerbosity
   , showSource :: Maybe Core.ShowSourceCode
   , strict :: Maybe Boolean
-  , stash :: Maybe Boolean
+  , persistWarnings :: Maybe Boolean
   }
 
 fromExtraPackage :: Core.ExtraPackage -> Package
@@ -312,7 +312,7 @@ readWorkspace maybeSelectedPackage = do
       , statVerbosity: _.statVerbosity =<< workspace.build_opts
       , showSource: _.showSource =<< workspace.build_opts
       , strict: _.strict =<< workspace.build_opts
-      , stash: _.stash =<< workspace.build_opts
+      , persistWarnings: _.persistWarnings =<< workspace.build_opts
       }
 
   pure

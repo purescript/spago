@@ -88,7 +88,7 @@ type BuildArgs a =
   , censorCodes :: Maybe (NonEmptySet String)
   , filterCodes :: Maybe (NonEmptySet String)
   , statVerbosity :: Maybe Core.StatVerbosity
-  , stash :: Maybe Boolean
+  , persistWarnings :: Maybe Boolean
   | a
   }
 
@@ -114,7 +114,7 @@ type RunArgs =
   , censorCodes :: Maybe (NonEmptySet String)
   , filterCodes :: Maybe (NonEmptySet String)
   , statVerbosity :: Maybe Core.StatVerbosity
-  , stash :: Maybe Boolean
+  , persistWarnings :: Maybe Boolean
   }
 
 type TestArgs =
@@ -130,7 +130,7 @@ type TestArgs =
   , censorCodes :: Maybe (NonEmptySet String)
   , filterCodes :: Maybe (NonEmptySet String)
   , statVerbosity :: Maybe Core.StatVerbosity
-  , stash :: Maybe Boolean
+  , persistWarnings :: Maybe Boolean
   }
 
 type SourcesArgs =
@@ -165,7 +165,7 @@ type BundleArgs =
   , censorCodes :: Maybe (NonEmptySet String)
   , filterCodes :: Maybe (NonEmptySet String)
   , statVerbosity :: Maybe Core.StatVerbosity
-  , stash :: Maybe Boolean
+  , persistWarnings :: Maybe Boolean
   }
 
 type PublishArgs =
@@ -323,7 +323,7 @@ buildArgsParser = ArgParser.fromRecord
   , censorCodes: Flags.censorCodes
   , filterCodes: Flags.filterCodes
   , statVerbosity: Flags.statVerbosity
-  , stash: Flags.stash
+  , persistWarnings: Flags.persistWarnings
   }
 
 replArgsParser :: ArgParser ReplArgs
@@ -349,7 +349,7 @@ runArgsParser = ArgParser.fromRecord
   , censorCodes: Flags.censorCodes
   , filterCodes: Flags.filterCodes
   , statVerbosity: Flags.statVerbosity
-  , stash: Flags.stash
+  , persistWarnings: Flags.persistWarnings
   }
 
 testArgsParser :: ArgParser TestArgs
@@ -366,7 +366,7 @@ testArgsParser = ArgParser.fromRecord
   , censorCodes: Flags.censorCodes
   , filterCodes: Flags.filterCodes
   , statVerbosity: Flags.statVerbosity
-  , stash: Flags.stash
+  , persistWarnings: Flags.persistWarnings
   }
 
 bundleArgsParser :: ArgParser BundleArgs
@@ -389,7 +389,7 @@ bundleArgsParser =
     , censorCodes: Flags.censorCodes
     , filterCodes: Flags.filterCodes
     , statVerbosity: Flags.statVerbosity
-    , stash: Flags.stash
+    , persistWarnings: Flags.persistWarnings
     }
 
 publishArgsParser :: ArgParser PublishArgs
@@ -478,7 +478,7 @@ main =
                 , statVerbosity: Nothing :: Maybe Core.StatVerbosity
                 , showSource: Nothing :: Maybe Core.ShowSourceCode
                 , strict: Nothing :: Maybe Boolean
-                , stash: Nothing :: Maybe Boolean
+                , persistWarnings: Nothing :: Maybe Boolean
                 }
             env' <- runSpago env (mkBuildEnv buildArgs dependencies)
             let options = { depsOnly: true, pursArgs: List.toUnfoldable args.pursArgs, jsonErrors: false }
@@ -509,7 +509,7 @@ main =
                 , statVerbosity: Nothing :: Maybe Core.StatVerbosity
                 , showSource: Nothing :: Maybe Core.ShowSourceCode
                 , strict: Nothing :: Maybe Boolean
-                , stash: Nothing :: Maybe Boolean
+                , persistWarnings: Nothing :: Maybe Boolean
                 }
             { purs } <- runSpago env (mkBuildEnv buildArgs dependencies)
             publishEnv <- runSpago env (mkPublishEnv dependencies purs)
@@ -717,7 +717,7 @@ mkBuildEnv
      , statVerbosity :: Maybe Core.StatVerbosity
      , showSource :: Maybe Core.ShowSourceCode
      , strict :: Maybe Boolean
-     , stash :: Maybe Boolean
+     , persistWarnings :: Maybe Boolean
      | r
      }
   -> Map PackageName Package
@@ -755,7 +755,7 @@ mkBuildEnv buildArgs dependencies = do
     , censorCodes: oneOf [ buildArgs.censorCodes, packageBuildConfig >>= _.censorCodes, workspaceBuildConfig.censorCodes ]
     , filterCodes: oneOf [ buildArgs.filterCodes, packageBuildConfig >>= _.filterCodes, workspaceBuildConfig.filterCodes ]
     , statVerbosity: oneOf [ buildArgs.statVerbosity, packageBuildConfig >>= _.statVerbosity, workspaceBuildConfig.statVerbosity ]
-    , stash: oneOf [ buildArgs.stash, packageBuildConfig >>= _.stash, workspaceBuildConfig.stash ]
+    , persistWarnings: oneOf [ buildArgs.persistWarnings, packageBuildConfig >>= _.persistWarnings, workspaceBuildConfig.persistWarnings ]
     }
 
 mkPublishEnv :: forall a. Map PackageName Package -> Purs -> Spago (Fetch.FetchEnv a) (Publish.PublishEnv a)

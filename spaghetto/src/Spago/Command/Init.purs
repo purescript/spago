@@ -94,7 +94,7 @@ defaultConfig name set =
           , statVerbosity: Nothing
           , showSource: Nothing
           , strict: Nothing
-          , stash: Nothing
+          , persistWarnings: Nothing
           }
       , publish: Nothing
       , bundle: Nothing
