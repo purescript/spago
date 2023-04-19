@@ -24,7 +24,7 @@ strict =
 
 censorBuildWarnings ∷ ArgParser (Maybe Core.CensorBuildWarnings)
 censorBuildWarnings =
-  ArgParser.argument [ "---censor-build-warnings" ]
+  ArgParser.argument [ "--censor-build-warnings" ]
     "Censor compiler warnings based on file's location: 'dependency', 'project', or 'all'"
     # ArgParser.unformat "ARG"
         ( case _ of
@@ -38,33 +38,33 @@ censorBuildWarnings =
 showSource ∷ ArgParser (Maybe ShowSourceCode)
 showSource =
   NoSourceCode
-    <$ ArgParser.flag [ "---no-source" ]
+    <$ ArgParser.flag [ "--no-source" ]
       "Disable original source code printing"
     # ArgParser.optional
 
 censorCodes :: ArgParser (Maybe (NonEmptySet String))
 censorCodes =
-  ArgParser.argument [ "---censor-code" ]
+  ArgParser.argument [ "--censor-code" ]
     "Censor a specific error code (e.g. `ShadowedName`)"
     # ArgParser.many
     <#> NonEmptySet.fromFoldable
 
 filterCodes :: ArgParser (Maybe (NonEmptySet String))
 filterCodes =
-  ArgParser.argument [ "---filter-code" ]
+  ArgParser.argument [ "--filter-code" ]
     "Only show a specific error code (e.g. `TypesDoNotUnify`)"
     # ArgParser.many
     <#> NonEmptySet.fromFoldable
 
 statVerbosity :: ArgParser (Maybe Core.StatVerbosity)
 statVerbosity = ArgParser.optional $ ArgParser.choose "StatVerbosity"
-  [ Core.VerboseStats <$ ArgParser.flag [ "---verbose-stats" ] "Show counts for each warning type"
-  , Core.NoStats <$ ArgParser.flag [ "---censor-stats" ] "Censor warning/error summary"
+  [ Core.VerboseStats <$ ArgParser.flag [ "--verbose-stats" ] "Show counts for each warning type"
+  , Core.NoStats <$ ArgParser.flag [ "--censor-stats" ] "Censor warning/error summary"
   ]
 
 stash ∷ ArgParser (Maybe Boolean)
 stash =
-  ArgParser.flag [ "---stash" ] "Enable persistent warnings using default stash file location"
+  ArgParser.flag [ "--stash" ] "Enable persistent warnings using default stash file location"
     # ArgParser.boolean
     # ArgParser.optional
 
