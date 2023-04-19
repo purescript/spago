@@ -9,13 +9,15 @@ import Control.Alternative as Alternative
 import Data.Array as Array
 import Data.Map as Map
 import Data.Set as Set
+import Data.Set.NonEmpty (NonEmptySet)
 import Data.Set.NonEmpty as NonEmptySet
 import Data.Tuple as Tuple
 import Registry.PackageName as PackageName
 import Spago.BuildInfo as BuildInfo
 import Spago.Cmd as Cmd
-import Spago.Config (Package(..), PsaConfig, WithTestGlobs(..), Workspace, WorkspacePackage)
+import Spago.Config (Package(..), WithTestGlobs(..), Workspace, WorkspacePackage)
 import Spago.Config as Config
+import Spago.Config as Core
 import Spago.Git (Git)
 import Spago.Paths as Paths
 import Spago.Psa as Psa
@@ -28,7 +30,13 @@ type BuildEnv a =
   , dependencies :: Map PackageName Package
   , logOptions :: LogOptions
   , workspace :: Workspace
-  , psaConfig :: PsaConfig
+  , censorBuildWarnings :: Maybe Core.CensorBuildWarnings
+  , censorCodes :: Maybe (NonEmptySet String)
+  , filterCodes :: Maybe (NonEmptySet String)
+  , statVerbosity :: Maybe Core.StatVerbosity
+  , showSource :: Maybe Core.ShowSourceCode
+  , strict :: Maybe Boolean
+  , stash :: Maybe Boolean
   | a
   }
 
@@ -41,7 +49,17 @@ type BuildOptions =
 run :: forall a. BuildOptions -> Spago (BuildEnv a) Unit
 run opts = do
   logInfo "Building..."
-  { dependencies, workspace, logOptions, psaConfig } <- ask
+  { dependencies
+  , workspace
+  , logOptions
+  , censorBuildWarnings
+  , censorCodes
+  , filterCodes
+  , statVerbosity
+  , showSource
+  , strict
+  , stash
+  } <- ask
   let
     isWorkspacePackage = case _ of
       Tuple _ (WorkspacePackage _) -> true
@@ -92,16 +110,16 @@ run opts = do
       , jsonErrors: opts.jsonErrors
       }
     psaOptions =
-      { strict: fromMaybe Psa.defaultParseOptions.strict psaConfig.strict
-      , censorBuildWarnings: fromMaybe Psa.defaultParseOptions.censorBuildWarnings psaConfig.censorBuildWarnings
-      , showSource: fromMaybe Psa.defaultParseOptions.showSource psaConfig.showSource
-      , censorCodes: maybe Psa.defaultParseOptions.censorCodes NonEmptySet.toSet psaConfig.censorCodes
-      , filterCodes: maybe Psa.defaultParseOptions.filterCodes NonEmptySet.toSet psaConfig.filterCodes
-      , statVerbosity: fromMaybe Psa.defaultParseOptions.statVerbosity psaConfig.statVerbosity
+      { strict: fromMaybe Psa.defaultParseOptions.strict strict
+      , censorBuildWarnings: fromMaybe Psa.defaultParseOptions.censorBuildWarnings censorBuildWarnings
+      , showSource: fromMaybe Psa.defaultParseOptions.showSource showSource
+      , censorCodes: maybe Psa.defaultParseOptions.censorCodes NonEmptySet.toSet censorCodes
+      , filterCodes: maybe Psa.defaultParseOptions.filterCodes NonEmptySet.toSet filterCodes
+      , statVerbosity: fromMaybe Psa.defaultParseOptions.statVerbosity statVerbosity
       , stashFile: do
           Alternative.guard (not opts.depsOnly)
-          stash <- psaConfig.stash
-          Alternative.guard stash
+          shouldStashWarnings <- stash
+          Alternative.guard shouldStashWarnings
           case workspace.selected of
             Just p -> Just $ Paths.mkLocalCachesStashFile $ PackageName.print p.package.name
             Nothing -> Just Paths.localCachesStashEntireWorkspace

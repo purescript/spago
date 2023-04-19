@@ -46,7 +46,6 @@ import Spago.Log (LogVerbosity(..))
 import Spago.Paths as Paths
 import Spago.Purs (Purs)
 import Spago.Purs as Purs
-import Type.Proxy (Proxy(..))
 import Unsafe.Coerce (unsafeCoerce)
 
 type GlobalArgs =
@@ -73,11 +72,7 @@ type InstallArgs =
   , output :: Maybe String
   , pedanticPackages :: Boolean
   , ensureRanges :: Boolean
-  , psaArgs :: PsaArgs
-  }
-
-type PsaArgs =
-  { strict :: Maybe Boolean
+  , strict :: Maybe Boolean
   , censorBuildWarnings :: Maybe Core.CensorBuildWarnings
   , showSource :: Maybe Core.ShowSourceCode
   , censorCodes :: Maybe (NonEmptySet String)
@@ -94,7 +89,13 @@ type BuildArgs a =
   , pedanticPackages :: Boolean
   , ensureRanges :: Boolean
   , jsonErrors :: Boolean
-  , psaArgs :: PsaArgs
+  , strict :: Maybe Boolean
+  , censorBuildWarnings :: Maybe Core.CensorBuildWarnings
+  , showSource :: Maybe Core.ShowSourceCode
+  , censorCodes :: Maybe (NonEmptySet String)
+  , filterCodes :: Maybe (NonEmptySet String)
+  , statVerbosity :: Maybe Core.StatVerbosity
+  , stash :: Maybe Boolean
   | a
   }
 
@@ -114,7 +115,13 @@ type RunArgs =
   , execArgs :: Maybe (Array String)
   , main :: Maybe String
   , ensureRanges :: Boolean
-  , psaArgs :: PsaArgs
+  , strict :: Maybe Boolean
+  , censorBuildWarnings :: Maybe Core.CensorBuildWarnings
+  , showSource :: Maybe Core.ShowSourceCode
+  , censorCodes :: Maybe (NonEmptySet String)
+  , filterCodes :: Maybe (NonEmptySet String)
+  , statVerbosity :: Maybe Core.StatVerbosity
+  , stash :: Maybe Boolean
   }
 
 type TestArgs =
@@ -124,7 +131,13 @@ type TestArgs =
   , pursArgs :: List String
   , backendArgs :: List String
   , execArgs :: Maybe (Array String)
-  , psaArgs :: PsaArgs
+  , strict :: Maybe Boolean
+  , censorBuildWarnings :: Maybe Core.CensorBuildWarnings
+  , showSource :: Maybe Core.ShowSourceCode
+  , censorCodes :: Maybe (NonEmptySet String)
+  , filterCodes :: Maybe (NonEmptySet String)
+  , statVerbosity :: Maybe Core.StatVerbosity
+  , stash :: Maybe Boolean
   }
 
 type SourcesArgs =
@@ -153,12 +166,24 @@ type BundleArgs =
   , pedanticPackages :: Boolean
   , type :: Maybe String
   , ensureRanges :: Boolean
-  , psaArgs :: PsaArgs
+  , strict :: Maybe Boolean
+  , censorBuildWarnings :: Maybe Core.CensorBuildWarnings
+  , showSource :: Maybe Core.ShowSourceCode
+  , censorCodes :: Maybe (NonEmptySet String)
+  , filterCodes :: Maybe (NonEmptySet String)
+  , statVerbosity :: Maybe Core.StatVerbosity
+  , stash :: Maybe Boolean
   }
 
 type PublishArgs =
   { selectedPackage :: Maybe String
-  , psaArgs :: PsaArgs
+  , strict :: Maybe Boolean
+  , censorBuildWarnings :: Maybe Core.CensorBuildWarnings
+  , showSource :: Maybe Core.ShowSourceCode
+  , censorCodes :: Maybe (NonEmptySet String)
+  , filterCodes :: Maybe (NonEmptySet String)
+  , statVerbosity :: Maybe Core.StatVerbosity
+  , stash :: Maybe Boolean
   }
 
 data SpagoCmd a = SpagoCmd GlobalArgs (Command a)
@@ -295,19 +320,14 @@ installArgsParser =
     , output: Flags.output
     , pedanticPackages: Flags.pedanticPackages
     , ensureRanges: Flags.ensureRanges
-    , psaArgs: psaArgsParser
+    , strict: Flags.strict
+    , censorBuildWarnings: Flags.censorBuildWarnings
+    , showSource: Flags.showSource
+    , censorCodes: Flags.censorCodes
+    , filterCodes: Flags.filterCodes
+    , statVerbosity: Flags.statVerbosity
+    , stash: Flags.stash
     }
-
-psaArgsParser :: ArgParser PsaArgs
-psaArgsParser = ArgParser.fromRecord
-  { strict: Flags.strict
-  , censorBuildWarnings: Flags.censorBuildWarnings
-  , showSource: Flags.showSource
-  , censorCodes: Flags.censorCodes
-  , filterCodes: Flags.filterCodes
-  , statVerbosity: Flags.statVerbosity
-  , stash: Flags.stash
-  }
 
 buildArgsParser :: ArgParser (BuildArgs ())
 buildArgsParser = ArgParser.fromRecord
@@ -318,7 +338,13 @@ buildArgsParser = ArgParser.fromRecord
   , pedanticPackages: Flags.pedanticPackages
   , ensureRanges: Flags.ensureRanges
   , jsonErrors: Flags.jsonErrors
-  , psaArgs: psaArgsParser
+  , strict: Flags.strict
+  , censorBuildWarnings: Flags.censorBuildWarnings
+  , showSource: Flags.showSource
+  , censorCodes: Flags.censorCodes
+  , filterCodes: Flags.filterCodes
+  , statVerbosity: Flags.statVerbosity
+  , stash: Flags.stash
   }
 
 replArgsParser :: ArgParser ReplArgs
@@ -338,7 +364,13 @@ runArgsParser = ArgParser.fromRecord
   , pedanticPackages: Flags.pedanticPackages
   , main: Flags.moduleName
   , ensureRanges: Flags.ensureRanges
-  , psaArgs: psaArgsParser
+  , strict: Flags.strict
+  , censorBuildWarnings: Flags.censorBuildWarnings
+  , showSource: Flags.showSource
+  , censorCodes: Flags.censorCodes
+  , filterCodes: Flags.filterCodes
+  , statVerbosity: Flags.statVerbosity
+  , stash: Flags.stash
   }
 
 testArgsParser :: ArgParser TestArgs
@@ -349,7 +381,13 @@ testArgsParser = ArgParser.fromRecord
   , execArgs: Flags.execArgs
   , output: Flags.output
   , pedanticPackages: Flags.pedanticPackages
-  , psaArgs: psaArgsParser
+  , strict: Flags.strict
+  , censorBuildWarnings: Flags.censorBuildWarnings
+  , showSource: Flags.showSource
+  , censorCodes: Flags.censorCodes
+  , filterCodes: Flags.filterCodes
+  , statVerbosity: Flags.statVerbosity
+  , stash: Flags.stash
   }
 
 bundleArgsParser :: ArgParser BundleArgs
@@ -366,14 +404,26 @@ bundleArgsParser =
     , output: Flags.output
     , pedanticPackages: Flags.pedanticPackages
     , ensureRanges: Flags.ensureRanges
-    , psaArgs: psaArgsParser
+    , strict: Flags.strict
+    , censorBuildWarnings: Flags.censorBuildWarnings
+    , showSource: Flags.showSource
+    , censorCodes: Flags.censorCodes
+    , filterCodes: Flags.filterCodes
+    , statVerbosity: Flags.statVerbosity
+    , stash: Flags.stash
     }
 
 publishArgsParser :: ArgParser PublishArgs
 publishArgsParser =
   ArgParser.fromRecord
     { selectedPackage: Flags.selectedPackage
-    , psaArgs: psaArgsParser
+    , strict: Flags.strict
+    , censorBuildWarnings: Flags.censorBuildWarnings
+    , showSource: Flags.showSource
+    , censorCodes: Flags.censorCodes
+    , filterCodes: Flags.filterCodes
+    , statVerbosity: Flags.statVerbosity
+    , stash: Flags.stash
     }
 
 registrySearchArgsParser :: ArgParser RegistrySearchArgs
@@ -457,23 +507,30 @@ main =
             buildEnv <- runSpago env (mkBuildEnv args dependencies)
             let options = { depsOnly: false, pursArgs: List.toUnfoldable args.pursArgs, jsonErrors }
             runSpago buildEnv (Build.run options)
-          Publish { selectedPackage, psaArgs } -> do
+          Publish { selectedPackage } -> do
             { env, fetchOpts } <- mkFetchEnv { packages: mempty, selectedPackage, ensureRanges: false }
             -- TODO: --no-fetch flag
             dependencies <- runSpago env (Fetch.run fetchOpts)
             let
               buildArgs =
                 { selectedPackage
-                , psaArgs
                 -- , pursArgs: mempty
                 , backendArgs: mempty
                 , output: mempty
                 , pedanticPackages: false
                 , ensureRanges: false
                 , jsonErrors: false
+                -- Note: in a future commit, we will drop the PSA args in the `PublishArgs` record
+                , censorBuildWarnings: Nothing :: Maybe Core.CensorBuildWarnings
+                , censorCodes: Nothing :: Maybe (NonEmptySet String)
+                , filterCodes: Nothing :: Maybe (NonEmptySet String)
+                , statVerbosity: Nothing :: Maybe Core.StatVerbosity
+                , showSource: Nothing :: Maybe Core.ShowSourceCode
+                , strict: Nothing :: Maybe Boolean
+                , stash: Nothing :: Maybe Boolean
                 }
-            { purs, psaConfig } <- runSpago env (mkBuildEnv buildArgs dependencies)
-            publishEnv <- runSpago env (mkPublishEnv dependencies purs psaConfig)
+            { purs } <- runSpago env (mkBuildEnv buildArgs dependencies)
+            publishEnv <- runSpago env (mkPublishEnv dependencies purs)
             void $ runSpago publishEnv (Publish.publish {})
           Repl args -> do
             -- TODO implement
@@ -672,7 +729,13 @@ mkBuildEnv
    . { backendArgs :: List String
      , output :: Maybe String
      , pedanticPackages :: Boolean
-     , psaArgs :: PsaArgs
+     , censorBuildWarnings :: Maybe Core.CensorBuildWarnings
+     , censorCodes :: Maybe (NonEmptySet String)
+     , filterCodes :: Maybe (NonEmptySet String)
+     , statVerbosity :: Maybe Core.StatVerbosity
+     , showSource :: Maybe Core.ShowSourceCode
+     , strict :: Maybe Boolean
+     , stash :: Maybe Boolean
      | r
      }
   -> Map PackageName Package
@@ -695,34 +758,26 @@ mkBuildEnv buildArgs dependencies = do
           workspace.backend
       }
 
-    psaConfig :: Core.PsaConfig
-    psaConfig =
-      { strict: getField $ Record.get (Proxy :: Proxy "strict")
-      , censorBuildWarnings: getField $ Record.get (Proxy :: Proxy "censorBuildWarnings")
-      , showSource: getField $ Record.get (Proxy :: Proxy "showSource")
-      , censorCodes: getField $ Record.get (Proxy :: Proxy "censorCodes")
-      , filterCodes: getField $ Record.get (Proxy :: Proxy "filterCodes")
-      , statVerbosity: getField $ Record.get (Proxy :: Proxy "statVerbosity")
-      , stash: getField $ Record.get (Proxy :: Proxy "stash")
-      }
-      where
-      getField :: forall a. (Core.PsaConfig -> Maybe a) -> Maybe a
-      getField getLabel = oneOf
-        [ getLabel buildArgs.psaArgs
-        , packagePsaConfig >>= getLabel
-        , workspacePsaConfig >>= getLabel
-        ]
+    packageBuildConfig = workspace.selected >>= \p -> p.package.build
+    workspaceBuildConfig = workspace.buildOptions
 
-      packagePsaConfig :: Maybe Core.PsaConfig
-      packagePsaConfig = workspace.selected >>= \p -> p.package.build >>= _.psaOptions
+  pure
+    { logOptions
+    , purs
+    , git
+    , dependencies
+    , workspace: newWorkspace
+    , strict: oneOf [ buildArgs.strict, packageBuildConfig >>= _.strict, workspaceBuildConfig.strict ]
+    , censorBuildWarnings: oneOf [ buildArgs.censorBuildWarnings, packageBuildConfig >>= _.censorBuildWarnings, workspaceBuildConfig.censorBuildWarnings ]
+    , showSource: oneOf [ buildArgs.showSource, packageBuildConfig >>= _.showSource, workspaceBuildConfig.showSource ]
+    , censorCodes: oneOf [ buildArgs.censorCodes, packageBuildConfig >>= _.censorCodes, workspaceBuildConfig.censorCodes ]
+    , filterCodes: oneOf [ buildArgs.filterCodes, packageBuildConfig >>= _.filterCodes, workspaceBuildConfig.filterCodes ]
+    , statVerbosity: oneOf [ buildArgs.statVerbosity, packageBuildConfig >>= _.statVerbosity, workspaceBuildConfig.statVerbosity ]
+    , stash: oneOf [ buildArgs.stash, packageBuildConfig >>= _.stash, workspaceBuildConfig.stash ]
+    }
 
-      workspacePsaConfig :: Maybe Core.PsaConfig
-      workspacePsaConfig = workspace.buildOptions.psaOptions
-
-  pure { logOptions, purs, git, dependencies, workspace: newWorkspace, psaConfig }
-
-mkPublishEnv :: forall a. Map PackageName Package -> Purs -> Config.PsaConfig -> Spago (Fetch.FetchEnv a) (Publish.PublishEnv a)
-mkPublishEnv dependencies purs psaConfig = do
+mkPublishEnv :: forall a. Map PackageName Package -> Purs -> Spago (Fetch.FetchEnv a) (Publish.PublishEnv a)
+mkPublishEnv dependencies purs = do
   env <- ask
   selected <- case env.workspace.selected of
     Just s -> pure s
@@ -739,7 +794,7 @@ mkPublishEnv dependencies purs psaConfig = do
               [ toDoc "No package was selected for publishing. Please select (with -p) one of the following packages:"
               , indent (toDoc $ map _.package.name workspacePackages)
               ]
-  pure (Record.union { purs, selected, dependencies, psaConfig } env)
+  pure (Record.union { purs, selected, dependencies } env)
 
 mkFetchEnv :: forall a. FetchArgs -> Spago (LogEnv a) { env :: Fetch.FetchEnv (), fetchOpts :: Fetch.FetchOpts }
 mkFetchEnv args = do

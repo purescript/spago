@@ -2,7 +2,6 @@ module Spago.Core.Config
   ( BackendConfig
   , BuildOptionsInput
   , BuildConfig
-  , PsaConfig
   , CensorBuildWarnings(..)
   , ShowSourceCode(..)
   , StatVerbosity(..)
@@ -80,15 +79,6 @@ type PackageConfig =
   }
 
 type BuildConfig =
-  { psaOptions :: Maybe PsaConfig
-  }
-
-buildConfigCodec :: JsonCodec BuildConfig
-buildConfigCodec = CAR.object "BuildConfig"
-  { psaOptions: CAR.optional psaConfigCodec
-  }
-
-type PsaConfig =
   { censorBuildWarnings :: Maybe CensorBuildWarnings
   , censorCodes :: Maybe (NonEmptySet.NonEmptySet String)
   , filterCodes :: Maybe (NonEmptySet.NonEmptySet String)
@@ -98,8 +88,8 @@ type PsaConfig =
   , stash :: Maybe Boolean
   }
 
-psaConfigCodec :: JsonCodec PsaConfig
-psaConfigCodec = CAR.object "PsaConfig"
+buildConfigCodec :: JsonCodec BuildConfig
+buildConfigCodec = CAR.object "BuildConfig"
   { censorBuildWarnings: CAR.optional censorBuildWarningsCodec
   , censorCodes: CAR.optional $ CA.Common.nonEmptySet CA.string
   , filterCodes: CAR.optional $ CA.Common.nonEmptySet CA.string
@@ -225,7 +215,13 @@ type TestConfig =
   { main :: String
   , execArgs :: Maybe (Array String)
   , dependencies :: Dependencies
-  , psaOptions :: Maybe PsaConfig
+  , censorBuildWarnings :: Maybe CensorBuildWarnings
+  , censorCodes :: Maybe (NonEmptySet.NonEmptySet String)
+  , filterCodes :: Maybe (NonEmptySet.NonEmptySet String)
+  , statVerbosity :: Maybe StatVerbosity
+  , showSource :: Maybe ShowSourceCode
+  , strict :: Maybe Boolean
+  , stash :: Maybe Boolean
   }
 
 testConfigCodec :: JsonCodec TestConfig
@@ -233,7 +229,13 @@ testConfigCodec = CAR.object "TestConfig"
   { main: CA.string
   , execArgs: CAR.optional (CA.array CA.string)
   , dependencies: dependenciesCodec
-  , psaOptions: CAR.optional psaConfigCodec
+  , censorBuildWarnings: CAR.optional censorBuildWarningsCodec
+  , censorCodes: CAR.optional $ CA.Common.nonEmptySet CA.string
+  , filterCodes: CAR.optional $ CA.Common.nonEmptySet CA.string
+  , statVerbosity: CAR.optional statVerbosityCodec
+  , showSource: CAR.optional showSourceCodec
+  , strict: CAR.optional CA.boolean
+  , stash: CAR.optional CA.boolean
   }
 
 type BackendConfig =
@@ -383,14 +385,26 @@ workspaceConfigCodec = CAR.object "WorkspaceConfig"
 type BuildOptionsInput =
   { output :: Maybe FilePath
   , pedantic_packages :: Maybe Boolean
-  , psaOptions :: Maybe PsaConfig
+  , censorBuildWarnings :: Maybe CensorBuildWarnings
+  , censorCodes :: Maybe (NonEmptySet.NonEmptySet String)
+  , filterCodes :: Maybe (NonEmptySet.NonEmptySet String)
+  , statVerbosity :: Maybe StatVerbosity
+  , showSource :: Maybe ShowSourceCode
+  , strict :: Maybe Boolean
+  , stash :: Maybe Boolean
   }
 
 buildOptionsCodec :: JsonCodec BuildOptionsInput
 buildOptionsCodec = CAR.object "CompileOptionsInput"
   { output: CAR.optional CA.string
   , pedantic_packages: CAR.optional CA.boolean
-  , psaOptions: CAR.optional psaConfigCodec
+  , censorBuildWarnings: CAR.optional censorBuildWarningsCodec
+  , censorCodes: CAR.optional $ CA.Common.nonEmptySet CA.string
+  , filterCodes: CAR.optional $ CA.Common.nonEmptySet CA.string
+  , statVerbosity: CAR.optional statVerbosityCodec
+  , showSource: CAR.optional showSourceCodec
+  , strict: CAR.optional CA.boolean
+  , stash: CAR.optional CA.boolean
   }
 
 data SetAddress

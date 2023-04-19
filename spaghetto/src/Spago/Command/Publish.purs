@@ -7,6 +7,7 @@ import Data.Codec.Argonaut as CA
 import Data.List as List
 import Data.Map as Map
 import Data.Set as Set
+import Data.Set.NonEmpty (NonEmptySet)
 import Data.Tuple as Tuple
 import Effect.Ref as Ref
 import Node.Path as Path
@@ -19,8 +20,9 @@ import Registry.Solver as Registry.Solver
 import Registry.Version as Version
 import Spago.BuildInfo as BuildInfo
 import Spago.Command.Build as Build
-import Spago.Config (Package(..), WithTestGlobs(..), Workspace, WorkspacePackage, PsaConfig)
+import Spago.Config (Package(..), WithTestGlobs(..), Workspace, WorkspacePackage)
 import Spago.Config as Config
+import Spago.Config as Core
 import Spago.Git (Git)
 import Spago.Git as Git
 import Spago.Json as Json
@@ -46,7 +48,6 @@ type PublishEnv a =
   , purs :: Purs
   , selected :: WorkspacePackage
   , dependencies :: Map PackageName Package
-  , psaConfig :: PsaConfig
   | a
   }
 
@@ -75,7 +76,6 @@ publish _args = do
 
   env@
     { selected: selected'
-    , workspace
     , purs
     , dependencies
     , logOptions
@@ -90,8 +90,30 @@ publish _args = do
 
   -- As first thing we run a build to make sure the package compiles at all
   runSpago
-    (env { workspace = workspace { selected = Just selected } })
-    (Build.run { depsOnly: false, pursArgs: [], jsonErrors: false })
+    -- We explicitly list the env fields because `Record.merge` didn't compile.
+    { getManifestFromIndex: env.getManifestFromIndex
+    , getMetadata: env.getMetadata
+    , getCachedIndex: env.getCachedIndex
+    , workspace: env.workspace { selected = Just selected }
+    , logOptions: env.logOptions
+    , git: env.git
+    , purs: env.purs
+    , selected: env.selected
+    , dependencies: env.dependencies
+    , censorBuildWarnings: (Nothing :: Maybe Core.CensorBuildWarnings)
+    , censorCodes: (Nothing :: Maybe (NonEmptySet String))
+    , filterCodes: (Nothing :: Maybe (NonEmptySet String))
+    , statVerbosity: (Nothing :: Maybe Core.StatVerbosity)
+    , showSource: (Nothing :: Maybe Core.ShowSourceCode)
+    , strict: (Nothing :: Maybe Boolean)
+    , stash: (Nothing :: Maybe Boolean)
+    }
+    ( Build.run
+        { depsOnly: false
+        , pursArgs: []
+        , jsonErrors: false
+        }
+    )
 
   -- We then need to check that the dependency graph is accurate. If not, queue the errors
   let globs = getGlobs selected dependencies
@@ -232,12 +254,30 @@ publish _args = do
       -- from the solver (this is because the build might terminate the process, and we shall output the errors first)
       let buildPlanDependencies = map Config.RegistryVersion resolutions
       runSpago
-        ( env
-            { workspace = workspace { selected = Just selected }
-            , dependencies = buildPlanDependencies
+        -- We explicitly list the env fields because `Record.merge` didn't compile.
+        { getManifestFromIndex: env.getManifestFromIndex
+        , getMetadata: env.getMetadata
+        , getCachedIndex: env.getCachedIndex
+        , workspace: env.workspace { selected = Just selected }
+        , logOptions: env.logOptions
+        , git: env.git
+        , purs: env.purs
+        , selected: env.selected
+        , dependencies: buildPlanDependencies
+        , censorBuildWarnings: (Nothing :: Maybe Core.CensorBuildWarnings)
+        , censorCodes: (Nothing :: Maybe (NonEmptySet String))
+        , filterCodes: (Nothing :: Maybe (NonEmptySet String))
+        , statVerbosity: (Nothing :: Maybe Core.StatVerbosity)
+        , showSource: (Nothing :: Maybe Core.ShowSourceCode)
+        , strict: (Nothing :: Maybe Boolean)
+        , stash: (Nothing :: Maybe Boolean)
+        }
+        ( Build.run
+            { depsOnly: false
+            , pursArgs: []
+            , jsonErrors: false
             }
         )
-        (Build.run { depsOnly: false, pursArgs: [], jsonErrors: false })
 
       logDebug $ unsafeStringify publishingData
       logSuccess "Ready for publishing. Calling the registry.."

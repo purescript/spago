@@ -88,7 +88,13 @@ defaultConfig name set =
           { dependencies: Dependencies Map.empty
           , execArgs: Nothing
           , main: "Test.Main"
-          , psaOptions: Nothing
+          , censorBuildWarnings: Nothing
+          , censorCodes: Nothing
+          , filterCodes: Nothing
+          , statVerbosity: Nothing
+          , showSource: Nothing
+          , strict: Nothing
+          , stash: Nothing
           }
       , publish: Nothing
       , bundle: Nothing
