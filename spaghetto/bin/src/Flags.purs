@@ -64,7 +64,7 @@ statVerbosity = ArgParser.optional $ ArgParser.choose "StatVerbosity"
 
 persistWarnings ∷ ArgParser (Maybe Boolean)
 persistWarnings =
-  ArgParser.flag [ "--persist-warnings" ] "Enable persistent warnings using default persist-warnings file location"
+  ArgParser.flag [ "--persist-warnings" ] "Persist the compiler warnings between multiple underlying `purs compile` calls"
     # ArgParser.boolean
     # ArgParser.optional
 
