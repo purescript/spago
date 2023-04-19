@@ -72,13 +72,6 @@ type InstallArgs =
   , output :: Maybe String
   , pedanticPackages :: Boolean
   , ensureRanges :: Boolean
-  , strict :: Maybe Boolean
-  , censorBuildWarnings :: Maybe Core.CensorBuildWarnings
-  , showSource :: Maybe Core.ShowSourceCode
-  , censorCodes :: Maybe (NonEmptySet String)
-  , filterCodes :: Maybe (NonEmptySet String)
-  , statVerbosity :: Maybe Core.StatVerbosity
-  , stash :: Maybe Boolean
   }
 
 type BuildArgs a =
@@ -177,13 +170,6 @@ type BundleArgs =
 
 type PublishArgs =
   { selectedPackage :: Maybe String
-  , strict :: Maybe Boolean
-  , censorBuildWarnings :: Maybe Core.CensorBuildWarnings
-  , showSource :: Maybe Core.ShowSourceCode
-  , censorCodes :: Maybe (NonEmptySet String)
-  , filterCodes :: Maybe (NonEmptySet String)
-  , statVerbosity :: Maybe Core.StatVerbosity
-  , stash :: Maybe Boolean
   }
 
 data SpagoCmd a = SpagoCmd GlobalArgs (Command a)
@@ -320,13 +306,6 @@ installArgsParser =
     , output: Flags.output
     , pedanticPackages: Flags.pedanticPackages
     , ensureRanges: Flags.ensureRanges
-    , strict: Flags.strict
-    , censorBuildWarnings: Flags.censorBuildWarnings
-    , showSource: Flags.showSource
-    , censorCodes: Flags.censorCodes
-    , filterCodes: Flags.filterCodes
-    , statVerbosity: Flags.statVerbosity
-    , stash: Flags.stash
     }
 
 buildArgsParser :: ArgParser (BuildArgs ())
@@ -417,13 +396,6 @@ publishArgsParser :: ArgParser PublishArgs
 publishArgsParser =
   ArgParser.fromRecord
     { selectedPackage: Flags.selectedPackage
-    , strict: Flags.strict
-    , censorBuildWarnings: Flags.censorBuildWarnings
-    , showSource: Flags.showSource
-    , censorCodes: Flags.censorCodes
-    , filterCodes: Flags.filterCodes
-    , statVerbosity: Flags.statVerbosity
-    , stash: Flags.stash
     }
 
 registrySearchArgsParser :: ArgParser RegistrySearchArgs
@@ -497,7 +469,18 @@ main =
             { env, fetchOpts } <- mkFetchEnv { packages, selectedPackage, ensureRanges }
             -- TODO: --no-fetch flag
             dependencies <- runSpago env (Fetch.run fetchOpts)
-            env' <- runSpago env (mkBuildEnv args dependencies)
+            let
+              buildArgs = Record.merge
+                args
+                { censorBuildWarnings: Nothing :: Maybe Core.CensorBuildWarnings
+                , censorCodes: Nothing :: Maybe (NonEmptySet String)
+                , filterCodes: Nothing :: Maybe (NonEmptySet String)
+                , statVerbosity: Nothing :: Maybe Core.StatVerbosity
+                , showSource: Nothing :: Maybe Core.ShowSourceCode
+                , strict: Nothing :: Maybe Boolean
+                , stash: Nothing :: Maybe Boolean
+                }
+            env' <- runSpago env (mkBuildEnv buildArgs dependencies)
             let options = { depsOnly: true, pursArgs: List.toUnfoldable args.pursArgs, jsonErrors: false }
             runSpago env' (Build.run options)
           Build args@{ selectedPackage, ensureRanges, jsonErrors } -> do
@@ -520,7 +503,6 @@ main =
                 , pedanticPackages: false
                 , ensureRanges: false
                 , jsonErrors: false
-                -- Note: in a future commit, we will drop the PSA args in the `PublishArgs` record
                 , censorBuildWarnings: Nothing :: Maybe Core.CensorBuildWarnings
                 , censorCodes: Nothing :: Maybe (NonEmptySet String)
                 , filterCodes: Nothing :: Maybe (NonEmptySet String)
