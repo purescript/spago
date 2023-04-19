@@ -95,7 +95,7 @@ type PsaConfig =
   , statVerbosity :: Maybe StatVerbosity
   , showSource :: Maybe ShowSourceCode
   , strict :: Maybe Boolean
-  , stashFile :: Maybe (Either Boolean String)
+  , stash :: Maybe Boolean
   }
 
 psaConfigCodec :: JsonCodec PsaConfig
@@ -106,14 +106,8 @@ psaConfigCodec = CAR.object "PsaConfig"
   , statVerbosity: CAR.optional statVerbosityCodec
   , showSource: CAR.optional showSourceCodec
   , strict: CAR.optional CA.boolean
-  , stashFile: CAR.optional stashFileCodec
+  , stash: CAR.optional CA.boolean
   }
-
-stashFileCodec :: JsonCodec (Either Boolean String)
-stashFileCodec = CA.Sum.enumSum (either show identity) case _ of
-  "true" -> Just $ Left true
-  "false" -> Just $ Left false
-  x -> Just $ Right x
 
 data CensorBuildWarnings
   = CensorNoWarnings

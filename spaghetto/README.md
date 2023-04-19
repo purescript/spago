@@ -274,17 +274,8 @@ package:
       showSource: true
       # optional, boolean, counts compiler warnings as compiler errors
       strict: false
-      # optional, Either Boolean String, enable/disable
-      # the pretty-printed compiler warnings/errors
-      # and whether to store them in a non-default location
-      stashFile:
-        # one of 3 values
-        #    1. Disable it
-        false
-        #    2. Enable it using default location (.spago/default/)
-        true
-        #    3. Enable it using custom location (.spago/custom)
-        "foo"
+      # optional, Boolean String, persist compiler warnings
+      stash: true
 
 # optional
   bundle:

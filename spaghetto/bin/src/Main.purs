@@ -82,7 +82,7 @@ type PsaArgs =
   , censorCodes :: Maybe (NonEmptySet String)
   , filterCodes :: Maybe (NonEmptySet String)
   , statVerbosity :: Maybe Core.StatVerbosity
-  , stashFile :: Maybe (Either Boolean String)
+  , stash :: Maybe Boolean
   }
 
 type BuildArgs a =
@@ -305,7 +305,7 @@ psaArgsParser = ArgParser.fromRecord
   , censorCodes: Flags.censorCodes
   , filterCodes: Flags.filterCodes
   , statVerbosity: Flags.statVerbosity
-  , stashFile: Flags.stashFile
+  , stash: Flags.stash
   }
 
 buildArgsParser :: ArgParser (BuildArgs ())
@@ -702,7 +702,7 @@ mkBuildEnv buildArgs dependencies = do
       , censorCodes: alt buildArgs.psaArgs.censorCodes $ config >>= _.censorCodes
       , filterCodes: alt buildArgs.psaArgs.filterCodes $ config >>= _.filterCodes
       , statVerbosity: alt buildArgs.psaArgs.statVerbosity $ config >>= _.statVerbosity
-      , stashFile: alt buildArgs.psaArgs.stashFile $ config >>= _.stashFile
+      , stash: alt buildArgs.psaArgs.stash $ config >>= _.stash
       }
       where
       config :: Maybe Core.PsaConfig

@@ -91,9 +91,6 @@ run opts = do
       , color: logOptions.color
       , jsonErrors: opts.jsonErrors
       }
-    stashFileFallback = case workspace.selected of
-      Just p -> Just $ Paths.mkLocalCachesDefaultStashFile $ PackageName.print p.package.name
-      Nothing -> Just Paths.localCachesStashEntireWorkspace
     psaOptions =
       { strict: fromMaybe Psa.defaultParseOptions.strict psaConfig.strict
       , censorBuildWarnings: fromMaybe Psa.defaultParseOptions.censorBuildWarnings psaConfig.censorBuildWarnings
@@ -103,10 +100,11 @@ run opts = do
       , statVerbosity: fromMaybe Psa.defaultParseOptions.statVerbosity psaConfig.statVerbosity
       , stashFile: do
           Alternative.guard (not opts.depsOnly)
-          psaConfig.stashFile >>= case _ of
-            Left true -> stashFileFallback
-            Left false -> Nothing
-            Right f -> Just f
+          stash <- psaConfig.stash
+          Alternative.guard stash
+          case workspace.selected of
+            Just p -> Just $ Paths.mkLocalCachesStashFile $ PackageName.print p.package.name
+            Nothing -> Just Paths.localCachesStashEntireWorkspace
       }
     buildBackend globs = do
       case workspace.backend of

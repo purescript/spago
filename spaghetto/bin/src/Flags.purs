@@ -6,10 +6,8 @@ import ArgParse.Basic (ArgParser)
 import ArgParse.Basic as ArgParser
 import Data.Set.NonEmpty (NonEmptySet)
 import Data.Set.NonEmpty as NonEmptySet
-import Node.Path as Path
 import Spago.Core.Config (ShowSourceCode(..))
 import Spago.Core.Config as Core
-import Spago.Paths as Paths
 
 selectedPackage ∷ ArgParser (Maybe String)
 selectedPackage =
@@ -64,12 +62,11 @@ statVerbosity = ArgParser.optional $ ArgParser.choose "StatVerbosity"
   , Core.NoStats <$ ArgParser.flag [ "---censor-stats" ] "Censor warning/error summary"
   ]
 
-stashFile ∷ ArgParser (Maybe (Either Boolean String))
-stashFile = ArgParser.optional $ ArgParser.choose "stash"
-  [ ArgParser.argument [ "---stash-file" ] "Enable persistent warnings using a specific stash file"
-      # ArgParser.unformat "FILE" (Right <<< Right <<< Paths.mkLocalCachesCustomStashFile <<< Path.basename)
-  , Left true <$ ArgParser.flag [ "---stash" ] "Enable persistent warnings using default stash file location"
-  ]
+stash ∷ ArgParser (Maybe Boolean)
+stash =
+  ArgParser.flag [ "---stash" ] "Enable persistent warnings using default stash file location"
+    # ArgParser.boolean
+    # ArgParser.optional
 
 jsonErrors ∷ ArgParser Boolean
 jsonErrors =
