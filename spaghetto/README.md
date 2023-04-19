@@ -245,12 +245,18 @@ package:
 
 # optional
   build:
-    # optional, Boolean, censor all warnings
-    censorWarnings: false
-    # optional, Boolean, censor warnings from library sources
-    censorLib: false
-    # optional, Boolean, censor warnings from project sources
-    censorSrc: false
+    # optional, whether to censor warnings from dependency sources,
+    # project sources, both, or none
+    censorBuildWarnings: 
+      # one of 4 values:
+      #   1. Both
+      "all"
+      #   2. dependency only
+      "dependency"
+      #   3. project only
+      "project"
+      #   4. do not censor warnings
+      "none"
     # optional, NonEmptyArray, censor specific codes
     censorCodes:
       - ShadowedName
