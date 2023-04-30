@@ -30,7 +30,8 @@ getPurs =
       logDebug $ show err
       die [ "Failed to find purs. Have you installed it, and is it in your PATH?" ]
     -- Drop the stuff after a space: dev builds look like this: 0.15.6 [development build; commit: 8da7e96005f717f03d6eee3c12b1f1416659a919]
-    Right r -> case parseLenientVersion (fromMaybe "" (Array.head (String.split (String.Pattern " ") r.stdout))) of
+    -- Drop the stuff after a hyphen: prerelease builds look like this: 0.15.6-2
+    Right r -> case parseLenientVersion (dropStuff "-" $ dropStuff " " r.stdout) of
       Left _err -> die $ "Failed to parse purs version. Was: " <> r.stdout
       -- Fail if Purs is lower than 0.15.4
       Right v ->
@@ -38,6 +39,8 @@ getPurs =
           pure { cmd: "purs", version: v }
         else
           die [ "Unsupported PureScript version " <> Version.print v, "Please install PureScript v0.15.4 or higher." ]
+  where
+  dropStuff pattern = fromMaybe "" <<< Array.head <<< String.split (String.Pattern pattern)
 
 compile :: forall a. Set FilePath -> Array String -> Spago (PursEnv a) Unit
 compile globs pursArgs = do

@@ -33,6 +33,7 @@ import Dodo as Log
 import Effect.Uncurried (EffectFn2, runEffectFn2)
 import Foreign.Object as Foreign
 import Node.Path as Path
+import Record as Record
 import Registry.Foreign.FastGlob as Glob
 import Registry.Internal.Codec as Internal.Codec
 import Registry.PackageName as PackageName
@@ -44,6 +45,7 @@ import Spago.FS as FS
 import Spago.Git as Git
 import Spago.Paths as Paths
 import Spago.Purs (PursEnv)
+import Type.Proxy (Proxy(..))
 
 type Workspace =
   { selected :: Maybe WorkspacePackage
@@ -312,8 +314,6 @@ readWorkspace maybeSelectedPackage = do
     logDebug $ "Ignored some of the glob matches as they are gitignored: " <> show ignored
 
   -- We read all of them in, and only read the package section, if any.
-  -- TODO: we should probably not include at all the configs that contain a
-  -- workspace configuration, maybe even "prune the tree" whenever we find one
   let
     readWorkspaceConfig path = do
       maybeConfig <- Core.readConfig path
@@ -322,16 +322,30 @@ readWorkspace maybeSelectedPackage = do
       pure $ case maybeConfig of
         Left e -> Left $ "Could not read config at path " <> path <> "\nError was: " <> e
         Right { yaml: { package: Nothing } } -> Left $ "No package found for config at path: " <> path
-        Right { yaml: { package: Just package }, doc } -> do
+        Right { yaml: { package: Just package, workspace: configWorkspace }, doc } -> do
           -- We store the path of the package, so we can treat is basically as a LocalPackage
-          Right $ Tuple package.name { path: Path.dirname path, package, doc, hasTests }
+          Right $ Tuple package.name { path: Path.dirname path, package, configWorkspace, doc, hasTests }
   { right: otherPackages, left: failedPackages } <- partitionMap identity <$> traverse readWorkspaceConfig otherConfigPaths
 
   unless (Array.null failedPackages) do
     logWarn $ [ "Failed to read some configs:" ] <> failedPackages
 
+  -- We prune any configs that use a different workspace.
+  -- For reasoning, see https://github.com/purescript/spago/issues/951
   let
-    workspacePackages = Map.fromFoldable $ otherPackages <> case maybePackage of
+    configPathsWithWorkspaces = Array.mapMaybe (\(Tuple _ configParts) -> configParts.path <$ configParts.configWorkspace) otherPackages
+    { right: configsNoWorkspaces, left: prunedConfigs } = otherPackages # partitionMap \config -> do
+      let configPath = (snd config).path
+      if Array.any (\p -> isJust $ String.stripPrefix (Pattern p) configPath) configPathsWithWorkspaces then
+        Left configPath
+      else
+        Right $ config <#> Record.delete (Proxy :: _ "configWorkspace")
+
+  unless (Array.null prunedConfigs) do
+    logDebug $ [ "Excluding configs that use a different workspace (directly or implicitly via parent directory's config):" ] <> Array.sort failedPackages
+
+  let
+    workspacePackages = Map.fromFoldable $ configsNoWorkspaces <> case maybePackage of
       Nothing -> []
       Just package -> [ Tuple package.name { path: "./", package, doc: workspaceDoc, hasTests: rootPackageHasTests } ]
 

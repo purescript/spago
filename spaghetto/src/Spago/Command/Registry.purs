@@ -26,6 +26,9 @@ type RegistryEnv a =
 -- TODO: some of these commands output text, some JSON, and the interface feels unpolished.
 -- We should do some user testing and make the experience a little more cohesive
 
+-- TODO: we should take inspiration from npm: they have npm search, and npm info
+-- TODO: also their table format is a little more sleek, and e.g. search displays a lot more info
+
 search :: forall a. String -> Spago (RegistryEnv a) Unit
 search searchString = do
   logInfo $ "Searching for " <> show searchString <> " in the Registry package names..."
