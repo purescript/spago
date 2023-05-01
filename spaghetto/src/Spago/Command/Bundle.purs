@@ -76,7 +76,6 @@ run = do
       , "--platform=" <> show opts.platform
       , format
       ] <> minify <> entrypoint <> nodePatch <> external
-  logDebug $ "mainPath=" <> mainPath
   logInfo "Bundling..."
   logDebug $ "Running esbuild: " <> show args
   Cmd.exec command args execOptions >>= case _ of
