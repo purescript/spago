@@ -172,7 +172,7 @@ parser = do
     packageName     = CLI.arg (Just . PackageName) "package" "Specify a package name. You can list them with `ls packages`"
     packageNames    = many $ CLI.arg (Just . PackageName) "package" "Package name to add as dependency"
     pursArgs        = many $ CLI.opt (Just . PursArg) "purs-args" 'u' "Arguments to pass to purs compile. Wrap in quotes."
-    externalArg     = CLI.optional $ CLI.opt (Just . ExternalArg) "external" 'e' "Arguments to pass to esbuild bundle."
+    externalArg     = CLI.optional $ CLI.opt (Just . ExternalArg) "external" 'e' "Arguments to pass to esbuild bundle. Comma separated."
     buildOptions  = BuildOptions <$> watch <*> clearScreen <*> allowIgnored <*> sourcePaths <*> srcMapFlag <*> noInstall
                     <*> pursArgs <*> depsOnly <*> beforeCommands <*> thenCommands <*> elseCommands
     bundleOptions = BundleOptions <$> mainModule <*> toTarget <*> platform <*> minifyFlag <*> noBuild <*> externalArg

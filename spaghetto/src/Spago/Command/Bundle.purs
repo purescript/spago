@@ -5,6 +5,8 @@ import Spago.Prelude
 import Node.Path as Path
 import Data.String (Pattern(..), Replacement(..))
 import Data.String as String
+import Data.String.Regex (regex, split)
+import Data.String.Regex.Flags (global)
 import Spago.Cmd as Cmd
 import Spago.Config (BundlePlatform(..), BundleType(..), Workspace, WorkspacePackage)
 
@@ -49,7 +51,7 @@ run = do
 
     external = case opts.external of
       Nothing -> []
-      Just ext -> [ "--external:" <> ext ]
+      Just ext -> map (\a -> "--external:" <> a) $ split (regex ",[ ]*" global) ext
 
     -- See https://github.com/evanw/esbuild/issues/1921
     nodePatch = case opts.platform of

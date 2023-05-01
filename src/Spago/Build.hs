@@ -18,12 +18,14 @@ import qualified Data.Map             as Map
 import qualified Data.Set             as Set
 import qualified Data.Text            as Text
 import qualified Data.Versions        as Version
+import           RIO.Text             (split)
 import           System.Directory     (getCurrentDirectory)
 import           System.FilePath      (splitDirectories)
 import qualified System.FilePath.Glob as Glob
 import qualified System.IO            as Sys
 import qualified System.IO.Temp       as Temp
 import qualified System.IO.Utf8       as Utf8
+-- import qualified Text.Regex           as Regex
 import qualified Turtle
 import qualified System.Process       as Process
 import qualified Web.Browser          as Browser
@@ -436,7 +438,8 @@ bundleWithEsbuild withMain srcMap (ModuleName moduleName) (TargetPath targetPath
       (_,_) -> ["--format=esm"]
     externalOpt = case externalArg of
       Nothing -> []
-      Just arg -> ["--external:" <> unExternalArg arg]
+      Just arg -> map ("--external:" <>) $ split (== ',') (unExternalArg arg)
+                  -- Regex.splitRegex (Regex.mkRegex ",[ ]*") (unExternalArg arg)
     esbuildBase = platformOpt <> minifyOpt <> srcMapOpt <> formatOpt <> ["--bundle", "--outfile=" <> targetPath] <> externalOpt
     (input, cmd) = case withMain of
       WithMain -> do

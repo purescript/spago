@@ -44,7 +44,7 @@ platform =
 external ∷ ArgParser (Maybe String)
 external =
   ArgParser.argument [ "--external" ]
-    "Modules not imported by the bundler (comma separated, no spaces)"
+    "Modules not imported by the bundler, comma separated"
     # ArgParser.optional
 
 output :: ArgParser (Maybe String)
