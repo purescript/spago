@@ -6,8 +6,8 @@ branches:
 
 environment:
   STACK_ROOT: C:\sr
-  STACK_VERSION: 2.5.1
-  nodejs_version: "14"
+  STACK_VERSION: 2.9.1
+  nodejs_version: "18"
 
   matrix:
     - STACK_YAML: stack.yaml
@@ -33,7 +33,7 @@ install:
       $download = "https://github.com/purescript/purescript/releases/download/$tag/win64.tar.gz"
       Invoke-WebRequest $download -Out ps-0.14\purescript.tar.gz
 
-      $tag = "v0.15.0"
+      $tag = "v0.15.8"
       $download = "https://github.com/purescript/purescript/releases/download/$tag/win64.tar.gz"
       Invoke-WebRequest $download -Out ps-0.15\purescript.tar.gz
   - tar -xvf ps-0.14\purescript.tar.gz -C ps-0.14
