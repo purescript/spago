@@ -21,6 +21,7 @@ module Utils
   , shouldBeFailureStderr
   , shouldBeEmptySuccess
   , spago
+  , spagoNext
   , withCwd
   , withEnvVar) where
 
@@ -63,6 +64,13 @@ proc cmd args = do
 
 spago :: [Text] -> IO (ExitCode, Text, Text)
 spago = proc "spago"
+
+spagoNext :: [Text] -> IO (ExitCode, Text, Text)
+spagoNext args = do
+  _ <- proc "npm" ["install", "spago@next"]
+  currentDir <- pwd
+  let path = currentDir </> "node_modules" </> "spago" </> "bin" </> "bundle.js"
+  proc "node" $ [Text.pack $ encodeString path] <> args
 
 git :: [Text] -> IO (ExitCode, Text, Text)
 git = proc "git"

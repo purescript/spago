@@ -54,7 +54,7 @@ data BackendConfig = BackendConfig { cmd :: Text }
 instance ToJSON BackendConfig
 
 data WorkspaceConfig = WorkspaceConfig
-  { set :: PackageSetAddress
+  { package_set :: PackageSetAddress
   , backend :: Maybe BackendConfig
   , extra_packages :: Map PackageName ExtraPackage
   } deriving (Generic)
@@ -105,7 +105,7 @@ migrate = do
         Right (MigrateConfig {..}) -> Just $ NewPublishConfig { version = Just migrateVersion, license = Just migrateLicense }
   let backend = fmap (\cmd -> BackendConfig{..}) alternateBackend
   -- TODO: we probably want a flag that says "nevermind my package set, give me the latest set from the registry"
-  let workspace = WorkspaceConfig { set = PackageSetAddress packageSetUrl, backend = backend, extra_packages = extra_packages }
+  let workspace = WorkspaceConfig { package_set = PackageSetAddress packageSetUrl, backend = backend, extra_packages = extra_packages }
   let package = PackageConfig{..}
   let newConfig = NewConfig{..}
   -- Write the new one to YAML

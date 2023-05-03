@@ -13,7 +13,7 @@ import           Utils              (checkFileHasInfix, checkFixture, checkFileE
                                      readFixture, runFor, shouldBeFailure, shouldBeFailureInfix,
                                      shouldBeFailureStderr, shouldBeSuccess, shouldBeSuccessOutput,
                                      shouldBeSuccessOutputWithErr, shouldBeSuccessStderr, spago,
-                                     withCwd, withEnvVar, cpFixture)
+                                     spagoNext, withCwd, withEnvVar, cpFixture)
 import qualified Spago.Cmd as Cmd
 import qualified Data.Versions as Version
 import System.Directory.Extra (getCurrentDirectory)
@@ -130,8 +130,9 @@ spec = runIO getUsingEsModules >>= \usingEsModules -> around_ (setup "spago-test
   describe "spago migrate" $ do
     it "Should migrate a spago.dhall to a new-style spago.yaml" $ do
       spago ["init", "--tag", "psc-0.15.4-20220921"] >>= shouldBeSuccess
-      writeTextFile "spago.dhall" "{ name = \"foo\", version = \"0.0.1\", license = \"MIT\", dependencies = [\"console\", \"effect\", \"prelude\"], packages = (./packages.dhall with effect.version = \"bar\"), sources = [\"\"] }"
+      writeTextFile "spago.dhall" "{ name = \"foo\", version = \"0.0.1\", license = \"MIT\", dependencies = [\"console\", \"effect\", \"prelude\"], packages = (./packages.dhall with effect.version = \"bar\"), backend = \"purerl\", sources = [\"\"] }"
       spago ["migrate"] >>= shouldBeSuccess
+      spagoNext ["build"] >>= shouldBeSuccess
       mv "spago.yaml" "new-spago-config.yaml"
       checkFixture "new-spago-config.yaml"
 

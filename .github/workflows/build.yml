@@ -17,7 +17,7 @@ jobs:
       matrix:
         include:
           - os: ubuntu-latest
-            image: haskell:8.10.7-stretch@sha256:100f8fb7d7d8d64adb5e106fe8136b8d4cbdc03aeb2cbd145a7597d74b69bafb
+            image: haskell:9.2.4
           - os: macOS-latest
           - os: windows-latest
     steps:
@@ -95,7 +95,7 @@ jobs:
             $HOME\AppData\Local\Programs\stack\x86_64-windows
           key: ${{ runner.os }}-${{ hashFiles('stack.yaml') }}-1
 
-      - run: npm install -g purescript@0.15.0 psc-package@3.0.1 bower@1.8.8 esbuild@0.14.28
+      - run: npm install -g purescript@0.15.9 psc-package@3.0.1 bower@1.8.8 esbuild@0.14.28
 
       - name: Install dependencies
         run: |
