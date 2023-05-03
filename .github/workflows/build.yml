@@ -7,7 +7,7 @@ on:
     branches: [ master ]
 
 env:
-  STACK_VERSION: '2.9.3'
+  STACK_VERSION: '2.9.1'
 
 jobs:
   build:
@@ -41,11 +41,9 @@ jobs:
         if: runner.os != 'Linux'
         uses: haskell/actions/setup@v1
         with:
-          ghc-version: '9.2.4'
-          stack-version: ${{ env.STACK_VERSION }}
           enable-stack: true
+          stack-version: "${{ env.STACK_VERSION }}"
           stack-no-global: true
-          stack-setup-ghc: true
       - name: Check Stack version and fix root access (Linux)
         if: runner.os == 'Linux'
         run: |
@@ -55,7 +53,7 @@ jobs:
       - name: Setup node and npm
         uses: actions/setup-node@v2
         with:
-          node-version: 14
+          node-version: 18
       # NB: We install gnu-tar because BSD tar is buggy on Github's macos machines,
       # and it breaks the cache: https://github.com/actions/cache/issues/403
       - name: Install GNU tar (macOS)
