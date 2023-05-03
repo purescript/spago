@@ -6,7 +6,7 @@ on:
       - '*'
 
 env:
-  STACK_VERSION: '2.7.3'
+  STACK_VERSION: '2.9.1'
 
 jobs:
   draft_release:
@@ -38,7 +38,7 @@ jobs:
       matrix:
         include:
           - os: ubuntu-latest
-            image: haskell:8.10.7-stretch@sha256:100f8fb7d7d8d64adb5e106fe8136b8d4cbdc03aeb2cbd145a7597d74b69bafb
+            image: haskell:9.2.4
           - os: macOS-latest
           - os: windows-latest
     steps:
@@ -52,11 +52,9 @@ jobs:
         if: runner.os != 'Linux'
         uses: haskell/actions/setup@v1
         with:
-          ghc-version: '8.10.7'
           stack-version: ${{ env.STACK_VERSION }}
           enable-stack: true
           stack-no-global: true
-          stack-setup-ghc: true
       - name: Check Stack version and fix root access (Linux)
         if: runner.os == 'Linux'
         run: |
@@ -65,7 +63,7 @@ jobs:
       - name: Setup node
         uses: actions/setup-node@v1
         with:
-          node-version: 10
+          node-version: 18
       # NB: We install gnu-tar because BSD tar is buggy on Github's macos machines,
       # and it breaks the cache: https://github.com/actions/cache/issues/403
       - name: Install GNU tar (macOS)
@@ -129,7 +127,7 @@ jobs:
       - uses: actions/checkout@v2
       - uses: actions/setup-node@v2
         with:
-          node-version: 14
+          node-version: 18
       - name: Publish to NPM
         shell: bash
         env:
