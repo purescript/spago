@@ -114,8 +114,8 @@ jobs:
         run: ./scripts/fix-home stack test
         shell: bash
 
-      - name: Install PureScript 0.14.0
-        run: npm install -g purescript@0.14.0
+      - name: Install PureScript 0.14.8
+        run: npm install -g purescript@0.14.8
 
       - name: Run tests (PureScript < 0.15.0)
         shell: bash

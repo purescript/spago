@@ -29,7 +29,7 @@ install:
   - mkdir ps-0.15
   - ps: |
       $releases = "https://api.github.com/repos/purescript/purescript/releases"
-      $tag = "v0.14.0"
+      $tag = "v0.14.8"
       $download = "https://github.com/purescript/purescript/releases/download/$tag/win64.tar.gz"
       Invoke-WebRequest $download -Out ps-0.14\purescript.tar.gz
 
