@@ -5,17 +5,23 @@ module Spago.Command.Build
 
 import Spago.Prelude
 
+import Control.Alternative as Alternative
 import Data.Array as Array
 import Data.Map as Map
 import Data.Set as Set
+import Data.Set.NonEmpty (NonEmptySet)
+import Data.Set.NonEmpty as NonEmptySet
 import Data.Tuple as Tuple
+import Registry.PackageName as PackageName
 import Spago.BuildInfo as BuildInfo
 import Spago.Cmd as Cmd
 import Spago.Config (Package(..), WithTestGlobs(..), Workspace, WorkspacePackage)
 import Spago.Config as Config
+import Spago.Config as Core
 import Spago.Git (Git)
+import Spago.Paths as Paths
+import Spago.Psa as Psa
 import Spago.Purs (Purs)
-import Spago.Purs as Purs
 import Spago.Purs.Graph as Graph
 
 type BuildEnv a =
@@ -24,31 +30,52 @@ type BuildEnv a =
   , dependencies :: Map PackageName Package
   , logOptions :: LogOptions
   , workspace :: Workspace
+  , censorBuildWarnings :: Maybe Core.CensorBuildWarnings
+  , censorCodes :: Maybe (NonEmptySet String)
+  , filterCodes :: Maybe (NonEmptySet String)
+  , statVerbosity :: Maybe Core.StatVerbosity
+  , showSource :: Maybe Core.ShowSourceCode
+  , strict :: Maybe Boolean
+  , persistWarnings :: Maybe Boolean
   | a
   }
 
 type BuildOptions =
   { depsOnly :: Boolean
   , pursArgs :: Array String
+  , jsonErrors :: Boolean
   }
 
 run :: forall a. BuildOptions -> Spago (BuildEnv a) Unit
 run opts = do
   logInfo "Building..."
-  { dependencies, workspace } <- ask
+  { dependencies
+  , workspace
+  , logOptions
+  , censorBuildWarnings
+  , censorCodes
+  , filterCodes
+  , statVerbosity
+  , showSource
+  , strict
+  , persistWarnings
+  } <- ask
   let
+    isWorkspacePackage = case _ of
+      Tuple _ (WorkspacePackage _) -> true
+      _ -> false
+
+    { yes: monorepoPkgs, no: dependencyPkgs } = partition isWorkspacePackage $ Map.toUnfoldable dependencies
     -- depsOnly means "no packages from the monorepo", so we filter out the workspace packages
-    dependencyGlobs = map (Tuple.uncurry $ Config.sourceGlob WithTestGlobs) case opts.depsOnly of
-      false -> Map.toUnfoldable dependencies
-      true -> Map.toUnfoldable $ Map.filter
-        ( case _ of
-            WorkspacePackage _ -> false
-            _ -> true
-        )
-        dependencies
+    dependencyGlobs = (Tuple.uncurry $ Config.sourceGlob WithTestGlobs) =<< dependencyPkgs
+    monorepoPkgGlobs
+      | opts.depsOnly = []
+      | otherwise = (Tuple.uncurry $ Config.sourceGlob WithTestGlobs) =<< monorepoPkgs
+
+    dependencyLibs = map (Tuple.uncurry Config.getPackageLocation) dependencyPkgs
 
     -- Here we select the right globs for a monorepo setup with a bunch of packages
-    projectSources =
+    projectSources = join
       if opts.depsOnly then []
       else case workspace.selected of
         Just p -> [ workspacePackageGlob p ]
@@ -69,11 +96,38 @@ run opts = do
       Nothing -> args
       Just output -> args <> [ "--output", output ]
 
+  -- find the `--json-errors` flag and die if it's there - Spago handles it
+  when (isJust $ Cmd.findFlag { flags: [ "--json-errors" ], args: opts.pursArgs }) do
+    die
+      [ "Can't pass `--json-errors` option directly to purs."
+      , "Use the --json-errors flag for Spago."
+      ]
+
   let
+    psaArgs =
+      { libraryDirs: dependencyLibs
+      , color: logOptions.color
+      , jsonErrors: opts.jsonErrors
+      }
+    psaOptions =
+      { strict: fromMaybe Psa.defaultParseOptions.strict strict
+      , censorBuildWarnings: fromMaybe Psa.defaultParseOptions.censorBuildWarnings censorBuildWarnings
+      , showSource: fromMaybe Psa.defaultParseOptions.showSource showSource
+      , censorCodes: maybe Psa.defaultParseOptions.censorCodes NonEmptySet.toSet censorCodes
+      , filterCodes: maybe Psa.defaultParseOptions.filterCodes NonEmptySet.toSet filterCodes
+      , statVerbosity: fromMaybe Psa.defaultParseOptions.statVerbosity statVerbosity
+      , stashFile: do
+          Alternative.guard (not opts.depsOnly)
+          shouldStashWarnings <- persistWarnings
+          Alternative.guard shouldStashWarnings
+          case workspace.selected of
+            Just p -> Just $ Paths.mkLocalCachesPersistentWarningsFile $ PackageName.print p.package.name
+            Nothing -> Just Paths.localCachesPersistedWarningsEntireWorkspace
+      }
     buildBackend globs = do
       case workspace.backend of
         Nothing ->
-          Purs.compile globs (addOutputArgs opts.pursArgs)
+          Psa.psaCompile globs (addOutputArgs opts.pursArgs) psaArgs psaOptions
         Just backend -> do
           when (isJust $ Cmd.findFlag { flags: [ "-g", "--codegen" ], args: opts.pursArgs }) do
             die
@@ -81,7 +135,8 @@ run opts = do
               , "Hint: No need to pass `--codegen corefn` explicitly when using the `backend` option."
               , "Remove the argument to solve the error"
               ]
-          Purs.compile globs $ (addOutputArgs opts.pursArgs) <> [ "--codegen", "corefn" ]
+          let args = (addOutputArgs opts.pursArgs) <> [ "--codegen", "corefn" ]
+          Psa.psaCompile globs args psaArgs psaOptions
 
           logInfo $ "Compiling with backend \"" <> backend.cmd <> "\""
           logDebug $ "Running command `" <> backend.cmd <> "`"
@@ -105,7 +160,7 @@ run opts = do
         runCommands "Then" thenCommands
   -}
 
-  let globs = Set.fromFoldable $ join projectSources <> join dependencyGlobs <> [ BuildInfo.buildInfoPath ]
+  let globs = Set.fromFoldable $ projectSources <> monorepoPkgGlobs <> dependencyGlobs <> [ BuildInfo.buildInfoPath ]
   buildBackend globs
 
   when workspace.buildOptions.pedanticPackages do
