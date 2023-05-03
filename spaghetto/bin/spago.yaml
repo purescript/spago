@@ -24,6 +24,6 @@ package:
   bundle:
     module: Main
     outfile: bundle.js
-    minify: true
+    minify: false
     platform: node
     type: app
