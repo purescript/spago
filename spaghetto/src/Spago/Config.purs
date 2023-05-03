@@ -27,6 +27,7 @@ import Data.HTTP.Method as Method
 import Data.Map as Map
 import Data.Profunctor as Profunctor
 import Data.Set as Set
+import Data.Set.NonEmpty (NonEmptySet)
 import Data.String (Pattern(..))
 import Data.String as String
 import Dodo as Log
@@ -59,6 +60,13 @@ type Workspace =
 type BuildOptions =
   { output :: Maybe FilePath
   , pedanticPackages :: Boolean
+  , censorBuildWarnings :: Maybe Core.CensorBuildWarnings
+  , censorCodes :: Maybe (NonEmptySet String)
+  , filterCodes :: Maybe (NonEmptySet String)
+  , statVerbosity :: Maybe Core.StatVerbosity
+  , showSource :: Maybe Core.ShowSourceCode
+  , strict :: Maybe Boolean
+  , persistWarnings :: Maybe Boolean
   }
 
 fromExtraPackage :: Core.ExtraPackage -> Package
@@ -298,6 +306,13 @@ readWorkspace maybeSelectedPackage = do
     (buildOptions :: BuildOptions) =
       { output: _.output =<< workspace.build_opts
       , pedanticPackages: fromMaybe false (_.pedantic_packages =<< workspace.build_opts)
+      , censorBuildWarnings: _.censorBuildWarnings =<< workspace.build_opts
+      , censorCodes: _.censorCodes =<< workspace.build_opts
+      , filterCodes: _.filterCodes =<< workspace.build_opts
+      , statVerbosity: _.statVerbosity =<< workspace.build_opts
+      , showSource: _.showSource =<< workspace.build_opts
+      , strict: _.strict =<< workspace.build_opts
+      , persistWarnings: _.persistWarnings =<< workspace.build_opts
       }
 
   pure

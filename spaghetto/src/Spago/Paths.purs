@@ -36,3 +36,12 @@ registryPath = Path.concat [ globalCachePath, "registry" ]
 
 registryIndexPath ∷ FilePath
 registryIndexPath = Path.concat [ globalCachePath, "registry-index" ]
+
+localCachePersistedWarningsPath :: FilePath
+localCachePersistedWarningsPath = Path.concat [ localCachePath, "persisted-warnings" ]
+
+localCachesPersistedWarningsEntireWorkspace :: FilePath
+localCachesPersistedWarningsEntireWorkspace = mkLocalCachesPersistentWarningsFile "entire-workspace"
+
+mkLocalCachesPersistentWarningsFile :: String -> FilePath
+mkLocalCachesPersistentWarningsFile fileName = Path.concat [ localCachePersistedWarningsPath, fileName <> ".stash" ]

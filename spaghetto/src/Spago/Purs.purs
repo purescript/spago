@@ -42,16 +42,18 @@ getPurs =
   where
   dropStuff pattern = fromMaybe "" <<< Array.head <<< String.split (String.Pattern pattern)
 
-compile :: forall a. Set FilePath -> Array String -> Spago (PursEnv a) Unit
+compile :: forall a. Set FilePath -> Array String -> Spago (PursEnv a) (Either Cmd.ExecError Cmd.ExecResult)
 compile globs pursArgs = do
   { purs } <- ask
   let args = [ "compile" ] <> pursArgs <> Set.toUnfoldable globs
   logDebug [ "Running command:", "purs " <> String.joinWith " " args ]
-  Cmd.exec purs.cmd args Cmd.defaultExecOptions >>= case _ of
-    Right _r -> logSuccess "Build succeeded."
-    Left err -> do
-      logDebug $ show err
-      die [ "Failed to build." ]
+  -- PureScript (as of v0.14.0) outputs the compiler errors/warnings to `stdout`
+  -- and outputs "Compiling..." messages to `stderr`
+  -- So, we want to pipe stderr to the parent so we see the "Compiling..." messages in real-time.
+  -- However, we do not pipe `stdout` to the parent, so that we don't see the errors reported twice:
+  -- once via `purs` and once via spago's pretty-printing of the same errors/warnings.
+  Cmd.exec purs.cmd args $ Cmd.defaultExecOptions
+    { pipeStdout = false }
 
 --------------------------------------------------------------------------------
 -- Graph
