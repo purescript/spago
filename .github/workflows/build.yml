@@ -93,7 +93,7 @@ jobs:
             $HOME\AppData\Local\Programs\stack\x86_64-windows
           key: ${{ runner.os }}-${{ hashFiles('stack.yaml') }}-1
 
-      - run: npm install -g purescript@0.15.9 psc-package@3.0.1 bower@1.8.8 esbuild@0.14.28
+      - run: npm install -g purescript@0.15.8 psc-package@3.0.1 bower@1.8.8 esbuild@0.14.28
 
       - name: Install dependencies
         run: |
