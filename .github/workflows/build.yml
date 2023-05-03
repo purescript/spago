@@ -7,7 +7,7 @@ on:
     branches: [ master ]
 
 env:
-  STACK_VERSION: '2.7.3'
+  STACK_VERSION: '2.9.3'
 
 jobs:
   build:
@@ -41,7 +41,7 @@ jobs:
         if: runner.os != 'Linux'
         uses: haskell/actions/setup@v1
         with:
-          ghc-version: '8.10.7'
+          ghc-version: '9.2.4'
           stack-version: ${{ env.STACK_VERSION }}
           enable-stack: true
           stack-no-global: true
