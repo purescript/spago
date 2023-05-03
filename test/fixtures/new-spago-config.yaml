@@ -1,18 +1,23 @@
-workspace:
-  set:
-    url: https://raw.githubusercontent.com/purescript/package-sets/psc-0.15.4-20220921/packages.json
-  extra_packages:
-    effect:
-      dependencies:
-      - prelude
-      git: https://github.com/purescript/purescript-effect.git
-      ref: bar
 package:
   dependencies:
-  - console
-  - effect
-  - prelude
+    - console
+    - effect
+    - prelude
   name: foo
   publish:
-    version: 0.0.1
     license: MIT
+    version: 0.0.1
+workspace:
+  backend:
+    cmd: echo
+  extra_packages:
+    error:
+      dependencies:
+        - console
+        - effect
+        - prelude
+      git: https://github.com/bklaric/purescript-error.git
+      ref: bar
+  package_set:
+    url: https://raw.githubusercontent.com/purescript/package-sets/psc-0.15.4-20220921/packages.json
+    hash: sha256-n2KHOrutJFkN7JA+78Rc07bZvX7TTHOQ6yyELlH9sTM=
