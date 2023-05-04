@@ -10,3 +10,4 @@
 /.psa*
 /.spago
 /bin/bundle.js
+.direnv

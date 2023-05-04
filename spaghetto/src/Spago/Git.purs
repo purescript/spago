@@ -54,7 +54,10 @@ fetchRepo { git, ref } path = do
       (runGit_ [ "symbolic-ref", "-q", "HEAD" ] (Just path))
 
   case result of
-    Left err -> throwError err
+    Left err -> die
+      [ "Error while fetching the repo '" <> git <> "' at ref '" <> ref <> "':"
+      , err
+      ]
     Right _ -> pure unit
 
 getRef :: forall a. Spago (GitEnv a) (Either Docc String)

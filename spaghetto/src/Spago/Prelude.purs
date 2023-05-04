@@ -6,7 +6,6 @@ module Spago.Prelude
   , parseUrl
   , partitionEithers
   , shaToHex
-  , throwError
   , unsafeFromRight
   , unsafeLog
   , unsafeStringify
@@ -29,9 +28,6 @@ import Registry.Sha256 as Registry.Sha256
 import Registry.Version as Version
 
 import Unsafe.Coerce (unsafeCoerce)
-
-throwError :: forall a m. MonadThrow Error m => String -> m a
-throwError = Aff.throwError <<< Aff.error
 
 unsafeFromRight :: forall e a. Either e a -> a
 unsafeFromRight v = Either.fromRight' (\_ -> unsafeCrashWith $ "Unexpected Left: " <> unsafeStringify v) v
