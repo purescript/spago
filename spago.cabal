@@ -101,6 +101,7 @@ library
     Spago.GitHub
     Spago.GlobalCache
     Spago.Messages
+    Spago.NewConfig
     Spago.Packages
     Spago.PackageSet
     Spago.Prelude
@@ -163,9 +164,11 @@ library
     , turtle
     , unliftio
     , unordered-containers
+    , uri-encode
     , utf8-string
     , versions
     , with-utf8
+    , yaml
     , zlib
 
 executable spago

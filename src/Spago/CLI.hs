@@ -25,6 +25,8 @@ data Command
   -- | Default catch-all command
   = Default ShowVersion
 
+  | Migrate
+
   -- | Initialize a new project
   | Init Force TemplateComments (Maybe Text)
 
@@ -286,6 +288,12 @@ parser = do
       , pure Sources
       )
 
+    migrate =
+      ( "migrate"
+      , "Produce a new-style, Registry-compatible configuration file from the current one"
+      , pure Migrate
+      )
+
     verify =
       ( "verify"
       , "Verify that a single package is consistent with the Package Set"
@@ -350,6 +358,7 @@ parser = do
       , search
       , path
       , sources
+      , migrate
       ]
     packagesCommands = CLI.subcommandGroup "Packages commands:"
       [ install

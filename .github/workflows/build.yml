@@ -7,7 +7,7 @@ on:
     branches: [ master ]
 
 env:
-  STACK_VERSION: '2.7.3'
+  STACK_VERSION: '2.9.1'
 
 jobs:
   build:
@@ -17,7 +17,7 @@ jobs:
       matrix:
         include:
           - os: ubuntu-latest
-            image: haskell:8.10.7-stretch@sha256:100f8fb7d7d8d64adb5e106fe8136b8d4cbdc03aeb2cbd145a7597d74b69bafb
+            image: haskell:9.2.4
           - os: macOS-latest
           - os: windows-latest
     steps:
@@ -41,11 +41,9 @@ jobs:
         if: runner.os != 'Linux'
         uses: haskell/actions/setup@v1
         with:
-          ghc-version: '8.10.7'
-          stack-version: ${{ env.STACK_VERSION }}
           enable-stack: true
+          stack-version: "${{ env.STACK_VERSION }}"
           stack-no-global: true
-          stack-setup-ghc: true
       - name: Check Stack version and fix root access (Linux)
         if: runner.os == 'Linux'
         run: |
@@ -55,7 +53,7 @@ jobs:
       - name: Setup node and npm
         uses: actions/setup-node@v2
         with:
-          node-version: 14
+          node-version: 18
       # NB: We install gnu-tar because BSD tar is buggy on Github's macos machines,
       # and it breaks the cache: https://github.com/actions/cache/issues/403
       - name: Install GNU tar (macOS)
@@ -95,7 +93,7 @@ jobs:
             $HOME\AppData\Local\Programs\stack\x86_64-windows
           key: ${{ runner.os }}-${{ hashFiles('stack.yaml') }}-1
 
-      - run: npm install -g purescript@0.15.0 psc-package@3.0.1 bower@1.8.8 esbuild@0.14.28
+      - run: npm install -g purescript@0.15.8 psc-package@3.0.1 bower@1.8.8 esbuild@0.14.28
 
       - name: Install dependencies
         run: |
@@ -116,8 +114,8 @@ jobs:
         run: ./scripts/fix-home stack test
         shell: bash
 
-      - name: Install PureScript 0.14.0
-        run: npm install -g purescript@0.14.0
+      - name: Install PureScript 0.14.9
+        run: npm install -g purescript@0.14.9
 
       - name: Run tests (PureScript < 0.15.0)
         shell: bash

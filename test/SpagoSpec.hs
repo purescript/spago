@@ -13,9 +13,10 @@ import           Utils              (checkFileHasInfix, checkFixture, checkFileE
                                      readFixture, runFor, shouldBeFailure, shouldBeFailureInfix,
                                      shouldBeFailureStderr, shouldBeSuccess, shouldBeSuccessOutput,
                                      shouldBeSuccessOutputWithErr, shouldBeSuccessStderr, spago,
-                                     withCwd, withEnvVar, cpFixture)
+                                     spagoNext, withCwd, withEnvVar, cpFixture)
 import qualified Spago.Cmd as Cmd
 import qualified Data.Versions as Version
+import qualified System.Info
 import System.Directory.Extra (getCurrentDirectory)
 
 
@@ -126,6 +127,20 @@ spec = runIO getUsingEsModules >>= \usingEsModules -> around_ (setup "spago-test
             $ Text.lines templatePackages
 
       originalPackageSetUrl `shouldBe` templatePackageSetUrl
+
+  describe "spago migrate" $ do
+    it "Should migrate a spago.dhall to a new-style spago.yaml" $ do
+      spago ["init", "--tag", "psc-0.15.4-20220921"] >>= shouldBeSuccess
+      writeTextFile "spago.dhall" "{ name = \"foo\", version = \"0.0.1\", license = \"MIT\", dependencies = [\"console\", \"effect\", \"prelude\"], packages = (./packages.dhall with error.version = \"bar\"), backend = \"echo\", sources = [\"\"] }"
+      spago ["migrate"] >>= shouldBeSuccess
+      -- The new spago doesn't find purs on windows. I can't replicate this issue
+      -- so we'll move on for now
+      case System.Info.os of
+        "mingw32" -> pure ()
+        _ -> do
+          spagoNext [ "build", "-v"] >>= shouldBeSuccess
+          mv "spago.yaml" "new-spago-config.yaml"
+          checkFixture "new-spago-config.yaml"
 
   describe "spago install" $ do
 

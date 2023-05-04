@@ -66,7 +66,8 @@ parsePackage (Dhall.RecordLit ks') = do
   let ks = Dhall.extractRecordValues ks'
   repo         <- Dhall.requireTypedKey ks "repo" (Dhall.auto :: Dhall.Decoder Repo)
   version      <- Dhall.requireTypedKey ks "version" Dhall.strictText
-  dependencies <- Dhall.requireTypedKey ks "dependencies" dependenciesType
+  dependenciesList <- Dhall.requireTypedKey ks "dependencies" dependenciesType
+  let dependencies = Set.fromList dependenciesList
   let location = Remote{..}
   pure Package{..}
 parsePackage (Dhall.App
@@ -77,7 +78,7 @@ parsePackage (Dhall.App
         True  -> pure $ Text.dropEnd 12 spagoConfigPath
         False -> die [ display $ Messages.failedToParseLocalRepo spagoConfigPath ]
       rawConfig <- liftIO $ Dhall.readRawExpr spagoConfigPath
-      dependencies <- case rawConfig of
+      dependenciesList <- case rawConfig of
         Nothing -> die [ display $ Messages.cannotFindConfigLocalPackage spagoConfigPath ]
         Just (_header, expr) -> do
           newExpr <- transformMExpr (pure . filterDependencies . addSourcePaths) expr
@@ -89,6 +90,7 @@ parsePackage (Dhall.App
               (set Dhall.rootDirectory (Text.unpack localPath) Dhall.defaultInputSettings)
               dependenciesType
               (pretty newExpr)
+      let dependencies = Set.fromList dependenciesList
       let location = Local{..}
       pure Package{..}
 parsePackage expr = die [ display $ Messages.failedToParsePackage $ pretty expr ]
@@ -134,6 +136,12 @@ parseConfig = do
             publishRepository <- Dhall.requireTypedKey ks "repository" Dhall.strictText
             pure PublishConfig{..}
       publishConfig <- try ensurePublishConfig
+
+      let ensureMigrateConfig = do
+            migrateLicense <- Dhall.requireTypedKey ks "license" Dhall.strictText
+            migrateVersion <- Dhall.requireTypedKey ks "version" Dhall.strictText
+            pure MigrateConfig{..}
+      migrateConfig <- try ensureMigrateConfig
 
       packageSet <- Dhall.requireKey ks "packages" (\case
         Dhall.RecordLit pkgs -> parsePackageSet (Dhall.extractRecordValues pkgs)
@@ -185,6 +193,7 @@ makeTempConfig dependencies alternateBackend configSourcePaths maybeTag = do
       let ks = Dhall.extractRecordValues ks'
       packageSet <- parsePackageSet ks
       let publishConfig = Left $ Dhall.RequiredKeyMissing "license" ks
+      let migrateConfig = Left $ Dhall.RequiredKeyMissing "license" ks
       pure $ Config { name = "", ..}
     _ -> die [ "Failed to parse package set" ]
 

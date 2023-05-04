@@ -21,6 +21,7 @@ module Utils
   , shouldBeFailureStderr
   , shouldBeEmptySuccess
   , spago
+  , spagoNext
   , withCwd
   , withEnvVar) where
 
@@ -36,7 +37,7 @@ import           System.Directory   (removePathForcibly, doesFileExist)
 import qualified System.Process     as Process
 import           Test.Hspec         (HasCallStack, shouldBe, shouldSatisfy)
 import           Turtle             (ExitCode (..), FilePath, Text, cd, empty, encodeString, export,
-                                     inproc, limit, need, pwd, readTextFile, strict, testdir, (</>), parent, cp)
+                                     inproc, limit, need, pwd, readTextFile, strict, testdir, (</>), parent, cp, shell)
 import qualified Turtle.Bytes
 
 
@@ -63,6 +64,13 @@ proc cmd args = do
 
 spago :: [Text] -> IO (ExitCode, Text, Text)
 spago = proc "spago"
+
+spagoNext :: [Text] -> IO (ExitCode, Text, Text)
+spagoNext args = do
+  _ <- shell "npm install spago@next" empty
+  currentDir <- pwd
+  let path = currentDir </> "node_modules" </> "spago" </> "bin" </> "bundle.js"
+  proc "node" $ [Text.pack $ encodeString path] <> args
 
 git :: [Text] -> IO (ExitCode, Text, Text)
 git = proc "git"

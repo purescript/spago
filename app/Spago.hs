@@ -11,6 +11,7 @@ import           Spago.CLI           (Command(..))
 import qualified System.Environment  as Env
 import qualified Spago.Build
 import qualified Spago.Messages      as Messages
+import qualified Spago.NewConfig
 import qualified Spago.Packages
 import qualified Spago.PackageSet
 import qualified Spago.CLI           as CLI
@@ -75,6 +76,7 @@ main = withUtf8 $ do
         $ Ls.listPackages transitiveFlag jsonFlag
       Sources -> Run.withInstallEnv
         $ Spago.Packages.sources
+      Migrate -> Run.withInstallEnv $ Spago.NewConfig.migrate
 
       -- ### Commands that need a "publish env": install env + git and bower
       BumpVersion dryRun spec -> Run.withPublishEnv

@@ -18,11 +18,16 @@ newtype PackageName = PackageName { packageName :: Text }
 -- | A package-set package.
 --   Matches the packages definition in Package.dhall from package-sets
 data Package = Package
-  { dependencies :: ![PackageName]   -- ^ list of dependency package names
+  { dependencies :: !(Set PackageName)   -- ^ set of dependency package names
   , location     :: !PackageLocation -- ^ info about where the package is located
   }
   deriving (Eq, Show, Generic)
 
+instance FromJSON Package where
+  parseJSON = withObject "Package" $ \o -> do
+    dependencies <- o .: "dependencies"
+    location <- Remote <$> o .: "repo" <*> o .: "version"
+    pure Package {..}
 
 data PackageLocation
   = Remote
@@ -33,7 +38,6 @@ data PackageLocation
       { localPath :: !Text        -- ^ local path of the package
       }
   deriving (Eq, Show, Generic)
-
 
 -- | This instance is to make `spago ls packages --json` work
 instance ToJSON PackageLocation where
@@ -52,6 +56,10 @@ data PackageSet = PackageSet
   }
   deriving (Show, Generic)
 
+instance FromJSON PackageSet where
+  parseJSON o = do
+    packages :: Map PackageName Package <- parseJSON o
+    pure $ PackageSet packages Nothing
 
 -- | We consider a "Repo" a "box of source to include in the build"
 --   This can have different nature:
@@ -59,6 +67,8 @@ newtype Repo = Repo { unRepo :: Text }
   deriving (Eq, Show, Generic)
 
 instance ToJSON Repo
+instance FromJSON Repo where
+  parseJSON = withText "Repo" $ \t -> pure (Repo t)
 
 instance Dhall.FromDhall Repo where
   autoWith _ = makeRepo <$> Dhall.strictText
@@ -202,8 +212,14 @@ data Config = Config
   , alternateBackend  :: Maybe Text
   , configSourcePaths :: Set SourcePath
   , publishConfig     :: Either (Dhall.ReadError Void) PublishConfig
+  , migrateConfig     :: Either (Dhall.ReadError Void) MigrateConfig
   } deriving (Show, Generic)
 
+-- | Extra fields only needed when migrating to the new Spago
+data MigrateConfig = MigrateConfig
+  { migrateLicense :: Text
+  , migrateVersion :: Text
+  } deriving (Show, Generic)
 
 -- | The extra fields that are only needed for publishing libraries.
 data PublishConfig = PublishConfig
