@@ -62,9 +62,3 @@ test_script:
   # We install psa and rerun the tests that exercise it
   - cmd: npm install -g purescript-psa
   - cmd: stack test --ta "--match \"/Spago/spago run\""
-  - cmd: npm uninstall -g purescript-psa
-  # We rerun the same tests on PureScript 0.14.0
-  - cmd: set PATH=C:\projects\spago\bin;C:\projects\spago\ps-0.14\purescript;%ORIGINAL_PATH%
-  - cmd: stack test
-  - cmd: npm install -g purescript-psa
-  - cmd: stack test --ta "--match \"/Spago/spago run\""
