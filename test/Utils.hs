@@ -70,7 +70,7 @@ spagoNext args = do
   _ <- shell "npm install spago@next" empty
   currentDir <- pwd
   let path = currentDir </> "node_modules" </> "spago" </> "bin" </> "bundle.js"
-  proc "node" $ [Text.pack $ encodeString path, "-v"] <> args
+  proc "node" $ [Text.pack $ encodeString path] <> args
 
 git :: [Text] -> IO (ExitCode, Text, Text)
 git = proc "git"
