@@ -7,12 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.21.0] - 2023-05-04
+
+Features:
+- Add `spago migrate` command to port a `spago.dhall` configuration to the new-style `spago.yaml` (#901)
+
 Bugfixes:
 - Windows: forward the proper exit code when running spago via NPM (#883, #884)
 
 Other improvements:
 - CI: cleanup CI for 0.15.0 PureScript updates (#879)
-- Install: upgrade `make-fetch-happen` to `^11.0.1` (#925)
 
 ## [0.20.9] - 2022-05-03
 
