@@ -372,6 +372,7 @@ type WorkspaceConfig =
   , extra_packages :: Maybe (Map PackageName ExtraPackage)
   , backend :: Maybe BackendConfig
   , build_opts :: Maybe BuildOptionsInput
+  , lock :: Maybe Boolean
   }
 
 workspaceConfigCodec :: JsonCodec WorkspaceConfig
@@ -380,6 +381,7 @@ workspaceConfigCodec = CAR.object "WorkspaceConfig"
   , extra_packages: CAR.optional (Internal.Codec.packageMap extraPackageCodec)
   , backend: CAR.optional backendConfigCodec
   , build_opts: CAR.optional buildOptionsCodec
+  , lock: CAR.optional CA.boolean
   }
 
 type BuildOptionsInput =
