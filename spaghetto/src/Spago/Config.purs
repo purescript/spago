@@ -44,6 +44,7 @@ import Registry.Version as Version
 import Spago.Core.Config as Core
 import Spago.FS as FS
 import Spago.Git as Git
+import Spago.Lock as Lock
 import Spago.Paths as Paths
 import Spago.Purs (PursEnv)
 import Type.Proxy (Proxy(..))
@@ -138,6 +139,12 @@ readWorkspace maybeSelectedPackage = do
     Left err -> die $ "Couldn't parse Spago config, error:\n  " <> err
     Right { yaml: { workspace: Nothing } } -> die $ "Your spago.yaml doesn't contain a workspace section" -- TODO refer to the docs
     Right { yaml: { workspace: Just workspace, package }, doc } -> pure { workspace, package, workspaceDoc: doc }
+
+  mbLockfile <- FS.exists "spago.lock" >>= case _ of
+    true -> liftAff (FS.readJsonFile Lock.lockEntryCodec "spago.lock") >>= case _ of
+      Left error -> die $ "Your project contains a spago.lock file, but it cannot be decoded:\n" <> error
+      Right contents -> pure (Just contents)
+    false -> pure Nothing
 
   -- We try to figure out if the root package has tests - look for test sources
   rootPackageHasTests <- FS.exists "test"

@@ -45,6 +45,10 @@ package:
     - transformers
     - tuples
     - unsafe-coerce
+  test:
+    main: Test.Spago
+    dependencies:
+      - spec
 workspace:
   lock: true
   package_set:
