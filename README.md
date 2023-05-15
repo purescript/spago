@@ -11,9 +11,9 @@
 PureScript package manager and build tool powered by [Dhall][dhall] and
 [package-sets][package-sets].
 
-
-<img src="https://raw.githubusercontent.com/spacchetti/logo/master/spacchetti-icon.png" height="300px" alt="spacchetti logo">
-
+<p align="center">
+<img src="./logo.png" height="500px" alt="Spago logo - a 3d box containing a blob of spaghetti">
+</p>
 
 ## Installation
 
