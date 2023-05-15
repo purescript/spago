@@ -12,7 +12,7 @@ PureScript package manager and build tool powered by [Dhall][dhall] and
 [package-sets][package-sets].
 
 
-<img src="https://raw.githubusercontent.com/spacchetti/logo/master/spacchetti-icon.png" height="300px" alt="spacchetti logo">
+<img src="./logo.png" height="300px" alt="spacchetti logo">
 
 
 ## Installation
