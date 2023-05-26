@@ -93,7 +93,6 @@ run { packages, ensureRanges } = do
     liftEffect $ Config.addRangesToConfig yamlDoc rangeMap
     liftAff $ FS.writeYamlDocFile configPath yamlDoc
 
-  -- TODO: when (shouldWriteLockfile) do
   -- TODO: need to be careful about what happens when we select a single package vs the whole workspace
   -- because otherwise the lockfile will be partial.
   -- Most likely we'll want to first figure out if we want a new lockfile at all,
@@ -101,7 +100,6 @@ run { packages, ensureRanges } = do
   -- (which comes for free at that point since the cache is already populated)
   lockfile <- do
     let
-
       fromWorkspacePackage :: WorkspacePackage -> Tuple PackageName Lock.WorkspaceLockPackage
       fromWorkspacePackage { path, package } = Tuple package.name { path, dependencies, test_dependencies }
         where
@@ -138,7 +136,15 @@ run { packages, ensureRanges } = do
 
     pure { workspace: lockfileWorkspace, packages: lockfilePackages }
 
-  liftAff $ FS.writeYamlFile Lock.lockfileCodec "spago.lock" lockfile
+  let
+    shouldWriteLockFile = case workspace.selected, workspace.lockfile of
+      Nothing, GenerateLockfile -> true
+      Nothing, (UseLockfile _) -> true
+      _, _ -> false
+
+  when shouldWriteLockFile do
+    logInfo "Writing a new lockfile"
+    liftAff $ FS.writeYamlFile Lock.lockfileCodec "spago.lock" lockfile
 
   -- then for every package we have we try to download it, and copy it in the local cache
   logInfo "Downloading dependencies..."
