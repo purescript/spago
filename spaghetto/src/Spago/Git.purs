@@ -60,9 +60,9 @@ fetchRepo { git, ref } path = do
       ]
     Right _ -> pure unit
 
-getRef :: forall a. Spago (GitEnv a) (Either Docc String)
-getRef = do
-  let opts = Cmd.defaultExecOptions { pipeStdout = false, pipeStderr = false }
+getRef :: forall a. Maybe FilePath -> Spago (GitEnv a) (Either Docc String)
+getRef cwd = do
+  let opts = Cmd.defaultExecOptions { pipeStdout = false, pipeStderr = false, cwd = cwd }
   { git } <- ask
   Cmd.exec git.cmd [ "status", "--porcelain" ] opts >>= case _ of
     Left err -> do

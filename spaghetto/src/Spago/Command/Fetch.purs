@@ -31,10 +31,12 @@ import Registry.Range as Range
 import Registry.Sha256 as Sha256
 import Registry.Version as Registry.Version
 import Registry.Version as Version
-import Spago.Config (Dependencies(..), GitPackage, Package(..), PackageSet, Workspace, WorkspacePackage)
+import Spago.Config (Dependencies(..), GitPackage, LockfileSettings(..), Package(..), PackageSet, Workspace, WorkspacePackage)
 import Spago.Config as Config
 import Spago.FS as FS
 import Spago.Git as Git
+import Spago.Lock (LockEntry(..))
+import Spago.Lock as Lock
 import Spago.Paths as Paths
 import Spago.Tar as Tar
 
@@ -90,6 +92,59 @@ run { packages, ensureRanges } = do
     let rangeMap = map getRangeFromPackage transitivePackages
     liftEffect $ Config.addRangesToConfig yamlDoc rangeMap
     liftAff $ FS.writeYamlDocFile configPath yamlDoc
+
+  -- TODO: need to be careful about what happens when we select a single package vs the whole workspace
+  -- because otherwise the lockfile will be partial.
+  -- Most likely we'll want to first figure out if we want a new lockfile at all,
+  -- then possibly resolve all the packages anyways, then resolve the ones for a single package
+  -- (which comes for free at that point since the cache is already populated)
+  lockfile <- do
+    let
+      fromWorkspacePackage :: WorkspacePackage -> Tuple PackageName Lock.WorkspaceLockPackage
+      fromWorkspacePackage { path, package } = Tuple package.name { path, dependencies, test_dependencies }
+        where
+        dependencies = package.dependencies
+        test_dependencies = foldMap _.dependencies package.test
+
+      lockfileWorkspace :: Lock.WorkspaceLock
+      lockfileWorkspace =
+        { package_set: workspace.originalConfig.package_set
+        , packages: Map.fromFoldable
+            $ map fromWorkspacePackage (Config.getWorkspacePackages workspace.packageSet)
+        , extra_packages: fromMaybe Map.empty workspace.originalConfig.extra_packages
+        }
+
+    (lockfilePackages :: Map PackageName Lock.LockEntry) <- Map.catMaybes <$>
+      forWithIndex transitivePackages \packageName package -> do
+        (packageDependencies :: Array PackageName) <- (Array.fromFoldable <<< Map.keys <<< fromMaybe Map.empty)
+          <$> getPackageDependencies packageName package
+        case package of
+          GitPackage gitPackage -> do
+            let packageLocation = Config.getPackageLocation packageName package
+            Git.getRef (Just packageLocation) >>= case _ of
+              Left err -> die err
+              Right rev -> pure $ Just $ FromGit { rev, dependencies: packageDependencies, url: gitPackage.git, subdir: gitPackage.subdir }
+          RegistryVersion version -> do
+            metadata <- runSpago { logOptions } $ getMetadata packageName
+            registryVersion <- case (metadata >>= (\(Metadata meta) -> Either.note "Didn't find version in the metadata file" $ Map.lookup version meta.published)) of
+              Left err -> die $ "Couldn't read metadata, reason:\n  " <> err
+              Right { hash: integrity } ->
+                pure { version, integrity, dependencies: packageDependencies }
+            pure $ Just $ FromRegistry registryVersion
+          LocalPackage { path } -> pure $ Just (FromPath { path, dependencies: packageDependencies })
+          WorkspacePackage _ -> pure $ Nothing
+
+    pure { workspace: lockfileWorkspace, packages: lockfilePackages }
+
+  let
+    shouldWriteLockFile = case workspace.selected, workspace.lockfile of
+      Nothing, GenerateLockfile -> true
+      Nothing, (UseLockfile _) -> true
+      _, _ -> false
+
+  when shouldWriteLockFile do
+    logInfo "Writing a new lockfile"
+    liftAff $ FS.writeYamlFile Lock.lockfileCodec "spago.lock" lockfile
 
   -- then for every package we have we try to download it, and copy it in the local cache
   logInfo "Downloading dependencies..."
@@ -166,6 +221,7 @@ run { packages, ensureRanges } = do
       -- Local package, no work to be done
       LocalPackage _ -> pure unit
       WorkspacePackage _ -> pure unit
+
   pure transitivePackages
 
 getGitPackageInLocalCache :: forall a. PackageName -> GitPackage -> Spago (Git.GitEnv a) Unit

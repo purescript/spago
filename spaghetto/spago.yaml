@@ -45,7 +45,12 @@ package:
     - transformers
     - tuples
     - unsafe-coerce
+  test:
+    main: Test.Spago
+    dependencies:
+      - spec
 workspace:
+  lock: true
   package_set:
     # url: https://raw.githubusercontent.com/purescript/package-sets/psc-0.15.8-20230503/packages.json
     # url: https://raw.githubusercontent.com/purescript/registry/main/package-sets/20.0.1.json

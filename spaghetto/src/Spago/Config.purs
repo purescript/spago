@@ -5,6 +5,7 @@ module Spago.Config
   , WithTestGlobs(..)
   , Workspace
   , WorkspacePackage
+  , LockfileSettings(..)
   , addPackagesToConfig
   , addRangesToConfig
   , findPackageSet
@@ -44,6 +45,8 @@ import Registry.Version as Version
 import Spago.Core.Config as Core
 import Spago.FS as FS
 import Spago.Git as Git
+import Spago.Lock (Lockfile)
+import Spago.Lock as Lock
 import Spago.Paths as Paths
 import Spago.Purs (PursEnv)
 import Type.Proxy (Proxy(..))
@@ -55,6 +58,8 @@ type Workspace =
   , backend :: Maybe Core.BackendConfig
   , buildOptions :: BuildOptions
   , doc :: YamlDoc Core.Config
+  , originalConfig :: Core.WorkspaceConfig
+  , lockfile :: LockfileSettings
   }
 
 type BuildOptions =
@@ -68,6 +73,13 @@ type BuildOptions =
   , strict :: Maybe Boolean
   , persistWarnings :: Maybe Boolean
   }
+
+data LockfileSettings
+  = UseLockfile Lockfile
+  | GenerateLockfile
+  | SkipLockfile
+
+derive instance Eq LockfileSettings
 
 fromExtraPackage :: Core.ExtraPackage -> Package
 fromExtraPackage = case _ of
@@ -132,12 +144,33 @@ data Package
 readWorkspace :: forall a. Maybe PackageName -> Spago (Git.GitEnv a) Workspace
 readWorkspace maybeSelectedPackage = do
   logInfo "Reading Spago workspace configuration..."
+
   -- First try to read the config in the root. It _has_ to contain a workspace
   -- configuration, or we fail early.
   { workspace, package: maybePackage, workspaceDoc } <- Core.readConfig "spago.yaml" >>= case _ of
     Left err -> die $ "Couldn't parse Spago config, error:\n  " <> err
     Right { yaml: { workspace: Nothing } } -> die $ "Your spago.yaml doesn't contain a workspace section" -- TODO refer to the docs
     Right { yaml: { workspace: Just workspace, package }, doc } -> pure { workspace, package, workspaceDoc: doc }
+
+  -- TODO: here figure out if the lockfile is still valid by checking if:
+  -- - the package set section of the workspace is the same
+  -- - the dependencies of each package are the same
+  lockfile <- FS.exists "spago.lock" >>= case _ of
+    true -> liftAff (FS.readYamlFile Lock.lockfileCodec "spago.lock") >>= case _ of
+      Left error -> die $ "Your project contains a spago.lock file, but it cannot be decoded:\n" <> error
+      Right contents
+        | workspace.lock == Just false -> die "Your workspace specifies 'lock: false', but there is a spago.lock file in the workspace."
+        | otherwise -> pure (UseLockfile contents)
+    false
+      -- If the user specifies lock: true then we always create a lockfile.
+      | workspace.lock == Just true -> pure GenerateLockfile
+      -- If the user specifies lock: false then we always skip the lockfile.
+      | workspace.lock == Just false -> pure SkipLockfile
+      -- If the user does not set the 'lock' field then we defer to whether or
+      -- not they are using a package set.
+      | otherwise -> case workspace.package_set of
+          Nothing -> pure GenerateLockfile
+          Just _ -> pure SkipLockfile
 
   -- We try to figure out if the root package has tests - look for test sources
   rootPackageHasTests <- FS.exists "test"
@@ -303,7 +336,8 @@ readWorkspace maybeSelectedPackage = do
         ]
 
   let
-    (buildOptions :: BuildOptions) =
+    buildOptions :: BuildOptions
+    buildOptions =
       { output: _.output =<< workspace.build_opts
       , pedanticPackages: fromMaybe false (_.pedantic_packages =<< workspace.build_opts)
       , censorBuildWarnings: _.censorBuildWarnings =<< workspace.build_opts
@@ -322,6 +356,8 @@ readWorkspace maybeSelectedPackage = do
     , backend: workspace.backend
     , buildOptions
     , doc: workspaceDoc
+    , originalConfig: workspace
+    , lockfile
     }
 
 getPackageLocation :: PackageName -> Package -> FilePath

@@ -104,6 +104,7 @@ defaultConfig name set =
       , package_set: Just (SetFromRegistry { registry: set })
       , build_opts: Nothing
       , backend: Nothing
+      , lock: Nothing
       }
   }
   where
