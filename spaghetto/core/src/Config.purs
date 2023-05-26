@@ -22,15 +22,18 @@ module Spago.Core.Config
   , TestConfig
   , WorkspaceConfig
   , configCodec
+  , dependenciesCodec
+  , extraPackageCodec
   , gitPackageCodec
   , legacyPackageSetEntryCodec
   , localPackageCodec
+  , packageConfigCodec
   , parseBundleType
   , parsePlatform
-  , packageConfigCodec
   , printSpagoRange
   , readConfig
   , remotePackageCodec
+  , setAddressCodec
   , widestRange
   ) where
 
@@ -413,6 +416,8 @@ data SetAddress
   = SetFromRegistry { registry :: Version }
   | SetFromUrl { url :: String, hash :: Maybe Sha256 }
 
+derive instance Eq SetAddress
+
 setAddressCodec :: JsonCodec SetAddress
 setAddressCodec = CA.codec' decode encode
   where
@@ -428,6 +433,8 @@ setAddressCodec = CA.codec' decode encode
 data ExtraPackage
   = ExtraLocalPackage LocalPackage
   | ExtraRemotePackage RemotePackage
+
+derive instance Eq ExtraPackage
 
 extraPackageCodec :: JsonCodec ExtraPackage
 extraPackageCodec = CA.codec' decode encode
