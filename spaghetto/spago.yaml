@@ -1,7 +1,7 @@
 package:
   name: spago
   publish:
-    version: 0.93.1
+    version: 0.93.2
     license: BSD-3-Clause
     location:
       githubOwner: purescript
@@ -52,7 +52,7 @@ package:
 workspace:
   lock: true
   package_set:
-    # url: https://raw.githubusercontent.com/purescript/package-sets/psc-0.15.7-20230402/packages.json
+    # url: https://raw.githubusercontent.com/purescript/package-sets/psc-0.15.8-20230503/packages.json
     # url: https://raw.githubusercontent.com/purescript/registry/main/package-sets/20.0.1.json
     registry: 20.0.1
   extra_packages:
