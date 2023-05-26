@@ -7,6 +7,7 @@ module Spago.Lock
   , GitLock
   , RegistryLock
   , WorkspaceLock
+  , WorkspaceLockPackage
   ) where
 
 import Spago.Prelude
@@ -24,13 +25,14 @@ import Type.Proxy (Proxy(..))
 
 type WorkspaceLock =
   { package_set :: Maybe SetAddress
-  , packages ::
-      Map PackageName
-        { dependencies :: Dependencies
-        , test_dependencies :: Dependencies
-        , path :: FilePath
-        }
+  , packages :: Map PackageName WorkspaceLockPackage
   , extra_packages :: Map PackageName ExtraPackage
+  }
+
+type WorkspaceLockPackage =
+  { dependencies :: Dependencies
+  , test_dependencies :: Dependencies
+  , path :: FilePath
   }
 
 type Lockfile =
@@ -86,12 +88,16 @@ gitLockType = "git"
 registryLockType :: String
 registryLockType = "registry"
 
-type PathLock = { path :: FilePath }
+type PathLock =
+  { path :: FilePath
+  , dependencies :: Array PackageName
+  }
 
 pathLockCodec :: JsonCodec PathLock
 pathLockCodec = Profunctor.dimap toRep fromRep $ CA.object "PathLock"
   $ CA.recordProp (Proxy :: _ "type") (constant pathLockType)
   $ CA.recordProp (Proxy :: _ "path") CA.string
+  $ CA.recordProp (Proxy :: _ "dependencies") (CA.array PackageName.codec)
   $ CA.record
   where
   toRep = Record.insert (Proxy :: _ "type") pathLockType

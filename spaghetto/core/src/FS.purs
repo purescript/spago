@@ -21,6 +21,7 @@ module Spago.FS
 import Spago.Core.Prelude
 
 import Data.Codec.Argonaut as CA
+import Data.String as String
 import Effect.Aff as Aff
 import Node.FS.Aff as FS.Aff
 import Node.FS.Perms (Perms)
@@ -74,7 +75,7 @@ readJsonFile codec path = do
 
 -- | Encode data as formatted YAML and write it to the provided filepath
 writeYamlFile :: forall a. JsonCodec a -> FilePath -> a -> Aff Unit
-writeYamlFile codec path = FS.Aff.writeTextFile UTF8 path <<< (_ <> "\n") <<< Yaml.printYaml codec
+writeYamlFile codec path = FS.Aff.writeTextFile UTF8 path <<< (_ <> "\n") <<< String.trim <<< Yaml.printYaml codec
 
 -- | Decode data from a YAML file at the provided filepath
 readYamlFile :: forall a. JsonCodec a -> FilePath -> Aff (Either String a)
@@ -83,7 +84,7 @@ readYamlFile codec path = do
   pure (lmap Aff.message result >>= Yaml.parseYaml codec >>> lmap CA.printJsonDecodeError)
 
 writeYamlDocFile :: forall a. FilePath -> Yaml.YamlDoc a -> Aff Unit
-writeYamlDocFile path = FS.Aff.writeTextFile UTF8 path <<< Yaml.toString
+writeYamlDocFile path = FS.Aff.writeTextFile UTF8 path <<< (_ <> "\n") <<< String.trim <<< Yaml.toString
 
 readYamlDocFile :: forall a. JsonCodec a -> FilePath -> Aff (Either String { doc :: Yaml.YamlDoc a, yaml :: a })
 readYamlDocFile codec path = do

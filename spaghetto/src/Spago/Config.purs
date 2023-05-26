@@ -58,6 +58,8 @@ type Workspace =
   , backend :: Maybe Core.BackendConfig
   , buildOptions :: BuildOptions
   , doc :: YamlDoc Core.Config
+  , originalConfig :: Core.WorkspaceConfig
+  , lockfile :: LockfileSettings
   }
 
 type BuildOptions =
@@ -70,7 +72,6 @@ type BuildOptions =
   , showSource :: Maybe Core.ShowSourceCode
   , strict :: Maybe Boolean
   , persistWarnings :: Maybe Boolean
-  , lockfile :: LockfileSettings
   }
 
 data LockfileSettings
@@ -143,6 +144,7 @@ data Package
 readWorkspace :: forall a. Maybe PackageName -> Spago (Git.GitEnv a) Workspace
 readWorkspace maybeSelectedPackage = do
   logInfo "Reading Spago workspace configuration..."
+
   -- First try to read the config in the root. It _has_ to contain a workspace
   -- configuration, or we fail early.
   { workspace, package: maybePackage, workspaceDoc } <- Core.readConfig "spago.yaml" >>= case _ of
@@ -150,8 +152,11 @@ readWorkspace maybeSelectedPackage = do
     Right { yaml: { workspace: Nothing } } -> die $ "Your spago.yaml doesn't contain a workspace section" -- TODO refer to the docs
     Right { yaml: { workspace: Just workspace, package }, doc } -> pure { workspace, package, workspaceDoc: doc }
 
+  -- TODO: here figure out if the lockfile is still valid by checking if:
+  -- - the package set section of the workspace is the same
+  -- - the dependencies of each package are the same
   lockfile <- FS.exists "spago.lock" >>= case _ of
-    true -> liftAff (FS.readJsonFile Lock.lockfileCodec "spago.lock") >>= case _ of
+    true -> liftAff (FS.readYamlFile Lock.lockfileCodec "spago.lock") >>= case _ of
       Left error -> die $ "Your project contains a spago.lock file, but it cannot be decoded:\n" <> error
       Right contents
         | workspace.lock == Just false -> die "Your workspace specifies 'lock: false', but there is a spago.lock file in the workspace."
@@ -342,7 +347,6 @@ readWorkspace maybeSelectedPackage = do
       , showSource: _.showSource =<< workspace.build_opts
       , strict: _.strict =<< workspace.build_opts
       , persistWarnings: _.persistWarnings =<< workspace.build_opts
-      , lockfile
       }
 
   pure
@@ -352,6 +356,8 @@ readWorkspace maybeSelectedPackage = do
     , backend: workspace.backend
     , buildOptions
     , doc: workspaceDoc
+    , originalConfig: workspace
+    , lockfile
     }
 
 getPackageLocation :: PackageName -> Package -> FilePath
