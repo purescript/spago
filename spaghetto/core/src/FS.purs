@@ -2,6 +2,7 @@ module Spago.FS
   ( chmod
   , ensureFileSync
   , exists
+  , getInBetweenPaths
   , isLink
   , ls
   , mkdirp
@@ -23,6 +24,7 @@ import Spago.Core.Prelude
 import Data.Codec.Argonaut as CA
 import Data.String as String
 import Effect.Aff as Aff
+import Effect.Uncurried (EffectFn2, runEffectFn2)
 import Node.FS.Aff as FS.Aff
 import Node.FS.Perms (Perms)
 import Node.FS.Perms as Perms
@@ -98,3 +100,8 @@ isLink :: forall m. MonadEffect m => FilePath -> m Boolean
 isLink path = liftEffect $ try (FS.Sync.lstat path) >>= case _ of
   Left _err -> pure true -- TODO: we should bubble this up instead
   Right stats -> pure $ Stats.isSymbolicLink stats
+
+foreign import getInBetweenPathsImpl :: EffectFn2 FilePath FilePath (Array FilePath)
+
+getInBetweenPaths :: forall m. MonadEffect m => FilePath -> FilePath -> m (Array FilePath)
+getInBetweenPaths a b = liftEffect $ runEffectFn2 getInBetweenPathsImpl a b

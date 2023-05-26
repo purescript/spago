@@ -11,8 +11,11 @@ import Spago.Prelude
 
 import Control.Monad.Except (ExceptT(..))
 import Control.Monad.Except as Except
+import Data.Array as Array
 import Data.String (Pattern(..))
 import Data.String as String
+import Node.Path as Path
+import Node.Process as Process
 import Spago.Cmd as Cmd
 import Spago.FS as FS
 
@@ -95,7 +98,15 @@ isIgnored path = do
     Right { exitCode: 0 } -> pure true
     -- Git will fail with exitCode 128 if this is not a git repo or if it's dealing with a link.
     -- We ignore links - I mean, do we really want to deal with recursive links?!?
-    Left { exitCode: Just 128 } -> FS.isLink path
+    Left { exitCode: Just 128 } -> do
+      -- Sigh. Even if something is behind a link Node will not tell us that,
+      -- so we need to check all the paths between the cwd and the provided path
+      -- Just beautiful
+      paths <- liftEffect do
+        cwd <- Process.cwd
+        absolutePath <- Path.resolve [] path
+        FS.getInBetweenPaths cwd absolutePath
+      Array.any identity <$> traverse FS.isLink paths
     -- Git will fail with 1 when a file is just, like, normally ignored
     Left { exitCode: Just 1 } -> pure false
     _ -> do
