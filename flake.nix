@@ -8,7 +8,7 @@
   };
 
   outputs = inputs: let
-    utils.supportedSystems = ["x86_64-linux" "x86_64-darwin"];
+    utils.supportedSystems = ["x86_64-linux" "x86_64-darwin" "aarch64-darwin"];
     utils.eachSupportedSystem = inputs.utils.lib.eachSystem utils.supportedSystems;
 
     mkFlakePackages = pkgs: let
@@ -55,7 +55,11 @@
           # offline mode (it otherwise tries to clone various repos like the
           # registry index). Instead we've manually reproduced the build config
           # arguments to esbuild here.
-          esbuild --bundle ./output/Main/index.js --outfile=bundle.js --platform=node --minify
+          esbuild \
+            --bundle ./output/Main/index.js \
+            --outfile=bundle.js \
+            --platform=node \
+            --minify
         '';
         installPhase = ''
           mkdir $out
@@ -69,7 +73,8 @@
         type = "app";
         program = "${
           pkgs.writeShellScriptBin "spago-run" ''
-            ${pkgs.nodejs}/bin/node -e 'require("${packages.default}/bundle.js").main()'
+            echo "$@"
+            ${pkgs.nodejs}/bin/node --eval 'require("${packages.default}/bundle.js").main()' "$@"
           ''
         }/bin/spago-run";
       };
