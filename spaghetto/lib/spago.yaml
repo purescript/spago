@@ -1,0 +1,52 @@
+package:
+  name: spago
+  publish:
+    version: 0.93.4
+    license: BSD-3-Clause
+    location:
+      githubOwner: purescript
+      githubRepo: spago
+      subdir: lib
+  dependencies:
+    - aff
+    - affjax
+    - affjax-node
+    - argonaut-core
+    - arrays
+    - codec-argonaut
+    - datetime
+    - dodo-printer
+    - effect
+    - either
+    - foldable-traversable
+    - foreign-object
+    - functions
+    - http-methods
+    - integers
+    - lists
+    - maybe
+    - node-buffer
+    - node-execa
+    - node-fs
+    - node-path
+    - node-process
+    - now
+    - nullable
+    - ordered-collections
+    - parallel
+    - partial
+    - prelude
+    - profunctor
+    - record
+    - refs
+    - registry-foreign
+    - registry-lib
+    - spago-core
+    - strings
+    - transformers
+    - tuples
+    - unsafe-coerce
+  test:
+    main: Test.Spago
+    dependencies:
+      - spec

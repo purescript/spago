@@ -26,14 +26,13 @@
   "main": "bin/bundle.js",
   "scripts": {
     "version": "sed -i'' -e \"s|version:.*|version: $npm_package_version|g\" {spago,bin/spago}.yaml",
-    "format": "purs-tidy format-in-place src bin",
-    "format:check": "purs-tidy check src bin",
+    "format": "purs-tidy format-in-place bin core lib",
+    "format:check": "purs-tidy check bin core lib",
     "bundle": "spago bundle -p spago-bin",
     "prepublishOnly": "./bin/index.dev.js bundle -p spago-bin"
   },
   "dependencies": {
     "env-paths": "^3.0.0",
-    "esbuild": "^0.15.5",
     "fast-glob": "^3.2.11",
     "fs-extra": "^10.0.0",
     "fuse.js": "^6.5.3",

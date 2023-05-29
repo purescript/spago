@@ -27,5 +27,6 @@ mkShell {
     easy-ps.purescript-language-server
     easy-ps.purs-tidy
     nodejs
+    esbuild
   ];
 }
