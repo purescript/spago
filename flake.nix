@@ -55,8 +55,7 @@
           esbuild \
             --bundle ./output/Main/index.js \
             --outfile=bundle.js \
-            --platform=node \
-            --minify
+            --platform=node
         '';
         installPhase = ''
           mkdir $out
