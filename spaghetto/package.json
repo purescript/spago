@@ -26,8 +26,8 @@
   "main": "bin/bundle.js",
   "scripts": {
     "version": "sed -i'' -e \"s|version:.*|version: $npm_package_version|g\" {spago,bin/spago}.yaml",
-    "format": "purs-tidy format-in-place bin core lib",
-    "format:check": "purs-tidy check bin core lib",
+    "format": "purs-tidy format-in-place bin core src test",
+    "format:check": "purs-tidy check bin core src test",
     "bundle": "spago bundle -p spago-bin",
     "prepublishOnly": "./bin/index.dev.js bundle -p spago-bin"
   },
