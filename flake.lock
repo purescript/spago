@@ -25,11 +25,11 @@
     },
     "spago-nix": {
       "locked": {
-        "lastModified": 1685390650,
-        "narHash": "sha256-E5VQ4WX6jat9b384OJGIecgs9vgCtBCKG8Q9/UhB2m4=",
+        "lastModified": 1685399843,
+        "narHash": "sha256-8GrjDGQy30pwx5X8f1b5fsHo73Kt1b75FSEulz5s1v8=",
         "owner": "thomashoneyman",
         "repo": "spago-nix",
-        "rev": "ce1ef5e0254ba00f4285ab0ecc4670ea5a542410",
+        "rev": "ad2d9a484af21e0840f7c15a7753a62a4d59bed2",
         "type": "github"
       },
       "original": {

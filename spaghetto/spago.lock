@@ -1,7 +1,7 @@
 workspace:
   packages:
     spago:
-      path: lib
+      path: ./
       dependencies:
         - aff
         - affjax
