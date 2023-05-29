@@ -35,9 +35,6 @@
             }
         '';
         buildPhase = ''
-          # Needed for 'spago bundle' to avoid 'mkdir' errors
-          export HOME=$(mktemp -d)
-
           # Make sure node dependencies are available before bundling
           ln -s ${npmDependencies}/js/node_modules .
 
