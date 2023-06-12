@@ -241,12 +241,14 @@ getPackageDependencies packageName package = case package of
     maybeManifest <- runSpago { logOptions } $ getManifestFromIndex packageName v
     pure $ map (_.dependencies <<< unwrap) maybeManifest
   GitPackage p -> do
+    -- Note: we get the package in local cache nonetheless,
+    -- so we have guarantees about being able to fetch it
+    let packageLocation = Config.getPackageLocation packageName package
+    unlessM (FS.exists packageLocation) do
+      getGitPackageInLocalCache packageName p
     case p.dependencies of
       Just (Dependencies dependencies) -> pure (Just (map (fromMaybe Config.widestRange) dependencies))
       Nothing -> do
-        let packageLocation = Config.getPackageLocation packageName package
-        unlessM (FS.exists packageLocation) do
-          getGitPackageInLocalCache packageName p
         readLocalDependencies case p.subdir of
           Nothing -> packageLocation
           Just s -> Path.concat [ packageLocation, s ]
