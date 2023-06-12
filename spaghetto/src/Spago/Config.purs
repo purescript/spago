@@ -468,7 +468,7 @@ findPackageSet maybeSet = do
     Just desiredSet -> case Array.find (_ == desiredSet) setVersions of
       Just _ -> pure desiredSet
       Nothing -> die $ [ toDoc $ "Could not find desired set " <> Version.print desiredSet <> " in the list of available set versions:" ]
-        <> map (indent <<< toDoc <<< Version.print) setVersions
+        <> map (indent <<< toDoc <<< Version.print) (Array.sort setVersions)
     -- no set in input: read the compiler version, look through the latest set by major version until we match the compiler version
     Nothing -> do
       -- build an index from compiler version to latest set, only looking at major versions
