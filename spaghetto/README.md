@@ -246,44 +246,6 @@ package:
     - packageName: ">=1.1.1 <2.0.0"
 
 # optional
-  build:
-    # optional, whether to censor warnings from dependency sources,
-    # project sources, both, or none
-    censorBuildWarnings: 
-      # one of 4 values:
-      #   1. Both
-      "all"
-      #   2. dependency only
-      "dependency"
-      #   3. project only
-      "project"
-      #   4. do not censor warnings
-      "none"
-    # optional, NonEmptyArray, censor specific codes
-    censorCodes:
-      - ShadowedName
-    # optional, NonEmptyArray, only show specific codes
-    filterCodes:
-      - ShadowedName
-    # optional, whether to show statistics at the end
-    # of warning/error output and how much informaiton
-    statVerbosity:
-      # One of 3 values
-      #   1. Don't show it
-      "no-stats"
-      #   2. Show it and only sum the total warnings/errors
-      "compact-stats"
-      #   3. Show it and show total warnings/errors by code
-      "verbose-stats"
-    # optional, boolean, whether to show the source code
-    # corresponding to the error's location
-    showSource: true
-    # optional, boolean, counts compiler warnings as compiler errors
-    strict: false
-    # optional, Boolean String, persist compiler warnings
-    stash: true
-
-# optional
   bundle:
     # optional, Boolean, whether to minify
     minify: true
@@ -385,10 +347,41 @@ workspace:
     output: "output"
     # optional, Boolean, fail the build if `spago.yml` has redundant/missing packages
     pedantic_packages: false
-    # All of the Package's `buildOptions` fields (e.g. `strict` as shown below)
-    # can also go here. Any specified here will be used
-    # if the selected package doesn't specify that option in its configuration
+    # optional, whether to censor warnings from dependency sources,
+    # project sources, both, or none
+    censor_warnings:
+      # one of 4 values:
+      #   1. Both
+      "all"
+      #   2. dependency only
+      "dependency"
+      #   3. project only
+      "project"
+      #   4. do not censor warnings
+      "none"
+    # optional, NonEmptyArray, censor specific codes
+    censor_codes:
+      - ShadowedName
+    # optional, NonEmptyArray, only show specific codes
+    filter_codes:
+      - ShadowedName
+    # optional, whether to show statistics at the end
+    # of warning/error output and how much informaiton
+    stat_verbosity:
+      # One of 3 values
+      #   1. Don't show it
+      "no-stats"
+      #   2. Show it and only sum the total warnings/errors
+      "compact-stats"
+      #   3. Show it and show total warnings/errors by code
+      "verbose-stats"
+    # optional, boolean, whether to show the source code
+    # corresponding to the error's location
+    show_source: true
+    # optional, boolean, counts compiler warnings as compiler errors
     strict: false
+    # optional, Boolean String, persist compiler warnings
+    stash: true
 ```
 
 ### FAQs

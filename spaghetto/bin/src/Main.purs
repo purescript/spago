@@ -7,7 +7,6 @@ import ArgParse.Basic as ArgParser
 import Data.Array as Array
 import Data.Array.NonEmpty as NonEmptyArray
 import Data.Codec.Argonaut.Common as CA.Common
-import Data.Foldable (oneOf)
 import Data.JSDate as JSDate
 import Data.List as List
 import Data.Map as Map
@@ -740,22 +739,12 @@ mkBuildEnv buildArgs dependencies = do
           workspace.backend
       }
 
-    packageBuildConfig = workspace.selected >>= \p -> p.package.build
-    workspaceBuildConfig = workspace.buildOptions
-
   pure
     { logOptions
     , purs
     , git
     , dependencies
     , workspace: newWorkspace
-    , strict: oneOf [ buildArgs.strict, packageBuildConfig >>= _.strict, workspaceBuildConfig.strict ]
-    , censorBuildWarnings: oneOf [ buildArgs.censorBuildWarnings, packageBuildConfig >>= _.censorBuildWarnings, workspaceBuildConfig.censorBuildWarnings ]
-    , showSource: oneOf [ buildArgs.showSource, packageBuildConfig >>= _.showSource, workspaceBuildConfig.showSource ]
-    , censorCodes: oneOf [ buildArgs.censorCodes, packageBuildConfig >>= _.censorCodes, workspaceBuildConfig.censorCodes ]
-    , filterCodes: oneOf [ buildArgs.filterCodes, packageBuildConfig >>= _.filterCodes, workspaceBuildConfig.filterCodes ]
-    , statVerbosity: oneOf [ buildArgs.statVerbosity, packageBuildConfig >>= _.statVerbosity, workspaceBuildConfig.statVerbosity ]
-    , persistWarnings: oneOf [ buildArgs.persistWarnings, packageBuildConfig >>= _.persistWarnings, workspaceBuildConfig.persistWarnings ]
     }
 
 mkPublishEnv :: forall a. Map PackageName Package -> Purs -> Spago (Fetch.FetchEnv a) (Publish.PublishEnv a)

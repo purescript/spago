@@ -340,13 +340,13 @@ readWorkspace maybeSelectedPackage = do
     buildOptions =
       { output: _.output =<< workspace.build_opts
       , pedanticPackages: fromMaybe false (_.pedantic_packages =<< workspace.build_opts)
-      , censorBuildWarnings: _.censorBuildWarnings =<< workspace.build_opts
-      , censorCodes: _.censorCodes =<< workspace.build_opts
-      , filterCodes: _.filterCodes =<< workspace.build_opts
-      , statVerbosity: _.statVerbosity =<< workspace.build_opts
-      , showSource: _.showSource =<< workspace.build_opts
+      , censorBuildWarnings: _.censor_warnings =<< workspace.build_opts
+      , censorCodes: _.censor_codes =<< workspace.build_opts
+      , filterCodes: _.filter_codes =<< workspace.build_opts
+      , statVerbosity: _.stat_verbosity =<< workspace.build_opts
+      , showSource: _.show_source =<< workspace.build_opts
       , strict: _.strict =<< workspace.build_opts
-      , persistWarnings: _.persistWarnings =<< workspace.build_opts
+      , persistWarnings: _.persist_warnings =<< workspace.build_opts
       }
 
   pure

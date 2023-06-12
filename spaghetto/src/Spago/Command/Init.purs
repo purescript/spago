@@ -82,19 +82,11 @@ defaultConfig name set =
                 ]
             )
       , description: Nothing
-      , build: Nothing
       , run: Nothing
       , test: Just
           { dependencies: Dependencies Map.empty
           , execArgs: Nothing
           , main: "Test.Main"
-          , censorBuildWarnings: Nothing
-          , censorCodes: Nothing
-          , filterCodes: Nothing
-          , statVerbosity: Nothing
-          , showSource: Nothing
-          , strict: Nothing
-          , persistWarnings: Nothing
           }
       , publish: Nothing
       , bundle: Nothing
