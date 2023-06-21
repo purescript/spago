@@ -206,7 +206,7 @@ publish _args = do
               ]
             Right (buildPlan :: Map PackageName Version) -> do
               -- Get the current ref or error out if the git tree is dirty
-              Git.getRef Nothing >>= case _ of
+              Git.getCleanRef Nothing >>= case _ of
                 Left err -> addError err
                 Right ref -> do
                   unlessM (Operation.Validation.containsPursFile (Path.concat [ selected.path, "src" ])) $ addError $ toDoc

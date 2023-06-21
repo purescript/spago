@@ -840,6 +840,9 @@ mkRegistryEnv = do
               liftEffect (Ref.write (Map.insert name m metadataMap) metadataRef)
               pure (Right m)
 
+  -- FIXME: We are try/catching, but DNS errors still crash the program! Error is:
+  --   Error while fetching the repo 'https://github.com/purescript/registry-index.git' at ref 'main':
+  --   fatal: unable to access 'https://github.com/purescript/registry-index.git/': Could not resolve host: github.com
   { logOptions } <- ask
   -- we keep track of how old the latest pull was - if the last pull was recent enough
   -- we just move on, otherwise run the fibers

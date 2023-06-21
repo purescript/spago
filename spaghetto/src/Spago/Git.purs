@@ -4,6 +4,7 @@ module Spago.Git
   , fetchRepo
   , getGit
   , getRef
+  , getCleanRef
   , isIgnored
   ) where
 
@@ -63,8 +64,8 @@ fetchRepo { git, ref } path = do
       ]
     Right _ -> pure unit
 
-getRef :: forall a. Maybe FilePath -> Spago (GitEnv a) (Either Docc String)
-getRef cwd = do
+getCleanRef :: forall a. Maybe FilePath -> Spago (GitEnv a) (Either Docc String)
+getCleanRef cwd = do
   let opts = Cmd.defaultExecOptions { pipeStdout = false, pipeStderr = false, cwd = cwd }
   { git } <- ask
   Cmd.exec git.cmd [ "status", "--porcelain" ] opts >>= case _ of
@@ -74,16 +75,22 @@ getRef cwd = do
       case res.stdout of
         "" -> do
           -- Tree is clean, get the ref
-          Cmd.exec git.cmd [ "rev-parse", "HEAD" ] opts >>= case _ of
-            Left err -> pure $ Left $ toDoc
-              [ "Could not run `git rev-parse HEAD` to determine the current ref. Error:"
-              , err.shortMessage
-              ]
-            Right res' -> pure $ Right res'.stdout
+          getRef cwd
         _ -> pure $ Left $ toDoc
           [ toDoc "Git tree is not clean, aborting. Commit or stash these files:"
           , indent $ toDoc (String.split (Pattern "\n") res.stdout)
           ]
+
+getRef :: forall a. Maybe FilePath -> Spago (GitEnv a) (Either Docc String)
+getRef cwd = do
+  let opts = Cmd.defaultExecOptions { pipeStdout = false, pipeStderr = false, cwd = cwd }
+  { git } <- ask
+  Cmd.exec git.cmd [ "rev-parse", "HEAD" ] opts >>= case _ of
+    Left err -> pure $ Left $ toDoc
+      [ "Could not run `git rev-parse HEAD` to determine the current ref. Error:"
+      , err.shortMessage
+      ]
+    Right res' -> pure $ Right res'.stdout
 
 -- | Check if the path is ignored by git
 --
