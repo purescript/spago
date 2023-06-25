@@ -289,6 +289,12 @@ package:
     location:
       githubOwner: owner
       githubRepo: repo
+    # optional, globs of additional files to publish
+    files:
+      - "src-extra/**/*.purs"
+    # optional, globs of files to exclude from publishing
+    excludeFiles:
+      - "src/**/*Test.purs"
 
 # Optional
 workspace:
