@@ -161,6 +161,8 @@ bundleConfigCodec = CAR.object "BundleConfig"
 
 data BundlePlatform = BundleNode | BundleBrowser
 
+derive instance Eq BundlePlatform
+
 instance Show BundlePlatform where
   show = case _ of
     BundleNode -> "node"
@@ -178,6 +180,8 @@ bundlePlatformCodec = CA.Sum.enumSum show (parsePlatform)
 -- | This is the equivalent of "WithMain" in the old Spago.
 -- App bundles with a main fn, while Module does not include a main.
 data BundleType = BundleApp | BundleModule
+
+derive instance Eq BundleType
 
 instance Show BundleType where
   show = case _ of
@@ -364,6 +368,8 @@ instance Show StatVerbosity where
     NoStats -> "NoStats"
     CompactStats -> "CompactStats"
     VerboseStats -> "VerboseStats"
+
+derive instance Eq StatVerbosity
 
 statVerbosityCodec :: JsonCodec StatVerbosity
 statVerbosityCodec = CA.Sum.enumSum print parse
