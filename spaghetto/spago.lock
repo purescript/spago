@@ -109,8 +109,8 @@ workspace:
       ref: 68dddd9351f256980454bc2c1d0aea20e4d53fa9
       subdir: foreign
     registry-lib:
-      git: https://github.com/purescript/registry-dev.git
-      ref: 68dddd9351f256980454bc2c1d0aea20e4d53fa9
+      git: https://github.com/i-am-the-slime/registry-dev.git
+      ref: 5c81d2f75bd3abe404d4e9e9bb85945758572f22
       subdir: lib
 packages:
   aff:
@@ -679,6 +679,40 @@ packages:
     dependencies:
       - functions
       - maybe
+  language-cst-parser:
+    type: registry
+    version: 0.12.3
+    integrity: sha256-0pnjIJMtW9u1ne+fKB4QbaCeqqwWIGE3fjEQOIU0+ks=
+    dependencies:
+      - arrays
+      - console
+      - const
+      - control
+      - effect
+      - either
+      - enums
+      - foldable-traversable
+      - free
+      - functions
+      - functors
+      - identity
+      - integers
+      - lazy
+      - lists
+      - maybe
+      - newtype
+      - node-process
+      - numbers
+      - ordered-collections
+      - partial
+      - prelude
+      - st
+      - strings
+      - transformers
+      - tuples
+      - typelevel-prelude
+      - unfoldable
+      - unsafe-coerce
   lazy:
     type: registry
     version: 6.0.0
@@ -1119,8 +1153,8 @@ packages:
       - variant
   registry-lib:
     type: git
-    url: https://github.com/purescript/registry-dev.git
-    rev: 68dddd9351f256980454bc2c1d0aea20e4d53fa9
+    url: https://github.com/i-am-the-slime/registry-dev.git
+    rev: 5c81d2f75bd3abe404d4e9e9bb85945758572f22
     subdir: lib
     dependencies:
       - aff
@@ -1139,6 +1173,7 @@ packages:
       - functors
       - graphs
       - integers
+      - language-cst-parser
       - lists
       - maybe
       - newtype

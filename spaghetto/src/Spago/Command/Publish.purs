@@ -3,11 +3,13 @@ module Spago.Command.Publish (publish, PublishEnv) where
 import Spago.Prelude
 
 import Data.Array as Array
+import Data.Array.NonEmpty as NonEmptyArray
 import Data.Codec.Argonaut as CA
 import Data.List as List
 import Data.Map as Map
 import Data.Set as Set
 import Data.Set.NonEmpty (NonEmptySet)
+import Data.String.NonEmpty as NonEmptyString
 import Data.Tuple as Tuple
 import Effect.Ref as Ref
 import Node.Path as Path
@@ -171,7 +173,8 @@ publish _args = do
             , version: publishConfig.version
             , license: publishConfig.license
             , owners: Nothing -- TODO specify owners in spago config
-            , files: Nothing -- TODO specify files in spago config
+            , files: NonEmptyArray.fromArray =<< (Array.mapMaybe NonEmptyString.fromString <$> publishConfig.files)
+            , excludedFiles: NonEmptyArray.fromArray =<< (Array.mapMaybe NonEmptyString.fromString <$> publishConfig.files)
             }
 
         unless (Operation.Validation.locationMatches (Manifest manifest) (Metadata metadata)) $ addError $ toDoc
@@ -209,11 +212,9 @@ publish _args = do
               Git.getCleanRef Nothing >>= case _ of
                 Left err -> addError err
                 Right ref -> do
-                  unlessM (Operation.Validation.containsPursFile (Path.concat [ selected.path, "src" ])) $ addError $ toDoc
-                    [ "Your package has no .purs files in the src directory. "
-                    , "All package sources must be in the `src` directory, with any additional "
-                    , "sources indicated by the `files` key in your manifest."
-                    ]
+                  case Operation.Validation.validatePursModule (Path.concat [ selected.path, "src" ]) of
+                    Right _ -> pure unit
+                    Left e -> addError $ toDoc e
 
                   when (Operation.Validation.isMetadataPackage (Manifest manifest)) do
                     addError $ toDoc "The `metadata` package cannot be uploaded to the registry because it is a protected package."

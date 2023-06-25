@@ -94,6 +94,8 @@ type PublishConfig =
   { version :: Version
   , license :: License
   , location :: Maybe Location
+  , files :: Maybe (Array String)
+  , excludeFiles :: Maybe (Array String)
   }
 
 publishConfigCodec :: JsonCodec PublishConfig
@@ -101,6 +103,8 @@ publishConfigCodec = CAR.object "PublishConfig"
   { version: Version.codec
   , license: License.codec
   , location: CAR.optional Location.codec
+  , files: CAR.optional (CA.array CA.string)
+  , excludeFiles: CAR.optional (CA.array CA.string)
   }
 
 type RunConfig =
