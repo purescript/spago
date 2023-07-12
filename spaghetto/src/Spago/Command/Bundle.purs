@@ -6,10 +6,11 @@ import Node.Path as Path
 import Data.String (Pattern(..), Replacement(..))
 import Data.String as String
 import Spago.Cmd as Cmd
+import Spago.Esbuild (Esbuild)
 import Spago.Config (BundlePlatform(..), BundleType(..), Workspace, WorkspacePackage)
 
 type BundleEnv a =
-  { esbuild :: FilePath
+  { esbuild :: Esbuild
   , logOptions :: LogOptions
   , bundleOptions :: BundleOptions
   , workspace :: Workspace
@@ -38,7 +39,6 @@ run = do
   { esbuild, selected, workspace, bundleOptions: opts } <- ask
   logDebug $ "Bundle options: " <> show opts
   let
-    command = esbuild
     minify = if opts.minify then [ "--minify" ] else []
     outfile = Path.concat [ selected.path, opts.outfile ]
     format = case opts.platform, opts.type of
@@ -71,7 +71,7 @@ run = do
       ] <> minify <> entrypoint <> nodePatch
   logInfo "Bundling..."
   logDebug $ "Running esbuild: " <> show args
-  Cmd.exec command args execOptions >>= case _ of
+  Cmd.exec esbuild.cmd args execOptions >>= case _ of
     Right _r -> logSuccess "Bundle succeeded."
     Left err -> do
       logDebug $ show err
