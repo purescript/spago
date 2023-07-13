@@ -40,6 +40,7 @@ import Spago.Config as Config
 import Spago.Core.Config as Core
 import Spago.FS as FS
 import Spago.Git as Git
+import Spago.Esbuild as Esbuild
 import Spago.Json as Json
 import Spago.Log (LogVerbosity(..))
 import Spago.Paths as Paths
@@ -616,7 +617,8 @@ mkBundleEnv bundleArgs = do
           , pedanticPackages = bundleArgs.pedanticPackages || workspace.buildOptions.pedanticPackages
           }
       }
-  let bundleEnv = { esbuild: "esbuild", logOptions, workspace: newWorkspace, selected, bundleOptions }
+  esbuild <- Esbuild.getEsbuild
+  let bundleEnv = { esbuild, logOptions, workspace: newWorkspace, selected, bundleOptions }
   pure bundleEnv
 
 mkRunEnv :: forall a. RunArgs -> Spago (Fetch.FetchEnv a) (Run.RunEnv ())
