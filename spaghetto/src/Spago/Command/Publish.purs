@@ -12,9 +12,7 @@ import Data.DateTime (DateTime)
 import Data.Formatter.DateTime as DateTime
 import Data.List as List
 import Data.Map as Map
-import Data.Set as Set
 import Data.Set.NonEmpty (NonEmptySet)
-import Data.Tuple as Tuple
 import Effect.Aff (Milliseconds(..))
 import Effect.Aff as Aff
 import Effect.Ref as Ref
@@ -31,9 +29,8 @@ import Registry.PackageName as PackageName
 import Registry.Solver as Registry.Solver
 import Registry.Version as Version
 import Routing.Duplex as Duplex
-import Spago.BuildInfo as BuildInfo
 import Spago.Command.Build as Build
-import Spago.Config (Package(..), WithTestGlobs(..), Workspace, WorkspacePackage)
+import Spago.Config (Package(..), Workspace, WorkspacePackage)
 import Spago.Config as Config
 import Spago.Config as Core
 import Spago.Git (Git)
@@ -66,12 +63,6 @@ type PublishEnv a =
   }
 
 type PublishArgs = {}
-
-getGlobs :: WorkspacePackage -> Map PackageName Package -> Set FilePath
-getGlobs selected dependencies = Set.fromFoldable
-  $ join [ Config.sourceGlob NoTestGlobs selected.package.name (WorkspacePackage selected) ]
-  <> join (map (Tuple.uncurry $ Config.sourceGlob NoTestGlobs) (Map.toUnfoldable dependencies))
-  <> [ BuildInfo.buildInfoPath ]
 
 publish :: forall a. PublishArgs -> Spago (PublishEnv a) Operation.PublishData
 publish _args = do
@@ -136,7 +127,7 @@ publish _args = do
     )
 
   -- We then need to check that the dependency graph is accurate. If not, queue the errors
-  let globs = getGlobs selected dependencies
+  let globs = Build.getBuildGlobs { selected: [ selected ], withTests: false, dependencies, depsOnly: false }
   graphCheckErrors <- Graph.runGraphCheck selected globs []
   for_ graphCheckErrors addError
 

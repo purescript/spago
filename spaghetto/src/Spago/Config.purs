@@ -1,19 +1,19 @@
 module Spago.Config
   ( BuildOptions
+  , LockfileSettings(..)
   , Package(..)
   , PackageSet
   , WithTestGlobs(..)
   , Workspace
   , WorkspacePackage
-  , LockfileSettings(..)
   , addPackagesToConfig
   , addRangesToConfig
   , findPackageSet
   , getPackageLocation
   , getWorkspacePackages
+  , module Core
   , readWorkspace
   , sourceGlob
-  , module Core
   ) where
 
 import Spago.Prelude

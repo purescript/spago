@@ -1,6 +1,7 @@
 module Spago.Command.Build
   ( run
   , BuildEnv
+  , getBuildGlobs
   ) where
 
 import Spago.Prelude
@@ -45,27 +46,8 @@ run opts = do
   , logOptions
   } <- ask
   let
-    isWorkspacePackage = case _ of
-      Tuple _ (WorkspacePackage _) -> true
-      _ -> false
-
-    { yes: monorepoPkgs, no: dependencyPkgs } = partition isWorkspacePackage $ Map.toUnfoldable dependencies
-    -- depsOnly means "no packages from the monorepo", so we filter out the workspace packages
-    dependencyGlobs = (Tuple.uncurry $ Config.sourceGlob WithTestGlobs) =<< dependencyPkgs
-    monorepoPkgGlobs
-      | opts.depsOnly = []
-      | otherwise = (Tuple.uncurry $ Config.sourceGlob WithTestGlobs) =<< monorepoPkgs
-
+    { yes: _monorepoPkgs, no: dependencyPkgs } = partition isWorkspacePackage $ Map.toUnfoldable dependencies
     dependencyLibs = map (Tuple.uncurry Config.getPackageLocation) dependencyPkgs
-
-    -- Here we select the right globs for a monorepo setup with a bunch of packages
-    projectSources = join
-      if opts.depsOnly then []
-      else case workspace.selected of
-        Just p -> [ workspacePackageGlob p ]
-        -- We just select all the workspace package globs, because it's (1) intuitive and (2) backwards compatible
-        Nothing -> map workspacePackageGlob (Config.getWorkspacePackages workspace.packageSet)
-  logDebug $ "Project sources: " <> show projectSources
 
   BuildInfo.writeBuildInfo
 
@@ -144,7 +126,16 @@ run opts = do
         runCommands "Then" thenCommands
   -}
 
-  let globs = Set.fromFoldable $ projectSources <> monorepoPkgGlobs <> dependencyGlobs <> [ BuildInfo.buildInfoPath ]
+  let
+    globs = getBuildGlobs
+      { dependencies
+      , depsOnly: opts.depsOnly
+      , withTests: true
+      , selected: case workspace.selected of
+          Just p -> [ p ]
+          -- TODO: this is safe because we check that the workspace is not empty wayy earlier
+          Nothing -> Config.getWorkspacePackages workspace.packageSet
+      }
   buildBackend globs
 
   when workspace.buildOptions.pedanticPackages do
@@ -159,10 +150,42 @@ run opts = do
     unless (Array.null errors) do
       die' errors
 
-  -- TODO: if we are building with all the packages (i.e. selected = Nothing),
-  -- then we can use the graph to remove outdated modules from `output`!
+-- TODO: if we are building with all the packages (i.e. selected = Nothing),
+-- then we can use the graph to remove outdated modules from `output`!
 
+type BuildGlobsOptions =
+  { withTests :: Boolean
+  , depsOnly :: Boolean
+  , selected :: Array WorkspacePackage
+  , dependencies :: Map PackageName Package
+  }
+
+getBuildGlobs :: BuildGlobsOptions -> Set FilePath
+getBuildGlobs { selected, dependencies, withTests, depsOnly } =
+  Set.fromFoldable $ projectGlobs <> monorepoPkgGlobs <> dependencyGlobs <> [ BuildInfo.buildInfoPath ]
   where
+  -- Here we select the right globs for a monorepo setup with a bunch of packages
+  projectGlobs = join case depsOnly of
+    true -> []
+    false ->
+      -- We just select all the workspace package globs, because it's (1) intuitive and (2) backwards compatible
+      map workspacePackageGlob selected
+
+  testGlobs = case withTests of
+    true -> WithTestGlobs
+    false -> NoTestGlobs
 
   workspacePackageGlob :: WorkspacePackage -> Array String
-  workspacePackageGlob p = Config.sourceGlob WithTestGlobs p.package.name (WorkspacePackage p)
+  workspacePackageGlob p = Config.sourceGlob testGlobs p.package.name (WorkspacePackage p)
+
+  { yes: monorepoPkgs, no: dependencyPkgs } = partition isWorkspacePackage $ Map.toUnfoldable dependencies
+  -- depsOnly means "no packages from the monorepo", so we filter out the workspace packages
+  dependencyGlobs = (Tuple.uncurry $ Config.sourceGlob NoTestGlobs) =<< dependencyPkgs
+  monorepoPkgGlobs
+    | depsOnly = []
+    | otherwise = (Tuple.uncurry $ Config.sourceGlob testGlobs) =<< monorepoPkgs
+
+isWorkspacePackage :: Tuple PackageName Package -> Boolean
+isWorkspacePackage = case _ of
+  Tuple _ (WorkspacePackage _) -> true
+  _ -> false
