@@ -9,6 +9,9 @@ module Spago.Prelude
   , unsafeFromRight
   , unsafeLog
   , unsafeStringify
+  , withBackoff'
+  , mkTemp
+  , mkTemp'
   ) where
 
 import Spago.Core.Prelude
@@ -17,16 +20,20 @@ import Control.Parallel as Parallel
 import Data.Argonaut.Core as Argonaut
 import Data.Array as Array
 import Data.Either as Either
+import Data.Foldable as Foldable
 import Data.Function.Uncurried (Fn3, runFn3)
 import Data.Int as Int
 import Data.Maybe as Maybe
 import Data.String as String
 import Effect.Aff as Aff
+import Effect.Now as Now
 import Node.Buffer as Buffer
+import Node.Path as Path
 import Partial.Unsafe (unsafeCrashWith)
 import Registry.Sha256 as Registry.Sha256
+import Registry.Sha256 as Sha256
 import Registry.Version as Version
-
+import Spago.Paths as Paths
 import Unsafe.Coerce (unsafeCoerce)
 
 unsafeFromRight :: forall e a. Either e a -> a
@@ -80,3 +87,64 @@ parseLenientVersion input = Version.parse do
   where
   maybeIdentity k x = Maybe.fromMaybe x (k x)
   dropLeadingZeros = map (Int.toStringAs Int.decimal) <<< Int.fromString
+
+-- | Attempt an effectful computation with exponential backoff.
+withBackoff' :: forall a. Aff a -> Aff (Maybe.Maybe a)
+withBackoff' action = withBackoff
+  { delay: Aff.Milliseconds 5_000.0
+  , action
+  , shouldCancel: \_ -> pure true
+  , shouldRetry: \attempt -> if attempt > 3 then pure Maybe.Nothing else pure (Maybe.Just action)
+  }
+
+type Backoff a =
+  { delay :: Aff.Milliseconds
+  , action :: Aff a
+  , shouldCancel :: Int -> Aff Boolean
+  , shouldRetry :: Int -> Aff (Maybe.Maybe (Aff a))
+  }
+
+-- | Attempt an effectful computation with exponential backoff, starting with
+-- | the provided timeout.
+withBackoff :: forall a. Backoff a -> Aff (Maybe.Maybe a)
+withBackoff { delay: Aff.Milliseconds timeout, action, shouldCancel, shouldRetry } = do
+  let
+    runAction attempt action' ms =
+      Parallel.sequential $ Foldable.oneOf
+        [ Parallel.parallel (map Maybe.Just action')
+        , Parallel.parallel (runTimeout attempt ms)
+        ]
+
+    runTimeout attempt ms = do
+      _ <- Aff.delay (Aff.Milliseconds (Int.toNumber ms))
+      shouldCancel attempt >>= if _ then pure Maybe.Nothing else runTimeout attempt (ms * 2)
+
+    loop :: Int -> Maybe.Maybe a -> Aff (Maybe.Maybe a)
+    loop attempt = case _ of
+      Maybe.Nothing -> do
+        maybeRetry <- shouldRetry attempt
+        case maybeRetry of
+          Maybe.Nothing -> pure Maybe.Nothing
+          Maybe.Just newAction -> do
+            let newTimeout = Int.floor timeout `Int.pow` (attempt + 1)
+            maybeResult <- runAction attempt newAction newTimeout
+            loop (attempt + 1) maybeResult
+      Maybe.Just result ->
+        pure (Maybe.Just result)
+
+  maybeResult <- runAction 0 action (Int.floor timeout)
+  loop 1 maybeResult
+
+mkTemp' :: forall m. MonadAff m => Maybe String -> m FilePath
+mkTemp' maybeSuffix = liftAff do
+  -- Get a random string
+  (HexString random) <- liftEffect do
+    now <- Now.now
+    sha <- Sha256.hashString $ show now <> fromMaybe "" maybeSuffix
+    shaToHex sha
+  -- Return the dir, but don't make it - that's the responsibility of the client
+  let tempDirPath = Path.concat [ Paths.paths.temp, random ]
+  pure tempDirPath
+
+mkTemp :: forall m. MonadAff m => m FilePath
+mkTemp = mkTemp' Nothing

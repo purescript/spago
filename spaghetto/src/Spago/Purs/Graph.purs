@@ -55,7 +55,6 @@ type PackageGraphNode =
 -- In each project module, several modules from the same package can be imported.
 type ImportedPackages = Map PackageName (Map ModuleName (Set ModuleName))
 
--- TODO: toggle the `hasTests` when running from the publishing flow
 checkImports :: forall a. Spago (GraphEnv a) ImportCheckResult
 checkImports = do
   { graph: ModuleGraph graph, selected, dependencies } <- ask
