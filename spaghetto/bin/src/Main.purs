@@ -266,6 +266,7 @@ TODO: add flag for overriding the cache location
 
 -}
 
+-- https://stackoverflow.com/questions/45395369/how-to-get-console-log-line-numbers-shown-in-nodejs
 -- TODO: veryVerbose = CLI.switch "very-verbose" 'V' "Enable more verbosity: timestamps and source locations"
 globalArgsParser :: ArgParser GlobalArgs
 globalArgsParser =
