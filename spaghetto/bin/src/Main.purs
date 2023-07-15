@@ -546,7 +546,7 @@ main =
             buildEnv <- runSpago env (mkBuildEnv (Record.union args { ensureRanges: false }) dependencies)
             let options = { depsOnly: false, pursArgs: List.toUnfoldable args.pursArgs, jsonErrors: false }
             runSpago buildEnv (Build.run options)
-            testEnv <- runSpago env (mkTestEnv args)
+            testEnv <- runSpago env (mkTestEnv args buildEnv)
             runSpago testEnv Test.run
           LsPackages args -> do
             let fetchArgs = { packages: mempty, selectedPackage: Nothing, ensureRanges: false }
@@ -668,8 +668,8 @@ mkRunEnv runArgs = do
   let runEnv = { logOptions, workspace: newWorkspace, selected, node, runOptions }
   pure runEnv
 
-mkTestEnv :: forall a. TestArgs -> Spago (Fetch.FetchEnv a) (Test.TestEnv ())
-mkTestEnv testArgs = do
+mkTestEnv :: forall a b. TestArgs -> Build.BuildEnv b -> Spago (Fetch.FetchEnv a) (Test.TestEnv ())
+mkTestEnv testArgs { dependencies, purs } = do
   { workspace, logOptions } <- ask
   logDebug $ "Test args: " <> show testArgs
 
@@ -705,7 +705,7 @@ mkTestEnv testArgs = do
   logDebug $ "Selected packages to test: " <> Json.stringifyJson (CA.Common.nonEmptyArray PackageName.codec) (map _.selected.package.name selectedPackages)
 
   let newWorkspace = workspace { buildOptions { output = testArgs.output <|> workspace.buildOptions.output } }
-  let testEnv = { logOptions, workspace: newWorkspace, selectedPackages, node }
+  let testEnv = { logOptions, workspace: newWorkspace, selectedPackages, node, dependencies, purs }
   pure testEnv
 
 mkBuildEnv
