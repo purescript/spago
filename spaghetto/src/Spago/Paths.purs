@@ -1,8 +1,9 @@
 module Spago.Paths where
 
-import Spago.Prelude
+import Prelude
 
 import Effect.Unsafe (unsafePerformEffect)
+import Node.Path (FilePath)
 import Node.Path as Path
 import Node.Process as Process
 

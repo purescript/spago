@@ -20,7 +20,6 @@ import Data.HTTP.Method as Method
 import Data.Int as Int
 import Data.Map as Map
 import Data.Set as Set
-import Effect.Now as Now
 import Effect.Ref as Ref
 import Node.Buffer as Buffer
 import Node.Encoding as Encoding
@@ -358,17 +357,3 @@ getRangeFromPackage :: Package -> Range
 getRangeFromPackage = case _ of
   RegistryVersion v -> Range.caret v
   _ -> Config.widestRange
-
-mkTemp' :: forall m. MonadAff m => Maybe String -> m FilePath
-mkTemp' maybeSuffix = liftAff do
-  -- Get a random string
-  (HexString random) <- liftEffect do
-    now <- Now.now
-    sha <- Sha256.hashString $ show now <> fromMaybe "" maybeSuffix
-    shaToHex sha
-  -- Return the dir, but don't make it - that's the responsibility of the client
-  let tempDirPath = Path.concat [ Paths.paths.temp, random ]
-  pure tempDirPath
-
-mkTemp :: forall m. MonadAff m => m FilePath
-mkTemp = mkTemp' Nothing

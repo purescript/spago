@@ -10,6 +10,8 @@ module Spago.Prelude
   , unsafeLog
   , unsafeStringify
   , withBackoff'
+  , mkTemp
+  , mkTemp'
   ) where
 
 import Spago.Core.Prelude
@@ -24,10 +26,14 @@ import Data.Int as Int
 import Data.Maybe as Maybe
 import Data.String as String
 import Effect.Aff as Aff
+import Effect.Now as Now
 import Node.Buffer as Buffer
+import Node.Path as Path
 import Partial.Unsafe (unsafeCrashWith)
 import Registry.Sha256 as Registry.Sha256
+import Registry.Sha256 as Sha256
 import Registry.Version as Version
+import Spago.Paths as Paths
 import Unsafe.Coerce (unsafeCoerce)
 
 unsafeFromRight :: forall e a. Either e a -> a
@@ -128,3 +134,17 @@ withBackoff { delay: Aff.Milliseconds timeout, action, shouldCancel, shouldRetry
 
   maybeResult <- runAction 0 action (Int.floor timeout)
   loop 1 maybeResult
+
+mkTemp' :: forall m. MonadAff m => Maybe String -> m FilePath
+mkTemp' maybeSuffix = liftAff do
+  -- Get a random string
+  (HexString random) <- liftEffect do
+    now <- Now.now
+    sha <- Sha256.hashString $ show now <> fromMaybe "" maybeSuffix
+    shaToHex sha
+  -- Return the dir, but don't make it - that's the responsibility of the client
+  let tempDirPath = Path.concat [ Paths.paths.temp, random ]
+  pure tempDirPath
+
+mkTemp :: forall m. MonadAff m => m FilePath
+mkTemp = mkTemp' Nothing
