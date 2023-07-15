@@ -4,8 +4,10 @@ module Spago.Git
   , fetchRepo
   , getGit
   , getRef
-  , getCleanRef
+  , getCleanTag
+  , pushTag
   , isIgnored
+  , tagCheckedOut
   ) where
 
 import Spago.Prelude
@@ -17,6 +19,7 @@ import Data.String (Pattern(..))
 import Data.String as String
 import Node.Path as Path
 import Node.Process as Process
+import Registry.Version as Version
 import Spago.Cmd as Cmd
 import Spago.FS as FS
 
@@ -64,8 +67,8 @@ fetchRepo { git, ref } path = do
       ]
     Right _ -> pure unit
 
-getCleanRef :: forall a. Maybe FilePath -> Spago (GitEnv a) (Either Docc String)
-getCleanRef cwd = do
+getCleanTag :: forall a. Maybe FilePath -> Spago (GitEnv a) (Either Docc String)
+getCleanTag cwd = do
   let opts = Cmd.defaultExecOptions { pipeStdout = false, pipeStderr = false, cwd = cwd }
   { git } <- ask
   Cmd.exec git.cmd [ "status", "--porcelain" ] opts >>= case _ of
@@ -75,7 +78,9 @@ getCleanRef cwd = do
       case res.stdout of
         "" -> do
           -- Tree is clean, get the ref
-          getRef cwd
+          -- TODO: once we ditch `purs publish`, we don't have a requirement for a tag anymore,
+          -- but we can use any ref. We can then use `getRef` here instead of `tagCheckedOut`
+          tagCheckedOut cwd
         _ -> pure $ Left $ toDoc
           [ toDoc "Git tree is not clean, aborting. Commit or stash these files:"
           , indent $ toDoc (String.split (Pattern "\n") res.stdout)
@@ -91,6 +96,26 @@ getRef cwd = do
       , err.shortMessage
       ]
     Right res' -> pure $ Right res'.stdout
+
+tagCheckedOut :: forall a. Maybe FilePath -> Spago (GitEnv a) (Either Docc String)
+tagCheckedOut cwd = do
+  let opts = Cmd.defaultExecOptions { pipeStdout = false, pipeStderr = false, cwd = cwd }
+  { git } <- ask
+  Cmd.exec git.cmd [ "describe", "--tags" ] opts >>= case _ of
+    Left err -> pure $ Left $ toDoc "The git ref currently checked out is not a tag."
+    Right res' -> pure $ Right res'.stdout
+
+pushTag :: forall a. Maybe FilePath -> Version -> Spago (GitEnv a) (Either Docc Unit)
+pushTag cwd version = do
+  let opts = Cmd.defaultExecOptions { pipeStdout = false, pipeStderr = false, cwd = cwd }
+  { git } <- ask
+  Cmd.exec git.cmd [ "push", "origin", "v" <> Version.print version ] opts >>= case _ of
+    Left err -> pure $ Left $ toDoc
+      [ "Could not push the tag 'v" <> Version.print version <> "' to the remote."
+      , "Error:"
+      , err.shortMessage
+      ]
+    Right _ -> pure $ Right unit
 
 -- | Check if the path is ignored by git
 --

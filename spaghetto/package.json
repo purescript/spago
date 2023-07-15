@@ -38,6 +38,7 @@
     "fuse.js": "^6.5.3",
     "semver": "^7.3.5",
     "spdx-expression-parse": "^3.0.1",
+    "ssh2": "^1.14.0",
     "supports-color": "^9.2.3",
     "tar": "^6.1.11",
     "tmp": "^0.2.1",

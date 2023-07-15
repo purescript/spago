@@ -2,22 +2,35 @@ module Spago.Command.Publish (publish, PublishEnv) where
 
 import Spago.Prelude
 
+import Affjax.Node as Http
+import Affjax.RequestBody as RequestBody
+import Affjax.ResponseFormat as ResponseFormat
+import Affjax.StatusCode (StatusCode(..))
 import Data.Array as Array
 import Data.Codec.Argonaut as CA
+import Data.DateTime (DateTime)
+import Data.Formatter.DateTime as DateTime
 import Data.List as List
 import Data.Map as Map
 import Data.Set as Set
 import Data.Set.NonEmpty (NonEmptySet)
 import Data.Tuple as Tuple
+import Effect.Aff (Milliseconds(..))
+import Effect.Aff as Aff
 import Effect.Ref as Ref
 import Node.Path as Path
+import Registry.API.V1 as V1
+import Registry.Internal.Format as Internal.Format
+import Registry.Internal.Path as Internal.Path
 import Registry.Location as Location
 import Registry.ManifestIndex as ManifestIndex
 import Registry.Metadata as Metadata
+import Registry.Operation as Operation
 import Registry.Operation.Validation as Operation.Validation
 import Registry.PackageName as PackageName
 import Registry.Solver as Registry.Solver
 import Registry.Version as Version
+import Routing.Duplex as Duplex
 import Spago.BuildInfo as BuildInfo
 import Spago.Command.Build as Build
 import Spago.Config (Package(..), WithTestGlobs(..), Workspace, WorkspacePackage)
@@ -26,6 +39,7 @@ import Spago.Config as Core
 import Spago.Git (Git)
 import Spago.Git as Git
 import Spago.Json as Json
+import Spago.Log (LogVerbosity(..))
 import Spago.Log as Log
 import Spago.Purs (Purs)
 import Spago.Purs.Graph as Graph
@@ -53,7 +67,13 @@ type PublishEnv a =
 
 type PublishArgs = {}
 
-publish :: forall a. PublishArgs -> Spago (PublishEnv a) PublishData
+getGlobs :: WorkspacePackage -> Map PackageName Package -> Set FilePath
+getGlobs selected dependencies = Set.fromFoldable
+  $ join [ Config.sourceGlob NoTestGlobs selected.package.name (WorkspacePackage selected) ]
+  <> join (map (Tuple.uncurry $ Config.sourceGlob NoTestGlobs) (Map.toUnfoldable dependencies))
+  <> [ BuildInfo.buildInfoPath ]
+
+publish :: forall a. PublishArgs -> Spago (PublishEnv a) Operation.PublishData
 publish _args = do
   -- We'll store all the errors here in this ref, then complain at the end
   resultRef <- liftEffect $ Ref.new (Left List.Nil)
@@ -206,14 +226,47 @@ publish _args = do
               ]
             Right (buildPlan :: Map PackageName Version) -> do
               -- Get the current ref or error out if the git tree is dirty
-              Git.getCleanRef Nothing >>= case _ of
-                Left err -> addError err
-                Right ref -> do
-                  unlessM (Operation.Validation.containsPursFile (Path.concat [ selected.path, "src" ])) $ addError $ toDoc
-                    [ "Your package has no .purs files in the src directory. "
-                    , "All package sources must be in the `src` directory, with any additional "
-                    , "sources indicated by the `files` key in your manifest."
+              let expectedTag = "v" <> Version.print publishConfig.version
+              Git.getCleanTag Nothing >>= case _ of
+                Left _err -> do
+                  addError $ toDoc
+                    [ "The git tree is not clean, or you haven't checked out the tag you want to publish."
+                    , "Please commit or stash your changes, and checkout the tag you want to publish."
+                    , "To create the tag, you can run:"
+                    , ""
+                    , "  git tag " <> expectedTag
                     ]
+                Right tag -> do
+                  -- Check that the tag matches the version in the config
+                  case (tag /= expectedTag) of
+                    true -> addError $ toDoc
+                      [ "The tag (" <> tag <> ") does not match the expected tag (" <> expectedTag <> ")."
+                      , "Please make sure to tag the correct version before publishing."
+                      ]
+                    false -> Git.pushTag Nothing publishConfig.version >>= case _ of
+                      Left err -> addError $ toDoc
+                        [ err
+                        , toDoc "You can try to push the tag manually by running:"
+                        , toDoc ""
+                        , toDoc $ "  git push origin " <> expectedTag
+                        ]
+                      Right _ -> pure unit
+
+                  Internal.Path.readPursFiles (Path.concat [ selected.path, "src" ]) >>= case _ of
+                    Nothing -> addError $ toDoc
+                      [ "This package has no PureScript files in its `src` directory. "
+                      , "All package sources must be in the `src` directory, with any additional "
+                      , "sources indicated by the `files` key in your manifest."
+                      ]
+                    Just files -> do
+                      Operation.Validation.validatePursModules files >>= case _ of
+                        Left formattedError -> addError $ toDoc
+                          [ "This package has either malformed or disallowed PureScript module names "
+                          , "in its `src` directory. All package sources must be in the `src` directory, "
+                          , "with any additional sources indicated by the `files` key in your manifest."
+                          , formattedError
+                          ]
+                        Right _ -> pure unit
 
                   when (Operation.Validation.isMetadataPackage (Manifest manifest)) do
                     addError $ toDoc "The `metadata` package cannot be uploaded to the registry because it is a protected package."
@@ -233,7 +286,7 @@ publish _args = do
                     , "```"
                     ]
 
-                  setResult { name, location: Just location, ref, compiler, resolutions: buildPlan }
+                  setResult { name, location: Just location, ref: tag, compiler, resolutions: buildPlan }
 
   result <- liftEffect $ Ref.read resultRef
   case result of
@@ -252,6 +305,7 @@ publish _args = do
     Right publishingData@{ resolutions } -> do
       -- Once we are sure that no errors will be produced we can try building with the build plan
       -- from the solver (this is because the build might terminate the process, and we shall output the errors first)
+      logInfo "Building again with the build plan from the solver..."
       let buildPlanDependencies = map Config.RegistryVersion resolutions
       runSpago
         -- We explicitly list the env fields because `Record.merge` didn't compile.
@@ -281,10 +335,78 @@ publish _args = do
 
       logDebug $ unsafeStringify publishingData
       logSuccess "Ready for publishing. Calling the registry.."
-      pure publishingData
 
-getGlobs :: WorkspacePackage -> Map PackageName Package -> Set FilePath
-getGlobs selected dependencies = Set.fromFoldable
-  $ join [ Config.sourceGlob NoTestGlobs selected.package.name (WorkspacePackage selected) ]
-  <> join (map (Tuple.uncurry $ Config.sourceGlob NoTestGlobs) (Map.toUnfoldable dependencies))
-  <> [ BuildInfo.buildInfoPath ]
+      let newPublishingData = publishingData { resolutions = Just publishingData.resolutions } :: Operation.PublishData
+
+      { jobId } <- callRegistry (baseApi <> Duplex.print V1.routes V1.Publish) V1.jobCreatedResponseCodec (Just { codec: Operation.publishCodec, data: newPublishingData })
+      logSuccess $ "Registry accepted the Publish request and is processing..."
+      logDebug $ "Job ID: " <> unwrap jobId
+      logInfo "Logs from the Registry pipeline:"
+      waitForJobFinish jobId
+
+      pure newPublishingData
+
+callRegistry :: forall env a b. String -> JsonCodec b -> Maybe { codec :: JsonCodec a, data :: a } -> Spago (PublishEnv env) b
+callRegistry url outputCodec maybeInput = handleError do
+  logDebug $ "Calling registry at " <> url
+  response <- liftAff $ withBackoff' $ case maybeInput of
+    Just { codec: inputCodec, data: input } -> Http.post ResponseFormat.string url (Just $ RequestBody.json $ CA.encode inputCodec input)
+    Nothing -> Http.get ResponseFormat.string url
+  case response of
+    Nothing -> pure $ Left $ "Could not reach the registry at " <> url
+    Just (Left err) -> pure $ Left $ "Error while calling the registry:\n  " <> Http.printError err
+    Just (Right { status, body }) | status /= StatusCode 200 -> do
+      pure $ Left $ "Registry did not like this and answered with status " <> show status <> ", got answer:\n  " <> body
+    Just (Right { body }) -> do
+      pure $ case parseJson outputCodec body of
+        Right output -> Right output
+        Left err -> Left $ "Could not parse response from the registry, error: " <> show err
+  where
+  -- TODO: see if we want to just kill the process generically here, or give out customized errors
+  handleError a = a >>= case _ of
+    Left err -> die err
+    Right res -> pure res
+
+waitForJobFinish :: forall env. V1.JobId -> Spago (PublishEnv env) Unit
+waitForJobFinish jobId = go Nothing
+  where
+  go :: Maybe DateTime -> Spago (PublishEnv env) Unit
+  go lastTimestamp = do
+    { logOptions } <- ask
+    let
+      url = baseApi <> Duplex.print V1.routes
+        ( V1.Job jobId
+            { since: lastTimestamp
+            , level: case logOptions.verbosity of
+                LogVerbose -> Just V1.Debug
+                _ -> Just V1.Info
+            }
+        )
+    jobInfo :: V1.Job <- callRegistry url V1.jobCodec Nothing
+    -- first of all, print all the logs we get
+    for_ jobInfo.logs \log -> do
+      let line = Log.indent $ toDoc $ DateTime.format Internal.Format.iso8601DateTime log.timestamp <> " " <> log.message
+      case log.level of
+        V1.Debug -> logDebug line
+        V1.Info -> logInfo line
+        V1.Warn -> logWarn line
+        V1.Error -> logError line
+        V1.Notify -> logInfo line
+    case jobInfo.finishedAt of
+      Nothing -> do
+        -- If the job is not finished, we grab the timestamp of the last log line, wait a bit and retry
+        let
+          latestTimestamp = jobInfo.logs # Array.last # case _ of
+            Just log -> Just log.timestamp
+            Nothing -> lastTimestamp
+        liftAff $ Aff.delay $ Milliseconds 500.0
+        go latestTimestamp
+      Just _finishedAt -> do
+        -- if it's done we report the failure.
+        logDebug $ "Job: " <> printJson V1.jobCodec jobInfo
+        case jobInfo.success of
+          true -> logSuccess $ "Registry finished processing the package. Your package was published successfully!"
+          false -> die $ "Registry finished processing the package, but it failed. Please fix it and try again."
+
+baseApi :: String
+baseApi = "https://registry.purescript.org"

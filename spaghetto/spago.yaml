@@ -58,9 +58,9 @@ workspace:
   extra_packages:
     registry-lib:
       git: https://github.com/purescript/registry-dev.git
-      ref: 68dddd9351f256980454bc2c1d0aea20e4d53fa9
+      ref: 85b6f005f13c5dcac047dfa5d67aafa56d705c92
       subdir: lib
     registry-foreign:
       git: https://github.com/purescript/registry-dev.git
-      ref: 68dddd9351f256980454bc2c1d0aea20e4d53fa9
+      ref: 85b6f005f13c5dcac047dfa5d67aafa56d705c92
       subdir: foreign
