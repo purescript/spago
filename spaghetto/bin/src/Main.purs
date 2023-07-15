@@ -32,15 +32,16 @@ import Spago.Command.Ls (LsDepsArgs, LsPackagesArgs)
 import Spago.Command.Ls as Ls
 import Spago.Command.Publish as Publish
 import Spago.Command.Registry as Registry
+import Spago.Command.Repl as Repl
 import Spago.Command.Run as Run
 import Spago.Command.Sources as Sources
 import Spago.Command.Test as Test
 import Spago.Config (BundleConfig, BundlePlatform(..), BundleType(..), Package, RunConfig, TestConfig)
 import Spago.Config as Config
 import Spago.Core.Config as Core
+import Spago.Esbuild as Esbuild
 import Spago.FS as FS
 import Spago.Git as Git
-import Spago.Esbuild as Esbuild
 import Spago.Json as Json
 import Spago.Log (LogVerbosity(..))
 import Spago.Paths as Paths
@@ -457,6 +458,8 @@ main =
             -- Fetch the registry here so we can select the right package set later
             void mkRegistryEnv
             void $ runSpago { logOptions, purs } $ Init.run initOpts
+            logInfo "Set up a new Spago project."
+            logInfo "Try running `spago run`"
           Fetch args -> do
             { env, fetchOpts } <- mkFetchEnv args
             void $ runSpago env (Fetch.run fetchOpts)
@@ -515,9 +518,32 @@ main =
             { purs } <- runSpago env (mkBuildEnv buildArgs dependencies)
             publishEnv <- runSpago env (mkPublishEnv dependencies purs)
             void $ runSpago publishEnv (Publish.publish {})
-          Repl args -> do
-            -- TODO implement
-            pure unit
+
+          Repl args@{ selectedPackage } -> do
+            hazConfig <- FS.exists "spago.yaml"
+            packages <- case hazConfig of
+              true -> do
+                -- if we have a config then we assume it's a workspace, and we can run a repl in the project
+                pure mempty -- TODO newPackages
+              false -> do
+                -- otherwise we are running a "global repl" and need to make a tmp folder and invent a config
+                logWarn "No configuration found, creating a temporary project to run a repl in..."
+                tmpDir <- mkTemp
+                FS.mkdirp tmpDir
+                logDebug $ "Creating repl project in temp dir: " <> tmpDir
+                liftEffect $ Process.chdir tmpDir
+                purs <- Purs.getPurs
+                void $ runSpago { purs, logOptions } $ Init.run { setVersion: Nothing, packageName: unsafeCoerce "repl" }
+                pure $ List.fromFoldable [ "effect", "console" ] -- TODO newPackages
+            { env, fetchOpts } <- mkFetchEnv
+              { packages
+              , selectedPackage
+              , ensureRanges: false
+              }
+            dependencies <- runSpago env (Fetch.run fetchOpts)
+            replEnv <- runSpago env (mkReplEnv args (Map.union dependencies $ Repl.supportPackage env.workspace.packageSet))
+            void $ runSpago replEnv Repl.run
+
           Bundle args@{ selectedPackage, ensureRanges } -> do
             { env, fetchOpts } <- mkFetchEnv { packages: mempty, selectedPackage, ensureRanges }
             -- TODO: --no-fetch flag
@@ -769,6 +795,27 @@ mkPublishEnv dependencies purs = do
               , indent (toDoc $ map _.package.name workspacePackages)
               ]
   pure (Record.union { purs, selected, dependencies } env)
+
+mkReplEnv :: forall a. ReplArgs -> Map PackageName Package -> Spago (Fetch.FetchEnv a) (Repl.ReplEnv ())
+mkReplEnv replArgs dependencies = do
+  { workspace, logOptions } <- ask
+  logDebug $ "Repl args: " <> show replArgs
+
+  purs <- Purs.getPurs
+
+  let
+    selected = case workspace.selected of
+      Just s -> [ s ]
+      Nothing -> Config.getWorkspacePackages workspace.packageSet
+
+  pure
+    { purs
+    , dependencies
+    , depsOnly: false
+    , logOptions
+    , pursArgs: Array.fromFoldable replArgs.pursArgs
+    , selected
+    }
 
 mkFetchEnv :: forall a. FetchArgs -> Spago (LogEnv a) { env :: Fetch.FetchEnv (), fetchOpts :: Fetch.FetchOpts }
 mkFetchEnv args = do

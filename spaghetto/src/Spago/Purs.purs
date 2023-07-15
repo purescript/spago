@@ -76,6 +76,16 @@ compile globs pursArgs = do
   Cmd.exec purs.cmd args $ Cmd.defaultExecOptions
     { pipeStdout = false }
 
+repl :: forall a. Set FilePath -> Array String -> Spago (PursEnv a) (Either Cmd.ExecError Cmd.ExecResult)
+repl globs pursArgs = do
+  { purs } <- ask
+  let args = [ "repl" ] <> pursArgs <> Set.toUnfoldable globs
+  Cmd.exec purs.cmd args $ Cmd.defaultExecOptions
+    { pipeStdout = true
+    , pipeStderr = true
+    , pipeStdin = Cmd.StdinPipeParent
+    }
+
 --------------------------------------------------------------------------------
 -- Graph
 

@@ -29,7 +29,7 @@ run opts = do
   packageSetVersion <- Config.findPackageSet opts.setVersion
 
   { purs } <- ask
-  logInfo $ "Initialising a new project with PureScript " <> Version.print purs.version <> " and package set " <> Version.print packageSetVersion
+  logInfo $ "Found PureScript " <> Version.print purs.version <> ", will use package set " <> Version.print packageSetVersion
 
   -- Write config
   let config = defaultConfig opts.packageName packageSetVersion
@@ -52,8 +52,6 @@ run opts = do
 
   copyIfNotExists ".purs-repl" pursReplTemplate
 
-  logInfo "Set up a local Spago project."
-  logInfo "Try running `spago run`"
   pure config
 
   where

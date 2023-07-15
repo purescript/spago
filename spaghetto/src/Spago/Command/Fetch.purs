@@ -30,6 +30,7 @@ import Registry.Range as Range
 import Registry.Sha256 as Sha256
 import Registry.Version as Registry.Version
 import Registry.Version as Version
+import Spago.Command.Repl as Repl
 import Spago.Config (Dependencies(..), GitPackage, LockfileSettings(..), Package(..), PackageSet, Workspace, WorkspacePackage)
 import Spago.Config as Config
 import Spago.FS as FS
@@ -85,7 +86,7 @@ run { packages, ensureRanges } = do
     liftAff $ FS.writeYamlDocFile configPath yamlDoc
 
   -- TODO: add ranges
-  -- if the flag is selected, we kick off the
+  -- if the flag is selected, we kick off the process of adding ranges to the config
   when ensureRanges do
     logInfo $ "Adding ranges to dependencies to the config in " <> configPath
     let rangeMap = map getRangeFromPackage transitivePackages
@@ -148,7 +149,10 @@ run { packages, ensureRanges } = do
   -- then for every package we have we try to download it, and copy it in the local cache
   logInfo "Downloading dependencies..."
 
-  parallelise $ (flip map) (Map.toUnfoldable transitivePackages :: Array (Tuple PackageName Package)) \(Tuple name package) -> do
+  -- the repl needs a support package, so we fetch it here as a sidecar
+  let transitivePackages' = Map.union transitivePackages (Repl.supportPackage workspace.packageSet)
+
+  parallelise $ (flip map) (Map.toUnfoldable transitivePackages' :: Array (Tuple PackageName Package)) \(Tuple name package) -> do
     let localPackageLocation = Config.getPackageLocation name package
     -- first of all, we check if we have the package in the local cache. If so, we don't even do the work
     unlessM (FS.exists localPackageLocation) case package of
