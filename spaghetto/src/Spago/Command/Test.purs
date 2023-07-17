@@ -46,7 +46,7 @@ run = do
         , moduleName
         }
 
-      runEnv = { logOptions, workspace, selected, node, runOptions }
+      runEnv = { logOptions, workspace, selected, node, runOptions, dependencies, purs }
 
     -- We check if the test module is included in the build and spit out a nice error if it isn't (see #383)
     let
