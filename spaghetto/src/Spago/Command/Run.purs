@@ -68,7 +68,7 @@ getNode = do
 
 run :: forall a. Spago (RunEnv a) Unit
 run = do
-  { workspace, node, runOptions: opts } <- ask
+  { workspace, node, runOptions: opts, dependencies } <- ask
   let execOptions = Cmd.defaultExecOptions { pipeStdin = Cmd.StdinPipeParent }
 
   case workspace.backend of
@@ -96,16 +96,14 @@ run = do
             , "'\n\n"
             , "main()"
             ]
-      
-      dependencies <- _.dependencies <$> ask
-      let 
+
+      let
         globs = Build.getBuildGlobs
           { dependencies
           , depsOnly: false
           , withTests: false
           , selected: case workspace.selected of
               Just p -> [ p ]
-              -- TODO: this is safe because we check that the workspace is not empty wayy earlier
               Nothing -> Config.getWorkspacePackages workspace.packageSet
           }
       Purs.graph globs [] >>= case _ of
