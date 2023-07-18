@@ -47,7 +47,7 @@ run = do
 
     -- See https://github.com/evanw/esbuild/issues/1921
     nodePatch = case opts.platform of
-      BundleNode -> [ "--banner:js=import __module from \'module\';import __path from \'path\';import __url from \'url\';const require = __module.createRequire(import.meta.url);" ]
+      BundleNode -> [ "--banner:js=import __module from \'module\';import __path from \'path\';import __url from \'url\';const require = __module.createRequire(import.meta.url);const __dirname = __path.dirname(__url.fileURLToPath(import.meta.url));" ]
       _ -> []
 
     output = case workspace.buildOptions.output of
