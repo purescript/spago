@@ -562,7 +562,7 @@ main =
             buildEnv <- runSpago env (mkBuildEnv args dependencies)
             let options = { depsOnly: false, pursArgs: List.toUnfoldable args.pursArgs, jsonErrors: false }
             runSpago buildEnv (Build.run options)
-            runEnv <- runSpago env (mkRunEnv args)
+            runEnv <- runSpago env (mkRunEnv args buildEnv)
             runSpago runEnv Run.run
           Test args@{ selectedPackage } -> do
             { env, fetchOpts } <- mkFetchEnv { packages: mempty, selectedPackage, ensureRanges: false }
@@ -648,8 +648,8 @@ mkBundleEnv bundleArgs = do
   let bundleEnv = { esbuild, logOptions, workspace: newWorkspace, selected, bundleOptions }
   pure bundleEnv
 
-mkRunEnv :: forall a. RunArgs -> Spago (Fetch.FetchEnv a) (Run.RunEnv ())
-mkRunEnv runArgs = do
+mkRunEnv :: forall a b. RunArgs -> Build.BuildEnv b -> Spago (Fetch.FetchEnv a) (Run.RunEnv ())
+mkRunEnv runArgs { dependencies, purs } = do
   { workspace, logOptions } <- ask
   logDebug $ "Run args: " <> show runArgs
 
@@ -691,7 +691,7 @@ mkRunEnv runArgs = do
       , failureMessage: "Running failed."
       }
   let newWorkspace = workspace { buildOptions { output = runArgs.output <|> workspace.buildOptions.output } }
-  let runEnv = { logOptions, workspace: newWorkspace, selected, node, runOptions }
+  let runEnv = { logOptions, workspace: newWorkspace, selected, node, runOptions, dependencies, purs }
   pure runEnv
 
 mkTestEnv :: forall a b. TestArgs -> Build.BuildEnv b -> Spago (Fetch.FetchEnv a) (Test.TestEnv ())

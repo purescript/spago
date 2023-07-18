@@ -11,20 +11,28 @@ import Spago.Prelude
 import Data.Array as Array
 import Data.String (Pattern(..), Replacement(..))
 import Data.String as String
+import Data.Map as Map
+import Data.Codec.Argonaut as CA
 import Node.FS.Perms as Perms
 import Node.Path as Path
 import Registry.Version as Version
 import Spago.Cmd as Cmd
-import Spago.Config (Workspace, WorkspacePackage)
+import Spago.Config (Package, Workspace, WorkspacePackage)
+import Spago.Config as Config
+import Spago.Purs (Purs, ModuleGraph(..))
+import Spago.Purs as Purs
 import Spago.FS as FS
 import Spago.Paths as Paths
+import Spago.Command.Build as Build
 
 type RunEnv a =
   { logOptions :: LogOptions
   , workspace :: Workspace
   , runOptions :: RunOptions
   , selected :: WorkspacePackage
+  , dependencies :: Map PackageName Package
   , node :: Node
+  , purs :: Purs
   | a
   }
 
@@ -88,6 +96,23 @@ run = do
             , "'\n\n"
             , "main()"
             ]
+      
+      dependencies <- _.dependencies <$> ask
+      let 
+        globs = Build.getBuildGlobs
+          { dependencies
+          , depsOnly: false
+          , withTests: false
+          , selected: case workspace.selected of
+              Just p -> [ p ]
+              -- TODO: this is safe because we check that the workspace is not empty wayy earlier
+              Nothing -> Config.getWorkspacePackages workspace.packageSet
+          }
+      Purs.graph globs [] >>= case _ of
+        Left err -> logWarn $ "Could not decode the output of `purs graph`, error: " <> CA.printJsonDecodeError err
+        Right (ModuleGraph graph) -> do
+          when (isNothing $ Map.lookup opts.moduleName graph) do
+            die [ opts.failureMessage, "Module " <> opts.moduleName <> " not found! Are you including it in your build?" ]
 
       logDebug $ "Writing " <> show runJsPath
       FS.writeTextFile runJsPath nodeContents
