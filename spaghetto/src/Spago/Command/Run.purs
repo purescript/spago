@@ -102,7 +102,7 @@ run = do
         globs = Build.getBuildGlobs
           { dependencies
           , depsOnly: false
-          , withTests: true
+          , withTests: false
           , selected: case workspace.selected of
               Just p -> [ p ]
               -- TODO: this is safe because we check that the workspace is not empty wayy earlier
@@ -111,8 +111,8 @@ run = do
       Purs.graph globs [] >>= case _ of
         Left err -> logWarn $ "Could not decode the output of `purs graph`, error: " <> CA.printJsonDecodeError err
         Right (ModuleGraph graph) -> do
-          when (isNothing $ Map.lookup "Main" graph) do
-            die [ opts.failureMessage, "Module Main not found! Are you including it in your build?" ]
+          when (isNothing $ Map.lookup opts.moduleName graph) do
+            die [ opts.failureMessage, "Module " <> opts.moduleName <> " not found! Are you including it in your build?" ]
 
       logDebug $ "Writing " <> show runJsPath
       FS.writeTextFile runJsPath nodeContents
