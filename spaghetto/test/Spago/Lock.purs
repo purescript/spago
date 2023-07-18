@@ -18,7 +18,7 @@ import Test.Spec.Assertions as Assert
 
 spec :: Spec Unit
 spec = do
-  Spec.it "Parses lockfile" do
+  Spec.it "parses lockfile" do
     case parseYaml Lock.lockfileCodec validLockfileString of
       Left error ->
         Assert.fail $ "Failed to parse: " <> CA.printJsonDecodeError error

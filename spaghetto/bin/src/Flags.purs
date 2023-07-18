@@ -202,8 +202,14 @@ maybeVersion =
 
 maybeSetVersion :: ArgParser (Maybe String)
 maybeSetVersion =
-  ArgParser.argument [ "--set" ]
-    "Optional package set version to be used instead of the latest one."
+  ArgParser.argument [ "--package-set" ]
+    "Optional package set version to be used instead of the latest one"
+    # ArgParser.optional
+
+maybePackageName :: ArgParser (Maybe String)
+maybePackageName =
+  ArgParser.argument [ "--name" ]
+    "Optional package name to be used for the new project"
     # ArgParser.optional
 
 ensureRanges :: ArgParser Boolean

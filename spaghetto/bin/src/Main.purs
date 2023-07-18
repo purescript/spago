@@ -11,6 +11,7 @@ import Data.JSDate as JSDate
 import Data.List as List
 import Data.Map as Map
 import Data.Set.NonEmpty (NonEmptySet)
+import Data.String as String
 import Effect.Aff as Aff
 import Effect.Class.Console as Console
 import Effect.Ref as Ref
@@ -57,6 +58,7 @@ type GlobalArgs =
 
 type InitArgs =
   { setVersion :: Maybe String
+  , name :: Maybe String
   }
 
 type FetchArgs =
@@ -281,6 +283,7 @@ initArgsParser :: ArgParser InitArgs
 initArgsParser =
   ArgParser.fromRecord
     { setVersion: Flags.maybeSetVersion
+    , name: Flags.maybePackageName
     }
 
 fetchArgsParser :: ArgParser FetchArgs
@@ -446,8 +449,9 @@ main =
           Init args -> do
             purs <- Purs.getPurs
             -- Figure out the package name from the current dir
-            logDebug [ show Paths.cwd, show (Path.basename Paths.cwd) ]
-            packageName <- case PackageName.parse (PackageName.stripPureScriptPrefix (Path.basename Paths.cwd)) of
+            let candidateName = fromMaybe (String.take 50 $ Path.basename Paths.cwd) args.name
+            logDebug [ show Paths.cwd, show candidateName ]
+            packageName <- case PackageName.parse (PackageName.stripPureScriptPrefix candidateName) of
               Left err -> die [ "Could not figure out a name for the new package. Error:", show err ]
               Right p -> pure p
             setVersion <- for args.setVersion $ parseLenientVersion >>> case _ of
@@ -520,8 +524,7 @@ main =
             void $ runSpago publishEnv (Publish.publish {})
 
           Repl args@{ selectedPackage } -> do
-            hazConfig <- FS.exists "spago.yaml"
-            packages <- case hazConfig of
+            packages <- FS.exists "spago.yaml" >>= case _ of
               true -> do
                 -- if we have a config then we assume it's a workspace, and we can run a repl in the project
                 pure mempty -- TODO newPackages
@@ -819,9 +822,13 @@ mkReplEnv replArgs dependencies = do
 
 mkFetchEnv :: forall a. FetchArgs -> Spago (LogEnv a) { env :: Fetch.FetchEnv (), fetchOpts :: Fetch.FetchOpts }
 mkFetchEnv args = do
-  let { right: packageNames, left: failedPackageNames } = partitionMap PackageName.parse (Array.fromFoldable args.packages)
+  let
+    parsePackageName p = case PackageName.parse p of
+      Right pkg -> Right pkg
+      Left err -> Left ("- Could not parse package " <> show p <> ": " <> err)
+  let { right: packageNames, left: failedPackageNames } = partitionMap parsePackageName (Array.fromFoldable args.packages)
   unless (Array.null failedPackageNames) do
-    die $ "Failed to parse some package name: " <> show failedPackageNames
+    die $ [ toDoc "Failed to parse some package name: " ] <> map (indent <<< toDoc) failedPackageNames
 
   maybeSelectedPackage <- for args.selectedPackage $ PackageName.parse >>> case _ of
     Right p -> pure p

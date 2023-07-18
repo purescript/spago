@@ -382,7 +382,6 @@ waitForJobFinish jobId = go Nothing
         V1.Info -> logInfo line
         V1.Warn -> logWarn line
         V1.Error -> logError line
-        V1.Notify -> logInfo line
     case jobInfo.finishedAt of
       Nothing -> do
         -- If the job is not finished, we grab the timestamp of the last log line, wait a bit and retry
