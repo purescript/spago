@@ -152,15 +152,16 @@ readWorkspace maybeSelectedPackage = do
     Right { yaml: { workspace: Nothing } } -> die $ "Your spago.yaml doesn't contain a workspace section" -- TODO refer to the docs
     Right { yaml: { workspace: Just workspace, package }, doc } -> pure { workspace, package, workspaceDoc: doc }
 
-  -- TODO: here figure out if the lockfile is still valid by checking if:
-  -- - the package set section of the workspace is the same
-  -- - the dependencies of each package are the same
   lockfile <- FS.exists "spago.lock" >>= case _ of
     true -> liftAff (FS.readYamlFile Lock.lockfileCodec "spago.lock") >>= case _ of
       Left error -> die $ "Your project contains a spago.lock file, but it cannot be decoded:\n" <> error
       Right contents
         | workspace.lock == Just false -> die "Your workspace specifies 'lock: false', but there is a spago.lock file in the workspace."
-        | otherwise -> pure (UseLockfile contents)
+        | otherwise -> do
+            -- TODO: here figure out if the lockfile is still valid by checking if:
+            -- - the package set section of the workspace is the same
+            -- - the dependencies of each package are the same 
+            pure (UseLockfile contents)
     false
       -- If the user specifies lock: true then we always create a lockfile.
       | workspace.lock == Just true -> pure GenerateLockfile

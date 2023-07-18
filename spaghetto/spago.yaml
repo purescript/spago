@@ -1,7 +1,7 @@
 package:
   name: spago
   publish:
-    version: 0.93.6
+    version: 0.93.7
     license: BSD-3-Clause
     location:
       githubOwner: purescript
@@ -58,9 +58,9 @@ workspace:
   extra_packages:
     registry-lib:
       git: https://github.com/purescript/registry-dev.git
-      ref: 85b6f005f13c5dcac047dfa5d67aafa56d705c92
+      ref: 7e1f67d1205d68d7f22d9d55d25ba2354dfbb14e
       subdir: lib
     registry-foreign:
       git: https://github.com/purescript/registry-dev.git
-      ref: 85b6f005f13c5dcac047dfa5d67aafa56d705c92
+      ref: 7e1f67d1205d68d7f22d9d55d25ba2354dfbb14e
       subdir: foreign

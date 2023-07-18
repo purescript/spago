@@ -133,7 +133,6 @@ run opts = do
       , withTests: true
       , selected: case workspace.selected of
           Just p -> [ p ]
-          -- TODO: this is safe because we check that the workspace is not empty wayy earlier
           Nothing -> Config.getWorkspacePackages workspace.packageSet
       }
   buildBackend globs

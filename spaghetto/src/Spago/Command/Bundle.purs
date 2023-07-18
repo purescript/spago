@@ -67,6 +67,8 @@ run = do
       [ "--bundle"
       , "--outfile=" <> outfile
       , "--platform=" <> show opts.platform
+      -- See https://github.com/evanw/esbuild/issues/1051
+      , "--loader:.node=file"
       , format
       ] <> minify <> entrypoint <> nodePatch
   logInfo "Bundling..."

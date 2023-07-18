@@ -11,3 +11,4 @@
 /.spago
 /bin/bundle.js
 .direnv
+*.node
