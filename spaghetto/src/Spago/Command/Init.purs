@@ -1,6 +1,9 @@
 module Spago.Command.Init
   ( run
   , InitOptions
+  , srcMainTemplate
+  , testMainTemplate
+  , defaultConfig
   ) where
 
 import Spago.Prelude
@@ -32,7 +35,7 @@ run opts = do
   logInfo $ "Found PureScript " <> Version.print purs.version <> ", will use package set " <> Version.print packageSetVersion
 
   -- Write config
-  let config = defaultConfig opts.packageName packageSetVersion
+  let config = defaultConfig opts.packageName (Just packageSetVersion) "Test.Main"
   let configPath = "spago.yaml"
   (FS.exists configPath) >>= case _ of
     true -> logInfo $ foundExistingProject configPath
@@ -41,12 +44,13 @@ run opts = do
   -- If these directories (or files) exist, we skip copying "sample sources"
   -- Because you might want to just init a project with your own source files,
   -- or just migrate a psc-package project
+  let mainModuleName = "Main"
   whenDirNotExists "src" do
-    copyIfNotExists "src/Main.purs" srcMainTemplate
+    copyIfNotExists ("src/" <> mainModuleName <> ".purs") (srcMainTemplate mainModuleName)
 
   whenDirNotExists "test" $ do
     FS.mkdirp "test/Test"
-    copyIfNotExists "test/Test/Main.purs" testMainTemplate
+    copyIfNotExists "test/Test/Main.purs" (testMainTemplate "Test.Main")
 
   copyIfNotExists ".gitignore" gitignoreTemplate
 
@@ -67,8 +71,8 @@ run opts = do
 
 -- TEMPLATES -------------------------------------------------------------------
 
-defaultConfig :: PackageName -> Version -> Config
-defaultConfig name set =
+defaultConfig :: PackageName -> Maybe Version -> String -> Config
+defaultConfig name setVersion testModuleName =
   { package: Just
       { name
       , dependencies:
@@ -84,12 +88,12 @@ defaultConfig name set =
       , test: Just
           { dependencies: Dependencies Map.empty
           , execArgs: Nothing
-          , main: "Test.Main"
+          , main: testModuleName
           }
       , publish: Nothing
       , bundle: Nothing
       }
-  , workspace: Just
+  , workspace: setVersion # map \set ->
       { extra_packages: Just Map.empty
       , package_set: Just (SetFromRegistry { registry: set })
       , build_opts: Nothing
@@ -100,10 +104,9 @@ defaultConfig name set =
   where
   mkDep p = Tuple (unsafeFromRight $ PackageName.parse p) Nothing
 
-srcMainTemplate ∷ String
-srcMainTemplate =
-  """
-module Main where
+srcMainTemplate :: String -> String
+srcMainTemplate moduleName = "module " <> moduleName <>
+  """ where
 
 import Prelude
 
@@ -116,10 +119,9 @@ main = do
 
 """
 
-testMainTemplate ∷ String
-testMainTemplate =
-  """
-module Test.Main where
+testMainTemplate :: String -> String
+testMainTemplate moduleName = "module " <> moduleName <>
+  """ where
 
 import Prelude
 

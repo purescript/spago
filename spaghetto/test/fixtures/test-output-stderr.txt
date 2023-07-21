@@ -1,0 +1,16 @@
+Reading Spago workspace configuration...
+Read the package set from the registry
+
+✅ Selecting package to build: 7368613235362d6a336156536c675a7033334e7659556c6d38
+
+Downloading dependencies...
+Building...
+           Src   Lib   All
+Warnings     0     0     0
+Errors       0     0     0
+
+✅ Build succeeded.
+
+Running tests for package: 7368613235362d6a336156536c675a7033334e7659556c6d38
+
+✅ Test succeeded for package "7368613235362d6a336156536c675a7033334e7659556c6d38".

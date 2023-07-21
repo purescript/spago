@@ -3,16 +3,12 @@ module Spago.Command.Test where
 import Spago.Prelude
 
 import Data.Array.NonEmpty (NonEmptyArray)
-import Data.Codec.Argonaut as CA
-import Data.Map as Map
 import Registry.PackageName as PackageName
-import Spago.Command.Build as Build
 import Spago.Command.Run (Node)
 import Spago.Command.Run as Run
 import Spago.Config (Package, Workspace, WorkspacePackage)
 import Spago.Paths as Paths
-import Spago.Purs (ModuleGraph(..), Purs)
-import Spago.Purs as Purs
+import Spago.Purs (Purs)
 
 type TestEnv a =
   { logOptions :: LogOptions
@@ -47,18 +43,6 @@ run = do
         }
 
       runEnv = { logOptions, workspace, selected, node, runOptions, dependencies, purs }
-
-    -- We check if the test module is included in the build and spit out a nice error if it isn't (see #383)
-    let
-      globs = Build.getBuildGlobs
-        { withTests: true, selected: [ selected ], dependencies, depsOnly: false }
-    maybeGraph <- runSpago { purs, logOptions } $ Purs.graph globs []
-    case maybeGraph of
-      Left err -> do
-        logWarn $ "Could not decode the output of `purs graph`, error: " <> CA.printJsonDecodeError err
-      Right (ModuleGraph moduleMap) -> do
-        when (isNothing $ Map.lookup moduleName moduleMap) do
-          die [ "Module '" <> moduleName <> "' not found! Are you including it in your build?" ]
 
     logInfo $ "Running tests for package: " <> PackageName.print name
     runSpago runEnv Run.run

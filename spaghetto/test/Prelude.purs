@@ -13,14 +13,14 @@ import Spago.Cmd (ExecError, ExecResult)
 import Spago.Cmd (ExecError, ExecResult) as X
 import Spago.Cmd as Cmd
 import Spago.FS as FS
-import Spago.Prelude as Either
 import Spago.Prelude as X
 import Test.Spec.Assertions as Assert
 
 type TestDirs =
   { spago :: Array String -> Aff (Either ExecError ExecResult)
-  , oldCwd :: FilePath
   , fixture :: FilePath -> FilePath
+  , oldCwd :: FilePath
+  , testCwd :: FilePath
   }
 
 withTempDir :: (TestDirs -> Aff Unit) -> Aff Unit
@@ -47,6 +47,7 @@ withTempDir = Aff.bracket createTempDir cleanupTempDir
     pure
       { spago
       , oldCwd
+      , testCwd: temp
       , fixture
       }
 
@@ -59,38 +60,43 @@ checkFixture filepath fixturePath = do
   fixturecontent <- FS.readTextFile fixturePath
   filecontent `Assert.shouldEqual` fixturecontent
 
-shouldBeSuccess :: Either ExecError ExecResult -> Aff _
-shouldBeSuccess execResult = execResult `Assert.shouldSatisfy` Either.isRight
-
-shouldBeFailure :: Either ExecError ExecResult -> Aff _
-shouldBeFailure execResult = execResult `Assert.shouldSatisfy` Either.isLeft
-
-shouldBeSuccessStderr :: String -> Either ExecError ExecResult -> Aff _
-shouldBeSuccessStderr expectedFixture execResult = do
-  execResult `Assert.shouldSatisfy` Either.isRight
+checkResultAndOutputs :: Maybe FilePath -> Maybe FilePath -> (Either ExecError ExecResult -> Boolean) -> Either ExecError ExecResult -> Aff _
+checkResultAndOutputs maybeOutFixture maybeErrFixture resultFn execResult = do
+  execResult `Assert.shouldSatisfy` resultFn
   let
-    stderr = case execResult of
-      Left err -> err.stderr
-      Right res -> res.stderr
-  expected <- String.trim <$> FS.readTextFile expectedFixture
-  stderr `Assert.shouldEqual` expected
-
-shouldBeFailureStderr :: String -> Either ExecError ExecResult -> Aff _
-shouldBeFailureStderr expectedFixture execResult = do
-  execResult `Assert.shouldSatisfy` Either.isLeft
-  let
-    stderr = case execResult of
-      Left err -> err.stderr
-      Right res -> res.stderr
-  expected <- String.trim <$> FS.readTextFile expectedFixture
-  stderr `Assert.shouldEqual` expected
-
-shouldBeSuccessOutput :: String -> Either ExecError ExecResult -> Aff _
-shouldBeSuccessOutput expectedFixture execResult = do
-  execResult `Assert.shouldSatisfy` Either.isRight
-  let
-    stdout = case execResult of
+    stdout = String.trim $ case execResult of
       Left err -> err.stdout
       Right res -> res.stdout
-  expected <- String.trim <$> FS.readTextFile expectedFixture
-  stdout `Assert.shouldEqual` expected
+    stderr = String.trim $ case execResult of
+      Left err -> err.stderr
+      Right res -> res.stderr
+  for_ maybeOutFixture \expectedOutFixture -> do
+    expectedOut <- String.trim <$> FS.readTextFile expectedOutFixture
+    stdout `Assert.shouldEqual` expectedOut
+  for_ maybeErrFixture \expectedErrFixture -> do
+    expectedErr <- String.trim <$> FS.readTextFile expectedErrFixture
+    stderr `Assert.shouldEqual` expectedErr
+
+shouldBeSuccess :: Either ExecError ExecResult -> Aff Unit
+shouldBeSuccess = checkResultAndOutputs Nothing Nothing isRight
+
+shouldBeSuccessOutput :: FilePath -> Either ExecError ExecResult -> Aff Unit
+shouldBeSuccessOutput outFixture = checkResultAndOutputs (Just outFixture) Nothing isRight
+
+shouldBeSuccessErr :: FilePath -> Either ExecError ExecResult -> Aff Unit
+shouldBeSuccessErr errFixture = checkResultAndOutputs Nothing (Just errFixture) isRight
+
+shouldBeSuccessOutputWithErr :: FilePath -> FilePath -> Either ExecError ExecResult -> Aff Unit
+shouldBeSuccessOutputWithErr outFixture errFixture = checkResultAndOutputs (Just outFixture) (Just errFixture) isRight
+
+shouldBeFailure :: Either ExecError ExecResult -> Aff Unit
+shouldBeFailure = checkResultAndOutputs Nothing Nothing isLeft
+
+shouldBeFailureOutput :: FilePath -> Either ExecError ExecResult -> Aff Unit
+shouldBeFailureOutput outFixture = checkResultAndOutputs (Just outFixture) Nothing isLeft
+
+shouldBeFailureErr :: FilePath -> Either ExecError ExecResult -> Aff Unit
+shouldBeFailureErr errFixture = checkResultAndOutputs Nothing (Just errFixture) isLeft
+
+shouldBeFailureOutputWithErr :: FilePath -> FilePath -> Either ExecError ExecResult -> Aff Unit
+shouldBeFailureOutputWithErr outFixture errFixture = checkResultAndOutputs (Just outFixture) (Just errFixture) isLeft
