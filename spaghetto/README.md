@@ -35,7 +35,7 @@ To better support [monorepos and multirepos/polyrepos](https://monorepo.tools/),
 | - | - | - |
 | **Package** | a library or script/application | -- |
 | **Dependencies** | libraries used by a **package** | A remote package (e.g. `prelude`) or a local package (e.g. a package in a monorepo) |
-| **Backend** | the tool to use to compile PureScript source code to some target language. When this is not defined, source code is compiled to JavaScript via `purs`. | <ul><li>For Erlang, [`purerl`](https://github.com/purerl/purerl)</li><li>For optimized JS, [`purs-backend-es`]()</li><li>... etc.</li></ul> |
+| **Backend** | the tool to use to compile PureScript source code to some target language. When this is not defined, source code is compiled to JavaScript via `purs`. | <ul><li>For Erlang, [`purerl`](https://github.com/purerl/purerl)</li><li>For optimized JS, [`purs-backend-es`](https://github.com/aristanetworks/purescript-backend-optimizer/)</li><li>... etc.</li></ul> |
 | **Workspace** | indicates which **package(s)** using some common source of **dependencies** can be compiled to a language via the same **backend** tool. |
 
 `spago.yml` files can be used primarily in three different ways depending on whether the `workspace` and/or `package` field(s) are used:
