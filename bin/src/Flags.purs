@@ -1,230 +1,303 @@
 module Spago.Bin.Flags where
 
-import Spago.Prelude
-
-import ArgParse.Basic (ArgParser)
-import ArgParse.Basic as ArgParser
+import Data.Array as Array
+import Data.Function (flip)
+import Data.List as List
+import Data.Maybe (optional)
 import Data.Set.NonEmpty (NonEmptySet)
 import Data.Set.NonEmpty as NonEmptySet
+import Options.Applicative (Parser, argument, eitherReader, help, long, many, metavar, option, short, str, strArgument, strOption, switch, value)
 import Spago.Core.Config (ShowSourceCode(..))
 import Spago.Core.Config as Core
+import Spago.Prelude (Either(..), List, Maybe, ($), ($>), (<$), (<$>), (<>), (<|>))
 
-selectedPackage ∷ ArgParser (Maybe String)
+selectedPackage :: Parser (Maybe String)
 selectedPackage =
-  ArgParser.argument [ "--package", "-p" ]
-    "Select the local project to build"
-    # ArgParser.optional
+  optional $
+    strOption
+      ( long "package"
+          <> short 'p'
+          <> help "Select the local project to build"
+      )
 
-strict ∷ ArgParser (Maybe Boolean)
+strict :: Parser (Maybe Boolean)
 strict =
-  ArgParser.flag [ "--strict" ]
-    "Promotes project sources' warnings to errors"
-    $> Just true
-    # ArgParser.default Nothing
+  optional
+    $ switch
+        ( long "strict"
+            <> help "Promotes project sources' warnings to errors"
+        )
 
-censorBuildWarnings ∷ ArgParser (Maybe Core.CensorBuildWarnings)
+censorBuildWarnings ∷ Parser (Maybe Core.CensorBuildWarnings)
 censorBuildWarnings =
-  ArgParser.argument [ "--censor-build-warnings" ]
-    "Censor compiler warnings based on file's location: 'dependency', 'project', or 'all'"
-    # ArgParser.unformat "ARG"
-        ( case _ of
+  optional $
+    flip
+      option
+      ( long "censor-build-warnings"
+          <> help "Censor compiler warnings based on file's location: 'dependency', 'project', or 'all'"
+          <> metavar "ARG"
+      )
+      ( eitherReader
+          case _ of
             "all" -> Right Core.CensorAllWarnings
             "project" -> Right Core.CensorProjectWarnings
             "dependency" -> Right Core.CensorDependencyWarnings
             _ -> Left $ "Expected 'all', 'project', or 'dependency'"
-        )
-    # ArgParser.optional
+      )
 
-showSource ∷ ArgParser (Maybe ShowSourceCode)
+showSource ∷ Parser (Maybe ShowSourceCode)
 showSource =
-  ArgParser.flag
-    [ "--no-source" ]
-    "Disable original source code printing"
-    $> Just NoSourceCode
-    # ArgParser.default Nothing
+  optional
+    $ switch
+        ( long "no-source"
+            <> help "Disable original source code printing"
+        )
+    $>
+      NoSourceCode
 
-censorCodes :: ArgParser (Maybe (NonEmptySet String))
+censorCodes :: Parser (Maybe (NonEmptySet String))
 censorCodes =
-  ArgParser.argument [ "--censor-code" ]
-    "Censor a specific error code (e.g. `ShadowedName`)"
-    # ArgParser.many
-    <#> NonEmptySet.fromFoldable
+  NonEmptySet.fromFoldable
+    <$>
+      ( many
+          $ strOption
+              ( long "censor-code"
+                  <> metavar "CODE"
+                  <> help "Censor a specific error code (e.g. `ShadowedName`)"
+              )
+      )
 
-filterCodes :: ArgParser (Maybe (NonEmptySet String))
+filterCodes :: Parser (Maybe (NonEmptySet String))
 filterCodes =
-  ArgParser.argument [ "--filter-code" ]
-    "Only show a specific error code (e.g. `TypesDoNotUnify`)"
-    # ArgParser.many
-    <#> NonEmptySet.fromFoldable
+  NonEmptySet.fromFoldable
+    <$>
+      many
+        ( strOption
+            $ long "filter-code"
+            <> metavar "CODE"
+            <> help "Only show a specific error code (e.g. `TypesDoNotUnify`)"
+        )
 
-statVerbosity :: ArgParser (Maybe Core.StatVerbosity)
-statVerbosity = ArgParser.optional $ ArgParser.choose "StatVerbosity"
-  [ Core.VerboseStats <$ ArgParser.flag [ "--verbose-stats" ] "Show counts for each warning type"
-  , Core.NoStats <$ ArgParser.flag [ "--censor-stats" ] "Censor warning/error summary"
-  ]
+statVerbosity :: Parser (Maybe Core.StatVerbosity)
+statVerbosity =
+  optional
+    $ (Core.VerboseStats <$ switch (long "verbose-stats" <> help "Show counts for each warning type"))
+    <|>
+      (Core.NoStats <$ switch (long "censor-stats" <> help "Censor warning/error summary"))
 
-persistWarnings ∷ ArgParser (Maybe Boolean)
+persistWarnings ∷ Parser (Maybe Boolean)
 persistWarnings =
-  ArgParser.flag
-    [ "--persist-warnings" ]
-    "Persist the compiler warnings between multiple underlying `purs compile` calls"
-    $> Just true
-    # ArgParser.default Nothing
+  optional $
+    switch
+      ( long "persist-warnings"
+          <> help "Persist the compiler warnings between multiple underlying `purs compile` calls"
+      )
 
-jsonErrors ∷ ArgParser Boolean
+jsonErrors ∷ Parser Boolean
 jsonErrors =
-  ArgParser.flag [ "--json-errors" ]
-    "Output compiler warnings/errors as JSON"
-    # ArgParser.boolean
+  switch
+    ( long "json-errors"
+        <> help "Output compiler warnings/errors as JSON"
+    )
 
-minify ∷ ArgParser Boolean
+minify ∷ Parser Boolean
 minify =
-  ArgParser.flag [ "--minify" ]
-    "Minify the bundle"
-    # ArgParser.boolean
+  switch
+    ( long "minify"
+        <> help "Minify the bundle"
+    )
 
-entrypoint ∷ ArgParser (Maybe String)
+entrypoint ∷ Parser (Maybe String)
 entrypoint =
-  ArgParser.argument [ "--module" ]
-    "The module to bundle as the entrypoint"
-    # ArgParser.optional
+  optional
+    $ strOption
+        ( long "module"
+            <> help "The module to bundle as the entrypoint"
+        )
 
-bundleType ∷ ArgParser (Maybe String)
+bundleType ∷ Parser (Maybe String)
 bundleType =
-  ArgParser.argument [ "--bundle-type" ]
-    "The type of the module produced. 'app' will call main, 'module' will just export the contents."
-    # ArgParser.optional
+  optional
+    $ strOption
+        ( long "bundle-type"
+            <> help "The type of the module produced. 'app' will call main, 'module' will just export the contents."
+        )
 
-outfile ∷ ArgParser (Maybe String)
+outfile ∷ Parser (Maybe String)
 outfile =
-  ArgParser.argument [ "--outfile" ]
-    "Destination path for the bundle"
-    # ArgParser.optional
+  optional
+    $ strOption
+        ( long "outfile"
+            <> help "Destination path for the bundle"
+        )
 
-platform ∷ ArgParser (Maybe String)
+-- TODO make an ADT for node and browser
+platform ∷ Parser (Maybe String)
 platform =
-  ArgParser.argument [ "--platform" ]
-    "The bundle platform. 'node' or 'browser'"
-    # ArgParser.optional
+  optional
+    $ option
+        ( eitherReader
+            case _ of
+              "node" -> Right "node"
+              "browser" -> Right "browser"
+              _ -> Left "Expected \"node\" or \"browser\""
+        )
+        ( long "platform"
+            <> help "The bundle platform. 'node' or 'browser'"
+        )
 
-output :: ArgParser (Maybe String)
+output ∷ Parser (Maybe String)
 output =
-  ArgParser.argument [ "--output" ]
-    "The output directory for compiled files (default: \"output\")"
-    # ArgParser.optional
+  optional
+    $ strOption
+        ( long "output"
+            <> help "The output directory for compiled files"
+            <> metavar "DIR"
+            <> value "output"
+        )
 
-quiet ∷ ArgParser Boolean
+quiet ∷ Parser Boolean
 quiet =
-  ArgParser.flag [ "--quiet", "-q" ]
-    "Suppress all spago logging"
-    # ArgParser.boolean
-    # ArgParser.default false
+  switch
+    ( long "quiet"
+        <> short 'q'
+        <> help "Suppress all spago logging"
+    )
 
-verbose ∷ ArgParser Boolean
+verbose ∷ Parser Boolean
 verbose =
-  ArgParser.flag [ "--verbose", "-v" ]
-    "Enable additional debug logging, e.g. printing `purs` commands"
-    # ArgParser.boolean
-    # ArgParser.default false
+  switch
+    ( long "verbose"
+        <> short 'v'
+        <> help "Enable additional debug logging, e.g. printing `purs` commands"
+    )
 
-noColor ∷ ArgParser Boolean
+noColor ∷ Parser Boolean
 noColor =
-  ArgParser.flag [ "--no-color", "--monochrome" ]
-    "Force logging without ANSI color escape sequences"
-    # ArgParser.boolean
-    # ArgParser.default false
+  switch
+    ( long "no-color"
+        <> long "monochrome"
+        <> help "Force logging without ANSI color escape sequences"
+    )
 
-json ∷ ArgParser Boolean
+json ∷ Parser Boolean
 json =
-  ArgParser.flag [ "--json" ]
-    "Format the output as JSON"
-    # ArgParser.boolean
-    # ArgParser.default false
+  switch
+    ( long "json"
+        <> help "Format the output as JSON"
+    )
 
-transitive ∷ ArgParser Boolean
+transitive ∷ Parser Boolean
 transitive =
-  ArgParser.flag [ "--transitive" ]
-    "Include transitive dependencies"
-    # ArgParser.boolean
-    # ArgParser.default false
+  switch
+    ( long "transitive"
+        <> help "Include transitive dependencies"
+    )
 
-pedanticPackages ∷ ArgParser Boolean
+pedanticPackages ∷ Parser Boolean
 pedanticPackages =
-  ArgParser.flag [ "--pedantic-packages" ]
-    "Check for redundant or missing packages in the config and fail the build if any"
-    # ArgParser.boolean
-    # ArgParser.default false
+  switch
+    ( long "pedantic-packages"
+        <> help "Check for redundant or missing packages in the config and fail the build if any"
+    )
 
-pursArgs ∷ ArgParser (List String)
+pursArgs :: Parser (List String)
 pursArgs =
-  ArgParser.argument [ "--purs-args" ]
-    "Arguments to pass to purs compile. Wrap in quotes. `--output` and `--json-errors` must be passed to Spago directly."
-    # ArgParser.many
+  List.fromFoldable
+    <$>
+      ( many
+          $ strOption
+              ( long "purs-args"
+                  <> metavar "ARGS"
+                  <> help "Arguments to pass to purs compile. Wrap in quotes. `--output` and `--json-errors` must be passed to Spago directly."
+              )
+      )
 
-execArgs :: ArgParser (Maybe (Array String))
+execArgs :: Parser (Maybe (Array String))
 execArgs =
-  ArgParser.rest
-    "Arguments to pass to the running script"
-    # ArgParser.optional
+  optional
+    $ Array.fromFoldable
+    <$> many
+      ( strArgument
+          ( help "Arguments to pass to the running script"
+              <> metavar "ARGS"
+          )
+      )
 
-backendArgs :: ArgParser (List String)
+backendArgs :: Parser (List String)
 backendArgs =
-  ArgParser.argument [ "--backend-args" ]
-    "Arguments to pass to the backend compile step. Wrap in quotes."
-    # ArgParser.many
+  many $
+    strOption
+      ( long "backend-args"
+          <> help "Arguments to pass to the running script"
+          <> metavar "ARGS"
+      )
 
-moduleName :: ArgParser (Maybe String)
+moduleName ∷ Parser (Maybe String)
 moduleName =
-  ArgParser.argument [ "--main", "-m" ]
-    "Module to be used as the application's entry point"
-    # ArgParser.optional
+  optional
+    $ strOption
+        ( long "main"
+            <> short 'm'
+            <> help "Module to be used as the application's entry point"
+        )
 
-testDeps :: ArgParser Boolean
+testDeps ∷ Parser Boolean
 testDeps =
-  ArgParser.flag [ "--test-deps" ]
-    "Act on the test config rather than the main one"
-    # ArgParser.boolean
-    # ArgParser.default false
+  switch
+    ( long "test-deps"
+        <> help "Act on the test config rather than the main one"
+    )
 
-useSolver :: ArgParser Boolean
+useSolver :: Parser Boolean
 useSolver =
-  ArgParser.flag [ "--use-solver" ]
-    "Use the solver instead of package sets"
-    # ArgParser.boolean
-    # ArgParser.default false
+  switch
+    ( long "use-solver"
+        <> help "Use the solver instead of package sets"
+    )
 
-packages ∷ ArgParser (List String)
+packages ∷ Parser (List String)
 packages =
-  ArgParser.anyNotFlag "PACKAGE"
-    "Package name to add as dependency"
-    # ArgParser.many
+  many $
+    strOption
+      ( metavar "PACKAGE"
+          <> help "Package name to add as dependency"
+      )
 
-package :: ArgParser String
+package :: Parser String
 package =
-  ArgParser.anyNotFlag "PACKAGE"
-    "Package name"
+  strOption
+    ( metavar "PACKAGE"
+        <> help "Package name"
+    )
 
-maybeVersion :: ArgParser (Maybe String)
+maybeVersion :: Parser (Maybe String)
 maybeVersion =
-  ArgParser.anyNotFlag "VERSION"
-    "Package version"
-    # ArgParser.optional
+  optional $
+    strOption
+      ( metavar "VERSION"
+          <> help "Package version"
+      )
 
-maybeSetVersion :: ArgParser (Maybe String)
+maybeSetVersion :: Parser (Maybe String)
 maybeSetVersion =
-  ArgParser.argument [ "--package-set" ]
-    "Optional package set version to be used instead of the latest one"
-    # ArgParser.optional
+  optional $
+    strOption
+      ( long "package-set"
+          <> help "Optional package set version to be used instead of the latest one"
+      )
 
-maybePackageName :: ArgParser (Maybe String)
+maybePackageName :: Parser (Maybe String)
 maybePackageName =
-  ArgParser.argument [ "--name" ]
-    "Optional package name to be used for the new project"
-    # ArgParser.optional
+  optional $
+    strOption
+      ( long "name"
+          <> help "Optional package name to be used for the new project"
+      )
 
-ensureRanges :: ArgParser Boolean
+ensureRanges ∷ Parser Boolean
 ensureRanges =
-  ArgParser.flag [ "--ensure-ranges" ]
-    "Add version bounds for all the dependencies of the selected project"
-    # ArgParser.boolean
-    # ArgParser.default false
+  switch
+    ( long "ensure-ranges"
+        <> help "Add version bounds for all the dependencies of the selected project"
+    )

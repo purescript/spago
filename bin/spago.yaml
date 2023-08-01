@@ -5,7 +5,7 @@ package:
     license: BSD-3-Clause
   dependencies:
     - aff
-    - argparse-basic
+    - optparse
     - arrays
     - codec-argonaut
     - console
