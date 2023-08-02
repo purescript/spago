@@ -90,20 +90,10 @@ run opts = do
             Just p -> Just $ Paths.mkLocalCachesPersistentWarningsFile $ PackageName.print p.package.name
             Nothing -> Just Paths.localCachesPersistedWarningsEntireWorkspace
       }
-    buildBackend globs = do
+    buildBackend = do
       case workspace.backend of
-        Nothing ->
-          Psa.psaCompile globs (addOutputArgs opts.pursArgs) psaArgs psaOptions
+        Nothing -> pure unit
         Just backend -> do
-          when (isJust $ Cmd.findFlag { flags: [ "-g", "--codegen" ], args: opts.pursArgs }) do
-            die
-              [ "Can't pass `--codegen` option to build when using a backend"
-              , "Hint: No need to pass `--codegen corefn` explicitly when using the `backend` option."
-              , "Remove the argument to solve the error"
-              ]
-          let args = (addOutputArgs opts.pursArgs) <> [ "--codegen", "corefn" ]
-          Psa.psaCompile globs args psaArgs psaOptions
-
           logInfo $ "Compiling with backend \"" <> backend.cmd <> "\""
           logDebug $ "Running command `" <> backend.cmd <> "`"
           let
@@ -135,7 +125,17 @@ run opts = do
           Just p -> [ p ]
           Nothing -> Config.getWorkspacePackages workspace.packageSet
       }
-  buildBackend globs
+
+  when (isJust $ Cmd.findFlag { flags: [ "-g", "--codegen" ], args: opts.pursArgs }) do
+    die
+      [ "Can't pass `--codegen` option to build when using a backend"
+      , "Hint: No need to pass `--codegen corefn` explicitly when using the `backend` option."
+      , "Remove the argument to solve the error"
+      ]
+  let args = (addOutputArgs opts.pursArgs) <> [ "--codegen", "corefn,docs,js,sourcemaps" ]
+  Psa.psaCompile globs args psaArgs psaOptions
+
+  buildBackend
 
   when workspace.buildOptions.pedanticPackages do
     logInfo $ "Looking for unused and undeclared transitive dependencies..."

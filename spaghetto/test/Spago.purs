@@ -8,6 +8,7 @@ import Data.Newtype (un)
 import Effect (Effect)
 import Effect.Aff (Milliseconds(..))
 import Effect.Aff as Aff
+import Test.Spago.Build as Build
 import Test.Spago.Init as Init
 import Test.Spago.Install as Install
 import Test.Spago.Lock as Lock
@@ -24,16 +25,17 @@ main :: Effect Unit
 main = Aff.launchAff_ $ void $ un Identity $ Spec.Runner.runSpecT testConfig [ Spec.Reporter.consoleReporter ] do
   Spec.describe "spago" do
     -- TODO:
-    -- Build.spec
     -- Upgrade set?
     -- Run.spec
     -- Script?
     -- Bundle.spec
     -- Ls.spec
 
-    Lock.spec
     Init.spec
-    Install.spec
     Sources.spec
+    Install.spec
+    Build.spec
     Test.spec
+    Spec.describe "miscellaneous" do
+      Lock.spec
 
