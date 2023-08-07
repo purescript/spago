@@ -21,15 +21,14 @@ import Registry.API.V1 as V1
 import Registry.Internal.Format as Internal.Format
 import Registry.Internal.Path as Internal.Path
 import Registry.Location as Location
-import Registry.ManifestIndex as ManifestIndex
 import Registry.Metadata as Metadata
 import Registry.Operation as Operation
 import Registry.Operation.Validation as Operation.Validation
 import Registry.PackageName as PackageName
-import Registry.Solver as Registry.Solver
 import Registry.Version as Version
 import Routing.Duplex as Duplex
 import Spago.Command.Build as Build
+import Spago.Command.Fetch as Fetch
 import Spago.Config (Package(..), Workspace, WorkspacePackage)
 import Spago.Config as Config
 import Spago.Config as Core
@@ -52,7 +51,6 @@ type PublishData =
 type PublishEnv a =
   { getManifestFromIndex :: PackageName -> Version -> Spago (LogEnv ()) (Maybe Manifest)
   , getMetadata :: PackageName -> Spago (LogEnv ()) (Either String Metadata)
-  , getCachedIndex :: Effect ManifestIndex
   , workspace :: Workspace
   , logOptions :: LogOptions
   , git :: Git
@@ -91,7 +89,6 @@ publish _args = do
     , dependencies
     , logOptions
     , getMetadata
-    , getCachedIndex
     } <- ask
   let (selected :: WorkspacePackage) = selected' { hasTests = false }
   let name = selected.package.name
@@ -104,7 +101,6 @@ publish _args = do
     -- We explicitly list the env fields because `Record.merge` didn't compile.
     { getManifestFromIndex: env.getManifestFromIndex
     , getMetadata: env.getMetadata
-    , getCachedIndex: env.getCachedIndex
     , workspace: env.workspace { selected = Just selected }
     , logOptions: env.logOptions
     , git: env.git
@@ -150,10 +146,7 @@ publish _args = do
       ]
 
   -- Solve with these ranges to get a build plan
-  cachedIndex <- liftEffect $ getCachedIndex
-  let
-    dependencyIndex = map (map (unwrap >>> _.dependencies)) $ ManifestIndex.toMap cachedIndex
-    maybeBuildPlan = Registry.Solver.solve dependencyIndex depsRanges
+  buildPlan <- Fetch.getTransitiveDepsFromRegistry depsRanges Map.empty
 
   case selected.package.publish of
     Nothing -> addError $ toDoc "Did not find publishing config: add a valid one in package.publish" -- TODO link to docs
@@ -210,74 +203,69 @@ publish _args = do
         else do
           -- All dependencies come from the registry so we can trust the build plan.
           -- We can then try to build with the dependencies from there.
-          case maybeBuildPlan of
-            Left errs -> addError $ toDoc
-              [ toDoc "Could not solve the package dependencies, errors:"
-              , indent $ toDoc $ Array.fromFoldable $ map Registry.Solver.printSolverError errs
-              ]
-            Right (buildPlan :: Map PackageName Version) -> do
-              -- Get the current ref or error out if the git tree is dirty
-              let expectedTag = "v" <> Version.print publishConfig.version
-              Git.getCleanTag Nothing >>= case _ of
-                Left _err -> do
-                  addError $ toDoc
-                    [ "The git tree is not clean, or you haven't checked out the tag you want to publish."
-                    , "Please commit or stash your changes, and checkout the tag you want to publish."
-                    , "To create the tag, you can run:"
-                    , ""
-                    , "  git tag " <> expectedTag
+
+          -- Get the current ref or error out if the git tree is dirty
+          let expectedTag = "v" <> Version.print publishConfig.version
+          Git.getCleanTag Nothing >>= case _ of
+            Left _err -> do
+              addError $ toDoc
+                [ "The git tree is not clean, or you haven't checked out the tag you want to publish."
+                , "Please commit or stash your changes, and checkout the tag you want to publish."
+                , "To create the tag, you can run:"
+                , ""
+                , "  git tag " <> expectedTag
+                ]
+            Right tag -> do
+              -- Check that the tag matches the version in the config
+              case (tag /= expectedTag) of
+                true -> addError $ toDoc
+                  [ "The tag (" <> tag <> ") does not match the expected tag (" <> expectedTag <> ")."
+                  , "Please make sure to tag the correct version before publishing."
+                  ]
+                false -> Git.pushTag Nothing publishConfig.version >>= case _ of
+                  Left err -> addError $ toDoc
+                    [ err
+                    , toDoc "You can try to push the tag manually by running:"
+                    , toDoc ""
+                    , toDoc $ "  git push origin " <> expectedTag
                     ]
-                Right tag -> do
-                  -- Check that the tag matches the version in the config
-                  case (tag /= expectedTag) of
-                    true -> addError $ toDoc
-                      [ "The tag (" <> tag <> ") does not match the expected tag (" <> expectedTag <> ")."
-                      , "Please make sure to tag the correct version before publishing."
+                  Right _ -> pure unit
+
+              Internal.Path.readPursFiles (Path.concat [ selected.path, "src" ]) >>= case _ of
+                Nothing -> addError $ toDoc
+                  [ "This package has no PureScript files in its `src` directory. "
+                  , "All package sources must be in the `src` directory, with any additional "
+                  , "sources indicated by the `files` key in your manifest."
+                  ]
+                Just files -> do
+                  Operation.Validation.validatePursModules files >>= case _ of
+                    Left formattedError -> addError $ toDoc
+                      [ "This package has either malformed or disallowed PureScript module names "
+                      , "in its `src` directory. All package sources must be in the `src` directory, "
+                      , "with any additional sources indicated by the `files` key in your manifest."
+                      , formattedError
                       ]
-                    false -> Git.pushTag Nothing publishConfig.version >>= case _ of
-                      Left err -> addError $ toDoc
-                        [ err
-                        , toDoc "You can try to push the tag manually by running:"
-                        , toDoc ""
-                        , toDoc $ "  git push origin " <> expectedTag
-                        ]
-                      Right _ -> pure unit
+                    Right _ -> pure unit
 
-                  Internal.Path.readPursFiles (Path.concat [ selected.path, "src" ]) >>= case _ of
-                    Nothing -> addError $ toDoc
-                      [ "This package has no PureScript files in its `src` directory. "
-                      , "All package sources must be in the `src` directory, with any additional "
-                      , "sources indicated by the `files` key in your manifest."
-                      ]
-                    Just files -> do
-                      Operation.Validation.validatePursModules files >>= case _ of
-                        Left formattedError -> addError $ toDoc
-                          [ "This package has either malformed or disallowed PureScript module names "
-                          , "in its `src` directory. All package sources must be in the `src` directory, "
-                          , "with any additional sources indicated by the `files` key in your manifest."
-                          , formattedError
-                          ]
-                        Right _ -> pure unit
+              when (Operation.Validation.isMetadataPackage (Manifest manifest)) do
+                addError $ toDoc "The `metadata` package cannot be uploaded to the registry because it is a protected package."
 
-                  when (Operation.Validation.isMetadataPackage (Manifest manifest)) do
-                    addError $ toDoc "The `metadata` package cannot be uploaded to the registry because it is a protected package."
+              for_ (Operation.Validation.isNotPublished (Manifest manifest) (Metadata metadata)) \info -> addError $ toDoc
+                [ "You tried to upload a version that already exists: " <> Version.print manifest.version
+                , "Its metadata is:"
+                , "```json"
+                , printJson Metadata.publishedMetadataCodec info
+                , "```"
+                ]
+              for_ (Operation.Validation.isNotUnpublished (Manifest manifest) (Metadata metadata)) \info -> addError $ toDoc
+                [ "You tried to upload a version that has been unpublished: " <> Version.print manifest.version
+                , ""
+                , "```json"
+                , printJson Metadata.unpublishedMetadataCodec info
+                , "```"
+                ]
 
-                  for_ (Operation.Validation.isNotPublished (Manifest manifest) (Metadata metadata)) \info -> addError $ toDoc
-                    [ "You tried to upload a version that already exists: " <> Version.print manifest.version
-                    , "Its metadata is:"
-                    , "```json"
-                    , printJson Metadata.publishedMetadataCodec info
-                    , "```"
-                    ]
-                  for_ (Operation.Validation.isNotUnpublished (Manifest manifest) (Metadata metadata)) \info -> addError $ toDoc
-                    [ "You tried to upload a version that has been unpublished: " <> Version.print manifest.version
-                    , ""
-                    , "```json"
-                    , printJson Metadata.unpublishedMetadataCodec info
-                    , "```"
-                    ]
-
-                  setResult { name, location: Just location, ref: tag, compiler, resolutions: buildPlan }
+              setResult ({ name, location: Just location, ref: tag, compiler, resolutions: buildPlan } :: PublishData)
 
   result <- liftEffect $ Ref.read resultRef
   case result of
@@ -302,7 +290,6 @@ publish _args = do
         -- We explicitly list the env fields because `Record.merge` didn't compile.
         { getManifestFromIndex: env.getManifestFromIndex
         , getMetadata: env.getMetadata
-        , getCachedIndex: env.getCachedIndex
         , workspace: env.workspace { selected = Just selected }
         , logOptions: env.logOptions
         , git: env.git

@@ -12,7 +12,7 @@ import Record as Record
 import Registry.Internal.Codec (packageMap)
 import Registry.PackageName as PackageName
 import Registry.Version as Version
-import Spago.Config (Package(..), PackageSet, Workspace, WorkspacePackage)
+import Spago.Config (Package(..), PackageSet(..), Workspace, WorkspacePackage, PackageMap)
 import Spago.Config as Config
 import Type.Proxy (Proxy(..))
 
@@ -32,13 +32,13 @@ type LsDepsOpts =
   }
 
 type LsSetEnv =
-  { dependencies :: PackageSet
+  { dependencies :: PackageMap
   , logOptions :: LogOptions
   , workspace :: Workspace
   }
 
 type LsEnv =
-  { dependencies :: PackageSet
+  { dependencies :: PackageMap
   , logOptions :: LogOptions
   , workspace :: Workspace
   , selected :: WorkspacePackage
@@ -48,10 +48,13 @@ listPackageSet :: LsPackagesArgs -> Spago LsSetEnv Unit
 listPackageSet { json } = do
   logDebug "Running `listPackageSet`"
   { workspace } <- ask
-  let packages = Map.toUnfoldable workspace.packageSet
-  case json of
-    true -> formatPackagesJson packages
-    false -> formatPackagesTable packages
+  case workspace.packageSet of
+    Registry _extraPackages -> die "No package set in the project"
+    PackageSet packageSet -> do
+      let packages = Map.toUnfoldable packageSet
+      case json of
+        true -> formatPackagesJson packages
+        false -> formatPackagesTable packages
 
 listPackages :: LsDepsOpts -> Spago LsEnv Unit
 listPackages { transitive, json } = do

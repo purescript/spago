@@ -1,10 +1,11 @@
 module Spago.Command.Fetch
-  ( run
-  , getWorkspacePackageDeps
-  , getTransitiveDeps
-  , FetchEnv
+  ( FetchEnv
   , FetchEnvRow
   , FetchOpts
+  , getWorkspacePackageDeps
+  , getTransitiveDeps
+  , getTransitiveDepsFromRegistry
+  , run
   ) where
 
 import Spago.Prelude
@@ -24,14 +25,16 @@ import Effect.Ref as Ref
 import Node.Buffer as Buffer
 import Node.Encoding as Encoding
 import Node.Path as Path
+import Registry.Internal.Codec as Internal.Codec
 import Registry.Metadata as Metadata
 import Registry.PackageName as PackageName
 import Registry.Range as Range
 import Registry.Sha256 as Sha256
+import Registry.Solver as Registry.Solver
 import Registry.Version as Registry.Version
 import Registry.Version as Version
 import Spago.Command.Repl as Repl
-import Spago.Config (Dependencies(..), GitPackage, LockfileSettings(..), Package(..), PackageSet, Workspace, WorkspacePackage)
+import Spago.Config (Dependencies(..), GitPackage, LockfileSettings(..), Package(..), PackageMap, PackageSet(..), Workspace, WorkspacePackage)
 import Spago.Config as Config
 import Spago.FS as FS
 import Spago.Git as Git
@@ -43,7 +46,6 @@ import Spago.Tar as Tar
 type FetchEnvRow a =
   ( getManifestFromIndex :: PackageName -> Version -> Spago (LogEnv ()) (Maybe Manifest)
   , getMetadata :: PackageName -> Spago (LogEnv ()) (Either String Metadata)
-  , getCachedIndex :: Effect ManifestIndex
   , workspace :: Workspace
   , logOptions :: LogOptions
   , git :: Git.Git
@@ -57,23 +59,24 @@ type FetchOpts =
   , ensureRanges :: Boolean
   }
 
-run :: forall a. FetchOpts -> Spago (FetchEnv a) PackageSet
+run :: forall a. FetchOpts -> Spago (FetchEnv a) PackageMap
 run { packages, ensureRanges } = do
   logDebug $ "Requested to install these packages: " <> printJson (CA.array PackageName.codec) packages
 
-  { getMetadata, workspace, logOptions } <- ask
+  { getMetadata, logOptions, workspace } <- ask
 
   -- lookup the dependencies in the package set, so we get their version numbers
   let
-    (Dependencies deps) = case workspace.selected of
+    deps = case workspace.selected of
       Just selected -> getWorkspacePackageDeps selected
       Nothing ->
         -- get all the dependencies of all the workspace packages if none was selected
         foldMap getWorkspacePackageDeps (Config.getWorkspacePackages workspace.packageSet)
 
   -- here get transitive packages
-  -- TODO: here we are throwing away the ranges from the config, but we should care about them
-  transitivePackages <- getTransitiveDeps $ (Set.toUnfoldable $ Map.keys deps) <> packages
+  transitivePackages <- getTransitiveDeps
+    $ deps
+    <> Dependencies (Map.fromFoldable $ map (_ /\ Nothing) packages)
 
   -- write to the config file if we are adding new packages
   let
@@ -85,7 +88,7 @@ run { packages, ensureRanges } = do
     liftEffect $ Config.addPackagesToConfig yamlDoc packages
     liftAff $ FS.writeYamlDocFile configPath yamlDoc
 
-  -- TODO: add ranges
+  -- FIXME: add ranges
   -- if the flag is selected, we kick off the process of adding ranges to the config
   when ensureRanges do
     logInfo $ "Adding ranges to dependencies to the config in " <> configPath
@@ -150,7 +153,8 @@ run { packages, ensureRanges } = do
   logInfo "Downloading dependencies..."
 
   -- the repl needs a support package, so we fetch it here as a sidecar
-  let transitivePackages' = Map.union transitivePackages (Repl.supportPackage workspace.packageSet)
+  supportPackage <- Repl.supportPackage workspace.packageSet
+  let transitivePackages' = Map.union transitivePackages supportPackage
 
   parallelise $ (flip map) (Map.toUnfoldable transitivePackages' :: Array (Tuple PackageName Package)) \(Tuple name package) -> do
     let localPackageLocation = Config.getPackageLocation name package
@@ -285,11 +289,50 @@ type TransitiveDepsResult =
       }
   }
 
--- | Return the transitive dependencies of a list of packages
-getTransitiveDeps :: forall a. Array PackageName -> Spago (FetchEnv a) (Map PackageName Package)
-getTransitiveDeps deps = do
-  logDebug "Getting transitive deps"
+getTransitiveDeps :: forall a. Dependencies -> Spago (FetchEnv a) PackageMap
+getTransitiveDeps (Dependencies deps) = do
+  let depsRanges = map (fromMaybe Config.widestRange) deps
   { workspace } <- ask
+  case workspace.packageSet of
+    Registry extraPackages -> do
+      plan <- getTransitiveDepsFromRegistry depsRanges extraPackages
+      logDebug $ "Got a plan from the Solver: " <> printJson (Internal.Codec.packageMap Version.codec) plan
+      pure (map RegistryVersion plan)
+    PackageSet set -> getTransitiveDepsFromPackageSet set (Array.fromFoldable $ Map.keys depsRanges)
+
+getTransitiveDepsFromRegistry :: forall a. Map PackageName Range -> PackageMap -> Spago (FetchEnv a) (Map PackageName Version)
+getTransitiveDepsFromRegistry depsRanges extraPackages = do
+  { logOptions, getMetadata, getManifestFromIndex } <- ask
+  let
+    loader :: PackageName -> Spago (FetchEnv a) (Map Version (Map PackageName Range))
+    loader packageName = do
+      -- First look up in the extra packages, as they are the workspace ones, and overrides
+      case Map.lookup packageName extraPackages of
+        Just p -> map (Map.singleton (getVersionFromPackage p) <<< fromMaybe Map.empty) $ getPackageDependencies packageName p
+        Nothing -> do
+          maybeMetadata <- runSpago { logOptions } (getMetadata packageName)
+          let
+            versions = case maybeMetadata of
+              Right (Metadata metadata) -> Array.fromFoldable $ Map.keys metadata.published
+              Left _err -> []
+          map (Map.fromFoldable :: Array _ -> Map _ _) $ for versions \v -> do
+            maybeManifest <- runSpago { logOptions } $ getManifestFromIndex packageName v
+            let deps = fromMaybe Map.empty $ map (_.dependencies <<< unwrap) maybeManifest
+            pure (Tuple v deps)
+  maybePlan <- Registry.Solver.loadAndSolve loader depsRanges
+  case maybePlan of
+    Left errs -> die
+      [ toDoc "Could not solve the package dependencies, errors:"
+      , indent $ toDoc $ Array.fromFoldable $ map Registry.Solver.printSolverError errs
+      ]
+    Right (buildPlan :: Map PackageName Version) -> do
+      pure buildPlan
+
+-- | Return the transitive dependencies of a list of packages
+getTransitiveDepsFromPackageSet :: forall a. PackageMap -> Array PackageName -> Spago (FetchEnv a) PackageMap
+getTransitiveDepsFromPackageSet packageSet deps = do
+  logDebug "Getting transitive deps"
+  -- { workspace } <- ask
   packageDependenciesCache <- liftEffect $ Ref.new Map.empty
   let
     memoisedGetPackageDependencies :: PackageName -> Package -> Spago (FetchEnv a) (Maybe (Map PackageName Range))
@@ -327,7 +370,7 @@ getTransitiveDeps deps = do
           Nothing ->
             -- First look for the package in the set to get a version number out,
             -- then use that version to look it up in the index and get the dependencies
-            case Map.lookup dep workspace.packageSet of
+            case Map.lookup dep packageSet of
               Nothing -> pure (init { errors { notInPackageSet = Set.singleton dep } })
               Just package -> do
                 maybeDeps <- State.lift $ memoisedGetPackageDependencies dep package
@@ -336,7 +379,6 @@ getTransitiveDeps deps = do
                   Just dependenciesMap -> do
                     -- recur here, as we need to get the transitive tree, not just the first level
                     { packages: childDeps, errors } <-
-                      -- TODO: we are just ignoring the ranges for now, but we should use them for solving if we don't get a package set
                       for (Map.toUnfoldable dependenciesMap :: Array (Tuple PackageName Range)) (\(Tuple d _) -> go (Set.insert dep seen) d)
                         >>= (pure <<< foldl mergeResults init)
                     let allDeps = Map.insert dep package childDeps
@@ -361,3 +403,8 @@ getRangeFromPackage :: Package -> Range
 getRangeFromPackage = case _ of
   RegistryVersion v -> Range.caret v
   _ -> Config.widestRange
+
+getVersionFromPackage :: Package -> Version
+getVersionFromPackage = case _ of
+  RegistryVersion v -> v
+  _ -> unsafeFromRight $ Version.parse "0.0.0"

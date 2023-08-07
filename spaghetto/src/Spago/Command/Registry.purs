@@ -17,7 +17,6 @@ import Spago.Paths as Paths
 type RegistryEnv a =
   { getManifestFromIndex :: PackageName -> Version -> Spago (LogEnv ()) (Maybe Manifest)
   , getMetadata :: PackageName -> Spago (LogEnv ()) (Either String Metadata)
-  , getCachedIndex :: Effect ManifestIndex
   , logOptions :: LogOptions
   , git :: Git.Git
   | a

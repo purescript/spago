@@ -2,7 +2,8 @@ module Spago.Config
   ( BuildOptions
   , LockfileSettings(..)
   , Package(..)
-  , PackageSet
+  , PackageSet(..)
+  , PackageMap
   , WithTestGlobs(..)
   , Workspace
   , WorkspacePackage
@@ -124,7 +125,11 @@ remotePackageSetCodec = Profunctor.wrapIso RemotePackageSet $ CAR.object "Packag
 derive instance Newtype RemotePackageSet _
 derive newtype instance Eq RemotePackageSet
 
-type PackageSet = Map PackageName Package
+type PackageMap = Map PackageName Package
+
+data PackageSet
+  = PackageSet PackageMap
+  | Registry PackageMap
 
 type WorkspacePackage =
   { path :: FilePath
@@ -249,9 +254,13 @@ readWorkspace maybeSelectedPackage = do
       Just p -> pure (Just p)
 
   -- Read in the package database
-  { compiler: packageSetCompiler, remotePackageSet } <- case workspace.package_set of
+  { compatibleCompiler, remotePackageSet } <- case workspace.package_set of
     Nothing -> do
-      die $ "Registry solver is not supported yet - please specify a package set"
+      logDebug "Did not find a package set in your config, using Registry solver"
+      pure
+        { compatibleCompiler: Core.widestRange
+        , remotePackageSet: Nothing
+        }
     Just (Core.SetFromRegistry { registry: v }) -> do
       logDebug "Reading the package set from the Registry repo..."
       let packageSetPath = Path.concat [ Paths.registryPath, "package-sets", Version.print v <> ".json" ]
@@ -260,8 +269,8 @@ readWorkspace maybeSelectedPackage = do
         Right (RemotePackageSet registryPackageSet) -> do
           logInfo "Read the package set from the registry"
           pure
-            { compiler: registryPackageSet.compiler
-            , remotePackageSet: registryPackageSet.packages
+            { compatibleCompiler: Range.caret registryPackageSet.compiler
+            , remotePackageSet: Just registryPackageSet.packages
             }
     Just (Core.SetFromUrl { url: rawUrl, hash: maybeHash }) -> do
       -- If there is a hash then we look up in the CAS, if not we fetch stuff, compute a hash and store it there
@@ -305,9 +314,10 @@ readWorkspace maybeSelectedPackage = do
       logDebug $ "Package set hash: " <> Sha256.print newHash
       liftEffect $ updatePackageSetHashInConfig workspaceDoc newHash
       liftAff $ FS.writeYamlDocFile "spago.yaml" workspaceDoc
-      pure result
-
-  let compatibleCompiler = Range.caret packageSetCompiler
+      pure
+        { compatibleCompiler: Range.caret result.compiler
+        , remotePackageSet: Just result.remotePackageSet
+        }
 
   -- Mix in the package set (a) the workspace packages, and (b) the extra_packages
   -- Note: if there are duplicate packages we pick the "most local ones first",
@@ -322,9 +332,11 @@ readWorkspace maybeSelectedPackage = do
           (map fromExtraPackage (fromMaybe Map.empty workspace.extra_packages))
 
       in
-        Map.union
-          overrides
-          (map fromRemotePackage remotePackageSet)
+        case remotePackageSet of
+          Nothing -> Registry overrides
+          Just set -> PackageSet $ Map.union
+            overrides
+            (map fromRemotePackage set)
 
   case maybeSelected of
     Just selected -> do
@@ -393,7 +405,9 @@ testGlob :: String
 testGlob = "test/**/*.purs"
 
 getWorkspacePackages :: PackageSet -> Array WorkspacePackage
-getWorkspacePackages = Array.mapMaybe extractWorkspacePackage <<< Map.toUnfoldable
+getWorkspacePackages = Array.mapMaybe extractWorkspacePackage <<< Map.toUnfoldable <<< case _ of
+  PackageSet m -> m
+  Registry m -> m
   where
   extractWorkspacePackage = case _ of
     Tuple _ (WorkspacePackage p) -> Just p

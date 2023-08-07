@@ -544,7 +544,8 @@ main =
               , ensureRanges: false
               }
             dependencies <- runSpago env (Fetch.run fetchOpts)
-            replEnv <- runSpago env (mkReplEnv args (Map.union dependencies $ Repl.supportPackage env.workspace.packageSet))
+            supportPackages <- runSpago env (Repl.supportPackage env.workspace.packageSet)
+            replEnv <- runSpago env (mkReplEnv args (Map.union dependencies supportPackages))
             void $ runSpago replEnv Repl.run
 
           Bundle args@{ selectedPackage, ensureRanges } -> do
@@ -857,9 +858,6 @@ mkRegistryEnv = do
   -- and we don't have to read it all together
   indexRef <- liftEffect $ Ref.new (Map.empty :: Map PackageName (Map Version Manifest))
   let
-    getCachedIndex :: Effect ManifestIndex
-    getCachedIndex = map unsafeCoerce $ Ref.read indexRef
-
     getManifestFromIndex :: PackageName -> Version -> Spago (LogEnv ()) (Maybe Manifest)
     getManifestFromIndex name version = do
       indexMap <- liftEffect (Ref.read indexRef)
@@ -917,7 +915,6 @@ mkRegistryEnv = do
 
   pure
     { getManifestFromIndex
-    , getCachedIndex
     , getMetadata
     , logOptions
     , git
