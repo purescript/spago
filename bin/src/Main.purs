@@ -189,41 +189,41 @@ data Command a
   | LsPackages LsPackagesArgs
   | Publish PublishArgs
 
-commonParser ∷ ∀ (a ∷ Row Type). String → Parser (Command a) → String → Mod CommandFields (SpagoCmd a)
-commonParser command_ parser_ description_ =
-  command command_
-    ( info
+commandParser ∷ ∀ (a ∷ Row Type). String → Parser (Command a) → String → Mod CommandFields (SpagoCmd a)
+commandParser command_ parser_ description_ =
+  O.command command_
+    ( O.info
         (SpagoCmd <$> globalArgsParser <*> parser_)
         (progDesc description_)
     )
 
 argParser :: Parser (SpagoCmd ())
 argParser =
-  hsubparser $ fold
-    [ commonParser "init" (Init <$> initArgsParser) "Initialise a new project"
-    , commonParser "fetch" (Fetch <$> fetchArgsParser) "Downloads all of the project's dependencies"
-    , commonParser "install" (Install <$> installArgsParser) "Compile the project's dependencies"
-    , commonParser "build" (Build <$> buildArgsParser) "Compile the project"
-    , commonParser "run" (Run <$> runArgsParser) "Run the project"
-    , commonParser "test" (Test <$> testArgsParser) "Test the project"
-    , commonParser "bundle" (Bundle <$> bundleArgsParser) "Bundle the project in a single file"
-    , commonParser "sources" (Sources <$> sourcesArgsParser) "List all the source paths (globs) for the dependencies of the project"
-    , commonParser "repl" (Repl <$> replArgsParser) "Start a REPL"
-    , commonParser "publish" (Publish <$> publishArgsParser) "Publish a package"
-    , command "registry"
-        ( info
-            ( hsubparser $ fold
-                [ commonParser "search" (RegistrySearch <$> registrySearchArgsParser) "Search for package names in the Registry"
-                , commonParser "info" (RegistryInfo <$> registryInfoArgsParser) "Query the Registry for information about packages and versions"
+  O.hsubparser $ fold
+    [ commandParser "init" (Init <$> initArgsParser) "Initialise a new project"
+    , commandParser "fetch" (Fetch <$> fetchArgsParser) "Downloads all of the project's dependencies"
+    , commandParser "install" (Install <$> installArgsParser) "Compile the project's dependencies"
+    , commandParser "build" (Build <$> buildArgsParser) "Compile the project"
+    , commandParser "run" (Run <$> runArgsParser) "Run the project"
+    , commandParser "test" (Test <$> testArgsParser) "Test the project"
+    , commandParser "bundle" (Bundle <$> bundleArgsParser) "Bundle the project in a single file"
+    , commandParser "sources" (Sources <$> sourcesArgsParser) "List all the source paths (globs) for the dependencies of the project"
+    , commandParser "repl" (Repl <$> replArgsParser) "Start a REPL"
+    , commandParser "publish" (Publish <$> publishArgsParser) "Publish a package"
+    , O.command "registry"
+        ( O.info
+            ( O.hsubparser $ fold
+                [ commandParser "search" (RegistrySearch <$> registrySearchArgsParser) "Search for package names in the Registry"
+                , commandParser "info" (RegistryInfo <$> registryInfoArgsParser) "Query the Registry for information about packages and versions"
                 ]
             )
             (progDesc "Commands to interact with the Registry")
         )
-    , command "ls"
-        ( info
-            ( hsubparser $ fold
-                [ commonParser "packages" (LsPackages <$> lsPackagesArgsParser) "List packages available in the local package set"
-                , commonParser "deps" (LsDeps <$> lsDepsArgsParser) "List dependencies of the project"
+    , O.command "ls"
+        ( O.info
+            ( O.hsubparser $ fold
+                [ commandParser "packages" (LsPackages <$> lsPackagesArgsParser) "List packages available in the local package set"
+                , commandParser "deps" (LsDeps <$> lsDepsArgsParser) "List dependencies of the project"
                 ]
             )
             (progDesc "List packages or dependencies")
