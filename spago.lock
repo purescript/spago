@@ -47,7 +47,6 @@ workspace:
       path: bin
       dependencies:
         - aff
-        - argparse-basic
         - arrays
         - codec-argonaut
         - console
@@ -56,6 +55,7 @@ workspace:
         - node-fs
         - node-path
         - node-process
+        - optparse
         - ordered-collections
         - record
         - refs
@@ -193,26 +193,6 @@ packages:
       - prelude
       - strings
       - tailrec
-  argparse-basic:
-    type: registry
-    version: 2.0.0
-    integrity: sha256-3Pp8MDfRL2oeBdfxXIUVJBdhGniaahw2UOG4QmHPm58=
-    dependencies:
-      - arrays
-      - bifunctors
-      - control
-      - either
-      - foldable-traversable
-      - integers
-      - lists
-      - maybe
-      - newtype
-      - numbers
-      - prelude
-      - record
-      - strings
-      - tuples
-      - unfoldable
   arraybuffer-types:
     type: registry
     version: 3.0.2

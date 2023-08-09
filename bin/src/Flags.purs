@@ -1,43 +1,47 @@
 module Spago.Bin.Flags where
 
+import Spago.Prelude
+
 import Data.Array as Array
-import Data.Function (flip)
+import Data.Function as Function
 import Data.List as List
-import Data.Maybe (optional)
+import Data.Maybe as Maybe
 import Data.Set.NonEmpty (NonEmptySet)
 import Data.Set.NonEmpty as NonEmptySet
-import Options.Applicative (Parser, argument, eitherReader, help, long, many, metavar, option, short, str, strArgument, strOption, switch, value)
+import Options.Applicative (Parser)
+import Options.Applicative as Optparse
 import Spago.Core.Config (ShowSourceCode(..))
 import Spago.Core.Config as Core
-import Spago.Prelude (Either(..), List, Maybe, ($), ($>), (<$), (<$>), (<>), (<|>))
+import Options.Applicative as O
+import Options.Applicative.Types as O
 
 selectedPackage :: Parser (Maybe String)
 selectedPackage =
-  optional $
-    strOption
-      ( long "package"
-          <> short 'p'
-          <> help "Select the local project to build"
+  O.optional $
+    O.strOption
+      ( O.long "package"
+          <> O.short 'p'
+          <> O.help "Select the local project to build"
       )
 
 strict :: Parser (Maybe Boolean)
 strict =
-  optional
-    $ switch
-        ( long "strict"
-            <> help "Promotes project sources' warnings to errors"
+  O.optional
+    $ O.switch
+        ( O.long "strict"
+            <> O.help "Promotes project sources' warnings to errors"
         )
 
 censorBuildWarnings ∷ Parser (Maybe Core.CensorBuildWarnings)
 censorBuildWarnings =
-  optional $
+  O.optional $
     flip
-      option
-      ( long "censor-build-warnings"
-          <> help "Censor compiler warnings based on file's location: 'dependency', 'project', or 'all'"
-          <> metavar "ARG"
+      O.option
+      ( O.long "censor-build-warnings"
+          <> O.help "Censor compiler warnings based on file's location: 'dependency', 'project', or 'all'"
+          <> O.metavar "ARG"
       )
-      ( eitherReader
+      ( O.eitherReader
           case _ of
             "all" -> Right Core.CensorAllWarnings
             "project" -> Right Core.CensorProjectWarnings
@@ -47,10 +51,10 @@ censorBuildWarnings =
 
 showSource ∷ Parser (Maybe ShowSourceCode)
 showSource =
-  optional
-    $ switch
-        ( long "no-source"
-            <> help "Disable original source code printing"
+  O.optional
+    $ O.switch
+        ( O.long "no-source"
+            <> O.help "Disable original source code printing"
         )
     $>
       NoSourceCode
@@ -59,11 +63,11 @@ censorCodes :: Parser (Maybe (NonEmptySet String))
 censorCodes =
   NonEmptySet.fromFoldable
     <$>
-      ( many
-          $ strOption
-              ( long "censor-code"
-                  <> metavar "CODE"
-                  <> help "Censor a specific error code (e.g. `ShadowedName`)"
+      ( O.many
+          $ O.strOption
+              ( O.long "censor-code"
+                  <> O.metavar "CODE"
+                  <> O.help "Censor a specific error code (e.g. `ShadowedName`)"
               )
       )
 
@@ -71,182 +75,182 @@ filterCodes :: Parser (Maybe (NonEmptySet String))
 filterCodes =
   NonEmptySet.fromFoldable
     <$>
-      many
-        ( strOption
-            $ long "filter-code"
-            <> metavar "CODE"
-            <> help "Only show a specific error code (e.g. `TypesDoNotUnify`)"
+      O.many
+        ( O.strOption
+            $ O.long "filter-code"
+            <> O.metavar "CODE"
+            <> O.help "Only show a specific error code (e.g. `TypesDoNotUnify`)"
         )
 
 statVerbosity :: Parser (Maybe Core.StatVerbosity)
 statVerbosity =
-  optional
-    $ (Core.VerboseStats <$ switch (long "verbose-stats" <> help "Show counts for each warning type"))
+  O.optional
+    $ (Core.VerboseStats <$ O.switch (O.long "verbose-stats" <> O.help "Show counts for each warning type"))
     <|>
-      (Core.NoStats <$ switch (long "censor-stats" <> help "Censor warning/error summary"))
+      (Core.NoStats <$ O.switch (O.long "censor-stats" <> O.help "Censor warning/error summary"))
 
 persistWarnings ∷ Parser (Maybe Boolean)
 persistWarnings =
-  optional $
-    switch
-      ( long "persist-warnings"
-          <> help "Persist the compiler warnings between multiple underlying `purs compile` calls"
+  O.optional $
+    O.switch
+      ( O.long "persist-warnings"
+          <> O.help "Persist the compiler warnings between multiple underlying `purs compile` calls"
       )
 
 jsonErrors ∷ Parser Boolean
 jsonErrors =
-  switch
-    ( long "json-errors"
-        <> help "Output compiler warnings/errors as JSON"
+  O.switch
+    ( O.long "json-errors"
+        <> O.help "Output compiler warnings/errors as JSON"
     )
 
 minify ∷ Parser Boolean
 minify =
-  switch
-    ( long "minify"
-        <> help "Minify the bundle"
+  O.switch
+    ( O.long "minify"
+        <> O.help "Minify the bundle"
     )
 
 entrypoint ∷ Parser (Maybe String)
 entrypoint =
-  optional
-    $ strOption
-        ( long "module"
-            <> help "The module to bundle as the entrypoint"
+  O.optional
+    $ O.strOption
+        ( O.long "module"
+            <> O.help "The module to bundle as the entrypoint"
         )
 
 bundleType ∷ Parser (Maybe String)
 bundleType =
-  optional
-    $ strOption
-        ( long "bundle-type"
-            <> help "The type of the module produced. 'app' will call main, 'module' will just export the contents."
+  O.optional
+    $ O.strOption
+        ( O.long "bundle-type"
+            <> O.help "The type of the module produced. 'app' will call main, 'module' will just export the contents."
         )
 
 outfile ∷ Parser (Maybe String)
 outfile =
-  optional
-    $ strOption
-        ( long "outfile"
-            <> help "Destination path for the bundle"
+  O.optional
+    $ O.strOption
+        ( O.long "outfile"
+            <> O.help "Destination path for the bundle"
         )
 
 -- TODO make an ADT for node and browser
 platform ∷ Parser (Maybe String)
 platform =
-  optional
-    $ option
-        ( eitherReader
+  O.optional
+    $ O.option
+        ( O.eitherReader
             case _ of
               "node" -> Right "node"
               "browser" -> Right "browser"
               _ -> Left "Expected \"node\" or \"browser\""
         )
-        ( long "platform"
-            <> help "The bundle platform. 'node' or 'browser'"
+        ( O.long "platform"
+            <> O.help "The bundle platform. 'node' or 'browser'"
         )
 
 output ∷ Parser (Maybe String)
 output =
-  optional
-    $ strOption
-        ( long "output"
-            <> help "The output directory for compiled files"
-            <> metavar "DIR"
-            <> value "output"
+  O.optional
+    $ O.strOption
+        ( O.long "output"
+            <> O.help "The output directory for compiled files"
+            <> O.metavar "DIR"
+            <> O.value "output"
         )
 
 quiet ∷ Parser Boolean
 quiet =
-  switch
-    ( long "quiet"
-        <> short 'q'
-        <> help "Suppress all spago logging"
+  O.switch
+    ( O.long "quiet"
+        <> O.short 'q'
+        <> O.help "Suppress all spago logging"
     )
 
 verbose ∷ Parser Boolean
 verbose =
-  switch
-    ( long "verbose"
-        <> short 'v'
-        <> help "Enable additional debug logging, e.g. printing `purs` commands"
+  O.switch
+    ( O.long "verbose"
+        <> O.short 'v'
+        <> O.help "Enable additional debug logging, e.g. printing `purs` commands"
     )
 
 noColor ∷ Parser Boolean
 noColor =
-  switch
-    ( long "no-color"
-        <> long "monochrome"
-        <> help "Force logging without ANSI color escape sequences"
+  O.switch
+    ( O.long "no-color"
+        <> O.long "monochrome"
+        <> O.help "Force logging without ANSI color escape sequences"
     )
 
 json ∷ Parser Boolean
 json =
-  switch
-    ( long "json"
-        <> help "Format the output as JSON"
+  O.switch
+    ( O.long "json"
+        <> O.help "Format the output as JSON"
     )
 
 transitive ∷ Parser Boolean
 transitive =
-  switch
-    ( long "transitive"
-        <> help "Include transitive dependencies"
+  O.switch
+    ( O.long "transitive"
+        <> O.help "Include transitive dependencies"
     )
 
 pedanticPackages ∷ Parser Boolean
 pedanticPackages =
-  switch
-    ( long "pedantic-packages"
-        <> help "Check for redundant or missing packages in the config and fail the build if any"
+  O.switch
+    ( O.long "pedantic-packages"
+        <> O.help "Check for redundant or missing packages in the config and fail the build if any"
     )
 
 pursArgs :: Parser (List String)
 pursArgs =
   List.fromFoldable
     <$>
-      ( many
-          $ strOption
-              ( long "purs-args"
-                  <> metavar "ARGS"
-                  <> help "Arguments to pass to purs compile. Wrap in quotes. `--output` and `--json-errors` must be passed to Spago directly."
+      ( O.many
+          $ O.strOption
+              ( O.long "purs-args"
+                  <> O.metavar "ARGS"
+                  <> O.help "Arguments to pass to purs compile. Wrap in quotes. `--output` and `--json-errors` must be passed to Spago directly."
               )
       )
 
 execArgs :: Parser (Maybe (Array String))
 execArgs =
-  optional
+  O.optional
     $ Array.fromFoldable
-    <$> many
-      ( strArgument
-          ( help "Arguments to pass to the running script"
-              <> metavar "ARGS"
+    <$> O.many
+      ( O.strArgument
+          ( O.help "Arguments to pass to the running script"
+              <> O.metavar "ARGS"
           )
       )
 
 backendArgs :: Parser (List String)
 backendArgs =
-  many $
-    strOption
-      ( long "backend-args"
-          <> help "Arguments to pass to the running script"
-          <> metavar "ARGS"
+  O.many $
+    O.strOption
+      ( O.long "backend-args"
+          <> O.help "Arguments to pass to the running script"
+          <> O.metavar "ARGS"
       )
 
 moduleName ∷ Parser (Maybe String)
 moduleName =
-  optional
-    $ strOption
-        ( long "main"
-            <> short 'm'
-            <> help "Module to be used as the application's entry point"
+  O.optional
+    $ O.strOption
+        ( O.long "main"
+            <> O.short 'm'
+            <> O.help "Module to be used as the application's entry point"
         )
 
 testDeps ∷ Parser Boolean
 testDeps =
-  switch
-    ( long "test-deps"
-        <> help "Act on the test config rather than the main one"
+  O.switch
+    ( O.long "test-deps"
+        <> O.help "Act on the test config rather than the main one"
     )
 
 useSolver :: Parser Boolean
@@ -258,46 +262,46 @@ useSolver =
 
 packages ∷ Parser (List String)
 packages =
-  many $
-    strOption
-      ( metavar "PACKAGE"
-          <> help "Package name to add as dependency"
+  O.many $
+    O.strOption
+      ( O.metavar "PACKAGE"
+          <> O.help "Package name to add as dependency"
       )
 
 package :: Parser String
 package =
-  strOption
-    ( metavar "PACKAGE"
-        <> help "Package name"
+  O.strOption
+    ( O.metavar "PACKAGE"
+        <> O.help "Package name"
     )
 
 maybeVersion :: Parser (Maybe String)
 maybeVersion =
-  optional $
-    strOption
-      ( metavar "VERSION"
-          <> help "Package version"
+  O.optional $
+    O.strOption
+      ( O.metavar "VERSION"
+          <> O.help "Package version"
       )
 
 maybeSetVersion :: Parser (Maybe String)
 maybeSetVersion =
-  optional $
-    strOption
-      ( long "package-set"
-          <> help "Optional package set version to be used instead of the latest one"
+  O.optional $
+    O.strOption
+      ( O.long "package-set"
+          <> O.help "Optional package set version to be used instead of the latest one"
       )
 
 maybePackageName :: Parser (Maybe String)
 maybePackageName =
-  optional $
-    strOption
-      ( long "name"
-          <> help "Optional package name to be used for the new project"
+  O.optional $
+    O.strOption
+      ( O.long "name"
+          <> O.help "Optional package name to be used for the new project"
       )
 
 ensureRanges ∷ Parser Boolean
 ensureRanges =
-  switch
-    ( long "ensure-ranges"
-        <> help "Add version bounds for all the dependencies of the selected project"
+  O.switch
+    ( O.long "ensure-ranges"
+        <> O.help "Add version bounds for all the dependencies of the selected project"
     )

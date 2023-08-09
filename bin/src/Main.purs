@@ -2,11 +2,10 @@ module Main (main) where
 
 import Spago.Prelude
 
-import ArgParse.Basic (ArgParser)
-import ArgParse.Basic as ArgParser
 import Data.Array as Array
 import Data.Array.NonEmpty as NonEmptyArray
 import Data.Codec.Argonaut.Common as CA.Common
+import Data.Foldable (fold)
 import Data.JSDate as JSDate
 import Data.List as List
 import Data.Map as Map
@@ -18,6 +17,8 @@ import Effect.Ref as Ref
 import Node.FS.Stats (Stats(..))
 import Node.Path as Path
 import Node.Process as Process
+import Options.Applicative (CommandFields, Mod, Parser, ParserPrefs(..), command, customExecParser, defaultPrefs, helper, hsubparser, info, progDesc)
+import Optparse as Optparse
 import Record as Record
 import Registry.Constants as Registry.Constants
 import Registry.ManifestIndex as ManifestIndex
@@ -188,72 +189,50 @@ data Command a
   | LsPackages LsPackagesArgs
   | Publish PublishArgs
 
-argParser :: ArgParser (SpagoCmd ())
+commonParser ∷ ∀ (a ∷ Row Type). String → Parser (Command a) → String → Mod CommandFields (SpagoCmd a)
+commonParser command_ parser_ description_ =
+  command command_
+    ( info
+        (SpagoCmd <$> globalArgsParser <*> parser_)
+        (progDesc description_)
+    )
+
+argParser :: Parser (SpagoCmd ())
 argParser =
-  ArgParser.choose "command"
-    [ ArgParser.command [ "init" ]
-        "Initialise a new project"
-        do
-          (SpagoCmd <$> globalArgsParser <*> (Init <$> initArgsParser) <* ArgParser.flagHelp)
-    , ArgParser.command [ "fetch" ]
-        "Downloads all of the project's dependencies"
-        do
-          (SpagoCmd <$> globalArgsParser <*> (Fetch <$> fetchArgsParser) <* ArgParser.flagHelp)
-    , ArgParser.command [ "install" ]
-        "Compile the project's dependencies"
-        do
-          (SpagoCmd <$> globalArgsParser <*> (Install <$> installArgsParser) <* ArgParser.flagHelp)
-    , ArgParser.command [ "build" ]
-        "Compile the project"
-        do
-          (SpagoCmd <$> globalArgsParser <*> (Build <$> buildArgsParser) <* ArgParser.flagHelp)
-    , ArgParser.command [ "run" ]
-        "Run the project"
-        do
-          (SpagoCmd <$> globalArgsParser <*> (Run <$> runArgsParser) <* ArgParser.flagHelp)
-    , ArgParser.command [ "test" ]
-        "Test the project"
-        do
-          (SpagoCmd <$> globalArgsParser <*> (Test <$> testArgsParser) <* ArgParser.flagHelp)
-    , ArgParser.command [ "bundle" ]
-        "Bundle the project in a single file"
-        do
-          (SpagoCmd <$> globalArgsParser <*> (Bundle <$> bundleArgsParser) <* ArgParser.flagHelp)
-    , ArgParser.command [ "sources" ]
-        "List all the source paths (globs) for the dependencies of the project"
-        do
-          (SpagoCmd <$> globalArgsParser <*> (Sources <$> sourcesArgsParser) <* ArgParser.flagHelp)
-    , ArgParser.command [ "repl" ]
-        "Start a REPL"
-        do
-          (SpagoCmd <$> globalArgsParser <*> (Repl <$> replArgsParser) <* ArgParser.flagHelp)
-    , ArgParser.command [ "publish" ]
-        "Publish a package"
-        do
-          (SpagoCmd <$> globalArgsParser <*> (Publish <$> publishArgsParser) <* ArgParser.flagHelp)
-    , ArgParser.command [ "registry" ]
-        "Commands to interact with the Registry"
-        do
-          ArgParser.choose "registry-subcommand"
-            [ ArgParser.command [ "search" ]
-                "Search for package names in the Registry"
-                (SpagoCmd <$> globalArgsParser <*> (RegistrySearch <$> registrySearchArgsParser) <* ArgParser.flagHelp)
-            , ArgParser.command [ "info" ]
-                "Query the Registry for information about packages and versions"
-                (SpagoCmd <$> globalArgsParser <*> (RegistryInfo <$> registryInfoArgsParser) <* ArgParser.flagHelp)
-            ] <* ArgParser.flagHelp
-    , ArgParser.command [ "ls" ] "List packages or dependencies. Use the `registry` command to search the Registry." do
-        ArgParser.choose "ls-subcommand"
-          [ ArgParser.command [ "packages" ]
-              "List packages available in the local package set"
-              (SpagoCmd <$> globalArgsParser <*> (LsPackages <$> lsPackagesArgsParser) <* ArgParser.flagHelp)
-          , ArgParser.command [ "deps" ]
-              "List dependencies of the project"
-              (SpagoCmd <$> globalArgsParser <*> (LsDeps <$> lsDepsArgsParser) <* ArgParser.flagHelp)
-          ] <* ArgParser.flagHelp
+  hsubparser $ fold
+    [ commonParser "init" (Init <$> initArgsParser) "Initialise a new project"
+    , commonParser "fetch" (Fetch <$> fetchArgsParser) "Downloads all of the project's dependencies"
+    , commonParser "install" (Install <$> installArgsParser) "Compile the project's dependencies"
+    , commonParser "build" (Build <$> buildArgsParser) "Compile the project"
+    , commonParser "run" (Run <$> runArgsParser) "Run the project"
+    , commonParser "test" (Test <$> testArgsParser) "Test the project"
+    , commonParser "bundle" (Bundle <$> bundleArgsParser) "Bundle the project in a single file"
+    , commonParser "sources" (Sources <$> sourcesArgsParser) "List all the source paths (globs) for the dependencies of the project"
+    , commonParser "repl" (Repl <$> replArgsParser) "Start a REPL"
+    , commonParser "publish" (Publish <$> publishArgsParser) "Publish a package"
+    , command "registry"
+        ( info
+            ( hsubparser $ fold
+                [ commonParser "search" (RegistrySearch <$> registrySearchArgsParser) "Search for package names in the Registry"
+                , commonParser "info" (RegistryInfo <$> registryInfoArgsParser) "Query the Registry for information about packages and versions"
+                ]
+            )
+            (progDesc "Commands to interact with the Registry")
+        )
+    , command "ls"
+        ( info
+            ( hsubparser $ fold
+                [ commonParser "packages" (LsPackages <$> lsPackagesArgsParser) "List packages available in the local package set"
+                , commonParser "deps" (LsDeps <$> lsDepsArgsParser) "List dependencies of the project"
+                ]
+            )
+            (progDesc "List packages or dependencies")
+        )
     ]
-    <* ArgParser.flagHelp
-    <* ArgParser.flagInfo [ "--version" ] "Show the current version" BuildInfo.currentSpagoVersion
+
+-- <* hsubparser (help "")
+-- <* infoOption BuildInfo.currentSpagoVersion (?_)
+-- ArgParser.flagInfo [ "--version" ] "Show the current version" BuildInfo.currentSpagoVersion
 
 {-
 
@@ -266,41 +245,42 @@ TODO: add flag for overriding the cache location
 
 -- https://stackoverflow.com/questions/45395369/how-to-get-console-log-line-numbers-shown-in-nodejs
 -- TODO: veryVerbose = CLI.switch "very-verbose" 'V' "Enable more verbosity: timestamps and source locations"
-globalArgsParser :: ArgParser GlobalArgs
+
+globalArgsParser :: Parser GlobalArgs
 globalArgsParser =
-  ArgParser.fromRecord
+  Optparse.fromRecord
     { quiet: Flags.quiet
     , verbose: Flags.verbose
     , noColor: Flags.noColor
     }
 
-initArgsParser :: ArgParser InitArgs
+initArgsParser :: Parser InitArgs
 initArgsParser =
-  ArgParser.fromRecord
+  Optparse.fromRecord
     { setVersion: Flags.maybeSetVersion
     , name: Flags.maybePackageName
     , useSolver: Flags.useSolver
     }
 
-fetchArgsParser :: ArgParser FetchArgs
+fetchArgsParser :: Parser FetchArgs
 fetchArgsParser =
-  ArgParser.fromRecord
+  Optparse.fromRecord
     { packages: Flags.packages
     , selectedPackage: Flags.selectedPackage
     , ensureRanges: Flags.ensureRanges
     , testDeps: Flags.testDeps
     }
 
-sourcesArgsParser :: ArgParser SourcesArgs
+sourcesArgsParser :: Parser SourcesArgs
 sourcesArgsParser =
-  ArgParser.fromRecord
+  Optparse.fromRecord
     { selectedPackage: Flags.selectedPackage
     , json: Flags.json
     }
 
-installArgsParser :: ArgParser InstallArgs
+installArgsParser :: Parser InstallArgs
 installArgsParser =
-  ArgParser.fromRecord
+  Optparse.fromRecord
     { packages: Flags.packages
     , selectedPackage: Flags.selectedPackage
     , pursArgs: Flags.pursArgs
@@ -311,8 +291,8 @@ installArgsParser =
     , testDeps: Flags.testDeps
     }
 
-buildArgsParser :: ArgParser (BuildArgs ())
-buildArgsParser = ArgParser.fromRecord
+buildArgsParser :: Parser (BuildArgs ())
+buildArgsParser = Optparse.fromRecord
   { selectedPackage: Flags.selectedPackage
   , pursArgs: Flags.pursArgs
   , backendArgs: Flags.backendArgs
@@ -329,15 +309,15 @@ buildArgsParser = ArgParser.fromRecord
   , persistWarnings: Flags.persistWarnings
   }
 
-replArgsParser :: ArgParser ReplArgs
-replArgsParser = ArgParser.fromRecord
+replArgsParser :: Parser ReplArgs
+replArgsParser = Optparse.fromRecord
   { selectedPackage: Flags.selectedPackage
   , pursArgs: Flags.pursArgs
   , backendArgs: Flags.backendArgs
   }
 
-runArgsParser :: ArgParser RunArgs
-runArgsParser = ArgParser.fromRecord
+runArgsParser :: Parser RunArgs
+runArgsParser = Optparse.fromRecord
   { selectedPackage: Flags.selectedPackage
   , pursArgs: Flags.pursArgs
   , backendArgs: Flags.backendArgs
@@ -355,8 +335,8 @@ runArgsParser = ArgParser.fromRecord
   , persistWarnings: Flags.persistWarnings
   }
 
-testArgsParser :: ArgParser TestArgs
-testArgsParser = ArgParser.fromRecord
+testArgsParser :: Parser TestArgs
+testArgsParser = Optparse.fromRecord
   { selectedPackage: Flags.selectedPackage
   , pursArgs: Flags.pursArgs
   , backendArgs: Flags.backendArgs
@@ -372,9 +352,9 @@ testArgsParser = ArgParser.fromRecord
   , persistWarnings: Flags.persistWarnings
   }
 
-bundleArgsParser :: ArgParser BundleArgs
+bundleArgsParser :: Parser BundleArgs
 bundleArgsParser =
-  ArgParser.fromRecord
+  Optparse.fromRecord
     { minify: Flags.minify
     , module: Flags.entrypoint
     , type: Flags.bundleType
@@ -395,51 +375,51 @@ bundleArgsParser =
     , persistWarnings: Flags.persistWarnings
     }
 
-publishArgsParser :: ArgParser PublishArgs
+publishArgsParser :: Parser PublishArgs
 publishArgsParser =
-  ArgParser.fromRecord
+  Optparse.fromRecord
     { selectedPackage: Flags.selectedPackage
     }
 
-registrySearchArgsParser :: ArgParser RegistrySearchArgs
+registrySearchArgsParser :: Parser RegistrySearchArgs
 registrySearchArgsParser =
-  ArgParser.fromRecord
+  Optparse.fromRecord
     { package: Flags.package
     , json: Flags.json
     }
 
-registryInfoArgsParser :: ArgParser RegistryInfoArgs
+registryInfoArgsParser :: Parser RegistryInfoArgs
 registryInfoArgsParser =
-  ArgParser.fromRecord
+  Optparse.fromRecord
     { package: Flags.package
     , json: Flags.json
     }
 
-lsPackagesArgsParser :: ArgParser LsPackagesArgs
-lsPackagesArgsParser = ArgParser.fromRecord
+lsPackagesArgsParser :: Parser LsPackagesArgs
+lsPackagesArgsParser = Optparse.fromRecord
   { json: Flags.json
   }
 
-lsDepsArgsParser :: ArgParser LsDepsArgs
-lsDepsArgsParser = ArgParser.fromRecord
+lsDepsArgsParser :: Parser LsDepsArgs
+lsDepsArgsParser = Optparse.fromRecord
   { json: Flags.json
   , transitive: Flags.transitive
   , selectedPackage: Flags.selectedPackage
   }
 
-parseArgs :: Effect (Either ArgParser.ArgError (SpagoCmd ()))
+parseArgs :: Effect (SpagoCmd ())
 parseArgs = do
-  cliArgs <- Array.drop 2 <$> Process.argv
-  pure $ ArgParser.parseArgs "spago"
-    "PureScript package manager and build tool"
-    argParser
-    cliArgs
+  customExecParser
+    (defaultPrefs # \(ParserPrefs p) -> ParserPrefs (p { prefShowHelpOnError = true }))
+    ( info
+        (helper <*> argParser)
+        (progDesc "PureScript package manager and build tool")
+    )
 
 main :: Effect Unit
 main =
-  parseArgs >>= case _ of
-    Left err -> Console.error $ ArgParser.printArgError err
-    Right c -> Aff.launchAff_ case c of
+  parseArgs >>=
+    \c -> Aff.launchAff_ case c of
       SpagoCmd globalArgs command -> do
         logOptions <- mkLogOptions globalArgs
         runSpago { logOptions } case command of
@@ -849,7 +829,7 @@ mkFetchEnv args = do
 
   env <- mkRegistryEnv
   workspace <- runSpago env (Config.readWorkspace maybeSelectedPackage)
-  let fetchOpts = { packages: packageNames, ensureRanges: args.ensureRanges, isTest: args.testDeps }
+  let fetchOpts = { packages: packageNames, ensureRanges: args.ensureRanges }
   pure { fetchOpts, env: Record.union { workspace } env }
 
 mkRegistryEnv :: forall a. Spago (LogEnv a) (Registry.RegistryEnv ())
@@ -907,6 +887,9 @@ mkRegistryEnv = do
               liftEffect (Ref.write (Map.insert name m metadataMap) metadataRef)
               pure (Right m)
 
+  -- FIXME: We are try/catching, but DNS errors still crash the program! Error is:
+  --   Error while fetching the repo 'https://github.com/purescript/registry-index.git' at ref 'main':
+  --   fatal: unable to access 'https://github.com/purescript/registry-index.git/': Could not resolve host: github.com
   { logOptions } <- ask
   -- we keep track of how old the latest pull was - if the last pull was recent enough
   -- we just move on, otherwise run the fibers
@@ -914,10 +897,10 @@ mkRegistryEnv = do
     -- clone the registry and index repo, or update them
     logInfo "Refreshing the Registry Index..."
     runSpago { logOptions, git } $ parallelise
-      [ Git.fetchRepo { git: "https://github.com/purescript/registry-index.git", ref: "main" } Paths.registryIndexPath >>= case _ of
+      [ try (Git.fetchRepo { git: "https://github.com/purescript/registry-index.git", ref: "main" } Paths.registryIndexPath) >>= case _ of
           Right _ -> pure unit
           Left _err -> logWarn "Couldn't refresh the registry-index, will proceed anyways"
-      , Git.fetchRepo { git: "https://github.com/purescript/registry.git", ref: "main" } Paths.registryPath >>= case _ of
+      , try (Git.fetchRepo { git: "https://github.com/purescript/registry.git", ref: "main" } Paths.registryPath) >>= case _ of
           Right _ -> pure unit
           Left _err -> logWarn "Couldn't refresh the registry, will proceed anyways"
       ]
@@ -966,7 +949,7 @@ shouldFetchRegistryRepos = do
       let staleAfter = 1000.0 * 60.0 * minutes -- need this in millis
       let isOldEnough = (JSDate.getTime now) > (JSDate.getTime mtime + staleAfter)
       if isOldEnough then do
-        logDebug "Registry index is old, refreshing canary"
+        logDebug "Registry  index is old enough, refreshing canary"
         touch freshRegistryCanary
         pure true
       else do
