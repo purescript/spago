@@ -19,7 +19,7 @@ spec = Spec.around withTempDir do
     --   threadDelay 1000000
     --   spago [ "install", "-j", "10" ] >>= shouldBeSuccess
 
-    Spec.it "Spago should warn that config was not changed, when trying to install package already present in project dependencies" \{ spago, fixture } -> do
+    Spec.it "warns that config was not changed when trying to install a package already present in project dependencies" \{ spago, fixture } -> do
       spago [ "init" ] >>= shouldBeSuccess
       spago [ "install" ] >>= shouldBeSuccess
       spago [ "fetch", "effect" ] >>= shouldBeSuccessErr (fixture "spago-install-existing-dep-stderr.txt")

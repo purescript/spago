@@ -19,6 +19,17 @@ spec = Spec.around withTempDir do
       spago [ "init" ] >>= shouldBeSuccess
       spago [ "build" ] >>= shouldBeSuccess
 
+    Spec.it "builds successfully a solver-only package" \{ spago } -> do
+      spago [ "init" ] >>= shouldBeSuccess
+      let
+        conf = Init.defaultConfig
+          (unsafeFromRight (PackageName.parse "aaa"))
+          (Just $ unsafeFromRight $ Version.parse "0.0.1")
+          "Test.Main"
+      FS.writeYamlFile Config.configCodec "spago.yaml"
+        (conf { workspace = conf.workspace # map (_ { package_set = Nothing }) })
+      spago [ "build" ] >>= shouldBeSuccess
+
     Spec.it "passes options to purs" \{ spago } -> do
       spago [ "init" ] >>= shouldBeSuccess
       spago [ "build", "--purs-args", "--verbose-errors", "--purs-args", "--json-errors" ] >>= shouldBeSuccess

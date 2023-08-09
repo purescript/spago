@@ -198,8 +198,13 @@ publish _args = do
                   )
               $ (Map.toUnfoldable dependencies :: Array _)
         if Array.length fail > 0 then do
-          addError $ toDoc $ "Could not find a suitable build plan, the following packages do not point to registry versions: "
-            <> Json.stringifyJson (CA.array PackageName.codec) fail
+          addError
+            $ toDoc
+                [ "Some of the packages you specified as `extra_packages` do not point to the Registry."
+                , "To be able to publish a package to the registry, all of its dependencies have to be packages registered on the Registry."
+                , "Please replace the following packages with versions that are present in the Registry:" -- TODO point to docs
+                ]
+            <> toDoc (map (indent <<< toDoc <<< (append "- ") <<< Json.stringifyJson PackageName.codec) fail)
         else do
           -- All dependencies come from the registry so we can trust the build plan.
           -- We can then try to build with the dependencies from there.

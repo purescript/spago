@@ -1,0 +1,2855 @@
+{
+  "aaa": {
+    "type": "workspace",
+    "value": {
+      "hasTests": true,
+      "package": {
+        "dependencies": [
+          "aaa2",
+          "console",
+          "effect",
+          "prelude"
+        ],
+        "name": "aaa",
+        "test": {
+          "dependencies": [],
+          "main": "Test.Main"
+        }
+      },
+      "path": "./"
+    }
+  },
+  "aaa2": {
+    "type": "workspace",
+    "value": {
+      "hasTests": true,
+      "package": {
+        "dependencies": [
+          "console",
+          "effect",
+          "prelude"
+        ],
+        "name": "aaa2",
+        "test": {
+          "dependencies": [],
+          "main": "Subpackage.Test.Main"
+        }
+      },
+      "path": "subpackage"
+    }
+  },
+  "ace": {
+    "type": "registry",
+    "value": {
+      "version": "9.1.0"
+    }
+  },
+  "aff": {
+    "type": "registry",
+    "value": {
+      "version": "7.1.0"
+    }
+  },
+  "aff-bus": {
+    "type": "registry",
+    "value": {
+      "version": "6.0.0"
+    }
+  },
+  "aff-coroutines": {
+    "type": "registry",
+    "value": {
+      "version": "9.0.0"
+    }
+  },
+  "aff-promise": {
+    "type": "registry",
+    "value": {
+      "version": "4.0.0"
+    }
+  },
+  "aff-retry": {
+    "type": "registry",
+    "value": {
+      "version": "2.0.0"
+    }
+  },
+  "affjax": {
+    "type": "registry",
+    "value": {
+      "version": "13.0.0"
+    }
+  },
+  "affjax-node": {
+    "type": "registry",
+    "value": {
+      "version": "1.0.0"
+    }
+  },
+  "affjax-web": {
+    "type": "registry",
+    "value": {
+      "version": "1.0.0"
+    }
+  },
+  "ansi": {
+    "type": "registry",
+    "value": {
+      "version": "7.0.0"
+    }
+  },
+  "argonaut": {
+    "type": "registry",
+    "value": {
+      "version": "9.0.0"
+    }
+  },
+  "argonaut-aeson-generic": {
+    "type": "registry",
+    "value": {
+      "version": "0.4.1"
+    }
+  },
+  "argonaut-codecs": {
+    "type": "registry",
+    "value": {
+      "version": "9.1.0"
+    }
+  },
+  "argonaut-core": {
+    "type": "registry",
+    "value": {
+      "version": "7.0.0"
+    }
+  },
+  "argonaut-generic": {
+    "type": "registry",
+    "value": {
+      "version": "8.0.0"
+    }
+  },
+  "argonaut-traversals": {
+    "type": "registry",
+    "value": {
+      "version": "10.0.0"
+    }
+  },
+  "argparse-basic": {
+    "type": "registry",
+    "value": {
+      "version": "2.0.0"
+    }
+  },
+  "array-builder": {
+    "type": "registry",
+    "value": {
+      "version": "0.1.2"
+    }
+  },
+  "array-search": {
+    "type": "registry",
+    "value": {
+      "version": "0.5.6"
+    }
+  },
+  "arraybuffer": {
+    "type": "registry",
+    "value": {
+      "version": "13.2.0"
+    }
+  },
+  "arraybuffer-builder": {
+    "type": "registry",
+    "value": {
+      "version": "3.1.0"
+    }
+  },
+  "arraybuffer-types": {
+    "type": "registry",
+    "value": {
+      "version": "3.0.2"
+    }
+  },
+  "arrays": {
+    "type": "registry",
+    "value": {
+      "version": "7.2.1"
+    }
+  },
+  "arrays-zipper": {
+    "type": "registry",
+    "value": {
+      "version": "2.0.1"
+    }
+  },
+  "ask": {
+    "type": "registry",
+    "value": {
+      "version": "1.0.0"
+    }
+  },
+  "assert": {
+    "type": "registry",
+    "value": {
+      "version": "6.0.0"
+    }
+  },
+  "assert-multiple": {
+    "type": "registry",
+    "value": {
+      "version": "0.3.4"
+    }
+  },
+  "avar": {
+    "type": "registry",
+    "value": {
+      "version": "5.0.0"
+    }
+  },
+  "b64": {
+    "type": "registry",
+    "value": {
+      "version": "0.0.8"
+    }
+  },
+  "barbies": {
+    "type": "registry",
+    "value": {
+      "version": "1.0.1"
+    }
+  },
+  "barlow-lens": {
+    "type": "registry",
+    "value": {
+      "version": "0.9.0"
+    }
+  },
+  "basic-auth": {
+    "type": "registry",
+    "value": {
+      "version": "3.0.1"
+    }
+  },
+  "bifunctors": {
+    "type": "registry",
+    "value": {
+      "version": "6.0.0"
+    }
+  },
+  "bigints": {
+    "type": "registry",
+    "value": {
+      "version": "7.0.1"
+    }
+  },
+  "bolson": {
+    "type": "registry",
+    "value": {
+      "version": "0.3.9"
+    }
+  },
+  "bookhound": {
+    "type": "registry",
+    "value": {
+      "version": "0.1.3"
+    }
+  },
+  "bower-json": {
+    "type": "registry",
+    "value": {
+      "version": "3.0.0"
+    }
+  },
+  "bucketchain": {
+    "type": "registry",
+    "value": {
+      "version": "1.0.1"
+    }
+  },
+  "bucketchain-basic-auth": {
+    "type": "registry",
+    "value": {
+      "version": "1.0.1"
+    }
+  },
+  "bucketchain-conditional": {
+    "type": "registry",
+    "value": {
+      "version": "1.0.1"
+    }
+  },
+  "bucketchain-cors": {
+    "type": "registry",
+    "value": {
+      "version": "1.0.1"
+    }
+  },
+  "bucketchain-csrf": {
+    "type": "registry",
+    "value": {
+      "version": "1.0.1"
+    }
+  },
+  "bucketchain-header-utils": {
+    "type": "registry",
+    "value": {
+      "version": "1.0.1"
+    }
+  },
+  "bucketchain-health": {
+    "type": "registry",
+    "value": {
+      "version": "1.0.1"
+    }
+  },
+  "bucketchain-history-api-fallback": {
+    "type": "registry",
+    "value": {
+      "version": "1.0.1"
+    }
+  },
+  "bucketchain-logger": {
+    "type": "registry",
+    "value": {
+      "version": "1.0.1"
+    }
+  },
+  "bucketchain-secure": {
+    "type": "registry",
+    "value": {
+      "version": "1.0.1"
+    }
+  },
+  "bucketchain-simple-api": {
+    "type": "registry",
+    "value": {
+      "version": "5.0.1"
+    }
+  },
+  "bucketchain-sslify": {
+    "type": "registry",
+    "value": {
+      "version": "1.0.1"
+    }
+  },
+  "bucketchain-static": {
+    "type": "registry",
+    "value": {
+      "version": "1.0.1"
+    }
+  },
+  "call-by-name": {
+    "type": "registry",
+    "value": {
+      "version": "4.0.1"
+    }
+  },
+  "canvas": {
+    "type": "registry",
+    "value": {
+      "version": "6.0.0"
+    }
+  },
+  "canvas-action": {
+    "type": "registry",
+    "value": {
+      "version": "9.0.0"
+    }
+  },
+  "cartesian": {
+    "type": "registry",
+    "value": {
+      "version": "1.0.6"
+    }
+  },
+  "catenable-lists": {
+    "type": "registry",
+    "value": {
+      "version": "7.0.0"
+    }
+  },
+  "channel": {
+    "type": "registry",
+    "value": {
+      "version": "1.0.0"
+    }
+  },
+  "checked-exceptions": {
+    "type": "registry",
+    "value": {
+      "version": "3.1.1"
+    }
+  },
+  "classless": {
+    "type": "registry",
+    "value": {
+      "version": "0.1.1"
+    }
+  },
+  "classless-arbitrary": {
+    "type": "registry",
+    "value": {
+      "version": "0.1.1"
+    }
+  },
+  "classless-decode-json": {
+    "type": "registry",
+    "value": {
+      "version": "0.1.1"
+    }
+  },
+  "classless-encode-json": {
+    "type": "registry",
+    "value": {
+      "version": "0.1.3"
+    }
+  },
+  "classnames": {
+    "type": "registry",
+    "value": {
+      "version": "2.0.0"
+    }
+  },
+  "codec": {
+    "type": "registry",
+    "value": {
+      "version": "6.0.0"
+    }
+  },
+  "codec-argonaut": {
+    "type": "registry",
+    "value": {
+      "version": "10.0.0"
+    }
+  },
+  "colors": {
+    "type": "registry",
+    "value": {
+      "version": "7.0.1"
+    }
+  },
+  "concur-core": {
+    "type": "registry",
+    "value": {
+      "version": "0.5.0"
+    }
+  },
+  "concur-react": {
+    "type": "registry",
+    "value": {
+      "version": "0.5.0"
+    }
+  },
+  "concurrent-queues": {
+    "type": "registry",
+    "value": {
+      "version": "3.0.0"
+    }
+  },
+  "console": {
+    "type": "registry",
+    "value": {
+      "version": "6.0.0"
+    }
+  },
+  "const": {
+    "type": "registry",
+    "value": {
+      "version": "6.0.0"
+    }
+  },
+  "contravariant": {
+    "type": "registry",
+    "value": {
+      "version": "6.0.0"
+    }
+  },
+  "control": {
+    "type": "registry",
+    "value": {
+      "version": "6.0.0"
+    }
+  },
+  "convertable-options": {
+    "type": "registry",
+    "value": {
+      "version": "1.0.0"
+    }
+  },
+  "coroutines": {
+    "type": "registry",
+    "value": {
+      "version": "7.0.0"
+    }
+  },
+  "crypto": {
+    "type": "registry",
+    "value": {
+      "version": "5.0.1"
+    }
+  },
+  "css": {
+    "type": "registry",
+    "value": {
+      "version": "6.0.0"
+    }
+  },
+  "css-frameworks": {
+    "type": "registry",
+    "value": {
+      "version": "1.0.1"
+    }
+  },
+  "datetime": {
+    "type": "registry",
+    "value": {
+      "version": "6.1.0"
+    }
+  },
+  "datetime-parsing": {
+    "type": "registry",
+    "value": {
+      "version": "0.2.0"
+    }
+  },
+  "debug": {
+    "type": "registry",
+    "value": {
+      "version": "6.0.2"
+    }
+  },
+  "decimals": {
+    "type": "registry",
+    "value": {
+      "version": "7.1.0"
+    }
+  },
+  "default-values": {
+    "type": "registry",
+    "value": {
+      "version": "1.0.1"
+    }
+  },
+  "deku": {
+    "type": "registry",
+    "value": {
+      "version": "0.9.23"
+    }
+  },
+  "deno": {
+    "type": "registry",
+    "value": {
+      "version": "0.0.5"
+    }
+  },
+  "dissect": {
+    "type": "registry",
+    "value": {
+      "version": "1.0.0"
+    }
+  },
+  "distributive": {
+    "type": "registry",
+    "value": {
+      "version": "6.0.0"
+    }
+  },
+  "dodo-printer": {
+    "type": "registry",
+    "value": {
+      "version": "2.2.1"
+    }
+  },
+  "dom-filereader": {
+    "type": "registry",
+    "value": {
+      "version": "7.0.0"
+    }
+  },
+  "dom-indexed": {
+    "type": "registry",
+    "value": {
+      "version": "11.0.0"
+    }
+  },
+  "dotenv": {
+    "type": "registry",
+    "value": {
+      "version": "4.0.0"
+    }
+  },
+  "droplet": {
+    "type": "registry",
+    "value": {
+      "version": "0.6.0"
+    }
+  },
+  "dts": {
+    "type": "registry",
+    "value": {
+      "version": "0.1.4"
+    }
+  },
+  "dynamic-buffer": {
+    "type": "registry",
+    "value": {
+      "version": "3.0.1"
+    }
+  },
+  "echarts-simple": {
+    "type": "registry",
+    "value": {
+      "version": "0.0.1"
+    }
+  },
+  "effect": {
+    "type": "registry",
+    "value": {
+      "version": "4.0.0"
+    }
+  },
+  "either": {
+    "type": "registry",
+    "value": {
+      "version": "6.1.0"
+    }
+  },
+  "elmish": {
+    "type": "registry",
+    "value": {
+      "version": "0.9.3"
+    }
+  },
+  "elmish-enzyme": {
+    "type": "registry",
+    "value": {
+      "version": "0.1.1"
+    }
+  },
+  "elmish-hooks": {
+    "type": "registry",
+    "value": {
+      "version": "0.9.1"
+    }
+  },
+  "elmish-html": {
+    "type": "registry",
+    "value": {
+      "version": "0.8.1"
+    }
+  },
+  "elmish-testing-library": {
+    "type": "registry",
+    "value": {
+      "version": "0.3.1"
+    }
+  },
+  "email-validate": {
+    "type": "registry",
+    "value": {
+      "version": "7.0.0"
+    }
+  },
+  "encoding": {
+    "type": "registry",
+    "value": {
+      "version": "0.0.8"
+    }
+  },
+  "enums": {
+    "type": "registry",
+    "value": {
+      "version": "6.0.1"
+    }
+  },
+  "env-names": {
+    "type": "registry",
+    "value": {
+      "version": "0.3.4"
+    }
+  },
+  "error": {
+    "type": "registry",
+    "value": {
+      "version": "2.0.0"
+    }
+  },
+  "exceptions": {
+    "type": "registry",
+    "value": {
+      "version": "6.0.0"
+    }
+  },
+  "exists": {
+    "type": "registry",
+    "value": {
+      "version": "6.0.0"
+    }
+  },
+  "exitcodes": {
+    "type": "registry",
+    "value": {
+      "version": "4.0.0"
+    }
+  },
+  "expect-inferred": {
+    "type": "registry",
+    "value": {
+      "version": "3.0.0"
+    }
+  },
+  "fahrtwind": {
+    "type": "registry",
+    "value": {
+      "version": "2.0.0"
+    }
+  },
+  "fallback": {
+    "type": "registry",
+    "value": {
+      "version": "0.1.0"
+    }
+  },
+  "fast-vect": {
+    "type": "registry",
+    "value": {
+      "version": "1.1.0"
+    }
+  },
+  "fetch": {
+    "type": "registry",
+    "value": {
+      "version": "1.1.4"
+    }
+  },
+  "fetch-argonaut": {
+    "type": "registry",
+    "value": {
+      "version": "1.0.1"
+    }
+  },
+  "fetch-core": {
+    "type": "registry",
+    "value": {
+      "version": "4.0.4"
+    }
+  },
+  "fetch-yoga-json": {
+    "type": "registry",
+    "value": {
+      "version": "1.1.0"
+    }
+  },
+  "filterable": {
+    "type": "registry",
+    "value": {
+      "version": "5.0.0"
+    }
+  },
+  "fixed-points": {
+    "type": "registry",
+    "value": {
+      "version": "7.0.0"
+    }
+  },
+  "fixed-precision": {
+    "type": "registry",
+    "value": {
+      "version": "5.0.0"
+    }
+  },
+  "flame": {
+    "type": "registry",
+    "value": {
+      "version": "1.3.0"
+    }
+  },
+  "float32": {
+    "type": "registry",
+    "value": {
+      "version": "2.0.0"
+    }
+  },
+  "foldable-traversable": {
+    "type": "registry",
+    "value": {
+      "version": "6.0.0"
+    }
+  },
+  "foreign": {
+    "type": "registry",
+    "value": {
+      "version": "7.0.0"
+    }
+  },
+  "foreign-object": {
+    "type": "registry",
+    "value": {
+      "version": "4.1.0"
+    }
+  },
+  "foreign-readwrite": {
+    "type": "registry",
+    "value": {
+      "version": "3.4.0"
+    }
+  },
+  "forgetmenot": {
+    "type": "registry",
+    "value": {
+      "version": "0.1.0"
+    }
+  },
+  "fork": {
+    "type": "registry",
+    "value": {
+      "version": "6.0.0"
+    }
+  },
+  "form-urlencoded": {
+    "type": "registry",
+    "value": {
+      "version": "7.0.0"
+    }
+  },
+  "formatters": {
+    "type": "registry",
+    "value": {
+      "version": "7.0.0"
+    }
+  },
+  "framer-motion": {
+    "type": "registry",
+    "value": {
+      "version": "1.0.1"
+    }
+  },
+  "free": {
+    "type": "registry",
+    "value": {
+      "version": "7.0.0"
+    }
+  },
+  "freeap": {
+    "type": "registry",
+    "value": {
+      "version": "7.0.0"
+    }
+  },
+  "freer-free": {
+    "type": "registry",
+    "value": {
+      "version": "0.0.1"
+    }
+  },
+  "freet": {
+    "type": "registry",
+    "value": {
+      "version": "7.0.0"
+    }
+  },
+  "functions": {
+    "type": "registry",
+    "value": {
+      "version": "6.0.0"
+    }
+  },
+  "functor1": {
+    "type": "registry",
+    "value": {
+      "version": "3.0.0"
+    }
+  },
+  "functors": {
+    "type": "registry",
+    "value": {
+      "version": "5.0.0"
+    }
+  },
+  "fuzzy": {
+    "type": "registry",
+    "value": {
+      "version": "0.4.0"
+    }
+  },
+  "gen": {
+    "type": "registry",
+    "value": {
+      "version": "4.0.0"
+    }
+  },
+  "generate-values": {
+    "type": "registry",
+    "value": {
+      "version": "1.0.1"
+    }
+  },
+  "generic-router": {
+    "type": "registry",
+    "value": {
+      "version": "0.0.1"
+    }
+  },
+  "geojson": {
+    "type": "registry",
+    "value": {
+      "version": "0.0.3"
+    }
+  },
+  "geometry-plane": {
+    "type": "registry",
+    "value": {
+      "version": "1.0.3"
+    }
+  },
+  "github-actions-toolkit": {
+    "type": "registry",
+    "value": {
+      "version": "0.5.0"
+    }
+  },
+  "grain": {
+    "type": "registry",
+    "value": {
+      "version": "3.0.0"
+    }
+  },
+  "grain-router": {
+    "type": "registry",
+    "value": {
+      "version": "3.0.0"
+    }
+  },
+  "grain-virtualized": {
+    "type": "registry",
+    "value": {
+      "version": "3.0.0"
+    }
+  },
+  "graphql-client": {
+    "type": "registry",
+    "value": {
+      "version": "9.3.2"
+    }
+  },
+  "graphs": {
+    "type": "registry",
+    "value": {
+      "version": "8.1.0"
+    }
+  },
+  "group": {
+    "type": "registry",
+    "value": {
+      "version": "4.1.1"
+    }
+  },
+  "halogen": {
+    "type": "registry",
+    "value": {
+      "version": "7.0.0"
+    }
+  },
+  "halogen-bootstrap5": {
+    "type": "registry",
+    "value": {
+      "version": "2.2.0"
+    }
+  },
+  "halogen-css": {
+    "type": "registry",
+    "value": {
+      "version": "10.0.0"
+    }
+  },
+  "halogen-echarts-simple": {
+    "type": "registry",
+    "value": {
+      "version": "0.0.4"
+    }
+  },
+  "halogen-formless": {
+    "type": "registry",
+    "value": {
+      "version": "4.0.3"
+    }
+  },
+  "halogen-helix": {
+    "type": "registry",
+    "value": {
+      "version": "1.0.0"
+    }
+  },
+  "halogen-hooks": {
+    "type": "registry",
+    "value": {
+      "version": "0.6.3"
+    }
+  },
+  "halogen-hooks-extra": {
+    "type": "registry",
+    "value": {
+      "version": "0.9.0"
+    }
+  },
+  "halogen-store": {
+    "type": "registry",
+    "value": {
+      "version": "0.5.4"
+    }
+  },
+  "halogen-storybook": {
+    "type": "registry",
+    "value": {
+      "version": "2.0.0"
+    }
+  },
+  "halogen-subscriptions": {
+    "type": "registry",
+    "value": {
+      "version": "2.0.0"
+    }
+  },
+  "halogen-svg-elems": {
+    "type": "registry",
+    "value": {
+      "version": "8.0.0"
+    }
+  },
+  "halogen-typewriter": {
+    "type": "registry",
+    "value": {
+      "version": "1.0.2"
+    }
+  },
+  "halogen-vdom": {
+    "type": "registry",
+    "value": {
+      "version": "8.0.0"
+    }
+  },
+  "halogen-vdom-string-renderer": {
+    "type": "registry",
+    "value": {
+      "version": "0.5.0"
+    }
+  },
+  "heckin": {
+    "type": "registry",
+    "value": {
+      "version": "2.0.1"
+    }
+  },
+  "heterogeneous": {
+    "type": "registry",
+    "value": {
+      "version": "0.6.0"
+    }
+  },
+  "homogeneous": {
+    "type": "registry",
+    "value": {
+      "version": "0.4.0"
+    }
+  },
+  "http-methods": {
+    "type": "registry",
+    "value": {
+      "version": "6.0.0"
+    }
+  },
+  "httpure": {
+    "type": "registry",
+    "value": {
+      "version": "0.16.0"
+    }
+  },
+  "httpurple": {
+    "type": "registry",
+    "value": {
+      "version": "3.0.1"
+    }
+  },
+  "httpurple-argonaut": {
+    "type": "registry",
+    "value": {
+      "version": "1.0.1"
+    }
+  },
+  "httpurple-yoga-json": {
+    "type": "registry",
+    "value": {
+      "version": "1.0.0"
+    }
+  },
+  "humdrum": {
+    "type": "registry",
+    "value": {
+      "version": "0.0.1"
+    }
+  },
+  "hyrule": {
+    "type": "registry",
+    "value": {
+      "version": "2.3.8"
+    }
+  },
+  "identity": {
+    "type": "registry",
+    "value": {
+      "version": "6.0.0"
+    }
+  },
+  "identy": {
+    "type": "registry",
+    "value": {
+      "version": "4.0.1"
+    }
+  },
+  "indexed-db": {
+    "type": "registry",
+    "value": {
+      "version": "1.0.0"
+    }
+  },
+  "indexed-monad": {
+    "type": "registry",
+    "value": {
+      "version": "3.0.0"
+    }
+  },
+  "int64": {
+    "type": "registry",
+    "value": {
+      "version": "3.0.0"
+    }
+  },
+  "integers": {
+    "type": "registry",
+    "value": {
+      "version": "6.0.0"
+    }
+  },
+  "interpolate": {
+    "type": "registry",
+    "value": {
+      "version": "5.0.2"
+    }
+  },
+  "invariant": {
+    "type": "registry",
+    "value": {
+      "version": "6.0.0"
+    }
+  },
+  "jarilo": {
+    "type": "registry",
+    "value": {
+      "version": "1.0.1"
+    }
+  },
+  "jelly": {
+    "type": "registry",
+    "value": {
+      "version": "0.10.0"
+    }
+  },
+  "jelly-router": {
+    "type": "registry",
+    "value": {
+      "version": "0.3.0"
+    }
+  },
+  "jelly-signal": {
+    "type": "registry",
+    "value": {
+      "version": "0.4.0"
+    }
+  },
+  "jest": {
+    "type": "registry",
+    "value": {
+      "version": "1.0.0"
+    }
+  },
+  "js-abort-controller": {
+    "type": "registry",
+    "value": {
+      "version": "1.0.0"
+    }
+  },
+  "js-bigints": {
+    "type": "registry",
+    "value": {
+      "version": "2.1.0"
+    }
+  },
+  "js-date": {
+    "type": "registry",
+    "value": {
+      "version": "8.0.0"
+    }
+  },
+  "js-fileio": {
+    "type": "registry",
+    "value": {
+      "version": "3.0.0"
+    }
+  },
+  "js-iterators": {
+    "type": "registry",
+    "value": {
+      "version": "0.1.1"
+    }
+  },
+  "js-maps": {
+    "type": "registry",
+    "value": {
+      "version": "0.1.2"
+    }
+  },
+  "js-promise": {
+    "type": "registry",
+    "value": {
+      "version": "1.0.0"
+    }
+  },
+  "js-promise-aff": {
+    "type": "registry",
+    "value": {
+      "version": "1.0.0"
+    }
+  },
+  "js-timers": {
+    "type": "registry",
+    "value": {
+      "version": "6.1.0"
+    }
+  },
+  "js-uri": {
+    "type": "registry",
+    "value": {
+      "version": "3.1.0"
+    }
+  },
+  "json-codecs": {
+    "type": "registry",
+    "value": {
+      "version": "3.0.0"
+    }
+  },
+  "justifill": {
+    "type": "registry",
+    "value": {
+      "version": "0.5.0"
+    }
+  },
+  "jwt": {
+    "type": "registry",
+    "value": {
+      "version": "0.0.9"
+    }
+  },
+  "labeled-data": {
+    "type": "registry",
+    "value": {
+      "version": "0.2.0"
+    }
+  },
+  "language-cst-parser": {
+    "type": "registry",
+    "value": {
+      "version": "0.13.0"
+    }
+  },
+  "lazy": {
+    "type": "registry",
+    "value": {
+      "version": "6.0.0"
+    }
+  },
+  "lazy-joe": {
+    "type": "registry",
+    "value": {
+      "version": "1.0.0"
+    }
+  },
+  "lcg": {
+    "type": "registry",
+    "value": {
+      "version": "4.0.0"
+    }
+  },
+  "leibniz": {
+    "type": "registry",
+    "value": {
+      "version": "5.0.0"
+    }
+  },
+  "liminal": {
+    "type": "registry",
+    "value": {
+      "version": "1.0.1"
+    }
+  },
+  "linalg": {
+    "type": "registry",
+    "value": {
+      "version": "6.0.0"
+    }
+  },
+  "lists": {
+    "type": "registry",
+    "value": {
+      "version": "7.0.0"
+    }
+  },
+  "literals": {
+    "type": "registry",
+    "value": {
+      "version": "1.0.2"
+    }
+  },
+  "logging": {
+    "type": "registry",
+    "value": {
+      "version": "3.0.0"
+    }
+  },
+  "logging-journald": {
+    "type": "registry",
+    "value": {
+      "version": "0.4.0"
+    }
+  },
+  "machines": {
+    "type": "registry",
+    "value": {
+      "version": "7.0.0"
+    }
+  },
+  "maps-eager": {
+    "type": "registry",
+    "value": {
+      "version": "0.4.1"
+    }
+  },
+  "marionette": {
+    "type": "registry",
+    "value": {
+      "version": "1.0.0"
+    }
+  },
+  "marionette-commander": {
+    "type": "registry",
+    "value": {
+      "version": "0.1.1"
+    }
+  },
+  "marionette-react-basic-hooks": {
+    "type": "registry",
+    "value": {
+      "version": "0.1.1"
+    }
+  },
+  "matrices": {
+    "type": "registry",
+    "value": {
+      "version": "5.0.1"
+    }
+  },
+  "matryoshka": {
+    "type": "registry",
+    "value": {
+      "version": "1.0.0"
+    }
+  },
+  "maybe": {
+    "type": "registry",
+    "value": {
+      "version": "6.0.0"
+    }
+  },
+  "mdast-util-from-markdown": {
+    "type": "registry",
+    "value": {
+      "version": "0.2.1"
+    }
+  },
+  "media-types": {
+    "type": "registry",
+    "value": {
+      "version": "6.0.0"
+    }
+  },
+  "midi": {
+    "type": "registry",
+    "value": {
+      "version": "4.0.0"
+    }
+  },
+  "milkis": {
+    "type": "registry",
+    "value": {
+      "version": "9.0.0"
+    }
+  },
+  "minibench": {
+    "type": "registry",
+    "value": {
+      "version": "4.0.1"
+    }
+  },
+  "mmorph": {
+    "type": "registry",
+    "value": {
+      "version": "7.0.0"
+    }
+  },
+  "monad-control": {
+    "type": "registry",
+    "value": {
+      "version": "5.0.0"
+    }
+  },
+  "monad-logger": {
+    "type": "registry",
+    "value": {
+      "version": "1.3.1"
+    }
+  },
+  "monad-loops": {
+    "type": "registry",
+    "value": {
+      "version": "0.5.0"
+    }
+  },
+  "monad-unlift": {
+    "type": "registry",
+    "value": {
+      "version": "1.0.1"
+    }
+  },
+  "monoid-extras": {
+    "type": "registry",
+    "value": {
+      "version": "0.0.1"
+    }
+  },
+  "monoidal": {
+    "type": "registry",
+    "value": {
+      "version": "0.16.0"
+    }
+  },
+  "morello": {
+    "type": "registry",
+    "value": {
+      "version": "0.4.0"
+    }
+  },
+  "mote": {
+    "type": "registry",
+    "value": {
+      "version": "3.0.0"
+    }
+  },
+  "motsunabe": {
+    "type": "registry",
+    "value": {
+      "version": "2.0.0"
+    }
+  },
+  "mysql": {
+    "type": "registry",
+    "value": {
+      "version": "6.0.1"
+    }
+  },
+  "n3": {
+    "type": "registry",
+    "value": {
+      "version": "0.1.0"
+    }
+  },
+  "nano-id": {
+    "type": "registry",
+    "value": {
+      "version": "1.1.0"
+    }
+  },
+  "nanoid": {
+    "type": "registry",
+    "value": {
+      "version": "0.1.0"
+    }
+  },
+  "naturals": {
+    "type": "registry",
+    "value": {
+      "version": "3.0.0"
+    }
+  },
+  "nested-functor": {
+    "type": "registry",
+    "value": {
+      "version": "0.2.1"
+    }
+  },
+  "newtype": {
+    "type": "registry",
+    "value": {
+      "version": "5.0.0"
+    }
+  },
+  "nextjs": {
+    "type": "registry",
+    "value": {
+      "version": "0.1.1"
+    }
+  },
+  "nextui": {
+    "type": "registry",
+    "value": {
+      "version": "0.2.0"
+    }
+  },
+  "node-buffer": {
+    "type": "registry",
+    "value": {
+      "version": "8.0.0"
+    }
+  },
+  "node-buffer-blob": {
+    "type": "registry",
+    "value": {
+      "version": "1.0.0"
+    }
+  },
+  "node-child-process": {
+    "type": "registry",
+    "value": {
+      "version": "9.0.0"
+    }
+  },
+  "node-env-paths": {
+    "type": "registry",
+    "value": {
+      "version": "1.0.0"
+    }
+  },
+  "node-event-emitter": {
+    "type": "registry",
+    "value": {
+      "version": "3.0.0"
+    }
+  },
+  "node-execa": {
+    "type": "registry",
+    "value": {
+      "version": "3.0.0"
+    }
+  },
+  "node-fs": {
+    "type": "registry",
+    "value": {
+      "version": "8.2.0"
+    }
+  },
+  "node-fs-aff": {
+    "type": "registry",
+    "value": {
+      "version": "9.2.0"
+    }
+  },
+  "node-http": {
+    "type": "registry",
+    "value": {
+      "version": "8.0.0"
+    }
+  },
+  "node-human-signals": {
+    "type": "registry",
+    "value": {
+      "version": "1.0.0"
+    }
+  },
+  "node-net": {
+    "type": "registry",
+    "value": {
+      "version": "4.0.0"
+    }
+  },
+  "node-os": {
+    "type": "registry",
+    "value": {
+      "version": "4.0.0"
+    }
+  },
+  "node-path": {
+    "type": "registry",
+    "value": {
+      "version": "5.0.0"
+    }
+  },
+  "node-process": {
+    "type": "registry",
+    "value": {
+      "version": "10.0.0"
+    }
+  },
+  "node-readline": {
+    "type": "registry",
+    "value": {
+      "version": "7.0.0"
+    }
+  },
+  "node-sqlite3": {
+    "type": "registry",
+    "value": {
+      "version": "8.0.0"
+    }
+  },
+  "node-streams": {
+    "type": "registry",
+    "value": {
+      "version": "7.0.0"
+    }
+  },
+  "node-streams-aff": {
+    "type": "registry",
+    "value": {
+      "version": "5.0.0"
+    }
+  },
+  "node-url": {
+    "type": "registry",
+    "value": {
+      "version": "6.0.0"
+    }
+  },
+  "nodemailer": {
+    "type": "registry",
+    "value": {
+      "version": "4.0.1"
+    }
+  },
+  "nonempty": {
+    "type": "registry",
+    "value": {
+      "version": "7.0.0"
+    }
+  },
+  "now": {
+    "type": "registry",
+    "value": {
+      "version": "6.0.0"
+    }
+  },
+  "npm-package-json": {
+    "type": "registry",
+    "value": {
+      "version": "2.0.0"
+    }
+  },
+  "nullable": {
+    "type": "registry",
+    "value": {
+      "version": "6.0.0"
+    }
+  },
+  "numberfield": {
+    "type": "registry",
+    "value": {
+      "version": "0.1.0"
+    }
+  },
+  "numbers": {
+    "type": "registry",
+    "value": {
+      "version": "9.0.1"
+    }
+  },
+  "oak": {
+    "type": "registry",
+    "value": {
+      "version": "3.1.1"
+    }
+  },
+  "oak-debug": {
+    "type": "registry",
+    "value": {
+      "version": "1.2.2"
+    }
+  },
+  "object-maps": {
+    "type": "registry",
+    "value": {
+      "version": "0.3.0"
+    }
+  },
+  "ocarina": {
+    "type": "registry",
+    "value": {
+      "version": "1.5.4"
+    }
+  },
+  "open-folds": {
+    "type": "registry",
+    "value": {
+      "version": "6.3.0"
+    }
+  },
+  "open-memoize": {
+    "type": "registry",
+    "value": {
+      "version": "6.1.0"
+    }
+  },
+  "open-pairing": {
+    "type": "registry",
+    "value": {
+      "version": "6.1.0"
+    }
+  },
+  "options": {
+    "type": "registry",
+    "value": {
+      "version": "7.0.0"
+    }
+  },
+  "optparse": {
+    "type": "registry",
+    "value": {
+      "version": "5.0.0"
+    }
+  },
+  "ordered-collections": {
+    "type": "registry",
+    "value": {
+      "version": "3.0.0"
+    }
+  },
+  "ordered-set": {
+    "type": "registry",
+    "value": {
+      "version": "0.4.0"
+    }
+  },
+  "orders": {
+    "type": "registry",
+    "value": {
+      "version": "6.0.0"
+    }
+  },
+  "pairs": {
+    "type": "registry",
+    "value": {
+      "version": "9.0.1"
+    }
+  },
+  "parallel": {
+    "type": "registry",
+    "value": {
+      "version": "6.0.0"
+    }
+  },
+  "parsing": {
+    "type": "registry",
+    "value": {
+      "version": "10.2.0"
+    }
+  },
+  "parsing-dataview": {
+    "type": "registry",
+    "value": {
+      "version": "3.2.4"
+    }
+  },
+  "partial": {
+    "type": "registry",
+    "value": {
+      "version": "4.0.0"
+    }
+  },
+  "pathy": {
+    "type": "registry",
+    "value": {
+      "version": "9.0.0"
+    }
+  },
+  "pha": {
+    "type": "registry",
+    "value": {
+      "version": "0.11.0"
+    }
+  },
+  "phaser": {
+    "type": "registry",
+    "value": {
+      "version": "0.7.0"
+    }
+  },
+  "phylio": {
+    "type": "registry",
+    "value": {
+      "version": "1.1.2"
+    }
+  },
+  "pipes": {
+    "type": "registry",
+    "value": {
+      "version": "8.0.0"
+    }
+  },
+  "pirates-charm": {
+    "type": "registry",
+    "value": {
+      "version": "0.0.1"
+    }
+  },
+  "pmock": {
+    "type": "registry",
+    "value": {
+      "version": "0.4.0"
+    }
+  },
+  "point-free": {
+    "type": "registry",
+    "value": {
+      "version": "1.0.0"
+    }
+  },
+  "pointed-list": {
+    "type": "registry",
+    "value": {
+      "version": "0.5.1"
+    }
+  },
+  "polymorphic-vectors": {
+    "type": "registry",
+    "value": {
+      "version": "4.0.0"
+    }
+  },
+  "posix-types": {
+    "type": "registry",
+    "value": {
+      "version": "6.0.0"
+    }
+  },
+  "precise": {
+    "type": "registry",
+    "value": {
+      "version": "6.0.0"
+    }
+  },
+  "precise-datetime": {
+    "type": "registry",
+    "value": {
+      "version": "7.0.0"
+    }
+  },
+  "prelude": {
+    "type": "registry",
+    "value": {
+      "version": "6.0.1"
+    }
+  },
+  "prettier-printer": {
+    "type": "registry",
+    "value": {
+      "version": "3.0.0"
+    }
+  },
+  "profunctor": {
+    "type": "registry",
+    "value": {
+      "version": "6.0.0"
+    }
+  },
+  "profunctor-lenses": {
+    "type": "registry",
+    "value": {
+      "version": "8.0.0"
+    }
+  },
+  "protobuf": {
+    "type": "registry",
+    "value": {
+      "version": "4.3.0"
+    }
+  },
+  "ps-cst": {
+    "type": "registry",
+    "value": {
+      "version": "1.2.0"
+    }
+  },
+  "psa-utils": {
+    "type": "registry",
+    "value": {
+      "version": "8.0.0"
+    }
+  },
+  "psc-ide": {
+    "type": "registry",
+    "value": {
+      "version": "19.0.0"
+    }
+  },
+  "psci-support": {
+    "type": "registry",
+    "value": {
+      "version": "6.0.0"
+    }
+  },
+  "qualified-do": {
+    "type": "registry",
+    "value": {
+      "version": "2.2.0"
+    }
+  },
+  "quantities": {
+    "type": "registry",
+    "value": {
+      "version": "12.2.0"
+    }
+  },
+  "quickcheck": {
+    "type": "registry",
+    "value": {
+      "version": "8.0.1"
+    }
+  },
+  "quickcheck-combinators": {
+    "type": "registry",
+    "value": {
+      "version": "0.1.3"
+    }
+  },
+  "quickcheck-laws": {
+    "type": "registry",
+    "value": {
+      "version": "7.0.0"
+    }
+  },
+  "quickcheck-utf8": {
+    "type": "registry",
+    "value": {
+      "version": "0.0.0"
+    }
+  },
+  "random": {
+    "type": "registry",
+    "value": {
+      "version": "6.0.0"
+    }
+  },
+  "rationals": {
+    "type": "registry",
+    "value": {
+      "version": "6.0.0"
+    }
+  },
+  "rdf": {
+    "type": "registry",
+    "value": {
+      "version": "0.1.0"
+    }
+  },
+  "react": {
+    "type": "registry",
+    "value": {
+      "version": "11.0.0"
+    }
+  },
+  "react-aria": {
+    "type": "registry",
+    "value": {
+      "version": "0.2.0"
+    }
+  },
+  "react-basic": {
+    "type": "registry",
+    "value": {
+      "version": "17.0.0"
+    }
+  },
+  "react-basic-classic": {
+    "type": "registry",
+    "value": {
+      "version": "3.0.0"
+    }
+  },
+  "react-basic-dnd": {
+    "type": "registry",
+    "value": {
+      "version": "10.1.0"
+    }
+  },
+  "react-basic-dom": {
+    "type": "registry",
+    "value": {
+      "version": "6.1.0"
+    }
+  },
+  "react-basic-emotion": {
+    "type": "registry",
+    "value": {
+      "version": "7.1.0"
+    }
+  },
+  "react-basic-hooks": {
+    "type": "registry",
+    "value": {
+      "version": "8.2.0"
+    }
+  },
+  "react-basic-storybook": {
+    "type": "registry",
+    "value": {
+      "version": "2.0.0"
+    }
+  },
+  "react-dom": {
+    "type": "registry",
+    "value": {
+      "version": "8.0.0"
+    }
+  },
+  "react-halo": {
+    "type": "registry",
+    "value": {
+      "version": "3.0.0"
+    }
+  },
+  "react-icons": {
+    "type": "registry",
+    "value": {
+      "version": "1.1.1"
+    }
+  },
+  "react-markdown": {
+    "type": "registry",
+    "value": {
+      "version": "0.1.0"
+    }
+  },
+  "react-testing-library": {
+    "type": "registry",
+    "value": {
+      "version": "4.0.1"
+    }
+  },
+  "react-virtuoso": {
+    "type": "registry",
+    "value": {
+      "version": "1.0.0"
+    }
+  },
+  "read": {
+    "type": "registry",
+    "value": {
+      "version": "1.0.1"
+    }
+  },
+  "recharts": {
+    "type": "registry",
+    "value": {
+      "version": "1.1.0"
+    }
+  },
+  "record": {
+    "type": "registry",
+    "value": {
+      "version": "4.0.0"
+    }
+  },
+  "record-extra": {
+    "type": "registry",
+    "value": {
+      "version": "5.0.1"
+    }
+  },
+  "record-studio": {
+    "type": "registry",
+    "value": {
+      "version": "1.0.4"
+    }
+  },
+  "refs": {
+    "type": "registry",
+    "value": {
+      "version": "6.0.0"
+    }
+  },
+  "remotedata": {
+    "type": "registry",
+    "value": {
+      "version": "5.0.0"
+    }
+  },
+  "resource": {
+    "type": "registry",
+    "value": {
+      "version": "2.0.1"
+    }
+  },
+  "resourcet": {
+    "type": "registry",
+    "value": {
+      "version": "1.0.0"
+    }
+  },
+  "result": {
+    "type": "registry",
+    "value": {
+      "version": "1.0.3"
+    }
+  },
+  "return": {
+    "type": "registry",
+    "value": {
+      "version": "0.2.0"
+    }
+  },
+  "ring-modules": {
+    "type": "registry",
+    "value": {
+      "version": "5.0.1"
+    }
+  },
+  "rito": {
+    "type": "registry",
+    "value": {
+      "version": "0.3.4"
+    }
+  },
+  "routing": {
+    "type": "registry",
+    "value": {
+      "version": "11.0.0"
+    }
+  },
+  "routing-duplex": {
+    "type": "registry",
+    "value": {
+      "version": "0.7.0"
+    }
+  },
+  "run": {
+    "type": "registry",
+    "value": {
+      "version": "5.0.0"
+    }
+  },
+  "safe-coerce": {
+    "type": "registry",
+    "value": {
+      "version": "2.0.0"
+    }
+  },
+  "safely": {
+    "type": "registry",
+    "value": {
+      "version": "4.0.1"
+    }
+  },
+  "school-of-music": {
+    "type": "registry",
+    "value": {
+      "version": "1.3.0"
+    }
+  },
+  "selection-foldable": {
+    "type": "registry",
+    "value": {
+      "version": "0.2.0"
+    }
+  },
+  "semirings": {
+    "type": "registry",
+    "value": {
+      "version": "7.0.0"
+    }
+  },
+  "signal": {
+    "type": "registry",
+    "value": {
+      "version": "13.0.0"
+    }
+  },
+  "simple-emitter": {
+    "type": "registry",
+    "value": {
+      "version": "3.0.1"
+    }
+  },
+  "simple-i18n": {
+    "type": "registry",
+    "value": {
+      "version": "2.0.1"
+    }
+  },
+  "simple-json": {
+    "type": "registry",
+    "value": {
+      "version": "9.0.0"
+    }
+  },
+  "simple-jwt": {
+    "type": "registry",
+    "value": {
+      "version": "4.0.1"
+    }
+  },
+  "simple-ulid": {
+    "type": "registry",
+    "value": {
+      "version": "3.0.0"
+    }
+  },
+  "sized-matrices": {
+    "type": "registry",
+    "value": {
+      "version": "1.0.0"
+    }
+  },
+  "sized-vectors": {
+    "type": "registry",
+    "value": {
+      "version": "5.0.2"
+    }
+  },
+  "slug": {
+    "type": "registry",
+    "value": {
+      "version": "3.0.8"
+    }
+  },
+  "small-ffi": {
+    "type": "registry",
+    "value": {
+      "version": "4.0.1"
+    }
+  },
+  "soundfonts": {
+    "type": "registry",
+    "value": {
+      "version": "4.1.0"
+    }
+  },
+  "sparse-matrices": {
+    "type": "registry",
+    "value": {
+      "version": "1.3.0"
+    }
+  },
+  "sparse-polynomials": {
+    "type": "registry",
+    "value": {
+      "version": "2.0.5"
+    }
+  },
+  "spec": {
+    "type": "registry",
+    "value": {
+      "version": "7.5.2"
+    }
+  },
+  "spec-discovery": {
+    "type": "registry",
+    "value": {
+      "version": "8.0.1"
+    }
+  },
+  "spec-golden": {
+    "type": "registry",
+    "value": {
+      "version": "1.0.0"
+    }
+  },
+  "spec-quickcheck": {
+    "type": "registry",
+    "value": {
+      "version": "5.0.0"
+    }
+  },
+  "spec-reporter-xunit": {
+    "type": "registry",
+    "value": {
+      "version": "0.6.1"
+    }
+  },
+  "splitmix": {
+    "type": "registry",
+    "value": {
+      "version": "2.1.0"
+    }
+  },
+  "ssrs": {
+    "type": "registry",
+    "value": {
+      "version": "1.0.0"
+    }
+  },
+  "st": {
+    "type": "registry",
+    "value": {
+      "version": "6.2.0"
+    }
+  },
+  "statistics": {
+    "type": "registry",
+    "value": {
+      "version": "0.3.2"
+    }
+  },
+  "strictlypositiveint": {
+    "type": "registry",
+    "value": {
+      "version": "1.0.1"
+    }
+  },
+  "string-parsers": {
+    "type": "registry",
+    "value": {
+      "version": "8.0.0"
+    }
+  },
+  "strings": {
+    "type": "registry",
+    "value": {
+      "version": "6.0.1"
+    }
+  },
+  "strings-extra": {
+    "type": "registry",
+    "value": {
+      "version": "4.0.0"
+    }
+  },
+  "stringutils": {
+    "type": "registry",
+    "value": {
+      "version": "0.0.12"
+    }
+  },
+  "substitute": {
+    "type": "registry",
+    "value": {
+      "version": "0.2.3"
+    }
+  },
+  "sunde": {
+    "type": "registry",
+    "value": {
+      "version": "3.0.0"
+    }
+  },
+  "supply": {
+    "type": "registry",
+    "value": {
+      "version": "0.2.0"
+    }
+  },
+  "svg-parser": {
+    "type": "registry",
+    "value": {
+      "version": "3.0.0"
+    }
+  },
+  "systemd-journald": {
+    "type": "registry",
+    "value": {
+      "version": "0.3.0"
+    }
+  },
+  "tagged": {
+    "type": "registry",
+    "value": {
+      "version": "4.0.2"
+    }
+  },
+  "tailrec": {
+    "type": "registry",
+    "value": {
+      "version": "6.1.0"
+    }
+  },
+  "tecton": {
+    "type": "registry",
+    "value": {
+      "version": "0.2.1"
+    }
+  },
+  "tecton-halogen": {
+    "type": "registry",
+    "value": {
+      "version": "0.2.0"
+    }
+  },
+  "test-unit": {
+    "type": "registry",
+    "value": {
+      "version": "17.0.0"
+    }
+  },
+  "thermite": {
+    "type": "registry",
+    "value": {
+      "version": "6.3.1"
+    }
+  },
+  "thermite-dom": {
+    "type": "registry",
+    "value": {
+      "version": "0.3.1"
+    }
+  },
+  "these": {
+    "type": "registry",
+    "value": {
+      "version": "6.0.0"
+    }
+  },
+  "toppokki": {
+    "type": "registry",
+    "value": {
+      "version": "4.0.0"
+    }
+  },
+  "transformation-matrix": {
+    "type": "registry",
+    "value": {
+      "version": "1.0.1"
+    }
+  },
+  "transformers": {
+    "type": "registry",
+    "value": {
+      "version": "6.0.0"
+    }
+  },
+  "tree-rose": {
+    "type": "registry",
+    "value": {
+      "version": "4.0.2"
+    }
+  },
+  "ts-bridge": {
+    "type": "registry",
+    "value": {
+      "version": "2.0.3"
+    }
+  },
+  "tuples": {
+    "type": "registry",
+    "value": {
+      "version": "7.0.0"
+    }
+  },
+  "two-or-more": {
+    "type": "registry",
+    "value": {
+      "version": "1.0.0"
+    }
+  },
+  "type-equality": {
+    "type": "registry",
+    "value": {
+      "version": "4.0.1"
+    }
+  },
+  "typedenv": {
+    "type": "registry",
+    "value": {
+      "version": "2.0.1"
+    }
+  },
+  "typelevel": {
+    "type": "registry",
+    "value": {
+      "version": "6.0.0"
+    }
+  },
+  "typelevel-lists": {
+    "type": "registry",
+    "value": {
+      "version": "2.1.0"
+    }
+  },
+  "typelevel-peano": {
+    "type": "registry",
+    "value": {
+      "version": "1.0.1"
+    }
+  },
+  "typelevel-prelude": {
+    "type": "registry",
+    "value": {
+      "version": "7.0.0"
+    }
+  },
+  "typelevel-rows": {
+    "type": "registry",
+    "value": {
+      "version": "0.1.0"
+    }
+  },
+  "uint": {
+    "type": "registry",
+    "value": {
+      "version": "7.0.0"
+    }
+  },
+  "ulid": {
+    "type": "registry",
+    "value": {
+      "version": "3.0.1"
+    }
+  },
+  "uncurried-transformers": {
+    "type": "registry",
+    "value": {
+      "version": "1.1.0"
+    }
+  },
+  "undefined": {
+    "type": "registry",
+    "value": {
+      "version": "2.0.0"
+    }
+  },
+  "undefined-is-not-a-problem": {
+    "type": "registry",
+    "value": {
+      "version": "1.1.0"
+    }
+  },
+  "unfoldable": {
+    "type": "registry",
+    "value": {
+      "version": "6.0.0"
+    }
+  },
+  "unicode": {
+    "type": "registry",
+    "value": {
+      "version": "6.0.0"
+    }
+  },
+  "unique": {
+    "type": "registry",
+    "value": {
+      "version": "0.6.1"
+    }
+  },
+  "unlift": {
+    "type": "registry",
+    "value": {
+      "version": "1.0.1"
+    }
+  },
+  "unordered-collections": {
+    "type": "registry",
+    "value": {
+      "version": "3.0.1"
+    }
+  },
+  "unsafe-coerce": {
+    "type": "registry",
+    "value": {
+      "version": "6.0.0"
+    }
+  },
+  "unsafe-reference": {
+    "type": "registry",
+    "value": {
+      "version": "5.0.0"
+    }
+  },
+  "untagged-to-tagged": {
+    "type": "registry",
+    "value": {
+      "version": "0.1.4"
+    }
+  },
+  "untagged-union": {
+    "type": "registry",
+    "value": {
+      "version": "1.0.0"
+    }
+  },
+  "uri": {
+    "type": "registry",
+    "value": {
+      "version": "9.0.0"
+    }
+  },
+  "uuid": {
+    "type": "registry",
+    "value": {
+      "version": "9.0.0"
+    }
+  },
+  "uuidv4": {
+    "type": "registry",
+    "value": {
+      "version": "1.0.0"
+    }
+  },
+  "validation": {
+    "type": "registry",
+    "value": {
+      "version": "6.0.0"
+    }
+  },
+  "variant": {
+    "type": "registry",
+    "value": {
+      "version": "8.0.0"
+    }
+  },
+  "variant-encodings": {
+    "type": "registry",
+    "value": {
+      "version": "2.0.0"
+    }
+  },
+  "vectorfield": {
+    "type": "registry",
+    "value": {
+      "version": "1.0.1"
+    }
+  },
+  "vectors": {
+    "type": "registry",
+    "value": {
+      "version": "2.1.0"
+    }
+  },
+  "versions": {
+    "type": "registry",
+    "value": {
+      "version": "7.0.0"
+    }
+  },
+  "visx": {
+    "type": "registry",
+    "value": {
+      "version": "0.0.2"
+    }
+  },
+  "web-clipboard": {
+    "type": "registry",
+    "value": {
+      "version": "5.0.0"
+    }
+  },
+  "web-cssom": {
+    "type": "registry",
+    "value": {
+      "version": "2.0.0"
+    }
+  },
+  "web-cssom-view": {
+    "type": "registry",
+    "value": {
+      "version": "0.1.0"
+    }
+  },
+  "web-dom": {
+    "type": "registry",
+    "value": {
+      "version": "6.0.0"
+    }
+  },
+  "web-dom-parser": {
+    "type": "registry",
+    "value": {
+      "version": "8.0.0"
+    }
+  },
+  "web-dom-xpath": {
+    "type": "registry",
+    "value": {
+      "version": "3.0.0"
+    }
+  },
+  "web-encoding": {
+    "type": "registry",
+    "value": {
+      "version": "3.0.0"
+    }
+  },
+  "web-events": {
+    "type": "registry",
+    "value": {
+      "version": "4.0.0"
+    }
+  },
+  "web-fetch": {
+    "type": "registry",
+    "value": {
+      "version": "3.0.0"
+    }
+  },
+  "web-file": {
+    "type": "registry",
+    "value": {
+      "version": "4.0.0"
+    }
+  },
+  "web-geometry": {
+    "type": "registry",
+    "value": {
+      "version": "0.1.0"
+    }
+  },
+  "web-html": {
+    "type": "registry",
+    "value": {
+      "version": "4.1.0"
+    }
+  },
+  "web-intl": {
+    "type": "registry",
+    "value": {
+      "version": "0.3.0"
+    }
+  },
+  "web-pointerevents": {
+    "type": "registry",
+    "value": {
+      "version": "1.0.0"
+    }
+  },
+  "web-proletarian": {
+    "type": "registry",
+    "value": {
+      "version": "1.0.0"
+    }
+  },
+  "web-promise": {
+    "type": "registry",
+    "value": {
+      "version": "3.1.0"
+    }
+  },
+  "web-resize-observer": {
+    "type": "registry",
+    "value": {
+      "version": "2.0.0"
+    }
+  },
+  "web-router": {
+    "type": "registry",
+    "value": {
+      "version": "1.0.0"
+    }
+  },
+  "web-socket": {
+    "type": "registry",
+    "value": {
+      "version": "4.0.0"
+    }
+  },
+  "web-storage": {
+    "type": "registry",
+    "value": {
+      "version": "5.0.0"
+    }
+  },
+  "web-streams": {
+    "type": "registry",
+    "value": {
+      "version": "3.0.0"
+    }
+  },
+  "web-touchevents": {
+    "type": "registry",
+    "value": {
+      "version": "4.0.0"
+    }
+  },
+  "web-uievents": {
+    "type": "registry",
+    "value": {
+      "version": "4.0.0"
+    }
+  },
+  "web-url": {
+    "type": "registry",
+    "value": {
+      "version": "2.0.0"
+    }
+  },
+  "web-workers": {
+    "type": "registry",
+    "value": {
+      "version": "1.1.0"
+    }
+  },
+  "web-xhr": {
+    "type": "registry",
+    "value": {
+      "version": "5.0.1"
+    }
+  },
+  "webextension-polyfill": {
+    "type": "registry",
+    "value": {
+      "version": "0.1.0"
+    }
+  },
+  "webgpu": {
+    "type": "registry",
+    "value": {
+      "version": "0.0.0"
+    }
+  },
+  "which": {
+    "type": "registry",
+    "value": {
+      "version": "2.0.0"
+    }
+  },
+  "yoga-fetch": {
+    "type": "registry",
+    "value": {
+      "version": "1.0.1"
+    }
+  },
+  "yoga-json": {
+    "type": "registry",
+    "value": {
+      "version": "5.1.0"
+    }
+  },
+  "yoga-om": {
+    "type": "registry",
+    "value": {
+      "version": "0.1.0"
+    }
+  },
+  "yoga-postgres": {
+    "type": "registry",
+    "value": {
+      "version": "6.0.0"
+    }
+  },
+  "yoga-tree": {
+    "type": "registry",
+    "value": {
+      "version": "1.0.0"
+    }
+  },
+  "z3": {
+    "type": "registry",
+    "value": {
+      "version": "0.0.2"
+    }
+  }
+}

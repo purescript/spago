@@ -1,0 +1,7 @@
+Reading Spago workspace configuration...
+
+✅ Selecting package to build: aaa
+
+Downloading dependencies...
+
+❌ Cannot list the packages in the package set, as none is configured for the project.

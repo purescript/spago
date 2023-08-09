@@ -247,7 +247,7 @@ argParser =
                 "Query the Registry for information about packages and versions"
                 (SpagoCmd <$> globalArgsParser <*> (RegistryInfo <$> registryInfoArgsParser) <* ArgParser.flagHelp)
             ] <* ArgParser.flagHelp
-    , ArgParser.command [ "ls" ] "List packages or dependencies" do
+    , ArgParser.command [ "ls" ] "List packages or dependencies. Use the `registry` command to search the Registry." do
         ArgParser.choose "ls-subcommand"
           [ ArgParser.command [ "packages" ]
               "List packages available in the local package set"

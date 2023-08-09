@@ -49,7 +49,7 @@ listPackageSet { json } = do
   logDebug "Running `listPackageSet`"
   { workspace } <- ask
   case workspace.packageSet of
-    Registry _extraPackages -> die "No package set in the project"
+    Registry _extraPackages -> die "Cannot list the packages in the package set, as none is configured for the project."
     PackageSet packageSet -> do
       let packages = Map.toUnfoldable packageSet
       case json of
