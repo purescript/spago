@@ -5,7 +5,7 @@ import Spago.Prelude
 import Data.Array as Array
 import Data.Array.NonEmpty as NonEmptyArray
 import Data.Codec.Argonaut.Common as CA.Common
-import Data.Foldable (fold)
+import Data.Foldable as Foldable
 import Data.JSDate as JSDate
 import Data.List as List
 import Data.Map as Map
@@ -51,7 +51,7 @@ import Spago.Log (LogVerbosity(..))
 import Spago.Paths as Paths
 import Spago.Purs (Purs)
 import Spago.Purs as Purs
-import Unsafe.Coerce (unsafeCoerce)
+import Unsafe.Coerce as UnsafeCoerce
 
 type GlobalArgs =
   { noColor :: Boolean
@@ -200,7 +200,7 @@ commandParser command_ parser_ description_ =
 
 argParser :: Parser (SpagoCmd ())
 argParser =
-  O.hsubparser $ fold
+  O.hsubparser $ Foldable.fold
     [ commandParser "init" (Init <$> initArgsParser) "Initialise a new project"
     , commandParser "fetch" (Fetch <$> fetchArgsParser) "Downloads all of the project's dependencies"
     , commandParser "install" (Install <$> installArgsParser) "Compile the project's dependencies"
@@ -213,7 +213,7 @@ argParser =
     , commandParser "publish" (Publish <$> publishArgsParser) "Publish a package"
     , O.command "registry"
         ( O.info
-            ( O.hsubparser $ fold
+            ( O.hsubparser $ Foldable.fold
                 [ commandParser "search" (RegistrySearch <$> registrySearchArgsParser) "Search for package names in the Registry"
                 , commandParser "info" (RegistryInfo <$> registryInfoArgsParser) "Query the Registry for information about packages and versions"
                 ]
@@ -222,7 +222,7 @@ argParser =
         )
     , O.command "ls"
         ( O.info
-            ( O.hsubparser $ fold
+            ( O.hsubparser $ Foldable.fold
                 [ commandParser "packages" (LsPackages <$> lsPackagesArgsParser) "List packages available in the local package set"
                 , commandParser "deps" (LsDeps <$> lsDepsArgsParser) "List dependencies of the project"
                 ]
