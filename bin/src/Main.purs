@@ -43,6 +43,7 @@ import Spago.Config (BundleConfig, BundlePlatform(..), BundleType(..), Package, 
 import Spago.Config as Config
 import Spago.Core.Config as Core
 import Spago.Esbuild as Esbuild
+import Spago.Generated.BuildInfo as BuildInfo
 import Spago.FS as FS
 import Spago.Git as Git
 import Spago.Json as Json
@@ -171,7 +172,7 @@ type PublishArgs =
   { selectedPackage :: Maybe String
   }
 
-data SpagoCmd a = SpagoCmd GlobalArgs (Command a)
+data SpagoCmd a = SpagoCmd GlobalArgs (Command a) | SpagoCmdVersion
 
 data Command a
   = Init InitArgs
@@ -228,11 +229,8 @@ argParser =
             )
             (progDesc "List packages or dependencies")
         )
+    , O.command "version" (O.info (pure SpagoCmdVersion) (O.progDesc "Show the current version"))
     ]
-
--- <* hsubparser (help "")
--- <* infoOption BuildInfo.currentSpagoVersion (?_)
--- ArgParser.flagInfo [ "--version" ] "Show the current version" BuildInfo.currentSpagoVersion
 
 {-
 
@@ -577,6 +575,10 @@ main =
             dependencies <- runSpago env (Fetch.run fetchOpts)
             lsEnv <- runSpago env (mkLsEnv dependencies)
             runSpago lsEnv (Ls.listPackages { json, transitive })
+      SpagoCmdVersion -> do
+        logOptions <- mkLogOptions { noColor: true, quiet: true, verbose: false }
+        runSpago { logOptions } do
+          logInfo BuildInfo.buildInfo.spagoVersion
 
 mkLogOptions :: GlobalArgs -> Aff LogOptions
 mkLogOptions { noColor, quiet, verbose } = do
