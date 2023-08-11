@@ -1,0 +1,43 @@
+{
+    "name": "purescript-parsing",
+    "license": [
+        "BSD-2-Clause"
+    ],
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/purescript-contrib/purescript-parsing.git"
+    },
+    "ignore": [
+        "**/.*",
+        "node_modules",
+        "bower_components",
+        "output"
+    ],
+    "dependencies": {
+        "purescript-arrays": "^v7.1.0",
+        "purescript-control": "^v6.0.0",
+        "purescript-effect": "^v4.0.0",
+        "purescript-either": "^v6.1.0",
+        "purescript-enums": "^v6.0.1",
+        "purescript-foldable-traversable": "^v6.0.0",
+        "purescript-functions": "^v6.0.0",
+        "purescript-identity": "^v6.0.0",
+        "purescript-integers": "^v6.0.0",
+        "purescript-lazy": "^v6.0.0",
+        "purescript-lists": "^v7.0.0",
+        "purescript-maybe": "^v6.0.0",
+        "purescript-newtype": "^v5.0.0",
+        "purescript-nullable": "^v6.0.0",
+        "purescript-numbers": "^v9.0.0",
+        "purescript-partial": "^v4.0.0",
+        "purescript-prelude": "^v6.0.1",
+        "purescript-st": "^v6.2.0",
+        "purescript-strings": "^v6.0.1",
+        "purescript-tailrec": "^v6.1.0",
+        "purescript-transformers": "^v6.0.0",
+        "purescript-tuples": "^v7.0.0",
+        "purescript-unfoldable": "^v6.0.0",
+        "purescript-unicode": "^v6.0.0",
+        "purescript-unsafe-coerce": "^v6.0.0"
+    }
+}

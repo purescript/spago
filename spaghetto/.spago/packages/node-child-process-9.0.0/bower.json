@@ -1,0 +1,32 @@
+{
+  "name": "purescript-node-child-process",
+  "description": "PureScript bindings to child_process.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/purescript-node/purescript-node-child-process.git"
+  },
+  "ignore": [
+    "**/.*",
+    "bower_components",
+    "node_modules",
+    "output",
+    "test",
+    "bower.json",
+    "package.json"
+  ],
+  "dependencies": {
+    "purescript-exceptions": "^6.0.0",
+    "purescript-foreign": "^7.0.0",
+    "purescript-foreign-object": "^4.0.0",
+    "purescript-functions": "^6.0.0",
+    "purescript-node-fs": "^8.0.0",
+    "purescript-node-streams": "^7.0.0",
+    "purescript-nullable": "^6.0.0",
+    "purescript-posix-types": "^6.0.0",
+    "purescript-unsafe-coerce": "^6.0.0"
+  },
+  "devDependencies": {
+    "purescript-console": "^6.0.0"
+  }
+}

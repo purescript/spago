@@ -1,0 +1,30 @@
+{
+    "name": "purescript-open-memoize",
+    "license": [
+        "Apache-2.0"
+    ],
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/purescript-open-community/purescript-open-memoize"
+    },
+    "ignore": [
+        "**/.*",
+        "node_modules",
+        "bower_components",
+        "output"
+    ],
+    "dependencies": {
+        "purescript-console": "^v5.0.0",
+        "purescript-effect": "^v3.0.0",
+        "purescript-either": "^v5.0.0",
+        "purescript-integers": "^v5.0.0",
+        "purescript-lazy": "^v5.0.0",
+        "purescript-lists": "^v6.0.0",
+        "purescript-maybe": "^v5.0.0",
+        "purescript-partial": "^v3.0.0",
+        "purescript-prelude": "^v5.0.0",
+        "purescript-psci-support": "^v5.0.0",
+        "purescript-strings": "^v5.0.0",
+        "purescript-tuples": "^v6.0.0"
+    }
+}

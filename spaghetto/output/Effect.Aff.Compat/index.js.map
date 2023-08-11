@@ -1,0 +1,1 @@
+{"file":"index.js","mappings":";;;;AAoBA,uBAAA;WAAA;;AAFA,kBAAA;WAAA;;AA6BA,sBAAA;IACiB,0BAA2B;eAC1C;qBADF,EACiD,cAAA;uBAAa,0BAAA;eAAc,eAAA;uBAAa,2BAAA;;YAAvF,OACO;0CAAuB;2BAC5B;wBAFF,GAEwB,GAAG,eAAA;mCAAa,2BAAA;2BAAe,eAAA;mCAAa,4BAAA","names":[],"sources":["../../.spago/packages/aff-7.1.0/src/Effect/Aff/Compat.purs"],"version":3}

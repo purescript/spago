@@ -1,0 +1,33 @@
+{
+  "name": "purescript-unicode",
+  "homepage": "https://github.com/purescript-contrib/purescript-unicode",
+  "description": "Unicode character functions.",
+  "keywords": [
+    "purescript"
+  ],
+  "license": "BSD-3-Clause",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/purescript-contrib/purescript-unicode.git"
+  },
+  "ignore": [
+    "**/.*",
+    "bower_components",
+    "node_modules",
+    "output",
+    "bower.json",
+    "package.json"
+  ],
+  "dependencies": {
+    "purescript-foldable-traversable": "^6.0.0",
+    "purescript-maybe": "^6.0.0",
+    "purescript-strings": "^6.0.0"
+  },
+  "devDependencies": {
+    "purescript-assert": "^6.0.0",
+    "purescript-console": "^6.0.0",
+    "purescript-effect": "^4.0.0",
+    "purescript-quickcheck": "^8.0.1",
+    "purescript-random": "^6.0.0"
+  }
+}

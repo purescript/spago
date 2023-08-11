@@ -1,0 +1,23 @@
+{
+  "name": "open-memoize",
+  "version": "6.1.0",
+  "license": "MIT AND Apache-2.0",
+  "location": {
+    "githubOwner": "purescript-open-community",
+    "githubRepo": "purescript-open-memoize"
+  },
+  "dependencies": {
+    "console": ">=5.0.0 <7.0.0",
+    "effect": ">=3.0.0 <5.0.0",
+    "either": ">=5.0.0 <7.0.0",
+    "integers": ">=5.0.0 <7.0.0",
+    "lazy": ">=5.0.0 <7.0.0",
+    "lists": ">=6.0.0 <8.0.0",
+    "maybe": ">=5.0.0 <7.0.0",
+    "partial": ">=3.0.0 <5.0.0",
+    "prelude": ">=5.0.0 <7.0.0",
+    "psci-support": ">=5.0.0 <7.0.0",
+    "strings": ">=5.0.0 <7.0.0",
+    "tuples": ">=6.0.0 <8.0.0"
+  }
+}

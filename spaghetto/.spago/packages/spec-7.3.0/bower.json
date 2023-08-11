@@ -1,0 +1,45 @@
+{
+    "name": "purescript-spec",
+    "license": [
+        "MIT"
+    ],
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/purescript-spec/purescript-spec.git"
+    },
+    "ignore": [
+        "**/.*",
+        "node_modules",
+        "bower_components",
+        "output"
+    ],
+    "dependencies": {
+        "purescript-aff": "^v7.1.0",
+        "purescript-ansi": "^v7.0.0",
+        "purescript-arrays": "^v7.1.0",
+        "purescript-avar": "^v5.0.0",
+        "purescript-bifunctors": "^v6.0.0",
+        "purescript-console": "^v6.0.0",
+        "purescript-control": "^v6.0.0",
+        "purescript-datetime": "^v6.1.0",
+        "purescript-effect": "^v4.0.0",
+        "purescript-either": "^v6.1.0",
+        "purescript-exceptions": "^v6.0.0",
+        "purescript-foldable-traversable": "^v6.0.0",
+        "purescript-fork": "^v6.0.0",
+        "purescript-identity": "^v6.0.0",
+        "purescript-integers": "^v6.0.0",
+        "purescript-lists": "^v7.0.0",
+        "purescript-maybe": "^v6.0.0",
+        "purescript-newtype": "^v5.0.0",
+        "purescript-now": "^v6.0.0",
+        "purescript-ordered-collections": "^v3.0.0",
+        "purescript-parallel": "^v6.0.0",
+        "purescript-pipes": "^v8.0.0",
+        "purescript-prelude": "^v6.0.1",
+        "purescript-strings": "^v6.0.1",
+        "purescript-tailrec": "^v6.1.0",
+        "purescript-transformers": "^v6.0.0",
+        "purescript-tuples": "^v7.0.0"
+    }
+}

@@ -1,0 +1,19 @@
+module Web.DOM (module Exports) where
+
+import Web.DOM.CharacterData (CharacterData) as Exports
+import Web.DOM.ChildNode (ChildNode) as Exports
+import Web.DOM.Comment (Comment) as Exports
+import Web.DOM.Document (Document) as Exports
+import Web.DOM.DocumentFragment (DocumentFragment) as Exports
+import Web.DOM.DocumentType (DocumentType) as Exports
+import Web.DOM.DOMTokenList (DOMTokenList) as Exports
+import Web.DOM.Element (Element) as Exports
+import Web.DOM.HTMLCollection (HTMLCollection) as Exports
+import Web.DOM.Node (Node) as Exports
+import Web.DOM.NodeList (NodeList) as Exports
+import Web.DOM.NodeType (NodeType) as Exports
+import Web.DOM.NonDocumentTypeChildNode (NonDocumentTypeChildNode) as Exports
+import Web.DOM.NonElementParentNode (NonElementParentNode) as Exports
+import Web.DOM.ParentNode (ParentNode) as Exports
+import Web.DOM.ProcessingInstruction (ProcessingInstruction) as Exports
+import Web.DOM.Text (Text) as Exports

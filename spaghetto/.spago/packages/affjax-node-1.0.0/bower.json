@@ -1,0 +1,31 @@
+{
+  "name": "purescript-affjax-node",
+  "homepage": "https://github.com/purescript-contrib/purescript-affjax-node",
+  "description": "An asynchronous AJAX library built using Aff that runs on Node.js.",
+  "keywords": [
+    "purescript",
+    "ajax"
+  ],
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/purescript-contrib/purescript-affjax-node.git"
+  },
+  "ignore": [
+    "**/.*",
+    "bower_components",
+    "node_modules",
+    "output",
+    "test",
+    "tmp",
+    "bower.json",
+    "gulpfile.js",
+    "package.json"
+  ],
+  "dependencies": {
+    "purescript-affjax": "^13.0.0"
+  },
+  "devDependencies": {
+    "purescript-psci-support": "^6.0.0"
+  }
+}

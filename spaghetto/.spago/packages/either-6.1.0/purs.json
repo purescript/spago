@@ -1,0 +1,15 @@
+{
+  "name": "either",
+  "version": "6.1.0",
+  "license": "BSD-3-Clause",
+  "location": {
+    "githubOwner": "purescript",
+    "githubRepo": "purescript-either"
+  },
+  "dependencies": {
+    "control": ">=6.0.0 <7.0.0",
+    "invariant": ">=6.0.0 <7.0.0",
+    "maybe": ">=6.0.0 <7.0.0",
+    "prelude": ">=6.0.0 <7.0.0"
+  }
+}

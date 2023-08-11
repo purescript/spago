@@ -1,0 +1,16 @@
+{
+  "name": "node-buffer",
+  "version": "8.0.0",
+  "license": "MIT",
+  "location": {
+    "githubOwner": "purescript-node",
+    "githubRepo": "purescript-node-buffer"
+  },
+  "dependencies": {
+    "arraybuffer-types": ">=3.0.2 <4.0.0",
+    "effect": ">=4.0.0 <5.0.0",
+    "maybe": ">=6.0.0 <7.0.0",
+    "st": ">=6.0.0 <7.0.0",
+    "unsafe-coerce": ">=6.0.0 <7.0.0"
+  }
+}

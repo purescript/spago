@@ -1,0 +1,21 @@
+{
+  "name": "purescript-web-storage",
+  "homepage": "https://github.com/purescript-web/purescript-web-storage",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/purescript-web/purescript-web-storage.git"
+  },
+  "ignore": [
+    "**/.*",
+    "bower_components",
+    "node_modules",
+    "output",
+    "bower.json",
+    "package.json"
+  ],
+  "dependencies": {
+    "purescript-nullable": "^6.0.0",
+    "purescript-web-events": "^4.0.0"
+  }
+}

@@ -1,0 +1,45 @@
+{
+  "name": "purescript-argonaut-core",
+  "homepage": "https://github.com/purescript-contrib/purescript-argonaut-core",
+  "description": "Core of the purescript-argonaut library, providing basic types, folds, and combinators for `Json`",
+  "license": "MIT",
+  "authors": [
+    "Maxim Zimaliev <zimaliev@yandex.ru>",
+    "Hardy Jones <>",
+    "John A. De Goes <john@degoes.net>"
+  ],
+  "keywords": [
+    "purescript",
+    "argonaut",
+    "json"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/purescript-contrib/purescript-argonaut-core.git"
+  },
+  "ignore": [
+    "**/.*",
+    "bower_components",
+    "node_modules",
+    "output",
+    "test",
+    "bower.json",
+    "package.json"
+  ],
+  "dependencies": {
+    "purescript-arrays": "^7.0.0",
+    "purescript-control": "^6.0.0",
+    "purescript-either": "^6.0.0",
+    "purescript-foreign-object": "^4.0.0",
+    "purescript-functions": "^6.0.0",
+    "purescript-gen": "^4.0.0",
+    "purescript-maybe": "^6.0.0",
+    "purescript-nonempty": "^7.0.0",
+    "purescript-prelude": "^6.0.0",
+    "purescript-strings": "^6.0.0",
+    "purescript-tailrec": "^6.0.0"
+  },
+  "devDependencies": {
+    "purescript-quickcheck": "^8.0.1"
+  }
+}

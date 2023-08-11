@@ -1,0 +1,13 @@
+{
+  "name": "codec",
+  "version": "6.0.0",
+  "license": "MIT",
+  "location": {
+    "githubOwner": "garyb",
+    "githubRepo": "purescript-codec"
+  },
+  "dependencies": {
+    "bifunctors": ">=6.0.0 <7.0.0",
+    "profunctor": ">=6.0.0 <7.0.0"
+  }
+}

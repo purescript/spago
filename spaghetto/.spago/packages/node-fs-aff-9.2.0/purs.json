@@ -1,0 +1,16 @@
+{
+  "name": "node-fs-aff",
+  "version": "9.2.0",
+  "license": "MIT",
+  "description": "Aff wrappers for purescript-node-fs",
+  "location": {
+    "githubOwner": "purescript-node",
+    "githubRepo": "purescript-node-fs-aff"
+  },
+  "dependencies": {
+    "aff": ">=7.0.0 <8.0.0",
+    "either": ">=6.0.0 <7.0.0",
+    "node-fs": ">=8.2.0 <9.0.0",
+    "node-path": ">=5.0.0 <6.0.0"
+  }
+}

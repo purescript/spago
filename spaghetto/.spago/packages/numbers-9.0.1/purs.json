@@ -1,0 +1,14 @@
+{
+  "name": "numbers",
+  "version": "9.0.1",
+  "license": "BSD-3-Clause AND MIT",
+  "description": "Functions for working with Numbers",
+  "location": {
+    "githubOwner": "purescript",
+    "githubRepo": "purescript-numbers"
+  },
+  "dependencies": {
+    "functions": ">=6.0.0 <7.0.0",
+    "maybe": ">=6.0.0 <7.0.0"
+  }
+}

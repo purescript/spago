@@ -1,0 +1,16 @@
+{
+  "name": "node-event-emitter",
+  "version": "1.0.1",
+  "license": "MIT",
+  "location": {
+    "githubOwner": "jordanmartinez",
+    "githubRepo": "purescript-node-event-emitter"
+  },
+  "dependencies": {
+    "effect": ">=4.0.0 <5.0.0",
+    "functions": ">=6.0.0 <7.0.0",
+    "prelude": ">=6.0.1 <7.0.0",
+    "safe-coerce": ">=2.0.0 <3.0.0",
+    "unsafe-coerce": ">=6.0.0 <7.0.0"
+  }
+}

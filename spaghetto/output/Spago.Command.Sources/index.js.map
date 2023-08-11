@@ -1,0 +1,1 @@
+{"file":"index.js","mappings":";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;AAeA,UAAA;IACI,iBACF;QAGE;YACE,IAJJ;gBAIS,OAAY,EAJrB;;YAKI,IALJ;yDAAA;;4HAAA;;QAFF,8DASgE;QAA3D,6EATL,OAYE;YAEI,gDAAuD;4CAAa,qDAAkC;eAAI,oBAAmB;YAG/H,qBACG;gBAAE;6BACe;;gBAGpB,IArBJ;2GAqB4C;;gBACxC,KAtBJ;qDAsByB;;gIAtBzB","names":[],"sources":["../../src/Spago/Command/Sources.purs"],"version":3}

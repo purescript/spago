@@ -1,0 +1,14 @@
+{
+  "name": "const",
+  "version": "6.0.0",
+  "license": "BSD-3-Clause",
+  "location": {
+    "githubOwner": "purescript",
+    "githubRepo": "purescript-const"
+  },
+  "dependencies": {
+    "invariant": ">=6.0.0 <7.0.0",
+    "newtype": ">=5.0.0 <6.0.0",
+    "prelude": ">=6.0.0 <7.0.0"
+  }
+}

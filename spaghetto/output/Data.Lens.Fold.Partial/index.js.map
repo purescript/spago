@@ -1,0 +1,1 @@
+{"file":"index.js","mappings":";;;;;;;AAiBA,iBAAA;WAAA;eAAA;iDAC6B;sDAAsB;wCAAsC,GAAE;;;;AAI3F,wBAAA;WAAA;eAAA;iDAMoC;sDAAsB;gDAE3C,GAAG;uBAAA;oEAA4B,GAAE;;eAAI","names":[],"sources":["../../.spago/packages/profunctor-lenses-8.0.0/src/Data/Lens/Fold/Partial.purs"],"version":3}

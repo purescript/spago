@@ -1,0 +1,39 @@
+{
+  "name": "dodo-printer",
+  "version": "2.2.1",
+  "license": "MIT",
+  "location": {
+    "githubOwner": "natefaubion",
+    "githubRepo": "purescript-dodo-printer"
+  },
+  "dependencies": {
+    "aff": ">=7.0.0 <8.0.0",
+    "ansi": ">=7.0.0 <8.0.0",
+    "arrays": ">=7.0.0 <8.0.0",
+    "avar": ">=5.0.0 <6.0.0",
+    "console": ">=6.0.0 <7.0.0",
+    "control": ">=6.0.0 <7.0.0",
+    "effect": ">=4.0.0 <5.0.0",
+    "either": ">=6.0.0 <7.0.0",
+    "exceptions": ">=6.0.0 <7.0.0",
+    "foldable-traversable": ">=6.0.0 <7.0.0",
+    "integers": ">=6.0.0 <7.0.0",
+    "lists": ">=7.0.0 <8.0.0",
+    "maybe": ">=6.0.0 <7.0.0",
+    "minibench": ">=4.0.0 <5.0.0",
+    "newtype": ">=5.0.0 <6.0.0",
+    "node-buffer": ">=8.0.0 <9.0.0",
+    "node-child-process": ">=9.0.0 <10.0.0",
+    "node-fs-aff": ">=9.0.0 <10.0.0",
+    "node-path": ">=5.0.0 <6.0.0",
+    "node-process": ">=10.0.0 <11.0.0",
+    "node-streams": ">=7.0.0 <8.0.0",
+    "parallel": ">=6.0.0 <7.0.0",
+    "partial": ">=4.0.0 <5.0.0",
+    "posix-types": ">=6.0.0 <7.0.0",
+    "prelude": ">=6.0.0 <7.0.0",
+    "safe-coerce": ">=2.0.0 <3.0.0",
+    "strings": ">=6.0.0 <7.0.0",
+    "tuples": ">=7.0.0 <8.0.0"
+  }
+}

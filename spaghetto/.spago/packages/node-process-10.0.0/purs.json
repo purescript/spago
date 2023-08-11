@@ -1,0 +1,18 @@
+{
+  "name": "node-process",
+  "version": "10.0.0",
+  "license": "MIT",
+  "location": {
+    "githubOwner": "purescript-node",
+    "githubRepo": "purescript-node-process"
+  },
+  "dependencies": {
+    "effect": ">=4.0.0 <5.0.0",
+    "foreign-object": ">=4.0.0 <5.0.0",
+    "maybe": ">=6.0.0 <7.0.0",
+    "node-streams": ">=7.0.0 <8.0.0",
+    "posix-types": ">=6.0.0 <7.0.0",
+    "prelude": ">=6.0.0 <7.0.0",
+    "unsafe-coerce": ">=6.0.0 <7.0.0"
+  }
+}

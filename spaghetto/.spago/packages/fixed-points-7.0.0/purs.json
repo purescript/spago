@@ -1,0 +1,15 @@
+{
+  "name": "fixed-points",
+  "version": "7.0.0",
+  "license": "Apache-2.0",
+  "location": {
+    "githubOwner": "purescript-contrib",
+    "githubRepo": "purescript-fixed-points"
+  },
+  "dependencies": {
+    "exists": ">=6.0.0 <7.0.0",
+    "newtype": ">=5.0.0 <6.0.0",
+    "prelude": ">=6.0.0 <7.0.0",
+    "transformers": ">=6.0.0 <7.0.0"
+  }
+}

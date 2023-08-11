@@ -1,0 +1,33 @@
+{ name = "parsing"
+, license = "BSD-2-Clause"
+, repository = "https://github.com/purescript-contrib/purescript-parsing.git"
+, dependencies =
+  [ "arrays"
+  , "control"
+  , "effect"
+  , "either"
+  , "enums"
+  , "foldable-traversable"
+  , "functions"
+  , "identity"
+  , "integers"
+  , "lazy"
+  , "lists"
+  , "maybe"
+  , "newtype"
+  , "numbers"
+  , "nullable"
+  , "partial"
+  , "prelude"
+  , "st"
+  , "strings"
+  , "tailrec"
+  , "transformers"
+  , "tuples"
+  , "unfoldable"
+  , "unicode"
+  , "unsafe-coerce"
+  ]
+, packages = ./packages.dhall
+, sources = [ "src/**/*.purs" ]
+}

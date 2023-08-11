@@ -1,0 +1,11 @@
+{
+  "name": "prelude",
+  "version": "6.0.1",
+  "license": "BSD-3-Clause",
+  "location": {
+    "githubOwner": "purescript",
+    "githubRepo": "purescript-prelude"
+  },
+  "description": "The PureScript Prelude",
+  "dependencies": {}
+}

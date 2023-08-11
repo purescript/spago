@@ -1,0 +1,26 @@
+{
+  "name": "purescript-numbers",
+  "description": "Functions for working with Numbers",
+  "license": "MIT",
+  "homepage": "https://github.com/purescript/purescript-numbers",
+  "authors": [
+    "David Peter <mail@david-peter.de>"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/purescript/purescript-numbers.git"
+  },
+  "ignore": [
+    "**/.*",
+    "bower_components",
+    "output"
+  ],
+  "dependencies": {
+    "purescript-functions": "^6.0.0",
+    "purescript-maybe": "^6.0.0"
+  },
+  "devDependencies": {
+    "purescript-assert": "^6.0.0",
+    "purescript-console": "^6.0.0"
+  }
+}

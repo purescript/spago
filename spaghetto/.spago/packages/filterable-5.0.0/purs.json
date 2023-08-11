@@ -1,0 +1,18 @@
+{
+  "name": "filterable",
+  "version": "5.0.0",
+  "license": "MIT",
+  "description": "Classes for filterable and witherable data structures",
+  "location": {
+    "githubOwner": "purescript",
+    "githubRepo": "purescript-filterable"
+  },
+  "dependencies": {
+    "arrays": ">=7.0.0 <8.0.0",
+    "either": ">=6.0.0 <7.0.0",
+    "foldable-traversable": ">=6.0.0 <7.0.0",
+    "identity": ">=6.0.0 <7.0.0",
+    "lists": ">=7.0.0 <8.0.0",
+    "ordered-collections": ">=3.0.0 <4.0.0"
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "name": "purescript-st",
+  "homepage": "https://github.com/purescript/purescript-st",
+  "description": "The ST effect, for safe local mutation",
+  "license": "BSD-3-Clause",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/purescript/purescript-st.git"
+  },
+  "ignore": [
+    "**/.*",
+    "bower_components",
+    "node_modules",
+    "output",
+    "test",
+    "bower.json",
+    "package.json"
+  ],
+  "dependencies": {
+    "purescript-partial": "^4.0.0",
+    "purescript-prelude": "^6.0.0",
+    "purescript-tailrec": "^6.0.0",
+    "purescript-unsafe-coerce": "^6.0.0"
+  },
+  "devDependencies": {
+    "purescript-console": "^6.0.0"
+  }
+}

@@ -1,0 +1,1 @@
+{"file":"index.js","mappings":";;;;;;AAWE,UAAA;IAAA,OAAA;;AAEF;WAAA;;;;;AAIK;WAAA;aACG,cAAA;4EAAA;;;;;AARN,UAAA;IAAA,OAAA;;AAWG,kBAAA;WAAA;cACG,YAAA;YAAA,SAAwB;mBAAxB,cAAA;iFAAwB,GAAxB;;;gGAC0B","names":[],"sources":["../../.spago/packages/functors-5.0.0/src/Data/Functor/Coproduct/Inject.purs"],"version":3}

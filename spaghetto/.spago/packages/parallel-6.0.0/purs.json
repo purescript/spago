@@ -1,0 +1,22 @@
+{
+  "name": "parallel",
+  "version": "6.0.0",
+  "license": "BSD-3-Clause",
+  "location": {
+    "githubOwner": "purescript",
+    "githubRepo": "purescript-parallel"
+  },
+  "dependencies": {
+    "control": ">=6.0.0 <7.0.0",
+    "effect": ">=4.0.0 <5.0.0",
+    "either": ">=6.0.0 <7.0.0",
+    "foldable-traversable": ">=6.0.0 <7.0.0",
+    "functors": ">=5.0.0 <6.0.0",
+    "maybe": ">=6.0.0 <7.0.0",
+    "newtype": ">=5.0.0 <6.0.0",
+    "prelude": ">=6.0.0 <7.0.0",
+    "profunctor": ">=6.0.0 <7.0.0",
+    "refs": ">=6.0.0 <7.0.0",
+    "transformers": ">=6.0.0 <7.0.0"
+  }
+}

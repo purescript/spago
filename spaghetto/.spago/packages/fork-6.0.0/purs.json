@@ -1,0 +1,12 @@
+{
+  "name": "fork",
+  "version": "6.0.0",
+  "license": "Apache-2.0",
+  "location": {
+    "githubOwner": "purescript-contrib",
+    "githubRepo": "purescript-fork"
+  },
+  "dependencies": {
+    "aff": ">=7.0.0 <8.0.0"
+  }
+}

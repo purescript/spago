@@ -1,0 +1,10 @@
+{
+  "name": "arraybuffer-types",
+  "version": "3.0.2",
+  "license": "MIT",
+  "location": {
+    "githubOwner": "purescript-contrib",
+    "githubRepo": "purescript-arraybuffer-types"
+  },
+  "dependencies": {}
+}

@@ -1,0 +1,33 @@
+{
+  "name": "purescript-formatters",
+  "homepage": "https://github.com/slamdata/purescript-formatters",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/purescript-contrib/purescript-formatters.git"
+  },
+  "ignore": [
+    "**/.*",
+    "bower_components",
+    "node_modules",
+    "output",
+    "test",
+    "bower.json",
+    "package.json"
+  ],
+  "dependencies": {
+    "purescript-datetime": "^6.0.0",
+    "purescript-fixed-points": "^7.0.0",
+    "purescript-lists": "^7.0.0",
+    "purescript-numbers": "^9.0.0",
+    "purescript-parsing": "^9.0.0",
+    "purescript-prelude": "^6.0.0",
+    "purescript-transformers": "^6.0.0"
+  },
+  "devDependencies": {
+    "purescript-aff": "^7.0.0",
+    "purescript-assert": "^6.0.0",
+    "purescript-console": "^6.0.0",
+    "purescript-effect": "^4.0.0"
+  }
+}

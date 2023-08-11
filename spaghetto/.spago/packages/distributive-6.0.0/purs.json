@@ -1,0 +1,16 @@
+{
+  "name": "distributive",
+  "version": "6.0.0",
+  "license": "BSD-3-Clause",
+  "location": {
+    "githubOwner": "purescript",
+    "githubRepo": "purescript-distributive"
+  },
+  "dependencies": {
+    "identity": ">=6.0.0 <7.0.0",
+    "newtype": ">=5.0.0 <6.0.0",
+    "prelude": ">=6.0.0 <7.0.0",
+    "tuples": ">=7.0.0 <8.0.0",
+    "type-equality": ">=4.0.1 <5.0.0"
+  }
+}

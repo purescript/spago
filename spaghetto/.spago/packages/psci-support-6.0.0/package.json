@@ -1,0 +1,14 @@
+{
+  "private": true,
+  "scripts": {
+    "clean": "rimraf output && rimraf .pulp-cache",
+    "build": "eslint src && pulp build -- --censor-lib --strict",
+    "test": "pulp test"
+  },
+  "devDependencies": {
+    "eslint": "^4.19.1",
+    "pulp": "16.0.0-0",
+    "purescript-psa": "^0.8.2",
+    "rimraf": "^2.6.2"
+  }
+}

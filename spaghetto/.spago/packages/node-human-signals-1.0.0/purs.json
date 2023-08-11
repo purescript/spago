@@ -1,0 +1,17 @@
+{
+  "name": "node-human-signals",
+  "version": "1.0.0",
+  "license": "Apache-2.0",
+  "location": {
+    "githubOwner": "jordanmartinez",
+    "githubRepo": "purescript-node-human-signals"
+  },
+  "dependencies": {
+    "arrays": ">=7.2.0 <8.0.0",
+    "control": ">=6.0.0 <7.0.0",
+    "foreign-object": ">=4.1.0 <5.0.0",
+    "maybe": ">=6.0.0 <7.0.0",
+    "ordered-collections": ">=3.0.0 <4.0.0",
+    "prelude": ">=6.0.1 <7.0.0"
+  }
+}

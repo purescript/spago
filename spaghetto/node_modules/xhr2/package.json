@@ -1,0 +1,57 @@
+{
+  "name": "xhr2",
+  "version": "0.2.1",
+  "description": "XMLHttpRequest emulation for node.js",
+  "keywords": [
+    "xhr",
+    "xmlhttprequest",
+    "ajax",
+    "browser"
+  ],
+  "homepage": "https://github.com/pwnall/node-xhr2",
+  "author": "Victor Costan <victor@costan.us> (http://www.costan.us)",
+  "contributors": [
+    "Alexander Black <aeonrush@live.ru>",
+    "Daniel Friedman <dfriedman58@gmail.com>",
+    "Eugen Mayer <eugen.mayer@kontextwork.de>",
+    "Francois-Xavier Kowalski <francois-xavier.kowalski@hp.com>",
+    "Sébastien Nicouleaud"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/pwnall/node-xhr2.git"
+  },
+  "bugs": {
+    "url": "https://github.com/pwnall/node-xhr2/issues"
+  },
+  "engines": {
+    "node": ">= 6"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "async": ">=3.0.1",
+    "chai": ">=4.2.0",
+    "codo": ">=2.1.2",
+    "coffeescript": ">=2.4.1",
+    "express": ">=4.17.1",
+    "glob": ">=7.1.4",
+    "mocha": ">=6.1.4",
+    "open": ">=6.3.0",
+    "remove": ">= 0.1.5",
+    "sinon": ">=7.3.2",
+    "sinon-chai": ">=3.3.0"
+  },
+  "main": "lib/xhr2.js",
+  "browser": "lib/browser.js",
+  "directories": {
+    "doc": "doc",
+    "lib": "lib",
+    "src": "src",
+    "test": "test"
+  },
+  "scripts": {
+    "prepublish": "cake build",
+    "test": "cake test"
+  }
+}

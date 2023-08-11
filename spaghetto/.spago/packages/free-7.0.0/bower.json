@@ -1,0 +1,45 @@
+{
+  "name": "purescript-free",
+  "homepage": "https://github.com/purescript/purescript-free",
+  "authors": [
+    "Eric Thul <thul.eric@gmail.com>",
+    "Brian McKenna <brian@brianmckenna.org>",
+    "John A. De Goes <john@degoes.net> (http://degoes.net)",
+    "Gary Burgess <gary.burgess@gmail.com>",
+    "Phil Freeman <paf31@cantab.net>"
+  ],
+  "license": "BSD-3-Clause",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/purescript/purescript-free.git"
+  },
+  "ignore": [
+    "**/.*",
+    "bower_components",
+    "node_modules",
+    "output",
+    "test",
+    "bower.json",
+    "package.json"
+  ],
+  "dependencies": {
+    "purescript-catenable-lists": "^7.0.0",
+    "purescript-control": "^6.0.0",
+    "purescript-distributive": "^6.0.0",
+    "purescript-either": "^6.0.0",
+    "purescript-exists": "^6.0.0",
+    "purescript-foldable-traversable": "^6.0.0",
+    "purescript-invariant": "^6.0.0",
+    "purescript-lazy": "^6.0.0",
+    "purescript-maybe": "^6.0.0",
+    "purescript-prelude": "^6.0.0",
+    "purescript-tailrec": "^6.0.0",
+    "purescript-transformers": "^6.0.0",
+    "purescript-tuples": "^7.0.0",
+    "purescript-unsafe-coerce": "^6.0.0"
+  },
+  "devDependencies": {
+    "purescript-console": "^6.0.0",
+    "purescript-functors": "^5.0.0"
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "name": "web-events",
+  "version": "4.0.0",
+  "license": "MIT",
+  "location": {
+    "githubOwner": "purescript-web",
+    "githubRepo": "purescript-web-events"
+  },
+  "dependencies": {
+    "datetime": ">=6.0.0 <7.0.0",
+    "enums": ">=6.0.0 <7.0.0",
+    "foreign": ">=7.0.0 <8.0.0",
+    "nullable": ">=6.0.0 <7.0.0"
+  }
+}

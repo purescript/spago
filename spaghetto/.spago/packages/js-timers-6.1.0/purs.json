@@ -1,0 +1,13 @@
+{
+  "name": "js-timers",
+  "version": "6.1.0",
+  "license": "MIT",
+  "location": {
+    "githubOwner": "purescript-contrib",
+    "githubRepo": "purescript-js-timers"
+  },
+  "description": "PureScript library for native JavaScript timers",
+  "dependencies": {
+    "effect": ">=4.0.0 <5.0.0"
+  }
+}

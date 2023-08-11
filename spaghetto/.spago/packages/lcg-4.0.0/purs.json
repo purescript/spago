@@ -1,0 +1,17 @@
+{
+  "name": "lcg",
+  "version": "4.0.0",
+  "license": "BSD-3-Clause",
+  "location": {
+    "githubOwner": "purescript",
+    "githubRepo": "purescript-lcg"
+  },
+  "dependencies": {
+    "effect": ">=4.0.0 <5.0.0",
+    "integers": ">=6.0.0 <7.0.0",
+    "maybe": ">=6.0.0 <7.0.0",
+    "partial": ">=4.0.0 <5.0.0",
+    "prelude": ">=6.0.0 <7.0.0",
+    "random": ">=6.0.0 <7.0.0"
+  }
+}

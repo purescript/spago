@@ -1,0 +1,27 @@
+{
+  "name": "purescript-record",
+  "homepage": "https://github.com/purescript/purescript-record",
+  "description": "Functions for working with records and polymorphic labels",
+  "license": "BSD-3-Clause",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/purescript/purescript-record.git"
+  },
+  "ignore": [
+    "**/.*",
+    "bower_components",
+    "node_modules",
+    "output",
+    "test",
+    "bower.json",
+    "package.json"
+  ],
+  "dependencies": {
+    "purescript-functions": "^6.0.0",
+    "purescript-prelude": "^6.0.0",
+    "purescript-unsafe-coerce": "^6.0.0"
+  },
+  "devDependencies": {
+    "purescript-assert": "^6.0.0"
+  }
+}

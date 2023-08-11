@@ -1,0 +1,23 @@
+{
+  "name": "purescript-psci-support",
+  "homepage": "https://github.com/purescript/purescript-psci-support",
+  "description": "Support module for the PSCI interactive mode",
+  "license": "BSD-3-Clause",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/purescript/purescript-psci-support.git"
+  },
+  "ignore": [
+    "**/.*",
+    "bower_components",
+    "node_modules",
+    "output",
+    "bower.json",
+    "package.json"
+  ],
+  "dependencies": {
+    "purescript-console": "^6.0.0",
+    "purescript-effect": "^4.0.0",
+    "purescript-prelude": "^6.0.0"
+  }
+}

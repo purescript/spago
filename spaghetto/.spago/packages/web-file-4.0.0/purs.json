@@ -1,0 +1,14 @@
+{
+  "name": "web-file",
+  "version": "4.0.0",
+  "license": "MIT",
+  "location": {
+    "githubOwner": "purescript-web",
+    "githubRepo": "purescript-web-file"
+  },
+  "dependencies": {
+    "foreign": ">=7.0.0 <8.0.0",
+    "media-types": ">=6.0.0 <7.0.0",
+    "web-dom": ">=6.0.0 <7.0.0"
+  }
+}

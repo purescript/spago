@@ -1,0 +1,14 @@
+{
+  "name": "assert",
+  "version": "6.0.0",
+  "license": "BSD-3-Clause",
+  "location": {
+    "githubOwner": "purescript",
+    "githubRepo": "purescript-assert"
+  },
+  "dependencies": {
+    "console": ">=6.0.0 <7.0.0",
+    "effect": ">=4.0.0 <5.0.0",
+    "prelude": ">=6.0.0 <7.0.0"
+  }
+}

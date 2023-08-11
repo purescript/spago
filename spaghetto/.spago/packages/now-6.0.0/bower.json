@@ -1,0 +1,31 @@
+{
+  "name": "purescript-now",
+  "homepage": "https://github.com/purescript-contrib/purescript-now",
+  "description": "PureScript library for reading the current date and time value",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/purescript-contrib/purescript-now.git"
+  },
+  "ignore": [
+    "**/.*",
+    "bower_components",
+    "node_modules",
+    "output",
+    "bower.json",
+    "package.json"
+  ],
+  "dependencies": {
+    "purescript-datetime": "^6.0.0",
+    "purescript-effect": "^4.0.0"
+  },
+  "devDependencies": {
+    "purescript-assert": "^6.0.0",
+    "purescript-console": "^6.0.0",
+    "purescript-either": "^6.0.0",
+    "purescript-exceptions": "^6.0.0",
+    "purescript-node-process": "^9.0.0",
+    "purescript-prelude": "^6.0.0",
+    "purescript-transformers": "^6.0.0"
+  }
+}
