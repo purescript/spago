@@ -12,6 +12,9 @@ import Record.Builder (Builder)
 import Record.Builder as Builder
 import Type.Proxy (Proxy(..))
 
+-- this code is adapted from `argparse-basic`
+-- it builds a record parser from a record of parsers
+
 fromRecord
   :: forall rin rl rout
    . RowToList rin rl
