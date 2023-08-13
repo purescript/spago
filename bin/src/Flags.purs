@@ -3,13 +3,10 @@ module Spago.Bin.Flags where
 import Spago.Prelude
 
 import Data.Array as Array
-import Data.Function as Function
 import Data.List as List
-import Data.Maybe as Maybe
 import Data.Set.NonEmpty (NonEmptySet)
 import Data.Set.NonEmpty as NonEmptySet
 import Options.Applicative (Parser)
-import Options.Applicative as Optparse
 import Spago.Core.Config (ShowSourceCode(..))
 import Spago.Core.Config as Core
 import Options.Applicative as O
