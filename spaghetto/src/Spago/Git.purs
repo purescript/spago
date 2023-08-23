@@ -36,7 +36,7 @@ runGit args cwd = ExceptT do
   result <- Cmd.exec git.cmd args (Cmd.defaultExecOptions { pipeStdout = false, pipeStderr = false, cwd = cwd })
   pure $ bimap _.stderr _.stdout result
 
-fetchRepo :: forall a b. { git :: String, ref :: String | a } -> FilePath -> Spago (GitEnv b) Unit
+fetchRepo :: forall a b. { git :: String, ref :: String | a } -> FilePath -> Spago (GitEnv b) (Either (Array String) Unit)
 fetchRepo { git, ref } path = do
   repoExists <- FS.exists path
   cloneOrFetchResult <- case repoExists of
@@ -60,12 +60,12 @@ fetchRepo { git, ref } path = do
       )
       (runGit_ [ "symbolic-ref", "-q", "HEAD" ] (Just path))
 
-  case result of
-    Left err -> die
+  pure case result of
+    Left err -> Left
       [ "Error while fetching the repo '" <> git <> "' at ref '" <> ref <> "':"
-      , err
+      , "  " <> err
       ]
-    Right _ -> pure unit
+    Right _ -> Right unit
 
 getCleanTag :: forall a. Maybe FilePath -> Spago (GitEnv a) (Either Docc String)
 getCleanTag cwd = do

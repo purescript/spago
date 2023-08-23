@@ -236,10 +236,12 @@ getGitPackageInLocalCache name package = do
   let localPackageLocation = Config.getPackageLocation name (GitPackage package)
   tempDir <- mkTemp' (Just $ printJson Config.gitPackageCodec package)
   logDebug $ "Cloning repo in " <> tempDir
-  Git.fetchRepo package tempDir
-  logDebug $ "Repo cloned. Moving to " <> localPackageLocation
-  FS.mkdirp $ Path.concat [ Paths.localCachePackagesPath, PackageName.print name ]
-  FS.moveSync { src: tempDir, dst: localPackageLocation }
+  Git.fetchRepo package tempDir >>= case _ of
+    Left err -> die err
+    Right _ -> do
+      logDebug $ "Repo cloned. Moving to " <> localPackageLocation
+      FS.mkdirp $ Path.concat [ Paths.localCachePackagesPath, PackageName.print name ]
+      FS.moveSync { src: tempDir, dst: localPackageLocation }
 
 getPackageDependencies :: forall a. PackageName -> Package -> Spago (FetchEnv a) (Maybe (Map PackageName Range))
 getPackageDependencies packageName package = case package of
