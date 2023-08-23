@@ -2,7 +2,6 @@ module Spago.BuildInfo where
 
 import Spago.Prelude
 
-import Data.Array as Array
 import Data.String as String
 import Node.Path as Path
 import Registry.PackageName as PackageName
@@ -58,23 +57,24 @@ mkBuildInfo :: BuildInfo -> String
 mkBuildInfo { packages, pursVersion } = String.joinWith "\n"
   [ "module Spago.Generated.BuildInfo where"
   , ""
-  , "buildInfo :: { packages :: Array { name :: String, version :: String }, pursVersion :: String, spagoVersion :: String }"
+  , "buildInfo :: { packages :: " <> recordType <> ", pursVersion :: String, spagoVersion :: String }"
   , "buildInfo ="
-  , "  { packages: [" <> String.joinWith ", " (map renderPackage packages) <> "]"
+  , "  { packages: {" <> String.joinWith ", " (map renderPackage packages) <> "}"
   , "  , pursVersion: \"" <> pursVersion <> "\""
   , "  , spagoVersion: \"" <> currentSpagoVersion <> "\""
   , "  }"
   , ""
   ]
   where
-  renderPackage p = "{ name: \"" <> p.name <> "\", version: \"" <> p.version <> "\"}"
+  recordType = "{ " <> String.joinWith ", " (map renderPackageType packages) <> " }"
+  renderPackage p = "\"" <> p.name <> "\": \"" <> p.version <> "\""
+  renderPackageType p = "\"" <> p.name <> "\" :: String"
 
 buildInfoPath ∷ FilePath
 buildInfoPath = Path.concat [ Paths.localCachePath, "BuildInfo.purs" ]
 
--- TODO: maybe more elegant
 currentSpagoVersion :: String
-currentSpagoVersion = fromMaybe "0.0.0" $ map _.version $ Array.head BuildInfo.buildInfo.packages
+currentSpagoVersion = BuildInfo.buildInfo.packages."spago-bin"
 
 mkPackageBuildInfo :: WorkspacePackage -> { name :: String, version :: String }
 mkPackageBuildInfo { package } =

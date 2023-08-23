@@ -25,7 +25,7 @@
   ],
   "main": "bin/bundle.js",
   "scripts": {
-    "version": "sed -i'' -e \"s|version:.*|version: $npm_package_version|g\" {spago,bin/spago}.yaml",
+    "version": "sed -i'' -e \"s|version:.*|version: $npm_package_version|g\" {spago,bin/spago,core/spago}.yaml",
     "format": "purs-tidy format-in-place src bin",
     "format:check": "purs-tidy check src bin",
     "bundle": "spago bundle -p spago-bin",
