@@ -17,7 +17,8 @@ import Effect.Ref as Ref
 import Node.FS.Stats (Stats(..))
 import Node.Path as Path
 import Node.Process as Process
-import Options.Applicative (CommandFields, Mod, Parser, ParserPrefs(..), command, customExecParser, defaultPrefs, helper, hsubparser, info, progDesc)
+import Options.Applicative (CommandFields, Mod, Parser, ParserPrefs(..))
+import Options.Applicative as O
 import Optparse as Optparse
 import Record as Record
 import Registry.Constants as Registry.Constants
@@ -43,8 +44,8 @@ import Spago.Config (BundleConfig, BundlePlatform(..), BundleType(..), Package, 
 import Spago.Config as Config
 import Spago.Core.Config as Core
 import Spago.Esbuild as Esbuild
-import Spago.Generated.BuildInfo as BuildInfo
 import Spago.FS as FS
+import Spago.Generated.BuildInfo as BuildInfo
 import Spago.Git as Git
 import Spago.Json as Json
 import Spago.Log (LogVerbosity(..))
@@ -405,20 +406,30 @@ lsDepsArgsParser = Optparse.fromRecord
   , selectedPackage: Flags.selectedPackage
   }
 
-parseArgs :: Effect (SpagoCmd ())
+parseArgs :: Effect (Either (SpagoCmd ()) Boolean)
 parseArgs = do
-  customExecParser
-    (defaultPrefs # \(ParserPrefs p) -> ParserPrefs (p { prefShowHelpOnError = true }))
-    ( info
-        (helper <*> argParser)
-        (progDesc "PureScript package manager and build tool")
+  O.customExecParser
+    ( O.defaultPrefs # \(ParserPrefs p) -> ParserPrefs
+        ( p
+            { prefShowHelpOnError = true
+            , prefShowHelpOnEmpty = true
+            }
+        )
+    )
+    ( O.info
+        ( O.helper <*>
+            ( (Left <$> argParser) <|>
+                (Right <$> (O.switch (O.long "version" <> O.short 'v' <> O.help "Show the current version")))
+            )
+        )
+        (O.progDesc "PureScript package manager and build tool")
     )
 
 main :: Effect Unit
 main =
   parseArgs >>=
     \c -> Aff.launchAff_ case c of
-      SpagoCmd globalArgs command -> do
+      Left (SpagoCmd globalArgs command) -> do
         logOptions <- mkLogOptions globalArgs
         runSpago { logOptions } case command of
           Sources args -> do
@@ -575,10 +586,13 @@ main =
             dependencies <- runSpago env (Fetch.run fetchOpts)
             lsEnv <- runSpago env (mkLsEnv dependencies)
             runSpago lsEnv (Ls.listPackages { json, transitive })
-      SpagoCmdVersion -> do
-        logOptions <- mkLogOptions { noColor: true, quiet: true, verbose: false }
-        runSpago { logOptions } do
-          logInfo BuildInfo.buildInfo.spagoVersion
+      Left SpagoCmdVersion -> printVersion
+      Right v -> do when v printVersion
+  where
+  printVersion = do
+    logOptions <- mkLogOptions { noColor: false, quiet: false, verbose: false }
+    runSpago { logOptions } do
+      logInfo BuildInfo.buildInfo.spagoVersion
 
 mkLogOptions :: GlobalArgs -> Aff LogOptions
 mkLogOptions { noColor, quiet, verbose } = do
