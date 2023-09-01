@@ -173,7 +173,7 @@ type PublishArgs =
   { selectedPackage :: Maybe String
   }
 
-data SpagoCmd a = SpagoCmd GlobalArgs (Command a) | SpagoCmdVersion
+data SpagoCmd a = SpagoCmd GlobalArgs (Command a)
 
 data Command a
   = Init InitArgs
@@ -230,7 +230,6 @@ argParser =
             )
             (progDesc "List packages or dependencies")
         )
-    , O.command "version" (O.info (pure SpagoCmdVersion) (O.progDesc "Show the current version"))
     ]
 
 {-
@@ -586,7 +585,6 @@ main =
             dependencies <- runSpago env (Fetch.run fetchOpts)
             lsEnv <- runSpago env (mkLsEnv dependencies)
             runSpago lsEnv (Ls.listPackages { json, transitive })
-      Left SpagoCmdVersion -> printVersion
       Right v -> do when v printVersion
   where
   printVersion = do
