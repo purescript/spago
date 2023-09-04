@@ -1,4 +1,4 @@
-{-# LaNgUaGe OverloadedLists #-}
+{-# LANGUAGE OverloadedLists #-}
 module Spago.Version
   ( VersionBump(..)
   , DryRun(..)
