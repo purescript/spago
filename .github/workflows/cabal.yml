@@ -65,13 +65,14 @@ jobs:
           key: ${{ steps.cache.outputs.cache-primary-key }}
 
       - name: Build
-        run: cabal build all
+        run: cabal build all --enable-tests
 
-      - name: Run tests
-        run: cabal test all
+      # run tests in Stack GitHub Action
+      # - name: Run tests
+      #   run: cabal test all
 
-      - name: Check cabal file
-        run: cabal check
+      # - name: Check cabal file
+      #   run: cabal check
 
-      - name: Build documentation
-        run: cabal haddock all
+      # - name: Build documentation
+      #   run: cabal haddock all
