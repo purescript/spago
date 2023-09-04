@@ -166,7 +166,7 @@ library
     , unordered-containers
     , uri-encode
     , utf8-string
-    , versions == 5.*
+    , versions == 6.*
     , with-utf8
     , yaml
     , zlib
@@ -216,7 +216,7 @@ test-suite spec
     , temporary
     , text <1.3
     , turtle
-    , versions == 5.*
+    , versions == 6.*
   build-tool-depends:
       hspec-discover:hspec-discover == 2.*
     -- we need the the executable available for the end to end tests

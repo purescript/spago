@@ -60,8 +60,9 @@ getCurrentVersion = do
 
   case Safe.maximumMay tags of
     Nothing -> do
-      logInfo $ display $ "No git version tags found, so assuming current version is " <> unparseVersion mempty
-      pure mempty
+      let currentVersion = SemVer 0 0 0 Nothing Nothing
+      logInfo $ display $ "No git version tags found, so assuming current version is " <> tshow currentVersion
+      pure currentVersion
     Just maxVersion -> do
       logInfo $ display $ "Found current version from git tag: " <> unparseVersion maxVersion
       pure maxVersion
@@ -70,9 +71,9 @@ getCurrentVersion = do
 getNextVersion :: VersionBump -> SemVer -> Either Text SemVer
 getNextVersion spec currentV@SemVer{..} =
   case spec of
-    Major -> Right $ SemVer (_svMajor + 1) 0 0 [] mempty
-    Minor -> Right $ SemVer _svMajor (_svMinor + 1) 0 [] mempty
-    Patch -> Right $ SemVer _svMajor _svMinor (_svPatch + 1) [] mempty
+    Major -> Right $ SemVer (_svMajor + 1) 0 0 Nothing mempty
+    Minor -> Right $ SemVer _svMajor (_svMinor + 1) 0 Nothing mempty
+    Patch -> Right $ SemVer _svMajor _svMinor (_svPatch + 1) Nothing mempty
     Exact newV
       | currentV < newV -> Right newV
       | otherwise -> do
