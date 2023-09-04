@@ -48,7 +48,9 @@ jobs:
           restore-keys: ${{ env.key }}-
 
       - name: Install dependencies
-        run: cabal build all --only-dependencies
+        run: |
+          cabal build all --only-dependencies
+          npm install -g purescript@0.15.8 psc-package@3.0.1 bower@1.8.8 esbuild@0.14.28
 
       - name: Fetch templates
         run: ./scripts/fetch-templates
