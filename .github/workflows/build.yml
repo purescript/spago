@@ -7,7 +7,7 @@ on:
     branches: [ master ]
 
 env:
-  STACK_VERSION: '2.9.1'
+  STACK_VERSION: '2.11.1'
 
 jobs:
   build:
@@ -17,7 +17,7 @@ jobs:
       matrix:
         include:
           - os: ubuntu-latest
-            image: haskell:9.2.4
+            image: haskell:9.2.8
           - os: macOS-latest
           - os: windows-latest
     steps:

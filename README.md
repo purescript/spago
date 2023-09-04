@@ -3,6 +3,7 @@
 [![npm](https://img.shields.io/npm/v/spago.svg)][spago-npm]
 [![Latest release](https://img.shields.io/github/v/release/purescript/spago.svg)](https://github.com/purescript/spago/releases)
 [![build](https://github.com/purescript/spago/actions/workflows/build.yml/badge.svg)](https://github.com/purescript/spago/actions/workflows/build.yml)
+[![Cabal build](https://github.com/purescript/spago/actions/workflows/cabal.yml/badge.svg)](https://github.com/purescript/spago/actions/workflows/cabal.yml)
 [![Build status](https://ci.appveyor.com/api/projects/status/jydvr4sur6j6816e/branch/master?svg=true)](https://ci.appveyor.com/project/f-f/spago/branch/master)
 [![Maintainer: f-f](https://img.shields.io/badge/maintainer-f%2d-f-teal.svg)](http://github.com/f-f)
 
