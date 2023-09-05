@@ -1,7 +1,7 @@
 {-# LANGUAGE OverloadedLists #-}
 module BumpVersionSpec (spec) where
 
-import           Data.Versions         (SemVer (..), VUnit (..))
+import           Data.Versions         (SemVer (..), Release(Release), Chunk(Alphanum))
 import           Prelude               hiding (FilePath)
 import qualified System.IO.Temp        as Temp
 import           Test.Hspec            (Spec, around_, before_, describe, it, shouldBe,
@@ -61,7 +61,7 @@ setOverrides overrides = do
   commitAll
 
 randomSemVer :: Gen SemVer
-randomSemVer = SemVer <$> arbitrary <*> arbitrary <*> arbitrary <*> pure [] <*> pure Nothing
+randomSemVer = SemVer <$> arbitrary <*> arbitrary <*> arbitrary <*> pure Nothing <*> pure Nothing
 
 spec :: Spec
 spec = describe "spago bump-version" $ do
@@ -107,18 +107,18 @@ spec = describe "spago bump-version" $ do
         parseVersionBump "patch" `shouldBe` Just Patch
 
       it "should parse version starting with 'v'" $
-        parseVersionBump "v1.2.3" `shouldBe` Just (Exact (SemVer 1 2 3 [] Nothing))
+        parseVersionBump "v1.2.3" `shouldBe` Just (Exact (SemVer 1 2 3 Nothing Nothing))
 
       it "should parse version not starting with 'v'" $
-        parseVersionBump "1.2.3" `shouldBe` Just (Exact (SemVer 1 2 3 [] Nothing))
+        parseVersionBump "1.2.3" `shouldBe` Just (Exact (SemVer 1 2 3 Nothing Nothing))
 
       -- TODO is this desired behavior, or should we just drop ONE 'v'? I'd agree it's edge case, but still :-)
       it "should drop multiple 'v's from the beginning" $
-        parseVersionBump "vvvvvvvv1.2.3" `shouldBe` Just (Exact (SemVer 1 2 3 [] Nothing))
+        parseVersionBump "vvvvvvvv1.2.3" `shouldBe` Just (Exact (SemVer 1 2 3 Nothing Nothing))
 
       -- TODO should this work or should we strip these in parser implementation?
       it "should parse versions with PREREL and META tags" $
-        parseVersionBump "1.2.3-r1+git123" `shouldBe` Just (Exact (SemVer 1 2 3 [[Str "r", Digits 1]] (Just "git123")))
+        parseVersionBump "1.2.3-r1+git123" `shouldBe` Just (Exact (SemVer 1 2 3 (Just (Release (pure (Alphanum "r1")))) (Just "git123")))
 
       it "should not parse version which is not semantic" $ do
         parseVersionBump "" `shouldBe` Nothing
