@@ -320,24 +320,36 @@ readWorkspace maybeSelectedPackage = do
         }
 
   -- Mix in the package set (a) the workspace packages, and (b) the extra_packages
-  -- Note: if there are duplicate packages we pick the "most local ones first",
-  -- i.e. first workspace, then extra, then registry packages.
+  -- Note:
+  -- 1. we error out if any workspace package collides with any package in the database,
+  --    because it's just a confusing situation.
+  -- 2. then, if there are duplicate packages we pick the "most local ones first",
+  --    i.e. first workspace, then extra, then registry packages.
   -- This is to (1) easily allow overriding packages, (2) easily allow "private registries"
   -- and (3) prevent the security hole where people can register new names and take precedence in your build.
   let
+    extraPackages = map fromExtraPackage (fromMaybe Map.empty workspace.extra_packages)
+    localPackagesOverlap = Set.intersection (Map.keys workspacePackages) (Map.keys extraPackages)
     packageSet =
       let
-        overrides = Map.union
-          (map WorkspacePackage workspacePackages)
-          (map fromExtraPackage (fromMaybe Map.empty workspace.extra_packages))
-
+        localPackages = Map.union (map WorkspacePackage workspacePackages) extraPackages
       in
         case remotePackageSet of
-          Nothing -> Registry overrides
-          Just set -> PackageSet $ Map.union
-            overrides
-            (map fromRemotePackage set)
+          Nothing -> Registry localPackages
+          Just set -> PackageSet $ Map.union localPackages (map fromRemotePackage set)
 
+  -- Note again: we only try to prevent collisions between workspace packages and local overrides.
+  -- We otherwise want local packages to override _remote_ ones, e.g. in the case where you are
+  -- developing a library that is in the package set / registry.
+  unless (Set.isEmpty localPackagesOverlap) do
+    die
+      $
+        [ toDoc "Some packages in your local tree overlap with ones you have declared in your workspace configuration."
+        , toDoc "To resolve this error, rename these packages declared in `extra_packages` to a different name:"
+        ]
+      <> map (\p -> indent $ toDoc $ "- " <> PackageName.print p) (Array.fromFoldable localPackagesOverlap)
+
+  -- Figure out if we are selecting a single package or not
   case maybeSelected of
     Just selected -> do
       logSuccess $ "Selecting package to build: " <> PackageName.print selected.package.name
