@@ -59,7 +59,8 @@ type Workspace =
   , backend :: Maybe Core.BackendConfig
   , buildOptions :: BuildOptions
   , doc :: YamlDoc Core.Config
-  , originalConfig :: Core.WorkspaceConfig
+  , workspaceConfig :: Core.WorkspaceConfig
+  , rootPackage :: Maybe Core.PackageConfig
   , lockfile :: LockfileSettings
   }
 
@@ -209,7 +210,7 @@ readWorkspace maybeSelectedPackage = do
         Left e -> Left $ "Could not read config at path " <> path <> "\nError was: " <> e
         Right { yaml: { package: Nothing } } -> Left $ "No package found for config at path: " <> path
         Right { yaml: { package: Just package, workspace: configWorkspace }, doc } -> do
-          -- We store the path of the package, so we can treat is basically as a LocalPackage
+          -- We store the path of the package, so we can treat it basically as a LocalPackage
           Right $ Tuple package.name { path: Path.dirname path, package, configWorkspace, doc, hasTests }
   { right: otherPackages, left: failedPackages } <- partitionMap identity <$> traverse readWorkspaceConfig otherConfigPaths
 
@@ -381,7 +382,8 @@ readWorkspace maybeSelectedPackage = do
     , backend: workspace.backend
     , buildOptions
     , doc: workspaceDoc
-    , originalConfig: workspace
+    , workspaceConfig: workspace
+    , rootPackage: maybePackage
     , lockfile
     }
 

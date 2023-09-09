@@ -128,9 +128,8 @@ run opts = do
 
   when (isJust $ Cmd.findFlag { flags: [ "-g", "--codegen" ], args: opts.pursArgs }) do
     die
-      [ "Can't pass `--codegen` option to build when using a backend"
-      , "Hint: No need to pass `--codegen corefn` explicitly when using the `backend` option."
-      , "Remove the argument to solve the error"
+      [ "Can't pass the `--codegen` option to purs, Spago already does that for you."
+      , "Remove the argument to make this error go away!"
       ]
   let args = (addOutputArgs opts.pursArgs) <> [ "--codegen", "corefn,docs,js,sourcemaps" ]
   Psa.psaCompile globs args psaArgs psaOptions

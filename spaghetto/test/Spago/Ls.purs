@@ -38,7 +38,7 @@ spec = Spec.around withTempDir do
       spago [ "init" ] >>= shouldBeSuccess
       let
         conf = Init.defaultConfig
-          (unsafeFromRight (PackageName.parse "aaa"))
+          (mkPackageName "aaa")
           (Just $ unsafeFromRight $ Version.parse "0.0.1")
           "Test.Main"
       FS.writeYamlFile Config.configCodec "spago.yaml"
@@ -53,7 +53,7 @@ makeSubpackage = do
   FS.writeTextFile "subpackage/test/Main.purs" (Init.testMainTemplate "Subpackage.Test.Main")
   FS.writeYamlFile Config.configCodec "subpackage/spago.yaml"
     ( Init.defaultConfig
-        (unsafeFromRight (PackageName.parse "aaa2"))
+        (mkPackageName "aaa2")
         Nothing
         "Subpackage.Test.Main"
     )

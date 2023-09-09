@@ -1,0 +1,14 @@
+package:
+  dependencies:
+    - console
+    - effect
+    - prelude
+  name: aaa
+  test:
+    dependencies: []
+    main: Test.Main
+workspace:
+  extra_packages: {}
+  package_set:
+    url: https://raw.githubusercontent.com/purescript/registry/main/package-sets/29.3.0.json
+    hash: sha256-LJoXQjRcY0IkP1YJMwvhKAtb4NpxoJW5A6DxapTI+as=

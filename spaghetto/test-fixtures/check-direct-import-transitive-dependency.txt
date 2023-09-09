@@ -1,0 +1,28 @@
+Reading Spago workspace configuration...
+Read the package set from the registry
+
+✅ Selecting package to build: 7368613235362d34312f4e59746b7869335477336d33414d72
+
+Downloading dependencies...
+Building...
+           Src   Lib   All
+Warnings     0     0     0
+Errors       0     0     0
+
+✅ Build succeeded.
+
+Looking for unused and undeclared transitive dependencies...
+
+❌ Sources for package '7368613235362d34312f4e59746b7869335477336d33414d72' declares unused dependencies - please remove them from the project config:
+  - console
+  - effect
+
+
+❌ Sources for package '7368613235362d34312f4e59746b7869335477336d33414d72' import the following transitive dependencies - please add them to the project dependencies, or remove the imports:
+  control
+    from `Main`, which imports:
+      Control.Alt
+
+
+Run the following command to install them all:
+  spago install -p 7368613235362d34312f4e59746b7869335477336d33414d72 control

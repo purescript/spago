@@ -1,10 +1,9 @@
 module Test.Spago.Lock where
 
-import Spago.Prelude
+import Test.Prelude
 
 import Data.Codec.Argonaut as CA
 import Data.Map as Map
-import Registry.PackageName as PackageName
 import Registry.Range as Range
 import Registry.Sha256 as Sha256
 import Registry.Version as Version
@@ -84,10 +83,10 @@ validLockfile =
   }
   where
   prelude :: PackageName
-  prelude = unsafeFromRight (PackageName.parse "prelude")
+  prelude = mkPackageName "prelude"
 
   packageTuple :: forall a. String -> a -> Tuple PackageName a
-  packageTuple name = Tuple (unsafeFromRight (PackageName.parse name))
+  packageTuple name = Tuple (mkPackageName name)
 
 validLockfileString :: String
 validLockfileString =

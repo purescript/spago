@@ -33,7 +33,7 @@ spec = Spec.around withTempDir do
       FS.writeTextFile "subpackage/test/Main.purs" (Init.testMainTemplate "Subpackage.Test.Main")
       FS.writeYamlFile Config.configCodec "subpackage/spago.yaml"
         ( Init.defaultConfig
-            (unsafeFromRight (PackageName.parse "subpackage"))
+            (mkPackageName "subpackage")
             Nothing
             "Subpackage.Test.Main"
         )
@@ -47,13 +47,13 @@ spec = Spec.around withTempDir do
       FS.writeTextFile "subpackage/test/Main.purs" (Init.testMainTemplate "Subpackage.Test.Main2")
       FS.writeYamlFile Config.configCodec "subpackage/spago.yaml"
         ( Init.defaultConfig
-            (unsafeFromRight (PackageName.parse "subpackage"))
+            (mkPackageName "subpackage")
             Nothing
             "Subpackage.Test.Main"
         )
       spago [ "test", "-p", "subpackage" ] >>= shouldBeFailure
 
-    Spec.it "Spago should test in custom output folder" \{ spago } -> do
+    Spec.it "can use a custom output folder" \{ spago } -> do
       spago [ "init" ] >>= shouldBeSuccess
       spago [ "test", "--output", "myOutput" ] >>= shouldBeSuccess
       FS.exists "myOutput" `Assert.shouldReturn` true

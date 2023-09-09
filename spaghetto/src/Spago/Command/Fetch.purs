@@ -80,10 +80,24 @@ run { packages, ensureRanges } = do
 
   -- write to the config file if we are adding new packages
   let
-    { configPath, yamlDoc } = case workspace.selected of
-      Nothing -> { configPath: "spago.yaml", yamlDoc: workspace.doc }
-      Just { path, doc } -> { configPath: Path.concat [ path, "spago.yaml" ], yamlDoc: doc }
+    getPackageConfigPath = do
+      case workspace.selected of
+        Just { path, doc, package } -> pure { configPath: Path.concat [ path, "spago.yaml" ], yamlDoc: doc, package }
+        Nothing -> case workspace.rootPackage of
+          Just rootPackage -> pure { configPath: "spago.yaml", yamlDoc: workspace.doc, package: rootPackage }
+          Nothing -> die
+            [ "No package found in the root configuration."
+            , "Please use the `-p` flag to select a package to install your packages in."
+            ]
+
   unless (Array.null packages) do
+    { configPath, package, yamlDoc } <- getPackageConfigPath
+    let packageDependencies = Map.keys $ unwrap package.dependencies
+    let overlappingPackages = Set.intersection packageDependencies (Set.fromFoldable packages)
+    unless (Set.isEmpty overlappingPackages) do
+      logWarn
+        $ [ toDoc "You tried to install some packages that are already present in the configuration, proceeding anyways:" ]
+        <> map (indent <<< toDoc <<< append "- " <<< PackageName.print) (Array.fromFoldable overlappingPackages)
     logInfo $ "Adding " <> show (Array.length packages) <> " packages to the config in " <> configPath
     liftEffect $ Config.addPackagesToConfig yamlDoc packages
     liftAff $ FS.writeYamlDocFile configPath yamlDoc
@@ -91,6 +105,7 @@ run { packages, ensureRanges } = do
   -- FIXME: add ranges
   -- if the flag is selected, we kick off the process of adding ranges to the config
   when ensureRanges do
+    { configPath, yamlDoc } <- getPackageConfigPath
     logInfo $ "Adding ranges to dependencies to the config in " <> configPath
     let rangeMap = map getRangeFromPackage transitivePackages
     liftEffect $ Config.addRangesToConfig yamlDoc rangeMap
@@ -111,10 +126,10 @@ run { packages, ensureRanges } = do
 
       lockfileWorkspace :: Lock.WorkspaceLock
       lockfileWorkspace =
-        { package_set: workspace.originalConfig.package_set
+        { package_set: workspace.workspaceConfig.package_set
         , packages: Map.fromFoldable
             $ map fromWorkspacePackage (Config.getWorkspacePackages workspace.packageSet)
-        , extra_packages: fromMaybe Map.empty workspace.originalConfig.extra_packages
+        , extra_packages: fromMaybe Map.empty workspace.workspaceConfig.extra_packages
         }
 
     (lockfilePackages :: Map PackageName Lock.LockEntry) <- Map.catMaybes <$>

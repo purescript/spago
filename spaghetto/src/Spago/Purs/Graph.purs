@@ -179,7 +179,7 @@ unusedError isTest selected unused = toDoc
   [ toDoc $ (if isTest then "Tests for package '" else "Sources for package '")
       <> PackageName.print selected.package.name
       <> "' declares unused dependencies - please remove them from the project config:"
-  , indent (toDoc (map (\p -> PackageName.print p) (Set.toUnfoldable unused) :: Array _))
+  , indent (toDoc (map (\p -> "- " <> PackageName.print p) (Set.toUnfoldable unused) :: Array _))
   ]
 
 transitiveError :: Boolean -> WorkspacePackage -> ImportedPackages -> Docc

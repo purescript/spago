@@ -25,7 +25,7 @@ spec = Spec.around withTempDir do
       FS.writeTextFile "subpackage/test/Main.purs" (Init.testMainTemplate "Subpackage.Test.Main")
       FS.writeYamlFile Config.configCodec "subpackage/spago.yaml"
         ( Init.defaultConfig
-            (unsafeFromRight (PackageName.parse "subpackage"))
+            (mkPackageName "subpackage")
             Nothing
             "Subpackage.Test.Main"
         )

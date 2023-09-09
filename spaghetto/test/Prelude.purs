@@ -7,10 +7,12 @@ import Spago.Prelude
 
 import Data.String as String
 import Effect.Aff as Aff
+import Effect.Class.Console (log)
 import Node.Path as Path
 import Node.Process as Process
-import Spago.Cmd (ExecError, ExecResult)
+import Registry.PackageName as PackageName
 import Spago.Cmd (ExecError, ExecResult) as X
+import Spago.Cmd (ExecError, ExecResult, StdinConfig(..))
 import Spago.Cmd as Cmd
 import Spago.FS as FS
 import Spago.Prelude as X
@@ -18,6 +20,7 @@ import Test.Spec.Assertions as Assert
 
 type TestDirs =
   { spago :: Array String -> Aff (Either ExecError ExecResult)
+  , spago' :: StdinConfig -> Array String -> Aff (Either ExecError ExecResult)
   , fixture :: FilePath -> FilePath
   , oldCwd :: FilePath
   , testCwd :: FilePath
@@ -31,21 +34,24 @@ withTempDir = Aff.bracket createTempDir cleanupTempDir
     temp <- mkTemp' $ Just "spago-test-"
     FS.mkdirp temp
     liftEffect $ Process.chdir temp
-    -- log $ "Running test in " <> temp
+    log $ "Running test in " <> temp
     let
-      fixturesPath = oldCwd <> "/test/fixtures"
+      fixturesPath = oldCwd <> "/test-fixtures"
 
       fixture path = Path.concat [ fixturesPath, path ]
 
-      spago :: Array String -> Aff (Either ExecError ExecResult)
-      spago args =
+      spago' :: StdinConfig -> Array String -> Aff (Either ExecError ExecResult)
+      spago' stdin args =
         Cmd.exec
           (Path.concat [ oldCwd, "bin", "index.dev.js" ])
           args
-          $ Cmd.defaultExecOptions { pipeStdout = false, pipeStderr = false }
+          $ Cmd.defaultExecOptions { pipeStdout = false, pipeStderr = false, pipeStdin = stdin }
+
+      spago = spago' StdinNewPipe
 
     pure
-      { spago
+      { spago'
+      , spago
       , oldCwd
       , testCwd: temp
       , fixture
@@ -100,3 +106,6 @@ shouldBeFailureErr errFixture = checkResultAndOutputs Nothing (Just errFixture) 
 
 shouldBeFailureOutputWithErr :: FilePath -> FilePath -> Either ExecError ExecResult -> Aff Unit
 shouldBeFailureOutputWithErr outFixture errFixture = checkResultAndOutputs (Just outFixture) (Just errFixture) isLeft
+
+mkPackageName :: String -> PackageName
+mkPackageName = unsafeFromRight <<< PackageName.parse

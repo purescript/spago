@@ -1,0 +1,10 @@
+package:
+  dependencies:
+    - console
+    - effect
+    - either
+    - prelude
+  name: subpackage
+  test:
+    dependencies: []
+    main: Subpackage.Test.Main

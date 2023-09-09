@@ -1,0 +1,11 @@
+Reading Spago workspace configuration...
+Read the package set from the registry
+
+✅ Selecting package to build: bbb
+
+Cloning https://github.com/purescript/spago.git
+Cloning https://github.com/purescript/spago.git
+
+❌ The following packages have circular dependencies:
+  - a
+  - b

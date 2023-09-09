@@ -2,7 +2,6 @@ module Test.Spago.Build where
 
 import Test.Prelude
 
-import Registry.PackageName as PackageName
 import Registry.Version as Version
 import Spago.Command.Init as Init
 import Spago.Core.Config as Config
@@ -23,7 +22,7 @@ spec = Spec.around withTempDir do
       spago [ "init" ] >>= shouldBeSuccess
       let
         conf = Init.defaultConfig
-          (unsafeFromRight (PackageName.parse "aaa"))
+          (mkPackageName "aaa")
           (Just $ unsafeFromRight $ Version.parse "0.0.1")
           "Test.Main"
       FS.writeYamlFile Config.configCodec "spago.yaml"
@@ -40,6 +39,7 @@ spec = Spec.around withTempDir do
       FS.exists "myOutput" `Assert.shouldReturn` true
       FS.exists "output" `Assert.shouldReturn` false
 
+    -- TODO: no-install flag
     -- Spec.it "does not install packages when passed the --no-install flag" \{ spago } -> do
     --   spago [ "init" ] >>= shouldBeSuccess
     --   spago [ "build", "--no-install" ] >>= shouldBeFailure
@@ -54,7 +54,7 @@ spec = Spec.around withTempDir do
       FS.writeTextFile "subpackage/test/Main.purs" (Init.testMainTemplate "Subpackage.Test.Main")
       FS.writeYamlFile Config.configCodec "subpackage/spago.yaml"
         ( Init.defaultConfig
-            (unsafeFromRight (PackageName.parse "subpackage"))
+            (mkPackageName "subpackage")
             Nothing
             "Subpackage.Test.Main"
         )
@@ -64,14 +64,14 @@ spec = Spec.around withTempDir do
       FS.exists "subpackage/output" `Assert.shouldReturn` false
 
     Spec.it "fails when there are imports from transitive dependencies and --pedantic-packages is passed" \{ spago, fixture } -> do
-      spago [ "init" ] >>= shouldBeSuccess
-      spago [ "install" ] >>= shouldBeSuccess
-      FS.writeTextFile "src/Main.purs" "module Main where\nimport Prelude\nimport Data.Maybe\nimport Data.List\nmain = unit"
+      spago [ "init", "--name", "7368613235362d34312f4e59746b7869335477336d33414d72" ] >>= shouldBeSuccess
+      spago [ "install", "maybe" ] >>= shouldBeSuccess
+      FS.writeTextFile "src/Main.purs" "module Main where\nimport Prelude\nimport Data.Maybe\nimport Control.Alt\nmain = unit"
       spago [ "build" ] >>= shouldBeSuccess
       spago [ "build", "--pedantic-packages" ] >>= shouldBeFailureErr (fixture "check-direct-import-transitive-dependency.txt")
 
     Spec.it "--pedantic-packages also warns about unused dependencies" \{ spago, fixture } -> do
-      spago [ "init" ] >>= shouldBeSuccess
+      spago [ "init", "--name", "7368613235362d2f444a2b4f56375435646a59726b53586548" ] >>= shouldBeSuccess
       FS.writeTextFile "src/Main.purs" "module Main where\nimport Prelude\nmain = unit"
       spago [ "build" ] >>= shouldBeSuccess
       spago [ "build", "--pedantic-packages" ] >>= shouldBeFailureErr (fixture "check-unused-dependency.txt")
@@ -80,7 +80,7 @@ spec = Spec.around withTempDir do
       spago [ "init" ] >>= shouldBeSuccess
       let
         conf = Init.defaultConfig
-          (unsafeFromRight (PackageName.parse "subpackage"))
+          (mkPackageName "subpackage")
           (Just $ unsafeFromRight $ Version.parse "0.0.1")
           "Test.Main"
       FS.writeYamlFile Config.configCodec "spago.yaml"
@@ -90,7 +90,7 @@ spec = Spec.around withTempDir do
       spago [ "run" ] >>= shouldBeSuccessErr (fixture "alternate-backend-output.txt")
 
     Spec.it "passing the --codegen flag to purs fails" \{ spago, fixture } -> do
-      spago [ "init" ] >>= shouldBeSuccess
+      spago [ "init", "--name", "7368613235362d68766258694c614d517a3667747a58725778" ] >>= shouldBeSuccess
       spago [ "build" ] >>= shouldBeSuccess
       spago [ "build", "--purs-args", "--codegen", "--purs-args", "corefn" ] >>= shouldBeFailureErr (fixture "codegen-opt.txt")
 
