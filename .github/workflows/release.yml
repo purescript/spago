@@ -38,7 +38,7 @@ jobs:
       matrix:
         include:
           - os: ubuntu-latest
-            image: haskell:9.2.4
+            image: haskell:9.4.6
           - os: macOS-latest
           - os: windows-latest
     steps:
