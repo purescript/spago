@@ -1,11 +1,11 @@
-resolver: lts-20.26
+resolver: lts-21.11
 packages:
   - .
 extra-deps:
-  - Cabal-3.6.3.0
   - semver-range-0.2.8
-  - fsnotify-0.4.1.0
-  - versions-6.0.1
+  - async-pool-0.9.2
+  - bower-json-1.1.0.0
+  - aeson-better-errors-0.9.1.1
 allow-newer: true
 nix:
   packages: [zlib]
@@ -13,8 +13,8 @@ flags:
   aeson-pretty:
     lib-only: true
   # This is so we don't depend on libtinfo
-  haskeline:
-    terminfo: false
-    examples: false
+  # haskeline:
+  #   terminfo: false
+  #   examples: false
   cryptonite:
     use_target_attributes: false
