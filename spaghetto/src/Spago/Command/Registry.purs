@@ -3,10 +3,15 @@ module Spago.Command.Registry where
 import Spago.Prelude
 
 import Data.Array as Array
+import Data.Codec.Argonaut.Record as CA.Record
+import Data.Formatter.DateTime as DateTime
 import Data.Map as Map
 import Data.String (Pattern(..))
 import Data.String as String
 import Node.Path as Path
+import Registry.Internal.Codec as Internal
+import Registry.Internal.Codec as Internal.Codec
+import Registry.Internal.Format as Internal.Format
 import Registry.Metadata as Metadata
 import Registry.PackageName as PackageName
 import Registry.Version as Version
@@ -22,47 +27,74 @@ type RegistryEnv a =
   | a
   }
 
--- TODO: some of these commands output text, some JSON, and the interface feels unpolished.
--- We should do some user testing and make the experience a little more cohesive
+type RegistrySearchArgs =
+  { package :: String
+  , json :: Boolean
+  }
 
--- TODO: we should take inspiration from npm: they have npm search, and npm info
--- TODO: also their table format is a little more sleek, and e.g. search displays a lot more info
-
-search :: forall a. String -> Spago (RegistryEnv a) Unit
-search searchString = do
+-- TODO: I guess we could also search in (1) the tags and (2) the description
+search :: forall a. RegistrySearchArgs -> Spago (RegistryEnv a) Unit
+search { package: searchString, json } = do
   logInfo $ "Searching for " <> show searchString <> " in the Registry package names..."
   metadataFiles <- FS.ls $ Path.concat [ Paths.registryPath, "metadata" ]
 
   let matches = Array.filter (String.contains (Pattern searchString)) (Array.mapMaybe (String.stripSuffix (Pattern ".json")) metadataFiles)
 
-  if Array.null matches then
+  if Array.null matches then do
     logError "Did not find any packages matching the search string."
   else do
-    output $ OutputLines matches
-    logInfo "Use `spago registry info $package` to get more details on a package."
+    -- We have only the match names, at least we get the time of the last release to be even a little useful
+    { getMetadata, logOptions } <- ask
+    infos <- map (Map.fromFoldable <<< Array.catMaybes) $ for matches \match -> case PackageName.parse match of
+      Left err -> do
+        logWarn $ "Couldn't parse package name: " <> err
+        pure Nothing
+      Right packageName -> runSpago { logOptions } (getMetadata packageName) >>= case _ of
+        Left err -> do
+          logWarn $ "Couldn't read metadata for pacakge " <> PackageName.print packageName <> ", error: " <> err
+          pure Nothing
+        Right (Metadata meta) -> pure $ Just $ case Map.findMax meta.published of
+          Nothing -> Tuple packageName { version: Nothing, publishedTime: Nothing }
+          Just { key: version, value: { publishedTime } } -> Tuple packageName { version: Just version, publishedTime: Just publishedTime }
 
-info :: forall a. { package :: String, maybeVersion :: Maybe String } -> Spago (RegistryEnv a) Unit
-info args = do
-  packageName <- case PackageName.parse args.package of
+    -- Finally print all this stuff
+    logInfo "Use `spago registry info $package` to get more details on a package."
+    output $ case json of
+      true ->
+        let
+          infoDataCodec = CA.Record.object "InfoData"
+            { publishedTime: CA.Record.optional Internal.Codec.iso8601DateTime
+            , version: CA.Record.optional Version.codec
+            }
+        in
+          OutputJson (Internal.packageMap infoDataCodec) infos
+      false -> OutputTable
+        { titles: [ "NAME", "VERSION", "PUBLISHED TIME" ]
+        , rows: infos # Map.toUnfoldable # map \(Tuple name { version, publishedTime }) ->
+            [ PackageName.print name
+            , maybe "-" Version.print version
+            , maybe "-" (DateTime.format Internal.Format.iso8601DateTime) publishedTime
+            ]
+        }
+
+type RegistryInfoArgs =
+  { package :: String
+  , json :: Boolean
+  }
+
+info :: forall a. RegistryInfoArgs -> Spago (RegistryEnv a) Unit
+info { package, json } = do
+  packageName <- case PackageName.parse package of
     Left err -> die [ toDoc "Could not parse package name, error:", indent (toDoc $ show err) ]
     Right name -> pure name
-
-  maybeVersion <- case args.maybeVersion of
-    Nothing -> pure Nothing
-    Just v -> case parseLenientVersion v of
-      Left err -> die [ toDoc "Could not parse version, error:", indent (toDoc $ show err) ]
-      Right version -> pure $ Just version
 
   { getMetadata, logOptions } <- ask
   runSpago { logOptions } (getMetadata packageName) >>= case _ of
     Left err -> do
       logDebug err
       die $ "Could not find package " <> PackageName.print packageName
-    Right (Metadata metadata) -> case maybeVersion of
-      Nothing -> do
-        output $ OutputLines $ map Version.print $ Array.fromFoldable $ Map.keys $ metadata.published
-        logInfo $ "Use `spago registry info " <> PackageName.print packageName <> " $version` to get more details on a version."
-      Just version -> case Map.lookup version metadata.published of
-        Nothing -> die $ "Version " <> Version.print version <> " does not exist for package " <> PackageName.print packageName
-        -- TODO: unify the formats. Here we output json, above just lines, this is terrible
-        Just pubInfo -> output $ OutputJson Metadata.publishedMetadataCodec pubInfo
+    Right meta -> do
+      -- We just print out the metadata file
+      output case json of
+        true -> OutputJson Metadata.codec meta
+        false -> OutputYaml Metadata.codec meta

@@ -32,6 +32,7 @@ import Spago.Command.Init as Init
 import Spago.Command.Ls (LsDepsArgs, LsPackagesArgs)
 import Spago.Command.Ls as Ls
 import Spago.Command.Publish as Publish
+import Spago.Command.Registry (RegistryInfoArgs, RegistrySearchArgs)
 import Spago.Command.Registry as Registry
 import Spago.Command.Repl as Repl
 import Spago.Command.Run as Run
@@ -139,15 +140,6 @@ type TestArgs =
 type SourcesArgs =
   { selectedPackage :: Maybe String
   , json :: Boolean
-  }
-
-type RegistrySearchArgs =
-  { package :: String
-  }
-
-type RegistryInfoArgs =
-  { package :: String
-  , maybeVersion :: Maybe String
   }
 
 type BundleArgs =
@@ -407,13 +399,15 @@ registrySearchArgsParser :: ArgParser RegistrySearchArgs
 registrySearchArgsParser =
   ArgParser.fromRecord
     { package: Flags.package
+    , json: Flags.json
     }
 
 registryInfoArgsParser :: ArgParser RegistryInfoArgs
-registryInfoArgsParser = ado
-  package <- Flags.package
-  maybeVersion <- Flags.maybeVersion
-  in { package, maybeVersion }
+registryInfoArgsParser =
+  ArgParser.fromRecord
+    { package: Flags.package
+    , json: Flags.json
+    }
 
 lsPackagesArgsParser :: ArgParser LsPackagesArgs
 lsPackagesArgsParser = ArgParser.fromRecord
@@ -467,9 +461,9 @@ main =
           Fetch args -> do
             { env, fetchOpts } <- mkFetchEnv args
             void $ runSpago env (Fetch.run fetchOpts)
-          RegistrySearch { package } -> do
+          RegistrySearch args -> do
             env <- mkRegistryEnv
-            void $ runSpago env (Registry.search package)
+            void $ runSpago env (Registry.search args)
           RegistryInfo args -> do
             env <- mkRegistryEnv
             void $ runSpago env (Registry.info args)

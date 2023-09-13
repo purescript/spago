@@ -28,8 +28,8 @@ import Data.Array as Array
 import Data.Codec.Argonaut (JsonCodec)
 import Data.Maybe (fromMaybe)
 import Data.String as String
-import Dodo (Doc, print, twoSpaces)
 import Data.Traversable (traverse)
+import Dodo (Doc, print, twoSpaces)
 import Dodo (indent, break) as DodoExport
 import Dodo as Dodo
 import Dodo as Log
@@ -45,6 +45,7 @@ import Node.Process as Process
 import Registry.PackageName (PackageName)
 import Registry.PackageName as PackageName
 import Spago.Json as Json
+import Spago.Yaml as Yaml
 
 type LogEnv a = { logOptions :: LogOptions | a }
 
@@ -133,12 +134,14 @@ die' msgs = do
 
 data OutputFormat a
   = OutputJson (JsonCodec a) a
+  | OutputYaml (JsonCodec a) a
   | OutputTable { titles :: Array String, rows :: Array (Array String) }
   | OutputLines (Array String)
 
 output :: forall a m. MonadEffect m => OutputFormat a -> m Unit
 output format = Console.log case format of
   OutputJson codec json -> Json.printJson codec json
+  OutputYaml codec yaml -> Yaml.printYaml codec yaml
   OutputLines lines -> String.joinWith "\n" lines
   -- https://github.com/natefaubion/purescript-dodo-printer/blob/master/test/snapshots/DodoBox.purs
   OutputTable { titles, rows } ->
