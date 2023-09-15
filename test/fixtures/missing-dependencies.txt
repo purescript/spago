@@ -1,3 +1,0 @@
-[error] The following packages do not exist in your package set:
-[error]   - bar
-[error]   - foo

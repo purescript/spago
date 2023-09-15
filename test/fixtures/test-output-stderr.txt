@@ -1,2 +1,0 @@
-[info] Build succeeded.
-[info] Tests succeeded.

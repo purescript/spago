@@ -1,5 +1,0 @@
-[error] Failed to read the config. Error was:
-[error] There's no "test.dhall" in your current location.
-
-If you already have a spago project you might be in the wrong subdirectory,
-otherwise you might want to run `spago init` to initialize a new project.

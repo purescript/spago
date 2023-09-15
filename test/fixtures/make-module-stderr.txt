@@ -1,1 +1,0 @@
-[error] The `make-module` command has been replaced with `bundle-module`, so use that instead.

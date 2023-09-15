@@ -1,3 +1,0 @@
-[error] The following packages have circular dependencies:
-[error]   - a
-[error]   - b

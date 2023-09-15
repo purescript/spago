@@ -1,9 +1,0 @@
-{
-    "name": "placeholder",
-    "ignore": [
-        "**/.*",
-        "node_modules",
-        "bower_components",
-        "output"
-    ]
-}

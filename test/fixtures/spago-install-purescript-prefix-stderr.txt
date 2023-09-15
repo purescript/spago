@@ -1,6 +1,0 @@
-[info] The package 'purescript-newtype' was resolved to the 'newtype' package
-[info] Installing 1 dependencies.
-[info] Searching for packages cache metadata..
-[info] Recent packages cache metadata found, using it..
-[info] Installing "newtype"
-[info] Installation complete.
