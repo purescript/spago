@@ -24,7 +24,7 @@ spec = Spec.around withTempDir do
     Spec.it "can pass stdin to the application" \{ spago, spago', fixture } -> do
       spago [ "init" ] >>= shouldBeSuccess
       cp (fixture "spago-run-stdin.purs") "src/Main.purs"
-      spago [ "install", "node-buffer", "node-streams", "node-process" ] >>= shouldBeSuccess
+      spago [ "install", "node-buffer", "node-streams", "node-process", "node-event-emitter" ] >>= shouldBeSuccess
       spago [ "build" ] >>= shouldBeSuccess
       spago' (StdinWrite "wut") [ "run" ] >>= shouldBeSuccessOutput (fixture "run-passthrough.txt")
 

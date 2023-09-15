@@ -38,6 +38,12 @@
       "path": "subpackage"
     }
   },
+  "abc-parser": {
+    "type": "registry",
+    "value": {
+      "version": "2.0.1"
+    }
+  },
   "ace": {
     "type": "registry",
     "value": {
@@ -176,6 +182,12 @@
       "version": "7.2.1"
     }
   },
+  "arrays-extra": {
+    "type": "registry",
+    "value": {
+      "version": "0.3.0"
+    }
+  },
   "arrays-zipper": {
     "type": "registry",
     "value": {
@@ -224,12 +236,6 @@
       "version": "0.9.0"
     }
   },
-  "basic-auth": {
-    "type": "registry",
-    "value": {
-      "version": "3.0.1"
-    }
-  },
   "bifunctors": {
     "type": "registry",
     "value": {
@@ -260,84 +266,6 @@
       "version": "3.0.0"
     }
   },
-  "bucketchain": {
-    "type": "registry",
-    "value": {
-      "version": "1.0.1"
-    }
-  },
-  "bucketchain-basic-auth": {
-    "type": "registry",
-    "value": {
-      "version": "1.0.1"
-    }
-  },
-  "bucketchain-conditional": {
-    "type": "registry",
-    "value": {
-      "version": "1.0.1"
-    }
-  },
-  "bucketchain-cors": {
-    "type": "registry",
-    "value": {
-      "version": "1.0.1"
-    }
-  },
-  "bucketchain-csrf": {
-    "type": "registry",
-    "value": {
-      "version": "1.0.1"
-    }
-  },
-  "bucketchain-header-utils": {
-    "type": "registry",
-    "value": {
-      "version": "1.0.1"
-    }
-  },
-  "bucketchain-health": {
-    "type": "registry",
-    "value": {
-      "version": "1.0.1"
-    }
-  },
-  "bucketchain-history-api-fallback": {
-    "type": "registry",
-    "value": {
-      "version": "1.0.1"
-    }
-  },
-  "bucketchain-logger": {
-    "type": "registry",
-    "value": {
-      "version": "1.0.1"
-    }
-  },
-  "bucketchain-secure": {
-    "type": "registry",
-    "value": {
-      "version": "1.0.1"
-    }
-  },
-  "bucketchain-simple-api": {
-    "type": "registry",
-    "value": {
-      "version": "5.0.1"
-    }
-  },
-  "bucketchain-sslify": {
-    "type": "registry",
-    "value": {
-      "version": "1.0.1"
-    }
-  },
-  "bucketchain-static": {
-    "type": "registry",
-    "value": {
-      "version": "1.0.1"
-    }
-  },
   "call-by-name": {
     "type": "registry",
     "value": {
@@ -366,6 +294,36 @@
     "type": "registry",
     "value": {
       "version": "7.0.0"
+    }
+  },
+  "chameleon": {
+    "type": "registry",
+    "value": {
+      "version": "1.0.0"
+    }
+  },
+  "chameleon-halogen": {
+    "type": "registry",
+    "value": {
+      "version": "1.0.3"
+    }
+  },
+  "chameleon-react-basic": {
+    "type": "registry",
+    "value": {
+      "version": "1.1.0"
+    }
+  },
+  "chameleon-styled": {
+    "type": "registry",
+    "value": {
+      "version": "2.5.0"
+    }
+  },
+  "chameleon-transformers": {
+    "type": "registry",
+    "value": {
+      "version": "1.0.0"
     }
   },
   "channel": {
@@ -482,12 +440,6 @@
       "version": "7.0.0"
     }
   },
-  "crypto": {
-    "type": "registry",
-    "value": {
-      "version": "5.0.1"
-    }
-  },
   "css": {
     "type": "registry",
     "value": {
@@ -498,6 +450,12 @@
     "type": "registry",
     "value": {
       "version": "1.0.1"
+    }
+  },
+  "data-mvc": {
+    "type": "registry",
+    "value": {
+      "version": "0.0.2"
     }
   },
   "datetime": {
@@ -554,12 +512,6 @@
       "version": "6.0.0"
     }
   },
-  "dodo-printer": {
-    "type": "registry",
-    "value": {
-      "version": "2.2.1"
-    }
-  },
   "dom-filereader": {
     "type": "registry",
     "value": {
@@ -569,13 +521,13 @@
   "dom-indexed": {
     "type": "registry",
     "value": {
-      "version": "11.0.0"
+      "version": "12.0.0"
     }
   },
   "dotenv": {
     "type": "registry",
     "value": {
-      "version": "4.0.0"
+      "version": "4.0.3"
     }
   },
   "droplet": {
@@ -587,7 +539,7 @@
   "dts": {
     "type": "registry",
     "value": {
-      "version": "0.1.4"
+      "version": "0.2.0"
     }
   },
   "dynamic-buffer": {
@@ -617,7 +569,7 @@
   "elmish": {
     "type": "registry",
     "value": {
-      "version": "0.9.3"
+      "version": "0.10.0"
     }
   },
   "elmish-enzyme": {
@@ -719,7 +671,7 @@
   "fetch": {
     "type": "registry",
     "value": {
-      "version": "1.1.4"
+      "version": "3.0.0"
     }
   },
   "fetch-argonaut": {
@@ -731,7 +683,7 @@
   "fetch-core": {
     "type": "registry",
     "value": {
-      "version": "4.0.4"
+      "version": "5.1.0"
     }
   },
   "fetch-yoga-json": {
@@ -744,6 +696,12 @@
     "type": "registry",
     "value": {
       "version": "5.0.0"
+    }
+  },
+  "fix-functor": {
+    "type": "registry",
+    "value": {
+      "version": "0.1.0"
     }
   },
   "fixed-points": {
@@ -768,6 +726,12 @@
     "type": "registry",
     "value": {
       "version": "2.0.0"
+    }
+  },
+  "fmt": {
+    "type": "registry",
+    "value": {
+      "version": "0.2.0"
     }
   },
   "foldable-traversable": {
@@ -827,7 +791,7 @@
   "free": {
     "type": "registry",
     "value": {
-      "version": "7.0.0"
+      "version": "7.1.0"
     }
   },
   "freeap": {
@@ -893,19 +857,13 @@
   "geojson": {
     "type": "registry",
     "value": {
-      "version": "0.0.3"
+      "version": "0.0.5"
     }
   },
   "geometry-plane": {
     "type": "registry",
     "value": {
       "version": "1.0.3"
-    }
-  },
-  "github-actions-toolkit": {
-    "type": "registry",
-    "value": {
-      "version": "0.5.0"
     }
   },
   "grain": {
@@ -924,12 +882,6 @@
     "type": "registry",
     "value": {
       "version": "3.0.0"
-    }
-  },
-  "graphql-client": {
-    "type": "registry",
-    "value": {
-      "version": "9.3.2"
     }
   },
   "graphs": {
@@ -1058,30 +1010,6 @@
       "version": "6.0.0"
     }
   },
-  "httpure": {
-    "type": "registry",
-    "value": {
-      "version": "0.16.0"
-    }
-  },
-  "httpurple": {
-    "type": "registry",
-    "value": {
-      "version": "3.0.1"
-    }
-  },
-  "httpurple-argonaut": {
-    "type": "registry",
-    "value": {
-      "version": "1.0.1"
-    }
-  },
-  "httpurple-yoga-json": {
-    "type": "registry",
-    "value": {
-      "version": "1.0.0"
-    }
-  },
   "humdrum": {
     "type": "registry",
     "value": {
@@ -1196,6 +1124,12 @@
       "version": "3.0.0"
     }
   },
+  "js-intl": {
+    "type": "registry",
+    "value": {
+      "version": "1.0.2"
+    }
+  },
   "js-iterators": {
     "type": "registry",
     "value": {
@@ -1235,7 +1169,7 @@
   "json-codecs": {
     "type": "registry",
     "value": {
-      "version": "3.0.0"
+      "version": "4.0.0"
     }
   },
   "justifill": {
@@ -1254,12 +1188,6 @@
     "type": "registry",
     "value": {
       "version": "0.2.0"
-    }
-  },
-  "language-cst-parser": {
-    "type": "registry",
-    "value": {
-      "version": "0.13.0"
     }
   },
   "lazy": {
@@ -1340,12 +1268,6 @@
       "version": "1.0.0"
     }
   },
-  "marionette-commander": {
-    "type": "registry",
-    "value": {
-      "version": "0.1.1"
-    }
-  },
   "marionette-react-basic-hooks": {
     "type": "registry",
     "value": {
@@ -1368,12 +1290,6 @@
     "type": "registry",
     "value": {
       "version": "6.0.0"
-    }
-  },
-  "mdast-util-from-markdown": {
-    "type": "registry",
-    "value": {
-      "version": "0.2.1"
     }
   },
   "media-types": {
@@ -1460,6 +1376,12 @@
       "version": "2.0.0"
     }
   },
+  "mvc": {
+    "type": "registry",
+    "value": {
+      "version": "0.0.1"
+    }
+  },
   "mysql": {
     "type": "registry",
     "value": {
@@ -1517,25 +1439,13 @@
   "node-buffer": {
     "type": "registry",
     "value": {
-      "version": "8.0.0"
-    }
-  },
-  "node-buffer-blob": {
-    "type": "registry",
-    "value": {
-      "version": "1.0.0"
+      "version": "9.0.0"
     }
   },
   "node-child-process": {
     "type": "registry",
     "value": {
-      "version": "9.0.0"
-    }
-  },
-  "node-env-paths": {
-    "type": "registry",
-    "value": {
-      "version": "1.0.0"
+      "version": "11.0.0"
     }
   },
   "node-event-emitter": {
@@ -1547,25 +1457,25 @@
   "node-execa": {
     "type": "registry",
     "value": {
-      "version": "3.0.0"
+      "version": "4.0.1"
     }
   },
   "node-fs": {
     "type": "registry",
     "value": {
-      "version": "8.2.0"
-    }
-  },
-  "node-fs-aff": {
-    "type": "registry",
-    "value": {
-      "version": "9.2.0"
+      "version": "9.1.0"
     }
   },
   "node-http": {
     "type": "registry",
     "value": {
-      "version": "8.0.0"
+      "version": "9.1.0"
+    }
+  },
+  "node-http2": {
+    "type": "registry",
+    "value": {
+      "version": "1.1.1"
     }
   },
   "node-human-signals": {
@@ -1577,13 +1487,13 @@
   "node-net": {
     "type": "registry",
     "value": {
-      "version": "4.0.0"
+      "version": "5.1.0"
     }
   },
   "node-os": {
     "type": "registry",
     "value": {
-      "version": "4.0.0"
+      "version": "5.1.0"
     }
   },
   "node-path": {
@@ -1595,13 +1505,13 @@
   "node-process": {
     "type": "registry",
     "value": {
-      "version": "10.0.0"
+      "version": "11.2.0"
     }
   },
   "node-readline": {
     "type": "registry",
     "value": {
-      "version": "7.0.0"
+      "version": "8.1.0"
     }
   },
   "node-sqlite3": {
@@ -1613,25 +1523,25 @@
   "node-streams": {
     "type": "registry",
     "value": {
-      "version": "7.0.0"
+      "version": "9.0.0"
     }
   },
-  "node-streams-aff": {
+  "node-tls": {
     "type": "registry",
     "value": {
-      "version": "5.0.0"
+      "version": "0.3.1"
     }
   },
   "node-url": {
     "type": "registry",
     "value": {
-      "version": "6.0.0"
+      "version": "7.0.0"
     }
   },
-  "nodemailer": {
+  "node-zlib": {
     "type": "registry",
     "value": {
-      "version": "4.0.1"
+      "version": "0.4.0"
     }
   },
   "nonempty": {
@@ -1718,16 +1628,10 @@
       "version": "7.0.0"
     }
   },
-  "optparse": {
-    "type": "registry",
-    "value": {
-      "version": "5.0.0"
-    }
-  },
   "ordered-collections": {
     "type": "registry",
     "value": {
-      "version": "3.0.0"
+      "version": "3.1.1"
     }
   },
   "ordered-set": {
@@ -1751,7 +1655,7 @@
   "parallel": {
     "type": "registry",
     "value": {
-      "version": "6.0.0"
+      "version": "7.0.0"
     }
   },
   "parsing": {
@@ -1811,7 +1715,7 @@
   "pmock": {
     "type": "registry",
     "value": {
-      "version": "0.4.0"
+      "version": "0.6.0"
     }
   },
   "point-free": {
@@ -1880,22 +1784,10 @@
       "version": "4.3.0"
     }
   },
-  "ps-cst": {
-    "type": "registry",
-    "value": {
-      "version": "1.2.0"
-    }
-  },
   "psa-utils": {
     "type": "registry",
     "value": {
       "version": "8.0.0"
-    }
-  },
-  "psc-ide": {
-    "type": "registry",
-    "value": {
-      "version": "19.0.0"
     }
   },
   "psci-support": {
@@ -2198,12 +2090,6 @@
       "version": "9.0.0"
     }
   },
-  "simple-jwt": {
-    "type": "registry",
-    "value": {
-      "version": "4.0.1"
-    }
-  },
   "simple-ulid": {
     "type": "registry",
     "value": {
@@ -2255,31 +2141,19 @@
   "spec": {
     "type": "registry",
     "value": {
-      "version": "7.5.2"
+      "version": "7.5.5"
     }
   },
-  "spec-discovery": {
+  "spec-mocha": {
     "type": "registry",
     "value": {
-      "version": "8.0.1"
-    }
-  },
-  "spec-golden": {
-    "type": "registry",
-    "value": {
-      "version": "1.0.0"
+      "version": "5.0.0"
     }
   },
   "spec-quickcheck": {
     "type": "registry",
     "value": {
       "version": "5.0.0"
-    }
-  },
-  "spec-reporter-xunit": {
-    "type": "registry",
-    "value": {
-      "version": "0.6.1"
     }
   },
   "splitmix": {
@@ -2340,12 +2214,6 @@
     "type": "registry",
     "value": {
       "version": "0.2.3"
-    }
-  },
-  "sunde": {
-    "type": "registry",
-    "value": {
-      "version": "3.0.0"
     }
   },
   "supply": {
@@ -2414,12 +2282,6 @@
       "version": "6.0.0"
     }
   },
-  "toppokki": {
-    "type": "registry",
-    "value": {
-      "version": "4.0.0"
-    }
-  },
   "transformation-matrix": {
     "type": "registry",
     "value": {
@@ -2436,12 +2298,6 @@
     "type": "registry",
     "value": {
       "version": "4.0.2"
-    }
-  },
-  "ts-bridge": {
-    "type": "registry",
-    "value": {
-      "version": "2.0.3"
     }
   },
   "tuples": {
@@ -2693,7 +2549,7 @@
   "web-fetch": {
     "type": "registry",
     "value": {
-      "version": "3.0.0"
+      "version": "4.0.1"
     }
   },
   "web-file": {
@@ -2714,12 +2570,6 @@
       "version": "4.1.0"
     }
   },
-  "web-intl": {
-    "type": "registry",
-    "value": {
-      "version": "0.3.0"
-    }
-  },
   "web-pointerevents": {
     "type": "registry",
     "value": {
@@ -2730,12 +2580,6 @@
     "type": "registry",
     "value": {
       "version": "1.0.0"
-    }
-  },
-  "web-promise": {
-    "type": "registry",
-    "value": {
-      "version": "3.1.0"
     }
   },
   "web-resize-observer": {
@@ -2765,7 +2609,7 @@
   "web-streams": {
     "type": "registry",
     "value": {
-      "version": "3.0.0"
+      "version": "4.0.0"
     }
   },
   "web-touchevents": {
@@ -2807,7 +2651,7 @@
   "webgpu": {
     "type": "registry",
     "value": {
-      "version": "0.0.0"
+      "version": "0.0.1"
     }
   },
   "which": {
