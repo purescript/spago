@@ -55,7 +55,7 @@ spec = Spec.around withTempDir do
               "Subpackage.Test.Main"
           ) # plusDependencies [ "node-process" ]
         )
-      spago [ "test", "-p", "subpackage" ] >>= checkResultAndOutputs' (Just testCwd) Nothing isRight
+      spago [ "test", "-p", "subpackage" ] >>= checkResultAndOutputsStr (Just testCwd) Nothing isRight
 
     Spec.it "fails when running tests from a sub-package, where the module does not exist" \{ spago } -> do
       spago [ "init" ] >>= shouldBeSuccess

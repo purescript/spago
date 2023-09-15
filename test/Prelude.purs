@@ -75,8 +75,8 @@ plusDependencies deps config = config
   where
   mkDep p = Tuple (unsafeFromRight $ PackageName.parse p) Nothing
 
-checkResultAndOutputs' :: Maybe String -> Maybe FilePath -> (Either ExecError ExecResult -> Boolean) -> Either ExecError ExecResult -> Aff _
-checkResultAndOutputs' maybeOutStr maybeErrStr resultFn execResult = do
+checkResultAndOutputsStr :: Maybe String -> Maybe FilePath -> (Either ExecError ExecResult -> Boolean) -> Either ExecError ExecResult -> Aff _
+checkResultAndOutputsStr maybeOutStr maybeErrStr resultFn execResult = do
   execResult `Assert.shouldSatisfy` resultFn
   let
     stdout = String.trim $ case execResult of
@@ -96,7 +96,7 @@ checkResultAndOutputs maybeOutFixture maybeErrFixture resultFn execResult = do
     String.trim <$> FS.readTextFile expectedOutFixture
   maybeErrStr <- for maybeErrFixture \expectedErrFixture -> do
     String.trim <$> FS.readTextFile expectedErrFixture
-  checkResultAndOutputs' maybeOutStr maybeErrStr resultFn execResult
+  checkResultAndOutputsStr maybeOutStr maybeErrStr resultFn execResult
 
 shouldBeSuccess :: Either ExecError ExecResult -> Aff Unit
 shouldBeSuccess = checkResultAndOutputs Nothing Nothing isRight
