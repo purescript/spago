@@ -17,15 +17,6 @@ jobs:
           - os: macOS-latest
           - os: windows-latest
     steps:
-      # We need a proper Git repository, but the checkout step will unpack a tarball instead of doing a clone
-      # if the Git version is less than 2.18.
-      - name: Install a newer version of Git (Linux)
-        if: runner.os == 'Linux'
-        run: |
-          . /etc/os-release
-          echo deb http://deb.debian.org/debian "$VERSION_CODENAME"-backports main >> /etc/apt/sources.list
-          apt-get update && apt-get install -y git/"$VERSION_CODENAME"-backports
-
       # We set LF endings so that the Windows environment is consistent with the rest
       # See here for context: https://github.com/actions/checkout/issues/135
       - name: Set git to use LF
