@@ -2,6 +2,8 @@ module Test.Spago.Test where
 
 import Test.Prelude
 
+import Data.String (Pattern(..), Replacement(..))
+import Data.String as String
 import Registry.PackageName as PackageName
 import Spago.Command.Init as Init
 import Spago.Core.Config as Config
@@ -39,23 +41,29 @@ spec = Spec.around withTempDir do
         )
       spago [ "test", "-p", "subpackage" ] >>= shouldBeSuccess
 
-    Spec.it "runs tests from a sub-package in the current working directory, not the sub-package's directory" \{ spago, testCwd, fixture } -> do
+    Spec.it "runs tests from a sub-package in the current working directory, not the sub-package's directory" \{ spago, fixture } -> do
       spago [ "init" ] >>= shouldBeSuccess
       FS.mkdirp "subpackage/src"
       FS.mkdirp "subpackage/test"
       FS.writeTextFile "subpackage/src/Main.purs" (Init.srcMainTemplate "Subpackage.Main")
-      FS.copyFile
-        { src: fixture "spago-subpackage-test-cwd.purs"
-        , dst: "subpackage/test/Main.purs"
-        }
+
+      -- We write a file into the current working directory. 
+      -- The subpackage test will read the given file without changing its directory
+      -- and log its content as its output.
+      let textFilePath = "foo.txt"
+      let fileContent = "foo"
+      FS.writeTextFile textFilePath fileContent
+      content <- FS.readTextFile $ fixture "spago-subpackage-test-cwd.purs"
+      FS.writeTextFile "subpackage/test/Main.purs"
+        $ String.replace (Pattern "FILE_PATH") (Replacement textFilePath) content
       FS.writeYamlFile Config.configCodec "subpackage/spago.yaml"
         ( ( Init.defaultConfig
               (mkPackageName "subpackage")
               Nothing
               "Subpackage.Test.Main"
-          ) # plusDependencies [ "node-process" ]
+          ) # plusDependencies [ "aff", "node-buffer", "node-fs" ]
         )
-      spago [ "test", "-p", "subpackage" ] >>= checkResultAndOutputsStr (Just testCwd) Nothing isRight
+      spago [ "test", "-p", "subpackage" ] >>= checkResultAndOutputsStr (Just fileContent) Nothing isRight
 
     Spec.it "fails when running tests from a sub-package, where the module does not exist" \{ spago } -> do
       spago [ "init" ] >>= shouldBeSuccess
