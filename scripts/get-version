@@ -1,3 +1,0 @@
-#!/usr/bin/env bash
-
-grep "^version:" spago.cabal | sed "s/version: *//g"

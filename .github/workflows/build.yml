@@ -2,12 +2,9 @@ name: build
 
 on:
   push:
-    branches: [ master ]
+    branches: [master]
   pull_request:
-    branches: [ master ]
-
-env:
-  STACK_VERSION: '2.11.1'
+    branches: [master]
 
 jobs:
   build:
@@ -17,7 +14,6 @@ jobs:
       matrix:
         include:
           - os: ubuntu-latest
-            image: haskell:9.2.8
           - os: macOS-latest
           - os: windows-latest
     steps:
@@ -29,31 +25,17 @@ jobs:
           . /etc/os-release
           echo deb http://deb.debian.org/debian "$VERSION_CODENAME"-backports main >> /etc/apt/sources.list
           apt-get update && apt-get install -y git/"$VERSION_CODENAME"-backports
-      # We set LF endings so that the Windows environment is consistent with Appveyor
+
+      # We set LF endings so that the Windows environment is consistent with the rest
       # See here for context: https://github.com/actions/checkout/issues/135
       - name: Set git to use LF
         run: |
           git config --global core.autocrlf false
           git config --global core.eol lf
           git config --global core.longpaths true
+
       - uses: actions/checkout@v2
-      - name: Setup Haskell (macOS and Windows)
-        if: runner.os != 'Linux'
-        uses: haskell/actions/setup@v1
-        with:
-          enable-stack: true
-          stack-version: "${{ env.STACK_VERSION }}"
-          stack-no-global: true
-      - name: Check Stack version and fix root access (Linux)
-        if: runner.os == 'Linux'
-        run: |
-          [ "$(stack --numeric-version)" = "$STACK_VERSION" ]
-          chown root:root .
-          echo '{"allow_root":true}' > /root/.bowerrc
-      - name: Setup node and npm
-        uses: actions/setup-node@v2
-        with:
-          node-version: 18
+
       # NB: We install gnu-tar because BSD tar is buggy on Github's macos machines,
       # and it breaks the cache: https://github.com/actions/cache/issues/403
       - name: Install GNU tar (macOS)
@@ -61,62 +43,47 @@ jobs:
         run: |
           brew install gnu-tar
           echo "/usr/local/opt/gnu-tar/libexec/gnubin" >> $GITHUB_PATH
-      - name: create ~/.local/bin
-        run: mkdir -p "$HOME/.local/bin"
-      - name: Add ~/.local/bin to PATH
-        run: echo "$HOME/.local/bin" >> $GITHUB_PATH
 
-      # Caching
-      #
-      # `haskell/actions/setup` will overwrite the STACK_ROOT variable
-      # to "C:\sr" on Windows and `$HOME/.stack` on non-Windows OS.
-      # So, we use OS-specific caching rules to workaround this difference
-      # between OSes.
-      # For Windows, we also cache the folder that stores the GHC we use
-      # as well as other programs it uses.
-      - name: Cache ~/.stack on non-Windows OS
-        uses: actions/cache@v2
-        if: runner.os != 'Windows'
+      - name: Setup node and npm
+        uses: actions/setup-node@v2
         with:
-          path: |
-            /root/.stack
-            ~/.stack
-          key: ${{ runner.os }}-${{ hashFiles('stack.yaml') }}-2
-      - name: Cache C:\sr on Windows OS
+          node-version: 18
+
+      - name: Cache NPM dependencies
         uses: actions/cache@v2
-        if: runner.os == 'Windows'
+        env:
+          cache-name: cache-node-modules
         with:
-          # Cache both STACK_ROOT and the folder containing
-          # Stack-related files
+          path: ~/.npm
+          key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ hashFiles('**/package.json') }}
+          restore-keys: |
+            ${{ runner.os }}-build-${{ env.cache-name }}-
+            ${{ runner.os }}-build-
+            ${{ runner.os }}-
+
+      - name: Setup PureScript dependencies
+        run: npm i --global purescript@0.15.10 esbuild@0.17.19 spago@0.93.11 purs-tidy@latest
+
+      - name: Cache PureScript dependencies
+        uses: actions/cache@v2
+        with:
+          key: ${{ runner.os }}-spago-${{ hashFiles('**/spago.yaml') }}
           path: |
-            C:\sr
-            $HOME\AppData\Local\Programs\stack\x86_64-windows
-          key: ${{ runner.os }}-${{ hashFiles('stack.yaml') }}-1
+            .spago
+            output
 
-      - run: npm install -g purescript@0.15.8 psc-package@3.0.1 bower@1.8.8 esbuild@0.14.28
+      - name: Install NPM dependencies
+        run: npm install
 
-      - name: Install dependencies
-        run: |
-          ./scripts/fix-home stack install --dependencies-only
-        shell: bash
+      - name: Install PureScript dependencies
+        run: spago install
 
-      - name: Build
-        run: |
-          ./scripts/fix-home make
-          ./scripts/fix-home stack build --pedantic
-        shell: bash
+      - name: Build executable
+        run: spago bundle -p spago-bin
 
-      - name: Install
-        run: ./scripts/fix-home stack install
-        shell: bash
+      - name: Run tests
+        run: spago test
 
-      - name: Run tests (PureScript >= 0.15.0)
-        run: ./scripts/fix-home stack test
-        shell: bash
-
-      - name: Install PureScript 0.14.9
-        run: npm install -g purescript@0.14.9
-
-      - name: Run tests (PureScript < 0.15.0)
-        shell: bash
-        run: ./scripts/fix-home stack test --ta "--match purs-0.14"
+      - name: Check formatting (Linux only)
+        if: matrix.os == 'ubuntu-latest'
+        run: npm run format:check
