@@ -53,7 +53,7 @@ spec = Spec.around withTempDir do
               (mkPackageName "subpackage")
               Nothing
               "Subpackage.Test.Main"
-          ) # plusDependencies [ "node-process" ]
+          ) # plusDependencies [ "node-process", "node-path" ]
         )
       spago [ "test", "-p", "subpackage" ] >>= checkResultAndOutputsStr (Just testCwd) Nothing isRight
 
