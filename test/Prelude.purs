@@ -36,8 +36,7 @@ withTempDir = Aff.bracket createTempDir cleanupTempDir
     temp <- mkTemp' $ Just "spago-test-"
     FS.mkdirp temp
     liftEffect $ Process.chdir temp
-    tempCwd <- liftEffect $ Process.cwd
-    log $ "Running test in " <> tempCwd
+    log $ "Running test in " <> temp
     let
       fixturesPath = oldCwd <> "/test-fixtures"
 
@@ -56,7 +55,7 @@ withTempDir = Aff.bracket createTempDir cleanupTempDir
       { spago'
       , spago
       , oldCwd
-      , testCwd: tempCwd
+      , testCwd: temp
       , fixture
       }
 
