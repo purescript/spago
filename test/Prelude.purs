@@ -5,6 +5,7 @@ module Test.Prelude
 
 import Spago.Prelude
 
+import Data.Map as Map
 import Data.String as String
 import Effect.Aff as Aff
 import Effect.Class.Console (log)
@@ -14,6 +15,7 @@ import Registry.PackageName as PackageName
 import Spago.Cmd (ExecError, ExecResult) as X
 import Spago.Cmd (ExecError, ExecResult, StdinConfig(..))
 import Spago.Cmd as Cmd
+import Spago.Core.Config (Dependencies(..), Config)
 import Spago.FS as FS
 import Spago.Prelude as X
 import Test.Spec.Assertions as Assert
@@ -66,8 +68,15 @@ checkFixture filepath fixturePath = do
   fixturecontent <- FS.readTextFile fixturePath
   filecontent `Assert.shouldEqual` fixturecontent
 
-checkResultAndOutputs :: Maybe FilePath -> Maybe FilePath -> (Either ExecError ExecResult -> Boolean) -> Either ExecError ExecResult -> Aff _
-checkResultAndOutputs maybeOutFixture maybeErrFixture resultFn execResult = do
+plusDependencies :: Array String -> Config -> Config
+plusDependencies deps config = config
+  { package = config.package <#> \p -> p { dependencies = p.dependencies <> (Dependencies $ Map.fromFoldable $ map mkDep deps) }
+  }
+  where
+  mkDep p = Tuple (unsafeFromRight $ PackageName.parse p) Nothing
+
+checkResultAndOutputs' :: Maybe String -> Maybe FilePath -> (Either ExecError ExecResult -> Boolean) -> Either ExecError ExecResult -> Aff _
+checkResultAndOutputs' maybeOutStr maybeErrStr resultFn execResult = do
   execResult `Assert.shouldSatisfy` resultFn
   let
     stdout = String.trim $ case execResult of
@@ -76,12 +85,18 @@ checkResultAndOutputs maybeOutFixture maybeErrFixture resultFn execResult = do
     stderr = String.trim $ case execResult of
       Left err -> err.stderr
       Right res -> res.stderr
-  for_ maybeOutFixture \expectedOutFixture -> do
-    expectedOut <- String.trim <$> FS.readTextFile expectedOutFixture
+  for_ maybeOutStr \expectedOut -> do
     stdout `Assert.shouldEqual` expectedOut
-  for_ maybeErrFixture \expectedErrFixture -> do
-    expectedErr <- String.trim <$> FS.readTextFile expectedErrFixture
+  for_ maybeErrStr \expectedErr -> do
     stderr `Assert.shouldEqual` expectedErr
+
+checkResultAndOutputs :: Maybe FilePath -> Maybe FilePath -> (Either ExecError ExecResult -> Boolean) -> Either ExecError ExecResult -> Aff _
+checkResultAndOutputs maybeOutFixture maybeErrFixture resultFn execResult = do
+  maybeOutStr <- for maybeOutFixture \expectedOutFixture -> do
+    String.trim <$> FS.readTextFile expectedOutFixture
+  maybeErrStr <- for maybeErrFixture \expectedErrFixture -> do
+    String.trim <$> FS.readTextFile expectedErrFixture
+  checkResultAndOutputs' maybeOutStr maybeErrStr resultFn execResult
 
 shouldBeSuccess :: Either ExecError ExecResult -> Aff Unit
 shouldBeSuccess = checkResultAndOutputs Nothing Nothing isRight

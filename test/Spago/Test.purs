@@ -39,6 +39,24 @@ spec = Spec.around withTempDir do
         )
       spago [ "test", "-p", "subpackage" ] >>= shouldBeSuccess
 
+    Spec.it "runs tests from a sub-package in the current working directory, not the sub-package's directory" \{ spago, testCwd, fixture } -> do
+      spago [ "init" ] >>= shouldBeSuccess
+      FS.mkdirp "subpackage/src"
+      FS.mkdirp "subpackage/test"
+      FS.writeTextFile "subpackage/src/Main.purs" (Init.srcMainTemplate "Subpackage.Main")
+      FS.copyFile
+        { src: fixture "spago-subpackage-test-cwd.purs"
+        , dst: "subpackage/test/Main.purs"
+        }
+      FS.writeYamlFile Config.configCodec "subpackage/spago.yaml"
+        ( ( Init.defaultConfig
+              (mkPackageName "subpackage")
+              Nothing
+              "Subpackage.Test.Main"
+          ) # plusDependencies [ "node-process" ]
+        )
+      spago [ "test", "-p", "subpackage" ] >>= checkResultAndOutputs' (Just testCwd) Nothing isRight
+
     Spec.it "fails when running tests from a sub-package, where the module does not exist" \{ spago } -> do
       spago [ "init" ] >>= shouldBeSuccess
       FS.mkdirp "subpackage/src"
