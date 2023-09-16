@@ -43,8 +43,8 @@ withTempDir = Aff.bracket createTempDir cleanupTempDir
       spago' :: StdinConfig -> Array String -> Aff (Either ExecError ExecResult)
       spago' stdin args =
         Cmd.exec
-          (Path.concat [ oldCwd, "bin", "index.dev.js" ])
-          args
+          "node"
+          ([ Path.concat [ oldCwd, "bin", "index.dev.js" ] ] <> args)
           $ Cmd.defaultExecOptions { pipeStdout = false, pipeStderr = false, pipeStdin = stdin }
 
       spago = spago' StdinNewPipe
