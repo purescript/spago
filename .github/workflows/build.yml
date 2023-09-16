@@ -55,6 +55,9 @@ jobs:
       - name: Setup PureScript dependencies
         run: npm i --global purescript@0.15.10 spago@0.93.11 purs-tidy@latest esbuild@latest
 
+      - name: esbuild version
+        run: esbuild --version
+
       - name: Cache PureScript dependencies
         uses: actions/cache@v2
         with:
