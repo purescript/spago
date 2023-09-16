@@ -53,7 +53,7 @@ jobs:
             ${{ runner.os }}-
 
       - name: Install global NPM packages
-        run: npm i --global purescript@0.15.10 spago@0.93.11 purs-tidy@latest esbuild@latest
+        run: npm i --global purescript@0.15.10 spago@next purs-tidy@latest esbuild@latest
 
       - name: esbuild version
         run: esbuild --version
