@@ -52,7 +52,7 @@ jobs:
             ${{ runner.os }}-build-
             ${{ runner.os }}-
 
-      - name: Setup PureScript dependencies
+      - name: Install global NPM packages
         run: npm i --global purescript@0.15.10 spago@0.93.11 purs-tidy@latest esbuild@latest
 
       - name: esbuild version
@@ -72,8 +72,11 @@ jobs:
       - name: Install PureScript dependencies
         run: spago install
 
-      - name: Build executable
-        run: spago bundle -p spago-bin
+      - name: Build the project
+        run: spago build
+
+      - name: Bootstrap executable
+        run: ./bin/index.dev.js -p spago-bin
 
       - name: Run tests
         run: spago test
