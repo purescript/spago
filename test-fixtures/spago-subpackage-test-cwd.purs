@@ -12,6 +12,5 @@ main :: Effect Unit
 main = launchAff_ do
   readTextFile UTF8 filePath >>= log
 
--- DO NOT EDIT. This value is replaced in the corresponding spago test
 filePath :: String
-filePath = "FILE_PATH"
+filePath = "foo.txt"

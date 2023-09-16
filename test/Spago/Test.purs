@@ -53,9 +53,10 @@ spec = Spec.around withTempDir do
       let textFilePath = "foo.txt"
       let fileContent = "foo"
       FS.writeTextFile textFilePath fileContent
-      content <- FS.readTextFile $ fixture "spago-subpackage-test-cwd.purs"
-      FS.writeTextFile "subpackage/test/Main.purs"
-        $ String.replace (Pattern "FILE_PATH") (Replacement textFilePath) content
+      FS.copyFile
+        { src: fixture "spago-subpackage-test-cwd.purs"
+        , dst: "subpackage/test/Main.purs"
+        }
       FS.writeYamlFile Config.configCodec "subpackage/spago.yaml"
         ( ( Init.defaultConfig
               (mkPackageName "subpackage")
