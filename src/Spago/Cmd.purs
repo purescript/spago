@@ -3,12 +3,13 @@ module Spago.Cmd where
 import Spago.Prelude
 
 import Data.Array as Array
-import Data.Nullable (Nullable)
 import Data.String (Pattern(..))
 import Data.String as String
-import Node.Library.Execa as Execa
-import Partial.Unsafe (unsafeCrashWith)
 import Data.Time.Duration (Milliseconds(..))
+import Node.Library.Execa as Execa
+import Node.Platform as Platform
+import Node.Process as Process
+import Partial.Unsafe (unsafeCrashWith)
 
 data StdinConfig
   = StdinPipeParent
@@ -97,3 +98,32 @@ findFlag { flags, args } = case Array.uncons args of
           _ -> Nothing
         _ -> Just h1
       _ -> Nothing
+
+getExecutable :: forall a. String -> Spago (LogEnv a) { cmd :: String, output :: String }
+getExecutable command =
+  case Process.platform of
+    Just Platform.Win32 -> do
+      -- On Windows, we often need to call the `.cmd` version
+      let cmd1 = mkCmd command (Just "cmd")
+      askVersion cmd1 >>= case _ of
+        Right r -> pure { cmd: cmd1, output: r.stdout }
+        Left err' -> do
+          let cmd2 = mkCmd command Nothing
+          logDebug [ "Failed to find purs.cmd. Trying with just purs...", show err' ]
+          askVersion cmd2 >>= case _ of
+            Right r -> pure { cmd: cmd2, output: r.stdout }
+            Left err -> complain err
+    _ -> do
+      -- On other platforms, we just call `purs`
+      let cmd1 = mkCmd command Nothing
+      askVersion cmd1 >>= case _ of
+        Right r -> pure { cmd: cmd1, output: r.stdout }
+        Left err -> complain err
+  where
+  askVersion cmd = exec cmd [ "--version" ] defaultExecOptions { pipeStdout = false, pipeStderr = false }
+
+  mkCmd cmd maybeExtension = cmd <> maybe "" (append ".") maybeExtension
+
+  complain err = do
+    logDebug $ show err
+    die [ "Failed to find " <> command <> ". Have you installed it, and is it in your PATH?" ]
