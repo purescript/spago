@@ -75,7 +75,7 @@ plusDependencies deps config = config
   where
   mkDep p = Tuple (unsafeFromRight $ PackageName.parse p) Nothing
 
-checkResultAndOutputsStr :: Maybe String -> Maybe FilePath -> (Either ExecError ExecResult -> Boolean) -> Either ExecError ExecResult -> Aff _
+checkResultAndOutputsStr :: Maybe String -> Maybe String -> (Either ExecError ExecResult -> Boolean) -> Either ExecError ExecResult -> Aff _
 checkResultAndOutputsStr maybeOutStr maybeErrStr resultFn execResult = do
   execResult `Assert.shouldSatisfy` resultFn
   let
