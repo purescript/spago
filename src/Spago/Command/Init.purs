@@ -9,6 +9,7 @@ module Spago.Command.Init
 import Spago.Prelude
 
 import Data.Map as Map
+import Node.Path as Path
 import Registry.PackageName as PackageName
 import Registry.Version as Version
 import Spago.Config (Dependencies(..), SetAddress(..), Config)
@@ -46,11 +47,11 @@ run opts = do
   -- or just migrate a psc-package project
   let mainModuleName = "Main"
   whenDirNotExists "src" do
-    copyIfNotExists ("src/" <> mainModuleName <> ".purs") (srcMainTemplate mainModuleName)
+    copyIfNotExists ("src" <> Path.sep <> mainModuleName <> ".purs") (srcMainTemplate mainModuleName)
 
   whenDirNotExists "test" $ do
-    FS.mkdirp "test/Test"
-    copyIfNotExists "test/Test/Main.purs" (testMainTemplate "Test.Main")
+    FS.mkdirp (Path.concat [ "test", "Test" ])
+    copyIfNotExists (Path.concat [ "test", "Test", "Main.purs" ]) (testMainTemplate "Test.Main")
 
   copyIfNotExists ".gitignore" gitignoreTemplate
 

@@ -414,10 +414,10 @@ sourceGlob withTestGlobs name package = map (\p -> Path.concat [ getPackageLocat
     _ -> [ srcGlob ]
 
 srcGlob :: String
-srcGlob = "src/**/*.purs"
+srcGlob = "src" <> Path.sep <> "**" <> Path.sep <> "*.purs"
 
 testGlob :: String
-testGlob = "test/**/*.purs"
+testGlob = "test" <> Path.sep <> "**" <> Path.sep <> "*.purs"
 
 getWorkspacePackages :: PackageSet -> Array WorkspacePackage
 getWorkspacePackages = Array.mapMaybe extractWorkspacePackage <<< Map.toUnfoldable <<< case _ of

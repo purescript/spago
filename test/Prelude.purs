@@ -36,7 +36,7 @@ withTempDir = Aff.bracket createTempDir cleanupTempDir
     liftEffect $ Process.chdir temp
     log $ "Running test in " <> temp
     let
-      fixturesPath = oldCwd <> "/test-fixtures"
+      fixturesPath = oldCwd <> Path.sep <> "test-fixtures"
 
       fixture path = Path.concat [ fixturesPath, path ]
 
