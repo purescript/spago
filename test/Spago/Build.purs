@@ -2,6 +2,8 @@ module Test.Spago.Build where
 
 import Test.Prelude
 
+import Effect.Class.Console as Console
+import Node.Path as Path
 import Registry.Version as Version
 import Spago.Command.Init as Init
 import Spago.Core.Config as Config
@@ -48,11 +50,11 @@ spec = Spec.around withTempDir do
 
     Spec.it "there's only one output folder in a monorepo" \{ spago } -> do
       spago [ "init" ] >>= shouldBeSuccess
-      FS.mkdirp "subpackage/src"
-      FS.mkdirp "subpackage/test"
-      FS.writeTextFile "subpackage/src/Main.purs" (Init.srcMainTemplate "Subpackage.Main")
-      FS.writeTextFile "subpackage/test/Main.purs" (Init.testMainTemplate "Subpackage.Test.Main")
-      FS.writeYamlFile Config.configCodec "subpackage/spago.yaml"
+      FS.mkdirp (Path.concat [ "subpackage", "src" ])
+      FS.mkdirp (Path.concat [ "subpackage", "test" ])
+      FS.writeTextFile (Path.concat [ "subpackage", "src", "Main.purs" ]) (Init.srcMainTemplate "Subpackage.Main")
+      FS.writeTextFile (Path.concat [ "subpackage", "test", "Main.purs" ]) (Init.testMainTemplate "Subpackage.Test.Main")
+      FS.writeYamlFile Config.configCodec (Path.concat [ "subpackage", "spago.yaml" ])
         ( Init.defaultConfig
             (mkPackageName "subpackage")
             Nothing
@@ -61,18 +63,20 @@ spec = Spec.around withTempDir do
       spago [ "build" ] >>= shouldBeSuccess
       spago [ "build", "-p", "subpackage" ] >>= shouldBeSuccess
       FS.exists "output" `Assert.shouldReturn` true
-      FS.exists "subpackage/output" `Assert.shouldReturn` false
+      FS.exists (Path.concat [ "subpackage", "output" ]) `Assert.shouldReturn` false
 
     Spec.it "fails when there are imports from transitive dependencies and --pedantic-packages is passed" \{ spago, fixture } -> do
       spago [ "init", "--name", "7368613235362d34312f4e59746b7869335477336d33414d72" ] >>= shouldBeSuccess
       spago [ "install", "maybe" ] >>= shouldBeSuccess
-      FS.writeTextFile "src/Main.purs" "module Main where\nimport Prelude\nimport Data.Maybe\nimport Control.Alt\nmain = unit"
+      FS.writeTextFile (Path.concat [ "src", "Main.purs" ]) "module Main where\nimport Prelude\nimport Data.Maybe\nimport Control.Alt\nmain = unit"
       spago [ "build" ] >>= shouldBeSuccess
+      main <- FS.readTextFile (Path.concat [ "src", "Main.purs" ])
+      Console.log main
       spago [ "build", "--pedantic-packages" ] >>= shouldBeFailureErr (fixture "check-direct-import-transitive-dependency.txt")
 
     Spec.it "--pedantic-packages also warns about unused dependencies" \{ spago, fixture } -> do
       spago [ "init", "--name", "7368613235362d2f444a2b4f56375435646a59726b53586548" ] >>= shouldBeSuccess
-      FS.writeTextFile "src/Main.purs" "module Main where\nimport Prelude\nmain = unit"
+      FS.writeTextFile (Path.concat [ "src", "Main.purs" ]) "module Main where\nimport Prelude\nmain = unit"
       spago [ "build" ] >>= shouldBeSuccess
       spago [ "build", "--pedantic-packages" ] >>= shouldBeFailureErr (fixture "check-unused-dependency.txt")
 
