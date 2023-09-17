@@ -96,9 +96,11 @@ checkImports = do
     addPackageInfo :: PackageGraph -> Tuple ModuleName ModuleGraphNode -> PackageGraph
     addPackageInfo pkgGraph (Tuple moduleName { path, depends }) =
       let
+        -- Windows paths will need a conversion to forward slashes to be matched to globs
+        newPath = Glob.convertPathToPattern path
         newVal = do
-          package <- Map.lookup path pathToPackage
-          pure { path, depends, package }
+          package <- Map.lookup newPath pathToPackage
+          pure { path: newPath, depends, package }
       in
         maybe pkgGraph (\v -> Map.insert moduleName v pkgGraph) newVal
     packageGraph = foldl addPackageInfo Map.empty (Map.toUnfoldable graph :: Array _)

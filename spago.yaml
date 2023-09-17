@@ -62,5 +62,5 @@ workspace:
       subdir: lib
     registry-foreign:
       git: https://github.com/purescript/registry-dev.git
-      ref: 7e1f67d1205d68d7f22d9d55d25ba2354dfbb14e
+      ref: 04064f14e8807d67881a6065d750660ba9f55dad
       subdir: foreign
