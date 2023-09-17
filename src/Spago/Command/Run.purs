@@ -85,7 +85,7 @@ run = do
         nodeContents =
           Array.fold
             [ "import { main } from 'file://"
-            , String.replaceAll (Pattern "\\") (Replacement "/") opts.sourceDir
+            , withForwardSlashes opts.sourceDir
             , "/"
             , fromMaybe "output" workspace.buildOptions.output
             , "/"

@@ -175,7 +175,8 @@ publish _args = do
             , version: publishConfig.version
             , license: publishConfig.license
             , owners: Nothing -- TODO specify owners in spago config
-            , files: Nothing -- TODO specify files in spago config
+            , excludeFiles: Nothing -- TODO specify files in spago config
+            , includeFiles: Nothing -- TODO specify files in spago config
             }
 
         unless (Operation.Validation.locationMatches (Manifest manifest) (Metadata metadata)) $ addError $ toDoc

@@ -106,11 +106,11 @@ workspace:
   extra_packages:
     registry-foreign:
       git: https://github.com/purescript/registry-dev.git
-      ref: 04064f14e8807d67881a6065d750660ba9f55dad
+      ref: 6a803c37577af368caa221a2a06d6be2079d32da
       subdir: foreign
     registry-lib:
       git: https://github.com/purescript/registry-dev.git
-      ref: 7e1f67d1205d68d7f22d9d55d25ba2354dfbb14e
+      ref: 6a803c37577af368caa221a2a06d6be2079d32da
       subdir: lib
 packages:
   aff:
@@ -1221,7 +1221,7 @@ packages:
   registry-foreign:
     type: git
     url: https://github.com/purescript/registry-dev.git
-    rev: 04064f14e8807d67881a6065d750660ba9f55dad
+    rev: 6a803c37577af368caa221a2a06d6be2079d32da
     subdir: foreign
     dependencies:
       - aff
@@ -1259,7 +1259,7 @@ packages:
   registry-lib:
     type: git
     url: https://github.com/purescript/registry-dev.git
-    rev: 7e1f67d1205d68d7f22d9d55d25ba2354dfbb14e
+    rev: 6a803c37577af368caa221a2a06d6be2079d32da
     subdir: lib
     dependencies:
       - aff

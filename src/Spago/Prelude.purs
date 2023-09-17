@@ -12,6 +12,7 @@ module Spago.Prelude
   , withBackoff'
   , mkTemp
   , mkTemp'
+  , withForwardSlashes
   ) where
 
 import Spago.Core.Prelude
@@ -24,6 +25,7 @@ import Data.Foldable as Foldable
 import Data.Function.Uncurried (Fn3, runFn3)
 import Data.Int as Int
 import Data.Maybe as Maybe
+import Data.String (Pattern(..), Replacement(..))
 import Data.String as String
 import Effect.Aff as Aff
 import Effect.Now as Now
@@ -148,3 +150,6 @@ mkTemp' maybeSuffix = liftAff do
 
 mkTemp :: forall m. MonadAff m => m FilePath
 mkTemp = mkTemp' Nothing
+
+withForwardSlashes :: String -> String
+withForwardSlashes = String.replaceAll (Pattern "\\") (Replacement "/")

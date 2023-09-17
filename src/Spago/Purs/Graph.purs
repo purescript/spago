@@ -97,7 +97,7 @@ checkImports = do
     addPackageInfo pkgGraph (Tuple moduleName { path, depends }) =
       let
         -- Windows paths will need a conversion to forward slashes to be matched to globs
-        newPath = Glob.convertPathToPattern path
+        newPath = withForwardSlashes path
         newVal = do
           package <- Map.lookup newPath pathToPackage
           pure { path: newPath, depends, package }
@@ -151,7 +151,7 @@ checkImports = do
 
 compileGlob :: forall a. FilePath -> Spago (LogEnv a) (Array FilePath)
 compileGlob sourcePath = do
-  { succeeded, failed } <- Glob.match Paths.cwd [ sourcePath ]
+  { succeeded, failed } <- Glob.match Paths.cwd [ withForwardSlashes sourcePath ]
   unless (Array.null failed) do
     logDebug [ toDoc "Encountered some globs that are not in cwd, proceeding anyways:", indent $ toDoc failed ]
   pure (succeeded <> failed)

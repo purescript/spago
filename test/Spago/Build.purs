@@ -70,8 +70,6 @@ spec = Spec.around withTempDir do
       spago [ "install", "maybe" ] >>= shouldBeSuccess
       FS.writeTextFile (Path.concat [ "src", "Main.purs" ]) "module Main where\nimport Prelude\nimport Data.Maybe\nimport Control.Alt\nmain = unit"
       spago [ "build" ] >>= shouldBeSuccess
-      main <- FS.readTextFile (Path.concat [ "src", "Main.purs" ])
-      Console.log main
       spago [ "build", "--pedantic-packages" ] >>= shouldBeFailureErr (fixture "check-direct-import-transitive-dependency.txt")
 
     Spec.it "--pedantic-packages also warns about unused dependencies" \{ spago, fixture } -> do
