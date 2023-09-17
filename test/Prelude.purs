@@ -38,15 +38,15 @@ withTempDir = Aff.bracket createTempDir cleanupTempDir
     liftEffect $ Process.chdir temp
     log $ "Running test in " <> temp
     let
-      fixturesPath = oldCwd <> "/test-fixtures"
+      fixturesPath = oldCwd <> Path.sep <> "test-fixtures"
 
       fixture path = Path.concat [ fixturesPath, path ]
 
       spago' :: StdinConfig -> Array String -> Aff (Either ExecError ExecResult)
       spago' stdin args =
         Cmd.exec
-          (Path.concat [ oldCwd, "bin", "index.dev.js" ])
-          args
+          "node"
+          ([ Path.concat [ oldCwd, "bin", "index.dev.js" ] ] <> args)
           $ Cmd.defaultExecOptions { pipeStdout = false, pipeStderr = false, pipeStdin = stdin }
 
       spago = spago' StdinNewPipe

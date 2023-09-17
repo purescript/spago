@@ -15,7 +15,7 @@ jobs:
         include:
           - os: ubuntu-latest
           - os: macOS-latest
-          # - os: windows-latest
+          - os: windows-latest
     steps:
       # We set LF endings so that the Windows environment is consistent with the rest
       # See here for context: https://github.com/actions/checkout/issues/135
@@ -52,8 +52,8 @@ jobs:
             ${{ runner.os }}-build-
             ${{ runner.os }}-
 
-      - name: Setup PureScript dependencies
-        run: npm i --global purescript@0.15.10 spago@0.93.11 purs-tidy@latest esbuild@latest
+      - name: Install global NPM packages
+        run: npm i --global purescript@0.15.10 spago@next purs-tidy@latest esbuild@latest
 
       - name: Cache PureScript dependencies
         uses: actions/cache@v2
@@ -64,13 +64,16 @@ jobs:
             output
 
       - name: Install NPM dependencies
-        run: npm install
+        run: npm ci
 
       - name: Install PureScript dependencies
         run: spago install
 
-      - name: Build executable
-        run: spago bundle -p spago-bin
+      - name: Build the project
+        run: spago build
+
+      - name: Bootstrap executable
+        run: ./bin/index.dev.js -p spago-bin
 
       - name: Run tests
         run: spago test

@@ -106,11 +106,11 @@ workspace:
   extra_packages:
     registry-foreign:
       git: https://github.com/purescript/registry-dev.git
-      ref: 7e1f67d1205d68d7f22d9d55d25ba2354dfbb14e
+      ref: 6a803c37577af368caa221a2a06d6be2079d32da
       subdir: foreign
     registry-lib:
       git: https://github.com/purescript/registry-dev.git
-      ref: 7e1f67d1205d68d7f22d9d55d25ba2354dfbb14e
+      ref: 6a803c37577af368caa221a2a06d6be2079d32da
       subdir: lib
 packages:
   aff:
@@ -469,6 +469,52 @@ packages:
     integrity: sha256-A0JQHpTfo1dNOj9U5/Fd3xndlRSE0g2IQWOGor2yXn8=
     dependencies:
       - unsafe-coerce
+  fetch:
+    type: registry
+    version: 1.1.4
+    integrity: sha256-Tmt60rjS4PNtKMVGpo8O6W1Fdhcu3a3CvyN/x+SwXEs=
+    dependencies:
+      - aff
+      - aff-promise
+      - arraybuffer-types
+      - effect
+      - fetch-core
+      - foreign
+      - http-methods
+      - newtype
+      - prelude
+      - record
+      - typelevel-prelude
+      - unsafe-coerce
+      - web-file
+      - web-promise
+      - web-streams
+  fetch-core:
+    type: registry
+    version: 4.0.4
+    integrity: sha256-lS4yhvznII/vg37LewU/Ubeoj6OpxED2kb5/yn58YQQ=
+    dependencies:
+      - arraybuffer-types
+      - arrays
+      - console
+      - effect
+      - foldable-traversable
+      - foreign
+      - foreign-object
+      - functions
+      - http-methods
+      - maybe
+      - newtype
+      - nullable
+      - prelude
+      - record
+      - tuples
+      - typelevel-prelude
+      - unfoldable
+      - unsafe-coerce
+      - web-file
+      - web-promise
+      - web-streams
   filterable:
     type: registry
     version: 5.0.0
@@ -1175,7 +1221,7 @@ packages:
   registry-foreign:
     type: git
     url: https://github.com/purescript/registry-dev.git
-    rev: 7e1f67d1205d68d7f22d9d55d25ba2354dfbb14e
+    rev: 6a803c37577af368caa221a2a06d6be2079d32da
     subdir: foreign
     dependencies:
       - aff
@@ -1189,6 +1235,7 @@ packages:
       - datetime
       - effect
       - either
+      - fetch
       - filterable
       - foldable-traversable
       - foreign-object
@@ -1212,7 +1259,7 @@ packages:
   registry-lib:
     type: git
     url: https://github.com/purescript/registry-dev.git
-    rev: 7e1f67d1205d68d7f22d9d55d25ba2354dfbb14e
+    rev: 6a803c37577af368caa221a2a06d6be2079d32da
     subdir: lib
     dependencies:
       - aff
@@ -1468,6 +1515,17 @@ packages:
       - web-dom
       - web-file
       - web-storage
+  web-promise:
+    type: registry
+    version: 3.1.0
+    integrity: sha256-YfqJyEC3bHH6D8QgTi0ME5oJmGYOuZ2TlcyOdpG8dIE=
+    dependencies:
+      - effect
+      - exceptions
+      - foldable-traversable
+      - functions
+      - maybe
+      - prelude
   web-storage:
     type: registry
     version: 5.0.0
@@ -1475,6 +1533,18 @@ packages:
     dependencies:
       - nullable
       - web-events
+  web-streams:
+    type: registry
+    version: 3.0.0
+    integrity: sha256-+QELAR7lb08Ebr4lCntxeGk5Z1i+NInDJwzEzz3Pigc=
+    dependencies:
+      - arraybuffer-types
+      - effect
+      - exceptions
+      - nullable
+      - prelude
+      - tuples
+      - web-promise
   web-xhr:
     type: registry
     version: 5.0.1

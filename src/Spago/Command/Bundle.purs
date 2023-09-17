@@ -54,9 +54,7 @@ run = do
       Nothing -> "output"
       Just o -> o
     -- TODO: we might need to use `Path.relative selected.path output` instead of just output there
-    mainPath =
-      String.replaceAll (Pattern "\\") (Replacement "/") $
-        Path.concat [ output, opts.module, "index.js" ]
+    mainPath = withForwardSlashes $ Path.concat [ output, opts.module, "index.js" ]
 
     { input, entrypoint } = case opts.type of
       BundleApp -> { entrypoint: [], input: Cmd.StdinWrite ("#!/usr/bin/env node\n\nimport { main } from './" <> mainPath <> "'; main();") }

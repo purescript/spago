@@ -166,7 +166,7 @@ readWorkspace maybeSelectedPackage = do
         | otherwise -> do
             -- TODO: here figure out if the lockfile is still valid by checking if:
             -- - the package set section of the workspace is the same
-            -- - the dependencies of each package are the same 
+            -- - the dependencies of each package are the same
             pure (UseLockfile contents)
     false
       -- If the user specifies lock: true then we always create a lockfile.

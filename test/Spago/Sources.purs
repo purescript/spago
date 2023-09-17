@@ -2,7 +2,8 @@ module Test.Spago.Sources where
 
 import Test.Prelude
 
-import Registry.PackageName as PackageName
+import Node.Platform as Platform
+import Node.Process as Process
 import Spago.Command.Init as Init
 import Spago.Core.Config as Config
 import Spago.FS as FS
@@ -15,7 +16,9 @@ spec = Spec.around withTempDir do
 
     Spec.it "contains both dependencies and project sources" \{ spago, fixture } -> do
       spago [ "init" ] >>= shouldBeSuccess
-      spago [ "sources" ] >>= shouldBeSuccessOutput (fixture "sources-output.txt")
+      spago [ "sources" ] >>= shouldBeSuccessOutput case Process.platform of
+        Just Platform.Win32 -> fixture "sources-output.win.txt"
+        _ -> fixture "sources-output.txt"
 
     Spec.it "contains subproject sources when selecting a subproject" \{ spago, fixture } -> do
       spago [ "init" ] >>= shouldBeSuccess
@@ -29,4 +32,6 @@ spec = Spec.around withTempDir do
             Nothing
             "Subpackage.Test.Main"
         )
-      spago [ "sources", "-p", "subpackage" ] >>= shouldBeSuccessOutput (fixture "sources-subproject-output.txt")
+      spago [ "sources", "-p", "subpackage" ] >>= shouldBeSuccessOutput case Process.platform of
+        Just Platform.Win32 -> fixture "sources-subproject-output.win.txt"
+        _ -> fixture "sources-subproject-output.txt"

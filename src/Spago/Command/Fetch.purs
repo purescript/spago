@@ -207,21 +207,23 @@ run { packages, ensureRanges } = do
             case tarExists, tarIsGood of
               true, true -> pure unit -- Tar exists and is good, and we already unpacked it. Happy days!
               _, _ -> do
+                let packageUrl = "https://packages.registry.purescript.org/" <> PackageName.print name <> "/" <> versionString <> ".tar.gz"
                 logInfo $ "Fetching package " <> packageVersion
-                response <- liftAff $ Http.request
+                response <- liftAff $ withBackoff' $ Http.request
                   ( Http.defaultRequest
                       { method = Left Method.GET
                       , responseFormat = Response.arrayBuffer
-                      , url = "https://packages.registry.purescript.org/" <> PackageName.print name <> "/" <> versionString <> ".tar.gz"
+                      , url = packageUrl
                       }
                   )
                 case response of
-                  Left err -> die $ "Couldn't fetch package " <> packageVersion <> ":\n  " <> Http.printError err
-                  Right { status, body } | status /= StatusCode 200 -> do
+                  Nothing -> die $ "Couldn't reach the registry at " <> packageUrl
+                  Just (Left err) -> die $ "Couldn't fetch package " <> packageVersion <> ":\n  " <> Http.printError err
+                  Just (Right { status, body }) | status /= StatusCode 200 -> do
                     (buf :: Buffer) <- liftEffect $ Buffer.fromArrayBuffer body
                     bodyString <- liftEffect $ Buffer.toString Encoding.UTF8 buf
                     die $ "Couldn't fetch package " <> packageVersion <> ", status was not ok " <> show status <> ", got answer:\n  " <> bodyString
-                  Right r@{ body: archiveArrayBuffer } -> do
+                  Just (Right r@{ body: archiveArrayBuffer }) -> do
                     logDebug $ "Got status: " <> show r.status
                     -- check the size and hash of the tar against the metadata
                     archiveBuffer <- liftEffect $ Buffer.fromArrayBuffer archiveArrayBuffer

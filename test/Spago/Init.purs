@@ -2,6 +2,7 @@ module Test.Spago.Init where
 
 import Test.Prelude
 
+import Node.Path as Path
 import Spago.FS as FS
 import Test.Spec (Spec)
 import Test.Spec as Spec
@@ -16,9 +17,9 @@ spec = Spec.around withTempDir do
 
     Spec.it "does not overwrite files when initing a project" \{ spago } -> do
       FS.mkdirp "src"
-      FS.writeTextFile "src/Main.purs" "Something"
+      FS.writeTextFile (Path.concat [ "src", "Main.purs" ]) "Something"
       spago [ "init" ] >>= shouldBeSuccess
-      fileContent <- FS.readTextFile "src/Main.purs"
+      fileContent <- FS.readTextFile (Path.concat [ "src", "Main.purs" ])
       fileContent `Assert.shouldEqual` "Something"
 
     Spec.it "always succeeds when doing init with force" \{ spago } -> do
