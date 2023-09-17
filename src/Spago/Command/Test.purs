@@ -36,7 +36,7 @@ run = do
       runOptions =
         { successMessage: Just $ "Test succeeded for package \"" <> PackageName.print name <> "\"."
         , failureMessage: "Tests failed for package \"" <> PackageName.print name <> "\"."
-        , executeDir: selected.path
+        , executeDir: Paths.cwd
         , sourceDir: Paths.cwd
         , execArgs
         , moduleName
