@@ -7,6 +7,8 @@ module Spago.FS
   , ls
   , mkdirp
   , moveSync
+  , copyFileSync
+  , copyFile
   , readJsonFile
   , readTextFile
   , readYamlDocFile
@@ -41,6 +43,12 @@ foreign import moveSyncImpl :: String -> String -> Effect Unit
 
 moveSync :: forall m. MonadEffect m => { src :: FilePath, dst :: FilePath } -> m Unit
 moveSync { src, dst } = liftEffect $ moveSyncImpl src dst
+
+copyFileSync :: forall m. MonadEffect m => { src :: FilePath, dst :: FilePath } -> m Unit
+copyFileSync { src, dst } = liftEffect $ FS.Sync.copyFile src dst
+
+copyFile :: forall m. MonadAff m => { src :: FilePath, dst :: FilePath } -> m Unit
+copyFile { src, dst } = liftAff $ FS.Aff.copyFile src dst
 
 foreign import ensureFileSyncImpl :: String -> Effect Unit
 
