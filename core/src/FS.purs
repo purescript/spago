@@ -50,8 +50,8 @@ ensureFileSync file = liftEffect $ ensureFileSyncImpl file
 exists :: forall m. MonadEffect m => String -> m Boolean
 exists = liftEffect <<< FS.Sync.exists
 
-writeTextFile :: forall m. MonadEffect m => FilePath -> String -> m Unit
-writeTextFile path text = liftEffect $ FS.Sync.writeTextFile UTF8 path text
+writeTextFile :: forall m. MonadAff m => FilePath -> String -> m Unit
+writeTextFile path text = liftAff $ FS.Aff.writeTextFile UTF8 path text
 
 readTextFile :: forall m. MonadAff m => FilePath -> m String
 readTextFile path = liftAff $ FS.Aff.readTextFile UTF8 path

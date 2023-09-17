@@ -13,8 +13,8 @@ jobs:
     strategy:
       matrix:
         include:
-          #- os: ubuntu-latest
-          #- os: macOS-latest
+          - os: ubuntu-latest
+          - os: macOS-latest
           - os: windows-latest
     steps:
       # We set LF endings so that the Windows environment is consistent with the rest
@@ -54,9 +54,6 @@ jobs:
 
       - name: Install global NPM packages
         run: npm i --global purescript@0.15.10 spago@next purs-tidy@latest esbuild@latest
-
-      - name: esbuild version
-        run: esbuild --version
 
       - name: Cache PureScript dependencies
         uses: actions/cache@v2
