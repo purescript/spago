@@ -34,23 +34,29 @@ If you wish to contribute documentation, [this is a suggested read](https://www.
 
 ## Developing `spago`
 
-If you'd like to develop spago locally, the recommended tool to use is [stack][stack].
-
-We use `make` to coordinate the build, here's a compilation of useful targets:
-
 ```bash
-# To compile the project from source:
-$ make
+# Install dependencies
+npm ci
 
-# File-watching build:
-$ make dev
+# Bootstrap
+spago bundle -p spago-bin
 
-# Running tests:
-$ make test
+# From now on you can build with the local files in the output folder, e.g.:
+./bin/index.dev.js bundle -p spago-bin
+# Or from the built bundle:
+./bin/bundle.js bundle -p spago-bin
 
-# Installing system-wide the current build:
-$ make install
+# From now on you can use the bootstrapped build to see the changes you make:
+./bin/index.dev.js some-new-command
+
+# ...but you can of course still just use the global `spago` command:
+spago build
+
+# Can of course run the tests with
+spago test
 ```
+
+## Developing docs
 
 If you edit any title in the readme, run `doctoc` to update the Table of Contents:
 
@@ -70,33 +76,11 @@ The following are recommendations to make using `yEd` easier/faster:
     - ... and press <kbd>F2</kbd> to add text to that edge
     - ... and press <kbd>F6</kbd> to edit its properties. Under the 'Label' tab, change the "Placement"'s "Model" dropdown to "Free" to get full control over where the edge's text can appear.
 
-## Running tests
-
-The CI runs the tests on new pull requests, so it's not possible to merge a change without them passing.
-
-So you might want to run them locally. This is a way to do it:
-
-```bash
-# Build from source and install system-wide
-$ stack install
-
-# Install bower since end-to-end tests require it
-$ npm install -g bower
-
-# This runs the tests which make use of the `spago` executable
-$ stack test
-
-# A single test can be running by providing a pattern to the 'match' flag
-$ stack test --test-arguments='--match "/Spago/spago run/Spago should use exec-args"'
-```
-
-
 ## Merging changes
 
 All changes must happen through a Pull Request.
 
 Everyone with the "commit bit" can merge changes.
-
 
 ## How do I get the "commit bit"?
 
@@ -112,6 +96,5 @@ Learn by doing and get your hands dirty!
 
 
 [f-f]: https://github.com/f-f
-[stack]: http://haskellstack.org/
 [discord]: https://purescript.org/chat
 [spago-issues]: https://github.com/purescript/spago/issues

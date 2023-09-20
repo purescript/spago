@@ -88,7 +88,7 @@ entrypoint =
 
 bundleType ∷ ArgParser (Maybe String)
 bundleType =
-  ArgParser.argument [ "--type" ]
+  ArgParser.argument [ "--bundle-type" ]
     "The type of the module produced. 'app' will call main, 'module' will just export the contents."
     # ArgParser.optional
 

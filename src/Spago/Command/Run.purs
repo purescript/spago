@@ -9,8 +9,6 @@ module Spago.Command.Run
 import Spago.Prelude
 
 import Data.Array as Array
-import Data.String (Pattern(..), Replacement(..))
-import Data.String as String
 import Data.Map as Map
 import Data.Codec.Argonaut as CA
 import Node.FS.Perms as Perms
