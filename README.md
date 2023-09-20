@@ -309,7 +309,7 @@ This is mostly just a thin layer above the PureScript compiler command `purs com
 fetched yet - if you wish to disable this behaviour, you can pass the `--no-install` flag.
 
 The build will produce very many JavaScript files in the `output/` folder. These
-are CommonJS modules, and you can just `require()` them e.g. on Node.
+are ES modules, and you can just `import` them e.g. on Node.
 
 > [!NOTE]\
 > The wrapper on the compiler is so thin that you can pass options to `purs`.
