@@ -437,8 +437,8 @@ remotePackageCodec = CA.codec' decode encode
 type GitPackage =
   { git :: String
   , ref :: String
-  , subdir :: Maybe FilePath -- TODO: document that this is possible
-  , dependencies :: Maybe Dependencies -- TODO document that this is possible
+  , subdir :: Maybe FilePath
+  , dependencies :: Maybe Dependencies
   }
 
 gitPackageCodec :: JsonCodec GitPackage

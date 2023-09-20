@@ -155,7 +155,10 @@ readWorkspace maybeSelectedPackage = do
   -- configuration, or we fail early.
   { workspace, package: maybePackage, workspaceDoc } <- Core.readConfig "spago.yaml" >>= case _ of
     Left err -> die $ "Couldn't parse Spago config, error:\n  " <> err
-    Right { yaml: { workspace: Nothing } } -> die $ "Your spago.yaml doesn't contain a workspace section" -- TODO refer to the docs
+    Right { yaml: { workspace: Nothing } } -> die
+      [ "Your spago.yaml doesn't contain a workspace section."
+      , "See the relevant documentation here: https://github.com/purescript/spago#the-workspace"
+      ]
     Right { yaml: { workspace: Just workspace, package }, doc } -> pure { workspace, package, workspaceDoc: doc }
 
   lockfile <- FS.exists "spago.lock" >>= case _ of

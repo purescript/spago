@@ -102,7 +102,6 @@ run { packages, ensureRanges } = do
     liftEffect $ Config.addPackagesToConfig yamlDoc packages
     liftAff $ FS.writeYamlDocFile configPath yamlDoc
 
-  -- FIXME: add ranges
   -- if the flag is selected, we kick off the process of adding ranges to the config
   when ensureRanges do
     { configPath, yamlDoc } <- getPackageConfigPath
