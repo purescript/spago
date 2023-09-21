@@ -2,7 +2,6 @@ module Test.Spago.Build where
 
 import Test.Prelude
 
-import Effect.Class.Console as Console
 import Node.Path as Path
 import Registry.Version as Version
 import Spago.Command.Init as Init
@@ -21,14 +20,7 @@ spec = Spec.around withTempDir do
       spago [ "build" ] >>= shouldBeSuccess
 
     Spec.it "builds successfully a solver-only package" \{ spago } -> do
-      spago [ "init" ] >>= shouldBeSuccess
-      let
-        conf = Init.defaultConfig
-          (mkPackageName "aaa")
-          (Just $ unsafeFromRight $ Version.parse "0.0.1")
-          "Test.Main"
-      FS.writeYamlFile Config.configCodec "spago.yaml"
-        (conf { workspace = conf.workspace # map (_ { package_set = Nothing }) })
+      spago [ "init", "--name", "aaa", "--use-solver" ] >>= shouldBeSuccess
       spago [ "build" ] >>= shouldBeSuccess
 
     Spec.it "passes options to purs" \{ spago } -> do
@@ -56,9 +48,11 @@ spec = Spec.around withTempDir do
       FS.writeTextFile (Path.concat [ "subpackage", "test", "Main.purs" ]) (Init.testMainTemplate "Subpackage.Test.Main")
       FS.writeYamlFile Config.configCodec (Path.concat [ "subpackage", "spago.yaml" ])
         ( Init.defaultConfig
-            (mkPackageName "subpackage")
-            Nothing
-            "Subpackage.Test.Main"
+            { name: mkPackageName "subpackage"
+            , setVersion: Nothing
+            , testModuleName: "Subpackage.Test.Main"
+            , withWorkspace: false
+            }
         )
       spago [ "build" ] >>= shouldBeSuccess
       spago [ "build", "-p", "subpackage" ] >>= shouldBeSuccess
@@ -82,9 +76,11 @@ spec = Spec.around withTempDir do
       spago [ "init" ] >>= shouldBeSuccess
       let
         conf = Init.defaultConfig
-          (mkPackageName "subpackage")
-          (Just $ unsafeFromRight $ Version.parse "0.0.1")
-          "Test.Main"
+          { name: mkPackageName "subpackage"
+          , setVersion: Just $ unsafeFromRight $ Version.parse "0.0.1"
+          , testModuleName: "Test.Main"
+          , withWorkspace: true
+          }
       FS.writeYamlFile Config.configCodec "spago.yaml"
         (conf { workspace = conf.workspace # map (_ { backend = Just { cmd: "echo", args: Just [ "hello" ] } }) })
 

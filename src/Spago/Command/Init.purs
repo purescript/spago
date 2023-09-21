@@ -18,8 +18,10 @@ import Spago.FS as FS
 import Spago.Purs (PursEnv)
 
 type InitOptions =
+  -- TODO: we should allow the `--package-set` flag to alternatively pass in a URL
   { setVersion :: Maybe Version
   , packageName :: PackageName
+  , useSolver :: Boolean
   }
 
 -- TODO run git init? Is that desirable?
@@ -36,7 +38,15 @@ run opts = do
   logInfo $ "Found PureScript " <> Version.print purs.version <> ", will use package set " <> Version.print packageSetVersion
 
   -- Write config
-  let config = defaultConfig opts.packageName (Just packageSetVersion) "Test.Main"
+  let
+    config = defaultConfig
+      { name: opts.packageName
+      , withWorkspace: true
+      , setVersion: case opts.useSolver of
+          true -> Nothing
+          false -> Just packageSetVersion
+      , testModuleName: "Test.Main"
+      }
   let configPath = "spago.yaml"
   (FS.exists configPath) >>= case _ of
     true -> logInfo $ foundExistingProject configPath
@@ -72,8 +82,15 @@ run opts = do
 
 -- TEMPLATES -------------------------------------------------------------------
 
-defaultConfig :: PackageName -> Maybe Version -> String -> Config
-defaultConfig name setVersion testModuleName =
+type TemplateConfig =
+  { name :: PackageName
+  , withWorkspace :: Boolean
+  , testModuleName :: String
+  , setVersion :: Maybe Version
+  }
+
+defaultConfig :: TemplateConfig -> Config
+defaultConfig { name, withWorkspace, testModuleName, setVersion } =
   { package: Just
       { name
       , dependencies:
@@ -94,13 +111,15 @@ defaultConfig name setVersion testModuleName =
       , publish: Nothing
       , bundle: Nothing
       }
-  , workspace: setVersion # map \set ->
-      { extra_packages: Just Map.empty
-      , package_set: Just (SetFromRegistry { registry: set })
-      , build_opts: Nothing
-      , backend: Nothing
-      , lock: Nothing
-      }
+  , workspace: case withWorkspace of
+      false -> Nothing
+      true -> Just
+        { extra_packages: Just Map.empty
+        , package_set: setVersion # map \set -> SetFromRegistry { registry: set }
+        , build_opts: Nothing
+        , backend: Nothing
+        , lock: Nothing
+        }
   }
   where
   mkDep p = Tuple (unsafeFromRight $ PackageName.parse p) Nothing

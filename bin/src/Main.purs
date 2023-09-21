@@ -60,6 +60,7 @@ type GlobalArgs =
 type InitArgs =
   { setVersion :: Maybe String
   , name :: Maybe String
+  , useSolver :: Boolean
   }
 
 type FetchArgs =
@@ -276,6 +277,7 @@ initArgsParser =
   ArgParser.fromRecord
     { setVersion: Flags.maybeSetVersion
     , name: Flags.maybePackageName
+    , useSolver: Flags.useSolver
     }
 
 fetchArgsParser :: ArgParser FetchArgs
@@ -440,7 +442,7 @@ main =
           Sources args -> do
             { env } <- mkFetchEnv { packages: mempty, selectedPackage: args.selectedPackage, ensureRanges: false }
             void $ runSpago env (Sources.run { json: args.json })
-          Init args -> do
+          Init args@{ useSolver } -> do
             purs <- Purs.getPurs
             -- Figure out the package name from the current dir
             let candidateName = fromMaybe (String.take 50 $ Path.basename Paths.cwd) args.name
@@ -452,7 +454,7 @@ main =
               Left err -> die [ "Could not parse provided set version. Error:", show err ]
               Right v -> pure v
             logDebug [ "Got packageName and setVersion:", PackageName.print packageName, unsafeStringify setVersion ]
-            let initOpts = { packageName, setVersion }
+            let initOpts = { packageName, setVersion, useSolver }
             -- Fetch the registry here so we can select the right package set later
             void mkRegistryEnv
             void $ runSpago { logOptions, purs } $ Init.run initOpts
@@ -530,7 +532,11 @@ main =
                 logDebug $ "Creating repl project in temp dir: " <> tmpDir
                 liftEffect $ Process.chdir tmpDir
                 purs <- Purs.getPurs
-                void $ runSpago { purs, logOptions } $ Init.run { setVersion: Nothing, packageName: unsafeCoerce "repl" }
+                void $ runSpago { purs, logOptions } $ Init.run
+                  { setVersion: Nothing
+                  , packageName: unsafeCoerce "repl"
+                  , useSolver: true
+                  }
                 pure $ List.fromFoldable [ "effect", "console" ] -- TODO newPackages
             { env, fetchOpts } <- mkFetchEnv
               { packages
