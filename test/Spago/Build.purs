@@ -73,7 +73,7 @@ spec = Spec.around withTempDir do
       spago [ "build" ] >>= shouldBeSuccess
       spago [ "build", "--pedantic-packages" ] >>= shouldBeFailureErr (fixture "check-unused-dependency.txt")
 
-    Spec.itOnly "--strict causes build to fail if there are warnings" \{ spago, fixture } -> do
+    Spec.it "--strict causes build to fail if there are warnings" \{ spago, fixture } -> do
       spago [ "init" ] >>= shouldBeSuccess
       let srcMain = Path.concat [ "src", "Main.purs" ]
       FSA.unlink srcMain
@@ -81,7 +81,7 @@ spec = Spec.around withTempDir do
         { src: fixture "check-strict.purs"
         , dst: srcMain
         }
-      spago [ "build", "--strict", "--verbose" ] >>= shouldBeFailure
+      spago [ "build", "--strict" ] >>= shouldBeFailure
 
     Spec.it "compiles with the specified backend" \{ spago, fixture } -> do
       spago [ "init" ] >>= shouldBeSuccess
