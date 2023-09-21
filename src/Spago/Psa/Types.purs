@@ -46,8 +46,12 @@ data PsaPath
   | Src String
 
 derive instance Eq PsaPath
-
 derive instance Ord PsaPath
+instance Show PsaPath where
+  show = case _ of
+    Src s -> "(Src " <> s <> ")"
+    Lib s -> "(Lib " <> s <> ")"
+    Unknown -> "Unknown"
 
 type PsaOutputOptions =
   { color :: Boolean

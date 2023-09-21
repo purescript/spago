@@ -2,6 +2,7 @@ module Test.Spago.Build where
 
 import Test.Prelude
 
+import Node.FS.Aff as FSA
 import Node.Path as Path
 import Registry.Version as Version
 import Spago.Command.Init as Init
@@ -71,6 +72,16 @@ spec = Spec.around withTempDir do
       FS.writeTextFile (Path.concat [ "src", "Main.purs" ]) "module Main where\nimport Prelude\nmain = unit"
       spago [ "build" ] >>= shouldBeSuccess
       spago [ "build", "--pedantic-packages" ] >>= shouldBeFailureErr (fixture "check-unused-dependency.txt")
+
+    Spec.itOnly "--strict causes build to fail if there are warnings" \{ spago, fixture } -> do
+      spago [ "init" ] >>= shouldBeSuccess
+      let srcMain = Path.concat [ "src", "Main.purs" ]
+      FSA.unlink srcMain
+      FS.copyFile
+        { src: fixture "check-strict.purs"
+        , dst: srcMain
+        }
+      spago [ "build", "--strict", "--verbose" ] >>= shouldBeFailure
 
     Spec.it "compiles with the specified backend" \{ spago, fixture } -> do
       spago [ "init" ] >>= shouldBeSuccess
