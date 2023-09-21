@@ -28,9 +28,11 @@ spec = Spec.around withTempDir do
       FS.writeTextFile "subpackage/test/Main.purs" (Init.testMainTemplate "Subpackage.Test.Main")
       FS.writeYamlFile Config.configCodec "subpackage/spago.yaml"
         ( Init.defaultConfig
-            (mkPackageName "subpackage")
-            Nothing
-            "Subpackage.Test.Main"
+            { name: mkPackageName "subpackage"
+            , withWorkspace: false
+            , setVersion: Nothing
+            , testModuleName: "Subpackage.Test.Main"
+            }
         )
       spago [ "sources", "-p", "subpackage" ] >>= shouldBeSuccessOutput case Process.platform of
         Just Platform.Win32 -> fixture "sources-subproject-output.win.txt"

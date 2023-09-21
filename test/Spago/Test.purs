@@ -2,9 +2,6 @@ module Test.Spago.Test where
 
 import Test.Prelude
 
-import Data.String (Pattern(..), Replacement(..))
-import Data.String as String
-import Registry.PackageName as PackageName
 import Spago.Command.Init as Init
 import Spago.Core.Config as Config
 import Spago.FS as FS
@@ -35,9 +32,11 @@ spec = Spec.around withTempDir do
       FS.writeTextFile "subpackage/test/Main.purs" (Init.testMainTemplate "Subpackage.Test.Main")
       FS.writeYamlFile Config.configCodec "subpackage/spago.yaml"
         ( Init.defaultConfig
-            (mkPackageName "subpackage")
-            Nothing
-            "Subpackage.Test.Main"
+            { name: mkPackageName "subpackage"
+            , withWorkspace: false
+            , setVersion: Nothing
+            , testModuleName: "Subpackage.Test.Main"
+            }
         )
       spago [ "test", "-p", "subpackage" ] >>= shouldBeSuccess
 
@@ -59,9 +58,11 @@ spec = Spec.around withTempDir do
         }
       FS.writeYamlFile Config.configCodec "subpackage/spago.yaml"
         ( ( Init.defaultConfig
-              (mkPackageName "subpackage")
-              Nothing
-              "Subpackage.Test.Main"
+              { name: mkPackageName "subpackage"
+              , withWorkspace: false
+              , setVersion: Nothing
+              , testModuleName: "Subpackage.Test.Main"
+              }
           ) # plusDependencies [ "aff", "node-buffer", "node-fs" ]
         )
       spago [ "test", "-p", "subpackage" ] >>= checkResultAndOutputsStr (Just fileContent) Nothing isRight
@@ -74,9 +75,11 @@ spec = Spec.around withTempDir do
       FS.writeTextFile "subpackage/test/Main.purs" (Init.testMainTemplate "Subpackage.Test.Main2")
       FS.writeYamlFile Config.configCodec "subpackage/spago.yaml"
         ( Init.defaultConfig
-            (mkPackageName "subpackage")
-            Nothing
-            "Subpackage.Test.Main"
+            { name: mkPackageName "subpackage"
+            , withWorkspace: false
+            , setVersion: Nothing
+            , testModuleName: "Subpackage.Test.Main"
+            }
         )
       spago [ "test", "-p", "subpackage" ] >>= shouldBeFailure
 

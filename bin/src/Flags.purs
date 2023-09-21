@@ -183,6 +183,13 @@ testDeps =
     # ArgParser.boolean
     # ArgParser.default false
 
+useSolver :: ArgParser Boolean
+useSolver =
+  ArgParser.flag [ "--use-solver" ]
+    "Use the solver instead of package sets"
+    # ArgParser.boolean
+    # ArgParser.default false
+
 packages ∷ ArgParser (List String)
 packages =
   ArgParser.anyNotFlag "PACKAGE"

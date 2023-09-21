@@ -2,8 +2,6 @@ module Test.Spago.Ls where
 
 import Test.Prelude
 
-import Registry.PackageName as PackageName
-import Registry.Version as Version
 import Spago.Command.Init as Init
 import Spago.Core.Config as Config
 import Spago.FS as FS
@@ -35,14 +33,7 @@ spec = Spec.around withTempDir do
       spago [ "ls", "packages", "--json" ] >>= shouldBeSuccessOutput (fixture "list-packages.json")
 
     Spec.it "can't list package set if we are solving with the Registry" \{ spago, fixture } -> do
-      spago [ "init" ] >>= shouldBeSuccess
-      let
-        conf = Init.defaultConfig
-          (mkPackageName "aaa")
-          (Just $ unsafeFromRight $ Version.parse "0.0.1")
-          "Test.Main"
-      FS.writeYamlFile Config.configCodec "spago.yaml"
-        (conf { workspace = conf.workspace # map (_ { package_set = Nothing }) })
+      spago [ "init", "--name", "aaa", "--use-solver" ] >>= shouldBeSuccess
       spago [ "ls", "packages" ] >>= shouldBeFailureErr (fixture "list-packages-registry.txt")
 
 makeSubpackage :: Aff Unit
@@ -53,7 +44,9 @@ makeSubpackage = do
   FS.writeTextFile "subpackage/test/Main.purs" (Init.testMainTemplate "Subpackage.Test.Main")
   FS.writeYamlFile Config.configCodec "subpackage/spago.yaml"
     ( Init.defaultConfig
-        (mkPackageName "aaa2")
-        Nothing
-        "Subpackage.Test.Main"
+        { name: mkPackageName "aaa2"
+        , withWorkspace: false
+        , setVersion: Nothing
+        , testModuleName: "Subpackage.Test.Main"
+        }
     )
