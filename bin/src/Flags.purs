@@ -19,8 +19,8 @@ strict ∷ ArgParser (Maybe Boolean)
 strict =
   ArgParser.flag [ "--strict" ]
     "Promotes project sources' warnings to errors"
-    # ArgParser.boolean
-    # ArgParser.optional
+    $> Just true
+    # ArgParser.default Nothing
 
 censorBuildWarnings ∷ ArgParser (Maybe Core.CensorBuildWarnings)
 censorBuildWarnings =
@@ -37,10 +37,11 @@ censorBuildWarnings =
 
 showSource ∷ ArgParser (Maybe ShowSourceCode)
 showSource =
-  NoSourceCode
-    <$ ArgParser.flag [ "--no-source" ]
-      "Disable original source code printing"
-    # ArgParser.optional
+  ArgParser.flag
+    [ "--no-source" ]
+    "Disable original source code printing"
+    $> Just NoSourceCode
+    # ArgParser.default Nothing
 
 censorCodes :: ArgParser (Maybe (NonEmptySet String))
 censorCodes =
@@ -64,9 +65,11 @@ statVerbosity = ArgParser.optional $ ArgParser.choose "StatVerbosity"
 
 persistWarnings ∷ ArgParser (Maybe Boolean)
 persistWarnings =
-  ArgParser.flag [ "--persist-warnings" ] "Persist the compiler warnings between multiple underlying `purs compile` calls"
-    # ArgParser.boolean
-    # ArgParser.optional
+  ArgParser.flag
+    [ "--persist-warnings" ]
+    "Persist the compiler warnings between multiple underlying `purs compile` calls"
+    $> Just true
+    # ArgParser.default Nothing
 
 jsonErrors ∷ ArgParser Boolean
 jsonErrors =

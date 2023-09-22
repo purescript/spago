@@ -83,6 +83,23 @@ spec = Spec.around withTempDir do
         }
       spago [ "build", "--strict" ] >>= shouldBeFailure
 
+    Spec.it "built_opts 'strict: true' causes build to fail if there are warnings" \{ spago, fixture } -> do
+      spago [ "init" ] >>= shouldBeSuccess
+      let
+        srcMain = Path.concat [ "src", "Main.purs" ]
+        spagoYaml = "spago.yaml"
+      FSA.unlink srcMain
+      FS.copyFile
+        { src: fixture "check-strict.purs"
+        , dst: srcMain
+        }
+      FSA.unlink spagoYaml
+      FS.copyFile
+        { src: fixture "check-strict.yaml"
+        , dst: spagoYaml
+        }
+      spago [ "build" ] >>= shouldBeFailure
+
     Spec.it "compiles with the specified backend" \{ spago, fixture } -> do
       spago [ "init" ] >>= shouldBeSuccess
       let
