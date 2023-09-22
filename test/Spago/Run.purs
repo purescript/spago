@@ -16,7 +16,7 @@ spec :: Spec Unit
 spec = Spec.around withTempDir do
   Spec.describe "run" do
 
-    Spec.itOnly "works at all" \{ spago, fixture } -> do
+    Spec.it "works at all" \{ spago, fixture } -> do
       spago [ "init", "--verbose" ] >>= shouldBeSuccess
       spago [ "build", "--verbose" ] >>= shouldBeSuccess
       spago [ "run", "--verbose" ] >>= shouldBeSuccessOutput (fixture "run-output.txt")
