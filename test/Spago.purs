@@ -18,6 +18,7 @@ import Test.Spago.Ls as Ls
 import Test.Spago.Run as Run
 import Test.Spago.Sources as Sources
 import Test.Spago.Test as Test
+import Test.Spago.Unit as Unit
 import Test.Spec as Spec
 import Test.Spec.Reporter as Spec.Reporter
 import Test.Spec.Runner as Spec.Runner
@@ -47,4 +48,5 @@ main = Aff.launchAff_ $ void $ un Identity $ Spec.Runner.runSpecT testConfig [ S
     Spec.describe "miscellaneous" do
       Lock.spec
       FindFlags.spec
+  Unit.spec
 
