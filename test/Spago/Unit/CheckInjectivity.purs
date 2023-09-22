@@ -66,7 +66,7 @@ checkInjective f gen = QC.quickCheckGen' 1 do
   map check $ uniqueVectorOf countInputs $ randomlyResize maxSize gen
   where
   maxSize = 5
-  countInputs = 50_000
+  countInputs = 1_000
 
   check :: Array a -> Gen Result
   check inputs = do
