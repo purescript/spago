@@ -4,8 +4,10 @@ export function updatePackageSetHashInConfigImpl(doc, sha) {
   doc.get("workspace").get("package_set").set("hash", sha);
 }
 
-export function addPackagesToConfigImpl(doc, newPkgs) {
-  const deps = doc.get("package").get("dependencies");
+export function addPackagesToConfigImpl(doc, isTest, newPkgs) {
+  const deps = isTest
+    ? doc.get("package").get("test").get("dependencies")
+    : doc.get("package").get("dependencies");
 
   // Gather all deps, old and new, in a new set
   let depsSet = new Set(deps.toJSON());
