@@ -9,7 +9,7 @@ import Data.Time.Duration (Milliseconds(..))
 import Node.Library.Execa as Execa
 import Node.Platform as Platform
 import Node.Process as Process
-import Partial.Unsafe (unsafeCrashWith)
+import Partial.Unsafe (unsafeCrashWith, unsafePartial)
 
 data StdinConfig
   = StdinPipeParent
@@ -66,38 +66,47 @@ kill cp = liftAff do
     Right res -> unsafeCrashWith ("Tried to kill the process, failed. Result: " <> show res)
 
 -- | Try to find one of the flags in a list of Purs args
--- TODO: this code needs some comments and a test
+-- | For example, trying to find the `output` arg
+-- | we would run
+-- | `findFlags { flags: [ "-o", "--output" ], args }`
+-- | where `args` is one of the 5 variants below:
+-- | - args are two separate array elements:
+-- |    - `[ "-o", "dir"]`
+-- |    - `[ "--output", "dir"]`
+-- | - args are stored in the same array element
+-- |    - `[ "-o dir"]`
+-- |    - `[ "--output dir"]`
+-- |    - `[ "--output=dir"]`
 findFlag :: { flags :: Array String, args :: Array String } -> Maybe String
-findFlag { flags, args } = case Array.uncons args of
-  Just { head: x, tail: xs } ->
-    if isFlag x then case Array.uncons xs of
-      Just { head: y } -> Just y
-      _ -> Nothing
-    else if hasFlag x then case words x of
-      [ word ] -> case splitOnEqual word of
-        [ _, value ] -> Just value
-        _ -> Nothing
-      [ _, value, _ ] -> Just value
-      _ -> Nothing
-    else findFlag { flags, args: xs }
-  _ -> Nothing
+findFlag { flags, args } = if len == 0 then Nothing else go 0
   where
-  words = String.split (Pattern " ")
-  splitOnEqual = String.split (Pattern "=")
+  len = Array.length args
+  lastIdx = len - 1
+  go idx = do
+    let arg = unsafePartial $ Array.unsafeIndex args idx
+    case Array.findMap (\flag -> stripFlag flag arg) flags of
+      Just (Tuple isOneCharFlag restOfArg)
+        | restOfArg == "" -> do
+            Array.index args $ idx + 1
+        | otherwise ->
+            dropExtra isOneCharFlag restOfArg
+      Nothing
+        | idx < lastIdx ->
+            go $ idx + 1
+        | otherwise ->
+            Nothing
 
-  isFlag :: String -> Boolean
-  isFlag word = isJust $ Array.find (_ == word) flags
+  stripFlag flag arg =
+    Tuple (isSingleCharFlag flag) <$> String.stripPrefix (Pattern flag) arg
 
-  hasFlag :: String -> Boolean
-  hasFlag a = isJust $ Array.find (_ == firstWord) flags
+  dropExtra isOneCharFlag restOfArg =
+    if isOneCharFlag then dropSpace restOfArg
+    else dropSpace restOfArg <|> dropEquals restOfArg
     where
-    firstWord = fromMaybe "" $ case Array.uncons (words a) of
-      Just { head: h1, tail } -> case tail of
-        [] -> case Array.uncons (splitOnEqual h1) of
-          Just { head: h2 } -> Just h2
-          _ -> Nothing
-        _ -> Just h1
-      _ -> Nothing
+    dropSpace = String.stripPrefix (Pattern " ")
+    dropEquals = String.stripPrefix (Pattern "=")
+
+  isSingleCharFlag = eq (Just 1) <<< map String.length <<< String.stripPrefix (Pattern "-")
 
 getExecutable :: forall a. String -> Spago (LogEnv a) { cmd :: String, output :: String }
 getExecutable command =
