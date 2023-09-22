@@ -2,7 +2,9 @@ module Test.Spago.Install where
 
 import Test.Prelude
 
+import Data.Array as Array
 import Data.Map as Map
+import Node.FS.Aff as FSA
 import Node.Path as Path
 import Registry.Version as Version
 import Spago.Command.Init as Init
@@ -135,6 +137,9 @@ spec = Spec.around withTempDir do
       let slashyPath = Path.concat [ testCwd, ".spago", "packages", "nonexistent-package", "spago-test%2fbranch-with-slash" ]
       unlessM (FS.exists slashyPath) do
         Assertions.fail $ "Expected path to exist: " <> slashyPath
+      kids <- FSA.readdir slashyPath
+      when (Array.length kids == 0) do
+        Assertions.fail $ "Expected path exists but contains nothing: " <> slashyPath
 
     Spec.it "installs a package not in the set from a commit hash" \{ spago } -> do
       spago [ "init" ] >>= shouldBeSuccess
