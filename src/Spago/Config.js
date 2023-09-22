@@ -4,10 +4,24 @@ export function updatePackageSetHashInConfigImpl(doc, sha) {
   doc.get("workspace").get("package_set").set("hash", sha);
 }
 
+const getOrElse = (node, key, fallback) => {
+  if (!node.has(key)) {
+    node.set(key, fallback);
+  }
+  return node.get(key);
+}
+
 export function addPackagesToConfigImpl(doc, isTest, newPkgs) {
-  const deps = isTest
-    ? doc.get("package").get("test").get("dependencies")
-    : doc.get("package").get("dependencies");
+  const pkg = doc.get("package");
+
+  const deps = (() => {
+    if (isTest) {
+      const test = getOrElse(pkg, "test", doc.createNode({ dependencies: [], main: "Test.Main" } ));
+      return getOrElse(test, "dependencies", doc.createNode([]));
+    } else {
+      return getOrElse(pkg, "dependencies", doc.createNode([]))
+    }
+  })();
 
   // Stringify this collection as 
   //  - dep1 

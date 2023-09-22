@@ -3,6 +3,7 @@ module Test.Spago.Install where
 import Test.Prelude
 
 import Data.Map as Map
+import Node.FS.Aff as FSA
 import Registry.Version as Version
 import Spago.Command.Init as Init
 import Spago.Core.Config (Dependencies(..))
@@ -37,6 +38,17 @@ spec = Spec.around withTempDir do
       spago [ "init", "--name", "aaa", "--package-set", "29.3.0" ] >>= shouldBeSuccess
       spago [ "install", "--test-deps", "foreign" ] >>= shouldBeSuccess
       checkFixture "spago.yaml" (fixture "spago-install-test-deps-success.yaml")
+
+    Spec.it "adds test dependencies to the config file when the test section does not exist" \{ spago, fixture } -> do
+      spago [ "init", "--name", "aaa", "--package-set", "29.3.0" ] >>= shouldBeSuccess
+      let spagoYaml = "spago.yaml"
+      FSA.unlink spagoYaml
+      FS.copyFile
+        { src: fixture "no-test-section.yaml"
+        , dst: spagoYaml
+        }
+      spago [ "install", "--test-deps", "foreign" ] >>= shouldBeSuccess
+      checkFixture spagoYaml (fixture "spago-install-test-deps-success.yaml")
 
     Spec.it "can't add dependencies that are not in the package set" \{ spago, fixture } -> do
       spago [ "init", "--name", "aaaa", "--package-set", "29.3.0" ] >>= shouldBeSuccess
