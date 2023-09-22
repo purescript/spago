@@ -9,6 +9,13 @@ export function addPackagesToConfigImpl(doc, isTest, newPkgs) {
     ? doc.get("package").get("test").get("dependencies")
     : doc.get("package").get("dependencies");
 
+  // Stringify this collection as 
+  //  - dep1 
+  //  - dep2
+  // rather than
+  //  [ dep1, dep2 ]
+  deps.flow = false;
+
   // Gather all deps, old and new, in a new set
   let depsSet = new Set(deps.toJSON());
   for (const pkg of newPkgs) {
