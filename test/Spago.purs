@@ -24,8 +24,8 @@ import Test.Spec.Runner as Spec.Runner
 
 testConfig :: Spec.Runner.Config
 testConfig =
-  { slow: Milliseconds 10000.0
-  , timeout: Just (Milliseconds 60_000.0)
+  { slow: Milliseconds 10_000.0
+  , timeout: Just (Milliseconds 90_000.0)
   , exit: true
   }
 

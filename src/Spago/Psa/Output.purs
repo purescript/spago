@@ -25,8 +25,10 @@ import Foreign.Object as FO
 import Node.Path as Path
 import Spago.Core.Config (CensorBuildWarnings(..))
 import Spago.Core.Config as Core
+import Spago.Core.Prelude (Spago)
 import Spago.Paths as Paths
 import Spago.Psa.Types (PsaOutputOptions, PsaError, PsaAnnotedError, PsaPath(..), PsaResult, Position, Filename, Lines, compareByLocation)
+import Spago.Purs as Purs
 
 data ErrorTag = Error | Warning
 
@@ -61,12 +63,11 @@ initialStats =
 -- | requested set of lines from the absolute filename based on the tentative
 -- | position information.
 buildOutput
-  :: forall m
-   . (Monad m)
-  => (Filename -> Position -> m (Maybe Lines))
+  :: forall a
+   . (Filename -> Position -> Spago (Purs.PursEnv a) (Maybe Lines))
   -> PsaOutputOptions
   -> PsaResult
-  -> m Output
+  -> Spago (Purs.PursEnv a) Output
 buildOutput loadLines options result = do
   let
     result' =
@@ -98,7 +99,7 @@ buildOutput loadLines options result = do
           Tuple (errorPath options.libraryDirs path f) x
       _ -> Tuple Unknown x
 
-  onError :: ErrorTag -> Output -> Tuple PsaPath PsaError -> m Output
+  onError :: ErrorTag -> Output -> Tuple PsaPath PsaError -> Spago (Purs.PursEnv a) Output
   onError tag state (Tuple path error) =
     if shouldShowError options tag path error.errorCode then do
       source <- fromMaybe (pure Nothing) (loadLines <$> error.filename <*> error.position)
@@ -107,7 +108,7 @@ buildOutput loadLines options result = do
       update []
 
     where
-    update :: Array PsaAnnotedError -> m Output
+    update :: Array PsaAnnotedError -> Spago (Purs.PursEnv a) Output
     update log =
       pure $ onTag
         (_ { stats = stats, errors = state.errors <> log })

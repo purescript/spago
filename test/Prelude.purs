@@ -6,6 +6,7 @@ module Test.Prelude
 import Spago.Prelude
 
 import Data.Map as Map
+import Data.String (Pattern(..), Replacement(..))
 import Data.String as String
 import Effect.Aff as Aff
 import Effect.Class.Console (log)
@@ -77,7 +78,6 @@ plusDependencies deps config = config
 
 checkResultAndOutputsStr :: Maybe String -> Maybe String -> (Either ExecError ExecResult -> Boolean) -> Either ExecError ExecResult -> Aff _
 checkResultAndOutputsStr maybeOutStr maybeErrStr resultFn execResult = do
-  execResult `Assert.shouldSatisfy` resultFn
   let
     stdout = String.trim $ case execResult of
       Left err -> err.stdout
@@ -85,10 +85,19 @@ checkResultAndOutputsStr maybeOutStr maybeErrStr resultFn execResult = do
     stderr = String.trim $ case execResult of
       Left err -> err.stderr
       Right res -> res.stderr
+
+  when false do
+    log $ "STDOUT:\n" <> prettyPrint stdout
+    log $ "STDERR:\n" <> prettyPrint stderr
+  execResult `Assert.shouldSatisfy` resultFn
   for_ maybeOutStr \expectedOut -> do
     stdout `Assert.shouldEqual` expectedOut
   for_ maybeErrStr \expectedErr -> do
     stderr `Assert.shouldEqual` expectedErr
+  where
+  prettyPrint =
+    String.replaceAll (Pattern "\\n") (Replacement "\n")
+      <<< String.replaceAll (Pattern "\\\"") (Replacement "\"")
 
 checkResultAndOutputs :: Maybe FilePath -> Maybe FilePath -> (Either ExecError ExecResult -> Boolean) -> Either ExecError ExecResult -> Aff _
 checkResultAndOutputs maybeOutFixture maybeErrFixture resultFn execResult = do
