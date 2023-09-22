@@ -4,12 +4,12 @@ import Prelude
 
 import Data.Maybe (fromMaybe)
 import Spago.Cmd as Cmd
-import Test.Spec (Spec, describe, describeOnly, it)
+import Test.Spec (Spec, describe, it)
 import Test.Spec.Assertions (shouldEqual)
 
 spec :: Spec Unit
 spec = do
-  describeOnly "findFlag" $ do
+  describe "findFlag" $ do
     it "[\"-o\", \"something\"]" $ do
       let a = fromMaybe "" $ Cmd.findFlag { flags: [ "-o", "--output" ], args: [ "-o", "something" ] }
       let b = "something"
