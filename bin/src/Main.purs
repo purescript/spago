@@ -762,6 +762,13 @@ mkBuildEnv buildArgs dependencies = do
       { buildOptions
           { output = buildArgs.output <|> workspace.buildOptions.output
           , pedanticPackages = buildArgs.pedanticPackages || workspace.buildOptions.pedanticPackages
+          , censorBuildWarnings = buildArgs.censorBuildWarnings <|> workspace.buildOptions.censorBuildWarnings
+          , censorCodes = buildArgs.censorCodes <|> workspace.buildOptions.censorCodes
+          , filterCodes = buildArgs.filterCodes <|> workspace.buildOptions.filterCodes
+          , statVerbosity = buildArgs.statVerbosity <|> workspace.buildOptions.statVerbosity
+          , showSource = buildArgs.showSource <|> workspace.buildOptions.showSource
+          , strict = buildArgs.strict <|> workspace.buildOptions.strict
+          , persistWarnings = buildArgs.persistWarnings <|> workspace.buildOptions.persistWarnings
           }
       -- Override the backend args from the config if they are passed in through a flag
       , backend = map

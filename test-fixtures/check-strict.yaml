@@ -1,0 +1,12 @@
+package:
+  name: foo
+  dependencies:
+    - console
+    - effect
+    - prelude
+workspace:
+  extra_packages: {}
+  package_set:
+    registry: 41.5.0
+  build_opts:
+    strict: true
