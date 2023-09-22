@@ -104,31 +104,32 @@ spec = Spec.around withTempDir do
         )
       spago [ "install", "either" ] >>= shouldBeSuccess
 
-    -- TODO: this is broken at the moment
-    -- Spec.it "installs a package version by branch name with / in it" \{ spago, fixture } -> do
-    --   spago [ "init" ] >>= shouldBeSuccess
-    --   let
-    --     conf = Init.defaultConfig
-    --       (mkPackageName "ddd")
-    --       (Just $ unsafeFromRight $ Version.parse "0.0.1")
-    --       "Test.Main"
-    --   FS.writeYamlFile Config.configCodec "spago.yaml"
-    --     ( conf
-    --         { workspace = conf.workspace # map
-    --             ( _
-    --                 { extra_packages = Just $ Map.fromFoldable
-    --                     [ Tuple (mkPackageName "nonexistent-package") $ Config.ExtraRemotePackage $ Config.RemoteGitPackage
-    --                         { git: "https://github.com/spacchetti/purescript-metadata.git"
-    --                         , ref: "spago-test/branch-with-slash"
-    --                         , subdir: Nothing
-    --                         , dependencies: Just $ Dependencies $ Map.singleton (mkPackageName "prelude") Nothing
-    --                         }
-    --                     ]
-    --                 }
-    --             )
-    --         }
-    --     )
-    --   spago [ "install", "nonexistent-package" ] >>= shouldBeSuccessErr (fixture "installs-with-slash.txt")
+    Spec.it "installs a package version by branch name with / in it" \{ spago } -> do
+      spago [ "init" ] >>= shouldBeSuccess
+      let
+        conf = Init.defaultConfig
+          { name: mkPackageName "ddd"
+          , withWorkspace: true
+          , setVersion: Just $ unsafeFromRight $ Version.parse "0.0.1"
+          , testModuleName: "Test.Main"
+          }
+      FS.writeYamlFile Config.configCodec "spago.yaml"
+        ( conf
+            { workspace = conf.workspace # map
+                ( _
+                    { extra_packages = Just $ Map.fromFoldable
+                        [ Tuple (mkPackageName "nonexistent-package") $ Config.ExtraRemotePackage $ Config.RemoteGitPackage
+                            { git: "https://github.com/spacchetti/purescript-metadata.git"
+                            , ref: "spago-test/branch-with-slash"
+                            , subdir: Nothing
+                            , dependencies: Just $ Dependencies $ Map.singleton (mkPackageName "prelude") Nothing
+                            }
+                        ]
+                    }
+                )
+            }
+        )
+      spago [ "install", "nonexistent-package" ] >>= shouldBeSuccess
 
     Spec.it "installs a package not in the set from a commit hash" \{ spago } -> do
       spago [ "init" ] >>= shouldBeSuccess

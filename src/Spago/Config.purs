@@ -23,14 +23,19 @@ import Affjax.Node as Http
 import Affjax.ResponseFormat as Response
 import Affjax.StatusCode (StatusCode(..))
 import Data.Array as Array
+import Data.CodePoint.Unicode as Unicode
 import Data.Codec.Argonaut.Record as CAR
+import Data.Enum (fromEnum)
 import Data.Foldable as Foldable
 import Data.HTTP.Method as Method
+import Data.Int (hexadecimal)
+import Data.Int as Int
 import Data.Map as Map
 import Data.Profunctor as Profunctor
 import Data.Set as Set
 import Data.Set.NonEmpty (NonEmptySet)
-import Data.String (Pattern(..))
+import Data.String (CodePoint, Pattern(..), codePointFromChar)
+import Data.String as SCP
 import Data.String as String
 import Dodo as Log
 import Effect.Uncurried (EffectFn2, runEffectFn2)
@@ -394,9 +399,30 @@ readWorkspace maybeSelectedPackage = do
 getPackageLocation :: PackageName -> Package -> FilePath
 getPackageLocation name = Paths.mkRelative <<< case _ of
   RegistryVersion v -> Path.concat [ Paths.localCachePackagesPath, PackageName.print name <> "-" <> Version.print v ]
-  GitPackage p -> Path.concat [ Paths.localCachePackagesPath, PackageName.print name, p.ref ]
+  GitPackage p -> Path.concat [ Paths.localCachePackagesPath, PackageName.print name, fileSystemCharEscape p.ref ]
   LocalPackage p -> p.path
   WorkspacePackage { path } -> path
+  where
+  -- This function must be injective and must always produce valid directory
+  -- names, which means that problematic characters like '/' or ':' will be escaped
+  -- using a scheme similar to URL-encoding. Note in particular that the function
+  -- must be injective in a case-insensitive manner if we want this to work
+  -- reliably on case-insensitive filesystems, in the sense that two different
+  -- inputs must map to two different outputs _and_ those outputs must differ by
+  -- more than just casing.
+  --
+  -- The characters which are most commonly used in version and branch names are
+  -- those which we allow through as they are (without escaping).
+  fileSystemCharEscape :: String -> String
+  fileSystemCharEscape = String.toCodePointArray >>> map escapeCodePoint >>> Array.fold
+    where
+    commonlyUsedChars = map codePointFromChar [ '.', ',', '-', '_', '+' ]
+    ignoreEscape = Unicode.isLower || Unicode.isDecDigit || flip Array.elem commonlyUsedChars
+
+    escapeCodePoint :: CodePoint -> String
+    escapeCodePoint cp
+      | ignoreEscape cp = SCP.singleton cp
+      | otherwise = append "%" $ Int.toStringAs hexadecimal $ fromEnum cp
 
 data WithTestGlobs
   = WithTestGlobs
