@@ -25,17 +25,15 @@ import Affjax.StatusCode (StatusCode(..))
 import Data.Array as Array
 import Data.CodePoint.Unicode as Unicode
 import Data.Codec.Argonaut.Record as CAR
-import Data.Enum (fromEnum)
+import Data.Enum as Enum
 import Data.Foldable as Foldable
 import Data.HTTP.Method as Method
-import Data.Int (hexadecimal)
 import Data.Int as Int
 import Data.Map as Map
 import Data.Profunctor as Profunctor
 import Data.Set as Set
 import Data.Set.NonEmpty (NonEmptySet)
-import Data.String (CodePoint, Pattern(..), codePointFromChar)
-import Data.String as SCP
+import Data.String (CodePoint, Pattern(..))
 import Data.String as String
 import Dodo as Log
 import Effect.Uncurried (EffectFn2, runEffectFn2)
@@ -416,13 +414,13 @@ getPackageLocation name = Paths.mkRelative <<< case _ of
   fileSystemCharEscape :: String -> String
   fileSystemCharEscape = String.toCodePointArray >>> map escapeCodePoint >>> Array.fold
     where
-    commonlyUsedChars = map codePointFromChar [ '.', ',', '-', '_', '+' ]
+    commonlyUsedChars = map String.codePointFromChar [ '.', ',', '-', '_', '+' ]
     ignoreEscape = Unicode.isLower || Unicode.isDecDigit || flip Array.elem commonlyUsedChars
 
     escapeCodePoint :: CodePoint -> String
     escapeCodePoint cp
-      | ignoreEscape cp = SCP.singleton cp
-      | otherwise = append "%" $ Int.toStringAs hexadecimal $ fromEnum cp
+      | ignoreEscape cp = String.singleton cp
+      | otherwise = append "%" $ Int.toStringAs Int.hexadecimal $ Enum.fromEnum cp
 
 data WithTestGlobs
   = WithTestGlobs

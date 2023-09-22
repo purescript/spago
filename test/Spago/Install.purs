@@ -3,6 +3,7 @@ module Test.Spago.Install where
 import Test.Prelude
 
 import Data.Map as Map
+import Node.Path as Path
 import Registry.Version as Version
 import Spago.Command.Init as Init
 import Spago.Core.Config (Dependencies(..))
@@ -10,6 +11,7 @@ import Spago.Core.Config as Config
 import Spago.FS as FS
 import Test.Spec (Spec)
 import Test.Spec as Spec
+import Test.Spec.Assertions as Assertions
 
 spec :: Spec Unit
 spec = Spec.around withTempDir do
@@ -104,7 +106,7 @@ spec = Spec.around withTempDir do
         )
       spago [ "install", "either" ] >>= shouldBeSuccess
 
-    Spec.it "installs a package version by branch name with / in it" \{ spago } -> do
+    Spec.it "installs a package version by branch name with / in it" \{ spago, testCwd } -> do
       spago [ "init" ] >>= shouldBeSuccess
       let
         conf = Init.defaultConfig
@@ -130,6 +132,9 @@ spec = Spec.around withTempDir do
             }
         )
       spago [ "install", "nonexistent-package" ] >>= shouldBeSuccess
+      let slashyPath = Path.concat [ testCwd, ".spago", "packages", "nonexistent-package", "spago-test%2fbranch-with-slash" ]
+      unlessM (FS.exists slashyPath) do
+        Assertions.fail $ "Expected path to exist: " <> slashyPath
 
     Spec.it "installs a package not in the set from a commit hash" \{ spago } -> do
       spago [ "init" ] >>= shouldBeSuccess
