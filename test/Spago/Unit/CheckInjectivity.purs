@@ -101,6 +101,6 @@ genBranchName =
     ]
 
 spec :: Spec Unit
-spec = Spec.describe "unit tests" $ do
+spec = Spec.describe "injectivity" $ do
   Spec.it "fileSystemCharEscape is (case insensitively) injective" $ do
     liftEffect $ checkInjective fileSystemCharEscape genBranchName
