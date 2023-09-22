@@ -33,7 +33,7 @@ spec = Spec.around withTempDir do
       spago [ "install", "foreign" ] >>= shouldBeSuccess
       checkFixture "spago.yaml" (fixture "spago-install-success.yaml")
 
-    Spec.itOnly "adds test dependencies to the config file" \{ spago, fixture } -> do
+    Spec.it "adds test dependencies to the config file" \{ spago, fixture } -> do
       spago [ "init", "--name", "aaa", "--package-set", "29.3.0" ] >>= shouldBeSuccess
       spago [ "install", "--test-deps", "foreign" ] >>= shouldBeSuccess
       checkFixture "spago.yaml" (fixture "spago-install-test-deps-success.yaml")
