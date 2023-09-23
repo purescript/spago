@@ -19,6 +19,7 @@ import Spago.Cmd as Cmd
 import Spago.Core.Config (Dependencies(..), Config)
 import Spago.FS as FS
 import Spago.Prelude as X
+import Test.Spec.Assertions (fail)
 import Test.Spec.Assertions as Assert
 
 type TestDirs =
@@ -63,11 +64,23 @@ withTempDir = Aff.bracket createTempDir cleanupTempDir
   cleanupTempDir { oldCwd } = do
     liftEffect $ Process.chdir oldCwd
 
+shouldEqual
+  :: forall m t
+   . MonadThrow Error m
+  => Show t
+  => Eq t
+  => t
+  -> t
+  -> m Unit
+shouldEqual v1 v2 =
+  when (v1 /= v2) do
+    fail $ show v1 <> "\n\n≠\n\n" <> show v2
+
 checkFixture :: String -> String -> Aff Unit
 checkFixture filepath fixturePath = do
   filecontent <- FS.readTextFile filepath
   fixturecontent <- FS.readTextFile fixturePath
-  filecontent `Assert.shouldEqual` fixturecontent
+  filecontent `shouldEqual` fixturecontent
 
 plusDependencies :: Array String -> Config -> Config
 plusDependencies deps config = config
@@ -91,9 +104,9 @@ checkResultAndOutputsStr maybeOutStr maybeErrStr resultFn execResult = do
     log $ "STDERR:\n" <> prettyPrint stderr
   execResult `Assert.shouldSatisfy` resultFn
   for_ maybeOutStr \expectedOut -> do
-    stdout `Assert.shouldEqual` expectedOut
+    stdout `shouldEqual` expectedOut
   for_ maybeErrStr \expectedErr -> do
-    stderr `Assert.shouldEqual` expectedErr
+    stderr `shouldEqual` expectedErr
   where
   prettyPrint =
     String.replaceAll (Pattern "\\n") (Replacement "\n")

@@ -162,6 +162,7 @@ bower_components/
 node_modules/
 .pulp-cache/
 output/
+output-es/
 generated-docs/
 .psc-package/
 .psc*
