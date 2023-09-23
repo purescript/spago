@@ -33,7 +33,7 @@ import Data.Set.NonEmpty (NonEmptySet)
 import Data.String (Pattern(..))
 import Data.String as String
 import Dodo as Log
-import Effect.Uncurried (EffectFn2, runEffectFn2)
+import Effect.Uncurried (EffectFn2, EffectFn3, runEffectFn2, runEffectFn3)
 import Foreign.Object as Foreign
 import Node.Path as Path
 import Record as Record
@@ -470,10 +470,10 @@ foreign import updatePackageSetHashInConfigImpl :: EffectFn2 (YamlDoc Core.Confi
 updatePackageSetHashInConfig :: YamlDoc Core.Config -> Sha256 -> Effect Unit
 updatePackageSetHashInConfig doc sha = runEffectFn2 updatePackageSetHashInConfigImpl doc (Sha256.print sha)
 
-foreign import addPackagesToConfigImpl :: EffectFn2 (YamlDoc Core.Config) (Array String) Unit
+foreign import addPackagesToConfigImpl :: EffectFn3 (YamlDoc Core.Config) Boolean (Array String) Unit
 
-addPackagesToConfig :: YamlDoc Core.Config -> Array PackageName -> Effect Unit
-addPackagesToConfig doc pkgs = runEffectFn2 addPackagesToConfigImpl doc (map PackageName.print pkgs)
+addPackagesToConfig :: YamlDoc Core.Config -> Boolean -> Array PackageName -> Effect Unit
+addPackagesToConfig doc isTest pkgs = runEffectFn3 addPackagesToConfigImpl doc isTest (map PackageName.print pkgs)
 
 foreign import addRangesToConfigImpl :: EffectFn2 (YamlDoc Core.Config) (Foreign.Object String) Unit
 
