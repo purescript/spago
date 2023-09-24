@@ -1,1 +1,0 @@
-{"file":"index.js","mappings":";AAMA,cAAA;WAAA;;AAIA,wBAAA;WAAA;eAAA;mBAAA;gBACQ,OAAkB;2BAAQ;+BAAhC,EAAA,EAAA,EAAkD,KAAlD,EAAyD;;;;;;;AAH3D,qBAAA;gBAAA;eAAA;;;AAKA,oBAAA;YAAA;QACU,OAAa;mBAAQ;uBAAA;2BAA7B,EAA4C,GAAG,IAAI,GAAG;;;;;iBADxD","names":[],"sources":["../../.spago/packages/profunctor-lenses-8.0.0/src/Data/Lens/Internal/Zipping.purs"],"version":3}

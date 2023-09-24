@@ -1,1 +1,0 @@
-{"file":"index.js","mappings":";;;AAiCA,yBAAA;UAAA;eAAA;YACO,OAAL;;;;AAlBA,WAAA;IAAA,OAAA;;AAKF,kBAAA;gBACoB;WADpB;eAAA;yBACkB,GAAM;;;;AAIxB,aAAA;gBAC8B;WAD9B;;eAAA;iEACkC;;;;AAGlC,YAAA;gBACY;WADZ;eAAA;yBACiB","names":[],"sources":["../../.spago/packages/contravariant-6.0.0/src/Data/Functor/Contravariant.purs"],"version":3}

@@ -1,1 +1,0 @@
-{"file":"index.js","mappings":";;;;;;AA0CA,mBAAA;WAAA;eAAA;mBAAA;uBACsB,eAAA;2BAAgB,IAAR,IAAR,IAAA;;;;;;AArBpB,YAAA;IAAA,OAAA;;AAGF,YAAA;iBACY;WADZ;sBACkB;;;AAGlB,WAAA;iBACW;WADX;gCAC0B;;;AAM1B,gBAAA;iBACY;WADZ;;;;AAGA,cAAA;iBACY;WADZ;eAAA;;;;;AANA,UAAA;;WAAA;oBACQ;eADR;yBACa","names":[],"sources":["../../.spago/packages/profunctor-6.0.0/src/Data/Profunctor.purs"],"version":3}

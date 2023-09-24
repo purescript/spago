@@ -1,1 +1,0 @@
-{"file":"index.js","mappings":";;;;;;;;;;;;;;;;AAgBA,cAAA;;;;;;;gEAEE;QACI;2CAAwB;YAAd;uBAAwB;;YAAxB,OAAiC;;yBACvC,eAAA;6DAAA;qBAAgC,GAAE,WAA1C;0DAEwB,wBAAtB;wCACO,MAAK","names":[],"sources":["../../.spago/packages/datetime-6.1.0/src/Data/Date/Gen.purs"],"version":3}

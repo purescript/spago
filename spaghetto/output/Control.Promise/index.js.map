@@ -1,1 +1,0 @@
-{"file":"index.js","mappings":";;;;;;;;;;;;;;;;;;;;;;;;;;AA8CA,kBAAA;WAAA;kCAEG;uDACC,GACC,eAAA;uBAAc,2BAAgB,aAA9B;eACA,eAAA;uBAAc,4BAAd;;;;;AAxBL,cAAA;4BACuB;eAAA;yDAA6B,KAAI,OAAM;;;;AAE9D,aAAA;8BAEU;sCAAY;qEAEiB,SAAQ,4CAA8B;;AAM7E,4BACQ,YAAO;AAaf,aAAA;2BACsB,IAAM","names":[],"sources":["../../.spago/packages/aff-promise-4.0.0/src/Control/Promise.purs"],"version":3}

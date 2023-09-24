@@ -1,1 +1,0 @@
-{"file":"index.js","mappings":";;;;;;;AA0EA,kBAAA;IACgB,qBAAiC;WAAjC,cAAA;yDAAqB,2CAArB;;;AAxChB,8BACU;AAXV,8BACU;AA6CV,cAAA;IACY,aAAyB;WAAzB,cAAA;yDAAqB,2CAArB;;;AAZZ,oCACgB;AARhB,oCACgB;AAahB,qCACiB;AA5BjB,+BACW;AAGX,oBAAA;WAAA;eACsB,SAAS,QAAM,SAAS","names":[],"sources":["../../.spago/packages/unicode-6.0.0/src/Data/String/Unicode.purs"],"version":3}

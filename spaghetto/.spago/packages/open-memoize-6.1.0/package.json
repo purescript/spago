@@ -1,6 +1,0 @@
-{
-  "private": true,
-  "scripts": {
-    "clean": "rm -rfd output && rm -rfd .pulp-cache"
-  }
-}

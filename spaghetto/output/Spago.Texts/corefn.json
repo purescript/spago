@@ -1,1 +1,0 @@
-{"builtWith":"0.15.10","comments":[],"decls":[],"exports":[],"foreign":[],"imports":[{"annotation":{"meta":null,"sourceSpan":{"end":[1,25],"start":[1,1]}},"moduleName":["Prim"]}],"moduleName":["Spago","Texts"],"modulePath":"src/Spago/Texts.purs","reExports":{},"sourceSpan":{"end":[1,25],"start":[1,1]}}

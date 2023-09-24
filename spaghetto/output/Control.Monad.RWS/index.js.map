@@ -1,1 +1,0 @@
-{"file":"index.js","mappings":";;;;;;;;;;;;AAoDA;AApBA,UAAA;WACQ;eAAK;wBAAe,EAAE,GAAE;;;;AAGhC,aAAA;WAAA;eAAA;YAAA,QACoB,EAAsB,GAAE;YAAK,OADjD;;;;AAYA,aAAA;2CACoB,cAAA;sCAAW,SAAX;;;AALpB,cAAA;WAAA;eAAA;mCACkC,GAAE,GAAE;;;;AALtC,cAAA;WAAA;eAAA;mCACkC,GAAE,GAAE","names":[],"sources":["../../.spago/packages/transformers-6.0.0/src/Control/Monad/RWS.purs"],"version":3}

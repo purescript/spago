@@ -1,1 +1,0 @@
-{"file":"index.js","mappings":";AAQA,cAAA;WAAA;;AAIA,wBAAA;WAAA;eAAA;mBAAA;gBACQ,OAAkB;2BAAxB,EAAA,EAA2C;+BAAM,EAAG,cAAA;mCAAA,EAApD,EAAoD;;;;;;;;AAHtD,qBAAA;gBAAA;eAAA;;;AAKA,oBAAA;YAAA;QACU,OAAa;mBAAQ;uBAA7B,EAAuC;2BAAM,EAAE;+BAAM,EAAG,EAAE;;;;;;iBAD5D","names":[],"sources":["../../.spago/packages/profunctor-lenses-8.0.0/src/Data/Lens/Internal/Grating.purs"],"version":3}
