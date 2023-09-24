@@ -12,7 +12,6 @@ import Data.Map as Map
 import Data.Set.NonEmpty (NonEmptySet)
 import Data.String as String
 import Effect.Aff as Aff
-import Effect.Class.Console as Console
 import Effect.Ref as Ref
 import Node.FS.Stats (Stats(..))
 import Node.Path as Path
