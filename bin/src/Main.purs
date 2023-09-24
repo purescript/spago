@@ -196,7 +196,7 @@ commandParser command_ parser_ description_ =
   O.command command_
     ( O.info
         (SpagoCmd <$> globalArgsParser <*> parser_)
-        (progDesc description_)
+        (O.progDesc description_)
     )
 
 argParser :: Parser (SpagoCmd ())
@@ -219,7 +219,7 @@ argParser =
                 , commandParser "info" (RegistryInfo <$> registryInfoArgsParser) "Query the Registry for information about packages and versions"
                 ]
             )
-            (progDesc "Commands to interact with the Registry")
+            (O.progDesc "Commands to interact with the Registry")
         )
     , O.command "ls"
         ( O.info
@@ -228,7 +228,7 @@ argParser =
                 , commandParser "deps" (LsDeps <$> lsDepsArgsParser) "List dependencies of the project"
                 ]
             )
-            (progDesc "List packages or dependencies")
+            (O.progDesc "List packages or dependencies")
         )
     ]
 
@@ -526,7 +526,7 @@ main =
                 purs <- Purs.getPurs
                 void $ runSpago { purs, logOptions } $ Init.run
                   { setVersion: Nothing
-                  , packageName: unsafeCoerce "repl"
+                  , packageName: UnsafeCoerce.unsafeCoerce "repl"
                   , useSolver: true
                   }
                 pure $ List.fromFoldable [ "effect", "console" ] -- TODO newPackages
@@ -843,7 +843,7 @@ mkFetchEnv args = do
 
   env <- mkRegistryEnv
   workspace <- runSpago env (Config.readWorkspace maybeSelectedPackage)
-  let fetchOpts = { packages: packageNames, ensureRanges: args.ensureRanges }
+  let fetchOpts = { packages: packageNames, ensureRanges: args.ensureRanges, isTest: args.testDeps}
   pure { fetchOpts, env: Record.union { workspace } env }
 
 mkRegistryEnv :: forall a. Spago (LogEnv a) (Registry.RegistryEnv ())

@@ -252,9 +252,9 @@ testDeps =
 
 useSolver :: Parser Boolean
 useSolver =
-  switch
-    ( long "use-solver"
-        <> help "Use the solver instead of package sets"
+  O.switch
+    ( O.long "use-solver"
+        <> O.help "Use the solver instead of package sets"
     )
 
 packages ∷ Parser (List String)
