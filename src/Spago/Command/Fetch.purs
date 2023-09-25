@@ -57,10 +57,11 @@ type FetchEnv a = Record (FetchEnvRow a)
 type FetchOpts =
   { packages :: Array PackageName
   , ensureRanges :: Boolean
+  , isTest :: Boolean
   }
 
 run :: forall a. FetchOpts -> Spago (FetchEnv a) PackageMap
-run { packages, ensureRanges } = do
+run { packages, ensureRanges, isTest } = do
   logDebug $ "Requested to install these packages: " <> printJson (CA.array PackageName.codec) packages
 
   { getMetadata, logOptions, workspace } <- ask
@@ -99,7 +100,7 @@ run { packages, ensureRanges } = do
         $ [ toDoc "You tried to install some packages that are already present in the configuration, proceeding anyways:" ]
         <> map (indent <<< toDoc <<< append "- " <<< PackageName.print) (Array.fromFoldable overlappingPackages)
     logInfo $ "Adding " <> show (Array.length packages) <> " packages to the config in " <> configPath
-    liftEffect $ Config.addPackagesToConfig yamlDoc packages
+    liftEffect $ Config.addPackagesToConfig yamlDoc isTest packages
     liftAff $ FS.writeYamlDocFile configPath yamlDoc
 
   -- if the flag is selected, we kick off the process of adding ranges to the config

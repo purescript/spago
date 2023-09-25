@@ -212,7 +212,6 @@ transitiveError isTest selected transitive = toDoc
   , toDoc "Run the following command to install them all:"
   , indent $ toDoc
       $ "spago install "
-      -- TODO: wire in this flag, it doesn't work yet
       <> (if isTest then "--test-deps " else "")
       <> "-p "
       <> PackageName.print selected.package.name
