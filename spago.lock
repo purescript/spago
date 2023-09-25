@@ -1203,14 +1203,6 @@ packages:
       - record
       - transformers
       - tuples
-  psci-support:
-    type: registry
-    version: 6.0.0
-    integrity: sha256-C6ql4P9TEP06hft/1Z5QumPA4yARR4VIxDdhmL1EO+Y=
-    dependencies:
-      - console
-      - effect
-      - prelude
   quickcheck:
     type: registry
     version: 8.0.1
