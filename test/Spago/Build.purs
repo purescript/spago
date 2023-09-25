@@ -100,7 +100,7 @@ spec = Spec.around withTempDir do
         }
       spago [ "build" ] >>= shouldBeFailure
 
-    Spec.itOnly "compiles with the specified backend" \{ spago, fixture } -> do
+    Spec.it "compiles with the specified backend" \{ spago, fixture } -> do
       spago [ "init" ] >>= shouldBeSuccess
       let
         conf = Init.defaultConfig
