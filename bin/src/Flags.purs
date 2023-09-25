@@ -7,10 +7,10 @@ import Data.List as List
 import Data.Set.NonEmpty (NonEmptySet)
 import Data.Set.NonEmpty as NonEmptySet
 import Options.Applicative (Parser)
-import Spago.Core.Config (ShowSourceCode(..))
-import Spago.Core.Config as Core
 import Options.Applicative as O
 import Options.Applicative.Types as O
+import Spago.Core.Config (ShowSourceCode(..))
+import Spago.Core.Config as Core
 
 selectedPackage :: Parser (Maybe String)
 selectedPackage =
@@ -19,6 +19,7 @@ selectedPackage =
       ( O.long "package"
           <> O.short 'p'
           <> O.help "Select the local project to build"
+          <> O.metavar "PACKAGE"
       )
 
 strict :: Parser (Maybe Boolean)
@@ -260,14 +261,14 @@ useSolver =
 packages :: Parser (List String)
 packages =
   O.many $
-    O.strOption
+    O.strArgument
       ( O.metavar "PACKAGE"
           <> O.help "Package name to add as dependency"
       )
 
 package :: Parser String
 package =
-  O.strOption
+  O.strArgument
     ( O.metavar "PACKAGE"
         <> O.help "Package name"
     )
@@ -275,7 +276,7 @@ package =
 maybeVersion :: Parser (Maybe String)
 maybeVersion =
   O.optional $
-    O.strOption
+    O.strArgument
       ( O.metavar "VERSION"
           <> O.help "Package version"
       )
