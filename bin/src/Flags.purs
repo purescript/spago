@@ -29,7 +29,7 @@ strict =
             <> O.help "Promotes project sources' warnings to errors"
         )
 
-censorBuildWarnings ∷ Parser (Maybe Core.CensorBuildWarnings)
+censorBuildWarnings :: Parser (Maybe Core.CensorBuildWarnings)
 censorBuildWarnings =
   O.optional $
     flip
@@ -46,7 +46,7 @@ censorBuildWarnings =
             _ -> Left $ "Expected 'all', 'project', or 'dependency'"
       )
 
-showSource ∷ Parser (Maybe ShowSourceCode)
+showSource :: Parser (Maybe ShowSourceCode)
 showSource =
   O.optional
     $ O.switch
@@ -86,7 +86,7 @@ statVerbosity =
     <|>
       (Core.NoStats <$ O.switch (O.long "censor-stats" <> O.help "Censor warning/error summary"))
 
-persistWarnings ∷ Parser (Maybe Boolean)
+persistWarnings :: Parser (Maybe Boolean)
 persistWarnings =
   O.optional $
     O.switch
@@ -94,21 +94,21 @@ persistWarnings =
           <> O.help "Persist the compiler warnings between multiple underlying `purs compile` calls"
       )
 
-jsonErrors ∷ Parser Boolean
+jsonErrors :: Parser Boolean
 jsonErrors =
   O.switch
     ( O.long "json-errors"
         <> O.help "Output compiler warnings/errors as JSON"
     )
 
-minify ∷ Parser Boolean
+minify :: Parser Boolean
 minify =
   O.switch
     ( O.long "minify"
         <> O.help "Minify the bundle"
     )
 
-entrypoint ∷ Parser (Maybe String)
+entrypoint :: Parser (Maybe String)
 entrypoint =
   O.optional
     $ O.strOption
@@ -116,7 +116,7 @@ entrypoint =
             <> O.help "The module to bundle as the entrypoint"
         )
 
-bundleType ∷ Parser (Maybe String)
+bundleType :: Parser (Maybe String)
 bundleType =
   O.optional
     $ O.strOption
@@ -124,7 +124,7 @@ bundleType =
             <> O.help "The type of the module produced. 'app' will call main, 'module' will just export the contents."
         )
 
-outfile ∷ Parser (Maybe String)
+outfile :: Parser (Maybe String)
 outfile =
   O.optional
     $ O.strOption
@@ -133,7 +133,7 @@ outfile =
         )
 
 -- TODO make an ADT for node and browser
-platform ∷ Parser (Maybe String)
+platform :: Parser (Maybe String)
 platform =
   O.optional
     $ O.option
@@ -147,7 +147,7 @@ platform =
             <> O.help "The bundle platform. 'node' or 'browser'"
         )
 
-output ∷ Parser (Maybe String)
+output :: Parser (Maybe String)
 output =
   O.optional
     $ O.strOption
@@ -157,7 +157,7 @@ output =
             <> O.value "output"
         )
 
-quiet ∷ Parser Boolean
+quiet :: Parser Boolean
 quiet =
   O.switch
     ( O.long "quiet"
@@ -165,7 +165,7 @@ quiet =
         <> O.help "Suppress all spago logging"
     )
 
-verbose ∷ Parser Boolean
+verbose :: Parser Boolean
 verbose =
   O.switch
     ( O.long "verbose"
@@ -173,7 +173,7 @@ verbose =
         <> O.help "Enable additional debug logging, e.g. printing `purs` commands"
     )
 
-noColor ∷ Parser Boolean
+noColor :: Parser Boolean
 noColor =
   O.switch
     ( O.long "no-color"
@@ -181,21 +181,21 @@ noColor =
         <> O.help "Force logging without ANSI color escape sequences"
     )
 
-json ∷ Parser Boolean
+json :: Parser Boolean
 json =
   O.switch
     ( O.long "json"
         <> O.help "Format the output as JSON"
     )
 
-transitive ∷ Parser Boolean
+transitive :: Parser Boolean
 transitive =
   O.switch
     ( O.long "transitive"
         <> O.help "Include transitive dependencies"
     )
 
-pedanticPackages ∷ Parser Boolean
+pedanticPackages :: Parser Boolean
 pedanticPackages =
   O.switch
     ( O.long "pedantic-packages"
@@ -234,7 +234,7 @@ backendArgs =
           <> O.metavar "ARGS"
       )
 
-moduleName ∷ Parser (Maybe String)
+moduleName :: Parser (Maybe String)
 moduleName =
   O.optional
     $ O.strOption
@@ -243,7 +243,7 @@ moduleName =
             <> O.help "Module to be used as the application's entry point"
         )
 
-testDeps ∷ Parser Boolean
+testDeps :: Parser Boolean
 testDeps =
   O.switch
     ( O.long "test-deps"
@@ -257,7 +257,7 @@ useSolver =
         <> O.help "Use the solver instead of package sets"
     )
 
-packages ∷ Parser (List String)
+packages :: Parser (List String)
 packages =
   O.many $
     O.strOption
@@ -296,7 +296,7 @@ maybePackageName =
           <> O.help "Optional package name to be used for the new project"
       )
 
-ensureRanges ∷ Parser Boolean
+ensureRanges :: Parser Boolean
 ensureRanges =
   O.switch
     ( O.long "ensure-ranges"

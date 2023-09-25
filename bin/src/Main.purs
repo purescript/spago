@@ -190,7 +190,7 @@ data Command a
   | LsPackages LsPackagesArgs
   | Publish PublishArgs
 
-commandParser ∷ ∀ (a ∷ Row Type). String → Parser (Command a) → String → Mod CommandFields (SpagoCmd a)
+commandParser :: forall (a :: Row Type). String -> Parser (Command a) -> String -> Mod CommandFields (SpagoCmd a)
 commandParser command_ parser_ description_ =
   O.command command_
     ( O.info
