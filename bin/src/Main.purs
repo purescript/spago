@@ -844,7 +844,7 @@ mkFetchEnv args = do
 
   env <- mkRegistryEnv
   workspace <- runSpago env (Config.readWorkspace maybeSelectedPackage)
-  let fetchOpts = { packages: packageNames, ensureRanges: args.ensureRanges, isTest: args.testDeps}
+  let fetchOpts = { packages: packageNames, ensureRanges: args.ensureRanges, isTest: args.testDeps }
   pure { fetchOpts, env: Record.union { workspace } env }
 
 mkRegistryEnv :: forall a. Spago (LogEnv a) (Registry.RegistryEnv ())
@@ -902,9 +902,6 @@ mkRegistryEnv = do
               liftEffect (Ref.write (Map.insert name m metadataMap) metadataRef)
               pure (Right m)
 
-  -- FIXME: We are try/catching, but DNS errors still crash the program! Error is:
-  --   Error while fetching the repo 'https://github.com/purescript/registry-index.git' at ref 'main':
-  --   fatal: unable to access 'https://github.com/purescript/registry-index.git/': Could not resolve host: github.com
   { logOptions } <- ask
   -- we keep track of how old the latest pull was - if the last pull was recent enough
   -- we just move on, otherwise run the fibers
@@ -912,10 +909,10 @@ mkRegistryEnv = do
     -- clone the registry and index repo, or update them
     logInfo "Refreshing the Registry Index..."
     runSpago { logOptions, git } $ parallelise
-      [ try (Git.fetchRepo { git: "https://github.com/purescript/registry-index.git", ref: "main" } Paths.registryIndexPath) >>= case _ of
+      [ Git.fetchRepo { git: "https://github.com/purescript/registry-index.git", ref: "main" } Paths.registryIndexPath >>= case _ of
           Right _ -> pure unit
           Left _err -> logWarn "Couldn't refresh the registry-index, will proceed anyways"
-      , try (Git.fetchRepo { git: "https://github.com/purescript/registry.git", ref: "main" } Paths.registryPath) >>= case _ of
+      , Git.fetchRepo { git: "https://github.com/purescript/registry.git", ref: "main" } Paths.registryPath >>= case _ of
           Right _ -> pure unit
           Left _err -> logWarn "Couldn't refresh the registry, will proceed anyways"
       ]
@@ -964,7 +961,7 @@ shouldFetchRegistryRepos = do
       let staleAfter = 1000.0 * 60.0 * minutes -- need this in millis
       let isOldEnough = (JSDate.getTime now) > (JSDate.getTime mtime + staleAfter)
       if isOldEnough then do
-        logDebug "Registry  index is old enough, refreshing canary"
+        logDebug "Registry index is old, refreshing canary"
         touch freshRegistryCanary
         pure true
       else do
