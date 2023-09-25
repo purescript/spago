@@ -1,32 +1,33 @@
-module Test.Spago.FindFlags where
+module Test.Spago.Unit.FindFlags where
 
 import Prelude
 
 import Data.Maybe (fromMaybe)
 import Spago.Cmd as Cmd
-import Test.Spec (Spec, describe, it)
-import Test.Spec.Assertions (shouldEqual)
+import Test.Spec as Spec
+import Test.Spec (Spec)
+import Test.Spec.Assertions as Assertions
 
 spec :: Spec Unit
 spec = do
-  describe "findFlag" $ do
-    it "[\"-o\", \"something\"]" $ do
+  Spec.describe "findFlags" $ do
+    Spec.it "[\"-o\", \"something\"]" $ do
       let a = fromMaybe "" $ Cmd.findFlag { flags: [ "-o", "--output" ], args: [ "-o", "something" ] }
       let b = "something"
-      a `shouldEqual` b
-    it "[\"--output\", \"something\"]" $ do
+      a `Assertions.shouldEqual` b
+    Spec.it "[\"--output\", \"something\"]" $ do
       let a = fromMaybe "" $ Cmd.findFlag { flags: [ "-o", "--output" ], args: [ "--output", "something" ] }
       let b = "something"
-      a `shouldEqual` b
-    it "[\"-o something\"]" $ do
+      a `Assertions.shouldEqual` b
+    Spec.it "[\"-o something\"]" $ do
       let a = fromMaybe "" $ Cmd.findFlag { flags: [ "-o", "--output" ], args: [ "-o something" ] }
       let b = "something"
-      a `shouldEqual` b
-    it "[\"--output something\"]" $ do
+      a `Assertions.shouldEqual` b
+    Spec.it "[\"--output something\"]" $ do
       let a = fromMaybe "" $ Cmd.findFlag { flags: [ "-o", "--output" ], args: [ "--output something" ] }
       let b = "something"
-      a `shouldEqual` b
-    it "[\"--output=something\"]" $ do
+      a `Assertions.shouldEqual` b
+    Spec.it "[\"--output=something\"]" $ do
       let a = fromMaybe "" $ Cmd.findFlag { flags: [ "-o", "--output" ], args: [ "--output=something" ] }
       let b = "something"
-      a `shouldEqual` b
+      a `Assertions.shouldEqual` b

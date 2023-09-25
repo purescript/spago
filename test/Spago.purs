@@ -10,7 +10,6 @@ import Effect.Aff (Milliseconds(..))
 import Effect.Aff as Aff
 import Test.Spago.Build as Build
 import Test.Spago.Bundle as Bundle
-import Test.Spago.FindFlags as FindFlags
 import Test.Spago.Init as Init
 import Test.Spago.Install as Install
 import Test.Spago.Lock as Lock
@@ -18,6 +17,7 @@ import Test.Spago.Ls as Ls
 import Test.Spago.Run as Run
 import Test.Spago.Sources as Sources
 import Test.Spago.Test as Test
+import Test.Spago.Unit as Unit
 import Test.Spec as Spec
 import Test.Spec.Reporter as Spec.Reporter
 import Test.Spec.Runner as Spec.Runner
@@ -46,5 +46,5 @@ main = Aff.launchAff_ $ void $ un Identity $ Spec.Runner.runSpecT testConfig [ S
     Bundle.spec
     Spec.describe "miscellaneous" do
       Lock.spec
-      FindFlags.spec
+  Unit.spec
 

@@ -2,8 +2,10 @@ module Test.Spago.Install where
 
 import Test.Prelude
 
+import Data.Array as Array
 import Data.Map as Map
 import Node.FS.Aff as FSA
+import Node.Path as Path
 import Registry.Version as Version
 import Spago.Command.Init as Init
 import Spago.Core.Config (Dependencies(..))
@@ -11,6 +13,7 @@ import Spago.Core.Config as Config
 import Spago.FS as FS
 import Test.Spec (Spec)
 import Test.Spec as Spec
+import Test.Spec.Assertions as Assertions
 
 spec :: Spec Unit
 spec = Spec.around withTempDir do
@@ -121,31 +124,38 @@ spec = Spec.around withTempDir do
         )
       spago [ "install", "either" ] >>= shouldBeSuccess
 
-    -- TODO: this is broken at the moment
-    -- Spec.it "installs a package version by branch name with / in it" \{ spago, fixture } -> do
-    --   spago [ "init" ] >>= shouldBeSuccess
-    --   let
-    --     conf = Init.defaultConfig
-    --       (mkPackageName "ddd")
-    --       (Just $ unsafeFromRight $ Version.parse "0.0.1")
-    --       "Test.Main"
-    --   FS.writeYamlFile Config.configCodec "spago.yaml"
-    --     ( conf
-    --         { workspace = conf.workspace # map
-    --             ( _
-    --                 { extra_packages = Just $ Map.fromFoldable
-    --                     [ Tuple (mkPackageName "nonexistent-package") $ Config.ExtraRemotePackage $ Config.RemoteGitPackage
-    --                         { git: "https://github.com/spacchetti/purescript-metadata.git"
-    --                         , ref: "spago-test/branch-with-slash"
-    --                         , subdir: Nothing
-    --                         , dependencies: Just $ Dependencies $ Map.singleton (mkPackageName "prelude") Nothing
-    --                         }
-    --                     ]
-    --                 }
-    --             )
-    --         }
-    --     )
-    --   spago [ "install", "nonexistent-package" ] >>= shouldBeSuccessErr (fixture "installs-with-slash.txt")
+    Spec.it "installs a package version by branch name with / in it" \{ spago, testCwd } -> do
+      spago [ "init" ] >>= shouldBeSuccess
+      let
+        conf = Init.defaultConfig
+          { name: mkPackageName "ddd"
+          , withWorkspace: true
+          , setVersion: Just $ unsafeFromRight $ Version.parse "0.0.1"
+          , testModuleName: "Test.Main"
+          }
+      FS.writeYamlFile Config.configCodec "spago.yaml"
+        ( conf
+            { workspace = conf.workspace # map
+                ( _
+                    { extra_packages = Just $ Map.fromFoldable
+                        [ Tuple (mkPackageName "nonexistent-package") $ Config.ExtraRemotePackage $ Config.RemoteGitPackage
+                            { git: "https://github.com/spacchetti/purescript-metadata.git"
+                            , ref: "spago-test/branch-with-slash"
+                            , subdir: Nothing
+                            , dependencies: Just $ Dependencies $ Map.singleton (mkPackageName "prelude") Nothing
+                            }
+                        ]
+                    }
+                )
+            }
+        )
+      spago [ "install", "nonexistent-package" ] >>= shouldBeSuccess
+      let slashyPath = Path.concat [ testCwd, ".spago", "packages", "nonexistent-package", "spago-test%2fbranch-with-slash" ]
+      unlessM (FS.exists slashyPath) do
+        Assertions.fail $ "Expected path to exist: " <> slashyPath
+      kids <- FSA.readdir slashyPath
+      when (Array.length kids == 0) do
+        Assertions.fail $ "Expected path exists but contains nothing: " <> slashyPath
 
     Spec.it "installs a package not in the set from a commit hash" \{ spago } -> do
       spago [ "init" ] >>= shouldBeSuccess
