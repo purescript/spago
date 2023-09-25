@@ -404,7 +404,9 @@ lsDepsArgsParser = Optparse.fromRecord
   , selectedPackage: Flags.selectedPackage
   }
 
-parseArgs :: Effect (Either (SpagoCmd ()) Boolean)
+data Cmd a = Cmd'SpagoCmd (SpagoCmd a) | Cmd'VersionCmd Boolean
+
+parseArgs :: Effect (Cmd ())
 parseArgs = do
   O.customExecParser
     ( O.defaultPrefs # \(ParserPrefs p) -> ParserPrefs
@@ -416,8 +418,8 @@ parseArgs = do
     )
     ( O.info
         ( O.helper <*>
-            ( (Left <$> argParser) <|>
-                (Right <$> (O.switch (O.long "version" <> O.short 'v' <> O.help "Show the current version")))
+            ( (Cmd'SpagoCmd <$> argParser) <|>
+                (Cmd'VersionCmd <$> (O.switch (O.long "version" <> O.short 'v' <> O.help "Show the current version")))
             )
         )
         (O.progDesc "PureScript package manager and build tool")
@@ -427,7 +429,7 @@ main :: Effect Unit
 main =
   parseArgs >>=
     \c -> Aff.launchAff_ case c of
-      Left (SpagoCmd globalArgs command) -> do
+      Cmd'SpagoCmd (SpagoCmd globalArgs command) -> do
         logOptions <- mkLogOptions globalArgs
         runSpago { logOptions } case command of
           Sources args -> do
@@ -584,7 +586,7 @@ main =
             dependencies <- runSpago env (Fetch.run fetchOpts)
             lsEnv <- runSpago env (mkLsEnv dependencies)
             runSpago lsEnv (Ls.listPackages { json, transitive })
-      Right v -> do when v printVersion
+      Cmd'VersionCmd v -> do when v printVersion
   where
   printVersion = do
     logOptions <- mkLogOptions { noColor: false, quiet: false, verbose: false }
