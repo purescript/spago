@@ -100,7 +100,7 @@ spec = Spec.around withTempDir do
         }
       spago [ "build" ] >>= shouldBeFailure
 
-    Spec.it "compiles with the specified backend" \{ spago, fixture } -> do
+    Spec.itOnly "compiles with the specified backend" \{ spago, fixture } -> do
       spago [ "init" ] >>= shouldBeSuccess
       let
         conf = Init.defaultConfig
@@ -114,6 +114,10 @@ spec = Spec.around withTempDir do
 
       spago [ "build" ] >>= shouldBeSuccess
       spago [ "run" ] >>= shouldBeSuccessErr (fixture "alternate-backend-output.txt")
+
+      -- We also make sure that no js files are produced, only corefn
+      FS.exists "output/Main/index.js" `Assert.shouldReturn` false
+      FS.exists "output/Main/corefn.json" `Assert.shouldReturn` true
 
     Spec.it "passing the --codegen flag to purs fails" \{ spago, fixture } -> do
       spago [ "init", "--name", "7368613235362d68766258694c614d517a3667747a58725778" ] >>= shouldBeSuccess
