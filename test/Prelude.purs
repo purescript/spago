@@ -89,8 +89,19 @@ plusDependencies deps config = config
   where
   mkDep p = Tuple (unsafeFromRight $ PackageName.parse p) Nothing
 
-checkResultAndOutputsStr :: Maybe String -> Maybe String -> (Either ExecError ExecResult -> Boolean) -> Either ExecError ExecResult -> Aff _
-checkResultAndOutputsStr maybeOutStr maybeErrStr resultFn execResult = do
+-- | ```
+-- | checkResultAndOutputPredicates 
+-- |   (\stdOut -> stdOut `Assert.shouldEqual` expStdOut)
+-- |   (\stdErr -> stdErr `Assert.shouldEqual` expStdErr)
+-- |   isRight
+-- | ```
+checkResultAndOutputPredicates
+  :: (String -> Aff Unit)
+  -> (String -> Aff Unit)
+  -> (Either ExecError ExecResult -> Boolean)
+  -> Either ExecError ExecResult
+  -> Aff Unit
+checkResultAndOutputPredicates checkStdout checkStderr resultFn execResult = do
   let
     stdout = String.trim $ case execResult of
       Left err -> err.stdout
@@ -103,16 +114,20 @@ checkResultAndOutputsStr maybeOutStr maybeErrStr resultFn execResult = do
     log $ "STDOUT:\n" <> prettyPrint stdout
     log $ "STDERR:\n" <> prettyPrint stderr
   execResult `Assert.shouldSatisfy` resultFn
-  for_ maybeOutStr \expectedOut -> do
-    stdout `shouldEqual` expectedOut
-  for_ maybeErrStr \expectedErr -> do
-    stderr `shouldEqual` expectedErr
+  checkStdout stdout
+  checkStderr stderr
   where
   prettyPrint =
     String.replaceAll (Pattern "\\n") (Replacement "\n")
       <<< String.replaceAll (Pattern "\\\"") (Replacement "\"")
 
-checkResultAndOutputs :: Maybe FilePath -> Maybe FilePath -> (Either ExecError ExecResult -> Boolean) -> Either ExecError ExecResult -> Aff _
+checkResultAndOutputsStr :: Maybe String -> Maybe String -> (Either ExecError ExecResult -> Boolean) -> Either ExecError ExecResult -> Aff Unit
+checkResultAndOutputsStr maybeOutStr maybeErrStr =
+  checkResultAndOutputPredicates
+    (maybe mempty (\exp act -> act `Assert.shouldEqual` exp) maybeOutStr)
+    (maybe mempty (\exp act -> act `Assert.shouldEqual` exp) maybeErrStr)
+
+checkResultAndOutputs :: Maybe FilePath -> Maybe FilePath -> (Either ExecError ExecResult -> Boolean) -> Either ExecError ExecResult -> Aff Unit
 checkResultAndOutputs maybeOutFixture maybeErrFixture resultFn execResult = do
   maybeOutStr <- for maybeOutFixture \expectedOutFixture -> do
     String.trim <$> FS.readTextFile expectedOutFixture

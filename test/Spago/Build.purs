@@ -3,6 +3,8 @@ module Test.Spago.Build where
 import Test.Prelude
 
 import Data.Array as Array
+import Data.String (Pattern(..))
+import Data.String as String
 import Node.FS.Aff as FSA
 import Node.Path as Path
 import Registry.Version as Version
@@ -214,7 +216,18 @@ spec = Spec.around withTempDir do
           , srcMain: Just $ fixture "topological-sort-case-3-package-c-src.purs"
           , testMain: Nothing
           }
-        spago [ "build" ] >>= shouldBeSuccess
+        let
+          hasAllPkgsInRightBuildOrder stdErr = do
+            let
+              exp = Array.intercalate "\n"
+                [ "Building packages in the following order:"
+                , "1) case-three-package-c"
+                , "2) case-three-package-b"
+                , "3) case-three-package-a"
+                ]
+            unless (String.contains (Pattern exp) stdErr) do
+              Assert.fail $ "STDERR did not contain text:\n" <> exp <> "\n\nStderr was:\n" <> stdErr
+        spago [ "build" ] >>= checkResultAndOutputPredicates mempty hasAllPkgsInRightBuildOrder isRight
 
 -- Spec.it "runs a --before command" \{ spago } -> do
 --   spago [ "init" ] >>= shouldBeSuccess
