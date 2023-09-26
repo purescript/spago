@@ -820,8 +820,8 @@ mkReplEnv replArgs dependencies = do
   purs <- Purs.getPurs
 
   selected <- case workspace.selected of
-    Just s -> pure s
-    Nothing -> die "The REPL requires you to select a package"
+    Just s -> pure $ Right s
+    Nothing -> pure $ Left $ Config.getWorkspacePackages workspace.packageSet
 
   pure
     { purs

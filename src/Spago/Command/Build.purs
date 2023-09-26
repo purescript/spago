@@ -2,6 +2,7 @@ module Spago.Command.Build
   ( run
   , BuildEnv
   , getBuildGlobs
+  , getEntireWorkspaceGlobs
   ) where
 
 import Spago.Prelude
@@ -199,6 +200,38 @@ getBuildGlobs { selected, dependencies, withTests, depsOnly } =
   monorepoPkgGlobs
     | depsOnly = []
     | otherwise = (Tuple.uncurry $ Config.sourceGlob NoTestGlobs) =<< monorepoPkgs
+
+type BuildWorkspaceGlobsOptions =
+  { withTests :: Boolean
+  , depsOnly :: Boolean
+  , workspacePackages :: Array WorkspacePackage
+  , dependencies :: Map PackageName Package
+  }
+
+getEntireWorkspaceGlobs :: BuildWorkspaceGlobsOptions -> Set FilePath
+getEntireWorkspaceGlobs { workspacePackages, dependencies, withTests, depsOnly } =
+  Set.fromFoldable $ projectGlobs <> monorepoPkgGlobs <> dependencyGlobs <> [ BuildInfo.buildInfoPath ]
+  where
+  -- Here we select the right globs for a monorepo setup with a bunch of packages
+  projectGlobs = join case depsOnly of
+    true -> []
+    false ->
+      map workspacePackageGlob workspacePackages
+
+  testGlobs = case withTests of
+    true -> WithTestGlobs
+    false -> NoTestGlobs
+
+  workspacePackageGlob :: WorkspacePackage -> Array String
+  workspacePackageGlob p = Config.sourceGlob testGlobs p.package.name (WorkspacePackage p)
+
+  { yes: monorepoPkgs, no: dependencyPkgs } = partition isWorkspacePackage $ Map.toUnfoldable dependencies
+
+  -- depsOnly means "no packages from the monorepo", so we filter out the workspace packages
+  dependencyGlobs = (Tuple.uncurry $ Config.sourceGlob NoTestGlobs) =<< dependencyPkgs
+  monorepoPkgGlobs
+    | depsOnly = []
+    | otherwise = (Tuple.uncurry $ Config.sourceGlob testGlobs) =<< monorepoPkgs
 
 isWorkspacePackage :: Tuple PackageName Package -> Boolean
 isWorkspacePackage = case _ of

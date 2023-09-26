@@ -20,7 +20,7 @@ type ReplEnv a =
   , depsOnly :: Boolean
   , logOptions :: LogOptions
   , pursArgs :: Array String
-  , selected :: WorkspacePackage
+  , selected :: Either (Array WorkspacePackage) WorkspacePackage
   | a
   }
 
@@ -29,12 +29,21 @@ run = do
   { dependencies, purs, logOptions, pursArgs, selected, depsOnly } <- ask
 
   let
-    globs = Build.getBuildGlobs
-      { selected
-      , dependencies
-      , depsOnly
-      , withTests: true
-      }
+    globs = case selected of
+      Right selectedPkg ->
+        Build.getBuildGlobs
+          { selected: selectedPkg
+          , dependencies
+          , depsOnly
+          , withTests: true
+          }
+      Left workspacePackages ->
+        Build.getEntireWorkspaceGlobs
+          { workspacePackages
+          , dependencies
+          , depsOnly
+          , withTests: true
+          }
   void $ runSpago { purs, logOptions } $ Purs.repl globs pursArgs
 
 -- TODO I guess this should be configurable
