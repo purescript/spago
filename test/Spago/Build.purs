@@ -196,7 +196,7 @@ spec = Spec.around withTempDir do
           }
         spago [ "build" ] >>= shouldBeSuccess
 
-      Spec.itOnly "Case 3 (dependencies: A&B -> C; A -> B) builds" \{ spago, fixture } -> do
+      Spec.it "Case 3 (dependencies: A&B -> C; A -> B) builds" \{ spago, fixture } -> do
         spagoInitCleanupNonPackageFiles spago $ fixture "topological-sort-workspace.yaml"
         void $ setupDir
           { packageName: "package-a"
