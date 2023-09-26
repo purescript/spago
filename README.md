@@ -58,7 +58,8 @@ This last command will create a few files:
 ├── src
 │   └── Main.purs
 └── test
-    └── Main.purs
+    └── Test
+        └── Main.purs
 ```
 
 If you have a look at the `spago.yaml` file, you'll see that it contains two sections:
