@@ -1,0 +1,10 @@
+package:
+  name: case-two-package-b
+  dependencies:
+    - console
+    - effect
+    - prelude
+    - case-two-package-shared
+  test:
+    dependencies: []
+    main: Subpackage.B.Test.Main

@@ -1,0 +1,4 @@
+package:
+  name: case-two-package-shared
+  dependencies:
+    - prelude

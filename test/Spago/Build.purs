@@ -2,6 +2,7 @@ module Test.Spago.Build where
 
 import Test.Prelude
 
+import Data.Array as Array
 import Node.FS.Aff as FSA
 import Node.Path as Path
 import Registry.Version as Version
@@ -123,6 +124,97 @@ spec = Spec.around withTempDir do
       spago [ "init", "--name", "7368613235362d68766258694c614d517a3667747a58725778" ] >>= shouldBeSuccess
       spago [ "build" ] >>= shouldBeSuccess
       spago [ "build", "--purs-args", "--codegen", "--purs-args", "corefn" ] >>= shouldBeFailureErr (fixture "codegen-opt.txt")
+
+    Spec.describe "polyrepo" do
+
+      let
+        spagoInitCleanupNonPackageFiles spago workspaceFile = do
+          spago [ "init" ] >>= shouldBeSuccess
+          FSA.unlink $ Path.concat [ "src", "Main.purs" ]
+          FSA.unlink $ Path.concat [ "test", "Test", "Main.purs" ]
+          FSA.unlink "spago.yaml"
+          FS.copyFile
+            { src: workspaceFile
+            , dst: "spago.yaml"
+            }
+
+        setupDir { packageName, spagoYaml, srcMain, testMain } = do
+          let
+            src = Path.concat [ packageName, "src" ]
+            test = Path.concat [ packageName, "test" ]
+            copyTemplate template path = do
+              for_ template \file ->
+                FS.copyFile
+                  { src: file
+                  , dst: Path.concat $ Array.cons packageName path
+                  }
+
+          FS.mkdirp src
+          FS.mkdirp test
+          copyTemplate spagoYaml [ "spago.yaml" ]
+          copyTemplate srcMain [ "src", "Main.purs" ]
+          copyTemplate testMain [ "test", "Main.purs" ]
+          pure { src, test }
+
+      Spec.it "Case 1 (independent packages) builds" \{ spago, fixture } -> do
+        spagoInitCleanupNonPackageFiles spago $ fixture "topological-sort-workspace.yaml"
+        void $ setupDir
+          { packageName: "package-a"
+          , spagoYaml: Just $ fixture "topological-sort-case-1-package-a.yaml"
+          , srcMain: Just $ fixture "topological-sort-case-1-package-a-src.purs"
+          , testMain: Just $ fixture "topological-sort-case-1-package-a-test.purs"
+          }
+        void $ setupDir
+          { packageName: "package-b"
+          , spagoYaml: Just $ fixture "topological-sort-case-1-package-b.yaml"
+          , srcMain: Just $ fixture "topological-sort-case-1-package-b-src.purs"
+          , testMain: Just $ fixture "topological-sort-case-1-package-b-test.purs"
+          }
+        spago [ "build" ] >>= shouldBeSuccess
+
+      Spec.it "Case 2 (shared dependencies packages) builds" \{ spago, fixture } -> do
+        spagoInitCleanupNonPackageFiles spago $ fixture "topological-sort-workspace.yaml"
+        void $ setupDir
+          { packageName: "package-shared"
+          , spagoYaml: Just $ fixture "topological-sort-case-2-package-shared.yaml"
+          , srcMain: Just $ fixture "topological-sort-case-2-package-shared-src.purs"
+          , testMain: Nothing
+          }
+        void $ setupDir
+          { packageName: "package-a"
+          , spagoYaml: Just $ fixture "topological-sort-case-2-package-a.yaml"
+          , srcMain: Just $ fixture "topological-sort-case-2-package-a-src.purs"
+          , testMain: Just $ fixture "topological-sort-case-2-package-a-test.purs"
+          }
+        void $ setupDir
+          { packageName: "package-b"
+          , spagoYaml: Just $ fixture "topological-sort-case-2-package-b.yaml"
+          , srcMain: Just $ fixture "topological-sort-case-2-package-b-src.purs"
+          , testMain: Just $ fixture "topological-sort-case-2-package-b-test.purs"
+          }
+        spago [ "build" ] >>= shouldBeSuccess
+
+      Spec.itOnly "Case 3 (dependencies: A&B -> C; A -> B) builds" \{ spago, fixture } -> do
+        spagoInitCleanupNonPackageFiles spago $ fixture "topological-sort-workspace.yaml"
+        void $ setupDir
+          { packageName: "package-a"
+          , spagoYaml: Just $ fixture "topological-sort-case-3-package-a.yaml"
+          , srcMain: Just $ fixture "topological-sort-case-3-package-a-src.purs"
+          , testMain: Just $ fixture "topological-sort-case-3-package-a-test.purs"
+          }
+        void $ setupDir
+          { packageName: "package-b"
+          , spagoYaml: Just $ fixture "topological-sort-case-3-package-b.yaml"
+          , srcMain: Just $ fixture "topological-sort-case-3-package-b-src.purs"
+          , testMain: Just $ fixture "topological-sort-case-3-package-b-test.purs"
+          }
+        void $ setupDir
+          { packageName: "package-c"
+          , spagoYaml: Just $ fixture "topological-sort-case-3-package-c.yaml"
+          , srcMain: Just $ fixture "topological-sort-case-3-package-c-src.purs"
+          , testMain: Nothing
+          }
+        spago [ "build" ] >>= shouldBeSuccess
 
 -- Spec.it "runs a --before command" \{ spago } -> do
 --   spago [ "init" ] >>= shouldBeSuccess
