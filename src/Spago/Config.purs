@@ -464,7 +464,8 @@ getToplogicallySortedWorkspacePackages packageSet = do
     packageMap = Map.fromFoldable $ map (\p -> Tuple p.package.name p) $ getWorkspacePackages packageSet
     dependenciesAsList p = Set.toUnfoldable $ Map.keys $ unwrap p.package.dependencies
     topSortPkgs =
-      Array.fromFoldable
+      Array.reverse
+        $ Array.fromFoldable
         $ Graph.topologicalSort
         $ Graph.fromMap
         $ map (\p -> Tuple p $ dependenciesAsList p) packageMap
