@@ -101,7 +101,7 @@ run = do
           , depsOnly: false
           -- Here we include tests as well, because we use this code for `spago run` and `spago test`
           , withTests: true
-          , selected: [ selected ]
+          , selected
           }
       Purs.graph globs [] >>= case _ of
         Left err -> logWarn $ "Could not decode the output of `purs graph`, error: " <> CA.printJsonDecodeError err

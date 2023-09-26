@@ -123,7 +123,7 @@ publish _args = do
     )
 
   -- We then need to check that the dependency graph is accurate. If not, queue the errors
-  let globs = Build.getBuildGlobs { selected: [ selected ], withTests: false, dependencies, depsOnly: false }
+  let globs = Build.getBuildGlobs { selected, withTests: false, dependencies, depsOnly: false }
   graphCheckErrors <- Graph.runGraphCheck selected globs []
   for_ graphCheckErrors addError
 

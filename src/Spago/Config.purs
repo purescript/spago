@@ -13,6 +13,7 @@ module Spago.Config
   , getPackageLocation
   , fileSystemCharEscape
   , getWorkspacePackages
+  , getToplogicallySortedWorkspacePackages
   , module Core
   , readWorkspace
   , sourceGlob
@@ -28,6 +29,7 @@ import Data.CodePoint.Unicode as Unicode
 import Data.Codec.Argonaut.Record as CAR
 import Data.Enum as Enum
 import Data.Foldable as Foldable
+import Data.Graph as Graph
 import Data.HTTP.Method as Method
 import Data.Int as Int
 import Data.Map as Map
@@ -47,7 +49,7 @@ import Registry.PackageName as PackageName
 import Registry.Range as Range
 import Registry.Sha256 as Sha256
 import Registry.Version as Version
-import Spago.Core.Config as Core
+import Spago.Core.Config (BackendConfig, BuildOptionsInput, BundleConfig, BundlePlatform(..), BundleType(..), CensorBuildWarnings(..), Config, Dependencies(..), ExtraPackage(..), GitPackage, LegacyPackageSetEntry, LocalPackage, PackageConfig, PublishConfig, RemotePackage(..), RunConfig, SetAddress(..), ShowSourceCode(..), StatVerbosity(..), TestConfig, WorkspaceConfig, configCodec, dependenciesCodec, extraPackageCodec, gitPackageCodec, legacyPackageSetEntryCodec, localPackageCodec, packageConfigCodec, parseBundleType, parsePlatform, printSpagoRange, readConfig, remotePackageCodec, setAddressCodec, widestRange) as Core
 import Spago.FS as FS
 import Spago.Git as Git
 import Spago.Lock (Lockfile)
@@ -455,6 +457,31 @@ getWorkspacePackages = Array.mapMaybe extractWorkspacePackage <<< Map.toUnfoldab
   extractWorkspacePackage = case _ of
     Tuple _ (WorkspacePackage p) -> Just p
     _ -> Nothing
+
+newtype With a b = With (Tuple a b)
+
+instance Eq b => Eq (With a b) where
+  eq (With (Tuple _ b1)) (With (Tuple _ b2)) = b1 == b2
+
+instance Ord b => Ord (With a b) where
+  compare (With (Tuple _ b1)) (With (Tuple _ b2)) = compare b1 b2
+
+derive instance Newtype (With a b) _
+derive instance Generic (With a b) _
+instance (Show a, Show b) => Show (With a b) where
+  show (With t) = "(With " <> show t <> ")"
+
+getToplogicallySortedWorkspacePackages :: PackageSet -> Array WorkspacePackage
+getToplogicallySortedWorkspacePackages packageSet = do
+  let
+    packageMap = Map.fromFoldable $ map (\p -> Tuple p.package.name p) $ getWorkspacePackages packageSet
+    dependenciesAsList p = Set.toUnfoldable $ Map.keys $ unwrap p.package.dependencies
+    topSortPkgs =
+      Array.fromFoldable
+        $ Graph.topologicalSort
+        $ Graph.fromMap
+        $ map (\p -> Tuple p $ dependenciesAsList p) packageMap
+  Array.mapMaybe (flip Map.lookup packageMap) topSortPkgs
 
 type PackageSetResult = { compiler :: Version, remotePackageSet :: Map PackageName Core.RemotePackage }
 

@@ -116,16 +116,6 @@ run opts = do
         runCommands "Then" thenCommands
   -}
 
-  let
-    globs = getBuildGlobs
-      { dependencies
-      , depsOnly: opts.depsOnly
-      , withTests: true
-      , selected: case workspace.selected of
-          Just p -> [ p ]
-          Nothing -> Config.getWorkspacePackages workspace.packageSet
-      }
-
   when (isJust $ Cmd.findFlag { flags: [ "-g", "--codegen" ], args: opts.pursArgs }) do
     die
       [ "Can't pass the `--codegen` option to purs, Spago already does that for you."
@@ -140,21 +130,29 @@ run opts = do
           Nothing -> ",js,sourcemaps"
           Just _ -> ""
       ]
-  Psa.psaCompile globs args psaArgs psaOptions
 
-  buildBackend
+  let
+    selectedPackages = case workspace.selected of
+      Just p -> [ p ]
+      Nothing -> Config.getToplogicallySortedWorkspacePackages workspace.packageSet
 
-  when workspace.buildOptions.pedanticPackages do
-    logInfo $ "Looking for unused and undeclared transitive dependencies..."
-    errors <- case workspace.selected of
-      Just selected -> Graph.runGraphCheck selected globs opts.pursArgs
-      Nothing -> do
-        -- TODO: here we could go through all the workspace packages and run the check for each
-        -- The complication is that "dependencies" includes all the dependencies for all packages
-        map Array.fold $ for (Config.getWorkspacePackages workspace.packageSet) \selected -> do
-          Graph.runGraphCheck selected globs opts.pursArgs
-    unless (Array.null errors) do
-      die' errors
+  for_ selectedPackages \selected -> do
+    let
+      globs = getBuildGlobs
+        { dependencies
+        , depsOnly: opts.depsOnly
+        , withTests: true
+        , selected
+        }
+    Psa.psaCompile globs args psaArgs psaOptions
+
+    buildBackend
+
+    when workspace.buildOptions.pedanticPackages do
+      logInfo $ "Looking for unused and undeclared transitive dependencies..."
+      errors <- Graph.runGraphCheck selected globs opts.pursArgs
+      unless (Array.null errors) do
+        die' errors
 
 -- TODO: if we are building with all the packages (i.e. selected = Nothing),
 -- then we can use the graph to remove outdated modules from `output`!
@@ -162,7 +160,7 @@ run opts = do
 type BuildGlobsOptions =
   { withTests :: Boolean
   , depsOnly :: Boolean
-  , selected :: Array WorkspacePackage
+  , selected :: WorkspacePackage
   , dependencies :: Map PackageName Package
   }
 
@@ -171,11 +169,11 @@ getBuildGlobs { selected, dependencies, withTests, depsOnly } =
   Set.fromFoldable $ projectGlobs <> monorepoPkgGlobs <> dependencyGlobs <> [ BuildInfo.buildInfoPath ]
   where
   -- Here we select the right globs for a monorepo setup with a bunch of packages
-  projectGlobs = join case depsOnly of
+  projectGlobs = case depsOnly of
     true -> []
     false ->
       -- We just select all the workspace package globs, because it's (1) intuitive and (2) backwards compatible
-      map workspacePackageGlob selected
+      workspacePackageGlob selected
 
   testGlobs = case withTests of
     true -> WithTestGlobs

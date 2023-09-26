@@ -20,7 +20,7 @@ type ReplEnv a =
   , depsOnly :: Boolean
   , logOptions :: LogOptions
   , pursArgs :: Array String
-  , selected :: Array WorkspacePackage
+  , selected :: WorkspacePackage
   | a
   }
 
