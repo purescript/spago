@@ -458,19 +458,6 @@ getWorkspacePackages = Array.mapMaybe extractWorkspacePackage <<< Map.toUnfoldab
     Tuple _ (WorkspacePackage p) -> Just p
     _ -> Nothing
 
-newtype With a b = With (Tuple a b)
-
-instance Eq b => Eq (With a b) where
-  eq (With (Tuple _ b1)) (With (Tuple _ b2)) = b1 == b2
-
-instance Ord b => Ord (With a b) where
-  compare (With (Tuple _ b1)) (With (Tuple _ b2)) = compare b1 b2
-
-derive instance Newtype (With a b) _
-derive instance Generic (With a b) _
-instance (Show a, Show b) => Show (With a b) where
-  show (With t) = "(With " <> show t <> ")"
-
 getToplogicallySortedWorkspacePackages :: PackageSet -> Array WorkspacePackage
 getToplogicallySortedWorkspacePackages packageSet = do
   let
