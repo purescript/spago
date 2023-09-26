@@ -137,12 +137,16 @@ run opts = do
       Just p -> [ p ]
       Nothing -> Config.getToplogicallySortedWorkspacePackages workspace.packageSet
 
-  logInfo
-    $ append "Building packages in the following order:\n"
-    $ Array.intercalate "\n"
-    $ Array.mapWithIndex (\i p -> show (i + 1) <> ") " <> PackageName.print p.package.name) selectedPackages
+  let buildingMultiplePackages = Array.length selectedPackages > 1
+
+  when buildingMultiplePackages do
+    logInfo
+      $ append "Building packages in the following order:\n"
+      $ Array.intercalate "\n"
+      $ Array.mapWithIndex (\i p -> show (i + 1) <> ") " <> PackageName.print p.package.name) selectedPackages
   for_ selectedPackages \selected -> do
-    logInfo $ "Building package: " <> PackageName.print selected.package.name
+    when buildingMultiplePackages do
+      logInfo $ "Building package: " <> PackageName.print selected.package.name
     let
       globs = getBuildGlobs
         { dependencies
