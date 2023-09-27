@@ -78,19 +78,17 @@ run { packages, ensureRanges, isTest } = do
   transitivePackages <- getTransitiveDeps deps
 
   -- write to the config file if we are adding new packages
-  let
-    getPackageConfigPath = do
-      case workspace.selected of
-        Just { path, doc, package } -> pure { configPath: Path.concat [ path, "spago.yaml" ], yamlDoc: doc, package }
-        Nothing -> case workspace.rootPackage of
-          Just rootPackage -> pure { configPath: "spago.yaml", yamlDoc: workspace.doc, package: rootPackage }
-          Nothing -> die
-            [ "No package found in the root configuration."
-            , "Please use the `-p` flag to select a package to install your packages in."
-            ]
-
   unless (Array.null packages) do
-    { configPath, package, yamlDoc } <- getPackageConfigPath
+    { configPath, package, yamlDoc } <- case workspace.selected of
+      Just { path, doc, package } ->
+        pure { configPath: Path.concat [ path, "spago.yaml" ], yamlDoc: doc, package }
+      Nothing | Just rootPackage <- workspace.rootPackage ->
+        pure { configPath: "spago.yaml", yamlDoc: workspace.doc, package: rootPackage }
+      _ ->
+        die
+          [ "No package found in the root configuration."
+          , "Please use the `-p` flag to select a package to install your packages in."
+          ]
     let packageDependencies = Map.keys $ unwrap package.dependencies
     let overlappingPackages = Set.intersection packageDependencies (Set.fromFoldable packages)
     unless (Set.isEmpty overlappingPackages) do
@@ -103,8 +101,18 @@ run { packages, ensureRanges, isTest } = do
 
   -- if the flag is selected, we kick off the process of adding ranges to the config
   when ensureRanges do
-    { configPath, yamlDoc } <- getPackageConfigPath
+    { configPath, yamlDoc } <- case workspace.selected of
+      Just { path, doc, package } ->
+        pure { configPath: Path.concat [ path, "spago.yaml" ], yamlDoc: doc, package }
+      Nothing | Just rootPackage <- workspace.rootPackage ->
+        pure { configPath: "spago.yaml", yamlDoc: workspace.doc, package: rootPackage }
+      _ ->
+        die
+          [ "No package found in the root configuration."
+          , "Please use the `-p` flag to select a package to install your packages in."
+          ]
     logInfo $ "Adding ranges to dependencies to the config in " <> configPath
+    -- here is where we will want to use the `transitivePackages` specifically for the given package
     let rangeMap = map getRangeFromPackage transitivePackages
     liftEffect $ Config.addRangesToConfig yamlDoc rangeMap
     liftAff $ FS.writeYamlDocFile configPath yamlDoc
@@ -131,6 +139,7 @@ run { packages, ensureRanges, isTest } = do
         }
 
     (lockfilePackages :: Map PackageName Lock.LockEntry) <- Map.catMaybes <$>
+      -- we likely want to combine all the workspace package's transitivePackages into a new lock file
       forWithIndex transitivePackages \packageName package -> do
         (packageDependencies :: Array PackageName) <- (Array.fromFoldable <<< Map.keys <<< fromMaybe Map.empty)
           <$> getPackageDependencies packageName package
@@ -167,6 +176,7 @@ run { packages, ensureRanges, isTest } = do
 
   -- the repl needs a support package, so we fetch it here as a sidecar
   supportPackage <- Repl.supportPackage workspace.packageSet
+  -- Combine all packages here
   let transitivePackages' = Map.union transitivePackages supportPackage
 
   parallelise $ (flip map) (Map.toUnfoldable transitivePackages' :: Array (Tuple PackageName Package)) \(Tuple name package) -> do
