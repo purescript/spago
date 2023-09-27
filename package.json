@@ -36,6 +36,8 @@
     "fast-glob": "^3.2.11",
     "fs-extra": "^10.0.0",
     "fuse.js": "^6.5.3",
+    "glob": "^7.1.6",
+    "markdown-it": "^12.0.4",
     "semver": "^7.3.5",
     "spdx-expression-parse": "^3.0.1",
     "ssh2": "^1.14.0",
