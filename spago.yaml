@@ -63,20 +63,6 @@ workspace:
       git: https://github.com/purescript/registry-dev.git
       ref: 6a803c37577af368caa221a2a06d6be2079d32da
       subdir: foreign
-    css:
-      dependencies:
-        - colors
-        - console
-        - effect
-        - exceptions
-        - nonempty
-        - profunctor
-        - psci-support
-        - strings
-        - these
-        - transformers
-      git: https://github.com/purescript-contrib/purescript-css.git
-      ref: 710d6a742beb88299faf08aaeb997ee1e24483ab
     html-parser-halogen:
       dependencies:
         - halogen
@@ -131,22 +117,6 @@ workspace:
         - tuples
       git: https://github.com/paf31/purescript-memoize.git
       ref: 9960694e82adc212fd89f8ed8778cf55fcb72aeb
-    optparse:
-      dependencies:
-        - arrays
-        - console
-        - effect
-        - exists
-        - exitcodes
-        - free
-        - memoize
-        - node-process
-        - ordered-collections
-        - prelude
-        - strings
-        - transformers
-      git: https://github.com/klntsky/purescript-optparse.git
-      ref: 2fe4265b7c6b09744c11190a43ca06777c752473
     search-trie:
       dependencies:
         - arrays
