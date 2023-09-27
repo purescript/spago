@@ -69,15 +69,13 @@ run { packages, ensureRanges, isTest } = do
   -- lookup the dependencies in the package set, so we get their version numbers
   let
     deps = case workspace.selected of
-      Just selected -> getWorkspacePackageDeps selected
+      Just selected -> getWorkspacePackageDeps selected <> Dependencies (Map.fromFoldable $ map (_ /\ Nothing) packages)
       Nothing ->
         -- get all the dependencies of all the workspace packages if none was selected
-        foldMap getWorkspacePackageDeps (Config.getWorkspacePackages workspace.packageSet)
+        foldMap getWorkspacePackageDeps (Config.getWorkspacePackages workspace.packageSet) <> Dependencies (Map.fromFoldable $ map (_ /\ Nothing) packages)
 
   -- here get transitive packages
-  transitivePackages <- getTransitiveDeps
-    $ deps
-    <> Dependencies (Map.fromFoldable $ map (_ /\ Nothing) packages)
+  transitivePackages <- getTransitiveDeps deps
 
   -- write to the config file if we are adding new packages
   let
