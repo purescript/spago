@@ -131,7 +131,15 @@ run opts = do
       [ "Can't pass the `--codegen` option to purs, Spago already does that for you."
       , "Remove the argument to make this error go away!"
       ]
-  let args = (addOutputArgs opts.pursArgs) <> [ "--codegen", "corefn,docs,js,sourcemaps" ]
+  let
+    args = (addOutputArgs opts.pursArgs) <>
+      [ "--codegen"
+      , "corefn,docs" <> case workspace.backend of
+          -- If there's no backend specified then we do compile to JS, otherwise skip the target.
+          -- Note: sourcemaps are JS specific, so they go together
+          Nothing -> ",js,sourcemaps"
+          Just _ -> ""
+      ]
   Psa.psaCompile globs args psaArgs psaOptions
 
   buildBackend
