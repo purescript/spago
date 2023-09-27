@@ -3,7 +3,6 @@ module Spago.Command.Bundle where
 import Spago.Prelude
 
 import Node.Path as Path
-import Data.String (Pattern(..), Replacement(..))
 import Data.String as String
 import Spago.Cmd as Cmd
 import Spago.Esbuild (Esbuild)
