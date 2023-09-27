@@ -6,11 +6,14 @@ import Data.Array as Array
 import Data.List as List
 import Data.Set.NonEmpty (NonEmptySet)
 import Data.Set.NonEmpty as NonEmptySet
-import Options.Applicative (Parser)
+import Options.Applicative (FlagFields, Mod, Parser)
 import Options.Applicative as O
 import Options.Applicative.Types as O
 import Spago.Core.Config (ShowSourceCode(..))
 import Spago.Core.Config as Core
+
+flagMaybe ∷ ∀ (a ∷ Type). a -> Mod FlagFields (Maybe a) -> Parser (Maybe a)
+flagMaybe a mod = O.flag Nothing (Just a) mod
 
 selectedPackage :: Parser (Maybe String)
 selectedPackage =
@@ -24,21 +27,15 @@ selectedPackage =
 
 strict :: Parser (Maybe Boolean)
 strict =
-  O.optional
-    $ O.switch
-        ( O.long "strict"
-            <> O.help "Promotes project sources' warnings to errors"
-        )
+  flagMaybe true
+    ( O.long "strict"
+        <> O.help "Promotes project sources' warnings to errors"
+    )
 
 censorBuildWarnings :: Parser (Maybe Core.CensorBuildWarnings)
 censorBuildWarnings =
   O.optional $
-    flip
-      O.option
-      ( O.long "censor-build-warnings"
-          <> O.help "Censor compiler warnings based on file's location: 'dependency', 'project', or 'all'"
-          <> O.metavar "ARG"
-      )
+    O.option
       ( O.eitherReader
           case _ of
             "all" -> Right Core.CensorAllWarnings
@@ -46,16 +43,17 @@ censorBuildWarnings =
             "dependency" -> Right Core.CensorDependencyWarnings
             _ -> Left $ "Expected 'all', 'project', or 'dependency'"
       )
+      ( O.long "censor-build-warnings"
+          <> O.help "Censor compiler warnings based on file's location: 'dependency', 'project', or 'all'"
+          <> O.metavar "ARG"
+      )
 
 showSource :: Parser (Maybe ShowSourceCode)
 showSource =
-  O.optional
-    $ O.switch
-        ( O.long "no-source"
-            <> O.help "Disable original source code printing"
-        )
-    $>
-      NoSourceCode
+  flagMaybe NoSourceCode
+    ( O.long "no-source"
+        <> O.help "Disable original source code printing"
+    )
 
 censorCodes :: Parser (Maybe (NonEmptySet String))
 censorCodes =
@@ -82,10 +80,8 @@ filterCodes =
 
 statVerbosity :: Parser (Maybe Core.StatVerbosity)
 statVerbosity =
-  O.optional
-    $ (Core.VerboseStats <$ O.switch (O.long "verbose-stats" <> O.help "Show counts for each warning type"))
-    <|>
-      (Core.NoStats <$ O.switch (O.long "censor-stats" <> O.help "Censor warning/error summary"))
+  flagMaybe Core.VerboseStats (O.long "verbose-stats" <> O.help "Show counts for each warning type")
+    <|> flagMaybe Core.NoStats (O.long "censor-stats" <> O.help "Censor warning/error summary")
 
 persistWarnings :: Parser (Maybe Boolean)
 persistWarnings =
