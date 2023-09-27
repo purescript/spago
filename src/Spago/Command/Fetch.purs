@@ -176,7 +176,6 @@ run { packages, ensureRanges, isTest } = do
         }
 
     (lockfilePackages :: Map PackageName Lock.LockEntry) <- Map.catMaybes <$>
-      -- we likely want to combine all the workspace package's transitivePackages into a new lock file
       forWithIndex transitivePackages \packageName package -> do
         (packageDependencies :: Array PackageName) <- (Array.fromFoldable <<< Map.keys <<< fromMaybe Map.empty)
           <$> getPackageDependencies packageName package
@@ -213,7 +212,6 @@ run { packages, ensureRanges, isTest } = do
 
   -- the repl needs a support package, so we fetch it here as a sidecar
   supportPackage <- replSupportPackage workspace.packageSet
-  -- Combine all packages here
   let transitivePackages' = Map.union transitivePackages supportPackage
 
   parallelise $ (flip map) (Map.toUnfoldable transitivePackages' :: Array (Tuple PackageName Package)) \(Tuple name package) -> do
