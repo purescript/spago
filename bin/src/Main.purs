@@ -28,6 +28,7 @@ import Spago.Bin.Flags as Flags
 import Spago.BuildInfo as BuildInfo
 import Spago.Command.Build as Build
 import Spago.Command.Bundle as Bundle
+import Spago.Command.Docs as Docs
 import Spago.Command.Fetch as Fetch
 import Spago.Command.Init as Init
 import Spago.Command.Ls (LsDepsArgs, LsPackagesArgs)
@@ -100,6 +101,8 @@ type BuildArgs a =
   , persistWarnings :: Maybe Boolean
   | a
   }
+
+type DocsArgs = { }
 
 -- TODO: more repl arguments: dependencies, repl-package
 type ReplArgs =
@@ -179,6 +182,7 @@ data Command a
   | Fetch FetchArgs
   | Install InstallArgs
   | Build (BuildArgs a)
+  | Docs DocsArgs 
   | Bundle BundleArgs
   | Repl ReplArgs
   | Run RunArgs
@@ -211,6 +215,8 @@ argParser =
     , commandParser "sources" (Sources <$> sourcesArgsParser) "List all the source paths (globs) for the dependencies of the project"
     , commandParser "repl" (Repl <$> replArgsParser) "Start a REPL"
     , commandParser "publish" (Publish <$> publishArgsParser) "Publish a package"
+
+    , commandParser "docs" (Docs <$> docsArgsParser) "Generate docs for the project and its dependencies"
     , O.command "registry"
         ( O.info
             ( O.hsubparser $ Foldable.fold
@@ -377,6 +383,10 @@ publishArgsParser =
   Optparse.fromRecord
     { selectedPackage: Flags.selectedPackage
     }
+
+docsArgsParser :: Parser DocsArgs
+docsArgsParser = Optparse.fromRecord { }
+
 
 registrySearchArgsParser :: Parser RegistrySearchArgs
 registrySearchArgsParser =
@@ -586,6 +596,10 @@ main =
             dependencies <- runSpago env (Fetch.run fetchOpts)
             lsEnv <- runSpago env (mkLsEnv dependencies)
             runSpago lsEnv (Ls.listPackages { json, transitive })
+
+          Docs _ -> do
+             logInfo "hello, world"
+
       Cmd'VersionCmd v -> do when v printVersion
   where
   printVersion = do

@@ -54,9 +54,42 @@ compile globs pursArgs = do
     { pipeStdout = false }
 
 repl :: forall a. Set FilePath -> Array String -> Spago (PursEnv a) (Either Cmd.ExecError Cmd.ExecResult)
+
 repl globs pursArgs = do
   { purs } <- ask
   let args = [ "repl" ] <> pursArgs <> Set.toUnfoldable globs
+  Cmd.exec purs.cmd args $ Cmd.defaultExecOptions
+    { pipeStdout = true
+    , pipeStderr = true
+    , pipeStdin = Cmd.StdinPipeParent
+    }
+
+data DocsFormat
+  = Html
+  | Markdown
+  | Ctags
+  | Etags
+derive instance Eq DocsFormat
+
+parseDocsFormat :: String -> Maybe DocsFormat
+parseDocsFormat = case _ of
+  "html"     -> Just Html
+  "markdown" -> Just Markdown
+  "ctags"    -> Just Ctags
+  "etags"    -> Just Etags
+  _          -> Nothing
+
+printDocsFormat :: DocsFormat -> String
+printDocsFormat = case _ of
+  Html     -> "html"
+  Markdown -> "markdown"
+  Ctags    -> "ctags"
+  Etags    -> "etags"
+
+docs :: forall a. Set FilePath -> DocsFormat -> Spago (PursEnv a) (Either Cmd.ExecError Cmd.ExecResult)
+docs globs format = do
+  { purs } <- ask
+  let args = [ "docs", "--format", printDocsFormat format ] <> Set.toUnfoldable globs
   Cmd.exec purs.cmd args $ Cmd.defaultExecOptions
     { pipeStdout = true
     , pipeStderr = true
