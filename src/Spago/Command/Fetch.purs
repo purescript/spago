@@ -345,7 +345,7 @@ getPackageDependencies packageName package = case package of
 
 getWorkspacePackageDeps :: WorkspacePackage -> Dependencies
 getWorkspacePackageDeps pkg =
-  if isJust pkg.package.test then
+  if pkg.hasTests then
     pkg.package.dependencies <> fromMaybe mempty (map _.dependencies pkg.package.test)
   else pkg.package.dependencies
 
