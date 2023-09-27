@@ -476,7 +476,7 @@ main =
           Install args@{ packages, selectedPackage, ensureRanges, testDeps } -> do
             { env, fetchOpts } <- mkFetchEnv { packages, selectedPackage, ensureRanges, testDeps }
             -- TODO: --no-fetch flag
-            dependencies <- runSpago env (Fetch.run fetchOpts)
+            dependencyInfo <- runSpago env (Fetch.run fetchOpts)
             let
               buildArgs = Record.merge
                 args
@@ -488,20 +488,20 @@ main =
                 , strict: Nothing :: Maybe Boolean
                 , persistWarnings: Nothing :: Maybe Boolean
                 }
-            env' <- runSpago env (mkBuildEnv buildArgs dependencies)
+            env' <- runSpago env (mkBuildEnv buildArgs dependencyInfo)
             let options = { depsOnly: true, pursArgs: List.toUnfoldable args.pursArgs, jsonErrors: false }
             runSpago env' (Build.run options)
           Build args@{ selectedPackage, ensureRanges, jsonErrors } -> do
             { env, fetchOpts } <- mkFetchEnv { packages: mempty, selectedPackage, ensureRanges, testDeps: false }
             -- TODO: --no-fetch flag
-            dependencies <- runSpago env (Fetch.run fetchOpts)
-            buildEnv <- runSpago env (mkBuildEnv args dependencies)
+            dependencyInfo <- runSpago env (Fetch.run fetchOpts)
+            buildEnv <- runSpago env (mkBuildEnv args dependencyInfo)
             let options = { depsOnly: false, pursArgs: List.toUnfoldable args.pursArgs, jsonErrors }
             runSpago buildEnv (Build.run options)
           Publish { selectedPackage } -> do
             { env, fetchOpts } <- mkFetchEnv { packages: mempty, selectedPackage, ensureRanges: false, testDeps: false }
             -- TODO: --no-fetch flag
-            dependencies <- runSpago env (Fetch.run fetchOpts)
+            dependencyInfo <- runSpago env (Fetch.run fetchOpts)
             let
               buildArgs =
                 { selectedPackage
@@ -519,8 +519,8 @@ main =
                 , strict: Nothing :: Maybe Boolean
                 , persistWarnings: Nothing :: Maybe Boolean
                 }
-            { purs } <- runSpago env (mkBuildEnv buildArgs dependencies)
-            publishEnv <- runSpago env (mkPublishEnv dependencies purs)
+            { purs } <- runSpago env (mkBuildEnv buildArgs dependencyInfo)
+            publishEnv <- runSpago env (mkPublishEnv dependencyInfo purs)
             void $ runSpago publishEnv (Publish.publish {})
 
           Repl args@{ selectedPackage } -> do
@@ -548,17 +548,17 @@ main =
               , ensureRanges: false
               , testDeps: false
               }
-            dependencies <- runSpago env (Fetch.run fetchOpts)
+            dependencyInfo <- runSpago env (Fetch.run fetchOpts)
             supportPackages <- runSpago env (Fetch.replSupportPackage env.workspace.packageSet)
-            replEnv <- runSpago env (mkReplEnv args (Map.union dependencies supportPackages))
+            replEnv <- runSpago env (mkReplEnv args (Map.union dependencyInfo.dependencies supportPackages))
             void $ runSpago replEnv Repl.run
 
           Bundle args@{ selectedPackage, ensureRanges } -> do
             { env, fetchOpts } <- mkFetchEnv { packages: mempty, selectedPackage, ensureRanges, testDeps: false }
             -- TODO: --no-fetch flag
-            dependencies <- runSpago env (Fetch.run fetchOpts)
+            dependencyInfo <- runSpago env (Fetch.run fetchOpts)
             -- TODO: --no-build flag
-            buildEnv <- runSpago env (mkBuildEnv args dependencies)
+            buildEnv <- runSpago env (mkBuildEnv args dependencyInfo)
             let options = { depsOnly: false, pursArgs: List.toUnfoldable args.pursArgs, jsonErrors: false }
             runSpago buildEnv (Build.run options)
             bundleEnv <- runSpago env (mkBundleEnv args)
@@ -566,9 +566,9 @@ main =
           Run args@{ selectedPackage, ensureRanges } -> do
             { env, fetchOpts } <- mkFetchEnv { packages: mempty, selectedPackage, ensureRanges, testDeps: false }
             -- TODO: --no-fetch flag
-            dependencies <- runSpago env (Fetch.run fetchOpts)
+            dependencyInfo <- runSpago env (Fetch.run fetchOpts)
             -- TODO: --no-build flag
-            buildEnv <- runSpago env (mkBuildEnv args dependencies)
+            buildEnv <- runSpago env (mkBuildEnv args dependencyInfo)
             let options = { depsOnly: false, pursArgs: List.toUnfoldable args.pursArgs, jsonErrors: false }
             runSpago buildEnv (Build.run options)
             runEnv <- runSpago env (mkRunEnv args buildEnv)
@@ -576,9 +576,9 @@ main =
           Test args@{ selectedPackage } -> do
             { env, fetchOpts } <- mkFetchEnv { packages: mempty, selectedPackage, ensureRanges: false, testDeps: false }
             -- TODO: --no-fetch flag
-            dependencies <- runSpago env (Fetch.run fetchOpts)
+            dependencyInfo <- runSpago env (Fetch.run fetchOpts)
             -- TODO: --no-build flag
-            buildEnv <- runSpago env (mkBuildEnv (Record.union args { ensureRanges: false }) dependencies)
+            buildEnv <- runSpago env (mkBuildEnv (Record.union args { ensureRanges: false }) dependencyInfo)
             let options = { depsOnly: false, pursArgs: List.toUnfoldable args.pursArgs, jsonErrors: false }
             runSpago buildEnv (Build.run options)
             testEnv <- runSpago env (mkTestEnv args buildEnv)
@@ -587,15 +587,15 @@ main =
             let fetchArgs = { packages: mempty, selectedPackage: Nothing, ensureRanges: false, testDeps: false }
             { env: env@{ workspace }, fetchOpts } <- mkFetchEnv fetchArgs
             -- TODO: --no-fetch flag
-            dependencies <- runSpago env (Fetch.run fetchOpts)
-            let lsEnv = { workspace, dependencies, logOptions }
+            dependencyInfo <- runSpago env (Fetch.run fetchOpts)
+            let lsEnv = { workspace, dependencies: dependencyInfo.dependencies, logOptions }
             runSpago lsEnv (Ls.listPackageSet args)
           LsDeps { selectedPackage, json, transitive } -> do
             let fetchArgs = { packages: mempty, selectedPackage, ensureRanges: false, testDeps: false }
             { env, fetchOpts } <- mkFetchEnv fetchArgs
             -- TODO: --no-fetch flag
-            dependencies <- runSpago env (Fetch.run fetchOpts)
-            lsEnv <- runSpago env (mkLsEnv dependencies)
+            dependencyInfo <- runSpago env (Fetch.run fetchOpts)
+            lsEnv <- runSpago env (mkLsEnv dependencyInfo.dependencies)
             runSpago lsEnv (Ls.listPackages { json, transitive })
 
 mkLogOptions :: GlobalArgs -> Aff LogOptions
@@ -757,9 +757,9 @@ mkBuildEnv
      , persistWarnings :: Maybe Boolean
      | r
      }
-  -> Map PackageName Package
+  -> Fetch.PackageDependencyInfo
   -> Spago (Fetch.FetchEnv ()) (Build.BuildEnv ())
-mkBuildEnv buildArgs dependencies = do
+mkBuildEnv buildArgs { packageDependencies, dependencies } = do
   { logOptions, workspace, git } <- ask
   purs <- Purs.getPurs
   let
@@ -788,12 +788,13 @@ mkBuildEnv buildArgs dependencies = do
     { logOptions
     , purs
     , git
+    , packageDependencies
     , dependencies
     , workspace: newWorkspace
     }
 
-mkPublishEnv :: forall a. Map PackageName Package -> Purs -> Spago (Fetch.FetchEnv a) (Publish.PublishEnv a)
-mkPublishEnv dependencies purs = do
+mkPublishEnv :: forall a. Fetch.PackageDependencyInfo -> Purs -> Spago (Fetch.FetchEnv a) (Publish.PublishEnv a)
+mkPublishEnv dependencyInfo purs = do
   env <- ask
   selected <- case env.workspace.selected of
     Just s -> pure s
@@ -810,7 +811,7 @@ mkPublishEnv dependencies purs = do
               [ toDoc "No package was selected for publishing. Please select (with -p) one of the following packages:"
               , indent (toDoc $ map _.package.name workspacePackages)
               ]
-  pure (Record.union { purs, selected, dependencies } env)
+  pure (Record.union { purs, selected } $ Record.union dependencyInfo env)
 
 mkReplEnv :: forall a. ReplArgs -> Map PackageName Package -> Spago (Fetch.FetchEnv a) (Repl.ReplEnv ())
 mkReplEnv replArgs dependencies = do

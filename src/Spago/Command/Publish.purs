@@ -29,7 +29,7 @@ import Registry.Version as Version
 import Routing.Duplex as Duplex
 import Spago.Command.Build as Build
 import Spago.Command.Fetch as Fetch
-import Spago.Config (Package(..), Workspace, WorkspacePackage)
+import Spago.Config (Package(..), Workspace, WorkspacePackage, PackageMap)
 import Spago.Config as Config
 import Spago.Config as Core
 import Spago.Git (Git)
@@ -57,6 +57,7 @@ type PublishEnv a =
   , purs :: Purs
   , selected :: WorkspacePackage
   , dependencies :: Map PackageName Package
+  , packageDependencies :: Map PackageName PackageMap
   | a
   }
 
@@ -105,8 +106,9 @@ publish _args = do
     , logOptions: env.logOptions
     , git: env.git
     , purs: env.purs
-    , selected: env.selected
+    , selected: env.selected -- Note: should this be using the updated `selected` value?
     , dependencies: env.dependencies
+    , packageDependencies: env.packageDependencies
     , censorBuildWarnings: (Nothing :: Maybe Core.CensorBuildWarnings)
     , censorCodes: (Nothing :: Maybe (NonEmptySet String))
     , filterCodes: (Nothing :: Maybe (NonEmptySet String))
@@ -302,6 +304,7 @@ publish _args = do
         , purs: env.purs
         , selected: env.selected
         , dependencies: buildPlanDependencies
+        , packageDependencies: Map.singleton selected.package.name buildPlanDependencies
         , censorBuildWarnings: (Nothing :: Maybe Core.CensorBuildWarnings)
         , censorCodes: (Nothing :: Maybe (NonEmptySet String))
         , filterCodes: (Nothing :: Maybe (NonEmptySet String))

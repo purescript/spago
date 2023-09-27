@@ -2,6 +2,7 @@ module Spago.Command.Fetch
   ( FetchEnv
   , FetchEnvRow
   , FetchOpts
+  , PackageDependencyInfo
   , getWorkspacePackageDeps
   , getTransitiveDeps
   , getTransitiveDepsFromRegistry
@@ -35,7 +36,7 @@ import Registry.Solver as Registry.Solver
 import Registry.Version as Registry.Version
 import Registry.Version as Version
 import Spago.Command.Registry (RegistryEnv)
-import Spago.Config (Dependencies(..), GitPackage, LockfileSettings(..), Package(..), PackageMap, PackageSet(..), Workspace, WorkspacePackage)
+import Spago.Config (Dependencies(..), GitPackage, LockfileSettings(..), Package(..), PackageConfig, PackageMap, PackageSet(..), Workspace, WorkspacePackage)
 import Spago.Config as Config
 import Spago.FS as FS
 import Spago.Git as Git
@@ -61,7 +62,15 @@ type FetchOpts =
   , isTest :: Boolean
   }
 
-run :: forall a. FetchOpts -> Spago (FetchEnv a) PackageMap
+type PackageDependencyInfo =
+  { packageDependencies :: Map PackageName PackageMap
+  , dependencies :: PackageMap
+  }
+
+run
+  :: forall a
+   . FetchOpts
+  -> Spago (FetchEnv a) PackageDependencyInfo
 run { packages, ensureRanges, isTest } = do
   logDebug $ "Requested to install these packages: " <> printJson (CA.array PackageName.codec) packages
 
@@ -69,28 +78,54 @@ run { packages, ensureRanges, isTest } = do
 
   -- lookup the dependencies in the package set, so we get their version numbers
   let
-    deps = case workspace.selected of
-      Just selected -> getWorkspacePackageDeps selected <> Dependencies (Map.fromFoldable $ map (_ /\ Nothing) packages)
-      Nothing ->
-        -- get all the dependencies of all the workspace packages if none was selected
-        foldMap getWorkspacePackageDeps (Config.getWorkspacePackages workspace.packageSet) <> Dependencies (Map.fromFoldable $ map (_ /\ Nothing) packages)
+    getSelectedPackageTransitiveDeps :: WorkspacePackage -> Spago (FetchEnv a) PackageMap
+    getSelectedPackageTransitiveDeps selected =
+      getTransitiveDeps $ getWorkspacePackageDeps selected <> Dependencies (Map.fromFoldable $ map (_ /\ Nothing) packages)
 
-  -- here get transitive packages
-  transitivePackages <- getTransitiveDeps deps
+  workspaceDepsOrSelectedPackage <- case workspace.selected of
+    Just (selected :: WorkspacePackage) -> do
+      transitiveDeps <- getSelectedPackageTransitiveDeps selected
+      pure $ Right
+        { workspacePackage: selected
+        , configPath: Path.concat [ selected.path, "spago.yaml" ]
+        , yamlDoc: selected.doc
+        , transitiveDeps
+        }
+    Nothing | not $ Array.null packages ->
+      case workspace.rootPackage of
+        Just (rootPackage :: PackageConfig) -> do
+          hasTests <- FS.exists "test"
+          let rootWorkspacePackage = { path: "./", doc: workspace.doc, package: rootPackage, hasTests }
+          transitiveDeps <- getSelectedPackageTransitiveDeps rootWorkspacePackage
+          pure $ Right
+            { workspacePackage: rootWorkspacePackage
+            , configPath: "spago.yaml"
+            , yamlDoc: workspace.doc
+            , transitiveDeps
+            }
+        Nothing ->
+          die
+            [ "No package found in the root configuration."
+            , "Please use the `-p` flag to select a package to install your packages in."
+            ]
+    _ ->
+      map Left
+        $ traverse getTransitiveDeps
+        $ Map.fromFoldable
+        $ map (\p -> Tuple p.package.name (getWorkspacePackageDeps p))
+        $ Config.getWorkspacePackages workspace.packageSet
 
   -- write to the config file if we are adding new packages
   unless (Array.null packages) do
-    { configPath, package, yamlDoc } <- case workspace.selected of
-      Just { path, doc, package } ->
-        pure { configPath: Path.concat [ path, "spago.yaml" ], yamlDoc: doc, package }
-      Nothing | Just rootPackage <- workspace.rootPackage ->
-        pure { configPath: "spago.yaml", yamlDoc: workspace.doc, package: rootPackage }
-      _ ->
+    { configPath, workspacePackage, yamlDoc } <- case workspaceDepsOrSelectedPackage of
+      Right r ->
+        pure r
+      Left _ ->
         die
           [ "No package found in the root configuration."
           , "Please use the `-p` flag to select a package to install your packages in."
           ]
-    let packageDependencies = Map.keys $ unwrap package.dependencies
+    let packageDependencies = Map.keys $ unwrap workspacePackage.package.dependencies
     let overlappingPackages = Set.intersection packageDependencies (Set.fromFoldable packages)
     unless (Set.isEmpty overlappingPackages) do
       logWarn
@@ -102,21 +137,22 @@ run { packages, ensureRanges, isTest } = do
 
   -- if the flag is selected, we kick off the process of adding ranges to the config
   when ensureRanges do
-    { configPath, yamlDoc } <- case workspace.selected of
-      Just { path, doc } ->
-        pure { configPath: Path.concat [ path, "spago.yaml" ], yamlDoc: doc }
-      Nothing | Just rootPackage <- workspace.rootPackage ->
-        pure { configPath: "spago.yaml", yamlDoc: workspace.doc }
-      _ ->
+    { configPath, yamlDoc, transitiveDeps } <- case workspaceDepsOrSelectedPackage of
+      Right r ->
+        pure r
+      Left _ ->
         die
           [ "No package found in the root configuration."
           , "Please use the `-p` flag to select a package to which to add ranges."
           ]
     logInfo $ "Adding ranges to dependencies to the config in " <> configPath
-    -- here is where we will want to use the `transitivePackages` specifically for the given package
-    let rangeMap = map getRangeFromPackage transitivePackages
+    let rangeMap = map getRangeFromPackage transitiveDeps
     liftEffect $ Config.addRangesToConfig yamlDoc rangeMap
     liftAff $ FS.writeYamlDocFile configPath yamlDoc
+
+  let
+    transitivePackages :: PackageMap
+    transitivePackages = either (foldl (Map.unionWith (\l _ -> l)) Map.empty) _.transitiveDeps workspaceDepsOrSelectedPackage
 
   -- TODO: need to be careful about what happens when we select a single package vs the whole workspace
   -- because otherwise the lockfile will be partial.
@@ -255,7 +291,14 @@ run { packages, ensureRanges, isTest } = do
       LocalPackage _ -> pure unit
       WorkspacePackage _ -> pure unit
 
-  pure transitivePackages
+  let
+    packageDependencies = case workspaceDepsOrSelectedPackage of
+      Right r -> Map.singleton r.workspacePackage.package.name r.transitiveDeps
+      Left l -> l
+  pure
+    { dependencies: foldl (Map.unionWith (\l _ -> l)) Map.empty packageDependencies
+    , packageDependencies
+    }
 
 getGitPackageInLocalCache :: forall a. PackageName -> GitPackage -> Spago (Git.GitEnv a) Unit
 getGitPackageInLocalCache name package = do
@@ -304,7 +347,7 @@ getPackageDependencies packageName package = case package of
 
 getWorkspacePackageDeps :: WorkspacePackage -> Dependencies
 getWorkspacePackageDeps pkg =
-  if pkg.hasTests then
+  if isJust pkg.package.test then
     pkg.package.dependencies <> fromMaybe mempty (map _.dependencies pkg.package.test)
   else pkg.package.dependencies
 
