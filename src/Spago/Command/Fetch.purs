@@ -102,14 +102,14 @@ run { packages, ensureRanges, isTest } = do
   -- if the flag is selected, we kick off the process of adding ranges to the config
   when ensureRanges do
     { configPath, yamlDoc } <- case workspace.selected of
-      Just { path, doc, package } ->
-        pure { configPath: Path.concat [ path, "spago.yaml" ], yamlDoc: doc, package }
+      Just { path, doc } ->
+        pure { configPath: Path.concat [ path, "spago.yaml" ], yamlDoc: doc }
       Nothing | Just rootPackage <- workspace.rootPackage ->
-        pure { configPath: "spago.yaml", yamlDoc: workspace.doc, package: rootPackage }
+        pure { configPath: "spago.yaml", yamlDoc: workspace.doc }
       _ ->
         die
           [ "No package found in the root configuration."
-          , "Please use the `-p` flag to select a package to install your packages in."
+          , "Please use the `-p` flag to select a package to which to add ranges."
           ]
     logInfo $ "Adding ranges to dependencies to the config in " <> configPath
     -- here is where we will want to use the `transitivePackages` specifically for the given package
