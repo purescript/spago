@@ -73,7 +73,7 @@ jobs:
         run: spago build
 
       - name: Bootstrap executable
-        run: ./bin/index.dev.js -p spago-bin
+        run: ./bin/index.dev.js bundle -p spago-bin
 
       - name: Run tests
         run: spago test

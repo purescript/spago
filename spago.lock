@@ -47,7 +47,6 @@ workspace:
       path: bin
       dependencies:
         - aff
-        - argparse-basic
         - arrays
         - codec-argonaut
         - console
@@ -56,6 +55,7 @@ workspace:
         - node-fs
         - node-path
         - node-process
+        - optparse
         - ordered-collections
         - record
         - refs
@@ -193,26 +193,6 @@ packages:
       - prelude
       - strings
       - tailrec
-  argparse-basic:
-    type: registry
-    version: 2.0.0
-    integrity: sha256-3Pp8MDfRL2oeBdfxXIUVJBdhGniaahw2UOG4QmHPm58=
-    dependencies:
-      - arrays
-      - bifunctors
-      - control
-      - either
-      - foldable-traversable
-      - integers
-      - lists
-      - maybe
-      - newtype
-      - numbers
-      - prelude
-      - record
-      - strings
-      - tuples
-      - unfoldable
   arraybuffer-types:
     type: registry
     version: 3.0.2
@@ -469,6 +449,12 @@ packages:
     integrity: sha256-A0JQHpTfo1dNOj9U5/Fd3xndlRSE0g2IQWOGor2yXn8=
     dependencies:
       - unsafe-coerce
+  exitcodes:
+    type: registry
+    version: 4.0.0
+    integrity: sha256-4wxViTbyOoyKJ/WaRGI6+hZmgMKI5Miv16lSwefiLSM=
+    dependencies:
+      - enums
   fetch:
     type: registry
     version: 1.1.4
@@ -1028,6 +1014,59 @@ packages:
     dependencies:
       - functions
       - maybe
+  open-memoize:
+    type: registry
+    version: 6.1.0
+    integrity: sha256-ws/Cix/wgUKvrbPPxTqDSGCPpkTIvP1adTYLHAquBC4=
+    dependencies:
+      - console
+      - effect
+      - either
+      - integers
+      - lazy
+      - lists
+      - maybe
+      - partial
+      - prelude
+      - psci-support
+      - strings
+      - tuples
+  optparse:
+    type: registry
+    version: 5.0.0
+    integrity: sha256-Y1xqUrnOB5934wKssPyWVdF4kqA6ITXwSasdEOkxZT8=
+    dependencies:
+      - aff
+      - arrays
+      - bifunctors
+      - console
+      - control
+      - effect
+      - either
+      - enums
+      - exists
+      - exitcodes
+      - foldable-traversable
+      - free
+      - gen
+      - integers
+      - lazy
+      - lists
+      - maybe
+      - newtype
+      - node-buffer
+      - node-process
+      - node-streams
+      - nonempty
+      - numbers
+      - open-memoize
+      - partial
+      - prelude
+      - quickcheck
+      - strings
+      - tailrec
+      - transformers
+      - tuples
   ordered-collections:
     type: registry
     version: 3.0.0
