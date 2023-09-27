@@ -2,22 +2,23 @@ module Main (main) where
 
 import Spago.Prelude
 
-import ArgParse.Basic (ArgParser)
-import ArgParse.Basic as ArgParser
 import Data.Array as Array
 import Data.Array.NonEmpty as NonEmptyArray
 import Data.Codec.Argonaut.Common as CA.Common
+import Data.Foldable as Foldable
 import Data.JSDate as JSDate
 import Data.List as List
 import Data.Map as Map
 import Data.Set.NonEmpty (NonEmptySet)
 import Data.String as String
 import Effect.Aff as Aff
-import Effect.Class.Console as Console
 import Effect.Ref as Ref
 import Node.FS.Stats (Stats(..))
 import Node.Path as Path
 import Node.Process as Process
+import Options.Applicative (CommandFields, Mod, Parser, ParserPrefs(..))
+import Options.Applicative as O
+import Optparse as Optparse
 import Record as Record
 import Registry.Constants as Registry.Constants
 import Registry.ManifestIndex as ManifestIndex
@@ -43,13 +44,14 @@ import Spago.Config as Config
 import Spago.Core.Config as Core
 import Spago.Esbuild as Esbuild
 import Spago.FS as FS
+import Spago.Generated.BuildInfo as BuildInfo
 import Spago.Git as Git
 import Spago.Json as Json
 import Spago.Log (LogVerbosity(..))
 import Spago.Paths as Paths
 import Spago.Purs (Purs)
 import Spago.Purs as Purs
-import Unsafe.Coerce (unsafeCoerce)
+import Unsafe.Coerce as UnsafeCoerce
 
 type GlobalArgs =
   { noColor :: Boolean
@@ -188,72 +190,46 @@ data Command a
   | LsPackages LsPackagesArgs
   | Publish PublishArgs
 
-argParser :: ArgParser (SpagoCmd ())
+commandParser :: forall (a :: Row Type). String -> Parser (Command a) -> String -> Mod CommandFields (SpagoCmd a)
+commandParser command_ parser_ description_ =
+  O.command command_
+    ( O.info
+        (SpagoCmd <$> globalArgsParser <*> parser_)
+        (O.progDesc description_)
+    )
+
+argParser :: Parser (SpagoCmd ())
 argParser =
-  ArgParser.choose "command"
-    [ ArgParser.command [ "init" ]
-        "Initialise a new project"
-        do
-          (SpagoCmd <$> globalArgsParser <*> (Init <$> initArgsParser) <* ArgParser.flagHelp)
-    , ArgParser.command [ "fetch" ]
-        "Downloads all of the project's dependencies"
-        do
-          (SpagoCmd <$> globalArgsParser <*> (Fetch <$> fetchArgsParser) <* ArgParser.flagHelp)
-    , ArgParser.command [ "install" ]
-        "Compile the project's dependencies"
-        do
-          (SpagoCmd <$> globalArgsParser <*> (Install <$> installArgsParser) <* ArgParser.flagHelp)
-    , ArgParser.command [ "build" ]
-        "Compile the project"
-        do
-          (SpagoCmd <$> globalArgsParser <*> (Build <$> buildArgsParser) <* ArgParser.flagHelp)
-    , ArgParser.command [ "run" ]
-        "Run the project"
-        do
-          (SpagoCmd <$> globalArgsParser <*> (Run <$> runArgsParser) <* ArgParser.flagHelp)
-    , ArgParser.command [ "test" ]
-        "Test the project"
-        do
-          (SpagoCmd <$> globalArgsParser <*> (Test <$> testArgsParser) <* ArgParser.flagHelp)
-    , ArgParser.command [ "bundle" ]
-        "Bundle the project in a single file"
-        do
-          (SpagoCmd <$> globalArgsParser <*> (Bundle <$> bundleArgsParser) <* ArgParser.flagHelp)
-    , ArgParser.command [ "sources" ]
-        "List all the source paths (globs) for the dependencies of the project"
-        do
-          (SpagoCmd <$> globalArgsParser <*> (Sources <$> sourcesArgsParser) <* ArgParser.flagHelp)
-    , ArgParser.command [ "repl" ]
-        "Start a REPL"
-        do
-          (SpagoCmd <$> globalArgsParser <*> (Repl <$> replArgsParser) <* ArgParser.flagHelp)
-    , ArgParser.command [ "publish" ]
-        "Publish a package"
-        do
-          (SpagoCmd <$> globalArgsParser <*> (Publish <$> publishArgsParser) <* ArgParser.flagHelp)
-    , ArgParser.command [ "registry" ]
-        "Commands to interact with the Registry"
-        do
-          ArgParser.choose "registry-subcommand"
-            [ ArgParser.command [ "search" ]
-                "Search for package names in the Registry"
-                (SpagoCmd <$> globalArgsParser <*> (RegistrySearch <$> registrySearchArgsParser) <* ArgParser.flagHelp)
-            , ArgParser.command [ "info" ]
-                "Query the Registry for information about packages and versions"
-                (SpagoCmd <$> globalArgsParser <*> (RegistryInfo <$> registryInfoArgsParser) <* ArgParser.flagHelp)
-            ] <* ArgParser.flagHelp
-    , ArgParser.command [ "ls" ] "List packages or dependencies. Use the `registry` command to search the Registry." do
-        ArgParser.choose "ls-subcommand"
-          [ ArgParser.command [ "packages" ]
-              "List packages available in the local package set"
-              (SpagoCmd <$> globalArgsParser <*> (LsPackages <$> lsPackagesArgsParser) <* ArgParser.flagHelp)
-          , ArgParser.command [ "deps" ]
-              "List dependencies of the project"
-              (SpagoCmd <$> globalArgsParser <*> (LsDeps <$> lsDepsArgsParser) <* ArgParser.flagHelp)
-          ] <* ArgParser.flagHelp
+  O.hsubparser $ Foldable.fold
+    [ commandParser "init" (Init <$> initArgsParser) "Initialise a new project"
+    , commandParser "fetch" (Fetch <$> fetchArgsParser) "Downloads all of the project's dependencies"
+    , commandParser "install" (Install <$> installArgsParser) "Compile the project's dependencies"
+    , commandParser "build" (Build <$> buildArgsParser) "Compile the project"
+    , commandParser "run" (Run <$> runArgsParser) "Run the project"
+    , commandParser "test" (Test <$> testArgsParser) "Test the project"
+    , commandParser "bundle" (Bundle <$> bundleArgsParser) "Bundle the project in a single file"
+    , commandParser "sources" (Sources <$> sourcesArgsParser) "List all the source paths (globs) for the dependencies of the project"
+    , commandParser "repl" (Repl <$> replArgsParser) "Start a REPL"
+    , commandParser "publish" (Publish <$> publishArgsParser) "Publish a package"
+    , O.command "registry"
+        ( O.info
+            ( O.hsubparser $ Foldable.fold
+                [ commandParser "search" (RegistrySearch <$> registrySearchArgsParser) "Search for package names in the Registry"
+                , commandParser "info" (RegistryInfo <$> registryInfoArgsParser) "Query the Registry for information about packages and versions"
+                ]
+            )
+            (O.progDesc "Commands to interact with the Registry")
+        )
+    , O.command "ls"
+        ( O.info
+            ( O.hsubparser $ Foldable.fold
+                [ commandParser "packages" (LsPackages <$> lsPackagesArgsParser) "List packages available in the local package set"
+                , commandParser "deps" (LsDeps <$> lsDepsArgsParser) "List dependencies of the project"
+                ]
+            )
+            (O.progDesc "List packages or dependencies")
+        )
     ]
-    <* ArgParser.flagHelp
-    <* ArgParser.flagInfo [ "--version" ] "Show the current version" BuildInfo.currentSpagoVersion
 
 {-
 
@@ -266,41 +242,42 @@ TODO: add flag for overriding the cache location
 
 -- https://stackoverflow.com/questions/45395369/how-to-get-console-log-line-numbers-shown-in-nodejs
 -- TODO: veryVerbose = CLI.switch "very-verbose" 'V' "Enable more verbosity: timestamps and source locations"
-globalArgsParser :: ArgParser GlobalArgs
+
+globalArgsParser :: Parser GlobalArgs
 globalArgsParser =
-  ArgParser.fromRecord
+  Optparse.fromRecord
     { quiet: Flags.quiet
     , verbose: Flags.verbose
     , noColor: Flags.noColor
     }
 
-initArgsParser :: ArgParser InitArgs
+initArgsParser :: Parser InitArgs
 initArgsParser =
-  ArgParser.fromRecord
+  Optparse.fromRecord
     { setVersion: Flags.maybeSetVersion
     , name: Flags.maybePackageName
     , useSolver: Flags.useSolver
     }
 
-fetchArgsParser :: ArgParser FetchArgs
+fetchArgsParser :: Parser FetchArgs
 fetchArgsParser =
-  ArgParser.fromRecord
+  Optparse.fromRecord
     { packages: Flags.packages
     , selectedPackage: Flags.selectedPackage
     , ensureRanges: Flags.ensureRanges
     , testDeps: Flags.testDeps
     }
 
-sourcesArgsParser :: ArgParser SourcesArgs
+sourcesArgsParser :: Parser SourcesArgs
 sourcesArgsParser =
-  ArgParser.fromRecord
+  Optparse.fromRecord
     { selectedPackage: Flags.selectedPackage
     , json: Flags.json
     }
 
-installArgsParser :: ArgParser InstallArgs
+installArgsParser :: Parser InstallArgs
 installArgsParser =
-  ArgParser.fromRecord
+  Optparse.fromRecord
     { packages: Flags.packages
     , selectedPackage: Flags.selectedPackage
     , pursArgs: Flags.pursArgs
@@ -311,8 +288,8 @@ installArgsParser =
     , testDeps: Flags.testDeps
     }
 
-buildArgsParser :: ArgParser (BuildArgs ())
-buildArgsParser = ArgParser.fromRecord
+buildArgsParser :: Parser (BuildArgs ())
+buildArgsParser = Optparse.fromRecord
   { selectedPackage: Flags.selectedPackage
   , pursArgs: Flags.pursArgs
   , backendArgs: Flags.backendArgs
@@ -329,15 +306,15 @@ buildArgsParser = ArgParser.fromRecord
   , persistWarnings: Flags.persistWarnings
   }
 
-replArgsParser :: ArgParser ReplArgs
-replArgsParser = ArgParser.fromRecord
+replArgsParser :: Parser ReplArgs
+replArgsParser = Optparse.fromRecord
   { selectedPackage: Flags.selectedPackage
   , pursArgs: Flags.pursArgs
   , backendArgs: Flags.backendArgs
   }
 
-runArgsParser :: ArgParser RunArgs
-runArgsParser = ArgParser.fromRecord
+runArgsParser :: Parser RunArgs
+runArgsParser = Optparse.fromRecord
   { selectedPackage: Flags.selectedPackage
   , pursArgs: Flags.pursArgs
   , backendArgs: Flags.backendArgs
@@ -355,8 +332,8 @@ runArgsParser = ArgParser.fromRecord
   , persistWarnings: Flags.persistWarnings
   }
 
-testArgsParser :: ArgParser TestArgs
-testArgsParser = ArgParser.fromRecord
+testArgsParser :: Parser TestArgs
+testArgsParser = Optparse.fromRecord
   { selectedPackage: Flags.selectedPackage
   , pursArgs: Flags.pursArgs
   , backendArgs: Flags.backendArgs
@@ -372,9 +349,9 @@ testArgsParser = ArgParser.fromRecord
   , persistWarnings: Flags.persistWarnings
   }
 
-bundleArgsParser :: ArgParser BundleArgs
+bundleArgsParser :: Parser BundleArgs
 bundleArgsParser =
-  ArgParser.fromRecord
+  Optparse.fromRecord
     { minify: Flags.minify
     , module: Flags.entrypoint
     , type: Flags.bundleType
@@ -395,52 +372,64 @@ bundleArgsParser =
     , persistWarnings: Flags.persistWarnings
     }
 
-publishArgsParser :: ArgParser PublishArgs
+publishArgsParser :: Parser PublishArgs
 publishArgsParser =
-  ArgParser.fromRecord
+  Optparse.fromRecord
     { selectedPackage: Flags.selectedPackage
     }
 
-registrySearchArgsParser :: ArgParser RegistrySearchArgs
+registrySearchArgsParser :: Parser RegistrySearchArgs
 registrySearchArgsParser =
-  ArgParser.fromRecord
+  Optparse.fromRecord
     { package: Flags.package
     , json: Flags.json
     }
 
-registryInfoArgsParser :: ArgParser RegistryInfoArgs
+registryInfoArgsParser :: Parser RegistryInfoArgs
 registryInfoArgsParser =
-  ArgParser.fromRecord
+  Optparse.fromRecord
     { package: Flags.package
     , json: Flags.json
     }
 
-lsPackagesArgsParser :: ArgParser LsPackagesArgs
-lsPackagesArgsParser = ArgParser.fromRecord
+lsPackagesArgsParser :: Parser LsPackagesArgs
+lsPackagesArgsParser = Optparse.fromRecord
   { json: Flags.json
   }
 
-lsDepsArgsParser :: ArgParser LsDepsArgs
-lsDepsArgsParser = ArgParser.fromRecord
+lsDepsArgsParser :: Parser LsDepsArgs
+lsDepsArgsParser = Optparse.fromRecord
   { json: Flags.json
   , transitive: Flags.transitive
   , selectedPackage: Flags.selectedPackage
   }
 
-parseArgs :: Effect (Either ArgParser.ArgError (SpagoCmd ()))
+data Cmd a = Cmd'SpagoCmd (SpagoCmd a) | Cmd'VersionCmd Boolean
+
+parseArgs :: Effect (Cmd ())
 parseArgs = do
-  cliArgs <- Array.drop 2 <$> Process.argv
-  pure $ ArgParser.parseArgs "spago"
-    "PureScript package manager and build tool"
-    argParser
-    cliArgs
+  O.customExecParser
+    ( O.defaultPrefs # \(ParserPrefs p) -> ParserPrefs
+        ( p
+            { prefShowHelpOnError = true
+            , prefShowHelpOnEmpty = true
+            }
+        )
+    )
+    ( O.info
+        ( O.helper <*>
+            ( (Cmd'SpagoCmd <$> argParser) <|>
+                (Cmd'VersionCmd <$> (O.switch (O.long "version" <> O.short 'v' <> O.help "Show the current version")))
+            )
+        )
+        (O.progDesc "PureScript package manager and build tool")
+    )
 
 main :: Effect Unit
 main =
-  parseArgs >>= case _ of
-    Left err -> Console.error $ ArgParser.printArgError err
-    Right c -> Aff.launchAff_ case c of
-      SpagoCmd globalArgs command -> do
+  parseArgs >>=
+    \c -> Aff.launchAff_ case c of
+      Cmd'SpagoCmd (SpagoCmd globalArgs command) -> do
         logOptions <- mkLogOptions globalArgs
         runSpago { logOptions } case command of
           Sources args -> do
@@ -538,7 +527,7 @@ main =
                 purs <- Purs.getPurs
                 void $ runSpago { purs, logOptions } $ Init.run
                   { setVersion: Nothing
-                  , packageName: unsafeCoerce "repl"
+                  , packageName: UnsafeCoerce.unsafeCoerce "repl"
                   , useSolver: true
                   }
                 pure $ List.fromFoldable [ "effect", "console" ] -- TODO newPackages
@@ -597,6 +586,12 @@ main =
             dependencyInfo <- runSpago env (Fetch.run fetchOpts)
             lsEnv <- runSpago env (mkLsEnv dependencyInfo.dependencies)
             runSpago lsEnv (Ls.listPackages { json, transitive })
+      Cmd'VersionCmd v -> do when v printVersion
+  where
+  printVersion = do
+    logOptions <- mkLogOptions { noColor: false, quiet: false, verbose: false }
+    runSpago { logOptions } do
+      logInfo BuildInfo.buildInfo.spagoVersion
 
 mkLogOptions :: GlobalArgs -> Aff LogOptions
 mkLogOptions { noColor, quiet, verbose } = do
