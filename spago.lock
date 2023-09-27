@@ -158,20 +158,6 @@ workspace:
   package_set:
     registry: 20.0.1
   extra_packages:
-    css:
-      dependencies:
-        - colors
-        - console
-        - effect
-        - exceptions
-        - nonempty
-        - profunctor
-        - psci-support
-        - strings
-        - these
-        - transformers
-      git: https://github.com/purescript-contrib/purescript-css.git
-      ref: 710d6a742beb88299faf08aaeb997ee1e24483ab
     html-parser-halogen:
       dependencies:
         - halogen
@@ -226,22 +212,6 @@ workspace:
         - tuples
       git: https://github.com/paf31/purescript-memoize.git
       ref: 9960694e82adc212fd89f8ed8778cf55fcb72aeb
-    optparse:
-      dependencies:
-        - arrays
-        - console
-        - effect
-        - exists
-        - exitcodes
-        - free
-        - memoize
-        - node-process
-        - ordered-collections
-        - prelude
-        - strings
-        - transformers
-      git: https://github.com/klntsky/purescript-optparse.git
-      ref: 2fe4265b7c6b09744c11190a43ca06777c752473
     registry-foreign:
       git: https://github.com/purescript/registry-dev.git
       ref: 6a803c37577af368caa221a2a06d6be2079d32da
@@ -567,17 +537,15 @@ packages:
       - maybe
       - record
   css:
-    type: git
-    url: https://github.com/purescript-contrib/purescript-css.git
-    rev: 710d6a742beb88299faf08aaeb997ee1e24483ab
+    type: registry
+    version: 6.0.0
+    integrity: sha256-zfSHxgiU4rSWuVxMjSKKh+s7j433wxmsr+CqI6hm9s4=
     dependencies:
       - colors
       - console
       - effect
-      - exceptions
       - nonempty
       - profunctor
-      - psci-support
       - strings
       - these
       - transformers
@@ -1170,19 +1138,6 @@ packages:
     dependencies:
       - newtype
       - prelude
-  memoize:
-    type: git
-    url: https://github.com/paf31/purescript-memoize.git
-    rev: 9960694e82adc212fd89f8ed8778cf55fcb72aeb
-    dependencies:
-      - either
-      - integers
-      - lazy
-      - lists
-      - maybe
-      - prelude
-      - strings
-      - tuples
   minibench:
     type: registry
     version: 4.0.1
@@ -1402,6 +1357,23 @@ packages:
     dependencies:
       - functions
       - maybe
+  open-memoize:
+    type: registry
+    version: 6.1.0
+    integrity: sha256-ws/Cix/wgUKvrbPPxTqDSGCPpkTIvP1adTYLHAquBC4=
+    dependencies:
+      - console
+      - effect
+      - either
+      - integers
+      - lazy
+      - lists
+      - maybe
+      - partial
+      - prelude
+      - psci-support
+      - strings
+      - tuples
   options:
     type: registry
     version: 7.0.0
@@ -1413,22 +1385,41 @@ packages:
       - maybe
       - tuples
   optparse:
-    type: git
-    url: https://github.com/klntsky/purescript-optparse.git
-    rev: 2fe4265b7c6b09744c11190a43ca06777c752473
+    type: registry
+    version: 5.0.0
+    integrity: sha256-Y1xqUrnOB5934wKssPyWVdF4kqA6ITXwSasdEOkxZT8=
     dependencies:
+      - aff
       - arrays
+      - bifunctors
       - console
+      - control
       - effect
+      - either
+      - enums
       - exists
       - exitcodes
+      - foldable-traversable
       - free
-      - memoize
+      - gen
+      - integers
+      - lazy
+      - lists
+      - maybe
+      - newtype
+      - node-buffer
       - node-process
-      - ordered-collections
+      - node-streams
+      - nonempty
+      - numbers
+      - open-memoize
+      - partial
       - prelude
+      - quickcheck
       - strings
+      - tailrec
       - transformers
+      - tuples
   ordered-collections:
     type: registry
     version: 3.0.0
