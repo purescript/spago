@@ -549,7 +549,7 @@ main =
               , testDeps: false
               }
             dependencies <- runSpago env (Fetch.run fetchOpts)
-            supportPackages <- runSpago env (Repl.supportPackage env.workspace.packageSet)
+            supportPackages <- runSpago env (Fetch.replSupportPackage env.workspace.packageSet)
             replEnv <- runSpago env (mkReplEnv args (Map.union dependencies supportPackages))
             void $ runSpago replEnv Repl.run
 

@@ -6,6 +6,7 @@ module Spago.Command.Fetch
   , getTransitiveDeps
   , getTransitiveDepsFromRegistry
   , run
+  , replSupportPackage
   ) where
 
 import Spago.Prelude
@@ -33,7 +34,7 @@ import Registry.Sha256 as Sha256
 import Registry.Solver as Registry.Solver
 import Registry.Version as Registry.Version
 import Registry.Version as Version
-import Spago.Command.Repl as Repl
+import Spago.Command.Registry (RegistryEnv)
 import Spago.Config (Dependencies(..), GitPackage, LockfileSettings(..), Package(..), PackageMap, PackageSet(..), Workspace, WorkspacePackage)
 import Spago.Config as Config
 import Spago.FS as FS
@@ -175,7 +176,7 @@ run { packages, ensureRanges, isTest } = do
   logInfo "Downloading dependencies..."
 
   -- the repl needs a support package, so we fetch it here as a sidecar
-  supportPackage <- Repl.supportPackage workspace.packageSet
+  supportPackage <- replSupportPackage workspace.packageSet
   -- Combine all packages here
   let transitivePackages' = Map.union transitivePackages supportPackage
 
@@ -435,3 +436,21 @@ getVersionFromPackage :: Package -> Version
 getVersionFromPackage = case _ of
   RegistryVersion v -> v
   _ -> unsafeFromRight $ Version.parse "0.0.0"
+
+-- TODO I guess this should be configurable
+replSupportPackageName :: PackageName
+replSupportPackageName = unsafeFromRight $ PackageName.parse "psci-support"
+
+replSupportPackage :: forall a. PackageSet -> Spago (RegistryEnv a) PackageMap
+replSupportPackage packageSet = do
+  { getMetadata, logOptions } <- ask
+  case packageSet of
+    PackageSet packages -> pure $ Map.filterWithKey (\k _v -> k == replSupportPackageName) packages
+    -- TODO: we should look in the "other" packages first
+    Registry _other -> do
+      maybeMetadata <- runSpago { logOptions } (getMetadata replSupportPackageName)
+      pure case maybeMetadata of
+        Right (Metadata metadata) -> case Map.findMax metadata.published of
+          Nothing -> Map.empty
+          Just { key } -> Map.singleton replSupportPackageName (RegistryVersion key)
+        Left _err -> Map.empty
