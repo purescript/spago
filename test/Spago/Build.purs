@@ -255,11 +255,11 @@ spec = Spec.around withTempDir do
               exp = Array.intercalate "\n"
                 [ "Detected 2 modules with the same module name across 2 or more packages defined in this workspace."
                 , "1) Module \"Subpackage.SameName.Main\" was defined in the following packages:"
-                , "  - case-four-package-a   at path: package-a/src/Main.purs"
-                , "  - case-four-package-b   at path: package-b/src/Main.purs"
+                , "  - case-four-package-a   at path: " <> Path.concat [ "package-a", "src", "Main.purs" ]
+                , "  - case-four-package-b   at path: " <> Path.concat [ "package-b", "src", "Main.purs" ]
                 , "2) Module \"Subpackage.SameName.Test.Main\" was defined in the following packages:"
-                , "  - case-four-package-a   at path: package-a/test/Main.purs"
-                , "  - case-four-package-b   at path: package-b/test/Main.purs"
+                , "  - case-four-package-a   at path: " <> Path.concat [ "package-a", "test", "Main.purs" ]
+                , "  - case-four-package-b   at path: " <> Path.concat [ "package-b", "test", "Main.purs" ]
                 ]
 
             unless (String.contains (Pattern exp) stdErr) do
