@@ -6,4 +6,4 @@ package:
     - prelude
   test:
     dependencies: []
-    main: Subpackage.A.Test.Main
+    main: Subpackage.B.Test.Main
