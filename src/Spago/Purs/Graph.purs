@@ -1,5 +1,9 @@
 module Spago.Purs.Graph
-  ( checkImports
+  ( ImportCheckResult
+  , ImportedPackages
+  , checkImports
+  , toImportErrors
+  , runGraph
   , runGraphCheck
   ) where
 
@@ -161,6 +165,13 @@ checkImports = do
 
   pure { unused, transitive, unusedTest, transitiveTest }
 
+toImportErrors :: WorkspacePackage -> ImportCheckResult -> Array Docc
+toImportErrors selected { unused, unusedTest, transitive, transitiveTest } =
+  (if Set.isEmpty unused then [] else [ unusedError false selected unused ])
+    <> (if Map.isEmpty transitive then [] else [ transitiveError false selected transitive ])
+    <> (if Set.isEmpty unusedTest then [] else [ unusedError true selected unusedTest ])
+    <> (if Map.isEmpty transitiveTest then [] else [ transitiveError true selected transitiveTest ])
+
 compileGlob :: forall a. FilePath -> Spago (LogEnv a) (Array FilePath)
 compileGlob sourcePath = do
   { succeeded, failed } <- Glob.match Paths.cwd [ withForwardSlashes sourcePath ]
@@ -168,25 +179,25 @@ compileGlob sourcePath = do
     logDebug [ toDoc "Encountered some globs that are not in cwd, proceeding anyways:", indent $ toDoc failed ]
   pure (succeeded <> failed)
 
-runGraphCheck :: forall a. WorkspacePackage -> Set FilePath -> Array String -> Spago (PreGraphEnv a) (Array Docc)
-runGraphCheck selected globs pursArgs = do
-  env <- ask
+runGraph :: forall a. Set FilePath -> Array String -> Spago (PreGraphEnv a) (Maybe Purs.ModuleGraph)
+runGraph globs pursArgs = do
   maybeGraph <- Purs.graph globs pursArgs
   case maybeGraph of
     Left err -> do
       logWarn $ "Could not decode the output of `purs graph`, error: " <> CA.printJsonDecodeError err
+      pure Nothing
+    Right graph ->
+      pure $ Just graph
+
+runGraphCheck :: forall a. WorkspacePackage -> Set FilePath -> Array String -> Spago (PreGraphEnv a) (Array Docc)
+runGraphCheck selected globs pursArgs = do
+  maybeGraph <- runGraph globs pursArgs
+  case maybeGraph of
+    Nothing -> do
       pure []
-    Right graph -> do
-      { unused, transitive, unusedTest, transitiveTest } <- runSpago (Record.union { graph, selected } env) checkImports
-
-      let
-        result =
-          (if Set.isEmpty unused then [] else [ unusedError false selected unused ])
-            <> (if Map.isEmpty transitive then [] else [ transitiveError false selected transitive ])
-            <> (if Set.isEmpty unusedTest then [] else [ unusedError true selected unusedTest ])
-            <> (if Map.isEmpty transitiveTest then [] else [ transitiveError true selected transitiveTest ])
-
-      pure result
+    Just graph -> do
+      env <- ask
+      toImportErrors selected <$> runSpago (Record.union { graph, selected } env) checkImports
 
 unusedError :: Boolean -> WorkspacePackage -> Set PackageName -> Docc
 unusedError isTest selected unused = toDoc
