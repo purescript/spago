@@ -89,19 +89,14 @@ plusDependencies deps config = config
   where
   mkDep p = Tuple (unsafeFromRight $ PackageName.parse p) Nothing
 
--- | ```
--- | checkResultAndOutputPredicates 
--- |   (\stdOut -> stdOut `Assert.shouldEqual` expStdOut)
--- |   (\stdErr -> stdErr `Assert.shouldEqual` expStdErr)
--- |   isRight
--- | ```
-checkResultAndOutputPredicates
-  :: (String -> Aff Unit)
-  -> (String -> Aff Unit)
-  -> (Either ExecError ExecResult -> Boolean)
+check
+  :: { stdout :: String -> Aff Unit
+     , stderr :: String -> Aff Unit
+     , result :: Either ExecError ExecResult -> Boolean
+     }
   -> Either ExecError ExecResult
   -> Aff Unit
-checkResultAndOutputPredicates checkStdout checkStderr resultFn execResult = do
+check checkers execResult = do
   let
     stdout = String.trim $ case execResult of
       Left err -> err.stdout
@@ -113,51 +108,70 @@ checkResultAndOutputPredicates checkStdout checkStderr resultFn execResult = do
   when false do
     log $ "STDOUT:\n" <> prettyPrint stdout
     log $ "STDERR:\n" <> prettyPrint stderr
-  execResult `Assert.shouldSatisfy` resultFn
-  checkStdout stdout
-  checkStderr stderr
+  execResult `Assert.shouldSatisfy` checkers.result
+  checkers.stdout stdout
+  checkers.stderr stderr
   where
   prettyPrint =
     String.replaceAll (Pattern "\\n") (Replacement "\n")
       <<< String.replaceAll (Pattern "\\\"") (Replacement "\"")
 
-checkResultAndOutputsStr :: Maybe String -> Maybe String -> (Either ExecError ExecResult -> Boolean) -> Either ExecError ExecResult -> Aff Unit
-checkResultAndOutputsStr maybeOutStr maybeErrStr =
-  checkResultAndOutputPredicates
-    (maybe mempty (\exp act -> act `Assert.shouldEqual` exp) maybeOutStr)
-    (maybe mempty (\exp act -> act `Assert.shouldEqual` exp) maybeErrStr)
+checkOutputsStr
+  :: { stdoutStr :: Maybe String
+     , stderrStr :: Maybe String
+     , result :: Either ExecError ExecResult -> Boolean
+     }
+  -> Either ExecError ExecResult
+  -> Aff Unit
+checkOutputsStr checkers =
+  check
+    { stdout: maybe mempty (\exp act -> act `Assert.shouldEqual` exp) checkers.stdoutStr
+    , stderr: maybe mempty (\exp act -> act `Assert.shouldEqual` exp) checkers.stderrStr
+    , result: checkers.result
+    }
 
-checkResultAndOutputs :: Maybe FilePath -> Maybe FilePath -> (Either ExecError ExecResult -> Boolean) -> Either ExecError ExecResult -> Aff Unit
-checkResultAndOutputs maybeOutFixture maybeErrFixture resultFn execResult = do
-  maybeOutStr <- for maybeOutFixture \expectedOutFixture -> do
+checkOutputs
+  :: { stdoutFile :: Maybe FilePath
+     , stderrFile :: Maybe FilePath
+     , result :: Either ExecError ExecResult -> Boolean
+     }
+  -> Either ExecError ExecResult
+  -> Aff Unit
+checkOutputs checkers execResult = do
+  maybeOutStr <- for checkers.stdoutFile \expectedOutFixture -> do
     String.trim <$> FS.readTextFile expectedOutFixture
-  maybeErrStr <- for maybeErrFixture \expectedErrFixture -> do
+  maybeErrStr <- for checkers.stderrFile \expectedErrFixture -> do
     String.trim <$> FS.readTextFile expectedErrFixture
-  checkResultAndOutputsStr maybeOutStr maybeErrStr resultFn execResult
+  checkOutputsStr
+    { stdoutStr: maybeOutStr
+    , stderrStr: maybeErrStr
+    , result: checkers.result
+    }
+    execResult
 
 shouldBeSuccess :: Either ExecError ExecResult -> Aff Unit
-shouldBeSuccess = checkResultAndOutputs Nothing Nothing isRight
+shouldBeSuccess = checkOutputs { stdoutFile: Nothing, stderrFile: Nothing, result: isRight }
 
 shouldBeSuccessOutput :: FilePath -> Either ExecError ExecResult -> Aff Unit
-shouldBeSuccessOutput outFixture = checkResultAndOutputs (Just outFixture) Nothing isRight
+shouldBeSuccessOutput outFixture = checkOutputs { stdoutFile: Just outFixture, stderrFile: Nothing, result: isRight }
 
 shouldBeSuccessErr :: FilePath -> Either ExecError ExecResult -> Aff Unit
-shouldBeSuccessErr errFixture = checkResultAndOutputs Nothing (Just errFixture) isRight
+shouldBeSuccessErr errFixture = checkOutputs { stdoutFile: Nothing, stderrFile: Just errFixture, result: isRight }
 
 shouldBeSuccessOutputWithErr :: FilePath -> FilePath -> Either ExecError ExecResult -> Aff Unit
-shouldBeSuccessOutputWithErr outFixture errFixture = checkResultAndOutputs (Just outFixture) (Just errFixture) isRight
+shouldBeSuccessOutputWithErr outFixture errFixture = checkOutputs { stdoutFile: Just outFixture, stderrFile: Just errFixture, result: isRight }
 
 shouldBeFailure :: Either ExecError ExecResult -> Aff Unit
-shouldBeFailure = checkResultAndOutputs Nothing Nothing isLeft
+shouldBeFailure = checkOutputs { stdoutFile: Nothing, stderrFile: Nothing, result: isLeft }
 
 shouldBeFailureOutput :: FilePath -> Either ExecError ExecResult -> Aff Unit
-shouldBeFailureOutput outFixture = checkResultAndOutputs (Just outFixture) Nothing isLeft
+shouldBeFailureOutput outFixture = checkOutputs { stdoutFile: Just outFixture, stderrFile: Nothing, result: isLeft }
 
 shouldBeFailureErr :: FilePath -> Either ExecError ExecResult -> Aff Unit
-shouldBeFailureErr errFixture = checkResultAndOutputs Nothing (Just errFixture) isLeft
+shouldBeFailureErr errFixture = checkOutputs { stdoutFile: Nothing, stderrFile: Just errFixture, result: isLeft }
 
 shouldBeFailureOutputWithErr :: FilePath -> FilePath -> Either ExecError ExecResult -> Aff Unit
-shouldBeFailureOutputWithErr outFixture errFixture = checkResultAndOutputs (Just outFixture) (Just errFixture) isLeft
+shouldBeFailureOutputWithErr outFixture errFixture = checkOutputs { stdoutFile: Just outFixture, stderrFile: Just errFixture, result: isLeft }
 
 mkPackageName :: String -> PackageName
 mkPackageName = unsafeFromRight <<< PackageName.parse

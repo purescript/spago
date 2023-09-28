@@ -65,7 +65,7 @@ spec = Spec.around withTempDir do
               }
           ) # plusDependencies [ "aff", "node-buffer", "node-fs" ]
         )
-      spago [ "test", "-p", "subpackage" ] >>= checkResultAndOutputsStr (Just fileContent) Nothing isRight
+      spago [ "test", "-p", "subpackage" ] >>= checkOutputsStr { stdoutStr: Just fileContent, stderrStr: Nothing, result: isRight }
 
     Spec.it "fails when running tests from a sub-package, where the module does not exist" \{ spago } -> do
       spago [ "init" ] >>= shouldBeSuccess

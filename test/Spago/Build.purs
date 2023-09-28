@@ -227,7 +227,7 @@ spec = Spec.around withTempDir do
                 ]
             unless (String.contains (Pattern exp) stdErr) do
               Assert.fail $ "STDERR did not contain text:\n" <> exp <> "\n\nStderr was:\n" <> stdErr
-        spago [ "build" ] >>= checkResultAndOutputPredicates mempty hasAllPkgsInRightBuildOrder isRight
+        spago [ "build" ] >>= check { stdout: mempty, stderr: hasAllPkgsInRightBuildOrder, result: isRight }
 
       Spec.it "Case 4 (2+ packages modules with the same name) fails to build" \{ spago, fixture } -> do
         spagoInitCleanupNonPackageFiles spago $ fixture "topological-sort-workspace.yaml"
@@ -264,7 +264,7 @@ spec = Spec.around withTempDir do
 
             unless (String.contains (Pattern exp) stdErr) do
               Assert.fail $ "STDERR did not contain text:\n" <> exp <> "\n\nStderr was:\n" <> stdErr
-        spago [ "build" ] >>= checkResultAndOutputPredicates mempty hasExpectedModules isLeft
+        spago [ "build" ] >>= check { stdout: mempty, stderr: hasExpectedModules, result: isLeft }
 
 -- Spec.it "runs a --before command" \{ spago } -> do
 --   spago [ "init" ] >>= shouldBeSuccess
