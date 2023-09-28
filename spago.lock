@@ -1,5 +1,58 @@
 workspace:
   packages:
+    docs-search:
+      path: docs-search
+      dependencies:
+        - aff
+        - aff-promise
+        - argonaut-codecs
+        - argonaut-core
+        - argonaut-generic
+        - arrays
+        - bower-json
+        - console
+        - control
+        - css
+        - effect
+        - either
+        - exceptions
+        - foldable-traversable
+        - foreign-object
+        - halogen
+        - halogen-css
+        - halogen-subscriptions
+        - identity
+        - js-uri
+        - lists
+        - markdown-it
+        - markdown-it-halogen
+        - maybe
+        - newtype
+        - node-buffer
+        - node-fs
+        - node-fs-aff
+        - node-process
+        - node-readline
+        - optparse
+        - ordered-collections
+        - parallel
+        - partial
+        - prelude
+        - profunctor
+        - profunctor-lenses
+        - search-trie
+        - spec
+        - string-parsers
+        - strings
+        - transformers
+        - tuples
+        - unfoldable
+        - web-dom
+        - web-events
+        - web-html
+        - web-storage
+        - web-uievents
+      test_dependencies: []
     spago:
       path: ./
       dependencies:
@@ -10,6 +63,7 @@ workspace:
         - arrays
         - codec-argonaut
         - datetime
+        - docs-search
         - dodo-printer
         - effect
         - either
@@ -104,6 +158,60 @@ workspace:
   package_set:
     registry: 20.0.1
   extra_packages:
+    html-parser-halogen:
+      dependencies:
+        - halogen
+        - string-parsers
+      git: https://github.com/rnons/purescript-html-parser-halogen.git
+      ref: 035a51d02ba9f8b70c3ffd9fe31a3f5bed19941c
+    jest:
+      dependencies:
+        - aff
+        - aff-promise
+        - effect
+        - foldable-traversable
+        - prelude
+        - psci-support
+      git: https://github.com/klntsky/purescript-jest.git
+      ref: 7feaa5a880fc75002c4eca312993174e7220252b
+    literals:
+      dependencies:
+        - assert
+        - console
+        - effect
+        - integers
+        - numbers
+        - partial
+        - psci-support
+        - typelevel-prelude
+        - unsafe-coerce
+      git: https://github.com/jvliwanag/purescript-literals.git
+      ref: ae3ef4e9c1ae7c57ec77bd13906fa60ae8abba4a
+    markdown-it:
+      dependencies:
+        - effect
+        - options
+        - prelude
+      git: https://github.com/klntsky/purescript-markdown-it.git
+      ref: f3b7654783a83a80d7c09b6caaa7cd40b93ddce1
+    markdown-it-halogen:
+      dependencies:
+        - html-parser-halogen
+        - markdown-it
+      git: https://github.com/nonbili/purescript-markdown-it-halogen.git
+      ref: 08c9625015bf04214be14e45230e8ce12f3fa2bf
+    memoize:
+      dependencies:
+        - either
+        - integers
+        - lazy
+        - lists
+        - maybe
+        - prelude
+        - strings
+        - tuples
+      git: https://github.com/paf31/purescript-memoize.git
+      ref: 9960694e82adc212fd89f8ed8778cf55fcb72aeb
     registry-foreign:
       git: https://github.com/purescript/registry-dev.git
       ref: 6a803c37577af368caa221a2a06d6be2079d32da
@@ -112,6 +220,54 @@ workspace:
       git: https://github.com/purescript/registry-dev.git
       ref: 6a803c37577af368caa221a2a06d6be2079d32da
       subdir: lib
+    search-trie:
+      dependencies:
+        - arrays
+        - bifunctors
+        - foldable-traversable
+        - lists
+        - ordered-collections
+        - prelude
+      git: https://github.com/klntsky/purescript-search-trie.git
+      ref: e7f7f22486a1dba22171ec885dbc2149dc815119
+    string-parsers:
+      dependencies:
+        - arrays
+        - assert
+        - bifunctors
+        - console
+        - control
+        - effect
+        - either
+        - enums
+        - foldable-traversable
+        - lists
+        - maybe
+        - minibench
+        - nonempty
+        - partial
+        - prelude
+        - strings
+        - tailrec
+        - transformers
+        - unfoldable
+      git: https://github.com/purescript-contrib/purescript-string-parsers.git
+      ref: v8.0.0
+    untagged-union:
+      dependencies:
+        - assert
+        - console
+        - effect
+        - foreign
+        - foreign-object
+        - literals
+        - maybe
+        - newtype
+        - psci-support
+        - tuples
+        - unsafe-coerce
+      git: https://github.com/jvliwanag/purescript-untagged-union.git
+      ref: ed8262a966e15e751322c327e2759a9b9c0ef3f3
 packages:
   aff:
     type: registry
@@ -177,6 +333,22 @@ packages:
       - foldable-traversable
       - lists
       - strings
+  argonaut-codecs:
+    type: registry
+    version: 9.1.0
+    integrity: sha256-N6efXByUeg848ompEqJfVvZuZPfdRYDGlTDFn0G0Oh8=
+    dependencies:
+      - argonaut-core
+      - arrays
+      - effect
+      - foreign-object
+      - identity
+      - integers
+      - maybe
+      - nonempty
+      - ordered-collections
+      - prelude
+      - record
   argonaut-core:
     type: registry
     version: 7.0.0
@@ -193,6 +365,15 @@ packages:
       - prelude
       - strings
       - tailrec
+  argonaut-generic:
+    type: registry
+    version: 8.0.0
+    integrity: sha256-WCqRWoomRKg5BFZnGBS4k4SqBX84fy/X1aJzMyaIeP0=
+    dependencies:
+      - argonaut-codecs
+      - argonaut-core
+      - prelude
+      - record
   arraybuffer-types:
     type: registry
     version: 3.0.2
@@ -259,6 +440,20 @@ packages:
       - newtype
       - prelude
       - tuples
+  bower-json:
+    type: registry
+    version: 3.0.0
+    integrity: sha256-t4zWu4agTUqWI5sdCB0cERAenZgb+e0ELQOUzggHAlU=
+    dependencies:
+      - argonaut-codecs
+      - arrays
+      - either
+      - foldable-traversable
+      - foreign-object
+      - maybe
+      - newtype
+      - prelude
+      - tuples
   catenable-lists:
     type: registry
     version: 7.0.0
@@ -289,6 +484,17 @@ packages:
       - ordered-collections
       - type-equality
       - variant
+  colors:
+    type: registry
+    version: 7.0.1
+    integrity: sha256-udlg/y2PFsHYli8Tgz8BQGGrOjyGo0BcJj36IfgYADs=
+    dependencies:
+      - arrays
+      - integers
+      - lists
+      - numbers
+      - partial
+      - strings
   console:
     type: registry
     version: 6.0.0
@@ -330,6 +536,19 @@ packages:
       - effect
       - maybe
       - record
+  css:
+    type: registry
+    version: 6.0.0
+    integrity: sha256-zfSHxgiU4rSWuVxMjSKKh+s7j433wxmsr+CqI6hm9s4=
+    dependencies:
+      - colors
+      - console
+      - effect
+      - nonempty
+      - profunctor
+      - strings
+      - these
+      - transformers
   datetime:
     type: registry
     version: 6.1.0
@@ -394,6 +613,16 @@ packages:
       - safe-coerce
       - strings
       - tuples
+  dom-indexed:
+    type: registry
+    version: 11.0.0
+    integrity: sha256-asNUditTILJdNGS7xxFFkm6TrxC0hykoZUII3aTi5Q4=
+    dependencies:
+      - media-types
+      - prelude
+      - web-clipboard
+      - web-pointerevents
+      - web-touchevents
   effect:
     type: registry
     version: 4.0.0
@@ -617,6 +846,15 @@ packages:
       - transformers
       - tuples
       - unsafe-coerce
+  freeap:
+    type: registry
+    version: 7.0.0
+    integrity: sha256-T1VbmNxdNSKEgV4p8uFFv0F16cz+Xx1BkfF64etSdNI=
+    dependencies:
+      - const
+      - exists
+      - gen
+      - lists
   functions:
     type: registry
     version: 6.0.0
@@ -663,6 +901,74 @@ packages:
     dependencies:
       - catenable-lists
       - ordered-collections
+  halogen:
+    type: registry
+    version: 7.0.0
+    integrity: sha256-aAE8oW32YiDdA3oQZxPbFkK4n31paT4JL6pvzOe47YE=
+    dependencies:
+      - aff
+      - avar
+      - console
+      - const
+      - dom-indexed
+      - effect
+      - foreign
+      - fork
+      - free
+      - freeap
+      - halogen-subscriptions
+      - halogen-vdom
+      - media-types
+      - nullable
+      - ordered-collections
+      - parallel
+      - profunctor
+      - transformers
+      - unsafe-coerce
+      - unsafe-reference
+      - web-file
+      - web-uievents
+  halogen-css:
+    type: registry
+    version: 10.0.0
+    integrity: sha256-ZKz2cSbfkcY2faMDwSGu7pa2P8aEHPv/a03Hnyy+mdw=
+    dependencies:
+      - css
+      - halogen
+  halogen-subscriptions:
+    type: registry
+    version: 2.0.0
+    integrity: sha256-8/BPME/sC/kWMDxp0+n4k09gA1IIedXn2yUJ4pCH5xw=
+    dependencies:
+      - arrays
+      - effect
+      - foldable-traversable
+      - functors
+      - refs
+      - safe-coerce
+      - unsafe-reference
+  halogen-vdom:
+    type: registry
+    version: 8.0.0
+    integrity: sha256-5UMDekaYNSM3jtpfWoWTbmZ38rIcnguzGRW3z+IQgV4=
+    dependencies:
+      - bifunctors
+      - effect
+      - foreign
+      - foreign-object
+      - maybe
+      - prelude
+      - refs
+      - tuples
+      - unsafe-coerce
+      - web-html
+  html-parser-halogen:
+    type: git
+    url: https://github.com/rnons/purescript-html-parser-halogen.git
+    rev: 035a51d02ba9f8b70c3ffd9fe31a3f5bed19941c
+    dependencies:
+      - halogen
+      - string-parsers
   http-methods:
     type: registry
     version: 6.0.0
@@ -706,6 +1012,17 @@ packages:
       - foreign
       - integers
       - now
+  js-promise:
+    type: registry
+    version: 1.0.0
+    integrity: sha256-kXNo5g9RJgPdrTuKRe5oG2kBIwPp+j5VDPDplqZBJzQ=
+    dependencies:
+      - effect
+      - exceptions
+      - foldable-traversable
+      - functions
+      - maybe
+      - prelude
   js-timers:
     type: registry
     version: 6.1.0
@@ -790,6 +1107,21 @@ packages:
       - tailrec
       - tuples
       - unfoldable
+  markdown-it:
+    type: git
+    url: https://github.com/klntsky/purescript-markdown-it.git
+    rev: f3b7654783a83a80d7c09b6caaa7cd40b93ddce1
+    dependencies:
+      - effect
+      - options
+      - prelude
+  markdown-it-halogen:
+    type: git
+    url: https://github.com/nonbili/purescript-markdown-it-halogen.git
+    rev: 08c9625015bf04214be14e45230e8ce12f3fa2bf
+    dependencies:
+      - html-parser-halogen
+      - markdown-it
   maybe:
     type: registry
     version: 6.0.0
@@ -970,6 +1302,17 @@ packages:
       - posix-types
       - prelude
       - unsafe-coerce
+  node-readline:
+    type: registry
+    version: 7.0.0
+    integrity: sha256-zlJEPH1/nbRYuEaLXIaHiuHjMWXC8GoTZJZjSSJCCeo=
+    dependencies:
+      - effect
+      - foreign
+      - node-process
+      - node-streams
+      - options
+      - prelude
   node-streams:
     type: registry
     version: 7.0.0
@@ -1030,6 +1373,16 @@ packages:
       - prelude
       - psci-support
       - strings
+      - tuples
+  options:
+    type: registry
+    version: 7.0.0
+    integrity: sha256-treC6h+jvzcWhplPaF/aMENCOx+JGk+ysa5pL1BGHtg=
+    dependencies:
+      - contravariant
+      - foreign
+      - foreign-object
+      - maybe
       - tuples
   optparse:
     type: registry
@@ -1203,6 +1556,14 @@ packages:
       - record
       - transformers
       - tuples
+  psci-support:
+    type: registry
+    version: 6.0.0
+    integrity: sha256-C6ql4P9TEP06hft/1Z5QumPA4yARR4VIxDdhmL1EO+Y=
+    dependencies:
+      - console
+      - effect
+      - prelude
   quickcheck:
     type: registry
     version: 8.0.1
@@ -1235,6 +1596,13 @@ packages:
       - transformers
       - tuples
       - unfoldable
+  quickcheck-laws:
+    type: registry
+    version: 7.0.0
+    integrity: sha256-rnzVTiDnymzYkvnhI8EvPwrmO8LgcTnrMTuiI172Tkc=
+    dependencies:
+      - enums
+      - quickcheck
   random:
     type: registry
     version: 6.0.0
@@ -1366,6 +1734,17 @@ packages:
     integrity: sha256-a1ibQkiUcbODbLE/WAq7Ttbbh9ex+x33VCQ7GngKudU=
     dependencies:
       - unsafe-coerce
+  search-trie:
+    type: git
+    url: https://github.com/klntsky/purescript-search-trie.git
+    rev: e7f7f22486a1dba22171ec885dbc2149dc815119
+    dependencies:
+      - arrays
+      - bifunctors
+      - foldable-traversable
+      - lists
+      - ordered-collections
+      - prelude
   spec:
     type: registry
     version: 7.3.0
@@ -1407,6 +1786,30 @@ packages:
       - prelude
       - tailrec
       - unsafe-coerce
+  string-parsers:
+    type: git
+    url: https://github.com/purescript-contrib/purescript-string-parsers.git
+    rev: 518038cec5e76a1509bab87685e0dae77462d9e1
+    dependencies:
+      - arrays
+      - assert
+      - bifunctors
+      - console
+      - control
+      - effect
+      - either
+      - enums
+      - foldable-traversable
+      - lists
+      - maybe
+      - minibench
+      - nonempty
+      - partial
+      - prelude
+      - strings
+      - tailrec
+      - transformers
+      - unfoldable
   strings:
     type: registry
     version: 6.0.1
@@ -1441,6 +1844,17 @@ packages:
       - partial
       - prelude
       - refs
+  these:
+    type: registry
+    version: 6.0.0
+    integrity: sha256-6poQvFzGw7Ir9mTDEbFV9N6+cUeSHe0FdzTR2ZK1o6g=
+    dependencies:
+      - arrays
+      - gen
+      - lists
+      - quickcheck
+      - quickcheck-laws
+      - tuples
   transformers:
     type: registry
     version: 6.0.0
@@ -1522,6 +1936,13 @@ packages:
       - record
       - tuples
       - unsafe-coerce
+  web-clipboard:
+    type: registry
+    version: 5.0.0
+    integrity: sha256-TbZEMovHhks9Qa7JXodJabvKDpeFkl6swfPKqhXd/lE=
+    dependencies:
+      - js-promise
+      - web-html
   web-dom:
     type: registry
     version: 6.0.0
@@ -1554,6 +1975,16 @@ packages:
       - web-dom
       - web-file
       - web-storage
+  web-pointerevents:
+    type: registry
+    version: 1.0.0
+    integrity: sha256-I3OGc4gVslh2QsH8QUTeihKCIpFwv4t3RoycZB9ITOs=
+    dependencies:
+      - effect
+      - maybe
+      - prelude
+      - web-dom
+      - web-uievents
   web-promise:
     type: registry
     version: 3.1.0
@@ -1584,6 +2015,18 @@ packages:
       - prelude
       - tuples
       - web-promise
+  web-touchevents:
+    type: registry
+    version: 4.0.0
+    integrity: sha256-nDHMyXbkDfCEp299RLHCqj5HCDgWXFFy80lGoGjSzms=
+    dependencies:
+      - web-uievents
+  web-uievents:
+    type: registry
+    version: 4.0.0
+    integrity: sha256-Vtp5m/8IWP3flDXpnVn3Mxq8lCFDlBFp5eBnB+uO/CM=
+    dependencies:
+      - web-html
   web-xhr:
     type: registry
     version: 5.0.1
