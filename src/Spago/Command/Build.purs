@@ -13,7 +13,11 @@ import Data.Either (note)
 import Data.Map as Map
 import Data.Set as Set
 import Data.Set.NonEmpty as NonEmptySet
+import Data.String as String
 import Data.Tuple as Tuple
+import Dodo as Dodo
+import Effect.Ref as Ref
+import Record as Record
 import Registry.PackageName as PackageName
 import Spago.BuildInfo as BuildInfo
 import Spago.Cmd as Cmd
@@ -23,6 +27,7 @@ import Spago.Git (Git)
 import Spago.Paths as Paths
 import Spago.Psa as Psa
 import Spago.Purs (Purs)
+import Spago.Purs as Purs
 import Spago.Purs.Graph as Graph
 
 type BuildEnv a =
@@ -115,6 +120,8 @@ run opts = do
       $ append "Building packages in the following order:\n"
       $ Array.intercalate "\n"
       $ Array.mapWithIndex (\i (Tuple p _) -> show (i + 1) <> ") " <> PackageName.print p.package.name) selectedPackages
+
+  duplicateModuleRef <- liftEffect $ Ref.new Map.empty
   for_ selectedPackages \(Tuple selected allDependencies) -> do
     when buildingMultiplePackages do
       logInfo $ "Building package: " <> PackageName.print selected.package.name
@@ -166,11 +173,55 @@ run opts = do
           Right _r ->
             logSuccess "Backend build succeeded."
 
-    when workspace.buildOptions.pedanticPackages do
-      logInfo $ "Looking for unused and undeclared transitive dependencies..."
-      errors <- Graph.runGraphCheck selected globs opts.pursArgs
-      unless (Array.null errors) do
-        die' errors
+    if buildingMultiplePackages then do
+      logDebug $ "Getting purs graph using globs for package: " <> PackageName.print selected.package.name
+      maybeGraph <- Graph.runGraph globs opts.pursArgs
+      case maybeGraph of
+        Nothing ->
+          logWarn $
+            "Due to JSON decoding failure on 'purs graph' output, \
+            \packages that define modules with the same name might not be detected."
+        Just graph -> do
+          let
+            toModulesDefinedByThisPackage :: Purs.ModuleGraphNode -> Maybe (Array PackageName)
+            toModulesDefinedByThisPackage v =
+              [ selected.package.name ] <$ (String.stripPrefix (String.Pattern selected.path) v.path)
+            modulesDefinedByThisPackage = Map.mapMaybe toModulesDefinedByThisPackage $ unwrap graph
+
+          liftEffect $ Ref.modify_ (Map.unionWith (<>) modulesDefinedByThisPackage) duplicateModuleRef
+          when workspace.buildOptions.pedanticPackages do
+            logInfo $ "Looking for unused and undeclared transitive dependencies..."
+            env <- ask
+            errors <- Graph.toImportErrors selected <$> runSpago (Record.union { graph, selected } env) Graph.checkImports
+            unless (Array.null errors) do
+              die' errors
+
+    else do
+      when workspace.buildOptions.pedanticPackages do
+        logInfo $ "Looking for unused and undeclared transitive dependencies..."
+        errors <- Graph.runGraphCheck selected globs opts.pursArgs
+        unless (Array.null errors) do
+          die' errors
+
+  when buildingMultiplePackages do
+    moduleMap <- liftEffect $ Ref.read duplicateModuleRef
+    let duplicateModules = Map.filter (\packages -> Array.length packages > 1) moduleMap
+    unless (Map.isEmpty duplicateModules) do
+      die $
+        ( Dodo.lines
+            [ Dodo.text $ "Detected " <> show (Map.size duplicateModules) <> " modules with the same module name across 2 or more packages defined in this workspace."
+            , duplicateModules
+                # Map.toUnfoldable
+                # Array.mapWithIndex
+                    ( \idx (Tuple m ps) ->
+                        Dodo.lines
+                          [ Dodo.text $ show (idx + 1) <> ") Module \"" <> m <> "\" was defined in the following packages:"
+                          , Dodo.indent $ Dodo.lines $ map (\p -> Dodo.text $ "- " <> PackageName.print p) $ Array.sort ps
+                          ]
+                    )
+                # Dodo.lines
+            ] :: Docc
+        )
 
 -- TODO: if we are building with all the packages (i.e. selected = Nothing),
 -- then we can use the graph to remove outdated modules from `output`!

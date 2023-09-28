@@ -1,0 +1,9 @@
+package:
+  name: case-four-package-a
+  dependencies:
+    - console
+    - effect
+    - prelude
+  test:
+    dependencies: []
+    main: Subpackage.SameName.Test.Main

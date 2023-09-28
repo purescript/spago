@@ -229,6 +229,43 @@ spec = Spec.around withTempDir do
               Assert.fail $ "STDERR did not contain text:\n" <> exp <> "\n\nStderr was:\n" <> stdErr
         spago [ "build" ] >>= checkResultAndOutputPredicates mempty hasAllPkgsInRightBuildOrder isRight
 
+      Spec.it "Case 4 (2+ packages modules with the same name) fails to build" \{ spago, fixture } -> do
+        spagoInitCleanupNonPackageFiles spago $ fixture "topological-sort-workspace.yaml"
+        void $ setupDir
+          { packageName: "package-a"
+          , spagoYaml: Just $ fixture "topological-sort-case-4-package-a.yaml"
+          , srcMain: Just $ fixture "topological-sort-case-4-package-a-src.purs"
+          , testMain: Just $ fixture "topological-sort-case-4-package-a-test.purs"
+          }
+        void $ setupDir
+          { packageName: "package-b"
+          , spagoYaml: Just $ fixture "topological-sort-case-4-package-b.yaml"
+          , srcMain: Just $ fixture "topological-sort-case-4-package-b-src.purs"
+          , testMain: Just $ fixture "topological-sort-case-4-package-b-test.purs"
+          }
+        void $ setupDir
+          { packageName: "package-c"
+          , spagoYaml: Just $ fixture "topological-sort-case-4-package-c.yaml"
+          , srcMain: Just $ fixture "topological-sort-case-4-package-c-src.purs"
+          , testMain: Nothing
+          }
+        let
+          hasExpectedModules stdErr = do
+            let
+              exp = Array.intercalate "\n"
+                [ "Detected 2 modules with the same module name across 2 or more packages defined in this workspace."
+                , "1) Module \"Subpackage.SameName.Main\" was defined in the following packages:"
+                , "  - case-four-package-a"
+                , "  - case-four-package-b"
+                , "2) Module \"Subpackage.SameName.Test.Main\" was defined in the following packages:"
+                , "  - case-four-package-a"
+                , "  - case-four-package-b"
+                ]
+
+            unless (String.contains (Pattern exp) stdErr) do
+              Assert.fail $ "STDERR did not contain text:\n" <> exp <> "\n\nStderr was:\n" <> stdErr
+        spago [ "build" ] >>= checkResultAndOutputPredicates mempty hasExpectedModules isLeft
+
 -- Spec.it "runs a --before command" \{ spago } -> do
 --   spago [ "init" ] >>= shouldBeSuccess
 --   let dumpFile = "testOutput"
