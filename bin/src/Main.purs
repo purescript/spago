@@ -26,7 +26,6 @@ import Registry.ManifestIndex as ManifestIndex
 import Registry.Metadata as Metadata
 import Registry.PackageName as PackageName
 import Spago.Bin.Flags as Flags
-import Spago.BuildInfo as BuildInfo
 import Spago.Command.Build as Build
 import Spago.Command.Bundle as Bundle
 import Spago.Command.Docs as Docs
@@ -105,7 +104,8 @@ type BuildArgs a =
 
 type DocsArgs = 
   { selectedPackage :: Maybe String
-  
+  , docsFormat :: Purs.DocsFormat
+  , depsOnly :: Boolean
   }
 
 -- TODO: more repl arguments: dependencies, repl-package
@@ -391,11 +391,14 @@ publishArgsParser =
 docsArgsParser :: Parser DocsArgs
 docsArgsParser = Optparse.fromRecord
   { selectedPackage: Flags.selectedPackage
+  -- TODO: --deps-only
+  -- , depsOnly: Flags.depsOnly
+  , depsOnly: pure false :: Parser Boolean
   , docsFormat: parseFormat <$>
      Maybe.optional
        ( O.strOption
          ( O.long "format"
-        <> O.short "f"
+        <> O.short 'f'
         <> O.metavar "FORMAT"
         <> O.help "Docs output format (markdown | html | etags | ctags)"
          )
@@ -983,10 +986,10 @@ mkLsEnv dependencies = do
 
 mkDocsEnv :: forall a. DocsArgs -> Map PackageName Package -> Spago (Fetch.FetchEnv a) Docs.DocsEnv
 mkDocsEnv args dependencies = do
-  { purs, logOptions, workspace } <- ask
+  { logOptions, workspace } <- ask
   purs <- Purs.getPurs
   let env :: Docs.DocsEnv
-      env = { purs, logOptions, workspace, dependencies }
+      env = { purs, logOptions, workspace, dependencies, depsOnly: args.depsOnly, docsFormat: args.docsFormat }
   pure env
 
 
