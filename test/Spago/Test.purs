@@ -33,8 +33,7 @@ spec = Spec.around withTempDir do
       FS.writeYamlFile Config.configCodec "subpackage/spago.yaml"
         ( Init.defaultConfig
             { name: mkPackageName "subpackage"
-            , withWorkspace: false
-            , setVersion: Nothing
+            , withWorkspace: Nothing
             , testModuleName: "Subpackage.Test.Main"
             }
         )
@@ -59,8 +58,7 @@ spec = Spec.around withTempDir do
       FS.writeYamlFile Config.configCodec "subpackage/spago.yaml"
         ( ( Init.defaultConfig
               { name: mkPackageName "subpackage"
-              , withWorkspace: false
-              , setVersion: Nothing
+              , withWorkspace: Nothing
               , testModuleName: "Subpackage.Test.Main"
               }
           ) # plusDependencies [ "aff", "node-buffer", "node-fs" ]
@@ -76,8 +74,7 @@ spec = Spec.around withTempDir do
       FS.writeYamlFile Config.configCodec "subpackage/spago.yaml"
         ( Init.defaultConfig
             { name: mkPackageName "subpackage"
-            , withWorkspace: false
-            , setVersion: Nothing
+            , withWorkspace: Nothing
             , testModuleName: "Subpackage.Test.Main"
             }
         )

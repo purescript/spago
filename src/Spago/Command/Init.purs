@@ -41,10 +41,11 @@ run opts = do
   let
     config = defaultConfig
       { name: opts.packageName
-      , withWorkspace: true
-      , setVersion: case opts.useSolver of
-          true -> Nothing
-          false -> Just packageSetVersion
+      , withWorkspace: Just
+          { setVersion: case opts.useSolver of
+              true -> Nothing
+              false -> Just packageSetVersion
+          }
       , testModuleName: "Test.Main"
       }
   let configPath = "spago.yaml"
@@ -84,13 +85,12 @@ run opts = do
 
 type TemplateConfig =
   { name :: PackageName
-  , withWorkspace :: Boolean
+  , withWorkspace :: Maybe { setVersion :: Maybe Version }
   , testModuleName :: String
-  , setVersion :: Maybe Version
   }
 
 defaultConfig :: TemplateConfig -> Config
-defaultConfig { name, withWorkspace, testModuleName, setVersion } =
+defaultConfig { name, withWorkspace, testModuleName } =
   { package: Just
       { name
       , dependencies:
@@ -111,15 +111,13 @@ defaultConfig { name, withWorkspace, testModuleName, setVersion } =
       , publish: Nothing
       , bundle: Nothing
       }
-  , workspace: case withWorkspace of
-      false -> Nothing
-      true -> Just
-        { extra_packages: Just Map.empty
-        , package_set: setVersion # map \set -> SetFromRegistry { registry: set }
-        , build_opts: Nothing
-        , backend: Nothing
-        , lock: Nothing
-        }
+  , workspace: withWorkspace <#> \{ setVersion } ->
+      { extra_packages: Just Map.empty
+      , package_set: setVersion # map \set -> SetFromRegistry { registry: set }
+      , build_opts: Nothing
+      , backend: Nothing
+      , lock: Nothing
+      }
   }
   where
   mkDep p = Tuple (unsafeFromRight $ PackageName.parse p) Nothing
