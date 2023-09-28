@@ -4,11 +4,14 @@ module Spago.Command.Init
   , srcMainTemplate
   , testMainTemplate
   , defaultConfig
+  , defaultConfig'
   ) where
 
 import Spago.Prelude
 
 import Data.Map as Map
+import Data.These (These)
+import Data.These as These
 import Node.Path as Path
 import Registry.PackageName as PackageName
 import Registry.Version as Version
@@ -91,27 +94,39 @@ type TemplateConfig =
 
 defaultConfig :: TemplateConfig -> Config
 defaultConfig { name, withWorkspace, testModuleName } =
-  { package: Just
+  defaultConfig' $ These.thisOrBoth
+    { name
+    , dependencies: [ "effect", "console", "prelude" ]
+    , test: Just { moduleMain: testModuleName }
+    }
+    withWorkspace
+
+type PackageSectionOptions =
+  { name :: PackageName
+  , dependencies :: Array String
+  , test :: Maybe { moduleMain :: String }
+  }
+
+type WorkspaceSectionOptions =
+  { setVersion :: Maybe Version
+  }
+
+defaultConfig' :: These PackageSectionOptions WorkspaceSectionOptions -> Config
+defaultConfig' opts =
+  { package: (These.theseLeft opts) <#> \{ name, dependencies, test } ->
       { name
-      , dependencies:
-          Dependencies
-            ( Map.fromFoldable
-                [ mkDep "effect"
-                , mkDep "console"
-                , mkDep "prelude"
-                ]
-            )
+      , dependencies: Dependencies $ Map.fromFoldable $ map mkDep dependencies
       , description: Nothing
       , run: Nothing
-      , test: Just
+      , test: test <#> \{ moduleMain } ->
           { dependencies: Dependencies Map.empty
           , execArgs: Nothing
-          , main: testModuleName
+          , main: moduleMain
           }
       , publish: Nothing
       , bundle: Nothing
       }
-  , workspace: withWorkspace <#> \{ setVersion } ->
+  , workspace: (These.theseRight opts) <#> \{ setVersion } ->
       { extra_packages: Just Map.empty
       , package_set: setVersion # map \set -> SetFromRegistry { registry: set }
       , build_opts: Nothing

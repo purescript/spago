@@ -43,6 +43,7 @@ package:
     - registry-lib
     - spago-core
     - strings
+    - these
     - transformers
     - tuples
     - unsafe-coerce
@@ -114,4 +115,3 @@ workspace:
         - prelude
       git: https://github.com/klntsky/purescript-search-trie.git
       ref: e7f7f22486a1dba22171ec885dbc2149dc815119
-
