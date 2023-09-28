@@ -1,4 +1,0 @@
-package:
-  name: case-three-package-c
-  dependencies:
-    - prelude

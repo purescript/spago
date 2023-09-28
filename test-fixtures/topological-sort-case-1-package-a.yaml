@@ -1,9 +1,0 @@
-package:
-  name: case-one-package-a
-  dependencies:
-    - console
-    - effect
-    - prelude
-  test:
-    dependencies: []
-    main: Subpackage.A.Test.Main
