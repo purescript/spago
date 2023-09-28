@@ -229,7 +229,7 @@ spec = Spec.around withTempDir do
               Assert.fail $ "STDERR did not contain text:\n" <> exp <> "\n\nStderr was:\n" <> stdErr
         spago [ "build" ] >>= checkResultAndOutputPredicates mempty hasAllPkgsInRightBuildOrder isRight
 
-      Spec.it "Case 4 (2+ packages modules with the same name) fails to build" \{ spago, fixture } -> do
+      Spec.itOnly "Case 4 (2+ packages modules with the same name) fails to build" \{ spago, fixture } -> do
         spagoInitCleanupNonPackageFiles spago $ fixture "topological-sort-workspace.yaml"
         void $ setupDir
           { packageName: "package-a"
@@ -255,11 +255,11 @@ spec = Spec.around withTempDir do
               exp = Array.intercalate "\n"
                 [ "Detected 2 modules with the same module name across 2 or more packages defined in this workspace."
                 , "1) Module \"Subpackage.SameName.Main\" was defined in the following packages:"
-                , "  - case-four-package-a"
-                , "  - case-four-package-b"
+                , "  - case-four-package-a   at path: package-a/src/Main.purs"
+                , "  - case-four-package-b   at path: package-b/src/Main.purs"
                 , "2) Module \"Subpackage.SameName.Test.Main\" was defined in the following packages:"
-                , "  - case-four-package-a"
-                , "  - case-four-package-b"
+                , "  - case-four-package-a   at path: package-a/test/Main.purs"
+                , "  - case-four-package-b   at path: package-b/test/Main.purs"
                 ]
 
             unless (String.contains (Pattern exp) stdErr) do

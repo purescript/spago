@@ -183,9 +183,9 @@ run opts = do
             \packages that define modules with the same name might not be detected."
         Just graph -> do
           let
-            toModulesDefinedByThisPackage :: Purs.ModuleGraphNode -> Maybe (Array PackageName)
+            toModulesDefinedByThisPackage :: Purs.ModuleGraphNode -> Maybe (Array (Tuple PackageName FilePath))
             toModulesDefinedByThisPackage v =
-              [ selected.package.name ] <$ (String.stripPrefix (String.Pattern selected.path) v.path)
+              [ Tuple selected.package.name v.path ] <$ (String.stripPrefix (String.Pattern selected.path) v.path)
             modulesDefinedByThisPackage = Map.mapMaybe toModulesDefinedByThisPackage $ unwrap graph
 
           liftEffect $ Ref.modify_ (Map.unionWith (<>) modulesDefinedByThisPackage) duplicateModuleRef
@@ -216,7 +216,13 @@ run opts = do
                     ( \idx (Tuple m ps) ->
                         Dodo.lines
                           [ Dodo.text $ show (idx + 1) <> ") Module \"" <> m <> "\" was defined in the following packages:"
-                          , Dodo.indent $ Dodo.lines $ map (\p -> Dodo.text $ "- " <> PackageName.print p) $ Array.sort ps
+                          , Dodo.indent
+                              $ Dodo.lines
+                              $ map
+                                  ( \(Tuple pkg moduleFilePath) ->
+                                      Dodo.text $ "- " <> PackageName.print pkg <> "   at path: " <> moduleFilePath
+                                  )
+                              $ Array.sort ps
                           ]
                     )
                 # Dodo.lines
