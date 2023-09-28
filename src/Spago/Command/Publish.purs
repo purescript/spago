@@ -17,6 +17,7 @@ import Effect.Aff (Milliseconds(..))
 import Effect.Aff as Aff
 import Effect.Ref as Ref
 import Node.Path as Path
+import Record as Record
 import Registry.API.V1 as V1
 import Registry.Internal.Format as Internal.Format
 import Registry.Internal.Path as Internal.Path
@@ -126,8 +127,10 @@ publish _args = do
 
   -- We then need to check that the dependency graph is accurate. If not, queue the errors
   let globs = Build.getBuildGlobs { selected, withTests: false, dependencies, depsOnly: false }
-  graphCheckErrors <- Graph.runGraphCheck selected globs []
-  for_ graphCheckErrors addError
+  maybeGraph <- Graph.runGraph globs []
+  for_ maybeGraph \graph -> do
+    graphCheckErrors <- Graph.toImportErrors selected <$> runSpago (Record.union { graph, selected } env) Graph.checkImports
+    for_ graphCheckErrors addError
 
   -- Check if all the packages have ranges, error if not
   let

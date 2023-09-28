@@ -199,9 +199,12 @@ run opts = do
     else do
       when workspace.buildOptions.pedanticPackages do
         logInfo $ "Looking for unused and undeclared transitive dependencies..."
-        errors <- Graph.runGraphCheck selected globs opts.pursArgs
-        unless (Array.null errors) do
-          die' errors
+        maybeGraph <- Graph.runGraph globs opts.pursArgs
+        for_ maybeGraph \graph -> do
+          env <- ask
+          errors <- Graph.toImportErrors selected <$> runSpago (Record.union { graph, selected } env) Graph.checkImports
+          unless (Array.null errors) do
+            die' errors
 
   when buildingMultiplePackages do
     moduleMap <- liftEffect $ Ref.read duplicateModuleRef

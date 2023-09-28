@@ -4,7 +4,6 @@ module Spago.Purs.Graph
   , checkImports
   , toImportErrors
   , runGraph
-  , runGraphCheck
   ) where
 
 import Spago.Prelude
@@ -14,7 +13,6 @@ import Data.Codec.Argonaut as CA
 import Data.Map as Map
 import Data.Set as Set
 import Data.String as String
-import Record as Record
 import Registry.Foreign.FastGlob as Glob
 import Registry.PackageName as PackageName
 import Spago.Config (Package(..), WithTestGlobs(..), WorkspacePackage)
@@ -185,16 +183,6 @@ runGraph globs pursArgs = do
       pure Nothing
     Right graph ->
       pure $ Just graph
-
-runGraphCheck :: forall a. WorkspacePackage -> Set FilePath -> Array String -> Spago (PreGraphEnv a) (Array Docc)
-runGraphCheck selected globs pursArgs = do
-  maybeGraph <- runGraph globs pursArgs
-  case maybeGraph of
-    Nothing -> do
-      pure []
-    Just graph -> do
-      env <- ask
-      toImportErrors selected <$> runSpago (Record.union { graph, selected } env) checkImports
 
 unusedError :: Boolean -> WorkspacePackage -> Set PackageName -> Docc
 unusedError isTest selected unused = toDoc
