@@ -1,6 +1,6 @@
 {
   "name": "spago",
-  "version": "0.93.13",
+  "version": "0.93.14",
   "license": "BSD-3-Clause",
   "description": "🍝 PureScript package manager and build tool",
   "keywords": [
@@ -32,6 +32,7 @@
     "prepublishOnly": "./bin/index.dev.js bundle -p spago-bin"
   },
   "dependencies": {
+    "better-sqlite3": "^8.6.0",
     "env-paths": "^3.0.0",
     "fast-glob": "^3.2.11",
     "fs-extra": "^10.0.0",

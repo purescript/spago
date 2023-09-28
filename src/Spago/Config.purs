@@ -9,7 +9,6 @@ module Spago.Config
   , WorkspacePackage
   , addPackagesToConfig
   , addRangesToConfig
-  , findPackageSet
   , getPackageLocation
   , fileSystemCharEscape
   , getWorkspacePackages
@@ -27,7 +26,6 @@ import Data.Array as Array
 import Data.CodePoint.Unicode as Unicode
 import Data.Codec.Argonaut.Record as CAR
 import Data.Enum as Enum
-import Data.Foldable as Foldable
 import Data.HTTP.Method as Method
 import Data.Int as Int
 import Data.Map as Map
@@ -53,7 +51,6 @@ import Spago.Git as Git
 import Spago.Lock (Lockfile)
 import Spago.Lock as Lock
 import Spago.Paths as Paths
-import Spago.Purs (PursEnv)
 import Type.Proxy (Proxy(..))
 
 type Workspace =
@@ -158,7 +155,7 @@ readWorkspace maybeSelectedPackage = do
   -- First try to read the config in the root. It _has_ to contain a workspace
   -- configuration, or we fail early.
   { workspace, package: maybePackage, workspaceDoc } <- Core.readConfig "spago.yaml" >>= case _ of
-    Left err -> die $ "Couldn't parse Spago config, error:\n  " <> err
+    Left err -> die [ "Couldn't parse Spago config, error:\n  " <> err, "Run `spago init` to initialise a new project." ]
     Right { yaml: { workspace: Nothing } } -> die
       [ "Your spago.yaml doesn't contain a workspace section."
       , "See the relevant documentation here: https://github.com/purescript/spago#the-workspace"
@@ -507,64 +504,3 @@ addRangesToConfig doc = runEffectFn2 addRangesToConfigImpl doc
   <<< Foreign.fromFoldable
   <<< map (\(Tuple name range) -> Tuple (PackageName.print name) (Core.printSpagoRange range))
   <<< (Map.toUnfoldable :: Map _ _ -> Array _)
-
-findPackageSet :: forall a. Maybe Version -> Spago (PursEnv a) Version
-findPackageSet maybeSet = do
-  -- first we read in the list of sets
-  let
-    parseSetVersion str = Version.parse case String.stripSuffix (Pattern ".json") str of
-      Nothing -> str
-      Just v -> v
-    packageSetsPath = Path.concat [ Paths.registryPath, "package-sets" ]
-  { success: setVersions, fail: parseFailures } <- map (partitionEithers <<< map parseSetVersion) $ FS.ls packageSetsPath
-
-  unless (Array.null parseFailures) do
-    logDebug $ [ toDoc "Failed to parse some package-sets versions:" ] <> map (indent <<< toDoc <<< show) parseFailures
-
-  case maybeSet of
-    -- if our input param is in the list of sets just return that
-    Just desiredSet -> case Array.find (_ == desiredSet) setVersions of
-      Just _ -> pure desiredSet
-      Nothing -> die $ [ toDoc $ "Could not find desired set " <> Version.print desiredSet <> " in the list of available set versions:" ]
-        <> map (indent <<< toDoc <<< Version.print) (Array.sort setVersions)
-    -- no set in input: read the compiler version, look through the latest set by major version until we match the compiler version
-    Nothing -> do
-      -- build an index from compiler version to latest set, only looking at major versions
-      -- TODO: we should probably cache this, like it's done in the legacy package sets
-      let
-        readPackageSet setVersion = do
-          logDebug "Reading the package set from the Registry repo..."
-          let packageSetPath = Path.concat [ packageSetsPath, Version.print setVersion <> ".json" ]
-          liftAff (FS.readJsonFile remotePackageSetCodec packageSetPath) >>= case _ of
-            Left err -> die $ "Couldn't read the package set: " <> err
-            Right (RemotePackageSet registryPackageSet) -> do
-              logDebug $ "Read the package set " <> Version.print setVersion <> " from the registry"
-              pure registryPackageSet
-        accVersions index newSetVersion = do
-          -- first thing we check if we already have the latest set for this major version
-          let maybeResult = Foldable.find (\(Tuple _c s) -> Version.major s == Version.major newSetVersion) (Map.toUnfoldable index :: Array (Tuple Version Version))
-          case maybeResult of
-            -- We have a version with the same major. If it's higher then we can just replace it (because we know it supports the same compiler)
-            -- If it's not, we just return the current index and move on
-            Just (Tuple currentCompiler currentVersion) ->
-              if newSetVersion > currentVersion then do
-                logDebug $ "Updating to package set " <> Version.print newSetVersion <> " for compiler " <> Version.print currentCompiler
-                pure (Map.insert currentCompiler newSetVersion index)
-              else pure index
-            -- Didn't find a version with the same major, so we could be supporting a different compiler here.
-            -- Read the set, check what we have for the compiler it supports
-            Nothing -> do
-              packageSet <- readPackageSet newSetVersion
-              logDebug $ "Inserting package set " <> Version.print newSetVersion <> " for compiler " <> Version.print packageSet.compiler
-              pure $ Map.insert packageSet.compiler newSetVersion index
-      index :: Map Version Version <- Array.foldM accVersions Map.empty setVersions
-      logDebug $ [ "Package set index", printJson (Internal.Codec.versionMap Version.codec) index ]
-
-      -- now check if the compiler version is in the index
-      { purs } <- ask
-      case Map.lookup purs.version index of
-        Just v -> pure v
-        -- TODO: well we could approximate with any minor version really? See old Spago:
-        -- https://github.com/purescript/spago/blob/01eecf041851ca0fbced1d4f7147fcbdd8bf168d/src/Spago/PackageSet.hs#L66
-        Nothing -> die $ [ toDoc $ "No package set is compatible with your compiler version " <> Version.print purs.version, toDoc "Compatible versions:" ]
-          <> map (indent <<< toDoc <<< Version.print) (Array.fromFoldable $ Map.keys index)

@@ -3,7 +3,9 @@ module Spago.Command.Registry where
 import Spago.Prelude
 
 import Data.Array as Array
+import Data.Codec.Argonaut as CA
 import Data.Codec.Argonaut.Record as CA.Record
+import Data.DateTime (DateTime(..))
 import Data.Formatter.DateTime as DateTime
 import Data.Map as Map
 import Data.String (Pattern(..))
@@ -15,17 +17,10 @@ import Registry.Internal.Format as Internal.Format
 import Registry.Metadata as Metadata
 import Registry.PackageName as PackageName
 import Registry.Version as Version
+import Spago.Db as Db
 import Spago.FS as FS
-import Spago.Git as Git
 import Spago.Paths as Paths
-
-type RegistryEnv a =
-  { getManifestFromIndex :: PackageName -> Version -> Spago (LogEnv ()) (Maybe Manifest)
-  , getMetadata :: PackageName -> Spago (LogEnv ()) (Either String Metadata)
-  , logOptions :: LogOptions
-  , git :: Git.Git
-  | a
-  }
+import Spago.Registry (RegistryEnv)
 
 type RegistrySearchArgs =
   { package :: String
@@ -98,3 +93,42 @@ info { package, json } = do
       output case json of
         true -> OutputJson Metadata.codec meta
         false -> OutputYaml Metadata.codec meta
+
+type RegistryPackageSetsArgs =
+  { latest :: Boolean
+  , json :: Boolean
+  }
+
+packageSets :: forall a. RegistryPackageSetsArgs -> Spago (RegistryEnv a) Unit
+packageSets { latest, json } = do
+  { db } <- ask
+  availableSets <- liftEffect $ Db.selectPackageSets db
+
+  let
+    sets = case latest of
+      false -> availableSets
+      true ->
+        -- here we need to keep only the highest version of all the sets with the same compiler version
+        Array.fromFoldable
+          $ Map.values
+          $
+            foldl
+              ( \acc newSet -> case Map.lookup newSet.compiler acc of
+                  Nothing -> Map.insert newSet.compiler newSet acc
+                  Just { version } -> case newSet.version > version of
+                    true -> Map.insert newSet.compiler newSet acc
+                    false -> acc
+              )
+              Map.empty
+              availableSets
+
+  output case json of
+    true -> OutputJson (CA.array Db.packageSetCodec) sets
+    false -> OutputTable
+      { titles: [ "VERSION", "DATE", "COMPILER" ]
+      , rows: sets # map \{ version, date, compiler } ->
+          [ Version.print version
+          , DateTime.format Internal.Format.iso8601Date $ DateTime date bottom
+          , Version.print compiler
+          ]
+      }

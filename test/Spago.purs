@@ -14,6 +14,7 @@ import Test.Spago.Init as Init
 import Test.Spago.Install as Install
 import Test.Spago.Lock as Lock
 import Test.Spago.Ls as Ls
+import Test.Spago.Registry as Registry
 import Test.Spago.Run as Run
 import Test.Spago.Sources as Sources
 import Test.Spago.Test as Test
@@ -44,6 +45,7 @@ main = Aff.launchAff_ $ void $ un Identity $ Spec.Runner.runSpecT testConfig [ S
     Run.spec
     Test.spec
     Bundle.spec
+    Registry.spec
     Spec.describe "miscellaneous" do
       Lock.spec
   Unit.spec

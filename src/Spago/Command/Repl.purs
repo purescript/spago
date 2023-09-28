@@ -9,7 +9,7 @@ import Spago.Prelude
 import Data.Map as Map
 import Registry.PackageName as PackageName
 import Spago.Command.Build as Build
-import Spago.Command.Registry (RegistryEnv)
+import Spago.Registry (RegistryEnv)
 import Spago.Config (Package(..), PackageMap, PackageSet(..), WorkspacePackage)
 import Spago.Purs (Purs)
 import Spago.Purs as Purs
