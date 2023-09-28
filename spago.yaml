@@ -79,19 +79,6 @@ workspace:
         - psci-support
       git: https://github.com/klntsky/purescript-jest.git
       ref: 7feaa5a880fc75002c4eca312993174e7220252b
-    literals:
-      dependencies:
-        - assert
-        - console
-        - effect
-        - integers
-        - numbers
-        - partial
-        - psci-support
-        - typelevel-prelude
-        - unsafe-coerce
-      git: https://github.com/jvliwanag/purescript-literals.git
-      ref: ae3ef4e9c1ae7c57ec77bd13906fa60ae8abba4a
     markdown-it:
       dependencies:
         - effect
