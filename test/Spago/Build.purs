@@ -229,7 +229,7 @@ spec = Spec.around withTempDir do
               Assert.fail $ "STDERR did not contain text:\n" <> exp <> "\n\nStderr was:\n" <> stdErr
         spago [ "build" ] >>= checkResultAndOutputPredicates mempty hasAllPkgsInRightBuildOrder isRight
 
-      Spec.itOnly "Case 4 (2+ packages modules with the same name) fails to build" \{ spago, fixture } -> do
+      Spec.it "Case 4 (2+ packages modules with the same name) fails to build" \{ spago, fixture } -> do
         spagoInitCleanupNonPackageFiles spago $ fixture "topological-sort-workspace.yaml"
         void $ setupDir
           { packageName: "package-a"
