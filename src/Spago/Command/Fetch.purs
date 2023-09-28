@@ -91,23 +91,20 @@ run { packages, ensureRanges, isTest } = do
         , yamlDoc: selected.doc
         , transitiveDeps
         }
-    Nothing | not $ Array.null packages ->
-      case workspace.rootPackage of
-        Just (rootPackage :: PackageConfig) -> do
-          hasTests <- FS.exists "test"
-          let rootWorkspacePackage = { path: "./", doc: workspace.doc, package: rootPackage, hasTests }
-          transitiveDeps <- getSelectedPackageTransitiveDeps rootWorkspacePackage
-          pure $ Right
-            { workspacePackage: rootWorkspacePackage
-            , configPath: "spago.yaml"
-            , yamlDoc: workspace.doc
-            , transitiveDeps
-            }
-        Nothing ->
-          die
-            [ "No package found in the root configuration."
-            , "Please use the `-p` flag to select a package to install your packages in."
-            ]
+    Nothing | not $ Array.null packages -> do
+      rootPackage :: PackageConfig <- workspace.rootPackage `justOrDieWith`
+        [ "No package found in the root configuration."
+        , "Please use the `-p` flag to select a package to install your packages in."
+        ]
+      hasTests <- FS.exists "test"
+      let rootWorkspacePackage = { path: "./", doc: workspace.doc, package: rootPackage, hasTests }
+      transitiveDeps <- getSelectedPackageTransitiveDeps rootWorkspacePackage
+      pure $ Right
+        { workspacePackage: rootWorkspacePackage
+        , configPath: "spago.yaml"
+        , yamlDoc: workspace.doc
+        , transitiveDeps
+        }
     _ ->
       map Left
         $ traverse getTransitiveDeps
@@ -117,14 +114,10 @@ run { packages, ensureRanges, isTest } = do
 
   -- write to the config file if we are adding new packages
   unless (Array.null packages) do
-    { configPath, workspacePackage, yamlDoc } <- case workspaceDepsOrSelectedPackage of
-      Right r ->
-        pure r
-      Left _ ->
-        die
-          [ "No package found in the root configuration."
-          , "Please use the `-p` flag to select a package to install your packages in."
-          ]
+    { configPath, workspacePackage, yamlDoc } <- workspaceDepsOrSelectedPackage `rightOrDieWith` \_ ->
+      [ "No package found in the root configuration."
+      , "Please use the `-p` flag to select a package to install your packages in."
+      ]
     let packageDependencies = Map.keys $ unwrap workspacePackage.package.dependencies
     let overlappingPackages = Set.intersection packageDependencies (Set.fromFoldable packages)
     unless (Set.isEmpty overlappingPackages) do
@@ -137,14 +130,10 @@ run { packages, ensureRanges, isTest } = do
 
   -- if the flag is selected, we kick off the process of adding ranges to the config
   when ensureRanges do
-    { configPath, yamlDoc, transitiveDeps } <- case workspaceDepsOrSelectedPackage of
-      Right r ->
-        pure r
-      Left _ ->
-        die
-          [ "No package found in the root configuration."
-          , "Please use the `-p` flag to select a package to which to add ranges."
-          ]
+    { configPath, yamlDoc, transitiveDeps } <- workspaceDepsOrSelectedPackage `rightOrDieWith` \_ ->
+      [ "No package found in the root configuration."
+      , "Please use the `-p` flag to select a package to which to add ranges."
+      ]
     logInfo $ "Adding ranges to dependencies to the config in " <> configPath
     let rangeMap = map getRangeFromPackage transitiveDeps
     liftEffect $ Config.addRangesToConfig yamlDoc rangeMap
