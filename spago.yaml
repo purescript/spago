@@ -14,6 +14,7 @@ package:
     - arrays
     - codec-argonaut
     - datetime
+    - docs-search
     - dodo-printer
     - effect
     - either
@@ -62,3 +63,55 @@ workspace:
       git: https://github.com/purescript/registry-dev.git
       ref: 6a803c37577af368caa221a2a06d6be2079d32da
       subdir: foreign
+    html-parser-halogen:
+      dependencies:
+        - halogen
+        - string-parsers
+      git: https://github.com/rnons/purescript-html-parser-halogen.git
+      ref: 035a51d02ba9f8b70c3ffd9fe31a3f5bed19941c
+    jest:
+      dependencies:
+        - aff
+        - aff-promise
+        - effect
+        - foldable-traversable
+        - prelude
+        - psci-support
+      git: https://github.com/nonbili/purescript-jest.git
+      ref: caf2032f2e5828337e897a99f5359c00e91cb0ee
+    markdown-it:
+      dependencies:
+        - effect
+        - options
+        - prelude
+      git: https://github.com/nonbili/purescript-markdown-it.git
+      ref: f6e8ee91298f2fc13c4277e75a19e0538de5f7a2
+    markdown-it-halogen:
+      dependencies:
+        - html-parser-halogen
+        - markdown-it
+      git: https://github.com/nonbili/purescript-markdown-it-halogen.git
+      ref: 08c9625015bf04214be14e45230e8ce12f3fa2bf
+    memoize:
+      dependencies:
+        - either
+        - integers
+        - lazy
+        - lists
+        - maybe
+        - prelude
+        - strings
+        - tuples
+      git: https://github.com/paf31/purescript-memoize.git
+      ref: 9960694e82adc212fd89f8ed8778cf55fcb72aeb
+    search-trie:
+      dependencies:
+        - arrays
+        - bifunctors
+        - foldable-traversable
+        - lists
+        - ordered-collections
+        - prelude
+      git: https://github.com/klntsky/purescript-search-trie.git
+      ref: e7f7f22486a1dba22171ec885dbc2149dc815119
+
