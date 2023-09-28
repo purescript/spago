@@ -37,7 +37,10 @@ run = do
       , depsOnly
       }
 
-  _ <- Purs.docs globs docsFormat
+  result <- Purs.docs globs docsFormat
+  case result of
+    Left err -> die err.message
+    Right _ -> pure unit
 
   when (docsFormat == Html) $ do
     currentDir <- liftEffect Process.cwd
@@ -51,4 +54,3 @@ run = do
 
 -- For purescript version looking at FFI to this library:
 -- https://github.com/sindresorhus/open
-
