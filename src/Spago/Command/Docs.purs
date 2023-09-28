@@ -29,10 +29,7 @@ run = do
   let
     globs = getBuildGlobs
       { withTests: true
-      , selected:
-          case workspace.selected of
-            Just p -> [ p ]
-            Nothing -> Config.getWorkspacePackages workspace.packageSet
+      , selected: Config.getWorkspacePackages workspace.packageSet
       , dependencies
       , depsOnly
       }

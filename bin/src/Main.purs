@@ -103,8 +103,7 @@ type BuildArgs a =
   }
 
 type DocsArgs =
-  { selectedPackage :: Maybe String
-  , docsFormat :: Purs.DocsFormat
+  { docsFormat :: Purs.DocsFormat
   , depsOnly :: Boolean
   }
 
@@ -390,10 +389,9 @@ publishArgsParser =
 
 docsArgsParser :: Parser DocsArgs
 docsArgsParser = Optparse.fromRecord
-  { selectedPackage: Flags.selectedPackage
   -- TODO: --deps-only
   -- , depsOnly: Flags.depsOnly
-  , depsOnly: pure false :: Parser Boolean
+  { depsOnly: pure false :: Parser Boolean
   , docsFormat: parseFormat <$>
       Maybe.optional
         ( O.strOption
@@ -618,8 +616,8 @@ main =
             dependencies <- runSpago env (Fetch.run fetchOpts)
             lsEnv <- runSpago env (mkLsEnv dependencies)
             runSpago lsEnv (Ls.listPackages { json, transitive })
-          Docs args@{ selectedPackage } -> do
-            { env, fetchOpts } <- mkFetchEnv { packages: mempty, selectedPackage, ensureRanges: false, testDeps: true }
+          Docs args -> do
+            { env, fetchOpts } <- mkFetchEnv { packages: mempty, selectedPackage: Nothing, ensureRanges: false, testDeps: true }
             -- TODO: --no-fetch flag
             dependencies <- runSpago env (Fetch.run fetchOpts)
             docsEnv <- runSpago env (mkDocsEnv args dependencies)
