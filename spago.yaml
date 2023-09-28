@@ -77,8 +77,8 @@ workspace:
         - foldable-traversable
         - prelude
         - psci-support
-      git: https://github.com/klntsky/purescript-jest.git
-      ref: 7feaa5a880fc75002c4eca312993174e7220252b
+      git: https://github.com/nonbili/purescript-jest.git
+      ref: caf2032f2e5828337e897a99f5359c00e91cb0ee
     markdown-it:
       dependencies:
         - effect
