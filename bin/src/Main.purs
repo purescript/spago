@@ -102,7 +102,7 @@ type BuildArgs a =
   | a
   }
 
-type DocsArgs = 
+type DocsArgs =
   { selectedPackage :: Maybe String
   , docsFormat :: Purs.DocsFormat
   , depsOnly :: Boolean
@@ -186,7 +186,7 @@ data Command a
   | Fetch FetchArgs
   | Install InstallArgs
   | Build (BuildArgs a)
-  | Docs DocsArgs 
+  | Docs DocsArgs
   | Bundle BundleArgs
   | Repl ReplArgs
   | Run RunArgs
@@ -395,20 +395,20 @@ docsArgsParser = Optparse.fromRecord
   -- , depsOnly: Flags.depsOnly
   , depsOnly: pure false :: Parser Boolean
   , docsFormat: parseFormat <$>
-     Maybe.optional
-       ( O.strOption
-         ( O.long "format"
-        <> O.short 'f'
-        <> O.metavar "FORMAT"
-        <> O.help "Docs output format (markdown | html | etags | ctags)"
-         )
-       )
+      Maybe.optional
+        ( O.strOption
+            ( O.long "format"
+                <> O.short 'f'
+                <> O.metavar "FORMAT"
+                <> O.help "Docs output format (markdown | html | etags | ctags)"
+            )
+        )
   }
   where
-    parseFormat :: Maybe String -> Purs.DocsFormat
-    parseFormat val = fromMaybe Purs.Html $ 
-      val >>= Purs.parseDocsFormat
-
+  parseFormat :: Maybe String -> Purs.DocsFormat
+  parseFormat val = fromMaybe Purs.Html
+    $ val
+    >>= Purs.parseDocsFormat
 
 registrySearchArgsParser :: Parser RegistrySearchArgs
 registrySearchArgsParser =
@@ -983,16 +983,14 @@ mkLsEnv dependencies = do
               ]
   pure { logOptions, workspace, dependencies, selected }
 
-
 mkDocsEnv :: forall a. DocsArgs -> Map PackageName Package -> Spago (Fetch.FetchEnv a) Docs.DocsEnv
 mkDocsEnv args dependencies = do
   { logOptions, workspace } <- ask
   purs <- Purs.getPurs
-  let env :: Docs.DocsEnv
-      env = { purs, logOptions, workspace, dependencies, depsOnly: args.depsOnly, docsFormat: args.docsFormat }
+  let
+    env :: Docs.DocsEnv
+    env = { purs, logOptions, workspace, dependencies, depsOnly: args.depsOnly, docsFormat: args.docsFormat }
   pure env
-
-
 
 shouldFetchRegistryRepos :: forall a. Spago (LogEnv a) Boolean
 shouldFetchRegistryRepos = do

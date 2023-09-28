@@ -69,22 +69,23 @@ data DocsFormat
   | Markdown
   | Ctags
   | Etags
+
 derive instance Eq DocsFormat
 
 parseDocsFormat :: String -> Maybe DocsFormat
 parseDocsFormat = case _ of
-  "html"     -> Just Html
+  "html" -> Just Html
   "markdown" -> Just Markdown
-  "ctags"    -> Just Ctags
-  "etags"    -> Just Etags
-  _          -> Nothing
+  "ctags" -> Just Ctags
+  "etags" -> Just Etags
+  _ -> Nothing
 
 printDocsFormat :: DocsFormat -> String
 printDocsFormat = case _ of
-  Html     -> "html"
+  Html -> "html"
   Markdown -> "markdown"
-  Ctags    -> "ctags"
-  Etags    -> "etags"
+  Ctags -> "ctags"
+  Etags -> "etags"
 
 docs :: forall a. Set FilePath -> DocsFormat -> Spago (PursEnv a) (Either Cmd.ExecError Cmd.ExecResult)
 docs globs format = do
