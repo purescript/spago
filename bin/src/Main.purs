@@ -9,6 +9,7 @@ import Data.Foldable as Foldable
 import Data.JSDate as JSDate
 import Data.List as List
 import Data.Map as Map
+import Data.Maybe as Maybe
 import Data.Set.NonEmpty (NonEmptySet)
 import Data.String as String
 import Effect.Aff as Aff
@@ -390,15 +391,21 @@ publishArgsParser =
 docsArgsParser :: Parser DocsArgs
 docsArgsParser = Optparse.fromRecord
   { selectedPackage: Flags.selectedPackage
-  , docsFormat: fromMaybe Docs.Html <$>
-     optional
-       ( strOption
-         ( long "docs-files"
-        <> metavar "GLOB"
-        <> help "Glob that captures `docs.json` files that should be used to build the index"
+  , docsFormat: parseFormat <$>
+     Maybe.optional
+       ( O.strOption
+         ( O.long "format"
+        <> O.short "f"
+        <> O.metavar "FORMAT"
+        <> O.help "Docs output format (markdown | html | etags | ctags)"
          )
        )
   }
+  where
+    parseFormat :: Maybe String -> Purs.DocsFormat
+    parseFormat val = fromMaybe Purs.Html $ 
+      val >>= Purs.parseDocsFormat
+
 
 registrySearchArgsParser :: Parser RegistrySearchArgs
 registrySearchArgsParser =
