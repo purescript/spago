@@ -56,7 +56,7 @@ type PackageGraphNode =
   }
 
 -- | For every Package that we depend on, we note which Module we are depending on, 
--- | and for each of them we note from which Module we are importing it.
+-- | and for each of them, we note from which Module we are importing it.
 -- | 
 -- | Given code like
 -- | ```
@@ -66,9 +66,6 @@ type PackageGraphNode =
 -- | ```
 -- | This value would be
 -- | `Map.singleton "prelude" $ Map.singleton "Prelude" $ Set.singleton "MyModule"``
--- |
--- | Every package can be imported by several project modules.
--- | In each project module, several modules from the same package can be imported.
 type ImportedPackages = Map PackageName (Map ModuleName (Set ModuleName))
 
 checkImports :: forall a. Spago (GraphEnv a) ImportCheckResult
