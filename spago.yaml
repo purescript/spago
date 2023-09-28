@@ -84,8 +84,8 @@ workspace:
         - effect
         - options
         - prelude
-      git: https://github.com/klntsky/purescript-markdown-it.git
-      ref: f3b7654783a83a80d7c09b6caaa7cd40b93ddce1
+      git: https://github.com/nonbili/purescript-markdown-it.git
+      ref: f6e8ee91298f2fc13c4277e75a19e0538de5f7a2
     markdown-it-halogen:
       dependencies:
         - html-parser-halogen
