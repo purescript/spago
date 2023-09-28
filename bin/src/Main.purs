@@ -102,7 +102,10 @@ type BuildArgs a =
   | a
   }
 
-type DocsArgs = { }
+type DocsArgs = 
+  { selectedPackage :: Maybe String
+  
+  }
 
 -- TODO: more repl arguments: dependencies, repl-package
 type ReplArgs =
@@ -385,8 +388,17 @@ publishArgsParser =
     }
 
 docsArgsParser :: Parser DocsArgs
-docsArgsParser = Optparse.fromRecord { }
-
+docsArgsParser = Optparse.fromRecord
+  { selectedPackage: Flags.selectedPackage
+  , docsFormat: fromMaybe Docs.Html <$>
+     optional
+       ( strOption
+         ( long "docs-files"
+        <> metavar "GLOB"
+        <> help "Glob that captures `docs.json` files that should be used to build the index"
+         )
+       )
+  }
 
 registrySearchArgsParser :: Parser RegistrySearchArgs
 registrySearchArgsParser =
@@ -596,9 +608,12 @@ main =
             dependencies <- runSpago env (Fetch.run fetchOpts)
             lsEnv <- runSpago env (mkLsEnv dependencies)
             runSpago lsEnv (Ls.listPackages { json, transitive })
-
-          Docs _ -> do
-             logInfo "hello, world"
+          Docs args@{ selectedPackage } -> do
+            { env, fetchOpts } <- mkFetchEnv { packages: mempty, selectedPackage, ensureRanges: false, testDeps: true }
+            -- TODO: --no-fetch flag
+            dependencies <- runSpago env (Fetch.run fetchOpts)
+            docsEnv <- runSpago env (mkDocsEnv args dependencies)
+            runSpago docsEnv Docs.run
 
       Cmd'VersionCmd v -> do when v printVersion
   where
@@ -957,6 +972,17 @@ mkLsEnv dependencies = do
               , indent (toDoc $ map _.package.name workspacePackages)
               ]
   pure { logOptions, workspace, dependencies, selected }
+
+
+mkDocsEnv :: forall a. DocsArgs -> Map PackageName Package -> Spago (Fetch.FetchEnv a) Docs.DocsEnv
+mkDocsEnv args dependencies = do
+  { purs, logOptions, workspace } <- ask
+  purs <- Purs.getPurs
+  let env :: Docs.DocsEnv
+      env = { purs, logOptions, workspace, dependencies }
+  pure env
+
+
 
 shouldFetchRegistryRepos :: forall a. Spago (LogEnv a) Boolean
 shouldFetchRegistryRepos = do
