@@ -10,6 +10,7 @@ import Effect.Aff (Milliseconds(..))
 import Effect.Aff as Aff
 import Test.Spago.Build as Build
 import Test.Spago.Bundle as Bundle
+import Test.Spago.Docs as Docs
 import Test.Spago.Init as Init
 import Test.Spago.Install as Install
 import Test.Spago.Lock as Lock
@@ -44,6 +45,7 @@ main = Aff.launchAff_ $ void $ un Identity $ Spec.Runner.runSpecT testConfig [ S
     Run.spec
     Test.spec
     Bundle.spec
+    Docs.spec
     Spec.describe "miscellaneous" do
       Lock.spec
   Unit.spec
