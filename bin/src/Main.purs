@@ -9,6 +9,7 @@ import Data.Foldable as Foldable
 import Data.JSDate as JSDate
 import Data.List as List
 import Data.Map as Map
+import Data.Maybe as Maybe
 import Data.Set.NonEmpty (NonEmptySet)
 import Data.String as String
 import Effect.Aff as Aff
@@ -25,9 +26,9 @@ import Registry.ManifestIndex as ManifestIndex
 import Registry.Metadata as Metadata
 import Registry.PackageName as PackageName
 import Spago.Bin.Flags as Flags
-import Spago.BuildInfo as BuildInfo
 import Spago.Command.Build as Build
 import Spago.Command.Bundle as Bundle
+import Spago.Command.Docs as Docs
 import Spago.Command.Fetch as Fetch
 import Spago.Command.Init as Init
 import Spago.Command.Ls (LsDepsArgs, LsPackagesArgs)
@@ -99,6 +100,11 @@ type BuildArgs a =
   , statVerbosity :: Maybe Core.StatVerbosity
   , persistWarnings :: Maybe Boolean
   | a
+  }
+
+type DocsArgs =
+  { docsFormat :: Purs.DocsFormat
+  , depsOnly :: Boolean
   }
 
 -- TODO: more repl arguments: dependencies, repl-package
@@ -179,6 +185,7 @@ data Command a
   | Fetch FetchArgs
   | Install InstallArgs
   | Build (BuildArgs a)
+  | Docs DocsArgs
   | Bundle BundleArgs
   | Repl ReplArgs
   | Run RunArgs
@@ -211,6 +218,8 @@ argParser =
     , commandParser "sources" (Sources <$> sourcesArgsParser) "List all the source paths (globs) for the dependencies of the project"
     , commandParser "repl" (Repl <$> replArgsParser) "Start a REPL"
     , commandParser "publish" (Publish <$> publishArgsParser) "Publish a package"
+
+    , commandParser "docs" (Docs <$> docsArgsParser) "Generate docs for the project and its dependencies"
     , O.command "registry"
         ( O.info
             ( O.hsubparser $ Foldable.fold
@@ -377,6 +386,27 @@ publishArgsParser =
   Optparse.fromRecord
     { selectedPackage: Flags.selectedPackage
     }
+
+docsArgsParser :: Parser DocsArgs
+docsArgsParser = Optparse.fromRecord
+  -- TODO: --deps-only
+  -- , depsOnly: Flags.depsOnly
+  { depsOnly: pure false :: Parser Boolean
+  , docsFormat: parseFormat <$>
+      Maybe.optional
+        ( O.strOption
+            ( O.long "format"
+                <> O.short 'f'
+                <> O.metavar "FORMAT"
+                <> O.help "Docs output format (markdown | html | etags | ctags)"
+            )
+        )
+  }
+  where
+  parseFormat :: Maybe String -> Purs.DocsFormat
+  parseFormat val = fromMaybe Purs.Html
+    $ val
+    >>= Purs.parseDocsFormat
 
 registrySearchArgsParser :: Parser RegistrySearchArgs
 registrySearchArgsParser =
@@ -586,6 +616,13 @@ main =
             dependencyInfo <- runSpago env (Fetch.run fetchOpts)
             lsEnv <- runSpago env (mkLsEnv dependencyInfo.dependencies)
             runSpago lsEnv (Ls.listPackages { json, transitive })
+          Docs args -> do
+            { env, fetchOpts } <- mkFetchEnv { packages: mempty, selectedPackage: Nothing, ensureRanges: false, testDeps: true }
+            -- TODO: --no-fetch flag
+            dependencies <- runSpago env (Fetch.run fetchOpts)
+            docsEnv <- runSpago env (mkDocsEnv args dependencies)
+            runSpago docsEnv Docs.run
+
       Cmd'VersionCmd v -> do when v printVersion
   where
   printVersion = do
@@ -943,6 +980,15 @@ mkLsEnv dependencies = do
               , indent (toDoc $ map _.package.name workspacePackages)
               ]
   pure { logOptions, workspace, dependencies, selected }
+
+mkDocsEnv :: forall a. DocsArgs -> Map PackageName Package -> Spago (Fetch.FetchEnv a) Docs.DocsEnv
+mkDocsEnv args dependencies = do
+  { logOptions, workspace } <- ask
+  purs <- Purs.getPurs
+  let
+    env :: Docs.DocsEnv
+    env = { purs, logOptions, workspace, dependencies, depsOnly: args.depsOnly, docsFormat: args.docsFormat }
+  pure env
 
 shouldFetchRegistryRepos :: forall a. Spago (LogEnv a) Boolean
 shouldFetchRegistryRepos = do
