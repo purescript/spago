@@ -34,14 +34,16 @@ import Registry.Sha256 as Sha256
 import Registry.Solver as Registry.Solver
 import Registry.Version as Registry.Version
 import Registry.Version as Version
-import Spago.Command.Registry (RegistryEnv)
+import Spago.Registry (RegistryEnv)
 import Spago.Config (Dependencies(..), GitPackage, LockfileSettings(..), Package(..), PackageConfig, PackageMap, PackageSet(..), Workspace, WorkspacePackage)
 import Spago.Config as Config
+import Spago.Db as Db
 import Spago.FS as FS
 import Spago.Git as Git
 import Spago.Lock (LockEntry(..))
 import Spago.Lock as Lock
 import Spago.Paths as Paths
+import Spago.Purs as Purs
 import Spago.Tar as Tar
 
 type FetchEnvRow a =
@@ -49,7 +51,9 @@ type FetchEnvRow a =
   , getMetadata :: PackageName -> Spago (LogEnv ()) (Either String Metadata)
   , workspace :: Workspace
   , logOptions :: LogOptions
+  , purs :: Purs.Purs
   , git :: Git.Git
+  , db :: Db.Db
   | a
   )
 

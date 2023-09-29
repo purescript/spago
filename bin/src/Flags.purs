@@ -185,6 +185,13 @@ json =
         <> O.help "Format the output as JSON"
     )
 
+latest :: Parser Boolean
+latest =
+  O.switch
+    ( O.long "latest"
+        <> O.help "Only include the latest package set for each compiler"
+    )
+
 transitive :: Parser Boolean
 transitive =
   O.switch

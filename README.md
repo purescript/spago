@@ -533,9 +533,22 @@ to have a look at the list of all the available ones. You can do that with:
 $ spago registry package-sets
 ```
 
-This will print a list of the latest package set for each compiler version, together with their publishing date.
+This will print a list of all the package sets ever releases, which could be overwhelming, as you'd likely only be interested in the latest one.
 
-Add the `--all` flag to list all of them.
+This is how you would ask for the latest package sets for each compiler version:
+
+```console
+$ spago registry package-sets --latest
++---------+------------+----------+
+| VERSION | DATE       | COMPILER |
++---------+------------+----------+
+| 10.0.0  | 2023-01-05 | 0.15.4   |
+| 20.0.3  | 2023-04-08 | 0.15.7   |
+| 27.2.0  | 2023-06-17 | 0.15.8   |
+| 29.1.0  | 2023-07-18 | 0.15.9   |
+| 42.1.0  | 2023-09-26 | 0.15.10  |
++---------+------------+----------+
+```
 
 ### Upgrading packages and the package set
 
@@ -1207,6 +1220,10 @@ package:
     platform: browser
     # Possible values are 'app' or 'module'
     type: "app"
+    # Any other flags that should be passed to the bundler.
+    # You can use this to e.g. pass `--external` flags to esbuild:
+    extra_args:
+      - "--external:ssh2"
 
   # Optional section to configure the behaviour of `spago run`.
   # All the fields are optional.

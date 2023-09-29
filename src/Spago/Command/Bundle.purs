@@ -22,6 +22,7 @@ type BundleOptions =
   , outfile :: FilePath
   , platform :: BundlePlatform
   , type :: BundleType
+  , extraArgs :: Array String
   }
 
 type RawBundleOptions =
@@ -30,6 +31,7 @@ type RawBundleOptions =
   , outfile :: FilePath
   , platform :: String
   , type :: String
+  , extraArgs :: Array String
   }
 
 run :: forall a. Spago (BundleEnv a) Unit
@@ -45,7 +47,7 @@ run = do
 
     -- See https://github.com/evanw/esbuild/issues/1921
     nodePatch = case opts.platform of
-      BundleNode -> [ "--banner:js=import __module from \'module\';import __path from \'path\';import __url from \'url\';const require = __module.createRequire(import.meta.url);const __dirname = __path.dirname(__url.fileURLToPath(import.meta.url));" ]
+      BundleNode -> [ "--banner:js=import __module from \'module\';import __path from \'path\';import __url from \'url\';const require = __module.createRequire(import.meta.url);const __dirname = __path.dirname(__url.fileURLToPath(import.meta.url));const __filename=new URL(import.meta.url).pathname" ]
       _ -> []
 
     output = case workspace.buildOptions.output of
@@ -66,7 +68,7 @@ run = do
       -- See https://github.com/evanw/esbuild/issues/1051
       , "--loader:.node=file"
       , format
-      ] <> minify <> entrypoint <> nodePatch
+      ] <> opts.extraArgs <> minify <> entrypoint <> nodePatch
   logInfo "Bundling..."
   logDebug $ "Running esbuild: " <> show args
   Cmd.exec esbuild.cmd args execOptions >>= case _ of

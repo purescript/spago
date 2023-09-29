@@ -7,7 +7,7 @@ import Spago.Prelude
 
 import Data.Map as Map
 import Spago.Command.Build as Build
-import Spago.Config (WorkspacePackage, PackageMap)
+import Spago.Config (PackageMap, WorkspacePackage)
 import Spago.Purs (Purs)
 import Spago.Purs as Purs
 
