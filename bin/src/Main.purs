@@ -2,6 +2,7 @@ module Main (main) where
 
 import Spago.Prelude
 
+import Control.Monad.Reader as Reader
 import Data.Array as Array
 import Data.Array.NonEmpty as NonEmptyArray
 import Data.Codec.Argonaut.Common as CA.Common
@@ -34,8 +35,8 @@ import Spago.Command.Init as Init
 import Spago.Command.Ls (LsDepsArgs, LsPackagesArgs)
 import Spago.Command.Ls as Ls
 import Spago.Command.Publish as Publish
-import Spago.Command.Registry (RegistryInfoArgs, RegistrySearchArgs)
-import Spago.Command.Registry as Registry
+import Spago.Command.Registry (RegistryInfoArgs, RegistrySearchArgs, RegistryPackageSetsArgs)
+import Spago.Command.Registry as RegistryCmd
 import Spago.Command.Repl as Repl
 import Spago.Command.Run as Run
 import Spago.Command.Sources as Sources
@@ -43,6 +44,7 @@ import Spago.Command.Test as Test
 import Spago.Config (BundleConfig, BundlePlatform(..), BundleType(..), Package, RunConfig, TestConfig)
 import Spago.Config as Config
 import Spago.Core.Config as Core
+import Spago.Db as Db
 import Spago.Esbuild as Esbuild
 import Spago.FS as FS
 import Spago.Generated.BuildInfo as BuildInfo
@@ -50,8 +52,8 @@ import Spago.Git as Git
 import Spago.Json as Json
 import Spago.Log (LogVerbosity(..))
 import Spago.Paths as Paths
-import Spago.Purs (Purs)
 import Spago.Purs as Purs
+import Spago.Registry as Registry
 import Unsafe.Coerce as UnsafeCoerce
 
 type GlobalArgs =
@@ -193,6 +195,7 @@ data Command a
   | Sources SourcesArgs
   | RegistrySearch RegistrySearchArgs
   | RegistryInfo RegistryInfoArgs
+  | RegistryPackageSets RegistryPackageSetsArgs
   | LsDeps LsDepsArgs
   | LsPackages LsPackagesArgs
   | Publish PublishArgs
@@ -225,6 +228,7 @@ argParser =
             ( O.hsubparser $ Foldable.fold
                 [ commandParser "search" (RegistrySearch <$> registrySearchArgsParser) "Search for package names in the Registry"
                 , commandParser "info" (RegistryInfo <$> registryInfoArgsParser) "Query the Registry for information about packages and versions"
+                , commandParser "package-sets" (RegistryPackageSets <$> registryPackageSetsArgsParser) "List the available package sets"
                 ]
             )
             (O.progDesc "Commands to interact with the Registry")
@@ -422,6 +426,13 @@ registryInfoArgsParser =
     , json: Flags.json
     }
 
+registryPackageSetsArgsParser :: Parser RegistryPackageSetsArgs
+registryPackageSetsArgsParser =
+  Optparse.fromRecord
+    { json: Flags.json
+    , latest: Flags.latest
+    }
+
 lsPackagesArgsParser :: Parser LsPackagesArgs
 lsPackagesArgsParser = Optparse.fromRecord
   { json: Flags.json
@@ -466,7 +477,6 @@ main =
             { env } <- mkFetchEnv { packages: mempty, selectedPackage: args.selectedPackage, ensureRanges: false, testDeps: false }
             void $ runSpago env (Sources.run { json: args.json })
           Init args@{ useSolver } -> do
-            purs <- Purs.getPurs
             -- Figure out the package name from the current dir
             let candidateName = fromMaybe (String.take 50 $ Path.basename Paths.cwd) args.name
             logDebug [ show Paths.cwd, show candidateName ]
@@ -479,8 +489,8 @@ main =
             logDebug [ "Got packageName and setVersion:", PackageName.print packageName, unsafeStringify setVersion ]
             let initOpts = { packageName, setVersion, useSolver }
             -- Fetch the registry here so we can select the right package set later
-            void mkRegistryEnv
-            void $ runSpago { logOptions, purs } $ Init.run initOpts
+            env <- mkRegistryEnv
+            void $ runSpago env $ Init.run initOpts
             logInfo "Set up a new Spago project."
             logInfo "Try running `spago run`"
           Fetch args -> do
@@ -488,10 +498,13 @@ main =
             void $ runSpago env (Fetch.run fetchOpts)
           RegistrySearch args -> do
             env <- mkRegistryEnv
-            void $ runSpago env (Registry.search args)
+            void $ runSpago env (RegistryCmd.search args)
           RegistryInfo args -> do
             env <- mkRegistryEnv
-            void $ runSpago env (Registry.info args)
+            void $ runSpago env (RegistryCmd.info args)
+          RegistryPackageSets args -> do
+            env <- mkRegistryEnv
+            void $ runSpago env (RegistryCmd.packageSets args)
           Install args@{ packages, selectedPackage, ensureRanges, testDeps } -> do
             { env, fetchOpts } <- mkFetchEnv { packages, selectedPackage, ensureRanges, testDeps }
             -- TODO: --no-fetch flag
@@ -521,25 +534,7 @@ main =
             { env, fetchOpts } <- mkFetchEnv { packages: mempty, selectedPackage, ensureRanges: false, testDeps: false }
             -- TODO: --no-fetch flag
             dependencies <- runSpago env (Fetch.run fetchOpts)
-            let
-              buildArgs =
-                { selectedPackage
-                -- , pursArgs: mempty
-                , backendArgs: mempty
-                , output: mempty
-                , pedanticPackages: false
-                , ensureRanges: false
-                , jsonErrors: false
-                , censorBuildWarnings: Nothing :: Maybe Core.CensorBuildWarnings
-                , censorCodes: Nothing :: Maybe (NonEmptySet String)
-                , filterCodes: Nothing :: Maybe (NonEmptySet String)
-                , statVerbosity: Nothing :: Maybe Core.StatVerbosity
-                , showSource: Nothing :: Maybe Core.ShowSourceCode
-                , strict: Nothing :: Maybe Boolean
-                , persistWarnings: Nothing :: Maybe Boolean
-                }
-            { purs } <- runSpago env (mkBuildEnv buildArgs dependencies)
-            publishEnv <- runSpago env (mkPublishEnv dependencies purs)
+            publishEnv <- runSpago env (mkPublishEnv dependencies)
             void $ runSpago publishEnv (Publish.publish {})
 
           Repl args@{ selectedPackage } -> do
@@ -554,8 +549,8 @@ main =
                 FS.mkdirp tmpDir
                 logDebug $ "Creating repl project in temp dir: " <> tmpDir
                 liftEffect $ Process.chdir tmpDir
-                purs <- Purs.getPurs
-                void $ runSpago { purs, logOptions } $ Init.run
+                env <- mkRegistryEnv
+                void $ runSpago env $ Init.run
                   { setVersion: Nothing
                   , packageName: UnsafeCoerce.unsafeCoerce "repl"
                   , useSolver: true
@@ -677,7 +672,7 @@ mkBundleEnv bundleArgs = do
       ( (Config.parseBundleType =<< bundleArgs.type)
           <|> bundleConf _.type
       )
-  let bundleOptions = { minify, module: entrypoint, outfile, platform, type: bundleType }
+  let bundleOptions = { minify, module: entrypoint, outfile, platform, type: bundleType, extraArgs: fromMaybe [] (bundleConf _.extra_args) }
   let
     newWorkspace = workspace
       { buildOptions
@@ -824,8 +819,8 @@ mkBuildEnv buildArgs dependencies = do
     , workspace: newWorkspace
     }
 
-mkPublishEnv :: forall a. Map PackageName Package -> Purs -> Spago (Fetch.FetchEnv a) (Publish.PublishEnv a)
-mkPublishEnv dependencies purs = do
+mkPublishEnv :: forall a. Map PackageName Package -> Spago (Fetch.FetchEnv a) (Publish.PublishEnv a)
+mkPublishEnv dependencies = do
   env <- ask
   selected <- case env.workspace.selected of
     Just s -> pure s
@@ -842,7 +837,7 @@ mkPublishEnv dependencies purs = do
               [ toDoc "No package was selected for publishing. Please select (with -p) one of the following packages:"
               , indent (toDoc $ map _.package.name workspacePackages)
               ]
-  pure (Record.union { purs, selected, dependencies } env)
+  pure (Record.union { selected, dependencies } env)
 
 mkReplEnv :: forall a. ReplArgs -> Map PackageName Package -> Spago (Fetch.FetchEnv a) (Repl.ReplEnv ())
 mkReplEnv replArgs dependencies = do
@@ -895,8 +890,9 @@ mkRegistryEnv = do
   logDebug $ "Global cache: " <> show Paths.globalCachePath
   logDebug $ "Local cache: " <> show Paths.localCachePath
 
-  -- Make sure we have git
+  -- Make sure we have git and purs
   git <- Git.getGit
+  purs <- Purs.getPurs
 
   -- we make a Ref for the Index so that we can memoize the lookup of packages
   -- and we don't have to read it all together
@@ -954,11 +950,20 @@ mkRegistryEnv = do
           Left _err -> logWarn "Couldn't refresh the registry, will proceed anyways"
       ]
 
+  -- Now that we are up to date with the Registry we init/refresh the database
+  db <- liftEffect $ Db.connect
+    { database: Db.databasePath
+    , logger: \str -> Reader.runReaderT (logDebug $ "DB: " <> str) { logOptions }
+    }
+  Registry.updatePackageSetsDb db
+
   pure
     { getManifestFromIndex
     , getMetadata
     , logOptions
+    , purs
     , git
+    , db
     }
 
 mkLsEnv :: forall a. Map PackageName Package -> Spago (Fetch.FetchEnv a) Ls.LsEnv

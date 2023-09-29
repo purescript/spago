@@ -148,6 +148,7 @@ type BundleConfig =
   , outfile :: Maybe FilePath
   , platform :: Maybe BundlePlatform
   , type :: Maybe BundleType
+  , extra_args :: Maybe (Array String)
   }
 
 bundleConfigCodec :: JsonCodec BundleConfig
@@ -157,6 +158,7 @@ bundleConfigCodec = CAR.object "BundleConfig"
   , outfile: CAR.optional CA.string
   , platform: CAR.optional bundlePlatformCodec
   , type: CAR.optional bundleTypeCodec
+  , extra_args: CAR.optional (CA.array CA.string)
   }
 
 data BundlePlatform = BundleNode | BundleBrowser
@@ -468,5 +470,5 @@ readConfig :: forall a. FilePath -> Spago (LogEnv a) (Either String { doc :: Yam
 readConfig path = do
   logDebug $ "Reading config from " <> path
   FS.exists path >>= case _ of
-    false -> pure (Left $ "Did not find " <> path <> " file. Run `spago init` to initialise a new project.")
+    false -> pure (Left $ "Did not find " <> path <> " file.")
     true -> liftAff $ FS.readYamlDocFile configCodec path

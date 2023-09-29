@@ -38,6 +38,9 @@ registryPath = Path.concat [ globalCachePath, "registry" ]
 registryIndexPath ∷ FilePath
 registryIndexPath = Path.concat [ globalCachePath, "registry-index" ]
 
+packageSetsPath :: FilePath
+packageSetsPath = Path.concat [ registryPath, "package-sets" ]
+
 localCachePersistedWarningsPath :: FilePath
 localCachePersistedWarningsPath = Path.concat [ localCachePath, "persisted-warnings" ]
 

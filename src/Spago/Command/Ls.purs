@@ -44,6 +44,8 @@ type LsEnv =
   , selected :: WorkspacePackage
   }
 
+-- TODO: add LICENSE field
+
 listPackageSet :: LsPackagesArgs -> Spago LsSetEnv Unit
 listPackageSet { json } = do
   logDebug "Running `listPackageSet`"

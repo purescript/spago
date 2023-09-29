@@ -32,6 +32,7 @@ import Spago.Command.Fetch as Fetch
 import Spago.Config (Package(..), Workspace, WorkspacePackage)
 import Spago.Config as Config
 import Spago.Config as Core
+import Spago.Db (Db)
 import Spago.Git (Git)
 import Spago.Git as Git
 import Spago.Json as Json
@@ -54,6 +55,7 @@ type PublishEnv a =
   , workspace :: Workspace
   , logOptions :: LogOptions
   , git :: Git
+  , db :: Db
   , purs :: Purs
   , selected :: WorkspacePackage
   , dependencies :: Map PackageName Package

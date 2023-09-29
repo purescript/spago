@@ -15,7 +15,8 @@ import Registry.Version as Version
 import Spago.Config (Dependencies(..), SetAddress(..), Config)
 import Spago.Config as Config
 import Spago.FS as FS
-import Spago.Purs (PursEnv)
+import Spago.Registry (RegistryEnv)
+import Spago.Registry as Registry
 
 type InitOptions =
   -- TODO: we should allow the `--package-set` flag to alternatively pass in a URL
@@ -26,13 +27,13 @@ type InitOptions =
 
 -- TODO run git init? Is that desirable?
 
-run :: forall a. InitOptions -> Spago (PursEnv a) Config
+run :: forall a. InitOptions -> Spago (RegistryEnv a) Config
 run opts = do
   logInfo "Initializing a new project..."
 
   -- Use the specified version of the package set (if specified).
   -- Otherwise, get the latest version of the package set for the given compiler
-  packageSetVersion <- Config.findPackageSet opts.setVersion
+  packageSetVersion <- Registry.findPackageSet opts.setVersion
 
   { purs } <- ask
   logInfo $ "Found PureScript " <> Version.print purs.version <> ", will use package set " <> Version.print packageSetVersion
