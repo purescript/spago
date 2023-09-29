@@ -17,7 +17,7 @@ import Test.Spec as Spec
 import Test.Spec.Assertions as Assert
 
 spec :: SpecT Aff TestDirs Identity Unit
-spec = Spec.describeOnly "polyrepo" do
+spec = Spec.describe "polyrepo" do
 
   let
     spagoInitCleanupNonPackageFiles spago = do
@@ -77,7 +77,7 @@ spec = Spec.describeOnly "polyrepo" do
                 )
         }
 
-  Spec.itOnly "Case 1 (independent packages) builds" \{ spago } -> do
+  Spec.it "Case 1 (independent packages) builds" \{ spago } -> do
     spagoInitCleanupNonPackageFiles spago
     void $ setupDir
       { packageName: "package-a"
@@ -121,7 +121,7 @@ spec = Spec.describeOnly "polyrepo" do
       }
     spago [ "build", "--verbose" ] >>= shouldBeSuccess
 
-  Spec.itOnly "Case 2 (shared dependencies packages) builds" \{ spago } -> do
+  Spec.it "Case 2 (shared dependencies packages) builds" \{ spago } -> do
     spagoInitCleanupNonPackageFiles spago
     void $ setupDir
       { packageName: "package-shared"
@@ -189,7 +189,7 @@ spec = Spec.describeOnly "polyrepo" do
       }
     spago [ "build" ] >>= shouldBeSuccess
 
-  Spec.itOnly "Case 3 (dependencies: A&B -> C; A -> B) builds" \{ spago } -> do
+  Spec.it "Case 3 (dependencies: A&B -> C; A -> B) builds" \{ spago } -> do
     spagoInitCleanupNonPackageFiles spago
     void $ setupDir
       { packageName: "package-c"
@@ -271,7 +271,7 @@ spec = Spec.describeOnly "polyrepo" do
           Assert.fail $ "STDERR did not contain text:\n" <> exp <> "\n\nStderr was:\n" <> stdErr
     spago [ "build" ] >>= check { stdout: mempty, stderr: hasAllPkgsInRightBuildOrder, result: isRight }
 
-  Spec.itOnly "Case 4 (2+ packages modules with the same name) fails to build" \{ spago } -> do
+  Spec.it "Case 4 (2+ packages modules with the same name) fails to build" \{ spago } -> do
     spagoInitCleanupNonPackageFiles spago
     void $ setupDir
       { packageName: "package-c"
