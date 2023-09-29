@@ -57,7 +57,6 @@ type PublishEnv a =
   , git :: Git
   , purs :: Purs
   , selected :: WorkspacePackage
-  , dependencies :: Map PackageName Package
   , packageDependencies :: Map PackageName PackageMap
   | a
   }
@@ -88,7 +87,7 @@ publish _args = do
   env@
     { selected: selected'
     , purs
-    , dependencies
+    , packageDependencies
     , logOptions
     , getMetadata
     } <- ask
@@ -108,7 +107,6 @@ publish _args = do
     , git: env.git
     , purs: env.purs
     , selected: env.selected -- Note: should this be using the updated `selected` value?
-    , dependencies: env.dependencies
     , packageDependencies: env.packageDependencies
     , censorBuildWarnings: (Nothing :: Maybe Core.CensorBuildWarnings)
     , censorCodes: (Nothing :: Maybe (NonEmptySet String))
@@ -126,6 +124,7 @@ publish _args = do
     )
 
   -- We then need to check that the dependency graph is accurate. If not, queue the errors
+  let dependencies = foldl (Map.unionWith (\l _ -> l)) Map.empty packageDependencies
   let globs = Build.getBuildGlobs { selected, withTests: false, dependencies, depsOnly: false }
   maybeGraph <- Graph.runGraph globs []
   for_ maybeGraph \graph -> do
@@ -306,7 +305,6 @@ publish _args = do
         , git: env.git
         , purs: env.purs
         , selected: env.selected
-        , dependencies: buildPlanDependencies
         , packageDependencies: Map.singleton selected.package.name buildPlanDependencies
         , censorBuildWarnings: (Nothing :: Maybe Core.CensorBuildWarnings)
         , censorCodes: (Nothing :: Maybe (NonEmptySet String))

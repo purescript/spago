@@ -32,13 +32,13 @@ type LsDepsOpts =
   }
 
 type LsSetEnv =
-  { dependencies :: PackageMap
+  { packageDependencies :: Map PackageName PackageMap
   , logOptions :: LogOptions
   , workspace :: Workspace
   }
 
 type LsEnv =
-  { dependencies :: PackageMap
+  { packageDependencies :: Map PackageName PackageMap
   , logOptions :: LogOptions
   , workspace :: Workspace
   , selected :: WorkspacePackage
@@ -59,8 +59,9 @@ listPackageSet { json } = do
 listPackages :: LsDepsOpts -> Spago LsEnv Unit
 listPackages { transitive, json } = do
   logDebug "Running `listPackages`"
-  { dependencies, selected } <- ask
+  { packageDependencies, selected } <- ask
   let
+    dependencies = foldl (Map.unionWith (\l _ -> l)) Map.empty packageDependencies
     direct = (Map.keys <<< unwrap <<< _.dependencies <<< _.package) selected
     directDependencies = filterKeys (_ `elem` direct) dependencies
 

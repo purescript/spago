@@ -5,9 +5,10 @@ module Spago.Command.Docs
 
 import Spago.Prelude
 
+import Data.Map as Map
 import Node.Process as Process
-import Spago.Command.Build (getBuildGlobs)
-import Spago.Config (Package, Workspace)
+import Spago.Command.Build as Build
+import Spago.Config (Workspace, PackageMap)
 import Spago.Config as Config
 import Spago.Purs (Purs, DocsFormat(..))
 import Spago.Purs as Purs
@@ -15,7 +16,7 @@ import Spago.Purs as Purs
 type DocsEnv =
   { purs :: Purs
   , workspace :: Workspace
-  , dependencies :: Map PackageName Package
+  , packageDependencies :: Map PackageName PackageMap
   , logOptions :: LogOptions
   , docsFormat :: DocsFormat
   , depsOnly :: Boolean
@@ -25,12 +26,12 @@ run :: Spago DocsEnv Unit
 run = do
   logDebug "Running `spago docs`"
   logInfo "Generating documentation for the project. This might take a while..."
-  { workspace, dependencies, docsFormat, depsOnly } <- ask
+  { workspace, packageDependencies, docsFormat, depsOnly } <- ask
   let
-    globs = getBuildGlobs
+    globs = Build.getEntireWorkspaceGlobs
       { withTests: true
-      , selected: Config.getWorkspacePackages workspace.packageSet
-      , dependencies
+      , workspacePackages: Config.getWorkspacePackages workspace.packageSet
+      , dependencies: foldl (Map.unionWith (\l _ -> l)) Map.empty packageDependencies
       , depsOnly
       }
 

@@ -40,7 +40,7 @@ import Spago.Command.Repl as Repl
 import Spago.Command.Run as Run
 import Spago.Command.Sources as Sources
 import Spago.Command.Test as Test
-import Spago.Config (BundleConfig, BundlePlatform(..), BundleType(..), Package, RunConfig, TestConfig)
+import Spago.Config (BundleConfig, BundlePlatform(..), BundleType(..), RunConfig, TestConfig, PackageMap)
 import Spago.Config as Config
 import Spago.Core.Config as Core
 import Spago.Esbuild as Esbuild
@@ -495,7 +495,7 @@ main =
           Install args@{ packages, selectedPackage, ensureRanges, testDeps } -> do
             { env, fetchOpts } <- mkFetchEnv { packages, selectedPackage, ensureRanges, testDeps }
             -- TODO: --no-fetch flag
-            dependencyInfo <- runSpago env (Fetch.run fetchOpts)
+            packageDependencies <- runSpago env (Fetch.run fetchOpts)
             let
               buildArgs = Record.merge
                 args
@@ -507,20 +507,20 @@ main =
                 , strict: Nothing :: Maybe Boolean
                 , persistWarnings: Nothing :: Maybe Boolean
                 }
-            env' <- runSpago env (mkBuildEnv buildArgs dependencyInfo)
+            env' <- runSpago env (mkBuildEnv buildArgs packageDependencies)
             let options = { depsOnly: true, pursArgs: List.toUnfoldable args.pursArgs, jsonErrors: false }
             runSpago env' (Build.run options)
           Build args@{ selectedPackage, ensureRanges, jsonErrors } -> do
             { env, fetchOpts } <- mkFetchEnv { packages: mempty, selectedPackage, ensureRanges, testDeps: false }
             -- TODO: --no-fetch flag
-            dependencyInfo <- runSpago env (Fetch.run fetchOpts)
-            buildEnv <- runSpago env (mkBuildEnv args dependencyInfo)
+            packageDependencies <- runSpago env (Fetch.run fetchOpts)
+            buildEnv <- runSpago env (mkBuildEnv args packageDependencies)
             let options = { depsOnly: false, pursArgs: List.toUnfoldable args.pursArgs, jsonErrors }
             runSpago buildEnv (Build.run options)
           Publish { selectedPackage } -> do
             { env, fetchOpts } <- mkFetchEnv { packages: mempty, selectedPackage, ensureRanges: false, testDeps: false }
             -- TODO: --no-fetch flag
-            dependencyInfo <- runSpago env (Fetch.run fetchOpts)
+            packageDependencies <- runSpago env (Fetch.run fetchOpts)
             let
               buildArgs =
                 { selectedPackage
@@ -538,8 +538,8 @@ main =
                 , strict: Nothing :: Maybe Boolean
                 , persistWarnings: Nothing :: Maybe Boolean
                 }
-            { purs } <- runSpago env (mkBuildEnv buildArgs dependencyInfo)
-            publishEnv <- runSpago env (mkPublishEnv dependencyInfo purs)
+            { purs } <- runSpago env (mkBuildEnv buildArgs packageDependencies)
+            publishEnv <- runSpago env (mkPublishEnv packageDependencies purs)
             void $ runSpago publishEnv (Publish.publish {})
 
           Repl args@{ selectedPackage } -> do
@@ -567,17 +567,17 @@ main =
               , ensureRanges: false
               , testDeps: false
               }
-            dependencyInfo <- runSpago env (Fetch.run fetchOpts)
+            packageDependencies <- runSpago env (Fetch.run fetchOpts)
             supportPackages <- runSpago env (Fetch.replSupportPackage env.workspace.packageSet)
-            replEnv <- runSpago env (mkReplEnv args (Map.union dependencyInfo.dependencies supportPackages))
+            replEnv <- runSpago env (mkReplEnv args packageDependencies supportPackages)
             void $ runSpago replEnv Repl.run
 
           Bundle args@{ selectedPackage, ensureRanges } -> do
             { env, fetchOpts } <- mkFetchEnv { packages: mempty, selectedPackage, ensureRanges, testDeps: false }
             -- TODO: --no-fetch flag
-            dependencyInfo <- runSpago env (Fetch.run fetchOpts)
+            packageDependencies <- runSpago env (Fetch.run fetchOpts)
             -- TODO: --no-build flag
-            buildEnv <- runSpago env (mkBuildEnv args dependencyInfo)
+            buildEnv <- runSpago env (mkBuildEnv args packageDependencies)
             let options = { depsOnly: false, pursArgs: List.toUnfoldable args.pursArgs, jsonErrors: false }
             runSpago buildEnv (Build.run options)
             bundleEnv <- runSpago env (mkBundleEnv args)
@@ -585,9 +585,9 @@ main =
           Run args@{ selectedPackage, ensureRanges } -> do
             { env, fetchOpts } <- mkFetchEnv { packages: mempty, selectedPackage, ensureRanges, testDeps: false }
             -- TODO: --no-fetch flag
-            dependencyInfo <- runSpago env (Fetch.run fetchOpts)
+            packageDependencies <- runSpago env (Fetch.run fetchOpts)
             -- TODO: --no-build flag
-            buildEnv <- runSpago env (mkBuildEnv args dependencyInfo)
+            buildEnv <- runSpago env (mkBuildEnv args packageDependencies)
             let options = { depsOnly: false, pursArgs: List.toUnfoldable args.pursArgs, jsonErrors: false }
             runSpago buildEnv (Build.run options)
             runEnv <- runSpago env (mkRunEnv args buildEnv)
@@ -595,9 +595,9 @@ main =
           Test args@{ selectedPackage } -> do
             { env, fetchOpts } <- mkFetchEnv { packages: mempty, selectedPackage, ensureRanges: false, testDeps: false }
             -- TODO: --no-fetch flag
-            dependencyInfo <- runSpago env (Fetch.run fetchOpts)
+            packageDependencies <- runSpago env (Fetch.run fetchOpts)
             -- TODO: --no-build flag
-            buildEnv <- runSpago env (mkBuildEnv (Record.union args { ensureRanges: false }) dependencyInfo)
+            buildEnv <- runSpago env (mkBuildEnv (Record.union args { ensureRanges: false }) packageDependencies)
             let options = { depsOnly: false, pursArgs: List.toUnfoldable args.pursArgs, jsonErrors: false }
             runSpago buildEnv (Build.run options)
             testEnv <- runSpago env (mkTestEnv args buildEnv)
@@ -606,21 +606,21 @@ main =
             let fetchArgs = { packages: mempty, selectedPackage: Nothing, ensureRanges: false, testDeps: false }
             { env: env@{ workspace }, fetchOpts } <- mkFetchEnv fetchArgs
             -- TODO: --no-fetch flag
-            dependencyInfo <- runSpago env (Fetch.run fetchOpts)
-            let lsEnv = { workspace, dependencies: dependencyInfo.dependencies, logOptions }
+            packageDependencies <- runSpago env (Fetch.run fetchOpts)
+            let lsEnv = { workspace, packageDependencies, logOptions }
             runSpago lsEnv (Ls.listPackageSet args)
           LsDeps { selectedPackage, json, transitive } -> do
             let fetchArgs = { packages: mempty, selectedPackage, ensureRanges: false, testDeps: false }
             { env, fetchOpts } <- mkFetchEnv fetchArgs
             -- TODO: --no-fetch flag
-            dependencyInfo <- runSpago env (Fetch.run fetchOpts)
-            lsEnv <- runSpago env (mkLsEnv dependencyInfo.dependencies)
+            packageDependencies <- runSpago env (Fetch.run fetchOpts)
+            lsEnv <- runSpago env (mkLsEnv packageDependencies)
             runSpago lsEnv (Ls.listPackages { json, transitive })
           Docs args -> do
             { env, fetchOpts } <- mkFetchEnv { packages: mempty, selectedPackage: Nothing, ensureRanges: false, testDeps: true }
             -- TODO: --no-fetch flag
-            dependencies <- runSpago env (Fetch.run fetchOpts)
-            docsEnv <- runSpago env (mkDocsEnv args dependencies)
+            packageDependencies <- runSpago env (Fetch.run fetchOpts)
+            docsEnv <- runSpago env (mkDocsEnv args packageDependencies)
             runSpago docsEnv Docs.run
 
       Cmd'VersionCmd v -> do when v printVersion
@@ -690,7 +690,7 @@ mkBundleEnv bundleArgs = do
   pure bundleEnv
 
 mkRunEnv :: forall a b. RunArgs -> Build.BuildEnv b -> Spago (Fetch.FetchEnv a) (Run.RunEnv ())
-mkRunEnv runArgs { dependencies, purs } = do
+mkRunEnv runArgs { packageDependencies, purs } = do
   { workspace, logOptions } <- ask
   logDebug $ "Run args: " <> show runArgs
 
@@ -732,11 +732,11 @@ mkRunEnv runArgs { dependencies, purs } = do
       , failureMessage: "Running failed."
       }
   let newWorkspace = workspace { buildOptions { output = runArgs.output <|> workspace.buildOptions.output } }
-  let runEnv = { logOptions, workspace: newWorkspace, selected, node, runOptions, dependencies, purs }
+  let runEnv = { logOptions, workspace: newWorkspace, selected, node, runOptions, packageDependencies, purs }
   pure runEnv
 
 mkTestEnv :: forall a b. TestArgs -> Build.BuildEnv b -> Spago (Fetch.FetchEnv a) (Test.TestEnv ())
-mkTestEnv testArgs { dependencies, purs } = do
+mkTestEnv testArgs { packageDependencies, purs } = do
   { workspace, logOptions } <- ask
   logDebug $ "Test args: " <> show testArgs
 
@@ -772,7 +772,7 @@ mkTestEnv testArgs { dependencies, purs } = do
   logDebug $ "Selected packages to test: " <> Json.stringifyJson (CA.Common.nonEmptyArray PackageName.codec) (map _.selected.package.name selectedPackages)
 
   let newWorkspace = workspace { buildOptions { output = testArgs.output <|> workspace.buildOptions.output } }
-  let testEnv = { logOptions, workspace: newWorkspace, selectedPackages, node, dependencies, purs }
+  let testEnv = { logOptions, workspace: newWorkspace, selectedPackages, node, packageDependencies, purs }
   pure testEnv
 
 mkBuildEnv
@@ -789,9 +789,9 @@ mkBuildEnv
      , persistWarnings :: Maybe Boolean
      | r
      }
-  -> Fetch.PackageDependencyInfo
+  -> Map PackageName PackageMap
   -> Spago (Fetch.FetchEnv ()) (Build.BuildEnv ())
-mkBuildEnv buildArgs { packageDependencies, dependencies } = do
+mkBuildEnv buildArgs packageDependencies = do
   { logOptions, workspace, git } <- ask
   purs <- Purs.getPurs
   let
@@ -821,12 +821,11 @@ mkBuildEnv buildArgs { packageDependencies, dependencies } = do
     , purs
     , git
     , packageDependencies
-    , dependencies
     , workspace: newWorkspace
     }
 
-mkPublishEnv :: forall a. Fetch.PackageDependencyInfo -> Purs -> Spago (Fetch.FetchEnv a) (Publish.PublishEnv a)
-mkPublishEnv dependencyInfo purs = do
+mkPublishEnv :: forall a. Map PackageName PackageMap -> Purs -> Spago (Fetch.FetchEnv a) (Publish.PublishEnv a)
+mkPublishEnv packageDependencies purs = do
   env <- ask
   selected <- case env.workspace.selected of
     Just s -> pure s
@@ -843,10 +842,10 @@ mkPublishEnv dependencyInfo purs = do
               [ toDoc "No package was selected for publishing. Please select (with -p) one of the following packages:"
               , indent (toDoc $ map _.package.name workspacePackages)
               ]
-  pure (Record.union { purs, selected } $ Record.union dependencyInfo env)
+  pure (Record.union { purs, selected, packageDependencies } env)
 
-mkReplEnv :: forall a. ReplArgs -> Map PackageName Package -> Spago (Fetch.FetchEnv a) (Repl.ReplEnv ())
-mkReplEnv replArgs dependencies = do
+mkReplEnv :: forall a. ReplArgs -> Map PackageName PackageMap -> PackageMap -> Spago (Fetch.FetchEnv a) (Repl.ReplEnv ())
+mkReplEnv replArgs packageDependencies supportPackage = do
   { workspace, logOptions } <- ask
   logDebug $ "Repl args: " <> show replArgs
 
@@ -858,7 +857,8 @@ mkReplEnv replArgs dependencies = do
 
   pure
     { purs
-    , dependencies
+    , packageDependencies
+    , supportPackage
     , depsOnly: false
     , logOptions
     , pursArgs: Array.fromFoldable replArgs.pursArgs
@@ -961,8 +961,8 @@ mkRegistryEnv = do
     , git
     }
 
-mkLsEnv :: forall a. Map PackageName Package -> Spago (Fetch.FetchEnv a) Ls.LsEnv
-mkLsEnv dependencies = do
+mkLsEnv :: forall a. Map PackageName PackageMap -> Spago (Fetch.FetchEnv a) Ls.LsEnv
+mkLsEnv packageDependencies = do
   { logOptions, workspace } <- ask
   selected <- case workspace.selected of
     Just s -> pure s
@@ -979,15 +979,15 @@ mkLsEnv dependencies = do
               [ toDoc "No package was selected. Please select (with -p) one of the following packages:"
               , indent (toDoc $ map _.package.name workspacePackages)
               ]
-  pure { logOptions, workspace, dependencies, selected }
+  pure { logOptions, workspace, packageDependencies, selected }
 
-mkDocsEnv :: forall a. DocsArgs -> Map PackageName Package -> Spago (Fetch.FetchEnv a) Docs.DocsEnv
-mkDocsEnv args dependencies = do
+mkDocsEnv :: forall a. DocsArgs -> Map PackageName PackageMap -> Spago (Fetch.FetchEnv a) Docs.DocsEnv
+mkDocsEnv args packageDependencies = do
   { logOptions, workspace } <- ask
   purs <- Purs.getPurs
   let
     env :: Docs.DocsEnv
-    env = { purs, logOptions, workspace, dependencies, depsOnly: args.depsOnly, docsFormat: args.docsFormat }
+    env = { purs, logOptions, workspace, packageDependencies, depsOnly: args.depsOnly, docsFormat: args.docsFormat }
   pure env
 
 shouldFetchRegistryRepos :: forall a. Spago (LogEnv a) Boolean

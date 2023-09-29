@@ -9,25 +9,25 @@ module Spago.Command.Run
 import Spago.Prelude
 
 import Data.Array as Array
-import Data.Map as Map
 import Data.Codec.Argonaut as CA
+import Data.Map as Map
 import Node.FS.Perms as Perms
 import Node.Path as Path
 import Registry.Version as Version
 import Spago.Cmd as Cmd
-import Spago.Config (Package, Workspace, WorkspacePackage)
-import Spago.Purs (Purs, ModuleGraph(..))
-import Spago.Purs as Purs
+import Spago.Command.Build as Build
+import Spago.Config (Workspace, WorkspacePackage, PackageMap)
 import Spago.FS as FS
 import Spago.Paths as Paths
-import Spago.Command.Build as Build
+import Spago.Purs (Purs, ModuleGraph(..))
+import Spago.Purs as Purs
 
 type RunEnv a =
   { logOptions :: LogOptions
   , workspace :: Workspace
   , runOptions :: RunOptions
   , selected :: WorkspacePackage
-  , dependencies :: Map PackageName Package
+  , packageDependencies :: Map PackageName PackageMap
   , node :: Node
   , purs :: Purs
   | a
@@ -65,7 +65,7 @@ getNode = do
 
 run :: forall a. Spago (RunEnv a) Unit
 run = do
-  { workspace, node, runOptions: opts, dependencies, selected } <- ask
+  { workspace, node, runOptions: opts, packageDependencies, selected } <- ask
   let execOptions = Cmd.defaultExecOptions { pipeStdin = Cmd.StdinPipeParent }
 
   case workspace.backend of
@@ -97,7 +97,7 @@ run = do
       -- We check that the module we're about to run is included in the build and spit out a nice error if it isn't (see #383)
       let
         globs = Build.getBuildGlobs
-          { dependencies
+          { dependencies: foldl (Map.unionWith (\l _ -> l)) Map.empty packageDependencies
           , depsOnly: false
           -- Here we include tests as well, because we use this code for `spago run` and `spago test`
           , withTests: true

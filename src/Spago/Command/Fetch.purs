@@ -2,7 +2,6 @@ module Spago.Command.Fetch
   ( FetchEnv
   , FetchEnvRow
   , FetchOpts
-  , PackageDependencyInfo
   , getWorkspacePackageDeps
   , getTransitiveDeps
   , getTransitiveDepsFromRegistry
@@ -62,15 +61,10 @@ type FetchOpts =
   , isTest :: Boolean
   }
 
-type PackageDependencyInfo =
-  { packageDependencies :: Map PackageName PackageMap
-  , dependencies :: PackageMap
-  }
-
 run
   :: forall a
    . FetchOpts
-  -> Spago (FetchEnv a) PackageDependencyInfo
+  -> Spago (FetchEnv a) (Map PackageName PackageMap)
 run { packages, ensureRanges, isTest } = do
   logDebug $ "Requested to install these packages: " <> printJson (CA.array PackageName.codec) packages
 
@@ -278,14 +272,9 @@ run { packages, ensureRanges, isTest } = do
       LocalPackage _ -> pure unit
       WorkspacePackage _ -> pure unit
 
-  let
-    packageDependencies = case workspaceDepsOrSelectedPackage of
-      Right r -> Map.singleton r.workspacePackage.package.name r.transitiveDeps
-      Left l -> l
-  pure
-    { dependencies: foldl (Map.unionWith (\l _ -> l)) Map.empty packageDependencies
-    , packageDependencies
-    }
+  pure $ case workspaceDepsOrSelectedPackage of
+    Right r -> Map.singleton r.workspacePackage.package.name r.transitiveDeps
+    Left l -> l
 
 getGitPackageInLocalCache :: forall a. PackageName -> GitPackage -> Spago (Git.GitEnv a) Unit
 getGitPackageInLocalCache name package = do

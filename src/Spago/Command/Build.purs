@@ -34,7 +34,6 @@ type BuildEnv a =
   { purs :: Purs
   , git :: Git
   , packageDependencies :: Map PackageName PackageMap
-  , dependencies :: PackageMap
   , logOptions :: LogOptions
   , workspace :: Workspace
   | a
