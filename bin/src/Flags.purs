@@ -307,9 +307,9 @@ ensureRanges =
         <> O.help "Add version bounds for all the dependencies of the selected project"
     )
 
-sourceMap :: Parser Boolean
-sourceMap =
+sourceMaps :: Parser Boolean
+sourceMaps =
   O.switch
-    ( O.long "source-map"
+    ( O.long "source-maps"
         <> O.help "Creates a source map for your bundle"
     )
