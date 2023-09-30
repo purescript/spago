@@ -871,15 +871,15 @@ $ node -e "import('./index.js').then(m => console.log(m.main))"
 When bundling, you can include `--source-maps` to generate a final source map for your bundle.
 
 Example:
-```
+```console
 spago bundle -p my-project --source-maps --minify --outfile=bundle.js
 ```
 will generate a minified bundle: `bundle.js`, and a source map: `bundle.js.map`.
 
 #### Node
 If your target platform is node, then you need to ensure your node version is >= 12.2.0 and [enable source maps](https://nodejs.org/dist/latest-v20.x/docs/api/cli.html#--enable-source-maps
-) when executing your bundle:
-```
+) when executing your script:
+```console
 spago bundle -p my-project --platform node --source-maps --minify --outfile=bundle.js
 node --enable-source-maps bundle.js
 ```
@@ -888,7 +888,7 @@ node --enable-source-maps bundle.js
 If you are targeting browsers, then you will need to ensure your server is configured to serve the source map from the same directory as your bundle.
 
 So for example if your server is configured to serve files from `public/`, you might run:
-```
+```console
 spago bundle -p my-project --platform browser --source-maps --minify --outfile=public/bundle.js
 ```
 
