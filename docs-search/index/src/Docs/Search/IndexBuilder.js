@@ -1,13 +1,17 @@
 /* global __dirname require exports */
 
 import globMain from "glob";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 
-export function getDirname () {
-  return __dirname;
-};
+export function getDirname() {
+  const fileName = fileURLToPath(import.meta.url);
+  const dirName = path.dirname(fileName);
+  return dirName;
+}
 
-export function glob (pattern) {
+export function glob(pattern) {
   return function () {
     return globMain.sync(pattern);
   };
-};
+}
