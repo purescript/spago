@@ -7,6 +7,9 @@ import Spago.Prelude
 
 import Control.Promise (Promise)
 import Control.Promise as Promise
+import Docs.Search.IndexBuilder as IndexBuilder
+import Docs.Search.Main (defaultSourceFiles, defaultBowerFiles, defaultDocsFiles)
+import Docs.Search.Config (defaultPackageName)
 import Effect.Uncurried (EffectFn1, runEffectFn1)
 import Node.Process as Process
 import Spago.Command.Build (getBuildGlobs)
@@ -44,6 +47,15 @@ run = do
     Right _ -> pure unit
 
   when (docsFormat == Html) $ do
+    liftAff $ IndexBuilder.run'
+      { docsFiles: defaultDocsFiles
+      , bowerFiles: defaultBowerFiles
+      , generatedDocs: "./generated-docs/"
+      , noPatch: false
+      , packageName: defaultPackageName
+      , sourceFiles: defaultSourceFiles
+      }
+
     currentDir <- liftEffect Process.cwd
     let link = "file://" <> currentDir <> "/generated-docs/html/index.html"
     logInfo $ "Link: " <> link
