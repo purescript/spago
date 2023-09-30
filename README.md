@@ -887,9 +887,9 @@ node --enable-source-maps bundle.js
 #### Browsers
 If you are targeting browsers, then you will need to ensure your server is configured to serve the source map from the same directory as your bundle.
 
-So for example if your server is configured to serve files from `public/`, then would run:
+So for example if your server is configured to serve files from `public/`, you might run:
 ```
-spago bundle -p my-project --platform browser --source-maps --minify --outfile=public/dist.js
+spago bundle -p my-project --platform browser --source-maps --minify --outfile=public/bundle.js
 ```
 
 ### Skipping the "build" step
