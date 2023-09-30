@@ -50,3 +50,9 @@ package:
     - web-html
     - web-storage
     - web-uievents
+  bundle:
+    minify: true
+    module: Docs.Search.Main
+    outfile: "../.spago/docs-search-app.js"
+    platform: node
+    type: "app"

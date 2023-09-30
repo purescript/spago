@@ -75,6 +75,9 @@ jobs:
       - name: Bootstrap executable
         run: ./bin/index.dev.js bundle -p spago-bin
 
+      - name: Bundle docs-search app 
+        run: ./bin/index.dev.js bundle -p docs-search
+
       - name: Check code format
         run: npm run format:check
 
