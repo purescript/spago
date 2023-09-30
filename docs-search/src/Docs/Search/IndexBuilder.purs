@@ -16,7 +16,7 @@ import Docs.Search.Types (ModuleName, PackageName, PartId)
 
 import Prelude
 
-import Data.Argonaut.Core (stringify)
+import Data.Argonaut.Core (Json, stringify)
 import Data.Argonaut.Decode (decodeJson)
 import Data.Argonaut.Decode.Error (printJsonDecodeError)
 import Data.Argonaut.Encode (encodeJson)
@@ -51,6 +51,8 @@ import Node.FS.Stats (isDirectory, isFile)
 import Node.FS.Sync (exists)
 import Node.Process as Process
 import Web.Bower.PackageMeta (PackageMeta(..))
+import Web.Bower.PackageMeta as Bower
+import Codec.Json.Unidirectional.Value as JsonCodec
 
 type Config =
   { docsFiles :: Array String
@@ -229,9 +231,12 @@ decodeBowerJsons { bowerFiles } = do
         join <$> withExisting jsonFileName
           \contents ->
             either (logError jsonFileName) pure
-              (jsonParser contents >>= left printJsonDecodeError <<< decodeJson)
+              (jsonParser contents >>= left JsonCodec.printDecodeError <<< decodePackageMeta)
 
   where
+  decodePackageMeta :: Json -> Either JsonCodec.DecodeError (Maybe PackageMeta)
+  decodePackageMeta = JsonCodec.toNullNothingOrJust Bower.toPackageMeta
+
   compareNames
     (PackageMeta { name: name1 })
     (PackageMeta { name: name2 }) = compare name1 name2

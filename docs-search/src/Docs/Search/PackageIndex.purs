@@ -2,8 +2,8 @@ module Docs.Search.PackageIndex where
 
 import Docs.Search.Config as Config
 import Docs.Search.Extra (stringToList)
-import Docs.Search.Score (Scores, getPackageScoreForPackageName, normalizePackageName)
-import Docs.Search.Types (PackageName, RawPackageName(..), PackageScore)
+import Docs.Search.Score (Scores, getPackageScoreForPackageName)
+import Docs.Search.Types (PackageName(..), PackageScore)
 import Docs.Search.Loader as Loader
 
 import Prelude
@@ -15,8 +15,11 @@ import Data.Maybe (Maybe)
 import Data.Newtype (unwrap)
 import Data.Search.Trie (Trie)
 import Data.Search.Trie as Trie
+import Data.Tuple as Tuple
 import Effect.Aff (Aff)
+import Safe.Coerce (coerce)
 import Web.Bower.PackageMeta (PackageMeta(..))
+import Web.Bower.PackageMeta as Bower
 
 type PackageResult =
   { name :: PackageName
@@ -56,14 +59,11 @@ mkPackageInfo packageScores pms =
       { name: packageName
       , description: description
       , score: getPackageScoreForPackageName packageScores packageName
-      , dependencies:
-          unwrap dependencies <#>
-            _.packageName >>> RawPackageName >>> normalizePackageName
-      , repository: repository <#> (_.url)
+      , dependencies: coerce $ dependencies <#> Tuple.fst
+      , repository: repository <#> unwrap >>> (_.url)
       }
-
     where
-    packageName = normalizePackageName $ RawPackageName name
+    packageName = coerce name
 
 mkScoresFromPackageIndex :: PackageIndex -> Scores
 mkScoresFromPackageIndex =

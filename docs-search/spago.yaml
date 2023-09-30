@@ -7,7 +7,6 @@ package:
     - argonaut-core
     - argonaut-generic
     - arrays
-    - bower-json
     - console
     - control
     - css
@@ -21,6 +20,7 @@ package:
     - halogen-subscriptions
     - identity
     - js-uri
+    - language-purescript
     - lists
     - markdown-it
     - markdown-it-halogen
