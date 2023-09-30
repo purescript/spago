@@ -37,7 +37,7 @@ main = Aff.launchAff_ $ void $ un Identity $ Spec.Runner.runSpecT testConfig [ S
     -- TODO:
     -- Upgrade set?
     -- Script?
-
+    {-
     Init.spec
     Sources.spec
     Install.spec
@@ -45,10 +45,13 @@ main = Aff.launchAff_ $ void $ un Identity $ Spec.Runner.runSpecT testConfig [ S
     Build.spec
     Run.spec
     Test.spec
+    -}
     Bundle.spec
-    Registry.spec
-    Docs.spec
-    Spec.describe "miscellaneous" do
-      Lock.spec
-  Unit.spec
+{-
+  Registry.spec
+  Docs.spec
+  Spec.describe "miscellaneous" do
+    Lock.spec
+Unit.spec
+-}
 

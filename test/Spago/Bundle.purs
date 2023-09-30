@@ -25,15 +25,15 @@ spec = Spec.around withTempDir do
 
     Spec.it "bundles an app with source map" \{ spago, fixture } -> do
       spago [ "init" ] >>= shouldBeSuccess
-      spago [ "bundle", "-v", "--outfile", fixture "bundle-app-map.js", "--source-maps", "--bundle-type", "app" ] >>= shouldBeSuccess
-    -- checkFixture "bundle-app.js" (fixture "bundle-app-map.js")
-    -- checkFixture "bundle-app.js.map" (fixture "bundle-app-map.js.map")
+      spago [ "bundle", "-v", "--outfile", "bundle-app-map.js", "--source-maps", "--bundle-type", "app" ] >>= shouldBeSuccess
+      checkFixture "bundle-app-map.js" (fixture "bundle-app-map.js")
+      checkFixture "bundle-app-map.js.map" (fixture "bundle-app-map.js.map")
 
     Spec.it "bundles a module with source map" \{ spago, fixture } -> do
       spago [ "init" ] >>= shouldBeSuccess
       spago [ "build" ] >>= shouldBeSuccess
-      spago [ "bundle", "--bundle-type", "module", "--outfile", fixture "bundle-module-map.js", "--source-maps" ] >>= shouldBeSuccess
+      spago [ "bundle", "--bundle-type", "module", "--outfile", "bundle-module-map.js", "--source-maps" ] >>= shouldBeSuccess
 
---checkFixture "bundle-module.js" (fixture "bundle-module-map.js")
---checkFixture "bundle-module.js.map" (fixture "bundle-module-map.js.map")
+      checkFixture "bundle-module-map.js" (fixture "bundle-module-map.js")
+      checkFixture "bundle-module-map.js.map" (fixture "bundle-module-map.js.map")
 
