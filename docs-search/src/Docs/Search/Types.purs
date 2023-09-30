@@ -1,7 +1,7 @@
 module Docs.Search.Types where
 
 import Prelude
-
+import Web.Bower.PackageMeta as BowerMeta
 import Data.Argonaut.Decode (class DecodeJson)
 import Data.Argonaut.Decode.Generic (genericDecodeJson)
 import Data.Argonaut.Encode (class EncodeJson)
@@ -33,9 +33,9 @@ instance Show ModuleName where
   show = genericShow
 
 -- | Non-normalized package name, e.g. `purescript-prelude` or just `prelude`.
-newtype RawPackageName = RawPackageName String
+--newtype RawPackageName = RawPackageName String
 
-derive instance newtypeRawPackageName :: Newtype RawPackageName _
+--derive instance newtypeRawPackageName :: Newtype RawPackageName _
 
 -- | Normalized package name without "purescript-" prefix.
 newtype PackageName = PackageName String

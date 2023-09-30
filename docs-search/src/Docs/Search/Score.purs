@@ -1,6 +1,6 @@
 module Docs.Search.Score where
 
-import Docs.Search.Types (RawPackageName(..), PackageName(..), PackageInfo(..), PackageScore(..))
+import Docs.Search.Types (PackageName(..), PackageInfo(..), PackageScore(..))
 
 import Prelude
 
@@ -10,22 +10,23 @@ import Data.Map as Map
 import Data.Maybe (fromMaybe)
 import Data.Newtype (unwrap, wrap)
 import Data.String.CodeUnits as String
-import Web.Bower.PackageMeta (Dependencies, PackageMeta)
+import Data.Tuple (Tuple(..))
+import Data.Tuple as Tuple
+import Safe.Coerce (coerce)
+import Web.Bower.PackageMeta as Bower
+import Partial.Unsafe
 
+type Dependencies = Array (Tuple Bower.PackageName Bower.VersionRange)
 type Scores = Map PackageName PackageScore
-
-normalizePackageName :: RawPackageName -> PackageName
-normalizePackageName (RawPackageName p) =
-  fromMaybe (PackageName p) $ map wrap $ String.stripPrefix (wrap "purescript-") p
 
 -- | Construct a mapping from package names to their scores, based on number
 -- of reverse dependencies.
-mkScores :: Array PackageMeta -> Scores
+mkScores :: Array Bower.PackageMeta -> Scores
 mkScores =
   Array.foldr
-    ( \pm ->
-        updateScoresFor (unwrap pm).dependencies >>>
-          updateScoresFor (unwrap pm).devDependencies
+    ( \(Bower.PackageMeta pm) ->
+        updateScoresFor pm.dependencies >>>
+          updateScoresFor pm.devDependencies
     )
     Map.empty
 
@@ -33,10 +34,11 @@ mkScores =
   updateScoresFor :: Dependencies -> Scores -> Scores
   updateScoresFor deps scores =
     Array.foldr
-      (\dep -> Map.insertWith add dep one)
+      (\(Tuple dep _) -> Map.insertWith add (coerce dep) one)
       scores
-      (deps # unwrap >>> map (_.packageName >>> RawPackageName >>> normalizePackageName))
+      deps
 
+-- unsafeCrashWith "Docs.Search.Score"
 getPackageScore :: Scores -> PackageInfo -> PackageScore
 getPackageScore scores = case _ of
   Package p -> getPackageScoreForPackageName scores p

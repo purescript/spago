@@ -2,8 +2,8 @@ module Docs.Search.PackageIndex where
 
 import Docs.Search.Config as Config
 import Docs.Search.Extra (stringToList)
-import Docs.Search.Score (Scores, getPackageScoreForPackageName, normalizePackageName)
-import Docs.Search.Types (PackageName, RawPackageName(..), PackageScore)
+import Docs.Search.Score (Scores, getPackageScoreForPackageName)
+import Docs.Search.Types (PackageName(..), PackageScore)
 import Docs.Search.Loader as Loader
 
 import Prelude
@@ -15,8 +15,10 @@ import Data.Maybe (Maybe)
 import Data.Newtype (unwrap)
 import Data.Search.Trie (Trie)
 import Data.Search.Trie as Trie
+import Data.Tuple as Tuple
 import Effect.Aff (Aff)
-import Web.Bower.PackageMeta (PackageMeta(..))
+import Safe.Coerce (coerce)
+import Web.Bower.PackageMeta as Bower
 
 type PackageResult =
   { name :: PackageName
@@ -30,7 +32,7 @@ type PackageIndex = Trie Char PackageResult
 
 type PackageInfo = Array PackageResult
 
-mkPackageInfo :: Scores -> Array PackageMeta -> PackageInfo
+mkPackageInfo :: Scores -> Array Bower.PackageMeta -> PackageInfo
 mkPackageInfo packageScores pms =
   Array.fromFoldable
     $ Map.values
@@ -39,12 +41,12 @@ mkPackageInfo packageScores pms =
 
   where
   insert
-    :: PackageMeta
+    :: Bower.PackageMeta
     -> Map PackageName PackageResult
     -> Map PackageName PackageResult
   insert
-    ( PackageMeta
-        { name
+    ( Bower.PackageMeta
+        { name: Bower.PackageName name
         , description
         , dependencies
         , devDependencies
@@ -56,14 +58,15 @@ mkPackageInfo packageScores pms =
       { name: packageName
       , description: description
       , score: getPackageScoreForPackageName packageScores packageName
-      , dependencies:
-          unwrap dependencies <#>
-            _.packageName >>> RawPackageName >>> normalizePackageName
-      , repository: repository <#> (_.url)
+      , dependencies: coerce $ dependencies <#> Tuple.fst
+      {-
+      dependencies <#>
+        _.packageName >>> RawPackageName >>> normalizePackageName
+        -}
+      , repository: repository <#> unwrap >>> (_.url)
       }
-
     where
-    packageName = normalizePackageName $ RawPackageName name
+    packageName = PackageName name
 
 mkScoresFromPackageIndex :: PackageIndex -> Scores
 mkScoresFromPackageIndex =
