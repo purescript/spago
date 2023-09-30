@@ -876,7 +876,7 @@ spago bundle -p my-project --source-maps --minify --outfile=bundle.js
 ```
 will generate a minified bundle: `bundle.js`, and a source map: `bundle.js.map`.
 
-If your target platform is 'node', then you need to [enable source maps](https://nodejs.org/dist/latest-v20.x/docs/api/cli.html#--enable-source-maps
+If your target platform is 'node', then you need to ensure your node version is >= 12.2.0 and [enable source maps](https://nodejs.org/dist/latest-v20.x/docs/api/cli.html#--enable-source-maps
 ) when executing your bundle:
 ```
 node --enable-source-maps bundle.js
