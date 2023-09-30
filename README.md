@@ -868,7 +868,6 @@ $ node -e "import('./index.js').then(m => console.log(m.main))"
 
 ### Enable source maps
 
-The `spago build` step generates source maps automatically.
 When bundling, you can include `--source-maps` to generate a final source map for your bundle.
 
 Example:
