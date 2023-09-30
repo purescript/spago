@@ -129,6 +129,7 @@ Where to go from here? There are a few places you should check out:
   - [Polyrepo support](#polyrepo-support)
   - [Test dependencies](#test-dependencies)
   - [Bundle a project into a single JS file](#bundle-a-project-into-a-single-js-file)
+  - [Enable source maps](#enable-source-maps)
   - [Skipping the "build" step](#skipping-the-build-step)
   - [Generated build info/metadata](#generated-build-infometadata)
   - [Generate documentation for my project](#generate-documentation-for-my-project)
@@ -864,6 +865,17 @@ Can now import it in your Node project:
 $ node -e "import('./index.js').then(m => console.log(m.main))"
 [Function]
 ```
+
+### Enable source maps
+
+The `spago build` step generates source maps automatically.
+When bundling, you can include `--source-maps` to generate a final source map for your bundle.
+
+Example:
+```
+spago bundle -p my-project --source-maps --minify --outfile=bundle.js
+```
+will generate a minified bundle: `bundle.js`, and a source map: `bundle.js.map`.
 
 ### Skipping the "build" step
 
