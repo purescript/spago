@@ -158,6 +158,7 @@ type SourcesArgs =
 
 type BundleArgs =
   { minify :: Boolean
+  , sourceMap :: Boolean
   , module :: Maybe String
   , outfile :: Maybe FilePath
   , platform :: Maybe String
@@ -367,6 +368,7 @@ bundleArgsParser :: Parser BundleArgs
 bundleArgsParser =
   Optparse.fromRecord
     { minify: Flags.minify
+    , sourceMap: Flags.sourceMap
     , module: Flags.entrypoint
     , type: Flags.bundleType
     , outfile: Flags.outfile
@@ -677,7 +679,7 @@ mkBundleEnv bundleArgs = do
       ( (Config.parseBundleType =<< bundleArgs.type)
           <|> bundleConf _.type
       )
-  let bundleOptions = { minify, module: entrypoint, outfile, platform, type: bundleType, extraArgs: fromMaybe [] (bundleConf _.extra_args) }
+  let bundleOptions = { minify, module: entrypoint, outfile, platform, type: bundleType, sourceMap: bundleArgs.sourceMap, extraArgs: fromMaybe [] (bundleConf _.extra_args) }
   let
     newWorkspace = workspace
       { buildOptions

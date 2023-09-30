@@ -18,6 +18,7 @@ type BundleEnv a =
 
 type BundleOptions =
   { minify :: Boolean
+  , sourceMap :: Boolean
   , module :: String
   , outfile :: FilePath
   , platform :: BundlePlatform
@@ -40,6 +41,7 @@ run = do
   logDebug $ "Bundle options: " <> show opts
   let
     minify = if opts.minify then [ "--minify" ] else []
+    sourceMap = if opts.sourceMap then [ "--sourcemap" ] else []
     outfile = Path.concat [ selected.path, opts.outfile ]
     format = case opts.platform, opts.type of
       BundleBrowser, BundleApp -> "--format=iife"
@@ -68,7 +70,7 @@ run = do
       -- See https://github.com/evanw/esbuild/issues/1051
       , "--loader:.node=file"
       , format
-      ] <> opts.extraArgs <> minify <> entrypoint <> nodePatch
+      ] <> opts.extraArgs <> minify <> sourceMap <> entrypoint <> nodePatch
   logInfo "Bundling..."
   logDebug $ "Running esbuild: " <> show args
   Cmd.exec esbuild.cmd args execOptions >>= case _ of
