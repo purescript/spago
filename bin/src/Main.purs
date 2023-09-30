@@ -106,6 +106,7 @@ type BuildArgs a =
 
 type DocsArgs =
   { docsFormat :: Purs.DocsFormat
+  , open :: Boolean
   , depsOnly :: Boolean
   }
 
@@ -394,8 +395,12 @@ publishArgsParser =
 docsArgsParser :: Parser DocsArgs
 docsArgsParser = Optparse.fromRecord
   -- TODO: --deps-only
-  -- , depsOnly: Flags.depsOnly
   { depsOnly: pure false :: Parser Boolean
+  , open: O.switch
+      ( O.long "open"
+          <> O.short 'o'
+          <> O.help "Open generated documentation in browser (for HTML format only)"
+      )
   , docsFormat: parseFormat <$>
       Maybe.optional
         ( O.strOption
@@ -990,10 +995,15 @@ mkDocsEnv :: forall a. DocsArgs -> Map PackageName Package -> Spago (Fetch.Fetch
 mkDocsEnv args dependencies = do
   { logOptions, workspace } <- ask
   purs <- Purs.getPurs
-  let
-    env :: Docs.DocsEnv
-    env = { purs, logOptions, workspace, dependencies, depsOnly: args.depsOnly, docsFormat: args.docsFormat }
-  pure env
+  pure
+    { purs
+    , logOptions
+    , workspace
+    , dependencies
+    , depsOnly: args.depsOnly
+    , docsFormat: args.docsFormat
+    , open: args.open
+    }
 
 shouldFetchRegistryRepos :: forall a. Spago (LogEnv a) Boolean
 shouldFetchRegistryRepos = do
