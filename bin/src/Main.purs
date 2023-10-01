@@ -54,6 +54,7 @@ import Spago.Log (LogVerbosity(..))
 import Spago.Paths as Paths
 import Spago.Purs as Purs
 import Spago.Registry as Registry
+import Spago.Repl as SpagoRepl
 import Unsafe.Coerce as UnsafeCoerce
 
 type GlobalArgs =
@@ -563,7 +564,7 @@ main =
               , testDeps: false
               }
             packageDependencies <- runSpago env (Fetch.run fetchOpts)
-            supportPackages <- runSpago env (Fetch.replSupportPackage env.workspace.packageSet)
+            supportPackages <- runSpago env (SpagoRepl.supportPackage env.workspace.packageSet)
             replEnv <- runSpago env (mkReplEnv args packageDependencies supportPackages)
             void $ runSpago replEnv Repl.run
 
