@@ -9,7 +9,6 @@ import Data.Newtype (wrap)
 import Test.Spec (Spec, describe, it)
 import Test.Spec.Assertions (shouldEqual)
 
-
 tests :: Spec Unit
 tests = do
   describe "ModuleIndex" do

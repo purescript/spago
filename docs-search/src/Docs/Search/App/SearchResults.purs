@@ -40,63 +40,59 @@ import Web.HTML as HTML
 import Web.HTML.Location as Location
 import Web.HTML.Window as Window
 
-
 data Mode = Off | Loading | Active
 
 derive instance eqMode :: Eq Mode
 
-
 type EngineState =
   Engine.EngineState PartialIndex TypeIndex
 
+type State =
+  { engineState :: EngineState
+  , results :: Array Result
+  , input :: String
+  , contents :: Element
+  , resultsCount :: Int
+  , mode :: Mode
+  , markdownIt :: MD.MarkdownIt
+  , localPackageName :: PackageName
+  }
 
-type State = { engineState :: EngineState
-             , results :: Array Result
-             , input :: String
-             , contents :: Element
-             , resultsCount :: Int
-             , mode :: Mode
-             , markdownIt :: MD.MarkdownIt
-             , localPackageName :: PackageName
-             }
-
-
-data Query a
-  = MessageFromSearchField SearchFieldMessage a
-
+data Query a = MessageFromSearchField SearchFieldMessage a
 
 data Action
   = SearchResultClicked ModuleName
   | MoreResultsRequested
 
-
 mkComponent
   :: forall o i
-  .  EngineState
+   . EngineState
   -> Element
   -> MD.MarkdownIt
   -> Meta
   -> H.Component Query i o Aff
 mkComponent initialEngineState contents markdownIt { localPackageName } =
   H.mkComponent
-    { initialState: const { engineState: initialEngineState
-                          , results: []
-                          , input: ""
-                          , contents
-                          , resultsCount: Config.resultsCount
-                          , mode: Off
-                          , markdownIt
-                          , localPackageName
-                          }
+    { initialState: const
+        { engineState: initialEngineState
+        , results: []
+        , input: ""
+        , contents
+        , resultsCount: Config.resultsCount
+        , mode: Off
+        , markdownIt
+        , localPackageName
+        }
     , render
-    , eval: H.mkEval $ H.defaultEval { handleQuery = handleQuery
-                                     , handleAction = handleAction }
+    , eval: H.mkEval $ H.defaultEval
+        { handleQuery = handleQuery
+        , handleAction = handleAction
+        }
     }
-
 
 handleQuery
   :: forall o a
-  .  Query a
+   . Query a
   -> H.HalogenM State Action () o Aff (Maybe a)
 handleQuery (MessageFromSearchField Focused next) = do
   pure Nothing
@@ -111,10 +107,9 @@ handleQuery (MessageFromSearchField (InputUpdated input_) next) = do
 
   state <- H.modify (_ { input = input })
 
-  if String.null input
-  then do
-      H.modify_ (_ { mode = Off })
-      showPageContents
+  if String.null input then do
+    H.modify_ (_ { mode = Off })
+    showPageContents
   else do
     H.modify_ (_ { mode = Loading, resultsCount = Config.resultsCount })
 
@@ -122,21 +117,22 @@ handleQuery (MessageFromSearchField (InputUpdated input_) next) = do
       { index, results } <- H.liftAff $
         Engine.query browserSearchEngine state.engineState state.input
 
-      H.modify_ (_ { results = results
-                   , mode = Active
-                   , engineState = index
-                   }
-                )
+      H.modify_
+        ( _
+            { results = results
+            , mode = Active
+            , engineState = index
+            }
+        )
 
     hidePageContents
 
   pure Nothing
 
-
 handleAction
- :: forall o
- .  Action
- -> H.HalogenM State Action () o Aff Unit
+  :: forall o
+   . Action
+  -> H.HalogenM State Action () o Aff Unit
 handleAction = case _ of
   MoreResultsRequested -> do
     H.modify_ (\state -> state { resultsCount = state.resultsCount + 25 })
@@ -156,204 +152,210 @@ handleAction = case _ of
       showPageContents
       H.modify_ (_ { input = "", mode = Off })
 
-
 -- | Inverse of `hidePageContents`
 showPageContents
   :: forall o
-  .  H.HalogenM State Action () o Aff Unit
+   . H.HalogenM State Action () o Aff Unit
 showPageContents = do
   state <- H.get
   H.liftEffect do
     Element.removeAttribute "style" state.contents
 
-
 -- | When search UI is active, we want to hide the main page contents.
 hidePageContents
   :: forall o
-  .  H.HalogenM State Action () o Aff Unit
+   . H.HalogenM State Action () o Aff Unit
 hidePageContents = do
   state <- H.get
   H.liftEffect do
     Element.setAttribute "style" "display: none;" state.contents
 
-
 render
   :: forall m
-  .  State
+   . State
   -> H.ComponentHTML Action () m
 render { mode: Off } = HH.div_ []
 render { mode: Loading } =
   renderContainer $
-  [ HH.h1_ [ HH.text "Loading..." ] ]
+    [ HH.h1_ [ HH.text "Loading..." ] ]
 render state@{ mode: Active, results: [] } =
   renderContainer $
 
-  [ HH.h1_ [ HH.text "Search results" ]
-  , HH.div [ HP.classes [ wrap "result", wrap "result--empty" ] ]
-    [ HH.text "Your search for "
-    , HH.strong_ [ HH.text state.input ]
-    , HH.text " did not yield any results."
+    [ HH.h1_ [ HH.text "Search results" ]
+    , HH.div [ HP.classes [ wrap "result", wrap "result--empty" ] ]
+        [ HH.text "Your search for "
+        , HH.strong_ [ HH.text state.input ]
+        , HH.text " did not yield any results."
+        ]
     ]
-  ]
 render state@{ mode: Active } =
   renderContainer $
-  [ HH.h1_ [ HH.text "Search results" ]
+    [ HH.h1_ [ HH.text "Search results" ]
 
-  , HH.div_ $
-    Array.concat $ shownResults <#> renderResult state
+    , HH.div_
+        $ Array.concat
+        $ shownResults <#> renderResult state
 
-  , HH.div [ HP.class_ (wrap "load_more"), HP.id "load-more" ]
-    [ if Array.length shownResults < Array.length state.results
-      then HH.a [ HP.id "load-more-link"
-                , HE.onClick $ const MoreResultsRequested ]
-           [ HH.text "Show more results" ]
-      else HH.p_
-           [ HH.text "No further results." ]
+    , HH.div [ HP.class_ (wrap "load_more"), HP.id "load-more" ]
+        [ if Array.length shownResults < Array.length state.results then HH.a
+            [ HP.id "load-more-link"
+            , HE.onClick $ const MoreResultsRequested
+            ]
+            [ HH.text "Show more results" ]
+          else HH.p_
+            [ HH.text "No further results." ]
+        ]
     ]
-  ]
   where
-    shownResults = Array.take state.resultsCount state.results
+  shownResults = Array.take state.resultsCount state.results
 
 renderContainer :: forall a b. Array (HH.HTML b a) -> HH.HTML b a
 renderContainer =
-  HH.div [ HP.classes [ wrap "container", wrap "clearfix" ] ] <<<
-  pure <<<
-  HH.div [ HP.classes [ wrap "col", wrap "col--main" ] ]
-
+  HH.div [ HP.classes [ wrap "container", wrap "clearfix" ] ]
+    <<< pure
+    <<<
+      HH.div [ HP.classes [ wrap "col", wrap "col--main" ] ]
 
 renderSummary
   :: forall a b
-  .  String
+   . String
   -> HH.HTML b a
 renderSummary text =
   HH.div_ [ HH.text text ]
 
-
 renderResult
   :: forall a
-  .  State
+   . State
   -> Result
   -> Array (HH.HTML a Action)
 renderResult state (DeclResult r) =
   renderSearchResult state r
 renderResult state (TypeResult r) =
-  renderSearchResult state  r
+  renderSearchResult state r
 renderResult state (PackResult r) =
   renderPackageResult r
 renderResult state (MdlResult r) =
   renderModuleResult r
 
-
 renderPackageResult
   :: forall a
-  .  PackageResult
+   . PackageResult
   -> Array (HH.HTML a Action)
 renderPackageResult { name, description, repository } =
   [ HH.div [ HP.class_ (wrap "result") ]
-    [ HH.h3 [ HP.class_ (wrap "result__title") ]
-      [ HH.span [ HP.classes [ wrap "result__badge"
-                             , wrap "badge"
-                             , wrap "badge--package" ]
-                , HP.title "Package"
-                ]
-        [ HH.text "P" ]
+      [ HH.h3 [ HP.class_ (wrap "result__title") ]
+          [ HH.span
+              [ HP.classes
+                  [ wrap "result__badge"
+                  , wrap "badge"
+                  , wrap "badge--package"
+                  ]
+              , HP.title "Package"
+              ]
+              [ HH.text "P" ]
 
-      , HH.a [ HP.class_ (wrap "result__link")
-             , HP.href $ fromMaybe "" repository # homePageFromRepository
-             ]
-        [ HH.text $ unwrap name ]
+          , HH.a
+              [ HP.class_ (wrap "result__link")
+              , HP.href $ fromMaybe "" repository # homePageFromRepository
+              ]
+              [ HH.text $ unwrap name ]
+          ]
       ]
-    ]
   ] <>
-
-  description >#> \descriptionText ->
-  [ HH.div [ HP.class_ (wrap "result__body") ]
-    [ HH.text descriptionText ]
-  ]
-
+    description >#> \descriptionText ->
+      [ HH.div [ HP.class_ (wrap "result__body") ]
+          [ HH.text descriptionText ]
+      ]
 
 renderModuleResult
   :: forall a
-  .  ModuleResult
+   . ModuleResult
   -> Array (HH.HTML a Action)
 renderModuleResult { name, package } =
   [ HH.div [ HP.class_ (wrap "result") ]
-    [ HH.h3 [ HP.class_ (wrap "result__title") ]
-      [ HH.span [ HP.classes [ wrap "result__badge"
-                             , wrap "badge"
-                             , wrap "badge--module" ]
-                , HP.title "Module"
-                ]
-        [ HH.text "M" ]
+      [ HH.h3 [ HP.class_ (wrap "result__title") ]
+          [ HH.span
+              [ HP.classes
+                  [ wrap "result__badge"
+                  , wrap "badge"
+                  , wrap "badge--module"
+                  ]
+              , HP.title "Module"
+              ]
+              [ HH.text "M" ]
 
-      , HH.a [ HP.class_ (wrap "result__link")
-             , HP.href $ unwrap name <> ".html"
-             ]
-        [ HH.text $ unwrap name ]
+          , HH.a
+              [ HP.class_ (wrap "result__link")
+              , HP.href $ unwrap name <> ".html"
+              ]
+              [ HH.text $ unwrap name ]
+          ]
       ]
-    ]
   ]
-
 
 renderSearchResult
   :: forall a
-  .  State
+   . State
   -> SearchResult
   -> Array (HH.HTML a Action)
 renderSearchResult state (SearchResult result) =
   -- class names here and below are from Pursuit.
   [ HH.div [ HP.class_ (wrap "result") ]
-    [ HH.h3 [ HP.class_ (wrap "result__title") ]
-      [ HH.a [ HP.class_ (wrap "result__link")
-             , HE.onClick $ const $ SearchResultClicked result.moduleName
-             , HP.href $
-               unwrap result.moduleName <> ".html#" <>
-               result.hashAnchor <> ":" <> unwrap result.name
-             ]
-        [ HH.text $ unwrap result.name ]
+      [ HH.h3 [ HP.class_ (wrap "result__title") ]
+          [ HH.a
+              [ HP.class_ (wrap "result__link")
+              , HE.onClick $ const $ SearchResultClicked result.moduleName
+              , HP.href $
+                  unwrap result.moduleName <> ".html#"
+                    <> result.hashAnchor
+                    <> ":"
+                    <> unwrap result.name
+              ]
+              [ HH.text $ unwrap result.name ]
+          ]
       ]
-    ]
 
   , HH.div [ HP.class_ (wrap "result__body") ] $
-    renderResultType result <>
-
-    result.comments >#> pure <<< MDH.render_ state.markdownIt
+      renderResultType result <>
+        result.comments >#> pure <<< MDH.render_ state.markdownIt
 
   , HH.div [ HP.class_ (wrap "result__actions") ]
 
-    [ HH.span [ HP.class_ (wrap "result__actions__item") ]
-      [ HH.span [ HP.classes [ wrap "badge"
-                             , wrap "badge--package"
-                             ]
-                , HP.title "Package"
-                ]
-        [ HH.text "P" ]
-      , HH.text $ packageInfoToString state.localPackageName result.packageInfo
-      ]
+      [ HH.span [ HP.class_ (wrap "result__actions__item") ]
+          [ HH.span
+              [ HP.classes
+                  [ wrap "badge"
+                  , wrap "badge--package"
+                  ]
+              , HP.title "Package"
+              ]
+              [ HH.text "P" ]
+          , HH.text $ packageInfoToString state.localPackageName result.packageInfo
+          ]
 
-    , HH.span [ HP.class_ (wrap "result__actions__item") ]
-      [ HH.span [ HP.classes [ wrap "badge"
-                             , wrap "badge--module"
-                             ]
-                , HP.title "Module"
-                ]
-        [ HH.text "M" ]
-      , HH.text $ unwrap result.moduleName
+      , HH.span [ HP.class_ (wrap "result__actions__item") ]
+          [ HH.span
+              [ HP.classes
+                  [ wrap "badge"
+                  , wrap "badge--module"
+                  ]
+              , HP.title "Module"
+              ]
+              [ HH.text "M" ]
+          , HH.text $ unwrap result.moduleName
+          ]
       ]
-    ]
   ]
-
 
 renderResultType
   :: forall a rest
-  .  { info :: ResultInfo
+   . { info :: ResultInfo
      , name :: Identifier
      , moduleName :: ModuleName
      | rest
      }
- -> Array (HH.HTML a Action)
+  -> Array (HH.HTML a Action)
 renderResultType result =
-
   case result.info of
     ValueResult { type: ty } ->
       wrapSignature $ renderValueSignature result ty
@@ -372,29 +374,30 @@ renderResultType result =
     _ -> []
 
   where
-    wrapSignature signature =
-      [ HH.pre [ HP.class_ (wrap "result__signature") ] [ HH.code_ signature ] ]
-
+  wrapSignature signature =
+    [ HH.pre [ HP.class_ (wrap "result__signature") ] [ HH.code_ signature ] ]
 
 renderValueSignature
   :: forall a rest
-  .  { moduleName :: ModuleName
+   . { moduleName :: ModuleName
      , name :: Identifier
      | rest
      }
   -> Type
   -> Array (HH.HTML a Action)
 renderValueSignature result ty =
-  [ HH.a [ makeHref ValueLevel false result.moduleName result.name
-         , HE.onClick $ const $ SearchResultClicked result.moduleName ]
-    [ HH.text $ unwrap result.name ]
+  [ HH.a
+      [ makeHref ValueLevel false result.moduleName result.name
+      , HE.onClick $ const $ SearchResultClicked result.moduleName
+      ]
+      [ HH.text $ unwrap result.name ]
   , HH.text " :: "
-  , renderType ty ]
-
+  , renderType ty
+  ]
 
 renderTypeClassSignature
   :: forall a rest
-  .  { fundeps :: FunDeps
+   . { fundeps :: FunDeps
      , arguments :: Array TypeArgument
      , superclasses :: Array Constraint
      }
@@ -402,51 +405,53 @@ renderTypeClassSignature
   -> Array (HH.HTML a Action)
 renderTypeClassSignature { fundeps, arguments, superclasses } { name, moduleName } =
   [ keyword "class"
-  , if Array.null superclasses
-    then
+  , if Array.null superclasses then
       HH.text ""
     else
       HH.span_ $
-      [ syntax " ("
-      , HH.span_ $ Array.intercalate [ HH.text ", " ] (
-        superclasses <#> renderConstraint >>> Array.singleton
-      )
-      , syntax ")"
-      , space
-      , syntax "<="
+        [ syntax " ("
+        , HH.span_ $ Array.intercalate [ HH.text ", " ]
+            ( superclasses <#> renderConstraint >>> Array.singleton
+            )
+        , syntax ")"
+        , space
+        , syntax "<="
+        ]
+  , space
+  , HH.a
+      [ makeHref TypeLevel false moduleName name
+      , HE.onClick $ const $
+          SearchResultClicked moduleName
       ]
+      [ HH.text $ unwrap name ]
   , space
-  , HH.a [ makeHref TypeLevel false moduleName name
-         , HE.onClick $ const $
-           SearchResultClicked moduleName
-         ]
-    [ HH.text $ unwrap name ]
-  , space
-  ] <> (
-    Array.intercalate [ space ] $
-      arguments <#> renderTypeArgument
-  ) <> (
-    renderFunDeps fundeps
-  )
-
+  ]
+    <>
+      ( Array.intercalate [ space ] $
+          arguments <#> renderTypeArgument
+      )
+    <>
+      ( renderFunDeps fundeps
+      )
 
 renderFunDeps :: forall a. FunDeps -> Array (HH.HTML a Action)
 renderFunDeps (FunDeps []) = []
 renderFunDeps (FunDeps deps) =
-  append [ syntax " | " ] $
-  Array.intercalate [ syntax ", " ] $
-  deps <#> renderFunDep
+  append [ syntax " | " ]
+    $ Array.intercalate [ syntax ", " ]
+    $
+      deps <#> renderFunDep
   where
-    renderFunDep (FunDep { lhs, rhs }) =
-      Array.intercalate [ space ] (pure <<< HH.text <$> lhs) <>
-      [ syntax " -> " ] <>
-      Array.intercalate [ space ] (pure <<< HH.text <$> rhs)
-
+  renderFunDep (FunDep { lhs, rhs }) =
+    Array.intercalate [ space ] (pure <<< HH.text <$> lhs)
+      <> [ syntax " -> " ]
+      <>
+        Array.intercalate [ space ] (pure <<< HH.text <$> rhs)
 
 -- | Insert type class name and arguments
 renderTypeClassMemberSignature
   :: forall a rest
-  .  { type :: Type
+   . { type :: Type
      , typeClass :: QualifiedName
      , typeClassArguments :: Array TypeArgument
      }
@@ -458,30 +463,30 @@ renderTypeClassMemberSignature { type: ty, typeClass, typeClassArguments } resul
   , renderType ty
   ]
 
-
 renderDataSignature
   :: forall a rest
-  .  { typeArguments :: Array TypeArgument
-     , dataDeclType :: DataDeclType }
+   . { typeArguments :: Array TypeArgument
+     , dataDeclType :: DataDeclType
+     }
   -> { name :: Identifier | rest }
   -> Array (HH.HTML a Action)
 renderDataSignature { typeArguments, dataDeclType } { name } =
   [ keyword
-    case dataDeclType of
-      NewtypeDataDecl -> "newtype"
-      DataDataDecl    -> "data"
+      case dataDeclType of
+        NewtypeDataDecl -> "newtype"
+        DataDataDecl -> "data"
   , space
   , HH.text $ unwrap name
   , space
-  , HH.span_ $
-    Array.intercalate [ space ] $
-      typeArguments <#> renderTypeArgument
+  , HH.span_
+      $ Array.intercalate [ space ]
+      $
+        typeArguments <#> renderTypeArgument
   ]
-
 
 renderTypeSynonymSignature
   :: forall a rest
-  .  { type :: Type
+   . { type :: Type
      , arguments :: Array TypeArgument
      }
   -> { name :: Identifier | rest }
@@ -491,15 +496,15 @@ renderTypeSynonymSignature { type: ty, arguments } { name } =
   , space
   , HH.text $ unwrap name
   , space
-  , HH.span_ $
-    Array.intercalate [ space ] $
-      arguments <#> renderTypeArgument
+  , HH.span_
+      $ Array.intercalate [ space ]
+      $
+        arguments <#> renderTypeArgument
   , space
   , syntax "="
   , space
   , renderType ty
   ]
-
 
 renderTypeArgument :: forall a. TypeArgument -> Array (HH.HTML a Action)
 renderTypeArgument (TypeArgument { name, mbKind }) =
@@ -514,10 +519,9 @@ renderTypeArgument (TypeArgument { name, mbKind }) =
       , HH.text ")"
       ]
 
-
 renderType
   :: forall a
-  .  Type
+   . Type
   -> HH.HTML a Action
 renderType = case _ of
   TypeVar str -> HH.text str
@@ -526,24 +530,41 @@ renderType = case _ of
   TypeConstructor qname -> renderQualifiedName false TypeLevel qname
   TypeOp qname -> renderQualifiedName true TypeLevel qname
 
-  TypeApp (TypeApp (TypeConstructor
-                    (QualifiedName { moduleNameParts: [ "Prim" ]
-                                   , name: Identifier "Function" })) t1) t2 ->
-    HH.span_ [ renderType t1
-             , syntax " -> "
-             , renderType t2
-             ]
+  TypeApp
+    ( TypeApp
+        ( TypeConstructor
+            ( QualifiedName
+                { moduleNameParts: [ "Prim" ]
+                , name: Identifier "Function"
+                }
+            )
+        )
+        t1
+    )
+    t2 ->
+    HH.span_
+      [ renderType t1
+      , syntax " -> "
+      , renderType t2
+      ]
 
-  TypeApp (TypeConstructor (QualifiedName { moduleNameParts: [ "Prim" ]
-                                          , name: Identifier "Record" }))
-          row ->
+  TypeApp
+    ( TypeConstructor
+        ( QualifiedName
+            { moduleNameParts: [ "Prim" ]
+            , name: Identifier "Record"
+            }
+        )
+    )
+    row ->
     renderRow false row
 
   TypeApp t1 t2 ->
-    HH.span_ [ renderType t1
-             , space
-             , renderType t2
-             ]
+    HH.span_
+      [ renderType t1
+      , space
+      , renderType t2
+      ]
 
   KindApp t1 t2 ->
     HH.span_ [ renderType t1, space, renderType t2 ]
@@ -553,10 +574,10 @@ renderType = case _ of
 
   ConstrainedType cnstr ty ->
     HH.span_
-    [ renderConstraint cnstr
-    , HH.text " => "
-    , renderType ty
-    ]
+      [ renderConstraint cnstr
+      , HH.text " => "
+      , renderType ty
+      ]
 
   ty@REmpty -> renderRow true ty
   ty@(RCons _ _ _) -> renderRow true ty
@@ -566,150 +587,148 @@ renderType = case _ of
 
   BinaryNoParensType op t1 t2 ->
     HH.span_
-    [ renderType t1
-    , space
-    , renderType op
-    , space
-    , renderType t2
-    ]
+      [ renderType t1
+      , space
+      , renderType op
+      , space
+      , renderType t2
+      ]
 
   ParensInType ty ->
     HH.span_
-    [ HH.text "("
-    , renderType ty
-    , HH.text ")"
-    ]
-
+      [ HH.text "("
+      , renderType ty
+      , HH.text ")"
+      ]
 
 renderForAll
   :: forall a
-  .  Type
+   . Type
   -> HH.HTML a Action
 renderForAll ty =
   HH.span_ $
+    [ keyword "forall" ]
+      <>
+        ( Array.fromFoldable foralls.binders <#>
+            \{ name, mbKind } ->
+              case mbKind of
+                Nothing -> HH.text (" " <> name)
+                Just kind ->
+                  HH.span_
+                    [ HH.text $ " (" <> name <> " "
+                    , syntax "::"
+                    , space
+                    , renderType kind
+                    , HH.text ")"
+                    ]
+        )
+      <>
 
-  [ keyword "forall" ] <>
-
-  ( Array.fromFoldable foralls.binders <#>
-    \ { name, mbKind } ->
-    case mbKind of
-      Nothing -> HH.text (" " <> name)
-      Just kind ->
-        HH.span_ [ HH.text $ " (" <> name <> " "
-                 , syntax "::"
-                 , space
-                 , renderType kind
-                 , HH.text ")" ]
-  ) <>
-
-  [ syntax ". ", renderType foralls.ty ]
+        [ syntax ". ", renderType foralls.ty ]
 
   where
-    foralls = joinForAlls ty
-
+  foralls = joinForAlls ty
 
 renderRow
   :: forall a
-  .  Boolean
+   . Boolean
   -> Type
   -> HH.HTML a Action
 renderRow asRow =
-  joinRows >>> \ { rows, ty } ->
+  joinRows >>> \{ rows, ty } ->
+    HH.span_ $
 
-  HH.span_ $
-
-  if List.null rows
-  then
-    [ if asRow
-      then HH.text "()"
-      else
-        fromMaybe (HH.text "{}") $
-        ty <#> \ty' ->
-        HH.span_
-        [ renderQualifiedName false TypeLevel primRecord
-        , HH.text " "
-        , renderType ty'
+      if List.null rows then
+        [ if asRow then HH.text "()"
+          else
+            fromMaybe (HH.text "{}") $
+              ty <#> \ty' ->
+                HH.span_
+                  [ renderQualifiedName false TypeLevel primRecord
+                  , HH.text " "
+                  , renderType ty'
+                  ]
         ]
-    ]
-  else
-    [ HH.text opening ] <>
+      else
+        [ HH.text opening ]
+          <>
+            ( Array.intercalate [ HH.text ", " ] $ Array.fromFoldable $ rows <#>
+                \entry ->
+                  [ HH.span_
+                      [ HH.text $ unwrap entry.row <> " :: "
+                      , renderType entry.ty
+                      ]
+                  ]
+            )
+          <> (ty >#> \ty' -> [ HH.text " | ", renderType ty' ])
+          <>
 
-    ( Array.intercalate [ HH.text ", " ] $ Array.fromFoldable $ rows <#>
-      \entry ->
-      [ HH.span_ [ HH.text $ unwrap entry.row <> " :: "
-                 , renderType entry.ty ] ]
-    ) <>
+            [ HH.text closing ]
 
-    (ty >#> \ty' -> [ HH.text " | ", renderType ty' ]) <>
+  where
+  opening = if asRow then "( " else "{ "
+  closing = if asRow then " )" else " }"
 
-    [ HH.text closing ]
-
-    where
-      opening = if asRow then "( " else "{ "
-      closing = if asRow then " )" else " }"
-
-      primRecord :: QualifiedName
-      primRecord = QualifiedName { moduleNameParts: [ "Prim" ], name: Identifier "Record" }
-
+  primRecord :: QualifiedName
+  primRecord = QualifiedName { moduleNameParts: [ "Prim" ], name: Identifier "Record" }
 
 renderConstraint
   :: forall a
-  .  Constraint
+   . Constraint
   -> HH.HTML a Action
 renderConstraint (Constraint { constraintClass, constraintArgs }) =
   HH.span_ $
-  [ renderQualifiedName false TypeLevel constraintClass, space ] <>
-  Array.intercalate [ space ] (constraintArgs <#> \ty -> [ renderType ty ])
-
+    [ renderQualifiedName false TypeLevel constraintClass, space ] <>
+      Array.intercalate [ space ] (constraintArgs <#> \ty -> [ renderType ty ])
 
 renderQualifiedName
   :: forall a
-  .  Boolean
+   . Boolean
   -> DeclLevel
   -> QualifiedName
   -> HH.HTML a Action
-renderQualifiedName isInfix level (QualifiedName { moduleNameParts, name })
-  = if isBuiltIn then
-      HH.text $ unwrap name
-    else
-      HH.a [ HE.onClick $ const $
-             SearchResultClicked $ moduleName
-           , makeHref level isInfix moduleName name
-           ]
+renderQualifiedName isInfix level (QualifiedName { moduleNameParts, name }) =
+  if isBuiltIn then
+    HH.text $ unwrap name
+  else
+    HH.a
+      [ HE.onClick $ const
+          $ SearchResultClicked
+          $ moduleName
+      , makeHref level isInfix moduleName name
+      ]
       [ HH.text $ unwrap name ]
-      where
-        moduleName = ModuleName $ Array.intercalate "." $ moduleNameParts
-        isBuiltIn = moduleNameParts !! 0 == Just "Prim"
-
+  where
+  moduleName = ModuleName $ Array.intercalate "." $ moduleNameParts
+  isBuiltIn = moduleNameParts !! 0 == Just "Prim"
 
 -- | Construct a `href` property value w.r.t. `DeclLevel`.
 makeHref
   :: forall t rest
-  .  DeclLevel
+   . DeclLevel
   -> Boolean
   -> ModuleName
   -> Identifier
-  -> HH.IProp ( href :: String | rest ) t
+  -> HH.IProp (href :: String | rest) t
 makeHref level isInfix moduleName name =
   HP.href $
-  unwrap moduleName <> ".html#" <>
-  declLevelToHashAnchor level <> ":" <>
-  if isInfix then "type (" <> unwrap name <> ")" else unwrap name
-
+    unwrap moduleName <> ".html#"
+      <> declLevelToHashAnchor level
+      <> ":"
+      <>
+        if isInfix then "type (" <> unwrap name <> ")" else unwrap name
 
 keyword
   :: forall a
-  .  String
+   . String
   -> HH.HTML a Action
 keyword str = HH.span [ HP.class_ (wrap "keyword") ] [ HH.text str ]
 
-
 syntax
   :: forall a
-  .  String
+   . String
   -> HH.HTML a Action
 syntax str = HH.span [ HP.class_ (wrap "syntax") ] [ HH.text str ]
-
 
 space :: forall a b. HH.HTML a b
 space = HH.text " "

@@ -31,14 +31,11 @@ import Data.Tuple (Tuple(..))
 import Effect (Effect)
 import Effect.Aff (Aff, try)
 
-
-newtype PartialIndex
-  = PartialIndex (Map PartId Index)
+newtype PartialIndex = PartialIndex (Map PartId Index)
 
 derive instance newtypePartialIndex :: Newtype PartialIndex _
 
 type BrowserEngineState = EngineState PartialIndex TypeIndex
-
 
 -- | This function dynamically injects a script with the required index part and returns
 -- | a new `PartialIndex` that contains newly loaded definitions.
@@ -51,9 +48,10 @@ query
 query index@(PartialIndex indexMap) input = do
   let
     path =
-      List.fromFoldable $
-      String.toCharArray $
-      input
+      List.fromFoldable
+        $ String.toCharArray
+        $
+          input
 
     partId = getPartId path
 
@@ -61,7 +59,6 @@ query index@(PartialIndex indexMap) input = do
     Just trie ->
       pure { index, results: flatten $ Trie.queryValues path trie }
     Nothing -> do
-
 
       eiPartJson <-
         try $ toAffE $ loadIndex_ partId $ Config.mkIndexPartLoadPath partId
@@ -75,15 +72,15 @@ query index@(PartialIndex indexMap) input = do
 
       case mbNewTrie of
         Just newTrie -> do
-          pure { index: PartialIndex $ Map.insert partId newTrie indexMap
-               , results: flatten $ Trie.queryValues path newTrie
-               }
+          pure
+            { index: PartialIndex $ Map.insert partId newTrie indexMap
+            , results: flatten $ Trie.queryValues path newTrie
+            }
         Nothing -> do
           pure { index, results: mempty }
 
   where
-    flatten = Array.concat <<< Array.fromFoldable <<< map Array.fromFoldable
-
+  flatten = Array.concat <<< Array.fromFoldable <<< map Array.fromFoldable
 
 insertResults
   :: Tuple String (Array SearchResult)
@@ -92,16 +89,15 @@ insertResults
 insertResults (Tuple path newResults) =
   Trie.alter pathList insert
   where
-    pathList = List.fromFoldable $ String.toCharArray path
+  pathList = List.fromFoldable $ String.toCharArray path
 
-    insert
-      :: Maybe (List SearchResult)
-      -> Maybe (List SearchResult)
-    insert mbOldResults =
-      case mbOldResults of
-        Nothing  -> Just $ List.fromFoldable newResults
-        Just old -> Just $ List.fromFoldable newResults <> old
-
+  insert
+    :: Maybe (List SearchResult)
+    -> Maybe (List SearchResult)
+  insert mbOldResults =
+    case mbOldResults of
+      Nothing -> Just $ List.fromFoldable newResults
+      Just old -> Just $ List.fromFoldable newResults <> old
 
 browserSearchEngine
   :: Engine Aff PartialIndex TypeIndex
@@ -112,8 +108,6 @@ browserSearchEngine =
   , queryModuleIndex: ModuleIndex.queryModuleIndex
   }
 
-
-
 -- | Find in which part of the index this path can be found.
 getPartId :: List Char -> PartId
 getPartId (a : b : _) =
@@ -122,9 +116,8 @@ getPartId (a : _) =
   PartId $ Char.toCharCode a `mod` Config.numberOfIndexParts
 getPartId _ = PartId 0
 
-
 -- | Load a part of the index by injecting a <script> tag into the DOM.
 foreign import loadIndex_
- :: PartId
- -> URL
- -> Effect (Promise Json)
+  :: PartId
+  -> URL
+  -> Effect (Promise Json)

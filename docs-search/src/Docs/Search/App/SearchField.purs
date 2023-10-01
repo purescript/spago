@@ -38,8 +38,7 @@ data Action
   | HandleKey H.SubscriptionId KeyboardEvent
   | NoOp
 
-data Query a
-  = ReadURIHash a
+data Query a = ReadURIHash a
 
 data SearchFieldMessage
   = InputUpdated String
@@ -52,14 +51,16 @@ component =
   H.mkComponent
     { initialState
     , render
-    , eval: H.mkEval $ H.defaultEval { handleAction = handleAction
-                                     , handleQuery = handleQuery
-                                     , initialize = Just InitKeyboardListener }
+    , eval: H.mkEval $ H.defaultEval
+        { handleAction = handleAction
+        , handleQuery = handleQuery
+        , initialize = Just InitKeyboardListener
+        }
     }
 
 handleQuery
   :: forall a
-  .  Query a
+   . Query a
   -> H.HalogenM State Action () SearchFieldMessage Aff (Maybe a)
 handleQuery (ReadURIHash next) = do
   oldInput <- H.get <#> _.input
@@ -95,8 +96,7 @@ handleAction = case _ of
 
     when (KE.code ev == "Escape") do
       state <- H.get
-      if state.focused
-      then do
+      if state.focused then do
         H.liftEffect do
           withSearchField (HTMLInputElement.toHTMLElement >>> HTMLElement.blur)
       else clearInput
@@ -114,8 +114,7 @@ handleAction = case _ of
   FocusChanged isFocused -> do
     H.modify_ (_ { focused = isFocused })
     H.raise
-      if isFocused
-      then Focused
+      if isFocused then Focused
       else LostFocus
     when isFocused scrollToTop
 
@@ -132,9 +131,10 @@ clearInput = do
 
 withSearchField :: (HTML.HTMLInputElement -> Effect Unit) -> Effect Unit
 withSearchField cont = do
-  doc <- Document.toParentNode <$>
-         HTMLDocument.toDocument <$>
-         (Window.document =<< HTML.window)
+  doc <- Document.toParentNode
+    <$> HTMLDocument.toDocument
+    <$>
+      (Window.document =<< HTML.window)
 
   let selector = wrap "#docs-search-query-field"
 
@@ -144,41 +144,43 @@ withSearchField cont = do
 render :: forall m. State -> H.ComponentHTML Action () m
 render state =
   HH.div
-
-  [ HS.style do
-       float floatLeft
-       lineHeight (px 90.0)
-       marginBottom (px 0.0)
-       marginLeft (em 2.0)
-       width (pct 30.0)
-  ]
-
-  [ HH.input
-    [ HP.value state.input
-    , HP.placeholder "Search for definitions... (S to focus)"
-    , HP.id "docs-search-query-field"
-    , HP.type_ HP.InputText
-    , HE.onKeyUp (\event ->
-                   case KeyboardEvent.code event of
-                     "Enter"  -> EnterPressed
-                     _        -> NoOp)
-    , HE.onValueInput InputAction
-    , HE.onFocusIn  $ const $ FocusChanged true
-    , HE.onFocusOut $ const $ FocusChanged false
-    , HS.style do
-
-      let pursuitColor = rgb 0x1d 0x22 0x2d
-          rds = px 3.0
-
-      border solid (px 1.0) pursuitColor
-      borderRadius rds rds rds rds
-      color pursuitColor
-      fontWeight    $ weight 300.0
-      lineHeight    $ em 2.0
-      paddingLeft   $ em 0.8
-      paddingRight  $ em 0.21
-      paddingTop    $ em 0.512
-      paddingBottom $ em 0.512
-      width         $ pct 100.0
+    [ HS.style do
+        float floatLeft
+        lineHeight (px 90.0)
+        marginBottom (px 0.0)
+        marginLeft (em 2.0)
+        width (pct 30.0)
     ]
-  ]
+
+    [ HH.input
+        [ HP.value state.input
+        , HP.placeholder "Search for definitions... (S to focus)"
+        , HP.id "docs-search-query-field"
+        , HP.type_ HP.InputText
+        , HE.onKeyUp
+            ( \event ->
+                case KeyboardEvent.code event of
+                  "Enter" -> EnterPressed
+                  _ -> NoOp
+            )
+        , HE.onValueInput InputAction
+        , HE.onFocusIn $ const $ FocusChanged true
+        , HE.onFocusOut $ const $ FocusChanged false
+        , HS.style do
+
+            let
+              pursuitColor = rgb 0x1d 0x22 0x2d
+              rds = px 3.0
+
+            border solid (px 1.0) pursuitColor
+            borderRadius rds rds rds rds
+            color pursuitColor
+            fontWeight $ weight 300.0
+            lineHeight $ em 2.0
+            paddingLeft $ em 0.8
+            paddingRight $ em 0.21
+            paddingTop $ em 0.512
+            paddingBottom $ em 0.512
+            width $ pct 100.0
+        ]
+    ]

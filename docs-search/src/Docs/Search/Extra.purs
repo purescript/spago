@@ -15,7 +15,7 @@ whenJust :: forall a m. Monad m => Maybe a -> (a -> m Unit) -> m Unit
 whenJust (Just a) f = f a
 whenJust _ _ = pure unit
 
-foldMapFlipped :: forall a m f. Foldable f => Monoid m =>  f a -> (a -> m) -> m
+foldMapFlipped :: forall a m f. Foldable f => Monoid m => f a -> (a -> m) -> m
 foldMapFlipped = flip foldMap
 
 infixr 7 foldMapFlipped as >#>
@@ -28,17 +28,18 @@ foldl1 f as =
 foldr1 :: forall a. (a -> a -> a) -> NonEmptyList a -> a
 foldr1 f = go List.Nil
   where
-    go acc x = case uncons x of
-      { head, tail } -> case List.uncons tail of
-        Nothing -> List.foldl (flip f) head acc
-        Just { head: head1, tail: tail1 } ->
-          go (head : acc) (cons' head1 tail1)
+  go acc x = case uncons x of
+    { head, tail } -> case List.uncons tail of
+      Nothing -> List.foldl (flip f) head acc
+      Just { head: head1, tail: tail1 } ->
+        go (head : acc) (cons' head1 tail1)
 
 -- | Try to guess repository main page on github from git URL.
 homePageFromRepository :: String -> String
 homePageFromRepository repo =
-  fromMaybe repo $ String.stripSuffix (wrap ".git") $
-  fromMaybe repo $ String.stripPrefix (wrap "git:") repo <#> ("https:" <> _)
+  fromMaybe repo $ String.stripSuffix (wrap ".git")
+    $ fromMaybe repo
+    $ String.stripPrefix (wrap "git:") repo <#> ("https:" <> _)
 
 stringToList :: String -> List Char
 stringToList = List.fromFoldable <<< String.toCharArray

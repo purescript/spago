@@ -40,18 +40,17 @@ import Type.Proxy (Proxy(..))
 type PackedModuleIndex = Map PackageInfo (Set ModuleName)
 
 -- | "Expanded" module index that can be queried quickly.
-type ModuleIndex = { packageModules :: Map PackageInfo (Set ModuleName)
-                   , modulePackages :: Map ModuleName PackageInfo
-                   , index :: Trie Char ModuleName
-                   }
+type ModuleIndex =
+  { packageModules :: Map PackageInfo (Set ModuleName)
+  , modulePackages :: Map ModuleName PackageInfo
+  , index :: Trie Char ModuleName
+  }
 
-
-type ModuleResult
-  = { name :: ModuleName
-    , package :: PackageInfo
-    , score :: PackageScore
-    }
-
+type ModuleResult =
+  { name :: ModuleName
+  , package :: PackageInfo
+  , score :: PackageScore
+  }
 
 unpackModuleIndex :: PackedModuleIndex -> ModuleIndex
 unpackModuleIndex packageModules =
@@ -64,14 +63,13 @@ unpackModuleIndex packageModules =
             let partPath = Array.toUnfoldable $ String.toCharArray part
             modify_ $ _index %~ Trie.insert partPath moduleName
 
-
 -- | E.g. `"Data.Array.ST" -> ["data.array.st", "array.st", "st"]`.
 extractModuleNameParts :: ModuleName -> List String
 extractModuleNameParts =
-  unwrap >>> String.toLower >>>
-  String.split (Pattern ".") >>>
-  foldl (\acc el -> el : map (_ <> "." <> el) acc) mempty
-
+  unwrap >>> String.toLower
+    >>> String.split (Pattern ".")
+    >>>
+      foldl (\acc el -> el : map (_ <> "." <> el) acc) mempty
 
 queryModuleIndex
   :: Scores
@@ -79,48 +77,55 @@ queryModuleIndex
   -> String
   -> Array ModuleResult
 queryModuleIndex scores { index, modulePackages } query =
-  let path = stringToList $ String.toLower query in
-  Trie.queryValues path index #
-  Array.fromFoldable #
-  Array.nub <#>
-  (\name -> do
-      package <- Map.lookup name modulePackages
-      pure { name, package
-           , score: getPackageScore scores package }) #
-  Array.catMaybes
-
+  let
+    path = stringToList $ String.toLower query
+  in
+    Trie.queryValues path index
+      # Array.fromFoldable
+      # Array.nub
+      <#>
+        ( \name -> do
+            package <- Map.lookup name modulePackages
+            pure
+              { name
+              , package
+              , score: getPackageScore scores package
+              }
+        )
+      #
+        Array.catMaybes
 
 -- | Constructs a mapping from packages to modules
 mkPackedModuleIndex :: Declarations -> Array ModuleName -> PackedModuleIndex
 mkPackedModuleIndex (Declarations trie) moduleNames =
-  addLocalPackageModuleNames $
-  foldr (Map.unionWith Set.union) Map.empty $ extract <$> Trie.values trie
+  addLocalPackageModuleNames
+    $ foldr (Map.unionWith Set.union) Map.empty
+    $ extract <$> Trie.values trie
   where
-    -- Add modules from src/ that may not contain any definitions, only
-    -- re-exports
-    addLocalPackageModuleNames = flip Map.alter LocalPackage $
-      Just <<< append (Set.fromFoldable moduleNames) <<< fromMaybe Set.empty
-    extract
-      :: List SearchResult
-      -> Map PackageInfo (Set ModuleName)
-    extract = foldr (Map.unionWith Set.union) Map.empty <<< map mkEntry
-      where
-        mkEntry (SearchResult { packageInfo, moduleName }) =
-          Map.singleton packageInfo (Set.singleton moduleName)
+  -- Add modules from src/ that may not contain any definitions, only
+  -- re-exports
+  addLocalPackageModuleNames = flip Map.alter LocalPackage $
+    Just <<< append (Set.fromFoldable moduleNames) <<< fromMaybe Set.empty
+
+  extract
+    :: List SearchResult
+    -> Map PackageInfo (Set ModuleName)
+  extract = foldr (Map.unionWith Set.union) Map.empty <<< map mkEntry
+    where
+    mkEntry (SearchResult { packageInfo, moduleName }) =
+      Map.singleton packageInfo (Set.singleton moduleName)
 
 loadModuleIndex :: Aff PackedModuleIndex
 loadModuleIndex = do
   json <- toAffE $ load Config.moduleIndexLoadPath
   pure $ fromMaybe Map.empty $ hush $ decodeJson json
 
-
 foreign import load
   :: String
   -> Effect (Promise Json)
 
-
-_modulePackages :: forall a b rest.  (a -> b) -> { modulePackages :: a | rest } -> { modulePackages :: b | rest }
+_modulePackages :: forall a b rest. (a -> b) -> { modulePackages :: a | rest } -> { modulePackages :: b | rest }
 _modulePackages = prop (Proxy :: Proxy "modulePackages")
 
-_index :: forall a b rest.  (a -> b) -> { index :: a | rest } -> { index :: b | rest }
+_index :: forall a b rest. (a -> b) -> { index :: a | rest } -> { index :: b | rest }
 _index = prop (Proxy :: Proxy "index")

@@ -26,35 +26,36 @@ import Data.Newtype (class Newtype, over)
 import Effect (Effect)
 import Effect.Aff (Aff, try)
 
-
 newtype TypeIndex = TypeIndex (Map String (Maybe (Array SearchResult)))
 
 derive instance newtypeTypeIndex :: Newtype TypeIndex _
-
 
 mkTypeIndex :: Scores -> Array DocsJson -> TypeIndex
 mkTypeIndex scores docsJsons =
   TypeIndex $ map Just $ foldr insert Map.empty docsJsons
   where
-    insert :: DocsJson -> Map String (Array SearchResult) -> Map String (Array SearchResult)
-    insert docsJson mp =
-      Array.foldr (\result ->
-                    case getType result of
-                      Just ty ->
-                        Map.insertWith append (stringifyShape $ shapeOfType ty) (pure result)
-                      Nothing -> identity
-                  ) mp (allResults scores docsJson)
-
+  insert :: DocsJson -> Map String (Array SearchResult) -> Map String (Array SearchResult)
+  insert docsJson mp =
+    Array.foldr
+      ( \result ->
+          case getType result of
+            Just ty ->
+              Map.insertWith append (stringifyShape $ shapeOfType ty) (pure result)
+            Nothing -> identity
+      )
+      mp
+      (allResults scores docsJson)
 
 allResults :: Scores -> DocsJson -> Array SearchResult
 allResults scores (DocsJson { name, declarations }) =
-  declarations >>= (resultsForDeclaration scores (ModuleName name) >>>
-                    map (_.result) >>> Array.fromFoldable)
-
+  declarations >>=
+    ( resultsForDeclaration scores (ModuleName name)
+        >>> map (_.result)
+        >>> Array.fromFoldable
+    )
 
 resultsWithTypes :: Scores -> DocsJson -> Array SearchResult
 resultsWithTypes scores = Array.filter (getType >>> isJust) <<< allResults scores
-
 
 getType :: SearchResult -> Maybe Type
 getType (SearchResult { info }) =
@@ -70,7 +71,6 @@ getType (SearchResult { info }) =
 
     _ -> Nothing
 
-
 lookup
   :: String
   -> TypeIndex
@@ -81,20 +81,19 @@ lookup key index@(TypeIndex map) =
     Nothing -> do
       eiJson <- try (toAffE (lookup_ key $ Config.mkShapeScriptPath key))
       pure $ fromMaybe'
-        (\_ ->  { index: insert key Nothing index, results: [] })
+        (\_ -> { index: insert key Nothing index, results: [] })
         do
           json <- hush eiJson
           results <- hush (decodeJson json)
           pure { index: insert key (Just results) index, results }
 
   where
-    insert
-      :: String
-      -> Maybe (Array SearchResult)
-      -> TypeIndex
-      -> TypeIndex
-    insert k v = over TypeIndex (Map.insert k v)
-
+  insert
+    :: String
+    -> Maybe (Array SearchResult)
+    -> TypeIndex
+    -> TypeIndex
+  insert k v = over TypeIndex (Map.insert k v)
 
 query
   :: TypeIndex
@@ -103,7 +102,6 @@ query
 query typeIndex typeQuery = do
   res <- lookup (stringifyShape $ shapeOfTypeQuery typeQuery) typeIndex
   pure $ res { results = res.results }
-
 
 foreign import lookup_
   :: String
