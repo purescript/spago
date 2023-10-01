@@ -12,7 +12,7 @@ module Spago.Config
   , getPackageLocation
   , fileSystemCharEscape
   , getWorkspacePackages
-  , getToplogicallySortedWorkspacePackages
+  , getTopologicallySortedWorkspacePackages
   , module Core
   , readWorkspace
   , sourceGlob
@@ -455,8 +455,8 @@ getWorkspacePackages = Array.mapMaybe extractWorkspacePackage <<< Map.toUnfoldab
     Tuple _ (WorkspacePackage p) -> Just p
     _ -> Nothing
 
-getToplogicallySortedWorkspacePackages :: PackageSet -> Array WorkspacePackage
-getToplogicallySortedWorkspacePackages packageSet = do
+getTopologicallySortedWorkspacePackages :: PackageSet -> Array WorkspacePackage
+getTopologicallySortedWorkspacePackages packageSet = do
   let
     packageMap = Map.fromFoldable $ map (\p -> Tuple p.package.name p) $ getWorkspacePackages packageSet
     dependenciesAsList p = Set.toUnfoldable $ Map.keys $ unwrap p.package.dependencies

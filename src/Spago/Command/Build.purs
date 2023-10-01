@@ -107,7 +107,7 @@ run opts = do
         getTransDeps p = note p $ Map.lookup p.package.name packageDependencies
 
         result :: Either WorkspacePackage (Array (Tuple WorkspacePackage PackageMap))
-        result = traverse (\p -> Tuple p <$> getTransDeps p) $ Config.getToplogicallySortedWorkspacePackages workspace.packageSet
+        result = traverse (\p -> Tuple p <$> getTransDeps p) $ Config.getTopologicallySortedWorkspacePackages workspace.packageSet
       case result of
         Right a -> pure a
         Left p -> die [ "Internal error. Did not get transitive dependencies for package: " <> PackageName.print p.package.name ]
