@@ -16,6 +16,7 @@ import Node.Path as Path
 import Registry.Version as Version
 import Spago.Cmd as Cmd
 import Spago.Command.Build as Build
+import Spago.Command.Fetch as Fetch
 import Spago.Config (Workspace, WorkspacePackage, PackageMap)
 import Spago.FS as FS
 import Spago.Paths as Paths
@@ -97,7 +98,7 @@ run = do
       -- We check that the module we're about to run is included in the build and spit out a nice error if it isn't (see #383)
       let
         globs = Build.getBuildGlobs
-          { dependencies: foldl (Map.unionWith (\l _ -> l)) Map.empty packageDependencies
+          { dependencies: Fetch.getAllDependencies packageDependencies
           , depsOnly: false
           -- Here we include tests as well, because we use this code for `spago run` and `spago test`
           , withTests: true

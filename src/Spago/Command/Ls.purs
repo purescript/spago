@@ -12,6 +12,7 @@ import Record as Record
 import Registry.Internal.Codec (packageMap)
 import Registry.PackageName as PackageName
 import Registry.Version as Version
+import Spago.Command.Fetch as Fetch
 import Spago.Config (Package(..), PackageSet(..), Workspace, WorkspacePackage, PackageMap)
 import Spago.Config as Config
 import Type.Proxy (Proxy(..))
@@ -63,7 +64,7 @@ listPackages { transitive, json } = do
   logDebug "Running `listPackages`"
   { packageDependencies, selected } <- ask
   let
-    dependencies = foldl (Map.unionWith (\l _ -> l)) Map.empty packageDependencies
+    dependencies = Fetch.getAllDependencies packageDependencies
     direct = (Map.keys <<< unwrap <<< _.dependencies <<< _.package) selected
     directDependencies = filterKeys (_ `elem` direct) dependencies
 

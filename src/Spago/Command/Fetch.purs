@@ -2,6 +2,7 @@ module Spago.Command.Fetch
   ( FetchEnv
   , FetchEnvRow
   , FetchOpts
+  , getAllDependencies
   , getWorkspacePackageDeps
   , getTransitiveDeps
   , getTransitiveDepsFromRegistry
@@ -139,7 +140,7 @@ run { packages, ensureRanges, isTest } = do
 
   let
     transitivePackages :: PackageMap
-    transitivePackages = either (foldl (Map.unionWith (\l _ -> l)) Map.empty) _.transitiveDeps workspaceDepsOrSelectedPackage
+    transitivePackages = either getAllDependencies _.transitiveDeps workspaceDepsOrSelectedPackage
 
   -- TODO: need to be careful about what happens when we select a single package vs the whole workspace
   -- because otherwise the lockfile will be partial.
@@ -279,6 +280,9 @@ run { packages, ensureRanges, isTest } = do
   pure $ case workspaceDepsOrSelectedPackage of
     Right r -> Map.singleton r.workspacePackage.package.name r.transitiveDeps
     Left l -> l
+
+getAllDependencies :: Map PackageName PackageMap -> PackageMap
+getAllDependencies = foldl (Map.unionWith (\l _ -> l)) Map.empty
 
 getGitPackageInLocalCache :: forall a. PackageName -> GitPackage -> Spago (Git.GitEnv a) Unit
 getGitPackageInLocalCache name package = do

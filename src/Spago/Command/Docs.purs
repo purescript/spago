@@ -8,6 +8,7 @@ import Spago.Prelude
 import Data.Map as Map
 import Node.Process as Process
 import Spago.Command.Build as Build
+import Spago.Command.Fetch as Fetch
 import Spago.Config (Workspace, PackageMap)
 import Spago.Config as Config
 import Spago.Purs (Purs, DocsFormat(..))
@@ -31,7 +32,7 @@ run = do
     globs = Build.getEntireWorkspaceGlobs
       { withTests: true
       , workspacePackages: Config.getWorkspacePackages workspace.packageSet
-      , dependencies: foldl (Map.unionWith (\l _ -> l)) Map.empty packageDependencies
+      , dependencies: Fetch.getAllDependencies packageDependencies
       , depsOnly
       }
 

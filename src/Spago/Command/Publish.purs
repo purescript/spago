@@ -126,7 +126,7 @@ publish _args = do
     )
 
   -- We then need to check that the dependency graph is accurate. If not, queue the errors
-  let dependencies = foldl (Map.unionWith (\l _ -> l)) Map.empty packageDependencies
+  let dependencies = Fetch.getAllDependencies packageDependencies
   let globs = Build.getBuildGlobs { selected, withTests: false, dependencies, depsOnly: false }
   maybeGraph <- Graph.runGraph globs []
   for_ maybeGraph \graph -> do

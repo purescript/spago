@@ -15,6 +15,7 @@ import Data.Set as Set
 import Data.String as String
 import Registry.Foreign.FastGlob as Glob
 import Registry.PackageName as PackageName
+import Spago.Command.Fetch as Fetch
 import Spago.Config (Package(..), WithTestGlobs(..), WorkspacePackage, PackageMap)
 import Spago.Config as Config
 import Spago.Log as Log
@@ -78,7 +79,7 @@ checkImports = do
   -- First compile the globs for each package, we get out a set of the modules that a package contains
   -- and we can have a map from path to a PackageName
   let
-    dependencies = foldl (Map.unionWith (\l _ -> l)) Map.empty packageDependencies
+    dependencies = Fetch.getAllDependencies packageDependencies
     allPackages = dependencies
       # Map.insert testPackageName (WorkspacePackage selected)
       # Map.insert packageName (WorkspacePackage selected)
