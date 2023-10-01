@@ -1,9 +1,8 @@
 module Docs.Search.URIHash
-       ( getInput
-       , setInput
-       , removeHash
-       )
-where
+  ( getInput
+  , setInput
+  , removeHash
+  ) where
 
 import Prelude
 
@@ -31,8 +30,8 @@ getInput = do
   location <- Window.location window
   hash <- Location.hash location
   pure $
-    if String.slice 0 8 hash == "#search:"
-    then fromMaybe "" $
-         decodeURIComponent $
-         String.drop 8 hash
+    if String.slice 0 8 hash == "#search:" then fromMaybe ""
+      $ decodeURIComponent
+      $
+        String.drop 8 hash
     else ""

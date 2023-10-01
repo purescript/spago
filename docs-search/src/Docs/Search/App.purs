@@ -40,7 +40,6 @@ import Web.HTML.HTMLDocument as HTMLDocument
 import Web.HTML.HTMLElement (fromElement)
 import Web.HTML.Window as Window
 
-
 main :: Effect Unit
 main = do
   window <- HTML.window
@@ -52,29 +51,32 @@ main = do
   -- Initialize a `markdown-it` instance (we need it to render the docs as markdown)
   markdownIt <- MD.newMarkdownIt MD.Default mempty
 
-  whenJust mbContainers \ { searchField
-                          , searchResults
-                          , pageContents
-                          , sidebarContainer
-                          , realSidebar
-                          , isIndexHTML
-                          } -> do
+  whenJust mbContainers
+    \{ searchField
+     , searchResults
+     , pageContents
+     , sidebarContainer
+     , realSidebar
+     , isIndexHTML
+     } -> do
 
-    -- Hide real sidebar completely - we are going to recreate it as Halogen component.
-    ChildNode.remove $ Element.toChildNode realSidebar
+      -- Hide real sidebar completely - we are going to recreate it as Halogen component.
+      ChildNode.remove $ Element.toChildNode realSidebar
 
-    HA.runHalogenAff do
-      packageIndex <- PackageIndex.loadPackageIndex
-      moduleIndex <- ModuleIndex.unpackModuleIndex <$> ModuleIndex.loadModuleIndex
-      meta <- Meta.load
-      let scores = PackageIndex.mkScoresFromPackageIndex packageIndex
+      HA.runHalogenAff do
+        packageIndex <- PackageIndex.loadPackageIndex
+        moduleIndex <- ModuleIndex.unpackModuleIndex <$> ModuleIndex.loadModuleIndex
+        meta <- Meta.load
+        let scores = PackageIndex.mkScoresFromPackageIndex packageIndex
 
-      let initialSearchEngineState = { packageIndex
-                                     , moduleIndex
-                                     , index: wrap Map.empty
-                                     , typeIndex: wrap Map.empty
-                                     , scores
-                                     }
+        let
+          initialSearchEngineState =
+            { packageIndex
+            , moduleIndex
+            , index: wrap Map.empty
+            , typeIndex: wrap Map.empty
+            , scores
+            }
           resultsComponent =
             SearchResults.mkComponent
               initialSearchEngineState
@@ -82,47 +84,48 @@ main = do
               markdownIt
               meta
 
-      sfio <- runUI SearchField.component unit searchField
-      srio <- runUI resultsComponent unit searchResults
+        sfio <- runUI SearchField.component unit searchField
+        srio <- runUI resultsComponent unit searchResults
 
-      void $ H.liftEffect $ subscribe sfio.messages $ \sfm -> do
-        launchAff_ $ void do
-          srio.query (SearchResults.MessageFromSearchField sfm unit)
+        void $ H.liftEffect $ subscribe sfio.messages $ \sfm -> do
+          launchAff_ $ void do
+            srio.query (SearchResults.MessageFromSearchField sfm unit)
 
-      -- We need to read the URI hash only when both components are initialized and
-      -- the search field is subscribed to the main component.
-      void $ sfio.query $ SearchField.ReadURIHash unit
+        -- We need to read the URI hash only when both components are initialized and
+        -- the search field is subscribed to the main component.
+        void $ sfio.query $ SearchField.ReadURIHash unit
 
-      -- Subscribe to URI hash updates
-      H.liftEffect do
+        -- Subscribe to URI hash updates
+        H.liftEffect do
 
-        listener <-
-          eventListener \_event ->
-            launchAff_ $ void do
-              sfio.query $ SearchField.ReadURIHash unit
+          listener <-
+            eventListener \_event ->
+              launchAff_ $ void do
+                sfio.query $ SearchField.ReadURIHash unit
 
-        addEventListener hashchange listener true (Window.toEventTarget window)
+          addEventListener hashchange listener true (Window.toEventTarget window)
 
-      sbio <- do
-        component <- Sidebar.mkComponent moduleIndex isIndexHTML meta
-        runUI component unit sidebarContainer
+        sbio <- do
+          component <- Sidebar.mkComponent moduleIndex isIndexHTML meta
+          runUI component unit sidebarContainer
 
-      -- Subscribe to window focus events
-      H.liftEffect do
+        -- Subscribe to window focus events
+        H.liftEffect do
 
-        listener <-
-          eventListener \_event ->
-            launchAff_ $ void do
-              sbio.query $ Sidebar.UpdateModuleGrouping unit
+          listener <-
+            eventListener \_event ->
+              launchAff_ $ void do
+                sbio.query $ Sidebar.UpdateModuleGrouping unit
 
-        addEventListener focus listener true (Window.toEventTarget window)
-
+          addEventListener focus listener true (Window.toEventTarget window)
 
 insertStyle :: Effect Unit
 insertStyle = do
   doc <- getDocument
 
-  let styleContents = """
+  let
+    styleContents =
+      """
   .top-banner__actions {
     width: 10%;
   }
@@ -185,7 +188,6 @@ insertStyle = do
     void $ Node.appendChild (Text.toNode contents) (Element.toNode style)
     void $ Node.appendChild (Element.toNode style) (Element.toNode head)
 
-
 insertVersionInfo :: Effect Unit
 insertVersionInfo = do
   doc <- getDocument
@@ -194,29 +196,31 @@ insertVersionInfo = do
     ParentNode.querySelector (wrap ".footer > p") docPN
   whenJust (mbVersionInfo <#> Element.toNode)
     \versionInfo -> do
-      prefix      <- Document.createTextNode " - patched by "        doc <#> Text.toNode
-      linkElement <- Document.createElement  "a"                     doc
+      prefix <- Document.createTextNode " - patched by " doc <#> Text.toNode
+      linkElement <- Document.createElement "a" doc
       let linkNode = Element.toNode linkElement
       Element.setAttribute "href" "https://github.com/purescript/purescript-docs-search" linkElement
-      Element.setAttribute "target" "_blank"  linkElement
-      linkText    <- Document.createTextNode ("docs-search")         doc <#> Text.toNode
-      suffix      <- Document.createTextNode (" " <> Config.version) doc <#> Text.toNode
+      Element.setAttribute "target" "_blank" linkElement
+      linkText <- Document.createTextNode ("docs-search") doc <#> Text.toNode
+      suffix <- Document.createTextNode (" " <> Config.version) doc <#> Text.toNode
       void $ Node.appendChild prefix versionInfo
       void $ Node.appendChild linkNode versionInfo
       void $ Node.appendChild linkText linkNode
       void $ Node.appendChild suffix versionInfo
 
-
 -- | Query the DOM for specific elements that should always be present and determine if we are on
 -- | `index.html` or not.
 getContainers
-  :: Effect (Maybe { searchField :: HTML.HTMLElement
-                   , searchResults :: HTML.HTMLElement
-                   , pageContents :: Element.Element
-                   , sidebarContainer :: HTML.HTMLElement
-                   , realSidebar :: Element.Element
-                   , isIndexHTML :: Sidebar.IsIndexHTML
-                   })
+  :: Effect
+       ( Maybe
+           { searchField :: HTML.HTMLElement
+           , searchResults :: HTML.HTMLElement
+           , pageContents :: Element.Element
+           , sidebarContainer :: HTML.HTMLElement
+           , realSidebar :: Element.Element
+           , isIndexHTML :: Sidebar.IsIndexHTML
+           }
+       )
 getContainers = do
   doc <- getDocument
   let docPN = Document.toParentNode doc
@@ -229,32 +233,38 @@ getContainers = do
   mbMainContainer <-
     ParentNode.querySelector (wrap ".everything-except-footer > main") docPN
   mbSidebarStatus <-
-    alt <$> (map (Tuple Sidebar.NotIndexHTML) <$>
-             ParentNode.querySelector (wrap ".col--aside") docPN)
-        -- If there's no sidebar, that means we are currently on `index.html`.
-        <*> (map (Tuple Sidebar.IsIndexHTML)  <$>
-             ParentNode.querySelector (wrap ".col--main") docPN)
+    alt
+      <$>
+        ( map (Tuple Sidebar.NotIndexHTML) <$>
+            ParentNode.querySelector (wrap ".col--aside") docPN
+        )
+      -- If there's no sidebar, that means we are currently on `index.html`.
+      <*>
+        ( map (Tuple Sidebar.IsIndexHTML) <$>
+            ParentNode.querySelector (wrap ".col--main") docPN
+        )
   case unit of
-    _ | Just banner        <- mbBanner
-      , Just everything    <- mbEverything
-      , Just pageContents  <- mbContainer
+    _
+      | Just banner <- mbBanner
+      , Just everything <- mbEverything
+      , Just pageContents <- mbContainer
       , Just mainContainer <- mbMainContainer
-      , Just (isIndexHTML /\ realSidebar)   <- mbSidebarStatus -> do
-      search <- Document.createElement "div" doc
-      void $ Node.appendChild (Element.toNode search) (Element.toNode banner)
-      pure do
-        searchField <- fromElement search
-        searchResults <- fromElement everything
-        sidebarContainer <- fromElement mainContainer
-        pure { searchField
-             , searchResults
-             , pageContents
-             , realSidebar
-             , sidebarContainer
-             , isIndexHTML
-             }
+      , Just (isIndexHTML /\ realSidebar) <- mbSidebarStatus -> do
+          search <- Document.createElement "div" doc
+          void $ Node.appendChild (Element.toNode search) (Element.toNode banner)
+          pure do
+            searchField <- fromElement search
+            searchResults <- fromElement everything
+            sidebarContainer <- fromElement mainContainer
+            pure
+              { searchField
+              , searchResults
+              , pageContents
+              , realSidebar
+              , sidebarContainer
+              , isIndexHTML
+              }
       | otherwise -> pure Nothing
-
 
 getDocument :: Effect Document
 getDocument = HTML.window >>= map HTMLDocument.toDocument <<< Window.document

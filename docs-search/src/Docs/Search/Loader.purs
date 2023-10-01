@@ -15,22 +15,21 @@ import Effect (Effect)
 import Effect.Aff (Aff)
 import Effect.Exception (error)
 
-
-
 load
- :: forall a
- .  DecodeJson a
- => GlobalIdentifier
- -> URL
- -> Aff a
+  :: forall a
+   . DecodeJson a
+  => GlobalIdentifier
+  -> URL
+  -> Aff a
 load globalIdentifier url = do
   json <- toAffE (loadFromScript globalIdentifier url)
   either throw pure $ decodeJson json
   where
-    throw err = throwError $ error $
-      "Couldn't load content from window." <>
-      unwrap globalIdentifier <> ": " <> printJsonDecodeError err
-
+  throw err = throwError $ error $
+    "Couldn't load content from window."
+      <> unwrap globalIdentifier
+      <> ": "
+      <> printJsonDecodeError err
 
 foreign import loadFromScript
   :: GlobalIdentifier

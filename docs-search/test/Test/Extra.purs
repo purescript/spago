@@ -6,10 +6,9 @@ import Data.Either (Either(..))
 import Effect.Aff (Aff)
 import Test.Spec.Assertions (shouldEqual)
 
-
 assertRight
   :: forall a b
-  .  Show a
+   . Show a
   => Show b
   => Eq a
   => Eq b

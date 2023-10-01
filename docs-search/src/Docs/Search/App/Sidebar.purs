@@ -35,7 +35,6 @@ import Web.DOM.ParentNode as ParentNode
 import Data.Traversable (traverse)
 import Web.DOM.Node as Node
 
-
 data Action = ToggleGrouping GroupingMode
 
 data Query a = UpdateModuleGrouping a
@@ -50,18 +49,18 @@ data IsIndexHTML = IsIndexHTML | NotIndexHTML
 
 derive instance isIndexHTMLEq :: Eq IsIndexHTML
 
-type State = { packageModules :: Map PackageInfo (Set ModuleName)
-             , groupingMode :: GroupingMode
-             , moduleNames :: Array ModuleName
-             , isIndexHTML :: IsIndexHTML
-             , localPackageName :: PackageName
-             , currentPackage :: PackageInfo
-             }
-
+type State =
+  { packageModules :: Map PackageInfo (Set ModuleName)
+  , groupingMode :: GroupingMode
+  , moduleNames :: Array ModuleName
+  , isIndexHTML :: IsIndexHTML
+  , localPackageName :: PackageName
+  , currentPackage :: PackageInfo
+  }
 
 mkComponent
   :: forall i
-  .  ModuleIndex
+   . ModuleIndex
   -> IsIndexHTML
   -> Meta
   -> Aff (H.Component Query i Action Aff)
@@ -71,28 +70,29 @@ mkComponent moduleIndex@{ packageModules } isIndexHTML { localPackageName } = do
   let currentPackage = getCurrentPackage moduleIndex mbModuleName
   pure $
     H.mkComponent
-      { initialState: const { packageModules
-                            , groupingMode
-                            , moduleNames
-                            , isIndexHTML
-                            , localPackageName
-                            , currentPackage
-                            }
+      { initialState: const
+          { packageModules
+          , groupingMode
+          , moduleNames
+          , isIndexHTML
+          , localPackageName
+          , currentPackage
+          }
       , render
-      , eval: H.mkEval $ H.defaultEval { handleAction = handleAction
-                                       , handleQuery = handleQuery
-                                       }
+      , eval: H.mkEval $ H.defaultEval
+          { handleAction = handleAction
+          , handleQuery = handleQuery
+          }
       }
   where
-    moduleNames =
-      Array.sort $ Array.fromFoldable $
+  moduleNames =
+    Array.sort $ Array.fromFoldable $
       foldr Set.union mempty moduleIndex.packageModules
 
-
 handleAction
- :: forall o
- .  Action
- -> H.HalogenM State Action () o Aff Unit
+  :: forall o
+   . Action
+  -> H.HalogenM State Action () o Aff Unit
 handleAction (ToggleGrouping groupingMode) = do
   H.modify_ (_groupingMode .~ groupingMode)
 
@@ -100,14 +100,12 @@ handleAction (ToggleGrouping groupingMode) = do
     window <- HTML.window
     localStorage <- Window.localStorage window
 
-    if groupingMode == DontGroup
-    then Storage.setItem    Config.groupModulesItem "false" localStorage
-    else Storage.removeItem Config.groupModulesItem         localStorage
-
+    if groupingMode == DontGroup then Storage.setItem Config.groupModulesItem "false" localStorage
+    else Storage.removeItem Config.groupModulesItem localStorage
 
 handleQuery
   :: forall a i
-  .  Query a
+   . Query a
   -> H.HalogenM State i () Action Aff (Maybe a)
 handleQuery (UpdateModuleGrouping next) = do
   oldGroupingMode <- H.get <#> _.groupingMode
@@ -116,71 +114,72 @@ handleQuery (UpdateModuleGrouping next) = do
     H.modify_ (_groupingMode .~ newGroupingMode)
   pure Nothing
 
-
 render
   :: forall m
-  .  State
+   . State
   -> H.ComponentHTML Action () m
 render state@{ groupingMode, moduleNames, localPackageName } =
+  HH.div
+    [ HP.classes
+        [ wrap "col"
+        , wrap $
+            if state.isIndexHTML == IsIndexHTML then "col--main"
+            else "col--aside"
+        ]
+    ]
 
-  HH.div [ HP.classes [ wrap "col"
-                      , wrap $ if state.isIndexHTML == IsIndexHTML
-                               then "col--main"
-                               else "col--aside"
-                      ]
-         ]
+    [ HH.h3_ [ HH.text $ if groupingMode == DontGroup then "Modules" else "Packages" ]
+    , HH.input
+        [ HP.id "group-modules__input"
+        , HP.type_ HP.InputCheckbox
+        , HP.checked (groupingMode == GroupByPackage)
+        , HE.onChecked $ ToggleGrouping <<< isCheckedToGroupingMode
+        ]
 
-  [ HH.h3_ [ HH.text $ if groupingMode == DontGroup then "Modules" else "Packages" ]
-  , HH.input [ HP.id "group-modules__input"
-             , HP.type_ HP.InputCheckbox
-             , HP.checked (groupingMode == GroupByPackage)
-             , HE.onChecked $ ToggleGrouping <<< isCheckedToGroupingMode
-             ]
+    , HH.text " "
+    , HH.label
+        [ HP.for "group-modules__input"
+        , HP.id "group-modules__label"
+        ]
+        [ HH.text " GROUP BY PACKAGE" ]
 
-  , HH.text " "
-  , HH.label [ HP.for "group-modules__input"
-             , HP.id "group-modules__label"
-             ]
-    [ HH.text " GROUP BY PACKAGE" ]
-
-  , HH.ul_ $ if groupingMode == GroupByPackage
-             then renderPackageEntry <$> packageList
-             else renderModuleName <$> moduleNames
-  ]
+    , HH.ul_ $
+        if groupingMode == GroupByPackage then renderPackageEntry <$> packageList
+        else renderModuleName <$> moduleNames
+    ]
   where
 
-    renderPackageEntry (package /\ modules) =
-      HH.li [ HP.classes [ wrap "li-package" ] ]
+  renderPackageEntry (package /\ modules) =
+    HH.li [ HP.classes [ wrap "li-package" ] ]
       [ HH.details
-        (if isCurrentPackage then [ HP.attr (wrap "open") "" ] else [])
-        [ HH.summary_
-          [ HH.text $
-            case package of
-              Package packageName -> unwrap packageName
-              LocalPackage -> unwrap localPackageName
-              Builtin -> "<builtins>"
-              UnknownPackage -> "<unknown>"
+          (if isCurrentPackage then [ HP.attr (wrap "open") "" ] else [])
+          [ HH.summary_
+              [ HH.text $
+                  case package of
+                    Package packageName -> unwrap packageName
+                    LocalPackage -> unwrap localPackageName
+                    Builtin -> "<builtins>"
+                    UnknownPackage -> "<unknown>"
+              ]
+          , HH.ul_ $ Set.toUnfoldable modules <#> renderModuleName
           ]
-        , HH.ul_ $ Set.toUnfoldable modules <#> renderModuleName
-        ]
       ]
-      where
+    where
 
-        isCurrentPackage =
-          state.currentPackage == package &&
-          -- If we don't know which package we are in, we don't want to expand
-          -- "Unknown package" section
-          state.currentPackage /= UnknownPackage
+    isCurrentPackage =
+      state.currentPackage == package &&
+        -- If we don't know which package we are in, we don't want to expand
+        -- "Unknown package" section
+        state.currentPackage /= UnknownPackage
 
-    renderModuleName moduleName =
-      HH.li_
+  renderModuleName moduleName =
+    HH.li_
       [ HH.a [ HP.href (unwrap moduleName <> ".html") ]
-        [ HH.text $ unwrap moduleName ]
+          [ HH.text $ unwrap moduleName ]
       ]
 
-    packageList :: Array (PackageInfo /\ Set ModuleName)
-    packageList = Map.toUnfoldable state.packageModules
-
+  packageList :: Array (PackageInfo /\ Set ModuleName)
+  packageList = Map.toUnfoldable state.packageModules
 
 -- | Decide whether to group modules by package in the sidebar, using localStorage.
 loadGroupingModeFromLocalStorage :: Effect GroupingMode
@@ -190,7 +189,6 @@ loadGroupingModeFromLocalStorage = do
   mbDontGroupModules <- Storage.getItem Config.groupModulesItem localStorage
   pure $ if isJust mbDontGroupModules then DontGroup else GroupByPackage
 
-
 -- | Extract current module name from page title element.
 getCurrentModuleName :: Effect (Maybe ModuleName)
 getCurrentModuleName = do
@@ -199,20 +197,17 @@ getCurrentModuleName = do
   mbPageTitleEl <- ParentNode.querySelector (wrap ".page-title__title") docPN
   map ModuleName <$> traverse (Node.textContent <<< Element.toNode) mbPageTitleEl
 
-
 -- | Given a module name, get `PackageInfo` for a package this module name belongs to.
 getCurrentPackage :: ModuleIndex -> Maybe ModuleName -> PackageInfo
 getCurrentPackage { modulePackages } (Just moduleName) =
   fromMaybe UnknownPackage $ Map.lookup moduleName modulePackages
 getCurrentPackage { modulePackages } Nothing = UnknownPackage
 
-
 -- | Convert checkbox status to sidebar mode
 isCheckedToGroupingMode :: Boolean -> GroupingMode
 isCheckedToGroupingMode = if _ then GroupByPackage else DontGroup
 
-
 -- Some optics:
 
-_groupingMode :: forall a b rest.  (a -> b) -> { groupingMode :: a | rest } -> { groupingMode :: b | rest }
+_groupingMode :: forall a b rest. (a -> b) -> { groupingMode :: a | rest } -> { groupingMode :: b | rest }
 _groupingMode = prop (Proxy :: Proxy "groupingMode")

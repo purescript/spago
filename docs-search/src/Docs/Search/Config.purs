@@ -60,16 +60,16 @@ resultsCount = 25
 
 -- | Penalties used to determine how "far" a type query is from a given type.
 -- See Docs.Search.TypeQuery
-penalties ::
-  { excessiveConstraint :: Int
-  , generalize :: Int
-  , instantiate :: Int
-  , match :: Int
-  , matchConstraint :: Int
-  , missingConstraint :: Int
-  , rowsMismatch :: Int
-  , typeVars :: Int
-  }
+penalties
+  :: { excessiveConstraint :: Int
+     , generalize :: Int
+     , instantiate :: Int
+     , match :: Int
+     , matchConstraint :: Int
+     , missingConstraint :: Int
+     , rowsMismatch :: Int
+     , typeVars :: Int
+     }
 penalties =
   { typeVars: 2
   , match: 2

@@ -38,14 +38,12 @@ import Effect.Console (log, clear) as Console
 import Node.ReadLine (createConsoleInterface, question)
 import Prim hiding (Type, Constraint)
 
-
 type Config =
   { docsFiles :: Array String
   , bowerFiles :: Array String
   , packageName :: PackageName
   , sourceFiles :: Array String
   }
-
 
 run :: Config -> Effect Unit
 run cfg = launchAff_ $ do
@@ -59,26 +57,28 @@ run cfg = launchAff_ $ do
       <*> parallel (parseModuleHeaders cfg.sourceFiles)
       <*> parallel (IndexBuilder.decodeBowerJsons cfg)
 
-  let scores       = mkScores packageMetas
-      index        = mkDeclarations scores docsJsons
-      typeIndex    = docsJsons >>= resultsWithTypes scores
-      packageIndex = mkPackageIndex $ mkPackageInfo scores packageMetas
-      moduleIndex  = unpackModuleIndex $ mkPackedModuleIndex index moduleNames
-      engineState  = mkEngineState (unwrap index) typeIndex packageIndex moduleIndex scores
+  let
+    scores = mkScores packageMetas
+    index = mkDeclarations scores docsJsons
+    typeIndex = docsJsons >>= resultsWithTypes scores
+    packageIndex = mkPackageIndex $ mkPackageInfo scores packageMetas
+    moduleIndex = unpackModuleIndex $ mkPackedModuleIndex index moduleNames
+    engineState = mkEngineState (unwrap index) typeIndex packageIndex moduleIndex scores
 
-  let countOfDefinitions     = Trie.size $ unwrap index
-      countOfTypeDefinitions = Array.length typeIndex
-      countOfPackages        = Array.length packageMetas
+  let
+    countOfDefinitions = Trie.size $ unwrap index
+    countOfTypeDefinitions = Array.length typeIndex
+    countOfPackages = Array.length packageMetas
 
   liftEffect do
     Console.log $
-      "Loaded " <>
-      show countOfDefinitions <>
-      " definitions and " <>
-      show countOfTypeDefinitions <>
-      " type definitions from " <>
-      show countOfPackages <> " packages."
-
+      "Loaded "
+        <> show countOfDefinitions
+        <> " definitions and "
+        <> show countOfTypeDefinitions
+        <> " type definitions from "
+        <> show countOfPackages
+        <> " packages."
 
   liftEffect do
     let
@@ -87,8 +87,9 @@ run cfg = launchAff_ $ do
 
       inputHandler interface input = do
 
-        let results =
-              Engine.query nodeEngine engineState input <#> (_.results) # un Identity
+        let
+          results =
+            Engine.query nodeEngine engineState input <#> (_.results) # un Identity
 
         let total = Array.length results
 
@@ -107,21 +108,22 @@ run cfg = launchAff_ $ do
 
     call inputHandler interface
 
-
 mkCompleter
   :: Declarations
   -> String
-  -> Effect { completions :: Array String
-            , matched :: String }
+  -> Effect
+       { completions :: Array String
+       , matched :: String
+       }
 mkCompleter index input = do
-  let path = stringToList $ String.toLower input
-      paths =
-        Array.fromFoldable $
+  let
+    path = stringToList $ String.toLower input
+    paths =
+      Array.fromFoldable $
         (\result -> unwrap (unwrap result).name) <$>
-        List.concat (Trie.queryValues path (unwrap index))
+          List.concat (Trie.queryValues path (unwrap index))
 
   pure { completions: paths, matched: input }
-
 
 showResult :: Config -> Result -> String
 showResult cfg = case _ of
@@ -130,46 +132,42 @@ showResult cfg = case _ of
   PackResult r -> showPackageResult r
   MdlResult r -> showModuleResult r
 
-
 showSearchResult :: Config -> SearchResult -> String
 showSearchResult cfg (SearchResult result@{ name, comments, moduleName, packageInfo }) =
-  showSignature result <> "\n" <>
-
-  (fromMaybe "\n" $
-   comments <#> \comment ->
-   "\n" <> leftShift 3 (String.trim comment) <> "\n\n") <>
-
-  bold (
-    cyan (rightPad 40 $ packageInfoToString cfg.packageName packageInfo)
-  ) <>
-  space <>
-  showModuleName moduleName
-
+  showSignature result <> "\n"
+    <>
+      ( fromMaybe "\n" $
+          comments <#> \comment ->
+            "\n" <> leftShift 3 (String.trim comment) <> "\n\n"
+      )
+    <> bold
+      ( cyan (rightPad 40 $ packageInfoToString cfg.packageName packageInfo)
+      )
+    <> space
+    <>
+      showModuleName moduleName
 
 showPackageResult :: PackageResult -> String
 showPackageResult { name, description } =
   bold (cyan "package") <> " " <> bold (yellow $ unwrap name) <>
 
-  (description >#> \text -> "\n\n" <> leftShift 3 text <> "\n")
-
+    (description >#> \text -> "\n\n" <> leftShift 3 text <> "\n")
 
 showModuleResult :: ModuleResult -> String
 showModuleResult { name, package } =
   bold (cyan "module") <> " " <> showModuleName name
 
-
 showModuleName :: ModuleName -> String
 showModuleName = bold <<< green <<< unwrap
 
-
 showSignature
   :: forall rest
-  . { name :: Identifier
-    , moduleName :: ModuleName
-    , packageInfo :: PackageInfo
-    , info :: ResultInfo
-    | rest
-    }
+   . { name :: Identifier
+     , moduleName :: ModuleName
+     , packageInfo :: PackageInfo
+     , info :: ResultInfo
+     | rest
+     }
   -> String
 showSignature result@{ name, info } =
   case info of
@@ -199,111 +197,114 @@ showSignature result@{ name, info } =
 
     _ -> yellow $ unwrap name
 
-
 showTypeClassSignature
   :: forall rest
-  .  { fundeps :: FunDeps
+   . { fundeps :: FunDeps
      , arguments :: Array TypeArgument
      , superclasses :: Array Constraint
      }
   -> { name :: Identifier, moduleName :: ModuleName | rest }
   -> String
 showTypeClassSignature { fundeps, arguments, superclasses } { name, moduleName } =
-
-  keyword "class" <>
-  ( if Array.null superclasses
-    then
-      ""
-    else
-      syntax " (" <> (
-        Array.intercalate (syntax ", " ) (
-          superclasses <#> showConstraint
-        )
-      ) <>
-      syntax ") " <>
-      syntax "<="
-  ) <>
-  space <>
-  yellow (unwrap name) <>
-  space <> (
-    Array.intercalate space $
-      arguments <#> showTypeArgument
-  ) <> (
-    showFunDeps fundeps
-  )
-
+  keyword "class"
+    <>
+      ( if Array.null superclasses then
+          ""
+        else
+          syntax " ("
+            <>
+              ( Array.intercalate (syntax ", ")
+                  ( superclasses <#> showConstraint
+                  )
+              )
+            <> syntax ") "
+            <>
+              syntax "<="
+      )
+    <> space
+    <> yellow (unwrap name)
+    <> space
+    <>
+      ( Array.intercalate space $
+          arguments <#> showTypeArgument
+      )
+    <>
+      ( showFunDeps fundeps
+      )
 
 showTypeClassMemberSignature
   :: forall rest
-  .  { "type" :: Type
+   . { "type" :: Type
      , typeClass :: QualifiedName
      , typeClassArguments :: Array TypeArgument
      }
   -> { name :: Identifier | rest }
   -> String
 showTypeClassMemberSignature { "type": ty, typeClass, typeClassArguments } result =
-  yellow (unwrap result.name) <>
-  syntax " :: " <>
-  showType ty
-
+  yellow (unwrap result.name)
+    <> syntax " :: "
+    <>
+      showType ty
 
 showDataSignature
   :: forall rest
-  .  { typeArguments :: Array TypeArgument
-     , dataDeclType :: DataDeclType }
+   . { typeArguments :: Array TypeArgument
+     , dataDeclType :: DataDeclType
+     }
   -> { name :: Identifier | rest }
   -> String
 showDataSignature { typeArguments, dataDeclType } { name } =
   ( keyword
-    case dataDeclType of
-      NewtypeDataDecl -> "newtype"
-      DataDataDecl    -> "data"
-  ) <>
-  space <>
-  yellow (unwrap name) <>
-  space <> (
-    Array.intercalate space $
-      typeArguments <#> showTypeArgument
+      case dataDeclType of
+        NewtypeDataDecl -> "newtype"
+        DataDataDecl -> "data"
   )
-
+    <> space
+    <> yellow (unwrap name)
+    <> space
+    <>
+      ( Array.intercalate space $
+          typeArguments <#> showTypeArgument
+      )
 
 showTypeSynonymSignature
   :: forall rest
-  .  { type :: Type
+   . { type :: Type
      , arguments :: Array TypeArgument
      }
   -> { name :: Identifier | rest }
   -> String
 showTypeSynonymSignature { type: ty, arguments } { name } =
-  keyword "type" <>
-  space <>
-  yellow (unwrap name) <>
-  space <> (
-    Array.intercalate space $
-      arguments <#> showTypeArgument
-  ) <>
-  space <>
-  syntax "=" <>
-  space <>
-  showType ty
-
+  keyword "type"
+    <> space
+    <> yellow (unwrap name)
+    <> space
+    <>
+      ( Array.intercalate space $
+          arguments <#> showTypeArgument
+      )
+    <> space
+    <> syntax "="
+    <> space
+    <>
+      showType ty
 
 showExternDataSignature
   :: forall rest
-  .  { kind :: Type }
+   . { kind :: Type }
   -> { name :: Identifier | rest }
   -> String
 showExternDataSignature { kind } { name } =
-  keyword "foreign data" <>
-  space <>
-  yellow (unwrap name) <>
-  syntax " :: " <>
-  showType kind
-
+  keyword "foreign data"
+    <> space
+    <> yellow (unwrap name)
+    <> syntax " :: "
+    <>
+      showType kind
 
 showDataConstructorSignature
   :: forall rest
-  .  { dataDeclType :: DataDeclType
+   . { dataDeclType :: DataDeclType
      , "type" :: Type
      }
   -> { name :: Identifier
@@ -312,29 +313,28 @@ showDataConstructorSignature
   -> String
 showDataConstructorSignature { dataDeclType, type: ctorType } { name } =
   ( keyword
-    case dataDeclType of
-      NewtypeDataDecl -> "newtype constructor"
-      DataDataDecl -> "data constructor"
-  ) <>
-  space <>
-  yellow (unwrap name) <>
-  space <>
-  syntax "::" <>
-  space <>
-  showType ctorType
-
+      case dataDeclType of
+        NewtypeDataDecl -> "newtype constructor"
+        DataDataDecl -> "data constructor"
+  )
+    <> space
+    <> yellow (unwrap name)
+    <> space
+    <> syntax "::"
+    <> space
+    <>
+      showType ctorType
 
 leftShift :: Int -> String -> String
 leftShift shift str =
   Array.intercalate "\n" $
-  leftPad shift <$>
-  String.trim <$>
-  String.split (wrap "\n") str
-
+    leftPad shift
+      <$> String.trim
+      <$>
+        String.split (wrap "\n") str
 
 leftPad :: Int -> String -> String
 leftPad w str = Array.fold (Array.replicate w " ") <> str
-
 
 rightPad :: Int -> String -> String
 rightPad w str = str <> Array.fold (Array.replicate (w - String.length str) " ")

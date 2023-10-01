@@ -16,8 +16,9 @@ import Test.TypeQuery as TypeQuery
 
 main :: Effect Unit
 main = do
-  launchAff_ $ runSpec [consoleReporter] mainTest
-  -- UI.main
+  launchAff_ $ runSpec [ consoleReporter ] mainTest
+
+-- UI.main
 
 mainTest :: Spec Unit
 mainTest = do

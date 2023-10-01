@@ -19,10 +19,10 @@ parseModuleName = map wrap <<< hush <<< runParser do
 whiteSpaceOrComment :: Parser Unit
 whiteSpaceOrComment =
   choice
-  [ try $ multiLineComment
-  , try $ singleLineComment
-  , try $ void whiteSpace
-  ]
+    [ try $ multiLineComment
+    , try $ singleLineComment
+    , try $ void whiteSpace
+    ]
 
 multiLineComment :: Parser Unit
 multiLineComment = do
@@ -32,7 +32,7 @@ multiLineComment = do
 singleLineComment :: Parser Unit
 singleLineComment = do
   void $ string "--"
-  void $ manyTill (void $ noneOf ['\n']) (char '\n')
+  void $ manyTill (void $ noneOf [ '\n' ]) (char '\n')
 
 moduleHeader :: Parser String
 moduleHeader = do
