@@ -37,7 +37,6 @@ main = Aff.launchAff_ $ void $ un Identity $ Spec.Runner.runSpecT testConfig [ S
     -- TODO:
     -- Upgrade set?
     -- Script?
-
     Init.spec
     Sources.spec
     Install.spec
