@@ -4,14 +4,15 @@ module Spago.Command.Init
   , srcMainTemplate
   , testMainTemplate
   , defaultConfig
+  , DefaultConfigOptions(..)
+  , DefaultConfigPackageOptions
+  , DefaultConfigWorkspaceOptions
   , defaultConfig'
   ) where
 
 import Spago.Prelude
 
 import Data.Map as Map
-import Data.These (These)
-import Data.These as These
 import Node.Path as Path
 import Registry.PackageName as PackageName
 import Registry.Version as Version
@@ -94,27 +95,47 @@ type TemplateConfig =
   }
 
 defaultConfig :: TemplateConfig -> Config
-defaultConfig { name, withWorkspace, testModuleName } =
-  defaultConfig' $ These.thisOrBoth
-    { name
-    , dependencies: [ "effect", "console", "prelude" ]
-    , test: Just { moduleMain: testModuleName }
-    }
-    withWorkspace
+defaultConfig { name, withWorkspace, testModuleName } = do
+  let
+    pkg =
+      { name
+      , dependencies: [ "effect", "console", "prelude" ]
+      , test: Just { moduleMain: testModuleName }
+      }
+  defaultConfig' case withWorkspace of
+    Nothing -> PackageOnly pkg
+    Just w -> PackageAndWorkspace pkg w
 
-type PackageSectionOptions =
+type DefaultConfigPackageOptions =
   { name :: PackageName
   , dependencies :: Array String
   , test :: Maybe { moduleMain :: String }
   }
 
-type WorkspaceSectionOptions =
+type DefaultConfigWorkspaceOptions =
   { setVersion :: Maybe Version
   }
 
-defaultConfig' :: These PackageSectionOptions WorkspaceSectionOptions -> Config
+data DefaultConfigOptions
+  = PackageOnly DefaultConfigPackageOptions
+  | WorkspaceOnly DefaultConfigWorkspaceOptions
+  | PackageAndWorkspace DefaultConfigPackageOptions DefaultConfigWorkspaceOptions
+
+getDefaultConfigPackageOptions :: DefaultConfigOptions -> Maybe DefaultConfigPackageOptions
+getDefaultConfigPackageOptions = case _ of
+  PackageOnly pkg -> Just pkg
+  PackageAndWorkspace pkg _ -> Just pkg
+  WorkspaceOnly _ -> Nothing
+
+getDefaultConfigWorkspaceOptions :: DefaultConfigOptions -> Maybe DefaultConfigWorkspaceOptions
+getDefaultConfigWorkspaceOptions = case _ of
+  PackageAndWorkspace _ w -> Just w
+  WorkspaceOnly w -> Just w
+  PackageOnly _ -> Nothing
+
+defaultConfig' :: DefaultConfigOptions -> Config
 defaultConfig' opts =
-  { package: (These.theseLeft opts) <#> \{ name, dependencies, test } ->
+  { package: (getDefaultConfigPackageOptions opts) <#> \{ name, dependencies, test } ->
       { name
       , dependencies: Dependencies $ Map.fromFoldable $ map mkDep dependencies
       , description: Nothing
@@ -127,7 +148,7 @@ defaultConfig' opts =
       , publish: Nothing
       , bundle: Nothing
       }
-  , workspace: (These.theseRight opts) <#> \{ setVersion } ->
+  , workspace: (getDefaultConfigWorkspaceOptions opts) <#> \{ setVersion } ->
       { extra_packages: Just Map.empty
       , package_set: setVersion # map \set -> SetFromRegistry { registry: set }
       , build_opts: Nothing

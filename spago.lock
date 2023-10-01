@@ -92,7 +92,6 @@ workspace:
         - registry-lib
         - spago-core
         - strings
-        - these
         - transformers
         - tuples
         - unsafe-coerce

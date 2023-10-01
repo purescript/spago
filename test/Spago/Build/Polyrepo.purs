@@ -5,10 +5,10 @@ import Test.Prelude
 import Data.Array as Array
 import Data.String (Pattern(..))
 import Data.String as String
-import Data.These (These(..))
 import Node.FS.Aff as FSA
 import Node.Path as Path
 import Registry.Version as Version
+import Spago.Command.Init (DefaultConfigOptions(..))
 import Spago.Command.Init as Init
 import Spago.Core.Config as Config
 import Spago.FS as FS
@@ -27,7 +27,7 @@ spec = Spec.describe "polyrepo" do
       FSA.unlink "spago.yaml"
       FS.writeYamlFile Config.configCodec "spago.yaml"
         $ Init.defaultConfig'
-        $ That { setVersion: Just $ unsafeFromRight $ Version.parse "0.0.1" }
+        $ WorkspaceOnly { setVersion: Just $ unsafeFromRight $ Version.parse "0.0.1" }
 
     setupDir { packageName, spagoYaml, srcMain, testMain } = do
       let
@@ -81,7 +81,7 @@ spec = Spec.describe "polyrepo" do
     spagoInitCleanupNonPackageFiles spago
     void $ setupDir
       { packageName: "package-a"
-      , spagoYaml: Init.defaultConfig' $ This
+      , spagoYaml: Init.defaultConfig' $ PackageOnly
           { name: mkPackageName "case-one-package-a"
           , dependencies: [ "console", "effect", "prelude" ]
           , test: Just { moduleMain: "Subpackage.A.Test.Main" }
@@ -101,7 +101,7 @@ spec = Spec.describe "polyrepo" do
       }
     void $ setupDir
       { packageName: "package-b"
-      , spagoYaml: Init.defaultConfig' $ This
+      , spagoYaml: Init.defaultConfig' $ PackageOnly
           { name: mkPackageName "case-one-package-b"
           , dependencies: [ "console", "effect", "prelude" ]
           , test: Just { moduleMain: "Subpackage.B.Test.Main" }
@@ -125,7 +125,7 @@ spec = Spec.describe "polyrepo" do
     spagoInitCleanupNonPackageFiles spago
     void $ setupDir
       { packageName: "package-shared"
-      , spagoYaml: Init.defaultConfig' $ This
+      , spagoYaml: Init.defaultConfig' $ PackageOnly
           { name: mkPackageName "case-two-package-shared"
           , dependencies: [ "prelude" ]
           , test: Nothing
@@ -143,7 +143,7 @@ spec = Spec.describe "polyrepo" do
       }
     void $ setupDir
       { packageName: "package-a"
-      , spagoYaml: Init.defaultConfig' $ This
+      , spagoYaml: Init.defaultConfig' $ PackageOnly
           { name: mkPackageName "case-two-package-a"
           , dependencies: [ "console", "effect", "prelude", "case-two-package-shared" ]
           , test: Just { moduleMain: "Subpackage.A.Test.Main" }
@@ -166,7 +166,7 @@ spec = Spec.describe "polyrepo" do
       }
     void $ setupDir
       { packageName: "package-b"
-      , spagoYaml: Init.defaultConfig' $ This
+      , spagoYaml: Init.defaultConfig' $ PackageOnly
           { name: mkPackageName "case-two-package-b"
           , dependencies: [ "console", "effect", "prelude", "case-two-package-shared" ]
           , test: Just { moduleMain: "Subpackage.B.Test.Main" }
@@ -193,7 +193,7 @@ spec = Spec.describe "polyrepo" do
     spagoInitCleanupNonPackageFiles spago
     void $ setupDir
       { packageName: "package-c"
-      , spagoYaml: Init.defaultConfig' $ This
+      , spagoYaml: Init.defaultConfig' $ PackageOnly
           { name: mkPackageName "case-three-package-c"
           , dependencies: [ "prelude" ]
           , test: Nothing
@@ -211,7 +211,7 @@ spec = Spec.describe "polyrepo" do
       }
     void $ setupDir
       { packageName: "package-b"
-      , spagoYaml: Init.defaultConfig' $ This
+      , spagoYaml: Init.defaultConfig' $ PackageOnly
           { name: mkPackageName "case-three-package-b"
           , dependencies: [ "console", "effect", "prelude", "case-three-package-c" ]
           , test: Just { moduleMain: "Subpackage.B.Test.Main" }
@@ -234,7 +234,7 @@ spec = Spec.describe "polyrepo" do
       }
     void $ setupDir
       { packageName: "package-a"
-      , spagoYaml: Init.defaultConfig' $ This
+      , spagoYaml: Init.defaultConfig' $ PackageOnly
           { name: mkPackageName "case-three-package-a"
           , dependencies: [ "console", "effect", "prelude", "case-three-package-b", "case-three-package-c" ]
           , test: Just { moduleMain: "Subpackage.A.Test.Main" }
@@ -275,7 +275,7 @@ spec = Spec.describe "polyrepo" do
     spagoInitCleanupNonPackageFiles spago
     void $ setupDir
       { packageName: "package-c"
-      , spagoYaml: Init.defaultConfig' $ This
+      , spagoYaml: Init.defaultConfig' $ PackageOnly
           { name: mkPackageName "case-four-package-c"
           , dependencies: [ "prelude" ]
           , test: Nothing
@@ -293,7 +293,7 @@ spec = Spec.describe "polyrepo" do
       }
     void $ setupDir
       { packageName: "package-b"
-      , spagoYaml: Init.defaultConfig' $ This
+      , spagoYaml: Init.defaultConfig' $ PackageOnly
           { name: mkPackageName "case-four-package-b"
           , dependencies: [ "console", "effect", "prelude" ]
           , test: Just { moduleMain: "Subpackage.SameName.Test.Main" }
@@ -313,7 +313,7 @@ spec = Spec.describe "polyrepo" do
       }
     void $ setupDir
       { packageName: "package-a"
-      , spagoYaml: Init.defaultConfig' $ This
+      , spagoYaml: Init.defaultConfig' $ PackageOnly
           { name: mkPackageName "case-four-package-a"
           , dependencies: [ "console", "effect", "prelude" ]
           , test: Just { moduleMain: "Subpackage.SameName.Test.Main" }
