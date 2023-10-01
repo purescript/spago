@@ -108,7 +108,7 @@ publish _args = do
     , logOptions: env.logOptions
     , git: env.git
     , purs: env.purs
-    , selected: env.selected -- Note: should this be using the updated `selected` value?
+    , selected
     , packageDependencies: env.packageDependencies
     , censorBuildWarnings: (Nothing :: Maybe Core.CensorBuildWarnings)
     , censorCodes: (Nothing :: Maybe (NonEmptySet String))
