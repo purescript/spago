@@ -19,22 +19,25 @@ tests = do
       Builtin `shouldEqual` (extractPackageName (wrap "Prim.Foo.Bar") Nothing)
       UnknownPackage `shouldEqual` (extractPackageName (wrap "Primitive") Nothing)
       Package (PackageName "foo") `shouldEqual`
-        (extractPackageName (wrap "Foo") $
-         Just { start: []
+        ( extractPackageName (wrap "Foo") $
+            Just
+              { start: []
               , end: []
               , name: ".spago/foo/src/Foo.purs"
               }
         )
       Package (PackageName "bar") `shouldEqual`
-        (extractPackageName (wrap "Bar") $
-         Just { start: []
+        ( extractPackageName (wrap "Bar") $
+            Just
+              { start: []
               , end: []
               , name: "/path/to/somewhere/bower_components/bar/src/Bar.purs"
               }
         )
       LocalPackage `shouldEqual`
-        (extractPackageName (wrap "Bar") $
-         Just { start: []
+        ( extractPackageName (wrap "Bar") $
+            Just
+              { start: []
               , end: []
               , name: "/path/to/somewhere/src/Bar.purs"
               }

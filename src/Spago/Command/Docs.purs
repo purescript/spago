@@ -5,6 +5,9 @@ module Spago.Command.Docs
 
 import Spago.Prelude
 
+import Control.Promise (Promise)
+import Control.Promise as Promise
+import Effect.Uncurried (EffectFn1, runEffectFn1)
 import Node.Process as Process
 import Spago.Command.Build as Build
 import Spago.Command.Fetch as Fetch
@@ -20,13 +23,14 @@ type DocsEnv =
   , logOptions :: LogOptions
   , docsFormat :: DocsFormat
   , depsOnly :: Boolean
+  , open :: Boolean
   }
 
 run :: Spago DocsEnv Unit
 run = do
   logDebug "Running `spago docs`"
   logInfo "Generating documentation for the project. This might take a while..."
-  { workspace, packageDependencies, docsFormat, depsOnly } <- ask
+  { workspace, packageDependencies, docsFormat, depsOnly, open } <- ask
   let
     globs = Build.getBuildGlobs
       { withTests: true
@@ -45,10 +49,10 @@ run = do
     let link = "file://" <> currentDir <> "/generated-docs/html/index.html"
     logInfo $ "Link: " <> link
 
--- TODO: reimplement --open
+    when open do
+      openFile link
 
--- The haskell version used:
--- https://github.com/rightfold/open-browser/tree/master
+openFile :: forall m. MonadAff m => String -> m Unit
+openFile = liftAff <<< Promise.toAffE <<< runEffectFn1 openImpl
 
--- For purescript version looking at FFI to this library:
--- https://github.com/sindresorhus/open
+foreign import openImpl :: EffectFn1 String (Promise Unit)

@@ -26,8 +26,8 @@
   "main": "bin/bundle.js",
   "scripts": {
     "version": "sed -i'' -e \"s|version:.*|version: $npm_package_version|g\" {spago,bin/spago,core/spago}.yaml",
-    "format": "purs-tidy format-in-place core src bin",
-    "format:check": "purs-tidy check core src bin",
+    "format": "purs-tidy format-in-place core src bin docs-search",
+    "format:check": "purs-tidy check core src bin docs-search",
     "bundle": "spago bundle -p spago-bin",
     "prepublishOnly": "./bin/index.dev.js bundle -p spago-bin"
   },
@@ -39,6 +39,7 @@
     "fuse.js": "^6.5.3",
     "glob": "^7.1.6",
     "markdown-it": "^12.0.4",
+    "open": "^9.1.0",
     "semver": "^7.3.5",
     "spdx-expression-parse": "^3.0.1",
     "ssh2": "^1.14.0",

@@ -107,6 +107,7 @@ type BuildArgs a =
 
 type DocsArgs =
   { docsFormat :: Purs.DocsFormat
+  , open :: Boolean
   , depsOnly :: Boolean
   }
 
@@ -158,6 +159,7 @@ type SourcesArgs =
 
 type BundleArgs =
   { minify :: Boolean
+  , sourceMaps :: Boolean
   , module :: Maybe String
   , outfile :: Maybe FilePath
   , platform :: Maybe String
@@ -367,6 +369,7 @@ bundleArgsParser :: Parser BundleArgs
 bundleArgsParser =
   Optparse.fromRecord
     { minify: Flags.minify
+    , sourceMaps: Flags.sourceMaps
     , module: Flags.entrypoint
     , type: Flags.bundleType
     , outfile: Flags.outfile
@@ -395,8 +398,12 @@ publishArgsParser =
 docsArgsParser :: Parser DocsArgs
 docsArgsParser = Optparse.fromRecord
   -- TODO: --deps-only
-  -- , depsOnly: Flags.depsOnly
   { depsOnly: pure false :: Parser Boolean
+  , open: O.switch
+      ( O.long "open"
+          <> O.short 'o'
+          <> O.help "Open generated documentation in browser (for HTML format only)"
+      )
   , docsFormat: parseFormat <$>
       Maybe.optional
         ( O.strOption
@@ -673,7 +680,7 @@ mkBundleEnv bundleArgs = do
       ( (Config.parseBundleType =<< bundleArgs.type)
           <|> bundleConf _.type
       )
-  let bundleOptions = { minify, module: entrypoint, outfile, platform, type: bundleType, extraArgs: fromMaybe [] (bundleConf _.extra_args) }
+  let bundleOptions = { minify, module: entrypoint, outfile, platform, type: bundleType, sourceMaps: bundleArgs.sourceMaps, extraArgs: fromMaybe [] (bundleConf _.extra_args) }
   let
     newWorkspace = workspace
       { buildOptions
@@ -991,10 +998,15 @@ mkDocsEnv :: forall a. DocsArgs -> Map PackageName PackageMap -> Spago (Fetch.Fe
 mkDocsEnv args packageDependencies = do
   { logOptions, workspace } <- ask
   purs <- Purs.getPurs
-  let
-    env :: Docs.DocsEnv
-    env = { purs, logOptions, workspace, packageDependencies, depsOnly: args.depsOnly, docsFormat: args.docsFormat }
-  pure env
+  pure
+    { purs
+    , logOptions
+    , workspace
+    , packageDependencies
+    , depsOnly: args.depsOnly
+    , docsFormat: args.docsFormat
+    , open: args.open
+    }
 
 shouldFetchRegistryRepos :: forall a. Spago (LogEnv a) Boolean
 shouldFetchRegistryRepos = do

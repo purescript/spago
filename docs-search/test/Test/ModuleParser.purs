@@ -49,7 +49,7 @@ tests = do
     it "single line comment #1" do
       runParser singleLineComment "--\n" `shouldEqual` Right unit
     it "Parses every module in .spago/" do
-      files <- getPathsByGlobs ["./.spago/**/*.purs"]
+      files <- getPathsByGlobs [ "./.spago/**/*.purs" ]
       liftEffect $ Console.log $ "Modules in .spago: " <> show (Array.length files)
       for_ files \filePath -> do
         fileContents <- readTextFile UTF8 filePath
@@ -57,5 +57,5 @@ tests = do
           Nothing -> do
             liftEffect $ throw $
               "Module header decoding failed for " <> filePath <>
-              ", unable to extract module name"
+                ", unable to extract module name"
           Just _ -> pure unit

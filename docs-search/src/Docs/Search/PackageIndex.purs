@@ -18,77 +18,79 @@ import Data.Search.Trie as Trie
 import Effect.Aff (Aff)
 import Web.Bower.PackageMeta (PackageMeta(..))
 
-
-type PackageResult
-  = { name :: PackageName
-    , description :: Maybe String
-    , score :: PackageScore
-    , dependencies :: Array PackageName
-    , repository :: Maybe String
-    }
+type PackageResult =
+  { name :: PackageName
+  , description :: Maybe String
+  , score :: PackageScore
+  , dependencies :: Array PackageName
+  , repository :: Maybe String
+  }
 
 type PackageIndex = Trie Char PackageResult
 
 type PackageInfo = Array PackageResult
 
-
 mkPackageInfo :: Scores -> Array PackageMeta -> PackageInfo
 mkPackageInfo packageScores pms =
-  Array.fromFoldable $
-  Map.values $
-  Array.foldr insert Map.empty pms
+  Array.fromFoldable
+    $ Map.values
+    $
+      Array.foldr insert Map.empty pms
 
   where
-    insert
-      :: PackageMeta
-      -> Map PackageName PackageResult
-      -> Map PackageName PackageResult
-    insert
-      (PackageMeta { name
-                   , description
-                   , dependencies
-                   , devDependencies
-                   , repository }) =
-        Map.insert
-          packageName
-          { name: packageName
-          , description: description
-          , score: getPackageScoreForPackageName packageScores packageName
-          , dependencies:
-            unwrap dependencies <#>
+  insert
+    :: PackageMeta
+    -> Map PackageName PackageResult
+    -> Map PackageName PackageResult
+  insert
+    ( PackageMeta
+        { name
+        , description
+        , dependencies
+        , devDependencies
+        , repository
+        }
+    ) =
+    Map.insert
+      packageName
+      { name: packageName
+      , description: description
+      , score: getPackageScoreForPackageName packageScores packageName
+      , dependencies:
+          unwrap dependencies <#>
             _.packageName >>> RawPackageName >>> normalizePackageName
-          , repository: repository <#> (_.url)
-          }
+      , repository: repository <#> (_.url)
+      }
 
-      where packageName = normalizePackageName $ RawPackageName name
+    where
+    packageName = normalizePackageName $ RawPackageName name
 
 mkScoresFromPackageIndex :: PackageIndex -> Scores
 mkScoresFromPackageIndex =
   Trie.values >>> Array.fromFoldable >>>
-  Array.foldr (\ { name, score } -> Map.insert name score) Map.empty
-
+    Array.foldr (\{ name, score } -> Map.insert name score) Map.empty
 
 loadPackageIndex :: Aff PackageIndex
 loadPackageIndex =
   mkPackageIndex <$> Loader.load Config.packageInfoItem Config.packageInfoLoadPath
 
-
 mkPackageIndex :: PackageInfo -> PackageIndex
 mkPackageIndex =
   Array.foldr
-  (\package -> Trie.insert (stringToList $ unwrap package.name) package)
-  mempty
-
+    (\package -> Trie.insert (stringToList $ unwrap package.name) package)
+    mempty
 
 queryPackageIndex
   :: forall m
-  .  Monad m
+   . Monad m
   => PackageIndex
   -> String
-  -> m { index :: PackageIndex
+  -> m
+       { index :: PackageIndex
        , results :: Array PackageResult
        }
 queryPackageIndex index query =
-  pure { index
-       , results: Array.fromFoldable $ Trie.queryValues (stringToList query) index
-       }
+  pure
+    { index
+    , results: Array.fromFoldable $ Trie.queryValues (stringToList query) index
+    }

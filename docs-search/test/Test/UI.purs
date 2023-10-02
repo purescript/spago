@@ -58,7 +58,6 @@ module Test.UI where
 --     readStringArray :: Foreign -> Array String
 --     readStringArray = Foreign.unsafeFromForeign
 
-
 -- withPage :: forall a. T.URL -> (T.Page -> Aff a) -> Aff Unit
 -- withPage url f = do
 --   browser <- T.launch {}

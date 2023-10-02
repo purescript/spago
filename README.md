@@ -129,6 +129,7 @@ Where to go from here? There are a few places you should check out:
   - [Polyrepo support](#polyrepo-support)
   - [Test dependencies](#test-dependencies)
   - [Bundle a project into a single JS file](#bundle-a-project-into-a-single-js-file)
+  - [Enable source maps](#enable-source-maps)
   - [Skipping the "build" step](#skipping-the-build-step)
   - [Generated build info/metadata](#generated-build-infometadata)
   - [Generate documentation for my project](#generate-documentation-for-my-project)
@@ -863,6 +864,32 @@ Can now import it in your Node project:
 ```console
 $ node -e "import('./index.js').then(m => console.log(m.main))"
 [Function]
+```
+
+### Enable source maps
+
+When bundling, you can include `--source-maps` to generate a final source map for your bundle.
+
+Example:
+```console
+spago bundle -p my-project --source-maps --minify --outfile=bundle.js
+```
+will generate a minified bundle: `bundle.js`, and a source map: `bundle.js.map`.
+
+#### Node
+If your target platform is node, then you need to ensure your node version is >= 12.2.0 and [enable source maps](https://nodejs.org/dist/latest-v20.x/docs/api/cli.html#--enable-source-maps
+) when executing your script:
+```console
+spago bundle -p my-project --platform node --source-maps --minify --outfile=bundle.js
+node --enable-source-maps bundle.js
+```
+
+#### Browsers
+If you are targeting browsers, then you will need to ensure your server is configured to serve the source map from the same directory as your bundle.
+
+So for example if your server is configured to serve files from `public/`, you might run:
+```console
+spago bundle -p my-project --platform browser --source-maps --minify --outfile=public/bundle.js
 ```
 
 ### Skipping the "build" step

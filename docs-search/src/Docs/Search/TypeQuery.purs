@@ -1,14 +1,13 @@
 -- | `TypeQuery` is a representation of a user-provided type.
 module Docs.Search.TypeQuery
-       ( TypeQuery(..)
-       , Substitution(..)
-       , parseTypeQuery
-       , typeQueryParser
-       , getFreeVariables
-       , typeVarPenalty
-       , penalty
-       )
-where
+  ( TypeQuery(..)
+  , Substitution(..)
+  , parseTypeQuery
+  , typeQueryParser
+  , getFreeVariables
+  , typeVarPenalty
+  , penalty
+  ) where
 
 import Docs.Search.Config as Config
 import Docs.Search.Extra (foldl1, foldr1)
@@ -38,7 +37,6 @@ import StringParser (ParseError, Parser, runParser, try)
 import StringParser.CodePoints (alphaNum, anyLetter, char, eof, lowerCaseChar, skipSpaces, string, upperCaseChar)
 import StringParser.Combinators (fix, sepBy, sepBy1, sepEndBy, sepEndBy1)
 
-
 -- | We need type queries because we don't have a full-featured type parser
 -- | available.
 data TypeQuery
@@ -56,54 +54,58 @@ derive instance genericTypeQuery :: Generic TypeQuery _
 instance showTypeQuery :: Show TypeQuery where
   show x = genericShow x
 
-
 parseTypeQuery :: String -> Either ParseError TypeQuery
 parseTypeQuery = String.trim >>> runParser (typeQueryParser <* eof)
 
-
 typeQueryParser :: Parser TypeQuery
 typeQueryParser = fix \typeQuery ->
-  let rowFields =
-        QRow <$> sepBy (Tuple <$> (skipSpaces *> ident <* skipSpaces <* string "::") <*>
-                                  (skipSpaces *> typeQuery <* skipSpaces))
-                       (string "," *> skipSpaces)
+  let
+    rowFields =
+      QRow <$> sepBy
+        ( Tuple <$> (skipSpaces *> ident <* skipSpaces <* string "::") <*>
+            (skipSpaces *> typeQuery <* skipSpaces)
+        )
+        (string "," *> skipSpaces)
 
-      row = string "(" *> rowFields <* string ")"
+    row = string "(" *> rowFields <* string ")"
 
-      record = QApp (QConst $ Identifier "Record") <$>
-               (string "{" *> rowFields <* string "}")
+    record = QApp (QConst $ Identifier "Record") <$>
+      (string "{" *> rowFields <* string "}")
 
-      binders =
-        string "forall" *> some space *> sepEndBy1 ident skipSpaces <* string "." <* skipSpaces
+    binders =
+      string "forall" *> some space *> sepEndBy1 ident skipSpaces <* string "." <* skipSpaces
 
-      for_all = QForAll <$> binders <*> typeQuery
+    for_all = QForAll <$> binders <*> typeQuery
 
-      parens =
-        string "(" *> skipSpaces *> typeQuery <* skipSpaces <* string ")"
+    parens =
+      string "(" *> skipSpaces *> typeQuery <* skipSpaces <* string ")"
 
-      atom = skipSpaces *> (
-        for_all    <|>
-        try parens <|>
-        row        <|>
-        record     <|>
-        concrete   <|>
-        any
+    atom = skipSpaces *>
+      ( for_all
+          <|> try parens
+          <|> row
+          <|> record
+          <|> concrete
+          <|>
+            any
       )
 
-      apps =
-        foldl1 QApp <$> sepEndBy1 atom (some space)
+    apps =
+      foldl1 QApp <$> sepEndBy1 atom (some space)
 
-      funs =
-        foldr1 QFun <$> sepBy1 apps (string "->" *> skipSpaces)
+    funs =
+      foldr1 QFun <$> sepBy1 apps (string "->" *> skipSpaces)
 
-      constrained =
-        QConstraint <$> (upperCaseIdent <* skipSpaces) <*>
-                        (sepEndBy ((QVar <$> ident) <|> parens)
-                                  (many space) <* string "=>" <* skipSpaces) <*>
-                        typeQuery
+    constrained =
+      QConstraint <$> (upperCaseIdent <* skipSpaces)
+        <*>
+          ( sepEndBy ((QVar <$> ident) <|> parens)
+              (many space) <* string "=>" <* skipSpaces
+          )
+        <*>
+          typeQuery
   in
     try constrained <|> funs
-
 
 any :: Parser TypeQuery
 any = do
@@ -134,44 +136,41 @@ lowerCaseIdent = do
 space :: Parser Char
 space = char ' '
 
-
 -- | Used only in `getFreeVariables`.
 data FreeVarCounterQueueEntry = Unbind (Set.Set Identifier) | Next TypeQuery
 
 getFreeVariables :: TypeQuery -> Set.Set Identifier
 getFreeVariables query = go Set.empty Set.empty (List.singleton $ Next query)
   where
-    insertIfUnbound bound var free =
-      if Set.member var bound
-      then free
-      else Set.insert var free
+  insertIfUnbound bound var free =
+    if Set.member var bound then free
+    else Set.insert var free
 
-    go bound free Nil = free
-    go bound free (Unbind vars : rest) =
-      go (Set.difference bound vars) free rest
+  go bound free Nil = free
+  go bound free (Unbind vars : rest) =
+    go (Set.difference bound vars) free rest
 
-    go bound free (Next (QVar var) : rest) =
-      go bound (insertIfUnbound bound var free) rest
+  go bound free (Next (QVar var) : rest) =
+    go bound (insertIfUnbound bound var free) rest
 
-    go bound free (Next (QConst str) : rest) =
-      go bound free rest
-    go bound free (Next (QFun q1 q2) : rest) =
-      go bound free (Next q1 : Next q2 : rest)
-    go bound free (Next (QApp q1 q2) : rest) =
-      go bound free (Next q1 : Next q2 : rest)
+  go bound free (Next (QConst str) : rest) =
+    go bound free rest
+  go bound free (Next (QFun q1 q2) : rest) =
+    go bound free (Next q1 : Next q2 : rest)
+  go bound free (Next (QApp q1 q2) : rest) =
+    go bound free (Next q1 : Next q2 : rest)
 
-    go bound free (Next (QForAll nl q) : rest) =
-      go (Set.union bound newBound) free queue
-      where
-        newBound = NonEmptyList.foldr Set.insert mempty nl
-        queue = (Next q : Unbind (Set.difference newBound bound) : rest)
+  go bound free (Next (QForAll nl q) : rest) =
+    go (Set.union bound newBound) free queue
+    where
+    newBound = NonEmptyList.foldr Set.insert mempty nl
+    queue = (Next q : Unbind (Set.difference newBound bound) : rest)
 
-    go bound free (Next (QConstraint _ vars q) : rest) =
-      go bound free ((Next <$> vars) <> (Next q : rest))
+  go bound free (Next (QConstraint _ vars q) : rest) =
+    go bound free ((Next <$> vars) <> (Next q : rest))
 
-    go bound free (Next (QRow lst) : rest) =
-      go bound free ((lst <#> snd >>> Next) <> rest)
-
+  go bound free (Next (QRow lst) : rest) =
+    go bound free ((lst <#> snd >>> Next) <> rest)
 
 data Substitution
   = Instantiate Identifier Type
@@ -187,13 +186,13 @@ data Substitution
   | TypeMismatch Type
   -- ^ A query of size 1 corresponds to some type.
   | QueryMismatch TypeQuery
-  -- ^ A type of size 1 corresponds to some query.
+
+-- ^ A type of size 1 corresponds to some query.
 
 derive instance genericSubstitution :: Generic Substitution _
 
 instance showSubstitution :: Show Substitution where
   show x = genericShow x
-
 
 -- | A mock-up of unification algorithm, that does not unify anything, actually.
 -- | We use it to estimate how far a type is from a type query, by looking into
@@ -201,240 +200,304 @@ instance showSubstitution :: Show Substitution where
 unify :: TypeQuery -> Type -> List Substitution
 unify query type_ = go Nil (List.singleton { q: query, t: type_ })
   where
-    go :: List Substitution -> List { q :: TypeQuery, t :: Type } -> List Substitution
-    go acc Nil = acc
-    go acc ({ q, t: ParensInType t } : rest) =
-        go acc ({ q, t } : rest)
+  go :: List Substitution -> List { q :: TypeQuery, t :: Type } -> List Substitution
+  go acc Nil = acc
+  go acc ({ q, t: ParensInType t } : rest) =
+    go acc ({ q, t } : rest)
 
-    -- * ForAll
-    go acc ({ q, t: ForAll _ _ t } : rest) =
-        go acc ({ q, t } : rest)
-    go acc ({ q: (QForAll _ q), t } : rest) =
-        go acc ({ q, t } : rest)
+  -- * ForAll
+  go acc ({ q, t: ForAll _ _ t } : rest) =
+    go acc ({ q, t } : rest)
+  go acc ({ q: (QForAll _ q), t } : rest) =
+    go acc ({ q, t } : rest)
 
-    -- * Constraints
-    go acc ({ q: q@(QConstraint _ _ _)
-            , t: t@(ConstrainedType _ _) } : rest) =
-      let qcs = Set.fromFoldable (joinQueryConstraints q).constraints
-          tcs = Set.fromFoldable (joinConstraints t).constraints
-      in
-        -- TODO: use edit distance instead
-        go (MatchConstraints qcs tcs : acc) rest
-    go acc ({ q: QConstraint _ _ q, t } : rest) =
-      go (ExcessiveConstraint : acc) ({ q, t } : rest)
-    go acc ({ q, t: ConstrainedType _ t } : rest) =
-      go (MissingConstraint : acc) ({ q, t } : rest)
+  -- * Constraints
+  go
+    acc
+    ( { q: q@(QConstraint _ _ _)
+      , t: t@(ConstrainedType _ _)
+      } : rest
+    ) =
+    let
+      qcs = Set.fromFoldable (joinQueryConstraints q).constraints
+      tcs = Set.fromFoldable (joinConstraints t).constraints
+    in
+      -- TODO: use edit distance instead
+      go (MatchConstraints qcs tcs : acc) rest
+  go acc ({ q: QConstraint _ _ q, t } : rest) =
+    go (ExcessiveConstraint : acc) ({ q, t } : rest)
+  go acc ({ q, t: ConstrainedType _ t } : rest) =
+    go (MissingConstraint : acc) ({ q, t } : rest)
 
-    -- * Type variables
-    go acc ({ q: QVar q, t: TypeVar v } : rest) =
-      go (Substitute q (Identifier v) : acc) rest
-    go acc ({ q, t: TypeVar v } : rest ) =
-      go (Generalize q (Identifier v) : acc) rest
-    go acc ({ q: QVar v, t } : rest) =
-      go (Instantiate v t : acc) rest
+  -- * Type variables
+  go acc ({ q: QVar q, t: TypeVar v } : rest) =
+    go (Substitute q (Identifier v) : acc) rest
+  go acc ({ q, t: TypeVar v } : rest) =
+    go (Generalize q (Identifier v) : acc) rest
+  go acc ({ q: QVar v, t } : rest) =
+    go (Instantiate v t : acc) rest
 
-    -- * Names
-    go acc ({ q: QConst qname, t: TypeConstructor (QualifiedName { name }) } : rest) =
-      go (Match qname name : acc) rest
-    go acc ({ q: QConst _, t } : rest) =
-      go (TypeMismatch t : acc) rest
-    go acc ({ q, t: TypeConstructor (QualifiedName _) } : rest) =
-      go (QueryMismatch q : acc) rest
+  -- * Names
+  go acc ({ q: QConst qname, t: TypeConstructor (QualifiedName { name }) } : rest) =
+    go (Match qname name : acc) rest
+  go acc ({ q: QConst _, t } : rest) =
+    go (TypeMismatch t : acc) rest
+  go acc ({ q, t: TypeConstructor (QualifiedName _) } : rest) =
+    go (QueryMismatch q : acc) rest
 
-    -- type operators can't appear in type queries: this is always a mismatch
-    go acc ({ q, t: TypeOp (QualifiedName _) } : rest) =
-      go (QueryMismatch q : acc) rest
-    go acc ({ q, t: t@(BinaryNoParensType _ _ _) } : rest) =
-      go (Mismatch q t : acc) rest
+  -- type operators can't appear in type queries: this is always a mismatch
+  go acc ({ q, t: TypeOp (QualifiedName _) } : rest) =
+    go (QueryMismatch q : acc) rest
+  go acc ({ q, t: t@(BinaryNoParensType _ _ _) } : rest) =
+    go (Mismatch q t : acc) rest
 
-    -- * Functions
-    go acc ({ q: QFun q1 q2
-            , t: TypeApp (TypeApp (TypeConstructor
-                                    (QualifiedName { moduleNameParts: [ "Prim" ]
-                                                   , name: Identifier "Function" })) t1) t2 } : rest) =
-      go acc ({ q: q1, t: t1 } : { q: q2, t: t2 } : rest)
-    go acc ({ q: q@(QFun _ _), t } : rest) =
-      go (Mismatch q t : acc) rest
+  -- * Functions
+  go
+    acc
+    ( { q: QFun q1 q2
+      , t: TypeApp
+          ( TypeApp
+              ( TypeConstructor
+                  ( QualifiedName
+                      { moduleNameParts: [ "Prim" ]
+                      , name: Identifier "Function"
+                      }
+                  )
+              )
+              t1
+          )
+          t2
+      } : rest
+    ) =
+    go acc ({ q: q1, t: t1 } : { q: q2, t: t2 } : rest)
+  go acc ({ q: q@(QFun _ _), t } : rest) =
+    go (Mismatch q t : acc) rest
 
-    -- * Rows
-    go acc ({ q: QApp (QConst (Identifier "Record")) (QRow qRows)
-            , t: TypeApp (TypeConstructor
-                           (QualifiedName { moduleNameParts: [ "Prim" ]
-                                          , name: Identifier "Record" })) row } : rest) =
-      let { rows } = joinRows row
-          qRowsLength = List.length qRows
-          rowsLength = List.length rows in
-        if rowsLength == qRowsLength then
-          let
-            sortedQRows = List.sortBy (\x y -> compare (fst x) (fst y)) qRows
-            sortedRows  = List.sortBy (\x y -> compare x.row y.row) rows in
-            go
+  -- * Rows
+  go
+    acc
+    ( { q: QApp (QConst (Identifier "Record")) (QRow qRows)
+      , t: TypeApp
+          ( TypeConstructor
+              ( QualifiedName
+                  { moduleNameParts: [ "Prim" ]
+                  , name: Identifier "Record"
+                  }
+              )
+          )
+          row
+      } : rest
+    ) =
+    let
+      { rows } = joinRows row
+      qRowsLength = List.length qRows
+      rowsLength = List.length rows
+    in
+      if rowsLength == qRowsLength then
+        let
+          sortedQRows = List.sortBy (\x y -> compare (fst x) (fst y)) qRows
+          sortedRows = List.sortBy (\x y -> compare x.row y.row) rows
+        in
+          go
             -- match row names
-            (List.zipWith (\(Tuple qRowName _) { row: rowName } ->
-                              Match qRowName rowName) sortedQRows sortedRows <> acc)
+            ( List.zipWith
+                ( \(Tuple qRowName _) { row: rowName } ->
+                    Match qRowName rowName
+                )
+                sortedQRows
+                sortedRows <> acc
+            )
             -- match row types
-            (List.zipWith (\(Tuple _ q) { ty: t } ->
-                              { q, t }) sortedQRows sortedRows <> rest)
-        else
-          go (RowsMismatch qRowsLength rowsLength : acc) rest
+            ( List.zipWith
+                ( \(Tuple _ q) { ty: t } ->
+                    { q, t }
+                )
+                sortedQRows
+                sortedRows <> rest
+            )
+      else
+        go (RowsMismatch qRowsLength rowsLength : acc) rest
 
-    go acc ({ q: q@(QRow _), t } : rest) =
-      go (Mismatch q t : acc) rest
+  go acc ({ q: q@(QRow _), t } : rest) =
+    go (Mismatch q t : acc) rest
 
-    -- * Type application
-    go acc ({ q: QApp q1 q2, t: TypeApp t1 t2 } : rest) =
-      go acc ({ q: q1, t: t1 } : { q: q2, t: t2 } : rest)
+  -- * Type application
+  go acc ({ q: QApp q1 q2, t: TypeApp t1 t2 } : rest) =
+    go acc ({ q: q1, t: t1 } : { q: q2, t: t2 } : rest)
 
-    go acc ({ q, t: TypeLevelString _ } : rest) =
-      go (QueryMismatch q : acc) rest
+  go acc ({ q, t: TypeLevelString _ } : rest) =
+    go (QueryMismatch q : acc) rest
 
-    go acc ({ q, t: TypeWildcard } : rest) =
-      go (QueryMismatch q : acc) rest
+  go acc ({ q, t: TypeWildcard } : rest) =
+    go (QueryMismatch q : acc) rest
 
-    go acc ({ q, t: t@(RCons _ _ _) } : rest) =
-      go (Mismatch q t : acc) rest
+  go acc ({ q, t: t@(RCons _ _ _) } : rest) =
+    go (Mismatch q t : acc) rest
 
-    go acc ({ q, t: REmpty } : rest) =
-      go (QueryMismatch q : acc) rest
+  go acc ({ q, t: REmpty } : rest) =
+    go (QueryMismatch q : acc) rest
 
-    go acc ({ q, t: Kinded _ _} : rest) =
-      go (QueryMismatch q : acc) rest
+  go acc ({ q, t: Kinded _ _ } : rest) =
+    go (QueryMismatch q : acc) rest
 
-    go acc ({ t: t@(KindApp _ _) } : rest) =
-      go (TypeMismatch t : acc) rest
-
+  go acc ({ t: t@(KindApp _ _) } : rest) =
+    go (TypeMismatch t : acc) rest
 
 -- | Sum various penalties.
 penalty :: TypeQuery -> Type -> Int
 penalty typeQuery ty =
-  let substs = unify typeQuery ty in
-  typeVarPenalty substs * Config.penalties.typeVars +
-  namesPenalty substs +
-  mismatchPenalty substs
-
+  let
+    substs = unify typeQuery ty
+  in
+    typeVarPenalty substs * Config.penalties.typeVars
+      + namesPenalty substs
+      +
+        mismatchPenalty substs
 
 -- | Penalty for type variables mismatch.
 -- | Congruent types should receive zero penalty points.
 typeVarPenalty :: List Substitution -> Int
 typeVarPenalty substs =
   penaltyFor (varSubstMapWith (flip insertion)) +
-  penaltyFor (varSubstMapWith       insertion)
-    where
-      penaltyFor varSubstMap =
-        abs $
-        List.length (List.foldMap List.fromFoldable varSubstMap) - Map.size varSubstMap
+    penaltyFor (varSubstMapWith insertion)
+  where
+  penaltyFor varSubstMap =
+    abs $
+      List.length (List.foldMap List.fromFoldable varSubstMap) - Map.size varSubstMap
 
-      insertion v1 v2 = Map.insertWith append v1 (Set.singleton v2)
+  insertion v1 v2 = Map.insertWith append v1 (Set.singleton v2)
 
-      varSubstMapWith
-        :: (Identifier ->
-            Identifier ->
-            Map Identifier (Set Identifier) ->
-            Map Identifier (Set Identifier))
-        -> Map Identifier (Set Identifier)
-      varSubstMapWith f =
-        List.foldr (case _ of
-                      Substitute v1 v2 ->
-                        f v1 v2
-                      _ -> identity
-                   ) Map.empty substs
-
+  varSubstMapWith
+    :: ( Identifier
+         -> Identifier
+         -> Map Identifier (Set Identifier)
+         -> Map Identifier (Set Identifier)
+       )
+    -> Map Identifier (Set Identifier)
+  varSubstMapWith f =
+    List.foldr
+      ( case _ of
+          Substitute v1 v2 ->
+            f v1 v2
+          _ -> identity
+      )
+      Map.empty
+      substs
 
 -- | Penalty for name mismatches.
 namesPenalty :: List Substitution -> Int
 namesPenalty = go 0
   where
-    go p Nil = p
-    go p (Match a b : rest)
-      | a == b = go p rest
-      | otherwise = go (p + Config.penalties.match) rest
-    go p (MatchConstraints qcs tcs : rest)
-      = let p' = Set.size (Set.union qcs tcs) -
-                 Set.size (Set.intersection qcs tcs) in
-        go (p + Config.penalties.matchConstraint * p') rest
-    go p (RowsMismatch n m : rest) = go (Config.penalties.rowsMismatch * abs (n - m)) rest
-    go p (_ : rest) = go p rest
-
+  go p Nil = p
+  go p (Match a b : rest)
+    | a == b = go p rest
+    | otherwise = go (p + Config.penalties.match) rest
+  go p (MatchConstraints qcs tcs : rest) =
+    let
+      p' = Set.size (Set.union qcs tcs) -
+        Set.size (Set.intersection qcs tcs)
+    in
+      go (p + Config.penalties.matchConstraint * p') rest
+  go p (RowsMismatch n m : rest) = go (Config.penalties.rowsMismatch * abs (n - m)) rest
+  go p (_ : rest) = go p rest
 
 -- | Penalty for generalization and instantiation.
 mismatchPenalty :: List Substitution -> Int
 mismatchPenalty = go 0
   where
-    go n Nil = n
-    go n (Instantiate q t     : rest) = go (n + typeSize t *
-                                            Config.penalties.instantiate)             rest
-    go n (Generalize q t      : rest) = go (n + typeQuerySize q *
-                                            Config.penalties.generalize)              rest
-    go n (ExcessiveConstraint : rest) = go (n + Config.penalties.excessiveConstraint) rest
-    go n (MissingConstraint   : rest) = go (n + Config.penalties.missingConstraint)   rest
-    go n (Mismatch q t        : rest) = go (n + typeQuerySize q + typeSize t)         rest
-    go n (TypeMismatch t      : rest) = go (n + typeSize t)                           rest
-    go n (QueryMismatch q     : rest) = go (n + typeQuerySize q)                      rest
-    go n (_ : rest) = go n rest
-
+  go n Nil = n
+  go n (Instantiate q t : rest) = go
+    ( n + typeSize t *
+        Config.penalties.instantiate
+    )
+    rest
+  go n (Generalize q t : rest) = go
+    ( n + typeQuerySize q *
+        Config.penalties.generalize
+    )
+    rest
+  go n (ExcessiveConstraint : rest) = go (n + Config.penalties.excessiveConstraint) rest
+  go n (MissingConstraint : rest) = go (n + Config.penalties.missingConstraint) rest
+  go n (Mismatch q t : rest) = go (n + typeQuerySize q + typeSize t) rest
+  go n (TypeMismatch t : rest) = go (n + typeSize t) rest
+  go n (QueryMismatch q : rest) = go (n + typeQuerySize q) rest
+  go n (_ : rest) = go n rest
 
 -- | Only returns a list of type class names (lists of arguments are omitted).
-joinQueryConstraints :: TypeQuery -> { constraints :: List Identifier
-                                     , ty :: TypeQuery }
+joinQueryConstraints
+  :: TypeQuery
+  -> { constraints :: List Identifier
+     , ty :: TypeQuery
+     }
 joinQueryConstraints = go Nil
   where
-    go acc (QConstraint name _ query) =
-      go (name : acc) query
-    go acc ty = { constraints: List.sort acc, ty }
-
+  go acc (QConstraint name _ query) =
+    go (name : acc) query
+  go acc ty = { constraints: List.sort acc, ty }
 
 typeQuerySize :: TypeQuery -> Int
 typeQuerySize = go 0 <<< List.singleton
   where
-    go n Nil = n
-    go n (QVar _ : rest) =
-      go (n + 1) rest
-    go n (QConst _ : rest) =
-      go (n + 1) rest
-    go n (QFun q1 q2 : rest) =
-      go (n + 1) (q1 : q2 : rest)
-    go n (QApp q1 q2 : rest) =
-      go (n + 1) (q1 : q2 : rest)
-    go n (QForAll _ q : rest) =
-      go (n + 1) (q : rest)
-    go n (QConstraint _ _ q : rest) =
-      go (n + 1) (q : rest)
-    go n (QRow qs : rest) =
-      go n       ((qs <#> snd) <> rest)
-
+  go n Nil = n
+  go n (QVar _ : rest) =
+    go (n + 1) rest
+  go n (QConst _ : rest) =
+    go (n + 1) rest
+  go n (QFun q1 q2 : rest) =
+    go (n + 1) (q1 : q2 : rest)
+  go n (QApp q1 q2 : rest) =
+    go (n + 1) (q1 : q2 : rest)
+  go n (QForAll _ q : rest) =
+    go (n + 1) (q : rest)
+  go n (QConstraint _ _ q : rest) =
+    go (n + 1) (q : rest)
+  go n (QRow qs : rest) =
+    go n ((qs <#> snd) <> rest)
 
 typeSize :: Type -> Int
 typeSize = go 0 <<< List.singleton
   where
-    go n Nil = n
-    go n (TypeVar _ : rest) =
-      go (n + 1) rest
-    go n (TypeLevelString _ : rest) =
-      go (n + 1) rest
-    go n (TypeWildcard : rest) =
-      go (n + 1) rest
-    go n (TypeConstructor _ : rest) =
-      go (n + 1) rest
-    go n (TypeOp _ : rest) =
-      go (n + 1) rest
-    go n (KindApp t1 t2 : res) = go n (t1 : t2 : res)
-    go n (TypeApp (TypeApp (TypeConstructor
-                    (QualifiedName { moduleNameParts: [ "Prim" ]
-                                   , name: Identifier "Function" })) t1) t2 : rest) =
-      go (n + 1) (t1 : t2 : rest)
-    go n (TypeApp q1 q2 : rest) =
-      go (n + 1) (q1 : q2 : rest)
-    go n (ForAll _ _ t : rest) =
-      go (n + 1) (t : rest)
-    go n (ConstrainedType _ t : rest) =
-      go (n + 1) (t : rest)
-    go n (RCons _ t1 t2 : rest) =
-      go (n + 1) (t1 : t2 : rest)
-    go n (REmpty : rest) =
-      go (n + 1) rest
-    go n (Kinded t1 t2 : rest) =
-      go n (t1 : t2 : rest)
-    go n (BinaryNoParensType op t1 t2 : rest) =
-      go (n + 1) (t1 : t2 : rest)
-    go n (ParensInType t : rest) =
-      go n (t : rest)
+  go n Nil = n
+  go n (TypeVar _ : rest) =
+    go (n + 1) rest
+  go n (TypeLevelString _ : rest) =
+    go (n + 1) rest
+  go n (TypeWildcard : rest) =
+    go (n + 1) rest
+  go n (TypeConstructor _ : rest) =
+    go (n + 1) rest
+  go n (TypeOp _ : rest) =
+    go (n + 1) rest
+  go n (KindApp t1 t2 : res) = go n (t1 : t2 : res)
+  go
+    n
+    ( TypeApp
+        ( TypeApp
+            ( TypeConstructor
+                ( QualifiedName
+                    { moduleNameParts: [ "Prim" ]
+                    , name: Identifier "Function"
+                    }
+                )
+            )
+            t1
+        )
+        t2 : rest
+    ) =
+    go (n + 1) (t1 : t2 : rest)
+  go n (TypeApp q1 q2 : rest) =
+    go (n + 1) (q1 : q2 : rest)
+  go n (ForAll _ _ t : rest) =
+    go (n + 1) (t : rest)
+  go n (ConstrainedType _ t : rest) =
+    go (n + 1) (t : rest)
+  go n (RCons _ t1 t2 : rest) =
+    go (n + 1) (t1 : t2 : rest)
+  go n (REmpty : rest) =
+    go (n + 1) rest
+  go n (Kinded t1 t2 : rest) =
+    go n (t1 : t2 : rest)
+  go n (BinaryNoParensType op t1 t2 : rest) =
+    go (n + 1) (t1 : t2 : rest)
+  go n (ParensInType t : rest) =
+    go n (t : rest)
