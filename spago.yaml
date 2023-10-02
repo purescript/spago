@@ -247,33 +247,7 @@ workspace:
         - language-cst-parser
         - strings
         - tuples
-    json-codecs:
-      git: https://github.com/JordanMartinez/purescript-json-codecs.git
-      ref: v4.0.0
-      dependencies:
-        - argonaut-core
-        - arrays
-        - bifunctors
-        - either
-        - foldable-traversable
-        - foreign-object
-        - functions
-        - identity
-        - integers
-        - lists
-        - maybe
-        - newtype
-        - nonempty
-        - nullable
-        - ordered-collections
-        - partial
-        - prelude
-        - record
-        - safe-coerce
-        - strings
-        - these
-        - tuples
-        - unsafe-coerce
+    json-codecs: "4.0.0"
     node-glob-basic:
       git: https://github.com/natefaubion/purescript-node-glob-basic.git
       ref: "v1.2.2"
