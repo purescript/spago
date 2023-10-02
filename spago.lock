@@ -9,6 +9,7 @@ workspace:
         - argonaut-core
         - argonaut-generic
         - arrays
+        - codec-argonaut
         - console
         - control
         - css
@@ -174,33 +175,7 @@ workspace:
         - psci-support
       git: https://github.com/nonbili/purescript-jest.git
       ref: caf2032f2e5828337e897a99f5359c00e91cb0ee
-    json-codecs:
-      dependencies:
-        - argonaut-core
-        - arrays
-        - bifunctors
-        - either
-        - foldable-traversable
-        - foreign-object
-        - functions
-        - identity
-        - integers
-        - lists
-        - maybe
-        - newtype
-        - nonempty
-        - nullable
-        - ordered-collections
-        - partial
-        - prelude
-        - record
-        - safe-coerce
-        - strings
-        - these
-        - tuples
-        - unsafe-coerce
-      git: https://github.com/JordanMartinez/purescript-json-codecs.git
-      ref: v4.0.0
+    json-codecs: 4.0.0
     language-cst-parser:
       dependencies:
         - arrays
@@ -1147,9 +1122,9 @@ packages:
       - functions
       - maybe
   json-codecs:
-    type: git
-    url: https://github.com/JordanMartinez/purescript-json-codecs.git
-    rev: 896439470c5fd2e6a5c8cb89efcefa89ed18b40a
+    type: registry
+    version: 4.0.0
+    integrity: sha256-OMLGVAE2kbdKrTTqXLXNz/+HbX/2YdAzFCvb5PdiZYk=
     dependencies:
       - argonaut-core
       - arrays

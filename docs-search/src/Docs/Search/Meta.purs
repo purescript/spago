@@ -2,7 +2,11 @@ module Docs.Search.Meta where
 
 import Docs.Search.Config as Config
 import Docs.Search.Loader as Loader
-import Docs.Search.Types (PackageName)
+import Docs.Search.Types (PackageName, packageNameCodec)
+
+import Data.Codec.Argonaut (JsonCodec, JsonDecodeError)
+import Data.Codec.Argonaut.Common as CA
+import Data.Codec.Argonaut.Record as CAR
 
 import Prelude
 
@@ -12,9 +16,15 @@ type Meta =
   { localPackageName :: PackageName
   }
 
+metaCodec :: JsonCodec Meta
+metaCodec =
+  CAR.object "Meta"
+    { localPackageName: packageNameCodec
+    }
+
 load :: Aff Meta
 load =
-  Loader.load Config.metaItem Config.metaLoadPath
+  Loader.load metaCodec Config.metaItem Config.metaLoadPath
     `catchError` const (pure defaultMeta)
   where
   defaultMeta = { localPackageName: Config.defaultPackageName }

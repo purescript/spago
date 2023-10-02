@@ -1,14 +1,17 @@
 module Docs.Search.PackageIndex where
 
+import Docs.Search.JsonCodec as JsonCodec
 import Docs.Search.Config as Config
 import Docs.Search.Extra (stringToList)
 import Docs.Search.Score (Scores, getPackageScoreForPackageName)
-import Docs.Search.Types (PackageName(..), PackageScore)
+import Docs.Search.Types (PackageScore, packageScoreCodec, packageNameCodec)
 import Docs.Search.Loader as Loader
 
 import Prelude
 
 import Data.Array as Array
+import Data.Codec.Argonaut.Common as CA
+import Data.Codec.Argonaut.Record as CAR
 import Data.Map (Map)
 import Data.Map as Map
 import Data.Maybe (Maybe)
@@ -17,8 +20,7 @@ import Data.Search.Trie (Trie)
 import Data.Search.Trie as Trie
 import Data.Tuple as Tuple
 import Effect.Aff (Aff)
-import Safe.Coerce (coerce)
-import Web.Bower.PackageMeta (PackageMeta(..))
+import Web.Bower.PackageMeta (PackageMeta(..), PackageName)
 import Web.Bower.PackageMeta as Bower
 
 type PackageResult =
@@ -29,6 +31,16 @@ type PackageResult =
   , repository :: Maybe String
   }
 
+packageResultCodec :: CA.JsonCodec PackageResult
+packageResultCodec =
+  CAR.object "PackageResult" $
+    { name: packageNameCodec
+    , description: CAR.optional CA.string
+    , score: packageScoreCodec
+    , dependencies: CA.array packageNameCodec
+    , repository: CAR.optional CA.string
+    }
+
 type PackageIndex = Trie Char PackageResult
 
 type PackageInfo = Array PackageResult
@@ -37,8 +49,7 @@ mkPackageInfo :: Scores -> Array PackageMeta -> PackageInfo
 mkPackageInfo packageScores pms =
   Array.fromFoldable
     $ Map.values
-    $
-      Array.foldr insert Map.empty pms
+    $ Array.foldr insert Map.empty pms
 
   where
   insert
@@ -50,20 +61,17 @@ mkPackageInfo packageScores pms =
         { name
         , description
         , dependencies
-        , devDependencies
         , repository
         }
     ) =
     Map.insert
-      packageName
-      { name: packageName
-      , description: description
-      , score: getPackageScoreForPackageName packageScores packageName
-      , dependencies: coerce $ dependencies <#> Tuple.fst
+      name
+      { name
+      , description
+      , score: getPackageScoreForPackageName packageScores name
+      , dependencies: dependencies <#> Tuple.fst
       , repository: repository <#> unwrap >>> (_.url)
       }
-    where
-    packageName = coerce name
 
 mkScoresFromPackageIndex :: PackageIndex -> Scores
 mkScoresFromPackageIndex =
@@ -72,7 +80,10 @@ mkScoresFromPackageIndex =
 
 loadPackageIndex :: Aff PackageIndex
 loadPackageIndex =
-  mkPackageIndex <$> Loader.load Config.packageInfoItem Config.packageInfoLoadPath
+  mkPackageIndex <$> Loader.load packageInfoCodec Config.packageInfoItem Config.packageInfoLoadPath
+  where
+  packageInfoCodec :: CA.JsonCodec PackageInfo
+  packageInfoCodec = CA.array packageResultCodec
 
 mkPackageIndex :: PackageInfo -> PackageIndex
 mkPackageIndex =
@@ -94,3 +105,9 @@ queryPackageIndex index query =
     { index
     , results: Array.fromFoldable $ Trie.queryValues (stringToList query) index
     }
+
+packageMetaCodec :: CA.JsonCodec PackageMeta
+packageMetaCodec = CA.codec' decode encode
+  where
+  decode = JsonCodec.fromJsonUnidirectional Bower.toPackageMeta
+  encode = Bower.fromPackageMeta

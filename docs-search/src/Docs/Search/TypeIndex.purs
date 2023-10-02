@@ -5,7 +5,7 @@ import Docs.Search.Config as Config
 import Docs.Search.Declarations (resultsForDeclaration)
 import Docs.Search.DocsJson (DocsJson(..))
 import Docs.Search.Score (Scores)
-import Docs.Search.SearchResult (ResultInfo(..), SearchResult(..))
+import Docs.Search.SearchResult (ResultInfo(..), SearchResult(..), searchResultCodec)
 import Docs.Search.TypeDecoder (Type)
 import Docs.Search.TypeQuery (TypeQuery)
 import Docs.Search.Types (ModuleName(..))
@@ -15,8 +15,8 @@ import Prelude
 import Prim hiding (Type)
 import Control.Promise (Promise, toAffE)
 import Data.Argonaut.Core (Json)
-import Data.Argonaut.Decode (decodeJson)
 import Data.Array as Array
+import Data.Codec.Argonaut.Common as CA
 import Data.Either (hush)
 import Data.Foldable (fold, foldr)
 import Data.Map (Map)
@@ -84,7 +84,7 @@ lookup key index@(TypeIndex map) =
         (\_ -> { index: insert key Nothing index, results: [] })
         do
           json <- hush eiJson
-          results <- hush (decodeJson json)
+          results <- hush (CA.decode (CA.array searchResultCodec) json)
           pure { index: insert key (Just results) index, results }
 
   where
