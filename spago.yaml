@@ -85,6 +85,36 @@ workspace:
         - psci-support
       git: https://github.com/nonbili/purescript-jest.git
       ref: caf2032f2e5828337e897a99f5359c00e91cb0ee
+    language-purescript:
+      ref: v0.1.1
+      git: https://github.com/JordanMartinez/purescript-language-purescript.git
+      dependencies:
+        - argonaut-core
+        - arrays
+        - bifunctors
+        - control
+        - datetime
+        - either
+        - enums
+        - foldable-traversable
+        - foreign-object
+        - formatters
+        - functions
+        - integers
+        - json-codecs
+        - lists
+        - maybe
+        - newtype
+        - nullable
+        - ordered-collections
+        - partial
+        - prelude
+        - safe-coerce
+        - st
+        - strings
+        - tuples
+        - unicode
+        - versions
     markdown-it:
       dependencies:
         - effect
@@ -120,4 +150,122 @@ workspace:
         - prelude
       git: https://github.com/klntsky/purescript-search-trie.git
       ref: e7f7f22486a1dba22171ec885dbc2149dc815119
-
+    language-cst-parser:
+      git: https://github.com/natefaubion/purescript-language-cst-parser.git
+      ref: "v0.13.0"
+      dependencies:
+        - "arrays"
+        - "console"
+        - "const"
+        - "control"
+        - "effect"
+        - "either"
+        - "enums"
+        - "foldable-traversable"
+        - "free"
+        - "functions"
+        - "functors"
+        - "identity"
+        - "integers"
+        - "lazy"
+        - "lists"
+        - "maybe"
+        - "newtype"
+        - "node-process"
+        - "numbers"
+        - "ordered-collections"
+        - "partial"
+        - "prelude"
+        - "st"
+        - "strings"
+        - "transformers"
+        - "tuples"
+        - "typelevel-prelude"
+        - "unfoldable"
+        - "unsafe-coerce"
+    tidy-codegen:
+      git: https://github.com/natefaubion/purescript-tidy-codegen.git
+      ref: v4.0.0
+      dependencies:
+        - aff
+        - ansi
+        - arrays
+        - avar
+        - bifunctors
+        - console
+        - control
+        - dodo-printer
+        - effect
+        - either
+        - enums
+        - exceptions
+        - filterable
+        - foldable-traversable
+        - free
+        - identity
+        - integers
+        - language-cst-parser
+        - lazy
+        - lists
+        - maybe
+        - newtype
+        - node-buffer
+        - node-child-process
+        - node-fs-aff
+        - node-path
+        - node-process
+        - node-streams
+        - ordered-collections
+        - parallel
+        - partial
+        - posix-types
+        - prelude
+        - record
+        - safe-coerce
+        - st
+        - strings
+        - tidy
+        - transformers
+        - tuples
+        - type-equality
+        - unicode
+    tidy:
+      git: https://github.com/natefaubion/purescript-tidy.git
+      ref: "v0.10.0"
+      dependencies:
+        - arrays
+        - control
+        - dodo-printer
+        - either
+        - foldable-traversable
+        - lists
+        - maybe
+        - newtype
+        - ordered-collections
+        - partial
+        - prelude
+        - language-cst-parser
+        - strings
+        - tuples
+    json-codecs: "4.0.0"
+    node-glob-basic:
+      git: https://github.com/natefaubion/purescript-node-glob-basic.git
+      ref: "v1.2.2"
+      dependencies:
+        - aff
+        - console
+        - effect
+        - either
+        - foldable-traversable
+        - lists
+        - maybe
+        - node-fs
+        - node-fs-aff
+        - node-path
+        - node-process
+        - ordered-collections
+        - parallel
+        - prelude
+        - refs
+        - strings
+        - tuples

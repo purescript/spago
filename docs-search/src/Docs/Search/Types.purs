@@ -32,11 +32,6 @@ derive newtype instance encodeJsonModuleName :: EncodeJson ModuleName
 instance Show ModuleName where
   show = genericShow
 
--- | Non-normalized package name, e.g. `purescript-prelude` or just `prelude`.
-newtype RawPackageName = RawPackageName String
-
-derive instance newtypeRawPackageName :: Newtype RawPackageName _
-
 -- | Normalized package name without "purescript-" prefix.
 newtype PackageName = PackageName String
 
