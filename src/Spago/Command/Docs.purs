@@ -5,7 +5,6 @@ module Spago.Command.Docs
 
 import Spago.Prelude
 
-import Data.Map as Map
 import Node.Process as Process
 import Spago.Command.Build as Build
 import Spago.Command.Fetch as Fetch
@@ -29,9 +28,9 @@ run = do
   logInfo "Generating documentation for the project. This might take a while..."
   { workspace, packageDependencies, docsFormat, depsOnly } <- ask
   let
-    globs = Build.getEntireWorkspaceGlobs
+    globs = Build.getBuildGlobs
       { withTests: true
-      , workspacePackages: Config.getWorkspacePackages workspace.packageSet
+      , selected: Build.AllWorkspaceGlobs $ Config.getWorkspacePackages workspace.packageSet
       , dependencies: Fetch.getAllDependencies packageDependencies
       , depsOnly
       }

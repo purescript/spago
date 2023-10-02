@@ -7,7 +7,7 @@ import Spago.Prelude
 
 import Data.Map as Map
 import Spago.Command.Build as Build
-import Spago.Config (PackageMap, WorkspacePackage)
+import Spago.Config (PackageMap)
 import Spago.Purs (Purs)
 import Spago.Purs as Purs
 
@@ -18,7 +18,7 @@ type ReplEnv a =
   , depsOnly :: Boolean
   , logOptions :: LogOptions
   , pursArgs :: Array String
-  , selected :: Either (Array WorkspacePackage) WorkspacePackage
+  , selected :: Build.SelectedPackageGlob
   | a
   }
 
@@ -28,19 +28,10 @@ run = do
 
   let
     dependencies = foldl (Map.unionWith (\l _ -> l)) supportPackage packageDependencies
-    globs = case selected of
-      Right selectedPkg ->
-        Build.getBuildGlobs
-          { selected: selectedPkg
-          , dependencies
-          , depsOnly
-          , withTests: true
-          }
-      Left workspacePackages ->
-        Build.getEntireWorkspaceGlobs
-          { workspacePackages
-          , dependencies
-          , depsOnly
-          , withTests: true
-          }
+    globs = Build.getBuildGlobs
+      { selected
+      , dependencies
+      , depsOnly
+      , withTests: true
+      }
   void $ runSpago { purs, logOptions } $ Purs.repl globs pursArgs
