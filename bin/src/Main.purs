@@ -363,8 +363,7 @@ publishArgsParser =
 
 docsArgsParser :: Parser DocsArgs
 docsArgsParser = Optparse.fromRecord
-  -- TODO: --deps-only
-  { depsOnly: pure false :: Parser Boolean
+  { depsOnly: Flags.depsOnly
   , open: O.switch
       ( O.long "open"
           <> O.short 'o'
