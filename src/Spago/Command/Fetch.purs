@@ -157,10 +157,11 @@ run { packages, ensureRanges, isTest } = do
   lockfile <- do
     let
       fromWorkspacePackage :: WorkspacePackage -> Tuple PackageName Lock.WorkspaceLockPackage
-      fromWorkspacePackage { path, package } = Tuple package.name { path, dependencies, test_dependencies }
-        where
-        dependencies = package.dependencies
-        test_dependencies = foldMap _.dependencies package.test
+      fromWorkspacePackage { path, package } = Tuple package.name
+        { path
+        , dependencies: package.dependencies
+        , test_dependencies: foldMap _.dependencies package.test
+        }
 
       lockfileWorkspace :: Lock.WorkspaceLock
       lockfileWorkspace =
