@@ -118,8 +118,7 @@ run { packages, ensureRanges, isTest } = do
         }
     Nothing -> case workspace.rootPackage of
       Just (rootPackage :: PackageConfig) | installingPackages || ensureRanges -> do
-        hasTests <- FS.exists "test"
-        let rootWorkspacePackage = { path: "./", doc: workspace.doc, package: rootPackage, hasTests }
+        rootWorkspacePackage <- Config.rootPackageToWorkspacePackage { rootPackage, workspaceDoc: workspace.doc }
         transitiveDeps <- getSelectedPackageTransitiveDeps rootWorkspacePackage
         onSinglePackage
           { workspacePackage: rootWorkspacePackage
