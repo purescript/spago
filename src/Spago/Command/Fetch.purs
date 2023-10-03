@@ -84,6 +84,8 @@ run { packages, ensureRanges, isTest } = do
 
   { getMetadata, logOptions, workspace } <- ask
 
+  let installingPackages = not $ Array.null packages
+
   -- lookup the dependencies in the package set, so we get their version numbers
   let
     getSelectedPackageTransitiveDeps :: WorkspacePackage -> Spago (FetchEnv a) PackageMap
@@ -99,7 +101,7 @@ run { packages, ensureRanges, isTest } = do
         , yamlDoc: selected.doc
         , transitiveDeps
         }
-    Nothing | not $ Array.null packages -> do
+    Nothing | installingPackages -> do
       rootPackage :: PackageConfig <- workspace.rootPackage `justOrDieWith`
         [ "No package found in the root configuration."
         , "Please use the `-p` flag to select a package to install your packages in."
@@ -121,7 +123,7 @@ run { packages, ensureRanges, isTest } = do
         $ Config.getWorkspacePackages workspace.packageSet
 
   -- write to the config file if we are adding new packages
-  unless (Array.null packages) do
+  when installingPackages do
     { configPath, workspacePackage, yamlDoc } <- case selectedPackage of
       SinglePackage p -> pure p
       AllWorkspacePackages _ -> die
