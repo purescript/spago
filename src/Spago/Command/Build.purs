@@ -209,30 +209,32 @@ run opts = do
     moduleMap <- liftEffect $ Ref.read duplicateModuleRef
     let duplicateModules = Map.filter (\packages -> Array.length packages > 1) moduleMap
     unless (Map.isEmpty duplicateModules) do
-      die $
-        ( Dodo.lines
-            [ Dodo.text $ "Detected " <> show (Map.size duplicateModules) <> " modules with the same module name across 2 or more packages defined in this workspace."
-            , duplicateModules
-                # Map.toUnfoldable
-                # Array.mapWithIndex
-                    ( \idx (Tuple m ps) ->
-                        Dodo.lines
-                          [ Dodo.text $ show (idx + 1) <> ") Module \"" <> m <> "\" was defined in the following packages:"
-                          , Dodo.indent
-                              $ Dodo.lines
-                              $ map
-                                  ( \(Tuple pkg moduleFilePath) ->
-                                      Dodo.text $ "- " <> PackageName.print pkg <> "   at path: " <> moduleFilePath
-                                  )
-                              $ Array.sort ps
-                          ]
-                    )
-                # Dodo.lines
-            ] :: Docc
-        )
+      die $ duplicateModulesError duplicateModules
 
 -- TODO: if we are building with all the packages (i.e. selected = Nothing),
 -- then we can use the graph to remove outdated modules from `output`!
+
+duplicateModulesError :: Map String (Array (Tuple PackageName FilePath)) -> Docc
+duplicateModulesError duplicateModules =
+  Dodo.lines
+    [ Dodo.text $ "Detected " <> show (Map.size duplicateModules) <> " modules with the same module name across 2 or more packages defined in this workspace."
+    , duplicateModules
+        # Map.toUnfoldable
+        # Array.mapWithIndex
+            ( \idx (Tuple m ps) ->
+                Dodo.lines
+                  [ Dodo.text $ show (idx + 1) <> ") Module \"" <> m <> "\" was defined in the following packages:"
+                  , Dodo.indent
+                      $ Dodo.lines
+                      $ map
+                          ( \(Tuple pkg moduleFilePath) ->
+                              Dodo.text $ "- " <> PackageName.print pkg <> "   at path: " <> moduleFilePath
+                          )
+                      $ Array.sort ps
+                  ]
+            )
+        # Dodo.lines
+    ] :: Docc
 
 data SelectedPackageGlob
   = SinglePackageGlobs WorkspacePackage
