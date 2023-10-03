@@ -13,7 +13,7 @@ spec :: Spec Unit
 spec = Spec.around withTempDir do
   Spec.describe "upgrade" do
 
-    Spec.itOnly "can upgrade a package set version" \{ spago } -> do
+    Spec.it "can upgrade a package set version" \{ spago } -> do
       spago [ "init", "--name", "aaa", "--package-set", "20.0.1" ] >>= shouldBeSuccess
       spago [ "upgrade" ] >>= shouldBeSuccess
       -- we can't just check a fixture here, as there are new package set versions all the time.
