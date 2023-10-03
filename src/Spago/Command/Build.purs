@@ -256,6 +256,8 @@ getBuildGlobs { selected, dependencies, withTests, depsOnly } =
   workspacePackageGlob :: WorkspacePackage -> Array String
   workspacePackageGlob p = Config.sourceGlob testGlobs p.package.name (WorkspacePackage p)
 
+  -- Note: `depsOnly` means "no packages from the monorepo", so we filter out the workspace packages.
+  -- See its usage again in `monorepoPkgGlobs`.
   { projectGlobs, monorepoTestGlobs } = case depsOnly of
     true ->
       { projectGlobs: []
@@ -273,7 +275,6 @@ getBuildGlobs { selected, dependencies, withTests, depsOnly } =
 
   { yes: monorepoPkgs, no: dependencyPkgs } = partition isWorkspacePackage $ Map.toUnfoldable dependencies
 
-  -- depsOnly means "no packages from the monorepo", so we filter out the workspace packages
   dependencyGlobs = (Tuple.uncurry $ Config.sourceGlob NoTestGlobs) =<< dependencyPkgs
   monorepoPkgGlobs
     | depsOnly = []
