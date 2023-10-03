@@ -1,0 +1,13 @@
+package:
+  name: docs-search-common
+  dependencies: 
+    - arrays
+    - aff
+    - aff-promise
+    - argonaut-codecs
+    - argonaut-core
+    - argonaut-generic
+    - effect
+    - search-trie
+    - language-purescript
+    - prelude

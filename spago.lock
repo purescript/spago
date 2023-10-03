@@ -1,7 +1,17 @@
 workspace:
   packages:
-    docs-search:
-      path: docs-search
+    docs-search-client-halogen:
+      path: docs-search/client-halogen
+      dependencies:
+        - docs-search-common
+        - halogen
+        - halogen-css
+        - js-uri
+        - markdown-it-halogen
+        - profunctor-lenses
+      test_dependencies: []
+    docs-search-common:
+      path: docs-search/common
       dependencies:
         - aff
         - aff-promise
@@ -9,50 +19,36 @@ workspace:
         - argonaut-core
         - argonaut-generic
         - arrays
-        - console
-        - control
-        - css
+        - effect
+        - language-purescript
+        - prelude
+        - search-trie
+      test_dependencies: []
+    docs-search-index:
+      path: docs-search/index
+      dependencies:
+        - aff
+        - aff-promise
+        - argonaut-codecs
+        - argonaut-core
+        - argonaut-generic
+        - arrays
+        - docs-search-common
         - effect
         - either
         - exceptions
         - foldable-traversable
-        - foreign-object
-        - halogen
-        - halogen-css
-        - halogen-subscriptions
-        - identity
-        - js-uri
-        - language-purescript
-        - lists
-        - markdown-it
-        - markdown-it-halogen
-        - maybe
-        - newtype
-        - node-buffer
         - node-fs
         - node-fs-aff
         - node-process
-        - node-readline
-        - optparse
-        - ordered-collections
         - parallel
         - partial
         - prelude
         - profunctor
         - profunctor-lenses
-        - search-trie
-        - spec
         - string-parsers
-        - strings
-        - transformers
-        - tuples
-        - unfoldable
-        - web-dom
-        - web-events
-        - web-html
-        - web-storage
-        - web-uievents
-      test_dependencies: []
+      test_dependencies:
+        - spec
     spago:
       path: ./
       dependencies:
@@ -63,7 +59,7 @@ workspace:
         - arrays
         - codec-argonaut
         - datetime
-        - docs-search
+        - docs-search-index
         - dodo-printer
         - effect
         - either
@@ -1445,17 +1441,6 @@ packages:
       - posix-types
       - prelude
       - unsafe-coerce
-  node-readline:
-    type: registry
-    version: 7.0.0
-    integrity: sha256-zlJEPH1/nbRYuEaLXIaHiuHjMWXC8GoTZJZjSSJCCeo=
-    dependencies:
-      - effect
-      - foreign
-      - node-process
-      - node-streams
-      - options
-      - prelude
   node-streams:
     type: registry
     version: 7.0.0

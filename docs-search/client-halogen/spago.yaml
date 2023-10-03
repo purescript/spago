@@ -1,0 +1,9 @@
+package:
+  name: docs-search-client-halogen
+  dependencies:
+    - docs-search-common
+    - halogen
+    - halogen-css
+    - js-uri
+    - markdown-it-halogen
+    - profunctor-lenses
