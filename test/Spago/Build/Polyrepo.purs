@@ -5,7 +5,6 @@ import Test.Prelude
 import Data.Array as Array
 import Data.String (Pattern(..))
 import Data.String as String
-import Node.FS.Aff as FSA
 import Node.Path as Path
 import Registry.Version as Version
 import Spago.Command.Init (DefaultConfigOptions(..))
@@ -20,11 +19,10 @@ spec :: SpecT Aff TestDirs Identity Unit
 spec = Spec.describe "polyrepo" do
 
   let
-    spagoInitCleanupNonPackageFiles spago = do
-      spago [ "init" ] >>= shouldBeSuccess
-      FSA.unlink $ Path.concat [ "src", "Main.purs" ]
-      FSA.unlink $ Path.concat [ "test", "Test", "Main.purs" ]
-      FSA.unlink "spago.yaml"
+    writeWorkspaceSpagoYamlFile = do
+      -- `spago [ "init" ]` will create files that we will immediately
+      -- delete (i.e. `src/Main.purs` and `test/Main.purs`)
+      -- or overwrite (i.e. `spago.yaml`). So, we don't call it here.
       FS.writeYamlFile Config.configCodec "spago.yaml"
         $ Init.defaultConfig'
         $ WorkspaceOnly { setVersion: Just $ unsafeFromRight $ Version.parse "0.0.1" }
@@ -78,7 +76,7 @@ spec = Spec.describe "polyrepo" do
         }
 
   Spec.it "Case 1 (independent packages) builds" \{ spago } -> do
-    spagoInitCleanupNonPackageFiles spago
+    writeWorkspaceSpagoYamlFile
     void $ setupDir
       { packageName: "package-a"
       , spagoYaml: Init.defaultConfig' $ PackageOnly
@@ -122,7 +120,7 @@ spec = Spec.describe "polyrepo" do
     spago [ "build", "--verbose" ] >>= shouldBeSuccess
 
   Spec.it "Case 2 (shared dependencies packages) builds" \{ spago } -> do
-    spagoInitCleanupNonPackageFiles spago
+    writeWorkspaceSpagoYamlFile
     void $ setupDir
       { packageName: "package-shared"
       , spagoYaml: Init.defaultConfig' $ PackageOnly
@@ -190,7 +188,7 @@ spec = Spec.describe "polyrepo" do
     spago [ "build" ] >>= shouldBeSuccess
 
   Spec.it "Case 3 (dependencies: A&B -> C; A -> B) builds" \{ spago } -> do
-    spagoInitCleanupNonPackageFiles spago
+    writeWorkspaceSpagoYamlFile
     void $ setupDir
       { packageName: "package-c"
       , spagoYaml: Init.defaultConfig' $ PackageOnly
@@ -272,7 +270,7 @@ spec = Spec.describe "polyrepo" do
     spago [ "build" ] >>= check { stdout: mempty, stderr: hasAllPkgsInRightBuildOrder, result: isRight }
 
   Spec.it "Case 4 (2+ packages modules with the same name) fails to build" \{ spago } -> do
-    spagoInitCleanupNonPackageFiles spago
+    writeWorkspaceSpagoYamlFile
     void $ setupDir
       { packageName: "package-c"
       , spagoYaml: Init.defaultConfig' $ PackageOnly
