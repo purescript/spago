@@ -383,6 +383,7 @@ statVerbosityCodec = CA.Sum.enumSum print parse
 data SetAddress
   = SetFromRegistry { registry :: Version }
   | SetFromUrl { url :: String, hash :: Maybe Sha256 }
+  | SetFromPath { path :: FilePath }
 
 derive instance Eq SetAddress
 
@@ -391,12 +392,15 @@ setAddressCodec = CA.codec' decode encode
   where
   setFromRegistryCodec = CAR.object "SetFromRegistry" { registry: Version.codec }
   setFromUrlCodec = CAR.object "SetFromUrl" { url: CA.string, hash: CAR.optional Sha256.codec }
+  setFromPathCodec = CAR.object "SetFromPath" { path: CA.string }
 
   encode (SetFromRegistry r) = CA.encode setFromRegistryCodec r
   encode (SetFromUrl u) = CA.encode setFromUrlCodec u
+  encode (SetFromPath p) = CA.encode setFromPathCodec p
 
   decode json = map SetFromRegistry (CA.decode setFromRegistryCodec json)
     <|> map SetFromUrl (CA.decode setFromUrlCodec json)
+    <|> map SetFromPath (CA.decode setFromPathCodec json)
 
 data ExtraPackage
   = ExtraLocalPackage LocalPackage
