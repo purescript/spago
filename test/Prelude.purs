@@ -13,6 +13,7 @@ import Effect.Class.Console (log)
 import Node.Path as Path
 import Node.Process as Process
 import Registry.PackageName as PackageName
+import Registry.Version as Version
 import Spago.Cmd (ExecError, ExecResult) as X
 import Spago.Cmd (ExecError, ExecResult, StdinConfig(..))
 import Spago.Cmd as Cmd
@@ -146,3 +147,6 @@ shouldBeFailureOutputWithErr outFixture errFixture = checkResultAndOutputs (Just
 
 mkPackageName :: String -> PackageName
 mkPackageName = unsafeFromRight <<< PackageName.parse
+
+mkVersion :: String -> Version
+mkVersion = unsafeFromRight <<< Version.parse

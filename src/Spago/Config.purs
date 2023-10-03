@@ -15,6 +15,7 @@ module Spago.Config
   , module Core
   , readWorkspace
   , sourceGlob
+  , setPackageSetVersionInConfig
   ) where
 
 import Spago.Prelude
@@ -318,8 +319,7 @@ readWorkspace maybeSelectedPackage = do
           fetchPackageSet
       newHash <- writePackageSetToHash result
       logDebug $ "Package set hash: " <> Sha256.print newHash
-      liftEffect $ updatePackageSetHashInConfig workspaceDoc newHash
-      liftAff $ FS.writeYamlDocFile "spago.yaml" workspaceDoc
+      updatePackageSetHashInConfig workspaceDoc newHash
       pure
         { compatibleCompiler: Range.caret result.compiler
         , remotePackageSet: Just result.remotePackageSet
@@ -489,8 +489,17 @@ packageSetCachePath (HexString hash) = Path.concat [ packageSetsCachePath, hash 
 
 foreign import updatePackageSetHashInConfigImpl :: EffectFn2 (YamlDoc Core.Config) String Unit
 
-updatePackageSetHashInConfig :: YamlDoc Core.Config -> Sha256 -> Effect Unit
-updatePackageSetHashInConfig doc sha = runEffectFn2 updatePackageSetHashInConfigImpl doc (Sha256.print sha)
+updatePackageSetHashInConfig :: forall m. MonadAff m => MonadEffect m => YamlDoc Core.Config -> Sha256 -> m Unit
+updatePackageSetHashInConfig doc sha = do
+  liftEffect $ runEffectFn2 updatePackageSetHashInConfigImpl doc (Sha256.print sha)
+  liftAff $ FS.writeYamlDocFile "spago.yaml" doc
+
+foreign import setPackageSetVersionInConfigImpl :: EffectFn2 (YamlDoc Core.Config) String Unit
+
+setPackageSetVersionInConfig :: forall m. MonadAff m => MonadEffect m => YamlDoc Core.Config -> Version -> m Unit
+setPackageSetVersionInConfig doc version = do
+  liftEffect $ runEffectFn2 setPackageSetVersionInConfigImpl doc (Version.print version)
+  liftAff $ FS.writeYamlDocFile "spago.yaml" doc
 
 foreign import addPackagesToConfigImpl :: EffectFn3 (YamlDoc Core.Config) Boolean (Array String) Unit
 

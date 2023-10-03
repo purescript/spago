@@ -20,6 +20,7 @@ import Test.Spago.Run as Run
 import Test.Spago.Sources as Sources
 import Test.Spago.Test as Test
 import Test.Spago.Unit as Unit
+import Test.Spago.Upgrade as Upgrade
 import Test.Spec as Spec
 import Test.Spec.Reporter as Spec.Reporter
 import Test.Spec.Runner as Spec.Runner
@@ -47,6 +48,7 @@ main = Aff.launchAff_ $ void $ un Identity $ Spec.Runner.runSpecT testConfig [ S
     Bundle.spec
     Registry.spec
     Docs.spec
+    Upgrade.spec
     Spec.describe "miscellaneous" do
       Lock.spec
   Unit.spec

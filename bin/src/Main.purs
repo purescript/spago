@@ -41,6 +41,7 @@ import Spago.Command.Repl as Repl
 import Spago.Command.Run as Run
 import Spago.Command.Sources as Sources
 import Spago.Command.Test as Test
+import Spago.Command.Upgrade as Upgrade
 import Spago.Config (BundleConfig, BundlePlatform(..), BundleType(..), Package, RunConfig, TestConfig)
 import Spago.Config as Config
 import Spago.Core.Config as Core
@@ -182,25 +183,28 @@ type PublishArgs =
   { selectedPackage :: Maybe String
   }
 
+type UpgradeArgs = {}
+
 data SpagoCmd a = SpagoCmd GlobalArgs (Command a)
 
 data Command a
-  = Init InitArgs
-  | Fetch FetchArgs
-  | Install InstallArgs
-  | Build (BuildArgs a)
-  | Docs DocsArgs
+  = Build (BuildArgs a)
   | Bundle BundleArgs
-  | Repl ReplArgs
-  | Run RunArgs
-  | Test TestArgs
-  | Sources SourcesArgs
-  | RegistrySearch RegistrySearchArgs
-  | RegistryInfo RegistryInfoArgs
-  | RegistryPackageSets RegistryPackageSetsArgs
+  | Docs DocsArgs
+  | Fetch FetchArgs
+  | Init InitArgs
+  | Install InstallArgs
   | LsDeps LsDepsArgs
   | LsPackages LsPackagesArgs
   | Publish PublishArgs
+  | RegistryInfo RegistryInfoArgs
+  | RegistryPackageSets RegistryPackageSetsArgs
+  | RegistrySearch RegistrySearchArgs
+  | Repl ReplArgs
+  | Run RunArgs
+  | Sources SourcesArgs
+  | Test TestArgs
+  | Upgrade UpgradeArgs
 
 commandParser :: forall (a :: Row Type). String -> Parser (Command a) -> String -> Mod CommandFields (SpagoCmd a)
 commandParser command_ parser_ description_ =
@@ -223,6 +227,7 @@ argParser =
     , commandParser "sources" (Sources <$> sourcesArgsParser) "List all the source paths (globs) for the dependencies of the project"
     , commandParser "repl" (Repl <$> replArgsParser) "Start a REPL"
     , commandParser "publish" (Publish <$> publishArgsParser) "Publish a package"
+    , commandParser "upgrade" (Upgrade <$> pure {}) "Upgrade to the latest package set, or to the latest versions of Registry packages"
 
     , commandParser "docs" (Docs <$> docsArgsParser) "Generate docs for the project and its dependencies"
     , O.command "registry"
@@ -624,6 +629,9 @@ main =
             dependencies <- runSpago env (Fetch.run fetchOpts)
             docsEnv <- runSpago env (mkDocsEnv args dependencies)
             runSpago docsEnv Docs.run
+          Upgrade _args -> do
+            { env } <- mkFetchEnv { packages: mempty, selectedPackage: Nothing, ensureRanges: false, testDeps: false }
+            runSpago env Upgrade.run
 
       Cmd'VersionCmd v -> do when v printVersion
   where

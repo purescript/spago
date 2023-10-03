@@ -105,7 +105,7 @@ spec = Spec.around withTempDir do
       let
         conf = Init.defaultConfig
           { name: mkPackageName "subpackage"
-          , setVersion: Just $ unsafeFromRight $ Version.parse "0.0.1"
+          , setVersion: Just $ mkVersion "0.0.1"
           , testModuleName: "Test.Main"
           , withWorkspace: true
           }
