@@ -8,7 +8,7 @@ module Test.Spago.Build.Polyrepo where
 import Test.Prelude
 
 import Data.Array as Array
-import Data.String (Pattern(..))
+import Data.String (Pattern(..), Replacement(..))
 import Data.String as String
 import Node.Path as Path
 import Registry.Version as Version
@@ -19,6 +19,7 @@ import Spago.FS as FS
 import Test.Spec (SpecT)
 import Test.Spec as Spec
 import Test.Spec.Assertions as Assert
+import Test.Spec.Assertions.String as AssertString
 
 spec :: SpecT Aff TestDirs Identity Unit
 spec = Spec.describe "polyrepo" do
@@ -408,3 +409,50 @@ spec = Spec.describe "polyrepo" do
         unless (String.contains (Pattern exp) stdErr) do
           Assert.fail $ "STDERR did not contain text:\n" <> exp <> "\n\nStderr was:\n" <> stdErr
     spago [ "build" ] >>= check { stdout: mempty, stderr: hasExpectedModules, result: isLeft }
+
+  Spec.describe "passing --ensure-ranges flag..." do
+    let
+      setupNonRootPackage packageName = void $ setupDir
+        { packageName: packageName
+        , spagoYaml: Init.defaultConfig' $ PackageOnly
+            { name: mkPackageName packageName
+            , dependencies: [ "prelude" ]
+            , test: Nothing
+            }
+        , srcMain: mkModuleContent
+            { modName: "Subpackage." <> String.toUpper (String.replaceAll (Pattern "-") (Replacement ".") packageName)
+            , imports: []
+            , body:
+                [ ""
+                , "packageName :: String"
+                , "packageName = \"package\" <> \"" <> packageName <> "\""
+                ]
+            }
+        , testMain: Nothing
+        }
+
+    Spec.it "when root package exists adds ranges to the root package" \{ spago } -> do
+      spago [ "init", "--package-set", "0.0.1" ] >>= shouldBeSuccess
+      setupNonRootPackage "non-root-package-a"
+      setupNonRootPackage "non-root-package-b"
+      spago [ "build", "--ensure-ranges" ] >>= shouldBeSuccess
+      spagoYaml <- FS.readTextFile "spago.yaml"
+      spagoYaml `AssertString.shouldContain` "- prelude: \">=6.0.1 <7.0.0\""
+
+    Spec.it "when root package does not exist fails to build" \{ spago } -> do
+      writeWorkspaceOnlySpagoYamlFile
+      -- Note: we have to create at least two subpackages
+      -- Otherwise, spago will automatically select the only package available,
+      -- even if it's a non-root package.
+      setupNonRootPackage "non-root-package-a"
+      setupNonRootPackage "non-root-package-b"
+      let
+        hasNoRootPackageError stdErr = do
+          let
+            msg = Array.intercalate "\n"
+              [ "No package found in the root configuration."
+              , "Please use the `-p` flag to select a package in which to add ranges."
+              ]
+          unless (String.contains (Pattern msg) stdErr) do
+            Assert.fail $ "STDERR did not contain text:\n" <> msg <> "\n\nStderr was:\n" <> stdErr
+      spago [ "build", "--ensure-ranges" ] >>= check { stdout: mempty, stderr: hasNoRootPackageError, result: isLeft }

@@ -12,6 +12,7 @@ import Test.Spago.Build.Polyrepo as BuildPolyrepo
 import Test.Spec (Spec)
 import Test.Spec as Spec
 import Test.Spec.Assertions as Assert
+import Test.Spec.Assertions.String (shouldContain)
 
 spec :: Spec Unit
 spec = Spec.around withTempDir do
@@ -124,6 +125,12 @@ spec = Spec.around withTempDir do
       spago [ "init", "--name", "7368613235362d68766258694c614d517a3667747a58725778" ] >>= shouldBeSuccess
       spago [ "build" ] >>= shouldBeSuccess
       spago [ "build", "--purs-args", "--codegen", "--purs-args", "corefn" ] >>= shouldBeFailureErr (fixture "codegen-opt.txt")
+
+    Spec.it "passing the --ensure-ranges flag without package selection adds ranges to root package when it exists" \{ spago } -> do
+      spago [ "init", "--package-set", "0.0.1" ] >>= shouldBeSuccess
+      spago [ "build", "--ensure-ranges" ] >>= shouldBeSuccess
+      spagoYaml <- FS.readTextFile "spago.yaml"
+      spagoYaml `shouldContain` "- prelude: \">=6.0.1 <7.0.0\""
 
     BuildPolyrepo.spec
 
