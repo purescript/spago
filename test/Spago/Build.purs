@@ -4,6 +4,7 @@ import Test.Prelude
 
 import Node.FS.Aff as FSA
 import Node.Path as Path
+import Node.Process as Process
 import Registry.Version as Version
 import Spago.Command.Init as Init
 import Spago.Core.Config as Config
@@ -46,6 +47,15 @@ spec = Spec.around withTempDir do
       FSA.unlink "spago.yaml"
       FS.copyFileSync { src: fixture "local-package-set-config.yaml", dst: "spago.yaml" }
       FS.copyFileSync { src: fixture "local-package-set.json", dst: "local-package-set.json" }
+      spago [ "build" ] >>= shouldBeSuccess
+
+    Spec.it "can build with a local custom package set in a parent directory" \{ spago, fixture } -> do
+      FS.copyFileSync { src: fixture "local-package-set.json", dst: "local-package-set.json" }
+      FS.mkdirp "subdir"
+      liftEffect $ Process.chdir "subdir"
+      spago [ "init" ] >>= shouldBeSuccess
+      FSA.unlink "spago.yaml"
+      FS.copyFileSync { src: fixture "local-package-set-config2.yaml", dst: "spago.yaml" }
       spago [ "build" ] >>= shouldBeSuccess
 
     Spec.it "there's only one output folder in a monorepo" \{ spago } -> do
