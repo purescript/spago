@@ -74,80 +74,66 @@ run { packages, ensureRanges, isTest } = do
 
   { getMetadata, logOptions, workspace } <- ask
 
-  let installingPackages = not $ Array.null packages
-
   let
-    onSinglePackage { configPath, workspacePackage, yamlDoc, transitiveDeps } = do
-      -- write to the config file if we are adding new packages
-      when installingPackages do
-        let packageDependencies = Map.keys $ unwrap workspacePackage.package.dependencies
-        let overlappingPackages = Set.intersection packageDependencies (Set.fromFoldable packages)
-        unless (Set.isEmpty overlappingPackages) do
-          logWarn
-            $ [ toDoc "You tried to install some packages that are already present in the configuration, proceeding anyways:" ]
-            <> map (indent <<< toDoc <<< append "- " <<< PackageName.print) (Array.fromFoldable overlappingPackages)
-        logInfo $ "Adding " <> show (Array.length packages) <> " packages to the config in " <> configPath
-        liftEffect $ Config.addPackagesToConfig yamlDoc isTest packages
-        liftAff $ FS.writeYamlDocFile configPath yamlDoc
-
-      -- if the flag is selected, we kick off the process of adding ranges to the config
-      when ensureRanges do
-        logInfo $ "Adding ranges to dependencies to the config in " <> configPath
-        let rangeMap = map getRangeFromPackage transitiveDeps
-        liftEffect $ Config.addRangesToConfig yamlDoc rangeMap
-        liftAff $ FS.writeYamlDocFile configPath yamlDoc
+    installingPackages = not $ Array.null packages
 
     getSelectedPackageTransitiveDeps :: WorkspacePackage -> Spago (FetchEnv a) PackageMap
     getSelectedPackageTransitiveDeps selected =
       getTransitiveDeps $ getWorkspacePackageDeps selected <> Dependencies (Map.fromFoldable $ map (_ /\ Nothing) packages)
 
   -- lookup the dependencies in the package set, so we get their version numbers.
-  -- If a package was selected, call `onSinglePackage`
-  packageDepInfo@{ transitiveDeps } <- case workspace.selected of
+  { dependencies, transitiveDeps } <- case workspace.selected of
     Just (selected :: WorkspacePackage) -> do
       transitiveDeps <- getSelectedPackageTransitiveDeps selected
-      onSinglePackage
-        { workspacePackage: selected
-        , configPath: Path.concat [ selected.path, "spago.yaml" ]
-        , yamlDoc: selected.doc
-        , transitiveDeps
-        }
       pure
         { dependencies: Map.singleton selected.package.name transitiveDeps
         , transitiveDeps
         }
-    Nothing -> case workspace.rootPackage of
-      Just (rootPackage :: PackageConfig) | installingPackages || ensureRanges -> do
-        rootWorkspacePackage <- Config.rootPackageToWorkspacePackage { rootPackage, workspaceDoc: workspace.doc }
-        transitiveDeps <- getSelectedPackageTransitiveDeps rootWorkspacePackage
-        onSinglePackage
-          { workspacePackage: rootWorkspacePackage
-          , configPath: "spago.yaml"
-          , yamlDoc: workspace.doc
-          , transitiveDeps
-          }
-        pure
-          { dependencies: Map.singleton rootPackage.name transitiveDeps
-          , transitiveDeps
-          }
-      _
-        | installingPackages -> die
+    Nothing -> do
+      dependencies <- traverse getTransitiveDeps
+        $ Map.fromFoldable
+        $ map (\p -> Tuple p.package.name (getWorkspacePackageDeps p))
+        $ Config.getWorkspacePackages workspace.packageSet
+      pure
+        { dependencies
+        , transitiveDeps: getAllDependencies dependencies
+        }
+
+  let
+    getPackageConfigPath errorMessageEnd = do
+      case workspace.selected of
+        Just { path, doc, package } ->
+          pure { configPath: Path.concat [ path, "spago.yaml" ], yamlDoc: doc, package }
+        Nothing -> case workspace.rootPackage of
+          Just rootPackage -> do
+            pure { configPath: "spago.yaml", yamlDoc: workspace.doc, package: rootPackage }
+          Nothing -> die
             [ "No package found in the root configuration."
-            , "Please use the `-p` flag to select a package to install your packages in."
+            , "Please use the `-p` flag to select a package " <> errorMessageEnd
             ]
-        | ensureRanges -> die
-            [ "No package found in the root configuration."
-            , "Please use the `-p` flag to select a package in which to add ranges."
-            ]
-        | otherwise -> do
-            dependencies <- traverse getTransitiveDeps
-              $ Map.fromFoldable
-              $ map (\p -> Tuple p.package.name (getWorkspacePackageDeps p))
-              $ Config.getWorkspacePackages workspace.packageSet
-            pure
-              { dependencies
-              , transitiveDeps: getAllDependencies dependencies
-              }
+
+  -- write to the config file if we are adding new packages
+  when installingPackages do
+    { configPath, package, yamlDoc } <- getPackageConfigPath "to install your packages in."
+    let packageDependencies = Map.keys $ unwrap package.dependencies
+    let overlappingPackages = Set.intersection packageDependencies (Set.fromFoldable packages)
+    unless (Set.isEmpty overlappingPackages) do
+      logWarn
+        $ [ toDoc "You tried to install some packages that are already present in the configuration, proceeding anyways:" ]
+        <> map (indent <<< toDoc <<< append "- " <<< PackageName.print) (Array.fromFoldable overlappingPackages)
+    logInfo $ "Adding " <> show (Array.length packages) <> " packages to the config in " <> configPath
+    liftEffect $ Config.addPackagesToConfig yamlDoc isTest packages
+    liftAff $ FS.writeYamlDocFile configPath yamlDoc
+
+  -- if the flag is selected, we kick off the process of adding ranges to the config
+  when ensureRanges do
+    { configPath, package, yamlDoc } <- getPackageConfigPath "in which to add ranges."
+    logInfo $ "Adding ranges to dependencies to the config in " <> configPath
+    packageDeps <- (Map.lookup package.name dependencies) `justOrDieWith`
+      "Impossible: package dependencies must be in dependencies map"
+    let rangeMap = map getRangeFromPackage packageDeps
+    liftEffect $ Config.addRangesToConfig yamlDoc rangeMap
+    liftAff $ FS.writeYamlDocFile configPath yamlDoc
 
   -- TODO: need to be careful about what happens when we select a single package vs the whole workspace
   -- because otherwise the lockfile will be partial.
@@ -285,7 +271,7 @@ run { packages, ensureRanges, isTest } = do
       LocalPackage _ -> pure unit
       WorkspacePackage _ -> pure unit
 
-  pure packageDepInfo.dependencies
+  pure dependencies
 
 getAllDependencies :: Map PackageName PackageMap -> PackageMap
 getAllDependencies = foldl (Map.unionWith (\l _ -> l)) Map.empty
