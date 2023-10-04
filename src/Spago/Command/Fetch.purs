@@ -1,8 +1,9 @@
 module Spago.Command.Fetch
-  ( FetchEnv
+  ( PackageTransitiveDeps
+  , FetchEnv
   , FetchEnvRow
   , FetchOpts
-  , getAllDependencies
+  , toAllDependencies
   , getWorkspacePackageDeps
   , getTransitiveDeps
   , getTransitiveDepsFromRegistry
@@ -34,7 +35,7 @@ import Registry.Sha256 as Sha256
 import Registry.Solver as Registry.Solver
 import Registry.Version as Registry.Version
 import Registry.Version as Version
-import Spago.Config (Dependencies(..), GitPackage, LockfileSettings(..), Package(..), PackageMap, PackageSet(..), Workspace, WorkspacePackage, PackageConfig)
+import Spago.Config (Dependencies(..), GitPackage, LockfileSettings(..), Package(..), PackageMap, PackageSet(..), Workspace, WorkspacePackage)
 import Spago.Config as Config
 import Spago.Db as Db
 import Spago.FS as FS
@@ -45,6 +46,8 @@ import Spago.Paths as Paths
 import Spago.Purs as Purs
 import Spago.Repl as Repl
 import Spago.Tar as Tar
+
+type PackageTransitiveDeps = Map PackageName PackageMap
 
 type FetchEnvRow a =
   ( getManifestFromIndex :: PackageName -> Version -> Spago (LogEnv ()) (Maybe Manifest)
@@ -68,7 +71,7 @@ type FetchOpts =
 run
   :: forall a
    . FetchOpts
-  -> Spago (FetchEnv a) (Map PackageName PackageMap)
+  -> Spago (FetchEnv a) PackageTransitiveDeps
 run { packages, ensureRanges, isTest } = do
   logDebug $ "Requested to install these packages: " <> printJson (CA.array PackageName.codec) packages
 
@@ -96,7 +99,7 @@ run { packages, ensureRanges, isTest } = do
         $ Config.getWorkspacePackages workspace.packageSet
       pure
         { dependencies
-        , transitiveDeps: getAllDependencies dependencies
+        , transitiveDeps: toAllDependencies dependencies
         }
 
   let
@@ -273,8 +276,8 @@ run { packages, ensureRanges, isTest } = do
 
   pure dependencies
 
-getAllDependencies :: Map PackageName PackageMap -> PackageMap
-getAllDependencies = foldl (Map.unionWith (\l _ -> l)) Map.empty
+toAllDependencies :: PackageTransitiveDeps -> PackageMap
+toAllDependencies = foldl (Map.unionWith (\l _ -> l)) Map.empty
 
 getGitPackageInLocalCache :: forall a. PackageName -> GitPackage -> Spago (Git.GitEnv a) Unit
 getGitPackageInLocalCache name package = do

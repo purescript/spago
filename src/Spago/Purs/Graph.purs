@@ -16,7 +16,7 @@ import Data.String as String
 import Registry.Foreign.FastGlob as Glob
 import Registry.PackageName as PackageName
 import Spago.Command.Fetch as Fetch
-import Spago.Config (Package(..), WithTestGlobs(..), WorkspacePackage, PackageMap)
+import Spago.Config (Package(..), WithTestGlobs(..), WorkspacePackage)
 import Spago.Config as Config
 import Spago.Log as Log
 import Spago.Paths as Paths
@@ -32,7 +32,7 @@ type ImportCheckResult =
   }
 
 type PreGraphEnv a =
-  { packageDependencies :: Map PackageName PackageMap
+  { dependencies :: Fetch.PackageTransitiveDeps
   , logOptions :: LogOptions
   , purs :: Purs
   | a
@@ -41,7 +41,7 @@ type PreGraphEnv a =
 type GraphEnv a =
   { selected :: WorkspacePackage
   , graph :: Purs.ModuleGraph
-  , packageDependencies :: Map PackageName PackageMap
+  , dependencies :: Fetch.PackageTransitiveDeps
   , logOptions :: LogOptions
   | a
   }
@@ -69,7 +69,7 @@ type ImportedPackages = Map PackageName (Map ModuleName (Set ModuleName))
 
 checkImports :: forall a. Spago (GraphEnv a) ImportCheckResult
 checkImports = do
-  { graph: ModuleGraph graph, selected, packageDependencies } <- ask
+  { graph: ModuleGraph graph, selected, dependencies } <- ask
 
   let declaredDependencies = unwrap selected.package.dependencies
   let declaredTestDependencies = maybe Map.empty (unwrap <<< _.dependencies) selected.package.test
@@ -79,8 +79,8 @@ checkImports = do
   -- First compile the globs for each package, we get out a set of the modules that a package contains
   -- and we can have a map from path to a PackageName
   let
-    dependencies = Fetch.getAllDependencies packageDependencies
-    allPackages = dependencies
+    allDependencies = Fetch.toAllDependencies dependencies
+    allPackages = allDependencies
       # Map.insert testPackageName (WorkspacePackage selected)
       # Map.insert packageName (WorkspacePackage selected)
   pathToPackage :: Map FilePath PackageName <- map (Map.fromFoldable <<< Array.fold)

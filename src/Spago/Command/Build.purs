@@ -21,6 +21,7 @@ import Record as Record
 import Registry.PackageName as PackageName
 import Spago.BuildInfo as BuildInfo
 import Spago.Cmd as Cmd
+import Spago.Command.Fetch as Fetch
 import Spago.Config (Package(..), PackageMap, WithTestGlobs(..), Workspace, WorkspacePackage)
 import Spago.Config as Config
 import Spago.Git (Git)
@@ -33,7 +34,7 @@ import Spago.Purs.Graph as Graph
 type BuildEnv a =
   { purs :: Purs
   , git :: Git
-  , packageDependencies :: Map PackageName PackageMap
+  , dependencies :: Fetch.PackageTransitiveDeps
   , logOptions :: LogOptions
   , workspace :: Workspace
   | a
@@ -48,7 +49,7 @@ type BuildOptions =
 run :: forall a. BuildOptions -> Spago (BuildEnv a) Unit
 run opts = do
   logInfo "Building..."
-  { packageDependencies
+  { dependencies
   , workspace
   , logOptions
   } <- ask
@@ -98,13 +99,13 @@ run opts = do
       ]
 
   selectedPackages :: Array (Tuple WorkspacePackage PackageMap) <- case workspace.selected of
-    Just p -> case Map.lookup p.package.name packageDependencies of
+    Just p -> case Map.lookup p.package.name dependencies of
       Just allDeps -> pure [ Tuple p allDeps ]
       Nothing -> die [ "Internal error. Did not get transitive dependencies for selected package: " <> PackageName.print p.package.name ]
     Nothing -> do
       let
         getTransDeps :: WorkspacePackage -> Either WorkspacePackage PackageMap
-        getTransDeps p = note p $ Map.lookup p.package.name packageDependencies
+        getTransDeps p = note p $ Map.lookup p.package.name dependencies
 
         result :: Either WorkspacePackage (Array (Tuple WorkspacePackage PackageMap))
         result = traverse (\p -> Tuple p <$> getTransDeps p) $ Config.getTopologicallySortedWorkspacePackages workspace.packageSet

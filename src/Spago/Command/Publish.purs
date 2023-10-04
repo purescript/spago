@@ -30,7 +30,7 @@ import Registry.Version as Version
 import Routing.Duplex as Duplex
 import Spago.Command.Build as Build
 import Spago.Command.Fetch as Fetch
-import Spago.Config (Package(..), Workspace, WorkspacePackage, PackageMap)
+import Spago.Config (Package(..), Workspace, WorkspacePackage)
 import Spago.Config as Config
 import Spago.Config as Core
 import Spago.Db (Db)
@@ -59,7 +59,7 @@ type PublishEnv a =
   , db :: Db
   , purs :: Purs
   , selected :: WorkspacePackage
-  , packageDependencies :: Map PackageName PackageMap
+  , dependencies :: Fetch.PackageTransitiveDeps
   | a
   }
 
@@ -89,7 +89,7 @@ publish _args = do
   env@
     { selected: selected'
     , purs
-    , packageDependencies
+    , dependencies
     , logOptions
     , getMetadata
     } <- ask
@@ -109,7 +109,7 @@ publish _args = do
     , git: env.git
     , purs: env.purs
     , selected
-    , packageDependencies: env.packageDependencies
+    , dependencies: env.dependencies
     , censorBuildWarnings: (Nothing :: Maybe Core.CensorBuildWarnings)
     , censorCodes: (Nothing :: Maybe (NonEmptySet String))
     , filterCodes: (Nothing :: Maybe (NonEmptySet String))
@@ -126,8 +126,8 @@ publish _args = do
     )
 
   -- We then need to check that the dependency graph is accurate. If not, queue the errors
-  let dependencies = Fetch.getAllDependencies packageDependencies
-  let globs = Build.getBuildGlobs { selected: Build.SinglePackageGlobs selected, withTests: false, dependencies, depsOnly: false }
+  let allDependencies = Fetch.toAllDependencies dependencies
+  let globs = Build.getBuildGlobs { selected: Build.SinglePackageGlobs selected, withTests: false, dependencies: allDependencies, depsOnly: false }
   maybeGraph <- Graph.runGraph globs []
   for_ maybeGraph \graph -> do
     graphCheckErrors <- Graph.toImportErrors selected <$> runSpago (Record.union { graph, selected } env) Graph.checkImports
@@ -203,7 +203,7 @@ publish _args = do
                       RegistryVersion v -> Right (Tuple pkgName v)
                       _ -> Left pkgName
                   )
-              $ (Map.toUnfoldable dependencies :: Array _)
+              $ (Map.toUnfoldable allDependencies :: Array _)
         if Array.length fail > 0 then do
           addError
             $ toDoc
@@ -307,7 +307,7 @@ publish _args = do
         , git: env.git
         , purs: env.purs
         , selected: env.selected
-        , packageDependencies: Map.singleton selected.package.name buildPlanDependencies
+        , dependencies: Map.singleton selected.package.name buildPlanDependencies
         , censorBuildWarnings: (Nothing :: Maybe Core.CensorBuildWarnings)
         , censorCodes: (Nothing :: Maybe (NonEmptySet String))
         , filterCodes: (Nothing :: Maybe (NonEmptySet String))

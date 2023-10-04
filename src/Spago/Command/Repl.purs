@@ -7,13 +7,14 @@ import Spago.Prelude
 
 import Data.Map as Map
 import Spago.Command.Build as Build
+import Spago.Command.Fetch as Fetch
 import Spago.Config (PackageMap)
 import Spago.Purs (Purs)
 import Spago.Purs as Purs
 
 type ReplEnv a =
   { purs :: Purs
-  , packageDependencies :: Map PackageName PackageMap
+  , dependencies :: Fetch.PackageTransitiveDeps
   , supportPackage :: PackageMap
   , depsOnly :: Boolean
   , logOptions :: LogOptions
@@ -24,13 +25,13 @@ type ReplEnv a =
 
 run :: forall a. Spago (ReplEnv a) Unit
 run = do
-  { packageDependencies, purs, logOptions, pursArgs, selected, depsOnly, supportPackage } <- ask
+  { dependencies, purs, logOptions, pursArgs, selected, depsOnly, supportPackage } <- ask
 
   let
-    dependencies = foldl (Map.unionWith (\l _ -> l)) supportPackage packageDependencies
+    allDependencies = Map.unionWith (\l _ -> l) supportPackage $ Fetch.toAllDependencies dependencies
     globs = Build.getBuildGlobs
       { selected
-      , dependencies
+      , dependencies: allDependencies
       , depsOnly
       , withTests: true
       }

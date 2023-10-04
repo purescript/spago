@@ -17,7 +17,7 @@ import Registry.Version as Version
 import Spago.Cmd as Cmd
 import Spago.Command.Build as Build
 import Spago.Command.Fetch as Fetch
-import Spago.Config (Workspace, WorkspacePackage, PackageMap)
+import Spago.Config (Workspace, WorkspacePackage)
 import Spago.FS as FS
 import Spago.Paths as Paths
 import Spago.Purs (Purs, ModuleGraph(..))
@@ -28,7 +28,7 @@ type RunEnv a =
   , workspace :: Workspace
   , runOptions :: RunOptions
   , selected :: WorkspacePackage
-  , packageDependencies :: Map PackageName PackageMap
+  , dependencies :: Fetch.PackageTransitiveDeps
   , node :: Node
   , purs :: Purs
   | a
@@ -66,7 +66,7 @@ getNode = do
 
 run :: forall a. Spago (RunEnv a) Unit
 run = do
-  { workspace, node, runOptions: opts, packageDependencies, selected } <- ask
+  { workspace, node, runOptions: opts, dependencies, selected } <- ask
   let execOptions = Cmd.defaultExecOptions { pipeStdin = Cmd.StdinPipeParent }
 
   case workspace.backend of
@@ -98,7 +98,7 @@ run = do
       -- We check that the module we're about to run is included in the build and spit out a nice error if it isn't (see #383)
       let
         globs = Build.getBuildGlobs
-          { dependencies: Fetch.getAllDependencies packageDependencies
+          { dependencies: Fetch.toAllDependencies dependencies
           , depsOnly: false
           -- Here we include tests as well, because we use this code for `spago run` and `spago test`
           , withTests: true

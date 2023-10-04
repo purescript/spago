@@ -11,7 +11,7 @@ import Effect.Uncurried (EffectFn1, runEffectFn1)
 import Node.Process as Process
 import Spago.Command.Build as Build
 import Spago.Command.Fetch as Fetch
-import Spago.Config (Workspace, PackageMap)
+import Spago.Config (Workspace)
 import Spago.Config as Config
 import Spago.Purs (Purs, DocsFormat(..))
 import Spago.Purs as Purs
@@ -19,7 +19,7 @@ import Spago.Purs as Purs
 type DocsEnv =
   { purs :: Purs
   , workspace :: Workspace
-  , packageDependencies :: Map PackageName PackageMap
+  , dependencies :: Fetch.PackageTransitiveDeps
   , logOptions :: LogOptions
   , docsFormat :: DocsFormat
   , depsOnly :: Boolean
@@ -30,12 +30,12 @@ run :: Spago DocsEnv Unit
 run = do
   logDebug "Running `spago docs`"
   logInfo "Generating documentation for the project. This might take a while..."
-  { workspace, packageDependencies, docsFormat, depsOnly, open } <- ask
+  { workspace, dependencies, docsFormat, depsOnly, open } <- ask
   let
     globs = Build.getBuildGlobs
       { withTests: true
       , selected: Build.AllWorkspaceGlobs $ Config.getWorkspacePackages workspace.packageSet
-      , dependencies: Fetch.getAllDependencies packageDependencies
+      , dependencies: Fetch.toAllDependencies dependencies
       , depsOnly
       }
 

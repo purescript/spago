@@ -4,9 +4,10 @@ import Spago.Prelude
 
 import Data.Array.NonEmpty (NonEmptyArray)
 import Registry.PackageName as PackageName
+import Spago.Command.Fetch as Fetch
 import Spago.Command.Run (Node)
 import Spago.Command.Run as Run
-import Spago.Config (Workspace, WorkspacePackage, PackageMap)
+import Spago.Config (Workspace, WorkspacePackage)
 import Spago.Paths as Paths
 import Spago.Purs (Purs)
 
@@ -14,7 +15,7 @@ type TestEnv a =
   { logOptions :: LogOptions
   , workspace :: Workspace
   , selectedPackages :: NonEmptyArray SelectedTest
-  , packageDependencies :: Map PackageName PackageMap
+  , dependencies :: Fetch.PackageTransitiveDeps
   , node :: Node
   , purs :: Purs
   | a
@@ -28,7 +29,7 @@ type SelectedTest =
 
 run :: forall a. Spago (TestEnv a) Unit
 run = do
-  { workspace, logOptions, node, selectedPackages, packageDependencies, purs } <- ask
+  { workspace, logOptions, node, selectedPackages, dependencies, purs } <- ask
   void $ for selectedPackages \{ execArgs, moduleName, selected } -> do
 
     let
@@ -42,7 +43,7 @@ run = do
         , moduleName
         }
 
-      runEnv = { logOptions, workspace, selected, node, runOptions, packageDependencies, purs }
+      runEnv = { logOptions, workspace, selected, node, runOptions, dependencies, purs }
 
     logInfo $ "Running tests for package: " <> PackageName.print name
     runSpago runEnv Run.run
