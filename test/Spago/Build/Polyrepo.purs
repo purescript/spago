@@ -80,241 +80,243 @@ spec = Spec.describe "polyrepo" do
                 )
         }
 
-  {-
-  ```mermaid
-  flowchart TD
-    subgraph "Case 1"
-      A ---> Dep0["effect, console, prelude"]
-      B ---> Dep0
-    end
-  ```
-  -}
-  Spec.it "Case 1 (independent packages) builds" \{ spago } -> do
-    writeWorkspaceSpagoYamlFile
-    void $ setupDir
-      { packageName: "package-a"
-      , spagoYaml: Init.defaultConfig' $ PackageOnly
-          { name: mkPackageName "case-one-package-a"
-          , dependencies: [ "console", "effect", "prelude" ]
-          , test: Just { moduleMain: "Subpackage.A.Test.Main" }
-          }
-      , srcMain: mkMainModuleContent
-          { modName: "Subpackage.A.Main"
-          , imports: []
-          , logStatement: "log packageName"
-          , packageName: Just "packageA"
-          }
-      , testMain: mkMainModuleContent
-          { modName: "Subpackage.A.Test.Main"
-          , imports: [ "import Subpackage.A.Main as Package" ]
-          , logStatement: "log $ \"Test for \" <> Package.packageName"
-          , packageName: Nothing
-          }
-      }
-    void $ setupDir
-      { packageName: "package-b"
-      , spagoYaml: Init.defaultConfig' $ PackageOnly
-          { name: mkPackageName "case-one-package-b"
-          , dependencies: [ "console", "effect", "prelude" ]
-          , test: Just { moduleMain: "Subpackage.B.Test.Main" }
-          }
-      , srcMain: mkMainModuleContent
-          { modName: "Subpackage.B.Main"
-          , imports: []
-          , logStatement: "log packageName"
-          , packageName: Just "packageB"
-          }
-      , testMain: mkMainModuleContent
-          { modName: "Subpackage.B.Test.Main"
-          , imports: [ "import Subpackage.B.Main as Package" ]
-          , logStatement: "log $ \"Test for \" <> Package.packageName"
-          , packageName: Nothing
-          }
-      }
-    spago [ "build", "--verbose" ] >>= shouldBeSuccess
+  Spec.describe "topological build order" do
 
-  {-
-  ```mermaid
-  flowchart TD
-    subgraph "Case 2"
-      A2 ---> effect2
-      A2 ---> console2
-      A2 ---> prelude2
-      A2 ---> Shared2
-      B2 ---> effect2
-      B2 ---> console2
-      B2 ---> prelude2
-      B2 ---> Shared2
-      Shared2 ---> prelude2
-    end
-  ```
-  -}
-  Spec.it "Case 2 (shared dependencies packages) builds" \{ spago } -> do
-    writeWorkspaceSpagoYamlFile
-    void $ setupDir
-      { packageName: "package-shared"
-      , spagoYaml: Init.defaultConfig' $ PackageOnly
-          { name: mkPackageName "case-two-package-shared"
-          , dependencies: [ "prelude" ]
-          , test: Nothing
-          }
-      , srcMain: mkModuleContent
-          { modName: "Subpackage.Shared.Lib"
-          , imports: []
-          , body:
-              [ ""
-              , "packageName :: String"
-              , "packageName = \"package\" <> \"Shared\""
-              ]
-          }
-      , testMain: Nothing
-      }
-    void $ setupDir
-      { packageName: "package-a"
-      , spagoYaml: Init.defaultConfig' $ PackageOnly
-          { name: mkPackageName "case-two-package-a"
-          , dependencies: [ "console", "effect", "prelude", "case-two-package-shared" ]
-          , test: Just { moduleMain: "Subpackage.A.Test.Main" }
-          }
-      , srcMain: mkMainModuleContent
-          { modName: "Subpackage.A.Main"
-          , imports: [ "import Subpackage.Shared.Lib as Shared" ]
-          , logStatement: "log packageName"
-          , packageName: Just "packageA"
-          }
-      , testMain: mkMainModuleContent
-          { modName: "Subpackage.A.Test.Main"
-          , imports:
-              [ "import Subpackage.A.Main as Package"
-              , "import Subpackage.Shared.Lib as Shared"
-              ]
-          , logStatement: "log $ \"Test for \" <> Package.packageName <> \", not \" <> Shared.packageName"
-          , packageName: Nothing
-          }
-      }
-    void $ setupDir
-      { packageName: "package-b"
-      , spagoYaml: Init.defaultConfig' $ PackageOnly
-          { name: mkPackageName "case-two-package-b"
-          , dependencies: [ "console", "effect", "prelude", "case-two-package-shared" ]
-          , test: Just { moduleMain: "Subpackage.B.Test.Main" }
-          }
-      , srcMain: mkMainModuleContent
-          { modName: "Subpackage.B.Main"
-          , imports: [ "import Subpackage.Shared.Lib as Shared" ]
-          , logStatement: "log packageName"
-          , packageName: Just "packageB"
-          }
-      , testMain: mkMainModuleContent
-          { modName: "Subpackage.B.Test.Main"
-          , imports:
-              [ "import Subpackage.B.Main as Package"
-              , "import Subpackage.Shared.Lib as Shared"
-              ]
-          , logStatement: "log $ \"Test for \" <> Package.packageName <> \", not \" <> Shared.packageName"
-          , packageName: Nothing
-          }
-      }
-    spago [ "build" ] >>= shouldBeSuccess
+    {-
+    ```mermaid
+    flowchart TD
+      subgraph "Case 1"
+        A ---> Dep0["effect, console, prelude"]
+        B ---> Dep0
+      end
+    ```
+    -}
+    Spec.it "Case 1 (independent packages) builds" \{ spago } -> do
+      writeWorkspaceSpagoYamlFile
+      void $ setupDir
+        { packageName: "package-a"
+        , spagoYaml: Init.defaultConfig' $ PackageOnly
+            { name: mkPackageName "case-one-package-a"
+            , dependencies: [ "console", "effect", "prelude" ]
+            , test: Just { moduleMain: "Subpackage.A.Test.Main" }
+            }
+        , srcMain: mkMainModuleContent
+            { modName: "Subpackage.A.Main"
+            , imports: []
+            , logStatement: "log packageName"
+            , packageName: Just "packageA"
+            }
+        , testMain: mkMainModuleContent
+            { modName: "Subpackage.A.Test.Main"
+            , imports: [ "import Subpackage.A.Main as Package" ]
+            , logStatement: "log $ \"Test for \" <> Package.packageName"
+            , packageName: Nothing
+            }
+        }
+      void $ setupDir
+        { packageName: "package-b"
+        , spagoYaml: Init.defaultConfig' $ PackageOnly
+            { name: mkPackageName "case-one-package-b"
+            , dependencies: [ "console", "effect", "prelude" ]
+            , test: Just { moduleMain: "Subpackage.B.Test.Main" }
+            }
+        , srcMain: mkMainModuleContent
+            { modName: "Subpackage.B.Main"
+            , imports: []
+            , logStatement: "log packageName"
+            , packageName: Just "packageB"
+            }
+        , testMain: mkMainModuleContent
+            { modName: "Subpackage.B.Test.Main"
+            , imports: [ "import Subpackage.B.Main as Package" ]
+            , logStatement: "log $ \"Test for \" <> Package.packageName"
+            , packageName: Nothing
+            }
+        }
+      spago [ "build", "--verbose" ] >>= shouldBeSuccess
 
-  {-
-  ```mermaid
-  flowchart TD
-    subgraph "Case 3"
-      A3 ---> effect3
-      A3 ---> console3
-      A3 ---> prelude3
-      A3 ---> B3
-      A3 ---> C3
-      B3 ---> effect3
-      B3 ---> console3
-      B3 ---> prelude3
-      B3 ---> C3
-      C3 ---> prelude3
-    end
-  ```
-  -}
-  Spec.it "Case 3 (dependencies: A&B -> C; A -> B) builds" \{ spago } -> do
-    writeWorkspaceSpagoYamlFile
-    void $ setupDir
-      { packageName: "package-c"
-      , spagoYaml: Init.defaultConfig' $ PackageOnly
-          { name: mkPackageName "case-three-package-c"
-          , dependencies: [ "prelude" ]
-          , test: Nothing
-          }
-      , srcMain: mkModuleContent
-          { modName: "Subpackage.C.Lib"
-          , imports: []
-          , body:
-              [ ""
-              , "packageName :: String"
-              , "packageName = \"package\" <> \"C\""
+    {-
+    ```mermaid
+    flowchart TD
+      subgraph "Case 2"
+        A2 ---> effect2
+        A2 ---> console2
+        A2 ---> prelude2
+        A2 ---> Shared2
+        B2 ---> effect2
+        B2 ---> console2
+        B2 ---> prelude2
+        B2 ---> Shared2
+        Shared2 ---> prelude2
+      end
+    ```
+    -}
+    Spec.it "Case 2 (shared dependencies packages) builds" \{ spago } -> do
+      writeWorkspaceSpagoYamlFile
+      void $ setupDir
+        { packageName: "package-shared"
+        , spagoYaml: Init.defaultConfig' $ PackageOnly
+            { name: mkPackageName "case-two-package-shared"
+            , dependencies: [ "prelude" ]
+            , test: Nothing
+            }
+        , srcMain: mkModuleContent
+            { modName: "Subpackage.Shared.Lib"
+            , imports: []
+            , body:
+                [ ""
+                , "packageName :: String"
+                , "packageName = \"package\" <> \"Shared\""
+                ]
+            }
+        , testMain: Nothing
+        }
+      void $ setupDir
+        { packageName: "package-a"
+        , spagoYaml: Init.defaultConfig' $ PackageOnly
+            { name: mkPackageName "case-two-package-a"
+            , dependencies: [ "console", "effect", "prelude", "case-two-package-shared" ]
+            , test: Just { moduleMain: "Subpackage.A.Test.Main" }
+            }
+        , srcMain: mkMainModuleContent
+            { modName: "Subpackage.A.Main"
+            , imports: [ "import Subpackage.Shared.Lib as Shared" ]
+            , logStatement: "log packageName"
+            , packageName: Just "packageA"
+            }
+        , testMain: mkMainModuleContent
+            { modName: "Subpackage.A.Test.Main"
+            , imports:
+                [ "import Subpackage.A.Main as Package"
+                , "import Subpackage.Shared.Lib as Shared"
+                ]
+            , logStatement: "log $ \"Test for \" <> Package.packageName <> \", not \" <> Shared.packageName"
+            , packageName: Nothing
+            }
+        }
+      void $ setupDir
+        { packageName: "package-b"
+        , spagoYaml: Init.defaultConfig' $ PackageOnly
+            { name: mkPackageName "case-two-package-b"
+            , dependencies: [ "console", "effect", "prelude", "case-two-package-shared" ]
+            , test: Just { moduleMain: "Subpackage.B.Test.Main" }
+            }
+        , srcMain: mkMainModuleContent
+            { modName: "Subpackage.B.Main"
+            , imports: [ "import Subpackage.Shared.Lib as Shared" ]
+            , logStatement: "log packageName"
+            , packageName: Just "packageB"
+            }
+        , testMain: mkMainModuleContent
+            { modName: "Subpackage.B.Test.Main"
+            , imports:
+                [ "import Subpackage.B.Main as Package"
+                , "import Subpackage.Shared.Lib as Shared"
+                ]
+            , logStatement: "log $ \"Test for \" <> Package.packageName <> \", not \" <> Shared.packageName"
+            , packageName: Nothing
+            }
+        }
+      spago [ "build" ] >>= shouldBeSuccess
+
+    {-
+    ```mermaid
+    flowchart TD
+      subgraph "Case 3"
+        A3 ---> effect3
+        A3 ---> console3
+        A3 ---> prelude3
+        A3 ---> B3
+        A3 ---> C3
+        B3 ---> effect3
+        B3 ---> console3
+        B3 ---> prelude3
+        B3 ---> C3
+        C3 ---> prelude3
+      end
+    ```
+    -}
+    Spec.it "Case 3 (dependencies: A&B -> C; A -> B) builds" \{ spago } -> do
+      writeWorkspaceSpagoYamlFile
+      void $ setupDir
+        { packageName: "package-c"
+        , spagoYaml: Init.defaultConfig' $ PackageOnly
+            { name: mkPackageName "case-three-package-c"
+            , dependencies: [ "prelude" ]
+            , test: Nothing
+            }
+        , srcMain: mkModuleContent
+            { modName: "Subpackage.C.Lib"
+            , imports: []
+            , body:
+                [ ""
+                , "packageName :: String"
+                , "packageName = \"package\" <> \"C\""
+                ]
+            }
+        , testMain: Nothing
+        }
+      void $ setupDir
+        { packageName: "package-b"
+        , spagoYaml: Init.defaultConfig' $ PackageOnly
+            { name: mkPackageName "case-three-package-b"
+            , dependencies: [ "console", "effect", "prelude", "case-three-package-c" ]
+            , test: Just { moduleMain: "Subpackage.B.Test.Main" }
+            }
+        , srcMain: mkMainModuleContent
+            { modName: "Subpackage.B.Main"
+            , imports: [ "import Subpackage.C.Lib as C" ]
+            , logStatement: "log packageName"
+            , packageName: Just "packageB"
+            }
+        , testMain: mkMainModuleContent
+            { modName: "Subpackage.B.Test.Main"
+            , imports:
+                [ "import Subpackage.B.Main as Package"
+                , "import Subpackage.C.Lib as C"
+                ]
+            , logStatement: "log $ Package.packageName <> \" is not \" <> C.packageName"
+            , packageName: Nothing
+            }
+        }
+      void $ setupDir
+        { packageName: "package-a"
+        , spagoYaml: Init.defaultConfig' $ PackageOnly
+            { name: mkPackageName "case-three-package-a"
+            , dependencies: [ "console", "effect", "prelude", "case-three-package-b", "case-three-package-c" ]
+            , test: Just { moduleMain: "Subpackage.A.Test.Main" }
+            }
+        , srcMain: mkMainModuleContent
+            { modName: "Subpackage.A.Main"
+            , imports:
+                [ "import Subpackage.B.Main as B"
+                , "import Subpackage.C.Lib as C"
+                ]
+            , logStatement: "log $ packageName <> \" is not \" <> C.packageName <> \" or \" <> B.packageName"
+            , packageName: Just "packageA"
+            }
+        , testMain: mkMainModuleContent
+            { modName: "Subpackage.A.Test.Main"
+            , imports:
+                [ "import Subpackage.A.Main as Package"
+                , "import Subpackage.C.Lib as C"
+                ]
+            , logStatement: "log $ \"Test for \" <> Package.packageName <> \", not \" <> C.packageName"
+            , packageName: Nothing
+            }
+        }
+      let
+        hasAllPkgsInRightBuildOrder stdErr = do
+          let
+            exp = Array.intercalate "\n"
+              [ "Building packages in the following order:"
+              , "1) case-three-package-c"
+              , "2) case-three-package-b"
+              , "3) case-three-package-a"
               ]
-          }
-      , testMain: Nothing
-      }
-    void $ setupDir
-      { packageName: "package-b"
-      , spagoYaml: Init.defaultConfig' $ PackageOnly
-          { name: mkPackageName "case-three-package-b"
-          , dependencies: [ "console", "effect", "prelude", "case-three-package-c" ]
-          , test: Just { moduleMain: "Subpackage.B.Test.Main" }
-          }
-      , srcMain: mkMainModuleContent
-          { modName: "Subpackage.B.Main"
-          , imports: [ "import Subpackage.C.Lib as C" ]
-          , logStatement: "log packageName"
-          , packageName: Just "packageB"
-          }
-      , testMain: mkMainModuleContent
-          { modName: "Subpackage.B.Test.Main"
-          , imports:
-              [ "import Subpackage.B.Main as Package"
-              , "import Subpackage.C.Lib as C"
-              ]
-          , logStatement: "log $ Package.packageName <> \" is not \" <> C.packageName"
-          , packageName: Nothing
-          }
-      }
-    void $ setupDir
-      { packageName: "package-a"
-      , spagoYaml: Init.defaultConfig' $ PackageOnly
-          { name: mkPackageName "case-three-package-a"
-          , dependencies: [ "console", "effect", "prelude", "case-three-package-b", "case-three-package-c" ]
-          , test: Just { moduleMain: "Subpackage.A.Test.Main" }
-          }
-      , srcMain: mkMainModuleContent
-          { modName: "Subpackage.A.Main"
-          , imports:
-              [ "import Subpackage.B.Main as B"
-              , "import Subpackage.C.Lib as C"
-              ]
-          , logStatement: "log $ packageName <> \" is not \" <> C.packageName <> \" or \" <> B.packageName"
-          , packageName: Just "packageA"
-          }
-      , testMain: mkMainModuleContent
-          { modName: "Subpackage.A.Test.Main"
-          , imports:
-              [ "import Subpackage.A.Main as Package"
-              , "import Subpackage.C.Lib as C"
-              ]
-          , logStatement: "log $ \"Test for \" <> Package.packageName <> \", not \" <> C.packageName"
-          , packageName: Nothing
-          }
-      }
-    let
-      hasAllPkgsInRightBuildOrder stdErr = do
-        let
-          exp = Array.intercalate "\n"
-            [ "Building packages in the following order:"
-            , "1) case-three-package-c"
-            , "2) case-three-package-b"
-            , "3) case-three-package-a"
-            ]
-        unless (String.contains (Pattern exp) stdErr) do
-          Assert.fail $ "STDERR did not contain text:\n" <> exp <> "\n\nStderr was:\n" <> stdErr
-    spago [ "build" ] >>= check { stdout: mempty, stderr: hasAllPkgsInRightBuildOrder, result: isRight }
+          unless (String.contains (Pattern exp) stdErr) do
+            Assert.fail $ "STDERR did not contain text:\n" <> exp <> "\n\nStderr was:\n" <> stdErr
+      spago [ "build" ] >>= check { stdout: mempty, stderr: hasAllPkgsInRightBuildOrder, result: isRight }
 
   {-
   ```mermaid
@@ -330,7 +332,7 @@ spec = Spec.describe "polyrepo" do
     end
   ```
   -}
-  Spec.it "Case 4 (2+ packages modules with the same name) fails to build" \{ spago } -> do
+  Spec.it "Declaring 2+ modules with the same name across 2+ packages fails to build" \{ spago } -> do
     writeWorkspaceSpagoYamlFile
     void $ setupDir
       { packageName: "package-c"
