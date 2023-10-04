@@ -22,7 +22,7 @@ import Registry.PackageName as PackageName
 import Spago.BuildInfo as BuildInfo
 import Spago.Cmd as Cmd
 import Spago.Command.Fetch as Fetch
-import Spago.Config (Package(..), PackageMap, WithTestGlobs(..), Workspace, WorkspacePackage)
+import Spago.Config (Package(..), PackageMap, PackageSet, WithTestGlobs(..), Workspace, WorkspacePackage)
 import Spago.Config as Config
 import Spago.Git (Git)
 import Spago.Paths as Paths
@@ -239,7 +239,7 @@ duplicateModulesError duplicateModules =
 
 data SelectedPackageGlob
   = SinglePackageGlobs WorkspacePackage
-  | AllWorkspaceGlobs (Array WorkspacePackage)
+  | AllWorkspaceGlobs PackageSet
 
 type BuildGlobsOptions =
   { withTests :: Boolean
@@ -271,8 +271,8 @@ getBuildGlobs { selected, dependencies, withTests, depsOnly } =
         { projectGlobs: workspacePackageGlob selectedPackage
         , monorepoTestGlobs: NoTestGlobs
         }
-      AllWorkspaceGlobs workspacePackages ->
-        { projectGlobs: workspacePackages >>= workspacePackageGlob
+      AllWorkspaceGlobs packageSet ->
+        { projectGlobs: workspacePackageGlob =<< Config.getWorkspacePackages packageSet
         , monorepoTestGlobs: testGlobs
         }
 

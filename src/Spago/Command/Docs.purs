@@ -12,7 +12,6 @@ import Node.Process as Process
 import Spago.Command.Build as Build
 import Spago.Command.Fetch as Fetch
 import Spago.Config (Workspace)
-import Spago.Config as Config
 import Spago.Purs (Purs, DocsFormat(..))
 import Spago.Purs as Purs
 
@@ -34,7 +33,7 @@ run = do
   let
     globs = Build.getBuildGlobs
       { withTests: true
-      , selected: Build.AllWorkspaceGlobs $ Config.getWorkspacePackages workspace.packageSet
+      , selected: Build.AllWorkspaceGlobs workspace.packageSet
       , dependencies: Fetch.toAllDependencies dependencies
       , depsOnly
       }
