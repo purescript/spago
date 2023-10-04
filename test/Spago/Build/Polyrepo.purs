@@ -1,49 +1,8 @@
--- | This module's test cases set up the following structure for the
--- | corresponding test. Paste the below Mermaid.js code into a GitHub
--- | issue/PR and preview it to visualize it if the following isn't clear enough.
--- |
--- | ```mermaid
--- | flowchart TD
--- |   subgraph "Case 1"
--- |     A ---> Dep0["effect, console, prelude"]
--- |     B ---> Dep0
--- |   end
--- |   
--- |   subgraph "Case 2"
--- |     A2 ---> effect2
--- |     A2 ---> console2
--- |     A2 ---> prelude2
--- |     A2 ---> Shared2
--- |     B2 ---> effect2
--- |     B2 ---> console2
--- |     B2 ---> prelude2
--- |     B2 ---> Shared2
--- |     Shared2 ---> prelude2
--- |   end
--- | 
--- |   subgraph "Case 3"
--- |     A3 ---> effect3
--- |     A3 ---> console3
--- |     A3 ---> prelude3
--- |     A3 ---> B3
--- |     A3 ---> C3
--- |     B3 ---> effect3
--- |     B3 ---> console3
--- |     B3 ---> prelude3
--- |     B3 ---> C3
--- |     C3 ---> prelude3
--- |   end
--- | 
--- |   subgraph "Case 4 (duplicate module)"
--- |     A4 ---> effect4
--- |     A4 ---> console4
--- |     A4 ---> prelude4
--- |     B4 ---> effect4
--- |     B4 ---> console4
--- |     B4 ---> prelude4
--- |     C4 ---> prelude4
--- |   end
--- | ```
+-- | Each test in this module describes the structure for each test via a Mermaid.js diagram.
+-- | If the diagram isn't clear enough, paste the diagram code into a GitHub
+-- | issue/PR and preview it to visualize it.
+-- | For a guide on how to write such a diagram,
+-- | see https://mermaid.js.org/syntax/flowchart.html
 module Test.Spago.Build.Polyrepo where
 
 import Test.Prelude
@@ -121,6 +80,15 @@ spec = Spec.describe "polyrepo" do
                 )
         }
 
+  {-
+  ```mermaid
+  flowchart TD
+    subgraph "Case 1"
+      A ---> Dep0["effect, console, prelude"]
+      B ---> Dep0
+    end
+  ```
+  -}
   Spec.it "Case 1 (independent packages) builds" \{ spago } -> do
     writeWorkspaceSpagoYamlFile
     void $ setupDir
@@ -165,6 +133,22 @@ spec = Spec.describe "polyrepo" do
       }
     spago [ "build", "--verbose" ] >>= shouldBeSuccess
 
+  {-
+  ```mermaid
+  flowchart TD
+    subgraph "Case 2"
+      A2 ---> effect2
+      A2 ---> console2
+      A2 ---> prelude2
+      A2 ---> Shared2
+      B2 ---> effect2
+      B2 ---> console2
+      B2 ---> prelude2
+      B2 ---> Shared2
+      Shared2 ---> prelude2
+    end
+  ```
+  -}
   Spec.it "Case 2 (shared dependencies packages) builds" \{ spago } -> do
     writeWorkspaceSpagoYamlFile
     void $ setupDir
@@ -233,6 +217,23 @@ spec = Spec.describe "polyrepo" do
       }
     spago [ "build" ] >>= shouldBeSuccess
 
+  {-
+  ```mermaid
+  flowchart TD
+    subgraph "Case 3"
+      A3 ---> effect3
+      A3 ---> console3
+      A3 ---> prelude3
+      A3 ---> B3
+      A3 ---> C3
+      B3 ---> effect3
+      B3 ---> console3
+      B3 ---> prelude3
+      B3 ---> C3
+      C3 ---> prelude3
+    end
+  ```
+  -}
   Spec.it "Case 3 (dependencies: A&B -> C; A -> B) builds" \{ spago } -> do
     writeWorkspaceSpagoYamlFile
     void $ setupDir
@@ -315,6 +316,20 @@ spec = Spec.describe "polyrepo" do
           Assert.fail $ "STDERR did not contain text:\n" <> exp <> "\n\nStderr was:\n" <> stdErr
     spago [ "build" ] >>= check { stdout: mempty, stderr: hasAllPkgsInRightBuildOrder, result: isRight }
 
+  {-
+  ```mermaid
+  flowchart TD
+    subgraph "Case 4 (duplicate module)"
+      A4 ---> effect4
+      A4 ---> console4
+      A4 ---> prelude4
+      B4 ---> effect4
+      B4 ---> console4
+      B4 ---> prelude4
+      C4 ---> prelude4
+    end
+  ```
+  -}
   Spec.it "Case 4 (2+ packages modules with the same name) fails to build" \{ spago } -> do
     writeWorkspaceSpagoYamlFile
     void $ setupDir
