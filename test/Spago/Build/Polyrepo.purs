@@ -24,7 +24,7 @@ spec :: SpecT Aff TestDirs Identity Unit
 spec = Spec.describe "polyrepo" do
 
   let
-    writeWorkspaceSpagoYamlFile = do
+    writeWorkspaceOnlySpagoYamlFile = do
       -- `spago [ "init" ]` will create files that we will immediately
       -- delete (i.e. `src/Main.purs` and `test/Main.purs`)
       -- or overwrite (i.e. `spago.yaml`). So, we don't call it here.
@@ -92,7 +92,7 @@ spec = Spec.describe "polyrepo" do
     ```
     -}
     Spec.it "Case 1 (independent packages) builds" \{ spago } -> do
-      writeWorkspaceSpagoYamlFile
+      writeWorkspaceOnlySpagoYamlFile
       void $ setupDir
         { packageName: "package-a"
         , spagoYaml: Init.defaultConfig' $ PackageOnly
@@ -152,7 +152,7 @@ spec = Spec.describe "polyrepo" do
     ```
     -}
     Spec.it "Case 2 (shared dependencies packages) builds" \{ spago } -> do
-      writeWorkspaceSpagoYamlFile
+      writeWorkspaceOnlySpagoYamlFile
       void $ setupDir
         { packageName: "package-shared"
         , spagoYaml: Init.defaultConfig' $ PackageOnly
@@ -237,7 +237,7 @@ spec = Spec.describe "polyrepo" do
     ```
     -}
     Spec.it "Case 3 (dependencies: A&B -> C; A -> B) builds" \{ spago } -> do
-      writeWorkspaceSpagoYamlFile
+      writeWorkspaceOnlySpagoYamlFile
       void $ setupDir
         { packageName: "package-c"
         , spagoYaml: Init.defaultConfig' $ PackageOnly
@@ -333,7 +333,7 @@ spec = Spec.describe "polyrepo" do
   ```
   -}
   Spec.it "Declaring 2+ modules with the same name across 2+ packages fails to build" \{ spago } -> do
-    writeWorkspaceSpagoYamlFile
+    writeWorkspaceOnlySpagoYamlFile
     void $ setupDir
       { packageName: "package-c"
       , spagoYaml: Init.defaultConfig' $ PackageOnly
