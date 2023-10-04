@@ -1,26 +1,33 @@
 package:
   name: docs-search-index
-  dependencies: 
+  dependencies:
     - aff
-    - aff-promise
     - argonaut-codecs
     - argonaut-core
-    - argonaut-generic
     - arrays
+    - console
+    - control
     - docs-search-common
     - effect
     - either
-    - exceptions
     - foldable-traversable
+    - identity
+    - json-codecs
+    - language-purescript
+    - lists
+    - maybe
+    - newtype
+    - node-buffer
     - node-fs
     - node-fs-aff
     - node-process
-    - parallel
-    - partial
+    - ordered-collections
     - prelude
     - profunctor
-    - profunctor-lenses
+    - search-trie
     - string-parsers
+    - strings
+    - tuples
   test:
     main: Test.Docs.Search.Main
     dependencies:

@@ -3,12 +3,37 @@ workspace:
     docs-search-client-halogen:
       path: docs-search/client-halogen
       dependencies:
+        - aff
+        - aff-promise
+        - argonaut-codecs
+        - argonaut-core
+        - arrays
+        - control
+        - css
         - docs-search-common
+        - effect
+        - either
+        - foldable-traversable
         - halogen
         - halogen-css
+        - halogen-subscriptions
         - js-uri
+        - lists
+        - markdown-it
         - markdown-it-halogen
+        - maybe
+        - newtype
+        - ordered-collections
+        - prelude
         - profunctor-lenses
+        - search-trie
+        - strings
+        - tuples
+        - web-dom
+        - web-events
+        - web-html
+        - web-storage
+        - web-uievents
       test_dependencies: []
     docs-search-common:
       path: docs-search/common
@@ -19,34 +44,56 @@ workspace:
         - argonaut-core
         - argonaut-generic
         - arrays
+        - control
         - effect
+        - either
+        - exceptions
+        - foldable-traversable
+        - foreign-object
         - language-purescript
+        - lists
+        - maybe
+        - newtype
+        - ordered-collections
         - prelude
+        - profunctor-lenses
+        - safe-coerce
         - search-trie
+        - string-parsers
+        - strings
+        - transformers
+        - tuples
       test_dependencies: []
     docs-search-index:
       path: docs-search/index
       dependencies:
         - aff
-        - aff-promise
         - argonaut-codecs
         - argonaut-core
-        - argonaut-generic
         - arrays
+        - console
+        - control
         - docs-search-common
         - effect
         - either
-        - exceptions
         - foldable-traversable
+        - identity
+        - json-codecs
+        - language-purescript
+        - lists
+        - maybe
+        - newtype
+        - node-buffer
         - node-fs
         - node-fs-aff
         - node-process
-        - parallel
-        - partial
+        - ordered-collections
         - prelude
         - profunctor
-        - profunctor-lenses
+        - search-trie
         - string-parsers
+        - strings
+        - tuples
       test_dependencies:
         - spec
     spago:

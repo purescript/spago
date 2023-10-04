@@ -1,9 +1,34 @@
 package:
   name: docs-search-client-halogen
   dependencies:
+    - aff
+    - aff-promise
+    - argonaut-codecs
+    - argonaut-core
+    - arrays
+    - control
+    - css
     - docs-search-common
+    - effect
+    - either
+    - foldable-traversable
     - halogen
     - halogen-css
+    - halogen-subscriptions
     - js-uri
+    - lists
+    - markdown-it
     - markdown-it-halogen
+    - maybe
+    - newtype
+    - ordered-collections
+    - prelude
     - profunctor-lenses
+    - search-trie
+    - strings
+    - tuples
+    - web-dom
+    - web-events
+    - web-html
+    - web-storage
+    - web-uievents
