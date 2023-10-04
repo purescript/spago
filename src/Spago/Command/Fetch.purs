@@ -105,11 +105,9 @@ run { packages, ensureRanges, isTest } = do
   let
     getPackageConfigPath errorMessageEnd = do
       case workspace.selected of
-        Just { path, doc, package } ->
-          pure { configPath: Path.concat [ path, "spago.yaml" ], yamlDoc: doc, package }
+        Just { path, doc, package } -> pure { configPath: Path.concat [ path, "spago.yaml" ], yamlDoc: doc, package }
         Nothing -> case workspace.rootPackage of
-          Just rootPackage -> do
-            pure { configPath: "spago.yaml", yamlDoc: workspace.doc, package: rootPackage }
+          Just rootPackage -> do pure { configPath: "spago.yaml", yamlDoc: workspace.doc, package: rootPackage }
           Nothing -> die
             [ "No package found in the root configuration."
             , "Please use the `-p` flag to select a package " <> errorMessageEnd
