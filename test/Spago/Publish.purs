@@ -51,6 +51,10 @@ spec = Spec.around withTempDir do
 doTheGitThing :: Aff Unit
 doTheGitThing = do
   git [ "init" ] >>= shouldBeSuccess
+  git [ "config", "user.name", "test-user" ] >>= shouldBeSuccess
+  git [ "config", "user.email", "test-user@aol.com" ] >>= shouldBeSuccess
+  git [ "config", "commit.gpgSign", "false" ] >>= shouldBeSuccess
+  git [ "config", "tag.gpgSign", "false" ] >>= shouldBeSuccess
   git [ "add", "." ] >>= shouldBeSuccess
   git [ "commit", "-m", "first" ] >>= shouldBeSuccess
   git [ "tag", "v0.0.1" ] >>= shouldBeSuccess
