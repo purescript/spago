@@ -2,7 +2,6 @@ module Spago.Core.Config
   ( BackendConfig
   , BuildOptionsInput
   , CensorBuildWarnings(..)
-  , ShowSourceCode(..)
   , StatVerbosity(..)
   , BundleConfig
   , BundlePlatform(..)
@@ -45,7 +44,6 @@ import Data.Codec.Argonaut.Sum as CA.Sum
 import Data.Either as Either
 import Data.List as List
 import Data.Map as Map
-import Data.Profunctor (dimap)
 import Data.Profunctor as Profunctor
 import Data.Set.NonEmpty as NonEmptySet
 import Partial.Unsafe (unsafeCrashWith)
@@ -286,7 +284,6 @@ type BuildOptionsInput =
   , censor_codes :: Maybe (NonEmptySet.NonEmptySet String)
   , filter_codes :: Maybe (NonEmptySet.NonEmptySet String)
   , stat_verbosity :: Maybe StatVerbosity
-  , show_source :: Maybe ShowSourceCode
   , strict :: Maybe Boolean
   , persist_warnings :: Maybe Boolean
   }
@@ -299,7 +296,6 @@ buildOptionsCodec = CAR.object "CompileOptionsInput"
   , censor_codes: CAR.optional $ CA.Common.nonEmptySet CA.string
   , filter_codes: CAR.optional $ CA.Common.nonEmptySet CA.string
   , stat_verbosity: CAR.optional statVerbosityCodec
-  , show_source: CAR.optional showSourceCodec
   , strict: CAR.optional CA.boolean
   , persist_warnings: CAR.optional CA.boolean
   }
@@ -334,27 +330,6 @@ censorBuildWarningsCodec = CA.Sum.enumSum print parse
     "project" -> Just CensorProjectWarnings
     "all" -> Just CensorAllWarnings
     _ -> Nothing
-
-data ShowSourceCode
-  = ShowSourceCode
-  | NoSourceCode
-
-derive instance Eq ShowSourceCode
-
-showSourceCodec :: JsonCodec ShowSourceCode
-showSourceCodec = dimap to from CA.boolean
-  where
-  to = case _ of
-    ShowSourceCode -> true
-    NoSourceCode -> false
-  from = case _ of
-    false -> NoSourceCode
-    true -> ShowSourceCode
-
-instance Show ShowSourceCode where
-  show = case _ of
-    ShowSourceCode -> "ShowSourceCode"
-    NoSourceCode -> "NoSourceCode"
 
 data StatVerbosity
   = NoStats

@@ -76,7 +76,6 @@ type BuildOptions =
   , censorCodes :: Maybe (NonEmptySet String)
   , filterCodes :: Maybe (NonEmptySet String)
   , statVerbosity :: Maybe Core.StatVerbosity
-  , showSource :: Maybe Core.ShowSourceCode
   , strict :: Maybe Boolean
   , persistWarnings :: Maybe Boolean
   }
@@ -388,7 +387,6 @@ readWorkspace maybeSelectedPackage = do
       , censorCodes: _.censor_codes =<< workspace.build_opts
       , filterCodes: _.filter_codes =<< workspace.build_opts
       , statVerbosity: _.stat_verbosity =<< workspace.build_opts
-      , showSource: _.show_source =<< workspace.build_opts
       , strict: _.strict =<< workspace.build_opts
       , persistWarnings: _.persist_warnings =<< workspace.build_opts
       }

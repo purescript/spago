@@ -40,8 +40,7 @@ type PsaArgs =
 
 defaultParseOptions :: PsaOptions
 defaultParseOptions =
-  { showSource: Core.ShowSourceCode
-  , stashFile: Nothing
+  { stashFile: Nothing
   , censorBuildWarnings: Core.CensorNoWarnings
   , censorCodes: Set.empty
   , filterCodes: Set.empty
@@ -50,8 +49,7 @@ defaultParseOptions =
   }
 
 type PsaOptions =
-  { showSource :: Core.ShowSourceCode
-  , stashFile :: Maybe String
+  { stashFile :: Maybe String
   , censorBuildWarnings :: Core.CensorBuildWarnings
   , censorCodes :: Set ErrorCode
   , filterCodes :: Set ErrorCode
@@ -71,7 +69,7 @@ toOutputOptions { libraryDirs, color } options =
   }
 
 psaCompile :: forall a. Set.Set FilePath -> Array String -> PsaArgs -> PsaOptions -> Spago (Purs.PursEnv a) Unit
-psaCompile globs pursArgs psaArgs options@{ showSource, stashFile } = do
+psaCompile globs pursArgs psaArgs options@{ stashFile } = do
   let outputOptions = toOutputOptions psaArgs options
   stashData <- case stashFile of
     Just f -> readStashFile f
@@ -94,13 +92,11 @@ psaCompile globs pursArgs psaArgs options@{ showSource, stashFile } = do
         pure true
       Right out -> do
         files <- liftEffect $ Ref.new FO.empty
-        let
-          loadLinesImpl = if showSource == Core.ShowSourceCode then loadLines files else loadNothing
-          filenames = insertFilenames (insertFilenames Set.empty out.errors) out.warnings
+        let filenames = insertFilenames (insertFilenames Set.empty out.errors) out.warnings
         merged <- mergeWarnings filenames stashData.date stashData.stash out.warnings
         for_ stashFile \f -> writeStashFile f merged
 
-        out' <- buildOutput loadLinesImpl outputOptions out { warnings = merged }
+        out' <- buildOutput (loadLines files) outputOptions out { warnings = merged }
 
         liftEffect $ if psaArgs.jsonErrors then printJsonOutputToOut out' else printDefaultOutputToErr outputOptions out'
 
@@ -114,7 +110,6 @@ psaCompile globs pursArgs psaArgs options@{ showSource, stashFile } = do
 
   where
   insertFilenames = foldr \x s -> maybe s (flip Set.insert s) x.filename
-  loadNothing _ _ = pure Nothing
 
   isEmptySpan filename pos =
     filename == "" || pos.startLine == 0 && pos.endLine == 0 && pos.startColumn == 0 && pos.endColumn == 0

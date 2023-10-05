@@ -9,7 +9,6 @@ import Data.Set.NonEmpty as NonEmptySet
 import Options.Applicative (FlagFields, Mod, Parser)
 import Options.Applicative as O
 import Options.Applicative.Types as O
-import Spago.Core.Config (ShowSourceCode(..))
 import Spago.Core.Config as Core
 
 flagMaybe ∷ ∀ (a ∷ Type). a -> Mod FlagFields (Maybe a) -> Parser (Maybe a)
@@ -47,13 +46,6 @@ censorBuildWarnings =
           <> O.help "Censor compiler warnings based on file's location: 'dependency', 'project', or 'all'"
           <> O.metavar "ARG"
       )
-
-showSource :: Parser (Maybe ShowSourceCode)
-showSource =
-  flagMaybe NoSourceCode
-    ( O.long "no-source"
-        <> O.help "Disable original source code printing"
-    )
 
 censorCodes :: Parser (Maybe (NonEmptySet String))
 censorCodes =

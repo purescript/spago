@@ -142,7 +142,6 @@ run opts = do
       psaOptions =
         { strict: fromMaybe Psa.defaultParseOptions.strict workspace.buildOptions.strict
         , censorBuildWarnings: fromMaybe Psa.defaultParseOptions.censorBuildWarnings workspace.buildOptions.censorBuildWarnings
-        , showSource: fromMaybe Psa.defaultParseOptions.showSource workspace.buildOptions.showSource
         , censorCodes: maybe Psa.defaultParseOptions.censorCodes NonEmptySet.toSet workspace.buildOptions.censorCodes
         , filterCodes: maybe Psa.defaultParseOptions.filterCodes NonEmptySet.toSet workspace.buildOptions.filterCodes
         , statVerbosity: fromMaybe Psa.defaultParseOptions.statVerbosity workspace.buildOptions.statVerbosity

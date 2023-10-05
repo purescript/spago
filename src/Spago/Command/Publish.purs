@@ -114,7 +114,6 @@ publish _args = do
     , censorCodes: (Nothing :: Maybe (NonEmptySet String))
     , filterCodes: (Nothing :: Maybe (NonEmptySet String))
     , statVerbosity: (Nothing :: Maybe Core.StatVerbosity)
-    , showSource: (Nothing :: Maybe Core.ShowSourceCode)
     , strict: (Nothing :: Maybe Boolean)
     , persistWarnings: (Nothing :: Maybe Boolean)
     }
@@ -312,7 +311,6 @@ publish _args = do
         , censorCodes: (Nothing :: Maybe (NonEmptySet String))
         , filterCodes: (Nothing :: Maybe (NonEmptySet String))
         , statVerbosity: (Nothing :: Maybe Core.StatVerbosity)
-        , showSource: (Nothing :: Maybe Core.ShowSourceCode)
         , strict: (Nothing :: Maybe Boolean)
         , persistWarnings: (Nothing :: Maybe Boolean)
         }

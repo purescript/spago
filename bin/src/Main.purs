@@ -98,7 +98,6 @@ type BuildArgs a =
   , jsonErrors :: Boolean
   , strict :: Maybe Boolean
   , censorBuildWarnings :: Maybe Core.CensorBuildWarnings
-  , showSource :: Maybe Core.ShowSourceCode
   , censorCodes :: Maybe (NonEmptySet String)
   , filterCodes :: Maybe (NonEmptySet String)
   , statVerbosity :: Maybe Core.StatVerbosity
@@ -130,7 +129,6 @@ type RunArgs =
   , ensureRanges :: Boolean
   , strict :: Maybe Boolean
   , censorBuildWarnings :: Maybe Core.CensorBuildWarnings
-  , showSource :: Maybe Core.ShowSourceCode
   , censorCodes :: Maybe (NonEmptySet String)
   , filterCodes :: Maybe (NonEmptySet String)
   , statVerbosity :: Maybe Core.StatVerbosity
@@ -146,7 +144,6 @@ type TestArgs =
   , execArgs :: Maybe (Array String)
   , strict :: Maybe Boolean
   , censorBuildWarnings :: Maybe Core.CensorBuildWarnings
-  , showSource :: Maybe Core.ShowSourceCode
   , censorCodes :: Maybe (NonEmptySet String)
   , filterCodes :: Maybe (NonEmptySet String)
   , statVerbosity :: Maybe Core.StatVerbosity
@@ -173,7 +170,6 @@ type BundleArgs =
   , ensureRanges :: Boolean
   , strict :: Maybe Boolean
   , censorBuildWarnings :: Maybe Core.CensorBuildWarnings
-  , showSource :: Maybe Core.ShowSourceCode
   , censorCodes :: Maybe (NonEmptySet String)
   , filterCodes :: Maybe (NonEmptySet String)
   , statVerbosity :: Maybe Core.StatVerbosity
@@ -320,7 +316,6 @@ buildArgsParser = Optparse.fromRecord
   , jsonErrors: Flags.jsonErrors
   , strict: Flags.strict
   , censorBuildWarnings: Flags.censorBuildWarnings
-  , showSource: Flags.showSource
   , censorCodes: Flags.censorCodes
   , filterCodes: Flags.filterCodes
   , statVerbosity: Flags.statVerbosity
@@ -346,7 +341,6 @@ runArgsParser = Optparse.fromRecord
   , ensureRanges: Flags.ensureRanges
   , strict: Flags.strict
   , censorBuildWarnings: Flags.censorBuildWarnings
-  , showSource: Flags.showSource
   , censorCodes: Flags.censorCodes
   , filterCodes: Flags.filterCodes
   , statVerbosity: Flags.statVerbosity
@@ -363,7 +357,6 @@ testArgsParser = Optparse.fromRecord
   , pedanticPackages: Flags.pedanticPackages
   , strict: Flags.strict
   , censorBuildWarnings: Flags.censorBuildWarnings
-  , showSource: Flags.showSource
   , censorCodes: Flags.censorCodes
   , filterCodes: Flags.filterCodes
   , statVerbosity: Flags.statVerbosity
@@ -387,7 +380,6 @@ bundleArgsParser =
     , ensureRanges: Flags.ensureRanges
     , strict: Flags.strict
     , censorBuildWarnings: Flags.censorBuildWarnings
-    , showSource: Flags.showSource
     , censorCodes: Flags.censorCodes
     , filterCodes: Flags.filterCodes
     , statVerbosity: Flags.statVerbosity
@@ -529,7 +521,6 @@ main =
                 , censorCodes: Nothing :: Maybe (NonEmptySet String)
                 , filterCodes: Nothing :: Maybe (NonEmptySet String)
                 , statVerbosity: Nothing :: Maybe Core.StatVerbosity
-                , showSource: Nothing :: Maybe Core.ShowSourceCode
                 , strict: Nothing :: Maybe Boolean
                 , persistWarnings: Nothing :: Maybe Boolean
                 }
@@ -795,7 +786,6 @@ mkBuildEnv
      , censorCodes :: Maybe (NonEmptySet String)
      , filterCodes :: Maybe (NonEmptySet String)
      , statVerbosity :: Maybe Core.StatVerbosity
-     , showSource :: Maybe Core.ShowSourceCode
      , strict :: Maybe Boolean
      , persistWarnings :: Maybe Boolean
      | r
@@ -814,7 +804,6 @@ mkBuildEnv buildArgs dependencies = do
           , censorCodes = buildArgs.censorCodes <|> workspace.buildOptions.censorCodes
           , filterCodes = buildArgs.filterCodes <|> workspace.buildOptions.filterCodes
           , statVerbosity = buildArgs.statVerbosity <|> workspace.buildOptions.statVerbosity
-          , showSource = buildArgs.showSource <|> workspace.buildOptions.showSource
           , strict = buildArgs.strict <|> workspace.buildOptions.strict
           , persistWarnings = buildArgs.persistWarnings <|> workspace.buildOptions.persistWarnings
           }
