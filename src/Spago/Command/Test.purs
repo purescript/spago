@@ -4,9 +4,10 @@ import Spago.Prelude
 
 import Data.Array.NonEmpty (NonEmptyArray)
 import Registry.PackageName as PackageName
+import Spago.Command.Fetch as Fetch
 import Spago.Command.Run (Node)
 import Spago.Command.Run as Run
-import Spago.Config (Package, Workspace, WorkspacePackage)
+import Spago.Config (Workspace, WorkspacePackage)
 import Spago.Paths as Paths
 import Spago.Purs (Purs)
 
@@ -14,7 +15,7 @@ type TestEnv a =
   { logOptions :: LogOptions
   , workspace :: Workspace
   , selectedPackages :: NonEmptyArray SelectedTest
-  , dependencies :: Map PackageName Package
+  , dependencies :: Fetch.PackageTransitiveDeps
   , node :: Node
   , purs :: Purs
   | a

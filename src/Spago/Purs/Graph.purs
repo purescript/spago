@@ -1,6 +1,9 @@
 module Spago.Purs.Graph
-  ( checkImports
-  , runGraphCheck
+  ( ImportCheckResult
+  , ImportedPackages
+  , checkImports
+  , toImportErrors
+  , runGraph
   ) where
 
 import Spago.Prelude
@@ -10,9 +13,9 @@ import Data.Codec.Argonaut as CA
 import Data.Map as Map
 import Data.Set as Set
 import Data.String as String
-import Record as Record
 import Registry.Foreign.FastGlob as Glob
 import Registry.PackageName as PackageName
+import Spago.Command.Fetch as Fetch
 import Spago.Config (Package(..), WithTestGlobs(..), WorkspacePackage)
 import Spago.Config as Config
 import Spago.Log as Log
@@ -29,7 +32,7 @@ type ImportCheckResult =
   }
 
 type PreGraphEnv a =
-  { dependencies :: Map PackageName Package
+  { dependencies :: Fetch.PackageTransitiveDeps
   , logOptions :: LogOptions
   , purs :: Purs
   | a
@@ -38,7 +41,7 @@ type PreGraphEnv a =
 type GraphEnv a =
   { selected :: WorkspacePackage
   , graph :: Purs.ModuleGraph
-  , dependencies :: Map PackageName Package
+  , dependencies :: Fetch.PackageTransitiveDeps
   , logOptions :: LogOptions
   | a
   }
@@ -51,8 +54,17 @@ type PackageGraphNode =
   , package :: PackageName
   }
 
--- Every package can be imported by several project modules.
--- In each project module, several modules from the same package can be imported.
+-- | For every Package that we depend on, we note which Module we are depending on, 
+-- | and for each of them, we note from which Module we are importing it.
+-- | 
+-- | Given code like
+-- | ```
+-- | module MyModule
+-- | 
+-- | import Prelude -- from the 'prelude' package
+-- | ```
+-- | This value would be
+-- | `Map.singleton "prelude" $ Map.singleton "Prelude" $ Set.singleton "MyModule"``
 type ImportedPackages = Map PackageName (Map ModuleName (Set ModuleName))
 
 checkImports :: forall a. Spago (GraphEnv a) ImportCheckResult
@@ -67,7 +79,8 @@ checkImports = do
   -- First compile the globs for each package, we get out a set of the modules that a package contains
   -- and we can have a map from path to a PackageName
   let
-    allPackages = dependencies
+    allDependencies = Fetch.toAllDependencies dependencies
+    allPackages = allDependencies
       # Map.insert testPackageName (WorkspacePackage selected)
       # Map.insert packageName (WorkspacePackage selected)
   pathToPackage :: Map FilePath PackageName <- map (Map.fromFoldable <<< Array.fold)
@@ -149,6 +162,13 @@ checkImports = do
 
   pure { unused, transitive, unusedTest, transitiveTest }
 
+toImportErrors :: WorkspacePackage -> ImportCheckResult -> Array Docc
+toImportErrors selected { unused, unusedTest, transitive, transitiveTest } =
+  (if Set.isEmpty unused then [] else [ unusedError false selected unused ])
+    <> (if Map.isEmpty transitive then [] else [ transitiveError false selected transitive ])
+    <> (if Set.isEmpty unusedTest then [] else [ unusedError true selected unusedTest ])
+    <> (if Map.isEmpty transitiveTest then [] else [ transitiveError true selected transitiveTest ])
+
 compileGlob :: forall a. FilePath -> Spago (LogEnv a) (Array FilePath)
 compileGlob sourcePath = do
   { succeeded, failed } <- Glob.match Paths.cwd [ withForwardSlashes sourcePath ]
@@ -156,25 +176,15 @@ compileGlob sourcePath = do
     logDebug [ toDoc "Encountered some globs that are not in cwd, proceeding anyways:", indent $ toDoc failed ]
   pure (succeeded <> failed)
 
-runGraphCheck :: forall a. WorkspacePackage -> Set FilePath -> Array String -> Spago (PreGraphEnv a) (Array Docc)
-runGraphCheck selected globs pursArgs = do
-  env <- ask
+runGraph :: forall a. Set FilePath -> Array String -> Spago (PreGraphEnv a) (Maybe Purs.ModuleGraph)
+runGraph globs pursArgs = do
   maybeGraph <- Purs.graph globs pursArgs
   case maybeGraph of
     Left err -> do
       logWarn $ "Could not decode the output of `purs graph`, error: " <> CA.printJsonDecodeError err
-      pure []
-    Right graph -> do
-      { unused, transitive, unusedTest, transitiveTest } <- runSpago (Record.union { graph, selected } env) checkImports
-
-      let
-        result =
-          (if Set.isEmpty unused then [] else [ unusedError false selected unused ])
-            <> (if Map.isEmpty transitive then [] else [ transitiveError false selected transitive ])
-            <> (if Set.isEmpty unusedTest then [] else [ unusedError true selected unusedTest ])
-            <> (if Map.isEmpty transitiveTest then [] else [ transitiveError true selected transitiveTest ])
-
-      pure result
+      pure Nothing
+    Right graph ->
+      pure $ Just graph
 
 unusedError :: Boolean -> WorkspacePackage -> Set PackageName -> Docc
 unusedError isTest selected unused = toDoc

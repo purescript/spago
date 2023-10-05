@@ -9,9 +9,11 @@ module Spago.Config
   , WorkspacePackage
   , addPackagesToConfig
   , addRangesToConfig
+  , rootPackageToWorkspacePackage
   , getPackageLocation
   , fileSystemCharEscape
   , getWorkspacePackages
+  , getTopologicallySortedWorkspacePackages
   , module Core
   , readWorkspace
   , sourceGlob
@@ -26,6 +28,7 @@ import Data.Array as Array
 import Data.CodePoint.Unicode as Unicode
 import Data.Codec.Argonaut.Record as CAR
 import Data.Enum as Enum
+import Data.Graph as Graph
 import Data.HTTP.Method as Method
 import Data.Int as Int
 import Data.Map as Map
@@ -183,9 +186,6 @@ readWorkspace maybeSelectedPackage = do
           Nothing -> pure GenerateLockfile
           Just _ -> pure SkipLockfile
 
-  -- We try to figure out if the root package has tests - look for test sources
-  rootPackageHasTests <- FS.exists "test"
-
   -- Then gather all the spago other configs in the tree.
   { succeeded: otherConfigPaths, failed, ignored } <- do
     result <- liftAff $ Glob.match' Paths.cwd [ "**/spago.yaml" ] { ignore: [ ".spago", "spago.yaml" ] }
@@ -236,10 +236,13 @@ readWorkspace maybeSelectedPackage = do
   unless (Array.null prunedConfigs) do
     logDebug $ [ "Excluding configs that use a different workspace (directly or implicitly via parent directory's config):" ] <> Array.sort failedPackages
 
-  let
-    workspacePackages = Map.fromFoldable $ configsNoWorkspaces <> case maybePackage of
-      Nothing -> []
-      Just package -> [ Tuple package.name { path: "./", package, doc: workspaceDoc, hasTests: rootPackageHasTests } ]
+  rootPackage <- case maybePackage of
+    Nothing -> pure []
+    Just rootPackage -> do
+      rootPackage' <- rootPackageToWorkspacePackage { rootPackage, workspaceDoc }
+      pure [ Tuple rootPackage.name rootPackage' ]
+
+  let workspacePackages = Map.fromFoldable $ configsNoWorkspaces <> rootPackage
 
   -- Select the package for spago to handle during the rest of the execution
   maybeSelected <- case maybeSelectedPackage of
@@ -402,6 +405,15 @@ readWorkspace maybeSelectedPackage = do
     , lockfile
     }
 
+rootPackageToWorkspacePackage
+  :: forall m
+   . MonadEffect m
+  => { rootPackage :: Core.PackageConfig, workspaceDoc :: YamlDoc Core.Config }
+  -> m WorkspacePackage
+rootPackageToWorkspacePackage { rootPackage, workspaceDoc } = do
+  hasTests <- liftEffect $ FS.exists "test"
+  pure { path: "./", doc: workspaceDoc, package: rootPackage, hasTests }
+
 getPackageLocation :: PackageName -> Package -> FilePath
 getPackageLocation name = Paths.mkRelative <<< case _ of
   RegistryVersion v -> Path.concat [ Paths.localCachePackagesPath, PackageName.print name <> "-" <> Version.print v ]
@@ -462,6 +474,19 @@ getWorkspacePackages = Array.mapMaybe extractWorkspacePackage <<< Map.toUnfoldab
   extractWorkspacePackage = case _ of
     Tuple _ (WorkspacePackage p) -> Just p
     _ -> Nothing
+
+getTopologicallySortedWorkspacePackages :: PackageSet -> Array WorkspacePackage
+getTopologicallySortedWorkspacePackages packageSet = do
+  let
+    packageMap = Map.fromFoldable $ map (\p -> Tuple p.package.name p) $ getWorkspacePackages packageSet
+    dependenciesAsList p = Set.toUnfoldable $ Map.keys $ unwrap p.package.dependencies
+    topSortPkgs =
+      Array.reverse
+        $ Array.fromFoldable
+        $ Graph.topologicalSort
+        $ Graph.fromMap
+        $ map (\p -> Tuple p $ dependenciesAsList p) packageMap
+  Array.mapMaybe (flip Map.lookup packageMap) topSortPkgs
 
 type PackageSetResult = { compiler :: Version, remotePackageSet :: Map PackageName Core.RemotePackage }
 

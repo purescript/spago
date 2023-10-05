@@ -1,4 +1,4 @@
-module Test.Main where
+module Test.Docs.Search.Main where
 
 import Prelude
 
@@ -17,8 +17,6 @@ import Test.TypeQuery as TypeQuery
 main :: Effect Unit
 main = do
   launchAff_ $ runSpec [ consoleReporter ] mainTest
-
--- UI.main
 
 mainTest :: Spec Unit
 mainTest = do

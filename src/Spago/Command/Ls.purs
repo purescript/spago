@@ -12,7 +12,8 @@ import Record as Record
 import Registry.Internal.Codec (packageMap)
 import Registry.PackageName as PackageName
 import Registry.Version as Version
-import Spago.Config (Package(..), PackageSet(..), Workspace, WorkspacePackage, PackageMap)
+import Spago.Command.Fetch as Fetch
+import Spago.Config (Package(..), PackageSet(..), Workspace, WorkspacePackage)
 import Spago.Config as Config
 import Type.Proxy (Proxy(..))
 
@@ -32,13 +33,13 @@ type LsDepsOpts =
   }
 
 type LsSetEnv =
-  { dependencies :: PackageMap
+  { dependencies :: Fetch.PackageTransitiveDeps
   , logOptions :: LogOptions
   , workspace :: Workspace
   }
 
 type LsEnv =
-  { dependencies :: PackageMap
+  { dependencies :: Fetch.PackageTransitiveDeps
   , logOptions :: LogOptions
   , workspace :: Workspace
   , selected :: WorkspacePackage
@@ -63,10 +64,11 @@ listPackages { transitive, json } = do
   logDebug "Running `listPackages`"
   { dependencies, selected } <- ask
   let
+    allDependencies = Fetch.toAllDependencies dependencies
     direct = (Map.keys <<< unwrap <<< _.dependencies <<< _.package) selected
-    directDependencies = filterKeys (_ `elem` direct) dependencies
+    directDependencies = filterKeys (_ `elem` direct) allDependencies
 
-  let packages = Map.toUnfoldable $ if transitive then dependencies else directDependencies
+  let packages = Map.toUnfoldable $ if transitive then allDependencies else directDependencies
   case packages of
     [] -> logWarn "There are no dependencies listed in your configuration"
     _ -> case json of
