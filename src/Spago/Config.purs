@@ -281,6 +281,16 @@ readWorkspace maybeSelectedPackage = do
             { compatibleCompiler: Range.caret registryPackageSet.compiler
             , remotePackageSet: Just registryPackageSet.packages
             }
+    Just (Core.SetFromPath { path }) -> do
+      logDebug $ "Reading the package set from local path: " <> path
+      liftAff (FS.readJsonFile remotePackageSetCodec path) >>= case _ of
+        Left err -> die $ "Couldn't read the package set: " <> err
+        Right (RemotePackageSet localPackageSet) -> do
+          logInfo "Read the package set from local path"
+          pure
+            { compatibleCompiler: Range.caret localPackageSet.compiler
+            , remotePackageSet: Just localPackageSet.packages
+            }
     Just (Core.SetFromUrl { url: rawUrl, hash: maybeHash }) -> do
       -- If there is a hash then we look up in the CAS, if not we fetch stuff, compute a hash and store it there
       let

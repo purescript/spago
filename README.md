@@ -563,9 +563,17 @@ You can of course just edit the `workspace.package_set` field in the `spago.yaml
 
 ### Custom package sets
 
-Spago supports fetching custom package sets from URLs, so you can build your own package set if you'd like - this is useful for example if you want to put together a custom package set for your company, or if you are using an [alternate backend](#alternate-backends).
+Spago supports fetching custom package sets from URLs and paths, so you can build your own package set if you'd like - this is useful for example if you want to put together a custom package set for your company, or if you are using an [alternate backend](#alternate-backends).
 
-You can point Spago to any URL:
+Spago will be happy to use a package set from a local path:
+
+```yaml
+workspace:
+  package_set:
+    path: ../my-custom-package-set.json
+```
+
+Otherwise you can point Spago to any URL on the internet:
 
 ```yaml
 workspace:
