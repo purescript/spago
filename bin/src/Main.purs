@@ -42,7 +42,7 @@ import Spago.Command.Run as Run
 import Spago.Command.Sources as Sources
 import Spago.Command.Test as Test
 import Spago.Command.Upgrade as Upgrade
-import Spago.Config (BundleConfig, BundlePlatform(..), BundleType(..), Package, RunConfig, TestConfig)
+import Spago.Config (BundleConfig, BundlePlatform(..), BundleType(..), PackageMap, RunConfig, TestConfig)
 import Spago.Config as Config
 import Spago.Core.Config as Core
 import Spago.Db as Db
@@ -55,6 +55,7 @@ import Spago.Log (LogVerbosity(..))
 import Spago.Paths as Paths
 import Spago.Purs as Purs
 import Spago.Registry as Registry
+import Spago.Repl as SpagoRepl
 import Unsafe.Coerce as UnsafeCoerce
 
 type GlobalArgs =
@@ -575,8 +576,8 @@ main =
               , testDeps: false
               }
             dependencies <- runSpago env (Fetch.run fetchOpts)
-            supportPackages <- runSpago env (Repl.supportPackage env.workspace.packageSet)
-            replEnv <- runSpago env (mkReplEnv args (Map.union dependencies supportPackages))
+            supportPackages <- runSpago env (SpagoRepl.supportPackage env.workspace.packageSet)
+            replEnv <- runSpago env (mkReplEnv args dependencies supportPackages)
             void $ runSpago replEnv Repl.run
 
           Bundle args@{ selectedPackage, ensureRanges } -> do
@@ -799,7 +800,7 @@ mkBuildEnv
      , persistWarnings :: Maybe Boolean
      | r
      }
-  -> Map PackageName Package
+  -> Fetch.PackageTransitiveDeps
   -> Spago (Fetch.FetchEnv ()) (Build.BuildEnv ())
 mkBuildEnv buildArgs dependencies = do
   { logOptions, workspace, git } <- ask
@@ -834,7 +835,7 @@ mkBuildEnv buildArgs dependencies = do
     , workspace: newWorkspace
     }
 
-mkPublishEnv :: forall a. Map PackageName Package -> Spago (Fetch.FetchEnv a) (Publish.PublishEnv a)
+mkPublishEnv :: forall a. Fetch.PackageTransitiveDeps -> Spago (Fetch.FetchEnv a) (Publish.PublishEnv a)
 mkPublishEnv dependencies = do
   env <- ask
   selected <- case env.workspace.selected of
@@ -854,21 +855,21 @@ mkPublishEnv dependencies = do
               ]
   pure (Record.union { selected, dependencies } env)
 
-mkReplEnv :: forall a. ReplArgs -> Map PackageName Package -> Spago (Fetch.FetchEnv a) (Repl.ReplEnv ())
-mkReplEnv replArgs dependencies = do
+mkReplEnv :: forall a. ReplArgs -> Fetch.PackageTransitiveDeps -> PackageMap -> Spago (Fetch.FetchEnv a) (Repl.ReplEnv ())
+mkReplEnv replArgs dependencies supportPackage = do
   { workspace, logOptions } <- ask
   logDebug $ "Repl args: " <> show replArgs
 
   purs <- Purs.getPurs
 
-  let
-    selected = case workspace.selected of
-      Just s -> [ s ]
-      Nothing -> Config.getWorkspacePackages workspace.packageSet
+  selected <- case workspace.selected of
+    Just s -> pure $ Build.SinglePackageGlobs s
+    Nothing -> pure $ Build.AllWorkspaceGlobs workspace.packageSet
 
   pure
     { purs
     , dependencies
+    , supportPackage
     , depsOnly: false
     , logOptions
     , pursArgs: Array.fromFoldable replArgs.pursArgs
@@ -981,7 +982,7 @@ mkRegistryEnv = do
     , db
     }
 
-mkLsEnv :: forall a. Map PackageName Package -> Spago (Fetch.FetchEnv a) Ls.LsEnv
+mkLsEnv :: forall a. Fetch.PackageTransitiveDeps -> Spago (Fetch.FetchEnv a) Ls.LsEnv
 mkLsEnv dependencies = do
   { logOptions, workspace } <- ask
   selected <- case workspace.selected of
@@ -1001,7 +1002,7 @@ mkLsEnv dependencies = do
               ]
   pure { logOptions, workspace, dependencies, selected }
 
-mkDocsEnv :: forall a. DocsArgs -> Map PackageName Package -> Spago (Fetch.FetchEnv a) Docs.DocsEnv
+mkDocsEnv :: forall a. DocsArgs -> Fetch.PackageTransitiveDeps -> Spago (Fetch.FetchEnv a) Docs.DocsEnv
 mkDocsEnv args dependencies = do
   { logOptions, workspace } <- ask
   purs <- Purs.getPurs

@@ -4,6 +4,10 @@ module Spago.Command.Init
   , srcMainTemplate
   , testMainTemplate
   , defaultConfig
+  , DefaultConfigOptions(..)
+  , DefaultConfigPackageOptions
+  , DefaultConfigWorkspaceOptions
+  , defaultConfig'
   ) where
 
 import Spago.Prelude
@@ -42,10 +46,11 @@ run opts = do
   let
     config = defaultConfig
       { name: opts.packageName
-      , withWorkspace: true
-      , setVersion: case opts.useSolver of
-          true -> Nothing
-          false -> Just packageSetVersion
+      , withWorkspace: Just
+          { setVersion: case opts.useSolver of
+              true -> Nothing
+              false -> Just packageSetVersion
+          }
       , testModuleName: "Test.Main"
       }
   let configPath = "spago.yaml"
@@ -85,42 +90,71 @@ run opts = do
 
 type TemplateConfig =
   { name :: PackageName
-  , withWorkspace :: Boolean
+  , withWorkspace :: Maybe { setVersion :: Maybe Version }
   , testModuleName :: String
-  , setVersion :: Maybe Version
   }
 
 defaultConfig :: TemplateConfig -> Config
-defaultConfig { name, withWorkspace, testModuleName, setVersion } =
-  { package: Just
+defaultConfig { name, withWorkspace, testModuleName } = do
+  let
+    pkg =
       { name
-      , dependencies:
-          Dependencies
-            ( Map.fromFoldable
-                [ mkDep "effect"
-                , mkDep "console"
-                , mkDep "prelude"
-                ]
-            )
+      , dependencies: [ "effect", "console", "prelude" ]
+      , test: Just { moduleMain: testModuleName }
+      }
+  defaultConfig' case withWorkspace of
+    Nothing -> PackageOnly pkg
+    Just w -> PackageAndWorkspace pkg w
+
+type DefaultConfigPackageOptions =
+  { name :: PackageName
+  , dependencies :: Array String
+  , test :: Maybe { moduleMain :: String }
+  }
+
+type DefaultConfigWorkspaceOptions =
+  { setVersion :: Maybe Version
+  }
+
+data DefaultConfigOptions
+  = PackageOnly DefaultConfigPackageOptions
+  | WorkspaceOnly DefaultConfigWorkspaceOptions
+  | PackageAndWorkspace DefaultConfigPackageOptions DefaultConfigWorkspaceOptions
+
+getDefaultConfigPackageOptions :: DefaultConfigOptions -> Maybe DefaultConfigPackageOptions
+getDefaultConfigPackageOptions = case _ of
+  PackageOnly pkg -> Just pkg
+  PackageAndWorkspace pkg _ -> Just pkg
+  WorkspaceOnly _ -> Nothing
+
+getDefaultConfigWorkspaceOptions :: DefaultConfigOptions -> Maybe DefaultConfigWorkspaceOptions
+getDefaultConfigWorkspaceOptions = case _ of
+  PackageAndWorkspace _ w -> Just w
+  WorkspaceOnly w -> Just w
+  PackageOnly _ -> Nothing
+
+defaultConfig' :: DefaultConfigOptions -> Config
+defaultConfig' opts =
+  { package: (getDefaultConfigPackageOptions opts) <#> \{ name, dependencies, test } ->
+      { name
+      , dependencies: Dependencies $ Map.fromFoldable $ map mkDep dependencies
       , description: Nothing
       , run: Nothing
-      , test: Just
+      , test: test <#> \{ moduleMain } ->
           { dependencies: Dependencies Map.empty
           , execArgs: Nothing
-          , main: testModuleName
+          , main: moduleMain
           }
       , publish: Nothing
       , bundle: Nothing
       }
-  , workspace: case withWorkspace of
-      false -> Nothing
-      true -> Just
-        { extra_packages: Just Map.empty
-        , package_set: setVersion # map \set -> SetFromRegistry { registry: set }
-        , build_opts: Nothing
-        , backend: Nothing
-        , lock: Nothing
-        }
+  , workspace: (getDefaultConfigWorkspaceOptions opts) <#> \{ setVersion } ->
+      { extra_packages: Just Map.empty
+      , package_set: setVersion # map \set -> SetFromRegistry { registry: set }
+      , build_opts: Nothing
+      , backend: Nothing
+      , lock: Nothing
+      }
   }
   where
   mkDep p = Tuple (unsafeFromRight $ PackageName.parse p) Nothing

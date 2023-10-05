@@ -63,8 +63,9 @@ spec = Spec.around withTempDir do
       let
         conf = Init.defaultConfig
           { name: mkPackageName "bbb"
-          , withWorkspace: true
-          , setVersion: Just $ unsafeFromRight $ Version.parse "0.0.1"
+          , withWorkspace: Just
+              { setVersion: Just $ unsafeFromRight $ Version.parse "0.0.1"
+              }
           , testModuleName: "Test.Main"
           }
       FS.writeYamlFile Config.configCodec "spago.yaml"
@@ -97,8 +98,9 @@ spec = Spec.around withTempDir do
       let
         conf = Init.defaultConfig
           { name: mkPackageName "eee"
-          , withWorkspace: true
-          , setVersion: Just $ unsafeFromRight $ Version.parse "0.0.1"
+          , withWorkspace: Just
+              { setVersion: Just $ unsafeFromRight $ Version.parse "0.0.1"
+              }
           , testModuleName: "Test.Main"
           }
       FS.writeYamlFile Config.configCodec "spago.yaml"
@@ -129,8 +131,9 @@ spec = Spec.around withTempDir do
       let
         conf = Init.defaultConfig
           { name: mkPackageName "ddd"
-          , withWorkspace: true
-          , setVersion: Just $ unsafeFromRight $ Version.parse "0.0.1"
+          , withWorkspace: Just
+              { setVersion: Just $ unsafeFromRight $ Version.parse "0.0.1"
+              }
           , testModuleName: "Test.Main"
           }
       FS.writeYamlFile Config.configCodec "spago.yaml"
@@ -162,8 +165,9 @@ spec = Spec.around withTempDir do
       let
         conf = Init.defaultConfig
           { name: mkPackageName "eee"
-          , withWorkspace: true
-          , setVersion: Just $ unsafeFromRight $ Version.parse "0.0.1"
+          , withWorkspace: Just
+              { setVersion: Just $ unsafeFromRight $ Version.parse "0.0.1"
+              }
           , testModuleName: "Test.Main"
           }
       FS.writeYamlFile Config.configCodec "spago.yaml"
@@ -189,8 +193,9 @@ spec = Spec.around withTempDir do
       let
         conf = Init.defaultConfig
           { name: mkPackageName "eee"
-          , withWorkspace: true
-          , setVersion: Just $ unsafeFromRight $ Version.parse "0.0.1"
+          , withWorkspace: Just
+              { setVersion: Just $ unsafeFromRight $ Version.parse "0.0.1"
+              }
           , testModuleName: "Test.Main"
           }
       FS.writeYamlFile Config.configCodec "spago.yaml"
@@ -220,8 +225,7 @@ spec = Spec.around withTempDir do
       FS.writeYamlFile Config.configCodec "subpackage/spago.yaml"
         ( Init.defaultConfig
             { name: mkPackageName "subpackage"
-            , withWorkspace: false
-            , setVersion: Nothing
+            , withWorkspace: Nothing
             , testModuleName: "Subpackage.Test.Main"
             }
         )
@@ -233,8 +237,8 @@ spec = Spec.around withTempDir do
       let
         conf = Init.defaultConfig
           { name: mkPackageName "aaa"
-          , withWorkspace: true
-          , setVersion: Just $ unsafeFromRight $ Version.parse "0.0.1"
+          , withWorkspace: Just
+              { setVersion: Just $ unsafeFromRight $ Version.parse "0.0.1" }
           , testModuleName: "Test.Main"
           }
       FS.writeYamlFile Config.configCodec "spago.yaml"

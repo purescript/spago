@@ -9,16 +9,16 @@ import Control.Promise (Promise)
 import Control.Promise as Promise
 import Effect.Uncurried (EffectFn1, runEffectFn1)
 import Node.Process as Process
-import Spago.Command.Build (getBuildGlobs)
-import Spago.Config (Package, Workspace)
-import Spago.Config as Config
+import Spago.Command.Build as Build
+import Spago.Command.Fetch as Fetch
+import Spago.Config (Workspace)
 import Spago.Purs (Purs, DocsFormat(..))
 import Spago.Purs as Purs
 
 type DocsEnv =
   { purs :: Purs
   , workspace :: Workspace
-  , dependencies :: Map PackageName Package
+  , dependencies :: Fetch.PackageTransitiveDeps
   , logOptions :: LogOptions
   , docsFormat :: DocsFormat
   , depsOnly :: Boolean
@@ -31,10 +31,10 @@ run = do
   logInfo "Generating documentation for the project. This might take a while..."
   { workspace, dependencies, docsFormat, depsOnly, open } <- ask
   let
-    globs = getBuildGlobs
+    globs = Build.getBuildGlobs
       { withTests: true
-      , selected: Config.getWorkspacePackages workspace.packageSet
-      , dependencies
+      , selected: Build.AllWorkspaceGlobs workspace.packageSet
+      , dependencies: Fetch.toAllDependencies dependencies
       , depsOnly
       }
 

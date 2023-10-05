@@ -12,13 +12,12 @@ import Docs.Search.ModuleIndex as ModuleIndex
 
 import Prelude
 
-import Data.Char as Char
 import Control.Promise (Promise, toAffE)
 import Data.Argonaut.Core (Json)
 import Data.Argonaut.Decode (decodeJson)
 import Data.Array as Array
 import Data.Either (hush)
-import Data.List (List, (:))
+import Data.List (List)
 import Data.List as List
 import Data.Map (Map)
 import Data.Map as Map
@@ -53,7 +52,7 @@ query index@(PartialIndex indexMap) input = do
         $
           input
 
-    partId = getPartId path
+    partId = Config.getPartId path
 
   case Map.lookup partId indexMap of
     Just trie ->
@@ -107,14 +106,6 @@ browserSearchEngine =
   , queryPackageIndex
   , queryModuleIndex: ModuleIndex.queryModuleIndex
   }
-
--- | Find in which part of the index this path can be found.
-getPartId :: List Char -> PartId
-getPartId (a : b : _) =
-  PartId $ (Char.toCharCode a + Char.toCharCode b) `mod` Config.numberOfIndexParts
-getPartId (a : _) =
-  PartId $ Char.toCharCode a `mod` Config.numberOfIndexParts
-getPartId _ = PartId 0
 
 -- | Load a part of the index by injecting a <script> tag into the DOM.
 foreign import loadIndex_

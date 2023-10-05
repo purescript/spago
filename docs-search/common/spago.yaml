@@ -1,5 +1,5 @@
 package:
-  name: docs-search
+  name: docs-search-common
   dependencies:
     - aff
     - aff-promise
@@ -7,46 +7,22 @@ package:
     - argonaut-core
     - argonaut-generic
     - arrays
-    - console
     - control
-    - css
     - effect
     - either
     - exceptions
     - foldable-traversable
     - foreign-object
-    - halogen
-    - halogen-css
-    - halogen-subscriptions
-    - identity
-    - js-uri
     - language-purescript
     - lists
-    - markdown-it
-    - markdown-it-halogen
     - maybe
     - newtype
-    - node-buffer
-    - node-fs
-    - node-fs-aff
-    - node-process
-    - node-readline
-    - optparse
     - ordered-collections
-    - parallel
-    - partial
     - prelude
-    - profunctor
     - profunctor-lenses
+    - safe-coerce
     - search-trie
-    - spec
     - string-parsers
     - strings
     - transformers
     - tuples
-    - unfoldable
-    - web-dom
-    - web-events
-    - web-html
-    - web-storage
-    - web-uievents

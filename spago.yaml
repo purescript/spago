@@ -14,7 +14,7 @@ package:
     - arrays
     - codec-argonaut
     - datetime
-    - docs-search
+    - docs-search-index
     - dodo-printer
     - effect
     - either

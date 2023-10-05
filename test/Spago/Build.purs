@@ -4,13 +4,16 @@ import Test.Prelude
 
 import Node.FS.Aff as FSA
 import Node.Path as Path
+import Node.Process as Process
 import Registry.Version as Version
 import Spago.Command.Init as Init
 import Spago.Core.Config as Config
 import Spago.FS as FS
+import Test.Spago.Build.Polyrepo as BuildPolyrepo
 import Test.Spec (Spec)
 import Test.Spec as Spec
 import Test.Spec.Assertions as Assert
+import Test.Spec.Assertions.String (shouldContain)
 
 spec :: Spec Unit
 spec = Spec.around withTempDir do
@@ -41,6 +44,22 @@ spec = Spec.around withTempDir do
     --   spago [ "install" ] >>= shouldBeSuccess
     --   spago [ "build", "--no-install" ] >>= shouldBeSuccess
 
+    Spec.it "can build with a local custom package set" \{ spago, fixture } -> do
+      spago [ "init" ] >>= shouldBeSuccess
+      FSA.unlink "spago.yaml"
+      FS.copyFileSync { src: fixture "local-package-set-config.yaml", dst: "spago.yaml" }
+      FS.copyFileSync { src: fixture "local-package-set.json", dst: "local-package-set.json" }
+      spago [ "build" ] >>= shouldBeSuccess
+
+    Spec.it "can build with a local custom package set in a parent directory" \{ spago, fixture } -> do
+      FS.copyFileSync { src: fixture "local-package-set.json", dst: "local-package-set.json" }
+      FS.mkdirp "subdir"
+      liftEffect $ Process.chdir "subdir"
+      spago [ "init" ] >>= shouldBeSuccess
+      FSA.unlink "spago.yaml"
+      FS.copyFileSync { src: fixture "local-package-set-config2.yaml", dst: "spago.yaml" }
+      spago [ "build" ] >>= shouldBeSuccess
+
     Spec.it "there's only one output folder in a monorepo" \{ spago } -> do
       spago [ "init" ] >>= shouldBeSuccess
       FS.mkdirp (Path.concat [ "subpackage", "src" ])
@@ -50,9 +69,8 @@ spec = Spec.around withTempDir do
       FS.writeYamlFile Config.configCodec (Path.concat [ "subpackage", "spago.yaml" ])
         ( Init.defaultConfig
             { name: mkPackageName "subpackage"
-            , setVersion: Nothing
             , testModuleName: "Subpackage.Test.Main"
-            , withWorkspace: false
+            , withWorkspace: Nothing
             }
         )
       spago [ "build" ] >>= shouldBeSuccess
@@ -105,9 +123,10 @@ spec = Spec.around withTempDir do
       let
         conf = Init.defaultConfig
           { name: mkPackageName "subpackage"
-          , setVersion: Just $ mkVersion "0.0.1"
           , testModuleName: "Test.Main"
-          , withWorkspace: true
+          , withWorkspace: Just
+              { setVersion: Just $ mkVersion "0.0.1"
+              }
           }
       FS.writeYamlFile Config.configCodec "spago.yaml"
         (conf { workspace = conf.workspace # map (_ { backend = Just { cmd: "echo", args: Just [ "hello" ] } }) })
@@ -123,6 +142,14 @@ spec = Spec.around withTempDir do
       spago [ "init", "--name", "7368613235362d68766258694c614d517a3667747a58725778" ] >>= shouldBeSuccess
       spago [ "build" ] >>= shouldBeSuccess
       spago [ "build", "--purs-args", "--codegen", "--purs-args", "corefn" ] >>= shouldBeFailureErr (fixture "codegen-opt.txt")
+
+    Spec.it "passing the --ensure-ranges flag without package selection adds ranges to root package when it exists" \{ spago } -> do
+      spago [ "init", "--package-set", "0.0.1" ] >>= shouldBeSuccess
+      spago [ "build", "--ensure-ranges" ] >>= shouldBeSuccess
+      spagoYaml <- FS.readTextFile "spago.yaml"
+      spagoYaml `shouldContain` "- prelude: \">=6.0.1 <7.0.0\""
+
+    BuildPolyrepo.spec
 
 -- Spec.it "runs a --before command" \{ spago } -> do
 --   spago [ "init" ] >>= shouldBeSuccess

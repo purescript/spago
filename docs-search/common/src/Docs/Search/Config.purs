@@ -1,9 +1,12 @@
 module Docs.Search.Config where
 
-import Docs.Search.Types (GlobalIdentifier, PackageName, PartId, URL, FilePath)
+import Docs.Search.Types (GlobalIdentifier, PackageName, PartId(..), URL, FilePath)
 
 import Prelude
 
+import Data.Char as Char
+import Data.List (List, (:))
+import Data.List as List
 import Data.Newtype (wrap)
 
 version :: String
@@ -83,3 +86,11 @@ penalties =
 
 defaultPackageName :: PackageName
 defaultPackageName = wrap "<local package>"
+
+-- | Find in which part of the index this path can be found.
+getPartId :: List Char -> PartId
+getPartId (a : b : _) =
+  PartId $ (Char.toCharCode a + Char.toCharCode b) `mod` numberOfIndexParts
+getPartId (a : _) =
+  PartId $ Char.toCharCode a `mod` numberOfIndexParts
+getPartId _ = PartId 0
