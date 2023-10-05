@@ -1,0 +1,20 @@
+Reading Spago workspace configuration...
+Read the package set from the registry
+
+✅ Selecting package to build: aaa
+
+Downloading dependencies...
+Building...
+           Src   Lib   All
+Warnings     0     0     0
+Errors       0     0     0
+
+✅ Build succeeded.
+
+Your package "aaa" is not ready for publishing yet, encountered 1 error:
+
+
+❌ The git tree is not clean, or you haven't checked out the tag you want to publish.
+Please commit or stash your changes, and checkout the tag you want to publish.
+To create the tag, you can run:
+  git tag v0.0.1
