@@ -29,8 +29,7 @@ spec = Spec.around withTempDir do
       FS.writeYamlFile Config.configCodec "subpackage/spago.yaml"
         ( Init.defaultConfig
             { name: mkPackageName "subpackage"
-            , withWorkspace: false
-            , setVersion: Nothing
+            , withWorkspace: Nothing
             , testModuleName: "Subpackage.Test.Main"
             }
         )

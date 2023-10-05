@@ -45,8 +45,7 @@ makeSubpackage = do
   FS.writeYamlFile Config.configCodec "subpackage/spago.yaml"
     ( Init.defaultConfig
         { name: mkPackageName "aaa2"
-        , withWorkspace: false
-        , setVersion: Nothing
+        , withWorkspace: Nothing
         , testModuleName: "Subpackage.Test.Main"
         }
     )
