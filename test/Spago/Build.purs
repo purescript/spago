@@ -125,7 +125,7 @@ spec = Spec.around withTempDir do
           { name: mkPackageName "subpackage"
           , testModuleName: "Test.Main"
           , withWorkspace: Just
-              { setVersion: Just $ unsafeFromRight $ Version.parse "0.0.1"
+              { setVersion: Just $ mkVersion "0.0.1"
               }
           }
       FS.writeYamlFile Config.configCodec "spago.yaml"
