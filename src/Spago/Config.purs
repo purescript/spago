@@ -77,7 +77,6 @@ type BuildOptions =
   , filterCodes :: Maybe (NonEmptySet String)
   , statVerbosity :: Maybe Core.StatVerbosity
   , strict :: Maybe Boolean
-  , persistWarnings :: Maybe Boolean
   }
 
 data LockfileSettings
@@ -388,7 +387,6 @@ readWorkspace maybeSelectedPackage = do
       , filterCodes: _.filter_codes =<< workspace.build_opts
       , statVerbosity: _.stat_verbosity =<< workspace.build_opts
       , strict: _.strict =<< workspace.build_opts
-      , persistWarnings: _.persist_warnings =<< workspace.build_opts
       }
 
   pure

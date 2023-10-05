@@ -7,7 +7,6 @@ module Spago.Command.Build
 
 import Spago.Prelude
 
-import Control.Alternative as Alternative
 import Data.Array as Array
 import Data.Either (note)
 import Data.Map as Map
@@ -25,7 +24,6 @@ import Spago.Command.Fetch as Fetch
 import Spago.Config (Package(..), PackageMap, PackageSet, WithTestGlobs(..), Workspace, WorkspacePackage)
 import Spago.Config as Config
 import Spago.Git (Git)
-import Spago.Paths as Paths
 import Spago.Psa as Psa
 import Spago.Purs (Purs)
 import Spago.Purs as Purs
@@ -145,13 +143,6 @@ run opts = do
         , censorCodes: maybe Psa.defaultParseOptions.censorCodes NonEmptySet.toSet workspace.buildOptions.censorCodes
         , filterCodes: maybe Psa.defaultParseOptions.filterCodes NonEmptySet.toSet workspace.buildOptions.filterCodes
         , statVerbosity: fromMaybe Psa.defaultParseOptions.statVerbosity workspace.buildOptions.statVerbosity
-        , stashFile: do
-            Alternative.guard (not opts.depsOnly)
-            shouldStashWarnings <- workspace.buildOptions.persistWarnings
-            Alternative.guard shouldStashWarnings
-            case workspace.selected of
-              Just p -> Just $ Paths.mkLocalCachesPersistentWarningsFile $ PackageName.print p.package.name
-              Nothing -> Just Paths.localCachesPersistedWarningsEntireWorkspace
         }
 
     Psa.psaCompile globs args psaArgs psaOptions

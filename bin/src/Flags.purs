@@ -75,14 +75,6 @@ statVerbosity =
   flagMaybe Core.VerboseStats (O.long "verbose-stats" <> O.help "Show counts for each warning type")
     <|> flagMaybe Core.NoStats (O.long "censor-stats" <> O.help "Censor warning/error summary")
 
-persistWarnings :: Parser (Maybe Boolean)
-persistWarnings =
-  O.optional $
-    O.switch
-      ( O.long "persist-warnings"
-          <> O.help "Persist the compiler warnings between multiple underlying `purs compile` calls"
-      )
-
 jsonErrors :: Parser Boolean
 jsonErrors =
   O.switch

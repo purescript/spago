@@ -115,7 +115,6 @@ publish _args = do
     , filterCodes: (Nothing :: Maybe (NonEmptySet String))
     , statVerbosity: (Nothing :: Maybe Core.StatVerbosity)
     , strict: (Nothing :: Maybe Boolean)
-    , persistWarnings: (Nothing :: Maybe Boolean)
     }
     ( Build.run
         { depsOnly: false
@@ -312,7 +311,6 @@ publish _args = do
         , filterCodes: (Nothing :: Maybe (NonEmptySet String))
         , statVerbosity: (Nothing :: Maybe Core.StatVerbosity)
         , strict: (Nothing :: Maybe Boolean)
-        , persistWarnings: (Nothing :: Maybe Boolean)
         }
         ( Build.run
             { depsOnly: false

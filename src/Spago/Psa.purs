@@ -8,28 +8,19 @@ module Spago.Psa where
 
 import Spago.Prelude
 
-import Data.Argonaut.Core (stringify)
 import Data.Argonaut.Parser (jsonParser)
 import Data.Array as Array
 import Data.Codec.Argonaut as CA
-import Data.DateTime.Instant (toDateTime)
-import Data.Foldable (foldr)
 import Data.Set as Set
 import Data.String as Str
-import Effect.Exception as Exception
-import Effect.Now (now)
 import Effect.Ref as Ref
 import Foreign.Object as FO
 import Node.Encoding as Encoding
 import Node.FS.Aff as FSA
-import Node.FS.Perms (permsAll)
-import Node.FS.Stats as Stats
-import Node.FS.Sync as FSSync
-import Node.Path (dirname)
 import Spago.Core.Config as Core
 import Spago.Psa.Output (buildOutput)
 import Spago.Psa.Printer (printDefaultOutputToErr, printJsonOutputToOut)
-import Spago.Psa.Types (PsaOutputOptions, ErrorCode, psaErrorCodec, psaResultCodec)
+import Spago.Psa.Types (ErrorCode, PsaOutputOptions, psaResultCodec)
 import Spago.Purs as Purs
 
 type PsaArgs =
@@ -40,8 +31,7 @@ type PsaArgs =
 
 defaultParseOptions :: PsaOptions
 defaultParseOptions =
-  { stashFile: Nothing
-  , censorBuildWarnings: Core.CensorNoWarnings
+  { censorBuildWarnings: Core.CensorNoWarnings
   , censorCodes: Set.empty
   , filterCodes: Set.empty
   , statVerbosity: Core.CompactStats
@@ -49,8 +39,7 @@ defaultParseOptions =
   }
 
 type PsaOptions =
-  { stashFile :: Maybe String
-  , censorBuildWarnings :: Core.CensorBuildWarnings
+  { censorBuildWarnings :: Core.CensorBuildWarnings
   , censorCodes :: Set ErrorCode
   , filterCodes :: Set ErrorCode
   , statVerbosity :: Core.StatVerbosity
@@ -69,11 +58,8 @@ toOutputOptions { libraryDirs, color } options =
   }
 
 psaCompile :: forall a. Set.Set FilePath -> Array String -> PsaArgs -> PsaOptions -> Spago (Purs.PursEnv a) Unit
-psaCompile globs pursArgs psaArgs options@{ stashFile } = do
+psaCompile globs pursArgs psaArgs options = do
   let outputOptions = toOutputOptions psaArgs options
-  stashData <- case stashFile of
-    Just f -> readStashFile f
-    Nothing -> emptyStash
 
   result <- Purs.compile globs (Array.snoc pursArgs "--json-errors")
   let
@@ -92,11 +78,7 @@ psaCompile globs pursArgs psaArgs options@{ stashFile } = do
         pure true
       Right out -> do
         files <- liftEffect $ Ref.new FO.empty
-        let filenames = insertFilenames (insertFilenames Set.empty out.errors) out.warnings
-        merged <- mergeWarnings filenames stashData.date stashData.stash out.warnings
-        for_ stashFile \f -> writeStashFile f merged
-
-        out' <- buildOutput (loadLines files) outputOptions out { warnings = merged }
+        out' <- buildOutput (loadLines files) outputOptions out
 
         liftEffect $ if psaArgs.jsonErrors then printJsonOutputToOut out' else printDefaultOutputToErr outputOptions out'
 
@@ -109,8 +91,6 @@ psaCompile globs pursArgs psaArgs options@{ stashFile } = do
     die [ "Failed to build." ]
 
   where
-  insertFilenames = foldr \x s -> maybe s (flip Set.insert s) x.filename
-
   isEmptySpan filename pos =
     filename == "" || pos.startLine == 0 && pos.endLine == 0 && pos.startColumn == 0 && pos.endColumn == 0
 
@@ -131,55 +111,3 @@ psaCompile globs pursArgs psaArgs options@{ stashFile } = do
           pure $ Just source
         either (const (pure Nothing)) pure result
 
-  decodeStash s = jsonParser s >>= CA.decode (CA.array psaErrorCodec) >>> lmap CA.printJsonDecodeError
-  encodeStash s = CA.encode (CA.array psaErrorCodec) s
-
-  emptyStash = do
-    logDebug $ "Using empty stash"
-    liftEffect $ { date: _, stash: [] } <$> toDateTime <$> now
-
-  readStashFile stashFile' = do
-    logDebug $ "About to read stash file: " <> stashFile'
-    result <- try do
-      stat <- liftAff $ FSA.stat stashFile'
-      file <- liftAff $ FSA.readTextFile Encoding.UTF8 stashFile'
-      case decodeStash file of
-        Left err -> do
-          logDebug $ "Error decoding stash file: " <> err
-          emptyStash
-        Right stash' -> do
-          logDebug $ "Successfully decoded stash file"
-          pure { date: Stats.modifiedTime stat, stash: stash' }
-    case result of
-      Left err -> do
-        logDebug $ "Reading stash file failed: " <> Exception.message err
-        emptyStash
-      Right cache -> pure cache
-
-  writeStashFile stashFile' warnings = do
-    logDebug $ "Writing stash file: " <> stashFile'
-    let
-      file = stringify (encodeStash warnings)
-      dir = dirname stashFile'
-    dirExists <- liftEffect $ FSSync.exists dir
-    unless dirExists do
-      liftAff $ FSA.mkdir' dir { recursive: true, mode: permsAll }
-    liftAff $ FSA.writeTextFile Encoding.UTF8 stashFile' file
-
-  mergeWarnings filenames date old new = do
-    fileStat <- liftEffect $ Ref.new FO.empty
-    old' <- flip Array.filterA old \x ->
-      case x.filename of
-        Nothing -> pure false
-        Just f ->
-          if Set.member f filenames then pure false
-          else do
-            stat <- liftEffect $ FO.lookup f <$> Ref.read fileStat
-            case stat of
-              Just s -> pure s
-              Nothing -> do
-                s <- liftAff $ try $ (date > _) <<< Stats.modifiedTime <$> FSA.stat f
-                let s' = either (const false) identity s
-                _ <- liftEffect $ Ref.modify_ (FO.insert f s') fileStat
-                pure s'
-    pure $ old' <> new

@@ -101,7 +101,6 @@ type BuildArgs a =
   , censorCodes :: Maybe (NonEmptySet String)
   , filterCodes :: Maybe (NonEmptySet String)
   , statVerbosity :: Maybe Core.StatVerbosity
-  , persistWarnings :: Maybe Boolean
   | a
   }
 
@@ -132,7 +131,6 @@ type RunArgs =
   , censorCodes :: Maybe (NonEmptySet String)
   , filterCodes :: Maybe (NonEmptySet String)
   , statVerbosity :: Maybe Core.StatVerbosity
-  , persistWarnings :: Maybe Boolean
   }
 
 type TestArgs =
@@ -147,7 +145,6 @@ type TestArgs =
   , censorCodes :: Maybe (NonEmptySet String)
   , filterCodes :: Maybe (NonEmptySet String)
   , statVerbosity :: Maybe Core.StatVerbosity
-  , persistWarnings :: Maybe Boolean
   }
 
 type SourcesArgs =
@@ -173,7 +170,6 @@ type BundleArgs =
   , censorCodes :: Maybe (NonEmptySet String)
   , filterCodes :: Maybe (NonEmptySet String)
   , statVerbosity :: Maybe Core.StatVerbosity
-  , persistWarnings :: Maybe Boolean
   }
 
 type PublishArgs =
@@ -319,7 +315,6 @@ buildArgsParser = Optparse.fromRecord
   , censorCodes: Flags.censorCodes
   , filterCodes: Flags.filterCodes
   , statVerbosity: Flags.statVerbosity
-  , persistWarnings: Flags.persistWarnings
   }
 
 replArgsParser :: Parser ReplArgs
@@ -344,7 +339,6 @@ runArgsParser = Optparse.fromRecord
   , censorCodes: Flags.censorCodes
   , filterCodes: Flags.filterCodes
   , statVerbosity: Flags.statVerbosity
-  , persistWarnings: Flags.persistWarnings
   }
 
 testArgsParser :: Parser TestArgs
@@ -360,7 +354,6 @@ testArgsParser = Optparse.fromRecord
   , censorCodes: Flags.censorCodes
   , filterCodes: Flags.filterCodes
   , statVerbosity: Flags.statVerbosity
-  , persistWarnings: Flags.persistWarnings
   }
 
 bundleArgsParser :: Parser BundleArgs
@@ -383,7 +376,6 @@ bundleArgsParser =
     , censorCodes: Flags.censorCodes
     , filterCodes: Flags.filterCodes
     , statVerbosity: Flags.statVerbosity
-    , persistWarnings: Flags.persistWarnings
     }
 
 publishArgsParser :: Parser PublishArgs
@@ -522,7 +514,6 @@ main =
                 , filterCodes: Nothing :: Maybe (NonEmptySet String)
                 , statVerbosity: Nothing :: Maybe Core.StatVerbosity
                 , strict: Nothing :: Maybe Boolean
-                , persistWarnings: Nothing :: Maybe Boolean
                 }
             env' <- runSpago env (mkBuildEnv buildArgs dependencies)
             let options = { depsOnly: true, pursArgs: List.toUnfoldable args.pursArgs, jsonErrors: false }
@@ -787,7 +778,6 @@ mkBuildEnv
      , filterCodes :: Maybe (NonEmptySet String)
      , statVerbosity :: Maybe Core.StatVerbosity
      , strict :: Maybe Boolean
-     , persistWarnings :: Maybe Boolean
      | r
      }
   -> Fetch.PackageTransitiveDeps
@@ -805,7 +795,6 @@ mkBuildEnv buildArgs dependencies = do
           , filterCodes = buildArgs.filterCodes <|> workspace.buildOptions.filterCodes
           , statVerbosity = buildArgs.statVerbosity <|> workspace.buildOptions.statVerbosity
           , strict = buildArgs.strict <|> workspace.buildOptions.strict
-          , persistWarnings = buildArgs.persistWarnings <|> workspace.buildOptions.persistWarnings
           }
       -- Override the backend args from the config if they are passed in through a flag
       , backend = map
