@@ -523,88 +523,87 @@ renderType
   :: forall a
    . Type'
   -> HH.HTML a Action
-renderType =
-  case _ of
-    TypeVar _ str -> HH.text str
-    TypeLevelString _ str -> HH.text $ "\"" <> PSString.decodeStringWithReplacement str <> "\"" -- TODO: add escaping
-    TypeLevelInt _ n -> HH.text $ show n
-    TypeWildcard _ _ -> HH.text "_"
-    TypeConstructor _ (Qualified by name) ->
-      renderQualifiedName false TypeLevel by $ unwrap name
-    TypeOp _ (Qualified by name) ->
-      renderQualifiedName true TypeLevel by $ unwrap name
-    TypeApp _
-      ( TypeApp _
-          ( TypeConstructor _
-              ( Qualified
-                  (ByModuleName (ModuleName "Prim"))
-                  (ProperName "Function")
-              )
-          )
-          t1
-      )
-      t2 ->
-      HH.span_
-        [ renderType t1
-        , syntax " -> "
-        , renderType t2
-        ]
+renderType = case _ of
+  TypeVar _ str -> HH.text str
+  TypeLevelString _ str -> HH.text $ "\"" <> PSString.decodeStringWithReplacement str <> "\"" -- TODO: add escaping
+  TypeLevelInt _ n -> HH.text $ show n
+  TypeWildcard _ _ -> HH.text "_"
+  TypeConstructor _ (Qualified by name) ->
+    renderQualifiedName false TypeLevel by $ unwrap name
+  TypeOp _ (Qualified by name) ->
+    renderQualifiedName true TypeLevel by $ unwrap name
+  TypeApp _
+    ( TypeApp _
+        ( TypeConstructor _
+            ( Qualified
+                (ByModuleName (ModuleName "Prim"))
+                (ProperName "Function")
+            )
+        )
+        t1
+    )
+    t2 ->
+    HH.span_
+      [ renderType t1
+      , syntax " -> "
+      , renderType t2
+      ]
 
-    TypeApp _
-      ( TypeConstructor _
-          ( Qualified
-              (ByModuleName (ModuleName "Prim"))
-              (ProperName "Record")
-          )
-      )
-      row ->
-      renderRow false row
+  TypeApp _
+    ( TypeConstructor _
+        ( Qualified
+            (ByModuleName (ModuleName "Prim"))
+            (ProperName "Record")
+        )
+    )
+    row ->
+    renderRow false row
 
-    TypeApp _ t1 t2 ->
-      HH.span_
-        [ renderType t1
-        , space
-        , renderType t2
-        ]
+  TypeApp _ t1 t2 ->
+    HH.span_
+      [ renderType t1
+      , space
+      , renderType t2
+      ]
 
-    KindApp _ t1 t2 ->
-      HH.span_ [ renderType t1, space, renderType t2 ]
+  KindApp _ t1 t2 ->
+    HH.span_ [ renderType t1, space, renderType t2 ]
 
-    ty@(ForAll _ _ _ _ _ _) ->
-      renderForAll ty
+  ty@(ForAll _ _ _ _ _ _) ->
+    renderForAll ty
 
-    ConstrainedType _ cnstr ty ->
-      HH.span_
-        [ renderConstraint cnstr
-        , HH.text " => "
-        , renderType ty
-        ]
+  ConstrainedType _ cnstr ty ->
+    HH.span_
+      [ renderConstraint cnstr
+      , HH.text " => "
+      , renderType ty
+      ]
 
-    ty@(REmpty _) -> renderRow true ty
-    ty@(RCons _ _ _ _) -> renderRow true ty
+  ty@(REmpty _) -> renderRow true ty
+  ty@(RCons _ _ _ _) -> renderRow true ty
 
-    KindedType _ t1 t2 ->
-      HH.span_ [ renderType t1, space, syntax "::", space, renderType t2 ]
+  KindedType _ t1 t2 ->
+    HH.span_ [ renderType t1, space, syntax "::", space, renderType t2 ]
 
-    BinaryNoParensType _ op t1 t2 ->
-      HH.span_
-        [ renderType t1
-        , space
-        , renderType op
-        , space
-        , renderType t2
-        ]
+  BinaryNoParensType _ op t1 t2 ->
+    HH.span_
+      [ renderType t1
+      , space
+      , renderType op
+      , space
+      , renderType t2
+      ]
 
-    ParensInType _ ty ->
-      HH.span_
-        [ HH.text "("
-        , renderType ty
-        , HH.text ")"
-        ]
+  ParensInType _ ty ->
+    HH.span_
+      [ HH.text "("
+      , renderType ty
+      , HH.text ")"
+      ]
 
-    -- FIXME(ast)
-    Skolem _ _ _ _ _ -> HH.text "Skolem"
-    TUnknown _ _ -> HH.text "TUnknown"
+  -- FIXME(ast)
+  Skolem _ _ _ _ _ -> HH.text "Skolem"
+  TUnknown _ _ -> HH.text "TUnknown"
 
 renderForAll
   :: forall a
