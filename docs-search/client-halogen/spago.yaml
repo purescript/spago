@@ -3,11 +3,9 @@ package:
   dependencies:
     - aff
     - aff-promise
-    - argonaut-codecs
     - argonaut-core
     - arrays
     - codec-argonaut
-    - console
     - control
     - css
     - docs-search-common
