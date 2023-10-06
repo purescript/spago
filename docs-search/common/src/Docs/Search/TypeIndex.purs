@@ -3,18 +3,14 @@ module Docs.Search.TypeIndex where
 
 import Docs.Search.Config as Config
 import Docs.Search.Declarations (resultsForDeclaration)
+import Docs.Search.DocTypes (Type')
 import Docs.Search.Score (Scores)
 import Docs.Search.SearchResult (ResultInfo(..), SearchResult(..))
 import Docs.Search.SearchResult as SearchResult
-import Docs.Search.TypeDecoder (Type)
 import Docs.Search.TypeQuery (TypeQuery)
-import Language.PureScript.Docs.Types
-import Language.PureScript.Names (ModuleName(..))
-
 import Docs.Search.TypeShape (shapeOfType, shapeOfTypeQuery, stringifyShape)
 
 import Prelude
-import Prim hiding (Type)
 import Control.Promise (Promise, toAffE)
 import Data.Argonaut.Core (Json)
 import Data.Array as Array

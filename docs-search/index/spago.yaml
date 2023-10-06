@@ -12,6 +12,7 @@ package:
     - either
     - foldable-traversable
     - identity
+    - json-codecs
     - language-purescript
     - lists
     - maybe

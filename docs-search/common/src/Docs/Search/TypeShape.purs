@@ -14,7 +14,6 @@ import Docs.Search.TypeQuery as TypeQuery
 import Docs.Search.Types (Identifier(..))
 
 import Prelude
-import Prim hiding (Type)
 import Data.Generic.Rep (class Generic)
 import Data.Show.Generic (genericShow)
 import Data.List (List(..), (:))

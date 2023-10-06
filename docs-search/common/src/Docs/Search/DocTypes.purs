@@ -8,4 +8,5 @@ import Language.PureScript.Label as ReExport
 import Language.PureScript.Names as ReExport
 import Language.PureScript.Types as ReExport
 import Language.PureScript.Docs.Types as ReExport
+import Language.PureScript.AST.SourcePos as ReExport
 

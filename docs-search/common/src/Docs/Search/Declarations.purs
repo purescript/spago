@@ -14,7 +14,6 @@ import Docs.Search.TypeQuery as TypeQuery
 import Docs.Search.Types (PackageName(..), PackageInfo(..), Identifier(..))
 
 import Prelude
-import Prim hiding (Type)
 import Control.Alt ((<|>))
 import Data.Array ((!!))
 import Data.Array as Array

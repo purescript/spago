@@ -15,8 +15,7 @@ import Docs.Search.SearchResult (SearchResult)
 import Docs.Search.SearchResult as SearchResult
 import Docs.Search.TypeIndex (TypeIndex)
 import Docs.Search.TypeIndex as TypeIndex
-import Docs.Search.Types (ModuleName, PackageName(..), PartId)
-import Docs.Search.Types as Package
+import Docs.Search.Types (ModuleName, PackageName, PartId)
 
 import Prelude
 
@@ -53,11 +52,9 @@ import Node.FS.Stats (isDirectory, isFile)
 import Node.FS.Sync (exists)
 import Node.Process as Process
 import Web.Bower.PackageMeta (PackageMeta(..))
-import Web.Bower.PackageMeta (PackageMeta(..), PackageName(..))
-import Web.Bower.PackageMeta as Bower
 import Codec.Json.Unidirectional.Value as JsonCodec
-import Language.PureScript.Docs.Types (DocModule(..))
-import Language.PureScript.Docs.Types as Docs
+import Docs.Search.DocTypes (DocModule)
+import Docs.Search.DocTypes as Docs
 
 type Config =
   { docsFiles :: Array String

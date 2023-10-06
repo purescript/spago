@@ -20,7 +20,6 @@ import Docs.Search.DocTypes as DocTypes
 import Docs.Search.JsonCodec as JsonCodec
 
 import Prelude
-import Prim hiding (Type, Constraint)
 
 import Codec.Json.Unidirectional.Value as Json
 import Data.Argonaut.Core as Argonaut

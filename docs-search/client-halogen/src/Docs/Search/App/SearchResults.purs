@@ -5,21 +5,20 @@ import Docs.Search.App.SearchField (SearchFieldMessage(..))
 import Docs.Search.BrowserEngine (PartialIndex, browserSearchEngine)
 import Docs.Search.Config as Config
 import Docs.Search.Declarations (DeclLevel(..), declLevelToHashAnchor)
-import Docs.Search.DocsJson (DataDeclType(..))
+import Docs.Search.DocTypes (DataDeclType(..))
 import Docs.Search.Engine (Result(..), packageInfoToString)
 import Docs.Search.Engine as Engine
 import Docs.Search.Extra (homePageFromRepository, (>#>))
 import Docs.Search.ModuleIndex (ModuleResult)
 import Docs.Search.PackageIndex (PackageResult)
 import Docs.Search.SearchResult (ResultInfo(..), SearchResult(..))
-import Docs.Search.TypeDecoder (Constraint(..), Constraint', Type', Qualified(..), QualifiedBy(..), ProperName(..), Type(..), TypeArgument, ClassName(..), FunDep, FunDeps)
+import Docs.Search.TypeDecoder (Constraint(..), Constraint', Type', Qualified(..), QualifiedBy(..), ProperName(..), Type(..), TypeArgument, ClassName(..), FunDeps)
 import Docs.Search.TypeQuery as TypeQuery
 import Docs.Search.TypeIndex (TypeIndex)
 import Docs.Search.Types (Identifier(..), ModuleName(..), PackageName)
 import Docs.Search.Meta (Meta)
 
 import Prelude
-import Prim hiding (Type, Constraint)
 import Data.Array ((!!))
 import Data.Array as Array
 import Data.List as List
@@ -693,7 +692,7 @@ renderConstraint (Constraint { class: Qualified by constraintClass, args, kindAr
   constraintArgs = args <> kindArgs
 
 renderQualifiedName
-  :: forall a tag
+  :: forall a
    . Boolean
   -> DeclLevel
   -> QualifiedBy

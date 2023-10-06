@@ -4,10 +4,10 @@ import Prelude
 
 import Docs.Search.Declarations (extractPackageName)
 import Docs.Search.Types (PackageName(..), PackageInfo(..))
+import Docs.Search.DocTypes (SourceSpan)
 
 import Data.Maybe (Maybe(..))
 import Data.Newtype (wrap)
-import Language.PureScript.AST.SourcePos (SourceSpan)
 
 import Test.Spec (Spec, describe, it)
 import Test.Spec.Assertions (shouldEqual)
