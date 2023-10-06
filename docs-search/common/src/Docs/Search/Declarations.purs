@@ -29,7 +29,6 @@ import Data.String.Common (toLower)
 import Data.String.Pattern (Pattern(..))
 import Data.Tuple (Tuple(..))
 import Docs.Search.DocTypes (SourceSpan(..), Type', ChildDeclaration(..), ChildDeclarationInfo(..), QualifiedBy(..), ProperName(..), ModuleName(..), Declaration(..), DocModule(..), DeclarationInfo(..))
--- import Docs.Search.DocsJson
 import Safe.Coerce (coerce)
 
 newtype Declarations = Declarations (Trie Char (List SearchResult))
