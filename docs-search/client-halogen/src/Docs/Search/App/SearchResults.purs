@@ -26,11 +26,8 @@ import Data.List as List
 import Data.Maybe (Maybe(..), isJust, fromMaybe)
 import Data.Newtype (wrap, unwrap)
 import Data.String.CodeUnits (stripSuffix) as String
-import Data.String.Utils (startsWith) as String
 import Data.String.Common (null, trim) as String
 import Data.String.Pattern (Pattern(..)) as String
-import Data.String.Regex as Regex
-import Data.String.Regex.Flags as RegexFlags
 import Data.Tuple (Tuple(..))
 import Effect.Aff (Aff)
 import Halogen as H
@@ -703,7 +700,6 @@ renderQualifiedName
   -> String
   -> HH.HTML a Action
 renderQualifiedName isInfix level by name =
-  --fixme(ast)
   case by of
     BySourcePos _ ->
       HH.text name

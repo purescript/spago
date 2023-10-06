@@ -31,5 +31,4 @@ package:
     main: Test.Docs.Search.Main
     dependencies:
       - exceptions
-      - partial
       - spec
