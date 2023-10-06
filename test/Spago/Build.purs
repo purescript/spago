@@ -101,7 +101,7 @@ spec = Spec.around withTempDir do
         }
       spago [ "build", "--strict" ] >>= shouldBeFailure
 
-    Spec.it "built_opts 'strict: true' causes build to fail if there are warnings" \{ spago, fixture } -> do
+    Spec.it "A package config with build 'strict: true' causes build to fail if there are warnings" \{ spago, fixture } -> do
       spago [ "init" ] >>= shouldBeSuccess
       let
         srcMain = Path.concat [ "src", "Main.purs" ]

@@ -22,6 +22,7 @@ import Effect.Ref as Ref
 import Foreign.Object as FO
 import Node.Encoding as Encoding
 import Node.FS.Aff as FSA
+import Node.Path as Path
 import Spago.Config (CensorBuildWarnings(..), Package(..), PackageMap, WorkspacePackage)
 import Spago.Config as Config
 import Spago.Core.Config as Core
@@ -118,7 +119,7 @@ toPathDecisions
      , psaCliFlags :: PsaOutputOptions
      , workspaceOptions :: WorkspacePsaOutputOptions
      }
-  -> Array (String -> Maybe PathDecision)
+  -> Array (Effect (String -> Maybe PathDecision))
 toPathDecisions { allDependencies, psaCliFlags, workspaceOptions } = do
   (Map.toUnfoldable allDependencies :: Array _) <#> \dep -> do
     case snd dep of
@@ -128,8 +129,8 @@ toPathDecisions { allDependencies, psaCliFlags, workspaceOptions } = do
           , psaCliFlags
           }
       _ -> do
-        let pkgLocation = Tuple.uncurry Config.getPackageLocation dep
-        toPathDecision
+        pkgLocation <- Path.resolve [] $ Tuple.uncurry Config.getPackageLocation dep
+        pure $ toPathDecision
           { pathIsFromPackage: isJust <<< String.stripPrefix (String.Pattern pkgLocation)
           , pathType: IsLib
           , strict: false
@@ -142,11 +143,11 @@ toWorkspacePackagePathDecision
   :: { selected :: WorkspacePackage
      , psaCliFlags :: PsaOutputOptions
      }
-  -> String
-  -> Maybe PathDecision
+  -> Effect (String -> Maybe PathDecision)
 toWorkspacePackagePathDecision { selected: { path, package }, psaCliFlags } = do
-  toPathDecision
-    { pathIsFromPackage: isJust <<< String.stripPrefix (String.Pattern path)
+  pkgPath <- Path.resolve [] path
+  pure $ toPathDecision
+    { pathIsFromPackage: isJust <<< String.stripPrefix (String.Pattern pkgPath)
     , pathType: IsSrc
     , strict: fromMaybe false $ psaCliFlags.strict <|> (package.build >>= _.strict)
     , censorAll: eq (Just CensorAllWarnings) $ psaCliFlags.censorProjectWarnings <|> (package.build >>= _.censor_project_warnings)

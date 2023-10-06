@@ -12,6 +12,7 @@ import Data.Either (note)
 import Data.Map as Map
 import Data.Set as Set
 import Data.String as String
+import Data.Traversable (sequence)
 import Data.Tuple as Tuple
 import Dodo as Dodo
 import Effect.Ref as Ref
@@ -132,25 +133,24 @@ run opts = do
         , withTests: true
         , selected: SinglePackageGlobs selected
         }
+    depPathDecisions <- liftEffect $ sequence $ Psa.toPathDecisions
+      { allDependencies
+      , psaCliFlags
+      , workspaceOptions:
+          { censorLibWarnings: workspace.buildOptions.censorLibWarnings
+          , censorLibCodes: workspace.buildOptions.censorLibCodes
+          , filterLibCodes: workspace.buildOptions.filterLibCodes
+          }
+      }
+    projectPathDecision <- liftEffect $ Psa.toWorkspacePackagePathDecision
+      { selected
+      , psaCliFlags
+      }
+    let
       psaArgs =
         { color: logOptions.color
         , jsonErrors: opts.jsonErrors
-        , decisions: do
-            let
-              deps = Psa.toPathDecisions
-                { allDependencies
-                , psaCliFlags
-                , workspaceOptions:
-                    { censorLibWarnings: workspace.buildOptions.censorLibWarnings
-                    , censorLibCodes: workspace.buildOptions.censorLibCodes
-                    , filterLibCodes: workspace.buildOptions.filterLibCodes
-                    }
-                }
-              project = Psa.toWorkspacePackagePathDecision
-                { selected
-                , psaCliFlags
-                }
-            Array.snoc deps project
+        , decisions: Array.snoc depPathDecisions projectPathDecision
         , statVerbosity: fromMaybe Psa.defaultStatVerbosity workspace.buildOptions.statVerbosity
         }
 
