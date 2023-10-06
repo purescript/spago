@@ -53,7 +53,7 @@ package:
 workspace:
   build_opts:
     strict: false
-      # censor_warnings: project
+    censor_warnings: project
     censor_codes:
       - ImplicitQualifiedImportReExport
       - ImplicitQualifiedImport
