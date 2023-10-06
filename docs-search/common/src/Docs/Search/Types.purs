@@ -21,10 +21,6 @@ import Docs.Search.JsonCodec (inject)
 import Prelude
 
 import Data.Argonaut.Core (Json)
-import Data.Argonaut.Decode (class DecodeJson)
-import Data.Argonaut.Decode.Generic (genericDecodeJson)
-import Data.Argonaut.Encode (class EncodeJson)
-import Data.Argonaut.Encode.Generic (genericEncodeJson)
 import Data.Codec.Argonaut (JsonCodec, JsonDecodeError)
 import Data.Codec.Argonaut.Common as CA
 import Data.Codec.Argonaut.Sum as CAS
@@ -47,8 +43,6 @@ derive instance genericIdentifier :: Generic Identifier _
 derive newtype instance eqIdentifier :: Eq Identifier
 derive newtype instance ordIdentifier :: Ord Identifier
 derive newtype instance showIdentifier :: Show Identifier
-derive newtype instance decodeJsonIdentifier :: DecodeJson Identifier
-derive newtype instance encodeJsonIdentifier :: EncodeJson Identifier
 
 moduleNameCodec :: JsonCodec ModuleName
 moduleNameCodec = wrapIso ModuleName CA.string

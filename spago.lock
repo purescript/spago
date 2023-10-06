@@ -41,9 +41,7 @@ workspace:
       dependencies:
         - aff
         - aff-promise
-        - argonaut-codecs
         - argonaut-core
-        - argonaut-generic
         - arrays
         - codec-argonaut
         - control
@@ -481,22 +479,6 @@ packages:
       - foldable-traversable
       - lists
       - strings
-  argonaut-codecs:
-    type: registry
-    version: 9.1.0
-    integrity: sha256-N6efXByUeg848ompEqJfVvZuZPfdRYDGlTDFn0G0Oh8=
-    dependencies:
-      - argonaut-core
-      - arrays
-      - effect
-      - foreign-object
-      - identity
-      - integers
-      - maybe
-      - nonempty
-      - ordered-collections
-      - prelude
-      - record
   argonaut-core:
     type: registry
     version: 7.0.0
@@ -513,15 +495,6 @@ packages:
       - prelude
       - strings
       - tailrec
-  argonaut-generic:
-    type: registry
-    version: 8.0.0
-    integrity: sha256-WCqRWoomRKg5BFZnGBS4k4SqBX84fy/X1aJzMyaIeP0=
-    dependencies:
-      - argonaut-codecs
-      - argonaut-core
-      - prelude
-      - record
   arraybuffer-types:
     type: registry
     version: 3.0.2

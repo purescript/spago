@@ -21,9 +21,6 @@ import Docs.Search.Types as Package
 import Prelude
 
 import Data.Argonaut.Core (Json, stringify)
-import Data.Argonaut.Decode (decodeJson)
-import Data.Argonaut.Decode.Error (printJsonDecodeError)
-import Data.Argonaut.Encode (encodeJson)
 import Data.Argonaut.Parser (jsonParser)
 import Data.Array (concat)
 import Data.Array as Array

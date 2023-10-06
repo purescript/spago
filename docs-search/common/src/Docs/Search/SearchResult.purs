@@ -14,10 +14,6 @@ import Docs.Search.Types (ModuleName, PackageInfo, Identifier, PackageScore)
 import Prelude
 import Prim hiding (Type, Constraint)
 
-import Data.Argonaut.Decode (class DecodeJson)
-import Data.Argonaut.Decode.Generic (genericDecodeJson)
-import Data.Argonaut.Encode (class EncodeJson)
-import Data.Argonaut.Encode.Generic (genericEncodeJson)
 import Data.Codec.Argonaut (JsonCodec, JsonDecodeError)
 import Data.Codec.Argonaut.Common as CA
 import Data.Codec.Argonaut.Record as CAR

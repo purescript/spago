@@ -9,9 +9,6 @@ import Prim.Row (class Cons)
 
 import Codec.Json.Unidirectional.Value (DecodeError, printDecodeError)
 import Data.Argonaut.Core (Json, fromString, stringify)
-import Data.Argonaut.Decode (class DecodeJson, decodeJson)
-import Data.Argonaut.Decode.Error as Generic
-import Data.Argonaut.Encode (class EncodeJson, encodeJson)
 import Data.Codec.Argonaut (JsonCodec, JsonDecodeError(..))
 import Data.Codec.Argonaut.Common as CA
 import Data.Codec.Argonaut.Sum as CAS

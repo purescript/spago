@@ -13,7 +13,6 @@ import Prelude
 import Control.Monad.State (execState, modify_)
 import Control.Promise (Promise, toAffE)
 import Data.Argonaut.Core (Json)
-import Data.Argonaut.Decode (decodeJson)
 import Data.Array as Array
 import Data.Codec.Argonaut (JsonCodec, JsonDecodeError)
 import Data.Codec.Argonaut.Common as CA
