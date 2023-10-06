@@ -264,6 +264,7 @@ readWorkspace maybeSelectedPackage = do
       Just p -> pure (Just p)
 
   -- Read in the package database
+  { offline } <- ask
   { compatibleCompiler, remotePackageSet } <- case workspace.package_set of
     Nothing -> do
       logDebug "Did not find a package set in your config, using Registry solver"
@@ -295,7 +296,7 @@ readWorkspace maybeSelectedPackage = do
     Just (Core.SetFromUrl { url: rawUrl, hash: maybeHash }) -> do
       -- If there is a hash then we look up in the CAS, if not we fetch stuff, compute a hash and store it there
       let
-        fetchPackageSet = do
+        fetchPackageSet' = do
           logDebug $ "Reading the package set from URL: " <> rawUrl
           url <- case parseUrl rawUrl of
             Left err -> die $ "Could not parse URL for the package set, error: " <> show err
@@ -321,6 +322,9 @@ readWorkspace maybeSelectedPackage = do
                         Just { version } -> pure (unsafeFromRight (parseLenientVersion version))
                         Nothing -> die $ "Couldn't find 'metadata' package in legacy package set."
                       pure { compiler: version, remotePackageSet: map Core.RemoteLegacyPackage set }
+        fetchPackageSet = case offline of
+          Online -> fetchPackageSet'
+          Offline -> die "You are offline, but the package set is not cached locally. Please connect to the internet and try again."
       result <- case maybeHash of
         Just hash -> readPackageSetFromHash hash >>= case _ of
           Left err -> do

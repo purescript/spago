@@ -25,7 +25,7 @@ import Spago.FS as FS
 
 type Git = { cmd :: String, version :: String }
 
-type GitEnv a = { git :: Git, logOptions :: LogOptions | a }
+type GitEnv a = { git :: Git, logOptions :: LogOptions, offline :: OnlineStatus | a }
 
 runGit_ :: forall a. Array String -> Maybe FilePath -> ExceptT String (Spago (GitEnv a)) Unit
 runGit_ args cwd = void $ runGit args cwd
@@ -39,33 +39,40 @@ runGit args cwd = ExceptT do
 fetchRepo :: forall a b. { git :: String, ref :: String | a } -> FilePath -> Spago (GitEnv b) (Either (Array String) Unit)
 fetchRepo { git, ref } path = do
   repoExists <- FS.exists path
-  cloneOrFetchResult <- case repoExists of
-    true -> do
-      logDebug $ "Found " <> git <> " locally, pulling..."
-      Except.runExceptT $ runGit_ [ "fetch", "origin" ] (Just path)
-    false -> do
-      logInfo $ "Cloning " <> git
-      -- For the reasoning on the filter options, see:
-      -- https://github.com/purescript/spago/issues/701#issuecomment-1317192919
-      Except.runExceptT $ runGit_ [ "clone", "--filter=tree:0", git, path ] Nothing
-  result <- Except.runExceptT do
-    Except.ExceptT $ pure cloneOrFetchResult
-    _ <- runGit [ "checkout", ref ] (Just path)
-    -- if we are on a branch and not on a detached head, then we need to pull
-    -- the following command will fail if on a detached head, and succeed if on a branch
-    Except.mapExceptT
-      ( \a -> a >>= case _ of
-          Left _err -> pure (Right unit)
-          Right _ -> Except.runExceptT $ runGit_ [ "pull", "--rebase", "--autostash" ] (Just path)
-      )
-      (runGit_ [ "symbolic-ref", "-q", "HEAD" ] (Just path))
+  { offline } <- ask
+  case offline, repoExists of
+    Offline, true -> do
+      logDebug $ "Found " <> git <> " locally, skipping fetch because we are offline"
+      pure $ Right unit
+    Offline, false -> die [ "You are offline and the repo '" <> git <> "' is not available locally, can't make progress." ]
+    Online, _ -> do
+      cloneOrFetchResult <- case repoExists of
+        true -> do
+          logDebug $ "Found " <> git <> " locally, pulling..."
+          Except.runExceptT $ runGit_ [ "fetch", "origin" ] (Just path)
+        false -> do
+          logInfo $ "Cloning " <> git
+          -- For the reasoning on the filter options, see:
+          -- https://github.com/purescript/spago/issues/701#issuecomment-1317192919
+          Except.runExceptT $ runGit_ [ "clone", "--filter=tree:0", git, path ] Nothing
+      result <- Except.runExceptT do
+        Except.ExceptT $ pure cloneOrFetchResult
+        _ <- runGit [ "checkout", ref ] (Just path)
+        -- if we are on a branch and not on a detached head, then we need to pull
+        -- the following command will fail if on a detached head, and succeed if on a branch
+        Except.mapExceptT
+          ( \a -> a >>= case _ of
+              Left _err -> pure (Right unit)
+              Right _ -> Except.runExceptT $ runGit_ [ "pull", "--rebase", "--autostash" ] (Just path)
+          )
+          (runGit_ [ "symbolic-ref", "-q", "HEAD" ] (Just path))
 
-  pure case result of
-    Left err -> Left
-      [ "Error while fetching the repo '" <> git <> "' at ref '" <> ref <> "':"
-      , "  " <> err
-      ]
-    Right _ -> Right unit
+      pure case result of
+        Left err -> Left
+          [ "Error while fetching the repo '" <> git <> "' at ref '" <> ref <> "':"
+          , "  " <> err
+          ]
+        Right _ -> Right unit
 
 getCleanTag :: forall a. Maybe FilePath -> Spago (GitEnv a) (Either Docc String)
 getCleanTag cwd = do
@@ -108,14 +115,20 @@ tagCheckedOut cwd = do
 pushTag :: forall a. Maybe FilePath -> Version -> Spago (GitEnv a) (Either Docc Unit)
 pushTag cwd version = do
   let opts = Cmd.defaultExecOptions { pipeStdout = false, pipeStderr = false, cwd = cwd }
-  { git } <- ask
-  Cmd.exec git.cmd [ "push", "origin", "v" <> Version.print version ] opts >>= case _ of
-    Left err -> pure $ Left $ toDoc
-      [ "Could not push the tag 'v" <> Version.print version <> "' to the remote."
-      , "Error:"
-      , err.shortMessage
-      ]
-    Right _ -> pure $ Right unit
+  { git, offline } <- ask
+  case offline of
+    Offline -> do
+      logWarn $ "Spago is in offline mode - not pushing the git tag v" <> Version.print version
+      pure $ Right unit
+    Online -> do
+      logInfo $ "Pushing tag 'v" <> Version.print version <> "' to the remote"
+      Cmd.exec git.cmd [ "push", "origin", "v" <> Version.print version ] opts >>= case _ of
+        Left err -> pure $ Left $ toDoc
+          [ "Could not push the tag 'v" <> Version.print version <> "' to the remote."
+          , "Error:"
+          , err.shortMessage
+          ]
+        Right _ -> pure $ Right unit
 
 -- | Check if the path is ignored by git
 --

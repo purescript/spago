@@ -94,37 +94,13 @@ spec = Spec.around withTempDir do
 
     Spec.it "installs a package in the set from a commit hash" \{ spago } -> do
       spago [ "init" ] >>= shouldBeSuccess
-      -- The commit for `either` is for the `v6.1.0` release
-      let
-        conf = Init.defaultConfig
-          { name: mkPackageName "eee"
-          , withWorkspace: Just
-              { setVersion: Just $ unsafeFromRight $ Version.parse "0.0.1"
-              }
-          , testModuleName: "Test.Main"
-          }
-      FS.writeYamlFile Config.configCodec "spago.yaml"
-        ( conf
-            { workspace = conf.workspace # map
-                ( _
-                    { extra_packages = Just $ Map.fromFoldable
-                        [ Tuple (mkPackageName "either") $ Config.ExtraRemotePackage $ Config.RemoteGitPackage
-                            { git: "https://github.com/purescript/purescript-either.git"
-                            , ref: "af655a04ed2fd694b6688af39ee20d7907ad0763"
-                            , subdir: Nothing
-                            , dependencies: Just $ Dependencies $ Map.fromFoldable
-                                [ mkPackageName "control" /\ Nothing
-                                , mkPackageName "invariant" /\ Nothing
-                                , mkPackageName "maybe" /\ Nothing
-                                , mkPackageName "prelude" /\ Nothing
-                                ]
-                            }
-                        ]
-                    }
-                )
-            }
-        )
+      writeConfigWithEither
       spago [ "install", "either" ] >>= shouldBeSuccess
+
+    Spec.it "can't install (uncached) dependencies if offline" \{ spago, fixture } -> do
+      spago [ "init" ] >>= shouldBeSuccess
+      writeConfigWithEither
+      spago [ "install", "--offline", "either" ] >>= shouldBeFailureErr (fixture "offline.txt")
 
     Spec.it "installs a package version by branch name with / in it" \{ spago, testCwd } -> do
       spago [ "init" ] >>= shouldBeSuccess
@@ -258,3 +234,35 @@ spec = Spec.around withTempDir do
       spago [ "install" ] >>= shouldBeSuccess
       checkFixture "spago.yaml" (fixture "spago-with-hash.yaml")
 
+writeConfigWithEither :: Aff Unit
+writeConfigWithEither = do
+  -- The commit for `either` is for the `v6.1.0` release
+  let
+    conf = Init.defaultConfig
+      { name: mkPackageName "eee"
+      , withWorkspace: Just
+          { setVersion: Just $ unsafeFromRight $ Version.parse "0.0.1"
+          }
+      , testModuleName: "Test.Main"
+      }
+  FS.writeYamlFile Config.configCodec "spago.yaml"
+    ( conf
+        { workspace = conf.workspace # map
+            ( _
+                { extra_packages = Just $ Map.fromFoldable
+                    [ Tuple (mkPackageName "either") $ Config.ExtraRemotePackage $ Config.RemoteGitPackage
+                        { git: "https://github.com/purescript/purescript-either.git"
+                        , ref: "af655a04ed2fd694b6688af39ee20d7907ad0763"
+                        , subdir: Nothing
+                        , dependencies: Just $ Dependencies $ Map.fromFoldable
+                            [ mkPackageName "control" /\ Nothing
+                            , mkPackageName "invariant" /\ Nothing
+                            , mkPackageName "maybe" /\ Nothing
+                            , mkPackageName "prelude" /\ Nothing
+                            ]
+                        }
+                    ]
+                }
+            )
+        }
+    )
