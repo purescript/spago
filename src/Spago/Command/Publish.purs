@@ -110,11 +110,16 @@ publish _args = do
     , purs: env.purs
     , selected
     , dependencies: env.dependencies
-    , censorBuildWarnings: (Nothing :: Maybe Core.CensorBuildWarnings)
-    , censorCodes: (Nothing :: Maybe (NonEmptySet String))
-    , filterCodes: (Nothing :: Maybe (NonEmptySet String))
-    , statVerbosity: (Nothing :: Maybe Core.StatVerbosity)
-    , strict: (Nothing :: Maybe Boolean)
+    , psaCliFlags:
+        { censorLibWarnings: (Nothing :: Maybe Core.CensorBuildWarnings)
+        , censorLibCodes: (Nothing :: Maybe (NonEmptySet String))
+        , filterLibCodes: (Nothing :: Maybe (NonEmptySet String))
+        , censorProjectWarnings: (Nothing :: Maybe Core.CensorBuildWarnings)
+        , censorProjectCodes: (Nothing :: Maybe (NonEmptySet String))
+        , filterProjectCodes: (Nothing :: Maybe (NonEmptySet String))
+        , statVerbosity: (Nothing :: Maybe Core.StatVerbosity)
+        , strict: (Nothing :: Maybe Boolean)
+        }
     }
     ( Build.run
         { depsOnly: false
@@ -306,11 +311,16 @@ publish _args = do
         , purs: env.purs
         , selected: env.selected
         , dependencies: Map.singleton selected.package.name buildPlanDependencies
-        , censorBuildWarnings: (Nothing :: Maybe Core.CensorBuildWarnings)
-        , censorCodes: (Nothing :: Maybe (NonEmptySet String))
-        , filterCodes: (Nothing :: Maybe (NonEmptySet String))
-        , statVerbosity: (Nothing :: Maybe Core.StatVerbosity)
-        , strict: (Nothing :: Maybe Boolean)
+        , psaCliFlags:
+            { censorLibWarnings: (Nothing :: Maybe Core.CensorBuildWarnings)
+            , censorLibCodes: (Nothing :: Maybe (NonEmptySet String))
+            , filterLibCodes: (Nothing :: Maybe (NonEmptySet String))
+            , censorProjectWarnings: (Nothing :: Maybe Core.CensorBuildWarnings)
+            , censorProjectCodes: (Nothing :: Maybe (NonEmptySet String))
+            , filterProjectCodes: (Nothing :: Maybe (NonEmptySet String))
+            , statVerbosity: (Nothing :: Maybe Core.StatVerbosity)
+            , strict: (Nothing :: Maybe Boolean)
+            }
         }
         ( Build.run
             { depsOnly: false

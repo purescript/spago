@@ -139,6 +139,7 @@ defaultConfig' opts =
       { name
       , dependencies: Dependencies $ Map.fromFoldable $ map mkDep dependencies
       , description: Nothing
+      , build: Nothing
       , run: Nothing
       , test: test <#> \{ moduleMain } ->
           { dependencies: Dependencies Map.empty

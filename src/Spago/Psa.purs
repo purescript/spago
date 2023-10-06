@@ -14,6 +14,7 @@ import Data.Array as Array
 import Data.Codec.Argonaut as CA
 import Data.Map as Map
 import Data.Set as Set
+import Data.Set.NonEmpty as NonEmptySet
 import Data.String as Str
 import Data.String as String
 import Data.Tuple as Tuple
@@ -21,12 +22,12 @@ import Effect.Ref as Ref
 import Foreign.Object as FO
 import Node.Encoding as Encoding
 import Node.FS.Aff as FSA
-import Spago.Config (Package(..), PackageMap, WorkspacePackage)
+import Spago.Config (CensorBuildWarnings(..), Package(..), PackageMap, WorkspacePackage)
 import Spago.Config as Config
 import Spago.Core.Config as Core
 import Spago.Psa.Output (buildOutput)
 import Spago.Psa.Printer (printDefaultOutputToErr, printJsonOutputToOut)
-import Spago.Psa.Types (PathDecision, PsaArgs, PsaPathType(..), ErrorCode, psaResultCodec)
+import Spago.Psa.Types (ErrorCode, PathDecision, PsaArgs, PsaOutputOptions, PsaPathType(..), WorkspacePsaOutputOptions, psaResultCodec)
 import Spago.Purs as Purs
 
 defaultStatVerbosity :: Core.StatVerbosity
@@ -112,34 +113,45 @@ psaCompile globs pursArgs psaArgs = do
           pure $ Just source
         either (const (pure Nothing)) pure result
 
-toPathDecisions :: PackageMap -> Array (String -> Maybe PathDecision)
-toPathDecisions allDependencies = do
+toPathDecisions
+  :: { allDependencies :: PackageMap
+     , psaCliFlags :: PsaOutputOptions
+     , workspaceOptions :: WorkspacePsaOutputOptions
+     }
+  -> Array (String -> Maybe PathDecision)
+toPathDecisions { allDependencies, psaCliFlags, workspaceOptions } = do
   (Map.toUnfoldable allDependencies :: Array _) <#> \dep -> do
     case snd dep of
       WorkspacePackage p ->
-        toWorkspacePackagePathDecision p
+        toWorkspacePackagePathDecision
+          { selected: p
+          , psaCliFlags
+          }
       _ -> do
         let pkgLocation = Tuple.uncurry Config.getPackageLocation dep
         toPathDecision
           { pathIsFromPackage: isJust <<< String.stripPrefix (String.Pattern pkgLocation)
           , pathType: IsLib
-          -- will use workspace info here
           , strict: false
-          , censorAll: false
-          , censorCodes: Set.empty
-          , filterCodes: Set.empty
+          , censorAll: eq (Just CensorAllWarnings) $ psaCliFlags.censorLibWarnings <|> workspaceOptions.censorLibWarnings
+          , censorCodes: maybe Set.empty NonEmptySet.toSet $ psaCliFlags.censorLibCodes <|> workspaceOptions.censorLibCodes
+          , filterCodes: maybe Set.empty NonEmptySet.toSet $ psaCliFlags.filterLibCodes <|> workspaceOptions.filterLibCodes
           }
 
-toWorkspacePackagePathDecision :: WorkspacePackage -> String -> Maybe PathDecision
-toWorkspacePackagePathDecision { path } = do
+toWorkspacePackagePathDecision
+  :: { selected :: WorkspacePackage
+     , psaCliFlags :: PsaOutputOptions
+     }
+  -> String
+  -> Maybe PathDecision
+toWorkspacePackagePathDecision { selected: { path, package }, psaCliFlags } = do
   toPathDecision
     { pathIsFromPackage: isJust <<< String.stripPrefix (String.Pattern path)
     , pathType: IsSrc
-    -- will use package info here
-    , strict: false
-    , censorAll: false
-    , censorCodes: Set.empty
-    , filterCodes: Set.empty
+    , strict: fromMaybe false $ psaCliFlags.strict <|> (package.build >>= _.strict)
+    , censorAll: eq (Just CensorAllWarnings) $ psaCliFlags.censorProjectWarnings <|> (package.build >>= _.censor_project_warnings)
+    , censorCodes: maybe Set.empty NonEmptySet.toSet $ psaCliFlags.censorProjectCodes <|> (package.build >>= _.censor_project_codes)
+    , filterCodes: maybe Set.empty NonEmptySet.toSet $ psaCliFlags.filterProjectCodes <|> (package.build >>= _.filter_project_codes)
     }
 
 toPathDecision

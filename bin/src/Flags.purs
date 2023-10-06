@@ -31,43 +31,80 @@ strict =
         <> O.help "Promotes project sources' warnings to errors"
     )
 
-censorBuildWarnings :: Parser (Maybe Core.CensorBuildWarnings)
-censorBuildWarnings =
+censorLibWarnings :: Parser (Maybe Core.CensorBuildWarnings)
+censorLibWarnings =
   O.optional $
     O.option
       ( O.eitherReader
           case _ of
             "all" -> Right Core.CensorAllWarnings
-            "project" -> Right Core.CensorProjectWarnings
-            "dependency" -> Right Core.CensorDependencyWarnings
-            _ -> Left $ "Expected 'all', 'project', or 'dependency'"
+            "none" -> Right Core.CensorNoWarnings
+            _ -> Left $ "Expected 'all' or 'none'"
       )
-      ( O.long "censor-build-warnings"
-          <> O.help "Censor compiler warnings based on file's location: 'dependency', 'project', or 'all'"
+      ( O.long "censor-lib-warnings"
+          <> O.help "Censor compiler warnings for files from `.spago`: 'all' or 'none'"
           <> O.metavar "ARG"
       )
 
-censorCodes :: Parser (Maybe (NonEmptySet String))
-censorCodes =
+censorProjectWarnings :: Parser (Maybe Core.CensorBuildWarnings)
+censorProjectWarnings =
+  O.optional $
+    O.option
+      ( O.eitherReader
+          case _ of
+            "all" -> Right Core.CensorAllWarnings
+            "none" -> Right Core.CensorNoWarnings
+            _ -> Left $ "Expected 'all' or 'none'"
+      )
+      ( O.long "censor-project-warnings"
+          <> O.help "Censor compiler warnings for files from a package defined in this workspace: 'none' or 'all'"
+          <> O.metavar "ARG"
+      )
+
+censorLibCodes :: Parser (Maybe (NonEmptySet String))
+censorLibCodes =
+  NonEmptySet.fromFoldable
+    <$>
+      ( O.many
+          $ O.strOption
+              ( O.long "censor-library-code"
+                  <> O.metavar "CODE"
+                  <> O.help "Censor a specific error code (e.g. `ShadowedName`) from `.spago` files"
+              )
+      )
+
+censorProjectCodes :: Parser (Maybe (NonEmptySet String))
+censorProjectCodes =
   NonEmptySet.fromFoldable
     <$>
       ( O.many
           $ O.strOption
               ( O.long "censor-code"
                   <> O.metavar "CODE"
-                  <> O.help "Censor a specific error code (e.g. `ShadowedName`)"
+                  <> O.help "Censor a specific error code (e.g. `ShadowedName`) from files in the current workspace"
               )
       )
 
-filterCodes :: Parser (Maybe (NonEmptySet String))
-filterCodes =
+filterLibCodes :: Parser (Maybe (NonEmptySet String))
+filterLibCodes =
+  NonEmptySet.fromFoldable
+    <$>
+      O.many
+        ( O.strOption
+            $ O.long "filter-library-code"
+            <> O.metavar "CODE"
+            <> O.help "Only show a specific error code (e.g. `TypesDoNotUnify`) from `.spago` files"
+        )
+
+filterProjectCodes :: Parser (Maybe (NonEmptySet String))
+filterProjectCodes =
   NonEmptySet.fromFoldable
     <$>
       O.many
         ( O.strOption
             $ O.long "filter-code"
             <> O.metavar "CODE"
-            <> O.help "Only show a specific error code (e.g. `TypesDoNotUnify`)"
+            <> O.help "Only show a specific error code (e.g. `TypesDoNotUnify`) from files in this workspace"
         )
 
 statVerbosity :: Parser (Maybe Core.StatVerbosity)

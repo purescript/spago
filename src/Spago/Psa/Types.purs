@@ -15,6 +15,8 @@ module Spago.Psa.Types
   , PsaPath(..)
   , PsaPathType(..)
   , PathDecision
+  , PsaOutputOptions
+  , WorkspacePsaOutputOptions
   , PathInfo
   , Position
   , Suggestion
@@ -30,7 +32,7 @@ import Data.Codec.Argonaut as CA
 import Data.Codec.Argonaut.Compat as CACompat
 import Data.Codec.Argonaut.Record as CAR
 import Data.Maybe (Maybe(..))
-import Data.Set (Set)
+import Data.Set.NonEmpty (NonEmptySet)
 import Data.Tuple (Tuple(..))
 import Spago.Core.Config as Core
 
@@ -86,13 +88,20 @@ type PsaArgs =
   }
 
 type PsaOutputOptions =
-  { color :: Boolean
-  , censorBuildWarnings :: Core.CensorBuildWarnings
-  , censorCodes :: Set ErrorCode
-  , filterCodes :: Set ErrorCode
-  , statVerbosity :: Core.StatVerbosity
-  , libraryDirs :: Array String
-  , strict :: Boolean
+  { censorLibWarnings :: Maybe Core.CensorBuildWarnings
+  , censorLibCodes :: Maybe (NonEmptySet ErrorCode)
+  , filterLibCodes :: Maybe (NonEmptySet ErrorCode)
+  , censorProjectWarnings :: Maybe Core.CensorBuildWarnings
+  , censorProjectCodes :: Maybe (NonEmptySet ErrorCode)
+  , filterProjectCodes :: Maybe (NonEmptySet ErrorCode)
+  , statVerbosity :: Maybe Core.StatVerbosity
+  , strict :: Maybe Boolean
+  }
+
+type WorkspacePsaOutputOptions =
+  { censorLibWarnings :: Maybe Core.CensorBuildWarnings
+  , censorLibCodes :: Maybe (NonEmptySet ErrorCode)
+  , filterLibCodes :: Maybe (NonEmptySet ErrorCode)
   }
 
 type PsaResult =

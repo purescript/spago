@@ -97,9 +97,12 @@ type BuildArgs a =
   , ensureRanges :: Boolean
   , jsonErrors :: Boolean
   , strict :: Maybe Boolean
-  , censorBuildWarnings :: Maybe Core.CensorBuildWarnings
-  , censorCodes :: Maybe (NonEmptySet String)
-  , filterCodes :: Maybe (NonEmptySet String)
+  , censorLibWarnings :: Maybe Core.CensorBuildWarnings
+  , censorProjectWarnings :: Maybe Core.CensorBuildWarnings
+  , censorLibCodes :: Maybe (NonEmptySet String)
+  , censorProjectCodes :: Maybe (NonEmptySet String)
+  , filterLibCodes :: Maybe (NonEmptySet String)
+  , filterProjectCodes :: Maybe (NonEmptySet String)
   , statVerbosity :: Maybe Core.StatVerbosity
   | a
   }
@@ -127,9 +130,12 @@ type RunArgs =
   , main :: Maybe String
   , ensureRanges :: Boolean
   , strict :: Maybe Boolean
-  , censorBuildWarnings :: Maybe Core.CensorBuildWarnings
-  , censorCodes :: Maybe (NonEmptySet String)
-  , filterCodes :: Maybe (NonEmptySet String)
+  , censorLibWarnings :: Maybe Core.CensorBuildWarnings
+  , censorProjectWarnings :: Maybe Core.CensorBuildWarnings
+  , censorLibCodes :: Maybe (NonEmptySet String)
+  , censorProjectCodes :: Maybe (NonEmptySet String)
+  , filterLibCodes :: Maybe (NonEmptySet String)
+  , filterProjectCodes :: Maybe (NonEmptySet String)
   , statVerbosity :: Maybe Core.StatVerbosity
   }
 
@@ -141,9 +147,12 @@ type TestArgs =
   , backendArgs :: List String
   , execArgs :: Maybe (Array String)
   , strict :: Maybe Boolean
-  , censorBuildWarnings :: Maybe Core.CensorBuildWarnings
-  , censorCodes :: Maybe (NonEmptySet String)
-  , filterCodes :: Maybe (NonEmptySet String)
+  , censorLibWarnings :: Maybe Core.CensorBuildWarnings
+  , censorProjectWarnings :: Maybe Core.CensorBuildWarnings
+  , censorLibCodes :: Maybe (NonEmptySet String)
+  , censorProjectCodes :: Maybe (NonEmptySet String)
+  , filterLibCodes :: Maybe (NonEmptySet String)
+  , filterProjectCodes :: Maybe (NonEmptySet String)
   , statVerbosity :: Maybe Core.StatVerbosity
   }
 
@@ -166,9 +175,12 @@ type BundleArgs =
   , type :: Maybe String
   , ensureRanges :: Boolean
   , strict :: Maybe Boolean
-  , censorBuildWarnings :: Maybe Core.CensorBuildWarnings
-  , censorCodes :: Maybe (NonEmptySet String)
-  , filterCodes :: Maybe (NonEmptySet String)
+  , censorLibWarnings :: Maybe Core.CensorBuildWarnings
+  , censorProjectWarnings :: Maybe Core.CensorBuildWarnings
+  , censorLibCodes :: Maybe (NonEmptySet String)
+  , censorProjectCodes :: Maybe (NonEmptySet String)
+  , filterLibCodes :: Maybe (NonEmptySet String)
+  , filterProjectCodes :: Maybe (NonEmptySet String)
   , statVerbosity :: Maybe Core.StatVerbosity
   }
 
@@ -311,9 +323,12 @@ buildArgsParser = Optparse.fromRecord
   , ensureRanges: Flags.ensureRanges
   , jsonErrors: Flags.jsonErrors
   , strict: Flags.strict
-  , censorBuildWarnings: Flags.censorBuildWarnings
-  , censorCodes: Flags.censorCodes
-  , filterCodes: Flags.filterCodes
+  , censorLibWarnings: Flags.censorLibWarnings
+  , censorProjectWarnings: Flags.censorProjectWarnings
+  , censorLibCodes: Flags.censorLibCodes
+  , censorProjectCodes: Flags.censorProjectCodes
+  , filterLibCodes: Flags.filterLibCodes
+  , filterProjectCodes: Flags.filterProjectCodes
   , statVerbosity: Flags.statVerbosity
   }
 
@@ -335,9 +350,12 @@ runArgsParser = Optparse.fromRecord
   , main: Flags.moduleName
   , ensureRanges: Flags.ensureRanges
   , strict: Flags.strict
-  , censorBuildWarnings: Flags.censorBuildWarnings
-  , censorCodes: Flags.censorCodes
-  , filterCodes: Flags.filterCodes
+  , censorLibWarnings: Flags.censorLibWarnings
+  , censorProjectWarnings: Flags.censorProjectWarnings
+  , censorLibCodes: Flags.censorLibCodes
+  , censorProjectCodes: Flags.censorProjectCodes
+  , filterLibCodes: Flags.filterLibCodes
+  , filterProjectCodes: Flags.filterProjectCodes
   , statVerbosity: Flags.statVerbosity
   }
 
@@ -350,9 +368,12 @@ testArgsParser = Optparse.fromRecord
   , output: Flags.output
   , pedanticPackages: Flags.pedanticPackages
   , strict: Flags.strict
-  , censorBuildWarnings: Flags.censorBuildWarnings
-  , censorCodes: Flags.censorCodes
-  , filterCodes: Flags.filterCodes
+  , censorLibWarnings: Flags.censorLibWarnings
+  , censorProjectWarnings: Flags.censorProjectWarnings
+  , censorLibCodes: Flags.censorLibCodes
+  , censorProjectCodes: Flags.censorProjectCodes
+  , filterLibCodes: Flags.filterLibCodes
+  , filterProjectCodes: Flags.filterProjectCodes
   , statVerbosity: Flags.statVerbosity
   }
 
@@ -372,9 +393,12 @@ bundleArgsParser =
     , pedanticPackages: Flags.pedanticPackages
     , ensureRanges: Flags.ensureRanges
     , strict: Flags.strict
-    , censorBuildWarnings: Flags.censorBuildWarnings
-    , censorCodes: Flags.censorCodes
-    , filterCodes: Flags.filterCodes
+    , censorLibWarnings: Flags.censorLibWarnings
+    , censorProjectWarnings: Flags.censorProjectWarnings
+    , censorLibCodes: Flags.censorLibCodes
+    , censorProjectCodes: Flags.censorProjectCodes
+    , filterLibCodes: Flags.filterLibCodes
+    , filterProjectCodes: Flags.filterProjectCodes
     , statVerbosity: Flags.statVerbosity
     }
 
@@ -509,9 +533,12 @@ main =
             let
               buildArgs = Record.merge
                 args
-                { censorBuildWarnings: Nothing :: Maybe Core.CensorBuildWarnings
-                , censorCodes: Nothing :: Maybe (NonEmptySet String)
-                , filterCodes: Nothing :: Maybe (NonEmptySet String)
+                { censorLibWarnings: Nothing :: Maybe Core.CensorBuildWarnings
+                , censorLibCodes: Nothing :: Maybe (NonEmptySet String)
+                , filterLibCodes: Nothing :: Maybe (NonEmptySet String)
+                , censorProjectWarnings: Nothing :: Maybe Core.CensorBuildWarnings
+                , censorProjectCodes: Nothing :: Maybe (NonEmptySet String)
+                , filterProjectCodes: Nothing :: Maybe (NonEmptySet String)
                 , statVerbosity: Nothing :: Maybe Core.StatVerbosity
                 , strict: Nothing :: Maybe Boolean
                 }
@@ -773,9 +800,12 @@ mkBuildEnv
    . { backendArgs :: List String
      , output :: Maybe String
      , pedanticPackages :: Boolean
-     , censorBuildWarnings :: Maybe Core.CensorBuildWarnings
-     , censorCodes :: Maybe (NonEmptySet String)
-     , filterCodes :: Maybe (NonEmptySet String)
+     , censorLibWarnings :: Maybe Core.CensorBuildWarnings
+     , censorProjectWarnings :: Maybe Core.CensorBuildWarnings
+     , censorLibCodes :: Maybe (NonEmptySet String)
+     , censorProjectCodes :: Maybe (NonEmptySet String)
+     , filterLibCodes :: Maybe (NonEmptySet String)
+     , filterProjectCodes :: Maybe (NonEmptySet String)
      , statVerbosity :: Maybe Core.StatVerbosity
      , strict :: Maybe Boolean
      | r
@@ -790,11 +820,6 @@ mkBuildEnv buildArgs dependencies = do
       { buildOptions
           { output = buildArgs.output <|> workspace.buildOptions.output
           , pedanticPackages = buildArgs.pedanticPackages || workspace.buildOptions.pedanticPackages
-          , censorBuildWarnings = buildArgs.censorBuildWarnings <|> workspace.buildOptions.censorBuildWarnings
-          , censorCodes = buildArgs.censorCodes <|> workspace.buildOptions.censorCodes
-          , filterCodes = buildArgs.filterCodes <|> workspace.buildOptions.filterCodes
-          , statVerbosity = buildArgs.statVerbosity <|> workspace.buildOptions.statVerbosity
-          , strict = buildArgs.strict <|> workspace.buildOptions.strict
           }
       -- Override the backend args from the config if they are passed in through a flag
       , backend = map
@@ -811,6 +836,16 @@ mkBuildEnv buildArgs dependencies = do
     , git
     , dependencies
     , workspace: newWorkspace
+    , psaCliFlags:
+        { censorLibWarnings: buildArgs.censorLibWarnings
+        , censorLibCodes: buildArgs.censorLibCodes
+        , filterLibCodes: buildArgs.filterLibCodes
+        , censorProjectWarnings: buildArgs.censorProjectWarnings
+        , censorProjectCodes: buildArgs.censorProjectCodes
+        , filterProjectCodes: buildArgs.filterProjectCodes
+        , statVerbosity: buildArgs.statVerbosity
+        , strict: buildArgs.strict
+        }
     }
 
 mkPublishEnv :: forall a. Fetch.PackageTransitiveDeps -> Spago (Fetch.FetchEnv a) (Publish.PublishEnv a)

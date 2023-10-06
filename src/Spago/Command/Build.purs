@@ -24,6 +24,7 @@ import Spago.Config (Package(..), PackageMap, PackageSet, WithTestGlobs(..), Wor
 import Spago.Config as Config
 import Spago.Git (Git)
 import Spago.Psa as Psa
+import Spago.Psa.Types as PsaTypes
 import Spago.Purs (Purs)
 import Spago.Purs as Purs
 import Spago.Purs.Graph as Graph
@@ -34,6 +35,7 @@ type BuildEnv a =
   , dependencies :: Fetch.PackageTransitiveDeps
   , logOptions :: LogOptions
   , workspace :: Workspace
+  , psaCliFlags :: PsaTypes.PsaOutputOptions
   | a
   }
 
@@ -49,6 +51,7 @@ run opts = do
   { dependencies
   , workspace
   , logOptions
+  , psaCliFlags
   } <- ask
 
   BuildInfo.writeBuildInfo
@@ -132,7 +135,22 @@ run opts = do
       psaArgs =
         { color: logOptions.color
         , jsonErrors: opts.jsonErrors
-        , decisions: Psa.toPathDecisions allDependencies <> [ Psa.toWorkspacePackagePathDecision selected ]
+        , decisions: do
+            let
+              deps = Psa.toPathDecisions
+                { allDependencies
+                , psaCliFlags
+                , workspaceOptions:
+                    { censorLibWarnings: workspace.buildOptions.censorLibWarnings
+                    , censorLibCodes: workspace.buildOptions.censorLibCodes
+                    , filterLibCodes: workspace.buildOptions.filterLibCodes
+                    }
+                }
+              project = Psa.toWorkspacePackagePathDecision
+                { selected
+                , psaCliFlags
+                }
+            Array.snoc deps project
         , statVerbosity: fromMaybe Psa.defaultStatVerbosity workspace.buildOptions.statVerbosity
         }
 
