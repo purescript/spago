@@ -7,18 +7,21 @@ package:
     - argonaut-core
     - argonaut-generic
     - arrays
+    - codec-argonaut
     - control
     - effect
     - either
     - exceptions
     - foldable-traversable
     - foreign-object
+    - json-codecs
     - language-purescript
     - lists
     - maybe
     - newtype
     - ordered-collections
     - prelude
+    - profunctor
     - profunctor-lenses
     - safe-coerce
     - search-trie
@@ -26,3 +29,4 @@ package:
     - strings
     - transformers
     - tuples
+    - variant

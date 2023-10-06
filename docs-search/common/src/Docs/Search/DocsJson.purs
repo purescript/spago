@@ -9,6 +9,10 @@ import Data.Argonaut.Core (fromString, stringify, toString)
 import Data.Argonaut.Decode (class DecodeJson, decodeJson, (.:), (.:?))
 import Data.Argonaut.Decode.Error (JsonDecodeError(..))
 import Data.Argonaut.Encode (class EncodeJson, encodeJson)
+import Data.Codec.Argonaut (JsonCodec)
+import Data.Codec.Argonaut.Common as CA
+import Data.Codec.Argonaut.Sum as CAS
+import Data.Codec.Argonaut.Record as CAR
 import Data.Either (Either(..))
 import Data.Generic.Rep (class Generic)
 import Data.Show.Generic (genericShow)
@@ -38,6 +42,14 @@ type SourceSpan =
   , end :: Array Int
   , name :: String
   }
+
+sourceSpanCodec :: JsonCodec SourceSpan
+sourceSpanCodec =
+  CAR.object "SourceSpan"
+    { start: CA.array CA.int
+    , end: CA.array CA.int
+    , name: CA.string
+    }
 
 newtype Declaration = Declaration
   { title :: String

@@ -6,6 +6,7 @@ import Docs.Search.Extra (stringToList)
 import Docs.Search.Score (Scores, getPackageScore)
 import Docs.Search.SearchResult (SearchResult(..))
 import Docs.Search.Types (ModuleName, PackageInfo(..), PackageScore)
+import Docs.Search.Types as Package
 
 import Prelude
 
@@ -14,6 +15,9 @@ import Control.Promise (Promise, toAffE)
 import Data.Argonaut.Core (Json)
 import Data.Argonaut.Decode (decodeJson)
 import Data.Array as Array
+import Data.Codec.Argonaut (JsonCodec, JsonDecodeError)
+import Data.Codec.Argonaut.Common as CA
+import Data.Codec.Argonaut.Sum as CAS
 import Data.Either (hush)
 import Data.Foldable (foldl)
 import Data.Lens ((%~))
@@ -38,6 +42,9 @@ import Type.Proxy (Proxy(..))
 
 -- | Module index that is actually stored in a JS file.
 type PackedModuleIndex = Map PackageInfo (Set ModuleName)
+
+packedModuleIndexCodec :: JsonCodec PackedModuleIndex
+packedModuleIndexCodec = CA.map Package.packageInfoCodec (CA.set Package.moduleNameCodec)
 
 -- | "Expanded" module index that can be queried quickly.
 type ModuleIndex =
@@ -118,7 +125,7 @@ mkPackedModuleIndex (Declarations trie) moduleNames =
 loadModuleIndex :: Aff PackedModuleIndex
 loadModuleIndex = do
   json <- toAffE $ load Config.moduleIndexLoadPath
-  pure $ fromMaybe Map.empty $ hush $ decodeJson json
+  pure $ fromMaybe Map.empty $ hush $ CA.decode packedModuleIndexCodec json
 
 foreign import load
   :: String
