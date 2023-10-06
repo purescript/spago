@@ -3,9 +3,7 @@ package:
   dependencies:
     - aff
     - aff-promise
-    - argonaut-codecs
     - argonaut-core
-    - argonaut-generic
     - arrays
     - codec-argonaut
     - control
@@ -13,7 +11,6 @@ package:
     - either
     - exceptions
     - foldable-traversable
-    - foreign-object
     - json-codecs
     - language-purescript
     - lists

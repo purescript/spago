@@ -2,7 +2,6 @@ package:
   name: docs-search-index
   dependencies:
     - aff
-    - argonaut-codecs
     - argonaut-core
     - arrays
     - codec-argonaut
