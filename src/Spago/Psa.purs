@@ -34,34 +34,6 @@ import Spago.Purs as Purs
 defaultStatVerbosity :: Core.StatVerbosity
 defaultStatVerbosity = Core.CompactStats
 
--- defaultParseOptions :: PsaOptions
--- defaultParseOptions =
---   { censorBuildWarnings: Core.CensorNoWarnings
---   , censorCodes: Set.empty
---   , filterCodes: Set.empty
---   , statVerbosity: Core.CompactStats
---   , strict: false
---   }
-
--- type PsaOptions =
---   { censorBuildWarnings :: Core.CensorBuildWarnings
---   , censorCodes :: Set ErrorCode
---   , filterCodes :: Set ErrorCode
---   , statVerbosity :: Core.StatVerbosity
---   , strict :: Boolean
---   }
-
--- toOutputOptions :: PsaArgs -> PsaOptions -> PsaOutputOptions
--- toOutputOptions { libraryDirs, color } options =
---   { color
---   , censorBuildWarnings: options.censorBuildWarnings
---   , censorCodes: options.censorCodes
---   , filterCodes: options.filterCodes
---   , statVerbosity: options.statVerbosity
---   , libraryDirs
---   , strict: options.strict
---   }
-
 psaCompile :: forall a. Set.Set FilePath -> Array String -> PsaArgs -> Spago (Purs.PursEnv a) Unit
 psaCompile globs pursArgs psaArgs = do
   result <- Purs.compile globs (Array.snoc pursArgs "--json-errors")
