@@ -93,6 +93,10 @@ toPathDecisions
      }
   -> Array (Effect (String -> Maybe PathDecision))
 toPathDecisions { allDependencies, psaCliFlags, workspaceOptions } = do
+  let
+    censorAll = eq (Just CensorAllWarnings) $ psaCliFlags.censorLibWarnings <|> workspaceOptions.censorLibWarnings
+    censorCodes = maybe Set.empty NonEmptySet.toSet $ psaCliFlags.censorLibCodes <|> workspaceOptions.censorLibCodes
+    filterCodes = maybe Set.empty NonEmptySet.toSet $ psaCliFlags.filterLibCodes <|> workspaceOptions.filterLibCodes
   (Map.toUnfoldable allDependencies :: Array _) <#> \dep -> do
     case snd dep of
       WorkspacePackage p ->
@@ -106,9 +110,9 @@ toPathDecisions { allDependencies, psaCliFlags, workspaceOptions } = do
           { pathIsFromPackage: isJust <<< String.stripPrefix (String.Pattern pkgLocation)
           , pathType: IsLib
           , strict: false
-          , censorAll: eq (Just CensorAllWarnings) $ psaCliFlags.censorLibWarnings <|> workspaceOptions.censorLibWarnings
-          , censorCodes: maybe Set.empty NonEmptySet.toSet $ psaCliFlags.censorLibCodes <|> workspaceOptions.censorLibCodes
-          , filterCodes: maybe Set.empty NonEmptySet.toSet $ psaCliFlags.filterLibCodes <|> workspaceOptions.filterLibCodes
+          , censorAll
+          , censorCodes
+          , filterCodes
           }
 
 toWorkspacePackagePathDecision
