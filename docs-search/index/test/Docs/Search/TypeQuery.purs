@@ -21,7 +21,7 @@ import Data.Maybe (Maybe(..))
 
 tests :: Spec Unit
 tests = do
-  describe "TypeQuery parser" $ do
+  describe "TypeQuery parser" do
     it "test #0" do
       let input = "a"
       assertRight (parseTypeQuery input) (qVar "a")
