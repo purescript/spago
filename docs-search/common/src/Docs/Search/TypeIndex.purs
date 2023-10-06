@@ -5,7 +5,8 @@ import Docs.Search.Config as Config
 import Docs.Search.Declarations (resultsForDeclaration)
 import Docs.Search.DocsJson (DocsJson(..))
 import Docs.Search.Score (Scores)
-import Docs.Search.SearchResult (ResultInfo(..), SearchResult(..), searchResultCodec)
+import Docs.Search.SearchResult (ResultInfo(..), SearchResult(..))
+import Docs.Search.SearchResult as SearchResult
 import Docs.Search.TypeDecoder (Type)
 import Docs.Search.TypeQuery (TypeQuery)
 import Docs.Search.Types (ModuleName(..))
@@ -84,7 +85,7 @@ lookup key index@(TypeIndex map) =
         (\_ -> { index: insert key Nothing index, results: [] })
         do
           json <- hush eiJson
-          results <- hush (CA.decode (CA.array searchResultCodec) json)
+          results <- hush (CA.decode (CA.array SearchResult.searchResultCodec) json)
           pure { index: insert key (Just results) index, results }
 
   where

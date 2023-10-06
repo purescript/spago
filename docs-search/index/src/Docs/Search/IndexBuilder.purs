@@ -4,14 +4,20 @@ import Docs.Search.Config as Config
 import Docs.Search.Declarations (Declarations(..), mkDeclarations)
 import Docs.Search.DocsJson (DocsJson)
 import Docs.Search.Extra ((>#>))
-import Docs.Search.Meta (Meta, metaCodec)
-import Docs.Search.ModuleIndex (PackedModuleIndex, mkPackedModuleIndex, packedModuleIndexCodec)
-import Docs.Search.ModuleParser (parseModuleName)
-import Docs.Search.PackageIndex (PackageInfo, mkPackageInfo, packageResultCodec, packageMetaCodec)
+import Docs.Search.Meta (Meta)
+import Docs.Search.Meta as Meta
+import Docs.Search.ModuleIndex (PackedModuleIndex)
+import Docs.Search.ModuleIndex as ModuleIndex
+import Docs.Search.ModuleParser as ModuleParser
+import Docs.Search.PackageIndex (PackageInfo)
+import Docs.Search.PackageIndex as PackageIndex
 import Docs.Search.Score (mkScores)
-import Docs.Search.SearchResult (SearchResult, searchResultCodec)
-import Docs.Search.TypeIndex (TypeIndex, mkTypeIndex)
-import Docs.Search.Types (ModuleName, PackageName, PartId, packageInfoCodec)
+import Docs.Search.SearchResult (SearchResult)
+import Docs.Search.SearchResult as SearchResult
+import Docs.Search.TypeIndex (TypeIndex)
+import Docs.Search.TypeIndex as TypeIndex
+import Docs.Search.Types (ModuleName, PackageName(..), PartId)
+import Docs.Search.Types as Package
 
 import Prelude
 
@@ -50,8 +56,7 @@ import Node.FS.Aff (mkdir, readFile, readTextFile, readdir, stat, writeFile, wri
 import Node.FS.Stats (isDirectory, isFile)
 import Node.FS.Sync (exists)
 import Node.Process as Process
-import Web.Bower.PackageMeta (PackageMeta(..), PackageName(..))
-import Web.Bower.PackageMeta as Bower
+import Web.Bower.PackageMeta (PackageMeta(..))
 
 type Config =
   { docsFiles :: Array String
@@ -95,9 +100,9 @@ run' cfg = do
   let
     scores = mkScores packageMetas
     index = mkDeclarations scores docsJsons
-    typeIndex = mkTypeIndex scores docsJsons
-    packageInfo = mkPackageInfo scores packageMetas
-    moduleIndex = mkPackedModuleIndex index moduleNames
+    typeIndex = TypeIndex.mkTypeIndex scores docsJsons
+    packageInfo = PackageIndex.mkPackageInfo scores packageMetas
+    moduleIndex = ModuleIndex.mkPackedModuleIndex index moduleNames
     meta = { localPackageName: cfg.packageName }
 
   createDirectories cfg
@@ -202,7 +207,7 @@ parseModuleHeaders globs = do
 
   concat <$> for files \filePath -> do
     fileContents <- readTextFile UTF8 filePath
-    case parseModuleName fileContents of
+    case ModuleParser.parseModuleName fileContents of
       Nothing -> do
         liftEffect $ log $
           "Module header decoding failed for " <> filePath <>
@@ -231,7 +236,7 @@ decodeBowerJsons { bowerFiles } = do
           \contents ->
             either (logError jsonFileName) pure
               ( jsonParser contents >>=
-                  CA.decode (CA.maybe packageMetaCodec) >>>
+                  CA.decode (CA.maybe PackageIndex.packageMetaCodec) >>>
                     left CA.printJsonDecodeError
               )
 
@@ -258,7 +263,7 @@ writeTypeIndex typeIndex =
       <> typeShape
       <> "\"] = "
 
-  codec = CA.maybe $ CA.array searchResultCodec
+  codec = CA.maybe $ CA.array SearchResult.searchResultCodec
 
   entries :: Array _
   entries = Map.toUnfoldableUnordered (unwrap typeIndex)
@@ -267,7 +272,7 @@ writePackageInfo :: PackageInfo -> Aff Unit
 writePackageInfo packageInfo = do
 
   writeTextFile UTF8 (unwrap Config.packageInfoPath) $
-    header <> stringify (CA.encode (CA.array packageResultCodec) packageInfo)
+    header <> stringify (CA.encode (CA.array PackageIndex.packageResultCodec) packageInfo)
 
   where
   header = "window.DocsSearchPackageIndex = "
@@ -275,14 +280,14 @@ writePackageInfo packageInfo = do
 writeModuleIndex :: PackedModuleIndex -> Aff Unit
 writeModuleIndex moduleIndex = do
   writeTextFile UTF8 (unwrap Config.moduleIndexPath) $
-    header <> stringify (CA.encode packedModuleIndexCodec moduleIndex)
+    header <> stringify (CA.encode ModuleIndex.packedModuleIndexCodec moduleIndex)
   where
   header = "window.DocsSearchModuleIndex = "
 
 writeMeta :: Meta -> Aff Unit
 writeMeta meta = do
   writeTextFile UTF8 (unwrap Config.metaPath) $
-    header <> stringify (CA.encode metaCodec meta)
+    header <> stringify (CA.encode Meta.metaCodec meta)
   where
   header = "window." <> unwrap Config.metaItem <> " = "
 
@@ -336,7 +341,7 @@ writeIndex { generatedDocs } = getIndex >>> \resultsMap -> do
       writeTextFile UTF8 (generatedDocs <> Config.mkIndexPartPath indexPartId) $
         header <> stringify (CA.encode codec results)
   where
-  codec = CA.array $ CA.tuple CA.string $ CA.array searchResultCodec
+  codec = CA.array $ CA.tuple CA.string $ CA.array SearchResult.searchResultCodec
 
 patchHTML :: String -> Tuple Boolean String
 patchHTML html =

@@ -4,7 +4,8 @@ import Docs.Search.JsonCodec as JsonCodec
 import Docs.Search.Config as Config
 import Docs.Search.Extra (stringToList)
 import Docs.Search.Score (Scores, getPackageScoreForPackageName)
-import Docs.Search.Types (PackageScore, packageScoreCodec, packageNameCodec)
+import Docs.Search.Types (PackageScore)
+import Docs.Search.Types as Package
 import Docs.Search.Loader as Loader
 
 import Prelude
@@ -34,10 +35,10 @@ type PackageResult =
 packageResultCodec :: CA.JsonCodec PackageResult
 packageResultCodec =
   CAR.object "PackageResult" $
-    { name: packageNameCodec
+    { name: Package.packageNameCodec
     , description: CAR.optional CA.string
-    , score: packageScoreCodec
-    , dependencies: CA.array packageNameCodec
+    , score: Package.packageScoreCodec
+    , dependencies: CA.array Package.packageNameCodec
     , repository: CAR.optional CA.string
     }
 

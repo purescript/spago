@@ -4,8 +4,9 @@ module Docs.Search.BrowserEngine where
 import Docs.Search.Config as Config
 import Docs.Search.Engine (Engine, EngineState, Index)
 import Docs.Search.ModuleIndex as ModuleIndex
-import Docs.Search.PackageIndex (queryPackageIndex)
-import Docs.Search.SearchResult (SearchResult, searchResultCodec)
+import Docs.Search.PackageIndex as PackageIndex
+import Docs.Search.SearchResult (SearchResult)
+import Docs.Search.SearchResult as SearchResult
 import Docs.Search.TypeIndex (TypeIndex)
 import Docs.Search.TypeIndex as TypeIndex
 import Docs.Search.Types (PartId(..), URL)
@@ -66,7 +67,7 @@ query index@(PartialIndex indexMap) input = do
 
       let
         resultsCodec :: CA.JsonCodec (Array (Tuple String (Array SearchResult)))
-        resultsCodec = CA.array $ CA.tuple CA.string $ CA.array searchResultCodec
+        resultsCodec = CA.array $ CA.tuple CA.string $ CA.array SearchResult.searchResultCodec
 
         mbNewTrie :: Maybe (Trie Char (List SearchResult))
         mbNewTrie = do
@@ -108,7 +109,7 @@ browserSearchEngine
 browserSearchEngine =
   { queryIndex: query
   , queryTypeIndex: TypeIndex.query
-  , queryPackageIndex
+  , queryPackageIndex: PackageIndex.queryPackageIndex
   , queryModuleIndex: ModuleIndex.queryModuleIndex
   }
 

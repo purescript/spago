@@ -2,7 +2,8 @@ module Docs.Search.Meta where
 
 import Docs.Search.Config as Config
 import Docs.Search.Loader as Loader
-import Docs.Search.Types (PackageName, packageNameCodec)
+import Docs.Search.Types (PackageName)
+import Docs.Search.Types as Package
 
 import Data.Codec.Argonaut (JsonCodec, JsonDecodeError)
 import Data.Codec.Argonaut.Common as CA
@@ -19,7 +20,7 @@ type Meta =
 metaCodec :: JsonCodec Meta
 metaCodec =
   CAR.object "Meta"
-    { localPackageName: packageNameCodec
+    { localPackageName: Package.packageNameCodec
     }
 
 load :: Aff Meta

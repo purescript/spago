@@ -5,7 +5,8 @@ import Docs.Search.Declarations (Declarations(..))
 import Docs.Search.Extra (stringToList)
 import Docs.Search.Score (Scores, getPackageScore)
 import Docs.Search.SearchResult (SearchResult(..))
-import Docs.Search.Types (ModuleName, PackageInfo(..), PackageScore, packageInfoCodec, moduleNameCodec)
+import Docs.Search.Types (ModuleName, PackageInfo(..), PackageScore)
+import Docs.Search.Types as Package
 
 import Prelude
 
@@ -43,7 +44,7 @@ import Type.Proxy (Proxy(..))
 type PackedModuleIndex = Map PackageInfo (Set ModuleName)
 
 packedModuleIndexCodec :: JsonCodec PackedModuleIndex
-packedModuleIndexCodec = CA.map packageInfoCodec (CA.set moduleNameCodec)
+packedModuleIndexCodec = CA.map Package.packageInfoCodec (CA.set Package.moduleNameCodec)
 
 -- | "Expanded" module index that can be queried quickly.
 type ModuleIndex =

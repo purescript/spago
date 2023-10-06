@@ -3,8 +3,8 @@ module Docs.Search.SearchResult where
 import Docs.Search.JsonCodec (inject)
 import Docs.Search.DocsJson (DataDeclType, SourceSpan, sourceSpanCodec)
 import Docs.Search.TypeDecoder (Constraint, FunDeps, QualifiedName, Type, TypeArgument)
-import Docs.Search.Types (Identifier(..), ModuleName, PackageInfo, PackageScore, moduleNameCodec, packageInfoCodec, packageScoreCodec)
-
+import Docs.Search.Types (Identifier(..), ModuleName, PackageInfo, PackageScore)
+import Docs.Search.Types as Package
 import Docs.Search.JsonCodec as JsonCodec
 
 import Prelude
@@ -170,9 +170,9 @@ searchResultCodec = wrapIso SearchResult $
     { name: wrapIso Identifier $ CA.string
     , comments: CAR.optional CA.string
     , hashAnchor: CA.string
-    , moduleName: moduleNameCodec
-    , packageInfo: packageInfoCodec
-    , score: packageScoreCodec
+    , moduleName: Package.moduleNameCodec
+    , packageInfo: Package.packageInfoCodec
+    , score: Package.packageScoreCodec
     , sourceSpan: CAR.optional sourceSpanCodec
     , info: resultInfoCodec
     }
