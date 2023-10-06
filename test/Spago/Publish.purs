@@ -3,6 +3,8 @@ module Test.Spago.Publish (spec) where
 import Test.Prelude
 
 import Node.FS.Aff as FSA
+import Node.Platform as Platform
+import Node.Process as Process
 import Spago.Cmd (StdinConfig(..))
 import Spago.Cmd as Cmd
 import Spago.FS as FS
@@ -37,7 +39,9 @@ spec = Spec.around withTempDir do
       FS.copyFile { src: fixture "spago-publish.yaml", dst: "spago.yaml" }
       spago [ "build" ] >>= shouldBeSuccess
       doTheGitThing
-      spago [ "publish", "--offline" ] >>= shouldBeFailureErr (fixture "publish-main.txt")
+      spago [ "publish", "--offline" ] >>= shouldBeFailureErr case Process.platform of
+        Just Platform.Win32 -> fixture "publish-main-win.txt"
+        _ -> fixture "publish-main.txt"
 
     Spec.it "can get a package ready to publish" \{ spago, fixture } -> do
       FS.copyFile { src: fixture "spago-publish.yaml", dst: "spago.yaml" }
