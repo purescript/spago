@@ -11,8 +11,11 @@ import Spago.Command.Init as Init
 import Spago.Core.Config (Dependencies(..))
 import Spago.Core.Config as Config
 import Spago.FS as FS
+import Spago.Log (LogVerbosity(..))
+import Spago.Purs as Purs
 import Test.Spec (Spec)
 import Test.Spec as Spec
+import Test.Spec.Assertions as Assert
 import Test.Spec.Assertions as Assertions
 
 spec :: Spec Unit
@@ -233,6 +236,15 @@ spec = Spec.around withTempDir do
         )
       spago [ "install" ] >>= shouldBeSuccess
       checkFixture "spago.yaml" (fixture "spago-with-hash.yaml")
+
+    Spec.it "can build with a newer (but still compatible) compiler than the one in the package set" \{ spago } -> do
+      spago [ "init", "--package-set", "10.0.0" ] >>= shouldBeSuccess
+      purs <- runSpago { logOptions: { color: false, verbosity: LogQuiet } } Purs.getPurs
+      -- The package set 10.0.0 has purescript 0.15.4, so we check that we have a newer version
+      case purs.version > mkVersion "0.15.4" of
+        true -> pure unit
+        false -> Assert.fail $ "Expected purs version to be newer than 0.15.4, but it was " <> Version.print purs.version
+      spago [ "install" ] >>= shouldBeSuccess
 
 writeConfigWithEither :: Aff Unit
 writeConfigWithEither = do
