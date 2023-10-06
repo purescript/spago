@@ -17,6 +17,7 @@ import Effect.Aff (Milliseconds(..))
 import Effect.Aff as Aff
 import Effect.Ref as Ref
 import Node.Path as Path
+import Record as Record
 import Registry.API.V1 as V1
 import Registry.Internal.Format as Internal.Format
 import Registry.Internal.Path as Internal.Path
@@ -58,7 +59,7 @@ type PublishEnv a =
   , db :: Db
   , purs :: Purs
   , selected :: WorkspacePackage
-  , dependencies :: Map PackageName Package
+  , dependencies :: Fetch.PackageTransitiveDeps
   | a
   }
 
@@ -107,7 +108,7 @@ publish _args = do
     , logOptions: env.logOptions
     , git: env.git
     , purs: env.purs
-    , selected: env.selected
+    , selected
     , dependencies: env.dependencies
     , censorBuildWarnings: (Nothing :: Maybe Core.CensorBuildWarnings)
     , censorCodes: (Nothing :: Maybe (NonEmptySet String))
@@ -125,9 +126,12 @@ publish _args = do
     )
 
   -- We then need to check that the dependency graph is accurate. If not, queue the errors
-  let globs = Build.getBuildGlobs { selected: [ selected ], withTests: false, dependencies, depsOnly: false }
-  graphCheckErrors <- Graph.runGraphCheck selected globs []
-  for_ graphCheckErrors addError
+  let allDependencies = Fetch.toAllDependencies dependencies
+  let globs = Build.getBuildGlobs { selected: Build.SinglePackageGlobs selected, withTests: false, dependencies: allDependencies, depsOnly: false }
+  maybeGraph <- Graph.runGraph globs []
+  for_ maybeGraph \graph -> do
+    graphCheckErrors <- Graph.toImportErrors selected <$> runSpago (Record.union { graph, selected } env) Graph.checkImports
+    for_ graphCheckErrors addError
 
   -- Check if all the packages have ranges, error if not
   let
@@ -199,7 +203,7 @@ publish _args = do
                       RegistryVersion v -> Right (Tuple pkgName v)
                       _ -> Left pkgName
                   )
-              $ (Map.toUnfoldable dependencies :: Array _)
+              $ (Map.toUnfoldable allDependencies :: Array _)
         if Array.length fail > 0 then do
           addError
             $ toDoc
@@ -303,7 +307,7 @@ publish _args = do
         , git: env.git
         , purs: env.purs
         , selected: env.selected
-        , dependencies: buildPlanDependencies
+        , dependencies: Map.singleton selected.package.name buildPlanDependencies
         , censorBuildWarnings: (Nothing :: Maybe Core.CensorBuildWarnings)
         , censorCodes: (Nothing :: Maybe (NonEmptySet String))
         , filterCodes: (Nothing :: Maybe (NonEmptySet String))

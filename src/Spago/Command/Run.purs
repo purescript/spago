@@ -9,25 +9,26 @@ module Spago.Command.Run
 import Spago.Prelude
 
 import Data.Array as Array
-import Data.Map as Map
 import Data.Codec.Argonaut as CA
+import Data.Map as Map
 import Node.FS.Perms as Perms
 import Node.Path as Path
 import Registry.Version as Version
 import Spago.Cmd as Cmd
-import Spago.Config (Package, Workspace, WorkspacePackage)
-import Spago.Purs (Purs, ModuleGraph(..))
-import Spago.Purs as Purs
+import Spago.Command.Build as Build
+import Spago.Command.Fetch as Fetch
+import Spago.Config (Workspace, WorkspacePackage)
 import Spago.FS as FS
 import Spago.Paths as Paths
-import Spago.Command.Build as Build
+import Spago.Purs (Purs, ModuleGraph(..))
+import Spago.Purs as Purs
 
 type RunEnv a =
   { logOptions :: LogOptions
   , workspace :: Workspace
   , runOptions :: RunOptions
   , selected :: WorkspacePackage
-  , dependencies :: Map PackageName Package
+  , dependencies :: Fetch.PackageTransitiveDeps
   , node :: Node
   , purs :: Purs
   | a
@@ -97,11 +98,11 @@ run = do
       -- We check that the module we're about to run is included in the build and spit out a nice error if it isn't (see #383)
       let
         globs = Build.getBuildGlobs
-          { dependencies
+          { dependencies: Fetch.toAllDependencies dependencies
           , depsOnly: false
           -- Here we include tests as well, because we use this code for `spago run` and `spago test`
           , withTests: true
-          , selected: [ selected ]
+          , selected: Build.SinglePackageGlobs selected
           }
       Purs.graph globs [] >>= case _ of
         Left err -> logWarn $ "Could not decode the output of `purs graph`, error: " <> CA.printJsonDecodeError err

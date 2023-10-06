@@ -7,6 +7,10 @@ module Spago.Log
   , class Loggable
   , die
   , die'
+  , justOrDieWith
+  , justOrDieWith'
+  , rightOrDieWith
+  , rightOrDieWith'
   , indent2
   , logDebug
   , logError
@@ -26,7 +30,8 @@ import Control.Monad.Reader as Reader
 import Data.Array ((:))
 import Data.Array as Array
 import Data.Codec.Argonaut (JsonCodec)
-import Data.Maybe (fromMaybe)
+import Data.Either (Either(..))
+import Data.Maybe (Maybe(..), fromMaybe)
 import Data.String as String
 import Data.Traversable (traverse)
 import Dodo (Doc, print, twoSpaces)
@@ -131,6 +136,34 @@ die' :: forall a b m u. MonadEffect m => MonadAsk (LogEnv b) m => Loggable a => 
 die' msgs = do
   _ <- traverse logFailure msgs
   Effect.liftEffect $ Process.exit 1
+
+justOrDieWith :: forall a b m x. MonadEffect m => MonadAsk (LogEnv b) m => Loggable a => Maybe x -> a -> m x
+justOrDieWith value msg = case value of
+  Just a ->
+    pure a
+  Nothing ->
+    die msg
+
+justOrDieWith' :: forall a b m x. MonadEffect m => MonadAsk (LogEnv b) m => Loggable a => Maybe x -> Array a -> m x
+justOrDieWith' value msg = case value of
+  Just a ->
+    pure a
+  Nothing ->
+    die' msg
+
+rightOrDieWith :: forall a b m err x. MonadEffect m => MonadAsk (LogEnv b) m => Loggable a => Either err x -> (err -> a) -> m x
+rightOrDieWith value toMsg = case value of
+  Right a ->
+    pure a
+  Left err ->
+    die $ toMsg err
+
+rightOrDieWith' :: forall a b m err x. MonadEffect m => MonadAsk (LogEnv b) m => Loggable a => Either err x -> (err -> Array a) -> m x
+rightOrDieWith' value toMsg = case value of
+  Right a ->
+    pure a
+  Left err ->
+    die' $ toMsg err
 
 data OutputFormat a
   = OutputJson (JsonCodec a) a

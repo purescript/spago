@@ -1,9 +1,5 @@
 import Yaml from "yaml";
 
-export function updatePackageSetHashInConfigImpl(doc, sha) {
-  doc.get("workspace").get("package_set").set("hash", sha);
-}
-
 const getOrElse = (node, key, fallback) => {
   if (!node.has(key)) {
     node.set(key, fallback);
@@ -16,7 +12,7 @@ export function addPackagesToConfigImpl(doc, isTest, newPkgs) {
 
   const deps = (() => {
     if (isTest) {
-      const test = getOrElse(pkg, "test", doc.createNode({ dependencies: [], main: "Test.Main" } ));
+      const test = getOrElse(pkg, "test", doc.createNode({ dependencies: [], main: "Test.Main" }));
       return getOrElse(test, "dependencies", doc.createNode([]));
     } else {
       return getOrElse(pkg, "dependencies", doc.createNode([]))
@@ -80,4 +76,12 @@ export function addRangesToConfigImpl(doc, rangesMap) {
 
   newItems.sort();
   deps.items = newItems;
+}
+
+export function setPackageSetVersionInConfigImpl(doc, version) {
+  doc.setIn(["workspace", "package_set", "registry"], version);
+}
+
+export function updatePackageSetHashInConfigImpl(doc, sha) {
+  doc.setIn(["workspace", "package_set", "hash"], sha);
 }

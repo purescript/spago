@@ -1,7 +1,44 @@
 workspace:
   packages:
-    docs-search:
-      path: docs-search
+    docs-search-client-halogen:
+      path: docs-search/client-halogen
+      dependencies:
+        - aff
+        - aff-promise
+        - argonaut-codecs
+        - argonaut-core
+        - arrays
+        - codec-argonaut
+        - console
+        - control
+        - css
+        - docs-search-common
+        - effect
+        - either
+        - foldable-traversable
+        - halogen
+        - halogen-css
+        - halogen-subscriptions
+        - js-uri
+        - lists
+        - markdown-it
+        - markdown-it-halogen
+        - maybe
+        - newtype
+        - ordered-collections
+        - prelude
+        - profunctor-lenses
+        - search-trie
+        - strings
+        - tuples
+        - web-dom
+        - web-events
+        - web-html
+        - web-storage
+        - web-uievents
+      test_dependencies: []
+    docs-search-common:
+      path: docs-search/common
       dependencies:
         - aff
         - aff-promise
@@ -9,51 +46,58 @@ workspace:
         - argonaut-core
         - argonaut-generic
         - arrays
-        - codec-argonaut
-        - console
         - control
-        - css
         - effect
         - either
         - exceptions
         - foldable-traversable
         - foreign-object
-        - halogen
-        - halogen-css
-        - halogen-subscriptions
-        - identity
-        - js-uri
         - language-purescript
         - lists
-        - markdown-it
-        - markdown-it-halogen
+        - maybe
+        - newtype
+        - ordered-collections
+        - prelude
+        - profunctor-lenses
+        - safe-coerce
+        - search-trie
+        - string-parsers
+        - strings
+        - transformers
+        - tuples
+      test_dependencies: []
+    docs-search-index:
+      path: docs-search/index
+      dependencies:
+        - aff
+        - argonaut-codecs
+        - argonaut-core
+        - arrays
+        - console
+        - control
+        - docs-search-common
+        - effect
+        - either
+        - foldable-traversable
+        - identity
+        - json-codecs
+        - language-purescript
+        - lists
         - maybe
         - newtype
         - node-buffer
         - node-fs
         - node-fs-aff
         - node-process
-        - node-readline
-        - optparse
         - ordered-collections
-        - parallel
-        - partial
         - prelude
         - profunctor
-        - profunctor-lenses
         - search-trie
-        - spec
         - string-parsers
         - strings
-        - transformers
         - tuples
-        - unfoldable
-        - web-dom
-        - web-events
-        - web-html
-        - web-storage
-        - web-uievents
-      test_dependencies: []
+      test_dependencies:
+        - spec
     spago:
       path: ./
       dependencies:
@@ -64,7 +108,7 @@ workspace:
         - arrays
         - codec-argonaut
         - datetime
-        - docs-search
+        - docs-search-index
         - dodo-printer
         - effect
         - either
@@ -1446,17 +1490,6 @@ packages:
       - posix-types
       - prelude
       - unsafe-coerce
-  node-readline:
-    type: registry
-    version: 7.0.0
-    integrity: sha256-zlJEPH1/nbRYuEaLXIaHiuHjMWXC8GoTZJZjSSJCCeo=
-    dependencies:
-      - effect
-      - foreign
-      - node-process
-      - node-streams
-      - options
-      - prelude
   node-streams:
     type: registry
     version: 7.0.0

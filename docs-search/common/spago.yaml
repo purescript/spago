@@ -1,0 +1,28 @@
+package:
+  name: docs-search-common
+  dependencies:
+    - aff
+    - aff-promise
+    - argonaut-codecs
+    - argonaut-core
+    - argonaut-generic
+    - arrays
+    - control
+    - effect
+    - either
+    - exceptions
+    - foldable-traversable
+    - foreign-object
+    - language-purescript
+    - lists
+    - maybe
+    - newtype
+    - ordered-collections
+    - prelude
+    - profunctor-lenses
+    - safe-coerce
+    - search-trie
+    - string-parsers
+    - strings
+    - transformers
+    - tuples

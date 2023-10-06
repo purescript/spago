@@ -9,12 +9,15 @@ module Spago.Config
   , WorkspacePackage
   , addPackagesToConfig
   , addRangesToConfig
+  , rootPackageToWorkspacePackage
   , getPackageLocation
   , fileSystemCharEscape
   , getWorkspacePackages
+  , getTopologicallySortedWorkspacePackages
   , module Core
   , readWorkspace
   , sourceGlob
+  , setPackageSetVersionInConfig
   ) where
 
 import Spago.Prelude
@@ -26,6 +29,7 @@ import Data.Array as Array
 import Data.CodePoint.Unicode as Unicode
 import Data.Codec.Argonaut.Record as CAR
 import Data.Enum as Enum
+import Data.Graph as Graph
 import Data.HTTP.Method as Method
 import Data.Int as Int
 import Data.Map as Map
@@ -183,9 +187,6 @@ readWorkspace maybeSelectedPackage = do
           Nothing -> pure GenerateLockfile
           Just _ -> pure SkipLockfile
 
-  -- We try to figure out if the root package has tests - look for test sources
-  rootPackageHasTests <- FS.exists "test"
-
   -- Then gather all the spago other configs in the tree.
   { succeeded: otherConfigPaths, failed, ignored } <- do
     result <- liftAff $ Glob.match' Paths.cwd [ "**/spago.yaml" ] { ignore: [ ".spago", "spago.yaml" ] }
@@ -236,10 +237,13 @@ readWorkspace maybeSelectedPackage = do
   unless (Array.null prunedConfigs) do
     logDebug $ [ "Excluding configs that use a different workspace (directly or implicitly via parent directory's config):" ] <> Array.sort failedPackages
 
-  let
-    workspacePackages = Map.fromFoldable $ configsNoWorkspaces <> case maybePackage of
-      Nothing -> []
-      Just package -> [ Tuple package.name { path: "./", package, doc: workspaceDoc, hasTests: rootPackageHasTests } ]
+  rootPackage <- case maybePackage of
+    Nothing -> pure []
+    Just rootPackage -> do
+      rootPackage' <- rootPackageToWorkspacePackage { rootPackage, workspaceDoc }
+      pure [ Tuple rootPackage.name rootPackage' ]
+
+  let workspacePackages = Map.fromFoldable $ configsNoWorkspaces <> rootPackage
 
   -- Select the package for spago to handle during the rest of the execution
   maybeSelected <- case maybeSelectedPackage of
@@ -277,6 +281,16 @@ readWorkspace maybeSelectedPackage = do
           pure
             { compatibleCompiler: Range.caret registryPackageSet.compiler
             , remotePackageSet: Just registryPackageSet.packages
+            }
+    Just (Core.SetFromPath { path }) -> do
+      logDebug $ "Reading the package set from local path: " <> path
+      liftAff (FS.readJsonFile remotePackageSetCodec path) >>= case _ of
+        Left err -> die $ "Couldn't read the package set: " <> err
+        Right (RemotePackageSet localPackageSet) -> do
+          logInfo "Read the package set from local path"
+          pure
+            { compatibleCompiler: Range.caret localPackageSet.compiler
+            , remotePackageSet: Just localPackageSet.packages
             }
     Just (Core.SetFromUrl { url: rawUrl, hash: maybeHash }) -> do
       -- If there is a hash then we look up in the CAS, if not we fetch stuff, compute a hash and store it there
@@ -318,8 +332,7 @@ readWorkspace maybeSelectedPackage = do
           fetchPackageSet
       newHash <- writePackageSetToHash result
       logDebug $ "Package set hash: " <> Sha256.print newHash
-      liftEffect $ updatePackageSetHashInConfig workspaceDoc newHash
-      liftAff $ FS.writeYamlDocFile "spago.yaml" workspaceDoc
+      updatePackageSetHashInConfig workspaceDoc newHash
       pure
         { compatibleCompiler: Range.caret result.compiler
         , remotePackageSet: Just result.remotePackageSet
@@ -392,6 +405,15 @@ readWorkspace maybeSelectedPackage = do
     , lockfile
     }
 
+rootPackageToWorkspacePackage
+  :: forall m
+   . MonadEffect m
+  => { rootPackage :: Core.PackageConfig, workspaceDoc :: YamlDoc Core.Config }
+  -> m WorkspacePackage
+rootPackageToWorkspacePackage { rootPackage, workspaceDoc } = do
+  hasTests <- liftEffect $ FS.exists "test"
+  pure { path: "./", doc: workspaceDoc, package: rootPackage, hasTests }
+
 getPackageLocation :: PackageName -> Package -> FilePath
 getPackageLocation name = Paths.mkRelative <<< case _ of
   RegistryVersion v -> Path.concat [ Paths.localCachePackagesPath, PackageName.print name <> "-" <> Version.print v ]
@@ -453,6 +475,19 @@ getWorkspacePackages = Array.mapMaybe extractWorkspacePackage <<< Map.toUnfoldab
     Tuple _ (WorkspacePackage p) -> Just p
     _ -> Nothing
 
+getTopologicallySortedWorkspacePackages :: PackageSet -> Array WorkspacePackage
+getTopologicallySortedWorkspacePackages packageSet = do
+  let
+    packageMap = Map.fromFoldable $ map (\p -> Tuple p.package.name p) $ getWorkspacePackages packageSet
+    dependenciesAsList p = Set.toUnfoldable $ Map.keys $ unwrap p.package.dependencies
+    topSortPkgs =
+      Array.reverse
+        $ Array.fromFoldable
+        $ Graph.topologicalSort
+        $ Graph.fromMap
+        $ map (\p -> Tuple p $ dependenciesAsList p) packageMap
+  Array.mapMaybe (flip Map.lookup packageMap) topSortPkgs
+
 type PackageSetResult = { compiler :: Version, remotePackageSet :: Map PackageName Core.RemotePackage }
 
 packageSetResultCodec :: JsonCodec PackageSetResult
@@ -489,8 +524,17 @@ packageSetCachePath (HexString hash) = Path.concat [ packageSetsCachePath, hash 
 
 foreign import updatePackageSetHashInConfigImpl :: EffectFn2 (YamlDoc Core.Config) String Unit
 
-updatePackageSetHashInConfig :: YamlDoc Core.Config -> Sha256 -> Effect Unit
-updatePackageSetHashInConfig doc sha = runEffectFn2 updatePackageSetHashInConfigImpl doc (Sha256.print sha)
+updatePackageSetHashInConfig :: forall m. MonadAff m => MonadEffect m => YamlDoc Core.Config -> Sha256 -> m Unit
+updatePackageSetHashInConfig doc sha = do
+  liftEffect $ runEffectFn2 updatePackageSetHashInConfigImpl doc (Sha256.print sha)
+  liftAff $ FS.writeYamlDocFile "spago.yaml" doc
+
+foreign import setPackageSetVersionInConfigImpl :: EffectFn2 (YamlDoc Core.Config) String Unit
+
+setPackageSetVersionInConfig :: forall m. MonadAff m => MonadEffect m => YamlDoc Core.Config -> Version -> m Unit
+setPackageSetVersionInConfig doc version = do
+  liftEffect $ runEffectFn2 setPackageSetVersionInConfigImpl doc (Version.print version)
+  liftAff $ FS.writeYamlDocFile "spago.yaml" doc
 
 foreign import addPackagesToConfigImpl :: EffectFn3 (YamlDoc Core.Config) Boolean (Array String) Unit
 

@@ -1,6 +1,5 @@
 module Docs.Search.IndexBuilder where
 
-import Docs.Search.BrowserEngine (getPartId)
 import Docs.Search.Config as Config
 import Docs.Search.Declarations (Declarations(..), mkDeclarations)
 import Docs.Search.DocsJson (DocsJson)
@@ -292,7 +291,7 @@ getIndex :: Declarations -> Map PartId (Array (Tuple String (Array SearchResult)
 getIndex (Declarations trie) =
   Array.foldr insert Map.empty parts
   where
-  insert part = Map.insertWith append (getPartId part.prefix) part.results
+  insert part = Map.insertWith append (Config.getPartId part.prefix) part.results
 
   parts
     :: Array

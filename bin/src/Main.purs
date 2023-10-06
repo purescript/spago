@@ -41,7 +41,8 @@ import Spago.Command.Repl as Repl
 import Spago.Command.Run as Run
 import Spago.Command.Sources as Sources
 import Spago.Command.Test as Test
-import Spago.Config (BundleConfig, BundlePlatform(..), BundleType(..), Package, RunConfig, TestConfig)
+import Spago.Command.Upgrade as Upgrade
+import Spago.Config (BundleConfig, BundlePlatform(..), BundleType(..), PackageMap, RunConfig, TestConfig)
 import Spago.Config as Config
 import Spago.Core.Config as Core
 import Spago.Db as Db
@@ -54,6 +55,7 @@ import Spago.Log (LogVerbosity(..))
 import Spago.Paths as Paths
 import Spago.Purs as Purs
 import Spago.Registry as Registry
+import Spago.Repl as SpagoRepl
 import Unsafe.Coerce as UnsafeCoerce
 
 type GlobalArgs =
@@ -182,25 +184,28 @@ type PublishArgs =
   { selectedPackage :: Maybe String
   }
 
+type UpgradeArgs = {}
+
 data SpagoCmd a = SpagoCmd GlobalArgs (Command a)
 
 data Command a
-  = Init InitArgs
-  | Fetch FetchArgs
-  | Install InstallArgs
-  | Build (BuildArgs a)
-  | Docs DocsArgs
+  = Build (BuildArgs a)
   | Bundle BundleArgs
-  | Repl ReplArgs
-  | Run RunArgs
-  | Test TestArgs
-  | Sources SourcesArgs
-  | RegistrySearch RegistrySearchArgs
-  | RegistryInfo RegistryInfoArgs
-  | RegistryPackageSets RegistryPackageSetsArgs
+  | Docs DocsArgs
+  | Fetch FetchArgs
+  | Init InitArgs
+  | Install InstallArgs
   | LsDeps LsDepsArgs
   | LsPackages LsPackagesArgs
   | Publish PublishArgs
+  | RegistryInfo RegistryInfoArgs
+  | RegistryPackageSets RegistryPackageSetsArgs
+  | RegistrySearch RegistrySearchArgs
+  | Repl ReplArgs
+  | Run RunArgs
+  | Sources SourcesArgs
+  | Test TestArgs
+  | Upgrade UpgradeArgs
 
 commandParser :: forall (a :: Row Type). String -> Parser (Command a) -> String -> Mod CommandFields (SpagoCmd a)
 commandParser command_ parser_ description_ =
@@ -223,6 +228,7 @@ argParser =
     , commandParser "sources" (Sources <$> sourcesArgsParser) "List all the source paths (globs) for the dependencies of the project"
     , commandParser "repl" (Repl <$> replArgsParser) "Start a REPL"
     , commandParser "publish" (Publish <$> publishArgsParser) "Publish a package"
+    , commandParser "upgrade" (Upgrade <$> pure {}) "Upgrade to the latest package set, or to the latest versions of Registry packages"
 
     , commandParser "docs" (Docs <$> docsArgsParser) "Generate docs for the project and its dependencies"
     , O.command "registry"
@@ -570,8 +576,8 @@ main =
               , testDeps: false
               }
             dependencies <- runSpago env (Fetch.run fetchOpts)
-            supportPackages <- runSpago env (Repl.supportPackage env.workspace.packageSet)
-            replEnv <- runSpago env (mkReplEnv args (Map.union dependencies supportPackages))
+            supportPackages <- runSpago env (SpagoRepl.supportPackage env.workspace.packageSet)
+            replEnv <- runSpago env (mkReplEnv args dependencies supportPackages)
             void $ runSpago replEnv Repl.run
 
           Bundle args@{ selectedPackage, ensureRanges } -> do
@@ -624,6 +630,9 @@ main =
             dependencies <- runSpago env (Fetch.run fetchOpts)
             docsEnv <- runSpago env (mkDocsEnv args dependencies)
             runSpago docsEnv Docs.run
+          Upgrade _args -> do
+            { env } <- mkFetchEnv { packages: mempty, selectedPackage: Nothing, ensureRanges: false, testDeps: false }
+            runSpago env Upgrade.run
 
       Cmd'VersionCmd v -> do when v printVersion
   where
@@ -791,7 +800,7 @@ mkBuildEnv
      , persistWarnings :: Maybe Boolean
      | r
      }
-  -> Map PackageName Package
+  -> Fetch.PackageTransitiveDeps
   -> Spago (Fetch.FetchEnv ()) (Build.BuildEnv ())
 mkBuildEnv buildArgs dependencies = do
   { logOptions, workspace, git } <- ask
@@ -826,7 +835,7 @@ mkBuildEnv buildArgs dependencies = do
     , workspace: newWorkspace
     }
 
-mkPublishEnv :: forall a. Map PackageName Package -> Spago (Fetch.FetchEnv a) (Publish.PublishEnv a)
+mkPublishEnv :: forall a. Fetch.PackageTransitiveDeps -> Spago (Fetch.FetchEnv a) (Publish.PublishEnv a)
 mkPublishEnv dependencies = do
   env <- ask
   selected <- case env.workspace.selected of
@@ -846,21 +855,21 @@ mkPublishEnv dependencies = do
               ]
   pure (Record.union { selected, dependencies } env)
 
-mkReplEnv :: forall a. ReplArgs -> Map PackageName Package -> Spago (Fetch.FetchEnv a) (Repl.ReplEnv ())
-mkReplEnv replArgs dependencies = do
+mkReplEnv :: forall a. ReplArgs -> Fetch.PackageTransitiveDeps -> PackageMap -> Spago (Fetch.FetchEnv a) (Repl.ReplEnv ())
+mkReplEnv replArgs dependencies supportPackage = do
   { workspace, logOptions } <- ask
   logDebug $ "Repl args: " <> show replArgs
 
   purs <- Purs.getPurs
 
-  let
-    selected = case workspace.selected of
-      Just s -> [ s ]
-      Nothing -> Config.getWorkspacePackages workspace.packageSet
+  selected <- case workspace.selected of
+    Just s -> pure $ Build.SinglePackageGlobs s
+    Nothing -> pure $ Build.AllWorkspaceGlobs workspace.packageSet
 
   pure
     { purs
     , dependencies
+    , supportPackage
     , depsOnly: false
     , logOptions
     , pursArgs: Array.fromFoldable replArgs.pursArgs
@@ -973,7 +982,7 @@ mkRegistryEnv = do
     , db
     }
 
-mkLsEnv :: forall a. Map PackageName Package -> Spago (Fetch.FetchEnv a) Ls.LsEnv
+mkLsEnv :: forall a. Fetch.PackageTransitiveDeps -> Spago (Fetch.FetchEnv a) Ls.LsEnv
 mkLsEnv dependencies = do
   { logOptions, workspace } <- ask
   selected <- case workspace.selected of
@@ -993,7 +1002,7 @@ mkLsEnv dependencies = do
               ]
   pure { logOptions, workspace, dependencies, selected }
 
-mkDocsEnv :: forall a. DocsArgs -> Map PackageName Package -> Spago (Fetch.FetchEnv a) Docs.DocsEnv
+mkDocsEnv :: forall a. DocsArgs -> Fetch.PackageTransitiveDeps -> Spago (Fetch.FetchEnv a) Docs.DocsEnv
 mkDocsEnv args dependencies = do
   { logOptions, workspace } <- ask
   purs <- Purs.getPurs
