@@ -5,7 +5,11 @@ import Docs.Search.DocsJson (DataDeclType, SourceSpan, sourceSpanCodec)
 import Docs.Search.TypeDecoder (Constraint, FunDeps, QualifiedName, Type, TypeArgument)
 import Docs.Search.Types (Identifier(..), ModuleName, PackageInfo, PackageScore)
 import Docs.Search.Types as Package
+import Docs.Search.TypeDecoder (Constraint', Qualified, Type, TypeArgument, FunDeps, Type', ProperName(..), ClassName(..))
+import Docs.Search.TypeDecoder as TypeDecoder
 import Docs.Search.JsonCodec as JsonCodec
+import Docs.Search.DocsJson (DataDeclType)
+import Docs.Search.Types (ModuleName, PackageInfo, Identifier, PackageScore)
 
 import Prelude
 import Prim hiding (Type, Constraint)
@@ -33,26 +37,26 @@ data ResultInfo
       { typeArguments :: Array TypeArgument
       , dataDeclType :: DataDeclType
       }
-  | ExternDataResult { kind :: Type }
+  | ExternDataResult { kind :: Type' }
   | TypeSynonymResult
       { arguments :: Array TypeArgument
-      , type :: Type
+      , type :: Type'
       }
   | DataConstructorResult
       { dataDeclType :: DataDeclType
-      , type :: Type
+      , type :: Type'
       }
   | TypeClassMemberResult
-      { type :: Type
-      , typeClass :: QualifiedName
+      { type :: Type'
+      , typeClass :: Qualified (ProperName ClassName)
       , typeClassArguments :: Array TypeArgument
       }
   | TypeClassResult
       { fundeps :: FunDeps
       , arguments :: Array TypeArgument
-      , superclasses :: Array Constraint
+      , superclasses :: Array Constraint'
       }
-  | ValueResult { type :: Type }
+  | ValueResult { type :: Type' }
   | ValueAliasResult
   | TypeAliasResult
   | ExternKindResult
@@ -62,33 +66,33 @@ resultInfoCodec =
   dimap toVariant fromVariant $ CAV.variantMatch
     { data: Right $
         CAR.object "DataResult"
-          { typeArguments: CA.array typeArgumentCodec
-          , dataDeclType: dataDeclTypeCodec
+          { typeArguments: CA.array TypeDecoder.typeArgumentCodec
+          , dataDeclType: TypeDecoder.dataDeclTypeCodec
           }
-    , externData: Right typeCodec
+    , externData: Right TypeDecoder.typeCodec
     , typeSynonym: Right $
         CAR.object "TypeSynonymResult"
-          { arguments: CA.array typeArgumentCodec
-          , type: typeCodec
+          { arguments: CA.array TypeDecoder.typeArgumentCodec
+          , type: TypeDecoder.typeCodec
           }
     , dataConstructor: Right $
         CAR.object "DataConstructorResult"
-          { dataDeclType: dataDeclTypeCodec
-          , type: typeCodec
+          { dataDeclType: TypeDecoder.dataDeclTypeCodec
+          , type: TypeDecoder.typeCodec
           }
     , typeClassMember: Right $
         CAR.object "TypeClassMemberResult"
-          { type: typeCodec
-          , typeClass: qualifiedNameCodec
-          , typeClassArguments: CA.array typeArgumentCodec
+          { type: TypeDecoder.typeCodec
+          , typeClass: TypeDecoder.qualifiedNameCodec
+          , typeClassArguments: CA.array TypeDecoder.typeArgumentCodec
           }
     , typeClass: Right $
         CAR.object "TypeClassResult"
-          { fundeps: funDepsCodec
-          , arguments: CA.array typeArgumentCodec
-          , superclasses: CA.array constraintCodec
+          { fundeps: TypeDecoder.funDepsCodec
+          , arguments: CA.array TypeDecoder.typeArgumentCodec
+          , superclasses: CA.array TypeDecoder.constraintCodec
           }
-    , value: Right typeCodec
+    , value: Right TypeDecoder.typeCodec
     , valueAlias: Left unit
     , typeAlias: Left unit
     , externKind: Left unit
@@ -122,26 +126,8 @@ resultInfoCodec =
   fromUnit :: forall a. a -> Unit -> a
   fromUnit = const
 
-typeArgumentCodec :: CA.JsonCodec TypeArgument
-typeArgumentCodec = JsonCodec.fromGeneric
-
-dataDeclTypeCodec :: CA.JsonCodec DataDeclType
-dataDeclTypeCodec = JsonCodec.fromGeneric
-
-typeCodec :: CA.JsonCodec Type
-typeCodec = JsonCodec.fromGeneric
-
-qualifiedNameCodec :: CA.JsonCodec QualifiedName
-qualifiedNameCodec = JsonCodec.fromGeneric
-
-funDepsCodec :: CA.JsonCodec FunDeps
-funDepsCodec = JsonCodec.fromGeneric
-
-constraintCodec :: CA.JsonCodec Constraint
-constraintCodec = JsonCodec.fromGeneric
-
 -- | Extract the type field.
-typeOf :: ResultInfo -> Maybe Type
+typeOf :: ResultInfo -> Maybe Type'
 typeOf (TypeSynonymResult { type: res }) =
   Just res
 typeOf (TypeClassMemberResult { type: res }) =
@@ -177,5 +163,5 @@ searchResultCodec = wrapIso SearchResult $
     , info: resultInfoCodec
     }
 
-typeOfResult :: SearchResult -> Maybe Type
+typeOfResult :: SearchResult -> Maybe Type'
 typeOfResult = un SearchResult >>> (_.info) >>> typeOf

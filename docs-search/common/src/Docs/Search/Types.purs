@@ -1,9 +1,8 @@
 module Docs.Search.Types
   ( module ReExport
   , packageNameCodec
-  , Identifier(..)
-  , ModuleName(..)
   , moduleNameCodec
+  , Identifier(..)
   , PackageInfo(..)
   , packageInfoCodec
   , PackageScore(..)
@@ -14,7 +13,11 @@ module Docs.Search.Types
   , FilePath(..)
   ) where
 
+import Web.Bower.PackageMeta (PackageName(..)) as ReExport
+import Language.PureScript.Names (ModuleName(..)) as ReExport
+
 import Docs.Search.JsonCodec (inject)
+
 import Prelude
 
 import Data.Argonaut.Core (Json)
@@ -34,8 +37,8 @@ import Data.Profunctor (wrapIso, dimap)
 import Data.Show.Generic (genericShow)
 import Data.Tuple (Tuple(..))
 import Data.Variant as Variant
+import Language.PureScript.Names (ModuleName(..))
 import Web.Bower.PackageMeta (PackageName(..))
-import Web.Bower.PackageMeta (PackageName(..)) as ReExport
 
 newtype Identifier = Identifier String
 
@@ -46,18 +49,6 @@ derive newtype instance ordIdentifier :: Ord Identifier
 derive newtype instance showIdentifier :: Show Identifier
 derive newtype instance decodeJsonIdentifier :: DecodeJson Identifier
 derive newtype instance encodeJsonIdentifier :: EncodeJson Identifier
-
-newtype ModuleName = ModuleName String
-
-derive instance newtypeModuleName :: Newtype ModuleName _
-derive instance genericModuleName :: Generic ModuleName _
-derive newtype instance eqModuleName :: Eq ModuleName
-derive newtype instance ordModuleName :: Ord ModuleName
-derive newtype instance decodeJsonModuleName :: DecodeJson ModuleName
-derive newtype instance encodeJsonModuleName :: EncodeJson ModuleName
-
-instance Show ModuleName where
-  show = genericShow
 
 moduleNameCodec :: JsonCodec ModuleName
 moduleNameCodec = wrapIso ModuleName CA.string

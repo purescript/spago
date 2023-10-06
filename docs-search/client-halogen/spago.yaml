@@ -26,6 +26,7 @@ package:
     - profunctor-lenses
     - search-trie
     - strings
+    - stringutils
     - tuples
     - web-dom
     - web-events

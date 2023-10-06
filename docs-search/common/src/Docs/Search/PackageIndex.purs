@@ -110,5 +110,5 @@ queryPackageIndex index query =
 packageMetaCodec :: CA.JsonCodec PackageMeta
 packageMetaCodec = CA.codec' decode encode
   where
-  decode = JsonCodec.fromJsonUnidirectional Bower.toPackageMeta
+  decode = JsonCodec.fromUni Bower.toPackageMeta
   encode = Bower.fromPackageMeta

@@ -12,7 +12,8 @@ import Docs.Search.Extra (homePageFromRepository, (>#>))
 import Docs.Search.ModuleIndex (ModuleResult)
 import Docs.Search.PackageIndex (PackageResult)
 import Docs.Search.SearchResult (ResultInfo(..), SearchResult(..))
-import Docs.Search.TypeDecoder (Constraint(..), FunDep(..), FunDeps(..), QualifiedName(..), Type(..), TypeArgument(..), joinForAlls, joinRows)
+import Docs.Search.TypeDecoder (Constraint(..), Constraint', Type', Qualified(..), QualifiedBy(..), ProperName(..), Type(..), TypeArgument, ClassName(..), FunDep, FunDeps)
+import Docs.Search.TypeQuery as TypeQuery
 import Docs.Search.TypeIndex (TypeIndex)
 import Docs.Search.Types (Identifier(..), ModuleName(..), PackageName)
 import Docs.Search.Meta (Meta)
@@ -25,13 +26,18 @@ import Data.List as List
 import Data.Maybe (Maybe(..), isJust, fromMaybe)
 import Data.Newtype (wrap, unwrap)
 import Data.String.CodeUnits (stripSuffix) as String
+import Data.String.Utils (startsWith) as String
 import Data.String.Common (null, trim) as String
 import Data.String.Pattern (Pattern(..)) as String
+import Data.String.Regex as Regex
+import Data.String.Regex.Flags as RegexFlags
+import Data.Tuple (Tuple(..))
 import Effect.Aff (Aff)
 import Halogen as H
 import Halogen.HTML as HH
 import Halogen.HTML.Events as HE
 import Halogen.HTML.Properties as HP
+import Language.PureScript.PSString as PSString
 import MarkdownIt as MD
 import MarkdownIt.Renderer.Halogen as MDH
 import Web.DOM.Element (Element)
@@ -383,7 +389,7 @@ renderValueSignature
      , name :: Identifier
      | rest
      }
-  -> Type
+  -> Type'
   -> Array (HH.HTML a Action)
 renderValueSignature result ty =
   [ HH.a
@@ -399,7 +405,7 @@ renderTypeClassSignature
   :: forall a rest
    . { fundeps :: FunDeps
      , arguments :: Array TypeArgument
-     , superclasses :: Array Constraint
+     , superclasses :: Array Constraint'
      }
   -> { name :: Identifier, moduleName :: ModuleName | rest }
   -> Array (HH.HTML a Action)
@@ -435,24 +441,23 @@ renderTypeClassSignature { fundeps, arguments, superclasses } { name, moduleName
       )
 
 renderFunDeps :: forall a. FunDeps -> Array (HH.HTML a Action)
-renderFunDeps (FunDeps []) = []
-renderFunDeps (FunDeps deps) =
+renderFunDeps ([]) = []
+renderFunDeps (deps) =
   append [ syntax " | " ]
     $ Array.intercalate [ syntax ", " ]
     $
       deps <#> renderFunDep
   where
-  renderFunDep (FunDep { lhs, rhs }) =
+  renderFunDep (Tuple lhs rhs) =
     Array.intercalate [ space ] (pure <<< HH.text <$> lhs)
       <> [ syntax " -> " ]
-      <>
-        Array.intercalate [ space ] (pure <<< HH.text <$> rhs)
+      <> Array.intercalate [ space ] (pure <<< HH.text <$> rhs)
 
 -- | Insert type class name and arguments
 renderTypeClassMemberSignature
   :: forall a rest
-   . { type :: Type
-     , typeClass :: QualifiedName
+   . { type :: Type'
+     , typeClass :: Qualified (ProperName ClassName)
      , typeClassArguments :: Array TypeArgument
      }
   -> { name :: Identifier | rest }
@@ -473,8 +478,8 @@ renderDataSignature
 renderDataSignature { typeArguments, dataDeclType } { name } =
   [ keyword
       case dataDeclType of
-        NewtypeDataDecl -> "newtype"
-        DataDataDecl -> "data"
+        Newtype -> "newtype"
+        Data -> "data"
   , space
   , HH.text $ unwrap name
   , space
@@ -486,7 +491,7 @@ renderDataSignature { typeArguments, dataDeclType } { name } =
 
 renderTypeSynonymSignature
   :: forall a rest
-   . { type :: Type
+   . { type :: Type'
      , arguments :: Array TypeArgument
      }
   -> { name :: Identifier | rest }
@@ -507,8 +512,8 @@ renderTypeSynonymSignature { type: ty, arguments } { name } =
   ]
 
 renderTypeArgument :: forall a. TypeArgument -> Array (HH.HTML a Action)
-renderTypeArgument (TypeArgument { name, mbKind }) =
-  case mbKind of
+renderTypeArgument ({ name, kind }) =
+  case kind of
     Nothing ->
       [ HH.text $ name ]
     Just kind ->
@@ -521,97 +526,102 @@ renderTypeArgument (TypeArgument { name, mbKind }) =
 
 renderType
   :: forall a
-   . Type
+   . Type'
   -> HH.HTML a Action
-renderType = case _ of
-  TypeVar str -> HH.text str
-  TypeLevelString str -> HH.text $ "\"" <> str <> "\"" -- TODO: add escaping
-  TypeWildcard -> HH.text "_"
-  TypeConstructor qname -> renderQualifiedName false TypeLevel qname
-  TypeOp qname -> renderQualifiedName true TypeLevel qname
+renderType =
+  case _ of
+    TypeVar _ str -> HH.text str
+    TypeLevelString _ str -> HH.text $ "\"" <> PSString.decodeStringWithReplacement str <> "\"" -- TODO: add escaping
+    TypeLevelInt _ n -> HH.text $ show n
+    TypeWildcard _ _ -> HH.text "_"
+    TypeConstructor _ (Qualified by name) ->
+      renderQualifiedName false TypeLevel by $ unwrap name
+    TypeOp _ (Qualified by name) ->
+      renderQualifiedName true TypeLevel by $ unwrap name
+    TypeApp _
+      ( TypeApp _
+          ( TypeConstructor _
+              ( Qualified
+                  (ByModuleName (ModuleName "Prim"))
+                  (ProperName "Function")
+              )
+          )
+          t1
+      )
+      t2 ->
+      HH.span_
+        [ renderType t1
+        , syntax " -> "
+        , renderType t2
+        ]
 
-  TypeApp
-    ( TypeApp
-        ( TypeConstructor
-            ( QualifiedName
-                { moduleNameParts: [ "Prim" ]
-                , name: Identifier "Function"
-                }
-            )
-        )
-        t1
-    )
-    t2 ->
-    HH.span_
-      [ renderType t1
-      , syntax " -> "
-      , renderType t2
-      ]
+    TypeApp _
+      ( TypeConstructor _
+          ( Qualified
+              (ByModuleName (ModuleName "Prim"))
+              (ProperName "Record")
+          )
+      )
+      row ->
+      renderRow false row
 
-  TypeApp
-    ( TypeConstructor
-        ( QualifiedName
-            { moduleNameParts: [ "Prim" ]
-            , name: Identifier "Record"
-            }
-        )
-    )
-    row ->
-    renderRow false row
+    TypeApp _ t1 t2 ->
+      HH.span_
+        [ renderType t1
+        , space
+        , renderType t2
+        ]
 
-  TypeApp t1 t2 ->
-    HH.span_
-      [ renderType t1
-      , space
-      , renderType t2
-      ]
+    KindApp _ t1 t2 ->
+      HH.span_ [ renderType t1, space, renderType t2 ]
 
-  KindApp t1 t2 ->
-    HH.span_ [ renderType t1, space, renderType t2 ]
+    ty@(ForAll _ _ _ _ _ _) ->
+      renderForAll ty
 
-  ty@(ForAll _ _ _) ->
-    renderForAll ty
+    ConstrainedType _ cnstr ty ->
+      HH.span_
+        [ renderConstraint cnstr
+        , HH.text " => "
+        , renderType ty
+        ]
 
-  ConstrainedType cnstr ty ->
-    HH.span_
-      [ renderConstraint cnstr
-      , HH.text " => "
-      , renderType ty
-      ]
+    ty@(REmpty _) -> renderRow true ty
+    ty@(RCons _ _ _ _) -> renderRow true ty
 
-  ty@REmpty -> renderRow true ty
-  ty@(RCons _ _ _) -> renderRow true ty
+    KindedType _ t1 t2 ->
+      HH.span_ [ renderType t1, space, syntax "::", space, renderType t2 ]
 
-  Kinded t1 t2 ->
-    HH.span_ [ renderType t1, space, syntax "::", space, renderType t2 ]
+    BinaryNoParensType _ op t1 t2 ->
+      HH.span_
+        [ renderType t1
+        , space
+        , renderType op
+        , space
+        , renderType t2
+        ]
 
-  BinaryNoParensType op t1 t2 ->
-    HH.span_
-      [ renderType t1
-      , space
-      , renderType op
-      , space
-      , renderType t2
-      ]
+    ParensInType _ ty ->
+      HH.span_
+        [ HH.text "("
+        , renderType ty
+        , HH.text ")"
+        ]
 
-  ParensInType ty ->
-    HH.span_
-      [ HH.text "("
-      , renderType ty
-      , HH.text ")"
-      ]
+    -- FIXME(ast)
+    Skolem _ _ _ _ _ -> HH.text "Skolem"
+    TUnknown _ _ -> HH.text "TUnknown"
 
 renderForAll
   :: forall a
-   . Type
+   . Type'
   -> HH.HTML a Action
 renderForAll ty =
   HH.span_ $
     [ keyword "forall" ]
       <>
         ( Array.fromFoldable foralls.binders <#>
-            \{ name, mbKind } ->
-              case mbKind of
+            \{ name, kind } ->
+              case kind of
                 Nothing -> HH.text (" " <> name)
                 Just kind ->
                   HH.span_
@@ -623,19 +633,17 @@ renderForAll ty =
                     ]
         )
       <>
-
         [ syntax ". ", renderType foralls.ty ]
-
   where
-  foralls = joinForAlls ty
+  foralls = TypeQuery.joinForAlls ty
 
 renderRow
   :: forall a
    . Boolean
-  -> Type
+  -> Type'
   -> HH.HTML a Action
 renderRow asRow =
-  joinRows >>> \{ rows, ty } ->
+  TypeQuery.joinRows >>> \{ rows, ty } ->
     HH.span_ $
 
       if List.null rows then
@@ -644,7 +652,11 @@ renderRow asRow =
             fromMaybe (HH.text "{}") $
               ty <#> \ty' ->
                 HH.span_
-                  [ renderQualifiedName false TypeLevel primRecord
+                  [ renderQualifiedName
+                      false
+                      TypeLevel
+                      (ByModuleName (wrap "Prim"))
+                      "Record"
                   , HH.text " "
                   , renderType ty'
                   ]
@@ -669,38 +681,41 @@ renderRow asRow =
   opening = if asRow then "( " else "{ "
   closing = if asRow then " )" else " }"
 
-  primRecord :: QualifiedName
-  primRecord = QualifiedName { moduleNameParts: [ "Prim" ], name: Identifier "Record" }
-
 renderConstraint
   :: forall a
-   . Constraint
+   . Constraint'
   -> HH.HTML a Action
-renderConstraint (Constraint { constraintClass, constraintArgs }) =
+renderConstraint (Constraint { class: Qualified by constraintClass, args, kindArgs }) =
   HH.span_ $
-    [ renderQualifiedName false TypeLevel constraintClass, space ] <>
-      Array.intercalate [ space ] (constraintArgs <#> \ty -> [ renderType ty ])
+    [ renderQualifiedName false TypeLevel by $ unwrap constraintClass
+    , space
+    ] <>
+      ( Array.intercalate [ space ] (constraintArgs <#> \ty -> [ renderType ty ])
+      )
+  where
+  constraintArgs = args <> kindArgs
 
 renderQualifiedName
-  :: forall a
+  :: forall a tag
    . Boolean
   -> DeclLevel
-  -> QualifiedName
+  -> QualifiedBy
+  -> String
   -> HH.HTML a Action
-renderQualifiedName isInfix level (QualifiedName { moduleNameParts, name }) =
-  if isBuiltIn then
-    HH.text $ unwrap name
-  else
-    HH.a
-      [ HE.onClick $ const
-          $ SearchResultClicked
-          $ moduleName
-      , makeHref level isInfix moduleName name
-      ]
-      [ HH.text $ unwrap name ]
-  where
-  moduleName = ModuleName $ Array.intercalate "." $ moduleNameParts
-  isBuiltIn = moduleNameParts !! 0 == Just "Prim"
+renderQualifiedName isInfix level by name =
+  --fixme(ast)
+  case by of
+    BySourcePos _ ->
+      HH.text name
+
+    ByModuleName moduleName ->
+      HH.a
+        [ HE.onClick $ const
+            $ SearchResultClicked
+            $ moduleName
+        , makeHref level isInfix moduleName $ wrap name
+        ]
+        [ HH.text name ]
 
 -- | Construct a `href` property value w.r.t. `DeclLevel`.
 makeHref

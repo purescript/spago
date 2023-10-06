@@ -1,10 +1,17 @@
-module Docs.Search.Declarations where
+module Docs.Search.Declarations
+  ( Declarations(..)
+  , DeclLevel(..)
+  , declLevelToHashAnchor
+  , extractPackageName
+  , mkDeclarations
+  , resultsForDeclaration
+  ) where
 
-import Docs.Search.DocsJson (ChildDeclType(..), ChildDeclaration(..), DeclType(..), Declaration(..), DocsJson(..), SourceSpan)
 import Docs.Search.Score (Scores, getPackageScore, getPackageScoreForPackageName)
 import Docs.Search.SearchResult (ResultInfo(..), SearchResult(..))
-import Docs.Search.TypeDecoder (Constraint(..), QualifiedName(..), Type(..), joinForAlls)
-import Docs.Search.Types (ModuleName(..), PackageName(..), PackageInfo(..), Identifier(..))
+import Docs.Search.TypeDecoder (Constraint(..), Qualified(..), Type(..), TypeArgument, TypeVarVisibility(..))
+import Docs.Search.TypeQuery as TypeQuery
+import Docs.Search.Types (PackageName(..), PackageInfo(..), Identifier(..))
 
 import Prelude
 import Prim hiding (Type)
@@ -21,6 +28,12 @@ import Data.String.CodeUnits (stripPrefix, stripSuffix, toCharArray)
 import Data.String.Common (split) as String
 import Data.String.Common (toLower)
 import Data.String.Pattern (Pattern(..))
+import Data.Tuple (Tuple(..))
+import Language.PureScript.AST.SourcePos (SourceSpan(..))
+import Language.PureScript.Docs.Types
+import Language.PureScript.Names
+import Docs.Search.DocsJson
+import Safe.Coerce (coerce)
 
 newtype Declarations = Declarations (Trie Char (List SearchResult))
 
@@ -28,15 +41,17 @@ derive instance newtypeDeclarations :: Newtype Declarations _
 derive newtype instance semigroupDeclarations :: Semigroup Declarations
 derive newtype instance monoidDeclarations :: Monoid Declarations
 
-mkDeclarations :: Scores -> Array DocsJson -> Declarations
-mkDeclarations scores = Declarations <<< foldr (insertDocsJson scores) mempty
+mkDeclarations :: Scores -> Array DocModule -> Declarations
+mkDeclarations scores = Declarations <<< foldr (insertDocModule scores) mempty
+  where
+  insertDocModule
+    :: Scores
+    -> DocModule
+    -> Trie Char (List SearchResult)
+    -> Trie Char (List SearchResult)
 
-insertDocsJson
-  :: Scores
-  -> DocsJson
-  -> Trie Char (List SearchResult)
-  -> Trie Char (List SearchResult)
-insertDocsJson scores (DocsJson { name, declarations }) trie = foldr (insertDeclaration scores $ ModuleName name) trie declarations
+  insertDocModule scores (DocModule { name, declarations }) trie =
+    foldr (insertDeclaration scores name) trie declarations
 
 insertDeclaration
   :: Scores
@@ -100,8 +115,8 @@ resultsForDeclaration scores moduleName indexEntry@(Declaration entry) =
               resultsForChildDeclaration scores packageInfo moduleName result
           )
   where
-  { info, title, sourceSpan, comments, children } = entry
-  { name, declLevel } = getLevelAndName info.declType title
+  { title, sourceSpan, comments, children } = entry
+  { name, declLevel } = getLevelAndName indexEntry
   packageInfo = extractPackageName moduleName sourceSpan
   mbPackageName =
     case packageInfo of
@@ -110,80 +125,82 @@ resultsForDeclaration scores moduleName indexEntry@(Declaration entry) =
 
 mkInfo :: DeclLevel -> Declaration -> Maybe ResultInfo
 mkInfo declLevel (Declaration { info, title }) =
-  case info.declType of
+  case info of
+    ValueDeclaration ty ->
+      Just $ ValueResult { type: ty }
 
-    DeclValue ->
-      info."type" <#> \ty -> ValueResult { type: ty }
+    DataDeclaration dataDeclType typeArguments _ ->
+      Just $ DataResult
+        { dataDeclType
+        , typeArguments: typeArguments <#> toTypeArgument
+        }
 
-    DeclData ->
-      make <$> info.typeArguments <*> info.dataDeclType
-      where
-      make typeArguments dataDeclType =
-        DataResult { typeArguments, dataDeclType }
+    ExternDataDeclaration kind _ ->
+      Just $ ExternDataResult { kind }
 
-    DeclExternData ->
-      info.kind <#> \kind -> ExternDataResult { kind }
+    TypeSynonymDeclaration arguments ty ->
+      Just $ TypeSynonymResult
+        { type: ty
+        , arguments: arguments <#> toTypeArgument
+        }
 
-    DeclTypeSynonym ->
-      make <$> info."type" <*> info.arguments
-      where
-      make ty args = TypeSynonymResult { "type": ty, arguments: args }
+    TypeClassDeclaration arguments superclasses fundeps ->
+      Just $ TypeClassResult
+        { fundeps
+        , arguments: arguments <#> toTypeArgument
+        , superclasses
+        }
 
-    DeclTypeClass
-      | Just fundeps <- info.fundeps
-      , Just arguments <- info.arguments
-      , Just superclasses <- info.superclasses ->
-          Just $ TypeClassResult { fundeps, arguments, superclasses }
-      | otherwise -> Nothing
-
-    DeclAlias ->
+    AliasDeclaration _ _ ->
       case declLevel of
         TypeLevel -> Just TypeAliasResult
         ValueLevel -> Just ValueAliasResult
-        _ -> Nothing
 
-    DeclExternKind ->
-      Just ExternKindResult
+  where
+  toTypeArgument :: Tuple _ _ -> TypeArgument
+  toTypeArgument (Tuple name kind) = { name, kind }
 
 -- | Level of a declaration, used to determine which URI hash anchor to use in
--- | links ("v", "t" or "k").
-data DeclLevel = ValueLevel | TypeLevel | KindLevel
+-- | links ("v" or "t" ).
+data DeclLevel = ValueLevel | TypeLevel
 
 declLevelToHashAnchor :: DeclLevel -> String
 declLevelToHashAnchor = case _ of
   ValueLevel -> "v"
   TypeLevel -> "t"
-  KindLevel -> "k"
 
 getLevelAndName
-  :: DeclType
-  -> String
+  :: Declaration
   -> { declLevel :: DeclLevel
      , name :: String
      }
-getLevelAndName DeclValue name = { name, declLevel: ValueLevel }
-getLevelAndName DeclData name = { name, declLevel: TypeLevel }
-getLevelAndName DeclTypeSynonym name = { name, declLevel: TypeLevel }
-getLevelAndName DeclTypeClass name = { name, declLevel: TypeLevel }
--- "declType": "alias" does not specify the level of the declaration.
--- But for type aliases, name of the declaration is always wrapped into
--- "type (" and ")".
-getLevelAndName DeclAlias title =
-  fromMaybe (withAnchor ValueLevel title) $
-    ( withAnchor ValueLevel <$>
-        ( stripPrefix (Pattern "(") >=>
-            stripSuffix (Pattern ")")
-        ) title
-    ) <|>
-      ( withAnchor TypeLevel <$>
-          ( stripPrefix (Pattern "type (") >=>
-              stripSuffix (Pattern ")")
-          ) title
-      )
-  where
-  withAnchor declLevel name = { declLevel, name }
-getLevelAndName DeclExternData name = { name, declLevel: TypeLevel }
-getLevelAndName DeclExternKind name = { name, declLevel: KindLevel }
+getLevelAndName (Declaration { info, title }) =
+  case info of
+    ValueDeclaration _ -> { name: title, declLevel: ValueLevel }
+    DataDeclaration _ _ _ -> { name: title, declLevel: TypeLevel }
+    TypeSynonymDeclaration _ _ -> { name: title, declLevel: TypeLevel }
+    TypeClassDeclaration _ _ _ -> { name: title, declLevel: TypeLevel }
+    AliasDeclaration _ _ ->
+      -- "declType": "alias" does not specify the level of the declaration.
+      -- But for type aliases, name of the declaration is always wrapped into
+      -- "type (" and ")".
+      let
+        withAnchor declLevel name = { declLevel, name }
+      in
+        fromMaybe (withAnchor ValueLevel title) $
+          ( withAnchor ValueLevel <$>
+              ( stripPrefix (Pattern "(") >=>
+                  stripSuffix (Pattern ")")
+              ) title
+          ) <|>
+            ( withAnchor TypeLevel <$>
+                ( stripPrefix (Pattern "type (") >=>
+                    stripSuffix (Pattern ")")
+                ) title
+            )
+
+    ExternDataDeclaration _ kind ->
+      { name: title, declLevel: TypeLevel }
 
 -- | Extract package name from `sourceSpan.name`, which contains path to
 -- | the source file. If `ModuleName` string starts with `Prim.`, it's a
@@ -192,7 +209,7 @@ extractPackageName :: ModuleName -> Maybe SourceSpan -> PackageInfo
 extractPackageName (ModuleName moduleName) _
   | String.split (Pattern ".") moduleName !! 0 == Just "Prim" = Builtin
 extractPackageName _ Nothing = UnknownPackage
-extractPackageName _ (Just { name }) =
+extractPackageName _ (Just (SourceSpan { name })) =
   fromMaybe LocalPackage do
     topLevelDir <- dirs !! 0
     if topLevelDir == ".spago" then Package <<< PackageName <$> dirs !! 1
@@ -215,7 +232,7 @@ resultsForChildDeclaration
   packageInfo
   moduleName
   parentResult
-  child@(ChildDeclaration { title, info, comments, mbSourceSpan })
+  child@(ChildDeclaration { title, info, comments, sourceSpan })
   | Just resultInfo <- mkChildInfo parentResult child =
       { path: title
       , result: SearchResult
@@ -227,7 +244,7 @@ resultsForChildDeclaration
           -- the latter are not included in the index.
           , hashAnchor: "v"
           , moduleName
-          , sourceSpan: mbSourceSpan
+          , sourceSpan
           , packageInfo
           , score: getPackageScore scores packageInfo
           , info: resultInfo
@@ -243,99 +260,101 @@ mkChildInfo
   (SearchResult { info: parentInfo, moduleName, name: resultName })
   (ChildDeclaration { info })
 
-  | ChildDeclDataConstructor <- info.declType
+  | ChildDataConstructor childTypeArguments <- info
   , DataResult { dataDeclType, typeArguments } <- parentInfo =
       let
-        parentTypeCtor :: Type
-        parentTypeCtor = TypeConstructor
-          $ QualifiedName
-              { moduleNameParts:
-                  String.split (wrap ".") (unwrap moduleName)
-              , name: resultName
-              }
+        parentTypeCtor :: Type'
+        parentTypeCtor =
+          TypeConstructor unit $
+            Qualified
+              (ByModuleName moduleName)
+              (coerce $ resultName)
 
-        parentTypeArgs :: Array Type
-        parentTypeArgs = typeArguments <#> unwrap >>> \{ name } -> TypeVar name
+        parentTypeArgs :: Array Type'
+        parentTypeArgs = typeArguments <#> \{ name } -> TypeVar unit name
 
-        parentType :: Type
-        parentType = foldl TypeApp parentTypeCtor parentTypeArgs
+        parentType :: Type'
+        parentType = foldl (TypeApp unit) parentTypeCtor parentTypeArgs
 
-        typeArrow :: Type -> Type
+        typeArrow :: Type' -> Type'
         typeArrow =
           TypeApp
+            unit
             ( TypeConstructor
-                ( QualifiedName
-                    { moduleNameParts: [ "Prim" ]
-                    , name: Identifier "Function"
-                    }
+                unit
+                ( Qualified
+                    (ByModuleName (ModuleName "Prim"))
+                    (ProperName "Function")
                 )
             )
 
-        makeType :: Array Type -> Type
-        makeType = foldr (\a b -> TypeApp (typeArrow a) b) parentType
+        makeType :: Array Type' -> Type'
+        makeType = foldr (\a b -> TypeApp unit (typeArrow a) b) parentType
       in
-        info.arguments <#> \arguments ->
-          DataConstructorResult
-            { dataDeclType
-            , "type": makeType arguments
-            }
-
-  | ChildDeclTypeClassMember <- info.declType
+        Just $ DataConstructorResult
+          { dataDeclType
+          , "type": makeType childTypeArguments
+          }
+  | ChildTypeClassMember unconstrainedType <- info
   , TypeClassResult { arguments } <- parentInfo =
       -- We need to reconstruct a "real" type of a type class member.
       -- For example, if `unconstrainedType` is the type of `pure`, i.e.
       -- `forall a. a -> m a`, then `restoredType` should be:
       -- `forall m a. Control.Applicative.Applicative m => a -> m a`.
 
-      info."type" <#>
-        \(unconstrainedType :: Type) ->
-          let
-            -- First, we get a list of nested `forall` quantifiers for
-            -- `unconstrainedType`  and a version of `unconstrainedType` without
-            -- them (`ty`).
-            ({ ty, binders }) = joinForAlls unconstrainedType
+      let
+        -- First, we get a list of nested `forall` quantifiers for
+        -- `unconstrainedType`  and a version of `unconstrainedType` without
+        -- them (`ty`).
+        ({ ty, binders }) = TypeQuery.joinForAlls unconstrainedType
 
-            -- Then we construct a qualified name of the type class.
-            constraintClass =
-              QualifiedName
-                { moduleNameParts:
-                    String.split (wrap ".") $ unwrap moduleName
-                , name: resultName
-                }
+        -- Then we construct a qualified name of the type class.
+        constraintClass =
+          Qualified
+            (ByModuleName moduleName)
+            (coerce resultName)
 
-            -- We concatenate two lists:
-            -- * a list of type parameters of the type class, and
-            -- * a list of quantified variables of the unconstrained type
-            allArguments :: Array { name :: String, mbKind :: Maybe Type }
-            allArguments =
-              (arguments <#> unwrap) <> List.toUnfoldable binders
+        -- We concatenate two lists:
+        -- * a list of type parameters of the type class, and
+        -- * a list of quantified variables of the unconstrained type
+        allArguments :: Array TypeArgument
+        allArguments =
+          arguments <> List.toUnfoldable binders
 
-            restoreType :: Type -> Type
-            restoreType =
-              foldr
-                (\({ name, mbKind }) -> compose (\type'' -> ForAll name mbKind type''))
-                identity
-                allArguments
+        restoreType :: Type' -> Type'
+        restoreType =
+          foldr
+            ( \({ name, kind }) -> compose
+                \ty -> ForAll unit TypeVarInvisible name kind ty Nothing
+            )
+            identity
+            allArguments
 
-            -- Finally, we have a restored type. It allows us to search for
-            -- type members the same way we search for functions. And types
-            -- of class member results appear with the correct
-            -- class constraints.
-            restoredType =
-              restoreType $
-                ConstrainedType
-                  ( Constraint
-                      { constraintClass
-                      , constraintArgs: arguments <#> unwrap >>> (_.name) >>> TypeVar
-                      }
-                  )
-                  ty
+        -- Finally, we have a restored type. It allows us to search for
+        -- type members the same way we search for functions. And types
+        -- of class member results appear with the correct
+        -- class constraints.
+        restoredType =
+          restoreType $
+            ConstrainedType
+              unit
+              ( Constraint
+                  { ann: unit
+                  , args: toTypeVars arguments
+                  , class: constraintClass
+                  , data: Nothing
+                  , kindArgs: []
+                  }
+              )
+              ty
 
-          in
-            TypeClassMemberResult
-              { type: restoredType
-              , typeClass: constraintClass
-              , typeClassArguments: arguments
-              }
-
+      in
+        Just $ TypeClassMemberResult
+          { type: restoredType
+          , typeClass: constraintClass
+          , typeClassArguments: arguments
+          }
   | otherwise = Nothing
+
+toTypeVars :: Array TypeArgument -> Array Type'
+toTypeVars = map \{ name } -> TypeVar unit name

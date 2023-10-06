@@ -1,7 +1,6 @@
 -- | Utilities to interop between different codec libraries
 module Docs.Search.JsonCodec
-  ( fromGeneric
-  , fromJsonUnidirectional
+  ( fromUni
   , inject
   ) where
 
@@ -28,24 +27,12 @@ import Type.Proxy (Proxy(..))
 inject :: forall @sym a r1 r2. Cons sym a r1 r2 => IsSymbol sym => a -> Variant r2
 inject = inj (Proxy :: _ sym)
 
-fromJsonUnidirectional
+fromUni
   :: forall a
    . (Json -> Either DecodeError a)
   -> (Json -> Either JsonDecodeError a)
-fromJsonUnidirectional = map $ left convertError
+
+fromUni = map $ left convertError
   where
   convertError :: DecodeError -> JsonDecodeError
   convertError = printDecodeError >>> TypeMismatch
-
--- TODO: Delete this after done migrating to the codecs in `language-purescript`
--- currently still around for the sake of the types in these modules:
--- Docs.Search.DocsJson
--- Docs.Search.TypeDecoder
--- | Create a codec from instances of EncodeJson & DecodeJson
-fromGeneric :: forall a. EncodeJson a => DecodeJson a => JsonCodec a
-fromGeneric =
-  CA.codec'
-    (left convertError <<< decodeJson)
-    encodeJson
-  where
-  convertError = Generic.printJsonDecodeError >>> TypeMismatch

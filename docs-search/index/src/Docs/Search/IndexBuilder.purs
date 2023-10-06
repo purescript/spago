@@ -2,7 +2,6 @@ module Docs.Search.IndexBuilder where
 
 import Docs.Search.Config as Config
 import Docs.Search.Declarations (Declarations(..), mkDeclarations)
-import Docs.Search.DocsJson (DocsJson)
 import Docs.Search.Extra ((>#>))
 import Docs.Search.Meta (Meta)
 import Docs.Search.Meta as Meta
@@ -57,6 +56,11 @@ import Node.FS.Stats (isDirectory, isFile)
 import Node.FS.Sync (exists)
 import Node.Process as Process
 import Web.Bower.PackageMeta (PackageMeta(..))
+import Web.Bower.PackageMeta (PackageMeta(..), PackageName(..))
+import Web.Bower.PackageMeta as Bower
+import Codec.Json.Unidirectional.Value as JsonCodec
+import Language.PureScript.Docs.Types (DocModule(..))
+import Language.PureScript.Docs.Types as Docs
 
 type Config =
   { docsFiles :: Array String
@@ -154,7 +158,7 @@ checkDirectories cfg = do
 decodeDocsJsons
   :: forall rest
    . { docsFiles :: Array String | rest }
-  -> Aff (Array DocsJson)
+  -> Aff (Array DocModule)
 decodeDocsJsons cfg@{ docsFiles } = do
 
   paths <- getPathsByGlobs docsFiles
@@ -171,7 +175,7 @@ decodeDocsJsons cfg@{ docsFiles } = do
     if doesExist then do
 
       contents <- readTextFile UTF8 jsonFile
-      let eiResult = jsonParser contents >>= left printJsonDecodeError <<< decodeJson
+      let eiResult = jsonParser contents >>= left JsonCodec.printDecodeError <<< decodeDocModule
 
       case eiResult of
         Left error -> do
@@ -191,6 +195,10 @@ decodeDocsJsons cfg@{ docsFiles } = do
       "Couldn't decode any of the files matched by the following globs: " <> showGlobs cfg.docsFiles
 
   pure docsJsons
+
+  where
+  decodeDocModule :: Json -> Either JsonCodec.DecodeError (Maybe DocModule)
+  decodeDocModule = JsonCodec.toNullNothingOrJust Docs.toDocModule
 
 -- | This function accepts an array of globs pointing to project sources
 -- | and returns a list of module names extracted from these files.
