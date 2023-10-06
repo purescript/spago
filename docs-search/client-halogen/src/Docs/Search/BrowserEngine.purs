@@ -2,20 +2,23 @@
 module Docs.Search.BrowserEngine where
 
 import Docs.Search.Config as Config
-import Docs.Search.PackageIndex (queryPackageIndex)
 import Docs.Search.Engine (Engine, EngineState, Index)
+import Docs.Search.ModuleIndex as ModuleIndex
+import Docs.Search.PackageIndex as PackageIndex
 import Docs.Search.SearchResult (SearchResult)
+import Docs.Search.SearchResult as SearchResult
 import Docs.Search.TypeIndex (TypeIndex)
 import Docs.Search.TypeIndex as TypeIndex
 import Docs.Search.Types (PartId(..), URL)
-import Docs.Search.ModuleIndex as ModuleIndex
 
 import Prelude
 
 import Control.Promise (Promise, toAffE)
 import Data.Argonaut.Core (Json)
-import Data.Argonaut.Decode (decodeJson)
 import Data.Array as Array
+import Data.Char as Char
+import Data.Codec.Argonaut.Common as CA
+import Data.Codec.Argonaut.Record as CAR
 import Data.Either (hush)
 import Data.List (List)
 import Data.List as List
@@ -63,10 +66,13 @@ query index@(PartialIndex indexMap) input = do
         try $ toAffE $ loadIndex_ partId $ Config.mkIndexPartLoadPath partId
 
       let
+        resultsCodec :: CA.JsonCodec (Array (Tuple String (Array SearchResult)))
+        resultsCodec = CA.array $ CA.tuple CA.string $ CA.array SearchResult.searchResultCodec
+
         mbNewTrie :: Maybe (Trie Char (List SearchResult))
         mbNewTrie = do
           json <- hush eiPartJson
-          results <- hush (decodeJson json) :: Maybe (Array (Tuple String (Array SearchResult)))
+          results <- hush $ CA.decode resultsCodec json
           pure $ Array.foldr insertResults mempty results
 
       case mbNewTrie of
@@ -103,7 +109,7 @@ browserSearchEngine
 browserSearchEngine =
   { queryIndex: query
   , queryTypeIndex: TypeIndex.query
-  , queryPackageIndex
+  , queryPackageIndex: PackageIndex.queryPackageIndex
   , queryModuleIndex: ModuleIndex.queryModuleIndex
   }
 

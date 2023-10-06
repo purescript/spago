@@ -54,6 +54,7 @@ type FetchEnvRow a =
   , getMetadata :: PackageName -> Spago (LogEnv ()) (Either String Metadata)
   , workspace :: Workspace
   , logOptions :: LogOptions
+  , offline :: OnlineStatus
   , purs :: Purs.Purs
   , git :: Git.Git
   , db :: Db.Db
@@ -75,7 +76,7 @@ run
 run { packages, ensureRanges, isTest } = do
   logDebug $ "Requested to install these packages: " <> printJson (CA.array PackageName.codec) packages
 
-  { getMetadata, logOptions, workspace } <- ask
+  { getMetadata, logOptions, workspace, offline } <- ask
 
   let
     installingPackages = not $ Array.null packages
@@ -230,9 +231,10 @@ run { packages, ensureRanges, isTest } = do
                 map (either (const false) (const true)) $ liftEffect $ Tar.extract { filename: archivePath, cwd: tempDir }
               else
                 pure false
-            case tarExists, tarIsGood of
-              true, true -> pure unit -- Tar exists and is good, and we already unpacked it. Happy days!
-              _, _ -> do
+            case tarExists, tarIsGood, offline of
+              true, true, _ -> pure unit -- Tar exists and is good, and we already unpacked it. Happy days!
+              _, _, Offline -> die $ "Package " <> packageVersion <> " is not in the local cache, and Spago is running in offline mode - can't make progress."
+              _, _, Online -> do
                 let packageUrl = "https://packages.registry.purescript.org/" <> PackageName.print name <> "/" <> versionString <> ".tar.gz"
                 logInfo $ "Fetching package " <> packageVersion
                 response <- liftAff $ withBackoff' $ Http.request

@@ -1,0 +1,19 @@
+package:
+  dependencies:
+    - console: ">=6.0.0 <7.0.0"
+    - effect: ">=4.0.0 <5.0.0"
+    - prelude: ">=6.0.1 <7.0.0"
+  name: aaa
+  test:
+    dependencies: []
+    main: Test.Main
+  publish:
+    version: 0.0.1
+    license: MIT
+    location:
+      githubOwner: purescript
+      githubRepo: aaa
+workspace:
+  extra_packages: {}
+  package_set:
+    registry: 28.1.1

@@ -55,6 +55,7 @@ type PublishEnv a =
   , getMetadata :: PackageName -> Spago (LogEnv ()) (Either String Metadata)
   , workspace :: Workspace
   , logOptions :: LogOptions
+  , offline :: OnlineStatus
   , git :: Git
   , db :: Db
   , purs :: Purs
@@ -255,8 +256,8 @@ publish _args = do
                 Just files -> do
                   Operation.Validation.validatePursModules files >>= case _ of
                     Left formattedError -> addError $ toDoc
-                      [ "This package has either malformed or disallowed PureScript module names "
-                      , "in its `src` directory. All package sources must be in the `src` directory, "
+                      [ "This package has either malformed or disallowed PureScript module names"
+                      , "in its `src` directory. All package sources must be in the `src` directory,"
                       , "with any additional sources indicated by the `files` key in your manifest."
                       , formattedError
                       ]
@@ -289,10 +290,10 @@ publish _args = do
         $ Log.bold
             ( toDoc
                 $ "Your package "
-                <> strName
+                <> show strName
                 <> " is not ready for publishing yet, encountered "
                 <> show (List.length errors)
-                <> " errors:"
+                <> if (List.length errors == 1) then " error:" else " errors:"
             )
         <> Log.break
       die' $ Array.fromFoldable errors
@@ -359,9 +360,14 @@ callRegistry url outputCodec maybeInput = handleError do
         Left err -> Left $ "Could not parse response from the registry, error: " <> show err
   where
   -- TODO: see if we want to just kill the process generically here, or give out customized errors
-  handleError a = a >>= case _ of
-    Left err -> die err
-    Right res -> pure res
+  handleError a = do
+    { offline } <- ask
+    case offline of
+      Offline -> die "Spago is offline - not able to call the Registry."
+      Online ->
+        a >>= case _ of
+          Left err -> die err
+          Right res -> pure res
 
 waitForJobFinish :: forall env. V1.JobId -> Spago (PublishEnv env) Unit
 waitForJobFinish jobId = go Nothing

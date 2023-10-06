@@ -1,0 +1,17 @@
+Reading Spago workspace configuration...
+Read the package set from the registry
+
+✅ Selecting package to build: aaaa
+
+Downloading dependencies...
+Building...
+           Src   Lib   All
+Warnings     0     0     0
+Errors       0     0     0
+
+✅ Build succeeded.
+
+Your package "aaaa" is not ready for publishing yet, encountered 1 error:
+
+
+❌ Did not find publishing config: add a valid one in package.publish

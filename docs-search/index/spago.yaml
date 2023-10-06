@@ -5,6 +5,7 @@ package:
     - argonaut-codecs
     - argonaut-core
     - arrays
+    - codec-argonaut
     - console
     - control
     - docs-search-common
@@ -12,7 +13,6 @@ package:
     - either
     - foldable-traversable
     - identity
-    - json-codecs
     - language-purescript
     - lists
     - maybe
@@ -31,4 +31,6 @@ package:
   test:
     main: Test.Docs.Search.Main
     dependencies:
+      - exceptions
+      - partial
       - spec

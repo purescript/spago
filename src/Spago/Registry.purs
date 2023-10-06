@@ -21,6 +21,7 @@ import Spago.Purs as Purs
 type RegistryEnv a =
   { getManifestFromIndex :: PackageName -> Version -> Spago (LogEnv ()) (Maybe Manifest)
   , getMetadata :: PackageName -> Spago (LogEnv ()) (Either String Metadata)
+  , offline :: OnlineStatus
   , logOptions :: LogOptions
   , purs :: Purs.Purs
   , git :: Git.Git
