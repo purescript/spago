@@ -16,21 +16,24 @@ module Spago.Psa.Output
 import Prelude
 
 import Data.Array as Array
-import Data.Foldable (foldl, any)
+import Data.Foldable (foldl)
 import Data.Maybe (Maybe(..), fromMaybe)
-import Data.Set as Set
 import Data.String as Str
 import Data.Tuple (Tuple(..))
 import Foreign.Object as FO
 import Node.Path as Path
-import Spago.Core.Config (CensorBuildWarnings(..))
-import Spago.Core.Config as Core
 import Spago.Core.Prelude (Spago)
 import Spago.Paths as Paths
-import Spago.Psa.Types (PsaOutputOptions, PsaError, PsaAnnotedError, PsaPath(..), PsaResult, Position, Filename, Lines, compareByLocation)
+import Spago.Psa.Types (Filename, Lines, PathDecision, PathInfo, Position, PsaAnnotedError, PsaError, PsaArgs, PsaPath(..), PsaPathType(..), PsaResult, compareByLocation)
 import Spago.Purs as Purs
 
 data ErrorTag = Error | Warning
+
+derive instance Eq ErrorTag
+instance Show ErrorTag where
+  show = case _ of
+    Error -> "Error"
+    Warning -> "Warning"
 
 type Output =
   { warnings :: Array PsaAnnotedError
@@ -65,7 +68,7 @@ initialStats =
 buildOutput
   :: forall a
    . (Filename -> Position -> Spago (Purs.PursEnv a) (Maybe Lines))
-  -> PsaOutputOptions
+  -> PsaArgs
   -> PsaResult
   -> Spago (Purs.PursEnv a) Output
 buildOutput loadLines options result = do
@@ -87,27 +90,49 @@ buildOutput loadLines options result = do
     }
 
   where
-  pathOf :: PsaError -> Tuple PsaPath PsaError
-  pathOf x =
-    case x.filename of
-      Just f | f /= "" ->
+  pathOf :: PsaError -> Tuple PathInfo PsaError
+  pathOf x = Tuple pathDecision x
+    where
+    pathDecision = case x.filename of
+      Just short | short /= "" -> do
         let
           path
-            | Path.isAbsolute f = f
-            | otherwise = Path.concat [ Paths.cwd, f ]
-        in
-          Tuple (errorPath options.libraryDirs path f) x
-      _ -> Tuple Unknown x
+            | Path.isAbsolute short = short
+            | otherwise = Path.concat [ Paths.cwd, short ]
+        fromMaybe unknownPathInfo $ Array.findMap (\p -> map (toPathInfo short) $ p path) options.decisions
+      _ ->
+        unknownPathInfo
 
-  onError :: ErrorTag -> Output -> Tuple PsaPath PsaError -> Spago (Purs.PursEnv a) Output
-  onError tag state (Tuple path error) =
-    if shouldShowError options tag path error.errorCode then do
+    toPathInfo :: String -> PathDecision -> PathInfo
+    toPathInfo short { pathType, shouldPromoteWarningToError, shouldShowError } =
+      { path: case pathType of
+          IsLib -> Lib short
+          IsSrc -> Src short
+      , shouldPromoteWarningToError
+      , shouldShowError
+      }
+
+    unknownPathInfo :: PathInfo
+    unknownPathInfo =
+      { path: Unknown
+      , shouldPromoteWarningToError: false
+      , shouldShowError: \_ -> true
+      }
+
+  onError :: ErrorTag -> Output -> Tuple PathInfo PsaError -> Spago (Purs.PursEnv a) Output
+  onError tag state (Tuple pathInfo error) =
+    if shouldShowError then do
       source <- fromMaybe (pure Nothing) (loadLines <$> error.filename <*> error.position)
-      update [ annotatedError path source error ]
+      update [ annotatedError pathInfo.path source error ]
     else
       update []
 
     where
+    shouldShowError :: Boolean
+    shouldShowError = case tag of
+      Error -> true
+      Warning -> pathInfo.shouldShowError error.errorCode
+
     update :: Array PsaAnnotedError -> Spago (Purs.PursEnv a) Output
     update log =
       pure $ onTag
@@ -117,8 +142,8 @@ buildOutput loadLines options result = do
         state
       where
       printed = not (Array.null log)
-      tag' = if printed && options.strict && isSrc path then Error else tag
-      stats = updateStats tag' path error.errorCode printed state.stats
+      tag' = if printed && pathInfo.shouldPromoteWarningToError then Error else tag
+      stats = updateStats tag' pathInfo.path error.errorCode printed state.stats
 
 annotatedError :: PsaPath -> Maybe Lines -> PsaError -> PsaAnnotedError
 annotatedError path lines error = { path, position, message, source, error }
@@ -149,35 +174,6 @@ updateStats tag path code printed s =
   alterStat Nothing = Just (bump (Tuple 0 0))
   alterStat (Just x) = Just (bump x)
 
-censorSrc :: Core.CensorBuildWarnings -> Boolean
-censorSrc = case _ of
-  CensorAllWarnings -> true
-  CensorProjectWarnings -> true
-  _ -> false
-
-censorLib :: Core.CensorBuildWarnings -> Boolean
-censorLib = case _ of
-  CensorAllWarnings -> true
-  CensorProjectWarnings -> true
-  _ -> false
-
-shouldShowError :: PsaOutputOptions -> ErrorTag -> PsaPath -> String -> Boolean
-shouldShowError _ Error _ _ = true
-shouldShowError { filterCodes, censorCodes, censorBuildWarnings } _ path code =
-  not (censorSrc censorBuildWarnings && isSrc path || censorLib censorBuildWarnings && isLib path)
-    && (Set.isEmpty filterCodes || Set.member code filterCodes)
-    && (Set.isEmpty censorCodes || not (Set.member code censorCodes))
-
-errorPath :: Array String -> String -> String -> PsaPath
-errorPath libDirs path short =
-  if any (\dir -> path `startsWith` Str.Pattern dir) libDirs then Lib short
-  else Src short
-  where
-  startsWith s' s =
-    case Str.indexOf s s' of
-      Just 0 -> true
-      _ -> false
-
 onTag :: forall a b. (a -> b) -> (a -> b) -> ErrorTag -> a -> b
 onTag f _ Error x = f x
 onTag _ g Warning x = g x
@@ -186,14 +182,6 @@ onPath :: forall a. (a -> a) -> (a -> a) -> PsaPath -> a -> a
 onPath f _ (Src _) x = f x
 onPath _ g (Lib _) x = g x
 onPath _ _ _ x = x
-
-isLib :: PsaPath -> Boolean
-isLib (Lib _) = true
-isLib _ = false
-
-isSrc :: PsaPath -> Boolean
-isSrc (Src _) = true
-isSrc _ = false
 
 -- | Finds the true bounds of the source. The PureScript compiler is greedy
 -- | when it comes to matching whitespace at the end of an expression, so the

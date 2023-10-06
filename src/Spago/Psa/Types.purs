@@ -8,11 +8,14 @@ module Spago.Psa.Types
   ( ErrorCode
   , ModuleName
   , Filename
-  , PsaOutputOptions
+  , PsaArgs
   , PsaResult
   , PsaError
   , PsaAnnotedError
   , PsaPath(..)
+  , PsaPathType(..)
+  , PathDecision
+  , PathInfo
   , Position
   , Suggestion
   , Lines
@@ -23,9 +26,9 @@ module Spago.Psa.Types
 
 import Prelude
 
-import Data.Codec.Argonaut.Record as CAR
 import Data.Codec.Argonaut as CA
 import Data.Codec.Argonaut.Compat as CACompat
+import Data.Codec.Argonaut.Record as CAR
 import Data.Maybe (Maybe(..))
 import Data.Set (Set)
 import Data.Tuple (Tuple(..))
@@ -52,6 +55,35 @@ instance Show PsaPath where
     Src s -> "(Src " <> s <> ")"
     Lib s -> "(Lib " <> s <> ")"
     Unknown -> "Unknown"
+
+data PsaPathType
+  = IsLib
+  | IsSrc
+
+derive instance Eq PsaPathType
+instance Show PsaPathType where
+  show = case _ of
+    IsLib -> "IsLib"
+    IsSrc -> "IsSrc"
+
+type PathDecision =
+  { pathType :: PsaPathType
+  , shouldShowError :: ErrorCode -> Boolean
+  , shouldPromoteWarningToError :: Boolean
+  }
+
+type PathInfo =
+  { path :: PsaPath
+  , shouldShowError :: ErrorCode -> Boolean
+  , shouldPromoteWarningToError :: Boolean
+  }
+
+type PsaArgs =
+  { jsonErrors :: Boolean
+  , color :: Boolean
+  , statVerbosity :: Core.StatVerbosity
+  , decisions :: Array (String -> Maybe PathDecision)
+  }
 
 type PsaOutputOptions =
   { color :: Boolean

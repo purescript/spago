@@ -11,7 +11,6 @@ import Data.Array as Array
 import Data.Either (note)
 import Data.Map as Map
 import Data.Set as Set
-import Data.Set.NonEmpty as NonEmptySet
 import Data.String as String
 import Data.Tuple as Tuple
 import Dodo as Dodo
@@ -130,22 +129,14 @@ run opts = do
         , withTests: true
         , selected: SinglePackageGlobs selected
         }
-      { no: dependencyPkgs :: Array _ } = partition isWorkspacePackage $ Map.toUnfoldable allDependencies
-      dependencyLibs = map (Tuple.uncurry Config.getPackageLocation) dependencyPkgs
       psaArgs =
-        { libraryDirs: dependencyLibs
-        , color: logOptions.color
+        { color: logOptions.color
         , jsonErrors: opts.jsonErrors
-        }
-      psaOptions =
-        { strict: fromMaybe Psa.defaultParseOptions.strict workspace.buildOptions.strict
-        , censorBuildWarnings: fromMaybe Psa.defaultParseOptions.censorBuildWarnings workspace.buildOptions.censorBuildWarnings
-        , censorCodes: maybe Psa.defaultParseOptions.censorCodes NonEmptySet.toSet workspace.buildOptions.censorCodes
-        , filterCodes: maybe Psa.defaultParseOptions.filterCodes NonEmptySet.toSet workspace.buildOptions.filterCodes
-        , statVerbosity: fromMaybe Psa.defaultParseOptions.statVerbosity workspace.buildOptions.statVerbosity
+        , decisions: Psa.toPathDecisions allDependencies <> [ Psa.toWorkspacePackagePathDecision selected ]
+        , statVerbosity: fromMaybe Psa.defaultStatVerbosity workspace.buildOptions.statVerbosity
         }
 
-    Psa.psaCompile globs args psaArgs psaOptions
+    Psa.psaCompile globs args psaArgs
 
     case workspace.backend of
       Nothing -> pure unit
