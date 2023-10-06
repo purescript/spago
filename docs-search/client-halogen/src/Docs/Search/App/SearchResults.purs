@@ -12,14 +12,13 @@ import Docs.Search.Extra (homePageFromRepository, (>#>))
 import Docs.Search.ModuleIndex (ModuleResult)
 import Docs.Search.PackageIndex (PackageResult)
 import Docs.Search.SearchResult (ResultInfo(..), SearchResult(..))
-import Docs.Search.TypeDecoder (Constraint(..), Constraint', Type', Qualified(..), QualifiedBy(..), ProperName(..), Type(..), TypeArgument, ClassName(..), FunDeps)
+import Docs.Search.TypeDecoder (Constraint(..), Constraint', Type', Qualified(..), QualifiedBy(..), ProperName(..), Type(..), TypeArgument, ClassName, FunDeps)
 import Docs.Search.TypeQuery as TypeQuery
 import Docs.Search.TypeIndex (TypeIndex)
 import Docs.Search.Types (Identifier(..), ModuleName(..), PackageName)
 import Docs.Search.Meta (Meta)
 
 import Prelude
-import Data.Array ((!!))
 import Data.Array as Array
 import Data.List as List
 import Data.Maybe (Maybe(..), isJust, fromMaybe)

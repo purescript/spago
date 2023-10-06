@@ -21,17 +21,15 @@ import Data.Foldable (foldl, foldr)
 import Data.List (List, (:))
 import Data.List as List
 import Data.Maybe (Maybe(..), fromMaybe)
-import Data.Newtype (class Newtype, unwrap, wrap)
+import Data.Newtype (class Newtype)
 import Data.Search.Trie (Trie, alter)
 import Data.String.CodeUnits (stripPrefix, stripSuffix, toCharArray)
 import Data.String.Common (split) as String
 import Data.String.Common (toLower)
 import Data.String.Pattern (Pattern(..))
 import Data.Tuple (Tuple(..))
-import Language.PureScript.AST.SourcePos (SourceSpan(..))
-import Language.PureScript.Docs.Types
-import Language.PureScript.Names
-import Docs.Search.DocsJson
+import Docs.Search.DocTypes (SourceSpan(..), Type', ChildDeclaration(..), ChildDeclarationInfo(..), QualifiedBy(..), ProperName(..), ModuleName(..), Declaration(..), DocModule(..), DeclarationInfo(..))
+-- import Docs.Search.DocsJson
 import Safe.Coerce (coerce)
 
 newtype Declarations = Declarations (Trie Char (List SearchResult))

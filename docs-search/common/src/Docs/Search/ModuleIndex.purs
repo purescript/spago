@@ -14,9 +14,8 @@ import Control.Monad.State (execState, modify_)
 import Control.Promise (Promise, toAffE)
 import Data.Argonaut.Core (Json)
 import Data.Array as Array
-import Data.Codec.Argonaut (JsonCodec, JsonDecodeError)
+import Data.Codec.Argonaut (JsonCodec)
 import Data.Codec.Argonaut.Common as CA
-import Data.Codec.Argonaut.Sum as CAS
 import Data.Either (hush)
 import Data.Foldable (foldl)
 import Data.Lens ((%~))
