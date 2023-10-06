@@ -1,14 +1,41 @@
-module Docs.Search.Types where
+module Docs.Search.Types
+  ( module ReExport
+  , packageNameCodec
+  , Identifier(..)
+  , ModuleName(..)
+  , moduleNameCodec
+  , PackageInfo(..)
+  , packageInfoCodec
+  , PackageScore(..)
+  , packageScoreCodec
+  , GlobalIdentifier(..)
+  , PartId(..)
+  , URL(..)
+  , FilePath(..)
+  ) where
 
+import Docs.Search.JsonCodec (inject)
 import Prelude
 
+import Data.Argonaut.Core (Json)
 import Data.Argonaut.Decode (class DecodeJson)
 import Data.Argonaut.Decode.Generic (genericDecodeJson)
 import Data.Argonaut.Encode (class EncodeJson)
 import Data.Argonaut.Encode.Generic (genericEncodeJson)
+import Data.Codec.Argonaut (JsonCodec, JsonDecodeError)
+import Data.Codec.Argonaut.Common as CA
+import Data.Codec.Argonaut.Sum as CAS
+import Data.Codec.Argonaut.Variant as CAV
+import Data.Either (Either(..))
 import Data.Generic.Rep (class Generic)
-import Data.Show.Generic (genericShow)
 import Data.Newtype (class Newtype)
+import Data.Maybe (Maybe(..))
+import Data.Profunctor (wrapIso, dimap)
+import Data.Show.Generic (genericShow)
+import Data.Tuple (Tuple(..))
+import Data.Variant as Variant
+import Web.Bower.PackageMeta (PackageName(..))
+import Web.Bower.PackageMeta (PackageName(..)) as ReExport
 
 newtype Identifier = Identifier String
 
@@ -32,30 +59,41 @@ derive newtype instance encodeJsonModuleName :: EncodeJson ModuleName
 instance Show ModuleName where
   show = genericShow
 
--- | Normalized package name without "purescript-" prefix.
-newtype PackageName = PackageName String
-
-derive instance newtypePackageName :: Newtype PackageName _
-derive newtype instance eqPackageName :: Eq PackageName
-derive newtype instance ordPackageName :: Ord PackageName
-derive newtype instance showPackageName :: Show PackageName
-derive newtype instance decodeJsonPackageName :: DecodeJson PackageName
-derive newtype instance encodeJsonPackageName :: EncodeJson PackageName
-derive instance genericPackageName :: Generic PackageName _
+moduleNameCodec :: JsonCodec ModuleName
+moduleNameCodec = wrapIso ModuleName CA.string
 
 data PackageInfo = LocalPackage | Builtin | Package PackageName | UnknownPackage
 
 derive instance eqPackageInfo :: Eq PackageInfo
 derive instance ordPackageInfo :: Ord PackageInfo
 derive instance genericPackageInfo :: Generic PackageInfo _
-instance decodeJsonPackageInfo :: DecodeJson PackageInfo where
-  decodeJson = genericDecodeJson
-
-instance encodeJsonPackageInfo :: EncodeJson PackageInfo where
-  encodeJson = genericEncodeJson
-
 instance showPackageInfo :: Show PackageInfo where
   show = genericShow
+
+packageNameCodec :: JsonCodec PackageName
+packageNameCodec = wrapIso PackageName CA.string
+
+packageInfoCodec :: JsonCodec PackageInfo
+packageInfoCodec =
+  dimap toVariant fromVariant $ CAV.variantMatch
+    { local: Left unit
+    , builtin: Left unit
+    , unknown: Left unit
+    , package: Right packageNameCodec
+    }
+  where
+  toVariant = case _ of
+    LocalPackage -> inject @"local" unit
+    Builtin -> inject @"builtin" unit
+    Package name -> inject @"package" name
+    UnknownPackage -> inject @"unknown" unit
+
+  fromVariant = Variant.match
+    { local: \_ -> LocalPackage
+    , builtin: \_ -> Builtin
+    , unknown: \_ -> UnknownPackage
+    , package: \name -> Package name
+    }
 
 newtype PackageScore = PackageScore Int
 
@@ -66,8 +104,9 @@ derive newtype instance ordPackageScore :: Ord PackageScore
 derive newtype instance semiringPackageScore :: Semiring PackageScore
 derive newtype instance ringPackageScore :: Ring PackageScore
 derive newtype instance showPackageScore :: Show PackageScore
-derive newtype instance decodeJsonPackageScore :: DecodeJson PackageScore
-derive newtype instance encodeJsonPackageScore :: EncodeJson PackageScore
+
+packageScoreCodec :: JsonCodec PackageScore
+packageScoreCodec = wrapIso PackageScore CA.int
 
 newtype URL = URL String
 

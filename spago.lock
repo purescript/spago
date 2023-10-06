@@ -5,9 +5,9 @@ workspace:
       dependencies:
         - aff
         - aff-promise
-        - argonaut-codecs
         - argonaut-core
         - arrays
+        - codec-argonaut
         - control
         - css
         - docs-search-common
@@ -44,18 +44,21 @@ workspace:
         - argonaut-core
         - argonaut-generic
         - arrays
+        - codec-argonaut
         - control
         - effect
         - either
         - exceptions
         - foldable-traversable
         - foreign-object
+        - json-codecs
         - language-purescript
         - lists
         - maybe
         - newtype
         - ordered-collections
         - prelude
+        - profunctor
         - profunctor-lenses
         - safe-coerce
         - search-trie
@@ -63,6 +66,7 @@ workspace:
         - strings
         - transformers
         - tuples
+        - variant
       test_dependencies: []
     docs-search-index:
       path: docs-search/index
@@ -71,6 +75,7 @@ workspace:
         - argonaut-codecs
         - argonaut-core
         - arrays
+        - codec-argonaut
         - console
         - control
         - docs-search-common
@@ -78,7 +83,6 @@ workspace:
         - either
         - foldable-traversable
         - identity
-        - json-codecs
         - language-purescript
         - lists
         - maybe
@@ -95,6 +99,8 @@ workspace:
         - strings
         - tuples
       test_dependencies:
+        - exceptions
+        - partial
         - spec
     spago:
       path: ./

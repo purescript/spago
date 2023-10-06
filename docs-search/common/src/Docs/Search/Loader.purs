@@ -9,6 +9,7 @@ import Control.Promise (Promise, toAffE)
 import Data.Argonaut.Core (Json)
 import Data.Argonaut.Decode.Error (printJsonDecodeError)
 import Data.Argonaut.Decode.Class (class DecodeJson, decodeJson)
+import Data.Codec.Argonaut.Common as CA
 import Data.Either (either)
 import Data.Newtype (unwrap)
 import Effect (Effect)
@@ -17,19 +18,19 @@ import Effect.Exception (error)
 
 load
   :: forall a
-   . DecodeJson a
-  => GlobalIdentifier
+   . CA.JsonCodec a
+  -> GlobalIdentifier
   -> URL
   -> Aff a
-load globalIdentifier url = do
+load codec globalIdentifier url = do
   json <- toAffE (loadFromScript globalIdentifier url)
-  either throw pure $ decodeJson json
+  either throw pure $ CA.decode codec json
   where
   throw err = throwError $ error $
     "Couldn't load content from window."
       <> unwrap globalIdentifier
       <> ": "
-      <> printJsonDecodeError err
+      <> CA.printJsonDecodeError err
 
 foreign import loadFromScript
   :: GlobalIdentifier
