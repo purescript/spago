@@ -1,6 +1,7 @@
 module Spago.Prelude
   ( module Spago.Core.Prelude
   , HexString(..)
+  , OnlineStatus(..)
   , parseLenientVersion
   , parallelise
   , parseUrl
@@ -37,6 +38,8 @@ import Registry.Sha256 as Sha256
 import Registry.Version as Version
 import Spago.Paths as Paths
 import Unsafe.Coerce (unsafeCoerce)
+
+data OnlineStatus = Offline | Online
 
 unsafeFromRight :: forall e a. Either e a -> a
 unsafeFromRight v = Either.fromRight' (\_ -> unsafeCrashWith $ "Unexpected Left: " <> unsafeStringify v) v

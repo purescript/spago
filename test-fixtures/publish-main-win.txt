@@ -1,0 +1,22 @@
+Reading Spago workspace configuration...
+Read the package set from the registry
+
+✅ Selecting package to build: aaa
+
+Downloading dependencies...
+Building...
+           Src   Lib   All
+Warnings     0     0     0
+Errors       0     0     0
+
+✅ Build succeeded.
+
+⚠️ Spago is in offline mode - not pushing the git tag v0.0.1
+Your package "aaa" is not ready for publishing yet, encountered 1 error:
+
+
+❌ This package has either malformed or disallowed PureScript module names
+in its `src` directory. All package sources must be in the `src` directory,
+with any additional sources indicated by the `files` key in your manifest.
+
+  - src\Main.purs: Module name is Main but PureScript libraries cannot publish modules named: Main, Test.Main

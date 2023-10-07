@@ -178,6 +178,15 @@ noColor =
         <> O.help "Force logging without ANSI color escape sequences"
     )
 
+offline :: Parser OnlineStatus
+offline =
+  O.flag
+    Online
+    Offline
+    ( O.long "offline"
+        <> O.help "Do not attempt to use the network. Warning: this will fail if you don't have the necessary dependencies already cached"
+    )
+
 json :: Parser Boolean
 json =
   O.switch
