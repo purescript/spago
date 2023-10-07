@@ -20,6 +20,7 @@ import Data.DateTime.Instant (Instant) as Extra
 import Data.Either (Either(..), isLeft, isRight, either, hush) as Extra
 import Data.Filterable (partition, partitionMap) as Extra
 import Data.Foldable (foldMap, for_, foldl, and, or) as Extra
+import Data.Function (on) as Extra
 import Data.Generic.Rep (class Generic) as Extra
 import Data.Identity (Identity(..)) as Extra
 import Data.List (List, (:)) as Extra
