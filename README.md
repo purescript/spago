@@ -1236,7 +1236,7 @@ package:
   description: "a useful package"
 
   # Optional section to further customise the build for this package.
-  build_opts:
+  build:
     # Specify whether to censor warnings coming from the compiler
     # for files from this package.
     # Can be 'all' or 'none'
