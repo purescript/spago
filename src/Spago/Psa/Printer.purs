@@ -34,7 +34,7 @@ import Effect.Console as Console
 import Foreign.Object as FO
 import Spago.Core.Config as Core
 import Spago.Psa.Output (OutputStats, Output)
-import Spago.Psa.Types (Lines, Position, PsaAnnotedError, PsaOutputOptions, PsaPath(..), psaResultCodec)
+import Spago.Psa.Types (Lines, Position, PsaAnnotedError, PsaArgs, PsaPath(..), psaResultCodec)
 
 printJsonOutputToOut :: Output -> Effect Unit
 printJsonOutputToOut output = do
@@ -47,7 +47,7 @@ printJsonOutputToOut output = do
   Console.log (stringify result)
 
 -- | Prints output to the console.
-printDefaultOutputToErr :: PsaOutputOptions -> Output -> Effect Unit
+printDefaultOutputToErr :: PsaArgs -> Output -> Effect Unit
 printDefaultOutputToErr options output = do
   forWithIndex_ output.warnings \i warning -> do
     Console.error $ printDoc (renderWarning lenWarnings (i + 1) warning)

@@ -2,7 +2,6 @@ package:
   name: docs-search-index
   dependencies:
     - aff
-    - argonaut-codecs
     - argonaut-core
     - arrays
     - codec-argonaut
@@ -13,6 +12,7 @@ package:
     - either
     - foldable-traversable
     - identity
+    - json-codecs
     - language-purescript
     - lists
     - maybe
@@ -32,5 +32,4 @@ package:
     main: Test.Docs.Search.Main
     dependencies:
       - exceptions
-      - partial
       - spec

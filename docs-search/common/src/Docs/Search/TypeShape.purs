@@ -1,14 +1,19 @@
 -- | We need `TypeShape`s as a way to "semantically hash" types.
 -- | This allows us to split type index in parts and load
 -- | it on demand.
-module Docs.Search.TypeShape where
+module Docs.Search.TypeShape
+  ( shapeOfType
+  , shapeOfTypeQuery
+  , stringifyShape
+  , ShapeChunk(..)
+  ) where
 
-import Docs.Search.TypeDecoder (QualifiedName(..), Type(..), joinForAlls, joinRows)
-import Docs.Search.TypeQuery (TypeQuery(..), getFreeVariables)
+import Docs.Search.TypeDecoder (ModuleName(..), ProperName(..), Qualified(..), QualifiedBy(..), Type(..), Type')
+import Docs.Search.TypeQuery (TypeQuery(..))
+import Docs.Search.TypeQuery as TypeQuery
 import Docs.Search.Types (Identifier(..))
 
 import Prelude
-import Prim hiding (Type)
 import Data.Generic.Rep (class Generic)
 import Data.Show.Generic (genericShow)
 import Data.List (List(..), (:))
@@ -59,7 +64,7 @@ shapeOfTypeQuery query =
     if count == 0 then shape
     else PForAll count : shape
 
-  count = Set.size $ getFreeVariables query
+  count = Set.size $ TypeQuery.getFreeVariables query
 
   go Nil acc = acc
   go (this : rest) acc =
@@ -82,29 +87,28 @@ shapeOfTypeQuery query =
         in
           go (map snd lst' <> rest) (PRow (List.length lst) : acc)
 
-shapeOfType :: Type -> TypeShape
+shapeOfType :: Type' -> TypeShape
 shapeOfType ty = List.reverse $ go (pure ty) Nil
   where
   go Nil acc = acc
   go (this : rest) acc =
     case this of
 
-      TypeVar _ ->
+      TypeVar _ _ ->
         go rest (PVar : acc)
 
-      TypeLevelString _ ->
+      TypeLevelString _ _ ->
         go rest (PVar : acc)
 
-      TypeWildcard ->
+      TypeWildcard _ _ ->
         go rest (PVar : acc)
 
-      TypeApp
-        ( TypeApp
-            ( TypeConstructor
-                ( QualifiedName
-                    { moduleNameParts: [ "Prim" ]
-                    , name: Identifier "Function"
-                    }
+      TypeApp _
+        ( TypeApp _
+            ( TypeConstructor _
+                ( Qualified
+                    (ByModuleName (ModuleName "Prim"))
+                    (ProperName "Function")
                 )
             )
             t1
@@ -112,43 +116,52 @@ shapeOfType ty = List.reverse $ go (pure ty) Nil
         t2 ->
         go (t1 : t2 : rest) (PFun : acc)
 
-      TypeConstructor (QualifiedName { name }) ->
+      TypeConstructor _ _ ->
         go rest (PVar : acc)
 
-      TypeOp _ ->
+      TypeOp _ _ ->
         go rest (PVar : acc)
 
-      TypeApp child1 child2 ->
+      TypeApp _ child1 child2 ->
         go (child1 : child2 : rest) (PApp : acc)
 
-      KindApp child1 child2 ->
+      KindApp _ child1 child2 ->
         go (child1 : child2 : rest) (PApp : acc)
 
-      forallType@(ForAll _ _ _) ->
+      forallType@(ForAll _ _ _ _ _ _) ->
         go (foralls.ty : rest) (PForAll (List.length foralls.binders) : acc)
         where
-        foralls = joinForAlls forallType
+        foralls = TypeQuery.joinForAlls forallType
 
-      ParensInType child ->
+      ParensInType _ child ->
         go (child : rest) acc
 
-      ConstrainedType _ child ->
+      ConstrainedType _ _ child ->
         go (child : rest) acc
 
-      REmpty ->
+      REmpty _ ->
         -- TODO: reconsider
         go rest (PVar : acc)
 
-      row@(RCons _ _ _) ->
+      row@(RCons _ _ _ _) ->
         go (typesInRow <> rest) (PRow (List.length joined.rows) : acc)
         where
-        joined = joinRows row
+        joined = TypeQuery.joinRows row
         sorted = List.sortBy (\x y -> compare x.row y.row) joined.rows
         typesInRow = sorted <#> (_.ty)
 
-      Kinded t1 _t2 -> go (t1 : rest) acc
+      KindedType _ t1 _ -> go (t1 : rest) acc
 
-      BinaryNoParensType op l r ->
-        go (TypeApp (TypeApp op l) r : rest) acc
+      BinaryNoParensType _ op l r ->
+        go (TypeApp unit (TypeApp unit op l) r : rest) acc
+
+      Skolem _ _ _ _ _ ->
+        go rest acc
+
+      TypeLevelInt _ _ ->
+        go rest acc
+
+      TUnknown _ _ ->
+        go rest acc
 
 foreign import hash :: String -> Int

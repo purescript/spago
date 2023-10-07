@@ -9,7 +9,6 @@ import Data.Set.NonEmpty as NonEmptySet
 import Options.Applicative (FlagFields, Mod, Parser)
 import Options.Applicative as O
 import Options.Applicative.Types as O
-import Spago.Core.Config (ShowSourceCode(..))
 import Spago.Core.Config as Core
 
 flagMaybe ∷ ∀ (a ∷ Type). a -> Mod FlagFields (Maybe a) -> Parser (Maybe a)
@@ -32,64 +31,10 @@ strict =
         <> O.help "Promotes project sources' warnings to errors"
     )
 
-censorBuildWarnings :: Parser (Maybe Core.CensorBuildWarnings)
-censorBuildWarnings =
-  O.optional $
-    O.option
-      ( O.eitherReader
-          case _ of
-            "all" -> Right Core.CensorAllWarnings
-            "project" -> Right Core.CensorProjectWarnings
-            "dependency" -> Right Core.CensorDependencyWarnings
-            _ -> Left $ "Expected 'all', 'project', or 'dependency'"
-      )
-      ( O.long "censor-build-warnings"
-          <> O.help "Censor compiler warnings based on file's location: 'dependency', 'project', or 'all'"
-          <> O.metavar "ARG"
-      )
-
-showSource :: Parser (Maybe ShowSourceCode)
-showSource =
-  flagMaybe NoSourceCode
-    ( O.long "no-source"
-        <> O.help "Disable original source code printing"
-    )
-
-censorCodes :: Parser (Maybe (NonEmptySet String))
-censorCodes =
-  NonEmptySet.fromFoldable
-    <$>
-      ( O.many
-          $ O.strOption
-              ( O.long "censor-code"
-                  <> O.metavar "CODE"
-                  <> O.help "Censor a specific error code (e.g. `ShadowedName`)"
-              )
-      )
-
-filterCodes :: Parser (Maybe (NonEmptySet String))
-filterCodes =
-  NonEmptySet.fromFoldable
-    <$>
-      O.many
-        ( O.strOption
-            $ O.long "filter-code"
-            <> O.metavar "CODE"
-            <> O.help "Only show a specific error code (e.g. `TypesDoNotUnify`)"
-        )
-
 statVerbosity :: Parser (Maybe Core.StatVerbosity)
 statVerbosity =
   flagMaybe Core.VerboseStats (O.long "verbose-stats" <> O.help "Show counts for each warning type")
     <|> flagMaybe Core.NoStats (O.long "censor-stats" <> O.help "Censor warning/error summary")
-
-persistWarnings :: Parser (Maybe Boolean)
-persistWarnings =
-  O.optional $
-    O.switch
-      ( O.long "persist-warnings"
-          <> O.help "Persist the compiler warnings between multiple underlying `purs compile` calls"
-      )
 
 jsonErrors :: Parser Boolean
 jsonErrors =

@@ -9,16 +9,14 @@ import Docs.Search.SearchResult (SearchResult)
 import Docs.Search.SearchResult as SearchResult
 import Docs.Search.TypeIndex (TypeIndex)
 import Docs.Search.TypeIndex as TypeIndex
-import Docs.Search.Types (PartId(..), URL)
+import Docs.Search.Types (PartId, URL)
 
 import Prelude
 
 import Control.Promise (Promise, toAffE)
 import Data.Argonaut.Core (Json)
 import Data.Array as Array
-import Data.Char as Char
 import Data.Codec.Argonaut.Common as CA
-import Data.Codec.Argonaut.Record as CAR
 import Data.Either (hush)
 import Data.List (List)
 import Data.List as List

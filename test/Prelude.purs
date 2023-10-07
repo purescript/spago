@@ -106,7 +106,7 @@ check checkers execResult = do
       Left err -> err.stderr
       Right res -> res.stderr
 
-  when false do
+  when true do
     log $ "STDOUT:\n" <> prettyPrint stdout
     log $ "STDERR:\n" <> prettyPrint stderr
   execResult `Assert.shouldSatisfy` checkers.result

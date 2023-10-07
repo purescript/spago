@@ -98,12 +98,7 @@ type BuildArgs a =
   , ensureRanges :: Boolean
   , jsonErrors :: Boolean
   , strict :: Maybe Boolean
-  , censorBuildWarnings :: Maybe Core.CensorBuildWarnings
-  , showSource :: Maybe Core.ShowSourceCode
-  , censorCodes :: Maybe (NonEmptySet String)
-  , filterCodes :: Maybe (NonEmptySet String)
   , statVerbosity :: Maybe Core.StatVerbosity
-  , persistWarnings :: Maybe Boolean
   | a
   }
 
@@ -130,12 +125,7 @@ type RunArgs =
   , main :: Maybe String
   , ensureRanges :: Boolean
   , strict :: Maybe Boolean
-  , censorBuildWarnings :: Maybe Core.CensorBuildWarnings
-  , showSource :: Maybe Core.ShowSourceCode
-  , censorCodes :: Maybe (NonEmptySet String)
-  , filterCodes :: Maybe (NonEmptySet String)
   , statVerbosity :: Maybe Core.StatVerbosity
-  , persistWarnings :: Maybe Boolean
   }
 
 type TestArgs =
@@ -146,12 +136,7 @@ type TestArgs =
   , backendArgs :: List String
   , execArgs :: Maybe (Array String)
   , strict :: Maybe Boolean
-  , censorBuildWarnings :: Maybe Core.CensorBuildWarnings
-  , showSource :: Maybe Core.ShowSourceCode
-  , censorCodes :: Maybe (NonEmptySet String)
-  , filterCodes :: Maybe (NonEmptySet String)
   , statVerbosity :: Maybe Core.StatVerbosity
-  , persistWarnings :: Maybe Boolean
   }
 
 type SourcesArgs =
@@ -173,12 +158,7 @@ type BundleArgs =
   , type :: Maybe String
   , ensureRanges :: Boolean
   , strict :: Maybe Boolean
-  , censorBuildWarnings :: Maybe Core.CensorBuildWarnings
-  , showSource :: Maybe Core.ShowSourceCode
-  , censorCodes :: Maybe (NonEmptySet String)
-  , filterCodes :: Maybe (NonEmptySet String)
   , statVerbosity :: Maybe Core.StatVerbosity
-  , persistWarnings :: Maybe Boolean
   }
 
 type PublishArgs =
@@ -321,12 +301,7 @@ buildArgsParser = Optparse.fromRecord
   , ensureRanges: Flags.ensureRanges
   , jsonErrors: Flags.jsonErrors
   , strict: Flags.strict
-  , censorBuildWarnings: Flags.censorBuildWarnings
-  , showSource: Flags.showSource
-  , censorCodes: Flags.censorCodes
-  , filterCodes: Flags.filterCodes
   , statVerbosity: Flags.statVerbosity
-  , persistWarnings: Flags.persistWarnings
   }
 
 replArgsParser :: Parser ReplArgs
@@ -347,12 +322,7 @@ runArgsParser = Optparse.fromRecord
   , main: Flags.moduleName
   , ensureRanges: Flags.ensureRanges
   , strict: Flags.strict
-  , censorBuildWarnings: Flags.censorBuildWarnings
-  , showSource: Flags.showSource
-  , censorCodes: Flags.censorCodes
-  , filterCodes: Flags.filterCodes
   , statVerbosity: Flags.statVerbosity
-  , persistWarnings: Flags.persistWarnings
   }
 
 testArgsParser :: Parser TestArgs
@@ -364,12 +334,7 @@ testArgsParser = Optparse.fromRecord
   , output: Flags.output
   , pedanticPackages: Flags.pedanticPackages
   , strict: Flags.strict
-  , censorBuildWarnings: Flags.censorBuildWarnings
-  , showSource: Flags.showSource
-  , censorCodes: Flags.censorCodes
-  , filterCodes: Flags.filterCodes
   , statVerbosity: Flags.statVerbosity
-  , persistWarnings: Flags.persistWarnings
   }
 
 bundleArgsParser :: Parser BundleArgs
@@ -388,12 +353,7 @@ bundleArgsParser =
     , pedanticPackages: Flags.pedanticPackages
     , ensureRanges: Flags.ensureRanges
     , strict: Flags.strict
-    , censorBuildWarnings: Flags.censorBuildWarnings
-    , showSource: Flags.showSource
-    , censorCodes: Flags.censorCodes
-    , filterCodes: Flags.filterCodes
     , statVerbosity: Flags.statVerbosity
-    , persistWarnings: Flags.persistWarnings
     }
 
 publishArgsParser :: Parser PublishArgs
@@ -533,13 +493,8 @@ main =
             let
               buildArgs = Record.merge
                 args
-                { censorBuildWarnings: Nothing :: Maybe Core.CensorBuildWarnings
-                , censorCodes: Nothing :: Maybe (NonEmptySet String)
-                , filterCodes: Nothing :: Maybe (NonEmptySet String)
-                , statVerbosity: Nothing :: Maybe Core.StatVerbosity
-                , showSource: Nothing :: Maybe Core.ShowSourceCode
+                { statVerbosity: Nothing :: Maybe Core.StatVerbosity
                 , strict: Nothing :: Maybe Boolean
-                , persistWarnings: Nothing :: Maybe Boolean
                 }
             env' <- runSpago env (mkBuildEnv buildArgs dependencies)
             let options = { depsOnly: true, pursArgs: List.toUnfoldable args.pursArgs, jsonErrors: false }
@@ -800,13 +755,8 @@ mkBuildEnv
    . { backendArgs :: List String
      , output :: Maybe String
      , pedanticPackages :: Boolean
-     , censorBuildWarnings :: Maybe Core.CensorBuildWarnings
-     , censorCodes :: Maybe (NonEmptySet String)
-     , filterCodes :: Maybe (NonEmptySet String)
      , statVerbosity :: Maybe Core.StatVerbosity
-     , showSource :: Maybe Core.ShowSourceCode
      , strict :: Maybe Boolean
-     , persistWarnings :: Maybe Boolean
      | r
      }
   -> Fetch.PackageTransitiveDeps
@@ -819,13 +769,6 @@ mkBuildEnv buildArgs dependencies = do
       { buildOptions
           { output = buildArgs.output <|> workspace.buildOptions.output
           , pedanticPackages = buildArgs.pedanticPackages || workspace.buildOptions.pedanticPackages
-          , censorBuildWarnings = buildArgs.censorBuildWarnings <|> workspace.buildOptions.censorBuildWarnings
-          , censorCodes = buildArgs.censorCodes <|> workspace.buildOptions.censorCodes
-          , filterCodes = buildArgs.filterCodes <|> workspace.buildOptions.filterCodes
-          , statVerbosity = buildArgs.statVerbosity <|> workspace.buildOptions.statVerbosity
-          , showSource = buildArgs.showSource <|> workspace.buildOptions.showSource
-          , strict = buildArgs.strict <|> workspace.buildOptions.strict
-          , persistWarnings = buildArgs.persistWarnings <|> workspace.buildOptions.persistWarnings
           }
       -- Override the backend args from the config if they are passed in through a flag
       , backend = map
@@ -842,6 +785,10 @@ mkBuildEnv buildArgs dependencies = do
     , git
     , dependencies
     , workspace: newWorkspace
+    , psaCliFlags:
+        { statVerbosity: buildArgs.statVerbosity
+        , strict: buildArgs.strict
+        }
     }
 
 mkPublishEnv :: forall a. Fetch.PackageTransitiveDeps -> Spago (Fetch.FetchEnv a) (Publish.PublishEnv a)

@@ -12,7 +12,6 @@ import Data.DateTime (DateTime)
 import Data.Formatter.DateTime as DateTime
 import Data.List as List
 import Data.Map as Map
-import Data.Set.NonEmpty (NonEmptySet)
 import Effect.Aff (Milliseconds(..))
 import Effect.Aff as Aff
 import Effect.Ref as Ref
@@ -111,13 +110,10 @@ publish _args = do
     , purs: env.purs
     , selected
     , dependencies: env.dependencies
-    , censorBuildWarnings: (Nothing :: Maybe Core.CensorBuildWarnings)
-    , censorCodes: (Nothing :: Maybe (NonEmptySet String))
-    , filterCodes: (Nothing :: Maybe (NonEmptySet String))
-    , statVerbosity: (Nothing :: Maybe Core.StatVerbosity)
-    , showSource: (Nothing :: Maybe Core.ShowSourceCode)
-    , strict: (Nothing :: Maybe Boolean)
-    , persistWarnings: (Nothing :: Maybe Boolean)
+    , psaCliFlags:
+        { statVerbosity: (Nothing :: Maybe Core.StatVerbosity)
+        , strict: (Nothing :: Maybe Boolean)
+        }
     }
     ( Build.run
         { depsOnly: false
@@ -309,13 +305,10 @@ publish _args = do
         , purs: env.purs
         , selected: env.selected
         , dependencies: Map.singleton selected.package.name buildPlanDependencies
-        , censorBuildWarnings: (Nothing :: Maybe Core.CensorBuildWarnings)
-        , censorCodes: (Nothing :: Maybe (NonEmptySet String))
-        , filterCodes: (Nothing :: Maybe (NonEmptySet String))
-        , statVerbosity: (Nothing :: Maybe Core.StatVerbosity)
-        , showSource: (Nothing :: Maybe Core.ShowSourceCode)
-        , strict: (Nothing :: Maybe Boolean)
-        , persistWarnings: (Nothing :: Maybe Boolean)
+        , psaCliFlags:
+            { statVerbosity: (Nothing :: Maybe Core.StatVerbosity)
+            , strict: (Nothing :: Maybe Boolean)
+            }
         }
         ( Build.run
             { depsOnly: false
