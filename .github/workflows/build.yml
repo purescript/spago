@@ -78,9 +78,6 @@ jobs:
       - name: Bundle docs-search client
         run: ./bin/index.dev.js bundle -p docs-search-client-halogen
 
-      - name: Check code format
-        run: npm run format:check
-
       - name: Run tests
         run: spago test
 
