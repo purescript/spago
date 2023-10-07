@@ -88,13 +88,7 @@ type PsaArgs =
   }
 
 type PsaOutputOptions =
-  { censorLibWarnings :: Maybe Core.CensorBuildWarnings
-  , censorLibCodes :: Maybe (NonEmptySet ErrorCode)
-  , filterLibCodes :: Maybe (NonEmptySet ErrorCode)
-  , censorProjectWarnings :: Maybe Core.CensorBuildWarnings
-  , censorProjectCodes :: Maybe (NonEmptySet ErrorCode)
-  , filterProjectCodes :: Maybe (NonEmptySet ErrorCode)
-  , statVerbosity :: Maybe Core.StatVerbosity
+  { statVerbosity :: Maybe Core.StatVerbosity
   , strict :: Maybe Boolean
   }
 

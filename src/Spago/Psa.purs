@@ -94,9 +94,9 @@ toPathDecisions
   -> Array (Effect (String -> Maybe PathDecision))
 toPathDecisions { allDependencies, psaCliFlags, workspaceOptions } = do
   let
-    censorAll = eq (Just CensorAllWarnings) $ psaCliFlags.censorLibWarnings <|> workspaceOptions.censorLibWarnings
-    censorCodes = maybe Set.empty NonEmptySet.toSet $ psaCliFlags.censorLibCodes <|> workspaceOptions.censorLibCodes
-    filterCodes = maybe Set.empty NonEmptySet.toSet $ psaCliFlags.filterLibCodes <|> workspaceOptions.filterLibCodes
+    censorAll = eq (Just CensorAllWarnings) $ workspaceOptions.censorLibWarnings
+    censorCodes = maybe Set.empty NonEmptySet.toSet $ workspaceOptions.censorLibCodes
+    filterCodes = maybe Set.empty NonEmptySet.toSet $ workspaceOptions.filterLibCodes
   (Map.toUnfoldable allDependencies :: Array _) <#> \dep -> do
     case snd dep of
       WorkspacePackage p ->
@@ -126,9 +126,9 @@ toWorkspacePackagePathDecision { selected: { path, package }, psaCliFlags } = do
     { pathIsFromPackage: isJust <<< String.stripPrefix (String.Pattern pkgPath)
     , pathType: IsSrc
     , strict: fromMaybe false $ psaCliFlags.strict <|> (package.build >>= _.strict)
-    , censorAll: eq (Just CensorAllWarnings) $ psaCliFlags.censorProjectWarnings <|> (package.build >>= _.censor_project_warnings)
-    , censorCodes: maybe Set.empty NonEmptySet.toSet $ psaCliFlags.censorProjectCodes <|> (package.build >>= _.censor_project_codes)
-    , filterCodes: maybe Set.empty NonEmptySet.toSet $ psaCliFlags.filterProjectCodes <|> (package.build >>= _.filter_project_codes)
+    , censorAll: eq (Just CensorAllWarnings) $ package.build >>= _.censor_project_warnings
+    , censorCodes: maybe Set.empty NonEmptySet.toSet $ package.build >>= _.censor_project_codes
+    , filterCodes: maybe Set.empty NonEmptySet.toSet $ package.build >>= _.filter_project_codes
     }
 
 toPathDecision
