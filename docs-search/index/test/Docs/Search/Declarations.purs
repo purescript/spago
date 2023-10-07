@@ -4,9 +4,11 @@ import Prelude
 
 import Docs.Search.Declarations (extractPackageName)
 import Docs.Search.Types (PackageName(..), PackageInfo(..))
+import Docs.Search.DocTypes (SourceSpan)
 
 import Data.Maybe (Maybe(..))
 import Data.Newtype (wrap)
+
 import Test.Spec (Spec, describe, it)
 import Test.Spec.Assertions (shouldEqual)
 
@@ -20,25 +22,18 @@ tests = do
       UnknownPackage `shouldEqual` (extractPackageName (wrap "Primitive") Nothing)
       Package (PackageName "foo") `shouldEqual`
         ( extractPackageName (wrap "Foo") $
-            Just
-              { start: []
-              , end: []
-              , name: ".spago/foo/src/Foo.purs"
-              }
+            mkSourceSpan ".spago/foo/src/Foo.purs"
         )
       Package (PackageName "bar") `shouldEqual`
         ( extractPackageName (wrap "Bar") $
-            Just
-              { start: []
-              , end: []
-              , name: "/path/to/somewhere/bower_components/bar/src/Bar.purs"
-              }
+            mkSourceSpan "/path/to/somewhere/bower_components/bar/src/Bar.purs"
         )
       LocalPackage `shouldEqual`
         ( extractPackageName (wrap "Bar") $
-            Just
-              { start: []
-              , end: []
-              , name: "/path/to/somewhere/src/Bar.purs"
-              }
+            mkSourceSpan "/path/to/somewhere/src/Bar.purs"
         )
+
+mkSourceSpan :: String -> Maybe SourceSpan
+mkSourceSpan name = Just $ wrap { name, start: defaultPos, end: defaultPos }
+  where
+  defaultPos = wrap { column: 0, line: 0 }

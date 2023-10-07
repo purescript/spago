@@ -1,18 +1,18 @@
 module Test.TypeQuery where
 
-import Docs.Search.TypeDecoder (Constraint(..), QualifiedName(..), Type(..))
+import Docs.Search.TypeDecoder (Constraint(..), Qualified(..), QualifiedBy(..), Type(..), ProperName(..), ClassName, ModuleName(..), Type', Constraint', TypeVarVisibility(..))
 import Docs.Search.TypeQuery (Substitution(..), TypeQuery(..), getFreeVariables, parseTypeQuery, penalty, typeVarPenalty)
 import Docs.Search.TypeShape (ShapeChunk(..), shapeOfType, shapeOfTypeQuery)
 import Docs.Search.Types (Identifier(..))
 
 import Prelude
-import Prim hiding (Constraint, Type)
 import Data.Foldable (class Foldable)
 import Data.List (List(..), (:))
 import Data.List as List
 import Data.List.NonEmpty (NonEmptyList)
 import Data.List.NonEmpty as NonEmptyList
 import Data.Set as Set
+import Data.String.Common as String
 import Data.Tuple (Tuple(..))
 import Test.Extra (assertRight)
 import Test.Spec (Spec, describe, it)
@@ -22,7 +22,6 @@ import Data.Maybe (Maybe(..))
 tests :: Spec Unit
 tests = do
   describe "TypeQuery parser" do
-
     it "test #0" do
       let input = "a"
       assertRight (parseTypeQuery input) (qVar "a")
@@ -283,7 +282,6 @@ tests = do
         )
 
   describe "polish notation" do
-
     it "test #1" do
       let input = "(a -> b) -> (b -> ((a -> b) -> c))"
       assertRight (shapeOfTypeQuery <$> parseTypeQuery input)
@@ -350,31 +348,27 @@ tests = do
     it "test #1" do
       let
         query = "Generic a rep => GenericEq rep => a -> a -> Boolean"
-        c1 = constr (qname [ "" ] "Generic") [ TypeVar "a", TypeVar "rep" ]
-        c2 = constr (qname [ "" ] "GenericEq") [ TypeVar "rep" ]
+        c1 = constraint (qname [ "" ] "Generic") [ tyVar "a", tyVar "rep" ]
+        c2 = constraint (qname [ "" ] "GenericEq") [ tyVar "rep" ]
 
         fun t1 t2 =
-          TypeApp
-            ( TypeApp
-                ( TypeConstructor
-                    ( QualifiedName
-                        { moduleNameParts: [ "Prim" ]
-                        , name: Identifier "Function"
-                        }
+          TypeApp unit
+            ( TypeApp unit
+                ( TypeConstructor unit
+                    ( qname [ "Prim" ] "Function"
                     )
                 )
                 t1
             )
             t2
         type_ =
-          ForAll "a" Nothing
-            $ ForAll "rep" Nothing
-            $
-              ConstrainedType c1
-                ( ConstrainedType c2
-                    ( fun (TypeVar "a")
-                        ( fun (TypeVar "b")
-                            (TypeConstructor $ qname [ "Prim", "Boolean" ] "Boolean")
+          tyForAll "a"
+            $ tyForAll "rep"
+            $ ConstrainedType unit c1
+                ( ConstrainedType unit c2
+                    ( fun (tyVar "a")
+                        ( fun (tyVar "b")
+                            (TypeConstructor unit $ qname [ "Prim", "Boolean" ] "Boolean")
                         )
                     )
                 )
@@ -518,7 +512,6 @@ tests = do
             , substitute "c" "f"
             ]
         )
-
   describe "unification" do
     it "instantiation #0" do
       let
@@ -532,11 +525,17 @@ tests = do
     it "generalization #0" do
       let
         query = qVar "m"
-        t1 = TypeVar "m"
+        t1 = tyVar "m"
 
       shouldSatisfy
         (penalty query unitType)
         (_ > penalty query t1)
+
+tyVar :: String -> Type'
+tyVar = TypeVar unit
+
+tyForAll :: String -> Type' -> Type'
+tyForAll name inner = ForAll unit TypeVarInvisible name Nothing inner Nothing
 
 l :: forall f. Foldable f => (forall a. f a -> List a)
 l = List.fromFoldable
@@ -550,22 +549,27 @@ nl
   -> NonEmptyList Identifier
 nl x rst = NonEmptyList.cons' (Identifier x) $ List.fromFoldable (rst <#> Identifier)
 
-unitType :: Type
-unitType = TypeConstructor
-  ( QualifiedName
-      { moduleNameParts: []
-      , name: Identifier "Unit"
-      }
+unitType :: Type'
+unitType = TypeConstructor unit
+  ( qname [] "Unit"
   )
 
 countFreeVars :: TypeQuery -> Int
 countFreeVars = getFreeVariables >>> Set.size
 
-qname :: Array String -> String -> QualifiedName
-qname m n = QualifiedName { moduleNameParts: m, name: Identifier n }
+qname :: forall tag. Array String -> String -> Qualified (ProperName tag)
+qname m n = Qualified by $ (ProperName n)
+  where
+  by = ByModuleName $ ModuleName $ String.joinWith "." m
 
-constr :: QualifiedName -> Array Type -> Constraint
-constr c a = Constraint { constraintClass: c, constraintArgs: a }
+constraint :: Qualified (ProperName ClassName) -> Array Type' -> Constraint'
+constraint c a = Constraint
+  { ann: unit
+  , args: a
+  , class: c
+  , data: Nothing
+  , kindArgs: []
+  }
 
 qVar :: String -> TypeQuery
 qVar = QVar <<< Identifier
