@@ -5,7 +5,6 @@ import Test.Prelude
 import Node.FS.Aff as FSA
 import Node.Path as Path
 import Node.Process as Process
-import Registry.Version as Version
 import Spago.Command.Init as Init
 import Spago.Core.Config as Config
 import Spago.FS as FS
@@ -101,7 +100,7 @@ spec = Spec.around withTempDir do
         }
       spago [ "build", "--strict" ] >>= shouldBeFailure
 
-    Spec.it "A package config with build 'strict: true' causes build to fail if there are warnings" \{ spago, fixture } -> do
+    Spec.it "having 'strict: true' in a package config fails the build if there are warnings" \{ spago, fixture } -> do
       spago [ "init" ] >>= shouldBeSuccess
       let
         srcMain = Path.concat [ "src", "Main.purs" ]
