@@ -8,6 +8,7 @@ module Test.Spago.Build.Polyrepo where
 import Test.Prelude
 
 import Data.Array as Array
+import Data.Set.NonEmpty as NonEmptySet
 import Data.String (Pattern(..), Replacement(..))
 import Data.String as String
 import Node.Path as Path
@@ -32,6 +33,10 @@ spec = Spec.describe "polyrepo" do
       FS.writeYamlFile Config.configCodec "spago.yaml"
         $ Init.defaultConfig'
         $ WorkspaceOnly { setVersion: Just $ unsafeFromRight $ Version.parse "0.0.1" }
+
+    -- | packageToModuleName "package-name" = "PACKAGE.NAME"
+    packageToModuleName packageName =
+      String.toUpper (String.replaceAll (Pattern "-") (Replacement ".") packageName)
 
     setupDir { packageName, spagoYaml, srcMain, testMain } = do
       let
@@ -100,6 +105,7 @@ spec = Spec.describe "polyrepo" do
             { name: mkPackageName "case-one-package-a"
             , dependencies: [ "console", "effect", "prelude" ]
             , test: Just { moduleMain: "Subpackage.A.Test.Main" }
+            , build: Nothing
             }
         , srcMain: mkMainModuleContent
             { modName: "Subpackage.A.Main"
@@ -120,6 +126,7 @@ spec = Spec.describe "polyrepo" do
             { name: mkPackageName "case-one-package-b"
             , dependencies: [ "console", "effect", "prelude" ]
             , test: Just { moduleMain: "Subpackage.B.Test.Main" }
+            , build: Nothing
             }
         , srcMain: mkMainModuleContent
             { modName: "Subpackage.B.Main"
@@ -160,6 +167,7 @@ spec = Spec.describe "polyrepo" do
             { name: mkPackageName "case-two-package-shared"
             , dependencies: [ "prelude" ]
             , test: Nothing
+            , build: Nothing
             }
         , srcMain: mkModuleContent
             { modName: "Subpackage.Shared.Lib"
@@ -178,6 +186,7 @@ spec = Spec.describe "polyrepo" do
             { name: mkPackageName "case-two-package-a"
             , dependencies: [ "console", "effect", "prelude", "case-two-package-shared" ]
             , test: Just { moduleMain: "Subpackage.A.Test.Main" }
+            , build: Nothing
             }
         , srcMain: mkMainModuleContent
             { modName: "Subpackage.A.Main"
@@ -201,6 +210,7 @@ spec = Spec.describe "polyrepo" do
             { name: mkPackageName "case-two-package-b"
             , dependencies: [ "console", "effect", "prelude", "case-two-package-shared" ]
             , test: Just { moduleMain: "Subpackage.B.Test.Main" }
+            , build: Nothing
             }
         , srcMain: mkMainModuleContent
             { modName: "Subpackage.B.Main"
@@ -245,6 +255,7 @@ spec = Spec.describe "polyrepo" do
             { name: mkPackageName "case-three-package-c"
             , dependencies: [ "prelude" ]
             , test: Nothing
+            , build: Nothing
             }
         , srcMain: mkModuleContent
             { modName: "Subpackage.C.Lib"
@@ -263,6 +274,7 @@ spec = Spec.describe "polyrepo" do
             { name: mkPackageName "case-three-package-b"
             , dependencies: [ "console", "effect", "prelude", "case-three-package-c" ]
             , test: Just { moduleMain: "Subpackage.B.Test.Main" }
+            , build: Nothing
             }
         , srcMain: mkMainModuleContent
             { modName: "Subpackage.B.Main"
@@ -286,6 +298,7 @@ spec = Spec.describe "polyrepo" do
             { name: mkPackageName "case-three-package-a"
             , dependencies: [ "console", "effect", "prelude", "case-three-package-b", "case-three-package-c" ]
             , test: Just { moduleMain: "Subpackage.A.Test.Main" }
+            , build: Nothing
             }
         , srcMain: mkMainModuleContent
             { modName: "Subpackage.A.Main"
@@ -341,6 +354,7 @@ spec = Spec.describe "polyrepo" do
           { name: mkPackageName "case-four-package-c"
           , dependencies: [ "prelude" ]
           , test: Nothing
+          , build: Nothing
           }
       , srcMain: mkModuleContent
           { modName: "Subpackage.C.Lib"
@@ -359,6 +373,7 @@ spec = Spec.describe "polyrepo" do
           { name: mkPackageName "case-four-package-b"
           , dependencies: [ "console", "effect", "prelude" ]
           , test: Just { moduleMain: "Subpackage.SameName.Test.Main" }
+          , build: Nothing
           }
       , srcMain: mkMainModuleContent
           { modName: "Subpackage.SameName.Main"
@@ -379,6 +394,7 @@ spec = Spec.describe "polyrepo" do
           { name: mkPackageName "case-four-package-a"
           , dependencies: [ "console", "effect", "prelude" ]
           , test: Just { moduleMain: "Subpackage.SameName.Test.Main" }
+          , build: Nothing
           }
       , srcMain: mkMainModuleContent
           { modName: "Subpackage.SameName.Main"
@@ -410,6 +426,50 @@ spec = Spec.describe "polyrepo" do
           Assert.fail $ "STDERR did not contain text:\n" <> exp <> "\n\nStderr was:\n" <> stdErr
     spago [ "build" ] >>= check { stdout: mempty, stderr: hasExpectedModules, result: isLeft }
 
+  Spec.describe "warning censoring and error-promotion" do
+    let
+      setupPackageWithUnusedNameWarning packageName deps strict censorShadowedName = void $ setupDir
+        { packageName: packageName
+        , spagoYaml: Init.defaultConfig' $ PackageOnly
+            { name: mkPackageName packageName
+            , dependencies: [ "prelude" ] <> deps
+            , build: Just
+                { strict: pure strict
+                , censorProjectCodes: if censorShadowedName then Just $ NonEmptySet.singleton "UnusedName" else Nothing
+                }
+            , test: Nothing
+            }
+        , srcMain: mkModuleContent
+            { modName: "Subpackage." <> packageToModuleName packageName
+            , imports: []
+            , body:
+                [ ""
+                , "packageName :: String -> String"
+                , "packageName foo = "
+                , "  \"package\" <> \"" <> packageName <> "\""
+                ]
+            }
+        , testMain: Nothing
+        }
+    Spec.it "build succeeds when 'strict: true' because warnings were censored" \{ spago } -> do
+      writeWorkspaceOnlySpagoYamlFile
+      setupPackageWithUnusedNameWarning "package-a" [] true true
+      setupPackageWithUnusedNameWarning "package-b" [ "package-a" ] true true
+      setupPackageWithUnusedNameWarning "package-c" [ "package-a", "package-b" ] true true
+      spago [ "build" ] >>= shouldBeSuccess
+
+    Spec.it "build fails when 'strict: true' and warnings were not censored'" \{ spago } -> do
+      writeWorkspaceOnlySpagoYamlFile
+      setupPackageWithUnusedNameWarning "package-a" [] true true
+      setupPackageWithUnusedNameWarning "package-b" [ "package-a" ] true false -- no censoring, so this will fail to build
+      setupPackageWithUnusedNameWarning "package-c" [ "package-a", "package-b" ] true true
+      let
+        hasUnusedWarningError stdErr = do
+          let exp = "[1/1 UnusedName] package-b/src/Main.purs:6:13"
+          unless (String.contains (Pattern exp) stdErr) do
+            Assert.fail $ "STDERR did not contain texts:\n" <> exp <> "\n\nStderr was:\n" <> stdErr
+      spago [ "build" ] >>= check { stdout: mempty, stderr: hasUnusedWarningError, result: isLeft }
+
   Spec.describe "passing --ensure-ranges flag..." do
     let
       setupNonRootPackage packageName = void $ setupDir
@@ -418,9 +478,10 @@ spec = Spec.describe "polyrepo" do
             { name: mkPackageName packageName
             , dependencies: [ "prelude" ]
             , test: Nothing
+            , build: Nothing
             }
         , srcMain: mkModuleContent
-            { modName: "Subpackage." <> String.toUpper (String.replaceAll (Pattern "-") (Replacement ".") packageName)
+            { modName: "Subpackage." <> packageToModuleName packageName
             , imports: []
             , body:
                 [ ""

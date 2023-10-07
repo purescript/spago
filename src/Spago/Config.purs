@@ -72,13 +72,10 @@ type Workspace =
 type BuildOptions =
   { output :: Maybe FilePath
   , pedanticPackages :: Boolean
-  , censorBuildWarnings :: Maybe Core.CensorBuildWarnings
-  , censorCodes :: Maybe (NonEmptySet String)
-  , filterCodes :: Maybe (NonEmptySet String)
+  , censorLibWarnings :: Maybe Core.CensorBuildWarnings
+  , censorLibCodes :: Maybe (NonEmptySet String)
+  , filterLibCodes :: Maybe (NonEmptySet String)
   , statVerbosity :: Maybe Core.StatVerbosity
-  , showSource :: Maybe Core.ShowSourceCode
-  , strict :: Maybe Boolean
-  , persistWarnings :: Maybe Boolean
   }
 
 data LockfileSettings
@@ -388,13 +385,10 @@ readWorkspace maybeSelectedPackage = do
     buildOptions =
       { output: _.output =<< workspace.build_opts
       , pedanticPackages: fromMaybe false (_.pedantic_packages =<< workspace.build_opts)
-      , censorBuildWarnings: _.censor_warnings =<< workspace.build_opts
-      , censorCodes: _.censor_codes =<< workspace.build_opts
-      , filterCodes: _.filter_codes =<< workspace.build_opts
+      , censorLibWarnings: _.censor_library_warnings =<< workspace.build_opts
+      , censorLibCodes: _.censor_library_codes =<< workspace.build_opts
+      , filterLibCodes: _.filter_library_codes =<< workspace.build_opts
       , statVerbosity: _.stat_verbosity =<< workspace.build_opts
-      , showSource: _.show_source =<< workspace.build_opts
-      , strict: _.strict =<< workspace.build_opts
-      , persistWarnings: _.persist_warnings =<< workspace.build_opts
       }
 
   pure

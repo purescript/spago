@@ -8,11 +8,16 @@ module Spago.Psa.Types
   ( ErrorCode
   , ModuleName
   , Filename
-  , PsaOutputOptions
+  , PsaArgs
   , PsaResult
   , PsaError
   , PsaAnnotedError
   , PsaPath(..)
+  , PsaPathType(..)
+  , PathDecision
+  , PsaOutputOptions
+  , WorkspacePsaOutputOptions
+  , PathInfo
   , Position
   , Suggestion
   , Lines
@@ -23,11 +28,11 @@ module Spago.Psa.Types
 
 import Prelude
 
-import Data.Codec.Argonaut.Record as CAR
 import Data.Codec.Argonaut as CA
 import Data.Codec.Argonaut.Compat as CACompat
+import Data.Codec.Argonaut.Record as CAR
 import Data.Maybe (Maybe(..))
-import Data.Set (Set)
+import Data.Set.NonEmpty (NonEmptySet)
 import Data.Tuple (Tuple(..))
 import Spago.Core.Config as Core
 
@@ -53,14 +58,44 @@ instance Show PsaPath where
     Lib s -> "(Lib " <> s <> ")"
     Unknown -> "Unknown"
 
-type PsaOutputOptions =
-  { color :: Boolean
-  , censorBuildWarnings :: Core.CensorBuildWarnings
-  , censorCodes :: Set ErrorCode
-  , filterCodes :: Set ErrorCode
+data PsaPathType
+  = IsLib
+  | IsSrc
+
+derive instance Eq PsaPathType
+instance Show PsaPathType where
+  show = case _ of
+    IsLib -> "IsLib"
+    IsSrc -> "IsSrc"
+
+type PathDecision =
+  { pathType :: PsaPathType
+  , shouldShowError :: ErrorCode -> Boolean
+  , shouldPromoteWarningToError :: Boolean
+  }
+
+type PathInfo =
+  { path :: PsaPath
+  , shouldShowError :: ErrorCode -> Boolean
+  , shouldPromoteWarningToError :: Boolean
+  }
+
+type PsaArgs =
+  { jsonErrors :: Boolean
+  , color :: Boolean
   , statVerbosity :: Core.StatVerbosity
-  , libraryDirs :: Array String
-  , strict :: Boolean
+  , decisions :: Array (String -> Maybe PathDecision)
+  }
+
+type PsaOutputOptions =
+  { statVerbosity :: Maybe Core.StatVerbosity
+  , strict :: Maybe Boolean
+  }
+
+type WorkspacePsaOutputOptions =
+  { censorLibWarnings :: Maybe Core.CensorBuildWarnings
+  , censorLibCodes :: Maybe (NonEmptySet ErrorCode)
+  , filterLibCodes :: Maybe (NonEmptySet ErrorCode)
   }
 
 type PsaResult =

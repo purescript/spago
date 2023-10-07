@@ -13,12 +13,14 @@ module Spago.Command.Init
 import Spago.Prelude
 
 import Data.Map as Map
+import Data.Set.NonEmpty (NonEmptySet)
 import Node.Path as Path
 import Registry.PackageName as PackageName
 import Registry.Version as Version
 import Spago.Config (Dependencies(..), SetAddress(..), Config)
 import Spago.Config as Config
 import Spago.FS as FS
+import Spago.Psa.Types as PsaTypes
 import Spago.Registry (RegistryEnv)
 import Spago.Registry as Registry
 
@@ -101,6 +103,7 @@ defaultConfig { name, withWorkspace, testModuleName } = do
       { name
       , dependencies: [ "effect", "console", "prelude" ]
       , test: Just { moduleMain: testModuleName }
+      , build: Nothing
       }
   defaultConfig' case withWorkspace of
     Nothing -> PackageOnly pkg
@@ -110,6 +113,7 @@ type DefaultConfigPackageOptions =
   { name :: PackageName
   , dependencies :: Array String
   , test :: Maybe { moduleMain :: String }
+  , build :: Maybe { strict :: Maybe Boolean, censorProjectCodes :: Maybe (NonEmptySet PsaTypes.ErrorCode) }
   }
 
 type DefaultConfigWorkspaceOptions =
@@ -135,10 +139,16 @@ getDefaultConfigWorkspaceOptions = case _ of
 
 defaultConfig' :: DefaultConfigOptions -> Config
 defaultConfig' opts =
-  { package: (getDefaultConfigPackageOptions opts) <#> \{ name, dependencies, test } ->
+  { package: (getDefaultConfigPackageOptions opts) <#> \{ name, dependencies, test, build } ->
       { name
       , dependencies: Dependencies $ Map.fromFoldable $ map mkDep dependencies
       , description: Nothing
+      , build: build <#> \{ censorProjectCodes, strict } ->
+          { censor_project_warnings: Nothing
+          , censor_project_codes: censorProjectCodes
+          , filter_project_codes: Nothing
+          , strict
+          }
       , run: Nothing
       , test: test <#> \{ moduleMain } ->
           { dependencies: Dependencies Map.empty
