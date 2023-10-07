@@ -16,6 +16,7 @@ package:
     - halogen-css
     - halogen-subscriptions
     - js-uri
+    - language-purescript
     - lists
     - markdown-it
     - markdown-it-halogen
