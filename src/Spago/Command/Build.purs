@@ -150,7 +150,7 @@ run opts = do
       psaArgs =
         { color: logOptions.color
         , jsonErrors: opts.jsonErrors
-        , decisions: Array.cons projectPathDecision depPathDecisions
+        , decisions: projectPathDecision <> join depPathDecisions
         , statVerbosity: fromMaybe Psa.defaultStatVerbosity workspace.buildOptions.statVerbosity
         }
 

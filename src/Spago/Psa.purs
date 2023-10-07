@@ -91,7 +91,7 @@ toPathDecisions
      , psaCliFlags :: PsaOutputOptions
      , workspaceOptions :: WorkspacePsaOutputOptions
      }
-  -> Array (Effect (String -> Maybe PathDecision))
+  -> Array (Effect (Array (String -> Maybe PathDecision)))
 toPathDecisions { allDependencies, psaCliFlags, workspaceOptions } = do
   let
     censorAll = eq (Just CensorAllWarnings) $ workspaceOptions.censorLibWarnings
@@ -106,30 +106,44 @@ toPathDecisions { allDependencies, psaCliFlags, workspaceOptions } = do
           }
       _ -> do
         pkgLocation <- Path.resolve [] $ Tuple.uncurry Config.getPackageLocation dep
-        pure $ toPathDecision
-          { pathIsFromPackage: isJust <<< String.stripPrefix (String.Pattern pkgLocation)
-          , pathType: IsLib
-          , strict: false
-          , censorAll
-          , censorCodes
-          , filterCodes
-          }
+        pure
+          [ toPathDecision
+              { pathIsFromPackage: isJust <<< String.stripPrefix (String.Pattern pkgLocation)
+              , pathType: IsLib
+              , strict: false
+              , censorAll
+              , censorCodes
+              , filterCodes
+              }
+          ]
 
 toWorkspacePackagePathDecision
   :: { selected :: WorkspacePackage
      , psaCliFlags :: PsaOutputOptions
      }
-  -> Effect (String -> Maybe PathDecision)
+  -> Effect (Array (String -> Maybe PathDecision))
 toWorkspacePackagePathDecision { selected: { path, package }, psaCliFlags } = do
   pkgPath <- Path.resolve [] path
-  pure $ toPathDecision
-    { pathIsFromPackage: isJust <<< String.stripPrefix (String.Pattern pkgPath)
-    , pathType: IsSrc
-    , strict: fromMaybe false $ psaCliFlags.strict <|> (package.build >>= _.strict)
-    , censorAll: eq (Just CensorAllWarnings) $ package.build >>= _.censor_project_warnings
-    , censorCodes: maybe Set.empty NonEmptySet.toSet $ package.build >>= _.censor_project_codes
-    , filterCodes: maybe Set.empty NonEmptySet.toSet $ package.build >>= _.filter_project_codes
-    }
+  let srcPath = Path.concat [ pkgPath, "src" ]
+  let testPath = Path.concat [ pkgPath, "test" ]
+  pure
+    [ toPathDecision
+        { pathIsFromPackage: isJust <<< String.stripPrefix (String.Pattern srcPath)
+        , pathType: IsSrc
+        , strict: fromMaybe false $ psaCliFlags.strict <|> (package.build >>= _.strict)
+        , censorAll: eq (Just CensorAllWarnings) $ package.build >>= _.censor_project_warnings
+        , censorCodes: maybe Set.empty NonEmptySet.toSet $ package.build >>= _.censor_project_codes
+        , filterCodes: maybe Set.empty NonEmptySet.toSet $ package.build >>= _.filter_project_codes
+        }
+    , toPathDecision
+        { pathIsFromPackage: isJust <<< String.stripPrefix (String.Pattern testPath)
+        , pathType: IsSrc
+        , strict: false
+        , censorAll: false
+        , censorCodes: Set.empty
+        , filterCodes: Set.empty
+        }
+    ]
 
 toPathDecision
   :: { pathIsFromPackage :: String -> Boolean
