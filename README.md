@@ -1190,32 +1190,25 @@ workspace:
     # Fail the build if `spago.yml` has redundant/underspecified packages.
     # Optional boolean that defaults to `false`.
     pedantic_packages: false
-    # Specify whether to censor warnings coming from the compiler.
-    # Can be 'all', 'dependency', 'project', or 'none'
+    # Specify whether to censor warnings coming from the compiler
+    # for files in the `.spago` directory`.
+    # Can be 'all' or 'none'
     # Optional and defaults to 'none', i.e. don't censor warnings.
-    # 'dependency' only censors from the dependencies, 'project' only
-    # censors from the project, and 'all' censors from both.
-    censor_warnings: none
-    # Optional array of warning codes to censor. Only useful if
-    # `censor_warnings` is not 'none'.
-    censor_codes:
+    censor_library_warnings: none
+    # Optional array of warning codes to censor for files in the
+    # `.spago` directory. Only useful if `censor_warnings` is not 'none'.
+    censor_library_codes:
       - ShadowedName
-    # Optional array of warning codes to exclusively show.
-    filter_codes:
-      - ShadowedName
+    # Optional array of warning codes to show for files in the
+    # `.spago` directory. Only useful if `censor_library_warnings` is not 'none'
+    # and the codes here do not appear in `censor_library_codes`.
+    filter_library_codes:
+      - UnusedName
     # Specify whether to show statistics at the end of the compilation,
     # and how verbose they should be.
     # Can be 'no-stats', 'compact-stats' (default), or 'verbose-stats',
     # which breaks down the statistics by warning code.
     stat_verbosity: "compact-stats"
-    # Specify whether to show the source code from the error's location
-    # Optional and defaults to true.
-    show_source: true
-    # Convert compiler warnings to compiler errors that can fail the build.
-    # Optional and defaults to false.
-    strict: false
-    # Persist compiler warnings. Optional and defaults to false.
-    stash: true
 
 # This is the only other section that can be present at the top level.
 # It specifies the configuration for a package in the current folder,
@@ -1241,6 +1234,27 @@ package:
 
   # Optional description for the package
   description: "a useful package"
+
+  # Optional section to further customise the build for this package.
+  build_opts:
+    # Specify whether to censor warnings coming from the compiler
+    # for files from this package.
+    # Can be 'all' or 'none'
+    # Optional and defaults to 'none', i.e. don't censor warnings.
+    censor_project_warnings: none
+    # Optional array of warning codes to censor for files from this package.
+    # Only useful if `censor_project_warnings` is not 'none'.
+    censor_project_codes:
+      - ShadowedName
+    # Optional array of warning codes to show for files from this package.
+    # Only useful if `censor_project_warnings` is not 'none'
+    # and the codes here do not appear in `censor_project_codes`.
+    filter_project_codes:
+      - UnusedName
+    # Convert compiler warnings into errors that can fail the build.
+    # Optional and defaults to false
+    strict:
+      true
 
   # Optional section to specify the configuration options for bundling
   # The following options are all optional, and will default to the values
