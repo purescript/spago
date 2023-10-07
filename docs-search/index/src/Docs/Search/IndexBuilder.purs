@@ -92,8 +92,7 @@ run' cfg = do
         <> show countOfModules
         <> " modules from "
         <> show countOfPackages
-        <>
-          " packages..."
+        <> " packages..."
 
   let
     scores = mkScores packageMetas
@@ -169,14 +168,18 @@ decodeDocsJsons cfg@{ docsFiles } = do
     if doesExist then do
 
       contents <- readTextFile UTF8 jsonFile
-      let eiResult = jsonParser contents >>= left JsonCodec.printDecodeError <<< decodeDocModule
+      let
+        eiResult :: Either String DocModule
+        eiResult =
+          jsonParser contents >>=
+            (Docs.toDocModule >>> left JsonCodec.printDecodeError)
 
       case eiResult of
         Left error -> do
           liftEffect $ log $
             "\"docs.json\" decoding failed failed for " <> jsonFile <> ": " <> error
           pure Nothing
-        Right result -> pure result
+        Right result -> pure $ Just result
 
     else do
       liftEffect $ do
@@ -189,10 +192,6 @@ decodeDocsJsons cfg@{ docsFiles } = do
       "Couldn't decode any of the files matched by the following globs: " <> showGlobs cfg.docsFiles
 
   pure docsJsons
-
-  where
-  decodeDocModule :: Json -> Either JsonCodec.DecodeError (Maybe DocModule)
-  decodeDocModule = JsonCodec.toNullNothingOrJust Docs.toDocModule
 
 -- | This function accepts an array of globs pointing to project sources
 -- | and returns a list of module names extracted from these files.
@@ -236,9 +235,9 @@ decodeBowerJsons { bowerFiles } = do
       for paths \jsonFileName ->
         join <$> withExisting jsonFileName
           \contents ->
-            either (logError jsonFileName) pure
+            either (logError jsonFileName) (pure <<< Just)
               ( jsonParser contents >>=
-                  CA.decode (CA.maybe PackageIndex.packageMetaCodec) >>>
+                  CA.decode (PackageIndex.packageMetaCodec) >>>
                     left CA.printJsonDecodeError
               )
 

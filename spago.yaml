@@ -86,7 +86,7 @@ workspace:
       git: https://github.com/nonbili/purescript-jest.git
       ref: caf2032f2e5828337e897a99f5359c00e91cb0ee
     language-purescript:
-      ref: v0.1.1
+      ref: db4377dea03ba9c5273a93a8368a53f1d87882c1
       git: https://github.com/JordanMartinez/purescript-language-purescript.git
       dependencies:
         - argonaut-core

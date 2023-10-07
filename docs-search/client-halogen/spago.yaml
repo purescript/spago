@@ -36,6 +36,6 @@ package:
   bundle:
     minify: true
     module: Docs.Search.App
-    outfile: "../.spago/docs-search-app.js"
+    outfile: "../../output/Docs.Search.IndexBuilder/docs-search-app.js"
     platform: browser
     type: "app"
