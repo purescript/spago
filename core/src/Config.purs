@@ -1,9 +1,9 @@
 module Spago.Core.Config
   ( BackendConfig
-  , BuildOptionsInput
+  , WorkspaceBuildOptionsInput
   , CensorBuildWarnings(..)
-  , ShowSourceCode(..)
   , StatVerbosity(..)
+  , PackageBuildOptionsInput
   , BundleConfig
   , BundlePlatform(..)
   , BundleType(..)
@@ -45,7 +45,6 @@ import Data.Codec.Argonaut.Sum as CA.Sum
 import Data.Either as Either
 import Data.List as List
 import Data.Map as Map
-import Data.Profunctor (dimap)
 import Data.Profunctor as Profunctor
 import Data.Set.NonEmpty as NonEmptySet
 import Partial.Unsafe (unsafeCrashWith)
@@ -73,6 +72,7 @@ type PackageConfig =
   { name :: PackageName
   , description :: Maybe String
   , dependencies :: Dependencies
+  , build :: Maybe PackageBuildOptionsInput
   , bundle :: Maybe BundleConfig
   , run :: Maybe RunConfig
   , test :: Maybe TestConfig
@@ -84,6 +84,7 @@ packageConfigCodec = CAR.object "PackageConfig"
   { name: PackageName.codec
   , description: CAR.optional CA.string
   , dependencies: dependenciesCodec
+  , build: CAR.optional packageBuildOptionsCodec
   , bundle: CAR.optional bundleConfigCodec
   , run: CAR.optional runConfigCodec
   , test: CAR.optional testConfigCodec
@@ -140,6 +141,21 @@ backendConfigCodec :: JsonCodec BackendConfig
 backendConfigCodec = CAR.object "BackendConfig"
   { cmd: CA.string
   , args: CAR.optional (CA.array CA.string)
+  }
+
+type PackageBuildOptionsInput =
+  { censor_project_warnings :: Maybe CensorBuildWarnings
+  , censor_project_codes :: Maybe (NonEmptySet.NonEmptySet String)
+  , filter_project_codes :: Maybe (NonEmptySet.NonEmptySet String)
+  , strict :: Maybe Boolean
+  }
+
+packageBuildOptionsCodec :: JsonCodec PackageBuildOptionsInput
+packageBuildOptionsCodec = CAR.object "PackageBuildOptionsInput"
+  { censor_project_warnings: CAR.optional censorBuildWarningsCodec
+  , censor_project_codes: CAR.optional $ CA.Common.nonEmptySet CA.string
+  , filter_project_codes: CAR.optional $ CA.Common.nonEmptySet CA.string
+  , strict: CAR.optional CA.boolean
   }
 
 type BundleConfig =
@@ -266,7 +282,7 @@ type WorkspaceConfig =
   { package_set :: Maybe SetAddress
   , extra_packages :: Maybe (Map PackageName ExtraPackage)
   , backend :: Maybe BackendConfig
-  , build_opts :: Maybe BuildOptionsInput
+  , build_opts :: Maybe WorkspaceBuildOptionsInput
   , lock :: Maybe Boolean
   }
 
@@ -279,35 +295,27 @@ workspaceConfigCodec = CAR.object "WorkspaceConfig"
   , lock: CAR.optional CA.boolean
   }
 
-type BuildOptionsInput =
+type WorkspaceBuildOptionsInput =
   { output :: Maybe FilePath
   , pedantic_packages :: Maybe Boolean
-  , censor_warnings :: Maybe CensorBuildWarnings
-  , censor_codes :: Maybe (NonEmptySet.NonEmptySet String)
-  , filter_codes :: Maybe (NonEmptySet.NonEmptySet String)
+  , censor_library_warnings :: Maybe CensorBuildWarnings
+  , censor_library_codes :: Maybe (NonEmptySet.NonEmptySet String)
+  , filter_library_codes :: Maybe (NonEmptySet.NonEmptySet String)
   , stat_verbosity :: Maybe StatVerbosity
-  , show_source :: Maybe ShowSourceCode
-  , strict :: Maybe Boolean
-  , persist_warnings :: Maybe Boolean
   }
 
-buildOptionsCodec :: JsonCodec BuildOptionsInput
-buildOptionsCodec = CAR.object "CompileOptionsInput"
+buildOptionsCodec :: JsonCodec WorkspaceBuildOptionsInput
+buildOptionsCodec = CAR.object "WorkspaceBuildOptionsInput"
   { output: CAR.optional CA.string
   , pedantic_packages: CAR.optional CA.boolean
-  , censor_warnings: CAR.optional censorBuildWarningsCodec
-  , censor_codes: CAR.optional $ CA.Common.nonEmptySet CA.string
-  , filter_codes: CAR.optional $ CA.Common.nonEmptySet CA.string
+  , censor_library_warnings: CAR.optional censorBuildWarningsCodec
+  , censor_library_codes: CAR.optional $ CA.Common.nonEmptySet CA.string
+  , filter_library_codes: CAR.optional $ CA.Common.nonEmptySet CA.string
   , stat_verbosity: CAR.optional statVerbosityCodec
-  , show_source: CAR.optional showSourceCodec
-  , strict: CAR.optional CA.boolean
-  , persist_warnings: CAR.optional CA.boolean
   }
 
 data CensorBuildWarnings
   = CensorNoWarnings
-  | CensorDependencyWarnings
-  | CensorProjectWarnings
   | CensorAllWarnings
 
 derive instance Eq CensorBuildWarnings
@@ -315,8 +323,6 @@ derive instance Eq CensorBuildWarnings
 instance Show CensorBuildWarnings where
   show = case _ of
     CensorNoWarnings -> "CensorNoWarnings"
-    CensorDependencyWarnings -> "CensorDependencyWarnings"
-    CensorProjectWarnings -> "CensorProjectWarnings"
     CensorAllWarnings -> "CensorAllWarnings"
 
 censorBuildWarningsCodec :: JsonCodec CensorBuildWarnings
@@ -324,37 +330,12 @@ censorBuildWarningsCodec = CA.Sum.enumSum print parse
   where
   print = case _ of
     CensorNoWarnings -> "none"
-    CensorDependencyWarnings -> "dependency"
-    CensorProjectWarnings -> "project"
     CensorAllWarnings -> "all"
 
   parse = case _ of
     "none" -> Just CensorNoWarnings
-    "dependency" -> Just CensorDependencyWarnings
-    "project" -> Just CensorProjectWarnings
     "all" -> Just CensorAllWarnings
     _ -> Nothing
-
-data ShowSourceCode
-  = ShowSourceCode
-  | NoSourceCode
-
-derive instance Eq ShowSourceCode
-
-showSourceCodec :: JsonCodec ShowSourceCode
-showSourceCodec = dimap to from CA.boolean
-  where
-  to = case _ of
-    ShowSourceCode -> true
-    NoSourceCode -> false
-  from = case _ of
-    false -> NoSourceCode
-    true -> ShowSourceCode
-
-instance Show ShowSourceCode where
-  show = case _ of
-    ShowSourceCode -> "ShowSourceCode"
-    NoSourceCode -> "NoSourceCode"
 
 data StatVerbosity
   = NoStats

@@ -86,10 +86,35 @@ findPackageSet maybeSet = do
     Nothing -> do
       maybeVersion <- liftEffect $ Db.selectLatestPackageSetByCompiler db purs.version
       case maybeVersion of
+        -- if we get a version, all good
         Just { version } -> pure version
-        -- TODO: well we could approximate with any minor version really? See old Spago:
-        -- https://github.com/purescript/spago/blob/01eecf041851ca0fbced1d4f7147fcbdd8bf168d/src/Spago/PackageSet.hs#L66
+        -- if we dont, we try to find a set that is not directly associated with the current compiler, but is still good
+        -- see `isVersionCompatible` for more info
         Nothing -> do
-          let availableCompilers = Set.fromFoldable $ map _.compiler availableSets
-          die $ [ toDoc $ "No package set is compatible with your compiler version " <> Version.print purs.version, toDoc "Compatible versions:" ]
-            <> map (indent <<< toDoc <<< Version.print) (Array.fromFoldable availableCompilers)
+          let maybeLatestRelease = Array.last $ Array.sortBy (compare `on` _.version) availableSets
+          case maybeLatestRelease of
+            Just latest | isVersionCompatible purs.version latest.compiler -> pure latest.version
+            -- otherwise fail but try to be helpful about the situation
+            _ -> do
+              let availableCompilers = Set.fromFoldable $ map _.compiler availableSets
+              die $ [ toDoc $ "No package set is compatible with your compiler version " <> Version.print purs.version, toDoc "Compatible versions:" ]
+                <> map (indent <<< toDoc <<< Version.print) (Array.fromFoldable availableCompilers)
+
+-- | The check is successful only when the installed compiler is "slightly"
+-- | greater or equal to the minimum version. E.g. fine cases are:
+-- | - current is 0.12.2 and package-set is on 0.12.1
+-- | - current is 1.4.3 and package-set is on 1.3.4
+-- | Not fine cases are e.g.:
+-- | - current is 0.1.2 and package-set is 0.2.3
+-- | - current is 1.2.3 and package-set is 1.3.4
+-- | - current is 1.2.3 and package-set is 0.2.3
+isVersionCompatible :: Version -> Version -> Boolean
+isVersionCompatible installedVersion minVersion =
+  let
+    installedVersionList = [ Version.major installedVersion, Version.minor installedVersion, Version.patch installedVersion ]
+    minVersionList = [ Version.major minVersion, Version.minor minVersion, Version.patch minVersion ]
+  in
+    case installedVersionList, minVersionList of
+      [ 0, b, c ], [ 0, y, z ] | b == y && c >= z -> true
+      [ a, b, _c ], [ x, y, _z ] | a /= 0 && a == x && b >= y -> true
+      _, _ -> false

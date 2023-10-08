@@ -8,75 +8,34 @@ module Spago.Psa where
 
 import Spago.Prelude
 
-import Data.Argonaut.Core (stringify)
+import Control.Alternative as Alternative
 import Data.Argonaut.Parser (jsonParser)
 import Data.Array as Array
 import Data.Codec.Argonaut as CA
-import Data.DateTime.Instant (toDateTime)
-import Data.Foldable (foldr)
+import Data.Map as Map
 import Data.Set as Set
+import Data.Set.NonEmpty as NonEmptySet
 import Data.String as Str
-import Effect.Exception as Exception
-import Effect.Now (now)
+import Data.String as String
+import Data.Tuple as Tuple
 import Effect.Ref as Ref
 import Foreign.Object as FO
 import Node.Encoding as Encoding
 import Node.FS.Aff as FSA
-import Node.FS.Perms (permsAll)
-import Node.FS.Stats as Stats
-import Node.FS.Sync as FSSync
-import Node.Path (dirname)
+import Node.Path as Path
+import Spago.Config (CensorBuildWarnings(..), Package(..), PackageMap, WorkspacePackage)
+import Spago.Config as Config
 import Spago.Core.Config as Core
 import Spago.Psa.Output (buildOutput)
 import Spago.Psa.Printer (printDefaultOutputToErr, printJsonOutputToOut)
-import Spago.Psa.Types (PsaOutputOptions, ErrorCode, psaErrorCodec, psaResultCodec)
+import Spago.Psa.Types (ErrorCode, PathDecision, PsaArgs, PsaOutputOptions, PsaPathType(..), WorkspacePsaOutputOptions, psaResultCodec)
 import Spago.Purs as Purs
 
-type PsaArgs =
-  { libraryDirs :: Array String
-  , jsonErrors :: Boolean
-  , color :: Boolean
-  }
+defaultStatVerbosity :: Core.StatVerbosity
+defaultStatVerbosity = Core.CompactStats
 
-defaultParseOptions :: PsaOptions
-defaultParseOptions =
-  { showSource: Core.ShowSourceCode
-  , stashFile: Nothing
-  , censorBuildWarnings: Core.CensorNoWarnings
-  , censorCodes: Set.empty
-  , filterCodes: Set.empty
-  , statVerbosity: Core.CompactStats
-  , strict: false
-  }
-
-type PsaOptions =
-  { showSource :: Core.ShowSourceCode
-  , stashFile :: Maybe String
-  , censorBuildWarnings :: Core.CensorBuildWarnings
-  , censorCodes :: Set ErrorCode
-  , filterCodes :: Set ErrorCode
-  , statVerbosity :: Core.StatVerbosity
-  , strict :: Boolean
-  }
-
-toOutputOptions :: PsaArgs -> PsaOptions -> PsaOutputOptions
-toOutputOptions { libraryDirs, color } options =
-  { color
-  , censorBuildWarnings: options.censorBuildWarnings
-  , censorCodes: options.censorCodes
-  , filterCodes: options.filterCodes
-  , statVerbosity: options.statVerbosity
-  , libraryDirs
-  , strict: options.strict
-  }
-
-psaCompile :: forall a. Set.Set FilePath -> Array String -> PsaArgs -> PsaOptions -> Spago (Purs.PursEnv a) Unit
-psaCompile globs pursArgs psaArgs options@{ showSource, stashFile } = do
-  let outputOptions = toOutputOptions psaArgs options
-  stashData <- case stashFile of
-    Just f -> readStashFile f
-    Nothing -> emptyStash
-
+psaCompile :: forall a. Set.Set FilePath -> Array String -> PsaArgs -> Spago (Purs.PursEnv a) Unit
+psaCompile globs pursArgs psaArgs = do
   result <- Purs.compile globs (Array.snoc pursArgs "--json-errors")
   let
     result' = case result of
@@ -94,15 +53,9 @@ psaCompile globs pursArgs psaArgs options@{ showSource, stashFile } = do
         pure true
       Right out -> do
         files <- liftEffect $ Ref.new FO.empty
-        let
-          loadLinesImpl = if showSource == Core.ShowSourceCode then loadLines files else loadNothing
-          filenames = insertFilenames (insertFilenames Set.empty out.errors) out.warnings
-        merged <- mergeWarnings filenames stashData.date stashData.stash out.warnings
-        for_ stashFile \f -> writeStashFile f merged
+        out' <- buildOutput (loadLines files) psaArgs out
 
-        out' <- buildOutput loadLinesImpl outputOptions out { warnings = merged }
-
-        liftEffect $ if psaArgs.jsonErrors then printJsonOutputToOut out' else printDefaultOutputToErr outputOptions out'
+        liftEffect $ if psaArgs.jsonErrors then printJsonOutputToOut out' else printDefaultOutputToErr psaArgs out'
 
         pure $ FO.isEmpty out'.stats.allErrors
 
@@ -113,9 +66,6 @@ psaCompile globs pursArgs psaArgs options@{ showSource, stashFile } = do
     die [ "Failed to build." ]
 
   where
-  insertFilenames = foldr \x s -> maybe s (flip Set.insert s) x.filename
-  loadNothing _ _ = pure Nothing
-
   isEmptySpan filename pos =
     filename == "" || pos.startLine == 0 && pos.endLine == 0 && pos.startColumn == 0 && pos.endColumn == 0
 
@@ -136,55 +86,82 @@ psaCompile globs pursArgs psaArgs options@{ showSource, stashFile } = do
           pure $ Just source
         either (const (pure Nothing)) pure result
 
-  decodeStash s = jsonParser s >>= CA.decode (CA.array psaErrorCodec) >>> lmap CA.printJsonDecodeError
-  encodeStash s = CA.encode (CA.array psaErrorCodec) s
+toPathDecisions
+  :: { allDependencies :: PackageMap
+     , psaCliFlags :: PsaOutputOptions
+     , workspaceOptions :: WorkspacePsaOutputOptions
+     }
+  -> Array (Effect (Array (String -> Maybe PathDecision)))
+toPathDecisions { allDependencies, psaCliFlags, workspaceOptions } = do
+  let
+    censorAll = eq (Just CensorAllWarnings) $ workspaceOptions.censorLibWarnings
+    censorCodes = maybe Set.empty NonEmptySet.toSet $ workspaceOptions.censorLibCodes
+    filterCodes = maybe Set.empty NonEmptySet.toSet $ workspaceOptions.filterLibCodes
+  (Map.toUnfoldable allDependencies :: Array _) <#> \dep -> do
+    case snd dep of
+      WorkspacePackage p ->
+        toWorkspacePackagePathDecision
+          { selected: p
+          , psaCliFlags
+          }
+      _ -> do
+        pkgLocation <- Path.resolve [] $ Tuple.uncurry Config.getPackageLocation dep
+        pure
+          [ toPathDecision
+              { pathIsFromPackage: isJust <<< String.stripPrefix (String.Pattern pkgLocation)
+              , pathType: IsLib
+              , strict: false
+              , censorAll
+              , censorCodes
+              , filterCodes
+              }
+          ]
 
-  emptyStash = do
-    logDebug $ "Using empty stash"
-    liftEffect $ { date: _, stash: [] } <$> toDateTime <$> now
+toWorkspacePackagePathDecision
+  :: { selected :: WorkspacePackage
+     , psaCliFlags :: PsaOutputOptions
+     }
+  -> Effect (Array (String -> Maybe PathDecision))
+toWorkspacePackagePathDecision { selected: { path, package }, psaCliFlags } = do
+  pkgPath <- Path.resolve [] path
+  let srcPath = Path.concat [ pkgPath, "src" ]
+  let testPath = Path.concat [ pkgPath, "test" ]
+  pure
+    [ toPathDecision
+        { pathIsFromPackage: isJust <<< String.stripPrefix (String.Pattern srcPath)
+        , pathType: IsSrc
+        , strict: fromMaybe false $ psaCliFlags.strict <|> (package.build >>= _.strict)
+        , censorAll: eq (Just CensorAllWarnings) $ package.build >>= _.censor_project_warnings
+        , censorCodes: maybe Set.empty NonEmptySet.toSet $ package.build >>= _.censor_project_codes
+        , filterCodes: maybe Set.empty NonEmptySet.toSet $ package.build >>= _.filter_project_codes
+        }
+    , toPathDecision
+        { pathIsFromPackage: isJust <<< String.stripPrefix (String.Pattern testPath)
+        , pathType: IsSrc
+        , strict: false
+        , censorAll: false
+        , censorCodes: Set.empty
+        , filterCodes: Set.empty
+        }
+    ]
 
-  readStashFile stashFile' = do
-    logDebug $ "About to read stash file: " <> stashFile'
-    result <- try do
-      stat <- liftAff $ FSA.stat stashFile'
-      file <- liftAff $ FSA.readTextFile Encoding.UTF8 stashFile'
-      case decodeStash file of
-        Left err -> do
-          logDebug $ "Error decoding stash file: " <> err
-          emptyStash
-        Right stash' -> do
-          logDebug $ "Successfully decoded stash file"
-          pure { date: Stats.modifiedTime stat, stash: stash' }
-    case result of
-      Left err -> do
-        logDebug $ "Reading stash file failed: " <> Exception.message err
-        emptyStash
-      Right cache -> pure cache
-
-  writeStashFile stashFile' warnings = do
-    logDebug $ "Writing stash file: " <> stashFile'
-    let
-      file = stringify (encodeStash warnings)
-      dir = dirname stashFile'
-    dirExists <- liftEffect $ FSSync.exists dir
-    unless dirExists do
-      liftAff $ FSA.mkdir' dir { recursive: true, mode: permsAll }
-    liftAff $ FSA.writeTextFile Encoding.UTF8 stashFile' file
-
-  mergeWarnings filenames date old new = do
-    fileStat <- liftEffect $ Ref.new FO.empty
-    old' <- flip Array.filterA old \x ->
-      case x.filename of
-        Nothing -> pure false
-        Just f ->
-          if Set.member f filenames then pure false
-          else do
-            stat <- liftEffect $ FO.lookup f <$> Ref.read fileStat
-            case stat of
-              Just s -> pure s
-              Nothing -> do
-                s <- liftAff $ try $ (date > _) <<< Stats.modifiedTime <$> FSA.stat f
-                let s' = either (const false) identity s
-                _ <- liftEffect $ Ref.modify_ (FO.insert f s') fileStat
-                pure s'
-    pure $ old' <> new
+toPathDecision
+  :: { pathIsFromPackage :: String -> Boolean
+     , pathType :: PsaPathType
+     , strict :: Boolean
+     , censorAll :: Boolean
+     , censorCodes :: Set ErrorCode
+     , filterCodes :: Set ErrorCode
+     }
+  -> String
+  -> Maybe PathDecision
+toPathDecision options pathToFile = do
+  Alternative.guard $ options.pathIsFromPackage pathToFile
+  pure
+    { pathType: options.pathType
+    , shouldPromoteWarningToError: options.strict
+    , shouldShowError: \code ->
+        not options.censorAll
+          && (Set.isEmpty options.filterCodes || Set.member code options.filterCodes)
+          && (Set.isEmpty options.censorCodes || not (Set.member code options.censorCodes))
+    }

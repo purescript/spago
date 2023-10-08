@@ -7,13 +7,12 @@ module Spago.Command.Build
 
 import Spago.Prelude
 
-import Control.Alternative as Alternative
 import Data.Array as Array
 import Data.Either (note)
 import Data.Map as Map
 import Data.Set as Set
-import Data.Set.NonEmpty as NonEmptySet
 import Data.String as String
+import Data.Traversable (sequence)
 import Data.Tuple as Tuple
 import Dodo as Dodo
 import Effect.Ref as Ref
@@ -25,8 +24,8 @@ import Spago.Command.Fetch as Fetch
 import Spago.Config (Package(..), PackageMap, PackageSet, WithTestGlobs(..), Workspace, WorkspacePackage)
 import Spago.Config as Config
 import Spago.Git (Git)
-import Spago.Paths as Paths
 import Spago.Psa as Psa
+import Spago.Psa.Types as PsaTypes
 import Spago.Purs (Purs)
 import Spago.Purs as Purs
 import Spago.Purs.Graph as Graph
@@ -37,6 +36,7 @@ type BuildEnv a =
   , dependencies :: Fetch.PackageTransitiveDeps
   , logOptions :: LogOptions
   , workspace :: Workspace
+  , psaCliFlags :: PsaTypes.PsaOutputOptions
   | a
   }
 
@@ -52,6 +52,7 @@ run opts = do
   { dependencies
   , workspace
   , logOptions
+  , psaCliFlags
   } <- ask
 
   BuildInfo.writeBuildInfo
@@ -132,30 +133,28 @@ run opts = do
         , withTests: true
         , selected: SinglePackageGlobs selected
         }
-      { no: dependencyPkgs :: Array _ } = partition isWorkspacePackage $ Map.toUnfoldable allDependencies
-      dependencyLibs = map (Tuple.uncurry Config.getPackageLocation) dependencyPkgs
+    depPathDecisions <- liftEffect $ sequence $ Psa.toPathDecisions
+      { allDependencies
+      , psaCliFlags
+      , workspaceOptions:
+          { censorLibWarnings: workspace.buildOptions.censorLibWarnings
+          , censorLibCodes: workspace.buildOptions.censorLibCodes
+          , filterLibCodes: workspace.buildOptions.filterLibCodes
+          }
+      }
+    projectPathDecision <- liftEffect $ Psa.toWorkspacePackagePathDecision
+      { selected
+      , psaCliFlags
+      }
+    let
       psaArgs =
-        { libraryDirs: dependencyLibs
-        , color: logOptions.color
+        { color: logOptions.color
         , jsonErrors: opts.jsonErrors
-        }
-      psaOptions =
-        { strict: fromMaybe Psa.defaultParseOptions.strict workspace.buildOptions.strict
-        , censorBuildWarnings: fromMaybe Psa.defaultParseOptions.censorBuildWarnings workspace.buildOptions.censorBuildWarnings
-        , showSource: fromMaybe Psa.defaultParseOptions.showSource workspace.buildOptions.showSource
-        , censorCodes: maybe Psa.defaultParseOptions.censorCodes NonEmptySet.toSet workspace.buildOptions.censorCodes
-        , filterCodes: maybe Psa.defaultParseOptions.filterCodes NonEmptySet.toSet workspace.buildOptions.filterCodes
-        , statVerbosity: fromMaybe Psa.defaultParseOptions.statVerbosity workspace.buildOptions.statVerbosity
-        , stashFile: do
-            Alternative.guard (not opts.depsOnly)
-            shouldStashWarnings <- workspace.buildOptions.persistWarnings
-            Alternative.guard shouldStashWarnings
-            case workspace.selected of
-              Just p -> Just $ Paths.mkLocalCachesPersistentWarningsFile $ PackageName.print p.package.name
-              Nothing -> Just Paths.localCachesPersistedWarningsEntireWorkspace
+        , decisions: projectPathDecision <> join depPathDecisions
+        , statVerbosity: fromMaybe Psa.defaultStatVerbosity workspace.buildOptions.statVerbosity
         }
 
-    Psa.psaCompile globs args psaArgs psaOptions
+    Psa.psaCompile globs args psaArgs
 
     case workspace.backend of
       Nothing -> pure unit
