@@ -1,0 +1,1 @@
+bin/docs-search-app.js
