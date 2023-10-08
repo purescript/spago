@@ -34,8 +34,11 @@ package:
     - web-storage
     - web-uievents
   bundle:
+    type: "app"
     minify: true
+    sourceMaps: true
     module: Docs.Search.App
     outfile: "../../output/Docs.Search.IndexBuilder/docs-search-app.js"
     platform: browser
-    type: "app"
+    extra_args:
+      - "--external:punycode"
