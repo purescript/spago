@@ -11,7 +11,6 @@ import Data.JSDate as JSDate
 import Data.List as List
 import Data.Map as Map
 import Data.Maybe as Maybe
-import Data.Set.NonEmpty (NonEmptySet)
 import Data.String as String
 import Effect.Aff as Aff
 import Effect.Ref as Ref
@@ -31,6 +30,7 @@ import Spago.Command.Build as Build
 import Spago.Command.Bundle as Bundle
 import Spago.Command.Docs as Docs
 import Spago.Command.Fetch as Fetch
+import Spago.Command.Graph (GraphModulesArgs, GraphPackagesArgs)
 import Spago.Command.Graph as Graph
 import Spago.Command.Init as Init
 import Spago.Command.Ls (LsDepsArgs, LsPackagesArgs)
