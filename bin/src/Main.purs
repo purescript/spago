@@ -11,7 +11,6 @@ import Data.JSDate as JSDate
 import Data.List as List
 import Data.Map as Map
 import Data.Maybe as Maybe
-import Data.Set.NonEmpty (NonEmptySet)
 import Data.String as String
 import Effect.Aff as Aff
 import Effect.Ref as Ref
