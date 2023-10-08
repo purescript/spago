@@ -31,6 +31,7 @@ import Spago.Command.Build as Build
 import Spago.Command.Bundle as Bundle
 import Spago.Command.Docs as Docs
 import Spago.Command.Fetch as Fetch
+import Spago.Command.Graph as Graph
 import Spago.Command.Init as Init
 import Spago.Command.Ls (LsDepsArgs, LsPackagesArgs)
 import Spago.Command.Ls as Ls
@@ -187,6 +188,8 @@ data Command a
   | Sources SourcesArgs
   | Test TestArgs
   | Upgrade UpgradeArgs
+  | GraphModules GraphModulesArgs
+  | GraphPackages GraphPackagesArgs
 
 commandParser :: forall (a :: Row Type). String -> Parser (Command a) -> String -> Mod CommandFields (SpagoCmd a)
 commandParser command_ parser_ description_ =
@@ -210,7 +213,6 @@ argParser =
     , commandParser "repl" (Repl <$> replArgsParser) "Start a REPL"
     , commandParser "publish" (Publish <$> publishArgsParser) "Publish a package"
     , commandParser "upgrade" (Upgrade <$> pure {}) "Upgrade to the latest package set, or to the latest versions of Registry packages"
-
     , commandParser "docs" (Docs <$> docsArgsParser) "Generate docs for the project and its dependencies"
     , O.command "registry"
         ( O.info
@@ -230,6 +232,15 @@ argParser =
                 ]
             )
             (O.progDesc "List packages or dependencies")
+        )
+    , O.command "graph"
+        ( O.info
+            ( O.hsubparser $ Foldable.fold
+                [ commandParser "modules" (GraphModules <$> graphModulesArgsParser) "Generate a graph of the project's modules"
+                , commandParser "packages" (GraphPackages <$> graphPackagesArgsParser) "Generate a graph of the project's dependencies"
+                ]
+            )
+            (O.progDesc "Generate a graph of modules or dependencies")
         )
     ]
 
@@ -407,6 +418,20 @@ registryPackageSetsArgsParser =
     { json: Flags.json
     , latest: Flags.latest
     }
+
+graphModulesArgsParser :: Parser GraphModulesArgs
+graphModulesArgsParser = Optparse.fromRecord
+  { dot: Flags.dot
+  , json: Flags.json
+  , topo: Flags.topo
+  }
+
+graphPackagesArgsParser :: Parser GraphPackagesArgs
+graphPackagesArgsParser = Optparse.fromRecord
+  { dot: Flags.dot
+  , json: Flags.json
+  , topo: Flags.topo
+  }
 
 lsPackagesArgsParser :: Parser LsPackagesArgs
 lsPackagesArgsParser = Optparse.fromRecord
@@ -597,6 +622,17 @@ main =
           Upgrade _args -> do
             { env } <- mkFetchEnv offline { packages: mempty, selectedPackage: Nothing, ensureRanges: false, testDeps: false }
             runSpago env Upgrade.run
+          -- TODO: add selected to graph commands
+          GraphModules args -> do
+            { env, fetchOpts } <- mkFetchEnv offline { packages: mempty, selectedPackage: Nothing, ensureRanges: false, testDeps: false }
+            dependencies <- runSpago env (Fetch.run fetchOpts)
+            purs <- Purs.getPurs
+            runSpago { dependencies, logOptions, purs, workspace: env.workspace } (Graph.graphModules args)
+          GraphPackages args -> do
+            { env, fetchOpts } <- mkFetchEnv offline { packages: mempty, selectedPackage: Nothing, ensureRanges: false, testDeps: false }
+            dependencies <- runSpago env (Fetch.run fetchOpts)
+            purs <- Purs.getPurs
+            runSpago { dependencies, logOptions, purs, workspace: env.workspace } (Graph.graphPackages args)
 
       Cmd'VersionCmd v -> do when v printVersion
   where

@@ -191,7 +191,7 @@ run opts = do
           when workspace.buildOptions.pedanticPackages do
             logInfo $ "Looking for unused and undeclared transitive dependencies..."
             env <- ask
-            errors <- Graph.toImportErrors selected <$> runSpago (Record.union { graph, selected } env) Graph.checkImports
+            errors <- Graph.toImportErrors selected <$> runSpago (Record.union { selected } env) (Graph.checkImports graph)
             unless (Array.null errors) do
               die' errors
 
@@ -201,7 +201,7 @@ run opts = do
         maybeGraph <- Graph.runGraph globs opts.pursArgs
         for_ maybeGraph \graph -> do
           env <- ask
-          errors <- Graph.toImportErrors selected <$> runSpago (Record.union { graph, selected } env) Graph.checkImports
+          errors <- Graph.toImportErrors selected <$> runSpago (Record.union { selected } env) (Graph.checkImports graph)
           unless (Array.null errors) do
             die' errors
 

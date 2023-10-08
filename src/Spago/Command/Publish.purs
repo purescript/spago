@@ -127,7 +127,7 @@ publish _args = do
   let globs = Build.getBuildGlobs { selected: Build.SinglePackageGlobs selected, withTests: false, dependencies: allDependencies, depsOnly: false }
   maybeGraph <- Graph.runGraph globs []
   for_ maybeGraph \graph -> do
-    graphCheckErrors <- Graph.toImportErrors selected <$> runSpago (Record.union { graph, selected } env) Graph.checkImports
+    graphCheckErrors <- Graph.toImportErrors selected <$> runSpago (Record.union { selected } env) (Graph.checkImports graph)
     for_ graphCheckErrors addError
 
   -- Check if all the packages have ranges, error if not
