@@ -41,4 +41,7 @@ package:
     outfile: "../../bin/docs-search-app.js"
     platform: browser
     extra_args:
+      # punycode is a builtin node module. Since we're bundling for browser, esbuild complains about it.
+      # The node module is also considered deprecated and recommends using the upstream npm package punycode. So its an easy swap-in.
+      # The extra / at the end is how you tell node and esbuild to override a builtin node package with a user-space package.
       - "--alias:punycode=punycode/"
