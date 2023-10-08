@@ -18,10 +18,11 @@
   "author": "Fabrizio Ferrai",
   "type": "module",
   "bin": {
-    "spago": "bin/bundle.js"
+    "spago": "bin/bundle.js",
   },
   "files": [
-    "bin/bundle.js"
+    "bin/bundle.js",
+    "bin/docs-search-app.js"
   ],
   "main": "bin/bundle.js",
   "scripts": {

@@ -38,7 +38,7 @@ package:
     minify: true
     sourceMaps: true
     module: Docs.Search.App
-    outfile: "../../output/Docs.Search.IndexBuilder/docs-search-app.js"
+    outfile: "../../bin/docs-search-app.js"
     platform: browser
     extra_args:
       - "--alias:punycode=punycode/"
