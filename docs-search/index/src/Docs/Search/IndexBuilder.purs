@@ -248,7 +248,7 @@ decodeBowerJsons { bowerFiles } = do
 
   logError fileName error = do
     liftEffect $ log $
-      "\"bower.json\" decoding failed failed for " <> fileName <> ": " <> error
+      "\"bower.json\" decoding failed for " <> fileName <> ": " <> error
     pure Nothing
 
 -- | Write type index parts to files.
