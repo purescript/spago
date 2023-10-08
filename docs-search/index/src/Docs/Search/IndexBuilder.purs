@@ -47,9 +47,9 @@ import Effect.Aff (Aff, launchAff_, parallel, sequential)
 import Effect.Class (liftEffect)
 import Effect.Console (log)
 import Node.Encoding (Encoding(UTF8))
-import Node.FS.Aff (mkdir, readFile, readTextFile, readdir, stat, writeFile, writeTextFile)
-import Node.FS.Stats (isDirectory, isFile)
-import Node.FS.Sync (exists)
+import Node.FS.Aff as FS
+import Node.FS.Stats as Stat
+import Node.FS.Sync as FSSync
 import Node.Process as Process
 import Web.Bower.PackageMeta (PackageMeta(..))
 import Codec.Json.Unidirectional.Value as JsonCodec
@@ -167,7 +167,7 @@ decodeDocsJsons cfg@{ docsFiles } = do
 
     if doesExist then do
 
-      contents <- readTextFile UTF8 jsonFile
+      contents <- FS.readTextFile UTF8 jsonFile
       let
         eiResult :: Either String DocModule
         eiResult =
@@ -207,7 +207,7 @@ parseModuleHeaders globs = do
   -- we want to support scenarios where there is no "current project"
 
   concat <$> for files \filePath -> do
-    fileContents <- readTextFile UTF8 filePath
+    fileContents <- FS.readTextFile UTF8 filePath
     case ModuleParser.parseModuleName fileContents of
       Nothing -> do
         liftEffect $ log $
@@ -255,7 +255,7 @@ decodeBowerJsons { bowerFiles } = do
 writeTypeIndex :: TypeIndex -> Aff Unit
 writeTypeIndex typeIndex =
   for_ entries \(Tuple typeShape results) -> do
-    writeTextFile UTF8 (unwrap Config.typeIndexDirectory <> "/" <> typeShape <> ".js")
+    FS.writeTextFile UTF8 (unwrap Config.typeIndexDirectory <> "/" <> typeShape <> ".js")
       (mkHeader typeShape <> stringify (CA.encode codec results))
   where
   mkHeader typeShape =
@@ -272,7 +272,7 @@ writeTypeIndex typeIndex =
 writePackageInfo :: PackageInfo -> Aff Unit
 writePackageInfo packageInfo = do
 
-  writeTextFile UTF8 (unwrap Config.packageInfoPath) $
+  FS.writeTextFile UTF8 (unwrap Config.packageInfoPath) $
     header <> stringify (CA.encode (CA.array PackageIndex.packageResultCodec) packageInfo)
 
   where
@@ -280,14 +280,14 @@ writePackageInfo packageInfo = do
 
 writeModuleIndex :: PackedModuleIndex -> Aff Unit
 writeModuleIndex moduleIndex = do
-  writeTextFile UTF8 (unwrap Config.moduleIndexPath) $
+  FS.writeTextFile UTF8 (unwrap Config.moduleIndexPath) $
     header <> stringify (CA.encode ModuleIndex.packedModuleIndexCodec moduleIndex)
   where
   header = "window.DocsSearchModuleIndex = "
 
 writeMeta :: Meta -> Aff Unit
 writeMeta meta = do
-  writeTextFile UTF8 (unwrap Config.metaPath) $
+  FS.writeTextFile UTF8 (unwrap Config.metaPath) $
     header <> stringify (CA.encode Meta.metaCodec meta)
   where
   header = "window." <> unwrap Config.metaItem <> " = "
@@ -339,7 +339,7 @@ writeIndex { generatedDocs } = getIndex >>> \resultsMap -> do
             <> show indexPartId
             <> "\"] = "
 
-      writeTextFile UTF8 (generatedDocs <> Config.mkIndexPartPath indexPartId) $
+      FS.writeTextFile UTF8 (generatedDocs <> Config.mkIndexPartPath indexPartId) $
         header <> stringify (CA.encode codec results)
   where
   codec = CA.array $ CA.tuple CA.string $ CA.array SearchResult.searchResultCodec
@@ -366,16 +366,16 @@ patchDocs :: Config -> Aff Unit
 patchDocs cfg = do
   let dirname = cfg.generatedDocs
 
-  files <- readdir (dirname <> "html")
+  files <- FS.readdir (dirname <> "html")
 
   for_ files \file -> do
     let path = dirname <> "html/" <> file
 
     whenM (fileExists path) do
-      contents <- readTextFile UTF8 path
+      contents <- FS.readTextFile UTF8 path
       case patchHTML contents of
         Tuple true patchedContents -> do
-          writeTextFile UTF8 path patchedContents
+          FS.writeTextFile UTF8 path patchedContents
         _ -> pure unit
 
 -- | Create directories for two indices, or fail with a message
@@ -395,13 +395,13 @@ createDirectories { generatedDocs } = do
     logAndExit "Generate the documentation first!"
 
   whenM (not <$> directoryExists indexDir) do
-    mkdir indexDir
+    FS.mkdir indexDir
 
   whenM (not <$> directoryExists declIndexDir) do
-    mkdir declIndexDir
+    FS.mkdir declIndexDir
 
   whenM (not <$> directoryExists typeIndexDir) do
-    mkdir typeIndexDir
+    FS.mkdir typeIndexDir
 
 -- | Copy the client-side application, responsible for handling user input and rendering
 -- | the results, to the destination path.
@@ -414,29 +414,29 @@ copyAppFile { generatedDocs } = do
       logAndExit $
         "Client-side app was not found at " <> appFile <> ".\n" <>
           "Check your installation."
-  buffer <- readFile appFile
-  writeFile (generatedDocs <> "/html/docs-search-app.js") buffer
+  buffer <- FS.readFile appFile
+  FS.writeFile (generatedDocs <> "/html/docs-search-app.js") buffer
 
 directoryExists :: String -> Aff Boolean
 directoryExists path = do
-  doesExist <- liftEffect $ exists path
+  doesExist <- liftEffect $ FSSync.exists path
   case doesExist of
     false -> pure false
-    true -> isDirectory <$> stat path
+    true -> Stat.isDirectory <$> FS.stat path
 
 fileExists :: String -> Aff Boolean
 fileExists path = do
-  doesExist <- liftEffect $ exists path
+  doesExist <- liftEffect $ FSSync.exists path
   case doesExist of
     false -> pure false
-    true -> isFile <$> stat path
+    true -> Stat.isFile <$> FS.stat path
 
 withExisting :: forall a. String -> (String -> Aff a) -> Aff (Maybe a)
 withExisting file f = do
   doesExist <- fileExists file
 
   if doesExist then do
-    contents <- readTextFile UTF8 file
+    contents <- FS.readTextFile UTF8 file
     res <- f contents
     pure $ Just res
   else do
