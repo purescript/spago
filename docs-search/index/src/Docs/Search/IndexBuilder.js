@@ -15,5 +15,3 @@ export function glob(pattern) {
     return globMain.sync(pattern);
   };
 }
-
-export const defaultCopyMode = 0;

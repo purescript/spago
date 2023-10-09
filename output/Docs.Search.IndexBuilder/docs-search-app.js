@@ -1,1 +1,1 @@
-bin/docs-search-app.js
+../../bin/bundle.js
