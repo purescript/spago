@@ -81,10 +81,9 @@ getResultName (MdlResult r) = unwrap r.name
 
 sortByPopularity
   :: forall index typeIndex
-   . EngineState index typeIndex
+   . Array Result
   -> Array Result
-  -> Array Result
-sortByPopularity { packageIndex } =
+sortByPopularity =
   Array.sortBy
     ( compare `on` (getResultScore >>> negate)
         <> compare `on` getResultPackageInfo
@@ -114,7 +113,7 @@ query engine state input =
           engine.queryModuleIndex state.scores state.moduleIndex lowerCased
 
       pure
-        { results: sortByPopularity state $
+        { results: sortByPopularity $
             (packageResponse.results <#> PackResult)
               <> (moduleResponse <#> MdlResult)
               <>

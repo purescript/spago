@@ -2,19 +2,26 @@ module Test.IndexBuilder where
 
 import Prelude
 
-import Docs.Search.IndexBuilder (patchHTML)
+import Docs.Search.IndexBuilder (patchHtml)
 
-import Data.Tuple (snd)
+import Data.Maybe (Maybe(..))
+import Data.Traversable (traverse)
+import Effect.Class (liftEffect)
 import Test.Spec (Spec, describe, it)
-import Test.Spec.Assertions (shouldEqual, shouldNotSatisfy)
+import Test.Spec.Assertions (shouldEqual, shouldNotEqual)
 
 tests :: Spec Unit
 tests = do
   describe "IndexBuilder" do
-    describe "patchHTML" do
+    let patch = liftEffect <<< patchHtml
+    describe "patchHtml" do
       it "works" do
         let input = "</body>"
-        shouldNotSatisfy (snd (patchHTML input)) (eq input)
-      it "is idempotent" do
+        patched <- patch input
+        shouldNotEqual patched (Just input)
+        shouldNotEqual patched Nothing
+      it "only patches once" do
         let input = "</body>"
-        shouldEqual (snd $ patchHTML $ snd $ patchHTML input) (snd $ patchHTML input)
+        patched <- patch input
+        twicePatched <- traverse patch patched <#> join
+        shouldEqual twicePatched Nothing

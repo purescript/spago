@@ -1,1 +1,3 @@
-console.log("docs-search-app.js doesn't work without bundling")
+import { main } from "../output/Docs.Search.App/index.js";
+
+main();
