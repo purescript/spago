@@ -44,12 +44,16 @@ import Data.Tuple (Tuple(..), fst)
 import Data.Tuple.Nested ((/\))
 import Effect (Effect)
 import Effect.Aff (Aff, launchAff_, parallel, sequential)
+import Effect.Aff as Aff
 import Effect.Class (liftEffect)
 import Effect.Console (log)
+import Effect.Exception (Error)
 import Node.Encoding (Encoding(UTF8))
 import Node.FS.Aff as FS
+import Node.FS.Async as AsyncFS
 import Node.FS.Stats as Stat
-import Node.FS.Sync as FSSync
+import Node.FS.Sync as FS.Sync
+import Node.FS.Constants as FS.Constants
 import Node.Process as Process
 import Web.Bower.PackageMeta (PackageMeta(..))
 import Codec.Json.Unidirectional.Value as JsonCodec
@@ -354,8 +358,7 @@ patchHTML html =
       <> "window.DocsSearchTypeIndex = {};"
       <> "window.DocsSearchIndex = {};"
       <> "</script>"
-      <>
-        "</body>"
+      <> "</body>"
   in
     if not $ String.contains (Pattern patch) html then Tuple true $ String.replace pattern (Replacement patch) html
     else Tuple false html
@@ -409,27 +412,38 @@ copyAppFile :: Config -> Aff Unit
 copyAppFile { generatedDocs } = do
   appDir <- liftEffect getDirname
   let appFile = appDir <> "/docs-search-app.js"
-  whenM (not <$> fileExists appFile) do
-    liftEffect do
-      logAndExit $
-        "Client-side app was not found at " <> appFile <> ".\n" <>
-          "Check your installation."
-  buffer <- FS.readFile appFile
-  FS.writeFile (generatedDocs <> "/html/docs-search-app.js") buffer
+  safeReadLink appFile >>= case _ of
+    Nothing ->
+      liftEffect $ logAndExit $
+        "Client-side app was not found at " <> appFile
+
+    Just app ->
+      FS.copyFile' app (generatedDocs <> "/html/docs-search-app.js") defaultCopyMode
 
 directoryExists :: String -> Aff Boolean
 directoryExists path = do
-  doesExist <- liftEffect $ FSSync.exists path
+  doesExist <- liftEffect $ FS.Sync.exists path
   case doesExist of
     false -> pure false
     true -> Stat.isDirectory <$> FS.stat path
 
 fileExists :: String -> Aff Boolean
 fileExists path = do
-  doesExist <- liftEffect $ FSSync.exists path
+  doesExist <- liftEffect $ FS.Sync.exists path
   case doesExist of
     false -> pure false
     true -> Stat.isFile <$> FS.stat path
+
+-- | Nothing if the path does not exist.
+-- | Returns the path if it exists and follows sym links.
+safeReadLink :: String -> Aff (Maybe String)
+safeReadLink path = do
+  result <- Aff.attempt $ toAff $ AsyncFS.lstat path
+  case result of
+    Left err -> pure Nothing
+    Right stat ->
+      Just <$>
+        if Stat.isSymbolicLink stat then FS.readlink path else pure path
 
 withExisting :: forall a. String -> (String -> Aff a) -> Aff (Maybe a)
 withExisting file f = do
@@ -444,6 +458,11 @@ withExisting file f = do
       log $
         "File does not exist: " <> file
     pure Nothing
+
+type Callback a = Either Error a -> Effect Unit
+
+toAff :: forall a. (Callback a -> Effect Unit) -> Aff a
+toAff p = Aff.makeAff \k -> p k $> Aff.nonCanceler
 
 logAndExit :: forall a. String -> Effect a
 logAndExit message = do
@@ -461,3 +480,5 @@ getPathsByGlobs globs =
 foreign import getDirname :: Effect String
 
 foreign import glob :: String -> Effect (Array String)
+
+foreign import defaultCopyMode :: FS.Constants.CopyMode
