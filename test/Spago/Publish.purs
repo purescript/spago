@@ -43,7 +43,7 @@ spec = Spec.around withTempDir do
         Just Platform.Win32 -> fixture "publish-main-win.txt"
         _ -> fixture "publish-main.txt"
 
-    Spec.itOnly "can get a package ready to publish" \{ spago, fixture } -> do
+    Spec.it "can get a package ready to publish" \{ spago, fixture } -> do
       FS.copyFile { src: fixture "spago-publish.yaml", dst: "spago.yaml" }
       FS.mkdirp "src"
       FS.copyFile { src: fixture "publish.purs", dst: "src/Main.purs" }
