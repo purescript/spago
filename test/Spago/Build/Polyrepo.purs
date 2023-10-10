@@ -12,6 +12,8 @@ import Data.Set.NonEmpty as NonEmptySet
 import Data.String (Pattern(..), Replacement(..))
 import Data.String as String
 import Node.Path as Path
+import Node.Platform as Platform
+import Node.Process as Process
 import Registry.Version as Version
 import Spago.Command.Init (DefaultConfigOptions(..))
 import Spago.Command.Init as Init
@@ -464,8 +466,11 @@ spec = Spec.describe "polyrepo" do
       setupPackageWithUnusedNameWarning "package-b" [ "package-a" ] true false -- no censoring, so this will fail to build
       setupPackageWithUnusedNameWarning "package-c" [ "package-a", "package-b" ] true true
       let
+        exp =
+          case Process.platform of
+            Just Platform.Win32 -> "[1/1 UnusedName] package-b\\src\\Main.purs:6:13"
+            _ -> "[1/1 UnusedName] package-b/src/Main.purs:6:13"
         hasUnusedWarningError stdErr = do
-          let exp = "[1/1 UnusedName] package-b/src/Main.purs:6:13"
           unless (String.contains (Pattern exp) stdErr) do
             Assert.fail $ "STDERR did not contain texts:\n" <> exp <> "\n\nStderr was:\n" <> stdErr
       spago [ "build" ] >>= check { stdout: mempty, stderr: hasUnusedWarningError, result: isLeft }
