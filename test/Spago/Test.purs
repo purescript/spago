@@ -122,7 +122,7 @@ spec = Spec.around withTempDir do
       let
         exp =
           case Process.platform of
-            Just Platform.Win32 -> "[1/1 UnusedName] test\Test\Main.purs:10:5"
+            Just Platform.Win32 -> "[1/1 UnusedName] test\\Test\\Main.purs:10:5"
             _ -> "[1/1 UnusedName] test/Test/Main.purs:10:5"
         hasUnusedNameWarningError stdErr = do
 
