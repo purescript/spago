@@ -88,7 +88,7 @@ spec = Spec.describe "polyrepo" do
                 )
         }
 
-  Spec.describe "topological build order" do
+  Spec.describe "inter-workspace package dependencies" do
 
     {-
     ```mermaid
