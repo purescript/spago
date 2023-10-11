@@ -109,7 +109,7 @@ spec = Spec.describe "polyrepo" do
         , spagoYaml: Init.defaultConfig' $ PackageOnly
             { name: mkPackageName "case-one-package-a"
             , dependencies: [ "console", "effect", "prelude" ]
-            , test: Just { moduleMain: "Subpackage.A.Test.Main", build: Nothing }
+            , test: Just { moduleMain: "Subpackage.A.Test.Main", strict: Nothing, censorTestWarnings: Nothing }
             , build: Nothing
             }
         , srcMain: mkMainModuleContent
@@ -130,7 +130,7 @@ spec = Spec.describe "polyrepo" do
         , spagoYaml: Init.defaultConfig' $ PackageOnly
             { name: mkPackageName "case-one-package-b"
             , dependencies: [ "console", "effect", "prelude" ]
-            , test: Just { moduleMain: "Subpackage.B.Test.Main", build: Nothing }
+            , test: Just { moduleMain: "Subpackage.B.Test.Main", strict: Nothing, censorTestWarnings: Nothing }
             , build: Nothing
             }
         , srcMain: mkMainModuleContent
@@ -190,7 +190,7 @@ spec = Spec.describe "polyrepo" do
         , spagoYaml: Init.defaultConfig' $ PackageOnly
             { name: mkPackageName "case-two-package-a"
             , dependencies: [ "console", "effect", "prelude", "case-two-package-shared" ]
-            , test: Just { moduleMain: "Subpackage.A.Test.Main", build: Nothing }
+            , test: Just { moduleMain: "Subpackage.A.Test.Main", strict: Nothing, censorTestWarnings: Nothing }
             , build: Nothing
             }
         , srcMain: mkMainModuleContent
@@ -214,7 +214,7 @@ spec = Spec.describe "polyrepo" do
         , spagoYaml: Init.defaultConfig' $ PackageOnly
             { name: mkPackageName "case-two-package-b"
             , dependencies: [ "console", "effect", "prelude", "case-two-package-shared" ]
-            , test: Just { moduleMain: "Subpackage.B.Test.Main", build: Nothing }
+            , test: Just { moduleMain: "Subpackage.B.Test.Main", strict: Nothing, censorTestWarnings: Nothing }
             , build: Nothing
             }
         , srcMain: mkMainModuleContent
@@ -278,7 +278,7 @@ spec = Spec.describe "polyrepo" do
         , spagoYaml: Init.defaultConfig' $ PackageOnly
             { name: mkPackageName "case-three-package-b"
             , dependencies: [ "console", "effect", "prelude", "case-three-package-c" ]
-            , test: Just { moduleMain: "Subpackage.B.Test.Main", build: Nothing }
+            , test: Just { moduleMain: "Subpackage.B.Test.Main", strict: Nothing, censorTestWarnings: Nothing }
             , build: Nothing
             }
         , srcMain: mkMainModuleContent
@@ -302,7 +302,7 @@ spec = Spec.describe "polyrepo" do
         , spagoYaml: Init.defaultConfig' $ PackageOnly
             { name: mkPackageName "case-three-package-a"
             , dependencies: [ "console", "effect", "prelude", "case-three-package-b", "case-three-package-c" ]
-            , test: Just { moduleMain: "Subpackage.A.Test.Main", build: Nothing }
+            , test: Just { moduleMain: "Subpackage.A.Test.Main", strict: Nothing, censorTestWarnings: Nothing }
             , build: Nothing
             }
         , srcMain: mkMainModuleContent
@@ -366,7 +366,7 @@ spec = Spec.describe "polyrepo" do
       , spagoYaml: Init.defaultConfig' $ PackageOnly
           { name: mkPackageName "case-four-package-b"
           , dependencies: [ "console", "effect", "prelude" ]
-          , test: Just { moduleMain: "Subpackage.SameName.Test.Main", build: Nothing }
+          , test: Just { moduleMain: "Subpackage.SameName.Test.Main", strict: Nothing, censorTestWarnings: Nothing }
           , build: Nothing
           }
       , srcMain: mkMainModuleContent
@@ -387,7 +387,7 @@ spec = Spec.describe "polyrepo" do
       , spagoYaml: Init.defaultConfig' $ PackageOnly
           { name: mkPackageName "case-four-package-a"
           , dependencies: [ "console", "effect", "prelude" ]
-          , test: Just { moduleMain: "Subpackage.SameName.Test.Main", build: Nothing }
+          , test: Just { moduleMain: "Subpackage.SameName.Test.Main", strict: Nothing, censorTestWarnings: Nothing }
           , build: Nothing
           }
       , srcMain: mkMainModuleContent
@@ -440,14 +440,12 @@ spec = Spec.describe "polyrepo" do
                   }
               , test: Just
                   { moduleMain: "Test.Subpackage." <> packageToModuleName packageName
-                  , build: Just
-                      { strict: pure strict
-                      , censorTestWarnings:
-                          if censorShadowedName then
-                            Just $ Config.CensorSpecificWarnings $ pure $ Config.ByCode "UnusedName"
-                          else
-                            Nothing
-                      }
+                  , strict: pure strict
+                  , censorTestWarnings:
+                      if censorShadowedName then
+                        Just $ Config.CensorSpecificWarnings $ pure $ Config.ByCode "UnusedName"
+                      else
+                        Nothing
                   }
               }
           , srcMain: mkMainFile ""

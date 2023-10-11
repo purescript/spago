@@ -146,8 +146,8 @@ toWorkspacePackagePathDecision { selected: { path, package }, psaCliFlags } = do
     , toPathDecision
         { pathIsFromPackage: isJust <<< String.stripPrefix (String.Pattern testPath)
         , pathType: IsSrc
-        , strict: fromMaybe false $ psaCliFlags.strict <|> (package.test >>= _.build >>= _.strict)
-        , censorWarnings: package.test >>= _.build >>= _.censor_test_warnings
+        , strict: fromMaybe false $ psaCliFlags.strict <|> (package.test >>= _.strict)
+        , censorWarnings: package.test >>= _.censor_test_warnings
         }
     ]
 

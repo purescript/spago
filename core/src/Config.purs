@@ -5,7 +5,6 @@ module Spago.Core.Config
   , WarningCensorTest(..)
   , StatVerbosity(..)
   , PackageBuildOptionsInput
-  , PackageTestBuildOptionsInput
   , BundleConfig
   , BundlePlatform(..)
   , BundleType(..)
@@ -125,7 +124,8 @@ type TestConfig =
   { main :: String
   , execArgs :: Maybe (Array String)
   , dependencies :: Dependencies
-  , build :: Maybe PackageTestBuildOptionsInput
+  , censor_test_warnings :: Maybe CensorBuildWarnings
+  , strict :: Maybe Boolean
   }
 
 testConfigCodec :: JsonCodec TestConfig
@@ -133,7 +133,8 @@ testConfigCodec = CAR.object "TestConfig"
   { main: CA.string
   , execArgs: CAR.optional (CA.array CA.string)
   , dependencies: dependenciesCodec
-  , build: CAR.optional packageTestBuildOptionsCodec
+  , censor_test_warnings: CAR.optional censorBuildWarningsCodec
+  , strict: CAR.optional CA.boolean
   }
 
 type BackendConfig =
@@ -155,17 +156,6 @@ type PackageBuildOptionsInput =
 packageBuildOptionsCodec :: JsonCodec PackageBuildOptionsInput
 packageBuildOptionsCodec = CAR.object "PackageBuildOptionsInput"
   { censor_project_warnings: CAR.optional censorBuildWarningsCodec
-  , strict: CAR.optional CA.boolean
-  }
-
-type PackageTestBuildOptionsInput =
-  { censor_test_warnings :: Maybe CensorBuildWarnings
-  , strict :: Maybe Boolean
-  }
-
-packageTestBuildOptionsCodec :: JsonCodec PackageTestBuildOptionsInput
-packageTestBuildOptionsCodec = CAR.object "PackageTestBuildOptionsInput"
-  { censor_test_warnings: CAR.optional censorBuildWarningsCodec
   , strict: CAR.optional CA.boolean
   }
 
