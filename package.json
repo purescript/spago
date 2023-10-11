@@ -1,6 +1,6 @@
 {
   "name": "spago",
-  "version": "0.93.15",
+  "version": "0.93.17",
   "license": "BSD-3-Clause",
   "description": "🍝 PureScript package manager and build tool",
   "keywords": [
@@ -30,7 +30,7 @@
     "format": "purs-tidy format-in-place core src bin docs-search",
     "format:check": "purs-tidy check core src bin docs-search",
     "bundle": "spago bundle -p spago-bin",
-    "prepublishOnly": "./bin/index.dev.js bundle -p spago-bin && ./bin/index.dev.js bundle -p docs-search-client-halogen"
+    "prepublishOnly": "spago build && ./bin/index.dev.js bundle -p spago-bin && ./bin/index.dev.js bundle -p docs-search-client-halogen"
   },
   "dependencies": {
     "better-sqlite3": "^8.6.0",
