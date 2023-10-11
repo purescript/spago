@@ -91,7 +91,6 @@ type PsaOutputOptions =
   }
 
 type PsaResult =
-
   { warnings :: Array PsaError
   , errors :: Array PsaError
   }
