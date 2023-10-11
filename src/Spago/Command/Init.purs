@@ -100,7 +100,7 @@ defaultConfig { name, withWorkspace, testModuleName } = do
     pkg =
       { name
       , dependencies: [ "effect", "console", "prelude" ]
-      , test: Just { moduleMain: testModuleName }
+      , test: Just { moduleMain: testModuleName, strict: Nothing, censorTestWarnings: Nothing }
       , build: Nothing
       }
   defaultConfig' case withWorkspace of
@@ -110,7 +110,7 @@ defaultConfig { name, withWorkspace, testModuleName } = do
 type DefaultConfigPackageOptions =
   { name :: PackageName
   , dependencies :: Array String
-  , test :: Maybe { moduleMain :: String }
+  , test :: Maybe { moduleMain :: String, strict :: Maybe Boolean, censorTestWarnings :: Maybe Config.CensorBuildWarnings }
   , build :: Maybe { strict :: Maybe Boolean, censorProjectWarnings :: Maybe Config.CensorBuildWarnings }
   }
 
@@ -146,10 +146,12 @@ defaultConfig' opts =
           , strict
           }
       , run: Nothing
-      , test: test <#> \{ moduleMain } ->
+      , test: test <#> \{ moduleMain, censorTestWarnings, strict } ->
           { dependencies: Dependencies Map.empty
           , execArgs: Nothing
           , main: moduleMain
+          , censor_test_warnings: censorTestWarnings
+          , strict
           }
       , publish: Nothing
       , bundle: Nothing

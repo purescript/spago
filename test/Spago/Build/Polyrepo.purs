@@ -109,7 +109,7 @@ spec = Spec.describe "polyrepo" do
         , spagoYaml: Init.defaultConfig' $ PackageOnly
             { name: mkPackageName "case-one-package-a"
             , dependencies: [ "console", "effect", "prelude" ]
-            , test: Just { moduleMain: "Subpackage.A.Test.Main" }
+            , test: Just { moduleMain: "Subpackage.A.Test.Main", strict: Nothing, censorTestWarnings: Nothing }
             , build: Nothing
             }
         , srcMain: mkMainModuleContent
@@ -130,7 +130,7 @@ spec = Spec.describe "polyrepo" do
         , spagoYaml: Init.defaultConfig' $ PackageOnly
             { name: mkPackageName "case-one-package-b"
             , dependencies: [ "console", "effect", "prelude" ]
-            , test: Just { moduleMain: "Subpackage.B.Test.Main" }
+            , test: Just { moduleMain: "Subpackage.B.Test.Main", strict: Nothing, censorTestWarnings: Nothing }
             , build: Nothing
             }
         , srcMain: mkMainModuleContent
@@ -190,7 +190,7 @@ spec = Spec.describe "polyrepo" do
         , spagoYaml: Init.defaultConfig' $ PackageOnly
             { name: mkPackageName "case-two-package-a"
             , dependencies: [ "console", "effect", "prelude", "case-two-package-shared" ]
-            , test: Just { moduleMain: "Subpackage.A.Test.Main" }
+            , test: Just { moduleMain: "Subpackage.A.Test.Main", strict: Nothing, censorTestWarnings: Nothing }
             , build: Nothing
             }
         , srcMain: mkMainModuleContent
@@ -214,7 +214,7 @@ spec = Spec.describe "polyrepo" do
         , spagoYaml: Init.defaultConfig' $ PackageOnly
             { name: mkPackageName "case-two-package-b"
             , dependencies: [ "console", "effect", "prelude", "case-two-package-shared" ]
-            , test: Just { moduleMain: "Subpackage.B.Test.Main" }
+            , test: Just { moduleMain: "Subpackage.B.Test.Main", strict: Nothing, censorTestWarnings: Nothing }
             , build: Nothing
             }
         , srcMain: mkMainModuleContent
@@ -278,7 +278,7 @@ spec = Spec.describe "polyrepo" do
         , spagoYaml: Init.defaultConfig' $ PackageOnly
             { name: mkPackageName "case-three-package-b"
             , dependencies: [ "console", "effect", "prelude", "case-three-package-c" ]
-            , test: Just { moduleMain: "Subpackage.B.Test.Main" }
+            , test: Just { moduleMain: "Subpackage.B.Test.Main", strict: Nothing, censorTestWarnings: Nothing }
             , build: Nothing
             }
         , srcMain: mkMainModuleContent
@@ -302,7 +302,7 @@ spec = Spec.describe "polyrepo" do
         , spagoYaml: Init.defaultConfig' $ PackageOnly
             { name: mkPackageName "case-three-package-a"
             , dependencies: [ "console", "effect", "prelude", "case-three-package-b", "case-three-package-c" ]
-            , test: Just { moduleMain: "Subpackage.A.Test.Main" }
+            , test: Just { moduleMain: "Subpackage.A.Test.Main", strict: Nothing, censorTestWarnings: Nothing }
             , build: Nothing
             }
         , srcMain: mkMainModuleContent
@@ -366,7 +366,7 @@ spec = Spec.describe "polyrepo" do
       , spagoYaml: Init.defaultConfig' $ PackageOnly
           { name: mkPackageName "case-four-package-b"
           , dependencies: [ "console", "effect", "prelude" ]
-          , test: Just { moduleMain: "Subpackage.SameName.Test.Main" }
+          , test: Just { moduleMain: "Subpackage.SameName.Test.Main", strict: Nothing, censorTestWarnings: Nothing }
           , build: Nothing
           }
       , srcMain: mkMainModuleContent
@@ -387,7 +387,7 @@ spec = Spec.describe "polyrepo" do
       , spagoYaml: Init.defaultConfig' $ PackageOnly
           { name: mkPackageName "case-four-package-a"
           , dependencies: [ "console", "effect", "prelude" ]
-          , test: Just { moduleMain: "Subpackage.SameName.Test.Main" }
+          , test: Just { moduleMain: "Subpackage.SameName.Test.Main", strict: Nothing, censorTestWarnings: Nothing }
           , build: Nothing
           }
       , srcMain: mkMainModuleContent
@@ -413,23 +413,10 @@ spec = Spec.describe "polyrepo" do
 
   Spec.describe "warning censoring and error-promotion" do
     let
-      setupPackageWithUnusedNameWarning packageName deps strict censorShadowedName = void $ setupDir
-        { packageName: packageName
-        , spagoYaml: Init.defaultConfig' $ PackageOnly
-            { name: mkPackageName packageName
-            , dependencies: [ "prelude" ] <> deps
-            , build: Just
-                { strict: pure strict
-                , censorProjectWarnings:
-                    if censorShadowedName then
-                      Just $ Config.CensorSpecificWarnings $ pure $ Config.ByCode "UnusedName"
-                    else
-                      Nothing
-                }
-            , test: Nothing
-            }
-        , srcMain: mkModuleContent
-            { modName: "Subpackage." <> packageToModuleName packageName
+      setupPackageWithUnusedNameWarning packageName deps strict censorShadowedName includeTestCode = do
+        let
+          mkMainFile testPart = mkModuleContent
+            { modName: testPart <> "Subpackage." <> packageToModuleName packageName
             , imports: []
             , body:
                 [ ""
@@ -438,13 +425,37 @@ spec = Spec.describe "polyrepo" do
                 , "  \"package\" <> \"" <> packageName <> "\""
                 ]
             }
-        , testMain: Nothing
-        }
+        void $ setupDir
+          { packageName: packageName
+          , spagoYaml: Init.defaultConfig' $ PackageOnly
+              { name: mkPackageName packageName
+              , dependencies: [ "prelude" ] <> deps
+              , build: Just
+                  { strict: pure strict
+                  , censorProjectWarnings:
+                      if censorShadowedName then
+                        Just $ Config.CensorSpecificWarnings $ pure $ Config.ByCode "UnusedName"
+                      else
+                        Nothing
+                  }
+              , test: Just
+                  { moduleMain: "Test.Subpackage." <> packageToModuleName packageName
+                  , strict: pure strict
+                  , censorTestWarnings:
+                      if censorShadowedName then
+                        Just $ Config.CensorSpecificWarnings $ pure $ Config.ByCode "UnusedName"
+                      else
+                        Nothing
+                  }
+              }
+          , srcMain: mkMainFile ""
+          , testMain: if includeTestCode then mkMainFile "Test." else Nothing
+          }
     Spec.it "build succeeds when 'strict: true' because warnings were censored" \{ spago } -> do
       writeWorkspaceOnlySpagoYamlFile
-      setupPackageWithUnusedNameWarning "package-a" [] true true
-      setupPackageWithUnusedNameWarning "package-b" [ "package-a" ] true true
-      setupPackageWithUnusedNameWarning "package-c" [ "package-a", "package-b" ] true true
+      setupPackageWithUnusedNameWarning "package-a" [] true true false
+      setupPackageWithUnusedNameWarning "package-b" [ "package-a" ] true true false
+      setupPackageWithUnusedNameWarning "package-c" [ "package-a", "package-b" ] true true false
       let
         paths =
           [ escapePathInErrMsg [ "package-a", "src", "Main.purs:6:13" ]
@@ -456,16 +467,21 @@ spec = Spec.describe "polyrepo" do
             Assert.fail $ "STDERR contained one or more texts:\n" <> show paths <> "\n\nStderr was:\n" <> stdErr
       spago [ "build" ] >>= check { stdout: mempty, stderr: shouldNotHaveWarning, result: isRight }
 
-    Spec.it "build fails when 'strict: true' and warnings were not censored'" \{ spago } -> do
+    Spec.it "build fails when 'strict: true' and warnings were not censored" \{ spago } -> do
       writeWorkspaceOnlySpagoYamlFile
-      setupPackageWithUnusedNameWarning "package-a" [] true true
-      setupPackageWithUnusedNameWarning "package-b" [ "package-a" ] true false -- no censoring, so this will fail to build
-      setupPackageWithUnusedNameWarning "package-c" [ "package-a", "package-b" ] true true
+      setupPackageWithUnusedNameWarning "package-a" [] true true false
+      -- no censoring, so this will fail to build
+      -- include tests, so that we get 2 errors rather than 1
+      setupPackageWithUnusedNameWarning "package-b" [ "package-a" ] true false true
+      setupPackageWithUnusedNameWarning "package-c" [ "package-a", "package-b" ] true true false
       let
-        exp = "[1/1 UnusedName] " <> escapePathInErrMsg [ "package-b", "src", "Main.purs:6:13" ]
+        errs =
+          [ "[1/2 UnusedName] " <> escapePathInErrMsg [ "package-b", "src", "Main.purs:6:13" ]
+          , "[2/2 UnusedName] " <> escapePathInErrMsg [ "package-b", "test", "Main.purs:6:13" ]
+          ]
         hasUnusedWarningError stdErr = do
-          unless (String.contains (Pattern exp) stdErr) do
-            Assert.fail $ "STDERR did not contain text:\n" <> exp <> "\n\nStderr was:\n" <> stdErr
+          unless (Array.any (\exp -> String.contains (Pattern exp) stdErr) errs) do
+            Assert.fail $ "STDERR did not contain texts:\n" <> show errs <> "\n\nStderr was:\n" <> stdErr
       spago [ "build" ] >>= check { stdout: mempty, stderr: hasUnusedWarningError, result: isLeft }
 
   Spec.describe "passing --ensure-ranges flag..." do
