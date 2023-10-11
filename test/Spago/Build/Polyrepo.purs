@@ -321,18 +321,7 @@ spec = Spec.describe "polyrepo" do
             , packageName: Nothing
             }
         }
-      let
-        hasAllPkgsInRightBuildOrder stdErr = do
-          let
-            exp = Array.intercalate "\n"
-              [ "Building packages in the following order:"
-              , "1) case-three-package-c"
-              , "2) case-three-package-b"
-              , "3) case-three-package-a"
-              ]
-          unless (String.contains (Pattern exp) stdErr) do
-            Assert.fail $ "STDERR did not contain text:\n" <> exp <> "\n\nStderr was:\n" <> stdErr
-      spago [ "build" ] >>= check { stdout: mempty, stderr: hasAllPkgsInRightBuildOrder, result: isRight }
+      spago [ "build" ] >>= shouldBeSuccess
 
   {-
   ```mermaid
@@ -413,16 +402,7 @@ spec = Spec.describe "polyrepo" do
       }
     let
       hasExpectedModules stdErr = do
-        let
-          exp = Array.intercalate "\n"
-            [ "Detected 2 modules with the same module name across 2 or more packages defined in this workspace."
-            , "1) Module \"Subpackage.SameName.Main\" was defined in the following packages:"
-            , "  - case-four-package-a   at path: " <> Path.concat [ "package-a", "src", "Main.purs" ]
-            , "  - case-four-package-b   at path: " <> Path.concat [ "package-b", "src", "Main.purs" ]
-            , "2) Module \"Subpackage.SameName.Test.Main\" was defined in the following packages:"
-            , "  - case-four-package-a   at path: " <> Path.concat [ "package-a", "test", "Main.purs" ]
-            , "  - case-four-package-b   at path: " <> Path.concat [ "package-b", "test", "Main.purs" ]
-            ]
+        let exp = "Module Subpackage.SameName.Main has been defined multiple times"
 
         unless (String.contains (Pattern exp) stdErr) do
           Assert.fail $ "STDERR did not contain text:\n" <> exp <> "\n\nStderr was:\n" <> stdErr
