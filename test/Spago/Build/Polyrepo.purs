@@ -27,6 +27,10 @@ spec :: SpecT Aff TestDirs Identity Unit
 spec = Spec.describe "polyrepo" do
 
   let
+    escapePathInErrMsg :: Array String -> String
+    escapePathInErrMsg = case Process.platform of
+      Just Platform.Win32 -> Array.intercalate "\\"
+      _ -> Array.intercalate "/"
     writeWorkspaceOnlySpagoYamlFile = do
       -- `spago [ "init" ]` will create files that we will immediately
       -- delete (i.e. `src/Main.purs` and `test/Main.purs`)
@@ -441,7 +445,16 @@ spec = Spec.describe "polyrepo" do
       setupPackageWithUnusedNameWarning "package-a" [] true true
       setupPackageWithUnusedNameWarning "package-b" [ "package-a" ] true true
       setupPackageWithUnusedNameWarning "package-c" [ "package-a", "package-b" ] true true
-      spago [ "build" ] >>= shouldBeSuccess
+      let
+        paths =
+          [ escapePathInErrMsg [ "package-a", "src", "Main.purs:6:13" ]
+          , escapePathInErrMsg [ "package-b", "src", "Main.purs:6:13" ]
+          , escapePathInErrMsg [ "package-c", "src", "Main.purs:6:13" ]
+          ]
+        shouldNotHaveWarning stdErr = do
+          when (Array.any (\exp -> String.contains (Pattern exp) stdErr) paths) do
+            Assert.fail $ "STDERR contained one or more texts:\n" <> show paths <> "\n\nStderr was:\n" <> stdErr
+      spago [ "build" ] >>= check { stdout: mempty, stderr: shouldNotHaveWarning, result: isRight }
 
     Spec.it "build fails when 'strict: true' and warnings were not censored'" \{ spago } -> do
       writeWorkspaceOnlySpagoYamlFile
@@ -449,13 +462,10 @@ spec = Spec.describe "polyrepo" do
       setupPackageWithUnusedNameWarning "package-b" [ "package-a" ] true false -- no censoring, so this will fail to build
       setupPackageWithUnusedNameWarning "package-c" [ "package-a", "package-b" ] true true
       let
-        exp =
-          case Process.platform of
-            Just Platform.Win32 -> "[1/1 UnusedName] package-b\\src\\Main.purs:6:13"
-            _ -> "[1/1 UnusedName] package-b/src/Main.purs:6:13"
+        exp = "[1/1 UnusedName] " <> escapePathInErrMsg [ "package-b", "src", "Main.purs:6:13" ]
         hasUnusedWarningError stdErr = do
           unless (String.contains (Pattern exp) stdErr) do
-            Assert.fail $ "STDERR did not contain texts:\n" <> exp <> "\n\nStderr was:\n" <> stdErr
+            Assert.fail $ "STDERR did not contain text:\n" <> exp <> "\n\nStderr was:\n" <> stdErr
       spago [ "build" ] >>= check { stdout: mempty, stderr: hasUnusedWarningError, result: isLeft }
 
   Spec.describe "passing --ensure-ranges flag..." do

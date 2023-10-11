@@ -104,7 +104,7 @@ toPathDecisions { allDependencies, selectedPackages, psaCliFlags, censorLibWarni
       $ Map.toUnfoldable
       -- Remove workspace packages that are dependencies of some other workspace package
       -- so that we don't add their entries twice
-      $ Map.filterKeys (\pkgName -> Set.member pkgName pkgsInProject) allDependencies
+      $ Map.filterKeys (\pkgName -> not $ Set.member pkgName pkgsInProject) allDependencies
 
   pkgsInProject :: Set PackageName
   pkgsInProject = foldMap (\p -> Set.singleton p.package.name) selectedPackages
@@ -172,7 +172,12 @@ shouldPrintWarning = case _ of
   Nothing -> \_ _ -> true
   Just x -> case x of
     CensorAllWarnings -> \_ _ -> false
-    CensorSpecificWarnings arr -> \code msg ->
-      isJust $ flip NonEmptyArray.find arr case _ of
-        ByCode c -> c == code
-        ByMessagePrefix prefix -> isJust $ String.stripPrefix (String.Pattern prefix) msg
+    CensorSpecificWarnings arr -> do
+      let
+        tests = arr <#> case _ of
+          ByCode c -> \code _ -> c == code
+          ByMessagePrefix prefix -> \_ msg -> isJust $ String.stripPrefix (String.Pattern prefix) msg
+      -- We return `true` to print the warning.
+      -- If an element was found (i.e. `Just` is returned), then one of the tests succeeded, 
+      -- so we should not print the warning and return false here.
+      \code msg -> isNothing $ NonEmptyArray.find (\f -> f code msg) tests
