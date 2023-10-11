@@ -84,9 +84,6 @@ penalties =
   , excessiveConstraint: 1
   }
 
-defaultPackageName :: PackageName
-defaultPackageName = wrap "<local package>"
-
 -- | Find in which part of the index this path can be found.
 getPartId :: List Char -> PartId
 getPartId (a : b : _) =
@@ -94,3 +91,15 @@ getPartId (a : b : _) =
 getPartId (a : _) =
   PartId $ Char.toCharCode a `mod` numberOfIndexParts
 getPartId _ = PartId 0
+
+defaultPackageName :: PackageName
+defaultPackageName = wrap "<local package>"
+
+defaultDocsFiles :: Array String
+defaultDocsFiles = [ "output/**/docs.json" ]
+
+defaultBowerFiles :: Array String
+defaultBowerFiles = [ ".spago/*/*/bower.json", "bower_components/purescript-*/bower.json" ]
+
+defaultSourceFiles :: Array String
+defaultSourceFiles = [ "src/**/*.purs" ]

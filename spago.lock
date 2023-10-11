@@ -283,7 +283,7 @@ workspace:
         - unicode
         - versions
       git: https://github.com/JordanMartinez/purescript-language-purescript.git
-      ref: v0.1.1
+      ref: db4377dea03ba9c5273a93a8368a53f1d87882c1
     markdown-it:
       dependencies:
         - effect
@@ -1206,7 +1206,7 @@ packages:
   language-purescript:
     type: git
     url: https://github.com/JordanMartinez/purescript-language-purescript.git
-    rev: b141a41333226af8702d67eb290470bba599b42a
+    rev: db4377dea03ba9c5273a93a8368a53f1d87882c1
     dependencies:
       - argonaut-core
       - arrays

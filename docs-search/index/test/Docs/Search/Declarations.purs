@@ -22,7 +22,7 @@ tests = do
       UnknownPackage `shouldEqual` (extractPackageName (wrap "Primitive") Nothing)
       Package (PackageName "foo") `shouldEqual`
         ( extractPackageName (wrap "Foo") $
-            mkSourceSpan ".spago/foo/src/Foo.purs"
+            mkSourceSpan ".spago/packages/foo/src/Foo.purs"
         )
       Package (PackageName "bar") `shouldEqual`
         ( extractPackageName (wrap "Bar") $
