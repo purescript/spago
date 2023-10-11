@@ -50,6 +50,7 @@ spec = Spec.around withTempDir do
       spago [ "build" ] >>= shouldBeSuccess
       doTheGitThing
       -- It will fail because it can't hit the registry, but the fixture will check that everything else is ready
+      spago [ "fetch" ] >>= shouldBeSuccess
       spago [ "publish", "--offline" ] >>= shouldBeFailureErr (fixture "publish.txt")
 
 doTheGitThing :: Aff Unit
