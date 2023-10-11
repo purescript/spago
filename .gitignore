@@ -10,6 +10,7 @@
 /.psa*
 /.spago
 /bin/bundle.js
+/bin/docs-search-app.js
 .direnv
 *.node
 **/.vscode
