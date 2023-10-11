@@ -1200,7 +1200,7 @@ workspace:
       # Value 2: "all" - All warnings are hidden
       all
 
-      # Value 3: `Array (Either String { by_prefix :: String })`
+      # Value 3: `NonEmptyArray (Either String { by_prefix :: String })`
       # - String values: 
       #      censor warnings if the code matches this code
       # - { by_prefix } values: 
@@ -1255,7 +1255,7 @@ package:
       # Value 2: "all" - All warnings are hidden
       all
 
-      # Value 3: `Array (Either String { by_prefix :: String })`
+      # Value 3: `NonEmptyArray (Either String { by_prefix :: String })`
       # - String values: 
       #      censor warnings if the code matches this code
       # - { by_prefix } values: 
