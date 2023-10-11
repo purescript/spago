@@ -124,6 +124,8 @@ type TestConfig =
   { main :: String
   , execArgs :: Maybe (Array String)
   , dependencies :: Dependencies
+  , censor_test_warnings :: Maybe CensorBuildWarnings
+  , strict :: Maybe Boolean
   }
 
 testConfigCodec :: JsonCodec TestConfig
@@ -131,6 +133,8 @@ testConfigCodec = CAR.object "TestConfig"
   { main: CA.string
   , execArgs: CAR.optional (CA.array CA.string)
   , dependencies: dependenciesCodec
+  , censor_test_warnings: CAR.optional censorBuildWarningsCodec
+  , strict: CAR.optional CA.boolean
   }
 
 type BackendConfig =
