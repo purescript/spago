@@ -308,15 +308,13 @@ buildOptionsCodec = CAR.object "WorkspaceBuildOptionsInput"
   }
 
 data CensorBuildWarnings
-  = CensorNoWarnings
-  | CensorAllWarnings
+  = CensorAllWarnings
   | CensorSpecificWarnings (NonEmptyArray WarningCensorTest)
 
 derive instance Eq CensorBuildWarnings
 
 instance Show CensorBuildWarnings where
   show = case _ of
-    CensorNoWarnings -> "CensorNoWarnings"
     CensorAllWarnings -> "CensorAllWarnings"
     CensorSpecificWarnings censorTests -> "(CensorSpecificWarnings " <> show censorTests <> ")"
 
@@ -324,14 +322,12 @@ censorBuildWarningsCodec :: JsonCodec CensorBuildWarnings
 censorBuildWarningsCodec = CA.codec' parse print
   where
   print = case _ of
-    CensorNoWarnings -> CA.encode CA.string "none"
     CensorAllWarnings -> CA.encode CA.string "all"
     CensorSpecificWarnings censorTests -> CA.encode (CA.array warningCensorTestCodec) $ NonEmptyArray.toArray censorTests
 
   parse j = decodeNoneOrAll <|> decodeSpecific
     where
     decodeNoneOrAll = CA.decode CA.string j >>= case _ of
-      "none" -> Right CensorNoWarnings
       "all" -> Right CensorAllWarnings
       _ -> Left $ CA.UnexpectedValue j
 

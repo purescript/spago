@@ -109,8 +109,6 @@ toPathDecisions { allDependencies, selectedPackages, psaCliFlags, censorLibWarni
   pkgsInProject :: Set PackageName
   pkgsInProject = foldMap (\p -> Set.singleton p.package.name) selectedPackages
 
-  censorLibWarnings' = fromMaybe CensorAllWarnings censorLibWarnings
-
   toDependencyDecision :: Tuple PackageName Package -> Effect (Array (String -> Maybe PathDecision))
   toDependencyDecision dep = case snd dep of
     WorkspacePackage p ->
@@ -125,7 +123,7 @@ toPathDecisions { allDependencies, selectedPackages, psaCliFlags, censorLibWarni
             { pathIsFromPackage: isJust <<< String.stripPrefix (String.Pattern pkgLocation)
             , pathType: IsLib
             , strict: false
-            , censorWarnings: censorLibWarnings'
+            , censorWarnings: censorLibWarnings
             }
         ]
 
@@ -143,13 +141,13 @@ toWorkspacePackagePathDecision { selected: { path, package }, psaCliFlags } = do
         { pathIsFromPackage: isJust <<< String.stripPrefix (String.Pattern srcPath)
         , pathType: IsSrc
         , strict: fromMaybe false $ psaCliFlags.strict <|> (package.build >>= _.strict)
-        , censorWarnings: fromMaybe CensorAllWarnings $ package.build >>= _.censor_project_warnings
+        , censorWarnings: package.build >>= _.censor_project_warnings
         }
     , toPathDecision
         { pathIsFromPackage: isJust <<< String.stripPrefix (String.Pattern testPath)
         , pathType: IsSrc
         , strict: false
-        , censorWarnings: CensorNoWarnings
+        , censorWarnings: Nothing
         }
     ]
 
@@ -157,7 +155,7 @@ toPathDecision
   :: { pathIsFromPackage :: String -> Boolean
      , pathType :: PsaPathType
      , strict :: Boolean
-     , censorWarnings :: Config.CensorBuildWarnings
+     , censorWarnings :: Maybe Config.CensorBuildWarnings
      }
   -> String
   -> Maybe PathDecision
@@ -169,11 +167,12 @@ toPathDecision options pathToFile = do
     , shouldShowError: shouldPrintWarning options.censorWarnings
     }
 
-shouldPrintWarning :: Config.CensorBuildWarnings -> ErrorCode -> String -> Boolean
+shouldPrintWarning :: Maybe Config.CensorBuildWarnings -> ErrorCode -> String -> Boolean
 shouldPrintWarning = case _ of
-  CensorNoWarnings -> \_ _ -> true
-  CensorAllWarnings -> \_ _ -> false
-  CensorSpecificWarnings arr -> \code msg ->
-    isJust $ flip NonEmptyArray.find arr case _ of
-      ByCode c -> c == code
-      ByMessagePrefix prefix -> isJust $ String.stripPrefix (String.Pattern prefix) msg
+  Nothing -> \_ _ -> true
+  Just x -> case x of
+    CensorAllWarnings -> \_ _ -> false
+    CensorSpecificWarnings arr -> \code msg ->
+      isJust $ flip NonEmptyArray.find arr case _ of
+        ByCode c -> c == code
+        ByMessagePrefix prefix -> isJust $ String.stripPrefix (String.Pattern prefix) msg

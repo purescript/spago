@@ -1192,15 +1192,12 @@ workspace:
     pedantic_packages: false
     # Specify whether to censor warnings coming from the compiler
     # for files in the `.spago` directory`.
-    # Optional and can be one of three possible values
+    # Optional and can be one of two possible values
     censor_library_warnings: 
-      # Value 1 (default): "none" - All warnings are printed
-      none
-      
-      # Value 2: "all" - All warnings are hidden
+      # Value 1: "all" - All warnings are censored
       all
 
-      # Value 3: `NonEmptyArray (Either String { by_prefix :: String })`
+      # Value 2: `NonEmptyArray (Either String { by_prefix :: String })`
       # - String values: 
       #      censor warnings if the code matches this code
       # - { by_prefix } values: 
@@ -1247,15 +1244,12 @@ package:
   build:
     # Specify whether to censor warnings coming from the compiler
     # for files from this package.
-    # Optional and can be one of three possible values
+    # Optional and can be one of two possible values
     censor_project_warnings: 
-      # Value 1 (default): "none" - All warnings are printed
-      none
-      
-      # Value 2: "all" - All warnings are hidden
+      # Value 1: "all" - All warnings are censored
       all
 
-      # Value 3: `NonEmptyArray (Either String { by_prefix :: String })`
+      # Value 2: `NonEmptyArray (Either String { by_prefix :: String })`
       # - String values: 
       #      censor warnings if the code matches this code
       # - { by_prefix } values: 
