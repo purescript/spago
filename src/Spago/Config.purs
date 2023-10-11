@@ -35,7 +35,6 @@ import Data.Int as Int
 import Data.Map as Map
 import Data.Profunctor as Profunctor
 import Data.Set as Set
-import Data.Set.NonEmpty (NonEmptySet)
 import Data.String (CodePoint, Pattern(..))
 import Data.String as String
 import Dodo as Log
@@ -73,8 +72,6 @@ type BuildOptions =
   { output :: Maybe FilePath
   , pedanticPackages :: Boolean
   , censorLibWarnings :: Maybe Core.CensorBuildWarnings
-  , censorLibCodes :: Maybe (NonEmptySet String)
-  , filterLibCodes :: Maybe (NonEmptySet String)
   , statVerbosity :: Maybe Core.StatVerbosity
   }
 
@@ -386,8 +383,6 @@ readWorkspace maybeSelectedPackage = do
       { output: _.output =<< workspace.build_opts
       , pedanticPackages: fromMaybe false (_.pedantic_packages =<< workspace.build_opts)
       , censorLibWarnings: _.censor_library_warnings =<< workspace.build_opts
-      , censorLibCodes: _.censor_library_codes =<< workspace.build_opts
-      , filterLibCodes: _.filter_library_codes =<< workspace.build_opts
       , statVerbosity: _.stat_verbosity =<< workspace.build_opts
       }
 

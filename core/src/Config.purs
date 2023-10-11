@@ -2,6 +2,7 @@ module Spago.Core.Config
   ( BackendConfig
   , WorkspaceBuildOptionsInput
   , CensorBuildWarnings(..)
+  , WarningCensorTest(..)
   , StatVerbosity(..)
   , PackageBuildOptionsInput
   , BundleConfig
@@ -38,15 +39,15 @@ module Spago.Core.Config
 
 import Spago.Core.Prelude
 
+import Data.Array.NonEmpty (NonEmptyArray)
+import Data.Array.NonEmpty as NonEmptyArray
 import Data.Codec.Argonaut as CA
-import Data.Codec.Argonaut.Common as CA.Common
 import Data.Codec.Argonaut.Record as CAR
 import Data.Codec.Argonaut.Sum as CA.Sum
 import Data.Either as Either
 import Data.List as List
 import Data.Map as Map
 import Data.Profunctor as Profunctor
-import Data.Set.NonEmpty as NonEmptySet
 import Partial.Unsafe (unsafeCrashWith)
 import Registry.Internal.Codec as Internal.Codec
 import Registry.License as License
@@ -145,16 +146,12 @@ backendConfigCodec = CAR.object "BackendConfig"
 
 type PackageBuildOptionsInput =
   { censor_project_warnings :: Maybe CensorBuildWarnings
-  , censor_project_codes :: Maybe (NonEmptySet.NonEmptySet String)
-  , filter_project_codes :: Maybe (NonEmptySet.NonEmptySet String)
   , strict :: Maybe Boolean
   }
 
 packageBuildOptionsCodec :: JsonCodec PackageBuildOptionsInput
 packageBuildOptionsCodec = CAR.object "PackageBuildOptionsInput"
   { censor_project_warnings: CAR.optional censorBuildWarningsCodec
-  , censor_project_codes: CAR.optional $ CA.Common.nonEmptySet CA.string
-  , filter_project_codes: CAR.optional $ CA.Common.nonEmptySet CA.string
   , strict: CAR.optional CA.boolean
   }
 
@@ -299,8 +296,6 @@ type WorkspaceBuildOptionsInput =
   { output :: Maybe FilePath
   , pedantic_packages :: Maybe Boolean
   , censor_library_warnings :: Maybe CensorBuildWarnings
-  , censor_library_codes :: Maybe (NonEmptySet.NonEmptySet String)
-  , filter_library_codes :: Maybe (NonEmptySet.NonEmptySet String)
   , stat_verbosity :: Maybe StatVerbosity
   }
 
@@ -309,33 +304,60 @@ buildOptionsCodec = CAR.object "WorkspaceBuildOptionsInput"
   { output: CAR.optional CA.string
   , pedantic_packages: CAR.optional CA.boolean
   , censor_library_warnings: CAR.optional censorBuildWarningsCodec
-  , censor_library_codes: CAR.optional $ CA.Common.nonEmptySet CA.string
-  , filter_library_codes: CAR.optional $ CA.Common.nonEmptySet CA.string
   , stat_verbosity: CAR.optional statVerbosityCodec
   }
 
 data CensorBuildWarnings
-  = CensorNoWarnings
-  | CensorAllWarnings
+  = CensorAllWarnings
+  | CensorSpecificWarnings (NonEmptyArray WarningCensorTest)
 
 derive instance Eq CensorBuildWarnings
 
 instance Show CensorBuildWarnings where
   show = case _ of
-    CensorNoWarnings -> "CensorNoWarnings"
     CensorAllWarnings -> "CensorAllWarnings"
+    CensorSpecificWarnings censorTests -> "(CensorSpecificWarnings " <> show censorTests <> ")"
 
 censorBuildWarningsCodec :: JsonCodec CensorBuildWarnings
-censorBuildWarningsCodec = CA.Sum.enumSum print parse
+censorBuildWarningsCodec = CA.codec' parse print
   where
   print = case _ of
-    CensorNoWarnings -> "none"
-    CensorAllWarnings -> "all"
+    CensorAllWarnings -> CA.encode CA.string "all"
+    CensorSpecificWarnings censorTests -> CA.encode (CA.array warningCensorTestCodec) $ NonEmptyArray.toArray censorTests
 
-  parse = case _ of
-    "none" -> Just CensorNoWarnings
-    "all" -> Just CensorAllWarnings
-    _ -> Nothing
+  parse j = decodeNoneOrAll <|> decodeSpecific
+    where
+    decodeNoneOrAll = CA.decode CA.string j >>= case _ of
+      "all" -> Right CensorAllWarnings
+      _ -> Left $ CA.UnexpectedValue j
+
+    decodeSpecific = CensorSpecificWarnings <$> do
+      arr <- CA.decode (CA.array warningCensorTestCodec) j
+      Either.note (CA.UnexpectedValue j) $ NonEmptyArray.fromArray arr
+
+data WarningCensorTest
+  = ByCode String
+  | ByMessagePrefix String
+
+derive instance Eq WarningCensorTest
+instance Show WarningCensorTest where
+  show = case _ of
+    ByCode str -> "(ByCode" <> str <> ")"
+    ByMessagePrefix str -> "(ByMessagePrefix" <> str <> ")"
+
+warningCensorTestCodec :: JsonCodec WarningCensorTest
+warningCensorTestCodec = CA.codec' parse print
+  where
+  print = case _ of
+    ByCode str -> CA.encode CA.string str
+    ByMessagePrefix str -> CA.encode byMessagePrefixCodec { by_prefix: str }
+
+  parse j = byCode <|> byPrefix
+    where
+    byCode = ByCode <$> CA.decode CA.string j
+    byPrefix = (ByMessagePrefix <<< _.by_prefix) <$> CA.decode byMessagePrefixCodec j
+
+  byMessagePrefixCodec = CAR.object "ByMessagePrefix" { by_prefix: CA.string }
 
 data StatVerbosity
   = NoStats

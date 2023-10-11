@@ -107,11 +107,7 @@ run opts = do
     { allDependencies
     , selectedPackages
     , psaCliFlags
-    , workspaceOptions:
-        { censorLibWarnings: workspace.buildOptions.censorLibWarnings
-        , censorLibCodes: workspace.buildOptions.censorLibCodes
-        , filterLibCodes: workspace.buildOptions.filterLibCodes
-        }
+    , censorLibWarnings: workspace.buildOptions.censorLibWarnings
     }
   let
     psaArgs =
