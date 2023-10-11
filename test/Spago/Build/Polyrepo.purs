@@ -143,7 +143,7 @@ spec = Spec.describe "polyrepo" do
             , packageName: Nothing
             }
         }
-      spago [ "build", "--verbose" ] >>= shouldBeSuccess
+      spago [ "build" ] >>= shouldBeSuccess
 
     {-
     ```mermaid
