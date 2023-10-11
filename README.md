@@ -1304,6 +1304,30 @@ package:
     execArgs:
       - "--cli-arg"
       - "foo"
+    # Optional section to further customise the build for this package.
+    build:
+      # Specify whether to censor warnings coming from the compiler
+      # for files from this package.
+      # Optional and can be one of two possible values
+      censor_test_warnings: 
+        # Value 1: "all" - All warnings are censored
+        all
+
+        # Value 2: `NonEmptyArray (Either String { by_prefix :: String })`
+        # - String values: 
+        #      censor warnings if the code matches this code
+        # - { by_prefix } values: 
+        #      censor warnings if the warning's message 
+        #      starts with the given text
+        - CodeName
+        # Note: when using `by_prefix`, use the `>` for block-string: 
+        # see https://yaml-multiline.info/
+        - by_prefix: >
+          "Data.Map"'s `Semigroup instance`
+      # Convert compiler warnings into errors that can fail the build.
+      # Optional and defaults to false
+      strict:
+        true
 
   # Optional section for configuring the `spago publish` command.
   # If you intend to publish your package, this section becomes mandatory.
