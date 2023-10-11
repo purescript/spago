@@ -88,34 +88,49 @@ psaCompile globs pursArgs psaArgs = do
 
 toPathDecisions
   :: { allDependencies :: PackageMap
+     , selectedPackages :: Array WorkspacePackage
      , psaCliFlags :: PsaOutputOptions
      , workspaceOptions :: WorkspacePsaOutputOptions
      }
   -> Array (Effect (Array (String -> Maybe PathDecision)))
-toPathDecisions { allDependencies, psaCliFlags, workspaceOptions } = do
-  let
-    censorAll = eq (Just CensorAllWarnings) $ workspaceOptions.censorLibWarnings
-    censorCodes = maybe Set.empty NonEmptySet.toSet $ workspaceOptions.censorLibCodes
-    filterCodes = maybe Set.empty NonEmptySet.toSet $ workspaceOptions.filterLibCodes
-  (Map.toUnfoldable allDependencies :: Array _) <#> \dep -> do
-    case snd dep of
-      WorkspacePackage p ->
-        toWorkspacePackagePathDecision
-          { selected: p
-          , psaCliFlags
-          }
-      _ -> do
-        pkgLocation <- Path.resolve [] $ Tuple.uncurry Config.getPackageLocation dep
-        pure
-          [ toPathDecision
-              { pathIsFromPackage: isJust <<< String.stripPrefix (String.Pattern pkgLocation)
-              , pathType: IsLib
-              , strict: false
-              , censorAll
-              , censorCodes
-              , filterCodes
-              }
-          ]
+toPathDecisions { allDependencies, selectedPackages, psaCliFlags, workspaceOptions } =
+  projectDecisions <> dependencyDecisions
+  where
+  projectDecisions = selectedPackages <#> \selected -> toWorkspacePackagePathDecision { selected, psaCliFlags }
+
+  dependencyDecisions =
+    map toDependencyDecision
+      $ Map.toUnfoldable
+      -- Remove workspace packages that are dependencies of some other workspace package
+      -- so that we don't add their entries twice
+      $ Map.filterKeys (\pkgName -> Set.member pkgName pkgsInProject) allDependencies
+
+  pkgsInProject :: Set PackageName
+  pkgsInProject = foldMap (\p -> Set.singleton p.package.name) selectedPackages
+
+  censorLibWarnings = eq (Just CensorAllWarnings) $ workspaceOptions.censorLibWarnings
+  censorLibCodes = maybe Set.empty NonEmptySet.toSet $ workspaceOptions.censorLibCodes
+  filterLibCodes = maybe Set.empty NonEmptySet.toSet $ workspaceOptions.filterLibCodes
+
+  toDependencyDecision :: Tuple PackageName Package -> Effect (Array (String -> Maybe PathDecision))
+  toDependencyDecision dep = case snd dep of
+    WorkspacePackage p ->
+      toWorkspacePackagePathDecision
+        { selected: p
+        , psaCliFlags
+        }
+    _ -> do
+      pkgLocation <- Path.resolve [] $ Tuple.uncurry Config.getPackageLocation dep
+      pure
+        [ toPathDecision
+            { pathIsFromPackage: isJust <<< String.stripPrefix (String.Pattern pkgLocation)
+            , pathType: IsLib
+            , strict: false
+            , censorAll: censorLibWarnings
+            , censorCodes: censorLibCodes
+            , filterCodes: filterLibCodes
+            }
+        ]
 
 toWorkspacePackagePathDecision
   :: { selected :: WorkspacePackage

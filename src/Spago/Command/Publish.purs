@@ -124,7 +124,7 @@ publish _args = do
 
   -- We then need to check that the dependency graph is accurate. If not, queue the errors
   let allDependencies = Fetch.toAllDependencies dependencies
-  let globs = Build.getBuildGlobs { selected: Build.SinglePackageGlobs selected, withTests: false, dependencies: allDependencies, depsOnly: false }
+  let globs = Build.getBuildGlobs { selected: [ selected ], withTests: false, dependencies: allDependencies, depsOnly: false }
   maybeGraph <- Graph.runGraph globs []
   for_ maybeGraph \graph -> do
     graphCheckErrors <- Graph.toImportErrors selected <$> runSpago (Record.union { graph, selected } env) Graph.checkImports

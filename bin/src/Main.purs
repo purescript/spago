@@ -817,9 +817,10 @@ mkReplEnv replArgs dependencies supportPackage = do
 
   purs <- Purs.getPurs
 
-  selected <- case workspace.selected of
-    Just s -> pure $ Build.SinglePackageGlobs s
-    Nothing -> pure $ Build.AllWorkspaceGlobs workspace.packageSet
+  let
+    selected = case workspace.selected of
+      Just s -> [ s ]
+      Nothing -> Config.getWorkspacePackages workspace.packageSet
 
   pure
     { purs
