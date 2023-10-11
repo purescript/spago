@@ -1,33 +1,26 @@
 module Spago.Command.Build
   ( run
   , BuildEnv
-  , SelectedPackageGlob(..)
   , getBuildGlobs
   ) where
 
 import Spago.Prelude
 
 import Data.Array as Array
-import Data.Either (note)
 import Data.Map as Map
 import Data.Set as Set
-import Data.String as String
 import Data.Traversable (sequence)
 import Data.Tuple as Tuple
-import Dodo as Dodo
-import Effect.Ref as Ref
 import Record as Record
-import Registry.PackageName as PackageName
 import Spago.BuildInfo as BuildInfo
 import Spago.Cmd as Cmd
 import Spago.Command.Fetch as Fetch
-import Spago.Config (Package(..), PackageMap, PackageSet, WithTestGlobs(..), Workspace, WorkspacePackage)
+import Spago.Config (Package(..), PackageMap, WithTestGlobs(..), Workspace, WorkspacePackage)
 import Spago.Config as Config
 import Spago.Git (Git)
 import Spago.Psa as Psa
 import Spago.Psa.Types as PsaTypes
 import Spago.Purs (Purs)
-import Spago.Purs as Purs
 import Spago.Purs.Graph as Graph
 
 type BuildEnv a =
@@ -99,151 +92,78 @@ run opts = do
           Just _ -> ""
       ]
 
-  selectedPackages :: Array (Tuple WorkspacePackage PackageMap) <- case workspace.selected of
-    Just p -> case Map.lookup p.package.name dependencies of
-      Just allDeps -> pure [ Tuple p allDeps ]
-      Nothing -> die [ "Internal error. Did not get transitive dependencies for selected package: " <> PackageName.print p.package.name ]
-    Nothing -> do
+  let
+    allDependencies = Fetch.toAllDependencies dependencies
+    selectedPackages = case workspace.selected of
+      Just p -> [ p ]
+      Nothing -> Config.getWorkspacePackages workspace.packageSet
+    globs = getBuildGlobs
+      { dependencies: allDependencies
+      , depsOnly: opts.depsOnly
+      , withTests: true
+      , selected: selectedPackages
+      }
+  pathDecisions <- liftEffect $ sequence $ Psa.toPathDecisions
+    { allDependencies
+    , selectedPackages
+    , psaCliFlags
+    , workspaceOptions:
+        { censorLibWarnings: workspace.buildOptions.censorLibWarnings
+        , censorLibCodes: workspace.buildOptions.censorLibCodes
+        , filterLibCodes: workspace.buildOptions.filterLibCodes
+        }
+    }
+  let
+    psaArgs =
+      { color: logOptions.color
+      , jsonErrors: opts.jsonErrors
+      , decisions: join pathDecisions
+      , statVerbosity: fromMaybe Psa.defaultStatVerbosity workspace.buildOptions.statVerbosity
+      }
+
+  Psa.psaCompile globs args psaArgs
+
+  case workspace.backend of
+    Nothing -> pure unit
+    Just backend -> do
+      logInfo $ "Compiling with backend \"" <> backend.cmd <> "\""
+      logDebug $ "Running command `" <> backend.cmd <> "`"
       let
-        getTransDeps :: WorkspacePackage -> Either WorkspacePackage PackageMap
-        getTransDeps p = note p $ Map.lookup p.package.name dependencies
+        moreBackendArgs = case backend.args of
+          Just as | Array.length as > 0 -> as
+          _ -> []
+      Cmd.exec backend.cmd (addOutputArgs moreBackendArgs) Cmd.defaultExecOptions >>= case _ of
+        Left err -> do
+          logDebug $ show err
+          die [ "Failed to build with backend " <> backend.cmd ]
+        Right _r ->
+          logSuccess "Backend build succeeded."
 
-        result :: Either WorkspacePackage (Array (Tuple WorkspacePackage PackageMap))
-        result = traverse (\p -> Tuple p <$> getTransDeps p) $ Config.getTopologicallySortedWorkspacePackages workspace.packageSet
-      case result of
-        Right a -> pure a
-        Left p -> die [ "Internal error. Did not get transitive dependencies for package: " <> PackageName.print p.package.name ]
-
-  let buildingMultiplePackages = Array.length selectedPackages > 1
-
-  when buildingMultiplePackages do
-    logInfo
-      $ append "Building packages in the following order:\n"
-      $ Array.intercalate "\n"
-      $ Array.mapWithIndex (\i (Tuple p _) -> show (i + 1) <> ") " <> PackageName.print p.package.name) selectedPackages
-
-  duplicateModuleRef <- liftEffect $ Ref.new Map.empty
-  for_ selectedPackages \(Tuple selected allDependencies) -> do
-    when buildingMultiplePackages do
-      logInfo $ "Building package: " <> PackageName.print selected.package.name
-    let
-      globs = getBuildGlobs
-        { dependencies: allDependencies
-        , depsOnly: opts.depsOnly
-        , withTests: true
-        , selected: SinglePackageGlobs selected
-        }
-    depPathDecisions <- liftEffect $ sequence $ Psa.toPathDecisions
-      { allDependencies
-      , psaCliFlags
-      , workspaceOptions:
-          { censorLibWarnings: workspace.buildOptions.censorLibWarnings
-          , censorLibCodes: workspace.buildOptions.censorLibCodes
-          , filterLibCodes: workspace.buildOptions.filterLibCodes
-          }
-      }
-    projectPathDecision <- liftEffect $ Psa.toWorkspacePackagePathDecision
-      { selected
-      , psaCliFlags
-      }
-    let
-      psaArgs =
-        { color: logOptions.color
-        , jsonErrors: opts.jsonErrors
-        , decisions: projectPathDecision <> join depPathDecisions
-        , statVerbosity: fromMaybe Psa.defaultStatVerbosity workspace.buildOptions.statVerbosity
-        }
-
-    Psa.psaCompile globs args psaArgs
-
-    case workspace.backend of
-      Nothing -> pure unit
-      Just backend -> do
-        logInfo $ "Compiling with backend \"" <> backend.cmd <> "\""
-        logDebug $ "Running command `" <> backend.cmd <> "`"
-        let
-          moreBackendArgs = case backend.args of
-            Just as | Array.length as > 0 -> as
-            _ -> []
-        Cmd.exec backend.cmd (addOutputArgs moreBackendArgs) Cmd.defaultExecOptions >>= case _ of
-          Left err -> do
-            logDebug $ show err
-            die [ "Failed to build with backend " <> backend.cmd ]
-          Right _r ->
-            logSuccess "Backend build succeeded."
-
-    if buildingMultiplePackages then do
-      logDebug $ "Getting purs graph using globs for package: " <> PackageName.print selected.package.name
-      maybeGraph <- Graph.runGraph globs opts.pursArgs
-      case maybeGraph of
-        Nothing ->
-          logWarn $
-            "Due to JSON decoding failure on 'purs graph' output, \
-            \packages that define modules with the same name might not be detected."
-        Just graph -> do
-          let
-            toModulesDefinedByThisPackage :: Purs.ModuleGraphNode -> Maybe (Array (Tuple PackageName FilePath))
-            toModulesDefinedByThisPackage v =
-              [ Tuple selected.package.name v.path ] <$ (String.stripPrefix (String.Pattern selected.path) v.path)
-            modulesDefinedByThisPackage = Map.mapMaybe toModulesDefinedByThisPackage $ unwrap graph
-
-          liftEffect $ Ref.modify_ (Map.unionWith (<>) modulesDefinedByThisPackage) duplicateModuleRef
-          when workspace.buildOptions.pedanticPackages do
-            logInfo $ "Looking for unused and undeclared transitive dependencies..."
-            env <- ask
-            errors <- Graph.toImportErrors selected <$> runSpago (Record.union { graph, selected } env) Graph.checkImports
-            unless (Array.null errors) do
-              die' errors
-
-    else do
-      when workspace.buildOptions.pedanticPackages do
-        logInfo $ "Looking for unused and undeclared transitive dependencies..."
-        maybeGraph <- Graph.runGraph globs opts.pursArgs
-        for_ maybeGraph \graph -> do
-          env <- ask
+  when workspace.buildOptions.pedanticPackages do
+    logInfo $ "Looking for unused and undeclared transitive dependencies..."
+    maybeGraph <- Graph.runGraph globs opts.pursArgs
+    for_ maybeGraph \graph -> do
+      env <- ask
+      case workspace.selected of
+        Just selected -> do
           errors <- Graph.toImportErrors selected <$> runSpago (Record.union { graph, selected } env) Graph.checkImports
           unless (Array.null errors) do
             die' errors
-
-  when buildingMultiplePackages do
-    moduleMap <- liftEffect $ Ref.read duplicateModuleRef
-    let duplicateModules = Map.filter (\packages -> Array.length packages > 1) moduleMap
-    unless (Map.isEmpty duplicateModules) do
-      die $ duplicateModulesError duplicateModules
+        Nothing -> do
+          -- TODO: here we could go through all the workspace packages and run the check for each
+          -- The complication is that "dependencies" includes all the dependencies for all packages
+          errors <- map Array.fold $ for (Config.getWorkspacePackages workspace.packageSet) \selected -> do
+            Graph.toImportErrors selected <$> runSpago (Record.union { graph, selected } env) Graph.checkImports
+          unless (Array.null errors) do
+            die' errors
 
 -- TODO: if we are building with all the packages (i.e. selected = Nothing),
 -- then we can use the graph to remove outdated modules from `output`!
 
-duplicateModulesError :: Map String (Array (Tuple PackageName FilePath)) -> Docc
-duplicateModulesError duplicateModules =
-  Dodo.lines
-    [ Dodo.text $ "Detected " <> show (Map.size duplicateModules) <> " modules with the same module name across 2 or more packages defined in this workspace."
-    , duplicateModules
-        # Map.toUnfoldable
-        # Array.mapWithIndex
-            ( \idx (Tuple m ps) ->
-                Dodo.lines
-                  [ Dodo.text $ show (idx + 1) <> ") Module \"" <> m <> "\" was defined in the following packages:"
-                  , Dodo.indent
-                      $ Dodo.lines
-                      $ map
-                          ( \(Tuple pkg moduleFilePath) ->
-                              Dodo.text $ "- " <> PackageName.print pkg <> "   at path: " <> moduleFilePath
-                          )
-                      $ Array.sort ps
-                  ]
-            )
-        # Dodo.lines
-    ] :: Docc
-
-data SelectedPackageGlob
-  = SinglePackageGlobs WorkspacePackage
-  | AllWorkspaceGlobs PackageSet
-
 type BuildGlobsOptions =
   { withTests :: Boolean
   , depsOnly :: Boolean
-  , selected :: SelectedPackageGlob
+  , selected :: Array WorkspacePackage
   , dependencies :: PackageMap
   }
 
@@ -251,6 +171,13 @@ getBuildGlobs :: BuildGlobsOptions -> Set FilePath
 getBuildGlobs { selected, dependencies, withTests, depsOnly } =
   Set.fromFoldable $ projectGlobs <> monorepoPkgGlobs <> dependencyGlobs <> [ BuildInfo.buildInfoPath ]
   where
+  -- Here we select the right globs for a monorepo setup with a bunch of packages
+  projectGlobs = case depsOnly of
+    true -> []
+    false ->
+      -- We just select all the workspace package globs, because it's (1) intuitive and (2) backwards compatible
+      workspacePackageGlob =<< selected
+
   testGlobs = case withTests of
     true -> WithTestGlobs
     false -> NoTestGlobs
@@ -258,29 +185,12 @@ getBuildGlobs { selected, dependencies, withTests, depsOnly } =
   workspacePackageGlob :: WorkspacePackage -> Array String
   workspacePackageGlob p = Config.sourceGlob testGlobs p.package.name (WorkspacePackage p)
 
-  -- Note: `depsOnly` means "no packages from the monorepo", so we filter out the workspace packages.
-  -- See its usage again in `monorepoPkgGlobs`.
-  { projectGlobs, monorepoTestGlobs } = case depsOnly of
-    true ->
-      { projectGlobs: []
-      , monorepoTestGlobs: testGlobs
-      }
-    false -> case selected of
-      SinglePackageGlobs selectedPackage ->
-        { projectGlobs: workspacePackageGlob selectedPackage
-        , monorepoTestGlobs: NoTestGlobs
-        }
-      AllWorkspaceGlobs packageSet ->
-        { projectGlobs: workspacePackageGlob =<< Config.getWorkspacePackages packageSet
-        , monorepoTestGlobs: testGlobs
-        }
-
   { yes: monorepoPkgs, no: dependencyPkgs } = partition isWorkspacePackage $ Map.toUnfoldable dependencies
-
+  -- depsOnly means "no packages from the monorepo", so we filter out the workspace packages
   dependencyGlobs = (Tuple.uncurry $ Config.sourceGlob NoTestGlobs) =<< dependencyPkgs
   monorepoPkgGlobs
     | depsOnly = []
-    | otherwise = (Tuple.uncurry $ Config.sourceGlob monorepoTestGlobs) =<< monorepoPkgs
+    | otherwise = (Tuple.uncurry $ Config.sourceGlob testGlobs) =<< monorepoPkgs
 
 isWorkspacePackage :: Tuple PackageName Package -> Boolean
 isWorkspacePackage = case _ of

@@ -8,7 +8,7 @@ import Spago.Prelude
 import Data.Map as Map
 import Spago.Command.Build as Build
 import Spago.Command.Fetch as Fetch
-import Spago.Config (PackageMap)
+import Spago.Config (PackageMap, WorkspacePackage)
 import Spago.Purs (Purs)
 import Spago.Purs as Purs
 
@@ -19,7 +19,7 @@ type ReplEnv a =
   , depsOnly :: Boolean
   , logOptions :: LogOptions
   , pursArgs :: Array String
-  , selected :: Build.SelectedPackageGlob
+  , selected :: Array WorkspacePackage
   | a
   }
 
