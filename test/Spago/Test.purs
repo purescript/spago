@@ -99,7 +99,7 @@ spec = Spec.around withTempDir do
         { name: mkPackageName "package-a"
         , dependencies: [ "prelude", "effect", "console" ]
         , test: Just { moduleMain: "Test.Main" }
-        , build: Just { strict: Just true, censorProjectCodes: Nothing }
+        , build: Just { strict: Just true, censorProjectWarnings: Nothing }
         }
         { setVersion: Just $ unsafeFromRight $ Version.parse "0.0.1" }
 

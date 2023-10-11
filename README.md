@@ -1192,18 +1192,26 @@ workspace:
     pedantic_packages: false
     # Specify whether to censor warnings coming from the compiler
     # for files in the `.spago` directory`.
-    # Can be 'all' or 'none'
-    # Optional and defaults to 'none', i.e. don't censor warnings.
-    censor_library_warnings: none
-    # Optional array of warning codes to censor for files in the
-    # `.spago` directory. Only useful if `censor_warnings` is not 'none'.
-    censor_library_codes:
-      - ShadowedName
-    # Optional array of warning codes to show for files in the
-    # `.spago` directory. Only useful if `censor_library_warnings` is not 'none'
-    # and the codes here do not appear in `censor_library_codes`.
-    filter_library_codes:
-      - UnusedName
+    # Optional and can be one of three possible values
+    censor_library_warnings: 
+      # Value 1 (default): "none" - All warnings are printed
+      none
+      
+      # Value 2: "all" - All warnings are hidden
+      all
+
+      # Value 3: `Array (Either String { by_prefix :: String })`
+      # - String values: 
+      #      censor warnings if the code matches this code
+      # - { by_prefix } values: 
+      #      censor warnings if the warning's message 
+      #      starts with the given text
+      - CodeName
+      # Note: when using `by_prefix`, use the `>` for block-string: 
+      # see https://yaml-multiline.info/
+      - by_prefix: >
+        "Data.Map"'s `Semigroup instance`
+
     # Specify whether to show statistics at the end of the compilation,
     # and how verbose they should be.
     # Can be 'no-stats', 'compact-stats' (default), or 'verbose-stats',
@@ -1239,18 +1247,25 @@ package:
   build:
     # Specify whether to censor warnings coming from the compiler
     # for files from this package.
-    # Can be 'all' or 'none'
-    # Optional and defaults to 'none', i.e. don't censor warnings.
-    censor_project_warnings: none
-    # Optional array of warning codes to censor for files from this package.
-    # Only useful if `censor_project_warnings` is not 'none'.
-    censor_project_codes:
-      - ShadowedName
-    # Optional array of warning codes to show for files from this package.
-    # Only useful if `censor_project_warnings` is not 'none'
-    # and the codes here do not appear in `censor_project_codes`.
-    filter_project_codes:
-      - UnusedName
+    # Optional and can be one of three possible values
+    censor_project_warnings: 
+      # Value 1 (default): "none" - All warnings are printed
+      none
+      
+      # Value 2: "all" - All warnings are hidden
+      all
+
+      # Value 3: `Array (Either String { by_prefix :: String })`
+      # - String values: 
+      #      censor warnings if the code matches this code
+      # - { by_prefix } values: 
+      #      censor warnings if the warning's message 
+      #      starts with the given text
+      - CodeName
+      # Note: when using `by_prefix`, use the `>` for block-string: 
+      # see https://yaml-multiline.info/
+      - by_prefix: >
+        "Data.Map"'s `Semigroup instance`
     # Convert compiler warnings into errors that can fail the build.
     # Optional and defaults to false
     strict:

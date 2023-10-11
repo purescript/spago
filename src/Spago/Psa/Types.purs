@@ -16,7 +16,6 @@ module Spago.Psa.Types
   , PsaPathType(..)
   , PathDecision
   , PsaOutputOptions
-  , WorkspacePsaOutputOptions
   , PathInfo
   , Position
   , Suggestion
@@ -32,7 +31,6 @@ import Data.Codec.Argonaut as CA
 import Data.Codec.Argonaut.Compat as CACompat
 import Data.Codec.Argonaut.Record as CAR
 import Data.Maybe (Maybe(..))
-import Data.Set.NonEmpty (NonEmptySet)
 import Data.Tuple (Tuple(..))
 import Spago.Core.Config as Core
 
@@ -70,13 +68,13 @@ instance Show PsaPathType where
 
 type PathDecision =
   { pathType :: PsaPathType
-  , shouldShowError :: ErrorCode -> Boolean
+  , shouldShowError :: ErrorCode -> String -> Boolean
   , shouldPromoteWarningToError :: Boolean
   }
 
 type PathInfo =
   { path :: PsaPath
-  , shouldShowError :: ErrorCode -> Boolean
+  , shouldShowError :: ErrorCode -> String -> Boolean
   , shouldPromoteWarningToError :: Boolean
   }
 
@@ -92,13 +90,8 @@ type PsaOutputOptions =
   , strict :: Maybe Boolean
   }
 
-type WorkspacePsaOutputOptions =
-  { censorLibWarnings :: Maybe Core.CensorBuildWarnings
-  , censorLibCodes :: Maybe (NonEmptySet ErrorCode)
-  , filterLibCodes :: Maybe (NonEmptySet ErrorCode)
-  }
-
 type PsaResult =
+
   { warnings :: Array PsaError
   , errors :: Array PsaError
   }

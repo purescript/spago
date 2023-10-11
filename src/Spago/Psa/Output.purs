@@ -116,7 +116,7 @@ buildOutput loadLines options result = do
     unknownPathInfo =
       { path: Unknown
       , shouldPromoteWarningToError: false
-      , shouldShowError: \_ -> true
+      , shouldShowError: \_ _ -> true
       }
 
   onError :: ErrorTag -> Output -> Tuple PathInfo PsaError -> Spago (Purs.PursEnv a) Output
@@ -131,7 +131,7 @@ buildOutput loadLines options result = do
     shouldShowError :: Boolean
     shouldShowError = case tag of
       Error -> true
-      Warning -> pathInfo.shouldShowError error.errorCode
+      Warning -> pathInfo.shouldShowError error.errorCode error.message
 
     update :: Array PsaAnnotedError -> Spago (Purs.PursEnv a) Output
     update log =

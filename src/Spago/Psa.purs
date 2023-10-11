@@ -11,10 +11,10 @@ import Spago.Prelude
 import Control.Alternative as Alternative
 import Data.Argonaut.Parser (jsonParser)
 import Data.Array as Array
+import Data.Array.NonEmpty as NonEmptyArray
 import Data.Codec.Argonaut as CA
 import Data.Map as Map
 import Data.Set as Set
-import Data.Set.NonEmpty as NonEmptySet
 import Data.String as Str
 import Data.String as String
 import Data.Tuple as Tuple
@@ -23,12 +23,13 @@ import Foreign.Object as FO
 import Node.Encoding as Encoding
 import Node.FS.Aff as FSA
 import Node.Path as Path
-import Spago.Config (CensorBuildWarnings(..), Package(..), PackageMap, WorkspacePackage)
+import Spago.Config (Package(..), PackageMap, WorkspacePackage)
 import Spago.Config as Config
+import Spago.Core.Config (CensorBuildWarnings(..), WarningCensorTest(..))
 import Spago.Core.Config as Core
 import Spago.Psa.Output (buildOutput)
 import Spago.Psa.Printer (printDefaultOutputToErr, printJsonOutputToOut)
-import Spago.Psa.Types (ErrorCode, PathDecision, PsaArgs, PsaOutputOptions, PsaPathType(..), WorkspacePsaOutputOptions, psaResultCodec)
+import Spago.Psa.Types (ErrorCode, PathDecision, PsaArgs, PsaOutputOptions, PsaPathType(..), psaResultCodec)
 import Spago.Purs as Purs
 
 defaultStatVerbosity :: Core.StatVerbosity
@@ -90,10 +91,10 @@ toPathDecisions
   :: { allDependencies :: PackageMap
      , selectedPackages :: Array WorkspacePackage
      , psaCliFlags :: PsaOutputOptions
-     , workspaceOptions :: WorkspacePsaOutputOptions
+     , censorLibWarnings :: Maybe Core.CensorBuildWarnings
      }
   -> Array (Effect (Array (String -> Maybe PathDecision)))
-toPathDecisions { allDependencies, selectedPackages, psaCliFlags, workspaceOptions } =
+toPathDecisions { allDependencies, selectedPackages, psaCliFlags, censorLibWarnings } =
   projectDecisions <> dependencyDecisions
   where
   projectDecisions = selectedPackages <#> \selected -> toWorkspacePackagePathDecision { selected, psaCliFlags }
@@ -108,9 +109,7 @@ toPathDecisions { allDependencies, selectedPackages, psaCliFlags, workspaceOptio
   pkgsInProject :: Set PackageName
   pkgsInProject = foldMap (\p -> Set.singleton p.package.name) selectedPackages
 
-  censorLibWarnings = eq (Just CensorAllWarnings) $ workspaceOptions.censorLibWarnings
-  censorLibCodes = maybe Set.empty NonEmptySet.toSet $ workspaceOptions.censorLibCodes
-  filterLibCodes = maybe Set.empty NonEmptySet.toSet $ workspaceOptions.filterLibCodes
+  censorLibWarnings' = fromMaybe CensorAllWarnings censorLibWarnings
 
   toDependencyDecision :: Tuple PackageName Package -> Effect (Array (String -> Maybe PathDecision))
   toDependencyDecision dep = case snd dep of
@@ -126,9 +125,7 @@ toPathDecisions { allDependencies, selectedPackages, psaCliFlags, workspaceOptio
             { pathIsFromPackage: isJust <<< String.stripPrefix (String.Pattern pkgLocation)
             , pathType: IsLib
             , strict: false
-            , censorAll: censorLibWarnings
-            , censorCodes: censorLibCodes
-            , filterCodes: filterLibCodes
+            , censorWarnings: censorLibWarnings'
             }
         ]
 
@@ -146,17 +143,13 @@ toWorkspacePackagePathDecision { selected: { path, package }, psaCliFlags } = do
         { pathIsFromPackage: isJust <<< String.stripPrefix (String.Pattern srcPath)
         , pathType: IsSrc
         , strict: fromMaybe false $ psaCliFlags.strict <|> (package.build >>= _.strict)
-        , censorAll: eq (Just CensorAllWarnings) $ package.build >>= _.censor_project_warnings
-        , censorCodes: maybe Set.empty NonEmptySet.toSet $ package.build >>= _.censor_project_codes
-        , filterCodes: maybe Set.empty NonEmptySet.toSet $ package.build >>= _.filter_project_codes
+        , censorWarnings: fromMaybe CensorAllWarnings $ package.build >>= _.censor_project_warnings
         }
     , toPathDecision
         { pathIsFromPackage: isJust <<< String.stripPrefix (String.Pattern testPath)
         , pathType: IsSrc
         , strict: false
-        , censorAll: false
-        , censorCodes: Set.empty
-        , filterCodes: Set.empty
+        , censorWarnings: CensorNoWarnings
         }
     ]
 
@@ -164,9 +157,7 @@ toPathDecision
   :: { pathIsFromPackage :: String -> Boolean
      , pathType :: PsaPathType
      , strict :: Boolean
-     , censorAll :: Boolean
-     , censorCodes :: Set ErrorCode
-     , filterCodes :: Set ErrorCode
+     , censorWarnings :: Config.CensorBuildWarnings
      }
   -> String
   -> Maybe PathDecision
@@ -175,8 +166,14 @@ toPathDecision options pathToFile = do
   pure
     { pathType: options.pathType
     , shouldPromoteWarningToError: options.strict
-    , shouldShowError: \code ->
-        not options.censorAll
-          && (Set.isEmpty options.filterCodes || Set.member code options.filterCodes)
-          && (Set.isEmpty options.censorCodes || not (Set.member code options.censorCodes))
+    , shouldShowError: shouldPrintWarning options.censorWarnings
     }
+
+shouldPrintWarning :: Config.CensorBuildWarnings -> ErrorCode -> String -> Boolean
+shouldPrintWarning = case _ of
+  CensorNoWarnings -> \_ _ -> true
+  CensorAllWarnings -> \_ _ -> false
+  CensorSpecificWarnings arr -> \code msg ->
+    isJust $ flip NonEmptyArray.find arr case _ of
+      ByCode c -> c == code
+      ByMessagePrefix prefix -> isJust $ String.stripPrefix (String.Pattern prefix) msg

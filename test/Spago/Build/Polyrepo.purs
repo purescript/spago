@@ -8,7 +8,6 @@ module Test.Spago.Build.Polyrepo where
 import Test.Prelude
 
 import Data.Array as Array
-import Data.Set.NonEmpty as NonEmptySet
 import Data.String (Pattern(..), Replacement(..))
 import Data.String as String
 import Node.Path as Path
@@ -417,7 +416,11 @@ spec = Spec.describe "polyrepo" do
             , dependencies: [ "prelude" ] <> deps
             , build: Just
                 { strict: pure strict
-                , censorProjectCodes: if censorShadowedName then Just $ NonEmptySet.singleton "UnusedName" else Nothing
+                , censorProjectWarnings:
+                    if censorShadowedName then
+                      Just $ Config.CensorSpecificWarnings $ pure $ Config.ByCode "UnusedName"
+                    else
+                      Nothing
                 }
             , test: Nothing
             }

@@ -13,14 +13,12 @@ module Spago.Command.Init
 import Spago.Prelude
 
 import Data.Map as Map
-import Data.Set.NonEmpty (NonEmptySet)
 import Node.Path as Path
 import Registry.PackageName as PackageName
 import Registry.Version as Version
 import Spago.Config (Dependencies(..), SetAddress(..), Config)
 import Spago.Config as Config
 import Spago.FS as FS
-import Spago.Psa.Types as PsaTypes
 import Spago.Registry (RegistryEnv)
 import Spago.Registry as Registry
 
@@ -113,7 +111,7 @@ type DefaultConfigPackageOptions =
   { name :: PackageName
   , dependencies :: Array String
   , test :: Maybe { moduleMain :: String }
-  , build :: Maybe { strict :: Maybe Boolean, censorProjectCodes :: Maybe (NonEmptySet PsaTypes.ErrorCode) }
+  , build :: Maybe { strict :: Maybe Boolean, censorProjectWarnings :: Maybe Config.CensorBuildWarnings }
   }
 
 type DefaultConfigWorkspaceOptions =
@@ -143,10 +141,8 @@ defaultConfig' opts =
       { name
       , dependencies: Dependencies $ Map.fromFoldable $ map mkDep dependencies
       , description: Nothing
-      , build: build <#> \{ censorProjectCodes, strict } ->
-          { censor_project_warnings: Nothing
-          , censor_project_codes: censorProjectCodes
-          , filter_project_codes: Nothing
+      , build: build <#> \{ censorProjectWarnings, strict } ->
+          { censor_project_warnings: censorProjectWarnings
           , strict
           }
       , run: Nothing
