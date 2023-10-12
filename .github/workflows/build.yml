@@ -65,11 +65,13 @@ jobs:
 
       - name: Link dev dependencies as global dependencies
         run: |
-          cd ../purescript
+          cd node_modules/purescript
           npm link
+          cd -
 
           cd node_modules/esbuild
           npm link
+          cd -
 
       - name: Install PureScript dependencies
         run: npx spago install
