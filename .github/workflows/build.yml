@@ -62,7 +62,9 @@ jobs:
             output
 
       - name: Install NPM dependencies
-        run: npm ci --dd --no-audit --cache .npm
+        run: |
+          npm config set cache .npm
+          npm ci --dd --no-audit
 
       - name: Link dev dependencies as global dependencies
         run: |
