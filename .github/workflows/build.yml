@@ -63,7 +63,7 @@ jobs:
             output
 
       - name: Install NPM dependencies
-        run: npm ci
+        run: npm ci --dd
 
       - name: Link dev dependencies as global dependencies
         run: |
