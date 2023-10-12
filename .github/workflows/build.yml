@@ -64,6 +64,7 @@ jobs:
       - name: Install NPM dependencies
         run: |
           npm config set cache .npm
+          npm config set prefer-offline
           npm ci --dd --no-audit
 
       - name: Link dev dependencies as global dependencies
