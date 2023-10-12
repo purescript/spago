@@ -45,12 +45,14 @@ jobs:
         env:
           cache-name: cache-node-modules
         with:
-          path: node_modules
           key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ hashFiles('**/package-lock.json') }}
           restore-keys: |
             ${{ runner.os }}-build-${{ env.cache-name }}-
             ${{ runner.os }}-build-
             ${{ runner.os }}-
+          path: |
+            node_modules
+            ~/.npm
 
       - name: Cache PureScript dependencies
         uses: actions/cache@v2
