@@ -162,12 +162,19 @@ checkImports = do
 
   pure { unused, transitive, unusedTest, transitiveTest }
 
-toImportErrors :: WorkspacePackage -> ImportCheckResult -> Array Docc
-toImportErrors selected { unused, unusedTest, transitive, transitiveTest } =
-  (if Set.isEmpty unused then [] else [ unusedError false selected unused ])
-    <> (if Map.isEmpty transitive then [] else [ transitiveError false selected transitive ])
-    <> (if Set.isEmpty unusedTest then [] else [ unusedError true selected unusedTest ])
-    <> (if Map.isEmpty transitiveTest then [] else [ transitiveError true selected transitiveTest ])
+toImportErrors
+  :: WorkspacePackage
+  -> { reportSrc :: Boolean
+     , reportTest :: Boolean
+     }
+  -> ImportCheckResult
+  -> Array Docc
+toImportErrors selected opts { unused, unusedTest, transitive, transitiveTest } = join
+  [ if opts.reportSrc && (not $ Set.isEmpty unused) then [ unusedError false selected unused ] else []
+  , if opts.reportSrc && (not $ Map.isEmpty transitive) then [ transitiveError false selected transitive ] else []
+  , if opts.reportTest && (not $ Set.isEmpty unusedTest) then [ unusedError true selected unusedTest ] else []
+  , if opts.reportTest && (not $ Map.isEmpty transitiveTest) then [ transitiveError true selected transitiveTest ] else []
+  ]
 
 compileGlob :: forall a. FilePath -> Spago (LogEnv a) (Array FilePath)
 compileGlob sourcePath = do

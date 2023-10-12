@@ -114,6 +114,7 @@ publish _args = do
         { statVerbosity: (Nothing :: Maybe Core.StatVerbosity)
         , strict: (Nothing :: Maybe Boolean)
         }
+    , pedanticPackages: false
     }
     ( Build.run
         { depsOnly: false
@@ -127,7 +128,7 @@ publish _args = do
   let globs = Build.getBuildGlobs { selected: [ selected ], withTests: false, dependencies: allDependencies, depsOnly: false }
   maybeGraph <- Graph.runGraph globs []
   for_ maybeGraph \graph -> do
-    graphCheckErrors <- Graph.toImportErrors selected <$> runSpago (Record.union { graph, selected } env) Graph.checkImports
+    graphCheckErrors <- Graph.toImportErrors selected { reportSrc: true, reportTest: false } <$> runSpago (Record.union { graph, selected } env) Graph.checkImports
     for_ graphCheckErrors addError
 
   -- Check if all the packages have ranges, error if not
@@ -309,6 +310,7 @@ publish _args = do
             { statVerbosity: (Nothing :: Maybe Core.StatVerbosity)
             , strict: (Nothing :: Maybe Boolean)
             }
+        , pedanticPackages: false
         }
         ( Build.run
             { depsOnly: false

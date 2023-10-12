@@ -6,6 +6,7 @@ import Node.FS.Aff as FSA
 import Node.Path as Path
 import Node.Process as Process
 import Spago.Command.Init as Init
+import Spago.Core.Config (configCodec)
 import Spago.Core.Config as Config
 import Spago.FS as FS
 import Test.Spago.Build.Polyrepo as BuildPolyrepo
@@ -77,18 +78,61 @@ spec = Spec.around withTempDir do
       FS.exists "output" `Assert.shouldReturn` true
       FS.exists (Path.concat [ "subpackage", "output" ]) `Assert.shouldReturn` false
 
-    Spec.it "fails when there are imports from transitive dependencies and --pedantic-packages is passed" \{ spago, fixture } -> do
-      spago [ "init", "--name", "7368613235362d34312f4e59746b7869335477336d33414d72" ] >>= shouldBeSuccess
-      spago [ "install", "maybe" ] >>= shouldBeSuccess
-      FS.writeTextFile (Path.concat [ "src", "Main.purs" ]) "module Main where\nimport Prelude\nimport Data.Maybe\nimport Control.Alt\nmain = unit"
-      spago [ "build" ] >>= shouldBeSuccess
-      spago [ "build", "--pedantic-packages" ] >>= shouldBeFailureErr (fixture "check-direct-import-transitive-dependency.txt")
+    Spec.describe "pedantic packages" do
 
-    Spec.it "--pedantic-packages also warns about unused dependencies" \{ spago, fixture } -> do
-      spago [ "init", "--name", "7368613235362d2f444a2b4f56375435646a59726b53586548" ] >>= shouldBeSuccess
-      FS.writeTextFile (Path.concat [ "src", "Main.purs" ]) "module Main where\nimport Prelude\nmain = unit"
-      spago [ "build" ] >>= shouldBeSuccess
-      spago [ "build", "--pedantic-packages" ] >>= shouldBeFailureErr (fixture "check-unused-dependency.txt")
+      let
+        addPedanticPackagesToPackageConfig { src, test } = do
+          content <- FS.readYamlDocFile configCodec "spago.yaml"
+          case content of
+            Left err ->
+              Assert.fail $ "Failed to decode spago.yaml file\n" <> err
+            Right { yaml: config } ->
+              FS.writeYamlFile configCodec "spago.yaml" $ config
+                { package = config.package <#> \r -> r
+                    { build = Just
+                        { pedantic_packages: Just src
+                        , strict: Nothing
+                        , censor_project_warnings: Nothing
+                        }
+                    , test = r.test <#> \t -> t
+                        { pedantic_packages = Just test }
+                    }
+                }
+
+      Spec.it "fails when there are imports from transitive dependencies and --pedantic-packages is passed" \{ spago, fixture } -> do
+        spago [ "init", "--name", "7368613235362d34312f4e59746b7869335477336d33414d72" ] >>= shouldBeSuccess
+        spago [ "install", "maybe" ] >>= shouldBeSuccess
+        FS.writeTextFile (Path.concat [ "src", "Main.purs" ]) "module Main where\nimport Prelude\nimport Data.Maybe\nimport Control.Alt\nmain = unit"
+        spago [ "build" ] >>= shouldBeSuccess
+        spago [ "build", "--pedantic-packages" ] >>= shouldBeFailureErr (fixture "check-direct-import-transitive-dependency.txt")
+
+      Spec.it "fails when there are imports from transitive dependencies and --pedantic-packages is enabled in package config" \{ spago, fixture } -> do
+        spago [ "init", "--name", "7368613235362d34312f4e59746b7869335477336d33414d72" ] >>= shouldBeSuccess
+        spago [ "install", "maybe" ] >>= shouldBeSuccess
+        FS.writeTextFile (Path.concat [ "src", "Main.purs" ]) "module Main where\nimport Prelude\nimport Data.Maybe\nimport Control.Alt\nmain = unit"
+        spago [ "build" ] >>= shouldBeSuccess
+        addPedanticPackagesToPackageConfig { src: true, test: false }
+        spago [ "build" ] >>= shouldBeFailureErr (fixture "check-direct-import-transitive-dependency.txt")
+
+      Spec.it "passing --pedantic-packages also warns about unused dependencies" \{ spago, fixture } -> do
+        spago [ "init", "--name", "7368613235362d2f444a2b4f56375435646a59726b53586548" ] >>= shouldBeSuccess
+        FS.writeTextFile (Path.concat [ "src", "Main.purs" ]) "module Main where\nimport Prelude\nmain = unit"
+        spago [ "build" ] >>= shouldBeSuccess
+        spago [ "build", "--pedantic-packages" ] >>= shouldBeFailureErr (fixture "check-unused-dependency.txt")
+
+      Spec.it "enabling --pedantic-packages in package config also warns about unused dependencies" \{ spago, fixture } -> do
+        spago [ "init", "--name", "7368613235362d2f444a2b4f56375435646a59726b53586548" ] >>= shouldBeSuccess
+        FS.writeTextFile (Path.concat [ "src", "Main.purs" ]) "module Main where\nimport Prelude\nmain = unit"
+        spago [ "build" ] >>= shouldBeSuccess
+        addPedanticPackagesToPackageConfig { src: true, test: false }
+        spago [ "build" ] >>= shouldBeFailureErr (fixture "check-unused-dependency.txt")
+
+      Spec.it "enabling --pedantic-packages in package's test config also warns about unused test dependencies" \{ spago, fixture } -> do
+        spago [ "init", "--name", "7368613235362d2f444a2b4f56375435646a59726b53586548" ] >>= shouldBeSuccess
+        FS.writeTextFile (Path.concat [ "test", "Test", "Main.purs" ]) "module Test.Main where\nimport Prelude\nmain = unit"
+        spago [ "build" ] >>= shouldBeSuccess
+        addPedanticPackagesToPackageConfig { src: false, test: true }
+        spago [ "build" ] >>= shouldBeFailureErr (fixture "check-unused-test-dependency.txt")
 
     Spec.it "--strict causes build to fail if there are warnings" \{ spago, fixture } -> do
       spago [ "init" ] >>= shouldBeSuccess

@@ -8,6 +8,7 @@ module Test.Spago.Build.Polyrepo where
 import Test.Prelude
 
 import Data.Array as Array
+import Data.Map as Map
 import Data.String (Pattern(..), Replacement(..))
 import Data.String as String
 import Node.Path as Path
@@ -109,7 +110,7 @@ spec = Spec.describe "polyrepo" do
         , spagoYaml: Init.defaultConfig' $ PackageOnly
             { name: mkPackageName "case-one-package-a"
             , dependencies: [ "console", "effect", "prelude" ]
-            , test: Just { moduleMain: "Subpackage.A.Test.Main", strict: Nothing, censorTestWarnings: Nothing }
+            , test: Just { moduleMain: "Subpackage.A.Test.Main", strict: Nothing, censorTestWarnings: Nothing, pedanticPackages: Nothing, dependencies: Nothing }
             , build: Nothing
             }
         , srcMain: mkMainModuleContent
@@ -130,7 +131,7 @@ spec = Spec.describe "polyrepo" do
         , spagoYaml: Init.defaultConfig' $ PackageOnly
             { name: mkPackageName "case-one-package-b"
             , dependencies: [ "console", "effect", "prelude" ]
-            , test: Just { moduleMain: "Subpackage.B.Test.Main", strict: Nothing, censorTestWarnings: Nothing }
+            , test: Just { moduleMain: "Subpackage.B.Test.Main", strict: Nothing, censorTestWarnings: Nothing, pedanticPackages: Nothing, dependencies: Nothing }
             , build: Nothing
             }
         , srcMain: mkMainModuleContent
@@ -190,7 +191,7 @@ spec = Spec.describe "polyrepo" do
         , spagoYaml: Init.defaultConfig' $ PackageOnly
             { name: mkPackageName "case-two-package-a"
             , dependencies: [ "console", "effect", "prelude", "case-two-package-shared" ]
-            , test: Just { moduleMain: "Subpackage.A.Test.Main", strict: Nothing, censorTestWarnings: Nothing }
+            , test: Just { moduleMain: "Subpackage.A.Test.Main", strict: Nothing, censorTestWarnings: Nothing, pedanticPackages: Nothing, dependencies: Nothing }
             , build: Nothing
             }
         , srcMain: mkMainModuleContent
@@ -214,7 +215,7 @@ spec = Spec.describe "polyrepo" do
         , spagoYaml: Init.defaultConfig' $ PackageOnly
             { name: mkPackageName "case-two-package-b"
             , dependencies: [ "console", "effect", "prelude", "case-two-package-shared" ]
-            , test: Just { moduleMain: "Subpackage.B.Test.Main", strict: Nothing, censorTestWarnings: Nothing }
+            , test: Just { moduleMain: "Subpackage.B.Test.Main", strict: Nothing, censorTestWarnings: Nothing, pedanticPackages: Nothing, dependencies: Nothing }
             , build: Nothing
             }
         , srcMain: mkMainModuleContent
@@ -278,7 +279,7 @@ spec = Spec.describe "polyrepo" do
         , spagoYaml: Init.defaultConfig' $ PackageOnly
             { name: mkPackageName "case-three-package-b"
             , dependencies: [ "console", "effect", "prelude", "case-three-package-c" ]
-            , test: Just { moduleMain: "Subpackage.B.Test.Main", strict: Nothing, censorTestWarnings: Nothing }
+            , test: Just { moduleMain: "Subpackage.B.Test.Main", strict: Nothing, censorTestWarnings: Nothing, pedanticPackages: Nothing, dependencies: Nothing }
             , build: Nothing
             }
         , srcMain: mkMainModuleContent
@@ -302,7 +303,7 @@ spec = Spec.describe "polyrepo" do
         , spagoYaml: Init.defaultConfig' $ PackageOnly
             { name: mkPackageName "case-three-package-a"
             , dependencies: [ "console", "effect", "prelude", "case-three-package-b", "case-three-package-c" ]
-            , test: Just { moduleMain: "Subpackage.A.Test.Main", strict: Nothing, censorTestWarnings: Nothing }
+            , test: Just { moduleMain: "Subpackage.A.Test.Main", strict: Nothing, censorTestWarnings: Nothing, pedanticPackages: Nothing, dependencies: Nothing }
             , build: Nothing
             }
         , srcMain: mkMainModuleContent
@@ -366,7 +367,7 @@ spec = Spec.describe "polyrepo" do
       , spagoYaml: Init.defaultConfig' $ PackageOnly
           { name: mkPackageName "case-four-package-b"
           , dependencies: [ "console", "effect", "prelude" ]
-          , test: Just { moduleMain: "Subpackage.SameName.Test.Main", strict: Nothing, censorTestWarnings: Nothing }
+          , test: Just { moduleMain: "Subpackage.SameName.Test.Main", strict: Nothing, censorTestWarnings: Nothing, pedanticPackages: Nothing, dependencies: Nothing }
           , build: Nothing
           }
       , srcMain: mkMainModuleContent
@@ -387,7 +388,7 @@ spec = Spec.describe "polyrepo" do
       , spagoYaml: Init.defaultConfig' $ PackageOnly
           { name: mkPackageName "case-four-package-a"
           , dependencies: [ "console", "effect", "prelude" ]
-          , test: Just { moduleMain: "Subpackage.SameName.Test.Main", strict: Nothing, censorTestWarnings: Nothing }
+          , test: Just { moduleMain: "Subpackage.SameName.Test.Main", strict: Nothing, censorTestWarnings: Nothing, pedanticPackages: Nothing, dependencies: Nothing }
           , build: Nothing
           }
       , srcMain: mkMainModuleContent
@@ -437,6 +438,7 @@ spec = Spec.describe "polyrepo" do
                         Just $ Config.CensorSpecificWarnings $ pure $ Config.ByCode "UnusedName"
                       else
                         Nothing
+                  , pedanticPackages: Nothing
                   }
               , test: Just
                   { moduleMain: "Test.Subpackage." <> packageToModuleName packageName
@@ -446,6 +448,8 @@ spec = Spec.describe "polyrepo" do
                         Just $ Config.CensorSpecificWarnings $ pure $ Config.ByCode "UnusedName"
                       else
                         Nothing
+                  , pedanticPackages: Nothing
+                  , dependencies: Nothing
                   }
               }
           , srcMain: mkMainFile ""
@@ -531,3 +535,123 @@ spec = Spec.describe "polyrepo" do
           unless (String.contains (Pattern msg) stdErr) do
             Assert.fail $ "STDERR did not contain text:\n" <> msg <> "\n\nStderr was:\n" <> stdErr
       spago [ "build", "--ensure-ranges" ] >>= check { stdout: mempty, stderr: hasNoRootPackageError, result: isLeft }
+
+  Spec.describeOnly "pedantic packages" do
+    let
+      mkSrcModuleName packageName = "Src." <> packageToModuleName packageName
+      mkTestModuleName packageName = "Test." <> packageToModuleName packageName
+
+      {-
+                                                            /-- tuples (unused dep by `src`)      
+      newtype (transitive dep) <-- control (direct dep) <--+ 
+                                                            \-- either (unused dep by `test`)
+
+      - src and test both import `Data.Newtype` (from `newtype` package) unnecessarily,
+        thereby triggering the 'unused transitive dependency' warning
+      - src imports `tuples`
+      - test imports `either` because it inherit's `src`'s dependencies implicitly                                  -}
+      setupPackage packageName { src, test } = void $ setupDir
+        { packageName: packageName
+        , spagoYaml: Init.defaultConfig' $ PackageOnly
+            { name: mkPackageName packageName
+            , dependencies: [ "prelude", "control", "tuples" ]
+            , build: Just
+                { pedanticPackages: Just src
+                , censorProjectWarnings: Nothing
+                , strict: Nothing
+                }
+            , test: Just
+                { pedanticPackages: Just test
+                , censorTestWarnings: Nothing
+                , strict: Nothing
+                , moduleMain: mkTestModuleName packageName
+                , dependencies: Just $ Config.Dependencies $ Map.fromFoldable $ map (flip Tuple Nothing <<< mkPackageName) [ "prelude", "control", "either" ]
+                }
+            }
+        , srcMain: mkModuleContent
+            { modName: mkSrcModuleName packageName
+            , imports:
+                [ "import Control.Alt as Control"
+                , "import Data.Newtype as Newtype"
+                ]
+            , body:
+                [ ""
+                , "packageName :: String"
+                , "packageName = \"package\" <> \"" <> packageName <> "\""
+                ]
+            }
+        , testMain: mkModuleContent
+            { modName: mkTestModuleName packageName
+            , imports:
+                [ "import Control.Alt as Control"
+                , "import Data.Newtype as Newtype"
+                ]
+            , body:
+                [ ""
+                , "packageName :: String"
+                , "packageName = \"package\" <> \"" <> packageName <> "\""
+                ]
+            }
+        }
+
+      toMsgPrefix isSrc
+        | isSrc = "Sources"
+        | otherwise = "Tests"
+
+      mkUnusedDepErr isSrc package =
+        Array.intercalate "\n"
+          [ toMsgPrefix isSrc <> " for package '" <> package <> "' declares unused dependencies - please remove them from the project config:"
+          , "  - " <> (if isSrc then "tuples" else "either")
+          ]
+      mkTransitiveDepErr isSrc package =
+        Array.intercalate "\n"
+          [ Array.fold
+              [ toMsgPrefix isSrc
+              , " for package '"
+              , package
+              , "' import the following transitive dependencies - please add them to the project dependencies, or remove the imports:"
+              ]
+          , "  newtype"
+          , "    from `" <> (if isSrc then mkSrcModuleName else mkTestModuleName) package <> "`, which imports:"
+          , "      Data.Newtype"
+          ]
+    Spec.it "when package config has 'pedantic_packages: true', build fails with expected errors" \{ spago } -> do
+      writeWorkspaceOnlySpagoYamlFile
+      setupPackage "package-a" { src: true, test: false }
+      setupPackage "package-b" { src: false, test: true }
+      setupPackage "package-c" { src: true, test: true }
+
+      let
+        errs =
+          [ mkUnusedDepErr true "package-a"
+          , mkTransitiveDepErr true "package-a"
+          , mkUnusedDepErr false "package-b"
+          , mkTransitiveDepErr false "package-b"
+          , mkUnusedDepErr true "package-c"
+          , mkTransitiveDepErr true "package-c"
+          , mkUnusedDepErr false "package-c"
+          , mkTransitiveDepErr false "package-c"
+          ]
+        hasExpectedErrors stdErr = do
+          let unfoundTexts = Array.filter (\exp -> not $ String.contains (Pattern exp) stdErr) errs
+          unless (Array.null unfoundTexts) do
+            Assert.fail $ "STDERR did not contain expected texts:\n" <> (Array.intercalate "\n\n" unfoundTexts) <> "\n\nStderr was:\n" <> stdErr
+      spago [ "build" ] >>= check { stdout: mempty, stderr: hasExpectedErrors, result: isLeft }
+
+    Spec.it "passing --pedantic-packages overrides package and test configs" \{ spago } -> do
+      writeWorkspaceOnlySpagoYamlFile
+      setupPackage "package-a" { src: true, test: false }
+      setupPackage "package-b" { src: false, test: true }
+      setupPackage "package-c" { src: true, test: true }
+
+      let
+        errs = do
+          pkg <- [ "package-a", "package-b", "package-c" ]
+          isSrc <- [ true, false ]
+          fn <- [ mkUnusedDepErr, mkTransitiveDepErr ]
+          pure $ fn isSrc pkg
+        hasExpectedErrors stdErr = do
+          let unfoundTexts = Array.filter (\exp -> not $ String.contains (Pattern exp) stdErr) errs
+          unless (Array.null unfoundTexts) do
+            Assert.fail $ "STDERR did not contain expected texts:\n" <> (Array.intercalate "\n\n" unfoundTexts) <> "\n\nStderr was:\n" <> stdErr
+      spago [ "build", "--pedantic-packages" ] >>= check { stdout: mempty, stderr: hasExpectedErrors, result: isLeft }

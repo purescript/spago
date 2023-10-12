@@ -1,0 +1,18 @@
+Reading Spago workspace configuration...
+Read the package set from the registry
+
+✅ Selecting package to build: 7368613235362d2f444a2b4f56375435646a59726b53586548
+
+Downloading dependencies...
+Building...
+           Src   Lib   All
+Warnings     0     0     0
+Errors       0     0     0
+
+✅ Build succeeded.
+
+Looking for unused and undeclared transitive dependencies...
+
+❌ Tests for package '7368613235362d2f444a2b4f56375435646a59726b53586548' declares unused dependencies - please remove them from the project config:
+  - console
+  - effect

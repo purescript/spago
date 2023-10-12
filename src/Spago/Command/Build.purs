@@ -6,7 +6,9 @@ module Spago.Command.Build
 
 import Spago.Prelude
 
+import Control.Monad.ST as ST
 import Data.Array as Array
+import Data.Array.ST as STA
 import Data.Map as Map
 import Data.Set as Set
 import Data.Traversable (sequence)
@@ -30,6 +32,7 @@ type BuildEnv a =
   , logOptions :: LogOptions
   , workspace :: Workspace
   , psaCliFlags :: PsaTypes.PsaOutputOptions
+  , pedanticPackages :: Boolean
   | a
   }
 
@@ -46,6 +49,7 @@ run opts = do
   , workspace
   , logOptions
   , psaCliFlags
+  , pedanticPackages
   } <- ask
 
   BuildInfo.writeBuildInfo
@@ -135,23 +139,27 @@ run opts = do
         Right _r ->
           logSuccess "Backend build succeeded."
 
-  when workspace.buildOptions.pedanticPackages do
+  let
+    pedanticPkgs = ST.run do
+      arr <- STA.new
+      ST.foreach selectedPackages \p -> do
+        let reportSrc = pedanticPackages || (fromMaybe false $ p.package.build >>= _.pedantic_packages)
+        let reportTest = pedanticPackages || (fromMaybe false $ p.package.test >>= _.pedantic_packages)
+        when (reportSrc || reportTest) do
+          void $ STA.push (Tuple p { reportSrc, reportTest }) arr
+      STA.unsafeFreeze arr
+  unless (Array.null pedanticPkgs) do
     logInfo $ "Looking for unused and undeclared transitive dependencies..."
     maybeGraph <- Graph.runGraph globs opts.pursArgs
     for_ maybeGraph \graph -> do
       env <- ask
-      case workspace.selected of
-        Just selected -> do
-          errors <- Graph.toImportErrors selected <$> runSpago (Record.union { graph, selected } env) Graph.checkImports
-          unless (Array.null errors) do
-            die' errors
-        Nothing -> do
-          -- TODO: here we could go through all the workspace packages and run the check for each
-          -- The complication is that "dependencies" includes all the dependencies for all packages
-          errors <- map Array.fold $ for (Config.getWorkspacePackages workspace.packageSet) \selected -> do
-            Graph.toImportErrors selected <$> runSpago (Record.union { graph, selected } env) Graph.checkImports
-          unless (Array.null errors) do
-            die' errors
+      -- TODO: when the entire workspace is built, 
+      -- here we could go through all the workspace packages and run the check for each
+      -- The complication is that "dependencies" includes all the dependencies for all packages
+      errors <- map Array.fold $ for pedanticPkgs \(Tuple selected options) -> do
+        Graph.toImportErrors selected options <$> runSpago (Record.union { graph, selected } env) Graph.checkImports
+      unless (Array.null errors) do
+        die' errors
 
 -- TODO: if we are building with all the packages (i.e. selected = Nothing),
 -- then we can use the graph to remove outdated modules from `output`!
