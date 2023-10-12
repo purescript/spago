@@ -51,7 +51,6 @@ jobs:
             ${{ runner.os }}-build-
             ${{ runner.os }}-
           path: |
-            node_modules
             ~/.npm
 
       - name: Cache PureScript dependencies
@@ -63,7 +62,7 @@ jobs:
             output
 
       - name: Install NPM dependencies
-        run: npm ci --dd
+        run: npm ci --dd --prefer-offline --config=~/.npm
 
       - name: Link dev dependencies as global dependencies
         run: |
