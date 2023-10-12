@@ -62,7 +62,7 @@ jobs:
             output
 
       - name: Install NPM dependencies
-        run: npm ci --dd --prefer-offline --config=~/.npm
+        run: npm ci --dd --no-audit --config=~/.npm
 
       - name: Link dev dependencies as global dependencies
         run: |
