@@ -50,5 +50,11 @@
     "tmp": "^0.2.1",
     "xhr2": "^0.2.1",
     "yaml": "^2.1.1"
+  },
+  "devDependencies": {
+    "esbuild": "^0.19.4",
+    "purescript": "^0.15.10",
+    "purs-tidy": "^0.10.0",
+    "spago": "^0.93.17"
   }
 }
