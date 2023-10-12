@@ -83,10 +83,10 @@ jobs:
         run: ./bin/index.dev.js bundle -p spago-bin
 
       - name: Bundle docs-search client
-        run: ./bin/bundle.js bundle -p docs-search-client-halogen
+        run: ./bin/index.dev.js bundle -p docs-search-client-halogen
 
       - name: Run tests
-        run: ./bin/bundle.js test
+        run: npx spago test
 
       - name: Check formatting (Linux only)
         if: matrix.os == 'ubuntu-latest'
