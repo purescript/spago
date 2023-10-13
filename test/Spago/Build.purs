@@ -2,6 +2,7 @@ module Test.Spago.Build where
 
 import Test.Prelude
 
+import Data.Map as Map
 import Node.FS.Aff as FSA
 import Node.Path as Path
 import Node.Process as Process
@@ -94,8 +95,14 @@ spec = Spec.around withTempDir do
                         , strict: Nothing
                         , censor_project_warnings: Nothing
                         }
-                    , test = r.test <#> \t -> t
-                        { pedantic_packages = Just test }
+                    , test = Just
+                        { main: "Test.Main"
+                        , pedantic_packages: Just test
+                        , strict: Nothing
+                        , censor_test_warnings: Nothing
+                        , dependencies: Config.Dependencies $ Map.fromFoldable $ map (flip Tuple Nothing <<< mkPackageName) [ "newtype" ]
+                        , execArgs: Nothing
+                        }
                     }
                 }
 
@@ -116,13 +123,6 @@ spec = Spec.around withTempDir do
           addPedanticPackagesToPackageConfig { src: true, test: false }
           spago [ "build" ] >>= shouldBeFailureErr (fixture "check-direct-import-transitive-dependency.txt")
 
-        Spec.it "package's test config has 'pedantic_packages: true' and test code has unused dependencies" \{ spago, fixture } -> do
-          spago [ "init", "--name", "7368613235362d2f444a2b4f56375435646a59726b53586548" ] >>= shouldBeSuccess
-          FS.writeTextFile (Path.concat [ "test", "Test", "Main.purs" ]) "module Test.Main where\nimport Prelude\nmain = unit"
-          spago [ "build" ] >>= shouldBeSuccess
-          addPedanticPackagesToPackageConfig { src: false, test: true }
-          spago [ "build" ] >>= shouldBeFailureErr (fixture "check-unused-test-dependency.txt")
-
       Spec.describe "warns about unused dependencies when" do
         let
           setupSrcUnusedDeps spago = do
@@ -138,6 +138,13 @@ spec = Spec.around withTempDir do
           setupSrcUnusedDeps spago
           addPedanticPackagesToPackageConfig { src: true, test: false }
           spago [ "build" ] >>= shouldBeFailureErr (fixture "check-unused-dependency.txt")
+
+        Spec.it "package's test config has 'pedantic_packages: true' and test code has unused dependencies" \{ spago, fixture } -> do
+          spago [ "init", "--name", "7368613235362d2f444a2b4f56375435646a59726b53586548" ] >>= shouldBeSuccess
+          FS.writeTextFile (Path.concat [ "test", "Test", "Main.purs" ]) "module Test.Main where\nimport Prelude\nmain = unit"
+          spago [ "build" ] >>= shouldBeSuccess
+          addPedanticPackagesToPackageConfig { src: false, test: true }
+          spago [ "build", "--verbose" ] >>= shouldBeFailureErr (fixture "check-unused-test-dependency.txt")
 
     Spec.it "--strict causes build to fail if there are warnings" \{ spago, fixture } -> do
       spago [ "init" ] >>= shouldBeSuccess

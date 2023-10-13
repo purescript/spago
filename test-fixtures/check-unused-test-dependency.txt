@@ -14,5 +14,4 @@ Errors       0     0     0
 Looking for unused and undeclared transitive dependencies...
 
 ❌ Tests for package '7368613235362d2f444a2b4f56375435646a59726b53586548' declares unused dependencies - please remove them from the project config:
-  - console
-  - effect
+  - newtype
