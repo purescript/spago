@@ -127,9 +127,12 @@ publish _args = do
   let allDependencies = Fetch.toAllDependencies dependencies
   let globs = Build.getBuildGlobs { selected: [ selected ], withTests: false, dependencies: allDependencies, depsOnly: false }
   maybeGraph <- Graph.runGraph globs []
-  for_ maybeGraph \graph -> do
-    graphCheckErrors <- Graph.toImportErrors selected { reportSrc: true, reportTest: false } <$> runSpago (Record.union { graph, selected } env) Graph.checkImports
-    for_ graphCheckErrors addError
+  case maybeGraph of
+    Just graph -> do
+      graphCheckErrors <- Graph.toImportErrors selected { reportSrc: true, reportTest: false } <$> runSpago (Record.union { graph, selected } env) Graph.checkImports
+      for_ graphCheckErrors addError
+    Nothing ->
+      die "Failed to get `purs graph`. Cannot run required checks before publishing."
 
   -- Check if all the packages have ranges, error if not
   let
