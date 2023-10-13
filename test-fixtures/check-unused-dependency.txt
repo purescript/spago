@@ -5,9 +5,6 @@ Read the package set from the registry
 
 Downloading dependencies...
 Building...
-[1 of 3] Compiling Unsafe.Coerce
-[2 of 3] Compiling Safe.Coerce
-[3 of 3] Compiling Data.Newtype
            Src   Lib   All
 Warnings     0     0     0
 Errors       0     0     0

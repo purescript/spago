@@ -82,29 +82,24 @@ spec = Spec.around withTempDir do
     Spec.describe "pedantic packages" do
 
       let
-        addPedanticPackagesToPackageConfig { src, test } = do
+        modifyPackageConfig f = do
           content <- FS.readYamlDocFile configCodec "spago.yaml"
           case content of
             Left err ->
               Assert.fail $ "Failed to decode spago.yaml file\n" <> err
             Right { yaml: config } ->
-              FS.writeYamlFile configCodec "spago.yaml" $ config
-                { package = config.package <#> \r -> r
-                    { build = Just
-                        { pedantic_packages: Just src
-                        , strict: Nothing
-                        , censor_project_warnings: Nothing
-                        }
-                    , test = Just
-                        { main: "Test.Main"
-                        , pedantic_packages: Just test
-                        , strict: Nothing
-                        , censor_test_warnings: Nothing
-                        , dependencies: Config.Dependencies $ Map.fromFoldable $ map (flip Tuple Nothing <<< mkPackageName) [ "newtype" ]
-                        , execArgs: Nothing
-                        }
+              FS.writeYamlFile configCodec "spago.yaml" $ f config
+
+        addPedanticPackagesToSrc = modifyPackageConfig \config ->
+          config
+            { package = config.package <#> \r -> r
+                { build = Just
+                    { pedantic_packages: Just true
+                    , strict: Nothing
+                    , censor_project_warnings: Nothing
                     }
                 }
+            }
 
       Spec.describe "fails when there are imports from transitive dependencies and" do
         let
@@ -112,6 +107,7 @@ spec = Spec.around withTempDir do
             spago [ "init", "--name", "7368613235362d34312f4e59746b7869335477336d33414d72" ] >>= shouldBeSuccess
             spago [ "install", "maybe" ] >>= shouldBeSuccess
             FS.writeTextFile (Path.concat [ "src", "Main.purs" ]) "module Main where\nimport Prelude\nimport Data.Maybe\nimport Control.Alt\nmain = unit"
+            -- get rid of "Compiling ..." messages and other compiler warnings
             spago [ "build" ] >>= shouldBeSuccess
 
         Spec.it "passed --pedantic-packages CLI flag" \{ spago, fixture } -> do
@@ -120,7 +116,7 @@ spec = Spec.around withTempDir do
 
         Spec.it "package config has 'pedantic_packages: true'" \{ spago, fixture } -> do
           setupSrcTransitiveTests spago
-          addPedanticPackagesToPackageConfig { src: true, test: false }
+          addPedanticPackagesToSrc
           spago [ "build" ] >>= shouldBeFailureErr (fixture "check-direct-import-transitive-dependency.txt")
 
       Spec.describe "warns about unused dependencies when" do
@@ -128,6 +124,7 @@ spec = Spec.around withTempDir do
           setupSrcUnusedDeps spago = do
             spago [ "init", "--name", "7368613235362d2f444a2b4f56375435646a59726b53586548" ] >>= shouldBeSuccess
             FS.writeTextFile (Path.concat [ "src", "Main.purs" ]) "module Main where\nimport Prelude\nmain = unit"
+            -- get rid of "Compiling ..." messages and other compiler warnings
             spago [ "build" ] >>= shouldBeSuccess
 
         Spec.it "passing --pedantic-packages CLI flag" \{ spago, fixture } -> do
@@ -136,14 +133,31 @@ spec = Spec.around withTempDir do
 
         Spec.it "package config has 'pedantic_packages: true'" \{ spago, fixture } -> do
           setupSrcUnusedDeps spago
-          addPedanticPackagesToPackageConfig { src: true, test: false }
+          addPedanticPackagesToSrc
           spago [ "build" ] >>= shouldBeFailureErr (fixture "check-unused-dependency.txt")
 
         Spec.it "package's test config has 'pedantic_packages: true' and test code has unused dependencies" \{ spago, fixture } -> do
           spago [ "init", "--name", "7368613235362d2f444a2b4f56375435646a59726b53586548" ] >>= shouldBeSuccess
           FS.writeTextFile (Path.concat [ "test", "Test", "Main.purs" ]) "module Test.Main where\nimport Prelude\nmain = unit"
+          let
+            modifyPkgTestConfig pedantic = modifyPackageConfig \config ->
+              config
+                { package = config.package <#> \r -> r
+                    { test = Just
+                        { main: "Test.Main"
+                        , pedantic_packages: Just pedantic
+                        , strict: Nothing
+                        , censor_test_warnings: Nothing
+                        , dependencies: Config.Dependencies $ Map.fromFoldable $ map (flip Tuple Nothing <<< mkPackageName) [ "newtype" ]
+                        , execArgs: Nothing
+                        }
+                    }
+                }
+          modifyPkgTestConfig false
+          -- get rid of "Compiling ..." messages and other compiler warnings
           spago [ "build" ] >>= shouldBeSuccess
-          addPedanticPackagesToPackageConfig { src: false, test: true }
+          -- now add pedantic
+          modifyPkgTestConfig true
           spago [ "build" ] >>= shouldBeFailureErr (fixture "check-unused-test-dependency.txt")
 
     Spec.it "--strict causes build to fail if there are warnings" \{ spago, fixture } -> do
