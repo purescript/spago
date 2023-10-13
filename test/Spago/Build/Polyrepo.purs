@@ -536,7 +536,7 @@ spec = Spec.describe "polyrepo" do
             Assert.fail $ "STDERR did not contain text:\n" <> msg <> "\n\nStderr was:\n" <> stdErr
       spago [ "build", "--ensure-ranges" ] >>= check { stdout: mempty, stderr: hasNoRootPackageError, result: isLeft }
 
-  Spec.describeOnly "pedantic packages" do
+  Spec.describe "pedantic packages" do
     let
       mkSrcModuleName packageName = "Src." <> packageToModuleName packageName
       mkTestModuleName packageName = "Test." <> packageToModuleName packageName
