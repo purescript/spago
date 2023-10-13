@@ -342,23 +342,34 @@ Multiple commands are possible - they will be run in the order specified:
 $ spago build --before clear --before "notify-send 'Building'"
 ```
 
-If you want to run the program (akin to `pulp run`), just use `run`:
+If you want to run the program (akin to `pulp run`), just use `run`. The commands below are verbose until these values are defined in the configuration file:
 ```console
-# The main module defaults to "Main"
-$ spago run
+$ spago run -p package-name -m Module.Containing.Main
 
-# Or define your own module path to Main
-$ spago run --main ModulePath.To.Main
+# We can pass arguments through to `purs compile`
+$ spago run -p package-name  -m Module.Containing.Main --purs-args "--verbose-errors"
 
-# And pass arguments through to `purs compile`
-$ spago run --main ModulePath.To.Main --purs-args "--verbose-errors"
-
-# Or pass arguments to the backend, in this case node
-$ spago run -- arg1 arg2
+# We can pass arguments through to the program being run
+$ spago run -p package-name  -m Module.Containing.Main -- arg1 arg2
 ```
 
-It's also possible to configure these parameters in the configuration so you don't have to supply them at the command line.
-See [here](#the-configuration-file) for more info about this.
+Oof! That's a lot to run a command. If you configure these parameters in the package's configuration file's `package.run` section, you don't have to supply them at the command line.
+See [here](#the-configuration-file) for more info about this, but it allows us to instead write.
+
+```console
+# module defined
+spago run -p package-name
+spago run -p --purs-args "--verbose-errors"
+
+# Args passed to program defined
+$ spago run -p package-name
+```
+
+Lastly, if you only have a single package defined in the workspace with these parameters defined in the config file, you can just run
+
+```console
+spago run
+```
 
 ### Test my project
 
