@@ -1187,9 +1187,6 @@ workspace:
   build_opts:
     # Directory for the compiler products - optional, defaults to `output`.
     output: "output"
-    # Fail the build if `spago.yml` has redundant/underspecified packages.
-    # Optional boolean that defaults to `false`.
-    pedantic_packages: false
     # Specify whether to censor warnings coming from the compiler
     # for files in the `.spago` directory`.
     # Optional and can be one of two possible values
@@ -1242,6 +1239,10 @@ package:
 
   # Optional section to further customise the build for this package.
   build:
+    # Fail the build if this package's `dependencies` field has redundant/underspecified packages.
+    # Optional boolean that defaults to `false`.
+    pedantic_packages: false
+    
     # Specify whether to censor warnings coming from the compiler
     # for files from this package.
     # Optional and can be one of two possible values
@@ -1305,6 +1306,11 @@ package:
     execArgs:
       - "--cli-arg"
       - "foo"
+
+    # Fail the build if this package's test's `dependencies` field has redundant/underspecified packages.
+    # Optional boolean that defaults to `false`.
+    pedantic_packages: false
+
     # Specify whether to censor warnings coming from the compiler
     # for files from this package's test code.
     # Optional and can be one of two possible values
