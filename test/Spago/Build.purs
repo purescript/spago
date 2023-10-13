@@ -144,7 +144,7 @@ spec = Spec.around withTempDir do
           FS.writeTextFile (Path.concat [ "test", "Test", "Main.purs" ]) "module Test.Main where\nimport Prelude\nmain = unit"
           spago [ "build" ] >>= shouldBeSuccess
           addPedanticPackagesToPackageConfig { src: false, test: true }
-          spago [ "build", "--verbose" ] >>= shouldBeFailureErr (fixture "check-unused-test-dependency.txt")
+          spago [ "build" ] >>= shouldBeFailureErr (fixture "check-unused-test-dependency.txt")
 
     Spec.it "--strict causes build to fail if there are warnings" \{ spago, fixture } -> do
       spago [ "init" ] >>= shouldBeSuccess
