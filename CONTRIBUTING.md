@@ -54,6 +54,9 @@ spago build
 
 # Can of course run the tests with
 spago test
+
+# To see tests' stdout/stderr output while the tests are running, run
+SPAGO_TEST_DEBUG=1 spago
 ```
 
 ## Developing docs

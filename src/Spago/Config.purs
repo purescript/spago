@@ -70,7 +70,6 @@ type Workspace =
 
 type BuildOptions =
   { output :: Maybe FilePath
-  , pedanticPackages :: Boolean
   , censorLibWarnings :: Maybe Core.CensorBuildWarnings
   , statVerbosity :: Maybe Core.StatVerbosity
   }
@@ -381,7 +380,6 @@ readWorkspace maybeSelectedPackage = do
     buildOptions :: BuildOptions
     buildOptions =
       { output: _.output =<< workspace.build_opts
-      , pedanticPackages: fromMaybe false (_.pedantic_packages =<< workspace.build_opts)
       , censorLibWarnings: _.censor_library_warnings =<< workspace.build_opts
       , statVerbosity: _.stat_verbosity =<< workspace.build_opts
       }
