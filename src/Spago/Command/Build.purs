@@ -150,16 +150,16 @@ run opts = do
       STA.unsafeFreeze arr
   unless (Array.null pedanticPkgs) do
     logInfo $ "Looking for unused and undeclared transitive dependencies..."
-    maybeGraph <- Graph.runGraph globs opts.pursArgs
-    for_ maybeGraph \graph -> do
-      env <- ask
-      -- TODO: when the entire workspace is built, 
-      -- here we could go through all the workspace packages and run the check for each
-      -- The complication is that "dependencies" includes all the dependencies for all packages
-      errors <- map Array.fold $ for pedanticPkgs \(Tuple selected options) -> do
-        Graph.toImportErrors selected options <$> runSpago (Record.union { graph, selected } env) Graph.checkImports
-      unless (Array.null errors) do
-        die' errors
+    eitherGraph <- Graph.runGraph globs opts.pursArgs
+    graph <- either die pure eitherGraph
+    env <- ask
+    -- TODO: when the entire workspace is built, 
+    -- here we could go through all the workspace packages and run the check for each
+    -- The complication is that "dependencies" includes all the dependencies for all packages
+    errors <- map Array.fold $ for pedanticPkgs \(Tuple selected options) -> do
+      Graph.toImportErrors selected options <$> runSpago (Record.union { graph, selected } env) Graph.checkImports
+    unless (Array.null errors) do
+      die' errors
 
 -- TODO: if we are building with all the packages (i.e. selected = Nothing),
 -- then we can use the graph to remove outdated modules from `output`!

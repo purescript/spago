@@ -183,15 +183,10 @@ compileGlob sourcePath = do
     logDebug [ toDoc "Encountered some globs that are not in cwd, proceeding anyways:", indent $ toDoc failed ]
   pure (succeeded <> failed)
 
-runGraph :: forall a. Set FilePath -> Array String -> Spago (PreGraphEnv a) (Maybe Purs.ModuleGraph)
-runGraph globs pursArgs = do
-  maybeGraph <- Purs.graph globs pursArgs
-  case maybeGraph of
-    Left err -> do
-      logWarn $ "Could not decode the output of `purs graph`, error: " <> CA.printJsonDecodeError err
-      pure Nothing
-    Right graph ->
-      pure $ Just graph
+runGraph :: forall a. Set FilePath -> Array String -> Spago (PreGraphEnv a) (Either String Purs.ModuleGraph)
+runGraph globs pursArgs = map (lmap toErrorMessage) $ Purs.graph globs pursArgs
+  where
+  toErrorMessage = append "Could not decode the output of `purs graph`, error: " <<< CA.printJsonDecodeError
 
 unusedError :: Boolean -> WorkspacePackage -> Set PackageName -> Docc
 unusedError isTest selected unused = toDoc

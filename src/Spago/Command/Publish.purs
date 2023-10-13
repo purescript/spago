@@ -126,13 +126,13 @@ publish _args = do
   -- We then need to check that the dependency graph is accurate. If not, queue the errors
   let allDependencies = Fetch.toAllDependencies dependencies
   let globs = Build.getBuildGlobs { selected: [ selected ], withTests: false, dependencies: allDependencies, depsOnly: false }
-  maybeGraph <- Graph.runGraph globs []
-  case maybeGraph of
-    Just graph -> do
+  eitherGraph <- Graph.runGraph globs []
+  case eitherGraph of
+    Right graph -> do
       graphCheckErrors <- Graph.toImportErrors selected { reportSrc: true, reportTest: false } <$> runSpago (Record.union { graph, selected } env) Graph.checkImports
       for_ graphCheckErrors addError
-    Nothing ->
-      die "Failed to get `purs graph`. Cannot run required checks before publishing."
+    Left err ->
+      die err
 
   -- Check if all the packages have ranges, error if not
   let
