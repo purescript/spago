@@ -98,32 +98,32 @@ spec = Spec.around withTempDir do
                         { pedantic_packages = Just test }
                     }
                 }
+        setupSrcTransitiveTests spago = do
+          spago [ "init", "--name", "7368613235362d34312f4e59746b7869335477336d33414d72" ] >>= shouldBeSuccess
+          spago [ "install", "maybe" ] >>= shouldBeSuccess
+          FS.writeTextFile (Path.concat [ "src", "Main.purs" ]) "module Main where\nimport Prelude\nimport Data.Maybe\nimport Control.Alt\nmain = unit"
+          spago [ "build" ] >>= shouldBeSuccess
+
+        setupSrcUnusedDeps spago = do
+          spago [ "init", "--name", "7368613235362d2f444a2b4f56375435646a59726b53586548" ] >>= shouldBeSuccess
+          FS.writeTextFile (Path.concat [ "src", "Main.purs" ]) "module Main where\nimport Prelude\nmain = unit"
+          spago [ "build" ] >>= shouldBeSuccess
 
       Spec.it "fails when there are imports from transitive dependencies and --pedantic-packages is passed" \{ spago, fixture } -> do
-        spago [ "init", "--name", "7368613235362d34312f4e59746b7869335477336d33414d72" ] >>= shouldBeSuccess
-        spago [ "install", "maybe" ] >>= shouldBeSuccess
-        FS.writeTextFile (Path.concat [ "src", "Main.purs" ]) "module Main where\nimport Prelude\nimport Data.Maybe\nimport Control.Alt\nmain = unit"
-        spago [ "build" ] >>= shouldBeSuccess
+        setupSrcTransitiveTests spago
         spago [ "build", "--pedantic-packages" ] >>= shouldBeFailureErr (fixture "check-direct-import-transitive-dependency.txt")
 
       Spec.it "fails when there are imports from transitive dependencies and --pedantic-packages is enabled in package config" \{ spago, fixture } -> do
-        spago [ "init", "--name", "7368613235362d34312f4e59746b7869335477336d33414d72" ] >>= shouldBeSuccess
-        spago [ "install", "maybe" ] >>= shouldBeSuccess
-        FS.writeTextFile (Path.concat [ "src", "Main.purs" ]) "module Main where\nimport Prelude\nimport Data.Maybe\nimport Control.Alt\nmain = unit"
-        spago [ "build" ] >>= shouldBeSuccess
+        setupSrcTransitiveTests spago
         addPedanticPackagesToPackageConfig { src: true, test: false }
         spago [ "build" ] >>= shouldBeFailureErr (fixture "check-direct-import-transitive-dependency.txt")
 
       Spec.it "passing --pedantic-packages also warns about unused dependencies" \{ spago, fixture } -> do
-        spago [ "init", "--name", "7368613235362d2f444a2b4f56375435646a59726b53586548" ] >>= shouldBeSuccess
-        FS.writeTextFile (Path.concat [ "src", "Main.purs" ]) "module Main where\nimport Prelude\nmain = unit"
-        spago [ "build" ] >>= shouldBeSuccess
+        setupSrcUnusedDeps spago
         spago [ "build", "--pedantic-packages" ] >>= shouldBeFailureErr (fixture "check-unused-dependency.txt")
 
       Spec.it "enabling --pedantic-packages in package config also warns about unused dependencies" \{ spago, fixture } -> do
-        spago [ "init", "--name", "7368613235362d2f444a2b4f56375435646a59726b53586548" ] >>= shouldBeSuccess
-        FS.writeTextFile (Path.concat [ "src", "Main.purs" ]) "module Main where\nimport Prelude\nmain = unit"
-        spago [ "build" ] >>= shouldBeSuccess
+        setupSrcUnusedDeps spago
         addPedanticPackagesToPackageConfig { src: true, test: false }
         spago [ "build" ] >>= shouldBeFailureErr (fixture "check-unused-dependency.txt")
 
