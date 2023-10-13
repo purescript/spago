@@ -106,7 +106,7 @@ check checkers execResult = do
       Left err -> err.stderr
       Right res -> res.stderr
 
-  printStdoutStderr <- liftEffect $ map isJust $ Process.lookupEnv "SPT_DEBUG" -- spago test
+  printStdoutStderr <- liftEffect $ map isJust $ Process.lookupEnv "SPAGO_TEST_DEBUG"
 
   when printStdoutStderr do
     log $ "STDOUT:\n" <> prettyPrint stdout
