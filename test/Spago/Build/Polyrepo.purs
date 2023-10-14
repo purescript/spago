@@ -32,10 +32,11 @@ spec = Spec.describe "polyrepo" do
     escapePathInErrMsg = case Process.platform of
       Just Platform.Win32 -> Array.intercalate "\\"
       _ -> Array.intercalate "/"
+
+    -- | `spago [ "init" ]` will create files that we will immediately
+    -- | delete (i.e. `src/Main.purs` and `test/Main.purs`)
+    -- | or overwrite (i.e. `spago.yaml`). So, we don't call it here.
     writeWorkspaceOnlySpagoYamlFile = do
-      -- `spago [ "init" ]` will create files that we will immediately
-      -- delete (i.e. `src/Main.purs` and `test/Main.purs`)
-      -- or overwrite (i.e. `spago.yaml`). So, we don't call it here.
       FS.writeYamlFile Config.configCodec "spago.yaml"
         $ Init.defaultConfig'
         $ WorkspaceOnly { setVersion: Just $ unsafeFromRight $ Version.parse "0.0.1" }
