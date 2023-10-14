@@ -352,23 +352,42 @@ Multiple commands are possible - they will be run in the order specified:
 $ spago build --before clear --before "notify-send 'Building'"
 ```
 
-If you want to run the program (akin to `pulp run`), just use `run`:
+If you want to run the program, just use `run`:
 ```console
-# The main module defaults to "Main"
-$ spago run
+$ spago run -p package-name -m Module.Containing.Main
 
-# Or define your own module path to Main
-$ spago run --main ModulePath.To.Main
+# We can pass arguments through to `purs compile`
+$ spago run -p package-name  -m Module.Containing.Main --purs-args "--verbose-errors"
 
-# And pass arguments through to `purs compile`
-$ spago run --main ModulePath.To.Main --purs-args "--verbose-errors"
-
-# Or pass arguments to the backend, in this case node
-$ spago run -- arg1 arg2
+# We can pass arguments through to the program being run
+$ spago run -p package-name  -m Module.Containing.Main -- arg1 arg2
 ```
 
-It's also possible to configure these parameters in the configuration so you don't have to supply them at the command line.
-See [here](#the-configuration-file) for more info about this.
+Oof! That's a lot of typing. Fortunately it's possible to configure most of these parameters in the `package.run` section of your configuration file, so you don't have to supply them at the command line.
+
+See [here](#the-configuration-file) for more info about this, but it allows us to instead write:
+
+```console
+# The main module can be defined in the configuration file, but
+# purs flags still need to be supplied at the command line
+spago run -p package-name --purs-args "--verbose-errors"
+
+# It's possible to even pass arguments from the config, which would look like this:
+#
+# package:
+#   run:
+#       main: Main
+#       execArgs:
+#         - "arg1"
+#         - "arg2"
+$ spago run -p package-name
+```
+
+Lastly, if you only have a single package defined in the workspace with these parameters defined in the config file, you can just run
+
+```console
+spago run
+```
 
 ### Test my project
 
