@@ -222,7 +222,7 @@ The new package sets are instead pointing at the Registry, and can fetch compres
 
 To figure out what package set you're supposed to be using, see the section about [querying package sets](#querying-package-sets).
 
-You might also want to check out [differences from legacy spago](#differences-from-legacy-spago)
+You might also want to check out the section about [differences from legacy spago](#differences-from-legacy-spago).
 
 ### Migrate from `bower`
 
