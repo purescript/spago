@@ -1422,7 +1422,7 @@ Spago dropped support for the --watch flag in `spago build` and `spago test`.
 
 VSCode users are recommended to use the [Purescript IDE](purescript-ide) extension for seamless experiences with automatic rebuilds.
 
-Users of other editors, e.g. vim, emacs, can make use of the underlying [LSP plugin](purescript-language-server).
+Users of other editors, e.g. vim, emacs, etc., can make use of the underlying [LSP plugin](purescript-language-server).
 
 If you want a very simple drop in replacement for `spago test --watch`, you can use a general purpose tool such as [watchexec](watchexec). 
 Example:
