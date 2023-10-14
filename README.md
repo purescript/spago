@@ -364,9 +364,9 @@ Oof! That's a lot of typing. Fortunately it's possible to configure most of thes
 See [here](#the-configuration-file) for more info about this, but it allows us to instead write:
 
 ```console
-# module defined
-spago run -p package-name
-spago run -p --purs-args "--verbose-errors"
+# The main module can be defined in the configuration file, but
+# purs flags still need to be supplied at the command line
+spago run -p package-name --purs-args "--verbose-errors"
 
 # Args passed to program defined
 $ spago run -p package-name
