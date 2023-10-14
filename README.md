@@ -359,8 +359,9 @@ $ spago run -p package-name  -m Module.Containing.Main --purs-args "--verbose-er
 $ spago run -p package-name  -m Module.Containing.Main -- arg1 arg2
 ```
 
-Oof! That's a lot to run a command. If you configure these parameters in the package's configuration file's `package.run` section, you don't have to supply them at the command line.
-See [here](#the-configuration-file) for more info about this, but it allows us to instead write.
+Oof! That's a lot of typing. Fortunately it's possible to configure most of these parameters in the `package.run` section of your configuration file, so you don't have to supply them at the command line.
+
+See [here](#the-configuration-file) for more info about this, but it allows us to instead write:
 
 ```console
 # module defined
