@@ -61,7 +61,6 @@ spec = Spec.describe "polyrepo" do
       FS.writeYamlFile Config.configCodec (Path.concat [ packageName, "spago.yaml" ]) spagoYaml
       copyTemplate srcMain [ "src", "Main.purs" ]
       copyTemplate testMain [ "test", "Main.purs" ]
-      pure { src, test }
 
     mkModuleContent { modName, imports, body } = Just $ Array.intercalate "\n"
       $
@@ -72,97 +71,189 @@ spec = Spec.describe "polyrepo" do
       <> imports
       <> body
 
-    mkMainModuleContent { modName, imports, logStatement, packageName } =
-      mkModuleContent
-        { modName
-        , imports:
-            [ ""
-            , "import Effect (Effect)"
-            , "import Effect.Console (log)"
-            ]
-              <> imports
-        , body:
-            [ ""
-            , "main :: Effect Unit"
-            , "main = do"
-            , "  " <> logStatement
-            ]
-              <>
-                ( packageName # maybe [] \pkgName ->
-                    [ ""
-                    , "packageName :: String"
-                    , "packageName = \"" <> pkgName <> "\""
-                    ]
-                )
-        }
+    mkDependencies :: Array String -> Config.Dependencies
+    mkDependencies = Config.Dependencies <<< Map.fromFoldable <<< map (flip Tuple Nothing <<< mkPackageName)
+
+    -- See `config*` functions for transforms below this binding
+    mkPackageOnlyConfig
+      :: { packageName :: String, srcDependencies :: Array String }
+      -> Array (Tuple String Init.DefaultConfigPackageOptions -> Tuple String Init.DefaultConfigPackageOptions)
+      -> Config.Config
+    mkPackageOnlyConfig initialOptions transforms = do
+      let
+        initConfig :: Tuple String Init.DefaultConfigPackageOptions
+        initConfig = Tuple initialOptions.packageName $
+          { name: mkPackageName initialOptions.packageName
+          , dependencies: initialOptions.srcDependencies
+          , build: Nothing
+          , test: Nothing
+          }
+        finalConfig = foldl (\c f -> f c) initConfig transforms
+      Init.defaultConfig' $ PackageOnly $ snd finalConfig
+
+    configAddSrcStrict :: Tuple String Init.DefaultConfigPackageOptions -> Tuple String Init.DefaultConfigPackageOptions
+    configAddSrcStrict = map \r -> r
+      { build = Just
+          { strict: Just true
+          , censorProjectWarnings: r.build >>= _.censorProjectWarnings
+          , pedanticPackages: r.build >>= _.pedanticPackages
+          }
+      }
+
+    configAddSrcPedantic :: Tuple String Init.DefaultConfigPackageOptions -> Tuple String Init.DefaultConfigPackageOptions
+    configAddSrcPedantic = map \r -> r
+      { build = Just
+          { strict: r.build >>= _.strict
+          , censorProjectWarnings: r.build >>= _.censorProjectWarnings
+          , pedanticPackages: Just true
+          }
+      }
+
+    configAddSrcCensor :: Config.CensorBuildWarnings -> Tuple String Init.DefaultConfigPackageOptions -> Tuple String Init.DefaultConfigPackageOptions
+    configAddSrcCensor censors = map \r -> r
+      { build = Just
+          { strict: r.build >>= _.strict
+          , censorProjectWarnings: Just censors
+          , pedanticPackages: r.build >>= _.pedanticPackages
+          }
+      }
+
+    configAddTestMain :: Tuple String Init.DefaultConfigPackageOptions -> Tuple String Init.DefaultConfigPackageOptions
+    configAddTestMain (Tuple packageName r) = Tuple packageName $ r
+      { test = Just
+          { moduleMain: mkTestModuleName packageName
+          , strict: r.test >>= _.strict
+          , censorTestWarnings: r.test >>= _.censorTestWarnings
+          , pedanticPackages: r.test >>= _.pedanticPackages
+          , dependencies: r.test >>= _.dependencies
+          }
+      }
+
+    configAddTestStrict :: Tuple String Init.DefaultConfigPackageOptions -> Tuple String Init.DefaultConfigPackageOptions
+    configAddTestStrict (Tuple packageName r) = Tuple packageName $ r
+      { test = Just
+          { moduleMain: mkTestModuleName packageName
+          , strict: Just true
+          , censorTestWarnings: r.test >>= _.censorTestWarnings
+          , pedanticPackages: r.test >>= _.pedanticPackages
+          , dependencies: r.test >>= _.dependencies
+          }
+      }
+
+    configAddTestPedantic :: Tuple String Init.DefaultConfigPackageOptions -> Tuple String Init.DefaultConfigPackageOptions
+    configAddTestPedantic (Tuple packageName r) = Tuple packageName $ r
+      { test = Just
+          { moduleMain: mkTestModuleName packageName
+          , strict: r.test >>= _.strict
+          , censorTestWarnings: r.test >>= _.censorTestWarnings
+          , pedanticPackages: Just true
+          , dependencies: r.test >>= _.dependencies
+          }
+      }
+
+    configAddTestCensor :: Config.CensorBuildWarnings -> Tuple String Init.DefaultConfigPackageOptions -> Tuple String Init.DefaultConfigPackageOptions
+    configAddTestCensor censors (Tuple packageName r) = Tuple packageName $ r
+      { test = Just
+          { moduleMain: mkTestModuleName packageName
+          , strict: r.test >>= _.strict
+          , censorTestWarnings: Just censors
+          , pedanticPackages: r.test >>= _.pedanticPackages
+          , dependencies: r.test >>= _.dependencies
+          }
+      }
+
+    configAddTestDependencies :: Array String -> Tuple String Init.DefaultConfigPackageOptions -> Tuple String Init.DefaultConfigPackageOptions
+    configAddTestDependencies deps (Tuple packageName r) = Tuple packageName $ r
+      { test = Just
+          { moduleMain: mkTestModuleName packageName
+          , strict: r.test >>= _.strict
+          , censorTestWarnings: r.test >>= _.censorTestWarnings
+          , pedanticPackages: r.test >>= _.pedanticPackages
+          , dependencies: Just $ maybe (mkDependencies deps) (append (mkDependencies deps)) $ r.test >>= _.dependencies
+          }
+      }
 
   Spec.describe "inter-workspace package dependencies" do
+
+    let
+      setupPackageWithDeps
+        :: { packageName :: String
+           , hasTest :: Boolean
+           , deps :: Array { dep :: String, import :: String, alias :: String }
+           }
+        -> Aff { dep :: String, import :: String, alias :: String }
+      setupPackageWithDeps { packageName, hasTest, deps } = do
+        let
+          packageAlias = packageToModuleName packageName
+          packageNameValues
+            | Array.null deps = "\"no deps\""
+            | otherwise = Array.intercalate " <> " $ map (\r -> r.alias <> ".packageNameValue") deps
+        setupDir
+          { packageName: packageName
+          , spagoYaml: mkPackageOnlyConfig
+              { packageName, srcDependencies: [ "prelude" ] <> map _.dep deps }
+              [ configAddTestMain
+              , configAddTestDependencies [ "prelude", "console", "effect" ]
+              ]
+          , srcMain: mkModuleContent
+              { modName: mkSrcModuleName packageName
+              , imports: map _.import deps
+              , body:
+                  [ ""
+                  , "libraryUsage :: String"
+                  , "libraryUsage = packageNameValue <> " <> packageNameValues
+                  , ""
+                  , "packageNameValue :: String"
+                  , "packageNameValue = \"package name \" <> \"" <> packageName <> "\""
+                  ]
+              }
+          , testMain:
+              if not hasTest then Nothing
+              else mkModuleContent
+                { modName: mkTestModuleName packageName
+                , imports:
+                    [ ""
+                    , "import Effect (Effect)"
+                    , "import Effect.Console (log)"
+                    , "import " <> mkSrcModuleName packageName <> " as " <> packageAlias
+                    ]
+                      <> (map _.import deps)
+                , body:
+                    [ ""
+                    , "main :: Effect Unit"
+                    , "main = do"
+                    , "  log $ \"Test for \" <> " <> packageAlias <> ".packageNameValue <> " <> packageNameValues
+                    ]
+                }
+          }
+        pure
+          { dep: packageName
+          , import: "import " <> mkSrcModuleName packageName <> " as " <> packageAlias
+          , alias: packageAlias
+          }
 
     {-
     ```mermaid
     flowchart TD
       subgraph "Case 1"
-        A ---> Dep0["effect, console, prelude"]
+        A ---> Dep0["prelude"]
         B ---> Dep0
       end
     ```
     -}
     Spec.it "Case 1 (independent packages) builds" \{ spago } -> do
       writeWorkspaceOnlySpagoYamlFile
-      void $ setupDir
-        { packageName: "package-a"
-        , spagoYaml: Init.defaultConfig' $ PackageOnly
-            { name: mkPackageName "case-one-package-a"
-            , dependencies: [ "console", "effect", "prelude" ]
-            , test: Just { moduleMain: "Subpackage.A.Test.Main", strict: Nothing, censorTestWarnings: Nothing, pedanticPackages: Nothing, dependencies: Nothing }
-            , build: Nothing
-            }
-        , srcMain: mkMainModuleContent
-            { modName: "Subpackage.A.Main"
-            , imports: []
-            , logStatement: "log packageName"
-            , packageName: Just "packageA"
-            }
-        , testMain: mkMainModuleContent
-            { modName: "Subpackage.A.Test.Main"
-            , imports: [ "import Subpackage.A.Main as Package" ]
-            , logStatement: "log $ \"Test for \" <> Package.packageName"
-            , packageName: Nothing
-            }
-        }
-      void $ setupDir
-        { packageName: "package-b"
-        , spagoYaml: Init.defaultConfig' $ PackageOnly
-            { name: mkPackageName "case-one-package-b"
-            , dependencies: [ "console", "effect", "prelude" ]
-            , test: Just { moduleMain: "Subpackage.B.Test.Main", strict: Nothing, censorTestWarnings: Nothing, pedanticPackages: Nothing, dependencies: Nothing }
-            , build: Nothing
-            }
-        , srcMain: mkMainModuleContent
-            { modName: "Subpackage.B.Main"
-            , imports: []
-            , logStatement: "log packageName"
-            , packageName: Just "packageB"
-            }
-        , testMain: mkMainModuleContent
-            { modName: "Subpackage.B.Test.Main"
-            , imports: [ "import Subpackage.B.Main as Package" ]
-            , logStatement: "log $ \"Test for \" <> Package.packageName"
-            , packageName: Nothing
-            }
-        }
+      void $ setupPackageWithDeps { packageName: "package-a", hasTest: true, deps: [] }
+      void $ setupPackageWithDeps { packageName: "package-b", hasTest: true, deps: [] }
+      void $ setupPackageWithDeps { packageName: "package-c", hasTest: true, deps: [] }
       spago [ "build" ] >>= shouldBeSuccess
 
     {-
     ```mermaid
     flowchart TD
       subgraph "Case 2"
-        A2 ---> effect2
-        A2 ---> console2
         A2 ---> prelude2
         A2 ---> Shared2
-        B2 ---> effect2
-        B2 ---> console2
         B2 ---> prelude2
         B2 ---> Shared2
         Shared2 ---> prelude2
@@ -171,86 +262,18 @@ spec = Spec.describe "polyrepo" do
     -}
     Spec.it "Case 2 (shared dependencies packages) builds" \{ spago } -> do
       writeWorkspaceOnlySpagoYamlFile
-      void $ setupDir
-        { packageName: "package-shared"
-        , spagoYaml: Init.defaultConfig' $ PackageOnly
-            { name: mkPackageName "case-two-package-shared"
-            , dependencies: [ "prelude" ]
-            , test: Nothing
-            , build: Nothing
-            }
-        , srcMain: mkModuleContent
-            { modName: "Subpackage.Shared.Lib"
-            , imports: []
-            , body:
-                [ ""
-                , "packageName :: String"
-                , "packageName = \"package\" <> \"Shared\""
-                ]
-            }
-        , testMain: Nothing
-        }
-      void $ setupDir
-        { packageName: "package-a"
-        , spagoYaml: Init.defaultConfig' $ PackageOnly
-            { name: mkPackageName "case-two-package-a"
-            , dependencies: [ "console", "effect", "prelude", "case-two-package-shared" ]
-            , test: Just { moduleMain: "Subpackage.A.Test.Main", strict: Nothing, censorTestWarnings: Nothing, pedanticPackages: Nothing, dependencies: Nothing }
-            , build: Nothing
-            }
-        , srcMain: mkMainModuleContent
-            { modName: "Subpackage.A.Main"
-            , imports: [ "import Subpackage.Shared.Lib as Shared" ]
-            , logStatement: "log packageName"
-            , packageName: Just "packageA"
-            }
-        , testMain: mkMainModuleContent
-            { modName: "Subpackage.A.Test.Main"
-            , imports:
-                [ "import Subpackage.A.Main as Package"
-                , "import Subpackage.Shared.Lib as Shared"
-                ]
-            , logStatement: "log $ \"Test for \" <> Package.packageName <> \", not \" <> Shared.packageName"
-            , packageName: Nothing
-            }
-        }
-      void $ setupDir
-        { packageName: "package-b"
-        , spagoYaml: Init.defaultConfig' $ PackageOnly
-            { name: mkPackageName "case-two-package-b"
-            , dependencies: [ "console", "effect", "prelude", "case-two-package-shared" ]
-            , test: Just { moduleMain: "Subpackage.B.Test.Main", strict: Nothing, censorTestWarnings: Nothing, pedanticPackages: Nothing, dependencies: Nothing }
-            , build: Nothing
-            }
-        , srcMain: mkMainModuleContent
-            { modName: "Subpackage.B.Main"
-            , imports: [ "import Subpackage.Shared.Lib as Shared" ]
-            , logStatement: "log packageName"
-            , packageName: Just "packageB"
-            }
-        , testMain: mkMainModuleContent
-            { modName: "Subpackage.B.Test.Main"
-            , imports:
-                [ "import Subpackage.B.Main as Package"
-                , "import Subpackage.Shared.Lib as Shared"
-                ]
-            , logStatement: "log $ \"Test for \" <> Package.packageName <> \", not \" <> Shared.packageName"
-            , packageName: Nothing
-            }
-        }
+      shared <- setupPackageWithDeps { packageName: "package-shared", hasTest: false, deps: [] }
+      void $ setupPackageWithDeps { packageName: "package-a", hasTest: true, deps: [ shared ] }
+      void $ setupPackageWithDeps { packageName: "package-b", hasTest: true, deps: [ shared ] }
       spago [ "build" ] >>= shouldBeSuccess
 
     {-
     ```mermaid
     flowchart TD
       subgraph "Case 3"
-        A3 ---> effect3
-        A3 ---> console3
         A3 ---> prelude3
         A3 ---> B3
         A3 ---> C3
-        B3 ---> effect3
-        B3 ---> console3
         B3 ---> prelude3
         B3 ---> C3
         C3 ---> prelude3
@@ -259,87 +282,16 @@ spec = Spec.describe "polyrepo" do
     -}
     Spec.it "Case 3 (dependencies: A&B -> C; A -> B) builds" \{ spago } -> do
       writeWorkspaceOnlySpagoYamlFile
-      void $ setupDir
-        { packageName: "package-c"
-        , spagoYaml: Init.defaultConfig' $ PackageOnly
-            { name: mkPackageName "case-three-package-c"
-            , dependencies: [ "prelude" ]
-            , test: Nothing
-            , build: Nothing
-            }
-        , srcMain: mkModuleContent
-            { modName: "Subpackage.C.Lib"
-            , imports: []
-            , body:
-                [ ""
-                , "packageName :: String"
-                , "packageName = \"package\" <> \"C\""
-                ]
-            }
-        , testMain: Nothing
-        }
-      void $ setupDir
-        { packageName: "package-b"
-        , spagoYaml: Init.defaultConfig' $ PackageOnly
-            { name: mkPackageName "case-three-package-b"
-            , dependencies: [ "console", "effect", "prelude", "case-three-package-c" ]
-            , test: Just { moduleMain: "Subpackage.B.Test.Main", strict: Nothing, censorTestWarnings: Nothing, pedanticPackages: Nothing, dependencies: Nothing }
-            , build: Nothing
-            }
-        , srcMain: mkMainModuleContent
-            { modName: "Subpackage.B.Main"
-            , imports: [ "import Subpackage.C.Lib as C" ]
-            , logStatement: "log packageName"
-            , packageName: Just "packageB"
-            }
-        , testMain: mkMainModuleContent
-            { modName: "Subpackage.B.Test.Main"
-            , imports:
-                [ "import Subpackage.B.Main as Package"
-                , "import Subpackage.C.Lib as C"
-                ]
-            , logStatement: "log $ Package.packageName <> \" is not \" <> C.packageName"
-            , packageName: Nothing
-            }
-        }
-      void $ setupDir
-        { packageName: "package-a"
-        , spagoYaml: Init.defaultConfig' $ PackageOnly
-            { name: mkPackageName "case-three-package-a"
-            , dependencies: [ "console", "effect", "prelude", "case-three-package-b", "case-three-package-c" ]
-            , test: Just { moduleMain: "Subpackage.A.Test.Main", strict: Nothing, censorTestWarnings: Nothing, pedanticPackages: Nothing, dependencies: Nothing }
-            , build: Nothing
-            }
-        , srcMain: mkMainModuleContent
-            { modName: "Subpackage.A.Main"
-            , imports:
-                [ "import Subpackage.B.Main as B"
-                , "import Subpackage.C.Lib as C"
-                ]
-            , logStatement: "log $ packageName <> \" is not \" <> C.packageName <> \" or \" <> B.packageName"
-            , packageName: Just "packageA"
-            }
-        , testMain: mkMainModuleContent
-            { modName: "Subpackage.A.Test.Main"
-            , imports:
-                [ "import Subpackage.A.Main as Package"
-                , "import Subpackage.C.Lib as C"
-                ]
-            , logStatement: "log $ \"Test for \" <> Package.packageName <> \", not \" <> C.packageName"
-            , packageName: Nothing
-            }
-        }
+      pkgC <- setupPackageWithDeps { packageName: "package-c", hasTest: false, deps: [] }
+      pkgB <- setupPackageWithDeps { packageName: "package-b", hasTest: true, deps: [ pkgC ] }
+      void $ setupPackageWithDeps { packageName: "package-a", hasTest: true, deps: [ pkgC, pkgB ] }
       spago [ "build" ] >>= shouldBeSuccess
 
   {-
   ```mermaid
   flowchart TD
     subgraph "Case 4 (duplicate module)"
-      A4 ---> effect4
-      A4 ---> console4
       A4 ---> prelude4
-      B4 ---> effect4
-      B4 ---> console4
       B4 ---> prelude4
       C4 ---> prelude4
     end
@@ -347,70 +299,29 @@ spec = Spec.describe "polyrepo" do
   -}
   Spec.it "Declaring 2+ modules with the same name across 2+ packages fails to build" \{ spago } -> do
     writeWorkspaceOnlySpagoYamlFile
-    void $ setupDir
-      { packageName: "package-c"
-      , spagoYaml: Init.defaultConfig' $ PackageOnly
-          { name: mkPackageName "case-four-package-c"
-          , dependencies: [ "prelude" ]
-          , test: Nothing
-          , build: Nothing
+    let
+      sameModuleName = "SameModuleName"
+      setupPackage packageName samePkgName = do
+        void $ setupDir
+          { packageName: packageName
+          , spagoYaml: mkPackageOnlyConfig { packageName, srcDependencies: [ "prelude" ] } []
+          , srcMain: mkModuleContent
+              { modName: if samePkgName then sameModuleName else mkSrcModuleName packageName
+              , imports: []
+              , body:
+                  [ ""
+                  , "packageName :: String"
+                  , "packageName = \"" <> packageName <> "\""
+                  ]
+              }
+          , testMain: Nothing
           }
-      , srcMain: mkModuleContent
-          { modName: "Subpackage.C.Lib"
-          , imports: []
-          , body:
-              [ ""
-              , "packageName :: String"
-              , "packageName = \"package\" <> \"C\""
-              ]
-          }
-      , testMain: Nothing
-      }
-    void $ setupDir
-      { packageName: "package-b"
-      , spagoYaml: Init.defaultConfig' $ PackageOnly
-          { name: mkPackageName "case-four-package-b"
-          , dependencies: [ "console", "effect", "prelude" ]
-          , test: Just { moduleMain: "Subpackage.SameName.Test.Main", strict: Nothing, censorTestWarnings: Nothing, pedanticPackages: Nothing, dependencies: Nothing }
-          , build: Nothing
-          }
-      , srcMain: mkMainModuleContent
-          { modName: "Subpackage.SameName.Main"
-          , imports: []
-          , logStatement: "log packageName"
-          , packageName: Just "packageB"
-          }
-      , testMain: mkMainModuleContent
-          { modName: "Subpackage.SameName.Test.Main"
-          , imports: [ "import Subpackage.SameName.Main as Package" ]
-          , logStatement: "log Package.packageName"
-          , packageName: Nothing
-          }
-      }
-    void $ setupDir
-      { packageName: "package-a"
-      , spagoYaml: Init.defaultConfig' $ PackageOnly
-          { name: mkPackageName "case-four-package-a"
-          , dependencies: [ "console", "effect", "prelude" ]
-          , test: Just { moduleMain: "Subpackage.SameName.Test.Main", strict: Nothing, censorTestWarnings: Nothing, pedanticPackages: Nothing, dependencies: Nothing }
-          , build: Nothing
-          }
-      , srcMain: mkMainModuleContent
-          { modName: "Subpackage.SameName.Main"
-          , imports: []
-          , logStatement: "log packageName"
-          , packageName: Just "packageA"
-          }
-      , testMain: mkMainModuleContent
-          { modName: "Subpackage.SameName.Test.Main"
-          , imports: [ "import Subpackage.SameName.Main as Package" ]
-          , logStatement: "log Package.packageName"
-          , packageName: Nothing
-          }
-      }
+    setupPackage "package-a" true
+    setupPackage "package-b" true
+    setupPackage "package-c" false
     let
       hasExpectedModules stdErr = do
-        let exp = "Module Subpackage.SameName.Main has been defined multiple times"
+        let exp = "Module " <> sameModuleName <> " has been defined multiple times"
 
         unless (String.contains (Pattern exp) stdErr) do
           Assert.fail $ "STDERR did not contain text:\n" <> exp <> "\n\nStderr was:\n" <> stdErr
@@ -420,8 +331,8 @@ spec = Spec.describe "polyrepo" do
     let
       setupPackageWithUnusedNameWarning packageName deps strict censorShadowedName includeTestCode = do
         let
-          mkMainFile testPart = mkModuleContent
-            { modName: testPart <> "Subpackage." <> packageToModuleName packageName
+          mkMainFile isSrc = mkModuleContent
+            { modName: (if isSrc then mkSrcModuleName else mkTestModuleName) packageName
             , imports: []
             , body:
                 [ ""
@@ -432,32 +343,24 @@ spec = Spec.describe "polyrepo" do
             }
         void $ setupDir
           { packageName: packageName
-          , spagoYaml: Init.defaultConfig' $ PackageOnly
-              { name: mkPackageName packageName
-              , dependencies: [ "prelude" ] <> deps
-              , build: Just
-                  { strict: pure strict
-                  , censorProjectWarnings:
-                      if censorShadowedName then
-                        Just $ Config.CensorSpecificWarnings $ pure $ Config.ByCode "UnusedName"
-                      else
-                        Nothing
-                  , pedanticPackages: Nothing
-                  }
-              , test: Just
-                  { moduleMain: "Test.Subpackage." <> packageToModuleName packageName
-                  , strict: pure strict
-                  , censorTestWarnings:
-                      if censorShadowedName then
-                        Just $ Config.CensorSpecificWarnings $ pure $ Config.ByCode "UnusedName"
-                      else
-                        Nothing
-                  , pedanticPackages: Nothing
-                  , dependencies: Nothing
-                  }
-              }
-          , srcMain: mkMainFile ""
-          , testMain: if includeTestCode then mkMainFile "Test." else Nothing
+          , spagoYaml: do
+              let censorValue = Config.CensorSpecificWarnings $ pure $ Config.ByCode "UnusedName"
+              mkPackageOnlyConfig
+                { packageName, srcDependencies: [ "prelude" ] <> deps }
+                $
+                  [ if strict then configAddSrcStrict else identity
+                  , if censorShadowedName then configAddSrcCensor censorValue else identity
+                  ]
+                <>
+                  ( if not includeTestCode then []
+                    else
+                      [ configAddTestMain
+                      , if strict then configAddTestStrict else identity
+                      , if censorShadowedName then configAddTestCensor censorValue else identity
+                      ]
+                  )
+          , srcMain: mkMainFile true
+          , testMain: if includeTestCode then mkMainFile false else Nothing
           }
     Spec.it "build succeeds when 'strict: true' because warnings were censored" \{ spago } -> do
       writeWorkspaceOnlySpagoYamlFile
@@ -496,12 +399,7 @@ spec = Spec.describe "polyrepo" do
     let
       setupNonRootPackage packageName = void $ setupDir
         { packageName: packageName
-        , spagoYaml: Init.defaultConfig' $ PackageOnly
-            { name: mkPackageName packageName
-            , dependencies: [ "prelude" ]
-            , test: Nothing
-            , build: Nothing
-            }
+        , spagoYaml: mkPackageOnlyConfig { packageName, srcDependencies: [ "prelude" ] } []
         , srcMain: mkModuleContent
             { modName: "Subpackage." <> packageToModuleName packageName
             , imports: []
@@ -553,22 +451,13 @@ spec = Spec.describe "polyrepo" do
       - test imports `either` because it inherit's `src`'s dependencies implicitly                                  -}
       setupPackage packageName { src, test } = void $ setupDir
         { packageName: packageName
-        , spagoYaml: Init.defaultConfig' $ PackageOnly
-            { name: mkPackageName packageName
-            , dependencies: [ "prelude", "control", "tuples" ]
-            , build: Just
-                { pedanticPackages: Just src
-                , censorProjectWarnings: Nothing
-                , strict: Nothing
-                }
-            , test: Just
-                { pedanticPackages: Just test
-                , censorTestWarnings: Nothing
-                , strict: Nothing
-                , moduleMain: mkTestModuleName packageName
-                , dependencies: Just $ Config.Dependencies $ Map.fromFoldable $ map (flip Tuple Nothing <<< mkPackageName) [ "prelude", "control", "either" ]
-                }
-            }
+        , spagoYaml: mkPackageOnlyConfig
+            { packageName, srcDependencies: [ "prelude", "control", "tuples" ] }
+            [ if src then configAddSrcPedantic else identity
+            , configAddTestMain
+            , configAddTestDependencies [ "prelude", "control", "either" ]
+            , if test then configAddTestPedantic else identity
+            ]
         , srcMain: mkModuleContent
             { modName: mkSrcModuleName packageName
             , imports:
