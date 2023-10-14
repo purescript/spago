@@ -938,7 +938,7 @@ For example to generate ctags for use in your editor:
 $ spago docs --format ctags
 ```
 
-Sometimes you'd like to pull up docs for dependencies even when you have compilation errors in your project. This good use case for the --deps-only flag:
+Sometimes you'd like to pull up docs for dependencies even when you have compilation errors in your project. This is a good use case for the --deps-only flag:
 
 ```console
 $ spago docs --deps-only`
