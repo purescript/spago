@@ -347,13 +347,10 @@ writeIndex { generatedDocs } = getIndex >>> \resultsMap -> do
 
 patchHtml :: String -> Effect (Maybe String)
 patchHtml html = ado
-  dev <- isDev
   let
     patch = Fold.fold
       [ "<!-- Docs search index. -->"
-      , "<script type=\""
-      , if dev then "module" else "text/javascript"
-      , "\" src=\"./docs-search-app.js\"></script>"
+      , "<script type=\"text/javascript\" src=\"./docs-search-app.js\"></script>"
       , "<script type=\"text/javascript\">"
       , "window.DocsSearchTypeIndex = {};"
       , "window.DocsSearchIndex = {};"
@@ -410,8 +407,7 @@ createDirectories { generatedDocs } = do
 -- | the results, to the destination path.
 copyAppFile :: Config -> Aff Unit
 copyAppFile { generatedDocs } = do
-  appDir <- liftEffect getDirname
-  let appFile = Path.concat [ appDir, "docs-search-app.js" ]
+  appFile <- liftEffect getDocsSearchAppPath
   whenM (not <$> fileExists appFile) do
     liftEffect do
       logAndExit $
@@ -460,11 +456,5 @@ getPathsByGlobs :: Array String -> Aff (Array String)
 getPathsByGlobs globs =
   liftEffect $ Array.concat <$> for globs glob
 
-isDev :: Effect Boolean
-isDev = ado
-  dir <- getDirname
-  in Path.basename dir /= "bin"
-
--- | Get __dirname.
-foreign import getDirname :: Effect String
 foreign import glob :: String -> Effect (Array String)
+foreign import getDocsSearchAppPath :: Effect String
