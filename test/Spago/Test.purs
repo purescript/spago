@@ -98,8 +98,8 @@ spec = Spec.around withTempDir do
       FS.writeYamlFile Config.configCodec "spago.yaml" $ Init.defaultConfig' $ PackageAndWorkspace
         { name: mkPackageName "package-a"
         , dependencies: [ "prelude", "effect", "console" ]
-        , test: Just { moduleMain: "Test.Main", strict: Nothing, censorTestWarnings: Nothing }
-        , build: Just { strict: Just true, censorProjectWarnings: Nothing }
+        , test: Just { moduleMain: "Test.Main", strict: Nothing, censorTestWarnings: Nothing, pedanticPackages: Nothing, dependencies: Nothing }
+        , build: Just { strict: Just true, censorProjectWarnings: Nothing, pedanticPackages: Nothing }
         }
         { setVersion: Just $ unsafeFromRight $ Version.parse "0.0.1" }
 

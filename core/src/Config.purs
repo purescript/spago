@@ -126,6 +126,7 @@ type TestConfig =
   , dependencies :: Dependencies
   , censor_test_warnings :: Maybe CensorBuildWarnings
   , strict :: Maybe Boolean
+  , pedantic_packages :: Maybe Boolean
   }
 
 testConfigCodec :: JsonCodec TestConfig
@@ -135,6 +136,7 @@ testConfigCodec = CAR.object "TestConfig"
   , dependencies: dependenciesCodec
   , censor_test_warnings: CAR.optional censorBuildWarningsCodec
   , strict: CAR.optional CA.boolean
+  , pedantic_packages: CAR.optional CA.boolean
   }
 
 type BackendConfig =
@@ -151,12 +153,14 @@ backendConfigCodec = CAR.object "BackendConfig"
 type PackageBuildOptionsInput =
   { censor_project_warnings :: Maybe CensorBuildWarnings
   , strict :: Maybe Boolean
+  , pedantic_packages :: Maybe Boolean
   }
 
 packageBuildOptionsCodec :: JsonCodec PackageBuildOptionsInput
 packageBuildOptionsCodec = CAR.object "PackageBuildOptionsInput"
   { censor_project_warnings: CAR.optional censorBuildWarningsCodec
   , strict: CAR.optional CA.boolean
+  , pedantic_packages: CAR.optional CA.boolean
   }
 
 type BundleConfig =
@@ -298,7 +302,6 @@ workspaceConfigCodec = CAR.object "WorkspaceConfig"
 
 type WorkspaceBuildOptionsInput =
   { output :: Maybe FilePath
-  , pedantic_packages :: Maybe Boolean
   , censor_library_warnings :: Maybe CensorBuildWarnings
   , stat_verbosity :: Maybe StatVerbosity
   }
@@ -306,7 +309,6 @@ type WorkspaceBuildOptionsInput =
 buildOptionsCodec :: JsonCodec WorkspaceBuildOptionsInput
 buildOptionsCodec = CAR.object "WorkspaceBuildOptionsInput"
   { output: CAR.optional CA.string
-  , pedantic_packages: CAR.optional CA.boolean
   , censor_library_warnings: CAR.optional censorBuildWarningsCodec
   , stat_verbosity: CAR.optional statVerbosityCodec
   }

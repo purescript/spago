@@ -114,6 +114,7 @@ publish _args = do
         { statVerbosity: (Nothing :: Maybe Core.StatVerbosity)
         , strict: (Nothing :: Maybe Boolean)
         }
+    , pedanticPackages: false
     }
     ( Build.run
         { depsOnly: false
@@ -125,10 +126,13 @@ publish _args = do
   -- We then need to check that the dependency graph is accurate. If not, queue the errors
   let allDependencies = Fetch.toAllDependencies dependencies
   let globs = Build.getBuildGlobs { selected: [ selected ], withTests: false, dependencies: allDependencies, depsOnly: false }
-  maybeGraph <- Graph.runGraph globs []
-  for_ maybeGraph \graph -> do
-    graphCheckErrors <- Graph.toImportErrors selected <$> runSpago (Record.union { graph, selected } env) Graph.checkImports
-    for_ graphCheckErrors addError
+  eitherGraph <- Graph.runGraph globs []
+  case eitherGraph of
+    Right graph -> do
+      graphCheckErrors <- Graph.toImportErrors selected { reportSrc: true, reportTest: false } <$> runSpago (Record.union { graph, selected } env) Graph.checkImports
+      for_ graphCheckErrors addError
+    Left err ->
+      die err
 
   -- Check if all the packages have ranges, error if not
   let
@@ -309,6 +313,7 @@ publish _args = do
             { statVerbosity: (Nothing :: Maybe Core.StatVerbosity)
             , strict: (Nothing :: Maybe Boolean)
             }
+        , pedanticPackages: false
         }
         ( Build.run
             { depsOnly: false
