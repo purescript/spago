@@ -79,7 +79,9 @@ jobs:
         run: ./bin/index.dev.js bundle -p docs-search-client-halogen
 
       - name: Run tests
-        run: spago test
+        run: |
+          cat ./bin/docs-search-app.js
+          spago test
 
       - name: Check formatting (Linux only)
         if: matrix.os == 'ubuntu-latest'
