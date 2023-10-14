@@ -45,6 +45,9 @@ spec = Spec.describe "polyrepo" do
     packageToModuleName packageName =
       String.toUpper (String.replaceAll (Pattern "-") (Replacement ".") packageName)
 
+    mkSrcModuleName packageName = "Src." <> packageToModuleName packageName
+    mkTestModuleName packageName = "Test." <> packageToModuleName packageName
+
     setupDir { packageName, spagoYaml, srcMain, testMain } = do
       let
         src = Path.concat [ packageName, "src" ]
@@ -539,9 +542,6 @@ spec = Spec.describe "polyrepo" do
 
   Spec.describe "pedantic packages" do
     let
-      mkSrcModuleName packageName = "Src." <> packageToModuleName packageName
-      mkTestModuleName packageName = "Test." <> packageToModuleName packageName
-
       {-
                                                             /-- tuples (unused dep by `src`)      
       newtype (transitive dep) <-- control (direct dep) <--+ 
