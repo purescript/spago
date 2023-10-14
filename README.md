@@ -130,6 +130,8 @@ Where to go from here? There are a few places you should check out:
   - [Test dependencies](#test-dependencies)
   - [Bundle a project into a single JS file](#bundle-a-project-into-a-single-js-file)
   - [Enable source maps](#enable-source-maps)
+    - [Node](#node)
+    - [Browsers](#browsers)
   - [Skipping the "build" step](#skipping-the-build-step)
   - [Generated build info/metadata](#generated-build-infometadata)
   - [Generate documentation for my project](#generate-documentation-for-my-project)
@@ -146,6 +148,8 @@ Where to go from here? There are a few places you should check out:
   - [The lock file](#the-lock-file)
 - [FAQ](#faq)
   - [Why can't `spago` also install my npm dependencies?](#why-cant-spago-also-install-my-npm-dependencies)
+- [Differences from legacy spago](#differences-from-legacy-spago)
+  - [Watch mode](#watch-mode)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
@@ -179,7 +183,7 @@ This section contains a collection of mini-recipes you might want to follow in o
 
 ### Migrate from `spago.dhall` to `spago.yaml`
 
-You'll need to use [spago-legacy] for this:
+You'll need to use [spago-legacy] for this.
 
 ```bash
 # Install spago-legacy
@@ -192,6 +196,10 @@ spago migrate
 npm install spago@next
 rm spago.dhall packages.dhall
 ```
+
+> [!NOTE]\
+> Both `spago-legacy` and `spago` use the same NPM package name `spago`. The difference is their version numbers. `spago-legacy` stops at `spago@0.21.0` whereas `spago` is `spago@0.93.X`.
+> If `spago-legacy` is installed globally, `spago` can be installed locally via `npm i spago@next` and then used by prefixing `spago` commands with `npx` (e.g. `npx spago build`). Vice versa also works.
 
 Some packages might not be found or have the wrong version, in which case
 you'll have to carefully:
@@ -217,6 +225,8 @@ This is because the legacy package set format - while being supported - is point
 The new package sets are instead pointing at the Registry, and can fetch compressed archives from our CDN, which is much faster and more reliable.
 
 To figure out what package set you're supposed to be using, see the section about [querying package sets](#querying-package-sets).
+
+You might also want to check out the section about [differences from legacy spago](#differences-from-legacy-spago).
 
 ### Migrate from `bower`
 
@@ -342,23 +352,42 @@ Multiple commands are possible - they will be run in the order specified:
 $ spago build --before clear --before "notify-send 'Building'"
 ```
 
-If you want to run the program (akin to `pulp run`), just use `run`:
+If you want to run the program, just use `run`:
 ```console
-# The main module defaults to "Main"
-$ spago run
+$ spago run -p package-name -m Module.Containing.Main
 
-# Or define your own module path to Main
-$ spago run --main ModulePath.To.Main
+# We can pass arguments through to `purs compile`
+$ spago run -p package-name  -m Module.Containing.Main --purs-args "--verbose-errors"
 
-# And pass arguments through to `purs compile`
-$ spago run --main ModulePath.To.Main --purs-args "--verbose-errors"
-
-# Or pass arguments to the backend, in this case node
-$ spago run -- arg1 arg2
+# We can pass arguments through to the program being run
+$ spago run -p package-name  -m Module.Containing.Main -- arg1 arg2
 ```
 
-It's also possible to configure these parameters in the configuration so you don't have to supply them at the command line.
-See [here](#the-configuration-file) for more info about this.
+Oof! That's a lot of typing. Fortunately it's possible to configure most of these parameters in the `package.run` section of your configuration file, so you don't have to supply them at the command line.
+
+See [here](#the-configuration-file) for more info about this, but it allows us to instead write:
+
+```console
+# The main module can be defined in the configuration file, but
+# purs flags still need to be supplied at the command line
+spago run -p package-name --purs-args "--verbose-errors"
+
+# It's possible to even pass arguments from the config, which would look like this:
+#
+# package:
+#   run:
+#       main: Main
+#       execArgs:
+#         - "arg1"
+#         - "arg2"
+$ spago run -p package-name
+```
+
+Lastly, if you only have a single package defined in the workspace with these parameters defined in the config file, you can just run
+
+```console
+spago run
+```
 
 ### Test my project
 
@@ -1416,6 +1445,20 @@ there's enough demand).
 So this is the reason why if you or one of your dependencies need to depend on some "native"
 packages, you should run the appropriate package-manager for that (e.g. npm).
 
+## Differences from legacy spago
+
+### Watch mode
+Spago dropped support for the --watch flag in `spago build` and `spago test`. 
+
+VSCode users are recommended to use the [Purescript IDE](purescript-ide) extension for seamless experiences with automatic rebuilds.
+
+Users of other editors, e.g. vim, emacs, etc., can make use of the underlying [LSP plugin](purescript-language-server).
+
+If you want a very simple drop in replacement for `spago test --watch`, you can use a general purpose tool such as [watchexec]:
+```console
+watchexec -e purs,js,yaml -- spago test
+```
+
 [jq]: https://jqlang.github.io/jq/
 [acme]: https://hackage.haskell.org/package/acme-everything
 [pulp]: https://github.com/purescript-contrib/pulp
@@ -1437,3 +1480,6 @@ packages, you should run the appropriate package-manager for that (e.g. npm).
 [bazel-workspace]: https://bazel.build/concepts/build-ref
 [purescript-overlay]: https://github.com/thomashoneyman/purescript-overlay
 [sample-package-set]: https://github.com/purescript/registry/blob/main/package-sets/41.2.0.json
+[watchexec]: https://github.com/watchexec/watchexec#quick-start
+[purescript-langugage-server]: https://github.com/nwolverson/purescript-language-server
+[ide-purescript]: https://marketplace.visualstudio.com/items?itemName=nwolverson.ide-purescript
