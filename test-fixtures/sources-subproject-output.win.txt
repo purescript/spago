@@ -1,4 +1,4 @@
-.spago\packages\console-6.0.0\src\**\*.purs
+.spago\packages\console-6.1.0\src\**\*.purs
 .spago\packages\effect-4.0.0\src\**\*.purs
 .spago\packages\prelude-6.0.1\src\**\*.purs
 subpackage\src\**\*.purs

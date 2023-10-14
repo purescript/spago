@@ -1,6 +1,6 @@
 {
   "name": "spago",
-  "version": "0.93.15",
+  "version": "0.93.17",
   "license": "BSD-3-Clause",
   "description": "🍝 PureScript package manager and build tool",
   "keywords": [
@@ -21,7 +21,8 @@
     "spago": "bin/bundle.js"
   },
   "files": [
-    "bin/bundle.js"
+    "bin/bundle.js",
+    "bin/docs-search-app.js"
   ],
   "main": "bin/bundle.js",
   "scripts": {
@@ -29,7 +30,7 @@
     "format": "purs-tidy format-in-place core src bin docs-search",
     "format:check": "purs-tidy check core src bin docs-search",
     "bundle": "spago bundle -p spago-bin",
-    "prepublishOnly": "./bin/index.dev.js bundle -p spago-bin"
+    "prepublishOnly": "spago build && ./bin/index.dev.js bundle -p spago-bin && ./bin/index.dev.js bundle -p docs-search-client-halogen"
   },
   "dependencies": {
     "better-sqlite3": "^8.6.0",
@@ -40,6 +41,7 @@
     "glob": "^7.1.6",
     "markdown-it": "^12.0.4",
     "open": "^9.1.0",
+    "punycode": "^2.3.0",
     "semver": "^7.3.5",
     "spdx-expression-parse": "^3.0.1",
     "ssh2": "^1.14.0",

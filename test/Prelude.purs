@@ -106,7 +106,9 @@ check checkers execResult = do
       Left err -> err.stderr
       Right res -> res.stderr
 
-  when true do
+  printStdoutStderr <- liftEffect $ map isJust $ Process.lookupEnv "SPAGO_TEST_DEBUG"
+
+  when printStdoutStderr do
     log $ "STDOUT:\n" <> prettyPrint stdout
     log $ "STDERR:\n" <> prettyPrint stderr
   execResult `Assert.shouldSatisfy` checkers.result

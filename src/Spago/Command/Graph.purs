@@ -40,29 +40,25 @@ graphModules :: forall a. GraphModulesArgs -> Spago (GraphEnv a) Unit
 graphModules b = do
   { dependencies, workspace } <- ask
   let allDependencies = Fetch.toAllDependencies dependencies
-  let globs = Build.getBuildGlobs { selected: Build.AllWorkspaceGlobs workspace.packageSet, withTests: false, dependencies: allDependencies, depsOnly: false }
-  maybeGraph <- Graph.runGraph globs []
-  case maybeGraph of
-    Nothing -> pure unit
-    Just graph -> do
-      output $ OutputJson Purs.moduleGraphCodec graph
+  let globs = Build.getBuildGlobs { selected: Config.getWorkspacePackages workspace.packageSet, withTests: false, dependencies: allDependencies, depsOnly: false }
+  eitherGraph <- Graph.runGraph globs []
+  graph <- either die pure eitherGraph
+  output $ OutputJson Purs.moduleGraphCodec graph
 
 graphPackages :: forall a. GraphPackagesArgs -> Spago (GraphEnv a) Unit
 graphPackages { json, topo } = do
   env@{ dependencies, workspace } <- ask
   let allDependencies = Fetch.toAllDependencies dependencies
-  let globs = Build.getBuildGlobs { selected: Build.AllWorkspaceGlobs workspace.packageSet, withTests: false, dependencies: allDependencies, depsOnly: false }
-  maybeGraph <- Graph.runGraph globs []
-  case maybeGraph of
-    Nothing -> pure unit
-    Just graph -> do
-      let selected = unsafeFromJust $ NEA.fromArray $ Config.getWorkspacePackages workspace.packageSet
-      packageGraph <- runSpago (Record.union { selected } env) (Graph.getPackageGraph graph)
-      case topo of
-        false -> output $ OutputJson Graph.packageGraphCodec packageGraph
-        true -> output $ OutputJson (CA.list PackageName.codec)
-          $ List.reverse
-          $ Data.Graph.topologicalSort
-          $ Data.Graph.fromMap
-          $ map (\{ depends } -> Tuple unit $ List.fromFoldable depends) packageGraph
+  let globs = Build.getBuildGlobs { selected: Config.getWorkspacePackages workspace.packageSet, withTests: false, dependencies: allDependencies, depsOnly: false }
+  eitherGraph <- Graph.runGraph globs []
+  graph <- either die pure eitherGraph
+  let selected = unsafeFromJust $ NEA.fromArray $ Config.getWorkspacePackages workspace.packageSet
+  packageGraph <- runSpago (Record.union { selected } env) (Graph.getPackageGraph graph)
+  case topo of
+    false -> output $ OutputJson Graph.packageGraphCodec packageGraph
+    true -> output $ OutputJson (CA.list PackageName.codec)
+      $ List.reverse
+      $ Data.Graph.topologicalSort
+      $ Data.Graph.fromMap
+      $ map (\{ depends } -> Tuple unit $ List.fromFoldable depends) packageGraph
 

@@ -13,14 +13,12 @@ module Spago.Command.Init
 import Spago.Prelude
 
 import Data.Map as Map
-import Data.Set.NonEmpty (NonEmptySet)
 import Node.Path as Path
 import Registry.PackageName as PackageName
 import Registry.Version as Version
 import Spago.Config (Dependencies(..), SetAddress(..), Config)
 import Spago.Config as Config
 import Spago.FS as FS
-import Spago.Psa.Types as PsaTypes
 import Spago.Registry (RegistryEnv)
 import Spago.Registry as Registry
 
@@ -102,7 +100,7 @@ defaultConfig { name, withWorkspace, testModuleName } = do
     pkg =
       { name
       , dependencies: [ "effect", "console", "prelude" ]
-      , test: Just { moduleMain: testModuleName }
+      , test: Just { moduleMain: testModuleName, strict: Nothing, censorTestWarnings: Nothing, pedanticPackages: Nothing, dependencies: Nothing }
       , build: Nothing
       }
   defaultConfig' case withWorkspace of
@@ -112,8 +110,20 @@ defaultConfig { name, withWorkspace, testModuleName } = do
 type DefaultConfigPackageOptions =
   { name :: PackageName
   , dependencies :: Array String
-  , test :: Maybe { moduleMain :: String }
-  , build :: Maybe { strict :: Maybe Boolean, censorProjectCodes :: Maybe (NonEmptySet PsaTypes.ErrorCode) }
+  , test ::
+      Maybe
+        { moduleMain :: String
+        , strict :: Maybe Boolean
+        , censorTestWarnings :: Maybe Config.CensorBuildWarnings
+        , pedanticPackages :: Maybe Boolean
+        , dependencies :: Maybe Config.Dependencies
+        }
+  , build ::
+      Maybe
+        { strict :: Maybe Boolean
+        , censorProjectWarnings :: Maybe Config.CensorBuildWarnings
+        , pedanticPackages :: Maybe Boolean
+        }
   }
 
 type DefaultConfigWorkspaceOptions =
@@ -143,17 +153,19 @@ defaultConfig' opts =
       { name
       , dependencies: Dependencies $ Map.fromFoldable $ map mkDep dependencies
       , description: Nothing
-      , build: build <#> \{ censorProjectCodes, strict } ->
-          { censor_project_warnings: Nothing
-          , censor_project_codes: censorProjectCodes
-          , filter_project_codes: Nothing
+      , build: build <#> \{ censorProjectWarnings, strict, pedanticPackages } ->
+          { censor_project_warnings: censorProjectWarnings
           , strict
+          , pedantic_packages: pedanticPackages
           }
       , run: Nothing
-      , test: test <#> \{ moduleMain } ->
-          { dependencies: Dependencies Map.empty
+      , test: test <#> \{ moduleMain, censorTestWarnings, strict, pedanticPackages, dependencies: testDeps } ->
+          { dependencies: fromMaybe (Dependencies Map.empty) testDeps
           , execArgs: Nothing
           , main: moduleMain
+          , censor_test_warnings: censorTestWarnings
+          , strict
+          , pedantic_packages: pedanticPackages
           }
       , publish: Nothing
       , bundle: Nothing

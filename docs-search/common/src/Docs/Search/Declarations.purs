@@ -208,7 +208,7 @@ extractPackageName _ Nothing = UnknownPackage
 extractPackageName _ (Just (SourceSpan { name })) =
   fromMaybe LocalPackage do
     topLevelDir <- dirs !! 0
-    if topLevelDir == ".spago" then Package <<< PackageName <$> dirs !! 1
+    if topLevelDir == ".spago" then Package <<< PackageName <$> dirs !! 2
     else do
       bowerDirIx <- Array.findIndex (_ == "bower_components") dirs
       Package <<< PackageName <$> dirs !! (bowerDirIx + 1)

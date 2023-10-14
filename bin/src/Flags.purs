@@ -4,11 +4,9 @@ import Spago.Prelude
 
 import Data.Array as Array
 import Data.List as List
-import Data.Set.NonEmpty (NonEmptySet)
-import Data.Set.NonEmpty as NonEmptySet
 import Options.Applicative (FlagFields, Mod, Parser)
 import Options.Applicative as O
-import Options.Applicative.Types as O
+import Options.Applicative.Types as OT
 import Spago.Core.Config as Core
 
 flagMaybe ∷ ∀ (a ∷ Type). a -> Mod FlagFields (Maybe a) -> Parser (Maybe a)
@@ -16,7 +14,7 @@ flagMaybe a mod = O.flag Nothing (Just a) mod
 
 selectedPackage :: Parser (Maybe String)
 selectedPackage =
-  O.optional $
+  OT.optional $
     O.strOption
       ( O.long "package"
           <> O.short 'p'
@@ -52,7 +50,7 @@ minify =
 
 entrypoint :: Parser (Maybe String)
 entrypoint =
-  O.optional
+  OT.optional
     $ O.strOption
         ( O.long "module"
             <> O.help "The module to bundle as the entrypoint"
@@ -60,7 +58,7 @@ entrypoint =
 
 bundleType :: Parser (Maybe String)
 bundleType =
-  O.optional
+  OT.optional
     $ O.strOption
         ( O.long "bundle-type"
             <> O.help "The type of the module produced. 'app' will call main, 'module' will just export the contents."
@@ -68,7 +66,7 @@ bundleType =
 
 outfile :: Parser (Maybe String)
 outfile =
-  O.optional
+  OT.optional
     $ O.strOption
         ( O.long "outfile"
             <> O.help "Destination path for the bundle"
@@ -77,7 +75,7 @@ outfile =
 -- TODO make an ADT for node and browser
 platform :: Parser (Maybe String)
 platform =
-  O.optional
+  OT.optional
     $ O.option
         ( O.eitherReader
             case _ of
@@ -91,12 +89,11 @@ platform =
 
 output :: Parser (Maybe String)
 output =
-  O.optional
+  OT.optional
     $ O.strOption
         ( O.long "output"
             <> O.help "The output directory for compiled files"
             <> O.metavar "DIR"
-            <> O.value "output"
         )
 
 quiet :: Parser Boolean
@@ -188,7 +185,7 @@ pursArgs =
 
 execArgs :: Parser (Maybe (Array String))
 execArgs =
-  O.optional
+  OT.optional
     $ Array.fromFoldable
     <$> O.many
       ( O.strArgument
@@ -208,7 +205,7 @@ backendArgs =
 
 moduleName :: Parser (Maybe String)
 moduleName =
-  O.optional
+  OT.optional
     $ O.strOption
         ( O.long "main"
             <> O.short 'm'
@@ -246,7 +243,7 @@ package =
 
 maybeVersion :: Parser (Maybe String)
 maybeVersion =
-  O.optional $
+  OT.optional $
     O.strArgument
       ( O.metavar "VERSION"
           <> O.help "Package version"
@@ -254,7 +251,7 @@ maybeVersion =
 
 maybeSetVersion :: Parser (Maybe String)
 maybeSetVersion =
-  O.optional $
+  OT.optional $
     O.strOption
       ( O.long "package-set"
           <> O.help "Optional package set version to be used instead of the latest one"
@@ -262,7 +259,7 @@ maybeSetVersion =
 
 maybePackageName :: Parser (Maybe String)
 maybePackageName =
-  O.optional $
+  OT.optional $
     O.strOption
       ( O.long "name"
           <> O.help "Optional package name to be used for the new project"

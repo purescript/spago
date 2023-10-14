@@ -199,7 +199,7 @@ insertVersionInfo = do
       prefix <- Document.createTextNode " - patched by " doc <#> Text.toNode
       linkElement <- Document.createElement "a" doc
       let linkNode = Element.toNode linkElement
-      Element.setAttribute "href" "https://github.com/purescript/purescript-docs-search" linkElement
+      Element.setAttribute "href" "https://github.com/purescript/spago/tree/master/docs-search" linkElement
       Element.setAttribute "target" "_blank" linkElement
       linkText <- Document.createTextNode ("docs-search") doc <#> Text.toNode
       suffix <- Document.createTextNode (" " <> Config.version) doc <#> Text.toNode

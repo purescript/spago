@@ -50,6 +50,7 @@ import Node.Encoding (Encoding(UTF8))
 import Node.FS.Aff (mkdir, readFile, readTextFile, readdir, stat, writeFile, writeTextFile)
 import Node.FS.Stats (isDirectory, isFile)
 import Node.FS.Sync (exists)
+import Node.Path as Path
 import Node.Process as Process
 import Web.Bower.PackageMeta (PackageMeta(..))
 import Codec.Json.Unidirectional.Value as JsonCodec
@@ -92,8 +93,7 @@ run' cfg = do
         <> show countOfModules
         <> " modules from "
         <> show countOfPackages
-        <>
-          " packages..."
+        <> " packages..."
 
   let
     scores = mkScores packageMetas
@@ -140,7 +140,7 @@ checkDirectories cfg = do
   let
     dirs =
       [ cfg.generatedDocs
-      , cfg.generatedDocs <> "/html"
+      , Path.concat [ cfg.generatedDocs, "html" ]
       ]
 
   for_ dirs \dir -> do
@@ -169,14 +169,18 @@ decodeDocsJsons cfg@{ docsFiles } = do
     if doesExist then do
 
       contents <- readTextFile UTF8 jsonFile
-      let eiResult = jsonParser contents >>= left JsonCodec.printDecodeError <<< decodeDocModule
+      let
+        eiResult :: Either String DocModule
+        eiResult =
+          jsonParser contents >>=
+            (Docs.toDocModule >>> left JsonCodec.printDecodeError)
 
       case eiResult of
         Left error -> do
           liftEffect $ log $
             "\"docs.json\" decoding failed failed for " <> jsonFile <> ": " <> error
           pure Nothing
-        Right result -> pure result
+        Right result -> pure $ Just result
 
     else do
       liftEffect $ do
@@ -189,10 +193,6 @@ decodeDocsJsons cfg@{ docsFiles } = do
       "Couldn't decode any of the files matched by the following globs: " <> showGlobs cfg.docsFiles
 
   pure docsJsons
-
-  where
-  decodeDocModule :: Json -> Either JsonCodec.DecodeError (Maybe DocModule)
-  decodeDocModule = JsonCodec.toNullNothingOrJust Docs.toDocModule
 
 -- | This function accepts an array of globs pointing to project sources
 -- | and returns a list of module names extracted from these files.
@@ -236,9 +236,9 @@ decodeBowerJsons { bowerFiles } = do
       for paths \jsonFileName ->
         join <$> withExisting jsonFileName
           \contents ->
-            either (logError jsonFileName) pure
+            either (logError jsonFileName) (pure <<< Just)
               ( jsonParser contents >>=
-                  CA.decode (CA.maybe PackageIndex.packageMetaCodec) >>>
+                  CA.decode (PackageIndex.packageMetaCodec) >>>
                     left CA.printJsonDecodeError
               )
 
@@ -249,7 +249,7 @@ decodeBowerJsons { bowerFiles } = do
 
   logError fileName error = do
     liftEffect $ log $
-      "\"bower.json\" decoding failed failed for " <> fileName <> ": " <> error
+      "\"bower.json\" decoding failed for " <> fileName <> ": " <> error
     pure Nothing
 
 -- | Write type index parts to files.
@@ -367,10 +367,10 @@ patchDocs :: Config -> Aff Unit
 patchDocs cfg = do
   let dirname = cfg.generatedDocs
 
-  files <- readdir (dirname <> "html")
+  files <- readdir (Path.concat [ dirname, "html" ])
 
   for_ files \file -> do
-    let path = dirname <> "html/" <> file
+    let path = Path.concat [ dirname, "html", file ]
 
     whenM (fileExists path) do
       contents <- readTextFile UTF8 path
@@ -384,10 +384,10 @@ patchDocs cfg = do
 createDirectories :: Config -> Aff Unit
 createDirectories { generatedDocs } = do
   let
-    htmlDocs = generatedDocs <> "/html"
-    indexDir = generatedDocs <> "/html/index"
-    declIndexDir = generatedDocs <> "/html/index/declarations"
-    typeIndexDir = generatedDocs <> "/html/index/types"
+    htmlDocs = Path.concat [ generatedDocs, "html" ]
+    indexDir = Path.concat [ generatedDocs, "html", "index" ]
+    declIndexDir = Path.concat [ generatedDocs, "html", "index", "declarations" ]
+    typeIndexDir = Path.concat [ generatedDocs, "html", "index", "types" ]
 
   whenM (not <$> directoryExists generatedDocs) $ liftEffect do
     logAndExit "Generate the documentation first!"
@@ -409,14 +409,14 @@ createDirectories { generatedDocs } = do
 copyAppFile :: Config -> Aff Unit
 copyAppFile { generatedDocs } = do
   appDir <- liftEffect getDirname
-  let appFile = appDir <> "/docs-search-app.js"
+  let appFile = Path.concat [ appDir, "docs-search-app.js" ]
   whenM (not <$> fileExists appFile) do
     liftEffect do
       logAndExit $
         "Client-side app was not found at " <> appFile <> ".\n" <>
           "Check your installation."
   buffer <- readFile appFile
-  writeFile (generatedDocs <> "/html/docs-search-app.js") buffer
+  writeFile (Path.concat [ generatedDocs, "html", "docs-search-app.js" ]) buffer
 
 directoryExists :: String -> Aff Boolean
 directoryExists path = do

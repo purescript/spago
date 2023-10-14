@@ -130,6 +130,8 @@ Where to go from here? There are a few places you should check out:
   - [Test dependencies](#test-dependencies)
   - [Bundle a project into a single JS file](#bundle-a-project-into-a-single-js-file)
   - [Enable source maps](#enable-source-maps)
+    - [Node](#node)
+    - [Browsers](#browsers)
   - [Skipping the "build" step](#skipping-the-build-step)
   - [Generated build info/metadata](#generated-build-infometadata)
   - [Generate documentation for my project](#generate-documentation-for-my-project)
@@ -146,6 +148,8 @@ Where to go from here? There are a few places you should check out:
   - [The lock file](#the-lock-file)
 - [FAQ](#faq)
   - [Why can't `spago` also install my npm dependencies?](#why-cant-spago-also-install-my-npm-dependencies)
+- [Differences from legacy spago](#differences-from-legacy-spago)
+  - [Watch mode](#watch-mode)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
@@ -217,6 +221,8 @@ This is because the legacy package set format - while being supported - is point
 The new package sets are instead pointing at the Registry, and can fetch compressed archives from our CDN, which is much faster and more reliable.
 
 To figure out what package set you're supposed to be using, see the section about [querying package sets](#querying-package-sets).
+
+You might also want to check out the section about [differences from legacy spago](#differences-from-legacy-spago).
 
 ### Migrate from `bower`
 
@@ -1187,23 +1193,25 @@ workspace:
   build_opts:
     # Directory for the compiler products - optional, defaults to `output`.
     output: "output"
-    # Fail the build if `spago.yml` has redundant/underspecified packages.
-    # Optional boolean that defaults to `false`.
-    pedantic_packages: false
     # Specify whether to censor warnings coming from the compiler
     # for files in the `.spago` directory`.
-    # Can be 'all' or 'none'
-    # Optional and defaults to 'none', i.e. don't censor warnings.
-    censor_library_warnings: none
-    # Optional array of warning codes to censor for files in the
-    # `.spago` directory. Only useful if `censor_warnings` is not 'none'.
-    censor_library_codes:
-      - ShadowedName
-    # Optional array of warning codes to show for files in the
-    # `.spago` directory. Only useful if `censor_library_warnings` is not 'none'
-    # and the codes here do not appear in `censor_library_codes`.
-    filter_library_codes:
-      - UnusedName
+    # Optional and can be one of two possible values
+    censor_library_warnings: 
+      # Value 1: "all" - All warnings are censored
+      all
+
+      # Value 2: `NonEmptyArray (Either String { by_prefix :: String })`
+      # - String values: 
+      #      censor warnings if the code matches this code
+      # - { by_prefix } values: 
+      #      censor warnings if the warning's message 
+      #      starts with the given text
+      - CodeName
+      # Note: when using `by_prefix`, use the `>` for block-string: 
+      # see https://yaml-multiline.info/
+      - by_prefix: >
+        "Data.Map"'s `Semigroup instance`
+
     # Specify whether to show statistics at the end of the compilation,
     # and how verbose they should be.
     # Can be 'no-stats', 'compact-stats' (default), or 'verbose-stats',
@@ -1237,21 +1245,30 @@ package:
 
   # Optional section to further customise the build for this package.
   build:
+    # Fail the build if this package's `dependencies` field has redundant/underspecified packages.
+    # Optional boolean that defaults to `false`.
+    pedantic_packages: false
+    
     # Specify whether to censor warnings coming from the compiler
     # for files from this package.
-    # Can be 'all' or 'none'
-    # Optional and defaults to 'none', i.e. don't censor warnings.
-    censor_project_warnings: none
-    # Optional array of warning codes to censor for files from this package.
-    # Only useful if `censor_project_warnings` is not 'none'.
-    censor_project_codes:
-      - ShadowedName
-    # Optional array of warning codes to show for files from this package.
-    # Only useful if `censor_project_warnings` is not 'none'
-    # and the codes here do not appear in `censor_project_codes`.
-    filter_project_codes:
-      - UnusedName
-    # Convert compiler warnings into errors that can fail the build.
+    # Optional and can be one of two possible values
+    censor_project_warnings: 
+      # Value 1: "all" - All warnings are censored
+      all
+
+      # Value 2: `NonEmptyArray (Either String { by_prefix :: String })`
+      # - String values: 
+      #      censor warnings if the code matches this code
+      # - { by_prefix } values: 
+      #      censor warnings if the warning's message 
+      #      starts with the given text
+      - CodeName
+      # Note: when using `by_prefix`, use the `>` for block-string: 
+      # see https://yaml-multiline.info/
+      - by_prefix: >
+        "Data.Map"'s `Semigroup instance`
+    # Convert compiler warnings for files in this package's src code
+    # into errors that can fail the build.
     # Optional and defaults to false
     strict:
       true
@@ -1295,6 +1312,34 @@ package:
     execArgs:
       - "--cli-arg"
       - "foo"
+
+    # Fail the build if this package's test's `dependencies` field has redundant/underspecified packages.
+    # Optional boolean that defaults to `false`.
+    pedantic_packages: false
+
+    # Specify whether to censor warnings coming from the compiler
+    # for files from this package's test code.
+    # Optional and can be one of two possible values
+    censor_test_warnings: 
+      # Value 1: "all" - All warnings are censored
+      all
+
+      # Value 2: `NonEmptyArray (Either String { by_prefix :: String })`
+      # - String values: 
+      #      censor warnings if the code matches this code
+      # - { by_prefix } values: 
+      #      censor warnings if the warning's message 
+      #      starts with the given text
+      - CodeName
+      # Note: when using `by_prefix`, use the `>` for block-string: 
+      # see https://yaml-multiline.info/
+      - by_prefix: >
+        "Data.Map"'s `Semigroup instance`
+    # Convert compiler warnings for files from this package's test code
+    # into errors that can fail the build.
+    # Optional and defaults to false
+    strict:
+      true
 
   # Optional section for configuring the `spago publish` command.
   # If you intend to publish your package, this section becomes mandatory.
@@ -1370,6 +1415,20 @@ there's enough demand).
 So this is the reason why if you or one of your dependencies need to depend on some "native"
 packages, you should run the appropriate package-manager for that (e.g. npm).
 
+## Differences from legacy spago
+
+### Watch mode
+Spago dropped support for the --watch flag in `spago build` and `spago test`. 
+
+VSCode users are recommended to use the [Purescript IDE](purescript-ide) extension for seamless experiences with automatic rebuilds.
+
+Users of other editors, e.g. vim, emacs, etc., can make use of the underlying [LSP plugin](purescript-language-server).
+
+If you want a very simple drop in replacement for `spago test --watch`, you can use a general purpose tool such as [watchexec]:
+```console
+watchexec -e purs,js,yaml -- spago test
+```
+
 [jq]: https://jqlang.github.io/jq/
 [acme]: https://hackage.haskell.org/package/acme-everything
 [pulp]: https://github.com/purescript-contrib/pulp
@@ -1391,3 +1450,6 @@ packages, you should run the appropriate package-manager for that (e.g. npm).
 [bazel-workspace]: https://bazel.build/concepts/build-ref
 [purescript-overlay]: https://github.com/thomashoneyman/purescript-overlay
 [sample-package-set]: https://github.com/purescript/registry/blob/main/package-sets/41.2.0.json
+[watchexec]: https://github.com/watchexec/watchexec#quick-start
+[purescript-langugage-server]: https://github.com/nwolverson/purescript-language-server
+[ide-purescript]: https://marketplace.visualstudio.com/items?itemName=nwolverson.ide-purescript

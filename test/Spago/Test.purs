@@ -5,6 +5,8 @@ import Test.Prelude
 import Data.Array as Array
 import Data.String as String
 import Node.Path as Path
+import Node.Platform as Platform
+import Node.Process as Process
 import Registry.Version as Version
 import Spago.Command.Init (DefaultConfigOptions(..))
 import Spago.Command.Init as Init
@@ -96,8 +98,8 @@ spec = Spec.around withTempDir do
       FS.writeYamlFile Config.configCodec "spago.yaml" $ Init.defaultConfig' $ PackageAndWorkspace
         { name: mkPackageName "package-a"
         , dependencies: [ "prelude", "effect", "console" ]
-        , test: Just { moduleMain: "Test.Main" }
-        , build: Just { strict: Just true, censorProjectCodes: Nothing }
+        , test: Just { moduleMain: "Test.Main", strict: Nothing, censorTestWarnings: Nothing, pedanticPackages: Nothing, dependencies: Nothing }
+        , build: Just { strict: Just true, censorProjectWarnings: Nothing, pedanticPackages: Nothing }
         }
         { setVersion: Just $ unsafeFromRight $ Version.parse "0.0.1" }
 
@@ -118,8 +120,12 @@ spec = Spec.around withTempDir do
         , ""
         ]
       let
+        exp =
+          case Process.platform of
+            Just Platform.Win32 -> "[1/1 UnusedName] test\\Test\\Main.purs:10:5"
+            _ -> "[1/1 UnusedName] test/Test/Main.purs:10:5"
         hasUnusedNameWarningError stdErr = do
-          let exp = "[1/1 UnusedName] test/Test/Main.purs:10:5"
+
           unless (String.contains (String.Pattern exp) stdErr) do
             Assert.fail $ "STDERR did not contain text:\n" <> exp <> "\n\nStderr was:\n" <> stdErr
       spago [ "test" ] >>= check { stdout: mempty, stderr: hasUnusedNameWarningError, result: isRight }

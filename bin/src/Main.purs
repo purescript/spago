@@ -693,7 +693,6 @@ mkBundleEnv bundleArgs = do
     newWorkspace = workspace
       { buildOptions
           { output = bundleArgs.output <|> workspace.buildOptions.output
-          , pedanticPackages = bundleArgs.pedanticPackages || workspace.buildOptions.pedanticPackages
           }
       }
   esbuild <- Esbuild.getEsbuild
@@ -804,7 +803,6 @@ mkBuildEnv buildArgs dependencies = do
     newWorkspace = workspace
       { buildOptions
           { output = buildArgs.output <|> workspace.buildOptions.output
-          , pedanticPackages = buildArgs.pedanticPackages || workspace.buildOptions.pedanticPackages
           }
       -- Override the backend args from the config if they are passed in through a flag
       , backend = map
@@ -825,6 +823,7 @@ mkBuildEnv buildArgs dependencies = do
         { statVerbosity: buildArgs.statVerbosity
         , strict: buildArgs.strict
         }
+    , pedanticPackages: buildArgs.pedanticPackages
     }
 
 mkPublishEnv :: forall a. Fetch.PackageTransitiveDeps -> Spago (Fetch.FetchEnv a) (Publish.PublishEnv a)
@@ -854,9 +853,10 @@ mkReplEnv replArgs dependencies supportPackage = do
 
   purs <- Purs.getPurs
 
-  selected <- case workspace.selected of
-    Just s -> pure $ Build.SinglePackageGlobs s
-    Nothing -> pure $ Build.AllWorkspaceGlobs workspace.packageSet
+  let
+    selected = case workspace.selected of
+      Just s -> [ s ]
+      Nothing -> Config.getWorkspacePackages workspace.packageSet
 
   pure
     { purs
