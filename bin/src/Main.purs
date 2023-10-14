@@ -4,6 +4,7 @@ import Spago.Prelude
 
 import Control.Monad.Reader as Reader
 import Data.Array as Array
+import Data.Array.NonEmpty as NEA
 import Data.Array.NonEmpty as NonEmptyArray
 import Data.Codec.Argonaut.Common as CA.Common
 import Data.Foldable as Foldable
@@ -713,8 +714,8 @@ mkRunEnv runArgs { dependencies, purs } = do
         workspacePackages = Config.getWorkspacePackages workspace.packageSet
       in
         -- If there's only one package, select that one
-        case workspacePackages of
-          [ singlePkg ] -> pure singlePkg
+        case NEA.length workspacePackages of
+          1 -> pure $ NEA.head workspacePackages
           _ -> do
             logDebug $ unsafeStringify workspacePackages
             die
@@ -775,7 +776,7 @@ mkTestEnv testArgs { dependencies, purs } = do
       let
         workspacePackages = Config.getWorkspacePackages workspace.packageSet
       in
-        case Array.uncons (Array.filter (_.hasTests) workspacePackages) of
+        case Array.uncons (NonEmptyArray.filter (_.hasTests) workspacePackages) of
           Just { head, tail } -> pure $ map mkSelectedTest $ NonEmptyArray.cons' head tail
           Nothing -> die "No package found to test."
 
@@ -836,8 +837,8 @@ mkPublishEnv dependencies = do
         workspacePackages = Config.getWorkspacePackages env.workspace.packageSet
       in
         -- If there's only one package, select that one
-        case workspacePackages of
-          [ singlePkg ] -> pure singlePkg
+        case NEA.length workspacePackages of
+          1 -> pure $ NEA.head workspacePackages
           _ -> do
             logDebug $ unsafeStringify workspacePackages
             die
@@ -855,7 +856,7 @@ mkReplEnv replArgs dependencies supportPackage = do
 
   let
     selected = case workspace.selected of
-      Just s -> [ s ]
+      Just s -> NEA.singleton s
       Nothing -> Config.getWorkspacePackages workspace.packageSet
 
   pure
@@ -985,8 +986,8 @@ mkLsEnv dependencies = do
         workspacePackages = Config.getWorkspacePackages workspace.packageSet
       in
         -- If there's only one package, select that one
-        case workspacePackages of
-          [ singlePkg ] -> pure singlePkg
+        case NEA.length workspacePackages of
+          1 -> pure $ NEA.head workspacePackages
           _ -> do
             logDebug $ unsafeStringify workspacePackages
             die

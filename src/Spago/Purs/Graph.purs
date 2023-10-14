@@ -4,14 +4,18 @@ module Spago.Purs.Graph
   , checkImports
   , toImportErrors
   , runGraph
+  , PackageGraph
   , packageGraphCodec
   , getPackageGraph
+  , ModuleGraphWithPackage
+  , ModuleGraphWithPackageNode
+  , moduleGraphCodec
+  , getModuleGraphWithPackage
   ) where
 
 import Spago.Prelude
 
 import Data.Array as Array
-import Data.Array.NonEmpty (NonEmptyArray)
 import Data.Array.NonEmpty as NEA
 import Data.Codec.Argonaut.Common as CA
 import Data.Codec.Argonaut.Record as CAR
@@ -31,12 +35,8 @@ import Spago.Purs (ModuleGraph(..), ModuleGraphNode, ModuleName, Purs)
 import Spago.Purs as Purs
 import Unsafe.Coerce (unsafeCoerce)
 
-type ImportCheckResult =
-  { unused :: Set PackageName
-  , unusedTest :: Set PackageName
-  , transitive :: ImportedPackages
-  , transitiveTest :: ImportedPackages
-  }
+--------------------------------------------------------------------------------
+-- Basics
 
 type PreGraphEnv a =
   { dependencies :: Fetch.PackageTransitiveDeps
@@ -45,6 +45,14 @@ type PreGraphEnv a =
   | a
   }
 
+runGraph :: forall a. Set FilePath -> Array String -> Spago (PreGraphEnv a) (Either String Purs.ModuleGraph)
+runGraph globs pursArgs = map (lmap toErrorMessage) $ Purs.graph globs pursArgs
+  where
+  toErrorMessage = append "Could not decode the output of `purs graph`, error: " <<< CA.printJsonDecodeError
+
+--------------------------------------------------------------------------------
+-- Graph enriched with the package names
+
 type PackageGraphEnv a =
   { selected :: NonEmptyArray WorkspacePackage
   , dependencies :: Fetch.PackageTransitiveDeps
@@ -52,32 +60,23 @@ type PackageGraphEnv a =
   | a
   }
 
-type GraphEnv a =
-  { selected :: WorkspacePackage
-  , dependencies :: Fetch.PackageTransitiveDeps
-  , logOptions :: LogOptions
-  | a
-  }
-
-type ModuleGraphWithPackage = Map ModuleName PackageGraphNode
-
-type PackageGraphNode =
+type ModuleGraphWithPackageNode =
   { path :: String
   , depends :: Array ModuleName
   , package :: PackageName
   }
 
-type PackageGraph = Map PackageName { depends :: Set PackageName }
-
-packageGraphCodec :: JsonCodec PackageGraph
-packageGraphCodec = Internal.Codec.packageMap (CAR.object "PackageGraphNode" { depends: CA.set PackageName.codec })
-
-packageGraphNodeCodec :: JsonCodec PackageGraphNode
-packageGraphNodeCodec = CAR.object "ModuleGraphNode"
+moduleGraphWithPackageNodeCodec :: JsonCodec ModuleGraphWithPackageNode
+moduleGraphWithPackageNodeCodec = CAR.object "ModuleGraphNode"
   { path: CA.string
   , depends: CA.array CA.string
   , package: PackageName.codec
   }
+
+type ModuleGraphWithPackage = Map ModuleName ModuleGraphWithPackageNode
+
+moduleGraphCodec :: JsonCodec ModuleGraphWithPackage
+moduleGraphCodec = Internal.Codec.strMap "ModuleGraphWithPackage" Just identity moduleGraphWithPackageNodeCodec
 
 getModuleGraphWithPackage :: forall a. Purs.ModuleGraph -> Spago (PackageGraphEnv a) ModuleGraphWithPackage
 getModuleGraphWithPackage (ModuleGraph graph) = do
@@ -117,6 +116,21 @@ getModuleGraphWithPackage (ModuleGraph graph) = do
 
   pure packageGraph
 
+compileGlob :: forall a. FilePath -> Spago (LogEnv a) (Array FilePath)
+compileGlob sourcePath = do
+  { succeeded, failed } <- Glob.match Paths.cwd [ withForwardSlashes sourcePath ]
+  unless (Array.null failed) do
+    logDebug [ toDoc "Encountered some globs that are not in cwd, proceeding anyways:", indent $ toDoc failed ]
+  pure (succeeded <> failed)
+
+--------------------------------------------------------------------------------
+-- Package graph
+
+type PackageGraph = Map PackageName { depends :: Set PackageName }
+
+packageGraphCodec :: JsonCodec PackageGraph
+packageGraphCodec = Internal.Codec.packageMap (CAR.object "PackageGraphNode" { depends: CA.set PackageName.codec })
+
 getPackageGraph :: forall a. Purs.ModuleGraph -> Spago (PackageGraphEnv a) PackageGraph
 getPackageGraph graph = do
   moduleGraphWithPackage <- getModuleGraphWithPackage graph
@@ -140,6 +154,9 @@ getPackageGraph graph = do
 
   pure packageGraph
 
+--------------------------------------------------------------------------------
+-- Graph of imported packages/modules
+
 -- | For every Package that we depend on, we note which Module we are depending on,
 -- | and for each of them, we note from which Module we are importing it.
 -- |
@@ -153,7 +170,14 @@ getPackageGraph graph = do
 -- | `Map.singleton "prelude" $ Map.singleton "Prelude" $ Set.singleton "MyModule"``
 type ImportedPackages = Map PackageName (Map ModuleName (Set ModuleName))
 
-checkImports :: forall a. ModuleGraph -> Spago (GraphEnv a) ImportCheckResult
+type ImportsGraphEnv a =
+  { selected :: WorkspacePackage
+  , dependencies :: Fetch.PackageTransitiveDeps
+  , logOptions :: LogOptions
+  | a
+  }
+
+checkImports :: forall a. ModuleGraph -> Spago (ImportsGraphEnv a) ImportCheckResult
 checkImports graph = do
   env@{ selected } <- ask
   packageGraph <- runSpago (Record.union { selected: NEA.singleton selected } env) $ getModuleGraphWithPackage graph
@@ -167,8 +191,7 @@ checkImports graph = do
 
     -- The direct dependencies specified in the config
     dependencyPackages = Map.mapMaybe (const (Just Map.empty)) declaredDependencies
-    dependencyTestPackages = Map.mapMaybe (const (Just Map.empty))
-      $ Map.union declaredDependencies declaredTestDependencies
+    dependencyTestPackages = Map.mapMaybe (const (Just Map.empty)) $ Map.union declaredDependencies declaredTestDependencies
 
   -- Compile the globs for the project, we get the set of source files in the project
   projectGlob :: Set FilePath <- map Set.fromFoldable do
@@ -223,11 +246,19 @@ checkImports graph = do
 
   pure { unused, transitive, unusedTest, transitiveTest }
 
+--------------------------------------------------------------------------------
+-- Errors
+
+type ImportCheckResult =
+  { unused :: Set PackageName
+  , unusedTest :: Set PackageName
+  , transitive :: ImportedPackages
+  , transitiveTest :: ImportedPackages
+  }
+
 toImportErrors
   :: WorkspacePackage
-  -> { reportSrc :: Boolean
-     , reportTest :: Boolean
-     }
+  -> { reportSrc :: Boolean, reportTest :: Boolean }
   -> ImportCheckResult
   -> Array Docc
 toImportErrors selected opts { unused, unusedTest, transitive, transitiveTest } = join
@@ -236,18 +267,6 @@ toImportErrors selected opts { unused, unusedTest, transitive, transitiveTest } 
   , if opts.reportTest && (not $ Set.isEmpty unusedTest) then [ unusedError true selected unusedTest ] else []
   , if opts.reportTest && (not $ Map.isEmpty transitiveTest) then [ transitiveError true selected transitiveTest ] else []
   ]
-
-compileGlob :: forall a. FilePath -> Spago (LogEnv a) (Array FilePath)
-compileGlob sourcePath = do
-  { succeeded, failed } <- Glob.match Paths.cwd [ withForwardSlashes sourcePath ]
-  unless (Array.null failed) do
-    logDebug [ toDoc "Encountered some globs that are not in cwd, proceeding anyways:", indent $ toDoc failed ]
-  pure (succeeded <> failed)
-
-runGraph :: forall a. Set FilePath -> Array String -> Spago (PreGraphEnv a) (Either String Purs.ModuleGraph)
-runGraph globs pursArgs = map (lmap toErrorMessage) $ Purs.graph globs pursArgs
-  where
-  toErrorMessage = append "Could not decode the output of `purs graph`, error: " <<< CA.printJsonDecodeError
 
 unusedError :: Boolean -> WorkspacePackage -> Set PackageName -> Docc
 unusedError isTest selected unused = toDoc
@@ -291,24 +310,3 @@ transitiveError isTest selected transitive = toDoc
       <> " "
       <> String.joinWith " " (map PackageName.print $ Set.toUnfoldable $ Map.keys transitive)
   ]
-
--- packagesToDot :: PackageName -> Map PackageName PackageGraphNode -> Text
--- packagesToDot (PackageName currentPackage) packageGraph
---   = "strict digraph deps {\n"
---   <> tshow currentPackage <> " [style=dashed];\n"
---   <> Map.foldMapWithKey nodeToDot packageGraph
---   <> "}\n"
---   where
---     nodeToDot :: PackageName -> PackageGraphNode -> Text
---     nodeToDot (PackageName pkg) PackageGraphNode{..}
---       = foldMap (\(PackageName dep) -> tshow pkg <> " -> " <> tshow dep <> ";\n") pkgNodeDepends
-
--- modulesToDot :: Map ModuleName ModuleGraphNode -> Text
--- modulesToDot moduleGraph
---   = "strict digraph modules {\n"
---   <> Map.foldMapWithKey nodeToDot moduleGraph
---   <> "}\n"
---   where
---     nodeToDot :: ModuleName -> ModuleGraphNode -> Text
---     nodeToDot (ModuleName m) ModuleGraphNode{ graphNodeDepends }
---       = foldMap (\(ModuleName dep) -> tshow m <> " -> " <> tshow dep <> ";\n") graphNodeDepends

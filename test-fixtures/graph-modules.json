@@ -1,0 +1,543 @@
+{
+  "Control.Applicative": {
+    "depends": [
+      "Control.Apply",
+      "Data.Functor",
+      "Data.Unit",
+      "Type.Proxy"
+    ],
+    "package": "prelude",
+    "path": ".spago/packages/prelude-6.0.1/src/Control/Applicative.purs"
+  },
+  "Control.Apply": {
+    "depends": [
+      "Data.Functor",
+      "Data.Function",
+      "Control.Category",
+      "Type.Proxy"
+    ],
+    "package": "prelude",
+    "path": ".spago/packages/prelude-6.0.1/src/Control/Apply.purs"
+  },
+  "Control.Bind": {
+    "depends": [
+      "Control.Applicative",
+      "Control.Apply",
+      "Control.Category",
+      "Data.Function",
+      "Data.Functor",
+      "Data.Unit",
+      "Type.Proxy"
+    ],
+    "package": "prelude",
+    "path": ".spago/packages/prelude-6.0.1/src/Control/Bind.purs"
+  },
+  "Control.Category": {
+    "depends": [
+      "Control.Semigroupoid"
+    ],
+    "package": "prelude",
+    "path": ".spago/packages/prelude-6.0.1/src/Control/Category.purs"
+  },
+  "Control.Monad": {
+    "depends": [
+      "Control.Applicative",
+      "Control.Apply",
+      "Control.Bind",
+      "Data.Functor",
+      "Data.Unit",
+      "Type.Proxy"
+    ],
+    "package": "prelude",
+    "path": ".spago/packages/prelude-6.0.1/src/Control/Monad.purs"
+  },
+  "Control.Semigroupoid": {
+    "depends": [],
+    "package": "prelude",
+    "path": ".spago/packages/prelude-6.0.1/src/Control/Semigroupoid.purs"
+  },
+  "Data.Boolean": {
+    "depends": [],
+    "package": "prelude",
+    "path": ".spago/packages/prelude-6.0.1/src/Data/Boolean.purs"
+  },
+  "Data.BooleanAlgebra": {
+    "depends": [
+      "Data.HeytingAlgebra",
+      "Data.Symbol",
+      "Data.Unit",
+      "Type.Proxy"
+    ],
+    "package": "prelude",
+    "path": ".spago/packages/prelude-6.0.1/src/Data/BooleanAlgebra.purs"
+  },
+  "Data.Bounded": {
+    "depends": [
+      "Data.Ord",
+      "Data.Symbol",
+      "Data.Unit",
+      "Record.Unsafe",
+      "Type.Proxy"
+    ],
+    "package": "prelude",
+    "path": ".spago/packages/prelude-6.0.1/src/Data/Bounded.purs"
+  },
+  "Data.Bounded.Generic": {
+    "depends": [
+      "Data.Generic.Rep",
+      "Data.Bounded"
+    ],
+    "package": "prelude",
+    "path": ".spago/packages/prelude-6.0.1/src/Data/Bounded/Generic.purs"
+  },
+  "Data.CommutativeRing": {
+    "depends": [
+      "Data.Ring",
+      "Data.Semiring",
+      "Data.Symbol",
+      "Data.Unit",
+      "Type.Proxy"
+    ],
+    "package": "prelude",
+    "path": ".spago/packages/prelude-6.0.1/src/Data/CommutativeRing.purs"
+  },
+  "Data.DivisionRing": {
+    "depends": [
+      "Data.EuclideanRing",
+      "Data.Ring",
+      "Data.Semiring"
+    ],
+    "package": "prelude",
+    "path": ".spago/packages/prelude-6.0.1/src/Data/DivisionRing.purs"
+  },
+  "Data.Eq": {
+    "depends": [
+      "Data.HeytingAlgebra",
+      "Data.Symbol",
+      "Data.Unit",
+      "Data.Void",
+      "Record.Unsafe",
+      "Type.Proxy"
+    ],
+    "package": "prelude",
+    "path": ".spago/packages/prelude-6.0.1/src/Data/Eq.purs"
+  },
+  "Data.Eq.Generic": {
+    "depends": [
+      "Prelude",
+      "Data.Generic.Rep"
+    ],
+    "package": "prelude",
+    "path": ".spago/packages/prelude-6.0.1/src/Data/Eq/Generic.purs"
+  },
+  "Data.EuclideanRing": {
+    "depends": [
+      "Data.BooleanAlgebra",
+      "Data.CommutativeRing",
+      "Data.Eq",
+      "Data.Ring",
+      "Data.Semiring"
+    ],
+    "package": "prelude",
+    "path": ".spago/packages/prelude-6.0.1/src/Data/EuclideanRing.purs"
+  },
+  "Data.Field": {
+    "depends": [
+      "Data.DivisionRing",
+      "Data.CommutativeRing",
+      "Data.EuclideanRing",
+      "Data.Ring",
+      "Data.Semiring"
+    ],
+    "package": "prelude",
+    "path": ".spago/packages/prelude-6.0.1/src/Data/Field.purs"
+  },
+  "Data.Function": {
+    "depends": [
+      "Control.Category",
+      "Data.Boolean",
+      "Data.Ord",
+      "Data.Ring"
+    ],
+    "package": "prelude",
+    "path": ".spago/packages/prelude-6.0.1/src/Data/Function.purs"
+  },
+  "Data.Functor": {
+    "depends": [
+      "Data.Function",
+      "Data.Unit",
+      "Type.Proxy"
+    ],
+    "package": "prelude",
+    "path": ".spago/packages/prelude-6.0.1/src/Data/Functor.purs"
+  },
+  "Data.Generic.Rep": {
+    "depends": [
+      "Data.Semigroup",
+      "Data.Show",
+      "Data.Symbol",
+      "Data.Void",
+      "Type.Proxy"
+    ],
+    "package": "prelude",
+    "path": ".spago/packages/prelude-6.0.1/src/Data/Generic/Rep.purs"
+  },
+  "Data.HeytingAlgebra": {
+    "depends": [
+      "Data.Symbol",
+      "Data.Unit",
+      "Record.Unsafe",
+      "Type.Proxy"
+    ],
+    "package": "prelude",
+    "path": ".spago/packages/prelude-6.0.1/src/Data/HeytingAlgebra.purs"
+  },
+  "Data.HeytingAlgebra.Generic": {
+    "depends": [
+      "Prelude",
+      "Data.Generic.Rep",
+      "Data.HeytingAlgebra"
+    ],
+    "package": "prelude",
+    "path": ".spago/packages/prelude-6.0.1/src/Data/HeytingAlgebra/Generic.purs"
+  },
+  "Data.Monoid": {
+    "depends": [
+      "Data.Boolean",
+      "Data.Eq",
+      "Data.EuclideanRing",
+      "Data.Ord",
+      "Data.Ordering",
+      "Data.Semigroup",
+      "Data.Symbol",
+      "Data.Unit",
+      "Record.Unsafe",
+      "Type.Proxy"
+    ],
+    "package": "prelude",
+    "path": ".spago/packages/prelude-6.0.1/src/Data/Monoid.purs"
+  },
+  "Data.Monoid.Additive": {
+    "depends": [
+      "Prelude",
+      "Data.Eq",
+      "Data.Ord"
+    ],
+    "package": "prelude",
+    "path": ".spago/packages/prelude-6.0.1/src/Data/Monoid/Additive.purs"
+  },
+  "Data.Monoid.Conj": {
+    "depends": [
+      "Prelude",
+      "Data.Eq",
+      "Data.HeytingAlgebra",
+      "Data.Ord"
+    ],
+    "package": "prelude",
+    "path": ".spago/packages/prelude-6.0.1/src/Data/Monoid/Conj.purs"
+  },
+  "Data.Monoid.Disj": {
+    "depends": [
+      "Prelude",
+      "Data.Eq",
+      "Data.HeytingAlgebra",
+      "Data.Ord"
+    ],
+    "package": "prelude",
+    "path": ".spago/packages/prelude-6.0.1/src/Data/Monoid/Disj.purs"
+  },
+  "Data.Monoid.Dual": {
+    "depends": [
+      "Prelude",
+      "Data.Eq",
+      "Data.Ord"
+    ],
+    "package": "prelude",
+    "path": ".spago/packages/prelude-6.0.1/src/Data/Monoid/Dual.purs"
+  },
+  "Data.Monoid.Endo": {
+    "depends": [
+      "Prelude"
+    ],
+    "package": "prelude",
+    "path": ".spago/packages/prelude-6.0.1/src/Data/Monoid/Endo.purs"
+  },
+  "Data.Monoid.Generic": {
+    "depends": [
+      "Data.Monoid",
+      "Data.Generic.Rep"
+    ],
+    "package": "prelude",
+    "path": ".spago/packages/prelude-6.0.1/src/Data/Monoid/Generic.purs"
+  },
+  "Data.Monoid.Multiplicative": {
+    "depends": [
+      "Prelude",
+      "Data.Eq",
+      "Data.Ord"
+    ],
+    "package": "prelude",
+    "path": ".spago/packages/prelude-6.0.1/src/Data/Monoid/Multiplicative.purs"
+  },
+  "Data.NaturalTransformation": {
+    "depends": [],
+    "package": "prelude",
+    "path": ".spago/packages/prelude-6.0.1/src/Data/NaturalTransformation.purs"
+  },
+  "Data.Ord": {
+    "depends": [
+      "Data.Eq",
+      "Data.Symbol",
+      "Data.Ordering",
+      "Data.Ring",
+      "Data.Unit",
+      "Data.Void",
+      "Record.Unsafe",
+      "Type.Proxy"
+    ],
+    "package": "prelude",
+    "path": ".spago/packages/prelude-6.0.1/src/Data/Ord.purs"
+  },
+  "Data.Ord.Generic": {
+    "depends": [
+      "Prelude",
+      "Data.Generic.Rep"
+    ],
+    "package": "prelude",
+    "path": ".spago/packages/prelude-6.0.1/src/Data/Ord/Generic.purs"
+  },
+  "Data.Ordering": {
+    "depends": [
+      "Data.Eq",
+      "Data.Semigroup",
+      "Data.Show"
+    ],
+    "package": "prelude",
+    "path": ".spago/packages/prelude-6.0.1/src/Data/Ordering.purs"
+  },
+  "Data.Reflectable": {
+    "depends": [
+      "Data.Ord",
+      "Type.Proxy"
+    ],
+    "package": "prelude",
+    "path": ".spago/packages/prelude-6.0.1/src/Data/Reflectable.purs"
+  },
+  "Data.Ring": {
+    "depends": [
+      "Data.Semiring",
+      "Data.Symbol",
+      "Data.Unit",
+      "Record.Unsafe",
+      "Type.Proxy"
+    ],
+    "package": "prelude",
+    "path": ".spago/packages/prelude-6.0.1/src/Data/Ring.purs"
+  },
+  "Data.Ring.Generic": {
+    "depends": [
+      "Prelude",
+      "Data.Generic.Rep"
+    ],
+    "package": "prelude",
+    "path": ".spago/packages/prelude-6.0.1/src/Data/Ring/Generic.purs"
+  },
+  "Data.Semigroup": {
+    "depends": [
+      "Data.Symbol",
+      "Data.Unit",
+      "Data.Void",
+      "Record.Unsafe",
+      "Type.Proxy"
+    ],
+    "package": "prelude",
+    "path": ".spago/packages/prelude-6.0.1/src/Data/Semigroup.purs"
+  },
+  "Data.Semigroup.First": {
+    "depends": [
+      "Prelude",
+      "Data.Eq",
+      "Data.Ord"
+    ],
+    "package": "prelude",
+    "path": ".spago/packages/prelude-6.0.1/src/Data/Semigroup/First.purs"
+  },
+  "Data.Semigroup.Generic": {
+    "depends": [
+      "Prelude",
+      "Data.Generic.Rep"
+    ],
+    "package": "prelude",
+    "path": ".spago/packages/prelude-6.0.1/src/Data/Semigroup/Generic.purs"
+  },
+  "Data.Semigroup.Last": {
+    "depends": [
+      "Prelude",
+      "Data.Eq",
+      "Data.Ord"
+    ],
+    "package": "prelude",
+    "path": ".spago/packages/prelude-6.0.1/src/Data/Semigroup/Last.purs"
+  },
+  "Data.Semiring": {
+    "depends": [
+      "Data.Symbol",
+      "Data.Unit",
+      "Record.Unsafe",
+      "Type.Proxy"
+    ],
+    "package": "prelude",
+    "path": ".spago/packages/prelude-6.0.1/src/Data/Semiring.purs"
+  },
+  "Data.Semiring.Generic": {
+    "depends": [
+      "Prelude",
+      "Data.Generic.Rep"
+    ],
+    "package": "prelude",
+    "path": ".spago/packages/prelude-6.0.1/src/Data/Semiring/Generic.purs"
+  },
+  "Data.Show": {
+    "depends": [
+      "Data.Semigroup",
+      "Data.Symbol",
+      "Data.Unit",
+      "Data.Void",
+      "Record.Unsafe",
+      "Type.Proxy"
+    ],
+    "package": "prelude",
+    "path": ".spago/packages/prelude-6.0.1/src/Data/Show.purs"
+  },
+  "Data.Show.Generic": {
+    "depends": [
+      "Prelude",
+      "Data.Generic.Rep",
+      "Data.Symbol",
+      "Type.Proxy"
+    ],
+    "package": "prelude",
+    "path": ".spago/packages/prelude-6.0.1/src/Data/Show/Generic.purs"
+  },
+  "Data.Symbol": {
+    "depends": [
+      "Type.Proxy"
+    ],
+    "package": "prelude",
+    "path": ".spago/packages/prelude-6.0.1/src/Data/Symbol.purs"
+  },
+  "Data.Unit": {
+    "depends": [],
+    "package": "prelude",
+    "path": ".spago/packages/prelude-6.0.1/src/Data/Unit.purs"
+  },
+  "Data.Void": {
+    "depends": [],
+    "package": "prelude",
+    "path": ".spago/packages/prelude-6.0.1/src/Data/Void.purs"
+  },
+  "Effect": {
+    "depends": [
+      "Prelude",
+      "Control.Apply"
+    ],
+    "package": "effect",
+    "path": ".spago/packages/effect-4.0.0/src/Effect.purs"
+  },
+  "Effect.Class": {
+    "depends": [
+      "Control.Category",
+      "Control.Monad",
+      "Effect"
+    ],
+    "package": "effect",
+    "path": ".spago/packages/effect-4.0.0/src/Effect/Class.purs"
+  },
+  "Effect.Class.Console": {
+    "depends": [
+      "Data.Function",
+      "Data.Show",
+      "Data.Unit",
+      "Effect.Class",
+      "Effect.Console"
+    ],
+    "package": "console",
+    "path": ".spago/packages/console-6.0.0/src/Effect/Class/Console.purs"
+  },
+  "Effect.Console": {
+    "depends": [
+      "Effect",
+      "Data.Show",
+      "Data.Unit"
+    ],
+    "package": "console",
+    "path": ".spago/packages/console-6.0.0/src/Effect/Console.purs"
+  },
+  "Effect.Uncurried": {
+    "depends": [
+      "Data.Monoid",
+      "Effect"
+    ],
+    "package": "effect",
+    "path": ".spago/packages/effect-4.0.0/src/Effect/Uncurried.purs"
+  },
+  "Effect.Unsafe": {
+    "depends": [
+      "Effect"
+    ],
+    "package": "effect",
+    "path": ".spago/packages/effect-4.0.0/src/Effect/Unsafe.purs"
+  },
+  "Main": {
+    "depends": [
+      "Prelude",
+      "Effect",
+      "Effect.Console"
+    ],
+    "package": "my-project",
+    "path": "src/Main.purs"
+  },
+  "Prelude": {
+    "depends": [
+      "Control.Applicative",
+      "Control.Apply",
+      "Control.Bind",
+      "Control.Category",
+      "Control.Monad",
+      "Control.Semigroupoid",
+      "Data.Boolean",
+      "Data.BooleanAlgebra",
+      "Data.Bounded",
+      "Data.CommutativeRing",
+      "Data.DivisionRing",
+      "Data.Eq",
+      "Data.EuclideanRing",
+      "Data.Field",
+      "Data.Function",
+      "Data.Functor",
+      "Data.HeytingAlgebra",
+      "Data.Monoid",
+      "Data.NaturalTransformation",
+      "Data.Ord",
+      "Data.Ordering",
+      "Data.Ring",
+      "Data.Semigroup",
+      "Data.Semiring",
+      "Data.Show",
+      "Data.Unit",
+      "Data.Void"
+    ],
+    "package": "prelude",
+    "path": ".spago/packages/prelude-6.0.1/src/Prelude.purs"
+  },
+  "Record.Unsafe": {
+    "depends": [],
+    "package": "prelude",
+    "path": ".spago/packages/prelude-6.0.1/src/Record/Unsafe.purs"
+  },
+  "Type.Proxy": {
+    "depends": [],
+    "package": "prelude",
+    "path": ".spago/packages/prelude-6.0.1/src/Type/Proxy.purs"
+  }
+}

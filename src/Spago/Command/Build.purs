@@ -6,9 +6,9 @@ module Spago.Command.Build
 
 import Spago.Prelude
 
-import Control.Monad.ST as ST
+import Control.Alternative as Alternative
 import Data.Array as Array
-import Data.Array.ST as STA
+import Data.Array.NonEmpty as NEA
 import Data.Map as Map
 import Data.Set as Set
 import Data.Traversable (sequence)
@@ -99,7 +99,7 @@ run opts = do
   let
     allDependencies = Fetch.toAllDependencies dependencies
     selectedPackages = case workspace.selected of
-      Just p -> [ p ]
+      Just p -> NEA.singleton p
       Nothing -> Config.getWorkspacePackages workspace.packageSet
     globs = getBuildGlobs
       { dependencies: allDependencies
@@ -109,7 +109,7 @@ run opts = do
       }
   pathDecisions <- liftEffect $ sequence $ Psa.toPathDecisions
     { allDependencies
-    , selectedPackages
+    , selectedPackages: NEA.toArray selectedPackages
     , psaCliFlags
     , censorLibWarnings: workspace.buildOptions.censorLibWarnings
     }
@@ -140,34 +140,28 @@ run opts = do
           logSuccess "Backend build succeeded."
 
   let
-    pedanticPkgs = ST.run do
-      arr <- STA.new
-      ST.foreach selectedPackages \p -> do
-        let reportSrc = pedanticPackages || (fromMaybe false $ p.package.build >>= _.pedantic_packages)
-        let reportTest = pedanticPackages || (fromMaybe false $ p.package.test >>= _.pedantic_packages)
-        when (reportSrc || reportTest) do
-          void $ STA.push (Tuple p { reportSrc, reportTest }) arr
-      STA.unsafeFreeze arr
+    pedanticPkgs = NEA.toArray selectedPackages # Array.mapMaybe \p -> do
+      let reportSrc = pedanticPackages || (fromMaybe false $ p.package.build >>= _.pedantic_packages)
+      let reportTest = pedanticPackages || (fromMaybe false $ p.package.test >>= _.pedantic_packages)
+      Alternative.guard (reportSrc || reportTest)
+      pure $ Tuple p { reportSrc, reportTest }
   unless (Array.null pedanticPkgs) do
     logInfo $ "Looking for unused and undeclared transitive dependencies..."
     eitherGraph <- Graph.runGraph globs opts.pursArgs
     graph <- either die pure eitherGraph
     env <- ask
-    -- TODO: when the entire workspace is built, 
-    -- here we could go through all the workspace packages and run the check for each
-    -- The complication is that "dependencies" includes all the dependencies for all packages
     errors <- map Array.fold $ for pedanticPkgs \(Tuple selected options) -> do
       Graph.toImportErrors selected options <$> runSpago (Record.union { selected } env) (Graph.checkImports graph)
     unless (Array.null errors) do
       die' errors
 
 -- TODO: if we are building with all the packages (i.e. selected = Nothing),
--- then we can use the graph to remove outdated modules from `output`!
+-- then we could use the graph to remove outdated modules from `output`!
 
 type BuildGlobsOptions =
   { withTests :: Boolean
   , depsOnly :: Boolean
-  , selected :: Array WorkspacePackage
+  , selected :: NonEmptyArray WorkspacePackage
   , dependencies :: PackageMap
   }
 
@@ -180,7 +174,7 @@ getBuildGlobs { selected, dependencies, withTests, depsOnly } =
     true -> []
     false ->
       -- We just select all the workspace package globs, because it's (1) intuitive and (2) backwards compatible
-      workspacePackageGlob =<< selected
+      workspacePackageGlob =<< NEA.toArray selected
 
   testGlobs = case withTests of
     true -> WithTestGlobs

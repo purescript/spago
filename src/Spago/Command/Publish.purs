@@ -7,6 +7,7 @@ import Affjax.RequestBody as RequestBody
 import Affjax.ResponseFormat as ResponseFormat
 import Affjax.StatusCode (StatusCode(..))
 import Data.Array as Array
+import Data.Array.NonEmpty as NEA
 import Data.Codec.Argonaut as CA
 import Data.DateTime (DateTime)
 import Data.Formatter.DateTime as DateTime
@@ -125,7 +126,7 @@ publish _args = do
 
   -- We then need to check that the dependency graph is accurate. If not, queue the errors
   let allDependencies = Fetch.toAllDependencies dependencies
-  let globs = Build.getBuildGlobs { selected: [ selected ], withTests: false, dependencies: allDependencies, depsOnly: false }
+  let globs = Build.getBuildGlobs { selected: NEA.singleton selected, withTests: false, dependencies: allDependencies, depsOnly: false }
   eitherGraph <- Graph.runGraph globs []
   case eitherGraph of
     Right graph -> do

@@ -9,6 +9,7 @@ module Spago.Command.Run
 import Spago.Prelude
 
 import Data.Array as Array
+import Data.Array.NonEmpty as NEA
 import Data.Codec.Argonaut as CA
 import Data.Map as Map
 import Node.FS.Perms as Perms
@@ -102,7 +103,7 @@ run = do
           , depsOnly: false
           -- Here we include tests as well, because we use this code for `spago run` and `spago test`
           , withTests: true
-          , selected: [ selected ]
+          , selected: NEA.singleton selected
           }
       Purs.graph globs [] >>= case _ of
         Left err -> logWarn $ "Could not decode the output of `purs graph`, error: " <> CA.printJsonDecodeError err

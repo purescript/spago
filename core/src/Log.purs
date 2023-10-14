@@ -29,6 +29,8 @@ import Control.Monad.Reader (class MonadAsk)
 import Control.Monad.Reader as Reader
 import Data.Array ((:))
 import Data.Array as Array
+import Data.Array.NonEmpty (NonEmptyArray)
+import Data.Array.NonEmpty (toArray) as NEA
 import Data.Codec.Argonaut (JsonCodec)
 import Data.Either (Either(..))
 import Data.Maybe (Maybe(..), fromMaybe)
@@ -87,6 +89,9 @@ instance Loggable PackageName where
 
 instance Loggable a => Loggable (Array a) where
   toDoc = Log.lines <<< map toDoc
+
+instance Loggable a => Loggable (NonEmptyArray a) where
+  toDoc = Log.lines <<< NEA.toArray <<< map toDoc
 
 log :: forall a m. MonadEffect m => MonadAsk (LogEnv a) m => Log -> m Unit
 log { content, level } = do
