@@ -348,7 +348,7 @@ Multiple commands are possible - they will be run in the order specified:
 $ spago build --before clear --before "notify-send 'Building'"
 ```
 
-If you want to run the program (akin to `pulp run`), just use `run`. The commands below are verbose until these values are defined in the configuration file:
+If you want to run the program, just use `run`:
 ```console
 $ spago run -p package-name -m Module.Containing.Main
 
