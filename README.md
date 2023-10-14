@@ -368,7 +368,14 @@ See [here](#the-configuration-file) for more info about this, but it allows us t
 # purs flags still need to be supplied at the command line
 spago run -p package-name --purs-args "--verbose-errors"
 
-# Args passed to program defined
+# It's possible to even pass arguments from the config, which would look like this:
+#
+# package:
+#   run:
+#       main: Main
+#       execArgs:
+#         - "arg1"
+#         - "arg2"
 $ spago run -p package-name
 ```
 
