@@ -193,7 +193,9 @@ npm install spago@next
 rm spago.dhall packages.dhall
 ```
 
-**Note**: both `spago-legacy` and `spago` use the same NPM package name `spago`. The difference is their version numbers. `spago-legacy` stops at `spago@0.21.0` whereas `spago` is `spago@0.93.X`. If `spago-legacy` is installed globally, `spago` can be installed locally via `npm i spago@next` and then used by prefixing `spago` commands with `npx` (e.g. `npx spago build`).
+> [!NOTE]\
+> Both `spago-legacy` and `spago` use the same NPM package name `spago`. The difference is their version numbers. `spago-legacy` stops at `spago@0.21.0` whereas `spago` is `spago@0.93.X`.
+> If `spago-legacy` is installed globally, `spago` can be installed locally via `npm i spago@next` and then used by prefixing `spago` commands with `npx` (e.g. `npx spago build`). Vice versa also works.
 
 Some packages might not be found or have the wrong version, in which case
 you'll have to carefully:
