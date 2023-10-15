@@ -278,3 +278,11 @@ sourceMaps =
     ( O.long "source-maps"
         <> O.help "Creates a source map for your bundle"
     )
+
+depsOnly :: Parser Boolean
+depsOnly =
+  O.switch
+    ( O.long "deps-only"
+        <> O.help "Build depedencies only"
+    )
+
