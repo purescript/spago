@@ -1477,9 +1477,9 @@ there's enough demand).
 So this is the reason why if you or one of your dependencies need to depend on some "native"
 packages, you should run the appropriate package-manager for that (e.g. npm).
 
-## Differences from legacy spago
+### Differences from legacy spago
 
-### Watch mode
+#### Watch mode
 Spago dropped support for the --watch flag in `spago build` and `spago test`. 
 
 VSCode users are recommended to use the [Purescript IDE](purescript-ide) extension for seamless experiences with automatic rebuilds.
@@ -1490,6 +1490,13 @@ If you want a very simple drop in replacement for `spago test --watch`, you can 
 ```console
 watchexec -e purs,js,yaml -- spago test
 ```
+
+#### `sources` in the configuration file
+
+The `sources` field in the configuration file does not exist anymore.
+
+Instead, Spago will look for a `src` folder in the package root, and will use that as the source folder,
+and similarly for the `test` folder, using that for the test sources.
 
 [jq]: https://jqlang.github.io/jq/
 [acme]: https://hackage.haskell.org/package/acme-everything
