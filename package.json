@@ -31,7 +31,7 @@
     "format:check": "purs-tidy check core src bin docs-search",
     "bundle": "spago bundle -p spago-bin",
     "prepublishOnly": "spago build && ./bin/index.dev.js bundle -p spago-bin && ./bin/index.dev.js bundle -p docs-search-client-halogen",
-    "halogen:dev": "echo \"#!/usr/bin/env node\n\nimport { main } from './output/Docs.Search.App/index.js'; main();\" | esbuild --platform=browser --format=iife --sourcemap --bundle --outfile=generated-docs/html/docs-search-app.js --loader:.node=file --alias:punycode=punycode/ --watch=forever"
+    "halogen:dev": "echo \"import { main } from './output/Docs.Search.App/index.js'; main();\" | esbuild --bundle --sourcemap --outfile=generated-docs/html/docs-search-app.js --loader:.node=file --alias:punycode=punycode/ --servedir=generated-docs/html --watch=forever"
   },
   "dependencies": {
     "better-sqlite3": "^8.6.0",
