@@ -657,6 +657,38 @@ This is supported to allow for just using legacy package sets, and be able to au
 
 It is not recommended to craft your own package set in the legacy format - please use the `RemotePackageSet` format instead - but if you do just be aware that you'll need to include a package called `metadata` that has a version that matches the compiler version that the set is supposed to support.
 
+### Graph the project modules and dependencies
+
+You can use the `graph` command to generate a graph of the modules and their dependencies:
+
+```console
+$ spago graph modules
+```
+
+The same goes for packages:
+
+```console
+$ spago graph packages
+```
+
+The command accepts the `--json` and `--dot` flags to output the graph in JSON or DOT format respectively.
+
+This means that you can pipe the output to other tools, such as [`graphviz`][graphviz] to generate a visual representation of the graph:
+
+```console
+$ spago graph packages --dot | dot -Tpng > graph.png
+```
+
+...which will generate something like this:
+
+![packages-graph](./test-fixtures/graph.png)
+
+Finally, the `graph` command is also able to return a topological sorting of the modules or packages, with the `--topo` flag:
+
+```console
+$ spago graph modules --topo
+```
+
 ### Monorepo support
 
 Spago supports ["monorepos"][luu-monorepo] (see [here][monorepo-tools] as well for more monorepo goodness), allowing you to split a pile of code
