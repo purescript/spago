@@ -76,12 +76,12 @@ jobs:
         run: ./bin/index.dev.js bundle -p spago-bin
 
       - name: Bundle docs-search client
-        run: ./bin/index.dev.js bundle -p docs-search-client-halogen
+        run: |
+          ./bin/index.dev.js bundle -p docs-search-client-halogen
+          cat ./bin/docs-search-app.js
 
       - name: Run tests
-        run: |
-          cat ./bin/docs-search-app.js
-          spago test
+        run: spago test
 
       - name: Check formatting (Linux only)
         if: matrix.os == 'ubuntu-latest'
