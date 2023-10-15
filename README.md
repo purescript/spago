@@ -961,11 +961,18 @@ If you wish for the documentation to be opened in browser when generated, you ca
 $ spago docs --open
 ```
 
-To build the documentation as Markdown instead of HTML, or to generate tags for your project,
-you can pass a `format` flag:
+You can customize the output to other formats beyond html. Supported formats include ctags, etags, and markdown.
+For example to generate ctags for use in your editor:
 ```console
 $ spago docs --format ctags
 ```
+
+Sometimes you'd like to pull up docs for dependencies even when you have compilation errors in your project. This is a good use case for the --deps-only flag:
+
+```console
+$ spago docs --deps-only`
+```
+
 
 ### Alternate backends
 
