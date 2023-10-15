@@ -1,0 +1,11 @@
+strict digraph deps {
+node[shape=rect]
+splines=ortho
+"my-project" [style=dashed];
+"console" -> "effect";
+"console" -> "prelude";
+"effect" -> "prelude";
+"my-project" -> "console";
+"my-project" -> "effect";
+"my-project" -> "prelude";
+}

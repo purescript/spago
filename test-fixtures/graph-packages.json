@@ -1,0 +1,23 @@
+{
+  "console": {
+    "depends": [
+      "effect",
+      "prelude"
+    ]
+  },
+  "effect": {
+    "depends": [
+      "prelude"
+    ]
+  },
+  "my-project": {
+    "depends": [
+      "console",
+      "effect",
+      "prelude"
+    ]
+  },
+  "prelude": {
+    "depends": []
+  }
+}
