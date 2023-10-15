@@ -136,6 +136,20 @@ json =
         <> O.help "Format the output as JSON"
     )
 
+dot :: Parser Boolean
+dot =
+  O.switch
+    ( O.long "dot"
+        <> O.help "Format the output as a DOT (GraphViz) graph"
+    )
+
+topo :: Parser Boolean
+topo =
+  O.switch
+    ( O.long "topo"
+        <> O.help "Sort the output topologically"
+    )
+
 latest :: Parser Boolean
 latest =
   O.switch
@@ -264,3 +278,11 @@ sourceMaps =
     ( O.long "source-maps"
         <> O.help "Creates a source map for your bundle"
     )
+
+depsOnly :: Parser Boolean
+depsOnly =
+  O.switch
+    ( O.long "deps-only"
+        <> O.help "Build depedencies only"
+    )
+

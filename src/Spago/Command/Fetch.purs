@@ -73,17 +73,17 @@ run
   :: forall a
    . FetchOpts
   -> Spago (FetchEnv a) PackageTransitiveDeps
-run { packages, ensureRanges, isTest } = do
-  logDebug $ "Requested to install these packages: " <> printJson (CA.array PackageName.codec) packages
+run { packages: packagesToInstall, ensureRanges, isTest } = do
+  logDebug $ "Requested to install these packages: " <> printJson (CA.array PackageName.codec) packagesToInstall
 
   { getMetadata, logOptions, workspace, offline } <- ask
 
   let
-    installingPackages = not $ Array.null packages
+    installingPackages = not $ Array.null packagesToInstall
 
     getSelectedPackageTransitiveDeps :: WorkspacePackage -> Spago (FetchEnv a) PackageMap
     getSelectedPackageTransitiveDeps selected =
-      getTransitiveDeps $ getWorkspacePackageDeps selected <> Dependencies (Map.fromFoldable $ map (_ /\ Nothing) packages)
+      getTransitiveDeps $ getWorkspacePackageDeps selected <> Dependencies (Map.fromFoldable $ map (_ /\ Nothing) packagesToInstall)
 
   -- lookup the dependencies in the package set, so we get their version numbers.
   { dependencies, transitiveDeps } <- case workspace.selected of
@@ -118,6 +118,8 @@ run { packages, ensureRanges, isTest } = do
   when installingPackages do
     { configPath, package, yamlDoc } <- getPackageConfigPath "to install your packages in."
     let packageDependencies = Map.keys $ unwrap package.dependencies
+    -- Prevent users from installing a circular dependency
+    let packages = Array.filter (\p -> p /= package.name) packagesToInstall
     let overlappingPackages = Set.intersection packageDependencies (Set.fromFoldable packages)
     unless (Set.isEmpty overlappingPackages) do
       logWarn

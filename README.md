@@ -183,7 +183,7 @@ This section contains a collection of mini-recipes you might want to follow in o
 
 ### Migrate from `spago.dhall` to `spago.yaml`
 
-You'll need to use [spago-legacy] for this:
+You'll need to use [spago-legacy] for this.
 
 ```bash
 # Install spago-legacy
@@ -196,6 +196,10 @@ spago migrate
 npm install spago@next
 rm spago.dhall packages.dhall
 ```
+
+> [!NOTE]\
+> Both `spago-legacy` and `spago` use the same NPM package name `spago`. The difference is their version numbers. `spago-legacy` stops at `spago@0.21.0` whereas `spago` is `spago@0.93.X`.
+> If `spago-legacy` is installed globally, `spago` can be installed locally via `npm i spago@next` and then used by prefixing `spago` commands with `npx` (e.g. `npx spago build`). Vice versa also works.
 
 Some packages might not be found or have the wrong version, in which case
 you'll have to carefully:
@@ -348,23 +352,42 @@ Multiple commands are possible - they will be run in the order specified:
 $ spago build --before clear --before "notify-send 'Building'"
 ```
 
-If you want to run the program (akin to `pulp run`), just use `run`:
+If you want to run the program, just use `run`:
 ```console
-# The main module defaults to "Main"
-$ spago run
+$ spago run -p package-name -m Module.Containing.Main
 
-# Or define your own module path to Main
-$ spago run --main ModulePath.To.Main
+# We can pass arguments through to `purs compile`
+$ spago run -p package-name  -m Module.Containing.Main --purs-args "--verbose-errors"
 
-# And pass arguments through to `purs compile`
-$ spago run --main ModulePath.To.Main --purs-args "--verbose-errors"
-
-# Or pass arguments to the backend, in this case node
-$ spago run -- arg1 arg2
+# We can pass arguments through to the program being run
+$ spago run -p package-name  -m Module.Containing.Main -- arg1 arg2
 ```
 
-It's also possible to configure these parameters in the configuration so you don't have to supply them at the command line.
-See [here](#the-configuration-file) for more info about this.
+Oof! That's a lot of typing. Fortunately it's possible to configure most of these parameters in the `package.run` section of your configuration file, so you don't have to supply them at the command line.
+
+See [here](#the-configuration-file) for more info about this, but it allows us to instead write:
+
+```console
+# The main module can be defined in the configuration file, but
+# purs flags still need to be supplied at the command line
+spago run -p package-name --purs-args "--verbose-errors"
+
+# It's possible to even pass arguments from the config, which would look like this:
+#
+# package:
+#   run:
+#       main: Main
+#       execArgs:
+#         - "arg1"
+#         - "arg2"
+$ spago run -p package-name
+```
+
+Lastly, if you only have a single package defined in the workspace with these parameters defined in the config file, you can just run
+
+```console
+spago run
+```
 
 ### Test my project
 
@@ -633,6 +656,38 @@ Something like this:
 This is supported to allow for just using legacy package sets, and be able to automatically migrate `spago.dhall` files to `spago.yaml` files.
 
 It is not recommended to craft your own package set in the legacy format - please use the `RemotePackageSet` format instead - but if you do just be aware that you'll need to include a package called `metadata` that has a version that matches the compiler version that the set is supposed to support.
+
+### Graph the project modules and dependencies
+
+You can use the `graph` command to generate a graph of the modules and their dependencies:
+
+```console
+$ spago graph modules
+```
+
+The same goes for packages:
+
+```console
+$ spago graph packages
+```
+
+The command accepts the `--json` and `--dot` flags to output the graph in JSON or DOT format respectively.
+
+This means that you can pipe the output to other tools, such as [`graphviz`][graphviz] to generate a visual representation of the graph:
+
+```console
+$ spago graph packages --dot | dot -Tpng > graph.png
+```
+
+...which will generate something like this:
+
+![packages-graph](./test-fixtures/graph.png)
+
+Finally, the `graph` command is also able to return a topological sorting of the modules or packages, with the `--topo` flag:
+
+```console
+$ spago graph modules --topo
+```
 
 ### Monorepo support
 
@@ -938,11 +993,18 @@ If you wish for the documentation to be opened in browser when generated, you ca
 $ spago docs --open
 ```
 
-To build the documentation as Markdown instead of HTML, or to generate tags for your project,
-you can pass a `format` flag:
+You can customize the output to other formats beyond html. Supported formats include ctags, etags, and markdown.
+For example to generate ctags for use in your editor:
 ```console
 $ spago docs --format ctags
 ```
+
+Sometimes you'd like to pull up docs for dependencies even when you have compilation errors in your project. This is a good use case for the --deps-only flag:
+
+```console
+$ spago docs --deps-only`
+```
+
 
 ### Alternate backends
 
@@ -1415,9 +1477,9 @@ there's enough demand).
 So this is the reason why if you or one of your dependencies need to depend on some "native"
 packages, you should run the appropriate package-manager for that (e.g. npm).
 
-## Differences from legacy spago
+### Differences from legacy spago
 
-### Watch mode
+#### Watch mode
 Spago dropped support for the --watch flag in `spago build` and `spago test`. 
 
 VSCode users are recommended to use the [Purescript IDE](purescript-ide) extension for seamless experiences with automatic rebuilds.
@@ -1428,6 +1490,13 @@ If you want a very simple drop in replacement for `spago test --watch`, you can 
 ```console
 watchexec -e purs,js,yaml -- spago test
 ```
+
+#### `sources` in the configuration file
+
+The `sources` field in the configuration file does not exist anymore.
+
+Instead, Spago will look for a `src` folder in the package root, and will use that as the source folder,
+and similarly for the `test` folder, using that for the test sources.
 
 [jq]: https://jqlang.github.io/jq/
 [acme]: https://hackage.haskell.org/package/acme-everything

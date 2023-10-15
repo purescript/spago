@@ -2,6 +2,7 @@ module Spago.BuildInfo where
 
 import Spago.Prelude
 
+import Data.Array.NonEmpty as NEA
 import Data.String as String
 import Node.Path as Path
 import Registry.PackageName as PackageName
@@ -40,7 +41,7 @@ writeBuildInfo = do
       { pursVersion: Version.print purs.version
       , packages: map mkPackageBuildInfo case workspace.selected of
           Just p -> [ p ]
-          Nothing -> Config.getWorkspacePackages workspace.packageSet
+          Nothing -> NEA.toUnfoldable $ Config.getWorkspacePackages workspace.packageSet
       }
     buildInfoString = mkBuildInfo buildInfo
     writeIt = FS.writeTextFile buildInfoPath buildInfoString

@@ -4,6 +4,7 @@ import Spago.Prelude
 
 import Control.Monad.Reader as Reader
 import Data.Array as Array
+import Data.Array.NonEmpty as NEA
 import Data.Array.NonEmpty as NonEmptyArray
 import Data.Codec.Argonaut.Common as CA.Common
 import Data.Foldable as Foldable
@@ -30,6 +31,8 @@ import Spago.Command.Build as Build
 import Spago.Command.Bundle as Bundle
 import Spago.Command.Docs as Docs
 import Spago.Command.Fetch as Fetch
+import Spago.Command.Graph (GraphModulesArgs, GraphPackagesArgs)
+import Spago.Command.Graph as Graph
 import Spago.Command.Init as Init
 import Spago.Command.Ls (LsDepsArgs, LsPackagesArgs)
 import Spago.Command.Ls as Ls
@@ -186,6 +189,8 @@ data Command a
   | Sources SourcesArgs
   | Test TestArgs
   | Upgrade UpgradeArgs
+  | GraphModules GraphModulesArgs
+  | GraphPackages GraphPackagesArgs
 
 commandParser :: forall (a :: Row Type). String -> Parser (Command a) -> String -> Mod CommandFields (SpagoCmd a)
 commandParser command_ parser_ description_ =
@@ -209,7 +214,6 @@ argParser =
     , commandParser "repl" (Repl <$> replArgsParser) "Start a REPL"
     , commandParser "publish" (Publish <$> publishArgsParser) "Publish a package"
     , commandParser "upgrade" (Upgrade <$> pure {}) "Upgrade to the latest package set, or to the latest versions of Registry packages"
-
     , commandParser "docs" (Docs <$> docsArgsParser) "Generate docs for the project and its dependencies"
     , O.command "registry"
         ( O.info
@@ -229,6 +233,15 @@ argParser =
                 ]
             )
             (O.progDesc "List packages or dependencies")
+        )
+    , O.command "graph"
+        ( O.info
+            ( O.hsubparser $ Foldable.fold
+                [ commandParser "modules" (GraphModules <$> graphModulesArgsParser) "Generate a graph of the project's modules"
+                , commandParser "packages" (GraphPackages <$> graphPackagesArgsParser) "Generate a graph of the project's dependencies"
+                ]
+            )
+            (O.progDesc "Generate a graph of modules or dependencies")
         )
     ]
 
@@ -363,8 +376,7 @@ publishArgsParser =
 
 docsArgsParser :: Parser DocsArgs
 docsArgsParser = Optparse.fromRecord
-  -- TODO: --deps-only
-  { depsOnly: pure false :: Parser Boolean
+  { depsOnly: Flags.depsOnly
   , open: O.switch
       ( O.long "open"
           <> O.short 'o'
@@ -406,6 +418,20 @@ registryPackageSetsArgsParser =
     { json: Flags.json
     , latest: Flags.latest
     }
+
+graphModulesArgsParser :: Parser GraphModulesArgs
+graphModulesArgsParser = Optparse.fromRecord
+  { dot: Flags.dot
+  , json: Flags.json
+  , topo: Flags.topo
+  }
+
+graphPackagesArgsParser :: Parser GraphPackagesArgs
+graphPackagesArgsParser = Optparse.fromRecord
+  { dot: Flags.dot
+  , json: Flags.json
+  , topo: Flags.topo
+  }
 
 lsPackagesArgsParser :: Parser LsPackagesArgs
 lsPackagesArgsParser = Optparse.fromRecord
@@ -596,6 +622,17 @@ main =
           Upgrade _args -> do
             { env } <- mkFetchEnv offline { packages: mempty, selectedPackage: Nothing, ensureRanges: false, testDeps: false }
             runSpago env Upgrade.run
+          -- TODO: add selected to graph commands
+          GraphModules args -> do
+            { env, fetchOpts } <- mkFetchEnv offline { packages: mempty, selectedPackage: Nothing, ensureRanges: false, testDeps: false }
+            dependencies <- runSpago env (Fetch.run fetchOpts)
+            purs <- Purs.getPurs
+            runSpago { dependencies, logOptions, purs, workspace: env.workspace } (Graph.graphModules args)
+          GraphPackages args -> do
+            { env, fetchOpts } <- mkFetchEnv offline { packages: mempty, selectedPackage: Nothing, ensureRanges: false, testDeps: false }
+            dependencies <- runSpago env (Fetch.run fetchOpts)
+            purs <- Purs.getPurs
+            runSpago { dependencies, logOptions, purs, workspace: env.workspace } (Graph.graphPackages args)
 
       Cmd'VersionCmd v -> do when v printVersion
   where
@@ -676,8 +713,8 @@ mkRunEnv runArgs { dependencies, purs } = do
         workspacePackages = Config.getWorkspacePackages workspace.packageSet
       in
         -- If there's only one package, select that one
-        case workspacePackages of
-          [ singlePkg ] -> pure singlePkg
+        case NEA.length workspacePackages of
+          1 -> pure $ NEA.head workspacePackages
           _ -> do
             logDebug $ unsafeStringify workspacePackages
             die
@@ -738,7 +775,7 @@ mkTestEnv testArgs { dependencies, purs } = do
       let
         workspacePackages = Config.getWorkspacePackages workspace.packageSet
       in
-        case Array.uncons (Array.filter (_.hasTests) workspacePackages) of
+        case Array.uncons (NonEmptyArray.filter (_.hasTests) workspacePackages) of
           Just { head, tail } -> pure $ map mkSelectedTest $ NonEmptyArray.cons' head tail
           Nothing -> die "No package found to test."
 
@@ -799,8 +836,8 @@ mkPublishEnv dependencies = do
         workspacePackages = Config.getWorkspacePackages env.workspace.packageSet
       in
         -- If there's only one package, select that one
-        case workspacePackages of
-          [ singlePkg ] -> pure singlePkg
+        case NEA.length workspacePackages of
+          1 -> pure $ NEA.head workspacePackages
           _ -> do
             logDebug $ unsafeStringify workspacePackages
             die
@@ -818,7 +855,7 @@ mkReplEnv replArgs dependencies supportPackage = do
 
   let
     selected = case workspace.selected of
-      Just s -> [ s ]
+      Just s -> NEA.singleton s
       Nothing -> Config.getWorkspacePackages workspace.packageSet
 
   pure
@@ -948,8 +985,8 @@ mkLsEnv dependencies = do
         workspacePackages = Config.getWorkspacePackages workspace.packageSet
       in
         -- If there's only one package, select that one
-        case workspacePackages of
-          [ singlePkg ] -> pure singlePkg
+        case NEA.length workspacePackages of
+          1 -> pure $ NEA.head workspacePackages
           _ -> do
             logDebug $ unsafeStringify workspacePackages
             die
