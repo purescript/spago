@@ -2,7 +2,6 @@ module Test.Spago.Build where
 
 import Test.Prelude
 
-import Data.Map as Map
 import Node.FS.Aff as FSA
 import Node.Path as Path
 import Node.Process as Process
@@ -148,7 +147,7 @@ spec = Spec.around withTempDir do
                         , pedantic_packages: Just pedantic
                         , strict: Nothing
                         , censor_test_warnings: Nothing
-                        , dependencies: Config.Dependencies $ Map.fromFoldable $ map (flip Tuple Nothing <<< mkPackageName) [ "newtype" ]
+                        , dependencies: mkDependencies [ "newtype" ]
                         , execArgs: Nothing
                         }
                     }
