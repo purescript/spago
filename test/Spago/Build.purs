@@ -80,7 +80,7 @@ spec = Spec.around withTempDir do
       FS.exists "output" `Assert.shouldReturn` true
       FS.exists (Path.concat [ "subpackage", "output" ]) `Assert.shouldReturn` false
 
-    Spec.describeOnly "pedantic packages" do
+    Spec.describe "pedantic packages" do
 
       let
         modifyPackageConfig f = do
