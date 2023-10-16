@@ -183,68 +183,86 @@ checkImports graph = do
   packageGraph <- runSpago (Record.union { selected: NEA.singleton selected } env) $ getModuleGraphWithPackage graph
 
   let
-    packageName = selected.package.name
-    testPackageName = unsafeCoerce (PackageName.print packageName <> ":test")
+    dropValues = Map.mapMaybe (const (Just Map.empty))
+    srcDeps = unwrap selected.package.dependencies
+  srcResult <- getUsedUnusedTransitiveFor
+    { selected
+    , packageName: selected.package.name
+    , dependencyPackages: dropValues srcDeps
+    , isSrc: true
+    , packageGraph
+    }
+  let srcDepsUsed = Map.filterKeys (flip Map.member srcResult.used) srcDeps
+  testResult <- getUsedUnusedTransitiveFor
+    { selected
+    , packageName: selected.package.name
+    , dependencyPackages:
+        dropValues
+          -- add the used source dependencies, not the declared ones.
+          $ Map.unionWith const srcDepsUsed
+          -- get test deps
+          $ maybe Map.empty (unwrap <<< _.dependencies) selected.package.test
+    , isSrc: false
+    , packageGraph
+    }
 
-    declaredDependencies = unwrap selected.package.dependencies
-    declaredTestDependencies = maybe Map.empty (unwrap <<< _.dependencies) selected.package.test
+  pure
+    { unused: srcResult.unused
+    , transitive: srcResult.transitive
+    , unusedTest: Set.difference testResult.unused $ Map.keys srcResult.used
+    , transitiveTest: differenceAll testResult.transitive [ srcResult.used, srcResult.transitive ]
+    }
+  where
+  differenceAll sourceMap removalsArray = foldl Map.difference sourceMap removalsArray
+  getUsedUnusedTransitiveFor { selected, packageName, dependencyPackages, isSrc, packageGraph } = do
+    let
+      testPackageName = unsafeCoerce (PackageName.print packageName <> ":test")
 
-    -- The direct dependencies specified in the config
-    dependencyPackages = Map.mapMaybe (const (Just Map.empty)) declaredDependencies
-    dependencyTestPackages = Map.mapMaybe (const (Just Map.empty)) $ Map.union declaredDependencies declaredTestDependencies
+      testGlobOption
+        | isSrc = NoTestGlobs
+        | otherwise = OnlyTestGlobs
 
-  -- Compile the globs for the project, we get the set of source files in the project
-  projectGlob :: Set FilePath <- map Set.fromFoldable do
-    map Array.fold $ traverse compileGlob (Config.sourceGlob NoTestGlobs packageName (WorkspacePackage selected))
+    -- Compile the globs for the project, we get the set of source files in the project
+    glob :: Set FilePath <- map Set.fromFoldable do
+      map Array.fold $ traverse compileGlob (Config.sourceGlob testGlobOption packageName (WorkspacePackage selected))
 
-  -- Same but for tests
-  projectTestsGlob :: Set FilePath <- map Set.fromFoldable do
-    map Array.fold $ traverse compileGlob (Config.sourceGlob OnlyTestGlobs packageName (WorkspacePackage selected))
+    let
+      -- Filter this improved graph to only have the project modules
+      projectGraph = Map.filterWithKey (\_ { path } -> Set.member path glob) packageGraph
 
-  let
-    -- Filter this improved graph to only have the project modules
-    projectGraph = Map.filterWithKey (\_ { path } -> Set.member path projectGlob) packageGraph
-    projectTestsGraph = Map.filterWithKey (\_ { path } -> Set.member path projectTestsGlob) packageGraph
+      -- Go through all the modules in the project graph, figure out which packages each module depends on,
+      -- accumulate all of that in a single place
+      accumulateImported importedPkgs' (Tuple moduleName { depends }) =
+        let
+          accumulateDep importedPkgs importedModule = case Map.lookup importedModule packageGraph of
+            Nothing -> importedPkgs
+            -- Skip dependencies on modules in the same package, we are not interested in that
+            Just { package } | package == packageName -> importedPkgs
+            Just { package } | package == testPackageName -> importedPkgs
+            Just { package: importedPackage } -> Map.alter
+              ( case _ of
+                  Nothing -> Just $ Map.singleton moduleName (Set.singleton importedModule)
+                  Just p -> Just $ Map.alter
+                    ( case _ of
+                        Nothing -> Just $ Set.singleton importedModule
+                        Just set -> Just $ Set.insert importedModule set
+                    )
+                    moduleName
+                    p
+              )
+              importedPackage
+              importedPkgs
+        in
+          foldl accumulateDep importedPkgs' depends
 
-    -- Go through all the modules in the project graph, figure out which packages each module depends on,
-    -- accumulate all of that in a single place
-    accumulateImported importedPkgs' (Tuple moduleName { depends }) =
-      let
-        accumulateDep importedPkgs importedModule = case Map.lookup importedModule packageGraph of
-          Nothing -> importedPkgs
-          -- Skip dependencies on modules in the same package, we are not interested in that
-          Just { package } | package == packageName -> importedPkgs
-          Just { package } | package == testPackageName -> importedPkgs
-          Just { package: importedPackage } -> Map.alter
-            ( case _ of
-                Nothing -> Just $ Map.singleton moduleName (Set.singleton importedModule)
-                Just p -> Just $ Map.alter
-                  ( case _ of
-                      Nothing -> Just $ Set.singleton importedModule
-                      Just set -> Just $ Set.insert importedModule set
-                  )
-                  moduleName
-                  p
-            )
-            importedPackage
-            importedPkgs
-      in
-        foldl accumulateDep importedPkgs' depends
+      importedPackages :: ImportedPackages
+      importedPackages = foldl accumulateImported Map.empty (Map.toUnfoldable projectGraph :: Array _)
 
-    importedPackages :: ImportedPackages
-    importedPackages = foldl accumulateImported Map.empty (Map.toUnfoldable projectGraph :: Array _)
-    importedTestPackages = foldl accumulateImported Map.empty (Map.toUnfoldable projectTestsGraph :: Array _)
-
-    unused = Map.keys $ Map.difference dependencyPackages importedPackages
-    transitive = Map.difference importedPackages dependencyPackages
-    unusedTest =
-      if Set.isEmpty projectTestsGlob then Set.empty
-      else Map.keys $ Map.difference (Map.difference dependencyTestPackages dependencyPackages) importedTestPackages
-    transitiveTest =
-      if Set.isEmpty projectTestsGlob then Map.empty
-      else Map.difference importedTestPackages dependencyTestPackages
-
-  pure { unused, transitive, unusedTest, transitiveTest }
+    pure
+      { used: if isSrc then Map.intersection dependencyPackages importedPackages else Map.empty
+      , unused: Map.keys $ Map.difference dependencyPackages importedPackages
+      , transitive: Map.difference importedPackages dependencyPackages
+      }
 
 --------------------------------------------------------------------------------
 -- Errors
