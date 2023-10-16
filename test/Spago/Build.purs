@@ -169,10 +169,10 @@ spec = Spec.around withTempDir do
       Goal:
         Src
           - remove either - unused
-          - install newtype - install `newtype` (transitive dep of either) as it will be needed once either is removed
+          - install newtype - (transitive dep of either) as it will be needed once either is removed
         Test
           - remove tuples - unused
-          - install either - install `either` (implicit dep of source package, but need to add it here once removed from source)
+          - install either - (implicit dep of source package, but need to add it here once removed from source)
       -}
       Spec.describe "fails to build and reports deduplicated src and test unused/transitive dependenciess when" do
         let
