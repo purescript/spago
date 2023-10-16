@@ -5,6 +5,7 @@ module Test.Prelude
 
 import Spago.Prelude
 
+import Data.Array as Array
 import Data.Map as Map
 import Data.String (Pattern(..), Replacement(..))
 import Data.String as String
@@ -17,7 +18,9 @@ import Registry.Version as Version
 import Spago.Cmd (ExecError, ExecResult) as X
 import Spago.Cmd (ExecError, ExecResult, StdinConfig(..))
 import Spago.Cmd as Cmd
+import Spago.Command.Init as Init
 import Spago.Core.Config (Dependencies(..), Config)
+import Spago.Core.Config as Config
 import Spago.FS as FS
 import Spago.Prelude as X
 import Test.Spec.Assertions (fail)
@@ -181,3 +184,129 @@ mkPackageName = unsafeFromRight <<< PackageName.parse
 
 mkVersion :: String -> Version
 mkVersion = unsafeFromRight <<< Version.parse
+
+mkDependencies :: Array String -> Config.Dependencies
+mkDependencies = Config.Dependencies <<< Map.fromFoldable <<< map (flip Tuple Nothing <<< mkPackageName)
+
+-- | packageToModuleName "package-name" = "PACKAGE.NAME"
+packageToModuleName ∷ String → String
+packageToModuleName packageName =
+  String.toUpper (String.replaceAll (Pattern "-") (Replacement ".") packageName)
+
+mkSrcModuleName ∷ String → String
+mkSrcModuleName packageName = "Src." <> packageToModuleName packageName
+
+mkTestModuleName ∷ String → String
+mkTestModuleName packageName = "Test." <> packageToModuleName packageName
+
+-- See `config*` functions for transforms below this binding
+mkPackageOnlyConfig
+  :: { packageName :: String, srcDependencies :: Array String }
+  -> Array (Tuple String Init.DefaultConfigPackageOptions -> Tuple String Init.DefaultConfigPackageOptions)
+  -> Config.Config
+mkPackageOnlyConfig initialOptions transforms = do
+  Init.defaultConfig' $ Init.PackageOnly $ configurePackageSection initialOptions transforms
+
+mkPackageAndWorkspaceConfig
+  :: { package :: { packageName :: String, srcDependencies :: Array String }
+     , workspace :: { setVersion :: Maybe Version }
+     }
+  -> Array (Tuple String Init.DefaultConfigPackageOptions -> Tuple String Init.DefaultConfigPackageOptions)
+  -> Config.Config
+mkPackageAndWorkspaceConfig initOptions transforms = do
+  Init.defaultConfig' $ Init.PackageAndWorkspace (configurePackageSection initOptions.package transforms) initOptions.workspace
+
+configurePackageSection
+  :: { packageName :: String, srcDependencies :: Array String }
+  -> Array (Tuple String Init.DefaultConfigPackageOptions -> Tuple String Init.DefaultConfigPackageOptions)
+  -> Init.DefaultConfigPackageOptions
+configurePackageSection initialOptions = snd <<< Array.foldl (\c f -> f c)
+  ( Tuple initialOptions.packageName $
+      { name: mkPackageName initialOptions.packageName
+      , dependencies: initialOptions.srcDependencies
+      , build: Nothing
+      , test: Nothing
+      }
+  )
+
+configAddSrcStrict :: Tuple String Init.DefaultConfigPackageOptions -> Tuple String Init.DefaultConfigPackageOptions
+configAddSrcStrict = map \r -> r
+  { build = Just
+      { strict: Just true
+      , censorProjectWarnings: r.build >>= _.censorProjectWarnings
+      , pedanticPackages: r.build >>= _.pedanticPackages
+      }
+  }
+
+configAddSrcPedantic :: Tuple String Init.DefaultConfigPackageOptions -> Tuple String Init.DefaultConfigPackageOptions
+configAddSrcPedantic = map \r -> r
+  { build = Just
+      { strict: r.build >>= _.strict
+      , censorProjectWarnings: r.build >>= _.censorProjectWarnings
+      , pedanticPackages: Just true
+      }
+  }
+
+configAddSrcCensor :: Config.CensorBuildWarnings -> Tuple String Init.DefaultConfigPackageOptions -> Tuple String Init.DefaultConfigPackageOptions
+configAddSrcCensor censors = map \r -> r
+  { build = Just
+      { strict: r.build >>= _.strict
+      , censorProjectWarnings: Just censors
+      , pedanticPackages: r.build >>= _.pedanticPackages
+      }
+  }
+
+configAddTestMain :: Tuple String Init.DefaultConfigPackageOptions -> Tuple String Init.DefaultConfigPackageOptions
+configAddTestMain (Tuple packageName r) = Tuple packageName $ r
+  { test = Just
+      { moduleMain: mkTestModuleName packageName
+      , strict: r.test >>= _.strict
+      , censorTestWarnings: r.test >>= _.censorTestWarnings
+      , pedanticPackages: r.test >>= _.pedanticPackages
+      , dependencies: r.test >>= _.dependencies
+      }
+  }
+
+configAddTestStrict :: Tuple String Init.DefaultConfigPackageOptions -> Tuple String Init.DefaultConfigPackageOptions
+configAddTestStrict (Tuple packageName r) = Tuple packageName $ r
+  { test = Just
+      { moduleMain: mkTestModuleName packageName
+      , strict: Just true
+      , censorTestWarnings: r.test >>= _.censorTestWarnings
+      , pedanticPackages: r.test >>= _.pedanticPackages
+      , dependencies: r.test >>= _.dependencies
+      }
+  }
+
+configAddTestPedantic :: Tuple String Init.DefaultConfigPackageOptions -> Tuple String Init.DefaultConfigPackageOptions
+configAddTestPedantic (Tuple packageName r) = Tuple packageName $ r
+  { test = Just
+      { moduleMain: mkTestModuleName packageName
+      , strict: r.test >>= _.strict
+      , censorTestWarnings: r.test >>= _.censorTestWarnings
+      , pedanticPackages: Just true
+      , dependencies: r.test >>= _.dependencies
+      }
+  }
+
+configAddTestCensor :: Config.CensorBuildWarnings -> Tuple String Init.DefaultConfigPackageOptions -> Tuple String Init.DefaultConfigPackageOptions
+configAddTestCensor censors (Tuple packageName r) = Tuple packageName $ r
+  { test = Just
+      { moduleMain: mkTestModuleName packageName
+      , strict: r.test >>= _.strict
+      , censorTestWarnings: Just censors
+      , pedanticPackages: r.test >>= _.pedanticPackages
+      , dependencies: r.test >>= _.dependencies
+      }
+  }
+
+configAddTestDependencies :: Array String -> Tuple String Init.DefaultConfigPackageOptions -> Tuple String Init.DefaultConfigPackageOptions
+configAddTestDependencies deps (Tuple packageName r) = Tuple packageName $ r
+  { test = Just
+      { moduleMain: mkTestModuleName packageName
+      , strict: r.test >>= _.strict
+      , censorTestWarnings: r.test >>= _.censorTestWarnings
+      , pedanticPackages: r.test >>= _.pedanticPackages
+      , dependencies: Just $ maybe (mkDependencies deps) (append (mkDependencies deps)) $ r.test >>= _.dependencies
+      }
+  }
