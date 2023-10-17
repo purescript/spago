@@ -13,11 +13,11 @@ Errors       0     0     0
 
 Looking for unused and undeclared transitive dependencies...
 
-❌ Sources for package '7368613235362d34312f4e59746b7869335477336d33414d72' import the following transitive dependencies - please add them to the project dependencies, or remove the imports:
+❌ Tests for package '7368613235362d34312f4e59746b7869335477336d33414d72' import the following transitive dependencies - please add them to the project dependencies, or remove the imports:
   control
-    from `Main`, which imports:
+    from `Test.Main`, which imports:
       Control.Alt
 
 
 Run the following command to install them all:
-  spago install -p 7368613235362d34312f4e59746b7869335477336d33414d72 control
+  spago install --test-deps -p 7368613235362d34312f4e59746b7869335477336d33414d72 control
