@@ -78,7 +78,7 @@ jobs:
       - name: Bundle docs-search client
         run: |
           ./bin/index.dev.js bundle -p docs-search-client-halogen
-          cat ./bin/docs-search-app.js
+          ls bin
 
       - name: Run tests
         run: spago test
