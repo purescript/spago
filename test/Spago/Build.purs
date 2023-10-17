@@ -228,6 +228,28 @@ spec = Spec.around withTempDir do
             addPedanticPackagesToTest
             spago [ "build" ] >>= shouldBeFailureErr (fixture "check-unused-test-dependency.txt")
 
+        Spec.describe "in both the source and test packages when" do
+
+          let
+            setupUnusedDeps spago = do
+              spago [ "init", "--name", "7368613235362d2f444a2b4f56375435646a59726b53586548" ] >>= shouldBeSuccess
+              spago [ "install", "prelude", "effect", "console" ] >>= shouldBeSuccess
+              spago [ "install", "--test-deps", "prelude", "effect", "console" ] >>= shouldBeSuccess
+              FS.writeTextFile (Path.concat [ "src", "Main.purs" ]) "module Main where\nimport Prelude\nmain = unit"
+              FS.writeTextFile (Path.concat [ "test", "Test", "Main.purs" ]) "module Test.Main where\nimport Prelude\nmain = unit"
+              -- get rid of "Compiling ..." messages and other compiler warnings
+              spago [ "build" ] >>= shouldBeSuccess
+
+          Spec.it "passing --pedantic-packages CLI flag" \{ spago, fixture } -> do
+            setupUnusedDeps spago
+            spago [ "build", "--pedantic-packages" ] >>= shouldBeFailureErr (fixture "check-unused-source-and-test-dependency.txt")
+
+          Spec.it "package config has 'pedantic_packages: true'" \{ spago, fixture } -> do
+            setupUnusedDeps spago
+            addPedanticPackagesToSrc
+            addPedanticPackagesToTest
+            spago [ "build" ] >>= shouldBeFailureErr (fixture "check-unused-source-and-test-dependency.txt")
+
       {-
       Goal:
         Src
