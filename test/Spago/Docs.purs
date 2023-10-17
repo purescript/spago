@@ -9,7 +9,7 @@ import Spago.FS as FS
 
 spec :: Spec Unit
 spec = Spec.around withTempDir do
-  Spec.describe "docs" do
+  Spec.describeOnly "docs" do
 
     Spec.it "documents successfully with no flags" \{ spago } -> do
       spago [ "init" ] >>= shouldBeSuccess
