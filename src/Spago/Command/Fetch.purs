@@ -404,11 +404,6 @@ getTransitiveDepsFromPackageSet packageSet deps = do
     init :: TransitiveDepsResult
     init = { packages: (Map.empty :: Map PackageName Package), errors: mempty }
 
-    -- | Cheap size check to be used in place of Set equality
-    errorSize :: TransitiveDepsResult -> Int
-    errorSize { errors: { notInPackageSet: p, notInIndex: i, cycle: c } } =
-      Set.size p + Set.size i + Set.size c
-
     go :: Set PackageName -> PackageName -> StateT TransitiveDepsResult (Spago (FetchEnv a)) Unit
     go seen dep = do
       -- We stash packages that we encountered along the way in `seen`,
@@ -416,7 +411,7 @@ getTransitiveDepsFromPackageSet packageSet deps = do
       if Set.member dep seen then do
         State.modify_ $ cycleError dep
       else do
-        -- If the package is transitive dependency of some other package that
+        -- If the package is a transitive dependency of some other package that
         -- we already met, then we don't need to do the work again
         alreadyRun <- Map.member dep <$> State.gets _.packages
         when (not alreadyRun)
@@ -431,14 +426,16 @@ getTransitiveDepsFromPackageSet packageSet deps = do
                 Nothing -> State.modify_ $ notInIndexError dep
                 Just dependenciesMap -> do
                   -- Compare errors before and after recursively running transitive deps
-                  errors <- errorSize <$> State.get
+                  errors <- State.gets _.errors
 
                   -- recur here, as we need to get the transitive tree, not just the first level
                   void $ forWithIndex dependenciesMap
                     (\dependency _ -> go (Set.insert dep seen) dependency)
 
-                  errorsAfterTransitiveDeps <- errorSize <$> State.get
+                  -- Errors may have changed after running through the child deps
+                  errorsAfterTransitiveDeps <- State.gets _.errors
 
+                  -- Do not include the package if any child deps fail
                   when (errors == errorsAfterTransitiveDeps) do
                     State.modify_ \st -> st { packages = Map.insert dep package st.packages }
 
