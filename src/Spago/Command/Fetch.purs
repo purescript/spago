@@ -420,6 +420,9 @@ getTransitiveDepsFromPackageSet packageSet deps = do
         -- we already met, then we don't need to do the work again
         alreadyRun <- Map.member dep <$> State.gets _.packages
         when (not alreadyRun)
+          -- If we need to compute the dependencies from scratch instead, we first look
+          -- in the package set to get a version number out, then use that version to
+          -- look it up in the index and get the dependencies
           case Map.lookup dep packageSet of
             Nothing -> State.modify_ $ notInPackageSetError dep
             Just package -> do
