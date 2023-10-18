@@ -2,7 +2,6 @@ module Test.Spago.Build where
 
 import Test.Prelude
 
-import Data.Array as Array
 import Data.Map as Map
 import Node.FS.Aff as FSA
 import Node.Path as Path
@@ -125,9 +124,8 @@ spec = Spec.around withTempDir do
               spago [ "install", "maybe" ] >>= shouldBeSuccess
               when installConsoleAndEffectInTests do
                 spago [ "install", "--test-deps", "console", "effect" ] >>= shouldBeSuccess
-              FS.writeTextFile (Path.concat [ "src", "Main.purs" ]) $ Array.intercalate "\n"
-                [ "module Main where"
-                , "import Prelude"
+              FS.writeTextFile (Path.concat [ "src", "Main.purs" ]) $ writeMain
+                [ "import Prelude"
                 , "import Data.Maybe as Maybe"
                 , "import Effect as Effect"
                 , "import Effect.Console as Console"
@@ -154,17 +152,15 @@ spec = Spec.around withTempDir do
             setupTestTransitiveTests spago = do
               spago [ "init", "--name", "7368613235362d34312f4e59746b7869335477336d33414d72" ] >>= shouldBeSuccess
               spago [ "install", "maybe" ] >>= shouldBeSuccess
-              FS.writeTextFile (Path.concat [ "src", "Main.purs" ]) $ Array.intercalate "\n"
-                [ "module Main where"
-                , "import Prelude"
+              FS.writeTextFile (Path.concat [ "src", "Main.purs" ]) $ writeMain
+                [ "import Prelude"
                 , "import Data.Maybe as Maybe"
                 , "import Effect as Effect"
                 , "import Effect.Console as Console"
                 , "main = unit"
                 ]
-              FS.writeTextFile (Path.concat [ "test", "Test", "Main.purs" ]) $ Array.intercalate "\n"
-                [ "module Test.Main where"
-                , "import Prelude"
+              FS.writeTextFile (Path.concat [ "test", "Test", "Main.purs" ]) $ writeTestMain
+                [ "import Prelude"
                 , "import Data.Maybe as Maybe"
                 , "import Effect as Effect"
                 , "import Effect.Console as Console"
@@ -213,9 +209,8 @@ spec = Spec.around withTempDir do
             setupTestUnusedDeps spago = do
               spago [ "init", "--name", "7368613235362d2f444a2b4f56375435646a59726b53586548" ] >>= shouldBeSuccess
               spago [ "install", "--test-deps", "newtype" ] >>= shouldBeSuccess
-              FS.writeTextFile (Path.concat [ "test", "Test", "Main.purs" ]) $ Array.intercalate "\n"
-                [ "module Test.Main where"
-                , "import Prelude"
+              FS.writeTextFile (Path.concat [ "test", "Test", "Main.purs" ]) $ writeTestMain
+                [ "import Prelude"
                 , "import Effect as Effect"
                 , "import Effect.Console as Console"
                 , "main = unit"
@@ -239,8 +234,13 @@ spec = Spec.around withTempDir do
               spago [ "init", "--name", "7368613235362d2f444a2b4f56375435646a59726b53586548" ] >>= shouldBeSuccess
               spago [ "install", "prelude", "effect", "console" ] >>= shouldBeSuccess
               spago [ "install", "--test-deps", "prelude", "effect", "console" ] >>= shouldBeSuccess
-              FS.writeTextFile (Path.concat [ "src", "Main.purs" ]) "module Main where\nimport Prelude\nmain = unit"
-              FS.writeTextFile (Path.concat [ "test", "Test", "Main.purs" ]) "module Test.Main where\nimport Prelude\nmain = unit"
+              let
+                sameFileContent =
+                  [ "import Prelude"
+                  , "main = unit"
+                  ]
+              FS.writeTextFile (Path.concat [ "src", "Main.purs" ]) $ writeMain sameFileContent
+              FS.writeTextFile (Path.concat [ "test", "Test", "Main.purs" ]) $ writeTestMain sameFileContent
               -- get rid of "Compiling ..." messages and other compiler warnings
               spago [ "build" ] >>= shouldBeSuccess
 
@@ -297,10 +297,8 @@ spec = Spec.around withTempDir do
               ]
 
             FS.mkdirp "src"
-            FS.writeTextFile (Path.concat [ "src", "Main.purs" ]) $ Array.intercalate "\n"
-              [ "module Main where "
-              , ""
-              , "import Prelude"
+            FS.writeTextFile (Path.concat [ "src", "Main.purs" ]) $ writeMain
+              [ "import Prelude"
               , "import Data.Newtype as Newtype"
               , "import Control.Alt as Alt"
               , ""
@@ -309,10 +307,8 @@ spec = Spec.around withTempDir do
               ]
 
             FS.mkdirp $ Path.concat [ "test", "Test" ]
-            FS.writeTextFile (Path.concat [ "test", "Test", "Main.purs" ]) $ Array.intercalate "\n"
-              [ "module Test.Main where "
-              , ""
-              , "import Prelude"
+            FS.writeTextFile (Path.concat [ "test", "Test", "Main.purs" ]) $ writeTestMain
+              [ "import Prelude"
               , "import Data.Newtype (class Newtype)"
               , "import Data.Either (Either(..))"
               , ""

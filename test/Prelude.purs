@@ -185,6 +185,18 @@ mkPackageName = unsafeFromRight <<< PackageName.parse
 mkVersion :: String -> Version
 mkVersion = unsafeFromRight <<< Version.parse
 
+writeMain :: Array String -> String
+writeMain rest = writePursFile { moduleName: "Main", rest }
+
+writeTestMain :: Array String -> String
+writeTestMain rest = writePursFile { moduleName: "Test.Main", rest }
+
+writePursFile :: { moduleName :: String, rest :: Array String } -> String
+writePursFile { moduleName, rest } =
+  Array.intercalate "\n" $ Array.cons modNameLine $ rest
+  where
+  modNameLine = "module " <> moduleName <> " where"
+
 mkDependencies :: Array String -> Config.Dependencies
 mkDependencies = Config.Dependencies <<< Map.fromFoldable <<< map (flip Tuple Nothing <<< mkPackageName)
 
