@@ -411,6 +411,8 @@ getTransitiveDepsFromPackageSet packageSet deps = do
 
     go :: Set PackageName -> PackageName -> StateT TransitiveDepsResult (Spago (FetchEnv a)) Unit
     go seen dep = do
+      -- We stash packages that we encountered along the way in `seen`,
+      -- so if we see it again we have a cycle
       if Set.member dep seen then do
         State.modify_ $ cycleError dep
       else do
