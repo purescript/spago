@@ -119,7 +119,7 @@ spec = Spec.around withTempDir do
         Spec.describe "appear in the source package and" do
 
           let
-            setupSrcTransitiveTests spago { installConsoleAndEffectInTests } = do
+            setupTransitiveTestsInSource spago { installConsoleAndEffectInTests } = do
               spago [ "init", "--name", "7368613235362d34312f4e59746b7869335477336d33414d72" ] >>= shouldBeSuccess
               spago [ "install", "maybe" ] >>= shouldBeSuccess
               when installConsoleAndEffectInTests do
@@ -138,18 +138,18 @@ spec = Spec.around withTempDir do
           Spec.it "passed --pedantic-packages CLI flag" \{ spago, fixture } -> do
             -- Install deps in test so that overriding the test's config with pedantic packages CLI flag
             -- doesn't find issues in test code. This code is only testing source package.
-            setupSrcTransitiveTests spago { installConsoleAndEffectInTests: true }
+            setupTransitiveTestsInSource spago { installConsoleAndEffectInTests: true }
             spago [ "build", "--pedantic-packages" ] >>= shouldBeFailureErr (fixture "check-direct-import-transitive-dependency.txt")
 
           Spec.it "package config has 'pedantic_packages: true'" \{ spago, fixture } -> do
-            setupSrcTransitiveTests spago { installConsoleAndEffectInTests: false }
+            setupTransitiveTestsInSource spago { installConsoleAndEffectInTests: false }
             addPedanticPackagesToSrc
             spago [ "build" ] >>= shouldBeFailureErr (fixture "check-direct-import-transitive-dependency.txt")
 
         Spec.describe "appear in the test package and" do
 
           let
-            setupTestTransitiveTests spago = do
+            setupTransitiveTestsInTests spago = do
               spago [ "init", "--name", "7368613235362d34312f4e59746b7869335477336d33414d72" ] >>= shouldBeSuccess
               spago [ "install", "maybe" ] >>= shouldBeSuccess
               FS.writeTextFile (Path.concat [ "src", "Main.purs" ]) $ writeMain
@@ -171,11 +171,11 @@ spec = Spec.around withTempDir do
               spago [ "build" ] >>= shouldBeSuccess
 
           Spec.it "passed --pedantic-packages CLI flag" \{ spago, fixture } -> do
-            setupTestTransitiveTests spago
+            setupTransitiveTestsInTests spago
             spago [ "build", "--pedantic-packages" ] >>= shouldBeFailureErr (fixture "check-direct-import-transitive-dependency-test.txt")
 
           Spec.it "package config has 'pedantic_packages: true'" \{ spago, fixture } -> do
-            setupTestTransitiveTests spago
+            setupTransitiveTestsInTests spago
             addPedanticPackagesToTest
             spago [ "build" ] >>= shouldBeFailureErr (fixture "check-direct-import-transitive-dependency-test.txt")
 
@@ -184,7 +184,7 @@ spec = Spec.around withTempDir do
         Spec.describe "in a source package when" do
 
           let
-            setupSrcUnusedDeps spago { installConsoleAndEffectInTests } = do
+            setupUnusedDepsInSource spago { installConsoleAndEffectInTests } = do
               spago [ "init", "--name", "7368613235362d2f444a2b4f56375435646a59726b53586548" ] >>= shouldBeSuccess
               when installConsoleAndEffectInTests do
                 spago [ "install", "--test-deps", "console", "effect" ] >>= shouldBeSuccess
@@ -195,18 +195,18 @@ spec = Spec.around withTempDir do
           Spec.it "passing --pedantic-packages CLI flag" \{ spago, fixture } -> do
             -- Install deps in test so that overriding the test's config with pedantic packages CLI flag
             -- doesn't find issues in test code. This code is only testing source package.
-            setupSrcUnusedDeps spago { installConsoleAndEffectInTests: true }
+            setupUnusedDepsInSource spago { installConsoleAndEffectInTests: true }
             spago [ "build", "--pedantic-packages" ] >>= shouldBeFailureErr (fixture "check-unused-dependency.txt")
 
           Spec.it "package config has 'pedantic_packages: true'" \{ spago, fixture } -> do
-            setupSrcUnusedDeps spago { installConsoleAndEffectInTests: false }
+            setupUnusedDepsInSource spago { installConsoleAndEffectInTests: false }
             addPedanticPackagesToSrc
             spago [ "build" ] >>= shouldBeFailureErr (fixture "check-unused-dependency.txt")
 
         Spec.describe "in a test package when" do
 
           let
-            setupTestUnusedDeps spago = do
+            setupUnusedDepsInTest spago = do
               spago [ "init", "--name", "7368613235362d2f444a2b4f56375435646a59726b53586548" ] >>= shouldBeSuccess
               spago [ "install", "--test-deps", "newtype" ] >>= shouldBeSuccess
               FS.writeTextFile (Path.concat [ "test", "Test", "Main.purs" ]) $ writeTestMain
@@ -219,18 +219,18 @@ spec = Spec.around withTempDir do
               spago [ "build" ] >>= shouldBeSuccess
 
           Spec.it "passing --pedantic-packages CLI flag" \{ spago, fixture } -> do
-            setupTestUnusedDeps spago
+            setupUnusedDepsInTest spago
             spago [ "build", "--pedantic-packages" ] >>= shouldBeFailureErr (fixture "check-unused-test-dependency.txt")
 
           Spec.it "package's test config has 'pedantic_packages: true'" \{ spago, fixture } -> do
-            setupTestUnusedDeps spago
+            setupUnusedDepsInTest spago
             addPedanticPackagesToTest
             spago [ "build" ] >>= shouldBeFailureErr (fixture "check-unused-test-dependency.txt")
 
         Spec.describe "in both the source and test packages when" do
 
           let
-            setupUnusedDeps spago = do
+            setupUnusedDepsInBoth spago = do
               spago [ "init", "--name", "7368613235362d2f444a2b4f56375435646a59726b53586548" ] >>= shouldBeSuccess
               spago [ "install", "prelude", "effect", "console" ] >>= shouldBeSuccess
               spago [ "install", "--test-deps", "prelude", "effect", "console" ] >>= shouldBeSuccess
@@ -245,11 +245,11 @@ spec = Spec.around withTempDir do
               spago [ "build" ] >>= shouldBeSuccess
 
           Spec.it "passing --pedantic-packages CLI flag" \{ spago, fixture } -> do
-            setupUnusedDeps spago
+            setupUnusedDepsInBoth spago
             spago [ "build", "--pedantic-packages" ] >>= shouldBeFailureErr (fixture "check-unused-source-and-test-dependency.txt")
 
           Spec.it "package config has 'pedantic_packages: true'" \{ spago, fixture } -> do
-            setupUnusedDeps spago
+            setupUnusedDepsInBoth spago
             addPedanticPackagesToSrc
             addPedanticPackagesToTest
             spago [ "build" ] >>= shouldBeFailureErr (fixture "check-unused-source-and-test-dependency.txt")
@@ -285,7 +285,7 @@ spec = Spec.around withTempDir do
                     }
                 }
 
-          setupUnusedAndTransitiveDeps spago = do
+          setupUnusedAndTransitiveDepsInBoth spago = do
             -- Since we need to edit `spago.yaml` and other files generated by `spago init`,
             -- may as well just create those files by hand.
             FS.writeYamlFile configCodec "spago.yaml" $ mkPackageAndWorkspaceConfig
@@ -322,11 +322,11 @@ spec = Spec.around withTempDir do
             spago [ "build" ] >>= shouldBeSuccess
 
         Spec.it "passing --pedantic-packages" \{ spago, fixture } -> do
-          setupUnusedAndTransitiveDeps spago
+          setupUnusedAndTransitiveDepsInBoth spago
           spago [ "build", "--pedantic-packages" ] >>= shouldBeFailureErr (fixture "check-pedantic-packages.txt")
 
         Spec.it "package config has `pedantic_packages: true` in both `build` and `test`" \{ spago, fixture } -> do
-          setupUnusedAndTransitiveDeps spago
+          setupUnusedAndTransitiveDepsInBoth spago
           addPedanticPackages
           spago [ "build" ] >>= shouldBeFailureErr (fixture "check-pedantic-packages.txt")
 
