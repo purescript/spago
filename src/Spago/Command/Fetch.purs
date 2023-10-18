@@ -416,6 +416,8 @@ getTransitiveDepsFromPackageSet packageSet deps = do
       if Set.member dep seen then do
         State.modify_ $ cycleError dep
       else do
+        -- If the package is transitive dependency of some other package that
+        -- we already met, then we don't need to do the work again
         alreadyRun <- Map.member dep <$> State.gets _.packages
         when (not alreadyRun)
           case Map.lookup dep packageSet of
