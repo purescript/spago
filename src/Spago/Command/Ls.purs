@@ -67,7 +67,7 @@ listPaths { json } = do
       output $ OutputJson (CAC.map CA.string CA.string) $ Map.fromFoldable keyValuePairs
     false ->
       output $ OutputTable
-        { titles: [ "Key", "Value" ]
+        { titles: [ "Name", "Path" ]
         , rows: (\(Tuple k v) -> [ k, v ]) <$> keyValuePairs
         }
   where
