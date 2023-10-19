@@ -1,5 +1,7 @@
 module Spago.Paths where
 
+import Prelude
+
 import Effect.Unsafe (unsafePerformEffect)
 import Node.Path (FilePath)
 import Node.Path as Path
@@ -38,3 +40,10 @@ registryIndexPath = Path.concat [ globalCachePath, "registry-index" ]
 
 packageSetsPath :: FilePath
 packageSetsPath = Path.concat [ registryPath, "package-sets" ]
+
+-- | We should bump this number every time we change the database schema in a breaking way
+databaseVersion :: Int
+databaseVersion = 1
+
+databasePath :: FilePath
+databasePath = Path.concat [ globalCachePath, "spago.v" <> show databaseVersion <> ".sqlite" ]

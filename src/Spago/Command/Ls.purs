@@ -3,6 +3,7 @@ module Spago.Command.Ls
   , listPackages
   , listPackageSet
   , LsEnv(..)
+  , LsPathsArgs
   , LsDepsArgs
   , LsPackagesArgs
   ) where
@@ -10,6 +11,7 @@ module Spago.Command.Ls
 import Spago.Prelude
 
 import Data.Codec.Argonaut as CA
+import Data.Codec.Argonaut.Common as CAC
 import Data.Codec.Argonaut.Record as CAR
 import Data.Foldable (elem, traverse_)
 import Data.Map (filterKeys)
@@ -40,6 +42,10 @@ type LsDepsOpts =
   , transitive :: Boolean
   }
 
+type LsPathsArgs =
+  { json :: Boolean
+  }
+
 type LsSetEnv =
   { dependencies :: Fetch.PackageTransitiveDeps
   , logOptions :: LogOptions
@@ -53,16 +59,26 @@ type LsEnv =
   , selected :: WorkspacePackage
   }
 
-listPaths :: Spago { logOptions :: LogOptions } Unit
-listPaths = do
+listPaths :: LsPathsArgs -> Spago { logOptions :: LogOptions } Unit
+listPaths { json } = do
   logDebug "Running `listPaths`"
-  traverse_ logInfo
-    [ "Global cache path: " <> Paths.globalCachePath
-    , "Global registry path: " <> Paths.registryPath
-    , "Global registry index path: " <> Paths.registryIndexPath
-    , "Global package sets path: " <> Paths.packageSetsPath
-    , "Local cache path: " <> Paths.localCachePath
-    , "Local cache packages path: " <> Paths.localCachePackagesPath
+  case json of
+    true ->
+      output $ OutputJson (CAC.map CA.string CA.string) $ Map.fromFoldable keyValuePairs
+    false ->
+      output $ OutputTable
+        { titles: [ "Key", "Value" ]
+        , rows: (\(Tuple k v) -> [ k, v ]) <$> keyValuePairs
+        }
+  where
+  keyValuePairs =
+    [ Tuple "Global cache path" Paths.globalCachePath
+    , Tuple "Global registry path" Paths.registryPath
+    , Tuple "Global registry index path" Paths.registryIndexPath
+    , Tuple "Global package sets path" Paths.packageSetsPath
+    , Tuple "Global database path" Paths.databasePath
+    , Tuple "Local cache path" Paths.localCachePath
+    , Tuple "Local cache packages path" Paths.localCachePackagesPath
     ]
 
 -- TODO: add LICENSE field
