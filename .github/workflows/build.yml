@@ -13,6 +13,7 @@ jobs:
     strategy:
       matrix:
         include:
+          # TEMPORARY
           # - os: ubuntu-latest
           # - os: macOS-latest
           - os: windows-latest
@@ -73,11 +74,13 @@ jobs:
         run: spago build
 
       - name: Bootstrap executable
-        run: ./bin/index.dev.js bundle -p spago-bin
+        run: ./bin/index.dev.js bundle -p spago-bin -v
 
       - name: Bundle docs-search client
+        run: ./bin/index.dev.js bundle -p docs-search-client-halogen -v
+
+      - name: LS - Temporary
         run: |
-          ./bin/index.dev.js bundle -p docs-search-client-halogen
           ls .
           ls bin
 
