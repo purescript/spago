@@ -41,11 +41,9 @@ registryIndexPath = Path.concat [ globalCachePath, "registry-index" ]
 packageSetsPath :: FilePath
 packageSetsPath = Path.concat [ registryPath, "package-sets" ]
 
-localCachePersistedWarningsPath :: FilePath
-localCachePersistedWarningsPath = Path.concat [ localCachePath, "persisted-warnings" ]
+-- | We should bump this number every time we change the database schema in a breaking way
+databaseVersion :: Int
+databaseVersion = 1
 
-localCachesPersistedWarningsEntireWorkspace :: FilePath
-localCachesPersistedWarningsEntireWorkspace = mkLocalCachesPersistentWarningsFile "entire-workspace"
-
-mkLocalCachesPersistentWarningsFile :: String -> FilePath
-mkLocalCachesPersistentWarningsFile fileName = Path.concat [ localCachePersistedWarningsPath, fileName <> ".stash" ]
+databasePath :: FilePath
+databasePath = Path.concat [ globalCachePath, "spago.v" <> show databaseVersion <> ".sqlite" ]
