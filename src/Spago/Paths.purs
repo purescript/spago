@@ -1,7 +1,5 @@
 module Spago.Paths where
 
-import Prelude
-
 import Effect.Unsafe (unsafePerformEffect)
 import Node.Path (FilePath)
 import Node.Path as Path
@@ -40,12 +38,3 @@ registryIndexPath = Path.concat [ globalCachePath, "registry-index" ]
 
 packageSetsPath :: FilePath
 packageSetsPath = Path.concat [ registryPath, "package-sets" ]
-
-localCachePersistedWarningsPath :: FilePath
-localCachePersistedWarningsPath = Path.concat [ localCachePath, "persisted-warnings" ]
-
-localCachesPersistedWarningsEntireWorkspace :: FilePath
-localCachesPersistedWarningsEntireWorkspace = mkLocalCachesPersistentWarningsFile "entire-workspace"
-
-mkLocalCachesPersistentWarningsFile :: String -> FilePath
-mkLocalCachesPersistentWarningsFile fileName = Path.concat [ localCachePersistedWarningsPath, fileName <> ".stash" ]

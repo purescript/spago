@@ -1,10 +1,17 @@
-module Spago.Command.Ls (listPackages, listPackageSet, LsEnv(..), LsDepsArgs, LsPackagesArgs) where
+module Spago.Command.Ls
+  ( listPaths
+  , listPackages
+  , listPackageSet
+  , LsEnv(..)
+  , LsDepsArgs
+  , LsPackagesArgs
+  ) where
 
 import Spago.Prelude
 
 import Data.Codec.Argonaut as CA
 import Data.Codec.Argonaut.Record as CAR
-import Data.Foldable (elem)
+import Data.Foldable (elem, traverse_)
 import Data.Map (filterKeys)
 import Data.Map as Map
 import Data.Tuple.Nested (type (/\))
@@ -15,6 +22,7 @@ import Registry.Version as Version
 import Spago.Command.Fetch as Fetch
 import Spago.Config (Package(..), PackageSet(..), Workspace, WorkspacePackage)
 import Spago.Config as Config
+import Spago.Paths as Paths
 import Type.Proxy (Proxy(..))
 
 type LsPackagesArgs =
@@ -44,6 +52,18 @@ type LsEnv =
   , workspace :: Workspace
   , selected :: WorkspacePackage
   }
+
+listPaths :: Spago { logOptions :: LogOptions } Unit
+listPaths = do
+  logDebug "Running `listPaths`"
+  traverse_ logInfo
+    [ "Global cache path: " <> Paths.globalCachePath
+    , "Global registry path: " <> Paths.registryPath
+    , "Global registry index path: " <> Paths.registryIndexPath
+    , "Global package sets path: " <> Paths.packageSetsPath
+    , "Local cache path: " <> Paths.localCachePath
+    , "Local cache packages path: " <> Paths.localCachePackagesPath
+    ]
 
 -- TODO: add LICENSE field
 

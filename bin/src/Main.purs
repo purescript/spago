@@ -178,6 +178,7 @@ data Command a
   | Fetch FetchArgs
   | Init InitArgs
   | Install InstallArgs
+  | LsPaths
   | LsDeps LsDepsArgs
   | LsPackages LsPackagesArgs
   | Publish PublishArgs
@@ -230,6 +231,7 @@ argParser =
             ( O.hsubparser $ Foldable.fold
                 [ commandParser "packages" (LsPackages <$> lsPackagesArgsParser) "List packages available in the local package set"
                 , commandParser "deps" (LsDeps <$> lsDepsArgsParser) "List dependencies of the project"
+                , commandParser "paths" (pure LsPaths) "List the paths used by Spago"
                 ]
             )
             (O.progDesc "List packages or dependencies")
@@ -599,6 +601,8 @@ main =
             runSpago buildEnv (Build.run options)
             testEnv <- runSpago env (mkTestEnv args buildEnv)
             runSpago testEnv Test.run
+          LsPaths -> do
+            runSpago { logOptions } Ls.listPaths
           LsPackages args -> do
             let fetchArgs = { packages: mempty, selectedPackage: Nothing, ensureRanges: false, testDeps: false }
             { env: env@{ workspace }, fetchOpts } <- mkFetchEnv offline fetchArgs
