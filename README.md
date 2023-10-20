@@ -1041,6 +1041,11 @@ or alternatively if you don't want to edit your `~/.bashrc`:
 spago --bash-completion-script $(which spago) >> ~/.bash_completion
 ```
 
+*Note*: if you installed Spago not with NPM, but with PNPM or some other package manager,
+this package manager might have bundled your installation and your package name in the script may end up being incorrect.
+For example, when installed with PNPM, the resulting script will reference incorrect package `bundle.js` instead of `spago`.
+If you're using something other than NPM, verify the referenced package name in the completions script.
+
 ### Install autocompletions for `zsh`
 
 Autocompletions for `zsh` need to be somewhere in the `fpath` - you can see the folders
@@ -1068,6 +1073,7 @@ compinit
 
 *Note*: you might need to call this multiple times for it to work.
 
+*Note*: see the note in the Bash section above when installing Spago with a package manager other than NPM.
 
 ## Concepts and explanations
 
