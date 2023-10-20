@@ -1071,9 +1071,11 @@ Then, reload completions with:
 compinit
 ```
 
-*Note*: you might need to call this multiple times for it to work.
+> [!NOTE]\
+> You might need to call this multiple times for it to work.
 
-*Note*: see the note in the Bash section above when installing Spago with a package manager other than NPM.
+> [!NOTE]\
+> See the note in the Bash section above when installing Spago with a package manager other than NPM.
 
 ## Concepts and explanations
 
