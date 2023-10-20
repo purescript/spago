@@ -1041,10 +1041,10 @@ or alternatively if you don't want to edit your `~/.bashrc`:
 spago --bash-completion-script $(which spago) >> ~/.bash_completion
 ```
 
-*Note*: if you installed Spago not with NPM, but with PNPM or some other package manager,
-this package manager might have bundled your installation and your package name in the script may end up being incorrect.
-For example, when installed with PNPM, the resulting script will reference incorrect package `bundle.js` instead of `spago`.
-If you're using something other than NPM, verify the referenced package name in the completions script.
+> [!NOTE]\
+> If you installed Spago not with NPM, but with PNPM or some other package manager, this package manager might have bundled your installation and your package name in the script may end up being incorrect.
+> For example, when installed with PNPM, the resulting script will reference incorrect package `bundle.js` instead of `spago`.
+> If you're using something other than NPM, verify the referenced package name in the completions script.
 
 ### Install autocompletions for `zsh`
 
