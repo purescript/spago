@@ -148,7 +148,7 @@ spec = Spec.around withTempDir do
                         , strict: Nothing
                         , censor_test_warnings: Nothing
                         , dependencies: mkDependencies [ "newtype" ]
-                        , execArgs: Nothing
+                        , exec_args: Nothing
                         }
                     }
                 }

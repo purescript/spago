@@ -161,7 +161,7 @@ defaultConfig' opts =
       , run: Nothing
       , test: test <#> \{ moduleMain, censorTestWarnings, strict, pedanticPackages, dependencies: testDeps } ->
           { dependencies: fromMaybe (Dependencies Map.empty) testDeps
-          , execArgs: Nothing
+          , exec_args: Nothing
           , main: moduleMain
           , censor_test_warnings: censorTestWarnings
           , strict

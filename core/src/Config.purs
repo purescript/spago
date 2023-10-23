@@ -111,18 +111,18 @@ publishConfigCodec = CA.object "PublishConfig"
 
 type RunConfig =
   { main :: Maybe String
-  , execArgs :: Maybe (Array String)
+  , exec_args :: Maybe (Array String)
   }
 
 runConfigCodec :: JsonCodec RunConfig
 runConfigCodec = CA.object "RunConfig"
   $ CA.recordPropOptional (Proxy :: _ "main") CA.string
-  $ CA.recordPropOptional (Proxy :: _ "execArgs") (CA.array CA.string)
+  $ CA.recordPropOptional (Proxy :: _ "exec_args") (CA.array CA.string)
   $ CA.record
 
 type TestConfig =
   { main :: String
-  , execArgs :: Maybe (Array String)
+  , exec_args :: Maybe (Array String)
   , dependencies :: Dependencies
   , censor_test_warnings :: Maybe CensorBuildWarnings
   , strict :: Maybe Boolean
@@ -132,7 +132,7 @@ type TestConfig =
 testConfigCodec :: JsonCodec TestConfig
 testConfigCodec = CA.object "TestConfig"
   $ CA.recordProp (Proxy :: _ "main") CA.string
-  $ CA.recordPropOptional (Proxy :: _ "execArgs") (CA.array CA.string)
+  $ CA.recordPropOptional (Proxy :: _ "exec_args") (CA.array CA.string)
   $ CA.recordPropOptional (Proxy :: _ "censor_test_warnings") censorBuildWarningsCodec
   $ CA.recordPropOptional (Proxy :: _ "strict") CA.boolean
   $ CA.recordPropOptional (Proxy :: _ "pedantic_packages") CA.boolean

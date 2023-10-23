@@ -36,7 +36,7 @@ type RunEnv a =
   }
 
 type RunOptions =
-  { execArgs :: Array String
+  { exec_args :: Array String
   , moduleName :: String
   , sourceDir :: FilePath
   , executeDir :: FilePath
@@ -80,7 +80,7 @@ run = do
         packageJsonPath = Path.concat [ runDir, "package.json" ]
         packageJsonContents = "{\"type\":\"module\" }"
 
-        nodeArgs = [ runJsPath ] <> opts.execArgs
+        nodeArgs = [ runJsPath ] <> opts.exec_args
 
         nodeContents =
           Array.fold
@@ -126,7 +126,7 @@ run = do
           logDebug $ show err
           die opts.failureMessage
     Just backend -> do
-      let args = [ "--run", opts.moduleName <> ".main" ] <> opts.execArgs
+      let args = [ "--run", opts.moduleName <> ".main" ] <> opts.exec_args
       logDebug $ "Running command `" <> backend.cmd <> " " <> show args <> "`"
       Cmd.exec backend.cmd args execOptions >>= case _ of
         Right _r -> case opts.successMessage of

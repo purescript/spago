@@ -183,8 +183,8 @@ pursArgs =
               )
       )
 
-execArgs :: Parser (Maybe (Array String))
-execArgs =
+exec_args :: Parser (Maybe (Array String))
+exec_args =
   OT.optional
     $ Array.fromFoldable
     <$> O.many
@@ -285,4 +285,3 @@ depsOnly =
     ( O.long "deps-only"
         <> O.help "Build depedencies only"
     )
-

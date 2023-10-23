@@ -5,7 +5,7 @@
 [![build](https://github.com/purescript/spago/actions/workflows/build.yml/badge.svg)](https://github.com/purescript/spago/actions/workflows/build.yml)
 [![Maintainer: f-f](https://img.shields.io/badge/maintainer-f%2d-f-teal.svg)](http://github.com/f-f)
 
-*(IPA: /ˈspaɡo/)*
+_(IPA: /ˈspaɡo/)_
 
 PureScript package manager and build tool.
 
@@ -22,23 +22,24 @@ PureScript package manager and build tool.
 > This new Spago is still in alpha, so while most of it works well, there will be some rough edges here and there. Please report them if you find any!
 
 The recommended installation method for Windows, Linux and macOS is `npm` (see the latest releases on npm
-  [here][spago-npm]):
+[here][spago-npm]):
 
 ```
 npm install -g spago@next
 ```
 
 Other installation methods available:
+
 - With Nix, using [purescript-overlay]
 
 **General notes:**
+
 - The assumption is that you already installed the [PureScript compiler][purescript].
   If not, get it with `npm install -g purescript`, or the recommended method for your OS.
 - You might have issues with `npm` and Docker (e.g. getting the message "Downloading the spago binary failed.." etc)
   You have two options:
   - either **do not run npm as root**, because it doesn't work well with binaries. Use it as a nonprivileged user.
   - or use `--unsafe-perm`: `npm install -g --unsafe-perm spago@next`
-
 
 ## Super quick tutorial
 
@@ -63,6 +64,7 @@ This last command will create a few files:
 ```
 
 If you have a look at the `spago.yaml` file, you'll see that it contains two sections:
+
 - [the `workspace` section](#the-workspace), which details the configuration for the _dependencies_ of the project as a whole (which can be a monorepo, and contain more than one package), and other general configuration settings.
   In this sample project, the only configuration needed is the [package set](#whats-a-package-set) version from which all the dependencies will be chosen. See [here](#querying-package-sets) for more info about how to query the package sets.
 - [the `package` section](#whats-a-package), that is about the configuration of the package at hand, such as its name, dependencies, and so on.
@@ -76,6 +78,7 @@ $ spago run
 ```
 
 This will:
+
 - download and compile the necessary dependencies (equivalent to `spago install`)
 - compile this sample project in the `output/` directory (equivalent to `spago build`).\
   You can take a look at the content of `output/Main/index.js` to see what kind of JavaScript has been generated from your new `Main.purs` file
@@ -95,6 +98,7 @@ $ node .
 Great! If you read unitl here you should be set to go write some PureScript without worrying too much about the build 😊
 
 Where to go from here? There are a few places you should check out:
+
 - see [the "How to achieve X"](#how-do-i) section for practical advice without too much explanation
 - see instead the [Concepts and Explanations](#concepts-and-explanations) section for more in-depth explanations about the concepts that power Spago, such as [package sets](#whats-a-package-set), or [the Workspace](#the-workspace).
 
@@ -153,10 +157,10 @@ Where to go from here? There are a few places you should check out:
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
-
 ## Design goals and reasons
 
 Our main design goals are:
+
 - **Great UX**: a good build system just does what's most expected and gets out of the way so you can focus on actually thinking about the software itself, instead of spending your time configuring the build.
 - **Minimal dependencies**: users should not be expected to install a myriad of tools on their system to support various workflows. Spago only expects `git` and `purs` to be installed.
 - **Reproducible builds**: we exploit [package sets](#whats-a-package-set) and [lock files](#the-lock-file) to make your build reproducible, so that if your project builds today it will also build tomorrow and every day after that.
@@ -169,13 +173,13 @@ Some tools that inspired `spago` are: [Rust's Cargo][cargo], [Haskell's Stack][s
 We'd love your help, and welcome PRs and contributions!
 
 Some ideas for getting started:
+
 - [Build and run `spago`](CONTRIBUTING.md#developing-spago)
 - [Help us fix bugs and build features](https://github.com/purescript/spago/issues?utf8=%E2%9C%93&q=is%3Aissue+is%3Aopen+label%3A%22help+wanted%22+label%3A%22defect%22)
 - Help us improve our documentation
 - Help us [log bugs and open issues][new-issue]
 
 For more details see the [`CONTRIBUTING.md`][contributing]
-
 
 ## How do I...
 
@@ -203,10 +207,12 @@ rm spago.dhall packages.dhall
 
 Some packages might not be found or have the wrong version, in which case
 you'll have to carefully:
+
 - try to run `spago install some-package` for packages found in the package set (see [how to query the set](#querying-package-sets))
 - [add the packages that are missing from the set](#add-a-package-to-the-package-set)
 
 In **all** cases, you'll want to switch to the new Registry package sets, so replace something like this:
+
 ```yaml
 workspace:
   package_set:
@@ -214,6 +220,7 @@ workspace:
 ```
 
 ...with this:
+
 ```yaml
 workspace:
   package_set:
@@ -317,7 +324,7 @@ $ spago build
 
 This is mostly just a thin layer above the PureScript compiler command `purs compile`.
 
-*Note*: by default the `build` command will try to install any dependencies that haven't been
+_Note_: by default the `build` command will try to install any dependencies that haven't been
 fetched yet - if you wish to disable this behaviour, you can pass the `--no-install` flag.
 
 The build will produce very many JavaScript files in the `output/` folder. These
@@ -326,10 +333,13 @@ are ES modules, and you can just `import` them e.g. on Node.
 > [!NOTE]\
 > The wrapper on the compiler is so thin that you can pass options to `purs`.
 > E.g. if you wish to ask `purs` to emit errors in JSON format, you can run
+>
 > ```console
 > $ spago build --purs-args "--json-errors"
 > ```
+>
 > However, some `purs` flags are covered by Spago ones, e.g. to change the location of the `output` folder:
+>
 > ```console
 > $ spago build --output myOutput
 > ```
@@ -353,6 +363,7 @@ $ spago build --before clear --before "notify-send 'Building'"
 ```
 
 If you want to run the program, just use `run`:
+
 ```console
 $ spago run -p package-name -m Module.Containing.Main
 
@@ -377,7 +388,7 @@ spago run -p package-name --purs-args "--verbose-errors"
 # package:
 #   run:
 #       main: Main
-#       execArgs:
+#       exec_args:
 #         - "arg1"
 #         - "arg2"
 $ spago run -p package-name
@@ -543,7 +554,6 @@ workspace:
 > If the upstream library that you are adding has a `spago.yaml` file, then Spago will just pick up the dependencies from there.
 > If that's not the case, then you'll have the provide the dependencies yourself, adding a `dependencies` field.
 
-
 As you might expect, this works also in the case of adding local packages:
 
 ```yaml
@@ -638,6 +648,7 @@ This package set could look something like this:
 The second format possible is what Spago calls a `LegacyPackageSet`, and it's simply a map from package names to the location of the package, described as the (4) option for how to specify `extra_packages` in the [configuration format section](#the-configuration-file).
 
 Something like this:
+
 ```js
 {
   "legacy-package-style": {
@@ -698,6 +709,7 @@ The vast majority of Spago projects will contain only one package, defined in th
 It is however possible to define multiple packages in the same repository!
 
 The basic rules are:
+
 - [a package](#whats-a-package) is defined by a `spago.yaml` file containing a `package` section.
 - there can be only one `workspace` section in the whole repository, which defines the "root" of the current [Spago Workspace](#the-workspace). This defines your package set/build plan.
 - Spago will autodetect all the packages inside the workspace
@@ -731,6 +743,7 @@ Then your file tree might look like this:
 ```
 
 Where:
+
 - the top level `spago.yaml` could look like this:
 
   ```yaml
@@ -745,9 +758,9 @@ Where:
   package:
     name: lib1
     dependencies:
-    - effect
-    - console
-    - prelude
+      - effect
+      - console
+      - prelude
   ```
 
 - then, assuming `lib2` depends on `lib1`, `lib2/spago.yaml` might look like this:
@@ -756,14 +769,14 @@ Where:
   package:
     name: lib2
     dependencies:
-    - effect
-    - console
-    - prelude
-    - lib1 # <------ Note the dependency here
+      - effect
+      - console
+      - prelude
+      - lib1 # <------ Note the dependency here
     tests:
       main: Test.Lib2.Main
       dependencies:
-      - spec
+        - spec
   ```
 
 - and then `app1/spago.yaml` would look something like this:
@@ -773,9 +786,9 @@ Where:
     name: app1
     # Note that the app does not include all the dependencies that the lib included
     dependencies:
-    - prelude
-    - aff # This dep was not used by the library
-    - lib2 # And we have `lib2` as a dependency
+      - prelude
+      - aff # This dep was not used by the library
+      - lib2 # And we have `lib2` as a dependency
   ```
 
 Given this setup, Spago will figure out that there are three separate packages in the repository.
@@ -828,16 +841,18 @@ The file tree might look like this:
 ```
 
 Where the `common/spago.yaml` is just a package with no workspace defined, as it's going to support both the JS and the Erlang backend:
+
 ```yaml
 package:
   name: common
   dependencies:
-  - effect
-  - console
-  - prelude
+    - effect
+    - console
+    - prelude
 ```
 
 Then the `client/spago.yaml` might look like this:
+
 ```yaml
 workspace:
   package_set:
@@ -848,12 +863,13 @@ workspace:
 package:
   name: client
   dependencies:
-  - prelude
-  - common
-  - halogen
+    - prelude
+    - common
+    - halogen
 ```
 
 And the `server/spago.yaml` might look like this:
+
 ```yaml
 workspace:
   package_set:
@@ -866,12 +882,13 @@ workspace:
 package:
   name: server
   dependencies:
-  - prelude
-  - common
-  - erl-process
+    - prelude
+    - common
+    - erl-process
 ```
 
 This all means that:
+
 - there is a [Spago Workspace](#the-workspace) in the `client` folder, another one in the `server` folder, but none in the `common` folder
 - the `common` package is shared between the two workspaces, note that it's included as a local package in both
 - the `client` workspace uses the default JS package set, and the `server` workspace uses a Purerl package set
@@ -885,13 +902,13 @@ Like this:
 package:
   name: mypackage
   dependencies:
-  - effect
-  - console
-  - prelude
+    - effect
+    - console
+    - prelude
   tests:
     main: Test.Main
     dependencies:
-    - spec
+      - spec
 ```
 
 You can add more with `spago install --test-deps some-new-package`.
@@ -905,6 +922,7 @@ This is a good-defaults wrapper into `esbuild`, and it's meant to be used for bu
 See the [`esbuild` getting started][install-esbuild] for installation instructions.
 
 This command supports a few options, and the most important ones are:
+
 - the `--bundle-type` flag, which can be either `app` or `module`
 - the `--platform` flag, which can be either `browser` or `node`
 
@@ -930,6 +948,7 @@ $ spago bundle --bundle-type module --main Main --outfile index.js
 ```
 
 Can now import it in your Node project:
+
 ```console
 $ node -e "import('./index.js').then(m => console.log(m.main))"
 [Function]
@@ -940,23 +959,28 @@ $ node -e "import('./index.js').then(m => console.log(m.main))"
 When bundling, you can include `--source-maps` to generate a final source map for your bundle.
 
 Example:
+
 ```console
 spago bundle -p my-project --source-maps --minify --outfile=bundle.js
 ```
+
 will generate a minified bundle: `bundle.js`, and a source map: `bundle.js.map`.
 
 #### Node
-If your target platform is node, then you need to ensure your node version is >= 12.2.0 and [enable source maps](https://nodejs.org/dist/latest-v20.x/docs/api/cli.html#--enable-source-maps
-) when executing your script:
+
+If your target platform is node, then you need to ensure your node version is >= 12.2.0 and [enable source maps](https://nodejs.org/dist/latest-v20.x/docs/api/cli.html#--enable-source-maps) when executing your script:
+
 ```console
 spago bundle -p my-project --platform node --source-maps --minify --outfile=bundle.js
 node --enable-source-maps bundle.js
 ```
 
 #### Browsers
+
 If you are targeting browsers, then you will need to ensure your server is configured to serve the source map from the same directory as your bundle.
 
 So for example if your server is configured to serve files from `public/`, you might run:
+
 ```console
 spago bundle -p my-project --platform browser --source-maps --minify --outfile=public/bundle.js
 ```
@@ -981,6 +1005,7 @@ The file itself is stored in the `.spago` folder if you'd like to have a look at
 
 To build documentation for your project and its dependencies (i.e. a "project-local
 [Pursuit][pursuit]"), you can use the `docs` command:
+
 ```console
 $ spago docs
 ```
@@ -989,12 +1014,14 @@ This will generate all the documentation in the `./generated-docs` folder of you
 You might then want to open the `index.html` file in there.
 
 If you wish for the documentation to be opened in browser when generated, you can pass an `open` flag:
+
 ```console
 $ spago docs --open
 ```
 
 You can customize the output to other formats beyond html. Supported formats include ctags, etags, and markdown.
 For example to generate ctags for use in your editor:
+
 ```console
 $ spago docs --format ctags
 ```
@@ -1004,7 +1031,6 @@ Sometimes you'd like to pull up docs for dependencies even when you have compila
 ```console
 $ spago docs --deps-only`
 ```
-
 
 ### Alternate backends
 
@@ -1084,6 +1110,7 @@ This section details some of the concepts that are useful to know when using Spa
 ### What's a "package"?
 
 Spago considers a "package" any folder that contains:
+
 - a `spago.yaml` file with a valid `package` section
 - a `src` subfolder with PureScript source files
 
@@ -1092,6 +1119,7 @@ That's all there is to it! You can have many of these in your repository if you'
 The above holds for "workspace packages", i.e. the packages for which you have the source locally, and inside your repository. These are the packages "in your project".
 
 Packages on which your project depends on can come from a few different sources:
+
 - [the Registry][registry]
 - local packages - i.e. packages that are on your filesystem but external to your repository
 - remote packages - i.e. packages that are not on your filesystem, but somewhere on the internet
@@ -1107,6 +1135,7 @@ Packages have "dependencies", which are other packages that are required for the
 The most generic way of defining a "package set" is "a collection of package versions that are known to build together". The point of a package set is to provide a "stable" set of packages that you can use to build your project, without worrying about version conflicts.
 
 In practice, it looks something like [this][sample-package-set]:
+
 ```json
 {
   "version": "41.2.0",
@@ -1143,6 +1172,7 @@ For any software project, it's usually possible to find a clear line between "th
 Following this line of reasoning, Spago - taking inspiration from other tools such as [Bazel][bazel] - uses the concept of of a "workspace" to characterise the sum of all the project packages and their dependencies (including only "potential" ones).
 
 A very succint introduction to this idea can be found [in Bazel's documentation][bazel-workspace]:
+
 > A workspace is a directory tree on your filesystem that contains the source files for the software you want to build.\
 > Each workspace has a text file named `WORKSPACE` which may be empty, or may contain references to external dependencies required to build the outputs.\
 > Directories containing a file called `WORKSPACE` are considered the root of a workspace.\
@@ -1151,6 +1181,7 @@ A very succint introduction to this idea can be found [in Bazel's documentation]
 Spago goes by these same rules, with the difference that we do not use a separate `WORKSPACE` file, but instead use the `workspace` section of the `spago.yaml` file to define what the set of our external dependencies are, and where they come from.
 
 This can be as simple as:
+
 ```yaml
 workspace: {}
 ```
@@ -1158,6 +1189,7 @@ workspace: {}
 ...which means that "this is now a workspace, and all the dependencies are going to be fetched from the Registry".
 
 Or it can be more complex, e.g.:
+
 ```yaml
 workspace:
   package_set:
@@ -1266,18 +1298,18 @@ workspace:
     # Specify whether to censor warnings coming from the compiler
     # for files in the `.spago` directory`.
     # Optional and can be one of two possible values
-    censor_library_warnings: 
+    censor_library_warnings:
       # Value 1: "all" - All warnings are censored
       all
 
       # Value 2: `NonEmptyArray (Either String { by_prefix :: String })`
-      # - String values: 
+      # - String values:
       #      censor warnings if the code matches this code
-      # - { by_prefix } values: 
-      #      censor warnings if the warning's message 
+      # - { by_prefix } values:
+      #      censor warnings if the warning's message
       #      starts with the given text
       - CodeName
-      # Note: when using `by_prefix`, use the `>` for block-string: 
+      # Note: when using `by_prefix`, use the `>` for block-string:
       # see https://yaml-multiline.info/
       - by_prefix: >
         "Data.Map"'s `Semigroup instance`
@@ -1318,22 +1350,22 @@ package:
     # Fail the build if this package's `dependencies` field has redundant/underspecified packages.
     # Optional boolean that defaults to `false`.
     pedantic_packages: false
-    
+
     # Specify whether to censor warnings coming from the compiler
     # for files from this package.
     # Optional and can be one of two possible values
-    censor_project_warnings: 
+    censor_project_warnings:
       # Value 1: "all" - All warnings are censored
       all
 
       # Value 2: `NonEmptyArray (Either String { by_prefix :: String })`
-      # - String values: 
+      # - String values:
       #      censor warnings if the code matches this code
-      # - { by_prefix } values: 
-      #      censor warnings if the warning's message 
+      # - { by_prefix } values:
+      #      censor warnings if the warning's message
       #      starts with the given text
       - CodeName
-      # Note: when using `by_prefix`, use the `>` for block-string: 
+      # Note: when using `by_prefix`, use the `>` for block-string:
       # see https://yaml-multiline.info/
       - by_prefix: >
         "Data.Map"'s `Semigroup instance`
@@ -1367,7 +1399,7 @@ package:
     # The entrypoint for the program
     main: Main
     # List of arguments to pass to the program
-    execArgs:
+    exec_args:
       - "--cli-arg"
       - "foo"
 
@@ -1379,7 +1411,7 @@ package:
     dependencies:
     - foo
     # Optional list of arguments to pass to the test program
-    execArgs:
+    exec_args:
       - "--cli-arg"
       - "foo"
 
@@ -1390,18 +1422,18 @@ package:
     # Specify whether to censor warnings coming from the compiler
     # for files from this package's test code.
     # Optional and can be one of two possible values
-    censor_test_warnings: 
+    censor_test_warnings:
       # Value 1: "all" - All warnings are censored
       all
 
       # Value 2: `NonEmptyArray (Either String { by_prefix :: String })`
-      # - String values: 
+      # - String values:
       #      censor warnings if the code matches this code
-      # - { by_prefix } values: 
-      #      censor warnings if the warning's message 
+      # - { by_prefix } values:
+      #      censor warnings if the warning's message
       #      starts with the given text
       - CodeName
-      # Note: when using `by_prefix`, use the `>` for block-string: 
+      # Note: when using `by_prefix`, use the `>` for block-string:
       # see https://yaml-multiline.info/
       - by_prefix: >
         "Data.Map"'s `Semigroup instance`
@@ -1488,13 +1520,15 @@ packages, you should run the appropriate package-manager for that (e.g. npm).
 ### Differences from legacy spago
 
 #### Watch mode
-Spago dropped support for the --watch flag in `spago build` and `spago test`. 
+
+Spago dropped support for the --watch flag in `spago build` and `spago test`.
 
 VSCode users are recommended to use the [Purescript IDE](purescript-ide) extension for seamless experiences with automatic rebuilds.
 
 Users of other editors, e.g. vim, emacs, etc., can make use of the underlying [LSP plugin](purescript-language-server).
 
 If you want a very simple drop in replacement for `spago test --watch`, you can use a general purpose tool such as [watchexec]:
+
 ```console
 watchexec -e purs,js,yaml -- spago test
 ```
