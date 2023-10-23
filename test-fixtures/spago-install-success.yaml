@@ -1,14 +1,14 @@
 package:
+  name: aaa
   dependencies:
     - console
     - effect
     - foreign
     - prelude
-  name: aaa
   test:
-    dependencies: []
     main: Test.Main
+    dependencies: []
 workspace:
-  extra_packages: {}
   package_set:
     registry: 29.3.0
+  extra_packages: {}

@@ -12,7 +12,7 @@ export function addPackagesToConfigImpl(doc, isTest, newPkgs) {
 
   const deps = (() => {
     if (isTest) {
-      const test = getOrElse(pkg, "test", doc.createNode({ dependencies: [], main: "Test.Main" }));
+      const test = getOrElse(pkg, "test", doc.createNode({ main: "Test.Main", dependencies: [] }));
       return getOrElse(test, "dependencies", doc.createNode([]));
     } else {
       return getOrElse(pkg, "dependencies", doc.createNode([]))
