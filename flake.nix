@@ -20,6 +20,7 @@
             purs
             purs-tidy
             purs-backend-es
+            spago-unstable
 
             nodejs
             esbuild
