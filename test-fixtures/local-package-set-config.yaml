@@ -1,13 +1,13 @@
 package:
+  name: aaaa
   dependencies:
     - console
     - effect
     - prelude
-  name: aaaa
   test:
-    dependencies: []
     main: Test.Main
+    dependencies: []
 workspace:
-  extra_packages: {}
   package_set:
     path: local-package-set.json
+  extra_packages: {}
