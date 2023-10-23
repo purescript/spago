@@ -43,6 +43,7 @@ package:
     - registry-lib
     - spago-core
     - strings
+    - stringutils
     - transformers
     - tuples
     - unsafe-coerce

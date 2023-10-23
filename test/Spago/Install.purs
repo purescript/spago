@@ -4,6 +4,7 @@ import Test.Prelude
 
 import Data.Array as Array
 import Data.Map as Map
+import Effect.Now as Now
 import Node.FS.Aff as FSA
 import Node.Path as Path
 import Registry.Version as Version
@@ -238,7 +239,8 @@ spec = Spec.around withTempDir do
 
     Spec.it "can build with a newer (but still compatible) compiler than the one in the package set" \{ spago } -> do
       spago [ "init", "--package-set", "10.0.0" ] >>= shouldBeSuccess
-      purs <- runSpago { logOptions: { color: false, verbosity: LogQuiet } } Purs.getPurs
+      startingTime <- liftEffect $ Now.now
+      purs <- runSpago { logOptions: { color: false, verbosity: LogQuiet, startingTime } } Purs.getPurs
       -- The package set 10.0.0 has purescript 0.15.4, so we check that we have a newer version
       case purs.version > mkVersion "0.15.4" of
         true -> pure unit
