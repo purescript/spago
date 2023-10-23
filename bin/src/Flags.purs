@@ -183,8 +183,8 @@ pursArgs =
               )
       )
 
-exec_args :: Parser (Maybe (Array String))
-exec_args =
+execArgs :: Parser (Maybe (Array String))
+execArgs =
   OT.optional
     $ Array.fromFoldable
     <$> O.many

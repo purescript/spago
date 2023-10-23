@@ -21,7 +21,7 @@ type TestEnv a =
   }
 
 type SelectedTest =
-  { exec_args :: Array String
+  { execArgs :: Array String
   , moduleName :: String
   , selected :: WorkspacePackage
   }
@@ -29,7 +29,7 @@ type SelectedTest =
 run :: forall a. Spago (TestEnv a) Unit
 run = do
   { workspace, logOptions, node, selectedPackages, dependencies, purs } <- ask
-  void $ for selectedPackages \{ exec_args, moduleName, selected } -> do
+  void $ for selectedPackages \{ execArgs, moduleName, selected } -> do
 
     let
       name = selected.package.name
@@ -38,7 +38,7 @@ run = do
         , failureMessage: "Tests failed for package \"" <> PackageName.print name <> "\"."
         , executeDir: Paths.cwd
         , sourceDir: Paths.cwd
-        , exec_args
+        , execArgs
         , moduleName
         }
 

@@ -123,7 +123,7 @@ type RunArgs =
   , pedanticPackages :: Boolean
   , pursArgs :: List String
   , backendArgs :: List String
-  , exec_args :: Maybe (Array String)
+  , execArgs :: Maybe (Array String)
   , main :: Maybe String
   , ensureRanges :: Boolean
   , strict :: Maybe Boolean
@@ -136,7 +136,7 @@ type TestArgs =
   , pedanticPackages :: Boolean
   , pursArgs :: List String
   , backendArgs :: List String
-  , exec_args :: Maybe (Array String)
+  , execArgs :: Maybe (Array String)
   , strict :: Maybe Boolean
   , statVerbosity :: Maybe Core.StatVerbosity
   }
@@ -330,7 +330,7 @@ runArgsParser = Optparse.fromRecord
   { selectedPackage: Flags.selectedPackage
   , pursArgs: Flags.pursArgs
   , backendArgs: Flags.backendArgs
-  , exec_args: Flags.exec_args
+  , execArgs: Flags.execArgs
   , output: Flags.output
   , pedanticPackages: Flags.pedanticPackages
   , main: Flags.moduleName
@@ -344,7 +344,7 @@ testArgsParser = Optparse.fromRecord
   { selectedPackage: Flags.selectedPackage
   , pursArgs: Flags.pursArgs
   , backendArgs: Flags.backendArgs
-  , exec_args: Flags.exec_args
+  , execArgs: Flags.execArgs
   , output: Flags.output
   , pedanticPackages: Flags.pedanticPackages
   , strict: Flags.strict
@@ -740,11 +740,11 @@ mkRunEnv runArgs { dependencies, purs } = do
     runConf f = selected.package.run >>= f
 
     moduleName = fromMaybe "Main" (runArgs.main <|> runConf _.main)
-    exec_args = fromMaybe [] (runArgs.exec_args <|> runConf _.exec_args)
+    execArgs = fromMaybe [] (runArgs.execArgs <|> runConf _.exec_args)
 
     runOptions =
       { moduleName
-      , exec_args
+      , execArgs
       , sourceDir: Paths.cwd
       , executeDir: Paths.cwd
       , successMessage: Nothing
@@ -770,10 +770,10 @@ mkTestEnv testArgs { dependencies, purs } = do
         testConf f = selected.package.test >>= f
 
         moduleName = fromMaybe "Test.Main" (testConf (_.main >>> Just))
-        exec_args = fromMaybe [] (testArgs.exec_args <|> testConf _.exec_args)
+        execArgs = fromMaybe [] (testArgs.execArgs <|> testConf _.exec_args)
       in
         { moduleName
-        , exec_args
+        , execArgs
         , selected
         }
 
