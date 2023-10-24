@@ -14,6 +14,7 @@ import Data.Map as Map
 import Data.Maybe as Maybe
 import Data.String as String
 import Effect.Aff as Aff
+import Effect.Now as Now
 import Effect.Ref as Ref
 import Node.FS.Stats (Stats(..))
 import Node.Path as Path
@@ -474,11 +475,17 @@ parseArgs = do
     )
 
 main :: Effect Unit
-main =
+main = do
+  startingTime <- Now.now
+  let
+    printVersion = do
+      logOptions <- mkLogOptions startingTime { noColor: false, quiet: false, verbose: false, offline: Offline }
+      runSpago { logOptions } do
+        logInfo BuildInfo.buildInfo.spagoVersion
   parseArgs >>=
     \c -> Aff.launchAff_ case c of
       Cmd'SpagoCmd (SpagoCmd globalArgs@{ offline } command) -> do
-        logOptions <- mkLogOptions globalArgs
+        logOptions <- mkLogOptions startingTime globalArgs
         runSpago { logOptions } case command of
           Sources args -> do
             { env } <- mkFetchEnv
@@ -645,23 +652,18 @@ main =
 
       Cmd'VersionCmd v -> do when v printVersion
   where
-  printVersion = do
-    logOptions <- mkLogOptions { noColor: false, quiet: false, verbose: false, offline: Offline }
-    runSpago { logOptions } do
-      logInfo BuildInfo.buildInfo.spagoVersion
-
-mkLogOptions :: GlobalArgs -> Aff LogOptions
-mkLogOptions { noColor, quiet, verbose } = do
-  supports <- liftEffect supportsColor
-  let color = and [ supports, not noColor ]
-  let
-    verbosity =
-      if quiet then
-        LogQuiet
-      else if verbose then
-        LogVerbose
-      else LogNormal
-  pure { color, verbosity }
+  mkLogOptions :: Instant -> GlobalArgs -> Aff LogOptions
+  mkLogOptions startingTime { noColor, quiet, verbose } = do
+    supports <- liftEffect supportsColor
+    let color = and [ supports, not noColor ]
+    let
+      verbosity =
+        if quiet then
+          LogQuiet
+        else if verbose then
+          LogVerbose
+        else LogNormal
+    pure { color, verbosity, startingTime }
 
 mkBundleEnv :: forall a. BundleArgs -> Spago (Fetch.FetchEnv a) (Bundle.BundleEnv ())
 mkBundleEnv bundleArgs = do

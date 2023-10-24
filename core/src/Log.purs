@@ -32,9 +32,15 @@ import Data.Array as Array
 import Data.Array.NonEmpty (NonEmptyArray)
 import Data.Array.NonEmpty (toArray) as NEA
 import Data.Codec.Argonaut (JsonCodec)
+import Data.DateTime.Instant (Instant)
+import Data.DateTime.Instant as Instant
 import Data.Either (Either(..))
+import Data.Int as Int
 import Data.Maybe (Maybe(..), fromMaybe)
+import Data.Newtype (unwrap)
 import Data.String as String
+import Data.String.Utils as Strings
+import Data.Time.Duration (Milliseconds)
 import Data.Traversable (traverse)
 import Dodo (Doc, print, twoSpaces)
 import Dodo (indent, break) as DodoExport
@@ -48,6 +54,7 @@ import Dodo.Box as Box
 import Effect.Class (class MonadEffect)
 import Effect.Class as Effect
 import Effect.Class.Console as Console
+import Effect.Now as Now
 import Node.Process as Process
 import Registry.PackageName (PackageName)
 import Registry.PackageName as PackageName
@@ -56,7 +63,11 @@ import Spago.Yaml as Yaml
 
 type LogEnv a = { logOptions :: LogOptions | a }
 
-type LogOptions = { color :: Boolean, verbosity :: LogVerbosity }
+type LogOptions =
+  { color :: Boolean
+  , verbosity :: LogVerbosity
+  , startingTime :: Instant
+  }
 
 data LogVerbosity
   = LogQuiet
@@ -100,6 +111,13 @@ log { content, level } = do
   case logOptions.verbosity, level of
     LogQuiet, _ -> pure unit
     LogNormal, LogDebug -> pure unit
+    LogVerbose, _ -> do
+      now <- Effect.liftEffect $ Now.now
+      let
+        (timeDiff :: Milliseconds) = Instant.diff now logOptions.startingTime
+        millisDoc = Ansi.foreground Ansi.White $ Ansi.bold $ Log.text $ Strings.padStart 8 $ show $ Int.round $ unwrap timeDiff
+        contentWithTimeDiff = Log.text "[" <> millisDoc <> Log.text "ms]" <> Log.space <> content
+      Console.error $ printFn (Log.twoSpaces { pageWidth = 200 }) contentWithTimeDiff
     _, _ -> Console.error $ printFn (Log.twoSpaces { pageWidth = 200 }) content
 
 logInfo :: forall a b m. MonadEffect m => MonadAsk (LogEnv b) m => Loggable a => a -> m Unit
