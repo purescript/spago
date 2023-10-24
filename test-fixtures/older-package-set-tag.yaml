@@ -1,13 +1,13 @@
 package:
+  name: 7368613235362d47665357393342584955783641314b70674c
   dependencies:
     - console
     - effect
     - prelude
-  name: 7368613235362d47665357393342584955783641314b70674c
   test:
-    dependencies: []
     main: Test.Main
+    dependencies: []
 workspace:
-  extra_packages: {}
   package_set:
     registry: 9.0.0
+  extra_packages: {}

@@ -4,15 +4,15 @@
     "value": {
       "hasTests": true,
       "package": {
+        "name": "aaa2",
         "dependencies": [
           "console",
           "effect",
           "prelude"
         ],
-        "name": "aaa2",
         "test": {
-          "dependencies": [],
-          "main": "Subpackage.Test.Main"
+          "main": "Subpackage.Test.Main",
+          "dependencies": []
         }
       },
       "path": "subpackage"

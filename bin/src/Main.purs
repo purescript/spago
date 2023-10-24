@@ -742,7 +742,7 @@ mkRunEnv runArgs { dependencies, purs } = do
     runConf f = selected.package.run >>= f
 
     moduleName = fromMaybe "Main" (runArgs.main <|> runConf _.main)
-    execArgs = fromMaybe [] (runArgs.execArgs <|> runConf _.execArgs)
+    execArgs = fromMaybe [] (runArgs.execArgs <|> runConf _.exec_args)
 
     runOptions =
       { moduleName
@@ -772,7 +772,7 @@ mkTestEnv testArgs { dependencies, purs } = do
         testConf f = selected.package.test >>= f
 
         moduleName = fromMaybe "Test.Main" (testConf (_.main >>> Just))
-        execArgs = fromMaybe [] (testArgs.execArgs <|> testConf _.execArgs)
+        execArgs = fromMaybe [] (testArgs.execArgs <|> testConf _.exec_args)
       in
         { moduleName
         , execArgs
