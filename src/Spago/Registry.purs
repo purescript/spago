@@ -3,10 +3,13 @@ module Spago.Registry where
 import Spago.Prelude
 
 import Data.Array as Array
+import Data.DateTime as DateTime
 import Data.Map as Map
 import Data.Set as Set
 import Data.String (Pattern(..))
 import Data.String as String
+import Data.Time.Duration (Minutes(..))
+import Effect.Now as Now
 import Node.Path as Path
 import Registry.PackageSet (PackageSet(..))
 import Registry.PackageSet as PackageSet
@@ -118,3 +121,28 @@ isVersionCompatible installedVersion minVersion =
       [ 0, b, c ], [ 0, y, z ] | b == y && c >= z -> true
       [ a, b, _c ], [ x, y, _z ] | a /= 0 && a == x && b >= y -> true
       _, _ -> false
+
+-- | Check if we have fetched the registry recently enough, so we don't hit the net all the time
+shouldFetchRegistryRepos :: forall a. Db -> Spago (LogEnv a) Boolean
+shouldFetchRegistryRepos db = do
+  now <- liftEffect $ Now.nowDateTime
+  let registryKey = "registry"
+  maybeLastRegistryFetch <- liftEffect $ Db.getLastPull db registryKey
+  case maybeLastRegistryFetch of
+    -- No record, so we have to fetch
+    Nothing -> do
+      logDebug "No record of last registry pull, will fetch"
+      liftEffect $ Db.updateLastPull db registryKey now
+      pure true
+    -- We have a record, so we check if it's old enough
+    Just lastRegistryFetch -> do
+      let staleAfter = Minutes 15.0
+      let (timeDiff :: Minutes) = DateTime.diff now lastRegistryFetch
+      let isOldEnough = timeDiff > staleAfter
+      if isOldEnough then do
+        logDebug "Registry is old, refreshing"
+        liftEffect $ Db.updateLastPull db registryKey now
+        pure true
+      else do
+        logDebug "Registry is fresh enough, moving on..."
+        pure false
