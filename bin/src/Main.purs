@@ -8,15 +8,12 @@ import Data.Array.NonEmpty as NEA
 import Data.Array.NonEmpty as NonEmptyArray
 import Data.Codec.Argonaut.Common as CA.Common
 import Data.Foldable as Foldable
-import Data.JSDate as JSDate
 import Data.List as List
 import Data.Map as Map
 import Data.Maybe as Maybe
 import Data.String as String
 import Effect.Aff as Aff
 import Effect.Now as Now
-import Effect.Ref as Ref
-import Node.FS.Stats (Stats(..))
 import Node.Path as Path
 import Node.Process as Process
 import Options.Applicative (CommandFields, Mod, Parser, ParserPrefs(..))
@@ -27,6 +24,7 @@ import Registry.Constants as Registry.Constants
 import Registry.ManifestIndex as ManifestIndex
 import Registry.Metadata as Metadata
 import Registry.PackageName as PackageName
+import Registry.Version as Version
 import Spago.Bin.Flags as Flags
 import Spago.Command.Build as Build
 import Spago.Command.Bundle as Bundle
@@ -912,52 +910,19 @@ mkRegistryEnv offline = do
   -- Make sure we have git and purs
   git <- Git.getGit
   purs <- Purs.getPurs
-
-  -- we make a Ref for the Index so that we can memoize the lookup of packages
-  -- and we don't have to read it all together
-  indexRef <- liftEffect $ Ref.new (Map.empty :: Map PackageName (Map Version Manifest))
-  let
-    getManifestFromIndex :: PackageName -> Version -> Spago (LogEnv ()) (Maybe Manifest)
-    getManifestFromIndex name version = do
-      indexMap <- liftEffect (Ref.read indexRef)
-      case Map.lookup name indexMap of
-        Just meta -> pure (Map.lookup version meta)
-        Nothing -> do
-          -- if we don't have it we try reading it from file
-          logDebug $ "Reading package from Index: " <> PackageName.print name
-          maybeManifests <- liftAff $ ManifestIndex.readEntryFile Paths.registryIndexPath name
-          manifests <- map (map (\m@(Manifest m') -> Tuple m'.version m)) case maybeManifests of
-            Right ms -> pure $ NonEmptyArray.toUnfoldable ms
-            Left err -> do
-              logWarn $ "Could not read package manifests from index, proceeding anyways. Error: " <> err
-              pure []
-          let versions = Map.fromFoldable manifests
-          liftEffect (Ref.write (Map.insert name versions indexMap) indexRef)
-          pure (Map.lookup version versions)
-
-  -- same deal for the metadata files
-  metadataRef <- liftEffect $ Ref.new (Map.empty :: Map PackageName Metadata)
-  let
-    getMetadata :: PackageName -> Spago (LogEnv ()) (Either String Metadata)
-    getMetadata name = do
-      metadataMap <- liftEffect (Ref.read metadataRef)
-      case Map.lookup name metadataMap of
-        Just meta -> pure (Right meta)
-        Nothing -> do
-          -- if we don't have it we try reading it from file
-          let metadataFilePath = Path.concat [ Paths.registryPath, Registry.Constants.metadataDirectory, PackageName.print name <> ".json" ]
-          logDebug $ "Reading metadata from file: " <> metadataFilePath
-          liftAff (FS.readJsonFile Metadata.codec metadataFilePath) >>= case _ of
-            Left e -> pure (Left e)
-            Right m -> do
-              -- and memoize it
-              liftEffect (Ref.write (Map.insert name m metadataMap) metadataRef)
-              pure (Right m)
-
   { logOptions } <- ask
+
+  -- Connect to the database - we need it to keep track of when to pull the Registry,
+  -- so we don't do it too often
+  db <- liftEffect $ Db.connect
+    { database: Paths.databasePath
+    , logger: \str -> Reader.runReaderT (logDebug $ "DB: " <> str) { logOptions }
+    }
+
   -- we keep track of how old the latest pull was - if the last pull was recent enough
   -- we just move on, otherwise run the fibers
-  whenM shouldFetchRegistryRepos do
+  fetchingFreshRegistry <- Registry.shouldFetchRegistryRepos db
+  when fetchingFreshRegistry do
     -- clone the registry and index repo, or update them
     logInfo "Refreshing the Registry Index..."
     runSpago { logOptions, git, offline } $ parallelise
@@ -970,11 +935,56 @@ mkRegistryEnv offline = do
       ]
 
   -- Now that we are up to date with the Registry we init/refresh the database
-  db <- liftEffect $ Db.connect
-    { database: Paths.databasePath
-    , logger: \str -> Reader.runReaderT (logDebug $ "DB: " <> str) { logOptions }
-    }
   Registry.updatePackageSetsDb db
+
+  -- Prepare the functions to read the manifests and metadata - here we memoize as much
+  -- as we can in the DB, so we don't have to read the files every time
+  let
+    -- Manifests are immutable so we can just lookup in the DB or read from file if not there
+    getManifestFromIndex :: PackageName -> Version -> Spago (LogEnv ()) (Maybe Manifest)
+    getManifestFromIndex name version = do
+      liftEffect (Db.getManifest db name version) >>= case _ of
+        Just manifest -> pure (Just manifest)
+        Nothing -> do
+          -- if we don't have it we need to read it from file
+          -- (note that we have all the versions of a package in the same file)
+          logDebug $ "Reading package from Index: " <> PackageName.print name
+          maybeManifests <- liftAff $ ManifestIndex.readEntryFile Paths.registryIndexPath name
+          manifests <- map (map (\m@(Manifest m') -> Tuple m'.version m)) case maybeManifests of
+            Right ms -> pure $ NonEmptyArray.toUnfoldable ms
+            Left err -> do
+              logWarn $ "Could not read package manifests from index, proceeding anyways. Error: " <> err
+              pure []
+          let versions = Map.fromFoldable manifests
+          -- and memoize it
+          for_ manifests \(Tuple _ manifest@(Manifest m)) -> do
+            logDebug $ "Inserting manifest in DB: " <> PackageName.print name <> " v" <> Version.print m.version
+            liftEffect $ Db.insertManifest db name m.version manifest
+          pure (Map.lookup version versions)
+
+  -- Metadata can change over time (unpublished packages, and new packages), so we need
+  -- to read it from file every time we have a fresh Registry
+  let
+    metadataFromFile name = do
+      let metadataFilePath = Path.concat [ Paths.registryPath, Registry.Constants.metadataDirectory, PackageName.print name <> ".json" ]
+      logDebug $ "Reading metadata from file: " <> metadataFilePath
+      liftAff (FS.readJsonFile Metadata.codec metadataFilePath)
+
+    getMetadata :: PackageName -> Spago (LogEnv ()) (Either String Metadata)
+    getMetadata name = do
+      -- we first try reading it from the DB
+      liftEffect (Db.getMetadata db name) >>= case _ of
+        Just metadata | not fetchingFreshRegistry -> do
+          logDebug $ "Got metadata from DB: " <> PackageName.print name
+          pure (Right metadata)
+        _ -> do
+          -- if we don't have it we try reading it from file
+          metadataFromFile name >>= case _ of
+            Left e -> pure (Left e)
+            Right m -> do
+              -- and memoize it
+              liftEffect (Db.insertMetadata db name m)
+              pure (Right m)
 
   pure
     { getManifestFromIndex
@@ -1019,33 +1029,5 @@ mkDocsEnv args dependencies = do
     , docsFormat: args.docsFormat
     , open: args.open
     }
-
-shouldFetchRegistryRepos :: forall a. Spago (LogEnv a) Boolean
-shouldFetchRegistryRepos = do
-  let freshRegistryCanary = Path.concat [ Paths.globalCachePath, "fresh-registry-canary.txt" ]
-  FS.stat freshRegistryCanary >>= case _ of
-    Left err -> do
-      -- If the stat fails the file probably does not exist
-      logDebug [ "Could not stat " <> freshRegistryCanary, show err ]
-      -- in which case we touch it and fetch
-      touch freshRegistryCanary
-      pure true
-    Right (Stats { mtime }) -> do
-      -- it does exist here, see if it's old enough, and fetch if it is
-      now <- liftEffect $ JSDate.now
-      let minutes = 15.0
-      let staleAfter = 1000.0 * 60.0 * minutes -- need this in millis
-      let isOldEnough = (JSDate.getTime now) > (JSDate.getTime mtime + staleAfter)
-      if isOldEnough then do
-        logDebug "Registry index is old, refreshing canary"
-        touch freshRegistryCanary
-        pure true
-      else do
-        logDebug "Registry index is fresh enough, moving on..."
-        pure false
-  where
-  touch path = do
-    FS.ensureFileSync path
-    FS.writeTextFile path ""
 
 foreign import supportsColor :: Effect Boolean
