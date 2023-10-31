@@ -42,7 +42,9 @@ withTempDir = Aff.bracket createTempDir cleanupTempDir
     temp <- mkTemp' $ Just "spago-test-"
     FS.mkdirp temp
     liftEffect $ Process.chdir temp
-    log $ "Running test in " <> temp
+    isDebug <- liftEffect $ map isJust $ Process.lookupEnv "SPAGO_TEST_DEBUG"
+    when isDebug do
+      log $ "Running test in " <> temp
     let
       fixturesPath = oldCwd <> Path.sep <> "test-fixtures"
 

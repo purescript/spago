@@ -1,0 +1,30 @@
+Reading Spago workspace configuration...
+Read the package set from the registry
+
+✅ Selecting package to build: pedantic
+
+Downloading dependencies...
+Building...
+           Src   Lib   All
+Warnings     0     0     0
+Errors       0     0     0
+
+✅ Build succeeded.
+
+Looking for unused and undeclared transitive dependencies...
+
+❌ Sources for package 'pedantic' declares unused dependencies - please remove them from the project config:
+  - console
+  - effect
+
+
+❌ Tests for package 'pedantic' import the following transitive dependencies - please add them to the project dependencies, or remove the imports:
+  console
+    from `Test.Main`, which imports:
+      Effect.Console
+  effect
+    from `Test.Main`, which imports:
+      Effect
+
+Run the following command to install them all:
+  spago install --test-deps -p pedantic console effect

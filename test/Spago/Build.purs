@@ -2,14 +2,13 @@ module Test.Spago.Build where
 
 import Test.Prelude
 
-import Data.Map as Map
 import Node.FS.Aff as FSA
 import Node.Path as Path
 import Node.Process as Process
 import Spago.Command.Init as Init
-import Spago.Core.Config (configCodec)
 import Spago.Core.Config as Config
 import Spago.FS as FS
+import Test.Spago.Build.Pedantic as Pedantic
 import Test.Spago.Build.Polyrepo as BuildPolyrepo
 import Test.Spec (Spec)
 import Test.Spec as Spec
@@ -79,257 +78,6 @@ spec = Spec.around withTempDir do
       FS.exists "output" `Assert.shouldReturn` true
       FS.exists (Path.concat [ "subpackage", "output" ]) `Assert.shouldReturn` false
 
-    Spec.describe "pedantic packages" do
-
-      let
-        modifyPackageConfig f = do
-          content <- FS.readYamlDocFile configCodec "spago.yaml"
-          case content of
-            Left err ->
-              Assert.fail $ "Failed to decode spago.yaml file\n" <> err
-            Right { yaml: config } ->
-              FS.writeYamlFile configCodec "spago.yaml" $ f config
-
-        addPedanticPackagesToSrc = modifyPackageConfig \config ->
-          config
-            { package = config.package <#> \r -> r
-                { build = Just
-                    { pedantic_packages: Just true
-                    , strict: Nothing
-                    , censor_project_warnings: Nothing
-                    }
-                }
-            }
-        addPedanticPackagesToTest = modifyPackageConfig \config ->
-          config
-            { package = config.package <#> \r -> r
-                { test = Just
-                    { main: "Test.Main"
-                    , pedantic_packages: Just true
-                    , strict: Nothing
-                    , censor_test_warnings: Nothing
-                    , dependencies: maybe (Config.Dependencies Map.empty) _.dependencies r.test
-                    , execArgs: r.test >>= _.execArgs
-                    }
-                }
-            }
-
-      Spec.describe "fails when imports from transitive dependencies" do
-
-        Spec.describe "appear in the source package and" do
-
-          let
-            setupTransitiveTestsInSource spago { installConsoleAndEffectInTests } = do
-              spago [ "init", "--name", "7368613235362d34312f4e59746b7869335477336d33414d72" ] >>= shouldBeSuccess
-              spago [ "install", "maybe" ] >>= shouldBeSuccess
-              when installConsoleAndEffectInTests do
-                spago [ "install", "--test-deps", "console", "effect" ] >>= shouldBeSuccess
-              FS.writeTextFile (Path.concat [ "src", "Main.purs" ]) $ writeMain
-                [ "import Prelude"
-                , "import Data.Maybe as Maybe"
-                , "import Effect as Effect"
-                , "import Effect.Console as Console"
-                , "import Control.Alt as Alt"
-                , "main = unit"
-                ]
-              -- get rid of "Compiling ..." messages and other compiler warnings
-              spago [ "build" ] >>= shouldBeSuccess
-
-          Spec.it "passed --pedantic-packages CLI flag" \{ spago, fixture } -> do
-            -- Install deps in test so that overriding the test's config with pedantic packages CLI flag
-            -- doesn't find issues in test code. This code is only testing source package.
-            setupTransitiveTestsInSource spago { installConsoleAndEffectInTests: true }
-            spago [ "build", "--pedantic-packages" ] >>= shouldBeFailureErr (fixture "check-direct-import-transitive-dependency.txt")
-
-          Spec.it "package config has 'pedantic_packages: true'" \{ spago, fixture } -> do
-            setupTransitiveTestsInSource spago { installConsoleAndEffectInTests: false }
-            addPedanticPackagesToSrc
-            spago [ "build" ] >>= shouldBeFailureErr (fixture "check-direct-import-transitive-dependency.txt")
-
-        Spec.describe "appear in the test package and" do
-
-          let
-            setupTransitiveTestsInTests spago = do
-              spago [ "init", "--name", "7368613235362d34312f4e59746b7869335477336d33414d72" ] >>= shouldBeSuccess
-              spago [ "install", "maybe" ] >>= shouldBeSuccess
-              FS.writeTextFile (Path.concat [ "src", "Main.purs" ]) $ writeMain
-                [ "import Prelude"
-                , "import Data.Maybe as Maybe"
-                , "import Effect as Effect"
-                , "import Effect.Console as Console"
-                , "main = unit"
-                ]
-              FS.writeTextFile (Path.concat [ "test", "Test", "Main.purs" ]) $ writeTestMain
-                [ "import Prelude"
-                , "import Data.Maybe as Maybe"
-                , "import Effect as Effect"
-                , "import Effect.Console as Console"
-                , "import Control.Alt as Alt"
-                , "main = unit"
-                ]
-              -- get rid of "Compiling ..." messages and other compiler warnings
-              spago [ "build" ] >>= shouldBeSuccess
-
-          Spec.it "passed --pedantic-packages CLI flag" \{ spago, fixture } -> do
-            setupTransitiveTestsInTests spago
-            spago [ "build", "--pedantic-packages" ] >>= shouldBeFailureErr (fixture "check-direct-import-transitive-dependency-test.txt")
-
-          Spec.it "package config has 'pedantic_packages: true'" \{ spago, fixture } -> do
-            setupTransitiveTestsInTests spago
-            addPedanticPackagesToTest
-            spago [ "build" ] >>= shouldBeFailureErr (fixture "check-direct-import-transitive-dependency-test.txt")
-
-      Spec.describe "fails with warnings about unused dependencies" do
-
-        Spec.describe "in a source package when" do
-
-          let
-            setupUnusedDepsInSource spago { installConsoleAndEffectInTests } = do
-              spago [ "init", "--name", "7368613235362d2f444a2b4f56375435646a59726b53586548" ] >>= shouldBeSuccess
-              when installConsoleAndEffectInTests do
-                spago [ "install", "--test-deps", "console", "effect" ] >>= shouldBeSuccess
-              FS.writeTextFile (Path.concat [ "src", "Main.purs" ]) "module Main where\nimport Prelude\nmain = unit"
-              -- get rid of "Compiling ..." messages and other compiler warnings
-              spago [ "build" ] >>= shouldBeSuccess
-
-          Spec.it "passing --pedantic-packages CLI flag" \{ spago, fixture } -> do
-            -- Install deps in test so that overriding the test's config with pedantic packages CLI flag
-            -- doesn't find issues in test code. This code is only testing source package.
-            setupUnusedDepsInSource spago { installConsoleAndEffectInTests: true }
-            spago [ "build", "--pedantic-packages" ] >>= shouldBeFailureErr (fixture "check-unused-dependency.txt")
-
-          Spec.it "package config has 'pedantic_packages: true'" \{ spago, fixture } -> do
-            setupUnusedDepsInSource spago { installConsoleAndEffectInTests: false }
-            addPedanticPackagesToSrc
-            spago [ "build" ] >>= shouldBeFailureErr (fixture "check-unused-dependency.txt")
-
-        Spec.describe "in a test package when" do
-
-          let
-            setupUnusedDepsInTest spago = do
-              spago [ "init", "--name", "7368613235362d2f444a2b4f56375435646a59726b53586548" ] >>= shouldBeSuccess
-              spago [ "install", "--test-deps", "newtype" ] >>= shouldBeSuccess
-              FS.writeTextFile (Path.concat [ "test", "Test", "Main.purs" ]) $ writeTestMain
-                [ "import Prelude"
-                , "import Effect as Effect"
-                , "import Effect.Console as Console"
-                , "main = unit"
-                ]
-              -- get rid of "Compiling ..." messages and other compiler warnings
-              spago [ "build" ] >>= shouldBeSuccess
-
-          Spec.it "passing --pedantic-packages CLI flag" \{ spago, fixture } -> do
-            setupUnusedDepsInTest spago
-            spago [ "build", "--pedantic-packages" ] >>= shouldBeFailureErr (fixture "check-unused-test-dependency.txt")
-
-          Spec.it "package's test config has 'pedantic_packages: true'" \{ spago, fixture } -> do
-            setupUnusedDepsInTest spago
-            addPedanticPackagesToTest
-            spago [ "build" ] >>= shouldBeFailureErr (fixture "check-unused-test-dependency.txt")
-
-        Spec.describe "in both the source and test packages when" do
-
-          let
-            setupUnusedDepsInBoth spago = do
-              spago [ "init", "--name", "7368613235362d2f444a2b4f56375435646a59726b53586548" ] >>= shouldBeSuccess
-              spago [ "install", "prelude", "effect", "console" ] >>= shouldBeSuccess
-              spago [ "install", "--test-deps", "prelude", "effect", "console" ] >>= shouldBeSuccess
-              let
-                sameFileContent =
-                  [ "import Prelude"
-                  , "main = unit"
-                  ]
-              FS.writeTextFile (Path.concat [ "src", "Main.purs" ]) $ writeMain sameFileContent
-              FS.writeTextFile (Path.concat [ "test", "Test", "Main.purs" ]) $ writeTestMain sameFileContent
-              -- get rid of "Compiling ..." messages and other compiler warnings
-              spago [ "build" ] >>= shouldBeSuccess
-
-          Spec.it "passing --pedantic-packages CLI flag" \{ spago, fixture } -> do
-            setupUnusedDepsInBoth spago
-            spago [ "build", "--pedantic-packages" ] >>= shouldBeFailureErr (fixture "check-unused-source-and-test-dependency.txt")
-
-          Spec.it "package config has 'pedantic_packages: true'" \{ spago, fixture } -> do
-            setupUnusedDepsInBoth spago
-            addPedanticPackagesToSrc
-            addPedanticPackagesToTest
-            spago [ "build" ] >>= shouldBeFailureErr (fixture "check-unused-source-and-test-dependency.txt")
-
-      {-
-      Goal:
-        Src
-          - remove either - unused
-          - install newtype - (transitive dep of either) as it will be needed once either is removed
-        Test
-          - remove tuples - unused
-          - install either - (implicit dep of source package, but need to add it here once removed from source)
-      -}
-      Spec.describe "fails to build and reports deduplicated src and test unused/transitive dependenciess when" do
-        let
-          addPedanticPackages = do
-            modifyPackageConfig \config ->
-              config
-                { package = config.package <#> \r -> r
-                    { build = Just
-                        { pedantic_packages: Just true
-                        , strict: r.build >>= _.strict
-                        , censor_project_warnings: r.build >>= _.censor_project_warnings
-                        }
-                    , test = Just
-                        { main: "Test.Main"
-                        , pedantic_packages: Just true
-                        , strict: r.test >>= _.strict
-                        , censor_test_warnings: r.test >>= _.censor_test_warnings
-                        , dependencies: maybe (Config.Dependencies Map.empty) _.dependencies r.test
-                        , execArgs: r.test >>= _.execArgs
-                        }
-                    }
-                }
-
-          setupUnusedAndTransitiveDepsInBoth spago = do
-            -- Since we need to edit `spago.yaml` and other files generated by `spago init`,
-            -- may as well just create those files by hand.
-            FS.writeYamlFile configCodec "spago.yaml" $ mkPackageAndWorkspaceConfig
-              { package: { packageName: "foo", srcDependencies: [ "prelude", "control", "either" ] }
-              , workspace: { setVersion: Just $ mkVersion "0.0.1" }
-              }
-              [ configAddTestMain
-              , configAddTestDependencies [ "tuples" ]
-              ]
-
-            FS.mkdirp "src"
-            FS.writeTextFile (Path.concat [ "src", "Main.purs" ]) $ writeMain
-              [ "import Prelude"
-              , "import Data.Newtype as Newtype"
-              , "import Control.Alt as Alt"
-              , ""
-              , "foo :: Int"
-              , "foo = 1"
-              ]
-
-            FS.mkdirp $ Path.concat [ "test", "Test" ]
-            FS.writeTextFile (Path.concat [ "test", "Test", "Main.purs" ]) $ writeTestMain
-              [ "import Prelude"
-              , "import Data.Newtype (class Newtype)"
-              , "import Data.Either (Either(..))"
-              , ""
-              , "newtype Bar = Bar Int"
-              , "derive instance Newtype Bar _"
-              , ""
-              , "foo :: Either Bar Int"
-              , "foo = Right 1"
-              ]
-            -- get rid of "Compiling ..." messages and other compiler warnings
-            spago [ "build" ] >>= shouldBeSuccess
-
-        Spec.it "passing --pedantic-packages" \{ spago, fixture } -> do
-          setupUnusedAndTransitiveDepsInBoth spago
-          spago [ "build", "--pedantic-packages" ] >>= shouldBeFailureErr (fixture "check-pedantic-packages.txt")
-
-        Spec.it "package config has `pedantic_packages: true` in both `build` and `test`" \{ spago, fixture } -> do
-          setupUnusedAndTransitiveDepsInBoth spago
-          addPedanticPackages
-          spago [ "build" ] >>= shouldBeFailureErr (fixture "check-pedantic-packages.txt")
-
     Spec.it "--strict causes build to fail if there are warnings" \{ spago, fixture } -> do
       spago [ "init" ] >>= shouldBeSuccess
       let srcMain = Path.concat [ "src", "Main.purs" ]
@@ -387,6 +135,8 @@ spec = Spec.around withTempDir do
       spago [ "build", "--ensure-ranges" ] >>= shouldBeSuccess
       spagoYaml <- FS.readTextFile "spago.yaml"
       spagoYaml `shouldContain` "- prelude: \">=6.0.1 <7.0.0\""
+
+    Pedantic.spec
 
     BuildPolyrepo.spec
 
