@@ -24,12 +24,6 @@ spec =
         setup spago
           ( defaultSetupConfig
               { installSourcePackages = [ "maybe" ]
-              -- Install deps in test so that overriding the test's config with pedantic packages CLI flag
-              -- doesn't find issues in test code. This code is only testing source package.
-              -- TODO: this should not be necessary: we should recognise that we are
-              -- using these packages in the source code, so they should not come through
-              -- as unnecessary into the test deps
-              -- , installTestPackages = [ "console", "effect" ]
               , main = Just
                   [ "import Prelude"
                   , "import Data.Maybe as Maybe"

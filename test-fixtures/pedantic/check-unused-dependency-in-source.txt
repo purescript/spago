@@ -21,10 +21,11 @@ Looking for unused and undeclared transitive dependencies...
 ❌ Tests for package 'pedantic' import the following transitive dependencies - please add them to the project dependencies, or remove the imports:
   console
     from `Test.Main`, which imports:
-      Effect.Console
+      Effect.Class.Console
   effect
     from `Test.Main`, which imports:
       Effect
+
 
 Run the following command to install them all:
   spago install --test-deps -p pedantic console effect
