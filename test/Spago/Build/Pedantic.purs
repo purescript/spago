@@ -218,7 +218,7 @@ addPedanticFlagToTest config = config
           , strict: Nothing
           , censor_test_warnings: Nothing
           , dependencies: maybe (Dependencies Map.empty) _.dependencies r.test
-          , execArgs: r.test >>= _.execArgs
+          , exec_args: r.test >>= _.exec_args
           }
       }
   }
