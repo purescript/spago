@@ -39,7 +39,6 @@ module Spago.Core.Config
 
 import Spago.Core.Prelude
 
-import Data.Array.NonEmpty (NonEmptyArray)
 import Data.Array.NonEmpty as NonEmptyArray
 import Data.Codec.Argonaut as CA
 import Data.Codec.Argonaut.Record as CAR
@@ -57,6 +56,7 @@ import Registry.Range as Range
 import Registry.Sha256 as Sha256
 import Registry.Version as Version
 import Spago.FS as FS
+import Type.Proxy (Proxy(..))
 
 type Config =
   { package :: Maybe PackageConfig
@@ -64,10 +64,10 @@ type Config =
   }
 
 configCodec :: JsonCodec Config
-configCodec = CAR.object "Config"
-  { package: CAR.optional packageConfigCodec
-  , workspace: CAR.optional workspaceConfigCodec
-  }
+configCodec = CA.object "Config"
+  $ CA.recordPropOptional (Proxy :: _ "package") packageConfigCodec
+  $ CA.recordPropOptional (Proxy :: _ "workspace") workspaceConfigCodec
+  $ CA.record
 
 type PackageConfig =
   { name :: PackageName
@@ -81,16 +81,16 @@ type PackageConfig =
   }
 
 packageConfigCodec :: JsonCodec PackageConfig
-packageConfigCodec = CAR.object "PackageConfig"
-  { name: PackageName.codec
-  , description: CAR.optional CA.string
-  , dependencies: dependenciesCodec
-  , build: CAR.optional packageBuildOptionsCodec
-  , bundle: CAR.optional bundleConfigCodec
-  , run: CAR.optional runConfigCodec
-  , test: CAR.optional testConfigCodec
-  , publish: CAR.optional publishConfigCodec
-  }
+packageConfigCodec = CA.object "PackageConfig"
+  $ CA.recordProp (Proxy :: _ "name") PackageName.codec
+  $ CA.recordPropOptional (Proxy :: _ "description") CA.string
+  $ CA.recordProp (Proxy :: _ "dependencies") dependenciesCodec
+  $ CA.recordPropOptional (Proxy :: _ "build") packageBuildOptionsCodec
+  $ CA.recordPropOptional (Proxy :: _ "bundle") bundleConfigCodec
+  $ CA.recordPropOptional (Proxy :: _ "run") runConfigCodec
+  $ CA.recordPropOptional (Proxy :: _ "test") testConfigCodec
+  $ CA.recordPropOptional (Proxy :: _ "publish") publishConfigCodec
+  $ CA.record
 
 type PublishConfig =
   { version :: Version
@@ -101,28 +101,28 @@ type PublishConfig =
   }
 
 publishConfigCodec :: JsonCodec PublishConfig
-publishConfigCodec = CAR.object "PublishConfig"
-  { version: Version.codec
-  , license: License.codec
-  , location: CAR.optional Location.codec
-  , include: CAR.optional (CA.array CA.string)
-  , exclude: CAR.optional (CA.array CA.string)
-  }
+publishConfigCodec = CA.object "PublishConfig"
+  $ CA.recordProp (Proxy :: _ "version") Version.codec
+  $ CA.recordProp (Proxy :: _ "license") License.codec
+  $ CA.recordPropOptional (Proxy :: _ "location") Location.codec
+  $ CA.recordPropOptional (Proxy :: _ "include") (CA.array CA.string)
+  $ CA.recordPropOptional (Proxy :: _ "exclude") (CA.array CA.string)
+  $ CA.record
 
 type RunConfig =
   { main :: Maybe String
-  , execArgs :: Maybe (Array String)
+  , exec_args :: Maybe (Array String)
   }
 
 runConfigCodec :: JsonCodec RunConfig
-runConfigCodec = CAR.object "RunConfig"
-  { main: CAR.optional CA.string
-  , execArgs: CAR.optional (CA.array CA.string)
-  }
+runConfigCodec = CA.object "RunConfig"
+  $ CA.recordPropOptional (Proxy :: _ "main") CA.string
+  $ CA.recordPropOptional (Proxy :: _ "exec_args") (CA.array CA.string)
+  $ CA.record
 
 type TestConfig =
   { main :: String
-  , execArgs :: Maybe (Array String)
+  , exec_args :: Maybe (Array String)
   , dependencies :: Dependencies
   , censor_test_warnings :: Maybe CensorBuildWarnings
   , strict :: Maybe Boolean
@@ -130,14 +130,14 @@ type TestConfig =
   }
 
 testConfigCodec :: JsonCodec TestConfig
-testConfigCodec = CAR.object "TestConfig"
-  { main: CA.string
-  , execArgs: CAR.optional (CA.array CA.string)
-  , dependencies: dependenciesCodec
-  , censor_test_warnings: CAR.optional censorBuildWarningsCodec
-  , strict: CAR.optional CA.boolean
-  , pedantic_packages: CAR.optional CA.boolean
-  }
+testConfigCodec = CA.object "TestConfig"
+  $ CA.recordProp (Proxy :: _ "main") CA.string
+  $ CA.recordPropOptional (Proxy :: _ "exec_args") (CA.array CA.string)
+  $ CA.recordPropOptional (Proxy :: _ "censor_test_warnings") censorBuildWarningsCodec
+  $ CA.recordPropOptional (Proxy :: _ "strict") CA.boolean
+  $ CA.recordPropOptional (Proxy :: _ "pedantic_packages") CA.boolean
+  $ CA.recordProp (Proxy :: _ "dependencies") dependenciesCodec
+  $ CA.record
 
 type BackendConfig =
   { cmd :: String
@@ -145,10 +145,10 @@ type BackendConfig =
   }
 
 backendConfigCodec :: JsonCodec BackendConfig
-backendConfigCodec = CAR.object "BackendConfig"
-  { cmd: CA.string
-  , args: CAR.optional (CA.array CA.string)
-  }
+backendConfigCodec = CA.object "BackendConfig"
+  $ CA.recordProp (Proxy :: _ "cmd") CA.string
+  $ CA.recordPropOptional (Proxy :: _ "args") (CA.array CA.string)
+  $ CA.record
 
 type PackageBuildOptionsInput =
   { censor_project_warnings :: Maybe CensorBuildWarnings
@@ -157,11 +157,11 @@ type PackageBuildOptionsInput =
   }
 
 packageBuildOptionsCodec :: JsonCodec PackageBuildOptionsInput
-packageBuildOptionsCodec = CAR.object "PackageBuildOptionsInput"
-  { censor_project_warnings: CAR.optional censorBuildWarningsCodec
-  , strict: CAR.optional CA.boolean
-  , pedantic_packages: CAR.optional CA.boolean
-  }
+packageBuildOptionsCodec = CA.object "PackageBuildOptionsInput"
+  $ CA.recordPropOptional (Proxy :: _ "censor_project_warnings") censorBuildWarningsCodec
+  $ CA.recordPropOptional (Proxy :: _ "strict") CA.boolean
+  $ CA.recordPropOptional (Proxy :: _ "pedantic_packages") CA.boolean
+  $ CA.record
 
 type BundleConfig =
   { minify :: Maybe Boolean
@@ -173,14 +173,14 @@ type BundleConfig =
   }
 
 bundleConfigCodec :: JsonCodec BundleConfig
-bundleConfigCodec = CAR.object "BundleConfig"
-  { minify: CAR.optional CA.boolean
-  , module: CAR.optional CA.string
-  , outfile: CAR.optional CA.string
-  , platform: CAR.optional bundlePlatformCodec
-  , type: CAR.optional bundleTypeCodec
-  , extra_args: CAR.optional (CA.array CA.string)
-  }
+bundleConfigCodec = CA.object "BundleConfig"
+  $ CA.recordPropOptional (Proxy :: _ "minify") CA.boolean
+  $ CA.recordPropOptional (Proxy :: _ "module") CA.string
+  $ CA.recordPropOptional (Proxy :: _ "outfile") CA.string
+  $ CA.recordPropOptional (Proxy :: _ "platform") bundlePlatformCodec
+  $ CA.recordPropOptional (Proxy :: _ "type") bundleTypeCodec
+  $ CA.recordPropOptional (Proxy :: _ "extra_args") (CA.array CA.string)
+  $ CA.record
 
 data BundlePlatform = BundleNode | BundleBrowser
 
@@ -292,13 +292,13 @@ type WorkspaceConfig =
   }
 
 workspaceConfigCodec :: JsonCodec WorkspaceConfig
-workspaceConfigCodec = CAR.object "WorkspaceConfig"
-  { package_set: CAR.optional setAddressCodec
-  , extra_packages: CAR.optional (Internal.Codec.packageMap extraPackageCodec)
-  , backend: CAR.optional backendConfigCodec
-  , build_opts: CAR.optional buildOptionsCodec
-  , lock: CAR.optional CA.boolean
-  }
+workspaceConfigCodec = CA.object "WorkspaceConfig"
+  $ CA.recordPropOptional (Proxy :: _ "lock") CA.boolean
+  $ CA.recordPropOptional (Proxy :: _ "package_set") setAddressCodec
+  $ CA.recordPropOptional (Proxy :: _ "backend") backendConfigCodec
+  $ CA.recordPropOptional (Proxy :: _ "build_opts") buildOptionsCodec
+  $ CA.recordPropOptional (Proxy :: _ "extra_packages") (Internal.Codec.packageMap extraPackageCodec)
+  $ CA.record
 
 type WorkspaceBuildOptionsInput =
   { output :: Maybe FilePath
@@ -307,11 +307,11 @@ type WorkspaceBuildOptionsInput =
   }
 
 buildOptionsCodec :: JsonCodec WorkspaceBuildOptionsInput
-buildOptionsCodec = CAR.object "WorkspaceBuildOptionsInput"
-  { output: CAR.optional CA.string
-  , censor_library_warnings: CAR.optional censorBuildWarningsCodec
-  , stat_verbosity: CAR.optional statVerbosityCodec
-  }
+buildOptionsCodec = CA.object "WorkspaceBuildOptionsInput"
+  $ CA.recordPropOptional (Proxy :: _ "output") CA.string
+  $ CA.recordPropOptional (Proxy :: _ "censor_library_warnings") censorBuildWarningsCodec
+  $ CA.recordPropOptional (Proxy :: _ "stat_verbosity") statVerbosityCodec
+  $ CA.record
 
 data CensorBuildWarnings
   = CensorAllWarnings
@@ -457,12 +457,12 @@ type GitPackage =
   }
 
 gitPackageCodec :: JsonCodec GitPackage
-gitPackageCodec = CAR.object "GitPackage"
-  { git: CA.string
-  , ref: CA.string
-  , subdir: CAR.optional CA.string
-  , dependencies: CAR.optional dependenciesCodec
-  }
+gitPackageCodec = CA.object "GitPackage"
+  $ CA.recordProp (Proxy :: _ "git") CA.string
+  $ CA.recordProp (Proxy :: _ "ref") CA.string
+  $ CA.recordPropOptional (Proxy :: _ "subdir") CA.string
+  $ CA.recordPropOptional (Proxy :: _ "dependencies") dependenciesCodec
+  $ CA.record
 
 -- | The format of a legacy packages.json package set entry for an individual
 -- | package.
@@ -473,11 +473,11 @@ type LegacyPackageSetEntry =
   }
 
 legacyPackageSetEntryCodec :: JsonCodec LegacyPackageSetEntry
-legacyPackageSetEntryCodec = CAR.object "LegacyPackageSetEntry"
-  { dependencies: CA.array PackageName.codec
-  , repo: CA.string
-  , version: CA.string
-  }
+legacyPackageSetEntryCodec = CA.object "LegacyPackageSetEntry"
+  $ CA.recordProp (Proxy :: _ "repo") CA.string
+  $ CA.recordProp (Proxy :: _ "version") CA.string
+  $ CA.recordProp (Proxy :: _ "dependencies") (CA.array PackageName.codec)
+  $ CA.record
 
 readConfig :: forall a. FilePath -> Spago (LogEnv a) (Either String { doc :: YamlDoc Config, yaml :: Config })
 readConfig path = do

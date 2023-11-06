@@ -190,7 +190,8 @@ readWorkspace maybeSelectedPackage = do
         Git.isIgnored path >>= case _ of
           true -> pure $ Left path
           false -> pure $ Right path
-    { right: newSucceeded, left: ignored } <- partitionMap identity <$> traverse filterGitignored result.succeeded
+    { right: newSucceeded, left: ignored } <- partitionMap identity
+      <$> parTraverseSpago filterGitignored result.succeeded
     pure { succeeded: newSucceeded, failed: result.failed, ignored }
   unless (Array.null otherConfigPaths) do
     logDebug $ [ toDoc "Found packages at these paths:", Log.indent $ Log.lines (map toDoc otherConfigPaths) ]

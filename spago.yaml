@@ -43,6 +43,7 @@ package:
     - registry-lib
     - spago-core
     - strings
+    - stringutils
     - transformers
     - tuples
     - unsafe-coerce
@@ -269,3 +270,4 @@ workspace:
         - refs
         - strings
         - tuples
+    ordered-collections: "3.1.1"

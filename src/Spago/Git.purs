@@ -108,7 +108,7 @@ tagCheckedOut :: forall a. Maybe FilePath -> Spago (GitEnv a) (Either Docc Strin
 tagCheckedOut cwd = do
   let opts = Cmd.defaultExecOptions { pipeStdout = false, pipeStderr = false, cwd = cwd }
   { git } <- ask
-  Cmd.exec git.cmd [ "describe", "--tags" ] opts >>= case _ of
+  Cmd.exec git.cmd [ "describe", "--tags", "--exact-match" ] opts >>= case _ of
     Left err -> pure $ Left $ toDoc "The git ref currently checked out is not a tag."
     Right res' -> pure $ Right res'.stdout
 

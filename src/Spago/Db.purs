@@ -5,8 +5,6 @@ module Spago.Db
   , PackageSetEntry
   , PackageVersion
   , connect
-  , databasePath
-  , databaseVersion
   , selectPackageSets
   , selectLatestPackageSetByCompiler
   , insertPackageSet
@@ -37,13 +35,6 @@ import Spago.Paths as Paths
 
 --------------------------------------------------------------------------------
 -- API
-
--- | We should bump this number every time we change the database schema in a breaking way
-databaseVersion :: Int
-databaseVersion = 1
-
-databasePath :: FilePath
-databasePath = Path.concat [ Paths.globalCachePath, "spago.v" <> show databaseVersion <> ".sqlite" ]
 
 type ConnectOptions =
   { database :: FilePath
@@ -93,6 +84,7 @@ selectPackageSetEntriesByPackage db packageName version = do
 --------------------------------------------------------------------------------
 -- Table types and conversions
 
+-- Note: bump `Paths.databaseVersion` every time we change the database schema in a breaking way
 data Db
 
 type PackageSetJs =

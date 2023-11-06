@@ -14,6 +14,7 @@ import Data.Map as Map
 import Data.Maybe as Maybe
 import Data.String as String
 import Effect.Aff as Aff
+import Effect.Now as Now
 import Effect.Ref as Ref
 import Node.FS.Stats (Stats(..))
 import Node.Path as Path
@@ -34,7 +35,7 @@ import Spago.Command.Fetch as Fetch
 import Spago.Command.Graph (GraphModulesArgs, GraphPackagesArgs)
 import Spago.Command.Graph as Graph
 import Spago.Command.Init as Init
-import Spago.Command.Ls (LsDepsArgs, LsPackagesArgs)
+import Spago.Command.Ls (LsPathsArgs, LsDepsArgs, LsPackagesArgs)
 import Spago.Command.Ls as Ls
 import Spago.Command.Publish as Publish
 import Spago.Command.Registry (RegistryInfoArgs, RegistrySearchArgs, RegistryPackageSetsArgs)
@@ -178,6 +179,7 @@ data Command a
   | Fetch FetchArgs
   | Init InitArgs
   | Install InstallArgs
+  | LsPaths LsPathsArgs
   | LsDeps LsDepsArgs
   | LsPackages LsPackagesArgs
   | Publish PublishArgs
@@ -230,6 +232,7 @@ argParser =
             ( O.hsubparser $ Foldable.fold
                 [ commandParser "packages" (LsPackages <$> lsPackagesArgsParser) "List packages available in the local package set"
                 , commandParser "deps" (LsDeps <$> lsDepsArgsParser) "List dependencies of the project"
+                , commandParser "paths" (LsPaths <$> lsPathsArgsParser) "List the paths used by Spago"
                 ]
             )
             (O.progDesc "List packages or dependencies")
@@ -433,6 +436,11 @@ graphPackagesArgsParser = Optparse.fromRecord
   , topo: Flags.topo
   }
 
+lsPathsArgsParser :: Parser LsPathsArgs
+lsPathsArgsParser = Optparse.fromRecord
+  { json: Flags.json
+  }
+
 lsPackagesArgsParser :: Parser LsPackagesArgs
 lsPackagesArgsParser = Optparse.fromRecord
   { json: Flags.json
@@ -467,11 +475,17 @@ parseArgs = do
     )
 
 main :: Effect Unit
-main =
+main = do
+  startingTime <- Now.now
+  let
+    printVersion = do
+      logOptions <- mkLogOptions startingTime { noColor: false, quiet: false, verbose: false, offline: Offline }
+      runSpago { logOptions } do
+        logInfo BuildInfo.buildInfo.spagoVersion
   parseArgs >>=
     \c -> Aff.launchAff_ case c of
       Cmd'SpagoCmd (SpagoCmd globalArgs@{ offline } command) -> do
-        logOptions <- mkLogOptions globalArgs
+        logOptions <- mkLogOptions startingTime globalArgs
         runSpago { logOptions } case command of
           Sources args -> do
             { env } <- mkFetchEnv
@@ -599,6 +613,8 @@ main =
             runSpago buildEnv (Build.run options)
             testEnv <- runSpago env (mkTestEnv args buildEnv)
             runSpago testEnv Test.run
+          LsPaths args -> do
+            runSpago { logOptions } $ Ls.listPaths args
           LsPackages args -> do
             let fetchArgs = { packages: mempty, selectedPackage: Nothing, ensureRanges: false, testDeps: false }
             { env: env@{ workspace }, fetchOpts } <- mkFetchEnv offline fetchArgs
@@ -636,23 +652,18 @@ main =
 
       Cmd'VersionCmd v -> do when v printVersion
   where
-  printVersion = do
-    logOptions <- mkLogOptions { noColor: false, quiet: false, verbose: false, offline: Offline }
-    runSpago { logOptions } do
-      logInfo BuildInfo.buildInfo.spagoVersion
-
-mkLogOptions :: GlobalArgs -> Aff LogOptions
-mkLogOptions { noColor, quiet, verbose } = do
-  supports <- liftEffect supportsColor
-  let color = and [ supports, not noColor ]
-  let
-    verbosity =
-      if quiet then
-        LogQuiet
-      else if verbose then
-        LogVerbose
-      else LogNormal
-  pure { color, verbosity }
+  mkLogOptions :: Instant -> GlobalArgs -> Aff LogOptions
+  mkLogOptions startingTime { noColor, quiet, verbose } = do
+    supports <- liftEffect supportsColor
+    let color = and [ supports, not noColor ]
+    let
+      verbosity =
+        if quiet then
+          LogQuiet
+        else if verbose then
+          LogVerbose
+        else LogNormal
+    pure { color, verbosity, startingTime }
 
 mkBundleEnv :: forall a. BundleArgs -> Spago (Fetch.FetchEnv a) (Bundle.BundleEnv ())
 mkBundleEnv bundleArgs = do
@@ -731,7 +742,7 @@ mkRunEnv runArgs { dependencies, purs } = do
     runConf f = selected.package.run >>= f
 
     moduleName = fromMaybe "Main" (runArgs.main <|> runConf _.main)
-    execArgs = fromMaybe [] (runArgs.execArgs <|> runConf _.execArgs)
+    execArgs = fromMaybe [] (runArgs.execArgs <|> runConf _.exec_args)
 
     runOptions =
       { moduleName
@@ -761,7 +772,7 @@ mkTestEnv testArgs { dependencies, purs } = do
         testConf f = selected.package.test >>= f
 
         moduleName = fromMaybe "Test.Main" (testConf (_.main >>> Just))
-        execArgs = fromMaybe [] (testArgs.execArgs <|> testConf _.execArgs)
+        execArgs = fromMaybe [] (testArgs.execArgs <|> testConf _.exec_args)
       in
         { moduleName
         , execArgs
@@ -960,7 +971,7 @@ mkRegistryEnv offline = do
 
   -- Now that we are up to date with the Registry we init/refresh the database
   db <- liftEffect $ Db.connect
-    { database: Db.databasePath
+    { database: Paths.databasePath
     , logger: \str -> Reader.runReaderT (logDebug $ "DB: " <> str) { logOptions }
     }
   Registry.updatePackageSetsDb db

@@ -1,10 +1,19 @@
-module Spago.Command.Ls (listPackages, listPackageSet, LsEnv(..), LsDepsArgs, LsPackagesArgs) where
+module Spago.Command.Ls
+  ( listPaths
+  , listPackages
+  , listPackageSet
+  , LsEnv(..)
+  , LsPathsArgs
+  , LsDepsArgs
+  , LsPackagesArgs
+  ) where
 
 import Spago.Prelude
 
 import Data.Codec.Argonaut as CA
+import Data.Codec.Argonaut.Common as CAC
 import Data.Codec.Argonaut.Record as CAR
-import Data.Foldable (elem)
+import Data.Foldable (elem, traverse_)
 import Data.Map (filterKeys)
 import Data.Map as Map
 import Data.Tuple.Nested (type (/\))
@@ -15,6 +24,7 @@ import Registry.Version as Version
 import Spago.Command.Fetch as Fetch
 import Spago.Config (Package(..), PackageSet(..), Workspace, WorkspacePackage)
 import Spago.Config as Config
+import Spago.Paths as Paths
 import Type.Proxy (Proxy(..))
 
 type LsPackagesArgs =
@@ -32,6 +42,10 @@ type LsDepsOpts =
   , transitive :: Boolean
   }
 
+type LsPathsArgs =
+  { json :: Boolean
+  }
+
 type LsSetEnv =
   { dependencies :: Fetch.PackageTransitiveDeps
   , logOptions :: LogOptions
@@ -44,6 +58,28 @@ type LsEnv =
   , workspace :: Workspace
   , selected :: WorkspacePackage
   }
+
+listPaths :: LsPathsArgs -> Spago { logOptions :: LogOptions } Unit
+listPaths { json } = do
+  logDebug "Running `listPaths`"
+  case json of
+    true ->
+      output $ OutputJson (CAC.map CA.string CA.string) $ Map.fromFoldable keyValuePairs
+    false ->
+      output $ OutputTable
+        { titles: [ "Name", "Path" ]
+        , rows: (\(Tuple k v) -> [ k, v ]) <$> keyValuePairs
+        }
+  where
+  keyValuePairs =
+    [ Tuple "Global cache path" Paths.globalCachePath
+    , Tuple "Global registry path" Paths.registryPath
+    , Tuple "Global registry index path" Paths.registryIndexPath
+    , Tuple "Global package sets path" Paths.packageSetsPath
+    , Tuple "Global database path" Paths.databasePath
+    , Tuple "Local cache path" Paths.localCachePath
+    , Tuple "Local cache packages path" Paths.localCachePackagesPath
+    ]
 
 -- TODO: add LICENSE field
 

@@ -1,13 +1,13 @@
 package:
+  name: aaaa
   dependencies:
     - console
     - effect
     - prelude
-  name: aaaa
   test:
-    dependencies: []
     main: Test.Main
+    dependencies: []
 workspace:
-  extra_packages: {}
   package_set:
     registry: 29.3.0
+  extra_packages: {}
