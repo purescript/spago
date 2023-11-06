@@ -364,7 +364,7 @@ spec = Spec.describe "polyrepo" do
             { modName: mkTestModuleName packageName
             , imports:
                 [ "import Control.Alt as Control"
-                , "import Data.Newtype as Newtype"
+                , "import Safe.Coerce as Coerce"
                 ]
             , body:
                 [ ""
@@ -383,7 +383,11 @@ spec = Spec.describe "polyrepo" do
           [ toMsgPrefix isSrc <> " for package '" <> package <> "' declares unused dependencies - please remove them from the project config:"
           , "  - " <> (if isSrc then "tuples" else "either")
           ]
-      mkTransitiveDepErr isSrc package =
+      mkTransitiveDepErr isSrc package = do
+        let
+          { pkg, mkModName, pkgModName } =
+            if isSrc then { pkg: "newtype", mkModName: mkSrcModuleName, pkgModName: "Data.Newtype" }
+            else { pkg: "safe-coerce", mkModName: mkTestModuleName, pkgModName: "Safe.Coerce" }
         Array.intercalate "\n"
           [ Array.fold
               [ toMsgPrefix isSrc
@@ -391,9 +395,9 @@ spec = Spec.describe "polyrepo" do
               , package
               , "' import the following transitive dependencies - please add them to the project dependencies, or remove the imports:"
               ]
-          , "  newtype"
-          , "    from `" <> (if isSrc then mkSrcModuleName else mkTestModuleName) package <> "`, which imports:"
-          , "      Data.Newtype"
+          , "  " <> pkg
+          , "    from `" <> mkModName package <> "`, which imports:"
+          , "      " <> pkgModName
           ]
     Spec.it "when package config has 'pedantic_packages: true', build fails with expected errors" \{ spago } -> do
       writeWorkspaceOnlySpagoYamlFile

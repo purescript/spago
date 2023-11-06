@@ -1,0 +1,23 @@
+Reading Spago workspace configuration...
+Read the package set from the registry
+
+✅ Selecting package to build: pedantic
+
+Downloading dependencies...
+Building...
+           Src   Lib   All
+Warnings     0     0     0
+Errors       0     0     0
+
+✅ Build succeeded.
+
+Looking for unused and undeclared transitive dependencies...
+
+❌ Sources for package 'pedantic' declares unused dependencies - please remove them from the project config:
+  - console
+  - effect
+
+
+❌ Tests for package 'pedantic' declares unused dependencies - please remove them from the project config:
+  - console
+  - effect

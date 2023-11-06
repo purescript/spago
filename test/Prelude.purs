@@ -42,7 +42,9 @@ withTempDir = Aff.bracket createTempDir cleanupTempDir
     temp <- mkTemp' $ Just "spago-test-"
     FS.mkdirp temp
     liftEffect $ Process.chdir temp
-    log $ "Running test in " <> temp
+    isDebug <- liftEffect $ map isJust $ Process.lookupEnv "SPAGO_TEST_DEBUG"
+    when isDebug do
+      log $ "Running test in " <> temp
     let
       fixturesPath = oldCwd <> Path.sep <> "test-fixtures"
 
@@ -184,6 +186,18 @@ mkPackageName = unsafeFromRight <<< PackageName.parse
 
 mkVersion :: String -> Version
 mkVersion = unsafeFromRight <<< Version.parse
+
+writeMain :: Array String -> String
+writeMain rest = writePursFile { moduleName: "Main", rest }
+
+writeTestMain :: Array String -> String
+writeTestMain rest = writePursFile { moduleName: "Test.Main", rest }
+
+writePursFile :: { moduleName :: String, rest :: Array String } -> String
+writePursFile { moduleName, rest } =
+  Array.intercalate "\n" $ Array.cons modNameLine $ rest
+  where
+  modNameLine = "module " <> moduleName <> " where"
 
 mkDependencies :: Array String -> Config.Dependencies
 mkDependencies = Config.Dependencies <<< Map.fromFoldable <<< map (flip Tuple Nothing <<< mkPackageName)
