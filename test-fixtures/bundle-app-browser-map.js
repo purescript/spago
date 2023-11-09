@@ -1,4 +1,3 @@
-#!/usr/bin/env node
 (() => {
   // output/Effect.Console/foreign.js
   var log = function(s) {
@@ -13,4 +12,4 @@
   // <stdin>
   main();
 })();
-//# sourceMappingURL=bundle-app-map.js.map
+//# sourceMappingURL=bundle-app-browser-map.js.map
