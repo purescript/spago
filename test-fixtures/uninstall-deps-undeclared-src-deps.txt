@@ -1,0 +1,8 @@
+Reading Spago workspace configuration...
+Read the package set from the registry
+
+✅ Selecting package to build: uninstall-tests
+
+⚠️ The following packages cannot be uninstalled because they are not declared in the package's source dependencies:
+  either
+The package config for uninstall-tests was not updated.

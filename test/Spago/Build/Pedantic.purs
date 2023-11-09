@@ -5,8 +5,8 @@ import Test.Prelude
 import Data.Array as Array
 import Data.Map as Map
 import Node.Path as Path
+import Spago.Command.Uninstall as Uninstall
 import Spago.Core.Config (Dependencies(..), Config)
-import Spago.Core.Config as Core
 import Spago.FS as FS
 import Test.Spec (SpecT)
 import Test.Spec as Spec
@@ -191,12 +191,11 @@ spec =
 
 editSpagoYaml :: (Config -> Config) -> Aff Unit
 editSpagoYaml f = do
-  content <- FS.readYamlDocFile Core.configCodec "spago.yaml"
-  case content of
-    Left err ->
-      Assert.fail $ "Failed to decode spago.yaml file\n" <> err
-    Right { yaml: config } ->
-      FS.writeYamlFile Core.configCodec "spago.yaml" $ f config
+  Uninstall.editSpagoYaml
+    { configPath: "spago.yaml"
+    , onError: \err -> Assert.fail $ "Failed to decode spago.yaml file\n" <> err
+    , modifyConfig: f
+    }
 
 addPedanticFlagToSrc :: Config -> Config
 addPedanticFlagToSrc config = config

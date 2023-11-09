@@ -1,0 +1,9 @@
+Reading Spago workspace configuration...
+Read the package set from the registry
+
+✅ Selecting 2 packages to build:
+    bar
+    foo
+
+
+❌ No package was selected. Please select a package.

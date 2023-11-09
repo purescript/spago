@@ -2,6 +2,7 @@ module Spago.Command.Uninstall
   ( run
   , UninstallEnv
   , UninstallArgs
+  , editSpagoYaml
   ) where
 
 import Spago.Prelude
@@ -10,6 +11,7 @@ import Data.Array as Array
 import Data.Array.NonEmpty as NEA
 import Data.FoldableWithIndex (foldlWithIndex)
 import Data.Map as Map
+import Node.Path as Path
 import Registry.PackageName as PackageName
 import Spago.Config (Dependencies(..), PackageConfig, Workspace)
 import Spago.Config as Core
@@ -67,7 +69,8 @@ run args = do
                 packageConfig { dependencies = newDeps }
             }
   missingTestConfigOrContext <- case workspace.selected of
-    Just p -> pure $ toContext p.path p.package
+    Just p ->
+      pure $ toContext (Path.concat [ p.path, "spago.yaml" ]) p.package
     Nothing -> do
       case workspace.rootPackage of
         Nothing ->
@@ -100,14 +103,27 @@ run args = do
             [ "Removing the following " <> context.sourceOrTestString <> " dependencies:"
             , "  " <> NEA.intercalate ", " (map PackageName.print removed')
             ]
-          editSpagoYaml context.name context.configPath \config ->
-            config { package = map (context.modifyConfig (Dependencies newDeps)) config.package }
+          logDebug $ "Editing config file at path: " <> context.configPath
+          editSpagoYaml
+            { configPath: context.configPath
+            , onError: \err ->
+                die $ "Error decoding package config for package " <> PackageName.print context.name <> ":\n" <> err
+            , modifyConfig: \config ->
+                config { package = map (context.modifyConfig (Dependencies newDeps)) config.package }
+            }
 
-editSpagoYaml :: PackageName -> String -> (Core.Config -> Core.Config) -> Spago UninstallEnv Unit
-editSpagoYaml p path f = do
-  content <- liftAff $ FS.readYamlDocFile Core.configCodec path
+editSpagoYaml
+  :: forall m
+   . MonadAff m
+  => { configPath :: FilePath
+     , modifyConfig :: Core.Config -> Core.Config
+     , onError :: String -> m Unit
+     }
+  -> m Unit
+editSpagoYaml { configPath, modifyConfig, onError } = do
+  content <- liftAff $ FS.readYamlDocFile Core.configCodec configPath
   case content of
     Left err ->
-      die $ "Error decoding package config for package " <> PackageName.print p <> ":\n" <> err
+      onError err
     Right { yaml: config } ->
-      liftAff $ FS.writeYamlFile Core.configCodec path $ f config
+      liftAff $ FS.writeYamlFile Core.configCodec configPath $ modifyConfig config
