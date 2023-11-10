@@ -26,6 +26,7 @@ import Affjax.Node as Http
 import Affjax.ResponseFormat as Response
 import Affjax.StatusCode (StatusCode(..))
 import Data.Array as Array
+import Data.Array.NonEmpty as NEA
 import Data.CodePoint.Unicode as Unicode
 import Data.Codec.Argonaut.Record as CAR
 import Data.Enum as Enum
@@ -189,7 +190,8 @@ readWorkspace maybeSelectedPackage = do
         Git.isIgnored path >>= case _ of
           true -> pure $ Left path
           false -> pure $ Right path
-    { right: newSucceeded, left: ignored } <- partitionMap identity <$> traverse filterGitignored result.succeeded
+    { right: newSucceeded, left: ignored } <- partitionMap identity
+      <$> parTraverseSpago filterGitignored result.succeeded
     pure { succeeded: newSucceeded, failed: result.failed, ignored }
   unless (Array.null otherConfigPaths) do
     logDebug $ [ toDoc "Found packages at these paths:", Log.indent $ Log.lines (map toDoc otherConfigPaths) ]
@@ -457,8 +459,9 @@ srcGlob = "src/**/*.purs"
 testGlob :: String
 testGlob = "test/**/*.purs"
 
-getWorkspacePackages :: PackageSet -> Array WorkspacePackage
-getWorkspacePackages = Array.mapMaybe extractWorkspacePackage <<< Map.toUnfoldable <<< case _ of
+-- We can afford an unsafe here, if it's empty we have bigger problems
+getWorkspacePackages :: PackageSet -> NonEmptyArray WorkspacePackage
+getWorkspacePackages = unsafeFromJust <<< NEA.fromFoldable <<< Array.mapMaybe extractWorkspacePackage <<< Map.toUnfoldable <<< case _ of
   PackageSet m -> m
   Registry m -> m
   where

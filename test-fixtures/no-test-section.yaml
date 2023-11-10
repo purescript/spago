@@ -1,10 +1,10 @@
 package:
+  name: aaa
   dependencies:
     - console
     - effect
     - prelude
-  name: aaa
 workspace:
-  extra_packages: {}
   package_set:
     registry: 29.3.0
+  extra_packages: {}

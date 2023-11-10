@@ -1,9 +1,12 @@
 module Spago.Prelude
-  ( module Spago.Core.Prelude
-  , HexString(..)
+  ( HexString(..)
   , OnlineStatus(..)
-  , parseLenientVersion
+  , mkTemp
+  , mkTemp'
+  , module Spago.Core.Prelude
   , parallelise
+  , parTraverseSpago
+  , parseLenientVersion
   , parseUrl
   , partitionEithers
   , shaToHex
@@ -11,8 +14,6 @@ module Spago.Prelude
   , unsafeLog
   , unsafeStringify
   , withBackoff'
-  , mkTemp
-  , mkTemp'
   , withForwardSlashes
   ) where
 
@@ -28,6 +29,7 @@ import Data.Int as Int
 import Data.Maybe as Maybe
 import Data.String (Pattern(..), Replacement(..))
 import Data.String as String
+import Data.Traversable (class Traversable)
 import Effect.Aff as Aff
 import Effect.Now as Now
 import Node.Buffer as Buffer
@@ -58,6 +60,11 @@ parallelise actions = do
   env <- ask
   fibers <- liftAff $ Parallel.parSequence (map (Aff.forkAff <<< runSpago env) actions :: Array _)
   liftAff $ for_ fibers Aff.joinFiber
+
+parTraverseSpago :: forall env a b t. Traversable t => (a -> Spago env b) -> t a -> Spago env (t b)
+parTraverseSpago action t = do
+  env <- ask
+  liftAff $ Parallel.parTraverse (runSpago env <<< action) t
 
 shaToHex :: Sha256 -> Effect HexString
 shaToHex s = do

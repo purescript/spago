@@ -4,11 +4,11 @@ import Test.Prelude
 
 import Data.Array as Array
 import Data.Map as Map
+import Effect.Now as Now
 import Node.FS.Aff as FSA
 import Node.Path as Path
 import Registry.Version as Version
 import Spago.Command.Init as Init
-import Spago.Core.Config (Dependencies(..))
 import Spago.Core.Config as Config
 import Spago.FS as FS
 import Spago.Log (LogVerbosity(..))
@@ -80,13 +80,13 @@ spec = Spec.around withTempDir do
                             { git: "https://github.com/purescript/spago.git"
                             , ref: "master"
                             , subdir: Nothing
-                            , dependencies: Just $ Dependencies $ Map.singleton (mkPackageName "b") Nothing
+                            , dependencies: Just $ mkDependencies [ "b" ]
                             }
                         , Tuple (mkPackageName "b") $ Config.ExtraRemotePackage $ Config.RemoteGitPackage
                             { git: "https://github.com/purescript/spago.git"
                             , ref: "master"
                             , subdir: Nothing
-                            , dependencies: Just $ Dependencies $ Map.singleton (mkPackageName "a") Nothing
+                            , dependencies: Just $ mkDependencies [ "a" ]
                             }
                         ]
                     }
@@ -124,7 +124,7 @@ spec = Spec.around withTempDir do
                             { git: "https://github.com/spacchetti/purescript-metadata.git"
                             , ref: "spago-test/branch-with-slash"
                             , subdir: Nothing
-                            , dependencies: Just $ Dependencies $ Map.singleton (mkPackageName "prelude") Nothing
+                            , dependencies: Just $ mkDependencies [ "prelude" ]
                             }
                         ]
                     }
@@ -158,7 +158,7 @@ spec = Spec.around withTempDir do
                             { git: "https://github.com/purescript/spago.git"
                             , ref: "cbdbbf8f8771a7e43f04b18cdefffbcb0f03a990"
                             , subdir: Nothing
-                            , dependencies: Just $ Dependencies $ Map.singleton (mkPackageName "prelude") Nothing
+                            , dependencies: Just $ mkDependencies [ "prelude" ]
                             }
                         ]
                     }
@@ -186,7 +186,7 @@ spec = Spec.around withTempDir do
                             { git: "https://github.com/purescript/spago.git"
                             , ref: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
                             , subdir: Nothing
-                            , dependencies: Just $ Dependencies $ Map.singleton (mkPackageName "prelude") Nothing
+                            , dependencies: Just $ mkDependencies [ "prelude" ]
                             }
                         ]
                     }
@@ -239,7 +239,8 @@ spec = Spec.around withTempDir do
 
     Spec.it "can build with a newer (but still compatible) compiler than the one in the package set" \{ spago } -> do
       spago [ "init", "--package-set", "10.0.0" ] >>= shouldBeSuccess
-      purs <- runSpago { logOptions: { color: false, verbosity: LogQuiet } } Purs.getPurs
+      startingTime <- liftEffect $ Now.now
+      purs <- runSpago { logOptions: { color: false, verbosity: LogQuiet, startingTime } } Purs.getPurs
       -- The package set 10.0.0 has purescript 0.15.4, so we check that we have a newer version
       case purs.version > mkVersion "0.15.4" of
         true -> pure unit
@@ -266,12 +267,7 @@ writeConfigWithEither = do
                         { git: "https://github.com/purescript/purescript-either.git"
                         , ref: "af655a04ed2fd694b6688af39ee20d7907ad0763"
                         , subdir: Nothing
-                        , dependencies: Just $ Dependencies $ Map.fromFoldable
-                            [ mkPackageName "control" /\ Nothing
-                            , mkPackageName "invariant" /\ Nothing
-                            , mkPackageName "maybe" /\ Nothing
-                            , mkPackageName "prelude" /\ Nothing
-                            ]
+                        , dependencies: Just $ mkDependencies [ "control", "invariant", "maybe", "prelude" ]
                         }
                     ]
                 }

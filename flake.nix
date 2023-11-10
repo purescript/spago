@@ -15,11 +15,13 @@
         };
       in {
         devShells.default = pkgs.mkShell {
+          name = "spago";
           buildInputs = with pkgs; [
-            purs-bin.purs-0_15_10
-            # TODO: we need to get purescript-overlay to track the latest versions
-            # spago-unstable
-            purs-tidy-bin.purs-tidy-0_10_0
+            purs
+            purs-tidy
+            purs-backend-es
+            spago-unstable
+
             nodejs
             esbuild
             gh

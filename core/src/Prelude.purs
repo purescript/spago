@@ -14,6 +14,7 @@ import Control.Monad.Reader (ask, asks) as Extra
 import Control.Monad.Reader (class MonadAsk, ReaderT, runReaderT)
 import Control.Monad.State (StateT) as Extra
 import Data.Array ((..)) as Extra
+import Data.Array.NonEmpty (NonEmptyArray) as Extra
 import Data.Bifunctor (bimap, rmap, lmap) as Extra
 import Data.Codec.Argonaut (JsonCodec, JsonDecodeError) as Extra
 import Data.DateTime.Instant (Instant) as Extra

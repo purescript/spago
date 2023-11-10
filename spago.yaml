@@ -1,7 +1,7 @@
 package:
   name: spago
   publish:
-    version: 0.93.17
+    version: 0.93.18
     license: BSD-3-Clause
     location:
       githubOwner: purescript
@@ -43,6 +43,7 @@ package:
     - registry-lib
     - spago-core
     - strings
+    - stringutils
     - transformers
     - tuples
     - unsafe-coerce
@@ -269,3 +270,4 @@ workspace:
         - refs
         - strings
         - tuples
+    ordered-collections: "3.1.1"

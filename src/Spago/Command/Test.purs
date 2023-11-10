@@ -2,7 +2,6 @@ module Spago.Command.Test where
 
 import Spago.Prelude
 
-import Data.Array.NonEmpty (NonEmptyArray)
 import Registry.PackageName as PackageName
 import Spago.Command.Fetch as Fetch
 import Spago.Command.Run (Node)

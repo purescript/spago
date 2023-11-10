@@ -3,6 +3,7 @@ module Spago.Command.Sources where
 import Spago.Prelude
 
 import Data.Array as Array
+import Data.Array.NonEmpty as NEA
 import Data.Codec.Argonaut as CA
 import Data.Map as Map
 import Spago.Command.Fetch (FetchEnv)
@@ -18,7 +19,7 @@ run { json } = do
   -- lookup the dependencies in the package set, so we get their version numbers
   let
     selectedPackages = case workspace.selected of
-      Just selected -> [ selected ]
+      Just selected -> NEA.singleton selected
       Nothing -> Config.getWorkspacePackages workspace.packageSet
 
     deps = foldMap Fetch.getWorkspacePackageDeps selectedPackages

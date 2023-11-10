@@ -73,17 +73,17 @@ run
   :: forall a
    . FetchOpts
   -> Spago (FetchEnv a) PackageTransitiveDeps
-run { packages, ensureRanges, isTest } = do
-  logDebug $ "Requested to install these packages: " <> printJson (CA.array PackageName.codec) packages
+run { packages: packagesToInstall, ensureRanges, isTest } = do
+  logDebug $ "Requested to install these packages: " <> printJson (CA.array PackageName.codec) packagesToInstall
 
   { getMetadata, logOptions, workspace, offline } <- ask
 
   let
-    installingPackages = not $ Array.null packages
+    installingPackages = not $ Array.null packagesToInstall
 
     getSelectedPackageTransitiveDeps :: WorkspacePackage -> Spago (FetchEnv a) PackageMap
     getSelectedPackageTransitiveDeps selected =
-      getTransitiveDeps $ getWorkspacePackageDeps selected <> Dependencies (Map.fromFoldable $ map (_ /\ Nothing) packages)
+      getTransitiveDeps $ getWorkspacePackageDeps selected <> Dependencies (Map.fromFoldable $ map (_ /\ Nothing) packagesToInstall)
 
   -- lookup the dependencies in the package set, so we get their version numbers.
   { dependencies, transitiveDeps } <- case workspace.selected of
@@ -118,6 +118,8 @@ run { packages, ensureRanges, isTest } = do
   when installingPackages do
     { configPath, package, yamlDoc } <- getPackageConfigPath "to install your packages in."
     let packageDependencies = Map.keys $ unwrap package.dependencies
+    -- Prevent users from installing a circular dependency
+    let packages = Array.filter (\p -> p /= package.name) packagesToInstall
     let overlappingPackages = Set.intersection packageDependencies (Set.fromFoldable packages)
     unless (Set.isEmpty overlappingPackages) do
       logWarn
@@ -402,42 +404,45 @@ getTransitiveDepsFromPackageSet packageSet deps = do
     init :: TransitiveDepsResult
     init = { packages: (Map.empty :: Map PackageName Package), errors: mempty }
 
-    mergeResults :: TransitiveDepsResult -> TransitiveDepsResult -> TransitiveDepsResult
-    mergeResults r1 r2 =
-      { packages: Map.union r1.packages r2.packages
-      , errors: r1.errors <> r2.errors
-      }
-
-    go :: Set PackageName -> PackageName -> StateT (Map PackageName (Map PackageName Package)) (Spago (FetchEnv a)) TransitiveDepsResult
-    go seen dep =
-      if (Set.member dep seen) then do
-        pure (init { errors { cycle = Set.singleton dep } })
+    go :: Set PackageName -> PackageName -> StateT TransitiveDepsResult (Spago (FetchEnv a)) Unit
+    go seen dep = do
+      -- We stash packages that we encountered along the way in `seen`,
+      -- so if we see it again we have a cycle
+      if Set.member dep seen then do
+        State.modify_ $ cycleError dep
       else do
-        cache <- State.get
-        case Map.lookup dep cache of
-          Just allDeps ->
-            pure (init { packages = allDeps })
-          Nothing ->
-            -- First look for the package in the set to get a version number out,
-            -- then use that version to look it up in the index and get the dependencies
-            case Map.lookup dep packageSet of
-              Nothing -> pure (init { errors { notInPackageSet = Set.singleton dep } })
-              Just package -> do
-                maybeDeps <- State.lift $ memoisedGetPackageDependencies dep package
-                case maybeDeps of
-                  Nothing -> pure (init { errors { notInIndex = Set.singleton dep } })
-                  Just dependenciesMap -> do
-                    -- recur here, as we need to get the transitive tree, not just the first level
-                    { packages: childDeps, errors } <-
-                      for (Map.toUnfoldable dependenciesMap :: Array (Tuple PackageName Range)) (\(Tuple d _) -> go (Set.insert dep seen) d)
-                        >>= (pure <<< foldl mergeResults init)
-                    let allDeps = Map.insert dep package childDeps
-                    when (Set.isEmpty (errors.cycle <> errors.notInIndex <> errors.notInPackageSet)) do
-                      State.modify_ $ Map.insert dep allDeps
-                    pure { packages: allDeps, errors }
+        -- If the package is a transitive dependency of some other package that
+        -- we already met, then we don't need to do the work again
+        alreadyRun <- Map.member dep <$> State.gets _.packages
+        when (not alreadyRun)
+          -- If we need to compute the dependencies from scratch instead, we first look
+          -- in the package set to get a version number out, then use that version to
+          -- look it up in the index and get the dependencies
+          case Map.lookup dep packageSet of
+            Nothing -> State.modify_ $ notInPackageSetError dep
+            Just package -> do
+              maybeDeps <- State.lift $ memoisedGetPackageDependencies dep package
+              case maybeDeps of
+                Nothing -> State.modify_ $ notInIndexError dep
+                Just dependenciesMap -> do
+                  -- Compare errors before and after recursively running transitive deps
+                  errors <- State.gets _.errors
+
+                  -- recur here, as we need to get the transitive tree, not just the first level
+                  void $ forWithIndex dependenciesMap
+                    (\dependency _ -> go (Set.insert dep seen) dependency)
+
+                  -- Errors may have changed after running through the child deps
+                  errorsAfterTransitiveDeps <- State.gets _.errors
+
+                  -- Do not include the package if any child deps fail
+                  when (errors == errorsAfterTransitiveDeps) do
+                    State.modify_ \st -> st { packages = Map.insert dep package st.packages }
 
   { packages, errors } <-
-    for deps (\d -> State.evalStateT (go mempty d) Map.empty) >>= (pure <<< foldl mergeResults init)
+    State.execStateT
+      (for deps (go mempty))
+      init
 
   when (not (Set.isEmpty errors.cycle)) do
     die $ "The following packages have circular dependencies:\n" <> foldMap printPackageError (Set.toUnfoldable errors.cycle :: Array PackageName)
@@ -458,3 +463,16 @@ getVersionFromPackage :: Package -> Version
 getVersionFromPackage = case _ of
   RegistryVersion v -> v
   _ -> unsafeFromRight $ Version.parse "0.0.0"
+
+notInPackageSetError :: PackageName -> TransitiveDepsResult -> TransitiveDepsResult
+notInPackageSetError dep result = result
+  { errors { notInPackageSet = Set.insert dep result.errors.notInPackageSet } }
+
+notInIndexError :: PackageName -> TransitiveDepsResult -> TransitiveDepsResult
+notInIndexError dep result = result
+  { errors { notInIndex = Set.insert dep result.errors.notInIndex } }
+
+cycleError :: PackageName -> TransitiveDepsResult -> TransitiveDepsResult
+cycleError dep result = result
+  { errors { cycle = Set.insert dep result.errors.cycle } }
+

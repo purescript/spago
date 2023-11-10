@@ -1,7 +1,7 @@
 Reading Spago workspace configuration...
 Read the package set from the registry
 
-✅ Selecting package to build: 7368613235362d2f444a2b4f56375435646a59726b53586548
+✅ Selecting package to build: pedantic
 
 Downloading dependencies...
 Building...
@@ -13,6 +13,5 @@ Errors       0     0     0
 
 Looking for unused and undeclared transitive dependencies...
 
-❌ Sources for package '7368613235362d2f444a2b4f56375435646a59726b53586548' declares unused dependencies - please remove them from the project config:
-  - console
-  - effect
+❌ Tests for package 'pedantic' declares unused dependencies - please remove them from the project config:
+  - newtype

@@ -138,6 +138,7 @@ workspace:
         - registry-lib
         - spago-core
         - strings
+        - stringutils
         - transformers
         - tuples
         - unsafe-coerce
@@ -330,6 +331,7 @@ workspace:
         - tuples
       git: https://github.com/natefaubion/purescript-node-glob-basic.git
       ref: v1.2.2
+    ordered-collections: 3.1.1
     registry-foreign:
       git: https://github.com/purescript/registry-dev.git
       ref: 6a803c37577af368caa221a2a06d6be2079d32da
@@ -1575,8 +1577,8 @@ packages:
       - tuples
   ordered-collections:
     type: registry
-    version: 3.0.0
-    integrity: sha256-R9WddNBRPkY37gw8XkDCLX2vJ5eI9qdaWDdCp61r2+M=
+    version: 3.1.1
+    integrity: sha256-boSYHmlz4aSbwsNN4VxiwCStc0t+y1F7BXmBS+1JNtI=
     dependencies:
       - arrays
       - foldable-traversable
@@ -1975,6 +1977,17 @@ packages:
       - tuples
       - unfoldable
       - unsafe-coerce
+  stringutils:
+    type: registry
+    version: 0.0.12
+    integrity: sha256-t63QWBlp49U0nRqUcFryKflSJsNKGTQAHKjn24/+ooI=
+    dependencies:
+      - arrays
+      - integers
+      - maybe
+      - partial
+      - prelude
+      - strings
   tailrec:
     type: registry
     version: 6.1.0
