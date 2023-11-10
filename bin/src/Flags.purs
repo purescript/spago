@@ -234,6 +234,14 @@ packages =
           <> O.help "Package name to add as dependency"
       )
 
+packagesToRemove :: Parser (List String)
+packagesToRemove =
+  O.many $
+    O.strArgument
+      ( O.metavar "PACKAGE"
+          <> O.help "Package name to remove from dependencies"
+      )
+
 package :: Parser String
 package =
   O.strArgument

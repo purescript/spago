@@ -11,6 +11,7 @@ import Data.Foldable as Foldable
 import Data.List as List
 import Data.Map as Map
 import Data.Maybe as Maybe
+import Data.Set as Set
 import Data.String as String
 import Effect.Aff as Aff
 import Effect.Now as Now
@@ -29,6 +30,7 @@ import Spago.Bin.Flags as Flags
 import Spago.Command.Build as Build
 import Spago.Command.Bundle as Bundle
 import Spago.Command.Docs as Docs
+import Spago.Command.Uninstall as Uninstall
 import Spago.Command.Fetch as Fetch
 import Spago.Command.Graph (GraphModulesArgs, GraphPackagesArgs)
 import Spago.Command.Graph as Graph
@@ -87,6 +89,12 @@ type InstallArgs =
   , output :: Maybe String
   , pedanticPackages :: Boolean
   , ensureRanges :: Boolean
+  , testDeps :: Boolean
+  }
+
+type UninstallArgs =
+  { packagesToRemove :: List String
+  , selectedPackage :: Maybe String
   , testDeps :: Boolean
   }
 
@@ -177,6 +185,7 @@ data Command a
   | Fetch FetchArgs
   | Init InitArgs
   | Install InstallArgs
+  | Uninstall UninstallArgs
   | LsPaths LsPathsArgs
   | LsDeps LsDepsArgs
   | LsPackages LsPackagesArgs
@@ -206,6 +215,7 @@ argParser =
     [ commandParser "init" (Init <$> initArgsParser) "Initialise a new project"
     , commandParser "fetch" (Fetch <$> fetchArgsParser) "Downloads all of the project's dependencies"
     , commandParser "install" (Install <$> installArgsParser) "Compile the project's dependencies"
+    , commandParser "uninstall" (Uninstall <$> uninstallArgsParser) "Remove dependencies from a package"
     , commandParser "build" (Build <$> buildArgsParser) "Compile the project"
     , commandParser "run" (Run <$> runArgsParser) "Run the project"
     , commandParser "test" (Test <$> testArgsParser) "Test the project"
@@ -301,6 +311,14 @@ installArgsParser =
     , output: Flags.output
     , pedanticPackages: Flags.pedanticPackages
     , ensureRanges: Flags.ensureRanges
+    , testDeps: Flags.testDeps
+    }
+
+uninstallArgsParser :: Parser UninstallArgs
+uninstallArgsParser =
+  Optparse.fromRecord
+    { packagesToRemove: Flags.packagesToRemove
+    , selectedPackage: Flags.selectedPackage
     , testDeps: Flags.testDeps
     }
 
@@ -536,6 +554,10 @@ main = do
             env' <- runSpago env (mkBuildEnv buildArgs dependencies)
             let options = { depsOnly: true, pursArgs: List.toUnfoldable args.pursArgs, jsonErrors: false }
             runSpago env' (Build.run options)
+          Uninstall { packagesToRemove, selectedPackage, testDeps } -> do
+            { env, fetchOpts } <- mkFetchEnv offline { packages: packagesToRemove, selectedPackage, ensureRanges: false, testDeps: false }
+            let options = { testDeps, dependenciesToRemove: Set.fromFoldable fetchOpts.packages }
+            runSpago { workspace: env.workspace, logOptions: env.logOptions } (Uninstall.run options)
           Build args@{ selectedPackage, ensureRanges, jsonErrors } -> do
             { env, fetchOpts } <- mkFetchEnv offline { packages: mempty, selectedPackage, ensureRanges, testDeps: false }
             -- TODO: --no-fetch flag
