@@ -1,4 +1,3 @@
-#!/usr/bin/env node
 (() => {
   // output/Effect.Console/foreign.js
   var log = function(s) {
