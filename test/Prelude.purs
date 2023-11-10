@@ -80,13 +80,23 @@ shouldEqual
   -> m Unit
 shouldEqual v1 v2 =
   when (v1 /= v2) do
-    fail $ show v1 <> "\n\n≠\n\n" <> show v2
+    fail $ show v1 <> "\n\n  ≠\n\n  " <> show v2
+
+shouldEqualStr
+  :: forall m
+   . MonadThrow Error m
+  => String
+  -> String
+  -> m Unit
+shouldEqualStr v1 v2 =
+  when (v1 /= v2) do
+    fail $ "\n=====\n" <> v1 <> "\n=====\n  ≠\n=====\n  " <> show v2 <> "\n=====\n"
 
 checkFixture :: String -> String -> Aff Unit
 checkFixture filepath fixturePath = do
   filecontent <- FS.readTextFile filepath
   fixturecontent <- FS.readTextFile fixturePath
-  filecontent `shouldEqual` fixturecontent
+  filecontent `shouldEqualStr` fixturecontent
 
 plusDependencies :: Array String -> Config -> Config
 plusDependencies deps config = config

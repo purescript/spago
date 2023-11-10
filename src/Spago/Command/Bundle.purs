@@ -58,8 +58,12 @@ run = do
     -- TODO: we might need to use `Path.relative selected.path output` instead of just output there
     mainPath = withForwardSlashes $ Path.concat [ output, opts.module, "index.js" ]
 
+    shebang = case opts.platform of
+      BundleNode -> "#!/usr/bin/env node\n\n"
+      _ -> ""
+
     { input, entrypoint } = case opts.type of
-      BundleApp -> { entrypoint: [], input: Cmd.StdinWrite ("#!/usr/bin/env node\n\nimport { main } from './" <> mainPath <> "'; main();") }
+      BundleApp -> { entrypoint: [], input: Cmd.StdinWrite (shebang <> "import { main } from './" <> mainPath <> "'; main();") }
       BundleModule -> { entrypoint: [ mainPath ], input: Cmd.StdinNewPipe }
     execOptions = Cmd.defaultExecOptions { pipeStdin = input }
 
