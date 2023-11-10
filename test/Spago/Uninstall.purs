@@ -3,11 +3,9 @@ module Test.Spago.Uninstall where
 import Test.Prelude
 
 import Data.String as String
-import Effect.Exception (throw)
 import Node.Path as Path
 import Spago.Command.Init (DefaultConfigOptions(..))
 import Spago.Command.Init as Init
-import Spago.Command.Uninstall (editSpagoYaml)
 import Spago.Core.Config as Config
 import Spago.FS as FS
 import Test.Spec (Spec)
@@ -39,11 +37,8 @@ spec = Spec.around withTempDir do
 
     Spec.it "warns when test config does not exist and uninstalling test deps" \{ spago, fixture } -> do
       spago [ "init", "--name", "uninstall-tests" ] >>= shouldBeSuccess
-      editSpagoYaml
-        { configPath: "spago.yaml"
-        , modifyConfig: \config -> config { package = config.package <#> \p -> p { test = Nothing } }
-        , onError: \err -> liftEffect $ throw $ "Failed to decode package config:\n" <> err
-        }
+      editSpagoYaml' "spago.yaml" \config ->
+        config { package = config.package <#> \p -> p { test = Nothing } }
       spago [ "uninstall", "--test-deps", "either" ] >>= shouldBeSuccessErr (fixture "uninstall-no-test-config.txt")
 
     Spec.it "warns when packages to uninstall are not declared in source config" \{ spago, fixture } -> do

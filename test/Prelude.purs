@@ -199,6 +199,18 @@ writePursFile { moduleName, rest } =
   where
   modNameLine = "module " <> moduleName <> " where"
 
+editSpagoYaml :: (Config -> Config) -> Aff Unit
+editSpagoYaml = editSpagoYaml' "spago.yaml"
+
+editSpagoYaml' :: FilePath -> (Config -> Config) -> Aff Unit
+editSpagoYaml' configPath f = do
+  content <- liftAff $ FS.readYamlDocFile Config.configCodec configPath
+  case content of
+    Left err ->
+      Assert.fail $ "Failed to decode spago.yaml file at path " <> configPath <> "\n" <> err
+    Right { yaml: config } ->
+      liftAff $ FS.writeYamlFile Config.configCodec configPath $ f config
+
 mkDependencies :: Array String -> Config.Dependencies
 mkDependencies = Config.Dependencies <<< Map.fromFoldable <<< map (flip Tuple Nothing <<< mkPackageName)
 
