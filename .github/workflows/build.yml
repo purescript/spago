@@ -71,13 +71,13 @@ jobs:
         run: spago install
 
       - name: Build the project
-        run: spago build
+        run: spago build -v
 
       - name: Bootstrap executable
-        run: ./bin/index.dev.js bundle -p spago-bin -v
+        run: spago bundle -p spago-bin -v
 
       - name: Bundle docs-search client
-        run: ./bin/index.dev.js bundle -p docs-search-client-halogen -v
+        run: spago bundle -p docs-search-client-halogen -v
 
       - name: LS - Temporary
         run: |
