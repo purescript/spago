@@ -73,7 +73,15 @@ jobs:
         run: spago build
 
       - name: Bootstrap executable
-        run: ./bin/index.dev.js bundle -p spago-bin
+        run: |
+          ./bin/index.dev.js bundle -p spago-bin -v
+          if [ ! -f ./bin/bundle.js ]
+          then
+            ls -a .
+            ls -a ./bin
+            echo "Bundling failed"
+            exit 1
+          fi
 
       - name: Bundle docs-search client
         run: ./bin/index.dev.js bundle -p docs-search-client-halogen
