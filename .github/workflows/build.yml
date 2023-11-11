@@ -73,6 +73,7 @@ jobs:
         run: spago build
 
       - name: Bootstrap executable
+        shell: bash
         run: |
           ./bin/index.dev.js bundle -p spago-bin -v
           if [ ! -f ./bin/bundle.js ]
