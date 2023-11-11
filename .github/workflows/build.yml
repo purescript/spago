@@ -13,9 +13,8 @@ jobs:
     strategy:
       matrix:
         include:
-            # temporary
-            # - os: ubuntu-latest
-            # - os: macOS-latest
+          - os: ubuntu-latest
+          - os: macOS-latest
           - os: windows-latest
     steps:
       # We set LF endings so that the Windows environment is consistent with the rest
@@ -41,8 +40,28 @@ jobs:
         with:
           node-version: 18
 
+      - name: Cache NPM dependencies
+        uses: actions/cache@v2
+        env:
+          cache-name: cache-node-modules
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ hashFiles('**/package.json') }}
+          restore-keys: |
+            ${{ runner.os }}-build-${{ env.cache-name }}-
+            ${{ runner.os }}-build-
+            ${{ runner.os }}-
+
       - name: Install global NPM packages
         run: npm i --global purescript@0.15.10 spago@next purs-tidy@latest esbuild@latest
+
+      - name: Cache PureScript dependencies
+        uses: actions/cache@v2
+        with:
+          key: ${{ runner.os }}-spago-${{ hashFiles('**/spago.yaml') }}
+          path: |
+            .spago
+            output
 
       - name: Install NPM dependencies
         run: npm ci
@@ -54,11 +73,7 @@ jobs:
         run: spago build
 
       - name: Bootstrap executable
-        shell: C:\Program Files\PowerShell\7\pwsh.EXE -noexit -command ". '{0}'"
-        run: |
-          ./bin/index.dev.js bundle -p spago-bin -v
-          ls -a .
-          ls -a ./bin
+        run: ./bin/index.dev.js bundle -p spago-bin
 
       - name: Bundle docs-search client
         run: ./bin/index.dev.js bundle -p docs-search-client-halogen
