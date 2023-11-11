@@ -41,7 +41,7 @@ jobs:
         with:
           node-version: 18
 
-      - run: echo $PATH
+      - run: echo $Env:Path
       - run: npm get prefix -g
 
       - name: Cache NPM dependencies
