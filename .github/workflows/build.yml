@@ -41,6 +41,9 @@ jobs:
         with:
           node-version: 18
 
+      - run: echo $PATH
+      - run: npm get prefix -g
+
       - name: Cache NPM dependencies
         uses: actions/cache@v2
         env:
@@ -55,9 +58,6 @@ jobs:
 
       - name: Install global NPM packages
         run: npm i --global purescript@0.15.10 spago@next purs-tidy@latest esbuild@latest
-        shell: bash
-
-      - run: echo $PATH
         shell: bash
 
       - name: Cache PureScript dependencies
