@@ -9,6 +9,7 @@ module Spago.Config
   , WorkspacePackage
   , addPackagesToConfig
   , addRangesToConfig
+  , removePackagesFromConfig
   , rootPackageToWorkspacePackage
   , getPackageLocation
   , fileSystemCharEscape
@@ -36,6 +37,8 @@ import Data.Int as Int
 import Data.Map as Map
 import Data.Profunctor as Profunctor
 import Data.Set as Set
+import Data.Set.NonEmpty (NonEmptySet)
+import Data.Set.NonEmpty as NonEmptySet
 import Data.String (CodePoint, Pattern(..))
 import Data.String as String
 import Dodo as Log
@@ -534,6 +537,11 @@ foreign import addPackagesToConfigImpl :: EffectFn3 (YamlDoc Core.Config) Boolea
 
 addPackagesToConfig :: YamlDoc Core.Config -> Boolean -> Array PackageName -> Effect Unit
 addPackagesToConfig doc isTest pkgs = runEffectFn3 addPackagesToConfigImpl doc isTest (map PackageName.print pkgs)
+
+foreign import removePackagesFromConfigImpl :: EffectFn3 (YamlDoc Core.Config) Boolean (PackageName -> Boolean) Unit
+
+removePackagesFromConfig :: YamlDoc Core.Config -> Boolean -> NonEmptySet PackageName -> Effect Unit
+removePackagesFromConfig doc isTest pkgs = runEffectFn3 removePackagesFromConfigImpl doc isTest (flip NonEmptySet.member pkgs)
 
 foreign import addRangesToConfigImpl :: EffectFn2 (YamlDoc Core.Config) (Foreign.Object String) Unit
 

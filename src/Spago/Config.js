@@ -56,6 +56,24 @@ export function addPackagesToConfigImpl(doc, isTest, newPkgs) {
   deps.items = newItems;
 }
 
+export function removePackagesFromConfigImpl(doc, isTest, shouldRemove) {
+  const pkg = doc.get("package");
+
+  const deps = isTest ? pkg.get("test").get("dependencies") : pkg.get("dependencies");
+  let newItems = [];
+  for (const el of deps.items) {
+    if (
+      (Yaml.isScalar(el) && shouldRemove(el.value)) || 
+        (Yaml.isMap(el) && shouldRemove(el.items[0].key))
+    ) {
+      continue;
+    }
+    newItems.push(el);
+  }
+  newItems.sort();
+  deps.items = newItems;
+}
+
 export function addRangesToConfigImpl(doc, rangesMap) {
   const deps = doc.get("package").get("dependencies");
 

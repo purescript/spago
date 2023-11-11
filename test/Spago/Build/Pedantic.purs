@@ -6,11 +6,9 @@ import Data.Array as Array
 import Data.Map as Map
 import Node.Path as Path
 import Spago.Core.Config (Dependencies(..), Config)
-import Spago.Core.Config as Core
 import Spago.FS as FS
 import Test.Spec (SpecT)
 import Test.Spec as Spec
-import Test.Spec.Assertions as Assert
 
 spec :: SpecT Aff TestDirs Identity Unit
 spec =
@@ -188,15 +186,6 @@ spec =
       spago [ "build", "--pedantic-packages" ] >>= shouldBeFailureErr (fixture "pedantic/check-pedantic-packages.txt")
       editSpagoYaml (addPedanticFlagToSrc >>> addPedanticFlagToTest)
       spago [ "build" ] >>= shouldBeFailureErr (fixture "pedantic/check-pedantic-packages.txt")
-
-editSpagoYaml :: (Config -> Config) -> Aff Unit
-editSpagoYaml f = do
-  content <- FS.readYamlDocFile Core.configCodec "spago.yaml"
-  case content of
-    Left err ->
-      Assert.fail $ "Failed to decode spago.yaml file\n" <> err
-    Right { yaml: config } ->
-      FS.writeYamlFile Core.configCodec "spago.yaml" $ f config
 
 addPedanticFlagToSrc :: Config -> Config
 addPedanticFlagToSrc config = config

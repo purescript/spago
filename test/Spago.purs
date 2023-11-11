@@ -21,6 +21,7 @@ import Test.Spago.Registry as Registry
 import Test.Spago.Run as Run
 import Test.Spago.Sources as Sources
 import Test.Spago.Test as Test
+import Test.Spago.Uninstall as Uninstall
 import Test.Spago.Unit as Unit
 import Test.Spago.Upgrade as Upgrade
 import Test.Spec as Spec
@@ -41,6 +42,7 @@ main = Aff.launchAff_ $ void $ un Identity $ Spec.Runner.runSpecT testConfig [ S
     Init.spec
     Sources.spec
     Install.spec
+    Uninstall.spec
     Ls.spec
     Build.spec
     Run.spec

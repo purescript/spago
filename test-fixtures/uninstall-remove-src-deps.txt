@@ -1,0 +1,7 @@
+Reading Spago workspace configuration...
+Read the package set from the registry
+
+✅ Selecting package to build: uninstall-tests
+
+Removing the following source dependencies:
+  either

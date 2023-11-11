@@ -1,0 +1,6 @@
+Reading Spago workspace configuration...
+Read the package set from the registry
+
+✅ Selecting package to build: uninstall-tests
+
+⚠️ Could not uninstall test dependencies for uninstall-tests because it does not have a test configuration.
