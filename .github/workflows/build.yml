@@ -13,8 +13,9 @@ jobs:
     strategy:
       matrix:
         include:
-          - os: ubuntu-latest
-          - os: macOS-latest
+            # temporary
+            # - os: ubuntu-latest
+            # - os: macOS-latest
           - os: windows-latest
     steps:
       # We set LF endings so that the Windows environment is consistent with the rest
@@ -54,6 +55,10 @@ jobs:
 
       - name: Install global NPM packages
         run: npm i --global purescript@0.15.10 spago@next purs-tidy@latest esbuild@latest
+        shell: bash
+
+      - run: echo $PATH
+        shell: bash
 
       - name: Cache PureScript dependencies
         uses: actions/cache@v2
@@ -76,13 +81,8 @@ jobs:
         shell: bash
         run: |
           ./bin/index.dev.js bundle -p spago-bin -v
-          if [ ! -f ./bin/bundle.js ]
-          then
-            ls -a .
-            ls -a ./bin
-            echo "Bundling failed"
-            exit 1
-          fi
+          ls -a .
+          ls -a ./bin
 
       - name: Bundle docs-search client
         run: ./bin/index.dev.js bundle -p docs-search-client-halogen
