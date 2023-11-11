@@ -154,6 +154,8 @@ type BundleArgs =
   , selectedPackage :: Maybe String
   , pursArgs :: List String
   , backendArgs :: List String
+  -- esbuildArgs
+  , extraArgs :: List String
   , output :: Maybe String
   , pedanticPackages :: Boolean
   , type :: Maybe String
@@ -362,6 +364,7 @@ bundleArgsParser =
     , selectedPackage: Flags.selectedPackage
     , pursArgs: Flags.pursArgs
     , backendArgs: Flags.backendArgs
+    , extraArgs: Flags.esbuildArgs
     , output: Flags.output
     , pedanticPackages: Flags.pedanticPackages
     , ensureRanges: Flags.ensureRanges
@@ -697,7 +700,8 @@ mkBundleEnv bundleArgs = do
       ( (Config.parseBundleType =<< bundleArgs.type)
           <|> bundleConf _.type
       )
-  let bundleOptions = { minify, module: entrypoint, outfile, platform, type: bundleType, sourceMaps: bundleArgs.sourceMaps, extraArgs: fromMaybe [] (bundleConf _.extra_args) }
+  let extraArgs = bundleArgs.extraArgs <> fromMaybe [] (bundleConf _.extra_args)
+  let bundleOptions = { minify, module: entrypoint, outfile, platform, type: bundleType, sourceMaps: bundleArgs.sourceMaps, extraArgs }
   let
     newWorkspace = workspace
       { buildOptions
