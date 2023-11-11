@@ -700,7 +700,7 @@ mkBundleEnv bundleArgs = do
       ( (Config.parseBundleType =<< bundleArgs.type)
           <|> bundleConf _.type
       )
-  let extraArgs = bundleArgs.extraArgs <> fromMaybe [] (bundleConf _.extra_args)
+  let extraArgs = Array.fromFoldable bundleArgs.extraArgs <> fromMaybe [] (bundleConf _.extra_args)
   let bundleOptions = { minify, module: entrypoint, outfile, platform, type: bundleType, sourceMaps: bundleArgs.sourceMaps, extraArgs }
   let
     newWorkspace = workspace

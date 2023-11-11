@@ -13,9 +13,8 @@ jobs:
     strategy:
       matrix:
         include:
-          # TEMPORARY
-          # - os: ubuntu-latest
-          # - os: macOS-latest
+          - os: ubuntu-latest
+          - os: macOS-latest
           - os: windows-latest
     steps:
       # We set LF endings so that the Windows environment is consistent with the rest
@@ -71,18 +70,13 @@ jobs:
         run: spago install
 
       - name: Build the project
-        run: spago build -v
+        run: spago build
 
       - name: Bootstrap executable
-        run: spago bundle -p spago-bin -v
+        run: ./bin/index.dev.js bundle -p spago-bin
 
       - name: Bundle docs-search client
-        run: spago bundle -p docs-search-client-halogen -v
-
-      - name: LS - Temporary
-        run: |
-          ls .
-          ls bin
+        run: ./bin/index.dev.js bundle -p docs-search-client-halogen
 
       - name: Run tests
         run: spago test

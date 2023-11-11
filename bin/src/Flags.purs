@@ -207,7 +207,7 @@ esbuildArgs :: Parser (List String)
 esbuildArgs =
   O.many $
     O.strOption
-      ( O.long "backend-args"
+      ( O.long "esbuild-args"
           <> O.help "Arguments to pass to ESBuild"
           <> O.metavar "ARGS"
       )
