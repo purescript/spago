@@ -42,7 +42,7 @@ run = do
   let
     minify = if opts.minify then [ "--minify" ] else []
     sourceMap = if opts.sourceMaps then [ "--sourcemap" ] else []
-    outfile = Path.concat [ selected.path, Path.normalize opts.outfile ]
+    outfile = Path.concat [ selected.path, opts.outfile ]
     format = case opts.platform, opts.type of
       BundleBrowser, BundleApp -> "--format=iife"
       _, _ -> "--format=esm"
