@@ -43,30 +43,14 @@ jobs:
 
       - run: echo $Env:Path
       - run: npm get prefix -g
-
-      - name: Cache NPM dependencies
-        uses: actions/cache@v2
-        env:
-          cache-name: cache-node-modules
-        with:
-          path: ~/.npm
-          key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ hashFiles('**/package.json') }}
-          restore-keys: |
-            ${{ runner.os }}-build-${{ env.cache-name }}-
-            ${{ runner.os }}-build-
-            ${{ runner.os }}-
+      - run: get-command 'node'
 
       - name: Install global NPM packages
         run: npm i --global purescript@0.15.10 spago@next purs-tidy@latest esbuild@latest
-        shell: bash
 
-      - name: Cache PureScript dependencies
-        uses: actions/cache@v2
-        with:
-          key: ${{ runner.os }}-spago-${{ hashFiles('**/spago.yaml') }}
-          path: |
-            .spago
-            output
+      - run: get-command 'esbuild'
+      - run: get-command 'purs'
+
 
       - name: Install NPM dependencies
         run: npm ci
