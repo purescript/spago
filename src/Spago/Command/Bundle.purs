@@ -69,7 +69,6 @@ run = do
 
     args =
       [ "--bundle"
-      , "--summary"
       , "--outfile=" <> outfile
       , "--platform=" <> show opts.platform
       -- See https://github.com/evanw/esbuild/issues/1051
