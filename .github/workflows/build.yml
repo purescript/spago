@@ -48,10 +48,6 @@ jobs:
       - name: Install global NPM packages
         run: npm i --global purescript@0.15.10 spago@next purs-tidy@latest esbuild@latest
 
-      - run: get-command 'esbuild'
-      - run: get-command 'purs'
-
-
       - name: Install NPM dependencies
         run: npm ci
 
@@ -62,7 +58,6 @@ jobs:
         run: spago build
 
       - name: Bootstrap executable
-        shell: bash
         run: |
           ./bin/index.dev.js bundle -p spago-bin -v
           ls -a .
