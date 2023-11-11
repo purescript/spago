@@ -41,7 +41,7 @@ jobs:
       - name: Setup node and npm
         uses: actions/setup-node@v2
         with:
-          node-version: 18
+          node-version: 20
 
       - name: Cache NPM dependencies
         uses: actions/cache@v2
