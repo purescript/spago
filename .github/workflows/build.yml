@@ -58,9 +58,6 @@ jobs:
       - name: Install global NPM packages
         run: npm i --global purescript@0.15.10 spago@next purs-tidy@latest esbuild@latest
 
-      - run: echo "$(npm prefix -g)" >> $GITHUB_PATH
-      - run: echo "$GITHUB_PATH"
-
       - name: Cache PureScript dependencies
         uses: actions/cache@v2
         with:

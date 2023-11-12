@@ -118,7 +118,7 @@ getExecutable command =
         Right r -> pure { cmd: cmd1, output: r.stdout }
         Left err' -> do
           let cmd2 = mkCmd command Nothing
-          logDebug [ "Failed to find purs.cmd. Trying with just purs...", show err' ]
+          logDebug [ "Failed to find ", command, ".cmd. Trying with just purs...", show err' ]
           askVersion cmd2 >>= case _ of
             Right r -> pure { cmd: cmd2, output: r.stdout }
             Left err -> complain err
