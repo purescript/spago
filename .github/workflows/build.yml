@@ -73,10 +73,10 @@ jobs:
         run: npm ci
 
       - name: Install PureScript dependencies
-        run: npx spago install
+        run: spago install
 
       - name: Build the project
-        run: npx spago build
+        run: spago build
 
       - name: Bootstrap executable
         run: ./bin/index.dev.js bundle -p spago-bin
@@ -85,7 +85,7 @@ jobs:
         run: ./bin/index.dev.js bundle -p docs-search-client-halogen
 
       - name: Run tests
-        run: npx spago test
+        run: spago test
 
       - name: Check formatting (Linux only)
         if: matrix.os == 'ubuntu-latest'
