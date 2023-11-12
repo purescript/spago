@@ -59,6 +59,9 @@ jobs:
         run: npm i --global purescript@0.15.10 spago@next purs-tidy@latest esbuild@latest
 
       - run: npm list -g
+      - run: npm prefix -g
+      - run: ls -a "$(npm prefix -g)/bin"
+      - run: echo "$(npm prefix -g)/bin" >> $GITHUB_PATH
 
       - name: Cache PureScript dependencies
         uses: actions/cache@v2
