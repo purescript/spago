@@ -60,8 +60,9 @@ jobs:
 
       - run: npm list -g
       - run: npm prefix -g
-      - run: ls -a "$(npm prefix -g)/bin"
-      - run: echo "$(npm prefix -g)/bin" >> $GITHUB_PATH
+      - run: ls -a "$(npm prefix -g)"
+      - run: ls -a "$(npm prefix -g)\bin"
+      - run: echo "$(npm prefix -g)\bin" >> $GITHUB_PATH
 
       - name: Cache PureScript dependencies
         uses: actions/cache@v2
