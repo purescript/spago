@@ -76,7 +76,7 @@ jobs:
         run: node ./bin/index.dev.js bundle -p spago-bin
 
       - name: Bundle docs-search client
-        run: node ./bin/bundle.js -p docs-search-client-halogen
+        run: node ./bin/bundle.js bundle -p docs-search-client-halogen
 
       - name: Run tests
         run: node ./bin/bundle.js test

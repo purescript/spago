@@ -162,7 +162,6 @@ type BundleArgs =
   , selectedPackage :: Maybe String
   , pursArgs :: List String
   , backendArgs :: List String
-  -- esbuildArgs
   , extraArgs :: List String
   , output :: Maybe String
   , pedanticPackages :: Boolean
