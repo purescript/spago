@@ -11,6 +11,7 @@ import Data.String (Pattern(..), Replacement(..))
 import Data.String as String
 import Effect.Aff as Aff
 import Effect.Class.Console (log)
+import Effect.Class.Console as Console
 import Node.Path as Path
 import Node.Process as Process
 import Registry.PackageName as PackageName
@@ -156,13 +157,20 @@ checkOutputs
   -> Either ExecError ExecResult
   -> Aff Unit
 checkOutputs checkers execResult = do
-  maybeOutStr <- for checkers.stdoutFile \expectedOutFixture -> do
-    String.trim <$> FS.readTextFile expectedOutFixture
-  maybeErrStr <- for checkers.stderrFile \expectedErrFixture -> do
-    String.trim <$> FS.readTextFile expectedErrFixture
-  checkOutputsStr
-    { stdoutStr: maybeOutStr
-    , stderrStr: maybeErrStr
+  let
+    checkOrOverwrite = case _ of
+      Nothing -> mempty
+      Just fixtureFileExpected -> \actual -> do
+        overwriteSpecFile <- liftEffect $ map isJust $ Process.lookupEnv "SPAGO_TEST_ACCEPT"
+        if overwriteSpecFile then do
+          Console.log $ "Overwriting fixture at path: " <> fixtureFileExpected
+          FS.writeTextFile fixtureFileExpected actual
+        else do
+          expected <- String.trim <$> FS.readTextFile fixtureFileExpected
+          actual `Assert.shouldEqual` expected
+  check
+    { stdout: checkOrOverwrite checkers.stdoutFile
+    , stderr: checkOrOverwrite checkers.stderrFile
     , result: checkers.result
     }
     execResult
