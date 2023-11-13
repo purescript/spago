@@ -3,6 +3,7 @@ module Spago.Purs.Graph
   , ImportedPackages
   , checkImports
   , toImportErrors
+  , formatImportErrors
   , runGraph
   , PackageGraph
   , packageGraphCodec
@@ -22,6 +23,7 @@ import Data.Codec.Argonaut.Record as CAR
 import Data.Map as Map
 import Data.Set as Set
 import Data.String as String
+import Dodo as Doc
 import Record as Record
 import Registry.Foreign.FastGlob as Glob
 import Registry.Internal.Codec as Internal.Codec
@@ -278,53 +280,81 @@ toImportErrors
   :: WorkspacePackage
   -> { reportSrc :: Boolean, reportTest :: Boolean }
   -> ImportCheckResult
-  -> Array Docc
-toImportErrors selected opts { unused, unusedTest, transitive, transitiveTest } = join
-  [ if opts.reportSrc && (not $ Set.isEmpty unused) then [ unusedError false selected unused ] else []
-  , if opts.reportSrc && (not $ Map.isEmpty transitive) then [ transitiveError false selected transitive ] else []
-  , if opts.reportTest && (not $ Set.isEmpty unusedTest) then [ unusedError true selected unusedTest ] else []
-  , if opts.reportTest && (not $ Map.isEmpty transitiveTest) then [ transitiveError true selected transitiveTest ] else []
-  ]
+  -> Array { errorMessage :: Docc, correction :: Docc }
+toImportErrors selected opts { unused, unusedTest, transitive, transitiveTest } = do
+  Array.catMaybes
+    [ if opts.reportSrc && (not $ Set.isEmpty unused) then Just $ unusedError false selected unused else Nothing
+    , if opts.reportSrc && (not $ Map.isEmpty transitive) then Just $ transitiveError false selected transitive else Nothing
+    , if opts.reportTest && (not $ Set.isEmpty unusedTest) then Just $ unusedError true selected unusedTest else Nothing
+    , if opts.reportTest && (not $ Map.isEmpty transitiveTest) then Just $ transitiveError true selected transitiveTest else Nothing
+    ]
 
-unusedError :: Boolean -> WorkspacePackage -> Set PackageName -> Docc
-unusedError isTest selected unused = toDoc
-  [ toDoc $ (if isTest then "Tests for package '" else "Sources for package '")
-      <> PackageName.print selected.package.name
-      <> "' declares unused dependencies - please remove them from the project config:"
-  , indent (toDoc (map (\p -> "- " <> PackageName.print p) (Set.toUnfoldable unused) :: Array _))
-  ]
+formatImportErrors :: Array { errorMessage :: Docc, correction :: Docc } -> Docc
+formatImportErrors checkResults = do
+  let
+    separate { errorMessage, correction } = { errors: [ errorMessage ], fixes: [ correction ] }
+    { errors, fixes } = foldMap separate checkResults
+    blankLine = Doc.break <> Doc.break
+  Array.fold
+    [ toDoc "Found unused and/or undeclared transitive dependencies:"
+    , blankLine
+    , Array.intercalate blankLine errors
+    , blankLine
+    , Doc.lines
+        [ toDoc "These errors can be fixed by running the below command(s):"
+        , Array.intercalate Log.break fixes
+        ]
+    ]
 
-transitiveError :: Boolean -> WorkspacePackage -> ImportedPackages -> Docc
-transitiveError isTest selected transitive = toDoc
-  [ toDoc
-      $ (if isTest then "Tests for package '" else "Sources for package '")
+unusedError :: Boolean -> WorkspacePackage -> Set PackageName -> { errorMessage :: Docc, correction :: Docc }
+unusedError isTest selected unused = do
+  let
+    unusedPkgs :: Array String
+    unusedPkgs = map PackageName.print $ Set.toUnfoldable unused
+  { errorMessage: toDoc
+      [ toDoc $ (if isTest then "Tests for package '" else "Sources for package '")
+          <> PackageName.print selected.package.name
+          <> "' declares unused dependencies - please remove them from the project config:"
+      , indent $ toDoc $ map (append "- ") unusedPkgs
+      ]
+  , correction: toDoc
+      $ "spago uninstall -p "
       <> PackageName.print selected.package.name
-      <> "' import the following transitive dependencies - please add them to the project dependencies, or remove the imports:"
-  , indent $ toDoc
-      ( map
-          ( \(Tuple p modules) -> toDoc
-              [ toDoc $ PackageName.print p
-              , indent $ toDoc
-                  ( map
-                      ( \(Tuple mod importedOnes) -> toDoc
-                          [ toDoc $ "from `" <> mod <> "`, which imports:"
-                          , indent $ toDoc (Array.fromFoldable importedOnes)
-                          ]
+      <> (if isTest then " --test-deps" else "")
+      <> " "
+      <> String.joinWith " " unusedPkgs
+  }
+
+transitiveError :: Boolean -> WorkspacePackage -> ImportedPackages -> { errorMessage :: Docc, correction :: Docc }
+transitiveError isTest selected transitive =
+  { errorMessage: toDoc
+      [ toDoc
+          $ (if isTest then "Tests for package '" else "Sources for package '")
+          <> PackageName.print selected.package.name
+          <> "' import the following transitive dependencies - please add them to the project dependencies, or remove the imports:"
+      , indent $ toDoc
+          ( map
+              ( \(Tuple p modules) -> toDoc
+                  [ toDoc $ PackageName.print p
+                  , indent $ toDoc
+                      ( map
+                          ( \(Tuple mod importedOnes) -> toDoc
+                              [ toDoc $ "from `" <> mod <> "`, which imports:"
+                              , indent $ toDoc (Array.fromFoldable importedOnes)
+                              ]
+                          )
+                          (Map.toUnfoldable modules :: Array _)
                       )
-                      (Map.toUnfoldable modules :: Array _)
-                  )
-              ]
+                  ]
+              )
+              (Map.toUnfoldable transitive)
+              :: Array _
           )
-          (Map.toUnfoldable transitive)
-          :: Array _
-      )
-  , Log.break
-  , toDoc "Run the following command to install them all:"
-  , indent $ toDoc
-      $ "spago install "
-      <> (if isTest then "--test-deps " else "")
-      <> "-p "
+      ]
+  , correction: toDoc
+      $ "spago install -p "
       <> PackageName.print selected.package.name
+      <> (if isTest then " --test-deps" else "")
       <> " "
       <> String.joinWith " " (map PackageName.print $ Set.toUnfoldable $ Map.keys transitive)
-  ]
+  }
