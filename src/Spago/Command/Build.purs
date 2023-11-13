@@ -150,10 +150,10 @@ run opts = do
     eitherGraph <- Graph.runGraph globs opts.pursArgs
     graph <- either die pure eitherGraph
     env <- ask
-    errors <- map Array.fold $ for pedanticPkgs \(Tuple selected options) -> do
+    checkResults <- map Array.fold $ for pedanticPkgs \(Tuple selected options) -> do
       Graph.toImportErrors selected options <$> runSpago (Record.union { selected } env) (Graph.checkImports graph)
-    unless (Array.null errors) do
-      die' errors
+    unless (Array.null checkResults) do
+      die $ Graph.formatImportErrors checkResults
 
 -- TODO: if we are building with all the packages (i.e. selected = Nothing),
 -- then we could use the graph to remove outdated modules from `output`!

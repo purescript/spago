@@ -57,6 +57,9 @@ spago test
 
 # To see tests' stdout/stderr output while the tests are running, run
 SPAGO_TEST_DEBUG=1 spago
+
+# To overwrite fixture's with the test's run, run
+SPAGO_TEST_ACCEPT=1 spago
 ```
 
 ## Developing docs
