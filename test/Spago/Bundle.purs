@@ -22,9 +22,6 @@ spec = Spec.around withTempDir do
     Spec.it "bundles into a module" \{ spago, fixture } -> do
       spago [ "init" ] >>= shouldBeSuccess
       spago [ "build" ] >>= shouldBeSuccess
-      -- We pass the `--no-build` flag to skip rebuilding (i.e. we are counting on the previous command
-      -- to have built stuff for us)
-      -- TODO: get "--no-build" to work
       spago [ "bundle", "--bundle-type=module", "--outfile", "bundle-module.js" ] >>= shouldBeSuccess
       checkFixture "bundle-module.js" (fixture "bundle-module.js")
 
