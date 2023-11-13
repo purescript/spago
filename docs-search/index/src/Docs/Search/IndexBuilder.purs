@@ -1,6 +1,6 @@
 module Docs.Search.IndexBuilder where
 
-import Docs.Search.Config as Config
+import Docs.Search.Config_
 import Docs.Search.Declarations (Declarations(..), mkDeclarations)
 import Docs.Search.Extra ((>#>))
 import Docs.Search.Meta (Meta)
@@ -345,8 +345,8 @@ writeIndex { generatedDocs } = getIndex >>> \resultsMap -> do
   where
   codec = CA.array $ CA.tuple CA.string $ CA.array SearchResult.searchResultCodec
 
-patchHtml :: String -> Effect (Maybe String)
-patchHtml html = ado
+patchHtml :: String -> Maybe String
+patchHtml html =
   let
     patch = Fold.fold
       [ "<!-- Docs search index. -->"
