@@ -13,15 +13,13 @@ import Test.Spec.Assertions (shouldEqual, shouldNotEqual)
 tests :: Spec Unit
 tests = do
   describe "IndexBuilder" do
-    let patch = liftEffect <<< patchHtml
     describe "patchHtml" do
       it "works" do
         let input = "</body>"
-        patched <- patch input
+        let patched = patchHtml input
         shouldNotEqual patched (Just input)
         shouldNotEqual patched Nothing
       it "only patches once" do
         let input = "</body>"
-        patched <- patch input
-        twicePatched <- traverse patch patched <#> join
-        shouldEqual twicePatched Nothing
+        let patchTwice = patchHtml >=> patchHtml
+        shouldEqual (patchTwice "</body>") Nothing

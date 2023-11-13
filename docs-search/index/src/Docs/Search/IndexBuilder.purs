@@ -1,6 +1,6 @@
 module Docs.Search.IndexBuilder where
 
-import Docs.Search.Config_
+import Docs.Search.Config as Config
 import Docs.Search.Declarations (Declarations(..), mkDeclarations)
 import Docs.Search.Extra ((>#>))
 import Docs.Search.Meta (Meta)
@@ -375,7 +375,7 @@ patchDocs cfg = do
 
     whenM (fileExists path) do
       contents <- readTextFile UTF8 path
-      html <- liftEffect $ patchHtml contents
+      let html = patchHtml contents
       Fold.for_ html $ writeTextFile UTF8 path
 
 -- | Create directories for two indices, or fail with a message
