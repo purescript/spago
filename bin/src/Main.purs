@@ -545,7 +545,6 @@ main = do
             void $ runSpago env (RegistryCmd.packageSets args)
           Install args@{ packages, selectedPackage, ensureRanges, testDeps } -> do
             { env, fetchOpts } <- mkFetchEnv offline { packages, selectedPackage, ensureRanges, testDeps }
-            -- TODO: --no-fetch flag
             dependencies <- runSpago env (Fetch.run fetchOpts)
             let
               buildArgs = Record.merge
@@ -562,14 +561,12 @@ main = do
             runSpago { workspace: env.workspace, logOptions: env.logOptions } (Uninstall.run options)
           Build args@{ selectedPackage, ensureRanges, jsonErrors } -> do
             { env, fetchOpts } <- mkFetchEnv offline { packages: mempty, selectedPackage, ensureRanges, testDeps: false }
-            -- TODO: --no-fetch flag
             dependencies <- runSpago env (Fetch.run fetchOpts)
             buildEnv <- runSpago env (mkBuildEnv args dependencies)
             let options = { depsOnly: false, pursArgs: List.toUnfoldable args.pursArgs, jsonErrors }
             runSpago buildEnv (Build.run options)
           Publish { selectedPackage } -> do
             { env, fetchOpts } <- mkFetchEnv offline { packages: mempty, selectedPackage, ensureRanges: false, testDeps: false }
-            -- TODO: --no-fetch flag
             dependencies <- runSpago env (Fetch.run fetchOpts)
             publishEnv <- runSpago env (mkPublishEnv dependencies)
             void $ runSpago publishEnv (Publish.publish {})
@@ -607,9 +604,7 @@ main = do
 
           Bundle args@{ selectedPackage, ensureRanges } -> do
             { env, fetchOpts } <- mkFetchEnv offline { packages: mempty, selectedPackage, ensureRanges, testDeps: false }
-            -- TODO: --no-fetch flag
             dependencies <- runSpago env (Fetch.run fetchOpts)
-            -- TODO: --no-build flag
             buildEnv <- runSpago env (mkBuildEnv args dependencies)
             let options = { depsOnly: false, pursArgs: List.toUnfoldable args.pursArgs, jsonErrors: false }
             runSpago buildEnv (Build.run options)
@@ -617,9 +612,7 @@ main = do
             runSpago bundleEnv Bundle.run
           Run args@{ selectedPackage, ensureRanges } -> do
             { env, fetchOpts } <- mkFetchEnv offline { packages: mempty, selectedPackage, ensureRanges, testDeps: false }
-            -- TODO: --no-fetch flag
             dependencies <- runSpago env (Fetch.run fetchOpts)
-            -- TODO: --no-build flag
             buildEnv <- runSpago env (mkBuildEnv args dependencies)
             let options = { depsOnly: false, pursArgs: List.toUnfoldable args.pursArgs, jsonErrors: false }
             runSpago buildEnv (Build.run options)
@@ -627,9 +620,7 @@ main = do
             runSpago runEnv Run.run
           Test args@{ selectedPackage } -> do
             { env, fetchOpts } <- mkFetchEnv offline { packages: mempty, selectedPackage, ensureRanges: false, testDeps: false }
-            -- TODO: --no-fetch flag
             dependencies <- runSpago env (Fetch.run fetchOpts)
-            -- TODO: --no-build flag
             buildEnv <- runSpago env (mkBuildEnv (Record.union args { ensureRanges: false }) dependencies)
             let options = { depsOnly: false, pursArgs: List.toUnfoldable args.pursArgs, jsonErrors: false }
             runSpago buildEnv (Build.run options)
@@ -640,20 +631,17 @@ main = do
           LsPackages args -> do
             let fetchArgs = { packages: mempty, selectedPackage: Nothing, ensureRanges: false, testDeps: false }
             { env: env@{ workspace }, fetchOpts } <- mkFetchEnv offline fetchArgs
-            -- TODO: --no-fetch flag
             dependencies <- runSpago env (Fetch.run fetchOpts)
             let lsEnv = { workspace, dependencies, logOptions }
             runSpago lsEnv (Ls.listPackageSet args)
           LsDeps { selectedPackage, json, transitive } -> do
             let fetchArgs = { packages: mempty, selectedPackage, ensureRanges: false, testDeps: false }
             { env, fetchOpts } <- mkFetchEnv offline fetchArgs
-            -- TODO: --no-fetch flag
             dependencies <- runSpago env (Fetch.run fetchOpts)
             lsEnv <- runSpago env (mkLsEnv dependencies)
             runSpago lsEnv (Ls.listPackages { json, transitive })
           Docs args -> do
             { env, fetchOpts } <- mkFetchEnv offline { packages: mempty, selectedPackage: Nothing, ensureRanges: false, testDeps: true }
-            -- TODO: --no-fetch flag
             dependencies <- runSpago env (Fetch.run fetchOpts)
             docsEnv <- runSpago env (mkDocsEnv args dependencies)
             runSpago docsEnv Docs.run

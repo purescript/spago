@@ -13,21 +13,18 @@ Errors       0     0     0
 
 Looking for unused and undeclared transitive dependencies...
 
-❌ Sources for package 'pedantic' import the following transitive dependencies - please add them to the project dependencies, or remove the imports:
+❌ Found unused and/or undeclared transitive dependencies:
+
+Sources for package 'pedantic' import the following transitive dependencies - please add them to the project dependencies, or remove the imports:
   maybe
     from `Main`, which imports:
       Data.Maybe
 
-
-Run the following command to install them all:
-  spago install -p pedantic maybe
-
-
-❌ Tests for package 'pedantic' import the following transitive dependencies - please add them to the project dependencies, or remove the imports:
+Tests for package 'pedantic' import the following transitive dependencies - please add them to the project dependencies, or remove the imports:
   control
     from `Test.Main`, which imports:
       Control.Alt
 
-
-Run the following command to install them all:
-  spago install --test-deps -p pedantic control
+These errors can be fixed by running the below command(s):
+spago install -p pedantic maybe
+spago install -p pedantic --test-deps control

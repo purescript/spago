@@ -13,11 +13,16 @@ Errors       0     0     0
 
 Looking for unused and undeclared transitive dependencies...
 
-❌ Sources for package 'pedantic' declares unused dependencies - please remove them from the project config:
+❌ Found unused and/or undeclared transitive dependencies:
+
+Sources for package 'pedantic' declares unused dependencies - please remove them from the project config:
   - console
   - effect
 
-
-❌ Tests for package 'pedantic' declares unused dependencies - please remove them from the project config:
+Tests for package 'pedantic' declares unused dependencies - please remove them from the project config:
   - console
   - effect
+
+These errors can be fixed by running the below command(s):
+spago uninstall -p pedantic console effect
+spago uninstall -p pedantic --test-deps console effect
