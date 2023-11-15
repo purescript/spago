@@ -45,3 +45,11 @@ spec = Spec.around withTempDir do
       checkFixture "bundle-module-map.js" (fixture "bundle-module-map.js")
       checkFixture "bundle-module-map.js.map" (fixture "bundle-module-map.js.map")
 
+    Spec.it "bundles a module with extra esbuild arguments" \{ spago, fixture } -> do
+      spago [ "init" ] >>= shouldBeSuccess
+      spago [ "build" ] >>= shouldBeSuccess
+      spago [ "bundle", "--bundle-type", "module", "--outfile", "bundle-module-map.js", "--source-maps" ] >>= shouldBeSuccess
+
+      checkFixture "bundle-module-map.js" (fixture "bundle-module-map.js")
+      checkFixture "bundle-module-map.js.map" (fixture "bundle-module-map.js.map")
+

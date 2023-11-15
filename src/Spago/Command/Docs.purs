@@ -51,7 +51,6 @@ run = do
       { docsFiles: DocConfig.defaultDocsFiles
       , bowerFiles: DocConfig.defaultBowerFiles
       , generatedDocs: "./generated-docs/"
-      , noPatch: false
       , packageName: DocConfig.defaultPackageName
       , sourceFiles: DocConfig.defaultSourceFiles
       }
