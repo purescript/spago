@@ -203,12 +203,12 @@ backendArgs =
           <> O.metavar "ARGS"
       )
 
-esbuildArgs :: Parser (List String)
-esbuildArgs =
+bundlerArgs :: Parser (List String)
+bundlerArgs =
   O.many $
     O.strOption
-      ( O.long "esbuild-args"
-          <> O.help "Arguments to pass to ESBuild"
+      ( O.long "bundler-args"
+          <> O.help "Arguments to pass to bundler (esbuild)"
           <> O.metavar "ARGS"
       )
 

@@ -2,6 +2,7 @@ module Main (main) where
 
 import Spago.Prelude
 
+import Control.Alternative as Alternative
 import Control.Monad.Reader as Reader
 import Data.Array as Array
 import Data.Array.NonEmpty as NEA
@@ -162,7 +163,7 @@ type BundleArgs =
   , selectedPackage :: Maybe String
   , pursArgs :: List String
   , backendArgs :: List String
-  , extraArgs :: List String
+  , bundlerArgs :: List String
   , output :: Maybe String
   , pedanticPackages :: Boolean
   , type :: Maybe String
@@ -381,7 +382,7 @@ bundleArgsParser =
     , selectedPackage: Flags.selectedPackage
     , pursArgs: Flags.pursArgs
     , backendArgs: Flags.backendArgs
-    , extraArgs: Flags.esbuildArgs
+    , bundlerArgs: Flags.bundlerArgs
     , output: Flags.output
     , pedanticPackages: Flags.pedanticPackages
     , ensureRanges: Flags.ensureRanges
@@ -709,7 +710,12 @@ mkBundleEnv bundleArgs = do
       ( (Config.parseBundleType =<< bundleArgs.type)
           <|> bundleConf _.type
       )
-  let extraArgs = Array.fromFoldable bundleArgs.extraArgs <> fromMaybe [] (bundleConf _.extra_args)
+  let
+    extraArgs =
+      fromMaybe [] do
+        let cliArgs = Array.fromFoldable bundleArgs.bundlerArgs
+        (Alternative.guard (Array.length cliArgs > 0) *> pure cliArgs) <|> (bundleConf _.extra_args)
+
   let bundleOptions = { minify, module: entrypoint, outfile, platform, type: bundleType, sourceMaps: bundleArgs.sourceMaps, extraArgs }
   let
     newWorkspace = workspace
