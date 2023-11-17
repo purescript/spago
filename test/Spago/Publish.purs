@@ -13,7 +13,7 @@ import Test.Spec as Spec
 
 spec :: Spec Unit
 spec = Spec.around withTempDir do
-  Spec.describeOnly "publish" do
+  Spec.describe "publish" do
 
     Spec.it "fails if the version bounds are not specified" \{ spago, fixture } -> do
       spago [ "init", "--name", "aaaa" ] >>= shouldBeSuccess
