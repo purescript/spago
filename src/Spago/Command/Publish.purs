@@ -13,6 +13,7 @@ import Data.DateTime (DateTime)
 import Data.Formatter.DateTime as DateTime
 import Data.List as List
 import Data.Map as Map
+import Data.String as String
 import Effect.Aff (Milliseconds(..))
 import Effect.Aff as Aff
 import Effect.Ref as Ref
@@ -71,6 +72,7 @@ publish _args = do
   -- We'll store all the errors here in this ref, then complain at the end
   resultRef <- liftEffect $ Ref.new (Left List.Nil)
   let
+    setResult :: { expectedVersion :: Version, publishingData :: PublishData } -> _
     setResult r = liftEffect $ Ref.modify_
       ( case _ of
           Left List.Nil -> Right r
@@ -218,68 +220,105 @@ publish _args = do
           -- All dependencies come from the registry so we can trust the build plan.
           -- We can then try to build with the dependencies from there.
 
-          -- Get the current ref or error out if the git tree is dirty
+          Internal.Path.readPursFiles (Path.concat [ selected.path, "src" ]) >>= case _ of
+            Nothing -> addError $ toDoc
+              [ "This package has no PureScript files in its `src` directory. "
+              , "All package sources must be in the `src` directory, with any additional "
+              , "sources indicated by the `files` key in your manifest."
+              ]
+            Just files -> do
+              Operation.Validation.validatePursModules files >>= case _ of
+                Left formattedError -> addError $ toDoc
+                  [ "This package has either malformed or disallowed PureScript module names"
+                  , "in its `src` directory. All package sources must be in the `src` directory,"
+                  , "with any additional sources indicated by the `files` key in your manifest."
+                  , formattedError
+                  ]
+                Right _ -> pure unit
+
+          when (Operation.Validation.isMetadataPackage (Manifest manifest)) do
+            addError $ toDoc "The `metadata` package cannot be uploaded to the registry because it is a protected package."
+
+          for_ (Operation.Validation.isNotPublished (Manifest manifest) (Metadata metadata)) \info -> addError $ toDoc
+            [ "You tried to upload a version that already exists: " <> Version.print manifest.version
+            , "Its metadata is:"
+            , "```json"
+            , printJson Metadata.publishedMetadataCodec info
+            , "```"
+            ]
+          for_ (Operation.Validation.isNotUnpublished (Manifest manifest) (Metadata metadata)) \info -> addError $ toDoc
+            [ "You tried to upload a version that has been unpublished: " <> Version.print manifest.version
+            , ""
+            , "```json"
+            , printJson Metadata.unpublishedMetadataCodec info
+            , "```"
+            ]
+
+          -- Get the current ref
           let expectedTag = "v" <> Version.print publishConfig.version
-          Git.getCleanTag Nothing >>= case _ of
+
+          -- These are "soft" git tag checks. We notify the user of errors
+          -- they need to fix. But these commands must not have the user
+          -- 1) create/push a git tag that is known to be unpublishable, 
+          --    thereby forcing them to create another git tag later with the fix.
+          -- 2) input any login credentials as there are other errors to fix 
+          --    before doing that.
+          -- The "hard" git tag checks will occur only if these succeed.
+          Git.getStatus Nothing >>= case _ of
             Left _err -> do
-              addError $ toDoc
-                [ "The git tree is not clean, or you haven't checked out the tag you want to publish."
-                , "Please commit or stash your changes, and checkout the tag you want to publish."
-                , "To create the tag, you can run:"
-                , ""
-                , "  git tag " <> expectedTag
-                ]
-            Right tag -> do
-              -- Check that the tag matches the version in the config
-              case (tag /= expectedTag) of
-                true -> addError $ toDoc
-                  [ "The tag (" <> tag <> ") does not match the expected tag (" <> expectedTag <> ")."
-                  , "Please make sure to tag the correct version before publishing."
-                  ]
-                false -> Git.pushTag Nothing publishConfig.version >>= case _ of
-                  Left err -> addError $ toDoc
-                    [ err
-                    , toDoc "You can try to push the tag manually by running:"
-                    , toDoc ""
-                    , toDoc $ "  git push origin " <> expectedTag
+              die _err
+            Right statusResult
+              | statusResult /= "" ->
+                  addError $ toDoc
+                    [ toDoc "The git tree is not clean. Please commit or stash these files:"
+                    , indent $ toDoc (String.split (String.Pattern "\n") statusResult)
                     ]
-                  Right _ -> pure unit
+              | otherwise -> do
+                  -- TODO: once we ditch `purs publish`, we don't have a requirement for a tag anymore,
+                  -- but we can use any ref. We can then use `getRef` here instead of `tagCheckedOut`
+                  maybeCurrentTag <- hush <$> Git.tagCheckedOut Nothing
+                  case maybeCurrentTag of
+                    Just currentTag ->
+                      when (currentTag /= expectedTag) $ addError $ toDoc
+                        [ "The tag (" <> currentTag <> ") does not match the expected tag (" <> expectedTag <> ")."
+                        , "Fix all other publishing-related errors first before creating the correct tag. Do not push your created tag to its remote. Prematurely creating and pushing a tag can lead to unpublishable tags."
+                        , ""
+                        , "To create the tag, you can run:"
+                        , ""
+                        , "  git tag " <> expectedTag
+                        ]
+                    Nothing ->
+                      -- Current commit does not refer to a git tag.
+                      -- We should see whether the expected tag was already defined
+                      Git.listTags Nothing >>= case _ of
+                        Left err ->
+                          die $ toDoc
+                            [ toDoc "Cannot check whether publish config's `version` matches any existing git tags due to the below error:"
+                            , err
+                            ]
+                        Right tags -> do
+                          let
+                            tagExists = Array.any (eq expectedTag) tags
+                            emptyUnless b xs = if b then [] else xs
+                          when tagExists $ addError $ toDoc
+                            [ "The expected tag (" <> expectedTag <> ") has already been defined but is not checked out."
+                            , "The publish config's `version` may need to be bumped to a newer version if it currently refers to a version that has already been published."
+                            ]
+                          addError $ toDoc
+                            $
+                              [ "No git tag is currently checked out."
+                              , "Please fix all other publishing-related errors before resolving this one. Prematurely creating and pushing a tag may lead to unpublishable tags."
+                              ]
+                            <> emptyUnless tagExists
+                              [ "To create the tag, you can run:"
+                              , ""
+                              , "  git tag " <> expectedTag
+                              ]
 
-              Internal.Path.readPursFiles (Path.concat [ selected.path, "src" ]) >>= case _ of
-                Nothing -> addError $ toDoc
-                  [ "This package has no PureScript files in its `src` directory. "
-                  , "All package sources must be in the `src` directory, with any additional "
-                  , "sources indicated by the `files` key in your manifest."
-                  ]
-                Just files -> do
-                  Operation.Validation.validatePursModules files >>= case _ of
-                    Left formattedError -> addError $ toDoc
-                      [ "This package has either malformed or disallowed PureScript module names"
-                      , "in its `src` directory. All package sources must be in the `src` directory,"
-                      , "with any additional sources indicated by the `files` key in your manifest."
-                      , formattedError
-                      ]
-                    Right _ -> pure unit
-
-              when (Operation.Validation.isMetadataPackage (Manifest manifest)) do
-                addError $ toDoc "The `metadata` package cannot be uploaded to the registry because it is a protected package."
-
-              for_ (Operation.Validation.isNotPublished (Manifest manifest) (Metadata metadata)) \info -> addError $ toDoc
-                [ "You tried to upload a version that already exists: " <> Version.print manifest.version
-                , "Its metadata is:"
-                , "```json"
-                , printJson Metadata.publishedMetadataCodec info
-                , "```"
-                ]
-              for_ (Operation.Validation.isNotUnpublished (Manifest manifest) (Metadata metadata)) \info -> addError $ toDoc
-                [ "You tried to upload a version that has been unpublished: " <> Version.print manifest.version
-                , ""
-                , "```json"
-                , printJson Metadata.unpublishedMetadataCodec info
-                , "```"
-                ]
-
-              setResult ({ name, location: Just location, ref: tag, compiler, resolutions: buildPlan } :: PublishData)
+          setResult
+            { expectedVersion: publishConfig.version
+            , publishingData: { name, location: Just location, ref: expectedTag, compiler, resolutions: buildPlan }
+            }
 
   result <- liftEffect $ Ref.read resultRef
   case result of
@@ -295,7 +334,18 @@ publish _args = do
             )
         <> Log.break
       die' $ Array.fromFoldable errors
-    Right publishingData@{ resolutions } -> do
+    Right { expectedVersion, publishingData: publishingData@{ resolutions } } -> do
+      logInfo "Passed preliminary checks. "
+      -- This requires login credentials. 
+      Git.pushTag Nothing expectedVersion >>= case _ of
+        Left err -> die $ toDoc
+          [ err
+          , toDoc "You can try to push the tag manually by running:"
+          , toDoc ""
+          , toDoc $ "  git push origin v" <> Version.print expectedVersion
+          ]
+        Right _ -> pure unit
+
       -- Once we are sure that no errors will be produced we can try building with the build plan
       -- from the solver (this is because the build might terminate the process, and we shall output the errors first)
       logInfo "Building again with the build plan from the solver..."

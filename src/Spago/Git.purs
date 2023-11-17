@@ -4,7 +4,8 @@ module Spago.Git
   , fetchRepo
   , getGit
   , getRef
-  , getCleanTag
+  , listTags
+  , getStatus
   , pushTag
   , isIgnored
   , tagCheckedOut
@@ -74,24 +75,23 @@ fetchRepo { git, ref } path = do
           ]
         Right _ -> Right unit
 
-getCleanTag :: forall a. Maybe FilePath -> Spago (GitEnv a) (Either Docc String)
-getCleanTag cwd = do
+listTags :: forall a. Maybe FilePath -> Spago (GitEnv a) (Either Docc (Array String))
+listTags cwd = do
+  let opts = Cmd.defaultExecOptions { pipeStdout = false, pipeStderr = false, cwd = cwd }
+  { git } <- ask
+  Cmd.exec git.cmd [ "tag" ] opts >>= case _ of
+    Left err -> do
+      pure $ Left $ toDoc [ "Could not run `git tag`. Error:", err.shortMessage ]
+    Right res -> pure $ Right $ String.split (Pattern "\n") res.stdout
+
+getStatus :: forall a. Maybe FilePath -> Spago (GitEnv a) (Either Docc String)
+getStatus cwd = do
   let opts = Cmd.defaultExecOptions { pipeStdout = false, pipeStderr = false, cwd = cwd }
   { git } <- ask
   Cmd.exec git.cmd [ "status", "--porcelain" ] opts >>= case _ of
     Left err -> do
       pure $ Left $ toDoc [ "Could not run `git status`. Error:", err.shortMessage ]
-    Right res -> do
-      case res.stdout of
-        "" -> do
-          -- Tree is clean, get the ref
-          -- TODO: once we ditch `purs publish`, we don't have a requirement for a tag anymore,
-          -- but we can use any ref. We can then use `getRef` here instead of `tagCheckedOut`
-          tagCheckedOut cwd
-        _ -> pure $ Left $ toDoc
-          [ toDoc "Git tree is not clean, aborting. Commit or stash these files:"
-          , indent $ toDoc (String.split (Pattern "\n") res.stdout)
-          ]
+    Right res -> pure $ Right res.stdout
 
 getRef :: forall a. Maybe FilePath -> Spago (GitEnv a) (Either Docc String)
 getRef cwd = do
@@ -109,7 +109,7 @@ tagCheckedOut cwd = do
   let opts = Cmd.defaultExecOptions { pipeStdout = false, pipeStderr = false, cwd = cwd }
   { git } <- ask
   Cmd.exec git.cmd [ "describe", "--tags", "--exact-match" ] opts >>= case _ of
-    Left err -> pure $ Left $ toDoc "The git ref currently checked out is not a tag."
+    Left _ -> pure $ Left $ toDoc "The git ref currently checked out is not a tag."
     Right res' -> pure $ Right res'.stdout
 
 pushTag :: forall a. Maybe FilePath -> Version -> Spago (GitEnv a) (Either Docc Unit)
