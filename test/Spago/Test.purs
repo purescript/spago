@@ -12,6 +12,7 @@ import Spago.Command.Init (DefaultConfigOptions(..))
 import Spago.Command.Init as Init
 import Spago.Core.Config as Config
 import Spago.FS as FS
+import Spago.Paths (paths)
 import Test.Spec (Spec)
 import Test.Spec as Spec
 import Test.Spec.Assertions as Assert
@@ -24,6 +25,13 @@ spec = Spec.around withTempDir do
       spago [ "init", "--name", "7368613235362d6a336156536c675a7033334e7659556c6d38" ] >>= shouldBeSuccess
       spago [ "build" ] >>= shouldBeSuccess
       spago [ "test" ] >>= shouldBeSuccessOutputWithErr (fixture "test-output-stdout.txt") (fixture "test-output-stderr.txt")
+
+    Spec.itOnly "tests successfully when using a different output dir" \{ spago, fixture } -> do
+      spago [ "init", "--name", "7368613235362d6a336156536c675a7033334e7659556c6d38" ] >>= shouldBeSuccess
+
+      let tempDir = Path.concat [ paths.temp, "output" ]
+      spago [ "build", "--output", tempDir ] >>= shouldBeSuccess
+      spago [ "test", "--output", tempDir ] >>= shouldBeSuccessOutputWithErr (fixture "test-output-stdout.txt") (fixture "test-output-stderr.txt")
 
     Spec.it "fails nicely when the test module is not found" \{ spago, fixture } -> do
       spago [ "init", "--name", "7368613235362d6a336156536c675a7033334e7659556c6d38" ] >>= shouldBeSuccess
