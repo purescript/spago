@@ -87,7 +87,7 @@ run = do
         nodeContents =
           Array.fold
             [ "import { main } from 'file://"
-            , absOutput
+            , withForwardSlashes absOutput
             , "/"
             , opts.moduleName
             , "/"
