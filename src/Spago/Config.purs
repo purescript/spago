@@ -381,10 +381,11 @@ readWorkspace maybeSelectedPackage = do
         , indent2 (toDoc (Set.toUnfoldable $ Map.keys workspacePackages :: Array PackageName))
         ]
 
+  outputAbsolute <- traverse (liftEffect <<< Path.resolve []) $ _.output =<< workspace.build_opts
   let
     buildOptions :: BuildOptions
     buildOptions =
-      { output: _.output =<< workspace.build_opts
+      { output: outputAbsolute
       , censorLibWarnings: _.censor_library_warnings =<< workspace.build_opts
       , statVerbosity: _.stat_verbosity =<< workspace.build_opts
       }

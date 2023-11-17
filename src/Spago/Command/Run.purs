@@ -38,7 +38,6 @@ type RunEnv a =
 type RunOptions =
   { execArgs :: Array String
   , moduleName :: String
-  , sourceDir :: FilePath
   , executeDir :: FilePath
   , successMessage :: Maybe String
   , failureMessage :: String
@@ -85,8 +84,6 @@ run = do
         nodeContents =
           Array.fold
             [ "import { main } from 'file://"
-            , withForwardSlashes opts.sourceDir
-            , "/"
             , fromMaybe "output" workspace.buildOptions.output
             , "/"
             , opts.moduleName
