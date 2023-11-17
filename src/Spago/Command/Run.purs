@@ -74,6 +74,9 @@ run = do
       logDebug "Running with backend: nodejs"
       let runDir = Path.concat [ Paths.localCachePath, "run" ]
       FS.mkdirp runDir
+      absOutput <- case workspace.buildOptions.output of
+        Just output -> pure output
+        Nothing -> liftEffect $ Path.resolve [] "output"
       let
         runJsPath = Path.concat [ runDir, "run.js" ]
         packageJsonPath = Path.concat [ runDir, "package.json" ]
@@ -84,7 +87,7 @@ run = do
         nodeContents =
           Array.fold
             [ "import { main } from 'file://"
-            , fromMaybe "output" workspace.buildOptions.output
+            , absOutput
             , "/"
             , opts.moduleName
             , "/"
