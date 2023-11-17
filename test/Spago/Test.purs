@@ -26,7 +26,7 @@ spec = Spec.around withTempDir do
       spago [ "build" ] >>= shouldBeSuccess
       spago [ "test" ] >>= shouldBeSuccessOutputWithErr (fixture "test-output-stdout.txt") (fixture "test-output-stderr.txt")
 
-    Spec.itOnly "tests successfully when using a different output dir" \{ spago, fixture } -> do
+    Spec.it "tests successfully when using a different output dir" \{ spago, fixture } -> do
       spago [ "init", "--name", "7368613235362d6a336156536c675a7033334e7659556c6d38" ] >>= shouldBeSuccess
 
       let tempDir = Path.concat [ paths.temp, "output" ]
