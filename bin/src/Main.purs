@@ -31,6 +31,7 @@ import Spago.Bin.Flags as Flags
 import Spago.Command.Build as Build
 import Spago.Command.Bundle as Bundle
 import Spago.Command.Docs as Docs
+import Spago.Command.Uninstall as Uninstall
 import Spago.Command.Fetch as Fetch
 import Spago.Command.Graph (GraphModulesArgs, GraphPackagesArgs)
 import Spago.Command.Graph as Graph
@@ -44,7 +45,6 @@ import Spago.Command.Repl as Repl
 import Spago.Command.Run as Run
 import Spago.Command.Sources as Sources
 import Spago.Command.Test as Test
-import Spago.Command.Uninstall as Uninstall
 import Spago.Command.Upgrade as Upgrade
 import Spago.Config (BundleConfig, BundlePlatform(..), BundleType(..), PackageMap, RunConfig, TestConfig)
 import Spago.Config as Config
@@ -717,11 +717,10 @@ mkBundleEnv bundleArgs = do
         (Alternative.guard (Array.length cliArgs > 0) *> pure cliArgs) <|> (bundleConf _.extra_args)
 
   let bundleOptions = { minify, module: entrypoint, outfile, platform, type: bundleType, sourceMaps: bundleArgs.sourceMaps, extraArgs }
-  bundleArgsAbsOutput <- traverse (liftEffect <<< Path.resolve []) bundleArgs.output
   let
     newWorkspace = workspace
       { buildOptions
-          { output = bundleArgsAbsOutput <|> workspace.buildOptions.output
+          { output = bundleArgs.output <|> workspace.buildOptions.output
           }
       }
   esbuild <- Esbuild.getEsbuild
@@ -769,8 +768,7 @@ mkRunEnv runArgs { dependencies, purs } = do
       , successMessage: Nothing
       , failureMessage: "Running failed."
       }
-  runArgsAbsOutput <- traverse (liftEffect <<< Path.resolve []) runArgs.output
-  let newWorkspace = workspace { buildOptions { output = runArgsAbsOutput <|> workspace.buildOptions.output } }
+  let newWorkspace = workspace { buildOptions { output = runArgs.output <|> workspace.buildOptions.output } }
   let runEnv = { logOptions, workspace: newWorkspace, selected, node, runOptions, dependencies, purs }
   pure runEnv
 
@@ -810,8 +808,7 @@ mkTestEnv testArgs { dependencies, purs } = do
 
   logDebug $ "Selected packages to test: " <> Json.stringifyJson (CA.Common.nonEmptyArray PackageName.codec) (map _.selected.package.name selectedPackages)
 
-  testArgsAbsOutput <- traverse (liftEffect <<< Path.resolve []) testArgs.output
-  let newWorkspace = workspace { buildOptions { output = testArgsAbsOutput <|> workspace.buildOptions.output } }
+  let newWorkspace = workspace { buildOptions { output = testArgs.output <|> workspace.buildOptions.output } }
   let testEnv = { logOptions, workspace: newWorkspace, selectedPackages, node, dependencies, purs }
   pure testEnv
 
@@ -829,11 +826,10 @@ mkBuildEnv
 mkBuildEnv buildArgs dependencies = do
   { logOptions, workspace, git } <- ask
   purs <- Purs.getPurs
-  buildArgsAbsOutput <- traverse (liftEffect <<< Path.resolve []) buildArgs.output
   let
     newWorkspace = workspace
       { buildOptions
-          { output = buildArgsAbsOutput <|> workspace.buildOptions.output
+          { output = buildArgs.output <|> workspace.buildOptions.output
           }
       -- Override the backend args from the config if they are passed in through a flag
       , backend = map
