@@ -14,4 +14,5 @@ Errors       0     0     0
 Your package "aaaa" is not ready for publishing yet, encountered 1 error:
 
 
-❌ Did not find publishing config: add a valid one in package.publish
+❌ Did not find publishing config: add a valid one in `package.publish`.
+See the configuration file's documentation: https://github.com/purescript/spago#the-configuration-file

@@ -159,7 +159,10 @@ publish _args = do
   buildPlan <- Fetch.getTransitiveDepsFromRegistry depsRanges Map.empty
 
   case selected.package.publish of
-    Nothing -> addError $ toDoc "Did not find publishing config: add a valid one in package.publish" -- TODO link to docs
+    Nothing -> addError $ toDoc
+      [ "Did not find publishing config: add a valid one in `package.publish`."
+      , "See the configuration file's documentation: https://github.com/purescript/spago#the-configuration-file"
+      ]
     Just publishConfig -> case publishConfig.location of
       Nothing -> addError $ toDoc "Need to specify a publish.location field."
       Just location -> do
