@@ -764,7 +764,6 @@ mkRunEnv runArgs { dependencies, purs } = do
     runOptions =
       { moduleName
       , execArgs
-      , sourceDir: Paths.cwd
       , executeDir: Paths.cwd
       , successMessage: Nothing
       , failureMessage: "Running failed."
