@@ -90,7 +90,7 @@ getStatus cwd = do
   { git } <- ask
   Cmd.exec git.cmd [ "status", "--porcelain" ] opts >>= case _ of
     Left err -> do
-      pure $ Left $ toDoc [ "Could not run `git status`. Error:", err.shortMessage ]
+      pure $ Left $ toDoc [ "Could not run `git status`. Error:", err.message ]
     Right res -> pure $ Right res.stdout
 
 getRef :: forall a. Maybe FilePath -> Spago (GitEnv a) (Either Docc String)

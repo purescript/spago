@@ -14,3 +14,4 @@ Errors       0     0     0
 
 ❌ Could not run `git status`. Error:
 Command failed with exit code 128: git status --porcelain
+fatal: not a git repository (or any of the parent directories): .git
