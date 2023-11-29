@@ -81,7 +81,7 @@ listTags cwd = do
   { git } <- ask
   Cmd.exec git.cmd [ "tag" ] opts >>= case _ of
     Left err -> do
-      pure $ Left $ toDoc [ "Could not run `git tag`. Error:", err.shortMessage ]
+      pure $ Left $ toDoc [ "Could not run `git tag`. Error:", err.message ]
     Right res -> pure $ Right $ String.split (Pattern "\n") res.stdout
 
 getStatus :: forall a. Maybe FilePath -> Spago (GitEnv a) (Either Docc String)
