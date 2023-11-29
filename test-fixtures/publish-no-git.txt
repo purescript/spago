@@ -11,10 +11,8 @@ Errors       0     0     0
 
 ✅ Build succeeded.
 
-Your package "aaa" is not ready for publishing yet, encountered 1 error:
 
-
-❌ The git tree is not clean, or you haven't checked out the tag you want to publish.
-Please commit or stash your changes, and checkout the tag you want to publish.
-To create the tag, you can run:
-  git tag v0.0.1
+❌ Could not verify whether the git tree is clean due to the below error:
+  Could not run `git status`. Error:
+  Command failed with exit code 128: git status --porcelain
+fatal: not a git repository (or any of the parent directories): .git
