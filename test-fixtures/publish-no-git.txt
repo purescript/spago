@@ -12,6 +12,7 @@ Errors       0     0     0
 ✅ Build succeeded.
 
 
-❌ Could not run `git status`. Error:
-Command failed with exit code 128: git status --porcelain
+❌ Could not verify whether the git tree is clean due to the below error:
+  Could not run `git status`. Error:
+  Command failed with exit code 128: git status --porcelain
 fatal: not a git repository (or any of the parent directories): .git

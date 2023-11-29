@@ -269,7 +269,10 @@ publish _args = do
           -- The "hard" git tag checks will occur only if these succeed.
           Git.getStatus Nothing >>= case _ of
             Left _err -> do
-              die _err
+              die $ toDoc
+                [ toDoc "Could not verify whether the git tree is clean due to the below error:"
+                , indent _err
+                ]
             Right statusResult
               | statusResult /= "" ->
                   addError $ toDoc
