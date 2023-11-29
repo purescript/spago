@@ -39,9 +39,7 @@ writeBuildInfo = do
   let
     buildInfo =
       { pursVersion: Version.print purs.version
-      , packages: map mkPackageBuildInfo case workspace.selected of
-          Just p -> [ p ]
-          Nothing -> NEA.toUnfoldable $ Config.getWorkspacePackages workspace.packageSet
+      , packages: map mkPackageBuildInfo $ NEA.toUnfoldable $ Config.getWorkspacePackages workspace.packageSet
       }
     buildInfoString = mkBuildInfo buildInfo
     writeIt = FS.writeTextFile buildInfoPath buildInfoString
