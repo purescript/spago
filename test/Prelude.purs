@@ -92,7 +92,17 @@ shouldEqualStr
   -> m Unit
 shouldEqualStr v1 v2 =
   when (v1 /= v2) do
-    fail $ "\n=====\n" <> v1 <> "\n=====\n  ≠\n=====\n  " <> show v2 <> "\n=====\n"
+    fail $ Array.intercalate "\n"
+      [ ""
+      , "===== (Actual)"
+      , v1
+      , "====="
+      , "  ≠"
+      , "===== (Expected)"
+      , v2
+      , "====="
+      , ""
+      ]
 
 checkFixture :: String -> String -> Aff Unit
 checkFixture filepath fixturePath = do
@@ -145,8 +155,8 @@ checkOutputsStr
   -> Aff Unit
 checkOutputsStr checkers =
   check
-    { stdout: maybe mempty (\exp act -> act `Assert.shouldEqual` exp) checkers.stdoutStr
-    , stderr: maybe mempty (\exp act -> act `Assert.shouldEqual` exp) checkers.stderrStr
+    { stdout: maybe mempty (\exp act -> act `shouldEqualStr` exp) checkers.stdoutStr
+    , stderr: maybe mempty (\exp act -> act `shouldEqualStr` exp) checkers.stderrStr
     , result: checkers.result
     }
 
