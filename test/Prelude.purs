@@ -12,6 +12,7 @@ import Data.String as String
 import Effect.Aff as Aff
 import Effect.Class.Console (log)
 import Effect.Class.Console as Console
+import Node.Path (dirname)
 import Node.Path as Path
 import Node.Process as Process
 import Registry.PackageName as PackageName
@@ -164,6 +165,8 @@ checkOutputs checkers execResult = do
         overwriteSpecFile <- liftEffect $ map isJust $ Process.lookupEnv "SPAGO_TEST_ACCEPT"
         if overwriteSpecFile then do
           Console.log $ "Overwriting fixture at path: " <> fixtureFileExpected
+          let parentDir = dirname fixtureFileExpected
+          unlessM (FS.exists parentDir) $ FS.mkdirp parentDir
           FS.writeTextFile fixtureFileExpected actual
         else do
           expected <- String.trim <$> FS.readTextFile fixtureFileExpected
