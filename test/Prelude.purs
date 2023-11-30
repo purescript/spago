@@ -14,6 +14,7 @@ import Effect.Class.Console (log)
 import Effect.Class.Console as Console
 import Node.Path (dirname)
 import Node.Path as Path
+import Node.Platform (Platform(..))
 import Node.Process as Process
 import Registry.PackageName as PackageName
 import Registry.Version as Version
@@ -62,8 +63,9 @@ withTempDir = Aff.bracket createTempDir cleanupTempDir
 
       spago = spago' StdinNewPipe
 
-      pursVersion =
-        Cmd.exec "purs" [ "--version" ]
+      pursVersion = do
+        let pursBinary = if Process.platform == Just Win32 then "purs.cmd" else "purs"
+        Cmd.exec pursBinary [ "--version" ]
           $ Cmd.defaultExecOptions { pipeStdout = false, pipeStderr = false, pipeStdin = StdinNewPipe }
 
     pure
