@@ -34,6 +34,7 @@ type TestDirs =
   , fixture :: FilePath -> FilePath
   , oldCwd :: FilePath
   , testCwd :: FilePath
+  , pursVersion :: Aff (Either ExecError ExecResult)
   }
 
 withTempDir :: (TestDirs -> Aff Unit) -> Aff Unit
@@ -61,9 +62,14 @@ withTempDir = Aff.bracket createTempDir cleanupTempDir
 
       spago = spago' StdinNewPipe
 
+      pursVersion =
+        Cmd.exec "purs" [ "--version" ]
+          $ Cmd.defaultExecOptions { pipeStdout = false, pipeStderr = false, pipeStdin = StdinNewPipe }
+
     pure
       { spago'
       , spago
+      , pursVersion
       , oldCwd
       , testCwd: temp
       , fixture

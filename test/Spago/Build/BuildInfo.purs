@@ -2,7 +2,10 @@ module Test.Spago.Build.BuildInfo where
 
 import Test.Prelude
 
+import Control.Monad.Error.Class as MonadError
 import Data.Array as Array
+import Data.String as String
+import Effect.Exception as Exception
 import Node.Path as Path
 import Registry.Version as Version
 import Spago.Command.Init (DefaultConfigOptions(..))
@@ -14,9 +17,27 @@ import Test.Spec as Spec
 
 spec :: SpecT Aff TestDirs Identity Unit
 spec =
-  Spec.describe "BuildInfo.purs" do
+  Spec.describeOnly "BuildInfo.purs" do
 
     let
+      mkExpectedStdout { spago, pursVersion, rest } = do
+        pursResult <- pursVersion
+        pVersion <- case pursResult of
+          Left e -> MonadError.throwError $ Exception.error e.message
+          Right a
+            | Just v <- Array.head $ String.split (String.Pattern "-") a.stdout -> pure v
+            | otherwise -> MonadError.throwError $ Exception.error $ "Unexpected purs version: " <> a.stdout
+        spagoResult <- spago [ "--version" ]
+        sVersion <- case spagoResult of
+          Left e -> MonadError.throwError $ Exception.error e.message
+          Right a -> pure a.stderr
+        pure
+          $ Array.intercalate "\n"
+          $
+            [ "pursVersion: " <> pVersion
+            , "spagoVersion: " <> sVersion
+            ]
+          <> rest
       pursModuleUsingBuildInfo packages =
         [ "import Prelude"
         , ""
@@ -64,10 +85,10 @@ spec =
             true -> [ command, "-p", packageName ]
 
       for_ runAndTestCommands \command -> do
-        Spec.it ("'spago " <> Array.intercalate " " command <> " works") \{ spago, fixture } -> do
+        Spec.it ("'spago " <> Array.intercalate " " command <> " works") \{ spago, pursVersion } -> do
           setupSinglePackage spago
-
-          spago command >>= shouldBeSuccessOutput (fixture "build-info/single-package-stdout.txt")
+          expected <- mkExpectedStdout { spago, pursVersion, rest: [ "foo: 0.0.0" ] }
+          spago command >>= checkOutputsStr { stderrStr: Nothing, stdoutStr: Just expected, result: isRight }
 
     Spec.describe "using generated 'BuildInfo.purs' file in multi-package context" do
 
@@ -104,15 +125,19 @@ spec =
 
       Spec.before_ setupPolyrepo do
 
+        let packagesWithVersion = (\p -> p <> ": 0.0.0") <$> packages
+
         for_ packages \package -> do
           let
             srcMain = mkSrcModuleName package
           Spec.it ("'spago build -p " <> package <> "' works") \{ spago } -> do
             spago [ "build", "-p", package ] >>= shouldBeSuccess
 
-          Spec.it ("'spago run -p " <> package <> " --main " <> srcMain <> "' works") \{ spago, fixture } -> do
-            spago [ "run", "-p", package, "--main", srcMain ] >>= shouldBeSuccessOutput (fixture "build-info/multi-package-stdout.txt")
+          Spec.it ("'spago run -p " <> package <> " --main " <> srcMain <> "' works") \{ spago, pursVersion } -> do
+            expected <- mkExpectedStdout { spago, pursVersion, rest: packagesWithVersion }
+            spago [ "run", "-p", package, "--main", srcMain ] >>= checkOutputsStr { stderrStr: Nothing, stdoutStr: Just expected, result: isRight }
 
-          Spec.it ("'spago test -p " <> package <> "' works") \{ spago, fixture } -> do
-            spago [ "test", "-p", package ] >>= shouldBeSuccessOutput (fixture "build-info/multi-package-stdout.txt")
+          Spec.it ("'spago test -p " <> package <> "' works") \{ spago, pursVersion } -> do
+            expected <- mkExpectedStdout { spago, pursVersion, rest: packagesWithVersion }
+            spago [ "test", "-p", package ] >>= checkOutputsStr { stderrStr: Nothing, stdoutStr: Just expected, result: isRight }
 

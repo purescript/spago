@@ -1,5 +1,0 @@
-pursVersion: 0.15.14
-spagoVersion: 0.93.18
-foo: 0.0.0
-bar: 0.0.0
-baz: 0.0.0
