@@ -1,0 +1,13 @@
+Reading Spago workspace configuration...
+Read the package set from the registry
+
+✅ Selecting package to build: pedantic
+
+Adding 1 packages to the config in spago.yaml
+Downloading dependencies...
+Building...
+           Src   Lib   All
+Warnings     0     0     0
+Errors       0     0     0
+
+✅ Build succeeded.
