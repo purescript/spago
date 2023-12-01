@@ -4,7 +4,7 @@ import Test.Prelude
 
 import Control.Monad.Error.Class as MonadError
 import Data.Array as Array
-import Data.String as String
+import Data.DateTime.Instant as Instant
 import Effect.Exception as Exception
 import Node.Path as Path
 import Registry.Version as Version
@@ -12,21 +12,19 @@ import Spago.Command.Init (DefaultConfigOptions(..))
 import Spago.Command.Init as Init
 import Spago.Core.Config as Config
 import Spago.FS as FS
+import Spago.Log (LogVerbosity(..))
+import Spago.Purs (getPurs)
 import Test.Spec (SpecT)
 import Test.Spec as Spec
 
 spec :: SpecT Aff TestDirs Identity Unit
 spec =
-  Spec.describeOnly "BuildInfo.purs" do
+  Spec.describe "BuildInfo.purs" do
 
     let
-      mkExpectedStdout { spago, pursVersion, rest } = do
-        pursResult <- pursVersion
-        pVersion <- case pursResult of
-          Left e -> MonadError.throwError $ Exception.error e.message
-          Right a
-            | Just v <- Array.head $ String.split (String.Pattern "-") a.stdout -> pure v
-            | otherwise -> MonadError.throwError $ Exception.error $ "Unexpected purs version: " <> a.stdout
+      mkExpectedStdout { spago, rest } = do
+        let logOptions = { logOptions: { color: false, verbosity: LogQuiet, startingTime: Instant.fromDateTime bottom } }
+        purs <- runSpago logOptions getPurs
         spagoResult <- spago [ "--version" ]
         sVersion <- case spagoResult of
           Left e -> MonadError.throwError $ Exception.error e.message
@@ -34,7 +32,7 @@ spec =
         pure
           $ Array.intercalate "\n"
           $
-            [ "pursVersion: " <> pVersion
+            [ "pursVersion: " <> Version.print purs.version
             , "spagoVersion: " <> sVersion
             ]
           <> rest
@@ -85,9 +83,9 @@ spec =
             true -> [ command, "-p", packageName ]
 
       for_ runAndTestCommands \command -> do
-        Spec.it ("'spago " <> Array.intercalate " " command <> " works") \{ spago, pursVersion } -> do
+        Spec.it ("'spago " <> Array.intercalate " " command <> " works") \{ spago } -> do
           setupSinglePackage spago
-          expected <- mkExpectedStdout { spago, pursVersion, rest: [ "foo: 0.0.0" ] }
+          expected <- mkExpectedStdout { spago, rest: [ "foo: 0.0.0" ] }
           spago command >>= checkOutputsStr { stderrStr: Nothing, stdoutStr: Just expected, result: isRight }
 
     Spec.describe "using generated 'BuildInfo.purs' file in multi-package context" do
@@ -133,11 +131,11 @@ spec =
           Spec.it ("'spago build -p " <> package <> "' works") \{ spago } -> do
             spago [ "build", "-p", package ] >>= shouldBeSuccess
 
-          Spec.it ("'spago run -p " <> package <> " --main " <> srcMain <> "' works") \{ spago, pursVersion } -> do
-            expected <- mkExpectedStdout { spago, pursVersion, rest: packagesWithVersion }
+          Spec.it ("'spago run -p " <> package <> " --main " <> srcMain <> "' works") \{ spago } -> do
+            expected <- mkExpectedStdout { spago, rest: packagesWithVersion }
             spago [ "run", "-p", package, "--main", srcMain ] >>= checkOutputsStr { stderrStr: Nothing, stdoutStr: Just expected, result: isRight }
 
-          Spec.it ("'spago test -p " <> package <> "' works") \{ spago, pursVersion } -> do
-            expected <- mkExpectedStdout { spago, pursVersion, rest: packagesWithVersion }
+          Spec.it ("'spago test -p " <> package <> "' works") \{ spago } -> do
+            expected <- mkExpectedStdout { spago, rest: packagesWithVersion }
             spago [ "test", "-p", package ] >>= checkOutputsStr { stderrStr: Nothing, stdoutStr: Just expected, result: isRight }
 
