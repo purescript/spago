@@ -10,7 +10,7 @@ import Spago.Core.Config as Config
 import Spago.FS as FS
 import Test.Spago.Build.Pedantic as Pedantic
 import Test.Spago.Build.Polyrepo as BuildPolyrepo
-import Test.Spago.Build.BuildInfo as BuildBuildInfo
+import Test.Spago.Build.BuildInfo as BuildInfo
 import Test.Spec (Spec)
 import Test.Spec as Spec
 import Test.Spec.Assertions as Assert
@@ -141,7 +141,7 @@ spec = Spec.around withTempDir do
 
     BuildPolyrepo.spec
 
-    BuildBuildInfo.spec
+    BuildInfo.spec
 
 -- Spec.it "runs a --before command" \{ spago } -> do
 --   spago [ "init" ] >>= shouldBeSuccess
