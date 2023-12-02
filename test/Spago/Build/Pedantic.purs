@@ -188,7 +188,9 @@ spec =
       spago [ "build" ] >>= shouldBeFailureErr (fixture "pedantic/check-pedantic-packages.txt")
 
     -- A dependency on `console` will include `effect` as a transitive dependency.
-    -- So, if we don't have tha
+    -- So, if we don't have `effect` as a direct dependency, we'll get a pedantic error
+    -- where the fix is to install that missing package.
+    -- Following those instructions shouldn't cause an error.
     Spec.it "following installation instructions does not fail with an unrelated pedantic error" \{ spago, fixture } -> do
       setup spago
         ( defaultSetupConfig
