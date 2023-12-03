@@ -1,0 +1,24 @@
+Reading Spago workspace configuration...
+Read the package set from the registry
+
+✅ Selecting package to build: pedantic
+
+Downloading dependencies...
+Building...
+           Src   Lib   All
+Warnings     0     0     0
+Errors       0     0     0
+
+✅ Build succeeded.
+
+Looking for unused and undeclared transitive dependencies...
+
+❌ Found unused and/or undeclared transitive dependencies:
+
+Sources for package 'pedantic' import the following transitive dependencies - please add them to the project dependencies, or remove the imports:
+  effect
+    from `Main`, which imports:
+      Effect
+
+These errors can be fixed by running the below command(s):
+spago install -p pedantic effect
