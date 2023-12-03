@@ -13,7 +13,7 @@ import Spago.Prelude
 import Data.Codec.Argonaut as CA
 import Data.Codec.Argonaut.Common as CAC
 import Data.Codec.Argonaut.Record as CAR
-import Data.Foldable (elem, traverse_)
+import Data.Foldable (elem)
 import Data.Map (filterKeys)
 import Data.Map as Map
 import Data.Tuple.Nested (type (/\))

@@ -18,6 +18,7 @@ import Control.Monad.Except as Except
 import Data.Array as Array
 import Data.String (Pattern(..))
 import Data.String as String
+import Node.ChildProcess.Types (Exit(..))
 import Node.Path as Path
 import Node.Process as Process
 import Registry.Version as Version
@@ -35,7 +36,9 @@ runGit :: forall a. Array String -> Maybe FilePath -> ExceptT String (Spago (Git
 runGit args cwd = ExceptT do
   { git } <- ask
   result <- Cmd.exec git.cmd args (Cmd.defaultExecOptions { pipeStdout = false, pipeStderr = false, cwd = cwd })
-  pure $ bimap _.stderr _.stdout result
+  pure case Cmd.isSuccess result of
+    true -> Right result.stdout
+    false -> Left result.stderr
 
 fetchRepo :: forall a b. { git :: String, ref :: String | a } -> FilePath -> Spago (GitEnv b) (Either (Array String) Unit)
 fetchRepo { git, ref } path = do
@@ -79,38 +82,38 @@ listTags :: forall a. Maybe FilePath -> Spago (GitEnv a) (Either Docc (Array Str
 listTags cwd = do
   let opts = Cmd.defaultExecOptions { pipeStdout = false, pipeStderr = false, cwd = cwd }
   { git } <- ask
-  Cmd.exec git.cmd [ "tag" ] opts >>= case _ of
-    Left err -> do
-      pure $ Left $ toDoc [ "Could not run `git tag`. Error:", err.message ]
-    Right res -> pure $ Right $ String.split (Pattern "\n") res.stdout
+  Cmd.exec git.cmd [ "tag" ] opts >>= \r -> case Cmd.isSuccess r of
+    false -> do
+      pure $ Left $ toDoc [ "Could not run `git tag`. Error:", r.message ]
+    true -> pure $ Right $ String.split (Pattern "\n") r.stdout
 
 getStatus :: forall a. Maybe FilePath -> Spago (GitEnv a) (Either Docc String)
 getStatus cwd = do
   let opts = Cmd.defaultExecOptions { pipeStdout = false, pipeStderr = false, cwd = cwd }
   { git } <- ask
-  Cmd.exec git.cmd [ "status", "--porcelain" ] opts >>= case _ of
-    Left err -> do
-      pure $ Left $ toDoc [ "Could not run `git status`. Error:", err.message ]
-    Right res -> pure $ Right res.stdout
+  Cmd.exec git.cmd [ "status", "--porcelain" ] opts >>= \r -> case Cmd.isSuccess r of
+    false -> do
+      pure $ Left $ toDoc [ "Could not run `git status`. Error:", r.message ]
+    true -> pure $ Right r.stdout
 
 getRef :: forall a. Maybe FilePath -> Spago (GitEnv a) (Either Docc String)
 getRef cwd = do
   let opts = Cmd.defaultExecOptions { pipeStdout = false, pipeStderr = false, cwd = cwd }
   { git } <- ask
-  Cmd.exec git.cmd [ "rev-parse", "HEAD" ] opts >>= case _ of
-    Left err -> pure $ Left $ toDoc
+  Cmd.exec git.cmd [ "rev-parse", "HEAD" ] opts >>= \r -> case Cmd.isSuccess r of
+    false -> pure $ Left $ toDoc
       [ "Could not run `git rev-parse HEAD` to determine the current ref. Error:"
-      , err.shortMessage
+      , r.shortMessage
       ]
-    Right res' -> pure $ Right res'.stdout
+    true -> pure $ Right r.stdout
 
 tagCheckedOut :: forall a. Maybe FilePath -> Spago (GitEnv a) (Either Docc String)
 tagCheckedOut cwd = do
   let opts = Cmd.defaultExecOptions { pipeStdout = false, pipeStderr = false, cwd = cwd }
   { git } <- ask
-  Cmd.exec git.cmd [ "describe", "--tags", "--exact-match" ] opts >>= case _ of
-    Left _ -> pure $ Left $ toDoc "The git ref currently checked out is not a tag."
-    Right res' -> pure $ Right res'.stdout
+  Cmd.exec git.cmd [ "describe", "--tags", "--exact-match" ] opts >>= \r -> case Cmd.isSuccess r of
+    false -> pure $ Left $ toDoc "The git ref currently checked out is not a tag."
+    true -> pure $ Right r.stdout
 
 pushTag :: forall a. Maybe FilePath -> Version -> Spago (GitEnv a) (Either Docc Unit)
 pushTag cwd version = do
@@ -122,13 +125,13 @@ pushTag cwd version = do
       pure $ Right unit
     Online -> do
       logInfo $ "Pushing tag 'v" <> Version.print version <> "' to the remote"
-      Cmd.exec git.cmd [ "push", "origin", "v" <> Version.print version ] opts >>= case _ of
-        Left err -> pure $ Left $ toDoc
+      Cmd.exec git.cmd [ "push", "origin", "v" <> Version.print version ] opts >>= \r -> case Cmd.isSuccess r of
+        false -> pure $ Left $ toDoc
           [ "Could not push the tag 'v" <> Version.print version <> "' to the remote."
           , "Error:"
-          , err.shortMessage
+          , r.shortMessage
           ]
-        Right _ -> pure $ Right unit
+        true -> pure $ Right unit
 
 -- | Check if the path is ignored by git
 --
@@ -138,12 +141,12 @@ isIgnored :: forall a. FilePath -> Spago (GitEnv a) Boolean
 isIgnored path = do
   { git } <- ask
   result <- Cmd.exec git.cmd [ "check-ignore", "--quiet", path ] (Cmd.defaultExecOptions { pipeStdout = false, pipeStderr = false })
-  case result of
+  case result.exit of
     -- Git is successful if it's an ignored file
-    Right { exitCode: 0 } -> pure true
+    Normally 0 -> pure true
     -- Git will fail with exitCode 128 if this is not a git repo or if it's dealing with a link.
     -- We ignore links - I mean, do we really want to deal with recursive links?!?
-    Left { exitCode: Just 128 } -> do
+    Normally 128 -> do
       -- Sigh. Even if something is behind a link Node will not tell us that,
       -- so we need to check all the paths between the cwd and the provided path
       -- Just beautiful
@@ -153,17 +156,17 @@ isIgnored path = do
         FS.getInBetweenPaths cwd absolutePath
       Array.any identity <$> traverse FS.isLink paths
     -- Git will fail with 1 when a file is just, like, normally ignored
-    Left { exitCode: Just 1 } -> pure false
+    Normally 1 -> pure false
     _ -> do
       logDebug "IsIgnored encountered an interesting exitCode"
-      logDebug $ show result
+      logDebug $ Cmd.printExecResult result
       -- We still do not ignore it, just in case
       pure false
 
 getGit :: forall a. Spago (LogEnv a) Git
 getGit = do
-  Cmd.exec "git" [ "--version" ] Cmd.defaultExecOptions { pipeStdout = false, pipeStderr = false } >>= case _ of
-    Right r -> pure { cmd: "git", version: r.stdout }
-    Left err -> do
-      logDebug $ show err
+  Cmd.exec "git" [ "--version" ] Cmd.defaultExecOptions { pipeStdout = false, pipeStderr = false } >>= \r -> case Cmd.isSuccess r of
+    true -> pure { cmd: "git", version: r.stdout }
+    false -> do
+      logDebug $ Cmd.printExecResult r
       die [ "Failed to find git. Have you installed it, and is it in your PATH?" ]

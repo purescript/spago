@@ -5,6 +5,7 @@ import Test.Prelude
 import Data.Array as Array
 import Data.Map as Map
 import Node.Path as Path
+import Spago.Cmd (ExecResult)
 import Spago.Core.Config (Dependencies(..), Config)
 import Spago.FS as FS
 import Test.Spec (SpecT)
@@ -227,7 +228,7 @@ defaultSetupConfig =
   , testMain: Nothing
   }
 
-setup :: (Array String -> Aff (Either ExecError ExecResult)) -> SetupConfig -> Aff Unit
+setup :: (Array String -> Aff ExecResult) -> SetupConfig -> Aff Unit
 setup spago config = do
   spago [ "init", "--name", "pedantic" ] >>= shouldBeSuccess
   unless (Array.null config.installSourcePackages) do

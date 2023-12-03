@@ -8,6 +8,7 @@ import Node.Path as Path
 import Node.Platform as Platform
 import Node.Process as Process
 import Registry.Version as Version
+import Spago.Cmd as Cmd
 import Spago.Command.Init (DefaultConfigOptions(..))
 import Spago.Command.Init as Init
 import Spago.Core.Config as Config
@@ -78,7 +79,7 @@ spec = Spec.around withTempDir do
               }
           ) # plusDependencies [ "aff", "node-buffer", "node-fs" ]
         )
-      spago [ "test", "-p", "subpackage" ] >>= checkOutputsStr { stdoutStr: Just fileContent, stderrStr: Nothing, result: isRight }
+      spago [ "test", "-p", "subpackage" ] >>= checkOutputsStr { stdoutStr: Just fileContent, stderrStr: Nothing, result: Cmd.isSuccess }
 
     Spec.it "fails when running tests from a sub-package, where the module does not exist" \{ spago } -> do
       spago [ "init" ] >>= shouldBeSuccess
@@ -136,5 +137,5 @@ spec = Spec.around withTempDir do
 
           unless (String.contains (String.Pattern exp) stdErr) do
             Assert.fail $ "STDERR did not contain text:\n" <> exp <> "\n\nStderr was:\n" <> stdErr
-      spago [ "test" ] >>= check { stdout: mempty, stderr: hasUnusedNameWarningError, result: isRight }
+      spago [ "test" ] >>= check { stdout: mempty, stderr: hasUnusedNameWarningError, result: Cmd.isSuccess }
 

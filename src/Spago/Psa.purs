@@ -23,6 +23,7 @@ import Foreign.Object as FO
 import Node.Encoding as Encoding
 import Node.FS.Aff as FSA
 import Node.Path as Path
+import Spago.Cmd as Cmd
 import Spago.Config (Package(..), PackageMap, WorkspacePackage)
 import Spago.Config as Config
 import Spago.Core.Config (CensorBuildWarnings(..), WarningCensorTest(..))
@@ -38,11 +39,7 @@ defaultStatVerbosity = Core.CompactStats
 psaCompile :: forall a. Set.Set FilePath -> Array String -> PsaArgs -> Spago (Purs.PursEnv a) Unit
 psaCompile globs pursArgs psaArgs = do
   result <- Purs.compile globs (Array.snoc pursArgs "--json-errors")
-  let
-    result' = case result of
-      Left err -> { output: err.stdout, exitCode: err.exitCode, err: Just err }
-      Right success -> { output: success.stdout, exitCode: Just success.exitCode, err: Nothing }
-  arrErrorsIsEmpty <- forWithIndex (Str.split (Str.Pattern "\n") result'.output) \idx err ->
+  arrErrorsIsEmpty <- forWithIndex (Str.split (Str.Pattern "\n") result.stdout) \idx err ->
     case jsonParser err >>= CA.decode psaResultCodec >>> lmap CA.printJsonDecodeError of
       Left decodeErrMsg -> do
         logWarn $ Array.intercalate "\n"
@@ -63,7 +60,7 @@ psaCompile globs pursArgs psaArgs = do
   if Array.all identity arrErrorsIsEmpty then do
     logSuccess "Build succeeded."
   else do
-    for_ result'.err $ logDebug <<< show
+    unless (Cmd.isSuccess result) $ logDebug $ Cmd.printExecResult result
     die [ "Failed to build." ]
 
   where

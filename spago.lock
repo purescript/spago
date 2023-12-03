@@ -87,7 +87,6 @@ workspace:
         - newtype
         - node-buffer
         - node-fs
-        - node-fs-aff
         - node-process
         - ordered-collections
         - prelude
@@ -189,7 +188,6 @@ workspace:
         - newtype
         - node-buffer
         - node-fs
-        - node-fs-aff
         - node-path
         - node-process
         - ordered-collections
@@ -203,8 +201,32 @@ workspace:
         - tuples
       test_dependencies: []
   package_set:
-    registry: 20.0.1
+    registry: 46.0.0
   extra_packages:
+    dodo-printer:
+      dependencies:
+        - aff
+        - ansi
+        - arrays
+        - avar
+        - console
+        - control
+        - effect
+        - either
+        - exceptions
+        - foldable-traversable
+        - integers
+        - lists
+        - maybe
+        - newtype
+        - parallel
+        - partial
+        - prelude
+        - safe-coerce
+        - strings
+        - tuples
+      git: https://github.com/natefaubion/purescript-dodo-printer.git
+      ref: v2.2.1
     html-parser-halogen:
       dependencies:
         - halogen
@@ -320,7 +342,6 @@ workspace:
         - lists
         - maybe
         - node-fs
-        - node-fs-aff
         - node-path
         - node-process
         - ordered-collections
@@ -331,14 +352,15 @@ workspace:
         - tuples
       git: https://github.com/natefaubion/purescript-node-glob-basic.git
       ref: v1.2.2
+    optparse: 5.0.0
     ordered-collections: 3.1.1
     registry-foreign:
       git: https://github.com/purescript/registry-dev.git
-      ref: 6a803c37577af368caa221a2a06d6be2079d32da
+      ref: d7d35c94cc286528e506a6a7ca78d22c84b251c9
       subdir: foreign
     registry-lib:
       git: https://github.com/purescript/registry-dev.git
-      ref: 6a803c37577af368caa221a2a06d6be2079d32da
+      ref: d7d35c94cc286528e506a6a7ca78d22c84b251c9
       subdir: lib
     search-trie:
       dependencies:
@@ -394,7 +416,7 @@ workspace:
         - newtype
         - node-buffer
         - node-child-process
-        - node-fs-aff
+        - node-fs
         - node-path
         - node-process
         - node-streams
@@ -502,12 +524,13 @@ packages:
     dependencies: []
   arrays:
     type: registry
-    version: 7.2.0
-    integrity: sha256-vjd5tY1VFIg3HGBUFqG9+tWXqkV3EHRqZCzE+JC2yR0=
+    version: 7.3.0
+    integrity: sha256-tmcklBlc/muUtUfr9RapdCPwnlQeB3aSrC4dK85gQlc=
     dependencies:
       - bifunctors
       - control
       - foldable-traversable
+      - functions
       - maybe
       - nonempty
       - partial
@@ -575,8 +598,8 @@ packages:
       - unfoldable
   codec:
     type: registry
-    version: 6.0.0
-    integrity: sha256-VLG7Ii38xmeT5UGH98xBFiWp1YnFZim/iMg+aQz2RB8=
+    version: 6.1.0
+    integrity: sha256-6vMLNlsJxQarVQ9cn1FYfl5x6opfzxAza15SzRdxFxQ=
     dependencies:
       - bifunctors
       - profunctor
@@ -604,8 +627,8 @@ packages:
       - strings
   console:
     type: registry
-    version: 6.0.0
-    integrity: sha256-gJpJ53fCDAL8BiCiJXH0HNAJ9K3gJtLo8GDaCK6hA5U=
+    version: 6.1.0
+    integrity: sha256-CxmAzjgyuGDmt9FZW51VhV6rBPwR6o0YeKUzA9rSzcM=
     dependencies:
       - effect
       - prelude
@@ -677,6 +700,13 @@ packages:
       - partial
       - prelude
       - tuples
+  debug:
+    type: registry
+    version: 6.0.2
+    integrity: sha256-vmkYFuXYuELBzeauvgHG6E6Kf/Hp1dAnxwE9ByHfwSg=
+    dependencies:
+      - functions
+      - prelude
   distributive:
     type: registry
     version: 6.0.0
@@ -688,9 +718,9 @@ packages:
       - tuples
       - type-equality
   dodo-printer:
-    type: registry
-    version: 2.2.1
-    integrity: sha256-9HgCr5c0TMZCSi/ibCB5LlAL8HTQf/KTRljIXkZeEKM=
+    type: git
+    url: https://github.com/natefaubion/purescript-dodo-printer.git
+    rev: 831c5c963a57ca4bfd62f96335267d7d0785851d
     dependencies:
       - aff
       - ansi
@@ -705,25 +735,17 @@ packages:
       - integers
       - lists
       - maybe
-      - minibench
       - newtype
-      - node-buffer
-      - node-child-process
-      - node-fs-aff
-      - node-path
-      - node-process
-      - node-streams
       - parallel
       - partial
-      - posix-types
       - prelude
       - safe-coerce
       - strings
       - tuples
   dom-indexed:
     type: registry
-    version: 11.0.0
-    integrity: sha256-asNUditTILJdNGS7xxFFkm6TrxC0hykoZUII3aTi5Q4=
+    version: 12.0.0
+    integrity: sha256-bltgxNRfJrJc73YirgM+8u4AqdJAsuaKr7epwzIayF0=
     dependencies:
       - media-types
       - prelude
@@ -793,49 +815,25 @@ packages:
       - enums
   fetch:
     type: registry
-    version: 1.1.4
-    integrity: sha256-Tmt60rjS4PNtKMVGpo8O6W1Fdhcu3a3CvyN/x+SwXEs=
+    version: 4.0.0
+    integrity: sha256-Ita74WPIvzCsSIkUQQbBDKgIrsnuBWIRzEJ8Q5P7iQU=
     dependencies:
       - aff
-      - aff-promise
       - arraybuffer-types
+      - bifunctors
       - effect
-      - fetch-core
       - foreign
       - http-methods
-      - newtype
-      - prelude
-      - record
-      - typelevel-prelude
-      - unsafe-coerce
-      - web-file
-      - web-promise
-      - web-streams
-  fetch-core:
-    type: registry
-    version: 4.0.4
-    integrity: sha256-lS4yhvznII/vg37LewU/Ubeoj6OpxED2kb5/yn58YQQ=
-    dependencies:
-      - arraybuffer-types
-      - arrays
-      - console
-      - effect
-      - foldable-traversable
-      - foreign
-      - foreign-object
-      - functions
-      - http-methods
+      - js-fetch
+      - js-promise-aff
       - maybe
       - newtype
-      - nullable
+      - ordered-collections
       - prelude
       - record
-      - tuples
+      - strings
       - typelevel-prelude
-      - unfoldable
-      - unsafe-coerce
       - web-file
-      - web-promise
       - web-streams
   filterable:
     type: registry
@@ -936,8 +934,8 @@ packages:
       - transformers
   free:
     type: registry
-    version: 7.0.0
-    integrity: sha256-72auTIZAG6fhz4F94rxyDwgfnHwp+/89rujZpZWrV0w=
+    version: 7.1.0
+    integrity: sha256-JAumgEsGSzJCNLD8AaFvuX7CpqS5yruCngi6yI7+V5k=
     dependencies:
       - catenable-lists
       - control
@@ -1119,6 +1117,29 @@ packages:
       - foreign
       - integers
       - now
+  js-fetch:
+    type: registry
+    version: 0.2.1
+    integrity: sha256-zQaVi9wFWku1SsWmdR11kRpOb+wxkNWR49cn928ucjw=
+    dependencies:
+      - arraybuffer-types
+      - arrays
+      - effect
+      - foldable-traversable
+      - foreign
+      - foreign-object
+      - functions
+      - http-methods
+      - js-promise
+      - maybe
+      - newtype
+      - prelude
+      - record
+      - tuples
+      - typelevel-prelude
+      - unfoldable
+      - web-file
+      - web-streams
   js-promise:
     type: registry
     version: 1.0.0
@@ -1130,6 +1151,14 @@ packages:
       - functions
       - maybe
       - prelude
+  js-promise-aff:
+    type: registry
+    version: 1.0.0
+    integrity: sha256-s9kml9Ei74hKlMMg41yyZp4GkbmYUwaH+gBWWrdhwec=
+    dependencies:
+      - aff
+      - foreign
+      - js-promise
   js-timers:
     type: registry
     version: 6.1.0
@@ -1304,18 +1333,6 @@ packages:
     dependencies:
       - newtype
       - prelude
-  minibench:
-    type: registry
-    version: 4.0.1
-    integrity: sha256-7jyxcklZI49q/otYvMV4f9YnJwEqQ3Me5buhDwAOydw=
-    dependencies:
-      - console
-      - effect
-      - integers
-      - numbers
-      - partial
-      - prelude
-      - refs
   mmorph:
     type: registry
     version: 7.0.0
@@ -1333,42 +1350,47 @@ packages:
       - safe-coerce
   node-buffer:
     type: registry
-    version: 8.0.0
-    integrity: sha256-RwOTB8yTS4Jjqc55JqxRcVaMXP+cYJ5aww0XH1Z/I8A=
+    version: 9.0.0
+    integrity: sha256-PWE2DJ5ruBLCmeA/fUiuySEFmUJ/VuRfyrnCuVZBlu4=
     dependencies:
       - arraybuffer-types
       - effect
       - maybe
+      - nullable
       - st
       - unsafe-coerce
   node-child-process:
     type: registry
-    version: 9.0.0
-    integrity: sha256-bi7hXHcrgqw6UQzD4p0kr2flPxdqyRHv3bLcffZYpm0=
+    version: 11.1.0
+    integrity: sha256-vioMNgk8p+CGwlb6T3I3TIir27el85Yg4satLE/I89w=
     dependencies:
       - exceptions
       - foreign
       - foreign-object
       - functions
+      - node-event-emitter
       - node-fs
+      - node-os
       - node-streams
       - nullable
       - posix-types
       - unsafe-coerce
   node-event-emitter:
     type: registry
-    version: 1.0.1
-    integrity: sha256-OwJNgvg20g4g5Alp5Zka3C5KMLH8hwTz9KW4DYr82ls=
+    version: 3.0.0
+    integrity: sha256-Qw0MjsT4xRH2j2i4K8JmRjcMKnH5z1Cw39t00q4LE4w=
     dependencies:
       - effect
+      - either
       - functions
+      - maybe
+      - nullable
       - prelude
-      - safe-coerce
       - unsafe-coerce
   node-execa:
     type: registry
-    version: 1.3.2
-    integrity: sha256-kKVeJC+s5Pfye9aJ2V55NUfSyETZ2DZxPP02+zpNS/M=
+    version: 5.0.0
+    integrity: sha256-yNcgbCs4guwoTApyV6LRoYCYnU5loWgQiqMtsbloZqk=
     dependencies:
       - aff
       - arrays
@@ -1384,9 +1406,11 @@ packages:
       - js-timers
       - maybe
       - node-buffer
+      - node-child-process
       - node-event-emitter
       - node-fs
       - node-human-signals
+      - node-os
       - node-path
       - node-process
       - node-streams
@@ -1398,20 +1422,18 @@ packages:
       - partial
       - posix-types
       - prelude
-      - profunctor-lenses
       - record
       - refs
       - safe-coerce
       - strings
       - tailrec
-      - transformers
       - tuples
       - unsafe-coerce
       - unsafe-reference
   node-fs:
     type: registry
-    version: 8.2.0
-    integrity: sha256-6X/8KFH5qAF15UDrMadoyAMZxd08bs9IF2XrVgvpH2I=
+    version: 9.1.0
+    integrity: sha256-TzhvGdrwcM0bazDvrWSqh+M/H8GKYf1Na6aGm2Qg4+c=
     dependencies:
       - datetime
       - effect
@@ -1430,15 +1452,6 @@ packages:
       - prelude
       - strings
       - unsafe-coerce
-  node-fs-aff:
-    type: registry
-    version: 9.2.0
-    integrity: sha256-usKEFrLY9zh8o3IP3bwc+jX7Zd4OOmhHvwLFZlxdN8U=
-    dependencies:
-      - aff
-      - either
-      - node-fs
-      - node-path
   node-human-signals:
     type: registry
     version: 1.0.0
@@ -1450,6 +1463,30 @@ packages:
       - maybe
       - ordered-collections
       - prelude
+  node-os:
+    type: registry
+    version: 5.1.0
+    integrity: sha256-K3gcu9AXanN1+qtk1900+Fi+CuO0s3/H/RMNRNgIzso=
+    dependencies:
+      - arrays
+      - bifunctors
+      - console
+      - control
+      - datetime
+      - effect
+      - either
+      - exceptions
+      - foldable-traversable
+      - foreign
+      - foreign-object
+      - functions
+      - maybe
+      - node-buffer
+      - nullable
+      - partial
+      - posix-types
+      - prelude
+      - unsafe-coerce
   node-path:
     type: registry
     version: 5.0.0
@@ -1458,25 +1495,29 @@ packages:
       - effect
   node-process:
     type: registry
-    version: 10.0.0
-    integrity: sha256-YzUqf7HWkGEQVRmkxUpL1x2GzKqKLyEyR7mkP68xcZs=
+    version: 11.2.0
+    integrity: sha256-+2MQDYChjGbVbapCyJtuWYwD41jk+BntF/kcOTKBMVs=
     dependencies:
       - effect
+      - foreign
       - foreign-object
       - maybe
+      - node-event-emitter
       - node-streams
       - posix-types
       - prelude
       - unsafe-coerce
   node-streams:
     type: registry
-    version: 7.0.0
-    integrity: sha256-EGCA+hp6chlxDlQ8UG3RIaIIL1R0OckKnqP+KPAX1y4=
+    version: 9.0.0
+    integrity: sha256-2n6dq7YWleTDmD1Kur/ul7Cn08IvWrScgPf+0PgX2TQ=
     dependencies:
+      - aff
       - effect
       - either
       - exceptions
       - node-buffer
+      - node-event-emitter
       - nullable
       - prelude
   nonempty:
@@ -1600,8 +1641,8 @@ packages:
       - prelude
   parallel:
     type: registry
-    version: 6.0.0
-    integrity: sha256-VJbkGD0rAKX+NUEeBJbYJ78bEKaZbgow+QwQEfPB6ko=
+    version: 7.0.0
+    integrity: sha256-gUC9i4Txnx9K9RcMLsjujbwZz6BB1bnE2MLvw4GIw5o=
     dependencies:
       - control
       - effect
@@ -1783,7 +1824,7 @@ packages:
   registry-foreign:
     type: git
     url: https://github.com/purescript/registry-dev.git
-    rev: 6a803c37577af368caa221a2a06d6be2079d32da
+    rev: d7d35c94cc286528e506a6a7ca78d22c84b251c9
     subdir: foreign
     dependencies:
       - aff
@@ -1821,7 +1862,7 @@ packages:
   registry-lib:
     type: git
     url: https://github.com/purescript/registry-dev.git
-    rev: 6a803c37577af368caa221a2a06d6be2079d32da
+    rev: d7d35c94cc286528e506a6a7ca78d22c84b251c9
     subdir: lib
     dependencies:
       - aff
@@ -1847,7 +1888,6 @@ packages:
       - newtype
       - node-buffer
       - node-fs
-      - node-fs-aff
       - node-path
       - nullable
       - ordered-collections
@@ -1902,17 +1942,17 @@ packages:
       - prelude
   spec:
     type: registry
-    version: 7.3.0
-    integrity: sha256-YmmRmlHmSHyAM8j5/QVHLgkMhtAkt2FXytVb5j/Zu0s=
+    version: 7.5.5
+    integrity: sha256-HdyBH7Ys1/m2SdTq3u2u9LdQ4cGeaohWeEMYay2mHdU=
     dependencies:
       - aff
       - ansi
       - arrays
       - avar
       - bifunctors
-      - console
       - control
       - datetime
+      - debug
       - effect
       - either
       - exceptions
@@ -1928,6 +1968,7 @@ packages:
       - parallel
       - pipes
       - prelude
+      - refs
       - strings
       - tailrec
       - transformers
@@ -2150,25 +2191,14 @@ packages:
       - web-storage
   web-pointerevents:
     type: registry
-    version: 1.0.0
-    integrity: sha256-I3OGc4gVslh2QsH8QUTeihKCIpFwv4t3RoycZB9ITOs=
+    version: 2.0.0
+    integrity: sha256-uy1cI/Tck8Cf/MP0psvm2MLNxdijqfLZGLRq5FmuRh0=
     dependencies:
       - effect
       - maybe
       - prelude
       - web-dom
       - web-uievents
-  web-promise:
-    type: registry
-    version: 3.1.0
-    integrity: sha256-YfqJyEC3bHH6D8QgTi0ME5oJmGYOuZ2TlcyOdpG8dIE=
-    dependencies:
-      - effect
-      - exceptions
-      - foldable-traversable
-      - functions
-      - maybe
-      - prelude
   web-storage:
     type: registry
     version: 5.0.0
@@ -2178,16 +2208,16 @@ packages:
       - web-events
   web-streams:
     type: registry
-    version: 3.0.0
-    integrity: sha256-+QELAR7lb08Ebr4lCntxeGk5Z1i+NInDJwzEzz3Pigc=
+    version: 4.0.0
+    integrity: sha256-02HgXIk6R+pU9fWOX42krukAI1QkCbLKcCv3b4Jq6WI=
     dependencies:
       - arraybuffer-types
       - effect
       - exceptions
+      - js-promise
       - nullable
       - prelude
       - tuples
-      - web-promise
   web-touchevents:
     type: registry
     version: 4.0.0
@@ -2196,8 +2226,8 @@ packages:
       - web-uievents
   web-uievents:
     type: registry
-    version: 4.0.0
-    integrity: sha256-Vtp5m/8IWP3flDXpnVn3Mxq8lCFDlBFp5eBnB+uO/CM=
+    version: 5.0.0
+    integrity: sha256-5I+ut9JYno3wowti3vJGs1afKCm1ucppKuy+zhuSyss=
     dependencies:
       - web-html
   web-xhr:

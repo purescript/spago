@@ -152,13 +152,13 @@ logError l = log { level: LogError, content: Ansi.foreground Ansi.Red (toDoc l) 
 die :: forall a b m u. MonadEffect m => MonadAsk (LogEnv b) m => Loggable a => a -> m u
 die msg = do
   logFailure msg
-  Effect.liftEffect $ Process.exit 1
+  Effect.liftEffect $ Process.exit' 1
 
 -- | Same as `die`, but with multiple failures
 die' :: forall a b m u. MonadEffect m => MonadAsk (LogEnv b) m => Loggable a => Array a -> m u
 die' msgs = do
   _ <- traverse logFailure msgs
-  Effect.liftEffect $ Process.exit 1
+  Effect.liftEffect $ Process.exit' 1
 
 justOrDieWith :: forall a b m x. MonadEffect m => MonadAsk (LogEnv b) m => Loggable a => Maybe x -> a -> m x
 justOrDieWith value msg = case value of

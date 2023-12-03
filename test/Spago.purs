@@ -29,10 +29,10 @@ import Test.Spec.Reporter as Spec.Reporter
 import Test.Spec.Runner as Spec.Runner
 
 testConfig :: Spec.Runner.Config
-testConfig =
-  { slow: Milliseconds 10_000.0
-  , timeout: Just (Milliseconds 90_000.0)
-  , exit: true
+testConfig = Spec.Runner.defaultConfig
+  { slow = Milliseconds 10_000.0
+  , timeout = Just (Milliseconds 90_000.0)
+  , exit = true
   }
 
 main :: Effect Unit

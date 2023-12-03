@@ -7,10 +7,11 @@ import Spago.Prelude
 
 import Control.Promise (Promise)
 import Control.Promise as Promise
-import Docs.Search.IndexBuilder as IndexBuilder
 import Docs.Search.Config as DocConfig
+import Docs.Search.IndexBuilder as IndexBuilder
 import Effect.Uncurried (EffectFn1, runEffectFn1)
 import Node.Process as Process
+import Spago.Cmd as Cmd
 import Spago.Command.Build as Build
 import Spago.Command.Fetch as Fetch
 import Spago.Config (Workspace)
@@ -42,9 +43,7 @@ run = do
       }
 
   result <- Purs.docs globs docsFormat
-  case result of
-    Left err -> die err.message
-    Right _ -> pure unit
+  unless (Cmd.isSuccess result) $ die result.message
 
   when (docsFormat == Html) $ do
     liftAff $ IndexBuilder.run'
