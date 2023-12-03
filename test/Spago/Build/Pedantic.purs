@@ -188,6 +188,34 @@ spec =
       editSpagoYaml (addPedanticFlagToSrc >>> addPedanticFlagToTest)
       spago [ "build" ] >>= shouldBeFailureErr (fixture "pedantic/check-pedantic-packages.txt")
 
+    -- A dependency on `console` will include `effect` as a transitive dependency.
+    -- So, if we don't have `effect` as a direct dependency, we'll get a pedantic error
+    -- where the fix is to install that missing package.
+    -- Following those instructions shouldn't cause an error.
+    Spec.it "following installation instructions does not fail with an unrelated pedantic error" \{ spago, fixture } -> do
+      setup spago
+        ( defaultSetupConfig
+            { installSourcePackages = [ "prelude", "console" ]
+            , installTestPackages = []
+            , main = Just
+                [ "import Prelude"
+                , ""
+                , "import Effect"
+                , "import Effect.Console as Console"
+                , ""
+                , "main :: Effect Unit"
+                , "main = Console.log \"wat\""
+                ]
+            , testMain = Nothing
+            }
+        )
+      spago [ "uninstall", "effect" ] >>= shouldBeSuccess
+      -- Get rid of "Compiling..." messages
+      spago [ "build" ] >>= shouldBeSuccess
+      editSpagoYaml (addPedanticFlagToSrc)
+      spago [ "build" ] >>= shouldBeFailureErr (fixture "pedantic/pedantic-instructions-initial-failure.txt")
+      spago [ "install", "-p", "pedantic", "effect" ] >>= shouldBeSuccessErr (fixture "pedantic/pedantic-instructions-installation-result.txt")
+
 addPedanticFlagToSrc :: Config -> Config
 addPedanticFlagToSrc config = config
   { package = config.package <#> \r -> r

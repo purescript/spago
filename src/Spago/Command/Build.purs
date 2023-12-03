@@ -145,7 +145,7 @@ run opts = do
       let reportTest = pedanticPackages || (fromMaybe false $ p.package.test >>= _.pedantic_packages)
       Alternative.guard (reportSrc || reportTest)
       pure $ Tuple p { reportSrc, reportTest }
-  unless (Array.null pedanticPkgs) do
+  unless (Array.null pedanticPkgs || opts.depsOnly) do
     logInfo $ "Looking for unused and undeclared transitive dependencies..."
     eitherGraph <- Graph.runGraph globs opts.pursArgs
     graph <- either die pure eitherGraph
