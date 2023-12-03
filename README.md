@@ -191,19 +191,14 @@ You'll need to use [spago-legacy] for this.
 
 ```bash
 # Install spago-legacy
-npm install spago@0.21.0
-
+npm install -g spago-legacy
 # You can then create a `spago.yaml` file with `migrate`
-spago migrate
+spago-legacy migrate
 
 # Ready to remove the dhall files and move to the new spago
-npm install spago@next
+npm install -g spago@next
 rm spago.dhall packages.dhall
 ```
-
-> [!NOTE]\
-> Both `spago-legacy` and `spago` use the same NPM package name `spago`. The difference is their version numbers. `spago-legacy` stops at `spago@0.21.0` whereas `spago` is `spago@0.93.X`.
-> If `spago-legacy` is installed globally, `spago` can be installed locally via `npm i spago@next` and then used by prefixing `spago` commands with `npx` (e.g. `npx spago build`). Vice versa also works.
 
 Some packages might not be found or have the wrong version, in which case
 you'll have to carefully:
