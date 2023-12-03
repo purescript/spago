@@ -12,6 +12,7 @@ import Data.String as String
 import Effect.Aff as Aff
 import Effect.Class.Console (log)
 import Effect.Class.Console as Console
+import Node.Path (dirname)
 import Node.Path as Path
 import Node.Process as Process
 import Registry.PackageName as PackageName
@@ -91,7 +92,17 @@ shouldEqualStr
   -> m Unit
 shouldEqualStr v1 v2 =
   when (v1 /= v2) do
-    fail $ "\n=====\n" <> v1 <> "\n=====\n  ≠\n=====\n  " <> show v2 <> "\n=====\n"
+    fail $ Array.intercalate "\n"
+      [ ""
+      , "===== (Actual)"
+      , v1
+      , "====="
+      , "  ≠"
+      , "===== (Expected)"
+      , v2
+      , "====="
+      , ""
+      ]
 
 checkFixture :: String -> String -> Aff Unit
 checkFixture filepath fixturePath = do
@@ -144,8 +155,8 @@ checkOutputsStr
   -> Aff Unit
 checkOutputsStr checkers =
   check
-    { stdout: maybe mempty (\exp act -> act `Assert.shouldEqual` exp) checkers.stdoutStr
-    , stderr: maybe mempty (\exp act -> act `Assert.shouldEqual` exp) checkers.stderrStr
+    { stdout: maybe mempty (\exp act -> act `shouldEqualStr` exp) checkers.stdoutStr
+    , stderr: maybe mempty (\exp act -> act `shouldEqualStr` exp) checkers.stderrStr
     , result: checkers.result
     }
 
@@ -164,6 +175,8 @@ checkOutputs checkers execResult = do
         overwriteSpecFile <- liftEffect $ map isJust $ Process.lookupEnv "SPAGO_TEST_ACCEPT"
         if overwriteSpecFile then do
           Console.log $ "Overwriting fixture at path: " <> fixtureFileExpected
+          let parentDir = dirname fixtureFileExpected
+          unlessM (FS.exists parentDir) $ FS.mkdirp parentDir
           FS.writeTextFile fixtureFileExpected actual
         else do
           expected <- String.trim <$> FS.readTextFile fixtureFileExpected

@@ -39,9 +39,7 @@ writeBuildInfo = do
   let
     buildInfo =
       { pursVersion: Version.print purs.version
-      , packages: map mkPackageBuildInfo case workspace.selected of
-          Just p -> [ p ]
-          Nothing -> NEA.toUnfoldable $ Config.getWorkspacePackages workspace.packageSet
+      , packages: map mkPackageBuildInfo $ NEA.toUnfoldable $ Config.getWorkspacePackages workspace.packageSet
       }
     buildInfoString = mkBuildInfo buildInfo
     writeIt = FS.writeTextFile buildInfoPath buildInfoString
@@ -56,7 +54,8 @@ writeBuildInfo = do
 -- TODO: use tidy-codegen eventually
 mkBuildInfo :: BuildInfo -> String
 mkBuildInfo { packages, pursVersion } = String.joinWith "\n"
-  [ "module Spago.Generated.BuildInfo where"
+  [ "-- @inline export buildInfo always"
+  , "module Spago.Generated.BuildInfo where"
   , ""
   , "buildInfo :: { packages :: " <> recordType <> ", pursVersion :: String, spagoVersion :: String }"
   , "buildInfo ="
