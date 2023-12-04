@@ -8,6 +8,7 @@ import Data.DateTime.Instant as Instant
 import Effect.Exception as Exception
 import Node.Path as Path
 import Registry.Version as Version
+import Spago.Cmd as Cmd
 import Spago.Command.Init (DefaultConfigOptions(..))
 import Spago.Command.Init as Init
 import Spago.Core.Config as Config
@@ -26,9 +27,9 @@ spec =
         let logOptions = { logOptions: { color: false, verbosity: LogQuiet, startingTime: Instant.fromDateTime bottom } }
         purs <- runSpago logOptions getPurs
         spagoResult <- spago [ "--version" ]
-        sVersion <- case spagoResult of
-          Left e -> MonadError.throwError $ Exception.error e.message
-          Right a -> pure a.stderr
+        sVersion <- case Cmd.isSuccess spagoResult of
+          false -> MonadError.throwError $ Exception.error spagoResult.message
+          true -> pure spagoResult.stderr
         pure
           $ Array.intercalate "\n"
           $
@@ -86,7 +87,7 @@ spec =
         Spec.it ("'spago " <> Array.intercalate " " command <> " works") \{ spago } -> do
           setupSinglePackage spago
           expected <- mkExpectedStdout { spago, rest: [ "foo: 0.0.0" ] }
-          spago command >>= checkOutputsStr { stderrStr: Nothing, stdoutStr: Just expected, result: isRight }
+          spago command >>= checkOutputsStr { stderrStr: Nothing, stdoutStr: Just expected, result: Cmd.isSuccess }
 
     Spec.describe "using generated 'BuildInfo.purs' file in multi-package context" do
 
@@ -133,9 +134,9 @@ spec =
 
           Spec.it ("'spago run -p " <> package <> " --main " <> srcMain <> "' works") \{ spago } -> do
             expected <- mkExpectedStdout { spago, rest: packagesWithVersion }
-            spago [ "run", "-p", package, "--main", srcMain ] >>= checkOutputsStr { stderrStr: Nothing, stdoutStr: Just expected, result: isRight }
+            spago [ "run", "-p", package, "--main", srcMain ] >>= checkOutputsStr { stderrStr: Nothing, stdoutStr: Just expected, result: Cmd.isSuccess }
 
           Spec.it ("'spago test -p " <> package <> "' works") \{ spago } -> do
             expected <- mkExpectedStdout { spago, rest: packagesWithVersion }
-            spago [ "test", "-p", package ] >>= checkOutputsStr { stderrStr: Nothing, stdoutStr: Just expected, result: isRight }
+            spago [ "test", "-p", package ] >>= checkOutputsStr { stderrStr: Nothing, stdoutStr: Just expected, result: Cmd.isSuccess }
 
