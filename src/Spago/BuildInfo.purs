@@ -54,15 +54,20 @@ writeBuildInfo = do
 -- TODO: use tidy-codegen eventually
 mkBuildInfo :: BuildInfo -> String
 mkBuildInfo { packages, pursVersion } = String.joinWith "\n"
-  [ "-- @inline export buildInfo always"
+  [ "-- @inline export packages always"
+  , "-- @inline export pursVersion always"
+  , "-- @inline export spagoVersion always"
   , "module Spago.Generated.BuildInfo where"
   , ""
-  , "buildInfo :: { packages :: " <> recordType <> ", pursVersion :: String, spagoVersion :: String }"
-  , "buildInfo ="
-  , "  { packages: {" <> String.joinWith ", " (map renderPackage packages) <> "}"
-  , "  , pursVersion: \"" <> pursVersion <> "\""
-  , "  , spagoVersion: \"" <> currentSpagoVersion <> "\""
-  , "  }"
+  , "packages :: " <> recordType
+  , "packages = "
+  , "  { " <> String.joinWith "\n  , " (map renderPackage packages) <> "\n  }"
+  , ""
+  , "pursVersion :: String"
+  , "pursVersion = \"" <> pursVersion <> "\""
+  , ""
+  , "spagoVersion :: String"
+  , "spagoVersion = \"" <> currentSpagoVersion <> "\""
   , ""
   ]
   where
