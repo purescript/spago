@@ -79,7 +79,7 @@ buildInfoPath ∷ FilePath
 buildInfoPath = Path.concat [ Paths.localCachePath, "BuildInfo.purs" ]
 
 currentSpagoVersion :: String
-currentSpagoVersion = BuildInfo.packages."spago-bin"
+currentSpagoVersion = BuildInfo.buildInfo.packages."spago-bin"
 
 mkPackageBuildInfo :: WorkspacePackage -> { name :: String, version :: String }
 mkPackageBuildInfo { package } =
