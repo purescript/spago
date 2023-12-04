@@ -78,8 +78,14 @@ jobs:
       - name: Bundle docs-search client
         run: node ./bin/bundle.js bundle -p docs-search-client-halogen
 
-      - name: Run tests
-        run: node ./bin/bundle.js test
+      - name: Run tests (windows)
+        if: matrix.os == 'windows-latest'
+        shell: pwsh
+        run: node bin/bundle.js test
+
+      - name: Run tests (linux and macos)
+        if: matrix.os != 'windows-latest'
+        run: node ./bin/index.dev.js test
 
       - name: Check formatting (Linux only)
         if: matrix.os == 'ubuntu-latest'
