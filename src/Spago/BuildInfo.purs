@@ -23,6 +23,7 @@ type BuildInfo =
         , version :: String
         }
   -- , buildTime :: String -- TODO add build time to build info
+  -- , commitHash :: String -- TODO add commit hash to build info
   , pursVersion :: String
   }
 
@@ -54,27 +55,30 @@ writeBuildInfo = do
 -- TODO: use tidy-codegen eventually
 mkBuildInfo :: BuildInfo -> String
 mkBuildInfo { packages, pursVersion } = String.joinWith "\n"
-  [ "-- @inline export buildInfo always"
+  [ "-- @inline export packages always"
+  , "-- @inline export pursVersion always"
+  , "-- @inline export spagoVersion always"
   , "module Spago.Generated.BuildInfo where"
   , ""
-  , "buildInfo :: { packages :: " <> recordType <> ", pursVersion :: String, spagoVersion :: String }"
-  , "buildInfo ="
-  , "  { packages: {" <> String.joinWith ", " (map renderPackage packages) <> "}"
-  , "  , pursVersion: \"" <> pursVersion <> "\""
-  , "  , spagoVersion: \"" <> currentSpagoVersion <> "\""
-  , "  }"
+  , "packages :: " <> recordType
+  , "packages ="
+  , "  { " <> String.joinWith "\n  , " (map renderPackage packages) <> "\n  }"
+  , ""
+  , "pursVersion :: String"
+  , "pursVersion = \"" <> pursVersion <> "\""
+  , ""
+  , "spagoVersion :: String"
+  , "spagoVersion = \"" <> currentSpagoVersion <> "\""
   , ""
   ]
   where
   recordType = "{ " <> String.joinWith ", " (map renderPackageType packages) <> " }"
   renderPackage p = "\"" <> p.name <> "\": \"" <> p.version <> "\""
   renderPackageType p = "\"" <> p.name <> "\" :: String"
+  currentSpagoVersion = BuildInfo.packages."spago-bin"
 
 buildInfoPath ∷ FilePath
 buildInfoPath = Path.concat [ Paths.localCachePath, "BuildInfo.purs" ]
-
-currentSpagoVersion :: String
-currentSpagoVersion = BuildInfo.buildInfo.packages."spago-bin"
 
 mkPackageBuildInfo :: WorkspacePackage -> { name :: String, version :: String }
 mkPackageBuildInfo { package } =

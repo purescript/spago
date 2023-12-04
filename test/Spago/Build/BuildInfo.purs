@@ -46,12 +46,12 @@ spec =
         , ""
         , "main :: Effect Unit"
         , "main = do"
-        , "  Console.log $ \"pursVersion: \" <> BI.buildInfo.pursVersion"
-        , "  Console.log $ \"spagoVersion: \" <> BI.buildInfo.spagoVersion"
+        , "  Console.log $ \"pursVersion: \" <> BI.pursVersion"
+        , "  Console.log $ \"spagoVersion: \" <> BI.spagoVersion"
         ]
           <> -- ensure all packages within the workspace are reference-able
             ( packages <#> \packageName ->
-                "  Console.log $ \"" <> packageName <> ": \" <> BI.buildInfo.packages." <> packageName
+                "  Console.log $ \"" <> packageName <> ": \" <> BI.packages." <> packageName
             )
 
     Spec.describe "using generated 'BuildInfo.purs' file in single-package context" do

@@ -204,6 +204,8 @@ workspace:
     registry: 46.0.0
   extra_packages:
     dodo-printer:
+      git: https://github.com/natefaubion/purescript-dodo-printer.git
+      ref: v2.2.1
       dependencies:
         - aff
         - ansi
@@ -225,15 +227,15 @@ workspace:
         - safe-coerce
         - strings
         - tuples
-      git: https://github.com/natefaubion/purescript-dodo-printer.git
-      ref: v2.2.1
     html-parser-halogen:
+      git: https://github.com/rnons/purescript-html-parser-halogen.git
+      ref: 035a51d02ba9f8b70c3ffd9fe31a3f5bed19941c
       dependencies:
         - halogen
         - string-parsers
-      git: https://github.com/rnons/purescript-html-parser-halogen.git
-      ref: 035a51d02ba9f8b70c3ffd9fe31a3f5bed19941c
     jest:
+      git: https://github.com/nonbili/purescript-jest.git
+      ref: caf2032f2e5828337e897a99f5359c00e91cb0ee
       dependencies:
         - aff
         - aff-promise
@@ -241,10 +243,10 @@ workspace:
         - foldable-traversable
         - prelude
         - psci-support
-      git: https://github.com/nonbili/purescript-jest.git
-      ref: caf2032f2e5828337e897a99f5359c00e91cb0ee
     json-codecs: 4.0.0
     language-cst-parser:
+      git: https://github.com/natefaubion/purescript-language-cst-parser.git
+      ref: v0.13.0
       dependencies:
         - arrays
         - console
@@ -275,9 +277,9 @@ workspace:
         - typelevel-prelude
         - unfoldable
         - unsafe-coerce
-      git: https://github.com/natefaubion/purescript-language-cst-parser.git
-      ref: v0.13.0
     language-purescript:
+      git: https://github.com/JordanMartinez/purescript-language-purescript.git
+      ref: db4377dea03ba9c5273a93a8368a53f1d87882c1
       dependencies:
         - argonaut-core
         - arrays
@@ -305,22 +307,22 @@ workspace:
         - tuples
         - unicode
         - versions
-      git: https://github.com/JordanMartinez/purescript-language-purescript.git
-      ref: db4377dea03ba9c5273a93a8368a53f1d87882c1
     markdown-it:
+      git: https://github.com/nonbili/purescript-markdown-it.git
+      ref: f6e8ee91298f2fc13c4277e75a19e0538de5f7a2
       dependencies:
         - effect
         - options
         - prelude
-      git: https://github.com/nonbili/purescript-markdown-it.git
-      ref: f6e8ee91298f2fc13c4277e75a19e0538de5f7a2
     markdown-it-halogen:
+      git: https://github.com/nonbili/purescript-markdown-it-halogen.git
+      ref: 08c9625015bf04214be14e45230e8ce12f3fa2bf
       dependencies:
         - html-parser-halogen
         - markdown-it
-      git: https://github.com/nonbili/purescript-markdown-it-halogen.git
-      ref: 08c9625015bf04214be14e45230e8ce12f3fa2bf
     memoize:
+      git: https://github.com/paf31/purescript-memoize.git
+      ref: 9960694e82adc212fd89f8ed8778cf55fcb72aeb
       dependencies:
         - either
         - integers
@@ -330,9 +332,9 @@ workspace:
         - prelude
         - strings
         - tuples
-      git: https://github.com/paf31/purescript-memoize.git
-      ref: 9960694e82adc212fd89f8ed8778cf55fcb72aeb
     node-glob-basic:
+      git: https://github.com/natefaubion/purescript-node-glob-basic.git
+      ref: v1.2.2
       dependencies:
         - aff
         - console
@@ -350,9 +352,9 @@ workspace:
         - refs
         - strings
         - tuples
-      git: https://github.com/natefaubion/purescript-node-glob-basic.git
-      ref: v1.2.2
     optparse:
+      git: https://github.com/thought2/purescript-optparse.git
+      ref: a9b227110c34ae4f8c1b2fcb07de6f1327ce5826
       dependencies:
         - aff
         - arrays
@@ -384,8 +386,6 @@ workspace:
         - tailrec
         - transformers
         - tuples
-      git: https://github.com/thought2/purescript-optparse.git
-      ref: a9b227110c34ae4f8c1b2fcb07de6f1327ce5826
     ordered-collections: 3.1.1
     registry-foreign:
       git: https://github.com/purescript/registry-dev.git
@@ -396,6 +396,8 @@ workspace:
       ref: d7d35c94cc286528e506a6a7ca78d22c84b251c9
       subdir: lib
     search-trie:
+      git: https://github.com/klntsky/purescript-search-trie.git
+      ref: e7f7f22486a1dba22171ec885dbc2149dc815119
       dependencies:
         - arrays
         - bifunctors
@@ -403,9 +405,9 @@ workspace:
         - lists
         - ordered-collections
         - prelude
-      git: https://github.com/klntsky/purescript-search-trie.git
-      ref: e7f7f22486a1dba22171ec885dbc2149dc815119
     tidy:
+      git: https://github.com/natefaubion/purescript-tidy.git
+      ref: v0.10.0
       dependencies:
         - arrays
         - control
@@ -421,9 +423,9 @@ workspace:
         - prelude
         - strings
         - tuples
-      git: https://github.com/natefaubion/purescript-tidy.git
-      ref: v0.10.0
     tidy-codegen:
+      git: https://github.com/natefaubion/purescript-tidy-codegen.git
+      ref: v4.0.0
       dependencies:
         - aff
         - ansi
@@ -467,8 +469,6 @@ workspace:
         - tuples
         - type-equality
         - unicode
-      git: https://github.com/natefaubion/purescript-tidy-codegen.git
-      ref: v4.0.0
 packages:
   aff:
     type: registry
