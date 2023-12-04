@@ -200,6 +200,9 @@ npm install -g spago@next
 rm spago.dhall packages.dhall
 ```
 
+> [!NOTE]\
+> The `spago-legacy` NPM package has exactly the same content as the `spago@0.21.0` release, which is the last one released from the legacy codebase, and the only release to contain the `migrate` command. The new codebase's releases start from `spago@0.93.0`.
+
 Some packages might not be found or have the wrong version, in which case
 you'll have to carefully:
 
