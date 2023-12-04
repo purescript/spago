@@ -496,11 +496,6 @@ parseArgs = do
 main :: Effect Unit
 main = do
   startingTime <- Now.now
-  let
-    printVersion = do
-      logOptions <- mkLogOptions startingTime { noColor: false, quiet: false, verbose: false, offline: Offline }
-      runSpago { logOptions } do
-        logInfo BuildInfo.buildInfo.spagoVersion
   parseArgs >>=
     \c -> Aff.launchAff_ case c of
       Cmd'SpagoCmd (SpagoCmd globalArgs@{ offline } command) -> do
@@ -661,13 +656,14 @@ main = do
             purs <- Purs.getPurs
             runSpago { dependencies, logOptions, purs, workspace: env.workspace } (Graph.graphPackages args)
 
-      Cmd'VersionCmd v -> do when v printVersion
+      Cmd'VersionCmd v -> when v do
+        output (OutputLines [ BuildInfo.packages."spago-bin" ])
   where
   mkLogOptions :: Instant -> GlobalArgs -> Aff LogOptions
   mkLogOptions startingTime { noColor, quiet, verbose } = do
     supports <- liftEffect supportsColor
-    let color = and [ supports, not noColor ]
     let
+      color = and [ supports, not noColor ]
       verbosity =
         if quiet then
           LogQuiet

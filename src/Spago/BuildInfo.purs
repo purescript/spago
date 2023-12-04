@@ -23,6 +23,7 @@ type BuildInfo =
         , version :: String
         }
   -- , buildTime :: String -- TODO add build time to build info
+  -- , commitHash :: String -- TODO add commit hash to build info
   , pursVersion :: String
   }
 
@@ -60,7 +61,7 @@ mkBuildInfo { packages, pursVersion } = String.joinWith "\n"
   , "module Spago.Generated.BuildInfo where"
   , ""
   , "packages :: " <> recordType
-  , "packages = "
+  , "packages ="
   , "  { " <> String.joinWith "\n  , " (map renderPackage packages) <> "\n  }"
   , ""
   , "pursVersion :: String"
@@ -74,12 +75,10 @@ mkBuildInfo { packages, pursVersion } = String.joinWith "\n"
   recordType = "{ " <> String.joinWith ", " (map renderPackageType packages) <> " }"
   renderPackage p = "\"" <> p.name <> "\": \"" <> p.version <> "\""
   renderPackageType p = "\"" <> p.name <> "\" :: String"
+  currentSpagoVersion = BuildInfo.packages."spago-bin"
 
 buildInfoPath ∷ FilePath
 buildInfoPath = Path.concat [ Paths.localCachePath, "BuildInfo.purs" ]
-
-currentSpagoVersion :: String
-currentSpagoVersion = BuildInfo.buildInfo.packages."spago-bin"
 
 mkPackageBuildInfo :: WorkspacePackage -> { name :: String, version :: String }
 mkPackageBuildInfo { package } =
