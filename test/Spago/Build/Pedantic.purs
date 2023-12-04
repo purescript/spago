@@ -5,7 +5,6 @@ import Test.Prelude
 import Data.Array as Array
 import Data.Map as Map
 import Node.Path as Path
-import Spago.Cmd (ExecResult)
 import Spago.Core.Config (Dependencies(..), Config)
 import Spago.FS as FS
 import Test.Spec (SpecT)
