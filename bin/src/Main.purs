@@ -500,7 +500,7 @@ main = do
     printVersion = do
       logOptions <- mkLogOptions startingTime { noColor: false, quiet: false, verbose: false, offline: Offline }
       runSpago { logOptions } do
-        logInfo BuildInfo.buildInfo.spagoVersion
+        logInfo BuildInfo.spagoVersion
   parseArgs >>=
     \c -> Aff.launchAff_ case c of
       Cmd'SpagoCmd (SpagoCmd globalArgs@{ offline } command) -> do
