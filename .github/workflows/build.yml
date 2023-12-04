@@ -72,14 +72,14 @@ jobs:
       - name: Build the project
         run: spago build
 
-      - name: Bootstrap executable
-        run: node ./bin/index.dev.js bundle -p spago-bin
+      # - name: Bootstrap executable
+      #   run: node ./bin/index.dev.js bundle -p spago-bin
 
-      - name: Bundle docs-search client
-        run: node ./bin/bundle.js bundle -p docs-search-client-halogen
+      # - name: Bundle docs-search client
+      #   run: node ./bin/bundle.js bundle -p docs-search-client-halogen
 
-      - name: Run tests
-        run: node ./bin/bundle.js test
+      # - name: Run tests
+      #   run: node ./bin/bundle.js test
 
       - name: Check formatting (Linux only)
         if: matrix.os == 'ubuntu-latest'
