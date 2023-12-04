@@ -81,7 +81,7 @@ jobs:
       - name: Run tests (windows)
         if: matrix.os == 'windows-latest'
         shell: pwsh
-        run: node bin/bundle.js test
+        run: node bin/bundle.js test --verbose
 
       - name: Run tests (linux and macos)
         if: matrix.os != 'windows-latest'
