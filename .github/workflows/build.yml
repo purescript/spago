@@ -40,6 +40,11 @@ jobs:
         with:
           node-version: 18
 
+      - name: How many args on Windows?
+        if: matrix.os == 'windows-latest'
+        run: |
+          node check-chars.mjs
+
       - name: Cache NPM dependencies
         uses: actions/cache@v2
         env:
