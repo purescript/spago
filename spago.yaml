@@ -295,4 +295,38 @@ workspace:
         - safe-coerce
         - strings
         - tuples
-    optparse: 5.0.0
+    optparse: 
+      git: "https://github.com/thought2/purescript-optparse.git"
+      ref: "a9b227110c34ae4f8c1b2fcb07de6f1327ce5826"
+      dependencies:
+        - aff
+        - arrays
+        - bifunctors
+        - console
+        - control
+        - effect
+        - either
+        - enums
+        - exists
+        - exitcodes
+        - foldable-traversable
+        - free
+        - gen
+        - integers
+        - lazy
+        - lists
+        - maybe
+        - newtype
+        - node-buffer
+        - node-process
+        - node-streams
+        - nonempty
+        - numbers
+        - open-memoize
+        - partial
+        - prelude
+        - strings
+        - tailrec
+        - transformers
+        - tuples
+      
