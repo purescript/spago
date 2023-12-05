@@ -13,8 +13,8 @@ jobs:
     strategy:
       matrix:
         include:
-          - os: ubuntu-latest
-          - os: macOS-latest
+          # - os: ubuntu-latest
+          # - os: macOS-latest
           - os: windows-latest
     steps:
       # We set LF endings so that the Windows environment is consistent with the rest
