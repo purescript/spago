@@ -310,6 +310,7 @@ workspace:
         - prelude
         - strings
         - tuples
+    node-execa: 2.0.0
     node-glob-basic:
       git: https://github.com/natefaubion/purescript-node-glob-basic.git
       ref: v1.2.2
@@ -1367,8 +1368,8 @@ packages:
       - unsafe-coerce
   node-execa:
     type: registry
-    version: 1.3.2
-    integrity: sha256-kKVeJC+s5Pfye9aJ2V55NUfSyETZ2DZxPP02+zpNS/M=
+    version: 2.0.0
+    integrity: sha256-u/0ptGWlzb81TmzYDYJhJ2EfU+CBZELr1vgfzvgxQVM=
     dependencies:
       - aff
       - arrays
