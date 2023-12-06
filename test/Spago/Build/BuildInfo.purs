@@ -28,7 +28,7 @@ spec =
         spagoResult <- spago [ "--version" ]
         sVersion <- case spagoResult of
           Left e -> MonadError.throwError $ Exception.error e.message
-          Right a -> pure a.stderr
+          Right a -> pure a.stdout
         pure
           $ Array.intercalate "\n"
           $
