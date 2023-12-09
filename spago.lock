@@ -2,6 +2,7 @@ workspace:
   packages:
     docs-search-client-halogen:
       path: docs-search/client-halogen
+      needed_by: []
       dependencies:
         - aff
         - aff-promise
@@ -38,6 +39,11 @@ workspace:
       test_dependencies: []
     docs-search-common:
       path: docs-search/common
+      needed_by:
+        - spago-bin
+        - spago
+        - docs-search-index
+        - docs-search-client-halogen
       dependencies:
         - aff
         - aff-promise
@@ -68,6 +74,9 @@ workspace:
       test_dependencies: []
     docs-search-index:
       path: docs-search/index
+      needed_by:
+        - spago-bin
+        - spago
       dependencies:
         - aff
         - argonaut-core
@@ -101,6 +110,8 @@ workspace:
         - spec
     spago:
       path: ./
+      needed_by:
+        - spago-bin
       dependencies:
         - aff
         - affjax
@@ -146,6 +157,7 @@ workspace:
         - spec
     spago-bin:
       path: bin
+      needed_by: []
       dependencies:
         - aff
         - arrays
@@ -167,6 +179,9 @@ workspace:
       test_dependencies: []
     spago-core:
       path: core
+      needed_by:
+        - spago-bin
+        - spago
       dependencies:
         - aff
         - argonaut-core
@@ -203,7 +218,460 @@ workspace:
         - tuples
       test_dependencies: []
   package_set:
-    registry: 20.0.1
+    address:
+      registry: 20.0.1
+    compiler: ">=0.15.7 <0.16.0"
+    content:
+      abc-parser: 2.0.0
+      ace: 9.1.0
+      aff: 7.1.0
+      aff-bus: 6.0.0
+      aff-coroutines: 9.0.0
+      aff-promise: 4.0.0
+      aff-retry: 2.0.0
+      affjax: 13.0.0
+      affjax-node: 1.0.0
+      affjax-web: 1.0.0
+      ansi: 7.0.0
+      argonaut: 9.0.0
+      argonaut-aeson-generic: 0.4.1
+      argonaut-codecs: 9.1.0
+      argonaut-core: 7.0.0
+      argonaut-generic: 8.0.0
+      argonaut-traversals: 10.0.0
+      argparse-basic: 2.0.0
+      array-builder: 0.1.2
+      array-search: 0.5.6
+      arraybuffer: 13.2.0
+      arraybuffer-builder: 3.1.0
+      arraybuffer-types: 3.0.2
+      arrays: 7.2.0
+      arrays-zipper: 2.0.1
+      ask: 1.0.0
+      assert: 6.0.0
+      assert-multiple: 0.3.4
+      avar: 5.0.0
+      b64: 0.0.8
+      barbies: 1.0.1
+      barlow-lens: 0.9.0
+      basic-auth: 3.0.1
+      bifunctors: 6.0.0
+      bigints: 7.0.1
+      bolson: 0.3.2
+      bower-json: 3.0.0
+      bucketchain: 1.0.1
+      bucketchain-basic-auth: 1.0.1
+      bucketchain-conditional: 1.0.1
+      bucketchain-cors: 1.0.1
+      bucketchain-csrf: 1.0.1
+      bucketchain-header-utils: 1.0.1
+      bucketchain-health: 1.0.1
+      bucketchain-history-api-fallback: 1.0.1
+      bucketchain-logger: 1.0.1
+      bucketchain-secure: 1.0.1
+      bucketchain-simple-api: 5.0.1
+      bucketchain-sslify: 1.0.1
+      bucketchain-static: 1.0.1
+      call-by-name: 4.0.1
+      canvas: 6.0.0
+      canvas-action: 9.0.0
+      cartesian: 1.0.6
+      catenable-lists: 7.0.0
+      channel: 1.0.0
+      checked-exceptions: 3.1.1
+      classless: 0.1.1
+      classless-arbitrary: 0.1.1
+      classless-decode-json: 0.1.1
+      classless-encode-json: 0.1.3
+      classnames: 2.0.0
+      codec: 6.0.0
+      codec-argonaut: 10.0.0
+      colors: 7.0.1
+      concur-core: 0.5.0
+      concur-react: 0.5.0
+      concurrent-queues: 3.0.0
+      console: 6.0.0
+      const: 6.0.0
+      contravariant: 6.0.0
+      control: 6.0.0
+      convertable-options: 1.0.0
+      coroutines: 7.0.0
+      crypto: 5.0.1
+      css: 6.0.0
+      datetime: 6.1.0
+      datetime-parsing: 0.2.0
+      debug: 6.0.2
+      decimals: 7.1.0
+      default-values: 1.0.1
+      deku: 0.9.18
+      deno: 0.0.5
+      dissect: 1.0.0
+      distributive: 6.0.0
+      dodo-printer: 2.2.1
+      dom-filereader: 7.0.0
+      dom-indexed: 11.0.0
+      dotenv: 4.0.0
+      droplet: 0.6.0
+      dts: 0.1.3
+      dynamic-buffer: 3.0.1
+      echarts-simple: 0.0.1
+      effect: 4.0.0
+      either: 6.1.0
+      elmish: 0.9.3
+      elmish-enzyme: 0.1.1
+      elmish-hooks: 0.9.1
+      elmish-html: 0.8.1
+      elmish-testing-library: 0.3.1
+      email-validate: 7.0.0
+      encoding: 0.0.8
+      enums: 6.0.1
+      env-names: 0.3.4
+      error: 2.0.0
+      exceptions: 6.0.0
+      exists: 6.0.0
+      exitcodes: 4.0.0
+      expect-inferred: 3.0.0
+      fahrtwind: 2.0.0
+      fallback: 0.1.0
+      fast-vect: 1.1.0
+      fetch: 1.1.4
+      fetch-argonaut: 1.0.0
+      fetch-core: 4.0.4
+      fetch-yoga-json: 1.1.0
+      filterable: 5.0.0
+      fixed-points: 7.0.0
+      fixed-precision: 5.0.0
+      flame: 1.3.0
+      float32: 2.0.0
+      foldable-traversable: 6.0.0
+      foreign: 7.0.0
+      foreign-object: 4.1.0
+      foreign-readwrite: 3.4.0
+      fork: 6.0.0
+      form-urlencoded: 7.0.0
+      formatters: 7.0.0
+      framer-motion: 1.0.1
+      free: 7.0.0
+      freeap: 7.0.0
+      freer-free: 0.0.1
+      freet: 7.0.0
+      functions: 6.0.0
+      functor1: 3.0.0
+      functors: 5.0.0
+      fuzzy: 0.4.0
+      gen: 4.0.0
+      generate-values: 1.0.1
+      generic-router: 0.0.1
+      geojson: 0.0.2
+      geometry-plane: 1.0.3
+      github-actions-toolkit: 0.5.0
+      grain: 3.0.0
+      grain-router: 3.0.0
+      grain-virtualized: 3.0.0
+      graphql-client: 9.3.2
+      graphs: 8.1.0
+      group: 4.1.1
+      halogen: 7.0.0
+      halogen-bootstrap5: 2.1.0
+      halogen-css: 10.0.0
+      halogen-echarts-simple: 0.0.4
+      halogen-formless: 4.0.2
+      halogen-helix: 1.0.0
+      halogen-hooks: 0.6.3
+      halogen-hooks-extra: 0.9.0
+      halogen-store: 0.5.4
+      halogen-storybook: 2.0.0
+      halogen-subscriptions: 2.0.0
+      halogen-svg-elems: 7.0.0
+      halogen-vdom: 8.0.0
+      halogen-vdom-string-renderer: 0.5.0
+      heckin: 2.0.1
+      heterogeneous: 0.6.0
+      homogeneous: 0.4.0
+      http-methods: 6.0.0
+      httpure: 0.16.0
+      httpurple: 3.0.1
+      httpurple-argonaut: 1.0.1
+      httpurple-yoga-json: 1.0.0
+      humdrum: 0.0.1
+      hyrule: 2.3.7
+      identity: 6.0.0
+      identy: 4.0.1
+      indexed-db: 1.0.0
+      indexed-monad: 3.0.0
+      int64: 3.0.0
+      integers: 6.0.0
+      interpolate: 5.0.2
+      invariant: 6.0.0
+      jarilo: 1.0.1
+      jelly: 0.10.0
+      jelly-router: 0.3.0
+      jelly-signal: 0.4.0
+      jest: 1.0.0
+      js-abort-controller: 1.0.0
+      js-bigints: 2.0.0
+      js-date: 8.0.0
+      js-fileio: 3.0.0
+      js-promise: 1.0.0
+      js-promise-aff: 1.0.0
+      js-timers: 6.1.0
+      js-uri: 3.1.0
+      json-codecs: 3.0.0
+      justifill: 0.5.0
+      jwt: 0.0.9
+      language-cst-parser: 0.12.3
+      lazy: 6.0.0
+      lazy-joe: 1.0.0
+      lcg: 4.0.0
+      leibniz: 5.0.0
+      liminal: 1.0.1
+      linalg: 5.1.0
+      lists: 7.0.0
+      literals: 1.0.2
+      logging: 3.0.0
+      logging-journald: 0.4.0
+      machines: 7.0.0
+      maps-eager: 0.4.1
+      marionette: 1.0.0
+      marionette-commander: 0.1.1
+      marionette-react-basic-hooks: 0.1.1
+      matrices: 5.0.1
+      matryoshka: 1.0.0
+      maybe: 6.0.0
+      mdast-util-from-markdown: 0.2.1
+      media-types: 6.0.0
+      midi: 4.0.0
+      milkis: 9.0.0
+      minibench: 4.0.1
+      mmorph: 7.0.0
+      monad-control: 5.0.0
+      monad-logger: 1.3.1
+      monad-loops: 0.5.0
+      monad-unlift: 1.0.1
+      monoid-extras: 0.0.1
+      monoidal: 0.16.0
+      morello: 0.4.0
+      mote: 3.0.0
+      motsunabe: 2.0.0
+      mysql: 6.0.1
+      n3: 0.1.0
+      nano-id: 1.1.0
+      naturals: 3.0.0
+      nested-functor: 0.2.1
+      newtype: 5.0.0
+      nextjs: 0.1.1
+      nextui: 0.2.0
+      node-buffer: 8.0.0
+      node-buffer-blob: 1.0.0
+      node-child-process: 9.0.0
+      node-event-emitter: 1.0.1
+      node-execa: 1.3.2
+      node-fs: 8.2.0
+      node-fs-aff: 9.2.0
+      node-http: 8.0.0
+      node-human-signals: 1.0.0
+      node-net: 4.0.0
+      node-path: 5.0.0
+      node-process: 10.0.0
+      node-readline: 7.0.0
+      node-sqlite3: 8.0.0
+      node-streams: 7.0.0
+      node-streams-aff: 5.0.0
+      node-url: 6.0.0
+      nodemailer: 4.0.1
+      nonempty: 7.0.0
+      now: 6.0.0
+      npm-package-json: 2.0.0
+      nullable: 6.0.0
+      numberfield: 0.1.0
+      numbers: 9.0.1
+      object-maps: 0.1.1
+      ocarina: 1.5.2
+      open-folds: 6.3.0
+      open-memoize: 6.1.0
+      open-pairing: 6.1.0
+      options: 7.0.0
+      optparse: 5.0.0
+      ordered-collections: 3.0.0
+      ordered-set: 0.4.0
+      orders: 6.0.0
+      pairs: 9.0.0
+      parallel: 6.0.0
+      parsing: 10.2.0
+      parsing-dataview: 3.2.4
+      partial: 4.0.0
+      pathy: 9.0.0
+      pha: 0.9.1
+      phaser: 0.7.0
+      pipes: 8.0.0
+      pirates-charm: 0.0.1
+      point-free: 1.0.0
+      pointed-list: 0.5.1
+      polymorphic-vectors: 4.0.0
+      posix-types: 6.0.0
+      precise: 6.0.0
+      precise-datetime: 7.0.0
+      prelude: 6.0.1
+      prettier-printer: 3.0.0
+      profunctor: 6.0.0
+      profunctor-lenses: 8.0.0
+      protobuf: 4.3.0
+      ps-cst: 1.2.0
+      psa-utils: 8.0.0
+      psc-ide: 19.0.0
+      psci-support: 6.0.0
+      qualified-do: 2.2.0
+      quantities: 12.1.0
+      quickcheck: 8.0.1
+      quickcheck-combinators: 0.1.3
+      quickcheck-laws: 7.0.0
+      quickcheck-utf8: 0.0.0
+      random: 6.0.0
+      rationals: 5.0.1
+      rdf: 0.1.0
+      react: 11.0.0
+      react-aria: 0.2.0
+      react-basic: 17.0.0
+      react-basic-classic: 3.0.0
+      react-basic-dnd: 10.1.0
+      react-basic-dom: 6.1.0
+      react-basic-emotion: 7.1.0
+      react-basic-hooks: 8.1.2
+      react-basic-storybook: 2.0.0
+      react-dom: 8.0.0
+      react-halo: 3.0.0
+      react-icons: 1.1.1
+      react-markdown: 0.1.0
+      react-testing-library: 4.0.1
+      react-virtuoso: 1.0.0
+      read: 1.0.1
+      recharts: 1.1.0
+      record: 4.0.0
+      record-extra: 5.0.1
+      record-studio: 1.0.4
+      refs: 6.0.0
+      remotedata: 5.0.0
+      resource: 2.0.1
+      resourcet: 1.0.0
+      result: 1.0.3
+      return: 0.2.0
+      ring-modules: 5.0.1
+      rito: 0.3.2
+      routing: 11.0.0
+      routing-duplex: 0.7.0
+      run: 5.0.0
+      safe-coerce: 2.0.0
+      safely: 4.0.1
+      school-of-music: 1.3.0
+      selection-foldable: 0.2.0
+      semirings: 7.0.0
+      signal: 13.0.0
+      simple-emitter: 3.0.1
+      simple-i18n: 2.0.1
+      simple-json: 9.0.0
+      simple-jwt: 4.0.1
+      simple-ulid: 3.0.0
+      sized-matrices: 1.0.0
+      sized-vectors: 5.0.2
+      slug: 3.0.8
+      small-ffi: 4.0.1
+      soundfonts: 4.1.0
+      sparse-matrices: 1.3.0
+      sparse-polynomials: 2.0.3
+      spec: 7.3.0
+      spec-discovery: 8.0.1
+      spec-quickcheck: 5.0.0
+      splitmix: 2.1.0
+      ssrs: 1.0.0
+      st: 6.2.0
+      statistics: 0.3.2
+      strictlypositiveint: 1.0.1
+      string-parsers: 8.0.0
+      strings: 6.0.1
+      strings-extra: 4.0.0
+      stringutils: 0.0.12
+      substitute: 0.2.3
+      sunde: 3.0.0
+      supply: 0.2.0
+      svg-parser: 3.0.0
+      systemd-journald: 0.3.0
+      tagged: 4.0.2
+      tailrec: 6.1.0
+      tecton: 0.1.6
+      tecton-halogen: 0.1.3
+      test-unit: 17.0.0
+      thermite: 6.3.1
+      thermite-dom: 0.3.1
+      these: 6.0.0
+      toppokki: 4.0.0
+      transformation-matrix: 1.0.1
+      transformers: 6.0.0
+      tree-rose: 4.0.2
+      ts-bridge: 2.0.3
+      tuples: 7.0.0
+      two-or-more: 1.0.0
+      type-equality: 4.0.1
+      typedenv: 2.0.1
+      typelevel: 6.0.0
+      typelevel-lists: 2.1.0
+      typelevel-peano: 1.0.1
+      typelevel-prelude: 7.0.0
+      typelevel-rows: 0.1.0
+      uint: 7.0.0
+      ulid: 3.0.1
+      uncurried-transformers: 1.1.0
+      undefined: 2.0.0
+      undefined-is-not-a-problem: 1.1.0
+      unfoldable: 6.0.0
+      unicode: 6.0.0
+      unique: 0.6.1
+      unlift: 1.0.1
+      unordered-collections: 3.0.1
+      unsafe-coerce: 6.0.0
+      unsafe-reference: 5.0.0
+      untagged-to-tagged: 0.1.4
+      untagged-union: 1.0.0
+      uri: 9.0.0
+      uuid: 9.0.0
+      uuidv4: 1.0.0
+      validation: 6.0.0
+      variant: 8.0.0
+      vectorfield: 1.0.1
+      vectors: 2.1.0
+      versions: 7.0.0
+      visx: 0.0.2
+      web-clipboard: 5.0.0
+      web-cssom: 2.0.0
+      web-cssom-view: 0.1.0
+      web-dom: 6.0.0
+      web-dom-parser: 8.0.0
+      web-dom-xpath: 3.0.0
+      web-encoding: 3.0.0
+      web-events: 4.0.0
+      web-fetch: 3.0.0
+      web-file: 4.0.0
+      web-geometry: 0.1.0
+      web-html: 4.1.0
+      web-pointerevents: 1.0.0
+      web-proletarian: 1.0.0
+      web-promise: 3.1.0
+      web-resize-observer: 2.0.0
+      web-router: 1.0.0
+      web-socket: 4.0.0
+      web-storage: 5.0.0
+      web-streams: 3.0.0
+      web-touchevents: 4.0.0
+      web-uievents: 4.0.0
+      web-url: 2.0.0
+      web-workers: 1.1.0
+      web-xhr: 5.0.1
+      webextension-polyfill: 0.1.0
+      which: 2.0.0
+      yoga-fetch: 1.0.1
+      yoga-json: 5.1.0
+      yoga-om: 0.1.0
+      yoga-postgres: 6.0.0
+      yoga-tree: 1.0.0
   extra_packages:
     html-parser-halogen:
       git: https://github.com/rnons/purescript-html-parser-halogen.git
@@ -220,7 +688,6 @@ workspace:
         - effect
         - foldable-traversable
         - prelude
-        - psci-support
     json-codecs: 4.0.0
     language-cst-parser:
       git: https://github.com/natefaubion/purescript-language-cst-parser.git
@@ -416,1798 +883,2665 @@ workspace:
         - unicode
 packages:
   aff:
-    type: registry
-    version: 7.1.0
-    integrity: sha256-7hOC6uQO9XBAI5FD8F33ChLjFAiZVfd4BJMqlMh7TNU=
-    dependencies:
-      - arrays
-      - bifunctors
-      - control
-      - datetime
-      - effect
-      - either
-      - exceptions
-      - foldable-traversable
-      - functions
-      - maybe
-      - newtype
-      - parallel
-      - prelude
-      - refs
-      - tailrec
-      - transformers
-      - unsafe-coerce
+    needed_by:
+      - spago-core
+      - spago-bin
+      - spago
+      - docs-search-index
+      - docs-search-common
+      - docs-search-client-halogen
+    package:
+      type: registry
+      version: 7.1.0
+      integrity: sha256-7hOC6uQO9XBAI5FD8F33ChLjFAiZVfd4BJMqlMh7TNU=
+      dependencies:
+        - arrays
+        - bifunctors
+        - control
+        - datetime
+        - effect
+        - either
+        - exceptions
+        - foldable-traversable
+        - functions
+        - maybe
+        - newtype
+        - parallel
+        - prelude
+        - refs
+        - tailrec
+        - transformers
+        - unsafe-coerce
   aff-promise:
-    type: registry
-    version: 4.0.0
-    integrity: sha256-Kq5EupbUpXeUXx4JqGQE7/RTTz/H6idzWhsocwlEFhM=
-    dependencies:
-      - aff
-      - foreign
+    needed_by:
+      - spago-bin
+      - spago
+      - docs-search-index
+      - docs-search-common
+      - docs-search-client-halogen
+    package:
+      type: registry
+      version: 4.0.0
+      integrity: sha256-Kq5EupbUpXeUXx4JqGQE7/RTTz/H6idzWhsocwlEFhM=
+      dependencies:
+        - aff
+        - foreign
   affjax:
-    type: registry
-    version: 13.0.0
-    integrity: sha256-blYfaoW4FYIrIdvmT4sB7nN7BathFaEfZuiVLPmHJOo=
-    dependencies:
-      - aff
-      - argonaut-core
-      - arraybuffer-types
-      - foreign
-      - form-urlencoded
-      - http-methods
-      - integers
-      - media-types
-      - nullable
-      - refs
-      - unsafe-coerce
-      - web-xhr
+    needed_by:
+      - spago-bin
+      - spago
+    package:
+      type: registry
+      version: 13.0.0
+      integrity: sha256-blYfaoW4FYIrIdvmT4sB7nN7BathFaEfZuiVLPmHJOo=
+      dependencies:
+        - aff
+        - argonaut-core
+        - arraybuffer-types
+        - foreign
+        - form-urlencoded
+        - http-methods
+        - integers
+        - media-types
+        - nullable
+        - refs
+        - unsafe-coerce
+        - web-xhr
   affjax-node:
-    type: registry
-    version: 1.0.0
-    integrity: sha256-NcmRTXJxJzgHuKoLh+36yA8UejkfouYcX3uevT+Trjc=
-    dependencies:
-      - aff
-      - affjax
-      - either
-      - maybe
-      - prelude
+    needed_by:
+      - spago-bin
+      - spago
+    package:
+      type: registry
+      version: 1.0.0
+      integrity: sha256-NcmRTXJxJzgHuKoLh+36yA8UejkfouYcX3uevT+Trjc=
+      dependencies:
+        - aff
+        - affjax
+        - either
+        - maybe
+        - prelude
   ansi:
-    type: registry
-    version: 7.0.0
-    integrity: sha256-ZMB6HD+q9CXvn9fRCmJ8dvuDrOVHcjombL3oNOerVnE=
-    dependencies:
-      - foldable-traversable
-      - lists
-      - strings
+    needed_by:
+      - spago-core
+      - spago-bin
+      - spago
+      - docs-search-index
+    package:
+      type: registry
+      version: 7.0.0
+      integrity: sha256-ZMB6HD+q9CXvn9fRCmJ8dvuDrOVHcjombL3oNOerVnE=
+      dependencies:
+        - foldable-traversable
+        - lists
+        - strings
   argonaut-core:
-    type: registry
-    version: 7.0.0
-    integrity: sha256-RC82GfAjItydxrO24cdX373KHVZiLqybu19b5X8u7B4=
-    dependencies:
-      - arrays
-      - control
-      - either
-      - foreign-object
-      - functions
-      - gen
-      - maybe
-      - nonempty
-      - prelude
-      - strings
-      - tailrec
+    needed_by:
+      - spago-core
+      - spago-bin
+      - spago
+      - docs-search-index
+      - docs-search-common
+      - docs-search-client-halogen
+    package:
+      type: registry
+      version: 7.0.0
+      integrity: sha256-RC82GfAjItydxrO24cdX373KHVZiLqybu19b5X8u7B4=
+      dependencies:
+        - arrays
+        - control
+        - either
+        - foreign-object
+        - functions
+        - gen
+        - maybe
+        - nonempty
+        - prelude
+        - strings
+        - tailrec
   arraybuffer-types:
-    type: registry
-    version: 3.0.2
-    integrity: sha256-mQKokysYVkooS4uXbO+yovmV/s8b138Ws3zQvOwIHRA=
-    dependencies: []
+    needed_by:
+      - spago-core
+      - spago-bin
+      - spago
+      - docs-search-index
+    package:
+      type: registry
+      version: 3.0.2
+      integrity: sha256-mQKokysYVkooS4uXbO+yovmV/s8b138Ws3zQvOwIHRA=
+      dependencies: []
   arrays:
-    type: registry
-    version: 7.2.0
-    integrity: sha256-vjd5tY1VFIg3HGBUFqG9+tWXqkV3EHRqZCzE+JC2yR0=
-    dependencies:
-      - bifunctors
-      - control
-      - foldable-traversable
-      - maybe
-      - nonempty
-      - partial
-      - prelude
-      - safe-coerce
-      - st
-      - tailrec
-      - tuples
-      - unfoldable
-      - unsafe-coerce
+    needed_by:
+      - spago-core
+      - spago-bin
+      - spago
+      - docs-search-index
+      - docs-search-common
+      - docs-search-client-halogen
+    package:
+      type: registry
+      version: 7.2.0
+      integrity: sha256-vjd5tY1VFIg3HGBUFqG9+tWXqkV3EHRqZCzE+JC2yR0=
+      dependencies:
+        - bifunctors
+        - control
+        - foldable-traversable
+        - maybe
+        - nonempty
+        - partial
+        - prelude
+        - safe-coerce
+        - st
+        - tailrec
+        - tuples
+        - unfoldable
+        - unsafe-coerce
   assert:
-    type: registry
-    version: 6.0.0
-    integrity: sha256-hCSYcCw9kj3qujoDcriWhCdmrpPZoguSPDZhEMnTl3A=
-    dependencies:
-      - console
-      - effect
-      - prelude
+    needed_by:
+      - spago-core
+      - spago-bin
+      - spago
+    package:
+      type: registry
+      version: 6.0.0
+      integrity: sha256-hCSYcCw9kj3qujoDcriWhCdmrpPZoguSPDZhEMnTl3A=
+      dependencies:
+        - console
+        - effect
+        - prelude
   avar:
-    type: registry
-    version: 5.0.0
-    integrity: sha256-e7hf0x4hEpcygXP0LtvfvAQ49Bbj2aWtZT3gqM///0A=
-    dependencies:
-      - aff
-      - effect
-      - either
-      - exceptions
-      - functions
-      - maybe
+    needed_by:
+      - spago-core
+      - spago-bin
+      - spago
+      - docs-search-index
+      - docs-search-client-halogen
+    package:
+      type: registry
+      version: 5.0.0
+      integrity: sha256-e7hf0x4hEpcygXP0LtvfvAQ49Bbj2aWtZT3gqM///0A=
+      dependencies:
+        - aff
+        - effect
+        - either
+        - exceptions
+        - functions
+        - maybe
   b64:
-    type: registry
-    version: 0.0.8
-    integrity: sha256-3QkOhnewZIqhfn0wIU6Zde6Q/LfrS59kgSOcQQaG0gM=
-    dependencies:
-      - arraybuffer-types
-      - either
-      - encoding
-      - enums
-      - exceptions
-      - functions
-      - partial
-      - prelude
-      - strings
+    needed_by:
+      - spago-bin
+      - spago
+    package:
+      type: registry
+      version: 0.0.8
+      integrity: sha256-3QkOhnewZIqhfn0wIU6Zde6Q/LfrS59kgSOcQQaG0gM=
+      dependencies:
+        - arraybuffer-types
+        - either
+        - encoding
+        - enums
+        - exceptions
+        - functions
+        - partial
+        - prelude
+        - strings
   bifunctors:
-    type: registry
-    version: 6.0.0
-    integrity: sha256-/gZwC9YhNxZNQpnHa5BIYerCGM2jeX9ukZiEvYxm5Nw=
-    dependencies:
-      - const
-      - either
-      - newtype
-      - prelude
-      - tuples
+    needed_by:
+      - spago-core
+      - spago-bin
+      - spago
+      - docs-search-index
+      - docs-search-common
+      - docs-search-client-halogen
+    package:
+      type: registry
+      version: 6.0.0
+      integrity: sha256-/gZwC9YhNxZNQpnHa5BIYerCGM2jeX9ukZiEvYxm5Nw=
+      dependencies:
+        - const
+        - either
+        - newtype
+        - prelude
+        - tuples
   catenable-lists:
-    type: registry
-    version: 7.0.0
-    integrity: sha256-76vYENhwF4BWTBsjeLuErCH2jqVT4M3R1HX+4RwSftA=
-    dependencies:
-      - control
-      - foldable-traversable
-      - lists
-      - maybe
-      - prelude
-      - tuples
-      - unfoldable
+    needed_by:
+      - spago-core
+      - spago-bin
+      - spago
+      - docs-search-index
+      - docs-search-client-halogen
+    package:
+      type: registry
+      version: 7.0.0
+      integrity: sha256-76vYENhwF4BWTBsjeLuErCH2jqVT4M3R1HX+4RwSftA=
+      dependencies:
+        - control
+        - foldable-traversable
+        - lists
+        - maybe
+        - prelude
+        - tuples
+        - unfoldable
   codec:
-    type: registry
-    version: 6.0.0
-    integrity: sha256-VLG7Ii38xmeT5UGH98xBFiWp1YnFZim/iMg+aQz2RB8=
-    dependencies:
-      - bifunctors
-      - profunctor
+    needed_by:
+      - spago-core
+      - spago-bin
+      - spago
+      - docs-search-index
+      - docs-search-common
+      - docs-search-client-halogen
+    package:
+      type: registry
+      version: 6.0.0
+      integrity: sha256-VLG7Ii38xmeT5UGH98xBFiWp1YnFZim/iMg+aQz2RB8=
+      dependencies:
+        - bifunctors
+        - profunctor
   codec-argonaut:
-    type: registry
-    version: 10.0.0
-    integrity: sha256-n80U8KiBk333qfQwDobSZWiyNg9BA3CL/EwFznIdRwI=
-    dependencies:
-      - argonaut-core
-      - codec
-      - foreign-object
-      - ordered-collections
-      - type-equality
-      - variant
+    needed_by:
+      - spago-core
+      - spago-bin
+      - spago
+      - docs-search-index
+      - docs-search-common
+      - docs-search-client-halogen
+    package:
+      type: registry
+      version: 10.0.0
+      integrity: sha256-n80U8KiBk333qfQwDobSZWiyNg9BA3CL/EwFznIdRwI=
+      dependencies:
+        - argonaut-core
+        - codec
+        - foreign-object
+        - ordered-collections
+        - type-equality
+        - variant
   colors:
-    type: registry
-    version: 7.0.1
-    integrity: sha256-udlg/y2PFsHYli8Tgz8BQGGrOjyGo0BcJj36IfgYADs=
-    dependencies:
-      - arrays
-      - integers
-      - lists
-      - numbers
-      - partial
-      - strings
+    needed_by:
+      - docs-search-client-halogen
+    package:
+      type: registry
+      version: 7.0.1
+      integrity: sha256-udlg/y2PFsHYli8Tgz8BQGGrOjyGo0BcJj36IfgYADs=
+      dependencies:
+        - arrays
+        - integers
+        - lists
+        - numbers
+        - partial
+        - strings
   console:
-    type: registry
-    version: 6.0.0
-    integrity: sha256-gJpJ53fCDAL8BiCiJXH0HNAJ9K3gJtLo8GDaCK6hA5U=
-    dependencies:
-      - effect
-      - prelude
+    needed_by:
+      - spago-core
+      - spago-bin
+      - spago
+      - docs-search-index
+      - docs-search-common
+      - docs-search-client-halogen
+    package:
+      type: registry
+      version: 6.0.0
+      integrity: sha256-gJpJ53fCDAL8BiCiJXH0HNAJ9K3gJtLo8GDaCK6hA5U=
+      dependencies:
+        - effect
+        - prelude
   const:
-    type: registry
-    version: 6.0.0
-    integrity: sha256-tNrxDW8D8H4jdHE2HiPzpLy08zkzJMmGHdRqt5BQuTc=
-    dependencies:
-      - invariant
-      - newtype
-      - prelude
+    needed_by:
+      - spago-core
+      - spago-bin
+      - spago
+      - docs-search-index
+      - docs-search-common
+      - docs-search-client-halogen
+    package:
+      type: registry
+      version: 6.0.0
+      integrity: sha256-tNrxDW8D8H4jdHE2HiPzpLy08zkzJMmGHdRqt5BQuTc=
+      dependencies:
+        - invariant
+        - newtype
+        - prelude
   contravariant:
-    type: registry
-    version: 6.0.0
-    integrity: sha256-TP+ooAp3vvmdjfQsQJSichF5B4BPDHp3wAJoWchip6c=
-    dependencies:
-      - const
-      - either
-      - newtype
-      - prelude
-      - tuples
+    needed_by:
+      - spago-core
+      - spago-bin
+      - spago
+      - docs-search-index
+      - docs-search-common
+      - docs-search-client-halogen
+    package:
+      type: registry
+      version: 6.0.0
+      integrity: sha256-TP+ooAp3vvmdjfQsQJSichF5B4BPDHp3wAJoWchip6c=
+      dependencies:
+        - const
+        - either
+        - newtype
+        - prelude
+        - tuples
   control:
-    type: registry
-    version: 6.0.0
-    integrity: sha256-sH7Pg9E96JCPF9PIA6oQ8+BjTyO/BH1ZuE/bOcyj4Jk=
-    dependencies:
-      - newtype
-      - prelude
+    needed_by:
+      - spago-core
+      - spago-bin
+      - spago
+      - docs-search-index
+      - docs-search-common
+      - docs-search-client-halogen
+    package:
+      type: registry
+      version: 6.0.0
+      integrity: sha256-sH7Pg9E96JCPF9PIA6oQ8+BjTyO/BH1ZuE/bOcyj4Jk=
+      dependencies:
+        - newtype
+        - prelude
   convertable-options:
-    type: registry
-    version: 1.0.0
-    integrity: sha256-IFsYp0rXyzUtjoi3jed6yFYAVM+NhfgSn2j/zkjpccM=
-    dependencies:
-      - console
-      - effect
-      - maybe
-      - record
+    needed_by:
+      - spago-bin
+      - spago
+    package:
+      type: registry
+      version: 1.0.0
+      integrity: sha256-IFsYp0rXyzUtjoi3jed6yFYAVM+NhfgSn2j/zkjpccM=
+      dependencies:
+        - console
+        - effect
+        - maybe
+        - record
   css:
-    type: registry
-    version: 6.0.0
-    integrity: sha256-zfSHxgiU4rSWuVxMjSKKh+s7j433wxmsr+CqI6hm9s4=
-    dependencies:
-      - colors
-      - console
-      - effect
-      - nonempty
-      - profunctor
-      - strings
-      - these
-      - transformers
+    needed_by:
+      - docs-search-client-halogen
+    package:
+      type: registry
+      version: 6.0.0
+      integrity: sha256-zfSHxgiU4rSWuVxMjSKKh+s7j433wxmsr+CqI6hm9s4=
+      dependencies:
+        - colors
+        - console
+        - effect
+        - nonempty
+        - profunctor
+        - strings
+        - these
+        - transformers
   datetime:
-    type: registry
-    version: 6.1.0
-    integrity: sha256-g/5X5BBegQWLpI9IWD+sY6mcaYpzzlW5lz5NBzaMtyI=
-    dependencies:
-      - bifunctors
-      - control
-      - either
-      - enums
-      - foldable-traversable
-      - functions
-      - gen
-      - integers
-      - lists
-      - maybe
-      - newtype
-      - numbers
-      - ordered-collections
-      - partial
-      - prelude
-      - tuples
+    needed_by:
+      - spago-core
+      - spago-bin
+      - spago
+      - docs-search-index
+      - docs-search-common
+      - docs-search-client-halogen
+    package:
+      type: registry
+      version: 6.1.0
+      integrity: sha256-g/5X5BBegQWLpI9IWD+sY6mcaYpzzlW5lz5NBzaMtyI=
+      dependencies:
+        - bifunctors
+        - control
+        - either
+        - enums
+        - foldable-traversable
+        - functions
+        - gen
+        - integers
+        - lists
+        - maybe
+        - newtype
+        - numbers
+        - ordered-collections
+        - partial
+        - prelude
+        - tuples
   distributive:
-    type: registry
-    version: 6.0.0
-    integrity: sha256-HTDdmEnzigMl+02SJB88j+gAXDx9VKsbvR4MJGDPbOQ=
-    dependencies:
-      - identity
-      - newtype
-      - prelude
-      - tuples
-      - type-equality
+    needed_by:
+      - spago-core
+      - spago-bin
+      - spago
+      - docs-search-index
+      - docs-search-common
+      - docs-search-client-halogen
+    package:
+      type: registry
+      version: 6.0.0
+      integrity: sha256-HTDdmEnzigMl+02SJB88j+gAXDx9VKsbvR4MJGDPbOQ=
+      dependencies:
+        - identity
+        - newtype
+        - prelude
+        - tuples
+        - type-equality
   dodo-printer:
-    type: registry
-    version: 2.2.1
-    integrity: sha256-9HgCr5c0TMZCSi/ibCB5LlAL8HTQf/KTRljIXkZeEKM=
-    dependencies:
-      - aff
-      - ansi
-      - arrays
-      - avar
-      - console
-      - control
-      - effect
-      - either
-      - exceptions
-      - foldable-traversable
-      - integers
-      - lists
-      - maybe
-      - minibench
-      - newtype
-      - node-buffer
-      - node-child-process
-      - node-fs-aff
-      - node-path
-      - node-process
-      - node-streams
-      - parallel
-      - partial
-      - posix-types
-      - prelude
-      - safe-coerce
-      - strings
-      - tuples
+    needed_by:
+      - spago-core
+      - spago-bin
+      - spago
+    package:
+      type: registry
+      version: 2.2.1
+      integrity: sha256-9HgCr5c0TMZCSi/ibCB5LlAL8HTQf/KTRljIXkZeEKM=
+      dependencies:
+        - aff
+        - ansi
+        - arrays
+        - avar
+        - console
+        - control
+        - effect
+        - either
+        - exceptions
+        - foldable-traversable
+        - integers
+        - lists
+        - maybe
+        - minibench
+        - newtype
+        - node-buffer
+        - node-child-process
+        - node-fs-aff
+        - node-path
+        - node-process
+        - node-streams
+        - parallel
+        - partial
+        - posix-types
+        - prelude
+        - safe-coerce
+        - strings
+        - tuples
   dom-indexed:
-    type: registry
-    version: 11.0.0
-    integrity: sha256-asNUditTILJdNGS7xxFFkm6TrxC0hykoZUII3aTi5Q4=
-    dependencies:
-      - media-types
-      - prelude
-      - web-clipboard
-      - web-pointerevents
-      - web-touchevents
+    needed_by:
+      - docs-search-client-halogen
+    package:
+      type: registry
+      version: 11.0.0
+      integrity: sha256-asNUditTILJdNGS7xxFFkm6TrxC0hykoZUII3aTi5Q4=
+      dependencies:
+        - media-types
+        - prelude
+        - web-clipboard
+        - web-pointerevents
+        - web-touchevents
   effect:
-    type: registry
-    version: 4.0.0
-    integrity: sha256-eBtZu+HZcMa5HilvI6kaDyVX3ji8p0W9MGKy2K4T6+M=
-    dependencies:
-      - prelude
+    needed_by:
+      - spago-core
+      - spago-bin
+      - spago
+      - docs-search-index
+      - docs-search-common
+      - docs-search-client-halogen
+    package:
+      type: registry
+      version: 4.0.0
+      integrity: sha256-eBtZu+HZcMa5HilvI6kaDyVX3ji8p0W9MGKy2K4T6+M=
+      dependencies:
+        - prelude
   either:
-    type: registry
-    version: 6.1.0
-    integrity: sha256-6hgTPisnMWVwQivOu2PKYcH8uqjEOOqDyaDQVUchTpY=
-    dependencies:
-      - control
-      - invariant
-      - maybe
-      - prelude
+    needed_by:
+      - spago-core
+      - spago-bin
+      - spago
+      - docs-search-index
+      - docs-search-common
+      - docs-search-client-halogen
+    package:
+      type: registry
+      version: 6.1.0
+      integrity: sha256-6hgTPisnMWVwQivOu2PKYcH8uqjEOOqDyaDQVUchTpY=
+      dependencies:
+        - control
+        - invariant
+        - maybe
+        - prelude
   encoding:
-    type: registry
-    version: 0.0.8
-    integrity: sha256-n0HhENAax0yr7JFwZXcisx0jJvVf1dFwqd+Q5i2Pr88=
-    dependencies:
-      - arraybuffer-types
-      - either
-      - exceptions
-      - functions
-      - prelude
+    needed_by:
+      - spago-bin
+      - spago
+    package:
+      type: registry
+      version: 0.0.8
+      integrity: sha256-n0HhENAax0yr7JFwZXcisx0jJvVf1dFwqd+Q5i2Pr88=
+      dependencies:
+        - arraybuffer-types
+        - either
+        - exceptions
+        - functions
+        - prelude
   enums:
-    type: registry
-    version: 6.0.1
-    integrity: sha256-HWaD73JFLorc4A6trKIRUeDMdzE+GpkJaEOM1nTNkC8=
-    dependencies:
-      - control
-      - either
-      - gen
-      - maybe
-      - newtype
-      - nonempty
-      - partial
-      - prelude
-      - tuples
-      - unfoldable
+    needed_by:
+      - spago-core
+      - spago-bin
+      - spago
+      - docs-search-index
+      - docs-search-common
+      - docs-search-client-halogen
+    package:
+      type: registry
+      version: 6.0.1
+      integrity: sha256-HWaD73JFLorc4A6trKIRUeDMdzE+GpkJaEOM1nTNkC8=
+      dependencies:
+        - control
+        - either
+        - gen
+        - maybe
+        - newtype
+        - nonempty
+        - partial
+        - prelude
+        - tuples
+        - unfoldable
   exceptions:
-    type: registry
-    version: 6.0.0
-    integrity: sha256-y/xTAEIZIARCE+50/u1di0ncebJ+CIwNOLswyOWzMTw=
-    dependencies:
-      - effect
-      - either
-      - maybe
-      - prelude
+    needed_by:
+      - spago-core
+      - spago-bin
+      - spago
+      - docs-search-index
+      - docs-search-common
+      - docs-search-client-halogen
+    package:
+      type: registry
+      version: 6.0.0
+      integrity: sha256-y/xTAEIZIARCE+50/u1di0ncebJ+CIwNOLswyOWzMTw=
+      dependencies:
+        - effect
+        - either
+        - maybe
+        - prelude
   exists:
-    type: registry
-    version: 6.0.0
-    integrity: sha256-A0JQHpTfo1dNOj9U5/Fd3xndlRSE0g2IQWOGor2yXn8=
-    dependencies:
-      - unsafe-coerce
+    needed_by:
+      - spago-core
+      - spago-bin
+      - spago
+      - docs-search-index
+      - docs-search-common
+      - docs-search-client-halogen
+    package:
+      type: registry
+      version: 6.0.0
+      integrity: sha256-A0JQHpTfo1dNOj9U5/Fd3xndlRSE0g2IQWOGor2yXn8=
+      dependencies:
+        - unsafe-coerce
   exitcodes:
-    type: registry
-    version: 4.0.0
-    integrity: sha256-4wxViTbyOoyKJ/WaRGI6+hZmgMKI5Miv16lSwefiLSM=
-    dependencies:
-      - enums
+    needed_by:
+      - spago-bin
+    package:
+      type: registry
+      version: 4.0.0
+      integrity: sha256-4wxViTbyOoyKJ/WaRGI6+hZmgMKI5Miv16lSwefiLSM=
+      dependencies:
+        - enums
   fetch:
-    type: registry
-    version: 1.1.4
-    integrity: sha256-Tmt60rjS4PNtKMVGpo8O6W1Fdhcu3a3CvyN/x+SwXEs=
-    dependencies:
-      - aff
-      - aff-promise
-      - arraybuffer-types
-      - effect
-      - fetch-core
-      - foreign
-      - http-methods
-      - newtype
-      - prelude
-      - record
-      - typelevel-prelude
-      - unsafe-coerce
-      - web-file
-      - web-promise
-      - web-streams
+    needed_by:
+      - spago-bin
+      - spago
+    package:
+      type: registry
+      version: 1.1.4
+      integrity: sha256-Tmt60rjS4PNtKMVGpo8O6W1Fdhcu3a3CvyN/x+SwXEs=
+      dependencies:
+        - aff
+        - aff-promise
+        - arraybuffer-types
+        - effect
+        - fetch-core
+        - foreign
+        - http-methods
+        - newtype
+        - prelude
+        - record
+        - typelevel-prelude
+        - unsafe-coerce
+        - web-file
+        - web-promise
+        - web-streams
   fetch-core:
-    type: registry
-    version: 4.0.4
-    integrity: sha256-lS4yhvznII/vg37LewU/Ubeoj6OpxED2kb5/yn58YQQ=
-    dependencies:
-      - arraybuffer-types
-      - arrays
-      - console
-      - effect
-      - foldable-traversable
-      - foreign
-      - foreign-object
-      - functions
-      - http-methods
-      - maybe
-      - newtype
-      - nullable
-      - prelude
-      - record
-      - tuples
-      - typelevel-prelude
-      - unfoldable
-      - unsafe-coerce
-      - web-file
-      - web-promise
-      - web-streams
+    needed_by:
+      - spago-bin
+      - spago
+    package:
+      type: registry
+      version: 4.0.4
+      integrity: sha256-lS4yhvznII/vg37LewU/Ubeoj6OpxED2kb5/yn58YQQ=
+      dependencies:
+        - arraybuffer-types
+        - arrays
+        - console
+        - effect
+        - foldable-traversable
+        - foreign
+        - foreign-object
+        - functions
+        - http-methods
+        - maybe
+        - newtype
+        - nullable
+        - prelude
+        - record
+        - tuples
+        - typelevel-prelude
+        - unfoldable
+        - unsafe-coerce
+        - web-file
+        - web-promise
+        - web-streams
   filterable:
-    type: registry
-    version: 5.0.0
-    integrity: sha256-cCojJHRnTmpY1j1kegI4CFwghdQ2Fm/8dzM8IlC+lng=
-    dependencies:
-      - arrays
-      - either
-      - foldable-traversable
-      - identity
-      - lists
-      - ordered-collections
+    needed_by:
+      - spago-core
+      - spago-bin
+      - spago
+    package:
+      type: registry
+      version: 5.0.0
+      integrity: sha256-cCojJHRnTmpY1j1kegI4CFwghdQ2Fm/8dzM8IlC+lng=
+      dependencies:
+        - arrays
+        - either
+        - foldable-traversable
+        - identity
+        - lists
+        - ordered-collections
   fixed-points:
-    type: registry
-    version: 7.0.0
-    integrity: sha256-hTl5fzeG4mzAOFzEzAeNH7kJvJgYCH7x3v2NdX9pOE4=
-    dependencies:
-      - exists
-      - newtype
-      - prelude
-      - transformers
+    needed_by:
+      - spago-core
+      - spago-bin
+      - spago
+      - docs-search-index
+      - docs-search-common
+      - docs-search-client-halogen
+    package:
+      type: registry
+      version: 7.0.0
+      integrity: sha256-hTl5fzeG4mzAOFzEzAeNH7kJvJgYCH7x3v2NdX9pOE4=
+      dependencies:
+        - exists
+        - newtype
+        - prelude
+        - transformers
   foldable-traversable:
-    type: registry
-    version: 6.0.0
-    integrity: sha256-fLeqRYM4jUrZD5H4WqcwUgzU7XfYkzO4zhgtNc3jcWM=
-    dependencies:
-      - bifunctors
-      - const
-      - control
-      - either
-      - functors
-      - identity
-      - maybe
-      - newtype
-      - orders
-      - prelude
-      - tuples
+    needed_by:
+      - spago-core
+      - spago-bin
+      - spago
+      - docs-search-index
+      - docs-search-common
+      - docs-search-client-halogen
+    package:
+      type: registry
+      version: 6.0.0
+      integrity: sha256-fLeqRYM4jUrZD5H4WqcwUgzU7XfYkzO4zhgtNc3jcWM=
+      dependencies:
+        - bifunctors
+        - const
+        - control
+        - either
+        - functors
+        - identity
+        - maybe
+        - newtype
+        - orders
+        - prelude
+        - tuples
   foreign:
-    type: registry
-    version: 7.0.0
-    integrity: sha256-1ORiqoS3HW+qfwSZAppHPWy4/6AQysxZ2t29jcdUMNA=
-    dependencies:
-      - either
-      - functions
-      - identity
-      - integers
-      - lists
-      - maybe
-      - prelude
-      - strings
-      - transformers
+    needed_by:
+      - spago-core
+      - spago-bin
+      - spago
+      - docs-search-index
+      - docs-search-common
+      - docs-search-client-halogen
+    package:
+      type: registry
+      version: 7.0.0
+      integrity: sha256-1ORiqoS3HW+qfwSZAppHPWy4/6AQysxZ2t29jcdUMNA=
+      dependencies:
+        - either
+        - functions
+        - identity
+        - integers
+        - lists
+        - maybe
+        - prelude
+        - strings
+        - transformers
   foreign-object:
-    type: registry
-    version: 4.1.0
-    integrity: sha256-q24okj6mT+yGHYQ+ei/pYPj5ih6sTbu7eDv/WU56JVo=
-    dependencies:
-      - arrays
-      - foldable-traversable
-      - functions
-      - gen
-      - lists
-      - maybe
-      - prelude
-      - st
-      - tailrec
-      - tuples
-      - typelevel-prelude
-      - unfoldable
+    needed_by:
+      - spago-core
+      - spago-bin
+      - spago
+      - docs-search-index
+      - docs-search-common
+      - docs-search-client-halogen
+    package:
+      type: registry
+      version: 4.1.0
+      integrity: sha256-q24okj6mT+yGHYQ+ei/pYPj5ih6sTbu7eDv/WU56JVo=
+      dependencies:
+        - arrays
+        - foldable-traversable
+        - functions
+        - gen
+        - lists
+        - maybe
+        - prelude
+        - st
+        - tailrec
+        - tuples
+        - typelevel-prelude
+        - unfoldable
   fork:
-    type: registry
-    version: 6.0.0
-    integrity: sha256-X7u0SuCvFbLbzuNEKLBNuWjmcroqMqit4xEzpQwAP7E=
-    dependencies:
-      - aff
+    needed_by:
+      - spago-bin
+      - spago
+      - docs-search-index
+      - docs-search-client-halogen
+    package:
+      type: registry
+      version: 6.0.0
+      integrity: sha256-X7u0SuCvFbLbzuNEKLBNuWjmcroqMqit4xEzpQwAP7E=
+      dependencies:
+        - aff
   form-urlencoded:
-    type: registry
-    version: 7.0.0
-    integrity: sha256-WUzk8DTjrbPVHKZ5w7XpPBO6ci6xFhvYguHp6RvX+18=
-    dependencies:
-      - foldable-traversable
-      - js-uri
-      - maybe
-      - newtype
-      - prelude
-      - strings
-      - tuples
+    needed_by:
+      - spago-bin
+      - spago
+    package:
+      type: registry
+      version: 7.0.0
+      integrity: sha256-WUzk8DTjrbPVHKZ5w7XpPBO6ci6xFhvYguHp6RvX+18=
+      dependencies:
+        - foldable-traversable
+        - js-uri
+        - maybe
+        - newtype
+        - prelude
+        - strings
+        - tuples
   formatters:
-    type: registry
-    version: 7.0.0
-    integrity: sha256-5JaC9d2p0xoqJWjWxlHH19R4iJwFTBr4j7SlYcLgicE=
-    dependencies:
-      - datetime
-      - fixed-points
-      - lists
-      - numbers
-      - parsing
-      - prelude
-      - transformers
+    needed_by:
+      - spago-core
+      - spago-bin
+      - spago
+      - docs-search-index
+      - docs-search-common
+      - docs-search-client-halogen
+    package:
+      type: registry
+      version: 7.0.0
+      integrity: sha256-5JaC9d2p0xoqJWjWxlHH19R4iJwFTBr4j7SlYcLgicE=
+      dependencies:
+        - datetime
+        - fixed-points
+        - lists
+        - numbers
+        - parsing
+        - prelude
+        - transformers
   free:
-    type: registry
-    version: 7.0.0
-    integrity: sha256-72auTIZAG6fhz4F94rxyDwgfnHwp+/89rujZpZWrV0w=
-    dependencies:
-      - catenable-lists
-      - control
-      - distributive
-      - either
-      - exists
-      - foldable-traversable
-      - invariant
-      - lazy
-      - maybe
-      - prelude
-      - tailrec
-      - transformers
-      - tuples
-      - unsafe-coerce
+    needed_by:
+      - spago-core
+      - spago-bin
+      - spago
+      - docs-search-index
+      - docs-search-client-halogen
+    package:
+      type: registry
+      version: 7.0.0
+      integrity: sha256-72auTIZAG6fhz4F94rxyDwgfnHwp+/89rujZpZWrV0w=
+      dependencies:
+        - catenable-lists
+        - control
+        - distributive
+        - either
+        - exists
+        - foldable-traversable
+        - invariant
+        - lazy
+        - maybe
+        - prelude
+        - tailrec
+        - transformers
+        - tuples
+        - unsafe-coerce
   freeap:
-    type: registry
-    version: 7.0.0
-    integrity: sha256-T1VbmNxdNSKEgV4p8uFFv0F16cz+Xx1BkfF64etSdNI=
-    dependencies:
-      - const
-      - exists
-      - gen
-      - lists
+    needed_by:
+      - docs-search-client-halogen
+    package:
+      type: registry
+      version: 7.0.0
+      integrity: sha256-T1VbmNxdNSKEgV4p8uFFv0F16cz+Xx1BkfF64etSdNI=
+      dependencies:
+        - const
+        - exists
+        - gen
+        - lists
   functions:
-    type: registry
-    version: 6.0.0
-    integrity: sha256-adMyJNEnhGde2unHHAP79gPtlNjNqzgLB8arEOn9hLI=
-    dependencies:
-      - prelude
+    needed_by:
+      - spago-core
+      - spago-bin
+      - spago
+      - docs-search-index
+      - docs-search-common
+      - docs-search-client-halogen
+    package:
+      type: registry
+      version: 6.0.0
+      integrity: sha256-adMyJNEnhGde2unHHAP79gPtlNjNqzgLB8arEOn9hLI=
+      dependencies:
+        - prelude
   functors:
-    type: registry
-    version: 5.0.0
-    integrity: sha256-zfPWWYisbD84MqwpJSZFlvM6v86McM68ob8p9s27ywU=
-    dependencies:
-      - bifunctors
-      - const
-      - contravariant
-      - control
-      - distributive
-      - either
-      - invariant
-      - maybe
-      - newtype
-      - prelude
-      - profunctor
-      - tuples
-      - unsafe-coerce
+    needed_by:
+      - spago-core
+      - spago-bin
+      - spago
+      - docs-search-index
+      - docs-search-common
+      - docs-search-client-halogen
+    package:
+      type: registry
+      version: 5.0.0
+      integrity: sha256-zfPWWYisbD84MqwpJSZFlvM6v86McM68ob8p9s27ywU=
+      dependencies:
+        - bifunctors
+        - const
+        - contravariant
+        - control
+        - distributive
+        - either
+        - invariant
+        - maybe
+        - newtype
+        - prelude
+        - profunctor
+        - tuples
+        - unsafe-coerce
   gen:
-    type: registry
-    version: 4.0.0
-    integrity: sha256-f7yzAXWwr+xnaqEOcvyO3ezKdoes8+WXWdXIHDBCAPI=
-    dependencies:
-      - either
-      - foldable-traversable
-      - identity
-      - maybe
-      - newtype
-      - nonempty
-      - prelude
-      - tailrec
-      - tuples
-      - unfoldable
+    needed_by:
+      - spago-core
+      - spago-bin
+      - spago
+      - docs-search-index
+      - docs-search-common
+      - docs-search-client-halogen
+    package:
+      type: registry
+      version: 4.0.0
+      integrity: sha256-f7yzAXWwr+xnaqEOcvyO3ezKdoes8+WXWdXIHDBCAPI=
+      dependencies:
+        - either
+        - foldable-traversable
+        - identity
+        - maybe
+        - newtype
+        - nonempty
+        - prelude
+        - tailrec
+        - tuples
+        - unfoldable
   graphs:
-    type: registry
-    version: 8.1.0
-    integrity: sha256-mLOuNSMB/kHUBEIV+pePLc1Exo5z/WmT3BHmGIGlxQw=
-    dependencies:
-      - catenable-lists
-      - ordered-collections
+    needed_by:
+      - spago-core
+      - spago-bin
+      - spago
+    package:
+      type: registry
+      version: 8.1.0
+      integrity: sha256-mLOuNSMB/kHUBEIV+pePLc1Exo5z/WmT3BHmGIGlxQw=
+      dependencies:
+        - catenable-lists
+        - ordered-collections
   halogen:
-    type: registry
-    version: 7.0.0
-    integrity: sha256-aAE8oW32YiDdA3oQZxPbFkK4n31paT4JL6pvzOe47YE=
-    dependencies:
-      - aff
-      - avar
-      - console
-      - const
-      - dom-indexed
-      - effect
-      - foreign
-      - fork
-      - free
-      - freeap
-      - halogen-subscriptions
-      - halogen-vdom
-      - media-types
-      - nullable
-      - ordered-collections
-      - parallel
-      - profunctor
-      - transformers
-      - unsafe-coerce
-      - unsafe-reference
-      - web-file
-      - web-uievents
+    needed_by:
+      - docs-search-client-halogen
+    package:
+      type: registry
+      version: 7.0.0
+      integrity: sha256-aAE8oW32YiDdA3oQZxPbFkK4n31paT4JL6pvzOe47YE=
+      dependencies:
+        - aff
+        - avar
+        - console
+        - const
+        - dom-indexed
+        - effect
+        - foreign
+        - fork
+        - free
+        - freeap
+        - halogen-subscriptions
+        - halogen-vdom
+        - media-types
+        - nullable
+        - ordered-collections
+        - parallel
+        - profunctor
+        - transformers
+        - unsafe-coerce
+        - unsafe-reference
+        - web-file
+        - web-uievents
   halogen-css:
-    type: registry
-    version: 10.0.0
-    integrity: sha256-ZKz2cSbfkcY2faMDwSGu7pa2P8aEHPv/a03Hnyy+mdw=
-    dependencies:
-      - css
-      - halogen
+    needed_by:
+      - docs-search-client-halogen
+    package:
+      type: registry
+      version: 10.0.0
+      integrity: sha256-ZKz2cSbfkcY2faMDwSGu7pa2P8aEHPv/a03Hnyy+mdw=
+      dependencies:
+        - css
+        - halogen
   halogen-subscriptions:
-    type: registry
-    version: 2.0.0
-    integrity: sha256-8/BPME/sC/kWMDxp0+n4k09gA1IIedXn2yUJ4pCH5xw=
-    dependencies:
-      - arrays
-      - effect
-      - foldable-traversable
-      - functors
-      - refs
-      - safe-coerce
-      - unsafe-reference
+    needed_by:
+      - docs-search-client-halogen
+    package:
+      type: registry
+      version: 2.0.0
+      integrity: sha256-8/BPME/sC/kWMDxp0+n4k09gA1IIedXn2yUJ4pCH5xw=
+      dependencies:
+        - arrays
+        - effect
+        - foldable-traversable
+        - functors
+        - refs
+        - safe-coerce
+        - unsafe-reference
   halogen-vdom:
-    type: registry
-    version: 8.0.0
-    integrity: sha256-5UMDekaYNSM3jtpfWoWTbmZ38rIcnguzGRW3z+IQgV4=
-    dependencies:
-      - bifunctors
-      - effect
-      - foreign
-      - foreign-object
-      - maybe
-      - prelude
-      - refs
-      - tuples
-      - unsafe-coerce
-      - web-html
+    needed_by:
+      - docs-search-client-halogen
+    package:
+      type: registry
+      version: 8.0.0
+      integrity: sha256-5UMDekaYNSM3jtpfWoWTbmZ38rIcnguzGRW3z+IQgV4=
+      dependencies:
+        - bifunctors
+        - effect
+        - foreign
+        - foreign-object
+        - maybe
+        - prelude
+        - refs
+        - tuples
+        - unsafe-coerce
+        - web-html
   html-parser-halogen:
-    type: git
-    url: https://github.com/rnons/purescript-html-parser-halogen.git
-    rev: 035a51d02ba9f8b70c3ffd9fe31a3f5bed19941c
-    dependencies:
-      - halogen
-      - string-parsers
+    needed_by:
+      - docs-search-client-halogen
+    package:
+      type: git
+      url: https://github.com/rnons/purescript-html-parser-halogen.git
+      rev: 035a51d02ba9f8b70c3ffd9fe31a3f5bed19941c
+      dependencies:
+        - halogen
+        - string-parsers
   http-methods:
-    type: registry
-    version: 6.0.0
-    integrity: sha256-Orr7rbDGcp7qoqmUMXPRMjBx+C4jqOQcFe9+gE3nMgU=
-    dependencies:
-      - either
-      - prelude
-      - strings
+    needed_by:
+      - spago-bin
+      - spago
+    package:
+      type: registry
+      version: 6.0.0
+      integrity: sha256-Orr7rbDGcp7qoqmUMXPRMjBx+C4jqOQcFe9+gE3nMgU=
+      dependencies:
+        - either
+        - prelude
+        - strings
   identity:
-    type: registry
-    version: 6.0.0
-    integrity: sha256-4wY0XZbAksjY6UAg99WkuKyJlQlWAfTi2ssadH0wVMY=
-    dependencies:
-      - control
-      - invariant
-      - newtype
-      - prelude
+    needed_by:
+      - spago-core
+      - spago-bin
+      - spago
+      - docs-search-index
+      - docs-search-common
+      - docs-search-client-halogen
+    package:
+      type: registry
+      version: 6.0.0
+      integrity: sha256-4wY0XZbAksjY6UAg99WkuKyJlQlWAfTi2ssadH0wVMY=
+      dependencies:
+        - control
+        - invariant
+        - newtype
+        - prelude
   integers:
-    type: registry
-    version: 6.0.0
-    integrity: sha256-sf+sK26R1hzwl3NhXR7WAu9zCDjQnfoXwcyGoseX158=
-    dependencies:
-      - maybe
-      - numbers
-      - prelude
+    needed_by:
+      - spago-core
+      - spago-bin
+      - spago
+      - docs-search-index
+      - docs-search-common
+      - docs-search-client-halogen
+    package:
+      type: registry
+      version: 6.0.0
+      integrity: sha256-sf+sK26R1hzwl3NhXR7WAu9zCDjQnfoXwcyGoseX158=
+      dependencies:
+        - maybe
+        - numbers
+        - prelude
   invariant:
-    type: registry
-    version: 6.0.0
-    integrity: sha256-RGWWyYrz0Hs1KjPDA+87Kia67ZFBhfJ5lMGOMCEFoLo=
-    dependencies:
-      - control
-      - prelude
+    needed_by:
+      - spago-core
+      - spago-bin
+      - spago
+      - docs-search-index
+      - docs-search-common
+      - docs-search-client-halogen
+    package:
+      type: registry
+      version: 6.0.0
+      integrity: sha256-RGWWyYrz0Hs1KjPDA+87Kia67ZFBhfJ5lMGOMCEFoLo=
+      dependencies:
+        - control
+        - prelude
   js-date:
-    type: registry
-    version: 8.0.0
-    integrity: sha256-6TVF4DWg5JL+jRAsoMssYw8rgOVALMUHT1CuNZt8NRo=
-    dependencies:
-      - datetime
-      - effect
-      - exceptions
-      - foreign
-      - integers
-      - now
+    needed_by:
+      - spago-core
+      - spago-bin
+      - spago
+      - docs-search-index
+      - docs-search-client-halogen
+    package:
+      type: registry
+      version: 8.0.0
+      integrity: sha256-6TVF4DWg5JL+jRAsoMssYw8rgOVALMUHT1CuNZt8NRo=
+      dependencies:
+        - datetime
+        - effect
+        - exceptions
+        - foreign
+        - integers
+        - now
   js-promise:
-    type: registry
-    version: 1.0.0
-    integrity: sha256-kXNo5g9RJgPdrTuKRe5oG2kBIwPp+j5VDPDplqZBJzQ=
-    dependencies:
-      - effect
-      - exceptions
-      - foldable-traversable
-      - functions
-      - maybe
-      - prelude
+    needed_by:
+      - docs-search-client-halogen
+    package:
+      type: registry
+      version: 1.0.0
+      integrity: sha256-kXNo5g9RJgPdrTuKRe5oG2kBIwPp+j5VDPDplqZBJzQ=
+      dependencies:
+        - effect
+        - exceptions
+        - foldable-traversable
+        - functions
+        - maybe
+        - prelude
   js-timers:
-    type: registry
-    version: 6.1.0
-    integrity: sha256-znHWLSSOYw15P5DTcsAdal2lf7nGA2yayLdOZ2t5r7o=
-    dependencies:
-      - effect
+    needed_by:
+      - spago-bin
+      - spago
+    package:
+      type: registry
+      version: 6.1.0
+      integrity: sha256-znHWLSSOYw15P5DTcsAdal2lf7nGA2yayLdOZ2t5r7o=
+      dependencies:
+        - effect
   js-uri:
-    type: registry
-    version: 3.1.0
-    integrity: sha256-3p0ynHveCJmC2CXze+eMBdW/2l5e953Q8XMAKz+jxUo=
-    dependencies:
-      - functions
-      - maybe
+    needed_by:
+      - spago-core
+      - spago-bin
+      - spago
+      - docs-search-client-halogen
+    package:
+      type: registry
+      version: 3.1.0
+      integrity: sha256-3p0ynHveCJmC2CXze+eMBdW/2l5e953Q8XMAKz+jxUo=
+      dependencies:
+        - functions
+        - maybe
   json-codecs:
-    type: registry
-    version: 4.0.0
-    integrity: sha256-OMLGVAE2kbdKrTTqXLXNz/+HbX/2YdAzFCvb5PdiZYk=
-    dependencies:
-      - argonaut-core
-      - arrays
-      - bifunctors
-      - either
-      - foldable-traversable
-      - foreign-object
-      - functions
-      - identity
-      - integers
-      - lists
-      - maybe
-      - newtype
-      - nonempty
-      - nullable
-      - ordered-collections
-      - partial
-      - prelude
-      - record
-      - safe-coerce
-      - strings
-      - these
-      - tuples
-      - unsafe-coerce
+    needed_by:
+      - spago-bin
+      - spago
+      - docs-search-index
+      - docs-search-common
+      - docs-search-client-halogen
+    package:
+      type: registry
+      version: 4.0.0
+      integrity: sha256-OMLGVAE2kbdKrTTqXLXNz/+HbX/2YdAzFCvb5PdiZYk=
+      dependencies:
+        - argonaut-core
+        - arrays
+        - bifunctors
+        - either
+        - foldable-traversable
+        - foreign-object
+        - functions
+        - identity
+        - integers
+        - lists
+        - maybe
+        - newtype
+        - nonempty
+        - nullable
+        - ordered-collections
+        - partial
+        - prelude
+        - record
+        - safe-coerce
+        - strings
+        - these
+        - tuples
+        - unsafe-coerce
   language-cst-parser:
-    type: git
-    url: https://github.com/natefaubion/purescript-language-cst-parser.git
-    rev: 5621f2e9fa1a0df5930b95b26f922fa94c494e80
-    dependencies:
-      - arrays
-      - console
-      - const
-      - control
-      - effect
-      - either
-      - enums
-      - foldable-traversable
-      - free
-      - functions
-      - functors
-      - identity
-      - integers
-      - lazy
-      - lists
-      - maybe
-      - newtype
-      - node-process
-      - numbers
-      - ordered-collections
-      - partial
-      - prelude
-      - st
-      - strings
-      - transformers
-      - tuples
-      - typelevel-prelude
-      - unfoldable
-      - unsafe-coerce
+    needed_by:
+      - spago-core
+      - spago-bin
+      - spago
+    package:
+      type: git
+      url: https://github.com/natefaubion/purescript-language-cst-parser.git
+      rev: 5621f2e9fa1a0df5930b95b26f922fa94c494e80
+      dependencies:
+        - arrays
+        - console
+        - const
+        - control
+        - effect
+        - either
+        - enums
+        - foldable-traversable
+        - free
+        - functions
+        - functors
+        - identity
+        - integers
+        - lazy
+        - lists
+        - maybe
+        - newtype
+        - node-process
+        - numbers
+        - ordered-collections
+        - partial
+        - prelude
+        - st
+        - strings
+        - transformers
+        - tuples
+        - typelevel-prelude
+        - unfoldable
+        - unsafe-coerce
   language-purescript:
-    type: git
-    url: https://github.com/JordanMartinez/purescript-language-purescript.git
-    rev: db4377dea03ba9c5273a93a8368a53f1d87882c1
-    dependencies:
-      - argonaut-core
-      - arrays
-      - bifunctors
-      - control
-      - datetime
-      - either
-      - enums
-      - foldable-traversable
-      - foreign-object
-      - formatters
-      - functions
-      - integers
-      - json-codecs
-      - lists
-      - maybe
-      - newtype
-      - nullable
-      - ordered-collections
-      - partial
-      - prelude
-      - safe-coerce
-      - st
-      - strings
-      - tuples
-      - unicode
-      - versions
+    needed_by:
+      - spago-bin
+      - spago
+      - docs-search-index
+      - docs-search-common
+      - docs-search-client-halogen
+    package:
+      type: git
+      url: https://github.com/JordanMartinez/purescript-language-purescript.git
+      rev: db4377dea03ba9c5273a93a8368a53f1d87882c1
+      dependencies:
+        - argonaut-core
+        - arrays
+        - bifunctors
+        - control
+        - datetime
+        - either
+        - enums
+        - foldable-traversable
+        - foreign-object
+        - formatters
+        - functions
+        - integers
+        - json-codecs
+        - lists
+        - maybe
+        - newtype
+        - nullable
+        - ordered-collections
+        - partial
+        - prelude
+        - safe-coerce
+        - st
+        - strings
+        - tuples
+        - unicode
+        - versions
   lazy:
-    type: registry
-    version: 6.0.0
-    integrity: sha256-lMsfFOnlqfe4KzRRiW8ot5ge6HtcU3Eyh2XkXcP5IgU=
-    dependencies:
-      - control
-      - foldable-traversable
-      - invariant
-      - prelude
+    needed_by:
+      - spago-core
+      - spago-bin
+      - spago
+      - docs-search-index
+      - docs-search-common
+      - docs-search-client-halogen
+    package:
+      type: registry
+      version: 6.0.0
+      integrity: sha256-lMsfFOnlqfe4KzRRiW8ot5ge6HtcU3Eyh2XkXcP5IgU=
+      dependencies:
+        - control
+        - foldable-traversable
+        - invariant
+        - prelude
   lcg:
-    type: registry
-    version: 4.0.0
-    integrity: sha256-h7ME5cthLfbgJOJdsZcSfFpwXsx4rf8YmhebU+3iSYg=
-    dependencies:
-      - effect
-      - integers
-      - maybe
-      - partial
-      - prelude
-      - random
+    needed_by:
+      - spago-core
+      - spago-bin
+      - spago
+      - docs-search-index
+      - docs-search-common
+      - docs-search-client-halogen
+    package:
+      type: registry
+      version: 4.0.0
+      integrity: sha256-h7ME5cthLfbgJOJdsZcSfFpwXsx4rf8YmhebU+3iSYg=
+      dependencies:
+        - effect
+        - integers
+        - maybe
+        - partial
+        - prelude
+        - random
   lists:
-    type: registry
-    version: 7.0.0
-    integrity: sha256-EKF15qYqucuXP2lT/xPxhqy58f0FFT6KHdIB/yBOayI=
-    dependencies:
-      - bifunctors
-      - control
-      - foldable-traversable
-      - lazy
-      - maybe
-      - newtype
-      - nonempty
-      - partial
-      - prelude
-      - tailrec
-      - tuples
-      - unfoldable
+    needed_by:
+      - spago-core
+      - spago-bin
+      - spago
+      - docs-search-index
+      - docs-search-common
+      - docs-search-client-halogen
+    package:
+      type: registry
+      version: 7.0.0
+      integrity: sha256-EKF15qYqucuXP2lT/xPxhqy58f0FFT6KHdIB/yBOayI=
+      dependencies:
+        - bifunctors
+        - control
+        - foldable-traversable
+        - lazy
+        - maybe
+        - newtype
+        - nonempty
+        - partial
+        - prelude
+        - tailrec
+        - tuples
+        - unfoldable
   markdown-it:
-    type: git
-    url: https://github.com/nonbili/purescript-markdown-it.git
-    rev: f6e8ee91298f2fc13c4277e75a19e0538de5f7a2
-    dependencies:
-      - effect
-      - options
-      - prelude
+    needed_by:
+      - docs-search-client-halogen
+    package:
+      type: git
+      url: https://github.com/nonbili/purescript-markdown-it.git
+      rev: f6e8ee91298f2fc13c4277e75a19e0538de5f7a2
+      dependencies:
+        - effect
+        - options
+        - prelude
   markdown-it-halogen:
-    type: git
-    url: https://github.com/nonbili/purescript-markdown-it-halogen.git
-    rev: 08c9625015bf04214be14e45230e8ce12f3fa2bf
-    dependencies:
-      - html-parser-halogen
-      - markdown-it
+    needed_by:
+      - docs-search-client-halogen
+    package:
+      type: git
+      url: https://github.com/nonbili/purescript-markdown-it-halogen.git
+      rev: 08c9625015bf04214be14e45230e8ce12f3fa2bf
+      dependencies:
+        - html-parser-halogen
+        - markdown-it
   maybe:
-    type: registry
-    version: 6.0.0
-    integrity: sha256-5cCIb0wPwbat2PRkQhUeZO0jcAmf8jCt2qE0wbC3v2Q=
-    dependencies:
-      - control
-      - invariant
-      - newtype
-      - prelude
+    needed_by:
+      - spago-core
+      - spago-bin
+      - spago
+      - docs-search-index
+      - docs-search-common
+      - docs-search-client-halogen
+    package:
+      type: registry
+      version: 6.0.0
+      integrity: sha256-5cCIb0wPwbat2PRkQhUeZO0jcAmf8jCt2qE0wbC3v2Q=
+      dependencies:
+        - control
+        - invariant
+        - newtype
+        - prelude
   media-types:
-    type: registry
-    version: 6.0.0
-    integrity: sha256-n/4FoGBasbVSYscGVRSyBunQ6CZbL3jsYL+Lp01mc9k=
-    dependencies:
-      - newtype
-      - prelude
+    needed_by:
+      - spago-bin
+      - spago
+      - docs-search-client-halogen
+    package:
+      type: registry
+      version: 6.0.0
+      integrity: sha256-n/4FoGBasbVSYscGVRSyBunQ6CZbL3jsYL+Lp01mc9k=
+      dependencies:
+        - newtype
+        - prelude
   minibench:
-    type: registry
-    version: 4.0.1
-    integrity: sha256-7jyxcklZI49q/otYvMV4f9YnJwEqQ3Me5buhDwAOydw=
-    dependencies:
-      - console
-      - effect
-      - integers
-      - numbers
-      - partial
-      - prelude
-      - refs
+    needed_by:
+      - spago-core
+      - spago-bin
+      - spago
+    package:
+      type: registry
+      version: 4.0.1
+      integrity: sha256-7jyxcklZI49q/otYvMV4f9YnJwEqQ3Me5buhDwAOydw=
+      dependencies:
+        - console
+        - effect
+        - integers
+        - numbers
+        - partial
+        - prelude
+        - refs
   mmorph:
-    type: registry
-    version: 7.0.0
-    integrity: sha256-urZlZNNqGeQFe5D/ClHlR8QgGBNHTMFPtJ5S5IpflTQ=
-    dependencies:
-      - free
-      - functors
-      - transformers
+    needed_by:
+      - spago-bin
+      - spago
+      - docs-search-index
+    package:
+      type: registry
+      version: 7.0.0
+      integrity: sha256-urZlZNNqGeQFe5D/ClHlR8QgGBNHTMFPtJ5S5IpflTQ=
+      dependencies:
+        - free
+        - functors
+        - transformers
   newtype:
-    type: registry
-    version: 5.0.0
-    integrity: sha256-gdrQu8oGe9eZE6L3wOI8ql/igOg+zEGB5ITh2g+uttw=
-    dependencies:
-      - prelude
-      - safe-coerce
+    needed_by:
+      - spago-core
+      - spago-bin
+      - spago
+      - docs-search-index
+      - docs-search-common
+      - docs-search-client-halogen
+    package:
+      type: registry
+      version: 5.0.0
+      integrity: sha256-gdrQu8oGe9eZE6L3wOI8ql/igOg+zEGB5ITh2g+uttw=
+      dependencies:
+        - prelude
+        - safe-coerce
   node-buffer:
-    type: registry
-    version: 8.0.0
-    integrity: sha256-RwOTB8yTS4Jjqc55JqxRcVaMXP+cYJ5aww0XH1Z/I8A=
-    dependencies:
-      - arraybuffer-types
-      - effect
-      - maybe
-      - st
-      - unsafe-coerce
+    needed_by:
+      - spago-core
+      - spago-bin
+      - spago
+      - docs-search-index
+    package:
+      type: registry
+      version: 8.0.0
+      integrity: sha256-RwOTB8yTS4Jjqc55JqxRcVaMXP+cYJ5aww0XH1Z/I8A=
+      dependencies:
+        - arraybuffer-types
+        - effect
+        - maybe
+        - st
+        - unsafe-coerce
   node-child-process:
-    type: registry
-    version: 9.0.0
-    integrity: sha256-bi7hXHcrgqw6UQzD4p0kr2flPxdqyRHv3bLcffZYpm0=
-    dependencies:
-      - exceptions
-      - foreign
-      - foreign-object
-      - functions
-      - node-fs
-      - node-streams
-      - nullable
-      - posix-types
-      - unsafe-coerce
+    needed_by:
+      - spago-core
+      - spago-bin
+      - spago
+    package:
+      type: registry
+      version: 9.0.0
+      integrity: sha256-bi7hXHcrgqw6UQzD4p0kr2flPxdqyRHv3bLcffZYpm0=
+      dependencies:
+        - exceptions
+        - foreign
+        - foreign-object
+        - functions
+        - node-fs
+        - node-streams
+        - nullable
+        - posix-types
+        - unsafe-coerce
   node-event-emitter:
-    type: registry
-    version: 1.0.1
-    integrity: sha256-OwJNgvg20g4g5Alp5Zka3C5KMLH8hwTz9KW4DYr82ls=
-    dependencies:
-      - effect
-      - functions
-      - prelude
-      - safe-coerce
-      - unsafe-coerce
+    needed_by:
+      - spago-bin
+      - spago
+    package:
+      type: registry
+      version: 1.0.1
+      integrity: sha256-OwJNgvg20g4g5Alp5Zka3C5KMLH8hwTz9KW4DYr82ls=
+      dependencies:
+        - effect
+        - functions
+        - prelude
+        - safe-coerce
+        - unsafe-coerce
   node-execa:
-    type: registry
-    version: 1.3.2
-    integrity: sha256-kKVeJC+s5Pfye9aJ2V55NUfSyETZ2DZxPP02+zpNS/M=
-    dependencies:
-      - aff
-      - arrays
-      - control
-      - effect
-      - either
-      - exceptions
-      - foldable-traversable
-      - foreign
-      - foreign-object
-      - functions
-      - integers
-      - js-timers
-      - maybe
-      - node-buffer
-      - node-event-emitter
-      - node-fs
-      - node-human-signals
-      - node-path
-      - node-process
-      - node-streams
-      - nullable
-      - numbers
-      - ordered-collections
-      - parallel
-      - parsing
-      - partial
-      - posix-types
-      - prelude
-      - profunctor-lenses
-      - record
-      - refs
-      - safe-coerce
-      - strings
-      - tailrec
-      - transformers
-      - tuples
-      - unsafe-coerce
-      - unsafe-reference
+    needed_by:
+      - spago-bin
+      - spago
+    package:
+      type: registry
+      version: 1.3.2
+      integrity: sha256-kKVeJC+s5Pfye9aJ2V55NUfSyETZ2DZxPP02+zpNS/M=
+      dependencies:
+        - aff
+        - arrays
+        - control
+        - effect
+        - either
+        - exceptions
+        - foldable-traversable
+        - foreign
+        - foreign-object
+        - functions
+        - integers
+        - js-timers
+        - maybe
+        - node-buffer
+        - node-event-emitter
+        - node-fs
+        - node-human-signals
+        - node-path
+        - node-process
+        - node-streams
+        - nullable
+        - numbers
+        - ordered-collections
+        - parallel
+        - parsing
+        - partial
+        - posix-types
+        - prelude
+        - profunctor-lenses
+        - record
+        - refs
+        - safe-coerce
+        - strings
+        - tailrec
+        - transformers
+        - tuples
+        - unsafe-coerce
+        - unsafe-reference
   node-fs:
-    type: registry
-    version: 8.2.0
-    integrity: sha256-6X/8KFH5qAF15UDrMadoyAMZxd08bs9IF2XrVgvpH2I=
-    dependencies:
-      - datetime
-      - effect
-      - either
-      - enums
-      - exceptions
-      - functions
-      - integers
-      - js-date
-      - maybe
-      - node-buffer
-      - node-path
-      - node-streams
-      - nullable
-      - partial
-      - prelude
-      - strings
-      - unsafe-coerce
+    needed_by:
+      - spago-core
+      - spago-bin
+      - spago
+      - docs-search-index
+    package:
+      type: registry
+      version: 8.2.0
+      integrity: sha256-6X/8KFH5qAF15UDrMadoyAMZxd08bs9IF2XrVgvpH2I=
+      dependencies:
+        - datetime
+        - effect
+        - either
+        - enums
+        - exceptions
+        - functions
+        - integers
+        - js-date
+        - maybe
+        - node-buffer
+        - node-path
+        - node-streams
+        - nullable
+        - partial
+        - prelude
+        - strings
+        - unsafe-coerce
   node-fs-aff:
-    type: registry
-    version: 9.2.0
-    integrity: sha256-usKEFrLY9zh8o3IP3bwc+jX7Zd4OOmhHvwLFZlxdN8U=
-    dependencies:
-      - aff
-      - either
-      - node-fs
-      - node-path
+    needed_by:
+      - spago-core
+      - spago-bin
+      - spago
+      - docs-search-index
+    package:
+      type: registry
+      version: 9.2.0
+      integrity: sha256-usKEFrLY9zh8o3IP3bwc+jX7Zd4OOmhHvwLFZlxdN8U=
+      dependencies:
+        - aff
+        - either
+        - node-fs
+        - node-path
   node-human-signals:
-    type: registry
-    version: 1.0.0
-    integrity: sha256-HOUfMQTAIuL5AOCUlJJcKq78masah+388eQOdloYH1g=
-    dependencies:
-      - arrays
-      - control
-      - foreign-object
-      - maybe
-      - ordered-collections
-      - prelude
+    needed_by:
+      - spago-bin
+      - spago
+    package:
+      type: registry
+      version: 1.0.0
+      integrity: sha256-HOUfMQTAIuL5AOCUlJJcKq78masah+388eQOdloYH1g=
+      dependencies:
+        - arrays
+        - control
+        - foreign-object
+        - maybe
+        - ordered-collections
+        - prelude
   node-path:
-    type: registry
-    version: 5.0.0
-    integrity: sha256-pd82nQ+2l5UThzaxPdKttgDt7xlsgIDLpPG0yxDEdyE=
-    dependencies:
-      - effect
+    needed_by:
+      - spago-core
+      - spago-bin
+      - spago
+      - docs-search-index
+    package:
+      type: registry
+      version: 5.0.0
+      integrity: sha256-pd82nQ+2l5UThzaxPdKttgDt7xlsgIDLpPG0yxDEdyE=
+      dependencies:
+        - effect
   node-process:
-    type: registry
-    version: 10.0.0
-    integrity: sha256-YzUqf7HWkGEQVRmkxUpL1x2GzKqKLyEyR7mkP68xcZs=
-    dependencies:
-      - effect
-      - foreign-object
-      - maybe
-      - node-streams
-      - posix-types
-      - prelude
-      - unsafe-coerce
+    needed_by:
+      - spago-core
+      - spago-bin
+      - spago
+      - docs-search-index
+    package:
+      type: registry
+      version: 10.0.0
+      integrity: sha256-YzUqf7HWkGEQVRmkxUpL1x2GzKqKLyEyR7mkP68xcZs=
+      dependencies:
+        - effect
+        - foreign-object
+        - maybe
+        - node-streams
+        - posix-types
+        - prelude
+        - unsafe-coerce
   node-streams:
-    type: registry
-    version: 7.0.0
-    integrity: sha256-EGCA+hp6chlxDlQ8UG3RIaIIL1R0OckKnqP+KPAX1y4=
-    dependencies:
-      - effect
-      - either
-      - exceptions
-      - node-buffer
-      - nullable
-      - prelude
+    needed_by:
+      - spago-core
+      - spago-bin
+      - spago
+      - docs-search-index
+    package:
+      type: registry
+      version: 7.0.0
+      integrity: sha256-EGCA+hp6chlxDlQ8UG3RIaIIL1R0OckKnqP+KPAX1y4=
+      dependencies:
+        - effect
+        - either
+        - exceptions
+        - node-buffer
+        - nullable
+        - prelude
   nonempty:
-    type: registry
-    version: 7.0.0
-    integrity: sha256-54ablJZUHGvvlTJzi3oXyPCuvY6zsrWJuH/dMJ/MFLs=
-    dependencies:
-      - control
-      - foldable-traversable
-      - maybe
-      - prelude
-      - tuples
-      - unfoldable
+    needed_by:
+      - spago-core
+      - spago-bin
+      - spago
+      - docs-search-index
+      - docs-search-common
+      - docs-search-client-halogen
+    package:
+      type: registry
+      version: 7.0.0
+      integrity: sha256-54ablJZUHGvvlTJzi3oXyPCuvY6zsrWJuH/dMJ/MFLs=
+      dependencies:
+        - control
+        - foldable-traversable
+        - maybe
+        - prelude
+        - tuples
+        - unfoldable
   now:
-    type: registry
-    version: 6.0.0
-    integrity: sha256-xZ7x37ZMREfs6GCDw/h+FaKHV/3sPWmtqBZRGTxybQY=
-    dependencies:
-      - datetime
-      - effect
+    needed_by:
+      - spago-core
+      - spago-bin
+      - spago
+      - docs-search-index
+      - docs-search-client-halogen
+    package:
+      type: registry
+      version: 6.0.0
+      integrity: sha256-xZ7x37ZMREfs6GCDw/h+FaKHV/3sPWmtqBZRGTxybQY=
+      dependencies:
+        - datetime
+        - effect
   nullable:
-    type: registry
-    version: 6.0.0
-    integrity: sha256-yiGBVl3AD+Guy4kNWWeN+zl1gCiJK+oeIFtZtPCw4+o=
-    dependencies:
-      - effect
-      - functions
-      - maybe
+    needed_by:
+      - spago-core
+      - spago-bin
+      - spago
+      - docs-search-index
+      - docs-search-common
+      - docs-search-client-halogen
+    package:
+      type: registry
+      version: 6.0.0
+      integrity: sha256-yiGBVl3AD+Guy4kNWWeN+zl1gCiJK+oeIFtZtPCw4+o=
+      dependencies:
+        - effect
+        - functions
+        - maybe
   numbers:
-    type: registry
-    version: 9.0.1
-    integrity: sha256-/9M6aeMDBdB4cwYDeJvLFprAHZ49EbtKQLIJsneXLIk=
-    dependencies:
-      - functions
-      - maybe
+    needed_by:
+      - spago-core
+      - spago-bin
+      - spago
+      - docs-search-index
+      - docs-search-common
+      - docs-search-client-halogen
+    package:
+      type: registry
+      version: 9.0.1
+      integrity: sha256-/9M6aeMDBdB4cwYDeJvLFprAHZ49EbtKQLIJsneXLIk=
+      dependencies:
+        - functions
+        - maybe
   open-memoize:
-    type: registry
-    version: 6.1.0
-    integrity: sha256-ws/Cix/wgUKvrbPPxTqDSGCPpkTIvP1adTYLHAquBC4=
-    dependencies:
-      - console
-      - effect
-      - either
-      - integers
-      - lazy
-      - lists
-      - maybe
-      - partial
-      - prelude
-      - psci-support
-      - strings
-      - tuples
+    needed_by:
+      - spago-bin
+    package:
+      type: registry
+      version: 6.1.0
+      integrity: sha256-ws/Cix/wgUKvrbPPxTqDSGCPpkTIvP1adTYLHAquBC4=
+      dependencies:
+        - console
+        - effect
+        - either
+        - integers
+        - lazy
+        - lists
+        - maybe
+        - partial
+        - prelude
+        - psci-support
+        - strings
+        - tuples
   options:
-    type: registry
-    version: 7.0.0
-    integrity: sha256-treC6h+jvzcWhplPaF/aMENCOx+JGk+ysa5pL1BGHtg=
-    dependencies:
-      - contravariant
-      - foreign
-      - foreign-object
-      - maybe
-      - tuples
+    needed_by:
+      - docs-search-client-halogen
+    package:
+      type: registry
+      version: 7.0.0
+      integrity: sha256-treC6h+jvzcWhplPaF/aMENCOx+JGk+ysa5pL1BGHtg=
+      dependencies:
+        - contravariant
+        - foreign
+        - foreign-object
+        - maybe
+        - tuples
   optparse:
-    type: registry
-    version: 5.0.0
-    integrity: sha256-Y1xqUrnOB5934wKssPyWVdF4kqA6ITXwSasdEOkxZT8=
-    dependencies:
-      - aff
-      - arrays
-      - bifunctors
-      - console
-      - control
-      - effect
-      - either
-      - enums
-      - exists
-      - exitcodes
-      - foldable-traversable
-      - free
-      - gen
-      - integers
-      - lazy
-      - lists
-      - maybe
-      - newtype
-      - node-buffer
-      - node-process
-      - node-streams
-      - nonempty
-      - numbers
-      - open-memoize
-      - partial
-      - prelude
-      - quickcheck
-      - strings
-      - tailrec
-      - transformers
-      - tuples
+    needed_by:
+      - spago-bin
+    package:
+      type: registry
+      version: 5.0.0
+      integrity: sha256-Y1xqUrnOB5934wKssPyWVdF4kqA6ITXwSasdEOkxZT8=
+      dependencies:
+        - aff
+        - arrays
+        - bifunctors
+        - console
+        - control
+        - effect
+        - either
+        - enums
+        - exists
+        - exitcodes
+        - foldable-traversable
+        - free
+        - gen
+        - integers
+        - lazy
+        - lists
+        - maybe
+        - newtype
+        - node-buffer
+        - node-process
+        - node-streams
+        - nonempty
+        - numbers
+        - open-memoize
+        - partial
+        - prelude
+        - quickcheck
+        - strings
+        - tailrec
+        - transformers
+        - tuples
   ordered-collections:
-    type: registry
-    version: 3.1.1
-    integrity: sha256-boSYHmlz4aSbwsNN4VxiwCStc0t+y1F7BXmBS+1JNtI=
-    dependencies:
-      - arrays
-      - foldable-traversable
-      - gen
-      - lists
-      - maybe
-      - partial
-      - prelude
-      - st
-      - tailrec
-      - tuples
-      - unfoldable
+    needed_by:
+      - spago-core
+      - spago-bin
+      - spago
+      - docs-search-index
+      - docs-search-common
+      - docs-search-client-halogen
+    package:
+      type: registry
+      version: 3.1.1
+      integrity: sha256-boSYHmlz4aSbwsNN4VxiwCStc0t+y1F7BXmBS+1JNtI=
+      dependencies:
+        - arrays
+        - foldable-traversable
+        - gen
+        - lists
+        - maybe
+        - partial
+        - prelude
+        - st
+        - tailrec
+        - tuples
+        - unfoldable
   orders:
-    type: registry
-    version: 6.0.0
-    integrity: sha256-nBA0g3/ai0euH8q9pSbGqk53W2q6agm/dECZTHcoink=
-    dependencies:
-      - newtype
-      - prelude
+    needed_by:
+      - spago-core
+      - spago-bin
+      - spago
+      - docs-search-index
+      - docs-search-common
+      - docs-search-client-halogen
+    package:
+      type: registry
+      version: 6.0.0
+      integrity: sha256-nBA0g3/ai0euH8q9pSbGqk53W2q6agm/dECZTHcoink=
+      dependencies:
+        - newtype
+        - prelude
   parallel:
-    type: registry
-    version: 6.0.0
-    integrity: sha256-VJbkGD0rAKX+NUEeBJbYJ78bEKaZbgow+QwQEfPB6ko=
-    dependencies:
-      - control
-      - effect
-      - either
-      - foldable-traversable
-      - functors
-      - maybe
-      - newtype
-      - prelude
-      - profunctor
-      - refs
-      - transformers
+    needed_by:
+      - spago-core
+      - spago-bin
+      - spago
+      - docs-search-index
+      - docs-search-common
+      - docs-search-client-halogen
+    package:
+      type: registry
+      version: 6.0.0
+      integrity: sha256-VJbkGD0rAKX+NUEeBJbYJ78bEKaZbgow+QwQEfPB6ko=
+      dependencies:
+        - control
+        - effect
+        - either
+        - foldable-traversable
+        - functors
+        - maybe
+        - newtype
+        - prelude
+        - profunctor
+        - refs
+        - transformers
   parsing:
-    type: registry
-    version: 10.2.0
-    integrity: sha256-ZDIdMFAKkst57x6BVa1aUWJnS8smoZnXsZ339Aq1mPA=
-    dependencies:
-      - arrays
-      - control
-      - effect
-      - either
-      - enums
-      - foldable-traversable
-      - functions
-      - identity
-      - integers
-      - lazy
-      - lists
-      - maybe
-      - newtype
-      - nullable
-      - numbers
-      - partial
-      - prelude
-      - st
-      - strings
-      - tailrec
-      - transformers
-      - tuples
-      - unfoldable
-      - unicode
-      - unsafe-coerce
+    needed_by:
+      - spago-core
+      - spago-bin
+      - spago
+      - docs-search-index
+      - docs-search-common
+      - docs-search-client-halogen
+    package:
+      type: registry
+      version: 10.2.0
+      integrity: sha256-ZDIdMFAKkst57x6BVa1aUWJnS8smoZnXsZ339Aq1mPA=
+      dependencies:
+        - arrays
+        - control
+        - effect
+        - either
+        - enums
+        - foldable-traversable
+        - functions
+        - identity
+        - integers
+        - lazy
+        - lists
+        - maybe
+        - newtype
+        - nullable
+        - numbers
+        - partial
+        - prelude
+        - st
+        - strings
+        - tailrec
+        - transformers
+        - tuples
+        - unfoldable
+        - unicode
+        - unsafe-coerce
   partial:
-    type: registry
-    version: 4.0.0
-    integrity: sha256-fwXerld6Xw1VkReh8yeQsdtLVrjfGiVuC5bA1Wyo/J4=
-    dependencies: []
+    needed_by:
+      - spago-core
+      - spago-bin
+      - spago
+      - docs-search-index
+      - docs-search-common
+      - docs-search-client-halogen
+    package:
+      type: registry
+      version: 4.0.0
+      integrity: sha256-fwXerld6Xw1VkReh8yeQsdtLVrjfGiVuC5bA1Wyo/J4=
+      dependencies: []
   pipes:
-    type: registry
-    version: 8.0.0
-    integrity: sha256-kvfqGM4cPA/wCcBHbp5psouFw5dZGvku2462x7ZBwSY=
-    dependencies:
-      - aff
-      - lists
-      - mmorph
-      - prelude
-      - tailrec
-      - transformers
-      - tuples
+    needed_by:
+      - spago-bin
+      - spago
+      - docs-search-index
+    package:
+      type: registry
+      version: 8.0.0
+      integrity: sha256-kvfqGM4cPA/wCcBHbp5psouFw5dZGvku2462x7ZBwSY=
+      dependencies:
+        - aff
+        - lists
+        - mmorph
+        - prelude
+        - tailrec
+        - transformers
+        - tuples
   posix-types:
-    type: registry
-    version: 6.0.0
-    integrity: sha256-ZfFz8RR1lee/o/Prccyeut3Q+9tYd08mlR72sIh6GzA=
-    dependencies:
-      - maybe
-      - prelude
+    needed_by:
+      - spago-core
+      - spago-bin
+      - spago
+      - docs-search-index
+    package:
+      type: registry
+      version: 6.0.0
+      integrity: sha256-ZfFz8RR1lee/o/Prccyeut3Q+9tYd08mlR72sIh6GzA=
+      dependencies:
+        - maybe
+        - prelude
   prelude:
-    type: registry
-    version: 6.0.1
-    integrity: sha256-o8p6SLYmVPqzXZhQFd2hGAWEwBoXl1swxLG/scpJ0V0=
-    dependencies: []
+    needed_by:
+      - spago-core
+      - spago-bin
+      - spago
+      - docs-search-index
+      - docs-search-common
+      - docs-search-client-halogen
+    package:
+      type: registry
+      version: 6.0.1
+      integrity: sha256-o8p6SLYmVPqzXZhQFd2hGAWEwBoXl1swxLG/scpJ0V0=
+      dependencies: []
   profunctor:
-    type: registry
-    version: 6.0.0
-    integrity: sha256-99NzxFgTr4CGlCSRYG1kShL+JhYbihhHtbOk1/0R5zI=
-    dependencies:
-      - control
-      - distributive
-      - either
-      - exists
-      - invariant
-      - newtype
-      - prelude
-      - tuples
+    needed_by:
+      - spago-core
+      - spago-bin
+      - spago
+      - docs-search-index
+      - docs-search-common
+      - docs-search-client-halogen
+    package:
+      type: registry
+      version: 6.0.0
+      integrity: sha256-99NzxFgTr4CGlCSRYG1kShL+JhYbihhHtbOk1/0R5zI=
+      dependencies:
+        - control
+        - distributive
+        - either
+        - exists
+        - invariant
+        - newtype
+        - prelude
+        - tuples
   profunctor-lenses:
-    type: registry
-    version: 8.0.0
-    integrity: sha256-K7f29rHRHgVSb2Y/PaSKtfYPriP6n87BJNO7EhsZHas=
-    dependencies:
-      - arrays
-      - bifunctors
-      - const
-      - control
-      - distributive
-      - either
-      - foldable-traversable
-      - foreign-object
-      - functors
-      - identity
-      - lists
-      - maybe
-      - newtype
-      - ordered-collections
-      - partial
-      - prelude
-      - profunctor
-      - record
-      - transformers
-      - tuples
+    needed_by:
+      - spago-core
+      - spago-bin
+      - spago
+      - docs-search-index
+      - docs-search-common
+      - docs-search-client-halogen
+    package:
+      type: registry
+      version: 8.0.0
+      integrity: sha256-K7f29rHRHgVSb2Y/PaSKtfYPriP6n87BJNO7EhsZHas=
+      dependencies:
+        - arrays
+        - bifunctors
+        - const
+        - control
+        - distributive
+        - either
+        - foldable-traversable
+        - foreign-object
+        - functors
+        - identity
+        - lists
+        - maybe
+        - newtype
+        - ordered-collections
+        - partial
+        - prelude
+        - profunctor
+        - record
+        - transformers
+        - tuples
   psci-support:
-    type: registry
-    version: 6.0.0
-    integrity: sha256-C6ql4P9TEP06hft/1Z5QumPA4yARR4VIxDdhmL1EO+Y=
-    dependencies:
-      - console
-      - effect
-      - prelude
+    needed_by:
+      - spago-bin
+    package:
+      type: registry
+      version: 6.0.0
+      integrity: sha256-C6ql4P9TEP06hft/1Z5QumPA4yARR4VIxDdhmL1EO+Y=
+      dependencies:
+        - console
+        - effect
+        - prelude
   quickcheck:
-    type: registry
-    version: 8.0.1
-    integrity: sha256-ZvpccKQCvgslTXZCNmpYW4bUsFzhZd/kQUr2WmxFTGY=
-    dependencies:
-      - arrays
-      - console
-      - control
-      - effect
-      - either
-      - enums
-      - exceptions
-      - foldable-traversable
-      - gen
-      - identity
-      - integers
-      - lazy
-      - lcg
-      - lists
-      - maybe
-      - newtype
-      - nonempty
-      - numbers
-      - partial
-      - prelude
-      - record
-      - st
-      - strings
-      - tailrec
-      - transformers
-      - tuples
-      - unfoldable
+    needed_by:
+      - spago-core
+      - spago-bin
+      - spago
+      - docs-search-index
+      - docs-search-common
+      - docs-search-client-halogen
+    package:
+      type: registry
+      version: 8.0.1
+      integrity: sha256-ZvpccKQCvgslTXZCNmpYW4bUsFzhZd/kQUr2WmxFTGY=
+      dependencies:
+        - arrays
+        - console
+        - control
+        - effect
+        - either
+        - enums
+        - exceptions
+        - foldable-traversable
+        - gen
+        - identity
+        - integers
+        - lazy
+        - lcg
+        - lists
+        - maybe
+        - newtype
+        - nonempty
+        - numbers
+        - partial
+        - prelude
+        - record
+        - st
+        - strings
+        - tailrec
+        - transformers
+        - tuples
+        - unfoldable
   quickcheck-laws:
-    type: registry
-    version: 7.0.0
-    integrity: sha256-rnzVTiDnymzYkvnhI8EvPwrmO8LgcTnrMTuiI172Tkc=
-    dependencies:
-      - enums
-      - quickcheck
+    needed_by:
+      - spago-bin
+      - spago
+      - docs-search-index
+      - docs-search-common
+      - docs-search-client-halogen
+    package:
+      type: registry
+      version: 7.0.0
+      integrity: sha256-rnzVTiDnymzYkvnhI8EvPwrmO8LgcTnrMTuiI172Tkc=
+      dependencies:
+        - enums
+        - quickcheck
   random:
-    type: registry
-    version: 6.0.0
-    integrity: sha256-CJ611a35MPCE7XQMp0rdC6MCn76znlhisiCRgboAG+Q=
-    dependencies:
-      - effect
-      - integers
+    needed_by:
+      - spago-core
+      - spago-bin
+      - spago
+      - docs-search-index
+      - docs-search-common
+      - docs-search-client-halogen
+    package:
+      type: registry
+      version: 6.0.0
+      integrity: sha256-CJ611a35MPCE7XQMp0rdC6MCn76znlhisiCRgboAG+Q=
+      dependencies:
+        - effect
+        - integers
   record:
-    type: registry
-    version: 4.0.0
-    integrity: sha256-Za5U85bTRJEfGK5Sk4hM41oXy84YQI0I8TL3WUn1Qzg=
-    dependencies:
-      - functions
-      - prelude
-      - unsafe-coerce
+    needed_by:
+      - spago-core
+      - spago-bin
+      - spago
+      - docs-search-index
+      - docs-search-common
+      - docs-search-client-halogen
+    package:
+      type: registry
+      version: 4.0.0
+      integrity: sha256-Za5U85bTRJEfGK5Sk4hM41oXy84YQI0I8TL3WUn1Qzg=
+      dependencies:
+        - functions
+        - prelude
+        - unsafe-coerce
   refs:
-    type: registry
-    version: 6.0.0
-    integrity: sha256-Vgwne7jIbD3ZMoLNNETLT8Litw6lIYo3MfYNdtYWj9s=
-    dependencies:
-      - effect
-      - prelude
+    needed_by:
+      - spago-core
+      - spago-bin
+      - spago
+      - docs-search-index
+      - docs-search-common
+      - docs-search-client-halogen
+    package:
+      type: registry
+      version: 6.0.0
+      integrity: sha256-Vgwne7jIbD3ZMoLNNETLT8Litw6lIYo3MfYNdtYWj9s=
+      dependencies:
+        - effect
+        - prelude
   registry-foreign:
-    type: git
-    url: https://github.com/purescript/registry-dev.git
-    rev: 6a803c37577af368caa221a2a06d6be2079d32da
-    subdir: foreign
-    dependencies:
-      - aff
-      - aff-promise
-      - argonaut-core
-      - arrays
-      - b64
-      - bifunctors
-      - codec-argonaut
-      - convertable-options
-      - datetime
-      - effect
-      - either
-      - fetch
-      - filterable
-      - foldable-traversable
-      - foreign-object
-      - functions
-      - http-methods
-      - integers
-      - js-date
-      - maybe
-      - newtype
-      - node-buffer
-      - node-path
-      - nullable
-      - ordered-collections
-      - prelude
-      - profunctor
-      - registry-lib
-      - strings
-      - tuples
-      - unsafe-coerce
-      - variant
+    needed_by:
+      - spago-bin
+      - spago
+    package:
+      type: git
+      url: https://github.com/purescript/registry-dev.git
+      rev: 6a803c37577af368caa221a2a06d6be2079d32da
+      subdir: foreign
+      dependencies:
+        - aff
+        - aff-promise
+        - argonaut-core
+        - arrays
+        - b64
+        - bifunctors
+        - codec-argonaut
+        - convertable-options
+        - datetime
+        - effect
+        - either
+        - fetch
+        - filterable
+        - foldable-traversable
+        - foreign-object
+        - functions
+        - http-methods
+        - integers
+        - js-date
+        - maybe
+        - newtype
+        - node-buffer
+        - node-path
+        - nullable
+        - ordered-collections
+        - prelude
+        - profunctor
+        - registry-lib
+        - strings
+        - tuples
+        - unsafe-coerce
+        - variant
   registry-lib:
-    type: git
-    url: https://github.com/purescript/registry-dev.git
-    rev: 6a803c37577af368caa221a2a06d6be2079d32da
-    subdir: lib
-    dependencies:
-      - aff
-      - argonaut-core
-      - arrays
-      - bifunctors
-      - codec-argonaut
-      - control
-      - datetime
-      - effect
-      - either
-      - exceptions
-      - foldable-traversable
-      - foreign-object
-      - formatters
-      - functions
-      - functors
-      - graphs
-      - integers
-      - language-cst-parser
-      - lists
-      - maybe
-      - newtype
-      - node-buffer
-      - node-fs
-      - node-fs-aff
-      - node-path
-      - nullable
-      - ordered-collections
-      - parsing
-      - partial
-      - prelude
-      - profunctor
-      - profunctor-lenses
-      - routing-duplex
-      - safe-coerce
-      - strings
-      - transformers
-      - tuples
+    needed_by:
+      - spago-core
+      - spago-bin
+      - spago
+    package:
+      type: git
+      url: https://github.com/purescript/registry-dev.git
+      rev: 6a803c37577af368caa221a2a06d6be2079d32da
+      subdir: lib
+      dependencies:
+        - aff
+        - argonaut-core
+        - arrays
+        - bifunctors
+        - codec-argonaut
+        - control
+        - datetime
+        - effect
+        - either
+        - exceptions
+        - foldable-traversable
+        - foreign-object
+        - formatters
+        - functions
+        - functors
+        - graphs
+        - integers
+        - language-cst-parser
+        - lists
+        - maybe
+        - newtype
+        - node-buffer
+        - node-fs
+        - node-fs-aff
+        - node-path
+        - nullable
+        - ordered-collections
+        - parsing
+        - partial
+        - prelude
+        - profunctor
+        - profunctor-lenses
+        - routing-duplex
+        - safe-coerce
+        - strings
+        - transformers
+        - tuples
   routing-duplex:
-    type: registry
-    version: 0.7.0
-    integrity: sha256-hgWzZPft6067zYvoZ1n0y/dSz4H2jBNREwfC3qC/s8Y=
-    dependencies:
-      - arrays
-      - assert
-      - control
-      - effect
-      - either
-      - foldable-traversable
-      - integers
-      - js-uri
-      - lazy
-      - maybe
-      - newtype
-      - prelude
-      - profunctor
-      - quickcheck
-      - record
-      - strings
-      - tuples
+    needed_by:
+      - spago-core
+      - spago-bin
+      - spago
+    package:
+      type: registry
+      version: 0.7.0
+      integrity: sha256-hgWzZPft6067zYvoZ1n0y/dSz4H2jBNREwfC3qC/s8Y=
+      dependencies:
+        - arrays
+        - assert
+        - control
+        - effect
+        - either
+        - foldable-traversable
+        - integers
+        - js-uri
+        - lazy
+        - maybe
+        - newtype
+        - prelude
+        - profunctor
+        - quickcheck
+        - record
+        - strings
+        - tuples
   safe-coerce:
-    type: registry
-    version: 2.0.0
-    integrity: sha256-a1ibQkiUcbODbLE/WAq7Ttbbh9ex+x33VCQ7GngKudU=
-    dependencies:
-      - unsafe-coerce
+    needed_by:
+      - spago-core
+      - spago-bin
+      - spago
+      - docs-search-index
+      - docs-search-common
+      - docs-search-client-halogen
+    package:
+      type: registry
+      version: 2.0.0
+      integrity: sha256-a1ibQkiUcbODbLE/WAq7Ttbbh9ex+x33VCQ7GngKudU=
+      dependencies:
+        - unsafe-coerce
   search-trie:
-    type: git
-    url: https://github.com/klntsky/purescript-search-trie.git
-    rev: e7f7f22486a1dba22171ec885dbc2149dc815119
-    dependencies:
-      - arrays
-      - bifunctors
-      - foldable-traversable
-      - lists
-      - ordered-collections
-      - prelude
+    needed_by:
+      - spago-bin
+      - spago
+      - docs-search-index
+      - docs-search-common
+      - docs-search-client-halogen
+    package:
+      type: git
+      url: https://github.com/klntsky/purescript-search-trie.git
+      rev: e7f7f22486a1dba22171ec885dbc2149dc815119
+      dependencies:
+        - arrays
+        - bifunctors
+        - foldable-traversable
+        - lists
+        - ordered-collections
+        - prelude
   spec:
-    type: registry
-    version: 7.3.0
-    integrity: sha256-YmmRmlHmSHyAM8j5/QVHLgkMhtAkt2FXytVb5j/Zu0s=
-    dependencies:
-      - aff
-      - ansi
-      - arrays
-      - avar
-      - bifunctors
-      - console
-      - control
-      - datetime
-      - effect
-      - either
-      - exceptions
-      - foldable-traversable
-      - fork
-      - identity
-      - integers
-      - lists
-      - maybe
-      - newtype
-      - now
-      - ordered-collections
-      - parallel
-      - pipes
-      - prelude
-      - strings
-      - tailrec
-      - transformers
-      - tuples
+    needed_by:
+      - spago-bin
+      - spago
+      - docs-search-index
+    package:
+      type: registry
+      version: 7.3.0
+      integrity: sha256-YmmRmlHmSHyAM8j5/QVHLgkMhtAkt2FXytVb5j/Zu0s=
+      dependencies:
+        - aff
+        - ansi
+        - arrays
+        - avar
+        - bifunctors
+        - console
+        - control
+        - datetime
+        - effect
+        - either
+        - exceptions
+        - foldable-traversable
+        - fork
+        - identity
+        - integers
+        - lists
+        - maybe
+        - newtype
+        - now
+        - ordered-collections
+        - parallel
+        - pipes
+        - prelude
+        - strings
+        - tailrec
+        - transformers
+        - tuples
   st:
-    type: registry
-    version: 6.2.0
-    integrity: sha256-z9X0WsOUlPwNx9GlCC+YccCyz8MejC8Wb0C4+9fiBRY=
-    dependencies:
-      - partial
-      - prelude
-      - tailrec
-      - unsafe-coerce
+    needed_by:
+      - spago-core
+      - spago-bin
+      - spago
+      - docs-search-index
+      - docs-search-common
+      - docs-search-client-halogen
+    package:
+      type: registry
+      version: 6.2.0
+      integrity: sha256-z9X0WsOUlPwNx9GlCC+YccCyz8MejC8Wb0C4+9fiBRY=
+      dependencies:
+        - partial
+        - prelude
+        - tailrec
+        - unsafe-coerce
   string-parsers:
-    type: registry
-    version: 8.0.0
-    integrity: sha256-9ATYh0S54ERoR+uhkCM59wBRvW/6zv6geHJ0TmcI644=
-    dependencies:
-      - arrays
-      - bifunctors
-      - control
-      - either
-      - foldable-traversable
-      - lists
-      - maybe
-      - prelude
-      - strings
-      - tailrec
+    needed_by:
+      - spago-bin
+      - spago
+      - docs-search-index
+      - docs-search-common
+      - docs-search-client-halogen
+    package:
+      type: registry
+      version: 8.0.0
+      integrity: sha256-9ATYh0S54ERoR+uhkCM59wBRvW/6zv6geHJ0TmcI644=
+      dependencies:
+        - arrays
+        - bifunctors
+        - control
+        - either
+        - foldable-traversable
+        - lists
+        - maybe
+        - prelude
+        - strings
+        - tailrec
   strings:
-    type: registry
-    version: 6.0.1
-    integrity: sha256-WssD3DbX4OPzxSdjvRMX0yvc9+pS7n5gyPv5I2Trb7k=
-    dependencies:
-      - arrays
-      - control
-      - either
-      - enums
-      - foldable-traversable
-      - gen
-      - integers
-      - maybe
-      - newtype
-      - nonempty
-      - partial
-      - prelude
-      - tailrec
-      - tuples
-      - unfoldable
-      - unsafe-coerce
+    needed_by:
+      - spago-core
+      - spago-bin
+      - spago
+      - docs-search-index
+      - docs-search-common
+      - docs-search-client-halogen
+    package:
+      type: registry
+      version: 6.0.1
+      integrity: sha256-WssD3DbX4OPzxSdjvRMX0yvc9+pS7n5gyPv5I2Trb7k=
+      dependencies:
+        - arrays
+        - control
+        - either
+        - enums
+        - foldable-traversable
+        - gen
+        - integers
+        - maybe
+        - newtype
+        - nonempty
+        - partial
+        - prelude
+        - tailrec
+        - tuples
+        - unfoldable
+        - unsafe-coerce
   stringutils:
-    type: registry
-    version: 0.0.12
-    integrity: sha256-t63QWBlp49U0nRqUcFryKflSJsNKGTQAHKjn24/+ooI=
-    dependencies:
-      - arrays
-      - integers
-      - maybe
-      - partial
-      - prelude
-      - strings
+    needed_by:
+      - spago-bin
+      - spago
+    package:
+      type: registry
+      version: 0.0.12
+      integrity: sha256-t63QWBlp49U0nRqUcFryKflSJsNKGTQAHKjn24/+ooI=
+      dependencies:
+        - arrays
+        - integers
+        - maybe
+        - partial
+        - prelude
+        - strings
   tailrec:
-    type: registry
-    version: 6.1.0
-    integrity: sha256-Xx19ECVDRrDWpz9D2GxQHHV89vd61dnXxQm0IcYQHGk=
-    dependencies:
-      - bifunctors
-      - effect
-      - either
-      - identity
-      - maybe
-      - partial
-      - prelude
-      - refs
+    needed_by:
+      - spago-core
+      - spago-bin
+      - spago
+      - docs-search-index
+      - docs-search-common
+      - docs-search-client-halogen
+    package:
+      type: registry
+      version: 6.1.0
+      integrity: sha256-Xx19ECVDRrDWpz9D2GxQHHV89vd61dnXxQm0IcYQHGk=
+      dependencies:
+        - bifunctors
+        - effect
+        - either
+        - identity
+        - maybe
+        - partial
+        - prelude
+        - refs
   these:
-    type: registry
-    version: 6.0.0
-    integrity: sha256-6poQvFzGw7Ir9mTDEbFV9N6+cUeSHe0FdzTR2ZK1o6g=
-    dependencies:
-      - arrays
-      - gen
-      - lists
-      - quickcheck
-      - quickcheck-laws
-      - tuples
+    needed_by:
+      - spago-bin
+      - spago
+      - docs-search-index
+      - docs-search-common
+      - docs-search-client-halogen
+    package:
+      type: registry
+      version: 6.0.0
+      integrity: sha256-6poQvFzGw7Ir9mTDEbFV9N6+cUeSHe0FdzTR2ZK1o6g=
+      dependencies:
+        - arrays
+        - gen
+        - lists
+        - quickcheck
+        - quickcheck-laws
+        - tuples
   transformers:
-    type: registry
-    version: 6.0.0
-    integrity: sha256-Pzw40HjthX77tdPAYzjx43LK3X5Bb7ZspYAp27wksFA=
-    dependencies:
-      - control
-      - distributive
-      - effect
-      - either
-      - exceptions
-      - foldable-traversable
-      - identity
-      - lazy
-      - maybe
-      - newtype
-      - prelude
-      - tailrec
-      - tuples
-      - unfoldable
+    needed_by:
+      - spago-core
+      - spago-bin
+      - spago
+      - docs-search-index
+      - docs-search-common
+      - docs-search-client-halogen
+    package:
+      type: registry
+      version: 6.0.0
+      integrity: sha256-Pzw40HjthX77tdPAYzjx43LK3X5Bb7ZspYAp27wksFA=
+      dependencies:
+        - control
+        - distributive
+        - effect
+        - either
+        - exceptions
+        - foldable-traversable
+        - identity
+        - lazy
+        - maybe
+        - newtype
+        - prelude
+        - tailrec
+        - tuples
+        - unfoldable
   tuples:
-    type: registry
-    version: 7.0.0
-    integrity: sha256-1rXgTomes9105BjgXqIw0FL6Fz1lqqUTLWOumhWec1M=
-    dependencies:
-      - control
-      - invariant
-      - prelude
+    needed_by:
+      - spago-core
+      - spago-bin
+      - spago
+      - docs-search-index
+      - docs-search-common
+      - docs-search-client-halogen
+    package:
+      type: registry
+      version: 7.0.0
+      integrity: sha256-1rXgTomes9105BjgXqIw0FL6Fz1lqqUTLWOumhWec1M=
+      dependencies:
+        - control
+        - invariant
+        - prelude
   type-equality:
-    type: registry
-    version: 4.0.1
-    integrity: sha256-Hs9D6Y71zFi/b+qu5NSbuadUQXe5iv5iWx0226vOHUw=
-    dependencies: []
+    needed_by:
+      - spago-core
+      - spago-bin
+      - spago
+      - docs-search-index
+      - docs-search-common
+      - docs-search-client-halogen
+    package:
+      type: registry
+      version: 4.0.1
+      integrity: sha256-Hs9D6Y71zFi/b+qu5NSbuadUQXe5iv5iWx0226vOHUw=
+      dependencies: []
   typelevel-prelude:
-    type: registry
-    version: 7.0.0
-    integrity: sha256-uFF2ph+vHcQpfPuPf2a3ukJDFmLhApmkpTMviHIWgJM=
-    dependencies:
-      - prelude
-      - type-equality
+    needed_by:
+      - spago-core
+      - spago-bin
+      - spago
+      - docs-search-index
+      - docs-search-common
+      - docs-search-client-halogen
+    package:
+      type: registry
+      version: 7.0.0
+      integrity: sha256-uFF2ph+vHcQpfPuPf2a3ukJDFmLhApmkpTMviHIWgJM=
+      dependencies:
+        - prelude
+        - type-equality
   unfoldable:
-    type: registry
-    version: 6.0.0
-    integrity: sha256-JtikvJdktRap7vr/K4ITlxUX1QexpnqBq0G/InLr6eg=
-    dependencies:
-      - foldable-traversable
-      - maybe
-      - partial
-      - prelude
-      - tuples
+    needed_by:
+      - spago-core
+      - spago-bin
+      - spago
+      - docs-search-index
+      - docs-search-common
+      - docs-search-client-halogen
+    package:
+      type: registry
+      version: 6.0.0
+      integrity: sha256-JtikvJdktRap7vr/K4ITlxUX1QexpnqBq0G/InLr6eg=
+      dependencies:
+        - foldable-traversable
+        - maybe
+        - partial
+        - prelude
+        - tuples
   unicode:
-    type: registry
-    version: 6.0.0
-    integrity: sha256-QJnTVZpmihEAUiMeYrfkusVoziJWp2hJsgi9bMQLue8=
-    dependencies:
-      - foldable-traversable
-      - maybe
-      - strings
+    needed_by:
+      - spago-core
+      - spago-bin
+      - spago
+      - docs-search-index
+      - docs-search-common
+      - docs-search-client-halogen
+    package:
+      type: registry
+      version: 6.0.0
+      integrity: sha256-QJnTVZpmihEAUiMeYrfkusVoziJWp2hJsgi9bMQLue8=
+      dependencies:
+        - foldable-traversable
+        - maybe
+        - strings
   unsafe-coerce:
-    type: registry
-    version: 6.0.0
-    integrity: sha256-IqIYW4Vkevn8sI+6aUwRGvd87tVL36BBeOr0cGAE7t0=
-    dependencies: []
+    needed_by:
+      - spago-core
+      - spago-bin
+      - spago
+      - docs-search-index
+      - docs-search-common
+      - docs-search-client-halogen
+    package:
+      type: registry
+      version: 6.0.0
+      integrity: sha256-IqIYW4Vkevn8sI+6aUwRGvd87tVL36BBeOr0cGAE7t0=
+      dependencies: []
   unsafe-reference:
-    type: registry
-    version: 5.0.0
-    integrity: sha256-zU7BhfJU14nXQRZG9iADsp0mSiKhz07OcKyjRB2YT+Y=
-    dependencies:
-      - prelude
+    needed_by:
+      - spago-bin
+      - spago
+      - docs-search-client-halogen
+    package:
+      type: registry
+      version: 5.0.0
+      integrity: sha256-zU7BhfJU14nXQRZG9iADsp0mSiKhz07OcKyjRB2YT+Y=
+      dependencies:
+        - prelude
   variant:
-    type: registry
-    version: 8.0.0
-    integrity: sha256-SR//zQDg2dnbB8ZHslcxieUkCeNlbMToapvmh9onTtw=
-    dependencies:
-      - enums
-      - lists
-      - maybe
-      - partial
-      - prelude
-      - record
-      - tuples
-      - unsafe-coerce
+    needed_by:
+      - spago-core
+      - spago-bin
+      - spago
+      - docs-search-index
+      - docs-search-common
+      - docs-search-client-halogen
+    package:
+      type: registry
+      version: 8.0.0
+      integrity: sha256-SR//zQDg2dnbB8ZHslcxieUkCeNlbMToapvmh9onTtw=
+      dependencies:
+        - enums
+        - lists
+        - maybe
+        - partial
+        - prelude
+        - record
+        - tuples
+        - unsafe-coerce
   versions:
-    type: registry
-    version: 7.0.0
-    integrity: sha256-+7qxEsCbSl8JDsOsGQO/XxCfcCYak13lJHEXmCzUjIs=
-    dependencies:
-      - control
-      - either
-      - foldable-traversable
-      - functions
-      - integers
-      - lists
-      - maybe
-      - orders
-      - parsing
-      - partial
-      - strings
+    needed_by:
+      - spago-bin
+      - spago
+      - docs-search-index
+      - docs-search-common
+      - docs-search-client-halogen
+    package:
+      type: registry
+      version: 7.0.0
+      integrity: sha256-+7qxEsCbSl8JDsOsGQO/XxCfcCYak13lJHEXmCzUjIs=
+      dependencies:
+        - control
+        - either
+        - foldable-traversable
+        - functions
+        - integers
+        - lists
+        - maybe
+        - orders
+        - parsing
+        - partial
+        - strings
   web-clipboard:
-    type: registry
-    version: 5.0.0
-    integrity: sha256-TbZEMovHhks9Qa7JXodJabvKDpeFkl6swfPKqhXd/lE=
-    dependencies:
-      - js-promise
-      - web-html
+    needed_by:
+      - docs-search-client-halogen
+    package:
+      type: registry
+      version: 5.0.0
+      integrity: sha256-TbZEMovHhks9Qa7JXodJabvKDpeFkl6swfPKqhXd/lE=
+      dependencies:
+        - js-promise
+        - web-html
   web-dom:
-    type: registry
-    version: 6.0.0
-    integrity: sha256-1kSKWFDI4LupdmpjK01b1MMxDFW7jvatEgPgVmCmSBQ=
-    dependencies:
-      - web-events
+    needed_by:
+      - spago-bin
+      - spago
+      - docs-search-client-halogen
+    package:
+      type: registry
+      version: 6.0.0
+      integrity: sha256-1kSKWFDI4LupdmpjK01b1MMxDFW7jvatEgPgVmCmSBQ=
+      dependencies:
+        - web-events
   web-events:
-    type: registry
-    version: 4.0.0
-    integrity: sha256-YDt8b6u1tzGtnWyNRodne57iO8FNSGPaTCVzBUyUn4k=
-    dependencies:
-      - datetime
-      - enums
-      - foreign
-      - nullable
+    needed_by:
+      - spago-bin
+      - spago
+      - docs-search-client-halogen
+    package:
+      type: registry
+      version: 4.0.0
+      integrity: sha256-YDt8b6u1tzGtnWyNRodne57iO8FNSGPaTCVzBUyUn4k=
+      dependencies:
+        - datetime
+        - enums
+        - foreign
+        - nullable
   web-file:
-    type: registry
-    version: 4.0.0
-    integrity: sha256-1h5jPBkvjY71jLEdwVadXCx86/2inNoMBO//Rd3eCSU=
-    dependencies:
-      - foreign
-      - media-types
-      - web-dom
+    needed_by:
+      - spago-bin
+      - spago
+      - docs-search-client-halogen
+    package:
+      type: registry
+      version: 4.0.0
+      integrity: sha256-1h5jPBkvjY71jLEdwVadXCx86/2inNoMBO//Rd3eCSU=
+      dependencies:
+        - foreign
+        - media-types
+        - web-dom
   web-html:
-    type: registry
-    version: 4.1.0
-    integrity: sha256-ByqS/h1/yG+hjCOnOQp7L1QpIWzQENNKB1kaHtpEhlE=
-    dependencies:
-      - js-date
-      - web-dom
-      - web-file
-      - web-storage
+    needed_by:
+      - spago-bin
+      - spago
+      - docs-search-client-halogen
+    package:
+      type: registry
+      version: 4.1.0
+      integrity: sha256-ByqS/h1/yG+hjCOnOQp7L1QpIWzQENNKB1kaHtpEhlE=
+      dependencies:
+        - js-date
+        - web-dom
+        - web-file
+        - web-storage
   web-pointerevents:
-    type: registry
-    version: 1.0.0
-    integrity: sha256-I3OGc4gVslh2QsH8QUTeihKCIpFwv4t3RoycZB9ITOs=
-    dependencies:
-      - effect
-      - maybe
-      - prelude
-      - web-dom
-      - web-uievents
+    needed_by:
+      - docs-search-client-halogen
+    package:
+      type: registry
+      version: 1.0.0
+      integrity: sha256-I3OGc4gVslh2QsH8QUTeihKCIpFwv4t3RoycZB9ITOs=
+      dependencies:
+        - effect
+        - maybe
+        - prelude
+        - web-dom
+        - web-uievents
   web-promise:
-    type: registry
-    version: 3.1.0
-    integrity: sha256-YfqJyEC3bHH6D8QgTi0ME5oJmGYOuZ2TlcyOdpG8dIE=
-    dependencies:
-      - effect
-      - exceptions
-      - foldable-traversable
-      - functions
-      - maybe
-      - prelude
+    needed_by:
+      - spago-bin
+      - spago
+    package:
+      type: registry
+      version: 3.1.0
+      integrity: sha256-YfqJyEC3bHH6D8QgTi0ME5oJmGYOuZ2TlcyOdpG8dIE=
+      dependencies:
+        - effect
+        - exceptions
+        - foldable-traversable
+        - functions
+        - maybe
+        - prelude
   web-storage:
-    type: registry
-    version: 5.0.0
-    integrity: sha256-q+6lxcnfWxus0/nDeFVtF1V+tLehZvvXQ0cduYPLksY=
-    dependencies:
-      - nullable
-      - web-events
+    needed_by:
+      - spago-bin
+      - spago
+      - docs-search-client-halogen
+    package:
+      type: registry
+      version: 5.0.0
+      integrity: sha256-q+6lxcnfWxus0/nDeFVtF1V+tLehZvvXQ0cduYPLksY=
+      dependencies:
+        - nullable
+        - web-events
   web-streams:
-    type: registry
-    version: 3.0.0
-    integrity: sha256-+QELAR7lb08Ebr4lCntxeGk5Z1i+NInDJwzEzz3Pigc=
-    dependencies:
-      - arraybuffer-types
-      - effect
-      - exceptions
-      - nullable
-      - prelude
-      - tuples
-      - web-promise
+    needed_by:
+      - spago-bin
+      - spago
+    package:
+      type: registry
+      version: 3.0.0
+      integrity: sha256-+QELAR7lb08Ebr4lCntxeGk5Z1i+NInDJwzEzz3Pigc=
+      dependencies:
+        - arraybuffer-types
+        - effect
+        - exceptions
+        - nullable
+        - prelude
+        - tuples
+        - web-promise
   web-touchevents:
-    type: registry
-    version: 4.0.0
-    integrity: sha256-nDHMyXbkDfCEp299RLHCqj5HCDgWXFFy80lGoGjSzms=
-    dependencies:
-      - web-uievents
+    needed_by:
+      - docs-search-client-halogen
+    package:
+      type: registry
+      version: 4.0.0
+      integrity: sha256-nDHMyXbkDfCEp299RLHCqj5HCDgWXFFy80lGoGjSzms=
+      dependencies:
+        - web-uievents
   web-uievents:
-    type: registry
-    version: 4.0.0
-    integrity: sha256-Vtp5m/8IWP3flDXpnVn3Mxq8lCFDlBFp5eBnB+uO/CM=
-    dependencies:
-      - web-html
+    needed_by:
+      - docs-search-client-halogen
+    package:
+      type: registry
+      version: 4.0.0
+      integrity: sha256-Vtp5m/8IWP3flDXpnVn3Mxq8lCFDlBFp5eBnB+uO/CM=
+      dependencies:
+        - web-html
   web-xhr:
-    type: registry
-    version: 5.0.1
-    integrity: sha256-3dbIPVG66S+hPrgEVnpD78hrGjE7qlBbsReWOz89Ios=
-    dependencies:
-      - arraybuffer-types
-      - datetime
-      - http-methods
-      - web-dom
-      - web-file
-      - web-html
+    needed_by:
+      - spago-bin
+      - spago
+    package:
+      type: registry
+      version: 5.0.1
+      integrity: sha256-3dbIPVG66S+hPrgEVnpD78hrGjE7qlBbsReWOz89Ios=
+      dependencies:
+        - arraybuffer-types
+        - datetime
+        - http-methods
+        - web-dom
+        - web-file
+        - web-html

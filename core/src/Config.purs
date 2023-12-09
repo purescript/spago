@@ -288,12 +288,10 @@ type WorkspaceConfig =
   , extra_packages :: Maybe (Map PackageName ExtraPackage)
   , backend :: Maybe BackendConfig
   , build_opts :: Maybe WorkspaceBuildOptionsInput
-  , lock :: Maybe Boolean
   }
 
 workspaceConfigCodec :: JsonCodec WorkspaceConfig
 workspaceConfigCodec = CA.object "WorkspaceConfig"
-  $ CA.recordPropOptional (Proxy :: _ "lock") CA.boolean
   $ CA.recordPropOptional (Proxy :: _ "package_set") setAddressCodec
   $ CA.recordPropOptional (Proxy :: _ "backend") backendConfigCodec
   $ CA.recordPropOptional (Proxy :: _ "build_opts") buildOptionsCodec

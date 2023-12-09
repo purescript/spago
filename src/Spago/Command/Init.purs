@@ -175,7 +175,6 @@ defaultConfig' opts =
       , package_set: setVersion # map \set -> SetFromRegistry { registry: set }
       , build_opts: Nothing
       , backend: Nothing
-      , lock: Nothing
       }
   }
   where

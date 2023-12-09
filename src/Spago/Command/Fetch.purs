@@ -17,12 +17,15 @@ import Affjax.ResponseFormat as Response
 import Affjax.StatusCode (StatusCode(..))
 import Control.Monad.State as State
 import Data.Array as Array
+import Data.Array.NonEmpty as NEA
 import Data.Codec.Argonaut as CA
 import Data.Either as Either
 import Data.HTTP.Method as Method
 import Data.Int as Int
 import Data.Map as Map
+import Data.Newtype (wrap)
 import Data.Set as Set
+import Data.Traversable (sequence)
 import Effect.Ref as Ref
 import Node.Buffer as Buffer
 import Node.Encoding as Encoding
@@ -35,12 +38,12 @@ import Registry.Sha256 as Sha256
 import Registry.Solver as Registry.Solver
 import Registry.Version as Registry.Version
 import Registry.Version as Version
-import Spago.Config (Dependencies(..), GitPackage, LockfileSettings(..), Package(..), PackageMap, PackageSet(..), Workspace, WorkspacePackage)
+import Spago.Config (BuildType(..), Dependencies(..), GitPackage, Package(..), PackageMap, Workspace, WorkspacePackage)
 import Spago.Config as Config
 import Spago.Db as Db
 import Spago.FS as FS
 import Spago.Git as Git
-import Spago.Lock (LockEntry(..))
+import Spago.Lock (LockEntryData(..))
 import Spago.Lock as Lock
 import Spago.Paths as Paths
 import Spago.Purs as Purs
@@ -67,43 +70,26 @@ type FetchOpts =
   { packages :: Array PackageName
   , ensureRanges :: Boolean
   , isTest :: Boolean
+  , isRepl :: Boolean
   }
 
 run
   :: forall a
    . FetchOpts
   -> Spago (FetchEnv a) PackageTransitiveDeps
-run { packages: packagesToInstall, ensureRanges, isTest } = do
+run { packages: packagesToInstall, ensureRanges, isTest, isRepl } = do
   logDebug $ "Requested to install these packages: " <> printJson (CA.array PackageName.codec) packagesToInstall
 
-  { getMetadata, logOptions, workspace, offline } <- ask
+  { getMetadata, logOptions, workspace: currentWorkspace, offline } <- ask
 
   let
     installingPackages = not $ Array.null packagesToInstall
 
-    getSelectedPackageTransitiveDeps :: WorkspacePackage -> Spago (FetchEnv a) PackageMap
-    getSelectedPackageTransitiveDeps selected =
-      getTransitiveDeps $ getWorkspacePackageDeps selected <> Dependencies (Map.fromFoldable $ map (_ /\ Nothing) packagesToInstall)
+    -- If we need to install new packages then we need to zero the current lockfile, we're going to need a new one
+    workspace = case installingPackages of
+      false -> currentWorkspace
+      true -> currentWorkspace { packageSet = currentWorkspace.packageSet { lockfile = Nothing } }
 
-  -- lookup the dependencies in the package set, so we get their version numbers.
-  { dependencies, transitiveDeps } <- case workspace.selected of
-    Just (selected :: WorkspacePackage) -> do
-      transitiveDeps <- getSelectedPackageTransitiveDeps selected
-      pure
-        { dependencies: Map.singleton selected.package.name transitiveDeps
-        , transitiveDeps
-        }
-    Nothing -> do
-      dependencies <- traverse getTransitiveDeps
-        $ Map.fromFoldable
-        $ map (\p -> Tuple p.package.name (getWorkspacePackageDeps p))
-        $ Config.getWorkspacePackages workspace.packageSet
-      pure
-        { dependencies
-        , transitiveDeps: toAllDependencies dependencies
-        }
-
-  let
     getPackageConfigPath errorMessageEnd = do
       case workspace.selected of
         Just { path, doc, package } -> pure { configPath: Path.concat [ path, "spago.yaml" ], yamlDoc: doc, package }
@@ -113,6 +99,21 @@ run { packages: packagesToInstall, ensureRanges, isTest } = do
             [ "No package found in the root configuration."
             , "Please use the `-p` flag to select a package " <> errorMessageEnd
             ]
+
+  -- We compute the transitive deps for all the packages in the workspace, but keep them
+  -- split by package - we need all of them so we can stash them in the lockfile, but we
+  -- are going to only download the ones that we need to, if e.g. there's a package selected
+  dependencies <- traverse getTransitiveDeps
+    $ Map.fromFoldable
+    $ map
+        ( \p -> Tuple p.package.name case workspace.selected of
+            -- If we are installing packages, we need to add the new deps to the selected package
+            Just selected | selected.package.name == p.package.name -> case isTest of
+              false -> p { package { dependencies = p.package.dependencies <> Dependencies (Map.fromFoldable $ map (_ /\ Nothing) packagesToInstall) } }
+              true -> p { package { test = p.package.test # map (\t -> t { dependencies = t.dependencies <> Dependencies (Map.fromFoldable $ map (_ /\ Nothing) packagesToInstall) }) } }
+            _ -> p
+        )
+    $ Config.getWorkspacePackages workspace.packageSet
 
   -- write to the config file if we are adding new packages
   when installingPackages do
@@ -139,68 +140,29 @@ run { packages: packagesToInstall, ensureRanges, isTest } = do
     liftEffect $ Config.addRangesToConfig yamlDoc rangeMap
     liftAff $ FS.writeYamlDocFile configPath yamlDoc
 
-  -- TODO: need to be careful about what happens when we select a single package vs the whole workspace
-  -- because otherwise the lockfile will be partial.
-  -- Most likely we'll want to first figure out if we want a new lockfile at all,
-  -- then possibly resolve all the packages anyways, then resolve the ones for a single package
-  -- (which comes for free at that point since the cache is already populated)
-  lockfile <- do
-    let
-      fromWorkspacePackage :: WorkspacePackage -> Tuple PackageName Lock.WorkspaceLockPackage
-      fromWorkspacePackage { path, package } = Tuple package.name
-        { path
-        , dependencies: package.dependencies
-        , test_dependencies: foldMap _.dependencies package.test
-        }
-
-      lockfileWorkspace :: Lock.WorkspaceLock
-      lockfileWorkspace =
-        { package_set: workspace.workspaceConfig.package_set
-        , packages: Map.fromFoldable
-            $ map fromWorkspacePackage (Config.getWorkspacePackages workspace.packageSet)
-        , extra_packages: fromMaybe Map.empty workspace.workspaceConfig.extra_packages
-        }
-
-    (lockfilePackages :: Map PackageName Lock.LockEntry) <- Map.catMaybes <$>
-      forWithIndex transitiveDeps \packageName package -> do
-        (packageDependencies :: Array PackageName) <- (Array.fromFoldable <<< Map.keys <<< fromMaybe Map.empty)
-          <$> getPackageDependencies packageName package
-        case package of
-          GitPackage gitPackage -> do
-            let packageLocation = Config.getPackageLocation packageName package
-            Git.getRef (Just packageLocation) >>= case _ of
-              Left err -> die err
-              Right rev -> pure $ Just $ FromGit { rev, dependencies: packageDependencies, url: gitPackage.git, subdir: gitPackage.subdir }
-          RegistryVersion version -> do
-            metadata <- runSpago { logOptions } $ getMetadata packageName
-            registryVersion <- case (metadata >>= (\(Metadata meta) -> Either.note "Didn't find version in the metadata file" $ Map.lookup version meta.published)) of
-              Left err -> die $ "Couldn't read metadata, reason:\n  " <> err
-              Right { hash: integrity } ->
-                pure { version, integrity, dependencies: packageDependencies }
-            pure $ Just $ FromRegistry registryVersion
-          LocalPackage { path } -> pure $ Just (FromPath { path, dependencies: packageDependencies })
-          WorkspacePackage _ -> pure $ Nothing
-
-    pure { workspace: lockfileWorkspace, packages: lockfilePackages }
-
+  -- the repl needs a support package, so we add it here as a sidecar
+  supportPackage <- Repl.supportPackage workspace.packageSet
   let
-    shouldWriteLockFile = case workspace.selected, workspace.lockfile of
-      Nothing, GenerateLockfile -> true
-      Nothing, (UseLockfile _) -> true
-      _, _ -> false
+    allTransitiveDeps = case isRepl of
+      false -> dependencies
+      true -> map (\packageMap -> Map.union packageMap supportPackage) dependencies
+  depsToFetch <- case workspace.selected of
+    Nothing -> pure (toAllDependencies allTransitiveDeps)
+    -- If there's a package selected, we only fetch the transitive deps for that one
+    Just p -> case Map.lookup p.package.name dependencies of
+      Nothing -> die "Impossible: package dependencies must be in dependencies map"
+      Just deps -> pure $ Map.union deps if isRepl then supportPackage else Map.empty
 
-  when shouldWriteLockFile do
-    logInfo "Writing a new lockfile"
+  when (isNothing workspace.packageSet.lockfile) do
+    logInfo "No lockfile found, generating one..."
+    lockfile <- mkLockfile allTransitiveDeps
     liftAff $ FS.writeYamlFile Lock.lockfileCodec "spago.lock" lockfile
+    logInfo "Lockfile written to spago.lock. Please commit this file."
 
   -- then for every package we have we try to download it, and copy it in the local cache
   logInfo "Downloading dependencies..."
 
-  -- the repl needs a support package, so we fetch it here as a sidecar
-  supportPackage <- Repl.supportPackage workspace.packageSet
-  let transitiveDeps' = Map.union transitiveDeps supportPackage
-
-  parallelise $ (flip map) (Map.toUnfoldable transitiveDeps' :: Array (Tuple PackageName Package)) \(Tuple name package) -> do
+  parallelise $ (flip map) (Map.toUnfoldable depsToFetch :: Array (Tuple PackageName Package)) \(Tuple name package) -> do
     let localPackageLocation = Config.getPackageLocation name package
     -- first of all, we check if we have the package in the local cache. If so, we don't even do the work
     unlessM (FS.exists localPackageLocation) case package of
@@ -278,6 +240,75 @@ run { packages: packagesToInstall, ensureRanges, isTest } = do
 
   pure dependencies
 
+type LockfileBuilderResult =
+  { workspacePackages :: Map PackageName Lock.WorkspaceLockPackage
+  , packages :: Map PackageName Lock.LockEntry
+  }
+
+mkLockfile :: forall a. PackageTransitiveDeps -> Spago (FetchEnv a) Lock.Lockfile
+mkLockfile allTransitiveDeps = do
+  { workspace, logOptions, getMetadata } <- ask
+  let
+    processPackage :: LockfileBuilderResult -> Tuple PackageName (Tuple PackageName Package) -> Spago (FetchEnv a) LockfileBuilderResult
+    processPackage result (Tuple workspacePackageName (Tuple dependencyName dependencyPackage)) = do
+      (packageDependencies :: Array PackageName) <- (Array.fromFoldable <<< Map.keys <<< fromMaybe Map.empty)
+        <$> getPackageDependencies dependencyName dependencyPackage
+      let
+        updatePackage package = pure $ result
+          { packages = Map.alter
+              ( case _ of
+                  Nothing -> Just { needed_by: NEA.singleton workspacePackageName, package }
+                  Just { needed_by } -> Just { needed_by: NEA.cons workspacePackageName needed_by, package }
+              )
+              dependencyName
+              result.packages
+          }
+        updateWorkspacePackage otherWorkspacePackage = pure $ result
+          { workspacePackages = Map.alter
+              ( case _ of
+                  Nothing -> Just $ otherWorkspacePackage { needed_by = Array.singleton workspacePackageName }
+                  Just pkg@{ needed_by } -> Just $ pkg { needed_by = Array.cons workspacePackageName needed_by }
+              )
+              dependencyName
+              result.workspacePackages
+          }
+
+      case dependencyPackage of
+        WorkspacePackage pkg -> updateWorkspacePackage (snd $ Config.workspacePackageToLockfilePackage pkg)
+        GitPackage gitPackage -> do
+          let packageLocation = Config.getPackageLocation dependencyName dependencyPackage
+          Git.getRef (Just packageLocation) >>= case _ of
+            Left err -> die err -- TODO maybe not die here?
+            Right rev -> updatePackage $ FromGit { rev, dependencies: packageDependencies, url: gitPackage.git, subdir: gitPackage.subdir }
+        RegistryVersion version -> do
+          metadata <- runSpago { logOptions } $ getMetadata dependencyName
+          registryVersion <- case (metadata >>= (\(Metadata meta) -> Either.note "Didn't find version in the metadata file" $ Map.lookup version meta.published)) of
+            Left err -> die $ "Couldn't read metadata, reason:\n  " <> err
+            Right { hash: integrity } ->
+              pure { version, integrity, dependencies: packageDependencies }
+          updatePackage $ FromRegistry registryVersion
+        LocalPackage { path } -> do
+          updatePackage $ FromPath { path, dependencies: packageDependencies }
+
+  let
+    toArray :: forall k v. Map k v -> Array (Tuple k v)
+    toArray = Map.toUnfoldable
+  ({ packages, workspacePackages } :: LockfileBuilderResult) <-
+    Array.foldM processPackage
+      { workspacePackages: Map.fromFoldable $ map Config.workspacePackageToLockfilePackage (Config.getWorkspacePackages workspace.packageSet), packages: Map.empty }
+      (foldMap sequence $ toArray $ map toArray allTransitiveDeps)
+
+  pure
+    { packages
+    , workspace:
+        { package_set: case workspace.packageSet.buildType of
+            RegistrySolverBuild _ -> Nothing
+            PackageSetBuild info _ -> Just info
+        , packages: workspacePackages
+        , extra_packages: fromMaybe Map.empty workspace.workspaceConfig.extra_packages
+        }
+    }
+
 toAllDependencies :: PackageTransitiveDeps -> PackageMap
 toAllDependencies = foldl (Map.unionWith (\l _ -> l)) Map.empty
 
@@ -341,16 +372,47 @@ type TransitiveDepsResult =
       }
   }
 
-getTransitiveDeps :: forall a. Dependencies -> Spago (FetchEnv a) PackageMap
-getTransitiveDeps (Dependencies deps) = do
-  let depsRanges = map (fromMaybe Config.widestRange) deps
+getTransitiveDeps :: forall a. Config.WorkspacePackage -> Spago (FetchEnv a) PackageMap
+getTransitiveDeps workspacePackage = do
+  let depsRanges = map (fromMaybe Config.widestRange) (unwrap $ getWorkspacePackageDeps workspacePackage)
   { workspace } <- ask
-  case workspace.packageSet of
-    Registry extraPackages -> do
-      plan <- getTransitiveDepsFromRegistry depsRanges extraPackages
-      logDebug $ "Got a plan from the Solver: " <> printJson (Internal.Codec.packageMap Version.codec) plan
-      pure (map RegistryVersion plan)
-    PackageSet set -> getTransitiveDepsFromPackageSet set (Array.fromFoldable $ Map.keys depsRanges)
+  case workspace.packageSet.lockfile of
+    -- If we have a lockfile we can just use that - we don't even need build a plan, we can just filter the packages
+    -- marked as needed by the workspace package that we are processing, as we just dumped the plan in the lockfile.
+    Just lockfile -> do
+      let
+        allWorkspacePackages = Map.fromFoldable $ map (\p -> Tuple p.package.name (WorkspacePackage p)) (Config.getWorkspacePackages workspace.packageSet)
+
+        -- Need to filter the allWorkspacePackages by needed_by as well
+        workspacePackagesWeNeed = allWorkspacePackages # Map.filterWithKey \name _package -> case Map.lookup name lockfile.workspace.packages of
+          Nothing -> false
+          Just { needed_by } -> Array.elem workspacePackage.package.name needed_by
+
+        otherPackages = map (fromLockEntryData <<< _.package) $ Map.filter (\{ needed_by } -> NEA.elem workspacePackage.package.name needed_by) lockfile.packages
+
+      pure $ Map.union otherPackages workspacePackagesWeNeed
+    -- No lockfile, we need to build a plan from scratch, and hit the Registry and so on
+    Nothing -> case workspace.packageSet.buildType of
+      RegistrySolverBuild extraPackages -> do
+        plan <- getTransitiveDepsFromRegistry depsRanges extraPackages
+        logDebug $ "Got a plan from the Solver: " <> printJson (Internal.Codec.packageMap Version.codec) plan
+        pure (map RegistryVersion plan)
+      PackageSetBuild _info set -> getTransitiveDepsFromPackageSet set (Array.fromFoldable $ Map.keys depsRanges)
+
+  where
+  -- Note: here we can safely discard the dependencies because we don't need to bother about building a build plan,
+  -- we already built it when the lockfile was put together in the first place. All the dependency info is there so
+  -- that other things can use it (e.g. Nix), but Spago is not going to need it at this point.
+  fromLockEntryData :: LockEntryData -> Package
+  fromLockEntryData = case _ of
+    FromPath { path } -> LocalPackage { path }
+    FromRegistry { version } -> RegistryVersion version
+    FromGit { rev, dependencies, url, subdir } -> GitPackage
+      { ref: rev
+      , dependencies: Just $ wrap $ Map.fromFoldable $ map (\p -> Tuple p Nothing) dependencies
+      , git: url
+      , subdir
+      }
 
 getTransitiveDepsFromRegistry :: forall a. Map PackageName Range -> PackageMap -> Spago (FetchEnv a) (Map PackageName Version)
 getTransitiveDepsFromRegistry depsRanges extraPackages = do
@@ -384,7 +446,6 @@ getTransitiveDepsFromRegistry depsRanges extraPackages = do
 getTransitiveDepsFromPackageSet :: forall a. PackageMap -> Array PackageName -> Spago (FetchEnv a) PackageMap
 getTransitiveDepsFromPackageSet packageSet deps = do
   logDebug "Getting transitive deps"
-  -- { workspace } <- ask
   packageDependenciesCache <- liftEffect $ Ref.new Map.empty
   let
     memoisedGetPackageDependencies :: PackageName -> Package -> Spago (FetchEnv a) (Maybe (Map PackageName Range))

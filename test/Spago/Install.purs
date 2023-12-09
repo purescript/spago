@@ -211,32 +211,6 @@ spec = Spec.around withTempDir do
       spago [ "install", "-p", "subpackage", "either" ] >>= shouldBeSuccess
       checkFixture "subpackage/spago.yaml" (fixture "spago-subpackage-install-success.yaml")
 
-    Spec.it "adds a hash to the package set when importing it from a URL" \{ spago, fixture } -> do
-      spago [ "init" ] >>= shouldBeSuccess
-      let
-        conf = Init.defaultConfig
-          { name: mkPackageName "aaa"
-          , withWorkspace: Just
-              { setVersion: Just $ unsafeFromRight $ Version.parse "0.0.1" }
-          , testModuleName: "Test.Main"
-          }
-      FS.writeYamlFile Config.configCodec "spago.yaml"
-        ( conf
-            { workspace = conf.workspace # map
-                ( _
-                    { package_set = Just
-                        ( Config.SetFromUrl
-                            { hash: Nothing
-                            , url: "https://raw.githubusercontent.com/purescript/registry/main/package-sets/29.3.0.json"
-                            }
-                        )
-                    }
-                )
-            }
-        )
-      spago [ "install" ] >>= shouldBeSuccess
-      checkFixture "spago.yaml" (fixture "spago-with-hash.yaml")
-
     Spec.it "can build with a newer (but still compatible) compiler than the one in the package set" \{ spago } -> do
       spago [ "init", "--package-set", "10.0.0" ] >>= shouldBeSuccess
       startingTime <- liftEffect $ Now.now

@@ -1,5 +1,4 @@
 Reading Spago workspace configuration...
-Read the package set from the registry
 
 ✅ Selecting package to build: 7368613235362d6a336156536c675a7033334e7659556c6d38
 

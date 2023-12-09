@@ -22,11 +22,11 @@ run { json } = do
       Just selected -> NEA.singleton selected
       Nothing -> Config.getWorkspacePackages workspace.packageSet
 
-    deps = foldMap Fetch.getWorkspacePackageDeps selectedPackages
+  transitiveDeps <- traverse Fetch.getTransitiveDeps
+    $ Map.fromFoldable
+    $ map (\p -> Tuple p.package.name p) selectedPackages
 
-  transitiveDeps <- Fetch.getTransitiveDeps deps
-
-  let transitivePackages = Map.union (Map.fromFoldable (map (\p -> Tuple (p.package.name) (WorkspacePackage p)) selectedPackages)) transitiveDeps
+  let transitivePackages = Map.union (Map.fromFoldable (map (\p -> Tuple (p.package.name) (WorkspacePackage p)) selectedPackages)) (Fetch.toAllDependencies transitiveDeps)
 
   let
     globs = Array.foldMap
