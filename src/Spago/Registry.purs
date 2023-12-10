@@ -22,8 +22,9 @@ import Data.Set as Set
 import Data.String (Pattern(..))
 import Data.String as String
 import Data.Time.Duration (Minutes(..))
+import Effect.AVar (AVar)
+import Effect.Aff.AVar as AVar
 import Effect.Now as Now
-import Effect.Ref as Ref
 import Node.Path as Path
 import Registry.Constants as Registry.Constants
 import Registry.ManifestIndex as ManifestIndex
@@ -95,16 +96,21 @@ readPackageSet version = do
   { readPackageSet: fn } <- runSpago { logOptions, db, git, purs, offline } getRegistry
   runSpago { logOptions } (fn version)
 
-getRegistryFns :: Ref (Maybe RegistryFunctions) -> Spago (PreRegistryEnv _) RegistryFunctions
-getRegistryFns registryRef = do
-  -- We make a Ref here that we use to keep track of the Registry pull:
-  -- if something needs to use the Registry, then it will have to call this function
-  -- and populate this container, and all subsequent calls will just read from it
+getRegistryFns :: AVar RegistryFunctions -> AVar Unit -> Spago (PreRegistryEnv _) RegistryFunctions
+getRegistryFns registryBox registryLock = do
+  -- The Box AVar will be empty until the first time we fetch the Registry, then
+  -- we can just use the value that is cached.
+  -- The Lock AVar is used to make sure
+  -- that only one fiber is fetching the Registry at a time, and that all the other
+  -- fibers will wait for it to finish and then use the cached value.
   { db } <- ask
-  liftEffect (Ref.read registryRef) >>= case _ of
-    Just registry -> pure registry
+  liftAff $ AVar.take registryLock
+  liftAff (AVar.tryRead registryBox) >>= case _ of
+    Just registry -> do
+      liftAff $ AVar.put unit registryLock
+      pure registry
     Nothing -> do
-      fetchingFreshRegistry <- fetchRegistry db
+      fetchingFreshRegistry <- fetchRegistry
       let
         registryFns =
           { getManifestFromIndex: getManifestFromIndexImpl db
@@ -113,14 +119,16 @@ getRegistryFns registryRef = do
           , findPackageSet: findPackageSetImpl
           , readPackageSet: readPackageSetImpl
           }
-      liftEffect $ Ref.write (Just registryFns) registryRef
+      liftAff $ AVar.put registryFns registryBox
+      liftAff $ AVar.put unit registryLock
       pure registryFns
 
   where
-  fetchRegistry :: Db -> Spago (PreRegistryEnv _) Boolean
-  fetchRegistry db = do
+  fetchRegistry :: Spago (PreRegistryEnv _) Boolean
+  fetchRegistry = do
     -- we keep track of how old the latest pull was - if the last pull was recent enough
     -- we just move on, otherwise run the fibers
+    { db } <- ask
     fetchingFreshRegistry <- shouldFetchRegistryRepos db
     when fetchingFreshRegistry do
       -- clone the registry and index repo, or update them
@@ -298,5 +306,4 @@ shouldFetchRegistryRepos db = do
         liftEffect $ Db.updateLastPull db registryKey now
         pure true
       else do
-        logDebug "Registry is fresh enough, moving on..."
         pure false

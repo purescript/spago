@@ -14,8 +14,8 @@ import Data.Maybe as Maybe
 import Data.Set as Set
 import Data.String as String
 import Effect.Aff as Aff
+import Effect.Aff.AVar as AVar
 import Effect.Now as Now
-import Effect.Ref as Ref
 import Node.Path as Path
 import Node.Process as Process
 import Options.Applicative (CommandFields, Mod, Parser, ParserPrefs(..))
@@ -950,10 +950,11 @@ mkRegistryEnv offline = do
     { database: Paths.databasePath
     , logger: \str -> Reader.runReaderT (logDebug $ "DB: " <> str) { logOptions }
     }
-  registryRef <- liftEffect $ Ref.new Nothing
+  registryBox <- liftAff $ AVar.empty
+  registryLock <- liftAff $ AVar.new unit
 
   pure
-    { getRegistry: Registry.getRegistryFns registryRef
+    { getRegistry: Registry.getRegistryFns registryBox registryLock
     , logOptions
     , offline
     , purs
