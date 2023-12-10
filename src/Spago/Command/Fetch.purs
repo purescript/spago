@@ -47,14 +47,14 @@ import Spago.Lock (LockEntryData(..))
 import Spago.Lock as Lock
 import Spago.Paths as Paths
 import Spago.Purs as Purs
+import Spago.Registry as Registry
 import Spago.Repl as Repl
 import Spago.Tar as Tar
 
 type PackageTransitiveDeps = Map PackageName PackageMap
 
 type FetchEnvRow a =
-  ( getManifestFromIndex :: PackageName -> Version -> Spago (LogEnv ()) (Maybe Manifest)
-  , getMetadata :: PackageName -> Spago (LogEnv ()) (Either String Metadata)
+  ( getRegistry :: Spago (Registry.PreRegistryEnv ()) Registry.RegistryFunctions
   , workspace :: Workspace
   , logOptions :: LogOptions
   , offline :: OnlineStatus
@@ -80,7 +80,7 @@ run
 run { packages: packagesToInstall, ensureRanges, isTest, isRepl } = do
   logDebug $ "Requested to install these packages: " <> printJson (CA.array PackageName.codec) packagesToInstall
 
-  { getMetadata, logOptions, workspace: currentWorkspace, offline } <- ask
+  { workspace: currentWorkspace, offline } <- ask
 
   let
     installingPackages = not $ Array.null packagesToInstall
@@ -172,7 +172,7 @@ run { packages: packagesToInstall, ensureRanges, isTest, isRepl } = do
         let versionString = Registry.Version.print v
         let packageVersion = PackageName.print name <> "@" <> versionString
         -- get the metadata for the package, so we have access to the hash and other info
-        metadata <- runSpago { logOptions } $ getMetadata name
+        metadata <- Registry.getMetadata name
         case (metadata >>= (\(Metadata meta) -> Either.note "Didn't find version in the metadata file" $ Map.lookup v meta.published)) of
           Left err -> die $ "Couldn't read metadata, reason:\n  " <> err
           Right versionMetadata -> do
@@ -247,7 +247,7 @@ type LockfileBuilderResult =
 
 mkLockfile :: forall a. PackageTransitiveDeps -> Spago (FetchEnv a) Lock.Lockfile
 mkLockfile allTransitiveDeps = do
-  { workspace, logOptions, getMetadata } <- ask
+  { workspace } <- ask
   let
     processPackage :: LockfileBuilderResult -> Tuple PackageName (Tuple PackageName Package) -> Spago (FetchEnv a) LockfileBuilderResult
     processPackage result (Tuple workspacePackageName (Tuple dependencyName dependencyPackage)) = do
@@ -281,7 +281,7 @@ mkLockfile allTransitiveDeps = do
             Left err -> die err -- TODO maybe not die here?
             Right rev -> updatePackage $ FromGit { rev, dependencies: packageDependencies, url: gitPackage.git, subdir: gitPackage.subdir }
         RegistryVersion version -> do
-          metadata <- runSpago { logOptions } $ getMetadata dependencyName
+          metadata <- Registry.getMetadata dependencyName
           registryVersion <- case (metadata >>= (\(Metadata meta) -> Either.note "Didn't find version in the metadata file" $ Map.lookup version meta.published)) of
             Left err -> die $ "Couldn't read metadata, reason:\n  " <> err
             Right { hash: integrity } ->
@@ -327,8 +327,7 @@ getGitPackageInLocalCache name package = do
 getPackageDependencies :: forall a. PackageName -> Package -> Spago (FetchEnv a) (Maybe (Map PackageName Range))
 getPackageDependencies packageName package = case package of
   RegistryVersion v -> do
-    { getManifestFromIndex, logOptions } <- ask
-    maybeManifest <- runSpago { logOptions } $ getManifestFromIndex packageName v
+    maybeManifest <- Registry.getManifestFromIndex packageName v
     pure $ map (_.dependencies <<< unwrap) maybeManifest
   GitPackage p -> do
     -- Note: we get the package in local cache nonetheless,
@@ -416,7 +415,6 @@ getTransitiveDeps workspacePackage = do
 
 getTransitiveDepsFromRegistry :: forall a. Map PackageName Range -> PackageMap -> Spago (FetchEnv a) (Map PackageName Version)
 getTransitiveDepsFromRegistry depsRanges extraPackages = do
-  { logOptions, getMetadata, getManifestFromIndex } <- ask
   let
     loader :: PackageName -> Spago (FetchEnv a) (Map Version (Map PackageName Range))
     loader packageName = do
@@ -424,13 +422,13 @@ getTransitiveDepsFromRegistry depsRanges extraPackages = do
       case Map.lookup packageName extraPackages of
         Just p -> map (Map.singleton (getVersionFromPackage p) <<< fromMaybe Map.empty) $ getPackageDependencies packageName p
         Nothing -> do
-          maybeMetadata <- runSpago { logOptions } (getMetadata packageName)
+          maybeMetadata <- Registry.getMetadata packageName
           let
             versions = case maybeMetadata of
               Right (Metadata metadata) -> Array.fromFoldable $ Map.keys metadata.published
               Left _err -> []
           map (Map.fromFoldable :: Array _ -> Map _ _) $ for versions \v -> do
-            maybeManifest <- runSpago { logOptions } $ getManifestFromIndex packageName v
+            maybeManifest <- Registry.getManifestFromIndex packageName v
             let deps = fromMaybe Map.empty $ map (_.dependencies <<< unwrap) maybeManifest
             pure (Tuple v deps)
   maybePlan <- Registry.Solver.loadAndSolve loader depsRanges

@@ -23,9 +23,9 @@ type ReplEnv a =
   | a
   }
 
-run :: forall a. Spago (ReplEnv a) Unit
+run :: Spago (ReplEnv _) Unit
 run = do
-  { dependencies, purs, logOptions, pursArgs, selected, depsOnly, supportPackage } <- ask
+  { dependencies, pursArgs, selected, depsOnly, supportPackage } <- ask
 
   let
     allDependencies = Map.unionWith (\l _ -> l) supportPackage $ Fetch.toAllDependencies dependencies
@@ -35,4 +35,4 @@ run = do
       , depsOnly
       , withTests: true
       }
-  void $ runSpago { purs, logOptions } $ Purs.repl globs pursArgs
+  void $ Purs.repl globs pursArgs

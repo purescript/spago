@@ -23,12 +23,13 @@ type UninstallArgs =
   , testDeps :: Boolean
   }
 
-type UninstallEnv =
+type UninstallEnv a =
   { workspace :: Workspace
   , logOptions :: LogOptions
+  | a
   }
 
-run :: UninstallArgs -> Spago UninstallEnv Unit
+run :: UninstallArgs -> Spago (UninstallEnv _) Unit
 run args = do
   logDebug "Running `spago uninstall`"
   { workspace } <- ask
@@ -38,7 +39,7 @@ run args = do
       -> YamlDoc Core.Config
       -> String
       -> NonEmptyArray PackageName
-      -> Spago UninstallEnv Unit
+      -> Spago (UninstallEnv _) Unit
     modifyConfig configPath yamlDoc sourceOrTestString = \removedPackages -> do
       logInfo
         [ "Removing the following " <> sourceOrTestString <> " dependencies:"
@@ -61,7 +62,7 @@ run args = do
            { name :: PackageName
            , deps :: Dependencies
            , sourceOrTestString :: String
-           , modifyDoc :: NonEmptyArray PackageName -> Spago UninstallEnv Unit
+           , modifyDoc :: NonEmptyArray PackageName -> Spago (UninstallEnv _) Unit
            }
     toContext configPath yamlDoc pkgConfig
       | args.testDeps = case pkgConfig.test of

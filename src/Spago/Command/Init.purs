@@ -31,7 +31,7 @@ type InitOptions =
 
 -- TODO run git init? Is that desirable?
 
-run :: forall a. InitOptions -> Spago (RegistryEnv a) Config
+run :: InitOptions -> Spago (RegistryEnv _) Config
 run opts = do
   logInfo "Initializing a new project..."
 

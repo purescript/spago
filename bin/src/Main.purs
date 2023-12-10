@@ -10,23 +10,19 @@ import Data.Array.NonEmpty as NonEmptyArray
 import Data.Codec.Argonaut.Common as CA.Common
 import Data.Foldable as Foldable
 import Data.List as List
-import Data.Map as Map
 import Data.Maybe as Maybe
 import Data.Set as Set
 import Data.String as String
 import Effect.Aff as Aff
 import Effect.Now as Now
+import Effect.Ref as Ref
 import Node.Path as Path
 import Node.Process as Process
 import Options.Applicative (CommandFields, Mod, Parser, ParserPrefs(..))
 import Options.Applicative as O
 import Optparse as Optparse
 import Record as Record
-import Registry.Constants as Registry.Constants
-import Registry.ManifestIndex as ManifestIndex
-import Registry.Metadata as Metadata
 import Registry.PackageName as PackageName
-import Registry.Version as Version
 import Spago.Bin.Flags as Flags
 import Spago.Command.Build as Build
 import Spago.Command.Bundle as Bundle
@@ -505,7 +501,10 @@ parseArgs = do
     ( O.info
         ( O.helper <*>
             ( (Cmd'SpagoCmd <$> argParser) <|>
-                (Cmd'VersionCmd <$> (O.switch (O.long "version" <> O.short 'v' <> O.help "Show the current version")))
+                ( Cmd'VersionCmd <$>
+                    ( O.flag' true (O.long "version" <> O.short 'v' <> O.help "Show the current version")
+                    )
+                )
             )
         )
         (O.progDesc "PureScript package manager and build tool")
@@ -559,7 +558,7 @@ main = do
           RegistryPackageSets args -> do
             env <- mkRegistryEnv offline
             void $ runSpago env (RegistryCmd.packageSets args)
-          Install args@{ packages, selectedPackage, ensureRanges, testDeps, pure } -> do
+          Install args -> do
             { env, fetchOpts } <- mkFetchEnv offline (Record.merge args { isRepl: false })
             dependencies <- runSpago env (Fetch.run fetchOpts)
             let
@@ -947,84 +946,14 @@ mkRegistryEnv offline = do
   git <- Git.getGit
   purs <- Purs.getPurs
   { logOptions } <- ask
-
-  -- Connect to the database - we need it to keep track of when to pull the Registry,
-  -- so we don't do it too often
   db <- liftEffect $ Db.connect
     { database: Paths.databasePath
     , logger: \str -> Reader.runReaderT (logDebug $ "DB: " <> str) { logOptions }
     }
-
-  -- we keep track of how old the latest pull was - if the last pull was recent enough
-  -- we just move on, otherwise run the fibers
-  fetchingFreshRegistry <- Registry.shouldFetchRegistryRepos db
-  when fetchingFreshRegistry do
-    -- clone the registry and index repo, or update them
-    logInfo "Refreshing the Registry Index..."
-    runSpago { logOptions, git, offline } $ parallelise
-      [ Git.fetchRepo { git: "https://github.com/purescript/registry-index.git", ref: "main" } Paths.registryIndexPath >>= case _ of
-          Right _ -> pure unit
-          Left _err -> logWarn "Couldn't refresh the registry-index, will proceed anyways"
-      , Git.fetchRepo { git: "https://github.com/purescript/registry.git", ref: "main" } Paths.registryPath >>= case _ of
-          Right _ -> pure unit
-          Left _err -> logWarn "Couldn't refresh the registry, will proceed anyways"
-      ]
-
-  -- Now that we are up to date with the Registry we init/refresh the database
-  Registry.updatePackageSetsDb db
-
-  -- Prepare the functions to read the manifests and metadata - here we memoize as much
-  -- as we can in the DB, so we don't have to read the files every time
-  let
-    -- Manifests are immutable so we can just lookup in the DB or read from file if not there
-    getManifestFromIndex :: PackageName -> Version -> Spago (LogEnv ()) (Maybe Manifest)
-    getManifestFromIndex name version = do
-      liftEffect (Db.getManifest db name version) >>= case _ of
-        Just manifest -> pure (Just manifest)
-        Nothing -> do
-          -- if we don't have it we need to read it from file
-          -- (note that we have all the versions of a package in the same file)
-          logDebug $ "Reading package from Index: " <> PackageName.print name
-          maybeManifests <- liftAff $ ManifestIndex.readEntryFile Paths.registryIndexPath name
-          manifests <- map (map (\m@(Manifest m') -> Tuple m'.version m)) case maybeManifests of
-            Right ms -> pure $ NonEmptyArray.toUnfoldable ms
-            Left err -> do
-              logWarn $ "Could not read package manifests from index, proceeding anyways. Error: " <> err
-              pure []
-          let versions = Map.fromFoldable manifests
-          -- and memoize it
-          for_ manifests \(Tuple _ manifest@(Manifest m)) -> do
-            logDebug $ "Inserting manifest in DB: " <> PackageName.print name <> " v" <> Version.print m.version
-            liftEffect $ Db.insertManifest db name m.version manifest
-          pure (Map.lookup version versions)
-
-  -- Metadata can change over time (unpublished packages, and new packages), so we need
-  -- to read it from file every time we have a fresh Registry
-  let
-    metadataFromFile name = do
-      let metadataFilePath = Path.concat [ Paths.registryPath, Registry.Constants.metadataDirectory, PackageName.print name <> ".json" ]
-      logDebug $ "Reading metadata from file: " <> metadataFilePath
-      liftAff (FS.readJsonFile Metadata.codec metadataFilePath)
-
-    getMetadata :: PackageName -> Spago (LogEnv ()) (Either String Metadata)
-    getMetadata name = do
-      -- we first try reading it from the DB
-      liftEffect (Db.getMetadata db name) >>= case _ of
-        Just metadata | not fetchingFreshRegistry -> do
-          logDebug $ "Got metadata from DB: " <> PackageName.print name
-          pure (Right metadata)
-        _ -> do
-          -- if we don't have it we try reading it from file
-          metadataFromFile name >>= case _ of
-            Left e -> pure (Left e)
-            Right m -> do
-              -- and memoize it
-              liftEffect (Db.insertMetadata db name m)
-              pure (Right m)
+  registryRef <- liftEffect $ Ref.new Nothing
 
   pure
-    { getManifestFromIndex
-    , getMetadata
+    { getRegistry: Registry.getRegistryFns registryRef
     , logOptions
     , offline
     , purs
@@ -1052,7 +981,7 @@ mkLsEnv dependencies = do
               ]
   pure { logOptions, workspace, dependencies, selected }
 
-mkDocsEnv :: forall a. DocsArgs -> Fetch.PackageTransitiveDeps -> Spago (Fetch.FetchEnv a) Docs.DocsEnv
+mkDocsEnv :: DocsArgs -> Fetch.PackageTransitiveDeps -> Spago (Fetch.FetchEnv _) (Docs.DocsEnv _)
 mkDocsEnv args dependencies = do
   { logOptions, workspace } <- ask
   purs <- Purs.getPurs

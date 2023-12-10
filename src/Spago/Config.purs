@@ -50,6 +50,7 @@ import Record as Record
 import Registry.Foreign.FastGlob as Glob
 import Registry.Internal.Codec as Internal.Codec
 import Registry.PackageName as PackageName
+import Registry.PackageSet as Registry.PackageSet
 import Registry.Range as Range
 import Registry.Version as Version
 import Spago.Core.Config as Core
@@ -58,6 +59,7 @@ import Spago.Git as Git
 import Spago.Lock (Lockfile, PackageSetInfo)
 import Spago.Lock as Lock
 import Spago.Paths as Paths
+import Spago.Registry as Registry
 import Type.Proxy (Proxy(..))
 
 type Workspace =
@@ -146,7 +148,7 @@ data Package
 
 -- | Reads all the configurations in the tree and builds up the Map of local
 -- | packages to be integrated in the package set
-readWorkspace :: forall a. Maybe PackageName -> Boolean -> Spago (Git.GitEnv a) Workspace
+readWorkspace :: Maybe PackageName -> Boolean -> Spago (Registry.RegistryEnv _) Workspace
 readWorkspace maybeSelectedPackage pureBuild = do
   logInfo "Reading Spago workspace configuration..."
 
@@ -263,16 +265,13 @@ readWorkspace maybeSelectedPackage pureBuild = do
 
     Nothing, Just address@(Core.SetFromRegistry { registry: v }) -> do
       logDebug "Reading the package set from the Registry repo..."
-      let packageSetPath = Path.concat [ Paths.registryPath, "package-sets", Version.print v <> ".json" ]
-      liftAff (FS.readJsonFile remotePackageSetCodec packageSetPath) >>= case _ of
-        Left err -> die $ "Couldn't read the package set: " <> err
-        Right (RemotePackageSet registryPackageSet) -> do
-          logDebug "Read the package set from the Registry repo"
-          pure $ Just
-            { content: registryPackageSet.packages
-            , address
-            , compiler: Range.caret registryPackageSet.compiler
-            }
+      (Registry.PackageSet.PackageSet registryPackageSet) <- Registry.readPackageSet v
+      logDebug "Read the package set from the Registry repo"
+      pure $ Just
+        { content: map Core.RemoteRegistryVersion registryPackageSet.packages
+        , address
+        , compiler: Range.caret registryPackageSet.compiler
+        }
 
     Nothing, Just address@(Core.SetFromPath { path }) -> do
       logDebug $ "Reading the package set from local path: " <> path

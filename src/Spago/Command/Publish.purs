@@ -42,6 +42,8 @@ import Spago.Log (LogVerbosity(..))
 import Spago.Log as Log
 import Spago.Purs (Purs)
 import Spago.Purs.Graph as Graph
+import Spago.Registry (PreRegistryEnv)
+import Spago.Registry as Registry
 
 type PublishData =
   { name :: PackageName
@@ -52,8 +54,7 @@ type PublishData =
   }
 
 type PublishEnv a =
-  { getManifestFromIndex :: PackageName -> Version -> Spago (LogEnv ()) (Maybe Manifest)
-  , getMetadata :: PackageName -> Spago (LogEnv ()) (Either String Metadata)
+  { getRegistry :: Spago (PreRegistryEnv ()) Registry.RegistryFunctions
   , workspace :: Workspace
   , logOptions :: LogOptions
   , offline :: OnlineStatus
@@ -89,13 +90,7 @@ publish _args = do
         )
         resultRef
 
-  env@
-    { selected: selected'
-    , purs
-    , dependencies
-    , logOptions
-    , getMetadata
-    } <- ask
+  env@{ selected: selected', purs, dependencies } <- ask
   let (selected :: WorkspacePackage) = selected' { hasTests = false }
   let name = selected.package.name
   let strName = PackageName.print name
@@ -105,14 +100,12 @@ publish _args = do
   -- As first thing we run a build to make sure the package compiles at all
   runSpago
     -- We explicitly list the env fields because `Record.merge` didn't compile.
-    { getManifestFromIndex: env.getManifestFromIndex
-    , getMetadata: env.getMetadata
-    , workspace: env.workspace { selected = Just selected }
-    , logOptions: env.logOptions
+    -- FIXME: I think we can make it work
+    { purs: env.purs
     , git: env.git
-    , purs: env.purs
-    , selected
     , dependencies: env.dependencies
+    , logOptions: env.logOptions
+    , workspace: env.workspace { selected = Just selected }
     , psaCliFlags:
         { statVerbosity: (Nothing :: Maybe Core.StatVerbosity)
         , strict: (Nothing :: Maybe Boolean)
@@ -169,7 +162,7 @@ publish _args = do
         -- Get the metadata file for this package.
         -- It will exist if the package has been published at some point, it will not if the package is new.
         -- We make a new one if that's the case.
-        metadata <- runSpago { logOptions } (getMetadata name) >>= case _ of
+        metadata <- Registry.getMetadata name >>= case _ of
           Right (Metadata metadata) -> pure metadata
           Left err -> do
             logDebug $ "Got error while reading metadata file: " <> err
@@ -358,14 +351,11 @@ publish _args = do
       let buildPlanDependencies = map Config.RegistryVersion resolutions
       runSpago
         -- We explicitly list the env fields because `Record.merge` didn't compile.
-        { getManifestFromIndex: env.getManifestFromIndex
-        , getMetadata: env.getMetadata
-        , workspace: env.workspace { selected = Just selected }
-        , logOptions: env.logOptions
+        { purs: env.purs
         , git: env.git
-        , purs: env.purs
-        , selected: env.selected
         , dependencies: Map.singleton selected.package.name buildPlanDependencies
+        , logOptions: env.logOptions
+        , workspace: env.workspace { selected = Just selected }
         , psaCliFlags:
             { statVerbosity: (Nothing :: Maybe Core.StatVerbosity)
             , strict: (Nothing :: Maybe Boolean)

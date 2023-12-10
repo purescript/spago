@@ -42,7 +42,7 @@ type BuildOptions =
   , jsonErrors :: Boolean
   }
 
-run :: forall a. BuildOptions -> Spago (BuildEnv a) Unit
+run :: BuildOptions -> Spago (BuildEnv _) Unit
 run opts = do
   logInfo "Building..."
   { dependencies
