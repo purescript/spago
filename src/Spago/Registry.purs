@@ -139,7 +139,9 @@ shouldFetchRegistryRepos db = do
       let staleAfter = Minutes 15.0
       let (timeDiff :: Minutes) = DateTime.diff now lastRegistryFetch
       let isOldEnough = timeDiff > staleAfter
-      if isOldEnough then do
+      -- We check if it's old, but also if we have it at all
+      registryExists <- FS.exists Paths.registryPath
+      if isOldEnough || not registryExists then do
         logDebug "Registry is old, refreshing"
         liftEffect $ Db.updateLastPull db registryKey now
         pure true

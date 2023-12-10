@@ -8,9 +8,10 @@ import Node.Process as Process
 import Spago.Command.Init as Init
 import Spago.Core.Config as Config
 import Spago.FS as FS
+import Spago.Paths as Paths
+import Test.Spago.Build.BuildInfo as BuildInfo
 import Test.Spago.Build.Pedantic as Pedantic
 import Test.Spago.Build.Polyrepo as BuildPolyrepo
-import Test.Spago.Build.BuildInfo as BuildInfo
 import Test.Spec (Spec)
 import Test.Spec as Spec
 import Test.Spec.Assertions as Assert
@@ -105,6 +106,36 @@ spec = Spec.around withTempDir do
         , dst: spagoYaml
         }
       spago [ "build" ] >>= shouldBeFailure
+
+    Spec.it "building with a lockfile doesn't need the Registry repo" \{ spago, fixture } -> do
+      spago [ "init", "--name", "aaa", "--package-set", "33.0.0" ] >>= shouldBeSuccess
+      spago [ "build" ] >>= shouldBeSuccess
+      -- Check that we have written the lockfile
+      checkFixture "spago.lock" (fixture "spago.lock")
+      -- Then remove the registry repo
+      FSA.rm' Paths.registryPath { force: true, recursive: true, retryDelay: 0, maxRetries: 0 }
+      -- And check that we can still build
+      spago [ "build" ] >>= shouldBeSuccess
+      -- And that we still don't have the registry
+      FS.exists Paths.registryPath `Assert.shouldReturn` false
+
+    Spec.it "using the --pure flag does not refresh the lockfile" \{ spago, fixture } -> do
+      spago [ "init", "--name", "aaa", "--package-set", "33.0.0" ] >>= shouldBeSuccess
+      spago [ "build" ] >>= shouldBeSuccess
+      -- Check that we have written the lockfile
+      checkFixture "spago.lock" (fixture "spago.lock")
+      -- Update the config
+      let
+        conf = Init.defaultConfig
+          { name: mkPackageName "aaa"
+          , testModuleName: "Test.Main"
+          , withWorkspace: Just { setVersion: Just $ mkVersion "33.0.0" }
+          }
+      FS.writeYamlFile Config.configCodec "spago.yaml"
+        (conf { package = conf.package # map (\pkg -> pkg { dependencies = pkg.dependencies <> mkDependencies [ "maybe" ] }) })
+      -- Check that building with --pure does not refresh the lockfile
+      spago [ "build", "--pure" ] >>= shouldBeSuccess
+      checkFixture "spago.lock" (fixture "spago.lock")
 
     Spec.it "compiles with the specified backend" \{ spago, fixture } -> do
       spago [ "init" ] >>= shouldBeSuccess

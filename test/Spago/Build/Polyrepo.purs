@@ -170,12 +170,13 @@ spec = Spec.describe "polyrepo" do
       end
     ```
     -}
-    Spec.it "Case 3 (dependencies: A&B -> C; A -> B) builds" \{ spago } -> do
+    Spec.it "Case 3 (dependencies: A&B -> C; A -> B) builds" \{ spago, fixture } -> do
       writeWorkspaceOnlySpagoYamlFile
       pkgC <- setupPackageWithDeps { packageName: "package-c", hasTest: false, deps: [] }
       pkgB <- setupPackageWithDeps { packageName: "package-b", hasTest: true, deps: [ pkgC ] }
       void $ setupPackageWithDeps { packageName: "package-a", hasTest: true, deps: [ pkgC, pkgB ] }
       spago [ "build" ] >>= shouldBeSuccess
+      checkFixture "spago.lock" (fixture "polyrepo.lock")
 
   {-
   ```mermaid
