@@ -241,7 +241,12 @@ readWorkspace maybeSelectedPackage pureBuild = do
 
   maybeLockfileContents <- FS.exists "spago.lock" >>= case _ of
     true -> liftAff (FS.readYamlFile Lock.lockfileCodec "spago.lock") >>= case _ of
-      Left error -> die $ "Your project contains a spago.lock file, but it cannot be decoded:\n" <> error
+      Left error -> do
+        logWarn
+          [ "Your project contains a spago.lock file, but it cannot be decoded. Spago will generate a new one."
+          , "Error was: " <> error
+          ]
+        pure Nothing
       -- Here we figure out if the lockfile is still up to date by having a quick look at the configurations:
       -- if they changed since the last write, then we need to regenerate the lockfile
       -- Unless! the user is passing the --pure flag, in which case we just use the lockfile
