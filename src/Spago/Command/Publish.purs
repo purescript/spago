@@ -29,6 +29,7 @@ import Registry.Operation.Validation as Operation.Validation
 import Registry.PackageName as PackageName
 import Registry.Version as Version
 import Routing.Duplex as Duplex
+import Spago.Command.Build (BuildEnv)
 import Spago.Command.Build as Build
 import Spago.Command.Fetch as Fetch
 import Spago.Config (Package(..), Workspace, WorkspacePackage)
@@ -98,20 +99,7 @@ publish _args = do
   logDebug $ "Publishing package " <> strName
 
   -- As first thing we run a build to make sure the package compiles at all
-  runSpago
-    -- We explicitly list the env fields because `Record.merge` didn't compile.
-    -- FIXME: I think we can make it work
-    { purs: env.purs
-    , git: env.git
-    , dependencies: env.dependencies
-    , logOptions: env.logOptions
-    , workspace: env.workspace { selected = Just selected }
-    , psaCliFlags:
-        { statVerbosity: (Nothing :: Maybe Core.StatVerbosity)
-        , strict: (Nothing :: Maybe Boolean)
-        }
-    , pedanticPackages: false
-    }
+  runBuild { selected, dependencies: env.dependencies }
     ( Build.run
         { depsOnly: false
         , pursArgs: []
@@ -349,19 +337,7 @@ publish _args = do
       -- from the solver (this is because the build might terminate the process, and we shall output the errors first)
       logInfo "Building again with the build plan from the solver..."
       let buildPlanDependencies = map Config.RegistryVersion resolutions
-      runSpago
-        -- We explicitly list the env fields because `Record.merge` didn't compile.
-        { purs: env.purs
-        , git: env.git
-        , dependencies: Map.singleton selected.package.name buildPlanDependencies
-        , logOptions: env.logOptions
-        , workspace: env.workspace { selected = Just selected }
-        , psaCliFlags:
-            { statVerbosity: (Nothing :: Maybe Core.StatVerbosity)
-            , strict: (Nothing :: Maybe Boolean)
-            }
-        , pedanticPackages: false
-        }
+      runBuild { selected, dependencies: Map.singleton selected.package.name buildPlanDependencies }
         ( Build.run
             { depsOnly: false
             , pursArgs: []
@@ -381,6 +357,25 @@ publish _args = do
       waitForJobFinish jobId
 
       pure newPublishingData
+  where
+  -- If you are reading this and think that you can make it look nicer with
+  -- a `Record.merge` then please, be my guest
+  runBuild :: _ -> Spago (BuildEnv _) _ -> Spago (PublishEnv _) _
+  runBuild { selected, dependencies } action = do
+    env <- ask
+    runSpago
+      { purs: env.purs
+      , git: env.git
+      , dependencies: dependencies
+      , logOptions: env.logOptions
+      , workspace: env.workspace { selected = Just selected }
+      , psaCliFlags:
+          { statVerbosity: (Nothing :: Maybe Core.StatVerbosity)
+          , strict: (Nothing :: Maybe Boolean)
+          }
+      , pedanticPackages: false
+      }
+      action
 
 callRegistry :: forall env a b. String -> JsonCodec b -> Maybe { codec :: JsonCodec a, data :: a } -> Spago (PublishEnv env) b
 callRegistry url outputCodec maybeInput = handleError do

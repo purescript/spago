@@ -3,6 +3,9 @@ package:
   publish:
     version: 0.93.19
     license: BSD-3-Clause
+  build:
+    censor_project_warnings:
+      - WildcardInferredType
   dependencies:
     - aff
     - optparse

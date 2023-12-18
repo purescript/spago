@@ -1,8 +1,7 @@
 module Spago.Lock
   ( Lockfile
   , lockfileCodec
-  , LockEntry
-  , LockEntryData(..)
+  , LockEntry(..)
   , lockEntryCodec
   , PathLock
   , GitLock
@@ -15,7 +14,7 @@ module Spago.Lock
 import Spago.Prelude
 
 import Data.Codec.Argonaut as CA
-import Data.Codec.Argonaut.Common as Common
+import Data.Codec.Argonaut.Common as CA.Common
 import Data.Profunctor as Profunctor
 import Record as Record
 import Registry.Internal.Codec as Registry.Codec
@@ -32,17 +31,12 @@ type Lockfile =
   , packages :: Map PackageName LockEntry
   }
 
-type LockEntry =
-  { needed_by :: NonEmptyArray PackageName
-  , package :: LockEntryData
-  }
-
-data LockEntryData
+data LockEntry
   = FromPath PathLock
   | FromGit GitLock
   | FromRegistry RegistryLock
 
-derive instance Eq LockEntryData
+derive instance Eq LockEntry
 
 type WorkspaceLock =
   { package_set :: Maybe PackageSetInfo
@@ -60,7 +54,7 @@ type WorkspaceLockPackage =
   { dependencies :: Core.Dependencies
   , test_dependencies :: Core.Dependencies
   , path :: FilePath
-  , needed_by :: Array PackageName
+  , build_plan :: Set PackageName
   }
 
 lockfileCodec :: JsonCodec Lockfile
@@ -78,9 +72,9 @@ workspaceLockCodec = CA.object "WorkspaceLock"
   where
   dependenciesCodec = CA.object "Dependencies"
     $ CA.recordProp (Proxy :: _ "path") CA.string
-    $ CA.recordProp (Proxy :: _ "needed_by") (CA.array PackageName.codec)
     $ CA.recordProp (Proxy :: _ "dependencies") Config.dependenciesCodec
     $ CA.recordProp (Proxy :: _ "test_dependencies") Config.dependenciesCodec
+    $ CA.recordProp (Proxy :: _ "build_plan") (CA.Common.set PackageName.codec)
     $ CA.record
 
 packageSetCodec :: JsonCodec PackageSetInfo
@@ -91,10 +85,7 @@ packageSetCodec = CA.object "PackageSetInfo"
   $ CA.record
 
 lockEntryCodec :: JsonCodec LockEntry
-lockEntryCodec = CA.object "LockEntry"
-  $ CA.recordProp (Proxy :: _ "needed_by") (Common.nonEmptyArray PackageName.codec)
-  $ CA.recordProp (Proxy :: _ "package") (CA.codec' decode encode)
-  $ CA.record
+lockEntryCodec = CA.codec' decode encode
   where
   encode = case _ of
     FromPath lock -> CA.encode pathLockCodec lock

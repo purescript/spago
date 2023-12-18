@@ -2,16 +2,16 @@ module Test.Spago.Lock where
 
 import Test.Prelude
 
-import Data.Array.NonEmpty as NEA
 import Data.Codec.Argonaut as CA
 import Data.Map as Map
+import Data.Set as Set
 import Registry.Range as Range
 import Registry.Sha256 as Sha256
 import Registry.Version as Version
 import Spago.Core.Config (Dependencies(..), ExtraPackage(..), RemotePackage(..), SetAddress(..))
 import Spago.Core.Config as Config
 import Spago.Core.Config as Core
-import Spago.Lock (LockEntryData(..), Lockfile)
+import Spago.Lock (LockEntry(..), Lockfile)
 import Spago.Lock as Lock
 import Test.Spec (Spec)
 import Test.Spec as Spec
@@ -39,13 +39,17 @@ validLockfile =
                   ]
               , test_dependencies: Dependencies Map.empty
               , path: "my-app"
-              , needed_by: mempty
+              , build_plan: Set.fromFoldable
+                  [ mkPackageName "my-library"
+                  , mkPackageName "effect"
+                  , mkPackageName "prelude"
+                  ]
               }
           , packageTuple "my-library"
               { dependencies: Dependencies $ Map.fromFoldable [ packageTuple "prelude" Nothing ]
               , test_dependencies: Dependencies $ Map.fromFoldable [ packageTuple "console" (Just Config.widestRange) ]
               , path: "my-library"
-              , needed_by: [ mkPackageName "my-app" ]
+              , build_plan: Set.fromFoldable [ mkPackageName "prelude" ]
               }
           ]
       , package_set: Just
@@ -75,36 +79,26 @@ validLockfile =
       }
   , packages:
       Map.fromFoldable
-        [ packageTuple "console"
-            { package:
-                FromGit
-                  { url: "https://github.com/purescript/purescript-console.git"
-                  , rev: "3b83d7b792d03872afeea5e62b4f686ab0f09842"
-                  , subdir: Nothing
-                  , dependencies: [ prelude ]
-                  }
-            , needed_by: NEA.singleton (mkPackageName "my-library")
-            }
-        , packageTuple "effect"
-            { package: FromRegistry
-                { version: unsafeFromRight (Version.parse "4.0.0")
-                , integrity: unsafeFromRight (Sha256.parse "sha256-eBtZu+HZcMa5HilvI6kaDyVX3ji8p0W9MGKy2K4T6+M=")
-                , dependencies: [ prelude ]
-                }
-            , needed_by: NEA.singleton (mkPackageName "my-app")
-            }
-        , packageTuple "prelude"
-            { package: FromGit
-                { url: "https://github.com/purescript/purescript-libraries.git"
-                , rev: "3b83d7b792d03872afeea5e62b4f686ab0f09842"
-                , subdir: Just "prelude"
-                , dependencies: []
-                }
-            , needed_by: unsafeFromJust $ NEA.fromFoldable
-                [ mkPackageName "my-app"
-                , mkPackageName "my-library"
-                ]
-            }
+        [ packageTuple "console" $
+            FromGit
+              { url: "https://github.com/purescript/purescript-console.git"
+              , rev: "3b83d7b792d03872afeea5e62b4f686ab0f09842"
+              , subdir: Nothing
+              , dependencies: [ prelude ]
+              }
+        , packageTuple "effect" $
+            FromRegistry
+              { version: unsafeFromRight (Version.parse "4.0.0")
+              , integrity: unsafeFromRight (Sha256.parse "sha256-eBtZu+HZcMa5HilvI6kaDyVX3ji8p0W9MGKy2K4T6+M=")
+              , dependencies: [ prelude ]
+              }
+        , packageTuple "prelude" $
+            FromGit
+              { url: "https://github.com/purescript/purescript-libraries.git"
+              , rev: "3b83d7b792d03872afeea5e62b4f686ab0f09842"
+              , subdir: Just "prelude"
+              , dependencies: []
+              }
         ]
   }
   where
@@ -121,7 +115,10 @@ workspace:
   packages:
     my-app:
       path: my-app
-      needed_by: []
+      build_plan:
+        - effect
+        - my-library
+        - prelude
       dependencies:
         - effect: ">=1.0.0 <5.0.0"
         - my-library
@@ -129,8 +126,8 @@ workspace:
 
     my-library:
       path: my-library
-      needed_by:
-        - my-app
+      build_plan:
+        - prelude
       dependencies:
         - prelude
       test_dependencies:
@@ -156,31 +153,21 @@ workspace:
 
 packages:
   console:
-    needed_by:
-      - my-library
-    package:
-      type: git
-      url: https://github.com/purescript/purescript-console.git
-      rev: 3b83d7b792d03872afeea5e62b4f686ab0f09842
-      dependencies:
-        - prelude
+    type: git
+    url: https://github.com/purescript/purescript-console.git
+    rev: 3b83d7b792d03872afeea5e62b4f686ab0f09842
+    dependencies:
+      - prelude
   effect:
-    needed_by:
-      - my-app
-    package:
-      type: registry
-      version: 4.0.0
-      integrity: sha256-eBtZu+HZcMa5HilvI6kaDyVX3ji8p0W9MGKy2K4T6+M=
-      dependencies:
-        - prelude
+    type: registry
+    version: 4.0.0
+    integrity: sha256-eBtZu+HZcMa5HilvI6kaDyVX3ji8p0W9MGKy2K4T6+M=
+    dependencies:
+      - prelude
   prelude:
-    needed_by:
-      - my-app
-      - my-library
-    package:
-      type: git
-      url: https://github.com/purescript/purescript-libraries.git
-      rev: 3b83d7b792d03872afeea5e62b4f686ab0f09842
-      subdir: prelude
-      dependencies: []
+    type: git
+    url: https://github.com/purescript/purescript-libraries.git
+    rev: 3b83d7b792d03872afeea5e62b4f686ab0f09842
+    subdir: prelude
+    dependencies: []
   """

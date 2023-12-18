@@ -17,7 +17,6 @@ import Affjax.ResponseFormat as Response
 import Affjax.StatusCode (StatusCode(..))
 import Control.Monad.State as State
 import Data.Array as Array
-import Data.Array.NonEmpty as NEA
 import Data.Codec.Argonaut as CA
 import Data.Either as Either
 import Data.HTTP.Method as Method
@@ -43,7 +42,7 @@ import Spago.Config as Config
 import Spago.Db as Db
 import Spago.FS as FS
 import Spago.Git as Git
-import Spago.Lock (LockEntryData(..))
+import Spago.Lock (LockEntry(..))
 import Spago.Lock as Lock
 import Spago.Paths as Paths
 import Spago.Purs as Purs
@@ -254,41 +253,34 @@ mkLockfile allTransitiveDeps = do
       (packageDependencies :: Array PackageName) <- (Array.fromFoldable <<< Map.keys <<< fromMaybe Map.empty)
         <$> getPackageDependencies dependencyName dependencyPackage
       let
-        updatePackage package = pure $ result
-          { packages = Map.alter
-              ( case _ of
-                  Nothing -> Just { needed_by: NEA.singleton workspacePackageName, package }
-                  Just { needed_by } -> Just { needed_by: NEA.cons workspacePackageName needed_by, package }
-              )
-              dependencyName
-              result.packages
-          }
-        updateWorkspacePackage otherWorkspacePackage = pure $ result
+        updatePackage r package = (updateWorkspacePackage r)
+          { packages = Map.insert dependencyName package r.packages }
+        updateWorkspacePackage r = r
           { workspacePackages = Map.alter
               ( case _ of
-                  Nothing -> Just $ otherWorkspacePackage { needed_by = Array.singleton workspacePackageName }
-                  Just pkg@{ needed_by } -> Just $ pkg { needed_by = Array.cons workspacePackageName needed_by }
+                  Nothing -> Nothing
+                  Just pkg -> Just $ pkg { build_plan = Set.insert dependencyName (pkg.build_plan) }
               )
-              dependencyName
-              result.workspacePackages
+              workspacePackageName
+              r.workspacePackages
           }
 
       case dependencyPackage of
-        WorkspacePackage pkg -> updateWorkspacePackage (snd $ Config.workspacePackageToLockfilePackage pkg)
+        WorkspacePackage _pkg -> pure $ updateWorkspacePackage result
         GitPackage gitPackage -> do
           let packageLocation = Config.getPackageLocation dependencyName dependencyPackage
           Git.getRef (Just packageLocation) >>= case _ of
             Left err -> die err -- TODO maybe not die here?
-            Right rev -> updatePackage $ FromGit { rev, dependencies: packageDependencies, url: gitPackage.git, subdir: gitPackage.subdir }
+            Right rev -> pure $ updatePackage result $ FromGit { rev, dependencies: packageDependencies, url: gitPackage.git, subdir: gitPackage.subdir }
         RegistryVersion version -> do
           metadata <- Registry.getMetadata dependencyName
           registryVersion <- case (metadata >>= (\(Metadata meta) -> Either.note "Didn't find version in the metadata file" $ Map.lookup version meta.published)) of
             Left err -> die $ "Couldn't read metadata, reason:\n  " <> err
             Right { hash: integrity } ->
               pure { version, integrity, dependencies: packageDependencies }
-          updatePackage $ FromRegistry registryVersion
+          pure $ updatePackage result $ FromRegistry registryVersion
         LocalPackage { path } -> do
-          updatePackage $ FromPath { path, dependencies: packageDependencies }
+          pure $ updatePackage result $ FromPath { path, dependencies: packageDependencies }
 
   let
     toArray :: forall k v. Map k v -> Array (Tuple k v)
@@ -376,20 +368,23 @@ getTransitiveDeps workspacePackage = do
   let depsRanges = map (fromMaybe Config.widestRange) (unwrap $ getWorkspacePackageDeps workspacePackage)
   { workspace } <- ask
   case workspace.packageSet.lockfile of
-    -- If we have a lockfile we can just use that - we don't even need build a plan, we can just filter the packages
-    -- marked as needed by the workspace package that we are processing, as we just dumped the plan in the lockfile.
+    -- If we have a lockfile we can just use that - we don't need build a plan, since we store it for every workspace
+    -- package, so we can just filter out the packages we need.
     Just lockfile -> do
-      let
-        allWorkspacePackages = Map.fromFoldable $ map (\p -> Tuple p.package.name (WorkspacePackage p)) (Config.getWorkspacePackages workspace.packageSet)
+      case Map.lookup workspacePackage.package.name lockfile.workspace.packages of
+        Nothing -> die $ "Package " <> PackageName.print workspacePackage.package.name <> " not found in lockfile"
+        Just { build_plan } -> do
+          let
+            allWorkspacePackages = Map.fromFoldable $ map (\p -> Tuple p.package.name (WorkspacePackage p)) (Config.getWorkspacePackages workspace.packageSet)
 
-        -- Need to filter the allWorkspacePackages by needed_by as well
-        workspacePackagesWeNeed = allWorkspacePackages # Map.filterWithKey \name _package -> case Map.lookup name lockfile.workspace.packages of
-          Nothing -> false
-          Just { needed_by } -> Array.elem workspacePackage.package.name needed_by
+            isInBuildPlan :: forall v. PackageName -> v -> Boolean
+            isInBuildPlan name _package = Set.member name build_plan
 
-        otherPackages = map (fromLockEntryData <<< _.package) $ Map.filter (\{ needed_by } -> NEA.elem workspacePackage.package.name needed_by) lockfile.packages
+            workspacePackagesWeNeed = Map.filterWithKey isInBuildPlan allWorkspacePackages
+            otherPackages = map fromLockEntry $ Map.filterWithKey isInBuildPlan lockfile.packages
 
-      pure $ Map.union otherPackages workspacePackagesWeNeed
+          pure $ Map.union otherPackages workspacePackagesWeNeed
+
     -- No lockfile, we need to build a plan from scratch, and hit the Registry and so on
     Nothing -> case workspace.packageSet.buildType of
       RegistrySolverBuild extraPackages -> do
@@ -402,8 +397,8 @@ getTransitiveDeps workspacePackage = do
   -- Note: here we can safely discard the dependencies because we don't need to bother about building a build plan,
   -- we already built it when the lockfile was put together in the first place. All the dependency info is there so
   -- that other things can use it (e.g. Nix), but Spago is not going to need it at this point.
-  fromLockEntryData :: LockEntryData -> Package
-  fromLockEntryData = case _ of
+  fromLockEntry :: LockEntry -> Package
+  fromLockEntry = case _ of
     FromPath { path } -> LocalPackage { path }
     FromRegistry { version } -> RegistryVersion version
     FromGit { rev, dependencies, url, subdir } -> GitPackage

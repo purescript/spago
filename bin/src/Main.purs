@@ -56,7 +56,6 @@ import Spago.Paths as Paths
 import Spago.Purs as Purs
 import Spago.Registry as Registry
 import Spago.Repl as SpagoRepl
-import Type.Proxy (Proxy(..))
 import Unsafe.Coerce as UnsafeCoerce
 
 type GlobalArgs =
@@ -547,7 +546,7 @@ main = do
             logInfo "Set up a new Spago project."
             logInfo "Try running `spago run`"
           Fetch args -> do
-            { env, fetchOpts } <- mkFetchEnv offline (Record.insert (Proxy :: _ "isRepl") false args)
+            { env, fetchOpts } <- mkFetchEnv offline (Record.merge { isRepl: false } args)
             void $ runSpago env (Fetch.run fetchOpts)
           RegistrySearch args -> do
             env <- mkRegistryEnv offline
@@ -927,7 +926,7 @@ mkFetchEnv offline args = do
     Left _err -> die $ "Failed to parse selected package name, was: " <> show args.selectedPackage
 
   env <- mkRegistryEnv offline
-  workspace <- runSpago env (Config.readWorkspace maybeSelectedPackage args.pure)
+  workspace <- runSpago env (Config.readWorkspace { maybeSelectedPackage, pureBuild: args.pure })
   let fetchOpts = { packages: packageNames, ensureRanges: args.ensureRanges, isTest: args.testDeps, isRepl: args.isRepl }
   pure { fetchOpts, env: Record.union { workspace } env }
 

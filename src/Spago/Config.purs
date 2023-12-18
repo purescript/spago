@@ -148,8 +148,8 @@ data Package
 
 -- | Reads all the configurations in the tree and builds up the Map of local
 -- | packages to be integrated in the package set
-readWorkspace :: Maybe PackageName -> Boolean -> Spago (Registry.RegistryEnv _) Workspace
-readWorkspace maybeSelectedPackage pureBuild = do
+readWorkspace :: { maybeSelectedPackage :: Maybe PackageName, pureBuild :: Boolean } -> Spago (Registry.RegistryEnv _) Workspace
+readWorkspace { maybeSelectedPackage, pureBuild } = do
   logInfo "Reading Spago workspace configuration..."
 
   -- First try to read the config in the root. It _has_ to contain a workspace
@@ -400,13 +400,13 @@ workspacePackageToLockfilePackage { path, package } = Tuple package.name
   { path
   , dependencies: package.dependencies
   , test_dependencies: foldMap _.dependencies package.test
-  , needed_by: mempty -- Note: this is filled in later
+  , build_plan: mempty -- Note: this is filled in later
   }
 
 shouldComputeNewLockfile :: { workspace :: Core.WorkspaceConfig, workspacePackages :: Map PackageName WorkspacePackage } -> Lock.WorkspaceLock -> Boolean
 shouldComputeNewLockfile { workspace, workspacePackages } workspaceLock =
   -- the workspace packages should exactly match, except for the needed_by field, which is filled in during build plan construction
-  (map (workspacePackageToLockfilePackage >>> snd) workspacePackages == (map (_ { needed_by = mempty }) workspaceLock.packages))
+  (map (workspacePackageToLockfilePackage >>> snd) workspacePackages == (map (_ { build_plan = mempty }) workspaceLock.packages))
     -- and the extra packages should exactly match
     && (fromMaybe Map.empty workspace.extra_packages == workspaceLock.extra_packages)
     -- and the package set address needs to match - we have no way to match the package set contents at this point, so we let it be

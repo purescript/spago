@@ -2,12 +2,15 @@ workspace:
   packages:
     aaa:
       path: ./
-      needed_by: []
       dependencies:
         - console
         - effect
         - prelude
       test_dependencies: []
+      build_plan:
+        - console
+        - effect
+        - prelude
   package_set:
     address:
       registry: 33.0.0
@@ -492,29 +495,20 @@ workspace:
   extra_packages: {}
 packages:
   console:
-    needed_by:
-      - aaa
-    package:
-      type: registry
-      version: 6.0.0
-      integrity: sha256-gJpJ53fCDAL8BiCiJXH0HNAJ9K3gJtLo8GDaCK6hA5U=
-      dependencies:
-        - effect
-        - prelude
+    type: registry
+    version: 6.0.0
+    integrity: sha256-gJpJ53fCDAL8BiCiJXH0HNAJ9K3gJtLo8GDaCK6hA5U=
+    dependencies:
+      - effect
+      - prelude
   effect:
-    needed_by:
-      - aaa
-    package:
-      type: registry
-      version: 4.0.0
-      integrity: sha256-eBtZu+HZcMa5HilvI6kaDyVX3ji8p0W9MGKy2K4T6+M=
-      dependencies:
-        - prelude
+    type: registry
+    version: 4.0.0
+    integrity: sha256-eBtZu+HZcMa5HilvI6kaDyVX3ji8p0W9MGKy2K4T6+M=
+    dependencies:
+      - prelude
   prelude:
-    needed_by:
-      - aaa
-    package:
-      type: registry
-      version: 6.0.1
-      integrity: sha256-o8p6SLYmVPqzXZhQFd2hGAWEwBoXl1swxLG/scpJ0V0=
-      dependencies: []
+    type: registry
+    version: 6.0.1
+    integrity: sha256-o8p6SLYmVPqzXZhQFd2hGAWEwBoXl1swxLG/scpJ0V0=
+    dependencies: []
