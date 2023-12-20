@@ -54,7 +54,6 @@ compile globs pursArgs = do
     { pipeStdout = false }
 
 repl :: forall a. Set FilePath -> Array String -> Spago (PursEnv a) (Either Cmd.ExecError Cmd.ExecResult)
-
 repl globs pursArgs = do
   { purs } <- ask
   let args = [ "repl" ] <> pursArgs <> Set.toUnfoldable globs

@@ -18,7 +18,7 @@ import Spago.Config as Config
 import Spago.Purs (Purs, DocsFormat(..))
 import Spago.Purs as Purs
 
-type DocsEnv =
+type DocsEnv a =
   { purs :: Purs
   , workspace :: Workspace
   , dependencies :: Fetch.PackageTransitiveDeps
@@ -26,9 +26,10 @@ type DocsEnv =
   , docsFormat :: DocsFormat
   , depsOnly :: Boolean
   , open :: Boolean
+  | a
   }
 
-run :: Spago DocsEnv Unit
+run :: Spago (DocsEnv _) Unit
 run = do
   logDebug "Running `spago docs`"
   logInfo "Generating documentation for the project. This might take a while..."

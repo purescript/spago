@@ -3,9 +3,11 @@ package:
   publish:
     version: 0.93.19
     license: BSD-3-Clause
+  build:
+    censor_project_warnings:
+      - WildcardInferredType
   dependencies:
     - aff
-    - optparse
     - arrays
     - codec-argonaut
     - console
@@ -14,6 +16,7 @@ package:
     - node-fs
     - node-path
     - node-process
+    - optparse
     - ordered-collections
     - record
     - refs

@@ -164,6 +164,13 @@ transitive =
         <> O.help "Include transitive dependencies"
     )
 
+pure :: Parser Boolean
+pure =
+  O.switch
+    ( O.long "pure"
+        <> O.help "Use the package information from the current lockfile, even if it is out of date"
+    )
+
 pedanticPackages :: Parser Boolean
 pedanticPackages =
   O.switch
