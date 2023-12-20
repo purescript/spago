@@ -572,7 +572,7 @@ main = do
           Uninstall { packagesToRemove, selectedPackage, testDeps } -> do
             { env, fetchOpts } <- mkFetchEnv offline { packages: packagesToRemove, selectedPackage, ensureRanges: false, testDeps: false, isRepl: false, pure: false }
             let options = { testDeps, dependenciesToRemove: Set.fromFoldable fetchOpts.packages }
-            runSpago { workspace: env.workspace, logOptions: env.logOptions } (Uninstall.run options)
+            runSpago env (Uninstall.run options)
           Build args@{ selectedPackage, ensureRanges, jsonErrors, pure } -> do
             { env, fetchOpts } <- mkFetchEnv offline { packages: mempty, selectedPackage, ensureRanges, pure, testDeps: false, isRepl: false }
             dependencies <- runSpago env (Fetch.run fetchOpts)

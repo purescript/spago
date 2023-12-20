@@ -8,7 +8,6 @@ package:
       - WildcardInferredType
   dependencies:
     - aff
-    - optparse
     - arrays
     - codec-argonaut
     - console
@@ -17,6 +16,7 @@ package:
     - node-fs
     - node-path
     - node-process
+    - optparse
     - ordered-collections
     - record
     - refs

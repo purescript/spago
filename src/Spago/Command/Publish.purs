@@ -322,8 +322,8 @@ publish _args = do
         <> Log.break
       die' $ Array.fromFoldable errors
     Right { expectedVersion, publishingData: publishingData@{ resolutions } } -> do
-      logInfo "Passed preliminary checks. "
-      -- This requires login credentials. 
+      logInfo "Passed preliminary checks."
+      -- This requires login credentials.
       Git.pushTag Nothing expectedVersion >>= case _ of
         Left err -> die $ toDoc
           [ err

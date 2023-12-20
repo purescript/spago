@@ -2,5 +2,6 @@ Reading Spago workspace configuration...
 
 ✅ Selecting package to build: uninstall-tests
 
-Removing the following source dependencies:
-  either
+Removing the following source dependencies: either
+Lockfile is out of date (uninstalled packages), generating it...
+Lockfile written to spago.lock. Please commit this file.

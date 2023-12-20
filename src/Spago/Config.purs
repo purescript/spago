@@ -130,7 +130,7 @@ data BuildType
 
 type PackageSet =
   { buildType :: BuildType
-  , lockfile :: Maybe Lockfile
+  , lockfile :: Either String Lockfile
   }
 
 type WorkspacePackage =
@@ -240,20 +240,25 @@ readWorkspace { maybeSelectedPackage, pureBuild } = do
       Just p -> pure (Just p)
 
   maybeLockfileContents <- FS.exists "spago.lock" >>= case _ of
+    false -> pure (Left "No lockfile found")
     true -> liftAff (FS.readYamlFile Lock.lockfileCodec "spago.lock") >>= case _ of
       Left error -> do
         logWarn
           [ "Your project contains a spago.lock file, but it cannot be decoded. Spago will generate a new one."
           , "Error was: " <> error
           ]
-        pure Nothing
+        pure (Left "Could not decode lockfile")
       -- Here we figure out if the lockfile is still up to date by having a quick look at the configurations:
       -- if they changed since the last write, then we need to regenerate the lockfile
       -- Unless! the user is passing the --pure flag, in which case we just use the lockfile
       Right contents -> case pureBuild, shouldComputeNewLockfile { workspace, workspacePackages } contents.workspace of
-        false, false -> pure Nothing
-        _, _ -> pure (Just contents)
-    false -> pure Nothing
+        true, _ -> do
+          logDebug "Using lockfile because of --pure flag"
+          pure (Right contents)
+        false, true -> pure (Left "Lockfile is out of date")
+        false, false -> do
+          logDebug "Lockfile is up to date, using it"
+          pure (Right contents)
 
   -- Read in the package database
   { offline } <- ask
@@ -264,11 +269,11 @@ readWorkspace { maybeSelectedPackage, pureBuild } = do
 
     -- If there's a lockfile we don't attempt to fetch the package set from the registry
     -- repo nor from the internet, since we already have the whole set right there
-    Just lockfile, _ -> do
+    Right lockfile, _ -> do
       logDebug "Found lockfile, using the package set from there"
       pure lockfile.workspace.package_set
 
-    Nothing, Just address@(Core.SetFromRegistry { registry: v }) -> do
+    Left _, Just address@(Core.SetFromRegistry { registry: v }) -> do
       logDebug "Reading the package set from the Registry repo..."
       (Registry.PackageSet.PackageSet registryPackageSet) <- Registry.readPackageSet v
       logDebug "Read the package set from the Registry repo"
@@ -278,7 +283,7 @@ readWorkspace { maybeSelectedPackage, pureBuild } = do
         , compiler: Range.caret registryPackageSet.compiler
         }
 
-    Nothing, Just address@(Core.SetFromPath { path }) -> do
+    Left _, Just address@(Core.SetFromPath { path }) -> do
       logDebug $ "Reading the package set from local path: " <> path
       liftAff (FS.readJsonFile remotePackageSetCodec path) >>= case _ of
         Left err -> die $ "Couldn't read the package set: " <> err
@@ -290,7 +295,7 @@ readWorkspace { maybeSelectedPackage, pureBuild } = do
             , compiler: Range.caret localPackageSet.compiler
             }
 
-    Nothing, Just address@(Core.SetFromUrl { url: rawUrl }) -> do
+    Left _, Just address@(Core.SetFromUrl { url: rawUrl }) -> do
       result <- case offline of
         Offline -> die "You are offline, but the package set is not cached locally. Please connect to the internet and try again."
         Online -> do
@@ -406,11 +411,11 @@ workspacePackageToLockfilePackage { path, package } = Tuple package.name
 shouldComputeNewLockfile :: { workspace :: Core.WorkspaceConfig, workspacePackages :: Map PackageName WorkspacePackage } -> Lock.WorkspaceLock -> Boolean
 shouldComputeNewLockfile { workspace, workspacePackages } workspaceLock =
   -- the workspace packages should exactly match, except for the needed_by field, which is filled in during build plan construction
-  (map (workspacePackageToLockfilePackage >>> snd) workspacePackages == (map (_ { build_plan = mempty }) workspaceLock.packages))
+  (map (workspacePackageToLockfilePackage >>> snd) workspacePackages /= (map (_ { build_plan = mempty }) workspaceLock.packages))
     -- and the extra packages should exactly match
-    && (fromMaybe Map.empty workspace.extra_packages == workspaceLock.extra_packages)
+    || (fromMaybe Map.empty workspace.extra_packages /= workspaceLock.extra_packages)
     -- and the package set address needs to match - we have no way to match the package set contents at this point, so we let it be
-    && (workspace.package_set == map _.address workspaceLock.package_set)
+    || (workspace.package_set /= map _.address workspaceLock.package_set)
 
 getPackageLocation :: PackageName -> Package -> FilePath
 getPackageLocation name = Paths.mkRelative <<< case _ of
@@ -499,8 +504,10 @@ setPackageSetVersionInConfig doc version = do
 
 foreign import addPackagesToConfigImpl :: EffectFn3 (YamlDoc Core.Config) Boolean (Array String) Unit
 
-addPackagesToConfig :: YamlDoc Core.Config -> Boolean -> Array PackageName -> Effect Unit
-addPackagesToConfig doc isTest pkgs = runEffectFn3 addPackagesToConfigImpl doc isTest (map PackageName.print pkgs)
+addPackagesToConfig :: forall m. MonadAff m => FilePath -> YamlDoc Core.Config -> Boolean -> Array PackageName -> m Unit
+addPackagesToConfig configPath doc isTest pkgs = do
+  liftEffect $ runEffectFn3 addPackagesToConfigImpl doc isTest (map PackageName.print pkgs)
+  liftAff $ FS.writeYamlDocFile configPath doc
 
 foreign import removePackagesFromConfigImpl :: EffectFn3 (YamlDoc Core.Config) Boolean (PackageName -> Boolean) Unit
 

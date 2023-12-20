@@ -10,8 +10,8 @@ import Prelude
 
 import Control.Alt ((<|>)) as Extra
 import Control.Monad.Error.Class (class MonadError, class MonadThrow, try, catchError) as Extra
-import Control.Monad.Reader (ask, asks) as Extra
-import Control.Monad.Reader (class MonadAsk, ReaderT, runReaderT)
+import Control.Monad.Reader (ask, asks, local) as Extra
+import Control.Monad.Reader (class MonadAsk, class MonadReader, ReaderT, runReaderT)
 import Control.Monad.State (StateT) as Extra
 import Data.Array ((..)) as Extra
 import Data.Array.NonEmpty (NonEmptyArray) as Extra
@@ -65,6 +65,7 @@ derive newtype instance Extra.MonadAff (Spago env)
 derive newtype instance Extra.MonadThrow Extra.Error (Spago env)
 derive newtype instance Extra.MonadError Extra.Error (Spago env)
 derive newtype instance MonadAsk env (Spago env)
+derive newtype instance MonadReader env (Spago env)
 
 runSpago' :: forall a env. env -> Spago env a -> Extra.Aff a
 runSpago' env (Spago m) = runReaderT m env

@@ -22,7 +22,7 @@ spec :: Spec Unit
 spec = Spec.around withTempDir do
   Spec.describe "install" do
 
-    Spec.it "warns that config was not changed when trying to install a package already present in project dependencies" \{ spago, fixture } -> do
+    Spec.it "warns that the config was not changed when trying to install a package already present in project dependencies" \{ spago, fixture } -> do
       spago [ "init", "--name", "7368613235362d50744f44764f717435586c685938735a5154" ] >>= shouldBeSuccess
       spago [ "install" ] >>= shouldBeSuccess
       spago [ "fetch", "effect" ] >>= shouldBeSuccessErr (fixture "spago-install-existing-dep-stderr.txt")
@@ -220,6 +220,18 @@ spec = Spec.around withTempDir do
         true -> pure unit
         false -> Assert.fail $ "Expected purs version to be newer than 0.15.4, but it was " <> Version.print purs.version
       spago [ "install" ] >>= shouldBeSuccess
+
+    Spec.it "can refresh the lockfile, and uninstall restores it" \{ spago, fixture } -> do
+      spago [ "init", "--name", "aaa", "--package-set", "33.0.0" ] >>= shouldBeSuccess
+      spago [ "build" ] >>= shouldBeSuccess
+      -- Check that we have written the lockfile
+      checkFixture "spago.lock" (fixture "spago.lock")
+      spago [ "install", "maybe" ] >>= shouldBeSuccess
+      -- Check that the new lockfile includes maybe
+      checkFixture "spago.lock" (fixture "spago-with-maybe.lock")
+      spago [ "uninstall", "maybe" ] >>= shouldBeSuccess
+      -- Check that the lockfile is back to the original
+      checkFixture "spago.lock" (fixture "spago.lock")
 
 writeConfigWithEither :: Aff Unit
 writeConfigWithEither = do

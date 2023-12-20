@@ -8,6 +8,7 @@ module Spago.Command.Fetch
   , getTransitiveDeps
   , getTransitiveDepsFromRegistry
   , run
+  , writeNewLockfile
   ) where
 
 import Spago.Prelude
@@ -17,7 +18,9 @@ import Affjax.ResponseFormat as Response
 import Affjax.StatusCode (StatusCode(..))
 import Control.Monad.State as State
 import Data.Array as Array
+import Data.Array.NonEmpty as NEA
 import Data.Codec.Argonaut as CA
+import Data.Codec.Argonaut.Common as CA.Common
 import Data.Either as Either
 import Data.HTTP.Method as Method
 import Data.Int as Int
@@ -72,180 +75,205 @@ type FetchOpts =
   , isRepl :: Boolean
   }
 
-run
-  :: forall a
-   . FetchOpts
-  -> Spago (FetchEnv a) PackageTransitiveDeps
-run { packages: packagesToInstall, ensureRanges, isTest, isRepl } = do
-  logDebug $ "Requested to install these packages: " <> printJson (CA.array PackageName.codec) packagesToInstall
+run :: forall a. FetchOpts -> Spago (FetchEnv a) PackageTransitiveDeps
+run { packages: packagesRequestedToInstall, ensureRanges, isTest, isRepl } = do
+  logDebug $ "Requested to install these packages: " <> printJson (CA.array PackageName.codec) packagesRequestedToInstall
 
   { workspace: currentWorkspace, offline } <- ask
 
   let
-    installingPackages = not $ Array.null packagesToInstall
-
-    -- If we need to install new packages then we need to zero the current lockfile, we're going to need a new one
-    workspace = case installingPackages of
-      false -> currentWorkspace
-      true -> currentWorkspace { packageSet = currentWorkspace.packageSet { lockfile = Nothing } }
-
     getPackageConfigPath errorMessageEnd = do
-      case workspace.selected of
+      case currentWorkspace.selected of
         Just { path, doc, package } -> pure { configPath: Path.concat [ path, "spago.yaml" ], yamlDoc: doc, package }
-        Nothing -> case workspace.rootPackage of
-          Just rootPackage -> do pure { configPath: "spago.yaml", yamlDoc: workspace.doc, package: rootPackage }
+        Nothing -> case currentWorkspace.rootPackage of
+          Just rootPackage -> do pure { configPath: "spago.yaml", yamlDoc: currentWorkspace.doc, package: rootPackage }
           Nothing -> die
             [ "No package found in the root configuration."
             , "Please use the `-p` flag to select a package " <> errorMessageEnd
             ]
 
-  -- We compute the transitive deps for all the packages in the workspace, but keep them
-  -- split by package - we need all of them so we can stash them in the lockfile, but we
-  -- are going to only download the ones that we need to, if e.g. there's a package selected
-  dependencies <- traverse getTransitiveDeps
-    $ Map.fromFoldable
-    $ map
-        ( \p -> Tuple p.package.name case workspace.selected of
-            -- If we are installing packages, we need to add the new deps to the selected package
-            Just selected | selected.package.name == p.package.name -> case isTest of
-              false -> p { package { dependencies = p.package.dependencies <> Dependencies (Map.fromFoldable $ map (_ /\ Nothing) packagesToInstall) } }
-              true -> p { package { test = p.package.test # map (\t -> t { dependencies = t.dependencies <> Dependencies (Map.fromFoldable $ map (_ /\ Nothing) packagesToInstall) }) } }
-            _ -> p
-        )
-    $ Config.getWorkspacePackages workspace.packageSet
+  installingPackagesData <- do
+    case Array.null packagesRequestedToInstall of
+      true -> pure Nothing
+      false -> do
+        { configPath, package, yamlDoc } <- getPackageConfigPath "to install your packages in."
+        currentWorkspacePackage <- NEA.find (\p -> p.package.name == package.name) (Config.getWorkspacePackages currentWorkspace.packageSet) `justOrDieWith` "Impossible: package must be in workspace packages"
+        let
+          packageDependencies = Map.keys $ case isTest of
+            false -> unwrap package.dependencies
+            true -> unwrap $ maybe mempty _.dependencies package.test
+          -- Prevent users from installing a circular dependency
+          packages = Array.filter (\p -> p /= package.name) packagesRequestedToInstall
+          overlappingPackages = Set.intersection packageDependencies (Set.fromFoldable packages)
+          actualPackagesToInstall = Array.filter (\p -> not $ Set.member p overlappingPackages) packages
+          newPackageDependencies = wrap $ Map.fromFoldable $ map (\p -> Tuple p Nothing) actualPackagesToInstall
+          newWorkspacePackage = case isTest of
+            false -> currentWorkspacePackage { package { dependencies = package.dependencies <> newPackageDependencies } }
+            true -> currentWorkspacePackage { package { test = package.test # map (\t -> t { dependencies = t.dependencies <> newPackageDependencies }) } }
+        logDebug $ "Overlapping packages: " <> printJson (CA.Common.set PackageName.codec) overlappingPackages
+        logDebug $ "Actual packages to install: " <> printJson (CA.array PackageName.codec) actualPackagesToInstall
+        -- If we are installing new packages, we need to add them to the config
+        -- We also warn the user if they are already present in the config
+        unless (Set.isEmpty overlappingPackages) do
+          logWarn
+            $ [ toDoc "You tried to install some packages that are already present in the configuration, proceeding anyways:" ]
+            <> map (indent <<< toDoc <<< append "- " <<< PackageName.print) (Array.fromFoldable overlappingPackages)
+        case Array.null actualPackagesToInstall of
+          true -> pure Nothing
+          false -> do
+            logDebug $ "Packages to install: " <> printJson (CA.array PackageName.codec) actualPackagesToInstall
+            pure $ Just { configPath, yamlDoc, actualPackagesToInstall, newWorkspacePackage }
 
-  -- write to the config file if we are adding new packages
-  when installingPackages do
-    { configPath, package, yamlDoc } <- getPackageConfigPath "to install your packages in."
-    let packageDependencies = Map.keys $ unwrap package.dependencies
-    -- Prevent users from installing a circular dependency
-    let packages = Array.filter (\p -> p /= package.name) packagesToInstall
-    let overlappingPackages = Set.intersection packageDependencies (Set.fromFoldable packages)
-    unless (Set.isEmpty overlappingPackages) do
-      logWarn
-        $ [ toDoc "You tried to install some packages that are already present in the configuration, proceeding anyways:" ]
-        <> map (indent <<< toDoc <<< append "- " <<< PackageName.print) (Array.fromFoldable overlappingPackages)
-    logInfo $ "Adding " <> show (Array.length packages) <> " packages to the config in " <> configPath
-    liftEffect $ Config.addPackagesToConfig yamlDoc isTest packages
-    liftAff $ FS.writeYamlDocFile configPath yamlDoc
-
-  -- if the flag is selected, we kick off the process of adding ranges to the config
-  when ensureRanges do
-    { configPath, package, yamlDoc } <- getPackageConfigPath "in which to add ranges."
-    logInfo $ "Adding ranges to dependencies to the config in " <> configPath
-    packageDeps <- (Map.lookup package.name dependencies) `justOrDieWith`
-      "Impossible: package dependencies must be in dependencies map"
-    let rangeMap = map getRangeFromPackage packageDeps
-    liftEffect $ Config.addRangesToConfig yamlDoc rangeMap
-    liftAff $ FS.writeYamlDocFile configPath yamlDoc
-
-  -- the repl needs a support package, so we add it here as a sidecar
-  supportPackage <- Repl.supportPackage workspace.packageSet
   let
-    allTransitiveDeps = case isRepl of
-      false -> dependencies
-      true -> map (\packageMap -> Map.union packageMap supportPackage) dependencies
-  depsToFetch <- case workspace.selected of
-    Nothing -> pure (toAllDependencies allTransitiveDeps)
-    -- If there's a package selected, we only fetch the transitive deps for that one
-    Just p -> case Map.lookup p.package.name dependencies of
-      Nothing -> die "Impossible: package dependencies must be in dependencies map"
-      Just deps -> pure $ Map.union deps if isRepl then supportPackage else Map.empty
+    -- If we need to install new packages then we need to zero the current lockfile, we're going to need a new one
+    workspace = case installingPackagesData of
+      Nothing -> currentWorkspace
+      Just { newWorkspacePackage } -> currentWorkspace
+        { packageSet = currentWorkspace.packageSet
+            { lockfile = Left "Lockfile is out of date (installing new packages)"
+            -- If we are installing packages, we need to add the new deps to the selected package
+            , buildType = case currentWorkspace.packageSet.buildType of
+                RegistrySolverBuild packageMap -> RegistrySolverBuild $ Map.insert newWorkspacePackage.package.name (WorkspacePackage newWorkspacePackage) packageMap
+                PackageSetBuild info packageMap -> PackageSetBuild info $ Map.insert newWorkspacePackage.package.name (WorkspacePackage newWorkspacePackage) packageMap
+            }
+        , selected = Just newWorkspacePackage
+        }
 
-  when (isNothing workspace.packageSet.lockfile) do
-    logInfo "No lockfile found, generating one..."
-    lockfile <- mkLockfile allTransitiveDeps
-    liftAff $ FS.writeYamlFile Lock.lockfileCodec "spago.lock" lockfile
-    logInfo "Lockfile written to spago.lock. Please commit this file."
+  local (_ { workspace = workspace }) do
+    -- We compute the transitive deps for all the packages in the workspace, but keep them
+    -- split by package - we need all of them so we can stash them in the lockfile, but we
+    -- are going to only download the ones that we need to, if e.g. there's a package selected
+    dependencies <- traverse getTransitiveDeps
+      $ Map.fromFoldable
+      $ map (\p -> Tuple p.package.name p)
+      $ Config.getWorkspacePackages workspace.packageSet
 
-  -- then for every package we have we try to download it, and copy it in the local cache
-  logInfo "Downloading dependencies..."
+    case installingPackagesData of
+      Nothing -> pure unit
+      Just { configPath, yamlDoc, actualPackagesToInstall } -> do
+        let
+          countString = case Array.length actualPackagesToInstall of
+            1 -> "1 package"
+            n -> show n <> " packages"
+        logInfo $ "Adding " <> countString <> " to the config in " <> configPath
+        liftAff $ Config.addPackagesToConfig configPath yamlDoc isTest actualPackagesToInstall
 
-  parallelise $ (flip map) (Map.toUnfoldable depsToFetch :: Array (Tuple PackageName Package)) \(Tuple name package) -> do
-    let localPackageLocation = Config.getPackageLocation name package
-    -- first of all, we check if we have the package in the local cache. If so, we don't even do the work
-    unlessM (FS.exists localPackageLocation) case package of
-      GitPackage gitPackage -> getGitPackageInLocalCache name gitPackage
-      RegistryVersion v -> do
-        -- if the version comes from the registry then we have a longer list of things to do
-        let versionString = Registry.Version.print v
-        let packageVersion = PackageName.print name <> "@" <> versionString
-        -- get the metadata for the package, so we have access to the hash and other info
-        metadata <- Registry.getMetadata name
-        case (metadata >>= (\(Metadata meta) -> Either.note "Didn't find version in the metadata file" $ Map.lookup v meta.published)) of
-          Left err -> die $ "Couldn't read metadata, reason:\n  " <> err
-          Right versionMetadata -> do
-            logDebug $ "Metadata read: " <> printJson Metadata.publishedMetadataCodec versionMetadata
-            -- then check if we have a tarball cached. If not, download it
-            let globalCachePackagePath = Path.concat [ Paths.globalCachePath, "packages", PackageName.print name ]
-            let archivePath = Path.concat [ globalCachePackagePath, versionString <> ".tar.gz" ]
-            FS.mkdirp globalCachePackagePath
-            -- We need to see if the tarball is there, and if we can decompress it.
-            -- This is because if Spago is killed while it's writing the tar, then it might leave it corrupted.
-            -- By checking that it's broken we can try to redownload it here.
-            tarExists <- FS.exists archivePath
-            -- unpack the tars in a temp folder, then move to local cache
-            let tarInnerFolder = PackageName.print name <> "-" <> Version.print v
-            tempDir <- mkTemp
-            FS.mkdirp tempDir
-            tarIsGood <-
-              if tarExists then do
-                logDebug $ "Trying to unpack archive to temp folder: " <> tempDir
-                map (either (const false) (const true)) $ liftEffect $ Tar.extract { filename: archivePath, cwd: tempDir }
-              else
-                pure false
-            case tarExists, tarIsGood, offline of
-              true, true, _ -> pure unit -- Tar exists and is good, and we already unpacked it. Happy days!
-              _, _, Offline -> die $ "Package " <> packageVersion <> " is not in the local cache, and Spago is running in offline mode - can't make progress."
-              _, _, Online -> do
-                let packageUrl = "https://packages.registry.purescript.org/" <> PackageName.print name <> "/" <> versionString <> ".tar.gz"
-                logInfo $ "Fetching package " <> packageVersion
-                response <- liftAff $ withBackoff' $ Http.request
-                  ( Http.defaultRequest
-                      { method = Left Method.GET
-                      , responseFormat = Response.arrayBuffer
-                      , url = packageUrl
-                      }
-                  )
-                case response of
-                  Nothing -> die $ "Couldn't reach the registry at " <> packageUrl
-                  Just (Left err) -> die $ "Couldn't fetch package " <> packageVersion <> ":\n  " <> Http.printError err
-                  Just (Right { status, body }) | status /= StatusCode 200 -> do
-                    (buf :: Buffer) <- liftEffect $ Buffer.fromArrayBuffer body
-                    bodyString <- liftEffect $ Buffer.toString Encoding.UTF8 buf
-                    die $ "Couldn't fetch package " <> packageVersion <> ", status was not ok " <> show status <> ", got answer:\n  " <> bodyString
-                  Just (Right r@{ body: archiveArrayBuffer }) -> do
-                    logDebug $ "Got status: " <> show r.status
-                    -- check the size and hash of the tar against the metadata
-                    archiveBuffer <- liftEffect $ Buffer.fromArrayBuffer archiveArrayBuffer
-                    archiveSize <- liftEffect $ Buffer.size archiveBuffer
-                    archiveSha <- liftEffect $ Sha256.hashBuffer archiveBuffer
-                    unless (Int.toNumber archiveSize == versionMetadata.bytes) do
-                      die $ "Archive fetched for " <> packageVersion <> " has a different size (" <> show archiveSize <> ") than expected (" <> show versionMetadata.bytes <> ")"
-                    unless (archiveSha == versionMetadata.hash) do
-                      die $ "Archive fetched for " <> packageVersion <> " has a different hash (" <> Sha256.print archiveSha <> ") than expected (" <> Sha256.print versionMetadata.hash <> ")"
-                    -- if everything's alright we stash the tar in the global cache
-                    logDebug $ "Fetched archive for " <> packageVersion <> ", saving it in the global cache: " <> archivePath
-                    FS.writeFile archivePath archiveBuffer
-                    logDebug $ "Unpacking archive to temp folder: " <> tempDir
-                    (liftEffect $ Tar.extract { filename: archivePath, cwd: tempDir }) >>= case _ of
-                      Right _ -> pure unit
-                      Left err -> die [ "Failed to decode downloaded package " <> packageVersion <> ", error:", show err ]
-            logDebug $ "Moving extracted file to local cache:" <> localPackageLocation
-            FS.moveSync { src: (Path.concat [ tempDir, tarInnerFolder ]), dst: localPackageLocation }
-      -- Local package, no work to be done
-      LocalPackage _ -> pure unit
-      WorkspacePackage _ -> pure unit
+    -- if the flag is selected, we kick off the process of adding ranges to the config
+    when ensureRanges do
+      { configPath, package, yamlDoc } <- getPackageConfigPath "in which to add ranges."
+      logInfo $ "Adding ranges to dependencies to the config in " <> configPath
+      packageDeps <- (Map.lookup package.name dependencies) `justOrDieWith`
+        "Impossible: package dependencies must be in dependencies map"
+      let rangeMap = map getRangeFromPackage packageDeps
+      liftEffect $ Config.addRangesToConfig yamlDoc rangeMap
+      liftAff $ FS.writeYamlDocFile configPath yamlDoc
 
-  pure dependencies
+    -- the repl needs a support package, so we add it here as a sidecar
+    supportPackage <- Repl.supportPackage workspace.packageSet
+    let
+      allTransitiveDeps = case isRepl of
+        false -> dependencies
+        true -> map (\packageMap -> Map.union packageMap supportPackage) dependencies
+    depsToFetch <- case workspace.selected of
+      Nothing -> pure (toAllDependencies allTransitiveDeps)
+      -- If there's a package selected, we only fetch the transitive deps for that one
+      Just p -> case Map.lookup p.package.name dependencies of
+        Nothing -> die "Impossible: package dependencies must be in dependencies map"
+        Just deps -> pure $ Map.union deps if isRepl then supportPackage else Map.empty
+
+    case workspace.packageSet.lockfile of
+      Right _lockfile -> pure unit
+      Left reason -> writeNewLockfile reason allTransitiveDeps
+
+    -- then for every package we have we try to download it, and copy it in the local cache
+    logInfo "Downloading dependencies..."
+
+    parallelise $ (flip map) (Map.toUnfoldable depsToFetch :: Array (Tuple PackageName Package)) \(Tuple name package) -> do
+      let localPackageLocation = Config.getPackageLocation name package
+      -- first of all, we check if we have the package in the local cache. If so, we don't even do the work
+      unlessM (FS.exists localPackageLocation) case package of
+        GitPackage gitPackage -> getGitPackageInLocalCache name gitPackage
+        RegistryVersion v -> do
+          -- if the version comes from the registry then we have a longer list of things to do
+          let versionString = Registry.Version.print v
+          let packageVersion = PackageName.print name <> "@" <> versionString
+          -- get the metadata for the package, so we have access to the hash and other info
+          metadata <- Registry.getMetadata name
+          case (metadata >>= (\(Metadata meta) -> Either.note "Didn't find version in the metadata file" $ Map.lookup v meta.published)) of
+            Left err -> die $ "Couldn't read metadata, reason:\n  " <> err
+            Right versionMetadata -> do
+              logDebug $ "Metadata read: " <> printJson Metadata.publishedMetadataCodec versionMetadata
+              -- then check if we have a tarball cached. If not, download it
+              let globalCachePackagePath = Path.concat [ Paths.globalCachePath, "packages", PackageName.print name ]
+              let archivePath = Path.concat [ globalCachePackagePath, versionString <> ".tar.gz" ]
+              FS.mkdirp globalCachePackagePath
+              -- We need to see if the tarball is there, and if we can decompress it.
+              -- This is because if Spago is killed while it's writing the tar, then it might leave it corrupted.
+              -- By checking that it's broken we can try to redownload it here.
+              tarExists <- FS.exists archivePath
+              -- unpack the tars in a temp folder, then move to local cache
+              let tarInnerFolder = PackageName.print name <> "-" <> Version.print v
+              tempDir <- mkTemp
+              FS.mkdirp tempDir
+              tarIsGood <-
+                if tarExists then do
+                  logDebug $ "Trying to unpack archive to temp folder: " <> tempDir
+                  map (either (const false) (const true)) $ liftEffect $ Tar.extract { filename: archivePath, cwd: tempDir }
+                else
+                  pure false
+              case tarExists, tarIsGood, offline of
+                true, true, _ -> pure unit -- Tar exists and is good, and we already unpacked it. Happy days!
+                _, _, Offline -> die $ "Package " <> packageVersion <> " is not in the local cache, and Spago is running in offline mode - can't make progress."
+                _, _, Online -> do
+                  let packageUrl = "https://packages.registry.purescript.org/" <> PackageName.print name <> "/" <> versionString <> ".tar.gz"
+                  logInfo $ "Fetching package " <> packageVersion
+                  response <- liftAff $ withBackoff' $ Http.request
+                    ( Http.defaultRequest
+                        { method = Left Method.GET
+                        , responseFormat = Response.arrayBuffer
+                        , url = packageUrl
+                        }
+                    )
+                  case response of
+                    Nothing -> die $ "Couldn't reach the registry at " <> packageUrl
+                    Just (Left err) -> die $ "Couldn't fetch package " <> packageVersion <> ":\n  " <> Http.printError err
+                    Just (Right { status, body }) | status /= StatusCode 200 -> do
+                      (buf :: Buffer) <- liftEffect $ Buffer.fromArrayBuffer body
+                      bodyString <- liftEffect $ Buffer.toString Encoding.UTF8 buf
+                      die $ "Couldn't fetch package " <> packageVersion <> ", status was not ok " <> show status <> ", got answer:\n  " <> bodyString
+                    Just (Right r@{ body: archiveArrayBuffer }) -> do
+                      logDebug $ "Got status: " <> show r.status
+                      -- check the size and hash of the tar against the metadata
+                      archiveBuffer <- liftEffect $ Buffer.fromArrayBuffer archiveArrayBuffer
+                      archiveSize <- liftEffect $ Buffer.size archiveBuffer
+                      archiveSha <- liftEffect $ Sha256.hashBuffer archiveBuffer
+                      unless (Int.toNumber archiveSize == versionMetadata.bytes) do
+                        die $ "Archive fetched for " <> packageVersion <> " has a different size (" <> show archiveSize <> ") than expected (" <> show versionMetadata.bytes <> ")"
+                      unless (archiveSha == versionMetadata.hash) do
+                        die $ "Archive fetched for " <> packageVersion <> " has a different hash (" <> Sha256.print archiveSha <> ") than expected (" <> Sha256.print versionMetadata.hash <> ")"
+                      -- if everything's alright we stash the tar in the global cache
+                      logDebug $ "Fetched archive for " <> packageVersion <> ", saving it in the global cache: " <> archivePath
+                      FS.writeFile archivePath archiveBuffer
+                      logDebug $ "Unpacking archive to temp folder: " <> tempDir
+                      (liftEffect $ Tar.extract { filename: archivePath, cwd: tempDir }) >>= case _ of
+                        Right _ -> pure unit
+                        Left err -> die [ "Failed to decode downloaded package " <> packageVersion <> ", error:", show err ]
+              logDebug $ "Moving extracted file to local cache:" <> localPackageLocation
+              FS.moveSync { src: (Path.concat [ tempDir, tarInnerFolder ]), dst: localPackageLocation }
+        -- Local package, no work to be done
+        LocalPackage _ -> pure unit
+        WorkspacePackage _ -> pure unit
+
+    pure dependencies
 
 type LockfileBuilderResult =
   { workspacePackages :: Map PackageName Lock.WorkspaceLockPackage
   , packages :: Map PackageName Lock.LockEntry
   }
 
-mkLockfile :: forall a. PackageTransitiveDeps -> Spago (FetchEnv a) Lock.Lockfile
-mkLockfile allTransitiveDeps = do
+writeNewLockfile :: forall a. String -> PackageTransitiveDeps -> Spago (FetchEnv a) Unit
+writeNewLockfile reason allTransitiveDeps = do
+  logInfo $ reason <> ", generating it..."
   { workspace } <- ask
   let
     processPackage :: LockfileBuilderResult -> Tuple PackageName (Tuple PackageName Package) -> Spago (FetchEnv a) LockfileBuilderResult
@@ -290,16 +318,19 @@ mkLockfile allTransitiveDeps = do
       { workspacePackages: Map.fromFoldable $ map Config.workspacePackageToLockfilePackage (Config.getWorkspacePackages workspace.packageSet), packages: Map.empty }
       (foldMap sequence $ toArray $ map toArray allTransitiveDeps)
 
-  pure
-    { packages
-    , workspace:
-        { package_set: case workspace.packageSet.buildType of
-            RegistrySolverBuild _ -> Nothing
-            PackageSetBuild info _ -> Just info
-        , packages: workspacePackages
-        , extra_packages: fromMaybe Map.empty workspace.workspaceConfig.extra_packages
-        }
-    }
+  let
+    lockfile =
+      { packages
+      , workspace:
+          { package_set: case workspace.packageSet.buildType of
+              RegistrySolverBuild _ -> Nothing
+              PackageSetBuild info _ -> Just info
+          , packages: workspacePackages
+          , extra_packages: fromMaybe Map.empty workspace.workspaceConfig.extra_packages
+          }
+      }
+  liftAff $ FS.writeYamlFile Lock.lockfileCodec "spago.lock" lockfile
+  logInfo "Lockfile written to spago.lock. Please commit this file."
 
 toAllDependencies :: PackageTransitiveDeps -> PackageMap
 toAllDependencies = foldl (Map.unionWith (\l _ -> l)) Map.empty
@@ -370,7 +401,7 @@ getTransitiveDeps workspacePackage = do
   case workspace.packageSet.lockfile of
     -- If we have a lockfile we can just use that - we don't need build a plan, since we store it for every workspace
     -- package, so we can just filter out the packages we need.
-    Just lockfile -> do
+    Right lockfile -> do
       case Map.lookup workspacePackage.package.name lockfile.workspace.packages of
         Nothing -> die $ "Package " <> PackageName.print workspacePackage.package.name <> " not found in lockfile"
         Just { build_plan } -> do
@@ -386,7 +417,7 @@ getTransitiveDeps workspacePackage = do
           pure $ Map.union otherPackages workspacePackagesWeNeed
 
     -- No lockfile, we need to build a plan from scratch, and hit the Registry and so on
-    Nothing -> case workspace.packageSet.buildType of
+    Left _ -> case workspace.packageSet.buildType of
       RegistrySolverBuild extraPackages -> do
         plan <- getTransitiveDepsFromRegistry depsRanges extraPackages
         logDebug $ "Got a plan from the Solver: " <> printJson (Internal.Codec.packageMap Version.codec) plan
