@@ -483,5 +483,5 @@ readConfig path = do
   FS.exists path >>= case _ of
     false -> pure $ Left $ case path of
       "spago.yaml" -> "Did not find " <> path <> " Run `spago init` to initialise a new project."
-      _            -> "Did not find " <> path
+      _ -> "Did not find " <> path
     true -> liftAff $ FS.readYamlDocFile configCodec path
