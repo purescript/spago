@@ -22,10 +22,14 @@ import Spago.FS as FS
 import Spago.Registry (RegistryEnv)
 import Spago.Registry as Registry
 
+data OptionPackageType
+  = OptionPackageName String
+  | OptionSubPackageName String
+
 type InitOptions =
   -- TODO: we should allow the `--package-set` flag to alternatively pass in a URL
   { setVersion :: Maybe Version
-  , packageName :: PackageName
+  , packageType :: OptionPackageType
   , useSolver :: Boolean
   }
 
