@@ -15,7 +15,7 @@ import Docs.Search.SearchResult (ResultInfo(..), SearchResult(..))
 import Docs.Search.TypeDecoder (Constraint(..), Constraint', Type', Qualified(..), QualifiedBy(..), ProperName(..), Type(..), TypeArgument, ClassName, FunDeps)
 import Docs.Search.TypeQuery as TypeQuery
 import Docs.Search.TypeIndex (TypeIndex)
-import Docs.Search.Types (Identifier(..), ModuleName(..), PackageName)
+import Docs.Search.Types (Identifier, ModuleName(..), PackageName)
 import Docs.Search.Meta (Meta)
 
 import Prelude
@@ -95,15 +95,15 @@ handleQuery
   :: forall o a
    . Query a
   -> H.HalogenM State Action () o Aff (Maybe a)
-handleQuery (MessageFromSearchField Focused next) = do
+handleQuery (MessageFromSearchField Focused _next) = do
   pure Nothing
-handleQuery (MessageFromSearchField LostFocus next) = do
+handleQuery (MessageFromSearchField LostFocus _next) = do
   pure Nothing
-handleQuery (MessageFromSearchField InputCleared next) = do
+handleQuery (MessageFromSearchField InputCleared _next) = do
   H.modify_ (_ { results = [], input = "", mode = Off })
   showPageContents
   pure Nothing
-handleQuery (MessageFromSearchField (InputUpdated input_) next) = do
+handleQuery (MessageFromSearchField (InputUpdated input_) _next) = do
   let input = String.trim input_
 
   state <- H.modify (_ { input = input })
@@ -233,9 +233,9 @@ renderResult state (DeclResult r) =
   renderSearchResult state r
 renderResult state (TypeResult r) =
   renderSearchResult state r
-renderResult state (PackResult r) =
+renderResult _state (PackResult r) =
   renderPackageResult r
-renderResult state (MdlResult r) =
+renderResult _state (MdlResult r) =
   renderModuleResult r
 
 renderPackageResult
@@ -272,7 +272,7 @@ renderModuleResult
   :: forall a
    . ModuleResult
   -> Array (HH.HTML a Action)
-renderModuleResult { name, package } =
+renderModuleResult { name, package: _ } =
   [ HH.div [ HP.class_ (wrap "result") ]
       [ HH.h3 [ HP.class_ (wrap "result__title") ]
           [ HH.span
@@ -457,7 +457,7 @@ renderTypeClassMemberSignature
      }
   -> { name :: Identifier | rest }
   -> Array (HH.HTML a Action)
-renderTypeClassMemberSignature { type: ty, typeClass, typeClassArguments } result =
+renderTypeClassMemberSignature { type: ty, typeClass: _, typeClassArguments: _ } result =
   [ HH.text $ unwrap result.name
   , HH.text " :: "
   , renderType ty
@@ -507,8 +507,8 @@ renderTypeSynonymSignature { type: ty, arguments } { name } =
   ]
 
 renderTypeArgument :: forall a. TypeArgument -> Array (HH.HTML a Action)
-renderTypeArgument ({ name, kind }) =
-  case kind of
+renderTypeArgument ({ name, kind: maybeKind }) =
+  case maybeKind of
     Nothing ->
       [ HH.text $ name ]
     Just kind ->
@@ -614,8 +614,8 @@ renderForAll ty =
     [ keyword "forall" ]
       <>
         ( Array.fromFoldable foralls.binders <#>
-            \{ name, kind } ->
-              case kind of
+            \{ name, kind: maybeKind } ->
+              case maybeKind of
                 Nothing -> HH.text (" " <> name)
                 Just kind ->
                   HH.span_
