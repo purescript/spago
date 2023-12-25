@@ -481,7 +481,13 @@ readConfig :: forall a. FilePath -> Spago (LogEnv a) (Either String { doc :: Yam
 readConfig path = do
   logDebug $ "Reading config from " <> path
   FS.exists path >>= case _ of
-    false -> pure $ Left $ case path of
-      "spago.yaml" -> "Did not find " <> path <> " Run `spago init` to initialise a new project."
-      _ -> "Did not find " <> path
+    false -> case path of
+      "spago.yaml" -> do
+        hasYml <- FS.exists "spago.yml"
+        pure $ Left $
+          if hasYml then
+            "Spago's default configuration file must be called spago.yaml The file spago.yml was found, rename it if you will, or run `spago init` to initialise a new project."
+          else
+            "Did not find spago.yaml Run `spago init` to initialise a new project."
+      _ -> pure $ Left $ "Did not find " <> path
     true -> liftAff $ FS.readYamlDocFile configCodec path
