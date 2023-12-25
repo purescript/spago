@@ -7,6 +7,6 @@ package:
   build:
     strict: true
 workspace:
-  package_set:
+  packageSet:
     registry: 41.5.0
-  extra_packages: {}
+  extraPackages: {}

@@ -262,7 +262,7 @@ readWorkspace { maybeSelectedPackage, pureBuild } = do
 
   -- Read in the package database
   { offline } <- ask
-  packageSetInfo <- case maybeLockfileContents, workspace.package_set of
+  packageSetInfo <- case maybeLockfileContents, workspace.packageSet of
     _, Nothing -> do
       logDebug "Did not find a package set in your config, using Registry solver"
       pure Nothing
@@ -271,7 +271,7 @@ readWorkspace { maybeSelectedPackage, pureBuild } = do
     -- repo nor from the internet, since we already have the whole set right there
     Right lockfile, _ -> do
       logDebug "Found lockfile, using the package set from there"
-      pure lockfile.workspace.package_set
+      pure lockfile.workspace.packageSet
 
     Left _, Just address@(Core.SetFromRegistry { registry: v }) -> do
       logDebug "Reading the package set from the Registry repo..."
@@ -330,7 +330,7 @@ readWorkspace { maybeSelectedPackage, pureBuild } = do
         , address
         }
 
-  -- Mix in the package set (a) the workspace packages, and (b) the extra_packages
+  -- Mix in the package set (a) the workspace packages, and (b) the extraPackages
   -- Note:
   -- 1. we error out if any workspace package collides with any package in the database,
   --    because it's just a confusing situation.
@@ -339,7 +339,7 @@ readWorkspace { maybeSelectedPackage, pureBuild } = do
   -- This is to (1) easily allow overriding packages, (2) easily allow "private registries"
   -- and (3) prevent the security hole where people can register new names and take precedence in your build.
   let
-    extraPackages = map fromExtraPackage (fromMaybe Map.empty workspace.extra_packages)
+    extraPackages = map fromExtraPackage (fromMaybe Map.empty workspace.extraPackages)
     localPackagesOverlap = Set.intersection (Map.keys workspacePackages) (Map.keys extraPackages)
     buildType =
       let
@@ -357,7 +357,7 @@ readWorkspace { maybeSelectedPackage, pureBuild } = do
     die
       $
         [ toDoc "Some packages in your local tree overlap with ones you have declared in your workspace configuration."
-        , toDoc "To resolve this error, rename these packages declared in `extra_packages` to a different name:"
+        , toDoc "To resolve this error, rename these packages declared in `extraPackages` to a different name:"
         ]
       <> map (\p -> indent $ toDoc $ "- " <> PackageName.print p) (Array.fromFoldable localPackagesOverlap)
 
@@ -375,9 +375,9 @@ readWorkspace { maybeSelectedPackage, pureBuild } = do
   let
     buildOptions :: BuildOptions
     buildOptions =
-      { output: _.output =<< workspace.build_opts
-      , censorLibWarnings: _.censor_library_warnings =<< workspace.build_opts
-      , statVerbosity: _.stat_verbosity =<< workspace.build_opts
+      { output: _.output =<< workspace.buildOpts
+      , censorLibWarnings: _.censorLibraryWarnings =<< workspace.buildOpts
+      , statVerbosity: _.statVerbosity =<< workspace.buildOpts
       }
 
   pure
@@ -404,18 +404,18 @@ workspacePackageToLockfilePackage :: WorkspacePackage -> Tuple PackageName Lock.
 workspacePackageToLockfilePackage { path, package } = Tuple package.name
   { path
   , dependencies: package.dependencies
-  , test_dependencies: foldMap _.dependencies package.test
-  , build_plan: mempty -- Note: this is filled in later
+  , testDependencies: foldMap _.dependencies package.test
+  , buildPlan: mempty -- Note: this is filled in later
   }
 
 shouldComputeNewLockfile :: { workspace :: Core.WorkspaceConfig, workspacePackages :: Map PackageName WorkspacePackage } -> Lock.WorkspaceLock -> Boolean
 shouldComputeNewLockfile { workspace, workspacePackages } workspaceLock =
   -- the workspace packages should exactly match, except for the needed_by field, which is filled in during build plan construction
-  (map (workspacePackageToLockfilePackage >>> snd) workspacePackages /= (map (_ { build_plan = mempty }) workspaceLock.packages))
+  (map (workspacePackageToLockfilePackage >>> snd) workspacePackages /= (map (_ { buildPlan = mempty }) workspaceLock.packages))
     -- and the extra packages should exactly match
-    || (fromMaybe Map.empty workspace.extra_packages /= workspaceLock.extra_packages)
+    || (fromMaybe Map.empty workspace.extraPackages /= workspaceLock.extraPackages)
     -- and the package set address needs to match - we have no way to match the package set contents at this point, so we let it be
-    || (workspace.package_set /= map _.address workspaceLock.package_set)
+    || (workspace.packageSet /= map _.address workspaceLock.packageSet)
 
 getPackageLocation :: PackageName -> Package -> FilePath
 getPackageLocation name = Paths.mkRelative <<< case _ of

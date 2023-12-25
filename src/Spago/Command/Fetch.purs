@@ -287,7 +287,7 @@ writeNewLockfile reason allTransitiveDeps = do
           { workspacePackages = Map.alter
               ( case _ of
                   Nothing -> Nothing
-                  Just pkg -> Just $ pkg { build_plan = Set.insert dependencyName (pkg.build_plan) }
+                  Just pkg -> Just $ pkg { buildPlan = Set.insert dependencyName (pkg.buildPlan) }
               )
               workspacePackageName
               r.workspacePackages
@@ -322,11 +322,11 @@ writeNewLockfile reason allTransitiveDeps = do
     lockfile =
       { packages
       , workspace:
-          { package_set: case workspace.packageSet.buildType of
+          { packageSet: case workspace.packageSet.buildType of
               RegistrySolverBuild _ -> Nothing
               PackageSetBuild info _ -> Just info
           , packages: workspacePackages
-          , extra_packages: fromMaybe Map.empty workspace.workspaceConfig.extra_packages
+          , extraPackages: fromMaybe Map.empty workspace.workspaceConfig.extraPackages
           }
       }
   liftAff $ FS.writeYamlFile Lock.lockfileCodec "spago.lock" lockfile
@@ -404,12 +404,12 @@ getTransitiveDeps workspacePackage = do
     Right lockfile -> do
       case Map.lookup workspacePackage.package.name lockfile.workspace.packages of
         Nothing -> die $ "Package " <> PackageName.print workspacePackage.package.name <> " not found in lockfile"
-        Just { build_plan } -> do
+        Just { buildPlan } -> do
           let
             allWorkspacePackages = Map.fromFoldable $ map (\p -> Tuple p.package.name (WorkspacePackage p)) (Config.getWorkspacePackages workspace.packageSet)
 
             isInBuildPlan :: forall v. PackageName -> v -> Boolean
-            isInBuildPlan name _package = Set.member name build_plan
+            isInBuildPlan name _package = Set.member name buildPlan
 
             workspacePackagesWeNeed = Map.filterWithKey isInBuildPlan allWorkspacePackages
             otherPackages = map fromLockEntry $ Map.filterWithKey isInBuildPlan lockfile.packages

@@ -39,9 +39,9 @@ data LockEntry
 derive instance Eq LockEntry
 
 type WorkspaceLock =
-  { package_set :: Maybe PackageSetInfo
+  { packageSet :: Maybe PackageSetInfo
   , packages :: Map PackageName WorkspaceLockPackage
-  , extra_packages :: Map PackageName Core.ExtraPackage
+  , extraPackages :: Map PackageName Core.ExtraPackage
   }
 
 type PackageSetInfo =
@@ -52,9 +52,9 @@ type PackageSetInfo =
 
 type WorkspaceLockPackage =
   { dependencies :: Core.Dependencies
-  , test_dependencies :: Core.Dependencies
+  , testDependencies :: Core.Dependencies
   , path :: FilePath
-  , build_plan :: Set PackageName
+  , buildPlan :: Set PackageName
   }
 
 lockfileCodec :: JsonCodec Lockfile
@@ -66,15 +66,15 @@ lockfileCodec = CA.object "Lockfile"
 workspaceLockCodec :: JsonCodec WorkspaceLock
 workspaceLockCodec = CA.object "WorkspaceLock"
   $ CA.recordProp (Proxy :: _ "packages") (Registry.Codec.packageMap dependenciesCodec)
-  $ CA.recordPropOptional (Proxy :: _ "package_set") packageSetCodec
-  $ CA.recordProp (Proxy :: _ "extra_packages") (Registry.Codec.packageMap Config.extraPackageCodec)
+  $ CA.recordPropOptional (Proxy :: _ "packageSet") packageSetCodec
+  $ CA.recordProp (Proxy :: _ "extraPackages") (Registry.Codec.packageMap Config.extraPackageCodec)
   $ CA.record
   where
   dependenciesCodec = CA.object "Dependencies"
     $ CA.recordProp (Proxy :: _ "path") CA.string
     $ CA.recordProp (Proxy :: _ "dependencies") Config.dependenciesCodec
-    $ CA.recordProp (Proxy :: _ "test_dependencies") Config.dependenciesCodec
-    $ CA.recordProp (Proxy :: _ "build_plan") (CA.Common.set PackageName.codec)
+    $ CA.recordProp (Proxy :: _ "testDependencies") Config.dependenciesCodec
+    $ CA.recordProp (Proxy :: _ "buildPlan") (CA.Common.set PackageName.codec)
     $ CA.record
 
 packageSetCodec :: JsonCodec PackageSetInfo

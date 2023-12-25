@@ -6,11 +6,11 @@ workspace:
         - package-b
         - package-c
         - prelude
-      test_dependencies:
+      testDependencies:
         - console
         - effect
         - prelude
-      build_plan:
+      buildPlan:
         - console
         - effect
         - package-b
@@ -21,11 +21,11 @@ workspace:
       dependencies:
         - package-c
         - prelude
-      test_dependencies:
+      testDependencies:
         - console
         - effect
         - prelude
-      build_plan:
+      buildPlan:
         - console
         - effect
         - package-c
@@ -34,15 +34,15 @@ workspace:
       path: package-c
       dependencies:
         - prelude
-      test_dependencies:
+      testDependencies:
         - console
         - effect
         - prelude
-      build_plan:
+      buildPlan:
         - console
         - effect
         - prelude
-  package_set:
+  packageSet:
     address:
       registry: 0.0.1
     compiler: ">=0.15.4 <0.16.0"
@@ -405,7 +405,7 @@ workspace:
       yoga-fetch: 1.0.1
       yoga-json: 3.0.2
       yoga-postgres: 6.0.0
-  extra_packages: {}
+  extraPackages: {}
 packages:
   console:
     type: registry

@@ -195,7 +195,7 @@ publish _args = do
         if Array.length fail > 0 then do
           addError
             $ toDoc
-                [ "Some of the packages you specified as `extra_packages` do not point to the Registry."
+                [ "Some of the packages you specified as `extraPackages` do not point to the Registry."
                 , "To be able to publish a package to the registry, all of its dependencies have to be packages registered on the Registry."
                 , "Please replace the following packages with versions that are present in the Registry:" -- TODO point to docs
                 ]

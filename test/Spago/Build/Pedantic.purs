@@ -219,9 +219,9 @@ addPedanticFlagToSrc :: Config -> Config
 addPedanticFlagToSrc config = config
   { package = config.package <#> \r -> r
       { build = Just
-          { pedantic_packages: Just true
+          { pedanticPackages: Just true
           , strict: Nothing
-          , censor_project_warnings: Nothing
+          , censorProjectWarnings: Nothing
           }
       }
   }
@@ -231,11 +231,11 @@ addPedanticFlagToTest config = config
   { package = config.package <#> \r -> r
       { test = Just
           { main: "Test.Main"
-          , pedantic_packages: Just true
+          , pedanticPackages: Just true
           , strict: Nothing
-          , censor_test_warnings: Nothing
+          , censorTestWarnings: Nothing
           , dependencies: maybe (Dependencies Map.empty) _.dependencies r.test
-          , exec_args: r.test >>= _.exec_args
+          , execArgs: r.test >>= _.execArgs
           }
       }
   }

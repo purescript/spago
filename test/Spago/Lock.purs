@@ -37,9 +37,9 @@ validLockfile =
                   [ packageTuple "effect" (Just (unsafeFromRight (Range.parse ">=1.0.0 <5.0.0")))
                   , packageTuple "my-library" Nothing
                   ]
-              , test_dependencies: Dependencies Map.empty
+              , testDependencies: Dependencies Map.empty
               , path: "my-app"
-              , build_plan: Set.fromFoldable
+              , buildPlan: Set.fromFoldable
                   [ mkPackageName "my-library"
                   , mkPackageName "effect"
                   , mkPackageName "prelude"
@@ -47,12 +47,12 @@ validLockfile =
               }
           , packageTuple "my-library"
               { dependencies: Dependencies $ Map.fromFoldable [ packageTuple "prelude" Nothing ]
-              , test_dependencies: Dependencies $ Map.fromFoldable [ packageTuple "console" (Just Config.widestRange) ]
+              , testDependencies: Dependencies $ Map.fromFoldable [ packageTuple "console" (Just Config.widestRange) ]
               , path: "my-library"
-              , build_plan: Set.fromFoldable [ mkPackageName "prelude" ]
+              , buildPlan: Set.fromFoldable [ mkPackageName "prelude" ]
               }
           ]
-      , package_set: Just
+      , packageSet: Just
           { address: SetFromRegistry { registry: unsafeFromRight (Version.parse "22.1.1") }
           , compiler: unsafeFromRight (Range.parse ">=0.13.8 <0.14.0")
           -- This is not actually the content of the package set, but you get the idea
@@ -62,7 +62,7 @@ validLockfile =
               , Tuple (mkPackageName "console") (Core.RemoteRegistryVersion $ mkVersion "4.0.0")
               ]
           }
-      , extra_packages: Map.fromFoldable
+      , extraPackages: Map.fromFoldable
           [ packageTuple "console" $ ExtraRemotePackage $ RemoteGitPackage
               { git: "https://github.com/purescript/purescript-console.git"
               , ref: "v1.0.0"
@@ -115,25 +115,25 @@ workspace:
   packages:
     my-app:
       path: my-app
-      build_plan:
+      buildPlan:
         - effect
         - my-library
         - prelude
       dependencies:
         - effect: ">=1.0.0 <5.0.0"
         - my-library
-      test_dependencies: []
+      testDependencies: []
 
     my-library:
       path: my-library
-      build_plan:
+      buildPlan:
         - prelude
       dependencies:
         - prelude
-      test_dependencies:
+      testDependencies:
         - console: "*"
 
-  package_set:
+  packageSet:
     address:
       registry: 22.1.1
     compiler: ">=0.13.8 <0.14.0"
@@ -141,7 +141,7 @@ workspace:
       console: 4.0.0
       effect: 4.0.0
       prelude: 4.0.0
-  extra_packages:
+  extraPackages:
     console:
       git: https://github.com/purescript/purescript-console.git
       ref: v1.0.0

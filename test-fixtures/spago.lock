@@ -6,12 +6,12 @@ workspace:
         - console
         - effect
         - prelude
-      test_dependencies: []
-      build_plan:
+      testDependencies: []
+      buildPlan:
         - console
         - effect
         - prelude
-  package_set:
+  packageSet:
     address:
       registry: 33.0.0
     compiler: ">=0.15.10 <0.16.0"
@@ -492,7 +492,7 @@ workspace:
       yoga-postgres: 6.0.0
       yoga-tree: 1.0.0
       z3: 0.0.2
-  extra_packages: {}
+  extraPackages: {}
 packages:
   console:
     type: registry

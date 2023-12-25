@@ -11,7 +11,7 @@ import Spago.Db as Db
 run :: forall a. Spago (FetchEnv a) Unit
 run = do
   { workspace, db, purs } <- ask
-  case workspace.workspaceConfig.package_set of
+  case workspace.workspaceConfig.packageSet of
     Just (Core.SetFromRegistry { registry }) -> do
       maybeLatestPackageSet <- liftEffect $ Db.selectLatestPackageSetByCompiler db purs.version
       case maybeLatestPackageSet of

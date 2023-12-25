@@ -75,7 +75,7 @@ spec = Spec.around withTempDir do
         ( conf
             { workspace = conf.workspace # map
                 ( _
-                    { extra_packages = Just $ Map.fromFoldable
+                    { extraPackages = Just $ Map.fromFoldable
                         [ Tuple (mkPackageName "a") $ Config.ExtraRemotePackage $ Config.RemoteGitPackage
                             { git: "https://github.com/purescript/spago.git"
                             , ref: "master"
@@ -119,7 +119,7 @@ spec = Spec.around withTempDir do
         ( conf
             { workspace = conf.workspace # map
                 ( _
-                    { extra_packages = Just $ Map.fromFoldable
+                    { extraPackages = Just $ Map.fromFoldable
                         [ Tuple (mkPackageName "nonexistent-package") $ Config.ExtraRemotePackage $ Config.RemoteGitPackage
                             { git: "https://github.com/spacchetti/purescript-metadata.git"
                             , ref: "spago-test/branch-with-slash"
@@ -153,7 +153,7 @@ spec = Spec.around withTempDir do
         ( conf
             { workspace = conf.workspace # map
                 ( _
-                    { extra_packages = Just $ Map.fromFoldable
+                    { extraPackages = Just $ Map.fromFoldable
                         [ Tuple (mkPackageName "spago") $ Config.ExtraRemotePackage $ Config.RemoteGitPackage
                             { git: "https://github.com/purescript/spago.git"
                             , ref: "cbdbbf8f8771a7e43f04b18cdefffbcb0f03a990"
@@ -181,7 +181,7 @@ spec = Spec.around withTempDir do
         ( conf
             { workspace = conf.workspace # map
                 ( _
-                    { extra_packages = Just $ Map.fromFoldable
+                    { extraPackages = Just $ Map.fromFoldable
                         [ Tuple (mkPackageName "either") $ Config.ExtraRemotePackage $ Config.RemoteGitPackage
                             { git: "https://github.com/purescript/spago.git"
                             , ref: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
@@ -248,7 +248,7 @@ writeConfigWithEither = do
     ( conf
         { workspace = conf.workspace # map
             ( _
-                { extra_packages = Just $ Map.fromFoldable
+                { extraPackages = Just $ Map.fromFoldable
                     [ Tuple (mkPackageName "either") $ Config.ExtraRemotePackage $ Config.RemoteGitPackage
                         { git: "https://github.com/purescript/purescript-either.git"
                         , ref: "af655a04ed2fd694b6688af39ee20d7907ad0763"

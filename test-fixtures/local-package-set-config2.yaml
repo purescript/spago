@@ -8,6 +8,6 @@ package:
     main: Test.Main
     dependencies: []
 workspace:
-  package_set:
+  packageSet:
     path: ../local-package-set.json
-  extra_packages: {}
+  extraPackages: {}

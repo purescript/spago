@@ -730,7 +730,7 @@ mkBundleEnv bundleArgs = do
     extraArgs =
       fromMaybe [] do
         let cliArgs = Array.fromFoldable bundleArgs.bundlerArgs
-        (Alternative.guard (Array.length cliArgs > 0) *> pure cliArgs) <|> (bundleConf _.extra_args)
+        (Alternative.guard (Array.length cliArgs > 0) *> pure cliArgs) <|> (bundleConf _.extraArgs)
 
   let bundleOptions = { minify, module: entrypoint, outfile, platform, type: bundleType, sourceMaps: bundleArgs.sourceMaps, extraArgs }
   let
@@ -775,7 +775,7 @@ mkRunEnv runArgs { dependencies, purs } = do
     runConf f = selected.package.run >>= f
 
     moduleName = fromMaybe "Main" (runArgs.main <|> runConf _.main)
-    execArgs = fromMaybe [] (runArgs.execArgs <|> runConf _.exec_args)
+    execArgs = fromMaybe [] (runArgs.execArgs <|> runConf _.execArgs)
 
     runOptions =
       { moduleName
@@ -804,7 +804,7 @@ mkTestEnv testArgs { dependencies, purs } = do
         testConf f = selected.package.test >>= f
 
         moduleName = fromMaybe "Test.Main" (testConf (_.main >>> Just))
-        execArgs = fromMaybe [] (testArgs.execArgs <|> testConf _.exec_args)
+        execArgs = fromMaybe [] (testArgs.execArgs <|> testConf _.execArgs)
       in
         { moduleName
         , execArgs

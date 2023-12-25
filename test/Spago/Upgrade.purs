@@ -23,6 +23,6 @@ spec = Spec.around withTempDir do
       startingTime <- liftEffect $ Now.now
       maybeConfig <- runSpago { logOptions: { color: false, verbosity: LogQuiet, startingTime } } (Core.readConfig "spago.yaml")
       case maybeConfig of
-        Right { yaml: { workspace: Just { package_set: Just (SetFromRegistry { registry }) } } } | registry > initialVersion -> pure unit
+        Right { yaml: { workspace: Just { packageSet: Just (SetFromRegistry { registry }) } } } | registry > initialVersion -> pure unit
         Right { yaml: c } -> Assert.fail $ "Could not upgrade the package set, config: " <> printJson Core.configCodec c
         Left err -> Assert.fail $ "Could not read config: " <> show err

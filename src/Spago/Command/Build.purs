@@ -141,8 +141,8 @@ run opts = do
 
   let
     pedanticPkgs = NEA.toArray selectedPackages # Array.mapMaybe \p -> do
-      let reportSrc = pedanticPackages || (fromMaybe false $ p.package.build >>= _.pedantic_packages)
-      let reportTest = pedanticPackages || (fromMaybe false $ p.package.test >>= _.pedantic_packages)
+      let reportSrc = pedanticPackages || (fromMaybe false $ p.package.build >>= _.pedanticPackages)
+      let reportTest = pedanticPackages || (fromMaybe false $ p.package.test >>= _.pedanticPackages)
       Alternative.guard (reportSrc || reportTest)
       pure $ Tuple p { reportSrc, reportTest }
   unless (Array.null pedanticPkgs || opts.depsOnly) do
