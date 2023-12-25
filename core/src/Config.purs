@@ -57,7 +57,7 @@ import Registry.Sha256 as Sha256
 import Registry.Version as Version
 import Spago.FS as FS
 import Type.Proxy (Proxy(..))
-import Data.String as String
+import Data.String (stripSuffix) as String
 import Data.String.Pattern (Pattern(..)) as String
 
 type Config =
