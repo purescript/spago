@@ -8,6 +8,7 @@ module Spago.Command.Init
   , DefaultConfigPackageOptions
   , DefaultConfigWorkspaceOptions
   , defaultConfig'
+  , OptionPackageType(..)
   ) where
 
 import Spago.Prelude
@@ -23,8 +24,8 @@ import Spago.Registry (RegistryEnv)
 import Spago.Registry as Registry
 
 data OptionPackageType
-  = OptionPackageName String
-  | OptionSubPackageName String
+  = OptionPackageName PackageName
+  | OptionSubPackageName PackageName
 
 type InitOptions =
   -- TODO: we should allow the `--package-set` flag to alternatively pass in a URL
@@ -32,6 +33,10 @@ type InitOptions =
   , packageType :: OptionPackageType
   , useSolver :: Boolean
   }
+
+getPackageTypeName :: OptionPackageType -> PackageName
+getPackageTypeName (OptionPackageName name) = name
+getPackageTypeName (OptionSubPackageName name) = name
 
 -- TODO run git init? Is that desirable?
 
@@ -49,12 +54,14 @@ run opts = do
   -- Write config
   let
     config = defaultConfig
-      { name: opts.packageName
-      , withWorkspace: Just
-          { setVersion: case opts.useSolver of
-              true -> Nothing
-              false -> Just packageSetVersion
-          }
+      { name: getPackageTypeName opts.packageType
+      , withWorkspace: case opts.packageType of
+          OptionSubPackageName _ -> Nothing
+          OptionPackageName _ -> Just
+            { setVersion: case opts.useSolver of
+                true -> Nothing
+                false -> Just packageSetVersion
+            }
       , testModuleName: "Test.Main"
       }
   let configPath = "spago.yaml"
