@@ -1,17 +1,13 @@
 module Docs.Search.Score where
 
-import Docs.Search.Types (PackageName(..), PackageInfo(..), PackageScore(..))
-
 import Prelude
 
 import Data.Array as Array
 import Data.Map (Map)
 import Data.Map as Map
 import Data.Maybe (fromMaybe)
-import Data.Newtype (unwrap, wrap)
-import Data.String.CodeUnits as String
 import Data.Tuple (Tuple(..))
-import Data.Tuple as Tuple
+import Docs.Search.Types (PackageInfo(..), PackageName, PackageScore(..))
 import Safe.Coerce (coerce)
 import Web.Bower.PackageMeta as Bower
 

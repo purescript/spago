@@ -107,7 +107,7 @@ handleQuery
   :: forall a i
    . Query a
   -> H.HalogenM State i () Action Aff (Maybe a)
-handleQuery (UpdateModuleGrouping next) = do
+handleQuery (UpdateModuleGrouping _next) = do
   oldGroupingMode <- H.get <#> _.groupingMode
   newGroupingMode <- H.liftEffect loadGroupingModeFromLocalStorage
   when (oldGroupingMode /= newGroupingMode) do
@@ -201,7 +201,7 @@ getCurrentModuleName = do
 getCurrentPackage :: ModuleIndex -> Maybe ModuleName -> PackageInfo
 getCurrentPackage { modulePackages } (Just moduleName) =
   fromMaybe UnknownPackage $ Map.lookup moduleName modulePackages
-getCurrentPackage { modulePackages } Nothing = UnknownPackage
+getCurrentPackage { modulePackages: _ } Nothing = UnknownPackage
 
 -- | Convert checkbox status to sidebar mode
 isCheckedToGroupingMode :: Boolean -> GroupingMode

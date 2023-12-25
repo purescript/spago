@@ -12,17 +12,13 @@ module Docs.Search.TypeQuery
   , joinRows
   ) where
 
-import Docs.Search.Config as Config
-import Docs.Search.Extra (foldl1, foldr1)
-import Docs.Search.TypeDecoder (Type(..), Type', Qualified(..), QualifiedBy(..), ModuleName(..), ProperName(..), Label(..), Constraint(..), TypeArgument)
-import Docs.Search.Types (Identifier(..))
-
 import Prelude
+import Prim hiding (Row)
+
 import Control.Alt ((<|>))
 import Data.Array as Array
 import Data.Either (Either)
 import Data.Generic.Rep (class Generic)
-import Data.Show.Generic (genericShow)
 import Data.List (List(..), many, some, (:))
 import Data.List as List
 import Data.List.NonEmpty (NonEmptyList)
@@ -34,14 +30,19 @@ import Data.Newtype (wrap)
 import Data.Ord (abs)
 import Data.Set (Set)
 import Data.Set as Set
+import Data.Show.Generic (genericShow)
 import Data.String.CodeUnits (fromCharArray)
 import Data.String.Common (trim) as String
 import Data.Tuple (Tuple(..), fst, snd)
+import Docs.Search.Config as Config
+import Docs.Search.Extra (foldl1, foldr1)
+import Docs.Search.TypeDecoder (Type(..), Type', Qualified(..), QualifiedBy(..), ModuleName(..), ProperName(..), Label(..), Constraint(..), TypeArgument)
+import Docs.Search.Types (Identifier(..))
 import Language.PureScript.PSString as PSString
+import Safe.Coerce (coerce)
 import StringParser (ParseError, Parser, runParser, try)
 import StringParser.CodePoints (alphaNum, anyLetter, char, eof, lowerCaseChar, skipSpaces, string, upperCaseChar)
 import StringParser.Combinators (fix, sepBy, sepBy1, sepEndBy, sepEndBy1)
-import Safe.Coerce (coerce)
 
 -- | We need type queries because we don't have a full-featured type parser
 -- | available.
@@ -152,14 +153,14 @@ getFreeVariables query = go Set.empty Set.empty (List.singleton $ Next query)
     if Set.member var bound then free
     else Set.insert var free
 
-  go bound free Nil = free
+  go _bound free Nil = free
   go bound free (Unbind vars : rest) =
     go (Set.difference bound vars) free rest
 
   go bound free (Next (QVar var) : rest) =
     go bound (insertIfUnbound bound var free) rest
 
-  go bound free (Next (QConst str) : rest) =
+  go bound free (Next (QConst _str) : rest) =
     go bound free rest
   go bound free (Next (QFun q1 q2) : rest) =
     go bound free (Next q1 : Next q2 : rest)
@@ -336,9 +337,6 @@ unify query type_ = go Nil (List.singleton { q: query, t: type_ })
   go acc ({ q, t: TypeLevelInt _ _ } : rest) =
     go (QueryMismatch q : acc) rest
 
-  go acc ({ q, t: TypeLevelString _ _ } : rest) =
-    go (QueryMismatch q : acc) rest
-
   go acc ({ q, t: TypeWildcard _ _ } : rest) =
     go (QueryMismatch q : acc) rest
 
@@ -417,7 +415,7 @@ namesPenalty = go 0
         Set.size (Set.intersection qcs tcs)
     in
       go (p + Config.penalties.matchConstraint * p') rest
-  go p (RowsMismatch n m : rest) = go (Config.penalties.rowsMismatch * abs (n - m)) rest
+  go _p (RowsMismatch n m : rest) = go (Config.penalties.rowsMismatch * abs (n - m)) rest
   go p (_ : rest) = go p rest
 
 -- | Penalty for generalization and instantiation.
@@ -425,12 +423,12 @@ mismatchPenalty :: List Substitution -> Int
 mismatchPenalty = go 0
   where
   go n Nil = n
-  go n (Instantiate q t : rest) = go
+  go n (Instantiate _q t : rest) = go
     ( n + typeSize t *
         Config.penalties.instantiate
     )
     rest
-  go n (Generalize q t : rest) = go
+  go n (Generalize q _t : rest) = go
     ( n + typeQuerySize q *
         Config.penalties.generalize
     )
@@ -497,7 +495,7 @@ typeSize = go 0 <<< List.singleton
             ( TypeConstructor _
                 ( Qualified
                     (ByModuleName (ModuleName "Prim"))
-                    name
+                    _name
                 )
             )
             t1
@@ -517,7 +515,7 @@ typeSize = go 0 <<< List.singleton
     go (n + 1) rest
   go n (KindedType _ t1 t2 : rest) =
     go n (t1 : t2 : rest)
-  go n (BinaryNoParensType _ op t1 t2 : rest) =
+  go n (BinaryNoParensType _ _op t1 t2 : rest) =
     go (n + 1) (t1 : t2 : rest)
   go n (ParensInType _ t : rest) =
     go n (t : rest)

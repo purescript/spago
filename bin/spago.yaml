@@ -4,6 +4,7 @@ package:
     version: 0.93.22
     license: BSD-3-Clause
   build:
+    strict: true
     censor_project_warnings:
       - WildcardInferredType
   dependencies:

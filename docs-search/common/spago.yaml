@@ -1,5 +1,10 @@
 package:
   name: docs-search-common
+  build:
+    strict: true
+    censor_project_warnings:
+      - ImplicitQualifiedImport
+      - ImplicitQualifiedImportReExport
   dependencies:
     - aff
     - aff-promise
