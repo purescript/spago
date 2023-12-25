@@ -57,6 +57,8 @@ import Registry.Sha256 as Sha256
 import Registry.Version as Version
 import Spago.FS as FS
 import Type.Proxy (Proxy(..))
+import Data.String as String
+import Data.String.Pattern (Pattern(..)) as String
 
 type Config =
   { package :: Maybe PackageConfig
@@ -481,13 +483,21 @@ readConfig :: forall a. FilePath -> Spago (LogEnv a) (Either String { doc :: Yam
 readConfig path = do
   logDebug $ "Reading config from " <> path
   FS.exists path >>= case _ of
-    false -> case path of
-      "spago.yaml" -> do
-        hasYml <- FS.exists "spago.yml"
-        pure $ Left $
-          if hasYml then
-            "Spago's default configuration file must be called spago.yaml The file spago.yml was found, rename it if you will, or run `spago init` to initialise a new project."
-          else
-            "Did not find spago.yaml Run `spago init` to initialise a new project."
-      _ -> pure $ Left $ "Did not find " <> path
+    false -> do
+      yml <- case map (_ <> ".yml") $ String.stripSuffix (String.Pattern ".yaml") path of
+        Nothing -> pure Nothing
+        Just y -> do
+          hasYml <- FS.exists y
+          pure $
+            if hasYml then
+              Just y
+            else
+              Nothing
+      let
+        message = case yml of
+          Nothing -> "Did not find " <> path
+          Just y -> "Did not find " <> path <> ". Spago's configuration files should end with .yaml. Try renaming " <> y
+      pure $ Left $ case path of
+        "spago.yaml" -> message <> "Run `spago init` to initialize a new project."
+        _ -> message
     true -> liftAff $ FS.readYamlDocFile configCodec path

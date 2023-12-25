@@ -155,7 +155,7 @@ readWorkspace { maybeSelectedPackage, pureBuild } = do
   -- First try to read the config in the root. It _has_ to contain a workspace
   -- configuration, or we fail early.
   { workspace, package: maybePackage, workspaceDoc } <- Core.readConfig "spago.yaml" >>= case _ of
-    Left err -> die [ "Couldn't parse Spago config, error:\n  " <> err, ". The configuration file help can be found here https://github.com/purescript/spago#the-configuration-file" ]
+    Left err -> die [ "Couldn't parse Spago config, error:\n  " <> err, "The configuration file help can be found here https://github.com/purescript/spago#the-configuration-file" ]
     Right { yaml: { workspace: Nothing } } -> die
       [ "Your spago.yaml doesn't contain a workspace section."
       , "See the relevant documentation here: https://github.com/purescript/spago#the-workspace"
