@@ -1,11 +1,16 @@
 package:
   name: spago
   publish:
-    version: 0.93.19
+    version: 0.93.22
     license: BSD-3-Clause
     location:
       githubOwner: purescript
       githubRepo: spago
+  build:
+    strict: true
+    censor_project_warnings:
+      - WildcardInferredType
+      - ImplicitQualifiedImportReExport
   dependencies:
     - aff
     - affjax
@@ -49,16 +54,12 @@ package:
     - unsafe-coerce
   test:
     main: Test.Spago
+    censor_test_warnings:
+      - ImplicitQualifiedImportReExport
+      - ImplicitQualifiedImport
     dependencies:
       - spec
 workspace:
-  build_opts:
-    strict: false
-    censor_warnings: project
-    censor_codes:
-      - ImplicitQualifiedImportReExport
-      - ImplicitQualifiedImport
-  lock: true
   package_set:
     registry: 46.0.0
   extra_packages:
@@ -83,7 +84,6 @@ workspace:
         - effect
         - foldable-traversable
         - prelude
-        - psci-support
       git: https://github.com/nonbili/purescript-jest.git
       ref: caf2032f2e5828337e897a99f5359c00e91cb0ee
     language-purescript:

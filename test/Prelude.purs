@@ -173,10 +173,10 @@ checkOutputs checkers execResult = do
           Console.log $ "Overwriting fixture at path: " <> fixtureFileExpected
           let parentDir = dirname fixtureFileExpected
           unlessM (FS.exists parentDir) $ FS.mkdirp parentDir
-          FS.writeTextFile fixtureFileExpected actual
+          FS.writeTextFile fixtureFileExpected (actual <> "\n")
         else do
           expected <- String.trim <$> FS.readTextFile fixtureFileExpected
-          actual `Assert.shouldEqual` expected
+          actual `shouldEqualStr` expected
   check
     { stdout: checkOrOverwrite checkers.stdoutFile
     , stderr: checkOrOverwrite checkers.stderrFile

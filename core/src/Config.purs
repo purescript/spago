@@ -288,12 +288,10 @@ type WorkspaceConfig =
   , extra_packages :: Maybe (Map PackageName ExtraPackage)
   , backend :: Maybe BackendConfig
   , build_opts :: Maybe WorkspaceBuildOptionsInput
-  , lock :: Maybe Boolean
   }
 
 workspaceConfigCodec :: JsonCodec WorkspaceConfig
 workspaceConfigCodec = CA.object "WorkspaceConfig"
-  $ CA.recordPropOptional (Proxy :: _ "lock") CA.boolean
   $ CA.recordPropOptional (Proxy :: _ "package_set") setAddressCodec
   $ CA.recordPropOptional (Proxy :: _ "backend") backendConfigCodec
   $ CA.recordPropOptional (Proxy :: _ "build_opts") buildOptionsCodec
@@ -483,5 +481,7 @@ readConfig :: forall a. FilePath -> Spago (LogEnv a) (Either String { doc :: Yam
 readConfig path = do
   logDebug $ "Reading config from " <> path
   FS.exists path >>= case _ of
-    false -> pure (Left $ "Did not find " <> path <> " file.")
+    false -> pure $ Left $ case path of
+      "spago.yaml" -> "Did not find " <> path <> " Run `spago init` to initialise a new project."
+      _ -> "Did not find " <> path
     true -> liftAff $ FS.readYamlDocFile configCodec path

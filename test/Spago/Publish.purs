@@ -32,7 +32,7 @@ spec = Spec.around withTempDir do
       spago [ "build" ] >>= shouldBeSuccess
       spago [ "publish", "--offline" ] >>= shouldBeFailureErr (fixture "publish-no-git.txt")
 
-    Spec.it "fails the module is called Main" \{ spago, fixture } -> do
+    Spec.it "fails if the module is called Main" \{ spago, fixture } -> do
       spago [ "init", "--name", "aaaa" ] >>= shouldBeSuccess
       FSA.unlink "spago.yaml"
       FS.copyFile { src: fixture "spago-publish.yaml", dst: "spago.yaml" }

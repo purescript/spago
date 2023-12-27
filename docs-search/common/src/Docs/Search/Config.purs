@@ -1,13 +1,11 @@
 module Docs.Search.Config where
 
-import Docs.Search.Types (GlobalIdentifier, PackageName, PartId(..), URL, FilePath)
-
 import Prelude
 
 import Data.Char as Char
 import Data.List (List, (:))
-import Data.List as List
 import Data.Newtype (wrap)
+import Docs.Search.Types (GlobalIdentifier, PackageName, PartId(..), URL, FilePath)
 
 version :: String
 version = "0.0.12"

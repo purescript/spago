@@ -1,6 +1,6 @@
 module Spago.Config
   ( BuildOptions
-  , LockfileSettings(..)
+  , BuildType(..)
   , Package(..)
   , PackageSet(..)
   , PackageMap
@@ -19,6 +19,7 @@ module Spago.Config
   , readWorkspace
   , sourceGlob
   , setPackageSetVersionInConfig
+  , workspacePackageToLockfilePackage
   ) where
 
 import Spago.Prelude
@@ -49,15 +50,16 @@ import Record as Record
 import Registry.Foreign.FastGlob as Glob
 import Registry.Internal.Codec as Internal.Codec
 import Registry.PackageName as PackageName
+import Registry.PackageSet as Registry.PackageSet
 import Registry.Range as Range
-import Registry.Sha256 as Sha256
 import Registry.Version as Version
 import Spago.Core.Config as Core
 import Spago.FS as FS
 import Spago.Git as Git
-import Spago.Lock (Lockfile)
+import Spago.Lock (Lockfile, PackageSetInfo)
 import Spago.Lock as Lock
 import Spago.Paths as Paths
+import Spago.Registry as Registry
 import Type.Proxy (Proxy(..))
 
 type Workspace =
@@ -69,7 +71,6 @@ type Workspace =
   , doc :: YamlDoc Core.Config
   , workspaceConfig :: Core.WorkspaceConfig
   , rootPackage :: Maybe Core.PackageConfig
-  , lockfile :: LockfileSettings
   }
 
 type BuildOptions =
@@ -77,13 +78,6 @@ type BuildOptions =
   , censorLibWarnings :: Maybe Core.CensorBuildWarnings
   , statVerbosity :: Maybe Core.StatVerbosity
   }
-
-data LockfileSettings
-  = UseLockfile Lockfile
-  | GenerateLockfile
-  | SkipLockfile
-
-derive instance Eq LockfileSettings
 
 fromExtraPackage :: Core.ExtraPackage -> Package
 fromExtraPackage = case _ of
@@ -130,9 +124,14 @@ derive newtype instance Eq RemotePackageSet
 
 type PackageMap = Map PackageName Package
 
-data PackageSet
-  = PackageSet PackageMap
-  | Registry PackageMap
+data BuildType
+  = RegistrySolverBuild PackageMap
+  | PackageSetBuild PackageSetInfo PackageMap
+
+type PackageSet =
+  { buildType :: BuildType
+  , lockfile :: Either String Lockfile
+  }
 
 type WorkspacePackage =
   { path :: FilePath
@@ -149,40 +148,19 @@ data Package
 
 -- | Reads all the configurations in the tree and builds up the Map of local
 -- | packages to be integrated in the package set
-readWorkspace :: forall a. Maybe PackageName -> Spago (Git.GitEnv a) Workspace
-readWorkspace maybeSelectedPackage = do
+readWorkspace :: { maybeSelectedPackage :: Maybe PackageName, pureBuild :: Boolean } -> Spago (Registry.RegistryEnv _) Workspace
+readWorkspace { maybeSelectedPackage, pureBuild } = do
   logInfo "Reading Spago workspace configuration..."
 
   -- First try to read the config in the root. It _has_ to contain a workspace
   -- configuration, or we fail early.
   { workspace, package: maybePackage, workspaceDoc } <- Core.readConfig "spago.yaml" >>= case _ of
-    Left err -> die [ "Couldn't parse Spago config, error:\n  " <> err, "Run `spago init` to initialise a new project." ]
+    Left err -> die [ "Couldn't parse Spago config, error:\n  " <> err, "The configuration file help can be found here https://github.com/purescript/spago#the-configuration-file" ]
     Right { yaml: { workspace: Nothing } } -> die
       [ "Your spago.yaml doesn't contain a workspace section."
       , "See the relevant documentation here: https://github.com/purescript/spago#the-workspace"
       ]
     Right { yaml: { workspace: Just workspace, package }, doc } -> pure { workspace, package, workspaceDoc: doc }
-
-  lockfile <- FS.exists "spago.lock" >>= case _ of
-    true -> liftAff (FS.readYamlFile Lock.lockfileCodec "spago.lock") >>= case _ of
-      Left error -> die $ "Your project contains a spago.lock file, but it cannot be decoded:\n" <> error
-      Right contents
-        | workspace.lock == Just false -> die "Your workspace specifies 'lock: false', but there is a spago.lock file in the workspace."
-        | otherwise -> do
-            -- TODO: here figure out if the lockfile is still valid by checking if:
-            -- - the package set section of the workspace is the same
-            -- - the dependencies of each package are the same
-            pure (UseLockfile contents)
-    false
-      -- If the user specifies lock: true then we always create a lockfile.
-      | workspace.lock == Just true -> pure GenerateLockfile
-      -- If the user specifies lock: false then we always skip the lockfile.
-      | workspace.lock == Just false -> pure SkipLockfile
-      -- If the user does not set the 'lock' field then we defer to whether or
-      -- not they are using a package set.
-      | otherwise -> case workspace.package_set of
-          Nothing -> pure GenerateLockfile
-          Just _ -> pure SkipLockfile
 
   -- Then gather all the spago other configs in the tree.
   { succeeded: otherConfigPaths, failed, ignored } <- do
@@ -261,40 +239,66 @@ readWorkspace maybeSelectedPackage = do
           pkgs -> [ toDoc "Available packages:", indent (toDoc pkgs) ]
       Just p -> pure (Just p)
 
+  maybeLockfileContents <- FS.exists "spago.lock" >>= case _ of
+    false -> pure (Left "No lockfile found")
+    true -> liftAff (FS.readYamlFile Lock.lockfileCodec "spago.lock") >>= case _ of
+      Left error -> do
+        logWarn
+          [ "Your project contains a spago.lock file, but it cannot be decoded. Spago will generate a new one."
+          , "Error was: " <> error
+          ]
+        pure (Left "Could not decode lockfile")
+      -- Here we figure out if the lockfile is still up to date by having a quick look at the configurations:
+      -- if they changed since the last write, then we need to regenerate the lockfile
+      -- Unless! the user is passing the --pure flag, in which case we just use the lockfile
+      Right contents -> case pureBuild, shouldComputeNewLockfile { workspace, workspacePackages } contents.workspace of
+        true, _ -> do
+          logDebug "Using lockfile because of --pure flag"
+          pure (Right contents)
+        false, true -> pure (Left "Lockfile is out of date")
+        false, false -> do
+          logDebug "Lockfile is up to date, using it"
+          pure (Right contents)
+
   -- Read in the package database
   { offline } <- ask
-  { compatibleCompiler, remotePackageSet } <- case workspace.package_set of
-    Nothing -> do
+  packageSetInfo <- case maybeLockfileContents, workspace.package_set of
+    _, Nothing -> do
       logDebug "Did not find a package set in your config, using Registry solver"
-      pure
-        { compatibleCompiler: Core.widestRange
-        , remotePackageSet: Nothing
-        }
-    Just (Core.SetFromRegistry { registry: v }) -> do
+      pure Nothing
+
+    -- If there's a lockfile we don't attempt to fetch the package set from the registry
+    -- repo nor from the internet, since we already have the whole set right there
+    Right lockfile, _ -> do
+      logDebug "Found lockfile, using the package set from there"
+      pure lockfile.workspace.package_set
+
+    Left _, Just address@(Core.SetFromRegistry { registry: v }) -> do
       logDebug "Reading the package set from the Registry repo..."
-      let packageSetPath = Path.concat [ Paths.registryPath, "package-sets", Version.print v <> ".json" ]
-      liftAff (FS.readJsonFile remotePackageSetCodec packageSetPath) >>= case _ of
-        Left err -> die $ "Couldn't read the package set: " <> err
-        Right (RemotePackageSet registryPackageSet) -> do
-          logInfo "Read the package set from the registry"
-          pure
-            { compatibleCompiler: Range.caret registryPackageSet.compiler
-            , remotePackageSet: Just registryPackageSet.packages
-            }
-    Just (Core.SetFromPath { path }) -> do
+      (Registry.PackageSet.PackageSet registryPackageSet) <- Registry.readPackageSet v
+      logDebug "Read the package set from the Registry repo"
+      pure $ Just
+        { content: map Core.RemoteRegistryVersion registryPackageSet.packages
+        , address
+        , compiler: Range.caret registryPackageSet.compiler
+        }
+
+    Left _, Just address@(Core.SetFromPath { path }) -> do
       logDebug $ "Reading the package set from local path: " <> path
       liftAff (FS.readJsonFile remotePackageSetCodec path) >>= case _ of
         Left err -> die $ "Couldn't read the package set: " <> err
         Right (RemotePackageSet localPackageSet) -> do
           logInfo "Read the package set from local path"
-          pure
-            { compatibleCompiler: Range.caret localPackageSet.compiler
-            , remotePackageSet: Just localPackageSet.packages
+          pure $ Just
+            { content: localPackageSet.packages
+            , address
+            , compiler: Range.caret localPackageSet.compiler
             }
-    Just (Core.SetFromUrl { url: rawUrl, hash: maybeHash }) -> do
-      -- If there is a hash then we look up in the CAS, if not we fetch stuff, compute a hash and store it there
-      let
-        fetchPackageSet' = do
+
+    Left _, Just address@(Core.SetFromUrl { url: rawUrl }) -> do
+      result <- case offline of
+        Offline -> die "You are offline, but the package set is not cached locally. Please connect to the internet and try again."
+        Online -> do
           logDebug $ "Reading the package set from URL: " <> rawUrl
           url <- case parseUrl rawUrl of
             Left err -> die $ "Could not parse URL for the package set, error: " <> show err
@@ -320,24 +324,10 @@ readWorkspace maybeSelectedPackage = do
                         Just { version } -> pure (unsafeFromRight (parseLenientVersion version))
                         Nothing -> die $ "Couldn't find 'metadata' package in legacy package set."
                       pure { compiler: version, remotePackageSet: map Core.RemoteLegacyPackage set }
-        fetchPackageSet = case offline of
-          Online -> fetchPackageSet'
-          Offline -> die "You are offline, but the package set is not cached locally. Please connect to the internet and try again."
-      result <- case maybeHash of
-        Just hash -> readPackageSetFromHash hash >>= case _ of
-          Left err -> do
-            logDebug $ show err
-            fetchPackageSet
-          Right r -> pure r
-        Nothing -> do
-          logWarn $ "Did not find a hash for your package set import, adding it to your config..."
-          fetchPackageSet
-      newHash <- writePackageSetToHash result
-      logDebug $ "Package set hash: " <> Sha256.print newHash
-      updatePackageSetHashInConfig workspaceDoc newHash
-      pure
-        { compatibleCompiler: Range.caret result.compiler
-        , remotePackageSet: Just result.remotePackageSet
+      pure $ Just
+        { content: result.remotePackageSet
+        , compiler: Range.caret result.compiler
+        , address
         }
 
   -- Mix in the package set (a) the workspace packages, and (b) the extra_packages
@@ -351,13 +341,14 @@ readWorkspace maybeSelectedPackage = do
   let
     extraPackages = map fromExtraPackage (fromMaybe Map.empty workspace.extra_packages)
     localPackagesOverlap = Set.intersection (Map.keys workspacePackages) (Map.keys extraPackages)
-    packageSet =
+    buildType =
       let
         localPackages = Map.union (map WorkspacePackage workspacePackages) extraPackages
       in
-        case remotePackageSet of
-          Nothing -> Registry localPackages
-          Just set -> PackageSet $ Map.union localPackages (map fromRemotePackage set)
+        case packageSetInfo of
+          Nothing -> RegistrySolverBuild localPackages
+          Just info -> PackageSetBuild info $ Map.union localPackages (map fromRemotePackage info.content)
+    packageSet = { buildType, lockfile: maybeLockfileContents }
 
   -- Note again: we only try to prevent collisions between workspace packages and local overrides.
   -- We otherwise want local packages to override _remote_ ones, e.g. in the case where you are
@@ -392,13 +383,12 @@ readWorkspace maybeSelectedPackage = do
   pure
     { selected: maybeSelected
     , packageSet
-    , compatibleCompiler
+    , compatibleCompiler: fromMaybe Core.widestRange $ map _.compiler packageSetInfo
     , backend: workspace.backend
     , buildOptions
     , doc: workspaceDoc
     , workspaceConfig: workspace
     , rootPackage: maybePackage
-    , lockfile
     }
 
 rootPackageToWorkspacePackage
@@ -409,6 +399,23 @@ rootPackageToWorkspacePackage
 rootPackageToWorkspacePackage { rootPackage, workspaceDoc } = do
   hasTests <- liftEffect $ FS.exists "test"
   pure { path: "./", doc: workspaceDoc, package: rootPackage, hasTests }
+
+workspacePackageToLockfilePackage :: WorkspacePackage -> Tuple PackageName Lock.WorkspaceLockPackage
+workspacePackageToLockfilePackage { path, package } = Tuple package.name
+  { path
+  , dependencies: package.dependencies
+  , test_dependencies: foldMap _.dependencies package.test
+  , build_plan: mempty -- Note: this is filled in later
+  }
+
+shouldComputeNewLockfile :: { workspace :: Core.WorkspaceConfig, workspacePackages :: Map PackageName WorkspacePackage } -> Lock.WorkspaceLock -> Boolean
+shouldComputeNewLockfile { workspace, workspacePackages } workspaceLock =
+  -- the workspace packages should exactly match, except for the needed_by field, which is filled in during build plan construction
+  (map (workspacePackageToLockfilePackage >>> snd) workspacePackages /= (map (_ { build_plan = mempty }) workspaceLock.packages))
+    -- and the extra packages should exactly match
+    || (fromMaybe Map.empty workspace.extra_packages /= workspaceLock.extra_packages)
+    -- and the package set address needs to match - we have no way to match the package set contents at this point, so we let it be
+    || (workspace.package_set /= map _.address workspaceLock.package_set)
 
 getPackageLocation :: PackageName -> Package -> FilePath
 getPackageLocation name = Paths.mkRelative <<< case _ of
@@ -464,10 +471,11 @@ testGlob = "test/**/*.purs"
 
 -- We can afford an unsafe here, if it's empty we have bigger problems
 getWorkspacePackages :: PackageSet -> NonEmptyArray WorkspacePackage
-getWorkspacePackages = unsafeFromJust <<< NEA.fromFoldable <<< Array.mapMaybe extractWorkspacePackage <<< Map.toUnfoldable <<< case _ of
-  PackageSet m -> m
-  Registry m -> m
+getWorkspacePackages = unsafeFromJust <<< NEA.fromFoldable <<< Array.mapMaybe extractWorkspacePackage <<< Map.toUnfoldable <<< extractSet <<< _.buildType
   where
+  extractSet = case _ of
+    PackageSetBuild _info m -> m
+    RegistrySolverBuild m -> m
   extractWorkspacePackage = case _ of
     Tuple _ (WorkspacePackage p) -> Just p
     _ -> Nothing
@@ -487,45 +495,6 @@ getTopologicallySortedWorkspacePackages packageSet = do
 
 type PackageSetResult = { compiler :: Version, remotePackageSet :: Map PackageName Core.RemotePackage }
 
-packageSetResultCodec :: JsonCodec PackageSetResult
-packageSetResultCodec = CAR.object "PackageSetResult"
-  { compiler: Version.codec
-  , remotePackageSet: Internal.Codec.packageMap Core.remotePackageCodec
-  }
-
-readPackageSetFromHash :: forall a. Sha256 -> Spago (LogEnv a) (Either String PackageSetResult)
-readPackageSetFromHash hash = do
-  hex <- liftEffect (shaToHex hash)
-  let path = packageSetCachePath hex
-  logDebug $ "Reading cached package set entry from " <> path
-  FS.exists path >>= case _ of
-    false -> pure $ Left $ "Did not find a package set cached with hash " <> Sha256.print hash
-    true -> (liftAff $ FS.readJsonFile packageSetResultCodec path) >>= case _ of
-      Left err -> pure $ Left $ "Error while reading cached package set " <> Sha256.print hash <> ": " <> err
-      Right res -> pure $ Right res
-
-writePackageSetToHash :: forall a. PackageSetResult -> Spago (LogEnv a) Sha256
-writePackageSetToHash result = do
-  let serialised = printJson packageSetResultCodec result
-  hash <- liftEffect $ Sha256.hashString serialised
-  hex <- liftEffect (shaToHex hash)
-  FS.mkdirp packageSetsCachePath
-  FS.writeTextFile (packageSetCachePath hex) serialised
-  pure hash
-
-packageSetsCachePath :: FilePath
-packageSetsCachePath = Path.concat [ Paths.globalCachePath, "setsCAS" ]
-
-packageSetCachePath :: HexString → String
-packageSetCachePath (HexString hash) = Path.concat [ packageSetsCachePath, hash ]
-
-foreign import updatePackageSetHashInConfigImpl :: EffectFn2 (YamlDoc Core.Config) String Unit
-
-updatePackageSetHashInConfig :: forall m. MonadAff m => MonadEffect m => YamlDoc Core.Config -> Sha256 -> m Unit
-updatePackageSetHashInConfig doc sha = do
-  liftEffect $ runEffectFn2 updatePackageSetHashInConfigImpl doc (Sha256.print sha)
-  liftAff $ FS.writeYamlDocFile "spago.yaml" doc
-
 foreign import setPackageSetVersionInConfigImpl :: EffectFn2 (YamlDoc Core.Config) String Unit
 
 setPackageSetVersionInConfig :: forall m. MonadAff m => MonadEffect m => YamlDoc Core.Config -> Version -> m Unit
@@ -535,8 +504,10 @@ setPackageSetVersionInConfig doc version = do
 
 foreign import addPackagesToConfigImpl :: EffectFn3 (YamlDoc Core.Config) Boolean (Array String) Unit
 
-addPackagesToConfig :: YamlDoc Core.Config -> Boolean -> Array PackageName -> Effect Unit
-addPackagesToConfig doc isTest pkgs = runEffectFn3 addPackagesToConfigImpl doc isTest (map PackageName.print pkgs)
+addPackagesToConfig :: forall m. MonadAff m => FilePath -> YamlDoc Core.Config -> Boolean -> Array PackageName -> m Unit
+addPackagesToConfig configPath doc isTest pkgs = do
+  liftEffect $ runEffectFn3 addPackagesToConfigImpl doc isTest (map PackageName.print pkgs)
+  liftAff $ FS.writeYamlDocFile configPath doc
 
 foreign import removePackagesFromConfigImpl :: EffectFn3 (YamlDoc Core.Config) Boolean (PackageName -> Boolean) Unit
 

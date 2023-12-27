@@ -13,28 +13,22 @@ module Docs.Search.Types
   , FilePath(..)
   ) where
 
-import Web.Bower.PackageMeta (PackageName(..)) as ReExport
-import Language.PureScript.Names (ModuleName(..)) as ReExport
-
-import Docs.Search.JsonCodec (inject)
-
 import Prelude
 
-import Data.Argonaut.Core (Json)
-import Data.Codec.Argonaut (JsonCodec, JsonDecodeError)
+import Data.Codec.Argonaut (JsonCodec)
 import Data.Codec.Argonaut.Common as CA
-import Data.Codec.Argonaut.Sum as CAS
 import Data.Codec.Argonaut.Variant as CAV
 import Data.Either (Either(..))
 import Data.Generic.Rep (class Generic)
 import Data.Newtype (class Newtype)
-import Data.Maybe (Maybe(..))
 import Data.Profunctor (wrapIso, dimap)
 import Data.Show.Generic (genericShow)
-import Data.Tuple (Tuple(..))
 import Data.Variant as Variant
+import Docs.Search.JsonCodec (inject)
 import Language.PureScript.Names (ModuleName(..))
+import Language.PureScript.Names (ModuleName(..)) as ReExport
 import Web.Bower.PackageMeta (PackageName(..))
+import Web.Bower.PackageMeta (PackageName(..)) as ReExport
 
 newtype Identifier = Identifier String
 

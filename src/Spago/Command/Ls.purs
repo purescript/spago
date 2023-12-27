@@ -22,19 +22,21 @@ import Registry.Internal.Codec (packageMap)
 import Registry.PackageName as PackageName
 import Registry.Version as Version
 import Spago.Command.Fetch as Fetch
-import Spago.Config (Package(..), PackageSet(..), Workspace, WorkspacePackage)
+import Spago.Config (BuildType(..), Package(..), Workspace, WorkspacePackage)
 import Spago.Config as Config
 import Spago.Paths as Paths
 import Type.Proxy (Proxy(..))
 
 type LsPackagesArgs =
   { json :: Boolean
+  , pure :: Boolean
   }
 
 type LsDepsArgs =
   { json :: Boolean
   , transitive :: Boolean
   , selectedPackage :: Maybe String
+  , pure :: Boolean
   }
 
 type LsDepsOpts =
@@ -87,9 +89,9 @@ listPackageSet :: LsPackagesArgs -> Spago LsSetEnv Unit
 listPackageSet { json } = do
   logDebug "Running `listPackageSet`"
   { workspace } <- ask
-  case workspace.packageSet of
-    Registry _extraPackages -> die "Cannot list the packages in the package set, as none is configured for the project."
-    PackageSet packageSet -> do
+  case workspace.packageSet.buildType of
+    RegistrySolverBuild _extraPackages -> die "Cannot list the packages in the package set, as none is configured for the project."
+    PackageSetBuild _info packageSet -> do
       let packages = Map.toUnfoldable packageSet
       case json of
         true -> formatPackagesJson packages

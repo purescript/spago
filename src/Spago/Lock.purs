@@ -5,6 +5,7 @@ module Spago.Lock
   , lockEntryCodec
   , PathLock
   , GitLock
+  , PackageSetInfo
   , RegistryLock
   , WorkspaceLock
   , WorkspaceLockPackage
@@ -13,31 +14,47 @@ module Spago.Lock
 import Spago.Prelude
 
 import Data.Codec.Argonaut as CA
+import Data.Codec.Argonaut.Common as CA.Common
 import Data.Profunctor as Profunctor
 import Record as Record
 import Registry.Internal.Codec as Registry.Codec
 import Registry.PackageName as PackageName
+import Registry.Range as Range
 import Registry.Sha256 as Sha256
 import Registry.Version as Version
-import Spago.Core.Config (Dependencies, ExtraPackage, SetAddress)
 import Spago.Core.Config as Config
+import Spago.Core.Config as Core
 import Type.Proxy (Proxy(..))
-
-type WorkspaceLock =
-  { package_set :: Maybe SetAddress
-  , packages :: Map PackageName WorkspaceLockPackage
-  , extra_packages :: Map PackageName ExtraPackage
-  }
-
-type WorkspaceLockPackage =
-  { dependencies :: Dependencies
-  , test_dependencies :: Dependencies
-  , path :: FilePath
-  }
 
 type Lockfile =
   { workspace :: WorkspaceLock
   , packages :: Map PackageName LockEntry
+  }
+
+data LockEntry
+  = FromPath PathLock
+  | FromGit GitLock
+  | FromRegistry RegistryLock
+
+derive instance Eq LockEntry
+
+type WorkspaceLock =
+  { package_set :: Maybe PackageSetInfo
+  , packages :: Map PackageName WorkspaceLockPackage
+  , extra_packages :: Map PackageName Core.ExtraPackage
+  }
+
+type PackageSetInfo =
+  { address :: Core.SetAddress
+  , content :: Map PackageName Core.RemotePackage
+  , compiler :: Range
+  }
+
+type WorkspaceLockPackage =
+  { dependencies :: Core.Dependencies
+  , test_dependencies :: Core.Dependencies
+  , path :: FilePath
+  , build_plan :: Set PackageName
   }
 
 lockfileCodec :: JsonCodec Lockfile
@@ -49,7 +66,7 @@ lockfileCodec = CA.object "Lockfile"
 workspaceLockCodec :: JsonCodec WorkspaceLock
 workspaceLockCodec = CA.object "WorkspaceLock"
   $ CA.recordProp (Proxy :: _ "packages") (Registry.Codec.packageMap dependenciesCodec)
-  $ CA.recordPropOptional (Proxy :: _ "package_set") Config.setAddressCodec
+  $ CA.recordPropOptional (Proxy :: _ "package_set") packageSetCodec
   $ CA.recordProp (Proxy :: _ "extra_packages") (Registry.Codec.packageMap Config.extraPackageCodec)
   $ CA.record
   where
@@ -57,14 +74,15 @@ workspaceLockCodec = CA.object "WorkspaceLock"
     $ CA.recordProp (Proxy :: _ "path") CA.string
     $ CA.recordProp (Proxy :: _ "dependencies") Config.dependenciesCodec
     $ CA.recordProp (Proxy :: _ "test_dependencies") Config.dependenciesCodec
+    $ CA.recordProp (Proxy :: _ "build_plan") (CA.Common.set PackageName.codec)
     $ CA.record
 
-data LockEntry
-  = FromPath PathLock
-  | FromGit GitLock
-  | FromRegistry RegistryLock
-
-derive instance Eq LockEntry
+packageSetCodec :: JsonCodec PackageSetInfo
+packageSetCodec = CA.object "PackageSetInfo"
+  $ CA.recordProp (Proxy :: _ "address") Config.setAddressCodec
+  $ CA.recordProp (Proxy :: _ "compiler") Range.codec
+  $ CA.recordProp (Proxy :: _ "content") (Registry.Codec.packageMap Core.remotePackageCodec)
+  $ CA.record
 
 lockEntryCodec :: JsonCodec LockEntry
 lockEntryCodec = CA.codec' decode encode

@@ -10,11 +10,11 @@ import Data.Array.NonEmpty as NonEmptyArray
 import Data.Codec.Argonaut.Common as CA.Common
 import Data.Foldable as Foldable
 import Data.List as List
-import Data.Map as Map
 import Data.Maybe as Maybe
 import Data.Set as Set
 import Data.String as String
 import Effect.Aff as Aff
+import Effect.Aff.AVar as AVar
 import Effect.Now as Now
 import Node.Path as Path
 import Node.Process as Process
@@ -22,16 +22,11 @@ import Options.Applicative (CommandFields, Mod, Parser, ParserPrefs(..))
 import Options.Applicative as O
 import Optparse as Optparse
 import Record as Record
-import Registry.Constants as Registry.Constants
-import Registry.ManifestIndex as ManifestIndex
-import Registry.Metadata as Metadata
 import Registry.PackageName as PackageName
-import Registry.Version as Version
 import Spago.Bin.Flags as Flags
 import Spago.Command.Build as Build
 import Spago.Command.Bundle as Bundle
 import Spago.Command.Docs as Docs
-import Spago.Command.Uninstall as Uninstall
 import Spago.Command.Fetch as Fetch
 import Spago.Command.Graph (GraphModulesArgs, GraphPackagesArgs)
 import Spago.Command.Graph as Graph
@@ -45,6 +40,7 @@ import Spago.Command.Repl as Repl
 import Spago.Command.Run as Run
 import Spago.Command.Sources as Sources
 import Spago.Command.Test as Test
+import Spago.Command.Uninstall as Uninstall
 import Spago.Command.Upgrade as Upgrade
 import Spago.Config (BundleConfig, BundlePlatform(..), BundleType(..), PackageMap, RunConfig, TestConfig)
 import Spago.Config as Config
@@ -75,12 +71,16 @@ type InitArgs =
   , useSolver :: Boolean
   }
 
-type FetchArgs =
-  { packages :: List String
+type FetchArgsRow a =
+  ( packages :: List String
   , selectedPackage :: Maybe String
   , ensureRanges :: Boolean
   , testDeps :: Boolean
-  }
+  , pure :: Boolean
+  | a
+  )
+
+type FetchArgs a = Record (FetchArgsRow a)
 
 type InstallArgs =
   { packages :: List String
@@ -91,6 +91,7 @@ type InstallArgs =
   , pedanticPackages :: Boolean
   , ensureRanges :: Boolean
   , testDeps :: Boolean
+  , pure :: Boolean
   }
 
 type UninstallArgs =
@@ -109,6 +110,7 @@ type BuildArgs a =
   , jsonErrors :: Boolean
   , strict :: Maybe Boolean
   , statVerbosity :: Maybe Core.StatVerbosity
+  , pure :: Boolean
   | a
   }
 
@@ -136,6 +138,7 @@ type RunArgs =
   , ensureRanges :: Boolean
   , strict :: Maybe Boolean
   , statVerbosity :: Maybe Core.StatVerbosity
+  , pure :: Boolean
   }
 
 type TestArgs =
@@ -147,6 +150,7 @@ type TestArgs =
   , execArgs :: Maybe (Array String)
   , strict :: Maybe Boolean
   , statVerbosity :: Maybe Core.StatVerbosity
+  , pure :: Boolean
   }
 
 type SourcesArgs =
@@ -170,6 +174,7 @@ type BundleArgs =
   , ensureRanges :: Boolean
   , strict :: Maybe Boolean
   , statVerbosity :: Maybe Core.StatVerbosity
+  , pure :: Boolean
   }
 
 type PublishArgs =
@@ -184,7 +189,7 @@ data Command a
   = Build (BuildArgs a)
   | Bundle BundleArgs
   | Docs DocsArgs
-  | Fetch FetchArgs
+  | Fetch (FetchArgs a)
   | Init InitArgs
   | Install InstallArgs
   | Uninstall UninstallArgs
@@ -287,13 +292,14 @@ initArgsParser =
     , useSolver: Flags.useSolver
     }
 
-fetchArgsParser :: Parser FetchArgs
+fetchArgsParser :: Parser (FetchArgs ())
 fetchArgsParser =
   Optparse.fromRecord
     { packages: Flags.packages
     , selectedPackage: Flags.selectedPackage
     , ensureRanges: Flags.ensureRanges
     , testDeps: Flags.testDeps
+    , pure: Flags.pure
     }
 
 sourcesArgsParser :: Parser SourcesArgs
@@ -314,6 +320,7 @@ installArgsParser =
     , pedanticPackages: Flags.pedanticPackages
     , ensureRanges: Flags.ensureRanges
     , testDeps: Flags.testDeps
+    , pure: Flags.pure
     }
 
 uninstallArgsParser :: Parser UninstallArgs
@@ -335,6 +342,7 @@ buildArgsParser = Optparse.fromRecord
   , jsonErrors: Flags.jsonErrors
   , strict: Flags.strict
   , statVerbosity: Flags.statVerbosity
+  , pure: Flags.pure
   }
 
 replArgsParser :: Parser ReplArgs
@@ -356,6 +364,7 @@ runArgsParser = Optparse.fromRecord
   , ensureRanges: Flags.ensureRanges
   , strict: Flags.strict
   , statVerbosity: Flags.statVerbosity
+  , pure: Flags.pure
   }
 
 testArgsParser :: Parser TestArgs
@@ -368,6 +377,7 @@ testArgsParser = Optparse.fromRecord
   , pedanticPackages: Flags.pedanticPackages
   , strict: Flags.strict
   , statVerbosity: Flags.statVerbosity
+  , pure: Flags.pure
   }
 
 bundleArgsParser :: Parser BundleArgs
@@ -388,6 +398,7 @@ bundleArgsParser =
     , ensureRanges: Flags.ensureRanges
     , strict: Flags.strict
     , statVerbosity: Flags.statVerbosity
+    , pure: Flags.pure
     }
 
 publishArgsParser :: Parser PublishArgs
@@ -463,6 +474,7 @@ lsPathsArgsParser = Optparse.fromRecord
 lsPackagesArgsParser :: Parser LsPackagesArgs
 lsPackagesArgsParser = Optparse.fromRecord
   { json: Flags.json
+  , pure: Flags.pure
   }
 
 lsDepsArgsParser :: Parser LsDepsArgs
@@ -470,6 +482,7 @@ lsDepsArgsParser = Optparse.fromRecord
   { json: Flags.json
   , transitive: Flags.transitive
   , selectedPackage: Flags.selectedPackage
+  , pure: Flags.pure
   }
 
 data Cmd a = Cmd'SpagoCmd (SpagoCmd a) | Cmd'VersionCmd Boolean
@@ -487,7 +500,10 @@ parseArgs = do
     ( O.info
         ( O.helper <*>
             ( (Cmd'SpagoCmd <$> argParser) <|>
-                (Cmd'VersionCmd <$> (O.switch (O.long "version" <> O.short 'v' <> O.help "Show the current version")))
+                ( Cmd'VersionCmd <$>
+                    ( O.flag' true (O.long "version" <> O.short 'v' <> O.help "Show the current version")
+                    )
+                )
             )
         )
         (O.progDesc "PureScript package manager and build tool")
@@ -508,6 +524,8 @@ main = do
               , selectedPackage: args.selectedPackage
               , ensureRanges: false
               , testDeps: false
+              , isRepl: false
+              , pure: false
               }
             void $ runSpago env (Sources.run { json: args.json })
           Init args@{ useSolver } -> do
@@ -528,7 +546,7 @@ main = do
             logInfo "Set up a new Spago project."
             logInfo "Try running `spago run`"
           Fetch args -> do
-            { env, fetchOpts } <- mkFetchEnv offline args
+            { env, fetchOpts } <- mkFetchEnv offline (Record.merge { isRepl: false } args)
             void $ runSpago env (Fetch.run fetchOpts)
           RegistrySearch args -> do
             env <- mkRegistryEnv offline
@@ -539,8 +557,8 @@ main = do
           RegistryPackageSets args -> do
             env <- mkRegistryEnv offline
             void $ runSpago env (RegistryCmd.packageSets args)
-          Install args@{ packages, selectedPackage, ensureRanges, testDeps } -> do
-            { env, fetchOpts } <- mkFetchEnv offline { packages, selectedPackage, ensureRanges, testDeps }
+          Install args -> do
+            { env, fetchOpts } <- mkFetchEnv offline (Record.merge args { isRepl: false })
             dependencies <- runSpago env (Fetch.run fetchOpts)
             let
               buildArgs = Record.merge
@@ -552,17 +570,17 @@ main = do
             let options = { depsOnly: true, pursArgs: List.toUnfoldable args.pursArgs, jsonErrors: false }
             runSpago env' (Build.run options)
           Uninstall { packagesToRemove, selectedPackage, testDeps } -> do
-            { env, fetchOpts } <- mkFetchEnv offline { packages: packagesToRemove, selectedPackage, ensureRanges: false, testDeps: false }
+            { env, fetchOpts } <- mkFetchEnv offline { packages: packagesToRemove, selectedPackage, ensureRanges: false, testDeps: false, isRepl: false, pure: false }
             let options = { testDeps, dependenciesToRemove: Set.fromFoldable fetchOpts.packages }
-            runSpago { workspace: env.workspace, logOptions: env.logOptions } (Uninstall.run options)
-          Build args@{ selectedPackage, ensureRanges, jsonErrors } -> do
-            { env, fetchOpts } <- mkFetchEnv offline { packages: mempty, selectedPackage, ensureRanges, testDeps: false }
+            runSpago env (Uninstall.run options)
+          Build args@{ selectedPackage, ensureRanges, jsonErrors, pure } -> do
+            { env, fetchOpts } <- mkFetchEnv offline { packages: mempty, selectedPackage, ensureRanges, pure, testDeps: false, isRepl: false }
             dependencies <- runSpago env (Fetch.run fetchOpts)
             buildEnv <- runSpago env (mkBuildEnv args dependencies)
             let options = { depsOnly: false, pursArgs: List.toUnfoldable args.pursArgs, jsonErrors }
             runSpago buildEnv (Build.run options)
           Publish { selectedPackage } -> do
-            { env, fetchOpts } <- mkFetchEnv offline { packages: mempty, selectedPackage, ensureRanges: false, testDeps: false }
+            { env, fetchOpts } <- mkFetchEnv offline { packages: mempty, selectedPackage, ensureRanges: false, testDeps: false, isRepl: false, pure: false }
             dependencies <- runSpago env (Fetch.run fetchOpts)
             publishEnv <- runSpago env (mkPublishEnv dependencies)
             void $ runSpago publishEnv (Publish.publish {})
@@ -592,30 +610,32 @@ main = do
               , selectedPackage
               , ensureRanges: false
               , testDeps: false
+              , isRepl: true
+              , pure: false
               }
             dependencies <- runSpago env (Fetch.run fetchOpts)
             supportPackages <- runSpago env (SpagoRepl.supportPackage env.workspace.packageSet)
             replEnv <- runSpago env (mkReplEnv args dependencies supportPackages)
             void $ runSpago replEnv Repl.run
 
-          Bundle args@{ selectedPackage, ensureRanges } -> do
-            { env, fetchOpts } <- mkFetchEnv offline { packages: mempty, selectedPackage, ensureRanges, testDeps: false }
+          Bundle args@{ selectedPackage, ensureRanges, pure } -> do
+            { env, fetchOpts } <- mkFetchEnv offline { packages: mempty, selectedPackage, ensureRanges, pure, testDeps: false, isRepl: false }
             dependencies <- runSpago env (Fetch.run fetchOpts)
             buildEnv <- runSpago env (mkBuildEnv args dependencies)
             let options = { depsOnly: false, pursArgs: List.toUnfoldable args.pursArgs, jsonErrors: false }
             runSpago buildEnv (Build.run options)
             bundleEnv <- runSpago env (mkBundleEnv args)
             runSpago bundleEnv Bundle.run
-          Run args@{ selectedPackage, ensureRanges } -> do
-            { env, fetchOpts } <- mkFetchEnv offline { packages: mempty, selectedPackage, ensureRanges, testDeps: false }
+          Run args@{ selectedPackage, ensureRanges, pure } -> do
+            { env, fetchOpts } <- mkFetchEnv offline { packages: mempty, selectedPackage, ensureRanges, pure, testDeps: false, isRepl: false }
             dependencies <- runSpago env (Fetch.run fetchOpts)
             buildEnv <- runSpago env (mkBuildEnv args dependencies)
             let options = { depsOnly: false, pursArgs: List.toUnfoldable args.pursArgs, jsonErrors: false }
             runSpago buildEnv (Build.run options)
             runEnv <- runSpago env (mkRunEnv args buildEnv)
             runSpago runEnv Run.run
-          Test args@{ selectedPackage } -> do
-            { env, fetchOpts } <- mkFetchEnv offline { packages: mempty, selectedPackage, ensureRanges: false, testDeps: false }
+          Test args@{ selectedPackage, pure } -> do
+            { env, fetchOpts } <- mkFetchEnv offline { packages: mempty, selectedPackage, pure, ensureRanges: false, testDeps: false, isRepl: false }
             dependencies <- runSpago env (Fetch.run fetchOpts)
             buildEnv <- runSpago env (mkBuildEnv (Record.union args { ensureRanges: false }) dependencies)
             let options = { depsOnly: false, pursArgs: List.toUnfoldable args.pursArgs, jsonErrors: false }
@@ -624,34 +644,34 @@ main = do
             runSpago testEnv Test.run
           LsPaths args -> do
             runSpago { logOptions } $ Ls.listPaths args
-          LsPackages args -> do
-            let fetchArgs = { packages: mempty, selectedPackage: Nothing, ensureRanges: false, testDeps: false }
+          LsPackages args@{ pure } -> do
+            let fetchArgs = { packages: mempty, selectedPackage: Nothing, pure, ensureRanges: false, testDeps: false, isRepl: false }
             { env: env@{ workspace }, fetchOpts } <- mkFetchEnv offline fetchArgs
             dependencies <- runSpago env (Fetch.run fetchOpts)
             let lsEnv = { workspace, dependencies, logOptions }
             runSpago lsEnv (Ls.listPackageSet args)
-          LsDeps { selectedPackage, json, transitive } -> do
-            let fetchArgs = { packages: mempty, selectedPackage, ensureRanges: false, testDeps: false }
+          LsDeps { selectedPackage, json, transitive, pure } -> do
+            let fetchArgs = { packages: mempty, selectedPackage, pure, ensureRanges: false, testDeps: false, isRepl: false }
             { env, fetchOpts } <- mkFetchEnv offline fetchArgs
             dependencies <- runSpago env (Fetch.run fetchOpts)
             lsEnv <- runSpago env (mkLsEnv dependencies)
             runSpago lsEnv (Ls.listPackages { json, transitive })
           Docs args -> do
-            { env, fetchOpts } <- mkFetchEnv offline { packages: mempty, selectedPackage: Nothing, ensureRanges: false, testDeps: true }
+            { env, fetchOpts } <- mkFetchEnv offline { packages: mempty, pure: false, selectedPackage: Nothing, ensureRanges: false, testDeps: true, isRepl: false }
             dependencies <- runSpago env (Fetch.run fetchOpts)
             docsEnv <- runSpago env (mkDocsEnv args dependencies)
             runSpago docsEnv Docs.run
           Upgrade _args -> do
-            { env } <- mkFetchEnv offline { packages: mempty, selectedPackage: Nothing, ensureRanges: false, testDeps: false }
+            { env } <- mkFetchEnv offline { packages: mempty, selectedPackage: Nothing, pure: false, ensureRanges: false, testDeps: false, isRepl: false }
             runSpago env Upgrade.run
           -- TODO: add selected to graph commands
           GraphModules args -> do
-            { env, fetchOpts } <- mkFetchEnv offline { packages: mempty, selectedPackage: Nothing, ensureRanges: false, testDeps: false }
+            { env, fetchOpts } <- mkFetchEnv offline { packages: mempty, selectedPackage: Nothing, pure: false, ensureRanges: false, testDeps: false, isRepl: false }
             dependencies <- runSpago env (Fetch.run fetchOpts)
             purs <- Purs.getPurs
             runSpago { dependencies, logOptions, purs, workspace: env.workspace } (Graph.graphModules args)
           GraphPackages args -> do
-            { env, fetchOpts } <- mkFetchEnv offline { packages: mempty, selectedPackage: Nothing, ensureRanges: false, testDeps: false }
+            { env, fetchOpts } <- mkFetchEnv offline { packages: mempty, selectedPackage: Nothing, pure: false, ensureRanges: false, testDeps: false, isRepl: false }
             dependencies <- runSpago env (Fetch.run fetchOpts)
             purs <- Purs.getPurs
             runSpago { dependencies, logOptions, purs, workspace: env.workspace } (Graph.graphPackages args)
@@ -891,7 +911,7 @@ mkReplEnv replArgs dependencies supportPackage = do
     , selected
     }
 
-mkFetchEnv :: forall a. OnlineStatus -> FetchArgs -> Spago (LogEnv a) { env :: Fetch.FetchEnv (), fetchOpts :: Fetch.FetchOpts }
+mkFetchEnv :: forall a b. OnlineStatus -> { isRepl :: Boolean | FetchArgsRow b } -> Spago (LogEnv a) { env :: Fetch.FetchEnv (), fetchOpts :: Fetch.FetchOpts }
 mkFetchEnv offline args = do
   let
     parsePackageName p = case PackageName.parse p of
@@ -906,8 +926,8 @@ mkFetchEnv offline args = do
     Left _err -> die $ "Failed to parse selected package name, was: " <> show args.selectedPackage
 
   env <- mkRegistryEnv offline
-  workspace <- runSpago env (Config.readWorkspace maybeSelectedPackage)
-  let fetchOpts = { packages: packageNames, ensureRanges: args.ensureRanges, isTest: args.testDeps }
+  workspace <- runSpago env (Config.readWorkspace { maybeSelectedPackage, pureBuild: args.pure })
+  let fetchOpts = { packages: packageNames, ensureRanges: args.ensureRanges, isTest: args.testDeps, isRepl: args.isRepl }
   pure { fetchOpts, env: Record.union { workspace } env }
 
 mkRegistryEnv :: forall a. OnlineStatus -> Spago (LogEnv a) (Registry.RegistryEnv ())
@@ -925,84 +945,15 @@ mkRegistryEnv offline = do
   git <- Git.getGit
   purs <- Purs.getPurs
   { logOptions } <- ask
-
-  -- Connect to the database - we need it to keep track of when to pull the Registry,
-  -- so we don't do it too often
   db <- liftEffect $ Db.connect
     { database: Paths.databasePath
     , logger: \str -> Reader.runReaderT (logDebug $ "DB: " <> str) { logOptions }
     }
-
-  -- we keep track of how old the latest pull was - if the last pull was recent enough
-  -- we just move on, otherwise run the fibers
-  fetchingFreshRegistry <- Registry.shouldFetchRegistryRepos db
-  when fetchingFreshRegistry do
-    -- clone the registry and index repo, or update them
-    logInfo "Refreshing the Registry Index..."
-    runSpago { logOptions, git, offline } $ parallelise
-      [ Git.fetchRepo { git: "https://github.com/purescript/registry-index.git", ref: "main" } Paths.registryIndexPath >>= case _ of
-          Right _ -> pure unit
-          Left _err -> logWarn "Couldn't refresh the registry-index, will proceed anyways"
-      , Git.fetchRepo { git: "https://github.com/purescript/registry.git", ref: "main" } Paths.registryPath >>= case _ of
-          Right _ -> pure unit
-          Left _err -> logWarn "Couldn't refresh the registry, will proceed anyways"
-      ]
-
-  -- Now that we are up to date with the Registry we init/refresh the database
-  Registry.updatePackageSetsDb db
-
-  -- Prepare the functions to read the manifests and metadata - here we memoize as much
-  -- as we can in the DB, so we don't have to read the files every time
-  let
-    -- Manifests are immutable so we can just lookup in the DB or read from file if not there
-    getManifestFromIndex :: PackageName -> Version -> Spago (LogEnv ()) (Maybe Manifest)
-    getManifestFromIndex name version = do
-      liftEffect (Db.getManifest db name version) >>= case _ of
-        Just manifest -> pure (Just manifest)
-        Nothing -> do
-          -- if we don't have it we need to read it from file
-          -- (note that we have all the versions of a package in the same file)
-          logDebug $ "Reading package from Index: " <> PackageName.print name
-          maybeManifests <- liftAff $ ManifestIndex.readEntryFile Paths.registryIndexPath name
-          manifests <- map (map (\m@(Manifest m') -> Tuple m'.version m)) case maybeManifests of
-            Right ms -> pure $ NonEmptyArray.toUnfoldable ms
-            Left err -> do
-              logWarn $ "Could not read package manifests from index, proceeding anyways. Error: " <> err
-              pure []
-          let versions = Map.fromFoldable manifests
-          -- and memoize it
-          for_ manifests \(Tuple _ manifest@(Manifest m)) -> do
-            logDebug $ "Inserting manifest in DB: " <> PackageName.print name <> " v" <> Version.print m.version
-            liftEffect $ Db.insertManifest db name m.version manifest
-          pure (Map.lookup version versions)
-
-  -- Metadata can change over time (unpublished packages, and new packages), so we need
-  -- to read it from file every time we have a fresh Registry
-  let
-    metadataFromFile name = do
-      let metadataFilePath = Path.concat [ Paths.registryPath, Registry.Constants.metadataDirectory, PackageName.print name <> ".json" ]
-      logDebug $ "Reading metadata from file: " <> metadataFilePath
-      liftAff (FS.readJsonFile Metadata.codec metadataFilePath)
-
-    getMetadata :: PackageName -> Spago (LogEnv ()) (Either String Metadata)
-    getMetadata name = do
-      -- we first try reading it from the DB
-      liftEffect (Db.getMetadata db name) >>= case _ of
-        Just metadata | not fetchingFreshRegistry -> do
-          logDebug $ "Got metadata from DB: " <> PackageName.print name
-          pure (Right metadata)
-        _ -> do
-          -- if we don't have it we try reading it from file
-          metadataFromFile name >>= case _ of
-            Left e -> pure (Left e)
-            Right m -> do
-              -- and memoize it
-              liftEffect (Db.insertMetadata db name m)
-              pure (Right m)
+  registryBox <- liftAff $ AVar.empty
+  registryLock <- liftAff $ AVar.new unit
 
   pure
-    { getManifestFromIndex
-    , getMetadata
+    { getRegistry: Registry.getRegistryFns registryBox registryLock
     , logOptions
     , offline
     , purs
@@ -1030,7 +981,7 @@ mkLsEnv dependencies = do
               ]
   pure { logOptions, workspace, dependencies, selected }
 
-mkDocsEnv :: forall a. DocsArgs -> Fetch.PackageTransitiveDeps -> Spago (Fetch.FetchEnv a) Docs.DocsEnv
+mkDocsEnv :: DocsArgs -> Fetch.PackageTransitiveDeps -> Spago (Fetch.FetchEnv _) (Docs.DocsEnv _)
 mkDocsEnv args dependencies = do
   { logOptions, workspace } <- ask
   purs <- Purs.getPurs

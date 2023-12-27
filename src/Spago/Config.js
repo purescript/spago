@@ -63,8 +63,8 @@ export function removePackagesFromConfigImpl(doc, isTest, shouldRemove) {
   let newItems = [];
   for (const el of deps.items) {
     if (
-      (Yaml.isScalar(el) && shouldRemove(el.value)) || 
-        (Yaml.isMap(el) && shouldRemove(el.items[0].key))
+      (Yaml.isScalar(el) && shouldRemove(el.value)) ||
+      (Yaml.isMap(el) && shouldRemove(el.items[0].key))
     ) {
       continue;
     }
@@ -98,8 +98,4 @@ export function addRangesToConfigImpl(doc, rangesMap) {
 
 export function setPackageSetVersionInConfigImpl(doc, version) {
   doc.setIn(["workspace", "package_set", "registry"], version);
-}
-
-export function updatePackageSetHashInConfigImpl(doc, sha) {
-  doc.setIn(["workspace", "package_set", "hash"], sha);
 }

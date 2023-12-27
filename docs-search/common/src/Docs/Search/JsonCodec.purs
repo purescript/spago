@@ -5,18 +5,15 @@ module Docs.Search.JsonCodec
   ) where
 
 import Prelude
-import Prim.Row (class Cons)
 
+import Prim.Row (class Cons)
 import Codec.Json.Unidirectional.Value (DecodeError, printDecodeError)
-import Data.Argonaut.Core (Json, fromString, stringify)
-import Data.Codec.Argonaut (JsonCodec, JsonDecodeError(..))
-import Data.Codec.Argonaut.Common as CA
-import Data.Codec.Argonaut.Sum as CAS
-import Data.Codec.Argonaut.Record as CAR
-import Data.Either (Either(..))
+import Data.Argonaut.Core (Json)
+import Data.Codec.Argonaut (JsonDecodeError(..))
+import Data.Either (Either)
 import Data.Profunctor.Choice (left)
 import Data.Symbol (class IsSymbol)
-import Data.Variant
+import Data.Variant (Variant, inj)
 import Type.Proxy (Proxy(..))
 
 -- | Equivalent to `Data.Variant.inj`, just uses a Visible Type Application instead of Proxy

@@ -1,16 +1,35 @@
-module Spago.Registry where
+module Spago.Registry
+  ( PreRegistryEnv
+  , PreRegistryEnvRow
+  , RegistryEnv
+  , RegistryEnvRow
+  , RegistryFunctions
+  , findPackageSet
+  , getManifestFromIndex
+  , getMetadata
+  , getRegistryFns
+  , listMetadataFiles
+  , readPackageSet
+  ) where
 
 import Spago.Prelude
 
 import Data.Array as Array
+import Data.Array.NonEmpty as NonEmptyArray
 import Data.DateTime as DateTime
 import Data.Map as Map
 import Data.Set as Set
 import Data.String (Pattern(..))
 import Data.String as String
 import Data.Time.Duration (Minutes(..))
+import Effect.AVar (AVar)
+import Effect.Aff.AVar as AVar
 import Effect.Now as Now
 import Node.Path as Path
+import Registry.Constants as Registry.Constants
+import Registry.ManifestIndex as ManifestIndex
+import Registry.Metadata as Metadata
+import Registry.PackageName as PackageName
 import Registry.PackageSet (PackageSet(..))
 import Registry.PackageSet as PackageSet
 import Registry.Version as Version
@@ -21,60 +40,201 @@ import Spago.Git as Git
 import Spago.Paths as Paths
 import Spago.Purs as Purs
 
-type RegistryEnv a =
-  { getManifestFromIndex :: PackageName -> Version -> Spago (LogEnv ()) (Maybe Manifest)
-  , getMetadata :: PackageName -> Spago (LogEnv ()) (Either String Metadata)
-  , offline :: OnlineStatus
+type PreRegistryEnvRow a =
+  ( offline :: OnlineStatus
   , logOptions :: LogOptions
   , purs :: Purs.Purs
   , git :: Git.Git
   , db :: Db.Db
   | a
+  )
+
+type PreRegistryEnv a = Record (PreRegistryEnvRow a)
+
+type RegistryEnvRow a = PreRegistryEnvRow
+  ( getRegistry :: Spago (PreRegistryEnv ()) RegistryFunctions
+  | a
+  )
+
+type RegistryEnv a = Record (RegistryEnvRow a)
+
+type RegistryFunctions =
+  { getManifestFromIndex :: PackageName -> Version -> Spago (LogEnv ()) (Maybe Manifest)
+  , getMetadata :: PackageName -> Spago (LogEnv ()) (Either String Metadata)
+  , findPackageSet :: Maybe Version -> Spago (PreRegistryEnv ()) Version
+  , listMetadataFiles :: Spago (LogEnv ()) (Array String)
+  , readPackageSet :: Version -> Spago (LogEnv ()) PackageSet
   }
 
--- | Update the database with the latest package sets
-updatePackageSetsDb :: forall a. Db -> Spago (LogEnv a) Unit
-updatePackageSetsDb db = do
-  setsAvailable <- map Set.fromFoldable getAvailablePackageSets
-  setsInDb <- map (Set.fromFoldable <<< map _.version) (liftEffect $ Db.selectPackageSets db)
-  let setsToInsert = Set.difference setsAvailable setsInDb
+getMetadata :: PackageName -> Spago (RegistryEnv _) _
+getMetadata packageName = do
+  { getRegistry, logOptions, db, git, purs, offline } <- ask
+  { getMetadata: fn } <- runSpago { logOptions, db, git, purs, offline } getRegistry
+  runSpago { logOptions } (fn packageName)
 
-  unless (Set.isEmpty setsToInsert) do
-    for_ (Set.toUnfoldable setsToInsert :: Array _) \setVersion -> do
-      PackageSet set <- readPackageSet setVersion
-      -- First insert the package set
-      logDebug $ "Inserting package set in DB: " <> Version.print setVersion
-      liftEffect $ Db.insertPackageSet db { compiler: set.compiler, date: set.published, version: set.version }
-      -- Then we insert every entry separately
-      for_ (Map.toUnfoldable set.packages :: Array _) \(Tuple name version) -> do
-        liftEffect $ Db.insertPackageSetEntry db { packageName: name, packageVersion: version, packageSetVersion: set.version }
+getManifestFromIndex :: PackageName -> Version -> Spago (RegistryEnv _) _
+getManifestFromIndex packageName version = do
+  { getRegistry, logOptions, db, git, purs, offline } <- ask
+  { getManifestFromIndex: fn } <- runSpago { logOptions, db, git, purs, offline } getRegistry
+  runSpago { logOptions } (fn packageName version)
 
--- | List all the package sets versions available in the Registry repo
-getAvailablePackageSets :: forall a. Spago (LogEnv a) (Array Version)
-getAvailablePackageSets = do
-  { success: setVersions, fail: parseFailures } <- map (partitionEithers <<< map parseSetVersion) $ FS.ls Paths.packageSetsPath
+findPackageSet :: Maybe Version -> Spago (RegistryEnv _) _
+findPackageSet version = do
+  { getRegistry, logOptions, db, git, purs, offline } <- ask
+  { findPackageSet: fn } <- runSpago { logOptions, db, git, purs, offline } getRegistry
+  runSpago { logOptions, db, git, purs, offline } (fn version)
 
-  unless (Array.null parseFailures) do
-    logDebug $ [ toDoc "Failed to parse some package-sets versions:" ] <> map (indent <<< toDoc <<< show) parseFailures
+listMetadataFiles :: Spago (RegistryEnv _) _
+listMetadataFiles = do
+  { getRegistry, logOptions, db, git, purs, offline } <- ask
+  { listMetadataFiles: fn } <- runSpago { logOptions, db, git, purs, offline } getRegistry
+  runSpago { logOptions } fn
 
-  pure setVersions
+readPackageSet :: Version -> Spago (RegistryEnv _) _
+readPackageSet version = do
+  { getRegistry, logOptions, db, git, purs, offline } <- ask
+  { readPackageSet: fn } <- runSpago { logOptions, db, git, purs, offline } getRegistry
+  runSpago { logOptions } (fn version)
+
+getRegistryFns :: AVar RegistryFunctions -> AVar Unit -> Spago (PreRegistryEnv _) RegistryFunctions
+getRegistryFns registryBox registryLock = do
+  -- The Box AVar will be empty until the first time we fetch the Registry, then
+  -- we can just use the value that is cached.
+  -- The Lock AVar is used to make sure
+  -- that only one fiber is fetching the Registry at a time, and that all the other
+  -- fibers will wait for it to finish and then use the cached value.
+  { db } <- ask
+  liftAff $ AVar.take registryLock
+  liftAff (AVar.tryRead registryBox) >>= case _ of
+    Just registry -> do
+      liftAff $ AVar.put unit registryLock
+      pure registry
+    Nothing -> do
+      fetchingFreshRegistry <- fetchRegistry
+      let
+        registryFns =
+          { getManifestFromIndex: getManifestFromIndexImpl db
+          , getMetadata: getMetadataImpl db fetchingFreshRegistry
+          , listMetadataFiles: FS.ls (Path.concat [ Paths.registryPath, Registry.Constants.metadataDirectory ])
+          , findPackageSet: findPackageSetImpl
+          , readPackageSet: readPackageSetImpl
+          }
+      liftAff $ AVar.put registryFns registryBox
+      liftAff $ AVar.put unit registryLock
+      pure registryFns
+
   where
-  parseSetVersion str = Version.parse case String.stripSuffix (Pattern ".json") str of
-    Nothing -> str
-    Just v -> v
+  fetchRegistry :: Spago (PreRegistryEnv _) Boolean
+  fetchRegistry = do
+    -- we keep track of how old the latest pull was - if the last pull was recent enough
+    -- we just move on, otherwise run the fibers
+    { db } <- ask
+    fetchingFreshRegistry <- shouldFetchRegistryRepos db
+    when fetchingFreshRegistry do
+      -- clone the registry and index repo, or update them
+      logInfo "Refreshing the Registry Index..."
+      parallelise
+        [ Git.fetchRepo { git: "https://github.com/purescript/registry-index.git", ref: "main" } Paths.registryIndexPath >>= case _ of
+            Right _ -> pure unit
+            Left _err -> logWarn "Couldn't refresh the registry-index, will proceed anyways"
+        , Git.fetchRepo { git: "https://github.com/purescript/registry.git", ref: "main" } Paths.registryPath >>= case _ of
+            Right _ -> pure unit
+            Left _err -> logWarn "Couldn't refresh the registry, will proceed anyways"
+        ]
 
-readPackageSet :: forall a. Version -> Spago (LogEnv a) PackageSet
-readPackageSet setVersion = do
-  logDebug "Reading the package set from the Registry repo..."
-  let packageSetPath = Path.concat [ Paths.packageSetsPath, Version.print setVersion <> ".json" ]
-  liftAff (FS.readJsonFile PackageSet.codec packageSetPath) >>= case _ of
-    Left err -> die $ "Couldn't read the package set: " <> err
-    Right registryPackageSet -> do
-      logDebug $ "Read the package set " <> Version.print setVersion <> " from the registry"
-      pure registryPackageSet
+    -- Now that we are up to date with the Registry we init/refresh the database
+    updatePackageSetsDb db
+    pure fetchingFreshRegistry
 
-findPackageSet :: forall a. Maybe Version -> Spago (RegistryEnv a) Version
-findPackageSet maybeSet = do
+  -- | Update the database with the latest package sets
+  updatePackageSetsDb :: Db -> Spago (LogEnv _) Unit
+  updatePackageSetsDb db = do
+    { logOptions } <- ask
+    setsAvailable <- map Set.fromFoldable getAvailablePackageSets
+    setsInDb <- map (Set.fromFoldable <<< map _.version) (liftEffect $ Db.selectPackageSets db)
+    let setsToInsert = Set.difference setsAvailable setsInDb
+
+    unless (Set.isEmpty setsToInsert) do
+      for_ (Set.toUnfoldable setsToInsert :: Array _) \setVersion -> do
+        PackageSet set <- runSpago { logOptions } (readPackageSetImpl setVersion)
+        -- First insert the package set
+        logDebug $ "Inserting package set in DB: " <> Version.print setVersion
+        liftEffect $ Db.insertPackageSet db { compiler: set.compiler, date: set.published, version: set.version }
+        -- Then we insert every entry separately
+        for_ (Map.toUnfoldable set.packages :: Array _) \(Tuple name version) -> do
+          liftEffect $ Db.insertPackageSetEntry db { packageName: name, packageVersion: version, packageSetVersion: set.version }
+
+  -- | List all the package sets versions available in the Registry repo
+  getAvailablePackageSets :: Spago (LogEnv _) (Array Version)
+  getAvailablePackageSets = do
+    { success: setVersions, fail: parseFailures } <- map (partitionEithers <<< map parseSetVersion) $ FS.ls Paths.packageSetsPath
+
+    unless (Array.null parseFailures) do
+      logDebug $ [ toDoc "Failed to parse some package-sets versions:" ] <> map (indent <<< toDoc <<< show) parseFailures
+
+    pure setVersions
+    where
+    parseSetVersion str = Version.parse case String.stripSuffix (Pattern ".json") str of
+      Nothing -> str
+      Just v -> v
+
+  readPackageSetImpl :: Version -> Spago (LogEnv ()) PackageSet
+  readPackageSetImpl setVersion = do
+    logDebug "Reading the package set from the Registry repo..."
+    let packageSetPath = Path.concat [ Paths.packageSetsPath, Version.print setVersion <> ".json" ]
+    liftAff (FS.readJsonFile PackageSet.codec packageSetPath) >>= case _ of
+      Left err -> die $ "Couldn't read the package set: " <> err
+      Right registryPackageSet -> do
+        logDebug $ "Read the package set " <> Version.print setVersion <> " from the registry"
+        pure registryPackageSet
+
+-- Metadata can change over time (unpublished packages, and new packages), so we need
+-- to read it from file every time we have a fresh Registry
+getMetadataImpl :: Db -> Boolean -> PackageName -> Spago (LogEnv ()) (Either String Metadata)
+getMetadataImpl db fetchingFreshRegistry name = do
+  -- we first try reading it from the DB
+  liftEffect (Db.getMetadata db name) >>= case _ of
+    Just metadata | not fetchingFreshRegistry -> do
+      logDebug $ "Got metadata from DB: " <> PackageName.print name
+      pure (Right metadata)
+    _ -> do
+      -- if we don't have it we try reading it from file
+      metadataFromFile name >>= case _ of
+        Left e -> pure (Left e)
+        Right m -> do
+          -- and memoize it
+          liftEffect (Db.insertMetadata db name m)
+          pure (Right m)
+  where
+  metadataFromFile pkgName = do
+    let metadataFilePath = Path.concat [ Paths.registryPath, Registry.Constants.metadataDirectory, PackageName.print pkgName <> ".json" ]
+    logDebug $ "Reading metadata from file: " <> metadataFilePath
+    liftAff (FS.readJsonFile Metadata.codec metadataFilePath)
+
+-- Manifests are immutable so we can just lookup in the DB or read from file if not there
+getManifestFromIndexImpl :: Db -> PackageName -> Version -> Spago (LogEnv ()) (Maybe Manifest)
+getManifestFromIndexImpl db name version = do
+  liftEffect (Db.getManifest db name version) >>= case _ of
+    Just manifest -> pure (Just manifest)
+    Nothing -> do
+      -- if we don't have it we need to read it from file
+      -- (note that we have all the versions of a package in the same file)
+      logDebug $ "Reading package from Index: " <> PackageName.print name
+      maybeManifests <- liftAff $ ManifestIndex.readEntryFile Paths.registryIndexPath name
+      manifests <- map (map (\m@(Manifest m') -> Tuple m'.version m)) case maybeManifests of
+        Right ms -> pure $ NonEmptyArray.toUnfoldable ms
+        Left err -> do
+          logWarn $ "Could not read package manifests from index, proceeding anyways. Error: " <> err
+          pure []
+      let versions = Map.fromFoldable manifests
+      -- and memoize it
+      for_ manifests \(Tuple _ manifest@(Manifest m)) -> do
+        logDebug $ "Inserting manifest in DB: " <> PackageName.print name <> " v" <> Version.print m.version
+        liftEffect $ Db.insertManifest db name m.version manifest
+      pure (Map.lookup version versions)
+
+findPackageSetImpl :: forall a. Maybe Version -> Spago (PreRegistryEnv a) Version
+findPackageSetImpl maybeSet = do
   { db, purs } <- ask
   availableSets <- liftEffect $ Db.selectPackageSets db
   let availableVersions = map _.version availableSets
@@ -139,10 +299,11 @@ shouldFetchRegistryRepos db = do
       let staleAfter = Minutes 15.0
       let (timeDiff :: Minutes) = DateTime.diff now lastRegistryFetch
       let isOldEnough = timeDiff > staleAfter
-      if isOldEnough then do
+      -- We check if it's old, but also if we have it at all
+      registryExists <- FS.exists Paths.registryPath
+      if isOldEnough || not registryExists then do
         logDebug "Registry is old, refreshing"
         liftEffect $ Db.updateLastPull db registryKey now
         pure true
       else do
-        logDebug "Registry is fresh enough, moving on..."
         pure false

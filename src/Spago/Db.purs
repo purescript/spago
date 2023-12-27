@@ -65,6 +65,10 @@ selectLatestPackageSetByCompiler db compiler = do
   maybePackageSet <- Nullable.toMaybe <$> Uncurried.runEffectFn2 selectLatestPackageSetByCompilerImpl db (Version.print compiler)
   pure $ packageSetFromJs =<< maybePackageSet
 
+{-
+
+We'll need these when implementing a command for "show me what's in this package set"
+
 selectPackageSetEntriesBySet :: Db -> Version -> Effect (Array PackageSetEntry)
 selectPackageSetEntriesBySet db packageSetVersion = do
   packageSetEntries <- Uncurried.runEffectFn2 selectPackageSetEntriesBySetImpl db (Version.print packageSetVersion)
@@ -74,6 +78,7 @@ selectPackageSetEntriesByPackage :: Db -> PackageName -> Version -> Effect (Arra
 selectPackageSetEntriesByPackage db packageName version = do
   packageSetEntries <- Uncurried.runEffectFn3 selectPackageSetEntriesByPackageImpl db (PackageName.print packageName) (Version.print version)
   pure $ Array.mapMaybe packageSetEntryFromJs packageSetEntries
+-}
 
 getLastPull :: Db -> String -> Effect (Maybe DateTime)
 getLastPull db key = do
@@ -172,12 +177,16 @@ packageSetEntryToJs { packageSetVersion, packageName, packageVersion } =
   , packageVersion: Version.print packageVersion
   }
 
+{-
+
 packageSetEntryFromJs :: PackageSetEntryJs -> Maybe PackageSetEntry
 packageSetEntryFromJs p = hush do
   packageSetVersion <- Version.parse p.packageSetVersion
   packageName <- PackageName.parse p.packageName
   packageVersion <- Version.parse p.packageVersion
   pure $ { packageSetVersion, packageName, packageVersion }
+
+-}
 
 --------------------------------------------------------------------------------
 -- Codecs

@@ -4,11 +4,13 @@ import Test.Prelude
 
 import Data.Codec.Argonaut as CA
 import Data.Map as Map
+import Data.Set as Set
 import Registry.Range as Range
 import Registry.Sha256 as Sha256
 import Registry.Version as Version
 import Spago.Core.Config (Dependencies(..), ExtraPackage(..), RemotePackage(..), SetAddress(..))
 import Spago.Core.Config as Config
+import Spago.Core.Config as Core
 import Spago.Lock (LockEntry(..), Lockfile)
 import Spago.Lock as Lock
 import Test.Spec (Spec)
@@ -37,14 +39,29 @@ validLockfile =
                   ]
               , test_dependencies: Dependencies Map.empty
               , path: "my-app"
+              , build_plan: Set.fromFoldable
+                  [ mkPackageName "my-library"
+                  , mkPackageName "effect"
+                  , mkPackageName "prelude"
+                  ]
               }
           , packageTuple "my-library"
               { dependencies: Dependencies $ Map.fromFoldable [ packageTuple "prelude" Nothing ]
               , test_dependencies: Dependencies $ Map.fromFoldable [ packageTuple "console" (Just Config.widestRange) ]
               , path: "my-library"
+              , build_plan: Set.fromFoldable [ mkPackageName "prelude" ]
               }
           ]
-      , package_set: Just $ SetFromRegistry { registry: unsafeFromRight (Version.parse "22.1.1") }
+      , package_set: Just
+          { address: SetFromRegistry { registry: unsafeFromRight (Version.parse "22.1.1") }
+          , compiler: unsafeFromRight (Range.parse ">=0.13.8 <0.14.0")
+          -- This is not actually the content of the package set, but you get the idea
+          , content: Map.fromFoldable
+              [ Tuple (mkPackageName "effect") (Core.RemoteRegistryVersion $ mkVersion "4.0.0")
+              , Tuple (mkPackageName "prelude") (Core.RemoteRegistryVersion $ mkVersion "4.0.0")
+              , Tuple (mkPackageName "console") (Core.RemoteRegistryVersion $ mkVersion "4.0.0")
+              ]
+          }
       , extra_packages: Map.fromFoldable
           [ packageTuple "console" $ ExtraRemotePackage $ RemoteGitPackage
               { git: "https://github.com/purescript/purescript-console.git"
@@ -62,23 +79,26 @@ validLockfile =
       }
   , packages:
       Map.fromFoldable
-        [ packageTuple "console" $ FromGit
-            { url: "https://github.com/purescript/purescript-console.git"
-            , rev: "3b83d7b792d03872afeea5e62b4f686ab0f09842"
-            , subdir: Nothing
-            , dependencies: [ prelude ]
-            }
-        , packageTuple "effect" $ FromRegistry
-            { version: unsafeFromRight (Version.parse "4.0.0")
-            , integrity: unsafeFromRight (Sha256.parse "sha256-eBtZu+HZcMa5HilvI6kaDyVX3ji8p0W9MGKy2K4T6+M=")
-            , dependencies: [ prelude ]
-            }
-        , packageTuple "prelude" $ FromGit
-            { url: "https://github.com/purescript/purescript-libraries.git"
-            , rev: "3b83d7b792d03872afeea5e62b4f686ab0f09842"
-            , subdir: Just "prelude"
-            , dependencies: []
-            }
+        [ packageTuple "console" $
+            FromGit
+              { url: "https://github.com/purescript/purescript-console.git"
+              , rev: "3b83d7b792d03872afeea5e62b4f686ab0f09842"
+              , subdir: Nothing
+              , dependencies: [ prelude ]
+              }
+        , packageTuple "effect" $
+            FromRegistry
+              { version: unsafeFromRight (Version.parse "4.0.0")
+              , integrity: unsafeFromRight (Sha256.parse "sha256-eBtZu+HZcMa5HilvI6kaDyVX3ji8p0W9MGKy2K4T6+M=")
+              , dependencies: [ prelude ]
+              }
+        , packageTuple "prelude" $
+            FromGit
+              { url: "https://github.com/purescript/purescript-libraries.git"
+              , rev: "3b83d7b792d03872afeea5e62b4f686ab0f09842"
+              , subdir: Just "prelude"
+              , dependencies: []
+              }
         ]
   }
   where
@@ -95,6 +115,10 @@ workspace:
   packages:
     my-app:
       path: my-app
+      build_plan:
+        - effect
+        - my-library
+        - prelude
       dependencies:
         - effect: ">=1.0.0 <5.0.0"
         - my-library
@@ -102,14 +126,21 @@ workspace:
 
     my-library:
       path: my-library
+      build_plan:
+        - prelude
       dependencies:
         - prelude
       test_dependencies:
         - console: "*"
 
   package_set:
-    registry: 22.1.1
-
+    address:
+      registry: 22.1.1
+    compiler: ">=0.13.8 <0.14.0"
+    content:
+      console: 4.0.0
+      effect: 4.0.0
+      prelude: 4.0.0
   extra_packages:
     console:
       git: https://github.com/purescript/purescript-console.git

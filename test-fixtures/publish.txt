@@ -1,5 +1,4 @@
 Reading Spago workspace configuration...
-Read the package set from the registry
 
 ✅ Selecting package to build: aaa
 
@@ -11,7 +10,7 @@ Errors       0     0     0
 
 ✅ Build succeeded.
 
-Passed preliminary checks. 
+Passed preliminary checks.
 ⚠️ Spago is in offline mode - not pushing the git tag v0.0.1
 Building again with the build plan from the solver...
 Building...

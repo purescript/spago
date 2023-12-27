@@ -1,9 +1,7 @@
 Reading Spago workspace configuration...
-Read the package set from the registry
 
 ✅ Selecting package to build: 7368613235362d50744f44764f717435586c685938735a5154
 
 ⚠️ You tried to install some packages that are already present in the configuration, proceeding anyways:
   - effect
-Adding 1 packages to the config in spago.yaml
 Downloading dependencies...

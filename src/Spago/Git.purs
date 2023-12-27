@@ -61,22 +61,27 @@ fetchRepo { git, ref } path = do
           Except.runExceptT $ runGit_ [ "clone", "--filter=tree:0", git, path ] Nothing
       result <- Except.runExceptT do
         Except.ExceptT $ pure cloneOrFetchResult
+        logDebug $ "Checking out the requested ref for " <> git <> " : " <> ref
         _ <- runGit [ "checkout", ref ] (Just path)
         -- if we are on a branch and not on a detached head, then we need to pull
         -- the following command will fail if on a detached head, and succeed if on a branch
         Except.mapExceptT
           ( \a -> a >>= case _ of
               Left _err -> pure (Right unit)
-              Right _ -> Except.runExceptT $ runGit_ [ "pull", "--rebase", "--autostash" ] (Just path)
+              Right _ -> do
+                logDebug "Pulling the latest changes"
+                Except.runExceptT $ runGit_ [ "pull", "--rebase", "--autostash" ] (Just path)
           )
           (runGit_ [ "symbolic-ref", "-q", "HEAD" ] (Just path))
 
-      pure case result of
-        Left err -> Left
+      case result of
+        Left err -> pure $ Left
           [ "Error while fetching the repo '" <> git <> "' at ref '" <> ref <> "':"
           , "  " <> err
           ]
-        Right _ -> Right unit
+        Right _ -> do
+          logDebug $ "Successfully fetched the repo '" <> git <> "' at ref '" <> ref <> "'"
+          pure $ Right unit
 
 listTags :: forall a. Maybe FilePath -> Spago (GitEnv a) (Either Docc (Array String))
 listTags cwd = do
