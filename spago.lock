@@ -801,8 +801,8 @@ workspace:
         - variant
   package_set:
     address:
-      registry: 46.0.0
-    compiler: ">=0.15.12 <0.16.0"
+      registry: 47.9.1
+    compiler: ">=0.15.13 <0.16.0"
     content:
       abc-parser: 2.0.1
       ace: 9.1.0
@@ -829,7 +829,7 @@ workspace:
       arraybuffer-builder: 3.1.0
       arraybuffer-types: 3.0.2
       arrays: 7.3.0
-      arrays-extra: 0.4.2
+      arrays-extra: 0.4.4
       arrays-zipper: 2.0.1
       ask: 1.0.0
       assert: 6.0.0
@@ -841,7 +841,7 @@ workspace:
       bifunctors: 6.0.0
       bigints: 7.0.1
       bolson: 0.3.9
-      bookhound: 0.1.5
+      bookhound: 0.1.7
       bower-json: 3.0.0
       call-by-name: 4.0.1
       canvas: 6.0.0
@@ -889,7 +889,7 @@ workspace:
       dom-indexed: 12.0.0
       dotenv: 4.0.3
       droplet: 0.6.0
-      dts: 0.2.0
+      dts: 1.0.0
       dual-numbers: 1.0.2
       dynamic-buffer: 3.0.1
       echarts-simple: 0.0.1
@@ -905,14 +905,15 @@ workspace:
       enums: 6.0.1
       env-names: 0.3.4
       error: 2.0.0
+      eta-conversion: 0.3.2
       exceptions: 6.0.0
       exists: 6.0.0
       exitcodes: 4.0.0
       expect-inferred: 3.0.0
       fahrtwind: 2.0.0
       fallback: 0.1.0
-      fast-vect: 1.1.0
-      fetch: 4.0.0
+      fast-vect: 1.2.0
+      fetch: 4.1.0
       fetch-argonaut: 1.0.1
       fetch-core: 5.1.0
       fetch-yoga-json: 1.1.0
@@ -951,7 +952,7 @@ workspace:
       graphs: 8.1.0
       group: 4.1.1
       halogen: 7.0.0
-      halogen-bootstrap5: 2.2.0
+      halogen-bootstrap5: 2.3.1
       halogen-css: 10.0.0
       halogen-echarts-simple: 0.0.4
       halogen-formless: 4.0.3
@@ -962,7 +963,7 @@ workspace:
       halogen-storybook: 2.0.0
       halogen-subscriptions: 2.0.0
       halogen-svg-elems: 8.0.0
-      halogen-typewriter: 1.0.2
+      halogen-typewriter: 1.0.4
       halogen-vdom: 8.0.0
       halogen-vdom-string-renderer: 0.5.0
       heckin: 2.0.1
@@ -1017,10 +1018,12 @@ workspace:
       maps-eager: 0.4.1
       marionette: 1.0.0
       marionette-react-basic-hooks: 0.1.1
+      marked: 0.1.0
       matrices: 5.0.1
       matryoshka: 1.0.0
       maybe: 6.0.0
       media-types: 6.0.0
+      meowclient: 1.0.0
       midi: 4.0.0
       milkis: 9.0.0
       minibench: 4.0.1
@@ -1049,6 +1052,7 @@ workspace:
       node-event-emitter: 3.0.0
       node-execa: 5.0.0
       node-fs: 9.1.0
+      node-glob-basic: 1.3.0
       node-http: 9.1.0
       node-http2: 1.1.1
       node-human-signals: 1.0.0
@@ -1076,9 +1080,11 @@ workspace:
       open-memoize: 6.1.0
       open-pairing: 6.1.0
       options: 7.0.0
+      optparse: 5.0.1
       ordered-collections: 3.1.1
       ordered-set: 0.4.0
       orders: 6.0.0
+      owoify: 1.2.0
       pairs: 9.0.1
       parallel: 7.0.0
       parsing: 10.2.0
@@ -1090,7 +1096,7 @@ workspace:
       phylio: 1.1.2
       pipes: 8.0.0
       pirates-charm: 0.0.1
-      pmock: 0.6.0
+      pmock: 0.9.0
       point-free: 1.0.0
       pointed-list: 0.5.1
       polymorphic-vectors: 4.0.0
@@ -1132,6 +1138,7 @@ workspace:
       recharts: 1.1.0
       record: 4.0.0
       record-extra: 5.0.1
+      record-ptional-fields: 0.1.2
       record-studio: 1.0.4
       refs: 6.0.0
       remotedata: 5.0.0
@@ -1189,7 +1196,7 @@ workspace:
       transformation-matrix: 1.0.1
       transformers: 6.0.0
       tree-rose: 4.0.2
-      ts-bridge: 2.2.0
+      ts-bridge: 4.0.0
       tuples: 7.0.0
       two-or-more: 1.0.0
       type-equality: 4.0.1
@@ -1239,7 +1246,7 @@ workspace:
       web-pointerevents: 2.0.0
       web-proletarian: 1.0.0
       web-promise: 3.2.0
-      web-resize-observer: 2.0.0
+      web-resize-observer: 2.1.0
       web-router: 1.0.0
       web-socket: 4.0.0
       web-storage: 5.0.0
@@ -1407,41 +1414,6 @@ workspace:
         - refs
         - strings
         - tuples
-    optparse:
-      git: https://github.com/thought2/purescript-optparse.git
-      ref: a9b227110c34ae4f8c1b2fcb07de6f1327ce5826
-      dependencies:
-        - aff
-        - arrays
-        - bifunctors
-        - console
-        - control
-        - effect
-        - either
-        - enums
-        - exists
-        - exitcodes
-        - foldable-traversable
-        - free
-        - gen
-        - integers
-        - lazy
-        - lists
-        - maybe
-        - newtype
-        - node-buffer
-        - node-process
-        - node-streams
-        - nonempty
-        - numbers
-        - open-memoize
-        - partial
-        - prelude
-        - strings
-        - tailrec
-        - transformers
-        - tuples
-    ordered-collections: 3.1.1
     registry-foreign:
       git: https://github.com/purescript/registry-dev.git
       ref: d7d35c94cc286528e506a6a7ca78d22c84b251c9
@@ -1903,16 +1875,18 @@ packages:
       - enums
   fetch:
     type: registry
-    version: 4.0.0
-    integrity: sha256-Ita74WPIvzCsSIkUQQbBDKgIrsnuBWIRzEJ8Q5P7iQU=
+    version: 4.1.0
+    integrity: sha256-zCwBUkRL9n6nUhK1+7UqqsuxswPFATsZfGSBOA3NYYY=
     dependencies:
       - aff
       - arraybuffer-types
       - bifunctors
       - effect
+      - either
       - foreign
       - http-methods
       - js-fetch
+      - js-promise
       - js-promise-aff
       - maybe
       - newtype
@@ -2669,9 +2643,9 @@ packages:
       - maybe
       - tuples
   optparse:
-    type: git
-    url: https://github.com/thought2/purescript-optparse.git
-    rev: a9b227110c34ae4f8c1b2fcb07de6f1327ce5826
+    type: registry
+    version: 5.0.1
+    integrity: sha256-cEzEkNW4q0gZlXl4z0zn+H2vs6l2UAp7NPHCsois73k=
     dependencies:
       - aff
       - arrays
