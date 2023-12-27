@@ -2,14 +2,12 @@ module Docs.Search.ModuleParser where
 
 import Prelude
 
-import Control.Alt ((<|>))
 import Data.Either (hush)
 import Data.Foldable (intercalate)
 import Data.Maybe (Maybe)
 import Data.Newtype (wrap)
 import Docs.Search.Types (ModuleName)
-import Effect (Effect)
-import StringParser (Parser, char, choice, fix, many, manyTill, noneOf, regex, runParser, sepBy, sepBy1, string, try, whiteSpace)
+import StringParser (Parser, char, choice, many, manyTill, noneOf, regex, runParser, sepBy1, string, try, whiteSpace)
 
 parseModuleName :: String -> Maybe ModuleName
 parseModuleName = map wrap <<< hush <<< runParser do

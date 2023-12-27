@@ -56,6 +56,7 @@ package:
     main: Test.Spago
     censor_test_warnings:
       - ImplicitQualifiedImportReExport
+      - ImplicitQualifiedImport
     dependencies:
       - spec
 workspace:
