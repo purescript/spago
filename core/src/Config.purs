@@ -498,6 +498,6 @@ readConfig path = do
           Nothing -> "Did not find " <> path
           Just y -> "Did not find " <> path <> ". Spago's configuration files should end with .yaml. Try renaming " <> y
       pure $ Left $ case path of
-        "spago.yaml" -> message <> "Run `spago init` to initialize a new project."
+        "spago.yaml" -> message <> " Run `spago init` to initialize a new project."
         _ -> message
     true -> liftAff $ FS.readYamlDocFile configCodec path
