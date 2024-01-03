@@ -289,6 +289,14 @@ maybePackageName =
           <> O.help "Optional package name to be used for the new project"
       )
 
+maybeDirectory :: Parser (Maybe String)
+maybeDirectory =
+  OT.optional
+    $ O.strOption
+        ( O.long "directory"
+            <> O.help "Directory in which to create a subpackage"
+        )
+
 ensureRanges :: Parser Boolean
 ensureRanges =
   O.switch

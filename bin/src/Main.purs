@@ -68,7 +68,7 @@ type GlobalArgs =
 type InitArgs =
   { setVersion :: Maybe String
   , name :: Maybe String
-  , subpackage :: Maybe String
+  , directory :: Maybe FilePath
   , useSolver :: Boolean
   }
 
@@ -290,7 +290,7 @@ initArgsParser =
   Optparse.fromRecord
     { setVersion: Flags.maybeSetVersion
     , name: Flags.maybePackageName
-    , subpackage: Flags.maybePackageName
+    , directory: Flags.maybeDirectory
     , useSolver: Flags.useSolver
     }
 
@@ -531,34 +531,28 @@ main = do
               }
             void $ runSpago env (Sources.run { json: args.json })
           Init args@{ useSolver } -> do
-            when (isJust args.name && isJust args.subpackage) $ die [ "--name and --subpackage may not be given at the same time." ]
+            when (isJust args.directory && isNothing args.name) $ die [ "--name must be given when --directory is passed." ]
             setVersion <- for args.setVersion $ parseLenientVersion >>> case _ of
               Left err -> die [ "Could not parse provided set version. Error:", show err ]
               Right v -> pure v
-            packageType <- case args.subpackage of
-              Just spn -> case PackageName.parse (PackageName.stripPureScriptPrefix spn) of
-                Left err -> pure $ Left [ "Could not figure out a name for the new subpackage. Error:", show err ]
+            packageName <- do
+              -- Figure out the package name from the current dir
+              let candidateName = fromMaybe (String.take 50 $ Path.basename Paths.cwd) args.name
+              logDebug [ show Paths.cwd, show candidateName ]
+              case PackageName.parse (PackageName.stripPureScriptPrefix candidateName) of
+                Left err -> die [ "Could not figure out a name for the new package. Error:", show err ]
                 Right p -> do
-                  logDebug [ "Got subPackageName and setVersion:", PackageName.print p, unsafeStringify setVersion ]
-                  pure $ Right $ Init.OptionSubPackageName p
-              Nothing -> do
-                -- Figure out the package name from the current dir
-                let candidateName = fromMaybe (String.take 50 $ Path.basename Paths.cwd) args.name
-                logDebug [ show Paths.cwd, show candidateName ]
-                case PackageName.parse (PackageName.stripPureScriptPrefix candidateName) of
-                  Left err -> pure $ Left $ [ "Could not figure out a name for the new package. Error:", show err ]
-                  Right p -> do
-                    logDebug [ "Got packageName and setVersion:", PackageName.print p, unsafeStringify setVersion ]
-                    pure $ Right $ Init.OptionPackageName p
-            case packageType of
-              Left err -> die err
-              Right pt -> do
-                let initOpts = { packageType: pt, setVersion, useSolver }
-                -- Fetch the registry here so we can select the right package set later
-                env <- mkRegistryEnv offline
-                void $ runSpago env $ Init.run initOpts
-                logInfo "Set up a new Spago project."
-                logInfo "Try running `spago run`"
+                  logDebug [ "Got packageName and setVersion:", PackageName.print p, unsafeStringify setVersion ]
+                  pure p
+            let packageType = case args.directory of
+                  Just dir -> Init.OptionSubPackage packageName dir
+                  Nothing -> Init.OptionPackage packageName
+            let initOpts = { packageType, setVersion, useSolver }
+            -- Fetch the registry here so we can select the right package set later
+            env <- mkRegistryEnv offline
+            void $ runSpago env $ Init.run initOpts
+            logInfo "Set up a new Spago project."
+            logInfo "Try running `spago run`"
           Fetch args -> do
             { env, fetchOpts } <- mkFetchEnv offline (Record.merge { isRepl: false } args)
             void $ runSpago env (Fetch.run fetchOpts)
@@ -614,7 +608,7 @@ main = do
                 env <- mkRegistryEnv offline
                 void $ runSpago env $ Init.run
                   { setVersion: Nothing
-                  , packageType: Init.OptionPackageName $ UnsafeCoerce.unsafeCoerce "repl"
+                  , packageType: Init.OptionPackage $ UnsafeCoerce.unsafeCoerce "repl"
                   , useSolver: true
                   }
                 pure $ List.fromFoldable [ "effect", "console" ] -- TODO newPackages

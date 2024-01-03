@@ -24,8 +24,8 @@ import Spago.Registry (RegistryEnv)
 import Spago.Registry as Registry
 
 data OptionPackageType
-  = OptionPackageName PackageName
-  | OptionSubPackageName PackageName
+  = OptionPackage PackageName
+  | OptionSubPackage PackageName FilePath
 
 type InitOptions =
   -- TODO: we should allow the `--package-set` flag to alternatively pass in a URL
@@ -35,8 +35,8 @@ type InitOptions =
   }
 
 getPackageTypeName :: OptionPackageType -> PackageName
-getPackageTypeName (OptionPackageName name) = name
-getPackageTypeName (OptionSubPackageName name) = name
+getPackageTypeName (OptionPackage name) = name
+getPackageTypeName (OptionSubPackage name _) = name
 
 -- TODO run git init? Is that desirable?
 
@@ -56,8 +56,8 @@ run opts = do
     config = defaultConfig
       { name: getPackageTypeName opts.packageType
       , withWorkspace: case opts.packageType of
-          OptionSubPackageName _ -> Nothing
-          OptionPackageName _ -> Just
+          OptionSubPackage _ _ -> Nothing
+          OptionPackage _ -> Just
             { setVersion: case opts.useSolver of
                 true -> Nothing
                 false -> Just packageSetVersion
