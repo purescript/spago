@@ -43,7 +43,7 @@ spec = Spec.around withTempDir do
         Just Platform.Win32 -> fixture "publish-main-win.txt"
         _ -> fixture "publish-main.txt"
 
-    Spec.it "can get a package ready to publish" \{ spago, fixture } -> do
+    Spec.it "can re-fetch dependencies before rebuild" \{ spago, fixture } -> do
       FS.copyFile { src: fixture "spago-publish.yaml", dst: "spago.yaml" }
       FS.mkdirp "src"
       FS.copyFile { src: fixture "publish.purs", dst: "src/Main.purs" }
@@ -51,6 +51,15 @@ spec = Spec.around withTempDir do
       doTheGitThing
       -- It will fail because it can't hit the registry, but the fixture will check that everything else is ready
       spago [ "fetch" ] >>= shouldBeSuccess
+      spago [ "publish", "--offline" ] >>= shouldBeFailureErr (fixture "publish.txt")
+
+    Spec.it "can get a package ready to publish" \{ spago, fixture } -> do
+      FS.copyFile { src: fixture "spago-publish.yaml", dst: "spago.yaml" }
+      FS.mkdirp "src"
+      FS.copyFile { src: fixture "publish.purs", dst: "src/Main.purs" }
+      spago [ "build" ] >>= shouldBeSuccess
+      doTheGitThing
+      FSA.rm' ".spago/packages/console-6.1.0" {force: true, recursive: true, maxRetries: 0, retryDelay: 1}
       spago [ "publish", "--offline" ] >>= shouldBeFailureErr (fixture "publish.txt")
 
 doTheGitThing :: Aff Unit
