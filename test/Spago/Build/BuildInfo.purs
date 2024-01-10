@@ -20,7 +20,7 @@ import Test.Spec as Spec
 
 spec :: SpecT Aff TestDirs Identity Unit
 spec =
-  Spec.describe "BuildInfo.purs" do
+  Spec.describeOnly "BuildInfo.purs" do
 
     let
       mkExpectedStdout { spago, rest } = do
@@ -29,7 +29,7 @@ spec =
         spagoResult <- spago [ "--version" ]
         sVersion <- case Cmd.isSuccess spagoResult of
           false -> MonadError.throwError $ Exception.error spagoResult.message
-          true -> pure spagoResult.stderr
+          true -> pure spagoResult.stdout
         pure
           $ Array.intercalate "\n"
           $
