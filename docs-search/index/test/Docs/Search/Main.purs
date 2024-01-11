@@ -16,7 +16,6 @@ import Test.Spec.Reporter.Console (consoleReporter)
 import Test.Spec.Runner (Config, defaultConfig, runSpecT)
 import Test.TypeQuery as TypeQuery
 
-
 testConfig :: Config
 testConfig = defaultConfig
   { slow = Milliseconds 2_000.0
