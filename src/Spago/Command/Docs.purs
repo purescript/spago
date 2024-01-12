@@ -11,7 +11,6 @@ import Docs.Search.Config as DocConfig
 import Docs.Search.IndexBuilder as IndexBuilder
 import Effect.Uncurried (EffectFn1, runEffectFn1)
 import Node.Process as Process
-import Spago.Cmd as Cmd
 import Spago.Command.Build as Build
 import Spago.Command.Fetch as Fetch
 import Spago.Config (Workspace)
@@ -44,7 +43,9 @@ run = do
       }
 
   result <- Purs.docs globs docsFormat
-  unless (Cmd.isSuccess result) $ die result.message
+  case result of
+    Left r -> die r.message
+    _ -> pure unit
 
   when (docsFormat == Html) $ do
     liftAff $ IndexBuilder.run'

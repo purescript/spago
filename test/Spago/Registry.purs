@@ -15,23 +15,23 @@ spec = Spec.around withTempDir do
     Spec.it "list package sets" \{ spago, fixture } -> do
       result <- spago [ "registry", "package-sets" ]
       let
-        result' = result
-          { stdout = result.stdout
+        updateStdout r = r
+          { stdout = r.stdout
               -- Take the oldest lines of output - the list of package sets will grow all the time
               # String.split (Pattern "\n")
               # Array.take 200
               # String.joinWith "\n"
           }
-      shouldBeSuccessOutput (fixture "registry-list-package-sets.txt") result'
+      shouldBeSuccessOutput (fixture "registry-list-package-sets.txt") $ bimap updateStdout updateStdout result
 
     Spec.it "list only latest package sets for compiler" \{ spago, fixture } -> do
       result <- spago [ "registry", "package-sets", "--latest" ]
       let
-        result' = result
-          { stdout = result.stdout
+        updateStdout r = r
+          { stdout = r.stdout
               -- Take the oldest lines of output - the list of package sets will grow all the time
               # String.split (Pattern "\n")
               # Array.take 7
               # String.joinWith "\n"
           }
-      shouldBeSuccessOutput (fixture "registry-list-package-sets-latest.txt") result'
+      shouldBeSuccessOutput (fixture "registry-list-package-sets-latest.txt") $ bimap updateStdout updateStdout result

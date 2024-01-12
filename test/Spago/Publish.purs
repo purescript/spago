@@ -63,6 +63,6 @@ doTheGitThing = do
   git [ "commit", "-m", "first" ] >>= shouldBeSuccess
   git [ "tag", "v0.0.1" ] >>= shouldBeSuccess
   where
-  git :: Array String -> Aff ExecResult
+  git :: Array String -> Aff (Either ExecResult ExecResult)
   git args = Cmd.exec "git" args
     $ Cmd.defaultExecOptions { pipeStdout = false, pipeStderr = false, pipeStdin = StdinNewPipe }

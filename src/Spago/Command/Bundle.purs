@@ -77,8 +77,8 @@ run = do
       ] <> opts.extraArgs <> minify <> sourceMap <> entrypoint <> nodePatch
   logInfo "Bundling..."
   logDebug $ "Running esbuild: " <> show args
-  Cmd.exec esbuild.cmd args execOptions >>= \r -> case Cmd.isSuccess r of
-    true -> logSuccess "Bundle succeeded."
-    false -> do
+  Cmd.exec esbuild.cmd args execOptions >>= case _ of
+    Right _ -> logSuccess "Bundle succeeded."
+    Left r -> do
       logDebug $ Cmd.printExecResult r
       die [ "Failed to bundle." ]

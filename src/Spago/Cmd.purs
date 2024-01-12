@@ -109,20 +109,32 @@ spawn cmd args opts = liftAff do
 
   pure subprocess
 
-joinProcess :: forall m. MonadAff m => Execa.ExecaProcess -> m ExecResult
-joinProcess cp = liftAff $ cp.getResult
+joinProcess :: forall m. MonadAff m => Execa.ExecaProcess -> m (Either ExecResult ExecResult)
+joinProcess cp = do
+  result <- liftAff $ cp.getResult
+  case result.exit of
+    Normally 0 -> pure $ Right result
+    _ -> pure $ Left result
 
-exec :: forall m. MonadAff m => String -> Array String -> ExecOptions -> m ExecResult
+exec :: forall m. MonadAff m => String -> Array String -> ExecOptions -> m (Either ExecResult ExecResult)
 exec cmd args opts = liftAff do
-  subprocess <- spawn cmd args opts
-  subprocess.getResult
+  result <- _.getResult =<< spawn cmd args opts
+  case result.exit of
+    Normally 0 -> pure $ Right result
+    _ -> pure $ Left result
 
 kill :: Execa.ExecaProcess -> Aff ExecResult
 kill cp = liftAff do
   void $ cp.killForced $ Milliseconds 2_000.0
-  cp.getResult >>= \r -> case isSuccess r of
-    false -> pure r
-    true -> unsafeCrashWith ("Tried to kill the process, failed. Result:\n" <> printExecResult r)
+  cp.getResult >>= \r -> case r.exit of
+    Normally 0 -> pure r
+    _ -> unsafeCrashWith ("Tried to kill the process, failed. Result:\n" <> printExecResult r)
+
+getStdout :: Either ExecResult ExecResult -> String
+getStdout = either _.stdout _.stdout
+
+getStderr :: Either ExecResult ExecResult -> String
+getStderr = either _.stderr _.stderr
 
 -- | Try to find one of the flags in a list of Purs args
 -- | For example, trying to find the `output` arg
@@ -173,20 +185,20 @@ getExecutable command =
     Just Platform.Win32 -> do
       -- On Windows, we often need to call the `.cmd` version
       let cmd1 = mkCmd command (Just "cmd")
-      askVersion cmd1 >>= \r -> case isSuccess r of
-        true -> pure { cmd: cmd1, output: r.stdout }
-        false -> do
+      askVersion cmd1 >>= case _ of
+        Right r -> pure { cmd: cmd1, output: r.stdout }
+        Left r -> do
           let cmd2 = mkCmd command Nothing
           logDebug [ "Failed to find purs.cmd. Trying with just purs...", show r.message ]
-          askVersion cmd2 >>= \r' -> case isSuccess r' of
-            true -> pure { cmd: cmd2, output: r'.stdout }
-            false -> complain r
+          askVersion cmd2 >>= case _ of
+            Right r' -> pure { cmd: cmd2, output: r'.stdout }
+            Left r' -> complain r'
     _ -> do
       -- On other platforms, we just call `purs`
       let cmd1 = mkCmd command Nothing
-      askVersion cmd1 >>= \r -> case isSuccess r of
-        true -> pure { cmd: cmd1, output: r.stdout }
-        false -> complain r
+      askVersion cmd1 >>= case _ of
+        Right r -> pure { cmd: cmd1, output: r.stdout }
+        Left r -> complain r
   where
   askVersion cmd = exec cmd [ "--version" ] defaultExecOptions { pipeStdout = false, pipeStderr = false }
 

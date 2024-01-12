@@ -39,7 +39,8 @@ defaultStatVerbosity = Core.CompactStats
 psaCompile :: forall a. Set.Set FilePath -> Array String -> PsaArgs -> Spago (Purs.PursEnv a) Unit
 psaCompile globs pursArgs psaArgs = do
   result <- Purs.compile globs (Array.snoc pursArgs "--json-errors")
-  arrErrorsIsEmpty <- forWithIndex (Str.split (Str.Pattern "\n") result.stdout) \idx err ->
+  let resultStdout = Cmd.getStdout result
+  arrErrorsIsEmpty <- forWithIndex (Str.split (Str.Pattern "\n") resultStdout) \idx err ->
     case jsonParser err >>= CA.decode psaResultCodec >>> lmap CA.printJsonDecodeError of
       Left decodeErrMsg -> do
         logWarn $ Array.intercalate "\n"
@@ -60,7 +61,9 @@ psaCompile globs pursArgs psaArgs = do
   if Array.all identity arrErrorsIsEmpty then do
     logSuccess "Build succeeded."
   else do
-    unless (Cmd.isSuccess result) $ logDebug $ Cmd.printExecResult result
+    case result of
+      Left r -> logDebug $ Cmd.printExecResult r
+      _ -> pure unit
     die [ "Failed to build." ]
 
   where

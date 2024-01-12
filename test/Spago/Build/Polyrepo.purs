@@ -14,7 +14,6 @@ import Node.Path as Path
 import Node.Platform as Platform
 import Node.Process as Process
 import Registry.Version as Version
-import Spago.Cmd as Cmd
 import Spago.Command.Init (DefaultConfigOptions(..))
 import Spago.Command.Init as Init
 import Spago.Core.Config as Config
@@ -217,7 +216,7 @@ spec = Spec.describe "polyrepo" do
 
         unless (String.contains (Pattern exp) stdErr) do
           Assert.fail $ "STDERR did not contain text:\n" <> exp <> "\n\nStderr was:\n" <> stdErr
-    spago [ "build" ] >>= check { stdout: mempty, stderr: hasExpectedModules, result: Cmd.isFailure }
+    spago [ "build" ] >>= check { stdout: mempty, stderr: hasExpectedModules, result: isLeft }
 
   Spec.describe "warning censoring and error-promotion" do
     let
@@ -268,7 +267,7 @@ spec = Spec.describe "polyrepo" do
         shouldNotHaveWarning stdErr = do
           when (Array.any (\exp -> String.contains (Pattern exp) stdErr) paths) do
             Assert.fail $ "STDERR contained one or more texts:\n" <> show paths <> "\n\nStderr was:\n" <> stdErr
-      spago [ "build" ] >>= check { stdout: mempty, stderr: shouldNotHaveWarning, result: Cmd.isSuccess }
+      spago [ "build" ] >>= check { stdout: mempty, stderr: shouldNotHaveWarning, result: isRight }
 
     Spec.it "build fails when 'strict: true' and warnings were not censored" \{ spago } -> do
       writeWorkspaceOnlySpagoYamlFile
@@ -285,7 +284,7 @@ spec = Spec.describe "polyrepo" do
         hasUnusedWarningError stdErr = do
           unless (Array.any (\exp -> String.contains (Pattern exp) stdErr) errs) do
             Assert.fail $ "STDERR did not contain texts:\n" <> show errs <> "\n\nStderr was:\n" <> stdErr
-      spago [ "build" ] >>= check { stdout: mempty, stderr: hasUnusedWarningError, result: Cmd.isFailure }
+      spago [ "build" ] >>= check { stdout: mempty, stderr: hasUnusedWarningError, result: isLeft }
 
   Spec.describe "passing --ensure-ranges flag..." do
     let
@@ -328,7 +327,7 @@ spec = Spec.describe "polyrepo" do
               ]
           unless (String.contains (Pattern msg) stdErr) do
             Assert.fail $ "STDERR did not contain text:\n" <> msg <> "\n\nStderr was:\n" <> stdErr
-      spago [ "build", "--ensure-ranges" ] >>= check { stdout: mempty, stderr: hasNoRootPackageError, result: Cmd.isFailure }
+      spago [ "build", "--ensure-ranges" ] >>= check { stdout: mempty, stderr: hasNoRootPackageError, result: isLeft }
 
   Spec.describe "pedantic packages" do
     let
@@ -422,7 +421,7 @@ spec = Spec.describe "polyrepo" do
           let unfoundTexts = Array.filter (\exp -> not $ String.contains (Pattern exp) stdErr) errs
           unless (Array.null unfoundTexts) do
             Assert.fail $ "STDERR did not contain expected texts:\n" <> (Array.intercalate "\n\n" unfoundTexts) <> "\n\nStderr was:\n" <> stdErr
-      spago [ "build" ] >>= check { stdout: mempty, stderr: hasExpectedErrors, result: Cmd.isFailure }
+      spago [ "build" ] >>= check { stdout: mempty, stderr: hasExpectedErrors, result: isLeft }
 
     Spec.it "passing --pedantic-packages overrides package and test configs" \{ spago } -> do
       writeWorkspaceOnlySpagoYamlFile
@@ -440,4 +439,4 @@ spec = Spec.describe "polyrepo" do
           let unfoundTexts = Array.filter (\exp -> not $ String.contains (Pattern exp) stdErr) errs
           unless (Array.null unfoundTexts) do
             Assert.fail $ "STDERR did not contain expected texts:\n" <> (Array.intercalate "\n\n" unfoundTexts) <> "\n\nStderr was:\n" <> stdErr
-      spago [ "build", "--pedantic-packages" ] >>= check { stdout: mempty, stderr: hasExpectedErrors, result: Cmd.isFailure }
+      spago [ "build", "--pedantic-packages" ] >>= check { stdout: mempty, stderr: hasExpectedErrors, result: isLeft }

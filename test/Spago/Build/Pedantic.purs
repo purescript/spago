@@ -255,7 +255,7 @@ defaultSetupConfig =
   , testMain: Nothing
   }
 
-setup :: (Array String -> Aff ExecResult) -> SetupConfig -> Aff Unit
+setup :: (Array String -> Aff (Either ExecResult ExecResult)) -> SetupConfig -> Aff Unit
 setup spago config = do
   spago [ "init", "--name", "pedantic" ] >>= shouldBeSuccess
   unless (Array.null config.installSourcePackages) do

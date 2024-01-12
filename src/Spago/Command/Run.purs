@@ -47,11 +47,11 @@ type Node = { cmd :: String, version :: Version }
 
 nodeVersion :: forall a. Spago (LogEnv a) Version
 nodeVersion =
-  Cmd.exec "node" [ "--version" ] Cmd.defaultExecOptions { pipeStdout = false, pipeStderr = false } >>= \r -> case Cmd.isSuccess r of
-    false -> do
+  Cmd.exec "node" [ "--version" ] Cmd.defaultExecOptions { pipeStdout = false, pipeStderr = false } >>= case _ of
+    Left r -> do
       logDebug $ Cmd.printExecResult r
       die [ "Failed to find node. Have you installed it, and is it in your PATH?" ]
-    true -> case parseLenientVersion r.stdout of
+    Right r -> case parseLenientVersion r.stdout of
       Left _err -> die $ "Failed to parse NodeJS version. Was: " <> r.stdout
       Right v ->
         if Version.major v >= 13 then
@@ -116,20 +116,20 @@ run = do
       FS.writeTextFile packageJsonPath packageJsonContents
       logDebug $ "Executing from: " <> show opts.executeDir
       logDebug $ "Running node command with args: `" <> show nodeArgs <> "`"
-      Cmd.exec node.cmd nodeArgs (execOptions { cwd = Just opts.executeDir }) >>= \r -> case Cmd.isSuccess r of
-        true -> case opts.successMessage of
+      Cmd.exec node.cmd nodeArgs (execOptions { cwd = Just opts.executeDir }) >>= case _ of
+        Right _ -> case opts.successMessage of
           Just m -> logSuccess m
           Nothing -> pure unit
-        false -> do
+        Left r -> do
           logDebug $ Cmd.printExecResult r
           die opts.failureMessage
     Just backend -> do
       let args = [ "--run", opts.moduleName <> ".main" ] <> opts.execArgs
       logDebug $ "Running command `" <> backend.cmd <> " " <> show args <> "`"
-      Cmd.exec backend.cmd args execOptions >>= \r -> case Cmd.isSuccess r of
-        true -> case opts.successMessage of
+      Cmd.exec backend.cmd args execOptions >>= case _ of
+        Right _ -> case opts.successMessage of
           Just m -> logSuccess m
           Nothing -> pure unit
-        false -> do
+        Left r -> do
           logDebug $ Cmd.printExecResult r
           die [ opts.failureMessage, "Backend " <> show backend <> " exited with error:" <> r.shortMessage ]
