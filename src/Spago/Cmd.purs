@@ -127,8 +127,8 @@ kill :: Execa.ExecaProcess -> Aff ExecResult
 kill cp = liftAff do
   void $ cp.killForced $ Milliseconds 2_000.0
   cp.getResult >>= \r -> case r.exit of
-    Normally 0 -> pure r
-    _ -> unsafeCrashWith ("Tried to kill the process, failed. Result:\n" <> printExecResult r)
+    Normally 0 -> unsafeCrashWith ("Tried to kill the process, failed. Result:\n" <> printExecResult r)
+    _ -> pure r
 
 getStdout :: Either ExecResult ExecResult -> String
 getStdout = either _.stdout _.stdout
