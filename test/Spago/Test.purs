@@ -138,14 +138,7 @@ spec = Spec.around withTempDir do
             Assert.fail $ "STDERR did not contain text:\n" <> exp <> "\n\nStderr was:\n" <> stdErr
       spago [ "test" ] >>= check { stdout: mempty, stderr: hasUnusedNameWarningError, result: isRight }
 
-    Spec.it "check for spago.yml" \{ spago } -> do
-      spago [ "init", "--name", "aaa", "--package-set", "29.3.0" ] >>= shouldBeSuccess
+    Spec.it "check for spago.yml" \{ spago, fixture } -> do
+      spago [ "init", "--name", "aaa" ] >>= shouldBeSuccess
       FS.moveSync {src: "spago.yaml", dst: "spago.yml"}
-      let stderrStr = Array.intercalate "\n"
-            [ "Reading Spago workspace configuration..."
-            , ""
-            , "❌ Couldn't parse Spago config, error:"
-            , "  Did not find spago.yaml. Spago's configuration files should end with .yaml. Try renaming spago.yml Run `spago init` to initialize a new project."
-            , "The configuration file help can be found here https://github.com/purescript/spago#the-configuration-file"
-            ]
-      spago [ "build" ] >>= checkOutputsStr { stdoutStr: Nothing, stderrStr: Just stderrStr, result: isLeft }
+      spago [ "build" ] >>= shouldBeFailureErr (fixture "spago-yml-check-stderr.txt")
