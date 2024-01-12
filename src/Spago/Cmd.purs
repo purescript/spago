@@ -64,16 +64,6 @@ printExecResult r = Array.intercalate "\n"
   , ""
   ]
 
--- | True if the process exited normally with exit code 0
-isSuccess :: ExecResult -> Boolean
-isSuccess r = case r.exit of
-  Normally 0 -> true
-  _ -> false
-
--- | True if the process exited with a non-zero exit code or was terminated by a signal
-isFailure :: ExecResult -> Boolean
-isFailure = not <<< isSuccess
-
 type ExecOptions =
   { pipeStdin :: StdinConfig
   , pipeStdout :: Boolean
