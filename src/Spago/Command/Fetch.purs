@@ -47,7 +47,6 @@ import Spago.FS as FS
 import Spago.Git as Git
 import Spago.Lock (LockEntry(..))
 import Spago.Lock as Lock
-import Dodo as Log
 import Spago.Paths as Paths
 import Spago.Purs as Purs
 import Spago.Registry as Registry
@@ -379,10 +378,9 @@ getPackageDependencies packageName package = case package of
         pure (Just (map (fromMaybe Config.widestRange) deps))
       Right _ -> die [ "Read valid configuration from " <> configLocation, "However, there was no `package` section to be read." ]
       Left errLines -> die
-        [ Log.text $ "Could not read config at " <> configLocation
-        , Log.text "Error: "
-        -- type annotation needed here to clarify that this is `Doc GraphicsParam`, not `Doc a`
-        , Log.indent $ Log.lines $ map Log.text errLines :: Docc
+        [ toDoc $ "Could not read config at " <> configLocation
+        , toDoc "Error: "
+        , indent $ toDoc errLines
         ]
 
 getWorkspacePackageDeps :: WorkspacePackage -> Dependencies

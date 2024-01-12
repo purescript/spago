@@ -157,10 +157,9 @@ readWorkspace { maybeSelectedPackage, pureBuild } = do
   { workspace, package: maybePackage, workspaceDoc } <- Core.readConfig "spago.yaml" >>= case _ of
     Left errLines ->
       die
-        [ Log.text "Couldn't parse Spago config, error:"
-        -- type annotation needed here to clarify whether this is `Doc GraphicsParam`, not `Doc a`
-        , Log.indent $ Log.lines $ map Log.text errLines :: Docc
-        , Log.text "The configuration file help can be found here https://github.com/purescript/spago#the-configuration-file"
+        [ toDoc "Couldn't parse Spago config, error:"
+        , indent $ toDoc errLines
+        , toDoc "The configuration file help can be found here https://github.com/purescript/spago#the-configuration-file"
         ]
     Right { yaml: { workspace: Nothing } } -> die
       [ "Your spago.yaml doesn't contain a workspace section."
