@@ -3,11 +3,12 @@
 -- | issue/PR and preview it to visualize it.
 -- | For a guide on how to write such a diagram,
 -- | see https://mermaid.js.org/syntax/flowchart.html
-module Test.Spago.Build.Polyrepo where
+module Test.Spago.Build.Polyrepo (spec) where
 
 import Test.Prelude
 
 import Data.Array as Array
+import Data.Map as Map
 import Data.String (Pattern(..))
 import Data.String as String
 import Node.Path as Path
@@ -40,88 +41,7 @@ spec = Spec.describe "polyrepo" do
         $ Init.defaultConfig'
         $ WorkspaceOnly { setVersion: Just $ unsafeFromRight $ Version.parse "0.0.1" }
 
-    setupDir { packageName, spagoYaml, srcMain, testMain } = do
-      let
-        src = Path.concat [ packageName, "src" ]
-        test = Path.concat [ packageName, "test" ]
-        copyTemplate templateStr path = do
-          for_ templateStr \fileContent ->
-            FS.writeTextFile (Path.concat $ Array.cons packageName path) fileContent
-
-      FS.mkdirp src
-      FS.mkdirp test
-      FS.writeYamlFile Config.configCodec (Path.concat [ packageName, "spago.yaml" ]) spagoYaml
-      copyTemplate srcMain [ "src", "Main.purs" ]
-      copyTemplate testMain [ "test", "Main.purs" ]
-
-    mkModuleContent { modName, imports, body } = Just $ Array.intercalate "\n"
-      $
-        [ "module " <> modName <> " where"
-        , ""
-        , "import Prelude"
-        ]
-      <> imports
-      <> body
-
   Spec.describe "inter-workspace package dependencies" do
-
-    let
-      setupPackageWithDeps
-        :: { packageName :: String
-           , hasTest :: Boolean
-           , deps :: Array { dep :: String, import :: String, alias :: String }
-           }
-        -> Aff { dep :: String, import :: String, alias :: String }
-      setupPackageWithDeps { packageName, hasTest, deps } = do
-        let
-          packageAlias = packageToModuleName packageName
-          packageNameValues
-            | Array.null deps = "\"no deps\""
-            | otherwise = Array.intercalate " <> " $ map (\r -> r.alias <> ".packageNameValue") deps
-        setupDir
-          { packageName: packageName
-          , spagoYaml: mkPackageOnlyConfig
-              { packageName, srcDependencies: [ "prelude" ] <> map _.dep deps }
-              [ configAddTestMain
-              , configAddTestDependencies [ "prelude", "console", "effect" ]
-              ]
-          , srcMain: mkModuleContent
-              { modName: mkSrcModuleName packageName
-              , imports: map _.import deps
-              , body:
-                  [ ""
-                  , "libraryUsage :: String"
-                  , "libraryUsage = packageNameValue <> " <> packageNameValues
-                  , ""
-                  , "packageNameValue :: String"
-                  , "packageNameValue = \"package name \" <> \"" <> packageName <> "\""
-                  ]
-              }
-          , testMain:
-              if not hasTest then Nothing
-              else mkModuleContent
-                { modName: mkTestModuleName packageName
-                , imports:
-                    [ ""
-                    , "import Effect (Effect)"
-                    , "import Effect.Console (log)"
-                    , "import " <> mkSrcModuleName packageName <> " as " <> packageAlias
-                    ]
-                      <> (map _.import deps)
-                , body:
-                    [ ""
-                    , "main :: Effect Unit"
-                    , "main = do"
-                    , "  log $ \"Test for \" <> " <> packageAlias <> ".packageNameValue <> " <> packageNameValues
-                    ]
-                }
-          }
-        pure
-          { dep: packageName
-          , import: "import " <> mkSrcModuleName packageName <> " as " <> packageAlias
-          , alias: packageAlias
-          }
-
     {-
     ```mermaid
     flowchart TD
@@ -131,7 +51,7 @@ spec = Spec.describe "polyrepo" do
       end
     ```
     -}
-    Spec.it "Case 1 (independent packages) builds" \{ spago } -> do
+    Spec.it "Case 1: 'independent packages' builds" \{ spago } -> do
       writeWorkspaceOnlySpagoYamlFile
       void $ setupPackageWithDeps { packageName: "package-a", hasTest: true, deps: [] }
       void $ setupPackageWithDeps { packageName: "package-b", hasTest: true, deps: [] }
@@ -150,7 +70,7 @@ spec = Spec.describe "polyrepo" do
       end
     ```
     -}
-    Spec.it "Case 2 (shared dependencies packages) builds" \{ spago } -> do
+    Spec.it "Case 2: 'shared dependencies packages' builds" \{ spago } -> do
       writeWorkspaceOnlySpagoYamlFile
       shared <- setupPackageWithDeps { packageName: "package-shared", hasTest: false, deps: [] }
       void $ setupPackageWithDeps { packageName: "package-a", hasTest: true, deps: [ shared ] }
@@ -170,7 +90,7 @@ spec = Spec.describe "polyrepo" do
       end
     ```
     -}
-    Spec.it "Case 3 (dependencies: A&B -> C; A -> B) builds" \{ spago, fixture } -> do
+    Spec.it "Case 3: 'dependencies: A&B -> C; A -> B' builds" \{ spago, fixture } -> do
       writeWorkspaceOnlySpagoYamlFile
       pkgC <- setupPackageWithDeps { packageName: "package-c", hasTest: false, deps: [] }
       pkgB <- setupPackageWithDeps { packageName: "package-b", hasTest: true, deps: [ pkgC ] }
@@ -188,7 +108,7 @@ spec = Spec.describe "polyrepo" do
     end
   ```
   -}
-  Spec.it "Declaring 2+ modules with the same name across 2+ packages fails to build" \{ spago } -> do
+  Spec.it "declaring 2+ modules with the same name across 2+ packages fails to build" \{ spago } -> do
     writeWorkspaceOnlySpagoYamlFile
     let
       sameModuleName = "SameModuleName"
@@ -217,6 +137,49 @@ spec = Spec.describe "polyrepo" do
         unless (String.contains (Pattern exp) stdErr) do
           Assert.fail $ "STDERR did not contain text:\n" <> exp <> "\n\nStderr was:\n" <> stdErr
     spago [ "build" ] >>= check { stdout: mempty, stderr: hasExpectedModules, result: isLeft }
+
+  {-
+  ```mermaid
+  flowchart TD
+    subgraph "Case 1.1"
+      A ---> Dep0["prelude"]
+      B ---> Dep1["either-from-git"]
+    end
+  ```
+  -}
+  Spec.it "#1161 regression: 'subpackage with disjoint git dependency' builds" \{ spago } -> do
+    -- Condition 1: there must be a root package
+    let
+      conf = Init.defaultConfig
+        { name: mkPackageName "root"
+        , withWorkspace: Just
+            { setVersion: Just $ unsafeFromRight $ Version.parse "20.0.1"
+            }
+        , testModuleName: "Test.Main"
+        }
+    -- Condition 2: one of the dependencies of the subpackage must be fetched from git.
+    -- This is a problem only when the git dependency is not a dependency of the root package.
+    FS.writeYamlFile Config.configCodec "spago.yaml"
+      ( conf
+          { workspace = conf.workspace # map
+              ( _
+                  { extra_packages = Just $ Map.fromFoldable
+                      -- This commit is for the `v6.1.0` release
+                      [ Tuple (mkPackageName "either") $ Config.ExtraRemotePackage $ Config.RemoteGitPackage
+                          { git: "https://github.com/purescript/purescript-either.git"
+                          , ref: "af655a04ed2fd694b6688af39ee20d7907ad0763"
+                          , subdir: Nothing
+                          , dependencies: Just $ mkDependencies [ "control", "invariant", "maybe", "prelude" ]
+                          }
+                      ]
+                  }
+              )
+          }
+      )
+    -- Condition 3: the workspace needs to contain a subpackage that is using the git dependency
+    void $ setupPackageWithDeps { packageName: "package-b", hasTest: true, deps: [ { dep: "either", alias: "EITHER", import: "import Data.Either" } ] }
+    -- Lastly, this broke only when building the root package
+    spago [ "build", "-p", "root" ] >>= shouldBeSuccess
 
   Spec.describe "warning censoring and error-promotion" do
     let
@@ -332,8 +295,8 @@ spec = Spec.describe "polyrepo" do
   Spec.describe "pedantic packages" do
     let
       {-
-                                                            /-- tuples (unused dep by `src`)      
-      newtype (transitive dep) <-- control (direct dep) <--+ 
+                                                            /-- tuples (unused dep by `src`)
+      newtype (transitive dep) <-- control (direct dep) <--+
                                                             \-- either (unused dep by `test`)
 
       - src and test both import `Data.Newtype` (from `newtype` package) unnecessarily,
@@ -440,3 +403,85 @@ spec = Spec.describe "polyrepo" do
           unless (Array.null unfoundTexts) do
             Assert.fail $ "STDERR did not contain expected texts:\n" <> (Array.intercalate "\n\n" unfoundTexts) <> "\n\nStderr was:\n" <> stdErr
       spago [ "build", "--pedantic-packages" ] >>= check { stdout: mempty, stderr: hasExpectedErrors, result: isLeft }
+
+type SetupPackage = { packageName :: String, hasTest :: Boolean, deps :: Array { dep :: String, import :: String, alias :: String } }
+
+setupPackageWithDeps :: SetupPackage -> Aff { dep :: String, import :: String, alias :: String }
+setupPackageWithDeps { packageName, hasTest, deps } = do
+  let
+    packageAlias = packageToModuleName packageName
+    packageNameValues
+      | Array.null deps = "\"no deps\""
+      | otherwise = Array.intercalate " <> " $ map (\r -> r.alias <> ".packageNameValue") deps
+  setupDir
+    { packageName: packageName
+    , spagoYaml: mkPackageOnlyConfig
+        { packageName, srcDependencies: [ "prelude" ] <> map _.dep deps }
+        [ configAddTestMain
+        , configAddTestDependencies [ "prelude", "console", "effect" ]
+        ]
+    , srcMain: mkModuleContent
+        { modName: mkSrcModuleName packageName
+        , imports: map _.import deps
+        , body:
+            [ ""
+            , "libraryUsage :: String"
+            , "libraryUsage = packageNameValue <> " <> packageNameValues
+            , ""
+            , "packageNameValue :: String"
+            , "packageNameValue = \"package name \" <> \"" <> packageName <> "\""
+            ]
+        }
+    , testMain:
+        if not hasTest then Nothing
+        else mkModuleContent
+          { modName: mkTestModuleName packageName
+          , imports:
+              [ ""
+              , "import Effect (Effect)"
+              , "import Effect.Console (log)"
+              , "import " <> mkSrcModuleName packageName <> " as " <> packageAlias
+              ]
+                <> (map _.import deps)
+          , body:
+              [ ""
+              , "main :: Effect Unit"
+              , "main = do"
+              , "  log $ \"Test for \" <> " <> packageAlias <> ".packageNameValue <> " <> packageNameValues
+              ]
+          }
+    }
+  pure
+    { dep: packageName
+    , import: "import " <> mkSrcModuleName packageName <> " as " <> packageAlias
+    , alias: packageAlias
+    }
+
+type SetupDir = { packageName :: String, spagoYaml :: Config.Config, srcMain :: Maybe String, testMain :: Maybe String }
+
+setupDir :: SetupDir -> Aff Unit
+setupDir { packageName, spagoYaml, srcMain, testMain } = do
+  let
+    src = Path.concat [ packageName, "src" ]
+    test = Path.concat [ packageName, "test" ]
+    copyTemplate templateStr path = do
+      for_ templateStr \fileContent ->
+        FS.writeTextFile (Path.concat $ Array.cons packageName path) fileContent
+
+  FS.mkdirp src
+  FS.mkdirp test
+  FS.writeYamlFile Config.configCodec (Path.concat [ packageName, "spago.yaml" ]) spagoYaml
+  copyTemplate srcMain [ "src", "Main.purs" ]
+  copyTemplate testMain [ "test", "Main.purs" ]
+
+type ModuleContent = { body :: Array String, imports :: Array String, modName :: String }
+
+mkModuleContent :: ModuleContent -> Maybe String
+mkModuleContent { modName, imports, body } = Just $ Array.intercalate "\n"
+  $
+    [ "module " <> modName <> " where"
+    , ""
+    , "import Prelude"
+    ]
+  <> imports
+  <> body

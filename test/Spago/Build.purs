@@ -39,13 +39,6 @@ spec = Spec.around withTempDir do
       FS.exists "myOutput" `Assert.shouldReturn` true
       FS.exists "output" `Assert.shouldReturn` false
 
-    -- TODO: no-install flag
-    -- Spec.it "does not install packages when passed the --no-install flag" \{ spago } -> do
-    --   spago [ "init" ] >>= shouldBeSuccess
-    --   spago [ "build", "--no-install" ] >>= shouldBeFailure
-    --   spago [ "install" ] >>= shouldBeSuccess
-    --   spago [ "build", "--no-install" ] >>= shouldBeSuccess
-
     Spec.it "can build with a local custom package set" \{ spago, fixture } -> do
       spago [ "init" ] >>= shouldBeSuccess
       FSA.unlink "spago.yaml"
