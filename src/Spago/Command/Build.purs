@@ -101,8 +101,16 @@ run opts = do
     selectedPackages = case workspace.selected of
       Just p -> NEA.singleton p
       Nothing -> Config.getWorkspacePackages workspace.packageSet
-    globs = getBuildGlobs
+    graphGlobs = getBuildGlobs
       { dependencies: allDependencies
+      , depsOnly: opts.depsOnly
+      , withTests: true
+      , selected: selectedPackages
+      }
+    globs = getBuildGlobs
+      { dependencies: case workspace.selected of
+          Just p -> unsafeFromJust $ Map.lookup p.package.name dependencies
+          Nothing -> allDependencies
       , depsOnly: opts.depsOnly
       , withTests: true
       , selected: selectedPackages
@@ -147,7 +155,7 @@ run opts = do
       pure $ Tuple p { reportSrc, reportTest }
   unless (Array.null pedanticPkgs || opts.depsOnly) do
     logInfo $ "Looking for unused and undeclared transitive dependencies..."
-    eitherGraph <- Graph.runGraph globs opts.pursArgs
+    eitherGraph <- Graph.runGraph graphGlobs opts.pursArgs
     graph <- either die pure eitherGraph
     env <- ask
     checkResults <- map Array.fold $ for pedanticPkgs \(Tuple selected options) -> do
