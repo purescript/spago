@@ -155,7 +155,13 @@ readWorkspace { maybeSelectedPackage, pureBuild } = do
   -- First try to read the config in the root. It _has_ to contain a workspace
   -- configuration, or we fail early.
   { workspace, package: maybePackage, workspaceDoc } <- Core.readConfig "spago.yaml" >>= case _ of
-    Left err -> die [ "Couldn't parse Spago config, error:\n  " <> err, "The configuration file help can be found here https://github.com/purescript/spago#the-configuration-file" ]
+    Left errLines -> 
+      die 
+        [ Log.text "Couldn't parse Spago config, error:"
+        -- type annotation needed here to clarify whether this is `Doc GraphicsParam`, not `Doc a`
+        , Log.indent $ Log.lines $ map Log.text errLines :: Docc
+        , Log.text "The configuration file help can be found here https://github.com/purescript/spago#the-configuration-file"
+        ]
     Right { yaml: { workspace: Nothing } } -> die
       [ "Your spago.yaml doesn't contain a workspace section."
       , "See the relevant documentation here: https://github.com/purescript/spago#the-workspace"
@@ -188,7 +194,7 @@ readWorkspace { maybeSelectedPackage, pureBuild } = do
       -- We try to figure out if this package has tests - look for test sources
       hasTests <- FS.exists (Path.concat [ Path.dirname path, "test" ])
       pure $ case maybeConfig of
-        Left e -> Left $ "Could not read config at path " <> path <> "\nError was: " <> e
+        Left eLines -> Left $ "Could not read config at path " <> path <> "\nError was: " <> Array.intercalate "\n" eLines
         Right { yaml: { package: Nothing } } -> Left $ "No package found for config at path: " <> path
         Right { yaml: { package: Just package, workspace: configWorkspace }, doc } -> do
           -- We store the path of the package, so we can treat it basically as a LocalPackage
