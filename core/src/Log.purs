@@ -98,14 +98,10 @@ instance Loggable String where
 instance Loggable PackageName where
   toDoc = PackageName.print >>> toDoc
 
-instance Loggable (Array Docc) where
-  toDoc = Log.lines
-else instance Loggable a => Loggable (Array a) where
+instance Loggable a => Loggable (Array a) where
   toDoc = Log.lines <<< map toDoc
 
-instance Loggable (NonEmptyArray Docc) where
-  toDoc = Log.lines <<< NEA.toArray
-else instance Loggable a => Loggable (NonEmptyArray a) where
+instance Loggable a => Loggable (NonEmptyArray a) where
   toDoc = Log.lines <<< NEA.toArray <<< map toDoc
 
 log :: forall a m. MonadEffect m => MonadAsk (LogEnv a) m => Log -> m Unit
