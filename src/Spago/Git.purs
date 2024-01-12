@@ -153,16 +153,16 @@ isIgnored path = do
     -- We ignore links - I mean, do we really want to deal with recursive links?!?
     Left r
       | Normally 128 <- r.exit -> do
-        -- Sigh. Even if something is behind a link Node will not tell us that,
-        -- so we need to check all the paths between the cwd and the provided path
-        -- Just beautiful
-        paths <- liftEffect do
-          cwd <- Process.cwd
-          absolutePath <- Path.resolve [] path
-          FS.getInBetweenPaths cwd absolutePath
-        Array.any identity <$> traverse FS.isLink paths
+          -- Sigh. Even if something is behind a link Node will not tell us that,
+          -- so we need to check all the paths between the cwd and the provided path
+          -- Just beautiful
+          paths <- liftEffect do
+            cwd <- Process.cwd
+            absolutePath <- Path.resolve [] path
+            FS.getInBetweenPaths cwd absolutePath
+          Array.any identity <$> traverse FS.isLink paths
       -- Git will fail with 1 when a file is just, like, normally ignored
-      | Normally 1 <- r.exit -> 
+      | Normally 1 <- r.exit ->
           pure false
       | otherwise -> do
           logDebug "IsIgnored encountered an interesting exitCode"
