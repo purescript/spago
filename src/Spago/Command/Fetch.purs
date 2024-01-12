@@ -378,7 +378,7 @@ getPackageDependencies packageName package = case package of
       Right { yaml: { package: Just { dependencies: (Dependencies deps) } } } -> do
         pure (Just (map (fromMaybe Config.widestRange) deps))
       Right _ -> die [ "Read valid configuration from " <> configLocation, "However, there was no `package` section to be read." ]
-      Left errLines -> die 
+      Left errLines -> die
         [ Log.text $ "Could not read config at " <> configLocation
         , Log.text "Error: "
         -- type annotation needed here to clarify that this is `Doc GraphicsParam`, not `Doc a`

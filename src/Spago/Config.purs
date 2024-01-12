@@ -155,8 +155,8 @@ readWorkspace { maybeSelectedPackage, pureBuild } = do
   -- First try to read the config in the root. It _has_ to contain a workspace
   -- configuration, or we fail early.
   { workspace, package: maybePackage, workspaceDoc } <- Core.readConfig "spago.yaml" >>= case _ of
-    Left errLines -> 
-      die 
+    Left errLines ->
+      die
         [ Log.text "Couldn't parse Spago config, error:"
         -- type annotation needed here to clarify whether this is `Doc GraphicsParam`, not `Doc a`
         , Log.indent $ Log.lines $ map Log.text errLines :: Docc

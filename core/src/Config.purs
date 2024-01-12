@@ -493,16 +493,16 @@ readConfig path = do
           else
             Nothing
       pure $ Left $ case path, yml of
-        "spago.yaml", Nothing -> 
+        "spago.yaml", Nothing ->
           [ "Did not find `" <> path <> "`. Run `spago init` to initialize a new project." ]
         "spago.yaml", Just y ->
           [ "Did not find `" <> path <> "`. Spago's configuration files must end with `.yaml`, not `.yml`. "
-          , "Try renaming `" <> y  <> "` to `" <> path <> "` or run `spago init` to initialize a new project."
+          , "Try renaming `" <> y <> "` to `" <> path <> "` or run `spago init` to initialize a new project."
           ]
         _, Nothing ->
-          ["Did not find `" <> path <> "`."]
-        _, Just y -> 
-            [ "Did not find `" <> path <> "`. Spago's configuration files must end with `.yaml`, not `.yml`. "
-            , "Try renaming `" <> y  <> "` to `" <> path <> "`."
-            ]
+          [ "Did not find `" <> path <> "`." ]
+        _, Just y ->
+          [ "Did not find `" <> path <> "`. Spago's configuration files must end with `.yaml`, not `.yml`. "
+          , "Try renaming `" <> y <> "` to `" <> path <> "`."
+          ]
     true -> liftAff $ map (lmap pure) $ FS.readYamlDocFile configCodec path
