@@ -61,15 +61,15 @@ package:
       - spec
 workspace:
   package_set:
-    registry: 20.0.1
+    registry: 47.9.1
   extra_packages:
     registry-lib:
       git: https://github.com/purescript/registry-dev.git
-      ref: 6a803c37577af368caa221a2a06d6be2079d32da
+      ref: d7d35c94cc286528e506a6a7ca78d22c84b251c9
       subdir: lib
     registry-foreign:
       git: https://github.com/purescript/registry-dev.git
-      ref: 6a803c37577af368caa221a2a06d6be2079d32da
+      ref: d7d35c94cc286528e506a6a7ca78d22c84b251c9
       subdir: foreign
     html-parser-halogen:
       dependencies:
@@ -212,7 +212,7 @@ workspace:
         - newtype
         - node-buffer
         - node-child-process
-        - node-fs-aff
+        - node-fs
         - node-path
         - node-process
         - node-streams
@@ -261,7 +261,7 @@ workspace:
         - lists
         - maybe
         - node-fs
-        - node-fs-aff
+        - node-fs
         - node-path
         - node-process
         - ordered-collections
@@ -270,4 +270,27 @@ workspace:
         - refs
         - strings
         - tuples
-    ordered-collections: "3.1.1"
+    dodo-printer:
+      git: "https://github.com/natefaubion/purescript-dodo-printer.git"
+      ref: "v2.2.1"
+      dependencies:
+        - aff
+        - ansi
+        - arrays
+        - avar
+        - console
+        - control
+        - effect
+        - either
+        - exceptions
+        - foldable-traversable
+        - integers
+        - lists
+        - maybe
+        - newtype
+        - parallel
+        - partial
+        - prelude
+        - safe-coerce
+        - strings
+        - tuples

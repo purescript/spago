@@ -133,10 +133,10 @@ run opts = do
           Just as | Array.length as > 0 -> as
           _ -> []
       Cmd.exec backend.cmd (addOutputArgs moreBackendArgs) Cmd.defaultExecOptions >>= case _ of
-        Left err -> do
-          logDebug $ show err
+        Left r -> do
+          logDebug $ Cmd.printExecResult r
           die [ "Failed to build with backend " <> backend.cmd ]
-        Right _r ->
+        Right _ ->
           logSuccess "Backend build succeeded."
 
   let
