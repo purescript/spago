@@ -46,7 +46,7 @@ mkDeclarations scores = Declarations <<< foldr (insertDocModule scores) mempty
     -> Trie Char (List SearchResult)
     -> Trie Char (List SearchResult)
 
-  insertDocModule scores (DocModule { name, declarations }) trie =
+  insertDocModule _scores (DocModule { name, declarations }) trie =
     foldr (insertDeclaration scores name) trie declarations
 
 insertDeclaration
@@ -55,7 +55,7 @@ insertDeclaration
   -> Declaration
   -> Trie Char (List SearchResult)
   -> Trie Char (List SearchResult)
-insertDeclaration scores moduleName entry@(Declaration { title }) trie = foldr insertSearchResult trie (resultsForDeclaration scores moduleName entry)
+insertDeclaration scores moduleName entry@(Declaration { title: _ }) trie = foldr insertSearchResult trie (resultsForDeclaration scores moduleName entry)
 
 insertSearchResult
   :: { path :: String
@@ -120,7 +120,7 @@ resultsForDeclaration scores moduleName indexEntry@(Declaration entry) =
       _ -> Nothing
 
 mkInfo :: DeclLevel -> Declaration -> Maybe ResultInfo
-mkInfo declLevel (Declaration { info, title }) =
+mkInfo declLevel (Declaration { info, title: _ }) =
   case info of
     ValueDeclaration ty ->
       Just $ ValueResult { type: ty }
@@ -195,7 +195,7 @@ getLevelAndName (Declaration { info, title }) =
                 ) title
             )
 
-    ExternDataDeclaration _ kind ->
+    ExternDataDeclaration _ _kind ->
       { name: title, declLevel: TypeLevel }
 
 -- | Extract package name from `sourceSpan.name`, which contains path to
@@ -228,7 +228,7 @@ resultsForChildDeclaration
   packageInfo
   moduleName
   parentResult
-  child@(ChildDeclaration { title, info, comments, sourceSpan })
+  child@(ChildDeclaration { title, info: _, comments, sourceSpan })
   | Just resultInfo <- mkChildInfo parentResult child =
       { path: title
       , result: SearchResult

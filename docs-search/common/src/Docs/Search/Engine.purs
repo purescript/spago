@@ -70,7 +70,7 @@ getResultPackageInfo (MdlResult r) = r.package
 getResultModuleName :: Result -> ModuleName
 getResultModuleName (DeclResult r) = (unwrap r).moduleName
 getResultModuleName (TypeResult r) = (unwrap r).moduleName
-getResultModuleName (PackResult r) = ModuleName ""
+getResultModuleName (PackResult _r) = ModuleName ""
 getResultModuleName (MdlResult r) = r.name
 
 getResultName :: Result -> String
@@ -79,10 +79,7 @@ getResultName (TypeResult r) = unwrap (unwrap r).name
 getResultName (PackResult r) = unwrap r.name
 getResultName (MdlResult r) = unwrap r.name
 
-sortByPopularity
-  :: forall index typeIndex
-   . Array Result
-  -> Array Result
+sortByPopularity :: Array Result -> Array Result
 sortByPopularity =
   Array.sortBy
     ( compare `on` (getResultScore >>> negate)
