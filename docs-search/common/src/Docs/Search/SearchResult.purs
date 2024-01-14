@@ -1,19 +1,8 @@
 module Docs.Search.SearchResult where
 
-import Docs.Search.JsonCodec (inject)
-import Docs.Search.DocsJson as Docs
-import Docs.Search.TypeDecoder (Constraint, FunDeps, QualifiedName, Type, TypeArgument)
-import Docs.Search.Types (Identifier(..), ModuleName, PackageInfo, PackageScore)
-import Docs.Search.Types as Package
-import Docs.Search.TypeDecoder (Constraint', Qualified, Type, TypeArgument, FunDeps, Type', ProperName(..), ClassName(..))
-import Docs.Search.TypeDecoder as TypeDecoder
-import Docs.Search.JsonCodec as JsonCodec
-import Docs.Search.DocTypes (DataDeclType, SourceSpan)
-import Docs.Search.Types (ModuleName, PackageInfo, Identifier, PackageScore)
-
 import Prelude
 
-import Data.Codec.Argonaut (JsonCodec, JsonDecodeError)
+import Data.Codec.Argonaut (JsonCodec)
 import Data.Codec.Argonaut.Common as CA
 import Data.Codec.Argonaut.Record as CAR
 import Data.Codec.Argonaut.Variant as CAV
@@ -21,8 +10,14 @@ import Data.Either (Either(..))
 import Data.Maybe (Maybe(..))
 import Data.Newtype (class Newtype, un)
 import Data.Profunctor (wrapIso, dimap)
-import Data.Tuple (Tuple)
 import Data.Variant as Variant
+import Docs.Search.DocTypes (DataDeclType, SourceSpan)
+import Docs.Search.DocsJson as Docs
+import Docs.Search.JsonCodec (inject)
+import Docs.Search.TypeDecoder (ClassName, Constraint', FunDeps, ProperName, Qualified, Type', TypeArgument)
+import Docs.Search.TypeDecoder as TypeDecoder
+import Docs.Search.Types (Identifier(..), ModuleName, PackageInfo, PackageScore)
+import Docs.Search.Types as Package
 
 -- | Metadata that makes sense only for certain types of search results.
 data ResultInfo

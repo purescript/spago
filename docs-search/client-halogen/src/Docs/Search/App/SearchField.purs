@@ -62,7 +62,7 @@ handleQuery
   :: forall a
    . Query a
   -> H.HalogenM State Action () SearchFieldMessage Aff (Maybe a)
-handleQuery (ReadURIHash next) = do
+handleQuery (ReadURIHash _next) = do
   oldInput <- H.get <#> _.input
   newInput <- H.liftEffect URIHash.getInput
   when (oldInput /= newInput) do
@@ -85,7 +85,7 @@ handleAction = case _ of
         (HTMLDocument.toEventTarget document)
         (map (HandleKey sid) <<< KE.fromEvent)
 
-  HandleKey sid ev -> do
+  HandleKey _sid ev -> do
 
     when (KE.code ev == "KeyS") do
       state <- H.get

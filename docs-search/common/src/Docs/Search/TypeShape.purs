@@ -8,12 +8,8 @@ module Docs.Search.TypeShape
   , ShapeChunk(..)
   ) where
 
-import Docs.Search.TypeDecoder (ModuleName(..), ProperName(..), Qualified(..), QualifiedBy(..), Type(..), Type')
-import Docs.Search.TypeQuery (TypeQuery(..))
-import Docs.Search.TypeQuery as TypeQuery
-import Docs.Search.Types (Identifier(..))
-
 import Prelude
+
 import Data.Generic.Rep (class Generic)
 import Data.Show.Generic (genericShow)
 import Data.List (List(..), (:))
@@ -22,6 +18,9 @@ import Data.List.NonEmpty as NonEmptyList
 import Data.Set as Set
 import Data.Tuple (Tuple(..), snd)
 import Data.Ord (abs)
+import Docs.Search.TypeDecoder (ModuleName(..), ProperName(..), Qualified(..), QualifiedBy(..), Type(..), Type')
+import Docs.Search.TypeQuery (TypeQuery(..))
+import Docs.Search.TypeQuery as TypeQuery
 
 type TypeShape = List ShapeChunk
 
@@ -71,7 +70,7 @@ shapeOfTypeQuery query =
     case this of
       QVar _ ->
         go rest (PVar : acc)
-      QConst v ->
+      QConst _v ->
         go rest (PVar : acc)
       QFun q1 q2 ->
         go (q1 : q2 : rest) (PFun : acc)
@@ -79,7 +78,7 @@ shapeOfTypeQuery query =
         go (q1 : q2 : rest) (PApp : acc)
       QForAll lst q ->
         go (q : rest) (PForAll (NonEmptyList.length lst) : acc)
-      QConstraint str lst q ->
+      QConstraint _str _lst q ->
         go (q : rest) acc
       QRow lst ->
         let

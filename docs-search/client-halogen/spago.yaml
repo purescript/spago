@@ -33,6 +33,8 @@ package:
     - web-html
     - web-storage
     - web-uievents
+  build:
+    strict: true
   bundle:
     type: "app"
     minify: true
