@@ -180,6 +180,9 @@ spec = Spec.describe "polyrepo" do
     void $ setupPackageWithDeps { packageName: "package-b", hasTest: true, deps: [ { dep: "either", alias: "EITHER", import: "import Data.Either" } ] }
     -- Lastly, this broke only when building the root package
     spago [ "build", "-p", "root" ] >>= shouldBeSuccess
+    -- Or getting its graph
+    spago [ "uninstall", "-p", "root", "console", "effect", "prelude" ] >>= shouldBeSuccess
+    spago [ "build", "-p", "root", "--pedantic-packages" ] >>= shouldBeSuccess
 
   Spec.describe "warning censoring and error-promotion" do
     let
