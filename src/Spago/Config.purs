@@ -195,7 +195,7 @@ readWorkspace { maybeSelectedPackage, pureBuild } = do
       pure $ case maybeConfig of
         Left eLines -> Left $ toDoc
           [ toDoc $ "Could not read config at path " <> path
-          , toDoc "Error was: " 
+          , toDoc "Error was: "
           , indent $ toDoc eLines
           ]
         Right { yaml: { package: Nothing } } -> Left $ toDoc $ "No package found for config at path: " <> path
