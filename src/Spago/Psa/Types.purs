@@ -1,6 +1,6 @@
 -- A majority of this code was copied from
 -- - https://github.com/natefaubion/purescript-psa-utils
--- 
+--
 -- To fullfil license requirements
 --   Copyright © Nathan Faubion
 --   https://opensource.org/license/mit/

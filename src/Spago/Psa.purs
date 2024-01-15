@@ -4,7 +4,11 @@
 -- To fullfil license requirements
 --   Copyright © Nathan Faubion
 --   https://opensource.org/license/mit/
-module Spago.Psa where
+module Spago.Psa
+  ( psaCompile
+  , toPathDecisions
+  , defaultStatVerbosity
+  ) where
 
 import Spago.Prelude
 
@@ -19,7 +23,7 @@ import Data.String as Str
 import Data.String as String
 import Data.Tuple as Tuple
 import Effect.Ref as Ref
-import Foreign.Object as FO
+import Foreign.Object as Object
 import Node.Encoding as Encoding
 import Node.FS.Aff as FSA
 import Node.Path as Path
@@ -28,16 +32,24 @@ import Spago.Config (Package(..), PackageMap, WorkspacePackage)
 import Spago.Config as Config
 import Spago.Core.Config (CensorBuildWarnings(..), WarningCensorTest(..))
 import Spago.Core.Config as Core
-import Spago.Psa.Output (buildOutput)
-import Spago.Psa.Printer (printDefaultOutputToErr, printJsonOutputToOut)
+import Spago.Psa.Output as Psa.Output
+import Spago.Psa.Printer as Psa.Printer
+import Spago.Psa.Suggest as Suggest
 import Spago.Psa.Types (ErrorCode, PathDecision, PsaArgs, PsaOutputOptions, PsaPathType(..), psaResultCodec)
 import Spago.Purs as Purs
 
 defaultStatVerbosity :: Core.StatVerbosity
 defaultStatVerbosity = Core.CompactStats
 
-psaCompile :: forall a. Set.Set FilePath -> Array String -> PsaArgs -> Spago (Purs.PursEnv a) Unit
-psaCompile globs pursArgs psaArgs = do
+type PsaCompileArgs =
+  { globs :: Set.Set FilePath
+  , pursArgs :: Array String
+  , psaArgs :: PsaArgs
+  , shouldApplySuggestions :: Boolean
+  }
+
+psaCompile :: forall a. PsaCompileArgs -> Spago (Purs.PursEnv a) Unit
+psaCompile { globs, pursArgs, psaArgs, shouldApplySuggestions } = do
   result <- Purs.compile globs (Array.snoc pursArgs "--json-errors")
   let resultStdout = Cmd.getStdout result
   arrErrorsIsEmpty <- forWithIndex (Str.split (Str.Pattern "\n") resultStdout) \idx err ->
@@ -51,12 +63,20 @@ psaCompile globs pursArgs psaArgs = do
         -- So, this shouldn't fail the build.
         pure true
       Right out -> do
-        files <- liftEffect $ Ref.new FO.empty
-        out' <- buildOutput (loadLines files) psaArgs out
+        files <- liftEffect $ Ref.new Object.empty
+        out' <- Psa.Output.buildOutput (loadLines files) psaArgs out
 
-        liftEffect $ if psaArgs.jsonErrors then printJsonOutputToOut out' else printDefaultOutputToErr psaArgs out'
+        liftEffect $ if psaArgs.jsonErrors then Psa.Printer.printJsonOutputToOut out' else Psa.Printer.printDefaultOutputToErr psaArgs out'
 
-        pure $ FO.isEmpty out'.stats.allErrors
+        case shouldApplySuggestions of
+          false -> do
+            suggestions <- Suggest.listSuggestions $ map _.error out'.warnings
+            logWarn suggestions
+          true -> do
+            logInfo "Automatically applying suggestions from the compiler..."
+            Suggest.applySuggestions $ map _.error out'.warnings
+
+        pure $ Object.isEmpty out'.stats.allErrors
 
   if Array.all identity arrErrorsIsEmpty then do
     logSuccess "Build succeeded."
@@ -75,13 +95,13 @@ psaCompile globs pursArgs psaArgs = do
     | isEmptySpan filename pos = pure Nothing
     | otherwise = do
         result <- try do
-          cache <- liftEffect $ FO.lookup filename <$> Ref.read files
+          cache <- liftEffect $ Object.lookup filename <$> Ref.read files
           contents <-
             case cache of
               Just lines -> pure lines
               Nothing -> do
                 lines <- liftAff $ Str.split (Str.Pattern "\n") <$> FSA.readTextFile Encoding.UTF8 filename
-                liftEffect $ Ref.modify_ (FO.insert filename lines) files
+                liftEffect $ Ref.modify_ (Object.insert filename lines) files
                 pure lines
           let source = Array.slice (pos.startLine - 1) (pos.endLine) contents
           pure $ Just source

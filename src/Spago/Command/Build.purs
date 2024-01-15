@@ -115,15 +115,18 @@ run opts = do
     , psaCliFlags
     , censorLibWarnings: workspace.buildOptions.censorLibWarnings
     }
-  let
-    psaArgs =
-      { color: logOptions.color
-      , jsonErrors: opts.jsonErrors
-      , decisions: join pathDecisions
-      , statVerbosity: fromMaybe Psa.defaultStatVerbosity workspace.buildOptions.statVerbosity
-      }
 
-  Psa.psaCompile globs args psaArgs
+  Psa.psaCompile
+    { globs
+    , pursArgs: args
+    , shouldApplySuggestions: true
+    , psaArgs:
+        { color: logOptions.color
+        , jsonErrors: opts.jsonErrors
+        , decisions: join pathDecisions
+        , statVerbosity: fromMaybe Psa.defaultStatVerbosity workspace.buildOptions.statVerbosity
+        }
+    }
 
   case workspace.backend of
     Nothing -> pure unit
