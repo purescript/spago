@@ -102,7 +102,9 @@ run opts = do
       Just p -> NEA.singleton p
       Nothing -> Config.getWorkspacePackages workspace.packageSet
     globs = getBuildGlobs
-      { dependencies: allDependencies
+      { dependencies: case workspace.selected of
+          Just p -> unsafeFromJust $ Map.lookup p.package.name dependencies
+          Nothing -> allDependencies
       , depsOnly: opts.depsOnly
       , withTests: true
       , selected: selectedPackages
