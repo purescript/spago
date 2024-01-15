@@ -12,13 +12,14 @@ import Data.String as String
 import Effect.Aff as Aff
 import Effect.Class.Console (log)
 import Effect.Class.Console as Console
+import Node.Library.Execa (ExecaResult)
 import Node.Path (dirname)
 import Node.Path as Path
 import Node.Process as Process
 import Registry.PackageName as PackageName
 import Registry.Version as Version
-import Spago.Cmd (ExecError, ExecResult) as X
-import Spago.Cmd (ExecError, ExecResult, StdinConfig(..))
+import Spago.Cmd (ExecResult, StdinConfig(..))
+import Spago.Cmd (ExecResult, StdinConfig(..)) as X
 import Spago.Cmd as Cmd
 import Spago.Command.Init as Init
 import Spago.Core.Config (Dependencies(..), Config)
@@ -29,8 +30,8 @@ import Test.Spec.Assertions (fail)
 import Test.Spec.Assertions as Assert
 
 type TestDirs =
-  { spago :: Array String -> Aff (Either ExecError ExecResult)
-  , spago' :: StdinConfig -> Array String -> Aff (Either ExecError ExecResult)
+  { spago :: Array String -> Aff (Either ExecResult ExecResult)
+  , spago' :: StdinConfig -> Array String -> Aff (Either ExecResult ExecResult)
   , fixture :: FilePath -> FilePath
   , oldCwd :: FilePath
   , testCwd :: FilePath
@@ -52,7 +53,7 @@ withTempDir = Aff.bracket createTempDir cleanupTempDir
 
       fixture path = Path.concat [ fixturesPath, path ]
 
-      spago' :: StdinConfig -> Array String -> Aff (Either ExecError ExecResult)
+      spago' :: StdinConfig -> Array String -> Aff (Either ExecResult ExecResult)
       spago' stdin args =
         Cmd.exec
           "node"
@@ -120,18 +121,14 @@ plusDependencies deps config = config
 check
   :: { stdout :: String -> Aff Unit
      , stderr :: String -> Aff Unit
-     , result :: Either ExecError ExecResult -> Boolean
+     , result :: Either ExecResult ExecResult -> Boolean
      }
-  -> Either ExecError ExecResult
+  -> Either ExecResult ExecResult
   -> Aff Unit
 check checkers execResult = do
   let
-    stdout = String.trim $ case execResult of
-      Left err -> err.stdout
-      Right res -> res.stdout
-    stderr = String.trim $ case execResult of
-      Left err -> err.stderr
-      Right res -> res.stderr
+    stdout = String.trim $ Cmd.getStdout execResult
+    stderr = String.trim $ Cmd.getStderr execResult
 
   printStdoutStderr <- liftEffect $ map isJust $ Process.lookupEnv "SPAGO_TEST_DEBUG"
 
@@ -149,9 +146,9 @@ check checkers execResult = do
 checkOutputsStr
   :: { stdoutStr :: Maybe String
      , stderrStr :: Maybe String
-     , result :: Either ExecError ExecResult -> Boolean
+     , result :: Either ExecResult ExecResult -> Boolean
      }
-  -> Either ExecError ExecResult
+  -> Either ExecResult ExecResult
   -> Aff Unit
 checkOutputsStr checkers =
   check
@@ -163,9 +160,9 @@ checkOutputsStr checkers =
 checkOutputs
   :: { stdoutFile :: Maybe FilePath
      , stderrFile :: Maybe FilePath
-     , result :: Either ExecError ExecResult -> Boolean
+     , result :: (Either ExecResult ExecResult) -> Boolean
      }
-  -> Either ExecError ExecResult
+  -> Either ExecResult ExecResult
   -> Aff Unit
 checkOutputs checkers execResult = do
   let
@@ -188,28 +185,28 @@ checkOutputs checkers execResult = do
     }
     execResult
 
-shouldBeSuccess :: Either ExecError ExecResult -> Aff Unit
+shouldBeSuccess :: Either ExecaResult ExecaResult -> Aff Unit
 shouldBeSuccess = checkOutputs { stdoutFile: Nothing, stderrFile: Nothing, result: isRight }
 
-shouldBeSuccessOutput :: FilePath -> Either ExecError ExecResult -> Aff Unit
+shouldBeSuccessOutput :: FilePath -> Either ExecaResult ExecaResult -> Aff Unit
 shouldBeSuccessOutput outFixture = checkOutputs { stdoutFile: Just outFixture, stderrFile: Nothing, result: isRight }
 
-shouldBeSuccessErr :: FilePath -> Either ExecError ExecResult -> Aff Unit
+shouldBeSuccessErr :: FilePath -> Either ExecaResult ExecaResult -> Aff Unit
 shouldBeSuccessErr errFixture = checkOutputs { stdoutFile: Nothing, stderrFile: Just errFixture, result: isRight }
 
-shouldBeSuccessOutputWithErr :: FilePath -> FilePath -> Either ExecError ExecResult -> Aff Unit
+shouldBeSuccessOutputWithErr :: FilePath -> FilePath -> Either ExecaResult ExecaResult -> Aff Unit
 shouldBeSuccessOutputWithErr outFixture errFixture = checkOutputs { stdoutFile: Just outFixture, stderrFile: Just errFixture, result: isRight }
 
-shouldBeFailure :: Either ExecError ExecResult -> Aff Unit
+shouldBeFailure :: Either ExecaResult ExecaResult -> Aff Unit
 shouldBeFailure = checkOutputs { stdoutFile: Nothing, stderrFile: Nothing, result: isLeft }
 
-shouldBeFailureOutput :: FilePath -> Either ExecError ExecResult -> Aff Unit
+shouldBeFailureOutput :: FilePath -> Either ExecaResult ExecaResult -> Aff Unit
 shouldBeFailureOutput outFixture = checkOutputs { stdoutFile: Just outFixture, stderrFile: Nothing, result: isLeft }
 
-shouldBeFailureErr :: FilePath -> Either ExecError ExecResult -> Aff Unit
+shouldBeFailureErr :: FilePath -> Either ExecaResult ExecaResult -> Aff Unit
 shouldBeFailureErr errFixture = checkOutputs { stdoutFile: Nothing, stderrFile: Just errFixture, result: isLeft }
 
-shouldBeFailureOutputWithErr :: FilePath -> FilePath -> Either ExecError ExecResult -> Aff Unit
+shouldBeFailureOutputWithErr :: FilePath -> FilePath -> Either ExecaResult ExecaResult -> Aff Unit
 shouldBeFailureOutputWithErr outFixture errFixture = checkOutputs { stdoutFile: Just outFixture, stderrFile: Just errFixture, result: isLeft }
 
 mkPackageName :: String -> PackageName

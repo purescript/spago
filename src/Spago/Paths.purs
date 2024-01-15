@@ -27,10 +27,16 @@ globalCachePath :: FilePath
 globalCachePath = paths.cache
 
 localCachePath :: FilePath
-localCachePath = Path.concat [ cwd, ".spago" ]
+localCachePath = toLocalCachePath cwd
 
 localCachePackagesPath :: FilePath
-localCachePackagesPath = Path.concat [ localCachePath, "packages" ]
+localCachePackagesPath = toLocalCachePackagesPath cwd
+
+toLocalCachePath :: FilePath -> FilePath
+toLocalCachePath rootDir = Path.concat [ rootDir, ".spago" ]
+
+toLocalCachePackagesPath :: FilePath -> FilePath
+toLocalCachePackagesPath rootDir = Path.concat [ toLocalCachePath rootDir, "p" ]
 
 registryPath ∷ FilePath
 registryPath = Path.concat [ globalCachePath, "registry" ]

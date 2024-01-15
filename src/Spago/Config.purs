@@ -211,7 +211,7 @@ readWorkspace { maybeSelectedPackage, pureBuild } = do
 
   -- TODO: this should be a logwarning, and there should be a test
   unless (Array.null prunedConfigs) do
-    logDebug $ [ "Excluding configs that use a different workspace (directly or implicitly via parent directory's config):" ] <> Array.sort failedPackages
+    logDebug $ [ "Excluding configs that use a different workspace (directly or implicitly via parent directory's config):" ] <> Array.sort prunedConfigs
 
   rootPackage <- case maybePackage of
     Nothing -> pure []

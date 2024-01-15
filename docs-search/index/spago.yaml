@@ -21,7 +21,6 @@ package:
     - newtype
     - node-buffer
     - node-fs
-    - node-fs-aff
     - node-process
     - ordered-collections
     - prelude

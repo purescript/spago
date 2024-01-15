@@ -4,8 +4,8 @@ import Spago.Prelude
 
 import Node.Path as Path
 import Spago.Cmd as Cmd
-import Spago.Esbuild (Esbuild)
 import Spago.Config (BundlePlatform(..), BundleType(..), Workspace, WorkspacePackage)
+import Spago.Esbuild (Esbuild)
 
 type BundleEnv a =
   { esbuild :: Esbuild
@@ -78,7 +78,7 @@ run = do
   logInfo "Bundling..."
   logDebug $ "Running esbuild: " <> show args
   Cmd.exec esbuild.cmd args execOptions >>= case _ of
-    Right _r -> logSuccess "Bundle succeeded."
-    Left err -> do
-      logDebug $ show err
+    Right _ -> logSuccess "Bundle succeeded."
+    Left r -> do
+      logDebug $ Cmd.printExecResult r
       die [ "Failed to bundle." ]

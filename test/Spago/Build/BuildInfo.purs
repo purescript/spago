@@ -27,8 +27,8 @@ spec =
         purs <- runSpago logOptions getPurs
         spagoResult <- spago [ "--version" ]
         sVersion <- case spagoResult of
-          Left e -> MonadError.throwError $ Exception.error e.message
-          Right a -> pure a.stdout
+          Left r -> MonadError.throwError $ Exception.error r.message
+          Right r -> pure r.stdout
         pure
           $ Array.intercalate "\n"
           $
