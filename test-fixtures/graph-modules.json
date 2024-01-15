@@ -7,7 +7,7 @@
       "Type.Proxy"
     ],
     "package": "prelude",
-    "path": ".spago/packages/prelude-6.0.1/src/Control/Applicative.purs"
+    "path": ".spago/p/prelude-6.0.1/src/Control/Applicative.purs"
   },
   "Control.Apply": {
     "depends": [
@@ -17,7 +17,7 @@
       "Type.Proxy"
     ],
     "package": "prelude",
-    "path": ".spago/packages/prelude-6.0.1/src/Control/Apply.purs"
+    "path": ".spago/p/prelude-6.0.1/src/Control/Apply.purs"
   },
   "Control.Bind": {
     "depends": [
@@ -30,14 +30,14 @@
       "Type.Proxy"
     ],
     "package": "prelude",
-    "path": ".spago/packages/prelude-6.0.1/src/Control/Bind.purs"
+    "path": ".spago/p/prelude-6.0.1/src/Control/Bind.purs"
   },
   "Control.Category": {
     "depends": [
       "Control.Semigroupoid"
     ],
     "package": "prelude",
-    "path": ".spago/packages/prelude-6.0.1/src/Control/Category.purs"
+    "path": ".spago/p/prelude-6.0.1/src/Control/Category.purs"
   },
   "Control.Monad": {
     "depends": [
@@ -49,17 +49,17 @@
       "Type.Proxy"
     ],
     "package": "prelude",
-    "path": ".spago/packages/prelude-6.0.1/src/Control/Monad.purs"
+    "path": ".spago/p/prelude-6.0.1/src/Control/Monad.purs"
   },
   "Control.Semigroupoid": {
     "depends": [],
     "package": "prelude",
-    "path": ".spago/packages/prelude-6.0.1/src/Control/Semigroupoid.purs"
+    "path": ".spago/p/prelude-6.0.1/src/Control/Semigroupoid.purs"
   },
   "Data.Boolean": {
     "depends": [],
     "package": "prelude",
-    "path": ".spago/packages/prelude-6.0.1/src/Data/Boolean.purs"
+    "path": ".spago/p/prelude-6.0.1/src/Data/Boolean.purs"
   },
   "Data.BooleanAlgebra": {
     "depends": [
@@ -69,7 +69,7 @@
       "Type.Proxy"
     ],
     "package": "prelude",
-    "path": ".spago/packages/prelude-6.0.1/src/Data/BooleanAlgebra.purs"
+    "path": ".spago/p/prelude-6.0.1/src/Data/BooleanAlgebra.purs"
   },
   "Data.Bounded": {
     "depends": [
@@ -80,7 +80,7 @@
       "Type.Proxy"
     ],
     "package": "prelude",
-    "path": ".spago/packages/prelude-6.0.1/src/Data/Bounded.purs"
+    "path": ".spago/p/prelude-6.0.1/src/Data/Bounded.purs"
   },
   "Data.Bounded.Generic": {
     "depends": [
@@ -88,7 +88,7 @@
       "Data.Bounded"
     ],
     "package": "prelude",
-    "path": ".spago/packages/prelude-6.0.1/src/Data/Bounded/Generic.purs"
+    "path": ".spago/p/prelude-6.0.1/src/Data/Bounded/Generic.purs"
   },
   "Data.CommutativeRing": {
     "depends": [
@@ -99,7 +99,7 @@
       "Type.Proxy"
     ],
     "package": "prelude",
-    "path": ".spago/packages/prelude-6.0.1/src/Data/CommutativeRing.purs"
+    "path": ".spago/p/prelude-6.0.1/src/Data/CommutativeRing.purs"
   },
   "Data.DivisionRing": {
     "depends": [
@@ -108,7 +108,7 @@
       "Data.Semiring"
     ],
     "package": "prelude",
-    "path": ".spago/packages/prelude-6.0.1/src/Data/DivisionRing.purs"
+    "path": ".spago/p/prelude-6.0.1/src/Data/DivisionRing.purs"
   },
   "Data.Eq": {
     "depends": [
@@ -120,7 +120,7 @@
       "Type.Proxy"
     ],
     "package": "prelude",
-    "path": ".spago/packages/prelude-6.0.1/src/Data/Eq.purs"
+    "path": ".spago/p/prelude-6.0.1/src/Data/Eq.purs"
   },
   "Data.Eq.Generic": {
     "depends": [
@@ -128,7 +128,7 @@
       "Data.Generic.Rep"
     ],
     "package": "prelude",
-    "path": ".spago/packages/prelude-6.0.1/src/Data/Eq/Generic.purs"
+    "path": ".spago/p/prelude-6.0.1/src/Data/Eq/Generic.purs"
   },
   "Data.EuclideanRing": {
     "depends": [
@@ -139,7 +139,7 @@
       "Data.Semiring"
     ],
     "package": "prelude",
-    "path": ".spago/packages/prelude-6.0.1/src/Data/EuclideanRing.purs"
+    "path": ".spago/p/prelude-6.0.1/src/Data/EuclideanRing.purs"
   },
   "Data.Field": {
     "depends": [
@@ -150,7 +150,7 @@
       "Data.Semiring"
     ],
     "package": "prelude",
-    "path": ".spago/packages/prelude-6.0.1/src/Data/Field.purs"
+    "path": ".spago/p/prelude-6.0.1/src/Data/Field.purs"
   },
   "Data.Function": {
     "depends": [
@@ -160,7 +160,7 @@
       "Data.Ring"
     ],
     "package": "prelude",
-    "path": ".spago/packages/prelude-6.0.1/src/Data/Function.purs"
+    "path": ".spago/p/prelude-6.0.1/src/Data/Function.purs"
   },
   "Data.Functor": {
     "depends": [
@@ -169,7 +169,7 @@
       "Type.Proxy"
     ],
     "package": "prelude",
-    "path": ".spago/packages/prelude-6.0.1/src/Data/Functor.purs"
+    "path": ".spago/p/prelude-6.0.1/src/Data/Functor.purs"
   },
   "Data.Generic.Rep": {
     "depends": [
@@ -180,7 +180,7 @@
       "Type.Proxy"
     ],
     "package": "prelude",
-    "path": ".spago/packages/prelude-6.0.1/src/Data/Generic/Rep.purs"
+    "path": ".spago/p/prelude-6.0.1/src/Data/Generic/Rep.purs"
   },
   "Data.HeytingAlgebra": {
     "depends": [
@@ -190,7 +190,7 @@
       "Type.Proxy"
     ],
     "package": "prelude",
-    "path": ".spago/packages/prelude-6.0.1/src/Data/HeytingAlgebra.purs"
+    "path": ".spago/p/prelude-6.0.1/src/Data/HeytingAlgebra.purs"
   },
   "Data.HeytingAlgebra.Generic": {
     "depends": [
@@ -199,7 +199,7 @@
       "Data.HeytingAlgebra"
     ],
     "package": "prelude",
-    "path": ".spago/packages/prelude-6.0.1/src/Data/HeytingAlgebra/Generic.purs"
+    "path": ".spago/p/prelude-6.0.1/src/Data/HeytingAlgebra/Generic.purs"
   },
   "Data.Monoid": {
     "depends": [
@@ -215,7 +215,7 @@
       "Type.Proxy"
     ],
     "package": "prelude",
-    "path": ".spago/packages/prelude-6.0.1/src/Data/Monoid.purs"
+    "path": ".spago/p/prelude-6.0.1/src/Data/Monoid.purs"
   },
   "Data.Monoid.Additive": {
     "depends": [
@@ -224,7 +224,7 @@
       "Data.Ord"
     ],
     "package": "prelude",
-    "path": ".spago/packages/prelude-6.0.1/src/Data/Monoid/Additive.purs"
+    "path": ".spago/p/prelude-6.0.1/src/Data/Monoid/Additive.purs"
   },
   "Data.Monoid.Conj": {
     "depends": [
@@ -234,7 +234,7 @@
       "Data.Ord"
     ],
     "package": "prelude",
-    "path": ".spago/packages/prelude-6.0.1/src/Data/Monoid/Conj.purs"
+    "path": ".spago/p/prelude-6.0.1/src/Data/Monoid/Conj.purs"
   },
   "Data.Monoid.Disj": {
     "depends": [
@@ -244,7 +244,7 @@
       "Data.Ord"
     ],
     "package": "prelude",
-    "path": ".spago/packages/prelude-6.0.1/src/Data/Monoid/Disj.purs"
+    "path": ".spago/p/prelude-6.0.1/src/Data/Monoid/Disj.purs"
   },
   "Data.Monoid.Dual": {
     "depends": [
@@ -253,14 +253,14 @@
       "Data.Ord"
     ],
     "package": "prelude",
-    "path": ".spago/packages/prelude-6.0.1/src/Data/Monoid/Dual.purs"
+    "path": ".spago/p/prelude-6.0.1/src/Data/Monoid/Dual.purs"
   },
   "Data.Monoid.Endo": {
     "depends": [
       "Prelude"
     ],
     "package": "prelude",
-    "path": ".spago/packages/prelude-6.0.1/src/Data/Monoid/Endo.purs"
+    "path": ".spago/p/prelude-6.0.1/src/Data/Monoid/Endo.purs"
   },
   "Data.Monoid.Generic": {
     "depends": [
@@ -268,7 +268,7 @@
       "Data.Generic.Rep"
     ],
     "package": "prelude",
-    "path": ".spago/packages/prelude-6.0.1/src/Data/Monoid/Generic.purs"
+    "path": ".spago/p/prelude-6.0.1/src/Data/Monoid/Generic.purs"
   },
   "Data.Monoid.Multiplicative": {
     "depends": [
@@ -277,12 +277,12 @@
       "Data.Ord"
     ],
     "package": "prelude",
-    "path": ".spago/packages/prelude-6.0.1/src/Data/Monoid/Multiplicative.purs"
+    "path": ".spago/p/prelude-6.0.1/src/Data/Monoid/Multiplicative.purs"
   },
   "Data.NaturalTransformation": {
     "depends": [],
     "package": "prelude",
-    "path": ".spago/packages/prelude-6.0.1/src/Data/NaturalTransformation.purs"
+    "path": ".spago/p/prelude-6.0.1/src/Data/NaturalTransformation.purs"
   },
   "Data.Ord": {
     "depends": [
@@ -296,7 +296,7 @@
       "Type.Proxy"
     ],
     "package": "prelude",
-    "path": ".spago/packages/prelude-6.0.1/src/Data/Ord.purs"
+    "path": ".spago/p/prelude-6.0.1/src/Data/Ord.purs"
   },
   "Data.Ord.Generic": {
     "depends": [
@@ -304,7 +304,7 @@
       "Data.Generic.Rep"
     ],
     "package": "prelude",
-    "path": ".spago/packages/prelude-6.0.1/src/Data/Ord/Generic.purs"
+    "path": ".spago/p/prelude-6.0.1/src/Data/Ord/Generic.purs"
   },
   "Data.Ordering": {
     "depends": [
@@ -313,7 +313,7 @@
       "Data.Show"
     ],
     "package": "prelude",
-    "path": ".spago/packages/prelude-6.0.1/src/Data/Ordering.purs"
+    "path": ".spago/p/prelude-6.0.1/src/Data/Ordering.purs"
   },
   "Data.Reflectable": {
     "depends": [
@@ -321,7 +321,7 @@
       "Type.Proxy"
     ],
     "package": "prelude",
-    "path": ".spago/packages/prelude-6.0.1/src/Data/Reflectable.purs"
+    "path": ".spago/p/prelude-6.0.1/src/Data/Reflectable.purs"
   },
   "Data.Ring": {
     "depends": [
@@ -332,7 +332,7 @@
       "Type.Proxy"
     ],
     "package": "prelude",
-    "path": ".spago/packages/prelude-6.0.1/src/Data/Ring.purs"
+    "path": ".spago/p/prelude-6.0.1/src/Data/Ring.purs"
   },
   "Data.Ring.Generic": {
     "depends": [
@@ -340,7 +340,7 @@
       "Data.Generic.Rep"
     ],
     "package": "prelude",
-    "path": ".spago/packages/prelude-6.0.1/src/Data/Ring/Generic.purs"
+    "path": ".spago/p/prelude-6.0.1/src/Data/Ring/Generic.purs"
   },
   "Data.Semigroup": {
     "depends": [
@@ -351,7 +351,7 @@
       "Type.Proxy"
     ],
     "package": "prelude",
-    "path": ".spago/packages/prelude-6.0.1/src/Data/Semigroup.purs"
+    "path": ".spago/p/prelude-6.0.1/src/Data/Semigroup.purs"
   },
   "Data.Semigroup.First": {
     "depends": [
@@ -360,7 +360,7 @@
       "Data.Ord"
     ],
     "package": "prelude",
-    "path": ".spago/packages/prelude-6.0.1/src/Data/Semigroup/First.purs"
+    "path": ".spago/p/prelude-6.0.1/src/Data/Semigroup/First.purs"
   },
   "Data.Semigroup.Generic": {
     "depends": [
@@ -368,7 +368,7 @@
       "Data.Generic.Rep"
     ],
     "package": "prelude",
-    "path": ".spago/packages/prelude-6.0.1/src/Data/Semigroup/Generic.purs"
+    "path": ".spago/p/prelude-6.0.1/src/Data/Semigroup/Generic.purs"
   },
   "Data.Semigroup.Last": {
     "depends": [
@@ -377,7 +377,7 @@
       "Data.Ord"
     ],
     "package": "prelude",
-    "path": ".spago/packages/prelude-6.0.1/src/Data/Semigroup/Last.purs"
+    "path": ".spago/p/prelude-6.0.1/src/Data/Semigroup/Last.purs"
   },
   "Data.Semiring": {
     "depends": [
@@ -387,7 +387,7 @@
       "Type.Proxy"
     ],
     "package": "prelude",
-    "path": ".spago/packages/prelude-6.0.1/src/Data/Semiring.purs"
+    "path": ".spago/p/prelude-6.0.1/src/Data/Semiring.purs"
   },
   "Data.Semiring.Generic": {
     "depends": [
@@ -395,7 +395,7 @@
       "Data.Generic.Rep"
     ],
     "package": "prelude",
-    "path": ".spago/packages/prelude-6.0.1/src/Data/Semiring/Generic.purs"
+    "path": ".spago/p/prelude-6.0.1/src/Data/Semiring/Generic.purs"
   },
   "Data.Show": {
     "depends": [
@@ -407,7 +407,7 @@
       "Type.Proxy"
     ],
     "package": "prelude",
-    "path": ".spago/packages/prelude-6.0.1/src/Data/Show.purs"
+    "path": ".spago/p/prelude-6.0.1/src/Data/Show.purs"
   },
   "Data.Show.Generic": {
     "depends": [
@@ -417,24 +417,24 @@
       "Type.Proxy"
     ],
     "package": "prelude",
-    "path": ".spago/packages/prelude-6.0.1/src/Data/Show/Generic.purs"
+    "path": ".spago/p/prelude-6.0.1/src/Data/Show/Generic.purs"
   },
   "Data.Symbol": {
     "depends": [
       "Type.Proxy"
     ],
     "package": "prelude",
-    "path": ".spago/packages/prelude-6.0.1/src/Data/Symbol.purs"
+    "path": ".spago/p/prelude-6.0.1/src/Data/Symbol.purs"
   },
   "Data.Unit": {
     "depends": [],
     "package": "prelude",
-    "path": ".spago/packages/prelude-6.0.1/src/Data/Unit.purs"
+    "path": ".spago/p/prelude-6.0.1/src/Data/Unit.purs"
   },
   "Data.Void": {
     "depends": [],
     "package": "prelude",
-    "path": ".spago/packages/prelude-6.0.1/src/Data/Void.purs"
+    "path": ".spago/p/prelude-6.0.1/src/Data/Void.purs"
   },
   "Effect": {
     "depends": [
@@ -442,7 +442,7 @@
       "Control.Apply"
     ],
     "package": "effect",
-    "path": ".spago/packages/effect-4.0.0/src/Effect.purs"
+    "path": ".spago/p/effect-4.0.0/src/Effect.purs"
   },
   "Effect.Class": {
     "depends": [
@@ -451,7 +451,7 @@
       "Effect"
     ],
     "package": "effect",
-    "path": ".spago/packages/effect-4.0.0/src/Effect/Class.purs"
+    "path": ".spago/p/effect-4.0.0/src/Effect/Class.purs"
   },
   "Effect.Class.Console": {
     "depends": [
@@ -462,7 +462,7 @@
       "Effect.Console"
     ],
     "package": "console",
-    "path": ".spago/packages/console-6.0.0/src/Effect/Class/Console.purs"
+    "path": ".spago/p/console-6.0.0/src/Effect/Class/Console.purs"
   },
   "Effect.Console": {
     "depends": [
@@ -471,7 +471,7 @@
       "Data.Unit"
     ],
     "package": "console",
-    "path": ".spago/packages/console-6.0.0/src/Effect/Console.purs"
+    "path": ".spago/p/console-6.0.0/src/Effect/Console.purs"
   },
   "Effect.Uncurried": {
     "depends": [
@@ -479,14 +479,14 @@
       "Effect"
     ],
     "package": "effect",
-    "path": ".spago/packages/effect-4.0.0/src/Effect/Uncurried.purs"
+    "path": ".spago/p/effect-4.0.0/src/Effect/Uncurried.purs"
   },
   "Effect.Unsafe": {
     "depends": [
       "Effect"
     ],
     "package": "effect",
-    "path": ".spago/packages/effect-4.0.0/src/Effect/Unsafe.purs"
+    "path": ".spago/p/effect-4.0.0/src/Effect/Unsafe.purs"
   },
   "Main": {
     "depends": [
@@ -528,16 +528,16 @@
       "Data.Void"
     ],
     "package": "prelude",
-    "path": ".spago/packages/prelude-6.0.1/src/Prelude.purs"
+    "path": ".spago/p/prelude-6.0.1/src/Prelude.purs"
   },
   "Record.Unsafe": {
     "depends": [],
     "package": "prelude",
-    "path": ".spago/packages/prelude-6.0.1/src/Record/Unsafe.purs"
+    "path": ".spago/p/prelude-6.0.1/src/Record/Unsafe.purs"
   },
   "Type.Proxy": {
     "depends": [],
     "package": "prelude",
-    "path": ".spago/packages/prelude-6.0.1/src/Type/Proxy.purs"
+    "path": ".spago/p/prelude-6.0.1/src/Type/Proxy.purs"
   }
 }

@@ -447,7 +447,7 @@ withExisting file f = do
 logAndExit :: forall a. String -> Effect a
 logAndExit message = do
   log message
-  Process.exit 1
+  Process.exit' 1
 
 showGlobs :: Array String -> String
 showGlobs = Array.intercalate ", "

@@ -94,7 +94,7 @@ run args = do
     true -> case pkgConfig.test of
       Nothing -> do
         logWarn $ "Could not uninstall test dependencies for " <> PackageName.print pkgConfig.name <> " because it does not have a test configuration."
-        liftEffect $ Process.exit 0
+        liftEffect $ Process.exit' 0
       Just { dependencies } -> pure
         { name: pkgConfig.name
         , deps: dependencies

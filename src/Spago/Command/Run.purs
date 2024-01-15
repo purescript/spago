@@ -48,8 +48,8 @@ type Node = { cmd :: String, version :: Version }
 nodeVersion :: forall a. Spago (LogEnv a) Version
 nodeVersion =
   Cmd.exec "node" [ "--version" ] Cmd.defaultExecOptions { pipeStdout = false, pipeStderr = false } >>= case _ of
-    Left err -> do
-      logDebug $ show err
+    Left r -> do
+      logDebug $ Cmd.printExecResult r
       die [ "Failed to find node. Have you installed it, and is it in your PATH?" ]
     Right r -> case parseLenientVersion r.stdout of
       Left _err -> die $ "Failed to parse NodeJS version. Was: " <> r.stdout
@@ -117,19 +117,19 @@ run = do
       logDebug $ "Executing from: " <> show opts.executeDir
       logDebug $ "Running node command with args: `" <> show nodeArgs <> "`"
       Cmd.exec node.cmd nodeArgs (execOptions { cwd = Just opts.executeDir }) >>= case _ of
-        Right _r -> case opts.successMessage of
+        Right _ -> case opts.successMessage of
           Just m -> logSuccess m
           Nothing -> pure unit
-        Left err -> do
-          logDebug $ show err
+        Left r -> do
+          logDebug $ Cmd.printExecResult r
           die opts.failureMessage
     Just backend -> do
       let args = [ "--run", opts.moduleName <> ".main" ] <> opts.execArgs
       logDebug $ "Running command `" <> backend.cmd <> " " <> show args <> "`"
       Cmd.exec backend.cmd args execOptions >>= case _ of
-        Right _r -> case opts.successMessage of
+        Right _ -> case opts.successMessage of
           Just m -> logSuccess m
           Nothing -> pure unit
-        Left err -> do
-          logDebug $ show err
-          die [ opts.failureMessage, "Backend " <> show backend <> " exited with error:" <> err.shortMessage ]
+        Left r -> do
+          logDebug $ Cmd.printExecResult r
+          die [ opts.failureMessage, "Backend " <> show backend <> " exited with error:" <> r.shortMessage ]

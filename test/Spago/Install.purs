@@ -12,6 +12,7 @@ import Spago.Command.Init as Init
 import Spago.Core.Config as Config
 import Spago.FS as FS
 import Spago.Log (LogVerbosity(..))
+import Spago.Paths as Paths
 import Spago.Purs as Purs
 import Test.Spec (Spec)
 import Test.Spec as Spec
@@ -132,7 +133,7 @@ spec = Spec.around withTempDir do
             }
         )
       spago [ "install", "nonexistent-package" ] >>= shouldBeSuccess
-      let slashyPath = Path.concat [ testCwd, ".spago", "packages", "nonexistent-package", "spago-test%2fbranch-with-slash" ]
+      let slashyPath = Path.concat [ Paths.toLocalCachePackagesPath testCwd, "nonexistent-package", "spago-test%2fbranch-with-slash" ]
       unlessM (FS.exists slashyPath) do
         Assertions.fail $ "Expected path to exist: " <> slashyPath
       kids <- FSA.readdir slashyPath

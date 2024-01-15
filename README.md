@@ -952,6 +952,14 @@ $ node -e "import('./index.js').then(m => console.log(m.main))"
 [Function]
 ```
 
+Spago does not wrap the entirety of the bundler's API (esbuild for JS builds), so it's possible to pass arguments through to it. E.g. to exclude an NPM package from the bundle you can pass the `--external` flag to esbuild:
+- either through the command line, with the `--bundler-args` flag, i.e. `--bundler-args "--external:better-sqlite3"`.
+- or by adding it to the configuration file:
+  ```yaml
+  package:
+    bundle:
+      extra_args:
+        - "--external:better-sqlite3"
 ### Enable source maps
 
 When bundling, you can include `--source-maps` to generate a final source map for your bundle.
