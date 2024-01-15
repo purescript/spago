@@ -5,7 +5,6 @@ import Test.Prelude
 import Node.FS.Aff as FSA
 import Node.Platform as Platform
 import Node.Process as Process
-import Spago.Cmd (StdinConfig(..))
 import Spago.Cmd as Cmd
 import Spago.FS as FS
 import Test.Spec (Spec)
@@ -64,6 +63,6 @@ doTheGitThing = do
   git [ "commit", "-m", "first" ] >>= shouldBeSuccess
   git [ "tag", "v0.0.1" ] >>= shouldBeSuccess
   where
-  git :: Array String -> Aff (Either ExecError ExecResult)
+  git :: Array String -> Aff (Either ExecResult ExecResult)
   git args = Cmd.exec "git" args
     $ Cmd.defaultExecOptions { pipeStdout = false, pipeStderr = false, pipeStdin = StdinNewPipe }

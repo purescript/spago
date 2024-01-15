@@ -8,6 +8,7 @@ import Data.Codec.Argonaut.Record as CAR
 import Data.Profunctor as Profunctor
 import Data.Set as Set
 import Data.String as String
+import Node.Library.Execa (ExecaResult)
 import Registry.Internal.Codec as Internal.Codec
 import Registry.Version as Version
 import Spago.Cmd as Cmd
@@ -40,7 +41,7 @@ parseVersionOutput { cmd, output: stdout } = case parseLenientVersion (dropStuff
   where
   dropStuff pattern = fromMaybe "" <<< Array.head <<< String.split (String.Pattern pattern)
 
-compile :: forall a. Set FilePath -> Array String -> Spago (PursEnv a) (Either Cmd.ExecError Cmd.ExecResult)
+compile :: forall a. Set FilePath -> Array String -> Spago (PursEnv a) (Either ExecaResult ExecaResult)
 compile globs pursArgs = do
   { purs } <- ask
   let args = [ "compile" ] <> pursArgs <> Set.toUnfoldable globs
@@ -53,7 +54,7 @@ compile globs pursArgs = do
   Cmd.exec purs.cmd args $ Cmd.defaultExecOptions
     { pipeStdout = false }
 
-repl :: forall a. Set FilePath -> Array String -> Spago (PursEnv a) (Either Cmd.ExecError Cmd.ExecResult)
+repl :: forall a. Set FilePath -> Array String -> Spago (PursEnv a) (Either ExecaResult ExecaResult)
 repl globs pursArgs = do
   { purs } <- ask
   let args = [ "repl" ] <> pursArgs <> Set.toUnfoldable globs
@@ -86,7 +87,7 @@ printDocsFormat = case _ of
   Ctags -> "ctags"
   Etags -> "etags"
 
-docs :: forall a. Set FilePath -> DocsFormat -> Spago (PursEnv a) (Either Cmd.ExecError Cmd.ExecResult)
+docs :: forall a. Set FilePath -> DocsFormat -> Spago (PursEnv a) (Either ExecaResult ExecaResult)
 docs globs format = do
   { purs } <- ask
   let args = [ "docs", "--format", printDocsFormat format ] <> Set.toUnfoldable globs
@@ -126,9 +127,9 @@ graph globs pursArgs = do
   logDebug [ "Running command:", "purs " <> String.joinWith " " args ]
   let execOpts = Cmd.defaultExecOptions { pipeStdout = false, pipeStderr = false }
   Cmd.exec purs.cmd args execOpts >>= case _ of
-    Right { stdout } -> do
+    Right r -> do
       logDebug "Called `purs graph`, decoding.."
-      pure $ parseJson moduleGraphCodec stdout
-    Left err -> do
-      logDebug $ show err
-      die [ "Failed to call `purs graph`, error: " <> err.shortMessage ]
+      pure $ parseJson moduleGraphCodec r.stdout
+    Left r -> do
+      logDebug $ Cmd.printExecResult r
+      die [ "Failed to call `purs graph`, error: " <> r.shortMessage ]

@@ -2,7 +2,6 @@ module Test.Spago.Run where
 
 import Test.Prelude
 
-import Spago.Cmd (StdinConfig(..))
 import Spago.FS as FS
 import Test.Spec (Spec)
 import Test.Spec as Spec
