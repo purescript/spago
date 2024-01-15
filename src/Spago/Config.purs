@@ -188,20 +188,25 @@ readWorkspace { maybeSelectedPackage, pureBuild } = do
 
   -- We read all of them in, and only read the package section, if any.
   let
+    readWorkspaceConfig :: FilePath -> _ _ (Either (Array Docc) _)
     readWorkspaceConfig path = do
       maybeConfig <- Core.readConfig path
       -- We try to figure out if this package has tests - look for test sources
       hasTests <- FS.exists (Path.concat [ Path.dirname path, "test" ])
       pure $ case maybeConfig of
-        Left eLines -> Left $ "Could not read config at path " <> path <> "\nError was: " <> Array.intercalate "\n" eLines
-        Right { yaml: { package: Nothing } } -> Left $ "No package found for config at path: " <> path
+        Left eLines -> Left
+          [ toDoc $ "Could not read config at path " <> path
+          , toDoc "Error was: " 
+          , indent $ toDoc eLines
+          ]
+        Right { yaml: { package: Nothing } } -> Left $ [ toDoc $ "No package found for config at path: " <> path ]
         Right { yaml: { package: Just package, workspace: configWorkspace }, doc } -> do
           -- We store the path of the package, so we can treat it basically as a LocalPackage
           Right $ Tuple package.name { path: Path.dirname path, package, configWorkspace, doc, hasTests }
   { right: otherPackages, left: failedPackages } <- partitionMap identity <$> traverse readWorkspaceConfig otherConfigPaths
 
   unless (Array.null failedPackages) do
-    logWarn $ [ "Failed to read some configs:" ] <> failedPackages
+    logWarn $ [ toDoc "Failed to read some configs:" ] <> join failedPackages
 
   -- We prune any configs that use a different workspace.
   -- For reasoning, see https://github.com/purescript/spago/issues/951
@@ -216,7 +221,7 @@ readWorkspace { maybeSelectedPackage, pureBuild } = do
 
   -- TODO: this should be a logwarning, and there should be a test
   unless (Array.null prunedConfigs) do
-    logDebug $ [ "Excluding configs that use a different workspace (directly or implicitly via parent directory's config):" ] <> Array.sort failedPackages
+    logDebug $ [ "Excluding configs that use a different workspace (directly or implicitly via parent directory's config):" ] <> Array.sort prunedConfigs
 
   rootPackage <- case maybePackage of
     Nothing -> pure []
