@@ -3,6 +3,7 @@ module Spago.Core.Config
   , WorkspaceBuildOptionsInput
   , CensorBuildWarnings(..)
   , WarningCensorTest(..)
+  , WarningCensorTestJsonEncoding
   , StatVerbosity(..)
   , PackageBuildOptionsInput
   , BundleConfig
@@ -31,7 +32,6 @@ module Spago.Core.Config
   , parseBundleType
   , parsePlatform
   , printSpagoRange
-  , readConfig
   , remotePackageCodec
   , setAddressCodec
   , widestRange
@@ -55,7 +55,6 @@ import Registry.PackageName as PackageName
 import Registry.Range as Range
 import Registry.Sha256 as Sha256
 import Registry.Version as Version
-import Spago.FS as FS
 import Type.Proxy (Proxy(..))
 
 type Config =
@@ -349,17 +348,20 @@ instance Show WarningCensorTest where
     ByCode str -> "(ByCode" <> str <> ")"
     ByMessagePrefix str -> "(ByMessagePrefix" <> str <> ")"
 
+type WarningCensorTestJsonEncoding =
+  ( byPrefix :: String )
+
 warningCensorTestCodec :: JsonCodec WarningCensorTest
 warningCensorTestCodec = CA.codec' parse print
   where
   print = case _ of
     ByCode str -> CA.encode CA.string str
-    ByMessagePrefix str -> CA.encode byMessagePrefixCodec { byPrefix: str }
+    ByMessagePrefix str -> CA.encode byMessagePrefixCodec ({ byPrefix: str } :: { | WarningCensorTestJsonEncoding })
 
   parse j = byCode <|> byPrefix
     where
     byCode = ByCode <$> CA.decode CA.string j
-    byPrefix = (ByMessagePrefix <<< _.byPrefix) <$> CA.decode byMessagePrefixCodec j
+    byPrefix = (ByMessagePrefix <<< _.byPrefix) <$> (CA.decode byMessagePrefixCodec j :: _ _ { | WarningCensorTestJsonEncoding })
 
   byMessagePrefixCodec = CAR.object "ByMessagePrefix" { byPrefix: CA.string }
 
@@ -476,12 +478,3 @@ legacyPackageSetEntryCodec = CA.object "LegacyPackageSetEntry"
   $ CA.recordProp (Proxy :: _ "version") CA.string
   $ CA.recordProp (Proxy :: _ "dependencies") (CA.array PackageName.codec)
   $ CA.record
-
-readConfig :: forall a. FilePath -> Spago (LogEnv a) (Either String { doc :: YamlDoc Config, yaml :: Config })
-readConfig path = do
-  logDebug $ "Reading config from " <> path
-  FS.exists path >>= case _ of
-    false -> pure $ Left $ case path of
-      "spago.yaml" -> "Did not find " <> path <> " Run `spago init` to initialise a new project."
-      _ -> "Did not find " <> path
-    true -> liftAff $ FS.readYamlDocFile configCodec path

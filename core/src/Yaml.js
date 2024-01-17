@@ -1,5 +1,22 @@
 import Yaml from 'yaml';
 
+export const getImpl = (doc, path, keep) =>
+  doc.get(path, keep);
+
+export const addImpl = (doc, path, value) =>
+  doc.add(path, value);
+
+export const deleteImpl = (doc, path) =>
+  doc.delete(path);
+
+export const hasImpl = (doc, path) =>
+  doc.has(path);
+
+export const toSeqItems = (doc) =>
+  Yaml.isSeq(doc) ? doc.items : [];
+
+export const isMap = (doc) => Yaml.isMap(doc);
+
 export function yamlParserImpl(fail, succ, s) {
   try {
     // TODO: we should only support JSON values in the parsing,

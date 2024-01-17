@@ -19,6 +19,11 @@ module Spago.FS
   , writeTextFile
   , writeYamlDocFile
   , writeYamlFile
+  , parseConfigYaml
+  , parseConfigYamlDoc
+  , readConfigYamlFile
+  , readConfigYamlDocFile
+  , readConfig
   ) where
 
 import Spago.Core.Prelude
@@ -33,6 +38,8 @@ import Node.FS.Perms as Perms
 import Node.FS.Stats (Stats)
 import Node.FS.Stats as Stats
 import Node.FS.Sync as FS.Sync
+import Spago.Core.Config as Config
+import Spago.Core.Config.Migrations.FromSnakeCase (migrateFromSnakeCase)
 import Spago.Json as Json
 import Spago.Yaml as Yaml
 
@@ -88,18 +95,18 @@ writeYamlFile :: forall a. JsonCodec a -> FilePath -> a -> Aff Unit
 writeYamlFile codec path = FS.Aff.writeTextFile UTF8 path <<< (_ <> "\n") <<< String.trim <<< Yaml.printYaml codec
 
 -- | Decode data from a YAML file at the provided filepath
-readYamlFile :: forall a. JsonCodec a -> FilePath -> Aff (Either String a)
-readYamlFile codec path = do
+readYamlFile :: forall a. JsonCodec a -> Array (List Yaml.YamlMigrationStep) -> FilePath -> Aff (Either String a)
+readYamlFile codec yamlMigrations path = do
   result <- Aff.attempt $ FS.Aff.readTextFile UTF8 path
-  pure (lmap Aff.message result >>= Yaml.parseYaml codec >>> lmap CA.printJsonDecodeError)
+  pure (lmap Aff.message result >>= Yaml.parseYaml codec yamlMigrations >>> lmap CA.printJsonDecodeError)
 
 writeYamlDocFile :: forall a. FilePath -> Yaml.YamlDoc a -> Aff Unit
 writeYamlDocFile path = FS.Aff.writeTextFile UTF8 path <<< (_ <> "\n") <<< String.trim <<< Yaml.toString
 
-readYamlDocFile :: forall a. JsonCodec a -> FilePath -> Aff (Either String { doc :: Yaml.YamlDoc a, yaml :: a })
-readYamlDocFile codec path = do
+readYamlDocFile :: forall a. JsonCodec a -> Array (List Yaml.YamlMigrationStep) -> FilePath -> Aff (Either String { doc :: Yaml.YamlDoc a, yaml :: a })
+readYamlDocFile codec yamlMigrations path = do
   result <- Aff.attempt $ FS.Aff.readTextFile UTF8 path
-  pure (lmap Aff.message result >>= Yaml.parseYamlDoc codec >>> lmap CA.printJsonDecodeError)
+  pure (lmap Aff.message result >>= Yaml.parseYamlDoc codec yamlMigrations >>> lmap CA.printJsonDecodeError)
 
 stat :: forall m. MonadAff m => FilePath -> m (Either Error Stats)
 stat path = liftAff $ try (FS.Aff.stat path)
@@ -113,3 +120,31 @@ foreign import getInBetweenPathsImpl :: EffectFn2 FilePath FilePath (Array FileP
 
 getInBetweenPaths :: forall m. MonadEffect m => FilePath -> FilePath -> m (Array FilePath)
 getInBetweenPaths a b = liftEffect $ runEffectFn2 getInBetweenPathsImpl a b
+
+-- | Parse a type from a string of JSON data.
+parseConfigYaml :: String -> Either JsonDecodeError Config.Config
+parseConfigYaml = Yaml.parseYaml Config.configCodec configYamlMigrations
+
+-- | Parse a type from a string of YAML data.
+parseConfigYamlDoc :: String -> Either JsonDecodeError { doc :: YamlDoc Config.Config, yaml :: Config.Config }
+parseConfigYamlDoc = Yaml.parseYamlDoc Config.configCodec configYamlMigrations
+
+-- | Decode data from a YAML file at the provided filepath
+readConfigYamlFile :: FilePath -> Aff (Either String Config.Config)
+readConfigYamlFile = readYamlFile Config.configCodec configYamlMigrations
+
+readConfigYamlDocFile :: FilePath -> Aff (Either String { doc :: Yaml.YamlDoc Config.Config, yaml :: Config.Config })
+readConfigYamlDocFile = readYamlDocFile Config.configCodec configYamlMigrations
+
+configYamlMigrations :: Array (List Yaml.YamlMigrationStep)
+configYamlMigrations =
+  [ migrateFromSnakeCase ]
+
+readConfig :: forall a. FilePath -> Spago (LogEnv a) (Either String { doc :: YamlDoc Config.Config, yaml :: Config.Config })
+readConfig path = do
+  logDebug $ "Reading config from " <> path
+  exists path >>= case _ of
+    false -> pure $ Left $ case path of
+      "spago.yaml" -> "Did not find " <> path <> " Run `spago init` to initialise a new project."
+      _ -> "Did not find " <> path
+    true -> liftAff $ readConfigYamlDocFile path

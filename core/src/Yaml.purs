@@ -5,16 +5,23 @@ module Spago.Yaml
   , printYaml
   , stringifyYaml
   , toString
+  , YamlMigrationStep(..)
   ) where
 
-import Prelude
+import Prelude hiding (add)
 
+import Control.Monad.ST (ST)
+import Control.Monad.ST as ST
+import Control.Monad.ST.Uncurried (STFn2, STFn3, runSTFn2, runSTFn3)
 import Data.Argonaut.Core as Core
 import Data.Bifunctor (lmap)
 import Data.Codec.Argonaut (JsonCodec, JsonDecodeError)
 import Data.Codec.Argonaut as CA
 import Data.Either (Either(..))
-import Data.Function.Uncurried (Fn1, Fn3, runFn1, runFn3)
+import Data.Foldable (foldl, for_)
+import Data.Function.Uncurried (Fn1, Fn2, Fn3, runFn1, runFn2, runFn3)
+import Data.List (List)
+import Data.Maybe (Maybe, maybe)
 
 foreign import yamlParserImpl :: forall a. Fn3 (String -> a) (Core.Json -> a) String a
 
@@ -55,12 +62,63 @@ stringifyYaml :: forall a. JsonCodec a -> a -> String
 stringifyYaml codec = stringify <<< CA.encode codec
 
 -- | Parse a type from a string of JSON data.
-parseYaml :: forall a. JsonCodec a -> String -> Either JsonDecodeError a
-parseYaml codec = parseYamlDoc codec >>> map _.yaml
+parseYaml :: forall a. JsonCodec a -> Array (List YamlMigrationStep) -> String -> Either JsonDecodeError a
+parseYaml codec migrations = parseYamlDoc codec migrations >>> map _.yaml
 
 -- | Parse a type from a string of YAML data.
-parseYamlDoc :: forall a. JsonCodec a -> String -> Either JsonDecodeError { doc :: YamlDoc a, yaml :: a }
-parseYamlDoc codec yamlStr = do
+parseYamlDoc :: forall a. JsonCodec a -> Array (List YamlMigrationStep) -> String -> Either JsonDecodeError { doc :: YamlDoc a, yaml :: a }
+parseYamlDoc codec migrations yamlStr = do
   doc <- lmap (\err -> CA.TypeMismatch ("YAML: " <> err)) (yamlParser yamlStr)
-  yaml <- CA.decode codec (toJson doc)
+  yaml <- CA.decode codec $ toJson $ runYamlMigrations doc migrations
   pure { doc, yaml }
+
+foreign import getImpl :: forall h a. STFn3 (YamlDoc a) String Boolean h (YamlDoc a)
+
+get :: forall h a. YamlDoc a -> String -> Boolean -> ST h (YamlDoc a)
+get doc path keep = runSTFn3 getImpl doc path keep
+
+foreign import addImpl :: forall h a. STFn3 (YamlDoc a) String (YamlDoc a) h Unit
+
+add :: forall h a. YamlDoc a -> String -> YamlDoc a -> ST h Unit
+add doc path value = runSTFn3 addImpl doc path value
+
+foreign import deleteImpl :: forall h a. STFn2 (YamlDoc a) String h Unit
+
+delete :: forall h a. YamlDoc a -> String -> ST h Unit
+delete doc path = runSTFn2 deleteImpl doc path
+
+foreign import hasImpl :: forall a. Fn2 (YamlDoc a) String Boolean
+
+has :: forall a. YamlDoc a -> String -> Boolean
+has doc path = runFn2 hasImpl doc path
+
+foreign import toSeqItems :: forall a. YamlDoc a -> Array (YamlDoc a)
+
+foreign import isMap :: forall a. YamlDoc a -> Boolean
+
+newtype YamlMigrationStep = YamlMigrationStep
+  { key :: String
+  , toPrevKey :: Maybe (String -> String)
+  , updateValue :: List (YamlMigrationStep)
+  }
+
+runYamlMigrations :: forall a. YamlDoc a -> Array (List YamlMigrationStep) -> YamlDoc a
+runYamlMigrations doc migrations = ST.run (foldl migrationSteps (pure doc) migrations)
+
+migrationSteps :: forall h a. ST h (YamlDoc a) -> List YamlMigrationStep -> ST h (YamlDoc a)
+migrationSteps doc updates = foldl migrationStep doc updates
+
+migrationStep :: forall h a. ST h (YamlDoc a) -> YamlMigrationStep -> ST h (YamlDoc a)
+migrationStep stDoc (YamlMigrationStep { key, toPrevKey, updateValue}) = do
+  doc <- stDoc
+  let oldKey = maybe key (\f -> f key) toPrevKey
+  when (has doc oldKey) do
+    value <- get doc oldKey true
+    for_ (toSeqItems value) \item ->
+      void $ migrationSteps (pure item) updateValue
+    when (isMap value) do
+      void $ migrationSteps (pure value) updateValue             
+    for_ toPrevKey \_ -> do
+      delete doc oldKey
+      add doc key value
+  pure doc

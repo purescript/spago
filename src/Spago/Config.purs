@@ -154,7 +154,7 @@ readWorkspace { maybeSelectedPackage, pureBuild } = do
 
   -- First try to read the config in the root. It _has_ to contain a workspace
   -- configuration, or we fail early.
-  { workspace, package: maybePackage, workspaceDoc } <- Core.readConfig "spago.yaml" >>= case _ of
+  { workspace, package: maybePackage, workspaceDoc } <- FS.readConfig "spago.yaml" >>= case _ of
     Left err -> die [ "Couldn't parse Spago config, error:\n  " <> err, "The configuration file help can be found here https://github.com/purescript/spago#the-configuration-file" ]
     Right { yaml: { workspace: Nothing } } -> die
       [ "Your spago.yaml doesn't contain a workspace section."
@@ -184,7 +184,7 @@ readWorkspace { maybeSelectedPackage, pureBuild } = do
   -- We read all of them in, and only read the package section, if any.
   let
     readWorkspaceConfig path = do
-      maybeConfig <- Core.readConfig path
+      maybeConfig <- FS.readConfig path
       -- We try to figure out if this package has tests - look for test sources
       hasTests <- FS.exists (Path.concat [ Path.dirname path, "test" ])
       pure $ case maybeConfig of
@@ -241,7 +241,8 @@ readWorkspace { maybeSelectedPackage, pureBuild } = do
 
   maybeLockfileContents <- FS.exists "spago.lock" >>= case _ of
     false -> pure (Left "No lockfile found")
-    true -> liftAff (FS.readYamlFile Lock.lockfileCodec "spago.lock") >>= case _ of
+    -- TODO: migrate lock file as well
+    true -> liftAff (FS.readYamlFile Lock.lockfileCodec [] "spago.lock") >>= case _ of
       Left error -> do
         logWarn
           [ "Your project contains a spago.lock file, but it cannot be decoded. Spago will generate a new one."
