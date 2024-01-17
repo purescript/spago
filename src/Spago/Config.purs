@@ -58,6 +58,7 @@ import Spago.FS as FS
 import Spago.Git as Git
 import Spago.Lock (Lockfile, PackageSetInfo)
 import Spago.Lock as Lock
+import Spago.Lock.Migrations.FromSnakeCase (migrateLockFromSnakeCase)
 import Spago.Paths as Paths
 import Spago.Registry as Registry
 import Type.Proxy (Proxy(..))
@@ -242,7 +243,7 @@ readWorkspace { maybeSelectedPackage, pureBuild } = do
   maybeLockfileContents <- FS.exists "spago.lock" >>= case _ of
     false -> pure (Left "No lockfile found")
     -- TODO: migrate lock file as well
-    true -> liftAff (FS.readYamlFile Lock.lockfileCodec [] "spago.lock") >>= case _ of
+    true -> liftAff (FS.readYamlFile Lock.lockfileCodec [ migrateLockFromSnakeCase ] "spago.lock") >>= case _ of
       Left error -> do
         logWarn
           [ "Your project contains a spago.lock file, but it cannot be decoded. Spago will generate a new one."
