@@ -155,7 +155,12 @@ readWorkspace { maybeSelectedPackage, pureBuild } = do
   -- First try to read the config in the root. It _has_ to contain a workspace
   -- configuration, or we fail early.
   { workspace, package: maybePackage, workspaceDoc } <- Core.readConfig "spago.yaml" >>= case _ of
-    Left err -> die [ "Couldn't parse Spago config, error:\n  " <> err, "The configuration file help can be found here https://github.com/purescript/spago#the-configuration-file" ]
+    Left errLines ->
+      die
+        [ toDoc "Couldn't parse Spago config, error:"
+        , indent $ toDoc errLines
+        , toDoc "The configuration file help can be found here https://github.com/purescript/spago#the-configuration-file"
+        ]
     Right { yaml: { workspace: Nothing } } -> die
       [ "Your spago.yaml doesn't contain a workspace section."
       , "See the relevant documentation here: https://github.com/purescript/spago#the-workspace"
@@ -188,15 +193,19 @@ readWorkspace { maybeSelectedPackage, pureBuild } = do
       -- We try to figure out if this package has tests - look for test sources
       hasTests <- FS.exists (Path.concat [ Path.dirname path, "test" ])
       pure $ case maybeConfig of
-        Left e -> Left $ "Could not read config at path " <> path <> "\nError was: " <> e
-        Right { yaml: { package: Nothing } } -> Left $ "No package found for config at path: " <> path
+        Left eLines -> Left $ toDoc
+          [ toDoc $ "Could not read config at path " <> path
+          , toDoc "Error was: "
+          , indent $ toDoc eLines
+          ]
+        Right { yaml: { package: Nothing } } -> Left $ toDoc $ "No package found for config at path: " <> path
         Right { yaml: { package: Just package, workspace: configWorkspace }, doc } -> do
           -- We store the path of the package, so we can treat it basically as a LocalPackage
           Right $ Tuple package.name { path: Path.dirname path, package, configWorkspace, doc, hasTests }
   { right: otherPackages, left: failedPackages } <- partitionMap identity <$> traverse readWorkspaceConfig otherConfigPaths
 
   unless (Array.null failedPackages) do
-    logWarn $ [ "Failed to read some configs:" ] <> failedPackages
+    logWarn $ [ toDoc "Failed to read some configs:" ] <> failedPackages
 
   -- We prune any configs that use a different workspace.
   -- For reasoning, see https://github.com/purescript/spago/issues/951

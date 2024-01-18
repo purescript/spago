@@ -1,0 +1,6 @@
+Reading Spago workspace configuration...
+
+❌ Couldn't parse Spago config, error:
+  Did not find `spago.yaml`. Spago's configuration files must end with `.yaml`, not `.yml`. 
+  Try renaming `spago.yml` to `spago.yaml` or run `spago init` to initialize a new project.
+The configuration file help can be found here https://github.com/purescript/spago#the-configuration-file

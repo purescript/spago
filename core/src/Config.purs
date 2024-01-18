@@ -47,6 +47,8 @@ import Data.Either as Either
 import Data.List as List
 import Data.Map as Map
 import Data.Profunctor as Profunctor
+import Data.String (stripSuffix) as String
+import Data.String.Pattern (Pattern(..)) as String
 import Partial.Unsafe (unsafeCrashWith)
 import Registry.Internal.Codec as Internal.Codec
 import Registry.License as License
@@ -477,11 +479,30 @@ legacyPackageSetEntryCodec = CA.object "LegacyPackageSetEntry"
   $ CA.recordProp (Proxy :: _ "dependencies") (CA.array PackageName.codec)
   $ CA.record
 
-readConfig :: forall a. FilePath -> Spago (LogEnv a) (Either String { doc :: YamlDoc Config, yaml :: Config })
+readConfig :: forall a. FilePath -> Spago (LogEnv a) (Either (Array String) { doc :: YamlDoc Config, yaml :: Config })
 readConfig path = do
   logDebug $ "Reading config from " <> path
   FS.exists path >>= case _ of
-    false -> pure $ Left $ case path of
-      "spago.yaml" -> "Did not find " <> path <> " Run `spago init` to initialise a new project."
-      _ -> "Did not find " <> path
-    true -> liftAff $ FS.readYamlDocFile configCodec path
+    false -> do
+      let replaceExt = map (_ <> ".yml") <<< String.stripSuffix (String.Pattern ".yaml")
+      yml <- map join $ for (replaceExt path) \yml -> do
+        hasYml <- FS.exists yml
+        pure $
+          if hasYml then
+            Just yml
+          else
+            Nothing
+      pure $ Left $ case path, yml of
+        "spago.yaml", Nothing ->
+          [ "Did not find `" <> path <> "`. Run `spago init` to initialize a new project." ]
+        "spago.yaml", Just y ->
+          [ "Did not find `" <> path <> "`. Spago's configuration files must end with `.yaml`, not `.yml`. "
+          , "Try renaming `" <> y <> "` to `" <> path <> "` or run `spago init` to initialize a new project."
+          ]
+        _, Nothing ->
+          [ "Did not find `" <> path <> "`." ]
+        _, Just y ->
+          [ "Did not find `" <> path <> "`. Spago's configuration files must end with `.yaml`, not `.yml`. "
+          , "Try renaming `" <> y <> "` to `" <> path <> "`."
+          ]
+    true -> liftAff $ map (lmap pure) $ FS.readYamlDocFile configCodec path

@@ -377,7 +377,11 @@ getPackageDependencies packageName package = case package of
       Right { yaml: { package: Just { dependencies: (Dependencies deps) } } } -> do
         pure (Just (map (fromMaybe Config.widestRange) deps))
       Right _ -> die [ "Read valid configuration from " <> configLocation, "However, there was no `package` section to be read." ]
-      Left err -> die [ "Could not read config at " <> configLocation, "Error: " <> err ]
+      Left errLines -> die
+        [ toDoc $ "Could not read config at " <> configLocation
+        , toDoc "Error: "
+        , indent $ toDoc errLines
+        ]
 
 getWorkspacePackageDeps :: WorkspacePackage -> Dependencies
 getWorkspacePackageDeps pkg =
