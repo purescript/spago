@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Other improvements:
 - builds with Cabal successfully
 - update to latest `versions` dependency: https://hackage.haskell.org/package/versions-6.0.1/changelog
+- remove `flake-utils` Nix Flake dependency by inlining its loop
 
 ## [0.21.0] - 2023-05-04
 
