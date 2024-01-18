@@ -771,7 +771,7 @@ Where:
       - console
       - prelude
       - lib1 # <------ Note the dependency here
-    tests:
+    test:
       main: Test.Lib2.Main
       dependencies:
         - spec
@@ -903,7 +903,7 @@ package:
     - effect
     - console
     - prelude
-  tests:
+  test:
     main: Test.Main
     dependencies:
       - spec
