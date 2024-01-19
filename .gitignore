@@ -12,6 +12,7 @@
 /bin/bundle.js
 /bin/docs-search-app.js
 .direnv
+.envrc
 *.node
 **/.vscode
 **/.DS_Store

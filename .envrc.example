@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 
+# For Nix flake users who want an automatic dev shell
 if command -v nix;
 then
   export NIXPKGS_ALLOW_UNFREE=1
