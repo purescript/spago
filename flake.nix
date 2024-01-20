@@ -1,32 +1,40 @@
 {
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-23.05";
-    flake-utils.url  = "github:numtide/flake-utils";
     purescript-overlay.url = "github:thomashoneyman/purescript-overlay";
     purescript-overlay.inputs.nixpkgs.follows = "nixpkgs";
   };
 
-  outputs = { self, nixpkgs, flake-utils, purescript-overlay }:
-    flake-utils.lib.eachDefaultSystem (system:
-      let
-        overlays = [ purescript-overlay.overlays.default ];
-        pkgs = import nixpkgs {
-          inherit system overlays;
-        };
-      in {
-        devShells.default = pkgs.mkShell {
-          name = "spago";
-          buildInputs = with pkgs; [
-            purs
-            purs-tidy
-            purs-backend-es
-            spago-unstable
+  outputs = { self, nixpkgs, ... }@inputs:
+    let
+      supportedSystems = [ "aarch64-linux" "x86_64-linux" "aarch64-darwin" "x86_64-darwin" ];
 
-            nodejs
-            esbuild
-            gh
-          ];
-        };
-      }
-    );
+      forAllSystems = nixpkgs.lib.genAttrs supportedSystems;
+
+      nixpkgsFor = forAllSystems (system: import nixpkgs {
+        inherit system;
+        overlays = builtins.attrValues self.overlays;
+      });
+    in
+    {
+      overlays = {
+        purescript = inputs.purescript-overlay.overlays.default;
+      };
+
+      devShells = forAllSystems (system:
+        let pkgs = nixpkgsFor.${system}; in {
+          default = pkgs.mkShell {
+            name = "spago";
+            buildInputs = with pkgs; [
+              purs
+              purs-tidy
+              purs-backend-es
+              spago-unstable
+
+              nodejs
+              esbuild
+            ];
+          };
+        });
+    };
 }
