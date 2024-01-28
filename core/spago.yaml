@@ -33,5 +33,6 @@ package:
     - refs
     - registry-lib
     - strings
+    - stringutils
     - transformers
     - tuples

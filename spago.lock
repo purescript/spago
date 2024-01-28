@@ -713,6 +713,7 @@ workspace:
         - refs
         - registry-lib
         - strings
+        - stringutils
         - transformers
         - tuples
       test_dependencies: []
@@ -790,6 +791,7 @@ workspace:
         - safe-coerce
         - st
         - strings
+        - stringutils
         - tailrec
         - transformers
         - tuples
