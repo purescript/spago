@@ -41,15 +41,16 @@
         "slimlock": "slimlock"
       },
       "locked": {
-        "lastModified": 1703097182,
-        "narHash": "sha256-L7UeQMdZWKEOUpRveXhvq2aF18yF5KgyCUYZYxvCZPI=",
-        "owner": "thomashoneyman",
+        "lastModified": 1706481008,
+        "narHash": "sha256-kJM7DrlVMw7gE9OQrgnHwqqpvrqH96joxny7DFDW+s8=",
+        "owner": "deemp",
         "repo": "purescript-overlay",
-        "rev": "aa82efe06d9d32cee5bda7a44d9cf6cdc4c6fb60",
+        "rev": "a96030d11bd0990505c0748e39d23f2f9b46d074",
         "type": "github"
       },
       "original": {
-        "owner": "thomashoneyman",
+        "owner": "deemp",
+        "ref": "main",
         "repo": "purescript-overlay",
         "type": "github"
       }
