@@ -5,6 +5,7 @@ module Spago.FS
   , getInBetweenPaths
   , isLink
   , ls
+  , cp
   , mkdirp
   , moveSync
   , copyFileSync
@@ -49,6 +50,11 @@ copyFileSync { src, dst } = liftEffect $ FS.Sync.copyFile src dst
 
 copyFile :: forall m. MonadAff m => { src :: FilePath, dst :: FilePath } -> m Unit
 copyFile { src, dst } = liftAff $ FS.Aff.copyFile src dst
+
+foreign import cpImpl :: String -> String -> Effect Unit
+
+cp :: forall m. MonadEffect m => { src :: FilePath, dst :: FilePath } -> m Unit
+cp { src, dst } = liftEffect $ cpImpl src dst
 
 foreign import ensureFileSyncImpl :: String -> Effect Unit
 
