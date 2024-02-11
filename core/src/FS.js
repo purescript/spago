@@ -6,6 +6,8 @@ export const moveSyncImpl = (source) => (destination) => () => moveSync(source, 
 
 export const ensureFileSyncImpl = (file) => () => ensureFileSync(file);
 
+export const cpImpl = (source) => (dest) => () => fs.copySync(source, dest);
+
 // This takes a "basepath" and a "path", and returns the segments of difference between them.
 // So e.g. if basepath = "/a/b/c" and path = "/a/b/c/d/e", it will return ["d", "e"]
 function getPathDifference(basepath, pathToCompare) {

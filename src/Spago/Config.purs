@@ -167,7 +167,7 @@ readWorkspace { maybeSelectedPackage, pureBuild } = do
       ]
     Right { yaml: { workspace: Just workspace, package }, doc } -> pure { workspace, package, workspaceDoc: doc }
 
-  -- Then gather all the spago other configs in the tree.
+  logDebug "Gathering all the spago configs in the tree..."
   { succeeded: otherConfigPaths, failed, ignored } <- do
     result <- liftAff $ Glob.match' Paths.cwd [ "**/spago.yaml" ] { ignore: [ ".spago", "spago.yaml" ] }
     -- If a file is gitignored then we don't include it as a package
@@ -248,6 +248,7 @@ readWorkspace { maybeSelectedPackage, pureBuild } = do
           pkgs -> [ toDoc "Available packages:", indent (toDoc pkgs) ]
       Just p -> pure (Just p)
 
+  logDebug "Reading the lockfile..."
   maybeLockfileContents <- FS.exists "spago.lock" >>= case _ of
     false -> pure (Left "No lockfile found")
     true -> liftAff (FS.readYamlFile Lock.lockfileCodec "spago.lock") >>= case _ of

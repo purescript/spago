@@ -56,7 +56,7 @@ run args = do
       -- We might be in a place where the config file is untouched, but we still need to update the lockfile
       case workspace.packageSet.lockfile of
         Right _ -> pure unit
-        Left reason -> writeNewLockfile reason
+        Left reason -> void $ writeNewLockfile reason
     Just removed' -> do
       modifyDoc removed'
 
@@ -78,7 +78,7 @@ run args = do
           }
 
       local (_ { workspace = newWorkspace }) do
-        writeNewLockfile "Lockfile is out of date (uninstalled packages)"
+        void $ writeNewLockfile "Lockfile is out of date (uninstalled packages)"
 
   where
   writeNewLockfile reason = do

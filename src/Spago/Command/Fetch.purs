@@ -181,10 +181,6 @@ run { packages: packagesRequestedToInstall, ensureRanges, isTest, isRepl } = do
         Nothing -> die "Impossible: package dependencies must be in dependencies map"
         Just deps -> pure $ Map.union deps if isRepl then supportPackage else Map.empty
 
-    case workspace.packageSet.lockfile of
-      Right _lockfile -> pure unit
-      Left reason -> writeNewLockfile reason allTransitiveDeps
-
     -- then for every package we have we try to download it, and copy it in the local cache
     logInfo "Downloading dependencies..."
 
@@ -264,14 +260,18 @@ run { packages: packagesRequestedToInstall, ensureRanges, isTest, isRepl } = do
         LocalPackage _ -> pure unit
         WorkspacePackage _ -> pure unit
 
-    pure dependencies
+    -- We return the dependencies, going through the lockfile write if we need to
+    -- (we return them from inside there because we need to update the commit hashes)
+    case workspace.packageSet.lockfile of
+      Right _lockfile -> pure dependencies
+      Left reason -> writeNewLockfile reason dependencies
 
 type LockfileBuilderResult =
   { workspacePackages :: Map PackageName Lock.WorkspaceLockPackage
   , packages :: Map PackageName Lock.LockEntry
   }
 
-writeNewLockfile :: forall a. String -> PackageTransitiveDeps -> Spago (FetchEnv a) Unit
+writeNewLockfile :: forall a. String -> PackageTransitiveDeps -> Spago (FetchEnv a) PackageTransitiveDeps
 writeNewLockfile reason allTransitiveDeps = do
   logInfo $ reason <> ", generating it..."
   { workspace } <- ask
@@ -332,6 +332,21 @@ writeNewLockfile reason allTransitiveDeps = do
   liftAff $ FS.writeYamlFile Lock.lockfileCodec "spago.lock" lockfile
   logInfo "Lockfile written to spago.lock. Please commit this file."
 
+  -- We update the dependencies here with the commit hashes that came from the getRef calls,
+  -- so that the build uses them instead of the tags
+  pure $ Map.mapMaybeWithKey
+    ( \_workspacePackage packageMap -> Just $ Map.mapMaybeWithKey
+        ( \name package -> Just case package of
+            GitPackage gitPackage -> case Map.lookup name packages of
+              Nothing -> package
+              Just (FromGit { rev }) -> GitPackage $ gitPackage { ref = rev }
+              Just _ -> package
+            _ -> package
+        )
+        packageMap
+    )
+    allTransitiveDeps
+
 toAllDependencies :: PackageTransitiveDeps -> PackageMap
 toAllDependencies = foldl (Map.unionWith (\l _ -> l)) Map.empty
 
@@ -346,6 +361,20 @@ getGitPackageInLocalCache name package = do
       logDebug $ "Repo cloned. Moving to " <> localPackageLocation
       FS.mkdirp $ Path.concat [ Paths.localCachePackagesPath, PackageName.print name ]
       FS.moveSync { src: tempDir, dst: localPackageLocation }
+
+      -- Note: the package might have been cloned with a tag, but we stick the commit hash in the lockfiles
+      -- so we need to make a copy to a location that has the commit hash too.
+      -- So we run getRef here and then do a copy if the ref is different than the original one
+      -- (since it might be a commit to start with)
+      logDebug $ "Checking if we need to copy the package to a commit hash location..."
+      Git.getRef (Just localPackageLocation) >>= case _ of
+        Left err -> die err
+        Right ref -> do
+          when (ref /= package.ref) do
+            let commitHashLocation = Config.getPackageLocation name (GitPackage $ package { ref = ref })
+            logDebug $ "Copying the repo also to " <> commitHashLocation
+            FS.mkdirp $ Path.concat [ Paths.localCachePackagesPath, PackageName.print name ]
+            FS.cp { src: localPackageLocation, dst: commitHashLocation }
 
 getPackageDependencies :: forall a. PackageName -> Package -> Spago (FetchEnv a) (Maybe (Map PackageName Range))
 getPackageDependencies packageName package = case package of
