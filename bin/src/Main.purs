@@ -148,6 +148,7 @@ type TestArgs =
   , pursArgs :: List String
   , backendArgs :: List String
   , execArgs :: Maybe (Array String)
+  , main :: Maybe String
   , strict :: Maybe Boolean
   , statVerbosity :: Maybe Core.StatVerbosity
   , pure :: Boolean
@@ -373,6 +374,7 @@ testArgsParser = Optparse.fromRecord
   , pursArgs: Flags.pursArgs
   , backendArgs: Flags.backendArgs
   , execArgs: Flags.execArgs
+  , main: Flags.moduleName
   , output: Flags.output
   , pedanticPackages: Flags.pedanticPackages
   , strict: Flags.strict
@@ -803,7 +805,7 @@ mkTestEnv testArgs { dependencies, purs } = do
         testConf :: forall x. (TestConfig -> Maybe x) -> Maybe x
         testConf f = selected.package.test >>= f
 
-        moduleName = fromMaybe "Test.Main" (testConf (_.main >>> Just))
+        moduleName = fromMaybe "Test.Main" (testArgs.main <|> testConf (_.main >>> Just))
         execArgs = fromMaybe [] (testArgs.execArgs <|> testConf _.exec_args)
       in
         { moduleName
