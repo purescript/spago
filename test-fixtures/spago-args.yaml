@@ -1,0 +1,15 @@
+package:
+  name: aaa
+  dependencies:
+    - console
+    - effect
+    - prelude
+  run:
+    exec_args:
+      - "hello"
+      - "world"
+
+workspace:
+  package_set:
+    registry: 29.3.0
+  extra_packages: {}

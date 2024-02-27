@@ -191,15 +191,13 @@ pursArgs =
       )
 
 execArgs :: Parser (Maybe (Array String))
-execArgs =
-  OT.optional
-    $ Array.fromFoldable
-    <$> O.many
-      ( O.strArgument
-          ( O.help "Arguments to pass to the running script"
-              <> O.metavar "ARGS"
-          )
-      )
+execArgs = (\s -> if List.null s then Nothing else (Just $ Array.fromFoldable s))
+  <$> O.many
+    ( O.strArgument
+        ( O.help "Arguments to pass to the running script"
+            <> O.metavar "ARGS"
+        )
+    )
 
 backendArgs :: Parser (List String)
 backendArgs =

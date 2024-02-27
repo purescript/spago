@@ -32,4 +32,20 @@ spec = Spec.around withTempDir do
       cp (fixture "spago-run-args.purs") "src/Main.purs"
       spago [ "install", "node-process", "arrays" ] >>= shouldBeSuccess
       spago [ "build" ] >>= shouldBeSuccess
-      spago [ "run", "--", "hello world" ] >>= shouldBeSuccessOutput (fixture "run-args-output.txt")
+      spago [ "run", "hello" , "world" ] >>= shouldBeSuccessOutput (fixture "run-args-output.txt")
+
+    Spec.it "args in spago.yaml should be used as the fallback args" \{ spago, fixture } -> do
+      spago [ "init" ] >>= shouldBeSuccess
+      cp (fixture "spago-run-args.purs") "src/Main.purs"
+      cp (fixture "spago-args.yaml") "spago.yaml"
+      spago [ "install", "node-process", "arrays" ] >>= shouldBeSuccess
+      spago [ "build" ] >>= shouldBeSuccess
+      spago [ "run" ] >>= shouldBeSuccessOutput (fixture "run-args-output.txt")
+
+    Spec.it "explicit args has more priority than args in spago.yaml" \{ spago, fixture } -> do
+      spago [ "init" ] >>= shouldBeSuccess
+      cp (fixture "spago-args.yaml") "spago.yaml"
+      cp (fixture "spago-run-args.purs") "src/Main.purs"
+      spago [ "install", "node-process", "arrays" ] >>= shouldBeSuccess
+      spago [ "build" ] >>= shouldBeSuccess
+      spago [ "run", "bye" , "world" ] >>= shouldBeSuccessOutput (fixture "run-args-output2.txt")
