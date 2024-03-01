@@ -1495,6 +1495,16 @@ When using package sets it is disabled by default - since we already get a stabl
 
 You can enable it manually by adding a `lock: true` field to the `workspace` section of your `spago.yaml` file, and that will keep it on regardless of which solving mode you're using.
 
+### File System Paths used in Spago
+
+Run `spago ls paths` to see all paths used by Spago. But in general, Spago utilizes two main directories for every project:
+- the global cache directory
+- the local cache directory
+
+The global cache directory is located at `${XDG_CACHE_HOME}/spago-nodejs`. It's location can be changed by configuring the [`XDG_CACHE_HOME`](https://specifications.freedesktop.org/basedir-spec/basedir-spec-latest.html) environment variable.
+
+The local cache directory is located at `<project-directory>/.spago` and its location cannot be changed.
+
 ## FAQ
 
 ### Why can't `spago` also install my npm dependencies?
