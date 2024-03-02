@@ -1498,12 +1498,17 @@ You can enable it manually by adding a `lock: true` field to the `workspace` sec
 ### File System Paths used in Spago
 
 Run `spago ls paths` to see all paths used by Spago. But in general, Spago utilizes two main directories for every project:
-- the global cache directory
 - the local cache directory
-
-The global cache directory is located at `${XDG_CACHE_HOME}/spago-nodejs`. It's location can be changed by configuring the [`XDG_CACHE_HOME`](https://specifications.freedesktop.org/basedir-spec/basedir-spec-latest.html) environment variable.
+- the global cache directory
 
 The local cache directory is located at `<project-directory>/.spago` and its location cannot be changed.
+
+The global cache directory's location depends on your OS. Its location can be changed by configuring the corresponding environment variable, if it is used:
+- Mac: `~/Library/Caches/spago-nodejs`. The location cannot be changed.
+- Linux: `${XDG_CACHE_HOME}/spago-nodejs`, or if `XDG_CACHE_HOME` is not set, `~/.cache/spago-nodejs`. See [`XDG_CACHE_HOME`](https://specifications.freedesktop.org/basedir-spec/basedir-spec-latest.html).
+- Windows: `%LOCALAPPDATA%\spago-nodejs\Cache`, or if `$LOCALAPPDATA%` is not set, `C:\Users\USERNAME\AppData\Local\spago-nodejs\Cache`.
+- NixOS: `${XDG_RUNTIME_DIR}/spago-nodejs`. See [`XDG_RUNTIME_DIR`](https://specifications.freedesktop.org/basedir-spec/basedir-spec-latest.html).
+
 
 ## FAQ
 
