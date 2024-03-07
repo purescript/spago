@@ -184,6 +184,11 @@ spec = Spec.describe "polyrepo" do
     spago [ "uninstall", "-p", "root", "console", "effect", "prelude" ] >>= shouldBeSuccess
     spago [ "build", "-p", "root", "--pedantic-packages" ] >>= shouldBeSuccess
 
+  Spec.it "ignore nested workspaces" \{ spago, fixture } -> do
+    FS.copyTree { src: fixture "monorepo/ignore-nested-workspaces", dst: "." }
+    spago [ "build" ] >>= shouldBeSuccess
+    spago [ "build" ] >>= shouldBeSuccessErr (fixture "monorepo/ignore-nested-workspaces/expected-stderr.txt")
+
   Spec.describe "warning censoring and error-promotion" do
     let
       setupPackageWithUnusedNameWarning packageName deps strict censorShadowedName includeTestCode = do
