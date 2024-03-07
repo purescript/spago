@@ -189,6 +189,11 @@ spec = Spec.describe "polyrepo" do
     spago [ "build" ] >>= shouldBeSuccess
     spago [ "build" ] >>= shouldBeSuccessErr (fixture "monorepo/ignore-nested-workspaces/expected-stderr.txt")
 
+  Spec.it "it's possible to reference local packages when using the solver" \{ spago, fixture } -> do
+    FS.copyTree { src: fixture "monorepo/local-packages-work-with-solver", dst: "." }
+    spago [ "build" ] >>= shouldBeSuccess
+    spago [ "build" ] >>= shouldBeSuccessErr (fixture "monorepo/local-packages-work-with-solver/expected-stderr.txt")
+
   Spec.describe "warning censoring and error-promotion" do
     let
       setupPackageWithUnusedNameWarning packageName deps strict censorShadowedName includeTestCode = do
