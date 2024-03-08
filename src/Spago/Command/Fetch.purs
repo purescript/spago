@@ -374,7 +374,7 @@ getGitPackageInLocalCache name package = do
             let commitHashLocation = Config.getPackageLocation name (GitPackage $ package { ref = ref })
             logDebug $ "Copying the repo also to " <> commitHashLocation
             FS.mkdirp $ Path.concat [ Paths.localCachePackagesPath, PackageName.print name ]
-            FS.cp { src: localPackageLocation, dst: commitHashLocation }
+            FS.copyTree { src: localPackageLocation, dst: commitHashLocation }
 
 getPackageDependencies :: forall a. PackageName -> Package -> Spago (FetchEnv a) (Maybe (Map PackageName Range))
 getPackageDependencies packageName package = case package of

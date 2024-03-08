@@ -46,7 +46,6 @@ import Dodo as Log
 import Effect.Uncurried (EffectFn2, EffectFn3, runEffectFn2, runEffectFn3)
 import Foreign.Object as Foreign
 import Node.Path as Path
-import Record as Record
 import Registry.Foreign.FastGlob as Glob
 import Registry.Internal.Codec as Internal.Codec
 import Registry.PackageName as PackageName
@@ -60,7 +59,6 @@ import Spago.Lock (Lockfile, PackageSetInfo)
 import Spago.Lock as Lock
 import Spago.Paths as Paths
 import Spago.Registry as Registry
-import Type.Proxy (Proxy(..))
 
 type Workspace =
   { selected :: Maybe WorkspacePackage
@@ -146,6 +144,14 @@ data Package
   | LocalPackage Core.LocalPackage
   | WorkspacePackage WorkspacePackage
 
+type ConfigReadResult =
+  { package :: Maybe Core.PackageConfig
+  , configWorkspace :: Maybe Core.WorkspaceConfig
+  , doc :: YamlDoc Core.Config
+  , hasTests :: Boolean
+  , path :: FilePath
+  }
+
 -- | Reads all the configurations in the tree and builds up the Map of local
 -- | packages to be integrated in the package set
 readWorkspace :: { maybeSelectedPackage :: Maybe PackageName, pureBuild :: Boolean } -> Spago (Registry.RegistryEnv _) Workspace
@@ -188,6 +194,7 @@ readWorkspace { maybeSelectedPackage, pureBuild } = do
 
   -- We read all of them in, and only read the package section, if any.
   let
+    readWorkspaceConfig :: FilePath -> Spago (Registry.RegistryEnv _) (Either Docc ConfigReadResult)
     readWorkspaceConfig path = do
       maybeConfig <- Core.readConfig path
       -- We try to figure out if this package has tests - look for test sources
@@ -198,27 +205,29 @@ readWorkspace { maybeSelectedPackage, pureBuild } = do
           , toDoc "Error was: "
           , indent $ toDoc eLines
           ]
-        Right { yaml: { package: Nothing } } -> Left $ toDoc $ "No package found for config at path: " <> path
-        Right { yaml: { package: Just package, workspace: configWorkspace }, doc } -> do
-          -- We store the path of the package, so we can treat it basically as a LocalPackage
-          Right $ Tuple package.name { path: Path.dirname path, package, configWorkspace, doc, hasTests }
-  { right: otherPackages, left: failedPackages } <- partitionMap identity <$> traverse readWorkspaceConfig otherConfigPaths
+        Right { yaml: { package, workspace: configWorkspace }, doc } -> do
+          Right { package, configWorkspace, doc, hasTests, path: Path.dirname path }
 
+  { right: otherPackages, left: failedPackages } <- partitionMap identity <$> traverse readWorkspaceConfig otherConfigPaths
   unless (Array.null failedPackages) do
     logWarn $ [ toDoc "Failed to read some configs:" ] <> failedPackages
 
   -- We prune any configs that use a different workspace.
   -- For reasoning, see https://github.com/purescript/spago/issues/951
+  let configPathsWithWorkspaces = otherPackages # Array.mapMaybe \readResult -> readResult.path <$ readResult.configWorkspace
+  unless (Array.null configPathsWithWorkspaces) do
+    logDebug $ "Found these paths with workspaces: " <> show configPathsWithWorkspaces
   let
-    configPathsWithWorkspaces = Array.mapMaybe (\(Tuple _ configParts) -> configParts.path <$ configParts.configWorkspace) otherPackages
-    { right: configsNoWorkspaces, left: prunedConfigs } = otherPackages # partitionMap \config -> do
-      let configPath = (snd config).path
-      if Array.any (\p -> isJust $ String.stripPrefix (Pattern p) configPath) configPathsWithWorkspaces then
-        Left configPath
+    { right: configsNoWorkspaces, left: prunedConfigs } = otherPackages # partitionMap \readResult@{ doc, path, hasTests } -> do
+      if Array.any (\p -> isJust $ String.stripPrefix (Pattern p) path) configPathsWithWorkspaces then
+        Left path
       else
-        Right $ config <#> Record.delete (Proxy :: _ "configWorkspace")
+        case readResult.package of
+          Nothing -> Left path
+          Just package ->
+            -- We store the path of the package, so we can treat it basically as a LocalPackage
+            Right (Tuple package.name { package, doc, path, hasTests })
 
-  -- TODO: this should be a logwarning, and there should be a test
   unless (Array.null prunedConfigs) do
     logDebug $ [ "Excluding configs that use a different workspace (directly or implicitly via parent directory's config):" ] <> Array.sort prunedConfigs
 

@@ -1,0 +1,13 @@
+package:
+  name: ignore-nested-workspaces
+  dependencies:
+    - console
+    - effect
+    - prelude
+  test:
+    main: Test.Main
+    dependencies: []
+workspace:
+  package_set:
+    registry: 50.3.2
+  extra_packages: {}

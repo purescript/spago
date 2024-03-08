@@ -5,11 +5,11 @@ module Spago.FS
   , getInBetweenPaths
   , isLink
   , ls
-  , cp
   , mkdirp
   , moveSync
   , copyFileSync
   , copyFile
+  , copyTree
   , readJsonFile
   , readTextFile
   , readYamlDocFile
@@ -53,8 +53,12 @@ copyFile { src, dst } = liftAff $ FS.Aff.copyFile src dst
 
 foreign import cpImpl :: String -> String -> Effect Unit
 
-cp :: forall m. MonadEffect m => { src :: FilePath, dst :: FilePath } -> m Unit
-cp { src, dst } = liftEffect $ cpImpl src dst
+-- | Copy a file or directory. The directory can have contents.
+-- | Note: if `src` is a directory it will copy everything inside of this directory,
+-- | not the entire directory itself.
+-- | Note: if `src` is a file, `dst` cannot be a directory
+copyTree :: forall m. MonadEffect m => { src :: FilePath, dst :: FilePath } -> m Unit
+copyTree { src, dst } = liftEffect $ cpImpl src dst
 
 foreign import ensureFileSyncImpl :: String -> Effect Unit
 
