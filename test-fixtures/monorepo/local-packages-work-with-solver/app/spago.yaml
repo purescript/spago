@@ -5,6 +5,3 @@ package:
     - effect
     - prelude
     - lib
-  test:
-    main: Test.Main
-    dependencies: []

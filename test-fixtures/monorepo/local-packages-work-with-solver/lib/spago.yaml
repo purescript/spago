@@ -4,6 +4,3 @@ package:
     - console
     - effect
     - prelude
-  test:
-    main: Test.Main
-    dependencies: []

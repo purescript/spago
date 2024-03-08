@@ -7,9 +7,7 @@ Reading Spago workspace configuration...
 Downloading dependencies...
 Building...
 purs compile: No files found using pattern: app/src/**/*.purs
-purs compile: No files found using pattern: app/test/**/*.purs
 purs compile: No files found using pattern: lib/src/**/*.purs
-purs compile: No files found using pattern: lib/test/**/*.purs
            Src   Lib   All
 Warnings     0     0     0
 Errors       0     0     0
