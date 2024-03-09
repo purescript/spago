@@ -1,0 +1,11 @@
+package:
+  name: package-b
+  dependencies:
+    - package-a
+    - prelude
+  build:
+    strict: true
+  test:
+    main: Test.PACKAGE.B
+    strict: true
+    dependencies: []

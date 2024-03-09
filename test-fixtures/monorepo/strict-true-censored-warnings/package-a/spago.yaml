@@ -1,0 +1,8 @@
+package:
+  name: package-a
+  dependencies:
+    - prelude
+  build:
+    censor_project_warnings:
+      - UnusedName
+    strict: true

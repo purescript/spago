@@ -1,0 +1,13 @@
+package:
+  name: package-b
+  dependencies:
+    - control
+    - prelude
+    - tuples
+  test:
+    main: Test.PACKAGE.B
+    pedantic_packages: true
+    dependencies:
+      - control
+      - either
+      - prelude

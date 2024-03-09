@@ -11,7 +11,7 @@ import Spago.FS as FS
 import Spago.Paths as Paths
 import Test.Spago.Build.BuildInfo as BuildInfo
 import Test.Spago.Build.Pedantic as Pedantic
-import Test.Spago.Build.Polyrepo as BuildPolyrepo
+import Test.Spago.Build.Monorepo as Monorepo
 import Test.Spec (Spec)
 import Test.Spec as Spec
 import Test.Spec.Assertions as Assert
@@ -163,7 +163,7 @@ spec = Spec.around withTempDir do
 
     Pedantic.spec
 
-    BuildPolyrepo.spec
+    Monorepo.spec
 
     BuildInfo.spec
 

@@ -1,0 +1,4 @@
+package:
+  name: non-root-package-b
+  dependencies:
+    - prelude

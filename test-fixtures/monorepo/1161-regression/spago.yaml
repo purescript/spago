@@ -1,0 +1,18 @@
+package:
+  name: root
+  dependencies: []
+  test:
+    main: Test.Main
+    dependencies: []
+workspace:
+  package_set:
+    registry: 20.0.1
+  extra_packages:
+    either:
+      git: https://github.com/purescript/purescript-either.git
+      ref: af655a04ed2fd694b6688af39ee20d7907ad0763
+      dependencies:
+        - control
+        - invariant
+        - maybe
+        - prelude

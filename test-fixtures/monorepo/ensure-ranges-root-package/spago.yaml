@@ -1,0 +1,13 @@
+package:
+  name: 7368613235362d69416e687077724e7736334c56644e794374
+  dependencies:
+    - console: ">=6.0.0 <7.0.0"
+    - effect: ">=4.0.0 <5.0.0"
+    - prelude: ">=6.0.1 <7.0.0"
+  test:
+    main: Test.Main
+    dependencies: []
+workspace:
+  package_set:
+    registry: 0.0.1
+  extra_packages: {}

@@ -15,6 +15,7 @@ import Effect.Class.Console as Console
 import Node.Library.Execa (ExecaResult)
 import Node.Path (dirname)
 import Node.Path as Path
+import Node.Platform as Platform
 import Node.Process as Process
 import Registry.PackageName as PackageName
 import Registry.Version as Version
@@ -364,3 +365,8 @@ configAddTestDependencies deps (Tuple packageName r) = Tuple packageName $ r
       , dependencies: Just $ maybe (mkDependencies deps) (append (mkDependencies deps)) $ r.test >>= _.dependencies
       }
   }
+
+escapePathInErrMsg :: Array String -> String
+escapePathInErrMsg = case Process.platform of
+  Just Platform.Win32 -> Array.intercalate "\\"
+  _ -> Array.intercalate "/"
