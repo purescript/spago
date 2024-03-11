@@ -1,0 +1,10 @@
+package:
+  name: package-c
+  dependencies:
+    - prelude
+  test:
+    main: Test.PACKAGE.C
+    dependencies:
+      - console
+      - effect
+      - prelude

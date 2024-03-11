@@ -1,0 +1,10 @@
+package:
+  name: package-c
+  dependencies:
+    - package-a
+    - package-b
+    - prelude
+  build:
+    censor_project_warnings:
+      - UnusedName
+    strict: true

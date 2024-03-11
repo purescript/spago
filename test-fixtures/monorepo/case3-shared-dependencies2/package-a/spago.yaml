@@ -1,0 +1,12 @@
+package:
+  name: package-a
+  dependencies:
+    - package-b
+    - package-c
+    - prelude
+  test:
+    main: Test.PACKAGE.A
+    dependencies:
+      - console
+      - effect
+      - prelude

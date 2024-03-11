@@ -1,0 +1,4 @@
+package:
+  name: package-c
+  dependencies:
+    - prelude

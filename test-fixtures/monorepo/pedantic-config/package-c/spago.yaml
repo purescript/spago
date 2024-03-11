@@ -1,0 +1,15 @@
+package:
+  name: package-c
+  dependencies:
+    - control
+    - prelude
+    - tuples
+  build:
+    pedantic_packages: true
+  test:
+    main: Test.PACKAGE.C
+    pedantic_packages: true
+    dependencies:
+      - control
+      - either
+      - prelude

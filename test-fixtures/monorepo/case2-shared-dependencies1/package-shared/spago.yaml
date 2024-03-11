@@ -1,0 +1,10 @@
+package:
+  name: package-shared
+  dependencies:
+    - prelude
+  test:
+    main: Test.PACKAGE.SHARED
+    dependencies:
+      - console
+      - effect
+      - prelude

@@ -15,6 +15,7 @@ import Effect.Class.Console as Console
 import Node.Library.Execa (ExecaResult)
 import Node.Path (dirname)
 import Node.Path as Path
+import Node.Platform as Platform
 import Node.Process as Process
 import Registry.PackageName as PackageName
 import Registry.Version as Version
@@ -107,9 +108,16 @@ shouldEqualStr v1 v2 =
 
 checkFixture :: String -> String -> Aff Unit
 checkFixture filepath fixturePath = do
-  filecontent <- FS.readTextFile filepath
-  fixturecontent <- FS.readTextFile fixturePath
-  filecontent `shouldEqualStr` fixturecontent
+  filecontent <- String.trim <$> FS.readTextFile filepath
+  overwriteSpecFile <- liftEffect $ map isJust $ Process.lookupEnv "SPAGO_TEST_ACCEPT"
+  if overwriteSpecFile then do
+    Console.log $ "Overwriting fixture at path: " <> fixturePath
+    let parentDir = dirname fixturePath
+    unlessM (FS.exists parentDir) $ FS.mkdirp parentDir
+    FS.writeTextFile fixturePath (filecontent <> "\n")
+  else do
+    expected <- String.trim <$> FS.readTextFile fixturePath
+    filecontent `shouldEqualStr` expected
 
 plusDependencies :: Array String -> Config -> Config
 plusDependencies deps config = config
@@ -364,3 +372,8 @@ configAddTestDependencies deps (Tuple packageName r) = Tuple packageName $ r
       , dependencies: Just $ maybe (mkDependencies deps) (append (mkDependencies deps)) $ r.test >>= _.dependencies
       }
   }
+
+escapePathInErrMsg :: Array String -> String
+escapePathInErrMsg = case Process.platform of
+  Just Platform.Win32 -> Array.intercalate "\\"
+  _ -> Array.intercalate "/"

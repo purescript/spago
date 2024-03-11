@@ -1,0 +1,4 @@
+workspace:
+  package_set:
+    registry: 0.0.1
+  extra_packages: {}

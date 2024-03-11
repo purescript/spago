@@ -1,0 +1,14 @@
+package:
+  name: package-a
+  dependencies:
+    - control
+    - prelude
+    - tuples
+  build:
+    pedantic_packages: true
+  test:
+    main: Test.PACKAGE.A
+    dependencies:
+      - control
+      - either
+      - prelude
