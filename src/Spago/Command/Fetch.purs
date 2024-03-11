@@ -454,7 +454,10 @@ getTransitiveDeps workspacePackage = do
       RegistrySolverBuild extraPackages -> do
         plan <- getTransitiveDepsFromRegistry depsRanges extraPackages
         logDebug $ "Got a plan from the Solver: " <> printJson (Internal.Codec.packageMap Version.codec) plan
-        pure (map RegistryVersion plan)
+        pure $ plan # Map.mapMaybeWithKey \packageName version -> case Map.lookup packageName extraPackages of
+          Just p -> Just p
+          Nothing -> Just $ RegistryVersion version
+
       PackageSetBuild _info set -> getTransitiveDepsFromPackageSet set (Array.fromFoldable $ Map.keys depsRanges)
 
   where
