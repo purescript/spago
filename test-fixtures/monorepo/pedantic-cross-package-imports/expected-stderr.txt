@@ -1,0 +1,25 @@
+Reading Spago workspace configuration...
+
+✅ Selecting 2 packages to build:
+    pedantic-cross-package-imports
+    subpackage
+
+Downloading dependencies...
+Building...
+           Src   Lib   All
+Warnings     0     0     0
+Errors       0     0     0
+
+✅ Build succeeded.
+
+Looking for unused and undeclared transitive dependencies...
+
+❌ Found unused and/or undeclared transitive dependencies:
+
+Sources for package 'subpackage' import the following transitive dependencies - please add them to the project dependencies, or remove the imports:
+  pedantic-cross-package-imports
+    from `Sub.Module`, which imports:
+      Main
+
+These errors can be fixed by running the below command(s):
+spago install -p subpackage pedantic-cross-package-imports

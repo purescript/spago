@@ -1,0 +1,10 @@
+package:
+  name: pedantic-cross-package-imports
+  dependencies:
+    - console
+    - effect
+    - prelude
+workspace:
+  package_set:
+    registry: 50.3.2
+  extra_packages: {}

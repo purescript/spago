@@ -1,0 +1,5 @@
+package:
+  name: subpackage
+  dependencies:
+    - effect
+    - prelude

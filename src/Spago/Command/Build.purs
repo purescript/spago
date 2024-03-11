@@ -153,7 +153,8 @@ run opts = do
     graph <- either die pure eitherGraph
     env <- ask
     checkResults <- map Array.fold $ for pedanticPkgs \(Tuple selected options) -> do
-      Graph.toImportErrors selected options <$> runSpago (Record.union { selected } env) (Graph.checkImports graph)
+      Graph.toImportErrors selected options
+        <$> runSpago (Record.union { selected, workspacePackages: selectedPackages } env) (Graph.checkImports graph)
     unless (Array.null checkResults) do
       die $ Graph.formatImportErrors checkResults
 

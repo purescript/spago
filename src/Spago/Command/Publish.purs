@@ -113,7 +113,8 @@ publish _args = do
   eitherGraph <- Graph.runGraph globs []
   case eitherGraph of
     Right graph -> do
-      graphCheckErrors <- Graph.toImportErrors selected { reportSrc: true, reportTest: false } <$> runSpago (Record.union { selected } env) (Graph.checkImports graph)
+      graphCheckErrors <- Graph.toImportErrors selected { reportSrc: true, reportTest: false }
+        <$> runSpago (Record.union { selected, workspacePackages: Config.getWorkspacePackages env.workspace.packageSet } env) (Graph.checkImports graph)
       for_ graphCheckErrors (addError <<< Graph.formatImportErrors <<< pure)
     Left err ->
       die err

@@ -209,6 +209,7 @@ spec = Spec.describe "monorepo" do
           , "    from `" <> mkModName package <> "`, which imports:"
           , "      " <> pkgModName
           ]
+
     Spec.it "when package config has 'pedantic_packages: true', build fails with expected errors" \{ spago, fixture } -> do
       FS.copyTree { src: fixture "monorepo/pedantic-config", dst: "." }
 
@@ -243,3 +244,9 @@ spec = Spec.describe "monorepo" do
           unless (Array.null unfoundTexts) do
             Assert.fail $ "STDERR did not contain expected texts:\n" <> (Array.intercalate "\n\n" unfoundTexts) <> "\n\nStderr was:\n" <> stdErr
       spago [ "build", "--pedantic-packages" ] >>= check { stdout: mempty, stderr: hasExpectedErrors, result: isLeft }
+
+    Spec.it "prevents cross-package imports between local packages" \{ spago, fixture } -> do
+      FS.copyTree { src: fixture "monorepo/pedantic-cross-package-imports", dst: "." }
+
+      spago [ "build" ] >>= shouldBeSuccess
+      spago [ "build", "--pedantic-packages" ] >>= shouldBeFailureErr (fixture "monorepo/pedantic-cross-package-imports/expected-stderr.txt")

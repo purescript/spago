@@ -17,7 +17,6 @@ module Spago.Purs.Graph
 import Spago.Prelude
 
 import Data.Array as Array
-import Data.Array.NonEmpty as NEA
 import Data.Codec.Argonaut.Common as CA
 import Data.Codec.Argonaut.Record as CAR
 import Data.Map as Map
@@ -94,6 +93,7 @@ getModuleGraphWithPackage (ModuleGraph graph) = do
     allPackages = allDependencies
       # Map.union (Map.fromFoldable $ map mkPackageEntry selected)
       # Map.union testPackages
+
   pathToPackage :: Map FilePath PackageName <- map (Map.fromFoldable <<< Array.fold)
     $ for (Map.toUnfoldable allPackages)
         \(Tuple name package) -> do
@@ -174,6 +174,7 @@ type ImportedPackages = Map PackageName (Map ModuleName (Set ModuleName))
 
 type ImportsGraphEnv a =
   { selected :: WorkspacePackage
+  , workspacePackages :: NonEmptyArray WorkspacePackage
   , dependencies :: Fetch.PackageTransitiveDeps
   , logOptions :: LogOptions
   | a
@@ -181,8 +182,8 @@ type ImportsGraphEnv a =
 
 checkImports :: forall a. ModuleGraph -> Spago (ImportsGraphEnv a) ImportCheckResult
 checkImports graph = do
-  env@{ selected } <- ask
-  packageGraph <- runSpago (Record.union { selected: NEA.singleton selected } env) $ getModuleGraphWithPackage graph
+  env@{ selected, workspacePackages } <- ask
+  packageGraph <- runSpago (Record.union { selected: workspacePackages } env) $ getModuleGraphWithPackage graph
 
   let
     dropValues = Map.mapMaybe (const (Just Map.empty))
