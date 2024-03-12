@@ -151,7 +151,9 @@ run opts = do
         let reportTest = pedanticPackages || (fromMaybe false $ p.package.test >>= _.pedantic_packages)
         Alternative.guard (reportSrc || reportTest)
         pure $ Tuple p { reportSrc, reportTest }
-    if Array.null pedanticPkgs || opts.depsOnly then do
+    if Array.null pedanticPkgs || opts.depsOnly then
+      pure true
+    else do
       logInfo $ "Looking for unused and undeclared transitive dependencies..."
       eitherGraph <- Graph.runGraph globs opts.pursArgs
       eitherGraph # either (prepareToDie >>> (_ $> false)) \graph -> do
@@ -163,8 +165,6 @@ run opts = do
           pure true
         else
           prepareToDie (Graph.formatImportErrors checkResults) $> false
-    else
-      pure true
 
 -- TODO: if we are building with all the packages (i.e. selected = Nothing),
 -- then we could use the graph to remove outdated modules from `output`!
