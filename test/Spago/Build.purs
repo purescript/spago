@@ -10,8 +10,8 @@ import Spago.Core.Config as Config
 import Spago.FS as FS
 import Spago.Paths as Paths
 import Test.Spago.Build.BuildInfo as BuildInfo
-import Test.Spago.Build.Pedantic as Pedantic
 import Test.Spago.Build.Monorepo as Monorepo
+import Test.Spago.Build.Pedantic as Pedantic
 import Test.Spec (Spec)
 import Test.Spec as Spec
 import Test.Spec.Assertions as Assert
@@ -160,6 +160,22 @@ spec = Spec.around withTempDir do
       spago [ "build", "--ensure-ranges" ] >>= shouldBeSuccess
       spagoYaml <- FS.readTextFile "spago.yaml"
       spagoYaml `shouldContain` "- prelude: \">=6.0.1 <7.0.0\""
+
+    Spec.it "failed build with many warnings and --json-errors does not truncate output" \{ spago, fixture } -> do
+      spago [ "init" ] >>= shouldBeSuccess
+      let
+        srcMain = Path.concat [ "src", "Main.purs" ]
+        srcWarn = Path.concat [ "src", "Warn.purs" ]
+      FSA.unlink srcMain
+      FS.copyFile
+        { src: fixture "build-json-truncated-main.purs"
+        , dst: srcMain
+        }
+      FS.copyFile
+        { src: fixture "build-json-truncated-warn.purs"
+        , dst: srcWarn
+        }
+      spago [ "build", "--json-errors" ] >>= shouldBeFailureOutput (fixture "build-json-truncated-many-warnings.json")
 
     Pedantic.spec
 

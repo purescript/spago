@@ -570,7 +570,7 @@ main = do
                 }
             env' <- runSpago env (mkBuildEnv buildArgs dependencies)
             let options = { depsOnly: true, pursArgs: List.toUnfoldable args.pursArgs, jsonErrors: false }
-            runSpago env' (Build.run options)
+            void $ runSpago env' (Build.run options)
           Uninstall { packagesToRemove, selectedPackage, testDeps } -> do
             { env, fetchOpts } <- mkFetchEnv offline { packages: packagesToRemove, selectedPackage, ensureRanges: false, testDeps: false, isRepl: false, pure: false }
             let options = { testDeps, dependenciesToRemove: Set.fromFoldable fetchOpts.packages }
@@ -580,7 +580,7 @@ main = do
             dependencies <- runSpago env (Fetch.run fetchOpts)
             buildEnv <- runSpago env (mkBuildEnv args dependencies)
             let options = { depsOnly: false, pursArgs: List.toUnfoldable args.pursArgs, jsonErrors }
-            runSpago buildEnv (Build.run options)
+            void $ runSpago buildEnv (Build.run options)
           Publish { selectedPackage } -> do
             { env, fetchOpts } <- mkFetchEnv offline { packages: mempty, selectedPackage, ensureRanges: false, testDeps: false, isRepl: false, pure: false }
             dependencies <- runSpago env (Fetch.run fetchOpts)
@@ -625,25 +625,28 @@ main = do
             dependencies <- runSpago env (Fetch.run fetchOpts)
             buildEnv <- runSpago env (mkBuildEnv args dependencies)
             let options = { depsOnly: false, pursArgs: List.toUnfoldable args.pursArgs, jsonErrors: false }
-            runSpago buildEnv (Build.run options)
-            bundleEnv <- runSpago env (mkBundleEnv args)
-            runSpago bundleEnv Bundle.run
+            built <- runSpago buildEnv (Build.run options)
+            when built do 
+              bundleEnv <- runSpago env (mkBundleEnv args)
+              runSpago bundleEnv Bundle.run
           Run args@{ selectedPackage, ensureRanges, pure } -> do
             { env, fetchOpts } <- mkFetchEnv offline { packages: mempty, selectedPackage, ensureRanges, pure, testDeps: false, isRepl: false }
             dependencies <- runSpago env (Fetch.run fetchOpts)
             buildEnv <- runSpago env (mkBuildEnv args dependencies)
             let options = { depsOnly: false, pursArgs: List.toUnfoldable args.pursArgs, jsonErrors: false }
-            runSpago buildEnv (Build.run options)
-            runEnv <- runSpago env (mkRunEnv args buildEnv)
-            runSpago runEnv Run.run
+            built <- runSpago buildEnv (Build.run options)
+            when built do
+              runEnv <- runSpago env (mkRunEnv args buildEnv)
+              runSpago runEnv Run.run
           Test args@{ selectedPackage, pure } -> do
             { env, fetchOpts } <- mkFetchEnv offline { packages: mempty, selectedPackage, pure, ensureRanges: false, testDeps: false, isRepl: false }
             dependencies <- runSpago env (Fetch.run fetchOpts)
             buildEnv <- runSpago env (mkBuildEnv (Record.union args { ensureRanges: false }) dependencies)
             let options = { depsOnly: false, pursArgs: List.toUnfoldable args.pursArgs, jsonErrors: false }
-            runSpago buildEnv (Build.run options)
-            testEnv <- runSpago env (mkTestEnv args buildEnv)
-            runSpago testEnv Test.run
+            built <- runSpago buildEnv (Build.run options)
+            when built do
+              testEnv <- runSpago env (mkTestEnv args buildEnv)
+              runSpago testEnv Test.run
           LsPaths args -> do
             runSpago { logOptions } $ Ls.listPaths args
           LsPackages args@{ pure } -> do

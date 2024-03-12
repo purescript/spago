@@ -7,11 +7,9 @@ module Spago.Log
   , class Loggable
   , die
   , die'
+  , indent2
   , justOrDieWith
   , justOrDieWith'
-  , rightOrDieWith
-  , rightOrDieWith'
-  , indent2
   , logDebug
   , logError
   , logFailure
@@ -20,8 +18,12 @@ module Spago.Log
   , logWarn
   , module DodoExport
   , output
+  , prepareToDie
+  , rightOrDieWith
+  , rightOrDieWith'
   , toDoc
-  ) where
+  )
+  where
 
 import Prelude
 
@@ -153,6 +155,11 @@ die :: forall a b m u. MonadEffect m => MonadAsk (LogEnv b) m => Loggable a => a
 die msg = do
   logFailure msg
   Effect.liftEffect $ Process.exit' 1
+
+prepareToDie :: forall a b m. MonadEffect m => MonadAsk (LogEnv b) m => Loggable a => a -> m Unit
+prepareToDie msg = do
+  logFailure msg
+  Effect.liftEffect $ Process.setExitCode 1
 
 -- | Same as `die`, but with multiple failures
 die' :: forall a b m u. MonadEffect m => MonadAsk (LogEnv b) m => Loggable a => Array a -> m u
