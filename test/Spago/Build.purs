@@ -4,14 +4,15 @@ import Test.Prelude
 
 import Node.FS.Aff as FSA
 import Node.Path as Path
+import Node.Platform as Platform
 import Node.Process as Process
 import Spago.Command.Init as Init
 import Spago.Core.Config as Config
 import Spago.FS as FS
 import Spago.Paths as Paths
 import Test.Spago.Build.BuildInfo as BuildInfo
-import Test.Spago.Build.Pedantic as Pedantic
 import Test.Spago.Build.Monorepo as Monorepo
+import Test.Spago.Build.Pedantic as Pedantic
 import Test.Spec (Spec)
 import Test.Spec as Spec
 import Test.Spec.Assertions as Assert
@@ -161,6 +162,12 @@ spec = Spec.around withTempDir do
       spagoYaml <- FS.readTextFile "spago.yaml"
       spagoYaml `shouldContain` "- prelude: \">=6.0.1 <7.0.0\""
 
+    Spec.it "failed build with many warnings and --json-errors does not truncate output" \{ spago, fixture } -> do
+      FS.copyTree { src: fixture "build/json-truncated-many-warnings", dst: "." }
+      spago [ "build", "--json-errors" ] >>= shouldBeFailureOutput case Process.platform of 
+          Just Platform.Win32 -> fixture "build/json-truncated-many-warnings/warnings-windows.json"
+          _ -> fixture "build/json-truncated-many-warnings/warnings.json"
+      
     Pedantic.spec
 
     Monorepo.spec

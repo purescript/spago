@@ -28,6 +28,7 @@ import Spago.Config (Package(..), PackageMap, WorkspacePackage)
 import Spago.Config as Config
 import Spago.Core.Config (CensorBuildWarnings(..), WarningCensorTest(..))
 import Spago.Core.Config as Core
+import Spago.Log (prepareToDie)
 import Spago.Psa.Output (buildOutput)
 import Spago.Psa.Printer (printDefaultOutputToErr, printJsonOutputToOut)
 import Spago.Psa.Types (ErrorCode, PathDecision, PsaArgs, PsaOutputOptions, PsaPathType(..), psaResultCodec)
@@ -36,7 +37,7 @@ import Spago.Purs as Purs
 defaultStatVerbosity :: Core.StatVerbosity
 defaultStatVerbosity = Core.CompactStats
 
-psaCompile :: forall a. Set.Set FilePath -> Array String -> PsaArgs -> Spago (Purs.PursEnv a) Unit
+psaCompile :: forall a. Set.Set FilePath -> Array String -> PsaArgs -> Spago (Purs.PursEnv a) Boolean
 psaCompile globs pursArgs psaArgs = do
   result <- Purs.compile globs (Array.snoc pursArgs "--json-errors")
   let resultStdout = Cmd.getStdout result
@@ -60,11 +61,13 @@ psaCompile globs pursArgs psaArgs = do
 
   if Array.all identity arrErrorsIsEmpty then do
     logSuccess "Build succeeded."
+    pure true
   else do
     case result of
       Left r -> logDebug $ Cmd.printExecResult r
       _ -> pure unit
-    die [ "Failed to build." ]
+    prepareToDie [ "Failed to build." ]
+    pure false
 
   where
   isEmptySpan filename pos =

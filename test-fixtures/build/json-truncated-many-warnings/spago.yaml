@@ -1,0 +1,9 @@
+package:
+  name: spago-bug
+  dependencies:
+    - effect
+    - prelude
+workspace:
+  package_set:
+    registry: 50.1.2
+  extra_packages: {}

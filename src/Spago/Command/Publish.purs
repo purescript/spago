@@ -18,6 +18,7 @@ import Effect.Aff (Milliseconds(..))
 import Effect.Aff as Aff
 import Effect.Ref as Ref
 import Node.Path as Path
+import Node.Process as Process
 import Record as Record
 import Registry.API.V1 as V1
 import Registry.Internal.Format as Internal.Format
@@ -41,6 +42,7 @@ import Spago.Git as Git
 import Spago.Json as Json
 import Spago.Log (LogVerbosity(..))
 import Spago.Log as Log
+import Spago.Prelude as Effect
 import Spago.Purs (Purs)
 import Spago.Purs.Graph as Graph
 import Spago.Registry (PreRegistryEnv)
@@ -99,13 +101,16 @@ publish _args = do
   logDebug $ "Publishing package " <> strName
 
   -- As first thing we run a build to make sure the package compiles at all
-  runBuild { selected, dependencies: env.dependencies }
+  built <- runBuild { selected, dependencies: env.dependencies }
     ( Build.run
         { depsOnly: false
         , pursArgs: []
         , jsonErrors: false
         }
     )
+  -- There's a pending failure exit and its' easier to just abort here
+  when (not built) $
+    Effect.liftEffect Process.exit
 
   -- We then need to check that the dependency graph is accurate. If not, queue the errors
   let allDependencies = Fetch.toAllDependencies dependencies
@@ -338,13 +343,17 @@ publish _args = do
       -- from the solver (this is because the build might terminate the process, and we shall output the errors first)
       logInfo "Building again with the build plan from the solver..."
       let buildPlanDependencies = map Config.RegistryVersion resolutions
-      runBuild { selected, dependencies: Map.singleton selected.package.name buildPlanDependencies }
+      builtAgain <- runBuild { selected, dependencies: Map.singleton selected.package.name buildPlanDependencies }
         ( Build.run
             { depsOnly: false
             , pursArgs: []
             , jsonErrors: false
             }
         )
+
+      -- As above: there's a pending failure exit and its' easier to just abort here
+      when (not builtAgain) $
+        Effect.liftEffect Process.exit
 
       logDebug $ unsafeStringify publishingData
       logSuccess "Ready for publishing. Calling the registry.."

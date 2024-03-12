@@ -20,6 +20,7 @@ import Spago.Command.Fetch as Fetch
 import Spago.Config (Package(..), PackageMap, WithTestGlobs(..), Workspace, WorkspacePackage)
 import Spago.Config as Config
 import Spago.Git (Git)
+import Spago.Log (prepareToDie)
 import Spago.Psa as Psa
 import Spago.Psa.Types as PsaTypes
 import Spago.Purs (Purs)
@@ -42,7 +43,7 @@ type BuildOptions =
   , jsonErrors :: Boolean
   }
 
-run :: BuildOptions -> Spago (BuildEnv _) Unit
+run :: BuildOptions -> Spago (BuildEnv _) Boolean
 run opts = do
   logInfo "Building..."
   { dependencies
@@ -123,10 +124,10 @@ run opts = do
       , statVerbosity: fromMaybe Psa.defaultStatVerbosity workspace.buildOptions.statVerbosity
       }
 
-  Psa.psaCompile globs args psaArgs
-
-  case workspace.backend of
-    Nothing -> pure unit
+  built <- Psa.psaCompile globs args psaArgs
+  backendBuilt <- case workspace.backend of
+    _ | not built -> pure false
+    Nothing -> pure true
     Just backend -> do
       logInfo $ "Compiling with backend \"" <> backend.cmd <> "\""
       logDebug $ "Running command `" <> backend.cmd <> "`"
@@ -137,26 +138,33 @@ run opts = do
       Cmd.exec backend.cmd (addOutputArgs moreBackendArgs) Cmd.defaultExecOptions >>= case _ of
         Left r -> do
           logDebug $ Cmd.printExecResult r
-          die [ "Failed to build with backend " <> backend.cmd ]
+          prepareToDie [ "Failed to build with backend " <> backend.cmd ] $> false
         Right _ ->
-          logSuccess "Backend build succeeded."
+          logSuccess "Backend build succeeded." $> true
 
-  let
-    pedanticPkgs = NEA.toArray selectedPackages # Array.mapMaybe \p -> do
-      let reportSrc = pedanticPackages || (fromMaybe false $ p.package.build >>= _.pedantic_packages)
-      let reportTest = pedanticPackages || (fromMaybe false $ p.package.test >>= _.pedantic_packages)
-      Alternative.guard (reportSrc || reportTest)
-      pure $ Tuple p { reportSrc, reportTest }
-  unless (Array.null pedanticPkgs || opts.depsOnly) do
-    logInfo $ "Looking for unused and undeclared transitive dependencies..."
-    eitherGraph <- Graph.runGraph globs opts.pursArgs
-    graph <- either die pure eitherGraph
-    env <- ask
-    checkResults <- map Array.fold $ for pedanticPkgs \(Tuple selected options) -> do
-      Graph.toImportErrors selected options
-        <$> runSpago (Record.union { selected, workspacePackages: selectedPackages } env) (Graph.checkImports graph)
-    unless (Array.null checkResults) do
-      die $ Graph.formatImportErrors checkResults
+  if not backendBuilt then
+    pure false
+  else do
+    let
+      pedanticPkgs = NEA.toArray selectedPackages # Array.mapMaybe \p -> do
+        let reportSrc = pedanticPackages || (fromMaybe false $ p.package.build >>= _.pedantic_packages)
+        let reportTest = pedanticPackages || (fromMaybe false $ p.package.test >>= _.pedantic_packages)
+        Alternative.guard (reportSrc || reportTest)
+        pure $ Tuple p { reportSrc, reportTest }
+    if Array.null pedanticPkgs || opts.depsOnly then
+      pure true
+    else do
+      logInfo $ "Looking for unused and undeclared transitive dependencies..."
+      eitherGraph <- Graph.runGraph globs opts.pursArgs
+      eitherGraph # either (prepareToDie >>> (_ $> false)) \graph -> do
+        env <- ask
+        checkResults <- map Array.fold $ for pedanticPkgs \(Tuple selected options) -> do
+          Graph.toImportErrors selected options
+            <$> runSpago (Record.union { selected, workspacePackages: selectedPackages } env) (Graph.checkImports graph)
+        if Array.null checkResults then
+          pure true
+        else
+          prepareToDie (Graph.formatImportErrors checkResults) $> false
 
 -- TODO: if we are building with all the packages (i.e. selected = Nothing),
 -- then we could use the graph to remove outdated modules from `output`!
