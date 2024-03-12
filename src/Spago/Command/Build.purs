@@ -138,11 +138,9 @@ run opts = do
       Cmd.exec backend.cmd (addOutputArgs moreBackendArgs) Cmd.defaultExecOptions >>= case _ of
         Left r -> do
           logDebug $ Cmd.printExecResult r
-          prepareToDie [ "Failed to build with backend " <> backend.cmd ]
-          pure false
-        Right _ -> do
-          logSuccess "Backend build succeeded."
-          pure true
+          prepareToDie [ "Failed to build with backend " <> backend.cmd ] $> false
+        Right _ ->
+          logSuccess "Backend build succeeded." $> true
 
   if not backendBuilt then
     pure false
@@ -153,17 +151,20 @@ run opts = do
         let reportTest = pedanticPackages || (fromMaybe false $ p.package.test >>= _.pedantic_packages)
         Alternative.guard (reportSrc || reportTest)
         pure $ Tuple p { reportSrc, reportTest }
-    unless (Array.null pedanticPkgs || opts.depsOnly) do
+    if Array.null pedanticPkgs || opts.depsOnly then do
       logInfo $ "Looking for unused and undeclared transitive dependencies..."
       eitherGraph <- Graph.runGraph globs opts.pursArgs
-      graph <- either die pure eitherGraph
-      env <- ask
-      checkResults <- map Array.fold $ for pedanticPkgs \(Tuple selected options) -> do
-        Graph.toImportErrors selected options
-          <$> runSpago (Record.union { selected, workspacePackages: selectedPackages } env) (Graph.checkImports graph)
-      unless (Array.null checkResults) do
-        die $ Graph.formatImportErrors checkResults
-    pure true
+      eitherGraph # either (prepareToDie >>> (_ $> false)) \graph -> do
+        env <- ask
+        checkResults <- map Array.fold $ for pedanticPkgs \(Tuple selected options) -> do
+          Graph.toImportErrors selected options
+            <$> runSpago (Record.union { selected, workspacePackages: selectedPackages } env) (Graph.checkImports graph)
+        if Array.null checkResults then
+          pure true
+        else
+          prepareToDie (Graph.formatImportErrors checkResults) $> false
+    else
+      pure true
 
 -- TODO: if we are building with all the packages (i.e. selected = Nothing),
 -- then we could use the graph to remove outdated modules from `output`!
