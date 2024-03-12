@@ -22,8 +22,7 @@ module Spago.Log
   , rightOrDieWith
   , rightOrDieWith'
   , toDoc
-  )
-  where
+  ) where
 
 import Prelude
 

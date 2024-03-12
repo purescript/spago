@@ -626,7 +626,7 @@ main = do
             buildEnv <- runSpago env (mkBuildEnv args dependencies)
             let options = { depsOnly: false, pursArgs: List.toUnfoldable args.pursArgs, jsonErrors: false }
             built <- runSpago buildEnv (Build.run options)
-            when built do 
+            when built do
               bundleEnv <- runSpago env (mkBundleEnv args)
               runSpago bundleEnv Bundle.run
           Run args@{ selectedPackage, ensureRanges, pure } -> do
