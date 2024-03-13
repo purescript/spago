@@ -435,6 +435,12 @@ shouldComputeNewLockfile { workspace, workspacePackages } workspaceLock =
     || (fromMaybe Map.empty workspace.extra_packages /= workspaceLock.extra_packages)
     -- and the package set address needs to match - we have no way to match the package set contents at this point, so we let it be
     || (workspace.package_set /= map _.address workspaceLock.package_set)
+    -- and the package set is not a local file - if it is then we always recompute the lockfile because we have no way to check if it's changed
+    ||
+      ( case workspace.package_set of
+          Just (Core.SetFromPath _) -> true
+          _ -> false
+      )
 
 getPackageLocation :: PackageName -> Package -> FilePath
 getPackageLocation name = Paths.mkRelative <<< case _ of
