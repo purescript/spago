@@ -101,35 +101,45 @@ spec = Spec.around withTempDir do
         }
       spago [ "build" ] >>= shouldBeFailure
 
-    Spec.it "building with a lockfile doesn't need the Registry repo" \{ spago, fixture } -> do
-      spago [ "init", "--name", "aaa", "--package-set", "33.0.0" ] >>= shouldBeSuccess
-      spago [ "build" ] >>= shouldBeSuccess
-      -- Check that we have written the lockfile
-      checkFixture "spago.lock" (fixture "spago.lock")
-      -- Then remove the registry repo
-      FSA.rm' Paths.registryPath { force: true, recursive: true, retryDelay: 0, maxRetries: 0 }
-      -- And check that we can still build
-      spago [ "build" ] >>= shouldBeSuccess
-      -- And that we still don't have the registry
-      FS.exists Paths.registryPath `Assert.shouldReturn` false
+    Spec.describe "lockfile" do
+      Spec.it "building with a lockfile doesn't need the Registry repo" \{ spago, fixture } -> do
+        spago [ "init", "--name", "aaa", "--package-set", "33.0.0" ] >>= shouldBeSuccess
+        spago [ "build" ] >>= shouldBeSuccess
+        -- Check that we have written the lockfile
+        checkFixture "spago.lock" (fixture "spago.lock")
+        -- Then remove the registry repo
+        FSA.rm' Paths.registryPath { force: true, recursive: true, retryDelay: 0, maxRetries: 0 }
+        -- And check that we can still build
+        spago [ "build" ] >>= shouldBeSuccess
+        -- And that we still don't have the registry
+        FS.exists Paths.registryPath `Assert.shouldReturn` false
 
-    Spec.it "using the --pure flag does not refresh the lockfile" \{ spago, fixture } -> do
-      spago [ "init", "--name", "aaa", "--package-set", "33.0.0" ] >>= shouldBeSuccess
-      spago [ "build" ] >>= shouldBeSuccess
-      -- Check that we have written the lockfile
-      checkFixture "spago.lock" (fixture "spago.lock")
-      -- Update the config
-      let
-        conf = Init.defaultConfig
-          { name: mkPackageName "aaa"
-          , testModuleName: "Test.Main"
-          , withWorkspace: Just { setVersion: Just $ mkVersion "33.0.0" }
-          }
-      FS.writeYamlFile Config.configCodec "spago.yaml"
-        (conf { package = conf.package # map (\pkg -> pkg { dependencies = pkg.dependencies <> mkDependencies [ "maybe" ] }) })
-      -- Check that building with --pure does not refresh the lockfile
-      spago [ "build", "--pure" ] >>= shouldBeSuccess
-      checkFixture "spago.lock" (fixture "spago.lock")
+      Spec.it "using the --pure flag does not refresh the lockfile" \{ spago, fixture } -> do
+        spago [ "init", "--name", "aaa", "--package-set", "33.0.0" ] >>= shouldBeSuccess
+        spago [ "build" ] >>= shouldBeSuccess
+        -- Check that we have written the lockfile
+        checkFixture "spago.lock" (fixture "spago.lock")
+        -- Update the config
+        let
+          conf = Init.defaultConfig
+            { name: mkPackageName "aaa"
+            , testModuleName: "Test.Main"
+            , withWorkspace: Just { setVersion: Just $ mkVersion "33.0.0" }
+            }
+        FS.writeYamlFile Config.configCodec "spago.yaml"
+          (conf { package = conf.package # map (\pkg -> pkg { dependencies = pkg.dependencies <> mkDependencies [ "maybe" ] }) })
+        -- Check that building with --pure does not refresh the lockfile
+        spago [ "build", "--pure" ] >>= shouldBeSuccess
+        checkFixture "spago.lock" (fixture "spago.lock")
+
+      Spec.it "lockfile is refreshed when the local package set changes" \{ spago, fixture } -> do
+        FS.copyTree { src: fixture "build/local-package-set-lockfile", dst: "." }
+        spago [ "build" ] >>= shouldBeSuccess
+        checkFixture "spago.lock" (fixture "build/local-package-set-lockfile/spago.lock.old")
+        FS.moveSync { src: "local-package-set.json", dst: "old-package-set.json" }
+        FS.moveSync { src: "new-package-set.json", dst: "local-package-set.json" }
+        spago [ "build" ] >>= shouldBeSuccess
+        checkFixture "spago.lock" (fixture "build/local-package-set-lockfile/spago.lock.new")
 
     Spec.it "compiles with the specified backend" \{ spago, fixture } -> do
       spago [ "init" ] >>= shouldBeSuccess
@@ -164,10 +174,10 @@ spec = Spec.around withTempDir do
 
     Spec.it "failed build with many warnings and --json-errors does not truncate output" \{ spago, fixture } -> do
       FS.copyTree { src: fixture "build/json-truncated-many-warnings", dst: "." }
-      spago [ "build", "--json-errors" ] >>= shouldBeFailureOutput case Process.platform of 
-          Just Platform.Win32 -> fixture "build/json-truncated-many-warnings/warnings-windows.json"
-          _ -> fixture "build/json-truncated-many-warnings/warnings.json"
-      
+      spago [ "build", "--json-errors" ] >>= shouldBeFailureOutput case Process.platform of
+        Just Platform.Win32 -> fixture "build/json-truncated-many-warnings/warnings-windows.json"
+        _ -> fixture "build/json-truncated-many-warnings/warnings.json"
+
     Pedantic.spec
 
     Monorepo.spec

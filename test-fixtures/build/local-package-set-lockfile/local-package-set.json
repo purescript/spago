@@ -1,0 +1,10 @@
+{
+  "compiler": "0.15.10",
+  "published": "2023-09-30",
+  "version": "1.0.0",
+  "packages": {
+    "prelude": "6.0.1",
+    "console": "6.1.0",
+    "effect": "4.0.0"
+  }
+}

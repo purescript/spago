@@ -1,0 +1,42 @@
+workspace:
+  packages:
+    local-package-set-lockfile:
+      path: ./
+      dependencies:
+        - console
+        - effect
+        - prelude
+      test_dependencies: []
+      build_plan:
+        - console
+        - effect
+        - prelude
+  package_set:
+    address:
+      path: ./local-package-set.json
+    compiler: ">=0.15.10 <0.16.0"
+    content:
+      console: 6.1.0
+      effect: 4.0.0
+      prelude: 6.0.1
+      typelevel-prelude: 7.0.0
+  extra_packages: {}
+packages:
+  console:
+    type: registry
+    version: 6.1.0
+    integrity: sha256-CxmAzjgyuGDmt9FZW51VhV6rBPwR6o0YeKUzA9rSzcM=
+    dependencies:
+      - effect
+      - prelude
+  effect:
+    type: registry
+    version: 4.0.0
+    integrity: sha256-eBtZu+HZcMa5HilvI6kaDyVX3ji8p0W9MGKy2K4T6+M=
+    dependencies:
+      - prelude
+  prelude:
+    type: registry
+    version: 6.0.1
+    integrity: sha256-o8p6SLYmVPqzXZhQFd2hGAWEwBoXl1swxLG/scpJ0V0=
+    dependencies: []

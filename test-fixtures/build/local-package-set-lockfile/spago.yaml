@@ -1,0 +1,10 @@
+package:
+  name: local-package-set-lockfile
+  dependencies:
+    - console
+    - effect
+    - prelude
+workspace:
+  package_set:
+    path: ./local-package-set.json
+  extra_packages: {}

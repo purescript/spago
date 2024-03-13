@@ -1231,11 +1231,9 @@ workspace:
     registry: 11.10.0
     # Or it could just point to a URL of a custom package set
     # See the "Custom package sets" section for more info on making one.
-    # The `hash` field is actually optional and you should not add it.
-    # It will be tacked on by Spago, to not download the set over and over.
-    # Remove this field if you'd like Spago to fetch from the remote again.
     url: https://raw.githubusercontent.com/purescript/package-sets/psc-0.15.7-20230207/packages.json
-    hash: sha256-UZaygzoqEhhYh2lzUqbiNfOR9J+WNRc9SkQPmoo90jM=
+    # It is also possible to point to a local package set instead:
+    path: ./my-custom-package-set.json
 
   # This section defines any other packages that you'd like to include
   # in the build. It's optional, in case you just want to use the ones
