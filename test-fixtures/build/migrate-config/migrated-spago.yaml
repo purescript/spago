@@ -1,0 +1,24 @@
+package:
+  name: migrate-config
+  dependencies:
+    - console
+    - effect
+    - prelude
+  run:
+    execArgs: []
+  test:
+    main: Test.Main
+    execArgs: []
+    dependencies: []
+    censorTestWarnings: all
+    pedanticPackages: false
+  build:
+    censorProjectWarnings: all
+    pedanticPackages: false
+workspace:
+  packageSet:
+    registry: 50.4.0
+  extraPackages: {}
+  buildOpts:
+    censorLibraryWarnings: all
+    statVerbosity: compact-stats

@@ -326,7 +326,7 @@ writeNewLockfile reason allTransitiveDeps = do
               RegistrySolverBuild _ -> Nothing
               PackageSetBuild info _ -> Just info
           , packages: workspacePackages
-          , extra_packages: fromMaybe Map.empty workspace.workspaceConfig.extra_packages
+          , extra_packages: fromMaybe Map.empty workspace.workspaceConfig.extraPackages
           }
       }
   liftAff $ FS.writeYamlFile Lock.lockfileCodec "spago.lock" lockfile

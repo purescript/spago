@@ -213,7 +213,7 @@ In **all** cases, you'll want to switch to the new Registry package sets, so rep
 
 ```yaml
 workspace:
-  package_set:
+  packageSet:
     url: https://raw.githubusercontent.com/purescript/package-sets/psc-0.15.10-20230919/packages.json
 ```
 
@@ -221,7 +221,7 @@ workspace:
 
 ```yaml
 workspace:
-  package_set:
+  packageSet:
     registry: 41.2.0
 ```
 
@@ -386,7 +386,7 @@ spago run -p package-name --purs-args "--verbose-errors"
 # package:
 #   run:
 #       main: Main
-#       exec_args:
+#       execArgs:
 #         - "arg1"
 #         - "arg2"
 $ spago run -p package-name
@@ -481,14 +481,14 @@ in there, but thankfully I figure how to fix it. So I clone it locally and add m
 
 Now if I want to test this version in my current project, how can I tell `spago` to do it?
 
-There's a section of the `spago.yaml` file just for that, called `extra_packages`.
+There's a section of the `spago.yaml` file just for that, called `extraPackages`.
 
 In this case we override the package with its local copy, which should have a `spago.yaml` - our `workspace` will look something like this:
 
 ```yaml
 workspace:
     registry: 41.2.0
-  extra_packages:
+  extraPackages:
     aff:
       path: ../my-purescript-aff
 ```
@@ -520,7 +520,7 @@ In this case, we can just change the override to point to some commit of our for
 ```yaml
 workspace:
     registry: 41.2.0
-  extra_packages:
+  extraPackages:
     aff:
       git: https://github.com/my-user/purescript-aff.git
       ref: aaa0aca7a77af368caa221a2a06d6be2079d32da
@@ -535,14 +535,14 @@ workspace:
 > [!IMPORTANT]\
 > You still need to `spago install my-new-package` after adding it to the package set, or Spago will not know that you want to use it as a dependency!
 
-If a package is not in the upstream package set, you can add it exactly in the same way, by adding it to `extra_packages`.
+If a package is not in the upstream package set, you can add it exactly in the same way, by adding it to `extraPackages`.
 
 E.g. if we want to add the `facebook` package:
 
 ```yaml
 workspace:
     registry: 41.2.0
-  extra_packages:
+  extraPackages:
     facebook:
       git: https://github.com/Unisay/purescript-facebook.git
       ref: v0.3.0 # branch, tag, or commit hash
@@ -557,7 +557,7 @@ As you might expect, this works also in the case of adding local packages:
 ```yaml
 workspace:
     registry: 41.2.0
-  extra_packages:
+  extraPackages:
     facebook:
       path: ../my-purescript-facebook
 ```
@@ -596,7 +596,7 @@ will try to put together a new build plan with the latest package versions publi
 If instead you are using package sets, then `spago upgrade` will bump your package set version to the latest package set available for your compiler version.
 
 You can pass the `--package-set` flag if you'd rather upgrade to a specific package set version.
-You can of course just edit the `workspace.package_set` field in the `spago.yaml` file.
+You can of course just edit the `workspace.packageSet` field in the `spago.yaml` file.
 
 ### Custom package sets
 
@@ -606,7 +606,7 @@ Spago will be happy to use a package set from a local path:
 
 ```yaml
 workspace:
-  package_set:
+  packageSet:
     path: ../my-custom-package-set.json
 ```
 
@@ -614,13 +614,13 @@ Otherwise you can point Spago to any URL on the internet:
 
 ```yaml
 workspace:
-  package_set:
+  packageSet:
     url: https://raw.githubusercontent.com/purescript/package-sets/psc-0.15.7-20230207/packages.json
 ```
 
 ...and it will try to fetch the content, parse it as JSON and conform it to one of the possible package set schemas.
 
-The first one is what Spago calls a `RemotePackageSet`, which contains some metadata, and a map of packages in the shapes (2), (3) and (4) described for `extra_packages` in the [configuration format section](#the-configuration-file).
+The first one is what Spago calls a `RemotePackageSet`, which contains some metadata, and a map of packages in the shapes (2), (3) and (4) described for `extraPackages` in the [configuration format section](#the-configuration-file).
 
 This package set could look something like this:
 
@@ -643,7 +643,7 @@ This package set could look something like this:
 }
 ```
 
-The second format possible is what Spago calls a `LegacyPackageSet`, and it's simply a map from package names to the location of the package, described as the (4) option for how to specify `extra_packages` in the [configuration format section](#the-configuration-file).
+The second format possible is what Spago calls a `LegacyPackageSet`, and it's simply a map from package names to the location of the package, described as the (4) option for how to specify `extraPackages` in the [configuration format section](#the-configuration-file).
 
 Something like this:
 
@@ -746,7 +746,7 @@ Where:
 
   ```yaml
   workspace:
-    package_set:
+    packageSet:
       registry: 41.2.0
   ```
 
@@ -853,9 +853,9 @@ Then the `client/spago.yaml` might look like this:
 
 ```yaml
 workspace:
-  package_set:
+  packageSet:
     registry: 41.2.0
-  extra_packages:
+  extraPackages:
     common:
       path: ../common
 package:
@@ -870,11 +870,11 @@ And the `server/spago.yaml` might look like this:
 
 ```yaml
 workspace:
-  package_set:
+  packageSet:
     url: https://raw.githubusercontent.com/purerl/package-sets/erl-0.15.3-20220629/packages.json
   backend:
     cmd: purerl
-  extra_packages:
+  extraPackages:
     common:
       path: ../common
 package:
@@ -1130,7 +1130,7 @@ Packages on which your project depends on can come from a few different sources:
 - local packages - i.e. packages that are on your filesystem but external to your repository
 - remote packages - i.e. packages that are not on your filesystem, but somewhere on the internet
 
-The bulk of the packages in your build will come from the Registry (often via a package set), but you are able to add local and remote packages to your build as well, by adding them to the `workspace.extra_packages` section of your `spago.yaml` file.
+The bulk of the packages in your build will come from the Registry (often via a package set), but you are able to add local and remote packages to your build as well, by adding them to the `workspace.extraPackages` section of your `spago.yaml` file.
 
 See [here](#add-a-package-to-the-package-set) and [here](#the-configuration-file) for more info about how to add these "extra packages".
 
@@ -1198,9 +1198,9 @@ Or it can be more complex, e.g.:
 
 ```yaml
 workspace:
-  package_set:
+  packageSet:
     url: https://raw.githubusercontent.com/some-user/custom-package-sets/some-release/packages.json
-  extra_packages:
+  extraPackages:
     aff:
       path: ../my-purescript-aff
 ```
@@ -1222,10 +1222,10 @@ This section documents all the possible fields that can be present in the `spago
 # which will only contain the `package` section.
 workspace:
 
-  # The package_set field defines where to fetch the package set from.
+  # The packageSet field defines where to fetch the package set from.
   # It's optional - not defining this field will make Spago use the
   # Registry solver instead, to come up with a build plan.
-  package_set:
+  packageSet:
     # It could either be a pointer to the official registry sets that
     # live at https://github.com/purescript/registry/tree/main/package-sets
     registry: 11.10.0
@@ -1238,7 +1238,7 @@ workspace:
   # This section defines any other packages that you'd like to include
   # in the build. It's optional, in case you just want to use the ones
   # coming from the Registry/package set.
-  extra_packages:
+  extraPackages:
     # Packages are always specified as a mapping from "package name" to
     # "where to find them", and there are quite a few ways to define
     # these locations:
@@ -1296,33 +1296,33 @@ workspace:
   lock: false
 
   # Optional section to further customise the build.
-  build_opts:
+  buildOpts:
     # Directory for the compiler products - optional, defaults to `output`.
     output: "output"
     # Specify whether to censor warnings coming from the compiler
     # for files in the `.spago` directory`.
     # Optional and can be one of two possible values
-    censor_library_warnings:
+    censorLibraryWarnings:
       # Value 1: "all" - All warnings are censored
       all
 
-      # Value 2: `NonEmptyArray (Either String { by_prefix :: String })`
+      # Value 2: `NonEmptyArray (Either String { byPrefix :: String })`
       # - String values:
       #      censor warnings if the code matches this code
-      # - { by_prefix } values:
+      # - { byPrefix } values:
       #      censor warnings if the warning's message
       #      starts with the given text
       - CodeName
-      # Note: when using `by_prefix`, use the `>` for block-string:
+      # Note: when using `byPrefix`, use the `>` for block-string:
       # see https://yaml-multiline.info/
-      - by_prefix: >
+      - byPrefix: >
         "Data.Map"'s `Semigroup instance`
 
     # Specify whether to show statistics at the end of the compilation,
     # and how verbose they should be.
     # Can be 'no-stats', 'compact-stats' (default), or 'verbose-stats',
     # which breaks down the statistics by warning code.
-    stat_verbosity: "compact-stats"
+    statVerbosity: "compact-stats"
 
 # This is the only other section that can be present at the top level.
 # It specifies the configuration for a package in the current folder,
@@ -1353,25 +1353,25 @@ package:
   build:
     # Fail the build if this package's `dependencies` field has redundant/underspecified packages.
     # Optional boolean that defaults to `false`.
-    pedantic_packages: false
+    pedanticPackages: false
 
     # Specify whether to censor warnings coming from the compiler
     # for files from this package.
     # Optional and can be one of two possible values
-    censor_project_warnings:
+    censorProjectWarnings:
       # Value 1: "all" - All warnings are censored
       all
 
-      # Value 2: `NonEmptyArray (Either String { by_prefix :: String })`
+      # Value 2: `NonEmptyArray (Either String { byPrefix :: String })`
       # - String values:
       #      censor warnings if the code matches this code
-      # - { by_prefix } values:
+      # - { byPrefix } values:
       #      censor warnings if the warning's message
       #      starts with the given text
       - CodeName
-      # Note: when using `by_prefix`, use the `>` for block-string:
+      # Note: when using `byPrefix`, use the `>` for block-string:
       # see https://yaml-multiline.info/
-      - by_prefix: >
+      - byPrefix: >
         "Data.Map"'s `Semigroup instance`
     # Convert compiler warnings for files in this package's src code
     # into errors that can fail the build.
@@ -1403,7 +1403,7 @@ package:
     # The entrypoint for the program
     main: Main
     # List of arguments to pass to the program
-    exec_args:
+    execArgs:
       - "--cli-arg"
       - "foo"
 
@@ -1415,31 +1415,31 @@ package:
     dependencies:
     - foo
     # Optional list of arguments to pass to the test program
-    exec_args:
+    execArgs:
       - "--cli-arg"
       - "foo"
 
     # Fail the build if this package's test's `dependencies` field has redundant/underspecified packages.
     # Optional boolean that defaults to `false`.
-    pedantic_packages: false
+    pedanticPackages: false
 
     # Specify whether to censor warnings coming from the compiler
     # for files from this package's test code.
     # Optional and can be one of two possible values
-    censor_test_warnings:
+    censorTestWarnings:
       # Value 1: "all" - All warnings are censored
       all
 
-      # Value 2: `NonEmptyArray (Either String { by_prefix :: String })`
+      # Value 2: `NonEmptyArray (Either String { byPrefix :: String })`
       # - String values:
       #      censor warnings if the code matches this code
-      # - { by_prefix } values:
+      # - { byPrefix } values:
       #      censor warnings if the warning's message
       #      starts with the given text
       - CodeName
-      # Note: when using `by_prefix`, use the `>` for block-string:
+      # Note: when using `byPrefix`, use the `>` for block-string:
       # see https://yaml-multiline.info/
-      - by_prefix: >
+      - byPrefix: >
         "Data.Map"'s `Semigroup instance`
     # Convert compiler warnings for files from this package's test code
     # into errors that can fail the build.

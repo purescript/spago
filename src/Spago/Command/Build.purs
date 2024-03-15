@@ -130,7 +130,7 @@ run opts = do
     Nothing -> pure true
     Just backend -> do
       logInfo $ "Compiling with backend \"" <> backend.cmd <> "\""
-      logDebug $ "Running command `" <> backend.cmd <> "`"
+      logDebug $ "Running command `" <> backend.cmd <> " build`"
       let
         moreBackendArgs = case backend.args of
           Just as | Array.length as > 0 -> as
@@ -147,8 +147,8 @@ run opts = do
   else do
     let
       pedanticPkgs = NEA.toArray selectedPackages # Array.mapMaybe \p -> do
-        let reportSrc = pedanticPackages || (fromMaybe false $ p.package.build >>= _.pedantic_packages)
-        let reportTest = pedanticPackages || (fromMaybe false $ p.package.test >>= _.pedantic_packages)
+        let reportSrc = pedanticPackages || (fromMaybe false $ p.package.build >>= _.pedanticPackages)
+        let reportTest = pedanticPackages || (fromMaybe false $ p.package.test >>= _.pedanticPackages)
         Alternative.guard (reportSrc || reportTest)
         pure $ Tuple p { reportSrc, reportTest }
     if Array.null pedanticPkgs || opts.depsOnly then

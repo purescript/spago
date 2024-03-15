@@ -39,6 +39,8 @@ workspace:
         - effect
         - prelude
       build_plan:
+        - console
+        - effect
         - prelude
   package_set:
     address:

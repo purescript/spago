@@ -154,26 +154,26 @@ defaultConfig' opts =
       , dependencies: Dependencies $ Map.fromFoldable $ map mkDep dependencies
       , description: Nothing
       , build: build <#> \{ censorProjectWarnings, strict, pedanticPackages } ->
-          { censor_project_warnings: censorProjectWarnings
+          { censorProjectWarnings
           , strict
-          , pedantic_packages: pedanticPackages
+          , pedanticPackages
           }
       , run: Nothing
       , test: test <#> \{ moduleMain, censorTestWarnings, strict, pedanticPackages, dependencies: testDeps } ->
           { dependencies: fromMaybe (Dependencies Map.empty) testDeps
-          , exec_args: Nothing
+          , execArgs: Nothing
           , main: moduleMain
-          , censor_test_warnings: censorTestWarnings
+          , censorTestWarnings
           , strict
-          , pedantic_packages: pedanticPackages
+          , pedanticPackages
           }
       , publish: Nothing
       , bundle: Nothing
       }
   , workspace: (getDefaultConfigWorkspaceOptions opts) <#> \{ setVersion } ->
-      { extra_packages: Just Map.empty
-      , package_set: setVersion # map \set -> SetFromRegistry { registry: set }
-      , build_opts: Nothing
+      { extraPackages: Just Map.empty
+      , packageSet: setVersion # map \set -> SetFromRegistry { registry: set }
+      , buildOpts: Nothing
       , backend: Nothing
       }
   }
