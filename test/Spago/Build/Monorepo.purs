@@ -130,7 +130,7 @@ spec = Spec.describe "monorepo" do
           , escapePathInErrMsg [ "package-c", "src", "Main.purs:6:13" ]
           ]
         shouldNotHaveWarning = assertWarning paths false
-      spago [ "build" ] >>= check { stdout: mempty, stderr: shouldNotHaveWarning , result: isRight } 
+      spago [ "build" ] >>= check { stdout: mempty, stderr: shouldNotHaveWarning, result: isRight }
 
     Spec.it "build fails when 'strict: true' and warnings were not censored" \{ spago, fixture } -> do
       FS.copyTree { src: fixture "monorepo/strict-true-uncensored-warnings", dst: "." }
@@ -139,7 +139,7 @@ spec = Spec.describe "monorepo" do
           [ "[1/2 UnusedName] " <> escapePathInErrMsg [ "package-b", "src", "Main.purs:6:13" ]
           , "[2/2 UnusedName] " <> escapePathInErrMsg [ "package-b", "test", "Main.purs:6:13" ]
           ]
-        hasUnusedWarningError =  assertWarning errs true
+        hasUnusedWarningError = assertWarning errs true
       spago [ "build" ] >>= check { stdout: mempty, stderr: hasUnusedWarningError, result: isLeft }
 
   Spec.describe "passing --ensure-ranges flag..." do
