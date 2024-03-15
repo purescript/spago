@@ -179,7 +179,7 @@ shouldPrintWarning = case _ of
       let
         tests = arr <#> case _ of
           ByCode c -> \code _ -> c == code
-          ByMessagePrefix prefix -> \_ msg -> isJust $ String.stripPrefix (String.Pattern prefix) msg
+          ByMessagePrefix prefix -> \_ msg -> isJust $ String.stripPrefix (String.Pattern $ String.trim prefix) (String.trim msg)
       -- We return `true` to print the warning.
       -- If an element was found (i.e. `Just` is returned), then one of the tests succeeded, 
       -- so we should not print the warning and return false here.

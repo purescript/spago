@@ -377,3 +377,9 @@ escapePathInErrMsg :: Array String -> String
 escapePathInErrMsg = case Process.platform of
   Just Platform.Win32 -> Array.intercalate "\\"
   _ -> Array.intercalate "/"
+
+assertWarning :: forall m. MonadThrow Error m => Array String -> Boolean -> String -> m Unit
+assertWarning paths shouldHave stdErr  = do
+  when (not $ Array.all (\exp -> shouldHave == (String.contains (Pattern exp) stdErr)) paths) do
+    Assert.fail $ "STDERR contained one or more texts:\n" <> show paths <> "\n\nStderr was:\n" <> stdErr
+

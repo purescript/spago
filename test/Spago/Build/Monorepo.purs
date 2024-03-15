@@ -129,10 +129,8 @@ spec = Spec.describe "monorepo" do
           , escapePathInErrMsg [ "package-b", "src", "Main.purs:6:13" ]
           , escapePathInErrMsg [ "package-c", "src", "Main.purs:6:13" ]
           ]
-        shouldNotHaveWarning stdErr = do
-          when (Array.any (\exp -> String.contains (Pattern exp) stdErr) paths) do
-            Assert.fail $ "STDERR contained one or more texts:\n" <> show paths <> "\n\nStderr was:\n" <> stdErr
-      spago [ "build" ] >>= check { stdout: mempty, stderr: shouldNotHaveWarning, result: isRight }
+        shouldNotHaveWarning = assertWarning paths false
+      spago [ "build" ] >>= check { stdout: mempty, stderr: shouldNotHaveWarning , result: isRight } 
 
     Spec.it "build fails when 'strict: true' and warnings were not censored" \{ spago, fixture } -> do
       FS.copyTree { src: fixture "monorepo/strict-true-uncensored-warnings", dst: "." }
@@ -141,9 +139,7 @@ spec = Spec.describe "monorepo" do
           [ "[1/2 UnusedName] " <> escapePathInErrMsg [ "package-b", "src", "Main.purs:6:13" ]
           , "[2/2 UnusedName] " <> escapePathInErrMsg [ "package-b", "test", "Main.purs:6:13" ]
           ]
-        hasUnusedWarningError stdErr = do
-          unless (Array.any (\exp -> String.contains (Pattern exp) stdErr) errs) do
-            Assert.fail $ "STDERR did not contain texts:\n" <> show errs <> "\n\nStderr was:\n" <> stdErr
+        hasUnusedWarningError =  assertWarning errs true
       spago [ "build" ] >>= check { stdout: mempty, stderr: hasUnusedWarningError, result: isLeft }
 
   Spec.describe "passing --ensure-ranges flag..." do

@@ -1,0 +1,14 @@
+package:
+  name: foo
+  dependencies:
+    - console
+    - effect
+    - prelude
+  build:
+    censor_project_warnings:
+      - by_prefix: "Module Prelude"
+      - "UnusedName"
+
+workspace:
+  package_set:
+    registry: 41.5.0
