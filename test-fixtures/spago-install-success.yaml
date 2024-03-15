@@ -9,6 +9,6 @@ package:
     main: Test.Main
     dependencies: []
 workspace:
-  package_set:
+  packageSet:
     registry: 29.3.0
-  extra_packages: {}
+  extraPackages: {}

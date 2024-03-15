@@ -31,7 +31,6 @@ module Spago.Core.Config
   , parseBundleType
   , parsePlatform
   , printSpagoRange
-  , readConfig
   , remotePackageCodec
   , setAddressCodec
   , widestRange
@@ -47,8 +46,6 @@ import Data.Either as Either
 import Data.List as List
 import Data.Map as Map
 import Data.Profunctor as Profunctor
-import Data.String (stripSuffix) as String
-import Data.String.Pattern (Pattern(..)) as String
 import Partial.Unsafe (unsafeCrashWith)
 import Registry.Internal.Codec as Internal.Codec
 import Registry.License as License
@@ -57,7 +54,6 @@ import Registry.PackageName as PackageName
 import Registry.Range as Range
 import Registry.Sha256 as Sha256
 import Registry.Version as Version
-import Spago.FS as FS
 import Type.Proxy (Proxy(..))
 
 type Config =
@@ -113,31 +109,31 @@ publishConfigCodec = CA.object "PublishConfig"
 
 type RunConfig =
   { main :: Maybe String
-  , exec_args :: Maybe (Array String)
+  , execArgs :: Maybe (Array String)
   }
 
 runConfigCodec :: JsonCodec RunConfig
 runConfigCodec = CA.object "RunConfig"
   $ CA.recordPropOptional (Proxy :: _ "main") CA.string
-  $ CA.recordPropOptional (Proxy :: _ "exec_args") (CA.array CA.string)
+  $ CA.recordPropOptional (Proxy :: _ "execArgs") (CA.array CA.string)
   $ CA.record
 
 type TestConfig =
   { main :: String
-  , exec_args :: Maybe (Array String)
+  , execArgs :: Maybe (Array String)
   , dependencies :: Dependencies
-  , censor_test_warnings :: Maybe CensorBuildWarnings
+  , censorTestWarnings :: Maybe CensorBuildWarnings
   , strict :: Maybe Boolean
-  , pedantic_packages :: Maybe Boolean
+  , pedanticPackages :: Maybe Boolean
   }
 
 testConfigCodec :: JsonCodec TestConfig
 testConfigCodec = CA.object "TestConfig"
   $ CA.recordProp (Proxy :: _ "main") CA.string
-  $ CA.recordPropOptional (Proxy :: _ "exec_args") (CA.array CA.string)
-  $ CA.recordPropOptional (Proxy :: _ "censor_test_warnings") censorBuildWarningsCodec
+  $ CA.recordPropOptional (Proxy :: _ "execArgs") (CA.array CA.string)
+  $ CA.recordPropOptional (Proxy :: _ "censorTestWarnings") censorBuildWarningsCodec
   $ CA.recordPropOptional (Proxy :: _ "strict") CA.boolean
-  $ CA.recordPropOptional (Proxy :: _ "pedantic_packages") CA.boolean
+  $ CA.recordPropOptional (Proxy :: _ "pedanticPackages") CA.boolean
   $ CA.recordProp (Proxy :: _ "dependencies") dependenciesCodec
   $ CA.record
 
@@ -153,16 +149,16 @@ backendConfigCodec = CA.object "BackendConfig"
   $ CA.record
 
 type PackageBuildOptionsInput =
-  { censor_project_warnings :: Maybe CensorBuildWarnings
+  { censorProjectWarnings :: Maybe CensorBuildWarnings
   , strict :: Maybe Boolean
-  , pedantic_packages :: Maybe Boolean
+  , pedanticPackages :: Maybe Boolean
   }
 
 packageBuildOptionsCodec :: JsonCodec PackageBuildOptionsInput
 packageBuildOptionsCodec = CA.object "PackageBuildOptionsInput"
-  $ CA.recordPropOptional (Proxy :: _ "censor_project_warnings") censorBuildWarningsCodec
+  $ CA.recordPropOptional (Proxy :: _ "censorProjectWarnings") censorBuildWarningsCodec
   $ CA.recordPropOptional (Proxy :: _ "strict") CA.boolean
-  $ CA.recordPropOptional (Proxy :: _ "pedantic_packages") CA.boolean
+  $ CA.recordPropOptional (Proxy :: _ "pedanticPackages") CA.boolean
   $ CA.record
 
 type BundleConfig =
@@ -171,7 +167,7 @@ type BundleConfig =
   , outfile :: Maybe FilePath
   , platform :: Maybe BundlePlatform
   , type :: Maybe BundleType
-  , extra_args :: Maybe (Array String)
+  , extraArgs :: Maybe (Array String)
   }
 
 bundleConfigCodec :: JsonCodec BundleConfig
@@ -181,7 +177,7 @@ bundleConfigCodec = CA.object "BundleConfig"
   $ CA.recordPropOptional (Proxy :: _ "outfile") CA.string
   $ CA.recordPropOptional (Proxy :: _ "platform") bundlePlatformCodec
   $ CA.recordPropOptional (Proxy :: _ "type") bundleTypeCodec
-  $ CA.recordPropOptional (Proxy :: _ "extra_args") (CA.array CA.string)
+  $ CA.recordPropOptional (Proxy :: _ "extraArgs") (CA.array CA.string)
   $ CA.record
 
 data BundlePlatform = BundleNode | BundleBrowser
@@ -286,31 +282,31 @@ printSpagoRange range =
   else Range.print range
 
 type WorkspaceConfig =
-  { package_set :: Maybe SetAddress
-  , extra_packages :: Maybe (Map PackageName ExtraPackage)
+  { packageSet :: Maybe SetAddress
+  , extraPackages :: Maybe (Map PackageName ExtraPackage)
   , backend :: Maybe BackendConfig
-  , build_opts :: Maybe WorkspaceBuildOptionsInput
+  , buildOpts :: Maybe WorkspaceBuildOptionsInput
   }
 
 workspaceConfigCodec :: JsonCodec WorkspaceConfig
 workspaceConfigCodec = CA.object "WorkspaceConfig"
-  $ CA.recordPropOptional (Proxy :: _ "package_set") setAddressCodec
+  $ CA.recordPropOptional (Proxy :: _ "packageSet") setAddressCodec
   $ CA.recordPropOptional (Proxy :: _ "backend") backendConfigCodec
-  $ CA.recordPropOptional (Proxy :: _ "build_opts") buildOptionsCodec
-  $ CA.recordPropOptional (Proxy :: _ "extra_packages") (Internal.Codec.packageMap extraPackageCodec)
+  $ CA.recordPropOptional (Proxy :: _ "buildOpts") buildOptionsCodec
+  $ CA.recordPropOptional (Proxy :: _ "extraPackages") (Internal.Codec.packageMap extraPackageCodec)
   $ CA.record
 
 type WorkspaceBuildOptionsInput =
   { output :: Maybe FilePath
-  , censor_library_warnings :: Maybe CensorBuildWarnings
-  , stat_verbosity :: Maybe StatVerbosity
+  , censorLibraryWarnings :: Maybe CensorBuildWarnings
+  , statVerbosity :: Maybe StatVerbosity
   }
 
 buildOptionsCodec :: JsonCodec WorkspaceBuildOptionsInput
 buildOptionsCodec = CA.object "WorkspaceBuildOptionsInput"
   $ CA.recordPropOptional (Proxy :: _ "output") CA.string
-  $ CA.recordPropOptional (Proxy :: _ "censor_library_warnings") censorBuildWarningsCodec
-  $ CA.recordPropOptional (Proxy :: _ "stat_verbosity") statVerbosityCodec
+  $ CA.recordPropOptional (Proxy :: _ "censorLibraryWarnings") censorBuildWarningsCodec
+  $ CA.recordPropOptional (Proxy :: _ "statVerbosity") statVerbosityCodec
   $ CA.record
 
 data CensorBuildWarnings
@@ -356,14 +352,14 @@ warningCensorTestCodec = CA.codec' parse print
   where
   print = case _ of
     ByCode str -> CA.encode CA.string str
-    ByMessagePrefix str -> CA.encode byMessagePrefixCodec { by_prefix: str }
+    ByMessagePrefix str -> CA.encode byMessagePrefixCodec { byPrefix: str }
 
   parse j = byCode <|> byPrefix
     where
     byCode = ByCode <$> CA.decode CA.string j
-    byPrefix = (ByMessagePrefix <<< _.by_prefix) <$> CA.decode byMessagePrefixCodec j
+    byPrefix = (ByMessagePrefix <<< _.byPrefix) <$> CA.decode byMessagePrefixCodec j
 
-  byMessagePrefixCodec = CAR.object "ByMessagePrefix" { by_prefix: CA.string }
+  byMessagePrefixCodec = CAR.object "ByMessagePrefix" { byPrefix: CA.string }
 
 data StatVerbosity
   = NoStats
@@ -478,31 +474,3 @@ legacyPackageSetEntryCodec = CA.object "LegacyPackageSetEntry"
   $ CA.recordProp (Proxy :: _ "version") CA.string
   $ CA.recordProp (Proxy :: _ "dependencies") (CA.array PackageName.codec)
   $ CA.record
-
-readConfig :: forall a. FilePath -> Spago (LogEnv a) (Either (Array String) { doc :: YamlDoc Config, yaml :: Config })
-readConfig path = do
-  logDebug $ "Reading config from " <> path
-  FS.exists path >>= case _ of
-    false -> do
-      let replaceExt = map (_ <> ".yml") <<< String.stripSuffix (String.Pattern ".yaml")
-      yml <- map join $ for (replaceExt path) \yml -> do
-        hasYml <- FS.exists yml
-        pure $
-          if hasYml then
-            Just yml
-          else
-            Nothing
-      pure $ Left $ case path, yml of
-        "spago.yaml", Nothing ->
-          [ "Did not find `" <> path <> "`. Run `spago init` to initialize a new project." ]
-        "spago.yaml", Just y ->
-          [ "Did not find `" <> path <> "`. Spago's configuration files must end with `.yaml`, not `.yml`. "
-          , "Try renaming `" <> y <> "` to `" <> path <> "` or run `spago init` to initialize a new project."
-          ]
-        _, Nothing ->
-          [ "Did not find `" <> path <> "`." ]
-        _, Just y ->
-          [ "Did not find `" <> path <> "`. Spago's configuration files must end with `.yaml`, not `.yml`. "
-          , "Try renaming `" <> y <> "` to `" <> path <> "`."
-          ]
-    true -> liftAff $ map (lmap pure) $ FS.readYamlDocFile configCodec path

@@ -5,6 +5,8 @@ module Spago.Yaml
   , printYaml
   , stringifyYaml
   , toString
+  , toJson
+  , parser
   ) where
 
 import Prelude
@@ -26,10 +28,8 @@ foreign import toStringImpl :: forall a. Fn1 (YamlDoc a) String
 
 foreign import data YamlDoc :: Type -> Type
 
--- | Parse a JSON string, constructing the `Toml` value described by the string.
--- | To convert a string into a `Toml` string, see `fromString`.
-yamlParser :: forall a. String -> Either String (YamlDoc a)
-yamlParser j = runFn3 yamlDocParserImpl Left Right j
+parser :: forall a. String -> Either String (YamlDoc a)
+parser yaml = runFn3 yamlDocParserImpl Left Right yaml
 
 toString :: forall a. YamlDoc a -> String
 toString = runFn1 toStringImpl
@@ -61,6 +61,6 @@ parseYaml codec = parseYamlDoc codec >>> map _.yaml
 -- | Parse a type from a string of YAML data.
 parseYamlDoc :: forall a. JsonCodec a -> String -> Either JsonDecodeError { doc :: YamlDoc a, yaml :: a }
 parseYamlDoc codec yamlStr = do
-  doc <- lmap (\err -> CA.TypeMismatch ("YAML: " <> err)) (yamlParser yamlStr)
+  doc <- lmap (\err -> CA.TypeMismatch ("YAML: " <> err)) (parser yamlStr)
   yaml <- CA.decode codec (toJson doc)
   pure { doc, yaml }

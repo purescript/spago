@@ -197,6 +197,14 @@ spec = Spec.around withTempDir do
         Just Platform.Win32 -> fixture "build/json-truncated-many-warnings/warnings-windows.json"
         _ -> fixture "build/json-truncated-many-warnings/warnings.json"
 
+    Spec.it "building with old-format config files works, as well as migrating them" \{ spago, fixture } -> do
+      FS.copyTree { src: fixture "build/migrate-config", dst: "." }
+      spago [ "build" ] >>= shouldBeSuccess
+      spago [ "build" ] >>= shouldBeSuccessErr (fixture "build/migrate-config/unmigrated-warning.txt")
+      spago [ "build", "--migrate" ] >>= shouldBeSuccessErr (fixture "build/migrate-config/migrating-output.txt")
+      spago [ "build" ] >>= shouldBeSuccessErr (fixture "build/migrate-config/migrated-output.txt")
+      checkFixture "spago.yaml" (fixture "build/migrate-config/migrated-spago.yaml")
+
     Pedantic.spec
 
     Monorepo.spec

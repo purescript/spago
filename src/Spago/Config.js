@@ -99,3 +99,25 @@ export function addRangesToConfigImpl(doc, rangesMap) {
 export function setPackageSetVersionInConfigImpl(doc, version) {
   doc.setIn(["workspace", "package_set", "registry"], version);
 }
+
+export function migrateV1ConfigImpl(doc) {
+  // see here for more info about the visitor: https://eemeli.org/yaml/#finding-and-modifying-nodes
+  let hasChanged = false;
+  Yaml.visit(doc, {
+    Pair(_idx, pair, _path) {
+      // A previous version of the config used underscores in the config keys,
+      // but we standardised on camelCase instead.
+      // So here we crawl through the keys of each YamlMap and convert all the keys
+      // to camelCase.
+      if (pair.key && Yaml.isScalar(pair.key)) {
+        pair.key.value = pair.key.value.replaceAll(/_./g, function (match) {
+          hasChanged = true;
+          return match.charAt(1).toUpperCase();
+        });
+      }
+    }
+  });
+  if (hasChanged) {
+    return doc;
+  }
+}

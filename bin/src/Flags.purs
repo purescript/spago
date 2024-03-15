@@ -96,6 +96,13 @@ output =
             <> O.metavar "DIR"
         )
 
+migrateConfig :: Parser Boolean
+migrateConfig =
+  O.switch
+    ( O.long "migrate"
+        <> O.help "Migrate the spago.yaml file to the latest format"
+    )
+
 quiet :: Parser Boolean
 quiet =
   O.switch

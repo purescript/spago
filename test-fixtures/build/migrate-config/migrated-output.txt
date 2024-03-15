@@ -1,0 +1,11 @@
+Reading Spago workspace configuration...
+
+✅ Selecting package to build: migrate-config
+
+Downloading dependencies...
+Building...
+           Src   Lib   All
+Warnings     0     0     0
+Errors       0     0     0
+
+✅ Build succeeded.
