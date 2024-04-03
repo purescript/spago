@@ -2,7 +2,7 @@ package:
   name: docs-search-common
   build:
     strict: true
-    censor_project_warnings:
+    censorProjectWarnings:
       - ImplicitQualifiedImport
       - ImplicitQualifiedImportReExport
   dependencies:

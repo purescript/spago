@@ -625,10 +625,6 @@ readConfig path = do
             (\yaml -> { doc, yaml, wasMigrated: isJust maybeMigratedDoc })
             (CA.decode Core.configCodec (Yaml.toJson $ fromMaybe doc maybeMigratedDoc))
 
--- TODO we need a few tests:
--- 1. test that we can read a new-style config without warnings
--- 2. test that we warn if the file is outdated, and that we can migrate it if then passed the flag
-
 setPackageSetVersionInConfig :: forall m. MonadAff m => MonadEffect m => YamlDoc Core.Config -> Version -> m Unit
 setPackageSetVersionInConfig doc version = do
   liftEffect $ runEffectFn2 setPackageSetVersionInConfigImpl doc (Version.print version)
