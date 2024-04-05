@@ -51,7 +51,6 @@ import Effect.Aff as Aff
 import Effect.Uncurried (EffectFn2, EffectFn3, runEffectFn2, runEffectFn3)
 import Foreign.Object as Foreign
 import Node.Path as Path
-import Registry.Foreign.FastGlob as Glob
 import Registry.Internal.Codec as Internal.Codec
 import Registry.PackageName as PackageName
 import Registry.PackageSet as Registry.PackageSet
@@ -59,12 +58,12 @@ import Registry.Range as Range
 import Registry.Version as Version
 import Spago.Core.Config as Core
 import Spago.FS as FS
-import Spago.Git as Git
 import Spago.Lock (Lockfile, PackageSetInfo)
 import Spago.Lock as Lock
 import Spago.Paths as Paths
 import Spago.Registry as Registry
 import Spago.Yaml as Yaml
+import Spago.Glob as Glob
 
 type Workspace =
   { selected :: Maybe WorkspacePackage
@@ -163,31 +162,6 @@ type ReadWorkspaceOptions =
   , migrateConfig :: Boolean
   }
 
--- | Same as `Glob.match'` but if there is a .gitignore file in the same directory,
--- | then the `ignore` option will be filled accordingly.
--- | This function does not respect any .gitignore files in subdirectories.
--- | Translation of: https://github.com/sindresorhus/globby/issues/50#issuecomment-467897064
-gitIgnoringGlob :: String -> Array String -> Spago (LogEnv _) { failed :: Array String, succeeded :: Array String }
-gitIgnoringGlob dir patterns = do
-  gitignore <- try (liftAff $ FS.readTextFile $ Path.concat [ dir, ".gitignore" ]) >>= case _ of
-    Left err -> do
-      logDebug $ "Could not read .gitignore to exclude directories from globbing, error: " <> Aff.message err
-      pure ""
-    Right contents -> pure contents
-  let
-    isComment = isJust <<< String.stripPrefix (String.Pattern "#")
-    dropPrefixSlashes line = maybe line dropPrefixSlashes $ String.stripPrefix (String.Pattern "/") line
-    dropSuffixSlashes line = maybe line dropSuffixSlashes $ String.stripSuffix (String.Pattern "/") line
-
-    ignore :: Array String
-    ignore =
-      map (dropSuffixSlashes <<< dropPrefixSlashes)
-        $ Array.filter (not <<< or [ String.null, isComment ])
-        $ map String.trim
-        $ String.split (String.Pattern "\n")
-        $ gitignore
-  liftAff $ Glob.match' dir patterns { ignore: [ ".spago" ] <> ignore }
-
 -- | Reads all the configurations in the tree and builds up the Map of local
 -- | packages to be integrated in the package set
 readWorkspace :: ReadWorkspaceOptions -> Spago (Registry.RegistryEnv _) Workspace
@@ -222,23 +196,9 @@ readWorkspace { maybeSelectedPackage, pureBuild, migrateConfig } = do
       pure { workspace, package, workspaceDoc: doc }
 
   logDebug "Gathering all the spago configs in the tree..."
-  { succeeded: otherConfigPaths, failed, ignored } <- do
-    result <- gitIgnoringGlob Paths.cwd [ "**/spago.yaml" ]
-    -- If a file is gitignored then we don't include it as a package
-    let
-      filterGitignored path = do
-        Git.isIgnored path >>= case _ of
-          true -> pure $ Left path
-          false -> pure $ Right path
-    { right: newSucceeded, left: ignored } <- partitionMap identity
-      <$> parTraverseSpago filterGitignored result.succeeded
-    pure { succeeded: newSucceeded, failed: result.failed, ignored }
+  otherConfigPaths <- liftAff $ Glob.gitignoringGlob Paths.cwd [ "**/spago.yaml" ]
   unless (Array.null otherConfigPaths) do
     logDebug $ [ toDoc "Found packages at these paths:", Log.indent $ Log.lines (map toDoc otherConfigPaths) ]
-  unless (Array.null failed) do
-    logDebug $ "Failed to sanitise some of the glob matches: " <> show failed
-  unless (Array.null ignored) do
-    logDebug $ "Ignored some of the glob matches as they are gitignored: " <> show ignored
 
   -- We read all of them in, and only read the package section, if any.
   let
