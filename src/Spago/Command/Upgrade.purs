@@ -10,9 +10,13 @@ import Spago.Db as Db
 
 run :: forall a. Spago (FetchEnv a) Unit
 run = do
-  { workspace, db, purs } <- ask
+  { workspace, db, purs, getRegistry, logOptions, git, offline } <- ask
   case workspace.workspaceConfig.packageSet of
     Just (Core.SetFromRegistry { registry }) -> do
+      -- We are going to read from the database, but we have no guarantee it's up to date,
+      -- so we need to pull a fresh registry first - calling the `getRegistry` is enough,
+      -- since that will populate the db with the missing stuff
+      _ <- runSpago { logOptions, db, git, purs, offline } getRegistry
       maybeLatestPackageSet <- liftEffect $ Db.selectLatestPackageSetByCompiler db purs.version
       case maybeLatestPackageSet of
         Nothing -> die "No package set found for the current compiler version."

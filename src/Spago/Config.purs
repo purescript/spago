@@ -344,10 +344,11 @@ readWorkspace { maybeSelectedPackage, pureBuild, migrateConfig } = do
     -- If there's a lockfile we don't attempt to fetch the package set from the registry
     -- repo nor from the internet, since we already have the whole set right there
     Right lockfile, _ -> do
-      logDebug "Found lockfile, using the package set from there"
+      logDebug "Found the lockfile, using the package set from there"
       pure lockfile.workspace.package_set
 
-    Left _, Just address@(Core.SetFromRegistry { registry: v }) -> do
+    Left reason, Just address@(Core.SetFromRegistry { registry: v }) -> do
+      logDebug reason
       logDebug "Reading the package set from the Registry repo..."
       (Registry.PackageSet.PackageSet registryPackageSet) <- Registry.readPackageSet v
       logDebug "Read the package set from the Registry repo"
@@ -357,7 +358,8 @@ readWorkspace { maybeSelectedPackage, pureBuild, migrateConfig } = do
         , compiler: Range.caret registryPackageSet.compiler
         }
 
-    Left _, Just address@(Core.SetFromPath { path }) -> do
+    Left reason, Just address@(Core.SetFromPath { path }) -> do
+      logDebug reason
       logDebug $ "Reading the package set from local path: " <> path
       liftAff (FS.readJsonFile remotePackageSetCodec path) >>= case _ of
         Left err -> die $ "Couldn't read the package set: " <> err
@@ -369,10 +371,11 @@ readWorkspace { maybeSelectedPackage, pureBuild, migrateConfig } = do
             , compiler: Range.caret localPackageSet.compiler
             }
 
-    Left _, Just address@(Core.SetFromUrl { url: rawUrl }) -> do
+    Left reason, Just address@(Core.SetFromUrl { url: rawUrl }) -> do
       result <- case offline of
         Offline -> die "You are offline, but the package set is not cached locally. Please connect to the internet and try again."
         Online -> do
+          logDebug reason
           logDebug $ "Reading the package set from URL: " <> rawUrl
           url <- case parseUrl rawUrl of
             Left err -> die $ "Could not parse URL for the package set, error: " <> show err
