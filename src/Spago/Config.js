@@ -97,7 +97,7 @@ export function addRangesToConfigImpl(doc, rangesMap) {
 }
 
 export function setPackageSetVersionInConfigImpl(doc, version) {
-  doc.setIn(["workspace", "package_set", "registry"], version);
+  doc.setIn(["workspace", "packageSet", "registry"], version);
 }
 
 export function migrateV1ConfigImpl(doc) {
