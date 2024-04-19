@@ -285,7 +285,6 @@ workspace:
         - contravariant
         - control
         - datetime
-        - debug
         - distributive
         - docs-search-common
         - effect
@@ -424,7 +423,6 @@ workspace:
         - control
         - convertable-options
         - datetime
-        - debug
         - distributive
         - docs-search-common
         - docs-search-index
@@ -571,7 +569,6 @@ workspace:
         - control
         - convertable-options
         - datetime
-        - debug
         - distributive
         - docs-search-common
         - docs-search-index
@@ -801,8 +798,8 @@ workspace:
         - variant
   package_set:
     address:
-      registry: 47.9.1
-    compiler: ">=0.15.13 <0.16.0"
+      registry: 50.8.0
+    compiler: ">=0.15.15 <0.16.0"
     content:
       abc-parser: 2.0.1
       ace: 9.1.0
@@ -829,7 +826,7 @@ workspace:
       arraybuffer-builder: 3.1.0
       arraybuffer-types: 3.0.2
       arrays: 7.3.0
-      arrays-extra: 0.4.4
+      arrays-extra: 0.6.1
       arrays-zipper: 2.0.1
       ask: 1.0.0
       assert: 6.0.0
@@ -855,6 +852,7 @@ workspace:
       chameleon-transformers: 1.0.0
       channel: 1.0.0
       checked-exceptions: 3.1.1
+      choku: 1.0.1
       classless: 0.1.1
       classless-arbitrary: 0.1.1
       classless-decode-json: 0.1.1
@@ -895,13 +893,13 @@ workspace:
       echarts-simple: 0.0.1
       effect: 4.0.0
       either: 6.1.0
-      elmish: 0.10.0
+      elmish: 0.11.3
       elmish-enzyme: 0.1.1
       elmish-hooks: 0.10.0
-      elmish-html: 0.8.1
-      elmish-testing-library: 0.3.1
+      elmish-html: 0.8.2
+      elmish-testing-library: 0.3.2
       email-validate: 7.0.0
-      encoding: 0.0.8
+      encoding: 0.0.9
       enums: 6.0.1
       env-names: 0.3.4
       error: 2.0.0
@@ -917,6 +915,8 @@ workspace:
       fetch-argonaut: 1.0.1
       fetch-core: 5.1.0
       fetch-yoga-json: 1.1.0
+      ffi-simple: 0.5.1
+      fft-js: 0.1.0
       filterable: 5.0.0
       fix-functor: 0.1.0
       fixed-points: 7.0.0
@@ -925,6 +925,7 @@ workspace:
       float32: 2.0.0
       fmt: 0.2.1
       foldable-traversable: 6.0.0
+      foldable-traversable-extra: 0.0.6
       foreign: 7.0.0
       foreign-object: 4.1.0
       foreign-readwrite: 3.4.0
@@ -946,19 +947,22 @@ workspace:
       generic-router: 0.0.1
       geojson: 0.0.5
       geometry-plane: 1.0.3
+      gojs: 0.1.1
       grain: 3.0.0
       grain-router: 3.0.0
       grain-virtualized: 3.0.0
       graphs: 8.1.0
       group: 4.1.1
       halogen: 7.0.0
-      halogen-bootstrap5: 2.3.1
+      halogen-bootstrap5: 5.3.2
+      halogen-canvas: 1.0.0
       halogen-css: 10.0.0
       halogen-echarts-simple: 0.0.4
       halogen-formless: 4.0.3
       halogen-helix: 1.0.0
       halogen-hooks: 0.6.3
       halogen-hooks-extra: 0.9.0
+      halogen-infinite-scroll: 1.1.0
       halogen-store: 0.5.4
       halogen-storybook: 2.0.0
       halogen-subscriptions: 2.0.0
@@ -966,6 +970,7 @@ workspace:
       halogen-typewriter: 1.0.4
       halogen-vdom: 8.0.0
       halogen-vdom-string-renderer: 0.5.0
+      halogen-xterm: 2.0.0
       heckin: 2.0.1
       heterogeneous: 0.6.0
       homogeneous: 0.4.0
@@ -980,6 +985,7 @@ workspace:
       int64: 3.0.0
       integers: 6.0.0
       interpolate: 5.0.2
+      intersection-observer: 1.0.1
       invariant: 6.0.0
       jarilo: 1.0.1
       jelly: 0.10.0
@@ -1003,10 +1009,12 @@ workspace:
       justifill: 0.5.0
       jwt: 0.0.9
       labeled-data: 0.2.0
+      language-cst-parser: 0.14.0
       lazy: 6.0.0
       lazy-joe: 1.0.0
       lcg: 4.0.0
       leibniz: 5.0.0
+      leveldb: 1.0.1
       liminal: 1.0.1
       linalg: 6.0.0
       lists: 7.0.0
@@ -1081,7 +1089,7 @@ workspace:
       open-pairing: 6.1.0
       options: 7.0.0
       optparse: 5.0.1
-      ordered-collections: 3.1.1
+      ordered-collections: 3.2.0
       ordered-set: 0.4.0
       orders: 6.0.0
       owoify: 1.2.0
@@ -1101,15 +1109,17 @@ workspace:
       pointed-list: 0.5.1
       polymorphic-vectors: 4.0.0
       posix-types: 6.0.0
+      postgresql: 1.3.0
       precise: 6.0.0
       precise-datetime: 7.0.0
       prelude: 6.0.1
       prettier-printer: 3.0.0
-      profunctor: 6.0.0
+      profunctor: 6.0.1
       profunctor-lenses: 8.0.0
       protobuf: 4.3.0
       psa-utils: 8.0.0
       psci-support: 6.0.0
+      punycode: 1.0.0
       qualified-do: 2.2.0
       quantities: 12.2.0
       quickcheck: 8.0.1
@@ -1130,7 +1140,7 @@ workspace:
       react-basic-storybook: 2.0.0
       react-dom: 8.0.0
       react-halo: 3.0.0
-      react-icons: 1.1.2
+      react-icons: 1.1.4
       react-markdown: 0.1.0
       react-testing-library: 4.0.1
       react-virtuoso: 1.0.0
@@ -1141,13 +1151,15 @@ workspace:
       record-ptional-fields: 0.1.2
       record-studio: 1.0.4
       refs: 6.0.0
-      remotedata: 5.0.0
+      remotedata: 5.0.1
+      resize-observer: 1.0.0
       resource: 2.0.1
       resourcet: 1.0.0
       result: 1.0.3
       return: 0.2.0
       ring-modules: 5.0.1
       rito: 0.3.4
+      rough-notation: 1.0.2
       routing: 11.0.0
       routing-duplex: 0.7.0
       run: 5.0.0
@@ -1169,8 +1181,8 @@ workspace:
       soundfonts: 4.1.0
       sparse-matrices: 1.3.0
       sparse-polynomials: 2.0.5
-      spec: 7.5.5
-      spec-mocha: 5.0.0
+      spec: 7.6.0
+      spec-mocha: 5.1.0
       spec-quickcheck: 5.0.0
       splitmix: 2.1.0
       ssrs: 1.0.0
@@ -1216,7 +1228,7 @@ workspace:
       unicode: 6.0.0
       unique: 0.6.1
       unlift: 1.0.1
-      unordered-collections: 3.0.1
+      unordered-collections: 3.1.0
       unsafe-coerce: 6.0.0
       unsafe-reference: 5.0.0
       untagged-to-tagged: 0.1.4
@@ -1259,12 +1271,14 @@ workspace:
       webextension-polyfill: 0.1.0
       webgpu: 0.0.1
       which: 2.0.0
+      xterm: 1.0.0
       yoga-fetch: 1.0.1
       yoga-json: 5.1.0
       yoga-om: 0.1.0
       yoga-postgres: 6.0.0
       yoga-tree: 1.0.0
       z3: 0.0.2
+      zipperarray: 2.0.0
   extra_packages:
     dodo-printer:
       git: https://github.com/natefaubion/purescript-dodo-printer.git
@@ -1760,13 +1774,6 @@ packages:
       - partial
       - prelude
       - tuples
-  debug:
-    type: registry
-    version: 6.0.2
-    integrity: sha256-vmkYFuXYuELBzeauvgHG6E6Kf/Hp1dAnxwE9ByHfwSg=
-    dependencies:
-      - functions
-      - prelude
   distributive:
     type: registry
     version: 6.0.0
@@ -1829,10 +1836,11 @@ packages:
       - prelude
   encoding:
     type: registry
-    version: 0.0.8
-    integrity: sha256-n0HhENAax0yr7JFwZXcisx0jJvVf1dFwqd+Q5i2Pr88=
+    version: 0.0.9
+    integrity: sha256-vtyUO06Jww8pFl4wRekPd1YpJl2XuQXcaNXQgHtG8Tk=
     dependencies:
       - arraybuffer-types
+      - effect
       - either
       - exceptions
       - functions
@@ -2679,8 +2687,8 @@ packages:
       - tuples
   ordered-collections:
     type: registry
-    version: 3.1.1
-    integrity: sha256-boSYHmlz4aSbwsNN4VxiwCStc0t+y1F7BXmBS+1JNtI=
+    version: 3.2.0
+    integrity: sha256-o9jqsj5rpJmMdoe/zyufWHFjYYFTTsJpgcuCnqCO6PM=
     dependencies:
       - arrays
       - foldable-traversable
@@ -2777,8 +2785,8 @@ packages:
     dependencies: []
   profunctor:
     type: registry
-    version: 6.0.0
-    integrity: sha256-99NzxFgTr4CGlCSRYG1kShL+JhYbihhHtbOk1/0R5zI=
+    version: 6.0.1
+    integrity: sha256-E58hSYdJvF2Qjf9dnWLPlJKh2Z2fLfFLkQoYi16vsFk=
     dependencies:
       - control
       - distributive
@@ -3003,8 +3011,8 @@ packages:
       - prelude
   spec:
     type: registry
-    version: 7.5.5
-    integrity: sha256-HdyBH7Ys1/m2SdTq3u2u9LdQ4cGeaohWeEMYay2mHdU=
+    version: 7.6.0
+    integrity: sha256-+merGdQbL9zWONbnt8S8J9afGJ59MQqGtS0qSd3yu4I=
     dependencies:
       - aff
       - ansi
@@ -3013,7 +3021,6 @@ packages:
       - bifunctors
       - control
       - datetime
-      - debug
       - effect
       - either
       - exceptions
