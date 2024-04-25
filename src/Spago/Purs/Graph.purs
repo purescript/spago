@@ -24,12 +24,12 @@ import Data.Set as Set
 import Data.String as String
 import Dodo as Doc
 import Record as Record
-import Registry.Foreign.FastGlob as Glob
 import Registry.Internal.Codec as Internal.Codec
 import Registry.PackageName as PackageName
 import Spago.Command.Fetch as Fetch
 import Spago.Config (Package(..), WithTestGlobs(..), WorkspacePackage)
 import Spago.Config as Config
+import Spago.Glob as Glob
 import Spago.Log as Log
 import Spago.Paths as Paths
 import Spago.Purs (ModuleGraph(..), ModuleGraphNode, ModuleName, Purs)
@@ -118,12 +118,8 @@ getModuleGraphWithPackage (ModuleGraph graph) = do
 
   pure packageGraph
 
-compileGlob :: forall a. FilePath -> Spago (LogEnv a) (Array FilePath)
-compileGlob sourcePath = do
-  { succeeded, failed } <- Glob.match Paths.cwd [ withForwardSlashes sourcePath ]
-  unless (Array.null failed) do
-    logDebug [ toDoc "Encountered some globs that are not in cwd, proceeding anyways:", indent $ toDoc failed ]
-  pure (succeeded <> failed)
+compileGlob :: forall a. FilePath -> Spago a (Array FilePath)
+compileGlob sourcePath = liftAff $ Glob.gitignoringGlob Paths.cwd [ withForwardSlashes sourcePath ]
 
 --------------------------------------------------------------------------------
 -- Package graph

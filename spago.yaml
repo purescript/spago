@@ -44,7 +44,6 @@ package:
     - profunctor
     - record
     - refs
-    - registry-foreign
     - registry-lib
     - spago-core
     - strings
@@ -67,10 +66,6 @@ workspace:
       git: https://github.com/purescript/registry-dev.git
       ref: d7d35c94cc286528e506a6a7ca78d22c84b251c9
       subdir: lib
-    registry-foreign:
-      git: https://github.com/purescript/registry-dev.git
-      ref: d7d35c94cc286528e506a6a7ca78d22c84b251c9
-      subdir: foreign
     html-parser-halogen:
       dependencies:
         - halogen
