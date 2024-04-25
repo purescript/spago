@@ -4,6 +4,7 @@ import Spago.Prelude
 
 import Data.Array as Array
 import Data.String as String
+import Data.Foldable (any)
 import Effect.Aff as Aff
 import Effect.Ref as Ref
 import Node.FS.Sync as SyncFS
@@ -50,7 +51,7 @@ gitignoreToMicromatchPatterns base =
   gitignorePatternToMicromatch :: String -> String
   gitignorePatternToMicromatch pattern
     -- Git matches every pattern that does not include a `/` by basename.
-    | not $ String.contains (String.Pattern "/") pattern = "**/" <> pattern
+    | not $ String.contains (String.Pattern "/") pattern = "**/" <> pattern <> "/**"
     | otherwise =
         -- Micromatch treats every pattern like git treats those starting with '/'.
         dropPrefixSlash pattern
@@ -93,11 +94,19 @@ fsWalk cwd ignorePatterns includePatterns = Aff.makeAff \cb -> do
             let { ignore, patterns } = gitignoreToMicromatchPatterns base gitignore
             let matcherForThisGitignore = micromatch { ignore } patterns
 
-            -- Instead of composing the matcher functions, we could also keep a growing array of
-            -- patterns and regenerate the matcher on every append. I don't know which option is
-            -- more performant, but composing functions is more conventient.
-            let addMatcher currentMatcher = or [ currentMatcher, matcherForThisGitignore ]
-            void $ Ref.modify addMatcher ignoreMatcherRef
+            -- Does the .gitignore contain a pattern which would ignore the very
+            -- thing we are asked to look for?
+            -- For example, the .gitignore might have the pattern ".spago" but
+            -- `includePatterns` contains a glob like .spago/p/foo-3.1.4/**/*.purs
+            let anyIncludePatternWouldBeIgnored = any matcherForThisGitignore includePatterns
+
+            -- In such a case, do not use this .gitignore for pruning the search.
+            when (not anyIncludePatternWouldBeIgnored) do
+              -- Instead of composing the matcher functions, we could also keep a growing array of
+              -- patterns and regenerate the matcher on every append. I don't know which option is
+              -- more performant, but composing functions is more conventient.
+              let addMatcher currentMatcher = or [ currentMatcher, matcherForThisGitignore ]
+              void $ Ref.modify addMatcher ignoreMatcherRef
 
       ignoreMatcher <- Ref.read ignoreMatcherRef
       let path = Path.relative cwd entry.path
