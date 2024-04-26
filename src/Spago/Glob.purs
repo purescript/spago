@@ -104,7 +104,7 @@ fsWalk cwd ignorePatterns includePatterns = Aff.makeAff \cb -> do
             when (not anyIncludePatternWouldBeIgnored) do
               -- Instead of composing the matcher functions, we could also keep a growing array of
               -- patterns and regenerate the matcher on every append. I don't know which option is
-              -- more performant, but composing functions is more conventient.
+              -- more performant, but composing functions is more convenient.
               let addMatcher currentMatcher = or [ currentMatcher, matcherForThisGitignore ]
               void $ Ref.modify addMatcher ignoreMatcherRef
 
