@@ -109,7 +109,7 @@ fsWalk cwd ignorePatterns includePatterns = Aff.makeAff \cb -> do
               void $ Ref.modify addMatcher ignoreMatcherRef
 
       ignoreMatcher <- Ref.read ignoreMatcherRef
-      let path = Path.relative cwd entry.path
+      let path = withForwardSlashes $ Path.relative cwd entry.path
       pure $ includeMatcher path && not (ignoreMatcher path)
 
     options = { entryFilter, deepFilter }
@@ -120,6 +120,5 @@ fsWalk cwd ignorePatterns includePatterns = Aff.makeAff \cb -> do
     void $ liftEffect $ Ref.write true canceled
 
 gitignoringGlob :: String -> Array String -> Aff (Array String)
-gitignoringGlob dir patterns =
-  map (Path.relative dir <<< _.path)
-    <$> fsWalk dir [ ".git" ] patterns
+gitignoringGlob dir patterns = map (withForwardSlashes <<< Path.relative dir <<< _.path)
+  <$> fsWalk dir [ ".git" ] patterns
