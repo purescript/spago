@@ -356,178 +356,8 @@ workspace:
         - unsafe-coerce
         - variant
         - versions
-    spago:
-      path: ./
-      dependencies:
-        - aff
-        - affjax
-        - affjax-node
-        - argonaut-core
-        - arrays
-        - codec-argonaut
-        - datetime
-        - docs-search-index
-        - dodo-printer
-        - effect
-        - either
-        - foldable-traversable
-        - foreign-object
-        - functions
-        - http-methods
-        - integers
-        - lists
-        - maybe
-        - node-buffer
-        - node-execa
-        - node-fs
-        - node-path
-        - node-process
-        - now
-        - nullable
-        - ordered-collections
-        - parallel
-        - partial
-        - prelude
-        - profunctor
-        - record
-        - refs
-        - registry-foreign
-        - registry-lib
-        - spago-core
-        - strings
-        - stringutils
-        - transformers
-        - tuples
-        - unsafe-coerce
-      test_dependencies:
-        - spec
-      build_plan:
-        - aff
-        - aff-promise
-        - affjax
-        - affjax-node
-        - ansi
-        - argonaut-core
-        - arraybuffer-types
-        - arrays
-        - assert
-        - avar
-        - b64
-        - bifunctors
-        - catenable-lists
-        - codec
-        - codec-argonaut
-        - console
-        - const
-        - contravariant
-        - control
-        - convertable-options
-        - datetime
-        - distributive
-        - docs-search-common
-        - docs-search-index
-        - dodo-printer
-        - effect
-        - either
-        - encoding
-        - enums
-        - exceptions
-        - exists
-        - fetch
-        - filterable
-        - fixed-points
-        - foldable-traversable
-        - foreign
-        - foreign-object
-        - fork
-        - form-urlencoded
-        - formatters
-        - free
-        - functions
-        - functors
-        - gen
-        - graphs
-        - http-methods
-        - identity
-        - integers
-        - invariant
-        - js-date
-        - js-fetch
-        - js-promise
-        - js-promise-aff
-        - js-timers
-        - js-uri
-        - json-codecs
-        - language-cst-parser
-        - language-purescript
-        - lazy
-        - lcg
-        - lists
-        - maybe
-        - media-types
-        - mmorph
-        - newtype
-        - node-buffer
-        - node-child-process
-        - node-event-emitter
-        - node-execa
-        - node-fs
-        - node-human-signals
-        - node-os
-        - node-path
-        - node-process
-        - node-streams
-        - nonempty
-        - now
-        - nullable
-        - numbers
-        - ordered-collections
-        - orders
-        - parallel
-        - parsing
-        - partial
-        - pipes
-        - posix-types
-        - prelude
-        - profunctor
-        - profunctor-lenses
-        - quickcheck
-        - quickcheck-laws
-        - random
-        - record
-        - refs
-        - registry-foreign
-        - registry-lib
-        - routing-duplex
-        - safe-coerce
-        - search-trie
-        - spago-core
-        - spec
-        - st
-        - string-parsers
-        - strings
-        - stringutils
-        - tailrec
-        - these
-        - transformers
-        - tuples
-        - type-equality
-        - typelevel-prelude
-        - unfoldable
-        - unicode
-        - unsafe-coerce
-        - unsafe-reference
-        - variant
-        - versions
-        - web-dom
-        - web-events
-        - web-file
-        - web-html
-        - web-storage
-        - web-streams
-        - web-xhr
-    spago-bin:
-      path: bin
+    perftest:
+      path: perftest
       dependencies:
         - aff
         - arrays
@@ -558,7 +388,6 @@ workspace:
         - arrays
         - assert
         - avar
-        - b64
         - bifunctors
         - catenable-lists
         - codec
@@ -567,7 +396,6 @@ workspace:
         - const
         - contravariant
         - control
-        - convertable-options
         - datetime
         - distributive
         - docs-search-common
@@ -575,12 +403,10 @@ workspace:
         - dodo-printer
         - effect
         - either
-        - encoding
         - enums
         - exceptions
         - exists
         - exitcodes
-        - fetch
         - filterable
         - fixed-points
         - foldable-traversable
@@ -599,9 +425,6 @@ workspace:
         - integers
         - invariant
         - js-date
-        - js-fetch
-        - js-promise
-        - js-promise-aff
         - js-timers
         - js-uri
         - json-codecs
@@ -646,7 +469,6 @@ workspace:
         - random
         - record
         - refs
-        - registry-foreign
         - registry-lib
         - routing-duplex
         - safe-coerce
@@ -675,7 +497,308 @@ workspace:
         - web-file
         - web-html
         - web-storage
-        - web-streams
+        - web-xhr
+    spago:
+      path: ./
+      dependencies:
+        - aff
+        - affjax
+        - affjax-node
+        - argonaut-core
+        - arrays
+        - codec-argonaut
+        - datetime
+        - docs-search-index
+        - dodo-printer
+        - effect
+        - either
+        - foldable-traversable
+        - foreign-object
+        - functions
+        - http-methods
+        - integers
+        - lists
+        - maybe
+        - node-buffer
+        - node-execa
+        - node-fs
+        - node-path
+        - node-process
+        - now
+        - nullable
+        - ordered-collections
+        - parallel
+        - partial
+        - prelude
+        - profunctor
+        - record
+        - refs
+        - registry-lib
+        - spago-core
+        - strings
+        - stringutils
+        - transformers
+        - tuples
+        - unsafe-coerce
+      test_dependencies:
+        - spec
+      build_plan:
+        - aff
+        - aff-promise
+        - affjax
+        - affjax-node
+        - ansi
+        - argonaut-core
+        - arraybuffer-types
+        - arrays
+        - assert
+        - avar
+        - bifunctors
+        - catenable-lists
+        - codec
+        - codec-argonaut
+        - console
+        - const
+        - contravariant
+        - control
+        - datetime
+        - distributive
+        - docs-search-common
+        - docs-search-index
+        - dodo-printer
+        - effect
+        - either
+        - enums
+        - exceptions
+        - exists
+        - filterable
+        - fixed-points
+        - foldable-traversable
+        - foreign
+        - foreign-object
+        - fork
+        - form-urlencoded
+        - formatters
+        - free
+        - functions
+        - functors
+        - gen
+        - graphs
+        - http-methods
+        - identity
+        - integers
+        - invariant
+        - js-date
+        - js-timers
+        - js-uri
+        - json-codecs
+        - language-cst-parser
+        - language-purescript
+        - lazy
+        - lcg
+        - lists
+        - maybe
+        - media-types
+        - mmorph
+        - newtype
+        - node-buffer
+        - node-child-process
+        - node-event-emitter
+        - node-execa
+        - node-fs
+        - node-human-signals
+        - node-os
+        - node-path
+        - node-process
+        - node-streams
+        - nonempty
+        - now
+        - nullable
+        - numbers
+        - ordered-collections
+        - orders
+        - parallel
+        - parsing
+        - partial
+        - pipes
+        - posix-types
+        - prelude
+        - profunctor
+        - profunctor-lenses
+        - quickcheck
+        - quickcheck-laws
+        - random
+        - record
+        - refs
+        - registry-lib
+        - routing-duplex
+        - safe-coerce
+        - search-trie
+        - spago-core
+        - spec
+        - st
+        - string-parsers
+        - strings
+        - stringutils
+        - tailrec
+        - these
+        - transformers
+        - tuples
+        - type-equality
+        - typelevel-prelude
+        - unfoldable
+        - unicode
+        - unsafe-coerce
+        - unsafe-reference
+        - variant
+        - versions
+        - web-dom
+        - web-events
+        - web-file
+        - web-html
+        - web-storage
+        - web-xhr
+    spago-bin:
+      path: bin
+      dependencies:
+        - aff
+        - arrays
+        - codec-argonaut
+        - console
+        - js-date
+        - lists
+        - node-fs
+        - node-path
+        - node-process
+        - optparse
+        - ordered-collections
+        - record
+        - refs
+        - registry-lib
+        - spago
+        - spago-core
+        - unsafe-coerce
+      test_dependencies: []
+      build_plan:
+        - aff
+        - aff-promise
+        - affjax
+        - affjax-node
+        - ansi
+        - argonaut-core
+        - arraybuffer-types
+        - arrays
+        - assert
+        - avar
+        - bifunctors
+        - catenable-lists
+        - codec
+        - codec-argonaut
+        - console
+        - const
+        - contravariant
+        - control
+        - datetime
+        - distributive
+        - docs-search-common
+        - docs-search-index
+        - dodo-printer
+        - effect
+        - either
+        - enums
+        - exceptions
+        - exists
+        - exitcodes
+        - filterable
+        - fixed-points
+        - foldable-traversable
+        - foreign
+        - foreign-object
+        - fork
+        - form-urlencoded
+        - formatters
+        - free
+        - functions
+        - functors
+        - gen
+        - graphs
+        - http-methods
+        - identity
+        - integers
+        - invariant
+        - js-date
+        - js-timers
+        - js-uri
+        - json-codecs
+        - language-cst-parser
+        - language-purescript
+        - lazy
+        - lcg
+        - lists
+        - maybe
+        - media-types
+        - mmorph
+        - newtype
+        - node-buffer
+        - node-child-process
+        - node-event-emitter
+        - node-execa
+        - node-fs
+        - node-human-signals
+        - node-os
+        - node-path
+        - node-process
+        - node-streams
+        - nonempty
+        - now
+        - nullable
+        - numbers
+        - open-memoize
+        - optparse
+        - ordered-collections
+        - orders
+        - parallel
+        - parsing
+        - partial
+        - pipes
+        - posix-types
+        - prelude
+        - profunctor
+        - profunctor-lenses
+        - psci-support
+        - quickcheck
+        - quickcheck-laws
+        - random
+        - record
+        - refs
+        - registry-lib
+        - routing-duplex
+        - safe-coerce
+        - search-trie
+        - spago
+        - spago-core
+        - spec
+        - st
+        - string-parsers
+        - strings
+        - stringutils
+        - tailrec
+        - these
+        - transformers
+        - tuples
+        - type-equality
+        - typelevel-prelude
+        - unfoldable
+        - unicode
+        - unsafe-coerce
+        - unsafe-reference
+        - variant
+        - versions
+        - web-dom
+        - web-events
+        - web-file
+        - web-html
+        - web-storage
         - web-xhr
     spago-core:
       path: core
@@ -1428,10 +1551,6 @@ workspace:
         - refs
         - strings
         - tuples
-    registry-foreign:
-      git: https://github.com/purescript/registry-dev.git
-      ref: d7d35c94cc286528e506a6a7ca78d22c84b251c9
-      subdir: foreign
     registry-lib:
       git: https://github.com/purescript/registry-dev.git
       ref: d7d35c94cc286528e506a6a7ca78d22c84b251c9
@@ -1634,20 +1753,6 @@ packages:
       - exceptions
       - functions
       - maybe
-  b64:
-    type: registry
-    version: 0.0.8
-    integrity: sha256-3QkOhnewZIqhfn0wIU6Zde6Q/LfrS59kgSOcQQaG0gM=
-    dependencies:
-      - arraybuffer-types
-      - either
-      - encoding
-      - enums
-      - exceptions
-      - functions
-      - partial
-      - prelude
-      - strings
   bifunctors:
     type: registry
     version: 6.0.0
@@ -1731,15 +1836,6 @@ packages:
     dependencies:
       - newtype
       - prelude
-  convertable-options:
-    type: registry
-    version: 1.0.0
-    integrity: sha256-IFsYp0rXyzUtjoi3jed6yFYAVM+NhfgSn2j/zkjpccM=
-    dependencies:
-      - console
-      - effect
-      - maybe
-      - record
   css:
     type: registry
     version: 6.0.0
@@ -1834,17 +1930,6 @@ packages:
       - invariant
       - maybe
       - prelude
-  encoding:
-    type: registry
-    version: 0.0.9
-    integrity: sha256-vtyUO06Jww8pFl4wRekPd1YpJl2XuQXcaNXQgHtG8Tk=
-    dependencies:
-      - arraybuffer-types
-      - effect
-      - either
-      - exceptions
-      - functions
-      - prelude
   enums:
     type: registry
     version: 6.0.1
@@ -1881,30 +1966,6 @@ packages:
     integrity: sha256-4wxViTbyOoyKJ/WaRGI6+hZmgMKI5Miv16lSwefiLSM=
     dependencies:
       - enums
-  fetch:
-    type: registry
-    version: 4.1.0
-    integrity: sha256-zCwBUkRL9n6nUhK1+7UqqsuxswPFATsZfGSBOA3NYYY=
-    dependencies:
-      - aff
-      - arraybuffer-types
-      - bifunctors
-      - effect
-      - either
-      - foreign
-      - http-methods
-      - js-fetch
-      - js-promise
-      - js-promise-aff
-      - maybe
-      - newtype
-      - ordered-collections
-      - prelude
-      - record
-      - strings
-      - typelevel-prelude
-      - web-file
-      - web-streams
   filterable:
     type: registry
     version: 5.0.0
@@ -2187,29 +2248,6 @@ packages:
       - foreign
       - integers
       - now
-  js-fetch:
-    type: registry
-    version: 0.2.1
-    integrity: sha256-zQaVi9wFWku1SsWmdR11kRpOb+wxkNWR49cn928ucjw=
-    dependencies:
-      - arraybuffer-types
-      - arrays
-      - effect
-      - foldable-traversable
-      - foreign
-      - foreign-object
-      - functions
-      - http-methods
-      - js-promise
-      - maybe
-      - newtype
-      - prelude
-      - record
-      - tuples
-      - typelevel-prelude
-      - unfoldable
-      - web-file
-      - web-streams
   js-promise:
     type: registry
     version: 1.0.0
@@ -2221,14 +2259,6 @@ packages:
       - functions
       - maybe
       - prelude
-  js-promise-aff:
-    type: registry
-    version: 1.0.0
-    integrity: sha256-s9kml9Ei74hKlMMg41yyZp4GkbmYUwaH+gBWWrdhwec=
-    dependencies:
-      - aff
-      - foreign
-      - js-promise
   js-timers:
     type: registry
     version: 6.1.0
@@ -2890,44 +2920,6 @@ packages:
     dependencies:
       - effect
       - prelude
-  registry-foreign:
-    type: git
-    url: https://github.com/purescript/registry-dev.git
-    rev: d7d35c94cc286528e506a6a7ca78d22c84b251c9
-    subdir: foreign
-    dependencies:
-      - aff
-      - aff-promise
-      - argonaut-core
-      - arrays
-      - b64
-      - bifunctors
-      - codec-argonaut
-      - convertable-options
-      - datetime
-      - effect
-      - either
-      - fetch
-      - filterable
-      - foldable-traversable
-      - foreign-object
-      - functions
-      - http-methods
-      - integers
-      - js-date
-      - maybe
-      - newtype
-      - node-buffer
-      - node-path
-      - nullable
-      - ordered-collections
-      - prelude
-      - profunctor
-      - registry-lib
-      - strings
-      - tuples
-      - unsafe-coerce
-      - variant
   registry-lib:
     type: git
     url: https://github.com/purescript/registry-dev.git
@@ -3274,18 +3266,6 @@ packages:
     dependencies:
       - nullable
       - web-events
-  web-streams:
-    type: registry
-    version: 4.0.0
-    integrity: sha256-02HgXIk6R+pU9fWOX42krukAI1QkCbLKcCv3b4Jq6WI=
-    dependencies:
-      - arraybuffer-types
-      - effect
-      - exceptions
-      - js-promise
-      - nullable
-      - prelude
-      - tuples
   web-touchevents:
     type: registry
     version: 4.0.0
