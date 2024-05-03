@@ -562,6 +562,39 @@ workspace:
       path: ../my-purescript-facebook
 ```
 
+### I just published a package, how to I use it?
+
+Suppose you published your `newly-published-library` with `spago
+publish`. The package-sets are [rebuilt once a
+day](https://github.com/purescript/registry?tab=readme-ov-file#registry-overview):
+
+> 2. Package sets, which are updated daily and stored in the package-sets directory
+
+Do I need to wait one day to use it?
+
+[No!](https://github.com/purescript/spago/issues/1215)
+
+Just add it into `extraPackages` with the newly released version:
+```yaml
+workspace:
+  packageSet:
+    registry: 41.2.0
+  extraPackages:
+    newly-published-library: 0.1.0
+```
+
+You don't need to add this library to `dependencies`, `extraPackages`
+is enough. You can also publish your package using `extraPackages` in
+this form. Spago will only not let you publish packages which use
+unpublished libraries, i.e. things like
+```yaml
+workspace:
+  extraPackages:
+    newly-published-library:
+	  git: http://.....
+	  ref: ....
+```
+
 ### Querying package sets
 
 Since the versioning scheme for package sets does not tell anything about the compiler version or when they were published, you might want
