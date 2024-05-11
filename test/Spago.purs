@@ -8,6 +8,7 @@ import Data.Newtype (un)
 import Effect (Effect)
 import Effect.Aff (Milliseconds(..))
 import Effect.Aff as Aff
+import Test.Spago.Glob as Glob
 import Test.Spago.Build as Build
 import Test.Spago.Bundle as Bundle
 import Test.Spago.Docs as Docs
@@ -54,6 +55,6 @@ main = Aff.launchAff_ $ void $ un Identity $ Spec.Runner.runSpecT testConfig [ S
     Publish.spec
     Graph.spec
     Spec.describe "miscellaneous" do
+      Glob.spec
       Lock.spec
       Unit.spec
-
