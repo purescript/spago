@@ -55,6 +55,6 @@ main = Aff.launchAff_ $ void $ un Identity $ Spec.Runner.runSpecT testConfig [ S
     Publish.spec
     Graph.spec
     Spec.describe "miscellaneous" do
-      Glob.spec
       Lock.spec
       Unit.spec
+      Glob.spec

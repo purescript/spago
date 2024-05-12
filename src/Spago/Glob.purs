@@ -3,6 +3,7 @@ module Spago.Glob (gitignoringGlob) where
 import Spago.Prelude
 
 import Data.Array as Array
+import Data.Filterable (filter)
 import Data.Foldable (any)
 import Data.String as String
 import Data.String.CodePoints as String.CodePoint
@@ -92,20 +93,20 @@ fsWalk cwd ignorePatterns includePatterns = Aff.makeAff \cb -> do
           Left _ -> pure unit
           Right gitignore -> do
             let { ignore, patterns } = gitignoreToMicromatchPatterns base gitignore
-            let matcherForThisGitignore = micromatch { ignore } patterns
+            let gitignored = (micromatch { ignore } <<< pure) <$> patterns
+            let ignoresIncludePattern m = any m includePatterns
 
-            -- Does the .gitignore contain a pattern which would ignore the very
-            -- thing we are asked to look for?
-            -- For example, the .gitignore might have the pattern ".spago" but
-            -- `includePatterns` contains a glob like .spago/p/foo-3.1.4/**/*.purs
-            let anyIncludePatternWouldBeIgnored = any matcherForThisGitignore includePatterns
-
-            -- In such a case, do not use this .gitignore for pruning the search.
-            when (not anyIncludePatternWouldBeIgnored) do
+            -- Do not add `.gitignore` patterns that explicitly ignore the files
+            -- we're searching for;
+            --
+            -- ex. if `includePatterns` is [".spago/p/aff-1.0.0/**/*.purs"],
+            -- and `gitignored` is ["node_modules", ".spago"],
+            -- then add "node_modules" to `ignoreMatcher` but not ".spago"
+            for_ (filter (not <<< ignoresIncludePattern) gitignored) \pat -> do
               -- Instead of composing the matcher functions, we could also keep a growing array of
               -- patterns and regenerate the matcher on every append. I don't know which option is
               -- more performant, but composing functions is more convenient.
-              let addMatcher currentMatcher = or [ currentMatcher, matcherForThisGitignore ]
+              let addMatcher currentMatcher = or [ currentMatcher, pat ]
               void $ Ref.modify addMatcher ignoreMatcherRef
 
       ignoreMatcher <- Ref.read ignoreMatcherRef
