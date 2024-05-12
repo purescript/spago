@@ -44,25 +44,25 @@ spec :: Spec Unit
 spec = Spec.around globTmpDir do
   Spec.describe "glob" do
     Spec.describe "gitignoringGlob" do
-      Spec.it "walks files, ignoring .git/**/*" \p -> do
+      Spec.it "when no .gitignore, yields all matches" \p -> do
         a <- Glob.gitignoringGlob p ["**/fruits/apple/**"]
         a `Assert.shouldEqual` ["fruits/apple", "src/fruits/apple"]
 
         b <- Glob.gitignoringGlob p ["sports/**"]
         b `Assert.shouldEqual` ["sports", "sports/baseball", "sports/scrabble"]
 
-      Spec.it "walks files, respecting .gitignore patterns that do not ignore the search pattern" \p -> do
+      Spec.it "respects a .gitignore pattern that doesn't conflict with search" \p -> do
         FS.writeTextFile (Path.concat [p, ".gitignore"]) "/fruits"
         a <- Glob.gitignoringGlob p ["src/fruits/apple/**"]
         a `Assert.shouldEqual` ["src/fruits/apple"]
 
-      Spec.it "walks files, ignoring .gitignore patterns that ignore the search pattern" \p -> do
+      Spec.it "does not respect a .gitignore pattern that conflicts with search" \p -> do
         for_ ["/fruits", "fruits", "fruits/", "**/fruits", "fruits/**", "**/fruits/**"] \gitignore -> do
           FS.writeTextFile (Path.concat [p, ".gitignore"]) gitignore
           a <- Glob.gitignoringGlob p ["fruits/apple/**"]
           a `Assert.shouldEqual` ["fruits/apple"]
 
-      Spec.it "walks files, ignoring some .gitignore patterns" \p -> do
+      Spec.it "respects some .gitignore patterns" \p -> do
         FS.writeTextFile (Path.concat [p, ".gitignore"]) """/fruits\n/src"""
         a <- Glob.gitignoringGlob p ["fruits/apple/**"]
         a `Assert.shouldEqual` ["fruits/apple"]
