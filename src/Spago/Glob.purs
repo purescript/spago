@@ -94,7 +94,7 @@ fsWalk cwd ignorePatterns includePatterns = Aff.makeAff \cb -> do
           Right gitignore -> do
             let { ignore, patterns } = gitignoreToMicromatchPatterns base gitignore
             let gitignored = (micromatch { ignore } <<< pure) <$> patterns
-            let ignoresIncludePattern m = any m includePatterns
+            let wouldConflictWithSearch m = any m includePatterns
 
             -- Do not add `.gitignore` patterns that explicitly ignore the files
             -- we're searching for;
@@ -102,7 +102,7 @@ fsWalk cwd ignorePatterns includePatterns = Aff.makeAff \cb -> do
             -- ex. if `includePatterns` is [".spago/p/aff-1.0.0/**/*.purs"],
             -- and `gitignored` is ["node_modules", ".spago"],
             -- then add "node_modules" to `ignoreMatcher` but not ".spago"
-            for_ (filter (not <<< ignoresIncludePattern) gitignored) \pat -> do
+            for_ (filter (not <<< wouldConflictWithSearch) gitignored) \pat -> do
               -- Instead of composing the matcher functions, we could also keep a growing array of
               -- patterns and regenerate the matcher on every append. I don't know which option is
               -- more performant, but composing functions is more convenient.
