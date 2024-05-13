@@ -215,6 +215,36 @@ spec =
       spago [ "build" ] >>= shouldBeFailureErr (fixture "pedantic/pedantic-instructions-initial-failure.txt")
       spago [ "install", "-p", "pedantic", "effect" ] >>= shouldBeSuccessErr (fixture "pedantic/pedantic-instructions-installation-result.txt")
 
+    -- Regression test for https://github.com/purescript/spago/pull/1222
+    let gitignores = [".spago", "/.spago", ".spago/**"]
+    for_ gitignores \gitignore ->
+      Spec.it
+        (".gitignore does not affect discovery of transitive deps (" <> gitignore <> ")")
+        \{ spago, fixture } -> do
+          FS.writeTextFile ".gitignore" gitignore
+          setup spago
+            ( defaultSetupConfig
+                { installSourcePackages = [ "prelude", "console" ]
+                , installTestPackages = []
+                , main = Just
+                    [ "import Prelude"
+                    , ""
+                    , "import Effect"
+                    , "import Effect.Console as Console"
+                    , ""
+                    , "main :: Effect Unit"
+                    , "main = Console.log \"wat\""
+                    ]
+                , testMain = Nothing
+                }
+            )
+          spago [ "uninstall", "effect" ] >>= shouldBeSuccess
+          -- Get rid of "Compiling..." messages
+          spago [ "build" ] >>= shouldBeSuccess
+          editSpagoYaml (addPedanticFlagToSrc)
+          spago [ "build" ] >>= shouldBeFailureErr (fixture "pedantic/pedantic-instructions-initial-failure.txt")
+          spago [ "install", "-p", "pedantic", "effect" ] >>= shouldBeSuccessErr (fixture "pedantic/pedantic-instructions-installation-result.txt")
+
 addPedanticFlagToSrc :: Config -> Config
 addPedanticFlagToSrc config = config
   { package = config.package <#> \r -> r
