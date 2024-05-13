@@ -1,6 +1,6 @@
 Reading Spago workspace configuration...
 
-✅ Selecting package to build: pedantic
+✅ Selecting package to build: follow-instructions
 
 Adding 1 package to the config in spago.yaml
 Downloading dependencies...

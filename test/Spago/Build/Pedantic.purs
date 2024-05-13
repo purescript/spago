@@ -192,28 +192,13 @@ spec =
     -- where the fix is to install that missing package.
     -- Following those instructions shouldn't cause an error.
     Spec.it "following installation instructions does not fail with an unrelated pedantic error" \{ spago, fixture } -> do
-      setup spago
-        ( defaultSetupConfig
-            { installSourcePackages = [ "prelude", "console" ]
-            , installTestPackages = []
-            , main = Just
-                [ "import Prelude"
-                , ""
-                , "import Effect"
-                , "import Effect.Console as Console"
-                , ""
-                , "main :: Effect Unit"
-                , "main = Console.log \"wat\""
-                ]
-            , testMain = Nothing
-            }
-        )
+      FS.copyTree { src: fixture "pedantic/follow-instructions", dst: "." }
       spago [ "uninstall", "effect" ] >>= shouldBeSuccess
       -- Get rid of "Compiling..." messages
       spago [ "build" ] >>= shouldBeSuccess
       editSpagoYaml (addPedanticFlagToSrc)
       spago [ "build" ] >>= shouldBeFailureErr (fixture "pedantic/pedantic-instructions-initial-failure.txt")
-      spago [ "install", "-p", "pedantic", "effect" ] >>= shouldBeSuccessErr (fixture "pedantic/pedantic-instructions-installation-result.txt")
+      spago [ "install", "-p", "follow-instructions", "effect" ] >>= shouldBeSuccessErr (fixture "pedantic/pedantic-instructions-installation-result.txt")
 
     -- Regression test for https://github.com/purescript/spago/pull/1222
     let gitignores = [".spago", "/.spago", ".spago/**"]
@@ -221,29 +206,14 @@ spec =
       Spec.it
         (".gitignore does not affect discovery of transitive deps (" <> gitignore <> ")")
         \{ spago, fixture } -> do
+          FS.copyTree { src: fixture "pedantic/follow-instructions", dst: "." }
           FS.writeTextFile ".gitignore" gitignore
-          setup spago
-            ( defaultSetupConfig
-                { installSourcePackages = [ "prelude", "console" ]
-                , installTestPackages = []
-                , main = Just
-                    [ "import Prelude"
-                    , ""
-                    , "import Effect"
-                    , "import Effect.Console as Console"
-                    , ""
-                    , "main :: Effect Unit"
-                    , "main = Console.log \"wat\""
-                    ]
-                , testMain = Nothing
-                }
-            )
           spago [ "uninstall", "effect" ] >>= shouldBeSuccess
           -- Get rid of "Compiling..." messages
           spago [ "build" ] >>= shouldBeSuccess
           editSpagoYaml (addPedanticFlagToSrc)
           spago [ "build" ] >>= shouldBeFailureErr (fixture "pedantic/pedantic-instructions-initial-failure.txt")
-          spago [ "install", "-p", "pedantic", "effect" ] >>= shouldBeSuccessErr (fixture "pedantic/pedantic-instructions-installation-result.txt")
+          spago [ "install", "-p", "follow-instructions", "effect" ] >>= shouldBeSuccessErr (fixture "pedantic/pedantic-instructions-installation-result.txt")
 
 addPedanticFlagToSrc :: Config -> Config
 addPedanticFlagToSrc config = config
