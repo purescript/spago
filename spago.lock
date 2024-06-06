@@ -1411,7 +1411,7 @@ workspace:
         - tuples
     registry-lib:
       git: https://github.com/purescript/registry-dev.git
-      ref: d7d35c94cc286528e506a6a7ca78d22c84b251c9
+      ref: 6feb62497ef7c3668bea89d11e9c2edb3a12dbd4
       subdir: lib
     search-trie:
       git: https://github.com/klntsky/purescript-search-trie.git
@@ -2781,7 +2781,7 @@ packages:
   registry-lib:
     type: git
     url: https://github.com/purescript/registry-dev.git
-    rev: d7d35c94cc286528e506a6a7ca78d22c84b251c9
+    rev: 6feb62497ef7c3668bea89d11e9c2edb3a12dbd4
     subdir: lib
     dependencies:
       - aff
