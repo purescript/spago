@@ -4,7 +4,8 @@ import Spago.Prelude
 
 import Data.Array as Array
 import Data.Array.NonEmpty as NEA
-import Data.Codec.Argonaut.Common as CA
+import Data.Codec.JSON as CJ
+import Data.Codec.JSON.Common as CJ.Common
 import Data.Graph as Data.Graph
 import Data.List as List
 import Data.Map as Map
@@ -61,7 +62,7 @@ graphModules { dot, json, topo } = do
           $ map (\{ depends } -> Tuple unit $ List.fromFoldable depends) moduleGraph
       in
         output case json of
-          true -> OutputJson (CA.list CA.string) list
+          true -> OutputJson (CJ.Common.list CJ.string) list
           false -> OutputLines $ Array.fromFoldable list
 
 graphPackages :: forall a. GraphPackagesArgs -> Spago (GraphEnv a) Unit
@@ -87,7 +88,7 @@ graphPackages { dot, json, topo } = do
           $ map (\{ depends } -> Tuple unit $ List.fromFoldable depends) packageGraph
       in
         output case json of
-          true -> OutputJson (CA.list PackageName.codec) list
+          true -> OutputJson (CJ.Common.list PackageName.codec) list
           false -> OutputLines $ map PackageName.print $ Array.fromFoldable list
 
 packagesToDot :: NonEmptyArray WorkspacePackage -> PackageGraph -> Array String

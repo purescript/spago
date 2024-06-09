@@ -8,11 +8,11 @@ module Spago.Psa where
 
 import Spago.Prelude
 
+import Codec.JSON.DecodeError as CJ.DecodeError
 import Control.Alternative as Alternative
-import Data.Argonaut.Parser (jsonParser)
 import Data.Array as Array
 import Data.Array.NonEmpty as NonEmptyArray
-import Data.Codec.Argonaut as CA
+import Data.Codec.JSON as CJ
 import Data.Map as Map
 import Data.Set as Set
 import Data.String as Str
@@ -20,6 +20,7 @@ import Data.String as String
 import Data.Tuple as Tuple
 import Effect.Ref as Ref
 import Foreign.Object as FO
+import JSON as JSON
 import Node.Encoding as Encoding
 import Node.FS.Aff as FSA
 import Node.Path as Path
@@ -42,7 +43,7 @@ psaCompile globs pursArgs psaArgs = do
   result <- Purs.compile globs (Array.snoc pursArgs "--json-errors")
   let resultStdout = Cmd.getStdout result
   arrErrorsIsEmpty <- forWithIndex (Str.split (Str.Pattern "\n") resultStdout) \idx err ->
-    case jsonParser err >>= CA.decode psaResultCodec >>> lmap CA.printJsonDecodeError of
+    case JSON.parse err >>= CJ.decode psaResultCodec >>> lmap CJ.DecodeError.print of
       Left decodeErrMsg -> do
         logWarn $ Array.intercalate "\n"
           [ "Failed to decode PsaResult at index '" <> show idx <> "': " <> decodeErrMsg

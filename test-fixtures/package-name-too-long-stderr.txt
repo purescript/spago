@@ -1,0 +1,4 @@
+❌ Could not figure out a name for the new package. Error:
+
+
+    Package name cannot be longer than 150 characters

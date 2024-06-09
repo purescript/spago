@@ -21,7 +21,8 @@ module Spago.Db
 import Spago.Prelude
 
 import Data.Array as Array
-import Data.Codec.Argonaut.Record as CA.Record
+import Data.Codec.JSON.Record as CJ.Record
+import Data.Codec.JSON as CJ
 import Data.DateTime (Date, DateTime(..))
 import Data.DateTime as Date
 import Data.Either as Either
@@ -191,8 +192,8 @@ packageSetEntryFromJs p = hush do
 --------------------------------------------------------------------------------
 -- Codecs
 
-packageSetCodec :: JsonCodec PackageSet
-packageSetCodec = CA.Record.object "PackageSet"
+packageSetCodec :: CJ.Codec PackageSet
+packageSetCodec = CJ.named "PackageSet" $ CJ.Record.object
   { date: Internal.Codec.iso8601Date
   , version: Version.codec
   , compiler: Version.codec

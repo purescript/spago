@@ -2,7 +2,7 @@ module Test.Spago.Lock where
 
 import Test.Prelude
 
-import Data.Codec.Argonaut as CA
+import Codec.JSON.DecodeError as CJ.DecodeError
 import Data.Map as Map
 import Data.Set as Set
 import Registry.Range as Range
@@ -22,7 +22,7 @@ spec = do
   Spec.it "parses lockfile" do
     case parseYaml Lock.lockfileCodec validLockfileString of
       Left error ->
-        Assert.fail $ "Failed to parse: " <> CA.printJsonDecodeError error
+        Assert.fail $ "Failed to parse: " <> CJ.DecodeError.print error
       Right lock | lock /= validLockfile ->
         Assert.fail ("\n" <> printYaml Lock.lockfileCodec lock <> "\ndoes not equal\n\n" <> printYaml Lock.lockfileCodec validLockfile)
       Right _ ->

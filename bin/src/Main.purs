@@ -7,7 +7,7 @@ import Control.Monad.Reader as Reader
 import Data.Array as Array
 import Data.Array.NonEmpty as NEA
 import Data.Array.NonEmpty as NonEmptyArray
-import Data.Codec.Argonaut.Common as CA.Common
+import Data.Codec.JSON.Common as CJ.Common
 import Data.Foldable as Foldable
 import Data.List as List
 import Data.Maybe as Maybe
@@ -52,6 +52,7 @@ import Spago.Generated.BuildInfo as BuildInfo
 import Spago.Git as Git
 import Spago.Json as Json
 import Spago.Log (LogVerbosity(..))
+import Spago.Log as Log
 import Spago.Paths as Paths
 import Spago.Purs as Purs
 import Spago.Registry as Registry
@@ -535,10 +536,14 @@ main = do
             void $ runSpago env (Sources.run { json: args.json })
           Init args@{ useSolver } -> do
             -- Figure out the package name from the current dir
-            let candidateName = fromMaybe (String.take 50 $ Path.basename Paths.cwd) args.name
+            let candidateName = fromMaybe (String.take 150 $ Path.basename Paths.cwd) args.name
             logDebug [ show Paths.cwd, show candidateName ]
             packageName <- case PackageName.parse (PackageName.stripPureScriptPrefix candidateName) of
-              Left err -> die [ "Could not figure out a name for the new package. Error:", show err ]
+              Left err -> die
+                [ toDoc "Could not figure out a name for the new package. Error:"
+                , Log.break
+                , Log.indent2 $ toDoc err
+                ]
               Right p -> pure p
             setVersion <- for args.setVersion $ parseLenientVersion >>> case _ of
               Left err -> die [ "Could not parse provided set version. Error:", show err ]
@@ -831,7 +836,7 @@ mkTestEnv testArgs { dependencies, purs } = do
           Just { head, tail } -> pure $ map mkSelectedTest $ NonEmptyArray.cons' head tail
           Nothing -> die "No package found to test."
 
-  logDebug $ "Selected packages to test: " <> Json.stringifyJson (CA.Common.nonEmptyArray PackageName.codec) (map _.selected.package.name selectedPackages)
+  logDebug $ "Selected packages to test: " <> Json.stringifyJson (CJ.Common.nonEmptyArray PackageName.codec) (map _.selected.package.name selectedPackages)
 
   let newWorkspace = workspace { buildOptions { output = testArgs.output <|> workspace.buildOptions.output } }
   let testEnv = { logOptions, workspace: newWorkspace, selectedPackages, node, dependencies, purs }

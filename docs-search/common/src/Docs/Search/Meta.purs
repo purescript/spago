@@ -2,8 +2,8 @@ module Docs.Search.Meta where
 
 import Prelude
 
-import Data.Codec.Argonaut (JsonCodec)
-import Data.Codec.Argonaut.Record as CAR
+import Data.Codec.JSON as CJ
+import Data.Codec.JSON.Record as CJ.Record
 import Docs.Search.Config as Config
 import Docs.Search.Loader as Loader
 import Docs.Search.Types (PackageName)
@@ -14,9 +14,9 @@ type Meta =
   { localPackageName :: PackageName
   }
 
-metaCodec :: JsonCodec Meta
-metaCodec =
-  CAR.object "Meta"
+metaCodec :: CJ.Codec Meta
+metaCodec = CJ.named "Meta" $
+  CJ.Record.object
     { localPackageName: Package.packageNameCodec
     }
 

@@ -3,8 +3,8 @@ module Spago.Command.Registry where
 import Spago.Prelude
 
 import Data.Array as Array
-import Data.Codec.Argonaut as CA
-import Data.Codec.Argonaut.Record as CA.Record
+import Data.Codec.JSON as CJ
+import Data.Codec.JSON.Record as CJ.Record
 import Data.DateTime (DateTime(..))
 import Data.Formatter.DateTime as DateTime
 import Data.Map as Map
@@ -54,9 +54,9 @@ search { package: searchString, json } = do
     output $ case json of
       true ->
         let
-          infoDataCodec = CA.Record.object "InfoData"
-            { publishedTime: CA.Record.optional Internal.Codec.iso8601DateTime
-            , version: CA.Record.optional Version.codec
+          infoDataCodec = CJ.named "InfoData" $ CJ.Record.object
+            { publishedTime: CJ.Record.optional Internal.Codec.iso8601DateTime
+            , version: CJ.Record.optional Version.codec
             }
         in
           OutputJson (Internal.packageMap infoDataCodec) infos
@@ -119,7 +119,7 @@ packageSets { latest, json } = do
               availableSets
 
   output case json of
-    true -> OutputJson (CA.array Db.packageSetCodec) sets
+    true -> OutputJson (CJ.array Db.packageSetCodec) sets
     false -> OutputTable
       { titles: [ "VERSION", "DATE", "COMPILER" ]
       , rows: sets # map \{ version, date, compiler } ->

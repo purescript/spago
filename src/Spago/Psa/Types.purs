@@ -27,9 +27,9 @@ module Spago.Psa.Types
 
 import Prelude
 
-import Data.Codec.Argonaut as CA
-import Data.Codec.Argonaut.Compat as CACompat
-import Data.Codec.Argonaut.Record as CAR
+import Data.Codec.JSON as CJ
+import Data.Codec.JSON as CJ.Common
+import Data.Codec.JSON.Record as CJ.Record
 import Data.Maybe (Maybe(..))
 import Data.Tuple (Tuple(..))
 import Spago.Core.Config as Core
@@ -138,33 +138,33 @@ compareByLocation err1 err2 =
             (Tuple b.startLine b.startColumn)
     x -> x
 
-psaResultCodec :: CA.JsonCodec PsaResult
-psaResultCodec = CAR.object "PsaResult"
-  { warnings: CA.array psaErrorCodec
-  , errors: CA.array psaErrorCodec
+psaResultCodec :: CJ.Codec PsaResult
+psaResultCodec = CJ.named "PsaResult" $ CJ.Record.object
+  { warnings: CJ.array psaErrorCodec
+  , errors: CJ.array psaErrorCodec
   }
 
-psaErrorCodec :: CA.JsonCodec PsaError
-psaErrorCodec = CAR.object "PsaError"
-  { moduleName: CACompat.maybe CA.string
-  , errorCode: CA.string
-  , errorLink: CA.string
-  , message: CA.string
-  , filename: CACompat.maybe CA.string
-  , position: CACompat.maybe positionCodec
-  , suggestion: CACompat.maybe suggestionCodec
+psaErrorCodec :: CJ.Codec PsaError
+psaErrorCodec = CJ.named "PsaError" $ CJ.Record.object
+  { moduleName: CJ.Common.nullable CJ.string
+  , errorCode: CJ.string
+  , errorLink: CJ.string
+  , message: CJ.string
+  , filename: CJ.Common.nullable CJ.string
+  , position: CJ.Common.nullable positionCodec
+  , suggestion: CJ.Common.nullable suggestionCodec
   }
 
-positionCodec :: CA.JsonCodec Position
-positionCodec = CAR.object "Position"
-  { startLine: CA.int
-  , startColumn: CA.int
-  , endLine: CA.int
-  , endColumn: CA.int
+positionCodec :: CJ.Codec Position
+positionCodec = CJ.named "Position" $ CJ.Record.object
+  { startLine: CJ.int
+  , startColumn: CJ.int
+  , endLine: CJ.int
+  , endColumn: CJ.int
   }
 
-suggestionCodec :: CA.JsonCodec Suggestion
-suggestionCodec = CAR.object "Suggestion"
-  { replacement: CA.string
-  , replaceRange: CACompat.maybe positionCodec
+suggestionCodec :: CJ.Codec Suggestion
+suggestionCodec = CJ.named "Suggestion" $ CJ.Record.object
+  { replacement: CJ.string
+  , replaceRange: CJ.Common.nullable positionCodec
   }

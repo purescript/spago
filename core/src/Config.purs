@@ -1,25 +1,25 @@
 module Spago.Core.Config
   ( BackendConfig
-  , WorkspaceBuildOptionsInput
-  , CensorBuildWarnings(..)
-  , WarningCensorTest(..)
-  , StatVerbosity(..)
-  , PackageBuildOptionsInput
   , BundleConfig
   , BundlePlatform(..)
   , BundleType(..)
+  , CensorBuildWarnings(..)
   , Config
   , Dependencies(..)
   , ExtraPackage(..)
   , GitPackage
   , LegacyPackageSetEntry
   , LocalPackage
+  , PackageBuildOptionsInput
   , PackageConfig
   , PublishConfig
   , RemotePackage(..)
   , RunConfig
   , SetAddress(..)
+  , StatVerbosity(..)
   , TestConfig
+  , WarningCensorTest(..)
+  , WorkspaceBuildOptionsInput
   , WorkspaceConfig
   , configCodec
   , dependenciesCodec
@@ -38,10 +38,12 @@ module Spago.Core.Config
 
 import Spago.Core.Prelude
 
+import Codec.JSON.DecodeError as CJ.DecodeError
 import Data.Array.NonEmpty as NonEmptyArray
-import Data.Codec.Argonaut as CA
-import Data.Codec.Argonaut.Record as CAR
-import Data.Codec.Argonaut.Sum as CA.Sum
+import Data.Codec as Codec
+import Data.Codec.JSON as CJ
+import Data.Codec.JSON.Record as CJ.Record
+import Data.Codec.JSON.Sum as CJ.Sum
 import Data.Either as Either
 import Data.List as List
 import Data.Map as Map
@@ -61,11 +63,11 @@ type Config =
   , workspace :: Maybe WorkspaceConfig
   }
 
-configCodec :: JsonCodec Config
-configCodec = CA.object "Config"
-  $ CA.recordPropOptional (Proxy :: _ "package") packageConfigCodec
-  $ CA.recordPropOptional (Proxy :: _ "workspace") workspaceConfigCodec
-  $ CA.record
+configCodec :: CJ.Codec Config
+configCodec = CJ.object
+  $ CJ.recordPropOptional (Proxy :: _ "package") packageConfigCodec
+  $ CJ.recordPropOptional (Proxy :: _ "workspace") workspaceConfigCodec
+  $ CJ.record
 
 type PackageConfig =
   { name :: PackageName
@@ -78,17 +80,17 @@ type PackageConfig =
   , publish :: Maybe PublishConfig
   }
 
-packageConfigCodec :: JsonCodec PackageConfig
-packageConfigCodec = CA.object "PackageConfig"
-  $ CA.recordProp (Proxy :: _ "name") PackageName.codec
-  $ CA.recordPropOptional (Proxy :: _ "description") CA.string
-  $ CA.recordProp (Proxy :: _ "dependencies") dependenciesCodec
-  $ CA.recordPropOptional (Proxy :: _ "build") packageBuildOptionsCodec
-  $ CA.recordPropOptional (Proxy :: _ "bundle") bundleConfigCodec
-  $ CA.recordPropOptional (Proxy :: _ "run") runConfigCodec
-  $ CA.recordPropOptional (Proxy :: _ "test") testConfigCodec
-  $ CA.recordPropOptional (Proxy :: _ "publish") publishConfigCodec
-  $ CA.record
+packageConfigCodec :: CJ.Codec PackageConfig
+packageConfigCodec = CJ.named "PackageConfig" $ CJ.object
+  $ CJ.recordProp (Proxy :: _ "name") PackageName.codec
+  $ CJ.recordPropOptional (Proxy :: _ "description") CJ.string
+  $ CJ.recordProp (Proxy :: _ "dependencies") dependenciesCodec
+  $ CJ.recordPropOptional (Proxy :: _ "build") packageBuildOptionsCodec
+  $ CJ.recordPropOptional (Proxy :: _ "bundle") bundleConfigCodec
+  $ CJ.recordPropOptional (Proxy :: _ "run") runConfigCodec
+  $ CJ.recordPropOptional (Proxy :: _ "test") testConfigCodec
+  $ CJ.recordPropOptional (Proxy :: _ "publish") publishConfigCodec
+  $ CJ.record
 
 type PublishConfig =
   { version :: Version
@@ -98,25 +100,25 @@ type PublishConfig =
   , exclude :: Maybe (Array FilePath)
   }
 
-publishConfigCodec :: JsonCodec PublishConfig
-publishConfigCodec = CA.object "PublishConfig"
-  $ CA.recordProp (Proxy :: _ "version") Version.codec
-  $ CA.recordProp (Proxy :: _ "license") License.codec
-  $ CA.recordPropOptional (Proxy :: _ "location") Location.codec
-  $ CA.recordPropOptional (Proxy :: _ "include") (CA.array CA.string)
-  $ CA.recordPropOptional (Proxy :: _ "exclude") (CA.array CA.string)
-  $ CA.record
+publishConfigCodec :: CJ.Codec PublishConfig
+publishConfigCodec = CJ.named "PublishConfig" $ CJ.object
+  $ CJ.recordProp (Proxy :: _ "version") Version.codec
+  $ CJ.recordProp (Proxy :: _ "license") License.codec
+  $ CJ.recordPropOptional (Proxy :: _ "location") Location.codec
+  $ CJ.recordPropOptional (Proxy :: _ "include") (CJ.array CJ.string)
+  $ CJ.recordPropOptional (Proxy :: _ "exclude") (CJ.array CJ.string)
+  $ CJ.record
 
 type RunConfig =
   { main :: Maybe String
   , execArgs :: Maybe (Array String)
   }
 
-runConfigCodec :: JsonCodec RunConfig
-runConfigCodec = CA.object "RunConfig"
-  $ CA.recordPropOptional (Proxy :: _ "main") CA.string
-  $ CA.recordPropOptional (Proxy :: _ "execArgs") (CA.array CA.string)
-  $ CA.record
+runConfigCodec :: CJ.Codec RunConfig
+runConfigCodec = CJ.named "RunConfig" $ CJ.object
+  $ CJ.recordPropOptional (Proxy :: _ "main") CJ.string
+  $ CJ.recordPropOptional (Proxy :: _ "execArgs") (CJ.array CJ.string)
+  $ CJ.record
 
 type TestConfig =
   { main :: String
@@ -127,26 +129,26 @@ type TestConfig =
   , pedanticPackages :: Maybe Boolean
   }
 
-testConfigCodec :: JsonCodec TestConfig
-testConfigCodec = CA.object "TestConfig"
-  $ CA.recordProp (Proxy :: _ "main") CA.string
-  $ CA.recordPropOptional (Proxy :: _ "execArgs") (CA.array CA.string)
-  $ CA.recordPropOptional (Proxy :: _ "censorTestWarnings") censorBuildWarningsCodec
-  $ CA.recordPropOptional (Proxy :: _ "strict") CA.boolean
-  $ CA.recordPropOptional (Proxy :: _ "pedanticPackages") CA.boolean
-  $ CA.recordProp (Proxy :: _ "dependencies") dependenciesCodec
-  $ CA.record
+testConfigCodec :: CJ.Codec TestConfig
+testConfigCodec = CJ.named "TestConfig" $ CJ.object
+  $ CJ.recordProp (Proxy :: _ "main") CJ.string
+  $ CJ.recordPropOptional (Proxy :: _ "execArgs") (CJ.array CJ.string)
+  $ CJ.recordPropOptional (Proxy :: _ "censorTestWarnings") censorBuildWarningsCodec
+  $ CJ.recordPropOptional (Proxy :: _ "strict") CJ.boolean
+  $ CJ.recordPropOptional (Proxy :: _ "pedanticPackages") CJ.boolean
+  $ CJ.recordProp (Proxy :: _ "dependencies") dependenciesCodec
+  $ CJ.record
 
 type BackendConfig =
   { cmd :: String
   , args :: Maybe (Array String)
   }
 
-backendConfigCodec :: JsonCodec BackendConfig
-backendConfigCodec = CA.object "BackendConfig"
-  $ CA.recordProp (Proxy :: _ "cmd") CA.string
-  $ CA.recordPropOptional (Proxy :: _ "args") (CA.array CA.string)
-  $ CA.record
+backendConfigCodec :: CJ.Codec BackendConfig
+backendConfigCodec = CJ.named "BackendConfig" $ CJ.object
+  $ CJ.recordProp (Proxy :: _ "cmd") CJ.string
+  $ CJ.recordPropOptional (Proxy :: _ "args") (CJ.array CJ.string)
+  $ CJ.record
 
 type PackageBuildOptionsInput =
   { censorProjectWarnings :: Maybe CensorBuildWarnings
@@ -154,12 +156,12 @@ type PackageBuildOptionsInput =
   , pedanticPackages :: Maybe Boolean
   }
 
-packageBuildOptionsCodec :: JsonCodec PackageBuildOptionsInput
-packageBuildOptionsCodec = CA.object "PackageBuildOptionsInput"
-  $ CA.recordPropOptional (Proxy :: _ "censorProjectWarnings") censorBuildWarningsCodec
-  $ CA.recordPropOptional (Proxy :: _ "strict") CA.boolean
-  $ CA.recordPropOptional (Proxy :: _ "pedanticPackages") CA.boolean
-  $ CA.record
+packageBuildOptionsCodec :: CJ.Codec PackageBuildOptionsInput
+packageBuildOptionsCodec = CJ.named "PackageBuildOptionsInput" $ CJ.object
+  $ CJ.recordPropOptional (Proxy :: _ "censorProjectWarnings") censorBuildWarningsCodec
+  $ CJ.recordPropOptional (Proxy :: _ "strict") CJ.boolean
+  $ CJ.recordPropOptional (Proxy :: _ "pedanticPackages") CJ.boolean
+  $ CJ.record
 
 type BundleConfig =
   { minify :: Maybe Boolean
@@ -170,15 +172,15 @@ type BundleConfig =
   , extraArgs :: Maybe (Array String)
   }
 
-bundleConfigCodec :: JsonCodec BundleConfig
-bundleConfigCodec = CA.object "BundleConfig"
-  $ CA.recordPropOptional (Proxy :: _ "minify") CA.boolean
-  $ CA.recordPropOptional (Proxy :: _ "module") CA.string
-  $ CA.recordPropOptional (Proxy :: _ "outfile") CA.string
-  $ CA.recordPropOptional (Proxy :: _ "platform") bundlePlatformCodec
-  $ CA.recordPropOptional (Proxy :: _ "type") bundleTypeCodec
-  $ CA.recordPropOptional (Proxy :: _ "extraArgs") (CA.array CA.string)
-  $ CA.record
+bundleConfigCodec :: CJ.Codec BundleConfig
+bundleConfigCodec = CJ.named "BundleConfig" $ CJ.object
+  $ CJ.recordPropOptional (Proxy :: _ "minify") CJ.boolean
+  $ CJ.recordPropOptional (Proxy :: _ "module") CJ.string
+  $ CJ.recordPropOptional (Proxy :: _ "outfile") CJ.string
+  $ CJ.recordPropOptional (Proxy :: _ "platform") bundlePlatformCodec
+  $ CJ.recordPropOptional (Proxy :: _ "type") bundleTypeCodec
+  $ CJ.recordPropOptional (Proxy :: _ "extraArgs") (CJ.array CJ.string)
+  $ CJ.record
 
 data BundlePlatform = BundleNode | BundleBrowser
 
@@ -193,8 +195,8 @@ parsePlatform = case _ of
   "browser" -> Just BundleBrowser
   _ -> Nothing
 
-bundlePlatformCodec :: JsonCodec BundlePlatform
-bundlePlatformCodec = CA.Sum.enumSum show (parsePlatform)
+bundlePlatformCodec :: CJ.Codec BundlePlatform
+bundlePlatformCodec = CJ.Sum.enumSum show (parsePlatform)
 
 -- | This is the equivalent of "WithMain" in the old Spago.
 -- App bundles with a main fn, while Module does not include a main.
@@ -211,8 +213,8 @@ parseBundleType = case _ of
   "module" -> Just BundleModule
   _ -> Nothing
 
-bundleTypeCodec :: JsonCodec BundleType
-bundleTypeCodec = CA.Sum.enumSum show (parseBundleType)
+bundleTypeCodec :: CJ.Codec BundleType
+bundleTypeCodec = CJ.Sum.enumSum show (parseBundleType)
 
 newtype Dependencies = Dependencies (Map PackageName (Maybe Range))
 
@@ -233,8 +235,8 @@ instance Semigroup Dependencies where
 instance Monoid Dependencies where
   mempty = Dependencies (Map.empty)
 
-dependenciesCodec :: JsonCodec Dependencies
-dependenciesCodec = Profunctor.dimap to from $ CA.array dependencyCodec
+dependenciesCodec :: CJ.Codec Dependencies
+dependenciesCodec = Profunctor.dimap to from $ CJ.array dependencyCodec
   where
   packageSingletonCodec = Internal.Codec.packageMap spagoRangeCodec
 
@@ -254,23 +256,23 @@ dependenciesCodec = Profunctor.dimap to from $ CA.array dependencyCodec
         Right m -> rmap Just $ unsafeFromJust (List.head (Map.toUnfoldable m))
     )
 
-  dependencyCodec :: JsonCodec (Either PackageName (Map PackageName Range))
-  dependencyCodec = CA.codec' decode encode
+  dependencyCodec :: CJ.Codec (Either PackageName (Map PackageName Range))
+  dependencyCodec = Codec.codec' decode encode
     where
     encode = case _ of
-      Left name -> CA.encode PackageName.codec name
-      Right singletonMap -> CA.encode packageSingletonCodec singletonMap
+      Left name -> CJ.encode PackageName.codec name
+      Right singletonMap -> CJ.encode packageSingletonCodec singletonMap
 
     decode json =
-      map Left (CA.decode PackageName.codec json)
-        <|> map Right (CA.decode packageSingletonCodec json)
+      map Left (Codec.decode PackageName.codec json)
+        <|> map Right (Codec.decode packageSingletonCodec json)
 
 widestRange :: Range
 widestRange = Either.fromRight' (\_ -> unsafeCrashWith "Fake range failed")
   $ Range.parse ">=0.0.0 <2147483647.0.0"
 
-spagoRangeCodec :: JsonCodec Range
-spagoRangeCodec = CA.prismaticCodec "SpagoRange" rangeParse printSpagoRange CA.string
+spagoRangeCodec :: CJ.Codec Range
+spagoRangeCodec = CJ.prismaticCodec "SpagoRange" rangeParse printSpagoRange CJ.string
   where
   rangeParse str =
     if str == "*" then Just widestRange
@@ -288,13 +290,13 @@ type WorkspaceConfig =
   , buildOpts :: Maybe WorkspaceBuildOptionsInput
   }
 
-workspaceConfigCodec :: JsonCodec WorkspaceConfig
-workspaceConfigCodec = CA.object "WorkspaceConfig"
-  $ CA.recordPropOptional (Proxy :: _ "packageSet") setAddressCodec
-  $ CA.recordPropOptional (Proxy :: _ "backend") backendConfigCodec
-  $ CA.recordPropOptional (Proxy :: _ "buildOpts") buildOptionsCodec
-  $ CA.recordPropOptional (Proxy :: _ "extraPackages") (Internal.Codec.packageMap extraPackageCodec)
-  $ CA.record
+workspaceConfigCodec :: CJ.Codec WorkspaceConfig
+workspaceConfigCodec = CJ.named "WorkspaceConfig" $ CJ.object
+  $ CJ.recordPropOptional (Proxy :: _ "packageSet") setAddressCodec
+  $ CJ.recordPropOptional (Proxy :: _ "backend") backendConfigCodec
+  $ CJ.recordPropOptional (Proxy :: _ "buildOpts") buildOptionsCodec
+  $ CJ.recordPropOptional (Proxy :: _ "extraPackages") (Internal.Codec.packageMap extraPackageCodec)
+  $ CJ.record
 
 type WorkspaceBuildOptionsInput =
   { output :: Maybe FilePath
@@ -302,12 +304,12 @@ type WorkspaceBuildOptionsInput =
   , statVerbosity :: Maybe StatVerbosity
   }
 
-buildOptionsCodec :: JsonCodec WorkspaceBuildOptionsInput
-buildOptionsCodec = CA.object "WorkspaceBuildOptionsInput"
-  $ CA.recordPropOptional (Proxy :: _ "output") CA.string
-  $ CA.recordPropOptional (Proxy :: _ "censorLibraryWarnings") censorBuildWarningsCodec
-  $ CA.recordPropOptional (Proxy :: _ "statVerbosity") statVerbosityCodec
-  $ CA.record
+buildOptionsCodec :: CJ.Codec WorkspaceBuildOptionsInput
+buildOptionsCodec = CJ.named "WorkspaceBuildOptionsInput" $ CJ.object
+  $ CJ.recordPropOptional (Proxy :: _ "output") CJ.string
+  $ CJ.recordPropOptional (Proxy :: _ "censorLibraryWarnings") censorBuildWarningsCodec
+  $ CJ.recordPropOptional (Proxy :: _ "statVerbosity") statVerbosityCodec
+  $ CJ.record
 
 data CensorBuildWarnings
   = CensorAllWarnings
@@ -320,22 +322,22 @@ instance Show CensorBuildWarnings where
     CensorAllWarnings -> "CensorAllWarnings"
     CensorSpecificWarnings censorTests -> "(CensorSpecificWarnings " <> show censorTests <> ")"
 
-censorBuildWarningsCodec :: JsonCodec CensorBuildWarnings
-censorBuildWarningsCodec = CA.codec' parse print
+censorBuildWarningsCodec :: CJ.Codec CensorBuildWarnings
+censorBuildWarningsCodec = Codec.codec' decode encode
   where
-  print = case _ of
-    CensorAllWarnings -> CA.encode CA.string "all"
-    CensorSpecificWarnings censorTests -> CA.encode (CA.array warningCensorTestCodec) $ NonEmptyArray.toArray censorTests
+  encode = case _ of
+    CensorAllWarnings -> CJ.encode CJ.string "all"
+    CensorSpecificWarnings censorTests -> CJ.encode (CJ.array warningCensorTestCodec) $ NonEmptyArray.toArray censorTests
 
-  parse j = decodeNoneOrAll <|> decodeSpecific
+  decode json = decodeNoneOrAll <|> decodeSpecific
     where
-    decodeNoneOrAll = CA.decode CA.string j >>= case _ of
+    decodeNoneOrAll = except $ CJ.decode CJ.string json >>= case _ of
       "all" -> Right CensorAllWarnings
-      _ -> Left $ CA.UnexpectedValue j
+      _ -> Left $ CJ.DecodeError.basic "Expected 'all' for all warnings"
 
     decodeSpecific = CensorSpecificWarnings <$> do
-      arr <- CA.decode (CA.array warningCensorTestCodec) j
-      Either.note (CA.UnexpectedValue j) $ NonEmptyArray.fromArray arr
+      arr <- Codec.decode (CJ.array warningCensorTestCodec) json
+      except $ Either.note (CJ.DecodeError.basic "Expected array of warning codes") $ NonEmptyArray.fromArray arr
 
 data WarningCensorTest
   = ByCode String
@@ -347,19 +349,19 @@ instance Show WarningCensorTest where
     ByCode str -> "(ByCode" <> str <> ")"
     ByMessagePrefix str -> "(ByMessagePrefix" <> str <> ")"
 
-warningCensorTestCodec :: JsonCodec WarningCensorTest
-warningCensorTestCodec = CA.codec' parse print
+warningCensorTestCodec :: CJ.Codec WarningCensorTest
+warningCensorTestCodec = Codec.codec' decode encode
   where
-  print = case _ of
-    ByCode str -> CA.encode CA.string str
-    ByMessagePrefix str -> CA.encode byMessagePrefixCodec { byPrefix: str }
+  encode = case _ of
+    ByCode str -> CJ.encode CJ.string str
+    ByMessagePrefix str -> CJ.encode byMessagePrefixCodec { byPrefix: str }
 
-  parse j = byCode <|> byPrefix
+  decode json = byCode <|> byPrefix
     where
-    byCode = ByCode <$> CA.decode CA.string j
-    byPrefix = (ByMessagePrefix <<< _.byPrefix) <$> CA.decode byMessagePrefixCodec j
+    byCode = ByCode <$> Codec.decode CJ.string json
+    byPrefix = (ByMessagePrefix <<< _.byPrefix) <$> Codec.decode byMessagePrefixCodec json
 
-  byMessagePrefixCodec = CAR.object "ByMessagePrefix" { byPrefix: CA.string }
+  byMessagePrefixCodec = CJ.named "ByMessagePrefix" $ CJ.Record.object { byPrefix: CJ.string }
 
 data StatVerbosity
   = NoStats
@@ -372,8 +374,8 @@ instance Show StatVerbosity where
     CompactStats -> "CompactStats"
     VerboseStats -> "VerboseStats"
 
-statVerbosityCodec :: JsonCodec StatVerbosity
-statVerbosityCodec = CA.Sum.enumSum print parse
+statVerbosityCodec :: CJ.Codec StatVerbosity
+statVerbosityCodec = CJ.Sum.enumSum print parse
   where
   print = case _ of
     NoStats -> "no-stats"
@@ -392,20 +394,20 @@ data SetAddress
 
 derive instance Eq SetAddress
 
-setAddressCodec :: JsonCodec SetAddress
-setAddressCodec = CA.codec' decode encode
+setAddressCodec :: CJ.Codec SetAddress
+setAddressCodec = Codec.codec' decode encode
   where
-  setFromRegistryCodec = CAR.object "SetFromRegistry" { registry: Version.codec }
-  setFromUrlCodec = CAR.object "SetFromUrl" { url: CA.string, hash: CAR.optional Sha256.codec }
-  setFromPathCodec = CAR.object "SetFromPath" { path: CA.string }
+  setFromRegistryCodec = CJ.named "SetFromRegistry" $ CJ.Record.object { registry: Version.codec }
+  setFromUrlCodec = CJ.named "SetFromUrl" $ CJ.Record.object { url: CJ.string, hash: CJ.Record.optional Sha256.codec }
+  setFromPathCodec = CJ.named "SetFromPath" $ CJ.Record.object { path: CJ.string }
 
-  encode (SetFromRegistry r) = CA.encode setFromRegistryCodec r
-  encode (SetFromUrl u) = CA.encode setFromUrlCodec u
-  encode (SetFromPath p) = CA.encode setFromPathCodec p
+  encode (SetFromRegistry r) = CJ.encode setFromRegistryCodec r
+  encode (SetFromUrl u) = CJ.encode setFromUrlCodec u
+  encode (SetFromPath p) = CJ.encode setFromPathCodec p
 
-  decode json = map SetFromRegistry (CA.decode setFromRegistryCodec json)
-    <|> map SetFromUrl (CA.decode setFromUrlCodec json)
-    <|> map SetFromPath (CA.decode setFromPathCodec json)
+  decode json = map SetFromRegistry (Codec.decode setFromRegistryCodec json)
+    <|> map SetFromUrl (Codec.decode setFromUrlCodec json)
+    <|> map SetFromPath (Codec.decode setFromPathCodec json)
 
 data ExtraPackage
   = ExtraLocalPackage LocalPackage
@@ -413,19 +415,19 @@ data ExtraPackage
 
 derive instance Eq ExtraPackage
 
-extraPackageCodec :: JsonCodec ExtraPackage
-extraPackageCodec = CA.codec' decode encode
+extraPackageCodec :: CJ.Codec ExtraPackage
+extraPackageCodec = Codec.codec' decode encode
   where
-  encode (ExtraLocalPackage lp) = CA.encode localPackageCodec lp
-  encode (ExtraRemotePackage rp) = CA.encode remotePackageCodec rp
+  encode (ExtraLocalPackage lp) = CJ.encode localPackageCodec lp
+  encode (ExtraRemotePackage rp) = CJ.encode remotePackageCodec rp
 
-  decode json = map ExtraLocalPackage (CA.decode localPackageCodec json)
-    <|> map ExtraRemotePackage (CA.decode remotePackageCodec json)
+  decode json = map ExtraLocalPackage (Codec.decode localPackageCodec json)
+    <|> map ExtraRemotePackage (Codec.decode remotePackageCodec json)
 
 type LocalPackage = { path :: FilePath }
 
-localPackageCodec :: JsonCodec LocalPackage
-localPackageCodec = CAR.object "LocalPackage" { path: CA.string }
+localPackageCodec :: CJ.Codec LocalPackage
+localPackageCodec = CJ.named "LocalPackage" $ CJ.Record.object { path: CJ.string }
 
 data RemotePackage
   = RemoteGitPackage GitPackage
@@ -434,16 +436,16 @@ data RemotePackage
 
 derive instance Eq RemotePackage
 
-remotePackageCodec :: JsonCodec RemotePackage
-remotePackageCodec = CA.codec' decode encode
+remotePackageCodec :: CJ.Codec RemotePackage
+remotePackageCodec = Codec.codec' decode encode
   where
-  encode (RemoteRegistryVersion v) = CA.encode Version.codec v
-  encode (RemoteGitPackage p) = CA.encode gitPackageCodec p
-  encode (RemoteLegacyPackage p) = CA.encode legacyPackageSetEntryCodec p
+  encode (RemoteRegistryVersion v) = CJ.encode Version.codec v
+  encode (RemoteGitPackage p) = CJ.encode gitPackageCodec p
+  encode (RemoteLegacyPackage p) = CJ.encode legacyPackageSetEntryCodec p
 
-  decode json = map RemoteRegistryVersion (CA.decode Version.codec json)
-    <|> map RemoteGitPackage (CA.decode gitPackageCodec json)
-    <|> map RemoteLegacyPackage (CA.decode legacyPackageSetEntryCodec json)
+  decode json = map RemoteRegistryVersion (Codec.decode Version.codec json)
+    <|> map RemoteGitPackage (Codec.decode gitPackageCodec json)
+    <|> map RemoteLegacyPackage (Codec.decode legacyPackageSetEntryCodec json)
 
 type GitPackage =
   { git :: String
@@ -452,13 +454,13 @@ type GitPackage =
   , dependencies :: Maybe Dependencies
   }
 
-gitPackageCodec :: JsonCodec GitPackage
-gitPackageCodec = CA.object "GitPackage"
-  $ CA.recordProp (Proxy :: _ "git") CA.string
-  $ CA.recordProp (Proxy :: _ "ref") CA.string
-  $ CA.recordPropOptional (Proxy :: _ "subdir") CA.string
-  $ CA.recordPropOptional (Proxy :: _ "dependencies") dependenciesCodec
-  $ CA.record
+gitPackageCodec :: CJ.Codec GitPackage
+gitPackageCodec = CJ.named "GitPackage" $ CJ.object
+  $ CJ.recordProp (Proxy :: _ "git") CJ.string
+  $ CJ.recordProp (Proxy :: _ "ref") CJ.string
+  $ CJ.recordPropOptional (Proxy :: _ "subdir") CJ.string
+  $ CJ.recordPropOptional (Proxy :: _ "dependencies") dependenciesCodec
+  $ CJ.record
 
 -- | The format of a legacy packages.json package set entry for an individual
 -- | package.
@@ -468,9 +470,9 @@ type LegacyPackageSetEntry =
   , version :: String
   }
 
-legacyPackageSetEntryCodec :: JsonCodec LegacyPackageSetEntry
-legacyPackageSetEntryCodec = CA.object "LegacyPackageSetEntry"
-  $ CA.recordProp (Proxy :: _ "repo") CA.string
-  $ CA.recordProp (Proxy :: _ "version") CA.string
-  $ CA.recordProp (Proxy :: _ "dependencies") (CA.array PackageName.codec)
-  $ CA.record
+legacyPackageSetEntryCodec :: CJ.Codec LegacyPackageSetEntry
+legacyPackageSetEntryCodec = CJ.named "LegacyPackageSetEntry" $ CJ.object
+  $ CJ.recordProp (Proxy :: _ "repo") CJ.string
+  $ CJ.recordProp (Proxy :: _ "version") CJ.string
+  $ CJ.recordProp (Proxy :: _ "dependencies") (CJ.array PackageName.codec)
+  $ CJ.record

@@ -5,26 +5,25 @@ module Docs.Search.DocsJson
 
 import Prelude
 
-import Data.Codec.Argonaut (JsonCodec)
-import Data.Codec.Argonaut.Common as CA
-import Data.Codec.Argonaut.Record as CAR
+import Data.Codec.JSON as CJ
+import Data.Codec.JSON.Record as CJ.Record
 import Data.Profunctor (wrapIso)
 
 import Language.PureScript.AST.SourcePos (SourceSpan(..), SourcePos(..))
 
-sourceSpanCodec :: JsonCodec SourceSpan
+sourceSpanCodec :: CJ.Codec SourceSpan
 sourceSpanCodec =
-  wrapIso SourceSpan $
-    CAR.object "SourceSpan"
+  wrapIso SourceSpan $ CJ.named "SourceSpan" $
+    CJ.Record.object
       { start: sourcePosCodec
       , end: sourcePosCodec
-      , name: CA.string
+      , name: CJ.string
       }
 
-sourcePosCodec :: JsonCodec SourcePos
+sourcePosCodec :: CJ.Codec SourcePos
 sourcePosCodec =
-  wrapIso SourcePos $
-    CAR.object "SourcePos"
-      { line: CA.int
-      , column: CA.int
+  wrapIso SourcePos $ CJ.named "SourcePos" $
+    CJ.Record.object
+      { line: CJ.int
+      , column: CJ.int
       }

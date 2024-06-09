@@ -28,11 +28,12 @@ import Spago.Prelude
 import Affjax.Node as Http
 import Affjax.ResponseFormat as Response
 import Affjax.StatusCode (StatusCode(..))
+import Codec.JSON.DecodeError as CJ.DecodeError
 import Data.Array as Array
 import Data.Array.NonEmpty as NEA
 import Data.CodePoint.Unicode as Unicode
-import Data.Codec.Argonaut as CA
-import Data.Codec.Argonaut.Record as CAR
+import Data.Codec.JSON as CJ
+import Data.Codec.JSON.Record as CJ.Record
 import Data.Enum as Enum
 import Data.Graph as Graph
 import Data.HTTP.Method as Method
@@ -58,12 +59,13 @@ import Registry.Range as Range
 import Registry.Version as Version
 import Spago.Core.Config as Core
 import Spago.FS as FS
+import Spago.Glob as Glob
+import Spago.Json as Json
 import Spago.Lock (Lockfile, PackageSetInfo)
 import Spago.Lock as Lock
 import Spago.Paths as Paths
 import Spago.Registry as Registry
 import Spago.Yaml as Yaml
-import Spago.Glob as Glob
 
 type Workspace =
   { selected :: Maybe WorkspacePackage
@@ -104,7 +106,7 @@ newtype LegacyPackageSet = LegacyPackageSet (Map PackageName Core.LegacyPackageS
 derive instance Newtype LegacyPackageSet _
 derive newtype instance Eq LegacyPackageSet
 
-legacyPackageSetCodec :: JsonCodec LegacyPackageSet
+legacyPackageSetCodec :: CJ.Codec LegacyPackageSet
 legacyPackageSetCodec =
   Profunctor.wrapIso LegacyPackageSet
     $ Internal.Codec.packageMap Core.legacyPackageSetEntryCodec
@@ -115,8 +117,8 @@ newtype RemotePackageSet = RemotePackageSet
   , version :: Version
   }
 
-remotePackageSetCodec :: JsonCodec RemotePackageSet
-remotePackageSetCodec = Profunctor.wrapIso RemotePackageSet $ CAR.object "PackageSet"
+remotePackageSetCodec :: CJ.Codec RemotePackageSet
+remotePackageSetCodec = Profunctor.wrapIso RemotePackageSet $ CJ.named "PackageSet" $ CJ.Record.object
   { version: Version.codec
   , compiler: Version.codec
   , packages: Internal.Codec.packageMap Core.remotePackageCodec
@@ -184,7 +186,9 @@ readWorkspace { maybeSelectedPackage, pureBuild, migrateConfig } = do
     Left errLines ->
       die
         [ toDoc "Couldn't parse Spago config, error:"
+        , Log.break
         , indent $ toDoc errLines
+        , Log.break
         , toDoc "The configuration file help can be found here https://github.com/purescript/spago#the-configuration-file"
         ]
     Right { yaml: { workspace: Nothing } } -> die
@@ -559,18 +563,18 @@ readConfig path = do
         "spago.yaml", Nothing ->
           [ "Did not find `" <> path <> "`. Run `spago init` to initialize a new project." ]
         "spago.yaml", Just y ->
-          [ "Did not find `" <> path <> "`. Spago's configuration files must end with `.yaml`, not `.yml`. "
+          [ "Did not find `" <> path <> "`. Spago's configuration files must end with `.yaml`, not `.yml`."
           , "Try renaming `" <> y <> "` to `" <> path <> "` or run `spago init` to initialize a new project."
           ]
         _, Nothing ->
           [ "Did not find `" <> path <> "`." ]
         _, Just y ->
-          [ "Did not find `" <> path <> "`. Spago's configuration files must end with `.yaml`, not `.yml`. "
+          [ "Did not find `" <> path <> "`. Spago's configuration files must end with `.yaml`, not `.yml`."
           , "Try renaming `" <> y <> "` to `" <> path <> "`."
           ]
     Right yamlString -> do
-      case lmap (\err -> CA.TypeMismatch ("YAML: " <> err)) (Yaml.parser yamlString) of
-        Left err -> pure $ Left [ CA.printJsonDecodeError err ]
+      case lmap (\err -> CJ.DecodeError.basic ("YAML: " <> err)) (Yaml.parser yamlString) of
+        Left err -> pure $ Left [ CJ.DecodeError.print err ]
         Right doc -> do
           -- At this point we are sure that we have a valid Yaml document in `doc`,
           -- and it's just a matter of decoding it into our `Config` type.
@@ -584,9 +588,9 @@ readConfig path = do
           -- TODO: revisit this once we have #1165, to parse more strictly
           let maybeMigratedDoc = Nullable.toMaybe (migrateV1ConfigImpl doc)
           pure $ bimap
-            (Array.singleton <<< CA.printJsonDecodeError)
+            Json.printConfigError
             (\yaml -> { doc, yaml, wasMigrated: isJust maybeMigratedDoc })
-            (CA.decode Core.configCodec (Yaml.toJson $ fromMaybe doc maybeMigratedDoc))
+            (CJ.decode Core.configCodec (Yaml.toJson $ fromMaybe doc maybeMigratedDoc))
 
 setPackageSetVersionInConfig :: forall m. MonadAff m => MonadEffect m => YamlDoc Core.Config -> Version -> m Unit
 setPackageSetVersionInConfig doc version = do

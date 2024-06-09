@@ -10,20 +10,24 @@ package:
   dependencies:
     - aff
     - arrays
-    - codec-argonaut
-    - console
-    - js-date
+    - avar
+    - codec-json
+    - control
+    - foldable-traversable
     - lists
-    - node-fs
+    - maybe
     - node-path
     - node-process
+    - now
     - optparse
     - ordered-collections
+    - prelude
     - record
-    - refs
     - registry-lib
     - spago
     - spago-core
+    - strings
+    - transformers
     - unsafe-coerce
   bundle:
     module: Main

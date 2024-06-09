@@ -32,7 +32,7 @@ import Data.Array ((:))
 import Data.Array as Array
 import Data.Array.NonEmpty (NonEmptyArray)
 import Data.Array.NonEmpty (toArray) as NEA
-import Data.Codec.Argonaut (JsonCodec)
+import Data.Codec.JSON as CJ
 import Data.DateTime.Instant (Instant)
 import Data.DateTime.Instant as Instant
 import Data.Either (Either(..))
@@ -44,7 +44,7 @@ import Data.String.Utils as Strings
 import Data.Time.Duration (Milliseconds)
 import Data.Traversable (traverse)
 import Dodo (Doc, print, twoSpaces)
-import Dodo (indent, break) as DodoExport
+import Dodo (indent, break, softBreak) as DodoExport
 import Dodo as Dodo
 import Dodo as Log
 import Dodo.Ansi (GraphicsParam)
@@ -195,8 +195,8 @@ rightOrDieWith' value toMsg = case value of
     die' $ toMsg err
 
 data OutputFormat a
-  = OutputJson (JsonCodec a) a
-  | OutputYaml (JsonCodec a) a
+  = OutputJson (CJ.Codec a) a
+  | OutputYaml (CJ.Codec a) a
   | OutputTable { titles :: Array String, rows :: Array (Array String) }
   | OutputLines (Array String)
 
