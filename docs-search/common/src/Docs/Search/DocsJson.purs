@@ -5,7 +5,6 @@ module Docs.Search.DocsJson
 
 import Prelude
 
-
 import Data.Codec.JSON as CJ
 import Data.Codec.JSON.Record as CJ.Record
 import Data.Profunctor (wrapIso)
