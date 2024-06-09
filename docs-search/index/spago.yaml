@@ -6,14 +6,14 @@ package:
     - aff
     - argonaut-core
     - arrays
-    - codec-argonaut
+    - codec-json
     - console
-    - control
     - docs-search-common
     - effect
     - either
     - foldable-traversable
     - identity
+    - json
     - json-codecs
     - language-purescript
     - lists
@@ -21,6 +21,7 @@ package:
     - newtype
     - node-buffer
     - node-fs
+    - node-path
     - node-process
     - ordered-collections
     - prelude
@@ -29,6 +30,7 @@ package:
     - string-parsers
     - strings
     - tuples
+    - unsafe-coerce
   test:
     main: Test.Docs.Search.Main
     dependencies:

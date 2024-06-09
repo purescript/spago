@@ -1,21 +1,12 @@
 module Docs.Search.ModuleIndex where
 
-import Docs.Search.Config as Config
-import Docs.Search.Declarations (Declarations(..))
-import Docs.Search.Extra (stringToList)
-import Docs.Search.Score (Scores, getPackageScore)
-import Docs.Search.SearchResult (SearchResult(..))
-import Docs.Search.Types (ModuleName, PackageInfo(..), PackageScore)
-import Docs.Search.Types as Package
-
 import Prelude
 
 import Control.Monad.State (execState, modify_)
 import Control.Promise (Promise, toAffE)
-import Data.Argonaut.Core (Json)
 import Data.Array as Array
-import Data.Codec.Argonaut (JsonCodec)
-import Data.Codec.Argonaut.Common as CA
+import Data.Codec.JSON as CJ
+import Data.Codec.JSON.Common as CJ.Common
 import Data.Either (hush)
 import Data.Foldable (foldl)
 import Data.Lens ((%~))
@@ -34,15 +25,23 @@ import Data.String.Common (split, toLower) as String
 import Data.String.Pattern (Pattern(..))
 import Data.Traversable (foldr, for_)
 import Data.Tuple.Nested ((/\))
+import Docs.Search.Config as Config
+import Docs.Search.Declarations (Declarations(..))
+import Docs.Search.Extra (stringToList)
+import Docs.Search.Score (Scores, getPackageScore)
+import Docs.Search.SearchResult (SearchResult(..))
+import Docs.Search.Types (ModuleName, PackageInfo(..), PackageScore)
+import Docs.Search.Types as Package
 import Effect (Effect)
 import Effect.Aff (Aff)
+import JSON (JSON)
 import Type.Proxy (Proxy(..))
 
 -- | Module index that is actually stored in a JS file.
 type PackedModuleIndex = Map PackageInfo (Set ModuleName)
 
-packedModuleIndexCodec :: JsonCodec PackedModuleIndex
-packedModuleIndexCodec = CA.map Package.packageInfoCodec (CA.set Package.moduleNameCodec)
+packedModuleIndexCodec :: CJ.Codec PackedModuleIndex
+packedModuleIndexCodec = CJ.Common.map Package.packageInfoCodec (CJ.Common.set Package.moduleNameCodec)
 
 -- | "Expanded" module index that can be queried quickly.
 type ModuleIndex =
@@ -123,11 +122,11 @@ mkPackedModuleIndex (Declarations trie) moduleNames =
 loadModuleIndex :: Aff PackedModuleIndex
 loadModuleIndex = do
   json <- toAffE $ load Config.moduleIndexLoadPath
-  pure $ fromMaybe Map.empty $ hush $ CA.decode packedModuleIndexCodec json
+  pure $ fromMaybe Map.empty $ hush $ CJ.decode packedModuleIndexCodec json
 
 foreign import load
   :: String
-  -> Effect (Promise Json)
+  -> Effect (Promise JSON)
 
 _modulePackages :: forall a b rest. (a -> b) -> { modulePackages :: a | rest } -> { modulePackages :: b | rest }
 _modulePackages = prop (Proxy :: Proxy "modulePackages")

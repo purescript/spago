@@ -4,7 +4,7 @@ import Spago.Prelude
 
 import Data.Array as Array
 import Data.Array.NonEmpty as NEA
-import Data.Codec.Argonaut as CA
+import Data.Codec.JSON as CJ
 import Data.Map as Map
 import Spago.Command.Fetch (FetchEnv)
 import Spago.Command.Fetch as Fetch
@@ -34,5 +34,5 @@ run { json } = do
       (Map.toUnfoldable transitivePackages :: Array (Tuple PackageName Package))
 
   output case json of
-    true -> OutputJson (CA.array CA.string) globs
+    true -> OutputJson (CJ.array CJ.string) globs
     false -> OutputLines globs

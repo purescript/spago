@@ -3,8 +3,8 @@ module Spago.Purs where
 import Spago.Prelude
 
 import Data.Array as Array
-import Data.Codec.Argonaut as CA
-import Data.Codec.Argonaut.Record as CAR
+import Data.Codec.JSON as CJ
+import Data.Codec.JSON.Record as CJ.Record
 import Data.Profunctor as Profunctor
 import Data.Set as Set
 import Data.String as String
@@ -106,21 +106,21 @@ newtype ModuleGraph = ModuleGraph (Map ModuleName ModuleGraphNode)
 
 derive instance Newtype ModuleGraph _
 
-moduleGraphCodec :: JsonCodec ModuleGraph
-moduleGraphCodec = Profunctor.wrapIso ModuleGraph (Internal.Codec.strMap "ModuleGraph" Just identity moduleGraphNodeCodec)
+moduleGraphCodec :: CJ.Codec ModuleGraph
+moduleGraphCodec = Profunctor.wrapIso ModuleGraph (Internal.Codec.strMap "ModuleGraph" Right identity moduleGraphNodeCodec)
 
 type ModuleGraphNode =
   { path :: String
   , depends :: Array ModuleName
   }
 
-moduleGraphNodeCodec :: JsonCodec ModuleGraphNode
-moduleGraphNodeCodec = CAR.object "ModuleGraphNode"
-  { path: CA.string
-  , depends: CA.array CA.string
+moduleGraphNodeCodec :: CJ.Codec ModuleGraphNode
+moduleGraphNodeCodec = CJ.named "ModuleGraphNode" $ CJ.Record.object
+  { path: CJ.string
+  , depends: CJ.array CJ.string
   }
 
-graph :: forall a. Set FilePath -> Array String -> Spago (PursEnv a) (Either JsonDecodeError ModuleGraph)
+graph :: forall a. Set FilePath -> Array String -> Spago (PursEnv a) (Either CJ.DecodeError ModuleGraph)
 graph globs pursArgs = do
   { purs } <- ask
   let args = [ "graph" ] <> pursArgs <> Set.toUnfoldable globs

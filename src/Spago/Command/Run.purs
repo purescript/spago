@@ -8,9 +8,9 @@ module Spago.Command.Run
 
 import Spago.Prelude
 
+import Codec.JSON.DecodeError as CJ.DecodeError
 import Data.Array as Array
 import Data.Array.NonEmpty as NEA
-import Data.Codec.Argonaut as CA
 import Data.Map as Map
 import Node.FS.Perms as Perms
 import Node.Path as Path
@@ -104,7 +104,7 @@ run = do
           , selected: NEA.singleton selected
           }
       Purs.graph globs [] >>= case _ of
-        Left err -> logWarn $ "Could not decode the output of `purs graph`, error: " <> CA.printJsonDecodeError err
+        Left err -> logWarn $ "Could not decode the output of `purs graph`, error: " <> CJ.DecodeError.print err
         Right (ModuleGraph graph) -> do
           when (isNothing $ Map.lookup opts.moduleName graph) do
             die [ opts.failureMessage, "Module " <> opts.moduleName <> " not found! Are you including it in your build?" ]

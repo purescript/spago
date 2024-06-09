@@ -2,10 +2,9 @@ module Docs.Search.SearchResult where
 
 import Prelude
 
-import Data.Codec.Argonaut (JsonCodec)
-import Data.Codec.Argonaut.Common as CA
-import Data.Codec.Argonaut.Record as CAR
-import Data.Codec.Argonaut.Variant as CAV
+import Data.Codec.JSON.Variant as CJ.Variant
+import Data.Codec.JSON.Common as CJ
+import Data.Codec.JSON.Record as CJ.Record
 import Data.Either (Either(..))
 import Data.Maybe (Maybe(..))
 import Data.Newtype (class Newtype, un)
@@ -49,36 +48,36 @@ data ResultInfo
   | TypeAliasResult
   | ExternKindResult
 
-resultInfoCodec :: CA.JsonCodec ResultInfo
+resultInfoCodec :: CJ.Codec ResultInfo
 resultInfoCodec =
-  dimap toVariant fromVariant $ CAV.variantMatch
-    { data: Right $
-        CAR.object "DataResult"
-          { typeArguments: CA.array TypeDecoder.typeArgumentCodec
+  dimap toVariant fromVariant $ CJ.Variant.variantMatch
+    { data: Right $ CJ.named "DataResult" $
+        CJ.Record.object
+          { typeArguments: CJ.array TypeDecoder.typeArgumentCodec
           , dataDeclType: TypeDecoder.dataDeclTypeCodec
           }
     , externData: Right TypeDecoder.typeCodec
-    , typeSynonym: Right $
-        CAR.object "TypeSynonymResult"
-          { arguments: CA.array TypeDecoder.typeArgumentCodec
+    , typeSynonym: Right $ CJ.named "TypeSynonymResult" $
+        CJ.Record.object
+          { arguments: CJ.array TypeDecoder.typeArgumentCodec
           , type: TypeDecoder.typeCodec
           }
-    , dataConstructor: Right $
-        CAR.object "DataConstructorResult"
+    , dataConstructor: Right $ CJ.named "DataConstructorResult" $
+        CJ.Record.object
           { dataDeclType: TypeDecoder.dataDeclTypeCodec
           , type: TypeDecoder.typeCodec
           }
-    , typeClassMember: Right $
-        CAR.object "TypeClassMemberResult"
+    , typeClassMember: Right $ CJ.named "TypeClassMemberResult" $
+        CJ.Record.object
           { type: TypeDecoder.typeCodec
           , typeClass: TypeDecoder.qualifiedNameCodec
-          , typeClassArguments: CA.array TypeDecoder.typeArgumentCodec
+          , typeClassArguments: CJ.array TypeDecoder.typeArgumentCodec
           }
-    , typeClass: Right $
-        CAR.object "TypeClassResult"
+    , typeClass: Right $ CJ.named "TypeClassResult" $
+        CJ.Record.object
           { fundeps: TypeDecoder.funDepsCodec
-          , arguments: CA.array TypeDecoder.typeArgumentCodec
-          , superclasses: CA.array TypeDecoder.constraintCodec
+          , arguments: CJ.array TypeDecoder.typeArgumentCodec
+          , superclasses: CJ.array TypeDecoder.constraintCodec
           }
     , value: Right TypeDecoder.typeCodec
     , valueAlias: Left unit
@@ -138,16 +137,16 @@ newtype SearchResult = SearchResult
 
 derive instance Newtype SearchResult _
 
-searchResultCodec :: JsonCodec SearchResult
-searchResultCodec = wrapIso SearchResult $
-  CAR.object "SearchResult"
-    { name: wrapIso Identifier $ CA.string
-    , comments: CAR.optional CA.string
-    , hashAnchor: CA.string
+searchResultCodec :: CJ.Codec SearchResult
+searchResultCodec = wrapIso SearchResult $ CJ.named "SearchResult" $
+  CJ.Record.object
+    { name: wrapIso Identifier $ CJ.string
+    , comments: CJ.Record.optional CJ.string
+    , hashAnchor: CJ.string
     , moduleName: Package.moduleNameCodec
     , packageInfo: Package.packageInfoCodec
     , score: Package.packageScoreCodec
-    , sourceSpan: CAR.optional Docs.sourceSpanCodec
+    , sourceSpan: CJ.Record.optional Docs.sourceSpanCodec
     , info: resultInfoCodec
     }
 

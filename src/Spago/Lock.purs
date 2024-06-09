@@ -13,8 +13,10 @@ module Spago.Lock
 
 import Spago.Prelude
 
-import Data.Codec.Argonaut as CA
-import Data.Codec.Argonaut.Common as CA.Common
+import Codec.JSON.DecodeError as CJ.DecodeError
+import Data.Codec as Codec
+import Data.Codec.JSON as CJ
+import Data.Codec.JSON.Common as CJ.Common
 import Data.Profunctor as Profunctor
 import Record as Record
 import Registry.Internal.Codec as Registry.Codec
@@ -57,45 +59,45 @@ type WorkspaceLockPackage =
   , build_plan :: Set PackageName
   }
 
-lockfileCodec :: JsonCodec Lockfile
-lockfileCodec = CA.object "Lockfile"
-  $ CA.recordProp (Proxy :: _ "workspace") workspaceLockCodec
-  $ CA.recordProp (Proxy :: _ "packages") (Registry.Codec.packageMap lockEntryCodec)
-  $ CA.record
+lockfileCodec :: CJ.Codec Lockfile
+lockfileCodec = CJ.named "Lockfile" $ CJ.object
+  $ CJ.recordProp (Proxy :: _ "workspace") workspaceLockCodec
+  $ CJ.recordProp (Proxy :: _ "packages") (Registry.Codec.packageMap lockEntryCodec)
+  $ CJ.record
 
-workspaceLockCodec :: JsonCodec WorkspaceLock
-workspaceLockCodec = CA.object "WorkspaceLock"
-  $ CA.recordProp (Proxy :: _ "packages") (Registry.Codec.packageMap dependenciesCodec)
-  $ CA.recordPropOptional (Proxy :: _ "package_set") packageSetCodec
-  $ CA.recordProp (Proxy :: _ "extra_packages") (Registry.Codec.packageMap Config.extraPackageCodec)
-  $ CA.record
+workspaceLockCodec :: CJ.Codec WorkspaceLock
+workspaceLockCodec = CJ.named "WorkspaceLock" $ CJ.object
+  $ CJ.recordProp (Proxy :: _ "packages") (Registry.Codec.packageMap dependenciesCodec)
+  $ CJ.recordPropOptional (Proxy :: _ "package_set") packageSetCodec
+  $ CJ.recordProp (Proxy :: _ "extra_packages") (Registry.Codec.packageMap Config.extraPackageCodec)
+  $ CJ.record
   where
-  dependenciesCodec = CA.object "Dependencies"
-    $ CA.recordProp (Proxy :: _ "path") CA.string
-    $ CA.recordProp (Proxy :: _ "dependencies") Config.dependenciesCodec
-    $ CA.recordProp (Proxy :: _ "test_dependencies") Config.dependenciesCodec
-    $ CA.recordProp (Proxy :: _ "build_plan") (CA.Common.set PackageName.codec)
-    $ CA.record
+  dependenciesCodec = CJ.named "Dependencies" $ CJ.object
+    $ CJ.recordProp (Proxy :: _ "path") CJ.string
+    $ CJ.recordProp (Proxy :: _ "dependencies") Config.dependenciesCodec
+    $ CJ.recordProp (Proxy :: _ "test_dependencies") Config.dependenciesCodec
+    $ CJ.recordProp (Proxy :: _ "build_plan") (CJ.Common.set PackageName.codec)
+    $ CJ.record
 
-packageSetCodec :: JsonCodec PackageSetInfo
-packageSetCodec = CA.object "PackageSetInfo"
-  $ CA.recordProp (Proxy :: _ "address") Config.setAddressCodec
-  $ CA.recordProp (Proxy :: _ "compiler") Range.codec
-  $ CA.recordProp (Proxy :: _ "content") (Registry.Codec.packageMap Core.remotePackageCodec)
-  $ CA.record
+packageSetCodec :: CJ.Codec PackageSetInfo
+packageSetCodec = CJ.named "PackageSetInfo" $ CJ.object
+  $ CJ.recordProp (Proxy :: _ "address") Config.setAddressCodec
+  $ CJ.recordProp (Proxy :: _ "compiler") Range.codec
+  $ CJ.recordProp (Proxy :: _ "content") (Registry.Codec.packageMap Core.remotePackageCodec)
+  $ CJ.record
 
-lockEntryCodec :: JsonCodec LockEntry
-lockEntryCodec = CA.codec' decode encode
+lockEntryCodec :: CJ.Codec LockEntry
+lockEntryCodec = Codec.codec' decode encode
   where
   encode = case _ of
-    FromPath lock -> CA.encode pathLockCodec lock
-    FromGit lock -> CA.encode gitLockCodec lock
-    FromRegistry lock -> CA.encode registryLockCodec lock
+    FromPath lock -> CJ.encode pathLockCodec lock
+    FromGit lock -> CJ.encode gitLockCodec lock
+    FromRegistry lock -> CJ.encode registryLockCodec lock
 
   decode json =
-    map FromPath (CA.decode pathLockCodec json)
-      <|> map FromGit (CA.decode gitLockCodec json)
-      <|> map FromRegistry (CA.decode registryLockCodec json)
+    map FromPath (Codec.decode pathLockCodec json)
+      <|> map FromGit (Codec.decode gitLockCodec json)
+      <|> map FromRegistry (Codec.decode registryLockCodec json)
 
 pathLockType :: String
 pathLockType = "local"
@@ -111,12 +113,12 @@ type PathLock =
   , dependencies :: Array PackageName
   }
 
-pathLockCodec :: JsonCodec PathLock
-pathLockCodec = Profunctor.dimap toRep fromRep $ CA.object "PathLock"
-  $ CA.recordProp (Proxy :: _ "type") (constant pathLockType)
-  $ CA.recordProp (Proxy :: _ "path") CA.string
-  $ CA.recordProp (Proxy :: _ "dependencies") (CA.array PackageName.codec)
-  $ CA.record
+pathLockCodec :: CJ.Codec PathLock
+pathLockCodec = Profunctor.dimap toRep fromRep $ CJ.named "PathLock" $ CJ.object
+  $ CJ.recordProp (Proxy :: _ "type") (constant pathLockType)
+  $ CJ.recordProp (Proxy :: _ "path") CJ.string
+  $ CJ.recordProp (Proxy :: _ "dependencies") (CJ.array PackageName.codec)
+  $ CJ.record
   where
   toRep = Record.insert (Proxy :: _ "type") pathLockType
   fromRep = Record.delete (Proxy :: _ "type")
@@ -128,14 +130,14 @@ type GitLock =
   , dependencies :: Array PackageName
   }
 
-gitLockCodec :: JsonCodec GitLock
-gitLockCodec = Profunctor.dimap toRep fromRep $ CA.object "GitLock"
-  $ CA.recordProp (Proxy :: _ "type") (constant gitLockType)
-  $ CA.recordProp (Proxy :: _ "url") CA.string
-  $ CA.recordProp (Proxy :: _ "rev") CA.string
-  $ CA.recordPropOptional (Proxy :: _ "subdir") CA.string
-  $ CA.recordProp (Proxy :: _ "dependencies") (CA.array PackageName.codec)
-  $ CA.record
+gitLockCodec :: CJ.Codec GitLock
+gitLockCodec = Profunctor.dimap toRep fromRep $ CJ.named "GitLock" $ CJ.object
+  $ CJ.recordProp (Proxy :: _ "type") (constant gitLockType)
+  $ CJ.recordProp (Proxy :: _ "url") CJ.string
+  $ CJ.recordProp (Proxy :: _ "rev") CJ.string
+  $ CJ.recordPropOptional (Proxy :: _ "subdir") CJ.string
+  $ CJ.recordProp (Proxy :: _ "dependencies") (CJ.array PackageName.codec)
+  $ CJ.record
   where
   toRep = Record.insert (Proxy :: _ "type") gitLockType
   fromRep = Record.delete (Proxy :: _ "type")
@@ -146,21 +148,21 @@ type RegistryLock =
   , dependencies :: Array PackageName
   }
 
-registryLockCodec :: JsonCodec RegistryLock
-registryLockCodec = Profunctor.dimap toRep fromRep $ CA.object "RegistryLock"
-  $ CA.recordProp (Proxy :: _ "type") (constant registryLockType)
-  $ CA.recordProp (Proxy :: _ "version") Version.codec
-  $ CA.recordProp (Proxy :: _ "integrity") Sha256.codec
-  $ CA.recordProp (Proxy :: _ "dependencies") (CA.array PackageName.codec)
-  $ CA.record
+registryLockCodec :: CJ.Codec RegistryLock
+registryLockCodec = Profunctor.dimap toRep fromRep $ CJ.named "RegistryLock" $ CJ.object
+  $ CJ.recordProp (Proxy :: _ "type") (constant registryLockType)
+  $ CJ.recordProp (Proxy :: _ "version") Version.codec
+  $ CJ.recordProp (Proxy :: _ "integrity") Sha256.codec
+  $ CJ.recordProp (Proxy :: _ "dependencies") (CJ.array PackageName.codec)
+  $ CJ.record
   where
   toRep = Record.insert (Proxy :: _ "type") registryLockType
   fromRep = Record.delete (Proxy :: _ "type")
 
-constant :: String → JsonCodec String
-constant val = CA.codec' decode encode
+constant :: String → CJ.Codec String
+constant val = Codec.codec' decode encode
   where
-  encode = CA.encode CA.string
-  decode json = CA.decode CA.string json >>= case _ of
+  encode = CJ.encode CJ.string
+  decode json = except $ CJ.decode CJ.string json >>= case _ of
     decoded | decoded == val -> pure val
-    _ -> Left (CA.UnexpectedValue json)
+    res -> Left $ CJ.DecodeError.basic $ "Unexpected value: " <> res

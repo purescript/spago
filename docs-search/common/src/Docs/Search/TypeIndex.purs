@@ -1,6 +1,17 @@
 -- | Partial type index, can be loaded on demand in the browser.
 module Docs.Search.TypeIndex where
 
+import Prelude
+
+import Control.Promise (Promise, toAffE)
+import Data.Array as Array
+import Data.Codec.JSON as CJ
+import Data.Either (hush)
+import Data.Foldable (fold, foldr)
+import Data.Map (Map)
+import Data.Map as Map
+import Data.Maybe (Maybe(..), fromMaybe', isJust)
+import Data.Newtype (class Newtype, over)
 import Docs.Search.Config as Config
 import Docs.Search.Declarations (resultsForDeclaration)
 import Docs.Search.DocTypes (Type')
@@ -9,20 +20,9 @@ import Docs.Search.SearchResult (ResultInfo(..), SearchResult(..))
 import Docs.Search.SearchResult as SearchResult
 import Docs.Search.TypeQuery (TypeQuery)
 import Docs.Search.TypeShape (shapeOfType, shapeOfTypeQuery, stringifyShape)
-
-import Prelude
-import Control.Promise (Promise, toAffE)
-import Data.Argonaut.Core (Json)
-import Data.Array as Array
-import Data.Codec.Argonaut.Common as CA
-import Data.Either (hush)
-import Data.Foldable (fold, foldr)
-import Data.Map (Map)
-import Data.Map as Map
-import Data.Maybe (Maybe(..), fromMaybe', isJust)
-import Data.Newtype (class Newtype, over)
 import Effect (Effect)
 import Effect.Aff (Aff, try)
+import JSON (JSON)
 import Language.PureScript.Docs.Types (DocModule(..))
 
 newtype TypeIndex = TypeIndex (Map String (Maybe (Array SearchResult)))
@@ -83,7 +83,7 @@ lookup key index@(TypeIndex map) =
         (\_ -> { index: insert key Nothing index, results: [] })
         do
           json <- hush eiJson
-          results <- hush (CA.decode (CA.array SearchResult.searchResultCodec) json)
+          results <- hush (CJ.decode (CJ.array SearchResult.searchResultCodec) json)
           pure { index: insert key (Just results) index, results }
 
   where
@@ -105,4 +105,4 @@ query typeIndex typeQuery = do
 foreign import lookup_
   :: String
   -> String
-  -> Effect (Promise Json)
+  -> Effect (Promise JSON)

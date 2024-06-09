@@ -24,7 +24,8 @@ module Spago.FS
 
 import Spago.Core.Prelude
 
-import Data.Codec.Argonaut as CA
+import Codec.JSON.DecodeError as CJ.DecodeError
+import Data.Codec.JSON as CJ
 import Data.String as String
 import Effect.Aff as Aff
 import Effect.Uncurried (EffectFn2, runEffectFn2)
@@ -84,32 +85,32 @@ chmod :: forall m. MonadAff m => FilePath -> Perms -> m Unit
 chmod path perms = liftAff $ FS.Aff.chmod path perms
 
 -- | Encode data as formatted JSON and write it to the provided filepath
-writeJsonFile :: forall a. JsonCodec a -> FilePath -> a -> Aff Unit
+writeJsonFile :: forall a. CJ.Codec a -> FilePath -> a -> Aff Unit
 writeJsonFile codec path = FS.Aff.writeTextFile UTF8 path <<< (_ <> "\n") <<< Json.printJson codec
 
 -- | Decode data from a JSON file at the provided filepath
-readJsonFile :: forall a. JsonCodec a -> FilePath -> Aff (Either String a)
+readJsonFile :: forall a. CJ.Codec a -> FilePath -> Aff (Either String a)
 readJsonFile codec path = do
   result <- Aff.attempt $ FS.Aff.readTextFile UTF8 path
-  pure (lmap Aff.message result >>= Json.parseJson codec >>> lmap CA.printJsonDecodeError)
+  pure (lmap Aff.message result >>= Json.parseJson codec >>> lmap CJ.DecodeError.print)
 
 -- | Encode data as formatted YAML and write it to the provided filepath
-writeYamlFile :: forall a. JsonCodec a -> FilePath -> a -> Aff Unit
+writeYamlFile :: forall a. CJ.Codec a -> FilePath -> a -> Aff Unit
 writeYamlFile codec path = FS.Aff.writeTextFile UTF8 path <<< (_ <> "\n") <<< String.trim <<< Yaml.printYaml codec
 
 -- | Decode data from a YAML file at the provided filepath
-readYamlFile :: forall a. JsonCodec a -> FilePath -> Aff (Either String a)
+readYamlFile :: forall a. CJ.Codec a -> FilePath -> Aff (Either String a)
 readYamlFile codec path = do
   result <- Aff.attempt $ FS.Aff.readTextFile UTF8 path
-  pure (lmap Aff.message result >>= Yaml.parseYaml codec >>> lmap CA.printJsonDecodeError)
+  pure (lmap Aff.message result >>= Yaml.parseYaml codec >>> lmap CJ.DecodeError.print)
 
 writeYamlDocFile :: forall a. FilePath -> Yaml.YamlDoc a -> Aff Unit
 writeYamlDocFile path = FS.Aff.writeTextFile UTF8 path <<< (_ <> "\n") <<< String.trim <<< Yaml.toString
 
-readYamlDocFile :: forall a. JsonCodec a -> FilePath -> Aff (Either String { doc :: Yaml.YamlDoc a, yaml :: a })
+readYamlDocFile :: forall a. CJ.Codec a -> FilePath -> Aff (Either String { doc :: Yaml.YamlDoc a, yaml :: a })
 readYamlDocFile codec path = do
   result <- Aff.attempt $ FS.Aff.readTextFile UTF8 path
-  pure (lmap Aff.message result >>= Yaml.parseYamlDoc codec >>> lmap CA.printJsonDecodeError)
+  pure (lmap Aff.message result >>= Yaml.parseYamlDoc codec >>> lmap CJ.DecodeError.print)
 
 stat :: forall m. MonadAff m => FilePath -> m (Either Error Stats)
 stat path = liftAff $ try (FS.Aff.stat path)

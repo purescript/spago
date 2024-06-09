@@ -15,9 +15,8 @@ module Docs.Search.Types
 
 import Prelude
 
-import Data.Codec.Argonaut (JsonCodec)
-import Data.Codec.Argonaut.Common as CA
-import Data.Codec.Argonaut.Variant as CAV
+import Data.Codec.JSON.Variant as CJ.Variant
+import Data.Codec.JSON.Common as CJ
 import Data.Either (Either(..))
 import Data.Generic.Rep (class Generic)
 import Data.Newtype (class Newtype)
@@ -38,8 +37,8 @@ derive newtype instance eqIdentifier :: Eq Identifier
 derive newtype instance ordIdentifier :: Ord Identifier
 derive newtype instance showIdentifier :: Show Identifier
 
-moduleNameCodec :: JsonCodec ModuleName
-moduleNameCodec = wrapIso ModuleName CA.string
+moduleNameCodec :: CJ.Codec ModuleName
+moduleNameCodec = wrapIso ModuleName CJ.string
 
 data PackageInfo = LocalPackage | Builtin | Package PackageName | UnknownPackage
 
@@ -49,12 +48,12 @@ derive instance genericPackageInfo :: Generic PackageInfo _
 instance showPackageInfo :: Show PackageInfo where
   show = genericShow
 
-packageNameCodec :: JsonCodec PackageName
-packageNameCodec = wrapIso PackageName CA.string
+packageNameCodec :: CJ.Codec PackageName
+packageNameCodec = wrapIso PackageName CJ.string
 
-packageInfoCodec :: JsonCodec PackageInfo
+packageInfoCodec :: CJ.Codec PackageInfo
 packageInfoCodec =
-  dimap toVariant fromVariant $ CAV.variantMatch
+  dimap toVariant fromVariant $ CJ.Variant.variantMatch
     { local: Left unit
     , builtin: Left unit
     , unknown: Left unit
@@ -84,8 +83,8 @@ derive newtype instance semiringPackageScore :: Semiring PackageScore
 derive newtype instance ringPackageScore :: Ring PackageScore
 derive newtype instance showPackageScore :: Show PackageScore
 
-packageScoreCodec :: JsonCodec PackageScore
-packageScoreCodec = wrapIso PackageScore CA.int
+packageScoreCodec :: CJ.Codec PackageScore
+packageScoreCodec = wrapIso PackageScore CJ.int
 
 newtype URL = URL String
 
