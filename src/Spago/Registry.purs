@@ -9,6 +9,7 @@ module Spago.Registry
   , getMetadata
   , getRegistryFns
   , listMetadataFiles
+  , listPackageSets
   , readPackageSet
   ) where
 
@@ -62,6 +63,7 @@ type RegistryFunctions =
   { getManifestFromIndex :: PackageName -> Version -> Spago (LogEnv ()) (Maybe Manifest)
   , getMetadata :: PackageName -> Spago (LogEnv ()) (Either String Metadata)
   , findPackageSet :: Maybe Version -> Spago (PreRegistryEnv ()) Version
+  , listPackageSets :: Spago (PreRegistryEnv ()) (Array Db.PackageSet)
   , listMetadataFiles :: Spago (LogEnv ()) (Array String)
   , readPackageSet :: Version -> Spago (LogEnv ()) PackageSet
   }
@@ -77,6 +79,12 @@ getManifestFromIndex packageName version = do
   { getRegistry, logOptions, db, git, purs, offline } <- ask
   { getManifestFromIndex: fn } <- runSpago { logOptions, db, git, purs, offline } getRegistry
   runSpago { logOptions } (fn packageName version)
+
+listPackageSets :: Spago (RegistryEnv _) (Array Db.PackageSet)
+listPackageSets = do
+  { getRegistry, logOptions, db, git, purs, offline } <- ask
+  { listPackageSets: fn } <- runSpago { logOptions, db, git, purs, offline } getRegistry
+  runSpago { logOptions, db, git, purs, offline } fn
 
 findPackageSet :: Maybe Version -> Spago (RegistryEnv _) _
 findPackageSet version = do
@@ -116,6 +124,7 @@ getRegistryFns registryBox registryLock = do
           { getManifestFromIndex: getManifestFromIndexImpl db
           , getMetadata: getMetadataImpl db fetchingFreshRegistry
           , listMetadataFiles: FS.ls (Path.concat [ Paths.registryPath, Registry.Constants.metadataDirectory ])
+          , listPackageSets: listPackageSetsImpl
           , findPackageSet: findPackageSetImpl
           , readPackageSet: readPackageSetImpl
           }
@@ -232,6 +241,11 @@ getManifestFromIndexImpl db name version = do
         logDebug $ "Inserting manifest in DB: " <> PackageName.print name <> " v" <> Version.print m.version
         liftEffect $ Db.insertManifest db name m.version manifest
       pure (Map.lookup version versions)
+
+listPackageSetsImpl :: Spago (PreRegistryEnv _) (Array Db.PackageSet)
+listPackageSetsImpl = do
+  { db } <- ask
+  liftEffect $ Db.selectPackageSets db
 
 findPackageSetImpl :: forall a. Maybe Version -> Spago (PreRegistryEnv a) Version
 findPackageSetImpl maybeSet = do

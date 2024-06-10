@@ -6,25 +6,19 @@ import Registry.Version as Version
 import Spago.Command.Fetch (FetchEnv)
 import Spago.Config as Config
 import Spago.Core.Config as Core
-import Spago.Db as Db
+import Spago.Registry as Registry
 
 run :: forall a. Spago (FetchEnv a) Unit
 run = do
-  { workspace, db, purs, getRegistry, logOptions, git, offline } <- ask
+  { workspace } <- ask
   case workspace.workspaceConfig.packageSet of
-    Just (Core.SetFromRegistry { registry }) -> do
-      -- We are going to read from the database, but we have no guarantee it's up to date,
-      -- so we need to pull a fresh registry first - calling the `getRegistry` is enough,
-      -- since that will populate the db with the missing stuff
-      _ <- runSpago { logOptions, db, git, purs, offline } getRegistry
-      maybeLatestPackageSet <- liftEffect $ Db.selectLatestPackageSetByCompiler db purs.version
-      case maybeLatestPackageSet of
-        Nothing -> die "No package set found for the current compiler version."
-        Just latestPackageSet
-          | latestPackageSet.version <= registry -> logSuccess "Nothing to upgrade, you already have the latest package set."
-          | otherwise -> do
-              logInfo $ "Upgrading the package set to the latest version: " <> Version.print latestPackageSet.version
-              Config.setPackageSetVersionInConfig workspace.doc latestPackageSet.version
-              logSuccess "Upgrade successful!"
+    Just (Core.SetFromRegistry { registry: currentPackageSet }) -> do
+      latestPackageSet <- Registry.findPackageSet Nothing
+      case latestPackageSet <= currentPackageSet of
+        true -> logSuccess "Nothing to upgrade, you already have the latest package set."
+        false -> do
+          logInfo $ "Upgrading the package set to the latest version: " <> Version.print latestPackageSet
+          Config.setPackageSetVersionInConfig workspace.doc latestPackageSet
+          logSuccess "Upgrade successful!"
     Just _ -> die "This command is not yet implemented for projects using a custom package set."
     Nothing -> die "This command is not yet implemented for projects using a solver. See https://github.com/purescript/spago/issues/1001"

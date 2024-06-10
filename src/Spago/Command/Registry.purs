@@ -97,8 +97,7 @@ type RegistryPackageSetsArgs =
 
 packageSets :: RegistryPackageSetsArgs -> Spago (RegistryEnv _) Unit
 packageSets { latest, json } = do
-  { db } <- ask
-  availableSets <- liftEffect $ Db.selectPackageSets db
+  availableSets <- Registry.listPackageSets
 
   let
     sets = case latest of
