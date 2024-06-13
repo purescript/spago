@@ -1,4 +1,4 @@
-import globMain from "glob";
+import { globSync } from "glob";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -21,6 +21,6 @@ export function getDocsSearchAppPath() {
 
 export function glob(pattern) {
   return function () {
-    return globMain.sync(pattern);
+    return globSync(pattern);
   };
 }
