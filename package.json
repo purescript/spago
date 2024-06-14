@@ -1,6 +1,6 @@
 {
   "name": "spago",
-  "version": "0.93.31",
+  "version": "0.93.32",
   "license": "BSD-3-Clause",
   "description": "🍝 PureScript package manager and build tool",
   "keywords": [
@@ -13,7 +13,7 @@
   "homepage": "https://github.com/purescript/spago",
   "repository": {
     "type": "git",
-    "url": "https://github.com/purescript/spago.git"
+    "url": "git+https://github.com/purescript/spago.git"
   },
   "author": "Fabrizio Ferrai",
   "type": "module",
