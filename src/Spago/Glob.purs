@@ -12,13 +12,11 @@ import Data.Foldable (any)
 import Data.String as String
 import Data.String.CodePoints as String.CodePoint
 import Effect.Aff as Aff
-import Effect.Class.Console (log)
 import Effect.Ref as Ref
 import Node.FS.Sync as SyncFS
 import Node.Path as Path
 import Record as Record
 import Type.Proxy (Proxy(..))
-import Unsafe.Coerce (unsafeCoerce)
 
 type MicroMatchOptions = { ignore :: Array String }
 
