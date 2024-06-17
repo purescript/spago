@@ -35,8 +35,7 @@ module Spago.Core.Config
   , remotePackageCodec
   , setAddressCodec
   , widestRange
-  )
-  where
+  ) where
 
 import Spago.Core.Prelude
 
