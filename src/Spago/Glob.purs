@@ -10,6 +10,7 @@ import Data.Filterable (filter)
 import Data.Foldable (any, fold)
 import Data.String as String
 import Data.String.CodePoints as String.CodePoint
+import Data.Traversable (traverse_)
 import Effect.Aff as Aff
 import Effect.Ref as Ref
 import Node.FS.Sync as SyncFS
@@ -22,7 +23,7 @@ type MicroMatchOptions = { ignore :: Array String, include :: Array String }
 foreign import micromatch :: MicroMatchOptions -> String -> Boolean
 
 splitMicromatch :: MicroMatchOptions -> Array MicroMatchOptions
-splitMicromatch {ignore, include} = (\a -> {ignore, include: [a]}) <$> include
+splitMicromatch { ignore, include } = (\a -> { ignore, include: [ a ] }) <$> include
 
 type Entry = { name :: String, path :: String, dirent :: DirEnt }
 type FsWalkOptions = { entryFilter :: Entry -> Effect Boolean, deepFilter :: Entry -> Effect Boolean }
@@ -76,17 +77,18 @@ fsWalk cwd ignorePatterns includePatterns = Aff.makeAff \cb -> do
   canceled <- Ref.new false
   let
     entryGitignore :: Entry -> Effect Unit
-    entryGitignore entry = void $ runMaybeT do
-      gitignore <- MaybeT $ hush <$> try (SyncFS.readTextFile UTF8 entry.path)
-      let
-        base = Path.relative cwd $ Path.dirname entry.path
-        gitignored = splitMicromatch $ gitignoreToMicromatchPatterns base gitignore
-        allowsSearch = not <<< flip any includePatterns
-        newIgnorePatterns = filter (allowsSearch <<< micromatch) gitignored
-      void
-        $ lift
-        $ Ref.modify (_ <> fold newIgnorePatterns)
-        $ ignoreMatcherRef
+    entryGitignore entry =
+      try (SyncFS.readTextFile UTF8 entry.path)
+        >>= traverse_ \gitignore ->
+          let
+            base = Path.relative cwd $ Path.dirname entry.path
+            gitignored = splitMicromatch $ gitignoreToMicromatchPatterns base gitignore
+            canIgnore = not <<< flip any includePatterns
+            newIgnores = filter (canIgnore <<< micromatch) gitignored
+          in
+            void
+              $ Ref.modify (_ <> fold newIgnores)
+              $ ignoreMatcherRef
 
     -- Should `fsWalk` recurse into this directory?
     deepFilter :: Entry -> Effect Boolean
