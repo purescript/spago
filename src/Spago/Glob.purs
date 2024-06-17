@@ -3,7 +3,7 @@ module Spago.Glob (gitignoringGlob) where
 import Spago.Prelude
 
 import Control.Alternative (guard)
-import Control.Monad.Maybe.Trans (MaybeT(..), runMaybeT)
+import Control.Monad.Maybe.Trans (runMaybeT)
 import Control.Monad.Trans.Class (lift)
 import Data.Array as Array
 import Data.Filterable (filter)
