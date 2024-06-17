@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+Features: 
+- Add `includedPackages` and `searchIgnoredFiles` so that workspaces can explicitly define where packages are stored (#1231) 
+
 Other improvements:
 - builds with Cabal successfully
 - update to latest `versions` dependency: https://hackage.haskell.org/package/versions-6.0.1/changelog
