@@ -1,6 +1,6 @@
 {
   "name": "spago",
-  "version": "0.93.31",
+  "version": "0.93.32",
   "license": "BSD-3-Clause",
   "description": "🍝 PureScript package manager and build tool",
   "keywords": [
@@ -13,7 +13,7 @@
   "homepage": "https://github.com/purescript/spago",
   "repository": {
     "type": "git",
-    "url": "https://github.com/purescript/spago.git"
+    "url": "git+https://github.com/purescript/spago.git"
   },
   "author": "Fabrizio Ferrai",
   "type": "module",
@@ -35,23 +35,23 @@
     "halogen:dev": "./bin/index.dev.js bundle -p docs-search-client-halogen --outfile=./generated-docs/html/docs-search-app.js --bundler-args '--watch=forever' --bundler-args '--servedir=./generated-docs/html'"
   },
   "dependencies": {
-    "better-sqlite3": "^8.6.0",
+    "better-sqlite3": "^11.0.0",
     "env-paths": "^3.0.0",
-    "fast-glob": "^3.2.11",
-    "fs-extra": "^10.0.0",
-    "fuse.js": "^6.5.3",
+    "fast-glob": "^3.3.2",
+    "fs-extra": "^11.2.0",
+    "fuse.js": "^7.0.0",
     "glob": "^10.4.1",
-    "markdown-it": "^12.0.4",
-    "micromatch": "^4.0.5",
-    "open": "^9.1.0",
-    "punycode": "^2.3.0",
-    "semver": "^7.3.5",
-    "spdx-expression-parse": "^3.0.1",
-    "ssh2": "^1.14.0",
-    "supports-color": "^9.2.3",
-    "tar": "^6.1.11",
-    "tmp": "^0.2.1",
+    "markdown-it": "^14.1.0",
+    "micromatch": "^4.0.7",
+    "open": "^10.1.0",
+    "punycode": "^2.3.1",
+    "semver": "^7.6.2",
+    "spdx-expression-parse": "^4.0.0",
+    "ssh2": "^1.15.0",
+    "supports-color": "^9.4.0",
+    "tar": "^7.2.0",
+    "tmp": "^0.2.3",
     "xhr2": "^0.2.1",
-    "yaml": "^2.1.1"
+    "yaml": "^2.4.5"
   }
 }
