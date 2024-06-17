@@ -2,10 +2,13 @@ module Test.Spago.Glob where
 
 import Test.Prelude
 
+import Data.Foldable (intercalate)
+import Data.String.Gen (genAlphaLowercaseString)
 import Effect.Aff as Aff
 import Node.Path as Path
 import Spago.FS as FS
 import Spago.Glob as Glob
+import Test.QuickCheck.Gen (randomSample', resize)
 import Test.Spec (Spec)
 import Test.Spec as Spec
 import Test.Spec.Assertions as Assert
@@ -26,11 +29,13 @@ globTmpDir m = Aff.bracket make cleanup m
         base
       dir
         "fruits"
-        [touch "apple", touch "orange", touch "banana"]
-        base
-      dir
-        "sports"
-        [touch "baseball", touch "scrabble"]
+        [ touch "apple"
+        , touch "orange"
+        , touch "banana"
+        , dir "special"
+          [ touch "apple"
+          ]
+        ]
         base
       dir
         "src"
@@ -45,16 +50,18 @@ spec = Spec.around globTmpDir do
   Spec.describe "glob" do
     Spec.describe "gitignoringGlob" do
       Spec.it "when no .gitignore, yields all matches" \p -> do
-        a <- Glob.gitignoringGlob p ["**/fruits/apple/**"]
-        a `Assert.shouldEqual` ["fruits/apple", "src/fruits/apple"]
-
-        b <- Glob.gitignoringGlob p ["sports/**"]
-        b `Assert.shouldEqual` ["sports", "sports/baseball", "sports/scrabble"]
+        a <- Glob.gitignoringGlob p ["**/apple"]
+        a `Assert.shouldEqual` ["fruits/apple", "fruits/special/apple", "src/fruits/apple"]
 
       Spec.it "respects a .gitignore pattern that doesn't conflict with search" \p -> do
         FS.writeTextFile (Path.concat [p, ".gitignore"]) "/fruits"
-        a <- Glob.gitignoringGlob p ["src/fruits/apple/**"]
+        a <- Glob.gitignoringGlob p ["**/apple"]
         a `Assert.shouldEqual` ["src/fruits/apple"]
+
+      Spec.it "respects a negated .gitignore pattern" \p -> do
+        FS.writeTextFile (Path.concat [p, ".gitignore"]) "!/fruits/special/apple\n/fruits/apple"
+        a <- Glob.gitignoringGlob p ["**/apple"]
+        a `Assert.shouldEqual` ["fruits/special/apple", "src/fruits/apple"]
 
       Spec.it "does not respect a .gitignore pattern that conflicts with search" \p -> do
         for_ ["/fruits", "fruits", "fruits/", "**/fruits", "fruits/**", "**/fruits/**"] \gitignore -> do
@@ -64,5 +71,11 @@ spec = Spec.around globTmpDir do
 
       Spec.it "respects some .gitignore patterns" \p -> do
         FS.writeTextFile (Path.concat [p, ".gitignore"]) """/fruits\n/src"""
+        a <- Glob.gitignoringGlob p ["fruits/apple/**"]
+        a `Assert.shouldEqual` ["fruits/apple"]
+
+      Spec.it "is stacksafe" \p -> do
+        hugeGitignore <- liftEffect $ intercalate "\n" <$> randomSample' 10000 (resize 4 $ genAlphaLowercaseString)
+        FS.writeTextFile (Path.concat [p, ".gitignore"]) hugeGitignore
         a <- Glob.gitignoringGlob p ["fruits/apple/**"]
         a `Assert.shouldEqual` ["fruits/apple"]
