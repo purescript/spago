@@ -176,7 +176,7 @@ defaultConfig' opts =
       , buildOpts: Nothing
       , backend: Nothing
       , includedPackages: Nothing
-      , searchIgnoredFiles: Nothing
+      , searchForPackagesInIgnoredFiles: Nothing
       }
   }
   where

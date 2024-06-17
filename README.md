@@ -1324,6 +1324,16 @@ workspace:
     # which breaks down the statistics by warning code.
     statVerbosity: "compact-stats"
 
+  # Optional globs to define paths to packages in workspace.
+  # Will default to [ "**/spago.yaml" ]
+  includedPackages:
+    - "apps/server/*/spago.yaml"
+    - "apps/client/*/spago.yaml"
+
+  # Option to search for packages in gitignored files
+  # Will default to false
+  searchForPackagesInIgnoredFiles: true
+
 # This is the only other section that can be present at the top level.
 # It specifies the configuration for a package in the current folder,
 # and it's optional, as one could just have a `workspace` section.

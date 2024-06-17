@@ -288,7 +288,7 @@ printSpagoRange range =
 type WorkspaceConfig =
   { packageSet :: Maybe SetAddress
   , includedPackages :: Maybe IncludedPackages
-  , searchIgnoredFiles :: Maybe Boolean
+  , searchForPackagesInIgnoredFiles :: Maybe Boolean
   , extraPackages :: Maybe (Map PackageName ExtraPackage)
   , backend :: Maybe BackendConfig
   , buildOpts :: Maybe WorkspaceBuildOptionsInput
@@ -301,7 +301,7 @@ workspaceConfigCodec = CJ.named "WorkspaceConfig" $ CJ.object
   $ CJ.recordPropOptional (Proxy :: _ "buildOpts") buildOptionsCodec
   $ CJ.recordPropOptional (Proxy :: _ "extraPackages") (Internal.Codec.packageMap extraPackageCodec)
   $ CJ.recordPropOptional (Proxy :: _ "includedPackages") buildIncludedPackages
-  $ CJ.recordPropOptional (Proxy :: _ "searchIgnoredFiles") CJ.boolean
+  $ CJ.recordPropOptional (Proxy :: _ "searchForPackagesInIgnoredFiles") CJ.boolean
   $ CJ.record
 
 type WorkspaceBuildOptionsInput =

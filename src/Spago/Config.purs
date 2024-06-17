@@ -202,7 +202,7 @@ readWorkspace { maybeSelectedPackage, pureBuild, migrateConfig } = do
   logDebug "Gathering all the spago configs in the tree..."
   let
     includedPackages = fromMaybe [ "**/spago.yaml" ] $ workspace.includedPackages
-    globFn = if fromMaybe false workspace.searchIgnoredFiles then Glob.glob else Glob.gitignoringGlob
+    globFn = if fromMaybe false workspace.searchForPackagesInIgnoredFiles then Glob.glob else Glob.gitignoringGlob
 
   otherConfigPaths <- liftAff $ globFn Paths.cwd includedPackages
   unless (Array.null otherConfigPaths) do
