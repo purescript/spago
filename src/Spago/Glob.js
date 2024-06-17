@@ -1,5 +1,6 @@
 import mm from 'micromatch';
 import * as fsWalk from '@nodelib/fs.walk';
+import { glob } from 'glob';
 
 export const micromatch = options => patterns => mm.matcher(patterns, options);
 
@@ -14,3 +15,4 @@ export const fsWalkImpl = Left => Right => respond => options => path => () => {
 
 export const isFile = dirent => dirent.isFile();
 
+export const globImpl = cwd => pattern => () => glob(pattern, { cwd });

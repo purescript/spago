@@ -200,10 +200,13 @@ readWorkspace { maybeSelectedPackage, pureBuild, migrateConfig } = do
       pure { workspace, package, workspaceDoc: doc }
 
   logDebug "Gathering all the spago configs in the tree..."
-  otherConfigPaths <- liftAff $ Glob.gitignoringGlob Paths.cwd [ "**/spago.yaml" ]
+  let
+    includedPackages = fromMaybe [ "**/spago.yaml" ] $ workspace.includedPackages
+    globFn = if fromMaybe false workspace.searchIgnoredFiles then Glob.glob else Glob.gitignoringGlob
+
+  otherConfigPaths <- liftAff $ globFn Paths.cwd includedPackages
   unless (Array.null otherConfigPaths) do
     logDebug $ [ toDoc "Found packages at these paths:", Log.indent $ Log.lines (map toDoc otherConfigPaths) ]
-
   -- We read all of them in, and only read the package section, if any.
   let
     readWorkspaceConfig :: FilePath -> Spago (Registry.RegistryEnv _) (Either Docc ReadWorkspaceConfigResult)
@@ -219,7 +222,6 @@ readWorkspace { maybeSelectedPackage, pureBuild, migrateConfig } = do
           ]
         Right config -> do
           Right { config, hasTests, configPath: path, packagePath: Path.dirname path }
-
   { right: otherPackages, left: failedPackages } <- partitionMap identity <$> traverse readWorkspaceConfig otherConfigPaths
   unless (Array.null failedPackages) do
     logWarn $ [ toDoc "Failed to read some configs:" ] <> failedPackages

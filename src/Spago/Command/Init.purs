@@ -175,6 +175,8 @@ defaultConfig' opts =
       , packageSet: setVersion # map \set -> SetFromRegistry { registry: set }
       , buildOpts: Nothing
       , backend: Nothing
+      , includedPackages: Nothing
+      , searchIgnoredFiles: Nothing
       }
   }
   where

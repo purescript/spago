@@ -1,18 +1,24 @@
-module Spago.Glob (gitignoringGlob) where
+module Spago.Glob
+  ( gitignoringGlob
+  , glob
+  ) where
 
 import Spago.Prelude
 
+import Control.Promise (Promise, toAffE)
 import Data.Array as Array
 import Data.Filterable (filter)
 import Data.Foldable (any)
 import Data.String as String
 import Data.String.CodePoints as String.CodePoint
 import Effect.Aff as Aff
+import Effect.Class.Console (log)
 import Effect.Ref as Ref
 import Node.FS.Sync as SyncFS
 import Node.Path as Path
 import Record as Record
 import Type.Proxy (Proxy(..))
+import Unsafe.Coerce (unsafeCoerce)
 
 type MicroMatchOptions = { ignore :: Array String }
 
@@ -22,6 +28,7 @@ type Entry = { name :: String, path :: String, dirent :: DirEnt }
 type FsWalkOptions = { entryFilter :: Entry -> Effect Boolean, deepFilter :: Entry -> Effect Boolean }
 
 foreign import data DirEnt :: Type
+
 foreign import isFile :: DirEnt -> Boolean
 foreign import fsWalkImpl
   :: (forall a b. a -> Either a b)
@@ -30,6 +37,11 @@ foreign import fsWalkImpl
   -> FsWalkOptions
   -> String
   -> Effect Unit
+
+foreign import globImpl
+  :: String
+  -> Array String
+  -> Effect (Promise (Array String))
 
 gitignoreToMicromatchPatterns :: String -> String -> { ignore :: Array String, patterns :: Array String }
 gitignoreToMicromatchPatterns base =
@@ -61,6 +73,7 @@ gitignoreToMicromatchPatterns base =
 
 fsWalk :: String -> Array String -> Array String -> Aff (Array Entry)
 fsWalk cwd ignorePatterns includePatterns = Aff.makeAff \cb -> do
+  log $ unsafeCoerce { fn: "fsWalk", cwd, ignorePatterns, includePatterns }
   let includeMatcher = micromatch { ignore: [] } includePatterns -- The Stuff we are globbing for.
 
   -- Pattern for directories which can be outright ignored.
@@ -78,11 +91,19 @@ fsWalk cwd ignorePatterns includePatterns = Aff.makeAff \cb -> do
         pure false
       else do
         matcher <- Ref.read ignoreMatcherRef
-        pure $ not $ matcher (Path.relative cwd entry.path)
+
+        let
+          relPath = Path.relative cwd entry.path
+          matchedIgnore = matcher relPath
+
+        -- log $ unsafeCoerce { fn: "deepFilter", entry, relPath, matchedIgnore }
+
+        pure $ not matchedIgnore
 
     -- Should `fsWalk` retain this entry for the result array?
     entryFilter :: Entry -> Effect Boolean
     entryFilter entry = do
+      -- log $ unsafeCoerce {entry}
       when (isFile entry.dirent && entry.name == ".gitignore") do -- A .gitignore was encountered
         let gitignorePath = entry.path
 
@@ -123,3 +144,7 @@ fsWalk cwd ignorePatterns includePatterns = Aff.makeAff \cb -> do
 gitignoringGlob :: String -> Array String -> Aff (Array String)
 gitignoringGlob dir patterns = map (withForwardSlashes <<< Path.relative dir <<< _.path)
   <$> fsWalk dir [ ".git" ] patterns
+
+glob :: String -> Array String -> Aff (Array String)
+glob dir patterns = map (withForwardSlashes <<< Path.relative dir) <$> do
+  toAffE $ globImpl dir patterns

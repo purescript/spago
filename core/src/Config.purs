@@ -8,6 +8,7 @@ module Spago.Core.Config
   , Dependencies(..)
   , ExtraPackage(..)
   , GitPackage
+  , IncludedPackages
   , LegacyPackageSetEntry
   , LocalPackage
   , PackageBuildOptionsInput
@@ -34,7 +35,8 @@ module Spago.Core.Config
   , remotePackageCodec
   , setAddressCodec
   , widestRange
-  ) where
+  )
+  where
 
 import Spago.Core.Prelude
 
@@ -285,6 +287,8 @@ printSpagoRange range =
 
 type WorkspaceConfig =
   { packageSet :: Maybe SetAddress
+  , includedPackages :: Maybe IncludedPackages
+  , searchIgnoredFiles :: Maybe Boolean
   , extraPackages :: Maybe (Map PackageName ExtraPackage)
   , backend :: Maybe BackendConfig
   , buildOpts :: Maybe WorkspaceBuildOptionsInput
@@ -296,6 +300,8 @@ workspaceConfigCodec = CJ.named "WorkspaceConfig" $ CJ.object
   $ CJ.recordPropOptional (Proxy :: _ "backend") backendConfigCodec
   $ CJ.recordPropOptional (Proxy :: _ "buildOpts") buildOptionsCodec
   $ CJ.recordPropOptional (Proxy :: _ "extraPackages") (Internal.Codec.packageMap extraPackageCodec)
+  $ CJ.recordPropOptional (Proxy :: _ "includedPackages") buildIncludedPackages
+  $ CJ.recordPropOptional (Proxy :: _ "searchIgnoredFiles") CJ.boolean
   $ CJ.record
 
 type WorkspaceBuildOptionsInput =
@@ -310,6 +316,11 @@ buildOptionsCodec = CJ.named "WorkspaceBuildOptionsInput" $ CJ.object
   $ CJ.recordPropOptional (Proxy :: _ "censorLibraryWarnings") censorBuildWarningsCodec
   $ CJ.recordPropOptional (Proxy :: _ "statVerbosity") statVerbosityCodec
   $ CJ.record
+
+type IncludedPackages = Array String
+
+buildIncludedPackages :: CJ.Codec IncludedPackages
+buildIncludedPackages = CJ.named "IncludedPackages" $ CJ.array CJ.string
 
 data CensorBuildWarnings
   = CensorAllWarnings
