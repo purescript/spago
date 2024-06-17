@@ -73,7 +73,6 @@ gitignoreToMicromatchPatterns base =
 
 fsWalk :: String -> Array String -> Array String -> Aff (Array Entry)
 fsWalk cwd ignorePatterns includePatterns = Aff.makeAff \cb -> do
-  log $ unsafeCoerce { fn: "fsWalk", cwd, ignorePatterns, includePatterns }
   let includeMatcher = micromatch { ignore: [] } includePatterns -- The Stuff we are globbing for.
 
   -- Pattern for directories which can be outright ignored.
@@ -91,19 +90,11 @@ fsWalk cwd ignorePatterns includePatterns = Aff.makeAff \cb -> do
         pure false
       else do
         matcher <- Ref.read ignoreMatcherRef
-
-        let
-          relPath = Path.relative cwd entry.path
-          matchedIgnore = matcher relPath
-
-        -- log $ unsafeCoerce { fn: "deepFilter", entry, relPath, matchedIgnore }
-
-        pure $ not matchedIgnore
+        pure $ not $ matcher (Path.relative cwd entry.path)
 
     -- Should `fsWalk` retain this entry for the result array?
     entryFilter :: Entry -> Effect Boolean
     entryFilter entry = do
-      -- log $ unsafeCoerce {entry}
       when (isFile entry.dirent && entry.name == ".gitignore") do -- A .gitignore was encountered
         let gitignorePath = entry.path
 
