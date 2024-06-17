@@ -30,7 +30,6 @@
     "format": "purs-tidy format-in-place core src bin docs-search",
     "format:check": "purs-tidy check core src bin docs-search",
     "bundle": "spago bundle -p spago-bin",
-    "test": "npm run bundle && bash ./move-to-path.sh",
     "prepublishOnly": "spago build && ./bin/index.dev.js bundle -p spago-bin && ./bin/index.dev.js bundle -p docs-search-client-halogen",
     "halogen:dev": "./bin/index.dev.js bundle -p docs-search-client-halogen --outfile=./generated-docs/html/docs-search-app.js --bundler-args '--watch=forever' --bundler-args '--servedir=./generated-docs/html'"
   },
