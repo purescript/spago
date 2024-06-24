@@ -23,7 +23,7 @@ fromRecord
   -> Parser { | rout }
 fromRecord =
   map Builder.buildFromScratch
-    <<< buildRecordArgs (Proxy :: _ rl)
+    <<< buildRecordArgs (Proxy @rl)
 
 class BuildRecordArgs (rl :: RowList Type) rs rin rout | rl -> rout where
   buildRecordArgs :: Proxy rl -> rs -> Parser (Builder rin rout)
@@ -40,6 +40,6 @@ instance buildArgsCons ::
   ) =>
   BuildRecordArgs (RowList.Cons sym (Parser a) next) { | rs } { | rin } { | rout } where
   buildRecordArgs _ rs =
-    (\a b -> Builder.insert (Proxy :: _ sym) a >>> b)
-      <$> Record.get (Proxy :: _ sym) rs
-      <*> buildRecordArgs (Proxy :: _ next) rs
+    (\a b -> Builder.insert (Proxy @sym) a >>> b)
+      <$> Record.get (Proxy @sym) rs
+      <*> buildRecordArgs (Proxy @next) rs

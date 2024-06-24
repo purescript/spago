@@ -65,8 +65,8 @@ type Config =
 
 configCodec :: CJ.Codec Config
 configCodec = CJ.object
-  $ CJ.recordPropOptional (Proxy :: _ "package") packageConfigCodec
-  $ CJ.recordPropOptional (Proxy :: _ "workspace") workspaceConfigCodec
+  $ CJ.recordPropOptional (Proxy @"package") packageConfigCodec
+  $ CJ.recordPropOptional (Proxy @"workspace") workspaceConfigCodec
   $ CJ.record
 
 type PackageConfig =
@@ -82,14 +82,14 @@ type PackageConfig =
 
 packageConfigCodec :: CJ.Codec PackageConfig
 packageConfigCodec = CJ.named "PackageConfig" $ CJ.object
-  $ CJ.recordProp (Proxy :: _ "name") PackageName.codec
-  $ CJ.recordPropOptional (Proxy :: _ "description") CJ.string
-  $ CJ.recordProp (Proxy :: _ "dependencies") dependenciesCodec
-  $ CJ.recordPropOptional (Proxy :: _ "build") packageBuildOptionsCodec
-  $ CJ.recordPropOptional (Proxy :: _ "bundle") bundleConfigCodec
-  $ CJ.recordPropOptional (Proxy :: _ "run") runConfigCodec
-  $ CJ.recordPropOptional (Proxy :: _ "test") testConfigCodec
-  $ CJ.recordPropOptional (Proxy :: _ "publish") publishConfigCodec
+  $ CJ.recordProp (Proxy @"name") PackageName.codec
+  $ CJ.recordPropOptional (Proxy @"description") CJ.string
+  $ CJ.recordProp (Proxy @"dependencies") dependenciesCodec
+  $ CJ.recordPropOptional (Proxy @"build") packageBuildOptionsCodec
+  $ CJ.recordPropOptional (Proxy @"bundle") bundleConfigCodec
+  $ CJ.recordPropOptional (Proxy @"run") runConfigCodec
+  $ CJ.recordPropOptional (Proxy @"test") testConfigCodec
+  $ CJ.recordPropOptional (Proxy @"publish") publishConfigCodec
   $ CJ.record
 
 type PublishConfig =
@@ -102,11 +102,11 @@ type PublishConfig =
 
 publishConfigCodec :: CJ.Codec PublishConfig
 publishConfigCodec = CJ.named "PublishConfig" $ CJ.object
-  $ CJ.recordProp (Proxy :: _ "version") Version.codec
-  $ CJ.recordProp (Proxy :: _ "license") License.codec
-  $ CJ.recordPropOptional (Proxy :: _ "location") Location.codec
-  $ CJ.recordPropOptional (Proxy :: _ "include") (CJ.array CJ.string)
-  $ CJ.recordPropOptional (Proxy :: _ "exclude") (CJ.array CJ.string)
+  $ CJ.recordProp (Proxy @"version") Version.codec
+  $ CJ.recordProp (Proxy @"license") License.codec
+  $ CJ.recordPropOptional (Proxy @"location") Location.codec
+  $ CJ.recordPropOptional (Proxy @"include") (CJ.array CJ.string)
+  $ CJ.recordPropOptional (Proxy @"exclude") (CJ.array CJ.string)
   $ CJ.record
 
 type RunConfig =
@@ -116,8 +116,8 @@ type RunConfig =
 
 runConfigCodec :: CJ.Codec RunConfig
 runConfigCodec = CJ.named "RunConfig" $ CJ.object
-  $ CJ.recordPropOptional (Proxy :: _ "main") CJ.string
-  $ CJ.recordPropOptional (Proxy :: _ "execArgs") (CJ.array CJ.string)
+  $ CJ.recordPropOptional (Proxy @"main") CJ.string
+  $ CJ.recordPropOptional (Proxy @"execArgs") (CJ.array CJ.string)
   $ CJ.record
 
 type TestConfig =
@@ -131,12 +131,12 @@ type TestConfig =
 
 testConfigCodec :: CJ.Codec TestConfig
 testConfigCodec = CJ.named "TestConfig" $ CJ.object
-  $ CJ.recordProp (Proxy :: _ "main") CJ.string
-  $ CJ.recordPropOptional (Proxy :: _ "execArgs") (CJ.array CJ.string)
-  $ CJ.recordPropOptional (Proxy :: _ "censorTestWarnings") censorBuildWarningsCodec
-  $ CJ.recordPropOptional (Proxy :: _ "strict") CJ.boolean
-  $ CJ.recordPropOptional (Proxy :: _ "pedanticPackages") CJ.boolean
-  $ CJ.recordProp (Proxy :: _ "dependencies") dependenciesCodec
+  $ CJ.recordProp (Proxy @"main") CJ.string
+  $ CJ.recordPropOptional (Proxy @"execArgs") (CJ.array CJ.string)
+  $ CJ.recordPropOptional (Proxy @"censorTestWarnings") censorBuildWarningsCodec
+  $ CJ.recordPropOptional (Proxy @"strict") CJ.boolean
+  $ CJ.recordPropOptional (Proxy @"pedanticPackages") CJ.boolean
+  $ CJ.recordProp (Proxy @"dependencies") dependenciesCodec
   $ CJ.record
 
 type BackendConfig =
@@ -146,8 +146,8 @@ type BackendConfig =
 
 backendConfigCodec :: CJ.Codec BackendConfig
 backendConfigCodec = CJ.named "BackendConfig" $ CJ.object
-  $ CJ.recordProp (Proxy :: _ "cmd") CJ.string
-  $ CJ.recordPropOptional (Proxy :: _ "args") (CJ.array CJ.string)
+  $ CJ.recordProp (Proxy @"cmd") CJ.string
+  $ CJ.recordPropOptional (Proxy @"args") (CJ.array CJ.string)
   $ CJ.record
 
 type PackageBuildOptionsInput =
@@ -158,9 +158,9 @@ type PackageBuildOptionsInput =
 
 packageBuildOptionsCodec :: CJ.Codec PackageBuildOptionsInput
 packageBuildOptionsCodec = CJ.named "PackageBuildOptionsInput" $ CJ.object
-  $ CJ.recordPropOptional (Proxy :: _ "censorProjectWarnings") censorBuildWarningsCodec
-  $ CJ.recordPropOptional (Proxy :: _ "strict") CJ.boolean
-  $ CJ.recordPropOptional (Proxy :: _ "pedanticPackages") CJ.boolean
+  $ CJ.recordPropOptional (Proxy @"censorProjectWarnings") censorBuildWarningsCodec
+  $ CJ.recordPropOptional (Proxy @"strict") CJ.boolean
+  $ CJ.recordPropOptional (Proxy @"pedanticPackages") CJ.boolean
   $ CJ.record
 
 type BundleConfig =
@@ -174,12 +174,12 @@ type BundleConfig =
 
 bundleConfigCodec :: CJ.Codec BundleConfig
 bundleConfigCodec = CJ.named "BundleConfig" $ CJ.object
-  $ CJ.recordPropOptional (Proxy :: _ "minify") CJ.boolean
-  $ CJ.recordPropOptional (Proxy :: _ "module") CJ.string
-  $ CJ.recordPropOptional (Proxy :: _ "outfile") CJ.string
-  $ CJ.recordPropOptional (Proxy :: _ "platform") bundlePlatformCodec
-  $ CJ.recordPropOptional (Proxy :: _ "type") bundleTypeCodec
-  $ CJ.recordPropOptional (Proxy :: _ "extraArgs") (CJ.array CJ.string)
+  $ CJ.recordPropOptional (Proxy @"minify") CJ.boolean
+  $ CJ.recordPropOptional (Proxy @"module") CJ.string
+  $ CJ.recordPropOptional (Proxy @"outfile") CJ.string
+  $ CJ.recordPropOptional (Proxy @"platform") bundlePlatformCodec
+  $ CJ.recordPropOptional (Proxy @"type") bundleTypeCodec
+  $ CJ.recordPropOptional (Proxy @"extraArgs") (CJ.array CJ.string)
   $ CJ.record
 
 data BundlePlatform = BundleNode | BundleBrowser
@@ -292,10 +292,10 @@ type WorkspaceConfig =
 
 workspaceConfigCodec :: CJ.Codec WorkspaceConfig
 workspaceConfigCodec = CJ.named "WorkspaceConfig" $ CJ.object
-  $ CJ.recordPropOptional (Proxy :: _ "packageSet") setAddressCodec
-  $ CJ.recordPropOptional (Proxy :: _ "backend") backendConfigCodec
-  $ CJ.recordPropOptional (Proxy :: _ "buildOpts") buildOptionsCodec
-  $ CJ.recordPropOptional (Proxy :: _ "extraPackages") (Internal.Codec.packageMap extraPackageCodec)
+  $ CJ.recordPropOptional (Proxy @"packageSet") setAddressCodec
+  $ CJ.recordPropOptional (Proxy @"backend") backendConfigCodec
+  $ CJ.recordPropOptional (Proxy @"buildOpts") buildOptionsCodec
+  $ CJ.recordPropOptional (Proxy @"extraPackages") (Internal.Codec.packageMap extraPackageCodec)
   $ CJ.record
 
 type WorkspaceBuildOptionsInput =
@@ -306,9 +306,9 @@ type WorkspaceBuildOptionsInput =
 
 buildOptionsCodec :: CJ.Codec WorkspaceBuildOptionsInput
 buildOptionsCodec = CJ.named "WorkspaceBuildOptionsInput" $ CJ.object
-  $ CJ.recordPropOptional (Proxy :: _ "output") CJ.string
-  $ CJ.recordPropOptional (Proxy :: _ "censorLibraryWarnings") censorBuildWarningsCodec
-  $ CJ.recordPropOptional (Proxy :: _ "statVerbosity") statVerbosityCodec
+  $ CJ.recordPropOptional (Proxy @"output") CJ.string
+  $ CJ.recordPropOptional (Proxy @"censorLibraryWarnings") censorBuildWarningsCodec
+  $ CJ.recordPropOptional (Proxy @"statVerbosity") statVerbosityCodec
   $ CJ.record
 
 data CensorBuildWarnings
@@ -456,10 +456,10 @@ type GitPackage =
 
 gitPackageCodec :: CJ.Codec GitPackage
 gitPackageCodec = CJ.named "GitPackage" $ CJ.object
-  $ CJ.recordProp (Proxy :: _ "git") CJ.string
-  $ CJ.recordProp (Proxy :: _ "ref") CJ.string
-  $ CJ.recordPropOptional (Proxy :: _ "subdir") CJ.string
-  $ CJ.recordPropOptional (Proxy :: _ "dependencies") dependenciesCodec
+  $ CJ.recordProp (Proxy @"git") CJ.string
+  $ CJ.recordProp (Proxy @"ref") CJ.string
+  $ CJ.recordPropOptional (Proxy @"subdir") CJ.string
+  $ CJ.recordPropOptional (Proxy @"dependencies") dependenciesCodec
   $ CJ.record
 
 -- | The format of a legacy packages.json package set entry for an individual
@@ -472,7 +472,7 @@ type LegacyPackageSetEntry =
 
 legacyPackageSetEntryCodec :: CJ.Codec LegacyPackageSetEntry
 legacyPackageSetEntryCodec = CJ.named "LegacyPackageSetEntry" $ CJ.object
-  $ CJ.recordProp (Proxy :: _ "repo") CJ.string
-  $ CJ.recordProp (Proxy :: _ "version") CJ.string
-  $ CJ.recordProp (Proxy :: _ "dependencies") (CJ.array PackageName.codec)
+  $ CJ.recordProp (Proxy @"repo") CJ.string
+  $ CJ.recordProp (Proxy @"version") CJ.string
+  $ CJ.recordProp (Proxy @"dependencies") (CJ.array PackageName.codec)
   $ CJ.record
