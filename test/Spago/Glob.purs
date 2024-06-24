@@ -63,11 +63,13 @@ spec = Spec.around globTmpDir do
         a <- Glob.gitignoringGlob p ["**/apple"]
         a `Assert.shouldEqual` ["fruits/special/apple", "src/fruits/apple"]
 
-      Spec.it "does not respect a .gitignore pattern that conflicts with search" \p -> do
-        for_ ["/fruits", "fruits", "fruits/", "**/fruits", "fruits/**", "**/fruits/**"] \gitignore -> do
-          FS.writeTextFile (Path.concat [p, ".gitignore"]) gitignore
-          a <- Glob.gitignoringGlob p ["fruits/apple/**"]
-          a `Assert.shouldEqual` ["fruits/apple"]
+      for_ ["/fruits", "fruits", "fruits/", "**/fruits", "fruits/**", "**/fruits/**"] \gitignore -> do
+        Spec.focus $ Spec.it
+          ("does not respect a .gitignore pattern that conflicts with search: " <> gitignore)
+          \p -> do
+            FS.writeTextFile (Path.concat [p, ".gitignore"]) gitignore
+            a <- Glob.gitignoringGlob p ["fruits/apple/**"]
+            a `Assert.shouldEqual` ["fruits/apple"]
 
       Spec.it "respects some .gitignore patterns" \p -> do
         FS.writeTextFile (Path.concat [p, ".gitignore"]) """/fruits\n/src"""

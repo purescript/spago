@@ -8,8 +8,8 @@ import Control.Monad.Trans.Class (lift)
 import Data.Array as Array
 import Data.Filterable (filter)
 import Data.Foldable (any, fold)
+import Data.Newtype (wrap)
 import Data.String as String
-import Data.String.CodePoints as String.CodePoint
 import Data.Traversable (traverse_)
 import Effect.Aff as Aff
 import Effect.Ref as Ref
@@ -18,12 +18,15 @@ import Node.Path as Path
 import Record as Record
 import Type.Proxy (Proxy(..))
 
-type MicroMatchOptions = { ignore :: Array String, include :: Array String }
+type Glob =
+  { ignore :: Array String
+  , include :: Array String
+  }
 
-foreign import micromatch :: MicroMatchOptions -> String -> Boolean
+foreign import testGlob :: Glob -> String -> Boolean
 
-splitMicromatch :: MicroMatchOptions -> Array MicroMatchOptions
-splitMicromatch { ignore, include } = (\a -> { ignore, include: [ a ] }) <$> include
+splitGlob :: Glob -> Array Glob
+splitGlob { ignore, include } = (\a -> { ignore, include: [ a ] }) <$> include
 
 type Entry = { name :: String, path :: String, dirent :: DirEnt }
 type FsWalkOptions = { entryFilter :: Entry -> Effect Boolean, deepFilter :: Entry -> Effect Boolean }
@@ -38,40 +41,41 @@ foreign import fsWalkImpl
   -> String
   -> Effect Unit
 
-gitignoreToMicromatchPatterns :: String -> String -> { ignore :: Array String, include :: Array String }
-gitignoreToMicromatchPatterns base =
+gitignoreGlob :: String -> String -> Glob
+gitignoreGlob base =
   String.split (String.Pattern "\n")
     >>> map String.trim
     >>> Array.filter (not <<< or [ String.null, isComment ])
     >>> partitionMap
       ( \line -> do
-          let pattern a = Path.concat [ base, gitignorePatternToMicromatch a ]
+          let
+            resolve a = Path.concat [ base, a ]
+            pat a = resolve $ unpackPattern a
           case String.stripPrefix (String.Pattern "!") line of
-            Just negated -> Left $ pattern negated
-            Nothing -> Right $ pattern line
+            Just negated -> Left $ pat negated
+            Nothing -> Right $ pat line
       )
-    >>> Record.rename (Proxy :: Proxy "left") (Proxy :: Proxy "ignore")
-    >>> Record.rename (Proxy :: Proxy "right") (Proxy :: Proxy "include")
+    >>> Record.rename (Proxy @"left") (Proxy @"ignore")
+    >>> Record.rename (Proxy @"right") (Proxy @"include")
 
   where
-  isComment = isJust <<< String.stripPrefix (String.Pattern "#")
-  dropSuffixSlash str = fromMaybe str $ String.stripSuffix (String.Pattern "/") str
-  dropPrefixSlash str = fromMaybe str $ String.stripPrefix (String.Pattern "/") str
+    isComment = isJust <<< String.stripPrefix (String.Pattern "#")
+    leadingSlash = String.stripPrefix (String.Pattern "/")
+    trailingSlash = String.stripSuffix (String.Pattern "/")
 
-  leadingSlash str = String.codePointAt 0 str == Just (String.CodePoint.codePointFromChar '/')
-
-  gitignorePatternToMicromatch :: String -> String
-  gitignorePatternToMicromatch pattern
-    | leadingSlash pattern = dropPrefixSlash pattern <> "/**"
-    | otherwise = "**/" <> dropSuffixSlash pattern <> "/**"
+    unpackPattern :: String -> String
+    unpackPattern pattern
+      | Just a <- trailingSlash pattern = unpackPattern a
+      | Just a <- leadingSlash pattern = a <> "/**"
+      | otherwise = "**/" <> pattern <> "/**"
 
 fsWalk :: String -> Array String -> Array String -> Aff (Array Entry)
 fsWalk cwd ignorePatterns includePatterns = Aff.makeAff \cb -> do
-  let includeMatcher = micromatch { ignore: [], include: includePatterns }
+  let includeMatcher = testGlob { ignore: [], include: includePatterns }
 
   -- Pattern for directories which can be outright ignored.
   -- This will be updated whenver a .gitignore is found.
-  ignoreMatcherRef <- Ref.new { ignore: [], include: ignorePatterns }
+  ignoreMatcherRef :: Ref Glob <- Ref.new { ignore: [], include: ignorePatterns }
 
   -- If this Ref contains `true` because this Aff has been canceled, then deepFilter will always return false.
   canceled <- Ref.new false
@@ -81,13 +85,27 @@ fsWalk cwd ignorePatterns includePatterns = Aff.makeAff \cb -> do
       try (SyncFS.readTextFile UTF8 entry.path)
         >>= traverse_ \gitignore ->
           let
+            naivePatIntersectsWith a b =
+              let
+                globsExpanded =
+                  String.replaceAll (wrap "*") (wrap "foo")
+                  $ String.replaceAll (wrap "**") (wrap "a/b/c")
+                  $ b
+                globsCollapsed =
+                  String.replaceAll (wrap "*") (wrap "foo")
+                  $ String.replaceAll (wrap "**/") (wrap "")
+                  $ b
+                test = testGlob {include: [a], ignore: []}
+              in
+                test globsExpanded || test globsCollapsed
             base = Path.relative cwd $ Path.dirname entry.path
-            gitignored = splitMicromatch $ gitignoreToMicromatchPatterns base gitignore
-            canIgnore = not <<< flip any includePatterns
-            newIgnores = filter (canIgnore <<< micromatch) gitignored
-          in
+            pats = splitGlob $ gitignoreGlob base gitignore
+            patIsOk {include: [p0]} = not $ any (naivePatIntersectsWith p0) includePatterns
+            patIsOk _ = false
+            newPats = filter (patIsOk) pats
+          in do
             void
-              $ Ref.modify (_ <> fold newIgnores)
+              $ Ref.modify (_ <> fold newPats)
               $ ignoreMatcherRef
 
     -- Should `fsWalk` recurse into this directory?
@@ -95,7 +113,7 @@ fsWalk cwd ignorePatterns includePatterns = Aff.makeAff \cb -> do
     deepFilter entry = fromMaybe false <$> runMaybeT do
       isCanceled <- lift $ Ref.read canceled
       guard $ not isCanceled
-      shouldIgnore <- lift $ micromatch <$> Ref.read ignoreMatcherRef
+      shouldIgnore <- lift $ testGlob <$> Ref.read ignoreMatcherRef
       pure $ not $ shouldIgnore $ Path.relative cwd entry.path
 
     -- Should `fsWalk` retain this entry for the result array?
@@ -104,7 +122,7 @@ fsWalk cwd ignorePatterns includePatterns = Aff.makeAff \cb -> do
       when (isFile entry.dirent && entry.name == ".gitignore") (entryGitignore entry)
       ignorePat <- Ref.read ignoreMatcherRef
       let
-        ignoreMatcher = micromatch ignorePat
+        ignoreMatcher = testGlob ignorePat
         path = withForwardSlashes $ Path.relative cwd entry.path
       pure $ includeMatcher path && not (ignoreMatcher path)
 
