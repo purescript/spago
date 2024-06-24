@@ -64,7 +64,7 @@ spec = Spec.around globTmpDir do
         a `Assert.shouldEqual` ["fruits/special/apple", "src/fruits/apple"]
 
       for_ ["/fruits", "fruits", "fruits/", "**/fruits", "fruits/**", "**/fruits/**"] \gitignore -> do
-        Spec.focus $ Spec.it
+        Spec.it
           ("does not respect a .gitignore pattern that conflicts with search: " <> gitignore)
           \p -> do
             FS.writeTextFile (Path.concat [p, ".gitignore"]) gitignore

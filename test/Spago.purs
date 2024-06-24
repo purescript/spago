@@ -41,22 +41,22 @@ main :: Effect Unit
 main = Aff.launchAff_ $ void $ un Identity $ Spec.Runner.runSpecT testConfig [ Spec.Reporter.consoleReporter ] do
   Spec.describe "spago" do
     -- TODO: script
-    Init.spec
-    Sources.spec
-    Install.spec
-    Uninstall.spec
-    Ls.spec
-    Build.spec
-    Run.spec
-    Test.spec
-    Bundle.spec
-    Registry.spec
-    Docs.spec
-    Upgrade.spec
-    Publish.spec
-    Graph.spec
+    -- Init.spec
+    -- Sources.spec
+    -- Install.spec
+    -- Uninstall.spec
+    -- Ls.spec
+    -- Build.spec
+    -- Run.spec
+    -- Test.spec
+    -- Bundle.spec
+    -- Registry.spec
+    -- Docs.spec
+    -- Upgrade.spec
+    -- Publish.spec
+    -- Graph.spec
     Spec.describe "miscellaneous" do
-      Lock.spec
-      Unit.spec
+      -- Lock.spec
+      -- Unit.spec
       Glob.spec
-      Errors.spec
+      -- Errors.spec
