@@ -1,7 +1,7 @@
 import mm from 'micromatch';
 import * as fsWalk from '@nodelib/fs.walk';
 
-export const micromatch = options => patterns => mm.matcher(patterns, options);
+export const testGlob = glob => mm.matcher(glob.include, {ignore: glob.ignore});
 
 export const fsWalkImpl = Left => Right => respond => options => path => () => {
   const entryFilter = entry => options.entryFilter(entry)();
