@@ -89,10 +89,7 @@ fsWalk cwd ignorePatterns includePatterns = Aff.makeAff \cb -> do
             patIsOk g = not $ any (testGlob g) includePatterns
             newPats = filter (patIsOk) pats
           in
-            do
-              void
-                $ Ref.modify (_ <> fold newPats)
-                $ ignoreMatcherRef
+            void $ Ref.modify (_ <> fold newPats) $ ignoreMatcherRef
 
     -- Should `fsWalk` recurse into this directory?
     deepFilter :: Entry -> Effect Boolean
