@@ -23,7 +23,7 @@ import Unsafe.Coerce (unsafeCoerce)
 -- | Equivalent to `Data.Variant.inj`, just uses a Visible Type Application instead of Proxy
 -- | Useful for deriving codecs for sum types
 inject :: forall @sym a r1 r2. Cons sym a r1 r2 => IsSymbol sym => a -> Variant r2
-inject = inj (Proxy :: _ sym)
+inject = inj (Proxy @sym)
 
 fromUni
   :: forall a

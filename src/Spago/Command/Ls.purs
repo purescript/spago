@@ -156,7 +156,7 @@ formatPackagesJson packages = output $ OutputJson (packageMap packageCodec) (map
             , package: Config.packageConfigCodec
             , hasTests: CJ.boolean
             }
-        ) <<< Record.delete (Proxy :: _ "doc")
+        ) <<< Record.delete (Proxy @"doc")
 
 formatPackagesTable :: forall m. MonadEffect m => Array (Tuple PackageName Package) -> m Unit
 formatPackagesTable pkgs = output $ OutputTable
