@@ -58,15 +58,15 @@ gitignoreGlob base =
     >>> Record.rename (Proxy @"right") (Proxy @"include")
 
   where
-    isComment = isJust <<< String.stripPrefix (String.Pattern "#")
-    leadingSlash = String.stripPrefix (String.Pattern "/")
-    trailingSlash = String.stripSuffix (String.Pattern "/")
+  isComment = isJust <<< String.stripPrefix (String.Pattern "#")
+  leadingSlash = String.stripPrefix (String.Pattern "/")
+  trailingSlash = String.stripSuffix (String.Pattern "/")
 
-    unpackPattern :: String -> String
-    unpackPattern pattern
-      | Just a <- trailingSlash pattern = unpackPattern a
-      | Just a <- leadingSlash pattern = a <> "/**"
-      | otherwise = "**/" <> pattern <> "/**"
+  unpackPattern :: String -> String
+  unpackPattern pattern
+    | Just a <- trailingSlash pattern = unpackPattern a
+    | Just a <- leadingSlash pattern = a <> "/**"
+    | otherwise = "**/" <> pattern <> "/**"
 
 fsWalk :: String -> Array String -> Array String -> Aff (Array Entry)
 fsWalk cwd ignorePatterns includePatterns = Aff.makeAff \cb -> do
@@ -88,10 +88,11 @@ fsWalk cwd ignorePatterns includePatterns = Aff.makeAff \cb -> do
             pats = splitGlob $ gitignoreGlob base gitignore
             patIsOk g = not $ any (testGlob g) includePatterns
             newPats = filter (patIsOk) pats
-          in do
-            void
-              $ Ref.modify (_ <> fold newPats)
-              $ ignoreMatcherRef
+          in
+            do
+              void
+                $ Ref.modify (_ <> fold newPats)
+                $ ignoreMatcherRef
 
     -- Should `fsWalk` recurse into this directory?
     deepFilter :: Entry -> Effect Boolean
