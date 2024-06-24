@@ -8,7 +8,6 @@ import Control.Monad.Trans.Class (lift)
 import Data.Array as Array
 import Data.Filterable (filter)
 import Data.Foldable (any, fold)
-import Data.Newtype (wrap)
 import Data.String as String
 import Data.Traversable (traverse_)
 import Effect.Aff as Aff
@@ -85,23 +84,9 @@ fsWalk cwd ignorePatterns includePatterns = Aff.makeAff \cb -> do
       try (SyncFS.readTextFile UTF8 entry.path)
         >>= traverse_ \gitignore ->
           let
-            naivePatIntersectsWith a b =
-              let
-                globsExpanded =
-                  String.replaceAll (wrap "*") (wrap "foo")
-                  $ String.replaceAll (wrap "**") (wrap "a/b/c")
-                  $ b
-                globsCollapsed =
-                  String.replaceAll (wrap "*") (wrap "foo")
-                  $ String.replaceAll (wrap "**/") (wrap "")
-                  $ b
-                test = testGlob {include: [a], ignore: []}
-              in
-                test globsExpanded || test globsCollapsed
             base = Path.relative cwd $ Path.dirname entry.path
             pats = splitGlob $ gitignoreGlob base gitignore
-            patIsOk {include: [p0]} = not $ any (naivePatIntersectsWith p0) includePatterns
-            patIsOk _ = false
+            patIsOk g = not $ any (testGlob g) includePatterns
             newPats = filter (patIsOk) pats
           in do
             void
