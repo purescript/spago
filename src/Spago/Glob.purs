@@ -49,7 +49,7 @@ gitignoreGlob base =
       ( \line -> do
           let
             resolve a = Path.concat [ base, a ]
-            pat a = resolve $ unpackPattern a
+            pat a = withForwardSlashes $ resolve $ unpackPattern a
           case String.stripPrefix (String.Pattern "!") line of
             Just negated -> Left $ pat negated
             Nothing -> Right $ pat line
@@ -78,6 +78,7 @@ fsWalk cwd ignorePatterns includePatterns = Aff.makeAff \cb -> do
 
   -- If this Ref contains `true` because this Aff has been canceled, then deepFilter will always return false.
   canceled <- Ref.new false
+
   let
     entryGitignore :: Entry -> Effect Unit
     entryGitignore entry =
@@ -85,9 +86,10 @@ fsWalk cwd ignorePatterns includePatterns = Aff.makeAff \cb -> do
         >>= traverse_ \gitignore ->
           let
             base = Path.relative cwd $ Path.dirname entry.path
-            pats = splitGlob $ gitignoreGlob base gitignore
-            patIsOk g = not $ any (testGlob g) includePatterns
-            newPats = filter (patIsOk) pats
+            glob = gitignoreGlob base gitignore
+            pats = splitGlob glob
+            patOk g = not $ any (testGlob g) includePatterns
+            newPats = filter patOk pats
           in
             void $ Ref.modify (_ <> fold newPats) $ ignoreMatcherRef
 
