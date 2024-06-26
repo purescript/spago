@@ -143,10 +143,10 @@ getRegistryFns registryBox registryLock = do
       -- clone the registry and index repo, or update them
       logInfo "Refreshing the Registry Index..."
       parallelise
-        [ Git.fetchRepo { git: "https://github.com/purescript/registry-index.git", ref: "main" } Paths.registryIndexPath >>= case _ of
+        [ Git.fetchRepo { git: "https://github.com/purescript/registry-index.git", ref: "main" } Nothing Paths.registryIndexPath >>= case _ of
             Right _ -> pure unit
             Left _err -> logWarn "Couldn't refresh the registry-index, will proceed anyways"
-        , Git.fetchRepo { git: "https://github.com/purescript/registry.git", ref: "main" } Paths.registryPath >>= case _ of
+        , Git.fetchRepo { git: "https://github.com/purescript/registry.git", ref: "main" } Nothing Paths.registryPath >>= case _ of
             Right _ -> pure unit
             Left _err -> logWarn "Couldn't refresh the registry, will proceed anyways"
         ]

@@ -185,11 +185,16 @@ run { packages: packagesRequestedToInstall, ensureRanges, isTest, isRepl } = do
     -- then for every package we have we try to download it, and copy it in the local cache
     logInfo "Downloading dependencies..."
 
-    parallelise $ (flip map) (Map.toUnfoldable depsToFetch :: Array (Tuple PackageName Package)) \(Tuple name package) -> do
+    gitReposCloned :: Ref (Map String String) <- liftEffect $ Ref.new mempty
+    for_ (Map.toUnfoldable depsToFetch :: Array (Tuple PackageName Package)) \(Tuple name package) -> do
       let localPackageLocation = Config.getPackageLocation name package
       -- first of all, we check if we have the package in the local cache. If so, we don't even do the work
       unlessM (FS.exists localPackageLocation) case package of
-        GitPackage gitPackage -> getGitPackageInLocalCache name gitPackage
+        GitPackage gitPackage -> do
+          currentMap <- liftEffect $ Ref.read gitReposCloned
+          res <- getGitPackageInLocalCache name gitPackage currentMap
+          liftEffect $ Ref.modify_ (Map.insert gitPackage.ref localPackageLocation) gitReposCloned
+          pure res
         RegistryVersion v -> do
           -- if the version comes from the registry then we have a longer list of things to do
           let versionString = Registry.Version.print v
@@ -286,7 +291,7 @@ writeNewLockfile reason allTransitiveDeps = do
     processPackage :: LockfileBuilderResult -> Tuple PackageName (Tuple PackageName Package) -> Spago (FetchEnv a) LockfileBuilderResult
     processPackage result (Tuple workspacePackageName (Tuple dependencyName dependencyPackage)) = do
       (packageDependencies :: Array PackageName) <- (Array.fromFoldable <<< Map.keys <<< fromMaybe Map.empty)
-        <$> getPackageDependencies dependencyName dependencyPackage
+        <$> getPackageDependencies dependencyName dependencyPackage Map.empty
       let
         updatePackage r package = (updateWorkspacePackage r)
           { packages = Map.insert dependencyName package r.packages }
@@ -357,12 +362,13 @@ writeNewLockfile reason allTransitiveDeps = do
 toAllDependencies :: PackageTransitiveDeps -> PackageMap
 toAllDependencies = foldl (Map.unionWith (\l _ -> l)) Map.empty
 
-getGitPackageInLocalCache :: forall a. PackageName -> GitPackage -> Spago (Git.GitEnv a) Unit
-getGitPackageInLocalCache name package = do
+getGitPackageInLocalCache :: forall a. PackageName -> GitPackage -> Map String String -> Spago (Git.GitEnv a) Unit
+getGitPackageInLocalCache name package gitReposCloned = do
   let localPackageLocation = Config.getPackageLocation name (GitPackage package)
+      cloneFrom = Map.lookup package.git gitReposCloned
   tempDir <- mkTemp' (Just $ printJson Config.gitPackageCodec package)
   logDebug $ "Cloning repo in " <> tempDir
-  Git.fetchRepo package tempDir >>= case _ of
+  Git.fetchRepo package cloneFrom tempDir >>= case _ of
     Left err -> die err
     Right _ -> do
       logDebug $ "Repo cloned. Moving to " <> localPackageLocation
@@ -383,8 +389,8 @@ getGitPackageInLocalCache name package = do
             FS.mkdirp $ Path.concat [ Paths.localCachePackagesPath, PackageName.print name ]
             FS.copyTree { src: localPackageLocation, dst: commitHashLocation }
 
-getPackageDependencies :: forall a. PackageName -> Package -> Spago (FetchEnv a) (Maybe (Map PackageName Range))
-getPackageDependencies packageName package = case package of
+getPackageDependencies :: forall a. PackageName -> Package -> Map String String -> Spago (FetchEnv a) (Maybe (Map PackageName Range))
+getPackageDependencies packageName package gitReposCloned = case package of
   RegistryVersion v -> do
     maybeManifest <- Registry.getManifestFromIndex packageName v
     pure $ map (_.dependencies <<< unwrap) maybeManifest
@@ -393,7 +399,7 @@ getPackageDependencies packageName package = case package of
     -- so we have guarantees about being able to fetch it
     let packageLocation = Config.getPackageLocation packageName package
     unlessM (FS.exists packageLocation) do
-      getGitPackageInLocalCache packageName p
+      getGitPackageInLocalCache packageName p gitReposCloned
     case p.dependencies of
       Just (Dependencies dependencies) -> pure (Just (map (fromMaybe Config.widestRange) dependencies))
       Nothing -> do
@@ -492,7 +498,7 @@ getTransitiveDepsFromRegistry depsRanges extraPackages = do
     loader packageName = do
       -- First look up in the extra packages, as they are the workspace ones, and overrides
       case Map.lookup packageName extraPackages of
-        Just p -> map (Map.singleton (getVersionFromPackage p) <<< fromMaybe Map.empty) $ getPackageDependencies packageName p
+        Just p -> map (Map.singleton (getVersionFromPackage p) <<< fromMaybe Map.empty) $ getPackageDependencies packageName p Map.empty
         Nothing -> do
           maybeMetadata <- Registry.getMetadata packageName
           let
@@ -516,6 +522,7 @@ getTransitiveDepsFromRegistry depsRanges extraPackages = do
 getTransitiveDepsFromPackageSet :: forall a. PackageMap -> Array PackageName -> Spago (FetchEnv a) PackageMap
 getTransitiveDepsFromPackageSet packageSet deps = do
   logDebug "Getting transitive deps"
+  gitReposCloned <- liftEffect $ Ref.new Map.empty
   packageDependenciesCache <- liftEffect $ Ref.new Map.empty
   let
     memoisedGetPackageDependencies :: PackageName -> Package -> Spago (FetchEnv a) (Maybe (Map PackageName Range))
@@ -524,9 +531,15 @@ getTransitiveDepsFromPackageSet packageSet deps = do
       case Map.lookup packageName cache of
         Just cached -> pure cached
         Nothing -> do
+          currentMap <- liftEffect $ Ref.read gitReposCloned
           -- Not cached. Compute it, write to ref, return it
-          res <- getPackageDependencies packageName package
+          res <- getPackageDependencies packageName package currentMap
           liftEffect $ Ref.modify_ (Map.insert packageName res) packageDependenciesCache
+          case package of
+            GitPackage git -> do
+              let localPackageLocation = Config.getPackageLocation packageName package
+              liftEffect $ Ref.modify_ (Map.insert git.git localPackageLocation) gitReposCloned
+            _ -> pure unit
           pure res
 
     printPackageError :: PackageName -> String

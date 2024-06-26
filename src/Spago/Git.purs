@@ -40,8 +40,8 @@ runGit args cwd = ExceptT do
     Right r -> Right r.stdout
     Left r -> Left r.stderr
 
-fetchRepo :: forall a b. { git :: String, ref :: String | a } -> FilePath -> Spago (GitEnv b) (Either (Array String) Unit)
-fetchRepo { git, ref } path = do
+fetchRepo :: forall a b. { git :: String, ref :: String | a } -> Maybe String -> FilePath -> Spago (GitEnv b) (Either (Array String) Unit)
+fetchRepo { git, ref } cloneFrom path = do
   repoExists <- FS.exists path
   { offline } <- ask
   case offline, repoExists of
@@ -55,10 +55,18 @@ fetchRepo { git, ref } path = do
           logDebug $ "Found " <> git <> " locally, pulling..."
           Except.runExceptT $ runGit_ [ "fetch", "origin" ] (Just path)
         false -> do
-          logInfo $ "Cloning " <> git
+          let
+            -- If cloneFrom is set, use it to clone
+            url = fromMaybe git cloneFrom
+            isInLocalCache = isJust cloneFrom
+          logInfo $ "Cloning " <> (if isInLocalCache then "from local cache" else git)
           -- For the reasoning on the filter options, see:
           -- https://github.com/purescript/spago/issues/701#issuecomment-1317192919
-          Except.runExceptT $ runGit_ [ "clone", "--filter=tree:0", git, path ] Nothing
+          Except.runExceptT do
+            runGit_ [ "clone", "--filter=tree:0", url, path ] Nothing
+            for_ cloneFrom \_ ->
+              -- Restore URL such that we can still 'fetch origin'
+              runGit_ [ "remote", "set-url", "origin", git ] (Just path)
       result <- Except.runExceptT do
         Except.ExceptT $ pure cloneOrFetchResult
         logDebug $ "Checking out the requested ref for " <> git <> " : " <> ref
