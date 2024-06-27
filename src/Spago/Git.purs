@@ -9,6 +9,7 @@ module Spago.Git
   , pushTag
   , isIgnored
   , tagCheckedOut
+  , isSHA1HexString
   ) where
 
 import Spago.Prelude
@@ -18,6 +19,7 @@ import Control.Monad.Except as Except
 import Data.Array as Array
 import Data.String (Pattern(..))
 import Data.String as String
+import Data.String.Regex (test, regex)
 import Node.ChildProcess.Types (Exit(..))
 import Node.Path as Path
 import Node.Process as Process
@@ -28,6 +30,12 @@ import Spago.FS as FS
 type Git = { cmd :: String, version :: String }
 
 type GitEnv a = { git :: Git, logOptions :: LogOptions, offline :: OnlineStatus | a }
+
+isSHA1HexString :: String -> Boolean
+isSHA1HexString str =
+  case regex "[A-Fa-f0-9]{40}" mempty of
+    Left _ -> false -- Shouldn't happen since regex is hardcoded
+    Right r -> test r str
 
 runGit_ :: forall a. Array String -> Maybe FilePath -> ExceptT String (Spago (GitEnv a)) Unit
 runGit_ args cwd = void $ runGit args cwd
@@ -49,38 +57,57 @@ fetchRepo { git, ref } cloneFrom path = do
       logDebug $ "Found " <> git <> " locally, skipping fetch because we are offline"
       pure $ Right unit
     Offline, false -> die [ "You are offline and the repo '" <> git <> "' is not available locally, can't make progress." ]
-    Online, _ -> do
-      cloneOrFetchResult <- case repoExists of
-        true -> do
-          logDebug $ "Found " <> git <> " locally, pulling..."
-          Except.runExceptT $ runGit_ [ "fetch", "origin" ] (Just path)
-        false -> do
-          let
-            -- If cloneFrom is set, use it to clone
-            url = fromMaybe git cloneFrom
-            isInLocalCache = isJust cloneFrom
-          logInfo $ "Cloning " <> (if isInLocalCache then "from local cache" else git)
-          -- For the reasoning on the filter options, see:
-          -- https://github.com/purescript/spago/issues/701#issuecomment-1317192919
+    Online, true -> do
+      let
+        checkout =
           Except.runExceptT do
-            runGit_ [ "clone", "--filter=tree:0", url, path ] Nothing
-            for_ cloneFrom \_ ->
-              -- Restore URL such that we can still 'fetch origin'
-              runGit_ [ "remote", "set-url", "origin", git ] (Just path)
+            logDebug $ "Checking out the requested ref for " <> git <> " : " <> ref
+            runGit_ [ "checkout", ref ] (Just path)
+
+      checkout >>= case _ of
+        Right _ | isSHA1HexString ref ->
+          pure (Right unit)
+        _ -> do
+          logDebug $ "Found " <> git <> " locally, fetching..."
+          fetchRes <- Except.runExceptT $ runGit_ [ "fetch", "origin" ] (Just path)
+          case fetchRes of
+            Left err -> die err
+            Right _ -> pure unit
+
+          void checkout
+
+          -- if we are on a branch and not on a detached head, then we need to rebase onto upstream
+          -- the following command will fail if on a detached head, and succeed if on a branch
+          Except.runExceptT $ Except.mapExceptT
+            ( \a -> a >>= case _ of
+                Left _err -> pure (Right unit)
+                Right _ -> do
+                  logDebug "Rebasing the latest changes"
+                  rebaseRes <- Except.runExceptT $ runGit_ [ "rebase", "origin", ref, "--autostash" ] (Just path)
+                  case rebaseRes of
+                    Left err -> pure (Left [err])
+                    Right _ -> pure (Right unit)
+            )
+            (runGit_ [ "symbolic-ref", "-q", "HEAD" ] (Just path))
+    Online, false -> do
+      let
+        -- If cloneFrom is set, use it to clone
+        url = fromMaybe git cloneFrom
+        isInLocalCache = isJust cloneFrom
+      logInfo $ "Cloning " <> (if isInLocalCache then "from local cache" else git)
+      -- For the reasoning on the filter options, see:
+      -- https://github.com/purescript/spago/issues/701#issuecomment-1317192919
+      cloneRes <- Except.runExceptT do
+        runGit_ [ "clone", "--filter=tree:0", url, path ] Nothing
+        for_ cloneFrom \_ ->
+          -- Restore URL such that we can still 'fetch origin'
+          runGit_ [ "remote", "set-url", "origin", git ] (Just path)
+      case cloneRes of
+        Left err -> die err
+        Right _ -> pure unit
       result <- Except.runExceptT do
-        Except.ExceptT $ pure cloneOrFetchResult
         logDebug $ "Checking out the requested ref for " <> git <> " : " <> ref
-        _ <- runGit [ "checkout", ref ] (Just path)
-        -- if we are on a branch and not on a detached head, then we need to pull
-        -- the following command will fail if on a detached head, and succeed if on a branch
-        Except.mapExceptT
-          ( \a -> a >>= case _ of
-              Left _err -> pure (Right unit)
-              Right _ -> do
-                logDebug "Pulling the latest changes"
-                Except.runExceptT $ runGit_ [ "pull", "--rebase", "--autostash" ] (Just path)
-          )
-          (runGit_ [ "symbolic-ref", "-q", "HEAD" ] (Just path))
+        runGit_ [ "checkout", ref ] (Just path)
 
       case result of
         Left err -> pure $ Left
