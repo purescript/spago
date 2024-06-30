@@ -28,6 +28,7 @@ export const connectImpl = (path, logger) => {
   db.prepare(`CREATE TABLE IF NOT EXISTS package_metadata
     ( name TEXT PRIMARY KEY NOT NULL
     , metadata TEXT NOT NULL
+    , last_fetched TEXT NOT NULL
     )`).run();
   // it would be lovely if we'd have a foreign key on package_metadata, but that would
   // require reading metadatas before manifests, which we can't always guarantee
@@ -110,9 +111,9 @@ export const getMetadataImpl = (db, name) => {
   const row = db
     .prepare("SELECT * FROM package_metadata WHERE name = ? LIMIT 1")
     .get(name);
-  return row?.metadata;
+  return row;
 }
 
-export const insertMetadataImpl = (db, name, metadata) => {
-  db.prepare("INSERT OR REPLACE INTO package_metadata (name, metadata) VALUES (@name, @metadata)").run({ name, metadata });
+export const insertMetadataImpl = (db, name, metadata, last_fetched) => {
+  db.prepare("INSERT OR REPLACE INTO package_metadata (name, metadata, last_fetched) VALUES (@name, @metadata, @last_fetched)").run({ name, metadata, last_fetched });
 }

@@ -49,7 +49,7 @@ packageSetsPath = Path.concat [ registryPath, "package-sets" ]
 
 -- | We should bump this number every time we change the database schema in a breaking way
 databaseVersion :: Int
-databaseVersion = 1
+databaseVersion = 2
 
 databasePath :: FilePath
 databasePath = Path.concat [ globalCachePath, "spago.v" <> show databaseVersion <> ".sqlite" ]

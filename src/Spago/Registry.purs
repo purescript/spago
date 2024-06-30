@@ -118,11 +118,11 @@ getRegistryFns registryBox registryLock = do
       liftAff $ AVar.put unit registryLock
       pure registry
     Nothing -> do
-      fetchingFreshRegistry <- fetchRegistry
+      _fetchingFreshRegistry <- fetchRegistry
       let
         registryFns =
           { getManifestFromIndex: getManifestFromIndexImpl db
-          , getMetadata: getMetadataImpl db fetchingFreshRegistry
+          , getMetadata: getMetadataImpl db
           , listMetadataFiles: FS.ls (Path.concat [ Paths.registryPath, Registry.Constants.metadataDirectory ])
           , listPackageSets: listPackageSetsImpl
           , findPackageSet: findPackageSetImpl
@@ -199,11 +199,11 @@ getRegistryFns registryBox registryLock = do
 
 -- Metadata can change over time (unpublished packages, and new packages), so we need
 -- to read it from file every time we have a fresh Registry
-getMetadataImpl :: Db -> Boolean -> PackageName -> Spago (LogEnv ()) (Either String Metadata)
-getMetadataImpl db fetchingFreshRegistry name = do
+getMetadataImpl :: Db -> PackageName -> Spago (LogEnv ()) (Either String Metadata)
+getMetadataImpl db name = do
   -- we first try reading it from the DB
   liftEffect (Db.getMetadata db name) >>= case _ of
-    Just metadata | not fetchingFreshRegistry -> do
+    Just metadata -> do
       logDebug $ "Got metadata from DB: " <> PackageName.print name
       pure (Right metadata)
     _ -> do
