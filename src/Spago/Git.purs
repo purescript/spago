@@ -9,7 +9,7 @@ module Spago.Git
   , pushTag
   , isIgnored
   , tagCheckedOut
-  , determineShouldCache
+  , isBranch
   ) where
 
 import Spago.Prelude
@@ -41,19 +41,20 @@ runGit args cwd = ExceptT do
     Right r -> Right r.stdout
     Left r -> Left r.stderr
 
-determineShouldCache :: forall b. String -> FilePath -> Spago (GitEnv b) Boolean
-determineShouldCache ref path = do
+-- See https://stackoverflow.com/questions/18222634
+isBranch :: forall a b. { ref :: String, path :: FilePath | a } -> Spago (GitEnv b) Boolean
+isBranch { ref, path } = do
   showRef <- Except.runExceptT $ runGit_ [ "show-ref", "--verify", "refs/heads/" <> ref ] (Just path)
-  pure $ isLeft showRef
+  pure $ isRight showRef
 
-fetchRepo :: forall a b. { git :: String, ref :: String | a } -> FilePath -> Spago (GitEnv b) (Either (Array String) Boolean)
+fetchRepo :: forall a b. { git :: String, ref :: String | a } -> FilePath -> Spago (GitEnv b) (Either (Array String) Unit)
 fetchRepo { git, ref } path = do
   repoExists <- FS.exists path
   { offline } <- ask
   case offline, repoExists of
     Offline, true -> do
       logDebug $ "Found " <> git <> " locally, skipping fetch because we are offline"
-      Right <$> determineShouldCache ref path
+      pure $ Right unit
     Offline, false -> die [ "You are offline and the repo '" <> git <> "' is not available locally, can't make progress." ]
     Online, _ -> do
       cloneOrFetchResult <- case repoExists of
@@ -65,7 +66,6 @@ fetchRepo { git, ref } path = do
           -- For the reasoning on the filter options, see:
           -- https://github.com/purescript/spago/issues/701#issuecomment-1317192919
           Except.runExceptT $ runGit_ [ "clone", "--filter=tree:0", git, path ] Nothing
-      shouldCache <- determineShouldCache ref path
       result <- Except.runExceptT do
         Except.ExceptT $ pure cloneOrFetchResult
         logDebug $ "Checking out the requested ref for " <> git <> " : " <> ref
@@ -74,13 +74,10 @@ fetchRepo { git, ref } path = do
         -- the following command will fail if on a detached head, and succeed if on a branch
         Except.mapExceptT
           ( \a -> a >>= case _ of
-              Left _err ->
-                pure (Right shouldCache)
-              Right _ ->
-                Except.runExceptT do
-                  logDebug "Pulling the latest changes"
-                  runGit_ [ "pull", "--rebase", "--autostash" ] (Just path)
-                  pure shouldCache
+              Left _err -> pure (Right unit)
+              Right _ -> do
+                logDebug "Pulling the latest changes"
+                Except.runExceptT $ runGit_ [ "pull", "--rebase", "--autostash" ] (Just path)
           )
           (runGit_ [ "symbolic-ref", "-q", "HEAD" ] (Just path))
 
@@ -89,9 +86,9 @@ fetchRepo { git, ref } path = do
           [ "Error while fetching the repo '" <> git <> "' at ref '" <> ref <> "':"
           , "  " <> err
           ]
-        Right isBranch -> do
+        Right _ -> do
           logDebug $ "Successfully fetched the repo '" <> git <> "' at ref '" <> ref <> "'"
-          pure $ Right isBranch
+          pure $ Right unit
 
 listTags :: forall a. Maybe FilePath -> Spago (GitEnv a) (Either Docc (Array String))
 listTags cwd = do

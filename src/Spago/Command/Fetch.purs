@@ -357,51 +357,49 @@ writeNewLockfile reason allTransitiveDeps = do
 toAllDependencies :: PackageTransitiveDeps -> PackageMap
 toAllDependencies = foldl (Map.unionWith (\l _ -> l)) Map.empty
 
-data CopyOrMove = Copy | Move
-
 getGitPackageInLocalCache :: forall a. PackageName -> GitPackage -> Spago (Git.GitEnv a) Unit
 getGitPackageInLocalCache name package = do
-  let gitCacheLocation = Config.getGlobalGitCacheForRepo package
-      localPackageLocation = Config.getPackageLocation name (GitPackage package)
+  let localPackageLocation = Config.getPackageLocation name (GitPackage package)
   existsGitCache <- FS.exists gitCacheLocation
-  Tuple copyOrMove sourceDir <-
+  { globallyCached, sourceDir } <-
     if existsGitCache
       then do
-        shouldCache <- Git.determineShouldCache package.ref gitCacheLocation
-        if shouldCache
-          then
-            logInfo $ "Using global git cache in " <> gitCacheLocation
-          else do
-            fetchRes <- Git.fetchRepo package gitCacheLocation
-            case fetchRes of
-              Left err -> die err
-              Right _ -> pure unit
-        pure (Tuple Copy gitCacheLocation)
+        logInfo $ "Using global git cache in " <> gitCacheLocation
+        isBranch <- Git.isBranch { ref: package.ref, path: gitCacheLocation }
+        when isBranch do
+          fetchRes <- Git.fetchRepo package gitCacheLocation
+          case fetchRes of
+            Left err -> die err
+            Right _ -> pure unit
+        pure { globallyCached: true, sourceDir: gitCacheLocation }
       else do
+        -- Not cached in the global cache, so we download it and then see if it can be cached
         tempDir <- mkTemp' (Just $ printJson Config.gitPackageCodec package)
         logDebug $ "Cloning repo in " <> tempDir
         fetchRes <- Git.fetchRepo package tempDir
         case fetchRes of
           Left err -> die err
-          Right shouldCache -> do
+          Right _ -> do
+            shouldCache <- not <$> Git.isBranch { ref: package.ref, path: tempDir }
             if shouldCache
               then do
                 -- Concurrent threads may have created the directory now,
                 -- especially since fetching can take a long time
                 existsGitCache2 <- FS.exists gitCacheLocation
                 when (not existsGitCache2) do
+                  FS.mkdirp globalGitCache
                   FS.moveSync { src: tempDir, dst: gitCacheLocation }
-                pure (Tuple Copy gitCacheLocation)
+                pure { globallyCached: true, sourceDir: gitCacheLocation }
               else do
-                pure (Tuple Move tempDir)
+                pure { globallyCached: false, sourceDir: gitCacheLocation }
 
 
   FS.mkdirp $ Path.concat [ Paths.localCachePackagesPath, PackageName.print name ]
-  case copyOrMove of
-    Copy -> do
+  if globallyCached
+    then do
       logDebug $ "Repo cloned. Copying to " <> localPackageLocation
       FS.copyTree { src: sourceDir, dst: localPackageLocation }
-    Move -> do
+    else do
       logDebug $ "Repo cloned. Moving to " <> localPackageLocation
       FS.moveSync { src: sourceDir, dst: localPackageLocation }
 
@@ -418,6 +416,19 @@ getGitPackageInLocalCache name package = do
         logDebug $ "Copying the repo also to " <> commitHashLocation
         FS.mkdirp $ Path.concat [ Paths.localCachePackagesPath, PackageName.print name ]
         FS.copyTree { src: localPackageLocation, dst: commitHashLocation }
+  where
+    globalGitCacheElems =
+      [ Paths.globalCachePath
+      , "git"
+      , Config.fileSystemCharEscape package.git
+      ]
+    globalGitCache :: FilePath
+    globalGitCache =
+      Path.concat $ globalGitCacheElems
+    gitCacheLocation :: FilePath
+    gitCacheLocation =
+      Path.concat $ globalGitCacheElems <> [ Config.fileSystemCharEscape package.ref ]
+
 
 getPackageDependencies :: forall a. PackageName -> Package -> Spago (FetchEnv a) (Maybe (Map PackageName Range))
 getPackageDependencies packageName package = case package of

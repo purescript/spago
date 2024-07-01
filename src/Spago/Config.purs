@@ -21,7 +21,7 @@ module Spago.Config
   , setPackageSetVersionInConfig
   , workspacePackageToLockfilePackage
   , readConfig
-  , getGlobalGitCacheForRepo
+  , fileSystemCharEscape
   ) where
 
 import Spago.Prelude
@@ -464,14 +464,6 @@ shouldComputeNewLockfile { workspace, workspacePackages } workspaceLock =
           Just (Core.SetFromPath _) -> true
           _ -> false
       )
-
-getGlobalGitCacheForRepo :: Core.GitPackage -> FilePath
-getGlobalGitCacheForRepo package =
-  Path.concat
-  [ Paths.globalCachePath
-  , "git"
-  , fileSystemCharEscape package.git <> fileSystemCharEscape package.ref
-  ]
 
 getPackageLocation :: PackageName -> Package -> FilePath
 getPackageLocation name = Paths.mkRelative <<< case _ of
