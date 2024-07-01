@@ -21,7 +21,6 @@ module Spago.Config
   , setPackageSetVersionInConfig
   , workspacePackageToLockfilePackage
   , readConfig
-  , fileSystemCharEscape
   ) where
 
 import Spago.Prelude
