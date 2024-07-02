@@ -37,7 +37,6 @@ import Spago.Command.Build as Build
 import Spago.Command.Fetch as Fetch
 import Spago.Config (Package(..), Workspace, WorkspacePackage)
 import Spago.Config as Config
-import Spago.Config as Core
 import Spago.Db (Db)
 import Spago.Git (Git)
 import Spago.Git as Git
@@ -382,10 +381,7 @@ publish _args = do
       , dependencies: dependencies
       , logOptions: env.logOptions
       , workspace: env.workspace { selected = Just selected }
-      , psaCliFlags:
-          { statVerbosity: (Nothing :: Maybe Core.StatVerbosity)
-          , strict: (Nothing :: Maybe Boolean)
-          }
+      , strictWarnings: (Nothing :: Maybe Boolean)
       , pedanticPackages: false
       }
       action
