@@ -9,6 +9,7 @@ module Spago.Git
   , pushTag
   , isIgnored
   , tagCheckedOut
+  , isBranch
   ) where
 
 import Spago.Prelude
@@ -39,6 +40,12 @@ runGit args cwd = ExceptT do
   pure case result of
     Right r -> Right r.stdout
     Left r -> Left r.stderr
+
+-- See https://stackoverflow.com/questions/18222634
+isBranch :: forall a b. { ref :: String, path :: FilePath | a } -> Spago (GitEnv b) Boolean
+isBranch { ref, path } = do
+  showRef <- Except.runExceptT $ runGit_ [ "show-ref", "--verify", "refs/heads/" <> ref ] (Just path)
+  pure $ isRight showRef
 
 fetchRepo :: forall a b. { git :: String, ref :: String | a } -> FilePath -> Spago (GitEnv b) (Either (Array String) Unit)
 fetchRepo { git, ref } path = do

@@ -360,28 +360,67 @@ toAllDependencies = foldl (Map.unionWith (\l _ -> l)) Map.empty
 getGitPackageInLocalCache :: forall a. PackageName -> GitPackage -> Spago (Git.GitEnv a) Unit
 getGitPackageInLocalCache name package = do
   let localPackageLocation = Config.getPackageLocation name (GitPackage package)
-  tempDir <- mkTemp' (Just $ printJson Config.gitPackageCodec package)
-  logDebug $ "Cloning repo in " <> tempDir
-  Git.fetchRepo package tempDir >>= case _ of
-    Left err -> die err
-    Right _ -> do
-      logDebug $ "Repo cloned. Moving to " <> localPackageLocation
-      FS.mkdirp $ Path.concat [ Paths.localCachePackagesPath, PackageName.print name ]
-      FS.moveSync { src: tempDir, dst: localPackageLocation }
+  existsGitCache <- FS.exists gitCacheLocation
+  { globallyCached, sourceDir } <-
+    if existsGitCache
+      then do
+        logDebug $ "Using global git cache in " <> gitCacheLocation
+        pure { globallyCached: true, sourceDir: gitCacheLocation }
+      else do
+        -- Not cached in the global cache, so we download it and then see if it can be cached
+        tempDir <- mkTemp' (Just $ printJson Config.gitPackageCodec package)
+        logDebug $ "Cloning repo in " <> tempDir
+        fetchRes <- Git.fetchRepo package tempDir
+        case fetchRes of
+          Left err -> die err
+          Right _ -> do
+            shouldCache <- not <$> Git.isBranch { ref: package.ref, path: tempDir }
+            if shouldCache
+              then do
+                FS.mkdirp globalGitCache
+                try (FS.moveSync { src: tempDir, dst: gitCacheLocation }) >>= case _ of
+                  Left _err -> logDebug $ "Couldn't move cloned repo to " <> gitCacheLocation
+                  Right _ -> pure unit
+                pure { globallyCached: true, sourceDir: gitCacheLocation }
+              else do
+                pure { globallyCached: false, sourceDir: tempDir }
 
-      -- Note: the package might have been cloned with a tag, but we stick the commit hash in the lockfiles
-      -- so we need to make a copy to a location that has the commit hash too.
-      -- So we run getRef here and then do a copy if the ref is different than the original one
-      -- (since it might be a commit to start with)
-      logDebug $ "Checking if we need to copy the package to a commit hash location..."
-      Git.getRef (Just localPackageLocation) >>= case _ of
-        Left err -> die err
-        Right ref -> do
-          when (ref /= package.ref) do
-            let commitHashLocation = Config.getPackageLocation name (GitPackage $ package { ref = ref })
-            logDebug $ "Copying the repo also to " <> commitHashLocation
-            FS.mkdirp $ Path.concat [ Paths.localCachePackagesPath, PackageName.print name ]
-            FS.copyTree { src: localPackageLocation, dst: commitHashLocation }
+
+  FS.mkdirp $ Path.concat [ Paths.localCachePackagesPath, PackageName.print name ]
+  if globallyCached
+    then do
+      logDebug $ "Repo cloned. Copying to " <> localPackageLocation
+      FS.copyTree { src: sourceDir, dst: localPackageLocation }
+    else do
+      logDebug $ "Repo cloned. Moving to " <> localPackageLocation
+      FS.moveSync { src: sourceDir, dst: localPackageLocation }
+
+  -- Note: the package might have been cloned with a tag, but we stick the commit hash in the lockfiles
+  -- so we need to make a copy to a location that has the commit hash too.
+  -- So we run getRef here and then do a copy if the ref is different than the original one
+  -- (since it might be a commit to start with)
+  logDebug $ "Checking if we need to copy the package to a commit hash location..."
+  Git.getRef (Just localPackageLocation) >>= case _ of
+    Left err -> die err
+    Right ref -> do
+      when (ref /= package.ref) do
+        let commitHashLocation = Config.getPackageLocation name (GitPackage $ package { ref = ref })
+        logDebug $ "Copying the repo also to " <> commitHashLocation
+        FS.mkdirp $ Path.concat [ Paths.localCachePackagesPath, PackageName.print name ]
+        FS.copyTree { src: localPackageLocation, dst: commitHashLocation }
+  where
+    globalGitCacheElems =
+      [ Paths.globalCachePath
+      , "git"
+      , Config.fileSystemCharEscape package.git
+      ]
+    globalGitCache :: FilePath
+    globalGitCache =
+      Path.concat $ globalGitCacheElems
+    gitCacheLocation :: FilePath
+    gitCacheLocation =
+      Path.concat $ globalGitCacheElems <> [ Config.fileSystemCharEscape package.ref ]
+
 
 getPackageDependencies :: forall a. PackageName -> Package -> Spago (FetchEnv a) (Maybe (Map PackageName Range))
 getPackageDependencies packageName package = case package of
