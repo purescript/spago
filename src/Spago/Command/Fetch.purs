@@ -364,13 +364,7 @@ getGitPackageInLocalCache name package = do
   { globallyCached, sourceDir } <-
     if existsGitCache
       then do
-        logInfo $ "Using global git cache in " <> gitCacheLocation
-        isBranch <- Git.isBranch { ref: package.ref, path: gitCacheLocation }
-        when isBranch do
-          fetchRes <- Git.fetchRepo package gitCacheLocation
-          case fetchRes of
-            Left err -> die err
-            Right _ -> pure unit
+        logDebug $ "Using global git cache in " <> gitCacheLocation
         pure { globallyCached: true, sourceDir: gitCacheLocation }
       else do
         -- Not cached in the global cache, so we download it and then see if it can be cached
@@ -383,15 +377,13 @@ getGitPackageInLocalCache name package = do
             shouldCache <- not <$> Git.isBranch { ref: package.ref, path: tempDir }
             if shouldCache
               then do
-                -- Concurrent threads may have created the directory now,
-                -- especially since fetching can take a long time
-                existsGitCache2 <- FS.exists gitCacheLocation
-                when (not existsGitCache2) do
-                  FS.mkdirp globalGitCache
-                  FS.moveSync { src: tempDir, dst: gitCacheLocation }
+                FS.mkdirp globalGitCache
+                try (FS.moveSync { src: tempDir, dst: gitCacheLocation }) >>= case _ of
+                  Left _err -> logDebug $ "Couldn't move cloned repo to " <> gitCacheLocation
+                  Right _ -> pure unit
                 pure { globallyCached: true, sourceDir: gitCacheLocation }
               else do
-                pure { globallyCached: false, sourceDir: gitCacheLocation }
+                pure { globallyCached: false, sourceDir: tempDir }
 
 
   FS.mkdirp $ Path.concat [ Paths.localCachePackagesPath, PackageName.print name ]
