@@ -104,7 +104,7 @@ spec = Spec.around withTempDir do
     Spec.it "can't install (uncached) dependencies if offline" \{ spago, fixture } -> do
       spago [ "init" ] >>= shouldBeSuccess
       writeConfigWithEither
-      spago [ "install", "--offline", "either" ] >>= shouldBeFailureErr (fixture "offline.txt")
+      spago [ "install", "--offline", "identity" ] >>= shouldBeFailureErr (fixture "offline.txt")
 
     Spec.it "installs a package version by branch name with / in it" \{ spago, testCwd } -> do
       spago [ "init" ] >>= shouldBeSuccess
