@@ -98,13 +98,21 @@ spec = Spec.around withTempDir do
 
     Spec.it "installs a package in the set from a commit hash" \{ spago } -> do
       spago [ "init" ] >>= shouldBeSuccess
-      writeConfigWithEither
+      -- The commit for `either` is for the `v6.1.0` release
+      writeConfigWithEither "af655a04ed2fd694b6688af39ee20d7907ad0763"
       spago [ "install", "either" ] >>= shouldBeSuccess
+
+    Spec.it "can install cached dependencies if offline" \{ spago } -> do
+      spago [ "init" ] >>= shouldBeSuccess
+      -- The commit for `either` is for the `v6.1.0` release, as with the previous test
+      writeConfigWithEither "af655a04ed2fd694b6688af39ee20d7907ad0763"
+      spago [ "install", "--offline", "either" ] >>= shouldBeSuccess
 
     Spec.it "can't install (uncached) dependencies if offline" \{ spago, fixture } -> do
       spago [ "init" ] >>= shouldBeSuccess
-      writeConfigWithEither
-      spago [ "install", "--offline", "identity" ] >>= shouldBeFailureErr (fixture "offline.txt")
+      -- The commit for `either` is for the `v6.0.0` release
+      writeConfigWithEither "5fbe43cb88e3784c8625c938cadcf61506edb3f4"
+      spago [ "install", "--offline", "either" ] >>= shouldBeFailureErr (fixture "offline.txt")
 
     Spec.it "installs a package version by branch name with / in it" \{ spago, testCwd } -> do
       spago [ "init" ] >>= shouldBeSuccess
@@ -234,9 +242,8 @@ spec = Spec.around withTempDir do
       -- Check that the lockfile is back to the original
       checkFixture "spago.lock" (fixture "spago.lock")
 
-writeConfigWithEither :: Aff Unit
-writeConfigWithEither = do
-  -- The commit for `either` is for the `v6.1.0` release
+writeConfigWithEither :: String -> Aff Unit
+writeConfigWithEither ref = do
   let
     conf = Init.defaultConfig
       { name: mkPackageName "eee"
@@ -252,7 +259,7 @@ writeConfigWithEither = do
                 { extraPackages = Just $ Map.fromFoldable
                     [ Tuple (mkPackageName "either") $ Config.ExtraRemotePackage $ Config.RemoteGitPackage
                         { git: "https://github.com/purescript/purescript-either.git"
-                        , ref: "af655a04ed2fd694b6688af39ee20d7907ad0763"
+                        , ref
                         , subdir: Nothing
                         , dependencies: Just $ mkDependencies [ "control", "invariant", "maybe", "prelude" ]
                         }
