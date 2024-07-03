@@ -860,6 +860,7 @@ mkBuildEnv buildArgs dependencies = do
     newWorkspace = workspace
       { buildOptions
           { output = buildArgs.output <|> workspace.buildOptions.output
+          , statVerbosity = buildArgs.statVerbosity <|> workspace.buildOptions.statVerbosity
           }
       -- Override the backend args from the config if they are passed in through a flag
       , backend = map
@@ -876,10 +877,7 @@ mkBuildEnv buildArgs dependencies = do
     , git
     , dependencies
     , workspace: newWorkspace
-    , psaCliFlags:
-        { statVerbosity: buildArgs.statVerbosity
-        , strict: buildArgs.strict
-        }
+    , strictWarnings: buildArgs.strict
     , pedanticPackages: buildArgs.pedanticPackages
     }
 

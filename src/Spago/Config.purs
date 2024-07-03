@@ -1,11 +1,11 @@
 module Spago.Config
-  ( BuildOptions
-  , BuildType(..)
+  ( BuildType(..)
   , Package(..)
   , PackageSet(..)
   , PackageMap
   , WithTestGlobs(..)
   , Workspace
+  , WorkspaceBuildOptions
   , WorkspacePackage
   , addPackagesToConfig
   , addRangesToConfig
@@ -72,13 +72,13 @@ type Workspace =
   , packageSet :: PackageSet
   , compatibleCompiler :: Range
   , backend :: Maybe Core.BackendConfig
-  , buildOptions :: BuildOptions
+  , buildOptions :: WorkspaceBuildOptions
   , doc :: YamlDoc Core.Config
   , workspaceConfig :: Core.WorkspaceConfig
   , rootPackage :: Maybe Core.PackageConfig
   }
 
-type BuildOptions =
+type WorkspaceBuildOptions =
   { output :: Maybe FilePath
   , censorLibWarnings :: Maybe Core.CensorBuildWarnings
   , statVerbosity :: Maybe Core.StatVerbosity
@@ -414,7 +414,7 @@ readWorkspace { maybeSelectedPackage, pureBuild, migrateConfig } = do
         ]
 
   let
-    buildOptions :: BuildOptions
+    buildOptions :: WorkspaceBuildOptions
     buildOptions =
       { output: _.output =<< workspace.buildOpts
       , censorLibWarnings: _.censorLibraryWarnings =<< workspace.buildOpts
