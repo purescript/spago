@@ -7,10 +7,9 @@ import Control.Monad.Maybe.Trans (runMaybeT)
 import Control.Monad.Trans.Class (lift)
 import Data.Array as Array
 import Data.Filterable (filter)
-import Data.Foldable (any, fold)
+import Data.Foldable (any, traverse_)
 import Data.String as String
 import Data.String as String.CodePoint
-import Data.Traversable (traverse_)
 import Effect.Aff as Aff
 import Effect.Ref as Ref
 import Node.FS.Sync as SyncFS
@@ -75,10 +74,7 @@ fsWalk cwd ignorePatterns includePatterns = Aff.makeAff \cb -> do
 
   -- Pattern for directories which can be outright ignored.
   -- This will be updated whenver a .gitignore is found.
-  let firstIgnoreGlob = { ignore: [], include: ignorePatterns }
-  ignoreGlobRef :: Ref Glob <- Ref.new firstIgnoreGlob
-  -- We recompute the ignoreMatcher every time we update the ignoreMatcherRef
-  ignoreMatcherRef :: Ref (String -> Boolean) <- Ref.new (testGlob firstIgnoreGlob)
+  ignoreMatcherRef :: Ref (String -> Boolean) <- Ref.new (testGlob { ignore: [], include: ignorePatterns })
 
   -- If this Ref contains `true` because this Aff has been canceled, then deepFilter will always return false.
   canceled <- Ref.new false
@@ -87,19 +83,38 @@ fsWalk cwd ignorePatterns includePatterns = Aff.makeAff \cb -> do
     -- Update the ignoreMatcherRef with the patterns from a .gitignore file
     updateIgnoreMatcherWithGitignore :: Entry -> Effect Unit
     updateIgnoreMatcherWithGitignore entry = do
-      try (SyncFS.readTextFile UTF8 entry.path)
-        >>= traverse_ \gitignore -> do
-          let
-            -- directory of this .gitignore relative to the directory being globbed
-            base = Path.relative cwd $ Path.dirname entry.path
-            glob = gitignoreFileToGlob base gitignore
-            pats = splitGlob glob
-            patOk g = not $ any (testGlob g) includePatterns
-            newPats = filter patOk pats
-          currentGlob <- Ref.read ignoreGlobRef
-          let newGlob = currentGlob <> fold newPats
-          void $ Ref.write newGlob ignoreGlobRef
-          void $ Ref.write (testGlob newGlob) ignoreMatcherRef
+      let
+        gitignorePath = entry.path
+        -- directory of this .gitignore relative to the directory being globbed
+        base = Path.relative cwd (Path.dirname gitignorePath)
+
+      try (SyncFS.readTextFile UTF8 entry.path) >>= traverse_ \gitignore -> do
+        let
+          gitignored = testGlob <$> (splitGlob $ gitignoreFileToGlob base gitignore)
+
+          -- Do not add `.gitignore` patterns that explicitly ignore the files
+          -- we're searching for;
+          --
+          -- ex. if `includePatterns` is [".spago/p/aff-1.0.0/**/*.purs"],
+          -- and `gitignored` is ["node_modules", ".spago"],
+          -- then add "node_modules" to `ignoreMatcher` but not ".spago"
+          wouldConflictWithSearch matcher = any matcher includePatterns
+
+          newMatchers = or $ filter (not <<< wouldConflictWithSearch) gitignored
+
+          -- Another possible approach could be to keep a growing array of patterns and
+          -- regenerate the matcher on every gitignore. We have tried that (see #1234),
+          -- and turned out to be 2x slower. (see #1242, and #1244)
+          -- Composing functions is faster, but there's the risk of blowing the stack
+          -- (see #1231) - when this was introduced in #1210, every match from the
+          -- gitignore file would be `or`ed to the previous matcher, which would create
+          -- a very long recursive call - in this latest iteration we are `or`ing the
+          -- new matchers together, then the whole thing with the previous matcher.
+          -- This is still prone to stack issues, but we now have a tree so it should
+          -- not be as dramatic.
+          addMatcher currentMatcher = or [ currentMatcher, newMatchers ]
+
+        Ref.modify_ addMatcher ignoreMatcherRef
 
     -- Should `fsWalk` recurse into this directory?
     deepFilter :: Entry -> Effect Boolean
