@@ -13,5 +13,3 @@ export const fsWalkImpl = Left => Right => respond => options => path => () => {
 };
 
 export const isFile = dirent => dirent.isFile();
-
-export const direntToString = dirent => JSON.stringify(dirent);
