@@ -108,7 +108,7 @@ fsWalk cwd ignorePatterns includePatterns = Aff.makeAff \cb -> do
           -- Composing functions is faster, but there's the risk of blowing the stack
           -- (see #1231) - when this was introduced in #1210, every match from the
           -- gitignore file would be `or`ed to the previous matcher, which would create
-          -- a very long recursive call - in this latest iteration we are `or`ing the
+          -- a very long (linear) call chain - in this latest iteration we are `or`ing the
           -- new matchers together, then the whole thing with the previous matcher.
           -- This is still prone to stack issues, but we now have a tree so it should
           -- not be as dramatic.

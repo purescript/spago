@@ -92,10 +92,14 @@ spec = Spec.around globTmpDir do
 
       Spec.it "is stacksafe" \p -> do
         let
-          chars = [ "a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k" ]
-          -- 10,000-line gitignore
+          chars = [ "a", "b", "c", "d", "e", "f", "g", "h" ]
+          -- 4000-line gitignore
           words = [ \a b c d -> a <> b <> c <> d ] <*> chars <*> chars <*> chars <*> chars
           hugeGitignore = intercalate "\n" words
+        -- Write it in a few places
         FS.writeTextFile (Path.concat [ p, ".gitignore" ]) hugeGitignore
+        FS.writeTextFile (Path.concat [ p, "fruits", ".gitignore" ]) hugeGitignore
+        FS.writeTextFile (Path.concat [ p, "fruits", "left", ".gitignore" ]) hugeGitignore
+        FS.writeTextFile (Path.concat [ p, "fruits", "right", ".gitignore" ]) hugeGitignore
         a <- Glob.gitignoringGlob p [ "fruits/**/apple" ]
         Array.sort a `Assert.shouldEqual` [ "fruits/left/apple", "fruits/right/apple" ]
