@@ -11,11 +11,10 @@ import Data.Foldable (any, fold)
 import Data.String as String
 import Data.Traversable (traverse_)
 import Effect.Aff as Aff
+import Effect.Class.Console as Console
 import Effect.Ref as Ref
 import Node.FS.Sync as SyncFS
 import Node.Path as Path
-import Record as Record
-import Type.Proxy (Proxy(..))
 
 type Glob =
   { ignore :: Array String
@@ -30,8 +29,15 @@ splitGlob { ignore, include } = (\a -> { ignore, include: [ a ] }) <$> include
 type Entry = { name :: String, path :: String, dirent :: DirEnt }
 type FsWalkOptions = { entryFilter :: Entry -> Effect Boolean, deepFilter :: Entry -> Effect Boolean }
 
+-- https://nodejs.org/api/fs.html#class-fsdirent
 foreign import data DirEnt :: Type
 foreign import isFile :: DirEnt -> Boolean
+
+foreign import direntToString :: DirEnt -> String
+
+instance Show DirEnt where
+  show = direntToString
+
 foreign import fsWalkImpl
   :: (forall a b. a -> Either a b)
   -> (forall a b. b -> Either a b)
@@ -40,8 +46,8 @@ foreign import fsWalkImpl
   -> String
   -> Effect Unit
 
-gitignoreGlob :: String -> String -> Glob
-gitignoreGlob base =
+gitignoreFileToGlob :: FilePath -> String -> Glob
+gitignoreFileToGlob base =
   String.split (String.Pattern "\n")
     >>> map String.trim
     >>> Array.filter (not <<< or [ String.null, isComment ])
@@ -54,8 +60,7 @@ gitignoreGlob base =
             Just negated -> Left $ pat negated
             Nothing -> Right $ pat line
       )
-    >>> Record.rename (Proxy @"left") (Proxy @"ignore")
-    >>> Record.rename (Proxy @"right") (Proxy @"include")
+    >>> (\{ left, right } -> { ignore: left, include: right })
 
   where
   isComment = isJust <<< String.stripPrefix (String.Pattern "#")
@@ -74,41 +79,48 @@ fsWalk cwd ignorePatterns includePatterns = Aff.makeAff \cb -> do
 
   -- Pattern for directories which can be outright ignored.
   -- This will be updated whenver a .gitignore is found.
-  ignoreMatcherRef :: Ref Glob <- Ref.new { ignore: [], include: ignorePatterns }
+  let firstIgnoreGlob = { ignore: [], include: ignorePatterns }
+  ignoreGlobRef :: Ref Glob <- Ref.new firstIgnoreGlob
+  -- We recompute the ignoreMatcher every time we update the ignoreMatcherRef
+  ignoreMatcherRef :: Ref (String -> Boolean) <- Ref.new (testGlob firstIgnoreGlob)
 
   -- If this Ref contains `true` because this Aff has been canceled, then deepFilter will always return false.
   canceled <- Ref.new false
 
   let
-    entryGitignore :: Entry -> Effect Unit
-    entryGitignore entry =
+    -- Update the ignoreMatcherRef with the patterns from a .gitignore file
+    updateGitignore :: Entry -> Effect Unit
+    updateGitignore entry =
       try (SyncFS.readTextFile UTF8 entry.path)
-        >>= traverse_ \gitignore ->
+        >>= traverse_ \gitignore -> do
           let
+            -- directory of this .gitignore relative to the directory being globbed
             base = Path.relative cwd $ Path.dirname entry.path
-            glob = gitignoreGlob base gitignore
+            glob = gitignoreFileToGlob base gitignore
             pats = splitGlob glob
             patOk g = not $ any (testGlob g) includePatterns
             newPats = filter patOk pats
-          in
-            void $ Ref.modify (_ <> fold newPats) $ ignoreMatcherRef
+          currentGlob <- Ref.read ignoreGlobRef
+          let newGlob = currentGlob <> fold newPats
+          void $ Ref.write newGlob ignoreGlobRef
+          void $ Ref.write (testGlob newGlob) ignoreMatcherRef
 
     -- Should `fsWalk` recurse into this directory?
     deepFilter :: Entry -> Effect Boolean
     deepFilter entry = fromMaybe false <$> runMaybeT do
+      lift $ Console.log $ "deepFilter: " <> show entry
       isCanceled <- lift $ Ref.read canceled
       guard $ not isCanceled
-      shouldIgnore <- lift $ testGlob <$> Ref.read ignoreMatcherRef
+      shouldIgnore <- lift $ testGlob <$> Ref.read ignoreGlobRef
       pure $ not $ shouldIgnore $ Path.relative cwd entry.path
 
     -- Should `fsWalk` retain this entry for the result array?
     entryFilter :: Entry -> Effect Boolean
     entryFilter entry = do
-      when (isFile entry.dirent && entry.name == ".gitignore") (entryGitignore entry)
-      ignorePat <- Ref.read ignoreMatcherRef
-      let
-        ignoreMatcher = testGlob ignorePat
-        path = withForwardSlashes $ Path.relative cwd entry.path
+      Console.log $ "entryFilter: " <> show entry
+      when (isFile entry.dirent && entry.name == ".gitignore") (updateGitignore entry)
+      ignoreMatcher <- Ref.read ignoreMatcherRef
+      let path = withForwardSlashes $ Path.relative cwd entry.path
       pure $ includeMatcher path && not (ignoreMatcher path)
 
     options = { entryFilter, deepFilter }

@@ -153,8 +153,9 @@ run opts = do
     if Array.null pedanticPkgs || opts.depsOnly then
       pure true
     else do
-      logInfo $ "Looking for unused and undeclared transitive dependencies..."
+      logInfo "Looking for unused and undeclared transitive dependencies..."
       eitherGraph <- Graph.runGraph globs opts.pursArgs
+      logDebug "Decoded the output of `purs graph` successfully. Analyzing dependencies..."
       eitherGraph # either (prepareToDie >>> (_ $> false)) \graph -> do
         env <- ask
         checkResults <- map Array.fold $ for pedanticPkgs \(Tuple selected options) -> do
