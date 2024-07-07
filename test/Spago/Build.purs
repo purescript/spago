@@ -102,7 +102,7 @@ spec = Spec.around withTempDir do
         }
       spago [ "build" ] >>= shouldBeFailure
 
-    Spec.itOnly "respects the --censor-stats flag" \{ spago, fixture } -> do
+    Spec.it "respects the --censor-stats flag" \{ spago, fixture } -> do
       spago [ "init", "--name", "aaa" ] >>= shouldBeSuccess
       spago [ "build" ] >>= shouldBeSuccess
       spago [ "build", "--censor-stats" ] >>= shouldBeSuccessErr (fixture "censor-stats-output.txt")
