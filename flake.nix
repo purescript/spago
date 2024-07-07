@@ -30,6 +30,7 @@
               purs-tidy
               purs-backend-es
               spago-unstable
+              purescript-language-server
 
               nodejs
               esbuild
