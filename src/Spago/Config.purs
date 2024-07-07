@@ -38,6 +38,7 @@ import Data.Enum as Enum
 import Data.Graph as Graph
 import Data.HTTP.Method as Method
 import Data.Int as Int
+import Data.List (List(..))
 import Data.Map as Map
 import Data.Nullable (Nullable)
 import Data.Nullable as Nullable
@@ -164,6 +165,17 @@ type ReadWorkspaceOptions =
   , migrateConfig :: Boolean
   }
 
+type PrelimWorkspace =
+  { backend :: Maybe Core.BackendConfig
+  , buildOpts :: Maybe
+                 { censorLibraryWarnings :: Maybe Core.CensorBuildWarnings
+                 , output :: Maybe String
+                 , statVerbosity :: Maybe Core.StatVerbosity
+                 }
+  , extraPackages :: Maybe (Map PackageName Core.ExtraPackage)
+  , packageSet :: Maybe Core.SetAddress
+  }
+
 -- | Reads all the configurations in the tree and builds up the Map of local
 -- | packages to be integrated in the package set
 readWorkspace :: ∀ a. ReadWorkspaceOptions -> Spago (Registry.RegistryEnv a) Workspace
@@ -179,6 +191,36 @@ readWorkspace { maybeSelectedPackage, pureBuild, migrateConfig } = do
           liftAff $ FS.writeYamlDocFile path config.doc
         false, true -> logWarn $ "Your " <> path <> " is using an outdated format. Run Spago with the --migrate flag to update it to the latest version."
         _, false -> pure unit
+
+  logInfo "Gathering all the spago configs higher in the tree..."
+  let
+    higherPaths :: List FilePath
+    higherPaths = Array.toUnfoldable $ Paths.toGitSearchPath Paths.cwd
+
+    checkForWorkspace :: forall b. FilePath
+      -> Spago (LogEnv b) (Maybe PrelimWorkspace)
+    checkForWorkspace config = do
+      result <- readConfig config
+      case result of
+        Left _ -> pure Nothing
+        Right { yaml: { workspace: Nothing } } -> pure Nothing
+        Right { yaml: { workspace: Just ws } } -> pure (Just ws)
+
+    searchHigherPaths :: forall b. List FilePath -> Spago (LogEnv b) (Maybe PrelimWorkspace)
+    searchHigherPaths Nil = pure Nothing
+    searchHigherPaths (path : otherPaths) = do
+      mYaml :: Maybe String <- map Array.head $ liftAff $ Glob.gitignoringGlob path [ "./spago.yaml" ]
+      case mYaml of
+        Nothing -> searchHigherPaths otherPaths
+        Just foundSpagoYaml -> do
+          mWorkspace :: Maybe PrelimWorkspace <- checkForWorkspace foundSpagoYaml
+          case mWorkspace of
+            Nothing -> searchHigherPaths otherPaths
+            workspace -> pure workspace
+
+  mHigherConfigPath <- searchHigherPaths higherPaths
+  for_ mHigherConfigPath $ \_ -> do
+    logDebug $ [ toDoc "Found workspace at higher path: " ]
 
   -- First try to read the config in the root. It _has_ to contain a workspace
   -- configuration, or we fail early.
@@ -199,10 +241,10 @@ readWorkspace { maybeSelectedPackage, pureBuild, migrateConfig } = do
       doMigrateConfig "spago.yaml" config
       pure { workspace, package, workspaceDoc: doc }
 
-  logDebug "Gathering all the spago configs in the tree..."
-  otherConfigPaths <- liftAff $ Glob.gitignoringGlob Paths.cwd [ "**/spago.yaml" ]
-  unless (Array.null otherConfigPaths) do
-    logDebug $ [ toDoc "Found packages at these paths:", Log.indent $ Log.lines (map toDoc otherConfigPaths) ]
+  logDebug "Gathering all the spago configs lower in the tree..."
+  otherLowerConfigPaths <- liftAff $ Glob.gitignoringGlob Paths.cwd [ "**/spago.yaml" ]
+  unless (Array.null otherLowerConfigPaths) do
+    logDebug $ [ toDoc "Found packages at these lower paths:", Log.indent $ Log.lines (map toDoc otherLowerConfigPaths) ]
 
   -- We read all of them in, and only read the package section, if any.
   let
@@ -220,7 +262,7 @@ readWorkspace { maybeSelectedPackage, pureBuild, migrateConfig } = do
         Right config -> do
           Right { config, hasTests, configPath: path, packagePath: Path.dirname path }
 
-  { right: otherPackages, left: failedPackages } <- partitionMap identity <$> traverse readWorkspaceConfig otherConfigPaths
+  { right: otherPackages, left: failedPackages } <- partitionMap identity <$> traverse readWorkspaceConfig otherLowerConfigPaths
   unless (Array.null failedPackages) do
     logWarn $ [ toDoc "Failed to read some configs:" ] <> failedPackages
 
