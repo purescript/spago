@@ -63,7 +63,7 @@ jobs:
       - name: Setup node
         uses: actions/setup-node@v4
         with:
-          node-version: 18
+          node-version: 22
       # NB: We install gnu-tar because BSD tar is buggy on Github's macos machines,
       # and it breaks the cache: https://github.com/actions/cache/issues/403
       - name: Install GNU tar (macOS)
@@ -127,7 +127,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 18
+          node-version: 22
       - name: Publish to NPM
         shell: bash
         env:
