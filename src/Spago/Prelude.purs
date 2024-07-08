@@ -15,6 +15,7 @@ module Spago.Prelude
   , unsafeStringify
   , withBackoff'
   , withForwardSlashes
+  , isPrefix
   ) where
 
 import Spago.Core.Prelude
@@ -164,3 +165,7 @@ mkTemp = mkTemp' Nothing
 
 withForwardSlashes :: String -> String
 withForwardSlashes = String.replaceAll (Pattern "\\") (Replacement "/")
+
+isPrefix :: String.Pattern -> String -> Boolean
+isPrefix p = isJust <<< String.stripPrefix p
+
