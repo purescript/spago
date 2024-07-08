@@ -10,9 +10,11 @@ module Spago.Command.Ls
 
 import Spago.Prelude
 
-import Data.Codec.Argonaut as CA
-import Data.Codec.Argonaut.Common as CAC
-import Data.Codec.Argonaut.Record as CAR
+import Codec.JSON.DecodeError as CJ.DecodeError
+import Data.Codec as Codec
+import Data.Codec.JSON as CJ
+import Data.Codec.JSON.Common as CJ.Common
+import Data.Codec.JSON.Record as CJ.Record
 import Data.Foldable (elem)
 import Data.Map (filterKeys)
 import Data.Map as Map
@@ -66,7 +68,7 @@ listPaths { json } = do
   logDebug "Running `listPaths`"
   case json of
     true ->
-      output $ OutputJson (CAC.map CA.string CA.string) $ Map.fromFoldable keyValuePairs
+      output $ OutputJson (CJ.Common.map CJ.string CJ.string) $ Map.fromFoldable keyValuePairs
     false ->
       output $ OutputTable
         { titles: [ "Name", "Path" ]
@@ -125,36 +127,36 @@ formatPackagesJson packages = output $ OutputJson (packageMap packageCodec) (map
         WorkspacePackage _ -> "workspace"
     }
 
-  packageCodec :: JsonCodec { type :: String, value :: Package }
-  packageCodec = CAR.object "Package" { type: CA.string, value: innerCodec }
+  packageCodec :: CJ.Codec { type :: String, value :: Package }
+  packageCodec = CJ.named "Package" $ CJ.Record.object { type: CJ.string, value: innerCodec }
     where
-    innerCodec = CA.codec' decode encode
+    innerCodec = Codec.codec' decode encode
 
-    registryVersionCodec = CAR.object "RegistryVersion" { version: Version.codec }
+    registryVersionCodec = CJ.named "RegistryVersion" $ CJ.Record.object { version: Version.codec }
 
     encode = case _ of
-      RegistryVersion x -> CA.encode registryVersionCodec { version: x }
-      GitPackage x -> CA.encode Config.gitPackageCodec x
-      LocalPackage x -> CA.encode Config.localPackageCodec x
-      WorkspacePackage x -> CA.encode workspacePackageCodec x
+      RegistryVersion x -> CJ.encode registryVersionCodec { version: x }
+      GitPackage x -> CJ.encode Config.gitPackageCodec x
+      LocalPackage x -> CJ.encode Config.localPackageCodec x
+      WorkspacePackage x -> CJ.encode workspacePackageCodec x
 
     decode json =
-      map (RegistryVersion <<< _.version) (CA.decode registryVersionCodec json)
-        <|> map GitPackage (CA.decode Config.gitPackageCodec json)
-        <|> map LocalPackage (CA.decode Config.localPackageCodec json)
-        <|> map WorkspacePackage (CA.decode workspacePackageCodec json)
+      map (RegistryVersion <<< _.version) (Codec.decode registryVersionCodec json)
+        <|> map GitPackage (Codec.decode Config.gitPackageCodec json)
+        <|> map LocalPackage (Codec.decode Config.localPackageCodec json)
+        <|> map WorkspacePackage (Codec.decode workspacePackageCodec json)
 
-  workspacePackageCodec = CA.codec' decode encode
+  workspacePackageCodec = Codec.codec' decode encode
     where
-    decode _json = Left CA.MissingValue
+    decode _json = except $ Left $ CJ.DecodeError.basic "Decoding workspace packages is not supported."
     encode =
-      CA.encode
-        ( CAR.object "WorkspacePackage"
-            { path: CA.string
+      CJ.encode
+        ( CJ.named "WorkspacePackage" $ CJ.Record.object
+            { path: CJ.string
             , package: Config.packageConfigCodec
-            , hasTests: CA.boolean
+            , hasTests: CJ.boolean
             }
-        ) <<< Record.delete (Proxy :: _ "doc")
+        ) <<< Record.delete (Proxy @"doc")
 
 formatPackagesTable :: forall m. MonadEffect m => Array (Tuple PackageName Package) -> m Unit
 formatPackagesTable pkgs = output $ OutputTable

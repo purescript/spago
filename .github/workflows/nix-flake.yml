@@ -1,0 +1,26 @@
+name: Nix Flake
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    container: ${{ matrix.image }}
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+          - os: macOS-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: DeterminateSystems/nix-installer-action@main
+      - uses: DeterminateSystems/magic-nix-cache-action@main
+      - name: "Check `nix develop` shell can open"
+        run: nix develop --command "echo"
+      # this Flake has no build target
+      # - run: nix build
+      - run: nix flake check

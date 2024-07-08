@@ -11,6 +11,8 @@ import Effect.Aff as Aff
 import Test.Spago.Build as Build
 import Test.Spago.Bundle as Bundle
 import Test.Spago.Docs as Docs
+import Test.Spago.Errors as Errors
+import Test.Spago.Glob as Glob
 import Test.Spago.Graph as Graph
 import Test.Spago.Init as Init
 import Test.Spago.Install as Install
@@ -56,4 +58,5 @@ main = Aff.launchAff_ $ void $ un Identity $ Spec.Runner.runSpecT testConfig [ S
     Spec.describe "miscellaneous" do
       Lock.spec
       Unit.spec
-
+      Glob.spec
+      Errors.spec

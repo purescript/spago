@@ -20,7 +20,6 @@ module Spago.Prelude
 import Spago.Core.Prelude
 
 import Control.Parallel as Parallel
-import Data.Argonaut.Core as Argonaut
 import Data.Array as Array
 import Data.Either as Either
 import Data.Foldable as Foldable
@@ -32,6 +31,8 @@ import Data.String as String
 import Data.Traversable (class Traversable)
 import Effect.Aff as Aff
 import Effect.Now as Now
+import JSON (JSON)
+import JSON as JSON
 import Node.Buffer as Buffer
 import Node.Path as Path
 import Partial.Unsafe (unsafeCrashWith)
@@ -82,7 +83,7 @@ partitionEithers = Array.foldMap case _ of
 
 -- | Unsafely stringify a value by coercing it to `Json` and stringifying it.
 unsafeStringify :: forall a. a -> String
-unsafeStringify a = Argonaut.stringify (unsafeCoerce a :: Argonaut.Json)
+unsafeStringify a = JSON.print (unsafeCoerce a :: JSON)
 
 parseLenientVersion :: String -> Either String Version.Version
 parseLenientVersion input = Version.parse do
@@ -103,7 +104,7 @@ parseLenientVersion input = Version.parse do
 -- | Attempt an effectful computation with exponential backoff.
 withBackoff' :: forall a. Aff a -> Aff (Maybe.Maybe a)
 withBackoff' action = withBackoff
-  { delay: Aff.Milliseconds 5_000.0
+  { delay: Aff.Milliseconds 2_000.0
   , action
   , shouldCancel: \_ -> pure true
   , shouldRetry: \attempt -> if attempt > 3 then pure Maybe.Nothing else pure (Maybe.Just action)

@@ -16,20 +16,22 @@ module Spago.Purs.Graph
 
 import Spago.Prelude
 
+import Codec.JSON.DecodeError as CJ.DecodeError
 import Data.Array as Array
-import Data.Codec.Argonaut.Common as CA
-import Data.Codec.Argonaut.Record as CAR
+import Data.Codec.JSON as CJ
+import Data.Codec.JSON.Common as CJ.Common
+import Data.Codec.JSON.Record as CJ.Record
 import Data.Map as Map
 import Data.Set as Set
 import Data.String as String
 import Dodo as Doc
 import Record as Record
-import Registry.Foreign.FastGlob as Glob
 import Registry.Internal.Codec as Internal.Codec
 import Registry.PackageName as PackageName
 import Spago.Command.Fetch as Fetch
 import Spago.Config (Package(..), WithTestGlobs(..), WorkspacePackage)
 import Spago.Config as Config
+import Spago.Glob as Glob
 import Spago.Log as Log
 import Spago.Paths as Paths
 import Spago.Purs (ModuleGraph(..), ModuleGraphNode, ModuleName, Purs)
@@ -49,7 +51,7 @@ type PreGraphEnv a =
 runGraph :: forall a. Set FilePath -> Array String -> Spago (PreGraphEnv a) (Either String Purs.ModuleGraph)
 runGraph globs pursArgs = map (lmap toErrorMessage) $ Purs.graph globs pursArgs
   where
-  toErrorMessage = append "Could not decode the output of `purs graph`, error: " <<< CA.printJsonDecodeError
+  toErrorMessage = append "Could not decode the output of `purs graph`, error: " <<< CJ.DecodeError.print
 
 --------------------------------------------------------------------------------
 -- Graph enriched with the package names
@@ -67,17 +69,17 @@ type ModuleGraphWithPackageNode =
   , package :: PackageName
   }
 
-moduleGraphWithPackageNodeCodec :: JsonCodec ModuleGraphWithPackageNode
-moduleGraphWithPackageNodeCodec = CAR.object "ModuleGraphNode"
-  { path: CA.string
-  , depends: CA.array CA.string
+moduleGraphWithPackageNodeCodec :: CJ.Codec ModuleGraphWithPackageNode
+moduleGraphWithPackageNodeCodec = CJ.named "ModuleGraphNode" $ CJ.Record.object
+  { path: CJ.string
+  , depends: CJ.array CJ.string
   , package: PackageName.codec
   }
 
 type ModuleGraphWithPackage = Map ModuleName ModuleGraphWithPackageNode
 
-moduleGraphCodec :: JsonCodec ModuleGraphWithPackage
-moduleGraphCodec = Internal.Codec.strMap "ModuleGraphWithPackage" Just identity moduleGraphWithPackageNodeCodec
+moduleGraphCodec :: CJ.Codec ModuleGraphWithPackage
+moduleGraphCodec = Internal.Codec.strMap "ModuleGraphWithPackage" Right identity moduleGraphWithPackageNodeCodec
 
 getModuleGraphWithPackage :: forall a. Purs.ModuleGraph -> Spago (PackageGraphEnv a) ModuleGraphWithPackage
 getModuleGraphWithPackage (ModuleGraph graph) = do
@@ -118,20 +120,16 @@ getModuleGraphWithPackage (ModuleGraph graph) = do
 
   pure packageGraph
 
-compileGlob :: forall a. FilePath -> Spago (LogEnv a) (Array FilePath)
-compileGlob sourcePath = do
-  { succeeded, failed } <- Glob.match Paths.cwd [ withForwardSlashes sourcePath ]
-  unless (Array.null failed) do
-    logDebug [ toDoc "Encountered some globs that are not in cwd, proceeding anyways:", indent $ toDoc failed ]
-  pure (succeeded <> failed)
+compileGlob :: forall a. FilePath -> Spago a (Array FilePath)
+compileGlob sourcePath = liftAff $ Glob.gitignoringGlob Paths.cwd [ withForwardSlashes sourcePath ]
 
 --------------------------------------------------------------------------------
 -- Package graph
 
 type PackageGraph = Map PackageName { depends :: Set PackageName }
 
-packageGraphCodec :: JsonCodec PackageGraph
-packageGraphCodec = Internal.Codec.packageMap (CAR.object "PackageGraphNode" { depends: CA.set PackageName.codec })
+packageGraphCodec :: CJ.Codec PackageGraph
+packageGraphCodec = Internal.Codec.packageMap (CJ.named "PackageGraphNode" $ CJ.Record.object { depends: CJ.Common.set PackageName.codec })
 
 getPackageGraph :: forall a. Purs.ModuleGraph -> Spago (PackageGraphEnv a) PackageGraph
 getPackageGraph graph = do

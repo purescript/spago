@@ -5,9 +5,8 @@ workspace:
       dependencies:
         - aff
         - aff-promise
-        - argonaut-core
         - arrays
-        - codec-argonaut
+        - codec-json
         - control
         - css
         - docs-search-common
@@ -18,6 +17,7 @@ workspace:
         - halogen-css
         - halogen-subscriptions
         - js-uri
+        - json
         - language-purescript
         - lists
         - markdown-it
@@ -45,7 +45,7 @@ workspace:
         - bifunctors
         - catenable-lists
         - codec
-        - codec-argonaut
+        - codec-json
         - colors
         - console
         - const
@@ -83,6 +83,7 @@ workspace:
         - js-date
         - js-promise
         - js-uri
+        - json
         - json-codecs
         - language-purescript
         - lazy
@@ -144,12 +145,15 @@ workspace:
         - aff-promise
         - argonaut-core
         - arrays
-        - codec-argonaut
+        - bifunctors
+        - codec
+        - codec-json
         - control
         - effect
         - either
         - exceptions
         - foldable-traversable
+        - json
         - json-codecs
         - language-purescript
         - lists
@@ -165,6 +169,7 @@ workspace:
         - strings
         - transformers
         - tuples
+        - unsafe-coerce
         - variant
       test_dependencies: []
       build_plan:
@@ -174,7 +179,7 @@ workspace:
         - arrays
         - bifunctors
         - codec
-        - codec-argonaut
+        - codec-json
         - console
         - const
         - contravariant
@@ -197,6 +202,7 @@ workspace:
         - identity
         - integers
         - invariant
+        - json
         - json-codecs
         - language-purescript
         - lazy
@@ -242,14 +248,14 @@ workspace:
         - aff
         - argonaut-core
         - arrays
-        - codec-argonaut
+        - codec-json
         - console
-        - control
         - docs-search-common
         - effect
         - either
         - foldable-traversable
         - identity
+        - json
         - json-codecs
         - language-purescript
         - lists
@@ -257,6 +263,7 @@ workspace:
         - newtype
         - node-buffer
         - node-fs
+        - node-path
         - node-process
         - ordered-collections
         - prelude
@@ -265,6 +272,7 @@ workspace:
         - string-parsers
         - strings
         - tuples
+        - unsafe-coerce
       test_dependencies:
         - exceptions
         - spec
@@ -279,7 +287,7 @@ workspace:
         - bifunctors
         - catenable-lists
         - codec
-        - codec-argonaut
+        - codec-json
         - console
         - const
         - contravariant
@@ -306,6 +314,7 @@ workspace:
         - integers
         - invariant
         - js-date
+        - json
         - json-codecs
         - language-purescript
         - lazy
@@ -360,24 +369,38 @@ workspace:
       path: ./
       dependencies:
         - aff
+        - aff-promise
         - affjax
         - affjax-node
+        - ansi
         - argonaut-core
         - arrays
-        - codec-argonaut
+        - avar
+        - codec
+        - codec-json
+        - console
+        - control
         - datetime
+        - docs-search-common
         - docs-search-index
         - dodo-printer
         - effect
         - either
+        - enums
+        - filterable
         - foldable-traversable
         - foreign-object
+        - formatters
         - functions
+        - graphs
         - http-methods
         - integers
+        - json
         - lists
         - maybe
+        - newtype
         - node-buffer
+        - node-child-process
         - node-execa
         - node-fs
         - node-path
@@ -387,19 +410,24 @@ workspace:
         - ordered-collections
         - parallel
         - partial
+        - posix-types
         - prelude
         - profunctor
         - record
         - refs
-        - registry-foreign
         - registry-lib
+        - routing-duplex
         - spago-core
         - strings
-        - stringutils
         - transformers
         - tuples
+        - unfoldable
+        - unicode
         - unsafe-coerce
       test_dependencies:
+        - exceptions
+        - identity
+        - quickcheck
         - spec
       build_plan:
         - aff
@@ -412,16 +440,14 @@ workspace:
         - arrays
         - assert
         - avar
-        - b64
         - bifunctors
         - catenable-lists
         - codec
-        - codec-argonaut
+        - codec-json
         - console
         - const
         - contravariant
         - control
-        - convertable-options
         - datetime
         - distributive
         - docs-search-common
@@ -429,11 +455,9 @@ workspace:
         - dodo-printer
         - effect
         - either
-        - encoding
         - enums
         - exceptions
         - exists
-        - fetch
         - filterable
         - fixed-points
         - foldable-traversable
@@ -452,11 +476,9 @@ workspace:
         - integers
         - invariant
         - js-date
-        - js-fetch
-        - js-promise
-        - js-promise-aff
         - js-timers
         - js-uri
+        - json
         - json-codecs
         - language-cst-parser
         - language-purescript
@@ -496,7 +518,6 @@ workspace:
         - random
         - record
         - refs
-        - registry-foreign
         - registry-lib
         - routing-duplex
         - safe-coerce
@@ -524,27 +545,30 @@ workspace:
         - web-file
         - web-html
         - web-storage
-        - web-streams
         - web-xhr
     spago-bin:
       path: bin
       dependencies:
         - aff
         - arrays
-        - codec-argonaut
-        - console
-        - js-date
+        - avar
+        - codec-json
+        - control
+        - foldable-traversable
         - lists
-        - node-fs
+        - maybe
         - node-path
         - node-process
+        - now
         - optparse
         - ordered-collections
+        - prelude
         - record
-        - refs
         - registry-lib
         - spago
         - spago-core
+        - strings
+        - transformers
         - unsafe-coerce
       test_dependencies: []
       build_plan:
@@ -558,16 +582,14 @@ workspace:
         - arrays
         - assert
         - avar
-        - b64
         - bifunctors
         - catenable-lists
         - codec
-        - codec-argonaut
+        - codec-json
         - console
         - const
         - contravariant
         - control
-        - convertable-options
         - datetime
         - distributive
         - docs-search-common
@@ -575,12 +597,10 @@ workspace:
         - dodo-printer
         - effect
         - either
-        - encoding
         - enums
         - exceptions
         - exists
         - exitcodes
-        - fetch
         - filterable
         - fixed-points
         - foldable-traversable
@@ -599,11 +619,9 @@ workspace:
         - integers
         - invariant
         - js-date
-        - js-fetch
-        - js-promise
-        - js-promise-aff
         - js-timers
         - js-uri
+        - json
         - json-codecs
         - language-cst-parser
         - language-purescript
@@ -646,7 +664,6 @@ workspace:
         - random
         - record
         - refs
-        - registry-foreign
         - registry-lib
         - routing-duplex
         - safe-coerce
@@ -675,16 +692,15 @@ workspace:
         - web-file
         - web-html
         - web-storage
-        - web-streams
         - web-xhr
     spago-core:
       path: core
       dependencies:
         - aff
-        - argonaut-core
         - arrays
         - bifunctors
-        - codec-argonaut
+        - codec
+        - codec-json
         - console
         - control
         - datetime
@@ -696,6 +712,8 @@ workspace:
         - foldable-traversable
         - functions
         - identity
+        - integers
+        - json
         - lists
         - maybe
         - newtype
@@ -703,6 +721,7 @@ workspace:
         - node-fs
         - node-path
         - node-process
+        - now
         - ordered-collections
         - partial
         - prelude
@@ -710,13 +729,13 @@ workspace:
         - refs
         - registry-lib
         - strings
+        - stringutils
         - transformers
         - tuples
       test_dependencies: []
       build_plan:
         - aff
         - ansi
-        - argonaut-core
         - arraybuffer-types
         - arrays
         - assert
@@ -724,7 +743,7 @@ workspace:
         - bifunctors
         - catenable-lists
         - codec
-        - codec-argonaut
+        - codec-json
         - console
         - const
         - contravariant
@@ -753,6 +772,7 @@ workspace:
         - invariant
         - js-date
         - js-uri
+        - json
         - language-cst-parser
         - lazy
         - lcg
@@ -787,6 +807,7 @@ workspace:
         - safe-coerce
         - st
         - strings
+        - stringutils
         - tailrec
         - transformers
         - tuples
@@ -798,11 +819,12 @@ workspace:
         - variant
   package_set:
     address:
-      registry: 50.8.0
+      registry: 51.0.0
     compiler: ">=0.15.15 <0.16.0"
     content:
       abc-parser: 2.0.1
       ace: 9.1.0
+      address-rfc2821: 0.1.1
       aff: 7.1.0
       aff-bus: 6.0.0
       aff-coroutines: 9.0.0
@@ -812,6 +834,7 @@ workspace:
       affjax-node: 1.0.0
       affjax-web: 1.0.0
       ansi: 7.0.0
+      apexcharts: 0.5.0
       applicative-phases: 1.0.0
       argonaut: 9.0.0
       argonaut-aeson-generic: 0.4.1
@@ -845,6 +868,7 @@ workspace:
       canvas-action: 9.0.0
       cartesian: 1.0.6
       catenable-lists: 7.0.0
+      cbor-stream: 1.0.4
       chameleon: 1.0.0
       chameleon-halogen: 1.0.3
       chameleon-react-basic: 1.1.0
@@ -873,9 +897,11 @@ workspace:
       coroutines: 7.0.0
       css: 6.0.0
       css-frameworks: 1.0.1
+      csv-stream: 2.0.2
       data-mvc: 0.0.2
       datetime: 6.1.0
       datetime-parsing: 0.2.0
+      debounce: 0.1.0
       debug: 6.0.2
       decimals: 7.1.0
       default-values: 1.0.1
@@ -885,6 +911,7 @@ workspace:
       distributive: 6.0.0
       dom-filereader: 7.0.0
       dom-indexed: 12.0.0
+      dom-simple: 0.4.0
       dotenv: 4.0.3
       droplet: 0.6.0
       dts: 1.0.0
@@ -1004,7 +1031,7 @@ workspace:
       js-promise-aff: 1.0.0
       js-timers: 6.1.0
       js-uri: 3.1.0
-      json: 1.0.0
+      json: 1.1.0
       json-codecs: 5.0.0
       justifill: 0.5.0
       jwt: 0.0.9
@@ -1070,6 +1097,7 @@ workspace:
       node-process: 11.2.0
       node-readline: 8.1.0
       node-sqlite3: 8.0.0
+      node-stream-pipes: 1.4.1
       node-streams: 9.0.0
       node-tls: 0.3.1
       node-url: 7.0.1
@@ -1109,7 +1137,7 @@ workspace:
       pointed-list: 0.5.1
       polymorphic-vectors: 4.0.0
       posix-types: 6.0.0
-      postgresql: 1.3.0
+      postgresql: 1.6.3
       precise: 6.0.0
       precise-datetime: 7.0.0
       prelude: 6.0.1
@@ -1140,10 +1168,11 @@ workspace:
       react-basic-storybook: 2.0.0
       react-dom: 8.0.0
       react-halo: 3.0.0
-      react-icons: 1.1.4
+      react-icons: 1.1.5
       react-markdown: 0.1.0
       react-testing-library: 4.0.1
       react-virtuoso: 1.0.0
+      reactix: 0.6.1
       read: 1.0.1
       recharts: 1.1.0
       record: 4.0.0
@@ -1173,6 +1202,7 @@ workspace:
       simple-emitter: 3.0.1
       simple-i18n: 2.0.1
       simple-json: 9.0.0
+      simple-json-generics: 0.2.1
       simple-ulid: 3.0.0
       sized-matrices: 1.0.0
       sized-vectors: 5.0.2
@@ -1205,6 +1235,7 @@ workspace:
       thermite: 6.3.1
       thermite-dom: 0.3.1
       these: 6.0.0
+      toestand: 0.9.0
       transformation-matrix: 1.0.1
       transformers: 6.0.0
       tree-rose: 4.0.2
@@ -1219,6 +1250,7 @@ workspace:
       typelevel-prelude: 7.0.0
       typelevel-regex: 0.0.3
       typelevel-rows: 0.1.0
+      typisch: 0.4.0
       uint: 7.0.0
       ulid: 3.0.1
       uncurried-transformers: 1.1.0
@@ -1280,6 +1312,7 @@ workspace:
       z3: 0.0.2
       zipperarray: 2.0.0
   extra_packages:
+    codec-json: 1.2.0
     dodo-printer:
       git: https://github.com/natefaubion/purescript-dodo-printer.git
       ref: v2.2.1
@@ -1428,13 +1461,9 @@ workspace:
         - refs
         - strings
         - tuples
-    registry-foreign:
-      git: https://github.com/purescript/registry-dev.git
-      ref: d7d35c94cc286528e506a6a7ca78d22c84b251c9
-      subdir: foreign
     registry-lib:
       git: https://github.com/purescript/registry-dev.git
-      ref: d7d35c94cc286528e506a6a7ca78d22c84b251c9
+      ref: be0d7ffd1c16aa70e8f065a928e941ebc053c013
       subdir: lib
     search-trie:
       git: https://github.com/klntsky/purescript-search-trie.git
@@ -1634,20 +1663,6 @@ packages:
       - exceptions
       - functions
       - maybe
-  b64:
-    type: registry
-    version: 0.0.8
-    integrity: sha256-3QkOhnewZIqhfn0wIU6Zde6Q/LfrS59kgSOcQQaG0gM=
-    dependencies:
-      - arraybuffer-types
-      - either
-      - encoding
-      - enums
-      - exceptions
-      - functions
-      - partial
-      - prelude
-      - strings
   bifunctors:
     type: registry
     version: 6.0.0
@@ -1677,15 +1692,16 @@ packages:
     dependencies:
       - bifunctors
       - profunctor
-  codec-argonaut:
+  codec-json:
     type: registry
-    version: 10.0.0
-    integrity: sha256-n80U8KiBk333qfQwDobSZWiyNg9BA3CL/EwFznIdRwI=
+    version: 1.2.0
+    integrity: sha256-59+uYYe/5uTFa/Q6EqF8ekvP/Y4SOjUNfwIqIYtNiGI=
     dependencies:
-      - argonaut-core
       - codec
       - foreign-object
+      - json
       - ordered-collections
+      - transformers
       - type-equality
       - variant
   colors:
@@ -1731,15 +1747,6 @@ packages:
     dependencies:
       - newtype
       - prelude
-  convertable-options:
-    type: registry
-    version: 1.0.0
-    integrity: sha256-IFsYp0rXyzUtjoi3jed6yFYAVM+NhfgSn2j/zkjpccM=
-    dependencies:
-      - console
-      - effect
-      - maybe
-      - record
   css:
     type: registry
     version: 6.0.0
@@ -1834,17 +1841,6 @@ packages:
       - invariant
       - maybe
       - prelude
-  encoding:
-    type: registry
-    version: 0.0.9
-    integrity: sha256-vtyUO06Jww8pFl4wRekPd1YpJl2XuQXcaNXQgHtG8Tk=
-    dependencies:
-      - arraybuffer-types
-      - effect
-      - either
-      - exceptions
-      - functions
-      - prelude
   enums:
     type: registry
     version: 6.0.1
@@ -1881,30 +1877,6 @@ packages:
     integrity: sha256-4wxViTbyOoyKJ/WaRGI6+hZmgMKI5Miv16lSwefiLSM=
     dependencies:
       - enums
-  fetch:
-    type: registry
-    version: 4.1.0
-    integrity: sha256-zCwBUkRL9n6nUhK1+7UqqsuxswPFATsZfGSBOA3NYYY=
-    dependencies:
-      - aff
-      - arraybuffer-types
-      - bifunctors
-      - effect
-      - either
-      - foreign
-      - http-methods
-      - js-fetch
-      - js-promise
-      - js-promise-aff
-      - maybe
-      - newtype
-      - ordered-collections
-      - prelude
-      - record
-      - strings
-      - typelevel-prelude
-      - web-file
-      - web-streams
   filterable:
     type: registry
     version: 5.0.0
@@ -2187,29 +2159,6 @@ packages:
       - foreign
       - integers
       - now
-  js-fetch:
-    type: registry
-    version: 0.2.1
-    integrity: sha256-zQaVi9wFWku1SsWmdR11kRpOb+wxkNWR49cn928ucjw=
-    dependencies:
-      - arraybuffer-types
-      - arrays
-      - effect
-      - foldable-traversable
-      - foreign
-      - foreign-object
-      - functions
-      - http-methods
-      - js-promise
-      - maybe
-      - newtype
-      - prelude
-      - record
-      - tuples
-      - typelevel-prelude
-      - unfoldable
-      - web-file
-      - web-streams
   js-promise:
     type: registry
     version: 1.0.0
@@ -2221,14 +2170,6 @@ packages:
       - functions
       - maybe
       - prelude
-  js-promise-aff:
-    type: registry
-    version: 1.0.0
-    integrity: sha256-s9kml9Ei74hKlMMg41yyZp4GkbmYUwaH+gBWWrdhwec=
-    dependencies:
-      - aff
-      - foreign
-      - js-promise
   js-timers:
     type: registry
     version: 6.1.0
@@ -2242,6 +2183,21 @@ packages:
     dependencies:
       - functions
       - maybe
+  json:
+    type: registry
+    version: 1.1.0
+    integrity: sha256-LuN8PyX/gvRR4/7X7M9P+zL7BKbv34NcUE/7MILXQSA=
+    dependencies:
+      - either
+      - foldable-traversable
+      - functions
+      - gen
+      - integers
+      - maybe
+      - prelude
+      - strings
+      - tuples
+      - unfoldable
   json-codecs:
     type: registry
     version: 4.0.0
@@ -2890,55 +2846,17 @@ packages:
     dependencies:
       - effect
       - prelude
-  registry-foreign:
-    type: git
-    url: https://github.com/purescript/registry-dev.git
-    rev: d7d35c94cc286528e506a6a7ca78d22c84b251c9
-    subdir: foreign
-    dependencies:
-      - aff
-      - aff-promise
-      - argonaut-core
-      - arrays
-      - b64
-      - bifunctors
-      - codec-argonaut
-      - convertable-options
-      - datetime
-      - effect
-      - either
-      - fetch
-      - filterable
-      - foldable-traversable
-      - foreign-object
-      - functions
-      - http-methods
-      - integers
-      - js-date
-      - maybe
-      - newtype
-      - node-buffer
-      - node-path
-      - nullable
-      - ordered-collections
-      - prelude
-      - profunctor
-      - registry-lib
-      - strings
-      - tuples
-      - unsafe-coerce
-      - variant
   registry-lib:
     type: git
     url: https://github.com/purescript/registry-dev.git
-    rev: d7d35c94cc286528e506a6a7ca78d22c84b251c9
+    rev: be0d7ffd1c16aa70e8f065a928e941ebc053c013
     subdir: lib
     dependencies:
       - aff
-      - argonaut-core
       - arrays
       - bifunctors
-      - codec-argonaut
+      - codec
+      - codec-json
       - control
       - datetime
       - effect
@@ -2951,6 +2869,7 @@ packages:
       - functors
       - graphs
       - integers
+      - json
       - language-cst-parser
       - lists
       - maybe
@@ -2967,6 +2886,7 @@ packages:
       - profunctor-lenses
       - routing-duplex
       - safe-coerce
+      - st
       - strings
       - transformers
       - tuples
@@ -3274,18 +3194,6 @@ packages:
     dependencies:
       - nullable
       - web-events
-  web-streams:
-    type: registry
-    version: 4.0.0
-    integrity: sha256-02HgXIk6R+pU9fWOX42krukAI1QkCbLKcCv3b4Jq6WI=
-    dependencies:
-      - arraybuffer-types
-      - effect
-      - exceptions
-      - js-promise
-      - nullable
-      - prelude
-      - tuples
   web-touchevents:
     type: registry
     version: 4.0.0

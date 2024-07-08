@@ -1,18 +1,12 @@
 module Docs.Search.PackageIndex where
 
-import Docs.Search.JsonCodec as JsonCodec
-import Docs.Search.Config as Config
-import Docs.Search.Extra (stringToList)
-import Docs.Search.Score (Scores, getPackageScoreForPackageName)
-import Docs.Search.Types (PackageScore)
-import Docs.Search.Types as Package
-import Docs.Search.Loader as Loader
-
 import Prelude
 
+import Data.Argonaut.Core (Json)
 import Data.Array as Array
-import Data.Codec.Argonaut.Common as CA
-import Data.Codec.Argonaut.Record as CAR
+import Data.Codec as Codec
+import Data.Codec.JSON as CJ
+import Data.Codec.JSON.Record as CJ.Record
 import Data.Map (Map)
 import Data.Map as Map
 import Data.Maybe (Maybe)
@@ -20,7 +14,16 @@ import Data.Newtype (unwrap)
 import Data.Search.Trie (Trie)
 import Data.Search.Trie as Trie
 import Data.Tuple as Tuple
+import Docs.Search.Config as Config
+import Docs.Search.Extra (stringToList)
+import Docs.Search.JsonCodec as JsonCodec
+import Docs.Search.Loader as Loader
+import Docs.Search.Score (Scores, getPackageScoreForPackageName)
+import Docs.Search.Types (PackageScore)
+import Docs.Search.Types as Package
 import Effect.Aff (Aff)
+import JSON (JSON)
+import Unsafe.Coerce (unsafeCoerce)
 import Web.Bower.PackageMeta (PackageMeta(..), PackageName)
 import Web.Bower.PackageMeta as Bower
 
@@ -32,14 +35,14 @@ type PackageResult =
   , repository :: Maybe String
   }
 
-packageResultCodec :: CA.JsonCodec PackageResult
-packageResultCodec =
-  CAR.object "PackageResult" $
+packageResultCodec :: CJ.Codec PackageResult
+packageResultCodec = CJ.named "PackageResult" $
+  CJ.Record.object
     { name: Package.packageNameCodec
-    , description: CAR.optional CA.string
+    , description: CJ.Record.optional CJ.string
     , score: Package.packageScoreCodec
-    , dependencies: CA.array Package.packageNameCodec
-    , repository: CAR.optional CA.string
+    , dependencies: CJ.array Package.packageNameCodec
+    , repository: CJ.Record.optional CJ.string
     }
 
 type PackageIndex = Trie Char PackageResult
@@ -83,8 +86,8 @@ loadPackageIndex :: Aff PackageIndex
 loadPackageIndex =
   mkPackageIndex <$> Loader.load packageInfoCodec Config.packageInfoItem Config.packageInfoLoadPath
   where
-  packageInfoCodec :: CA.JsonCodec PackageInfo
-  packageInfoCodec = CA.array packageResultCodec
+  packageInfoCodec :: CJ.Codec PackageInfo
+  packageInfoCodec = CJ.array packageResultCodec
 
 mkPackageIndex :: PackageInfo -> PackageIndex
 mkPackageIndex =
@@ -107,8 +110,8 @@ queryPackageIndex index query =
     , results: Array.fromFoldable $ Trie.queryValues (stringToList query) index
     }
 
-packageMetaCodec :: CA.JsonCodec PackageMeta
-packageMetaCodec = CA.codec' decode encode
+packageMetaCodec :: CJ.Codec PackageMeta
+packageMetaCodec = Codec.codec' decode encode
   where
   decode = JsonCodec.fromUni Bower.toPackageMeta
-  encode = Bower.fromPackageMeta
+  encode = Bower.fromPackageMeta >>> (unsafeCoerce :: Json -> JSON)

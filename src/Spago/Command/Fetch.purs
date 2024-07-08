@@ -19,8 +19,8 @@ import Affjax.StatusCode (StatusCode(..))
 import Control.Monad.State as State
 import Data.Array as Array
 import Data.Array.NonEmpty as NEA
-import Data.Codec.Argonaut as CA
-import Data.Codec.Argonaut.Common as CA.Common
+import Data.Codec.JSON as CJ
+import Data.Codec.JSON.Common as CJ.Common
 import Data.Either as Either
 import Data.HTTP.Method as Method
 import Data.Int as Int
@@ -28,6 +28,7 @@ import Data.Map as Map
 import Data.Newtype (wrap)
 import Data.Set as Set
 import Data.Traversable (sequence)
+import Effect.Aff as Aff
 import Effect.Ref as Ref
 import Node.Buffer as Buffer
 import Node.Encoding as Encoding
@@ -77,7 +78,7 @@ type FetchOpts =
 
 run :: forall a. FetchOpts -> Spago (FetchEnv a) PackageTransitiveDeps
 run { packages: packagesRequestedToInstall, ensureRanges, isTest, isRepl } = do
-  logDebug $ "Requested to install these packages: " <> printJson (CA.array PackageName.codec) packagesRequestedToInstall
+  logDebug $ "Requested to install these packages: " <> printJson (CJ.array PackageName.codec) packagesRequestedToInstall
 
   { workspace: currentWorkspace, offline } <- ask
 
@@ -110,8 +111,8 @@ run { packages: packagesRequestedToInstall, ensureRanges, isTest, isRepl } = do
           newWorkspacePackage = case isTest of
             false -> currentWorkspacePackage { package { dependencies = package.dependencies <> newPackageDependencies } }
             true -> currentWorkspacePackage { package { test = package.test # map (\t -> t { dependencies = t.dependencies <> newPackageDependencies }) } }
-        logDebug $ "Overlapping packages: " <> printJson (CA.Common.set PackageName.codec) overlappingPackages
-        logDebug $ "Actual packages to install: " <> printJson (CA.array PackageName.codec) actualPackagesToInstall
+        logDebug $ "Overlapping packages: " <> printJson (CJ.Common.set PackageName.codec) overlappingPackages
+        logDebug $ "Actual packages to install: " <> printJson (CJ.array PackageName.codec) actualPackagesToInstall
         -- If we are installing new packages, we need to add them to the config
         -- We also warn the user if they are already present in the config
         unless (Set.isEmpty overlappingPackages) do
@@ -121,7 +122,7 @@ run { packages: packagesRequestedToInstall, ensureRanges, isTest, isRepl } = do
         case Array.null actualPackagesToInstall of
           true -> pure Nothing
           false -> do
-            logDebug $ "Packages to install: " <> printJson (CA.array PackageName.codec) actualPackagesToInstall
+            logDebug $ "Packages to install: " <> printJson (CJ.array PackageName.codec) actualPackagesToInstall
             pure $ Just { configPath, yamlDoc, actualPackagesToInstall, newWorkspacePackage }
 
   let
@@ -223,13 +224,19 @@ run { packages: packagesRequestedToInstall, ensureRanges, isTest, isRepl } = do
                 _, _, Online -> do
                   let packageUrl = "https://packages.registry.purescript.org/" <> PackageName.print name <> "/" <> versionString <> ".tar.gz"
                   logInfo $ "Fetching package " <> packageVersion
-                  response <- liftAff $ withBackoff' $ Http.request
-                    ( Http.defaultRequest
-                        { method = Left Method.GET
-                        , responseFormat = Response.arrayBuffer
-                        , url = packageUrl
-                        }
-                    )
+                  response <- liftAff $ withBackoff' do
+                    res <- Http.request
+                      ( Http.defaultRequest
+                          { method = Left Method.GET
+                          , responseFormat = Response.arrayBuffer
+                          , url = packageUrl
+                          }
+                      )
+                    -- If we get a 503, we want the backoff to kick in, so we wait here and we'll eventually be retried
+                    case res of
+                      Right { status } | status == StatusCode 503 -> Aff.delay (Aff.Milliseconds 30_000.0)
+                      _ -> pure unit
+                    pure res
                   case response of
                     Nothing -> die $ "Couldn't reach the registry at " <> packageUrl
                     Just (Left err) -> die $ "Couldn't fetch package " <> packageVersion <> ":\n  " <> Http.printError err
@@ -405,7 +412,10 @@ getPackageDependencies packageName package = case package of
     Config.readConfig (Path.concat [ configLocation, "spago.yaml" ]) >>= case _ of
       Right { yaml: { package: Just { dependencies: (Dependencies deps) } } } -> do
         pure (Just (map (fromMaybe Config.widestRange) deps))
-      Right _ -> die [ "Read valid configuration from " <> configLocation, "However, there was no `package` section to be read." ]
+      Right _ -> die
+        [ "Read the configuration at path " <> configLocation
+        , "However, it didn't contain a `package` section."
+        ]
       Left errLines -> die
         [ toDoc $ "Could not read config at " <> configLocation
         , toDoc "Error: "

@@ -4,10 +4,10 @@ package:
     strict: true
   dependencies:
     - aff
-    - argonaut-core
     - arrays
     - bifunctors
-    - codec-argonaut
+    - codec
+    - codec-json
     - console
     - control
     - datetime
@@ -19,6 +19,8 @@ package:
     - foldable-traversable
     - functions
     - identity
+    - integers
+    - json
     - lists
     - maybe
     - newtype
@@ -26,6 +28,7 @@ package:
     - node-fs
     - node-path
     - node-process
+    - now
     - ordered-collections
     - partial
     - prelude
@@ -33,5 +36,6 @@ package:
     - refs
     - registry-lib
     - strings
+    - stringutils
     - transformers
     - tuples

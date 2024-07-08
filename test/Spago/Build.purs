@@ -101,23 +101,30 @@ spec = Spec.around withTempDir do
         , dst: spagoYaml
         }
       spago [ "build" ] >>= shouldBeFailure
-    
 
-    Spec.it "should censor warnings with given errorcode and prefix messsage" \{spago, fixture} -> do 
+    Spec.it "respects the --censor-stats flag" \{ spago, fixture } -> do
+      spago [ "init", "--name", "aaa" ] >>= shouldBeSuccess
+      spago [ "build" ] >>= shouldBeSuccess
+      spago [ "build", "--censor-stats" ] >>= shouldBeSuccessErr (fixture "censor-stats-output.txt")
+
+    Spec.it "should censor warnings with given errorcode and prefix messsage" \{ spago, fixture } -> do
       FS.copyTree { src: fixture "build/censor-warnings", dst: "." }
-       
-      let remainingWarningPath = [ escapePathInErrMsg [ "src", "Main.purs:5:1" ] ]
-          filteredWarningPath = [ escapePathInErrMsg [ "src", "Main.purs:3:1" ]
-                                , escapePathInErrMsg [ "src", "Main.purs:10:6" ]
-                                ]
-      
-          shouldHaveWarning = assertWarning remainingWarningPath true
-          shouldNotHaveWarning = assertWarning filteredWarningPath false
 
-      spago [ "build" ] >>= check { stdout: mempty
-                                  , stderr: fold <<< flap [shouldHaveWarning, shouldNotHaveWarning]
-                                  , result: isRight
-                                  }
+      let
+        remainingWarningPath = [ escapePathInErrMsg [ "src", "Main.purs:5:1" ] ]
+        filteredWarningPath =
+          [ escapePathInErrMsg [ "src", "Main.purs:3:1" ]
+          , escapePathInErrMsg [ "src", "Main.purs:10:6" ]
+          ]
+
+        shouldHaveWarning = assertWarning remainingWarningPath true
+        shouldNotHaveWarning = assertWarning filteredWarningPath false
+
+      spago [ "build" ] >>= check
+        { stdout: mempty
+        , stderr: fold <<< flap [ shouldHaveWarning, shouldNotHaveWarning ]
+        , result: isRight
+        }
 
     Spec.describe "lockfile" do
       Spec.it "building with a lockfile doesn't need the Registry repo" \{ spago, fixture } -> do
@@ -131,7 +138,6 @@ spec = Spec.around withTempDir do
         spago [ "build" ] >>= shouldBeSuccess
         -- And that we still don't have the registry
         FS.exists Paths.registryPath `Assert.shouldReturn` false
-
 
       Spec.it "using the --pure flag does not refresh the lockfile" \{ spago, fixture } -> do
         spago [ "init", "--name", "aaa", "--package-set", "33.0.0" ] >>= shouldBeSuccess

@@ -1,22 +1,12 @@
 -- | A search engine that is used in the browser.
 module Docs.Search.BrowserEngine where
 
-import Docs.Search.Config as Config
-import Docs.Search.Engine (Engine, EngineState, Index)
-import Docs.Search.ModuleIndex as ModuleIndex
-import Docs.Search.PackageIndex as PackageIndex
-import Docs.Search.SearchResult (SearchResult)
-import Docs.Search.SearchResult as SearchResult
-import Docs.Search.TypeIndex (TypeIndex)
-import Docs.Search.TypeIndex as TypeIndex
-import Docs.Search.Types (PartId, URL)
-
 import Prelude
 
 import Control.Promise (Promise, toAffE)
-import Data.Argonaut.Core (Json)
 import Data.Array as Array
-import Data.Codec.Argonaut.Common as CA
+import Data.Codec.JSON as CJ
+import Data.Codec.JSON.Common as CJ.Common
 import Data.Either (hush)
 import Data.List (List)
 import Data.List as List
@@ -28,8 +18,18 @@ import Data.Search.Trie (Trie)
 import Data.Search.Trie as Trie
 import Data.String.CodeUnits as String
 import Data.Tuple (Tuple(..))
+import Docs.Search.Config as Config
+import Docs.Search.Engine (Engine, EngineState, Index)
+import Docs.Search.ModuleIndex as ModuleIndex
+import Docs.Search.PackageIndex as PackageIndex
+import Docs.Search.SearchResult (SearchResult)
+import Docs.Search.SearchResult as SearchResult
+import Docs.Search.TypeIndex (TypeIndex)
+import Docs.Search.TypeIndex as TypeIndex
+import Docs.Search.Types (PartId, URL)
 import Effect (Effect)
 import Effect.Aff (Aff, try)
+import JSON (JSON)
 
 newtype PartialIndex = PartialIndex (Map PartId Index)
 
@@ -64,13 +64,13 @@ query index@(PartialIndex indexMap) input = do
         try $ toAffE $ loadIndex_ partId $ Config.mkIndexPartLoadPath partId
 
       let
-        resultsCodec :: CA.JsonCodec (Array (Tuple String (Array SearchResult)))
-        resultsCodec = CA.array $ CA.tuple CA.string $ CA.array SearchResult.searchResultCodec
+        resultsCodec :: CJ.Codec (Array (Tuple String (Array SearchResult)))
+        resultsCodec = CJ.array $ CJ.Common.tuple CJ.string $ CJ.array SearchResult.searchResultCodec
 
         mbNewTrie :: Maybe (Trie Char (List SearchResult))
         mbNewTrie = do
           json <- hush eiPartJson
-          results <- hush $ CA.decode resultsCodec json
+          results <- hush $ CJ.decode resultsCodec json
           pure $ Array.foldr insertResults mempty results
 
       case mbNewTrie of
@@ -115,4 +115,4 @@ browserSearchEngine =
 foreign import loadIndex_
   :: PartId
   -> URL
-  -> Effect (Promise Json)
+  -> Effect (Promise JSON)

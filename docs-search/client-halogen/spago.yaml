@@ -3,9 +3,8 @@ package:
   dependencies:
     - aff
     - aff-promise
-    - argonaut-core
     - arrays
-    - codec-argonaut
+    - codec-json
     - control
     - css
     - docs-search-common
@@ -16,6 +15,7 @@ package:
     - halogen-css
     - halogen-subscriptions
     - js-uri
+    - json
     - language-purescript
     - lists
     - markdown-it

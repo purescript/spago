@@ -21,14 +21,17 @@ module Spago.Db
 import Spago.Prelude
 
 import Data.Array as Array
-import Data.Codec.Argonaut.Record as CA.Record
+import Data.Codec.JSON as CJ
+import Data.Codec.JSON.Record as CJ.Record
 import Data.DateTime (Date, DateTime(..))
-import Data.DateTime as Date
+import Data.DateTime as DateTime
 import Data.Either as Either
-import Data.Formatter.DateTime as DateTime
+import Data.Formatter.DateTime as DateTime.Format
 import Data.Map as Map
 import Data.Nullable (Nullable)
 import Data.Nullable as Nullable
+import Data.Time.Duration (Minutes(..))
+import Effect.Now as Now
 import Effect.Uncurried (EffectFn1, EffectFn2, EffectFn3, EffectFn4)
 import Effect.Uncurried as Uncurried
 import Registry.Internal.Codec as Internal.Codec
@@ -83,10 +86,10 @@ selectPackageSetEntriesByPackage db packageName version = do
 getLastPull :: Db -> String -> Effect (Maybe DateTime)
 getLastPull db key = do
   maybePull <- Nullable.toMaybe <$> Uncurried.runEffectFn2 getLastPullImpl db key
-  pure $ (Either.hush <<< DateTime.unformat Internal.Format.iso8601DateTime) =<< maybePull
+  pure $ (Either.hush <<< DateTime.Format.unformat Internal.Format.iso8601DateTime) =<< maybePull
 
 updateLastPull :: Db -> String -> DateTime -> Effect Unit
-updateLastPull db key date = Uncurried.runEffectFn3 updateLastPullImpl db key (DateTime.format Internal.Format.iso8601DateTime date)
+updateLastPull db key date = Uncurried.runEffectFn3 updateLastPullImpl db key (DateTime.Format.format Internal.Format.iso8601DateTime date)
 
 getManifest :: Db -> PackageName -> Version -> Effect (Maybe Manifest)
 getManifest db packageName version = do
@@ -98,12 +101,22 @@ insertManifest db packageName version manifest = Uncurried.runEffectFn4 insertMa
 
 getMetadata :: Db -> PackageName -> Effect (Maybe Metadata)
 getMetadata db packageName = do
-  maybeMetadata <- Nullable.toMaybe <$> Uncurried.runEffectFn2 getMetadataImpl db (PackageName.print packageName)
-  pure $ (Either.hush <<< parseJson Metadata.codec) =<< maybeMetadata
+  maybeMetadataEntry <- Nullable.toMaybe <$> Uncurried.runEffectFn2 getMetadataImpl db (PackageName.print packageName)
+  now <- Now.nowDateTime
+  pure $ do
+    metadataEntry <- maybeMetadataEntry
+    lastFetched <- Either.hush $ DateTime.Format.unformat Internal.Format.iso8601DateTime metadataEntry.last_fetched
+    -- if the metadata is older than 15 minutes, we consider it stale
+    case DateTime.diff now lastFetched of
+      Minutes n | n <= 15.0 -> do
+        metadata <- Either.hush $ parseJson Metadata.codec metadataEntry.metadata
+        pure metadata
+      _ -> Nothing
 
 insertMetadata :: Db -> PackageName -> Metadata -> Effect Unit
 insertMetadata db packageName metadata@(Metadata { unpublished }) = do
-  Uncurried.runEffectFn3 insertMetadataImpl db (PackageName.print packageName) (printJson Metadata.codec metadata)
+  now <- Now.nowDateTime
+  Uncurried.runEffectFn4 insertMetadataImpl db (PackageName.print packageName) (printJson Metadata.codec metadata) (DateTime.Format.format Internal.Format.iso8601DateTime now)
   -- we also do a pass of removing the cached manifests that have been unpublished
   for_ (Map.toUnfoldable unpublished :: Array _) \(Tuple version _) -> do
     Uncurried.runEffectFn3 removeManifestImpl db (PackageName.print packageName) (Version.print version)
@@ -156,18 +169,24 @@ type PackageSetEntry =
   , packageVersion :: Version
   }
 
+type MetadataEntryJs =
+  { name :: String
+  , metadata :: String
+  , last_fetched :: String
+  }
+
 packageSetToJs :: PackageSet -> PackageSetJs
 packageSetToJs { version, compiler, date } =
   { version: Version.print version
   , compiler: Version.print compiler
-  , date: DateTime.format Internal.Format.iso8601Date $ DateTime date bottom
+  , date: DateTime.Format.format Internal.Format.iso8601Date $ DateTime date bottom
   }
 
 packageSetFromJs :: PackageSetJs -> Maybe PackageSet
 packageSetFromJs p = hush do
   version <- Version.parse p.version
   compiler <- Version.parse p.compiler
-  date <- map Date.date $ DateTime.unformat Internal.Format.iso8601Date p.date
+  date <- map DateTime.date $ DateTime.Format.unformat Internal.Format.iso8601Date p.date
   pure $ { version, compiler, date }
 
 packageSetEntryToJs :: PackageSetEntry -> PackageSetEntryJs
@@ -191,8 +210,8 @@ packageSetEntryFromJs p = hush do
 --------------------------------------------------------------------------------
 -- Codecs
 
-packageSetCodec :: JsonCodec PackageSet
-packageSetCodec = CA.Record.object "PackageSet"
+packageSetCodec :: CJ.Codec PackageSet
+packageSetCodec = CJ.named "PackageSet" $ CJ.Record.object
   { date: Internal.Codec.iso8601Date
   , version: Version.codec
   , compiler: Version.codec
@@ -225,6 +244,6 @@ foreign import insertManifestImpl :: EffectFn4 Db String String String Unit
 
 foreign import removeManifestImpl :: EffectFn3 Db String String Unit
 
-foreign import getMetadataImpl :: EffectFn2 Db String (Nullable String)
+foreign import getMetadataImpl :: EffectFn2 Db String (Nullable MetadataEntryJs)
 
-foreign import insertMetadataImpl :: EffectFn3 Db String String Unit
+foreign import insertMetadataImpl :: EffectFn4 Db String String String Unit

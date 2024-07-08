@@ -1,0 +1,12 @@
+package:
+  name: follow-instructions
+  run:
+    main: Test.Pedantic.FollowInstructions.Main
+  dependencies:
+    - console
+    - effect
+    - prelude
+workspace:
+  package_set:
+    registry: 0.0.1
+  extra_packages: {}

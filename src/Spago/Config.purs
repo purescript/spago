@@ -1,11 +1,11 @@
 module Spago.Config
-  ( BuildOptions
-  , BuildType(..)
+  ( BuildType(..)
   , Package(..)
   , PackageSet(..)
   , PackageMap
   , WithTestGlobs(..)
   , Workspace
+  , WorkspaceBuildOptions
   , WorkspacePackage
   , addPackagesToConfig
   , addRangesToConfig
@@ -28,11 +28,12 @@ import Spago.Prelude
 import Affjax.Node as Http
 import Affjax.ResponseFormat as Response
 import Affjax.StatusCode (StatusCode(..))
+import Codec.JSON.DecodeError as CJ.DecodeError
 import Data.Array as Array
 import Data.Array.NonEmpty as NEA
 import Data.CodePoint.Unicode as Unicode
-import Data.Codec.Argonaut as CA
-import Data.Codec.Argonaut.Record as CAR
+import Data.Codec.JSON as CJ
+import Data.Codec.JSON.Record as CJ.Record
 import Data.Enum as Enum
 import Data.Graph as Graph
 import Data.HTTP.Method as Method
@@ -51,7 +52,6 @@ import Effect.Aff as Aff
 import Effect.Uncurried (EffectFn2, EffectFn3, runEffectFn2, runEffectFn3)
 import Foreign.Object as Foreign
 import Node.Path as Path
-import Registry.Foreign.FastGlob as Glob
 import Registry.Internal.Codec as Internal.Codec
 import Registry.PackageName as PackageName
 import Registry.PackageSet as Registry.PackageSet
@@ -59,7 +59,8 @@ import Registry.Range as Range
 import Registry.Version as Version
 import Spago.Core.Config as Core
 import Spago.FS as FS
-import Spago.Git as Git
+import Spago.Glob as Glob
+import Spago.Json as Json
 import Spago.Lock (Lockfile, PackageSetInfo)
 import Spago.Lock as Lock
 import Spago.Paths as Paths
@@ -71,13 +72,13 @@ type Workspace =
   , packageSet :: PackageSet
   , compatibleCompiler :: Range
   , backend :: Maybe Core.BackendConfig
-  , buildOptions :: BuildOptions
+  , buildOptions :: WorkspaceBuildOptions
   , doc :: YamlDoc Core.Config
   , workspaceConfig :: Core.WorkspaceConfig
   , rootPackage :: Maybe Core.PackageConfig
   }
 
-type BuildOptions =
+type WorkspaceBuildOptions =
   { output :: Maybe FilePath
   , censorLibWarnings :: Maybe Core.CensorBuildWarnings
   , statVerbosity :: Maybe Core.StatVerbosity
@@ -105,7 +106,7 @@ newtype LegacyPackageSet = LegacyPackageSet (Map PackageName Core.LegacyPackageS
 derive instance Newtype LegacyPackageSet _
 derive newtype instance Eq LegacyPackageSet
 
-legacyPackageSetCodec :: JsonCodec LegacyPackageSet
+legacyPackageSetCodec :: CJ.Codec LegacyPackageSet
 legacyPackageSetCodec =
   Profunctor.wrapIso LegacyPackageSet
     $ Internal.Codec.packageMap Core.legacyPackageSetEntryCodec
@@ -116,8 +117,8 @@ newtype RemotePackageSet = RemotePackageSet
   , version :: Version
   }
 
-remotePackageSetCodec :: JsonCodec RemotePackageSet
-remotePackageSetCodec = Profunctor.wrapIso RemotePackageSet $ CAR.object "PackageSet"
+remotePackageSetCodec :: CJ.Codec RemotePackageSet
+remotePackageSetCodec = Profunctor.wrapIso RemotePackageSet $ CJ.named "PackageSet" $ CJ.Record.object
   { version: Version.codec
   , compiler: Version.codec
   , packages: Internal.Codec.packageMap Core.remotePackageCodec
@@ -163,31 +164,6 @@ type ReadWorkspaceOptions =
   , migrateConfig :: Boolean
   }
 
--- | Same as `Glob.match'` but if there is a .gitignore file in the same directory,
--- | then the `ignore` option will be filled accordingly.
--- | This function does not respect any .gitignore files in subdirectories.
--- | Translation of: https://github.com/sindresorhus/globby/issues/50#issuecomment-467897064
-gitIgnoringGlob :: String -> Array String -> Spago (LogEnv _) { failed :: Array String, succeeded :: Array String }
-gitIgnoringGlob dir patterns = do
-  gitignore <- try (liftAff $ FS.readTextFile $ Path.concat [ dir, ".gitignore" ]) >>= case _ of
-    Left err -> do
-      logDebug $ "Could not read .gitignore to exclude directories from globbing, error: " <> Aff.message err
-      pure ""
-    Right contents -> pure contents
-  let
-    isComment = isJust <<< String.stripPrefix (String.Pattern "#")
-    dropPrefixSlashes line = maybe line dropPrefixSlashes $ String.stripPrefix (String.Pattern "/") line
-    dropSuffixSlashes line = maybe line dropSuffixSlashes $ String.stripSuffix (String.Pattern "/") line
-
-    ignore :: Array String
-    ignore =
-      map (dropSuffixSlashes <<< dropPrefixSlashes)
-        $ Array.filter (not <<< or [ String.null, isComment ])
-        $ map String.trim
-        $ String.split (String.Pattern "\n")
-        $ gitignore
-  liftAff $ Glob.match' dir patterns { ignore: [ ".spago" ] <> ignore }
-
 -- | Reads all the configurations in the tree and builds up the Map of local
 -- | packages to be integrated in the package set
 readWorkspace :: ReadWorkspaceOptions -> Spago (Registry.RegistryEnv _) Workspace
@@ -210,7 +186,9 @@ readWorkspace { maybeSelectedPackage, pureBuild, migrateConfig } = do
     Left errLines ->
       die
         [ toDoc "Couldn't parse Spago config, error:"
+        , Log.break
         , indent $ toDoc errLines
+        , Log.break
         , toDoc "The configuration file help can be found here https://github.com/purescript/spago#the-configuration-file"
         ]
     Right { yaml: { workspace: Nothing } } -> die
@@ -222,23 +200,9 @@ readWorkspace { maybeSelectedPackage, pureBuild, migrateConfig } = do
       pure { workspace, package, workspaceDoc: doc }
 
   logDebug "Gathering all the spago configs in the tree..."
-  { succeeded: otherConfigPaths, failed, ignored } <- do
-    result <- gitIgnoringGlob Paths.cwd [ "**/spago.yaml" ]
-    -- If a file is gitignored then we don't include it as a package
-    let
-      filterGitignored path = do
-        Git.isIgnored path >>= case _ of
-          true -> pure $ Left path
-          false -> pure $ Right path
-    { right: newSucceeded, left: ignored } <- partitionMap identity
-      <$> parTraverseSpago filterGitignored result.succeeded
-    pure { succeeded: newSucceeded, failed: result.failed, ignored }
+  otherConfigPaths <- liftAff $ Glob.gitignoringGlob Paths.cwd [ "**/spago.yaml" ]
   unless (Array.null otherConfigPaths) do
     logDebug $ [ toDoc "Found packages at these paths:", Log.indent $ Log.lines (map toDoc otherConfigPaths) ]
-  unless (Array.null failed) do
-    logDebug $ "Failed to sanitise some of the glob matches: " <> show failed
-  unless (Array.null ignored) do
-    logDebug $ "Ignored some of the glob matches as they are gitignored: " <> show ignored
 
   -- We read all of them in, and only read the package section, if any.
   let
@@ -450,7 +414,7 @@ readWorkspace { maybeSelectedPackage, pureBuild, migrateConfig } = do
         ]
 
   let
-    buildOptions :: BuildOptions
+    buildOptions :: WorkspaceBuildOptions
     buildOptions =
       { output: _.output =<< workspace.buildOpts
       , censorLibWarnings: _.censorLibraryWarnings =<< workspace.buildOpts
@@ -599,18 +563,18 @@ readConfig path = do
         "spago.yaml", Nothing ->
           [ "Did not find `" <> path <> "`. Run `spago init` to initialize a new project." ]
         "spago.yaml", Just y ->
-          [ "Did not find `" <> path <> "`. Spago's configuration files must end with `.yaml`, not `.yml`. "
+          [ "Did not find `" <> path <> "`. Spago's configuration files must end with `.yaml`, not `.yml`."
           , "Try renaming `" <> y <> "` to `" <> path <> "` or run `spago init` to initialize a new project."
           ]
         _, Nothing ->
           [ "Did not find `" <> path <> "`." ]
         _, Just y ->
-          [ "Did not find `" <> path <> "`. Spago's configuration files must end with `.yaml`, not `.yml`. "
+          [ "Did not find `" <> path <> "`. Spago's configuration files must end with `.yaml`, not `.yml`."
           , "Try renaming `" <> y <> "` to `" <> path <> "`."
           ]
     Right yamlString -> do
-      case lmap (\err -> CA.TypeMismatch ("YAML: " <> err)) (Yaml.parser yamlString) of
-        Left err -> pure $ Left [ CA.printJsonDecodeError err ]
+      case lmap (\err -> CJ.DecodeError.basic ("YAML: " <> err)) (Yaml.parser yamlString) of
+        Left err -> pure $ Left [ CJ.DecodeError.print err ]
         Right doc -> do
           -- At this point we are sure that we have a valid Yaml document in `doc`,
           -- and it's just a matter of decoding it into our `Config` type.
@@ -624,9 +588,9 @@ readConfig path = do
           -- TODO: revisit this once we have #1165, to parse more strictly
           let maybeMigratedDoc = Nullable.toMaybe (migrateV1ConfigImpl doc)
           pure $ bimap
-            (Array.singleton <<< CA.printJsonDecodeError)
+            Json.printConfigError
             (\yaml -> { doc, yaml, wasMigrated: isJust maybeMigratedDoc })
-            (CA.decode Core.configCodec (Yaml.toJson $ fromMaybe doc maybeMigratedDoc))
+            (CJ.decode Core.configCodec (Yaml.toJson $ fromMaybe doc maybeMigratedDoc))
 
 setPackageSetVersionInConfig :: forall m. MonadAff m => MonadEffect m => YamlDoc Core.Config -> Version -> m Unit
 setPackageSetVersionInConfig doc version = do

@@ -22,7 +22,6 @@ import Spago.Config as Config
 import Spago.Git (Git)
 import Spago.Log (prepareToDie)
 import Spago.Psa as Psa
-import Spago.Psa.Types as PsaTypes
 import Spago.Purs (Purs)
 import Spago.Purs.Graph as Graph
 
@@ -32,7 +31,7 @@ type BuildEnv a =
   , dependencies :: Fetch.PackageTransitiveDeps
   , logOptions :: LogOptions
   , workspace :: Workspace
-  , psaCliFlags :: PsaTypes.PsaOutputOptions
+  , strictWarnings :: Maybe Boolean
   , pedanticPackages :: Boolean
   | a
   }
@@ -49,7 +48,7 @@ run opts = do
   { dependencies
   , workspace
   , logOptions
-  , psaCliFlags
+  , strictWarnings
   , pedanticPackages
   } <- ask
 
@@ -113,7 +112,7 @@ run opts = do
   pathDecisions <- liftEffect $ sequence $ Psa.toPathDecisions
     { allDependencies
     , selectedPackages: NEA.toArray selectedPackages
-    , psaCliFlags
+    , psaCliFlags: { strict: strictWarnings, statVerbosity: workspace.buildOptions.statVerbosity }
     , censorLibWarnings: workspace.buildOptions.censorLibWarnings
     }
   let
@@ -154,8 +153,9 @@ run opts = do
     if Array.null pedanticPkgs || opts.depsOnly then
       pure true
     else do
-      logInfo $ "Looking for unused and undeclared transitive dependencies..."
+      logInfo "Looking for unused and undeclared transitive dependencies..."
       eitherGraph <- Graph.runGraph globs opts.pursArgs
+      logDebug "Decoded the output of `purs graph` successfully. Analyzing dependencies..."
       eitherGraph # either (prepareToDie >>> (_ $> false)) \graph -> do
         env <- ask
         checkResults <- map Array.fold $ for pedanticPkgs \(Tuple selected options) -> do

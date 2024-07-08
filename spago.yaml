@@ -1,7 +1,7 @@
 package:
   name: spago
   publish:
-    version: 0.93.29
+    version: 0.93.35
     license: BSD-3-Clause
     location:
       githubOwner: purescript
@@ -13,24 +13,38 @@ package:
       - ImplicitQualifiedImportReExport
   dependencies:
     - aff
+    - aff-promise
     - affjax
     - affjax-node
+    - ansi
     - argonaut-core
     - arrays
-    - codec-argonaut
+    - avar
+    - codec
+    - codec-json
+    - console
+    - control
     - datetime
+    - docs-search-common
     - docs-search-index
     - dodo-printer
     - effect
     - either
+    - enums
+    - filterable
     - foldable-traversable
     - foreign-object
+    - formatters
     - functions
+    - graphs
     - http-methods
     - integers
+    - json
     - lists
     - maybe
+    - newtype
     - node-buffer
+    - node-child-process
     - node-execa
     - node-fs
     - node-path
@@ -40,17 +54,19 @@ package:
     - ordered-collections
     - parallel
     - partial
+    - posix-types
     - prelude
     - profunctor
     - record
     - refs
-    - registry-foreign
     - registry-lib
+    - routing-duplex
     - spago-core
     - strings
-    - stringutils
     - transformers
     - tuples
+    - unfoldable
+    - unicode
     - unsafe-coerce
   test:
     main: Test.Spago
@@ -58,19 +74,19 @@ package:
       - ImplicitQualifiedImportReExport
       - ImplicitQualifiedImport
     dependencies:
+      - exceptions
+      - identity
+      - quickcheck
       - spec
 workspace:
   packageSet:
-    registry: 50.8.0
+    registry: 51.0.0
   extraPackages:
+    codec-json: 1.2.0
     registry-lib:
       git: https://github.com/purescript/registry-dev.git
-      ref: d7d35c94cc286528e506a6a7ca78d22c84b251c9
+      ref: be0d7ffd1c16aa70e8f065a928e941ebc053c013
       subdir: lib
-    registry-foreign:
-      git: https://github.com/purescript/registry-dev.git
-      ref: d7d35c94cc286528e506a6a7ca78d22c84b251c9
-      subdir: foreign
     html-parser-halogen:
       dependencies:
         - halogen

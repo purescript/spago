@@ -6,9 +6,10 @@ import Affjax.Node as Http
 import Affjax.RequestBody as RequestBody
 import Affjax.ResponseFormat as ResponseFormat
 import Affjax.StatusCode (StatusCode(..))
+import Data.Argonaut.Core (Json)
 import Data.Array as Array
 import Data.Array.NonEmpty as NEA
-import Data.Codec.Argonaut as CA
+import Data.Codec.JSON as CJ
 import Data.DateTime (DateTime)
 import Data.Formatter.DateTime as DateTime
 import Data.List as List
@@ -17,6 +18,7 @@ import Data.String as String
 import Effect.Aff (Milliseconds(..))
 import Effect.Aff as Aff
 import Effect.Ref as Ref
+import JSON (JSON)
 import Node.Path as Path
 import Node.Process as Process
 import Record as Record
@@ -35,7 +37,6 @@ import Spago.Command.Build as Build
 import Spago.Command.Fetch as Fetch
 import Spago.Config (Package(..), Workspace, WorkspacePackage)
 import Spago.Config as Config
-import Spago.Config as Core
 import Spago.Db (Db)
 import Spago.Git (Git)
 import Spago.Git as Git
@@ -47,6 +48,7 @@ import Spago.Purs (Purs)
 import Spago.Purs.Graph as Graph
 import Spago.Registry (PreRegistryEnv)
 import Spago.Registry as Registry
+import Unsafe.Coerce (unsafeCoerce)
 
 type PublishData =
   { name :: PackageName
@@ -379,19 +381,16 @@ publish _args = do
       , dependencies: dependencies
       , logOptions: env.logOptions
       , workspace: env.workspace { selected = Just selected }
-      , psaCliFlags:
-          { statVerbosity: (Nothing :: Maybe Core.StatVerbosity)
-          , strict: (Nothing :: Maybe Boolean)
-          }
+      , strictWarnings: (Nothing :: Maybe Boolean)
       , pedanticPackages: false
       }
       action
 
-callRegistry :: forall env a b. String -> JsonCodec b -> Maybe { codec :: JsonCodec a, data :: a } -> Spago (PublishEnv env) b
+callRegistry :: forall env a b. String -> CJ.Codec b -> Maybe { codec :: CJ.Codec a, data :: a } -> Spago (PublishEnv env) b
 callRegistry url outputCodec maybeInput = handleError do
   logDebug $ "Calling registry at " <> url
   response <- liftAff $ withBackoff' $ case maybeInput of
-    Just { codec: inputCodec, data: input } -> Http.post ResponseFormat.string url (Just $ RequestBody.json $ CA.encode inputCodec input)
+    Just { codec: inputCodec, data: input } -> Http.post ResponseFormat.string url (Just $ RequestBody.json $ (unsafeCoerce :: JSON -> Json) $ CJ.encode inputCodec input)
     Nothing -> Http.get ResponseFormat.string url
   case response of
     Nothing -> pure $ Left $ "Could not reach the registry at " <> url

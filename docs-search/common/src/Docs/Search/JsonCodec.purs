@@ -6,27 +6,33 @@ module Docs.Search.JsonCodec
 
 import Prelude
 
-import Prim.Row (class Cons)
+import Codec.JSON.DecodeError as CJ
+import Codec.JSON.DecodeError as CJ.DecodeError
 import Codec.Json.Unidirectional.Value (DecodeError, printDecodeError)
+import Control.Monad.Except (Except, except)
 import Data.Argonaut.Core (Json)
-import Data.Codec.Argonaut (JsonDecodeError(..))
+import Data.Bifunctor (lmap)
 import Data.Either (Either)
-import Data.Profunctor.Choice (left)
 import Data.Symbol (class IsSymbol)
 import Data.Variant (Variant, inj)
+import JSON (JSON)
+import Prim.Row (class Cons)
 import Type.Proxy (Proxy(..))
+import Unsafe.Coerce (unsafeCoerce)
 
 -- | Equivalent to `Data.Variant.inj`, just uses a Visible Type Application instead of Proxy
 -- | Useful for deriving codecs for sum types
 inject :: forall @sym a r1 r2. Cons sym a r1 r2 => IsSymbol sym => a -> Variant r2
-inject = inj (Proxy :: _ sym)
+inject = inj (Proxy @sym)
 
 fromUni
   :: forall a
    . (Json -> Either DecodeError a)
-  -> (Json -> Either JsonDecodeError a)
-
-fromUni = map $ left convertError
+  -> (JSON -> Except CJ.DecodeError a)
+fromUni fn = except <<< lmap convertError <<< (fn <<< toArgonaut)
   where
-  convertError :: DecodeError -> JsonDecodeError
-  convertError = printDecodeError >>> TypeMismatch
+  convertError :: DecodeError -> CJ.DecodeError
+  convertError = printDecodeError >>> CJ.DecodeError.basic
+
+  toArgonaut :: JSON -> Json
+  toArgonaut = unsafeCoerce

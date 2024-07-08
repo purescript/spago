@@ -10,12 +10,15 @@ package:
     - aff-promise
     - argonaut-core
     - arrays
-    - codec-argonaut
+    - bifunctors
+    - codec
+    - codec-json
     - control
     - effect
     - either
     - exceptions
     - foldable-traversable
+    - json
     - json-codecs
     - language-purescript
     - lists
@@ -31,4 +34,5 @@ package:
     - strings
     - transformers
     - tuples
+    - unsafe-coerce
     - variant
