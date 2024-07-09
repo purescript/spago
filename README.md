@@ -1077,17 +1077,6 @@ workspace:
 > [!NOTE]\
 > This only works when the package you add to `extraPackages` has been published to the registry. Adding a git dependency will produce an error, as publishing to the Registry only admits build plans that only contain packages coming from the Registry.
 
-You can also publish your package using `extraPackages` in
-this form. Spago will only not let you publish packages which use
-unpublished libraries, i.e. things like
-```yaml
-workspace:
-  extraPackages:
-    newly-published-library:
-	  git: http://.....
-	  ref: ....
-```
-
 ### Know which `purs` commands are run under the hood
 
 The `-v` flag will print out all the `purs` commands that `spago` invokes during its operations,
