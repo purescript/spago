@@ -11,6 +11,7 @@ Other improvements:
 - builds with Cabal successfully
 - update to latest `versions` dependency: https://hackage.haskell.org/package/versions-6.0.1/changelog
 - Fix output truncation with `--json-errors`, many warnings and build failure (#1199)
+- Update README with info about depending on a freshly added library
 - Fixed globbing issue where `/.spago` behaves differently than `.spago` in `.gitignore`
 - When a git repo is used for multiple dependencies, only clone it once
 

@@ -38,7 +38,7 @@ jobs:
       matrix:
         include:
           - os: ubuntu-latest
-            image: haskell:9.2.4
+            image: haskell:9.2.8
           - os: macOS-latest
           - os: windows-latest
     steps:
@@ -47,10 +47,10 @@ jobs:
           git config --global core.autocrlf false
           git config --global core.eol lf
           git config --global core.longpaths true
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
       - name: Setup Haskell (macOS and Windows)
         if: runner.os != 'Linux'
-        uses: haskell/actions/setup@v1
+        uses: haskell-actions/setup@v2
         with:
           stack-version: ${{ env.STACK_VERSION }}
           enable-stack: true
@@ -61,9 +61,9 @@ jobs:
           [ "$(stack --numeric-version)" = "$STACK_VERSION" ]
           chown root:root .
       - name: Setup node
-        uses: actions/setup-node@v1
+        uses: actions/setup-node@v4
         with:
-          node-version: 18
+          node-version: 22
       # NB: We install gnu-tar because BSD tar is buggy on Github's macos machines,
       # and it breaks the cache: https://github.com/actions/cache/issues/403
       - name: Install GNU tar (macOS)
@@ -124,10 +124,10 @@ jobs:
     needs: build_release
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
-      - uses: actions/setup-node@v2
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
-          node-version: 18
+          node-version: 22
       - name: Publish to NPM
         shell: bash
         env:
