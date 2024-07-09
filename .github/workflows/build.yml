@@ -25,7 +25,7 @@ jobs:
           git config --global core.eol lf
           git config --global core.longpaths true
 
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
 
       # NB: We install gnu-tar because BSD tar is buggy on Github's macos machines,
       # and it breaks the cache: https://github.com/actions/cache/issues/403
@@ -36,12 +36,12 @@ jobs:
           echo "/usr/local/opt/gnu-tar/libexec/gnubin" >> $GITHUB_PATH
 
       - name: Setup node and npm
-        uses: actions/setup-node@v2
+        uses: actions/setup-node@v4
         with:
-          node-version: 18
+          node-version: 22
 
       - name: Cache NPM dependencies
-        uses: actions/cache@v2
+        uses: actions/cache@v4
         env:
           cache-name: cache-node-modules
         with:
@@ -53,10 +53,10 @@ jobs:
             ${{ runner.os }}-
 
       - name: Install global NPM packages
-        run: npm i --global purescript@0.15.10 spago@next purs-tidy@latest esbuild@latest
+        run: npm i --global purescript@0.15.15 spago@next purs-tidy@latest esbuild@latest
 
       - name: Cache PureScript dependencies
-        uses: actions/cache@v2
+        uses: actions/cache@v4
         with:
           key: ${{ runner.os }}-spago-${{ hashFiles('**/spago.yaml') }}
           path: |
