@@ -1055,6 +1055,28 @@ $ spago publish
 
 ...and follow the instructions 🙂
 
+#### Publish many packages together
+
+Library authors will often build "ecosystems" of small interdependent packages that build on each other - if that's your situation, and you'd like to publish them all together (following some big refactoring, as it goes!), then you might wonder how to include the new version in the build plan of the next package to publish.
+
+If you're using the registry solver then this is not an issue, but if your project is based on a package set, then that will not contain your newly published package, since well, you just published it!
+
+You should be able to add the newly released version to your build plan by adding it to the `extraPackages` section ([see here](https://github.com/purescript/spago/issues/1215)):
+```yaml
+package:
+  name: next-library-to-publish
+  dependencies:
+    - newly-published-library: ">=0.0.1 <0.2.0"
+
+workspace:
+  packageSet:
+    registry: 41.2.0
+  extraPackages:
+    newly-published-library: 0.1.0
+```
+> [!NOTE]\
+> This only works when the package you add to `extraPackages` has been published to the registry. Adding a git dependency will produce an error, as publishing to the Registry only admits build plans that only contain packages coming from the Registry.
+
 ### Know which `purs` commands are run under the hood
 
 The `-v` flag will print out all the `purs` commands that `spago` invokes during its operations,
