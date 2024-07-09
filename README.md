@@ -563,39 +563,6 @@ workspace:
       path: ../my-purescript-facebook
 ```
 
-### I just published a package, how to I use it?
-
-Suppose you published your `newly-published-library` with `spago
-publish`. The package-sets are [rebuilt once a
-day](https://github.com/purescript/registry?tab=readme-ov-file#registry-overview):
-
-> 2. Package sets, which are updated daily and stored in the package-sets directory
-
-Do I need to wait one day to use it?
-
-[No!](https://github.com/purescript/spago/issues/1215)
-
-Just add it into `extraPackages` with the newly released version:
-```yaml
-workspace:
-  packageSet:
-    registry: 41.2.0
-  extraPackages:
-    newly-published-library: 0.1.0
-```
-
-You don't need to add this library to `dependencies`, `extraPackages`
-is enough. You can also publish your package using `extraPackages` in
-this form. Spago will only not let you publish packages which use
-unpublished libraries, i.e. things like
-```yaml
-workspace:
-  extraPackages:
-    newly-published-library:
-	  git: http://.....
-	  ref: ....
-```
-
 ### Querying package sets
 
 Since the versioning scheme for package sets does not tell anything about the compiler version or when they were published, you might want
@@ -1087,6 +1054,39 @@ $ spago publish
 ```
 
 ...and follow the instructions 🙂
+
+#### Publish many packages together
+
+Library authors will often build "ecosystems" of small interdependent packages that build on each other - if that's your situation, and you'd like to publish them all together (following some big refactoring, as it goes!), then you might wonder how to include the new version in the build plan of the next package to publish.
+
+If you're using the registry solver then this is not an issue, but if your project is based on a package set, then that will not contain your newly published package, since well, you just published it!
+
+You should be able to add the newly released version to your build plan by adding it to the `extraPackages` section ([see here](https://github.com/purescript/spago/issues/1215)):
+```yaml
+package:
+  name: next-library-to-publish
+  dependencies:
+    - newly-published-library: ">=0.0.1 <0.2.0"
+
+workspace:
+  packageSet:
+    registry: 41.2.0
+  extraPackages:
+    newly-published-library: 0.1.0
+```
+> [!NOTE]\
+> This only works when the package you add to `extraPackages` has been published to the registry. Adding a git dependency will produce an error, as publishing to the Registry only admits build plans that only contain packages coming from the Registry.
+
+You can also publish your package using `extraPackages` in
+this form. Spago will only not let you publish packages which use
+unpublished libraries, i.e. things like
+```yaml
+workspace:
+  extraPackages:
+    newly-published-library:
+	  git: http://.....
+	  ref: ....
+```
 
 ### Know which `purs` commands are run under the hood
 
