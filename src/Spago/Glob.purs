@@ -32,6 +32,22 @@ type FsWalkOptions = { entryFilter :: Entry -> Effect Boolean, deepFilter :: Ent
 foreign import data DirEnt :: Type
 foreign import isFile :: DirEnt -> Boolean
 
+-- https://www.npmjs.com/package/picomatch#scan
+foreign import scanPattern :: String -> PatternInfo
+type PatternInfo =
+  { prefix :: String
+  , input :: String
+  , start :: Int
+  , base :: String
+  , glob :: String
+  , isBrace :: Boolean
+  , isBracket :: Boolean
+  , isGlob :: Boolean
+  , isExtglob :: Boolean
+  , isGlobstar :: Boolean
+  , negated :: Boolean
+  }
+
 foreign import fsWalkImpl
   :: (forall a b. a -> Either a b)
   -> (forall a b. b -> Either a b)
@@ -55,7 +71,7 @@ gitignoreFileToGlob base =
     >>> (\{ left, right } -> { ignore: left, include: right })
 
   where
-  isComment = isJust <<< String.stripPrefix (String.Pattern "#")
+  isComment = isPrefix (String.Pattern "#")
   dropSuffixSlash str = fromMaybe str $ String.stripSuffix (String.Pattern "/") str
   dropPrefixSlash str = fromMaybe str $ String.stripPrefix (String.Pattern "/") str
 
@@ -116,13 +132,56 @@ fsWalk cwd ignorePatterns includePatterns = Aff.makeAff \cb -> do
 
         Ref.modify_ addMatcher ignoreMatcherRef
 
+    -- The base of every includePattern
+    -- The base of a pattern is its longest non-glob prefix.
+    -- For example: foo/bar/*/*.purs => foo/bar
+    --              **/spago.yaml => ""
+    includePatternBases :: Array String
+    includePatternBases = map (_.base <<< scanPattern) includePatterns
+
+    matchesAnyPatternBase :: String -> Boolean
+    matchesAnyPatternBase relDirPath = any matchesPatternBase includePatternBases
+      where
+      matchesPatternBase :: String -> Boolean
+      matchesPatternBase "" =
+        -- Patterns which have no base, for example **/spago.yaml, match every directory.
+        true
+      matchesPatternBase patternBase | String.length relDirPath < String.length patternBase =
+        -- The directoryPath is shorter than the patterns base, so in order for this pattern to
+        -- match anything in this directory, the directories path must be a prefix of the patterns base.
+        -- For example: pattern     = .spago/p/unfoldable-6.0.0/src/**/*.purs
+        --              patternBase = .spago/p/unfoldable-6.0.0/src
+        --              relDirPath  = .spago/p/
+        -- => relDirPath is a prefix of patternBase => the directory matches
+        --
+        -- Or in the negative case:
+        --              pattern     = .spago/p/unfoldable-6.0.0/src/**/*.purs
+        --              patternBase = .spago/p/unfoldable-6.0.0/src
+        --              relDirPath  = .spago/p/arrays-7.3.0
+        -- => relDirPath is not a prefix of patternBase => the directory does not match
+        String.Pattern relDirPath `isPrefix` patternBase
+      matchesPatternBase patternBase | otherwise =
+        -- The directoryPath is longer than the patterns base, so the directoryPath is more specific.
+        -- In order for this pattern to match anything in this directory, the patterns base must be a
+        -- prefix of the directories path.
+        -- For example: pattern     = .spago/p/unfoldable-6.0.0/src/**/*.purs
+        --              patternBase = .spago/p/unfoldable-6.0.0/src
+        --              relDirPath  = .spago/p/unfoldable-6.0.0/src/Data
+        -- => patternBase is a prefix of relDirPath => the directory matches
+        String.Pattern patternBase `isPrefix` relDirPath
+
     -- Should `fsWalk` recurse into this directory?
     deepFilter :: Entry -> Effect Boolean
     deepFilter entry = fromMaybe false <$> runMaybeT do
       isCanceled <- lift $ Ref.read canceled
       guard $ not isCanceled
+      let relPath = withForwardSlashes $ Path.relative cwd entry.path
       shouldIgnore <- lift $ Ref.read ignoreMatcherRef
-      pure $ not $ shouldIgnore $ Path.relative cwd entry.path
+      guard $ not $ shouldIgnore relPath
+
+      -- Only if the path of this directory matches any of the patterns base path,
+      -- can anything in this directory possibly match the corresponding full pattern.
+      pure $ matchesAnyPatternBase relPath
 
     -- Should `fsWalk` retain this entry for the result array?
     entryFilter :: Entry -> Effect Boolean
