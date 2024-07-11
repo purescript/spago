@@ -96,14 +96,20 @@ getModuleGraphWithPackage (ModuleGraph graph) = do
       # Map.union (Map.fromFoldable $ map mkPackageEntry selected)
       # Map.union testPackages
 
+  -- TODO: here we are calculating the globs for each package, potentially multiple times.
+  -- We should memoise them, so that when we get the graph for a monorepo we don't evaluate the globs again.
+  -- Each call is a few milliseconds, but there are potentially hundreds of those, and it adds up.
+  logDebug "Calling pathToPackage..."
   pathToPackage :: Map FilePath PackageName <- map (Map.fromFoldable <<< Array.fold)
     $ for (Map.toUnfoldable allPackages)
         \(Tuple name package) -> do
           -- Basically partition the modules of the current package by in src and test packages
           let withTestGlobs = if (Set.member name (Map.keys testPackages)) then OnlyTestGlobs else NoTestGlobs
+          logDebug $ "Getting globs for package " <> PackageName.print name
           globMatches :: Array FilePath <- map Array.fold $ traverse compileGlob (Config.sourceGlob withTestGlobs name package)
           pure $ map (\p -> Tuple p name) globMatches
 
+  logDebug "Got the pathToPackage map, calling packageGraph"
   let
     -- Using `pathToPackage`, add the PackageName to each module entry in the graph
     addPackageInfo :: ModuleGraphWithPackage -> Tuple ModuleName ModuleGraphNode -> ModuleGraphWithPackage
@@ -182,6 +188,7 @@ checkImports :: forall a. ModuleGraph -> Spago (ImportsGraphEnv a) ImportCheckRe
 checkImports graph = do
   env@{ selected, workspacePackages } <- ask
   packageGraph <- runSpago (Record.union { selected: workspacePackages } env) $ getModuleGraphWithPackage graph
+  logDebug $ "Got the package graph for package " <> PackageName.print selected.package.name
 
   let
     dropValues = Map.mapMaybe (const (Just Map.empty))

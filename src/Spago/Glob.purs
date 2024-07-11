@@ -1,3 +1,8 @@
+-- | We used to just FFI to `fast-glob` for all globbing business, but that was
+-- | way too slow. See #1182 for more info and a starting point.
+-- | All of this code (and the FFI file) is a series of attempts to make globbing
+-- | reasonably performant while still supporting all of our usecases, like ignoring
+-- | files based on `.gitignore` files.
 module Spago.Glob (gitignoringGlob) where
 
 import Spago.Prelude

@@ -14,6 +14,7 @@ import Data.Set as Set
 import Data.Traversable (sequence)
 import Data.Tuple as Tuple
 import Record as Record
+import Registry.PackageName as PackageName
 import Spago.BuildInfo as BuildInfo
 import Spago.Cmd as Cmd
 import Spago.Command.Fetch as Fetch
@@ -159,8 +160,10 @@ run opts = do
       eitherGraph # either (prepareToDie >>> (_ $> false)) \graph -> do
         env <- ask
         checkResults <- map Array.fold $ for pedanticPkgs \(Tuple selected options) -> do
+          logDebug $ "Checking imports for " <> PackageName.print selected.package.name
           Graph.toImportErrors selected options
             <$> runSpago (Record.union { selected, workspacePackages: selectedPackages } env) (Graph.checkImports graph)
+        logDebug "Finished checking imports."
         if Array.null checkResults then
           pure true
         else
