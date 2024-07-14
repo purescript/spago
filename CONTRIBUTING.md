@@ -47,7 +47,11 @@ spago bundle -p spago-bin
 ./bin/bundle.js bundle -p spago-bin
 
 # From now on you can use the bootstrapped build to see the changes you make:
-./bin/index.dev.js some-new-command
+./bin/index.dev.js some-spago-command
+
+# Example
+./bin/index.dev.js --version
+# Currently prints: 0.93.35
 
 # ...but you can of course still just use the global `spago` command:
 spago build
