@@ -53,7 +53,7 @@ toGitSearchPath rootDir = reverse $ makeSearchPaths rootDir 4 where
   makeSearchPath wd i = joinWith "" $ cons wd $ cons "/" $ replicate i "../"
 
   makeSearchPaths :: FilePath -> Int -> Array FilePath
-  makeSearchPaths wd 0 = pure (wd <> "/")
+  makeSearchPaths wd 0 = mempty
   makeSearchPaths wd i | i > 0 = cons (makeSearchPath wd i) (makeSearchPaths wd (i - 1))
   makeSearchPaths _ _ = mempty
 

@@ -192,7 +192,6 @@ readWorkspace { maybeSelectedPackage, pureBuild, migrateConfig } = do
         false, true -> logWarn $ "Your " <> path <> " is using an outdated format. Run Spago with the --migrate flag to update it to the latest version."
         _, false -> pure unit
 
-  logInfo "Gathering all the spago configs higher in the tree..."
   let
     higherPaths :: List FilePath
     higherPaths = Array.toUnfoldable $ Paths.toGitSearchPath Paths.cwd
@@ -210,23 +209,31 @@ readWorkspace { maybeSelectedPackage, pureBuild, migrateConfig } = do
     searchHigherPaths :: forall b. List FilePath -> Spago (LogEnv b) (Maybe (Tuple FilePath PrelimWorkspace))
     searchHigherPaths Nil = pure Nothing
     searchHigherPaths (path : otherPaths) = do
-      -- TODO stop searching if .git is found, this is the root
-      logInfo $ "Searching " <> path
+      mGitRoot :: Maybe String <- map Array.head $ liftAff $ Glob.gitignoringGlob path [ "./.git" ]
       mYaml :: Maybe String <- map (map (\yml -> path <> yml)) $ map Array.head $ liftAff $ Glob.gitignoringGlob path [ "./spago.yaml" ]
       case mYaml of
-        Nothing -> searchHigherPaths otherPaths
+        Nothing -> case mGitRoot of
+          Nothing -> searchHigherPaths otherPaths
+          Just gitRoot  -> do
+            -- directory containing .git assumed to be the root of the project;
+            -- do not search up the file tree further than this
+            logInfo $ "No Spago workspace found in any directory up to root of project: " <> gitRoot
+            pure Nothing
         Just foundSpagoYaml -> do
           mWorkspace :: Maybe PrelimWorkspace <- checkForWorkspace foundSpagoYaml
           case mWorkspace of
-            Nothing -> searchHigherPaths otherPaths
+            Nothing -> case mGitRoot of
+              Nothing -> searchHigherPaths otherPaths
+              Just gitRoot  -> do
+                -- directory containing .git assumed to be the root of the project;
+                -- do not search up the file tree further than this
+                logInfo $ "No Spago workspace found in any directory up to root of project: " <> gitRoot
+                pure Nothing
             Just ws -> pure (pure (Tuple foundSpagoYaml ws))
 
-  mHigherWorkspace <- searchHigherPaths higherPaths
-  for_ mHigherWorkspace $ \(Tuple filepath _) ->
-    logInfo $ "Found workspace definition in " <> filepath
-
-  -- First try to read the config in the root. It _has_ to contain a workspace
-  -- configuration, or we fail early.
+  -- First try to read the config in the root.
+  -- Else, look for a workspace in parent directories.
+  -- Else fail.
   { workspace, package: maybePackage, workspaceDoc } <- readConfig "spago.yaml" >>= case _ of
     Left errLines ->
       die
@@ -236,16 +243,22 @@ readWorkspace { maybeSelectedPackage, pureBuild, migrateConfig } = do
         , Log.break
         , toDoc "The configuration file help can be found here https://github.com/purescript/spago#the-configuration-file"
         ]
-    Right config@{ yaml: { workspace: Nothing, package }, doc } -> case mHigherWorkspace of
-      Nothing ->
-        die
-        [ "No workspace definition found in this spago.yaml or any spago.yaml in parent directory."
-        , "See the relevant documentation here: https://github.com/purescript/spago#the-workspace"
-        ]
-      Just (Tuple _ higherWorkspace) -> do
-        -- TODO migrate workspace at higher directory?
-        doMigrateConfig "spago.yaml" config
-        pure { workspace: higherWorkspace, package, workspaceDoc: doc }
+    Right config@{ yaml: { workspace: Nothing, package }, doc } -> do
+      logInfo "Looking for Spago workspace configuration higher in the filesystem, up to project root (.git)..."
+      mHigherWorkspace <- searchHigherPaths higherPaths
+      case mHigherWorkspace of
+        Nothing ->
+          die
+          [ "No workspace definition found in this directory"
+          , "or in any directory up to root of project."
+          , "Root determined by '.git' file."
+          , "See the relevant documentation here: https://github.com/purescript/spago#the-workspace"
+          ]
+        Just (Tuple higherWorkspacePath higherWorkspace) -> do
+          logInfo $ "Found workspace definition in " <> higherWorkspacePath
+          -- TODO migrate workspace at higher directory?
+          doMigrateConfig "spago.yaml" config
+          pure { workspace: higherWorkspace, package, workspaceDoc: doc }
     Right config@{ yaml: { workspace: Just workspace, package }, doc } -> do
       doMigrateConfig "spago.yaml" config
       pure { workspace, package, workspaceDoc: doc }
