@@ -49,7 +49,7 @@ spec = Spec.around withTempDir do
     Spec.it "adds test dependencies to the config file when the test section does not exist" \{ spago, fixture } -> do
       spago [ "init", "--name", "aaa", "--package-set", "29.3.0" ] >>= shouldBeSuccess
       let spagoYaml = "spago.yaml"
-      FSA.unlink spagoYaml
+      FS.unlink spagoYaml
       FS.copyFile
         { src: fixture "no-test-section.yaml"
         , dst: spagoYaml
