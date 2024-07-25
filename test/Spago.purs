@@ -20,6 +20,7 @@ import Test.Spago.Lock as Lock
 import Test.Spago.Ls as Ls
 import Test.Spago.Publish as Publish
 import Test.Spago.Registry as Registry
+import Test.Spago.Repl as Repl
 import Test.Spago.Run as Run
 import Test.Spago.Sources as Sources
 import Test.Spago.Test as Test
@@ -47,6 +48,7 @@ main = Aff.launchAff_ $ void $ un Identity $ Spec.Runner.runSpecT testConfig [ S
     Uninstall.spec
     Ls.spec
     Build.spec
+    Repl.spec
     Run.spec
     Test.spec
     Bundle.spec

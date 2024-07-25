@@ -1,5 +1,9 @@
 module Spago.FS
   ( chmod
+  , copyFile
+  , copyFileSync
+  , copyTree
+  , unlink
   , ensureFileSync
   , exists
   , getInBetweenPaths
@@ -7,9 +11,6 @@ module Spago.FS
   , ls
   , mkdirp
   , moveSync
-  , copyFileSync
-  , copyFile
-  , copyTree
   , readJsonFile
   , readTextFile
   , readYamlDocFile
@@ -68,6 +69,9 @@ ensureFileSync file = liftEffect $ ensureFileSyncImpl file
 
 exists :: forall m. MonadEffect m => String -> m Boolean
 exists = liftEffect <<< FS.Sync.exists
+
+unlink :: ∀ m. MonadAff m => String -> m Unit
+unlink = liftAff <<< FS.Aff.unlink
 
 writeTextFile :: forall m. MonadAff m => FilePath -> String -> m Unit
 writeTextFile path text = liftAff $ FS.Aff.writeTextFile UTF8 path text

@@ -2,7 +2,6 @@ module Test.Spago.Publish (spec) where
 
 import Test.Prelude
 
-import Node.FS.Aff as FSA
 import Node.Platform as Platform
 import Node.Process as Process
 import Spago.Cmd as Cmd
@@ -34,7 +33,7 @@ spec = Spec.around withTempDir do
 
     Spec.it "fails if the module is called Main" \{ spago, fixture } -> do
       spago [ "init", "--name", "aaaa" ] >>= shouldBeSuccess
-      FSA.unlink "spago.yaml"
+      FS.unlink "spago.yaml"
       FS.copyFile { src: fixture "spago-publish.yaml", dst: "spago.yaml" }
       spago [ "build" ] >>= shouldBeSuccess
       doTheGitThing
