@@ -15,6 +15,7 @@ Other improvements:
 - Fixed globbing issue where `/.spago` behaves differently than `.spago` in `.gitignore`
 - Fixed empty output for `--verbose-stats` when there are no errors or warnings.
 - Added support for `--package-set` options for `spago upgrade`.
+- `spago repl` now writes a `.purs-repl` file, unless already there, containing `import Prelude`.
 
 ## [0.21.0] - 2023-05-04
 
