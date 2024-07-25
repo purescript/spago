@@ -1,16 +1,17 @@
 -- A majority of this code was copied from
 -- - https://github.com/natefaubion/purescript-psa-utils
--- 
+--
 -- To fullfil license requirements
 --   Copyright © Nathan Faubion
 --   https://opensource.org/license/mit/
 module Spago.Psa.Output
-  ( buildOutput
-  , Output
+  ( Output
   , OutputStats
   , annotatedError
-  , trimPosition
+  , buildOutput
+  , initialStats
   , trimMessage
+  , trimPosition
   ) where
 
 import Prelude

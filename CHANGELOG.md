@@ -13,6 +13,7 @@ Other improvements:
 - Fix output truncation with `--json-errors`, many warnings and build failure (#1199)
 - Update README with info about depending on a freshly added library
 - Fixed globbing issue where `/.spago` behaves differently than `.spago` in `.gitignore`
+- Fixed empty output for `--verbose-stats` when there are no errors or warnings.
 
 ## [0.21.0] - 2023-05-04
 

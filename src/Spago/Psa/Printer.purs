@@ -1,6 +1,6 @@
 -- A majority of this code was copied from
 -- - https://github.com/natefaubion/purescript-psa-utils
--- 
+--
 -- To fullfil license requirements
 --   Copyright © Nathan Faubion
 --   https://opensource.org/license/mit/
@@ -136,12 +136,15 @@ renderStats stats =
 
 renderVerboseStats :: OutputStats -> D.Doc Ansi.GraphicsParam
 renderVerboseStats stats =
-  renderStatCols
-    { col1: warningLabels <> errorLabels
-    , col2: srcWarnings <> srcErrors
-    , col3: libWarnings <> libErrors
-    , col4: allWarnings <> allErrors
-    }
+  if Array.null warnings && Array.null errors then
+    renderStats stats
+  else
+    renderStatCols
+      { col1: warningLabels <> errorLabels
+      , col2: srcWarnings <> srcErrors
+      , col3: libWarnings <> libErrors
+      , col4: allWarnings <> allErrors
+      }
   where
   warnings = Array.sort (FO.keys stats.allWarnings)
   errors = Array.sort (FO.keys stats.allErrors)
