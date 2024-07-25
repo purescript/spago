@@ -16,6 +16,7 @@ Other improvements:
 - Fixed empty output for `--verbose-stats` when there are no errors or warnings.
 - Added support for `--package-set` options for `spago upgrade`.
 - `spago repl` now writes a `.purs-repl` file, unless already there, containing `import Prelude`.
+- Added typo suggestions upon failing to find a package by name.
 
 ## [0.21.0] - 2023-05-04
 

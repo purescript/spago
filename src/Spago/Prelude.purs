@@ -1,21 +1,22 @@
 module Spago.Prelude
   ( HexString(..)
   , OnlineStatus(..)
+  , isPrefix
   , mkTemp
   , mkTemp'
   , module Spago.Core.Prelude
-  , parallelise
   , parTraverseSpago
+  , parallelise
   , parseLenientVersion
   , parseUrl
   , partitionEithers
   , shaToHex
+  , typoSuggestions
   , unsafeFromRight
   , unsafeLog
   , unsafeStringify
   , withBackoff'
   , withForwardSlashes
-  , isPrefix
   ) where
 
 import Spago.Core.Prelude
@@ -29,6 +30,7 @@ import Data.Int as Int
 import Data.Maybe as Maybe
 import Data.String (Pattern(..), Replacement(..))
 import Data.String as String
+import Data.String.Extra (levenshtein)
 import Data.Traversable (class Traversable)
 import Effect.Aff as Aff
 import Effect.Now as Now
@@ -169,3 +171,19 @@ withForwardSlashes = String.replaceAll (Pattern "\\") (Replacement "/")
 isPrefix :: String.Pattern -> String -> Boolean
 isPrefix p = isJust <<< String.stripPrefix p
 
+typoSuggestions :: ∀ f a. Foldable.Foldable f => (a -> String) -> a -> f a -> Array a
+typoSuggestions toString typo allOptions =
+  allOptions
+    # foldl pickClosestOnes []
+    # Array.sortWith snd
+    # Array.take 5
+    <#> fst
+  where
+  pickClosestOnes acc item =
+    let
+      distance = levenshtein (toString typo) (toString item)
+    in
+      if distance <= 2 then
+        (item /\ distance) `Array.cons` acc
+      else
+        acc

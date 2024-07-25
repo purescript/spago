@@ -419,6 +419,7 @@ workspace:
         - routing-duplex
         - spago-core
         - strings
+        - strings-extra
         - transformers
         - tuples
         - unfoldable
@@ -527,6 +528,7 @@ workspace:
         - st
         - string-parsers
         - strings
+        - strings-extra
         - stringutils
         - tailrec
         - these
@@ -674,6 +676,7 @@ workspace:
         - st
         - string-parsers
         - strings
+        - strings-extra
         - stringutils
         - tailrec
         - these
@@ -3006,6 +3009,17 @@ packages:
       - tuples
       - unfoldable
       - unsafe-coerce
+  strings-extra:
+    type: registry
+    version: 4.0.0
+    integrity: sha256-tah7VFvEvFF4tpWXgWwGFIynpWHkYe5tpy6bWi5tMpU=
+    dependencies:
+      - arrays
+      - foldable-traversable
+      - maybe
+      - prelude
+      - strings
+      - unicode
   stringutils:
     type: registry
     version: 0.0.12

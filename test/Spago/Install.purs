@@ -59,7 +59,7 @@ spec = Spec.around withTempDir do
 
     Spec.it "can't add dependencies that are not in the package set" \{ spago, fixture } -> do
       spago [ "init", "--name", "aaaa", "--package-set", "29.3.0" ] >>= shouldBeSuccess
-      spago [ "install", "foo", "bar" ] >>= shouldBeFailureErr (fixture "missing-dependencies.txt")
+      spago [ "install", "foo-foo-foo", "bar-bar-bar", "effcet", "arrys" ] >>= shouldBeFailureErr (fixture "missing-dependencies.txt")
       checkFixture "spago.yaml" (fixture "spago-install-failure.yaml")
 
     Spec.it "does not allow circular dependencies" \{ spago, fixture } -> do

@@ -166,7 +166,7 @@ type ReadWorkspaceOptions =
 
 -- | Reads all the configurations in the tree and builds up the Map of local
 -- | packages to be integrated in the package set
-readWorkspace :: ReadWorkspaceOptions -> Spago (Registry.RegistryEnv _) Workspace
+readWorkspace :: ∀ a. ReadWorkspaceOptions -> Spago (Registry.RegistryEnv a) Workspace
 readWorkspace { maybeSelectedPackage, pureBuild, migrateConfig } = do
   logInfo "Reading Spago workspace configuration..."
 
@@ -272,9 +272,14 @@ readWorkspace { maybeSelectedPackage, pureBuild, migrateConfig } = do
       Nothing -> die
         $ [ toDoc $ "Selected package " <> PackageName.print name <> " was not found in the local packages." ]
         <> case (Array.fromFoldable $ Map.keys workspacePackages) of
-          [] -> [ toDoc "No available packages." ]
-          pkgs -> [ toDoc "Available packages:", indent (toDoc pkgs) ]
-      Just p -> pure (Just p)
+          [] ->
+            [ toDoc "No available packages." ]
+          pkgs ->
+            case typoSuggestions PackageName.print name pkgs of
+              [] -> [ toDoc "All available packages:", indent (toDoc pkgs) ]
+              suggestions -> [ toDoc "Did you mean:", indent (toDoc suggestions) ]
+      Just p ->
+        pure (Just p)
 
   logDebug "Reading the lockfile..."
   maybeLockfileContents <- FS.exists "spago.lock" >>= case _ of
