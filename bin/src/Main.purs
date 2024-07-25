@@ -184,7 +184,9 @@ type PublishArgs =
   { selectedPackage :: Maybe String
   }
 
-type UpgradeArgs = {}
+type UpgradeArgs =
+  { setVersion :: Maybe String
+  }
 
 data SpagoCmd a = SpagoCmd GlobalArgs (Command a)
 
@@ -233,7 +235,7 @@ argParser =
     , commandParser "sources" (Sources <$> sourcesArgsParser) "List all the source paths (globs) for the dependencies of the project"
     , commandParser "repl" (Repl <$> replArgsParser) "Start a REPL"
     , commandParser "publish" (Publish <$> publishArgsParser) "Publish a package"
-    , commandParser "upgrade" (Upgrade <$> pure {}) "Upgrade to the latest package set, or to the latest versions of Registry packages"
+    , commandParser "upgrade" (Upgrade <$> upgradeArgsParser) "Upgrade to the latest package set, or to the latest versions of Registry packages"
     , commandParser "docs" (Docs <$> docsArgsParser) "Generate docs for the project and its dependencies"
     , O.command "registry"
         ( O.info
@@ -369,6 +371,11 @@ runArgsParser = Optparse.fromRecord
   , strict: Flags.strict
   , statVerbosity: Flags.statVerbosity
   , pure: Flags.pure
+  }
+
+upgradeArgsParser :: Parser UpgradeArgs
+upgradeArgsParser = Optparse.fromRecord
+  { setVersion: Flags.maybeSetVersion
   }
 
 testArgsParser :: Parser TestArgs
@@ -545,9 +552,7 @@ main = do
                 , Log.indent2 $ toDoc err
                 ]
               Right p -> pure p
-            setVersion <- for args.setVersion $ parseLenientVersion >>> case _ of
-              Left err -> die [ "Could not parse provided set version. Error:", show err ]
-              Right v -> pure v
+            setVersion <- parseSetVersion args.setVersion
             logDebug [ "Got packageName and setVersion:", PackageName.print packageName, unsafeStringify setVersion ]
             let initOpts = { packageName, setVersion, useSolver }
             -- Fetch the registry here so we can select the right package set later
@@ -675,9 +680,10 @@ main = do
             dependencies <- runSpago env (Fetch.run fetchOpts)
             docsEnv <- runSpago env (mkDocsEnv args dependencies)
             runSpago docsEnv Docs.run
-          Upgrade _args -> do
+          Upgrade args -> do
+            setVersion <- parseSetVersion args.setVersion
             { env } <- mkFetchEnv { packages: mempty, selectedPackage: Nothing, pure: false, ensureRanges: false, testDeps: false, isRepl: false, migrateConfig, offline }
-            runSpago env Upgrade.run
+            runSpago env $ Upgrade.run { setVersion }
           -- TODO: add selected to graph commands
           GraphModules args -> do
             { env, fetchOpts } <- mkFetchEnv { packages: mempty, selectedPackage: Nothing, pure: false, ensureRanges: false, testDeps: false, isRepl: false, migrateConfig, offline }
@@ -705,6 +711,11 @@ main = do
           LogVerbose
         else LogNormal
     pure { color, verbosity, startingTime }
+
+  parseSetVersion maybeVersion =
+    for maybeVersion $ parseLenientVersion >>> case _ of
+      Left err -> die [ "Could not parse provided set version. Error:", show err ]
+      Right v -> pure v
 
 mkBundleEnv :: forall a. BundleArgs -> Spago (Fetch.FetchEnv a) (Bundle.BundleEnv ())
 mkBundleEnv bundleArgs = do
@@ -993,7 +1004,7 @@ mkLsEnv dependencies = do
               ]
   pure { logOptions, workspace, dependencies, selected }
 
-mkDocsEnv :: DocsArgs -> Fetch.PackageTransitiveDeps -> Spago (Fetch.FetchEnv _) (Docs.DocsEnv _)
+mkDocsEnv :: ∀ a. DocsArgs -> Fetch.PackageTransitiveDeps -> Spago (Fetch.FetchEnv a) (Docs.DocsEnv ())
 mkDocsEnv args dependencies = do
   { logOptions, workspace } <- ask
   purs <- Purs.getPurs
