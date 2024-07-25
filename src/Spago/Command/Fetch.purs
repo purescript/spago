@@ -536,9 +536,9 @@ getTransitiveDepsFromPackageSet packageSet deps = do
     printNotInPackageSetError :: PackageName -> String
     printNotInPackageSetError p = "  - " <> PackageName.print p <> strSuggestions
       where
-        strSuggestions = case typoSuggestions PackageName.print p (Map.keys packageSet) of
-          [] -> "\n"
-          suggestions -> " (did you mean: " <> joinWith ", " (PackageName.print <$> suggestions) <> ")\n"
+      strSuggestions = case typoSuggestions PackageName.print p (Map.keys packageSet) of
+        [] -> "\n"
+        suggestions -> " (did you mean: " <> joinWith ", " (PackageName.print <$> suggestions) <> ")\n"
 
     init :: TransitiveDepsResult
     init = { packages: Map.empty, errors: mempty }

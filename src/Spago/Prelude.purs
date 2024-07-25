@@ -179,10 +179,11 @@ typoSuggestions toString typo allOptions =
     # Array.take 5
     <#> fst
   where
-    pickClosestOnes acc item =
-      let distance = levenshtein (toString typo) (toString item)
-      in
-        if distance <= 2 then
-          (item /\ distance) `Array.cons` acc
-        else
-          acc
+  pickClosestOnes acc item =
+    let
+      distance = levenshtein (toString typo) (toString item)
+    in
+      if distance <= 2 then
+        (item /\ distance) `Array.cons` acc
+      else
+        acc
