@@ -4,5 +4,7 @@ Reading Spago workspace configuration...
 
 
 ❌ The following packages do not exist in your package set:
-  - bar
-  - foo
+  - arrys (did you mean: arrays)
+  - bar-bar-bar
+  - effcet (did you mean: effect)
+  - foo-foo-foo

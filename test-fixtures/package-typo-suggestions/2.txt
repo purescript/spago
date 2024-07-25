@@ -1,0 +1,5 @@
+Reading Spago workspace configuration...
+
+❌ Selected package flounder was not found in the local packages.
+Did you mean:
+  founder

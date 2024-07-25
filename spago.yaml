@@ -63,6 +63,7 @@ package:
     - routing-duplex
     - spago-core
     - strings
+    - strings-extra
     - transformers
     - tuples
     - unfoldable
