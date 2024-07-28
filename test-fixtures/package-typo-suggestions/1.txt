@@ -1,6 +1,6 @@
 Reading Spago workspace configuration...
 
-❌ Selected package inder was not found in the local packages.
+✘ Selected package inder was not found in the local packages.
 Did you mean:
   finder
   binder

@@ -128,14 +128,14 @@ logSuccess :: forall a b m. MonadEffect m => MonadAsk (LogEnv b) m => Loggable a
 logSuccess l = log
   { level: LogInfo
   , content: Ansi.foreground Ansi.Green
-      (Log.break <> Ansi.bold (toDoc "✅" <> Log.space <> toDoc l) <> Log.break)
+      (Log.break <> Ansi.bold (toDoc "✓" <> Log.space <> toDoc l) <> Log.break)
   }
 
 logFailure :: forall a b m. MonadEffect m => MonadAsk (LogEnv b) m => Loggable a => a -> m Unit
 logFailure l = log
   { level: LogInfo
   , content: Ansi.foreground Ansi.Red
-      (Log.break <> Ansi.bold (toDoc "❌" <> Log.space <> toDoc l) <> Log.break)
+      (Log.break <> Ansi.bold (toDoc "✘" <> Log.space <> toDoc l) <> Log.break)
   }
 
 logDebug :: forall a b m. MonadEffect m => MonadAsk (LogEnv b) m => Loggable a => a -> m Unit
@@ -144,7 +144,7 @@ logDebug l = log { level: LogDebug, content: Ansi.foreground Ansi.Blue (toDoc l)
 logWarn :: forall a b m. MonadEffect m => MonadAsk (LogEnv b) m => Loggable a => a -> m Unit
 logWarn l = log
   { level: LogWarning
-  , content: Ansi.foreground Ansi.Yellow (Ansi.bold (toDoc "⚠️" <> Log.space <> toDoc l))
+  , content: Ansi.foreground Ansi.Yellow (Ansi.bold (toDoc "‼" <> Log.space <> toDoc l))
   }
 
 logError :: forall a b m. MonadEffect m => MonadAsk (LogEnv b) m => Loggable a => a -> m Unit

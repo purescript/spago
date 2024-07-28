@@ -1,6 +1,6 @@
 Reading Spago workspace configuration...
 
-✅ Selecting package to build: ignore-nested-workspaces
+✓ Selecting package to build: ignore-nested-workspaces
 
 Downloading dependencies...
 Building...
@@ -8,4 +8,4 @@ Building...
 Warnings     0     0     0
 Errors       0     0     0
 
-✅ Build succeeded.
+✓ Build succeeded.

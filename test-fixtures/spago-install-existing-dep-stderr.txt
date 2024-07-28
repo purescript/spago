@@ -1,7 +1,7 @@
 Reading Spago workspace configuration...
 
-✅ Selecting package to build: 7368613235362d50744f44764f717435586c685938735a5154
+✓ Selecting package to build: 7368613235362d50744f44764f717435586c685938735a5154
 
-⚠️ You tried to install some packages that are already present in the configuration, proceeding anyways:
+‼ You tried to install some packages that are already present in the configuration, proceeding anyways:
   - effect
 Downloading dependencies...

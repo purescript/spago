@@ -1,8 +1,8 @@
 Reading Spago workspace configuration...
 
-✅ Selecting 2 packages to build:
+✓ Selecting 2 packages to build:
     bar
     foo
 
 
-❌ No package was selected. Please select a package.
+✘ No package was selected. Please select a package.
