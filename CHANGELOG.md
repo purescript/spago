@@ -17,6 +17,7 @@ Other improvements:
 - Added support for `--package-set` options for `spago upgrade`.
 - `spago repl` now writes a `.purs-repl` file, unless already there, containing `import Prelude`.
 - Added typo suggestions upon failing to find a package by name.
+- `spago publish` now checks that the publish location matches one of the remotes in the current Git repository.
 
 ## [0.21.0] - 2023-05-04
 
