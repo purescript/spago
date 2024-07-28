@@ -4,12 +4,10 @@ import Test.Prelude
 
 import Data.Array as Array
 import Data.Foldable (traverse_)
-import Data.String (joinWith)
 import Data.String as String
 import Spago.FS as FS
 import Test.Spec (Spec)
 import Test.Spec as Spec
-import Test.Spec.Assertions.String (shouldContain)
 
 spec :: Spec Unit
 spec = Spec.around withTempDir do
