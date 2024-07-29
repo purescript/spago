@@ -172,6 +172,7 @@ type BundleArgs =
   , backendArgs :: List String
   , bundlerArgs :: List String
   , output :: Maybe String
+  , forceOverwrite :: Boolean
   , pedanticPackages :: Boolean
   , type :: Maybe String
   , ensureRanges :: Boolean
@@ -406,6 +407,7 @@ bundleArgsParser =
     , backendArgs: Flags.backendArgs
     , bundlerArgs: Flags.bundlerArgs
     , output: Flags.output
+    , forceOverwrite: Flags.forceOverwrite
     , pedanticPackages: Flags.pedanticPackages
     , ensureRanges: Flags.ensureRanges
     , strict: Flags.strict
@@ -757,13 +759,21 @@ mkBundleEnv bundleArgs = do
         let cliArgs = Array.fromFoldable bundleArgs.bundlerArgs
         (Alternative.guard (Array.length cliArgs > 0) *> pure cliArgs) <|> (bundleConf _.extraArgs)
 
-  let bundleOptions = { minify, module: entrypoint, outfile, platform, type: bundleType, sourceMaps: bundleArgs.sourceMaps, extraArgs }
-  let
-    newWorkspace = workspace
-      { buildOptions
-          { output = bundleArgs.output <|> workspace.buildOptions.output
-          }
-      }
+  let bundleOptions =
+        { minify
+        , module: entrypoint
+        , outfile
+        , forceOverwrite: bundleArgs.forceOverwrite
+        , platform
+        , type: bundleType
+        , sourceMaps: bundleArgs.sourceMaps
+        , extraArgs
+        }
+      newWorkspace = workspace
+        { buildOptions
+            { output = bundleArgs.output <|> workspace.buildOptions.output
+            }
+        }
   esbuild <- Esbuild.getEsbuild
   let bundleEnv = { esbuild, logOptions, workspace: newWorkspace, selected, bundleOptions }
   pure bundleEnv
