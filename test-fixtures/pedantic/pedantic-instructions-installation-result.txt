@@ -1,6 +1,6 @@
 Reading Spago workspace configuration...
 
-✅ Selecting package to build: follow-instructions
+✓ Selecting package to build: follow-instructions
 
 Adding 1 package to the config in spago.yaml
 Downloading dependencies...
@@ -11,4 +11,4 @@ Building...
 Warnings     0     0     0
 Errors       0     0     0
 
-✅ Build succeeded.
+✓ Build succeeded.

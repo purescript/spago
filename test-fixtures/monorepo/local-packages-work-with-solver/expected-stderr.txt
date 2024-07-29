@@ -1,6 +1,6 @@
 Reading Spago workspace configuration...
 
-✅ Selecting 2 packages to build:
+✓ Selecting 2 packages to build:
     app
     lib
 
@@ -10,4 +10,4 @@ Building...
 Warnings     0     0     0
 Errors       0     0     0
 
-✅ Build succeeded.
+✓ Build succeeded.

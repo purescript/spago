@@ -1,6 +1,6 @@
 Reading Spago workspace configuration...
 
-✅ Selecting package to build: subpackage
+✓ Selecting package to build: subpackage
 
 Downloading dependencies...
 Building...
@@ -8,8 +8,8 @@ Building...
 Warnings     0     0     0
 Errors       0     0     0
 
-✅ Build succeeded.
+✓ Build succeeded.
 
 Compiling with backend "echo"
 
-✅ Backend build succeeded.
+✓ Backend build succeeded.

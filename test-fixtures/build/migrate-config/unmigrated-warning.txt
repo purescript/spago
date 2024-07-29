@@ -1,7 +1,7 @@
 Reading Spago workspace configuration...
-⚠️ Your spago.yaml is using an outdated format. Run Spago with the --migrate flag to update it to the latest version.
+‼ Your spago.yaml is using an outdated format. Run Spago with the --migrate flag to update it to the latest version.
 
-✅ Selecting package to build: migrate-config
+✓ Selecting package to build: migrate-config
 
 Downloading dependencies...
 Building...
@@ -9,4 +9,4 @@ Building...
 Warnings     0     0     0
 Errors       0     0     0
 
-✅ Build succeeded.
+✓ Build succeeded.

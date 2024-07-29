@@ -18,6 +18,7 @@ Other improvements:
 - `spago repl` now writes a `.purs-repl` file, unless already there, containing `import Prelude`.
 - Added typo suggestions upon failing to find a package by name.
 - `spago publish` now checks that the publish location matches one of the remotes in the current Git repository.
+- Emoji ✅ ❌ ‼️ replaced with ✓ ✘ ‼ respectively, and are not printed at all with `--no-color`.
 
 ## [0.21.0] - 2023-05-04
 

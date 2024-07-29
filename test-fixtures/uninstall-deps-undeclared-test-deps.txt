@@ -1,9 +1,9 @@
 Reading Spago workspace configuration...
 
-✅ Selecting package to build: uninstall-tests
+✓ Selecting package to build: uninstall-tests
 
-⚠️ The following packages cannot be uninstalled because they are not declared in the package's test dependencies:
+‼ The following packages cannot be uninstalled because they are not declared in the package's test dependencies:
     either
-⚠️ The package config for uninstall-tests was not updated.
+‼ The package config for uninstall-tests was not updated.
 No lockfile found, generating it...
 Lockfile written to spago.lock. Please commit this file.
