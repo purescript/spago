@@ -1,6 +1,6 @@
 module Test.Prelude
-  ( module X
-  , module Test.Prelude
+  ( module Test.Prelude
+  , module X
   ) where
 
 import Spago.Prelude
@@ -107,17 +107,20 @@ shouldEqualStr v1 v2 =
       ]
 
 checkFixture :: String -> String -> Aff Unit
-checkFixture filepath fixturePath = do
-  filecontent <- String.trim <$> FS.readTextFile filepath
+checkFixture filepath fixturePath = checkFixture' filepath fixturePath (shouldEqualStr `on` String.trim)
+
+checkFixture' :: String -> String -> (String -> String -> Aff Unit) -> Aff Unit
+checkFixture' filepath fixturePath assertEqual = do
+  filecontent <- FS.readTextFile filepath
   overwriteSpecFile <- liftEffect $ map isJust $ Process.lookupEnv "SPAGO_TEST_ACCEPT"
   if overwriteSpecFile then do
     Console.log $ "Overwriting fixture at path: " <> fixturePath
     let parentDir = dirname fixturePath
     unlessM (FS.exists parentDir) $ FS.mkdirp parentDir
-    FS.writeTextFile fixturePath (filecontent <> "\n")
+    FS.writeTextFile fixturePath (String.trim filecontent <> "\n")
   else do
-    expected <- String.trim <$> FS.readTextFile fixturePath
-    filecontent `shouldEqualStr` expected
+    expected <- FS.readTextFile fixturePath
+    filecontent `assertEqual` expected
 
 plusDependencies :: Array String -> Config -> Config
 plusDependencies deps config = config
