@@ -172,7 +172,7 @@ type BundleArgs =
   , backendArgs :: List String
   , bundlerArgs :: List String
   , output :: Maybe String
-  , forceOverwrite :: Boolean
+  , force :: Boolean
   , pedanticPackages :: Boolean
   , type :: Maybe String
   , ensureRanges :: Boolean
@@ -407,7 +407,7 @@ bundleArgsParser =
     , backendArgs: Flags.backendArgs
     , bundlerArgs: Flags.bundlerArgs
     , output: Flags.output
-    , forceOverwrite: Flags.forceOverwrite
+    , force: Flags.forceBundle
     , pedanticPackages: Flags.pedanticPackages
     , ensureRanges: Flags.ensureRanges
     , strict: Flags.strict
@@ -764,7 +764,7 @@ mkBundleEnv bundleArgs = do
       { minify
       , module: entrypoint
       , outfile
-      , forceOverwrite: bundleArgs.forceOverwrite
+      , force: bundleArgs.force
       , platform
       , type: bundleType
       , sourceMaps: bundleArgs.sourceMaps
