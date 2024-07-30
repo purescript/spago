@@ -759,21 +759,22 @@ mkBundleEnv bundleArgs = do
         let cliArgs = Array.fromFoldable bundleArgs.bundlerArgs
         (Alternative.guard (Array.length cliArgs > 0) *> pure cliArgs) <|> (bundleConf _.extraArgs)
 
-  let bundleOptions =
-        { minify
-        , module: entrypoint
-        , outfile
-        , forceOverwrite: bundleArgs.forceOverwrite
-        , platform
-        , type: bundleType
-        , sourceMaps: bundleArgs.sourceMaps
-        , extraArgs
-        }
-      newWorkspace = workspace
-        { buildOptions
-            { output = bundleArgs.output <|> workspace.buildOptions.output
-            }
-        }
+  let
+    bundleOptions =
+      { minify
+      , module: entrypoint
+      , outfile
+      , forceOverwrite: bundleArgs.forceOverwrite
+      , platform
+      , type: bundleType
+      , sourceMaps: bundleArgs.sourceMaps
+      , extraArgs
+      }
+    newWorkspace = workspace
+      { buildOptions
+          { output = bundleArgs.output <|> workspace.buildOptions.output
+          }
+      }
   esbuild <- Esbuild.getEsbuild
   let bundleEnv = { esbuild, logOptions, workspace: newWorkspace, selected, bundleOptions }
   pure bundleEnv
