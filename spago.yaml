@@ -12,7 +12,6 @@ package:
       - WildcardInferredType
       - ImplicitQualifiedImportReExport
   dependencies:
-    - debug
     - aff
     - aff-promise
     - affjax
