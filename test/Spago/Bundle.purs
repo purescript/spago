@@ -13,7 +13,7 @@ import Test.Spec.Assertions.String (shouldStartWith)
 
 spec :: Spec Unit
 spec = Spec.around withTempDir do
-  Spec.focus $ Spec.describe "bundle" do
+  Spec.describe "bundle" do
 
     Spec.it "bundles into an app (browser)" \{ spago, fixture } -> do
       spago [ "init" ] >>= shouldBeSuccess
