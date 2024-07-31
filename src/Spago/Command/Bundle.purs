@@ -94,6 +94,7 @@ run = do
       , entrypoint
       ]
 
+  -- FIXME: remove this after 2024-12-01
   whenM (FS.exists checkWatermarkMarkerFileName)
     $ unless opts.force
     $ whenM (isNotSpagoGeneratedFile outfile)
