@@ -8,6 +8,7 @@ module Spago.Db
   , getLastPull
   , getManifest
   , getMetadata
+  , getMetadatas
   , insertManifest
   , insertMetadata
   , insertPackageSet
@@ -26,6 +27,7 @@ import Data.Codec.JSON.Record as CJ.Record
 import Data.DateTime (Date, DateTime(..))
 import Data.DateTime as DateTime
 import Data.Either as Either
+import Data.Filterable (filterMap)
 import Data.Formatter.DateTime as DateTime.Format
 import Data.Map as Map
 import Data.Nullable (Nullable)
@@ -112,6 +114,25 @@ getMetadata db packageName = do
         metadata <- Either.hush $ parseJson Metadata.codec metadataEntry.metadata
         pure metadata
       _ -> Nothing
+
+getMetadatas :: Db -> Array PackageName -> Effect (Map PackageName Metadata)
+getMetadatas db packageNames = do
+  metadataEntries <- Uncurried.runEffectFn2 getMetadatasImpl db (PackageName.print <$> packageNames)
+  now <- Now.nowDateTime
+  pure
+    $ metadataEntries
+    #
+      ( filterMap \metadataEntry -> do
+          packageName <- hush $ PackageName.parse metadataEntry.name
+          lastFetched <- Either.hush $ DateTime.Format.unformat Internal.Format.iso8601DateTime metadataEntry.last_fetched
+          -- if the metadata is older than 15 minutes, we consider it stale
+          case DateTime.diff now lastFetched of
+            Minutes n | n <= 15.0 -> do
+              metadata <- Either.hush $ parseJson Metadata.codec metadataEntry.metadata
+              pure $ packageName /\ metadata
+            _ -> Nothing
+      )
+    # Map.fromFoldable
 
 insertMetadata :: Db -> PackageName -> Metadata -> Effect Unit
 insertMetadata db packageName metadata@(Metadata { unpublished }) = do
@@ -245,5 +266,7 @@ foreign import insertManifestImpl :: EffectFn4 Db String String String Unit
 foreign import removeManifestImpl :: EffectFn3 Db String String Unit
 
 foreign import getMetadataImpl :: EffectFn2 Db String (Nullable MetadataEntryJs)
+
+foreign import getMetadatasImpl :: EffectFn2 Db (Array String) (Array MetadataEntryJs)
 
 foreign import insertMetadataImpl :: EffectFn4 Db String String String Unit

@@ -22,8 +22,10 @@ import Data.Array.NonEmpty as NEA
 import Data.Codec.JSON as CJ
 import Data.Codec.JSON.Common as CJ.Common
 import Data.Either as Either
+import Data.Filterable (filterMap)
 import Data.HTTP.Method as Method
 import Data.Int as Int
+import Data.List as List
 import Data.Map as Map
 import Data.Newtype (wrap)
 import Data.Set as Set
@@ -279,16 +281,39 @@ type LockfileBuilderResult =
   , packages :: Map PackageName Lock.LockEntry
   }
 
+lookupInCache :: forall a k v. Ord k => k -> Ref.Ref (Map k v) -> Spago a (Maybe v)
+lookupInCache key cacheRef = liftEffect $ Ref.read cacheRef >>= Map.lookup key >>> pure
+
+updateCache :: forall a k v. Ord k => k -> v -> Ref.Ref (Map k v) -> Spago a Unit
+updateCache key value cacheRef = liftEffect $ Ref.modify_ (Map.insert key value) cacheRef
+
 writeNewLockfile :: forall a. String -> PackageTransitiveDeps -> Spago (FetchEnv a) PackageTransitiveDeps
 writeNewLockfile reason allTransitiveDeps = do
   logInfo $ reason <> ", generating it..."
   { workspace } <- ask
+
+  packageDependenciesCache <- liftEffect $ Ref.new Map.empty
+  gitRefCache <- liftEffect $ Ref.new Map.empty
+  metadataRefCache <- liftEffect $ Ref.new Map.empty
   let
-    processPackage :: LockfileBuilderResult -> Tuple PackageName (Tuple PackageName Package) -> Spago (FetchEnv a) LockfileBuilderResult
-    processPackage result (Tuple workspacePackageName (Tuple dependencyName dependencyPackage)) = do
-      (packageDependencies :: Array PackageName) <- (Array.fromFoldable <<< Map.keys <<< fromMaybe Map.empty)
-        <$> getPackageDependencies dependencyName dependencyPackage
+    memoisedGetPackageDependencies :: PackageName -> Package -> Spago (FetchEnv a) (Maybe (Map PackageName Range))
+    memoisedGetPackageDependencies packageName package = do
+      lookupInCache packageName packageDependenciesCache >>=
+        case _ of
+          Just cached -> do
+            pure cached
+          Nothing -> do
+            -- Not cached. Compute it, write to ref, return it
+            res <- getPackageDependencies packageName package
+            updateCache packageName res packageDependenciesCache
+            pure res
+
+    processPackage :: Map PackageName _ -> LockfileBuilderResult -> Tuple PackageName (Tuple PackageName Package) -> Spago (FetchEnv a) LockfileBuilderResult
+    processPackage integrityMap result (Tuple workspacePackageName (Tuple dependencyName dependencyPackage)) = do
       let
+        getDeps = (Array.fromFoldable <<< Map.keys <<< fromMaybe Map.empty)
+          <$> memoisedGetPackageDependencies dependencyName dependencyPackage
+
         updatePackage r package = (updateWorkspacePackage r)
           { packages = Map.insert dependencyName package r.packages }
         updateWorkspacePackage r = r
@@ -302,29 +327,78 @@ writeNewLockfile reason allTransitiveDeps = do
           }
 
       case dependencyPackage of
-        WorkspacePackage _pkg -> pure $ updateWorkspacePackage result
+        WorkspacePackage _pkg ->
+          pure $ updateWorkspacePackage result
+
         GitPackage gitPackage -> do
           let packageLocation = Config.getPackageLocation dependencyName dependencyPackage
-          Git.getRef (Just packageLocation) >>= case _ of
-            Left err -> die err -- TODO maybe not die here?
-            Right rev -> pure $ updatePackage result $ FromGit { rev, dependencies: packageDependencies, url: gitPackage.git, subdir: gitPackage.subdir }
+          lookupInCache packageLocation gitRefCache >>= case _ of
+            Nothing ->
+              Git.getRef (Just packageLocation) >>= case _ of
+                Left err -> die err
+                Right rev -> do
+                  dependencies <- getDeps
+                  let
+                    lockEntry =
+                      FromGit { rev, dependencies, url: gitPackage.git, subdir: gitPackage.subdir }
+                  updateCache packageLocation lockEntry gitRefCache
+                  pure $ updatePackage result lockEntry
+            Just entry -> do
+              pure $ updatePackage result entry
+
         RegistryVersion version -> do
-          metadata <- Registry.getMetadata dependencyName
-          registryVersion <- case (metadata >>= (\(Metadata meta) -> Either.note "Didn't find version in the metadata file" $ Map.lookup version meta.published)) of
-            Left err -> die $ "Couldn't read metadata, reason:\n  " <> err
-            Right { hash: integrity } ->
-              pure { version, integrity, dependencies: packageDependencies }
-          pure $ updatePackage result $ FromRegistry registryVersion
+          lookupInCache dependencyName metadataRefCache >>= case _ of
+            Nothing -> do
+              registryVersion <- FromRegistry <$> case Map.lookup dependencyName integrityMap of
+                Nothing -> die $ "Couldn't read metadata"
+                Just integrity -> do
+                  dependencies <- getDeps
+                  pure { version, integrity, dependencies }
+              updateCache dependencyName registryVersion metadataRefCache
+              pure $ updatePackage result registryVersion
+            Just entry -> do
+              pure $ updatePackage result entry
+
         LocalPackage { path } -> do
-          pure $ updatePackage result $ FromPath { path, dependencies: packageDependencies }
+          dependencies <- getDeps
+          pure $ updatePackage result $ FromPath { path, dependencies }
 
   let
     toArray :: forall k v. Map k v -> Array (Tuple k v)
     toArray = Map.toUnfoldable
+    allDependencies = foldMap sequence $ toArray $ map toArray allTransitiveDeps
+
+  let
+    uniqueRegistryPackages = Array.nub $ filterMap
+      ( \(Tuple _ (Tuple dependencyName dependencyPackage)) -> case dependencyPackage of
+          RegistryVersion _ -> Just dependencyName
+          _ -> Nothing
+      )
+      allDependencies
+  metadataMap <- Registry.getMetadatas uniqueRegistryPackages >>= case _ of
+    Left err -> die $ "Couldn't read metadata, reason:\n  " <> err
+    Right ms -> pure ms
+
+  (registryVersions :: Map PackageName Sha256) <- Map.fromFoldable <<< Array.catMaybes <$>
+    ( parTraverseSpago
+        ( \(Tuple _ (Tuple dependencyName dependencyPackage)) -> case dependencyPackage of
+            RegistryVersion version -> do
+              let metadata = Map.lookup dependencyName metadataMap
+              case (metadata >>= (\(Metadata meta) -> Map.lookup version meta.published)) of
+                Nothing -> die "Couldn't read metadata"
+                Just { hash: integrity } ->
+                  pure $ Just $ dependencyName /\ integrity
+            _ -> pure Nothing
+        )
+        $ allDependencies
+    )
+
   ({ packages, workspacePackages } :: LockfileBuilderResult) <-
-    Array.foldM processPackage
-      { workspacePackages: Map.fromFoldable $ map Config.workspacePackageToLockfilePackage (Config.getWorkspacePackages workspace.packageSet), packages: Map.empty }
-      (foldMap sequence $ toArray $ map toArray allTransitiveDeps)
+    List.foldM (processPackage registryVersions)
+      { workspacePackages: Map.fromFoldable $ map Config.workspacePackageToLockfilePackage (Config.getWorkspacePackages workspace.packageSet)
+      , packages: Map.empty
+      }
+      $ List.fromFoldable allDependencies
 
   let
     lockfile =
