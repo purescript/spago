@@ -368,6 +368,7 @@ writeNewLockfile reason allTransitiveDeps = do
     toArray = Map.toUnfoldable
     allDependencies = foldMap sequence $ toArray $ map toArray allTransitiveDeps
 
+  -- Fetch the Registry metadata in one go for all required packages
   let
     uniqueRegistryPackages = Array.nub $ filterMap
       ( \(Tuple _ (Tuple dependencyName dependencyPackage)) -> case dependencyPackage of
@@ -380,7 +381,7 @@ writeNewLockfile reason allTransitiveDeps = do
     Right ms -> pure ms
 
   (registryVersions :: Map PackageName Sha256) <- Map.fromFoldable <<< Array.catMaybes <$>
-    ( parTraverseSpago
+    ( traverse
         ( \(Tuple _ (Tuple dependencyName dependencyPackage)) -> case dependencyPackage of
             RegistryVersion version -> do
               let metadata = Map.lookup dependencyName metadataMap
@@ -394,6 +395,7 @@ writeNewLockfile reason allTransitiveDeps = do
     )
 
   ({ packages, workspacePackages } :: LockfileBuilderResult) <-
+    -- Array.foldM was significantly slower (~10ms vs 6s on a very large project)
     List.foldM (processPackage registryVersions)
       { workspacePackages: Map.fromFoldable $ map Config.workspacePackageToLockfilePackage (Config.getWorkspacePackages workspace.packageSet)
       , packages: Map.empty
