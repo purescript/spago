@@ -2,12 +2,9 @@ module Test.Spago where
 
 import Prelude
 
-import Data.Identity (Identity(..))
 import Data.Maybe (Maybe(..))
-import Data.Newtype (un)
 import Effect (Effect)
 import Effect.Aff (Milliseconds(..))
-import Effect.Aff as Aff
 import Test.Spago.Build as Build
 import Test.Spago.Bundle as Bundle
 import Test.Spago.Docs as Docs
@@ -29,36 +26,37 @@ import Test.Spago.Unit as Unit
 import Test.Spago.Upgrade as Upgrade
 import Test.Spec as Spec
 import Test.Spec.Reporter as Spec.Reporter
-import Test.Spec.Runner as Spec.Runner
+import Test.Spec.Runner.Node (runSpecAndExitProcess')
+import Test.Spec.Runner.Node.Config as Config
 
-testConfig :: Spec.Runner.Config
-testConfig = Spec.Runner.defaultConfig
-  { slow = Milliseconds 10_000.0
-  , timeout = Just (Milliseconds 90_000.0)
-  , exit = true
+testConfig :: Config.TestRunConfig
+testConfig = Config.defaultConfig
+  { timeout = Just (Milliseconds 90_000.0)
   }
 
 main :: Effect Unit
-main = Aff.launchAff_ $ void $ un Identity $ Spec.Runner.runSpecT testConfig [ Spec.Reporter.consoleReporter ] do
-  Spec.describe "spago" do
-    -- TODO: script
-    Init.spec
-    Sources.spec
-    Install.spec
-    Uninstall.spec
-    Ls.spec
-    Build.spec
-    Repl.spec
-    Run.spec
-    Test.spec
-    Bundle.spec
-    Registry.spec
-    Docs.spec
-    Upgrade.spec
-    Publish.spec
-    Graph.spec
-    Spec.describe "miscellaneous" do
-      Lock.spec
-      Unit.spec
-      Glob.spec
-      Errors.spec
+main = do
+  config <- Config.fromCommandLine' testConfig Config.commandLineOptionParsers
+  runSpecAndExitProcess' config [ Spec.Reporter.consoleReporter ] do
+    Spec.describe "spago" do
+      -- TODO: script
+      Init.spec
+      Sources.spec
+      Install.spec
+      Uninstall.spec
+      Ls.spec
+      Build.spec
+      Repl.spec
+      Run.spec
+      Test.spec
+      Bundle.spec
+      Registry.spec
+      Docs.spec
+      Upgrade.spec
+      Publish.spec
+      Graph.spec
+      Spec.describe "miscellaneous" do
+        Lock.spec
+        Unit.spec
+        Glob.spec
+        Errors.spec
