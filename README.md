@@ -424,8 +424,8 @@ Note that you have to separate test runner options with a double dash `--` to di
 If you're on PowerShell (Windows), you will also need to quote the double dash:
 
 ```console
-$ spago test '--' --example "some test"
-$ spago test '--' --only-failures
+> spago test '--' --example "some test"
+> spago test '--' --only-failures
 ```
 
 This has to do with an unfortunate interaction between Node bootstrapping mechanism and the way PowerShell handles parameters.
