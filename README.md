@@ -411,6 +411,11 @@ You should add some tests.
 Tests succeeded.
 ```
 
+If you are using [the `spec-node` test runner](https://purescript-spec.github.io/purescript-spec/running/#running-under-node),
+you can use its command-line options to select a subset of tests with
+`--example` or rerun previously failed tests with `--only-failures`. See [the docs](https://purescript-spec.github.io/purescript-spec/running/#running-under-node)
+for more useful options.
+
 As with the `run` command, it's possible to configure the tests using the `spago.yaml` - most importantly to separate test dependencies from the dependencies of your application/library.
 
 Please see [the section about the configuration format](#the-configuration-file) for more info, but in the meantime note that it's possible to install test dependencies by running:

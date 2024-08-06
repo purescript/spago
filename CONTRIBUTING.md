@@ -55,6 +55,13 @@ spago build
 # Can of course run the tests with
 spago test
 
+# Can select a subset of tests to run
+spago test -- --example "bundle" # run only bundle tests
+spago test -- --example "browser" # run only tests that mention browser in their name
+
+# Can select a subset of tests by a regular expression
+spago test -- --example-matches "bundle|browser" # run bundle tests _and_ those that mention browser
+
 # To see tests' stdout/stderr output while the tests are running, run
 SPAGO_TEST_DEBUG=1 spago
 
