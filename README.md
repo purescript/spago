@@ -438,7 +438,7 @@ As with the `run` command, it's possible to configure the tests using the `spago
 Please see [the section about the configuration format](#the-configuration-file) for more info, but in the meantime note that it's possible to install test dependencies by running:
 
 ```console
-$ spago install --test-deps spec
+$ spago install --test-deps spec spec-node
 ```
 
 ### Run a repl
