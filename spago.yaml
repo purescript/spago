@@ -79,9 +79,10 @@ package:
       - identity
       - quickcheck
       - spec
+      - spec-node
 workspace:
   packageSet:
-    registry: 51.0.0
+    registry: 56.4.0
   extraPackages:
     codec-json: 1.2.0
     registry-lib:
