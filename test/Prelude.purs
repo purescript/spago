@@ -26,7 +26,7 @@ import Spago.Command.Init as Init
 import Spago.Core.Config (Dependencies(..), Config)
 import Spago.Core.Config as Config
 import Spago.FS as FS
-import Spago.Prelude as X
+import Spago.Prelude (class Applicative, class Apply, class Bind, class BooleanAlgebra, class Bounded, class Category, class CommutativeRing, class Discard, class DivisionRing, class Eq, class EuclideanRing, class Field, class Functor, class Generic, class HeytingAlgebra, class Monad, class MonadAff, class MonadEffect, class MonadError, class MonadThrow, class Monoid, class Newtype, class Ord, class Ring, class Semigroup, class Semigroupoid, class Semiring, class Show, type (~>), Aff, Buffer, Docc, Effect, Either(..), Encoding(..), Error, Except, FilePath, HexString(..), Identity(..), Instant, License, List, Location, LogEnv, LogOptions, Manifest(..), ManifestIndex, Map, Maybe(..), Metadata(..), NonEmptyArray, OnlineStatus(..), Ordering(..), OutputFormat(..), PackageName, Range, Ref, Set, Sha256, Spago(..), StateT, Tuple(..), Unit, Version, Void, YamlDoc, absurd, add, and, ap, append, apply, ask, asks, between, bimap, bind, bottom, catchError, clamp, compare, comparing, compose, conj, const, degree, die, die', discard, disj, div, either, eq, except, flap, flip, foldMap, foldl, for, forWithIndex, for_, fromMaybe, fst, gcd, genericShow, hush, identity, ifM, indent, indent2, isJust, isLeft, isNothing, isPrefix, isRight, join, justOrDieWith, justOrDieWith', lcm, liftA1, liftAff, liftEffect, liftM1, lmap, local, logDebug, logError, logInfo, logSuccess, logWarn, map, max, maybe, mempty, min, mkTemp, mkTemp', mod, mul, negate, not, notEq, on, one, or, otherwise, output, parTraverseSpago, parallelise, parseJson, parseLenientVersion, parseUrl, parseYaml, partition, partitionEithers, partitionMap, printJson, printYaml, pure, recip, rightOrDieWith, rightOrDieWith', rmap, runSpago, shaToHex, show, snd, sub, toDoc, top, traverse, try, typoSuggestions, unit, unless, unlessM, unsafeFromJust, unsafeFromRight, unsafeLog, unsafeStringify, unsafeThrow, unwrap, void, when, whenM, withBackoff', withForwardSlashes, zero, (#), ($), ($>), (&&), (*), (*>), (+), (-), (..), (/), (/=), (/\), (:), (<), (<#>), (<$), (<$>), (<*), (<*>), (<<<), (<=), (<=<), (<>), (<@>), (<|>), (=<<), (==), (>), (>=), (>=>), (>>=), (>>>), (||)) as X
 import Test.Spec.Assertions (fail)
 import Test.Spec.Assertions as Assert
 
@@ -372,7 +372,7 @@ configAddTestDependencies deps (Tuple packageName r) = Tuple packageName $ r
       , strict: r.test >>= _.strict
       , censorTestWarnings: r.test >>= _.censorTestWarnings
       , pedanticPackages: r.test >>= _.pedanticPackages
-      , dependencies: Just $ maybe (mkDependencies deps) (append (mkDependencies deps)) $ r.test >>= _.dependencies
+      , dependencies: Just $ deps <> (r.test >>= _.dependencies # fromMaybe [])
       }
   }
 

@@ -101,8 +101,14 @@ defaultConfig { name, withWorkspace, testModuleName } = do
     pkg =
       { name
       , dependencies: [ "effect", "console", "prelude" ]
-      , test: Just { moduleMain: testModuleName, strict: Nothing, censorTestWarnings: Nothing, pedanticPackages: Nothing, dependencies: Nothing }
       , build: Nothing
+      , test: Just
+          { moduleMain: testModuleName
+          , strict: Nothing
+          , censorTestWarnings: Nothing
+          , pedanticPackages: Nothing
+          , dependencies: Just [ "spec", "spec-node" ]
+          }
       }
   defaultConfig' case withWorkspace of
     Nothing -> PackageOnly pkg
@@ -117,7 +123,7 @@ type DefaultConfigPackageOptions =
         , strict :: Maybe Boolean
         , censorTestWarnings :: Maybe Config.CensorBuildWarnings
         , pedanticPackages :: Maybe Boolean
-        , dependencies :: Maybe Config.Dependencies
+        , dependencies :: Maybe (Array String)
         }
   , build ::
       Maybe
@@ -152,7 +158,7 @@ defaultConfig' :: DefaultConfigOptions -> Config
 defaultConfig' opts =
   { package: (getDefaultConfigPackageOptions opts) <#> \{ name, dependencies, test, build } ->
       { name
-      , dependencies: Dependencies $ Map.fromFoldable $ map mkDep dependencies
+      , dependencies: mkDeps dependencies
       , description: Nothing
       , build: build <#> \{ censorProjectWarnings, strict, pedanticPackages } ->
           { censorProjectWarnings
@@ -161,7 +167,7 @@ defaultConfig' opts =
           }
       , run: Nothing
       , test: test <#> \{ moduleMain, censorTestWarnings, strict, pedanticPackages, dependencies: testDeps } ->
-          { dependencies: fromMaybe (Dependencies Map.empty) testDeps
+          { dependencies: fromMaybe (Dependencies Map.empty) $ mkDeps <$> testDeps
           , execArgs: Nothing
           , main: moduleMain
           , censorTestWarnings
@@ -179,6 +185,7 @@ defaultConfig' opts =
       }
   }
   where
+  mkDeps ps = Dependencies $ Map.fromFoldable $ mkDep <$> ps
   mkDep p = Tuple (unsafeFromRight $ PackageName.parse p) Nothing
 
 srcMainTemplate :: String -> String
@@ -203,12 +210,18 @@ testMainTemplate moduleName = "module " <> moduleName <>
 import Prelude
 
 import Effect (Effect)
-import Effect.Class.Console (log)
+import Test.Spec (Spec, describe, it)
+import Test.Spec.Reporter (consoleReporter)
+import Test.Spec.Runner.Node (runSpecAndExitProcess)
 
 main :: Effect Unit
-main = do
-  log "🍕"
-  log "You should add some tests."
+main = runSpecAndExitProcess [consoleReporter] spec
+
+spec :: Spec Unit
+spec =
+  describe "this project" do
+    it "should have tests" do
+      pure unit
 
 """
 
@@ -226,6 +239,7 @@ generated-docs/
 .purs*
 .psa*
 .spago
+.spec-results
 """
 
 pursReplFile :: { name :: String, content :: String }

@@ -6,7 +6,9 @@ package:
     - prelude
   test:
     main: Test.Main
-    dependencies: []
+    dependencies:
+      - spec
+      - spec-node
 workspace:
   packageSet:
     registry: 9.0.0
