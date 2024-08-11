@@ -1,4 +1,44 @@
 {
+  "Ansi.Codes": {
+    "depends": [
+      "Prelude",
+      "Data.Foldable",
+      "Data.Generic.Rep",
+      "Data.List.NonEmpty",
+      "Data.Show.Generic"
+    ],
+    "package": "ansi",
+    "path": ".spago/p/ansi-7.0.0/src/Ansi/Codes.purs"
+  },
+  "Ansi.Output": {
+    "depends": [
+      "Prelude",
+      "Data.List.NonEmpty",
+      "Ansi.Codes"
+    ],
+    "package": "ansi",
+    "path": ".spago/p/ansi-7.0.0/src/Ansi/Output.purs"
+  },
+  "Control.Alt": {
+    "depends": [
+      "Data.Functor",
+      "Data.Semigroup"
+    ],
+    "package": "control",
+    "path": ".spago/p/control-6.0.0/src/Control/Alt.purs"
+  },
+  "Control.Alternative": {
+    "depends": [
+      "Control.Alt",
+      "Control.Applicative",
+      "Control.Apply",
+      "Control.Plus",
+      "Data.Unit",
+      "Data.Functor"
+    ],
+    "package": "control",
+    "path": ".spago/p/control-6.0.0/src/Control/Alternative.purs"
+  },
   "Control.Applicative": {
     "depends": [
       "Control.Apply",
@@ -18,6 +58,23 @@
     ],
     "package": "prelude",
     "path": ".spago/p/prelude-6.0.1/src/Control/Apply.purs"
+  },
+  "Control.Biapplicative": {
+    "depends": [
+      "Control.Biapply",
+      "Data.Tuple"
+    ],
+    "package": "bifunctors",
+    "path": ".spago/p/bifunctors-6.0.0/src/Control/Biapplicative.purs"
+  },
+  "Control.Biapply": {
+    "depends": [
+      "Data.Function",
+      "Data.Bifunctor",
+      "Data.Tuple"
+    ],
+    "package": "bifunctors",
+    "path": ".spago/p/bifunctors-6.0.0/src/Control/Biapply.purs"
   },
   "Control.Bind": {
     "depends": [
@@ -39,6 +96,189 @@
     "package": "prelude",
     "path": ".spago/p/prelude-6.0.1/src/Control/Category.purs"
   },
+  "Control.Comonad": {
+    "depends": [
+      "Control.Extend",
+      "Data.Functor"
+    ],
+    "package": "control",
+    "path": ".spago/p/control-6.0.0/src/Control/Comonad.purs"
+  },
+  "Control.Comonad.Cofree": {
+    "depends": [
+      "Prelude",
+      "Control.Alternative",
+      "Control.Comonad",
+      "Control.Extend",
+      "Control.Lazy",
+      "Control.Monad.Free",
+      "Control.Monad.Rec.Class",
+      "Control.Monad.State",
+      "Data.Eq",
+      "Data.FoldableWithIndex",
+      "Data.FunctorWithIndex",
+      "Data.Foldable",
+      "Data.Lazy",
+      "Data.Ord",
+      "Data.Traversable",
+      "Data.TraversableWithIndex",
+      "Data.Tuple"
+    ],
+    "package": "free",
+    "path": ".spago/p/free-7.1.0/src/Control/Comonad/Cofree.purs"
+  },
+  "Control.Comonad.Cofree.Class": {
+    "depends": [
+      "Prelude",
+      "Control.Comonad",
+      "Control.Comonad.Cofree",
+      "Control.Comonad.Env.Trans",
+      "Control.Comonad.Store.Trans",
+      "Control.Comonad.Traced.Trans",
+      "Data.Tuple"
+    ],
+    "package": "free",
+    "path": ".spago/p/free-7.1.0/src/Control/Comonad/Cofree/Class.purs"
+  },
+  "Control.Comonad.Env": {
+    "depends": [
+      "Prelude",
+      "Control.Comonad.Env.Class",
+      "Control.Comonad.Env.Trans",
+      "Data.Identity",
+      "Data.Newtype",
+      "Data.Tuple"
+    ],
+    "package": "transformers",
+    "path": ".spago/p/transformers-6.1.0/src/Control/Comonad/Env.purs"
+  },
+  "Control.Comonad.Env.Class": {
+    "depends": [
+      "Prelude",
+      "Control.Comonad",
+      "Control.Comonad.Env.Trans",
+      "Control.Comonad.Store",
+      "Control.Comonad.Traced.Trans",
+      "Control.Comonad.Trans.Class",
+      "Data.Tuple"
+    ],
+    "package": "transformers",
+    "path": ".spago/p/transformers-6.1.0/src/Control/Comonad/Env/Class.purs"
+  },
+  "Control.Comonad.Env.Trans": {
+    "depends": [
+      "Prelude",
+      "Control.Comonad",
+      "Control.Comonad.Trans.Class",
+      "Control.Extend",
+      "Data.FoldableWithIndex",
+      "Data.FunctorWithIndex",
+      "Data.Traversable",
+      "Data.TraversableWithIndex",
+      "Data.Tuple",
+      "Data.Newtype"
+    ],
+    "package": "transformers",
+    "path": ".spago/p/transformers-6.1.0/src/Control/Comonad/Env/Trans.purs"
+  },
+  "Control.Comonad.Store": {
+    "depends": [
+      "Prelude",
+      "Control.Comonad.Store.Class",
+      "Control.Comonad.Store.Trans",
+      "Data.Identity",
+      "Data.Newtype",
+      "Data.Tuple"
+    ],
+    "package": "transformers",
+    "path": ".spago/p/transformers-6.1.0/src/Control/Comonad/Store.purs"
+  },
+  "Control.Comonad.Store.Class": {
+    "depends": [
+      "Prelude",
+      "Control.Comonad",
+      "Control.Comonad.Env.Trans",
+      "Control.Comonad.Store.Trans",
+      "Control.Comonad.Traced.Trans",
+      "Control.Comonad.Trans.Class",
+      "Control.Extend",
+      "Data.Tuple"
+    ],
+    "package": "transformers",
+    "path": ".spago/p/transformers-6.1.0/src/Control/Comonad/Store/Class.purs"
+  },
+  "Control.Comonad.Store.Trans": {
+    "depends": [
+      "Prelude",
+      "Control.Comonad",
+      "Control.Comonad.Trans.Class",
+      "Control.Extend",
+      "Data.Tuple",
+      "Data.Newtype"
+    ],
+    "package": "transformers",
+    "path": ".spago/p/transformers-6.1.0/src/Control/Comonad/Store/Trans.purs"
+  },
+  "Control.Comonad.Traced": {
+    "depends": [
+      "Prelude",
+      "Control.Comonad.Traced.Class",
+      "Control.Comonad.Traced.Trans",
+      "Data.Identity",
+      "Data.Newtype"
+    ],
+    "package": "transformers",
+    "path": ".spago/p/transformers-6.1.0/src/Control/Comonad/Traced.purs"
+  },
+  "Control.Comonad.Traced.Class": {
+    "depends": [
+      "Prelude",
+      "Control.Comonad",
+      "Control.Comonad.Env",
+      "Control.Comonad.Store",
+      "Control.Comonad.Traced.Trans",
+      "Control.Comonad.Trans.Class",
+      "Control.Monad.Identity.Trans",
+      "Data.Tuple"
+    ],
+    "package": "transformers",
+    "path": ".spago/p/transformers-6.1.0/src/Control/Comonad/Traced/Class.purs"
+  },
+  "Control.Comonad.Traced.Trans": {
+    "depends": [
+      "Prelude",
+      "Control.Comonad",
+      "Control.Comonad.Trans.Class",
+      "Control.Extend",
+      "Data.Newtype"
+    ],
+    "package": "transformers",
+    "path": ".spago/p/transformers-6.1.0/src/Control/Comonad/Traced/Trans.purs"
+  },
+  "Control.Comonad.Trans.Class": {
+    "depends": [
+      "Control.Comonad",
+      "Control.Monad.Identity.Trans"
+    ],
+    "package": "transformers",
+    "path": ".spago/p/transformers-6.1.0/src/Control/Comonad/Trans/Class.purs"
+  },
+  "Control.Extend": {
+    "depends": [
+      "Control.Category",
+      "Data.Functor",
+      "Data.Semigroup"
+    ],
+    "package": "control",
+    "path": ".spago/p/control-6.0.0/src/Control/Extend.purs"
+  },
+  "Control.Lazy": {
+    "depends": [
+      "Data.Unit"
+    ],
+    "package": "control",
+    "path": ".spago/p/control-6.0.0/src/Control/Lazy.purs"
+  },
   "Control.Monad": {
     "depends": [
       "Control.Applicative",
@@ -51,10 +291,965 @@
     "package": "prelude",
     "path": ".spago/p/prelude-6.0.1/src/Control/Monad.purs"
   },
+  "Control.Monad.Cont": {
+    "depends": [
+      "Prelude",
+      "Control.Monad.Cont.Class",
+      "Control.Monad.Cont.Trans",
+      "Data.Identity",
+      "Data.Newtype"
+    ],
+    "package": "transformers",
+    "path": ".spago/p/transformers-6.1.0/src/Control/Monad/Cont.purs"
+  },
+  "Control.Monad.Cont.Class": {
+    "depends": [
+      "Prelude"
+    ],
+    "package": "transformers",
+    "path": ".spago/p/transformers-6.1.0/src/Control/Monad/Cont/Class.purs"
+  },
+  "Control.Monad.Cont.Trans": {
+    "depends": [
+      "Prelude",
+      "Control.Apply",
+      "Control.Monad.Cont.Class",
+      "Control.Monad.Reader.Class",
+      "Control.Monad.ST.Class",
+      "Control.Monad.State.Class",
+      "Control.Monad.Trans.Class",
+      "Data.Newtype",
+      "Effect.Class"
+    ],
+    "package": "transformers",
+    "path": ".spago/p/transformers-6.1.0/src/Control/Monad/Cont/Trans.purs"
+  },
+  "Control.Monad.Error.Class": {
+    "depends": [
+      "Prelude",
+      "Data.Either",
+      "Data.Maybe",
+      "Effect",
+      "Effect.Exception"
+    ],
+    "package": "transformers",
+    "path": ".spago/p/transformers-6.1.0/src/Control/Monad/Error/Class.purs"
+  },
+  "Control.Monad.Except": {
+    "depends": [
+      "Prelude",
+      "Control.Monad.Error.Class",
+      "Control.Monad.Except.Trans",
+      "Data.Either",
+      "Data.Identity",
+      "Data.Newtype"
+    ],
+    "package": "transformers",
+    "path": ".spago/p/transformers-6.1.0/src/Control/Monad/Except.purs"
+  },
+  "Control.Monad.Except.Trans": {
+    "depends": [
+      "Prelude",
+      "Control.Alt",
+      "Control.Alternative",
+      "Control.Apply",
+      "Control.Monad.Cont.Class",
+      "Control.Monad.Error.Class",
+      "Control.Monad.Reader.Class",
+      "Control.Monad.Rec.Class",
+      "Control.Monad.ST.Class",
+      "Control.Monad.State.Class",
+      "Control.Monad.Trans.Class",
+      "Control.Monad.Writer.Class",
+      "Control.MonadPlus",
+      "Control.Plus",
+      "Data.Either",
+      "Data.Newtype",
+      "Data.Tuple",
+      "Effect.Class"
+    ],
+    "package": "transformers",
+    "path": ".spago/p/transformers-6.1.0/src/Control/Monad/Except/Trans.purs"
+  },
+  "Control.Monad.Fork.Class": {
+    "depends": [
+      "Prelude",
+      "Effect.Aff",
+      "Control.Monad.Error.Class",
+      "Control.Monad.Reader.Trans",
+      "Control.Monad.Trans.Class"
+    ],
+    "package": "fork",
+    "path": ".spago/p/fork-6.0.0/src/Control/Monad/Fork/Class.purs"
+  },
+  "Control.Monad.Free": {
+    "depends": [
+      "Prelude",
+      "Control.Apply",
+      "Control.Monad.Rec.Class",
+      "Control.Monad.Trans.Class",
+      "Data.CatList",
+      "Data.Either",
+      "Data.Eq",
+      "Data.Foldable",
+      "Data.Maybe",
+      "Data.Ord",
+      "Data.Traversable",
+      "Data.Tuple",
+      "Unsafe.Coerce"
+    ],
+    "package": "free",
+    "path": ".spago/p/free-7.1.0/src/Control/Monad/Free.purs"
+  },
+  "Control.Monad.Free.Class": {
+    "depends": [
+      "Prelude",
+      "Control.Monad.Except.Trans",
+      "Control.Monad.Free",
+      "Control.Monad.Maybe.Trans",
+      "Control.Monad.Reader.Trans",
+      "Control.Monad.State.Trans",
+      "Control.Monad.Writer.Trans"
+    ],
+    "package": "free",
+    "path": ".spago/p/free-7.1.0/src/Control/Monad/Free/Class.purs"
+  },
+  "Control.Monad.Gen": {
+    "depends": [
+      "Prelude",
+      "Control.Monad.Gen.Class",
+      "Control.Monad.Rec.Class",
+      "Data.Foldable",
+      "Data.Maybe",
+      "Data.Monoid.Additive",
+      "Data.Newtype",
+      "Data.Semigroup.Foldable",
+      "Data.Semigroup.Last",
+      "Data.Tuple",
+      "Data.Unfoldable"
+    ],
+    "package": "gen",
+    "path": ".spago/p/gen-4.0.0/src/Control/Monad/Gen.purs"
+  },
+  "Control.Monad.Gen.Class": {
+    "depends": [
+      "Prelude"
+    ],
+    "package": "gen",
+    "path": ".spago/p/gen-4.0.0/src/Control/Monad/Gen/Class.purs"
+  },
+  "Control.Monad.Gen.Common": {
+    "depends": [
+      "Prelude",
+      "Control.Apply",
+      "Control.Monad.Gen",
+      "Control.Monad.Rec.Class",
+      "Data.Either",
+      "Data.Identity",
+      "Data.Maybe",
+      "Data.NonEmpty",
+      "Data.Tuple",
+      "Data.Unfoldable"
+    ],
+    "package": "gen",
+    "path": ".spago/p/gen-4.0.0/src/Control/Monad/Gen/Common.purs"
+  },
+  "Control.Monad.Identity.Trans": {
+    "depends": [
+      "Prelude",
+      "Control.Alt",
+      "Control.Alternative",
+      "Control.Comonad",
+      "Control.Monad.Cont.Class",
+      "Control.Monad.Error.Class",
+      "Control.Monad.Reader.Class",
+      "Control.Monad.Rec.Class",
+      "Control.Monad.ST.Class",
+      "Control.Monad.State.Class",
+      "Control.Monad.Trans.Class",
+      "Control.Monad.Writer.Class",
+      "Control.MonadPlus",
+      "Control.Plus",
+      "Data.Eq",
+      "Data.Foldable",
+      "Data.Newtype",
+      "Data.Ord",
+      "Data.Traversable",
+      "Effect.Class"
+    ],
+    "package": "transformers",
+    "path": ".spago/p/transformers-6.1.0/src/Control/Monad/Identity/Trans.purs"
+  },
+  "Control.Monad.List.Trans": {
+    "depends": [
+      "Prelude",
+      "Control.Alt",
+      "Control.Alternative",
+      "Control.Monad.Rec.Class",
+      "Control.Monad.ST.Class",
+      "Control.Monad.Trans.Class",
+      "Control.MonadPlus",
+      "Control.Plus",
+      "Data.Lazy",
+      "Data.Maybe",
+      "Data.Newtype",
+      "Data.Tuple",
+      "Data.Unfoldable",
+      "Data.Unfoldable1",
+      "Effect.Class"
+    ],
+    "package": "transformers",
+    "path": ".spago/p/transformers-6.1.0/src/Control/Monad/List/Trans.purs"
+  },
+  "Control.Monad.Maybe.Trans": {
+    "depends": [
+      "Prelude",
+      "Control.Alt",
+      "Control.Alternative",
+      "Control.Apply",
+      "Control.Monad.Cont.Class",
+      "Control.Monad.Error.Class",
+      "Control.Monad.Reader.Class",
+      "Control.Monad.Rec.Class",
+      "Control.Monad.ST.Class",
+      "Control.Monad.State.Class",
+      "Control.Monad.Trans.Class",
+      "Control.Monad.Writer.Class",
+      "Control.MonadPlus",
+      "Control.Plus",
+      "Data.Maybe",
+      "Data.Newtype",
+      "Data.Tuple",
+      "Effect.Class"
+    ],
+    "package": "transformers",
+    "path": ".spago/p/transformers-6.1.0/src/Control/Monad/Maybe/Trans.purs"
+  },
+  "Control.Monad.Morph": {
+    "depends": [
+      "Prelude",
+      "Control.Comonad.Cofree",
+      "Control.Comonad.Env.Trans",
+      "Control.Comonad.Store",
+      "Control.Comonad.Traced",
+      "Control.Monad.Except.Trans",
+      "Control.Monad.Free",
+      "Control.Monad.Maybe.Trans",
+      "Control.Monad.RWS.Trans",
+      "Control.Monad.Reader.Trans",
+      "Control.Monad.State.Trans",
+      "Control.Monad.Trans.Class",
+      "Control.Monad.Writer.Trans",
+      "Data.Bifunctor",
+      "Data.Coyoneda",
+      "Data.Either",
+      "Data.Functor.Compose",
+      "Data.Functor.Product",
+      "Data.Identity",
+      "Data.Maybe",
+      "Data.Newtype",
+      "Data.Tuple",
+      "Data.Yoneda"
+    ],
+    "package": "mmorph",
+    "path": ".spago/p/mmorph-7.0.0/src/Control/Monad/Morph.purs"
+  },
+  "Control.Monad.RWS": {
+    "depends": [
+      "Prelude",
+      "Control.Monad.Reader.Class",
+      "Control.Monad.RWS.Trans",
+      "Control.Monad.State.Class",
+      "Control.Monad.Trans.Class",
+      "Control.Monad.Writer.Class",
+      "Data.Identity",
+      "Data.Newtype",
+      "Data.Tuple"
+    ],
+    "package": "transformers",
+    "path": ".spago/p/transformers-6.1.0/src/Control/Monad/RWS.purs"
+  },
+  "Control.Monad.RWS.Trans": {
+    "depends": [
+      "Prelude",
+      "Control.Alt",
+      "Control.Alternative",
+      "Control.Apply",
+      "Control.Lazy",
+      "Control.Monad.Error.Class",
+      "Control.Monad.Reader.Class",
+      "Control.Monad.Rec.Class",
+      "Control.Monad.ST.Class",
+      "Control.Monad.State.Class",
+      "Control.Monad.Trans.Class",
+      "Control.Monad.Writer.Class",
+      "Control.Plus",
+      "Data.Newtype",
+      "Data.Tuple",
+      "Effect.Class"
+    ],
+    "package": "transformers",
+    "path": ".spago/p/transformers-6.1.0/src/Control/Monad/RWS/Trans.purs"
+  },
+  "Control.Monad.Reader": {
+    "depends": [
+      "Prelude",
+      "Control.Monad.Reader.Class",
+      "Control.Monad.Reader.Trans",
+      "Data.Identity",
+      "Data.Newtype"
+    ],
+    "package": "transformers",
+    "path": ".spago/p/transformers-6.1.0/src/Control/Monad/Reader.purs"
+  },
+  "Control.Monad.Reader.Class": {
+    "depends": [
+      "Prelude"
+    ],
+    "package": "transformers",
+    "path": ".spago/p/transformers-6.1.0/src/Control/Monad/Reader/Class.purs"
+  },
+  "Control.Monad.Reader.Trans": {
+    "depends": [
+      "Prelude",
+      "Control.Alt",
+      "Control.Alternative",
+      "Control.Apply",
+      "Control.Monad.Cont.Class",
+      "Control.Monad.Error.Class",
+      "Control.Monad.Reader.Class",
+      "Control.Monad.Rec.Class",
+      "Control.Monad.ST.Class",
+      "Control.Monad.State.Class",
+      "Control.Monad.Trans.Class",
+      "Control.Monad.Writer.Class",
+      "Control.MonadPlus",
+      "Control.Plus",
+      "Data.Distributive",
+      "Data.Newtype",
+      "Effect.Class"
+    ],
+    "package": "transformers",
+    "path": ".spago/p/transformers-6.1.0/src/Control/Monad/Reader/Trans.purs"
+  },
+  "Control.Monad.Rec.Class": {
+    "depends": [
+      "Prelude",
+      "Data.Bifunctor",
+      "Data.Either",
+      "Data.Identity",
+      "Data.Maybe",
+      "Effect",
+      "Effect.Ref",
+      "Partial.Unsafe"
+    ],
+    "package": "tailrec",
+    "path": ".spago/p/tailrec-6.1.0/src/Control/Monad/Rec/Class.purs"
+  },
+  "Control.Monad.ST": {
+    "depends": [
+      "Control.Monad.ST.Internal"
+    ],
+    "package": "st",
+    "path": ".spago/p/st-6.2.0/src/Control/Monad/ST.purs"
+  },
+  "Control.Monad.ST.Class": {
+    "depends": [
+      "Prelude",
+      "Control.Monad.ST",
+      "Control.Monad.ST.Global",
+      "Control.Monad.ST.Global",
+      "Effect"
+    ],
+    "package": "st",
+    "path": ".spago/p/st-6.2.0/src/Control/Monad/ST/Class.purs"
+  },
+  "Control.Monad.ST.Global": {
+    "depends": [
+      "Prelude",
+      "Control.Monad.ST",
+      "Effect",
+      "Unsafe.Coerce"
+    ],
+    "package": "st",
+    "path": ".spago/p/st-6.2.0/src/Control/Monad/ST/Global.purs"
+  },
+  "Control.Monad.ST.Internal": {
+    "depends": [
+      "Prelude",
+      "Control.Apply",
+      "Control.Monad.Rec.Class",
+      "Partial.Unsafe"
+    ],
+    "package": "st",
+    "path": ".spago/p/st-6.2.0/src/Control/Monad/ST/Internal.purs"
+  },
+  "Control.Monad.ST.Ref": {
+    "depends": [
+      "Control.Monad.ST.Internal"
+    ],
+    "package": "st",
+    "path": ".spago/p/st-6.2.0/src/Control/Monad/ST/Ref.purs"
+  },
+  "Control.Monad.ST.Uncurried": {
+    "depends": [
+      "Control.Monad.ST.Internal"
+    ],
+    "package": "st",
+    "path": ".spago/p/st-6.2.0/src/Control/Monad/ST/Uncurried.purs"
+  },
+  "Control.Monad.State": {
+    "depends": [
+      "Prelude",
+      "Control.Monad.State.Class",
+      "Control.Monad.State.Trans",
+      "Data.Identity",
+      "Data.Newtype",
+      "Data.Tuple"
+    ],
+    "package": "transformers",
+    "path": ".spago/p/transformers-6.1.0/src/Control/Monad/State.purs"
+  },
+  "Control.Monad.State.Class": {
+    "depends": [
+      "Prelude",
+      "Data.Tuple"
+    ],
+    "package": "transformers",
+    "path": ".spago/p/transformers-6.1.0/src/Control/Monad/State/Class.purs"
+  },
+  "Control.Monad.State.Trans": {
+    "depends": [
+      "Prelude",
+      "Control.Alt",
+      "Control.Alternative",
+      "Control.Apply",
+      "Control.Lazy",
+      "Control.Monad.Cont.Class",
+      "Control.Monad.Error.Class",
+      "Control.Monad.Reader.Class",
+      "Control.Monad.Rec.Class",
+      "Control.Monad.ST.Class",
+      "Control.Monad.State.Class",
+      "Control.Monad.Trans.Class",
+      "Control.Monad.Writer.Class",
+      "Control.MonadPlus",
+      "Control.Plus",
+      "Data.Newtype",
+      "Data.Tuple",
+      "Effect.Class"
+    ],
+    "package": "transformers",
+    "path": ".spago/p/transformers-6.1.0/src/Control/Monad/State/Trans.purs"
+  },
+  "Control.Monad.Trampoline": {
+    "depends": [
+      "Prelude",
+      "Control.Monad.Free"
+    ],
+    "package": "free",
+    "path": ".spago/p/free-7.1.0/src/Control/Monad/Trampoline.purs"
+  },
+  "Control.Monad.Trans.Class": {
+    "depends": [
+      "Prelude"
+    ],
+    "package": "transformers",
+    "path": ".spago/p/transformers-6.1.0/src/Control/Monad/Trans/Class.purs"
+  },
+  "Control.Monad.Writer": {
+    "depends": [
+      "Prelude",
+      "Control.Monad.Writer.Class",
+      "Control.Monad.Writer.Trans",
+      "Data.Identity",
+      "Data.Newtype",
+      "Data.Tuple"
+    ],
+    "package": "transformers",
+    "path": ".spago/p/transformers-6.1.0/src/Control/Monad/Writer.purs"
+  },
+  "Control.Monad.Writer.Class": {
+    "depends": [
+      "Prelude",
+      "Data.Tuple"
+    ],
+    "package": "transformers",
+    "path": ".spago/p/transformers-6.1.0/src/Control/Monad/Writer/Class.purs"
+  },
+  "Control.Monad.Writer.Trans": {
+    "depends": [
+      "Prelude",
+      "Control.Alt",
+      "Control.Alternative",
+      "Control.Apply",
+      "Control.Monad.Cont.Class",
+      "Control.Monad.Error.Class",
+      "Control.Monad.Reader.Class",
+      "Control.Monad.Rec.Class",
+      "Control.Monad.ST.Class",
+      "Control.Monad.State.Class",
+      "Control.Monad.Trans.Class",
+      "Control.Monad.Writer.Class",
+      "Control.MonadPlus",
+      "Control.Plus",
+      "Data.Newtype",
+      "Data.Tuple",
+      "Effect.Class"
+    ],
+    "package": "transformers",
+    "path": ".spago/p/transformers-6.1.0/src/Control/Monad/Writer/Trans.purs"
+  },
+  "Control.MonadPlus": {
+    "depends": [
+      "Control.Alt",
+      "Control.Alternative",
+      "Control.Applicative",
+      "Control.Apply",
+      "Control.Bind",
+      "Control.Monad",
+      "Control.Plus",
+      "Data.Functor"
+    ],
+    "package": "control",
+    "path": ".spago/p/control-6.0.0/src/Control/MonadPlus.purs"
+  },
+  "Control.Parallel": {
+    "depends": [
+      "Prelude",
+      "Control.Alternative",
+      "Control.Parallel.Class",
+      "Data.Foldable",
+      "Data.Traversable"
+    ],
+    "package": "parallel",
+    "path": ".spago/p/parallel-7.0.0/src/Control/Parallel.purs"
+  },
+  "Control.Parallel.Class": {
+    "depends": [
+      "Prelude",
+      "Control.Alt",
+      "Control.Alternative",
+      "Control.Monad.Cont.Trans",
+      "Control.Monad.Except.Trans",
+      "Control.Monad.Maybe.Trans",
+      "Control.Monad.Reader.Trans",
+      "Control.Monad.Writer.Trans",
+      "Control.Plus",
+      "Data.Either",
+      "Data.Functor.Compose",
+      "Data.Functor.Costar",
+      "Data.Maybe",
+      "Data.Newtype",
+      "Data.Profunctor.Star",
+      "Effect.Class",
+      "Effect.Ref"
+    ],
+    "package": "parallel",
+    "path": ".spago/p/parallel-7.0.0/src/Control/Parallel/Class.purs"
+  },
+  "Control.Plus": {
+    "depends": [
+      "Control.Alt",
+      "Data.Functor"
+    ],
+    "package": "control",
+    "path": ".spago/p/control-6.0.0/src/Control/Plus.purs"
+  },
   "Control.Semigroupoid": {
     "depends": [],
     "package": "prelude",
     "path": ".spago/p/prelude-6.0.1/src/Control/Semigroupoid.purs"
+  },
+  "Data.Argonaut.Core": {
+    "depends": [
+      "Prelude",
+      "Data.Function.Uncurried",
+      "Data.Maybe",
+      "Foreign.Object",
+      "Foreign.Object"
+    ],
+    "package": "argonaut-core",
+    "path": ".spago/p/argonaut-core-7.0.0/src/Data/Argonaut/Core.purs"
+  },
+  "Data.Argonaut.Decode": {
+    "depends": [
+      "Prelude",
+      "Data.Argonaut.Decode.Class",
+      "Data.Argonaut.Decode.Combinators",
+      "Data.Argonaut.Decode.Error",
+      "Data.Argonaut.Decode.Parser",
+      "Data.Either"
+    ],
+    "package": "argonaut-codecs",
+    "path": ".spago/p/argonaut-codecs-9.1.0/src/Data/Argonaut/Decode.purs"
+  },
+  "Data.Argonaut.Decode.Class": {
+    "depends": [
+      "Data.Argonaut.Decode.Decoders",
+      "Data.Argonaut.Core",
+      "Data.Argonaut.Decode.Error",
+      "Data.Array.NonEmpty",
+      "Data.Bifunctor",
+      "Data.Either",
+      "Data.Identity",
+      "Data.List",
+      "Data.List.NonEmpty",
+      "Data.String.NonEmpty",
+      "Data.Map",
+      "Data.Maybe",
+      "Data.NonEmpty",
+      "Data.Set",
+      "Data.String",
+      "Data.Symbol",
+      "Data.Tuple",
+      "Foreign.Object",
+      "Prelude",
+      "Record",
+      "Type.Proxy"
+    ],
+    "package": "argonaut-codecs",
+    "path": ".spago/p/argonaut-codecs-9.1.0/src/Data/Argonaut/Decode/Class.purs"
+  },
+  "Data.Argonaut.Decode.Combinators": {
+    "depends": [
+      "Prelude",
+      "Data.Argonaut.Core",
+      "Data.Argonaut.Decode.Error",
+      "Data.Argonaut.Decode.Class",
+      "Data.Either",
+      "Data.Maybe",
+      "Foreign.Object",
+      "Data.Argonaut.Decode.Decoders"
+    ],
+    "package": "argonaut-codecs",
+    "path": ".spago/p/argonaut-codecs-9.1.0/src/Data/Argonaut/Decode/Combinators.purs"
+  },
+  "Data.Argonaut.Decode.Decoders": {
+    "depends": [
+      "Prelude",
+      "Data.Argonaut.Core",
+      "Data.Argonaut.Decode.Error",
+      "Data.Array",
+      "Data.Array.NonEmpty",
+      "Data.Array.NonEmpty",
+      "Data.Bifunctor",
+      "Data.Either",
+      "Data.Identity",
+      "Data.Int",
+      "Data.List",
+      "Data.List",
+      "Data.List.NonEmpty",
+      "Data.List.NonEmpty",
+      "Data.String.NonEmpty",
+      "Data.String.NonEmpty",
+      "Data.Map",
+      "Data.Maybe",
+      "Data.NonEmpty",
+      "Data.Set",
+      "Data.String",
+      "Data.Traversable",
+      "Data.TraversableWithIndex",
+      "Data.Tuple",
+      "Foreign.Object"
+    ],
+    "package": "argonaut-codecs",
+    "path": ".spago/p/argonaut-codecs-9.1.0/src/Data/Argonaut/Decode/Decoders.purs"
+  },
+  "Data.Argonaut.Decode.Error": {
+    "depends": [
+      "Prelude",
+      "Data.Argonaut.Core",
+      "Data.Generic.Rep"
+    ],
+    "package": "argonaut-codecs",
+    "path": ".spago/p/argonaut-codecs-9.1.0/src/Data/Argonaut/Decode/Error.purs"
+  },
+  "Data.Argonaut.Decode.Parser": {
+    "depends": [
+      "Prelude",
+      "Data.Argonaut.Core",
+      "Data.Argonaut.Decode.Error",
+      "Data.Argonaut.Parser",
+      "Data.Bifunctor",
+      "Data.Either"
+    ],
+    "package": "argonaut-codecs",
+    "path": ".spago/p/argonaut-codecs-9.1.0/src/Data/Argonaut/Decode/Parser.purs"
+  },
+  "Data.Argonaut.Encode": {
+    "depends": [
+      "Prelude",
+      "Data.Argonaut.Core",
+      "Data.Argonaut.Encode.Class",
+      "Data.Argonaut.Encode.Combinators"
+    ],
+    "package": "argonaut-codecs",
+    "path": ".spago/p/argonaut-codecs-9.1.0/src/Data/Argonaut/Encode.purs"
+  },
+  "Data.Argonaut.Encode.Class": {
+    "depends": [
+      "Data.Argonaut.Encode.Encoders",
+      "Data.Argonaut.Core",
+      "Data.Array.NonEmpty",
+      "Data.String.NonEmpty",
+      "Data.Either",
+      "Data.Identity",
+      "Data.List",
+      "Data.List.Types",
+      "Data.Map",
+      "Data.Maybe",
+      "Data.NonEmpty",
+      "Data.Set",
+      "Data.String",
+      "Data.Symbol",
+      "Data.Tuple",
+      "Foreign.Object",
+      "Prelude",
+      "Record",
+      "Type.Proxy"
+    ],
+    "package": "argonaut-codecs",
+    "path": ".spago/p/argonaut-codecs-9.1.0/src/Data/Argonaut/Encode/Class.purs"
+  },
+  "Data.Argonaut.Encode.Combinators": {
+    "depends": [
+      "Data.Argonaut.Core",
+      "Data.Argonaut.Encode.Class",
+      "Data.Maybe",
+      "Data.Tuple",
+      "Data.Argonaut.Encode.Encoders"
+    ],
+    "package": "argonaut-codecs",
+    "path": ".spago/p/argonaut-codecs-9.1.0/src/Data/Argonaut/Encode/Combinators.purs"
+  },
+  "Data.Argonaut.Encode.Encoders": {
+    "depends": [
+      "Prelude",
+      "Data.Argonaut.Core",
+      "Data.Array",
+      "Data.Array.NonEmpty",
+      "Data.Array.NonEmpty",
+      "Data.Either",
+      "Data.Identity",
+      "Data.Int",
+      "Data.List",
+      "Data.List.NonEmpty",
+      "Data.List.Types",
+      "Data.String.NonEmpty",
+      "Data.String.NonEmpty",
+      "Data.Map",
+      "Data.Maybe",
+      "Data.NonEmpty",
+      "Data.Set",
+      "Data.String",
+      "Data.String.CodePoints",
+      "Data.String.CodeUnits",
+      "Data.Tuple",
+      "Foreign.Object"
+    ],
+    "package": "argonaut-codecs",
+    "path": ".spago/p/argonaut-codecs-9.1.0/src/Data/Argonaut/Encode/Encoders.purs"
+  },
+  "Data.Argonaut.Gen": {
+    "depends": [
+      "Prelude",
+      "Control.Lazy",
+      "Control.Monad.Gen",
+      "Control.Monad.Gen",
+      "Control.Monad.Rec.Class",
+      "Data.Argonaut.Core",
+      "Data.Array",
+      "Data.NonEmpty",
+      "Data.String.Gen",
+      "Foreign.Object"
+    ],
+    "package": "argonaut-core",
+    "path": ".spago/p/argonaut-core-7.0.0/src/Data/Argonaut/Gen.purs"
+  },
+  "Data.Argonaut.Parser": {
+    "depends": [
+      "Data.Argonaut.Core",
+      "Data.Either",
+      "Data.Function.Uncurried"
+    ],
+    "package": "argonaut-core",
+    "path": ".spago/p/argonaut-core-7.0.0/src/Data/Argonaut/Parser.purs"
+  },
+  "Data.Array": {
+    "depends": [
+      "Prelude",
+      "Control.Alt",
+      "Control.Alternative",
+      "Control.Lazy",
+      "Control.Monad.Rec.Class",
+      "Control.Monad.ST",
+      "Data.Array.NonEmpty.Internal",
+      "Data.Array.ST",
+      "Data.Array.ST.Iterator",
+      "Data.Foldable",
+      "Data.Foldable",
+      "Data.Function.Uncurried",
+      "Data.FunctorWithIndex",
+      "Data.Maybe",
+      "Data.Traversable",
+      "Data.Tuple",
+      "Data.Unfoldable",
+      "Partial.Unsafe"
+    ],
+    "package": "arrays",
+    "path": ".spago/p/arrays-7.3.0/src/Data/Array.purs"
+  },
+  "Data.Array.NonEmpty": {
+    "depends": [
+      "Prelude",
+      "Control.Alternative",
+      "Control.Lazy",
+      "Control.Monad.Rec.Class",
+      "Data.Array",
+      "Data.Array.NonEmpty.Internal",
+      "Data.Array.NonEmpty.Internal",
+      "Data.Bifunctor",
+      "Data.Foldable",
+      "Data.Maybe",
+      "Data.NonEmpty",
+      "Data.Semigroup.Foldable",
+      "Data.Semigroup.Foldable",
+      "Data.Tuple",
+      "Data.Unfoldable",
+      "Data.Unfoldable1",
+      "Partial.Unsafe",
+      "Safe.Coerce",
+      "Unsafe.Coerce"
+    ],
+    "package": "arrays",
+    "path": ".spago/p/arrays-7.3.0/src/Data/Array/NonEmpty.purs"
+  },
+  "Data.Array.NonEmpty.Internal": {
+    "depends": [
+      "Prelude",
+      "Control.Alt",
+      "Data.Eq",
+      "Data.Foldable",
+      "Data.FoldableWithIndex",
+      "Data.Function.Uncurried",
+      "Data.FunctorWithIndex",
+      "Data.Ord",
+      "Data.Semigroup.Foldable",
+      "Data.Semigroup.Traversable",
+      "Data.Traversable",
+      "Data.TraversableWithIndex",
+      "Data.Unfoldable1"
+    ],
+    "package": "arrays",
+    "path": ".spago/p/arrays-7.3.0/src/Data/Array/NonEmpty/Internal.purs"
+  },
+  "Data.Array.Partial": {
+    "depends": [
+      "Prelude",
+      "Data.Array"
+    ],
+    "package": "arrays",
+    "path": ".spago/p/arrays-7.3.0/src/Data/Array/Partial.purs"
+  },
+  "Data.Array.ST": {
+    "depends": [
+      "Prelude",
+      "Control.Monad.ST",
+      "Control.Monad.ST",
+      "Control.Monad.ST.Uncurried",
+      "Data.Maybe"
+    ],
+    "package": "arrays",
+    "path": ".spago/p/arrays-7.3.0/src/Data/Array/ST.purs"
+  },
+  "Data.Array.ST.Iterator": {
+    "depends": [
+      "Prelude",
+      "Control.Monad.ST",
+      "Control.Monad.ST",
+      "Control.Monad.ST.Ref",
+      "Control.Monad.ST.Ref",
+      "Data.Array.ST",
+      "Data.Array.ST",
+      "Data.Maybe"
+    ],
+    "package": "arrays",
+    "path": ".spago/p/arrays-7.3.0/src/Data/Array/ST/Iterator.purs"
+  },
+  "Data.Array.ST.Partial": {
+    "depends": [
+      "Control.Monad.ST",
+      "Control.Monad.ST.Uncurried",
+      "Data.Array.ST",
+      "Data.Unit"
+    ],
+    "package": "arrays",
+    "path": ".spago/p/arrays-7.3.0/src/Data/Array/ST/Partial.purs"
+  },
+  "Data.ArrayBuffer.Types": {
+    "depends": [],
+    "package": "arraybuffer-types",
+    "path": ".spago/p/arraybuffer-types-3.0.2/src/Data/ArrayBuffer/Types.purs"
+  },
+  "Data.Bifoldable": {
+    "depends": [
+      "Prelude",
+      "Control.Apply",
+      "Data.Const",
+      "Data.Either",
+      "Data.Foldable",
+      "Data.Functor.Clown",
+      "Data.Functor.Flip",
+      "Data.Functor.Joker",
+      "Data.Functor.Product2",
+      "Data.Monoid.Conj",
+      "Data.Monoid.Disj",
+      "Data.Monoid.Dual",
+      "Data.Monoid.Endo",
+      "Data.Newtype",
+      "Data.Tuple"
+    ],
+    "package": "foldable-traversable",
+    "path": ".spago/p/foldable-traversable-6.0.0/src/Data/Bifoldable.purs"
+  },
+  "Data.Bifunctor": {
+    "depends": [
+      "Control.Category",
+      "Data.Const",
+      "Data.Either",
+      "Data.Tuple"
+    ],
+    "package": "bifunctors",
+    "path": ".spago/p/bifunctors-6.0.0/src/Data/Bifunctor.purs"
+  },
+  "Data.Bifunctor.Join": {
+    "depends": [
+      "Prelude",
+      "Control.Biapplicative",
+      "Control.Biapply",
+      "Data.Bifunctor",
+      "Data.Newtype"
+    ],
+    "package": "bifunctors",
+    "path": ".spago/p/bifunctors-6.0.0/src/Data/Bifunctor/Join.purs"
+  },
+  "Data.Bitraversable": {
+    "depends": [
+      "Prelude",
+      "Data.Bifoldable",
+      "Data.Traversable",
+      "Data.Bifunctor",
+      "Data.Const",
+      "Data.Either",
+      "Data.Functor.Clown",
+      "Data.Functor.Flip",
+      "Data.Functor.Joker",
+      "Data.Functor.Product2",
+      "Data.Tuple"
+    ],
+    "package": "foldable-traversable",
+    "path": ".spago/p/foldable-traversable-6.0.0/src/Data/Bitraversable.purs"
   },
   "Data.Boolean": {
     "depends": [],
@@ -90,6 +1285,63 @@
     "package": "prelude",
     "path": ".spago/p/prelude-6.0.1/src/Data/Bounded/Generic.purs"
   },
+  "Data.CatList": {
+    "depends": [
+      "Prelude",
+      "Control.Alt",
+      "Control.Alternative",
+      "Control.MonadPlus",
+      "Control.Plus",
+      "Data.CatQueue",
+      "Data.Foldable",
+      "Data.Foldable",
+      "Data.List",
+      "Data.Maybe",
+      "Data.Traversable",
+      "Data.Tuple",
+      "Data.Unfoldable",
+      "Data.Unfoldable1"
+    ],
+    "package": "catenable-lists",
+    "path": ".spago/p/catenable-lists-7.0.0/src/Data/CatList.purs"
+  },
+  "Data.CatQueue": {
+    "depends": [
+      "Prelude",
+      "Control.Alt",
+      "Control.Alternative",
+      "Control.Apply",
+      "Control.MonadPlus",
+      "Control.Plus",
+      "Data.Foldable",
+      "Data.List",
+      "Data.List",
+      "Data.Maybe",
+      "Data.Traversable",
+      "Data.Tuple",
+      "Data.Unfoldable"
+    ],
+    "package": "catenable-lists",
+    "path": ".spago/p/catenable-lists-7.0.0/src/Data/CatQueue.purs"
+  },
+  "Data.Char": {
+    "depends": [
+      "Data.Enum",
+      "Data.Maybe"
+    ],
+    "package": "strings",
+    "path": ".spago/p/strings-6.0.1/src/Data/Char.purs"
+  },
+  "Data.Char.Gen": {
+    "depends": [
+      "Prelude",
+      "Control.Monad.Gen",
+      "Data.Enum",
+      "Data.NonEmpty"
+    ],
+    "package": "strings",
+    "path": ".spago/p/strings-6.0.1/src/Data/Char/Gen.purs"
+  },
   "Data.CommutativeRing": {
     "depends": [
       "Data.Ring",
@@ -101,6 +1353,198 @@
     "package": "prelude",
     "path": ".spago/p/prelude-6.0.1/src/Data/CommutativeRing.purs"
   },
+  "Data.Comparison": {
+    "depends": [
+      "Prelude",
+      "Data.Function",
+      "Data.Functor.Contravariant",
+      "Data.Newtype"
+    ],
+    "package": "contravariant",
+    "path": ".spago/p/contravariant-6.0.0/src/Data/Comparison.purs"
+  },
+  "Data.Const": {
+    "depends": [
+      "Prelude",
+      "Data.Eq",
+      "Data.Functor.Invariant",
+      "Data.Newtype",
+      "Data.Ord"
+    ],
+    "package": "const",
+    "path": ".spago/p/const-6.0.0/src/Data/Const.purs"
+  },
+  "Data.Coyoneda": {
+    "depends": [
+      "Prelude",
+      "Control.Alt",
+      "Control.Alternative",
+      "Control.Comonad",
+      "Control.Extend",
+      "Control.Monad.Trans.Class",
+      "Control.MonadPlus",
+      "Data.Distributive",
+      "Data.Eq",
+      "Data.Exists",
+      "Data.Foldable",
+      "Data.Functor.Invariant",
+      "Data.Ord",
+      "Data.Semigroup.Foldable",
+      "Data.Semigroup.Traversable",
+      "Data.Traversable"
+    ],
+    "package": "free",
+    "path": ".spago/p/free-7.1.0/src/Data/Coyoneda.purs"
+  },
+  "Data.Date": {
+    "depends": [
+      "Prelude",
+      "Data.Date.Component",
+      "Data.Enum",
+      "Data.Function.Uncurried",
+      "Data.Int",
+      "Data.Maybe",
+      "Data.Time.Duration",
+      "Partial.Unsafe"
+    ],
+    "package": "datetime",
+    "path": ".spago/p/datetime-6.1.0/src/Data/Date.purs"
+  },
+  "Data.Date.Component": {
+    "depends": [
+      "Prelude",
+      "Data.Enum",
+      "Data.Maybe"
+    ],
+    "package": "datetime",
+    "path": ".spago/p/datetime-6.1.0/src/Data/Date/Component.purs"
+  },
+  "Data.Date.Component.Gen": {
+    "depends": [
+      "Prelude",
+      "Control.Monad.Gen",
+      "Data.Date.Component",
+      "Data.Enum",
+      "Data.Enum.Gen",
+      "Data.Maybe",
+      "Partial.Unsafe"
+    ],
+    "package": "datetime",
+    "path": ".spago/p/datetime-6.1.0/src/Data/Date/Component/Gen.purs"
+  },
+  "Data.Date.Gen": {
+    "depends": [
+      "Prelude",
+      "Control.Monad.Gen",
+      "Data.Date",
+      "Data.Date.Component.Gen",
+      "Data.Int",
+      "Data.Maybe",
+      "Data.Time.Duration",
+      "Partial.Unsafe"
+    ],
+    "package": "datetime",
+    "path": ".spago/p/datetime-6.1.0/src/Data/Date/Gen.purs"
+  },
+  "Data.DateTime": {
+    "depends": [
+      "Prelude",
+      "Data.Date",
+      "Data.Enum",
+      "Data.Function.Uncurried",
+      "Data.Time",
+      "Data.Time.Duration",
+      "Data.Maybe"
+    ],
+    "package": "datetime",
+    "path": ".spago/p/datetime-6.1.0/src/Data/DateTime.purs"
+  },
+  "Data.DateTime.Gen": {
+    "depends": [
+      "Prelude",
+      "Control.Monad.Gen",
+      "Data.Date.Gen",
+      "Data.DateTime",
+      "Data.Time.Gen"
+    ],
+    "package": "datetime",
+    "path": ".spago/p/datetime-6.1.0/src/Data/DateTime/Gen.purs"
+  },
+  "Data.DateTime.Instant": {
+    "depends": [
+      "Prelude",
+      "Data.DateTime",
+      "Data.Enum",
+      "Data.Function.Uncurried",
+      "Data.Maybe",
+      "Data.Time.Duration",
+      "Partial.Unsafe"
+    ],
+    "package": "datetime",
+    "path": ".spago/p/datetime-6.1.0/src/Data/DateTime/Instant.purs"
+  },
+  "Data.Decidable": {
+    "depends": [
+      "Prelude",
+      "Data.Comparison",
+      "Data.Decide",
+      "Data.Divisible",
+      "Data.Equivalence",
+      "Data.Op",
+      "Data.Predicate"
+    ],
+    "package": "contravariant",
+    "path": ".spago/p/contravariant-6.0.0/src/Data/Decidable.purs"
+  },
+  "Data.Decide": {
+    "depends": [
+      "Prelude",
+      "Data.Comparison",
+      "Data.Divide",
+      "Data.Either",
+      "Data.Equivalence",
+      "Data.Op",
+      "Data.Predicate"
+    ],
+    "package": "contravariant",
+    "path": ".spago/p/contravariant-6.0.0/src/Data/Decide.purs"
+  },
+  "Data.Distributive": {
+    "depends": [
+      "Prelude",
+      "Data.Identity",
+      "Data.Newtype",
+      "Data.Tuple",
+      "Type.Equality"
+    ],
+    "package": "distributive",
+    "path": ".spago/p/distributive-6.0.0/src/Data/Distributive.purs"
+  },
+  "Data.Divide": {
+    "depends": [
+      "Prelude",
+      "Data.Comparison",
+      "Data.Equivalence",
+      "Data.Functor.Contravariant",
+      "Data.Op",
+      "Data.Predicate",
+      "Data.Tuple"
+    ],
+    "package": "contravariant",
+    "path": ".spago/p/contravariant-6.0.0/src/Data/Divide.purs"
+  },
+  "Data.Divisible": {
+    "depends": [
+      "Prelude",
+      "Data.Comparison",
+      "Data.Divide",
+      "Data.Equivalence",
+      "Data.Op",
+      "Data.Predicate"
+    ],
+    "package": "contravariant",
+    "path": ".spago/p/contravariant-6.0.0/src/Data/Divisible.purs"
+  },
   "Data.DivisionRing": {
     "depends": [
       "Data.EuclideanRing",
@@ -109,6 +1553,75 @@
     ],
     "package": "prelude",
     "path": ".spago/p/prelude-6.0.1/src/Data/DivisionRing.purs"
+  },
+  "Data.Either": {
+    "depends": [
+      "Prelude",
+      "Control.Alt",
+      "Control.Extend",
+      "Data.Eq",
+      "Data.Functor.Invariant",
+      "Data.Generic.Rep",
+      "Data.Maybe",
+      "Data.Ord"
+    ],
+    "package": "either",
+    "path": ".spago/p/either-6.1.0/src/Data/Either.purs"
+  },
+  "Data.Either.Inject": {
+    "depends": [
+      "Prelude",
+      "Data.Either",
+      "Data.Maybe"
+    ],
+    "package": "either",
+    "path": ".spago/p/either-6.1.0/src/Data/Either/Inject.purs"
+  },
+  "Data.Either.Nested": {
+    "depends": [
+      "Data.Either",
+      "Data.Void"
+    ],
+    "package": "either",
+    "path": ".spago/p/either-6.1.0/src/Data/Either/Nested.purs"
+  },
+  "Data.Enum": {
+    "depends": [
+      "Prelude",
+      "Control.MonadPlus",
+      "Data.Either",
+      "Data.Maybe",
+      "Data.Newtype",
+      "Data.Tuple",
+      "Data.Unfoldable",
+      "Data.Unfoldable1",
+      "Partial.Unsafe"
+    ],
+    "package": "enums",
+    "path": ".spago/p/enums-6.0.1/src/Data/Enum.purs"
+  },
+  "Data.Enum.Gen": {
+    "depends": [
+      "Prelude",
+      "Control.Monad.Gen",
+      "Data.Enum",
+      "Data.Maybe",
+      "Data.NonEmpty"
+    ],
+    "package": "enums",
+    "path": ".spago/p/enums-6.0.1/src/Data/Enum/Gen.purs"
+  },
+  "Data.Enum.Generic": {
+    "depends": [
+      "Prelude",
+      "Data.Enum",
+      "Data.Generic.Rep",
+      "Data.Bounded.Generic",
+      "Data.Maybe",
+      "Data.Newtype"
+    ],
+    "package": "enums",
+    "path": ".spago/p/enums-6.0.1/src/Data/Enum/Generic.purs"
   },
   "Data.Eq": {
     "depends": [
@@ -130,6 +1643,17 @@
     "package": "prelude",
     "path": ".spago/p/prelude-6.0.1/src/Data/Eq/Generic.purs"
   },
+  "Data.Equivalence": {
+    "depends": [
+      "Prelude",
+      "Data.Comparison",
+      "Data.Function",
+      "Data.Functor.Contravariant",
+      "Data.Newtype"
+    ],
+    "package": "contravariant",
+    "path": ".spago/p/contravariant-6.0.0/src/Data/Equivalence.purs"
+  },
   "Data.EuclideanRing": {
     "depends": [
       "Data.BooleanAlgebra",
@@ -140,6 +1664,13 @@
     ],
     "package": "prelude",
     "path": ".spago/p/prelude-6.0.1/src/Data/EuclideanRing.purs"
+  },
+  "Data.Exists": {
+    "depends": [
+      "Unsafe.Coerce"
+    ],
+    "package": "exists",
+    "path": ".spago/p/exists-6.0.0/src/Data/Exists.purs"
   },
   "Data.Field": {
     "depends": [
@@ -152,6 +1683,59 @@
     "package": "prelude",
     "path": ".spago/p/prelude-6.0.1/src/Data/Field.purs"
   },
+  "Data.Foldable": {
+    "depends": [
+      "Prelude",
+      "Control.Plus",
+      "Data.Const",
+      "Data.Either",
+      "Data.Functor.App",
+      "Data.Functor.Compose",
+      "Data.Functor.Coproduct",
+      "Data.Functor.Product",
+      "Data.Identity",
+      "Data.Maybe",
+      "Data.Maybe.First",
+      "Data.Maybe.Last",
+      "Data.Monoid.Additive",
+      "Data.Monoid.Conj",
+      "Data.Monoid.Disj",
+      "Data.Monoid.Dual",
+      "Data.Monoid.Endo",
+      "Data.Monoid.Multiplicative",
+      "Data.Newtype",
+      "Data.Tuple"
+    ],
+    "package": "foldable-traversable",
+    "path": ".spago/p/foldable-traversable-6.0.0/src/Data/Foldable.purs"
+  },
+  "Data.FoldableWithIndex": {
+    "depends": [
+      "Prelude",
+      "Data.Const",
+      "Data.Either",
+      "Data.Foldable",
+      "Data.Functor.App",
+      "Data.Functor.Compose",
+      "Data.Functor.Coproduct",
+      "Data.Functor.Product",
+      "Data.FunctorWithIndex",
+      "Data.Identity",
+      "Data.Maybe",
+      "Data.Maybe.First",
+      "Data.Maybe.Last",
+      "Data.Monoid.Additive",
+      "Data.Monoid.Conj",
+      "Data.Monoid.Disj",
+      "Data.Monoid.Dual",
+      "Data.Monoid.Endo",
+      "Data.Monoid.Multiplicative",
+      "Data.Newtype",
+      "Data.Tuple"
+    ],
+    "package": "foldable-traversable",
+    "path": ".spago/p/foldable-traversable-6.0.0/src/Data/FoldableWithIndex.purs"
+  },
   "Data.Function": {
     "depends": [
       "Control.Category",
@@ -162,6 +1746,30 @@
     "package": "prelude",
     "path": ".spago/p/prelude-6.0.1/src/Data/Function.purs"
   },
+  "Data.Function.Memoize": {
+    "depends": [
+      "Prelude",
+      "Data.Char",
+      "Data.Either",
+      "Data.Generic.Rep",
+      "Data.Int.Bits",
+      "Data.Lazy",
+      "Data.List",
+      "Data.Maybe",
+      "Data.String.CodeUnits",
+      "Data.Tuple",
+      "Partial.Unsafe"
+    ],
+    "package": "open-memoize",
+    "path": ".spago/p/open-memoize-6.1.0/src/Data/Function/Memoize.purs"
+  },
+  "Data.Function.Uncurried": {
+    "depends": [
+      "Data.Unit"
+    ],
+    "package": "functions",
+    "path": ".spago/p/functions-6.0.0/src/Data/Function/Uncurried.purs"
+  },
   "Data.Functor": {
     "depends": [
       "Data.Function",
@@ -170,6 +1778,212 @@
     ],
     "package": "prelude",
     "path": ".spago/p/prelude-6.0.1/src/Data/Functor.purs"
+  },
+  "Data.Functor.App": {
+    "depends": [
+      "Prelude",
+      "Control.Alt",
+      "Control.Alternative",
+      "Control.Apply",
+      "Control.Comonad",
+      "Control.Extend",
+      "Control.Lazy",
+      "Control.MonadPlus",
+      "Control.Plus",
+      "Data.Eq",
+      "Data.Newtype",
+      "Data.Ord",
+      "Unsafe.Coerce"
+    ],
+    "package": "functors",
+    "path": ".spago/p/functors-5.0.0/src/Data/Functor/App.purs"
+  },
+  "Data.Functor.Clown": {
+    "depends": [
+      "Prelude",
+      "Control.Biapplicative",
+      "Control.Biapply",
+      "Data.Bifunctor",
+      "Data.Functor.Contravariant",
+      "Data.Newtype",
+      "Data.Profunctor"
+    ],
+    "package": "functors",
+    "path": ".spago/p/functors-5.0.0/src/Data/Functor/Clown.purs"
+  },
+  "Data.Functor.Compose": {
+    "depends": [
+      "Prelude",
+      "Control.Alt",
+      "Control.Alternative",
+      "Control.Plus",
+      "Data.Eq",
+      "Data.Functor.App",
+      "Data.Newtype",
+      "Data.Ord"
+    ],
+    "package": "functors",
+    "path": ".spago/p/functors-5.0.0/src/Data/Functor/Compose.purs"
+  },
+  "Data.Functor.Contravariant": {
+    "depends": [
+      "Prelude",
+      "Data.Const"
+    ],
+    "package": "contravariant",
+    "path": ".spago/p/contravariant-6.0.0/src/Data/Functor/Contravariant.purs"
+  },
+  "Data.Functor.Coproduct": {
+    "depends": [
+      "Prelude",
+      "Control.Comonad",
+      "Control.Extend",
+      "Data.Bifunctor",
+      "Data.Either",
+      "Data.Eq",
+      "Data.Newtype",
+      "Data.Ord"
+    ],
+    "package": "functors",
+    "path": ".spago/p/functors-5.0.0/src/Data/Functor/Coproduct.purs"
+  },
+  "Data.Functor.Coproduct.Inject": {
+    "depends": [
+      "Prelude",
+      "Data.Either",
+      "Data.Functor.Coproduct",
+      "Data.Maybe"
+    ],
+    "package": "functors",
+    "path": ".spago/p/functors-5.0.0/src/Data/Functor/Coproduct/Inject.purs"
+  },
+  "Data.Functor.Coproduct.Nested": {
+    "depends": [
+      "Prelude",
+      "Data.Const",
+      "Data.Either",
+      "Data.Functor.Coproduct",
+      "Data.Newtype"
+    ],
+    "package": "functors",
+    "path": ".spago/p/functors-5.0.0/src/Data/Functor/Coproduct/Nested.purs"
+  },
+  "Data.Functor.Costar": {
+    "depends": [
+      "Prelude",
+      "Control.Comonad",
+      "Control.Extend",
+      "Data.Bifunctor",
+      "Data.Distributive",
+      "Data.Functor.Contravariant",
+      "Data.Functor.Invariant",
+      "Data.Newtype",
+      "Data.Profunctor",
+      "Data.Profunctor.Closed",
+      "Data.Profunctor.Strong",
+      "Data.Tuple"
+    ],
+    "package": "functors",
+    "path": ".spago/p/functors-5.0.0/src/Data/Functor/Costar.purs"
+  },
+  "Data.Functor.Flip": {
+    "depends": [
+      "Prelude",
+      "Control.Biapplicative",
+      "Control.Biapply",
+      "Data.Bifunctor",
+      "Data.Functor.Contravariant",
+      "Data.Newtype",
+      "Data.Profunctor"
+    ],
+    "package": "functors",
+    "path": ".spago/p/functors-5.0.0/src/Data/Functor/Flip.purs"
+  },
+  "Data.Functor.Invariant": {
+    "depends": [
+      "Control.Semigroupoid",
+      "Data.Functor",
+      "Data.Monoid.Additive",
+      "Data.Monoid.Conj",
+      "Data.Monoid.Disj",
+      "Data.Monoid.Dual",
+      "Data.Monoid.Endo",
+      "Data.Monoid.Multiplicative",
+      "Data.Monoid.Alternate"
+    ],
+    "package": "invariant",
+    "path": ".spago/p/invariant-6.0.0/src/Data/Functor/Invariant.purs"
+  },
+  "Data.Functor.Joker": {
+    "depends": [
+      "Prelude",
+      "Control.Biapplicative",
+      "Control.Biapply",
+      "Data.Bifunctor",
+      "Data.Either",
+      "Data.Newtype",
+      "Data.Profunctor",
+      "Data.Profunctor.Choice"
+    ],
+    "package": "functors",
+    "path": ".spago/p/functors-5.0.0/src/Data/Functor/Joker.purs"
+  },
+  "Data.Functor.Product": {
+    "depends": [
+      "Prelude",
+      "Data.Bifunctor",
+      "Data.Eq",
+      "Data.Newtype",
+      "Data.Ord",
+      "Data.Tuple"
+    ],
+    "package": "functors",
+    "path": ".spago/p/functors-5.0.0/src/Data/Functor/Product.purs"
+  },
+  "Data.Functor.Product.Nested": {
+    "depends": [
+      "Prelude",
+      "Data.Const",
+      "Data.Functor.Product",
+      "Data.Tuple"
+    ],
+    "package": "functors",
+    "path": ".spago/p/functors-5.0.0/src/Data/Functor/Product/Nested.purs"
+  },
+  "Data.Functor.Product2": {
+    "depends": [
+      "Prelude",
+      "Control.Biapplicative",
+      "Control.Biapply",
+      "Data.Bifunctor",
+      "Data.Profunctor"
+    ],
+    "package": "functors",
+    "path": ".spago/p/functors-5.0.0/src/Data/Functor/Product2.purs"
+  },
+  "Data.FunctorWithIndex": {
+    "depends": [
+      "Prelude",
+      "Data.Bifunctor",
+      "Data.Const",
+      "Data.Either",
+      "Data.Functor.App",
+      "Data.Functor.Compose",
+      "Data.Functor.Coproduct",
+      "Data.Functor.Product",
+      "Data.Identity",
+      "Data.Maybe",
+      "Data.Maybe.First",
+      "Data.Maybe.Last",
+      "Data.Monoid.Additive",
+      "Data.Monoid.Conj",
+      "Data.Monoid.Disj",
+      "Data.Monoid.Dual",
+      "Data.Monoid.Multiplicative",
+      "Data.Tuple"
+    ],
+    "package": "foldable-traversable",
+    "path": ".spago/p/foldable-traversable-6.0.0/src/Data/FunctorWithIndex.purs"
   },
   "Data.Generic.Rep": {
     "depends": [
@@ -201,6 +2015,396 @@
     "package": "prelude",
     "path": ".spago/p/prelude-6.0.1/src/Data/HeytingAlgebra/Generic.purs"
   },
+  "Data.Identity": {
+    "depends": [
+      "Prelude",
+      "Control.Alt",
+      "Control.Comonad",
+      "Control.Extend",
+      "Control.Lazy",
+      "Data.Eq",
+      "Data.Functor.Invariant",
+      "Data.Newtype",
+      "Data.Ord"
+    ],
+    "package": "identity",
+    "path": ".spago/p/identity-6.0.0/src/Data/Identity.purs"
+  },
+  "Data.Int": {
+    "depends": [
+      "Prelude",
+      "Data.Int.Bits",
+      "Data.Maybe",
+      "Data.Number",
+      "Data.Number"
+    ],
+    "package": "integers",
+    "path": ".spago/p/integers-6.0.0/src/Data/Int.purs"
+  },
+  "Data.Int.Bits": {
+    "depends": [],
+    "package": "integers",
+    "path": ".spago/p/integers-6.0.0/src/Data/Int/Bits.purs"
+  },
+  "Data.Interval": {
+    "depends": [
+      "Prelude",
+      "Control.Extend",
+      "Data.Bifoldable",
+      "Data.Bifunctor",
+      "Data.Bitraversable",
+      "Data.Foldable",
+      "Data.Interval.Duration",
+      "Data.Maybe",
+      "Data.Traversable"
+    ],
+    "package": "datetime",
+    "path": ".spago/p/datetime-6.1.0/src/Data/Interval.purs"
+  },
+  "Data.Interval.Duration": {
+    "depends": [
+      "Prelude",
+      "Data.Map",
+      "Data.Newtype"
+    ],
+    "package": "datetime",
+    "path": ".spago/p/datetime-6.1.0/src/Data/Interval/Duration.purs"
+  },
+  "Data.Interval.Duration.Iso": {
+    "depends": [
+      "Prelude",
+      "Control.Plus",
+      "Data.Either",
+      "Data.Foldable",
+      "Data.Interval.Duration",
+      "Data.List",
+      "Data.List.NonEmpty",
+      "Data.List.Types",
+      "Data.Map",
+      "Data.Number",
+      "Data.Maybe",
+      "Data.Monoid.Additive",
+      "Data.Newtype",
+      "Data.Tuple"
+    ],
+    "package": "datetime",
+    "path": ".spago/p/datetime-6.1.0/src/Data/Interval/Duration/Iso.purs"
+  },
+  "Data.JSDate": {
+    "depends": [
+      "Prelude",
+      "Data.Date",
+      "Data.DateTime",
+      "Data.DateTime",
+      "Data.DateTime.Instant",
+      "Data.DateTime.Instant",
+      "Data.Enum",
+      "Data.Function.Uncurried",
+      "Data.Int",
+      "Data.Maybe",
+      "Data.Time",
+      "Data.Time.Duration",
+      "Effect",
+      "Foreign"
+    ],
+    "package": "js-date",
+    "path": ".spago/p/js-date-8.0.0/src/Data/JSDate.purs"
+  },
+  "Data.Lazy": {
+    "depends": [
+      "Prelude",
+      "Control.Comonad",
+      "Control.Extend",
+      "Control.Lazy",
+      "Data.Eq",
+      "Data.Foldable",
+      "Data.FoldableWithIndex",
+      "Data.Functor.Invariant",
+      "Data.FunctorWithIndex",
+      "Data.HeytingAlgebra",
+      "Data.Ord",
+      "Data.Semigroup.Foldable",
+      "Data.Semigroup.Traversable",
+      "Data.Traversable",
+      "Data.TraversableWithIndex"
+    ],
+    "package": "lazy",
+    "path": ".spago/p/lazy-6.0.0/src/Data/Lazy.purs"
+  },
+  "Data.List": {
+    "depends": [
+      "Prelude",
+      "Control.Alt",
+      "Control.Alternative",
+      "Control.Lazy",
+      "Control.Monad.Rec.Class",
+      "Data.Bifunctor",
+      "Data.Foldable",
+      "Data.Foldable",
+      "Data.List.Internal",
+      "Data.List.Types",
+      "Data.List.Types",
+      "Data.Maybe",
+      "Data.Newtype",
+      "Data.NonEmpty",
+      "Data.Traversable",
+      "Data.Traversable",
+      "Data.Tuple",
+      "Data.Unfoldable"
+    ],
+    "package": "lists",
+    "path": ".spago/p/lists-7.0.0/src/Data/List.purs"
+  },
+  "Data.List.Internal": {
+    "depends": [
+      "Prelude",
+      "Data.List.Types"
+    ],
+    "package": "lists",
+    "path": ".spago/p/lists-7.0.0/src/Data/List/Internal.purs"
+  },
+  "Data.List.Lazy": {
+    "depends": [
+      "Prelude",
+      "Control.Alt",
+      "Control.Alternative",
+      "Control.Lazy",
+      "Control.Monad.Rec.Class",
+      "Data.Foldable",
+      "Data.Foldable",
+      "Data.Lazy",
+      "Data.List.Internal",
+      "Data.List.Lazy.Types",
+      "Data.List.Lazy.Types",
+      "Data.Maybe",
+      "Data.Newtype",
+      "Data.NonEmpty",
+      "Data.Traversable",
+      "Data.Traversable",
+      "Data.Tuple",
+      "Data.Unfoldable"
+    ],
+    "package": "lists",
+    "path": ".spago/p/lists-7.0.0/src/Data/List/Lazy.purs"
+  },
+  "Data.List.Lazy.NonEmpty": {
+    "depends": [
+      "Prelude",
+      "Data.Foldable",
+      "Data.Lazy",
+      "Data.List.Lazy",
+      "Data.List.Lazy",
+      "Data.List.Lazy.Types",
+      "Data.Maybe",
+      "Data.NonEmpty",
+      "Data.Tuple",
+      "Data.Unfoldable"
+    ],
+    "package": "lists",
+    "path": ".spago/p/lists-7.0.0/src/Data/List/Lazy/NonEmpty.purs"
+  },
+  "Data.List.Lazy.Types": {
+    "depends": [
+      "Prelude",
+      "Control.Alt",
+      "Control.Alternative",
+      "Control.Comonad",
+      "Control.Extend",
+      "Control.Lazy",
+      "Control.MonadPlus",
+      "Control.Plus",
+      "Data.Eq",
+      "Data.Foldable",
+      "Data.FoldableWithIndex",
+      "Data.FunctorWithIndex",
+      "Data.Lazy",
+      "Data.Maybe",
+      "Data.Newtype",
+      "Data.NonEmpty",
+      "Data.NonEmpty",
+      "Data.Ord",
+      "Data.Traversable",
+      "Data.TraversableWithIndex",
+      "Data.Tuple",
+      "Data.Unfoldable",
+      "Data.Unfoldable1"
+    ],
+    "package": "lists",
+    "path": ".spago/p/lists-7.0.0/src/Data/List/Lazy/Types.purs"
+  },
+  "Data.List.NonEmpty": {
+    "depends": [
+      "Prelude",
+      "Data.Foldable",
+      "Data.List",
+      "Data.List",
+      "Data.List.Types",
+      "Data.Maybe",
+      "Data.NonEmpty",
+      "Data.NonEmpty",
+      "Data.Semigroup.Traversable",
+      "Data.Tuple",
+      "Data.Unfoldable",
+      "Partial.Unsafe",
+      "Data.Foldable",
+      "Data.Semigroup.Foldable",
+      "Data.Semigroup.Traversable",
+      "Data.Traversable"
+    ],
+    "package": "lists",
+    "path": ".spago/p/lists-7.0.0/src/Data/List/NonEmpty.purs"
+  },
+  "Data.List.Partial": {
+    "depends": [
+      "Data.List"
+    ],
+    "package": "lists",
+    "path": ".spago/p/lists-7.0.0/src/Data/List/Partial.purs"
+  },
+  "Data.List.Types": {
+    "depends": [
+      "Prelude",
+      "Control.Alt",
+      "Control.Alternative",
+      "Control.Apply",
+      "Control.Comonad",
+      "Control.Extend",
+      "Control.MonadPlus",
+      "Control.Plus",
+      "Data.Eq",
+      "Data.Foldable",
+      "Data.FoldableWithIndex",
+      "Data.FunctorWithIndex",
+      "Data.Maybe",
+      "Data.Newtype",
+      "Data.NonEmpty",
+      "Data.NonEmpty",
+      "Data.Ord",
+      "Data.Semigroup.Foldable",
+      "Data.Semigroup.Traversable",
+      "Data.Traversable",
+      "Data.TraversableWithIndex",
+      "Data.Tuple",
+      "Data.Unfoldable",
+      "Data.Unfoldable1"
+    ],
+    "package": "lists",
+    "path": ".spago/p/lists-7.0.0/src/Data/List/Types.purs"
+  },
+  "Data.List.ZipList": {
+    "depends": [
+      "Prelude",
+      "Control.Alt",
+      "Control.Alternative",
+      "Control.Plus",
+      "Data.Foldable",
+      "Data.List.Lazy",
+      "Data.Newtype",
+      "Data.Traversable",
+      "Partial.Unsafe"
+    ],
+    "package": "lists",
+    "path": ".spago/p/lists-7.0.0/src/Data/List/ZipList.purs"
+  },
+  "Data.Map": {
+    "depends": [
+      "Prelude",
+      "Control.Alt",
+      "Control.Plus",
+      "Data.Eq",
+      "Data.Foldable",
+      "Data.FoldableWithIndex",
+      "Data.FunctorWithIndex",
+      "Data.Map.Internal",
+      "Data.Newtype",
+      "Data.Ord",
+      "Data.Traversable",
+      "Data.TraversableWithIndex",
+      "Data.Set"
+    ],
+    "package": "ordered-collections",
+    "path": ".spago/p/ordered-collections-3.2.0/src/Data/Map.purs"
+  },
+  "Data.Map.Gen": {
+    "depends": [
+      "Prelude",
+      "Control.Monad.Gen",
+      "Control.Monad.Rec.Class",
+      "Data.Map",
+      "Data.Tuple",
+      "Data.List"
+    ],
+    "package": "ordered-collections",
+    "path": ".spago/p/ordered-collections-3.2.0/src/Data/Map/Gen.purs"
+  },
+  "Data.Map.Internal": {
+    "depends": [
+      "Prelude",
+      "Control.Alt",
+      "Control.Plus",
+      "Data.Eq",
+      "Data.Foldable",
+      "Data.FoldableWithIndex",
+      "Data.Function.Uncurried",
+      "Data.FunctorWithIndex",
+      "Data.List",
+      "Data.Maybe",
+      "Data.Ord",
+      "Data.Traversable",
+      "Data.TraversableWithIndex",
+      "Data.Tuple",
+      "Data.Unfoldable"
+    ],
+    "package": "ordered-collections",
+    "path": ".spago/p/ordered-collections-3.2.0/src/Data/Map/Internal.purs"
+  },
+  "Data.Maybe": {
+    "depends": [
+      "Prelude",
+      "Control.Alt",
+      "Control.Alternative",
+      "Control.Extend",
+      "Control.Plus",
+      "Data.Eq",
+      "Data.Functor.Invariant",
+      "Data.Generic.Rep",
+      "Data.Ord"
+    ],
+    "package": "maybe",
+    "path": ".spago/p/maybe-6.0.0/src/Data/Maybe.purs"
+  },
+  "Data.Maybe.First": {
+    "depends": [
+      "Prelude",
+      "Control.Alt",
+      "Control.Alternative",
+      "Control.Extend",
+      "Control.Plus",
+      "Data.Eq",
+      "Data.Functor.Invariant",
+      "Data.Maybe",
+      "Data.Newtype",
+      "Data.Ord"
+    ],
+    "package": "maybe",
+    "path": ".spago/p/maybe-6.0.0/src/Data/Maybe/First.purs"
+  },
+  "Data.Maybe.Last": {
+    "depends": [
+      "Prelude",
+      "Control.Alt",
+      "Control.Alternative",
+      "Control.Extend",
+      "Control.Plus",
+      "Data.Eq",
+      "Data.Functor.Invariant",
+      "Data.Maybe",
+      "Data.Newtype",
+      "Data.Ord"
+    ],
+    "package": "maybe",
+    "path": ".spago/p/maybe-6.0.0/src/Data/Maybe/Last.purs"
+  },
   "Data.Monoid": {
     "depends": [
       "Data.Boolean",
@@ -225,6 +2429,18 @@
     ],
     "package": "prelude",
     "path": ".spago/p/prelude-6.0.1/src/Data/Monoid/Additive.purs"
+  },
+  "Data.Monoid.Alternate": {
+    "depends": [
+      "Prelude",
+      "Control.Alternative",
+      "Control.Comonad",
+      "Data.Eq",
+      "Data.Newtype",
+      "Data.Ord"
+    ],
+    "package": "control",
+    "path": ".spago/p/control-6.0.0/src/Data/Monoid/Alternate.purs"
   },
   "Data.Monoid.Conj": {
     "depends": [
@@ -284,6 +2500,88 @@
     "package": "prelude",
     "path": ".spago/p/prelude-6.0.1/src/Data/NaturalTransformation.purs"
   },
+  "Data.Newtype": {
+    "depends": [
+      "Data.Monoid.Additive",
+      "Data.Monoid.Conj",
+      "Data.Monoid.Disj",
+      "Data.Monoid.Dual",
+      "Data.Monoid.Endo",
+      "Data.Monoid.Multiplicative",
+      "Data.Semigroup.First",
+      "Data.Semigroup.Last",
+      "Safe.Coerce"
+    ],
+    "package": "newtype",
+    "path": ".spago/p/newtype-5.0.0/src/Data/Newtype.purs"
+  },
+  "Data.NonEmpty": {
+    "depends": [
+      "Prelude",
+      "Control.Alt",
+      "Control.Alternative",
+      "Control.Plus",
+      "Data.Eq",
+      "Data.Foldable",
+      "Data.FoldableWithIndex",
+      "Data.FunctorWithIndex",
+      "Data.Maybe",
+      "Data.Ord",
+      "Data.Semigroup.Foldable",
+      "Data.Semigroup.Foldable",
+      "Data.Traversable",
+      "Data.TraversableWithIndex",
+      "Data.Tuple",
+      "Data.Unfoldable",
+      "Data.Unfoldable1"
+    ],
+    "package": "nonempty",
+    "path": ".spago/p/nonempty-7.0.0/src/Data/NonEmpty.purs"
+  },
+  "Data.Nullable": {
+    "depends": [
+      "Prelude",
+      "Data.Eq",
+      "Data.Function",
+      "Data.Function.Uncurried",
+      "Data.Maybe",
+      "Data.Ord"
+    ],
+    "package": "nullable",
+    "path": ".spago/p/nullable-6.0.0/src/Data/Nullable.purs"
+  },
+  "Data.Number": {
+    "depends": [
+      "Data.Function.Uncurried",
+      "Data.Maybe"
+    ],
+    "package": "numbers",
+    "path": ".spago/p/numbers-9.0.1/src/Data/Number.purs"
+  },
+  "Data.Number.Approximate": {
+    "depends": [
+      "Prelude",
+      "Data.Number"
+    ],
+    "package": "numbers",
+    "path": ".spago/p/numbers-9.0.1/src/Data/Number/Approximate.purs"
+  },
+  "Data.Number.Format": {
+    "depends": [
+      "Prelude"
+    ],
+    "package": "numbers",
+    "path": ".spago/p/numbers-9.0.1/src/Data/Number/Format.purs"
+  },
+  "Data.Op": {
+    "depends": [
+      "Prelude",
+      "Data.Functor.Contravariant",
+      "Data.Newtype"
+    ],
+    "package": "contravariant",
+    "path": ".spago/p/contravariant-6.0.0/src/Data/Op.purs"
+  },
   "Data.Ord": {
     "depends": [
       "Data.Eq",
@@ -298,6 +2596,15 @@
     "package": "prelude",
     "path": ".spago/p/prelude-6.0.1/src/Data/Ord.purs"
   },
+  "Data.Ord.Down": {
+    "depends": [
+      "Prelude",
+      "Data.Newtype",
+      "Data.Ordering"
+    ],
+    "package": "orders",
+    "path": ".spago/p/orders-6.0.0/src/Data/Ord/Down.purs"
+  },
   "Data.Ord.Generic": {
     "depends": [
       "Prelude",
@@ -305,6 +2612,22 @@
     ],
     "package": "prelude",
     "path": ".spago/p/prelude-6.0.1/src/Data/Ord/Generic.purs"
+  },
+  "Data.Ord.Max": {
+    "depends": [
+      "Prelude",
+      "Data.Newtype"
+    ],
+    "package": "orders",
+    "path": ".spago/p/orders-6.0.0/src/Data/Ord/Max.purs"
+  },
+  "Data.Ord.Min": {
+    "depends": [
+      "Prelude",
+      "Data.Newtype"
+    ],
+    "package": "orders",
+    "path": ".spago/p/orders-6.0.0/src/Data/Ord/Min.purs"
   },
   "Data.Ordering": {
     "depends": [
@@ -314,6 +2637,121 @@
     ],
     "package": "prelude",
     "path": ".spago/p/prelude-6.0.1/src/Data/Ordering.purs"
+  },
+  "Data.Posix": {
+    "depends": [
+      "Prelude",
+      "Data.Newtype"
+    ],
+    "package": "posix-types",
+    "path": ".spago/p/posix-types-6.0.0/src/Data/Posix.purs"
+  },
+  "Data.Posix.Signal": {
+    "depends": [
+      "Prelude",
+      "Data.Maybe"
+    ],
+    "package": "posix-types",
+    "path": ".spago/p/posix-types-6.0.0/src/Data/Posix/Signal.purs"
+  },
+  "Data.Predicate": {
+    "depends": [
+      "Prelude",
+      "Data.Functor.Contravariant",
+      "Data.Newtype"
+    ],
+    "package": "contravariant",
+    "path": ".spago/p/contravariant-6.0.0/src/Data/Predicate.purs"
+  },
+  "Data.Profunctor": {
+    "depends": [
+      "Prelude",
+      "Data.Newtype"
+    ],
+    "package": "profunctor",
+    "path": ".spago/p/profunctor-6.0.1/src/Data/Profunctor.purs"
+  },
+  "Data.Profunctor.Choice": {
+    "depends": [
+      "Prelude",
+      "Data.Either",
+      "Data.Profunctor"
+    ],
+    "package": "profunctor",
+    "path": ".spago/p/profunctor-6.0.1/src/Data/Profunctor/Choice.purs"
+  },
+  "Data.Profunctor.Closed": {
+    "depends": [
+      "Prelude",
+      "Data.Profunctor"
+    ],
+    "package": "profunctor",
+    "path": ".spago/p/profunctor-6.0.1/src/Data/Profunctor/Closed.purs"
+  },
+  "Data.Profunctor.Cochoice": {
+    "depends": [
+      "Data.Either",
+      "Data.Profunctor"
+    ],
+    "package": "profunctor",
+    "path": ".spago/p/profunctor-6.0.1/src/Data/Profunctor/Cochoice.purs"
+  },
+  "Data.Profunctor.Costrong": {
+    "depends": [
+      "Data.Tuple",
+      "Data.Profunctor"
+    ],
+    "package": "profunctor",
+    "path": ".spago/p/profunctor-6.0.1/src/Data/Profunctor/Costrong.purs"
+  },
+  "Data.Profunctor.Join": {
+    "depends": [
+      "Prelude",
+      "Data.Functor.Invariant",
+      "Data.Newtype",
+      "Data.Profunctor"
+    ],
+    "package": "profunctor",
+    "path": ".spago/p/profunctor-6.0.1/src/Data/Profunctor/Join.purs"
+  },
+  "Data.Profunctor.Split": {
+    "depends": [
+      "Prelude",
+      "Data.Exists",
+      "Data.Functor.Invariant",
+      "Data.Profunctor"
+    ],
+    "package": "profunctor",
+    "path": ".spago/p/profunctor-6.0.1/src/Data/Profunctor/Split.purs"
+  },
+  "Data.Profunctor.Star": {
+    "depends": [
+      "Prelude",
+      "Control.Alt",
+      "Control.Alternative",
+      "Control.MonadPlus",
+      "Control.Plus",
+      "Data.Distributive",
+      "Data.Either",
+      "Data.Functor.Invariant",
+      "Data.Newtype",
+      "Data.Profunctor",
+      "Data.Profunctor.Choice",
+      "Data.Profunctor.Closed",
+      "Data.Profunctor.Strong",
+      "Data.Tuple"
+    ],
+    "package": "profunctor",
+    "path": ".spago/p/profunctor-6.0.1/src/Data/Profunctor/Star.purs"
+  },
+  "Data.Profunctor.Strong": {
+    "depends": [
+      "Prelude",
+      "Data.Profunctor",
+      "Data.Tuple"
+    ],
+    "package": "profunctor",
+    "path": ".spago/p/profunctor-6.0.1/src/Data/Profunctor/Strong.purs"
   },
   "Data.Reflectable": {
     "depends": [
@@ -362,6 +2800,21 @@
     "package": "prelude",
     "path": ".spago/p/prelude-6.0.1/src/Data/Semigroup/First.purs"
   },
+  "Data.Semigroup.Foldable": {
+    "depends": [
+      "Prelude",
+      "Data.Foldable",
+      "Data.Identity",
+      "Data.Monoid.Dual",
+      "Data.Monoid.Multiplicative",
+      "Data.Newtype",
+      "Data.Ord.Max",
+      "Data.Ord.Min",
+      "Data.Tuple"
+    ],
+    "package": "foldable-traversable",
+    "path": ".spago/p/foldable-traversable-6.0.0/src/Data/Semigroup/Foldable.purs"
+  },
   "Data.Semigroup.Generic": {
     "depends": [
       "Prelude",
@@ -378,6 +2831,19 @@
     ],
     "package": "prelude",
     "path": ".spago/p/prelude-6.0.1/src/Data/Semigroup/Last.purs"
+  },
+  "Data.Semigroup.Traversable": {
+    "depends": [
+      "Prelude",
+      "Data.Identity",
+      "Data.Monoid.Dual",
+      "Data.Monoid.Multiplicative",
+      "Data.Semigroup.Foldable",
+      "Data.Traversable",
+      "Data.Tuple"
+    ],
+    "package": "foldable-traversable",
+    "path": ".spago/p/foldable-traversable-6.0.0/src/Data/Semigroup/Traversable.purs"
   },
   "Data.Semiring": {
     "depends": [
@@ -396,6 +2862,45 @@
     ],
     "package": "prelude",
     "path": ".spago/p/prelude-6.0.1/src/Data/Semiring/Generic.purs"
+  },
+  "Data.Set": {
+    "depends": [
+      "Prelude",
+      "Data.Eq",
+      "Data.Foldable",
+      "Data.List",
+      "Data.List",
+      "Data.Map.Internal",
+      "Data.Maybe",
+      "Data.Ord",
+      "Data.Unfoldable",
+      "Prelude",
+      "Safe.Coerce"
+    ],
+    "package": "ordered-collections",
+    "path": ".spago/p/ordered-collections-3.2.0/src/Data/Set.purs"
+  },
+  "Data.Set.NonEmpty": {
+    "depends": [
+      "Prelude",
+      "Data.Array.NonEmpty",
+      "Data.Eq",
+      "Data.Foldable",
+      "Data.Function.Uncurried",
+      "Data.List.NonEmpty",
+      "Data.Map.Internal",
+      "Data.Maybe",
+      "Data.Ord",
+      "Data.Semigroup.Foldable",
+      "Data.Set",
+      "Data.Set",
+      "Data.Tuple",
+      "Data.Unfoldable",
+      "Partial.Unsafe",
+      "Safe.Coerce"
+    ],
+    "package": "ordered-collections",
+    "path": ".spago/p/ordered-collections-3.2.0/src/Data/Set/NonEmpty.purs"
   },
   "Data.Show": {
     "depends": [
@@ -419,12 +2924,370 @@
     "package": "prelude",
     "path": ".spago/p/prelude-6.0.1/src/Data/Show/Generic.purs"
   },
+  "Data.String": {
+    "depends": [
+      "Data.String.CodePoints",
+      "Data.String.Common",
+      "Data.String.Pattern"
+    ],
+    "package": "strings",
+    "path": ".spago/p/strings-6.0.1/src/Data/String.purs"
+  },
+  "Data.String.CaseInsensitive": {
+    "depends": [
+      "Prelude",
+      "Data.Newtype",
+      "Data.String"
+    ],
+    "package": "strings",
+    "path": ".spago/p/strings-6.0.1/src/Data/String/CaseInsensitive.purs"
+  },
+  "Data.String.CodePoints": {
+    "depends": [
+      "Prelude",
+      "Data.Array",
+      "Data.Enum",
+      "Data.Int",
+      "Data.Maybe",
+      "Data.String.CodeUnits",
+      "Data.String.CodeUnits",
+      "Data.String.Common",
+      "Data.String.Pattern",
+      "Data.String.Unsafe",
+      "Data.Tuple",
+      "Data.Unfoldable"
+    ],
+    "package": "strings",
+    "path": ".spago/p/strings-6.0.1/src/Data/String/CodePoints.purs"
+  },
+  "Data.String.CodeUnits": {
+    "depends": [
+      "Prelude",
+      "Data.Maybe",
+      "Data.String.Pattern",
+      "Data.String.Unsafe"
+    ],
+    "package": "strings",
+    "path": ".spago/p/strings-6.0.1/src/Data/String/CodeUnits.purs"
+  },
+  "Data.String.Common": {
+    "depends": [
+      "Prelude",
+      "Data.String.Pattern"
+    ],
+    "package": "strings",
+    "path": ".spago/p/strings-6.0.1/src/Data/String/Common.purs"
+  },
+  "Data.String.Gen": {
+    "depends": [
+      "Prelude",
+      "Control.Monad.Gen",
+      "Control.Monad.Rec.Class",
+      "Data.Char.Gen",
+      "Data.String.CodeUnits"
+    ],
+    "package": "strings",
+    "path": ".spago/p/strings-6.0.1/src/Data/String/Gen.purs"
+  },
+  "Data.String.NonEmpty": {
+    "depends": [
+      "Data.String.NonEmpty.Internal",
+      "Data.String.Pattern",
+      "Data.String.NonEmpty.CodePoints"
+    ],
+    "package": "strings",
+    "path": ".spago/p/strings-6.0.1/src/Data/String/NonEmpty.purs"
+  },
+  "Data.String.NonEmpty.CaseInsensitive": {
+    "depends": [
+      "Prelude",
+      "Data.Newtype",
+      "Data.String.NonEmpty"
+    ],
+    "package": "strings",
+    "path": ".spago/p/strings-6.0.1/src/Data/String/NonEmpty/CaseInsensitive.purs"
+  },
+  "Data.String.NonEmpty.CodePoints": {
+    "depends": [
+      "Prelude",
+      "Data.Array.NonEmpty",
+      "Data.Array.NonEmpty",
+      "Data.Maybe",
+      "Data.Semigroup.Foldable",
+      "Data.Semigroup.Foldable",
+      "Data.String.CodePoints",
+      "Data.String.CodePoints",
+      "Data.String.NonEmpty.Internal",
+      "Data.String.Pattern",
+      "Partial.Unsafe"
+    ],
+    "package": "strings",
+    "path": ".spago/p/strings-6.0.1/src/Data/String/NonEmpty/CodePoints.purs"
+  },
+  "Data.String.NonEmpty.CodeUnits": {
+    "depends": [
+      "Prelude",
+      "Data.Array.NonEmpty",
+      "Data.Array.NonEmpty",
+      "Data.Maybe",
+      "Data.Semigroup.Foldable",
+      "Data.Semigroup.Foldable",
+      "Data.String.CodeUnits",
+      "Data.String.NonEmpty.Internal",
+      "Data.String.Pattern",
+      "Data.String.Unsafe",
+      "Partial.Unsafe",
+      "Unsafe.Coerce"
+    ],
+    "package": "strings",
+    "path": ".spago/p/strings-6.0.1/src/Data/String/NonEmpty/CodeUnits.purs"
+  },
+  "Data.String.NonEmpty.Internal": {
+    "depends": [
+      "Prelude",
+      "Data.Foldable",
+      "Data.Foldable",
+      "Data.Maybe",
+      "Data.Semigroup.Foldable",
+      "Data.String",
+      "Data.String.Pattern",
+      "Data.Symbol",
+      "Type.Proxy",
+      "Unsafe.Coerce"
+    ],
+    "package": "strings",
+    "path": ".spago/p/strings-6.0.1/src/Data/String/NonEmpty/Internal.purs"
+  },
+  "Data.String.Pattern": {
+    "depends": [
+      "Prelude",
+      "Data.Newtype"
+    ],
+    "package": "strings",
+    "path": ".spago/p/strings-6.0.1/src/Data/String/Pattern.purs"
+  },
+  "Data.String.Regex": {
+    "depends": [
+      "Prelude",
+      "Data.Array.NonEmpty",
+      "Data.Either",
+      "Data.Maybe",
+      "Data.String",
+      "Data.String.Pattern",
+      "Data.String.Regex.Flags"
+    ],
+    "package": "strings",
+    "path": ".spago/p/strings-6.0.1/src/Data/String/Regex.purs"
+  },
+  "Data.String.Regex.Flags": {
+    "depends": [
+      "Prelude",
+      "Control.MonadPlus",
+      "Data.Newtype",
+      "Data.String"
+    ],
+    "package": "strings",
+    "path": ".spago/p/strings-6.0.1/src/Data/String/Regex/Flags.purs"
+  },
+  "Data.String.Regex.Unsafe": {
+    "depends": [
+      "Control.Category",
+      "Data.Either",
+      "Data.String.Regex",
+      "Data.String.Regex.Flags",
+      "Partial.Unsafe"
+    ],
+    "package": "strings",
+    "path": ".spago/p/strings-6.0.1/src/Data/String/Regex/Unsafe.purs"
+  },
+  "Data.String.Unsafe": {
+    "depends": [],
+    "package": "strings",
+    "path": ".spago/p/strings-6.0.1/src/Data/String/Unsafe.purs"
+  },
   "Data.Symbol": {
     "depends": [
       "Type.Proxy"
     ],
     "package": "prelude",
     "path": ".spago/p/prelude-6.0.1/src/Data/Symbol.purs"
+  },
+  "Data.Time": {
+    "depends": [
+      "Prelude",
+      "Data.Enum",
+      "Data.Int",
+      "Data.Maybe",
+      "Data.Number",
+      "Data.Newtype",
+      "Data.Time.Component",
+      "Data.Time.Duration",
+      "Data.Tuple",
+      "Partial.Unsafe"
+    ],
+    "package": "datetime",
+    "path": ".spago/p/datetime-6.1.0/src/Data/Time.purs"
+  },
+  "Data.Time.Component": {
+    "depends": [
+      "Prelude",
+      "Data.Enum",
+      "Data.Maybe"
+    ],
+    "package": "datetime",
+    "path": ".spago/p/datetime-6.1.0/src/Data/Time/Component.purs"
+  },
+  "Data.Time.Component.Gen": {
+    "depends": [
+      "Control.Monad.Gen",
+      "Data.Enum.Gen",
+      "Data.Time.Component"
+    ],
+    "package": "datetime",
+    "path": ".spago/p/datetime-6.1.0/src/Data/Time/Component/Gen.purs"
+  },
+  "Data.Time.Duration": {
+    "depends": [
+      "Prelude",
+      "Data.Newtype"
+    ],
+    "package": "datetime",
+    "path": ".spago/p/datetime-6.1.0/src/Data/Time/Duration.purs"
+  },
+  "Data.Time.Duration.Gen": {
+    "depends": [
+      "Prelude",
+      "Control.Monad.Gen",
+      "Control.Monad.Gen",
+      "Data.Time.Duration"
+    ],
+    "package": "datetime",
+    "path": ".spago/p/datetime-6.1.0/src/Data/Time/Duration/Gen.purs"
+  },
+  "Data.Time.Gen": {
+    "depends": [
+      "Prelude",
+      "Control.Monad.Gen",
+      "Data.Time",
+      "Data.Time.Component.Gen"
+    ],
+    "package": "datetime",
+    "path": ".spago/p/datetime-6.1.0/src/Data/Time/Gen.purs"
+  },
+  "Data.Traversable": {
+    "depends": [
+      "Prelude",
+      "Control.Apply",
+      "Data.Const",
+      "Data.Either",
+      "Data.Foldable",
+      "Data.Functor.App",
+      "Data.Functor.Compose",
+      "Data.Functor.Coproduct",
+      "Data.Functor.Product",
+      "Data.Identity",
+      "Data.Maybe",
+      "Data.Maybe.First",
+      "Data.Maybe.Last",
+      "Data.Monoid.Additive",
+      "Data.Monoid.Conj",
+      "Data.Monoid.Disj",
+      "Data.Monoid.Dual",
+      "Data.Monoid.Multiplicative",
+      "Data.Traversable.Accum",
+      "Data.Traversable.Accum.Internal",
+      "Data.Tuple"
+    ],
+    "package": "foldable-traversable",
+    "path": ".spago/p/foldable-traversable-6.0.0/src/Data/Traversable.purs"
+  },
+  "Data.Traversable.Accum": {
+    "depends": [],
+    "package": "foldable-traversable",
+    "path": ".spago/p/foldable-traversable-6.0.0/src/Data/Traversable/Accum.purs"
+  },
+  "Data.Traversable.Accum.Internal": {
+    "depends": [
+      "Prelude",
+      "Data.Traversable.Accum"
+    ],
+    "package": "foldable-traversable",
+    "path": ".spago/p/foldable-traversable-6.0.0/src/Data/Traversable/Accum/Internal.purs"
+  },
+  "Data.TraversableWithIndex": {
+    "depends": [
+      "Prelude",
+      "Control.Apply",
+      "Data.Const",
+      "Data.Either",
+      "Data.FoldableWithIndex",
+      "Data.Functor.App",
+      "Data.Functor.Compose",
+      "Data.Functor.Coproduct",
+      "Data.Functor.Product",
+      "Data.FunctorWithIndex",
+      "Data.Identity",
+      "Data.Maybe",
+      "Data.Maybe.First",
+      "Data.Maybe.Last",
+      "Data.Monoid.Additive",
+      "Data.Monoid.Conj",
+      "Data.Monoid.Disj",
+      "Data.Monoid.Dual",
+      "Data.Monoid.Multiplicative",
+      "Data.Traversable",
+      "Data.Traversable.Accum",
+      "Data.Traversable.Accum.Internal",
+      "Data.Tuple"
+    ],
+    "package": "foldable-traversable",
+    "path": ".spago/p/foldable-traversable-6.0.0/src/Data/TraversableWithIndex.purs"
+  },
+  "Data.Tuple": {
+    "depends": [
+      "Prelude",
+      "Control.Comonad",
+      "Control.Extend",
+      "Control.Lazy",
+      "Data.Eq",
+      "Data.Functor.Invariant",
+      "Data.Generic.Rep",
+      "Data.HeytingAlgebra",
+      "Data.Ord"
+    ],
+    "package": "tuples",
+    "path": ".spago/p/tuples-7.0.0/src/Data/Tuple.purs"
+  },
+  "Data.Tuple.Nested": {
+    "depends": [
+      "Prelude",
+      "Data.Tuple"
+    ],
+    "package": "tuples",
+    "path": ".spago/p/tuples-7.0.0/src/Data/Tuple/Nested.purs"
+  },
+  "Data.Unfoldable": {
+    "depends": [
+      "Prelude",
+      "Data.Maybe",
+      "Data.Traversable",
+      "Data.Tuple",
+      "Data.Unfoldable1",
+      "Partial.Unsafe"
+    ],
+    "package": "unfoldable",
+    "path": ".spago/p/unfoldable-6.0.0/src/Data/Unfoldable.purs"
+  },
+  "Data.Unfoldable1": {
+    "depends": [
+      "Prelude",
+      "Data.Maybe",
+      "Data.Semigroup.Traversable",
+      "Data.Tuple",
+      "Partial.Unsafe"
+    ],
+    "package": "unfoldable",
+    "path": ".spago/p/unfoldable-6.0.0/src/Data/Unfoldable1.purs"
   },
   "Data.Unit": {
     "depends": [],
@@ -436,6 +3299,18 @@
     "package": "prelude",
     "path": ".spago/p/prelude-6.0.1/src/Data/Void.purs"
   },
+  "Data.Yoneda": {
+    "depends": [
+      "Prelude",
+      "Control.Comonad",
+      "Control.Extend",
+      "Control.Monad.Trans.Class",
+      "Data.Eq",
+      "Data.Ord"
+    ],
+    "package": "free",
+    "path": ".spago/p/free-7.1.0/src/Data/Yoneda.purs"
+  },
   "Effect": {
     "depends": [
       "Prelude",
@@ -443,6 +3318,92 @@
     ],
     "package": "effect",
     "path": ".spago/p/effect-4.0.0/src/Effect.purs"
+  },
+  "Effect.AVar": {
+    "depends": [
+      "Prelude",
+      "Data.Either",
+      "Data.Function.Uncurried",
+      "Data.Maybe",
+      "Effect",
+      "Effect.Exception"
+    ],
+    "package": "avar",
+    "path": ".spago/p/avar-5.0.0/src/Effect/AVar.purs"
+  },
+  "Effect.Aff": {
+    "depends": [
+      "Prelude",
+      "Control.Alt",
+      "Control.Alternative",
+      "Control.Apply",
+      "Control.Lazy",
+      "Control.Monad.Error.Class",
+      "Control.Monad.Error.Class",
+      "Control.Monad.Rec.Class",
+      "Control.Monad.ST.Class",
+      "Control.Monad.ST.Global",
+      "Control.Parallel",
+      "Control.Parallel.Class",
+      "Control.Parallel.Class",
+      "Control.Plus",
+      "Data.Either",
+      "Data.Function.Uncurried",
+      "Data.Newtype",
+      "Data.Time.Duration",
+      "Data.Time.Duration",
+      "Effect",
+      "Effect.Class",
+      "Effect.Exception",
+      "Effect.Exception",
+      "Effect.Unsafe",
+      "Partial.Unsafe",
+      "Unsafe.Coerce"
+    ],
+    "package": "aff",
+    "path": ".spago/p/aff-7.1.0/src/Effect/Aff.purs"
+  },
+  "Effect.Aff.AVar": {
+    "depends": [
+      "Prelude",
+      "Data.Maybe",
+      "Effect.Aff",
+      "Effect.AVar",
+      "Effect.AVar",
+      "Effect.Class",
+      "Effect.Exception"
+    ],
+    "package": "avar",
+    "path": ".spago/p/avar-5.0.0/src/Effect/Aff/AVar.purs"
+  },
+  "Effect.Aff.Class": {
+    "depends": [
+      "Prelude",
+      "Control.Monad.Cont.Trans",
+      "Control.Monad.Except.Trans",
+      "Control.Monad.List.Trans",
+      "Control.Monad.Maybe.Trans",
+      "Control.Monad.Reader.Trans",
+      "Control.Monad.RWS.Trans",
+      "Control.Monad.State.Trans",
+      "Control.Monad.Trans.Class",
+      "Control.Monad.Writer.Trans",
+      "Effect.Aff",
+      "Effect.Class"
+    ],
+    "package": "aff",
+    "path": ".spago/p/aff-7.1.0/src/Effect/Aff/Class.purs"
+  },
+  "Effect.Aff.Compat": {
+    "depends": [
+      "Prelude",
+      "Data.Either",
+      "Effect.Aff",
+      "Effect.Exception",
+      "Effect.Uncurried"
+    ],
+    "package": "aff",
+    "path": ".spago/p/aff-7.1.0/src/Effect/Aff/Compat.purs"
   },
   "Effect.Class": {
     "depends": [
@@ -455,6 +3416,7 @@
   },
   "Effect.Class.Console": {
     "depends": [
+      "Control.Bind",
       "Data.Function",
       "Data.Show",
       "Data.Unit",
@@ -462,16 +3424,55 @@
       "Effect.Console"
     ],
     "package": "console",
-    "path": ".spago/p/console-6.0.0/src/Effect/Class/Console.purs"
+    "path": ".spago/p/console-6.1.0/src/Effect/Class/Console.purs"
   },
   "Effect.Console": {
     "depends": [
+      "Control.Bind",
       "Effect",
       "Data.Show",
       "Data.Unit"
     ],
     "package": "console",
-    "path": ".spago/p/console-6.0.0/src/Effect/Console.purs"
+    "path": ".spago/p/console-6.1.0/src/Effect/Console.purs"
+  },
+  "Effect.Exception": {
+    "depends": [
+      "Prelude",
+      "Effect",
+      "Data.Either",
+      "Data.Maybe"
+    ],
+    "package": "exceptions",
+    "path": ".spago/p/exceptions-6.1.0/src/Effect/Exception.purs"
+  },
+  "Effect.Exception.Unsafe": {
+    "depends": [
+      "Effect.Exception",
+      "Effect.Unsafe",
+      "Control.Semigroupoid"
+    ],
+    "package": "exceptions",
+    "path": ".spago/p/exceptions-6.1.0/src/Effect/Exception/Unsafe.purs"
+  },
+  "Effect.Now": {
+    "depends": [
+      "Prelude",
+      "Data.DateTime",
+      "Data.Time.Duration",
+      "Data.DateTime.Instant",
+      "Effect"
+    ],
+    "package": "now",
+    "path": ".spago/p/now-6.0.0/src/Effect/Now.purs"
+  },
+  "Effect.Ref": {
+    "depends": [
+      "Prelude",
+      "Effect"
+    ],
+    "package": "refs",
+    "path": ".spago/p/refs-6.0.0/src/Effect/Ref.purs"
   },
   "Effect.Uncurried": {
     "depends": [
@@ -488,6 +3489,111 @@
     "package": "effect",
     "path": ".spago/p/effect-4.0.0/src/Effect/Unsafe.purs"
   },
+  "ExitCodes": {
+    "depends": [
+      "Prelude",
+      "Data.Enum",
+      "Data.Maybe"
+    ],
+    "package": "exitcodes",
+    "path": ".spago/p/exitcodes-4.0.0/src/ExitCodes.purs"
+  },
+  "Foreign": {
+    "depends": [
+      "Prelude",
+      "Control.Monad.Except",
+      "Data.Either",
+      "Data.Int",
+      "Data.List.NonEmpty",
+      "Data.List.NonEmpty",
+      "Data.Maybe",
+      "Data.String.CodeUnits",
+      "Unsafe.Coerce"
+    ],
+    "package": "foreign",
+    "path": ".spago/p/foreign-7.0.0/src/Foreign.purs"
+  },
+  "Foreign.Index": {
+    "depends": [
+      "Prelude",
+      "Control.Monad.Except.Trans",
+      "Foreign",
+      "Data.Function.Uncurried",
+      "Data.List.NonEmpty"
+    ],
+    "package": "foreign",
+    "path": ".spago/p/foreign-7.0.0/src/Foreign/Index.purs"
+  },
+  "Foreign.Keys": {
+    "depends": [
+      "Prelude",
+      "Foreign",
+      "Control.Monad.Except",
+      "Data.List.NonEmpty"
+    ],
+    "package": "foreign",
+    "path": ".spago/p/foreign-7.0.0/src/Foreign/Keys.purs"
+  },
+  "Foreign.Object": {
+    "depends": [
+      "Prelude",
+      "Control.Monad.ST",
+      "Control.Monad.ST",
+      "Data.Array",
+      "Data.Eq",
+      "Data.Foldable",
+      "Data.FoldableWithIndex",
+      "Data.Function.Uncurried",
+      "Data.FunctorWithIndex",
+      "Data.Maybe",
+      "Data.Traversable",
+      "Data.TraversableWithIndex",
+      "Data.Tuple",
+      "Data.Unfoldable",
+      "Foreign.Object.ST",
+      "Foreign.Object.ST",
+      "Type.Row.Homogeneous",
+      "Unsafe.Coerce"
+    ],
+    "package": "foreign-object",
+    "path": ".spago/p/foreign-object-4.1.0/src/Foreign/Object.purs"
+  },
+  "Foreign.Object.Gen": {
+    "depends": [
+      "Prelude",
+      "Control.Monad.Gen",
+      "Control.Monad.Rec.Class",
+      "Foreign.Object",
+      "Data.Tuple",
+      "Data.List"
+    ],
+    "package": "foreign-object",
+    "path": ".spago/p/foreign-object-4.1.0/src/Foreign/Object/Gen.purs"
+  },
+  "Foreign.Object.ST": {
+    "depends": [
+      "Control.Monad.ST",
+      "Data.Maybe"
+    ],
+    "package": "foreign-object",
+    "path": ".spago/p/foreign-object-4.1.0/src/Foreign/Object/ST.purs"
+  },
+  "Foreign.Object.ST.Unsafe": {
+    "depends": [
+      "Control.Monad.ST",
+      "Foreign.Object",
+      "Foreign.Object.ST"
+    ],
+    "package": "foreign-object",
+    "path": ".spago/p/foreign-object-4.1.0/src/Foreign/Object/ST/Unsafe.purs"
+  },
+  "Foreign.Object.Unsafe": {
+    "depends": [
+      "Foreign.Object"
+    ],
+    "package": "foreign-object",
+    "path": ".spago/p/foreign-object-4.1.0/src/Foreign/Object/Unsafe.purs"
+  },
   "Main": {
     "depends": [
       "Prelude",
@@ -496,6 +3602,750 @@
     ],
     "package": "my-project",
     "path": "src/Main.purs"
+  },
+  "Node.Buffer": {
+    "depends": [
+      "Prelude",
+      "Data.ArrayBuffer.Types",
+      "Data.Maybe",
+      "Effect",
+      "Effect.Uncurried",
+      "Node.Buffer.Class",
+      "Node.Buffer.Immutable",
+      "Node.Buffer.Immutable",
+      "Node.Buffer.Types",
+      "Node.Buffer.Types",
+      "Node.Encoding",
+      "Unsafe.Coerce"
+    ],
+    "package": "node-buffer",
+    "path": ".spago/p/node-buffer-9.0.0/src/Node/Buffer.purs"
+  },
+  "Node.Buffer.Class": {
+    "depends": [
+      "Prelude",
+      "Data.ArrayBuffer.Types",
+      "Data.Maybe",
+      "Node.Buffer.Immutable",
+      "Node.Buffer.Types",
+      "Node.Encoding"
+    ],
+    "package": "node-buffer",
+    "path": ".spago/p/node-buffer-9.0.0/src/Node/Buffer/Class.purs"
+  },
+  "Node.Buffer.Constants": {
+    "depends": [
+      "Effect"
+    ],
+    "package": "node-buffer",
+    "path": ".spago/p/node-buffer-9.0.0/src/Node/Buffer/Constants.purs"
+  },
+  "Node.Buffer.Immutable": {
+    "depends": [
+      "Prelude",
+      "Data.ArrayBuffer.Types",
+      "Data.Function.Uncurried",
+      "Data.Maybe",
+      "Data.Nullable",
+      "Effect",
+      "Effect.Uncurried",
+      "Node.Buffer.Types",
+      "Node.Encoding",
+      "Partial.Unsafe"
+    ],
+    "package": "node-buffer",
+    "path": ".spago/p/node-buffer-9.0.0/src/Node/Buffer/Immutable.purs"
+  },
+  "Node.Buffer.ST": {
+    "depends": [
+      "Prelude",
+      "Control.Monad.ST",
+      "Control.Monad.ST",
+      "Data.ArrayBuffer.Types",
+      "Data.Maybe",
+      "Node.Buffer",
+      "Node.Buffer",
+      "Node.Buffer.Class",
+      "Node.Buffer.Immutable",
+      "Node.Encoding",
+      "Unsafe.Coerce"
+    ],
+    "package": "node-buffer",
+    "path": ".spago/p/node-buffer-9.0.0/src/Node/Buffer/ST.purs"
+  },
+  "Node.Buffer.Types": {
+    "depends": [
+      "Prelude"
+    ],
+    "package": "node-buffer",
+    "path": ".spago/p/node-buffer-9.0.0/src/Node/Buffer/Types.purs"
+  },
+  "Node.Encoding": {
+    "depends": [
+      "Prelude",
+      "Data.Function.Uncurried"
+    ],
+    "package": "node-buffer",
+    "path": ".spago/p/node-buffer-9.0.0/src/Node/Encoding.purs"
+  },
+  "Node.EventEmitter": {
+    "depends": [
+      "Prelude",
+      "Data.Either",
+      "Data.Function.Uncurried",
+      "Effect",
+      "Effect.Uncurried",
+      "Node.Symbol",
+      "Unsafe.Coerce"
+    ],
+    "package": "node-event-emitter",
+    "path": ".spago/p/node-event-emitter-3.0.0/src/Node/EventEmitter.purs"
+  },
+  "Node.EventEmitter.UtilTypes": {
+    "depends": [
+      "Prelude",
+      "Effect",
+      "Effect.Uncurried",
+      "Node.EventEmitter"
+    ],
+    "package": "node-event-emitter",
+    "path": ".spago/p/node-event-emitter-3.0.0/src/Node/EventEmitter/UtilTypes.purs"
+  },
+  "Node.FS": {
+    "depends": [
+      "Prelude",
+      "Node.FS.Constants"
+    ],
+    "package": "node-fs",
+    "path": ".spago/p/node-fs-9.2.0/src/Node/FS.purs"
+  },
+  "Node.FS.Aff": {
+    "depends": [
+      "Prelude",
+      "Data.DateTime",
+      "Data.Either",
+      "Data.Maybe",
+      "Effect",
+      "Effect.Aff",
+      "Node.Buffer",
+      "Node.Encoding",
+      "Node.FS",
+      "Node.FS.Async",
+      "Node.FS.Constants",
+      "Node.FS.Perms",
+      "Node.FS.Stats",
+      "Node.Path"
+    ],
+    "package": "node-fs",
+    "path": ".spago/p/node-fs-9.2.0/src/Node/FS/Aff.purs"
+  },
+  "Node.FS.Async": {
+    "depends": [
+      "Prelude",
+      "Data.DateTime",
+      "Data.DateTime.Instant",
+      "Data.Either",
+      "Data.Int",
+      "Data.Maybe",
+      "Data.Nullable",
+      "Data.Time.Duration",
+      "Effect",
+      "Effect.Exception",
+      "Effect.Uncurried",
+      "Node.Buffer",
+      "Node.Encoding",
+      "Node.FS",
+      "Node.FS.Constants",
+      "Node.FS.Perms",
+      "Node.FS.Stats",
+      "Node.Path"
+    ],
+    "package": "node-fs",
+    "path": ".spago/p/node-fs-9.2.0/src/Node/FS/Async.purs"
+  },
+  "Node.FS.Constants": {
+    "depends": [
+      "Prelude",
+      "Data.Function.Uncurried"
+    ],
+    "package": "node-fs",
+    "path": ".spago/p/node-fs-9.2.0/src/Node/FS/Constants.purs"
+  },
+  "Node.FS.Perms": {
+    "depends": [
+      "Prelude",
+      "Data.Enum",
+      "Data.Int",
+      "Data.Maybe",
+      "Data.String",
+      "Data.String.CodeUnits",
+      "Partial.Unsafe"
+    ],
+    "package": "node-fs",
+    "path": ".spago/p/node-fs-9.2.0/src/Node/FS/Perms.purs"
+  },
+  "Node.FS.Stats": {
+    "depends": [
+      "Prelude",
+      "Data.DateTime",
+      "Data.Function.Uncurried",
+      "Data.JSDate",
+      "Data.Maybe",
+      "Data.Time.Duration",
+      "Partial.Unsafe"
+    ],
+    "package": "node-fs",
+    "path": ".spago/p/node-fs-9.2.0/src/Node/FS/Stats.purs"
+  },
+  "Node.FS.Stream": {
+    "depends": [
+      "Effect",
+      "Effect.Uncurried",
+      "Node.FS",
+      "Node.Path",
+      "Node.Stream"
+    ],
+    "package": "node-fs",
+    "path": ".spago/p/node-fs-9.2.0/src/Node/FS/Stream.purs"
+  },
+  "Node.FS.Sync": {
+    "depends": [
+      "Prelude",
+      "Data.DateTime",
+      "Data.DateTime.Instant",
+      "Data.Either",
+      "Data.Int",
+      "Data.Maybe",
+      "Data.Nullable",
+      "Data.Time.Duration",
+      "Effect",
+      "Effect.Exception",
+      "Effect.Uncurried",
+      "Node.Buffer",
+      "Node.Encoding",
+      "Node.FS",
+      "Node.FS.Constants",
+      "Node.FS.Perms",
+      "Node.FS.Stats",
+      "Node.Path"
+    ],
+    "package": "node-fs",
+    "path": ".spago/p/node-fs-9.2.0/src/Node/FS/Sync.purs"
+  },
+  "Node.Path": {
+    "depends": [
+      "Effect"
+    ],
+    "package": "node-path",
+    "path": ".spago/p/node-path-5.0.0/src/Node/Path.purs"
+  },
+  "Node.Platform": {
+    "depends": [
+      "Prelude",
+      "Data.Maybe"
+    ],
+    "package": "node-process",
+    "path": ".spago/p/node-process-11.2.0/src/Node/Platform.purs"
+  },
+  "Node.Process": {
+    "depends": [
+      "Prelude",
+      "Data.Maybe",
+      "Data.Nullable",
+      "Data.Posix",
+      "Data.Posix.Signal",
+      "Data.Posix.Signal",
+      "Data.String",
+      "Effect",
+      "Effect.Exception",
+      "Effect.Uncurried",
+      "Foreign",
+      "Foreign.Object",
+      "Node.EventEmitter",
+      "Node.EventEmitter.UtilTypes",
+      "Node.Platform",
+      "Node.Platform",
+      "Node.Stream"
+    ],
+    "package": "node-process",
+    "path": ".spago/p/node-process-11.2.0/src/Node/Process.purs"
+  },
+  "Node.Stream": {
+    "depends": [
+      "Prelude",
+      "Data.Either",
+      "Data.Maybe",
+      "Data.Nullable",
+      "Effect",
+      "Effect.Exception",
+      "Effect.Uncurried",
+      "Node.Buffer",
+      "Node.Buffer",
+      "Node.Encoding",
+      "Node.EventEmitter",
+      "Node.EventEmitter.UtilTypes",
+      "Unsafe.Coerce"
+    ],
+    "package": "node-streams",
+    "path": ".spago/p/node-streams-9.0.0/src/Node/Stream.purs"
+  },
+  "Node.Stream.Aff": {
+    "depends": [
+      "Prelude",
+      "Control.Monad.Rec.Class",
+      "Control.Monad.ST.Class",
+      "Data.Array",
+      "Data.Array.ST",
+      "Data.Either",
+      "Data.Maybe",
+      "Effect",
+      "Effect.Aff",
+      "Effect.Aff.Class",
+      "Effect.Class",
+      "Effect.Exception",
+      "Effect.Ref",
+      "Node.Buffer",
+      "Node.Buffer",
+      "Node.Encoding",
+      "Node.Encoding",
+      "Node.EventEmitter",
+      "Node.Stream",
+      "Node.Stream"
+    ],
+    "package": "node-streams",
+    "path": ".spago/p/node-streams-9.0.0/src/Node/Stream/Aff.purs"
+  },
+  "Node.Symbol": {
+    "depends": [
+      "Prelude",
+      "Data.Function.Uncurried",
+      "Data.Maybe",
+      "Data.Nullable",
+      "Effect",
+      "Effect.Uncurried"
+    ],
+    "package": "node-event-emitter",
+    "path": ".spago/p/node-event-emitter-3.0.0/src/Node/Symbol.purs"
+  },
+  "Options.Applicative": {
+    "depends": [
+      "Options.Applicative.Builder",
+      "Options.Applicative.Builder.Completer",
+      "Options.Applicative.Extra",
+      "Options.Applicative.Types",
+      "Options.Applicative.Internal.Utils"
+    ],
+    "package": "optparse",
+    "path": ".spago/p/optparse-5.0.1/src/Options/Applicative.purs"
+  },
+  "Options.Applicative.BashCompletion": {
+    "depends": [
+      "Prelude",
+      "Control.Alt",
+      "Data.Array",
+      "Data.Array.NonEmpty",
+      "Data.Either",
+      "Data.Exists",
+      "Data.Foldable",
+      "Data.Generic.Rep",
+      "Data.Show.Generic",
+      "Data.List",
+      "Data.Maybe",
+      "Data.Newtype",
+      "Data.String",
+      "Data.Traversable",
+      "Data.Tuple",
+      "Effect",
+      "Options.Applicative.Builder",
+      "Options.Applicative.Common",
+      "Options.Applicative.Help.Chunk",
+      "Options.Applicative.Help.Pretty",
+      "Options.Applicative.Internal",
+      "Options.Applicative.Internal.Utils",
+      "Options.Applicative.Types"
+    ],
+    "package": "optparse",
+    "path": ".spago/p/optparse-5.0.1/src/Options/Applicative/BashCompletion.purs"
+  },
+  "Options.Applicative.Builder": {
+    "depends": [
+      "Prelude",
+      "Control.Alt",
+      "Data.Either",
+      "Data.Foldable",
+      "Data.Int",
+      "Data.Maybe",
+      "Data.Newtype",
+      "Data.String",
+      "Data.Tuple",
+      "Data.Tuple.Nested",
+      "ExitCodes",
+      "ExitCodes",
+      "Data.Number",
+      "Options.Applicative.Builder.Completer",
+      "Options.Applicative.Builder.Internal",
+      "Options.Applicative.Builder.Internal",
+      "Options.Applicative.Help.Chunk",
+      "Options.Applicative.Help.Pretty",
+      "Options.Applicative.Types",
+      "Options.Applicative.Types"
+    ],
+    "package": "optparse",
+    "path": ".spago/p/optparse-5.0.1/src/Options/Applicative/Builder.purs"
+  },
+  "Options.Applicative.Builder.Completer": {
+    "depends": [
+      "Prelude",
+      "Control.Monad.Error.Class",
+      "Data.Array",
+      "Data.Foldable",
+      "Data.Array",
+      "Data.Either",
+      "Data.List",
+      "Data.String",
+      "Data.String.CodeUnits",
+      "Effect",
+      "Options.Applicative.Internal.Utils",
+      "Options.Applicative.Types",
+      "Options.Applicative.Types"
+    ],
+    "package": "optparse",
+    "path": ".spago/p/optparse-5.0.1/src/Options/Applicative/Builder/Completer.purs"
+  },
+  "Options.Applicative.Builder.Internal": {
+    "depends": [
+      "Prelude",
+      "Options.Applicative.Common",
+      "Options.Applicative.Types",
+      "Control.Alt",
+      "Data.Maybe",
+      "Data.Newtype",
+      "Data.Tuple",
+      "Data.Foldable",
+      "Data.Tuple.Nested"
+    ],
+    "package": "optparse",
+    "path": ".spago/p/optparse-5.0.1/src/Options/Applicative/Builder/Internal.purs"
+  },
+  "Options.Applicative.Common": {
+    "depends": [
+      "Prelude",
+      "Control.Alt",
+      "Control.Alternative",
+      "Control.Monad.Free",
+      "Control.Monad.State.Trans",
+      "Control.Monad.Trans.Class",
+      "Control.Plus",
+      "Data.Array",
+      "Data.Exists",
+      "Data.Foldable",
+      "Data.List",
+      "Data.Maybe",
+      "Data.Newtype",
+      "Data.String",
+      "Data.String.CodeUnits",
+      "Data.Tuple",
+      "Options.Applicative.Internal",
+      "Options.Applicative.Internal.Utils",
+      "Options.Applicative.Types",
+      "Options.Applicative.Types"
+    ],
+    "package": "optparse",
+    "path": ".spago/p/optparse-5.0.1/src/Options/Applicative/Common.purs"
+  },
+  "Options.Applicative.Extra": {
+    "depends": [
+      "Prelude",
+      "Control.Alt",
+      "Data.Array",
+      "Data.Array",
+      "Data.Either",
+      "Data.Enum",
+      "Data.Exists",
+      "Data.Function",
+      "Data.List",
+      "Data.Maybe",
+      "Data.Newtype",
+      "Data.String",
+      "Data.String.CodeUnits",
+      "Data.Tuple",
+      "Data.Tuple.Nested",
+      "Effect",
+      "ExitCodes",
+      "ExitCodes",
+      "Node.Encoding",
+      "Node.Process",
+      "Node.Stream",
+      "Options.Applicative.BashCompletion",
+      "Options.Applicative.Builder",
+      "Options.Applicative.Builder.Internal",
+      "Options.Applicative.Common",
+      "Options.Applicative.Help",
+      "Options.Applicative.Internal",
+      "Options.Applicative.Internal.Utils",
+      "Options.Applicative.Types"
+    ],
+    "package": "optparse",
+    "path": ".spago/p/optparse-5.0.1/src/Options/Applicative/Extra.purs"
+  },
+  "Options.Applicative.Help": {
+    "depends": [
+      "Options.Applicative.Help.Chunk",
+      "Options.Applicative.Help.Core",
+      "Options.Applicative.Help.Levenshtein",
+      "Options.Applicative.Help.Pretty",
+      "Options.Applicative.Help.Types"
+    ],
+    "package": "optparse",
+    "path": ".spago/p/optparse-5.0.1/src/Options/Applicative/Help.purs"
+  },
+  "Options.Applicative.Help.Chunk": {
+    "depends": [
+      "Prelude",
+      "Control.Alt",
+      "Control.Alternative",
+      "Data.Foldable",
+      "Data.Generic.Rep",
+      "Data.Show.Generic",
+      "Data.Maybe",
+      "Data.Newtype",
+      "Data.Tuple",
+      "Options.Applicative.Help.Pretty",
+      "Options.Applicative.Internal.Utils"
+    ],
+    "package": "optparse",
+    "path": ".spago/p/optparse-5.0.1/src/Options/Applicative/Help/Chunk.purs"
+  },
+  "Options.Applicative.Help.Core": {
+    "depends": [
+      "Prelude",
+      "Control.Alternative",
+      "Data.Array",
+      "Data.Array",
+      "Data.Array.NonEmpty",
+      "Data.Function",
+      "Data.Array.NonEmpty",
+      "Data.Maybe",
+      "Data.Newtype",
+      "Data.Tuple",
+      "Options.Applicative.Common",
+      "Options.Applicative.Help.Chunk",
+      "Options.Applicative.Help.Pretty",
+      "Options.Applicative.Types",
+      "Options.Applicative.Types"
+    ],
+    "package": "optparse",
+    "path": ".spago/p/optparse-5.0.1/src/Options/Applicative/Help/Core.purs"
+  },
+  "Options.Applicative.Help.Levenshtein": {
+    "depends": [
+      "Prelude",
+      "Data.Array",
+      "Data.Array",
+      "Data.Function.Memoize",
+      "Data.NonEmpty",
+      "Data.Semigroup.Foldable",
+      "Partial.Unsafe"
+    ],
+    "package": "optparse",
+    "path": ".spago/p/optparse-5.0.1/src/Options/Applicative/Help/Levenshtein.purs"
+  },
+  "Options.Applicative.Help.Pretty": {
+    "depends": [
+      "Text.PrettyPrint.Leijen",
+      "Text.PrettyPrint.Leijen"
+    ],
+    "package": "optparse",
+    "path": ".spago/p/optparse-5.0.1/src/Options/Applicative/Help/Pretty.purs"
+  },
+  "Options.Applicative.Help.Types": {
+    "depends": [
+      "Prelude",
+      "Data.Newtype",
+      "Options.Applicative.Help.Chunk",
+      "Options.Applicative.Help.Pretty"
+    ],
+    "package": "optparse",
+    "path": ".spago/p/optparse-5.0.1/src/Options/Applicative/Help/Types.purs"
+  },
+  "Options.Applicative.Internal": {
+    "depends": [
+      "Prelude",
+      "Control.Alternative",
+      "Control.Monad.Except",
+      "Control.Monad.Except.Trans",
+      "Control.Monad.Reader",
+      "Control.Monad.Reader.Trans",
+      "Control.Monad.State.Trans",
+      "Control.MonadPlus",
+      "Data.Array",
+      "Data.Either",
+      "Data.Exists",
+      "Data.List",
+      "Data.List",
+      "Data.Maybe",
+      "Data.Newtype",
+      "Data.Tuple",
+      "Options.Applicative.Types",
+      "Options.Applicative.Types"
+    ],
+    "package": "optparse",
+    "path": ".spago/p/optparse-5.0.1/src/Options/Applicative/Internal.purs"
+  },
+  "Options.Applicative.Internal.Utils": {
+    "depends": [
+      "Prelude",
+      "Control.Apply",
+      "Data.Either",
+      "Data.Foldable",
+      "Data.Maybe",
+      "Data.String",
+      "Data.String.Regex",
+      "Data.String.Regex",
+      "Data.String.Regex.Flags",
+      "Partial.Unsafe"
+    ],
+    "package": "optparse",
+    "path": ".spago/p/optparse-5.0.1/src/Options/Applicative/Internal/Utils.purs"
+  },
+  "Options.Applicative.Types": {
+    "depends": [
+      "Prelude",
+      "Control.Alternative",
+      "Control.Monad.Except",
+      "Control.Monad.Except.Trans",
+      "Control.Monad.Free",
+      "Control.Monad.Reader.Trans",
+      "Control.Monad.Rec.Class",
+      "Control.Monad.Trans.Class",
+      "Data.Bifunctor",
+      "Data.Exists",
+      "Data.Generic.Rep",
+      "Data.Show.Generic",
+      "Data.List",
+      "Data.List",
+      "Data.List.NonEmpty",
+      "Data.List.Types",
+      "Data.Maybe",
+      "Data.Newtype",
+      "Data.Tuple.Nested",
+      "Effect",
+      "ExitCodes",
+      "Options.Applicative.Help.Chunk",
+      "Options.Applicative.Help.Pretty",
+      "Options.Applicative.Help.Types",
+      "Options.Applicative.Help.Types"
+    ],
+    "package": "optparse",
+    "path": ".spago/p/optparse-5.0.1/src/Options/Applicative/Types.purs"
+  },
+  "PSCI.Support": {
+    "depends": [
+      "Prelude",
+      "Effect",
+      "Effect.Console"
+    ],
+    "package": "psci-support",
+    "path": ".spago/p/psci-support-6.0.0/src/PSCI/Support.purs"
+  },
+  "Partial": {
+    "depends": [],
+    "package": "partial",
+    "path": ".spago/p/partial-4.0.0/src/Partial.purs"
+  },
+  "Partial.Unsafe": {
+    "depends": [
+      "Partial"
+    ],
+    "package": "partial",
+    "path": ".spago/p/partial-4.0.0/src/Partial/Unsafe.purs"
+  },
+  "Pipes": {
+    "depends": [
+      "Prelude",
+      "Pipes.Core",
+      "Pipes.Internal",
+      "Data.Foldable",
+      "Data.Tuple",
+      "Data.Either",
+      "Data.Foldable"
+    ],
+    "package": "pipes",
+    "path": ".spago/p/pipes-8.0.0/src/Pipes.purs"
+  },
+  "Pipes.Core": {
+    "depends": [
+      "Prelude",
+      "Pipes.Internal",
+      "Pipes.Internal",
+      "Control.Monad.Rec.Class"
+    ],
+    "package": "pipes",
+    "path": ".spago/p/pipes-8.0.0/src/Pipes/Core.purs"
+  },
+  "Pipes.Internal": {
+    "depends": [
+      "Prelude",
+      "Control.Alt",
+      "Control.Alternative",
+      "Control.Monad.Except.Trans",
+      "Control.Monad.Morph",
+      "Control.Monad.Reader.Class",
+      "Control.Monad.Rec.Class",
+      "Control.Monad.State.Class",
+      "Control.Monad.Trans.Class",
+      "Control.Monad.Writer.Class",
+      "Control.MonadPlus",
+      "Control.Plus",
+      "Data.Tuple",
+      "Effect.Aff.Class",
+      "Effect.Class"
+    ],
+    "package": "pipes",
+    "path": ".spago/p/pipes-8.0.0/src/Pipes/Internal.purs"
+  },
+  "Pipes.ListT": {
+    "depends": [
+      "Prelude",
+      "Control.Alt",
+      "Control.Alternative",
+      "Control.Monad.Except.Trans",
+      "Control.Monad.Maybe.Trans",
+      "Control.Monad.Reader.Class",
+      "Control.Monad.Rec.Class",
+      "Control.Monad.State.Class",
+      "Control.Monad.Writer.Class",
+      "Control.Plus",
+      "Data.Either",
+      "Data.Maybe",
+      "Data.Tuple",
+      "Effect.Class",
+      "Pipes",
+      "Pipes.Core",
+      "Pipes.Internal"
+    ],
+    "package": "pipes",
+    "path": ".spago/p/pipes-8.0.0/src/Pipes/ListT.purs"
+  },
+  "Pipes.Prelude": {
+    "depends": [
+      "Prelude",
+      "Prelude",
+      "Pipes",
+      "Pipes",
+      "Pipes.Core",
+      "Pipes.Internal",
+      "Data.List",
+      "Data.Identity",
+      "Data.Newtype",
+      "Data.Maybe",
+      "Data.Either",
+      "Data.Foldable",
+      "Data.Tuple",
+      "Control.Monad.Trans.Class"
+    ],
+    "package": "pipes",
+    "path": ".spago/p/pipes-8.0.0/src/Pipes/Prelude.purs"
   },
   "Prelude": {
     "depends": [
@@ -530,14 +4380,598 @@
     "package": "prelude",
     "path": ".spago/p/prelude-6.0.1/src/Prelude.purs"
   },
+  "Record": {
+    "depends": [
+      "Prelude",
+      "Data.Function.Uncurried",
+      "Data.Symbol",
+      "Record.Unsafe",
+      "Record.Unsafe.Union",
+      "Type.Proxy",
+      "Unsafe.Coerce"
+    ],
+    "package": "record",
+    "path": ".spago/p/record-4.0.0/src/Record.purs"
+  },
+  "Record.Builder": {
+    "depends": [
+      "Prelude",
+      "Data.Function",
+      "Data.Function.Uncurried",
+      "Data.Symbol",
+      "Record.Unsafe.Union",
+      "Type.Proxy",
+      "Unsafe.Coerce"
+    ],
+    "package": "record",
+    "path": ".spago/p/record-4.0.0/src/Record/Builder.purs"
+  },
   "Record.Unsafe": {
     "depends": [],
     "package": "prelude",
     "path": ".spago/p/prelude-6.0.1/src/Record/Unsafe.purs"
   },
+  "Record.Unsafe.Union": {
+    "depends": [
+      "Data.Function.Uncurried"
+    ],
+    "package": "record",
+    "path": ".spago/p/record-4.0.0/src/Record/Unsafe/Union.purs"
+  },
+  "Safe.Coerce": {
+    "depends": [
+      "Unsafe.Coerce"
+    ],
+    "package": "safe-coerce",
+    "path": ".spago/p/safe-coerce-2.0.0/src/Safe/Coerce.purs"
+  },
+  "Test.Spec": {
+    "depends": [
+      "Prelude",
+      "Control.Alt",
+      "Control.Alternative",
+      "Control.Monad.Cont",
+      "Control.Monad.Error.Class",
+      "Control.Monad.Fork.Class",
+      "Control.Monad.Reader",
+      "Control.Monad.Rec.Class",
+      "Control.Monad.State",
+      "Control.Monad.Writer",
+      "Control.MonadPlus",
+      "Control.Plus",
+      "Data.Array.NonEmpty",
+      "Data.Bifunctor",
+      "Data.Either",
+      "Data.Foldable",
+      "Data.Function",
+      "Data.Identity",
+      "Data.Maybe",
+      "Data.Newtype",
+      "Effect.AVar",
+      "Effect.AVar",
+      "Effect.Aff",
+      "Effect.Aff.AVar",
+      "Effect.Aff.Class",
+      "Effect.Class",
+      "Effect.Exception",
+      "Test.Spec.Tree",
+      "Test.Spec.Tree"
+    ],
+    "package": "spec",
+    "path": ".spago/p/spec-7.6.1/src/Test/Spec.purs"
+  },
+  "Test.Spec.Assertions": {
+    "depends": [
+      "Prelude",
+      "Control.Monad.Error.Class",
+      "Data.Either",
+      "Data.Foldable",
+      "Data.Newtype",
+      "Effect.Exception"
+    ],
+    "package": "spec",
+    "path": ".spago/p/spec-7.6.1/src/Test/Spec/Assertions.purs"
+  },
+  "Test.Spec.Assertions.String": {
+    "depends": [
+      "Prelude",
+      "Control.Monad.Error.Class",
+      "Data.String",
+      "Effect.Exception",
+      "Test.Spec.Assertions"
+    ],
+    "package": "spec",
+    "path": ".spago/p/spec-7.6.1/src/Test/Spec/Assertions/String.purs"
+  },
+  "Test.Spec.Config": {
+    "depends": [
+      "Prelude",
+      "Data.Maybe",
+      "Data.Time.Duration",
+      "Test.Spec"
+    ],
+    "package": "spec",
+    "path": ".spago/p/spec-7.6.1/src/Test/Spec/Config.purs"
+  },
+  "Test.Spec.Console": {
+    "depends": [
+      "Prelude",
+      "Control.Monad.Writer",
+      "Data.Foldable",
+      "Effect",
+      "Effect.Class"
+    ],
+    "package": "spec",
+    "path": ".spago/p/spec-7.6.1/src/Test/Spec/Console.purs"
+  },
+  "Test.Spec.Reporter": {
+    "depends": [
+      "Test.Spec.Reporter.Base",
+      "Test.Spec.Reporter.Console",
+      "Test.Spec.Reporter.Dot",
+      "Test.Spec.Reporter.Spec"
+    ],
+    "package": "spec",
+    "path": ".spago/p/spec-7.6.1/src/Test/Spec/Reporter.purs"
+  },
+  "Test.Spec.Reporter.Base": {
+    "depends": [
+      "Prelude",
+      "Control.Monad.State",
+      "Control.Monad.State",
+      "Control.Monad.Trans.Class",
+      "Control.Monad.Writer",
+      "Data.Either",
+      "Data.Foldable",
+      "Data.Generic.Rep",
+      "Data.Map",
+      "Data.Map",
+      "Data.Maybe",
+      "Data.Show.Generic",
+      "Data.Tuple",
+      "Data.Tuple.Nested",
+      "Effect.Class",
+      "Effect.Exception",
+      "Pipes",
+      "Pipes.Core",
+      "Test.Spec",
+      "Test.Spec",
+      "Test.Spec.Console",
+      "Test.Spec.Console",
+      "Test.Spec.Result",
+      "Test.Spec.Runner",
+      "Test.Spec.Runner.Event",
+      "Test.Spec.Runner.Event",
+      "Test.Spec.Style",
+      "Test.Spec.Style",
+      "Test.Spec.Summary",
+      "Test.Spec.Summary",
+      "Test.Spec.Tree"
+    ],
+    "package": "spec",
+    "path": ".spago/p/spec-7.6.1/src/Test/Spec/Reporter/Base.purs"
+  },
+  "Test.Spec.Reporter.Console": {
+    "depends": [
+      "Prelude",
+      "Control.Monad.State",
+      "Control.Monad.Writer",
+      "Data.Foldable",
+      "Data.Generic.Rep",
+      "Data.Map",
+      "Data.Map",
+      "Data.Maybe",
+      "Data.Show.Generic",
+      "Effect.Exception",
+      "Test.Spec.Console",
+      "Test.Spec.Reporter.Base",
+      "Test.Spec.Result",
+      "Test.Spec.Runner",
+      "Test.Spec.Runner.Event",
+      "Test.Spec.Style",
+      "Test.Spec.Style",
+      "Test.Spec.Summary",
+      "Test.Spec.Summary",
+      "Test.Spec.Tree"
+    ],
+    "package": "spec",
+    "path": ".spago/p/spec-7.6.1/src/Test/Spec/Reporter/Console.purs"
+  },
+  "Test.Spec.Reporter.Dot": {
+    "depends": [
+      "Prelude",
+      "Control.Monad.State",
+      "Control.Monad.Writer",
+      "Test.Spec.Style",
+      "Test.Spec.Style",
+      "Test.Spec.Console",
+      "Test.Spec.Reporter.Base",
+      "Test.Spec.Result",
+      "Test.Spec.Runner",
+      "Test.Spec.Runner.Event",
+      "Test.Spec.Speed"
+    ],
+    "package": "spec",
+    "path": ".spago/p/spec-7.6.1/src/Test/Spec/Reporter/Dot.purs"
+  },
+  "Test.Spec.Reporter.Spec": {
+    "depends": [
+      "Prelude",
+      "Control.Monad.State",
+      "Control.Monad.Writer",
+      "Data.Array",
+      "Data.Generic.Rep",
+      "Data.Int",
+      "Data.Map",
+      "Data.Map",
+      "Data.Maybe",
+      "Data.Show.Generic",
+      "Data.Time.Duration",
+      "Test.Spec.Console",
+      "Test.Spec.Reporter.Base",
+      "Test.Spec.Result",
+      "Test.Spec.Runner",
+      "Test.Spec.Runner.Event",
+      "Test.Spec.Runner.Event",
+      "Test.Spec.Speed",
+      "Test.Spec.Style",
+      "Test.Spec.Style",
+      "Test.Spec.Tree"
+    ],
+    "package": "spec",
+    "path": ".spago/p/spec-7.6.1/src/Test/Spec/Reporter/Spec.purs"
+  },
+  "Test.Spec.Reporter.Tap": {
+    "depends": [
+      "Prelude",
+      "Control.Monad.State",
+      "Data.Maybe",
+      "Data.String",
+      "Data.String.Regex",
+      "Data.String.Regex.Unsafe",
+      "Effect.Exception",
+      "Test.Spec.Console",
+      "Test.Spec.Reporter.Base",
+      "Test.Spec.Result",
+      "Test.Spec.Runner",
+      "Test.Spec.Runner.Event",
+      "Test.Spec.Summary",
+      "Test.Spec.Summary"
+    ],
+    "package": "spec",
+    "path": ".spago/p/spec-7.6.1/src/Test/Spec/Reporter/Tap.purs"
+  },
+  "Test.Spec.Reporter.TeamCity": {
+    "depends": [
+      "Prelude",
+      "Control.Monad.State",
+      "Data.Foldable",
+      "Data.Int",
+      "Data.Maybe",
+      "Data.Newtype",
+      "Data.String.Pattern",
+      "Data.Time.Duration",
+      "Effect.Exception",
+      "Test.Spec.Console",
+      "Test.Spec.Reporter.Base",
+      "Test.Spec.Result",
+      "Test.Spec.Runner",
+      "Test.Spec.Tree",
+      "Data.Array",
+      "Effect.Exception",
+      "Test.Spec.Runner.Event",
+      "Data.Map.Internal",
+      "Data.String.Regex",
+      "Data.String.Regex.Flags",
+      "Data.String.Regex.Unsafe",
+      "Data.String.CodeUnits",
+      "Data.String.Common"
+    ],
+    "package": "spec",
+    "path": ".spago/p/spec-7.6.1/src/Test/Spec/Reporter/TeamCity.purs"
+  },
+  "Test.Spec.Result": {
+    "depends": [
+      "Prelude",
+      "Data.Function",
+      "Data.Time.Duration",
+      "Effect.Exception",
+      "Effect.Exception",
+      "Test.Spec.Speed"
+    ],
+    "package": "spec",
+    "path": ".spago/p/spec-7.6.1/src/Test/Spec/Result.purs"
+  },
+  "Test.Spec.Runner": {
+    "depends": [
+      "Prelude",
+      "Control.Alternative",
+      "Control.Monad.Trans.Class",
+      "Control.Parallel",
+      "Data.Array",
+      "Data.Array.NonEmpty",
+      "Data.DateTime.Instant",
+      "Data.Either",
+      "Data.Foldable",
+      "Data.Identity",
+      "Data.Int",
+      "Data.Maybe",
+      "Data.Newtype",
+      "Data.Time.Duration",
+      "Data.Traversable",
+      "Data.Tuple.Nested",
+      "Effect",
+      "Effect.Aff",
+      "Effect.Aff.AVar",
+      "Effect.Class",
+      "Effect.Exception",
+      "Effect.Now",
+      "Effect.Ref",
+      "Pipes",
+      "Pipes.Core",
+      "Pipes.Core",
+      "Test.Spec",
+      "Test.Spec.Config",
+      "Test.Spec.Console",
+      "Test.Spec.Result",
+      "Test.Spec.Runner.Event",
+      "Test.Spec.Runner.Event",
+      "Test.Spec.Speed",
+      "Test.Spec.Style",
+      "Test.Spec.Style",
+      "Test.Spec.Summary",
+      "Test.Spec.Tree"
+    ],
+    "package": "spec",
+    "path": ".spago/p/spec-7.6.1/src/Test/Spec/Runner.purs"
+  },
+  "Test.Spec.Runner.Event": {
+    "depends": [
+      "Prelude",
+      "Test.Spec",
+      "Test.Spec.Result",
+      "Test.Spec.Tree"
+    ],
+    "package": "spec",
+    "path": ".spago/p/spec-7.6.1/src/Test/Spec/Runner/Event.purs"
+  },
+  "Test.Spec.Runner.Node": {
+    "depends": [
+      "Prelude",
+      "Data.Identity",
+      "Data.Newtype",
+      "Effect",
+      "Effect.Aff",
+      "Effect.Class",
+      "Node.Process",
+      "Test.Spec",
+      "Test.Spec.Result",
+      "Test.Spec.Runner",
+      "Test.Spec.Runner",
+      "Test.Spec.Runner.Node.Config",
+      "Test.Spec.Runner.Node.Persist",
+      "Test.Spec.Summary",
+      "Test.Spec.Tree"
+    ],
+    "package": "spec-node",
+    "path": ".spago/p/spec-node-0.0.1/src/Node.purs"
+  },
+  "Test.Spec.Runner.Node.Config": {
+    "depends": [
+      "Prelude",
+      "Control.Alt",
+      "Control.Alternative",
+      "Control.Apply",
+      "Data.Array",
+      "Data.Either",
+      "Data.Int",
+      "Data.Map",
+      "Data.Maybe",
+      "Data.Set",
+      "Data.String",
+      "Data.String.Regex",
+      "Data.String.Regex.Flags",
+      "Data.Time.Duration",
+      "Data.Traversable",
+      "Data.Tuple",
+      "Data.Tuple.Nested",
+      "Effect.Aff.Class",
+      "Effect.Class",
+      "Options.Applicative",
+      "Partial",
+      "Partial.Unsafe",
+      "Test.Spec.Runner",
+      "Test.Spec.Runner",
+      "Test.Spec.Runner.Node.Persist",
+      "Test.Spec.Tree"
+    ],
+    "package": "spec-node",
+    "path": ".spago/p/spec-node-0.0.1/src/Node/Config.purs"
+  },
+  "Test.Spec.Runner.Node.Persist": {
+    "depends": [
+      "Prelude",
+      "Data.Argonaut.Core",
+      "Data.Argonaut.Decode",
+      "Data.Argonaut.Decode.Decoders",
+      "Data.Argonaut.Encode",
+      "Data.Argonaut.Encode.Encoders",
+      "Data.Argonaut.Parser",
+      "Data.DateTime.Instant",
+      "Data.Either",
+      "Data.Map",
+      "Data.Maybe",
+      "Data.Newtype",
+      "Data.Number",
+      "Data.String",
+      "Data.Tuple.Nested",
+      "Effect.Aff",
+      "Effect.Class",
+      "Effect.Now",
+      "Node.Encoding",
+      "Node.FS.Aff",
+      "Test.Spec.Result",
+      "Test.Spec.Tree"
+    ],
+    "package": "spec-node",
+    "path": ".spago/p/spec-node-0.0.1/src/Node/Persist.purs"
+  },
+  "Test.Spec.Speed": {
+    "depends": [
+      "Prelude",
+      "Data.Eq.Generic",
+      "Data.Generic.Rep",
+      "Data.Show.Generic",
+      "Data.Time.Duration",
+      "Test.Spec.Style",
+      "Test.Spec.Style"
+    ],
+    "package": "spec",
+    "path": ".spago/p/spec-7.6.1/src/Test/Spec/Speed.purs"
+  },
+  "Test.Spec.Style": {
+    "depends": [
+      "Prelude",
+      "Ansi.Codes",
+      "Ansi.Codes",
+      "Data.Array",
+      "Data.List.NonEmpty",
+      "Data.Maybe",
+      "Data.String.CodeUnits"
+    ],
+    "package": "spec",
+    "path": ".spago/p/spec-7.6.1/src/Test/Spec/Style.purs"
+  },
+  "Test.Spec.Summary": {
+    "depends": [
+      "Prelude",
+      "Data.Foldable",
+      "Data.Maybe",
+      "Data.Newtype",
+      "Test.Spec.Result",
+      "Test.Spec.Tree"
+    ],
+    "package": "spec",
+    "path": ".spago/p/spec-7.6.1/src/Test/Spec/Summary.purs"
+  },
+  "Test.Spec.Tree": {
+    "depends": [
+      "Prelude",
+      "Control.Monad.State",
+      "Control.Monad.State",
+      "Data.Array",
+      "Data.Array.NonEmpty",
+      "Data.Array.NonEmpty",
+      "Data.Bifunctor",
+      "Data.Either",
+      "Data.Foldable",
+      "Data.Maybe",
+      "Data.Newtype",
+      "Data.Traversable",
+      "Data.Tuple.Nested"
+    ],
+    "package": "spec",
+    "path": ".spago/p/spec-7.6.1/src/Test/Spec/Tree.purs"
+  },
+  "Text.PrettyPrint.Leijen": {
+    "depends": [
+      "Prelude",
+      "Data.Array",
+      "Data.Foldable",
+      "Data.Generic.Rep",
+      "Data.Show.Generic",
+      "Data.Int",
+      "Data.Lazy",
+      "Data.List",
+      "Data.List.Lazy",
+      "Data.Maybe",
+      "Data.String",
+      "Data.String",
+      "Data.String.CodeUnits",
+      "Partial.Unsafe"
+    ],
+    "package": "optparse",
+    "path": ".spago/p/optparse-5.0.1/src/Text/PrettyPrint/Leijen.purs"
+  },
+  "Type.Data.Boolean": {
+    "depends": [
+      "Type.Proxy"
+    ],
+    "package": "typelevel-prelude",
+    "path": ".spago/p/typelevel-prelude-7.0.0/src/Type/Data/Boolean.purs"
+  },
+  "Type.Data.Ordering": {
+    "depends": [
+      "Data.Ordering",
+      "Type.Data.Boolean",
+      "Type.Proxy"
+    ],
+    "package": "typelevel-prelude",
+    "path": ".spago/p/typelevel-prelude-7.0.0/src/Type/Data/Ordering.purs"
+  },
+  "Type.Data.Symbol": {
+    "depends": [
+      "Data.Symbol",
+      "Type.Data.Ordering",
+      "Type.Data.Ordering",
+      "Type.Proxy"
+    ],
+    "package": "typelevel-prelude",
+    "path": ".spago/p/typelevel-prelude-7.0.0/src/Type/Data/Symbol.purs"
+  },
+  "Type.Equality": {
+    "depends": [],
+    "package": "type-equality",
+    "path": ".spago/p/type-equality-4.0.1/src/Type/Equality.purs"
+  },
+  "Type.Function": {
+    "depends": [],
+    "package": "typelevel-prelude",
+    "path": ".spago/p/typelevel-prelude-7.0.0/src/Type/Function.purs"
+  },
+  "Type.Prelude": {
+    "depends": [
+      "Type.Data.Boolean",
+      "Type.Data.Ordering",
+      "Type.Proxy",
+      "Type.Data.Symbol",
+      "Type.Equality",
+      "Type.Row",
+      "Type.RowList"
+    ],
+    "package": "typelevel-prelude",
+    "path": ".spago/p/typelevel-prelude-7.0.0/src/Type/Prelude.purs"
+  },
   "Type.Proxy": {
     "depends": [],
     "package": "prelude",
     "path": ".spago/p/prelude-6.0.1/src/Type/Proxy.purs"
+  },
+  "Type.Row": {
+    "depends": [],
+    "package": "typelevel-prelude",
+    "path": ".spago/p/typelevel-prelude-7.0.0/src/Type/Row.purs"
+  },
+  "Type.Row.Homogeneous": {
+    "depends": [
+      "Type.Equality",
+      "Type.RowList"
+    ],
+    "package": "typelevel-prelude",
+    "path": ".spago/p/typelevel-prelude-7.0.0/src/Type/Row/Homogeneous.purs"
+  },
+  "Type.RowList": {
+    "depends": [
+      "Type.Equality",
+      "Type.Data.Symbol",
+      "Type.Data.Boolean"
+    ],
+    "package": "typelevel-prelude",
+    "path": ".spago/p/typelevel-prelude-7.0.0/src/Type/RowList.purs"
+  },
+  "Unsafe.Coerce": {
+    "depends": [],
+    "package": "unsafe-coerce",
+    "path": ".spago/p/unsafe-coerce-6.0.0/src/Unsafe/Coerce.purs"
   }
 }

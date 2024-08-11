@@ -1,13 +1,403 @@
 {
+  "aff": {
+    "depends": [
+      "control",
+      "datetime",
+      "effect",
+      "either",
+      "exceptions",
+      "functions",
+      "newtype",
+      "parallel",
+      "partial",
+      "prelude",
+      "st",
+      "tailrec",
+      "transformers",
+      "unsafe-coerce"
+    ]
+  },
+  "ansi": {
+    "depends": [
+      "foldable-traversable",
+      "lists",
+      "prelude"
+    ]
+  },
+  "argonaut-codecs": {
+    "depends": [
+      "argonaut-core",
+      "arrays",
+      "bifunctors",
+      "either",
+      "foldable-traversable",
+      "foreign-object",
+      "identity",
+      "integers",
+      "lists",
+      "maybe",
+      "nonempty",
+      "ordered-collections",
+      "prelude",
+      "record",
+      "strings",
+      "tuples"
+    ]
+  },
+  "argonaut-core": {
+    "depends": [
+      "arrays",
+      "control",
+      "either",
+      "foreign-object",
+      "functions",
+      "gen",
+      "maybe",
+      "nonempty",
+      "prelude",
+      "strings",
+      "tailrec"
+    ]
+  },
+  "arraybuffer-types": {
+    "depends": []
+  },
+  "arrays": {
+    "depends": [
+      "bifunctors",
+      "control",
+      "foldable-traversable",
+      "functions",
+      "maybe",
+      "nonempty",
+      "partial",
+      "prelude",
+      "safe-coerce",
+      "st",
+      "tailrec",
+      "tuples",
+      "unfoldable",
+      "unsafe-coerce"
+    ]
+  },
+  "avar": {
+    "depends": [
+      "aff",
+      "effect",
+      "either",
+      "exceptions",
+      "functions",
+      "maybe",
+      "prelude"
+    ]
+  },
+  "bifunctors": {
+    "depends": [
+      "const",
+      "either",
+      "newtype",
+      "prelude",
+      "tuples"
+    ]
+  },
+  "catenable-lists": {
+    "depends": [
+      "control",
+      "foldable-traversable",
+      "lists",
+      "maybe",
+      "prelude",
+      "tuples",
+      "unfoldable"
+    ]
+  },
   "console": {
     "depends": [
       "effect",
       "prelude"
     ]
   },
+  "const": {
+    "depends": [
+      "invariant",
+      "newtype",
+      "prelude"
+    ]
+  },
+  "contravariant": {
+    "depends": [
+      "const",
+      "either",
+      "newtype",
+      "prelude",
+      "tuples"
+    ]
+  },
+  "control": {
+    "depends": [
+      "newtype",
+      "prelude"
+    ]
+  },
+  "datetime": {
+    "depends": [
+      "bifunctors",
+      "control",
+      "either",
+      "enums",
+      "foldable-traversable",
+      "functions",
+      "gen",
+      "integers",
+      "lists",
+      "maybe",
+      "newtype",
+      "numbers",
+      "ordered-collections",
+      "partial",
+      "prelude",
+      "tuples"
+    ]
+  },
+  "distributive": {
+    "depends": [
+      "identity",
+      "newtype",
+      "prelude",
+      "tuples",
+      "type-equality"
+    ]
+  },
   "effect": {
     "depends": [
       "prelude"
+    ]
+  },
+  "either": {
+    "depends": [
+      "control",
+      "invariant",
+      "maybe",
+      "prelude"
+    ]
+  },
+  "enums": {
+    "depends": [
+      "control",
+      "either",
+      "gen",
+      "maybe",
+      "newtype",
+      "nonempty",
+      "partial",
+      "prelude",
+      "tuples",
+      "unfoldable"
+    ]
+  },
+  "exceptions": {
+    "depends": [
+      "effect",
+      "either",
+      "maybe",
+      "prelude"
+    ]
+  },
+  "exists": {
+    "depends": [
+      "unsafe-coerce"
+    ]
+  },
+  "exitcodes": {
+    "depends": [
+      "enums",
+      "maybe",
+      "prelude"
+    ]
+  },
+  "foldable-traversable": {
+    "depends": [
+      "bifunctors",
+      "const",
+      "control",
+      "either",
+      "functors",
+      "identity",
+      "maybe",
+      "newtype",
+      "orders",
+      "prelude",
+      "tuples"
+    ]
+  },
+  "foreign": {
+    "depends": [
+      "either",
+      "functions",
+      "integers",
+      "lists",
+      "maybe",
+      "prelude",
+      "strings",
+      "transformers",
+      "unsafe-coerce"
+    ]
+  },
+  "foreign-object": {
+    "depends": [
+      "arrays",
+      "foldable-traversable",
+      "functions",
+      "gen",
+      "lists",
+      "maybe",
+      "prelude",
+      "st",
+      "tailrec",
+      "tuples",
+      "typelevel-prelude",
+      "unfoldable",
+      "unsafe-coerce"
+    ]
+  },
+  "fork": {
+    "depends": [
+      "aff",
+      "prelude",
+      "transformers"
+    ]
+  },
+  "free": {
+    "depends": [
+      "catenable-lists",
+      "control",
+      "distributive",
+      "either",
+      "exists",
+      "foldable-traversable",
+      "invariant",
+      "lazy",
+      "maybe",
+      "prelude",
+      "tailrec",
+      "transformers",
+      "tuples",
+      "unsafe-coerce"
+    ]
+  },
+  "functions": {
+    "depends": [
+      "prelude"
+    ]
+  },
+  "functors": {
+    "depends": [
+      "bifunctors",
+      "const",
+      "contravariant",
+      "control",
+      "distributive",
+      "either",
+      "invariant",
+      "maybe",
+      "newtype",
+      "prelude",
+      "profunctor",
+      "tuples",
+      "unsafe-coerce"
+    ]
+  },
+  "gen": {
+    "depends": [
+      "either",
+      "foldable-traversable",
+      "identity",
+      "maybe",
+      "newtype",
+      "nonempty",
+      "prelude",
+      "tailrec",
+      "tuples",
+      "unfoldable"
+    ]
+  },
+  "identity": {
+    "depends": [
+      "control",
+      "invariant",
+      "newtype",
+      "prelude"
+    ]
+  },
+  "integers": {
+    "depends": [
+      "maybe",
+      "numbers",
+      "prelude"
+    ]
+  },
+  "invariant": {
+    "depends": [
+      "control",
+      "prelude"
+    ]
+  },
+  "js-date": {
+    "depends": [
+      "datetime",
+      "effect",
+      "enums",
+      "foreign",
+      "functions",
+      "integers",
+      "maybe",
+      "prelude"
+    ]
+  },
+  "lazy": {
+    "depends": [
+      "control",
+      "foldable-traversable",
+      "invariant",
+      "prelude"
+    ]
+  },
+  "lists": {
+    "depends": [
+      "bifunctors",
+      "control",
+      "foldable-traversable",
+      "lazy",
+      "maybe",
+      "newtype",
+      "nonempty",
+      "partial",
+      "prelude",
+      "tailrec",
+      "tuples",
+      "unfoldable"
+    ]
+  },
+  "maybe": {
+    "depends": [
+      "control",
+      "invariant",
+      "newtype",
+      "prelude"
+    ]
+  },
+  "mmorph": {
+    "depends": [
+      "bifunctors",
+      "either",
+      "free",
+      "functors",
+      "identity",
+      "maybe",
+      "newtype",
+      "prelude",
+      "transformers",
+      "tuples"
     ]
   },
   "my-project": {
@@ -17,7 +407,416 @@
       "prelude"
     ]
   },
+  "newtype": {
+    "depends": [
+      "prelude",
+      "safe-coerce"
+    ]
+  },
+  "node-buffer": {
+    "depends": [
+      "arraybuffer-types",
+      "effect",
+      "functions",
+      "maybe",
+      "nullable",
+      "partial",
+      "prelude",
+      "st",
+      "unsafe-coerce"
+    ]
+  },
+  "node-event-emitter": {
+    "depends": [
+      "effect",
+      "either",
+      "functions",
+      "maybe",
+      "nullable",
+      "prelude",
+      "unsafe-coerce"
+    ]
+  },
+  "node-fs": {
+    "depends": [
+      "aff",
+      "datetime",
+      "effect",
+      "either",
+      "enums",
+      "exceptions",
+      "functions",
+      "integers",
+      "js-date",
+      "maybe",
+      "node-buffer",
+      "node-path",
+      "node-streams",
+      "nullable",
+      "partial",
+      "prelude",
+      "strings"
+    ]
+  },
+  "node-path": {
+    "depends": [
+      "effect"
+    ]
+  },
+  "node-process": {
+    "depends": [
+      "effect",
+      "exceptions",
+      "foreign",
+      "foreign-object",
+      "maybe",
+      "node-event-emitter",
+      "node-streams",
+      "nullable",
+      "posix-types",
+      "prelude",
+      "strings"
+    ]
+  },
+  "node-streams": {
+    "depends": [
+      "aff",
+      "arrays",
+      "effect",
+      "either",
+      "exceptions",
+      "maybe",
+      "node-buffer",
+      "node-event-emitter",
+      "nullable",
+      "prelude",
+      "refs",
+      "st",
+      "tailrec",
+      "unsafe-coerce"
+    ]
+  },
+  "nonempty": {
+    "depends": [
+      "control",
+      "foldable-traversable",
+      "maybe",
+      "prelude",
+      "tuples",
+      "unfoldable"
+    ]
+  },
+  "now": {
+    "depends": [
+      "datetime",
+      "effect",
+      "prelude"
+    ]
+  },
+  "nullable": {
+    "depends": [
+      "functions",
+      "maybe",
+      "prelude"
+    ]
+  },
+  "numbers": {
+    "depends": [
+      "functions",
+      "maybe",
+      "prelude"
+    ]
+  },
+  "open-memoize": {
+    "depends": [
+      "either",
+      "integers",
+      "lazy",
+      "lists",
+      "maybe",
+      "partial",
+      "prelude",
+      "strings",
+      "tuples"
+    ]
+  },
+  "optparse": {
+    "depends": [
+      "arrays",
+      "bifunctors",
+      "control",
+      "effect",
+      "either",
+      "enums",
+      "exists",
+      "exitcodes",
+      "foldable-traversable",
+      "free",
+      "integers",
+      "lazy",
+      "lists",
+      "maybe",
+      "newtype",
+      "node-buffer",
+      "node-process",
+      "node-streams",
+      "nonempty",
+      "numbers",
+      "open-memoize",
+      "partial",
+      "prelude",
+      "strings",
+      "tailrec",
+      "transformers",
+      "tuples"
+    ]
+  },
+  "ordered-collections": {
+    "depends": [
+      "arrays",
+      "control",
+      "foldable-traversable",
+      "functions",
+      "gen",
+      "lists",
+      "maybe",
+      "newtype",
+      "partial",
+      "prelude",
+      "safe-coerce",
+      "tailrec",
+      "tuples",
+      "unfoldable"
+    ]
+  },
+  "orders": {
+    "depends": [
+      "newtype",
+      "prelude"
+    ]
+  },
+  "parallel": {
+    "depends": [
+      "control",
+      "effect",
+      "either",
+      "foldable-traversable",
+      "functors",
+      "maybe",
+      "newtype",
+      "prelude",
+      "profunctor",
+      "refs",
+      "transformers"
+    ]
+  },
+  "partial": {
+    "depends": []
+  },
+  "pipes": {
+    "depends": [
+      "aff",
+      "control",
+      "effect",
+      "either",
+      "foldable-traversable",
+      "identity",
+      "lists",
+      "maybe",
+      "mmorph",
+      "newtype",
+      "prelude",
+      "tailrec",
+      "transformers",
+      "tuples"
+    ]
+  },
+  "posix-types": {
+    "depends": [
+      "maybe",
+      "newtype",
+      "prelude"
+    ]
+  },
   "prelude": {
+    "depends": []
+  },
+  "profunctor": {
+    "depends": [
+      "control",
+      "distributive",
+      "either",
+      "exists",
+      "invariant",
+      "newtype",
+      "prelude",
+      "tuples"
+    ]
+  },
+  "record": {
+    "depends": [
+      "functions",
+      "prelude",
+      "unsafe-coerce"
+    ]
+  },
+  "refs": {
+    "depends": [
+      "effect",
+      "prelude"
+    ]
+  },
+  "safe-coerce": {
+    "depends": [
+      "unsafe-coerce"
+    ]
+  },
+  "spec": {
+    "depends": [
+      "aff",
+      "ansi",
+      "arrays",
+      "avar",
+      "bifunctors",
+      "control",
+      "datetime",
+      "effect",
+      "either",
+      "exceptions",
+      "foldable-traversable",
+      "fork",
+      "identity",
+      "integers",
+      "lists",
+      "maybe",
+      "newtype",
+      "now",
+      "ordered-collections",
+      "parallel",
+      "pipes",
+      "prelude",
+      "refs",
+      "strings",
+      "tailrec",
+      "transformers",
+      "tuples"
+    ]
+  },
+  "spec-node": {
+    "depends": [
+      "aff",
+      "argonaut-codecs",
+      "argonaut-core",
+      "arrays",
+      "control",
+      "datetime",
+      "effect",
+      "either",
+      "foldable-traversable",
+      "identity",
+      "integers",
+      "maybe",
+      "newtype",
+      "node-buffer",
+      "node-fs",
+      "node-process",
+      "now",
+      "numbers",
+      "optparse",
+      "ordered-collections",
+      "partial",
+      "prelude",
+      "spec",
+      "strings",
+      "tuples"
+    ]
+  },
+  "st": {
+    "depends": [
+      "effect",
+      "partial",
+      "prelude",
+      "tailrec",
+      "unsafe-coerce"
+    ]
+  },
+  "strings": {
+    "depends": [
+      "arrays",
+      "control",
+      "either",
+      "enums",
+      "foldable-traversable",
+      "gen",
+      "integers",
+      "maybe",
+      "newtype",
+      "nonempty",
+      "partial",
+      "prelude",
+      "tailrec",
+      "tuples",
+      "unfoldable",
+      "unsafe-coerce"
+    ]
+  },
+  "tailrec": {
+    "depends": [
+      "bifunctors",
+      "effect",
+      "either",
+      "identity",
+      "maybe",
+      "partial",
+      "prelude",
+      "refs"
+    ]
+  },
+  "transformers": {
+    "depends": [
+      "control",
+      "distributive",
+      "effect",
+      "either",
+      "exceptions",
+      "foldable-traversable",
+      "identity",
+      "lazy",
+      "maybe",
+      "newtype",
+      "prelude",
+      "st",
+      "tailrec",
+      "tuples",
+      "unfoldable"
+    ]
+  },
+  "tuples": {
+    "depends": [
+      "control",
+      "invariant",
+      "prelude"
+    ]
+  },
+  "type-equality": {
+    "depends": []
+  },
+  "typelevel-prelude": {
+    "depends": [
+      "prelude",
+      "type-equality"
+    ]
+  },
+  "unfoldable": {
+    "depends": [
+      "foldable-traversable",
+      "maybe",
+      "partial",
+      "prelude",
+      "tuples"
+    ]
+  },
+  "unsafe-coerce": {
     "depends": []
   }
 }

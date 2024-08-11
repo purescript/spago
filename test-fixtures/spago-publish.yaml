@@ -6,7 +6,9 @@ package:
     - prelude: ">=6.0.1 <7.0.0"
   test:
     main: Test.Main
-    dependencies: []
+    dependencies:
+      - spec
+      - spec-node
   publish:
     version: 0.0.1
     license: MIT
@@ -15,6 +17,6 @@ package:
       githubRepo: aaa
 workspace:
   packageSet:
-    registry: 28.1.1
+    registry: 56.4.0
   extraPackages:
     console: "6.1.0"
