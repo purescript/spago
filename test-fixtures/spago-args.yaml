@@ -4,6 +4,11 @@ package:
     - console
     - effect
     - prelude
+  test:
+    main: Test.Main
+    dependencies:
+      - spec
+      - spec-node
   run:
     exec_args:
       - "hello"
@@ -11,5 +16,5 @@ package:
 
 workspace:
   package_set:
-    registry: 29.3.0
+    registry: 56.4.0
   extra_packages: {}
