@@ -1,2 +1,5 @@
-🍕
-You should add some tests.
+[1;35mthis project[0m
+  [32m✓︎ [0m[2mshould have tests[0m
+
+[1mSummary[0m
+[2m1/1 test passed[0m

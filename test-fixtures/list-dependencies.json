@@ -12,7 +12,10 @@
         ],
         "test": {
           "main": "Subpackage.Test.Main",
-          "dependencies": []
+          "dependencies": [
+            "spec",
+            "spec-node"
+          ]
         }
       },
       "path": "subpackage"

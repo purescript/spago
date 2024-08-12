@@ -44,6 +44,7 @@ spec = Spec.around withTempDir do
     Spec.it "can build with a local custom package set" \{ spago, fixture } -> do
       spago [ "init" ] >>= shouldBeSuccess
       FS.unlink "spago.yaml"
+      FS.unlink "test/Test/Main.purs" -- Tests require way more dependencies
       FS.copyFileSync { src: fixture "local-package-set-config.yaml", dst: "spago.yaml" }
       FS.copyFileSync { src: fixture "local-package-set.json", dst: "local-package-set.json" }
       spago [ "build" ] >>= shouldBeSuccess
@@ -54,6 +55,7 @@ spec = Spec.around withTempDir do
       liftEffect $ Process.chdir "subdir"
       spago [ "init" ] >>= shouldBeSuccess
       FS.unlink "spago.yaml"
+      FS.unlink "test/Test/Main.purs" -- Tests require way more dependencies
       FS.copyFileSync { src: fixture "local-package-set-config2.yaml", dst: "spago.yaml" }
       spago [ "build" ] >>= shouldBeSuccess
 
@@ -66,7 +68,7 @@ spec = Spec.around withTempDir do
       FS.writeYamlFile Config.configCodec (Path.concat [ "subpackage", "spago.yaml" ])
         ( Init.defaultConfig
             { name: mkPackageName "subpackage"
-            , testModuleName: "Subpackage.Test.Main"
+            , withTest: Just { mainModuleName: Just "Subpackage.Test.Main", customDependencies: Nothing }
             , withWorkspace: Nothing
             }
         )
@@ -128,7 +130,7 @@ spec = Spec.around withTempDir do
 
     Spec.describe "lockfile" do
       Spec.it "building with a lockfile doesn't need the Registry repo" \{ spago, fixture } -> do
-        spago [ "init", "--name", "aaa", "--package-set", "33.0.0" ] >>= shouldBeSuccess
+        spago [ "init", "--name", "aaa", "--package-set", "56.4.0" ] >>= shouldBeSuccess
         spago [ "build" ] >>= shouldBeSuccess
         -- Check that we have written the lockfile
         checkFixture "spago.lock" (fixture "spago.lock")
@@ -140,7 +142,7 @@ spec = Spec.around withTempDir do
         FS.exists Paths.registryPath `Assert.shouldReturn` false
 
       Spec.it "using the --pure flag does not refresh the lockfile" \{ spago, fixture } -> do
-        spago [ "init", "--name", "aaa", "--package-set", "33.0.0" ] >>= shouldBeSuccess
+        spago [ "init", "--name", "aaa", "--package-set", "56.4.0" ] >>= shouldBeSuccess
         spago [ "build" ] >>= shouldBeSuccess
         -- Check that we have written the lockfile
         checkFixture "spago.lock" (fixture "spago.lock")
@@ -148,7 +150,7 @@ spec = Spec.around withTempDir do
         let
           conf = Init.defaultConfig
             { name: mkPackageName "aaa"
-            , testModuleName: "Test.Main"
+            , withTest: Just { mainModuleName: Just "Test.Main", customDependencies: Nothing }
             , withWorkspace: Just { setVersion: Just $ mkVersion "33.0.0" }
             }
         FS.writeYamlFile Config.configCodec "spago.yaml"
@@ -171,11 +173,10 @@ spec = Spec.around withTempDir do
       let
         conf = Init.defaultConfig
           { name: mkPackageName "subpackage"
-          , testModuleName: "Test.Main"
-          , withWorkspace: Just
-              { setVersion: Just $ mkVersion "0.0.1"
-              }
+          , withTest: Nothing
+          , withWorkspace: Just { setVersion: Just $ mkVersion "0.0.1" }
           }
+      FS.unlink "test/Test/Main.purs"
       FS.writeYamlFile Config.configCodec "spago.yaml"
         (conf { workspace = conf.workspace # map (_ { backend = Just { cmd: "echo", args: Just [ "hello" ] } }) })
 
@@ -193,6 +194,7 @@ spec = Spec.around withTempDir do
 
     Spec.it "passing the --ensure-ranges flag without package selection adds ranges to root package when it exists" \{ spago } -> do
       spago [ "init", "--package-set", "0.0.1" ] >>= shouldBeSuccess
+      removeTestsFromProject
       spago [ "build", "--ensure-ranges" ] >>= shouldBeSuccess
       spagoYaml <- FS.readTextFile "spago.yaml"
       spagoYaml `shouldContain` "- prelude: \">=6.0.1 <7.0.0\""

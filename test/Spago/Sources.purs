@@ -30,7 +30,7 @@ spec = Spec.around withTempDir do
         ( Init.defaultConfig
             { name: mkPackageName "subpackage"
             , withWorkspace: Nothing
-            , testModuleName: "Subpackage.Test.Main"
+            , withTest: Just { mainModuleName: Just "Subpackage.Test.Main", customDependencies: Nothing }
             }
         )
       spago [ "sources", "-p", "subpackage" ] >>= shouldBeSuccessOutput case Process.platform of

@@ -8,7 +8,9 @@ package:
     main: Test.Main
     dependencies:
       - foreign
+      - spec
+      - spec-node
 workspace:
   packageSet:
-    registry: 29.3.0
+    registry: 56.4.0
   extraPackages: {}

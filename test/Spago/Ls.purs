@@ -23,11 +23,11 @@ spec = Spec.around withTempDir do
       spago [ "ls", "deps", "-p", "aaa", "--json" ] >>= shouldBeSuccessOutput (fixture "list-dependencies.json")
 
     Spec.it "package set" \{ spago, fixture } -> do
-      spago [ "init", "--name", "aaa", "--package-set", "41.2.0" ] >>= shouldBeSuccess
+      spago [ "init", "--name", "aaa", "--package-set", "56.4.0" ] >>= shouldBeSuccess
       spago [ "ls", "packages" ] >>= shouldBeSuccessOutput (fixture "list-packages.txt")
 
     Spec.it "package set in JSON" \{ spago, fixture } -> do
-      spago [ "init", "--name", "aaa", "--package-set", "41.2.0" ] >>= shouldBeSuccess
+      spago [ "init", "--name", "aaa", "--package-set", "56.4.0" ] >>= shouldBeSuccess
       makeSubpackage
       spago [ "install", "-p", "aaa", "aaa2" ] >>= shouldBeSuccess
       spago [ "ls", "packages", "--json" ] >>= shouldBeSuccessOutput (fixture "list-packages.json")
@@ -46,6 +46,6 @@ makeSubpackage = do
     ( Init.defaultConfig
         { name: mkPackageName "aaa2"
         , withWorkspace: Nothing
-        , testModuleName: "Subpackage.Test.Main"
+        , withTest: Just { mainModuleName: Just "Subpackage.Test.Main", customDependencies: Nothing }
         }
     )

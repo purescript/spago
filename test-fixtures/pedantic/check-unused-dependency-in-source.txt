@@ -19,13 +19,10 @@ Sources for package 'pedantic' declares unused dependencies - please remove them
   - effect
 
 Tests for package 'pedantic' import the following transitive dependencies - please add them to the project dependencies, or remove the imports:
-  console
-    from `Test.Main`, which imports:
-      Effect.Class.Console
   effect
     from `Test.Main`, which imports:
       Effect
 
 These errors can be fixed by running the below command(s):
 spago uninstall -p pedantic console effect
-spago install -p pedantic --test-deps console effect
+spago install -p pedantic --test-deps effect

@@ -4,6 +4,8 @@ Reading Spago workspace configuration...
 
 Downloading dependencies...
 Building...
+[1 of 2] Compiling Test.Spec.Runner.Node.Config
+[2 of 2] Compiling Test.Spec.Runner.Node
            Src   Lib   All
 Warnings     0     0     0
 Errors       0     0     0
@@ -19,6 +21,10 @@ Sources for package 'pedantic' import the following transitive dependencies - pl
     from `Main`, which imports:
       Data.Maybe
 
+Tests for package 'pedantic' declares unused dependencies - please remove them from the project config:
+  - spec
+  - spec-node
+
 Tests for package 'pedantic' import the following transitive dependencies - please add them to the project dependencies, or remove the imports:
   control
     from `Test.Main`, which imports:
@@ -26,4 +32,5 @@ Tests for package 'pedantic' import the following transitive dependencies - plea
 
 These errors can be fixed by running the below command(s):
 spago install -p pedantic maybe
+spago uninstall -p pedantic --test-deps spec spec-node
 spago install -p pedantic --test-deps control

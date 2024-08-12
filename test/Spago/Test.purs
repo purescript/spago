@@ -49,7 +49,7 @@ spec = Spec.around withTempDir do
         ( Init.defaultConfig
             { name: mkPackageName "subpackage"
             , withWorkspace: Nothing
-            , testModuleName: "Subpackage.Test.Main"
+            , withTest: Just { mainModuleName: Just "Subpackage.Test.Main", customDependencies: Nothing }
             }
         )
       spago [ "test", "-p", "subpackage" ] >>= shouldBeSuccess
@@ -60,7 +60,7 @@ spec = Spec.around withTempDir do
       FS.mkdirp "subpackage/test"
       FS.writeTextFile "subpackage/src/Main.purs" (Init.srcMainTemplate "Subpackage.Main")
 
-      -- We write a file into the current working directory. 
+      -- We write a file into the current working directory.
       -- The subpackage test will read the given file without changing its directory
       -- and log its content as its output.
       let textFilePath = "foo.txt"
@@ -74,7 +74,7 @@ spec = Spec.around withTempDir do
         ( ( Init.defaultConfig
               { name: mkPackageName "subpackage"
               , withWorkspace: Nothing
-              , testModuleName: "Subpackage.Test.Main"
+              , withTest: Just { mainModuleName: Just "Subpackage.Test.Main", customDependencies: Nothing }
               }
           ) # plusDependencies [ "aff", "node-buffer", "node-fs" ]
         )
@@ -90,7 +90,7 @@ spec = Spec.around withTempDir do
         ( Init.defaultConfig
             { name: mkPackageName "subpackage"
             , withWorkspace: Nothing
-            , testModuleName: "Subpackage.Test.Main"
+            , withTest: Just { mainModuleName: Just "Subpackage.Test.Main", customDependencies: Nothing }
             }
         )
       spago [ "test", "-p", "subpackage" ] >>= shouldBeFailure

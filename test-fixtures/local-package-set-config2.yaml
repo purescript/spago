@@ -4,9 +4,6 @@ package:
     - console
     - effect
     - prelude
-  test:
-    main: Test.Main
-    dependencies: []
 workspace:
   package_set:
     path: ../local-package-set.json

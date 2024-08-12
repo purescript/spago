@@ -1,6 +1,6 @@
 module Test.Prelude
-  ( module Test.Prelude
-  , module Spago.Prelude
+  ( module Spago.Prelude
+  , module Test.Prelude
   , module X
   ) where
 
@@ -386,3 +386,11 @@ assertWarning paths shouldHave stdErr  = do
   when (not $ Array.all (\exp -> shouldHave == (String.contains (Pattern exp) stdErr)) paths) do
     Assert.fail $ "STDERR contained one or more texts:\n" <> show paths <> "\n\nStderr was:\n" <> stdErr
 
+-- | Sometimes we have to to get rid of the test section in spago.yaml for
+-- | various reasons, for example if its dependencies aren't present in the
+-- | package set.
+removeTestsFromProject :: Aff Unit
+removeTestsFromProject = do
+  FS.unlink "test/Test/Main.purs"
+  config <- unsafeFromRight <$> FS.readYamlFile Config.configCodec "spago.yaml"
+  FS.writeYamlFile Config.configCodec "spago.yaml" config { package = config.package <#> _ { test = Nothing } }

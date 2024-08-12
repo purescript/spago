@@ -14,10 +14,15 @@ Looking for unused and undeclared transitive dependencies...
 
 ✘ Found unused and/or undeclared transitive dependencies:
 
+Tests for package 'pedantic' declares unused dependencies - please remove them from the project config:
+  - spec
+  - spec-node
+
 Tests for package 'pedantic' import the following transitive dependencies - please add them to the project dependencies, or remove the imports:
   control
     from `Test.Main`, which imports:
       Control.Alt
 
 These errors can be fixed by running the below command(s):
+spago uninstall -p pedantic --test-deps spec spec-node
 spago install -p pedantic --test-deps control

@@ -52,7 +52,7 @@ run opts = do
               true -> Nothing
               false -> Just packageSetVersion
           }
-      , testModuleName: "Test.Main"
+      , withTest: Just { mainModuleName: Just "Test.Main", customDependencies: Nothing }
       }
   let configPath = "spago.yaml"
   (FS.exists configPath) >>= case _ of
@@ -92,22 +92,22 @@ run opts = do
 type TemplateConfig =
   { name :: PackageName
   , withWorkspace :: Maybe { setVersion :: Maybe Version }
-  , testModuleName :: String
+  , withTest :: Maybe { mainModuleName :: Maybe String , customDependencies :: Maybe (Array String) }
   }
 
 defaultConfig :: TemplateConfig -> Config
-defaultConfig { name, withWorkspace, testModuleName } = do
+defaultConfig { name, withWorkspace, withTest } = do
   let
     pkg =
       { name
       , dependencies: [ "effect", "console", "prelude" ]
       , build: Nothing
-      , test: Just
-          { moduleMain: testModuleName
+      , test: withTest <#> \t ->
+          { moduleMain: t.mainModuleName # fromMaybe "Test.Main"
           , strict: Nothing
           , censorTestWarnings: Nothing
           , pedanticPackages: Nothing
-          , dependencies: Just [ "spec", "spec-node" ]
+          , dependencies: t.customDependencies <|> Just [ "spec", "spec-node" ]
           }
       }
   defaultConfig' case withWorkspace of

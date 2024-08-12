@@ -21,7 +21,9 @@ Sources for package 'pedantic' declares unused dependencies - please remove them
 Tests for package 'pedantic' declares unused dependencies - please remove them from the project config:
   - console
   - effect
+  - spec
+  - spec-node
 
 These errors can be fixed by running the below command(s):
 spago uninstall -p pedantic console effect
-spago uninstall -p pedantic --test-deps console effect
+spago uninstall -p pedantic --test-deps console effect spec spec-node

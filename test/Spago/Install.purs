@@ -37,17 +37,17 @@ spec = Spec.around withTempDir do
     --   checkFixture "spago.yaml" (fixture "spago-strips-purescript.yaml")
 
     Spec.it "adds dependencies to the config file" \{ spago, fixture } -> do
-      spago [ "init", "--name", "aaa", "--package-set", "29.3.0" ] >>= shouldBeSuccess
+      spago [ "init", "--name", "aaa", "--package-set", "56.4.0" ] >>= shouldBeSuccess
       spago [ "install", "foreign" ] >>= shouldBeSuccess
       checkFixture "spago.yaml" (fixture "spago-install-success.yaml")
 
     Spec.it "adds test dependencies to the config file" \{ spago, fixture } -> do
-      spago [ "init", "--name", "aaa", "--package-set", "29.3.0" ] >>= shouldBeSuccess
+      spago [ "init", "--name", "aaa", "--package-set", "56.4.0" ] >>= shouldBeSuccess
       spago [ "install", "--test-deps", "foreign" ] >>= shouldBeSuccess
       checkFixture "spago.yaml" (fixture "spago-install-test-deps-success.yaml")
 
     Spec.it "adds test dependencies to the config file when the test section does not exist" \{ spago, fixture } -> do
-      spago [ "init", "--name", "aaa", "--package-set", "29.3.0" ] >>= shouldBeSuccess
+      spago [ "init", "--name", "aaa", "--package-set", "56.4.0" ] >>= shouldBeSuccess
       let spagoYaml = "spago.yaml"
       FS.unlink spagoYaml
       FS.copyFile
@@ -58,7 +58,7 @@ spec = Spec.around withTempDir do
       checkFixture spagoYaml (fixture "spago-install-test-deps-success.yaml")
 
     Spec.it "can't add dependencies that are not in the package set" \{ spago, fixture } -> do
-      spago [ "init", "--name", "aaaa", "--package-set", "29.3.0" ] >>= shouldBeSuccess
+      spago [ "init", "--name", "aaaa", "--package-set", "56.4.0" ] >>= shouldBeSuccess
       spago [ "install", "foo-foo-foo", "bar-bar-bar", "effcet", "arrys" ] >>= shouldBeFailureErr (fixture "missing-dependencies.txt")
       checkFixture "spago.yaml" (fixture "spago-install-failure.yaml")
 
@@ -70,7 +70,7 @@ spec = Spec.around withTempDir do
           , withWorkspace: Just
               { setVersion: Just $ unsafeFromRight $ Version.parse "0.0.1"
               }
-          , testModuleName: "Test.Main"
+          , withTest: Just { mainModuleName: Just "Test.Main", customDependencies: Just [] }
           }
       FS.writeYamlFile Config.configCodec "spago.yaml"
         ( conf
@@ -114,7 +114,7 @@ spec = Spec.around withTempDir do
           , withWorkspace: Just
               { setVersion: Just $ unsafeFromRight $ Version.parse "0.0.1"
               }
-          , testModuleName: "Test.Main"
+          , withTest: Just { mainModuleName: Just "Test.Main", customDependencies: Just [] }
           }
       FS.writeYamlFile Config.configCodec "spago.yaml"
         ( conf
@@ -148,7 +148,7 @@ spec = Spec.around withTempDir do
           , withWorkspace: Just
               { setVersion: Just $ unsafeFromRight $ Version.parse "0.0.1"
               }
-          , testModuleName: "Test.Main"
+          , withTest: Just { mainModuleName: Just "Test.Main", customDependencies: Just [] }
           }
       FS.writeYamlFile Config.configCodec "spago.yaml"
         ( conf
@@ -176,7 +176,7 @@ spec = Spec.around withTempDir do
           , withWorkspace: Just
               { setVersion: Just $ unsafeFromRight $ Version.parse "0.0.1"
               }
-          , testModuleName: "Test.Main"
+          , withTest: Just { mainModuleName: Just "Test.Main", customDependencies: Just [] }
           }
       FS.writeYamlFile Config.configCodec "spago.yaml"
         ( conf
@@ -206,7 +206,7 @@ spec = Spec.around withTempDir do
         ( Init.defaultConfig
             { name: mkPackageName "subpackage"
             , withWorkspace: Nothing
-            , testModuleName: "Subpackage.Test.Main"
+            , withTest: Just { mainModuleName: Just "Subpackage.Test.Main", customDependencies: Just [] }
             }
         )
       spago [ "install", "-p", "subpackage", "either" ] >>= shouldBeSuccess
@@ -214,6 +214,7 @@ spec = Spec.around withTempDir do
 
     Spec.it "can build with a newer (but still compatible) compiler than the one in the package set" \{ spago } -> do
       spago [ "init", "--package-set", "10.0.0" ] >>= shouldBeSuccess
+      removeTestsFromProject
       startingTime <- liftEffect $ Now.now
       purs <- runSpago { logOptions: { color: false, verbosity: LogQuiet, startingTime } } Purs.getPurs
       -- The package set 10.0.0 has purescript 0.15.4, so we check that we have a newer version
@@ -223,7 +224,7 @@ spec = Spec.around withTempDir do
       spago [ "install" ] >>= shouldBeSuccess
 
     Spec.it "can refresh the lockfile, and uninstall restores it" \{ spago, fixture } -> do
-      spago [ "init", "--name", "aaa", "--package-set", "33.0.0" ] >>= shouldBeSuccess
+      spago [ "init", "--name", "aaa", "--package-set", "56.4.0" ] >>= shouldBeSuccess
       spago [ "build" ] >>= shouldBeSuccess
       -- Check that we have written the lockfile
       checkFixture "spago.lock" (fixture "spago.lock")
@@ -243,7 +244,7 @@ writeConfigWithEither = do
       , withWorkspace: Just
           { setVersion: Just $ unsafeFromRight $ Version.parse "0.0.1"
           }
-      , testModuleName: "Test.Main"
+      , withTest: Just { mainModuleName: Just "Test.Main", customDependencies: Just [] }
       }
   FS.writeYamlFile Config.configCodec "spago.yaml"
     ( conf
