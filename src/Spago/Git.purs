@@ -204,13 +204,14 @@ getGit = do
 
 parseRemote :: String -> Maybe Remote
 parseRemote = \line ->
-  case String.split (Pattern "\t") line of
-    [ name, secondPart ]
-      | [ url, _ ] <- String.split (Pattern " ") secondPart
-      , Just [ _, _, Just owner, Just repo ] <- NEA.toArray <$> Regex.match gitUrlRegex url ->
+  case Regex.split tabOrSpaceRegex line of
+    [ name, url, _ ]
+      | Just [ _, _, _, Just owner, Just repo ] <- NEA.toArray <$> Regex.match gitUrlRegex url ->
           Just { name, url, owner, repo }
     _ ->
       Nothing
   where
+  tabOrSpaceRegex = unsafePartial $ fromJust $ hush $
+    Regex.regex "\\s+" mempty
   gitUrlRegex = unsafePartial $ fromJust $ hush $
-    Regex.regex "^(.+@.+:|https?:\\/\\/.+\\/)(.*)\\/(.+)\\.git$" mempty
+    Regex.regex "^((ssh:\\/\\/)?[^@]+@[^:]+[:\\/]|https?:\\/\\/[^\\/]+\\/)(.*)\\/(.+)\\.git$" mempty
