@@ -177,6 +177,7 @@ spec = Spec.around withTempDir do
           , withWorkspace: Just { setVersion: Just $ mkVersion "0.0.1" }
           }
       FS.unlink "test/Test/Main.purs"
+      FS.writeTextFile "test/Test/Main.purs" "module Test.Main where\ndummy = 0 :: Int"
       FS.writeYamlFile Config.configCodec "spago.yaml"
         (conf { workspace = conf.workspace # map (_ { backend = Just { cmd: "echo", args: Just [ "hello" ] } }) })
 
