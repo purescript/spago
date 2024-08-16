@@ -34,6 +34,7 @@ spec = Spec.around withTempDir do
 
     Spec.it "can't list package set if we are solving with the Registry" \{ spago, fixture } -> do
       spago [ "init", "--name", "aaa", "--use-solver" ] >>= shouldBeSuccess
+      removeTestsFromProject
       spago [ "ls", "packages" ] >>= shouldBeFailureErr (fixture "list-packages-registry.txt")
 
 makeSubpackage :: Aff Unit

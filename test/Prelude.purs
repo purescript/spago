@@ -393,4 +393,5 @@ removeTestsFromProject :: Aff Unit
 removeTestsFromProject = do
   FS.unlink "test/Test/Main.purs"
   config <- unsafeFromRight <$> FS.readYamlFile Config.configCodec "spago.yaml"
+  FS.writeTextFile "test/Test/Main.purs" "module Test.Main where\ndummy = 0 :: Int"
   FS.writeYamlFile Config.configCodec "spago.yaml" config { package = config.package <#> _ { test = Nothing } }
