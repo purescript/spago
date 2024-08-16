@@ -4,6 +4,7 @@ Reading Spago workspace configuration...
 
 Downloading dependencies...
 Building...
+purs compile: No files found using pattern: test/**/*.purs
            Src   Lib   All
 Warnings     0     0     0
 Errors       0     0     0
@@ -18,5 +19,10 @@ Sources for package 'pedantic' declares unused dependencies - please remove them
   - console
   - effect
 
+Tests for package 'pedantic' declares unused dependencies - please remove them from the project config:
+  - console
+  - effect
+
 These errors can be fixed by running the below command(s):
 spago uninstall -p pedantic console effect
+spago uninstall -p pedantic --test-deps console effect

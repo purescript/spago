@@ -88,7 +88,7 @@ spec =
           )
         spago [ "build", "--pedantic-packages" ] >>= shouldBeFailureErr (fixture "pedantic/check-unused-dependency.txt")
         editSpagoYaml addPedanticFlagToSrc
-        spago [ "build" ] >>= shouldBeFailureErr (fixture "pedantic/check-unused-dependency.txt")
+        spago [ "build" ] >>= shouldBeFailureErr (fixture "pedantic/check-unused-dependency-yaml.txt")
 
       -- Here we do not install `effect` and `console` in the test package, and we don't use them
       -- in the source, so we should get an "unused" warning about them for the source, and a prompt
@@ -104,7 +104,7 @@ spec =
           )
         spago [ "build", "--pedantic-packages" ] >>= shouldBeFailureErr (fixture "pedantic/check-unused-dependency-in-source.txt")
         editSpagoYaml addPedanticFlagToSrc
-        spago [ "build" ] >>= shouldBeFailureErr (fixture "pedantic/check-unused-dependency.txt")
+        spago [ "build" ] >>= shouldBeFailureErr (fixture "pedantic/check-unused-dependency-in-source.txt")
 
       -- Complain about the unused `newtype` dependency in the test package
       Spec.it "in a test package" \{ spago, fixture } -> do
@@ -258,6 +258,7 @@ defaultSetupConfig =
 setup :: (Array String -> Aff (Either ExecResult ExecResult)) -> SetupConfig -> Aff Unit
 setup spago config = do
   spago [ "init", "--name", "pedantic" ] >>= shouldBeSuccess
+  removeTestsFromProject
   unless (Array.null config.installSourcePackages) do
     spago ([ "install" ] <> config.installSourcePackages) >>= shouldBeSuccess
   unless (Array.null config.installTestPackages) do

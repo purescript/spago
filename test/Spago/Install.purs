@@ -54,7 +54,7 @@ spec = Spec.around withTempDir do
         { src: fixture "no-test-section.yaml"
         , dst: spagoYaml
         }
-      spago [ "install", "--test-deps", "foreign" ] >>= shouldBeSuccess
+      spago [ "install", "--test-deps", "foreign", "spec", "spec-node" ] >>= shouldBeSuccess
       checkFixture spagoYaml (fixture "spago-install-test-deps-success.yaml")
 
     Spec.it "can't add dependencies that are not in the package set" \{ spago, fixture } -> do
