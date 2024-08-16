@@ -46,7 +46,7 @@
 .spago/p/now-6.0.0/src/**/*.purs
 .spago/p/nullable-6.0.0/src/**/*.purs
 .spago/p/numbers-9.0.1/src/**/*.purs
-.spago/p/open-memoize-6.1.0/src/**/*.purs
+.spago/p/open-memoize-6.2.0/src/**/*.purs
 .spago/p/optparse-5.0.1/src/**/*.purs
 .spago/p/ordered-collections-3.2.0/src/**/*.purs
 .spago/p/orders-6.0.0/src/**/*.purs
@@ -56,7 +56,6 @@
 .spago/p/posix-types-6.0.0/src/**/*.purs
 .spago/p/prelude-6.0.1/src/**/*.purs
 .spago/p/profunctor-6.0.1/src/**/*.purs
-.spago/p/psci-support-6.0.0/src/**/*.purs
 .spago/p/record-4.0.0/src/**/*.purs
 .spago/p/refs-6.0.0/src/**/*.purs
 .spago/p/safe-coerce-2.0.0/src/**/*.purs
