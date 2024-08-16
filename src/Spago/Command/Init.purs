@@ -92,7 +92,7 @@ run opts = do
 type TemplateConfig =
   { name :: PackageName
   , withWorkspace :: Maybe { setVersion :: Maybe Version }
-  , withTest :: Maybe { mainModuleName :: Maybe String , customDependencies :: Maybe (Array String) }
+  , withTest :: Maybe { mainModuleName :: Maybe String, customDependencies :: Maybe (Array String) }
   }
 
 defaultConfig :: TemplateConfig -> Config
