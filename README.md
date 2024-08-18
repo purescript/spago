@@ -965,7 +965,7 @@ When bundling a `module` instead, the output will be a single JS module that you
 
 ```console
 # You can specify the main module and the target file, or these defaults will be used
-$ spago bundle --bundle-type module --main Main --outfile index.js
+$ spago bundle --bundle-type module --module Main --outfile index.js
 ```
 
 Can now import it in your Node project:
