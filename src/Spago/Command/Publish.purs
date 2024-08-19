@@ -74,7 +74,7 @@ type PublishEnv a =
 
 type PublishArgs = {}
 
-publish :: forall a. PublishArgs -> Spago (PublishEnv a) Operation.PublishData
+publish :: ∀ a. PublishArgs -> Spago (PublishEnv a) Operation.PublishData
 publish _args = do
   -- We'll store all the errors here in this ref, then complain at the end
   resultRef <- liftEffect $ Ref.new (Left List.Nil)
@@ -116,8 +116,8 @@ publish _args = do
     Effect.liftEffect Process.exit
 
   -- We then need to check that the dependency graph is accurate. If not, queue the errors
-  let allDependencies = Fetch.toAllDependencies dependencies
-  let globs = Build.getBuildGlobs { selected: NEA.singleton selected, withTests: false, dependencies: allDependencies, depsOnly: false }
+  let allCoreDependencies = Fetch.toAllDependencies $ dependencies <#> _ { test = Map.empty }
+  let globs = Build.getBuildGlobs { selected: NEA.singleton selected, withTests: false, dependencies: allCoreDependencies, depsOnly: false }
   eitherGraph <- Graph.runGraph globs []
   case eitherGraph of
     Right graph -> do
@@ -206,8 +206,8 @@ publish _args = do
                       RegistryVersion v -> Right (Tuple pkgName v)
                       _ -> Left pkgName
                   )
-              $ (Map.toUnfoldable allDependencies :: Array _)
-        if Array.length fail > 0 then do
+              $ (Map.toUnfoldable allCoreDependencies :: Array _)
+        if Array.length fail > 0 then
           addError
             $ toDoc
                 [ "Some of the packages you specified as `extraPackages` do not point to the Registry."
@@ -352,7 +352,7 @@ publish _args = do
       -- from the solver (this is because the build might terminate the process, and we shall output the errors first)
       logInfo "Building again with the build plan from the solver..."
       let buildPlanDependencies = map Config.RegistryVersion resolutions
-      builtAgain <- runBuild { selected, dependencies: Map.singleton selected.package.name buildPlanDependencies }
+      builtAgain <- runBuild { selected, dependencies: Map.singleton selected.package.name { core: buildPlanDependencies, test: Map.empty } }
         ( Build.run
             { depsOnly: false
             , pursArgs: []
@@ -385,10 +385,10 @@ publish _args = do
     runSpago
       { purs: env.purs
       , git: env.git
-      , dependencies: dependencies
+      , dependencies
       , logOptions: env.logOptions
       , workspace: env.workspace { selected = Just selected }
-      , strictWarnings: (Nothing :: Maybe Boolean)
+      , strictWarnings: Nothing
       , pedanticPackages: false
       }
       action

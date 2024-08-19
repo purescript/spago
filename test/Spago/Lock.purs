@@ -33,23 +33,33 @@ validLockfile =
   { workspace:
       { packages: Map.fromFoldable
           [ packageTuple "my-app"
-              { dependencies: Dependencies $ Map.fromFoldable
-                  [ packageTuple "effect" (Just (unsafeFromRight (Range.parse ">=1.0.0 <5.0.0")))
-                  , packageTuple "my-library" Nothing
-                  ]
-              , test_dependencies: Dependencies Map.empty
+              { core:
+                  { dependencies: Dependencies $ Map.fromFoldable
+                    [ packageTuple "effect" (Just (unsafeFromRight (Range.parse ">=1.0.0 <5.0.0")))
+                    , packageTuple "my-library" Nothing
+                    ]
+                  , build_plan: Set.fromFoldable
+                      [ mkPackageName "my-library"
+                      , mkPackageName "effect"
+                      , mkPackageName "prelude"
+                      ]
+                  }
+              , test:
+                  { dependencies: Dependencies Map.empty
+                  , build_plan: Set.empty
+                  }
               , path: "my-app"
-              , build_plan: Set.fromFoldable
-                  [ mkPackageName "my-library"
-                  , mkPackageName "effect"
-                  , mkPackageName "prelude"
-                  ]
               }
           , packageTuple "my-library"
-              { dependencies: Dependencies $ Map.fromFoldable [ packageTuple "prelude" Nothing ]
-              , test_dependencies: Dependencies $ Map.fromFoldable [ packageTuple "console" (Just Config.widestRange) ]
+              { core:
+                  { dependencies: Dependencies $ Map.fromFoldable [ packageTuple "prelude" Nothing ]
+                  , build_plan: Set.fromFoldable [ mkPackageName "prelude" ]
+                  }
+              , test:
+                  { dependencies: Dependencies $ Map.fromFoldable [ packageTuple "console" (Just Config.widestRange) ]
+                  , build_plan: Set.fromFoldable [ mkPackageName "console" ]
+                  }
               , path: "my-library"
-              , build_plan: Set.fromFoldable [ mkPackageName "prelude" ]
               }
           ]
       , package_set: Just
@@ -115,23 +125,30 @@ workspace:
   packages:
     my-app:
       path: my-app
-      build_plan:
-        - effect
-        - my-library
-        - prelude
-      dependencies:
-        - effect: ">=1.0.0 <5.0.0"
-        - my-library
-      test_dependencies: []
+      core:
+        build_plan:
+          - effect
+          - my-library
+          - prelude
+        dependencies:
+          - effect: ">=1.0.0 <5.0.0"
+          - my-library
+      test:
+        dependencies: []
+        build_plan: []
 
     my-library:
       path: my-library
-      build_plan:
-        - prelude
-      dependencies:
-        - prelude
-      test_dependencies:
-        - console: "*"
+      core:
+        build_plan:
+          - prelude
+        dependencies:
+          - prelude
+      test:
+        dependencies:
+          - console: "*"
+        build_plan:
+          - console
 
   package_set:
     address:

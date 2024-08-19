@@ -43,7 +43,7 @@ type BuildOptions =
   , jsonErrors :: Boolean
   }
 
-run :: BuildOptions -> Spago (BuildEnv _) Boolean
+run :: ∀ a. BuildOptions -> Spago (BuildEnv a) Boolean
 run opts = do
   logInfo "Building..."
   { dependencies
@@ -104,8 +104,11 @@ run opts = do
       Nothing -> Config.getWorkspacePackages workspace.packageSet
     globs = getBuildGlobs
       { dependencies: case workspace.selected of
-          Just p -> unsafeFromJust $ Map.lookup p.package.name dependencies
-          Nothing -> allDependencies
+          Just p ->
+            let { core, test } = unsafeFromJust $ Map.lookup p.package.name dependencies
+            in Map.union core test
+          Nothing ->
+            allDependencies
       , depsOnly: opts.depsOnly
       , withTests: true
       , selected: selectedPackages
@@ -202,7 +205,7 @@ getBuildGlobs { selected, dependencies, withTests, depsOnly } =
   dependencyGlobs = (Tuple.uncurry $ Config.sourceGlob NoTestGlobs) =<< dependencyPkgs
   monorepoPkgGlobs
     | depsOnly = []
-    | otherwise = (Tuple.uncurry $ Config.sourceGlob testGlobs) =<< monorepoPkgs
+    | otherwise = (Tuple.uncurry $ Config.sourceGlob NoTestGlobs) =<< monorepoPkgs
 
 isWorkspacePackage :: Tuple PackageName Package -> Boolean
 isWorkspacePackage = case _ of

@@ -2,22 +2,25 @@ workspace:
   packages:
     aaa:
       path: ./
-      dependencies:
-        - console
-        - effect
-        - maybe
-        - prelude
-      test_dependencies: []
-      build_plan:
-        - console
-        - control
-        - effect
-        - invariant
-        - maybe
-        - newtype
-        - prelude
-        - safe-coerce
-        - unsafe-coerce
+      core:
+        dependencies:
+          - console
+          - effect
+          - maybe
+          - prelude
+        build_plan:
+          - console
+          - control
+          - effect
+          - invariant
+          - maybe
+          - newtype
+          - prelude
+          - safe-coerce
+          - unsafe-coerce
+      test:
+        dependencies: []
+        build_plan: []
   package_set:
     address:
       registry: 33.0.0

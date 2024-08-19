@@ -2,44 +2,55 @@ workspace:
   packages:
     package-a:
       path: package-a
-      dependencies:
-        - package-b
-        - package-c
-        - prelude
-      test_dependencies:
-        - console
-        - effect
-        - prelude
-      build_plan:
-        - console
-        - effect
-        - package-b
-        - package-c
-        - prelude
+      core:
+        dependencies:
+          - package-b
+          - package-c
+          - prelude
+        build_plan:
+          - package-b
+          - package-c
+          - prelude
+      test:
+        dependencies:
+          - console
+          - effect
+          - prelude
+        build_plan:
+          - console
+          - effect
+          - prelude
     package-b:
       path: package-b
-      dependencies:
-        - package-c
-        - prelude
-      test_dependencies:
-        - console
-        - effect
-        - prelude
-      build_plan:
-        - console
-        - effect
-        - package-c
-        - prelude
+      core:
+        dependencies:
+          - package-c
+          - prelude
+        build_plan:
+          - package-c
+          - prelude
+      test:
+        dependencies:
+          - console
+        build_plan:
+          - console
+          - effect
+          - prelude
     package-c:
       path: package-c
-      dependencies:
-        - prelude
-      test_dependencies:
-        - console
-        - effect
-        - prelude
-      build_plan:
-        - prelude
+      core:
+        dependencies:
+          - prelude
+        build_plan:
+          - prelude
+      test:
+        dependencies:
+          - console
+          - effect
+        build_plan:
+          - console
+          - effect
+          - prelude
   package_set:
     address:
       registry: 0.0.1

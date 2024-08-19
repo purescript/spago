@@ -1,14 +1,15 @@
 module Spago.Lock
-  ( Lockfile
-  , lockfileCodec
+  ( GitLock
   , LockEntry(..)
-  , lockEntryCodec
-  , PathLock
-  , GitLock
+  , Lockfile
   , PackageSetInfo
+  , PathLock
   , RegistryLock
   , WorkspaceLock
   , WorkspaceLockPackage
+  , WorkspaceLockPackageEnv
+  , lockEntryCodec
+  , lockfileCodec
   ) where
 
 import Spago.Prelude
@@ -53,9 +54,13 @@ type PackageSetInfo =
   }
 
 type WorkspaceLockPackage =
-  { dependencies :: Core.Dependencies
-  , test_dependencies :: Core.Dependencies
+  { core :: WorkspaceLockPackageEnv
+  , test :: WorkspaceLockPackageEnv
   , path :: FilePath
+  }
+
+type WorkspaceLockPackageEnv =
+  { dependencies :: Core.Dependencies
   , build_plan :: Set PackageName
   }
 
@@ -74,8 +79,12 @@ workspaceLockCodec = CJ.named "WorkspaceLock" $ CJ.object
   where
   dependenciesCodec = CJ.named "Dependencies" $ CJ.object
     $ CJ.recordProp (Proxy @"path") CJ.string
+    $ CJ.recordProp (Proxy @"core") envCodec
+    $ CJ.recordProp (Proxy @"test") envCodec
+    $ CJ.record
+
+  envCodec = CJ.named "Environment" $ CJ.object
     $ CJ.recordProp (Proxy @"dependencies") Config.dependenciesCodec
-    $ CJ.recordProp (Proxy @"test_dependencies") Config.dependenciesCodec
     $ CJ.recordProp (Proxy @"build_plan") (CJ.Common.set PackageName.codec)
     $ CJ.record
 

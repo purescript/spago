@@ -1,0 +1,26 @@
+package:
+  name: aaa
+  dependencies:
+    - console: ">=6.0.0 <7.0.0"
+    - effect: ">=4.0.0 <5.0.0"
+    - prelude: ">=6.0.1 <7.0.0"
+    - maybe: ">=6.0.0 <7.0.0"
+  test:
+    main: Test.Main
+    dependencies:
+      - effect
+  publish:
+    version: 0.0.1
+    license: MIT
+    location:
+      githubOwner: purescript
+      githubRepo: aaa
+workspace:
+  packageSet:
+    registry: 28.1.1
+  extraPackages:
+    console: "6.1.0"
+    maybe:
+      repo: https://github.com/purescript/purescript-maybe.git
+      version: v6.0.0
+      dependencies: ["prelude", "control", "invariant", "newtype"]
