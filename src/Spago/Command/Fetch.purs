@@ -309,7 +309,7 @@ writeNewLockfile reason allTransitiveDeps = do
             pure res
 
     processPackage :: Map PackageName _ -> LockfileBuilderResult -> Tuple PackageName (Tuple PackageName Package) -> Spago (FetchEnv a) LockfileBuilderResult
-    processPackage integrityMap result (Tuple workspacePackageName (Tuple dependencyName dependencyPackage)) = do
+    processPackage registryIntegrityMap result (Tuple workspacePackageName (Tuple dependencyName dependencyPackage)) = do
       let
         getDeps = (Array.fromFoldable <<< Map.keys <<< fromMaybe Map.empty)
           <$> memoisedGetPackageDependencies dependencyName dependencyPackage
@@ -327,15 +327,15 @@ writeNewLockfile reason allTransitiveDeps = do
           }
 
       case dependencyPackage of
-        WorkspacePackage _pkg ->
-          pure $ updateWorkspacePackage result
+        WorkspacePackage _pkg -> pure $ updateWorkspacePackage result
 
         GitPackage gitPackage -> do
           let packageLocation = Config.getPackageLocation dependencyName dependencyPackage
           lookupInCache packageLocation gitRefCache >>= case _ of
             Nothing ->
+              -- Get the ref and update the cache
               Git.getRef (Just packageLocation) >>= case _ of
-                Left err -> die err
+                Left err -> die err -- TODO maybe not die here?
                 Right rev -> do
                   dependencies <- getDeps
                   let
@@ -343,13 +343,13 @@ writeNewLockfile reason allTransitiveDeps = do
                       FromGit { rev, dependencies, url: gitPackage.git, subdir: gitPackage.subdir }
                   updateCache packageLocation lockEntry gitRefCache
                   pure $ updatePackage result lockEntry
-            Just entry -> do
-              pure $ updatePackage result entry
+            Just entry -> pure $ updatePackage result entry
 
         RegistryVersion version -> do
           lookupInCache dependencyName metadataRefCache >>= case _ of
             Nothing -> do
-              registryVersion <- FromRegistry <$> case Map.lookup dependencyName integrityMap of
+              registryVersion <- FromRegistry <$> case Map.lookup dependencyName registryIntegrityMap of
+                -- This shouldn't be Nothing because it's already handled when building the integrity map below
                 Nothing -> die $ "Couldn't read metadata"
                 Just integrity -> do
                   dependencies <- getDeps
@@ -370,13 +370,13 @@ writeNewLockfile reason allTransitiveDeps = do
 
   -- Fetch the Registry metadata in one go for all required packages
   let
-    uniqueRegistryPackages = Array.nub $ filterMap
+    uniqueRegistryPackageNames = Array.nub $ filterMap
       ( \(Tuple _ (Tuple dependencyName dependencyPackage)) -> case dependencyPackage of
           RegistryVersion _ -> Just dependencyName
           _ -> Nothing
       )
       allDependencies
-  metadataMap <- Registry.getMetadatas uniqueRegistryPackages >>= case _ of
+  metadataMap <- Registry.getMetadatas uniqueRegistryPackageNames >>= case _ of
     Left err -> die $ "Couldn't read metadata, reason:\n  " <> err
     Right ms -> pure ms
 
@@ -386,7 +386,11 @@ writeNewLockfile reason allTransitiveDeps = do
             RegistryVersion version -> do
               let metadata = Map.lookup dependencyName metadataMap
               case (metadata >>= (\(Metadata meta) -> Map.lookup version meta.published)) of
-                Nothing -> die "Couldn't read metadata"
+                Nothing | isNothing metadata ->
+                  die $ "Couldn't read metadata for " <> PackageName.print dependencyName
+                Nothing ->
+                  die $ "Couldn't read metadata for " <> PackageName.print dependencyName
+                    <> ": didn't find version in the metadata file"
                 Just { hash: integrity } ->
                   pure $ Just $ dependencyName /\ integrity
             _ -> pure Nothing
