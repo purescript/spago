@@ -36,3 +36,4 @@ package:
     dependencies:
       - exceptions
       - spec
+      - spec-node
