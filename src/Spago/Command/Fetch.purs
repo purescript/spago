@@ -25,6 +25,7 @@ import Data.Codec.JSON as CJ
 import Data.Codec.JSON.Common as CJ.Common
 import Data.Either as Either
 import Data.Filterable (filterMap)
+import Data.FunctorWithIndex (mapWithIndex)
 import Data.HTTP.Method as Method
 import Data.Int as Int
 import Data.List as List
@@ -359,14 +360,13 @@ writeNewLockfile reason allTransitiveDeps = do
   -- so that the build uses them instead of the tags
   let
     updateGitDependencyRefsToCommitHashes =
-      Map.mapMaybeWithKey \name package -> Just
-        case package of
-          GitPackage gitPackage -> case Map.lookup name nonWorkspacePackageLockEntries of
-            Nothing -> package
-            Just (FromGit { rev }) -> GitPackage $ gitPackage { ref = rev }
-            Just _ -> package
-          _ ->
-            package
+      mapWithIndex \name package -> case package of
+        GitPackage gitPackage -> case Map.lookup name nonWorkspacePackageLockEntries of
+          Nothing -> package
+          Just (FromGit { rev }) -> GitPackage $ gitPackage { ref = rev }
+          Just _ -> package
+        _ ->
+          package
 
   pure $ allTransitiveDeps <#> onEachEnv updateGitDependencyRefsToCommitHashes
 
