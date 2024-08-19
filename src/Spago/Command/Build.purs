@@ -105,8 +105,10 @@ run opts = do
     globs = getBuildGlobs
       { dependencies: case workspace.selected of
           Just p ->
-            let { core, test } = unsafeFromJust $ Map.lookup p.package.name dependencies
-            in Map.union core test
+            let
+              { core, test } = unsafeFromJust $ Map.lookup p.package.name dependencies
+            in
+              Map.union core test
           Nothing ->
             allDependencies
       , depsOnly: opts.depsOnly

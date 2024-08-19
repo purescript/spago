@@ -375,8 +375,8 @@ writeNewLockfile reason allTransitiveDeps = do
 toAllDependencies :: PackageTransitiveDeps -> PackageMap
 toAllDependencies =
   Map.values
-  >>> foldMap (\m -> [m.core, m.test])
-  >>> foldl Map.union Map.empty
+    >>> foldMap (\m -> [ m.core, m.test ])
+    >>> foldl Map.union Map.empty
 
 getGitPackageInLocalCache :: forall a. PackageName -> GitPackage -> Spago (Git.GitEnv a) Unit
 getGitPackageInLocalCache name package = do
@@ -510,15 +510,18 @@ getTransitiveDeps workspacePackage = do
     -- No lockfile, we need to build a plan from scratch, and hit the Registry and so on
     Left _ -> case workspace.packageSet.buildType of
       RegistrySolverBuild extraPackages -> do
-        let forEnv envName depsRanges' = do
-              plan <- getTransitiveDepsFromRegistry depsRanges' extraPackages
-              logDebug $ Array.fold
-                [ "Got a plan from the Solver for ", envName, " deps: "
-                , printJson (Internal.Codec.packageMap Version.codec) plan
-                ]
-              pure $ plan # Map.mapMaybeWithKey \packageName version -> case Map.lookup packageName extraPackages of
-                Just p -> Just p
-                Nothing -> Just $ RegistryVersion version
+        let
+          forEnv envName depsRanges' = do
+            plan <- getTransitiveDepsFromRegistry depsRanges' extraPackages
+            logDebug $ Array.fold
+              [ "Got a plan from the Solver for "
+              , envName
+              , " deps: "
+              , printJson (Internal.Codec.packageMap Version.codec) plan
+              ]
+            pure $ plan # Map.mapMaybeWithKey \packageName version -> case Map.lookup packageName extraPackages of
+              Just p -> Just p
+              Nothing -> Just $ RegistryVersion version
 
         { core: _, test: _ }
           <$> forEnv "core" depsRanges.core
@@ -565,7 +568,6 @@ getTransitiveDepsFromRegistry depsRanges extraPackages = do
             maybeManifest <- Registry.getManifestFromIndex packageName v
             let deps = fromMaybe Map.empty $ map (_.dependencies <<< unwrap) maybeManifest
             pure (Tuple v deps)
-
 
   maybePlan <- Registry.Solver.loadAndSolve loader depsRanges
 
