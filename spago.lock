@@ -457,7 +457,6 @@ workspace:
           - console
           - control
           - datetime
-          - debug
           - docs-search-common
           - docs-search-index
           - dodo-printer
@@ -522,7 +521,6 @@ workspace:
           - contravariant
           - control
           - datetime
-          - debug
           - distributive
           - docs-search-common
           - docs-search-index
@@ -746,7 +744,6 @@ workspace:
           - contravariant
           - control
           - datetime
-          - debug
           - distributive
           - docs-search-common
           - docs-search-index
@@ -1966,13 +1963,6 @@ packages:
       - partial
       - prelude
       - tuples
-  debug:
-    type: registry
-    version: 6.0.2
-    integrity: sha256-vmkYFuXYuELBzeauvgHG6E6Kf/Hp1dAnxwE9ByHfwSg=
-    dependencies:
-      - functions
-      - prelude
   distributive:
     type: registry
     version: 6.0.0
