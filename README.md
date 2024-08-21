@@ -749,7 +749,8 @@ Then your file tree might look like this:
 │   ├── src
 │   │   └── Main.purs
 │   └── test
-│       └── Main.purs
+│       └── Test
+│           └── Main.purs
 ├── lib1
 │   ├── spago.yaml
 │   └── src
@@ -759,7 +760,8 @@ Then your file tree might look like this:
 │   ├── src
 │   │   └── Main.purs
 │   └── test
-│       └── Main.purs
+│       └── Test
+│           └── Main.purs
 └── spago.yaml
 ```
 
