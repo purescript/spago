@@ -411,12 +411,34 @@ You should add some tests.
 Tests succeeded.
 ```
 
+If you are using [the `spec-node` test runner](https://purescript-spec.github.io/purescript-spec/running/#running-under-node),
+you can use its command-line options to select a subset of tests with
+`--example` or rerun previously failed tests with `--only-failures`:
+
+```console
+$ spago test -- --example "some test"
+$ spago test -- --only-failures
+```
+
+Note that you have to separate test runner options with a double dash `--` to distinguish them from Spago's own options.
+If you're on PowerShell (Windows), you will also need to quote the double dash:
+
+```console
+> spago test '--' --example "some test"
+> spago test '--' --only-failures
+```
+
+This has to do with an unfortunate interaction between Node bootstrapping mechanism and the way PowerShell handles parameters.
+
+See [the docs](https://purescript-spec.github.io/purescript-spec/running/#running-under-node)
+for more useful options.
+
 As with the `run` command, it's possible to configure the tests using the `spago.yaml` - most importantly to separate test dependencies from the dependencies of your application/library.
 
 Please see [the section about the configuration format](#the-configuration-file) for more info, but in the meantime note that it's possible to install test dependencies by running:
 
 ```console
-$ spago install --test-deps spec
+$ spago install --test-deps spec spec-node
 ```
 
 ### Run a repl
@@ -727,7 +749,8 @@ Then your file tree might look like this:
 │   ├── src
 │   │   └── Main.purs
 │   └── test
-│       └── Main.purs
+│       └── Test
+│           └── Main.purs
 ├── lib1
 │   ├── spago.yaml
 │   └── src
@@ -737,7 +760,8 @@ Then your file tree might look like this:
 │   ├── src
 │   │   └── Main.purs
 │   └── test
-│       └── Main.purs
+│       └── Test
+│           └── Main.purs
 └── spago.yaml
 ```
 
@@ -943,7 +967,7 @@ When bundling a `module` instead, the output will be a single JS module that you
 
 ```console
 # You can specify the main module and the target file, or these defaults will be used
-$ spago bundle --bundle-type module --main Main --outfile index.js
+$ spago bundle --bundle-type module --module Main --outfile index.js
 ```
 
 Can now import it in your Node project:

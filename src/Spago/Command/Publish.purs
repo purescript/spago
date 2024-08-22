@@ -38,6 +38,7 @@ import Spago.Command.Fetch as Fetch
 import Spago.Config (Package(..), Workspace, WorkspacePackage)
 import Spago.Config as Config
 import Spago.Db (Db)
+import Spago.FS as FS
 import Spago.Git (Git)
 import Spago.Git as Git
 import Spago.Json as Json
@@ -190,6 +191,12 @@ publish _args = do
           , "submit a transfer operation."
           ]
 
+        unlessM (locationIsInGitRemotes location) $ addError $ toDoc
+          [ "The location specified in the manifest file"
+          , "(" <> Json.stringifyJson Location.codec location <> ")"
+          , " is not one of the remotes in the git repository."
+          ]
+
         -- Check that all the dependencies come from the registry
         let
           { fail, success: _ } =
@@ -251,9 +258,9 @@ publish _args = do
 
           -- These are "soft" git tag checks. We notify the user of errors
           -- they need to fix. But these commands must not have the user
-          -- 1) create/push a git tag that is known to be unpublishable, 
+          -- 1) create/push a git tag that is known to be unpublishable,
           --    thereby forcing them to create another git tag later with the fix.
-          -- 2) input any login credentials as there are other errors to fix 
+          -- 2) input any login credentials as there are other errors to fix
           --    before doing that.
           -- The "hard" git tag checks will occur only if these succeed.
           Git.getStatus Nothing >>= case _ of
@@ -353,7 +360,7 @@ publish _args = do
             }
         )
 
-      -- As above: there's a pending failure exit and its' easier to just abort here
+      -- As above: there's a pending failure exit and it's easier to just abort here
       when (not builtAgain) $
         Effect.liftEffect Process.exit
 
@@ -451,6 +458,20 @@ waitForJobFinish jobId = go Nothing
         case jobInfo.success of
           true -> logSuccess $ "Registry finished processing the package. Your package was published successfully!"
           false -> die $ "Registry finished processing the package, but it failed. Please fix it and try again."
+
+locationIsInGitRemotes :: ∀ a. Location -> Spago (PublishEnv a) Boolean
+locationIsInGitRemotes location = do
+  isGitRepo <- FS.exists ".git"
+  if not isGitRepo then
+    pure false
+  else
+    Git.getRemotes Nothing >>= case _ of
+      Left err ->
+        die $ toDoc err
+      Right remotes ->
+        pure $ remotes # Array.any \r -> case location of
+          Location.Git { url } -> r.url == url
+          Location.GitHub { owner, repo } -> r.owner == owner && r.repo == repo
 
 baseApi :: String
 baseApi = "https://registry.purescript.org"

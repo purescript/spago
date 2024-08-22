@@ -1,6 +1,6 @@
 Reading Spago workspace configuration...
 
-✅ Selecting package to build: uninstall-tests
+✓ Selecting package to build: uninstall-tests
 
 Removing the following test dependencies: either
 Lockfile is out of date (uninstalled packages), generating it...

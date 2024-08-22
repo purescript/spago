@@ -1,0 +1,8 @@
+Reading Spago workspace configuration...
+
+✘ Selected package totally-bogus was not found in the local packages.
+All available packages:
+  binder
+  finder
+  founder
+  root

@@ -2,7 +2,6 @@ module Test.Spago.Publish (spec) where
 
 import Test.Prelude
 
-import Node.FS.Aff as FSA
 import Node.Platform as Platform
 import Node.Process as Process
 import Spago.Cmd as Cmd
@@ -34,13 +33,22 @@ spec = Spec.around withTempDir do
 
     Spec.it "fails if the module is called Main" \{ spago, fixture } -> do
       spago [ "init", "--name", "aaaa" ] >>= shouldBeSuccess
-      FSA.unlink "spago.yaml"
+      FS.unlink "spago.yaml"
       FS.copyFile { src: fixture "spago-publish.yaml", dst: "spago.yaml" }
       spago [ "build" ] >>= shouldBeSuccess
       doTheGitThing
       spago [ "publish", "--offline" ] >>= shouldBeFailureErr case Process.platform of
         Just Platform.Win32 -> fixture "publish-main-win.txt"
         _ -> fixture "publish-main.txt"
+
+    Spec.it "fails if the publish repo location is not among git remotes" \{ spago, fixture } -> do
+      FS.copyFile { src: fixture "spago-publish.yaml", dst: "spago.yaml" }
+      FS.mkdirp "src"
+      FS.copyFile { src: fixture "publish.purs", dst: "src/Main.purs" }
+      spago [ "build" ] >>= shouldBeSuccess
+      doTheGitThing
+      git [ "remote", "set-url", "origin", "git@github.com:purescript/bbb.git" ] >>= shouldBeSuccess
+      spago [ "publish", "--offline" ] >>= shouldBeFailureErr (fixture "publish-invalid-location.txt")
 
     Spec.it "can get a package ready to publish" \{ spago, fixture } -> do
       FS.copyFile { src: fixture "spago-publish.yaml", dst: "spago.yaml" }
@@ -62,7 +70,8 @@ doTheGitThing = do
   git [ "add", "." ] >>= shouldBeSuccess
   git [ "commit", "-m", "first" ] >>= shouldBeSuccess
   git [ "tag", "v0.0.1" ] >>= shouldBeSuccess
-  where
-  git :: Array String -> Aff (Either ExecResult ExecResult)
-  git args = Cmd.exec "git" args
-    $ Cmd.defaultExecOptions { pipeStdout = false, pipeStderr = false, pipeStdin = StdinNewPipe }
+  git [ "remote", "add", "origin", "git@github.com:purescript/aaa.git" ] >>= shouldBeSuccess
+
+git :: Array String -> Aff (Either ExecResult ExecResult)
+git args = Cmd.exec "git" args
+  $ Cmd.defaultExecOptions { pipeStdout = false, pipeStderr = false, pipeStdin = StdinNewPipe }

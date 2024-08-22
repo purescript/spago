@@ -1,13 +1,14 @@
 module Spago.Command.Init
-  ( run
-  , InitOptions
-  , srcMainTemplate
-  , testMainTemplate
-  , defaultConfig
-  , DefaultConfigOptions(..)
+  ( DefaultConfigOptions(..)
   , DefaultConfigPackageOptions
   , DefaultConfigWorkspaceOptions
+  , InitOptions
+  , defaultConfig
   , defaultConfig'
+  , pursReplFile
+  , run
+  , srcMainTemplate
+  , testMainTemplate
   ) where
 
 import Spago.Prelude
@@ -31,7 +32,7 @@ type InitOptions =
 
 -- TODO run git init? Is that desirable?
 
-run :: InitOptions -> Spago (RegistryEnv _) Config
+run :: ∀ a. InitOptions -> Spago (RegistryEnv a) Config
 run opts = do
   logInfo "Initializing a new project..."
 
@@ -71,7 +72,7 @@ run opts = do
 
   copyIfNotExists ".gitignore" gitignoreTemplate
 
-  copyIfNotExists ".purs-repl" pursReplTemplate
+  copyIfNotExists pursReplFile.name pursReplFile.content
 
   pure config
 
@@ -227,11 +228,8 @@ generated-docs/
 .spago
 """
 
-pursReplTemplate :: String
-pursReplTemplate =
-  """
-import Prelude
-"""
+pursReplFile :: { name :: String, content :: String }
+pursReplFile = { name: ".purs-repl", content: "import Prelude\n" }
 
 -- ERROR TEXTS -----------------------------------------------------------------
 

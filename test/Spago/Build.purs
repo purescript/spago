@@ -43,7 +43,7 @@ spec = Spec.around withTempDir do
 
     Spec.it "can build with a local custom package set" \{ spago, fixture } -> do
       spago [ "init" ] >>= shouldBeSuccess
-      FSA.unlink "spago.yaml"
+      FS.unlink "spago.yaml"
       FS.copyFileSync { src: fixture "local-package-set-config.yaml", dst: "spago.yaml" }
       FS.copyFileSync { src: fixture "local-package-set.json", dst: "local-package-set.json" }
       spago [ "build" ] >>= shouldBeSuccess
@@ -53,7 +53,7 @@ spec = Spec.around withTempDir do
       FS.mkdirp "subdir"
       liftEffect $ Process.chdir "subdir"
       spago [ "init" ] >>= shouldBeSuccess
-      FSA.unlink "spago.yaml"
+      FS.unlink "spago.yaml"
       FS.copyFileSync { src: fixture "local-package-set-config2.yaml", dst: "spago.yaml" }
       spago [ "build" ] >>= shouldBeSuccess
 
@@ -78,7 +78,7 @@ spec = Spec.around withTempDir do
     Spec.it "--strict causes build to fail if there are warnings" \{ spago, fixture } -> do
       spago [ "init" ] >>= shouldBeSuccess
       let srcMain = Path.concat [ "src", "Main.purs" ]
-      FSA.unlink srcMain
+      FS.unlink srcMain
       FS.copyFile
         { src: fixture "check-strict.purs"
         , dst: srcMain
@@ -90,12 +90,12 @@ spec = Spec.around withTempDir do
       let
         srcMain = Path.concat [ "src", "Main.purs" ]
         spagoYaml = "spago.yaml"
-      FSA.unlink srcMain
+      FS.unlink srcMain
       FS.copyFile
         { src: fixture "check-strict.purs"
         , dst: srcMain
         }
-      FSA.unlink spagoYaml
+      FS.unlink spagoYaml
       FS.copyFile
         { src: fixture "check-strict.yaml"
         , dst: spagoYaml

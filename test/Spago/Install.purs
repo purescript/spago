@@ -49,7 +49,7 @@ spec = Spec.around withTempDir do
     Spec.it "adds test dependencies to the config file when the test section does not exist" \{ spago, fixture } -> do
       spago [ "init", "--name", "aaa", "--package-set", "29.3.0" ] >>= shouldBeSuccess
       let spagoYaml = "spago.yaml"
-      FSA.unlink spagoYaml
+      FS.unlink spagoYaml
       FS.copyFile
         { src: fixture "no-test-section.yaml"
         , dst: spagoYaml
@@ -59,7 +59,7 @@ spec = Spec.around withTempDir do
 
     Spec.it "can't add dependencies that are not in the package set" \{ spago, fixture } -> do
       spago [ "init", "--name", "aaaa", "--package-set", "29.3.0" ] >>= shouldBeSuccess
-      spago [ "install", "foo", "bar" ] >>= shouldBeFailureErr (fixture "missing-dependencies.txt")
+      spago [ "install", "foo-foo-foo", "bar-bar-bar", "effcet", "arrys" ] >>= shouldBeFailureErr (fixture "missing-dependencies.txt")
       checkFixture "spago.yaml" (fixture "spago-install-failure.yaml")
 
     Spec.it "does not allow circular dependencies" \{ spago, fixture } -> do

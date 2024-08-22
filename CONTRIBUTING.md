@@ -47,13 +47,20 @@ spago bundle -p spago-bin
 ./bin/bundle.js bundle -p spago-bin
 
 # From now on you can use the bootstrapped build to see the changes you make:
-./bin/index.dev.js some-new-command
+./bin/index.dev.js build --pedantic-packages --some-new-build-flag
 
 # ...but you can of course still just use the global `spago` command:
 spago build
 
 # Can of course run the tests with
 spago test
+
+# Can select a subset of tests to run
+spago test -- --example "bundle" # run only bundle tests
+spago test -- --example "browser" # run only tests that mention browser in their name
+
+# Can select a subset of tests by a regular expression
+spago test -- --example-matches "bundle|browser" # run bundle tests _and_ those that mention browser
 
 # To see tests' stdout/stderr output while the tests are running, run
 SPAGO_TEST_DEBUG=1 spago

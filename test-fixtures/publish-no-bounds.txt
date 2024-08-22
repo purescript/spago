@@ -1,6 +1,6 @@
 Reading Spago workspace configuration...
 
-✅ Selecting package to build: aaaa
+✓ Selecting package to build: aaaa
 
 Downloading dependencies...
 Building...
@@ -8,16 +8,16 @@ Building...
 Warnings     0     0     0
 Errors       0     0     0
 
-✅ Build succeeded.
+✓ Build succeeded.
 
 Your package "aaaa" is not ready for publishing yet, encountered 2 errors:
 
 
-❌ Did not find publishing config: add a valid one in `package.publish`.
+✘ Did not find publishing config: add a valid one in `package.publish`.
 See the configuration file's documentation: https://github.com/purescript/spago#the-configuration-file
 
 
-❌ The configuration is missing version bounds for some packages. Run `spago fetch --ensure-ranges` to add them:
+✘ The configuration is missing version bounds for some packages. Run `spago fetch --ensure-ranges` to add them:
   - console
   - effect
   - prelude

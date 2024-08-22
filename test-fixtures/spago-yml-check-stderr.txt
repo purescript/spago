@@ -1,6 +1,6 @@
 Reading Spago workspace configuration...
 
-❌ Couldn't parse Spago config, error:
+✘ Couldn't parse Spago config, error:
 
 
   Did not find `spago.yaml`. Spago's configuration files must end with `.yaml`, not `.yml`.

@@ -27,6 +27,7 @@ import Data.Int as Int
 import Data.Map as Map
 import Data.Newtype (wrap)
 import Data.Set as Set
+import Data.String (joinWith)
 import Data.Traversable (sequence)
 import Effect.Aff as Aff
 import Effect.Ref as Ref
@@ -568,8 +569,15 @@ getTransitiveDepsFromPackageSet packageSet deps = do
     printPackageError :: PackageName -> String
     printPackageError p = "  - " <> PackageName.print p <> "\n"
 
+    printNotInPackageSetError :: PackageName -> String
+    printNotInPackageSetError p = "  - " <> PackageName.print p <> strSuggestions
+      where
+      strSuggestions = case typoSuggestions PackageName.print p (Map.keys packageSet) of
+        [] -> "\n"
+        suggestions -> " (did you mean: " <> joinWith ", " (PackageName.print <$> suggestions) <> ")\n"
+
     init :: TransitiveDepsResult
-    init = { packages: (Map.empty :: Map PackageName Package), errors: mempty }
+    init = { packages: Map.empty, errors: mempty }
 
     go :: Set PackageName -> PackageName -> StateT TransitiveDepsResult (Spago (FetchEnv a)) Unit
     go seen dep = do
@@ -614,7 +622,7 @@ getTransitiveDepsFromPackageSet packageSet deps = do
   when (not (Set.isEmpty errors.cycle)) do
     die $ "The following packages have circular dependencies:\n" <> foldMap printPackageError (Set.toUnfoldable errors.cycle :: Array PackageName)
   when (not (Set.isEmpty errors.notInPackageSet)) do
-    die $ "The following packages do not exist in your package set:\n" <> foldMap printPackageError errors.notInPackageSet
+    die $ "The following packages do not exist in your package set:\n" <> foldMap printNotInPackageSetError errors.notInPackageSet
   when (not (Set.isEmpty errors.notInIndex)) do
     die $ "The following packages do not exist in the package index:\n" <> foldMap printPackageError errors.notInIndex
   pure packages

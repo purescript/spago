@@ -1,7 +1,7 @@
 package:
   name: spago
   publish:
-    version: 0.93.35
+    version: 0.93.37
     license: BSD-3-Clause
     location:
       githubOwner: purescript
@@ -63,6 +63,7 @@ package:
     - routing-duplex
     - spago-core
     - strings
+    - strings-extra
     - transformers
     - tuples
     - unfoldable
@@ -78,9 +79,10 @@ package:
       - identity
       - quickcheck
       - spec
+      - spec-node
 workspace:
   packageSet:
-    registry: 51.0.0
+    registry: 56.4.0
   extraPackages:
     codec-json: 1.2.0
     registry-lib:

@@ -1,10 +1,10 @@
 Reading Spago workspace configuration...
 
-✅ Selecting package to build: bbb
+✓ Selecting package to build: bbb
 
 Cloning https://github.com/purescript/spago.git
 Cloning https://github.com/purescript/spago.git
 
-❌ The following packages have circular dependencies:
+✘ The following packages have circular dependencies:
   - a
   - b

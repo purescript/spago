@@ -1,6 +1,6 @@
 Reading Spago workspace configuration...
 
-✅ Selecting package to build: follow-instructions
+✓ Selecting package to build: follow-instructions
 
 Downloading dependencies...
 Building...
@@ -8,11 +8,11 @@ Building...
 Warnings     0     0     0
 Errors       0     0     0
 
-✅ Build succeeded.
+✓ Build succeeded.
 
 Looking for unused and undeclared transitive dependencies...
 
-❌ Found unused and/or undeclared transitive dependencies:
+✘ Found unused and/or undeclared transitive dependencies:
 
 Sources for package 'follow-instructions' import the following transitive dependencies - please add them to the project dependencies, or remove the imports:
   effect

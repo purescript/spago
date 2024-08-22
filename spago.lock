@@ -276,10 +276,12 @@ workspace:
       test_dependencies:
         - exceptions
         - spec
+        - spec-node
       build_plan:
         - aff
         - aff-promise
         - ansi
+        - argonaut-codecs
         - argonaut-core
         - arraybuffer-types
         - arrays
@@ -300,6 +302,7 @@ workspace:
         - enums
         - exceptions
         - exists
+        - exitcodes
         - fixed-points
         - foldable-traversable
         - foreign
@@ -333,6 +336,8 @@ workspace:
         - now
         - nullable
         - numbers
+        - open-memoize
+        - optparse
         - ordered-collections
         - orders
         - parallel
@@ -343,6 +348,7 @@ workspace:
         - prelude
         - profunctor
         - profunctor-lenses
+        - psci-support
         - quickcheck
         - quickcheck-laws
         - random
@@ -351,6 +357,7 @@ workspace:
         - safe-coerce
         - search-trie
         - spec
+        - spec-node
         - st
         - string-parsers
         - strings
@@ -419,6 +426,7 @@ workspace:
         - routing-duplex
         - spago-core
         - strings
+        - strings-extra
         - transformers
         - tuples
         - unfoldable
@@ -429,12 +437,14 @@ workspace:
         - identity
         - quickcheck
         - spec
+        - spec-node
       build_plan:
         - aff
         - aff-promise
         - affjax
         - affjax-node
         - ansi
+        - argonaut-codecs
         - argonaut-core
         - arraybuffer-types
         - arrays
@@ -458,6 +468,7 @@ workspace:
         - enums
         - exceptions
         - exists
+        - exitcodes
         - filterable
         - fixed-points
         - foldable-traversable
@@ -503,6 +514,8 @@ workspace:
         - now
         - nullable
         - numbers
+        - open-memoize
+        - optparse
         - ordered-collections
         - orders
         - parallel
@@ -513,6 +526,7 @@ workspace:
         - prelude
         - profunctor
         - profunctor-lenses
+        - psci-support
         - quickcheck
         - quickcheck-laws
         - random
@@ -524,9 +538,11 @@ workspace:
         - search-trie
         - spago-core
         - spec
+        - spec-node
         - st
         - string-parsers
         - strings
+        - strings-extra
         - stringutils
         - tailrec
         - these
@@ -577,6 +593,7 @@ workspace:
         - affjax
         - affjax-node
         - ansi
+        - argonaut-codecs
         - argonaut-core
         - arraybuffer-types
         - arrays
@@ -671,9 +688,11 @@ workspace:
         - spago
         - spago-core
         - spec
+        - spec-node
         - st
         - string-parsers
         - strings
+        - strings-extra
         - stringutils
         - tailrec
         - these
@@ -819,7 +838,7 @@ workspace:
         - variant
   package_set:
     address:
-      registry: 51.0.0
+      registry: 56.4.0
     compiler: ">=0.15.15 <0.16.0"
     content:
       abc-parser: 2.0.1
@@ -844,7 +863,7 @@ workspace:
       argonaut-traversals: 10.0.0
       argparse-basic: 2.0.0
       array-builder: 0.1.2
-      array-search: 0.5.6
+      array-search: 0.6.0
       arraybuffer: 13.2.0
       arraybuffer-builder: 3.1.0
       arraybuffer-types: 3.0.2
@@ -853,7 +872,7 @@ workspace:
       arrays-zipper: 2.0.1
       ask: 1.0.0
       assert: 6.0.0
-      assert-multiple: 0.3.4
+      assert-multiple: 0.4.0
       avar: 5.0.0
       b64: 0.0.8
       barbies: 1.0.1
@@ -868,7 +887,7 @@ workspace:
       canvas-action: 9.0.0
       cartesian: 1.0.6
       catenable-lists: 7.0.0
-      cbor-stream: 1.0.4
+      cbor-stream: 1.3.0
       chameleon: 1.0.0
       chameleon-halogen: 1.0.3
       chameleon-react-basic: 1.1.0
@@ -884,7 +903,7 @@ workspace:
       classnames: 2.0.0
       codec: 6.1.0
       codec-argonaut: 10.0.0
-      codec-json: 1.1.0
+      codec-json: 1.2.0
       colors: 7.0.1
       concur-core: 0.5.0
       concur-react: 0.5.0
@@ -897,7 +916,7 @@ workspace:
       coroutines: 7.0.0
       css: 6.0.0
       css-frameworks: 1.0.1
-      csv-stream: 2.0.2
+      csv-stream: 2.3.0
       data-mvc: 0.0.2
       datetime: 6.1.0
       datetime-parsing: 0.2.0
@@ -915,26 +934,27 @@ workspace:
       dotenv: 4.0.3
       droplet: 0.6.0
       dts: 1.0.0
-      dual-numbers: 1.0.2
+      dual-numbers: 1.0.3
       dynamic-buffer: 3.0.1
       echarts-simple: 0.0.1
       effect: 4.0.0
       either: 6.1.0
-      elmish: 0.11.3
+      elmish: 0.13.0
       elmish-enzyme: 0.1.1
-      elmish-hooks: 0.10.0
-      elmish-html: 0.8.2
+      elmish-hooks: 0.10.3
+      elmish-html: 0.9.0
       elmish-testing-library: 0.3.2
       email-validate: 7.0.0
       encoding: 0.0.9
       enums: 6.0.1
-      env-names: 0.3.4
+      env-names: 0.4.0
       error: 2.0.0
       eta-conversion: 0.3.2
-      exceptions: 6.0.0
+      exceptions: 6.1.0
       exists: 6.0.0
       exitcodes: 4.0.0
       expect-inferred: 3.0.0
+      ezfetch: 1.0.0
       fahrtwind: 2.0.0
       fallback: 0.1.0
       fast-vect: 1.2.0
@@ -973,7 +993,7 @@ workspace:
       generate-values: 1.0.1
       generic-router: 0.0.1
       geojson: 0.0.5
-      geometry-plane: 1.0.3
+      geometria: 2.2.0
       gojs: 0.1.1
       grain: 3.0.0
       grain-router: 3.0.0
@@ -1003,6 +1023,7 @@ workspace:
       homogeneous: 0.4.0
       http-methods: 6.0.0
       httpurple: 4.0.0
+      huffman: 0.4.0
       humdrum: 0.0.1
       hyrule: 2.3.8
       identity: 6.0.0
@@ -1050,7 +1071,7 @@ workspace:
       logging-journald: 0.4.0
       lumi-components: 18.0.0
       machines: 7.0.0
-      maps-eager: 0.4.1
+      maps-eager: 0.5.0
       marionette: 1.0.0
       marionette-react-basic-hooks: 0.1.1
       marked: 0.1.0
@@ -1086,7 +1107,7 @@ workspace:
       node-child-process: 11.1.0
       node-event-emitter: 3.0.0
       node-execa: 5.0.0
-      node-fs: 9.1.0
+      node-fs: 9.2.0
       node-glob-basic: 1.3.0
       node-http: 9.1.0
       node-http2: 1.1.1
@@ -1095,9 +1116,9 @@ workspace:
       node-os: 5.1.0
       node-path: 5.0.0
       node-process: 11.2.0
-      node-readline: 8.1.0
+      node-readline: 8.1.1
       node-sqlite3: 8.0.0
-      node-stream-pipes: 1.4.1
+      node-stream-pipes: 2.1.6
       node-streams: 9.0.0
       node-tls: 0.3.1
       node-url: 7.0.1
@@ -1106,7 +1127,7 @@ workspace:
       now: 6.0.0
       npm-package-json: 2.0.0
       nullable: 6.0.0
-      numberfield: 0.1.0
+      numberfield: 0.2.2
       numbers: 9.0.1
       oak: 3.1.1
       oak-debug: 1.2.2
@@ -1137,11 +1158,12 @@ workspace:
       pointed-list: 0.5.1
       polymorphic-vectors: 4.0.0
       posix-types: 6.0.0
-      postgresql: 1.6.3
+      postgresql: 2.0.17
       precise: 6.0.0
       precise-datetime: 7.0.0
       prelude: 6.0.1
       prettier-printer: 3.0.0
+      priority-queue: 0.1.0
       profunctor: 6.0.1
       profunctor-lenses: 8.0.0
       protobuf: 4.3.0
@@ -1181,6 +1203,7 @@ workspace:
       record-studio: 1.0.4
       refs: 6.0.0
       remotedata: 5.0.1
+      repr: 0.5.0
       resize-observer: 1.0.0
       resource: 2.0.1
       resourcet: 1.0.0
@@ -1188,6 +1211,7 @@ workspace:
       return: 0.2.0
       ring-modules: 5.0.1
       rito: 0.3.4
+      roman: 0.4.0
       rough-notation: 1.0.2
       routing: 11.0.0
       routing-duplex: 0.7.0
@@ -1206,14 +1230,17 @@ workspace:
       simple-ulid: 3.0.0
       sized-matrices: 1.0.0
       sized-vectors: 5.0.2
-      slug: 3.0.8
+      slug: 3.1.0
       small-ffi: 4.0.1
       soundfonts: 4.1.0
-      sparse-matrices: 1.3.0
-      sparse-polynomials: 2.0.5
-      spec: 7.6.0
-      spec-mocha: 5.1.0
-      spec-quickcheck: 5.0.0
+      sparse-matrices: 2.0.1
+      sparse-polynomials: 3.0.1
+      spec: 7.6.1
+      spec-discovery: 8.3.0
+      spec-mocha: 5.1.1
+      spec-node: 0.0.1
+      spec-quickcheck: 5.0.2
+      spec-reporter-xunit: 0.7.1
       splitmix: 2.1.0
       ssrs: 1.0.0
       st: 6.2.0
@@ -1235,9 +1262,10 @@ workspace:
       thermite: 6.3.1
       thermite-dom: 0.3.1
       these: 6.0.0
+      threading: 0.0.3
       toestand: 0.9.0
       transformation-matrix: 1.0.1
-      transformers: 6.0.0
+      transformers: 6.1.0
       tree-rose: 4.0.2
       ts-bridge: 4.0.0
       tuples: 7.0.0
@@ -1266,6 +1294,7 @@ workspace:
       untagged-to-tagged: 0.1.4
       untagged-union: 1.0.0
       uri: 9.0.0
+      url-immutable: 1.0.0
       uuid: 9.0.0
       uuidv4: 1.0.0
       validation: 6.0.0
@@ -1604,6 +1633,22 @@ packages:
       - foldable-traversable
       - lists
       - strings
+  argonaut-codecs:
+    type: registry
+    version: 9.1.0
+    integrity: sha256-N6efXByUeg848ompEqJfVvZuZPfdRYDGlTDFn0G0Oh8=
+    dependencies:
+      - argonaut-core
+      - arrays
+      - effect
+      - foreign-object
+      - identity
+      - integers
+      - maybe
+      - nonempty
+      - ordered-collections
+      - prelude
+      - record
   argonaut-core:
     type: registry
     version: 7.0.0
@@ -1858,8 +1903,8 @@ packages:
       - unfoldable
   exceptions:
     type: registry
-    version: 6.0.0
-    integrity: sha256-y/xTAEIZIARCE+50/u1di0ncebJ+CIwNOLswyOWzMTw=
+    version: 6.1.0
+    integrity: sha256-K0T89IHtF3vBY7eSAO7eDOqSb2J9kZGAcDN5+IKsF8E=
     dependencies:
       - effect
       - either
@@ -2458,8 +2503,8 @@ packages:
       - unsafe-reference
   node-fs:
     type: registry
-    version: 9.1.0
-    integrity: sha256-TzhvGdrwcM0bazDvrWSqh+M/H8GKYf1Na6aGm2Qg4+c=
+    version: 9.2.0
+    integrity: sha256-Sg0vkXycEzkEerX6hLccz21Ygd9w1+QSk1thotRZPGI=
     dependencies:
       - datetime
       - effect
@@ -2931,8 +2976,8 @@ packages:
       - prelude
   spec:
     type: registry
-    version: 7.6.0
-    integrity: sha256-+merGdQbL9zWONbnt8S8J9afGJ59MQqGtS0qSd3yu4I=
+    version: 7.6.1
+    integrity: sha256-VycY2SgN8rHZGqcMqZEiTh9OdCw40CUMX2pCoSUJ/zY=
     dependencies:
       - aff
       - ansi
@@ -2960,6 +3005,36 @@ packages:
       - strings
       - tailrec
       - transformers
+      - tuples
+  spec-node:
+    type: registry
+    version: 0.0.1
+    integrity: sha256-RFcAi44CZWTfWF4xrZ25L13nd8syuCa9uC2iHZttZRY=
+    dependencies:
+      - aff
+      - argonaut-codecs
+      - argonaut-core
+      - arrays
+      - control
+      - datetime
+      - effect
+      - either
+      - foldable-traversable
+      - identity
+      - integers
+      - maybe
+      - newtype
+      - node-buffer
+      - node-fs
+      - node-process
+      - now
+      - numbers
+      - optparse
+      - ordered-collections
+      - partial
+      - prelude
+      - spec
+      - strings
       - tuples
   st:
     type: registry
@@ -3006,6 +3081,17 @@ packages:
       - tuples
       - unfoldable
       - unsafe-coerce
+  strings-extra:
+    type: registry
+    version: 4.0.0
+    integrity: sha256-tah7VFvEvFF4tpWXgWwGFIynpWHkYe5tpy6bWi5tMpU=
+    dependencies:
+      - arrays
+      - foldable-traversable
+      - maybe
+      - prelude
+      - strings
+      - unicode
   stringutils:
     type: registry
     version: 0.0.12
@@ -3043,8 +3129,8 @@ packages:
       - tuples
   transformers:
     type: registry
-    version: 6.0.0
-    integrity: sha256-Pzw40HjthX77tdPAYzjx43LK3X5Bb7ZspYAp27wksFA=
+    version: 6.1.0
+    integrity: sha256-3Bm+Z6tsC/paG888XkywDngJ2JMos+JfOhRlkVfb7gI=
     dependencies:
       - control
       - distributive
@@ -3057,6 +3143,7 @@ packages:
       - maybe
       - newtype
       - prelude
+      - st
       - tailrec
       - tuples
       - unfoldable

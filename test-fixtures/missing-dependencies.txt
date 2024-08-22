@@ -1,8 +1,10 @@
 Reading Spago workspace configuration...
 
-✅ Selecting package to build: aaaa
+✓ Selecting package to build: aaaa
 
 
-❌ The following packages do not exist in your package set:
-  - bar
-  - foo
+✘ The following packages do not exist in your package set:
+  - arrys (did you mean: arrays)
+  - bar-bar-bar
+  - effcet (did you mean: effect)
+  - foo-foo-foo

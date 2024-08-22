@@ -1,6 +1,6 @@
 Reading Spago workspace configuration...
 
-✅ Selecting package to build: pedantic
+✓ Selecting package to build: pedantic
 
 Downloading dependencies...
 Building...
@@ -8,11 +8,11 @@ Building...
 Warnings     0     0     0
 Errors       0     0     0
 
-✅ Build succeeded.
+✓ Build succeeded.
 
 Looking for unused and undeclared transitive dependencies...
 
-❌ Found unused and/or undeclared transitive dependencies:
+✘ Found unused and/or undeclared transitive dependencies:
 
 Tests for package 'pedantic' declares unused dependencies - please remove them from the project config:
   - newtype

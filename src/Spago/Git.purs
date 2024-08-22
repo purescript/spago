@@ -4,10 +4,12 @@ module Spago.Git
   , fetchRepo
   , getGit
   , getRef
-  , listTags
+  , getRemotes
   , getStatus
-  , pushTag
   , isIgnored
+  , listTags
+  , parseRemote
+  , pushTag
   , tagCheckedOut
   , isBranch
   ) where
@@ -17,11 +19,15 @@ import Spago.Prelude
 import Control.Monad.Except (ExceptT(..))
 import Control.Monad.Except as Except
 import Data.Array as Array
+import Data.Array.NonEmpty as NEA
+import Data.Maybe (fromJust)
 import Data.String (Pattern(..))
 import Data.String as String
+import Data.String.Regex as Regex
 import Node.ChildProcess.Types (Exit(..))
 import Node.Path as Path
 import Node.Process as Process
+import Partial.Unsafe (unsafePartial)
 import Registry.Version as Version
 import Spago.Cmd as Cmd
 import Spago.FS as FS
@@ -29,6 +35,8 @@ import Spago.FS as FS
 type Git = { cmd :: String, version :: String }
 
 type GitEnv a = { git :: Git, logOptions :: LogOptions, offline :: OnlineStatus | a }
+
+type Remote = { name :: String, url :: String, owner :: String, repo :: String }
 
 runGit_ :: forall a. Array String -> Maybe FilePath -> ExceptT String (Spago (GitEnv a)) Unit
 runGit_ args cwd = void $ runGit args cwd
@@ -119,6 +127,22 @@ getRef cwd = do
       ]
     Right r -> pure $ Right r.stdout
 
+getRemotes :: forall a. Maybe FilePath -> Spago (GitEnv a) (Either Docc (Array Remote))
+getRemotes = \cwd -> do
+  let opts = Cmd.defaultExecOptions { pipeStdout = false, pipeStderr = false, cwd = cwd }
+  { git } <- ask
+  Cmd.exec git.cmd [ "remote", "--verbose" ] opts <#> case _ of
+    Left r -> Left $ toDoc
+      [ "Could not run `git remote --verbose` to verify correct repository path. Error:"
+      , r.stderr
+      ]
+    Right { stdout: "" } ->
+      pure []
+    Right r ->
+      r.stdout # String.split (Pattern "\n") # Array.mapMaybe parseRemote # case _ of
+        [] -> Left $ toDoc "Could not parse any remotes from the output of `git remote --verbose`."
+        remotes -> Right $ Array.nub remotes
+
 tagCheckedOut :: forall a. Maybe FilePath -> Spago (GitEnv a) (Either Docc String)
 tagCheckedOut cwd = do
   let opts = Cmd.defaultExecOptions { pipeStdout = false, pipeStderr = false, cwd = cwd }
@@ -184,3 +208,17 @@ getGit = do
     Left r -> do
       logDebug $ Cmd.printExecResult r
       die [ "Failed to find git. Have you installed it, and is it in your PATH?" ]
+
+parseRemote :: String -> Maybe Remote
+parseRemote = \line ->
+  case Regex.split tabOrSpaceRegex line of
+    [ name, url, _ ]
+      | Just [ _, _, _, Just owner, Just repo ] <- NEA.toArray <$> Regex.match gitUrlRegex url ->
+          Just { name, url, owner, repo }
+    _ ->
+      Nothing
+  where
+  tabOrSpaceRegex = unsafePartial $ fromJust $ hush $
+    Regex.regex "\\s+" mempty
+  gitUrlRegex = unsafePartial $ fromJust $ hush $
+    Regex.regex "^((ssh:\\/\\/)?[^@]+@[^:]+[:\\/]|https?:\\/\\/[^\\/]+\\/)(.*)\\/(.+)\\.git$" mempty
