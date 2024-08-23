@@ -102,18 +102,9 @@ insertManifest :: Db -> PackageName -> Version -> Manifest -> Effect Unit
 insertManifest db packageName version manifest = Uncurried.runEffectFn4 insertManifestImpl db (PackageName.print packageName) (Version.print version) (printJson Manifest.codec manifest)
 
 getMetadata :: Db -> PackageName -> Effect (Maybe Metadata)
-getMetadata db packageName = do
-  maybeMetadataEntry <- Nullable.toMaybe <$> Uncurried.runEffectFn2 getMetadataImpl db (PackageName.print packageName)
-  now <- Now.nowDateTime
-  pure $ do
-    metadataEntry <- maybeMetadataEntry
-    lastFetched <- Either.hush $ DateTime.Format.unformat Internal.Format.iso8601DateTime metadataEntry.last_fetched
-    -- if the metadata is older than 15 minutes, we consider it stale
-    case DateTime.diff now lastFetched of
-      Minutes n | n <= 15.0 -> do
-        metadata <- Either.hush $ parseJson Metadata.codec metadataEntry.metadata
-        pure metadata
-      _ -> Nothing
+getMetadata db packageName =
+  getMetadataForPackages db [ packageName ]
+    <#> Map.lookup packageName
 
 getMetadataForPackages :: Db -> Array PackageName -> Effect (Map PackageName Metadata)
 getMetadataForPackages db packageNames = do

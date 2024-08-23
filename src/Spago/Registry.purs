@@ -209,25 +209,13 @@ getRegistryFns registryBox registryLock = do
 -- Metadata can change over time (unpublished packages, and new packages), so we need
 -- to read it from file every time we have a fresh Registry
 getMetadataImpl :: Db -> PackageName -> Spago (LogEnv ()) (Either String Metadata)
-getMetadataImpl db name = do
-  -- we first try reading it from the DB
-  liftEffect (Db.getMetadata db name) >>= case _ of
-    Just metadata -> do
-      logDebug $ "Got metadata from DB: " <> PackageName.print name
-      pure (Right metadata)
-    _ -> do
-      -- if we don't have it we try reading it from file
-      metadataFromFile name >>= case _ of
-        Left e -> pure (Left e)
-        Right m -> do
-          -- and memoize it
-          liftEffect (Db.insertMetadata db name m)
-          pure (Right m)
-  where
-  metadataFromFile pkgName = do
-    let metadataFilePath = Path.concat [ Paths.registryPath, Registry.Constants.metadataDirectory, PackageName.print pkgName <> ".json" ]
-    logDebug $ "Reading metadata from file: " <> metadataFilePath
-    liftAff (FS.readJsonFile Metadata.codec metadataFilePath)
+getMetadataImpl db name =
+  getMetadataForPackagesImpl db [ name ]
+    <#> case _ of
+      Left err -> Left err
+      Right metadataMap -> case Map.lookup name metadataMap of
+        Nothing -> Left $ "Failed to get metadata for package: " <> PackageName.print name
+        Just metadata -> Right metadata
 
 -- Parallelised version of `getMetadataImpl`
 getMetadataForPackagesImpl :: Db -> Array PackageName -> Spago (LogEnv ()) (Either String (Map PackageName Metadata))
