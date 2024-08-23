@@ -1,6 +1,6 @@
 {
   "name": "spago",
-  "version": "0.93.37",
+  "version": "0.93.38",
   "license": "BSD-3-Clause",
   "description": "🍝 PureScript package manager and build tool",
   "keywords": [
@@ -34,6 +34,7 @@
     "halogen:dev": "./bin/index.dev.js bundle -p docs-search-client-halogen --outfile=./generated-docs/html/docs-search-app.js --bundler-args '--watch=forever' --bundler-args '--servedir=./generated-docs/html'"
   },
   "dependencies": {
+    "@nodelib/fs.walk": "^2.0.0",
     "better-sqlite3": "^11.0.0",
     "env-paths": "^3.0.0",
     "fs-extra": "^11.2.0",

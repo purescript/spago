@@ -1,7 +1,7 @@
 package:
   name: spago
   publish:
-    version: 0.93.37
+    version: 0.93.38
     license: BSD-3-Clause
     location:
       githubOwner: purescript

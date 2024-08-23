@@ -7,6 +7,7 @@ module Spago.Registry
   , findPackageSet
   , getManifestFromIndex
   , getMetadata
+  , getMetadataForPackages
   , getRegistryFns
   , listMetadataFiles
   , listPackageSets
@@ -62,6 +63,7 @@ type RegistryEnv a = Record (RegistryEnvRow a)
 type RegistryFunctions =
   { getManifestFromIndex :: PackageName -> Version -> Spago (LogEnv ()) (Maybe Manifest)
   , getMetadata :: PackageName -> Spago (LogEnv ()) (Either String Metadata)
+  , getMetadataForPackages :: Array PackageName -> Spago (LogEnv ()) (Either String (Map PackageName Metadata))
   , findPackageSet :: Maybe Version -> Spago (PreRegistryEnv ()) Version
   , listPackageSets :: Spago (PreRegistryEnv ()) (Array Db.PackageSet)
   , listMetadataFiles :: Spago (LogEnv ()) (Array String)
@@ -73,6 +75,12 @@ getMetadata packageName = do
   { getRegistry, logOptions, db, git, purs, offline } <- ask
   { getMetadata: fn } <- runSpago { logOptions, db, git, purs, offline } getRegistry
   runSpago { logOptions } (fn packageName)
+
+getMetadataForPackages :: Array PackageName -> Spago (RegistryEnv _) _
+getMetadataForPackages packageNames = do
+  { getRegistry, logOptions, db, git, purs, offline } <- ask
+  { getMetadataForPackages: fn } <- runSpago { logOptions, db, git, purs, offline } getRegistry
+  runSpago { logOptions } (fn packageNames)
 
 getManifestFromIndex :: PackageName -> Version -> Spago (RegistryEnv _) _
 getManifestFromIndex packageName version = do
@@ -123,6 +131,7 @@ getRegistryFns registryBox registryLock = do
         registryFns =
           { getManifestFromIndex: getManifestFromIndexImpl db
           , getMetadata: getMetadataImpl db
+          , getMetadataForPackages: getMetadataForPackagesImpl db
           , listMetadataFiles: FS.ls (Path.concat [ Paths.registryPath, Registry.Constants.metadataDirectory ])
           , listPackageSets: listPackageSetsImpl
           , findPackageSet: findPackageSetImpl
@@ -200,20 +209,37 @@ getRegistryFns registryBox registryLock = do
 -- Metadata can change over time (unpublished packages, and new packages), so we need
 -- to read it from file every time we have a fresh Registry
 getMetadataImpl :: Db -> PackageName -> Spago (LogEnv ()) (Either String Metadata)
-getMetadataImpl db name = do
+getMetadataImpl db name =
+  getMetadataForPackagesImpl db [ name ]
+    <#> case _ of
+      Left err -> Left err
+      Right metadataMap -> case Map.lookup name metadataMap of
+        Nothing -> Left $ "Failed to get metadata for package: " <> PackageName.print name
+        Just metadata -> Right metadata
+
+-- Parallelised version of `getMetadataImpl`
+getMetadataForPackagesImpl :: Db -> Array PackageName -> Spago (LogEnv ()) (Either String (Map PackageName Metadata))
+getMetadataForPackagesImpl db names = do
   -- we first try reading it from the DB
-  liftEffect (Db.getMetadata db name) >>= case _ of
-    Just metadata -> do
-      logDebug $ "Got metadata from DB: " <> PackageName.print name
-      pure (Right metadata)
-    _ -> do
-      -- if we don't have it we try reading it from file
-      metadataFromFile name >>= case _ of
-        Left e -> pure (Left e)
-        Right m -> do
-          -- and memoize it
-          liftEffect (Db.insertMetadata db name m)
-          pure (Right m)
+  liftEffect (Db.getMetadataForPackages db names) >>= \metadatas -> do
+    { fail, success } <- partitionEithers <$> parTraverseSpago
+      ( \name -> do
+          case Map.lookup name metadatas of
+            Nothing ->
+              -- if we don't have it we try reading it from file
+              metadataFromFile name >>= case _ of
+                Left e -> pure (Left e)
+                Right m -> do
+                  -- and memoize it
+                  liftEffect (Db.insertMetadata db name m)
+                  pure (Right $ name /\ m)
+            Just m -> pure $ Right $ name /\ m
+      )
+      names
+    case Array.head fail of
+      Nothing -> pure $ Right $ Map.fromFoldable success
+      Just f -> pure $ Left $ f
+
   where
   metadataFromFile pkgName = do
     let metadataFilePath = Path.concat [ Paths.registryPath, Registry.Constants.metadataDirectory, PackageName.print pkgName <> ".json" ]
