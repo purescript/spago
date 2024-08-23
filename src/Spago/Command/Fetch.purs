@@ -322,7 +322,7 @@ writeNewLockfile reason allTransitiveDeps = do
     Left err -> die $ "Couldn't read metadata, reason:\n  " <> err
     Right ms -> pure ms
 
-  registryVersions :: Map PackageName Sha256 <- sequence $
+  registryVersions :: Map PackageName Sha256 <- sequence do
     allDependencies # Map.mapMaybeWithKey \name package ->
       case package of
         RegistryVersion version -> Just do
@@ -345,7 +345,7 @@ writeNewLockfile reason allTransitiveDeps = do
     -- dependencies of the whole workspace), for which we do not care about test
     -- dependencies.
     corePackageDepsOrEmpty packageName package =
-      fetchFromCache packageName packageDependenciesCache $
+      fetchFromCache packageName packageDependenciesCache do
         getPackageDependencies packageName package <#> case _ of
           Just deps -> Array.fromFoldable $ Map.keys deps.core
           Nothing -> []
@@ -355,7 +355,7 @@ writeNewLockfile reason allTransitiveDeps = do
         Nothing
       GitPackage gitPackage -> Just do
         let packageLocation = Config.getPackageLocation packageName package
-        fetchFromCache packageLocation gitRefCache $
+        fetchFromCache packageLocation gitRefCache do
           Git.getRef (Just packageLocation) >>= case _ of
             Left err ->
               die err -- TODO maybe not die here?
