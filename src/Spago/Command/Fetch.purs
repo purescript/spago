@@ -17,7 +17,6 @@ import Spago.Prelude
 import Affjax.Node as Http
 import Affjax.ResponseFormat as Response
 import Affjax.StatusCode (StatusCode(..))
-import Control.Alternative (guard)
 import Control.Monad.State as State
 import Data.Array as Array
 import Data.Array.NonEmpty as NEA
@@ -497,9 +496,8 @@ getPackageDependencies packageName package = case package of
 getWorkspacePackageDeps :: WorkspacePackage -> ByEnv Dependencies
 getWorkspacePackageDeps pkg =
   { core: pkg.package.dependencies
-  , test: fromMaybe (Dependencies Map.empty) do
-      guard pkg.hasTests
-      _.dependencies <$> pkg.package.test
+  , test: fromMaybe (Dependencies Map.empty) $
+      if pkg.hasTests then Nothing else _.dependencies <$> pkg.package.test
   }
 
 type TransitiveDepsResult =
