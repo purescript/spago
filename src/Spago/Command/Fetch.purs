@@ -24,16 +24,14 @@ import Data.Array.NonEmpty as NEA
 import Data.Codec.JSON as CJ
 import Data.Codec.JSON.Common as CJ.Common
 import Data.Either as Either
-import Data.Filterable (filterMap)
 import Data.FunctorWithIndex (mapWithIndex)
 import Data.HTTP.Method as Method
 import Data.Int as Int
-import Data.List as List
 import Data.Map as Map
 import Data.Newtype (wrap)
 import Data.Set as Set
 import Data.String (joinWith)
-import Data.TraversableWithIndex (traverseWithIndex)
+import Data.Traversable (sequence)
 import Effect.Aff as Aff
 import Effect.Ref as Ref
 import Node.Buffer as Buffer
@@ -180,6 +178,8 @@ run { packages: packagesRequestedToInstall, ensureRanges, isTest, isRepl } = do
     let
       allTransitiveDeps = case isRepl of
         false -> dependencies
+        -- It should be enough to add the support package to the core dependencies only,
+        -- but that's more code, so nevermind
         true -> map (onEachEnv \packageMap -> Map.union packageMap supportPackage) dependencies
     depsToFetch <- case workspace.selected of
       Nothing -> pure (toAllDependencies allTransitiveDeps)
@@ -282,16 +282,61 @@ run { packages: packagesRequestedToInstall, ensureRanges, isTest, isRepl } = do
       Right _lockfile -> pure dependencies
       Left reason -> writeNewLockfile reason dependencies
 
-lookupInCache :: forall a k v. Ord k => k -> Ref.Ref (Map k v) -> Spago a (Maybe v)
+lookupInCache :: ∀ a k v. Ord k => k -> Ref.Ref (Map k v) -> Spago a (Maybe v)
 lookupInCache key cacheRef = liftEffect $ Ref.read cacheRef >>= Map.lookup key >>> pure
 
-updateCache :: forall a k v. Ord k => k -> v -> Ref.Ref (Map k v) -> Spago a Unit
+fetchFromCache :: ∀ a k v. Ord k => k -> Ref.Ref (Map k v) -> Spago a v -> Spago a v
+fetchFromCache key cacheRef create =
+  lookupInCache key cacheRef >>= case _ of
+    Just v ->
+      pure v
+    Nothing -> do
+      v <- create
+      updateCache key v cacheRef
+      pure v
+
+updateCache :: ∀ a k v. Ord k => k -> v -> Ref.Ref (Map k v) -> Spago a Unit
 updateCache key value cacheRef = liftEffect $ Ref.modify_ (Map.insert key value) cacheRef
 
-writeNewLockfile :: forall a. String -> PackageTransitiveDeps -> Spago (FetchEnv a) PackageTransitiveDeps
+writeNewLockfile :: ∀ a. String -> PackageTransitiveDeps -> Spago (FetchEnv a) PackageTransitiveDeps
 writeNewLockfile reason allTransitiveDeps = do
   logInfo $ reason <> ", generating it..."
   { workspace } <- ask
+
+  -- All these Refs are needed to memoise Db and file reads
+  packageDependenciesCache <- liftEffect $ Ref.new Map.empty
+  gitRefCache <- liftEffect $ Ref.new Map.empty
+  metadataRefCache <- liftEffect $ Ref.new Map.empty
+
+  -- Fetch the Registry metadata in one go for all required packages
+  let
+    allDependencies = toAllDependencies allTransitiveDeps
+
+    uniqueRegistryPackageNames = do
+      name /\ package <- Map.toUnfoldable allDependencies
+      case package of
+        RegistryVersion _ -> pure name
+        _ -> []
+
+  metadataMap <- Registry.getMetadataForPackages uniqueRegistryPackageNames >>= case _ of
+    Left err -> die $ "Couldn't read metadata, reason:\n  " <> err
+    Right ms -> pure ms
+
+  registryVersions :: Map PackageName Sha256 <- sequence $
+    allDependencies # Map.mapMaybeWithKey \name package ->
+      case package of
+        RegistryVersion version -> Just do
+          let metadata = Map.lookup name metadataMap
+          case (metadata >>= (\(Metadata meta) -> Map.lookup version meta.published)) of
+            Nothing | isNothing metadata ->
+              die $ "Couldn't read metadata for " <> PackageName.print name
+            Nothing ->
+              die $ "Couldn't read metadata for " <> PackageName.print name
+                <> ": didn't find version in the metadata file"
+            Just { hash: integrity } ->
+              pure integrity
+        _ ->
+          Nothing
 
   let
     -- Used only as part of `packageToLockEntry`, this function returns only
@@ -300,33 +345,35 @@ writeNewLockfile reason allTransitiveDeps = do
     -- dependencies of the whole workspace), for which we do not care about test
     -- dependencies.
     corePackageDepsOrEmpty packageName package =
-      getPackageDependencies packageName package <#> case _ of
-        Just deps -> Array.fromFoldable $ Map.keys deps.core
-        Nothing -> []
+      fetchFromCache packageName packageDependenciesCache $
+        getPackageDependencies packageName package <#> case _ of
+          Just deps -> Array.fromFoldable $ Map.keys deps.core
+          Nothing -> []
 
     packageToLockEntry packageName package = case package of
       WorkspacePackage _ ->
-        pure Nothing
-      GitPackage gitPackage -> do
+        Nothing
+      GitPackage gitPackage -> Just do
         let packageLocation = Config.getPackageLocation packageName package
-        Git.getRef (Just packageLocation) >>= case _ of
-          Left err ->
-            die err -- TODO maybe not die here?
-          Right rev -> do
-            dependencies <- corePackageDepsOrEmpty packageName package
-            pure $ Just $ FromGit { rev, dependencies, url: gitPackage.git, subdir: gitPackage.subdir }
-      RegistryVersion version -> do
-        metadata <- Registry.getMetadata packageName
-        registryVersion <- case (metadata >>= (\(Metadata meta) -> Either.note "Didn't find version in the metadata file" $ Map.lookup version meta.published)) of
-          Left err ->
-            die $ "Couldn't read metadata, reason:\n  " <> err
-          Right { hash: integrity } -> do
-            dependencies <- corePackageDepsOrEmpty packageName package
-            pure { version, integrity, dependencies }
-        pure $ Just $ FromRegistry registryVersion
-      LocalPackage { path } -> do
+        fetchFromCache packageLocation gitRefCache $
+          Git.getRef (Just packageLocation) >>= case _ of
+            Left err ->
+              die err -- TODO maybe not die here?
+            Right rev -> do
+              dependencies <- corePackageDepsOrEmpty packageName package
+              pure $ FromGit { rev, dependencies, url: gitPackage.git, subdir: gitPackage.subdir }
+      RegistryVersion version -> Just do
+        fetchFromCache packageName metadataRefCache do
+          FromRegistry <$> case Map.lookup packageName registryVersions of
+            -- This shouldn't be Nothing because it's already handled when building the integrity map above
+            Nothing ->
+              die $ "Couldn't read metadata"
+            Just integrity -> do
+              dependencies <- corePackageDepsOrEmpty packageName package
+              pure { version, integrity, dependencies }
+      LocalPackage { path } -> Just do
         dependencies <- corePackageDepsOrEmpty packageName package
-        pure $ Just $ FromPath { path, dependencies }
+        pure $ FromPath { path, dependencies }
 
     -- For every package that is a `WorkspacePackage`, we just pick up all
     -- transitive core and test dependencies of that package from
@@ -340,7 +387,7 @@ writeNewLockfile reason allTransitiveDeps = do
         }
 
   nonWorkspacePackageLockEntries <-
-    Map.catMaybes <$> (packageToLockEntry `traverseWithIndex` toAllDependencies allTransitiveDeps)
+    sequence $ Map.mapMaybeWithKey packageToLockEntry allDependencies
 
   let
     lockfile =
