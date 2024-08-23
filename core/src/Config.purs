@@ -183,6 +183,7 @@ bundleConfigCodec = CJ.named "BundleConfig" $ CRC.object
   $ CRC.record
 
 data BundlePlatform = BundleNode | BundleBrowser
+
 derive instance Eq BundlePlatform
 
 instance Show BundlePlatform where
@@ -202,6 +203,7 @@ bundlePlatformCodec = CJ.Sum.enumSum show (parsePlatform)
 -- | This is the equivalent of "WithMain" in the old Spago.
 -- App bundles with a main fn, while Module does not include a main.
 data BundleType = BundleApp | BundleModule
+
 derive instance Eq BundleType
 
 instance Show BundleType where

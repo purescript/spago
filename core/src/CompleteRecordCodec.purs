@@ -34,25 +34,24 @@ type PropCodec a =
 object ∷ ∀ a. PropCodec a -> CJ.Codec a
 object codec = Codec.codec' dec enc
   where
-    dec j = do
-      obj <- Codec.decode CJ.jobject j
-      rec /\ { claimedProps } <- runStateT (Codec.decode codec obj) { claimedProps: Set.empty }
+  dec j = do
+    obj <- Codec.decode CJ.jobject j
+    rec /\ { claimedProps } <- runStateT (Codec.decode codec obj) { claimedProps: Set.empty }
 
-      let unclaimedProps = Set.difference (Set.fromFoldable (JO.keys obj)) claimedProps
-      when (not Set.isEmpty unclaimedProps) $
-        throwError $ CJ.DecodeError.error JP.Tip $
-          "Unknown field(s): " <> joinWith ", " (Set.toUnfoldable unclaimedProps)
+    let unclaimedProps = Set.difference (Set.fromFoldable (JO.keys obj)) claimedProps
+    when (not Set.isEmpty unclaimedProps) do
+      throwError $ CJ.DecodeError.error JP.Tip $ "Unknown field(s): " <> joinWith ", " (Set.toUnfoldable unclaimedProps)
 
-      pure rec
+    pure rec
 
-    enc a = Codec.encode CJ.jobject $ JO.fromFoldable $ Codec.encode codec a
+  enc a = Codec.encode CJ.jobject $ JO.fromFoldable $ Codec.encode codec a
 
 record ∷ PropCodec {}
 record = Codec.Codec (const (pure {})) pure
 
 recordProp
   :: ∀ @p a r r'
-  . IsSymbol p
+   . IsSymbol p
   => Row.Cons p a r r'
   => CJ.Codec a
   -> PropCodec (Record r)
@@ -78,7 +77,7 @@ recordProp codecA codecR = Codec.codec dec enc
 
 recordPropOptional
   :: ∀ @p a r r'
-  . IsSymbol p
+   . IsSymbol p
   => Row.Cons p (Maybe a) r r'
   => CJ.Codec a
   -> PropCodec (Record r)
