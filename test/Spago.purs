@@ -7,6 +7,7 @@ import Effect (Effect)
 import Effect.Aff (Milliseconds(..))
 import Test.Spago.Build as Build
 import Test.Spago.Bundle as Bundle
+import Test.Spago.Config as Config
 import Test.Spago.Docs as Docs
 import Test.Spago.Errors as Errors
 import Test.Spago.Glob as Glob
@@ -60,3 +61,4 @@ main = do
         Unit.spec
         Glob.spec
         Errors.spec
+        Config.spec
