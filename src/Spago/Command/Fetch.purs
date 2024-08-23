@@ -292,6 +292,7 @@ writeNewLockfile reason allTransitiveDeps = do
   logInfo $ reason <> ", generating it..."
   { workspace } <- ask
 
+  -- All these Refs are needed to memoise Db and file reads
   packageDependenciesCache <- liftEffect $ Ref.new Map.empty
   gitRefCache <- liftEffect $ Ref.new Map.empty
   metadataRefCache <- liftEffect $ Ref.new Map.empty
@@ -376,7 +377,7 @@ writeNewLockfile reason allTransitiveDeps = do
           _ -> Nothing
       )
       allDependencies
-  metadataMap <- Registry.getMetadatas uniqueRegistryPackageNames >>= case _ of
+  metadataMap <- Registry.getMetadataForPackages uniqueRegistryPackageNames >>= case _ of
     Left err -> die $ "Couldn't read metadata, reason:\n  " <> err
     Right ms -> pure ms
 
@@ -399,7 +400,8 @@ writeNewLockfile reason allTransitiveDeps = do
     )
 
   ({ packages, workspacePackages } :: LockfileBuilderResult) <-
-    -- Array.foldM was significantly slower (~10ms vs 6s on a very large project)
+    -- NOTE! We used to have `Array.foldM` here, but it was significantly slower
+    -- (~10ms vs 6s on a very large project)
     List.foldM (processPackage registryVersions)
       { workspacePackages: Map.fromFoldable $ map Config.workspacePackageToLockfilePackage (Config.getWorkspacePackages workspace.packageSet)
       , packages: Map.empty

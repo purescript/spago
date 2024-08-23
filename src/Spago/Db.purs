@@ -8,7 +8,7 @@ module Spago.Db
   , getLastPull
   , getManifest
   , getMetadata
-  , getMetadatas
+  , getMetadataForPackages
   , insertManifest
   , insertMetadata
   , insertPackageSet
@@ -115,9 +115,9 @@ getMetadata db packageName = do
         pure metadata
       _ -> Nothing
 
-getMetadatas :: Db -> Array PackageName -> Effect (Map PackageName Metadata)
-getMetadatas db packageNames = do
-  metadataEntries <- Uncurried.runEffectFn2 getMetadatasImpl db (PackageName.print <$> packageNames)
+getMetadataForPackages :: Db -> Array PackageName -> Effect (Map PackageName Metadata)
+getMetadataForPackages db packageNames = do
+  metadataEntries <- Uncurried.runEffectFn2 getMetadataForPackagesImpl db (PackageName.print <$> packageNames)
   now <- Now.nowDateTime
   pure
     $ metadataEntries
@@ -267,6 +267,6 @@ foreign import removeManifestImpl :: EffectFn3 Db String String Unit
 
 foreign import getMetadataImpl :: EffectFn2 Db String (Nullable MetadataEntryJs)
 
-foreign import getMetadatasImpl :: EffectFn2 Db (Array String) (Array MetadataEntryJs)
+foreign import getMetadataForPackagesImpl :: EffectFn2 Db (Array String) (Array MetadataEntryJs)
 
 foreign import insertMetadataImpl :: EffectFn4 Db String String String Unit

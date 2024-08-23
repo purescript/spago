@@ -7,7 +7,7 @@ module Spago.Registry
   , findPackageSet
   , getManifestFromIndex
   , getMetadata
-  , getMetadatas
+  , getMetadataForPackages
   , getRegistryFns
   , listMetadataFiles
   , listPackageSets
@@ -63,7 +63,7 @@ type RegistryEnv a = Record (RegistryEnvRow a)
 type RegistryFunctions =
   { getManifestFromIndex :: PackageName -> Version -> Spago (LogEnv ()) (Maybe Manifest)
   , getMetadata :: PackageName -> Spago (LogEnv ()) (Either String Metadata)
-  , getMetadatas :: Array PackageName -> Spago (LogEnv ()) (Either String (Map PackageName Metadata))
+  , getMetadataForPackages :: Array PackageName -> Spago (LogEnv ()) (Either String (Map PackageName Metadata))
   , findPackageSet :: Maybe Version -> Spago (PreRegistryEnv ()) Version
   , listPackageSets :: Spago (PreRegistryEnv ()) (Array Db.PackageSet)
   , listMetadataFiles :: Spago (LogEnv ()) (Array String)
@@ -76,10 +76,10 @@ getMetadata packageName = do
   { getMetadata: fn } <- runSpago { logOptions, db, git, purs, offline } getRegistry
   runSpago { logOptions } (fn packageName)
 
-getMetadatas :: Array PackageName -> Spago (RegistryEnv _) _
-getMetadatas packageNames = do
+getMetadataForPackages :: Array PackageName -> Spago (RegistryEnv _) _
+getMetadataForPackages packageNames = do
   { getRegistry, logOptions, db, git, purs, offline } <- ask
-  { getMetadatas: fn } <- runSpago { logOptions, db, git, purs, offline } getRegistry
+  { getMetadataForPackages: fn } <- runSpago { logOptions, db, git, purs, offline } getRegistry
   runSpago { logOptions } (fn packageNames)
 
 getManifestFromIndex :: PackageName -> Version -> Spago (RegistryEnv _) _
@@ -131,7 +131,7 @@ getRegistryFns registryBox registryLock = do
         registryFns =
           { getManifestFromIndex: getManifestFromIndexImpl db
           , getMetadata: getMetadataImpl db
-          , getMetadatas: getMetadatasImpl db
+          , getMetadataForPackages: getMetadataForPackagesImpl db
           , listMetadataFiles: FS.ls (Path.concat [ Paths.registryPath, Registry.Constants.metadataDirectory ])
           , listPackageSets: listPackageSetsImpl
           , findPackageSet: findPackageSetImpl
@@ -230,10 +230,10 @@ getMetadataImpl db name = do
     liftAff (FS.readJsonFile Metadata.codec metadataFilePath)
 
 -- Parallelised version of `getMetadataImpl`
-getMetadatasImpl :: Db -> Array PackageName -> Spago (LogEnv ()) (Either String (Map PackageName Metadata))
-getMetadatasImpl db names = do
+getMetadataForPackagesImpl :: Db -> Array PackageName -> Spago (LogEnv ()) (Either String (Map PackageName Metadata))
+getMetadataForPackagesImpl db names = do
   -- we first try reading it from the DB
-  liftEffect (Db.getMetadatas db names) >>= \metadatas -> do
+  liftEffect (Db.getMetadataForPackages db names) >>= \metadatas -> do
     { fail, success } <- partitionEithers <$> parTraverseSpago
       ( \name -> do
           case Map.lookup name metadatas of

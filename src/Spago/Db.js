@@ -118,8 +118,8 @@ export const insertMetadataImpl = (db, name, metadata, last_fetched) => {
   db.prepare("INSERT OR REPLACE INTO package_metadata (name, metadata, last_fetched) VALUES (@name, @metadata, @last_fetched)").run({ name, metadata, last_fetched });
 }
 
-export const getMetadatasImpl = (db, names) => {
-  // there can be a lot of package names here, potentially hitting the max number of sqlite parameters, use json to bypass this
+export const getMetadataForPackagesImpl = (db, names) => {
+  // There can be a lot of package names here, potentially hitting the max number of sqlite parameters, so we use json to bypass this
   const query = db.prepare("SELECT * FROM package_metadata WHERE name IN (SELECT value FROM json_each(?));");
   return query.all(JSON.stringify(names));
 };
