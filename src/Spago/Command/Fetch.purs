@@ -497,7 +497,7 @@ getWorkspacePackageDeps :: WorkspacePackage -> ByEnv Dependencies
 getWorkspacePackageDeps pkg =
   { core: pkg.package.dependencies
   , test: fromMaybe (Dependencies Map.empty) $
-      if pkg.hasTests then Nothing else _.dependencies <$> pkg.package.test
+      if pkg.hasTests then _.dependencies <$> pkg.package.test else Nothing
   }
 
 type TransitiveDepsResult =
@@ -572,7 +572,7 @@ getTransitiveDeps workspacePackage = do
           <$> forEnv "core" depsRanges.core
           <*> forEnv "test" depsRanges.test
 
-      PackageSetBuild _info set ->
+      PackageSetBuild _info set -> do
         depsRanges # onEachEnvM \depsRanges' ->
           getTransitiveDepsFromPackageSet set $ (Array.fromFoldable $ Map.keys depsRanges')
 
