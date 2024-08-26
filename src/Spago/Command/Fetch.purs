@@ -386,6 +386,8 @@ writeNewLockfile reason allTransitiveDeps = do
         , test { build_plan = Map.keys deps.test }
         }
 
+  -- For every non-workspace package, we convert it to its respective type of
+  -- lockfile entry via `packageToLockEntry`.
   nonWorkspacePackageLockEntries <-
     sequence $ Map.mapMaybeWithKey packageToLockEntry allDependencies
 
