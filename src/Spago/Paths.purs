@@ -47,8 +47,10 @@ toLocalCacheGitPath :: FilePath -> FilePath
 toLocalCacheGitPath rootDir = Path.concat [ toLocalCachePath rootDir, "g" ]
 
 -- search maximum 4 levels up the tree to find all other `spago.yaml`, which may contain workspace definition
+gitSearchDepth :: Int
+gitSearchDepth = 4
 toGitSearchPath :: FilePath -> Array FilePath
-toGitSearchPath rootDir = reverse $ makeSearchPaths rootDir 4 where
+toGitSearchPath rootDir = reverse $ makeSearchPaths rootDir gitSearchDepth where
   makeSearchPath :: FilePath -> Int -> FilePath
   makeSearchPath wd i = joinWith "" $ cons wd $ cons "/" $ replicate i "../"
 
