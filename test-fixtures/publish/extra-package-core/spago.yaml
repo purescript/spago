@@ -24,3 +24,7 @@ workspace:
       repo: https://github.com/purescript/purescript-maybe.git
       version: v6.0.0
       dependencies: ["prelude", "control", "invariant", "newtype"]
+    effect:
+      repo: https://github.com/purescript/purescript-effect.git
+      version: v4.0.0
+      dependencies: ["prelude"]

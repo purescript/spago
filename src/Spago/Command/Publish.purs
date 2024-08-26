@@ -15,6 +15,7 @@ import Data.Formatter.DateTime as DateTime
 import Data.List as List
 import Data.Map as Map
 import Data.String as String
+import Dodo (break, lines)
 import Effect.Aff (Milliseconds(..))
 import Effect.Aff as Aff
 import Effect.Ref as Ref
@@ -214,7 +215,8 @@ publish _args = do
                 , "To be able to publish a package to the registry, all of its dependencies have to be packages registered on the Registry."
                 , "Please replace the following packages with versions that are present in the Registry:" -- TODO point to docs
                 ]
-            <> toDoc (map (indent <<< toDoc <<< (append "- ") <<< Json.stringifyJson PackageName.codec) fail)
+            <> break
+            <> lines (fail <#> \p -> indent $ toDoc $ "- " <> PackageName.print p)
         else do
           -- All dependencies come from the registry so we can trust the build plan.
           -- We can then try to build with the dependencies from there.
