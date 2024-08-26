@@ -380,9 +380,10 @@ writeNewLockfile reason allTransitiveDeps = do
     -- `test { build_plan }` respectively.
     workspacePackageLockEntries = Map.fromFoldable do
       name /\ package <- Config.workspacePackageToLockfilePackage <$> Config.getWorkspacePackages workspace.packageSet
+      let deps = allTransitiveDeps # Map.lookup name # fromMaybe { core: Map.empty, test: Map.empty }
       pure $ name /\ package
-        { core { build_plan = allTransitiveDeps # Map.lookup name <#> _.core <#> Map.keys # fromMaybe Set.empty }
-        , test { build_plan = allTransitiveDeps # Map.lookup name <#> _.test <#> Map.keys # fromMaybe Set.empty }
+        { core { build_plan = Map.keys deps.core }
+        , test { build_plan = Map.keys deps.test }
         }
 
   nonWorkspacePackageLockEntries <-
