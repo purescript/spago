@@ -250,8 +250,16 @@ spec = Spec.describe "monorepo" do
       spago [ "build", "--pedantic-packages" ] >>= shouldBeFailureErr (fixture "monorepo/pedantic-cross-package-imports/expected-stderr.txt")
 
     Spec.it "#1208: clones a monorepo only once, even if multiple packages from it are needed" \{ spago, fixture } -> do
+      -- First run `spago install` to make sure global cache is populated,
+      -- otherwise it may or may not appear in Spago's output and then we can't
+      -- reliably compare it to golden output.
       FS.copyTree { src: fixture "monorepo/1208-no-double-cloning", dst: "." }
+      void $ spago [ "ls", "packages" ]
 
+      -- Nuke the cache after that so Spago can re-clone the repositories and we
+      -- can check that it's happening only once.
+      FS.rmRf ".spago"
+      FS.unlink "spago.lock"
       spago [ "ls", "packages" ] >>=
         shouldBeSuccessErr (fixture "monorepo/1208-no-double-cloning/expected-stderr.txt")
 
