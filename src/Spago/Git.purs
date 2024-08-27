@@ -2,6 +2,7 @@ module Spago.Git
   ( Git
   , GitEnv
   , fetchRepo
+  , fetchRepo'
   , getGit
   , getRef
   , getRemotes
@@ -50,8 +51,11 @@ runGit args cwd = ExceptT do
     Right r -> Right r.stdout
     Left r -> Left r.stderr
 
-fetchRepo :: forall a b. { git :: String, ref :: String | a } -> FilePath -> Spago (GitEnv b) (Either (Array String) Unit)
-fetchRepo { git, ref } path = do
+fetchRepo :: ∀ a b. { git :: String, ref :: String | a } -> FilePath -> Spago (GitEnv b) (Either (Array String) Unit)
+fetchRepo { git, ref } = fetchRepo' { git, ref: Just ref }
+
+fetchRepo' :: ∀ b. { git :: String, ref :: Maybe String } -> FilePath -> Spago (GitEnv b) (Either (Array String) Unit)
+fetchRepo' { git, ref } path = do
   repoExists <- FS.exists path
   { offline } <- ask
   case offline, repoExists of
@@ -71,8 +75,8 @@ fetchRepo { git, ref } path = do
           Except.runExceptT $ runGit_ [ "clone", "--filter=tree:0", git, path ] Nothing
       result <- Except.runExceptT do
         Except.ExceptT $ pure cloneOrFetchResult
-        logDebug $ "Checking out the requested ref for " <> git <> " : " <> ref
-        _ <- runGit [ "checkout", ref ] (Just path)
+        logDebug $ "Checking out the requested ref for " <> git <> (fromMaybe "" $ append " : " <$> ref)
+        _ <- runGit (Array.catMaybes [ Just "checkout", ref ]) (Just path)
         -- if we are on a branch and not on a detached head, then we need to pull
         -- the following command will fail if on a detached head, and succeed if on a branch
         Except.mapExceptT
@@ -84,13 +88,14 @@ fetchRepo { git, ref } path = do
           )
           (runGit_ [ "symbolic-ref", "-q", "HEAD" ] (Just path))
 
+      let refQuoted = fromMaybe "" $ ref <#> \r -> "' at ref '" <> r <> "'"
       case result of
         Left err -> pure $ Left
-          [ "Error while fetching the repo '" <> git <> "' at ref '" <> ref <> "':"
+          [ "Error while fetching the repo '" <> git <> refQuoted <> ":"
           , "  " <> err
           ]
         Right _ -> do
-          logDebug $ "Successfully fetched the repo '" <> git <> "' at ref '" <> ref <> "'"
+          logDebug $ "Successfully fetched the repo '" <> git <> refQuoted
           pure $ Right unit
 
 checkout :: ∀ a. { repo :: String, ref :: String } -> Spago (GitEnv a) (Either String Unit)

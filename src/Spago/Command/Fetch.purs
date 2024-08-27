@@ -466,7 +466,7 @@ getGitPackageInLocalCache name package = do
   ensureRepoCloned = unlessM (FS.exists repoCacheLocation) do
     tempDir <- mkTemp' (Just $ printJson Config.gitPackageCodec package)
     logDebug $ "Cloning repo in " <> tempDir
-    Git.fetchRepo package tempDir >>= rightOrDie_
+    Git.fetchRepo' { git: package.git, ref: Nothing } tempDir >>= rightOrDie_
 
     logDebug $ "Repo cloned. Moving to " <> repoCacheLocation
     FS.mkdirp $ Path.concat [ Paths.localCachePackagesPath, PackageName.print name ]
