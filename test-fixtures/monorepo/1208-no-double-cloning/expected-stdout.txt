@@ -1,0 +1,27 @@
+package:
+  name: deku-consumer
+  dependencies:
+    - deku
+    - deku-core
+    - deku-css
+    - deku-dom
+workspace:
+  package_set:
+    registry: 0.0.1
+  extra_packages:
+    deku:
+      git: https://github.com/mikesol/purescript-deku.git
+      subdir: deku
+      ref: v0.9.21
+    deku-core:
+      git: https://github.com/mikesol/purescript-deku.git
+      subdir: deku-core
+      ref: main
+    deku-css:
+      git: https://github.com/mikesol/purescript-deku.git
+      subdir: deku-css
+      ref: v0.9.22
+    deku-dom:
+      git: https://github.com/mikesol/purescript-deku.git
+      subdir: deku-dom
+      ref: main

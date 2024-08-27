@@ -6,6 +6,7 @@ module Spago.Git
   , getRef
   , getRemotes
   , getStatus
+  , checkout
   , isIgnored
   , listTags
   , parseRemote
@@ -90,6 +91,9 @@ fetchRepo { git, ref } path = do
         Right _ -> do
           logDebug $ "Successfully fetched the repo '" <> git <> "' at ref '" <> ref <> "'"
           pure $ Right unit
+
+checkout :: ∀ a. { repo :: String, ref :: String } -> Spago (GitEnv a) (Either String Unit)
+checkout { repo, ref } = Except.runExceptT $ void $ runGit [ "checkout", ref ] (Just repo)
 
 listTags :: forall a. Maybe FilePath -> Spago (GitEnv a) (Either Docc (Array String))
 listTags cwd = do

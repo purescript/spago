@@ -5,6 +5,8 @@ import Test.Prelude
 import Data.Array as Array
 import Data.String (Pattern(..))
 import Data.String as String
+import Node.Path as Path
+import Spago.Cmd as Cmd
 import Spago.FS as FS
 import Test.Spec (SpecT)
 import Test.Spec as Spec
@@ -246,3 +248,24 @@ spec = Spec.describe "monorepo" do
 
       spago [ "build" ] >>= shouldBeSuccess
       spago [ "build", "--pedantic-packages" ] >>= shouldBeFailureErr (fixture "monorepo/pedantic-cross-package-imports/expected-stderr.txt")
+
+    Spec.it "#1208: clones a monorepo only once, even if multiple packages from it are needed" \{ spago, fixture } -> do
+      FS.copyTree { src: fixture "monorepo/1208-no-double-cloning", dst: "." }
+      spago [ "ls", "packages" ] >>=
+        shouldBeSuccessErr (fixture "monorepo/1208-no-double-cloning/expected-stderr.txt")
+      let
+        checkRefs =
+          [ "deku" /\ "276f48adde3d9354f61917f7e9ae2ae7b43df6b2"
+          , "deku-core" /\ "98c67533cc8c399aa643b495d3c02bab963e5b80"
+          , "deku-dom" /\ "6b7c392da7782fe0f2e34811e36b11e630e10b26"
+          , "deku-css" /\ "4e68a5cec10c91aa3377ce69cc97c276936a1194"
+          ]
+      for_ checkRefs \(pkg /\ ref) -> do
+        let path = Path.concat [ ".spago", "p", pkg, ref ]
+        git path [ "rev-parse", "HEAD" ] >>= shouldEqualStr ref
+
+  where
+  git cwd args =
+    Cmd.getStdout <$> Cmd.exec "git" args
+      Cmd.defaultExecOptions { pipeStdout = false, pipeStderr = false, cwd = Just cwd }
+

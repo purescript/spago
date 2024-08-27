@@ -15,6 +15,7 @@ module Spago.FS
   , readTextFile
   , readYamlDocFile
   , readYamlFile
+  , rmRf
   , stat
   , writeFile
   , writeJsonFile
@@ -72,6 +73,9 @@ exists = liftEffect <<< FS.Sync.exists
 
 unlink :: ∀ m. MonadAff m => String -> m Unit
 unlink = liftAff <<< FS.Aff.unlink
+
+rmRf :: ∀ m. MonadAff m => String -> m Unit
+rmRf dir = liftAff $ FS.Aff.rm' dir { force: true, recursive: true, maxRetries: 5, retryDelay: 1000 }
 
 writeTextFile :: forall m. MonadAff m => FilePath -> String -> m Unit
 writeTextFile path text = liftAff $ FS.Aff.writeTextFile UTF8 path text

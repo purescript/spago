@@ -1,0 +1,9 @@
+Reading Spago workspace configuration...
+
+✓ Selecting package to build: deku-consumer
+
+Cloning https://github.com/mikesol/purescript-deku.git
+Cloning https://github.com/mikesol/purescript-tldr.git
+Downloading dependencies...
+No lockfile found, generating it...
+Lockfile written to spago.lock. Please commit this file.
