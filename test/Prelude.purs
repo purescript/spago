@@ -17,6 +17,7 @@ import Node.Path (dirname)
 import Node.Path as Path
 import Node.Platform as Platform
 import Node.Process as Process
+import Record (merge)
 import Registry.PackageName as PackageName
 import Registry.Version as Version
 import Spago.Cmd (ExecResult, StdinConfig(..))
@@ -175,11 +176,22 @@ checkOutputs
      }
   -> Either ExecResult ExecResult
   -> Aff Unit
-checkOutputs checkers execResult = do
+checkOutputs args = checkOutputs' $ args `merge` { sanitize: String.trim }
+
+checkOutputs'
+  :: { stdoutFile :: Maybe FilePath
+     , stderrFile :: Maybe FilePath
+     , result :: (Either ExecResult ExecResult) -> Boolean
+     , sanitize :: String -> String
+     }
+  -> Either ExecResult ExecResult
+  -> Aff Unit
+checkOutputs' checkers execResult = do
   let
     checkOrOverwrite = case _ of
       Nothing -> mempty
-      Just fixtureFileExpected -> \actual -> do
+      Just fixtureFileExpected -> \actual' -> do
+        let actual = checkers.sanitize actual'
         overwriteSpecFile <- liftEffect $ map isJust $ Process.lookupEnv "SPAGO_TEST_ACCEPT"
         if overwriteSpecFile then do
           Console.log $ "Overwriting fixture at path: " <> fixtureFileExpected
@@ -187,7 +199,7 @@ checkOutputs checkers execResult = do
           unlessM (FS.exists parentDir) $ FS.mkdirp parentDir
           FS.writeTextFile fixtureFileExpected (actual <> "\n")
         else do
-          expected <- String.trim <$> FS.readTextFile fixtureFileExpected
+          expected <- checkers.sanitize <$> FS.readTextFile fixtureFileExpected
           actual `shouldEqualStr` expected
   check
     { stdout: checkOrOverwrite checkers.stdoutFile

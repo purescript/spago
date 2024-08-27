@@ -1,0 +1,6 @@
+Reading Spago workspace configuration...
+
+✓ Selecting package to build: consumer
+
+
+✘ Repo <library-repo-path> does not have ref v3 in local cache. Cannot pull from origin in offline mode.

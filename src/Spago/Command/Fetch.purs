@@ -443,14 +443,12 @@ toAllDependencies = foldl (Map.unionWith (\l _ -> l)) Map.empty
 getGitPackageInLocalCache :: forall a. PackageName -> GitPackage -> Spago (Git.GitEnv a) Unit
 getGitPackageInLocalCache name package = do
   ensureRepoCloned
+  ensureRefCheckedOut
 
   let localPackageLocation = Config.getPackageLocation name (GitPackage package)
   logDebug $ "Copying repo to " <> localPackageLocation
   FS.mkdirp $ Path.concat [ Paths.localCachePackagesPath, PackageName.print name ]
   FS.copyTree { src: repoCacheLocation, dst: localPackageLocation }
-
-  logDebug $ "Checking out " <> package.ref
-  Git.checkout { repo: localPackageLocation, ref: package.ref } >>= rightOrDie_
 
   -- Note: the package might have been cloned with a tag, but we stick the commit hash in the lockfiles
   -- so we need to make a copy to a location that has the commit hash too.
@@ -473,6 +471,19 @@ getGitPackageInLocalCache name package = do
     logDebug $ "Repo cloned. Moving to " <> repoCacheLocation
     FS.mkdirp $ Path.concat [ Paths.localCachePackagesPath, PackageName.print name ]
     FS.moveSync { src: tempDir, dst: repoCacheLocation }
+
+  ensureRefCheckedOut = do
+    logDebug $ "Checking out " <> package.ref
+    { offline } <- ask
+    Git.checkout { repo: repoCacheLocation, ref: package.ref } >>= case _, offline of
+      Right _, _ ->
+        pure unit
+      Left _, Offline ->
+        die $ "Repo " <> package.git <> " does not have ref " <> package.ref <> " in local cache. Cannot pull from origin in offline mode."
+      Left _, Online -> do
+        logDebug $ "Failed to checkout " <> package.ref <> ", trying to pull from origin"
+        Git.fetch { repo: repoCacheLocation, remote: "origin" } >>= rightOrDie_
+        Git.checkout { repo: repoCacheLocation, ref: package.ref } >>= rightOrDie_
 
 getPackageDependencies :: forall a. PackageName -> Package -> Spago (FetchEnv a) (Maybe (Map PackageName Range))
 getPackageDependencies packageName package = case package of
