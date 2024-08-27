@@ -268,6 +268,7 @@ spec = Spec.describe "monorepo" do
         consumerWorkspace = Path.concat [ testCwd, "consumer" ]
 
         recreateConsumerWorkspace = do
+          liftEffect $ Process.chdir testCwd
           whenM (FS.exists consumerWorkspace) $ rmRf consumerWorkspace
           FS.mkdirp consumerWorkspace
           liftEffect $ Process.chdir consumerWorkspace
