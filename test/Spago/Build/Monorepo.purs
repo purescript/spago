@@ -255,15 +255,16 @@ spec = Spec.describe "monorepo" do
       spago [ "ls", "packages" ] >>=
         shouldBeSuccessErr (fixture "monorepo/1208-no-double-cloning/expected-stderr.txt")
 
-      let
-        checkRefs =
-          [ "deku-core" /\ "98c67533cc8c399aa643b495d3c02bab963e5b80"
-          , "deku-dom" /\ "6b7c392da7782fe0f2e34811e36b11e630e10b26"
-          , "deku-css" /\ "4e68a5cec10c91aa3377ce69cc97c276936a1194"
-          ]
-      for_ checkRefs \(pkg /\ ref) -> do
-        let path = Path.concat [ ".spago", "p", pkg, ref ]
-        git path [ "rev-parse", "HEAD" ] >>= shouldEqualStr ref
+      -- Check that every package has the right ref checked out, as specified in
+      -- spago.yaml/extraPackages.
+      for_
+        [ "deku-core" /\ "98c67533cc8c399aa643b495d3c02bab963e5b80"
+        , "deku-dom" /\ "6b7c392da7782fe0f2e34811e36b11e630e10b26"
+        , "deku-css" /\ "4e68a5cec10c91aa3377ce69cc97c276936a1194"
+        ]
+        \(pkg /\ ref) -> do
+          let path = Path.concat [ ".spago", "p", pkg, ref ]
+          git path [ "rev-parse", "HEAD" ] >>= shouldEqualStr ref
 
       -- Replace spago.yaml with one that has one more dependency from the same
       -- monorepo, check that the monorepo doesn't need to be cloned again and
@@ -273,6 +274,8 @@ spec = Spec.describe "monorepo" do
       spago [ "ls", "packages", "--offline" ] >>=
         shouldBeSuccessErr (fixture "monorepo/1208-no-double-cloning/expected-stderr-one-more-dep.txt")
 
+      -- And check that the new dependency was correctly copied to the package
+      -- cache and the right ref was checked out.
       let dekuPath = Path.concat [ ".spago", "p", "deku", "276f48adde3d9354f61917f7e9ae2ae7b43df6b2" ]
       git dekuPath [ "rev-parse", "HEAD" ] >>= shouldEqualStr "276f48adde3d9354f61917f7e9ae2ae7b43df6b2"
 
