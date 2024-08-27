@@ -73,20 +73,22 @@ fetchRepo' { git, ref } path = do
           -- For the reasoning on the filter options, see:
           -- https://github.com/purescript/spago/issues/701#issuecomment-1317192919
           Except.runExceptT $ runGit_ [ "clone", "--filter=tree:0", git, path ] Nothing
+
       result <- Except.runExceptT do
-        Except.ExceptT $ pure cloneOrFetchResult
-        logDebug $ "Checking out the requested ref for " <> git <> (fromMaybe "" $ append " : " <$> ref)
-        _ <- runGit (Array.catMaybes [ Just "checkout", ref ]) (Just path)
-        -- if we are on a branch and not on a detached head, then we need to pull
-        -- the following command will fail if on a detached head, and succeed if on a branch
-        Except.mapExceptT
-          ( \a -> a >>= case _ of
-              Left _err -> pure (Right unit)
-              Right _ -> do
-                logDebug "Pulling the latest changes"
-                Except.runExceptT $ runGit_ [ "pull", "--rebase", "--autostash" ] (Just path)
-          )
-          (runGit_ [ "symbolic-ref", "-q", "HEAD" ] (Just path))
+          Except.ExceptT $ pure cloneOrFetchResult
+          for_ ref \ref' -> do
+            logDebug $ "Checking out the requested ref for " <> git <> " : " <> ref'
+            _ <- runGit [ "checkout", ref' ] (Just path)
+            -- if we are on a branch and not on a detached head, then we need to pull
+            -- the following command will fail if on a detached head, and succeed if on a branch
+            Except.mapExceptT
+              ( \a -> a >>= case _ of
+                  Left _err -> pure (Right unit)
+                  Right _ -> do
+                    logDebug "Pulling the latest changes"
+                    Except.runExceptT $ runGit_ [ "pull", "--rebase", "--autostash" ] (Just path)
+              )
+              (runGit_ [ "symbolic-ref", "-q", "HEAD" ] (Just path))
 
       let refQuoted = fromMaybe "" $ ref <#> \r -> "' at ref '" <> r <> "'"
       case result of
@@ -103,9 +105,10 @@ checkout { repo, ref } = Except.runExceptT $ void $ runGit [ "checkout", ref ] (
 
 fetch :: ∀ a. { repo :: String, remote :: String } -> Spago (GitEnv a) (Either String Unit)
 fetch { repo, remote } = do
+  runGit_ [ "remote", "update" ] (Just repo) # Except.runExceptT >>= rightOrDie_
   remoteUrl <- runGit [ "remote", "get-url", remote ] (Just repo) # Except.runExceptT >>= rightOrDie
   logInfo $ "Fetching from " <> remoteUrl
-  Except.runExceptT $ void $ runGit [ "fetch", remote, "--tags" ] (Just repo)
+  Except.runExceptT $ runGit_ [ "fetch", remote, "--tags" ] (Just repo)
 
 listTags :: forall a. Maybe FilePath -> Spago (GitEnv a) (Either Docc (Array String))
 listTags cwd = do

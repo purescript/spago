@@ -74,6 +74,7 @@ package:
     censorTestWarnings:
       - ImplicitQualifiedImportReExport
       - ImplicitQualifiedImport
+      - UserDefinedWarning
     dependencies:
       - exceptions
       - identity
