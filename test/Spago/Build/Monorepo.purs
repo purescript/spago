@@ -266,7 +266,8 @@ spec = Spec.describe "monorepo" do
         git path [ "rev-parse", "HEAD" ] >>= shouldEqualStr ref
 
       -- Replace spago.yaml with one that has one more dependency from the same
-      -- monorepo, check that the monorepo can be used in offline mode.
+      -- monorepo, check that the monorepo doesn't need to be cloned again and
+      -- can be used in offline mode.
       FS.unlink "spago.yaml"
       FS.copyFile { src: "spago-one-more-dep.yaml", dst: "spago.yaml" }
       spago [ "ls", "packages", "--offline" ] >>=
