@@ -251,18 +251,29 @@ spec = Spec.describe "monorepo" do
 
     Spec.it "#1208: clones a monorepo only once, even if multiple packages from it are needed" \{ spago, fixture } -> do
       FS.copyTree { src: fixture "monorepo/1208-no-double-cloning", dst: "." }
+
       spago [ "ls", "packages" ] >>=
         shouldBeSuccessErr (fixture "monorepo/1208-no-double-cloning/expected-stderr.txt")
+
       let
         checkRefs =
-          [ "deku" /\ "276f48adde3d9354f61917f7e9ae2ae7b43df6b2"
-          , "deku-core" /\ "98c67533cc8c399aa643b495d3c02bab963e5b80"
+          [ "deku-core" /\ "98c67533cc8c399aa643b495d3c02bab963e5b80"
           , "deku-dom" /\ "6b7c392da7782fe0f2e34811e36b11e630e10b26"
           , "deku-css" /\ "4e68a5cec10c91aa3377ce69cc97c276936a1194"
           ]
       for_ checkRefs \(pkg /\ ref) -> do
         let path = Path.concat [ ".spago", "p", pkg, ref ]
         git path [ "rev-parse", "HEAD" ] >>= shouldEqualStr ref
+
+      -- Replace spago.yaml with one that has one more dependency from the same
+      -- monorepo, check that the monorepo can be used in offline mode.
+      FS.unlink "spago.yaml"
+      FS.copyFile { src: "spago-one-more-dep.yaml", dst: "spago.yaml" }
+      spago [ "ls", "packages", "--offline" ] >>=
+        shouldBeSuccessErr (fixture "monorepo/1208-no-double-cloning/expected-stderr-one-more-dep.txt")
+
+      let dekuPath = Path.concat [ ".spago", "p", "deku", "276f48adde3d9354f61917f7e9ae2ae7b43df6b2" ]
+      git dekuPath [ "rev-parse", "HEAD" ] >>= shouldEqualStr "276f48adde3d9354f61917f7e9ae2ae7b43df6b2"
 
   where
   git cwd args =

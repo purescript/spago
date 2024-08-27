@@ -6,22 +6,25 @@ package:
     - deku-css
     - deku-dom
 workspace:
-  package_set:
-    registry: 0.0.1
-  extra_packages:
+  packageSet:
+    registry: 56.4.0
+  extraPackages:
     deku:
       git: https://github.com/mikesol/purescript-deku.git
       subdir: deku
-      ref: v0.9.21
+      ref: 276f48adde3d9354f61917f7e9ae2ae7b43df6b2
     deku-core:
       git: https://github.com/mikesol/purescript-deku.git
       subdir: deku-core
-      ref: main
+      ref: 98c67533cc8c399aa643b495d3c02bab963e5b80
     deku-css:
       git: https://github.com/mikesol/purescript-deku.git
       subdir: deku-css
-      ref: v0.9.22
+      ref: 4e68a5cec10c91aa3377ce69cc97c276936a1194
     deku-dom:
       git: https://github.com/mikesol/purescript-deku.git
       subdir: deku-dom
-      ref: main
+      ref: 6b7c392da7782fe0f2e34811e36b11e630e10b26
+    tldr:
+      git: https://github.com/mikesol/purescript-tldr.git
+      ref: e840b9e23be915402507b47a9db27242896a58b8
