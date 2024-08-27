@@ -276,8 +276,7 @@ spec = Spec.describe "monorepo" do
         copySpagoYaml src = do
           whenM (FS.exists "spago.yaml") $ FS.unlink "spago.yaml"
           whenM (FS.exists "spago.lock") $ FS.unlink "spago.lock"
-          FS.copyFile { src: fixture "monorepo/1208-no-double-cloning/" <> src, dst: "spago.yaml" }
-          content <- FS.readTextFile "spago.yaml"
+          content <- FS.readTextFile $ fixture "monorepo/1208-no-double-cloning/" <> src
           FS.writeTextFile "spago.yaml" $ String.replaceAll (String.Pattern "<library-repo-path>") (String.Replacement libRepo) content
 
         assertRefCheckedOut package ref = do

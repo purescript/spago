@@ -2,7 +2,6 @@ module Spago.Git
   ( Git
   , GitEnv
   , fetchRepo
-  , fetchRepo'
   , getGit
   , getRef
   , getRemotes
@@ -52,10 +51,7 @@ runGit args cwd = ExceptT do
     Left r -> Left r.stderr
 
 fetchRepo :: ∀ a b. { git :: String, ref :: String | a } -> FilePath -> Spago (GitEnv b) (Either (Array String) Unit)
-fetchRepo { git, ref } = fetchRepo' { git, ref: Just ref }
-
-fetchRepo' :: ∀ b. { git :: String, ref :: Maybe String } -> FilePath -> Spago (GitEnv b) (Either (Array String) Unit)
-fetchRepo' { git, ref } path = do
+fetchRepo { git, ref } path = do
   repoExists <- FS.exists path
   { offline } <- ask
   case offline, repoExists of
@@ -73,31 +69,28 @@ fetchRepo' { git, ref } path = do
           -- For the reasoning on the filter options, see:
           -- https://github.com/purescript/spago/issues/701#issuecomment-1317192919
           Except.runExceptT $ runGit_ [ "clone", "--filter=tree:0", git, path ] Nothing
-
       result <- Except.runExceptT do
-          Except.ExceptT $ pure cloneOrFetchResult
-          for_ ref \ref' -> do
-            logDebug $ "Checking out the requested ref for " <> git <> " : " <> ref'
-            _ <- runGit [ "checkout", ref' ] (Just path)
-            -- if we are on a branch and not on a detached head, then we need to pull
-            -- the following command will fail if on a detached head, and succeed if on a branch
-            Except.mapExceptT
-              ( \a -> a >>= case _ of
-                  Left _err -> pure (Right unit)
-                  Right _ -> do
-                    logDebug "Pulling the latest changes"
-                    Except.runExceptT $ runGit_ [ "pull", "--rebase", "--autostash" ] (Just path)
-              )
-              (runGit_ [ "symbolic-ref", "-q", "HEAD" ] (Just path))
+        Except.ExceptT $ pure cloneOrFetchResult
+        logDebug $ "Checking out the requested ref for " <> git <> " : " <> ref
+        _ <- runGit [ "checkout", ref ] (Just path)
+        -- if we are on a branch and not on a detached head, then we need to pull
+        -- the following command will fail if on a detached head, and succeed if on a branch
+        Except.mapExceptT
+          ( \a -> a >>= case _ of
+              Left _err -> pure (Right unit)
+              Right _ -> do
+                logDebug "Pulling the latest changes"
+                Except.runExceptT $ runGit_ [ "pull", "--rebase", "--autostash" ] (Just path)
+          )
+          (runGit_ [ "symbolic-ref", "-q", "HEAD" ] (Just path))
 
-      let refQuoted = fromMaybe "" $ ref <#> \r -> "' at ref '" <> r <> "'"
       case result of
         Left err -> pure $ Left
-          [ "Error while fetching the repo '" <> git <> refQuoted <> ":"
+          [ "Error while fetching the repo '" <> git <> "' at ref '" <> ref <> "':"
           , "  " <> err
           ]
         Right _ -> do
-          logDebug $ "Successfully fetched the repo '" <> git <> refQuoted
+          logDebug $ "Successfully fetched the repo '" <> git <> "' at ref '" <> ref <> "'"
           pure $ Right unit
 
 checkout :: ∀ a. { repo :: String, ref :: String } -> Spago (GitEnv a) (Either String Unit)
@@ -105,7 +98,6 @@ checkout { repo, ref } = Except.runExceptT $ void $ runGit [ "checkout", ref ] (
 
 fetch :: ∀ a. { repo :: String, remote :: String } -> Spago (GitEnv a) (Either String Unit)
 fetch { repo, remote } = do
-  runGit_ [ "remote", "update" ] (Just repo) # Except.runExceptT >>= rightOrDie_
   remoteUrl <- runGit [ "remote", "get-url", remote ] (Just repo) # Except.runExceptT >>= rightOrDie
   logInfo $ "Fetching from " <> remoteUrl
   Except.runExceptT $ runGit_ [ "fetch", remote, "--tags" ] (Just repo)
