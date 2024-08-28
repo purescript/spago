@@ -5,7 +5,6 @@ import Test.Prelude
 import Data.Array as Array
 import Data.String (Pattern(..))
 import Data.String as String
-import Debug (traceM)
 import Node.FS.Aff as FS.Aff
 import Node.Path as Path
 import Node.Process as Process
