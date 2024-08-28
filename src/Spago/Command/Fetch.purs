@@ -284,8 +284,8 @@ run { packages: packagesRequestedToInstall, ensureRanges, isTest, isRepl } = do
 lookupInCache :: ∀ a k v. Ord k => k -> Ref.Ref (Map k v) -> Spago a (Maybe v)
 lookupInCache key cacheRef = liftEffect $ Ref.read cacheRef >>= Map.lookup key >>> pure
 
-fetchOrCreate :: ∀ a k v. Ord k => k -> Ref.Ref (Map k v) -> Spago a v -> Spago a v
-fetchOrCreate key cacheRef create =
+withCache :: ∀ a k v. Ord k => k -> Ref.Ref (Map k v) -> Spago a v -> Spago a v
+withCache key cacheRef create =
   lookupInCache key cacheRef >>= case _ of
     Just v ->
       pure v
@@ -344,7 +344,7 @@ writeNewLockfile reason allTransitiveDeps = do
     -- dependencies of the whole workspace), for which we do not care about test
     -- dependencies.
     corePackageDepsOrEmpty packageName package =
-      fetchOrCreate packageName packageDependenciesCache do
+      withCache packageName packageDependenciesCache do
         getPackageDependencies packageName package <#> case _ of
           Just deps -> Array.fromFoldable $ Map.keys deps.core
           Nothing -> []
@@ -354,7 +354,7 @@ writeNewLockfile reason allTransitiveDeps = do
         Nothing
       GitPackage gitPackage -> Just do
         let packageLocation = Config.getPackageLocation packageName package
-        fetchOrCreate packageLocation gitRefCache do
+        withCache packageLocation gitRefCache do
           Git.getRef (Just packageLocation) >>= case _ of
             Left err ->
               die err -- TODO maybe not die here?
@@ -362,7 +362,7 @@ writeNewLockfile reason allTransitiveDeps = do
               dependencies <- corePackageDepsOrEmpty packageName package
               pure $ FromGit { rev, dependencies, url: gitPackage.git, subdir: gitPackage.subdir }
       RegistryVersion version -> Just do
-        fetchOrCreate packageName metadataRefCache do
+        withCache packageName metadataRefCache do
           FromRegistry <$> case Map.lookup packageName registryVersions of
             -- This shouldn't be Nothing because it's already handled when building the integrity map above
             Nothing ->
