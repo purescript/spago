@@ -2,15 +2,18 @@ workspace:
   packages:
     local-package-set-lockfile:
       path: ./
-      dependencies:
-        - console
-        - effect
-        - prelude
-      test_dependencies: []
-      build_plan:
-        - console
-        - effect
-        - prelude
+      core:
+        dependencies:
+          - console
+          - effect
+          - prelude
+        build_plan:
+          - console
+          - effect
+          - prelude
+      test:
+        dependencies: []
+        build_plan: []
   package_set:
     address:
       path: ./local-package-set.json

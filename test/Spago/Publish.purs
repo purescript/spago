@@ -50,6 +50,13 @@ spec = Spec.around withTempDir do
       git [ "remote", "set-url", "origin", "git@github.com:purescript/bbb.git" ] >>= shouldBeSuccess
       spago [ "publish", "--offline" ] >>= shouldBeFailureErr (fixture "publish-invalid-location.txt")
 
+    Spec.it "fails if a core dependency is not in the registry" \{ spago, fixture } -> do
+      FS.copyTree { src: fixture "publish/extra-package-core", dst: "." }
+      spago [ "build" ] >>= shouldBeSuccess
+      doTheGitThing
+      spago [ "fetch" ] >>= shouldBeSuccess
+      spago [ "publish", "--offline" ] >>= shouldBeFailureErr (fixture "publish-extra-package-core-dependency.txt")
+
     Spec.it "can get a package ready to publish" \{ spago, fixture } -> do
       FS.copyFile { src: fixture "spago-publish.yaml", dst: "spago.yaml" }
       FS.mkdirp "src"
@@ -57,6 +64,13 @@ spec = Spec.around withTempDir do
       spago [ "build" ] >>= shouldBeSuccess
       doTheGitThing
       -- It will fail because it can't hit the registry, but the fixture will check that everything else is ready
+      spago [ "fetch" ] >>= shouldBeSuccess
+      spago [ "publish", "--offline" ] >>= shouldBeFailureErr (fixture "publish.txt")
+
+    Spec.it "allows to publish with a test dependency not in the registry" \{ spago, fixture } -> do
+      FS.copyTree { src: fixture "publish/extra-package-test", dst: "." }
+      spago [ "build" ] >>= shouldBeSuccess
+      doTheGitThing
       spago [ "fetch" ] >>= shouldBeSuccess
       spago [ "publish", "--offline" ] >>= shouldBeFailureErr (fixture "publish.txt")
 
