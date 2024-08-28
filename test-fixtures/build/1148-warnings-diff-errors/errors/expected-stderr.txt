@@ -1,0 +1,43 @@
+Reading Spago workspace configuration...
+
+✓ Selecting package to build: foo
+
+Downloading dependencies...
+Building...
+[1 of 2] Compiling Foo
+[2 of 2] Compiling Main
+[ERR 1/2 TypesDoNotUnify] src/Foo.purs:4:5
+
+  4  x = "nope"
+         ^^^^^^
+
+  Could not match type
+    String
+  with type
+    Int
+  while checking that type String
+    is at least as general as type Int
+  while checking that expression "nope"
+    has type Int
+  in value declaration x
+
+[ERR 2/2 TypesDoNotUnify] src/Main.purs:10:7
+
+  10    log 42
+            ^^
+
+  Could not match type
+    Int
+  with type
+    String
+  while checking that type Int
+    is at least as general as type String
+  while checking that expression 42
+    has type String
+  in value declaration main
+
+           Src   Lib   All
+Warnings     0     0     0
+Errors       2     0     2
+
+✘ Failed to build.

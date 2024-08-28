@@ -211,6 +211,17 @@ spec = Spec.around withTempDir do
       spago [ "build" ] >>= shouldBeSuccessErr (fixture "build/migrate-config/migrated-output.txt")
       checkFixture "spago.yaml" (fixture "build/migrate-config/migrated-spago.yaml")
 
+    Spec.it "#1148: outputs errors and warnings after build" \{ spago, fixture } -> do
+      FS.copyTree { src: fixture "build/1148-warnings-diff-errors", dst: "." }
+
+      liftEffect $ Process.chdir "errors"
+      spago [ "install" ] >>= shouldBeSuccess
+      spago [ "build" ] >>= shouldBeFailureErr (fixture "build/1148-warnings-diff-errors/errors/expected-stderr.txt")
+
+      liftEffect $ Process.chdir "../warnings"
+      spago [ "install" ] >>= shouldBeSuccess
+      spago [ "build" ] >>= shouldBeSuccessErr (fixture "build/1148-warnings-diff-errors/warnings/expected-stderr.txt")
+
     Pedantic.spec
 
     Monorepo.spec
