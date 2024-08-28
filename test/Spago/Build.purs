@@ -222,7 +222,10 @@ spec = Spec.around withTempDir do
             { stdoutFile: Nothing
             , stderrFile: Just $ fixture expectedFixture
             , result
-            , sanitize: String.trim >>> String.replaceAll (String.Pattern $ "src\\") (String.Replacement "src/")
+            , sanitize:
+                String.trim
+                >>> String.replaceAll (String.Pattern $ "src\\") (String.Replacement "src/")
+                >>> String.replaceAll (String.Pattern $ "\r\n") (String.Replacement "\n")
             }
 
       FS.copyTree { src: fixture "build/1148-warnings-diff-errors", dst: "." }
