@@ -271,7 +271,7 @@ spec = Spec.describe "monorepo" do
           liftEffect $ Process.chdir testCwd
           whenM (FS.exists consumerWorkspace) $ rmRf consumerWorkspace
           FS.mkdirp consumerWorkspace
-          liftEffect $ Process.chdir consumerWorkspace
+          liftEffect $ Process.chdir testCwd *> Process.chdir "consumer"
           copySpagoYaml "spago-two-deps.yaml"
 
         copySpagoYaml src = do
