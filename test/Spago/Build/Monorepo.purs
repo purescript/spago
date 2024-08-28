@@ -5,11 +5,13 @@ import Test.Prelude
 import Data.Array as Array
 import Data.String (Pattern(..))
 import Data.String as String
+import Effect.Aff (bracket)
 import Node.FS.Aff as FS.Aff
 import Node.Path as Path
 import Node.Process as Process
 import Spago.Cmd as Cmd
 import Spago.FS as FS
+import Spago.Paths as Paths
 import Test.Spec (SpecT)
 import Test.Spec as Spec
 import Test.Spec.Assertions as Assert
@@ -253,97 +255,97 @@ spec = Spec.describe "monorepo" do
 
   Spec.it "#1208: clones a monorepo only once, even if multiple packages from it are needed" \{ spago, fixture, testCwd } -> do
     -- A local file system Git repo to use as a remote for Spago to clone from
-    let libRepo = Path.concat [ testCwd, "library-origin-repo" ]
+    let createLibraryRepo = do
+          let libRepo = Path.concat [ Paths.paths.temp, "spago-test-1208-repo" ]
+          FS.copyTree { src: fixture "monorepo/1208-no-double-cloning/library", dst: libRepo }
+          git_ libRepo [ "init" ]
+          git_ libRepo [ "add", "." ]
+          git_ libRepo [ "config", "user.name", "test-user" ]
+          git_ libRepo [ "config", "user.email", "test-user@aol.com" ]
+          git_ libRepo [ "commit", "-m", "Initial commit" ]
+          git_ libRepo [ "tag", "v1" ]
+          git_ libRepo [ "tag", "v2" ]
+          pure libRepo
 
-    FS.copyTree { src: fixture "monorepo/1208-no-double-cloning/library", dst: libRepo }
-    git_ libRepo [ "init" ]
-    git_ libRepo [ "add", "." ]
-    git_ libRepo [ "config", "user.name", "test-user" ]
-    git_ libRepo [ "config", "user.email", "test-user@aol.com" ]
-    git_ libRepo [ "commit", "-m", "Initial commit" ]
-    git_ libRepo [ "tag", "v1" ]
-    git_ libRepo [ "tag", "v2" ]
+    bracket createLibraryRepo rmRf \libRepo -> do
+      let
+        recreateConsumerWorkspace = do
+          liftEffect $ Process.chdir testCwd
+          whenM (FS.exists "consumer") $ rmRf "consumer"
+          FS.mkdirp "consumer"
+          liftEffect $ Process.chdir "consumer"
+          copySpagoYaml "spago-two-deps.yaml"
 
-    liftEffect $ Process.chdir "library-origin-repo"
+        copySpagoYaml src = do
+          whenM (FS.exists "spago.yaml") $ FS.unlink "spago.yaml"
+          whenM (FS.exists "spago.lock") $ FS.unlink "spago.lock"
+          content <- FS.readTextFile $ fixture "monorepo/1208-no-double-cloning/" <> src
+          FS.writeTextFile "spago.yaml" $ String.replaceAll (String.Pattern "<library-repo-path>") (String.Replacement libRepo) content
 
-    let
-      recreateConsumerWorkspace = do
-        liftEffect $ Process.chdir ".."
-        whenM (FS.exists "consumer") $ rmRf "consumer"
-        FS.mkdirp "consumer"
-        liftEffect $ Process.chdir "consumer"
-        copySpagoYaml "spago-two-deps.yaml"
+        assertRefCheckedOut package ref = do
+          -- The `.spago/p/<package>/<ref>` should be a git repo checked out at `ref`
+          let path = Path.concat [ ".spago", "p", package, ref ]
+          commitHash <- git path [ "rev-parse", ref ]
+          git path [ "rev-parse", "HEAD" ] >>= flip shouldEqualStr commitHash
 
-      copySpagoYaml src = do
-        whenM (FS.exists "spago.yaml") $ FS.unlink "spago.yaml"
-        whenM (FS.exists "spago.lock") $ FS.unlink "spago.lock"
-        content <- FS.readTextFile $ fixture "monorepo/1208-no-double-cloning/" <> src
-        FS.writeTextFile "spago.yaml" $ String.replaceAll (String.Pattern "<library-repo-path>") (String.Replacement libRepo) content
+          -- And there should be a copy of that repo at
+          -- `.spago/p/<package>/<SHA>`, checked out at the same commit.
+          let commitHashPath = Path.concat [ ".spago", "p", package, commitHash ]
+          git commitHashPath [ "rev-parse", "HEAD" ] >>= flip shouldEqualStr commitHash
 
-      assertRefCheckedOut package ref = do
-        -- The `.spago/p/<package>/<ref>` should be a git repo checked out at `ref`
-        let path = Path.concat [ ".spago", "p", package, ref ]
-        commitHash <- git path [ "rev-parse", ref ]
-        git path [ "rev-parse", "HEAD" ] >>= flip shouldEqualStr commitHash
+        shouldBeSuccessErr' = checkOutputsWithPatchErr isRight
+        shouldBeFailureErr' = checkOutputsWithPatchErr isLeft
 
-        -- And there should be a copy of that repo at
-        -- `.spago/p/<package>/<SHA>`, checked out at the same commit.
-        let commitHashPath = Path.concat [ ".spago", "p", package, commitHash ]
-        git commitHashPath [ "rev-parse", "HEAD" ] >>= flip shouldEqualStr commitHash
+        checkOutputsWithPatchErr result expectedFixture =
+          checkOutputs'
+            { stdoutFile: Nothing
+            , stderrFile: Just $ fixture expectedFixture
+            , result
+            , sanitize: String.trim >>> String.replaceAll (String.Pattern libRepo) (String.Replacement "<library-repo-path>")
+            }
 
-      shouldBeSuccessErr' = checkOutputsWithPatchErr isRight
-      shouldBeFailureErr' = checkOutputsWithPatchErr isLeft
+      -- First run `spago install` to make sure global cache is populated,
+      -- otherwise it may or may not appear in Spago's output and then we can't
+      -- reliably compare it to golden output.
+      recreateConsumerWorkspace
+      void $ spago [ "ls", "packages" ]
 
-      checkOutputsWithPatchErr result expectedFixture =
-        checkOutputs'
-          { stdoutFile: Nothing
-          , stderrFile: Just $ fixture expectedFixture
-          , result
-          , sanitize: String.trim >>> String.replaceAll (String.Pattern libRepo) (String.Replacement "<library-repo-path>")
-          }
+      -- Nuke the cache after that so Spago can re-clone the repositories and we
+      -- can check that it's happening only once.
+      recreateConsumerWorkspace
+      spago [ "ls", "packages" ] >>=
+        shouldBeSuccessErr' "monorepo/1208-no-double-cloning/expected-stderr/two-deps.txt"
 
-    -- First run `spago install` to make sure global cache is populated,
-    -- otherwise it may or may not appear in Spago's output and then we can't
-    -- reliably compare it to golden output.
-    recreateConsumerWorkspace
-    void $ spago [ "ls", "packages" ]
+      -- Check that every package has the right ref checked out, as specified in
+      -- spago.yaml/extraPackages.
+      assertRefCheckedOut "lib1" "v1"
+      assertRefCheckedOut "lib2" "v2"
 
-    -- Nuke the cache after that so Spago can re-clone the repositories and we
-    -- can check that it's happening only once.
-    recreateConsumerWorkspace
-    spago [ "ls", "packages" ] >>=
-      shouldBeSuccessErr' "monorepo/1208-no-double-cloning/expected-stderr/two-deps.txt"
+      -- Add lib3 to the config and check that Spago refuses to clone/pull
+      -- from the repo in offline more.
+      copySpagoYaml "spago-three-deps.yaml"
+      spago [ "ls", "packages", "--offline" ] >>=
+        shouldBeFailureErr' "monorepo/1208-no-double-cloning/expected-stderr/three-deps-offline.txt"
 
-    -- Check that every package has the right ref checked out, as specified in
-    -- spago.yaml/extraPackages.
-    assertRefCheckedOut "lib1" "v1"
-    assertRefCheckedOut "lib2" "v2"
+      -- Create new tags that lib3 and lib4 are pointing to
+      git_ libRepo [ "tag", "v3" ]
+      git_ libRepo [ "tag", "v4" ]
 
-    -- Add lib3 to the config and check that Spago refuses to clone/pull
-    -- from the repo in offline more.
-    copySpagoYaml "spago-three-deps.yaml"
-    spago [ "ls", "packages", "--offline" ] >>=
-      shouldBeFailureErr' "monorepo/1208-no-double-cloning/expected-stderr/three-deps-offline.txt"
+      -- Now that the remote repo has tags v3 and v4 defined, try again in
+      -- online mode and see that the repo is not cloned a second time, but
+      -- still pulled because the v3 tag is not in Spago's cache.
+      copySpagoYaml "spago-three-deps.yaml"
+      spago [ "ls", "packages" ] >>=
+        shouldBeSuccessErr' "monorepo/1208-no-double-cloning/expected-stderr/three-deps.txt"
+      assertRefCheckedOut "lib3" "v3"
 
-    -- Create new tags that lib3 and lib4 are pointing to
-    git_ libRepo [ "tag", "v3" ]
-    git_ libRepo [ "tag", "v4" ]
-
-    -- Now that the remote repo has tags v3 and v4 defined, try again in
-    -- online mode and see that the repo is not cloned a second time, but
-    -- still pulled because the v3 tag is not in Spago's cache.
-    copySpagoYaml "spago-three-deps.yaml"
-    spago [ "ls", "packages" ] >>=
-      shouldBeSuccessErr' "monorepo/1208-no-double-cloning/expected-stderr/three-deps.txt"
-    assertRefCheckedOut "lib3" "v3"
-
-    -- Add lib4 to the config and check that the repo is not cloned and not
-    -- pulled, but can be used in offline mode, because the v4 tag is already
-    -- in Spago's cache.
-    copySpagoYaml "spago-four-deps.yaml"
-    spago [ "ls", "packages", "--offline" ] >>=
-      shouldBeSuccessErr' "monorepo/1208-no-double-cloning/expected-stderr/four-deps.txt"
-    assertRefCheckedOut "lib4" "v4"
+      -- Add lib4 to the config and check that the repo is not cloned and not
+      -- pulled, but can be used in offline mode, because the v4 tag is already
+      -- in Spago's cache.
+      copySpagoYaml "spago-four-deps.yaml"
+      spago [ "ls", "packages", "--offline" ] >>=
+        shouldBeSuccessErr' "monorepo/1208-no-double-cloning/expected-stderr/four-deps.txt"
+      assertRefCheckedOut "lib4" "v4"
 
   where
   git_ cwd = void <<< git cwd
