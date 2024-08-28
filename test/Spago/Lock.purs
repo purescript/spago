@@ -11,6 +11,7 @@ import Registry.Version as Version
 import Spago.Core.Config (Dependencies(..), ExtraPackage(..), RemotePackage(..), SetAddress(..))
 import Spago.Core.Config as Config
 import Spago.Core.Config as Core
+import Spago.FS as FS
 import Spago.Lock (LockEntry(..), Lockfile)
 import Spago.Lock as Lock
 import Test.Spec (Spec)
@@ -18,8 +19,8 @@ import Test.Spec as Spec
 import Test.Spec.Assertions as Assert
 
 spec :: Spec Unit
-spec = do
-  Spec.it "parses lockfile" do
+spec = Spec.around withTempDir do
+  Spec.it "parses lockfile" \_ -> do
     case parseYaml Lock.lockfileCodec validLockfileString of
       Left error ->
         Assert.fail $ "Failed to parse: " <> CJ.DecodeError.print error
@@ -27,6 +28,11 @@ spec = do
         Assert.fail ("\n" <> printYaml Lock.lockfileCodec lock <> "\ndoes not equal\n\n" <> printYaml Lock.lockfileCodec validLockfile)
       Right _ ->
         pure unit
+
+  Spec.it "#1158: always uses forward slash separator for doubly nested projects' paths" \{ spago, fixture } -> do
+    FS.copyTree { src: fixture "lock/1158-doubly-nested-projects", dst: "." }
+    spago [ "install" ] >>= shouldBeSuccess
+    checkFixture "spago.lock" (fixture "lock/1158-doubly-nested-projects/expected-lockfile.txt")
 
 validLockfile :: Lockfile
 validLockfile =
