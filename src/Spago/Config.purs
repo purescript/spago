@@ -448,15 +448,10 @@ rootPackageToWorkspacePackage { rootPackage, workspaceDoc } = do
 
 workspacePackageToLockfilePackage :: WorkspacePackage -> Tuple PackageName Lock.WorkspaceLockPackage
 workspacePackageToLockfilePackage { path, package } = Tuple package.name
-  { path: forwardSlashPath
+  { path: withForwardSlashes path
   , core: { dependencies: package.dependencies, build_plan: mempty }
   , test: { dependencies: foldMap _.dependencies package.test, build_plan: mempty }
   }
-  where
-  -- When writing lockfile, we specifically always use forward slash as path
-  -- separator to ensure that the lockfile doesn't keep changing when team
-  -- members run Spago on different platforms.
-  forwardSlashPath = path # String.replaceAll (String.Pattern Path.sep) (String.Replacement "/")
 
 shouldComputeNewLockfile :: { workspace :: Core.WorkspaceConfig, workspacePackages :: Map PackageName WorkspacePackage } -> Lock.WorkspaceLock -> Boolean
 shouldComputeNewLockfile { workspace, workspacePackages } workspaceLock =
