@@ -256,7 +256,7 @@ spec = Spec.describe "monorepo" do
   Spec.it "#1208: clones a monorepo only once, even if multiple packages from it are needed" \{ spago, fixture, testCwd } -> do
     -- A local file system Git repo to use as a remote for Spago to clone from
     let createLibraryRepo = do
-          let libRepo = Path.concat [ Paths.paths.temp, "spago-test-1208-repo" ]
+          let libRepo = Path.concat [ Paths.paths.temp, "spago-1208" ]
           FS.copyTree { src: fixture "monorepo/1208-no-double-cloning/library", dst: libRepo }
           git_ libRepo [ "init" ]
           git_ libRepo [ "add", "." ]
