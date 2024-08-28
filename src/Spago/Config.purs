@@ -494,7 +494,6 @@ fileSystemCharEscape = String.toCodePointArray >>> map escapeCodePoint >>> Array
 
   escapeCodePoint :: CodePoint -> String
   escapeCodePoint cp
-    | Unicode.isUpper cp = String.fromCodePointArray $ Unicode.toLower cp
     | ignoreEscape cp = String.singleton cp
     | otherwise = append "%" $ Int.toStringAs Int.hexadecimal $ Enum.fromEnum cp
 
