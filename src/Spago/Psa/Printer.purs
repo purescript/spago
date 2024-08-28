@@ -75,8 +75,8 @@ citationColor Warn = Ansi.BrightYellow
 citationColor Err = Ansi.BrightRed
 
 citationLabel :: Citation -> String
-citationLabel Warn = "WARN"
-citationLabel Err = "ERR"
+citationLabel Warn = "WARNING"
+citationLabel Err = "ERROR"
 
 renderCitation :: Citation -> Int -> Int -> PsaAnnotedError -> D.Doc Ansi.GraphicsParam
 renderCitation cit total index { error, path, position, source, message } =

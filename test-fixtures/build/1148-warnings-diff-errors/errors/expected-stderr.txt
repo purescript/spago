@@ -6,7 +6,7 @@ Downloading dependencies...
 Building...
 [1 of 2] Compiling Foo
 [2 of 2] Compiling Main
-[ERR 1/2 TypesDoNotUnify] src/Foo.purs:4:5
+[ERROR 1/2 TypesDoNotUnify] src/Foo.purs:4:5
 
   4  x = "nope"
          ^^^^^^
@@ -21,7 +21,7 @@ Building...
     has type Int
   in value declaration x
 
-[ERR 2/2 TypesDoNotUnify] src/Main.purs:10:7
+[ERROR 2/2 TypesDoNotUnify] src/Main.purs:10:7
 
   10    log 42
             ^^
