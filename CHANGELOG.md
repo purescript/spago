@@ -29,6 +29,9 @@ Other improvements:
   test!) dependencies not present in the registry.
 - errors and warnings are now explicitly labeled as "ERROR" and "WARNING" in
   Spago build output.
+- always using forward slash as path separator in lockfile, regardless of the
+  platform, so that the lockfile doesn't keep changing when team members run
+  Spago on different platforms.
 
 ## [0.21.0] - 2023-05-04
 

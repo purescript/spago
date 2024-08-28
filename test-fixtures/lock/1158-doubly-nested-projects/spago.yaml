@@ -1,0 +1,6 @@
+package:
+  name: root
+  dependencies: []
+workspace:
+  package_set:
+    registry: 20.0.1

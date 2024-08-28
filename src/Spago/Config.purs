@@ -448,7 +448,7 @@ rootPackageToWorkspacePackage { rootPackage, workspaceDoc } = do
 
 workspacePackageToLockfilePackage :: WorkspacePackage -> Tuple PackageName Lock.WorkspaceLockPackage
 workspacePackageToLockfilePackage { path, package } = Tuple package.name
-  { path
+  { path: withForwardSlashes path
   , core: { dependencies: package.dependencies, build_plan: mempty }
   , test: { dependencies: foldMap _.dependencies package.test, build_plan: mempty }
   }
