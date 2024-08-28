@@ -7,4 +7,3 @@ package:
     dependencies:
       - console
       - effect
-      - prelude

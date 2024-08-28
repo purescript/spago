@@ -25,6 +25,8 @@ Other improvements:
 - migrated tests to the `spec-node` runner.
 - when multiple dependencies share a monorepo, that repo is cloned only once and
   cached locally.
+- `spago publish` now allows to publish a package with some test (but only
+  test!) dependencies not present in the registry.
 
 ## [0.21.0] - 2023-05-04
 

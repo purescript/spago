@@ -15,6 +15,7 @@ import Data.Formatter.DateTime as DateTime
 import Data.List as List
 import Data.Map as Map
 import Data.String as String
+import Dodo (break, lines)
 import Effect.Aff (Milliseconds(..))
 import Effect.Aff as Aff
 import Effect.Ref as Ref
@@ -74,7 +75,7 @@ type PublishEnv a =
 
 type PublishArgs = {}
 
-publish :: forall a. PublishArgs -> Spago (PublishEnv a) Operation.PublishData
+publish :: ∀ a. PublishArgs -> Spago (PublishEnv a) Operation.PublishData
 publish _args = do
   -- We'll store all the errors here in this ref, then complain at the end
   resultRef <- liftEffect $ Ref.new (Left List.Nil)
@@ -116,8 +117,8 @@ publish _args = do
     Effect.liftEffect Process.exit
 
   -- We then need to check that the dependency graph is accurate. If not, queue the errors
-  let allDependencies = Fetch.toAllDependencies dependencies
-  let globs = Build.getBuildGlobs { selected: NEA.singleton selected, withTests: false, dependencies: allDependencies, depsOnly: false }
+  let allCoreDependencies = Fetch.toAllDependencies $ dependencies <#> _ { test = Map.empty }
+  let globs = Build.getBuildGlobs { selected: NEA.singleton selected, withTests: false, dependencies: allCoreDependencies, depsOnly: false }
   eitherGraph <- Graph.runGraph globs []
   case eitherGraph of
     Right graph -> do
@@ -206,15 +207,16 @@ publish _args = do
                       RegistryVersion v -> Right (Tuple pkgName v)
                       _ -> Left pkgName
                   )
-              $ (Map.toUnfoldable allDependencies :: Array _)
-        if Array.length fail > 0 then do
+              $ (Map.toUnfoldable allCoreDependencies :: Array _)
+        if Array.length fail > 0 then
           addError
             $ toDoc
                 [ "Some of the packages you specified as `extraPackages` do not point to the Registry."
                 , "To be able to publish a package to the registry, all of its dependencies have to be packages registered on the Registry."
                 , "Please replace the following packages with versions that are present in the Registry:" -- TODO point to docs
                 ]
-            <> toDoc (map (indent <<< toDoc <<< (append "- ") <<< Json.stringifyJson PackageName.codec) fail)
+            <> break
+            <> lines (fail <#> \p -> indent $ toDoc $ "- " <> PackageName.print p)
         else do
           -- All dependencies come from the registry so we can trust the build plan.
           -- We can then try to build with the dependencies from there.
@@ -352,7 +354,7 @@ publish _args = do
       -- from the solver (this is because the build might terminate the process, and we shall output the errors first)
       logInfo "Building again with the build plan from the solver..."
       let buildPlanDependencies = map Config.RegistryVersion resolutions
-      builtAgain <- runBuild { selected, dependencies: Map.singleton selected.package.name buildPlanDependencies }
+      builtAgain <- runBuild { selected, dependencies: Map.singleton selected.package.name { core: buildPlanDependencies, test: Map.empty } }
         ( Build.run
             { depsOnly: false
             , pursArgs: []
@@ -385,10 +387,10 @@ publish _args = do
     runSpago
       { purs: env.purs
       , git: env.git
-      , dependencies: dependencies
+      , dependencies
       , logOptions: env.logOptions
       , workspace: env.workspace { selected = Just selected }
-      , strictWarnings: (Nothing :: Maybe Boolean)
+      , strictWarnings: Nothing
       , pedanticPackages: false
       }
       action
