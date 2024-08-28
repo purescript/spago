@@ -8,6 +8,7 @@ module Spago.Git
   , getStatus
   , checkout
   , fetch
+  , getRefType
   , isIgnored
   , listTags
   , parseRemote
@@ -101,6 +102,9 @@ fetch { repo, remote } = do
   remoteUrl <- runGit [ "remote", "get-url", remote ] (Just repo) # Except.runExceptT >>= rightOrDie
   logInfo $ "Fetching from " <> remoteUrl
   Except.runExceptT $ runGit_ [ "fetch", remote, "--tags" ] (Just repo)
+
+getRefType :: ∀ a. { repo :: String, ref :: String } -> Spago (GitEnv a) (Either String String)
+getRefType { repo, ref } = Except.runExceptT $ runGit [ "cat-file", "-t", ref ] (Just repo)
 
 listTags :: forall a. Maybe FilePath -> Spago (GitEnv a) (Either Docc (Array String))
 listTags cwd = do
