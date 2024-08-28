@@ -27,6 +27,8 @@ Other improvements:
   cached locally.
 - `spago publish` now allows to publish a package with some test (but only
   test!) dependencies not present in the registry.
+- errors and warnings are now explicitly labeled as "ERR" and "WARN" in Spago
+  build output.
 
 ## [0.21.0] - 2023-05-04
 
