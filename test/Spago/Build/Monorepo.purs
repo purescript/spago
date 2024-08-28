@@ -264,23 +264,14 @@ spec = Spec.describe "monorepo" do
     git_ libRepo [ "tag", "v1" ]
     git_ libRepo [ "tag", "v2" ]
 
+    liftEffect $ Process.chdir "library-origin-repo"
+
     let
-      consumerWorkspace = Path.concat [ testCwd, "consumer" ]
-
-      chdir dir = do
-        let
-          up = Path.dirname dir
-          here = Path.basename dir
-        if up == dir
-          then Process.chdir up
-          else chdir up
-        unless (here == "") $ Process.chdir here
-
       recreateConsumerWorkspace = do
-        liftEffect $ chdir testCwd
-        whenM (FS.exists consumerWorkspace) $ rmRf consumerWorkspace
-        FS.mkdirp consumerWorkspace
-        liftEffect $ chdir consumerWorkspace
+        liftEffect $ Process.chdir ".."
+        whenM (FS.exists "consumer") $ rmRf "consumer"
+        FS.mkdirp "consumer"
+        liftEffect $ Process.chdir "consumer"
         copySpagoYaml "spago-two-deps.yaml"
 
       copySpagoYaml src = do
