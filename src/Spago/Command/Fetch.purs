@@ -429,29 +429,49 @@ toAllDependencies =
 
 getGitPackageInLocalCache :: forall a. PackageName -> GitPackage -> Spago (Git.GitEnv a) Unit
 getGitPackageInLocalCache name package = do
-  let localPackageLocation = Config.getPackageLocation name (GitPackage package)
-  tempDir <- mkTemp' (Just $ printJson Config.gitPackageCodec package)
-  logDebug $ "Cloning repo in " <> tempDir
-  Git.fetchRepo package tempDir >>= case _ of
-    Left err -> die err
-    Right _ -> do
-      logDebug $ "Repo cloned. Moving to " <> localPackageLocation
-      FS.mkdirp $ Path.concat [ Paths.localCachePackagesPath, PackageName.print name ]
-      FS.moveSync { src: tempDir, dst: localPackageLocation }
+  ensureRepoCloned
+  ensureRefPresent
 
-      -- Note: the package might have been cloned with a tag, but we stick the commit hash in the lockfiles
-      -- so we need to make a copy to a location that has the commit hash too.
-      -- So we run getRef here and then do a copy if the ref is different than the original one
-      -- (since it might be a commit to start with)
-      logDebug $ "Checking if we need to copy the package to a commit hash location..."
-      Git.getRef (Just localPackageLocation) >>= case _ of
-        Left err -> die err
-        Right ref -> do
-          when (ref /= package.ref) do
-            let commitHashLocation = Config.getPackageLocation name (GitPackage $ package { ref = ref })
-            logDebug $ "Copying the repo also to " <> commitHashLocation
-            FS.mkdirp $ Path.concat [ Paths.localCachePackagesPath, PackageName.print name ]
-            FS.copyTree { src: localPackageLocation, dst: commitHashLocation }
+  let localPackageLocation = Config.getPackageLocation name (GitPackage package)
+  logDebug $ "Copying repo to " <> localPackageLocation
+  FS.mkdirp $ Path.concat [ Paths.localCachePackagesPath, PackageName.print name ]
+  FS.copyTree { src: repoCacheLocation, dst: localPackageLocation }
+  logDebug $ "Checking out ref '" <> package.ref <> "'"
+  Git.checkout { repo: localPackageLocation, ref: package.ref } >>= rightOrDie_
+
+  -- Note: the package might have been cloned with a tag, but we stick the commit hash in the lockfiles
+  -- so we need to make a copy to a location that has the commit hash too.
+  -- So we run getRef here and then do a copy if the ref is different than the original one
+  -- (since it might be a commit to start with)
+  logDebug $ "Checking if we need to copy the package to a commit hash location..."
+  commitHash <- Git.getRef (Just localPackageLocation) >>= rightOrDie
+  when (commitHash /= package.ref) do
+    let commitHashLocation = Config.getPackageLocation name (GitPackage $ package { ref = commitHash })
+    logDebug $ "Copying the repo also to " <> commitHashLocation
+    FS.copyTree { src: localPackageLocation, dst: commitHashLocation }
+  where
+  repoCacheLocation = Path.concat [ Paths.localCacheGitPath, Config.fileSystemCharEscape package.git ]
+
+  ensureRepoCloned = unlessM (FS.exists repoCacheLocation) do
+    tempDir <- mkTemp' (Just $ printJson Config.gitPackageCodec package)
+    logDebug $ "Cloning repo in " <> tempDir
+    Git.fetchRepo package tempDir >>= rightOrDie_
+
+    logDebug $ "Repo cloned. Moving to " <> repoCacheLocation
+    FS.mkdirp $ Path.concat [ Paths.localCachePackagesPath, PackageName.print name ]
+    FS.moveSync { src: tempDir, dst: repoCacheLocation }
+
+  ensureRefPresent = do
+    logDebug $ "Verifying ref " <> package.ref
+    { offline } <- ask
+    Git.getRefType { repo: repoCacheLocation, ref: package.ref } >>= case _, offline of
+      Right _, _ ->
+        pure unit
+      Left _, Offline ->
+        die $ "Repo " <> package.git <> " does not have ref " <> package.ref <> " in local cache. Cannot pull from origin in offline mode."
+      Left _, Online -> do
+        logDebug $ "Ref " <> package.ref <> " is not present, trying to pull from origin"
+        Git.fetch { repo: repoCacheLocation, remote: "origin" } >>= rightOrDie_
 
 getPackageDependencies :: forall a. PackageName -> Package -> Spago (FetchEnv a) (Maybe (ByEnv (Map PackageName Range)))
 getPackageDependencies packageName package = case package of

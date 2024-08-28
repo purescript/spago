@@ -48,7 +48,7 @@ import Partial.Unsafe (unsafeCrashWith)
 import Registry.ManifestIndex (ManifestIndex) as Extra
 import Registry.Types (PackageName, Version, Range, Location, License, Manifest(..), Metadata(..), Sha256) as Extra
 import Spago.Json (printJson, parseJson) as Extra
-import Spago.Log (logDebug, logError, logInfo, Docc, logSuccess, logWarn, die, die', justOrDieWith, justOrDieWith', rightOrDieWith, rightOrDieWith', toDoc, indent, indent2, output, LogEnv, LogOptions, OutputFormat(..)) as Extra
+import Spago.Log (logDebug, logError, logInfo, Docc, logSuccess, logWarn, die, die', justOrDieWith, justOrDieWith', rightOrDie, rightOrDie_, rightOrDieWith, rightOrDieWith', toDoc, indent, indent2, output, LogEnv, LogOptions, OutputFormat(..)) as Extra
 import Spago.Yaml (YamlDoc, printYaml, parseYaml) as Extra
 
 newtype Spago env a = Spago (ReaderT env Extra.Aff a)

@@ -1,0 +1,6 @@
+package:
+  name: lib3
+  dependencies:
+    - lib1
+    - lib2
+    - prelude

@@ -6,6 +6,9 @@ module Spago.Git
   , getRef
   , getRemotes
   , getStatus
+  , checkout
+  , fetch
+  , getRefType
   , isIgnored
   , listTags
   , parseRemote
@@ -48,7 +51,7 @@ runGit args cwd = ExceptT do
     Right r -> Right r.stdout
     Left r -> Left r.stderr
 
-fetchRepo :: forall a b. { git :: String, ref :: String | a } -> FilePath -> Spago (GitEnv b) (Either (Array String) Unit)
+fetchRepo :: ∀ a b. { git :: String, ref :: String | a } -> FilePath -> Spago (GitEnv b) (Either (Array String) Unit)
 fetchRepo { git, ref } path = do
   repoExists <- FS.exists path
   { offline } <- ask
@@ -90,6 +93,18 @@ fetchRepo { git, ref } path = do
         Right _ -> do
           logDebug $ "Successfully fetched the repo '" <> git <> "' at ref '" <> ref <> "'"
           pure $ Right unit
+
+checkout :: ∀ a. { repo :: String, ref :: String } -> Spago (GitEnv a) (Either String Unit)
+checkout { repo, ref } = Except.runExceptT $ void $ runGit [ "checkout", ref ] (Just repo)
+
+fetch :: ∀ a. { repo :: String, remote :: String } -> Spago (GitEnv a) (Either String Unit)
+fetch { repo, remote } = do
+  remoteUrl <- runGit [ "remote", "get-url", remote ] (Just repo) # Except.runExceptT >>= rightOrDie
+  logInfo $ "Fetching from " <> remoteUrl
+  Except.runExceptT $ runGit_ [ "fetch", remote, "--tags" ] (Just repo)
+
+getRefType :: ∀ a. { repo :: String, ref :: String } -> Spago (GitEnv a) (Either String String)
+getRefType { repo, ref } = Except.runExceptT $ runGit [ "cat-file", "-t", ref ] (Just repo)
 
 listTags :: forall a. Maybe FilePath -> Spago (GitEnv a) (Either Docc (Array String))
 listTags cwd = do

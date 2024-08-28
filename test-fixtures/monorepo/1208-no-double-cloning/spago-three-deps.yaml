@@ -1,0 +1,22 @@
+package:
+  name: consumer
+  dependencies:
+    - lib1
+    - lib2
+    - lib3
+workspace:
+  packageSet:
+    registry: 56.4.0
+  extraPackages:
+    lib1:
+      git: <library-repo-path>
+      subdir: lib1
+      ref: v1
+    lib2:
+      git: <library-repo-path>
+      subdir: lib2
+      ref: v2
+    lib3:
+      git: <library-repo-path>
+      subdir: lib3
+      ref: v3

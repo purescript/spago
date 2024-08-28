@@ -1,0 +1,4 @@
+package:
+  name: lib1
+  dependencies:
+    - prelude
