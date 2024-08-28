@@ -475,7 +475,7 @@ getGitPackageInLocalCache name package = do
     FS.moveSync { src: tempDir, dst: repoCacheLocation }
 
   ensureRefPresent = do
-    logDebug $ "Checking out " <> package.ref
+    logDebug $ "Verifying ref " <> package.ref
     { offline } <- ask
     Git.getRefType { repo: repoCacheLocation, ref: package.ref } >>= case _, offline of
       Right _, _ ->
@@ -483,7 +483,7 @@ getGitPackageInLocalCache name package = do
       Left _, Offline ->
         die $ "Repo " <> package.git <> " does not have ref " <> package.ref <> " in local cache. Cannot pull from origin in offline mode."
       Left _, Online -> do
-        logDebug $ "Failed to checkout " <> package.ref <> ", trying to pull from origin"
+        logDebug $ "Ref " <> package.ref <> " is not present, trying to pull from origin"
         Git.fetch { repo: repoCacheLocation, remote: "origin" } >>= rightOrDie_
 
 getPackageDependencies :: forall a. PackageName -> Package -> Spago (FetchEnv a) (Maybe (Map PackageName Range))

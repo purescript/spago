@@ -79,7 +79,7 @@ jobs:
         run: node ./bin/bundle.js bundle -p docs-search-client-halogen
 
       - name: Run tests
-        run: node ./bin/bundle.js test -- -e "#1208"
+        run: node ./bin/bundle.js test
 
       - name: Check formatting (Linux only)
         if: matrix.os == 'ubuntu-latest'

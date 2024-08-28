@@ -257,9 +257,11 @@ spec = Spec.describe "monorepo" do
     -- A local file system Git repo to use as a remote for Spago to clone from
     let createLibraryRepo = do
           let libRepo = Path.concat [ Paths.paths.temp, "spago-1208" ]
+          whenM (FS.exists libRepo) $ rmRf libRepo
           FS.copyTree { src: fixture "monorepo/1208-no-double-cloning/library", dst: libRepo }
           git_ libRepo [ "init" ]
           git_ libRepo [ "add", "." ]
+          git_ libRepo [ "config", "--global", "core.longpaths", "true" ]
           git_ libRepo [ "config", "user.name", "test-user" ]
           git_ libRepo [ "config", "user.email", "test-user@aol.com" ]
           git_ libRepo [ "commit", "-m", "Initial commit" ]
@@ -308,7 +310,7 @@ spec = Spec.describe "monorepo" do
       -- otherwise it may or may not appear in Spago's output and then we can't
       -- reliably compare it to golden output.
       recreateConsumerWorkspace
-      void $ spago [ "ls", "packages" ]
+      spago [ "ls", "packages" ] >>= shouldBeSuccess
 
       -- Nuke the cache after that so Spago can re-clone the repositories and we
       -- can check that it's happening only once.
