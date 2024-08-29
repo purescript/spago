@@ -3,6 +3,7 @@ module Test.Spago.Build where
 import Test.Prelude
 
 import Data.Foldable (fold)
+import Data.String as String
 import Node.FS.Aff as FSA
 import Node.Path as Path
 import Node.Platform as Platform
@@ -210,6 +211,32 @@ spec = Spec.around withTempDir do
       spago [ "build", "--migrate" ] >>= shouldBeSuccessErr (fixture "build/migrate-config/migrating-output.txt")
       spago [ "build" ] >>= shouldBeSuccessErr (fixture "build/migrate-config/migrated-output.txt")
       checkFixture "spago.yaml" (fixture "build/migrate-config/migrated-spago.yaml")
+
+    Spec.it "#1148: outputs errors and warnings after build" \{ spago, fixture } -> do
+      let
+        shouldBeSuccessErr' = checkOutputsWithPathSeparatorPatchErr isRight
+        shouldBeFailureErr' = checkOutputsWithPathSeparatorPatchErr isLeft
+
+        checkOutputsWithPathSeparatorPatchErr result expectedFixture =
+          checkOutputs'
+            { stdoutFile: Nothing
+            , stderrFile: Just $ fixture expectedFixture
+            , result
+            , sanitize:
+                String.trim
+                >>> String.replaceAll (String.Pattern $ "src\\") (String.Replacement "src/")
+                >>> String.replaceAll (String.Pattern $ "\r\n") (String.Replacement "\n")
+            }
+
+      FS.copyTree { src: fixture "build/1148-warnings-diff-errors", dst: "." }
+
+      liftEffect $ Process.chdir "errors"
+      spago [ "install" ] >>= shouldBeSuccess
+      spago [ "build" ] >>= shouldBeFailureErr' "build/1148-warnings-diff-errors/errors/expected-stderr.txt"
+
+      liftEffect $ Process.chdir "../warnings"
+      spago [ "install" ] >>= shouldBeSuccess
+      spago [ "build" ] >>= shouldBeSuccessErr' "build/1148-warnings-diff-errors/warnings/expected-stderr.txt"
 
     Pedantic.spec
 

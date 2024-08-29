@@ -60,7 +60,7 @@ spec = Spec.around withTempDir do
       FS.mkdirp "subpackage/test"
       FS.writeTextFile "subpackage/src/Main.purs" (Init.srcMainTemplate "Subpackage.Main")
 
-      -- We write a file into the current working directory. 
+      -- We write a file into the current working directory.
       -- The subpackage test will read the given file without changing its directory
       -- and log its content as its output.
       let textFilePath = "foo.txt"
@@ -130,8 +130,8 @@ spec = Spec.around withTempDir do
       let
         exp =
           case Process.platform of
-            Just Platform.Win32 -> "[1/1 UnusedName] test\\Test\\Main.purs:10:5"
-            _ -> "[1/1 UnusedName] test/Test/Main.purs:10:5"
+            Just Platform.Win32 -> "[WARNING 1/1 UnusedName] test\\Test\\Main.purs:10:5"
+            _ -> "[WARNING 1/1 UnusedName] test/Test/Main.purs:10:5"
         hasUnusedNameWarningError stdErr = do
 
           unless (String.contains (String.Pattern exp) stdErr) do
