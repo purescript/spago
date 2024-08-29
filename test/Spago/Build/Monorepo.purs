@@ -142,8 +142,8 @@ spec = Spec.describe "monorepo" do
       FS.copyTree { src: fixture "monorepo/strict-true-uncensored-warnings", dst: "." }
       let
         errs =
-          [ "[WARNING 1/2 UnusedName] " <> escapePathInErrMsg [ "package-b", "src", "Main.purs:6:13" ]
-          , "[WARNING 2/2 UnusedName] " <> escapePathInErrMsg [ "package-b", "test", "Main.purs:6:13" ]
+          [ "[ERROR 1/2 UnusedName] " <> escapePathInErrMsg [ "package-b", "src", "Main.purs:6:13" ]
+          , "[ERROR 2/2 UnusedName] " <> escapePathInErrMsg [ "package-b", "test", "Main.purs:6:13" ]
           ]
         hasUnusedWarningError = assertWarning errs true
       spago [ "build" ] >>= check { stdout: mempty, stderr: hasUnusedWarningError, result: isLeft }
