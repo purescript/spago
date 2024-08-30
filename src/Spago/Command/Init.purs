@@ -45,12 +45,13 @@ run opts = do
   -- Use the specified version of the package set (if specified).
   -- Otherwise, get the latest version of the package set for the given compiler
   packageSetVersion <- Registry.findPackageSet opts.setVersion
-  { purs } <- ask
-  logInfo $ "Found PureScript " <> Version.print purs.version <> ", will use package set " <> Version.print packageSetVersion
 
   packageName <- getPackageName
   withWorkspace <- getWithWorkspace packageSetVersion
   projectDir <- getProjectDir packageName
+
+  { purs } <- ask
+  logInfo $ "Found PureScript " <> Version.print purs.version <> ", will use package set " <> Version.print packageSetVersion
 
   let
     mainModuleName = "Main"
