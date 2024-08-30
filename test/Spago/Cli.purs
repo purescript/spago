@@ -43,4 +43,22 @@ spec = Spec.around withTempDir do
   -- it's just "Usage: index.dev.js"
   progNameRegex = unsafeFromRight $ Regex.regex "Usage: .*index\\.dev\\.js" RF.noFlags
 
+  -- This regex catches "hanging" lines that list possible options after a
+  -- command, like this:
+  --
+  --     Usage: index.dev.js build [--option] [--another-option]
+  --                               [--third-option] [--foo]
+  --                               [-f|--force] [--help]
+  --
+  -- The second and third line in this example are aligned to whererever the
+  -- command name happened to end, and this will be different between Unix and
+  -- Windows, because on Unix the command is just the file name `index.dev.js`,
+  -- but on Windows it includes the full path, and worse, it's going to be
+  -- different path on differemt machines with different configurations.
+  --
+  -- So to work around this we collapse those "hanging" lines with options by
+  -- replacing newline and subsequent wide whitespace with a single space, like:
+  --
+  --     Usage: index.dev.js build [--option] [--another-option] [--third-option] [--foo] [-f|--force] [--help]
+  --
   optionsLineRegex = unsafeFromRight $ Regex.regex "\\n\\s+(\\(\\[-|\\[-|PACKAGE)" RF.global
