@@ -313,8 +313,8 @@ subpackageName =
 initMode :: Parser Init.InitMode
 initMode =
   (Init.InitSubpackage <$> subpackageName)
-  <|> (Init.InitWorkspace <$> maybePackageName)
-  <|> Prelude.pure (Init.InitWorkspace Nothing)
+    <|> (Init.InitWorkspace <$> maybePackageName)
+    <|> Prelude.pure (Init.InitWorkspace Nothing)
 
 ensureRanges :: Parser Boolean
 ensureRanges =

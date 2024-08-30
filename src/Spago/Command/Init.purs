@@ -101,10 +101,11 @@ run opts = do
       false -> FS.writeTextFile dest srcTemplate
 
   getPackageName = do
-    let candidateName = case opts.mode of
-          InitWorkspace Nothing -> String.take 150 $ Path.basename Paths.cwd
-          InitWorkspace (Just n) -> n
-          InitSubpackage n -> n
+    let
+      candidateName = case opts.mode of
+        InitWorkspace Nothing -> String.take 150 $ Path.basename Paths.cwd
+        InitWorkspace (Just n) -> n
+        InitSubpackage n -> n
     logDebug [ show Paths.cwd, show candidateName ]
     pname <- case PackageName.parse (PackageName.stripPureScriptPrefix candidateName) of
       Left err -> die
@@ -135,7 +136,6 @@ run opts = do
       let dirPath = PackageName.print packageName
       unlessM (FS.exists dirPath) $ FS.mkdirp dirPath
       pure dirPath
-
 
 -- TEMPLATES -------------------------------------------------------------------
 
