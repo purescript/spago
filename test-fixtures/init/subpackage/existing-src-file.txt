@@ -1,5 +1,5 @@
 Initializing a new project...
 Found PureScript 0.15.15, will use package set 58.0.0
-Found existing directory "subdir/src", skipping copy of sample sources
+Found existing directory subdir/src, skipping copy of sample sources
 Set up a new Spago project.
 Try running `spago run -p subdir`

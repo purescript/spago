@@ -2,6 +2,7 @@ module Test.Spago.InitSubpackage where
 
 import Test.Prelude
 
+import Data.String as String
 import Node.Path as Path
 import Spago.FS as FS
 import Test.Spec (SpecT)
@@ -22,7 +23,7 @@ spec =
       FS.mkdirp "subdir/src"
       FS.writeTextFile (Path.concat [ "subdir", "src", "Main.purs" ]) "Something"
       spago [ "init", "--subpackage", "subdir" ]
-        >>= shouldBeSuccessErr (fixture "init/subpackage/existing-src-file.txt")
+        >>= shouldBeSuccessErr' (fixture "init/subpackage/existing-src-file.txt")
       fileContent <- FS.readTextFile (Path.concat [ "subdir", "src", "Main.purs" ])
       fileContent `shouldEqualStr` "Something"
 
@@ -30,13 +31,28 @@ spec =
       spago [ "init" ] >>= shouldBeSuccess
 
       spago [ "init", "--package-set", "9.0.0", "--subpackage", "subdir" ]
-        >>= shouldBeSuccessErr (fixture "init/subpackage/package-set-solver-warning.txt")
+        >>= shouldBeSuccessErr' (fixture "init/subpackage/package-set-solver-warning.txt")
       checkFixture "subdir/spago.yaml" (fixture "init/subpackage/subdir-spago.yaml")
 
       spago [ "init", "--use-solver", "--subpackage", "subdir" ]
-        >>= shouldBeSuccessErr (fixture "init/subpackage/package-set-solver-warning.txt")
+        >>= shouldBeSuccessErr' (fixture "init/subpackage/package-set-solver-warning.txt")
       checkFixture "subdir/spago.yaml" (fixture "init/subpackage/subdir-spago.yaml")
 
     Spec.it "does not allow both --name and --subpackage flags" \{ spago, fixture } -> do
       spago [ "init", "--name", "foo", "--subpackage", "bar" ]
-        >>= shouldBeFailureErr (fixture "init/subpackage/conflicting-flags.txt")
+        >>= shouldBeFailureErr' (fixture "init/subpackage/conflicting-flags.txt")
+
+  where
+  shouldBeSuccessErr' = checkOutputsWithPatch isRight
+  shouldBeFailureErr' = checkOutputsWithPatch isLeft
+
+  checkOutputsWithPatch result fixture =
+    checkOutputs'
+      { stdoutFile: Nothing
+      , stderrFile: Just fixture
+      , result
+      , sanitize:
+          String.trim
+          >>> withForwardSlashes
+          >>> String.replace (String.Pattern "\r\n") (String.Replacement "\n")
+      }
