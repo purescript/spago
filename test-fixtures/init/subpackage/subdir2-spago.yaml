@@ -1,0 +1,9 @@
+package:
+  name: subdir2
+  dependencies:
+    - console
+    - effect
+    - prelude
+  test:
+    main: Test.Main
+    dependencies: []

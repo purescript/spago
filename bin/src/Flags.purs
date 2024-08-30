@@ -7,7 +7,9 @@ import Data.List as List
 import Options.Applicative (FlagFields, Mod, Parser)
 import Options.Applicative as O
 import Options.Applicative.Types as OT
+import Spago.Command.Init as Init
 import Spago.Core.Config as Core
+import Spago.Prelude as Prelude
 
 flagMaybe ∷ ∀ (a ∷ Type). a -> Mod FlagFields (Maybe a) -> Parser (Maybe a)
 flagMaybe a mod = O.flag Nothing (Just a) mod
@@ -300,6 +302,19 @@ maybePackageName =
       ( O.long "name"
           <> O.help "Optional package name to be used for the new project"
       )
+
+subpackageName :: Parser String
+subpackageName =
+  O.strOption
+    ( O.long "subpackage"
+        <> O.help "Name of a subpackage to initialize within the current workspace"
+    )
+
+initMode :: Parser Init.InitMode
+initMode =
+  (Init.InitSubpackage <$> subpackageName)
+  <|> (Init.InitWorkspace <$> maybePackageName)
+  <|> Prelude.pure (Init.InitWorkspace Nothing)
 
 ensureRanges :: Parser Boolean
 ensureRanges =
