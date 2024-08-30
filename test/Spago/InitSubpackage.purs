@@ -3,6 +3,8 @@ module Test.Spago.InitSubpackage where
 import Test.Prelude
 
 import Data.String as String
+import Data.String.Regex as Regex
+import Data.String.Regex.Flags as RF
 import Node.Path as Path
 import Spago.FS as FS
 import Test.Spec (SpecT)
@@ -35,7 +37,7 @@ spec =
       checkFixture "subdir/spago.yaml" (fixture "init/subpackage/subdir-spago.yaml")
 
       spago [ "init", "--use-solver", "--subpackage", "subdir" ]
-        >>= shouldBeSuccessErr' (fixture "init/subpackage/package-set-solver-warning.txt")
+        >>= shouldBeSuccessErr' (fixture "init/subpackage/package-set-solver-warning-existing-files.txt")
       checkFixture "subdir/spago.yaml" (fixture "init/subpackage/subdir-spago.yaml")
 
     Spec.it "does not allow both --name and --subpackage flags" \{ spago, fixture } -> do
@@ -54,5 +56,8 @@ spec =
       , sanitize:
           String.trim
           >>> withForwardSlashes
-          >>> String.replace (String.Pattern "\r\n") (String.Replacement "\n")
+          >>> Regex.replace versionsRegex "Found PureScript a.b.c, will use package set x.y.z"
       }
+
+  versionsRegex = unsafeFromRight $
+    Regex.regex "Found PureScript \\d+\\.\\d+\\.\\d+, will use package set \\d+\\.\\d+\\.\\d+" RF.noFlags
