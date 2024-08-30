@@ -20,6 +20,7 @@ import Node.Path as Path
 import Node.Process as Process
 import Options.Applicative (CommandFields, Mod, Parser, ParserPrefs(..))
 import Options.Applicative as O
+import Options.Applicative.Types (Backtracking(..))
 import Optparse as Optparse
 import Record as Record
 import Registry.PackageName as PackageName
@@ -508,6 +509,7 @@ parseArgs = do
         ( p
             { prefShowHelpOnError = true
             , prefShowHelpOnEmpty = true
+            , prefBacktrack = NoBacktrack
             }
         )
     )
