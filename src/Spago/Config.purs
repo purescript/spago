@@ -179,6 +179,7 @@ type PrelimWorkspace =
 -- | Reads all the configurations in the tree and builds up the Map of local
 -- | packages to be integrated in the package set
 readWorkspace :: ∀ a. ReadWorkspaceOptions -> Spago (Registry.RegistryEnv a) Workspace
+-- readWorkspace readWorkspaceOptions@{ maybeSelectedPackage, pureBuild, migrateConfig } = do
 readWorkspace { maybeSelectedPackage, pureBuild, migrateConfig } = do
   logInfo "Reading spago.yaml..."
 
@@ -234,12 +235,16 @@ readWorkspace { maybeSelectedPackage, pureBuild, migrateConfig } = do
               -- do not search up the file tree further than this
               logInfo $ "No Spago workspace found in any directory up to project root: " <> path <> gitRoot
               pure Nothing
-            Just ws -> pure (pure (Tuple spagoYaml ws))
+            Just ws -> do
+              logInfo spagoYaml
+              pure (map (\p -> (Tuple p ws)) (String.stripSuffix (Pattern "spago.yaml") spagoYaml))
         Tuple (Just spagoYaml) Nothing -> do
           mWorkspace :: Maybe PrelimWorkspace <- checkForWorkspace spagoYaml
           case mWorkspace of
             Nothing -> searchHigherPaths otherPaths
-            Just ws -> pure (pure (Tuple spagoYaml ws))
+            Just ws -> do
+              logInfo spagoYaml
+              pure (map (\p -> (Tuple p ws)) (String.stripSuffix (Pattern "spago.yaml") spagoYaml))
 
   -- First try to read the config in the root.
   -- Else, look for a workspace in parent directories.
