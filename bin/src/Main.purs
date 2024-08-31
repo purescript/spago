@@ -509,6 +509,7 @@ parseArgs = do
         ( p
             { prefShowHelpOnError = true
             , prefShowHelpOnEmpty = true
+            -- Needed to avoid things like https://github.com/purescript/spago/issues/1146
             , prefBacktrack = NoBacktrack
             }
         )
