@@ -402,7 +402,7 @@ writeNewLockfile reason allTransitiveDeps = do
           , extra_packages: fromMaybe Map.empty workspace.workspaceConfig.extraPackages
           }
       }
-  liftAff $ FS.writeYamlFile Lock.lockfileCodec "spago.lock" lockfile
+  liftAff $ FS.writeJsonFile Lock.lockfileCodec "spago.lock" lockfile
   logInfo "Lockfile written to spago.lock. Please commit this file."
 
   -- We update the dependencies here with the commit hashes that came from the getRef calls,
