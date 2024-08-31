@@ -2,12 +2,13 @@ module Spago.Paths where
 
 import Prelude
 
+import Data.Array (cons, replicate, reverse)
+import Data.String (joinWith)
+import Effect.Class (class MonadEffect, liftEffect)
 import Effect.Unsafe (unsafePerformEffect)
 import Node.Path (FilePath)
 import Node.Path as Path
 import Node.Process as Process
-import Data.Array (cons, replicate, reverse)
-import Data.String (joinWith)
 
 type NodePaths =
   { config :: FilePath
@@ -21,6 +22,9 @@ foreign import paths :: NodePaths
 
 cwd :: FilePath
 cwd = unsafePerformEffect (Process.cwd)
+
+chdir :: forall m. MonadEffect m => FilePath -> m Unit
+chdir dir = liftEffect $ Process.chdir dir
 
 mkRelative :: FilePath -> FilePath
 mkRelative = Path.relative cwd
