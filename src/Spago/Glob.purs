@@ -3,7 +3,7 @@
 -- | All of this code (and the FFI file) is a series of attempts to make globbing
 -- | reasonably performant while still supporting all of our usecases, like ignoring
 -- | files based on `.gitignore` files.
-module Spago.Glob (gitignoringGlob) where
+module Spago.Glob (gitignoringGlob, findGitGlob) where
 
 import Spago.Prelude
 
@@ -207,3 +207,7 @@ fsWalk cwd ignorePatterns includePatterns = Aff.makeAff \cb -> do
 gitignoringGlob :: String -> Array String -> Aff (Array String)
 gitignoringGlob dir patterns = map (withForwardSlashes <<< Path.relative dir <<< _.path)
   <$> fsWalk dir [ ".git" ] patterns
+
+findGitGlob :: String -> Aff (Array String)
+findGitGlob dir = map (withForwardSlashes <<< Path.relative dir <<< _.path)
+  <$> fsWalk dir mempty [ "./.git" ]

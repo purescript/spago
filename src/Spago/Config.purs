@@ -38,6 +38,7 @@ import Data.Enum as Enum
 import Data.Graph as Graph
 import Data.HTTP.Method as Method
 import Data.Int as Int
+import Data.List (List(..))
 import Data.Map as Map
 import Data.Nullable (Nullable)
 import Data.Nullable as Nullable
@@ -164,11 +165,23 @@ type ReadWorkspaceOptions =
   , migrateConfig :: Boolean
   }
 
+type PrelimWorkspace =
+  { backend :: Maybe Core.BackendConfig
+  , buildOpts :: Maybe
+                 { censorLibraryWarnings :: Maybe Core.CensorBuildWarnings
+                 , output :: Maybe String
+                 , statVerbosity :: Maybe Core.StatVerbosity
+                 }
+  , extraPackages :: Maybe (Map PackageName Core.ExtraPackage)
+  , packageSet :: Maybe Core.SetAddress
+  }
+
 -- | Reads all the configurations in the tree and builds up the Map of local
 -- | packages to be integrated in the package set
 readWorkspace :: ∀ a. ReadWorkspaceOptions -> Spago (Registry.RegistryEnv a) Workspace
+-- readWorkspace readWorkspaceOptions@{ maybeSelectedPackage, pureBuild, migrateConfig } = do
 readWorkspace { maybeSelectedPackage, pureBuild, migrateConfig } = do
-  logInfo "Reading Spago workspace configuration..."
+  logInfo "Reading spago.yaml..."
 
   let
     doMigrateConfig :: FilePath -> _ -> Spago (Registry.RegistryEnv _) Unit
@@ -180,8 +193,62 @@ readWorkspace { maybeSelectedPackage, pureBuild, migrateConfig } = do
         false, true -> logWarn $ "Your " <> path <> " is using an outdated format. Run Spago with the --migrate flag to update it to the latest version."
         _, false -> pure unit
 
-  -- First try to read the config in the root. It _has_ to contain a workspace
-  -- configuration, or we fail early.
+  let
+    higherPaths :: List FilePath
+    higherPaths = Array.toUnfoldable $ Paths.toGitSearchPath Paths.cwd
+
+    checkForWorkspace :: forall b. FilePath
+      -> Spago (LogEnv b) (Maybe PrelimWorkspace)
+    checkForWorkspace config = do
+      logDebug $ "Checking for workspace: " <> config
+      result <- map (map (\y -> y.yaml)) $ readConfig config
+      case result of
+        Left _ -> pure Nothing
+        Right { workspace: Nothing } -> pure Nothing
+        Right { workspace: Just ws } -> pure (Just ws)
+
+    searchHigherPaths :: forall b. List FilePath -> Spago (LogEnv b) (Maybe (Tuple FilePath PrelimWorkspace))
+    searchHigherPaths Nil = pure Nothing
+    searchHigherPaths (path : otherPaths) = do
+      mGitRoot :: Maybe String <- map Array.head $ liftAff $ Glob.findGitGlob path
+      case mGitRoot of
+        Nothing -> do
+          logDebug "No project root (.git) found at: "
+          logDebug path
+        Just gitRoot -> do
+          logInfo "Project root (.git) found at: "
+          logInfo $ path <> gitRoot
+      mSpagoYaml :: Maybe String <- map (map (\yml -> path <> yml)) $ map Array.head $ liftAff $ Glob.gitignoringGlob path [ "./spago.yaml" ]
+
+      case Tuple mSpagoYaml mGitRoot of
+        Tuple Nothing Nothing -> searchHigherPaths otherPaths
+        Tuple Nothing (Just gitRoot) -> do
+          -- directory containing .git assumed to be the root of the project;
+          -- do not search up the file tree further than this
+          logInfo $ "No Spago workspace found in any directory up to project root: " <> path <> gitRoot
+          pure Nothing
+        Tuple (Just spagoYaml) (Just gitRoot) -> do
+          mWorkspace :: Maybe PrelimWorkspace <- checkForWorkspace spagoYaml
+          case mWorkspace of
+            Nothing -> do
+              -- directory containing .git assumed to be the root of the project;
+              -- do not search up the file tree further than this
+              logInfo $ "No Spago workspace found in any directory up to project root: " <> path <> gitRoot
+              pure Nothing
+            Just ws -> do
+              logInfo spagoYaml
+              pure (map (\p -> (Tuple p ws)) (String.stripSuffix (Pattern "spago.yaml") spagoYaml))
+        Tuple (Just spagoYaml) Nothing -> do
+          mWorkspace :: Maybe PrelimWorkspace <- checkForWorkspace spagoYaml
+          case mWorkspace of
+            Nothing -> searchHigherPaths otherPaths
+            Just ws -> do
+              logInfo spagoYaml
+              pure (map (\p -> (Tuple p ws)) (String.stripSuffix (Pattern "spago.yaml") spagoYaml))
+
+  -- First try to read the config in the root.
+  -- Else, look for a workspace in parent directories.
+  -- Else fail.
   { workspace, package: maybePackage, workspaceDoc } <- readConfig "spago.yaml" >>= case _ of
     Left errLines ->
       die
@@ -191,18 +258,32 @@ readWorkspace { maybeSelectedPackage, pureBuild, migrateConfig } = do
         , Log.break
         , toDoc "The configuration file help can be found here https://github.com/purescript/spago#the-configuration-file"
         ]
-    Right { yaml: { workspace: Nothing } } -> die
-      [ "Your spago.yaml doesn't contain a workspace section."
-      , "See the relevant documentation here: https://github.com/purescript/spago#the-workspace"
-      ]
+    Right config@{ yaml: { workspace: Nothing, package }, doc } -> do
+      logInfo "Looking for Spago workspace configuration higher in the filesystem."
+      logInfo $ "Search limited to " <> show Paths.gitSearchDepth <> " levels, or project root (.git)..."
+      mHigherWorkspace <- searchHigherPaths higherPaths
+      case mHigherWorkspace of
+        Nothing ->
+          die
+          [ "No workspace definition found in this directory"
+          , "or in any directory up to root of project."
+          , "Root determined by '.git' file."
+          , "See the relevant documentation here: https://github.com/purescript/spago#the-workspace"
+          ]
+        Just (Tuple higherWorkspacePath higherWorkspace) -> do
+          logInfo "Found workspace definition in: "
+          logInfo higherWorkspacePath
+          -- TODO migrate workspace at higher directory?
+          doMigrateConfig "spago.yaml" config
+          pure { workspace: higherWorkspace, package, workspaceDoc: doc }
     Right config@{ yaml: { workspace: Just workspace, package }, doc } -> do
       doMigrateConfig "spago.yaml" config
       pure { workspace, package, workspaceDoc: doc }
 
-  logDebug "Gathering all the spago configs in the tree..."
-  otherConfigPaths <- liftAff $ Glob.gitignoringGlob Paths.cwd [ "**/spago.yaml" ]
-  unless (Array.null otherConfigPaths) do
-    logDebug $ [ toDoc "Found packages at these paths:", Log.indent $ Log.lines (map toDoc otherConfigPaths) ]
+  logDebug "Gathering all the spago configs lower in the filesystem..."
+  otherLowerConfigPaths <- liftAff $ Glob.gitignoringGlob Paths.cwd [ "**/spago.yaml" ]
+  unless (Array.null otherLowerConfigPaths) do
+    logDebug $ [ toDoc "Found packages at these lower paths:", Log.indent $ Log.lines (map toDoc otherLowerConfigPaths) ]
 
   -- We read all of them in, and only read the package section, if any.
   let
@@ -220,7 +301,7 @@ readWorkspace { maybeSelectedPackage, pureBuild, migrateConfig } = do
         Right config -> do
           Right { config, hasTests, configPath: path, packagePath: Path.dirname path }
 
-  { right: otherPackages, left: failedPackages } <- partitionMap identity <$> traverse readWorkspaceConfig otherConfigPaths
+  { right: otherPackages, left: failedPackages } <- partitionMap identity <$> traverse readWorkspaceConfig otherLowerConfigPaths
   unless (Array.null failedPackages) do
     logWarn $ [ toDoc "Failed to read some configs:" ] <> failedPackages
 
