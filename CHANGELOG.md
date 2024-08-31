@@ -32,6 +32,8 @@ Other improvements:
 - always using forward slash as path separator in lockfile, regardless of the
   platform, so that the lockfile doesn't keep changing when team members run
   Spago on different platforms.
+- when encountering a mistyped option for a command, Spago will show help for
+  that command, not root help.
 
 ## [0.21.0] - 2023-05-04
 
