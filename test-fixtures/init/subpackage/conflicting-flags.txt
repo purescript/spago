@@ -1,28 +1,21 @@
 Invalid option `--subpackage'
 
-Usage: index.dev.js (COMMAND | (-v|--version))
-  PureScript package manager and build tool
+Usage: index.dev.js init [--migrate] [--monochrome|--no-color] [--offline] [-q|--quiet] [-v|--verbose] ([--subpackage ARG] | [--name ARG]) [--package-set ARG] [--use-solver]
+  Initialise a new project
 
 Available options:
+  --migrate                Migrate the spago.yaml file to the latest format
+  --monochrome,--no-color  Force logging without ANSI color escape sequences
+  --offline                Do not attempt to use the network. Warning: this will
+                           fail if you don't have the necessary dependencies
+                           already cached
+  -q,--quiet               Suppress all spago logging
+  -v,--verbose             Enable additional debug logging, e.g. printing `purs`
+                           commands
+  --subpackage ARG         Name of a subpackage to initialize within the current
+                           workspace
+  --name ARG               Optional package name to be used for the new project
+  --package-set ARG        Optional package set version to be used instead of
+                           the latest one
+  --use-solver             Use the solver instead of package sets
   -h,--help                Show this help text
-  -v,--version             Show the current version
-
-Available commands:
-  init                     Initialise a new project
-  fetch                    Downloads all of the project's dependencies
-  install                  Compile the project's dependencies
-  uninstall                Remove dependencies from a package
-  build                    Compile the project
-  run                      Run the project
-  test                     Test the project
-  bundle                   Bundle the project in a single file
-  sources                  List all the source paths (globs) for the
-                           dependencies of the project
-  repl                     Start a REPL
-  publish                  Publish a package
-  upgrade                  Upgrade to the latest package set, or to the latest
-                           versions of Registry packages
-  docs                     Generate docs for the project and its dependencies
-  registry                 Commands to interact with the Registry
-  ls                       List packages or dependencies
-  graph                    Generate a graph of modules or dependencies

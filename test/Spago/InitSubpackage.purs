@@ -2,11 +2,11 @@ module Test.Spago.InitSubpackage where
 
 import Test.Prelude
 
-import Data.String as String
 import Data.String.Regex as Regex
 import Data.String.Regex.Flags as RF
 import Node.Path as Path
 import Spago.FS as FS
+import Test.Spago.Cli (sanitizeCliHelpOutput)
 import Test.Spec (SpecT)
 import Test.Spec as Spec
 
@@ -54,7 +54,7 @@ spec =
       , stderrFile: Just fixture
       , result
       , sanitize:
-          String.trim
+          sanitizeCliHelpOutput
           >>> withForwardSlashes
           >>> Regex.replace versionsRegex "Found PureScript a.b.c, will use package set x.y.z"
       }
