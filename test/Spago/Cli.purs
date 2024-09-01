@@ -64,4 +64,4 @@ sanitizeCliHelpOutput =
   --
   --     Usage: index.dev.js build [--option] [--another-option] [--third-option] [--foo] [-f|--force] [--help]
   --
-  optionsLineRegex = unsafeFromRight $ Regex.regex "\\n\\s+(\\(\\[-|\\[-|PACKAGE)" RF.global
+  optionsLineRegex = unsafeFromRight $ Regex.regex "\\n\\s+(\\| \\[-|\\(\\[-|\\[-|PACKAGE)" RF.global
