@@ -27,7 +27,9 @@ import Spago.Paths as Paths
 import Spago.Registry (RegistryEnv)
 import Spago.Registry as Registry
 
-data InitMode = InitWorkspace (Maybe String) | InitSubpackage String
+data InitMode
+  = InitWorkspace { packageName :: Maybe String }
+  | InitSubpackage { packageName :: String }
 
 type InitOptions =
   -- TODO: we should allow the `--package-set` flag to alternatively pass in a URL
@@ -100,12 +102,13 @@ run opts = do
       true -> logInfo $ foundExistingFile dest
       false -> FS.writeTextFile dest srcTemplate
 
+  getPackageName :: Spago (RegistryEnv a) PackageName
   getPackageName = do
     let
       candidateName = case opts.mode of
-        InitWorkspace Nothing -> String.take 150 $ Path.basename Paths.cwd
-        InitWorkspace (Just n) -> n
-        InitSubpackage n -> n
+        InitWorkspace { packageName: Nothing } -> String.take 150 $ Path.basename Paths.cwd
+        InitWorkspace { packageName: Just n } -> n
+        InitSubpackage { packageName: n } -> n
     logDebug [ show Paths.cwd, show candidateName ]
     pname <- case PackageName.parse (PackageName.stripPureScriptPrefix candidateName) of
       Left err -> die
@@ -117,6 +120,7 @@ run opts = do
     logDebug [ "Got packageName and setVersion:", PackageName.print pname, unsafeStringify opts.setVersion ]
     pure pname
 
+  getWithWorkspace :: Version -> Spago (RegistryEnv a) (Maybe { setVersion :: Maybe Version })
   getWithWorkspace setVersion = case opts.mode of
     InitWorkspace _ ->
       pure $ Just
@@ -129,6 +133,7 @@ run opts = do
         logWarn "The --package-set and --use-solver flags are ignored when initializing a subpackage"
       pure Nothing
 
+  getProjectDir :: PackageName -> Spago (RegistryEnv a) FilePath
   getProjectDir packageName = case opts.mode of
     InitWorkspace _ ->
       pure "."
@@ -284,10 +289,10 @@ pursReplFile = { name: ".purs-repl", content: "import Prelude\n" }
 -- ERROR TEXTS -----------------------------------------------------------------
 
 foundExistingProject :: FilePath -> String
-foundExistingProject path = "Found a " <> path <> " file, skipping copy."
+foundExistingProject path = "Found a " <> show path <> " file, skipping copy."
 
 foundExistingDirectory :: FilePath -> String
-foundExistingDirectory dir = "Found existing directory " <> dir <> ", skipping copy of sample sources"
+foundExistingDirectory dir = "Found existing directory " <> show dir <> ", skipping copy of sample sources"
 
 foundExistingFile :: FilePath -> String
-foundExistingFile file = "Found existing file " <> file <> ", not overwriting it"
+foundExistingFile file = "Found existing file " <> show file <> ", not overwriting it"

@@ -55,7 +55,6 @@ import Spago.Paths as Paths
 import Spago.Purs as Purs
 import Spago.Registry as Registry
 import Spago.Repl as SpagoRepl
-import Unsafe.Coerce (unsafeCoerce)
 
 type GlobalArgs =
   { noColor :: Boolean
@@ -603,7 +602,7 @@ main = do
                 env <- mkRegistryEnv offline
                 void $ runSpago env $ Init.run
                   { setVersion: Nothing
-                  , mode: Init.InitWorkspace (Just $ unsafeCoerce "repl")
+                  , mode: Init.InitWorkspace { packageName: Just "repl" }
                   , useSolver: true
                   }
                 pure $ List.fromFoldable [ "effect", "console" ] -- TODO newPackages
