@@ -32,12 +32,15 @@ spec = Spec.around withTempDir do
       { stdoutFile: stdout
       , stderrFile: stderr
       , result
-      , sanitize:
-          String.trim
-          >>> Regex.replace progNameRegex "Usage: index.dev.js"
-          >>> Regex.replace optionsLineRegex " $1"
+      , sanitize: sanitizeCliHelpOutput
       }
 
+sanitizeCliHelpOutput :: String -> String
+sanitizeCliHelpOutput =
+  String.trim
+  >>> Regex.replace progNameRegex "Usage: index.dev.js"
+  >>> Regex.replace optionsLineRegex " $1"
+  where
   -- On Windows progname has the full path like
   -- "Usage: C:\whatever\index.dev.js", but on Unix
   -- it's just "Usage: index.dev.js"
@@ -61,4 +64,4 @@ spec = Spec.around withTempDir do
   --
   --     Usage: index.dev.js build [--option] [--another-option] [--third-option] [--foo] [-f|--force] [--help]
   --
-  optionsLineRegex = unsafeFromRight $ Regex.regex "\\n\\s+(\\(\\[-|\\[-|PACKAGE)" RF.global
+  optionsLineRegex = unsafeFromRight $ Regex.regex "\\n\\s+(\\| \\[-|\\(\\[-|\\[-|PACKAGE)" RF.global

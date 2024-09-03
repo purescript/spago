@@ -1,0 +1,21 @@
+Invalid option `--subpackage'
+
+Usage: index.dev.js init [--migrate] [--monochrome|--no-color] [--offline] [-q|--quiet] [-v|--verbose] ([--subpackage ARG] | [--name ARG]) [--package-set ARG] [--use-solver]
+  Initialise a new project
+
+Available options:
+  --migrate                Migrate the spago.yaml file to the latest format
+  --monochrome,--no-color  Force logging without ANSI color escape sequences
+  --offline                Do not attempt to use the network. Warning: this will
+                           fail if you don't have the necessary dependencies
+                           already cached
+  -q,--quiet               Suppress all spago logging
+  -v,--verbose             Enable additional debug logging, e.g. printing `purs`
+                           commands
+  --subpackage ARG         Name of a subpackage to initialize within the current
+                           workspace
+  --name ARG               Optional package name to be used for the new project
+  --package-set ARG        Optional package set version to be used instead of
+                           the latest one
+  --use-solver             Use the solver instead of package sets
+  -h,--help                Show this help text

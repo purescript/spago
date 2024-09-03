@@ -34,6 +34,8 @@ Other improvements:
   Spago on different platforms.
 - when encountering a mistyped option for a command, Spago will show help for
   that command, not root help.
+- a new `spago init --subpackage foo` option to initialize a sub-project in the
+  current workspace.
 
 ## [0.21.0] - 2023-05-04
 

@@ -2,6 +2,7 @@ module Spago.Command.Init
   ( DefaultConfigOptions(..)
   , DefaultConfigPackageOptions
   , DefaultConfigWorkspaceOptions
+  , InitMode(..)
   , InitOptions
   , defaultConfig
   , defaultConfig'
@@ -14,19 +15,26 @@ module Spago.Command.Init
 import Spago.Prelude
 
 import Data.Map as Map
+import Data.String as String
 import Node.Path as Path
 import Registry.PackageName as PackageName
 import Registry.Version as Version
 import Spago.Config (Dependencies(..), SetAddress(..), Config)
 import Spago.Config as Config
 import Spago.FS as FS
+import Spago.Log as Log
+import Spago.Paths as Paths
 import Spago.Registry (RegistryEnv)
 import Spago.Registry as Registry
+
+data InitMode
+  = InitWorkspace { packageName :: Maybe String }
+  | InitSubpackage { packageName :: String }
 
 type InitOptions =
   -- TODO: we should allow the `--package-set` flag to alternatively pass in a URL
   { setVersion :: Maybe Version
-  , packageName :: PackageName
+  , mode :: InitMode
   , useSolver :: Boolean
   }
 
@@ -34,27 +42,27 @@ type InitOptions =
 
 run :: ∀ a. InitOptions -> Spago (RegistryEnv a) Config
 run opts = do
-  logInfo "Initializing a new project..."
-
   -- Use the specified version of the package set (if specified).
   -- Otherwise, get the latest version of the package set for the given compiler
   packageSetVersion <- Registry.findPackageSet opts.setVersion
 
+  packageName <- getPackageName
+  withWorkspace <- getWithWorkspace packageSetVersion
+  projectDir <- getProjectDir packageName
+
   { purs } <- ask
+  logInfo "Initializing a new project..."
   logInfo $ "Found PureScript " <> Version.print purs.version <> ", will use package set " <> Version.print packageSetVersion
 
-  -- Write config
   let
-    config = defaultConfig
-      { name: opts.packageName
-      , withWorkspace: Just
-          { setVersion: case opts.useSolver of
-              true -> Nothing
-              false -> Just packageSetVersion
-          }
-      , testModuleName: "Test.Main"
-      }
-  let configPath = "spago.yaml"
+    mainModuleName = "Main"
+    testModuleName = "Test.Main"
+    srcDir = Path.concat [ projectDir, "src" ]
+    testDir = Path.concat [ projectDir, "test" ]
+    configPath = Path.concat [ projectDir, "spago.yaml" ]
+    config = defaultConfig { name: packageName, withWorkspace, testModuleName }
+
+  -- Write config
   (FS.exists configPath) >>= case _ of
     true -> logInfo $ foundExistingProject configPath
     false -> liftAff $ FS.writeYamlFile Config.configCodec configPath config
@@ -62,17 +70,24 @@ run opts = do
   -- If these directories (or files) exist, we skip copying "sample sources"
   -- Because you might want to just init a project with your own source files,
   -- or just migrate a psc-package project
-  let mainModuleName = "Main"
-  whenDirNotExists "src" do
-    copyIfNotExists ("src" <> Path.sep <> mainModuleName <> ".purs") (srcMainTemplate mainModuleName)
+  whenDirNotExists srcDir do
+    copyIfNotExists (Path.concat [ srcDir, mainModuleName <> ".purs" ]) (srcMainTemplate mainModuleName)
 
-  whenDirNotExists "test" $ do
-    FS.mkdirp (Path.concat [ "test", "Test" ])
-    copyIfNotExists (Path.concat [ "test", "Test", "Main.purs" ]) (testMainTemplate "Test.Main")
+  whenDirNotExists testDir $ do
+    FS.mkdirp (Path.concat [ testDir, "Test" ])
+    copyIfNotExists (Path.concat [ testDir, "Test", "Main.purs" ]) (testMainTemplate testModuleName)
 
-  copyIfNotExists ".gitignore" gitignoreTemplate
+  case opts.mode of
+    InitWorkspace _ -> do
+      copyIfNotExists ".gitignore" gitignoreTemplate
+      copyIfNotExists pursReplFile.name pursReplFile.content
+    InitSubpackage _ ->
+      pure unit
 
-  copyIfNotExists pursReplFile.name pursReplFile.content
+  logInfo "Set up a new Spago project."
+  case opts.mode of
+    InitWorkspace _ -> logInfo "Try running `spago run`"
+    InitSubpackage _ -> logInfo $ "Try running `spago run -p " <> PackageName.print packageName <> "`"
 
   pure config
 
@@ -86,6 +101,46 @@ run opts = do
     (FS.exists dest) >>= case _ of
       true -> logInfo $ foundExistingFile dest
       false -> FS.writeTextFile dest srcTemplate
+
+  getPackageName :: Spago (RegistryEnv a) PackageName
+  getPackageName = do
+    let
+      candidateName = case opts.mode of
+        InitWorkspace { packageName: Nothing } -> String.take 150 $ Path.basename Paths.cwd
+        InitWorkspace { packageName: Just n } -> n
+        InitSubpackage { packageName: n } -> n
+    logDebug [ show Paths.cwd, show candidateName ]
+    pname <- case PackageName.parse (PackageName.stripPureScriptPrefix candidateName) of
+      Left err -> die
+        [ toDoc "Could not figure out a name for the new package. Error:"
+        , Log.break
+        , Log.indent2 $ toDoc err
+        ]
+      Right p -> pure p
+    logDebug [ "Got packageName and setVersion:", PackageName.print pname, unsafeStringify opts.setVersion ]
+    pure pname
+
+  getWithWorkspace :: Version -> Spago (RegistryEnv a) (Maybe { setVersion :: Maybe Version })
+  getWithWorkspace setVersion = case opts.mode of
+    InitWorkspace _ ->
+      pure $ Just
+        { setVersion: case opts.useSolver of
+            true -> Nothing
+            false -> Just setVersion
+        }
+    InitSubpackage _ -> do
+      when (isJust opts.setVersion || opts.useSolver) do
+        logWarn "The --package-set and --use-solver flags are ignored when initializing a subpackage"
+      pure Nothing
+
+  getProjectDir :: PackageName -> Spago (RegistryEnv a) FilePath
+  getProjectDir packageName = case opts.mode of
+    InitWorkspace _ ->
+      pure "."
+    InitSubpackage _ -> do
+      let dirPath = PackageName.print packageName
+      unlessM (FS.exists dirPath) $ FS.mkdirp dirPath
+      pure dirPath
 
 -- TEMPLATES -------------------------------------------------------------------
 
@@ -234,10 +289,10 @@ pursReplFile = { name: ".purs-repl", content: "import Prelude\n" }
 -- ERROR TEXTS -----------------------------------------------------------------
 
 foundExistingProject :: FilePath -> String
-foundExistingProject path = "Found a " <> show path <> " file, skipping copy."
+foundExistingProject path = "Found a \"" <> path <> "\" file, skipping copy."
 
 foundExistingDirectory :: FilePath -> String
-foundExistingDirectory dir = "Found existing directory " <> show dir <> ", skipping copy of sample sources"
+foundExistingDirectory dir = "Found existing directory \"" <> dir <> "\", skipping copy of sample sources"
 
 foundExistingFile :: FilePath -> String
-foundExistingFile file = "Found existing file " <> show file <> ", not overwriting it"
+foundExistingFile file = "Found existing file \"" <> file <> "\", not overwriting it"

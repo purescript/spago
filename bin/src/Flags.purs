@@ -7,6 +7,7 @@ import Data.List as List
 import Options.Applicative (FlagFields, Mod, Parser)
 import Options.Applicative as O
 import Options.Applicative.Types as OT
+import Spago.Command.Init as Init
 import Spago.Core.Config as Core
 
 flagMaybe ∷ ∀ (a ∷ Type). a -> Mod FlagFields (Maybe a) -> Parser (Maybe a)
@@ -178,8 +179,8 @@ transitive =
         <> O.help "Include transitive dependencies"
     )
 
-pure :: Parser Boolean
-pure =
+pureLockfile :: Parser Boolean
+pureLockfile =
   O.switch
     ( O.long "pure"
         <> O.help "Use the package information from the current lockfile, even if it is out of date"
@@ -300,6 +301,19 @@ maybePackageName =
       ( O.long "name"
           <> O.help "Optional package name to be used for the new project"
       )
+
+subpackageName :: Parser String
+subpackageName =
+  O.strOption
+    ( O.long "subpackage"
+        <> O.help "Name of a subpackage to initialize within the current workspace"
+    )
+
+initMode :: Parser Init.InitMode
+initMode =
+  (Init.InitSubpackage <$> { packageName: _ } <$> subpackageName)
+    <|> (Init.InitWorkspace <$> { packageName: _ } <$> maybePackageName)
+    <|> pure (Init.InitWorkspace { packageName: Nothing })
 
 ensureRanges :: Parser Boolean
 ensureRanges =
