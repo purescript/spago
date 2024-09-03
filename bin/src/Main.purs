@@ -303,7 +303,7 @@ fetchArgsParser =
     , selectedPackage: Flags.selectedPackage
     , ensureRanges: Flags.ensureRanges
     , testDeps: Flags.testDeps
-    , pure: Flags.pure
+    , pure: Flags.pureLockfile
     }
 
 sourcesArgsParser :: Parser SourcesArgs
@@ -324,7 +324,7 @@ installArgsParser =
     , pedanticPackages: Flags.pedanticPackages
     , ensureRanges: Flags.ensureRanges
     , testDeps: Flags.testDeps
-    , pure: Flags.pure
+    , pure: Flags.pureLockfile
     }
 
 uninstallArgsParser :: Parser UninstallArgs
@@ -346,7 +346,7 @@ buildArgsParser = Optparse.fromRecord
   , jsonErrors: Flags.jsonErrors
   , strict: Flags.strict
   , statVerbosity: Flags.statVerbosity
-  , pure: Flags.pure
+  , pure: Flags.pureLockfile
   }
 
 replArgsParser :: Parser ReplArgs
@@ -368,7 +368,7 @@ runArgsParser = Optparse.fromRecord
   , ensureRanges: Flags.ensureRanges
   , strict: Flags.strict
   , statVerbosity: Flags.statVerbosity
-  , pure: Flags.pure
+  , pure: Flags.pureLockfile
   }
 
 upgradeArgsParser :: Parser UpgradeArgs
@@ -387,7 +387,7 @@ testArgsParser = Optparse.fromRecord
   , pedanticPackages: Flags.pedanticPackages
   , strict: Flags.strict
   , statVerbosity: Flags.statVerbosity
-  , pure: Flags.pure
+  , pure: Flags.pureLockfile
   }
 
 bundleArgsParser :: Parser BundleArgs
@@ -409,7 +409,7 @@ bundleArgsParser =
     , ensureRanges: Flags.ensureRanges
     , strict: Flags.strict
     , statVerbosity: Flags.statVerbosity
-    , pure: Flags.pure
+    , pure: Flags.pureLockfile
     }
 
 publishArgsParser :: Parser PublishArgs
@@ -485,7 +485,7 @@ lsPathsArgsParser = Optparse.fromRecord
 lsPackagesArgsParser :: Parser LsPackagesArgs
 lsPackagesArgsParser = Optparse.fromRecord
   { json: Flags.json
-  , pure: Flags.pure
+  , pure: Flags.pureLockfile
   }
 
 lsDepsArgsParser :: Parser LsDepsArgs
@@ -493,7 +493,7 @@ lsDepsArgsParser = Optparse.fromRecord
   { json: Flags.json
   , transitive: Flags.transitive
   , selectedPackage: Flags.selectedPackage
-  , pure: Flags.pure
+  , pure: Flags.pureLockfile
   }
 
 data Cmd a = Cmd'SpagoCmd (SpagoCmd a) | Cmd'VersionCmd Boolean

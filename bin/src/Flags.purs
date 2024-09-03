@@ -9,7 +9,6 @@ import Options.Applicative as O
 import Options.Applicative.Types as OT
 import Spago.Command.Init as Init
 import Spago.Core.Config as Core
-import Spago.Prelude as Prelude
 
 flagMaybe ∷ ∀ (a ∷ Type). a -> Mod FlagFields (Maybe a) -> Parser (Maybe a)
 flagMaybe a mod = O.flag Nothing (Just a) mod
@@ -180,8 +179,8 @@ transitive =
         <> O.help "Include transitive dependencies"
     )
 
-pure :: Parser Boolean
-pure =
+pureLockfile :: Parser Boolean
+pureLockfile =
   O.switch
     ( O.long "pure"
         <> O.help "Use the package information from the current lockfile, even if it is out of date"
@@ -314,7 +313,7 @@ initMode :: Parser Init.InitMode
 initMode =
   (Init.InitSubpackage <$> { packageName: _ } <$> subpackageName)
     <|> (Init.InitWorkspace <$> { packageName: _ } <$> maybePackageName)
-    <|> Prelude.pure (Init.InitWorkspace { packageName: Nothing })
+    <|> pure (Init.InitWorkspace { packageName: Nothing })
 
 ensureRanges :: Parser Boolean
 ensureRanges =
