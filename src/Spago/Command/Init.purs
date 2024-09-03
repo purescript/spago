@@ -289,10 +289,10 @@ pursReplFile = { name: ".purs-repl", content: "import Prelude\n" }
 -- ERROR TEXTS -----------------------------------------------------------------
 
 foundExistingProject :: FilePath -> String
-foundExistingProject path = "Found a " <> show path <> " file, skipping copy."
+foundExistingProject path = "Found a \"" <> path <> "\" file, skipping copy."
 
 foundExistingDirectory :: FilePath -> String
-foundExistingDirectory dir = "Found existing directory " <> show dir <> ", skipping copy of sample sources"
+foundExistingDirectory dir = "Found existing directory \"" <> dir <> "\", skipping copy of sample sources"
 
 foundExistingFile :: FilePath -> String
-foundExistingFile file = "Found existing file " <> show file <> ", not overwriting it"
+foundExistingFile file = "Found existing file \"" <> file <> "\", not overwriting it"
