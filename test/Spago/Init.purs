@@ -4,6 +4,7 @@ import Test.Prelude
 
 import Node.Path as Path
 import Spago.FS as FS
+import Test.Spago.InitSubpackage as Subpackage
 import Test.Spec (Spec)
 import Test.Spec as Spec
 import Test.Spec.Assertions as Assert
@@ -25,3 +26,5 @@ spec = Spec.around withTempDir do
     Spec.it "should use user-specified tag if it exists instead of latest release" \({ spago, fixture } :: TestDirs) -> do
       spago [ "init", "--package-set", "9.0.0", "--name", "7368613235362d47665357393342584955783641314b70674c" ] >>= shouldBeSuccess
       checkFixture "spago.yaml" (fixture "older-package-set-tag.yaml")
+
+    Subpackage.spec

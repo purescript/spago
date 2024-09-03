@@ -1,0 +1,8 @@
+‼ The --package-set and --use-solver flags are ignored when initializing a subpackage
+Initializing a new project...
+Found PureScript a.b.c, will use package set x.y.z
+Found a "subdir/spago.yaml" file, skipping copy.
+Found existing directory "subdir/src", skipping copy of sample sources
+Found existing directory "subdir/test", skipping copy of sample sources
+Set up a new Spago project.
+Try running `spago run -p subdir`
