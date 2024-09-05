@@ -21,11 +21,11 @@ import Test.Spec.Assertions as Assert
 spec :: Spec Unit
 spec = Spec.around withTempDir do
   Spec.it "parses lockfile" \_ -> do
-    case parseYaml Lock.lockfileCodec validLockfileString of
+    case parseJson Lock.lockfileCodec validLockfileString of
       Left error ->
         Assert.fail $ "Failed to parse: " <> CJ.DecodeError.print error
       Right lock | lock /= validLockfile ->
-        Assert.fail ("\n" <> printYaml Lock.lockfileCodec lock <> "\ndoes not equal\n\n" <> printYaml Lock.lockfileCodec validLockfile)
+        Assert.fail ("\n" <> printJson Lock.lockfileCodec lock <> "\ndoes not equal\n\n" <> printJson Lock.lockfileCodec validLockfile)
       Right _ ->
         pure unit
 
@@ -41,9 +41,9 @@ validLockfile =
           [ packageTuple "my-app"
               { core:
                   { dependencies: Dependencies $ Map.fromFoldable
-                    [ packageTuple "effect" (Just (unsafeFromRight (Range.parse ">=1.0.0 <5.0.0")))
-                    , packageTuple "my-library" Nothing
-                    ]
+                      [ packageTuple "effect" (Just (unsafeFromRight (Range.parse ">=1.0.0 <5.0.0")))
+                      , packageTuple "my-library" Nothing
+                      ]
                   , build_plan: Set.fromFoldable
                       [ mkPackageName "my-library"
                       , mkPackageName "effect"
@@ -127,70 +127,98 @@ validLockfile =
 validLockfileString :: String
 validLockfileString =
   """
-workspace:
-  packages:
-    my-app:
-      path: my-app
-      core:
-        build_plan:
-          - effect
-          - my-library
-          - prelude
-        dependencies:
-          - effect: ">=1.0.0 <5.0.0"
-          - my-library
-      test:
-        dependencies: []
-        build_plan: []
-
-    my-library:
-      path: my-library
-      core:
-        build_plan:
-          - prelude
-        dependencies:
-          - prelude
-      test:
-        dependencies:
-          - console: "*"
-        build_plan:
-          - console
-
-  package_set:
-    address:
-      registry: 22.1.1
-    compiler: ">=0.13.8 <0.14.0"
-    content:
-      console: 4.0.0
-      effect: 4.0.0
-      prelude: 4.0.0
-  extra_packages:
-    console:
-      git: https://github.com/purescript/purescript-console.git
-      ref: v1.0.0
-
-    prelude:
-      git: https://github.com/purescript/purescript-libraries.git
-      ref: v1.0.0
-      subdir: prelude
-
-packages:
-  console:
-    type: git
-    url: https://github.com/purescript/purescript-console.git
-    rev: 3b83d7b792d03872afeea5e62b4f686ab0f09842
-    dependencies:
-      - prelude
-  effect:
-    type: registry
-    version: 4.0.0
-    integrity: sha256-eBtZu+HZcMa5HilvI6kaDyVX3ji8p0W9MGKy2K4T6+M=
-    dependencies:
-      - prelude
-  prelude:
-    type: git
-    url: https://github.com/purescript/purescript-libraries.git
-    rev: 3b83d7b792d03872afeea5e62b4f686ab0f09842
-    subdir: prelude
-    dependencies: []
-  """
+{
+  "workspace": {
+    "packages": {
+      "my-app": {
+        "path": "my-app",
+        "core": {
+          "build_plan": [
+            "effect",
+            "my-library",
+            "prelude"
+          ],
+          "dependencies": [
+            {
+              "effect": ">=1.0.0 <5.0.0"
+            },
+            "my-library"
+          ]
+        },
+        "test": {
+          "dependencies": [],
+          "build_plan": []
+        }
+      },
+      "my-library": {
+        "path": "my-library",
+        "core": {
+          "build_plan": [
+            "prelude"
+          ],
+          "dependencies": [
+            "prelude"
+          ]
+        },
+        "test": {
+          "dependencies": [
+            {
+              "console": "*"
+            }
+          ],
+          "build_plan": [
+            "console"
+          ]
+        }
+      }
+    },
+    "package_set": {
+      "address": {
+        "registry": "22.1.1"
+      },
+      "compiler": ">=0.13.8 <0.14.0",
+      "content": {
+        "console": "4.0.0",
+        "effect": "4.0.0",
+        "prelude": "4.0.0"
+      }
+    },
+    "extra_packages": {
+      "console": {
+        "git": "https://github.com/purescript/purescript-console.git",
+        "ref": "v1.0.0"
+      },
+      "prelude": {
+        "git": "https://github.com/purescript/purescript-libraries.git",
+        "ref": "v1.0.0",
+        "subdir": "prelude"
+      }
+    }
+  },
+  "packages": {
+    "console": {
+      "type": "git",
+      "url": "https://github.com/purescript/purescript-console.git",
+      "rev": "3b83d7b792d03872afeea5e62b4f686ab0f09842",
+      "dependencies": [
+        "prelude"
+      ]
+    },
+    "effect": {
+      "type": "registry",
+      "version": "4.0.0",
+      "integrity": "sha256-eBtZu+HZcMa5HilvI6kaDyVX3ji8p0W9MGKy2K4T6+M=",
+      "dependencies": [
+        "prelude"
+      ]
+    },
+    "prelude": {
+      "type": "git",
+      "url": "https://github.com/purescript/purescript-libraries.git",
+      "rev": "3b83d7b792d03872afeea5e62b4f686ab0f09842",
+      "subdir": "prelude",
+      "dependencies": []
+    }
+  }
+}
+"""
