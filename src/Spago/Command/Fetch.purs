@@ -286,7 +286,6 @@ fetchPackagesToLocalCache packages = do
       LocalPackage _ -> pure unit
       WorkspacePackage _ -> pure unit
 
-
 lookupInCache :: ∀ a k v. Ord k => k -> Ref.Ref (Map k v) -> Spago a (Maybe v)
 lookupInCache key cacheRef = liftEffect $ Ref.read cacheRef >>= Map.lookup key >>> pure
 
