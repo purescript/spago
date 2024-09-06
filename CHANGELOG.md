@@ -36,6 +36,8 @@ Other improvements:
   that command, not root help.
 - a new `spago init --subpackage foo` option to initialize a sub-project in the
   current workspace.
+- #1110: `spago publish` will now install packages returned by the registry solver
+  before trying to build with them.
 
 ## [0.21.0] - 2023-05-04
 
