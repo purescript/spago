@@ -83,7 +83,11 @@ spec = Spec.around withTempDir do
           { stdoutFile: Nothing
           , stderrFile: Just file
           , result: isLeft
-          , sanitize: String.trim >>> Regex.replace buildOrderRegex "[x of 3] Compiline module-name"
+          , sanitize:
+              String.trim
+              >>> withForwardSlashes
+              >>> String.replaceAll (String.Pattern "\r\n") (String.Replacement "\n")
+              >>> Regex.replace buildOrderRegex "[x of 3] Compiling module-name"
           }
 
         -- We have to ignore lines like "[1 of 3] Compiling Effect.Console" when
@@ -91,7 +95,7 @@ spec = Spec.around withTempDir do
         -- different order, depending on how the system resources happened to
         -- align at the moment of the test run.
         buildOrderRegex = unsafeFromRight $ Regex.regex
-          "\\[\\d of 3\\] Compiling (Effect\\.Console|Effect\\.Class\\.Console|Lib)\n" RF.global
+          "\\[\\d of 3\\] Compiling (Effect\\.Console|Effect\\.Class\\.Console|Lib)" RF.global
 
       FS.copyTree { src: fixture "publish/1110-solver-different-version", dst: "." }
       spago [ "build" ] >>= shouldBeSuccess
