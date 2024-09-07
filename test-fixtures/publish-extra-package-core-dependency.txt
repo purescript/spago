@@ -1,0 +1,20 @@
+Reading Spago workspace configuration...
+
+✓ Selecting package to build: aaa
+
+Downloading dependencies...
+Building...
+           Src   Lib   All
+Warnings     0     0     0
+Errors       0     0     0
+
+✓ Build succeeded.
+
+Your package "aaa" is not ready for publishing yet, encountered 1 error:
+
+
+✘ Some of the packages you specified as `extraPackages` do not point to the Registry.
+To be able to publish a package to the registry, all of its dependencies have to be packages registered on the Registry.
+Please replace the following packages with versions that are present in the Registry:
+  - effect
+  - maybe

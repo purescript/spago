@@ -1,0 +1,5 @@
+‼ The --package-set and --use-solver flags are ignored when initializing a subpackage
+Initializing a new project...
+Found PureScript a.b.c, will use package set x.y.z
+Set up a new Spago project.
+Try running `spago run -p subdir`

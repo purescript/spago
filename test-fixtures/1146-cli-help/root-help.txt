@@ -1,0 +1,26 @@
+Usage: index.dev.js (COMMAND | (-v|--version))
+  PureScript package manager and build tool
+
+Available options:
+  -h,--help                Show this help text
+  -v,--version             Show the current version
+
+Available commands:
+  init                     Initialise a new project
+  fetch                    Downloads all of the project's dependencies
+  install                  Compile the project's dependencies
+  uninstall                Remove dependencies from a package
+  build                    Compile the project
+  run                      Run the project
+  test                     Test the project
+  bundle                   Bundle the project in a single file
+  sources                  List all the source paths (globs) for the
+                           dependencies of the project
+  repl                     Start a REPL
+  publish                  Publish a package
+  upgrade                  Upgrade to the latest package set, or to the latest
+                           versions of Registry packages
+  docs                     Generate docs for the project and its dependencies
+  registry                 Commands to interact with the Registry
+  ls                       List packages or dependencies
+  graph                    Generate a graph of modules or dependencies

@@ -5,9 +5,7 @@
 --   Copyright © Nathan Faubion
 --   https://opensource.org/license/mit/
 module Spago.Psa.Printer
-  ( renderWarning
-  , renderError
-  , renderStats
+  ( renderStats
   , renderVerboseStats
   , printDefaultOutputToErr
   , printJsonOutputToOut
@@ -50,11 +48,11 @@ printJsonOutputToOut output = do
 printDefaultOutputToErr :: PsaArgs -> Output -> Effect Unit
 printDefaultOutputToErr options output = do
   forWithIndex_ output.warnings \i warning -> do
-    Console.error $ printDoc (renderWarning lenWarnings (i + 1) warning)
+    Console.error $ printDoc (renderCitation Warn lenWarnings (i + 1) warning)
     Console.error ""
 
   forWithIndex_ output.errors \i error -> do
-    Console.error $ printDoc (renderError lenErrors (i + 1) error)
+    Console.error $ printDoc (renderCitation Err lenErrors (i + 1) error)
     Console.error ""
 
   Console.error $ printDoc (renderStats' output.stats)
@@ -70,17 +68,21 @@ printDefaultOutputToErr options output = do
     Core.CompactStats -> renderStats
     Core.VerboseStats -> renderVerboseStats
 
-renderWarning :: Int -> Int -> PsaAnnotedError -> D.Doc Ansi.GraphicsParam
-renderWarning = renderWrapper Ansi.BrightYellow
+data Citation = Warn | Err
 
-renderError :: Int -> Int -> PsaAnnotedError -> D.Doc Ansi.GraphicsParam
-renderError = renderWrapper Ansi.BrightRed
+citationColor :: Citation -> Ansi.Color
+citationColor Warn = Ansi.BrightYellow
+citationColor Err = Ansi.BrightRed
 
-renderWrapper :: Ansi.Color -> Int -> Int -> PsaAnnotedError -> D.Doc Ansi.GraphicsParam
-renderWrapper color total index { error, path, position, source, message } =
+citationLabel :: Citation -> String
+citationLabel Warn = "WARNING"
+citationLabel Err = "ERROR"
+
+renderCitation :: Citation -> Int -> Int -> PsaAnnotedError -> D.Doc Ansi.GraphicsParam
+renderCitation cit total index { error, path, position, source, message } =
   D.foldWithSeparator (D.break <> D.break)
     [ D.words $
-        [ renderStatus color total index error.errorCode
+        [ renderStatus cit total index error.errorCode
         , renderPath path error.moduleName <> foldMap renderPosition position
         ]
     , D.indent $ D.lines
@@ -92,9 +94,11 @@ renderWrapper color total index { error, path, position, source, message } =
 toLines :: String -> D.Doc Ansi.GraphicsParam
 toLines = D.lines <<< map D.text <<< Str.split (Str.Pattern "\n")
 
-renderStatus :: Ansi.Color -> Int -> Int -> String -> D.Doc Ansi.GraphicsParam
-renderStatus color total index code =
-  DA.foreground color $ D.text $ "[" <> show index <> "/" <> show total <> " " <> code <> "]"
+renderStatus :: Citation -> Int -> Int -> String -> D.Doc Ansi.GraphicsParam
+renderStatus cit total index code =
+  DA.foreground (citationColor cit)
+    $ D.text
+    $ "[" <> citationLabel cit <> " " <> show index <> "/" <> show total <> " " <> code <> "]"
 
 renderModuleName :: Maybe String -> D.Doc Ansi.GraphicsParam
 renderModuleName Nothing = DA.dim $ D.text "(unknown module)"

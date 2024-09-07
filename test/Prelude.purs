@@ -17,6 +17,7 @@ import Node.Path (dirname)
 import Node.Path as Path
 import Node.Platform as Platform
 import Node.Process as Process
+import Record (merge)
 import Registry.PackageName as PackageName
 import Registry.Version as Version
 import Spago.Cmd (ExecResult, StdinConfig(..))
@@ -175,11 +176,22 @@ checkOutputs
      }
   -> Either ExecResult ExecResult
   -> Aff Unit
-checkOutputs checkers execResult = do
+checkOutputs args = checkOutputs' $ args `merge` { sanitize: String.trim }
+
+checkOutputs'
+  :: { stdoutFile :: Maybe FilePath
+     , stderrFile :: Maybe FilePath
+     , result :: (Either ExecResult ExecResult) -> Boolean
+     , sanitize :: String -> String
+     }
+  -> Either ExecResult ExecResult
+  -> Aff Unit
+checkOutputs' checkers execResult = do
   let
     checkOrOverwrite = case _ of
       Nothing -> mempty
-      Just fixtureFileExpected -> \actual -> do
+      Just fixtureFileExpected -> \actual' -> do
+        let actual = checkers.sanitize actual'
         overwriteSpecFile <- liftEffect $ map isJust $ Process.lookupEnv "SPAGO_TEST_ACCEPT"
         if overwriteSpecFile then do
           Console.log $ "Overwriting fixture at path: " <> fixtureFileExpected
@@ -187,7 +199,7 @@ checkOutputs checkers execResult = do
           unlessM (FS.exists parentDir) $ FS.mkdirp parentDir
           FS.writeTextFile fixtureFileExpected (actual <> "\n")
         else do
-          expected <- String.trim <$> FS.readTextFile fixtureFileExpected
+          expected <- checkers.sanitize <$> FS.readTextFile fixtureFileExpected
           actual `shouldEqualStr` expected
   check
     { stdout: checkOrOverwrite checkers.stdoutFile
@@ -384,5 +396,11 @@ escapePathInErrMsg = case Process.platform of
 assertWarning :: forall m. MonadThrow Error m => Array String -> Boolean -> String -> m Unit
 assertWarning paths shouldHave stdErr  = do
   when (not $ Array.all (\exp -> shouldHave == (String.contains (Pattern exp) stdErr)) paths) do
-    Assert.fail $ "STDERR contained one or more texts:\n" <> show paths <> "\n\nStderr was:\n" <> stdErr
+    Assert.fail
+      $ "STDERR "
+      <> (if shouldHave then "did not contain" else "contained")
+      <> " one or more texts:\n"
+      <> show paths
+      <> "\n\nStderr was:\n"
+      <> stdErr
 

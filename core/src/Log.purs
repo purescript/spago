@@ -19,6 +19,8 @@ module Spago.Log
   , module DodoExport
   , output
   , prepareToDie
+  , rightOrDie
+  , rightOrDie_
   , rightOrDieWith
   , rightOrDieWith'
   , toDoc
@@ -180,14 +182,20 @@ justOrDieWith' value msg = case value of
   Nothing ->
     die' msg
 
-rightOrDieWith :: forall a b m err x. MonadEffect m => MonadAsk (LogEnv b) m => Loggable a => Either err x -> (err -> a) -> m x
+rightOrDie :: ∀ b m err x. MonadEffect m => MonadAsk (LogEnv b) m => Loggable err => Either err x -> m x
+rightOrDie value = rightOrDieWith value identity
+
+rightOrDie_ :: ∀ b m err x. MonadEffect m => MonadAsk (LogEnv b) m => Loggable err => Either err x -> m Unit
+rightOrDie_ = void <<< rightOrDie
+
+rightOrDieWith :: ∀ a b m err x. MonadEffect m => MonadAsk (LogEnv b) m => Loggable a => Either err x -> (err -> a) -> m x
 rightOrDieWith value toMsg = case value of
   Right a ->
     pure a
   Left err ->
     die $ toMsg err
 
-rightOrDieWith' :: forall a b m err x. MonadEffect m => MonadAsk (LogEnv b) m => Loggable a => Either err x -> (err -> Array a) -> m x
+rightOrDieWith' :: ∀ a b m err x. MonadEffect m => MonadAsk (LogEnv b) m => Loggable a => Either err x -> (err -> Array a) -> m x
 rightOrDieWith' value toMsg = case value of
   Right a ->
     pure a

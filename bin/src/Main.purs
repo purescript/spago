@@ -12,14 +12,13 @@ import Data.Foldable as Foldable
 import Data.List as List
 import Data.Maybe as Maybe
 import Data.Set as Set
-import Data.String as String
 import Effect.Aff as Aff
 import Effect.Aff.AVar as AVar
 import Effect.Now as Now
-import Node.Path as Path
 import Node.Process as Process
 import Options.Applicative (CommandFields, Mod, Parser, ParserPrefs(..))
 import Options.Applicative as O
+import Options.Applicative.Types (Backtracking(..))
 import Optparse as Optparse
 import Record as Record
 import Registry.PackageName as PackageName
@@ -52,12 +51,10 @@ import Spago.Generated.BuildInfo as BuildInfo
 import Spago.Git as Git
 import Spago.Json as Json
 import Spago.Log (LogVerbosity(..))
-import Spago.Log as Log
 import Spago.Paths as Paths
 import Spago.Purs as Purs
 import Spago.Registry as Registry
 import Spago.Repl as SpagoRepl
-import Unsafe.Coerce as UnsafeCoerce
 
 type GlobalArgs =
   { noColor :: Boolean
@@ -69,7 +66,7 @@ type GlobalArgs =
 
 type InitArgs =
   { setVersion :: Maybe String
-  , name :: Maybe String
+  , mode :: Init.InitMode
   , useSolver :: Boolean
   }
 
@@ -295,7 +292,7 @@ initArgsParser :: Parser InitArgs
 initArgsParser =
   Optparse.fromRecord
     { setVersion: Flags.maybeSetVersion
-    , name: Flags.maybePackageName
+    , mode: Flags.initMode
     , useSolver: Flags.useSolver
     }
 
@@ -306,7 +303,7 @@ fetchArgsParser =
     , selectedPackage: Flags.selectedPackage
     , ensureRanges: Flags.ensureRanges
     , testDeps: Flags.testDeps
-    , pure: Flags.pure
+    , pure: Flags.pureLockfile
     }
 
 sourcesArgsParser :: Parser SourcesArgs
@@ -327,7 +324,7 @@ installArgsParser =
     , pedanticPackages: Flags.pedanticPackages
     , ensureRanges: Flags.ensureRanges
     , testDeps: Flags.testDeps
-    , pure: Flags.pure
+    , pure: Flags.pureLockfile
     }
 
 uninstallArgsParser :: Parser UninstallArgs
@@ -349,7 +346,7 @@ buildArgsParser = Optparse.fromRecord
   , jsonErrors: Flags.jsonErrors
   , strict: Flags.strict
   , statVerbosity: Flags.statVerbosity
-  , pure: Flags.pure
+  , pure: Flags.pureLockfile
   }
 
 replArgsParser :: Parser ReplArgs
@@ -371,7 +368,7 @@ runArgsParser = Optparse.fromRecord
   , ensureRanges: Flags.ensureRanges
   , strict: Flags.strict
   , statVerbosity: Flags.statVerbosity
-  , pure: Flags.pure
+  , pure: Flags.pureLockfile
   }
 
 upgradeArgsParser :: Parser UpgradeArgs
@@ -390,7 +387,7 @@ testArgsParser = Optparse.fromRecord
   , pedanticPackages: Flags.pedanticPackages
   , strict: Flags.strict
   , statVerbosity: Flags.statVerbosity
-  , pure: Flags.pure
+  , pure: Flags.pureLockfile
   }
 
 bundleArgsParser :: Parser BundleArgs
@@ -412,7 +409,7 @@ bundleArgsParser =
     , ensureRanges: Flags.ensureRanges
     , strict: Flags.strict
     , statVerbosity: Flags.statVerbosity
-    , pure: Flags.pure
+    , pure: Flags.pureLockfile
     }
 
 publishArgsParser :: Parser PublishArgs
@@ -488,7 +485,7 @@ lsPathsArgsParser = Optparse.fromRecord
 lsPackagesArgsParser :: Parser LsPackagesArgs
 lsPackagesArgsParser = Optparse.fromRecord
   { json: Flags.json
-  , pure: Flags.pure
+  , pure: Flags.pureLockfile
   }
 
 lsDepsArgsParser :: Parser LsDepsArgs
@@ -496,7 +493,7 @@ lsDepsArgsParser = Optparse.fromRecord
   { json: Flags.json
   , transitive: Flags.transitive
   , selectedPackage: Flags.selectedPackage
-  , pure: Flags.pure
+  , pure: Flags.pureLockfile
   }
 
 data Cmd a = Cmd'SpagoCmd (SpagoCmd a) | Cmd'VersionCmd Boolean
@@ -508,6 +505,8 @@ parseArgs = do
         ( p
             { prefShowHelpOnError = true
             , prefShowHelpOnEmpty = true
+            -- Needed to avoid things like https://github.com/purescript/spago/issues/1146
+            , prefBacktrack = NoBacktrack
             }
         )
     )
@@ -544,24 +543,10 @@ main = do
               }
             void $ runSpago env (Sources.run { json: args.json })
           Init args@{ useSolver } -> do
-            -- Figure out the package name from the current dir
-            let candidateName = fromMaybe (String.take 150 $ Path.basename Paths.cwd) args.name
-            logDebug [ show Paths.cwd, show candidateName ]
-            packageName <- case PackageName.parse (PackageName.stripPureScriptPrefix candidateName) of
-              Left err -> die
-                [ toDoc "Could not figure out a name for the new package. Error:"
-                , Log.break
-                , Log.indent2 $ toDoc err
-                ]
-              Right p -> pure p
-            setVersion <- parseSetVersion args.setVersion
-            logDebug [ "Got packageName and setVersion:", PackageName.print packageName, unsafeStringify setVersion ]
-            let initOpts = { packageName, setVersion, useSolver }
             -- Fetch the registry here so we can select the right package set later
             env <- mkRegistryEnv offline
-            void $ runSpago env $ Init.run initOpts
-            logInfo "Set up a new Spago project."
-            logInfo "Try running `spago run`"
+            setVersion <- parseSetVersion args.setVersion
+            void $ runSpago env $ Init.run { mode: args.mode, setVersion, useSolver }
           Fetch args -> do
             { env, fetchOpts } <- mkFetchEnv (Record.merge { isRepl: false, migrateConfig, offline } args)
             void $ runSpago env (Fetch.run fetchOpts)
@@ -617,7 +602,7 @@ main = do
                 env <- mkRegistryEnv offline
                 void $ runSpago env $ Init.run
                   { setVersion: Nothing
-                  , packageName: UnsafeCoerce.unsafeCoerce "repl"
+                  , mode: Init.InitWorkspace { packageName: Just "repl" }
                   , useSolver: true
                   }
                 pure $ List.fromFoldable [ "effect", "console" ] -- TODO newPackages

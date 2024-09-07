@@ -281,10 +281,10 @@ readWorkspace { maybeSelectedPackage, pureBuild, migrateConfig } = do
       Just p ->
         pure (Just p)
 
-  logDebug "Reading the lockfile..."
+  logDebug "Parsing the lockfile..."
   maybeLockfileContents <- FS.exists "spago.lock" >>= case _ of
     false -> pure (Left "No lockfile found")
-    true -> liftAff (FS.readYamlFile Lock.lockfileCodec "spago.lock") >>= case _ of
+    true -> liftAff (FS.readJsonFile Lock.lockfileCodec "spago.lock") >>= case _ of
       Left error -> do
         logWarn
           [ "Your project contains a spago.lock file, but it cannot be decoded. Spago will generate a new one."
@@ -294,14 +294,16 @@ readWorkspace { maybeSelectedPackage, pureBuild, migrateConfig } = do
       -- Here we figure out if the lockfile is still up to date by having a quick look at the configurations:
       -- if they changed since the last write, then we need to regenerate the lockfile
       -- Unless! the user is passing the --pure flag, in which case we just use the lockfile
-      Right contents -> case pureBuild, shouldComputeNewLockfile { workspace, workspacePackages } contents.workspace of
-        true, _ -> do
-          logDebug "Using lockfile because of --pure flag"
-          pure (Right contents)
-        false, true -> pure (Left "Lockfile is out of date")
-        false, false -> do
-          logDebug "Lockfile is up to date, using it"
-          pure (Right contents)
+      Right contents -> do
+        logDebug "Parsed the lockfile"
+        case pureBuild, shouldComputeNewLockfile { workspace, workspacePackages } contents.workspace of
+          true, _ -> do
+            logDebug "Using lockfile because of --pure flag"
+            pure (Right contents)
+          false, true -> pure (Left "Lockfile is out of date")
+          false, false -> do
+            logDebug "Lockfile is up to date, using it"
+            pure (Right contents)
 
   -- Read in the package database
   { offline } <- ask
@@ -448,16 +450,15 @@ rootPackageToWorkspacePackage { rootPackage, workspaceDoc } = do
 
 workspacePackageToLockfilePackage :: WorkspacePackage -> Tuple PackageName Lock.WorkspaceLockPackage
 workspacePackageToLockfilePackage { path, package } = Tuple package.name
-  { path
-  , dependencies: package.dependencies
-  , test_dependencies: foldMap _.dependencies package.test
-  , build_plan: mempty -- Note: this is filled in later
+  { path: withForwardSlashes path
+  , core: { dependencies: package.dependencies, build_plan: mempty }
+  , test: { dependencies: foldMap _.dependencies package.test, build_plan: mempty }
   }
 
 shouldComputeNewLockfile :: { workspace :: Core.WorkspaceConfig, workspacePackages :: Map PackageName WorkspacePackage } -> Lock.WorkspaceLock -> Boolean
 shouldComputeNewLockfile { workspace, workspacePackages } workspaceLock =
   -- the workspace packages should exactly match, except for the needed_by field, which is filled in during build plan construction
-  (map (workspacePackageToLockfilePackage >>> snd) workspacePackages /= (map (_ { build_plan = mempty }) workspaceLock.packages))
+  ((workspacePackageToLockfilePackage >>> snd <$> workspacePackages) /= (eraseBuildPlan <$> workspaceLock.packages))
     -- and the extra packages should exactly match
     || (fromMaybe Map.empty workspace.extraPackages /= workspaceLock.extra_packages)
     -- and the package set address needs to match - we have no way to match the package set contents at this point, so we let it be
@@ -468,6 +469,8 @@ shouldComputeNewLockfile { workspace, workspacePackages } workspaceLock =
           Just (Core.SetFromPath _) -> true
           _ -> false
       )
+  where
+  eraseBuildPlan = _ { core { build_plan = mempty }, test { build_plan = mempty } }
 
 getPackageLocation :: PackageName -> Package -> FilePath
 getPackageLocation name = Paths.mkRelative <<< case _ of

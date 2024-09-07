@@ -1,0 +1,36 @@
+Invalid option `--bogus'
+
+Usage: index.dev.js build [--migrate] [--monochrome|--no-color] [--offline]
+                          [-q|--quiet] [-v|--verbose] [--backend-args ARGS]
+                          [--ensure-ranges] [--json-errors] [--output DIR]
+                          [--pedantic-packages] [--pure] [--purs-args ARGS]
+                          [-p|--package PACKAGE] ([--verbose-stats] |
+                          [--censor-stats]) [--strict]
+  Compile the project
+
+Available options:
+  --migrate                Migrate the spago.yaml file to the latest format
+  --monochrome,--no-color  Force logging without ANSI color escape sequences
+  --offline                Do not attempt to use the network. Warning: this will
+                           fail if you don't have the necessary dependencies
+                           already cached
+  -q,--quiet               Suppress all spago logging
+  -v,--verbose             Enable additional debug logging, e.g. printing `purs`
+                           commands
+  --backend-args ARGS      Arguments to pass to the running script
+  --ensure-ranges          Add version bounds for all the dependencies of the
+                           selected project
+  --json-errors            Output compiler warnings/errors as JSON
+  --output DIR             The output directory for compiled files
+  --pedantic-packages      Check for redundant or missing packages in the config
+                           and fail the build if any
+  --pure                   Use the package information from the current
+                           lockfile, even if it is out of date
+  --purs-args ARGS         Arguments to pass to purs compile. Wrap in quotes.
+                           `--output` and `--json-errors` must be passed to
+                           Spago directly.
+  -p,--package PACKAGE     Select the local project to build
+  --verbose-stats          Show counts for each warning type
+  --censor-stats           Censor warning/error summary
+  --strict                 Promotes project sources' warnings to errors
+  -h,--help                Show this help text
