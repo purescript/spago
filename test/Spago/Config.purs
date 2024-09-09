@@ -30,36 +30,31 @@ spec =
             "\n\n\n-------\nActual:\n-------\n" <> Yaml.stringifyYaml C.configCodec parsed
 
     Spec.it "reports errors" do
-      case Yaml.parseYaml C.configCodec invalidLicenseYaml of
-        Right _ ->
-          Assert.fail "Expected an error, but parsed successfully"
-        Left err ->
-          CJ.print err `shouldEqual` (
-            "$.package.publish.license: Could not decode PackageConfig:" <>
-            "\n  Could not decode PublishConfig:" <>
-            "\n    Could not decode License:" <>
-            "\n      Invalid SPDX identifier bogus"
-          )
+      Yaml.parseYaml C.configCodec invalidLicenseYaml `shouldFailWith`
+        ( "$.package.publish.license: Could not decode PackageConfig:"
+        <> "\n  Could not decode PublishConfig:"
+        <> "\n    Could not decode License:"
+        <> "\n      Invalid SPDX identifier bogus"
+        )
 
     Spec.describe "reports unrecognized fields" do
-      Spec.it "in the 'package' section" do
-        case Yaml.parseYaml C.configCodec unrecognizedPackageFieldYaml of
-          Right _ ->
-            Assert.fail "Expected an error, but parsed successfully"
-          Left err ->
-            CJ.print err `shouldEqual`
-              "$.package: Could not decode PackageConfig:\n  Unknown field(s): bogus_field"
+      Spec.it "under 'package'" do
+        Yaml.parseYaml C.configCodec unrecognizedPackageFieldYaml `shouldFailWith`
+          ( "$.package: Could not decode PackageConfig:"
+          <> "\n  Unknown field(s): bogus_field"
+          )
 
-      Spec.it "in the 'workspace' section" do
-        case Yaml.parseYaml C.configCodec unrecognizedBuildOptsFieldYaml of
-          Right _ ->
-            Assert.fail "Expected an error, but parsed successfully"
-          Left err ->
-            CJ.print err `shouldEqual` (
-              "$.workspace.buildOpts: Could not decode WorkspaceConfig:" <>
-              "\n  Could not decode WorkspaceBuildOptionsInput:" <>
-              "\n    Unknown field(s): bogus_field"
-            )
+      Spec.it "under 'workspace'" do
+        Yaml.parseYaml C.configCodec unrecognizedBuildOptsFieldYaml `shouldFailWith`
+          ( "$.workspace.buildOpts: Could not decode WorkspaceConfig:"
+          <> "\n  Could not decode WorkspaceBuildOptionsInput:"
+          <> "\n    Unknown field(s): bogus_field"
+          )
+    where
+    shouldFailWith result expectedError =
+      case result of
+        Right _ -> Assert.fail "Expected an error, but parsed successfully"
+        Left err -> CJ.print err `shouldEqual` expectedError
 
 validSpagoYaml :: { serialized :: String, parsed :: C.Config }
 validSpagoYaml =

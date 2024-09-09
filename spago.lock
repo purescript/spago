@@ -425,7 +425,6 @@ workspace:
           - posix-types
           - prelude
           - profunctor
-          - psci-support
           - record
           - refs
           - safe-coerce
@@ -684,7 +683,6 @@ workspace:
           - posix-types
           - prelude
           - profunctor
-          - psci-support
           - quickcheck
           - random
           - record
@@ -810,7 +808,6 @@ workspace:
           - prelude
           - profunctor
           - profunctor-lenses
-          - psci-support
           - quickcheck
           - quickcheck-laws
           - random
@@ -977,7 +974,7 @@ workspace:
         build_plan: []
   package_set:
     address:
-      registry: 56.4.0
+      registry: 59.0.0
     compiler: ">=0.15.15 <0.16.0"
     content:
       abc-parser: 2.0.1
@@ -1042,7 +1039,7 @@ workspace:
       classnames: 2.0.0
       codec: 6.1.0
       codec-argonaut: 10.0.0
-      codec-json: 1.2.0
+      codec-json: 2.0.0
       colors: 7.0.1
       concur-core: 0.5.0
       concur-react: 0.5.0
@@ -1145,7 +1142,7 @@ workspace:
       halogen-css: 10.0.0
       halogen-echarts-simple: 0.0.4
       halogen-formless: 4.0.3
-      halogen-helix: 1.0.0
+      halogen-helix: 1.0.1
       halogen-hooks: 0.6.3
       halogen-hooks-extra: 0.9.0
       halogen-infinite-scroll: 1.1.0
@@ -1272,9 +1269,11 @@ workspace:
       oak-debug: 1.2.2
       object-maps: 0.3.0
       ocarina: 1.5.4
-      open-folds: 6.3.0
-      open-memoize: 6.1.0
-      open-pairing: 6.1.0
+      oooooooooorrrrrrrmm-lib: 0.0.1
+      open-folds: 6.4.0
+      open-memoize: 6.2.0
+      open-mkdirp-aff: 1.2.0
+      open-pairing: 6.2.0
       options: 7.0.0
       optparse: 5.0.1
       ordered-collections: 3.2.0
@@ -1297,12 +1296,12 @@ workspace:
       pointed-list: 0.5.1
       polymorphic-vectors: 4.0.0
       posix-types: 6.0.0
-      postgresql: 2.0.17
+      postgresql: 2.0.19
       precise: 6.0.0
       precise-datetime: 7.0.0
       prelude: 6.0.1
       prettier-printer: 3.0.0
-      priority-queue: 0.1.0
+      priority-queue: 0.1.2
       profunctor: 6.0.1
       profunctor-lenses: 8.0.0
       protobuf: 4.3.0
@@ -1374,7 +1373,7 @@ workspace:
       soundfonts: 4.1.0
       sparse-matrices: 2.0.1
       sparse-polynomials: 3.0.1
-      spec: 7.6.1
+      spec: 8.0.0
       spec-discovery: 8.3.0
       spec-mocha: 5.1.1
       spec-node: 0.0.1
@@ -1402,6 +1401,7 @@ workspace:
       thermite-dom: 0.3.1
       these: 6.0.0
       threading: 0.0.3
+      tldr: 0.0.0
       toestand: 0.9.0
       transformation-matrix: 1.0.1
       transformers: 6.1.0
@@ -1443,7 +1443,7 @@ workspace:
       vectors: 2.1.0
       versions: 7.0.0
       visx: 0.0.2
-      web-clipboard: 5.0.0
+      web-clipboard: 6.0.0
       web-cssom: 2.0.0
       web-cssom-view: 0.1.0
       web-dom: 6.0.0
@@ -1480,7 +1480,6 @@ workspace:
       z3: 0.0.2
       zipperarray: 2.0.0
   extra_packages:
-    codec-json: 1.2.0
     dodo-printer:
       git: https://github.com/natefaubion/purescript-dodo-printer.git
       ref: v2.2.1
@@ -1631,7 +1630,7 @@ workspace:
         - tuples
     registry-lib:
       git: https://github.com/purescript/registry-dev.git
-      ref: be0d7ffd1c16aa70e8f065a928e941ebc053c013
+      ref: 7a42ca1381ab9e1203a9f89d077d47d41ec59316
       subdir: lib
     search-trie:
       git: https://github.com/klntsky/purescript-search-trie.git
@@ -1878,8 +1877,8 @@ packages:
       - profunctor
   codec-json:
     type: registry
-    version: 1.2.0
-    integrity: sha256-59+uYYe/5uTFa/Q6EqF8ekvP/Y4SOjUNfwIqIYtNiGI=
+    version: 2.0.0
+    integrity: sha256-NLm5BmDZKKexQwtnoZ/NI4yI16srsqIe0M7NdlqB96U=
     dependencies:
       - codec
       - foreign-object
@@ -2772,11 +2771,9 @@ packages:
       - maybe
   open-memoize:
     type: registry
-    version: 6.1.0
-    integrity: sha256-ws/Cix/wgUKvrbPPxTqDSGCPpkTIvP1adTYLHAquBC4=
+    version: 6.2.0
+    integrity: sha256-p1m7wF3aHQ80yUvqMs20OTMl496WS6YpKlmI2Nkg9j0=
     dependencies:
-      - console
-      - effect
       - either
       - integers
       - lazy
@@ -2784,7 +2781,6 @@ packages:
       - maybe
       - partial
       - prelude
-      - psci-support
       - strings
       - tuples
   options:
@@ -2968,14 +2964,6 @@ packages:
       - record
       - transformers
       - tuples
-  psci-support:
-    type: registry
-    version: 6.0.0
-    integrity: sha256-C6ql4P9TEP06hft/1Z5QumPA4yARR4VIxDdhmL1EO+Y=
-    dependencies:
-      - console
-      - effect
-      - prelude
   quickcheck:
     type: registry
     version: 8.0.1
@@ -3040,7 +3028,7 @@ packages:
   registry-lib:
     type: git
     url: https://github.com/purescript/registry-dev.git
-    rev: be0d7ffd1c16aa70e8f065a928e941ebc053c013
+    rev: 7a42ca1381ab9e1203a9f89d077d47d41ec59316
     subdir: lib
     dependencies:
       - aff
@@ -3122,8 +3110,8 @@ packages:
       - prelude
   spec:
     type: registry
-    version: 7.6.1
-    integrity: sha256-VycY2SgN8rHZGqcMqZEiTh9OdCw40CUMX2pCoSUJ/zY=
+    version: 8.0.0
+    integrity: sha256-Yn7MhDai1YULlQF45+9FTOTf2rcjoda1Jf2IrEFCoeg=
     dependencies:
       - aff
       - ansi
@@ -3373,8 +3361,8 @@ packages:
       - strings
   web-clipboard:
     type: registry
-    version: 5.0.0
-    integrity: sha256-TbZEMovHhks9Qa7JXodJabvKDpeFkl6swfPKqhXd/lE=
+    version: 6.0.0
+    integrity: sha256-PBtjiekTFBRs2obkiwNAEs3f6e1daFGHeeG0pilug4c=
     dependencies:
       - js-promise
       - web-html

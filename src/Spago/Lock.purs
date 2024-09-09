@@ -18,6 +18,7 @@ import Codec.JSON.DecodeError as CJ.DecodeError
 import Data.Codec as Codec
 import Data.Codec.JSON as CJ
 import Data.Codec.JSON.Common as CJ.Common
+import Data.Codec.JSON.Strict as CJS
 import Data.Profunctor as Profunctor
 import Record as Record
 import Registry.Internal.Codec as Registry.Codec
@@ -65,35 +66,35 @@ type WorkspaceLockPackageEnv =
   }
 
 lockfileCodec :: CJ.Codec Lockfile
-lockfileCodec = CJ.named "Lockfile" $ CJ.object
-  $ CJ.recordProp (Proxy @"workspace") workspaceLockCodec
-  $ CJ.recordProp (Proxy @"packages") (Registry.Codec.packageMap lockEntryCodec)
-  $ CJ.record
+lockfileCodec = CJ.named "Lockfile" $ CJS.objectStrict
+  $ CJS.recordProp @"workspace" workspaceLockCodec
+  $ CJS.recordProp @"packages" (Registry.Codec.packageMap lockEntryCodec)
+  $ CJS.record
 
 workspaceLockCodec :: CJ.Codec WorkspaceLock
-workspaceLockCodec = CJ.named "WorkspaceLock" $ CJ.object
-  $ CJ.recordProp (Proxy @"packages") (Registry.Codec.packageMap dependenciesCodec)
-  $ CJ.recordPropOptional (Proxy @"package_set") packageSetCodec
-  $ CJ.recordProp (Proxy @"extra_packages") (Registry.Codec.packageMap Config.extraPackageCodec)
-  $ CJ.record
+workspaceLockCodec = CJ.named "WorkspaceLock" $ CJS.objectStrict
+  $ CJS.recordProp @"packages" (Registry.Codec.packageMap dependenciesCodec)
+  $ CJS.recordPropOptional @"package_set" packageSetCodec
+  $ CJS.recordProp @"extra_packages" (Registry.Codec.packageMap Config.extraPackageCodec)
+  $ CJS.record
   where
-  dependenciesCodec = CJ.named "Dependencies" $ CJ.object
-    $ CJ.recordProp (Proxy @"path") CJ.string
-    $ CJ.recordProp (Proxy @"core") envCodec
-    $ CJ.recordProp (Proxy @"test") envCodec
-    $ CJ.record
+  dependenciesCodec = CJ.named "Dependencies" $ CJS.objectStrict
+    $ CJS.recordProp @"path" CJ.string
+    $ CJS.recordProp @"core" envCodec
+    $ CJS.recordProp @"test" envCodec
+    $ CJS.record
 
-  envCodec = CJ.named "Environment" $ CJ.object
-    $ CJ.recordProp (Proxy @"dependencies") Config.dependenciesCodec
-    $ CJ.recordProp (Proxy @"build_plan") (CJ.Common.set PackageName.codec)
-    $ CJ.record
+  envCodec = CJ.named "Environment" $ CJS.objectStrict
+    $ CJS.recordProp @"dependencies" Config.dependenciesCodec
+    $ CJS.recordProp @"build_plan" (CJ.Common.set PackageName.codec)
+    $ CJS.record
 
 packageSetCodec :: CJ.Codec PackageSetInfo
-packageSetCodec = CJ.named "PackageSetInfo" $ CJ.object
-  $ CJ.recordProp (Proxy @"address") Config.setAddressCodec
-  $ CJ.recordProp (Proxy @"compiler") Range.codec
-  $ CJ.recordProp (Proxy @"content") (Registry.Codec.packageMap Core.remotePackageCodec)
-  $ CJ.record
+packageSetCodec = CJ.named "PackageSetInfo" $ CJS.objectStrict
+  $ CJS.recordProp @"address" Config.setAddressCodec
+  $ CJS.recordProp @"compiler" Range.codec
+  $ CJS.recordProp @"content" (Registry.Codec.packageMap Core.remotePackageCodec)
+  $ CJS.record
 
 lockEntryCodec :: CJ.Codec LockEntry
 lockEntryCodec = Codec.codec' decode encode
@@ -123,11 +124,11 @@ type PathLock =
   }
 
 pathLockCodec :: CJ.Codec PathLock
-pathLockCodec = Profunctor.dimap toRep fromRep $ CJ.named "PathLock" $ CJ.object
-  $ CJ.recordProp (Proxy @"type") (constant pathLockType)
-  $ CJ.recordProp (Proxy @"path") CJ.string
-  $ CJ.recordProp (Proxy @"dependencies") (CJ.array PackageName.codec)
-  $ CJ.record
+pathLockCodec = Profunctor.dimap toRep fromRep $ CJ.named "PathLock" $ CJS.objectStrict
+  $ CJS.recordProp @"type" (constant pathLockType)
+  $ CJS.recordProp @"path" CJ.string
+  $ CJS.recordProp @"dependencies" (CJ.array PackageName.codec)
+  $ CJS.record
   where
   toRep = Record.insert (Proxy @"type") pathLockType
   fromRep = Record.delete (Proxy @"type")
@@ -140,13 +141,13 @@ type GitLock =
   }
 
 gitLockCodec :: CJ.Codec GitLock
-gitLockCodec = Profunctor.dimap toRep fromRep $ CJ.named "GitLock" $ CJ.object
-  $ CJ.recordProp (Proxy @"type") (constant gitLockType)
-  $ CJ.recordProp (Proxy @"url") CJ.string
-  $ CJ.recordProp (Proxy @"rev") CJ.string
-  $ CJ.recordPropOptional (Proxy @"subdir") CJ.string
-  $ CJ.recordProp (Proxy @"dependencies") (CJ.array PackageName.codec)
-  $ CJ.record
+gitLockCodec = Profunctor.dimap toRep fromRep $ CJ.named "GitLock" $ CJS.objectStrict
+  $ CJS.recordProp @"type" (constant gitLockType)
+  $ CJS.recordProp @"url" CJ.string
+  $ CJS.recordProp @"rev" CJ.string
+  $ CJS.recordPropOptional @"subdir" CJ.string
+  $ CJS.recordProp @"dependencies" (CJ.array PackageName.codec)
+  $ CJS.record
   where
   toRep = Record.insert (Proxy @"type") gitLockType
   fromRep = Record.delete (Proxy @"type")
@@ -158,12 +159,12 @@ type RegistryLock =
   }
 
 registryLockCodec :: CJ.Codec RegistryLock
-registryLockCodec = Profunctor.dimap toRep fromRep $ CJ.named "RegistryLock" $ CJ.object
-  $ CJ.recordProp (Proxy @"type") (constant registryLockType)
-  $ CJ.recordProp (Proxy @"version") Version.codec
-  $ CJ.recordProp (Proxy @"integrity") Sha256.codec
-  $ CJ.recordProp (Proxy @"dependencies") (CJ.array PackageName.codec)
-  $ CJ.record
+registryLockCodec = Profunctor.dimap toRep fromRep $ CJ.named "RegistryLock" $ CJS.objectStrict
+  $ CJS.recordProp @"type" (constant registryLockType)
+  $ CJS.recordProp @"version" Version.codec
+  $ CJS.recordProp @"integrity" Sha256.codec
+  $ CJS.recordProp @"dependencies" (CJ.array PackageName.codec)
+  $ CJS.record
   where
   toRep = Record.insert (Proxy @"type") registryLockType
   fromRep = Record.delete (Proxy @"type")
