@@ -354,6 +354,7 @@ publish _args = do
       -- from the solver (this is because the build might terminate the process, and we shall output the errors first)
       logInfo "Building again with the build plan from the solver..."
       let buildPlanDependencies = map Config.RegistryVersion resolutions
+      Fetch.fetchPackagesToLocalCache buildPlanDependencies
       builtAgain <- runBuild { selected, dependencies: Map.singleton selected.package.name { core: buildPlanDependencies, test: Map.empty } }
         ( Build.run
             { depsOnly: false

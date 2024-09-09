@@ -7,6 +7,7 @@ module Spago.Command.Fetch
   , getTransitiveDeps
   , getTransitiveDepsFromRegistry
   , getWorkspacePackageDeps
+  , fetchPackagesToLocalCache
   , run
   , toAllDependencies
   , writeNewLockfile
@@ -83,7 +84,7 @@ run :: forall a. FetchOpts -> Spago (FetchEnv a) PackageTransitiveDeps
 run { packages: packagesRequestedToInstall, ensureRanges, isTest, isRepl } = do
   logDebug $ "Requested to install these packages: " <> printJson (CJ.array PackageName.codec) packagesRequestedToInstall
 
-  { workspace: currentWorkspace, offline } <- ask
+  { workspace: currentWorkspace } <- ask
 
   let
     getPackageConfigPath errorMessageEnd = do
@@ -192,94 +193,98 @@ run { packages: packagesRequestedToInstall, ensureRanges, isTest, isRepl } = do
 
     -- then for every package we have we try to download it, and copy it in the local cache
     logInfo "Downloading dependencies..."
-
-    parallelise $ (flip map) (Map.toUnfoldable depsToFetch :: Array (Tuple PackageName Package)) \(Tuple name package) -> do
-      let localPackageLocation = Config.getPackageLocation name package
-      -- first of all, we check if we have the package in the local cache. If so, we don't even do the work
-      unlessM (FS.exists localPackageLocation) case package of
-        GitPackage gitPackage -> getGitPackageInLocalCache name gitPackage
-        RegistryVersion v -> do
-          -- if the version comes from the registry then we have a longer list of things to do
-          let versionString = Registry.Version.print v
-          let packageVersion = PackageName.print name <> "@" <> versionString
-          -- get the metadata for the package, so we have access to the hash and other info
-          metadata <- Registry.getMetadata name
-          case (metadata >>= (\(Metadata meta) -> Either.note "Didn't find version in the metadata file" $ Map.lookup v meta.published)) of
-            Left err -> die $ "Couldn't read metadata, reason:\n  " <> err
-            Right versionMetadata -> do
-              logDebug $ "Metadata read: " <> printJson Metadata.publishedMetadataCodec versionMetadata
-              -- then check if we have a tarball cached. If not, download it
-              let globalCachePackagePath = Path.concat [ Paths.globalCachePath, "packages", PackageName.print name ]
-              let archivePath = Path.concat [ globalCachePackagePath, versionString <> ".tar.gz" ]
-              FS.mkdirp globalCachePackagePath
-              -- We need to see if the tarball is there, and if we can decompress it.
-              -- This is because if Spago is killed while it's writing the tar, then it might leave it corrupted.
-              -- By checking that it's broken we can try to redownload it here.
-              tarExists <- FS.exists archivePath
-              -- unpack the tars in a temp folder, then move to local cache
-              let tarInnerFolder = PackageName.print name <> "-" <> Version.print v
-              tempDir <- mkTemp
-              FS.mkdirp tempDir
-              tarIsGood <-
-                if tarExists then do
-                  logDebug $ "Trying to unpack archive to temp folder: " <> tempDir
-                  map (either (const false) (const true)) $ liftEffect $ Tar.extract { filename: archivePath, cwd: tempDir }
-                else
-                  pure false
-              case tarExists, tarIsGood, offline of
-                true, true, _ -> pure unit -- Tar exists and is good, and we already unpacked it. Happy days!
-                _, _, Offline -> die $ "Package " <> packageVersion <> " is not in the local cache, and Spago is running in offline mode - can't make progress."
-                _, _, Online -> do
-                  let packageUrl = "https://packages.registry.purescript.org/" <> PackageName.print name <> "/" <> versionString <> ".tar.gz"
-                  logInfo $ "Fetching package " <> packageVersion
-                  response <- liftAff $ withBackoff' do
-                    res <- Http.request
-                      ( Http.defaultRequest
-                          { method = Left Method.GET
-                          , responseFormat = Response.arrayBuffer
-                          , url = packageUrl
-                          }
-                      )
-                    -- If we get a 503, we want the backoff to kick in, so we wait here and we'll eventually be retried
-                    case res of
-                      Right { status } | status == StatusCode 503 -> Aff.delay (Aff.Milliseconds 30_000.0)
-                      _ -> pure unit
-                    pure res
-                  case response of
-                    Nothing -> die $ "Couldn't reach the registry at " <> packageUrl
-                    Just (Left err) -> die $ "Couldn't fetch package " <> packageVersion <> ":\n  " <> Http.printError err
-                    Just (Right { status, body }) | status /= StatusCode 200 -> do
-                      (buf :: Buffer) <- liftEffect $ Buffer.fromArrayBuffer body
-                      bodyString <- liftEffect $ Buffer.toString Encoding.UTF8 buf
-                      die $ "Couldn't fetch package " <> packageVersion <> ", status was not ok " <> show status <> ", got answer:\n  " <> bodyString
-                    Just (Right r@{ body: archiveArrayBuffer }) -> do
-                      logDebug $ "Got status: " <> show r.status
-                      -- check the size and hash of the tar against the metadata
-                      archiveBuffer <- liftEffect $ Buffer.fromArrayBuffer archiveArrayBuffer
-                      archiveSize <- liftEffect $ Buffer.size archiveBuffer
-                      archiveSha <- liftEffect $ Sha256.hashBuffer archiveBuffer
-                      unless (Int.toNumber archiveSize == versionMetadata.bytes) do
-                        die $ "Archive fetched for " <> packageVersion <> " has a different size (" <> show archiveSize <> ") than expected (" <> show versionMetadata.bytes <> ")"
-                      unless (archiveSha == versionMetadata.hash) do
-                        die $ "Archive fetched for " <> packageVersion <> " has a different hash (" <> Sha256.print archiveSha <> ") than expected (" <> Sha256.print versionMetadata.hash <> ")"
-                      -- if everything's alright we stash the tar in the global cache
-                      logDebug $ "Fetched archive for " <> packageVersion <> ", saving it in the global cache: " <> archivePath
-                      FS.writeFile archivePath archiveBuffer
-                      logDebug $ "Unpacking archive to temp folder: " <> tempDir
-                      (liftEffect $ Tar.extract { filename: archivePath, cwd: tempDir }) >>= case _ of
-                        Right _ -> pure unit
-                        Left err -> die [ "Failed to decode downloaded package " <> packageVersion <> ", error:", show err ]
-              logDebug $ "Moving extracted file to local cache:" <> localPackageLocation
-              FS.moveSync { src: (Path.concat [ tempDir, tarInnerFolder ]), dst: localPackageLocation }
-        -- Local package, no work to be done
-        LocalPackage _ -> pure unit
-        WorkspacePackage _ -> pure unit
+    fetchPackagesToLocalCache depsToFetch
 
     -- We return the dependencies, going through the lockfile write if we need to
     -- (we return them from inside there because we need to update the commit hashes)
     case workspace.packageSet.lockfile of
       Right _lockfile -> pure dependencies
       Left reason -> writeNewLockfile reason dependencies
+
+fetchPackagesToLocalCache :: ∀ a. Map PackageName Package -> Spago (FetchEnv a) Unit
+fetchPackagesToLocalCache packages = do
+  { offline } <- ask
+  parallelise $ packages # Map.toUnfoldable <#> \(Tuple name package) -> do
+    let localPackageLocation = Config.getPackageLocation name package
+    -- first of all, we check if we have the package in the local cache. If so, we don't even do the work
+    unlessM (FS.exists localPackageLocation) case package of
+      GitPackage gitPackage -> getGitPackageInLocalCache name gitPackage
+      RegistryVersion v -> do
+        -- if the version comes from the registry then we have a longer list of things to do
+        let versionString = Registry.Version.print v
+        let packageVersion = PackageName.print name <> "@" <> versionString
+        -- get the metadata for the package, so we have access to the hash and other info
+        metadata <- Registry.getMetadata name
+        case (metadata >>= (\(Metadata meta) -> Either.note "Didn't find version in the metadata file" $ Map.lookup v meta.published)) of
+          Left err -> die $ "Couldn't read metadata, reason:\n  " <> err
+          Right versionMetadata -> do
+            logDebug $ "Metadata read: " <> printJson Metadata.publishedMetadataCodec versionMetadata
+            -- then check if we have a tarball cached. If not, download it
+            let globalCachePackagePath = Path.concat [ Paths.globalCachePath, "packages", PackageName.print name ]
+            let archivePath = Path.concat [ globalCachePackagePath, versionString <> ".tar.gz" ]
+            FS.mkdirp globalCachePackagePath
+            -- We need to see if the tarball is there, and if we can decompress it.
+            -- This is because if Spago is killed while it's writing the tar, then it might leave it corrupted.
+            -- By checking that it's broken we can try to redownload it here.
+            tarExists <- FS.exists archivePath
+            -- unpack the tars in a temp folder, then move to local cache
+            let tarInnerFolder = PackageName.print name <> "-" <> Version.print v
+            tempDir <- mkTemp
+            FS.mkdirp tempDir
+            tarIsGood <-
+              if tarExists then do
+                logDebug $ "Trying to unpack archive to temp folder: " <> tempDir
+                map (either (const false) (const true)) $ liftEffect $ Tar.extract { filename: archivePath, cwd: tempDir }
+              else
+                pure false
+            case tarExists, tarIsGood, offline of
+              true, true, _ -> pure unit -- Tar exists and is good, and we already unpacked it. Happy days!
+              _, _, Offline -> die $ "Package " <> packageVersion <> " is not in the local cache, and Spago is running in offline mode - can't make progress."
+              _, _, Online -> do
+                let packageUrl = "https://packages.registry.purescript.org/" <> PackageName.print name <> "/" <> versionString <> ".tar.gz"
+                logInfo $ "Fetching package " <> packageVersion
+                response <- liftAff $ withBackoff' do
+                  res <- Http.request
+                    ( Http.defaultRequest
+                        { method = Left Method.GET
+                        , responseFormat = Response.arrayBuffer
+                        , url = packageUrl
+                        }
+                    )
+                  -- If we get a 503, we want the backoff to kick in, so we wait here and we'll eventually be retried
+                  case res of
+                    Right { status } | status == StatusCode 503 -> Aff.delay (Aff.Milliseconds 30_000.0)
+                    _ -> pure unit
+                  pure res
+                case response of
+                  Nothing -> die $ "Couldn't reach the registry at " <> packageUrl
+                  Just (Left err) -> die $ "Couldn't fetch package " <> packageVersion <> ":\n  " <> Http.printError err
+                  Just (Right { status, body }) | status /= StatusCode 200 -> do
+                    (buf :: Buffer) <- liftEffect $ Buffer.fromArrayBuffer body
+                    bodyString <- liftEffect $ Buffer.toString Encoding.UTF8 buf
+                    die $ "Couldn't fetch package " <> packageVersion <> ", status was not ok " <> show status <> ", got answer:\n  " <> bodyString
+                  Just (Right r@{ body: archiveArrayBuffer }) -> do
+                    logDebug $ "Got status: " <> show r.status
+                    -- check the size and hash of the tar against the metadata
+                    archiveBuffer <- liftEffect $ Buffer.fromArrayBuffer archiveArrayBuffer
+                    archiveSize <- liftEffect $ Buffer.size archiveBuffer
+                    archiveSha <- liftEffect $ Sha256.hashBuffer archiveBuffer
+                    unless (Int.toNumber archiveSize == versionMetadata.bytes) do
+                      die $ "Archive fetched for " <> packageVersion <> " has a different size (" <> show archiveSize <> ") than expected (" <> show versionMetadata.bytes <> ")"
+                    unless (archiveSha == versionMetadata.hash) do
+                      die $ "Archive fetched for " <> packageVersion <> " has a different hash (" <> Sha256.print archiveSha <> ") than expected (" <> Sha256.print versionMetadata.hash <> ")"
+                    -- if everything's alright we stash the tar in the global cache
+                    logDebug $ "Fetched archive for " <> packageVersion <> ", saving it in the global cache: " <> archivePath
+                    FS.writeFile archivePath archiveBuffer
+                    logDebug $ "Unpacking archive to temp folder: " <> tempDir
+                    (liftEffect $ Tar.extract { filename: archivePath, cwd: tempDir }) >>= case _ of
+                      Right _ -> pure unit
+                      Left err -> die [ "Failed to decode downloaded package " <> packageVersion <> ", error:", show err ]
+            logDebug $ "Moving extracted file to local cache:" <> localPackageLocation
+            FS.moveSync { src: (Path.concat [ tempDir, tarInnerFolder ]), dst: localPackageLocation }
+      -- Local package, no work to be done
+      LocalPackage _ -> pure unit
+      WorkspacePackage _ -> pure unit
 
 lookupInCache :: ∀ a k v. Ord k => k -> Ref.Ref (Map k v) -> Spago a (Maybe v)
 lookupInCache key cacheRef = liftEffect $ Ref.read cacheRef >>= Map.lookup key >>> pure

@@ -18,7 +18,6 @@ import Data.Codec.JSON.Record as CJ.Record
 import Data.Foldable (elem)
 import Data.Map (filterKeys)
 import Data.Map as Map
-import Data.Tuple.Nested (type (/\))
 import Record as Record
 import Registry.Internal.Codec (packageMap)
 import Registry.PackageName as PackageName
