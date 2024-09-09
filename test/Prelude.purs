@@ -12,6 +12,7 @@ import Data.String as String
 import Effect.Aff as Aff
 import Effect.Class.Console (log)
 import Effect.Class.Console as Console
+import Node.FS.Aff as FS.Aff
 import Node.Library.Execa (ExecaResult)
 import Node.Path (dirname)
 import Node.Path as Path
@@ -74,6 +75,9 @@ withTempDir = Aff.bracket createTempDir cleanupTempDir
 
   cleanupTempDir { oldCwd } = do
     liftEffect $ Process.chdir oldCwd
+
+rmRf :: ∀ m. MonadAff m => FilePath -> m Unit
+rmRf dir = liftAff $ FS.Aff.rm' dir { force: true, recursive: true, maxRetries: 5, retryDelay: 1000 }
 
 shouldEqual
   :: forall m t

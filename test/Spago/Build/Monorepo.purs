@@ -6,7 +6,6 @@ import Data.Array as Array
 import Data.String (Pattern(..))
 import Data.String as String
 import Effect.Aff (bracket)
-import Node.FS.Aff as FS.Aff
 import Node.Path as Path
 import Node.Process as Process
 import Spago.Cmd as Cmd
@@ -357,5 +356,3 @@ spec = Spec.describe "monorepo" do
     res <- Cmd.exec "git" args opts
     res # shouldBeSuccess
     pure $ Cmd.getStdout res
-
-  rmRf dir = liftAff $ FS.Aff.rm' dir { force: true, recursive: true, maxRetries: 5, retryDelay: 1000 }
