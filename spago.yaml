@@ -75,7 +75,6 @@ package:
       - ImplicitQualifiedImportReExport
       - ImplicitQualifiedImport
     dependencies:
-      - debug
       - exceptions
       - identity
       - quickcheck
