@@ -42,7 +42,7 @@ import Codec.JSON.DecodeError as CJ.DecodeError
 import Data.Array.NonEmpty as NonEmptyArray
 import Data.Codec as Codec
 import Data.Codec.JSON as CJ
-import Data.Codec.JSON.Record as CJS.Record
+import Data.Codec.JSON.Record as CJ.Record
 import Data.Codec.JSON.Strict as CJS
 import Data.Codec.JSON.Sum as CJ.Sum
 import Data.Either as Either
@@ -51,6 +51,8 @@ import Data.Map as Map
 import Data.Profunctor as Profunctor
 import Partial.Unsafe (unsafeCrashWith)
 import Registry.Internal.Codec as Internal.Codec
+import Registry.Internal.Codec as Reg.Internal.Codec
+import Registry.Internal.Parsing as Reg.Internal.Parsing
 import Registry.License as License
 import Registry.Location as Location
 import Registry.PackageName as PackageName
@@ -104,10 +106,48 @@ publishConfigCodec :: CJ.Codec PublishConfig
 publishConfigCodec = CJ.named "PublishConfig" $ CJS.objectStrict
   $ CJS.recordProp @"version" Version.codec
   $ CJS.recordProp @"license" License.codec
-  $ CJS.recordPropOptional @"location" Location.codec
+  $ CJS.recordPropOptional @"location" publishLocationCodec
   $ CJS.recordPropOptional @"include" (CJ.array CJ.string)
   $ CJS.recordPropOptional @"exclude" (CJ.array CJ.string)
   $ CJS.record
+
+-- This codec duplicates `Location.codec` from the Registry library, but with
+-- strict parsing of fields, so that we would error out on unknown fields, thus
+-- catching typos in field names. We do not want to modify the original codec in
+-- the Registry library, because it's used for network communication, not for
+-- reading user input, and therefore it's more important there to ignore unknown
+-- fields for backwards compatibiility.
+publishLocationCodec :: CJ.Codec Location
+publishLocationCodec = CJ.named "Publish Location" $ Codec.codec' decode encode
+  where
+  decode json =
+    (Location.Git <$> Codec.decode gitCodec json)
+      <|> (Location.GitHub <$> Codec.decode githubCodec json)
+
+  encode = case _ of
+    Location.Git git -> CJ.encode gitCodec git
+    Location.GitHub github -> CJ.encode githubCodec github
+
+  githubCodec :: CJ.Codec Location.GitHubData
+  githubCodec = Profunctor.dimap toJsonRep fromJsonRep $ CJ.named "GitHub" $ CJ.Record.objectStrict
+    { githubOwner: CJ.string
+    , githubRepo: CJ.string
+    , subdir: CJ.Record.optional CJ.string
+    }
+    where
+    toJsonRep { owner, repo, subdir } = { githubOwner: owner, githubRepo: repo, subdir }
+    fromJsonRep { githubOwner, githubRepo, subdir } = { owner: githubOwner, repo: githubRepo, subdir }
+
+  gitCodec :: CJ.Codec Location.GitData
+  gitCodec = Profunctor.dimap toJsonRep fromJsonRep $ CJ.named "Git" $ CJ.Record.objectStrict
+    { gitUrl: Reg.Internal.Codec.parsedString Reg.Internal.Parsing.gitUrl
+    , subdir: CJ.Record.optional CJ.string
+    }
+    where
+    -- The JSON representation of the GitHub type uses 'gitUrl', but in PureScript
+    -- we use 'url' for convenience.
+    toJsonRep { url, subdir } = { gitUrl: url, subdir }
+    fromJsonRep { gitUrl, subdir } = { url: gitUrl, subdir }
 
 type RunConfig =
   { main :: Maybe String
@@ -365,7 +405,7 @@ warningCensorTestCodec = Codec.codec' decode encode
     byCode = ByCode <$> Codec.decode CJ.string json
     byPrefix = (ByMessagePrefix <<< _.byPrefix) <$> Codec.decode byMessagePrefixCodec json
 
-  byMessagePrefixCodec = CJ.named "ByMessagePrefix" $ CJS.Record.objectStrict { byPrefix: CJ.string }
+  byMessagePrefixCodec = CJ.named "ByMessagePrefix" $ CJ.Record.objectStrict { byPrefix: CJ.string }
 
 data StatVerbosity
   = NoStats
@@ -403,9 +443,9 @@ derive instance Eq SetAddress
 setAddressCodec :: CJ.Codec SetAddress
 setAddressCodec = Codec.codec' decode encode
   where
-  setFromRegistryCodec = CJ.named "SetFromRegistry" $ CJS.Record.objectStrict { registry: Version.codec }
-  setFromUrlCodec = CJ.named "SetFromUrl" $ CJS.Record.objectStrict { url: CJ.string, hash: CJS.Record.optional Sha256.codec }
-  setFromPathCodec = CJ.named "SetFromPath" $ CJS.Record.objectStrict { path: CJ.string }
+  setFromRegistryCodec = CJ.named "SetFromRegistry" $ CJ.Record.objectStrict { registry: Version.codec }
+  setFromUrlCodec = CJ.named "SetFromUrl" $ CJ.Record.objectStrict { url: CJ.string, hash: CJ.Record.optional Sha256.codec }
+  setFromPathCodec = CJ.named "SetFromPath" $ CJ.Record.objectStrict { path: CJ.string }
 
   encode (SetFromRegistry r) = CJ.encode setFromRegistryCodec r
   encode (SetFromUrl u) = CJ.encode setFromUrlCodec u
@@ -433,7 +473,7 @@ extraPackageCodec = Codec.codec' decode encode
 type LocalPackage = { path :: FilePath }
 
 localPackageCodec :: CJ.Codec LocalPackage
-localPackageCodec = CJ.named "LocalPackage" $ CJS.Record.objectStrict { path: CJ.string }
+localPackageCodec = CJ.named "LocalPackage" $ CJ.Record.objectStrict { path: CJ.string }
 
 data RemotePackage
   = RemoteGitPackage GitPackage

@@ -50,6 +50,18 @@ spec =
           <> "\n  Could not decode WorkspaceBuildOptionsInput:"
           <> "\n    Unknown field(s): bogus_field"
           )
+
+      Spec.it "under 'publish.location'" do
+        Yaml.parseYaml C.configCodec unrecognizedPublishLocationFieldYaml `shouldFailWith`
+          ( "$.package.publish.location: Could not decode PackageConfig:"
+          <> "\n  Could not decode PublishConfig:"
+          <> "\n    Could not decode Publish Location:"
+          <> "\n      Failed to decode alternatives:"
+          <> "\n        - $.gitUrl: Could not decode Git:"
+          <> "\n            No value found"
+          <> "\n        - Could not decode GitHub:"
+          <> "\n            Unknown field(s): bogus_field"
+          )
     where
     shouldFailWith result expectedError =
       case result of
@@ -148,4 +160,21 @@ unrecognizedBuildOptsFieldYaml = """
       registry: 56.4.0
     buildOpts:
       bogus_field: bogus_value
+"""
+
+unrecognizedPublishLocationFieldYaml :: String
+unrecognizedPublishLocationFieldYaml = """
+  package:
+    name: spago
+    dependencies: []
+    publish:
+      version: 0.0.0
+      license: MIT
+      location:
+        githubOwner: purescript
+        githubRepo: spago
+        bogus_field: bogus_value
+  workspace:
+    packageSet:
+      registry: 56.4.0
 """
