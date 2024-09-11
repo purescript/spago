@@ -50,7 +50,6 @@ import Data.List as List
 import Data.Map as Map
 import Data.Profunctor as Profunctor
 import Partial.Unsafe (unsafeCrashWith)
-import Registry.Internal.Codec as Internal.Codec
 import Registry.Internal.Codec as Reg.Internal.Codec
 import Registry.Internal.Parsing as Reg.Internal.Parsing
 import Registry.License as License
@@ -282,7 +281,7 @@ instance Monoid Dependencies where
 dependenciesCodec :: CJ.Codec Dependencies
 dependenciesCodec = Profunctor.dimap to from $ CJ.array dependencyCodec
   where
-  packageSingletonCodec = Internal.Codec.packageMap spagoRangeCodec
+  packageSingletonCodec = Reg.Internal.Codec.packageMap spagoRangeCodec
 
   to :: Dependencies -> Array (Either PackageName (Map PackageName Range))
   to (Dependencies deps) =
@@ -339,7 +338,7 @@ workspaceConfigCodec = CJ.named "WorkspaceConfig" $ CJS.objectStrict
   $ CJS.recordPropOptional @"packageSet" setAddressCodec
   $ CJS.recordPropOptional @"backend" backendConfigCodec
   $ CJS.recordPropOptional @"buildOpts" buildOptionsCodec
-  $ CJS.recordPropOptional @"extraPackages" (Internal.Codec.packageMap extraPackageCodec)
+  $ CJS.recordPropOptional @"extraPackages" (Reg.Internal.Codec.packageMap extraPackageCodec)
   $ CJS.record
 
 type WorkspaceBuildOptionsInput =
