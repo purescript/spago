@@ -86,7 +86,7 @@ workspace:
   extraPackages:
     registry-lib:
       git: https://github.com/purescript/registry-dev.git
-      ref: 7a42ca1381ab9e1203a9f89d077d47d41ec59316
+      ref: fc203a9e2a0b96a90ace20dc6958c157cbbca16b
       subdir: lib
     html-parser-halogen:
       dependencies:
