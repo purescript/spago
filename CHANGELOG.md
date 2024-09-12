@@ -38,6 +38,8 @@ Other improvements:
   current workspace.
 - #1110: `spago publish` will now install packages returned by the registry solver
   before trying to build with them.
+- Spago no longer ignores config fields that it doesn't recognize. This should
+  help catch typos in field names.
 
 ## [0.21.0] - 2023-05-04
 

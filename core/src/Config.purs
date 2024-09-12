@@ -43,20 +43,21 @@ import Data.Array.NonEmpty as NonEmptyArray
 import Data.Codec as Codec
 import Data.Codec.JSON as CJ
 import Data.Codec.JSON.Record as CJ.Record
+import Data.Codec.JSON.Strict as CJS
 import Data.Codec.JSON.Sum as CJ.Sum
 import Data.Either as Either
 import Data.List as List
 import Data.Map as Map
 import Data.Profunctor as Profunctor
 import Partial.Unsafe (unsafeCrashWith)
-import Registry.Internal.Codec as Internal.Codec
+import Registry.Internal.Codec as Reg.Internal.Codec
+import Registry.Internal.Parsing as Reg.Internal.Parsing
 import Registry.License as License
 import Registry.Location as Location
 import Registry.PackageName as PackageName
 import Registry.Range as Range
 import Registry.Sha256 as Sha256
 import Registry.Version as Version
-import Type.Proxy (Proxy(..))
 
 type Config =
   { package :: Maybe PackageConfig
@@ -64,10 +65,10 @@ type Config =
   }
 
 configCodec :: CJ.Codec Config
-configCodec = CJ.object
-  $ CJ.recordPropOptional (Proxy @"package") packageConfigCodec
-  $ CJ.recordPropOptional (Proxy @"workspace") workspaceConfigCodec
-  $ CJ.record
+configCodec = CJS.objectStrict
+  $ CJS.recordPropOptional @"package" packageConfigCodec
+  $ CJS.recordPropOptional @"workspace" workspaceConfigCodec
+  $ CJS.record
 
 type PackageConfig =
   { name :: PackageName
@@ -81,16 +82,16 @@ type PackageConfig =
   }
 
 packageConfigCodec :: CJ.Codec PackageConfig
-packageConfigCodec = CJ.named "PackageConfig" $ CJ.object
-  $ CJ.recordProp (Proxy @"name") PackageName.codec
-  $ CJ.recordPropOptional (Proxy @"description") CJ.string
-  $ CJ.recordProp (Proxy @"dependencies") dependenciesCodec
-  $ CJ.recordPropOptional (Proxy @"build") packageBuildOptionsCodec
-  $ CJ.recordPropOptional (Proxy @"bundle") bundleConfigCodec
-  $ CJ.recordPropOptional (Proxy @"run") runConfigCodec
-  $ CJ.recordPropOptional (Proxy @"test") testConfigCodec
-  $ CJ.recordPropOptional (Proxy @"publish") publishConfigCodec
-  $ CJ.record
+packageConfigCodec = CJ.named "PackageConfig" $ CJS.objectStrict
+  $ CJS.recordProp @"name" PackageName.codec
+  $ CJS.recordPropOptional @"description" CJ.string
+  $ CJS.recordProp @"dependencies" dependenciesCodec
+  $ CJS.recordPropOptional @"build" packageBuildOptionsCodec
+  $ CJS.recordPropOptional @"bundle" bundleConfigCodec
+  $ CJS.recordPropOptional @"run" runConfigCodec
+  $ CJS.recordPropOptional @"test" testConfigCodec
+  $ CJS.recordPropOptional @"publish" publishConfigCodec
+  $ CJS.record
 
 type PublishConfig =
   { version :: Version
@@ -101,13 +102,51 @@ type PublishConfig =
   }
 
 publishConfigCodec :: CJ.Codec PublishConfig
-publishConfigCodec = CJ.named "PublishConfig" $ CJ.object
-  $ CJ.recordProp (Proxy @"version") Version.codec
-  $ CJ.recordProp (Proxy @"license") License.codec
-  $ CJ.recordPropOptional (Proxy @"location") Location.codec
-  $ CJ.recordPropOptional (Proxy @"include") (CJ.array CJ.string)
-  $ CJ.recordPropOptional (Proxy @"exclude") (CJ.array CJ.string)
-  $ CJ.record
+publishConfigCodec = CJ.named "PublishConfig" $ CJS.objectStrict
+  $ CJS.recordProp @"version" Version.codec
+  $ CJS.recordProp @"license" License.codec
+  $ CJS.recordPropOptional @"location" publishLocationCodec
+  $ CJS.recordPropOptional @"include" (CJ.array CJ.string)
+  $ CJS.recordPropOptional @"exclude" (CJ.array CJ.string)
+  $ CJS.record
+
+-- This codec duplicates `Location.codec` from the Registry library, but with
+-- strict parsing of fields, so that we would error out on unknown fields, thus
+-- catching typos in field names. We do not want to modify the original codec in
+-- the Registry library, because it's used for network communication, not for
+-- reading user input, and therefore it's more important there to ignore unknown
+-- fields for backwards compatibiility.
+publishLocationCodec :: CJ.Codec Location
+publishLocationCodec = CJ.named "Publish Location" $ Codec.codec' decode encode
+  where
+  decode json =
+    (Location.Git <$> Codec.decode gitCodec json)
+      <|> (Location.GitHub <$> Codec.decode githubCodec json)
+
+  encode = case _ of
+    Location.Git git -> CJ.encode gitCodec git
+    Location.GitHub github -> CJ.encode githubCodec github
+
+  githubCodec :: CJ.Codec Location.GitHubData
+  githubCodec = Profunctor.dimap toJsonRep fromJsonRep $ CJ.named "GitHub" $ CJ.Record.objectStrict
+    { githubOwner: CJ.string
+    , githubRepo: CJ.string
+    , subdir: CJ.Record.optional CJ.string
+    }
+    where
+    toJsonRep { owner, repo, subdir } = { githubOwner: owner, githubRepo: repo, subdir }
+    fromJsonRep { githubOwner, githubRepo, subdir } = { owner: githubOwner, repo: githubRepo, subdir }
+
+  gitCodec :: CJ.Codec Location.GitData
+  gitCodec = Profunctor.dimap toJsonRep fromJsonRep $ CJ.named "Git" $ CJ.Record.objectStrict
+    { gitUrl: Reg.Internal.Codec.parsedString Reg.Internal.Parsing.gitUrl
+    , subdir: CJ.Record.optional CJ.string
+    }
+    where
+    -- The JSON representation of the GitHub type uses 'gitUrl', but in PureScript
+    -- we use 'url' for convenience.
+    toJsonRep { url, subdir } = { gitUrl: url, subdir }
+    fromJsonRep { gitUrl, subdir } = { url: gitUrl, subdir }
 
 type RunConfig =
   { main :: Maybe String
@@ -115,10 +154,10 @@ type RunConfig =
   }
 
 runConfigCodec :: CJ.Codec RunConfig
-runConfigCodec = CJ.named "RunConfig" $ CJ.object
-  $ CJ.recordPropOptional (Proxy @"main") CJ.string
-  $ CJ.recordPropOptional (Proxy @"execArgs") (CJ.array CJ.string)
-  $ CJ.record
+runConfigCodec = CJ.named "RunConfig" $ CJS.objectStrict
+  $ CJS.recordPropOptional @"main" CJ.string
+  $ CJS.recordPropOptional @"execArgs" (CJ.array CJ.string)
+  $ CJS.record
 
 type TestConfig =
   { main :: String
@@ -130,14 +169,14 @@ type TestConfig =
   }
 
 testConfigCodec :: CJ.Codec TestConfig
-testConfigCodec = CJ.named "TestConfig" $ CJ.object
-  $ CJ.recordProp (Proxy @"main") CJ.string
-  $ CJ.recordPropOptional (Proxy @"execArgs") (CJ.array CJ.string)
-  $ CJ.recordPropOptional (Proxy @"censorTestWarnings") censorBuildWarningsCodec
-  $ CJ.recordPropOptional (Proxy @"strict") CJ.boolean
-  $ CJ.recordPropOptional (Proxy @"pedanticPackages") CJ.boolean
-  $ CJ.recordProp (Proxy @"dependencies") dependenciesCodec
-  $ CJ.record
+testConfigCodec = CJ.named "TestConfig" $ CJS.objectStrict
+  $ CJS.recordProp @"main" CJ.string
+  $ CJS.recordPropOptional @"execArgs" (CJ.array CJ.string)
+  $ CJS.recordPropOptional @"censorTestWarnings" censorBuildWarningsCodec
+  $ CJS.recordPropOptional @"strict" CJ.boolean
+  $ CJS.recordPropOptional @"pedanticPackages" CJ.boolean
+  $ CJS.recordProp @"dependencies" dependenciesCodec
+  $ CJS.record
 
 type BackendConfig =
   { cmd :: String
@@ -145,10 +184,10 @@ type BackendConfig =
   }
 
 backendConfigCodec :: CJ.Codec BackendConfig
-backendConfigCodec = CJ.named "BackendConfig" $ CJ.object
-  $ CJ.recordProp (Proxy @"cmd") CJ.string
-  $ CJ.recordPropOptional (Proxy @"args") (CJ.array CJ.string)
-  $ CJ.record
+backendConfigCodec = CJ.named "BackendConfig" $ CJS.objectStrict
+  $ CJS.recordProp @"cmd" CJ.string
+  $ CJS.recordPropOptional @"args" (CJ.array CJ.string)
+  $ CJS.record
 
 type PackageBuildOptionsInput =
   { censorProjectWarnings :: Maybe CensorBuildWarnings
@@ -157,11 +196,11 @@ type PackageBuildOptionsInput =
   }
 
 packageBuildOptionsCodec :: CJ.Codec PackageBuildOptionsInput
-packageBuildOptionsCodec = CJ.named "PackageBuildOptionsInput" $ CJ.object
-  $ CJ.recordPropOptional (Proxy @"censorProjectWarnings") censorBuildWarningsCodec
-  $ CJ.recordPropOptional (Proxy @"strict") CJ.boolean
-  $ CJ.recordPropOptional (Proxy @"pedanticPackages") CJ.boolean
-  $ CJ.record
+packageBuildOptionsCodec = CJ.named "PackageBuildOptionsInput" $ CJS.objectStrict
+  $ CJS.recordPropOptional @"censorProjectWarnings" censorBuildWarningsCodec
+  $ CJS.recordPropOptional @"strict" CJ.boolean
+  $ CJS.recordPropOptional @"pedanticPackages" CJ.boolean
+  $ CJS.record
 
 type BundleConfig =
   { minify :: Maybe Boolean
@@ -173,16 +212,18 @@ type BundleConfig =
   }
 
 bundleConfigCodec :: CJ.Codec BundleConfig
-bundleConfigCodec = CJ.named "BundleConfig" $ CJ.object
-  $ CJ.recordPropOptional (Proxy @"minify") CJ.boolean
-  $ CJ.recordPropOptional (Proxy @"module") CJ.string
-  $ CJ.recordPropOptional (Proxy @"outfile") CJ.string
-  $ CJ.recordPropOptional (Proxy @"platform") bundlePlatformCodec
-  $ CJ.recordPropOptional (Proxy @"type") bundleTypeCodec
-  $ CJ.recordPropOptional (Proxy @"extraArgs") (CJ.array CJ.string)
-  $ CJ.record
+bundleConfigCodec = CJ.named "BundleConfig" $ CJS.objectStrict
+  $ CJS.recordPropOptional @"minify" CJ.boolean
+  $ CJS.recordPropOptional @"module" CJ.string
+  $ CJS.recordPropOptional @"outfile" CJ.string
+  $ CJS.recordPropOptional @"platform" bundlePlatformCodec
+  $ CJS.recordPropOptional @"type" bundleTypeCodec
+  $ CJS.recordPropOptional @"extraArgs" (CJ.array CJ.string)
+  $ CJS.record
 
 data BundlePlatform = BundleNode | BundleBrowser
+
+derive instance Eq BundlePlatform
 
 instance Show BundlePlatform where
   show = case _ of
@@ -201,6 +242,8 @@ bundlePlatformCodec = CJ.Sum.enumSum show (parsePlatform)
 -- | This is the equivalent of "WithMain" in the old Spago.
 -- App bundles with a main fn, while Module does not include a main.
 data BundleType = BundleApp | BundleModule
+
+derive instance Eq BundleType
 
 instance Show BundleType where
   show = case _ of
@@ -238,7 +281,7 @@ instance Monoid Dependencies where
 dependenciesCodec :: CJ.Codec Dependencies
 dependenciesCodec = Profunctor.dimap to from $ CJ.array dependencyCodec
   where
-  packageSingletonCodec = Internal.Codec.packageMap spagoRangeCodec
+  packageSingletonCodec = Reg.Internal.Codec.packageMap spagoRangeCodec
 
   to :: Dependencies -> Array (Either PackageName (Map PackageName Range))
   to (Dependencies deps) =
@@ -291,12 +334,12 @@ type WorkspaceConfig =
   }
 
 workspaceConfigCodec :: CJ.Codec WorkspaceConfig
-workspaceConfigCodec = CJ.named "WorkspaceConfig" $ CJ.object
-  $ CJ.recordPropOptional (Proxy @"packageSet") setAddressCodec
-  $ CJ.recordPropOptional (Proxy @"backend") backendConfigCodec
-  $ CJ.recordPropOptional (Proxy @"buildOpts") buildOptionsCodec
-  $ CJ.recordPropOptional (Proxy @"extraPackages") (Internal.Codec.packageMap extraPackageCodec)
-  $ CJ.record
+workspaceConfigCodec = CJ.named "WorkspaceConfig" $ CJS.objectStrict
+  $ CJS.recordPropOptional @"packageSet" setAddressCodec
+  $ CJS.recordPropOptional @"backend" backendConfigCodec
+  $ CJS.recordPropOptional @"buildOpts" buildOptionsCodec
+  $ CJS.recordPropOptional @"extraPackages" (Reg.Internal.Codec.packageMap extraPackageCodec)
+  $ CJS.record
 
 type WorkspaceBuildOptionsInput =
   { output :: Maybe FilePath
@@ -305,11 +348,11 @@ type WorkspaceBuildOptionsInput =
   }
 
 buildOptionsCodec :: CJ.Codec WorkspaceBuildOptionsInput
-buildOptionsCodec = CJ.named "WorkspaceBuildOptionsInput" $ CJ.object
-  $ CJ.recordPropOptional (Proxy @"output") CJ.string
-  $ CJ.recordPropOptional (Proxy @"censorLibraryWarnings") censorBuildWarningsCodec
-  $ CJ.recordPropOptional (Proxy @"statVerbosity") statVerbosityCodec
-  $ CJ.record
+buildOptionsCodec = CJ.named "WorkspaceBuildOptionsInput" $ CJS.objectStrict
+  $ CJS.recordPropOptional @"output" CJ.string
+  $ CJS.recordPropOptional @"censorLibraryWarnings" censorBuildWarningsCodec
+  $ CJS.recordPropOptional @"statVerbosity" statVerbosityCodec
+  $ CJS.record
 
 data CensorBuildWarnings
   = CensorAllWarnings
@@ -361,12 +404,14 @@ warningCensorTestCodec = Codec.codec' decode encode
     byCode = ByCode <$> Codec.decode CJ.string json
     byPrefix = (ByMessagePrefix <<< _.byPrefix) <$> Codec.decode byMessagePrefixCodec json
 
-  byMessagePrefixCodec = CJ.named "ByMessagePrefix" $ CJ.Record.object { byPrefix: CJ.string }
+  byMessagePrefixCodec = CJ.named "ByMessagePrefix" $ CJ.Record.objectStrict { byPrefix: CJ.string }
 
 data StatVerbosity
   = NoStats
   | CompactStats
   | VerboseStats
+
+derive instance Eq StatVerbosity
 
 instance Show StatVerbosity where
   show = case _ of
@@ -397,9 +442,9 @@ derive instance Eq SetAddress
 setAddressCodec :: CJ.Codec SetAddress
 setAddressCodec = Codec.codec' decode encode
   where
-  setFromRegistryCodec = CJ.named "SetFromRegistry" $ CJ.Record.object { registry: Version.codec }
-  setFromUrlCodec = CJ.named "SetFromUrl" $ CJ.Record.object { url: CJ.string, hash: CJ.Record.optional Sha256.codec }
-  setFromPathCodec = CJ.named "SetFromPath" $ CJ.Record.object { path: CJ.string }
+  setFromRegistryCodec = CJ.named "SetFromRegistry" $ CJ.Record.objectStrict { registry: Version.codec }
+  setFromUrlCodec = CJ.named "SetFromUrl" $ CJ.Record.objectStrict { url: CJ.string, hash: CJ.Record.optional Sha256.codec }
+  setFromPathCodec = CJ.named "SetFromPath" $ CJ.Record.objectStrict { path: CJ.string }
 
   encode (SetFromRegistry r) = CJ.encode setFromRegistryCodec r
   encode (SetFromUrl u) = CJ.encode setFromUrlCodec u
@@ -427,7 +472,7 @@ extraPackageCodec = Codec.codec' decode encode
 type LocalPackage = { path :: FilePath }
 
 localPackageCodec :: CJ.Codec LocalPackage
-localPackageCodec = CJ.named "LocalPackage" $ CJ.Record.object { path: CJ.string }
+localPackageCodec = CJ.named "LocalPackage" $ CJ.Record.objectStrict { path: CJ.string }
 
 data RemotePackage
   = RemoteGitPackage GitPackage
@@ -455,12 +500,12 @@ type GitPackage =
   }
 
 gitPackageCodec :: CJ.Codec GitPackage
-gitPackageCodec = CJ.named "GitPackage" $ CJ.object
-  $ CJ.recordProp (Proxy @"git") CJ.string
-  $ CJ.recordProp (Proxy @"ref") CJ.string
-  $ CJ.recordPropOptional (Proxy @"subdir") CJ.string
-  $ CJ.recordPropOptional (Proxy @"dependencies") dependenciesCodec
-  $ CJ.record
+gitPackageCodec = CJ.named "GitPackage" $ CJS.objectStrict
+  $ CJS.recordProp @"git" CJ.string
+  $ CJS.recordProp @"ref" CJ.string
+  $ CJS.recordPropOptional @"subdir" CJ.string
+  $ CJS.recordPropOptional @"dependencies" dependenciesCodec
+  $ CJS.record
 
 -- | The format of a legacy packages.json package set entry for an individual
 -- | package.
@@ -471,8 +516,8 @@ type LegacyPackageSetEntry =
   }
 
 legacyPackageSetEntryCodec :: CJ.Codec LegacyPackageSetEntry
-legacyPackageSetEntryCodec = CJ.named "LegacyPackageSetEntry" $ CJ.object
-  $ CJ.recordProp (Proxy @"repo") CJ.string
-  $ CJ.recordProp (Proxy @"version") CJ.string
-  $ CJ.recordProp (Proxy @"dependencies") (CJ.array PackageName.codec)
-  $ CJ.record
+legacyPackageSetEntryCodec = CJ.named "LegacyPackageSetEntry" $ CJS.objectStrict
+  $ CJS.recordProp @"repo" CJ.string
+  $ CJS.recordProp @"version" CJ.string
+  $ CJS.recordProp @"dependencies" (CJ.array PackageName.codec)
+  $ CJS.record

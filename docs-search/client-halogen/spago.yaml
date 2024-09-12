@@ -38,7 +38,6 @@ package:
   bundle:
     type: "app"
     minify: true
-    sourceMaps: true
     module: Docs.Search.App
     outfile: "../../bin/docs-search-app.js"
     platform: browser
@@ -47,3 +46,4 @@ package:
       # The node module is also considered deprecated and recommends using the upstream npm package punycode. So its an easy swap-in.
       # The extra / at the end is how you tell node and esbuild to override a builtin node package with a user-space package.
       - "--alias:punycode=punycode/"
+      - "--sourcemap"
