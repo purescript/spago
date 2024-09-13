@@ -558,9 +558,18 @@ workspace:
 > [!IMPORTANT]\
 > You still need to `spago install my-new-package` after adding it to the package set, or Spago will not know that you want to use it as a dependency!
 
-If a package is not in the upstream package set, you can add it exactly in the same way, by adding it to `extraPackages`.
+If a package is not in the upstream package set you can make it available in your build by adding it to `extraPackages`.
 
-E.g. if we want to add the `facebook` package:
+There are a few possible scenarios - the most straightforward is when a package is already in the registry, then you just need to specify its version:
+
+```
+workspace:
+  registry: 41.2.0
+  extraPackages:
+    some-package-from-the-registry: 4.0.0
+```
+
+Another possibility is that the package is not in the registry (maybe it's your own fork?), but it's a git repo somewhere - e.g. if we'd like to add the `facebook` package:
 
 ```yaml
 workspace:
@@ -575,7 +584,7 @@ workspace:
 > If the upstream library that you are adding has a `spago.yaml` file, then Spago will just pick up the dependencies from there.
 > If that's not the case, then you'll have the provide the dependencies yourself, adding a `dependencies` field.
 
-As you might expect, this works also in the case of adding local packages:
+The last possible case is the one picking up a local folder as a package (note: you'll need a `spago.yaml` file in there):
 
 ```yaml
 workspace:
