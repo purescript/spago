@@ -34,7 +34,11 @@ spec = Spec.around withTempDir do
 
     Spec.it "passes options to purs" \{ spago } -> do
       spago [ "init" ] >>= shouldBeSuccess
-      spago [ "build", "--purs-args", "--verbose-errors", "--purs-args", "--json-errors" ] >>= shouldBeSuccess
+      spago [ "build", "--purs-args", "--verbose-errors", "--purs-args", "--comments" ] >>= shouldBeSuccess
+
+    Spec.it "can't pass the --json-errors flag to purs" \{ spago, fixture } -> do
+      spago [ "init", "--name", "aaa" ] >>= shouldBeSuccess
+      spago [ "build", "--purs-args", "--json-errors" ] >>= shouldBeFailureErr (fixture "json-errors-err.txt")
 
     Spec.it "can use a different output folder" \{ spago } -> do
       spago [ "init" ] >>= shouldBeSuccess
@@ -224,8 +228,8 @@ spec = Spec.around withTempDir do
             , result
             , sanitize:
                 String.trim
-                >>> String.replaceAll (String.Pattern $ "src\\") (String.Replacement "src/")
-                >>> String.replaceAll (String.Pattern $ "\r\n") (String.Replacement "\n")
+                  >>> String.replaceAll (String.Pattern $ "src\\") (String.Replacement "src/")
+                  >>> String.replaceAll (String.Pattern $ "\r\n") (String.Replacement "\n")
             }
 
       FS.copyTree { src: fixture "build/1148-warnings-diff-errors", dst: "." }
