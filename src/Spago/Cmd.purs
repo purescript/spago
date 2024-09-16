@@ -130,7 +130,9 @@ getStderr = either _.stderr _.stderr
 -- | For example, trying to find the `output` arg
 -- | we would run
 -- | `findFlags { flags: [ "-o", "--output" ], args }`
--- | where `args` is one of the 5 variants below:
+-- | where `args` is one of the 6 variants below:
+-- | - args are just one element:
+-- |    - `[ "--output"]`
 -- | - args are two separate array elements:
 -- |    - `[ "-o", "dir"]`
 -- |    - `[ "--output", "dir"]`
@@ -139,27 +141,31 @@ getStderr = either _.stderr _.stderr
 -- |    - `[ "--output dir"]`
 -- |    - `[ "--output=dir"]`
 findFlag :: { flags :: Array String, args :: Array String } -> Maybe String
-findFlag { flags, args } = if len == 0 then Nothing else go 0
+findFlag { flags, args } = if argsLen == 0 then Nothing else go 0
   where
-  len = Array.length args
-  lastIdx = len - 1
-  go idx = do
-    let arg = unsafePartial $ Array.unsafeIndex args idx
-    case Array.findMap (\flag -> stripFlag flag arg) flags of
-      Just (Tuple isOneCharFlag restOfArg)
-        | restOfArg == "" -> do
-            Array.index args $ idx + 1
-        | otherwise ->
-            dropExtra isOneCharFlag restOfArg
-      Nothing
-        | idx < lastIdx ->
-            go $ idx + 1
-        | otherwise ->
-            Nothing
+  argsLen = Array.length args
+  lastArgIdx = argsLen - 1
 
+  go idx = do
+    let currentArg = unsafePartial $ Array.unsafeIndex args idx
+    case Array.findMap (\flag -> stripFlag flag currentArg) flags of
+      Just (Tuple isOneCharFlag restOfArg) -> case restOfArg of
+        -- If the flag is the entirety of the arg, we need to look at the next arg:
+        "" -> case Array.index args (idx + 1) of
+          -- If there's a next arg we return it
+          Just next -> Just next
+          -- If there's not then this was a boolean flag
+          Nothing -> Just ""
+        _ -> dropExtra isOneCharFlag restOfArg
+      Nothing -> case idx < lastArgIdx of
+        true -> go (idx + 1)
+        false -> Nothing
+
+  stripFlag :: String -> String -> Maybe (Tuple Boolean String)
   stripFlag flag arg =
     Tuple (isSingleCharFlag flag) <$> String.stripPrefix (Pattern flag) arg
 
+  dropExtra :: Boolean -> String -> Maybe String
   dropExtra isOneCharFlag restOfArg =
     if isOneCharFlag then dropSpace restOfArg
     else dropSpace restOfArg <|> dropEquals restOfArg
