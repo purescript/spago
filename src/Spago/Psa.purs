@@ -60,9 +60,12 @@ psaCompile globs pursArgs psaArgs = do
 
         pure $ FO.isEmpty out'.stats.allErrors
 
-  if Array.all identity arrErrorsIsEmpty then do
+  if Array.all identity arrErrorsIsEmpty && Cmd.exitedOk result then do
     logSuccess "Build succeeded."
     pure true
+  else if not $ Cmd.exitedOk result then do
+    prepareToDie [ "purs exited with non-ok status code: " <> show (Cmd.exit result) ]
+    pure false
   else do
     case result of
       Left r -> logDebug $ Cmd.printExecResult r
