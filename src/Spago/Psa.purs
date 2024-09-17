@@ -50,6 +50,8 @@ psaCompile globs pursArgs psaArgs = do
     print' = if psaArgs.jsonErrors then printJsonOutputToOut else printDefaultOutputToErr psaArgs
 
   errors <- for (Str.split (Str.Pattern "\n") resultStdout) \err -> runExceptT do
+    -- If we can't decode the error, then there's likely a codec issue on Spago's side.
+    -- So, this shouldn't fail the build.
     out <- ExceptT $ pure $ JSON.parse err >>= CJ.decode psaResultCodec >>> lmap CJ.DecodeError.print
     files <- liftEffect $ Ref.new FO.empty
     out' <- lift $ buildOutput (loadLines files) psaArgs out
