@@ -67,14 +67,17 @@ psaCompile globs pursArgs psaArgs = do
     failedToDecode = failedToDecodeMsg <$> Array.catMaybes (Array.mapWithIndex (\idx e -> (idx /\ _) <$> blush e) errors)
 
   case Cmd.exit purs, noErrors of
-    Normally 0, true -> for failedToDecode logWarn *> logSuccess "Build succeeded." $> true
-    _, true -> prepareToDie [ "purs exited with non-ok status code: " <> show (Cmd.exit purs) ] $> false
-    _, _ -> do
-      case purs of
-        Left r -> logDebug $ Cmd.printExecResult r
-        _ -> pure unit
-      prepareToDie [ "Failed to build." ]
-      pure false
+    Normally 0, true ->
+      for failedToDecode logWarn
+      *> logSuccess "Build succeeded."
+      $> true
+    _, true ->
+      prepareToDie [ "purs exited with non-ok status code: " <> show (Cmd.exit purs) ]
+      $> false
+    _, _ ->
+      for (blush purs) (logDebug <<< Cmd.printExecResult)
+      *> prepareToDie [ "Failed to build." ]
+      $> false
 
   where
   isEmptySpan filename pos =
