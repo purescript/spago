@@ -42,15 +42,6 @@ import Spago.Purs as Purs
 defaultStatVerbosity :: Core.StatVerbosity
 defaultStatVerbosity = Core.CompactStats
 
---  Left decodeErrMsg -> do
---    logWarn $ Array.intercalate "\n"
---      [ "Failed to decode PsaResult at index '" <> show idx <> "': " <> decodeErrMsg
---      , "Json was: " <> err
---      ]
---    -- If we can't decode the error, then there's likely a codec issue on Spago's side.
---    -- So, this shouldn't fail the build.
---    pure true
-
 psaCompile :: forall a. Set.Set FilePath -> Array String -> PsaArgs -> Spago (Purs.PursEnv a) Boolean
 psaCompile globs pursArgs psaArgs = do
   purs <- Purs.compile globs (Array.snoc pursArgs "--json-errors")
