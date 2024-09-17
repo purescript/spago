@@ -69,15 +69,15 @@ psaCompile globs pursArgs psaArgs = do
   case Cmd.exit purs, noErrors of
     Normally 0, true ->
       for failedToDecode logWarn
-      *> logSuccess "Build succeeded."
-      $> true
+        *> logSuccess "Build succeeded."
+        $> true
     _, true ->
       prepareToDie [ "purs exited with non-ok status code: " <> show (Cmd.exit purs) ]
-      $> false
+        $> false
     _, _ ->
       for (blush purs) (logDebug <<< Cmd.printExecResult)
-      *> prepareToDie [ "Failed to build." ]
-      $> false
+        *> prepareToDie [ "Failed to build." ]
+        $> false
 
   where
   isEmptySpan filename pos =
