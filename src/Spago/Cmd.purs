@@ -41,7 +41,7 @@ type ExecResult =
 
 exitedOk :: Either ExecResult ExecResult -> Boolean
 exitedOk = either identity identity >>> case _ of
-  {exit: Normally 0} -> true
+  { exit: Normally 0 } -> true
   _ -> false
 
 exit :: Either ExecResult ExecResult -> Exit

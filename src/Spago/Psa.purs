@@ -10,9 +10,12 @@ import Spago.Prelude
 
 import Codec.JSON.DecodeError as CJ.DecodeError
 import Control.Alternative as Alternative
+import Control.Monad.Except.Trans (ExceptT(..), runExceptT)
+import Control.Monad.Trans.Class (lift)
 import Data.Array as Array
 import Data.Array.NonEmpty as NonEmptyArray
 import Data.Codec.JSON as CJ
+import Data.Either (blush)
 import Data.Map as Map
 import Data.Set as Set
 import Data.String as Str
@@ -21,6 +24,7 @@ import Data.Tuple as Tuple
 import Effect.Ref as Ref
 import Foreign.Object as FO
 import JSON as JSON
+import Node.ChildProcess.Types (Exit(..))
 import Node.Encoding as Encoding
 import Node.FS.Aff as FSA
 import Node.Path as Path
@@ -38,40 +42,46 @@ import Spago.Purs as Purs
 defaultStatVerbosity :: Core.StatVerbosity
 defaultStatVerbosity = Core.CompactStats
 
+--  Left decodeErrMsg -> do
+--    logWarn $ Array.intercalate "\n"
+--      [ "Failed to decode PsaResult at index '" <> show idx <> "': " <> decodeErrMsg
+--      , "Json was: " <> err
+--      ]
+--    -- If we can't decode the error, then there's likely a codec issue on Spago's side.
+--    -- So, this shouldn't fail the build.
+--    pure true
+
 psaCompile :: forall a. Set.Set FilePath -> Array String -> PsaArgs -> Spago (Purs.PursEnv a) Boolean
 psaCompile globs pursArgs psaArgs = do
-  result <- Purs.compile globs (Array.snoc pursArgs "--json-errors")
-  let resultStdout = Cmd.getStdout result
-  arrErrorsIsEmpty <- forWithIndex (Str.split (Str.Pattern "\n") resultStdout) \idx err ->
-    case JSON.parse err >>= CJ.decode psaResultCodec >>> lmap CJ.DecodeError.print of
-      Left decodeErrMsg -> do
-        logWarn $ Array.intercalate "\n"
-          [ "Failed to decode PsaResult at index '" <> show idx <> "': " <> decodeErrMsg
-          , "Json was: " <> err
-          ]
-        -- If we can't decode the error, then there's likely a codec issue on Spago's side.
-        -- So, this shouldn't fail the build.
-        pure true
-      Right out -> do
-        files <- liftEffect $ Ref.new FO.empty
-        out' <- buildOutput (loadLines files) psaArgs out
+  purs <- Purs.compile globs (Array.snoc pursArgs "--json-errors")
+  let
+    resultStdout = Cmd.getStdout purs
+    print' = if psaArgs.jsonErrors then printJsonOutputToOut else printDefaultOutputToErr psaArgs
 
-        liftEffect $ if psaArgs.jsonErrors then printJsonOutputToOut out' else printDefaultOutputToErr psaArgs out'
+  errors <- for (Str.split (Str.Pattern "\n") resultStdout) \err -> runExceptT do
+    out <- ExceptT $ pure $ JSON.parse err >>= CJ.decode psaResultCodec >>> lmap CJ.DecodeError.print
+    files <- liftEffect $ Ref.new FO.empty
+    out' <- lift $ buildOutput (loadLines files) psaArgs out
+    liftEffect (print' out') $> FO.isEmpty out'.stats.allErrors
 
-        pure $ FO.isEmpty out'.stats.allErrors
+  let
+    noErrors = Array.all (either (const true) identity) errors
+    failedToDecodeMsg (idx /\ err) =
+      Array.intercalate "\n"
+        [ "Failed to decode PsaResult at index '" <> show idx <> "': " <> err
+        , "Json was: " <> err
+        ]
+    failedToDecode = failedToDecodeMsg <$> Array.catMaybes (Array.mapWithIndex (\idx e -> (idx /\ _) <$> blush e) errors)
 
-  if Array.all identity arrErrorsIsEmpty && Cmd.exitedOk result then do
-    logSuccess "Build succeeded."
-    pure true
-  else if Array.all identity arrErrorsIsEmpty && not (Cmd.exitedOk result) then do
-    prepareToDie [ "purs exited with non-ok status code: " <> show (Cmd.exit result) ]
-    pure false
-  else do
-    case result of
-      Left r -> logDebug $ Cmd.printExecResult r
-      _ -> pure unit
-    prepareToDie [ "Failed to build." ]
-    pure false
+  case Cmd.exit purs, noErrors of
+    Normally 0, true -> for failedToDecode logWarn *> logSuccess "Build succeeded." $> true
+    _, true -> prepareToDie [ "purs exited with non-ok status code: " <> show (Cmd.exit purs) ] $> false
+    _, _ -> do
+      case purs of
+        Left r -> logDebug $ Cmd.printExecResult r
+        _ -> pure unit
+      prepareToDie [ "Failed to build." ]
+      pure false
 
   where
   isEmptySpan filename pos =
