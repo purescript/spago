@@ -494,7 +494,7 @@ inferLocationAndWriteToConfig selectedPackage = do
           let
             subdir
               | Config.isRootPackage selectedPackage = Nothing
-              | otherwise = Just selectedPackage.path
+              | otherwise = Just $ withForwardSlashes selectedPackage.path
             configPath
               | Config.isRootPackage selectedPackage = "spago.yaml"
               | otherwise = Path.concat [ selectedPackage.path, "spago.yaml" ]
