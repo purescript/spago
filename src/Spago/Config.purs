@@ -1,27 +1,30 @@
 module Spago.Config
   ( BuildType(..)
   , Package(..)
-  , PackageSet(..)
   , PackageMap
+  , PackageSet(..)
   , WithTestGlobs(..)
   , Workspace
   , WorkspaceBuildOptions
   , WorkspacePackage
   , addPackagesToConfig
+  , addPublishLocationToConfig
   , addRangesToConfig
+  , fileSystemCharEscape
+  , getPackageLocation
+  , getTopologicallySortedWorkspacePackages
+  , getWorkspacePackages
+  , isRootPackage
+  , module Core
+  , readConfig
+  , readWorkspace
   , removePackagesFromConfig
   , rootPackageToWorkspacePackage
-  , getPackageLocation
-  , fileSystemCharEscape
-  , getWorkspacePackages
-  , getTopologicallySortedWorkspacePackages
-  , module Core
-  , readWorkspace
-  , sourceGlob
   , setPackageSetVersionInConfig
+  , sourceGlob
   , workspacePackageToLockfilePackage
-  , readConfig
-  ) where
+  )
+  where
 
 import Spago.Prelude
 
@@ -51,12 +54,14 @@ import Dodo as Log
 import Effect.Aff as Aff
 import Effect.Uncurried (EffectFn2, EffectFn3, runEffectFn2, runEffectFn3)
 import Foreign.Object as Foreign
+import JSON (JSON)
 import Node.Path as Path
 import Registry.Internal.Codec as Internal.Codec
 import Registry.PackageName as PackageName
 import Registry.PackageSet as Registry.PackageSet
 import Registry.Range as Range
 import Registry.Version as Version
+import Spago.Core.Config (publishLocationCodec)
 import Spago.Core.Config as Core
 import Spago.FS as FS
 import Spago.Glob as Glob
@@ -163,6 +168,12 @@ type ReadWorkspaceOptions =
   , pureBuild :: Boolean
   , migrateConfig :: Boolean
   }
+
+isRootPackage :: WorkspacePackage -> Boolean
+isRootPackage p = p.path == rootPackagePath
+
+rootPackagePath :: String
+rootPackagePath = "./"
 
 -- | Reads all the configurations in the tree and builds up the Map of local
 -- | packages to be integrated in the package set
@@ -446,7 +457,7 @@ rootPackageToWorkspacePackage
   -> m WorkspacePackage
 rootPackageToWorkspacePackage { rootPackage, workspaceDoc } = do
   hasTests <- liftEffect $ FS.exists "test"
-  pure { path: "./", doc: workspaceDoc, package: rootPackage, hasTests }
+  pure { path: rootPackagePath, doc: workspaceDoc, package: rootPackage, hasTests }
 
 workspacePackageToLockfilePackage :: WorkspacePackage -> Tuple PackageName Lock.WorkspaceLockPackage
 workspacePackageToLockfilePackage { path, package } = Tuple package.name
@@ -619,8 +630,13 @@ addRangesToConfig doc = runEffectFn2 addRangesToConfigImpl doc
   <<< map (\(Tuple name range) -> Tuple (PackageName.print name) (Core.printSpagoRange range))
   <<< (Map.toUnfoldable :: Map _ _ -> Array _)
 
+addPublishLocationToConfig :: YamlDoc Core.Config -> Location -> Effect Unit
+addPublishLocationToConfig doc loc =
+  runEffectFn2 addPublishLocationToConfigImpl doc (CJ.encode publishLocationCodec loc)
+
 foreign import setPackageSetVersionInConfigImpl :: EffectFn2 (YamlDoc Core.Config) String Unit
 foreign import addPackagesToConfigImpl :: EffectFn3 (YamlDoc Core.Config) Boolean (Array String) Unit
 foreign import removePackagesFromConfigImpl :: EffectFn3 (YamlDoc Core.Config) Boolean (PackageName -> Boolean) Unit
 foreign import addRangesToConfigImpl :: EffectFn2 (YamlDoc Core.Config) (Foreign.Object String) Unit
-foreign import migrateV1ConfigImpl :: forall a. YamlDoc a -> Nullable (YamlDoc Core.Config)
+foreign import migrateV1ConfigImpl :: ∀ a. YamlDoc a -> Nullable (YamlDoc Core.Config)
+foreign import addPublishLocationToConfigImpl :: EffectFn2 (YamlDoc Core.Config) JSON Unit

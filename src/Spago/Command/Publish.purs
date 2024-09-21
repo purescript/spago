@@ -155,7 +155,11 @@ publish _args = do
       , "See the configuration file's documentation: https://github.com/purescript/spago#the-configuration-file"
       ]
     Just publishConfig -> case publishConfig.location of
-      Nothing -> addError $ toDoc "Need to specify a publish.location field."
+      Nothing -> do
+        addedToConfig <- inferLocationAndWriteToConfig selected
+        if addedToConfig
+          then addError $ toDoc "The `publish.location` field was empty. Spago filled it in, but the config file needs to be committed."
+          else addError $ toDoc "The `publish.location` field is empty and Spago is unable to infer it from Git remotes."
       Just location -> do
         -- Get the metadata file for this package.
         -- It will exist if the package has been published at some point, it will not if the package is new.
@@ -475,6 +479,32 @@ locationIsInGitRemotes location = do
         pure $ remotes # Array.any \r -> case location of
           Location.Git { url } -> r.url == url
           Location.GitHub { owner, repo } -> r.owner == owner && r.repo == repo
+
+inferLocationAndWriteToConfig :: ∀ a. WorkspacePackage -> Spago (PublishEnv a) Boolean
+inferLocationAndWriteToConfig selectedPackage = do
+  Git.getRemotes Nothing >>= case _ of
+    Left err ->
+      die $ toDoc err
+    Right remotes ->
+      case Array.find (_.name >>> eq "origin") remotes of
+        Nothing ->
+          pure false
+        Just origin -> do
+          let subdir
+                | Config.isRootPackage selectedPackage = Nothing
+                | otherwise = Just selectedPackage.path
+              configPath
+                | Config.isRootPackage selectedPackage = "spago.yaml"
+                | otherwise = Path.concat [ selectedPackage.path, "spago.yaml" ]
+              location
+                | String.contains (String.Pattern "github.com") origin.url =
+                    Location.GitHub { owner: origin.owner, repo: origin.repo, subdir }
+                | otherwise =
+                    Location.Git { url: origin.url, subdir }
+
+          liftEffect $ Config.addPublishLocationToConfig selectedPackage.doc location
+          liftAff $ FS.writeYamlDocFile configPath selectedPackage.doc
+          pure true
 
 baseApi :: String
 baseApi = "https://registry.purescript.org"

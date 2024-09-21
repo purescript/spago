@@ -1,0 +1,16 @@
+Reading Spago workspace configuration...
+
+✓ Selecting package to build: aaa
+
+Downloading dependencies...
+Building...
+           Src   Lib   All
+Warnings     0     0     0
+Errors       0     0     0
+
+✓ Build succeeded.
+
+Your package "aaa" is not ready for publishing yet, encountered 1 error:
+
+
+✘ The `publish.location` field is empty and Spago is unable to infer it from Git remotes.

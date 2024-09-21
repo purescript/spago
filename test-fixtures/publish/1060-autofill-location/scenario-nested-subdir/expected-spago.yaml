@@ -1,0 +1,10 @@
+package:
+  name: ccc
+  dependencies: []
+  publish:
+    version: 0.0.1
+    license: MIT
+    location:
+      githubOwner: purescript
+      githubRepo: aaa
+      subdir: subdir2/subdir3
