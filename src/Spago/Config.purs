@@ -23,8 +23,7 @@ module Spago.Config
   , setPackageSetVersionInConfig
   , sourceGlob
   , workspacePackageToLockfilePackage
-  )
-  where
+  ) where
 
 import Spago.Prelude
 
