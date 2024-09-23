@@ -725,7 +725,9 @@ getTransitiveDepsFromPackageSet packageSet deps = do
   when (not (Set.isEmpty errors.cycle)) do
     die $ "The following packages have circular dependencies:\n" <> foldMap printPackageError (Set.toUnfoldable errors.cycle :: Array PackageName)
   when (not (Set.isEmpty errors.notInPackageSet)) do
-    die $ "The following packages do not exist in your package set:\n" <> foldMap printNotInPackageSetError errors.notInPackageSet
+    die $ "The following packages do not exist in your package set:\n"
+      <> foldMap printNotInPackageSetError errors.notInPackageSet
+      <> "To list available packages use `spago ls packages`\n"
   when (not (Set.isEmpty errors.notInIndex)) do
     die $ "The following packages do not exist in the package index:\n" <> foldMap printPackageError errors.notInIndex
   pure packages
