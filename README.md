@@ -343,24 +343,6 @@ are ES modules, and you can just `import` them e.g. on Node.
 > $ spago build --output myOutput
 > ```
 
-To run a command before a build you can use the `--before` flag, eg to post a notification that a build has started:
-
-```console
-$ spago build --before "notify-send 'Building'"
-```
-
-To run a command after the build, use `--then` for successful builds, or `--else` for unsuccessful builds:
-
-```console
-$ spago build --then "notify-send 'Built successfully'" --else "notify-send 'Build failed'"
-```
-
-Multiple commands are possible - they will be run in the order specified:
-
-```console
-$ spago build --before clear --before "notify-send 'Building'"
-```
-
 If you want to run the program, just use `run`:
 
 ```console
