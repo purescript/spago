@@ -305,9 +305,10 @@ spec = Spec.describe "monorepo" do
             { stdoutFile: Nothing
             , stderrFile: Just $ fixture expectedFixture
             , result
-            , sanitize: String.trim
-                >>> String.replaceAll (String.Pattern libRepo) (String.Replacement "<library-repo-path>")
-                >>> Regex.replace (unsafeFromRight $ Regex.regex "^purs compile: .*$" (Regex.Flags.global <> Regex.Flags.multiline)) "purs compile..."
+            , sanitize:
+                String.replaceAll (String.Pattern libRepo) (String.Replacement "<library-repo-path>")
+                  >>> Regex.replace (unsafeFromRight $ Regex.regex "^purs compile: .*$" (Regex.Flags.global <> Regex.Flags.multiline)) "purs compile..."
+                  >>> String.trim
             }
 
       -- First run `spago install` to make sure global cache is populated,
