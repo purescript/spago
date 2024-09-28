@@ -218,15 +218,11 @@ fetchPackagesToLocalCache packages = do
       GitPackage gitPackage -> do
         -- for git repos it's a little more involved since cloning them takes a while and we risk race conditions
         -- and possibly cloning the same repo multiple times - so we use a lock on the git url to prevent that
-        case Map.lookup gitPackage.git gitLocks of
-          Nothing -> do
-            -- This is not supposed to happen but we just move on if it does
-            getGitPackageInLocalCache name gitPackage
-          Just lock -> do
-            -- Take the lock, do the git thing, release the lock
-            liftAff $ AVar.take lock
-            getGitPackageInLocalCache name gitPackage
-            liftAff $ AVar.put unit lock
+        let lock = Map.lookup gitPackage.git gitLocks
+        -- Take the lock, do the git thing, release the lock
+        liftAff $ AVar.take `traverse_` lock
+        getGitPackageInLocalCache name gitPackage
+        liftAff $ AVar.put unit `traverse_` lock
       RegistryVersion v -> do
         -- if the version comes from the registry then we have a longer list of things to do
         let versionString = Registry.Version.print v
