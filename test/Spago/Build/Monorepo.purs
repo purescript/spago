@@ -307,7 +307,7 @@ spec = Spec.describe "monorepo" do
             , result
             , sanitize:
                 String.replaceAll (String.Pattern libRepo) (String.Replacement "<library-repo-path>")
-                  >>> Regex.replace (unsafeFromRight $ Regex.regex "^purs compile: .*$" (Regex.Flags.global <> Regex.Flags.multiline)) "purs compile..."
+                  >>> Regex.replace (unsafeFromRight $ Regex.regex "Building...[\\s\\S]*" (Regex.Flags.global <> Regex.Flags.multiline)) "Building..."
                   >>> String.trim
             }
 
