@@ -32,7 +32,7 @@ import Data.Map as Map
 import Data.Newtype (wrap)
 import Data.Set as Set
 import Data.String (joinWith)
-import Data.Traversable (sequence)
+import Data.Traversable (sequence, traverse_)
 import Effect.Aff as Aff
 import Effect.Aff.AVar as AVar
 import Effect.Ref as Ref
