@@ -306,7 +306,8 @@ spec = Spec.describe "monorepo" do
             , stderrFile: Just $ fixture expectedFixture
             , result
             , sanitize:
-                String.replaceAll (String.Pattern libRepo) (String.Replacement "<library-repo-path>")
+                String.replaceAll (String.Pattern "\r\n") (String.Replacement "\n")
+                  >>> String.replaceAll (String.Pattern libRepo) (String.Replacement "<library-repo-path>")
                   >>> Regex.replace (unsafeFromRight $ Regex.regex "^purs compile: .*$" (Regex.Flags.global <> Regex.Flags.multiline)) "purs compile..."
                   >>> String.trim
             }
