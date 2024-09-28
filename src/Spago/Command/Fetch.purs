@@ -27,12 +27,14 @@ import Data.Either as Either
 import Data.FunctorWithIndex (mapWithIndex)
 import Data.HTTP.Method as Method
 import Data.Int as Int
+import Data.List as List
 import Data.Map as Map
 import Data.Newtype (wrap)
 import Data.Set as Set
 import Data.String (joinWith)
 import Data.Traversable (sequence)
 import Effect.Aff as Aff
+import Effect.Aff.AVar as AVar
 import Effect.Ref as Ref
 import Node.Buffer as Buffer
 import Node.Encoding as Encoding
@@ -204,11 +206,27 @@ run { packages: packagesRequestedToInstall, ensureRanges, isTest, isRepl } = do
 fetchPackagesToLocalCache :: ∀ a. Map PackageName Package -> Spago (FetchEnv a) Unit
 fetchPackagesToLocalCache packages = do
   { offline } <- ask
+  -- Before starting to fetch packages we build a Map of AVars to act as locks for each git location.
+  -- This is so we don't have two threads trying to clone the same repo at the same time.
+  gitLocks <- liftAff $ map (Map.fromFoldable <<< List.catMaybes) $ for (Map.values packages) case _ of
+    GitPackage gitPackage -> (Just <<< Tuple gitPackage.git) <$> AVar.new unit
+    _ -> pure Nothing
   parallelise $ packages # Map.toUnfoldable <#> \(Tuple name package) -> do
     let localPackageLocation = Config.getPackageLocation name package
     -- first of all, we check if we have the package in the local cache. If so, we don't even do the work
     unlessM (FS.exists localPackageLocation) case package of
-      GitPackage gitPackage -> getGitPackageInLocalCache name gitPackage
+      GitPackage gitPackage -> do
+        -- for git repos it's a little more involved since cloning them takes a while and we risk race conditions
+        -- and possibly cloning the same repo multiple times - so we use a lock on the git url to prevent that
+        case Map.lookup gitPackage.git gitLocks of
+          Nothing -> do
+            -- This is not supposed to happen but we just move on if it does
+            getGitPackageInLocalCache name gitPackage
+          Just lock -> do
+            -- Take the lock, do the git thing, release the lock
+            liftAff $ AVar.take lock
+            getGitPackageInLocalCache name gitPackage
+            liftAff $ AVar.put unit lock
       RegistryVersion v -> do
         -- if the version comes from the registry then we have a longer list of things to do
         let versionString = Registry.Version.print v
