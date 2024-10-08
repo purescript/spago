@@ -139,7 +139,7 @@ run { packages: packagesRequestedToInstall, ensureRanges, isTest, isRepl } = do
       Nothing -> currentWorkspace
       Just { newWorkspacePackage } -> currentWorkspace
         { packageSet = currentWorkspace.packageSet
-            { lockfile = Left "Lockfile is out of date (installing new packages)"
+            { lockfile = Left "Lockfile is out of date (reason: installing new packages)"
             -- If we are installing packages, we need to add the new deps to the selected package
             , buildType = case currentWorkspace.packageSet.buildType of
                 RegistrySolverBuild packageMap -> RegistrySolverBuild $ Map.insert newWorkspacePackage.package.name (WorkspacePackage newWorkspacePackage) packageMap

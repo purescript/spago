@@ -127,7 +127,7 @@ getModuleGraphWithPackage (ModuleGraph graph) = do
   pure packageGraph
 
 compileGlob :: forall a. FilePath -> Spago a (Array FilePath)
-compileGlob sourcePath = liftAff $ Glob.gitignoringGlob Paths.cwd [ withForwardSlashes sourcePath ]
+compileGlob sourcePath = liftAff $ Glob.gitignoringGlob { cwd: Paths.cwd, includePatterns: [ withForwardSlashes sourcePath ], ignorePatterns: [] }
 
 --------------------------------------------------------------------------------
 -- Package graph
