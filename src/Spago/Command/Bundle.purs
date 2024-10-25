@@ -51,7 +51,7 @@ run = do
 
     output = workspace.buildOptions.output # fromMaybe (rootPath </> "output")
     -- TODO: we might need to use `Path.relative selected.path output` instead of just output there
-    mainPath = Path.localPart $ output </> opts.module </> "index.js"
+    mainPath = Path.localPart $ Path.withForwardSlashes $ output </> opts.module </> "index.js"
 
     { input, entrypoint } = case opts.type of
       BundleApp ->
