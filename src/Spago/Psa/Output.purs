@@ -14,19 +14,13 @@ module Spago.Psa.Output
   , trimPosition
   ) where
 
-import Prelude
+import Spago.Core.Prelude
 
 import Data.Array as Array
-import Data.Foldable (foldl)
-import Data.Maybe (Maybe(..), fromMaybe)
 import Data.String as Str
-import Data.Tuple (Tuple(..))
 import Foreign.Object as FO
-import Node.Path as Path
-import Spago.Core.Prelude (Spago)
-import Spago.Paths as Paths
-import Spago.Psa.Types (Filename, Lines, PathDecision, PathInfo, Position, PsaAnnotedError, PsaError, PsaArgs, PsaPath(..), PsaPathType(..), PsaResult, compareByLocation)
-import Spago.Purs as Purs
+import Spago.Path as Path
+import Spago.Psa.Types (Lines, PathDecision, PathInfo, Position, PsaAnnotedError, PsaArgs, PsaEnv, PsaError, PsaPath(..), PsaPathType(..), PsaResult, Filename, compareByLocation)
 
 data ErrorTag = Error | Warning
 
@@ -68,15 +62,16 @@ initialStats =
 -- | position information.
 buildOutput
   :: forall a
-   . (Filename -> Position -> Spago (Purs.PursEnv a) (Maybe Lines))
+   . (Filename -> Position -> Spago (PsaEnv a) (Maybe Lines))
   -> PsaArgs
   -> PsaResult
-  -> Spago (Purs.PursEnv a) Output
+  -> Spago (PsaEnv a) Output
 buildOutput loadLines options result = do
+  { rootPath } <- ask
   let
     result' =
-      { warnings: pathOf <$> result.warnings
-      , errors: pathOf <$> result.errors
+      { warnings: pathOf rootPath <$> result.warnings
+      , errors: pathOf rootPath <$> result.errors
       }
     initialState =
       { warnings: []
@@ -91,15 +86,13 @@ buildOutput loadLines options result = do
     }
 
   where
-  pathOf :: PsaError -> Tuple PathInfo PsaError
-  pathOf x = Tuple pathDecision x
+  pathOf :: Path.RootPath -> PsaError -> Tuple PathInfo PsaError
+  pathOf root x = Tuple pathDecision x
     where
     pathDecision = case x.filename of
-      Just short | short /= "" -> do
-        let
-          path
-            | Path.isAbsolute short = short
-            | otherwise = Path.concat [ Paths.cwd, short ]
+      Just filename | filename /= "" -> do
+        let path = root </> filename
+            short = Path.localPart path
         fromMaybe unknownPathInfo $ Array.findMap (\p -> map (toPathInfo short) $ p path) options.decisions
       _ ->
         unknownPathInfo
@@ -120,7 +113,7 @@ buildOutput loadLines options result = do
       , shouldShowError: \_ _ -> true
       }
 
-  onError :: ErrorTag -> Output -> Tuple PathInfo PsaError -> Spago (Purs.PursEnv a) Output
+  onError :: ErrorTag -> Output -> Tuple PathInfo PsaError -> Spago (PsaEnv a) Output
   onError tag state (Tuple pathInfo error) =
     if shouldShowError then do
       source <- fromMaybe (pure Nothing) (loadLines <$> error.filename <*> error.position)
@@ -134,7 +127,7 @@ buildOutput loadLines options result = do
       Error -> true
       Warning -> pathInfo.shouldShowError error.errorCode error.message
 
-    update :: Array PsaAnnotedError -> Spago (Purs.PursEnv a) Output
+    update :: Array PsaAnnotedError -> Spago (PsaEnv a) Output
     update log =
       pure $ onTag
         (_ { stats = stats, errors = state.errors <> log })

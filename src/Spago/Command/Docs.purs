@@ -23,20 +23,22 @@ type DocsEnv a =
   , workspace :: Workspace
   , dependencies :: Fetch.PackageTransitiveDeps
   , logOptions :: LogOptions
+  , rootPath :: RootPath
   , docsFormat :: DocsFormat
   , depsOnly :: Boolean
   , open :: Boolean
   | a
   }
 
-run :: Spago (DocsEnv _) Unit
+run :: ∀ a. Spago (DocsEnv a) Unit
 run = do
   logDebug "Running `spago docs`"
   logInfo "Generating documentation for the project. This might take a while..."
-  { workspace, dependencies, docsFormat, depsOnly, open } <- ask
+  { rootPath, workspace, dependencies, docsFormat, depsOnly, open } <- ask
   let
     globs = Build.getBuildGlobs
-      { withTests: true
+      { rootPath
+      , withTests: true
       , selected: Config.getWorkspacePackages workspace.packageSet
       , dependencies: Fetch.toAllDependencies dependencies
       , depsOnly

@@ -20,6 +20,7 @@ type ReplEnv a =
   , supportPackage :: PackageMap
   , depsOnly :: Boolean
   , logOptions :: LogOptions
+  , rootPath :: RootPath
   , pursArgs :: Array String
   , selected :: NonEmptyArray WorkspacePackage
   | a
@@ -27,17 +28,19 @@ type ReplEnv a =
 
 run :: ∀ a. Spago (ReplEnv a) Unit
 run = do
-  { dependencies, pursArgs, selected, depsOnly, supportPackage } <- ask
+  { rootPath, dependencies, pursArgs, selected, depsOnly, supportPackage } <- ask
 
-  unlessM (FS.exists pursReplFile.name) $
-    FS.writeTextFile pursReplFile.name pursReplFile.content
+  let replFile = rootPath </> pursReplFile.name
+  unlessM (FS.exists replFile) $
+    FS.writeTextFile replFile pursReplFile.content
 
   let
     allDependencies = Map.unionWith (\l _ -> l) supportPackage $ Fetch.toAllDependencies dependencies
     globs = Build.getBuildGlobs
-      { selected
+      { rootPath
+      , selected
       , dependencies: allDependencies
       , depsOnly
       , withTests: true
       }
-  void $ Purs.repl globs pursArgs
+  void $ Purs.repl rootPath globs pursArgs

@@ -15,7 +15,6 @@ import Data.Set as Set
 import Effect.Aff as Aff
 import Effect.Aff.AVar as AVar
 import Effect.Now as Now
-import Node.Process as Process
 import Options.Applicative (CommandFields, Mod, Parser, ParserPrefs(..))
 import Options.Applicative as O
 import Options.Applicative.Types (Backtracking(..))
@@ -51,6 +50,7 @@ import Spago.Generated.BuildInfo as BuildInfo
 import Spago.Git as Git
 import Spago.Json as Json
 import Spago.Log (LogVerbosity(..))
+import Spago.Path as Path
 import Spago.Paths as Paths
 import Spago.Purs as Purs
 import Spago.Registry as Registry
@@ -162,7 +162,7 @@ type BundleArgs =
   { minify :: Boolean
   , sourceMaps :: Boolean
   , module :: Maybe String
-  , outfile :: Maybe FilePath
+  , outfile :: Maybe String
   , platform :: Maybe String
   , selectedPackage :: Maybe String
   , pursArgs :: List String
@@ -529,7 +529,8 @@ main = do
     \c -> Aff.launchAff_ case c of
       Cmd'SpagoCmd (SpagoCmd globalArgs@{ offline, migrateConfig } command) -> do
         logOptions <- mkLogOptions startingTime globalArgs
-        runSpago { logOptions } case command of
+        rootPath <- Path.mkRoot =<< Paths.cwd
+        runSpago { logOptions, rootPath } case command of
           Sources args -> do
             { env } <- mkFetchEnv
               { packages: mempty
@@ -544,7 +545,7 @@ main = do
             void $ runSpago env (Sources.run { json: args.json })
           Init args@{ useSolver } -> do
             -- Fetch the registry here so we can select the right package set later
-            env <- mkRegistryEnv offline
+            env <- mkRegistryEnv offline <#> Record.union { rootPath }
             setVersion <- parseSetVersion args.setVersion
             void $ runSpago env $ Init.run { mode: args.mode, setVersion, useSolver }
           Fetch args -> do
@@ -588,7 +589,7 @@ main = do
             void $ runSpago publishEnv (Publish.publish {})
 
           Repl args@{ selectedPackage } -> do
-            packages <- FS.exists "spago.yaml" >>= case _ of
+            packages <- FS.exists (rootPath </> "spago.yaml") >>= case _ of
               true -> do
                 -- if we have a config then we assume it's a workspace, and we can run a repl in the project
                 pure mempty -- TODO newPackages
@@ -597,9 +598,10 @@ main = do
                 logWarn "No configuration found, creating a temporary project to run a repl in..."
                 tmpDir <- mkTemp
                 FS.mkdirp tmpDir
-                logDebug $ "Creating repl project in temp dir: " <> tmpDir
-                liftEffect $ Process.chdir tmpDir
-                env <- mkRegistryEnv offline
+                logDebug $ "Creating repl project in temp dir: " <> Path.quote tmpDir
+                Paths.chdir tmpDir
+                tmpRootPath <- Path.mkRoot tmpDir
+                env <- mkRegistryEnv offline <#> Record.union { rootPath: tmpRootPath }
                 void $ runSpago env $ Init.run
                   { setVersion: Nothing
                   , mode: Init.InitWorkspace { packageName: Just "repl" }
@@ -649,12 +651,12 @@ main = do
               testEnv <- runSpago env (mkTestEnv args buildEnv)
               runSpago testEnv Test.run
           LsPaths args -> do
-            runSpago { logOptions } $ Ls.listPaths args
+            runSpago { logOptions, rootPath } $ Ls.listPaths args
           LsPackages args@{ pure } -> do
             let fetchArgs = { packages: mempty, selectedPackage: Nothing, pure, ensureRanges: false, testDeps: false, isRepl: false, migrateConfig, offline }
             { env: env@{ workspace }, fetchOpts } <- mkFetchEnv fetchArgs
             dependencies <- runSpago env (Fetch.run fetchOpts)
-            let lsEnv = { workspace, dependencies, logOptions }
+            let lsEnv = { workspace, dependencies, logOptions, rootPath }
             runSpago lsEnv (Ls.listPackageSet args)
           LsDeps { selectedPackage, json, transitive, pure } -> do
             let fetchArgs = { packages: mempty, selectedPackage, pure, ensureRanges: false, testDeps: false, isRepl: false, migrateConfig, offline }
@@ -676,12 +678,12 @@ main = do
             { env, fetchOpts } <- mkFetchEnv { packages: mempty, selectedPackage: Nothing, pure: false, ensureRanges: false, testDeps: false, isRepl: false, migrateConfig, offline }
             dependencies <- runSpago env (Fetch.run fetchOpts)
             purs <- Purs.getPurs
-            runSpago { dependencies, logOptions, purs, workspace: env.workspace } (Graph.graphModules args)
+            runSpago { dependencies, logOptions, rootPath, purs, workspace: env.workspace } (Graph.graphModules args)
           GraphPackages args -> do
             { env, fetchOpts } <- mkFetchEnv { packages: mempty, selectedPackage: Nothing, pure: false, ensureRanges: false, testDeps: false, isRepl: false, migrateConfig, offline }
             dependencies <- runSpago env (Fetch.run fetchOpts)
             purs <- Purs.getPurs
-            runSpago { dependencies, logOptions, purs, workspace: env.workspace } (Graph.graphPackages args)
+            runSpago { dependencies, logOptions, rootPath, purs, workspace: env.workspace } (Graph.graphPackages args)
 
       Cmd'VersionCmd v -> when v do
         output (OutputLines [ BuildInfo.packages."spago-bin" ])
@@ -706,7 +708,7 @@ main = do
 
 mkBundleEnv :: forall a. BundleArgs -> Spago (Fetch.FetchEnv a) (Bundle.BundleEnv ())
 mkBundleEnv bundleArgs = do
-  { workspace, logOptions } <- ask
+  { workspace, logOptions, rootPath } <- ask
   logDebug $ "Bundle args: " <> show bundleArgs
 
   selected <- case workspace.selected of
@@ -755,18 +757,19 @@ mkBundleEnv bundleArgs = do
       , sourceMaps: bundleArgs.sourceMaps
       , extraArgs
       }
+    argsOutput = bundleArgs.output <#> (rootPath </> _)
     newWorkspace = workspace
       { buildOptions
-          { output = bundleArgs.output <|> workspace.buildOptions.output
+          { output = argsOutput <|> workspace.buildOptions.output
           }
       }
   esbuild <- Esbuild.getEsbuild
-  let bundleEnv = { esbuild, logOptions, workspace: newWorkspace, selected, bundleOptions }
+  let bundleEnv = { esbuild, logOptions, rootPath, workspace: newWorkspace, selected, bundleOptions }
   pure bundleEnv
 
 mkRunEnv :: forall a b. RunArgs -> Build.BuildEnv b -> Spago (Fetch.FetchEnv a) (Run.RunEnv ())
 mkRunEnv runArgs { dependencies, purs } = do
-  { workspace, logOptions } <- ask
+  { workspace, logOptions, rootPath } <- ask
   logDebug $ "Run args: " <> show runArgs
 
   node <- Run.getNode
@@ -801,17 +804,18 @@ mkRunEnv runArgs { dependencies, purs } = do
     runOptions =
       { moduleName
       , execArgs
-      , executeDir: Paths.cwd
+      , executeDir: Path.toGlobal rootPath
       , successMessage: Nothing
       , failureMessage: "Running failed."
       }
-  let newWorkspace = workspace { buildOptions { output = runArgs.output <|> workspace.buildOptions.output } }
-  let runEnv = { logOptions, workspace: newWorkspace, selected, node, runOptions, dependencies, purs }
+  let argsOutput = runArgs.output <#> (rootPath </> _)
+  let newWorkspace = workspace { buildOptions { output = argsOutput <|> workspace.buildOptions.output } }
+  let runEnv = { logOptions, rootPath, workspace: newWorkspace, selected, node, runOptions, dependencies, purs }
   pure runEnv
 
 mkTestEnv :: forall a b. TestArgs -> Build.BuildEnv b -> Spago (Fetch.FetchEnv a) (Test.TestEnv ())
 mkTestEnv testArgs { dependencies, purs } = do
-  { workspace, logOptions } <- ask
+  { workspace, logOptions, rootPath } <- ask
   logDebug $ "Test args: " <> show testArgs
 
   node <- Run.getNode
@@ -845,8 +849,9 @@ mkTestEnv testArgs { dependencies, purs } = do
 
   logDebug $ "Selected packages to test: " <> Json.stringifyJson (CJ.Common.nonEmptyArray PackageName.codec) (map _.selected.package.name selectedPackages)
 
-  let newWorkspace = workspace { buildOptions { output = testArgs.output <|> workspace.buildOptions.output } }
-  let testEnv = { logOptions, workspace: newWorkspace, selectedPackages, node, dependencies, purs }
+  let argsOutput = testArgs.output <#> (rootPath </> _)
+  let newWorkspace = workspace { buildOptions { output = argsOutput <|> workspace.buildOptions.output } }
+  let testEnv = { logOptions, rootPath, workspace: newWorkspace, selectedPackages, node, dependencies, purs }
   pure testEnv
 
 mkBuildEnv
@@ -861,12 +866,13 @@ mkBuildEnv
   -> Fetch.PackageTransitiveDeps
   -> Spago (Fetch.FetchEnv ()) (Build.BuildEnv ())
 mkBuildEnv buildArgs dependencies = do
-  { logOptions, workspace, git } <- ask
+  { logOptions, rootPath, workspace, git } <- ask
   purs <- Purs.getPurs
   let
+    argsOutput = buildArgs.output <#> (rootPath </> _)
     newWorkspace = workspace
       { buildOptions
-          { output = buildArgs.output <|> workspace.buildOptions.output
+          { output = argsOutput <|> workspace.buildOptions.output
           , statVerbosity = buildArgs.statVerbosity <|> workspace.buildOptions.statVerbosity
           }
       -- Override the backend args from the config if they are passed in through a flag
@@ -880,6 +886,7 @@ mkBuildEnv buildArgs dependencies = do
 
   pure
     { logOptions
+    , rootPath
     , purs
     , git
     , dependencies
@@ -910,7 +917,7 @@ mkPublishEnv dependencies = do
 
 mkReplEnv :: forall a. ReplArgs -> Fetch.PackageTransitiveDeps -> PackageMap -> Spago (Fetch.FetchEnv a) (Repl.ReplEnv ())
 mkReplEnv replArgs dependencies supportPackage = do
-  { workspace, logOptions } <- ask
+  { workspace, logOptions, rootPath } <- ask
   logDebug $ "Repl args: " <> show replArgs
 
   purs <- Purs.getPurs
@@ -926,16 +933,17 @@ mkReplEnv replArgs dependencies supportPackage = do
     , supportPackage
     , depsOnly: false
     , logOptions
+    , rootPath
     , pursArgs: Array.fromFoldable replArgs.pursArgs
     , selected
     }
 
-mkFetchEnv :: forall a b. { offline :: OnlineStatus, migrateConfig :: Boolean, isRepl :: Boolean | FetchArgsRow b } -> Spago (LogEnv a) { env :: Fetch.FetchEnv (), fetchOpts :: Fetch.FetchOpts }
+mkFetchEnv :: forall a b. { offline :: OnlineStatus, migrateConfig :: Boolean, isRepl :: Boolean | FetchArgsRow b } -> Spago (SpagoBaseEnv a) { env :: Fetch.FetchEnv (), fetchOpts :: Fetch.FetchOpts }
 mkFetchEnv args@{ migrateConfig, offline } = do
   let
-    parsePackageName p = case PackageName.parse p of
-      Right pkg -> Right pkg
-      Left err -> Left ("- Could not parse package " <> show p <> ": " <> err)
+    parsePackageName p =
+      PackageName.parse p
+      # lmap \err -> "- Could not parse package " <> show p <> ": " <> err
   let { right: packageNames, left: failedPackageNames } = partitionMap parsePackageName (Array.fromFoldable args.packages)
   unless (Array.null failedPackageNames) do
     die $ [ toDoc "Failed to parse some package name: " ] <> map (indent <<< toDoc) failedPackageNames
@@ -945,25 +953,28 @@ mkFetchEnv args@{ migrateConfig, offline } = do
     Left _err -> die $ "Failed to parse selected package name, was: " <> show args.selectedPackage
 
   env <- mkRegistryEnv offline
-  workspace <- runSpago env (Config.readWorkspace { maybeSelectedPackage, pureBuild: args.pure, migrateConfig })
+  { rootPath } <- ask
+  workspace <-
+    runSpago (Record.union env { rootPath })
+    (Config.readWorkspace { maybeSelectedPackage, pureBuild: args.pure, migrateConfig })
   let fetchOpts = { packages: packageNames, ensureRanges: args.ensureRanges, isTest: args.testDeps, isRepl: args.isRepl }
-  pure { fetchOpts, env: Record.union { workspace } env }
+  pure { fetchOpts, env: Record.union { workspace, rootPath } env }
 
-mkRegistryEnv :: forall a. OnlineStatus -> Spago (LogEnv a) (Registry.RegistryEnv ())
+mkRegistryEnv :: forall a. OnlineStatus -> Spago (SpagoBaseEnv a) (Registry.RegistryEnv ())
 mkRegistryEnv offline = do
-  logDebug $ "CWD: " <> Paths.cwd
+  { logOptions, rootPath } <- ask
 
   -- Take care of the caches
   FS.mkdirp Paths.globalCachePath
-  FS.mkdirp Paths.localCachePath
-  FS.mkdirp Paths.localCachePackagesPath
-  logDebug $ "Global cache: " <> show Paths.globalCachePath
-  logDebug $ "Local cache: " <> show Paths.localCachePath
+  FS.mkdirp $ rootPath </> Paths.localCachePath
+  FS.mkdirp $ rootPath </> Paths.localCachePackagesPath
+  logDebug $ "Workspace root path: " <> Path.quote rootPath
+  logDebug $ "Global cache: " <> Path.quote Paths.globalCachePath
+  logDebug $ "Local cache: " <> Paths.localCachePath
 
   -- Make sure we have git and purs
   git <- Git.getGit
   purs <- Purs.getPurs
-  { logOptions } <- ask
   db <- liftEffect $ Db.connect
     { database: Paths.databasePath
     , logger: \str -> Reader.runReaderT (logDebug $ "DB: " <> str) { logOptions }
@@ -982,7 +993,7 @@ mkRegistryEnv offline = do
 
 mkLsEnv :: forall a. Fetch.PackageTransitiveDeps -> Spago (Fetch.FetchEnv a) Ls.LsEnv
 mkLsEnv dependencies = do
-  { logOptions, workspace } <- ask
+  { logOptions, workspace, rootPath } <- ask
   selected <- case workspace.selected of
     Just s -> pure s
     Nothing ->
@@ -998,15 +1009,16 @@ mkLsEnv dependencies = do
               [ toDoc "No package was selected. Please select (with -p) one of the following packages:"
               , indent (toDoc $ map _.package.name workspacePackages)
               ]
-  pure { logOptions, workspace, dependencies, selected }
+  pure { logOptions, workspace, dependencies, selected, rootPath }
 
 mkDocsEnv :: ∀ a. DocsArgs -> Fetch.PackageTransitiveDeps -> Spago (Fetch.FetchEnv a) (Docs.DocsEnv ())
 mkDocsEnv args dependencies = do
-  { logOptions, workspace } <- ask
+  { logOptions, rootPath, workspace } <- ask
   purs <- Purs.getPurs
   pure
     { purs
     , logOptions
+    , rootPath
     , workspace
     , dependencies
     , depsOnly: args.depsOnly

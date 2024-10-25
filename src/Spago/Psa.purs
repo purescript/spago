@@ -1,6 +1,6 @@
 -- A majority of this code was copied from
 -- - https://github.com/natefaubion/purescript-psa
--- 
+--
 -- To fullfil license requirements
 --   Copyright © Nathan Faubion
 --   https://opensource.org/license/mit/
@@ -23,24 +23,24 @@ import Foreign.Object as FO
 import JSON as JSON
 import Node.Encoding as Encoding
 import Node.FS.Aff as FSA
-import Node.Path as Path
 import Spago.Cmd as Cmd
 import Spago.Config (Package(..), PackageMap, WorkspacePackage)
 import Spago.Config as Config
 import Spago.Core.Config (CensorBuildWarnings(..), WarningCensorTest(..))
 import Spago.Core.Config as Core
 import Spago.Log (prepareToDie)
+import Spago.Path as Path
 import Spago.Psa.Output (buildOutput)
 import Spago.Psa.Printer (printDefaultOutputToErr, printJsonOutputToOut)
-import Spago.Psa.Types (ErrorCode, PathDecision, PsaArgs, PsaOutputOptions, PsaPathType(..), psaResultCodec)
+import Spago.Psa.Types (ErrorCode, PathDecision, PsaArgs, PsaOutputOptions, PsaPathType(..), PsaEnv, psaResultCodec)
 import Spago.Purs as Purs
 
 defaultStatVerbosity :: Core.StatVerbosity
 defaultStatVerbosity = Core.CompactStats
 
-psaCompile :: forall a. Set.Set FilePath -> Array String -> PsaArgs -> Spago (Purs.PursEnv a) Boolean
-psaCompile globs pursArgs psaArgs = do
-  result <- Purs.compile globs (Array.snoc pursArgs "--json-errors")
+psaCompile :: ∀ a. RootPath -> Set.Set LocalPath -> Array String -> PsaArgs -> Spago (PsaEnv a) Boolean
+psaCompile cwd globs pursArgs psaArgs = do
+  result <- Purs.compile cwd globs (Array.snoc pursArgs "--json-errors")
   let resultStdout = Cmd.getStdout result
   arrErrorsIsEmpty <- forWithIndex (Str.split (Str.Pattern "\n") resultStdout) \idx err ->
     case JSON.parse err >>= CJ.decode psaResultCodec >>> lmap CJ.DecodeError.print of
@@ -92,13 +92,14 @@ psaCompile globs pursArgs psaArgs = do
         either (const (pure Nothing)) pure result
 
 toPathDecisions
-  :: { allDependencies :: PackageMap
+  :: { rootPath :: RootPath
+     , allDependencies :: PackageMap
      , selectedPackages :: Array WorkspacePackage
      , psaCliFlags :: PsaOutputOptions
      , censorLibWarnings :: Maybe Core.CensorBuildWarnings
      }
-  -> Array (Effect (Array (String -> Maybe PathDecision)))
-toPathDecisions { allDependencies, selectedPackages, psaCliFlags, censorLibWarnings } =
+  -> Array (Effect (Array (LocalPath -> Maybe PathDecision)))
+toPathDecisions { rootPath, allDependencies, selectedPackages, psaCliFlags, censorLibWarnings } =
   projectDecisions <> dependencyDecisions
   where
   projectDecisions = selectedPackages <#> \selected -> toWorkspacePackagePathDecision { selected, psaCliFlags }
@@ -113,7 +114,7 @@ toPathDecisions { allDependencies, selectedPackages, psaCliFlags, censorLibWarni
   pkgsInProject :: Set PackageName
   pkgsInProject = foldMap (\p -> Set.singleton p.package.name) selectedPackages
 
-  toDependencyDecision :: Tuple PackageName Package -> Effect (Array (String -> Maybe PathDecision))
+  toDependencyDecision :: Tuple PackageName Package -> Effect (Array (LocalPath -> Maybe PathDecision))
   toDependencyDecision dep = case snd dep of
     WorkspacePackage p ->
       toWorkspacePackagePathDecision
@@ -121,10 +122,10 @@ toPathDecisions { allDependencies, selectedPackages, psaCliFlags, censorLibWarni
         , psaCliFlags
         }
     _ -> do
-      pkgLocation <- Path.resolve [] $ Tuple.uncurry Config.getPackageLocation dep
+      let pkgLocation = Tuple.uncurry (Config.getLocalPackageLocation rootPath) dep
       pure
         [ toPathDecision
-            { pathIsFromPackage: isJust <<< String.stripPrefix (String.Pattern pkgLocation)
+            { pathIsFromPackage: (pkgLocation `Path.isPrefixOf` _)
             , pathType: IsLib
             , strict: false
             , censorWarnings: censorLibWarnings
@@ -135,20 +136,19 @@ toWorkspacePackagePathDecision
   :: { selected :: WorkspacePackage
      , psaCliFlags :: PsaOutputOptions
      }
-  -> Effect (Array (String -> Maybe PathDecision))
+  -> Effect (Array (LocalPath -> Maybe PathDecision))
 toWorkspacePackagePathDecision { selected: { path, package }, psaCliFlags } = do
-  pkgPath <- Path.resolve [] path
-  let srcPath = Path.concat [ pkgPath, "src" ]
-  let testPath = Path.concat [ pkgPath, "test" ]
+  let srcPath = path </> "src"
+  let testPath = path </> "test"
   pure
     [ toPathDecision
-        { pathIsFromPackage: isJust <<< String.stripPrefix (String.Pattern srcPath)
+        { pathIsFromPackage: (srcPath `Path.isPrefixOf` _)
         , pathType: IsSrc
         , strict: fromMaybe false $ psaCliFlags.strict <|> (package.build >>= _.strict)
         , censorWarnings: package.build >>= _.censorProjectWarnings
         }
     , toPathDecision
-        { pathIsFromPackage: isJust <<< String.stripPrefix (String.Pattern testPath)
+        { pathIsFromPackage: (testPath `Path.isPrefixOf` _)
         , pathType: IsSrc
         , strict: fromMaybe false $ psaCliFlags.strict <|> (package.test >>= _.strict)
         , censorWarnings: package.test >>= _.censorTestWarnings
@@ -156,12 +156,12 @@ toWorkspacePackagePathDecision { selected: { path, package }, psaCliFlags } = do
     ]
 
 toPathDecision
-  :: { pathIsFromPackage :: String -> Boolean
+  :: { pathIsFromPackage :: LocalPath -> Boolean
      , pathType :: PsaPathType
      , strict :: Boolean
      , censorWarnings :: Maybe Config.CensorBuildWarnings
      }
-  -> String
+  -> LocalPath
   -> Maybe PathDecision
 toPathDecision options pathToFile = do
   Alternative.guard $ options.pathIsFromPackage pathToFile
@@ -182,6 +182,6 @@ shouldPrintWarning = case _ of
           ByCode c -> \code _ -> c == code
           ByMessagePrefix prefix -> \_ msg -> isJust $ String.stripPrefix (String.Pattern $ String.trim prefix) (String.trim msg)
       -- We return `true` to print the warning.
-      -- If an element was found (i.e. `Just` is returned), then one of the tests succeeded, 
+      -- If an element was found (i.e. `Just` is returned), then one of the tests succeeded,
       -- so we should not print the warning and return false here.
       \code msg -> isNothing $ NonEmptyArray.find (\f -> f code msg) tests

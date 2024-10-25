@@ -22,6 +22,7 @@ import Spago.Config (Package(..), PackageMap, WithTestGlobs(..), Workspace, Work
 import Spago.Config as Config
 import Spago.Git (Git)
 import Spago.Log (prepareToDie)
+import Spago.Path as Path
 import Spago.Psa as Psa
 import Spago.Purs (Purs)
 import Spago.Purs.Graph as Graph
@@ -31,6 +32,7 @@ type BuildEnv a =
   , git :: Git
   , dependencies :: Fetch.PackageTransitiveDeps
   , logOptions :: LogOptions
+  , rootPath :: RootPath
   , workspace :: Workspace
   , strictWarnings :: Maybe Boolean
   , pedanticPackages :: Boolean
@@ -49,6 +51,7 @@ run opts = do
   { dependencies
   , workspace
   , logOptions
+  , rootPath
   , strictWarnings
   , pedanticPackages
   } <- ask
@@ -64,7 +67,7 @@ run opts = do
   let
     addOutputArgs args = case workspace.buildOptions.output of
       Nothing -> args
-      Just output -> args <> [ "--output", output ]
+      Just output -> args <> [ "--output", Path.toRaw output ]
 
   -- find the `--json-errors` flag and die if it's there - Spago handles it
   when (isJust $ Cmd.findFlag { flags: [ "--json-errors" ], args: opts.pursArgs }) do
@@ -72,15 +75,6 @@ run opts = do
       [ "Can't pass `--json-errors` option directly to purs."
       , "Use the --json-errors flag for Spago."
       ]
-
-  {-
-  TODO: before, then, else
-      buildAction globs = do
-        let action = buildBackend globs >> (fromMaybe (pure ()) maybePostBuild)
-        runCommands "Before" beforeCommands
-        action `onException` (runCommands "Else" elseCommands)
-        runCommands "Then" thenCommands
-  -}
 
   when (isJust $ Cmd.findFlag { flags: [ "-g", "--codegen" ], args: opts.pursArgs }) do
     die
@@ -103,7 +97,8 @@ run opts = do
       Just p -> NEA.singleton p
       Nothing -> Config.getWorkspacePackages workspace.packageSet
     globs = getBuildGlobs
-      { dependencies: case workspace.selected of
+      { rootPath
+      , dependencies: case workspace.selected of
           Just p ->
             let
               { core, test } = unsafeFromJust $ Map.lookup p.package.name dependencies
@@ -116,7 +111,8 @@ run opts = do
       , selected: selectedPackages
       }
   pathDecisions <- liftEffect $ sequence $ Psa.toPathDecisions
-    { allDependencies
+    { rootPath
+    , allDependencies
     , selectedPackages: NEA.toArray selectedPackages
     , psaCliFlags: { strict: strictWarnings, statVerbosity: workspace.buildOptions.statVerbosity }
     , censorLibWarnings: workspace.buildOptions.censorLibWarnings
@@ -129,7 +125,7 @@ run opts = do
       , statVerbosity: fromMaybe Psa.defaultStatVerbosity workspace.buildOptions.statVerbosity
       }
 
-  built <- Psa.psaCompile globs args psaArgs
+  built <- Psa.psaCompile rootPath globs args psaArgs
   backendBuilt <- case workspace.backend of
     _ | not built -> pure false
     Nothing -> pure true
@@ -140,7 +136,7 @@ run opts = do
         moreBackendArgs = case backend.args of
           Just as | Array.length as > 0 -> as
           _ -> []
-      Cmd.exec backend.cmd (addOutputArgs moreBackendArgs) Cmd.defaultExecOptions >>= case _ of
+      Cmd.exec (Path.global backend.cmd) (addOutputArgs moreBackendArgs) Cmd.defaultExecOptions >>= case _ of
         Left r -> do
           logDebug $ Cmd.printExecResult r
           prepareToDie [ "Failed to build with backend " <> backend.cmd ] $> false
@@ -178,15 +174,16 @@ run opts = do
 -- then we could use the graph to remove outdated modules from `output`!
 
 type BuildGlobsOptions =
-  { withTests :: Boolean
+  { rootPath :: RootPath
+  , withTests :: Boolean
   , depsOnly :: Boolean
   , selected :: NonEmptyArray WorkspacePackage
   , dependencies :: PackageMap
   }
 
-getBuildGlobs :: BuildGlobsOptions -> Set FilePath
-getBuildGlobs { selected, dependencies, withTests, depsOnly } =
-  Set.fromFoldable $ projectGlobs <> monorepoPkgGlobs <> dependencyGlobs <> [ BuildInfo.buildInfoPath ]
+getBuildGlobs :: BuildGlobsOptions -> Set LocalPath
+getBuildGlobs { rootPath, selected, dependencies, withTests, depsOnly } =
+  Set.fromFoldable $ projectGlobs <> monorepoPkgGlobs <> dependencyGlobs <> [ BuildInfo.buildInfoPath rootPath ]
   where
   -- Here we select the right globs for a monorepo setup with a bunch of packages
   projectGlobs = case depsOnly of
@@ -199,15 +196,15 @@ getBuildGlobs { selected, dependencies, withTests, depsOnly } =
     true -> WithTestGlobs
     false -> NoTestGlobs
 
-  workspacePackageGlob :: WorkspacePackage -> Array String
-  workspacePackageGlob p = Config.sourceGlob testGlobs p.package.name (WorkspacePackage p)
+  workspacePackageGlob :: WorkspacePackage -> Array LocalPath
+  workspacePackageGlob p = Config.sourceGlob rootPath testGlobs p.package.name (WorkspacePackage p)
 
   { yes: monorepoPkgs, no: dependencyPkgs } = partition isWorkspacePackage $ Map.toUnfoldable dependencies
   -- depsOnly means "no packages from the monorepo", so we filter out the workspace packages
-  dependencyGlobs = (Tuple.uncurry $ Config.sourceGlob NoTestGlobs) =<< dependencyPkgs
+  dependencyGlobs = (Tuple.uncurry $ Config.sourceGlob rootPath NoTestGlobs) =<< dependencyPkgs
   monorepoPkgGlobs
     | depsOnly = []
-    | otherwise = (Tuple.uncurry $ Config.sourceGlob NoTestGlobs) =<< monorepoPkgs
+    | otherwise = (Tuple.uncurry $ Config.sourceGlob rootPath NoTestGlobs) =<< monorepoPkgs
 
 isWorkspacePackage :: Tuple PackageName Package -> Boolean
 isWorkspacePackage = case _ of

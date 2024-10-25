@@ -40,6 +40,7 @@ Other improvements:
   before trying to build with them.
 - Spago no longer ignores config fields that it doesn't recognize. This should
   help catch typos in field names.
+- Internally Spago uses stricter-typed file paths.
 
 ## [0.21.0] - 2023-05-04
 

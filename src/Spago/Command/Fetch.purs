@@ -38,7 +38,6 @@ import Effect.Aff.AVar as AVar
 import Effect.Ref as Ref
 import Node.Buffer as Buffer
 import Node.Encoding as Encoding
-import Node.Path as Path
 import Registry.Internal.Codec as Internal.Codec
 import Registry.Metadata as Metadata
 import Registry.PackageName as PackageName
@@ -54,6 +53,7 @@ import Spago.FS as FS
 import Spago.Git as Git
 import Spago.Lock (LockEntry(..))
 import Spago.Lock as Lock
+import Spago.Path as Path
 import Spago.Paths as Paths
 import Spago.Purs as Purs
 import Spago.Registry as Registry
@@ -66,6 +66,7 @@ type FetchEnvRow a =
   ( getRegistry :: Spago (Registry.PreRegistryEnv ()) Registry.RegistryFunctions
   , workspace :: Workspace
   , logOptions :: LogOptions
+  , rootPath :: Path.RootPath
   , offline :: OnlineStatus
   , purs :: Purs.Purs
   , git :: Git.Git
@@ -86,19 +87,22 @@ run :: forall a. FetchOpts -> Spago (FetchEnv a) PackageTransitiveDeps
 run { packages: packagesRequestedToInstall, ensureRanges, isTest, isRepl } = do
   logDebug $ "Requested to install these packages: " <> printJson (CJ.array PackageName.codec) packagesRequestedToInstall
 
-  { workspace: currentWorkspace } <- ask
+  { workspace: currentWorkspace, rootPath } <- ask
 
   let
     getPackageConfigPath errorMessageEnd = do
-      case currentWorkspace.selected, currentWorkspace.rootPackage of
+      res <- case currentWorkspace.selected, currentWorkspace.rootPackage of
         Just { path, doc, package }, _ ->
-          pure { configPath: Path.concat [ path, "spago.yaml" ], yamlDoc: doc, package }
+          pure { configPath: path </> "spago.yaml", yamlDoc: doc, package }
         _, Just rootPackage ->
-          pure { configPath: "spago.yaml", yamlDoc: currentWorkspace.doc, package: rootPackage }
+          pure { configPath: rootPath </> "spago.yaml", yamlDoc: currentWorkspace.doc, package: rootPackage }
         Nothing, Nothing -> die
           [ "No package found in the root configuration."
           , "Please use the `-p` flag to select a package " <> errorMessageEnd
           ]
+
+      doc <- justOrDieWith res.yamlDoc Config.configDocMissingErrorMessage
+      pure res { yamlDoc = doc }
 
   installingPackagesData <- do
     case packagesRequestedToInstall of
@@ -162,13 +166,13 @@ run { packages: packagesRequestedToInstall, ensureRanges, isTest, isRepl } = do
         countString = case Array.length actualPackagesToInstall of
           1 -> "1 package"
           n -> show n <> " packages"
-      logInfo $ "Adding " <> countString <> " to the config in " <> configPath
+      logInfo $ "Adding " <> countString <> " to the config in " <> Path.quote configPath
       liftAff $ Config.addPackagesToConfig configPath yamlDoc isTest actualPackagesToInstall
 
     -- if the flag is selected, we kick off the process of adding ranges to the config
     when ensureRanges do
       { configPath, package, yamlDoc } <- getPackageConfigPath "in which to add ranges."
-      logInfo $ "Adding ranges to core dependencies to the config in " <> configPath
+      logInfo $ "Adding ranges to core dependencies to the config in " <> Path.quote configPath
       packageDeps <- (Map.lookup package.name dependencies) `justOrDieWith`
         "Impossible: package dependencies must be in dependencies map"
       let rangeMap = map getRangeFromPackage packageDeps.core
@@ -212,7 +216,8 @@ fetchPackagesToLocalCache packages = do
     GitPackage gitPackage -> (Just <<< Tuple gitPackage.git) <$> AVar.new unit
     _ -> pure Nothing
   parallelise $ packages # Map.toUnfoldable <#> \(Tuple name package) -> do
-    let localPackageLocation = Config.getPackageLocation name package
+    { rootPath } <- ask
+    let localPackageLocation = Config.getLocalPackageLocation rootPath name package
     -- first of all, we check if we have the package in the local cache. If so, we don't even do the work
     unlessM (FS.exists localPackageLocation) case package of
       GitPackage gitPackage -> do
@@ -234,8 +239,8 @@ fetchPackagesToLocalCache packages = do
           Right versionMetadata -> do
             logDebug $ "Metadata read: " <> printJson Metadata.publishedMetadataCodec versionMetadata
             -- then check if we have a tarball cached. If not, download it
-            let globalCachePackagePath = Path.concat [ Paths.globalCachePath, "packages", PackageName.print name ]
-            let archivePath = Path.concat [ globalCachePackagePath, versionString <> ".tar.gz" ]
+            let globalCachePackagePath = Paths.globalCachePath </> "packages" </> PackageName.print name
+            let archivePath = globalCachePackagePath </> (versionString <> ".tar.gz")
             FS.mkdirp globalCachePackagePath
             -- We need to see if the tarball is there, and if we can decompress it.
             -- This is because if Spago is killed while it's writing the tar, then it might leave it corrupted.
@@ -247,7 +252,7 @@ fetchPackagesToLocalCache packages = do
             FS.mkdirp tempDir
             tarIsGood <-
               if tarExists then do
-                logDebug $ "Trying to unpack archive to temp folder: " <> tempDir
+                logDebug $ "Trying to unpack archive to temp folder: " <> Path.quote tempDir
                 map (either (const false) (const true)) $ liftEffect $ Tar.extract { filename: archivePath, cwd: tempDir }
               else
                 pure false
@@ -288,14 +293,14 @@ fetchPackagesToLocalCache packages = do
                     unless (archiveSha == versionMetadata.hash) do
                       die $ "Archive fetched for " <> packageVersion <> " has a different hash (" <> Sha256.print archiveSha <> ") than expected (" <> Sha256.print versionMetadata.hash <> ")"
                     -- if everything's alright we stash the tar in the global cache
-                    logDebug $ "Fetched archive for " <> packageVersion <> ", saving it in the global cache: " <> archivePath
+                    logDebug $ "Fetched archive for " <> packageVersion <> ", saving it in the global cache: " <> Path.quote archivePath
                     FS.writeFile archivePath archiveBuffer
-                    logDebug $ "Unpacking archive to temp folder: " <> tempDir
+                    logDebug $ "Unpacking archive to temp folder: " <> Path.quote tempDir
                     (liftEffect $ Tar.extract { filename: archivePath, cwd: tempDir }) >>= case _ of
                       Right _ -> pure unit
                       Left err -> die [ "Failed to decode downloaded package " <> packageVersion <> ", error:", show err ]
-            logDebug $ "Moving extracted file to local cache:" <> localPackageLocation
-            FS.moveSync { src: (Path.concat [ tempDir, tarInnerFolder ]), dst: localPackageLocation }
+            logDebug $ "Moving extracted file to local cache:" <> Path.quote localPackageLocation
+            FS.moveSync { src: tempDir </> tarInnerFolder, dst: Path.toGlobal localPackageLocation }
       -- Local package, no work to be done
       LocalPackage _ -> pure unit
       WorkspacePackage _ -> pure unit
@@ -319,7 +324,7 @@ updateCache key value cacheRef = liftEffect $ Ref.modify_ (Map.insert key value)
 writeNewLockfile :: ∀ a. String -> PackageTransitiveDeps -> Spago (FetchEnv a) PackageTransitiveDeps
 writeNewLockfile reason allTransitiveDeps = do
   logInfo $ reason <> ", generating it..."
-  { workspace } <- ask
+  { workspace, rootPath } <- ask
 
   -- All these Refs are needed to memoise Db and file reads
   packageDependenciesCache <- liftEffect $ Ref.new Map.empty
@@ -372,9 +377,9 @@ writeNewLockfile reason allTransitiveDeps = do
       WorkspacePackage _ ->
         Nothing
       GitPackage gitPackage -> Just do
-        let packageLocation = Config.getPackageLocation packageName package
+        let packageLocation = Config.getLocalPackageLocation rootPath packageName package
         withCache packageLocation gitRefCache do
-          Git.getRef (Just packageLocation) >>= case _ of
+          Git.getRef packageLocation >>= case _ of
             Left err ->
               die err -- TODO maybe not die here?
             Right rev -> do
@@ -421,7 +426,7 @@ writeNewLockfile reason allTransitiveDeps = do
           , extra_packages: fromMaybe Map.empty workspace.workspaceConfig.extraPackages
           }
       }
-  liftAff $ FS.writeJsonFile Lock.lockfileCodec "spago.lock" lockfile
+  liftAff $ FS.writeJsonFile Lock.lockfileCodec (rootPath </> "spago.lock") lockfile
   logInfo "Lockfile written to spago.lock. Please commit this file."
 
   -- We update the dependencies here with the commit hashes that came from the getRef calls,
@@ -446,15 +451,18 @@ toAllDependencies =
     >>> foldMap (\m -> [ m.core, m.test ])
     >>> foldl Map.union Map.empty
 
-getGitPackageInLocalCache :: forall a. PackageName -> GitPackage -> Spago (Git.GitEnv a) Unit
+getGitPackageInLocalCache :: forall a. PackageName -> GitPackage -> Spago (FetchEnv a) Unit
 getGitPackageInLocalCache name package = do
-  ensureRepoCloned
-  ensureRefPresent
+  { rootPath } <- ask
+  FS.mkdirp $ rootPath </> Paths.localCachePackagesPath </> PackageName.print name
+  let repoCache = rootPath </> Paths.localCacheGitPath </> Config.fileSystemCharEscape package.git
 
-  let localPackageLocation = Config.getPackageLocation name (GitPackage package)
-  logDebug $ "Copying repo to " <> localPackageLocation
-  FS.mkdirp $ Path.concat [ Paths.localCachePackagesPath, PackageName.print name ]
-  FS.copyTree { src: repoCacheLocation, dst: localPackageLocation }
+  ensureRepoCloned repoCache
+  ensureRefPresent repoCache
+
+  let localPackageLocation = Config.getLocalPackageLocation rootPath name (GitPackage package)
+  logDebug $ "Copying repo to " <> Path.quote localPackageLocation
+  FS.copyTree { src: repoCache, dst: localPackageLocation }
   logDebug $ "Checking out ref '" <> package.ref <> "'"
   Git.checkout { repo: localPackageLocation, ref: package.ref } >>= rightOrDie_
 
@@ -463,34 +471,31 @@ getGitPackageInLocalCache name package = do
   -- So we run getRef here and then do a copy if the ref is different than the original one
   -- (since it might be a commit to start with)
   logDebug $ "Checking if we need to copy the package to a commit hash location..."
-  commitHash <- Git.getRef (Just localPackageLocation) >>= rightOrDie
+  commitHash <- Git.getRef localPackageLocation >>= rightOrDie
   when (commitHash /= package.ref) do
-    let commitHashLocation = Config.getPackageLocation name (GitPackage $ package { ref = commitHash })
-    logDebug $ "Copying the repo also to " <> commitHashLocation
+    let commitHashLocation = Config.getLocalPackageLocation rootPath name (GitPackage $ package { ref = commitHash })
+    logDebug $ "Copying the repo also to " <> Path.quote commitHashLocation
     FS.copyTree { src: localPackageLocation, dst: commitHashLocation }
   where
-  repoCacheLocation = Path.concat [ Paths.localCacheGitPath, Config.fileSystemCharEscape package.git ]
-
-  ensureRepoCloned = unlessM (FS.exists repoCacheLocation) do
+  ensureRepoCloned repoCache = unlessM (FS.exists repoCache) do
     tempDir <- mkTemp' (Just $ printJson Config.gitPackageCodec package)
-    logDebug $ "Cloning repo in " <> tempDir
+    logDebug $ "Cloning repo in " <> Path.quote tempDir
     Git.fetchRepo package tempDir >>= rightOrDie_
 
-    logDebug $ "Repo cloned. Moving to " <> repoCacheLocation
-    FS.mkdirp $ Path.concat [ Paths.localCachePackagesPath, PackageName.print name ]
-    FS.moveSync { src: tempDir, dst: repoCacheLocation }
+    logDebug $ "Repo cloned. Moving to " <> Path.quote repoCache
+    FS.moveSync { src: tempDir, dst: Path.toGlobal repoCache }
 
-  ensureRefPresent = do
+  ensureRefPresent repoCache = do
     logDebug $ "Verifying ref " <> package.ref
     { offline } <- ask
-    Git.getRefType { repo: repoCacheLocation, ref: package.ref } >>= case _, offline of
+    Git.getRefType { repo: repoCache, ref: package.ref } >>= case _, offline of
       Right _, _ ->
         pure unit
       Left _, Offline ->
         die $ "Repo " <> package.git <> " does not have ref " <> package.ref <> " in local cache. Cannot pull from origin in offline mode."
       Left _, Online -> do
         logDebug $ "Ref " <> package.ref <> " is not present, trying to pull from origin"
-        Git.fetch { repo: repoCacheLocation, remote: "origin" } >>= rightOrDie_
+        Git.fetch { repo: repoCache, remote: "origin" } >>= rightOrDie_
 
 getPackageDependencies :: forall a. PackageName -> Package -> Spago (FetchEnv a) (Maybe (ByEnv (Map PackageName Range)))
 getPackageDependencies packageName package = case package of
@@ -500,37 +505,36 @@ getPackageDependencies packageName package = case package of
   GitPackage p -> do
     -- Note: we get the package in local cache nonetheless,
     -- so we have guarantees about being able to fetch it
-    let packageLocation = Config.getPackageLocation packageName package
+    { rootPath } <- ask
+    let packageLocation = Config.getLocalPackageLocation rootPath packageName package
     unlessM (FS.exists packageLocation) do
       getGitPackageInLocalCache packageName p
     case p.dependencies of
       Just (Dependencies dependencies) ->
         pure $ Just { core: map (fromMaybe Config.widestRange) dependencies, test: Map.empty }
       Nothing -> do
-        readLocalDependencies case p.subdir of
-          Nothing -> packageLocation
-          Just s -> Path.concat [ packageLocation, s ]
+        readLocalDependencies $ Path.toGlobal $ maybe packageLocation (packageLocation </> _) p.subdir
   LocalPackage p -> do
-    readLocalDependencies p.path
+    readLocalDependencies $ Path.global p.path
   WorkspacePackage p ->
     pure $ Just $ (map (fromMaybe Config.widestRange) <<< unwrap) `onEachEnv` getWorkspacePackageDeps p
   where
   -- try to see if the package has a spago config, and if it's there we read it
-  readLocalDependencies :: FilePath -> Spago (FetchEnv a) (Maybe (ByEnv (Map PackageName Range)))
+  readLocalDependencies :: GlobalPath -> Spago (FetchEnv a) (Maybe (ByEnv (Map PackageName Range)))
   readLocalDependencies configLocation = do
     -- TODO: make this work with manifests
-    Config.readConfig (Path.concat [ configLocation, "spago.yaml" ]) >>= case _ of
+    Config.readConfig (configLocation </> "spago.yaml") >>= case _ of
       Right { yaml: { package: Just { dependencies: Dependencies deps, test } } } ->
         pure $ Just
           { core: fromMaybe Config.widestRange <$> deps
           , test: fromMaybe Config.widestRange <$> (test <#> _.dependencies <#> unwrap # fromMaybe Map.empty)
           }
       Right _ -> die
-        [ "Read the configuration at path " <> configLocation
+        [ "Read the configuration at path " <> Path.quote configLocation
         , "However, it didn't contain a `package` section."
         ]
       Left errLines -> die
-        [ toDoc $ "Could not read config at " <> configLocation
+        [ toDoc $ "Could not read config at " <> Path.quote configLocation
         , toDoc "Error: "
         , indent $ toDoc errLines
         ]

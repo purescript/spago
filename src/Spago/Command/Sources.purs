@@ -10,12 +10,13 @@ import Spago.Command.Fetch (FetchEnv)
 import Spago.Command.Fetch as Fetch
 import Spago.Config (Package(..), WithTestGlobs(..))
 import Spago.Config as Config
+import Spago.Path as Path
 
 type SourcesOpts = { json :: Boolean }
 
 run :: forall a. SourcesOpts -> Spago (FetchEnv a) Unit
 run { json } = do
-  { workspace } <- ask
+  { workspace, rootPath } <- ask
   -- lookup the dependencies in the package set, so we get their version numbers
   let
     selectedPackages = case workspace.selected of
@@ -30,9 +31,9 @@ run { json } = do
 
   let
     globs = Array.foldMap
-      (\(Tuple packageName package) -> Config.sourceGlob WithTestGlobs packageName package)
+      (\(Tuple packageName package) -> Config.sourceGlob rootPath WithTestGlobs packageName package)
       (Map.toUnfoldable transitivePackages :: Array (Tuple PackageName Package))
 
   output case json of
-    true -> OutputJson (CJ.array CJ.string) globs
-    false -> OutputLines globs
+    true -> OutputJson (CJ.array $ Path.localPathCodec rootPath) globs
+    false -> OutputLines $ Path.localPart <$> globs

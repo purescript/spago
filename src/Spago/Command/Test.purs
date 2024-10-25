@@ -7,11 +7,12 @@ import Spago.Command.Fetch as Fetch
 import Spago.Command.Run (Node)
 import Spago.Command.Run as Run
 import Spago.Config (Workspace, WorkspacePackage)
-import Spago.Paths as Paths
+import Spago.Path as Path
 import Spago.Purs (Purs)
 
 type TestEnv a =
   { logOptions :: LogOptions
+  , rootPath :: RootPath
   , workspace :: Workspace
   , selectedPackages :: NonEmptyArray SelectedTest
   , dependencies :: Fetch.PackageTransitiveDeps
@@ -28,7 +29,7 @@ type SelectedTest =
 
 run :: forall a. Spago (TestEnv a) Unit
 run = do
-  { workspace, logOptions, node, selectedPackages, dependencies, purs } <- ask
+  { workspace, logOptions, rootPath, node, selectedPackages, dependencies, purs } <- ask
   void $ for selectedPackages \{ execArgs, moduleName, selected } -> do
 
     let
@@ -36,12 +37,12 @@ run = do
       runOptions =
         { successMessage: Just $ "Test succeeded for package \"" <> PackageName.print name <> "\"."
         , failureMessage: "Tests failed for package \"" <> PackageName.print name <> "\"."
-        , executeDir: Paths.cwd
+        , executeDir: Path.toGlobal rootPath
         , execArgs
         , moduleName
         }
 
-      runEnv = { logOptions, workspace, selected, node, runOptions, dependencies, purs }
+      runEnv = { logOptions, rootPath, workspace, selected, node, runOptions, dependencies, purs }
 
     logInfo $ "Running tests for package: " <> PackageName.print name
     runSpago runEnv Run.run

@@ -57,7 +57,7 @@ type PackageSetInfo =
 type WorkspaceLockPackage =
   { core :: WorkspaceLockPackageEnv
   , test :: WorkspaceLockPackageEnv
-  , path :: FilePath
+  , path :: AdHocFilePath
   }
 
 type WorkspaceLockPackageEnv =
@@ -119,7 +119,7 @@ registryLockType :: String
 registryLockType = "registry"
 
 type PathLock =
-  { path :: FilePath
+  { path :: AdHocFilePath
   , dependencies :: Array PackageName
   }
 
@@ -136,7 +136,7 @@ pathLockCodec = Profunctor.dimap toRep fromRep $ CJ.named "PathLock" $ CJS.objec
 type GitLock =
   { url :: String
   , rev :: String
-  , subdir :: Maybe FilePath
+  , subdir :: Maybe AdHocFilePath
   , dependencies :: Array PackageName
   }
 

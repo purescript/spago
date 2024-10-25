@@ -9,6 +9,7 @@ import Node.Platform as Platform
 import Node.Process as Process
 import Spago.Cmd as Cmd
 import Spago.FS as FS
+import Spago.Path as Path
 import Test.Spec (Spec)
 import Test.Spec as Spec
 
@@ -27,57 +28,57 @@ spec = Spec.around withTempDir do
       spago [ "fetch", "--ensure-ranges" ] >>= shouldBeSuccess
       spago [ "publish", "--offline" ] >>= shouldBeFailureErr (fixture "publish-no-config.txt")
 
-    Spec.it "fails if the git tree is not clean" \{ spago, fixture } -> do
-      FS.copyFile { src: fixture "spago-publish.yaml", dst: "spago.yaml" }
-      FS.mkdirp "src"
-      FS.copyFile { src: fixture "publish.purs", dst: "src/Main.purs" }
+    Spec.it "fails if the git tree is not clean" \{ spago, fixture, testCwd } -> do
+      FS.copyFile { src: fixture "spago-publish.yaml", dst: testCwd </> "spago.yaml" }
+      FS.mkdirp $ testCwd </> "src"
+      FS.copyFile { src: fixture "publish.purs", dst: testCwd </> "src/Main.purs" }
       spago [ "build" ] >>= shouldBeSuccess
       spago [ "publish", "--offline" ] >>= shouldBeFailureErr (fixture "publish-no-git.txt")
 
-    Spec.it "fails if the module is called Main" \{ spago, fixture } -> do
+    Spec.it "fails if the module is called Main" \{ spago, fixture, testCwd } -> do
       spago [ "init", "--name", "aaaa" ] >>= shouldBeSuccess
-      FS.unlink "spago.yaml"
-      FS.copyFile { src: fixture "spago-publish.yaml", dst: "spago.yaml" }
+      FS.unlink $ testCwd </> "spago.yaml"
+      FS.copyFile { src: fixture "spago-publish.yaml", dst: testCwd </> "spago.yaml" }
       spago [ "build" ] >>= shouldBeSuccess
       doTheGitThing
       spago [ "publish", "--offline" ] >>= shouldBeFailureErr case Process.platform of
         Just Platform.Win32 -> fixture "publish-main-win.txt"
         _ -> fixture "publish-main.txt"
 
-    Spec.it "fails if the publish repo location is not among git remotes" \{ spago, fixture } -> do
-      FS.copyFile { src: fixture "spago-publish.yaml", dst: "spago.yaml" }
-      FS.mkdirp "src"
-      FS.copyFile { src: fixture "publish.purs", dst: "src/Main.purs" }
+    Spec.it "fails if the publish repo location is not among git remotes" \{ spago, fixture, testCwd } -> do
+      FS.copyFile { src: fixture "spago-publish.yaml", dst: testCwd </> "spago.yaml" }
+      FS.mkdirp $ testCwd </> "src"
+      FS.copyFile { src: fixture "publish.purs", dst: testCwd </> "src/Main.purs" }
       spago [ "build" ] >>= shouldBeSuccess
       doTheGitThing
       git [ "remote", "set-url", "origin", "git@github.com:purescript/bbb.git" ]
       spago [ "publish", "--offline" ] >>= shouldBeFailureErr (fixture "publish-invalid-location.txt")
 
-    Spec.it "fails if a core dependency is not in the registry" \{ spago, fixture } -> do
-      FS.copyTree { src: fixture "publish/extra-package-core", dst: "." }
+    Spec.it "fails if a core dependency is not in the registry" \{ spago, fixture, testCwd } -> do
+      FS.copyTree { src: fixture "publish/extra-package-core", dst: testCwd }
       spago [ "build" ] >>= shouldBeSuccess
       doTheGitThing
       spago [ "fetch" ] >>= shouldBeSuccess
       spago [ "publish", "--offline" ] >>= shouldBeFailureErr (fixture "publish-extra-package-core-dependency.txt")
 
-    Spec.it "can get a package ready to publish" \{ spago, fixture } -> do
-      FS.copyFile { src: fixture "spago-publish.yaml", dst: "spago.yaml" }
-      FS.mkdirp "src"
-      FS.copyFile { src: fixture "publish.purs", dst: "src/Main.purs" }
+    Spec.it "can get a package ready to publish" \{ spago, fixture, testCwd } -> do
+      FS.copyFile { src: fixture "spago-publish.yaml", dst: testCwd </> "spago.yaml" }
+      FS.mkdirp $ testCwd </> "src"
+      FS.copyFile { src: fixture "publish.purs", dst: testCwd </> "src/Main.purs" }
       spago [ "build" ] >>= shouldBeSuccess
       doTheGitThing
       -- It will fail because it can't hit the registry, but the fixture will check that everything else is ready
       spago [ "fetch" ] >>= shouldBeSuccess
       spago [ "publish", "--offline" ] >>= shouldBeFailureErr (fixture "publish.txt")
 
-    Spec.it "allows to publish with a test dependency not in the registry" \{ spago, fixture } -> do
-      FS.copyTree { src: fixture "publish/extra-package-test", dst: "." }
+    Spec.it "allows to publish with a test dependency not in the registry" \{ spago, fixture, testCwd } -> do
+      FS.copyTree { src: fixture "publish/extra-package-test", dst: testCwd }
       spago [ "build" ] >>= shouldBeSuccess
       doTheGitThing
       spago [ "fetch" ] >>= shouldBeSuccess
       spago [ "publish", "--offline" ] >>= shouldBeFailureErr (fixture "publish.txt")
 
-    Spec.it "#1110 installs versions of packages that are returned by the registry solver, but not present in cache" \{ spago, fixture } -> do
+    Spec.it "#1110 installs versions of packages that are returned by the registry solver, but not present in cache" \{ spago, fixture, testCwd } -> do
       let
         shouldBeFailureErr' file = checkOutputs'
           { stdoutFile: Nothing
@@ -85,7 +86,7 @@ spec = Spec.around withTempDir do
           , result: isLeft
           , sanitize:
               String.trim
-              >>> withForwardSlashes
+              >>> String.replaceAll (String.Pattern "\\") (String.Replacement "/")
               >>> String.replaceAll (String.Pattern "\r\n") (String.Replacement "\n")
               >>> Regex.replace buildOrderRegex "[x of 3] Compiling module-name"
           }
@@ -97,7 +98,7 @@ spec = Spec.around withTempDir do
         buildOrderRegex = unsafeFromRight $ Regex.regex
           "\\[\\d of 3\\] Compiling (Effect\\.Console|Effect\\.Class\\.Console|Lib)" RF.global
 
-      FS.copyTree { src: fixture "publish/1110-solver-different-version", dst: "." }
+      FS.copyTree { src: fixture "publish/1110-solver-different-version", dst: testCwd }
       spago [ "build" ] >>= shouldBeSuccess
       doTheGitThing
       spago [ "fetch" ] >>= shouldBeSuccess
@@ -105,21 +106,21 @@ spec = Spec.around withTempDir do
       -- The local `spago.yaml` specifies `console: 6.0.0` in `extraPackages`,
       -- so that's what should be in local cache after running `fetch`.
       -- Importantly, `console-6.1.0` should not be there yet.
-      FS.exists ".spago/p/console-6.0.0" >>= (_ `shouldEqual` true)
-      FS.exists ".spago/p/console-6.1.0" >>= (_ `shouldEqual` false)
+      FS.exists (testCwd </> ".spago/p/console-6.0.0") >>= (_ `shouldEqual` true)
+      FS.exists (testCwd </> ".spago/p/console-6.1.0") >>= (_ `shouldEqual` false)
 
       spago [ "publish", "--offline" ] >>= shouldBeFailureErr' (fixture "publish/1110-solver-different-version/expected-stderr.txt")
 
       -- When `publish` runs, it uses the registry solver, which returns
       -- `console-6.1.0` version, so `publish` should fetch that into local
       -- cache and build with it.
-      FS.exists ".spago/p/console-6.1.0" >>= (_ `shouldEqual` true)
+      FS.exists (testCwd </> ".spago/p/console-6.1.0") >>= (_ `shouldEqual` true)
 
       -- Now screw up the `console-6.1.0` package in the local cache, so that it
       -- doesn't compile anymore, and check that the relevant compile error
       -- happens on publish.
-      FS.unlink ".spago/p/console-6.1.0/src/Effect/Console.js"
-      rmRf ".spago/p/console-6.1.0/output"
+      FS.unlink $ testCwd </> ".spago/p/console-6.1.0/src/Effect/Console.js"
+      rmRf $ testCwd </> ".spago/p/console-6.1.0/output"
       spago [ "publish", "--offline" ] >>= shouldBeFailureErr' (fixture "publish/1110-solver-different-version/failure-stderr.txt")
 
 doTheGitThing :: Aff Unit
@@ -137,8 +138,8 @@ doTheGitThing = do
 git :: Array String -> Aff Unit
 git = git' Nothing
 
-git' :: Maybe FilePath -> Array String -> Aff Unit
+git' :: Maybe GlobalPath -> Array String -> Aff Unit
 git' cwd args =
-  Cmd.exec "git" args
+  Cmd.exec (Path.global "git") args
     (Cmd.defaultExecOptions { pipeStdout = false, pipeStderr = false, pipeStdin = StdinNewPipe, cwd = cwd })
     >>= shouldBeSuccess

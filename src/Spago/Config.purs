@@ -1,27 +1,29 @@
 module Spago.Config
   ( BuildType(..)
   , Package(..)
-  , PackageSet(..)
   , PackageMap
+  , PackageSet(..)
   , WithTestGlobs(..)
   , Workspace
   , WorkspaceBuildOptions
   , WorkspacePackage
   , addPackagesToConfig
   , addRangesToConfig
+  , configDocMissingErrorMessage
+  , fileSystemCharEscape
+  , getLocalPackageLocation
+  , getTopologicallySortedWorkspacePackages
+  , getWorkspacePackages
+  , module Core
+  , readConfig
+  , readWorkspace
   , removePackagesFromConfig
   , rootPackageToWorkspacePackage
-  , getPackageLocation
-  , fileSystemCharEscape
-  , getWorkspacePackages
-  , getTopologicallySortedWorkspacePackages
-  , module Core
-  , readWorkspace
-  , sourceGlob
   , setPackageSetVersionInConfig
+  , sourceGlob
   , workspacePackageToLockfilePackage
-  , readConfig
-  ) where
+  )
+  where
 
 import Spago.Prelude
 
@@ -45,13 +47,13 @@ import Data.Profunctor as Profunctor
 import Data.Set as Set
 import Data.Set.NonEmpty (NonEmptySet)
 import Data.Set.NonEmpty as NonEmptySet
-import Data.String (CodePoint, Pattern(..))
+import Data.String (CodePoint)
 import Data.String as String
 import Dodo as Log
 import Effect.Aff as Aff
 import Effect.Uncurried (EffectFn2, EffectFn3, runEffectFn2, runEffectFn3)
 import Foreign.Object as Foreign
-import Node.Path as Path
+import Node.Path as Node.Path
 import Registry.Internal.Codec as Internal.Codec
 import Registry.PackageName as PackageName
 import Registry.PackageSet as Registry.PackageSet
@@ -63,6 +65,7 @@ import Spago.Glob as Glob
 import Spago.Json as Json
 import Spago.Lock (Lockfile, PackageSetInfo)
 import Spago.Lock as Lock
+import Spago.Path as Path
 import Spago.Paths as Paths
 import Spago.Registry as Registry
 import Spago.Yaml as Yaml
@@ -73,13 +76,13 @@ type Workspace =
   , compatibleCompiler :: Range
   , backend :: Maybe Core.BackendConfig
   , buildOptions :: WorkspaceBuildOptions
-  , doc :: YamlDoc Core.Config
+  , doc :: Maybe (YamlDoc Core.Config)
   , workspaceConfig :: Core.WorkspaceConfig
   , rootPackage :: Maybe Core.PackageConfig
   }
 
 type WorkspaceBuildOptions =
-  { output :: Maybe FilePath
+  { output :: Maybe LocalPath
   , censorLibWarnings :: Maybe Core.CensorBuildWarnings
   , statVerbosity :: Maybe Core.StatVerbosity
   }
@@ -139,9 +142,9 @@ type PackageSet =
   }
 
 type WorkspacePackage =
-  { path :: FilePath
+  { path :: LocalPath
   , package :: Core.PackageConfig
-  , doc :: YamlDoc Core.Config
+  , doc :: Maybe (YamlDoc Core.Config)
   , hasTests :: Boolean
   }
 
@@ -154,8 +157,8 @@ data Package
 type ReadWorkspaceConfigResult =
   { config :: ReadConfigResult
   , hasTests :: Boolean
-  , configPath :: FilePath
-  , packagePath :: FilePath
+  , configPath :: LocalPath
+  , packagePath :: LocalPath
   }
 
 type ReadWorkspaceOptions =
@@ -166,23 +169,26 @@ type ReadWorkspaceOptions =
 
 -- | Reads all the configurations in the tree and builds up the Map of local
 -- | packages to be integrated in the package set
-readWorkspace :: ∀ a. ReadWorkspaceOptions -> Spago (Registry.RegistryEnv a) Workspace
+readWorkspace :: ∀ a. ReadWorkspaceOptions -> Spago (Registry.RegistryEnv ( rootPath :: RootPath | a )) Workspace
 readWorkspace { maybeSelectedPackage, pureBuild, migrateConfig } = do
+  { rootPath } <- ask
   logInfo "Reading Spago workspace configuration..."
 
   let
-    doMigrateConfig :: FilePath -> _ -> Spago (Registry.RegistryEnv _) Unit
+    doMigrateConfig :: ∀ path. Path.IsPath path => path -> _ -> Spago (Registry.RegistryEnv _) Unit
     doMigrateConfig path config = do
       case migrateConfig, config.wasMigrated of
         true, true -> do
-          logInfo $ "Migrating your " <> path <> " to the latest version..."
+          logInfo $ "Migrating your " <> Path.quote path <> " to the latest version..."
           liftAff $ FS.writeYamlDocFile path config.doc
-        false, true -> logWarn $ "Your " <> path <> " is using an outdated format. Run Spago with the --migrate flag to update it to the latest version."
+        false, true -> logWarn $ "Your " <> Path.quote path <> " is using an outdated format. Run Spago with the --migrate flag to update it to the latest version."
         _, false -> pure unit
+
+    rootConfigPath = rootPath </> "spago.yaml"
 
   -- First try to read the config in the root. It _has_ to contain a workspace
   -- configuration, or we fail early.
-  { workspace, package: maybePackage, workspaceDoc } <- readConfig "spago.yaml" >>= case _ of
+  { workspace, package: maybePackage, workspaceDoc } <- readConfig rootConfigPath >>= case _ of
     Left errLines ->
       die
         [ toDoc "Couldn't parse Spago config, error:"
@@ -196,64 +202,72 @@ readWorkspace { maybeSelectedPackage, pureBuild, migrateConfig } = do
       , "See the relevant documentation here: https://github.com/purescript/spago#the-workspace"
       ]
     Right config@{ yaml: { workspace: Just workspace, package }, doc } -> do
-      doMigrateConfig "spago.yaml" config
+      doMigrateConfig (rootPath </> "spago.yaml") config
       pure { workspace, package, workspaceDoc: doc }
 
   logDebug "Gathering all the spago configs in the tree..."
-  otherConfigPaths <- liftAff $ Glob.gitignoringGlob Paths.cwd [ "**/spago.yaml" ]
+  otherConfigPaths <- liftAff $ Glob.gitignoringGlob rootPath [ "**/spago.yaml" ] <#> Array.delete rootConfigPath
   unless (Array.null otherConfigPaths) do
-    logDebug $ [ toDoc "Found packages at these paths:", Log.indent $ Log.lines (map toDoc otherConfigPaths) ]
+    logDebug $ [ toDoc "Found packages at these paths:", Log.indent $ Log.lines (map (toDoc <<< Path.quote) otherConfigPaths) ]
 
   -- We read all of them in, and only read the package section, if any.
   let
-    readWorkspaceConfig :: FilePath -> Spago (Registry.RegistryEnv _) (Either Docc ReadWorkspaceConfigResult)
+    readWorkspaceConfig :: LocalPath -> Spago (Registry.RegistryEnv _) (Either Docc ReadWorkspaceConfigResult)
     readWorkspaceConfig path = do
       maybeConfig <- readConfig path
       -- We try to figure out if this package has tests - look for test sources
-      hasTests <- FS.exists (Path.concat [ Path.dirname path, "test" ])
+      hasTests <- FS.exists (Path.dirname path </> "test")
       pure $ case maybeConfig of
         Left eLines -> Left $ toDoc
-          [ toDoc $ "Could not read config at path " <> path
+          [ toDoc $ "Could not read config at path " <> Path.quote path
           , toDoc "Error was: "
           , indent $ toDoc eLines
           ]
-        Right config -> do
-          Right { config, hasTests, configPath: path, packagePath: Path.dirname path }
+        Right config -> Right
+          { config
+          , hasTests
+          , configPath: path
+          , packagePath: Path.dirname path `Path.relativeTo` rootPath
+          }
 
   { right: otherPackages, left: failedPackages } <- partitionMap identity <$> traverse readWorkspaceConfig otherConfigPaths
   unless (Array.null failedPackages) do
     logWarn $ [ toDoc "Failed to read some configs:" ] <> failedPackages
+    
 
   -- We prune any configs that use a different workspace.
   -- For reasoning, see https://github.com/purescript/spago/issues/951
   let configPathsWithWorkspaces = otherPackages # Array.mapMaybe \readResult -> readResult.packagePath <$ readResult.config.yaml.workspace
   unless (Array.null configPathsWithWorkspaces) do
-    logDebug $ "Found these paths with workspaces: " <> show configPathsWithWorkspaces
+    logDebug $ "Found these paths with workspaces: " <> String.joinWith ", " (Path.quote <$> configPathsWithWorkspaces)
 
   { right: configsNoWorkspaces, left: prunedConfigs } <-
     let
       fn { left, right } readResult@{ configPath, packagePath, hasTests, config } = do
-        if Array.any (\p -> isJust $ String.stripPrefix (Pattern p) packagePath) configPathsWithWorkspaces then
+        if Array.any (_ `Path.isPrefixOf` packagePath) configPathsWithWorkspaces then
           pure { right, left: Array.cons packagePath left }
         else
           case readResult.config.yaml.package of
-            Nothing -> pure { right, left: Array.cons packagePath left }
+            Nothing ->
+              pure { right, left: Array.cons packagePath left }
             Just package -> do
               -- Note: we migrate configs only at this point - this is because we read a whole lot of them but we are
               -- supposed to ignore any subtrees that contain a different workspace, and those we don't want to migrate
               doMigrateConfig configPath config
               -- We store the path of the package, so we can treat it basically as a LocalPackage
-              pure { left, right: Array.cons (Tuple package.name { package, hasTests, path: packagePath, doc: config.doc }) right }
+              pure { left, right: Array.cons (Tuple package.name { package, hasTests, path: packagePath, doc: Just config.doc }) right }
     in
       Array.foldM fn { right: [], left: [] } otherPackages
 
   unless (Array.null prunedConfigs) do
-    logDebug $ [ "Excluding configs that use a different workspace (directly or implicitly via parent directory's config):" ] <> Array.sort prunedConfigs
+    logDebug $
+      [ "Excluding configs that use a different workspace (directly or implicitly via parent directory's config):" ]
+      <> Array.sort (Path.quote <$> prunedConfigs)
 
   rootPackage <- case maybePackage of
     Nothing -> pure []
     Just rootPackage -> do
-      rootPackage' <- rootPackageToWorkspacePackage { rootPackage, workspaceDoc }
+      rootPackage' <- rootPackageToWorkspacePackage rootPath { rootPackage, workspaceDoc }
       pure [ Tuple rootPackage.name rootPackage' ]
 
   let workspacePackages = Map.fromFoldable $ configsNoWorkspaces <> rootPackage
@@ -264,7 +278,7 @@ readWorkspace { maybeSelectedPackage, pureBuild, migrateConfig } = do
       Nothing -> die "No valid packages found in the current project, halting."
       -- If there's only one package and it's not in the root we still select that
       Just { head: (Tuple packageName package), tail: [] } -> do
-        logDebug $ "Selecting package " <> PackageName.print packageName <> " from " <> package.path
+        logDebug $ "Selecting package " <> PackageName.print packageName <> " from " <> Path.quote package.path
         pure (Just package)
       -- If no package has been selected and we have many packages, then we build all of them but select none
       _ -> pure Nothing
@@ -274,7 +288,7 @@ readWorkspace { maybeSelectedPackage, pureBuild, migrateConfig } = do
         <> case (Array.fromFoldable $ Map.keys workspacePackages) of
           [] ->
             [ toDoc "No available packages." ]
-          pkgs ->
+          pkgs -> 
             case typoSuggestions PackageName.print name pkgs of
               [] -> [ toDoc "All available packages:", indent (toDoc pkgs) ]
               suggestions -> [ toDoc "Did you mean:", indent (toDoc suggestions) ]
@@ -282,9 +296,10 @@ readWorkspace { maybeSelectedPackage, pureBuild, migrateConfig } = do
         pure (Just p)
 
   logDebug "Parsing the lockfile..."
-  maybeLockfileContents <- FS.exists "spago.lock" >>= case _ of
+  let lockFilePath = rootPath </> "spago.lock"
+  maybeLockfileContents <- FS.exists lockFilePath >>= case _ of
     false -> pure (Left "No lockfile found")
-    true -> liftAff (FS.readJsonFile Lock.lockfileCodec "spago.lock") >>= case _ of
+    true -> liftAff (FS.readJsonFile Lock.lockfileCodec lockFilePath) >>= case _ of
       Left error -> do
         logWarn
           [ "Your project contains a spago.lock file, but it cannot be decoded. Spago will generate a new one."
@@ -332,7 +347,7 @@ readWorkspace { maybeSelectedPackage, pureBuild, migrateConfig } = do
     Left reason, Just address@(Core.SetFromPath { path }) -> do
       logDebug reason
       logDebug $ "Reading the package set from local path: " <> path
-      liftAff (FS.readJsonFile remotePackageSetCodec path) >>= case _ of
+      liftAff (FS.readJsonFile remotePackageSetCodec (rootPath </> path)) >>= case _ of
         Left err -> die $ "Couldn't read the package set: " <> err
         Right (RemotePackageSet localPackageSet) -> do
           logInfo "Read the package set from local path"
@@ -413,7 +428,7 @@ readWorkspace { maybeSelectedPackage, pureBuild, migrateConfig } = do
   case maybeSelected of
     Just selected -> do
       logSuccess $ "Selecting package to build: " <> PackageName.print selected.package.name
-      logDebug $ "Package path: " <> selected.path
+      logDebug $ "Package path: " <> Path.quote selected.path
     Nothing -> do
       logSuccess
         [ toDoc $ "Selecting " <> show (Map.size workspacePackages) <> " packages to build:"
@@ -423,7 +438,7 @@ readWorkspace { maybeSelectedPackage, pureBuild, migrateConfig } = do
   let
     buildOptions :: WorkspaceBuildOptions
     buildOptions =
-      { output: _.output =<< workspace.buildOpts
+      { output: workspace.buildOpts >>= _.output <#> \o -> withForwardSlashes $ rootPath </> o
       , censorLibWarnings: _.censorLibraryWarnings =<< workspace.buildOpts
       , statVerbosity: _.statVerbosity =<< workspace.buildOpts
       }
@@ -434,7 +449,7 @@ readWorkspace { maybeSelectedPackage, pureBuild, migrateConfig } = do
     , compatibleCompiler: fromMaybe Core.widestRange $ map _.compiler packageSetInfo
     , backend: workspace.backend
     , buildOptions
-    , doc: workspaceDoc
+    , doc: Just workspaceDoc
     , workspaceConfig: workspace
     , rootPackage: maybePackage
     }
@@ -442,15 +457,18 @@ readWorkspace { maybeSelectedPackage, pureBuild, migrateConfig } = do
 rootPackageToWorkspacePackage
   :: forall m
    . MonadEffect m
-  => { rootPackage :: Core.PackageConfig, workspaceDoc :: YamlDoc Core.Config }
+  => RootPath
+  -> { rootPackage :: Core.PackageConfig, workspaceDoc :: YamlDoc Core.Config }
   -> m WorkspacePackage
-rootPackageToWorkspacePackage { rootPackage, workspaceDoc } = do
-  hasTests <- liftEffect $ FS.exists "test"
-  pure { path: "./", doc: workspaceDoc, package: rootPackage, hasTests }
+rootPackageToWorkspacePackage rootPath { rootPackage, workspaceDoc } = do
+  hasTests <- liftEffect $ FS.exists (rootPath </> "test")
+  pure { path: rootPath </> "", doc: Just workspaceDoc, package: rootPackage, hasTests }
 
 workspacePackageToLockfilePackage :: WorkspacePackage -> Tuple PackageName Lock.WorkspaceLockPackage
 workspacePackageToLockfilePackage { path, package } = Tuple package.name
-  { path: withForwardSlashes path
+  { path: case Path.localPart (withForwardSlashes path) of
+      "" -> "./"
+      p -> p
   , core: { dependencies: package.dependencies, build_plan: mempty }
   , test: { dependencies: foldMap _.dependencies package.test, build_plan: mempty }
   }
@@ -472,11 +490,11 @@ shouldComputeNewLockfile { workspace, workspacePackages } workspaceLock =
   where
   eraseBuildPlan = _ { core { build_plan = mempty }, test { build_plan = mempty } }
 
-getPackageLocation :: PackageName -> Package -> FilePath
-getPackageLocation name = Paths.mkRelative <<< case _ of
-  RegistryVersion v -> Path.concat [ Paths.localCachePackagesPath, PackageName.print name <> "-" <> Version.print v ]
-  GitPackage p -> Path.concat [ Paths.localCachePackagesPath, PackageName.print name, fileSystemCharEscape p.ref ]
-  LocalPackage p -> p.path
+getLocalPackageLocation :: RootPath -> PackageName -> Package -> LocalPath
+getLocalPackageLocation root name = case _ of
+  RegistryVersion v -> root </> Paths.localCachePackagesPath </> (PackageName.print name <> "-" <> Version.print v)
+  GitPackage p -> root </> Paths.localCachePackagesPath </> PackageName.print name </> fileSystemCharEscape p.ref
+  LocalPackage p -> root </> p.path
   WorkspacePackage { path } -> path
 
 -- This function must be injective and must always produce valid directory
@@ -505,8 +523,8 @@ data WithTestGlobs
   | NoTestGlobs
   | OnlyTestGlobs
 
-sourceGlob :: WithTestGlobs -> PackageName -> Package -> Array String
-sourceGlob withTestGlobs name package = map (\p -> Path.concat [ getPackageLocation name package, p ])
+sourceGlob :: RootPath -> WithTestGlobs -> PackageName -> Package -> Array LocalPath
+sourceGlob root withTestGlobs name package = map (\p -> getLocalPackageLocation root name package </> p)
   case package of
     WorkspacePackage { hasTests } ->
       case hasTests, withTestGlobs of
@@ -515,7 +533,7 @@ sourceGlob withTestGlobs name package = map (\p -> Path.concat [ getPackageLocat
         true, OnlyTestGlobs -> [ testGlob ]
         true, NoTestGlobs -> [ srcGlob ]
         true, WithTestGlobs -> [ srcGlob, testGlob ]
-    GitPackage { subdir: Just s } -> [ Path.concat [ s, srcGlob ] ]
+    GitPackage { subdir: Just s } -> [ Node.Path.concat [ s, srcGlob ] ]
     _ -> [ srcGlob ]
 
 srcGlob :: String
@@ -553,32 +571,32 @@ getTopologicallySortedWorkspacePackages packageSet = do
 
 type ReadConfigResult = { doc :: YamlDoc Core.Config, yaml :: Core.Config, wasMigrated :: Boolean }
 
-readConfig :: forall a. FilePath -> Spago (LogEnv a) (Either (Array String) ReadConfigResult)
+readConfig :: ∀ a path. Path.IsPath path => path -> Spago (SpagoBaseEnv a) (Either (Array String) ReadConfigResult)
 readConfig path = do
-  logDebug $ "Reading config from " <> path
+  logDebug $ "Reading config from " <> Path.quote path
   try (FS.readTextFile path) >>= case _ of
     Left err -> do
-      logDebug $ "Could not read file " <> path <> ", error: " <> Aff.message err
-      let replaceExt = map (_ <> ".yml") <<< String.stripSuffix (String.Pattern ".yaml")
-      yml <- map join $ for (replaceExt path) \yml -> do
+      logDebug $ "Could not read file " <> Path.quote path <> ", error: " <> Aff.message err
+      let altConfigName = Path.replaceExtension (String.Pattern ".yaml") (String.Replacement ".yml") path
+      yml <- map join $ for altConfigName \yml -> do
         hasYml <- FS.exists yml
         pure $
           if hasYml then
             Just yml
           else
             Nothing
-      pure $ Left $ case path, yml of
+      pure $ Left $ case Path.basename path, yml of
         "spago.yaml", Nothing ->
-          [ "Did not find `" <> path <> "`. Run `spago init` to initialize a new project." ]
+          [ "Did not find " <> Path.quote path <> ". Run `spago init` to initialize a new project." ]
         "spago.yaml", Just y ->
-          [ "Did not find `" <> path <> "`. Spago's configuration files must end with `.yaml`, not `.yml`."
-          , "Try renaming `" <> y <> "` to `" <> path <> "` or run `spago init` to initialize a new project."
+          [ "Did not find " <> Path.quote path <> ". Spago's configuration files must end with `.yaml`, not `.yml`."
+          , "Try renaming " <> Path.quote y <> " to " <> Path.quote path <> " or run `spago init` to initialize a new project."
           ]
         _, Nothing ->
-          [ "Did not find `" <> path <> "`." ]
+          [ "Did not find " <> Path.quote path <> "." ]
         _, Just y ->
-          [ "Did not find `" <> path <> "`. Spago's configuration files must end with `.yaml`, not `.yml`."
-          , "Try renaming `" <> y <> "` to `" <> path <> "`."
+          [ "Did not find " <> Path.quote path <> ". Spago's configuration files must end with `.yaml`, not `.yml`."
+          , "Try renaming " <> Path.quote y <> " to " <> Path.quote path <> "."
           ]
     Right yamlString -> do
       case lmap (\err -> CJ.DecodeError.basic ("YAML: " <> err)) (Yaml.parser yamlString) of
@@ -600,12 +618,12 @@ readConfig path = do
             (\yaml -> { doc, yaml, wasMigrated: isJust maybeMigratedDoc })
             (CJ.decode Core.configCodec (Yaml.toJson $ fromMaybe doc maybeMigratedDoc))
 
-setPackageSetVersionInConfig :: forall m. MonadAff m => MonadEffect m => YamlDoc Core.Config -> Version -> m Unit
-setPackageSetVersionInConfig doc version = do
+setPackageSetVersionInConfig :: forall m. MonadAff m => MonadEffect m => RootPath -> YamlDoc Core.Config -> Version -> m Unit
+setPackageSetVersionInConfig root doc version = do
   liftEffect $ runEffectFn2 setPackageSetVersionInConfigImpl doc (Version.print version)
-  liftAff $ FS.writeYamlDocFile "spago.yaml" doc
+  liftAff $ FS.writeYamlDocFile (root </> "spago.yaml") doc
 
-addPackagesToConfig :: forall m. MonadAff m => FilePath -> YamlDoc Core.Config -> Boolean -> Array PackageName -> m Unit
+addPackagesToConfig :: forall m path. Path.IsPath path => MonadAff m => path -> YamlDoc Core.Config -> Boolean -> Array PackageName -> m Unit
 addPackagesToConfig configPath doc isTest pkgs = do
   liftEffect $ runEffectFn3 addPackagesToConfigImpl doc isTest (map PackageName.print pkgs)
   liftAff $ FS.writeYamlDocFile configPath doc
@@ -618,6 +636,12 @@ addRangesToConfig doc = runEffectFn2 addRangesToConfigImpl doc
   <<< Foreign.fromFoldable
   <<< map (\(Tuple name range) -> Tuple (PackageName.print name) (Core.printSpagoRange range))
   <<< (Map.toUnfoldable :: Map _ _ -> Array _)
+
+configDocMissingErrorMessage :: String
+configDocMissingErrorMessage = Array.fold
+  [ "This operation requires a YAML config document, but none was found in the environment. "
+  , "This is an internal error. Please open an issue at https://github.com/purescript/spago/issues"
+  ]
 
 foreign import setPackageSetVersionInConfigImpl :: EffectFn2 (YamlDoc Core.Config) String Unit
 foreign import addPackagesToConfigImpl :: EffectFn3 (YamlDoc Core.Config) Boolean (Array String) Unit
