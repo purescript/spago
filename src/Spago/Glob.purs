@@ -12,7 +12,7 @@ import Control.Monad.Maybe.Trans (runMaybeT)
 import Control.Monad.Trans.Class (lift)
 import Data.Array as Array
 import Data.Filterable (filter)
-import Data.Foldable (any, traverse_)
+import Data.Foldable (all, any, traverse_)
 import Data.String as String
 import Data.String as String.CodePoint
 import Effect.Aff as Aff
@@ -101,6 +101,8 @@ fsWalk cwd ignorePatterns includePatterns = Aff.makeAff \cb -> do
   canceled <- Ref.new false
 
   let
+    allIncludePatternHaveBase = all (not <<< String.null) includePatternBases
+
     -- Update the ignoreMatcherRef with the patterns from a .gitignore file
     updateIgnoreMatcherWithGitignore :: Entry -> Effect Unit
     updateIgnoreMatcherWithGitignore entry = do
@@ -119,9 +121,17 @@ fsWalk cwd ignorePatterns includePatterns = Aff.makeAff \cb -> do
           -- ex. if `includePatterns` is [".spago/p/aff-1.0.0/**/*.purs"],
           -- and `gitignored` is ["node_modules", ".spago"],
           -- then add "node_modules" to `ignoreMatcher` but not ".spago"
-          wouldConflictWithSearch matcher = any matcher includePatterns
+          wouldConflictWithSearch matcher = any matcher includePatternBases
 
-          newMatchers = or $ filter (not <<< wouldConflictWithSearch) gitignored
+          newMatchers = or case allIncludePatternHaveBase of
+            true -> filter (not <<< wouldConflictWithSearch) gitignored
+            false -> do
+              -- Some of the include patterns don't have a base,
+              -- e.g. there is an include pattern like "*/foo/bar" or "**/.spago".
+              -- In this case, do not attempt to determine whether the gitignore
+              -- file would exclude some of the target paths. Instead always respect
+              -- the .gitignore.
+              gitignored
 
           -- Another possible approach could be to keep a growing array of patterns and
           -- regenerate the matcher on every gitignore. We have tried that (see #1234),
