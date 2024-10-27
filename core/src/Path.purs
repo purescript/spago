@@ -69,28 +69,28 @@ class (Show path, Eq path, Ord path) <= IsPath path where
   withForwardSlashes :: path -> path
 
 instance IsPath LocalPath where
-  toGlobal (LocalPath { root: RootPath root, local }) = 
+  toGlobal (LocalPath { root: RootPath root, local }) =
     GlobalPath $ Path.concat [ root, local ]
   relativeTo path root
     | rootPart path == root = path
     | otherwise = toGlobal path `relativeTo` root
   quote (LocalPath path)
-    | path.local == "" = "\".\"" 
+    | path.local == "" = "\".\""
     | otherwise = "\"" <> path.local <> "\""
-  replaceExtension p r (LocalPath path) = 
+  replaceExtension p r (LocalPath path) =
     LocalPath <<< path { local = _ } <$> replaceExtension_ p r path.local
-  withForwardSlashes (LocalPath path) = 
+  withForwardSlashes (LocalPath path) =
     LocalPath { root: withForwardSlashes path.root, local: withForwardSlashes' path.local }
 
 instance IsPath GlobalPath where
   toGlobal = identity
-  relativeTo (GlobalPath path) (RootPath root) = 
+  relativeTo (GlobalPath path) (RootPath root) =
     LocalPath { root: RootPath root, local: Path.relative root path }
-  quote (GlobalPath path) = 
+  quote (GlobalPath path) =
     "\"" <> path <> "\""
-  replaceExtension p r (GlobalPath path) = 
+  replaceExtension p r (GlobalPath path) =
     GlobalPath <$> replaceExtension_ p r path
-  withForwardSlashes (GlobalPath path) = 
+  withForwardSlashes (GlobalPath path) =
     GlobalPath $ withForwardSlashes' path
 
 instance IsPath RootPath where
@@ -100,17 +100,17 @@ instance IsPath RootPath where
   replaceExtension p r (RootPath path) = RootPath <$> replaceExtension_ p r path
   withForwardSlashes (RootPath path) = RootPath $ withForwardSlashes' path
 
-class AppendPath base path result | base path -> result where
-  appendPath :: base -> path -> result
-instance AppendPath RootPath AdHocFilePath LocalPath where
+class AppendPath base result | base -> result where
+  appendPath :: base -> AdHocFilePath -> result
+instance AppendPath RootPath LocalPath where
   appendPath root local
     | Path.isAbsolute local = global local `relativeTo` root
     | otherwise = LocalPath { root, local }
-instance AppendPath LocalPath AdHocFilePath LocalPath where
+instance AppendPath LocalPath LocalPath where
   appendPath (LocalPath { root, local }) path
     | Path.isAbsolute path = global path `relativeTo` root
     | otherwise = LocalPath { root, local: Path.concat [ local, path ] }
-instance AppendPath GlobalPath AdHocFilePath GlobalPath where
+instance AppendPath GlobalPath GlobalPath where
   appendPath (GlobalPath path) p
     | Path.isAbsolute p = GlobalPath p
     | otherwise = GlobalPath $ Path.concat [ path, p ]
