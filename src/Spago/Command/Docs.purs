@@ -44,7 +44,7 @@ run = do
       , depsOnly
       }
 
-  result <- Purs.docs globs docsFormat
+  result <- Purs.docs rootPath globs docsFormat
   case result of
     Left r -> die r.message
     _ -> pure unit

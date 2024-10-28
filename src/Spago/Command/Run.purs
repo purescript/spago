@@ -105,7 +105,7 @@ run = do
           , withTests: true
           , selected: NEA.singleton selected
           }
-      Purs.graph globs [] >>= case _ of
+      Purs.graph rootPath globs [] >>= case _ of
         Left err -> logWarn $ "Could not decode the output of `purs graph`, error: " <> CJ.DecodeError.print err
         Right (ModuleGraph graph) -> do
           when (isNothing $ Map.lookup opts.moduleName graph) do

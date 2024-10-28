@@ -45,7 +45,7 @@ parseVersionOutput { cmd, output: stdout } = case parseLenientVersion (dropStuff
 compile :: ∀ a. RootPath -> Set LocalPath -> Array String -> Spago (PursEnv a) (Either ExecaResult ExecaResult)
 compile cwd globs pursArgs = do
   { purs } <- ask
-  let args = [ "compile" ] <> pursArgs <> (globsToArgs cwd globs)
+  let args = [ "compile" ] <> pursArgs <> globsToArgs cwd globs
   logDebug [ "Running command:", "purs " <> String.joinWith " " args ]
   -- PureScript (as of v0.14.0) outputs the compiler errors/warnings to `stdout`
   -- and outputs "Compiling..." messages to `stderr`
@@ -60,7 +60,7 @@ compile cwd globs pursArgs = do
 repl :: ∀ a. RootPath -> Set LocalPath -> Array String -> Spago (PursEnv a) (Either ExecaResult ExecaResult)
 repl cwd globs pursArgs = do
   { purs } <- ask
-  let args = [ "repl" ] <> pursArgs <> (globsToArgs cwd globs)
+  let args = [ "repl" ] <> pursArgs <> globsToArgs cwd globs
   Cmd.exec purs.cmd args $ Cmd.defaultExecOptions
     { pipeStdout = true
     , pipeStderr = true
@@ -94,10 +94,10 @@ printDocsFormat = case _ of
   Ctags -> "ctags"
   Etags -> "etags"
 
-docs :: ∀ a. Set LocalPath -> DocsFormat -> Spago (PursEnv a) (Either ExecaResult ExecaResult)
-docs globs format = do
+docs :: ∀ a. RootPath -> Set LocalPath -> DocsFormat -> Spago (PursEnv a) (Either ExecaResult ExecaResult)
+docs cwd globs format = do
   { purs } <- ask
-  let args = [ "docs", "--format", printDocsFormat format ] <> (Path.toRaw <$> Set.toUnfoldable globs)
+  let args = [ "docs", "--format", printDocsFormat format ] <> globsToArgs cwd globs
   Cmd.exec purs.cmd args $ Cmd.defaultExecOptions
     { pipeStdout = true
     , pipeStderr = true
@@ -127,10 +127,10 @@ moduleGraphNodeCodec = CJ.named "ModuleGraphNode" $ CJ.Record.object
   , depends: CJ.array CJ.string
   }
 
-graph :: ∀ a. Set LocalPath -> Array String -> Spago (PursEnv a) (Either CJ.DecodeError ModuleGraph)
-graph globs pursArgs = do
+graph :: ∀ a. RootPath -> Set LocalPath -> Array String -> Spago (PursEnv a) (Either CJ.DecodeError ModuleGraph)
+graph cwd globs pursArgs = do
   { purs } <- ask
-  let args = [ "graph" ] <> pursArgs <> (Path.toRaw <$> Set.toUnfoldable globs)
+  let args = [ "graph" ] <> pursArgs <> globsToArgs cwd globs
   logDebug [ "Running command:", "purs " <> String.joinWith " " args ]
   let execOpts = Cmd.defaultExecOptions { pipeStdout = false, pipeStderr = false }
   Cmd.exec purs.cmd args execOpts >>= case _ of

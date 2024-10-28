@@ -46,7 +46,7 @@ graphModules { dot, json, topo } = do
   let allDependencies = Fetch.toAllDependencies dependencies
   let selected = Config.getWorkspacePackages workspace.packageSet
   let globs = Build.getBuildGlobs { rootPath, selected, withTests: false, dependencies: allDependencies, depsOnly: false }
-  eitherGraph <- Graph.runGraph globs []
+  eitherGraph <- Graph.runGraph rootPath globs []
   graph <- either die pure eitherGraph
 
   moduleGraph <- runSpago (Record.union { selected } env) (Graph.getModuleGraphWithPackage graph)
@@ -72,7 +72,7 @@ graphPackages { dot, json, topo } = do
   let allDependencies = Fetch.toAllDependencies dependencies
   let selected = Config.getWorkspacePackages workspace.packageSet
   let globs = Build.getBuildGlobs { rootPath, selected, withTests: false, dependencies: allDependencies, depsOnly: false }
-  eitherGraph <- Graph.runGraph globs []
+  eitherGraph <- Graph.runGraph rootPath globs []
   graph <- either die pure eitherGraph
 
   packageGraph <- runSpago (Record.union { selected } env) (Graph.getPackageGraph graph)

@@ -120,7 +120,7 @@ publish _args = do
   -- We then need to check that the dependency graph is accurate. If not, queue the errors
   let allCoreDependencies = Fetch.toAllDependencies $ dependencies <#> _ { test = Map.empty }
   let globs = Build.getBuildGlobs { rootPath, selected: NEA.singleton selected, withTests: false, dependencies: allCoreDependencies, depsOnly: false }
-  eitherGraph <- Graph.runGraph globs []
+  eitherGraph <- Graph.runGraph rootPath globs []
   case eitherGraph of
     Right graph -> do
       graphCheckErrors <- Graph.toImportErrors selected { reportSrc: true, reportTest: false }
@@ -229,10 +229,10 @@ publish _args = do
               , "sources indicated by the `files` key in your manifest."
               ]
             Just files -> do
-              let rootPathPrefix = 
-                    Path.toRaw rootPath 
-                    # String.stripSuffix (String.Pattern "/") 
-                    # fromMaybe (Path.toRaw rootPath) 
+              let rootPathPrefix =
+                    Path.toRaw rootPath
+                    # String.stripSuffix (String.Pattern "/")
+                    # fromMaybe (Path.toRaw rootPath)
                     # (_ <> "/")
               Operation.Validation.validatePursModules files >>= case _ of
                 Left formattedError -> addError $ toDoc

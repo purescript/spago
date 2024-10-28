@@ -48,8 +48,8 @@ type PreGraphEnv a =
   | a
   }
 
-runGraph :: forall a. Set LocalPath -> Array String -> Spago (PreGraphEnv a) (Either String Purs.ModuleGraph)
-runGraph globs pursArgs = map (lmap toErrorMessage) $ Purs.graph globs pursArgs
+runGraph :: ∀ a. RootPath -> Set LocalPath -> Array String -> Spago (PreGraphEnv a) (Either String Purs.ModuleGraph)
+runGraph root globs pursArgs = map (lmap toErrorMessage) $ Purs.graph root globs pursArgs
   where
   toErrorMessage = append "Could not decode the output of `purs graph`, error: " <<< CJ.DecodeError.print
 

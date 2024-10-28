@@ -156,7 +156,7 @@ run opts = do
       pure true
     else do
       logInfo "Looking for unused and undeclared transitive dependencies..."
-      eitherGraph <- Graph.runGraph globs opts.pursArgs
+      eitherGraph <- Graph.runGraph rootPath globs opts.pursArgs
       logDebug "Decoded the output of `purs graph` successfully. Analyzing dependencies..."
       eitherGraph # either (prepareToDie >>> (_ $> false)) \graph -> do
         env <- ask
