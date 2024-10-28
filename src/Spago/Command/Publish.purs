@@ -229,8 +229,14 @@ publish _args = do
               , "sources indicated by the `files` key in your manifest."
               ]
             Just files -> do
-              let rootPathPrefix =
-                    Path.toRaw rootPath
+              let
+                -- `validatePursModules` returns full paths in its response, so
+                -- we need to strip the workspace root path to print it out in
+                -- user-friendly way, but we can't use the machinery from
+                -- `Spago.Paths`, because the paths are embedded in other text,
+                -- so we have to resort to substring matching.
+                rootPathPrefix =
+                  Path.toRaw rootPath
                     # String.stripSuffix (String.Pattern "/")
                     # fromMaybe (Path.toRaw rootPath)
                     # (_ <> "/")

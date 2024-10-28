@@ -175,7 +175,6 @@ pushTag cwd version = do
           ]
         Right _ -> pure $ Right unit
 
-
 getGit :: forall a. Spago (LogEnv a) Git
 getGit = do
   Cmd.exec cmd [ "--version" ] Cmd.defaultExecOptions { pipeStdout = false, pipeStderr = false } >>= case _ of

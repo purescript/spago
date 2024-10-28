@@ -238,9 +238,9 @@ checkImports graph = do
     { rootPath } <- ask
     glob :: Set String <-
       map Set.fromFoldable
-      $ map (map Path.localPart)
-      $ map Array.fold
-      $ traverse compileGlob (Config.sourceGlob rootPath testGlobOption packageName (WorkspacePackage selected))
+        $ map (map Path.localPart)
+        $ map Array.fold
+        $ traverse compileGlob (Config.sourceGlob rootPath testGlobOption packageName (WorkspacePackage selected))
 
     let
       -- Filter this improved graph to only have the project modules

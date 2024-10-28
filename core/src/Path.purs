@@ -40,6 +40,7 @@ import Node.Path as Path
 -- | Normally this represents the root directory of the workspace. All Spago
 -- | Workspace-scoped paths are relative to a `RootPath`.
 newtype RootPath = RootPath String
+
 derive newtype instance Show RootPath
 derive newtype instance Eq RootPath
 derive newtype instance Ord RootPath
@@ -48,14 +49,23 @@ derive newtype instance Ord RootPath
 -- | part, relative to the root. This lets us both have the full path for
 -- | actually working with files and the local part for user-facing output.
 newtype LocalPath = LocalPath { root :: RootPath, local :: AdHocFilePath }
-instance Show LocalPath where show (LocalPath p) = p.local
-instance Eq LocalPath where eq = eq `on` toGlobal
-instance Ord LocalPath where compare = compare `on` toGlobal
+
+instance Show LocalPath where
+  show (LocalPath p) = p.local
+
+instance Eq LocalPath where
+  eq = eq `on` toGlobal
+
+instance Ord LocalPath where
+  compare = compare `on` toGlobal
 
 -- | A part that is logically not part of the Spago Workspace, but points to
 -- | something "global", such as registry cache, temp directory, and so on.
 newtype GlobalPath = GlobalPath String
-instance Show GlobalPath where show (GlobalPath p) = p
+
+instance Show GlobalPath where
+  show (GlobalPath p) = p
+
 derive newtype instance Eq GlobalPath
 derive newtype instance Ord GlobalPath
 
@@ -102,14 +112,17 @@ instance IsPath RootPath where
 
 class AppendPath base result | base -> result where
   appendPath :: base -> AdHocFilePath -> result
+
 instance AppendPath RootPath LocalPath where
   appendPath root local
     | Path.isAbsolute local = global local `relativeTo` root
     | otherwise = LocalPath { root, local }
+
 instance AppendPath LocalPath LocalPath where
   appendPath (LocalPath { root, local }) path
     | Path.isAbsolute path = global path `relativeTo` root
     | otherwise = LocalPath { root, local: Path.concat [ local, path ] }
+
 instance AppendPath GlobalPath GlobalPath where
   appendPath (GlobalPath path) p
     | Path.isAbsolute p = GlobalPath p
@@ -161,5 +174,7 @@ localPathCodec root = CJ.string # dimap printLocalPath (root </> _)
 -- | "./" so as not to get them confused by a seeming absence of output.
 printLocalPath :: LocalPath -> String
 printLocalPath p =
-  let l = localPart p
-  in if l == "" then "./" else l
+  let
+    l = localPart p
+  in
+    if l == "" then "./" else l

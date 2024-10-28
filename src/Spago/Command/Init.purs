@@ -26,7 +26,7 @@ import Spago.Path as Path
 import Spago.Registry (RegistryEnv)
 import Spago.Registry as Registry
 
-type InitEnv a = RegistryEnv ( rootPath :: RootPath | a )
+type InitEnv a = RegistryEnv (rootPath :: RootPath | a)
 
 data InitMode
   = InitWorkspace { packageName :: Maybe String }

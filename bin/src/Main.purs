@@ -943,7 +943,7 @@ mkFetchEnv args@{ migrateConfig, offline } = do
   let
     parsePackageName p =
       PackageName.parse p
-      # lmap \err -> "- Could not parse package " <> show p <> ": " <> err
+        # lmap \err -> "- Could not parse package " <> show p <> ": " <> err
   let { right: packageNames, left: failedPackageNames } = partitionMap parsePackageName (Array.fromFoldable args.packages)
   unless (Array.null failedPackageNames) do
     die $ [ toDoc "Failed to parse some package name: " ] <> map (indent <<< toDoc) failedPackageNames
@@ -956,7 +956,7 @@ mkFetchEnv args@{ migrateConfig, offline } = do
   { rootPath } <- ask
   workspace <-
     runSpago (Record.union env { rootPath })
-    (Config.readWorkspace { maybeSelectedPackage, pureBuild: args.pure, migrateConfig })
+      (Config.readWorkspace { maybeSelectedPackage, pureBuild: args.pure, migrateConfig })
   let fetchOpts = { packages: packageNames, ensureRanges: args.ensureRanges, isTest: args.testDeps, isRepl: args.isRepl }
   pure { fetchOpts, env: Record.union { workspace, rootPath } env }
 

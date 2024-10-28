@@ -37,7 +37,7 @@ import Spago.Core.Config as Core
 import Spago.Path (LocalPath, RootPath)
 import Spago.Purs (PursEnv)
 
-type PsaEnv a = PursEnv ( rootPath :: RootPath | a )
+type PsaEnv a = PursEnv (rootPath :: RootPath | a)
 
 type ErrorCode = String
 type ModuleName = String

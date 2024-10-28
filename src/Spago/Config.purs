@@ -22,8 +22,7 @@ module Spago.Config
   , setPackageSetVersionInConfig
   , sourceGlob
   , workspacePackageToLockfilePackage
-  )
-  where
+  ) where
 
 import Spago.Prelude
 
@@ -169,7 +168,7 @@ type ReadWorkspaceOptions =
 
 -- | Reads all the configurations in the tree and builds up the Map of local
 -- | packages to be integrated in the package set
-readWorkspace :: ∀ a. ReadWorkspaceOptions -> Spago (Registry.RegistryEnv ( rootPath :: RootPath | a )) Workspace
+readWorkspace :: ∀ a. ReadWorkspaceOptions -> Spago (Registry.RegistryEnv (rootPath :: RootPath | a)) Workspace
 readWorkspace { maybeSelectedPackage, pureBuild, migrateConfig } = do
   { rootPath } <- ask
   logInfo "Reading Spago workspace configuration..."
@@ -233,7 +232,6 @@ readWorkspace { maybeSelectedPackage, pureBuild, migrateConfig } = do
   { right: otherPackages, left: failedPackages } <- partitionMap identity <$> traverse readWorkspaceConfig otherConfigPaths
   unless (Array.null failedPackages) do
     logWarn $ [ toDoc "Failed to read some configs:" ] <> failedPackages
-    
 
   -- We prune any configs that use a different workspace.
   -- For reasoning, see https://github.com/purescript/spago/issues/951
@@ -260,8 +258,8 @@ readWorkspace { maybeSelectedPackage, pureBuild, migrateConfig } = do
       Array.foldM fn { right: [], left: [] } otherPackages
 
   unless (Array.null prunedConfigs) do
-    logDebug $
-      [ "Excluding configs that use a different workspace (directly or implicitly via parent directory's config):" ]
+    logDebug
+      $ [ "Excluding configs that use a different workspace (directly or implicitly via parent directory's config):" ]
       <> Array.sort (Path.quote <$> prunedConfigs)
 
   rootPackage <- case maybePackage of
@@ -288,7 +286,7 @@ readWorkspace { maybeSelectedPackage, pureBuild, migrateConfig } = do
         <> case (Array.fromFoldable $ Map.keys workspacePackages) of
           [] ->
             [ toDoc "No available packages." ]
-          pkgs -> 
+          pkgs ->
             case typoSuggestions PackageName.print name pkgs of
               [] -> [ toDoc "All available packages:", indent (toDoc pkgs) ]
               suggestions -> [ toDoc "Did you mean:", indent (toDoc suggestions) ]

@@ -91,8 +91,9 @@ buildOutput loadLines options result = do
     where
     pathDecision = case x.filename of
       Just filename | filename /= "" -> do
-        let path = root </> filename
-            short = Path.localPart path
+        let
+          path = root </> filename
+          short = Path.localPart path
         fromMaybe unknownPathInfo $ Array.findMap (\p -> map (toPathInfo short) $ p path) options.decisions
       _ ->
         unknownPathInfo
