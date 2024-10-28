@@ -20,6 +20,7 @@ import Effect.Aff (Milliseconds(..))
 import Effect.Aff as Aff
 import Effect.Ref as Ref
 import JSON (JSON)
+import Node.Path as Node.Path
 import Node.Process as Process
 import Record as Record
 import Registry.API.V1 as V1
@@ -239,7 +240,7 @@ publish _args = do
                   Path.toRaw rootPath
                     # String.stripSuffix (String.Pattern "/")
                     # fromMaybe (Path.toRaw rootPath)
-                    # (_ <> "/")
+                    # (_ <> Node.Path.sep)
               Operation.Validation.validatePursModules files >>= case _ of
                 Left formattedError -> addError $ toDoc
                   [ "This package has either malformed or disallowed PureScript module names"

@@ -299,7 +299,7 @@ fetchPackagesToLocalCache packages = do
                     (liftEffect $ Tar.extract { filename: archivePath, cwd: tempDir }) >>= case _ of
                       Right _ -> pure unit
                       Left err -> die [ "Failed to decode downloaded package " <> packageVersion <> ", error:", show err ]
-            logDebug $ "Moving extracted file to local cache:" <> Path.quote localPackageLocation
+            logDebug $ "Moving extracted file to local cache: " <> Path.quote localPackageLocation
             FS.moveSync { src: tempDir </> tarInnerFolder, dst: Path.toGlobal localPackageLocation }
       -- Local package, no work to be done
       LocalPackage _ -> pure unit

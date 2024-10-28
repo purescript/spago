@@ -99,7 +99,8 @@ docs cwd globs format = do
   { purs } <- ask
   let args = [ "docs", "--format", printDocsFormat format ] <> globsToArgs cwd globs
   Cmd.exec purs.cmd args $ Cmd.defaultExecOptions
-    { pipeStdout = true
+    { cwd = Just $ Path.toGlobal cwd
+    , pipeStdout = true
     , pipeStderr = true
     , pipeStdin = Cmd.StdinPipeParent
     }
@@ -132,8 +133,12 @@ graph cwd globs pursArgs = do
   { purs } <- ask
   let args = [ "graph" ] <> pursArgs <> globsToArgs cwd globs
   logDebug [ "Running command:", "purs " <> String.joinWith " " args ]
-  let execOpts = Cmd.defaultExecOptions { pipeStdout = false, pipeStderr = false }
-  Cmd.exec purs.cmd args execOpts >>= case _ of
+  result <- Cmd.exec purs.cmd args $ Cmd.defaultExecOptions
+    { cwd = Just $ Path.toGlobal cwd
+    , pipeStdout = false
+    , pipeStderr = false
+    }
+  case result of
     Right r -> do
       logDebug "Called `purs graph`, decoding.."
       pure $ parseJson moduleGraphCodec r.stdout

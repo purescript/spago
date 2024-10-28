@@ -107,4 +107,4 @@ spec = Spec.around globTmpDir do
         sortedPaths a `Assert.shouldEqual` [ "fruits/left/apple", "fruits/right/apple" ]
 
   where
-  sortedPaths = map show >>> Array.sort
+  sortedPaths = map (Path.localPart <<< Path.withForwardSlashes) >>> Array.sort

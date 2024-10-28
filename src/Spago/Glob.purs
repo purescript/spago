@@ -175,7 +175,7 @@ fsWalk root ignorePatterns includePatterns = Aff.makeAff \cb -> do
         String.Pattern patternBase `isPrefix` relDirPath
 
     relPath :: Entry -> String
-    relPath entry = Path.localPart $ withForwardSlashes entry.path `Path.relativeTo` root
+    relPath entry = Path.localPart $ withForwardSlashes $ entry.path `Path.relativeTo` root
 
     -- Should `fsWalk` recurse into this directory?
     deepFilter :: Entry -> Effect Boolean

@@ -236,15 +236,16 @@ checkImports graph = do
 
     -- Compile the globs for the project, we get the set of source files in the project
     { rootPath } <- ask
-    glob :: Set String <-
-      map Set.fromFoldable
-        $ map (map Path.localPart)
-        $ map Array.fold
-        $ traverse compileGlob (Config.sourceGlob rootPath testGlobOption packageName (WorkspacePackage selected))
+    projectFiles :: Set String <-
+        Config.sourceGlob rootPath testGlobOption packageName (WorkspacePackage selected)
+        # traverse compileGlob
+        <#> Array.fold
+        <#> map (Path.localPart <<< withForwardSlashes)
+        <#> Set.fromFoldable
 
     let
       -- Filter this improved graph to only have the project modules
-      projectGraph = Map.filterWithKey (\_ { path } -> Set.member path glob) packageGraph
+      projectGraph = packageGraph # Map.filter \{ path } -> Set.member path projectFiles
 
       -- Go through all the modules in the project graph, figure out which packages each module depends on,
       -- accumulate all of that in a single place
@@ -297,10 +298,10 @@ toImportErrors
   -> Array { errorMessage :: Docc, correction :: Docc }
 toImportErrors selected opts { unused, unusedTest, transitive, transitiveTest } = do
   Array.catMaybes
-    [ if opts.reportSrc && (not $ Set.isEmpty unused) then Just $ unusedError false selected unused else Nothing
-    , if opts.reportSrc && (not $ Map.isEmpty transitive) then Just $ transitiveError false selected transitive else Nothing
-    , if opts.reportTest && (not $ Set.isEmpty unusedTest) then Just $ unusedError true selected unusedTest else Nothing
-    , if opts.reportTest && (not $ Map.isEmpty transitiveTest) then Just $ transitiveError true selected transitiveTest else Nothing
+    [ if opts.reportSrc && (not Set.isEmpty unused) then Just $ unusedError false selected unused else Nothing
+    , if opts.reportSrc && (not Map.isEmpty transitive) then Just $ transitiveError false selected transitive else Nothing
+    , if opts.reportTest && (not Set.isEmpty unusedTest) then Just $ unusedError true selected unusedTest else Nothing
+    , if opts.reportTest && (not Map.isEmpty transitiveTest) then Just $ transitiveError true selected transitiveTest else Nothing
     ]
 
 formatImportErrors :: Array { errorMessage :: Docc, correction :: Docc } -> Docc

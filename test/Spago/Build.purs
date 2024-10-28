@@ -183,7 +183,7 @@ spec = Spec.around withTempDir do
       FS.writeYamlFile Config.configCodec (testCwd </> "spago.yaml")
         (conf { workspace = conf.workspace # map (_ { backend = Just { cmd: "echo", args: Just [ "hello" ] } }) })
 
-      spago [ "build" ] >>= shouldBeSuccess
+      spago [ "build", "-v" ] >>= shouldBeSuccess
       spago [ "run" ] >>= shouldBeSuccessErr (fixture "alternate-backend-output.txt")
 
       -- We also make sure that no js files are produced, only corefn
