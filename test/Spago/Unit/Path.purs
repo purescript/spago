@@ -19,7 +19,7 @@ spec = Spec.describe "Paths" do
 
   Spec.describe "LocalPath" do
     Spec.it "can append strings" do
-      let p = root "/foo" </> "bar" </> "baz"
+      let p = Path.withForwardSlashes $ root "/foo" </> "bar" </> "baz"
       Path.localPart p `shouldEqual` "bar/baz"
       (p </> "x") `shouldPointAt` "/foo/bar/baz/x"
       (p </> "../x") `shouldPointAt` "/foo/bar/x"
