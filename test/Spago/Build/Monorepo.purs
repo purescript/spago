@@ -5,6 +5,8 @@ import Test.Prelude
 import Data.Array as Array
 import Data.String (Pattern(..))
 import Data.String as String
+import Data.String.Regex as Regex
+import Data.String.Regex.Flags as Regex.Flags
 import Effect.Aff (bracket)
 import Node.Path as Path
 import Node.Process as Process
@@ -254,19 +256,20 @@ spec = Spec.describe "monorepo" do
 
   Spec.it "#1208: clones a monorepo only once, even if multiple packages from it are needed" \{ spago, fixture, testCwd } -> do
     -- A local file system Git repo to use as a remote for Spago to clone from
-    let createLibraryRepo = do
-          let libRepo = Path.concat [ Paths.paths.temp, "spago-1208" ]
-          whenM (FS.exists libRepo) $ rmRf libRepo
-          FS.copyTree { src: fixture "monorepo/1208-no-double-cloning/library", dst: libRepo }
-          git_ libRepo [ "init" ]
-          git_ libRepo [ "add", "." ]
-          git_ libRepo [ "config", "--global", "core.longpaths", "true" ]
-          git_ libRepo [ "config", "user.name", "test-user" ]
-          git_ libRepo [ "config", "user.email", "test-user@aol.com" ]
-          git_ libRepo [ "commit", "-m", "Initial commit" ]
-          git_ libRepo [ "tag", "v1" ]
-          git_ libRepo [ "tag", "v2" ]
-          pure libRepo
+    let
+      createLibraryRepo = do
+        let libRepo = Path.concat [ Paths.paths.temp, "spago-1208" ]
+        whenM (FS.exists libRepo) $ rmRf libRepo
+        FS.copyTree { src: fixture "monorepo/1208-no-double-cloning/library", dst: libRepo }
+        git_ libRepo [ "init" ]
+        git_ libRepo [ "add", "." ]
+        git_ libRepo [ "config", "--global", "core.longpaths", "true" ]
+        git_ libRepo [ "config", "user.name", "test-user" ]
+        git_ libRepo [ "config", "user.email", "test-user@aol.com" ]
+        git_ libRepo [ "commit", "-m", "Initial commit" ]
+        git_ libRepo [ "tag", "v1" ]
+        git_ libRepo [ "tag", "v2" ]
+        pure libRepo
 
     bracket createLibraryRepo rmRf \libRepo -> do
       let
@@ -302,7 +305,11 @@ spec = Spec.describe "monorepo" do
             { stdoutFile: Nothing
             , stderrFile: Just $ fixture expectedFixture
             , result
-            , sanitize: String.trim >>> String.replaceAll (String.Pattern libRepo) (String.Replacement "<library-repo-path>")
+            , sanitize:
+                String.replaceAll (String.Pattern "\r\n") (String.Replacement "\n")
+                  >>> String.replaceAll (String.Pattern libRepo) (String.Replacement "<library-repo-path>")
+                  >>> Regex.replace (unsafeFromRight $ Regex.regex "^purs compile: .*$" (Regex.Flags.global <> Regex.Flags.multiline)) "purs compile..."
+                  >>> String.trim
             }
 
       -- First run `spago install` to make sure global cache is populated,
@@ -347,6 +354,12 @@ spec = Spec.describe "monorepo" do
       spago [ "ls", "packages", "--offline" ] >>=
         shouldBeSuccessErr' "monorepo/1208-no-double-cloning/expected-stderr/four-deps.txt"
       assertRefCheckedOut "lib4" "v4"
+
+      -- Lockfile test: when it's up to date but the cache is not populated (i.e. a fresh clone)
+      -- then there are no double clones. This is a regression test for #1206
+      spago [ "build" ] >>= shouldBeSuccess
+      rmRf ".spago"
+      spago [ "build" ] >>= shouldBeSuccessErr' "monorepo/1208-no-double-cloning/expected-stderr/lockfile-up-to-date.txt"
 
   where
   git_ cwd = void <<< git cwd
