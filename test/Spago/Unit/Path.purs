@@ -27,15 +27,15 @@ spec = Spec.describe "Paths" do
       (p </> "x" </> "y" </> "z") `shouldPointAt` "/foo/bar/baz/x/y/z"
 
     Spec.it "always keeps the original root" do
-      let p1 = root "/foo/x/y" </> "/bar" </> "baz"
+      let p1 = Path.withForwardSlashes $ root "/foo/x/y" </> "/bar" </> "baz"
       Path.localPart p1 `shouldEqual` "../../../bar/baz"
       Path.rootPart p1 `shouldPointAt` "/foo/x/y"
 
-      let p2 = root "/foo/x/y" </> "bar" </> "baz"
+      let p2 = Path.withForwardSlashes $ root "/foo/x/y" </> "bar" </> "baz"
       Path.localPart p2 `shouldEqual` "bar/baz"
       Path.rootPart p2 `shouldPointAt` "/foo/x/y"
 
-      let p3 = root "/foo/x/y" </> "../../bar" </> "baz"
+      let p3 = Path.withForwardSlashes $ root "/foo/x/y" </> "../../bar" </> "baz"
       p3 `shouldPointAt` "/foo/bar/baz"
       Path.localPart p3 `shouldEqual` "../../bar/baz"
       Path.rootPart p3 `shouldPointAt` "/foo/x/y"
