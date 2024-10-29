@@ -237,7 +237,7 @@ checkImports graph = do
     -- Compile the globs for the project, we get the set of source files in the project
     { rootPath } <- ask
     projectFiles :: Set String <-
-        Config.sourceGlob rootPath testGlobOption packageName (WorkspacePackage selected)
+      Config.sourceGlob rootPath testGlobOption packageName (WorkspacePackage selected)
         # traverse compileGlob
         <#> Array.fold
         <#> map (Path.localPart <<< withForwardSlashes)
