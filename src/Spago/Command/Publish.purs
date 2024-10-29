@@ -490,7 +490,7 @@ inferLocationAndWriteToConfig :: ∀ a. WorkspacePackage -> Spago (PublishEnv a)
 inferLocationAndWriteToConfig selectedPackage = do
   Git.getRemotes Nothing >>= case _ of
     Left err ->
-      die $ toDoc err
+      die [ toDoc "Couldn't parse Git remotes: ", err ]
     Right remotes ->
       case Array.find (_.name >>> eq "origin") remotes of
         Nothing ->
@@ -501,17 +501,19 @@ inferLocationAndWriteToConfig selectedPackage = do
           -- Once the registry supports subdirs, the `else` branch should
           -- return `selectedPackage.path`
           subdir <-
-            if Config.isRootPackage selectedPackage
-              then pure Nothing
-              else die "The registry does not support nested packages yet. Only the root package can be published."
+            if Config.isRootPackage selectedPackage then
+              pure Nothing
+            else
+              die "The registry does not support nested packages yet. Only the root package can be published."
 
           -- TODO: similarly, the registry only supports `GitHub` packages, so
           -- we error out in other cases. Once the registry supports non-GitHub
           -- packages, the `else` branch should return `Git { url: origin.url, subdir }`
           location <-
-            if String.contains (String.Pattern "github.com") origin.url
-              then pure $ Location.GitHub { owner: origin.owner, repo: origin.repo, subdir }
-              else die
+            if String.contains (String.Pattern "github.com") origin.url then
+              pure $ Location.GitHub { owner: origin.owner, repo: origin.repo, subdir }
+            else
+              die
                 [ "The registry only supports packages hosted on GitHub at the moment."
                 , "Cannot publish this package because it is hosted at " <> origin.url
                 ]
