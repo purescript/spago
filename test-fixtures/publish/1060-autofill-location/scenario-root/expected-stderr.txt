@@ -13,4 +13,4 @@ Errors       0     0     0
 Your package "aaa" is not ready for publishing yet, encountered 1 error:
 
 
-✘ The `publish.location` field was empty. Spago filled it in, but the config file needs to be committed.
+✘ The `publish.location` field of your `spago.yaml` file was empty. Spago filled it in, please commit it and try again.

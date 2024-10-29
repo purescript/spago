@@ -13,4 +13,6 @@ Errors       0     0     0
 Your package "aaa" is not ready for publishing yet, encountered 1 error:
 
 
-✘ The `publish.location` field is empty and Spago is unable to infer it from Git remotes.
+✘ The `publish.location` field is not present in the `spago.yaml` file.
+Spago is unable to infer it from Git remotes, so please populate it manually.
+See the docs for more info: https://github.com/purescript/spago#the-configuration-file

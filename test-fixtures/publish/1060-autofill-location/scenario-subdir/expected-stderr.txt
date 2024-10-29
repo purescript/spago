@@ -10,7 +10,5 @@ Errors       0     0     0
 
 ✓ Build succeeded.
 
-Your package "bbb" is not ready for publishing yet, encountered 1 error:
 
-
-✘ The `publish.location` field was empty. Spago filled it in, but the config file needs to be committed.
+✘ The registry does not support nested packages yet. Only the root package can be published.

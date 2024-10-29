@@ -158,9 +158,14 @@ publish _args = do
       Nothing -> do
         addedToConfig <- inferLocationAndWriteToConfig selected
         if addedToConfig then
-          addError $ toDoc "The `publish.location` field was empty. Spago filled it in, but the config file needs to be committed."
+          addError $ toDoc $
+            "The `publish.location` field of your `spago.yaml` file was empty. Spago filled it in, please commit it and try again."
         else
-          addError $ toDoc "The `publish.location` field is empty and Spago is unable to infer it from Git remotes."
+          addError $ toDoc
+            [ "The `publish.location` field is not present in the `spago.yaml` file."
+            , "Spago is unable to infer it from Git remotes, so please populate it manually."
+            , "See the docs for more info: https://github.com/purescript/spago#the-configuration-file"
+            ]
       Just location -> do
         -- Get the metadata file for this package.
         -- It will exist if the package has been published at some point, it will not if the package is new.
@@ -475,7 +480,7 @@ locationIsInGitRemotes location = do
   else
     Git.getRemotes Nothing >>= case _ of
       Left err ->
-        die $ toDoc err
+        die [ toDoc "Couldn't parse Git remotes: ", err ]
       Right remotes ->
         pure $ remotes # Array.any \r -> case location of
           Location.Git { url } -> r.url == url
@@ -491,18 +496,30 @@ inferLocationAndWriteToConfig selectedPackage = do
         Nothing ->
           pure false
         Just origin -> do
+          -- TODO: at the moment the registry supports only `subdir:
+          -- Nothing` cases, so we error out when the package is nested.
+          -- Once the registry supports subdirs, the `else` branch should
+          -- return `selectedPackage.path`
+          subdir <-
+            if Config.isRootPackage selectedPackage
+              then pure Nothing
+              else die "The registry does not support nested packages yet. Only the root package can be published."
+
+          -- TODO: similarly, the registry only supports `GitHub` packages, so
+          -- we error out in other cases. Once the registry supports non-GitHub
+          -- packages, the `else` branch should return `Git { url: origin.url, subdir }`
+          location <-
+            if String.contains (String.Pattern "github.com") origin.url
+              then pure $ Location.GitHub { owner: origin.owner, repo: origin.repo, subdir }
+              else die
+                [ "The registry only supports packages hosted on GitHub at the moment."
+                , "Cannot publish this package because it is hosted at " <> origin.url
+                ]
+
           let
-            subdir
-              | Config.isRootPackage selectedPackage = Nothing
-              | otherwise = Just $ withForwardSlashes selectedPackage.path
             configPath
               | Config.isRootPackage selectedPackage = "spago.yaml"
               | otherwise = Path.concat [ selectedPackage.path, "spago.yaml" ]
-            location
-              | String.contains (String.Pattern "github.com") origin.url =
-                  Location.GitHub { owner: origin.owner, repo: origin.repo, subdir }
-              | otherwise =
-                  Location.Git { url: origin.url, subdir }
 
           liftEffect $ Config.addPublishLocationToConfig selectedPackage.doc location
           liftAff $ FS.writeYamlDocFile configPath selectedPackage.doc

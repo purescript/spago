@@ -136,21 +136,17 @@ spec = Spec.around withTempDir do
         checkFixture "spago.yaml"
           (fixture "publish/1060-autofill-location/scenario-root/expected-spago.yaml")
 
-      Spec.it "happens for non-root package" \{ fixture, spago } -> do
+      Spec.it "errors out for non-root package" \{ fixture, spago } -> do
         prepareProject spago fixture
         spago [ "publish", "-p", "bbb", "--offline" ] >>=
           shouldBeFailureErr (fixture "publish/1060-autofill-location/scenario-subdir/expected-stderr.txt")
-        checkFixture "subdir1/spago.yaml"
-          (fixture "publish/1060-autofill-location/scenario-subdir/expected-spago.yaml")
 
-      Spec.it "happens for nested non-root package" \{ fixture, spago } -> do
+      Spec.it "errors out for nested non-root package" \{ fixture, spago } -> do
         prepareProject spago fixture
         spago [ "publish", "-p", "ccc", "--offline" ] >>=
           shouldBeFailureErr (fixture "publish/1060-autofill-location/scenario-nested-subdir/expected-stderr.txt")
-        checkFixture "subdir2/subdir3/spago.yaml"
-          (fixture "publish/1060-autofill-location/scenario-nested-subdir/expected-spago.yaml")
 
-      Spec.it "uses URL when not a GitHub remote" \{ fixture, spago } -> do
+      Spec.it "errors out when not a GitHub remote" \{ fixture, spago } -> do
         prepareProject spago fixture
         git [ "remote", "set-url", "origin", "https://not.git-hub.net/foo/bar.git" ]
         spago [ "publish", "-p", "aaa", "--offline" ] >>=
