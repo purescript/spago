@@ -12,7 +12,7 @@ import Control.Monad.Maybe.Trans (runMaybeT)
 import Control.Monad.Trans.Class (lift)
 import Data.Array as Array
 import Data.Filterable (filter)
-import Data.Foldable (any, traverse_)
+import Data.Foldable (all, any, traverse_)
 import Data.String as String
 import Data.String as String.CodePoint
 import Effect.Aff as Aff
@@ -101,6 +101,15 @@ fsWalk cwd ignorePatterns includePatterns = Aff.makeAff \cb -> do
   canceled <- Ref.new false
 
   let
+    -- The base of every includePattern
+    -- The base of a pattern is its longest non-glob prefix.
+    -- For example: foo/bar/*/*.purs => foo/bar
+    --              **/spago.yaml => ""
+    includePatternBases :: Array String
+    includePatternBases = map (_.base <<< scanPattern) includePatterns
+
+    allIncludePatternsHaveBase = all (not <<< String.null) includePatternBases
+
     -- Update the ignoreMatcherRef with the patterns from a .gitignore file
     updateIgnoreMatcherWithGitignore :: Entry -> Effect Unit
     updateIgnoreMatcherWithGitignore entry = do
@@ -119,9 +128,17 @@ fsWalk cwd ignorePatterns includePatterns = Aff.makeAff \cb -> do
           -- ex. if `includePatterns` is [".spago/p/aff-1.0.0/**/*.purs"],
           -- and `gitignored` is ["node_modules", ".spago"],
           -- then add "node_modules" to `ignoreMatcher` but not ".spago"
-          wouldConflictWithSearch matcher = any matcher includePatterns
+          wouldConflictWithSearch matcher = any matcher includePatternBases
 
-          newMatchers = or $ filter (not <<< wouldConflictWithSearch) gitignored
+          newMatchers :: Array (String -> Boolean)
+          newMatchers | allIncludePatternsHaveBase = filter (not <<< wouldConflictWithSearch) gitignored
+          newMatchers = do
+            -- Some of the include patterns don't have a base,
+            -- e.g. there is an include pattern like "*/foo/bar" or "**/.spago".
+            -- In this case, do not attempt to determine whether the gitignore
+            -- file would exclude some of the target paths. Instead always respect
+            -- the .gitignore.
+            gitignored
 
           -- Another possible approach could be to keep a growing array of patterns and
           -- regenerate the matcher on every gitignore. We have tried that (see #1234),
@@ -133,16 +150,9 @@ fsWalk cwd ignorePatterns includePatterns = Aff.makeAff \cb -> do
           -- new matchers together, then the whole thing with the previous matcher.
           -- This is still prone to stack issues, but we now have a tree so it should
           -- not be as dramatic.
-          addMatcher currentMatcher = or [ currentMatcher, newMatchers ]
+          addMatcher currentMatcher = or $ Array.cons currentMatcher newMatchers
 
         Ref.modify_ addMatcher ignoreMatcherRef
-
-    -- The base of every includePattern
-    -- The base of a pattern is its longest non-glob prefix.
-    -- For example: foo/bar/*/*.purs => foo/bar
-    --              **/spago.yaml => ""
-    includePatternBases :: Array String
-    includePatternBases = map (_.base <<< scanPattern) includePatterns
 
     matchesAnyPatternBase :: String -> Boolean
     matchesAnyPatternBase relDirPath = any matchesPatternBase includePatternBases
