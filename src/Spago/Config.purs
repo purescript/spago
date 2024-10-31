@@ -206,11 +206,16 @@ readWorkspace { maybeSelectedPackage, pureBuild, migrateConfig } = do
       , "See the relevant documentation here: https://github.com/purescript/spago#the-workspace"
       ]
     Right config@{ yaml: { workspace: Just workspace, package }, doc } -> do
+      logDebug "Read the root config"
       doMigrateConfig "spago.yaml" config
       pure { workspace, package, workspaceDoc: doc }
 
   logDebug "Gathering all the spago configs in the tree..."
-  otherConfigPaths <- liftAff $ Glob.gitignoringGlob Paths.cwd [ "**/spago.yaml" ]
+  otherConfigPaths <- liftAff $ Glob.gitignoringGlob
+    { cwd: Paths.cwd
+    , includePatterns: [ "**/spago.yaml" ]
+    , ignorePatterns: [ "**/node_modules/**", "**/.spago/**" ]
+    }
   unless (Array.null otherConfigPaths) do
     logDebug $ [ toDoc "Found packages at these paths:", Log.indent $ Log.lines (map toDoc otherConfigPaths) ]
 
@@ -310,8 +315,10 @@ readWorkspace { maybeSelectedPackage, pureBuild, migrateConfig } = do
           true, _ -> do
             logDebug "Using lockfile because of --pure flag"
             pure (Right contents)
-          false, true -> pure (Left "Lockfile is out of date")
-          false, false -> do
+          false, lockfileIsOutOfDate@{ result: true } -> do
+            logDebug $ "Reason for recomputing the lockfile: " <> show lockfileIsOutOfDate
+            pure $ Left $ "Lockfile is out of date (reason: " <> lockfileIsOutOfDate.reasons <> ")"
+          false, { result: false } -> do
             logDebug "Lockfile is up to date, using it"
             pure (Right contents)
 
@@ -465,22 +472,45 @@ workspacePackageToLockfilePackage { path, package } = Tuple package.name
   , test: { dependencies: foldMap _.dependencies package.test, build_plan: mempty }
   }
 
-shouldComputeNewLockfile :: { workspace :: Core.WorkspaceConfig, workspacePackages :: Map PackageName WorkspacePackage } -> Lock.WorkspaceLock -> Boolean
+type LockfileRecomputeResult =
+  { workspacesDontMatch :: Boolean
+  , extraPackagesDontMatch :: Boolean
+  , packageSetAddressIsDifferent :: Boolean
+  , packageSetIsLocal :: Boolean
+  , result :: Boolean
+  , reasons :: String
+  }
+
+shouldComputeNewLockfile :: { workspace :: Core.WorkspaceConfig, workspacePackages :: Map PackageName WorkspacePackage } -> Lock.WorkspaceLock -> LockfileRecomputeResult
 shouldComputeNewLockfile { workspace, workspacePackages } workspaceLock =
-  -- the workspace packages should exactly match, except for the needed_by field, which is filled in during build plan construction
-  ((workspacePackageToLockfilePackage >>> snd <$> workspacePackages) /= (eraseBuildPlan <$> workspaceLock.packages))
-    -- and the extra packages should exactly match
-    || (fromMaybe Map.empty workspace.extraPackages /= workspaceLock.extra_packages)
-    -- and the package set address needs to match - we have no way to match the package set contents at this point, so we let it be
-    || (workspace.packageSet /= map _.address workspaceLock.package_set)
-    -- and the package set is not a local file - if it is then we always recompute the lockfile because we have no way to check if it's changed
-    ||
-      ( case workspace.packageSet of
-          Just (Core.SetFromPath _) -> true
-          _ -> false
-      )
+  { workspacesDontMatch
+  , extraPackagesDontMatch
+  , packageSetAddressIsDifferent
+  , packageSetIsLocal
+  , result: workspacesDontMatch || extraPackagesDontMatch || packageSetAddressIsDifferent || packageSetIsLocal
+  , reasons: String.joinWith ", " $ Array.mapMaybe identity
+      [ explainReason workspacesDontMatch "workspace packages changed"
+      , explainReason extraPackagesDontMatch "extraPackages changed"
+      , explainReason packageSetAddressIsDifferent "package set address changed"
+      , explainReason packageSetIsLocal "package set is local"
+      ]
+  }
   where
   eraseBuildPlan = _ { core { build_plan = mempty }, test { build_plan = mempty } }
+  -- surely this already exists
+  explainReason flag reason = if flag then Just reason else Nothing
+
+  -- Conditions for recomputing the lockfile:
+  -- 1. the workspace packages should exactly match, except for the needed_by field, which is filled in during build plan construction
+  workspacesDontMatch = (workspacePackageToLockfilePackage >>> snd <$> workspacePackages) /= (eraseBuildPlan <$> workspaceLock.packages)
+  -- 2. the extra packages should exactly match
+  extraPackagesDontMatch = fromMaybe Map.empty workspace.extraPackages /= workspaceLock.extra_packages
+  -- 3. the package set address needs to match - we have no way to match the package set contents at this point, so we let it be
+  packageSetAddressIsDifferent = workspace.packageSet /= map _.address workspaceLock.package_set
+  -- 4. the package set is not a local file - if it is then we always recompute the lockfile because we have no way to check if it's changed
+  packageSetIsLocal = case workspace.packageSet of
+    Just (Core.SetFromPath _) -> true
+    _ -> false
 
 getPackageLocation :: PackageName -> Package -> FilePath
 getPackageLocation name = Paths.mkRelative <<< case _ of
