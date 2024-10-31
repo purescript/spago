@@ -103,3 +103,8 @@ spec = Spec.around globTmpDir do
         FS.writeTextFile (Path.concat [ p, "fruits", "right", ".gitignore" ]) hugeGitignore
         a <- Glob.gitignoringGlob p [ "fruits/**/apple" ]
         Array.sort a `Assert.shouldEqual` [ "fruits/left/apple", "fruits/right/apple" ]
+
+      Spec.it "does respect .gitignore even though it might conflict with a search path without base" $ \p -> do
+        FS.writeTextFile (Path.concat [ p, ".gitignore" ]) "fruits"
+        a <- Glob.gitignoringGlob p [ "**/apple" ]
+        Array.sort a `Assert.shouldEqual` []
