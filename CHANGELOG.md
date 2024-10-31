@@ -40,6 +40,8 @@ Other improvements:
   before trying to build with them.
 - Spago no longer ignores config fields that it doesn't recognize. This should
   help catch typos in field names.
+- When the `publish.location` field is missing, `spago publish` will attempt to
+  figure out the location from Git remotes and write it back to `spago.yaml`.
 
 ## [0.21.0] - 2023-05-04
 
