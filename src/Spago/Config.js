@@ -19,8 +19,8 @@ export function addPackagesToConfigImpl(doc, isTest, newPkgs) {
     }
   })();
 
-  // Stringify this collection as 
-  //  - dep1 
+  // Stringify this collection as
+  //  - dep1
   //  - dep2
   // rather than
   //  [ dep1, dep2 ]
@@ -120,4 +120,8 @@ export function migrateV1ConfigImpl(doc) {
   if (hasChanged) {
     return doc;
   }
+}
+
+export function addPublishLocationToConfigImpl(doc, location) {
+  doc.setIn(["package", "publish", "location"], location);
 }

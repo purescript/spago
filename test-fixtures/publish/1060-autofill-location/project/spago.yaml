@@ -1,0 +1,9 @@
+package:
+  name: aaa
+  dependencies: []
+  publish:
+    version: 0.0.1
+    license: MIT
+workspace:
+  packageSet:
+    registry: 58.0.0

@@ -46,42 +46,43 @@ globTmpDir m = Aff.bracket make cleanup m
 
 spec :: Spec Unit
 spec = Spec.around globTmpDir do
+  let glob root includePatterns = Glob.gitignoringGlob { root, includePatterns, ignorePatterns: [] }
   Spec.describe "glob" do
     Spec.describe "glob behavior" do
       Spec.it "'**/..' matches 0 or more directories" \p -> do
         aRoot <- Path.mkRoot (p </> "fruits" </> "left")
         bRoot <- Path.mkRoot (p </> "fruits")
-        a <- Glob.gitignoringGlob aRoot [ "**/apple" ]
-        b <- Glob.gitignoringGlob bRoot [ "**/apple" ]
+        a <- glob aRoot [ "**/apple" ]
+        b <- glob bRoot [ "**/apple" ]
         sortedPaths a `Assert.shouldEqual` [ "apple" ]
         sortedPaths b `Assert.shouldEqual` [ "left/apple", "right/apple" ]
 
       Spec.it "'../**/..' matches 0 or more directories" \p -> do
-        a <- Glob.gitignoringGlob p [ "fruits/**/apple" ]
+        a <- glob p [ "fruits/**/apple" ]
         sortedPaths a `Assert.shouldEqual` [ "fruits/left/apple", "fruits/right/apple" ]
 
       Spec.it "'../**' matches 0 or more directories" \p -> do
-        a <- Glob.gitignoringGlob p [ "fruits/left/**" ]
+        a <- glob p [ "fruits/left/**" ]
         sortedPaths a `Assert.shouldEqual` [ "fruits/left", "fruits/left/apple" ]
 
     Spec.describe "gitignoringGlob" do
       Spec.it "when no .gitignore, yields all matches" \p -> do
-        a <- Glob.gitignoringGlob p [ "**/apple" ]
+        a <- glob p [ "**/apple" ]
         sortedPaths a `Assert.shouldEqual` [ "fruits/left/apple", "fruits/right/apple", "src/fruits/apple" ]
 
       Spec.it "respects a .gitignore pattern that doesn't conflict with search" \p -> do
         FS.writeTextFile (p </> ".gitignore") "fruits/right"
-        a <- Glob.gitignoringGlob p [ "fruits/**/apple" ]
+        a <- glob p [ "fruits/**/apple" ]
         sortedPaths a `Assert.shouldEqual` [ "fruits/left/apple" ]
 
       Spec.it "respects some .gitignore patterns" \p -> do
         FS.writeTextFile (p </> ".gitignore") "fruits\nfruits/right"
-        a <- Glob.gitignoringGlob p [ "fruits/**/apple" ]
+        a <- glob p [ "fruits/**/apple" ]
         sortedPaths a `Assert.shouldEqual` [ "fruits/left/apple" ]
 
       Spec.it "respects a negated .gitignore pattern" \p -> do
         FS.writeTextFile (p </> ".gitignore") "!/fruits/left/apple\n/fruits/**/apple"
-        a <- Glob.gitignoringGlob p [ "**/apple" ]
+        a <- glob p [ "**/apple" ]
         sortedPaths a `Assert.shouldEqual` [ "fruits/left/apple", "src/fruits/apple" ]
 
       for_ [ "/fruits", "fruits", "fruits/", "**/fruits", "fruits/**", "**/fruits/**" ] \gitignore -> do
@@ -89,7 +90,7 @@ spec = Spec.around globTmpDir do
           ("does not respect a .gitignore pattern that conflicts with search: " <> gitignore)
           \p -> do
             FS.writeTextFile (p </> ".gitignore") gitignore
-            a <- Glob.gitignoringGlob p [ "fruits/**/apple" ]
+            a <- glob p [ "fruits/**/apple" ]
             sortedPaths a `Assert.shouldEqual` [ "fruits/left/apple", "fruits/right/apple" ]
 
       Spec.it "is stacksafe" \p -> do
@@ -103,12 +104,12 @@ spec = Spec.around globTmpDir do
         FS.writeTextFile (p </> "fruits" </> ".gitignore") hugeGitignore
         FS.writeTextFile (p </> "fruits" </> "left" </> ".gitignore") hugeGitignore
         FS.writeTextFile (p </> "fruits" </> "right" </> ".gitignore") hugeGitignore
-        a <- Glob.gitignoringGlob p [ "fruits/**/apple" ]
+        a <- glob p [ "fruits/**/apple" ]
         sortedPaths a `Assert.shouldEqual` [ "fruits/left/apple", "fruits/right/apple" ]
 
       Spec.it "does respect .gitignore even though it might conflict with a search path without base" $ \p -> do
         FS.writeTextFile (p </> ".gitignore") "fruits"
-        a <- Glob.gitignoringGlob p [ "**/apple" ]
+        a <- glob p [ "**/apple" ]
         sortedPaths a `Assert.shouldEqual` []
 
   where

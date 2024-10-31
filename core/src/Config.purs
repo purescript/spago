@@ -31,6 +31,7 @@ module Spago.Core.Config
   , parseBundleType
   , parsePlatform
   , printSpagoRange
+  , publishLocationCodec
   , remotePackageCodec
   , setAddressCodec
   , widestRange

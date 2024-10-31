@@ -89,8 +89,8 @@ gitignoreFileToGlob root =
     | leadingSlash pattern = dropPrefixSlash pattern <> "/**"
     | otherwise = "**/" <> pattern <> "/**"
 
-fsWalk :: RootPath -> Array String -> Array String -> Aff (Array Entry)
-fsWalk root ignorePatterns includePatterns = Aff.makeAff \cb -> do
+fsWalk :: GlobParams -> Aff (Array Entry)
+fsWalk { root, ignorePatterns, includePatterns } = Aff.makeAff \cb -> do
   let includeMatcher = testGlob { ignore: [], include: includePatterns }
 
   -- Pattern for directories which can be outright ignored.
@@ -216,7 +216,13 @@ fsWalk root ignorePatterns includePatterns = Aff.makeAff \cb -> do
   pure $ Aff.Canceler \_ ->
     void $ liftEffect $ Ref.write true canceled
 
-gitignoringGlob :: RootPath -> Array String -> Aff (Array LocalPath)
-gitignoringGlob root patterns = do
-  entries <- fsWalk root [ ".git" ] patterns
+type GlobParams = { ignorePatterns :: Array String, includePatterns :: Array String, root :: RootPath }
+
+gitignoringGlob :: GlobParams -> Aff (Array LocalPath)
+gitignoringGlob { root, includePatterns, ignorePatterns } = do
+  entries <- fsWalk
+    { root
+    , ignorePatterns: ignorePatterns <> [ ".git", "spago.yaml" ]
+    , includePatterns
+    }
   pure $ entries <#> \e -> e.path `Path.relativeTo` root

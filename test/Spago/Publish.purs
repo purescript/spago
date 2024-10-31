@@ -123,6 +123,47 @@ spec = Spec.around withTempDir do
       rmRf $ testCwd </> ".spago/p/console-6.1.0/output"
       spago [ "publish", "--offline" ] >>= shouldBeFailureErr' (fixture "publish/1110-solver-different-version/failure-stderr.txt")
 
+    Spec.describe "#1060 auto-filling the `publish.location` field" do
+      let prepareProject spago fixture testCwd = do
+            FS.copyTree { src: fixture "publish/1060-autofill-location/project", dst: testCwd }
+            spago [ "build" ] >>= shouldBeSuccess
+            doTheGitThing
+            spago [ "fetch" ] >>= shouldBeSuccess
+
+      Spec.it "happens for root package" \{ fixture, spago, testCwd } -> do
+        prepareProject spago fixture testCwd
+        spago [ "publish", "-p", "aaa", "--offline" ] >>=
+          shouldBeFailureErr (fixture "publish/1060-autofill-location/scenario-root/expected-stderr.txt")
+        checkFixture (testCwd </> "spago.yaml")
+          (fixture "publish/1060-autofill-location/scenario-root/expected-spago.yaml")
+
+      Spec.it "errors out for non-root package" \{ fixture, spago, testCwd } -> do
+        prepareProject spago fixture testCwd
+        spago [ "publish", "-p", "bbb", "--offline" ] >>=
+          shouldBeFailureErr (fixture "publish/1060-autofill-location/scenario-subdir/expected-stderr.txt")
+
+      Spec.it "errors out for nested non-root package" \{ fixture, spago, testCwd } -> do
+        prepareProject spago fixture testCwd
+        spago [ "publish", "-p", "ccc", "--offline" ] >>=
+          shouldBeFailureErr (fixture "publish/1060-autofill-location/scenario-nested-subdir/expected-stderr.txt")
+
+      Spec.it "errors out when not a GitHub remote" \{ fixture, spago, testCwd } -> do
+        prepareProject spago fixture testCwd
+        git [ "remote", "set-url", "origin", "https://not.git-hub.net/foo/bar.git" ]
+        spago [ "publish", "-p", "aaa", "--offline" ] >>=
+          shouldBeFailureErr (fixture "publish/1060-autofill-location/scenario-non-github/expected-stderr.txt")
+        checkFixture (testCwd </> "spago.yaml")
+          (fixture "publish/1060-autofill-location/scenario-non-github/expected-spago.yaml")
+
+      Spec.it "prints error when no origin remote" \{ fixture, spago, testCwd } -> do
+        prepareProject spago fixture testCwd
+        git [ "remote", "remove", "origin" ]
+        git [ "remote", "add", "upstream", "git@github.com:foo/bar.git" ]
+        spago [ "publish", "-p", "aaa", "--offline" ] >>=
+          shouldBeFailureErr (fixture "publish/1060-autofill-location/scenario-no-origin/expected-stderr.txt")
+        checkFixture (testCwd </> "spago.yaml")
+          (fixture "publish/1060-autofill-location/project/spago.yaml")
+
 doTheGitThing :: Aff Unit
 doTheGitThing = do
   git [ "init" ]

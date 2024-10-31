@@ -1,0 +1,14 @@
+Reading Spago workspace configuration...
+
+✓ Selecting package to build: ccc
+
+Downloading dependencies...
+Building...
+           Src   Lib   All
+Warnings     0     0     0
+Errors       0     0     0
+
+✓ Build succeeded.
+
+
+✘ The registry does not support nested packages yet. Only the root package can be published.

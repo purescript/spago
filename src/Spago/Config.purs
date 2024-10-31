@@ -8,12 +8,14 @@ module Spago.Config
   , WorkspaceBuildOptions
   , WorkspacePackage
   , addPackagesToConfig
+  , addPublishLocationToConfig
   , addRangesToConfig
   , configDocMissingErrorMessage
   , fileSystemCharEscape
   , getLocalPackageLocation
   , getTopologicallySortedWorkspacePackages
   , getWorkspacePackages
+  , isRootPackage
   , module Core
   , readConfig
   , readWorkspace
@@ -52,6 +54,7 @@ import Dodo as Log
 import Effect.Aff as Aff
 import Effect.Uncurried (EffectFn2, EffectFn3, runEffectFn2, runEffectFn3)
 import Foreign.Object as Foreign
+import JSON (JSON)
 import Node.Path as Node.Path
 import Registry.Internal.Codec as Internal.Codec
 import Registry.PackageName as PackageName
@@ -166,6 +169,9 @@ type ReadWorkspaceOptions =
   , migrateConfig :: Boolean
   }
 
+isRootPackage :: WorkspacePackage -> Boolean
+isRootPackage p = Path.localPart p.path == ""
+
 -- | Reads all the configurations in the tree and builds up the Map of local
 -- | packages to be integrated in the package set
 readWorkspace :: ∀ a. ReadWorkspaceOptions -> Spago (Registry.RegistryEnv (rootPath :: RootPath | a)) Workspace
@@ -201,11 +207,17 @@ readWorkspace { maybeSelectedPackage, pureBuild, migrateConfig } = do
       , "See the relevant documentation here: https://github.com/purescript/spago#the-workspace"
       ]
     Right config@{ yaml: { workspace: Just workspace, package }, doc } -> do
+      logDebug "Read the root config"
       doMigrateConfig (rootPath </> "spago.yaml") config
       pure { workspace, package, workspaceDoc: doc }
 
   logDebug "Gathering all the spago configs in the tree..."
-  otherConfigPaths <- liftAff $ Glob.gitignoringGlob rootPath [ "**/spago.yaml" ] <#> Array.delete rootConfigPath
+  otherConfigPaths <- liftAff $ Array.delete rootConfigPath <$> Glob.gitignoringGlob
+    { root: rootPath
+    , includePatterns: [ "**/spago.yaml" ]
+    , ignorePatterns: [ "**/node_modules/**", "**/.spago/**" ]
+    }
+
   unless (Array.null otherConfigPaths) do
     logDebug $ [ toDoc "Found packages at these paths:", Log.indent $ Log.lines (map (toDoc <<< Path.quote) otherConfigPaths) ]
 
@@ -313,8 +325,10 @@ readWorkspace { maybeSelectedPackage, pureBuild, migrateConfig } = do
           true, _ -> do
             logDebug "Using lockfile because of --pure flag"
             pure (Right contents)
-          false, true -> pure (Left "Lockfile is out of date")
-          false, false -> do
+          false, lockfileIsOutOfDate@{ result: true } -> do
+            logDebug $ "Reason for recomputing the lockfile: " <> show lockfileIsOutOfDate
+            pure $ Left $ "Lockfile is out of date (reason: " <> lockfileIsOutOfDate.reasons <> ")"
+          false, { result: false } -> do
             logDebug "Lockfile is up to date, using it"
             pure (Right contents)
 
@@ -471,22 +485,45 @@ workspacePackageToLockfilePackage { path, package } = Tuple package.name
   , test: { dependencies: foldMap _.dependencies package.test, build_plan: mempty }
   }
 
-shouldComputeNewLockfile :: { workspace :: Core.WorkspaceConfig, workspacePackages :: Map PackageName WorkspacePackage } -> Lock.WorkspaceLock -> Boolean
+type LockfileRecomputeResult =
+  { workspacesDontMatch :: Boolean
+  , extraPackagesDontMatch :: Boolean
+  , packageSetAddressIsDifferent :: Boolean
+  , packageSetIsLocal :: Boolean
+  , result :: Boolean
+  , reasons :: String
+  }
+
+shouldComputeNewLockfile :: { workspace :: Core.WorkspaceConfig, workspacePackages :: Map PackageName WorkspacePackage } -> Lock.WorkspaceLock -> LockfileRecomputeResult
 shouldComputeNewLockfile { workspace, workspacePackages } workspaceLock =
-  -- the workspace packages should exactly match, except for the needed_by field, which is filled in during build plan construction
-  ((workspacePackageToLockfilePackage >>> snd <$> workspacePackages) /= (eraseBuildPlan <$> workspaceLock.packages))
-    -- and the extra packages should exactly match
-    || (fromMaybe Map.empty workspace.extraPackages /= workspaceLock.extra_packages)
-    -- and the package set address needs to match - we have no way to match the package set contents at this point, so we let it be
-    || (workspace.packageSet /= map _.address workspaceLock.package_set)
-    -- and the package set is not a local file - if it is then we always recompute the lockfile because we have no way to check if it's changed
-    ||
-      ( case workspace.packageSet of
-          Just (Core.SetFromPath _) -> true
-          _ -> false
-      )
+  { workspacesDontMatch
+  , extraPackagesDontMatch
+  , packageSetAddressIsDifferent
+  , packageSetIsLocal
+  , result: workspacesDontMatch || extraPackagesDontMatch || packageSetAddressIsDifferent || packageSetIsLocal
+  , reasons: String.joinWith ", " $ Array.mapMaybe identity
+      [ explainReason workspacesDontMatch "workspace packages changed"
+      , explainReason extraPackagesDontMatch "extraPackages changed"
+      , explainReason packageSetAddressIsDifferent "package set address changed"
+      , explainReason packageSetIsLocal "package set is local"
+      ]
+  }
   where
   eraseBuildPlan = _ { core { build_plan = mempty }, test { build_plan = mempty } }
+  -- surely this already exists
+  explainReason flag reason = if flag then Just reason else Nothing
+
+  -- Conditions for recomputing the lockfile:
+  -- 1. the workspace packages should exactly match, except for the needed_by field, which is filled in during build plan construction
+  workspacesDontMatch = (workspacePackageToLockfilePackage >>> snd <$> workspacePackages) /= (eraseBuildPlan <$> workspaceLock.packages)
+  -- 2. the extra packages should exactly match
+  extraPackagesDontMatch = fromMaybe Map.empty workspace.extraPackages /= workspaceLock.extra_packages
+  -- 3. the package set address needs to match - we have no way to match the package set contents at this point, so we let it be
+  packageSetAddressIsDifferent = workspace.packageSet /= map _.address workspaceLock.package_set
+  -- 4. the package set is not a local file - if it is then we always recompute the lockfile because we have no way to check if it's changed
+  packageSetIsLocal = case workspace.packageSet of
+    Just (Core.SetFromPath _) -> true
+    _ -> false
 
 getLocalPackageLocation :: RootPath -> PackageName -> Package -> LocalPath
 getLocalPackageLocation root name = case _ of
@@ -641,8 +678,13 @@ configDocMissingErrorMessage = Array.fold
   , "This is an internal error. Please open an issue at https://github.com/purescript/spago/issues"
   ]
 
+addPublishLocationToConfig :: YamlDoc Core.Config -> Location -> Effect Unit
+addPublishLocationToConfig doc loc =
+  runEffectFn2 addPublishLocationToConfigImpl doc (CJ.encode Core.publishLocationCodec loc)
+
 foreign import setPackageSetVersionInConfigImpl :: EffectFn2 (YamlDoc Core.Config) String Unit
 foreign import addPackagesToConfigImpl :: EffectFn3 (YamlDoc Core.Config) Boolean (Array String) Unit
 foreign import removePackagesFromConfigImpl :: EffectFn3 (YamlDoc Core.Config) Boolean (PackageName -> Boolean) Unit
 foreign import addRangesToConfigImpl :: EffectFn2 (YamlDoc Core.Config) (Foreign.Object String) Unit
-foreign import migrateV1ConfigImpl :: forall a. YamlDoc a -> Nullable (YamlDoc Core.Config)
+foreign import migrateV1ConfigImpl :: ∀ a. YamlDoc a -> Nullable (YamlDoc Core.Config)
+foreign import addPublishLocationToConfigImpl :: EffectFn2 (YamlDoc Core.Config) JSON Unit

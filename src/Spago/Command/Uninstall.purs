@@ -71,7 +71,7 @@ run args = do
 
         newWorkspace = workspace
           { packageSet = workspace.packageSet
-              { lockfile = Left "Lockfile is out of date (installing new packages)"
+              { lockfile = Left "Lockfile is out of date (reason: installing new packages)"
               -- If we are installing packages, we need to add the new deps to the selected package
               , buildType = case workspace.packageSet.buildType of
                   RegistrySolverBuild packageMap -> RegistrySolverBuild $ Map.insert newWorkspacePackage.package.name (WorkspacePackage newWorkspacePackage) packageMap
@@ -81,7 +81,7 @@ run args = do
           }
 
       local (_ { workspace = newWorkspace }) do
-        void $ writeNewLockfile "Lockfile is out of date (uninstalled packages)"
+        void $ writeNewLockfile "Lockfile is out of date (reason: uninstalled packages)"
 
   where
   writeNewLockfile reason = do
