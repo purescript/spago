@@ -1,0 +1,15 @@
+Reading Spago workspace configuration...
+
+✓ Selecting package to build: aaa
+
+Downloading dependencies...
+No lockfile found, generating it...
+Lockfile written to spago.lock. Please commit this file.
+Building...
+Invalid option `--non-existent'
+
+Usage: purs COMMAND
+
+  The PureScript compiler and tools
+
+✘ purs exited with non-ok status code: Normally 1
