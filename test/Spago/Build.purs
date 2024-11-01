@@ -39,7 +39,9 @@ spec = Spec.around withTempDir do
           { stdoutFile: Nothing
           , stderrFile: Just (fixture "purs-not-ok.txt")
           , result: isLeft
-          , sanitize: String.trim >>> String.replace (String.Pattern "Usage: purs.bin") (String.Replacement "Usage: purs")
+          , sanitize: String.trim
+              >>> String.replace (String.Pattern "Usage: purs.bin") (String.Replacement "Usage: purs")
+              >>> String.replace (String.Pattern "\r\n") (String.Replacement "\n")
           }
 
     Spec.it "passes options to purs" \{ spago } -> do
