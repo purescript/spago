@@ -2,11 +2,9 @@ module Test.Spago.Build where
 
 import Test.Prelude
 
-import Data.Array (intercalate)
 import Data.Foldable (fold)
 import Data.String as String
 import Node.FS.Aff as FSA
-import Node.FS.Perms as FS.Perms
 import Node.Path as Path
 import Node.Platform as Platform
 import Node.Process as Process
@@ -36,35 +34,9 @@ spec = Spec.around withTempDir do
 
     Spec.after (rmRf <<< _.testCwd)
       $ Spec.it "exits when purs exits non-ok"
-      $ \{ spago, testCwd, fixture } -> do
-          let
-            prependToPath a = testCwd <> ":" <> a
-
-          -- NOTE: this is reset in `Spec.after`
-          -- by removing the tmp dir, rather than
-          -- storing and restoring the PATH variable
-          liftEffect
-            $ Process.lookupEnv "PATH"
-              <#> fromMaybe ""
-              <#> prependToPath
-              >>= Process.setEnv "PATH"
-
+      $ \{ spago, fixture } -> do
           spago [ "init", "--name", "aaa" ] >>= shouldBeSuccess
-
-          let
-            pursShimPath = testCwd <> "/purs"
-            pursShim =
-              intercalate "\n"
-              [ "#!/bin/bash"
-              , "if [[ $1 = '--version' ]];"
-              , "  then echo '0.15.15';"
-              , "  else echo 'IF YOURE SEEING THIS IT MEANS THAT THE TEST THAT OVERRIDES purs WAS NOT CLEANED UP PROPERLY!!1' 1>&2; exit 1;"
-              , "fi;"
-              ]
-
-          FS.writeTextFile pursShimPath pursShim
-          FS.chmod pursShimPath FS.Perms.permsAll
-          spago [ "build" ] >>= shouldBeFailureErr (fixture "purs-not-ok.txt")
+          spago [ "build", "--purs-args", "--non-existent" ] >>= shouldBeFailureErr (fixture "purs-not-ok.txt")
 
     Spec.it "passes options to purs" \{ spago } -> do
       spago [ "init" ] >>= shouldBeSuccess

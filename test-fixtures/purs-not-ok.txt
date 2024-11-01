@@ -6,6 +6,10 @@ Downloading dependencies...
 No lockfile found, generating it...
 Lockfile written to spago.lock. Please commit this file.
 Building...
-IF YOURE SEEING THIS IT MEANS THAT THE TEST THAT OVERRIDES purs WAS NOT CLEANED UP PROPERLY!!1
+Invalid option `--non-existent'
+
+Usage: purs COMMAND
+
+  The PureScript compiler and tools
 
 ✘ purs exited with non-ok status code: Normally 1
