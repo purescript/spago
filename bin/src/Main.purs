@@ -23,6 +23,7 @@ import Optparse as Optparse
 import Record as Record
 import Registry.PackageName as PackageName
 import Spago.Bin.Flags as Flags
+import Spago.Command.Auth as Auth
 import Spago.Command.Build as Build
 import Spago.Command.Bundle as Bundle
 import Spago.Command.Docs as Docs
@@ -33,7 +34,7 @@ import Spago.Command.Init as Init
 import Spago.Command.Ls (LsPathsArgs, LsDepsArgs, LsPackagesArgs)
 import Spago.Command.Ls as Ls
 import Spago.Command.Publish as Publish
-import Spago.Command.Registry (RegistryInfoArgs, RegistrySearchArgs, RegistryPackageSetsArgs)
+import Spago.Command.Registry (RegistryInfoArgs, RegistryPackageSetsArgs, RegistrySearchArgs, RegistryTransferArgs)
 import Spago.Command.Registry as RegistryCmd
 import Spago.Command.Repl as Repl
 import Spago.Command.Run as Run
@@ -203,6 +204,7 @@ data Command a
   | RegistryInfo RegistryInfoArgs
   | RegistryPackageSets RegistryPackageSetsArgs
   | RegistrySearch RegistrySearchArgs
+  | RegistryTransfer RegistryTransferArgs
   | Repl ReplArgs
   | Run RunArgs
   | Sources SourcesArgs
@@ -210,6 +212,7 @@ data Command a
   | Upgrade UpgradeArgs
   | GraphModules GraphModulesArgs
   | GraphPackages GraphPackagesArgs
+  | Auth Auth.AuthArgs
 
 commandParser :: forall (a :: Row Type). String -> Parser (Command a) -> String -> Mod CommandFields (SpagoCmd a)
 commandParser command_ parser_ description_ =
@@ -222,29 +225,22 @@ commandParser command_ parser_ description_ =
 argParser :: Parser (SpagoCmd ())
 argParser =
   O.hsubparser $ Foldable.fold
-    [ commandParser "init" (Init <$> initArgsParser) "Initialise a new project"
-    , commandParser "fetch" (Fetch <$> fetchArgsParser) "Downloads all of the project's dependencies"
-    , commandParser "install" (Install <$> installArgsParser) "Compile the project's dependencies"
-    , commandParser "uninstall" (Uninstall <$> uninstallArgsParser) "Remove dependencies from a package"
+    [ commandParser "auth" (Auth <$> authArgsParser) "Authenticate as the owner of a package, to allow transfer and unpiblish operations"
     , commandParser "build" (Build <$> buildArgsParser) "Compile the project"
-    , commandParser "run" (Run <$> runArgsParser) "Run the project"
-    , commandParser "test" (Test <$> testArgsParser) "Test the project"
     , commandParser "bundle" (Bundle <$> bundleArgsParser) "Bundle the project in a single file"
-    , commandParser "sources" (Sources <$> sourcesArgsParser) "List all the source paths (globs) for the dependencies of the project"
-    , commandParser "repl" (Repl <$> replArgsParser) "Start a REPL"
-    , commandParser "publish" (Publish <$> publishArgsParser) "Publish a package"
-    , commandParser "upgrade" (Upgrade <$> upgradeArgsParser) "Upgrade to the latest package set, or to the latest versions of Registry packages"
     , commandParser "docs" (Docs <$> docsArgsParser) "Generate docs for the project and its dependencies"
-    , O.command "registry"
+    , commandParser "fetch" (Fetch <$> fetchArgsParser) "Downloads all of the project's dependencies"
+    , O.command "graph"
         ( O.info
             ( O.hsubparser $ Foldable.fold
-                [ commandParser "search" (RegistrySearch <$> registrySearchArgsParser) "Search for package names in the Registry"
-                , commandParser "info" (RegistryInfo <$> registryInfoArgsParser) "Query the Registry for information about packages and versions"
-                , commandParser "package-sets" (RegistryPackageSets <$> registryPackageSetsArgsParser) "List the available package sets"
+                [ commandParser "modules" (GraphModules <$> graphModulesArgsParser) "Generate a graph of the project's modules"
+                , commandParser "packages" (GraphPackages <$> graphPackagesArgsParser) "Generate a graph of the project's dependencies"
                 ]
             )
-            (O.progDesc "Commands to interact with the Registry")
+            (O.progDesc "Generate a graph of modules or dependencies")
         )
+    , commandParser "init" (Init <$> initArgsParser) "Initialise a new project"
+    , commandParser "install" (Install <$> installArgsParser) "Compile the project's dependencies"
     , O.command "ls"
         ( O.info
             ( O.hsubparser $ Foldable.fold
@@ -255,25 +251,25 @@ argParser =
             )
             (O.progDesc "List packages or dependencies")
         )
-    , O.command "graph"
+    , commandParser "publish" (Publish <$> publishArgsParser) "Publish a package"
+    , O.command "registry"
         ( O.info
             ( O.hsubparser $ Foldable.fold
-                [ commandParser "modules" (GraphModules <$> graphModulesArgsParser) "Generate a graph of the project's modules"
-                , commandParser "packages" (GraphPackages <$> graphPackagesArgsParser) "Generate a graph of the project's dependencies"
+                [ commandParser "search" (RegistrySearch <$> registrySearchArgsParser) "Search for package names in the Registry"
+                , commandParser "info" (RegistryInfo <$> registryInfoArgsParser) "Query the Registry for information about packages and versions"
+                , commandParser "package-sets" (RegistryPackageSets <$> registryPackageSetsArgsParser) "List the available package sets"
+                , commandParser "transfer" (RegistryTransfer <$> registryTransferArgsParser) "Transfer a package you own to a different remote location"
                 ]
             )
-            (O.progDesc "Generate a graph of modules or dependencies")
+            (O.progDesc "Commands to interact with the Registry")
         )
+    , commandParser "repl" (Repl <$> replArgsParser) "Start a REPL"
+    , commandParser "run" (Run <$> runArgsParser) "Run the project"
+    , commandParser "sources" (Sources <$> sourcesArgsParser) "List all the source paths (globs) for the dependencies of the project"
+    , commandParser "test" (Test <$> testArgsParser) "Test the project"
+    , commandParser "uninstall" (Uninstall <$> uninstallArgsParser) "Remove dependencies from a package"
+    , commandParser "upgrade" (Upgrade <$> upgradeArgsParser) "Upgrade to the latest package set, or to the latest versions of Registry packages"
     ]
-
-{-
-
-TODO: add flag for overriding the cache location
-
-    buildOptions  = BuildOptions <$> watch <*> clearScreen <*> allowIgnored <*> sourcePaths <*> srcMapFlag <*> noInstall
-                    <*> pursArgs <*> depsOnly <*> beforeCommands <*> thenCommands <*> elseCommands
-
--}
 
 -- https://stackoverflow.com/questions/45395369/how-to-get-console-log-line-numbers-shown-in-nodejs
 -- TODO: veryVerbose = CLI.switch "very-verbose" 'V' "Enable more verbosity: timestamps and source locations"
@@ -463,6 +459,12 @@ registryPackageSetsArgsParser =
     , latest: Flags.latest
     }
 
+registryTransferArgsParser :: Parser RegistryTransferArgs
+registryTransferArgsParser =
+  Optparse.fromRecord
+    { privateKeyPath: Flags.privateKeyPath
+    }
+
 graphModulesArgsParser :: Parser GraphModulesArgs
 graphModulesArgsParser = Optparse.fromRecord
   { dot: Flags.dot
@@ -494,6 +496,11 @@ lsDepsArgsParser = Optparse.fromRecord
   , transitive: Flags.transitive
   , selectedPackage: Flags.selectedPackage
   , pure: Flags.pureLockfile
+  }
+
+authArgsParser :: Parser Auth.AuthArgs
+authArgsParser = Optparse.fromRecord
+  { keyPath: Flags.publicKeyPath
   }
 
 data Cmd a = Cmd'SpagoCmd (SpagoCmd a) | Cmd'VersionCmd Boolean
@@ -545,8 +552,10 @@ main = do
           Init args@{ useSolver } -> do
             -- Fetch the registry here so we can select the right package set later
             env <- mkRegistryEnv offline
+
             setVersion <- parseSetVersion args.setVersion
             void $ runSpago env $ Init.run { mode: args.mode, setVersion, useSolver }
+
           Fetch args -> do
             { env, fetchOpts } <- mkFetchEnv (Record.merge { isRepl: false, migrateConfig, offline } args)
             void $ runSpago env (Fetch.run fetchOpts)
@@ -559,8 +568,11 @@ main = do
           RegistryPackageSets args -> do
             env <- mkRegistryEnv offline
             void $ runSpago env (RegistryCmd.packageSets args)
+          RegistryTransfer args -> do
+            { env } <- mkFetchEnv { packages: mempty, selectedPackage: Nothing, pure: false, ensureRanges: false, testDeps: false, isRepl: false, migrateConfig: false, offline }
+            void $ runSpago env (RegistryCmd.transfer args)
           Install args -> do
-            { env, fetchOpts } <- mkFetchEnv (Record.merge args { isRepl: false, migrateConfig, offline })
+            { env, fetchOpts } <- mkFetchEnv (Record.merge { isRepl: false, migrateConfig, offline } args)
             dependencies <- runSpago env (Fetch.run fetchOpts)
             let
               buildArgs = Record.merge
@@ -670,7 +682,10 @@ main = do
           Upgrade args -> do
             setVersion <- parseSetVersion args.setVersion
             { env } <- mkFetchEnv { packages: mempty, selectedPackage: Nothing, pure: false, ensureRanges: false, testDeps: false, isRepl: false, migrateConfig, offline }
-            runSpago env $ Upgrade.run { setVersion }
+            runSpago env (Upgrade.run { setVersion })
+          Auth args -> do
+            { env } <- mkFetchEnv { packages: mempty, selectedPackage: Nothing, pure: false, ensureRanges: false, testDeps: false, isRepl: false, migrateConfig, offline }
+            runSpago env $ Auth.run args
           -- TODO: add selected to graph commands
           GraphModules args -> do
             { env, fetchOpts } <- mkFetchEnv { packages: mempty, selectedPackage: Nothing, pure: false, ensureRanges: false, testDeps: false, isRepl: false, migrateConfig, offline }

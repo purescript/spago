@@ -1,0 +1,7 @@
+Reading Spago workspace configuration...
+
+✓ Selecting package to build: aff
+
+Refreshing the Registry Index...
+
+✘ Cannot perform Registry operations while offline.

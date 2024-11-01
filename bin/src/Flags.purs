@@ -335,3 +335,19 @@ depsOnly =
     ( O.long "deps-only"
         <> O.help "Build depedencies only"
     )
+
+publicKeyPath :: Parser FilePath
+publicKeyPath =
+  O.strOption
+    ( O.short 'i'
+        <> O.metavar "PUBLIC_KEY_PATH"
+        <> O.help "Select the path of the public key to use for authenticating operations of the package"
+    )
+
+privateKeyPath :: Parser FilePath
+privateKeyPath =
+  O.strOption
+    ( O.short 'i'
+        <> O.metavar "PRIVATE_KEY_PATH"
+        <> O.help "The path of the private key to use for signing the operation"
+    )
