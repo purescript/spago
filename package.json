@@ -45,6 +45,7 @@
     "open": "^10.1.0",
     "picomatch": "^4.0.2",
     "punycode": "^2.3.1",
+    "readline-sync": "^1.4.10",
     "semver": "^7.6.2",
     "spdx-expression-parse": "^4.0.0",
     "ssh2": "^1.15.0",

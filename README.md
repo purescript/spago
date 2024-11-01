@@ -130,6 +130,7 @@ Where to go from here? There are a few places you should check out:
   - [Querying package sets](#querying-package-sets)
   - [Upgrading packages and the package set](#upgrading-packages-and-the-package-set)
   - [Custom package sets](#custom-package-sets)
+  - [Graph the project modules and dependencies](#graph-the-project-modules-and-dependencies)
   - [Monorepo support](#monorepo-support)
   - [Polyrepo support](#polyrepo-support)
   - [Test dependencies](#test-dependencies)
@@ -142,6 +143,9 @@ Where to go from here? There are a few places you should check out:
   - [Generate documentation for my project](#generate-documentation-for-my-project)
   - [Alternate backends](#alternate-backends)
   - [Publish my library](#publish-my-library)
+    - [Publish many packages together](#publish-many-packages-together)
+  - [Authenticated commands](#authenticated-commands)
+    - [Transfer my package to a new owner](#transfer-my-package-to-a-new-owner)
   - [Know which `purs` commands are run under the hood](#know-which-purs-commands-are-run-under-the-hood)
   - [Install autocompletions for `bash`](#install-autocompletions-for-bash)
   - [Install autocompletions for `zsh`](#install-autocompletions-for-zsh)
@@ -151,10 +155,12 @@ Where to go from here? There are a few places you should check out:
   - [The workspace](#the-workspace)
   - [The configuration file](#the-configuration-file)
   - [The lock file](#the-lock-file)
+  - [File System Paths used in Spago](#file-system-paths-used-in-spago)
 - [FAQ](#faq)
   - [Why can't `spago` also install my npm dependencies?](#why-cant-spago-also-install-my-npm-dependencies)
-- [Differences from legacy spago](#differences-from-legacy-spago)
-  - [Watch mode](#watch-mode)
+  - [Differences from legacy spago](#differences-from-legacy-spago)
+    - [Watch mode](#watch-mode)
+    - [`sources` in the configuration file](#sources-in-the-configuration-file)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
@@ -1092,6 +1098,29 @@ workspace:
 > [!NOTE]\
 > This only works when the package you add to `extraPackages` has been published to the registry. Adding a git dependency will produce an error, as publishing to the Registry only admits build plans that only contain packages coming from the Registry.
 
+### Authenticated commands
+
+The Registry does not need authentication when publishing new versions of a package, but it does need it when issuing
+operations that modify existing packages, [such as location transfer or unpublishing](registry-dev-auth).
+
+This authentication happens through SSH keys: by having your public key in a published version, the Registry can then
+authenticate requests that are signed with your private key.
+
+Authentication and operations that use it are automated by Spago, through the `spago auth` command: if you'd like to
+be able to perform authenticated operations you need a SSH keypair, and run `spago auth` passing those keys in.
+This will populate the `package.publish.owners` field in the `spago.yaml` - commit that and publish a new version,
+and from that moment you'll be able to perform authenticated operations on this package.
+
+#### Transfer my package to a new owner
+
+If you are the owner of a package and you want to transfer it to another user, you'd need to inform the Registry
+about the new location of the repository, so that the new owner will be able to publish new versions of the package.
+
+The transfer procedure is automated by Spago commands, and goes as follows:
+* Add your (or the new owner's) SSH public key to the `spago.yaml` through `spago auth` if they are not there already (see previous section)
+* Transfer the repository to the new owner using the hosting platform's transfer mechanism (e.g. GitHub's transfer feature)
+* Depending whose key is present in the `owners` field, either you or the new owner will update the `publish.location` field in the `spago.yaml`, and call `spago registry transfer` to initiate the transfer. If all goes well you'll now be able to publish a new version from the new location.
+
 ### Know which `purs` commands are run under the hood
 
 The `-v` flag will print out all the `purs` commands that `spago` invokes during its operations,
@@ -1621,3 +1650,4 @@ and similarly for the `test` folder, using that for the test sources.
 [watchexec]: https://github.com/watchexec/watchexec#quick-start
 [purescript-langugage-server]: https://github.com/nwolverson/purescript-language-server
 [ide-purescript]: https://marketplace.visualstudio.com/items?itemName=nwolverson.ide-purescript
+[registry-dev-auth]: https://github.com/purescript/registry-dev/blob/master/SPEC.md#52-authentication
