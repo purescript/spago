@@ -4,12 +4,12 @@ import Spago.Prelude
 
 import Data.Function.Uncurried (Fn4, runFn4)
 
-foreign import extractImpl :: forall r. Fn4 (TarErr -> r) (Unit -> r) String String (Effect r)
+foreign import extractImpl :: forall r. Fn4 (TarErr -> r) (Unit -> r) GlobalPath GlobalPath (Effect r)
 
 type TarErr =
   { recoverable :: Boolean
-  , file :: FilePath
-  , cwd :: FilePath
+  , file :: GlobalPath
+  , cwd :: GlobalPath
   , code :: String
   , tarCode :: String
   }
@@ -21,4 +21,4 @@ type TarErr =
 extract :: ExtractArgs -> Effect (Either TarErr Unit)
 extract { cwd, filename } = runFn4 extractImpl Left Right cwd filename
 
-type ExtractArgs = { cwd :: String, filename :: String }
+type ExtractArgs = { cwd :: GlobalPath, filename :: GlobalPath }

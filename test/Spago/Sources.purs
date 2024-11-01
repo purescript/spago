@@ -20,13 +20,14 @@ spec = Spec.around withTempDir do
         Just Platform.Win32 -> fixture "sources-output.win.txt"
         _ -> fixture "sources-output.txt"
 
-    Spec.it "contains subproject sources when selecting a subproject" \{ spago, fixture } -> do
+    Spec.it "contains subproject sources when selecting a subproject" \{ spago, fixture, testCwd } -> do
+      let subpackage = testCwd </> "subpackage"
       spago [ "init" ] >>= shouldBeSuccess
-      FS.mkdirp "subpackage/src"
-      FS.mkdirp "subpackage/test"
-      FS.writeTextFile "subpackage/src/Main.purs" (Init.srcMainTemplate "Subpackage.Main")
-      FS.writeTextFile "subpackage/test/Main.purs" (Init.testMainTemplate "Subpackage.Test.Main")
-      FS.writeYamlFile Config.configCodec "subpackage/spago.yaml"
+      FS.mkdirp (subpackage </> "src")
+      FS.mkdirp (subpackage </> "test")
+      FS.writeTextFile (subpackage </> "src/Main.purs") (Init.srcMainTemplate "Subpackage.Main")
+      FS.writeTextFile (subpackage </> "test/Main.purs") (Init.testMainTemplate "Subpackage.Test.Main")
+      FS.writeYamlFile Config.configCodec (subpackage </> "spago.yaml")
         ( Init.defaultConfig
             { name: mkPackageName "subpackage"
             , withWorkspace: Nothing

@@ -29,10 +29,10 @@ spec = Spec.around withTempDir do
       Right _ ->
         pure unit
 
-  Spec.it "#1158: always uses forward slash separator for doubly nested projects' paths" \{ spago, fixture } -> do
-    FS.copyTree { src: fixture "lock/1158-doubly-nested-projects", dst: "." }
+  Spec.it "#1158: always uses forward slash separator for doubly nested projects' paths" \{ spago, fixture, testCwd } -> do
+    FS.copyTree { src: fixture "lock/1158-doubly-nested-projects", dst: testCwd </> "." }
     spago [ "install" ] >>= shouldBeSuccess
-    checkFixture "spago.lock" (fixture "lock/1158-doubly-nested-projects/expected-lockfile.txt")
+    checkFixture (testCwd </> "spago.lock") (fixture "lock/1158-doubly-nested-projects/expected-lockfile.txt")
 
 validLockfile :: Lockfile
 validLockfile =

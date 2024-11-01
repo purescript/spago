@@ -8,10 +8,9 @@ import Data.String as String
 import Data.String.Regex as Regex
 import Data.String.Regex.Flags as Regex.Flags
 import Effect.Aff (bracket)
-import Node.Path as Path
-import Node.Process as Process
 import Spago.Cmd as Cmd
 import Spago.FS as FS
+import Spago.Path as Path
 import Spago.Paths as Paths
 import Test.Spec (SpecT)
 import Test.Spec as Spec
@@ -35,8 +34,8 @@ spec = Spec.describe "monorepo" do
       end
     ```
     -}
-    Spec.it "Case 1: 'independent packages' builds" \{ spago, fixture } -> do
-      FS.copyTree { src: fixture "monorepo/case1-independent-packages", dst: "." }
+    Spec.it "Case 1: 'independent packages' builds" \{ spago, fixture, testCwd } -> do
+      FS.copyTree { src: fixture "monorepo/case1-independent-packages", dst: Path.toGlobal testCwd }
       spago [ "build" ] >>= shouldBeSuccess
 
     {-
@@ -51,8 +50,8 @@ spec = Spec.describe "monorepo" do
       end
     ```
     -}
-    Spec.it "Case 2: 'shared dependencies packages' builds" \{ spago, fixture } -> do
-      FS.copyTree { src: fixture "monorepo/case2-shared-dependencies1", dst: "." }
+    Spec.it "Case 2: 'shared dependencies packages' builds" \{ spago, fixture, testCwd } -> do
+      FS.copyTree { src: fixture "monorepo/case2-shared-dependencies1", dst: Path.toGlobal testCwd }
       spago [ "build" ] >>= shouldBeSuccess
 
     {-
@@ -68,10 +67,10 @@ spec = Spec.describe "monorepo" do
       end
     ```
     -}
-    Spec.it "Case 3: 'dependencies: A&B -> C; A -> B' builds" \{ spago, fixture } -> do
-      FS.copyTree { src: fixture "monorepo/case3-shared-dependencies2", dst: "." }
+    Spec.it "Case 3: 'dependencies: A&B -> C; A -> B' builds" \{ spago, fixture, testCwd } -> do
+      FS.copyTree { src: fixture "monorepo/case3-shared-dependencies2", dst: Path.toGlobal testCwd }
       spago [ "build" ] >>= shouldBeSuccess
-      checkFixture "spago.lock" (fixture "polyrepo.lock")
+      checkFixture (testCwd </> "spago.lock") (fixture "polyrepo.lock")
 
   {-
   ```mermaid
@@ -83,8 +82,8 @@ spec = Spec.describe "monorepo" do
     end
   ```
   -}
-  Spec.it "declaring 2+ modules with the same name across 2+ packages fails to build" \{ spago, fixture } -> do
-    FS.copyTree { src: fixture "monorepo/unique-module-names", dst: "." }
+  Spec.it "declaring 2+ modules with the same name across 2+ packages fails to build" \{ spago, fixture, testCwd } -> do
+    FS.copyTree { src: fixture "monorepo/unique-module-names", dst: Path.toGlobal testCwd }
     let
       sameModuleName = "SameModuleName"
       hasExpectedModules stdErr = do
@@ -103,33 +102,33 @@ spec = Spec.describe "monorepo" do
     end
   ```
   -}
-  Spec.it "#1161 regression: 'subpackage with disjoint git dependency' builds" \{ spago, fixture } -> do
+  Spec.it "#1161 regression: 'subpackage with disjoint git dependency' builds" \{ spago, fixture, testCwd } -> do
     -- This corner case happens only under very specific conditions:
     -- 1. there must be a root package
     -- 2. one of the dependencies of the subpackage must be fetched from git.
     --    This is a problem only when the git dependency is not a dependency of the root package.
     -- 3. the workspace needs to contain a subpackage that is using the git dependency
-    FS.copyTree { src: fixture "monorepo/1161-regression", dst: "." }
+    FS.copyTree { src: fixture "monorepo/1161-regression", dst: Path.toGlobal testCwd }
     -- Lastly, this broke only when building the root package
     spago [ "build", "-p", "root" ] >>= shouldBeSuccess
     -- Or getting its graph
     spago [ "uninstall", "-p", "root", "console", "effect", "prelude" ] >>= shouldBeSuccess
     spago [ "build", "-p", "root", "--pedantic-packages" ] >>= shouldBeSuccess
 
-  Spec.it "ignore nested workspaces" \{ spago, fixture } -> do
-    FS.copyTree { src: fixture "monorepo/ignore-nested-workspaces", dst: "." }
+  Spec.it "ignore nested workspaces" \{ spago, fixture, testCwd } -> do
+    FS.copyTree { src: fixture "monorepo/ignore-nested-workspaces", dst: Path.toGlobal testCwd }
     spago [ "build" ] >>= shouldBeSuccess
     spago [ "build" ] >>= shouldBeSuccessErr (fixture "monorepo/ignore-nested-workspaces/expected-stderr.txt")
 
-  Spec.it "it's possible to reference local packages when using the solver" \{ spago, fixture } -> do
-    FS.copyTree { src: fixture "monorepo/local-packages-work-with-solver", dst: "." }
+  Spec.it "it's possible to reference local packages when using the solver" \{ spago, fixture, testCwd } -> do
+    FS.copyTree { src: fixture "monorepo/local-packages-work-with-solver", dst: Path.toGlobal testCwd }
     spago [ "build" ] >>= shouldBeSuccess
     spago [ "build" ] >>= shouldBeSuccessErr (fixture "monorepo/local-packages-work-with-solver/expected-stderr.txt")
 
   Spec.describe "warning censoring and error-promotion" do
 
-    Spec.it "build succeeds when 'strict: true' because warnings were censored" \{ spago, fixture } -> do
-      FS.copyTree { src: fixture "monorepo/strict-true-censored-warnings", dst: "." }
+    Spec.it "build succeeds when 'strict: true' because warnings were censored" \{ spago, fixture, testCwd } -> do
+      FS.copyTree { src: fixture "monorepo/strict-true-censored-warnings", dst: Path.toGlobal testCwd }
       let
         paths =
           [ escapePathInErrMsg [ "package-a", "src", "Main.purs:6:13" ]
@@ -139,8 +138,8 @@ spec = Spec.describe "monorepo" do
         shouldNotHaveWarning = assertWarning paths false
       spago [ "build" ] >>= check { stdout: mempty, stderr: shouldNotHaveWarning, result: isRight }
 
-    Spec.it "build fails when 'strict: true' and warnings were not censored" \{ spago, fixture } -> do
-      FS.copyTree { src: fixture "monorepo/strict-true-uncensored-warnings", dst: "." }
+    Spec.it "build fails when 'strict: true' and warnings were not censored" \{ spago, fixture, testCwd } -> do
+      FS.copyTree { src: fixture "monorepo/strict-true-uncensored-warnings", dst: Path.toGlobal testCwd }
       let
         errs =
           [ "[ERROR 1/2 UnusedName] " <> escapePathInErrMsg [ "package-b", "src", "Main.purs:6:13" ]
@@ -151,16 +150,16 @@ spec = Spec.describe "monorepo" do
 
   Spec.describe "passing --ensure-ranges flag..." do
 
-    Spec.it "when root package exists adds ranges to the root package" \{ spago, fixture } -> do
-      FS.copyTree { src: fixture "monorepo/ensure-ranges-root-package", dst: "." }
+    Spec.it "when root package exists adds ranges to the root package" \{ spago, fixture, testCwd } -> do
+      FS.copyTree { src: fixture "monorepo/ensure-ranges-root-package", dst: Path.toGlobal testCwd }
       spago [ "build", "--ensure-ranges" ] >>= shouldBeSuccess
-      spagoYaml <- FS.readTextFile "spago.yaml"
+      spagoYaml <- FS.readTextFile $ testCwd </> "spago.yaml"
       spagoYaml `AssertString.shouldContain` "- prelude: \">=6.0.1 <7.0.0\""
 
-    Spec.it "when root package does not exist fails to build" \{ spago, fixture } -> do
+    Spec.it "when root package does not exist fails to build" \{ spago, fixture, testCwd } -> do
       -- Note: this needs to contain at least two subpackages, otherwise, spago will
       -- automatically select the only package available even if it's a non-root package.
-      FS.copyTree { src: fixture "monorepo/ensure-ranges-no-root-package", dst: "." }
+      FS.copyTree { src: fixture "monorepo/ensure-ranges-no-root-package", dst: Path.toGlobal testCwd }
 
       let
         hasNoRootPackageError stdErr = do
@@ -213,8 +212,8 @@ spec = Spec.describe "monorepo" do
           , "      " <> pkgModName
           ]
 
-    Spec.it "when package config has 'pedantic_packages: true', build fails with expected errors" \{ spago, fixture } -> do
-      FS.copyTree { src: fixture "monorepo/pedantic-config", dst: "." }
+    Spec.it "when package config has 'pedantic_packages: true', build fails with expected errors" \{ spago, fixture, testCwd } -> do
+      FS.copyTree { src: fixture "monorepo/pedantic-config", dst: Path.toGlobal testCwd }
 
       let
         errs =
@@ -233,8 +232,8 @@ spec = Spec.describe "monorepo" do
             Assert.fail $ "STDERR did not contain expected texts:\n" <> (Array.intercalate "\n\n" unfoundTexts) <> "\n\nStderr was:\n" <> stdErr
       spago [ "build" ] >>= check { stdout: mempty, stderr: hasExpectedErrors, result: isLeft }
 
-    Spec.it "passing --pedantic-packages overrides package and test configs" \{ spago, fixture } -> do
-      FS.copyTree { src: fixture "monorepo/pedantic-flag", dst: "." }
+    Spec.it "passing --pedantic-packages overrides package and test configs" \{ spago, fixture, testCwd } -> do
+      FS.copyTree { src: fixture "monorepo/pedantic-flag", dst: Path.toGlobal testCwd }
 
       let
         errs = do
@@ -248,17 +247,17 @@ spec = Spec.describe "monorepo" do
             Assert.fail $ "STDERR did not contain expected texts:\n" <> (Array.intercalate "\n\n" unfoundTexts) <> "\n\nStderr was:\n" <> stdErr
       spago [ "build", "--pedantic-packages" ] >>= check { stdout: mempty, stderr: hasExpectedErrors, result: isLeft }
 
-    Spec.it "prevents cross-package imports between local packages" \{ spago, fixture } -> do
-      FS.copyTree { src: fixture "monorepo/pedantic-cross-package-imports", dst: "." }
+    Spec.it "prevents cross-package imports between local packages" \{ spago, fixture, testCwd } -> do
+      FS.copyTree { src: fixture "monorepo/pedantic-cross-package-imports", dst: Path.toGlobal testCwd }
 
       spago [ "build" ] >>= shouldBeSuccess
       spago [ "build", "--pedantic-packages" ] >>= shouldBeFailureErr (fixture "monorepo/pedantic-cross-package-imports/expected-stderr.txt")
 
-  Spec.it "#1208: clones a monorepo only once, even if multiple packages from it are needed" \{ spago, fixture, testCwd } -> do
+  Spec.it "#1208: clones a monorepo only once, even if multiple packages from it are needed" \testArgs@{ spago, fixture } -> do
     -- A local file system Git repo to use as a remote for Spago to clone from
     let
       createLibraryRepo = do
-        let libRepo = Path.concat [ Paths.paths.temp, "spago-1208" ]
+        let libRepo = Paths.paths.temp </> "spago-1208"
         whenM (FS.exists libRepo) $ rmRf libRepo
         FS.copyTree { src: fixture "monorepo/1208-no-double-cloning/library", dst: libRepo }
         git_ libRepo [ "init" ]
@@ -273,28 +272,30 @@ spec = Spec.describe "monorepo" do
 
     bracket createLibraryRepo rmRf \libRepo -> do
       let
+        consumerDir = testArgs.testCwd </> "consumer"
+        libRepoStr = Path.toRaw libRepo
         recreateConsumerWorkspace = do
-          liftEffect $ Process.chdir testCwd
-          whenM (FS.exists "consumer") $ rmRf "consumer"
-          FS.mkdirp "consumer"
-          liftEffect $ Process.chdir "consumer"
+          Paths.chdir testArgs.testCwd
+          whenM (FS.exists consumerDir) $ rmRf consumerDir
+          FS.mkdirp consumerDir
+          Paths.chdir consumerDir
           copySpagoYaml "spago-two-deps.yaml"
 
         copySpagoYaml src = do
-          whenM (FS.exists "spago.yaml") $ FS.unlink "spago.yaml"
-          whenM (FS.exists "spago.lock") $ FS.unlink "spago.lock"
-          content <- FS.readTextFile $ fixture "monorepo/1208-no-double-cloning/" <> src
-          FS.writeTextFile "spago.yaml" $ String.replaceAll (String.Pattern "<library-repo-path>") (String.Replacement libRepo) content
+          whenM (FS.exists $ consumerDir </> "spago.yaml") $ FS.unlink $ consumerDir </> "spago.yaml"
+          whenM (FS.exists $ consumerDir </> "spago.lock") $ FS.unlink $ consumerDir </> "spago.lock"
+          content <- FS.readTextFile $ fixture "monorepo/1208-no-double-cloning" </> src
+          FS.writeTextFile (consumerDir </> "spago.yaml") $ String.replaceAll (String.Pattern "<library-repo-path>") (String.Replacement libRepoStr) content
 
         assertRefCheckedOut package ref = do
           -- The `.spago/p/<package>/<ref>` should be a git repo checked out at `ref`
-          let path = Path.concat [ ".spago", "p", package, ref ]
+          let path = consumerDir </> ".spago" </> "p" </> package </> ref
           commitHash <- git path [ "rev-parse", ref ]
           git path [ "rev-parse", "HEAD" ] >>= flip shouldEqualStr commitHash
 
           -- And there should be a copy of that repo at
           -- `.spago/p/<package>/<SHA>`, checked out at the same commit.
-          let commitHashPath = Path.concat [ ".spago", "p", package, commitHash ]
+          let commitHashPath = consumerDir </> ".spago" </> "p" </> package </> commitHash
           git commitHashPath [ "rev-parse", "HEAD" ] >>= flip shouldEqualStr commitHash
 
         shouldBeSuccessErr' = checkOutputsWithPatchErr isRight
@@ -307,7 +308,7 @@ spec = Spec.describe "monorepo" do
             , result
             , sanitize:
                 String.replaceAll (String.Pattern "\r\n") (String.Replacement "\n")
-                  >>> String.replaceAll (String.Pattern libRepo) (String.Replacement "<library-repo-path>")
+                  >>> String.replaceAll (String.Pattern libRepoStr) (String.Replacement "<library-repo-path>")
                   >>> Regex.replace (unsafeFromRight $ Regex.regex "^purs compile: .*$" (Regex.Flags.global <> Regex.Flags.multiline)) "purs compile..."
                   >>> String.trim
             }
@@ -316,7 +317,7 @@ spec = Spec.describe "monorepo" do
       -- otherwise it may or may not appear in Spago's output and then we can't
       -- reliably compare it to golden output.
       recreateConsumerWorkspace
-      spago [ "ls", "packages" ] >>= shouldBeSuccess
+      spago [ "ls", "packages", "-v" ] >>= shouldBeSuccess
 
       -- Nuke the cache after that so Spago can re-clone the repositories and we
       -- can check that it's happening only once.
@@ -358,14 +359,15 @@ spec = Spec.describe "monorepo" do
       -- Lockfile test: when it's up to date but the cache is not populated (i.e. a fresh clone)
       -- then there are no double clones. This is a regression test for #1206
       spago [ "build" ] >>= shouldBeSuccess
-      rmRf ".spago"
+      rmRf $ consumerDir </> ".spago"
       spago [ "build" ] >>= shouldBeSuccessErr' "monorepo/1208-no-double-cloning/expected-stderr/lockfile-up-to-date.txt"
 
   where
   git_ cwd = void <<< git cwd
 
+  git :: ∀ path. Path.IsPath path => path -> _
   git cwd args = do
-    let opts = Cmd.defaultExecOptions { pipeStdout = false, pipeStderr = false, cwd = Just cwd }
-    res <- Cmd.exec "git" args opts
+    let opts = Cmd.defaultExecOptions { pipeStdout = false, pipeStderr = false, cwd = Just $ Path.toGlobal cwd }
+    res <- Cmd.exec (Path.global "git") args opts
     res # shouldBeSuccess
     pure $ Cmd.getStdout res

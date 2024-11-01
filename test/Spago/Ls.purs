@@ -16,9 +16,9 @@ spec = Spec.around withTempDir do
       spago [ "init" ] >>= shouldBeSuccess
       spago [ "ls", "deps" ] >>= shouldBeSuccessOutput (fixture "list-dependencies.txt")
 
-    Spec.it "direct dependencies in JSON, and requires selecting a package when many are present" \{ spago, fixture } -> do
+    Spec.it "direct dependencies in JSON, and requires selecting a package when many are present" \{ spago, fixture, testCwd } -> do
       spago [ "init", "--name", "aaa" ] >>= shouldBeSuccess
-      makeSubpackage
+      makeSubpackage testCwd
       spago [ "install", "-p", "aaa", "aaa2" ] >>= shouldBeSuccess
       spago [ "ls", "deps", "-p", "aaa", "--json" ] >>= shouldBeSuccessOutput (fixture "list-dependencies.json")
 
@@ -26,9 +26,9 @@ spec = Spec.around withTempDir do
       spago [ "init", "--name", "aaa", "--package-set", "41.2.0" ] >>= shouldBeSuccess
       spago [ "ls", "packages" ] >>= shouldBeSuccessOutput (fixture "list-packages.txt")
 
-    Spec.it "package set in JSON" \{ spago, fixture } -> do
+    Spec.it "package set in JSON" \{ spago, fixture, testCwd } -> do
       spago [ "init", "--name", "aaa", "--package-set", "41.2.0" ] >>= shouldBeSuccess
-      makeSubpackage
+      makeSubpackage testCwd
       spago [ "install", "-p", "aaa", "aaa2" ] >>= shouldBeSuccess
       spago [ "ls", "packages", "--json" ] >>= shouldBeSuccessOutput (fixture "list-packages.json")
 
@@ -36,13 +36,14 @@ spec = Spec.around withTempDir do
       spago [ "init", "--name", "aaa", "--use-solver" ] >>= shouldBeSuccess
       spago [ "ls", "packages" ] >>= shouldBeFailureErr (fixture "list-packages-registry.txt")
 
-makeSubpackage :: Aff Unit
-makeSubpackage = do
-  FS.mkdirp "subpackage/src"
-  FS.mkdirp "subpackage/test"
-  FS.writeTextFile "subpackage/src/Main.purs" (Init.srcMainTemplate "Subpackage.Main")
-  FS.writeTextFile "subpackage/test/Main.purs" (Init.testMainTemplate "Subpackage.Test.Main")
-  FS.writeYamlFile Config.configCodec "subpackage/spago.yaml"
+makeSubpackage :: RootPath -> Aff Unit
+makeSubpackage root = do
+  let subpackage = root </> "subpackage"
+  FS.mkdirp (subpackage </> "src")
+  FS.mkdirp (subpackage </> "test")
+  FS.writeTextFile (subpackage </> "src" </> "Main.purs") (Init.srcMainTemplate "Subpackage.Main")
+  FS.writeTextFile (subpackage </> "test" </> "Main.purs") (Init.testMainTemplate "Subpackage.Test.Main")
+  FS.writeYamlFile Config.configCodec (subpackage </> "spago.yaml")
     ( Init.defaultConfig
         { name: mkPackageName "aaa2"
         , withWorkspace: Nothing
