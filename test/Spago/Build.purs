@@ -32,6 +32,19 @@ spec = Spec.around withTempDir do
       spago [ "init", "--name", "aaa", "--use-solver" ] >>= shouldBeSuccess
       spago [ "build" ] >>= shouldBeSuccess
 
+    Spec.it "exits when purs exits non-ok" \{ spago, fixture } -> do
+      spago [ "init", "--name", "aaa" ] >>= shouldBeSuccess
+      spago [ "build", "--purs-args", "--non-existent" ] >>=
+        checkOutputs'
+          { stdoutFile: Nothing
+          , stderrFile: Just (fixture "purs-not-ok.txt")
+          , result: isLeft
+          , sanitize:
+              String.trim
+              >>> String.replaceAll (String.Pattern "Usage: purs.bin") (String.Replacement "Usage: purs")
+              >>> String.replaceAll (String.Pattern "\r\n") (String.Replacement "\n")
+          }
+
     Spec.it "passes options to purs" \{ spago } -> do
       spago [ "init" ] >>= shouldBeSuccess
       spago [ "build", "--purs-args", "--verbose-errors", "--purs-args", "--comments" ] >>= shouldBeSuccess

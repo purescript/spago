@@ -39,6 +39,14 @@ type ExecResult =
   , timedOut :: Boolean
   }
 
+exitedOk :: Either ExecResult ExecResult -> Boolean
+exitedOk = either identity identity >>> case _ of
+  { exit: Normally 0 } -> true
+  _ -> false
+
+exit :: Either ExecResult ExecResult -> Exit
+exit = either identity identity >>> _.exit
+
 printExecResult :: ExecResult -> String
 printExecResult r = Array.intercalate "\n"
   [ "escapedCommand: " <> show r.escapedCommand
