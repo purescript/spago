@@ -2,10 +2,8 @@ module Test.Spago.Build where
 
 import Test.Prelude
 
-import Control.Monad.Error.Class (liftMaybe)
 import Data.Foldable (fold)
 import Data.String as String
-import Effect.Exception (error)
 import Node.FS.Aff as FSA
 import Node.Path as Path
 import Node.Platform as Platform
@@ -36,13 +34,15 @@ spec = Spec.around withTempDir do
 
     Spec.it "exits when purs exits non-ok" \{ spago, fixture } -> do
       spago [ "init", "--name", "aaa" ] >>= shouldBeSuccess
-      fixture' <-
-        Process.platform
-        <#> case _ of
-          Platform.Win32 -> fixture "purs-not-ok.win.txt"
-          _ -> fixture "purs-not-ok.txt"
-        # liftMaybe (error "unreachable")
-      spago [ "build", "--purs-args", "--non-existent" ] >>= shouldBeFailureErr fixture'
+      spago [ "build", "--purs-args", "--non-existent" ] >>=
+        checkOutputs'
+          { stdoutFile: Nothing
+          , stderrFile: Just (fixture "purs-not-ok.txt")
+          , result: isLeft
+          , sanitize: String.trim
+              >>> String.replace (String.Pattern "Usage: purs.bin") (String.Replacement "Usage: purs")
+              >>> String.replace (String.Pattern "\r\n") (String.Replacement "\n")
+          }
 
     Spec.it "passes options to purs" \{ spago } -> do
       spago [ "init" ] >>= shouldBeSuccess
