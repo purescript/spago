@@ -101,15 +101,20 @@ shouldEqualStr
   -> String
   -> m Unit
 shouldEqualStr v1 v2 =
+  let
+    renderNonPrinting =
+      String.replaceAll (String.Pattern "\r") (String.Replacement "␍")
+      >>> String.replaceAll (String.Pattern "\t") (String.Replacement "␉-->")
+  in
   when (v1 /= v2) do
     fail $ Array.intercalate "\n"
       [ ""
       , "===== (Actual)"
-      , v1
+      , renderNonPrinting v1
       , "====="
       , "  ≠"
       , "===== (Expected)"
-      , v2
+      , renderNonPrinting v2
       , "====="
       , ""
       ]
