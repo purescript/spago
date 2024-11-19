@@ -13,6 +13,8 @@ Errors       0     0     0
 Your package "aaa" is not ready for publishing yet, encountered 1 error:
 
 
-✘ The location specified in the manifest file
-({"githubOwner":"purescript","githubRepo":"aaa"})
- is not one of the remotes in the git repository.
+✘ The location specified in the manifest file is not one of the remotes in the git repository.
+Location:
+  - GitHub: purescript/aaa
+Remotes:
+  - origin: git@github.com:purescript/bbb.git

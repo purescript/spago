@@ -1,8 +1,6 @@
 Invalid option `--bogus'
 
-Usage: index.dev.js registry search [--migrate] [--monochrome|--no-color]
-                                    [--offline] [-q|--quiet] [-v|--verbose]
-                                    [--json] PACKAGE
+Usage: index.dev.js registry search [--migrate] [--monochrome|--no-color] [--offline] [-q|--quiet] [-v|--verbose] [--json] PACKAGE
   Search for package names in the Registry
 
 Available options:
@@ -14,6 +12,5 @@ Available options:
   -q,--quiet               Suppress all spago logging
   -v,--verbose             Enable additional debug logging, e.g. printing `purs`
                            commands
-  --json                   Format the output as JSON
-  PACKAGE                  Package name
+  --json                   Format the output as JSON PACKAGE                  Package name
   -h,--help                Show this help text

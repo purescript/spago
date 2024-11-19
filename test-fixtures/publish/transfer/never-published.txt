@@ -1,0 +1,8 @@
+Reading Spago workspace configuration...
+
+✓ Selecting package to build: aaa
+
+Refreshing the Registry Index...
+
+✘ Could not find package 'aaa' in the Registry Index. Has it ever been published?
+If not, please run `spago publish` first. Otherwise this is a bug - please report it on the Spago repo.
