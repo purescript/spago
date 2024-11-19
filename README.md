@@ -640,9 +640,9 @@ This package set could look something like this:
 
 ```js
 {
-  compiler: "0.15.10",
-  version: "0.0.1",
-  packages: {
+  "compiler": "0.15.10",
+  "version": "0.0.1",
+  "packages": {
     "some-registry-package": "1.0.2",
     "some-package-from-git-with-a-spago-yaml": {
       "git": "https://github.com/purescript/registry-dev.git",
@@ -667,7 +667,7 @@ Something like this:
     "repo": "https://github.com/purescript/purescript-prelude.git",
     "version": "v6.0.1",
     "dependencies": ["prelude", "effect", "console"]
-  }
+  },
   "metadata": {
     "repo": "https://github.com/purescript/metadata.git",
     "version": "v0.15.10",
