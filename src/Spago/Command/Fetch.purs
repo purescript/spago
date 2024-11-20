@@ -530,7 +530,8 @@ getPackageDependencies packageName package = case package of
         , "However, it didn't contain a `package` section."
         ]
       Left errLines -> die
-        [ toDoc $ "Could not read config at " <> configLocation
+        [ toDoc $ "Could not lookup the dependencies of " <> PackageName.print packageName <> " in a spago.yaml config file."
+        , toDoc $ "Either make sure this file exists and is readable or declare it's dependencies in your project spago.yaml under workspace.extraPackages." <> PackageName.print packageName <> ".dependencies"
         , toDoc "Error: "
         , indent $ toDoc errLines
         ]
