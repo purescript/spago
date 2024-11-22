@@ -11,17 +11,17 @@ spec :: Spec Unit
 spec = Spec.around withTempDir do
   Spec.describe "docs" do
 
-    Spec.it "documents successfully with no flags" \{ spago } -> do
+    Spec.it "documents successfully with no flags" \{ spago, testCwd } -> do
       spago [ "init" ] >>= shouldBeSuccess
       spago [ "docs" ] >>= shouldBeSuccess
-      FS.exists "generated-docs/html/index.html" `Assert.shouldReturn` true
+      FS.exists (testCwd </> "generated-docs" </> "html" </> "index.html") `Assert.shouldReturn` true
 
-    Spec.it "builds successfully a solver-only package" \{ spago } -> do
+    Spec.it "builds successfully a solver-only package" \{ spago, testCwd } -> do
       spago [ "init", "--name", "aaa", "--use-solver" ] >>= shouldBeSuccess
       spago [ "docs" ] >>= shouldBeSuccess
-      FS.exists "generated-docs/html/index.html" `Assert.shouldReturn` true
+      FS.exists (testCwd </> "generated-docs" </> "html" </> "index.html") `Assert.shouldReturn` true
 
-    Spec.it "can output ctags instead of html" \{ spago } -> do
+    Spec.it "can output ctags instead of html" \{ spago, testCwd } -> do
       spago [ "init" ] >>= shouldBeSuccess
       spago [ "docs", "--format", "ctags" ] >>= shouldBeSuccess
-      FS.exists "tags" `Assert.shouldReturn` true
+      FS.exists (testCwd </> "tags") `Assert.shouldReturn` true

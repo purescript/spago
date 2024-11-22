@@ -4,7 +4,6 @@ import Spago.Prelude
 
 import Data.Array.NonEmpty as NEA
 import Data.String as String
-import Node.Path as Path
 import Registry.PackageName as PackageName
 import Registry.Version as Version
 import Spago.Config (Workspace, WorkspacePackage)
@@ -30,25 +29,26 @@ type BuildInfo =
 type BuildInfoEnv a =
   { workspace :: Workspace
   , logOptions :: LogOptions
+  , rootPath :: RootPath
   , purs :: Purs
   | a
   }
 
 writeBuildInfo :: forall a. Spago (BuildInfoEnv a) Unit
 writeBuildInfo = do
-  { workspace, purs } <- ask
+  { workspace, purs, rootPath } <- ask
   let
     buildInfo =
       { pursVersion: Version.print purs.version
       , packages: map mkPackageBuildInfo $ NEA.toUnfoldable $ Config.getWorkspacePackages workspace.packageSet
       }
     buildInfoString = mkBuildInfo buildInfo
-    writeIt = FS.writeTextFile buildInfoPath buildInfoString
+    writeIt = FS.writeTextFile (buildInfoPath rootPath) buildInfoString
   -- try to write the new build info only if necessary
-  FS.exists buildInfoPath >>= case _ of
+  FS.exists (buildInfoPath rootPath) >>= case _ of
     false -> writeIt
     true -> do
-      currentContent <- FS.readTextFile buildInfoPath
+      currentContent <- FS.readTextFile (buildInfoPath rootPath)
       when (currentContent /= buildInfoString) do
         writeIt
 
@@ -77,8 +77,8 @@ mkBuildInfo { packages, pursVersion } = String.joinWith "\n"
   renderPackageType p = "\"" <> p.name <> "\" :: String"
   currentSpagoVersion = BuildInfo.packages."spago-bin"
 
-buildInfoPath ∷ FilePath
-buildInfoPath = Path.concat [ Paths.localCachePath, "BuildInfo.purs" ]
+buildInfoPath ∷ RootPath -> LocalPath
+buildInfoPath root = root </> Paths.localCachePath </> "BuildInfo.purs"
 
 mkPackageBuildInfo :: WorkspacePackage -> { name :: String, version :: String }
 mkPackageBuildInfo { package } =

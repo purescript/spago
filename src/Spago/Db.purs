@@ -47,7 +47,7 @@ import Registry.Version as Version
 -- API
 
 type ConnectOptions =
-  { database :: FilePath
+  { database :: GlobalPath
   , logger :: String -> Effect Unit
   }
 
@@ -136,7 +136,7 @@ insertMetadata db packageName metadata@(Metadata { unpublished }) = do
 --------------------------------------------------------------------------------
 -- Table types and conversions
 
--- Note: bump `Paths.databaseVersion` every time we change the database schema in a breaking way
+-- Note: bump `Path.databaseVersion` every time we change the database schema in a breaking way
 data Db
 
 type PackageSetJs =
@@ -232,7 +232,7 @@ packageSetCodec = CJ.named "PackageSet" $ CJ.Record.object
 --------------------------------------------------------------------------------
 -- FFI
 
-foreign import connectImpl :: EffectFn2 FilePath (EffectFn1 String Unit) Db
+foreign import connectImpl :: EffectFn2 GlobalPath (EffectFn1 String Unit) Db
 
 foreign import insertPackageSetImpl :: EffectFn2 Db PackageSetJs Unit
 

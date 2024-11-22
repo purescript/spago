@@ -5,7 +5,7 @@ import Spago.Prelude
 import Spago.Cmd as Cmd
 
 type Esbuild =
-  { cmd :: FilePath
+  { cmd :: GlobalPath
   , version :: String
   }
 
