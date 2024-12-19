@@ -43,6 +43,8 @@ Other improvements:
 - When the `publish.location` field is missing, `spago publish` will attempt to
   figure out the location from Git remotes and write it back to `spago.yaml`.
 - Internally Spago uses stricter-typed file paths.
+- Spago can now be launched from a directory nested within the workspace, not
+  just from workspace root.
 
 ## [0.21.0] - 2023-05-04
 
