@@ -531,7 +531,7 @@ getPackageDependencies packageName package = case package of
         ]
       Left errLines -> die
         [ toDoc $ "Could not lookup the dependencies of " <> PackageName.print packageName <> " in a spago.yaml config file."
-        , toDoc $ "Either make sure this file exists and is readable or declare it's dependencies in your project spago.yaml under workspace.extraPackages." <> PackageName.print packageName <> ".dependencies"
+        , toDoc $ "Either make sure this file exists and is readable or declare its dependencies in your project's spago.yaml under workspace.extraPackages." <> PackageName.print packageName <> ".dependencies"
         , toDoc "Error: "
         , indent $ toDoc errLines
         ]
