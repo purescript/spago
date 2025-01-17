@@ -2,29 +2,16 @@ module Spago.Command.Publish (publish, PublishEnv) where
 
 import Spago.Prelude
 
-import Affjax.Node as Http
-import Affjax.RequestBody as RequestBody
-import Affjax.ResponseFormat as ResponseFormat
-import Affjax.StatusCode (StatusCode(..))
-import Data.Argonaut.Core (Json)
 import Data.Array as Array
 import Data.Array.NonEmpty as NEA
-import Data.Codec.JSON as CJ
-import Data.DateTime (DateTime)
-import Data.Formatter.DateTime as DateTime
 import Data.List as List
 import Data.Map as Map
 import Data.String as String
 import Dodo (break, lines)
-import Effect.Aff (Milliseconds(..))
-import Effect.Aff as Aff
 import Effect.Ref as Ref
-import JSON (JSON)
 import Node.Path as Path
 import Node.Process as Process
 import Record as Record
-import Registry.API.V1 as V1
-import Registry.Internal.Format as Internal.Format
 import Registry.Internal.Path as Internal.Path
 import Registry.Location as Location
 import Registry.Metadata as Metadata
@@ -32,7 +19,6 @@ import Registry.Operation as Operation
 import Registry.Operation.Validation as Operation.Validation
 import Registry.PackageName as PackageName
 import Registry.Version as Version
-import Routing.Duplex as Duplex
 import Spago.Command.Build (BuildEnv)
 import Spago.Command.Build as Build
 import Spago.Command.Fetch as Fetch
@@ -43,14 +29,12 @@ import Spago.FS as FS
 import Spago.Git (Git)
 import Spago.Git as Git
 import Spago.Json as Json
-import Spago.Log (LogVerbosity(..))
 import Spago.Log as Log
 import Spago.Prelude as Effect
 import Spago.Purs (Purs)
 import Spago.Purs.Graph as Graph
 import Spago.Registry (PreRegistryEnv)
 import Spago.Registry as Registry
-import Unsafe.Coerce (unsafeCoerce)
 
 type PublishData =
   { name :: PackageName
@@ -176,7 +160,7 @@ publish _args = do
             logDebug $ "Got error while reading metadata file: " <> err
             pure
               { location
-              , owners: Nothing -- TODO: get that from the config file
+              , owners: NEA.fromArray =<< publishConfig.owners
               , published: Map.empty
               , unpublished: Map.empty
               }
@@ -188,7 +172,7 @@ publish _args = do
             , dependencies: depsRanges
             , version: publishConfig.version
             , license: publishConfig.license
-            , owners: Nothing -- TODO specify owners in spago config
+            , owners: NEA.fromArray =<< publishConfig.owners
             , excludeFiles: Nothing -- TODO specify files in spago config
             , includeFiles: Nothing -- TODO specify files in spago config
             }
@@ -202,10 +186,13 @@ publish _args = do
           , "submit a transfer operation."
           ]
 
-        unlessM (locationIsInGitRemotes location) $ addError $ toDoc
-          [ "The location specified in the manifest file"
-          , "(" <> Json.stringifyJson Location.codec location <> ")"
-          , " is not one of the remotes in the git repository."
+        locationResult <- locationIsInGitRemotes location
+        unless locationResult.result $ addError $ toDoc
+          [ toDoc "The location specified in the manifest file is not one of the remotes in the git repository."
+          , toDoc "Location:"
+          , indent (toDoc $ "- " <> prettyPrintLocation location)
+          , toDoc "Remotes:"
+          , lines $ locationResult.remotes <#> \r -> indent $ toDoc $ "- " <> r.name <> ": " <> r.url
           ]
 
         -- Check that all the dependencies come from the registry
@@ -278,7 +265,7 @@ publish _args = do
           Git.getStatus Nothing >>= case _ of
             Left _err -> do
               die $ toDoc
-                [ toDoc "Could not verify whether the git tree is clean due to the below error:"
+                [ toDoc "Could not verify whether the git tree is clean. Error was:"
                 , indent _err
                 ]
             Right statusResult
@@ -381,13 +368,7 @@ publish _args = do
       logSuccess "Ready for publishing. Calling the registry.."
 
       let newPublishingData = publishingData { resolutions = Just publishingData.resolutions } :: Operation.PublishData
-
-      { jobId } <- callRegistry (baseApi <> Duplex.print V1.routes V1.Publish) V1.jobCreatedResponseCodec (Just { codec: Operation.publishCodec, data: newPublishingData })
-      logSuccess $ "Registry accepted the Publish request and is processing..."
-      logDebug $ "Job ID: " <> unwrap jobId
-      logInfo "Logs from the Registry pipeline:"
-      waitForJobFinish jobId
-
+      Registry.submitRegistryOperation (Operation.Publish newPublishingData)
       pure newPublishingData
   where
   -- If you are reading this and think that you can make it look nicer with
@@ -406,85 +387,21 @@ publish _args = do
       }
       action
 
-callRegistry :: forall env a b. String -> CJ.Codec b -> Maybe { codec :: CJ.Codec a, data :: a } -> Spago (PublishEnv env) b
-callRegistry url outputCodec maybeInput = handleError do
-  logDebug $ "Calling registry at " <> url
-  response <- liftAff $ withBackoff' $ case maybeInput of
-    Just { codec: inputCodec, data: input } -> Http.post ResponseFormat.string url (Just $ RequestBody.json $ (unsafeCoerce :: JSON -> Json) $ CJ.encode inputCodec input)
-    Nothing -> Http.get ResponseFormat.string url
-  case response of
-    Nothing -> pure $ Left $ "Could not reach the registry at " <> url
-    Just (Left err) -> pure $ Left $ "Error while calling the registry:\n  " <> Http.printError err
-    Just (Right { status, body }) | status /= StatusCode 200 -> do
-      pure $ Left $ "Registry did not like this and answered with status " <> show status <> ", got answer:\n  " <> body
-    Just (Right { body }) -> do
-      pure $ case parseJson outputCodec body of
-        Right output -> Right output
-        Left err -> Left $ "Could not parse response from the registry, error: " <> show err
-  where
-  -- TODO: see if we want to just kill the process generically here, or give out customized errors
-  handleError a = do
-    { offline } <- ask
-    case offline of
-      Offline -> die "Spago is offline - not able to call the Registry."
-      Online ->
-        a >>= case _ of
-          Left err -> die err
-          Right res -> pure res
-
-waitForJobFinish :: forall env. V1.JobId -> Spago (PublishEnv env) Unit
-waitForJobFinish jobId = go Nothing
-  where
-  go :: Maybe DateTime -> Spago (PublishEnv env) Unit
-  go lastTimestamp = do
-    { logOptions } <- ask
-    let
-      url = baseApi <> Duplex.print V1.routes
-        ( V1.Job jobId
-            { since: lastTimestamp
-            , level: case logOptions.verbosity of
-                LogVerbose -> Just V1.Debug
-                _ -> Just V1.Info
-            }
-        )
-    jobInfo :: V1.Job <- callRegistry url V1.jobCodec Nothing
-    -- first of all, print all the logs we get
-    for_ jobInfo.logs \log -> do
-      let line = Log.indent $ toDoc $ DateTime.format Internal.Format.iso8601DateTime log.timestamp <> " " <> log.message
-      case log.level of
-        V1.Debug -> logDebug line
-        V1.Info -> logInfo line
-        V1.Warn -> logWarn line
-        V1.Error -> logError line
-    case jobInfo.finishedAt of
-      Nothing -> do
-        -- If the job is not finished, we grab the timestamp of the last log line, wait a bit and retry
-        let
-          latestTimestamp = jobInfo.logs # Array.last # case _ of
-            Just log -> Just log.timestamp
-            Nothing -> lastTimestamp
-        liftAff $ Aff.delay $ Milliseconds 500.0
-        go latestTimestamp
-      Just _finishedAt -> do
-        -- if it's done we report the failure.
-        logDebug $ "Job: " <> printJson V1.jobCodec jobInfo
-        case jobInfo.success of
-          true -> logSuccess $ "Registry finished processing the package. Your package was published successfully!"
-          false -> die $ "Registry finished processing the package, but it failed. Please fix it and try again."
-
-locationIsInGitRemotes :: ∀ a. Location -> Spago (PublishEnv a) Boolean
+locationIsInGitRemotes :: ∀ a. Location -> Spago (PublishEnv a) { result :: Boolean, remotes :: Array Git.Remote }
 locationIsInGitRemotes location = do
   isGitRepo <- FS.exists ".git"
   if not isGitRepo then
-    pure false
+    pure { result: false, remotes: [] }
   else
     Git.getRemotes Nothing >>= case _ of
       Left err ->
         die [ toDoc "Couldn't parse Git remotes: ", err ]
-      Right remotes ->
-        pure $ remotes # Array.any \r -> case location of
-          Location.Git { url } -> r.url == url
-          Location.GitHub { owner, repo } -> r.owner == owner && r.repo == repo
+      Right remotes -> do
+        let
+          result = remotes # Array.any \r -> case location of
+            Location.Git { url } -> r.url == url
+            Location.GitHub { owner, repo } -> r.owner == owner && r.repo == repo
+        pure { result, remotes }
 
 inferLocationAndWriteToConfig :: ∀ a. WorkspacePackage -> Spago (PublishEnv a) Boolean
 inferLocationAndWriteToConfig selectedPackage = do
@@ -527,5 +444,7 @@ inferLocationAndWriteToConfig selectedPackage = do
           liftAff $ FS.writeYamlDocFile configPath selectedPackage.doc
           pure true
 
-baseApi :: String
-baseApi = "https://registry.purescript.org"
+prettyPrintLocation :: Location -> String
+prettyPrintLocation = case _ of
+  Location.Git { url } -> url
+  Location.GitHub { owner, repo } -> "GitHub: " <> owner <> "/" <> repo

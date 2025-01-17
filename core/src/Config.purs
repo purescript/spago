@@ -55,6 +55,8 @@ import Registry.Internal.Codec as Reg.Internal.Codec
 import Registry.Internal.Parsing as Reg.Internal.Parsing
 import Registry.License as License
 import Registry.Location as Location
+import Registry.Owner (Owner)
+import Registry.Owner as Owner
 import Registry.PackageName as PackageName
 import Registry.Range as Range
 import Registry.Sha256 as Sha256
@@ -100,6 +102,7 @@ type PublishConfig =
   , location :: Maybe Location
   , include :: Maybe (Array FilePath)
   , exclude :: Maybe (Array FilePath)
+  , owners :: Maybe (Array Owner)
   }
 
 publishConfigCodec :: CJ.Codec PublishConfig
@@ -109,6 +112,7 @@ publishConfigCodec = CJ.named "PublishConfig" $ CJS.objectStrict
   $ CJS.recordPropOptional @"location" publishLocationCodec
   $ CJS.recordPropOptional @"include" (CJ.array CJ.string)
   $ CJS.recordPropOptional @"exclude" (CJ.array CJ.string)
+  $ CJS.recordPropOptional @"owners" (CJ.array Owner.codec)
   $ CJS.record
 
 -- This codec duplicates `Location.codec` from the Registry library, but with

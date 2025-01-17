@@ -17,6 +17,7 @@ package:
     - exceptions
     - filterable
     - foldable-traversable
+    - foreign
     - functions
     - identity
     - integers
@@ -39,3 +40,4 @@ package:
     - stringutils
     - transformers
     - tuples
+    - unsafe-coerce

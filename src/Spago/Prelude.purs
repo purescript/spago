@@ -45,7 +45,9 @@ import Registry.Version as Version
 import Spago.Paths as Paths
 import Unsafe.Coerce (unsafeCoerce)
 
-data OnlineStatus = Offline | Online
+data OnlineStatus = Offline | Online | OnlineBypassCache
+
+derive instance Eq OnlineStatus
 
 unsafeFromRight :: forall e a. Either e a -> a
 unsafeFromRight v = Either.fromRight' (\_ -> unsafeCrashWith $ "Unexpected Left: " <> unsafeStringify v) v

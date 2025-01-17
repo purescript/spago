@@ -1,0 +1,8 @@
+Reading Spago workspace configuration...
+
+✓ Selecting package to build: aff
+
+Refreshing the Registry Index...
+
+✘ Cannot transfer package: the new location is the same as the current one.
+Please edit the `publish.location` field of your `spago.yaml` with the new location.
