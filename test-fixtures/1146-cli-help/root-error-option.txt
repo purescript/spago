@@ -9,7 +9,7 @@ Available options:
 
 Available commands:
   auth                     Authenticate as the owner of a package, to allow
-                           transfer and unpiblish operations
+                           transfer and unpublish operations
   build                    Compile the project
   bundle                   Bundle the project in a single file
   docs                     Generate docs for the project and its dependencies
