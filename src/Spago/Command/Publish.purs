@@ -192,7 +192,7 @@ publish _args = do
           , toDoc "Location:"
           , indent (toDoc $ "- " <> prettyPrintLocation location)
           , toDoc "Remotes:"
-          , lines $ map (\r -> indent $ toDoc $ "- " <> r.name <> ": " <> r.url) locationResult.remotes
+          , lines $ locationResult.remotes <#> \r -> indent $ toDoc $ "- " <> r.name <> ": " <> r.url
           ]
 
         -- Check that all the dependencies come from the registry
