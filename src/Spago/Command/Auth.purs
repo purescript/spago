@@ -48,7 +48,7 @@ run { keyPath } = do
     Just { owners: maybeOwners } -> do
       let currentOwners = fromMaybe [] maybeOwners
       case Array.elem newOwner currentOwners of
-        true -> logWarn "The selected key is already present in the config file."
+        true -> logWarn "Selected key is already present in the config file."
         false -> do
           logInfo $ "Adding selected key to the list of the owners: " <> path
           Config.addOwner configPath doc newOwner
