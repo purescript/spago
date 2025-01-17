@@ -118,93 +118,93 @@ spec = Spec.around withTempDir do
       doTheGitThing
       spago [ "registry", "transfer", "--offline", "-i", (Path.toRaw $ fixture "publish/key") ] >>= shouldBeFailureErr (fixture "publish/transfer/offline.txt")
 
-    Spec.it "#1110 installs versions of packages that are returned by the registry solver, but not present in cache" \{ spago, fixture, testCwd } -> do
-      let
-        shouldBeFailureErr' file = checkOutputs'
-          { stdoutFile: Nothing
-          , stderrFile: Just file
-          , result: isLeft
-          , sanitize:
-              String.trim
-                >>> String.replaceAll (String.Pattern "\\") (String.Replacement "/")
-                >>> String.replaceAll (String.Pattern "\r\n") (String.Replacement "\n")
-                >>> Regex.replace buildOrderRegex "[x of 3] Compiling module-name"
-          }
+  Spec.it "#1110 installs versions of packages that are returned by the registry solver, but not present in cache" \{ spago, fixture, testCwd } -> do
+    let
+      shouldBeFailureErr' file = checkOutputs'
+        { stdoutFile: Nothing
+        , stderrFile: Just file
+        , result: isLeft
+        , sanitize:
+            String.trim
+              >>> String.replaceAll (String.Pattern "\\") (String.Replacement "/")
+              >>> String.replaceAll (String.Pattern "\r\n") (String.Replacement "\n")
+              >>> Regex.replace buildOrderRegex "[x of 3] Compiling module-name"
+        }
 
-        -- We have to ignore lines like "[1 of 3] Compiling Effect.Console" when
-        -- comparing output, because the compiler will always compile in
-        -- different order, depending on how the system resources happened to
-        -- align at the moment of the test run.
-        buildOrderRegex = unsafeFromRight $ Regex.regex
-          "\\[\\d of 3\\] Compiling (Effect\\.Console|Effect\\.Class\\.Console|Lib)"
-          RF.global
+      -- We have to ignore lines like "[1 of 3] Compiling Effect.Console" when
+      -- comparing output, because the compiler will always compile in
+      -- different order, depending on how the system resources happened to
+      -- align at the moment of the test run.
+      buildOrderRegex = unsafeFromRight $ Regex.regex
+        "\\[\\d of 3\\] Compiling (Effect\\.Console|Effect\\.Class\\.Console|Lib)"
+        RF.global
 
-      FS.copyTree { src: fixture "publish/1110-solver-different-version", dst: testCwd }
-      spago [ "build" ] >>= shouldBeSuccess
-      doTheGitThing
-      spago [ "fetch" ] >>= shouldBeSuccess
+    FS.copyTree { src: fixture "publish/1110-solver-different-version", dst: testCwd }
+    spago [ "build" ] >>= shouldBeSuccess
+    doTheGitThing
+    spago [ "fetch" ] >>= shouldBeSuccess
 
-      -- The local `spago.yaml` specifies `console: 6.0.0` in `extraPackages`,
-      -- so that's what should be in local cache after running `fetch`.
-      -- Importantly, `console-6.1.0` should not be there yet.
-      FS.exists (testCwd </> ".spago/p/console-6.0.0") >>= (_ `shouldEqual` true)
-      FS.exists (testCwd </> ".spago/p/console-6.1.0") >>= (_ `shouldEqual` false)
+    -- The local `spago.yaml` specifies `console: 6.0.0` in `extraPackages`,
+    -- so that's what should be in local cache after running `fetch`.
+    -- Importantly, `console-6.1.0` should not be there yet.
+    FS.exists (testCwd </> ".spago/p/console-6.0.0") >>= (_ `shouldEqual` true)
+    FS.exists (testCwd </> ".spago/p/console-6.1.0") >>= (_ `shouldEqual` false)
 
-      spago [ "publish", "--offline" ] >>= shouldBeFailureErr' (fixture "publish/1110-solver-different-version/expected-stderr.txt")
+    spago [ "publish", "--offline" ] >>= shouldBeFailureErr' (fixture "publish/1110-solver-different-version/expected-stderr.txt")
 
-      -- When `publish` runs, it uses the registry solver, which returns
-      -- `console-6.1.0` version, so `publish` should fetch that into local
-      -- cache and build with it.
-      FS.exists (testCwd </> ".spago/p/console-6.1.0") >>= (_ `shouldEqual` true)
+    -- When `publish` runs, it uses the registry solver, which returns
+    -- `console-6.1.0` version, so `publish` should fetch that into local
+    -- cache and build with it.
+    FS.exists (testCwd </> ".spago/p/console-6.1.0") >>= (_ `shouldEqual` true)
 
-      -- Now screw up the `console-6.1.0` package in the local cache, so that it
-      -- doesn't compile anymore, and check that the relevant compile error
-      -- happens on publish.
-      FS.unlink $ testCwd </> ".spago/p/console-6.1.0/src/Effect/Console.js"
-      rmRf $ testCwd </> ".spago/p/console-6.1.0/output"
-      spago [ "publish", "--offline" ] >>= shouldBeFailureErr' (fixture "publish/1110-solver-different-version/failure-stderr.txt")
+    -- Now screw up the `console-6.1.0` package in the local cache, so that it
+    -- doesn't compile anymore, and check that the relevant compile error
+    -- happens on publish.
+    FS.unlink $ testCwd </> ".spago/p/console-6.1.0/src/Effect/Console.js"
+    rmRf $ testCwd </> ".spago/p/console-6.1.0/output"
+    spago [ "publish", "--offline" ] >>= shouldBeFailureErr' (fixture "publish/1110-solver-different-version/failure-stderr.txt")
 
-    Spec.describe "#1060 auto-filling the `publish.location` field" do
-      let
-        prepareProject spago fixture testCwd = do
-          FS.copyTree { src: fixture "publish/1060-autofill-location/project", dst: testCwd }
-          spago [ "build" ] >>= shouldBeSuccess
-          doTheGitThing
-          spago [ "fetch" ] >>= shouldBeSuccess
+  Spec.describe "#1060 auto-filling the `publish.location` field" do
+    let
+      prepareProject spago fixture testCwd = do
+        FS.copyTree { src: fixture "publish/1060-autofill-location/project", dst: testCwd }
+        spago [ "build" ] >>= shouldBeSuccess
+        doTheGitThing
+        spago [ "fetch" ] >>= shouldBeSuccess
 
-      Spec.it "happens for root package" \{ fixture, spago, testCwd } -> do
-        prepareProject spago fixture testCwd
-        spago [ "publish", "-p", "aaa", "--offline" ] >>=
-          shouldBeFailureErr (fixture "publish/1060-autofill-location/scenario-root/expected-stderr.txt")
-        checkFixture (testCwd </> "spago.yaml")
-          (fixture "publish/1060-autofill-location/scenario-root/expected-spago.yaml")
+    Spec.it "happens for root package" \{ fixture, spago, testCwd } -> do
+      prepareProject spago fixture testCwd
+      spago [ "publish", "-p", "aaa", "--offline" ] >>=
+        shouldBeFailureErr (fixture "publish/1060-autofill-location/scenario-root/expected-stderr.txt")
+      checkFixture (testCwd </> "spago.yaml")
+        (fixture "publish/1060-autofill-location/scenario-root/expected-spago.yaml")
 
-      Spec.it "errors out for non-root package" \{ fixture, spago, testCwd } -> do
-        prepareProject spago fixture testCwd
-        spago [ "publish", "-p", "bbb", "--offline" ] >>=
-          shouldBeFailureErr (fixture "publish/1060-autofill-location/scenario-subdir/expected-stderr.txt")
+    Spec.it "errors out for non-root package" \{ fixture, spago, testCwd } -> do
+      prepareProject spago fixture testCwd
+      spago [ "publish", "-p", "bbb", "--offline" ] >>=
+        shouldBeFailureErr (fixture "publish/1060-autofill-location/scenario-subdir/expected-stderr.txt")
 
-      Spec.it "errors out for nested non-root package" \{ fixture, spago, testCwd } -> do
-        prepareProject spago fixture testCwd
-        spago [ "publish", "-p", "ccc", "--offline" ] >>=
-          shouldBeFailureErr (fixture "publish/1060-autofill-location/scenario-nested-subdir/expected-stderr.txt")
+    Spec.it "errors out for nested non-root package" \{ fixture, spago, testCwd } -> do
+      prepareProject spago fixture testCwd
+      spago [ "publish", "-p", "ccc", "--offline" ] >>=
+        shouldBeFailureErr (fixture "publish/1060-autofill-location/scenario-nested-subdir/expected-stderr.txt")
 
-      Spec.it "errors out when not a GitHub remote" \{ fixture, spago, testCwd } -> do
-        prepareProject spago fixture testCwd
-        git [ "remote", "set-url", "origin", "https://not.git-hub.net/foo/bar.git" ]
-        spago [ "publish", "-p", "aaa", "--offline" ] >>=
-          shouldBeFailureErr (fixture "publish/1060-autofill-location/scenario-non-github/expected-stderr.txt")
-        checkFixture (testCwd </> "spago.yaml")
-          (fixture "publish/1060-autofill-location/scenario-non-github/expected-spago.yaml")
+    Spec.it "errors out when not a GitHub remote" \{ fixture, spago, testCwd } -> do
+      prepareProject spago fixture testCwd
+      git [ "remote", "set-url", "origin", "https://not.git-hub.net/foo/bar.git" ]
+      spago [ "publish", "-p", "aaa", "--offline" ] >>=
+        shouldBeFailureErr (fixture "publish/1060-autofill-location/scenario-non-github/expected-stderr.txt")
+      checkFixture (testCwd </> "spago.yaml")
+        (fixture "publish/1060-autofill-location/scenario-non-github/expected-spago.yaml")
 
-      Spec.it "prints error when no origin remote" \{ fixture, spago, testCwd } -> do
-        prepareProject spago fixture testCwd
-        git [ "remote", "remove", "origin" ]
-        git [ "remote", "add", "upstream", "git@github.com:foo/bar.git" ]
-        spago [ "publish", "-p", "aaa", "--offline" ] >>=
-          shouldBeFailureErr (fixture "publish/1060-autofill-location/scenario-no-origin/expected-stderr.txt")
-        checkFixture (testCwd </> "spago.yaml")
-          (fixture "publish/1060-autofill-location/project/spago.yaml")
+    Spec.it "prints error when no origin remote" \{ fixture, spago, testCwd } -> do
+      prepareProject spago fixture testCwd
+      git [ "remote", "remove", "origin" ]
+      git [ "remote", "add", "upstream", "git@github.com:foo/bar.git" ]
+      spago [ "publish", "-p", "aaa", "--offline" ] >>=
+        shouldBeFailureErr (fixture "publish/1060-autofill-location/scenario-no-origin/expected-stderr.txt")
+      checkFixture (testCwd </> "spago.yaml")
+        (fixture "publish/1060-autofill-location/project/spago.yaml")
 
 doTheGitThing :: Aff Unit
 doTheGitThing = do

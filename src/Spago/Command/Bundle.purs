@@ -35,7 +35,7 @@ type BundleOptions =
 
 run :: ∀ a. Spago (BundleEnv a) Unit
 run = do
-  ({ rootPath, esbuild, selected, workspace, bundleOptions: opts } :: BundleEnv a) <- ask
+  { rootPath, esbuild, selected, workspace, bundleOptions: opts } <- ask
   logDebug $ "Bundle options: " <> show opts
   let
     minify = if opts.minify then [ "--minify" ] else []
