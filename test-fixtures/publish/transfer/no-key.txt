@@ -1,0 +1,7 @@
+Reading Spago workspace configuration...
+
+✓ Selecting package to build: aff
+
+Refreshing the Registry Index...
+
+✘ Could not read the private key at the given path. Please check it and try again.

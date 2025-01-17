@@ -1,0 +1,7 @@
+Reading Spago workspace configuration...
+
+✓ Selecting package to build: aaa
+
+
+✘ Could not verify whether the git tree is clean. Error was:
+  fatal: not a git repository (or any of the parent directories): .git

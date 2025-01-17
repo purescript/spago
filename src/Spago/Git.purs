@@ -1,6 +1,7 @@
 module Spago.Git
   ( Git
   , GitEnv
+  , Remote
   , fetchRepo
   , getGit
   , getRef
@@ -9,7 +10,6 @@ module Spago.Git
   , checkout
   , fetch
   , getRefType
-  , isIgnored
   , listTags
   , parseRemote
   , pushTag
@@ -26,9 +26,6 @@ import Data.Maybe (fromJust)
 import Data.String (Pattern(..))
 import Data.String as String
 import Data.String.Regex as Regex
-import Node.ChildProcess.Types (Exit(..))
-import Node.Path as Path
-import Node.Process as Process
 import Partial.Unsafe (unsafePartial)
 import Registry.Version as Version
 import Spago.Cmd as Cmd
@@ -60,7 +57,7 @@ fetchRepo { git, ref } path = do
       logDebug $ "Found " <> git <> " locally, skipping fetch because we are offline"
       pure $ Right unit
     Offline, false -> die [ "You are offline and the repo '" <> git <> "' is not available locally, can't make progress." ]
-    Online, _ -> do
+    _, _ -> do
       cloneOrFetchResult <- case repoExists of
         true -> do
           logDebug $ "Found " <> git <> " locally, pulling..."
@@ -73,7 +70,7 @@ fetchRepo { git, ref } path = do
       result <- Except.runExceptT do
         Except.ExceptT $ pure cloneOrFetchResult
         logDebug $ "Checking out the requested ref for " <> git <> " : " <> ref
-        _ <- runGit [ "checkout", ref ] (Just path)
+        runGit_ [ "checkout", ref ] (Just path)
         -- if we are on a branch and not on a detached head, then we need to pull
         -- the following command will fail if on a detached head, and succeed if on a branch
         Except.mapExceptT
@@ -121,7 +118,8 @@ getStatus cwd = do
   { git } <- ask
   Cmd.exec git.cmd [ "status", "--porcelain" ] opts >>= case _ of
     Left r -> do
-      pure $ Left $ toDoc [ "Could not run `git status`. Error:", r.message ]
+      logDebug "Command `git status --porcelain` failed"
+      pure $ Left $ toDoc r.stderr
     Right r -> pure $ Right r.stdout
 
 getRef :: forall a. Maybe FilePath -> Spago (GitEnv a) (Either Docc String)
@@ -167,7 +165,7 @@ pushTag cwd version = do
     Offline -> do
       logWarn $ "Spago is in offline mode - not pushing the git tag v" <> Version.print version
       pure $ Right unit
-    Online -> do
+    _ -> do
       logInfo $ "Pushing tag 'v" <> Version.print version <> "' to the remote"
       Cmd.exec git.cmd [ "push", "origin", "v" <> Version.print version ] opts >>= case _ of
         Left r -> pure $ Left $ toDoc
@@ -176,38 +174,6 @@ pushTag cwd version = do
           , r.shortMessage
           ]
         Right _ -> pure $ Right unit
-
--- | Check if the path is ignored by git
---
--- `git check-ignore` exits with 1 when path is not ignored, and 128 when
--- a fatal error occurs (i.e. when not in a git repository).
-isIgnored :: forall a. FilePath -> Spago (GitEnv a) Boolean
-isIgnored path = do
-  { git } <- ask
-  result <- Cmd.exec git.cmd [ "check-ignore", "--quiet", path ] (Cmd.defaultExecOptions { pipeStdout = false, pipeStderr = false })
-  case result of
-    -- Git is successful if it's an ignored file
-    Right _ -> pure true
-    -- Git will fail with exitCode 128 if this is not a git repo or if it's dealing with a link.
-    -- We ignore links - I mean, do we really want to deal with recursive links?!?
-    Left r
-      | Normally 128 <- r.exit -> do
-          -- Sigh. Even if something is behind a link Node will not tell us that,
-          -- so we need to check all the paths between the cwd and the provided path
-          -- Just beautiful
-          paths <- liftEffect do
-            cwd <- Process.cwd
-            absolutePath <- Path.resolve [] path
-            FS.getInBetweenPaths cwd absolutePath
-          Array.any identity <$> traverse FS.isLink paths
-      -- Git will fail with 1 when a file is just, like, normally ignored
-      | Normally 1 <- r.exit ->
-          pure false
-      | otherwise -> do
-          logDebug "IsIgnored encountered an interesting exitCode"
-          logDebug $ Cmd.printExecResult r
-          -- We still do not ignore it, just in case
-          pure false
 
 getGit :: forall a. Spago (LogEnv a) Git
 getGit = do
