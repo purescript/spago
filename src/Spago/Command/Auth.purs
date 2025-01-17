@@ -50,7 +50,7 @@ run { keyPath } = do
       case Array.elem newOwner currentOwners of
         true -> logWarn "The selected key is already present in the config file."
         false -> do
-          logInfo $ "Adding the selected key  to the list of the owners: " <> path
+          logInfo $ "Adding selected key to the list of the owners: " <> path
           Config.addOwner configPath doc newOwner
           logSuccess "The selected key has been added to the list of the owners."
           logInfo "Once you publish a new version with this configuration you'll be able to transfer and unpublish packages using this key."
