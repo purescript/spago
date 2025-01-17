@@ -1119,7 +1119,7 @@ about the new location of the repository, so that the new owner will be able to 
 The transfer procedure is automated by Spago commands, and goes as follows:
 * Add your (or the new owner's) SSH public key to the `spago.yaml` through `spago auth` if they are not there already (see previous section)
 * Transfer the repository to the new owner using the hosting platform's transfer mechanism (e.g. GitHub's transfer feature)
-* Depending whose key is present in the `owners` field, either you or the new owner will update the `publish.location` field in the `spago.yaml`, and call `spago registry transfer` to initiate the transfer. If all goes well you'll now be able to publish a new version from the new location.
+* Depending on whose key is present in the `owners` field, either you or the new owner will update the `publish.location` field in the `spago.yaml`, and call `spago registry transfer` to initiate the transfer. If all goes well you'll now be able to publish a new version from the new location.
 
 ### Know which `purs` commands are run under the hood
 
