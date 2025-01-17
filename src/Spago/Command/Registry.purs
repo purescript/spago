@@ -251,7 +251,7 @@ getPrivateKeyForSigning privateKeyPath = do
               decodeKeyInteractive { requiresPassword: true, attemptsLeft }
         true -> do
           let prompt = "Enter passphrase for " <> privateKeyPath <> ": "
-          passphrase <- liftEffect $ runEffectFn1 question prompt
+          passphrase <- liftEffect $ runEffectFn1 questionPassword prompt
 
           case SSH.parsePrivateKey { key: privateKey, passphrase: Just passphrase } of
             Left SSH.RequiresPassphrase -> case attemptsLeft of
@@ -273,4 +273,4 @@ unpublish _a = do -- { version, reason } = do
 
 -- We have custom FFI here because we want to ask for the passphrase in the terminal,
 -- and the stock ReadLine implementation is not good at passwords
-foreign import question :: EffectFn1 String String
+foreign import questionPassword :: EffectFn1 String String

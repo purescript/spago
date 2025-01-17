@@ -1,3 +1,4 @@
+-- | The `spago auth` command is used exclusively to add a new key to the list of owners of a package.
 module Spago.Command.Auth where
 
 import Spago.Prelude
