@@ -13,6 +13,7 @@ import Node.Library.Execa as Execa
 import Node.Platform as Platform
 import Node.Process as Process
 import Partial.Unsafe (unsafeCrashWith, unsafePartial)
+import Unsafe.Coerce (unsafeCoerce)
 
 data StdinConfig
   = StdinPipeParent
@@ -94,7 +95,18 @@ spawn cmd args opts = liftAff do
       StdinPipeParent -> Just inherit
       StdinWrite _ -> Just pipe
       StdinNewPipe -> Just pipe
-  subprocess <- Execa.execa cmd args (_ { cwd = opts.cwd, stdin = stdinOpt, stdout = Just pipe, stderr = Just pipe })
+  subprocess <- Execa.execa cmd args
+    ( _
+        { cwd = opts.cwd
+        , stdin = stdinOpt
+        , stdout = Just pipe
+        , stderr = Just pipe
+        , shell = case Process.platform of
+            -- TODO: execa doesn't support the boolean option yet
+            Just Platform.Win32 -> Just (unsafeCoerce true)
+            _ -> Nothing
+        }
+    )
 
   case opts.pipeStdin of
     StdinWrite s | Just { writeUtf8End } <- subprocess.stdin -> writeUtf8End s
