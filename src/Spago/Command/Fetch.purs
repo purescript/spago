@@ -259,7 +259,7 @@ fetchPackagesToLocalCache packages = do
             case tarExists, tarIsGood, offline of
               true, true, _ -> pure unit -- Tar exists and is good, and we already unpacked it. Happy days!
               _, _, Offline -> die $ "Package " <> packageVersion <> " is not in the local cache, and Spago is running in offline mode - can't make progress."
-              _, _, Online -> do
+              _, _, _ -> do
                 let packageUrl = "https://packages.registry.purescript.org/" <> PackageName.print name <> "/" <> versionString <> ".tar.gz"
                 logInfo $ "Fetching package " <> packageVersion
                 response <- liftAff $ withBackoff' do
@@ -493,7 +493,7 @@ getGitPackageInLocalCache name package = do
         pure unit
       Left _, Offline ->
         die $ "Repo " <> package.git <> " does not have ref " <> package.ref <> " in local cache. Cannot pull from origin in offline mode."
-      Left _, Online -> do
+      Left _, _ -> do
         logDebug $ "Ref " <> package.ref <> " is not present, trying to pull from origin"
         Git.fetch { repo: repoCache, remote: "origin" } >>= rightOrDie_
 
@@ -534,7 +534,8 @@ getPackageDependencies packageName package = case package of
         , "However, it didn't contain a `package` section."
         ]
       Left errLines -> die
-        [ toDoc $ "Could not read config at " <> Path.quote configLocation
+        [ toDoc $ "Could not lookup the dependencies of " <> PackageName.print packageName <> " in a spago.yaml config file."
+        , toDoc $ "Either make sure this file exists and is readable or declare its dependencies in your project's spago.yaml under workspace.extraPackages." <> PackageName.print packageName <> ".dependencies"
         , toDoc "Error: "
         , indent $ toDoc errLines
         ]

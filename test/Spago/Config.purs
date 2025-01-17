@@ -25,52 +25,55 @@ spec =
         Right parsed | parsed == validSpagoYaml.parsed ->
           pure unit
         Right parsed ->
-          Assert.fail $
-            "\n-------\nExpected:\n-------\n" <> Yaml.stringifyYaml C.configCodec validSpagoYaml.parsed <>
-            "\n\n\n-------\nActual:\n-------\n" <> Yaml.stringifyYaml C.configCodec parsed
+          Assert.fail
+            $ "\n-------\nExpected:\n-------\n"
+            <> Yaml.stringifyYaml C.configCodec validSpagoYaml.parsed
+            <> "\n\n\n-------\nActual:\n-------\n"
+            <> Yaml.stringifyYaml C.configCodec parsed
 
     Spec.it "reports errors" do
       Yaml.parseYaml C.configCodec invalidLicenseYaml `shouldFailWith`
         ( "$.package.publish.license: Could not decode PackageConfig:"
-        <> "\n  Could not decode PublishConfig:"
-        <> "\n    Could not decode License:"
-        <> "\n      Invalid SPDX identifier bogus"
+            <> "\n  Could not decode PublishConfig:"
+            <> "\n    Could not decode License:"
+            <> "\n      Invalid SPDX identifier bogus"
         )
 
     Spec.describe "reports unrecognized fields" do
       Spec.it "under 'package'" do
         Yaml.parseYaml C.configCodec unrecognizedPackageFieldYaml `shouldFailWith`
           ( "$.package: Could not decode PackageConfig:"
-          <> "\n  Unknown field(s): bogus_field"
+              <> "\n  Unknown field(s): bogus_field"
           )
 
       Spec.it "under 'workspace'" do
         Yaml.parseYaml C.configCodec unrecognizedBuildOptsFieldYaml `shouldFailWith`
           ( "$.workspace.buildOpts: Could not decode WorkspaceConfig:"
-          <> "\n  Could not decode WorkspaceBuildOptionsInput:"
-          <> "\n    Unknown field(s): bogus_field"
+              <> "\n  Could not decode WorkspaceBuildOptionsInput:"
+              <> "\n    Unknown field(s): bogus_field"
           )
 
       Spec.it "under 'publish.location'" do
         Yaml.parseYaml C.configCodec unrecognizedPublishLocationFieldYaml `shouldFailWith`
           ( "$.package.publish.location: Could not decode PackageConfig:"
-          <> "\n  Could not decode PublishConfig:"
-          <> "\n    Could not decode Publish Location:"
-          <> "\n      Failed to decode alternatives:"
-          <> "\n        - $.gitUrl: Could not decode Git:"
-          <> "\n            No value found"
-          <> "\n        - Could not decode GitHub:"
-          <> "\n            Unknown field(s): bogus_field"
+              <> "\n  Could not decode PublishConfig:"
+              <> "\n    Could not decode Publish Location:"
+              <> "\n      Failed to decode alternatives:"
+              <> "\n        - $.gitUrl: Could not decode Git:"
+              <> "\n            No value found"
+              <> "\n        - Could not decode GitHub:"
+              <> "\n            Unknown field(s): bogus_field"
           )
-    where
-    shouldFailWith result expectedError =
-      case result of
-        Right _ -> Assert.fail "Expected an error, but parsed successfully"
-        Left err -> CJ.print err `shouldEqual` expectedError
+  where
+  shouldFailWith result expectedError =
+    case result of
+      Right _ -> Assert.fail "Expected an error, but parsed successfully"
+      Left err -> CJ.print err `shouldEqual` expectedError
 
 validSpagoYaml :: { serialized :: String, parsed :: C.Config }
 validSpagoYaml =
-  { serialized: """
+  { serialized:
+      """
       package:
         name: testpackage
         publish:
@@ -97,43 +100,45 @@ validSpagoYaml =
       """
   , parsed:
       { package: Just
-        { name: unsafeFromRight $ PackageName.parse "testpackage"
-        , publish: Just
-          { version: unsafeFromRight $ Version.parse "0.0.0"
-          , license: unsafeFromRight $ License.parse "BSD-3-Clause"
-          , location: Just $ GitHub { owner: "purescript", repo: "testpackage", subdir: Nothing }
-          , include: Nothing
-          , exclude: Nothing
+          { name: unsafeFromRight $ PackageName.parse "testpackage"
+          , publish: Just
+              { version: unsafeFromRight $ Version.parse "0.0.0"
+              , license: unsafeFromRight $ License.parse "BSD-3-Clause"
+              , location: Just $ GitHub { owner: "purescript", repo: "testpackage", subdir: Nothing }
+              , include: Nothing
+              , exclude: Nothing
+              , owners: Nothing
+              }
+          , build: Just
+              { strict: Just true
+              , censorProjectWarnings: Nothing
+              , pedanticPackages: Nothing
+              }
+          , bundle: Nothing
+          , run: Nothing
+          , description: Nothing
+          , dependencies: mkDependencies [ "aff", "prelude", "console", "effect" ]
+          , test: Just
+              { main: "Test.Main"
+              , dependencies: mkDependencies [ "spec", "spec-node" ]
+              , censorTestWarnings: Nothing
+              , execArgs: Nothing
+              , strict: Nothing
+              , pedanticPackages: Nothing
+              }
           }
-        , build: Just
-          { strict: Just true
-          , censorProjectWarnings: Nothing
-          , pedanticPackages: Nothing
-          }
-        , bundle: Nothing
-        , run: Nothing
-        , description: Nothing
-        , dependencies: mkDependencies [ "aff", "prelude", "console", "effect" ]
-        , test: Just
-          { main: "Test.Main"
-          , dependencies: mkDependencies [ "spec", "spec-node" ]
-          , censorTestWarnings: Nothing
-          , execArgs: Nothing
-          , strict: Nothing
-          , pedanticPackages: Nothing
-          }
-        }
       , workspace: Just
-        { packageSet: Just $ SetFromRegistry { registry: unsafeFromRight $ Version.parse "56.4.0" }
-        , extraPackages: Nothing
-        , backend: Nothing
-        , buildOpts: Nothing
-        }
+          { packageSet: Just $ SetFromRegistry { registry: unsafeFromRight $ Version.parse "56.4.0" }
+          , extraPackages: Nothing
+          , backend: Nothing
+          , buildOpts: Nothing
+          }
       }
   }
 
 invalidLicenseYaml :: String
-invalidLicenseYaml = """
+invalidLicenseYaml =
+  """
   package:
     name: spago
     dependencies: []
@@ -143,7 +148,8 @@ invalidLicenseYaml = """
 """
 
 unrecognizedPackageFieldYaml :: String
-unrecognizedPackageFieldYaml = """
+unrecognizedPackageFieldYaml =
+  """
   package:
     name: spago
     dependencies: []
@@ -151,7 +157,8 @@ unrecognizedPackageFieldYaml = """
 """
 
 unrecognizedBuildOptsFieldYaml :: String
-unrecognizedBuildOptsFieldYaml = """
+unrecognizedBuildOptsFieldYaml =
+  """
   package:
     name: spago
     dependencies: []
@@ -163,7 +170,8 @@ unrecognizedBuildOptsFieldYaml = """
 """
 
 unrecognizedPublishLocationFieldYaml :: String
-unrecognizedPublishLocationFieldYaml = """
+unrecognizedPublishLocationFieldYaml =
+  """
   package:
     name: spago
     dependencies: []

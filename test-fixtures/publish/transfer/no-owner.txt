@@ -1,0 +1,7 @@
+Reading Spago workspace configuration...
+
+✓ Selecting package to build: aaa
+
+
+✘ The package does not have any owners set in the config file.
+Please run `spago auth` to add your SSH public key to the owners list in the spago.yaml file.

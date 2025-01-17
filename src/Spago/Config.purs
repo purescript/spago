@@ -7,6 +7,7 @@ module Spago.Config
   , Workspace
   , WorkspaceBuildOptions
   , WorkspacePackage
+  , addOwner
   , addPackagesToConfig
   , addPublishLocationToConfig
   , addRangesToConfig
@@ -57,6 +58,7 @@ import Foreign.Object as Foreign
 import JSON (JSON)
 import Node.Path as Node.Path
 import Registry.Internal.Codec as Internal.Codec
+import Registry.Owner (Owner(..))
 import Registry.PackageName as PackageName
 import Registry.PackageSet as Registry.PackageSet
 import Registry.Range as Range
@@ -372,7 +374,7 @@ readWorkspace { maybeSelectedPackage, pureBuild, migrateConfig } = do
     Left reason, Just address@(Core.SetFromUrl { url: rawUrl }) -> do
       result <- case offline of
         Offline -> die "You are offline, but the package set is not cached locally. Please connect to the internet and try again."
-        Online -> do
+        _ -> do
           logDebug reason
           logDebug $ "Reading the package set from URL: " <> rawUrl
           url <- case parseUrl rawUrl of
@@ -682,9 +684,17 @@ addPublishLocationToConfig :: YamlDoc Core.Config -> Location -> Effect Unit
 addPublishLocationToConfig doc loc =
   runEffectFn2 addPublishLocationToConfigImpl doc (CJ.encode Core.publishLocationCodec loc)
 
+type OwnerJS = { public :: String, keytype :: String, id :: Nullable String }
+
+addOwner :: forall m. MonadAff m => FilePath -> YamlDoc Core.Config -> Owner -> m Unit
+addOwner configPath doc (Owner { id, keytype, public }) = do
+  liftEffect $ runEffectFn2 addOwnerImpl doc { keytype, public, id: Nullable.toNullable id }
+  liftAff $ FS.writeYamlDocFile configPath doc
+
 foreign import setPackageSetVersionInConfigImpl :: EffectFn2 (YamlDoc Core.Config) String Unit
 foreign import addPackagesToConfigImpl :: EffectFn3 (YamlDoc Core.Config) Boolean (Array String) Unit
 foreign import removePackagesFromConfigImpl :: EffectFn3 (YamlDoc Core.Config) Boolean (PackageName -> Boolean) Unit
 foreign import addRangesToConfigImpl :: EffectFn2 (YamlDoc Core.Config) (Foreign.Object String) Unit
-foreign import migrateV1ConfigImpl :: ∀ a. YamlDoc a -> Nullable (YamlDoc Core.Config)
 foreign import addPublishLocationToConfigImpl :: EffectFn2 (YamlDoc Core.Config) JSON Unit
+foreign import addOwnerImpl :: EffectFn2 (YamlDoc Core.Config) OwnerJS Unit
+foreign import migrateV1ConfigImpl :: forall a. YamlDoc a -> Nullable (YamlDoc Core.Config)

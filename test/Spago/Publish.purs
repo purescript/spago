@@ -20,63 +20,103 @@ spec = Spec.around withTempDir do
     Spec.it "fails if the version bounds are not specified" \{ spago, fixture } -> do
       spago [ "init", "--name", "aaaa" ] >>= shouldBeSuccess
       spago [ "build" ] >>= shouldBeSuccess
-      spago [ "publish", "--offline" ] >>= shouldBeFailureErr (fixture "publish-no-bounds.txt")
+      spago [ "publish", "--offline" ] >>= shouldBeFailureErr (fixture "publish/no-bounds.txt")
 
     Spec.it "fails if the publish config is not specified" \{ spago, fixture } -> do
       spago [ "init", "--name", "aaaa" ] >>= shouldBeSuccess
       spago [ "build" ] >>= shouldBeSuccess
       spago [ "fetch", "--ensure-ranges" ] >>= shouldBeSuccess
-      spago [ "publish", "--offline" ] >>= shouldBeFailureErr (fixture "publish-no-config.txt")
+      spago [ "publish", "--offline" ] >>= shouldBeFailureErr (fixture "publish/no-config.txt")
 
     Spec.it "fails if the git tree is not clean" \{ spago, fixture, testCwd } -> do
-      FS.copyFile { src: fixture "spago-publish.yaml", dst: testCwd </> "spago.yaml" }
+      FS.copyFile { src: fixture "publish/basic.yaml", dst: testCwd </> "spago.yaml" }
       FS.mkdirp $ testCwd </> "src"
-      FS.copyFile { src: fixture "publish.purs", dst: testCwd </> "src/Main.purs" }
+      FS.copyFile { src: fixture "publish/basic.purs", dst: testCwd </> "src/Main.purs" }
       spago [ "build" ] >>= shouldBeSuccess
-      spago [ "publish", "--offline" ] >>= shouldBeFailureErr (fixture "publish-no-git.txt")
+      spago [ "publish", "--offline" ] >>= shouldBeFailureErr (fixture "publish/no-git.txt")
 
     Spec.it "fails if the module is called Main" \{ spago, fixture, testCwd } -> do
       spago [ "init", "--name", "aaaa" ] >>= shouldBeSuccess
       FS.unlink $ testCwd </> "spago.yaml"
-      FS.copyFile { src: fixture "spago-publish.yaml", dst: testCwd </> "spago.yaml" }
+      FS.copyFile { src: fixture "publish/basic.yaml", dst: testCwd </> "spago.yaml" }
       spago [ "build" ] >>= shouldBeSuccess
       doTheGitThing
       spago [ "publish", "--offline" ] >>= shouldBeFailureErr case Process.platform of
-        Just Platform.Win32 -> fixture "publish-main-win.txt"
-        _ -> fixture "publish-main.txt"
+        Just Platform.Win32 -> fixture "publish/main-win.txt"
+        _ -> fixture "publish/main.txt"
 
     Spec.it "fails if the publish repo location is not among git remotes" \{ spago, fixture, testCwd } -> do
-      FS.copyFile { src: fixture "spago-publish.yaml", dst: testCwd </> "spago.yaml" }
+      FS.copyFile { src: fixture "publish/basic.yaml", dst: testCwd </> "spago.yaml" }
       FS.mkdirp $ testCwd </> "src"
-      FS.copyFile { src: fixture "publish.purs", dst: testCwd </> "src/Main.purs" }
+      FS.copyFile { src: fixture "publish/basic.purs", dst: testCwd </> "src/Main.purs" }
       spago [ "build" ] >>= shouldBeSuccess
       doTheGitThing
-      git [ "remote", "set-url", "origin", "git@github.com:purescript/bbb.git" ]
-      spago [ "publish", "--offline" ] >>= shouldBeFailureErr (fixture "publish-invalid-location.txt")
+      git [ "remote", "set-url", "origin", "git@github.com:purescript/bbb.git" ] -- TODO check this is a Right?
+      spago [ "publish", "--offline" ] >>= shouldBeFailureErr (fixture "publish/invalid-location.txt")
 
     Spec.it "fails if a core dependency is not in the registry" \{ spago, fixture, testCwd } -> do
       FS.copyTree { src: fixture "publish/extra-package-core", dst: testCwd }
       spago [ "build" ] >>= shouldBeSuccess
       doTheGitThing
       spago [ "fetch" ] >>= shouldBeSuccess
-      spago [ "publish", "--offline" ] >>= shouldBeFailureErr (fixture "publish-extra-package-core-dependency.txt")
+      spago [ "publish", "--offline" ] >>= shouldBeFailureErr (fixture "publish/extra-package-core-dependency.txt")
 
     Spec.it "can get a package ready to publish" \{ spago, fixture, testCwd } -> do
-      FS.copyFile { src: fixture "spago-publish.yaml", dst: testCwd </> "spago.yaml" }
+      FS.copyFile { src: fixture "publish/basic.yaml", dst: testCwd </> "spago.yaml" }
       FS.mkdirp $ testCwd </> "src"
-      FS.copyFile { src: fixture "publish.purs", dst: testCwd </> "src/Main.purs" }
+      FS.copyFile { src: fixture "publish/basic.purs", dst: testCwd </> "src/Main.purs" }
       spago [ "build" ] >>= shouldBeSuccess
       doTheGitThing
       -- It will fail because it can't hit the registry, but the fixture will check that everything else is ready
       spago [ "fetch" ] >>= shouldBeSuccess
-      spago [ "publish", "--offline" ] >>= shouldBeFailureErr (fixture "publish.txt")
+      spago [ "publish", "--offline" ] >>= shouldBeFailureErr (fixture "publish/ready.txt")
 
     Spec.it "allows to publish with a test dependency not in the registry" \{ spago, fixture, testCwd } -> do
       FS.copyTree { src: fixture "publish/extra-package-test", dst: testCwd }
       spago [ "build" ] >>= shouldBeSuccess
       doTheGitThing
       spago [ "fetch" ] >>= shouldBeSuccess
-      spago [ "publish", "--offline" ] >>= shouldBeFailureErr (fixture "publish.txt")
+      spago [ "publish", "--offline" ] >>= shouldBeFailureErr (fixture "publish/ready.txt")
+
+  Spec.describe "transfer" do
+
+    Spec.it "fails if the publish config is not specified" \{ spago, fixture } -> do
+      spago [ "init", "--name", "aaaa" ] >>= shouldBeSuccess
+      spago [ "registry", "transfer", "--offline", "-i", (fixture "publish/key") ] >>= shouldBeFailureErr (fixture "publish/transfer/no-publish-config.txt")
+
+    Spec.it "fails if the config does not specify an owner" \{ spago, fixture } -> do
+      FS.copyFile { src: fixture "publish/basic.yaml", dst: "spago.yaml" }
+      spago [ "build" ] >>= shouldBeSuccess
+      spago [ "registry", "transfer", "--offline", "-i", (fixture "publish/key") ] >>= shouldBeFailureErr (fixture "publish/transfer/no-owner.txt")
+
+    Spec.it "fails if the git tree is not clean" \{ spago, fixture } -> do
+      FS.copyFile { src: fixture "publish/basic.yaml", dst: "spago.yaml" }
+      spago [ "auth", "-i", (fixture "publish/key") ] >>= shouldBeSuccess
+      spago [ "registry", "transfer", "--offline", "-i", (fixture "publish/key") ] >>= shouldBeFailureErr (fixture "publish/transfer/no-git.txt")
+
+    Spec.it "fails if the package has never been published before" \{ spago, fixture } -> do
+      FS.copyFile { src: fixture "publish/basic.yaml", dst: "spago.yaml" }
+      spago [ "auth", "-i", (fixture "publish/key") ] >>= shouldBeSuccess
+      doTheGitThing
+      spago [ "registry", "transfer", "-i", (fixture "publish/key") ] >>= shouldBeFailureErr (fixture "publish/transfer/never-published.txt")
+
+    Spec.it "fails if the new repo location is the same as the current one in the registry" \{ spago, fixture } -> do
+      FS.copyFile { src: fixture "publish/transfer/aff.yaml", dst: "spago.yaml" }
+      spago [ "auth", "-i", (fixture "publish/key") ] >>= shouldBeSuccess
+      doTheGitThing
+      spago [ "registry", "transfer", "-i", (fixture "publish/key") ] >>= shouldBeFailureErr (fixture "publish/transfer/same-location.txt")
+
+    Spec.it "fails if can't find the private key" \{ spago, fixture } -> do
+      FS.copyFile { src: fixture "publish/transfer/aff-new-location.yaml", dst: "spago.yaml" }
+      spago [ "auth", "-i", (fixture "publish/key") ] >>= shouldBeSuccess
+      doTheGitThing
+      spago [ "registry", "transfer", "-i", (fixture "publish/no-key") ] >>= shouldBeFailureErr (fixture "publish/transfer/no-key.txt")
+
+    Spec.it "fails if running with --offline" \{ spago, fixture } -> do
+      FS.copyFile { src: fixture "publish/transfer/aff-new-location.yaml", dst: "spago.yaml" }
+      spago [ "auth", "-i", (fixture "publish/key") ] >>= shouldBeSuccess
+      doTheGitThing
+      spago [ "registry", "transfer", "--offline", "-i", (fixture "publish/key") ] >>= shouldBeFailureErr (fixture "publish/transfer/offline.txt")
 
     Spec.it "#1110 installs versions of packages that are returned by the registry solver, but not present in cache" \{ spago, fixture, testCwd } -> do
       let
@@ -86,9 +126,9 @@ spec = Spec.around withTempDir do
           , result: isLeft
           , sanitize:
               String.trim
-              >>> String.replaceAll (String.Pattern "\\") (String.Replacement "/")
-              >>> String.replaceAll (String.Pattern "\r\n") (String.Replacement "\n")
-              >>> Regex.replace buildOrderRegex "[x of 3] Compiling module-name"
+                >>> withForwardSlashes
+                >>> String.replaceAll (String.Pattern "\r\n") (String.Replacement "\n")
+                >>> Regex.replace buildOrderRegex "[x of 3] Compiling module-name"
           }
 
         -- We have to ignore lines like "[1 of 3] Compiling Effect.Console" when
@@ -96,7 +136,8 @@ spec = Spec.around withTempDir do
         -- different order, depending on how the system resources happened to
         -- align at the moment of the test run.
         buildOrderRegex = unsafeFromRight $ Regex.regex
-          "\\[\\d of 3\\] Compiling (Effect\\.Console|Effect\\.Class\\.Console|Lib)" RF.global
+          "\\[\\d of 3\\] Compiling (Effect\\.Console|Effect\\.Class\\.Console|Lib)"
+          RF.global
 
       FS.copyTree { src: fixture "publish/1110-solver-different-version", dst: testCwd }
       spago [ "build" ] >>= shouldBeSuccess
@@ -123,12 +164,13 @@ spec = Spec.around withTempDir do
       rmRf $ testCwd </> ".spago/p/console-6.1.0/output"
       spago [ "publish", "--offline" ] >>= shouldBeFailureErr' (fixture "publish/1110-solver-different-version/failure-stderr.txt")
 
-    Spec.describe "#1060 auto-filling the `publish.location` field" do
-      let prepareProject spago fixture testCwd = do
-            FS.copyTree { src: fixture "publish/1060-autofill-location/project", dst: testCwd }
-            spago [ "build" ] >>= shouldBeSuccess
-            doTheGitThing
-            spago [ "fetch" ] >>= shouldBeSuccess
+    Spec.describe "#1060 auto-filling the `publish.location` field" \{ testCwd } -> do
+      let
+        prepareProject spago fixture = do
+          FS.copyTree { src: fixture "publish/1060-autofill-location/project", dst: testCwd }
+          spago [ "build" ] >>= shouldBeSuccess
+          doTheGitThing
+          spago [ "fetch" ] >>= shouldBeSuccess
 
       Spec.it "happens for root package" \{ fixture, spago, testCwd } -> do
         prepareProject spago fixture testCwd

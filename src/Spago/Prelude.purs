@@ -46,7 +46,9 @@ import Spago.Path as Path
 import Spago.Paths as Paths
 import Unsafe.Coerce (unsafeCoerce)
 
-data OnlineStatus = Offline | Online
+data OnlineStatus = Offline | Online | OnlineBypassCache
+
+derive instance Eq OnlineStatus
 
 type SpagoBaseEnv a =
   { rootPath :: Path.RootPath

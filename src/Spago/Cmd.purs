@@ -14,6 +14,7 @@ import Node.Platform as Platform
 import Node.Process as Process
 import Partial.Unsafe (unsafeCrashWith, unsafePartial)
 import Spago.Path as Path
+import Unsafe.Coerce (unsafeCoerce)
 
 data StdinConfig
   = StdinPipeParent
@@ -78,6 +79,7 @@ type ExecOptions =
   , pipeStdout :: Boolean
   , pipeStderr :: Boolean
   , cwd :: Maybe GlobalPath
+  , shell :: Boolean
   }
 
 defaultExecOptions :: ExecOptions
@@ -86,6 +88,7 @@ defaultExecOptions =
   , pipeStdout: true
   , pipeStderr: true
   , cwd: Nothing
+  , shell: false
   }
 
 spawn :: forall m. MonadAff m => String -> Array String -> ExecOptions -> m Execa.ExecaProcess
@@ -100,6 +103,10 @@ spawn cmd args opts = liftAff do
     , stdin = stdinOpt
     , stdout = Just pipe
     , stderr = Just pipe
+    , shell = case opts.shell of
+        -- TODO: execa doesn't support the boolean option yet
+        true -> Just (unsafeCoerce true)
+        false -> Nothing
     }
 
   case opts.pipeStdin of
@@ -195,22 +202,22 @@ getExecutable command =
     Just Platform.Win32 -> do
       -- On Windows, we often need to call the `.cmd` version
       let cmd1 = mkCmd command (Just "cmd")
-      askVersion cmd1 >>= case _ of
+      askVersion cmd1 true >>= case _ of
         Right r -> pure { cmd: cmd1, output: r.stdout }
         Left r -> do
           let cmd2 = mkCmd command Nothing
           logDebug [ "Failed to find purs.cmd. Trying with just purs...", show r.message ]
-          askVersion cmd2 >>= case _ of
+          askVersion cmd2 false >>= case _ of
             Right r' -> pure { cmd: cmd2, output: r'.stdout }
             Left r' -> complain r'
     _ -> do
       -- On other platforms, we just call `purs`
       let cmd1 = mkCmd command Nothing
-      askVersion cmd1 >>= case _ of
+      askVersion cmd1 false >>= case _ of
         Right r -> pure { cmd: cmd1, output: r.stdout }
         Left r -> complain r
   where
-  askVersion cmd = exec cmd [ "--version" ] defaultExecOptions { pipeStdout = false, pipeStderr = false }
+  askVersion cmd shell = exec cmd [ "--version" ] defaultExecOptions { pipeStdout = false, pipeStderr = false, shell = shell }
 
   mkCmd cmd maybeExtension = Path.global $ cmd <> maybe "" (append ".") maybeExtension
 

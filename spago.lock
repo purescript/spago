@@ -466,7 +466,6 @@
             "affjax",
             "affjax-node",
             "ansi",
-            "argonaut-core",
             "arrays",
             "avar",
             "codec",
@@ -481,6 +480,8 @@
             "effect",
             "either",
             "enums",
+            "exceptions",
+            "fetch",
             "filterable",
             "foldable-traversable",
             "foreign-object",
@@ -514,6 +515,7 @@
             "spago-core",
             "strings",
             "strings-extra",
+            "stringutils",
             "transformers",
             "tuples",
             "unfoldable",
@@ -550,6 +552,7 @@
             "enums",
             "exceptions",
             "exists",
+            "fetch",
             "filterable",
             "fixed-points",
             "foldable-traversable",
@@ -567,6 +570,9 @@
             "integers",
             "invariant",
             "js-date",
+            "js-fetch",
+            "js-promise",
+            "js-promise-aff",
             "js-timers",
             "js-uri",
             "json",
@@ -634,13 +640,13 @@
             "web-file",
             "web-html",
             "web-storage",
+            "web-streams",
             "web-xhr"
           ]
         },
         "test": {
           "dependencies": [
             "exceptions",
-            "identity",
             "quickcheck",
             "spec",
             "spec-node"
@@ -781,6 +787,7 @@
             "exceptions",
             "exists",
             "exitcodes",
+            "fetch",
             "filterable",
             "fixed-points",
             "foldable-traversable",
@@ -798,6 +805,9 @@
             "integers",
             "invariant",
             "js-date",
+            "js-fetch",
+            "js-promise",
+            "js-promise-aff",
             "js-timers",
             "js-uri",
             "json",
@@ -868,6 +878,7 @@
             "web-file",
             "web-html",
             "web-storage",
+            "web-streams",
             "web-xhr"
           ]
         },
@@ -894,6 +905,7 @@
             "exceptions",
             "filterable",
             "foldable-traversable",
+            "foreign",
             "functions",
             "identity",
             "integers",
@@ -915,7 +927,8 @@
             "strings",
             "stringutils",
             "transformers",
-            "tuples"
+            "tuples",
+            "unsafe-coerce"
           ],
           "build_plan": [
             "aff",
@@ -2197,6 +2210,32 @@
         "enums"
       ]
     },
+    "fetch": {
+      "type": "registry",
+      "version": "4.1.0",
+      "integrity": "sha256-zCwBUkRL9n6nUhK1+7UqqsuxswPFATsZfGSBOA3NYYY=",
+      "dependencies": [
+        "aff",
+        "arraybuffer-types",
+        "bifunctors",
+        "effect",
+        "either",
+        "foreign",
+        "http-methods",
+        "js-fetch",
+        "js-promise",
+        "js-promise-aff",
+        "maybe",
+        "newtype",
+        "ordered-collections",
+        "prelude",
+        "record",
+        "strings",
+        "typelevel-prelude",
+        "web-file",
+        "web-streams"
+      ]
+    },
     "filterable": {
       "type": "registry",
       "version": "5.0.0",
@@ -2527,6 +2566,31 @@
         "now"
       ]
     },
+    "js-fetch": {
+      "type": "registry",
+      "version": "0.2.1",
+      "integrity": "sha256-zQaVi9wFWku1SsWmdR11kRpOb+wxkNWR49cn928ucjw=",
+      "dependencies": [
+        "arraybuffer-types",
+        "arrays",
+        "effect",
+        "foldable-traversable",
+        "foreign",
+        "foreign-object",
+        "functions",
+        "http-methods",
+        "js-promise",
+        "maybe",
+        "newtype",
+        "prelude",
+        "record",
+        "tuples",
+        "typelevel-prelude",
+        "unfoldable",
+        "web-file",
+        "web-streams"
+      ]
+    },
     "js-promise": {
       "type": "registry",
       "version": "1.0.0",
@@ -2538,6 +2602,16 @@
         "functions",
         "maybe",
         "prelude"
+      ]
+    },
+    "js-promise-aff": {
+      "type": "registry",
+      "version": "1.0.0",
+      "integrity": "sha256-s9kml9Ei74hKlMMg41yyZp4GkbmYUwaH+gBWWrdhwec=",
+      "dependencies": [
+        "aff",
+        "foreign",
+        "js-promise"
       ]
     },
     "js-timers": {
@@ -3743,6 +3817,20 @@
       "dependencies": [
         "nullable",
         "web-events"
+      ]
+    },
+    "web-streams": {
+      "type": "registry",
+      "version": "4.0.0",
+      "integrity": "sha256-02HgXIk6R+pU9fWOX42krukAI1QkCbLKcCv3b4Jq6WI=",
+      "dependencies": [
+        "arraybuffer-types",
+        "effect",
+        "exceptions",
+        "js-promise",
+        "nullable",
+        "prelude",
+        "tuples"
       ]
     },
     "web-touchevents": {

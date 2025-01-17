@@ -7,7 +7,6 @@ module Spago.FS
   , ensureFileSync
   , exists
   , getInBetweenPaths
-  , isLink
   , ls
   , mkdirp
   , moveSync
@@ -16,7 +15,6 @@ module Spago.FS
   , readTextFileSync
   , readYamlDocFile
   , readYamlFile
-  , stat
   , writeFile
   , writeJsonFile
   , writeTextFile
@@ -34,8 +32,6 @@ import Effect.Uncurried (EffectFn2, runEffectFn2)
 import Node.FS.Aff as FS.Aff
 import Node.FS.Perms (Perms)
 import Node.FS.Perms as Perms
-import Node.FS.Stats (Stats)
-import Node.FS.Stats as Stats
 import Node.FS.Sync as FS.Sync
 import Spago.Json as Json
 import Spago.Path (toRaw)
@@ -122,14 +118,6 @@ readYamlDocFile :: forall a path. Path.IsPath path => CJ.Codec a -> path -> Aff 
 readYamlDocFile codec path = do
   result <- Aff.attempt $ FS.Aff.readTextFile UTF8 (toRaw path)
   pure (lmap Aff.message result >>= Yaml.parseYamlDoc codec >>> lmap CJ.DecodeError.print)
-
-stat :: forall m path. Path.IsPath path => MonadAff m => path -> m (Either Error Stats)
-stat path = liftAff $ try (FS.Aff.stat $ toRaw path)
-
-isLink :: forall m path. Path.IsPath path => MonadEffect m => path -> m Boolean
-isLink path = liftEffect $ try (FS.Sync.lstat $ toRaw path) >>= case _ of
-  Left _err -> pure true -- TODO: we should bubble this up instead
-  Right stats -> pure $ Stats.isSymbolicLink stats
 
 foreign import getInBetweenPathsImpl :: EffectFn2 GlobalPath GlobalPath (Array GlobalPath)
 

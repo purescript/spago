@@ -1,6 +1,7 @@
 module Spago.Git
   ( Git
   , GitEnv
+  , Remote
   , fetchRepo
   , getGit
   , getRef
@@ -58,7 +59,7 @@ fetchRepo { git, ref } path = do
       logDebug $ "Found " <> git <> " locally, skipping fetch because we are offline"
       pure $ Right unit
     Offline, false -> die [ "You are offline and the repo '" <> git <> "' is not available locally, can't make progress." ]
-    Online, _ -> do
+    _, _ -> do
       cloneOrFetchResult <- case repoExists of
         true -> do
           logDebug $ "Found " <> git <> " locally, pulling..."
@@ -119,7 +120,8 @@ getStatus cwd = do
   { git } <- ask
   Cmd.exec git.cmd [ "status", "--porcelain" ] opts >>= case _ of
     Left r -> do
-      pure $ Left $ toDoc [ "Could not run `git status`. Error:", r.message ]
+      logDebug "Command `git status --porcelain` failed"
+      pure $ Left $ toDoc r.stderr
     Right r -> pure $ Right r.stdout
 
 getRef :: ∀ a path. Path.IsPath path => path -> Spago (GitEnv a) (Either Docc String)
@@ -165,7 +167,7 @@ pushTag cwd version = do
     Offline -> do
       logWarn $ "Spago is in offline mode - not pushing the git tag v" <> Version.print version
       pure $ Right unit
-    Online -> do
+    _ -> do
       logInfo $ "Pushing tag 'v" <> Version.print version <> "' to the remote"
       Cmd.exec git.cmd [ "push", "origin", "v" <> Version.print version ] opts >>= case _ of
         Left r -> pure $ Left $ toDoc
