@@ -686,7 +686,7 @@ addPublishLocationToConfig doc loc =
 
 type OwnerJS = { public :: String, keytype :: String, id :: Nullable String }
 
-addOwner :: forall m. MonadAff m => FilePath -> YamlDoc Core.Config -> Owner -> m Unit
+addOwner :: forall m. MonadAff m => LocalPath -> YamlDoc Core.Config -> Owner -> m Unit
 addOwner configPath doc (Owner { id, keytype, public }) = do
   liftEffect $ runEffectFn2 addOwnerImpl doc { keytype, public, id: Nullable.toNullable id }
   liftAff $ FS.writeYamlDocFile configPath doc

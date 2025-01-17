@@ -336,7 +336,7 @@ depsOnly =
         <> O.help "Build depedencies only"
     )
 
-publicKeyPath :: Parser FilePath
+publicKeyPath :: Parser AdHocFilePath
 publicKeyPath =
   O.strOption
     ( O.short 'i'
@@ -344,7 +344,7 @@ publicKeyPath =
         <> O.help "Select the path of the public key to use for authenticating operations of the package"
     )
 
-privateKeyPath :: Parser FilePath
+privateKeyPath :: Parser AdHocFilePath
 privateKeyPath =
   O.strOption
     ( O.short 'i'

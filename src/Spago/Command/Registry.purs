@@ -26,6 +26,7 @@ import Spago.Db as Db
 import Spago.FS as FS
 import Spago.Git as Git
 import Spago.Json as Json
+import Spago.Path as Path
 import Spago.Registry (RegistryEnv)
 import Spago.Registry as Registry
 
@@ -35,7 +36,7 @@ type RegistrySearchArgs =
   }
 
 -- TODO: I guess we could also search in (1) the tags and (2) the description
-search :: RegistrySearchArgs -> Spago (RegistryEnv _) Unit
+search :: ∀ r. RegistrySearchArgs -> Spago (RegistryEnv r) Unit
 search { package: searchString, json } = do
   logInfo $ "Searching for " <> show searchString <> " in the Registry package names..."
   metadataFiles <- Registry.listMetadataFiles
@@ -83,7 +84,7 @@ type RegistryInfoArgs =
   , json :: Boolean
   }
 
-info :: RegistryInfoArgs -> Spago (RegistryEnv _) Unit
+info :: ∀ r. RegistryInfoArgs -> Spago (RegistryEnv r) Unit
 info { package, json } = do
   packageName <- case PackageName.parse package of
     Left err -> die [ toDoc "Could not parse package name, error:", indent (toDoc $ show err) ]
@@ -104,7 +105,7 @@ type RegistryPackageSetsArgs =
   , json :: Boolean
   }
 
-packageSets :: RegistryPackageSetsArgs -> Spago (RegistryEnv _) Unit
+packageSets :: ∀ r. RegistryPackageSetsArgs -> Spago (RegistryEnv r) Unit
 packageSets { latest, json } = do
   availableSets <- Registry.listPackageSets
 
@@ -137,12 +138,12 @@ packageSets { latest, json } = do
           ]
       }
 
-type RegistryTransferArgs = { privateKeyPath :: String }
+type RegistryTransferArgs = { privateKeyPath :: AdHocFilePath }
 
-transfer :: RegistryTransferArgs -> Spago (FetchEnv _) Unit
+transfer :: ∀ r. RegistryTransferArgs -> Spago (FetchEnv r) Unit
 transfer { privateKeyPath } = do
   logDebug $ "Running package transfer"
-  { workspace, offline } <- ask
+  { workspace, offline, rootPath } <- ask
 
   selected <- case workspace.selected of
     Just s -> pure s
@@ -177,7 +178,7 @@ transfer { privateKeyPath } = do
 
   -- Check that the git tree is clean - since the transfer will obey the new content
   -- of the config file, it makes sense to have it commited before transferring
-  Git.getStatus Nothing >>= case _ of
+  Git.getStatus rootPath >>= case _ of
     Left _err -> do
       die $ toDoc
         [ toDoc "Could not verify whether the git tree is clean. Error was:"
@@ -215,7 +216,7 @@ transfer { privateKeyPath } = do
       let dataToSign = { name: selected.package.name, newLocation }
       let rawPayload = Json.stringifyJson Operation.transferCodec dataToSign
 
-      key <- getPrivateKeyForSigning privateKeyPath
+      key <- getPrivateKeyForSigning $ rootPath </> privateKeyPath
       -- We have a key! We can sign the payload with it, and submit the whole package to the Registry
       let signature = SSH.sign key rawPayload
 
@@ -229,7 +230,7 @@ transfer { privateKeyPath } = do
           , payload: Operation.Transfer dataToSign
           }
 
-getPrivateKeyForSigning :: forall e. FilePath -> Spago (LogEnv e) SSH.PrivateKey
+getPrivateKeyForSigning :: ∀ e. LocalPath -> Spago (LogEnv e) SSH.PrivateKey
 getPrivateKeyForSigning privateKeyPath = do
   -- If all is well we read in the private key
   privateKey <- try (FS.readTextFile privateKeyPath) >>= case _ of
@@ -250,7 +251,7 @@ getPrivateKeyForSigning privateKeyPath = do
             Left _ -> do
               decodeKeyInteractive { requiresPassword: true, attemptsLeft }
         true -> do
-          let prompt = "Enter passphrase for " <> privateKeyPath <> ": "
+          let prompt = "Enter passphrase for " <> Path.quote privateKeyPath <> ": "
           passphrase <- liftEffect $ runEffectFn1 questionPassword prompt
 
           case SSH.parsePrivateKey { key: privateKey, passphrase: Just passphrase } of
@@ -266,7 +267,7 @@ getPrivateKeyForSigning privateKeyPath = do
 
 type RegistryUnpublishArgs = { version :: Version, reason :: Maybe String }
 
-unpublish :: RegistryUnpublishArgs -> Spago (RegistryEnv _) Unit
+unpublish :: ∀ r. RegistryUnpublishArgs -> Spago (RegistryEnv r) Unit
 unpublish _a = do -- { version, reason } = do
   logError "Unpublishing packages is not supported yet."
   die [ "Please contact the maintainers if you need to unpublish a package." ]

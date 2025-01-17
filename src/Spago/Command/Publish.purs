@@ -188,7 +188,7 @@ publish _args = do
           , "submit a transfer operation."
           ]
 
-        locationResult <- locationIsInGitRemotes location
+        locationResult <- locationIsInGitRemotes rootPath location
         unless locationResult.result $ addError $ toDoc
           [ toDoc "The location specified in the manifest file is not one of the remotes in the git repository."
           , toDoc "Location:"
