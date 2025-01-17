@@ -225,7 +225,7 @@ commandParser command_ parser_ description_ =
 argParser :: Parser (SpagoCmd ())
 argParser =
   O.hsubparser $ Foldable.fold
-    [ commandParser "auth" (Auth <$> authArgsParser) "Authenticate as the owner of a package, to allow transfer and unpiblish operations"
+    [ commandParser "auth" (Auth <$> authArgsParser) "Authenticate as the owner of a package, to allow transfer and unpublish operations"
     , commandParser "build" (Build <$> buildArgsParser) "Compile the project"
     , commandParser "bundle" (Bundle <$> bundleArgsParser) "Bundle the project in a single file"
     , commandParser "docs" (Docs <$> docsArgsParser) "Generate docs for the project and its dependencies"
