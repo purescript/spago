@@ -32,12 +32,10 @@ run args = do
   logDebug "Running `spago uninstall`"
   { workspace, rootPath } <- ask
 
-  { sourceOrTestString, deps, configPath, yamlDoc: doc', name } <- case workspace.selected, workspace.rootPackage of
+  { sourceOrTestString, deps, configPath, yamlDoc, name } <- case workspace.selected, workspace.rootPackage of
     Just p, _ -> toContext (p.path </> "spago.yaml") p.doc p.package
     Nothing, Just rootPackage -> toContext (rootPath </> "spago.yaml") workspace.doc rootPackage
     Nothing, Nothing -> die "No package was selected. Please select a package."
-
-  yamlDoc <- justOrDieWith doc' Config.configDocMissingErrorMessage
 
   let
     { warn, removed: removedSet } = separate deps
@@ -121,10 +119,11 @@ run args = do
       true -> acc { removed = Set.insert next acc.removed }
       false -> acc { warn = Set.insert next acc.warn }
 
-  modifyConfig :: LocalPath -> YamlDoc Core.Config -> String -> NonEmptyArray PackageName -> Spago (FetchEnv _) Unit
+  modifyConfig :: LocalPath -> Maybe (YamlDoc Core.Config) -> String -> NonEmptyArray PackageName -> Spago (FetchEnv _) Unit
   modifyConfig configPath yamlDoc sourceOrTestString = \removedPackages -> do
     logInfo $ "Removing the following " <> sourceOrTestString <> " dependencies: "
       <> (String.joinWith ", " $ map PackageName.print $ Array.fromFoldable removedPackages)
     logDebug $ "Editing config file at path: " <> Path.quote configPath
-    liftEffect $ Config.removePackagesFromConfig yamlDoc args.testDeps $ NonEmptySet.fromFoldable1 removedPackages
-    liftAff $ FS.writeYamlDocFile configPath yamlDoc
+    doc <- justOrDieWith yamlDoc Config.configDocMissingErrorMessage
+    liftEffect $ Config.removePackagesFromConfig doc args.testDeps $ NonEmptySet.fromFoldable1 removedPackages
+    liftAff $ FS.writeYamlDocFile configPath doc

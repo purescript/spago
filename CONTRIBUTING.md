@@ -156,5 +156,5 @@ rootPath <- Path.mkRootPath =<< Paths.cwd
 config <- readConfig (rootPath </> "spago.yaml")
 let srcDir = rootPath </> "src"
 compileResult <- callCompiler [ srcDir </> "Main.purs", srcDir </> "Lib.purs" ]
-FS.writeFile (rootPath </> "result.json") (serialize compipleResult)
+FS.writeFile (rootPath </> "result.json") (serialize compileResult)
 ```

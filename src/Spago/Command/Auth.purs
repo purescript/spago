@@ -39,12 +39,10 @@ run { keyPath } = do
 
   { workspace, rootPath } <- ask
   { doc, package, configPath } <- case workspace.selected, workspace.rootPackage of
-    Just { doc: maybeDoc, package, path: packagePath }, _ -> do
-      doc <- justOrDieWith maybeDoc Config.configDocMissingErrorMessage
+    Just { doc, package, path: packagePath }, _ ->
       pure { doc, package, configPath: packagePath </> "spago.yaml" }
-    Nothing, Just rootPackage -> do
-      doc <- justOrDieWith workspace.doc Config.configDocMissingErrorMessage
-      pure { doc, package: rootPackage, configPath: rootPath </> "spago.yaml" }
+    Nothing, Just rootPackage ->
+      pure { doc: workspace.doc, package: rootPackage, configPath: rootPath </> "spago.yaml" }
     Nothing, Nothing ->
       die "No package was selected. Please select a package with the -p flag"
 
@@ -60,6 +58,7 @@ run { keyPath } = do
         true -> logWarn "Selected key is already present in the config file."
         false -> do
           logInfo $ "Adding selected key to the list of the owners: " <> Path.quote path
-          Config.addOwner configPath doc newOwner
+          doc' <- justOrDieWith doc Config.configDocMissingErrorMessage
+          Config.addOwner configPath doc' newOwner
           logSuccess "The selected key has been added to the list of the owners."
           logInfo "Once you publish a new version with this configuration you'll be able to transfer and unpublish packages using this key."

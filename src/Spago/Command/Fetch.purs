@@ -101,8 +101,7 @@ run { packages: packagesRequestedToInstall, ensureRanges, isTest, isRepl } = do
           , "Please use the `-p` flag to select a package " <> errorMessageEnd
           ]
 
-      doc <- justOrDieWith res.yamlDoc Config.configDocMissingErrorMessage
-      pure res { yamlDoc = doc }
+      pure res { yamlDoc = res.yamlDoc }
 
   installingPackagesData <- do
     case packagesRequestedToInstall of
@@ -167,7 +166,8 @@ run { packages: packagesRequestedToInstall, ensureRanges, isTest, isRepl } = do
           1 -> "1 package"
           n -> show n <> " packages"
       logInfo $ "Adding " <> countString <> " to the config in " <> Path.quote configPath
-      liftAff $ Config.addPackagesToConfig configPath yamlDoc isTest actualPackagesToInstall
+      doc <- justOrDieWith yamlDoc Config.configDocMissingErrorMessage
+      liftAff $ Config.addPackagesToConfig configPath doc isTest actualPackagesToInstall
 
     -- if the flag is selected, we kick off the process of adding ranges to the config
     when ensureRanges do
@@ -176,8 +176,9 @@ run { packages: packagesRequestedToInstall, ensureRanges, isTest, isRepl } = do
       packageDeps <- (Map.lookup package.name dependencies) `justOrDieWith`
         "Impossible: package dependencies must be in dependencies map"
       let rangeMap = map getRangeFromPackage packageDeps.core
-      liftEffect $ Config.addRangesToConfig yamlDoc rangeMap
-      liftAff $ FS.writeYamlDocFile configPath yamlDoc
+      doc <- justOrDieWith yamlDoc Config.configDocMissingErrorMessage
+      liftEffect $ Config.addRangesToConfig doc rangeMap
+      liftAff $ FS.writeYamlDocFile configPath doc
 
     -- the repl needs a support package, so we add it here as a sidecar
     supportPackage <- Repl.supportPackage workspace.packageSet
