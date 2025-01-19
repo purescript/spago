@@ -5,6 +5,7 @@ import Test.Prelude
 import Data.String as String
 import Data.String.Regex as Regex
 import Data.String.Regex.Flags as RF
+import Debug (traceM)
 import Node.Platform as Platform
 import Node.Process as Process
 import Spago.Cmd as Cmd
@@ -114,6 +115,8 @@ spec = Spec.around withTempDir do
 
     Spec.it "fails if running with --offline" \{ spago, fixture, testCwd } -> do
       FS.copyFile { src: fixture "publish/transfer/aff-new-location.yaml", dst: testCwd </> "spago.yaml" }
+      traceM $ Path.quote $ fixture "publish/key"
+      traceM =<< FS.exists (fixture "publish/key")
       spago [ "auth", "-i", (Path.toRaw $ fixture "publish/key") ] >>= shouldBeSuccess
       doTheGitThing
       spago [ "registry", "transfer", "--offline", "-i", (Path.toRaw $ fixture "publish/key") ] >>= shouldBeFailureErr (fixture "publish/transfer/offline.txt")
