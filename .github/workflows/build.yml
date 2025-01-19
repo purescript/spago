@@ -81,10 +81,10 @@ jobs:
       - name: Bundle docs-search client
         run: node ./bin/bundle.js bundle -p docs-search-client-halogen
 
-      # - name: Run tests
-      #   env:
-      #     SPAGO_TEST_DEBUG: 1
-      #   run: node ./bin/bundle.js test -- -e "fails if running with --offline" --no-timeout
+      - name: Run tests
+        env:
+          SPAGO_TEST_DEBUG: 1
+        run: node ./bin/bundle.js test -- -e "fails if running with --offline" --no-timeout
 
       - name: Check formatting (Linux only)
         if: matrix.os == 'ubuntu-latest'
