@@ -85,7 +85,7 @@ readTextFileSync path = liftEffect $ FS.Sync.readTextFile UTF8 (toRaw path)
 writeFile :: forall m path. Path.IsPath path => MonadAff m => path -> Buffer -> m Unit
 writeFile path buf = liftAff $ FS.Aff.writeFile (toRaw path) buf
 
-ls :: forall m path. Path.IsPath path => MonadAff m => path -> m (Array AdHocFilePath)
+ls :: forall m path. Path.IsPath path => MonadAff m => path -> m (Array RawFilePath)
 ls = liftAff <<< FS.Aff.readdir <<< toRaw
 
 chmod :: forall m path. Path.IsPath path => MonadAff m => path -> Perms -> m Unit

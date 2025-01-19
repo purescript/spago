@@ -26,7 +26,7 @@ type BundleOptions =
   { minify :: Boolean
   , sourceMaps :: Boolean
   , module :: String
-  , outfile :: AdHocFilePath
+  , outfile :: RawFilePath
   , force :: Boolean
   , platform :: BundlePlatform
   , type :: BundleType

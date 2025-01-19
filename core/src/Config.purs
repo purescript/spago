@@ -100,8 +100,8 @@ type PublishConfig =
   { version :: Version
   , license :: License
   , location :: Maybe Location
-  , include :: Maybe (Array AdHocFilePath)
-  , exclude :: Maybe (Array AdHocFilePath)
+  , include :: Maybe (Array RawFilePath)
+  , exclude :: Maybe (Array RawFilePath)
   , owners :: Maybe (Array Owner)
   }
 
@@ -210,7 +210,7 @@ packageBuildOptionsCodec = CJ.named "PackageBuildOptionsInput" $ CJS.objectStric
 type BundleConfig =
   { minify :: Maybe Boolean
   , module :: Maybe String
-  , outfile :: Maybe AdHocFilePath
+  , outfile :: Maybe RawFilePath
   , platform :: Maybe BundlePlatform
   , type :: Maybe BundleType
   , extraArgs :: Maybe (Array String)
@@ -347,7 +347,7 @@ workspaceConfigCodec = CJ.named "WorkspaceConfig" $ CJS.objectStrict
   $ CJS.record
 
 type WorkspaceBuildOptionsInput =
-  { output :: Maybe AdHocFilePath
+  { output :: Maybe RawFilePath
   , censorLibraryWarnings :: Maybe CensorBuildWarnings
   , statVerbosity :: Maybe StatVerbosity
   }
@@ -440,7 +440,7 @@ statVerbosityCodec = CJ.Sum.enumSum print parse
 data SetAddress
   = SetFromRegistry { registry :: Version }
   | SetFromUrl { url :: String, hash :: Maybe Sha256 }
-  | SetFromPath { path :: AdHocFilePath }
+  | SetFromPath { path :: RawFilePath }
 
 derive instance Eq SetAddress
 
@@ -474,7 +474,7 @@ extraPackageCodec = Codec.codec' decode encode
   decode json = map ExtraLocalPackage (Codec.decode localPackageCodec json)
     <|> map ExtraRemotePackage (Codec.decode remotePackageCodec json)
 
-type LocalPackage = { path :: AdHocFilePath }
+type LocalPackage = { path :: RawFilePath }
 
 localPackageCodec :: CJ.Codec LocalPackage
 localPackageCodec = CJ.named "LocalPackage" $ CJ.Record.objectStrict { path: CJ.string }
@@ -500,7 +500,7 @@ remotePackageCodec = Codec.codec' decode encode
 type GitPackage =
   { git :: String
   , ref :: String
-  , subdir :: Maybe AdHocFilePath
+  , subdir :: Maybe RawFilePath
   , dependencies :: Maybe Dependencies
   }
 

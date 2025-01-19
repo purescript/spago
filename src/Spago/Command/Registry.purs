@@ -139,7 +139,7 @@ packageSets { latest, json } = do
           ]
       }
 
-type RegistryTransferArgs = { privateKeyPath :: AdHocFilePath }
+type RegistryTransferArgs = { privateKeyPath :: RawFilePath }
 
 transfer :: ∀ r. RegistryTransferArgs -> Spago (FetchEnv r) Unit
 transfer { privateKeyPath } = do
@@ -231,7 +231,7 @@ transfer { privateKeyPath } = do
           , payload: Operation.Transfer dataToSign
           }
 
-getPrivateKeyForSigning :: ∀ e. AdHocFilePath -> Spago (LogEnv e) SSH.PrivateKey
+getPrivateKeyForSigning :: ∀ e. RawFilePath -> Spago (LogEnv e) SSH.PrivateKey
 getPrivateKeyForSigning privateKeyPath' = do
   here <- Paths.cwd
   let privateKeyPath = here </> privateKeyPath'

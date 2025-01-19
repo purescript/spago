@@ -41,7 +41,7 @@ import Partial.Unsafe (unsafeCrashWith)
 import Registry.Sha256 as Registry.Sha256
 import Registry.Sha256 as Sha256
 import Registry.Version as Version
-import Spago.Path (class IsPath, AdHocFilePath, GlobalPath, LocalPath, RootPath, (</>), withForwardSlashes)
+import Spago.Path (class IsPath, RawFilePath, GlobalPath, LocalPath, RootPath, (</>), withForwardSlashes)
 import Spago.Path as Path
 import Spago.Paths as Paths
 import Unsafe.Coerce (unsafeCoerce)

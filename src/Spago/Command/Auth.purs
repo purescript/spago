@@ -13,7 +13,7 @@ import Spago.FS as FS
 import Spago.Path as Path
 import Spago.Paths as Paths
 
-type AuthArgs = { keyPath :: AdHocFilePath }
+type AuthArgs = { keyPath :: RawFilePath }
 
 run :: ∀ r. AuthArgs -> Spago (FetchEnv r) Unit
 run { keyPath } = do

@@ -38,7 +38,7 @@ type FixturePath = GlobalPath
 type TestDirs =
   { spago :: Array String -> Aff (Either ExecResult ExecResult)
   , spago' :: StdinConfig -> Array String -> Aff (Either ExecResult ExecResult)
-  , fixture :: AdHocFilePath -> FixturePath
+  , fixture :: RawFilePath -> FixturePath
   , oldCwd :: GlobalPath
   , testCwd :: RootPath
   }

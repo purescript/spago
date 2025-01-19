@@ -1,6 +1,6 @@
 module Spago.Path
   ( (</>)
-  , AdHocFilePath
+  , RawFilePath
   , GlobalPath
   , LocalPath
   , RootPath
@@ -50,7 +50,7 @@ derive newtype instance Ord RootPath
 -- | A Spago Workspace-scoped path, consists of two parts: `RootPath` and local
 -- | part, relative to the root. This lets us both have the full path for
 -- | actually working with files and the local part for user-facing output.
-newtype LocalPath = LocalPath { root :: RootPath, local :: AdHocFilePath }
+newtype LocalPath = LocalPath { root :: RootPath, local :: RawFilePath }
 
 instance Show LocalPath where
   show (LocalPath p) = p.local
@@ -71,7 +71,7 @@ instance Show GlobalPath where
 derive newtype instance Eq GlobalPath
 derive newtype instance Ord GlobalPath
 
-type AdHocFilePath = String
+type RawFilePath = String
 
 class (Show path, Eq path, Ord path) <= IsPath path where
   toGlobal :: path -> GlobalPath
@@ -116,7 +116,7 @@ instance IsPath RootPath where
   withForwardSlashes (RootPath path) = RootPath $ withForwardSlashes' path
 
 class AppendPath base result | base -> result where
-  appendPath :: base -> AdHocFilePath -> result
+  appendPath :: base -> RawFilePath -> result
 
 instance AppendPath RootPath LocalPath where
   appendPath root local
@@ -147,7 +147,7 @@ global = GlobalPath
 rootPart :: LocalPath -> RootPath
 rootPart (LocalPath { root }) = root
 
-localPart :: LocalPath -> AdHocFilePath
+localPart :: LocalPath -> RawFilePath
 localPart (LocalPath { local }) = local
 
 dirname :: ∀ path. IsPath path => path -> GlobalPath

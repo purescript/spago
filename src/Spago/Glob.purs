@@ -25,7 +25,7 @@ type Glob =
   , include :: Array String
   }
 
-foreign import testGlob :: Glob -> AdHocFilePath -> Boolean
+foreign import testGlob :: Glob -> RawFilePath -> Boolean
 
 splitGlob :: Glob -> Array Glob
 splitGlob { ignore, include } = (\a -> { ignore, include: [ a ] }) <$> include
@@ -95,7 +95,7 @@ fsWalk { root, ignorePatterns, includePatterns } = Aff.makeAff \cb -> do
 
   -- Pattern for directories which can be outright ignored.
   -- This will be updated whenver a .gitignore is found.
-  ignoreMatcherRef :: Ref (AdHocFilePath -> Boolean) <- Ref.new (testGlob { ignore: [], include: ignorePatterns })
+  ignoreMatcherRef :: Ref (RawFilePath -> Boolean) <- Ref.new (testGlob { ignore: [], include: ignorePatterns })
 
   -- If this Ref contains `true` because this Aff has been canceled, then deepFilter will always return false.
   canceled <- Ref.new false

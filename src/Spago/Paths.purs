@@ -18,7 +18,7 @@ import Prelude
 import Effect.Class (class MonadEffect, liftEffect)
 import Node.Path as Node.Path
 import Node.Process as Process
-import Spago.Path (class IsPath, AdHocFilePath, GlobalPath, global, toRaw, (</>))
+import Spago.Path (class IsPath, RawFilePath, GlobalPath, global, toRaw, (</>))
 
 type NodePaths p =
   { config :: p
@@ -48,13 +48,13 @@ chdir path = liftEffect $ Process.chdir (toRaw path)
 globalCachePath :: GlobalPath
 globalCachePath = paths.cache
 
-localCachePath :: AdHocFilePath
+localCachePath :: RawFilePath
 localCachePath = ".spago"
 
-localCachePackagesPath :: AdHocFilePath
+localCachePackagesPath :: RawFilePath
 localCachePackagesPath = Node.Path.concat [ localCachePath, "p" ]
 
-localCacheGitPath :: AdHocFilePath
+localCacheGitPath :: RawFilePath
 localCacheGitPath = Node.Path.concat [ localCachePath, "g" ]
 
 registryPath ∷ GlobalPath
