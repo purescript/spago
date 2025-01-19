@@ -47,7 +47,7 @@ jobs:
         with:
           path: |
             ~/.npm
-            ~/AppData/Roaming/npm
+            $APPDATA/npm
             node_modules
           key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ hashFiles('**/package.json') }}
           restore-keys: |
