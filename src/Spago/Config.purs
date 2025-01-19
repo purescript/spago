@@ -192,8 +192,9 @@ discoverWorkspace options cwd = do
     Map.fromFoldable <$>
       for (Map.toUnfoldable loadedPackages :: Array _) \(path /\ { package, config }) -> do
         hasTests <- FS.exists (path </> "test")
-        let wsp :: WorkspacePackage
-            wsp = { package, path: path `Path.relativeTo` rootPath, doc: Just config.doc, hasTests }
+        let
+          wsp :: WorkspacePackage
+          wsp = { package, path: path `Path.relativeTo` rootPath, doc: Just config.doc, hasTests }
         pure (package.name /\ wsp)
 
   selected <-
@@ -213,141 +214,144 @@ discoverWorkspace options cwd = do
   pure
     { rootPath
     , workspace:
-      { selected
-      , packageSet
-      , compatibleCompiler: compiler
-      , backend: workspace.config.backend
-      , buildOptions:
-        { output: workspace.config.buildOpts >>= _.output <#> \o -> withForwardSlashes $ rootPath </> o
-        , censorLibWarnings: _.censorLibraryWarnings =<< workspace.config.buildOpts
-        , statVerbosity: _.statVerbosity =<< workspace.config.buildOpts
+        { selected
+        , packageSet
+        , compatibleCompiler: compiler
+        , backend: workspace.config.backend
+        , buildOptions:
+            { output: workspace.config.buildOpts >>= _.output <#> \o -> withForwardSlashes $ rootPath </> o
+            , censorLibWarnings: _.censorLibraryWarnings =<< workspace.config.buildOpts
+            , statVerbosity: _.statVerbosity =<< workspace.config.buildOpts
+            }
+        , doc: Just workspace.doc
+        , workspaceConfig: workspace.config
+        , rootPackage: workspace.rootPackage
         }
-      , doc: Just workspace.doc
-      , workspaceConfig: workspace.config
-      , rootPackage: workspace.rootPackage
-      }
     }
   where
-    readConfig' = State.lift <<< readConfig
+  readConfig' = State.lift <<< readConfig
 
-    walkDirectoriesUpFrom dir = do
-      maybeConfig <- tryReadConfigAt configFile
+  walkDirectoriesUpFrom dir = do
+    maybeConfig <- tryReadConfigAt configFile
 
-      for_ maybeConfig \config ->
-        for_ config.yaml.package \package ->
-          -- If there is a package in this directory, remember it
-          State.modify_ \s -> s
-            { loadedPackages = Map.insert dir { package, config } s.loadedPackages
-            , closestPackage = s.closestPackage <|> Just package.name
-            }
+    for_ maybeConfig \config ->
+      for_ config.yaml.package \package ->
+        -- If there is a package in this directory, remember it
+        State.modify_ \s -> s
+          { loadedPackages = Map.insert dir { package, config } s.loadedPackages
+          , closestPackage = s.closestPackage <|> Just package.name
+          }
 
-      whenM (FS.exists $ dir </> "spago.yml") $
-        State.modify_ \s -> s { misnamedConfigs = Array.cons dir s.misnamedConfigs }
+    whenM (FS.exists $ dir </> "spago.yml") $
+      State.modify_ \s -> s { misnamedConfigs = Array.cons dir s.misnamedConfigs }
 
-      case maybeConfig of
-        Just { doc, yaml: { workspace: Just workspace, package } } -> do
-          -- Finally, found the "workspace" config!
-          rootPath <- Path.mkRoot dir
-          loadSubprojectConfigs rootPath
-          pure { workspace: { config: workspace, doc, rootPackage: package }, rootPath }
-        _ -> do
-          -- No workspace in this directory => recur to parent directory (unless it's already root)
-          when (parentDir == dir) $
-            dieForLackOfSpagoYaml
-          walkDirectoriesUpFrom parentDir
+    case maybeConfig of
+      Just { doc, yaml: { workspace: Just workspace, package } } -> do
+        -- Finally, found the "workspace" config!
+        rootPath <- Path.mkRoot dir
+        loadSubprojectConfigs rootPath
+        pure { workspace: { config: workspace, doc, rootPackage: package }, rootPath }
+      _ -> do
+        -- No workspace in this directory => recur to parent directory (unless it's already root)
+        when (parentDir == dir) $
+          dieForLackOfSpagoYaml
+        walkDirectoriesUpFrom parentDir
 
-      where
+    where
+    configFile = dir </> spagoYaml
+    parentDir = Path.dirname dir
+
+  loadSubprojectConfigs rootPath = do
+    candidates <- liftAff $ Glob.gitignoringGlob
+      { root: rootPath
+      , includePatterns: [ "**/" <> spagoYaml ]
+      , ignorePatterns: [ "**/node_modules/**", "**/.spago/**" ]
+      }
+
+    -- Traversing directories (not files) and doing it in sorted order ensures
+    -- that parent directories come before their subdirectories. That way we
+    -- can remember workspaces that we find along the way and avoid trying to
+    -- load their subprojects that come later.
+    candidates <#> Path.toGlobal <#> Path.dirname # Array.sort # traverse_ \dir -> do
+      st <- State.get
+      let
         configFile = dir </> spagoYaml
-        parentDir = Path.dirname dir
+        alreadyLoaded = st.loadedPackages # Map.member configFile
+        anotherParentWorkspace = st.otherWorkspaceRoots # Array.find (_ `Path.isPrefixOf` dir)
+      case alreadyLoaded, anotherParentWorkspace of
+        true, _ ->
+          pure unit
+        _, Just ws -> do
+          logDebug $ "Not trying to load " <> Path.quote configFile <> " because it belongs to a different workspace at " <> Path.quote ws
+          pure unit
+        false, Nothing ->
+          readConfig' configFile >>= case _ of
+            Left _ ->
+              logWarn $ "Failed to read config at " <> Path.quote configFile
+            Right { yaml: { workspace: Just _ } } ->
+              State.modify_ \s -> s { otherWorkspaceRoots = Array.cons dir s.otherWorkspaceRoots }
+            Right config@{ yaml: { package: Just package } } -> do
+              logDebug $ "Loaded a subproject config at " <> Path.quote configFile
+              State.modify_ \s -> s { loadedPackages = Map.insert dir { package, config } s.loadedPackages }
+            Right _ -> do
+              logWarn $ "Neither workspace nor package found in " <> Path.quote configFile
 
-    loadSubprojectConfigs rootPath = do
-      candidates <- liftAff $ Glob.gitignoringGlob
-        { root: rootPath
-        , includePatterns: [ "**/" <> spagoYaml ]
-        , ignorePatterns: [ "**/node_modules/**", "**/.spago/**" ]
-        }
+  tryReadConfigAt path = do
+    exists <- FS.exists path
+    if exists then
+      Just <$> do
+        logDebug $ "Loading spago.yaml at " <> Path.quote path
+        readConfig' path >>= rightOrDieWith \errLines ->
+          [ toDoc $ "Couldn't parse Spago config file at: " <> Path.quote path
+          , indent $ toDoc errLines
+          , Log.break
+          , toDoc "The configuration file help can be found here https://github.com/purescript/spago#the-configuration-file"
+          ]
+    else
+      pure Nothing
 
-      -- Traversing directories (not files) and doing it in sorted order ensures
-      -- that parent directories come before their subdirectories. That way we
-      -- can remember workspaces that we find along the way and avoid trying to
-      -- load their subprojects that come later.
-      candidates <#> Path.toGlobal <#> Path.dirname # Array.sort # traverse_ \dir -> do
-        st <- State.get
-        let configFile = dir </> spagoYaml
-            alreadyLoaded = st.loadedPackages # Map.member configFile
-            anotherParentWorkspace = st.otherWorkspaceRoots # Array.find (_ `Path.isPrefixOf` dir)
-        case alreadyLoaded, anotherParentWorkspace of
-          true, _ ->
-            pure unit
-          _, Just ws -> do
-            logDebug $ "Not trying to load " <> Path.quote configFile <> " because it belongs to a different workspace at " <> Path.quote ws
-            pure unit
-          false, Nothing ->
-            readConfig' configFile >>= case _ of
-              Left _ ->
-                logWarn $ "Failed to read config at " <> Path.quote configFile
-              Right { yaml: { workspace: Just _ } } ->
-                State.modify_ \s -> s { otherWorkspaceRoots = Array.cons dir s.otherWorkspaceRoots }
-              Right config@{ yaml: { package: Just package } } -> do
-                logDebug $ "Loaded a subproject config at " <> Path.quote configFile
-                State.modify_ \s -> s { loadedPackages = Map.insert dir { package, config } s.loadedPackages }
-              Right _ -> do
-                logWarn $ "Neither workspace nor package found in " <> Path.quote configFile
+  migrateConfigsWhereNeeded rootPath loadedConfigs = do
+    forWithIndex_ loadedConfigs \path' { config } -> do
+      let path = (path' </> spagoYaml) `Path.relativeTo` rootPath
+      case options.migrateConfig, config.wasMigrated of
+        true, true -> do
+          logInfo $ "Migrating your " <> Path.quote path <> " to the latest version..."
+          liftAff $ FS.writeYamlDocFile path config.doc
+        false, true ->
+          logWarn $ "Your " <> Path.quote path <> " is using an outdated format. Run Spago with the --migrate flag to update it to the latest version."
+        _, false ->
+          pure unit
 
-    tryReadConfigAt path = do
-      exists <- FS.exists path
-      if exists then
-        Just <$> do
-          logDebug $ "Loading spago.yaml at " <> Path.quote path
-          readConfig' path >>= rightOrDieWith \errLines ->
-            [ toDoc $ "Couldn't parse Spago config file at: " <> Path.quote path
-            , indent $ toDoc errLines
+  dieForLackOfSpagoYaml = do
+    root <- Path.mkRoot cwd
+    misnamedConfigs <- State.gets _.misnamedConfigs
+    let
+      misnamedConfigsList =
+        case misnamedConfigs <#> \c -> Path.quote $ (c </> "spago.yml") `Path.relativeTo` root of
+          [] -> []
+          [ one ] -> [ toDoc $ "Instead found " <> one ]
+          many -> [ toDoc "Instead found these:", indent $ toDoc many ]
+    die
+      [ toDoc $ "No " <> spagoYaml <> " found in the current directory or any of its parents."
+      , if Array.null misnamedConfigsList then
+          toDoc ""
+        else
+          toDoc
+            [ Log.break
+            , indent $ toDoc $ misnamedConfigsList
+            , indent $ toDoc $ "Note that Spago config files should be named " <> spagoYaml <> ", not spago.yml."
             , Log.break
             , toDoc "The configuration file help can be found here https://github.com/purescript/spago#the-configuration-file"
             ]
-      else
-        pure Nothing
+      ]
 
-    migrateConfigsWhereNeeded rootPath loadedConfigs = do
-      forWithIndex_ loadedConfigs \path' { config } -> do
-        let path = (path' </> spagoYaml) `Path.relativeTo` rootPath
-        case options.migrateConfig, config.wasMigrated of
-          true, true -> do
-            logInfo $ "Migrating your " <> Path.quote path <> " to the latest version..."
-            liftAff $ FS.writeYamlDocFile path config.doc
-          false, true ->
-            logWarn $ "Your " <> Path.quote path <> " is using an outdated format. Run Spago with the --migrate flag to update it to the latest version."
-          _, false ->
-            pure unit
-
-    dieForLackOfSpagoYaml = do
-      root <- Path.mkRoot cwd
-      misnamedConfigs <- State.gets _.misnamedConfigs
-      let misnamedConfigsList =
-            case misnamedConfigs <#> \c -> Path.quote $ (c </> "spago.yml") `Path.relativeTo` root of
-              [] -> []
-              [one] -> [ toDoc $ "Instead found " <> one ]
-              many -> [ toDoc "Instead found these:" , indent $ toDoc many ]
-      die
-        [ toDoc $ "No " <> spagoYaml <> " found in the current directory or any of its parents."
-        , if Array.null misnamedConfigsList then
-            toDoc ""
-          else
-            toDoc
-              [ Log.break
-              , indent $ toDoc $ misnamedConfigsList
-              , indent $ toDoc $ "Note that Spago config files should be named " <> spagoYaml <> ", not spago.yml."
-              , Log.break
-              , toDoc "The configuration file help can be found here https://github.com/purescript/spago#the-configuration-file"
-              ]
-        ]
-
-determineSelectedPackage :: ∀ a.
-  { explicitlySelected :: Maybe PackageName
-  , inferredFromCwd :: Maybe PackageName
-  , rootPackage :: Maybe PackageName
-  , loadedPackages :: Map PackageName WorkspacePackage
-  }
+determineSelectedPackage
+  :: ∀ a
+   . { explicitlySelected :: Maybe PackageName
+     , inferredFromCwd :: Maybe PackageName
+     , rootPackage :: Maybe PackageName
+     , loadedPackages :: Map PackageName WorkspacePackage
+     }
   -> Spago (Registry.RegistryEnv a) (Maybe WorkspacePackage)
 determineSelectedPackage { explicitlySelected, inferredFromCwd, rootPackage, loadedPackages } = do
   let
@@ -394,12 +398,13 @@ determineSelectedPackage { explicitlySelected, inferredFromCwd, rootPackage, loa
 
   pure maybeSelected
 
-loadLockfile :: ∀ a.
-  { pureBuild :: Boolean
-  , workspaceConfig :: Core.WorkspaceConfig
-  , loadedPackages :: Map PackageName WorkspacePackage
-  , rootPath :: RootPath
-  }
+loadLockfile
+  :: ∀ a
+   . { pureBuild :: Boolean
+     , workspaceConfig :: Core.WorkspaceConfig
+     , loadedPackages :: Map PackageName WorkspacePackage
+     , rootPath :: RootPath
+     }
   -> Spago (Registry.RegistryEnv a) (Either String Lockfile)
 loadLockfile { pureBuild, workspaceConfig, loadedPackages, rootPath } = do
   logDebug "Parsing the lockfile..."
@@ -429,12 +434,13 @@ loadLockfile { pureBuild, workspaceConfig, loadedPackages, rootPath } = do
             logDebug "Lockfile is up to date, using it"
             pure (Right contents)
 
-loadPackageSet :: ∀ a.
-  { workspaceConfig :: Core.WorkspaceConfig
-  , loadedPackages :: Map PackageName WorkspacePackage
-  , rootPath :: RootPath
-  , lockfile :: Either String Lockfile
-  }
+loadPackageSet
+  :: ∀ a
+   . { workspaceConfig :: Core.WorkspaceConfig
+     , loadedPackages :: Map PackageName WorkspacePackage
+     , rootPath :: RootPath
+     , lockfile :: Either String Lockfile
+     }
   -> Spago (Registry.RegistryEnv a) { packageSet :: PackageSet, compiler :: Range }
 loadPackageSet { lockfile, workspaceConfig, loadedPackages, rootPath } = do
   { offline } <- ask

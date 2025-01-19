@@ -951,12 +951,13 @@ mkReplEnv replArgs dependencies supportPackage = do
     , selected
     }
 
-mkFetchEnv :: forall a b.
-  { offline :: OnlineStatus
-  , migrateConfig :: Boolean
-  , isRepl :: Boolean
-  | FetchArgsRow b
-  }
+mkFetchEnv
+  :: ∀ a b
+   . { offline :: OnlineStatus
+     , migrateConfig :: Boolean
+     , isRepl :: Boolean
+     | FetchArgsRow b
+     }
   -> Spago { logOptions :: LogOptions | a } { env :: Fetch.FetchEnv (), fetchOpts :: Fetch.FetchOpts }
 mkFetchEnv args@{ migrateConfig, offline } = do
   let
