@@ -8,7 +8,6 @@ import Effect.Aff (Milliseconds(..))
 import Test.Declarations as Declarations
 import Test.IndexBuilder as IndexBuilder
 import Test.ModuleIndex as ModuleIndex
-import Test.ModuleParser as ModuleParser
 import Test.Spec (Spec)
 import Test.Spec.Reporter.Console (consoleReporter)
 import Test.Spec.Runner.Node (runSpecAndExitProcess')
@@ -27,7 +26,6 @@ main = do
 
 mainTest :: Spec Unit
 mainTest = do
-  ModuleParser.tests
   TypeQuery.tests
   IndexBuilder.tests
   Declarations.tests

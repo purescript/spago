@@ -7,29 +7,33 @@ module Docs.Search.Declarations
   , resultsForDeclaration
   ) where
 
-import Docs.Search.Score (Scores, getPackageScore, getPackageScoreForPackageName)
-import Docs.Search.SearchResult (ResultInfo(..), SearchResult(..))
-import Docs.Search.TypeDecoder (Constraint(..), Qualified(..), Type(..), TypeArgument, TypeVarVisibility(..))
-import Docs.Search.TypeQuery as TypeQuery
-import Docs.Search.Types (PackageName(..), PackageInfo(..), Identifier(..))
-
 import Prelude
+
 import Control.Alt ((<|>))
 import Data.Array ((!!))
-import Data.Array as Array
 import Data.Foldable (foldl, foldr)
 import Data.List (List, (:))
 import Data.List as List
+import Data.Map as Map
 import Data.Maybe (Maybe(..), fromMaybe)
 import Data.Newtype (class Newtype)
 import Data.Search.Trie (Trie, alter)
+import Data.Set (Set)
+import Data.Set as Set
 import Data.String.CodeUnits (stripPrefix, stripSuffix, toCharArray)
 import Data.String.Common (split) as String
 import Data.String.Common (toLower)
 import Data.String.Pattern (Pattern(..))
 import Data.Tuple (Tuple(..))
-import Docs.Search.DocTypes (SourceSpan(..), Type', ChildDeclaration(..), ChildDeclarationInfo(..), QualifiedBy(..), ProperName(..), ModuleName(..), Declaration(..), DocModule(..), DeclarationInfo(..))
+import Docs.Search.DocTypes (ChildDeclaration(..), ChildDeclarationInfo(..), Declaration(..), DeclarationInfo(..), DocModule(..), ModuleName(..), ProperName(..), QualifiedBy(..), Type')
+import Docs.Search.Score (Scores, getPackageScore, getPackageScoreForPackageName)
+import Docs.Search.SearchResult (ResultInfo(..), SearchResult(..))
+import Docs.Search.TypeDecoder (Constraint(..), Qualified(..), Type(..), TypeArgument, TypeVarVisibility(..))
+import Docs.Search.TypeQuery as TypeQuery
+import Docs.Search.Types (PackageInfo(..), Identifier(..))
+import Registry.PackageName (PackageName)
 import Safe.Coerce (coerce)
+import Spago.Purs.Types as Graph
 
 newtype Declarations = Declarations (Trie Char (List SearchResult))
 
@@ -37,8 +41,8 @@ derive instance newtypeDeclarations :: Newtype Declarations _
 derive newtype instance semigroupDeclarations :: Semigroup Declarations
 derive newtype instance monoidDeclarations :: Monoid Declarations
 
-mkDeclarations :: Scores -> Array DocModule -> Declarations
-mkDeclarations scores = Declarations <<< foldr (insertDocModule scores) mempty
+mkDeclarations :: Graph.ModuleGraphWithPackage -> Set PackageName -> Scores -> Array DocModule -> Declarations
+mkDeclarations moduleGraph workspacePackages scores = Declarations <<< foldr (insertDocModule scores) mempty
   where
   insertDocModule
     :: Scores
@@ -47,15 +51,18 @@ mkDeclarations scores = Declarations <<< foldr (insertDocModule scores) mempty
     -> Trie Char (List SearchResult)
 
   insertDocModule _scores (DocModule { name, declarations }) trie =
-    foldr (insertDeclaration scores name) trie declarations
+    foldr (insertDeclaration moduleGraph workspacePackages scores name) trie declarations
 
 insertDeclaration
-  :: Scores
+  :: Graph.ModuleGraphWithPackage
+  -> Set PackageName
+  -> Scores
   -> ModuleName
   -> Declaration
   -> Trie Char (List SearchResult)
   -> Trie Char (List SearchResult)
-insertDeclaration scores moduleName entry@(Declaration { title: _ }) trie = foldr insertSearchResult trie (resultsForDeclaration scores moduleName entry)
+insertDeclaration moduleGraph workspacePackages scores moduleName entry@(Declaration { title: _ }) trie =
+  foldr insertSearchResult trie (resultsForDeclaration moduleGraph workspacePackages scores moduleName entry)
 
 insertSearchResult
   :: { path :: String
@@ -78,14 +85,16 @@ insertSearchResult { path, result } trie =
 -- | For each declaration, extract its own `SearchResult` and `SearchResult`s
 -- | corresponding to its children (e.g. a class declaration contains class members).
 resultsForDeclaration
-  :: Scores
+  :: Graph.ModuleGraphWithPackage
+  -> Set PackageName
+  -> Scores
   -> ModuleName
   -> Declaration
   -> List
        { path :: String
        , result :: SearchResult
        }
-resultsForDeclaration scores moduleName indexEntry@(Declaration entry) =
+resultsForDeclaration moduleGraph workspacePackages scores moduleName indexEntry@(Declaration entry) =
   case mkInfo declLevel indexEntry of
     Nothing -> mempty
     Just info' ->
@@ -113,10 +122,11 @@ resultsForDeclaration scores moduleName indexEntry@(Declaration entry) =
   where
   { title, sourceSpan, comments, children } = entry
   { name, declLevel } = getLevelAndName indexEntry
-  packageInfo = extractPackageName moduleName sourceSpan
+  packageInfo = extractPackageName moduleGraph workspacePackages moduleName
   mbPackageName =
     case packageInfo of
       Package packageName -> Just packageName
+      LocalPackage packageName -> Just packageName
       _ -> Nothing
 
 mkInfo :: DeclLevel -> Declaration -> Maybe ResultInfo
@@ -201,19 +211,15 @@ getLevelAndName (Declaration { info, title }) =
 -- | Extract package name from `sourceSpan.name`, which contains path to
 -- | the source file. If `ModuleName` string starts with `Prim.`, it's a
 -- | built-in (guaranteed by the compiler).
-extractPackageName :: ModuleName -> Maybe SourceSpan -> PackageInfo
-extractPackageName (ModuleName moduleName) _
-  | String.split (Pattern ".") moduleName !! 0 == Just "Prim" = Builtin
-extractPackageName _ Nothing = UnknownPackage
-extractPackageName _ (Just (SourceSpan { name })) =
-  fromMaybe LocalPackage do
-    topLevelDir <- dirs !! 0
-    if topLevelDir == ".spago" then Package <<< PackageName <$> dirs !! 2
-    else do
-      bowerDirIx <- Array.findIndex (_ == "bower_components") dirs
-      Package <<< PackageName <$> dirs !! (bowerDirIx + 1)
-  where
-  dirs = String.split (Pattern "/") name
+extractPackageName :: Graph.ModuleGraphWithPackage -> Set PackageName -> ModuleName -> PackageInfo
+extractPackageName moduleGraph workspacePackages (ModuleName moduleName) =
+  case String.split (Pattern ".") moduleName !! 0 == Just "Prim" of
+    true -> Builtin
+    false -> case Map.lookup moduleName moduleGraph of
+      Nothing -> UnknownPackage
+      Just { package } -> case Set.member package workspacePackages of
+        true -> LocalPackage package
+        false -> Package package
 
 -- | Extract `SearchResults` from a `ChildDeclaration`.
 resultsForChildDeclaration

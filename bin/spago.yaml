@@ -16,8 +16,6 @@ package:
     - foldable-traversable
     - lists
     - maybe
-    - node-path
-    - node-process
     - now
     - optparse
     - ordered-collections
@@ -26,9 +24,7 @@ package:
     - registry-lib
     - spago
     - spago-core
-    - strings
     - transformers
-    - unsafe-coerce
   bundle:
     module: Main
     outfile: bundle.js

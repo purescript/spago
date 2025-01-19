@@ -1,5 +1,9 @@
 -- | Partial type index, can be loaded on demand in the browser.
-module Docs.Search.TypeIndex where
+module Docs.Search.TypeIndex
+  ( TypeIndex(..)
+  , mkTypeIndex
+  , query
+  ) where
 
 import Prelude
 
@@ -10,8 +14,9 @@ import Data.Either (hush)
 import Data.Foldable (fold, foldr)
 import Data.Map (Map)
 import Data.Map as Map
-import Data.Maybe (Maybe(..), fromMaybe', isJust)
+import Data.Maybe (Maybe(..), fromMaybe')
 import Data.Newtype (class Newtype, over)
+import Data.Set (Set)
 import Docs.Search.Config as Config
 import Docs.Search.Declarations (resultsForDeclaration)
 import Docs.Search.DocTypes (Type')
@@ -24,13 +29,15 @@ import Effect (Effect)
 import Effect.Aff (Aff, try)
 import JSON (JSON)
 import Language.PureScript.Docs.Types (DocModule(..))
+import Registry.PackageName (PackageName)
+import Spago.Purs.Types as Graph
 
 newtype TypeIndex = TypeIndex (Map String (Maybe (Array SearchResult)))
 
 derive instance newtypeTypeIndex :: Newtype TypeIndex _
 
-mkTypeIndex :: Scores -> Array DocModule -> TypeIndex
-mkTypeIndex scores docsJsons =
+mkTypeIndex :: Graph.ModuleGraphWithPackage -> Set PackageName -> Scores -> Array DocModule -> TypeIndex
+mkTypeIndex moduleGraph workspacePackages scores docsJsons =
   TypeIndex $ map Just $ foldr insert Map.empty docsJsons
   where
   insert :: DocModule -> Map String (Array SearchResult) -> Map String (Array SearchResult)
@@ -43,18 +50,15 @@ mkTypeIndex scores docsJsons =
             Nothing -> identity
       )
       mp
-      (allResults scores docsJson)
+      (allResults moduleGraph workspacePackages scores docsJson)
 
-allResults :: Scores -> DocModule -> Array SearchResult
-allResults scores (DocModule { name, declarations }) =
+allResults :: Graph.ModuleGraphWithPackage -> Set PackageName -> Scores -> DocModule -> Array SearchResult
+allResults moduleGraph workspacePackages scores (DocModule { name, declarations }) =
   declarations >>=
-    ( resultsForDeclaration scores name
+    ( resultsForDeclaration moduleGraph workspacePackages scores name
         >>> map (_.result)
         >>> Array.fromFoldable
     )
-
-resultsWithTypes :: Scores -> DocModule -> Array SearchResult
-resultsWithTypes scores = Array.filter (getType >>> isJust) <<< allResults scores
 
 getType :: SearchResult -> Maybe Type'
 getType (SearchResult { info }) =

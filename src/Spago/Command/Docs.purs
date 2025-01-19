@@ -7,12 +7,14 @@ import Spago.Prelude
 
 import Control.Promise (Promise)
 import Control.Promise as Promise
+import Data.Set as Set
 import Docs.Search.Config as DocConfig
 import Docs.Search.IndexBuilder as IndexBuilder
 import Effect.Uncurried (EffectFn1, runEffectFn1)
 import Node.Process as Process
 import Spago.Command.Build as Build
 import Spago.Command.Fetch as Fetch
+import Spago.Command.Graph as Graph
 import Spago.Config (Workspace)
 import Spago.Config as Config
 import Spago.Purs (Purs, DocsFormat(..))
@@ -50,12 +52,13 @@ run = do
     _ -> pure unit
 
   when (docsFormat == Html) $ do
-    liftAff $ IndexBuilder.run'
+    { moduleGraph } <- Graph.graphModules'
+    liftAff $ IndexBuilder.run
       { docsFiles: DocConfig.defaultDocsFiles
-      , bowerFiles: DocConfig.defaultBowerFiles
+      , pursJsonFiles: DocConfig.defaultPursFiles
       , generatedDocs: "./generated-docs/"
-      , packageName: DocConfig.defaultPackageName
-      , sourceFiles: DocConfig.defaultSourceFiles
+      , workspacePackages: Set.fromFoldable $ map _.package.name $ Config.getWorkspacePackages workspace.packageSet
+      , moduleGraph
       }
 
     currentDir <- liftEffect Process.cwd

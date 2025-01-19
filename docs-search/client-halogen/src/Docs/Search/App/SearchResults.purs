@@ -1,6 +1,16 @@
 -- | This module contains a Halogen component for search results.
 module Docs.Search.App.SearchResults where
 
+import Prelude
+
+import Data.Array as Array
+import Data.List as List
+import Data.Maybe (Maybe(..), isJust, fromMaybe)
+import Data.Newtype (wrap, unwrap)
+import Data.String.CodeUnits (stripPrefix, stripSuffix) as String
+import Data.String.Common (null, trim) as String
+import Data.String.Pattern (Pattern(..)) as String
+import Data.Tuple (Tuple(..))
 import Docs.Search.App.SearchField (SearchFieldMessage(..))
 import Docs.Search.BrowserEngine (PartialIndex, browserSearchEngine)
 import Docs.Search.Config as Config
@@ -8,25 +18,15 @@ import Docs.Search.Declarations (DeclLevel(..), declLevelToHashAnchor)
 import Docs.Search.DocTypes (DataDeclType(..))
 import Docs.Search.Engine (Result(..), packageInfoToString)
 import Docs.Search.Engine as Engine
-import Docs.Search.Extra (homePageFromRepository, (>#>))
+import Docs.Search.Extra ((>#>))
+import Docs.Search.Meta (Meta)
 import Docs.Search.ModuleIndex (ModuleResult)
 import Docs.Search.PackageIndex (PackageResult)
 import Docs.Search.SearchResult (ResultInfo(..), SearchResult(..))
 import Docs.Search.TypeDecoder (Constraint(..), Constraint', Type', Qualified(..), QualifiedBy(..), ProperName(..), Type(..), TypeArgument, ClassName, FunDeps)
-import Docs.Search.TypeQuery as TypeQuery
 import Docs.Search.TypeIndex (TypeIndex)
-import Docs.Search.Types (Identifier, ModuleName(..), PackageName)
-import Docs.Search.Meta (Meta)
-
-import Prelude
-import Data.Array as Array
-import Data.List as List
-import Data.Maybe (Maybe(..), isJust, fromMaybe)
-import Data.Newtype (wrap, unwrap)
-import Data.String.CodeUnits (stripSuffix) as String
-import Data.String.Common (null, trim) as String
-import Data.String.Pattern (Pattern(..)) as String
-import Data.Tuple (Tuple(..))
+import Docs.Search.TypeQuery as TypeQuery
+import Docs.Search.Types (Identifier, ModuleName(..))
 import Effect.Aff (Aff)
 import Halogen as H
 import Halogen.HTML as HH
@@ -35,6 +35,8 @@ import Halogen.HTML.Properties as HP
 import Language.PureScript.PSString as PSString
 import MarkdownIt as MD
 import MarkdownIt.Renderer.Halogen as MDH
+import Registry.Location (Location(..))
+import Registry.PackageName as PackageName
 import Web.DOM.Element (Element)
 import Web.DOM.Element as Element
 import Web.HTML as HTML
@@ -56,7 +58,6 @@ type State =
   , resultsCount :: Int
   , mode :: Mode
   , markdownIt :: MD.MarkdownIt
-  , localPackageName :: PackageName
   }
 
 data Query a = MessageFromSearchField SearchFieldMessage a
@@ -72,7 +73,7 @@ mkComponent
   -> MD.MarkdownIt
   -> Meta
   -> H.Component Query i o Aff
-mkComponent initialEngineState contents markdownIt { localPackageName } =
+mkComponent initialEngineState contents markdownIt {} =
   H.mkComponent
     { initialState: const
         { engineState: initialEngineState
@@ -82,7 +83,6 @@ mkComponent initialEngineState contents markdownIt { localPackageName } =
         , resultsCount: Config.resultsCount
         , mode: Off
         , markdownIt
-        , localPackageName
         }
     , render
     , eval: H.mkEval $ H.defaultEval
@@ -257,9 +257,9 @@ renderPackageResult { name, description, repository } =
 
           , HH.a
               [ HP.class_ (wrap "result__link")
-              , HP.href $ fromMaybe "" repository # homePageFromRepository
+              , HP.href $ renderLocation repository
               ]
-              [ HH.text $ unwrap name ]
+              [ HH.text $ PackageName.print name ]
           ]
       ]
   ] <>
@@ -267,6 +267,15 @@ renderPackageResult { name, description, repository } =
       [ HH.div [ HP.class_ (wrap "result__body") ]
           [ HH.text descriptionText ]
       ]
+  where
+  -- TODO subdir
+  renderLocation :: Location -> String
+  renderLocation = case _ of
+    GitHub { owner, repo } -> "https://github.com/" <> owner <> "/" <> repo
+    Git { url } ->
+      fromMaybe url $ String.stripSuffix (wrap ".git")
+        $ fromMaybe url
+        $ String.stripPrefix (wrap "git:") url <#> ("https:" <> _)
 
 renderModuleResult
   :: forall a
@@ -331,7 +340,7 @@ renderSearchResult state (SearchResult result) =
               , HP.title "Package"
               ]
               [ HH.text "P" ]
-          , HH.text $ packageInfoToString state.localPackageName result.packageInfo
+          , HH.text $ packageInfoToString result.packageInfo
           ]
 
       , HH.span [ HP.class_ (wrap "result__actions__item") ]

@@ -1,11 +1,14 @@
-module Docs.Search.IndexBuilder where
+module Docs.Search.IndexBuilder
+  ( run
+  , patchHtml
+  , getPathsByGlobs
+  ) where
 
 import Prelude
 
 import Codec.JSON.DecodeError as CJ.DecodeError
 import Codec.Json.Unidirectional.Value as CJ.Codec
 import Data.Argonaut.Core (Json)
-import Data.Array (concat)
 import Data.Array as Array
 import Data.Codec.JSON as CJ
 import Data.Codec.JSON.Common as CJ.Common
@@ -20,6 +23,7 @@ import Data.Maybe (Maybe(..), fromMaybe)
 import Data.Newtype (unwrap)
 import Data.Profunctor.Choice (left)
 import Data.Search.Trie as Trie
+import Data.Set (Set)
 import Data.Set as Set
 import Data.String.CodePoints (contains) as String
 import Data.String.CodeUnits (singleton) as String
@@ -29,7 +33,8 @@ import Data.Traversable (for, for_)
 import Data.Tuple (Tuple(..), fst)
 import Data.Tuple.Nested ((/\))
 import Docs.Search.Config as Config
-import Docs.Search.Declarations (Declarations(..), mkDeclarations)
+import Docs.Search.Declarations (Declarations(..))
+import Docs.Search.Declarations as Declarations
 import Docs.Search.DocTypes (DocModule)
 import Docs.Search.DocTypes as Docs
 import Docs.Search.Extra ((>#>))
@@ -37,7 +42,6 @@ import Docs.Search.Meta (Meta)
 import Docs.Search.Meta as Meta
 import Docs.Search.ModuleIndex (PackedModuleIndex)
 import Docs.Search.ModuleIndex as ModuleIndex
-import Docs.Search.ModuleParser as ModuleParser
 import Docs.Search.PackageIndex (PackageInfo)
 import Docs.Search.PackageIndex as PackageIndex
 import Docs.Search.Score (mkScores)
@@ -45,9 +49,9 @@ import Docs.Search.SearchResult (SearchResult)
 import Docs.Search.SearchResult as SearchResult
 import Docs.Search.TypeIndex (TypeIndex)
 import Docs.Search.TypeIndex as TypeIndex
-import Docs.Search.Types (ModuleName, PackageName, PartId)
+import Docs.Search.Types (PartId)
 import Effect (Effect)
-import Effect.Aff (Aff, launchAff_, parallel, sequential)
+import Effect.Aff (Aff, parallel, sequential)
 import Effect.Class (liftEffect)
 import Effect.Console (log)
 import JSON (JSON)
@@ -58,33 +62,32 @@ import Node.FS.Stats (isDirectory, isFile)
 import Node.FS.Sync (exists)
 import Node.Path as Path
 import Node.Process as Process
+import Registry.Manifest (Manifest(..))
+import Registry.Manifest as Manifest
+import Registry.PackageName (PackageName)
+import Spago.Purs.Types as Graph
 import Unsafe.Coerce (unsafeCoerce)
-import Web.Bower.PackageMeta (PackageMeta(..))
 
 type Config =
   { docsFiles :: Array String
-  , bowerFiles :: Array String
+  , pursJsonFiles :: Array String
   , generatedDocs :: String
-  , packageName :: PackageName
-  , sourceFiles :: Array String
+  , workspacePackages :: Set PackageName
+  , moduleGraph :: Graph.ModuleGraphWithPackage
   }
 
-run :: Config -> Effect Unit
-run = launchAff_ <<< run'
-
-run' :: Config -> Aff Unit
-run' cfg = do
+run :: Config -> Aff Unit
+run cfg = do
 
   checkDirectories cfg
 
   liftEffect do
     log "Building the search index..."
 
-  docsJsons /\ moduleNames /\ packageMetas <- sequential $
-    (\d h m -> d /\ h /\ m)
+  docsJsons /\ packageMetas <- sequential $
+    (\d m -> d /\ m)
       <$> parallel (decodeDocsJsons cfg)
-      <*> parallel (parseModuleHeaders cfg.sourceFiles)
-      <*> parallel (decodeBowerJsons cfg)
+      <*> parallel (decodePursJsons cfg)
 
   let
     countOfPackages = Array.length packageMetas
@@ -100,11 +103,11 @@ run' cfg = do
 
   let
     scores = mkScores packageMetas
-    index = mkDeclarations scores docsJsons
-    typeIndex = TypeIndex.mkTypeIndex scores docsJsons
+    index = Declarations.mkDeclarations cfg.moduleGraph cfg.workspacePackages scores docsJsons
+    typeIndex = TypeIndex.mkTypeIndex cfg.moduleGraph cfg.workspacePackages scores docsJsons
     packageInfo = PackageIndex.mkPackageInfo scores packageMetas
-    moduleIndex = ModuleIndex.mkPackedModuleIndex index moduleNames
-    meta = { localPackageName: cfg.packageName }
+    moduleIndex = ModuleIndex.mkPackedModuleIndex cfg.moduleGraph cfg.workspacePackages index
+    meta = {}
 
   createDirectories cfg
 
@@ -197,40 +200,14 @@ decodeDocsJsons cfg@{ docsFiles } = do
 
   pure docsJsons
 
--- | This function accepts an array of globs pointing to project sources
--- | and returns a list of module names extracted from these files.
--- | Unfortunately, we can't get all module names from `docs.json`s, because
--- | reexport-only modules do not have a single declaration in them, so we can't
--- | count them normally in `mkPackedModuleIndex.extract`, where we only look at
--- | exported declarations.
-parseModuleHeaders :: Array String -> Aff (Array ModuleName)
-parseModuleHeaders globs = do
-  files <- getPathsByGlobs globs
-
-  -- we are not checking if the globs match at least one file, because
-  -- we want to support scenarios where there is no "current project"
-
-  concat <$> for files \filePath -> do
-    fileContents <- readTextFile UTF8 filePath
-    case ModuleParser.parseModuleName fileContents of
-      Nothing -> do
-        liftEffect $ log $
-          "Module header decoding failed for " <> filePath <>
-            ", unable to extract module name"
-        pure []
-      Just res -> pure [ res ]
-
-decodeBowerJsons
-  :: forall rest
-   . { bowerFiles :: Array String | rest }
-  -> Aff (Array PackageMeta)
-decodeBowerJsons { bowerFiles } = do
-  paths <- getPathsByGlobs bowerFiles
+decodePursJsons :: forall rest. { pursJsonFiles :: Array String | rest } -> Aff (Array Manifest)
+decodePursJsons { pursJsonFiles } = do
+  paths <- getPathsByGlobs pursJsonFiles
 
   when (Array.null paths) do
     liftEffect do
       logAndExit $
-        "The following globs do not match any files: " <> showGlobs bowerFiles <>
+        "The following globs do not match any files: " <> showGlobs pursJsonFiles <>
           ".\nAre you in a project directory?"
 
   Array.nubBy compareNames
@@ -241,18 +218,18 @@ decodeBowerJsons { bowerFiles } = do
           \contents ->
             either (logError jsonFileName) (pure <<< Just)
               ( JSON.parse contents >>=
-                  CJ.decode (PackageIndex.packageMetaCodec) >>>
+                  CJ.decode Manifest.codec >>>
                     left CJ.DecodeError.print
               )
 
   where
   compareNames
-    (PackageMeta { name: name1 })
-    (PackageMeta { name: name2 }) = compare name1 name2
+    (Manifest { name: name1 })
+    (Manifest { name: name2 }) = compare name1 name2
 
   logError fileName error = do
     liftEffect $ log $
-      "\"bower.json\" decoding failed for " <> fileName <> ": " <> error
+      "\"purs.json\" decoding failed for " <> fileName <> ": " <> error
     pure Nothing
 
 -- | Write type index parts to files.
