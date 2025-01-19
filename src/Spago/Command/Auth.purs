@@ -6,7 +6,6 @@ import Spago.Prelude
 import Data.Array as Array
 import Data.String (Pattern(..))
 import Data.String as String
-import Debug (traceM)
 import Registry.SSH as SSH
 import Spago.Command.Fetch (FetchEnv)
 import Spago.Config as Config
@@ -29,7 +28,6 @@ run { keyPath } = do
 
   newOwner <- FS.exists path >>= case _ of
     false -> do
-      traceM { path, keyPath }
       die $ "Cannot read public key at path " <> Path.quote path <> ": file does not exist."
     true -> do
       content <- FS.readTextFile path
