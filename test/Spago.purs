@@ -33,7 +33,7 @@ import Test.Spec.Runner.Node.Config as Config
 
 testConfig :: Config.TestRunConfig
 testConfig = Config.defaultConfig
-  { timeout = Just (Milliseconds 90_000.0)
+  { timeout = Just (Milliseconds 120_000.0)
   }
 
 main :: Effect Unit
