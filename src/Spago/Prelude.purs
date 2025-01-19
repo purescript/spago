@@ -1,9 +1,11 @@
 module Spago.Prelude
   ( HexString(..)
   , OnlineStatus(..)
+  , SpagoBaseEnv
   , isPrefix
   , mkTemp
   , mkTemp'
+  , module Spago.Path
   , module Spago.Core.Prelude
   , parTraverseSpago
   , parallelise
@@ -16,7 +18,6 @@ module Spago.Prelude
   , unsafeLog
   , unsafeStringify
   , withBackoff'
-  , withForwardSlashes
   ) where
 
 import Spago.Core.Prelude
@@ -28,7 +29,6 @@ import Data.Foldable as Foldable
 import Data.Function.Uncurried (Fn3, runFn3)
 import Data.Int as Int
 import Data.Maybe as Maybe
-import Data.String (Pattern(..), Replacement(..))
 import Data.String as String
 import Data.String.Extra (levenshtein)
 import Data.Traversable (class Traversable)
@@ -37,17 +37,24 @@ import Effect.Now as Now
 import JSON (JSON)
 import JSON as JSON
 import Node.Buffer as Buffer
-import Node.Path as Path
 import Partial.Unsafe (unsafeCrashWith)
 import Registry.Sha256 as Registry.Sha256
 import Registry.Sha256 as Sha256
 import Registry.Version as Version
+import Spago.Path (class IsPath, RawFilePath, GlobalPath, LocalPath, RootPath, (</>), withForwardSlashes)
+import Spago.Path as Path
 import Spago.Paths as Paths
 import Unsafe.Coerce (unsafeCoerce)
 
 data OnlineStatus = Offline | Online | OnlineBypassCache
 
 derive instance Eq OnlineStatus
+
+type SpagoBaseEnv a =
+  { rootPath :: Path.RootPath
+  , logOptions :: LogOptions
+  | a
+  }
 
 unsafeFromRight :: forall e a. Either e a -> a
 unsafeFromRight v = Either.fromRight' (\_ -> unsafeCrashWith $ "Unexpected Left: " <> unsafeStringify v) v
@@ -153,7 +160,7 @@ withBackoff { delay: Aff.Milliseconds timeout, action, shouldCancel, shouldRetry
   maybeResult <- runAction 0 action (Int.floor timeout)
   loop 1 maybeResult
 
-mkTemp' :: forall m. MonadAff m => Maybe String -> m FilePath
+mkTemp' :: forall m. MonadAff m => Maybe String -> m Path.GlobalPath
 mkTemp' maybeSuffix = liftAff do
   -- Get a random string
   (HexString random) <- liftEffect do
@@ -161,14 +168,11 @@ mkTemp' maybeSuffix = liftAff do
     sha <- Sha256.hashString $ show now <> fromMaybe "" maybeSuffix
     shaToHex sha
   -- Return the dir, but don't make it - that's the responsibility of the client
-  let tempDirPath = Path.concat [ Paths.paths.temp, String.drop 50 random ]
+  let tempDirPath = Paths.paths.temp </> String.drop 50 random
   pure tempDirPath
 
-mkTemp :: forall m. MonadAff m => m FilePath
+mkTemp :: forall m. MonadAff m => m Path.GlobalPath
 mkTemp = mkTemp' Nothing
-
-withForwardSlashes :: String -> String
-withForwardSlashes = String.replaceAll (Pattern "\\") (Replacement "/")
 
 isPrefix :: String.Pattern -> String -> Boolean
 isPrefix p = isJust <<< String.stripPrefix p

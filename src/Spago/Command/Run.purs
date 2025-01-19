@@ -13,19 +13,20 @@ import Data.Array as Array
 import Data.Array.NonEmpty as NEA
 import Data.Map as Map
 import Node.FS.Perms as Perms
-import Node.Path as Path
 import Registry.Version as Version
 import Spago.Cmd as Cmd
 import Spago.Command.Build as Build
 import Spago.Command.Fetch as Fetch
 import Spago.Config (Workspace, WorkspacePackage)
 import Spago.FS as FS
+import Spago.Path as Path
 import Spago.Paths as Paths
 import Spago.Purs (Purs, ModuleGraph(..))
 import Spago.Purs as Purs
 
 type RunEnv a =
   { logOptions :: LogOptions
+  , rootPath :: RootPath
   , workspace :: Workspace
   , runOptions :: RunOptions
   , selected :: WorkspacePackage
@@ -38,16 +39,16 @@ type RunEnv a =
 type RunOptions =
   { execArgs :: Array String
   , moduleName :: String
-  , executeDir :: FilePath
+  , executeDir :: GlobalPath
   , successMessage :: Maybe String
   , failureMessage :: String
   }
 
-type Node = { cmd :: String, version :: Version }
+type Node = { cmd :: GlobalPath, version :: Version }
 
 nodeVersion :: forall a. Spago (LogEnv a) Version
 nodeVersion =
-  Cmd.exec "node" [ "--version" ] Cmd.defaultExecOptions { pipeStdout = false, pipeStderr = false } >>= case _ of
+  Cmd.exec (Path.global "node") [ "--version" ] Cmd.defaultExecOptions { pipeStdout = false, pipeStderr = false } >>= case _ of
     Left r -> do
       logDebug $ Cmd.printExecResult r
       die [ "Failed to find node. Have you installed it, and is it in your PATH?" ]
@@ -62,30 +63,30 @@ nodeVersion =
 getNode :: forall a. Spago (LogEnv a) Node
 getNode = do
   version <- nodeVersion
-  pure { cmd: "node", version }
+  pure { cmd: Path.global "node", version }
 
 run :: forall a. Spago (RunEnv a) Unit
 run = do
-  { workspace, node, runOptions: opts, dependencies, selected } <- ask
+  { workspace, node, runOptions: opts, dependencies, selected, rootPath } <- ask
   let execOptions = Cmd.defaultExecOptions { pipeStdin = Cmd.StdinPipeParent }
 
   case workspace.backend of
     Nothing -> do
       logDebug "Running with backend: nodejs"
-      let runDir = Path.concat [ Paths.localCachePath, "run" ]
+      let runDir = rootPath </> Paths.localCachePath </> "run"
       FS.mkdirp runDir
-      absOutput <- liftEffect $ Path.resolve [] $ fromMaybe "output" workspace.buildOptions.output
+      absOutput <- liftEffect $ Path.toAbsolute $ fromMaybe (rootPath </> "output") workspace.buildOptions.output
       let
-        runJsPath = Path.concat [ runDir, "run.js" ]
-        packageJsonPath = Path.concat [ runDir, "package.json" ]
+        runJsPath = runDir </> "run.js"
+        packageJsonPath = runDir </> "package.json"
         packageJsonContents = "{\"type\":\"module\" }"
 
-        nodeArgs = [ runJsPath ] <> opts.execArgs
+        nodeArgs = [ Path.toRaw runJsPath ] <> opts.execArgs
 
         nodeContents =
           Array.fold
             [ "import { main } from 'file://"
-            , withForwardSlashes absOutput
+            , Path.toRaw (withForwardSlashes absOutput)
             , "/"
             , opts.moduleName
             , "/"
@@ -97,13 +98,14 @@ run = do
       -- We check that the module we're about to run is included in the build and spit out a nice error if it isn't (see #383)
       let
         globs = Build.getBuildGlobs
-          { dependencies: Fetch.toAllDependencies dependencies
+          { rootPath
+          , dependencies: Fetch.toAllDependencies dependencies
           , depsOnly: false
           -- Here we include tests as well, because we use this code for `spago run` and `spago test`
           , withTests: true
           , selected: NEA.singleton selected
           }
-      Purs.graph globs [] >>= case _ of
+      Purs.graph rootPath globs [] >>= case _ of
         Left err -> logWarn $ "Could not decode the output of `purs graph`, error: " <> CJ.DecodeError.print err
         Right (ModuleGraph graph) -> do
           when (isNothing $ Map.lookup opts.moduleName graph) do
@@ -126,7 +128,7 @@ run = do
     Just backend -> do
       let args = [ "--run", opts.moduleName <> ".main" ] <> opts.execArgs
       logDebug $ "Running command `" <> backend.cmd <> " " <> show args <> "`"
-      Cmd.exec backend.cmd args execOptions >>= case _ of
+      Cmd.exec (Path.global backend.cmd) args execOptions >>= case _ of
         Right _ -> case opts.successMessage of
           Just m -> logSuccess m
           Nothing -> pure unit

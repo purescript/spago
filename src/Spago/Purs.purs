@@ -12,6 +12,7 @@ import Node.Library.Execa (ExecaResult)
 import Registry.Internal.Codec as Internal.Codec
 import Registry.Version as Version
 import Spago.Cmd as Cmd
+import Spago.Path as Path
 
 type PursEnv a =
   { purs :: Purs
@@ -20,16 +21,16 @@ type PursEnv a =
   }
 
 type Purs =
-  { cmd :: FilePath
+  { cmd :: GlobalPath
   , version :: Version
   }
 
-getPurs :: forall a. Spago (LogEnv a) Purs
+getPurs :: ∀ a. Spago (LogEnv a) Purs
 getPurs = Cmd.getExecutable "purs" >>= parseVersionOutput
 
 -- Drop the stuff after a space: dev builds look like this: 0.15.6 [development build; commit: 8da7e96005f717f03d6eee3c12b1f1416659a919]
 -- Drop the stuff after a hyphen: prerelease builds look like this: 0.15.6-2
-parseVersionOutput :: forall a. { cmd :: String, output :: String } -> Spago (LogEnv a) Purs
+parseVersionOutput :: ∀ a. { cmd :: GlobalPath, output :: String } -> Spago (LogEnv a) Purs
 parseVersionOutput { cmd, output: stdout } = case parseLenientVersion (dropStuff "-" $ dropStuff " " stdout) of
   Left _err -> die $ "Failed to parse purs version. Was: " <> stdout
   -- Fail if Purs is lower than 0.15.4
@@ -41,10 +42,10 @@ parseVersionOutput { cmd, output: stdout } = case parseLenientVersion (dropStuff
   where
   dropStuff pattern = fromMaybe "" <<< Array.head <<< String.split (String.Pattern pattern)
 
-compile :: forall a. Set FilePath -> Array String -> Spago (PursEnv a) (Either ExecaResult ExecaResult)
-compile globs pursArgs = do
+compile :: ∀ a. RootPath -> Set LocalPath -> Array String -> Spago (PursEnv a) (Either ExecaResult ExecaResult)
+compile cwd globs pursArgs = do
   { purs } <- ask
-  let args = [ "compile" ] <> pursArgs <> Set.toUnfoldable globs
+  let args = [ "compile" ] <> pursArgs <> globsToArgs cwd globs
   logDebug [ "Running command:", "purs " <> String.joinWith " " args ]
   -- PureScript (as of v0.14.0) outputs the compiler errors/warnings to `stdout`
   -- and outputs "Compiling..." messages to `stderr`
@@ -52,17 +53,23 @@ compile globs pursArgs = do
   -- However, we do not pipe `stdout` to the parent, so that we don't see the errors reported twice:
   -- once via `purs` and once via spago's pretty-printing of the same errors/warnings.
   Cmd.exec purs.cmd args $ Cmd.defaultExecOptions
-    { pipeStdout = false }
+    { pipeStdout = false
+    , cwd = Just $ Path.toGlobal cwd
+    }
 
-repl :: forall a. Set FilePath -> Array String -> Spago (PursEnv a) (Either ExecaResult ExecaResult)
-repl globs pursArgs = do
+repl :: ∀ a. RootPath -> Set LocalPath -> Array String -> Spago (PursEnv a) (Either ExecaResult ExecaResult)
+repl cwd globs pursArgs = do
   { purs } <- ask
-  let args = [ "repl" ] <> pursArgs <> Set.toUnfoldable globs
+  let args = [ "repl" ] <> pursArgs <> globsToArgs cwd globs
   Cmd.exec purs.cmd args $ Cmd.defaultExecOptions
     { pipeStdout = true
     , pipeStderr = true
     , pipeStdin = Cmd.StdinPipeParent
+    , cwd = Just $ Path.toGlobal cwd
     }
+
+globsToArgs :: RootPath -> Set LocalPath -> Array String
+globsToArgs cwd globs = Path.localPart <<< (_ `Path.relativeTo` cwd) <$> Set.toUnfoldable globs
 
 data DocsFormat
   = Html
@@ -87,12 +94,13 @@ printDocsFormat = case _ of
   Ctags -> "ctags"
   Etags -> "etags"
 
-docs :: forall a. Set FilePath -> DocsFormat -> Spago (PursEnv a) (Either ExecaResult ExecaResult)
-docs globs format = do
+docs :: ∀ a. RootPath -> Set LocalPath -> DocsFormat -> Spago (PursEnv a) (Either ExecaResult ExecaResult)
+docs cwd globs format = do
   { purs } <- ask
-  let args = [ "docs", "--format", printDocsFormat format ] <> Set.toUnfoldable globs
+  let args = [ "docs", "--format", printDocsFormat format ] <> globsToArgs cwd globs
   Cmd.exec purs.cmd args $ Cmd.defaultExecOptions
-    { pipeStdout = true
+    { cwd = Just $ Path.toGlobal cwd
+    , pipeStdout = true
     , pipeStderr = true
     , pipeStdin = Cmd.StdinPipeParent
     }
@@ -120,13 +128,17 @@ moduleGraphNodeCodec = CJ.named "ModuleGraphNode" $ CJ.Record.object
   , depends: CJ.array CJ.string
   }
 
-graph :: forall a. Set FilePath -> Array String -> Spago (PursEnv a) (Either CJ.DecodeError ModuleGraph)
-graph globs pursArgs = do
+graph :: ∀ a. RootPath -> Set LocalPath -> Array String -> Spago (PursEnv a) (Either CJ.DecodeError ModuleGraph)
+graph cwd globs pursArgs = do
   { purs } <- ask
-  let args = [ "graph" ] <> pursArgs <> Set.toUnfoldable globs
+  let args = [ "graph" ] <> pursArgs <> globsToArgs cwd globs
   logDebug [ "Running command:", "purs " <> String.joinWith " " args ]
-  let execOpts = Cmd.defaultExecOptions { pipeStdout = false, pipeStderr = false }
-  Cmd.exec purs.cmd args execOpts >>= case _ of
+  result <- Cmd.exec purs.cmd args $ Cmd.defaultExecOptions
+    { cwd = Just $ Path.toGlobal cwd
+    , pipeStdout = false
+    , pipeStderr = false
+    }
+  case result of
     Right r -> do
       logDebug "Called `purs graph`, decoding.."
       pure $ parseJson moduleGraphCodec r.stdout

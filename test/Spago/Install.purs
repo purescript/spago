@@ -5,13 +5,12 @@ import Test.Prelude
 import Data.Array as Array
 import Data.Map as Map
 import Effect.Now as Now
-import Node.FS.Aff as FSA
-import Node.Path as Path
 import Registry.Version as Version
 import Spago.Command.Init as Init
 import Spago.Core.Config as Config
 import Spago.FS as FS
 import Spago.Log (LogVerbosity(..))
+import Spago.Path as Path
 import Spago.Paths as Paths
 import Spago.Purs as Purs
 import Test.Spec (Spec)
@@ -36,19 +35,19 @@ spec = Spec.around withTempDir do
     --   -- dep added without "purescript-" prefix
     --   checkFixture "spago.yaml" (fixture "spago-strips-purescript.yaml")
 
-    Spec.it "adds dependencies to the config file" \{ spago, fixture } -> do
+    Spec.it "adds dependencies to the config file" \{ spago, fixture, testCwd } -> do
       spago [ "init", "--name", "aaa", "--package-set", "29.3.0" ] >>= shouldBeSuccess
       spago [ "install", "foreign" ] >>= shouldBeSuccess
-      checkFixture "spago.yaml" (fixture "spago-install-success.yaml")
+      checkFixture (testCwd </> "spago.yaml") (fixture "spago-install-success.yaml")
 
-    Spec.it "adds test dependencies to the config file" \{ spago, fixture } -> do
+    Spec.it "adds test dependencies to the config file" \{ spago, fixture, testCwd } -> do
       spago [ "init", "--name", "aaa", "--package-set", "29.3.0" ] >>= shouldBeSuccess
       spago [ "install", "--test-deps", "foreign" ] >>= shouldBeSuccess
-      checkFixture "spago.yaml" (fixture "spago-install-test-deps-success.yaml")
+      checkFixture (testCwd </> "spago.yaml") (fixture "spago-install-test-deps-success.yaml")
 
-    Spec.it "adds test dependencies to the config file when the test section does not exist" \{ spago, fixture } -> do
+    Spec.it "adds test dependencies to the config file when the test section does not exist" \{ spago, fixture, testCwd } -> do
       spago [ "init", "--name", "aaa", "--package-set", "29.3.0" ] >>= shouldBeSuccess
-      let spagoYaml = "spago.yaml"
+      let spagoYaml = testCwd </> "spago.yaml"
       FS.unlink spagoYaml
       FS.copyFile
         { src: fixture "no-test-section.yaml"
@@ -57,12 +56,12 @@ spec = Spec.around withTempDir do
       spago [ "install", "--test-deps", "foreign" ] >>= shouldBeSuccess
       checkFixture spagoYaml (fixture "spago-install-test-deps-success.yaml")
 
-    Spec.it "can't add dependencies that are not in the package set" \{ spago, fixture } -> do
+    Spec.it "can't add dependencies that are not in the package set" \{ spago, fixture, testCwd } -> do
       spago [ "init", "--name", "aaaa", "--package-set", "29.3.0" ] >>= shouldBeSuccess
       spago [ "install", "foo-foo-foo", "bar-bar-bar", "effcet", "arrys" ] >>= shouldBeFailureErr (fixture "missing-dependencies.txt")
-      checkFixture "spago.yaml" (fixture "spago-install-failure.yaml")
+      checkFixture (testCwd </> "spago.yaml") (fixture "spago-install-failure.yaml")
 
-    Spec.it "does not allow circular dependencies" \{ spago, fixture } -> do
+    Spec.it "does not allow circular dependencies" \{ spago, fixture, testCwd } -> do
       spago [ "init" ] >>= shouldBeSuccess
       let
         conf = Init.defaultConfig
@@ -72,7 +71,7 @@ spec = Spec.around withTempDir do
               }
           , testModuleName: "Test.Main"
           }
-      FS.writeYamlFile Config.configCodec "spago.yaml"
+      FS.writeYamlFile Config.configCodec (testCwd </> "spago.yaml")
         ( conf
             { workspace = conf.workspace # map
                 ( _
@@ -96,14 +95,14 @@ spec = Spec.around withTempDir do
         )
       spago [ "install", "a", "b" ] >>= shouldBeFailureErr (fixture "circular-dependencies.txt")
 
-    Spec.it "installs a package in the set from a commit hash" \{ spago } -> do
+    Spec.it "installs a package in the set from a commit hash" \{ spago, testCwd } -> do
       spago [ "init" ] >>= shouldBeSuccess
-      writeConfigWithEither
+      writeConfigWithEither testCwd
       spago [ "install", "either" ] >>= shouldBeSuccess
 
-    Spec.it "can't install (uncached) dependencies if offline" \{ spago, fixture } -> do
+    Spec.it "can't install (uncached) dependencies if offline" \{ spago, fixture, testCwd } -> do
       spago [ "init" ] >>= shouldBeSuccess
-      writeConfigWithEither
+      writeConfigWithEither testCwd
       spago [ "install", "--offline", "either" ] >>= shouldBeFailureErr (fixture "offline.txt")
 
     Spec.it "installs a package version by branch name with / in it" \{ spago, testCwd } -> do
@@ -116,7 +115,7 @@ spec = Spec.around withTempDir do
               }
           , testModuleName: "Test.Main"
           }
-      FS.writeYamlFile Config.configCodec "spago.yaml"
+      FS.writeYamlFile Config.configCodec (testCwd </> "spago.yaml")
         ( conf
             { workspace = conf.workspace # map
                 ( _
@@ -133,14 +132,14 @@ spec = Spec.around withTempDir do
             }
         )
       spago [ "install", "nonexistent-package" ] >>= shouldBeSuccess
-      let slashyPath = Path.concat [ Paths.toLocalCachePackagesPath testCwd, "nonexistent-package", "spago-test%2fbranch-with-slash" ]
+      let slashyPath = testCwd </> Paths.localCachePackagesPath </> "nonexistent-package" </> "spago-test%2fbranch-with-slash"
       unlessM (FS.exists slashyPath) do
-        Assertions.fail $ "Expected path to exist: " <> slashyPath
-      kids <- FSA.readdir slashyPath
+        Assertions.fail $ "Expected path to exist: " <> Path.quote slashyPath
+      kids <- FS.ls slashyPath
       when (Array.length kids == 0) do
-        Assertions.fail $ "Expected path exists but contains nothing: " <> slashyPath
+        Assertions.fail $ "Expected path exists but contains nothing: " <> Path.quote slashyPath
 
-    Spec.it "installs a package not in the set from a commit hash" \{ spago } -> do
+    Spec.it "installs a package not in the set from a commit hash" \{ spago, testCwd } -> do
       spago [ "init" ] >>= shouldBeSuccess
       let
         conf = Init.defaultConfig
@@ -150,7 +149,7 @@ spec = Spec.around withTempDir do
               }
           , testModuleName: "Test.Main"
           }
-      FS.writeYamlFile Config.configCodec "spago.yaml"
+      FS.writeYamlFile Config.configCodec (testCwd </> "spago.yaml")
         ( conf
             { workspace = conf.workspace # map
                 ( _
@@ -168,7 +167,7 @@ spec = Spec.around withTempDir do
         )
       spago [ "install", "spago" ] >>= shouldBeSuccess
 
-    Spec.it "can't install a package from a not-existing commit hash" \{ spago } -> do
+    Spec.it "can't install a package from a not-existing commit hash" \{ spago, testCwd } -> do
       spago [ "init" ] >>= shouldBeSuccess
       let
         conf = Init.defaultConfig
@@ -178,7 +177,7 @@ spec = Spec.around withTempDir do
               }
           , testModuleName: "Test.Main"
           }
-      FS.writeYamlFile Config.configCodec "spago.yaml"
+      FS.writeYamlFile Config.configCodec (testCwd </> "spago.yaml")
         ( conf
             { workspace = conf.workspace # map
                 ( _
@@ -196,13 +195,14 @@ spec = Spec.around withTempDir do
         )
       spago [ "install", "spago" ] >>= shouldBeFailure
 
-    Spec.it "can update dependencies in a sub-package" \{ spago, fixture } -> do
+    Spec.it "can update dependencies in a sub-package" \{ spago, fixture, testCwd } -> do
+      let subpackage = testCwd </> "subpackage"
       spago [ "init" ] >>= shouldBeSuccess
-      FS.mkdirp "subpackage/src"
-      FS.mkdirp "subpackage/test"
-      FS.writeTextFile "subpackage/src/Main.purs" (Init.srcMainTemplate "Subpackage.Main")
-      FS.writeTextFile "subpackage/test/Main.purs" (Init.testMainTemplate "Subpackage.Test.Main")
-      FS.writeYamlFile Config.configCodec "subpackage/spago.yaml"
+      FS.mkdirp (subpackage </> "src")
+      FS.mkdirp (subpackage </> "test")
+      FS.writeTextFile (subpackage </> "src" </> "Main.purs") (Init.srcMainTemplate "Subpackage.Main")
+      FS.writeTextFile (subpackage </> "test" </> "Main.purs") (Init.testMainTemplate "Subpackage.Test.Main")
+      FS.writeYamlFile Config.configCodec (subpackage </> "spago.yaml")
         ( Init.defaultConfig
             { name: mkPackageName "subpackage"
             , withWorkspace: Nothing
@@ -210,7 +210,7 @@ spec = Spec.around withTempDir do
             }
         )
       spago [ "install", "-p", "subpackage", "either" ] >>= shouldBeSuccess
-      checkFixture "subpackage/spago.yaml" (fixture "spago-subpackage-install-success.yaml")
+      checkFixture (subpackage </> "spago.yaml") (fixture "spago-subpackage-install-success.yaml")
 
     Spec.it "can build with a newer (but still compatible) compiler than the one in the package set" \{ spago } -> do
       spago [ "init", "--package-set", "10.0.0" ] >>= shouldBeSuccess
@@ -222,20 +222,20 @@ spec = Spec.around withTempDir do
         false -> Assert.fail $ "Expected purs version to be newer than 0.15.4, but it was " <> Version.print purs.version
       spago [ "install" ] >>= shouldBeSuccess
 
-    Spec.it "can refresh the lockfile, and uninstall restores it" \{ spago, fixture } -> do
+    Spec.it "can refresh the lockfile, and uninstall restores it" \{ spago, fixture, testCwd } -> do
       spago [ "init", "--name", "aaa", "--package-set", "33.0.0" ] >>= shouldBeSuccess
       spago [ "build" ] >>= shouldBeSuccess
       -- Check that we have written the lockfile
-      checkFixture "spago.lock" (fixture "spago.lock")
+      checkFixture (testCwd </> "spago.lock") (fixture "spago.lock")
       spago [ "install", "maybe" ] >>= shouldBeSuccess
       -- Check that the new lockfile includes maybe
-      checkFixture "spago.lock" (fixture "spago-with-maybe.lock")
+      checkFixture (testCwd </> "spago.lock") (fixture "spago-with-maybe.lock")
       spago [ "uninstall", "maybe" ] >>= shouldBeSuccess
       -- Check that the lockfile is back to the original
-      checkFixture "spago.lock" (fixture "spago.lock")
+      checkFixture (testCwd </> "spago.lock") (fixture "spago.lock")
 
-writeConfigWithEither :: Aff Unit
-writeConfigWithEither = do
+writeConfigWithEither :: RootPath -> Aff Unit
+writeConfigWithEither root = do
   -- The commit for `either` is for the `v6.1.0` release
   let
     conf = Init.defaultConfig
@@ -245,7 +245,7 @@ writeConfigWithEither = do
           }
       , testModuleName: "Test.Main"
       }
-  FS.writeYamlFile Config.configCodec "spago.yaml"
+  FS.writeYamlFile Config.configCodec (root </> "spago.yaml")
     ( conf
         { workspace = conf.workspace # map
             ( _

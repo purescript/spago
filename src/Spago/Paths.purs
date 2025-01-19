@@ -1,61 +1,74 @@
-module Spago.Paths where
+module Spago.Paths
+  ( chdir
+  , cwd
+  , databasePath
+  , databaseVersion
+  , globalCachePath
+  , localCacheGitPath
+  , localCachePackagesPath
+  , localCachePath
+  , packageSetsPath
+  , paths
+  , registryIndexPath
+  , registryPath
+  ) where
 
 import Prelude
 
-import Effect.Unsafe (unsafePerformEffect)
-import Node.Path (FilePath)
-import Node.Path as Path
+import Effect.Class (class MonadEffect, liftEffect)
+import Node.Path as Node.Path
 import Node.Process as Process
+import Spago.Path (class IsPath, RawFilePath, GlobalPath, global, toRaw, (</>))
 
-type NodePaths =
-  { config :: FilePath
-  , data :: FilePath
-  , cache :: FilePath
-  , log :: FilePath
-  , temp :: FilePath
+type NodePaths p =
+  { config :: p
+  , data :: p
+  , cache :: p
+  , log :: p
+  , temp :: p
   }
 
-foreign import paths :: NodePaths
+foreign import paths_ :: NodePaths String
 
-cwd :: FilePath
-cwd = unsafePerformEffect (Process.cwd)
+paths :: NodePaths GlobalPath
+paths =
+  { config: global paths_.config
+  , data: global paths_.data
+  , cache: global paths_.cache
+  , log: global paths_.log
+  , temp: global paths_.temp
+  }
 
-mkRelative :: FilePath -> FilePath
-mkRelative = Path.relative cwd
+cwd :: ∀ m. MonadEffect m => m GlobalPath
+cwd = global <$> liftEffect Process.cwd
 
-globalCachePath :: FilePath
+chdir :: ∀ m path. MonadEffect m => IsPath path => path -> m Unit
+chdir path = liftEffect $ Process.chdir (toRaw path)
+
+globalCachePath :: GlobalPath
 globalCachePath = paths.cache
 
-localCachePath :: FilePath
-localCachePath = toLocalCachePath cwd
+localCachePath :: RawFilePath
+localCachePath = ".spago"
 
-localCachePackagesPath :: FilePath
-localCachePackagesPath = toLocalCachePackagesPath cwd
+localCachePackagesPath :: RawFilePath
+localCachePackagesPath = Node.Path.concat [ localCachePath, "p" ]
 
-localCacheGitPath :: FilePath
-localCacheGitPath = toLocalCacheGitPath cwd
+localCacheGitPath :: RawFilePath
+localCacheGitPath = Node.Path.concat [ localCachePath, "g" ]
 
-toLocalCachePath :: FilePath -> FilePath
-toLocalCachePath rootDir = Path.concat [ rootDir, ".spago" ]
+registryPath ∷ GlobalPath
+registryPath = globalCachePath </> "registry"
 
-toLocalCachePackagesPath :: FilePath -> FilePath
-toLocalCachePackagesPath rootDir = Path.concat [ toLocalCachePath rootDir, "p" ]
+registryIndexPath ∷ GlobalPath
+registryIndexPath = globalCachePath </> "registry-index"
 
-toLocalCacheGitPath :: FilePath -> FilePath
-toLocalCacheGitPath rootDir = Path.concat [ toLocalCachePath rootDir, "g" ]
-
-registryPath ∷ FilePath
-registryPath = Path.concat [ globalCachePath, "registry" ]
-
-registryIndexPath ∷ FilePath
-registryIndexPath = Path.concat [ globalCachePath, "registry-index" ]
-
-packageSetsPath :: FilePath
-packageSetsPath = Path.concat [ registryPath, "package-sets" ]
+packageSetsPath :: GlobalPath
+packageSetsPath = registryPath </> "package-sets"
 
 -- | We should bump this number every time we change the database schema in a breaking way
 databaseVersion :: Int
 databaseVersion = 2
 
-databasePath :: FilePath
-databasePath = Path.concat [ globalCachePath, "spago.v" <> show databaseVersion <> ".sqlite" ]
+databasePath :: GlobalPath
+databasePath = globalCachePath </> ("spago.v" <> show databaseVersion <> ".sqlite")

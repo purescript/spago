@@ -35,7 +35,6 @@ import Effect.Aff.AVar as AVar
 import Effect.Exception as Exception
 import Effect.Now as Now
 import Fetch as Http
-import Node.Path as Path
 import Node.Process as Process
 import Registry.API.V1 as V1
 import Registry.Constants as Registry.Constants
@@ -55,6 +54,7 @@ import Spago.Git (GitEnv)
 import Spago.Git as Git
 import Spago.Json as Json
 import Spago.Log (LogVerbosity(..))
+import Spago.Path as Path
 import Spago.Paths as Paths
 import Spago.Purs as Purs
 
@@ -128,7 +128,7 @@ readPackageSet version = do
   { readPackageSet: fn } <- runSpago { logOptions, db, git, purs, offline } getRegistry
   runSpago { logOptions } (fn version)
 
-getRegistryFns :: AVar RegistryFunctions -> AVar Unit -> Spago (PreRegistryEnv _) RegistryFunctions
+getRegistryFns :: AVar RegistryFunctions -> AVar Unit -> Spago (PreRegistryEnv ()) RegistryFunctions
 getRegistryFns registryBox registryLock = do
   -- The Box AVar will be empty until the first time we fetch the Registry, then
   -- we can just use the value that is cached.
@@ -159,7 +159,7 @@ getRegistryFns registryBox registryLock = do
         { getManifestFromIndex: getManifestFromIndexImpl db
         , getMetadata: getMetadataImpl db offline
         , getMetadataForPackages: getMetadataForPackagesImpl db offline
-        , listMetadataFiles: FS.ls (Path.concat [ Paths.registryPath, Registry.Constants.metadataDirectory ])
+        , listMetadataFiles: FS.ls $ Paths.registryPath </> Registry.Constants.metadataDirectory
         , listPackageSets: listPackageSetsImpl
         , findPackageSet: findPackageSetImpl
         , readPackageSet: readPackageSetImpl
@@ -191,7 +191,7 @@ getRegistryFns registryBox registryLock = do
     pure fetchingFreshRegistry
 
   -- | Update the database with the latest package sets
-  updatePackageSetsDb :: Db -> Spago (LogEnv _) Unit
+  updatePackageSetsDb :: ∀ a. Db -> Spago (LogEnv a) Unit
   updatePackageSetsDb db = do
     { logOptions } <- ask
     setsAvailable <- map Set.fromFoldable getAvailablePackageSets
@@ -209,7 +209,7 @@ getRegistryFns registryBox registryLock = do
           liftEffect $ Db.insertPackageSetEntry db { packageName: name, packageVersion: version, packageSetVersion: set.version }
 
   -- | List all the package sets versions available in the Registry repo
-  getAvailablePackageSets :: Spago (LogEnv _) (Array Version)
+  getAvailablePackageSets :: ∀ a. Spago (LogEnv a) (Array Version)
   getAvailablePackageSets = do
     { success: setVersions, fail: parseFailures } <- map (partitionEithers <<< map parseSetVersion) $ FS.ls Paths.packageSetsPath
 
@@ -225,7 +225,7 @@ getRegistryFns registryBox registryLock = do
   readPackageSetImpl :: Version -> Spago (LogEnv ()) PackageSet
   readPackageSetImpl setVersion = do
     logDebug "Reading the package set from the Registry repo..."
-    let packageSetPath = Path.concat [ Paths.packageSetsPath, Version.print setVersion <> ".json" ]
+    let packageSetPath = Paths.packageSetsPath </> (Version.print setVersion <> ".json")
     liftAff (FS.readJsonFile PackageSet.codec packageSetPath) >>= case _ of
       Left err -> die $ "Couldn't read the package set: " <> err
       Right registryPackageSet -> do
@@ -264,8 +264,8 @@ getMetadataForPackagesImpl db onlineStatus names = do
   where
   metadataFromFile :: PackageName -> Spago (LogEnv ()) (Either String (Tuple PackageName Metadata))
   metadataFromFile pkgName = do
-    let metadataFilePath = Path.concat [ Paths.registryPath, Registry.Constants.metadataDirectory, PackageName.print pkgName <> ".json" ]
-    logDebug $ "Reading metadata from file: " <> metadataFilePath
+    let metadataFilePath = Paths.registryPath </> Registry.Constants.metadataDirectory </> (PackageName.print pkgName <> ".json")
+    logDebug $ "Reading metadata from file: " <> Path.quote metadataFilePath
     liftAff (FS.readJsonFile Metadata.codec metadataFilePath) >>= case _ of
       Left e -> pure $ Left e
       Right m -> do
@@ -282,7 +282,7 @@ getManifestFromIndexImpl db name version = do
       -- if we don't have it we need to read it from file
       -- (note that we have all the versions of a package in the same file)
       logDebug $ "Reading package from Index: " <> PackageName.print name
-      maybeManifests <- liftAff $ ManifestIndex.readEntryFile Paths.registryIndexPath name
+      maybeManifests <- liftAff $ ManifestIndex.readEntryFile (Path.toRaw Paths.registryIndexPath) name
       manifests <- map (map (\m@(Manifest m') -> Tuple m'.version m)) case maybeManifests of
         Right ms -> pure $ NonEmptyArray.toUnfoldable ms
         Left err -> do
@@ -350,7 +350,7 @@ isVersionCompatible installedVersion minVersion =
       _, _ -> false
 
 -- | Check if we have fetched the registry recently enough, so we don't hit the net all the time
-shouldFetchRegistryRepos :: forall a. Db -> Spago (LogEnv a) Boolean
+shouldFetchRegistryRepos :: ∀ a. Db -> Spago (LogEnv a) Boolean
 shouldFetchRegistryRepos db = do
   now <- liftEffect $ Now.nowDateTime
   let registryKey = "registry"

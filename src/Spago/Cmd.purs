@@ -13,6 +13,7 @@ import Node.Library.Execa as Execa
 import Node.Platform as Platform
 import Node.Process as Process
 import Partial.Unsafe (unsafeCrashWith, unsafePartial)
+import Spago.Path as Path
 import Unsafe.Coerce (unsafeCoerce)
 
 data StdinConfig
@@ -77,7 +78,7 @@ type ExecOptions =
   { pipeStdin :: StdinConfig
   , pipeStdout :: Boolean
   , pipeStderr :: Boolean
-  , cwd :: Maybe FilePath
+  , cwd :: Maybe GlobalPath
   , shell :: Boolean
   }
 
@@ -97,18 +98,16 @@ spawn cmd args opts = liftAff do
       StdinPipeParent -> Just inherit
       StdinWrite _ -> Just pipe
       StdinNewPipe -> Just pipe
-  subprocess <- Execa.execa cmd args
-    ( _
-        { cwd = opts.cwd
-        , stdin = stdinOpt
-        , stdout = Just pipe
-        , stderr = Just pipe
-        , shell = case opts.shell of
-            -- TODO: execa doesn't support the boolean option yet
-            true -> Just (unsafeCoerce true)
-            false -> Nothing
-        }
-    )
+  subprocess <- Execa.execa cmd args _
+    { cwd = Path.toRaw <$> opts.cwd
+    , stdin = stdinOpt
+    , stdout = Just pipe
+    , stderr = Just pipe
+    , shell = case opts.shell of
+        -- TODO: execa doesn't support the boolean option yet
+        true -> Just (unsafeCoerce true)
+        false -> Nothing
+    }
 
   case opts.pipeStdin of
     StdinWrite s | Just { writeUtf8End } <- subprocess.stdin -> writeUtf8End s
@@ -128,9 +127,9 @@ joinProcess cp = do
     Normally 0 -> pure $ Right result
     _ -> pure $ Left result
 
-exec :: forall m. MonadAff m => String -> Array String -> ExecOptions -> m (Either ExecResult ExecResult)
+exec :: forall m. MonadAff m => GlobalPath -> Array String -> ExecOptions -> m (Either ExecResult ExecResult)
 exec cmd args opts = liftAff do
-  result <- _.getResult =<< spawn cmd args opts
+  result <- _.getResult =<< spawn (Path.toRaw cmd) args opts
   case result.exit of
     Normally 0 -> pure $ Right result
     _ -> pure $ Left result
@@ -197,7 +196,7 @@ findFlag { flags, args } = if argsLen == 0 then Nothing else go 0
 
   isSingleCharFlag = eq (Just 1) <<< map String.length <<< String.stripPrefix (Pattern "-")
 
-getExecutable :: forall a. String -> Spago (LogEnv a) { cmd :: String, output :: String }
+getExecutable :: ∀ a. String -> Spago (LogEnv a) { cmd :: GlobalPath, output :: String }
 getExecutable command =
   case Process.platform of
     Just Platform.Win32 -> do
@@ -220,7 +219,7 @@ getExecutable command =
   where
   askVersion cmd shell = exec cmd [ "--version" ] defaultExecOptions { pipeStdout = false, pipeStderr = false, shell = shell }
 
-  mkCmd cmd maybeExtension = cmd <> maybe "" (append ".") maybeExtension
+  mkCmd cmd maybeExtension = Path.global $ cmd <> maybe "" (append ".") maybeExtension
 
   complain err = do
     logDebug $ printExecResult err

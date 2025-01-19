@@ -22,6 +22,7 @@ import Spago.Purs.Graph as Graph
 type GraphEnv a =
   { dependencies :: Fetch.PackageTransitiveDeps
   , logOptions :: LogOptions
+  , rootPath :: RootPath
   , workspace :: Workspace
   , purs :: Purs
   | a
@@ -39,13 +40,13 @@ type GraphPackagesArgs =
   , topo :: Boolean
   }
 
-graphModules :: forall a. GraphModulesArgs -> Spago (GraphEnv a) Unit
+graphModules :: ∀ a. GraphModulesArgs -> Spago (GraphEnv a) Unit
 graphModules { dot, json, topo } = do
-  env@{ dependencies, workspace } <- ask
+  env@{ dependencies, workspace, rootPath } <- ask
   let allDependencies = Fetch.toAllDependencies dependencies
   let selected = Config.getWorkspacePackages workspace.packageSet
-  let globs = Build.getBuildGlobs { selected, withTests: false, dependencies: allDependencies, depsOnly: false }
-  eitherGraph <- Graph.runGraph globs []
+  let globs = Build.getBuildGlobs { rootPath, selected, withTests: false, dependencies: allDependencies, depsOnly: false }
+  eitherGraph <- Graph.runGraph rootPath globs []
   graph <- either die pure eitherGraph
 
   moduleGraph <- runSpago (Record.union { selected } env) (Graph.getModuleGraphWithPackage graph)
@@ -67,11 +68,11 @@ graphModules { dot, json, topo } = do
 
 graphPackages :: forall a. GraphPackagesArgs -> Spago (GraphEnv a) Unit
 graphPackages { dot, json, topo } = do
-  env@{ dependencies, workspace } <- ask
+  env@{ dependencies, workspace, rootPath } <- ask
   let allDependencies = Fetch.toAllDependencies dependencies
   let selected = Config.getWorkspacePackages workspace.packageSet
-  let globs = Build.getBuildGlobs { selected, withTests: false, dependencies: allDependencies, depsOnly: false }
-  eitherGraph <- Graph.runGraph globs []
+  let globs = Build.getBuildGlobs { rootPath, selected, withTests: false, dependencies: allDependencies, depsOnly: false }
+  eitherGraph <- Graph.runGraph rootPath globs []
   graph <- either die pure eitherGraph
 
   packageGraph <- runSpago (Record.union { selected } env) (Graph.getPackageGraph graph)

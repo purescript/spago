@@ -9,7 +9,7 @@ import Data.Map as Map
 import Data.String as String
 import Dodo (break, lines)
 import Effect.Ref as Ref
-import Node.Path as Path
+import Node.Path as Node.Path
 import Node.Process as Process
 import Record as Record
 import Registry.Internal.Path as Internal.Path
@@ -30,6 +30,7 @@ import Spago.Git (Git)
 import Spago.Git as Git
 import Spago.Json as Json
 import Spago.Log as Log
+import Spago.Path as Path
 import Spago.Prelude as Effect
 import Spago.Purs (Purs)
 import Spago.Purs.Graph as Graph
@@ -48,6 +49,7 @@ type PublishEnv a =
   { getRegistry :: Spago (PreRegistryEnv ()) Registry.RegistryFunctions
   , workspace :: Workspace
   , logOptions :: LogOptions
+  , rootPath :: RootPath
   , offline :: OnlineStatus
   , git :: Git
   , db :: Db
@@ -81,7 +83,7 @@ publish _args = do
         )
         resultRef
 
-  env@{ selected: selected', purs, dependencies } <- ask
+  env@{ selected: selected', purs, dependencies, rootPath } <- ask
   let (selected :: WorkspacePackage) = selected' { hasTests = false }
   let name = selected.package.name
   let strName = PackageName.print name
@@ -102,8 +104,8 @@ publish _args = do
 
   -- We then need to check that the dependency graph is accurate. If not, queue the errors
   let allCoreDependencies = Fetch.toAllDependencies $ dependencies <#> _ { test = Map.empty }
-  let globs = Build.getBuildGlobs { selected: NEA.singleton selected, withTests: false, dependencies: allCoreDependencies, depsOnly: false }
-  eitherGraph <- Graph.runGraph globs []
+  let globs = Build.getBuildGlobs { rootPath, selected: NEA.singleton selected, withTests: false, dependencies: allCoreDependencies, depsOnly: false }
+  eitherGraph <- Graph.runGraph rootPath globs []
   case eitherGraph of
     Right graph -> do
       graphCheckErrors <- Graph.toImportErrors selected { reportSrc: true, reportTest: false }
@@ -186,7 +188,7 @@ publish _args = do
           , "submit a transfer operation."
           ]
 
-        locationResult <- locationIsInGitRemotes location
+        locationResult <- locationIsInGitRemotes rootPath location
         unless locationResult.result $ addError $ toDoc
           [ toDoc "The location specified in the manifest file is not one of the remotes in the git repository."
           , toDoc "Location:"
@@ -218,19 +220,30 @@ publish _args = do
           -- All dependencies come from the registry so we can trust the build plan.
           -- We can then try to build with the dependencies from there.
 
-          Internal.Path.readPursFiles (Path.concat [ selected.path, "src" ]) >>= case _ of
+          Internal.Path.readPursFiles (Path.toRaw $ selected.path </> "src") >>= case _ of
             Nothing -> addError $ toDoc
               [ "This package has no PureScript files in its `src` directory. "
               , "All package sources must be in the `src` directory, with any additional "
               , "sources indicated by the `files` key in your manifest."
               ]
             Just files -> do
+              let
+                -- `validatePursModules` returns full paths in its response, so
+                -- we need to strip the workspace root path to print it out in
+                -- user-friendly way, but we can't use the machinery from
+                -- `Spago.Paths`, because the paths are embedded in other text,
+                -- so we have to resort to substring matching.
+                rootPathPrefix =
+                  Path.toRaw rootPath
+                    # String.stripSuffix (String.Pattern "/")
+                    # fromMaybe (Path.toRaw rootPath)
+                    # (_ <> Node.Path.sep)
               Operation.Validation.validatePursModules files >>= case _ of
                 Left formattedError -> addError $ toDoc
                   [ "This package has either malformed or disallowed PureScript module names"
                   , "in its `src` directory. All package sources must be in the `src` directory,"
                   , "with any additional sources indicated by the `files` key in your manifest."
-                  , formattedError
+                  , formattedError # String.replaceAll (String.Pattern rootPathPrefix) (String.Replacement "")
                   ]
                 Right _ -> pure unit
 
@@ -262,7 +275,7 @@ publish _args = do
           -- 2) input any login credentials as there are other errors to fix
           --    before doing that.
           -- The "hard" git tag checks will occur only if these succeed.
-          Git.getStatus Nothing >>= case _ of
+          Git.getStatus rootPath >>= case _ of
             Left _err -> do
               die $ toDoc
                 [ toDoc "Could not verify whether the git tree is clean. Error was:"
@@ -277,7 +290,7 @@ publish _args = do
               | otherwise -> do
                   -- TODO: once we ditch `purs publish`, we don't have a requirement for a tag anymore,
                   -- but we can use any ref. We can then use `getRef` here instead of `tagCheckedOut`
-                  maybeCurrentTag <- hush <$> Git.tagCheckedOut Nothing
+                  maybeCurrentTag <- hush <$> Git.tagCheckedOut rootPath
                   case maybeCurrentTag of
                     Just currentTag ->
                       when (currentTag /= expectedTag) $ addError $ toDoc
@@ -291,7 +304,7 @@ publish _args = do
                     Nothing ->
                       -- Current commit does not refer to a git tag.
                       -- We should see whether the expected tag was already defined
-                      Git.listTags Nothing >>= case _ of
+                      Git.listTags rootPath >>= case _ of
                         Left err ->
                           die $ toDoc
                             [ toDoc "Cannot check whether publish config's `version` matches any existing git tags due to the below error:"
@@ -338,7 +351,7 @@ publish _args = do
     Right { expectedVersion, publishingData: publishingData@{ resolutions } } -> do
       logInfo "Passed preliminary checks."
       -- This requires login credentials.
-      Git.pushTag Nothing expectedVersion >>= case _ of
+      Git.pushTag rootPath expectedVersion >>= case _ of
         Left err -> die $ toDoc
           [ err
           , toDoc "You can try to push the tag manually by running:"
@@ -381,19 +394,20 @@ publish _args = do
       , git: env.git
       , dependencies
       , logOptions: env.logOptions
+      , rootPath: env.rootPath
       , workspace: env.workspace { selected = Just selected }
       , strictWarnings: Nothing
       , pedanticPackages: false
       }
       action
 
-locationIsInGitRemotes :: ∀ a. Location -> Spago (PublishEnv a) { result :: Boolean, remotes :: Array Git.Remote }
-locationIsInGitRemotes location = do
-  isGitRepo <- FS.exists ".git"
+locationIsInGitRemotes :: ∀ a. RootPath -> Location -> Spago (PublishEnv a) { result :: Boolean, remotes :: Array Git.Remote }
+locationIsInGitRemotes root location = do
+  isGitRepo <- FS.exists $ root </> ".git"
   if not isGitRepo then
     pure { result: false, remotes: [] }
   else
-    Git.getRemotes Nothing >>= case _ of
+    Git.getRemotes root >>= case _ of
       Left err ->
         die [ toDoc "Couldn't parse Git remotes: ", err ]
       Right remotes -> do
@@ -405,7 +419,8 @@ locationIsInGitRemotes location = do
 
 inferLocationAndWriteToConfig :: ∀ a. WorkspacePackage -> Spago (PublishEnv a) Boolean
 inferLocationAndWriteToConfig selectedPackage = do
-  Git.getRemotes Nothing >>= case _ of
+  { rootPath } <- ask
+  Git.getRemotes rootPath >>= case _ of
     Left err ->
       die [ toDoc "Couldn't parse Git remotes: ", err ]
     Right remotes ->
@@ -435,13 +450,9 @@ inferLocationAndWriteToConfig selectedPackage = do
                 , "Cannot publish this package because it is hosted at " <> origin.url
                 ]
 
-          let
-            configPath
-              | Config.isRootPackage selectedPackage = "spago.yaml"
-              | otherwise = Path.concat [ selectedPackage.path, "spago.yaml" ]
-
-          liftEffect $ Config.addPublishLocationToConfig selectedPackage.doc location
-          liftAff $ FS.writeYamlDocFile configPath selectedPackage.doc
+          doc <- justOrDieWith selectedPackage.doc Config.configDocMissingErrorMessage
+          liftEffect $ Config.addPublishLocationToConfig doc location
+          liftAff $ FS.writeYamlDocFile (selectedPackage.path </> "spago.yaml") doc
           pure true
 
 prettyPrintLocation :: Location -> String

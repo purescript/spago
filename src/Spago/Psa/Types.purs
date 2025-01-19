@@ -1,6 +1,6 @@
 -- A majority of this code was copied from
 -- - https://github.com/natefaubion/purescript-psa-utils
--- 
+--
 -- To fullfil license requirements
 --   Copyright © Nathan Faubion
 --   https://opensource.org/license/mit/
@@ -18,6 +18,7 @@ module Spago.Psa.Types
   , PsaOutputOptions
   , PathInfo
   , Position
+  , PsaEnv
   , Suggestion
   , Lines
   , psaResultCodec
@@ -33,6 +34,10 @@ import Data.Codec.JSON.Record as CJ.Record
 import Data.Maybe (Maybe(..))
 import Data.Tuple (Tuple(..))
 import Spago.Core.Config as Core
+import Spago.Path (LocalPath, RootPath)
+import Spago.Purs (PursEnv)
+
+type PsaEnv a = PursEnv (rootPath :: RootPath | a)
 
 type ErrorCode = String
 type ModuleName = String
@@ -52,8 +57,8 @@ derive instance Eq PsaPath
 derive instance Ord PsaPath
 instance Show PsaPath where
   show = case _ of
-    Src s -> "(Src " <> s <> ")"
-    Lib s -> "(Lib " <> s <> ")"
+    Src s -> "(Src " <> show s <> ")"
+    Lib s -> "(Lib " <> show s <> ")"
     Unknown -> "Unknown"
 
 data PsaPathType
@@ -82,7 +87,7 @@ type PsaArgs =
   { jsonErrors :: Boolean
   , color :: Boolean
   , statVerbosity :: Core.StatVerbosity
-  , decisions :: Array (String -> Maybe PathDecision)
+  , decisions :: Array (LocalPath -> Maybe PathDecision)
   }
 
 type PsaOutputOptions =

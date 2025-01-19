@@ -6,13 +6,13 @@ import Control.Monad.Error.Class as MonadError
 import Data.Array as Array
 import Data.DateTime.Instant as Instant
 import Effect.Exception as Exception
-import Node.Path as Path
 import Registry.Version as Version
 import Spago.Command.Init (DefaultConfigOptions(..))
 import Spago.Command.Init as Init
 import Spago.Core.Config as Config
 import Spago.FS as FS
 import Spago.Log (LogVerbosity(..))
+import Spago.Path as Path
 import Spago.Purs (getPurs)
 import Test.Spec (SpecT)
 import Test.Spec as Spec
@@ -61,8 +61,8 @@ spec =
 
         setupSinglePackage spago = do
           spago [ "init", "--name", packageName ] >>= shouldBeSuccess
-          FS.writeTextFile (Path.concat [ "src", "Main.purs" ]) $ writeMain srcAndTestContent
-          FS.writeTextFile (Path.concat [ "test", "Test", "Main.purs" ]) $ writeTestMain srcAndTestContent
+          FS.writeTextFile (Path.global "src/Main.purs") $ writeMain srcAndTestContent
+          FS.writeTextFile (Path.global "test/Test/Main.purs") $ writeTestMain srcAndTestContent
 
       Spec.it ("'spago build' works") \{ spago } -> do
         setupSinglePackage spago
@@ -93,26 +93,27 @@ spec =
       let
         packages = [ "foo", "bar", "baz" ]
         setupPolyrepo = do
-          FS.writeYamlFile Config.configCodec "spago.yaml"
+          FS.writeYamlFile Config.configCodec (Path.global "spago.yaml")
             $ Init.defaultConfig'
             $ WorkspaceOnly { setVersion: Just $ unsafeFromRight $ Version.parse "0.0.1" }
           for_ packages \packageName -> do
-            FS.mkdirp packageName
-            FS.writeYamlFile Config.configCodec (Path.concat [ packageName, "spago.yaml" ])
+            let package = Path.global packageName
+            FS.mkdirp package
+            FS.writeYamlFile Config.configCodec (package </> "spago.yaml")
               $ mkPackageOnlyConfig { packageName, srcDependencies: [ "prelude", "effect", "console" ] }
                   [ configAddTestMain ]
             let
-              src = Path.concat [ packageName, "src" ]
-              test = Path.concat [ packageName, "test", "Test" ]
+              src = package </> "src"
+              test = package </> "test" </> "Test"
               fileContent = pursModuleUsingBuildInfo packages
 
             FS.mkdirp src
             FS.mkdirp test
-            FS.writeTextFile (Path.concat [ src, "Main.purs" ]) $ writePursFile
+            FS.writeTextFile (src </> "Main.purs") $ writePursFile
               { moduleName: mkSrcModuleName packageName
               , rest: fileContent
               }
-            FS.writeTextFile (Path.concat [ test, "Main.purs" ]) $ writePursFile
+            FS.writeTextFile (test </> "Main.purs") $ writePursFile
               { moduleName: mkTestModuleName packageName
               , rest: fileContent
               }

@@ -25,6 +25,7 @@ import Registry.Version as Version
 import Spago.Command.Fetch as Fetch
 import Spago.Config (BuildType(..), Package(..), Workspace, WorkspacePackage)
 import Spago.Config as Config
+import Spago.Path as Path
 import Spago.Paths as Paths
 import Type.Proxy (Proxy(..))
 
@@ -53,6 +54,7 @@ type LsSetEnv =
   { dependencies :: Fetch.PackageTransitiveDeps
   , logOptions :: LogOptions
   , workspace :: Workspace
+  , rootPath :: RootPath
   }
 
 type LsEnv =
@@ -60,28 +62,30 @@ type LsEnv =
   , logOptions :: LogOptions
   , workspace :: Workspace
   , selected :: WorkspacePackage
+  , rootPath :: RootPath
   }
 
-listPaths :: LsPathsArgs -> Spago { logOptions :: LogOptions } Unit
+listPaths :: LsPathsArgs -> Spago { logOptions :: LogOptions, rootPath :: RootPath } Unit
 listPaths { json } = do
   logDebug "Running `listPaths`"
+  { rootPath } <- ask
   case json of
     true ->
-      output $ OutputJson (CJ.Common.map CJ.string CJ.string) $ Map.fromFoldable keyValuePairs
+      output $ OutputJson (CJ.Common.map CJ.string CJ.string) $ Map.fromFoldable (keyValuePairs rootPath)
     false ->
       output $ OutputTable
         { titles: [ "Name", "Path" ]
-        , rows: (\(Tuple k v) -> [ k, v ]) <$> keyValuePairs
+        , rows: (\(Tuple k v) -> [ k, v ]) <$> keyValuePairs rootPath
         }
   where
-  keyValuePairs =
+  keyValuePairs root = rmap Path.toRaw <$>
     [ Tuple "Global cache path" Paths.globalCachePath
     , Tuple "Global registry path" Paths.registryPath
     , Tuple "Global registry index path" Paths.registryIndexPath
     , Tuple "Global package sets path" Paths.packageSetsPath
     , Tuple "Global database path" Paths.databasePath
-    , Tuple "Local cache path" Paths.localCachePath
-    , Tuple "Local cache packages path" Paths.localCachePackagesPath
+    , Tuple "Local cache path" $ Path.toGlobal $ root </> Paths.localCachePath
+    , Tuple "Local cache packages path" $ Path.toGlobal $ root </> Paths.localCachePackagesPath
     ]
 
 -- TODO: add LICENSE field
@@ -89,19 +93,19 @@ listPaths { json } = do
 listPackageSet :: LsPackagesArgs -> Spago LsSetEnv Unit
 listPackageSet { json } = do
   logDebug "Running `listPackageSet`"
-  { workspace } <- ask
+  { workspace, rootPath } <- ask
   case workspace.packageSet.buildType of
     RegistrySolverBuild _extraPackages -> die "Cannot list the packages in the package set, as none is configured for the project."
     PackageSetBuild _info packageSet -> do
       let packages = Map.toUnfoldable packageSet
       case json of
-        true -> formatPackagesJson packages
+        true -> formatPackagesJson rootPath packages
         false -> formatPackagesTable packages
 
 listPackages :: LsDepsOpts -> Spago LsEnv Unit
 listPackages { transitive, json } = do
   logDebug "Running `listPackages`"
-  { dependencies, selected } <- ask
+  { dependencies, selected, rootPath } <- ask
   let
     allDependencies = Fetch.toAllDependencies dependencies
     direct = (Map.keys <<< unwrap <<< _.dependencies <<< _.package) selected
@@ -111,11 +115,11 @@ listPackages { transitive, json } = do
   case packages of
     [] -> logWarn "There are no dependencies listed in your configuration"
     _ -> case json of
-      true -> formatPackagesJson packages
+      true -> formatPackagesJson rootPath packages
       false -> formatPackagesTable packages
 
-formatPackagesJson :: forall m. MonadEffect m => Array (Tuple PackageName Package) -> m Unit
-formatPackagesJson packages = output $ OutputJson (packageMap packageCodec) (map wrapPackage $ Map.fromFoldable packages)
+formatPackagesJson :: forall m. MonadEffect m => RootPath -> Array (Tuple PackageName Package) -> m Unit
+formatPackagesJson root packages = output $ OutputJson (packageMap packageCodec) (map wrapPackage $ Map.fromFoldable packages)
   where
   wrapPackage value =
     { value
@@ -151,7 +155,7 @@ formatPackagesJson packages = output $ OutputJson (packageMap packageCodec) (map
     encode =
       CJ.encode
         ( CJ.named "WorkspacePackage" $ CJ.Record.object
-            { path: CJ.string
+            { path: Path.localPathCodec root
             , package: Config.packageConfigCodec
             , hasTests: CJ.boolean
             }
@@ -175,7 +179,7 @@ formatPackagesTable pkgs = output $ OutputTable
     RegistryVersion _ -> "-"
     GitPackage { git } -> git
     LocalPackage { path } -> path
-    WorkspacePackage { path } -> path
+    WorkspacePackage { path } -> Path.printLocalPath path
 
   showVersion :: Package -> String
   showVersion = case _ of

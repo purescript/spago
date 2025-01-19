@@ -30,25 +30,27 @@ import Partial.Unsafe (unsafePartial)
 import Registry.Version as Version
 import Spago.Cmd as Cmd
 import Spago.FS as FS
+import Spago.Path as Path
 
-type Git = { cmd :: String, version :: String }
+type Git = { cmd :: GlobalPath, version :: String }
 
 type GitEnv a = { git :: Git, logOptions :: LogOptions, offline :: OnlineStatus | a }
 
 type Remote = { name :: String, url :: String, owner :: String, repo :: String }
 
-runGit_ :: forall a. Array String -> Maybe FilePath -> ExceptT String (Spago (GitEnv a)) Unit
+runGit_ :: ∀ a. Array String -> Maybe GlobalPath -> ExceptT String (Spago (GitEnv a)) Unit
 runGit_ args cwd = void $ runGit args cwd
 
-runGit :: forall a. Array String -> Maybe FilePath -> ExceptT String (Spago (GitEnv a)) String
+runGit :: ∀ a. Array String -> Maybe GlobalPath -> ExceptT String (Spago (GitEnv a)) String
 runGit args cwd = ExceptT do
   { git } <- ask
-  result <- Cmd.exec git.cmd args (Cmd.defaultExecOptions { pipeStdout = false, pipeStderr = false, cwd = cwd })
+  result <- Cmd.exec git.cmd args
+    (Cmd.defaultExecOptions { pipeStdout = false, pipeStderr = false, cwd = Path.toGlobal <$> cwd })
   pure case result of
     Right r -> Right r.stdout
     Left r -> Left r.stderr
 
-fetchRepo :: ∀ a b. { git :: String, ref :: String | a } -> FilePath -> Spago (GitEnv b) (Either (Array String) Unit)
+fetchRepo :: ∀ a b path. Path.IsPath path => { git :: String, ref :: String | a } -> path -> Spago (GitEnv b) (Either (Array String) Unit)
 fetchRepo { git, ref } path = do
   repoExists <- FS.exists path
   { offline } <- ask
@@ -61,16 +63,16 @@ fetchRepo { git, ref } path = do
       cloneOrFetchResult <- case repoExists of
         true -> do
           logDebug $ "Found " <> git <> " locally, pulling..."
-          Except.runExceptT $ runGit_ [ "fetch", "origin" ] (Just path)
+          Except.runExceptT $ runGit_ [ "fetch", "origin" ] (Just $ Path.toGlobal path)
         false -> do
           logInfo $ "Cloning " <> git
           -- For the reasoning on the filter options, see:
           -- https://github.com/purescript/spago/issues/701#issuecomment-1317192919
-          Except.runExceptT $ runGit_ [ "clone", "--filter=tree:0", git, path ] Nothing
+          Except.runExceptT $ runGit_ [ "clone", "--filter=tree:0", git, Path.toRaw path ] Nothing
       result <- Except.runExceptT do
         Except.ExceptT $ pure cloneOrFetchResult
         logDebug $ "Checking out the requested ref for " <> git <> " : " <> ref
-        runGit_ [ "checkout", ref ] (Just path)
+        _ <- runGit [ "checkout", ref ] (Just $ Path.toGlobal path)
         -- if we are on a branch and not on a detached head, then we need to pull
         -- the following command will fail if on a detached head, and succeed if on a branch
         Except.mapExceptT
@@ -78,9 +80,9 @@ fetchRepo { git, ref } path = do
               Left _err -> pure (Right unit)
               Right _ -> do
                 logDebug "Pulling the latest changes"
-                Except.runExceptT $ runGit_ [ "pull", "--rebase", "--autostash" ] (Just path)
+                Except.runExceptT $ runGit_ [ "pull", "--rebase", "--autostash" ] (Just $ Path.toGlobal path)
           )
-          (runGit_ [ "symbolic-ref", "-q", "HEAD" ] (Just path))
+          (runGit_ [ "symbolic-ref", "-q", "HEAD" ] (Just $ Path.toGlobal path))
 
       case result of
         Left err -> pure $ Left
@@ -91,30 +93,30 @@ fetchRepo { git, ref } path = do
           logDebug $ "Successfully fetched the repo '" <> git <> "' at ref '" <> ref <> "'"
           pure $ Right unit
 
-checkout :: ∀ a. { repo :: String, ref :: String } -> Spago (GitEnv a) (Either String Unit)
-checkout { repo, ref } = Except.runExceptT $ void $ runGit [ "checkout", ref ] (Just repo)
+checkout :: ∀ a path. Path.IsPath path => { repo :: path, ref :: String } -> Spago (GitEnv a) (Either String Unit)
+checkout { repo, ref } = Except.runExceptT $ void $ runGit [ "checkout", ref ] (Just $ Path.toGlobal repo)
 
-fetch :: ∀ a. { repo :: String, remote :: String } -> Spago (GitEnv a) (Either String Unit)
+fetch :: ∀ a path. Path.IsPath path => { repo :: path, remote :: String } -> Spago (GitEnv a) (Either String Unit)
 fetch { repo, remote } = do
-  remoteUrl <- runGit [ "remote", "get-url", remote ] (Just repo) # Except.runExceptT >>= rightOrDie
+  remoteUrl <- runGit [ "remote", "get-url", remote ] (Just $ Path.toGlobal repo) # Except.runExceptT >>= rightOrDie
   logInfo $ "Fetching from " <> remoteUrl
-  Except.runExceptT $ runGit_ [ "fetch", remote, "--tags" ] (Just repo)
+  Except.runExceptT $ runGit_ [ "fetch", remote, "--tags" ] (Just $ Path.toGlobal repo)
 
-getRefType :: ∀ a. { repo :: String, ref :: String } -> Spago (GitEnv a) (Either String String)
-getRefType { repo, ref } = Except.runExceptT $ runGit [ "cat-file", "-t", ref ] (Just repo)
+getRefType :: ∀ a path. Path.IsPath path => { repo :: path, ref :: String } -> Spago (GitEnv a) (Either String String)
+getRefType { repo, ref } = Except.runExceptT $ runGit [ "cat-file", "-t", ref ] (Just $ Path.toGlobal repo)
 
-listTags :: forall a. Maybe FilePath -> Spago (GitEnv a) (Either Docc (Array String))
+listTags :: ∀ a path. Path.IsPath path => path -> Spago (GitEnv a) (Either Docc (Array String))
 listTags cwd = do
-  let opts = Cmd.defaultExecOptions { pipeStdout = false, pipeStderr = false, cwd = cwd }
+  let opts = Cmd.defaultExecOptions { pipeStdout = false, pipeStderr = false, cwd = Just $ Path.toGlobal cwd }
   { git } <- ask
   Cmd.exec git.cmd [ "tag" ] opts >>= case _ of
     Left r -> do
       pure $ Left $ toDoc [ "Could not run `git tag`. Error:", r.message ]
     Right r -> pure $ Right $ String.split (Pattern "\n") r.stdout
 
-getStatus :: forall a. Maybe FilePath -> Spago (GitEnv a) (Either Docc String)
+getStatus :: ∀ a path. Path.IsPath path => path -> Spago (GitEnv a) (Either Docc String)
 getStatus cwd = do
-  let opts = Cmd.defaultExecOptions { pipeStdout = false, pipeStderr = false, cwd = cwd }
+  let opts = Cmd.defaultExecOptions { pipeStdout = false, pipeStderr = false, cwd = Just $ Path.toGlobal cwd }
   { git } <- ask
   Cmd.exec git.cmd [ "status", "--porcelain" ] opts >>= case _ of
     Left r -> do
@@ -122,9 +124,9 @@ getStatus cwd = do
       pure $ Left $ toDoc r.stderr
     Right r -> pure $ Right r.stdout
 
-getRef :: forall a. Maybe FilePath -> Spago (GitEnv a) (Either Docc String)
+getRef :: ∀ a path. Path.IsPath path => path -> Spago (GitEnv a) (Either Docc String)
 getRef cwd = do
-  let opts = Cmd.defaultExecOptions { pipeStdout = false, pipeStderr = false, cwd = cwd }
+  let opts = Cmd.defaultExecOptions { pipeStdout = false, pipeStderr = false, cwd = Just $ Path.toGlobal cwd }
   { git } <- ask
   Cmd.exec git.cmd [ "rev-parse", "HEAD" ] opts >>= case _ of
     Left r -> pure $ Left $ toDoc
@@ -133,9 +135,9 @@ getRef cwd = do
       ]
     Right r -> pure $ Right r.stdout
 
-getRemotes :: forall a. Maybe FilePath -> Spago (GitEnv a) (Either Docc (Array Remote))
+getRemotes :: ∀ a @path. Path.IsPath path => path -> Spago (GitEnv a) (Either Docc (Array Remote))
 getRemotes = \cwd -> do
-  let opts = Cmd.defaultExecOptions { pipeStdout = false, pipeStderr = false, cwd = cwd }
+  let opts = Cmd.defaultExecOptions { pipeStdout = false, pipeStderr = false, cwd = Just $ Path.toGlobal cwd }
   { git } <- ask
   Cmd.exec git.cmd [ "remote", "--verbose" ] opts <#> case _ of
     Left r -> Left $ toDoc
@@ -149,17 +151,17 @@ getRemotes = \cwd -> do
         [] -> Left $ toDoc "Could not parse any remotes from the output of `git remote --verbose`."
         remotes -> Right $ Array.nub remotes
 
-tagCheckedOut :: forall a. Maybe FilePath -> Spago (GitEnv a) (Either Docc String)
+tagCheckedOut :: ∀ a path. Path.IsPath path => path -> Spago (GitEnv a) (Either Docc String)
 tagCheckedOut cwd = do
-  let opts = Cmd.defaultExecOptions { pipeStdout = false, pipeStderr = false, cwd = cwd }
+  let opts = Cmd.defaultExecOptions { pipeStdout = false, pipeStderr = false, cwd = Just $ Path.toGlobal cwd }
   { git } <- ask
   Cmd.exec git.cmd [ "describe", "--tags", "--exact-match" ] opts >>= case _ of
     Left _ -> pure $ Left $ toDoc "The git ref currently checked out is not a tag."
     Right r -> pure $ Right r.stdout
 
-pushTag :: forall a. Maybe FilePath -> Version -> Spago (GitEnv a) (Either Docc Unit)
+pushTag :: ∀ a path. Path.IsPath path => path -> Version -> Spago (GitEnv a) (Either Docc Unit)
 pushTag cwd version = do
-  let opts = Cmd.defaultExecOptions { pipeStdout = false, pipeStderr = false, cwd = cwd }
+  let opts = Cmd.defaultExecOptions { pipeStdout = false, pipeStderr = false, cwd = Just $ Path.toGlobal cwd }
   { git, offline } <- ask
   case offline of
     Offline -> do
@@ -177,11 +179,14 @@ pushTag cwd version = do
 
 getGit :: forall a. Spago (LogEnv a) Git
 getGit = do
-  Cmd.exec "git" [ "--version" ] Cmd.defaultExecOptions { pipeStdout = false, pipeStderr = false } >>= case _ of
-    Right r -> pure { cmd: "git", version: r.stdout }
+  Cmd.exec cmd [ "--version" ] Cmd.defaultExecOptions { pipeStdout = false, pipeStderr = false } >>= case _ of
+    Right r -> pure { cmd, version: r.stdout }
     Left r -> do
       logDebug $ Cmd.printExecResult r
       die [ "Failed to find git. Have you installed it, and is it in your PATH?" ]
+
+  where
+  cmd = Path.global "git"
 
 parseRemote :: String -> Maybe Remote
 parseRemote = \line ->

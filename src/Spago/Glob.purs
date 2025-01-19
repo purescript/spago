@@ -17,20 +17,20 @@ import Data.String as String
 import Data.String as String.CodePoint
 import Effect.Aff as Aff
 import Effect.Ref as Ref
-import Node.FS.Sync as SyncFS
-import Node.Path as Path
+import Spago.FS as FS
+import Spago.Path as Path
 
 type Glob =
   { ignore :: Array String
   , include :: Array String
   }
 
-foreign import testGlob :: Glob -> String -> Boolean
+foreign import testGlob :: Glob -> RawFilePath -> Boolean
 
 splitGlob :: Glob -> Array Glob
 splitGlob { ignore, include } = (\a -> { ignore, include: [ a ] }) <$> include
 
-type Entry = { name :: String, path :: String, dirent :: DirEnt }
+type Entry = { name :: String, path :: GlobalPath, dirent :: DirEnt }
 type FsWalkOptions = { entryFilter :: Entry -> Effect Boolean, deepFilter :: Entry -> Effect Boolean }
 
 -- https://nodejs.org/api/fs.html#class-fsdirent
@@ -58,17 +58,17 @@ foreign import fsWalkImpl
   -> (forall a b. b -> Either a b)
   -> (Either Error (Array Entry) -> Effect Unit)
   -> FsWalkOptions
-  -> String
+  -> RootPath
   -> Effect Unit
 
-gitignoreFileToGlob :: FilePath -> String -> Glob
-gitignoreFileToGlob base =
+gitignoreFileToGlob :: LocalPath -> String -> Glob
+gitignoreFileToGlob root =
   String.split (String.Pattern "\n")
     >>> map String.trim
-    >>> Array.filter (not <<< or [ String.null, isComment ])
+    >>> Array.filter (not String.null && not isComment)
     >>> partitionMap
       ( \line -> do
-          let pattern lin = withForwardSlashes $ Path.concat [ base, gitignorePatternToGlobPattern lin ]
+          let pattern lin = Path.localPart $ withForwardSlashes $ root </> gitignorePatternToGlobPattern lin
           case String.stripPrefix (String.Pattern "!") line of
             Just negated -> Left $ pattern negated
             Nothing -> Right $ pattern line
@@ -90,12 +90,12 @@ gitignoreFileToGlob base =
     | otherwise = "**/" <> pattern <> "/**"
 
 fsWalk :: GlobParams -> Aff (Array Entry)
-fsWalk { cwd, ignorePatterns, includePatterns } = Aff.makeAff \cb -> do
+fsWalk { root, ignorePatterns, includePatterns } = Aff.makeAff \cb -> do
   let includeMatcher = testGlob { ignore: [], include: includePatterns }
 
   -- Pattern for directories which can be outright ignored.
   -- This will be updated whenver a .gitignore is found.
-  ignoreMatcherRef :: Ref (String -> Boolean) <- Ref.new (testGlob { ignore: [], include: ignorePatterns })
+  ignoreMatcherRef :: Ref (RawFilePath -> Boolean) <- Ref.new (testGlob { ignore: [], include: ignorePatterns })
 
   -- If this Ref contains `true` because this Aff has been canceled, then deepFilter will always return false.
   canceled <- Ref.new false
@@ -114,11 +114,10 @@ fsWalk { cwd, ignorePatterns, includePatterns } = Aff.makeAff \cb -> do
     updateIgnoreMatcherWithGitignore :: Entry -> Effect Unit
     updateIgnoreMatcherWithGitignore entry = do
       let
-        gitignorePath = entry.path
         -- directory of this .gitignore relative to the directory being globbed
-        base = Path.relative cwd (Path.dirname gitignorePath)
+        base = Path.dirname entry.path `Path.relativeTo` root
 
-      try (SyncFS.readTextFile UTF8 entry.path) >>= traverse_ \gitignore -> do
+      try (FS.readTextFileSync entry.path) >>= traverse_ \gitignore -> do
         let
           gitignored = testGlob <$> (splitGlob $ gitignoreFileToGlob base gitignore)
 
@@ -185,18 +184,21 @@ fsWalk { cwd, ignorePatterns, includePatterns } = Aff.makeAff \cb -> do
         -- => patternBase is a prefix of relDirPath => the directory matches
         String.Pattern patternBase `isPrefix` relDirPath
 
+    relPath :: Entry -> String
+    relPath entry = Path.localPart $ withForwardSlashes $ entry.path `Path.relativeTo` root
+
     -- Should `fsWalk` recurse into this directory?
     deepFilter :: Entry -> Effect Boolean
     deepFilter entry = fromMaybe false <$> runMaybeT do
       isCanceled <- lift $ Ref.read canceled
       guard $ not isCanceled
-      let relPath = withForwardSlashes $ Path.relative cwd entry.path
       shouldIgnore <- lift $ Ref.read ignoreMatcherRef
-      guard $ not $ shouldIgnore relPath
+      let path = relPath entry
+      guard $ not $ shouldIgnore path
 
       -- Only if the path of this directory matches any of the patterns base path,
       -- can anything in this directory possibly match the corresponding full pattern.
-      pure $ matchesAnyPatternBase relPath
+      pure $ matchesAnyPatternBase path
 
     -- Should `fsWalk` retain this entry for the result array?
     entryFilter :: Entry -> Effect Boolean
@@ -204,24 +206,23 @@ fsWalk { cwd, ignorePatterns, includePatterns } = Aff.makeAff \cb -> do
       when (isFile entry.dirent && entry.name == ".gitignore") do
         updateIgnoreMatcherWithGitignore entry
       ignoreMatcher <- Ref.read ignoreMatcherRef
-      let path = withForwardSlashes $ Path.relative cwd entry.path
+      let path = relPath entry
       pure $ includeMatcher path && not (ignoreMatcher path)
 
     options = { entryFilter, deepFilter }
 
-  fsWalkImpl Left Right cb options cwd
+  fsWalkImpl Left Right cb options root
 
   pure $ Aff.Canceler \_ ->
     void $ liftEffect $ Ref.write true canceled
 
-type GlobParams = { ignorePatterns :: Array String, includePatterns :: Array String, cwd :: FilePath }
+type GlobParams = { ignorePatterns :: Array String, includePatterns :: Array String, root :: RootPath }
 
-gitignoringGlob :: GlobParams -> Aff (Array String)
-gitignoringGlob { cwd, ignorePatterns, includePatterns } = map (withForwardSlashes <<< Path.relative cwd <<< _.path)
-  <$> fsWalk
-    { cwd
-    , ignorePatterns: ignorePatterns
-        -- The ones in the base directory are always ignored
-        <> [ ".git", "spago.yaml" ]
+gitignoringGlob :: GlobParams -> Aff (Array LocalPath)
+gitignoringGlob { root, includePatterns, ignorePatterns } = do
+  entries <- fsWalk
+    { root
+    , ignorePatterns: ignorePatterns <> [ ".git", "spago.yaml" ]
     , includePatterns
     }
+  pure $ entries <#> \e -> e.path `Path.relativeTo` root

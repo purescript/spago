@@ -12,7 +12,6 @@ import Data.Newtype (wrap)
 import Data.Set as Set
 import Data.Set.NonEmpty as NonEmptySet
 import Data.String as String
-import Node.Path as Path
 import Node.Process as Process
 import Registry.PackageName as PackageName
 import Spago.Command.Fetch (FetchEnv)
@@ -21,21 +20,23 @@ import Spago.Config (BuildType(..), Dependencies, Package(..), PackageConfig)
 import Spago.Config as Config
 import Spago.Config as Core
 import Spago.FS as FS
+import Spago.Path as Path
 
 type UninstallArgs =
   { dependenciesToRemove :: Set PackageName
   , testDeps :: Boolean
   }
 
-run :: UninstallArgs -> Spago (FetchEnv _) Unit
+run :: ∀ a. UninstallArgs -> Spago (FetchEnv a) Unit
 run args = do
   logDebug "Running `spago uninstall`"
-  { workspace } <- ask
+  { workspace, rootPath } <- ask
 
   { sourceOrTestString, deps, configPath, yamlDoc, name } <- case workspace.selected, workspace.rootPackage of
-    Just p, _ -> toContext (Path.concat [ p.path, "spago.yaml" ]) p.doc p.package
-    Nothing, Just rootPackage -> toContext "spago.yaml" workspace.doc rootPackage
+    Just p, _ -> toContext (p.path </> "spago.yaml") p.doc p.package
+    Nothing, Just rootPackage -> toContext (rootPath </> "spago.yaml") workspace.doc rootPackage
     Nothing, Nothing -> die "No package was selected. Please select a package."
+
   let
     { warn, removed: removedSet } = separate deps
     warnAbout = NEA.fromFoldable warn
@@ -89,7 +90,7 @@ run args = do
       $ Config.getWorkspacePackages workspace.packageSet
     Fetch.writeNewLockfile reason dependencies
 
-  toContext :: FilePath -> YamlDoc Core.Config -> PackageConfig -> Spago _ (_ _)
+  toContext :: LocalPath -> Maybe (YamlDoc Core.Config) -> PackageConfig -> Spago _ (_ _)
   toContext configPath yamlDoc pkgConfig = case args.testDeps of
     true -> case pkgConfig.test of
       Nothing -> do
@@ -118,10 +119,11 @@ run args = do
       true -> acc { removed = Set.insert next acc.removed }
       false -> acc { warn = Set.insert next acc.warn }
 
-  modifyConfig :: FilePath -> YamlDoc Core.Config -> String -> NonEmptyArray PackageName -> Spago (FetchEnv _) Unit
+  modifyConfig :: LocalPath -> Maybe (YamlDoc Core.Config) -> String -> NonEmptyArray PackageName -> Spago (FetchEnv _) Unit
   modifyConfig configPath yamlDoc sourceOrTestString = \removedPackages -> do
     logInfo $ "Removing the following " <> sourceOrTestString <> " dependencies: "
       <> (String.joinWith ", " $ map PackageName.print $ Array.fromFoldable removedPackages)
-    logDebug $ "Editing config file at path: " <> configPath
-    liftEffect $ Config.removePackagesFromConfig yamlDoc args.testDeps $ NonEmptySet.fromFoldable1 removedPackages
-    liftAff $ FS.writeYamlDocFile configPath yamlDoc
+    logDebug $ "Editing config file at path: " <> Path.quote configPath
+    doc <- justOrDieWith yamlDoc Config.configDocMissingErrorMessage
+    liftEffect $ Config.removePackagesFromConfig doc args.testDeps $ NonEmptySet.fromFoldable1 removedPackages
+    liftAff $ FS.writeYamlDocFile configPath doc

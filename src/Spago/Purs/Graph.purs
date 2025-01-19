@@ -33,7 +33,7 @@ import Spago.Config (Package(..), WithTestGlobs(..), WorkspacePackage)
 import Spago.Config as Config
 import Spago.Glob as Glob
 import Spago.Log as Log
-import Spago.Paths as Paths
+import Spago.Path as Path
 import Spago.Purs (ModuleGraph(..), ModuleGraphNode, ModuleName, Purs)
 import Spago.Purs as Purs
 import Unsafe.Coerce (unsafeCoerce)
@@ -48,8 +48,8 @@ type PreGraphEnv a =
   | a
   }
 
-runGraph :: forall a. Set FilePath -> Array String -> Spago (PreGraphEnv a) (Either String Purs.ModuleGraph)
-runGraph globs pursArgs = map (lmap toErrorMessage) $ Purs.graph globs pursArgs
+runGraph :: ∀ a. RootPath -> Set LocalPath -> Array String -> Spago (PreGraphEnv a) (Either String Purs.ModuleGraph)
+runGraph root globs pursArgs = map (lmap toErrorMessage) $ Purs.graph root globs pursArgs
   where
   toErrorMessage = append "Could not decode the output of `purs graph`, error: " <<< CJ.DecodeError.print
 
@@ -60,6 +60,7 @@ type PackageGraphEnv a =
   { selected :: NonEmptyArray WorkspacePackage
   , dependencies :: Fetch.PackageTransitiveDeps
   , logOptions :: LogOptions
+  , rootPath :: RootPath
   | a
   }
 
@@ -83,7 +84,7 @@ moduleGraphCodec = Internal.Codec.strMap "ModuleGraphWithPackage" Right identity
 
 getModuleGraphWithPackage :: forall a. Purs.ModuleGraph -> Spago (PackageGraphEnv a) ModuleGraphWithPackage
 getModuleGraphWithPackage (ModuleGraph graph) = do
-  { selected, dependencies } <- ask
+  { selected, dependencies, rootPath } <- ask
 
   -- First compile the globs for each package, we get out a set of the modules that a package contains
   -- and we can have a map from path to a PackageName
@@ -100,13 +101,13 @@ getModuleGraphWithPackage (ModuleGraph graph) = do
   -- We should memoise them, so that when we get the graph for a monorepo we don't evaluate the globs again.
   -- Each call is a few milliseconds, but there are potentially hundreds of those, and it adds up.
   logDebug "Calling pathToPackage..."
-  pathToPackage :: Map FilePath PackageName <- map (Map.fromFoldable <<< Array.fold)
+  pathToPackage :: Map LocalPath PackageName <- map (Map.fromFoldable <<< Array.fold)
     $ for (Map.toUnfoldable allPackages)
         \(Tuple name package) -> do
           -- Basically partition the modules of the current package by in src and test packages
           let withTestGlobs = if (Set.member name (Map.keys testPackages)) then OnlyTestGlobs else NoTestGlobs
           logDebug $ "Getting globs for package " <> PackageName.print name
-          globMatches :: Array FilePath <- map Array.fold $ traverse compileGlob (Config.sourceGlob withTestGlobs name package)
+          globMatches :: Array LocalPath <- map Array.fold $ traverse compileGlob (Config.sourceGlob rootPath withTestGlobs name package)
           pure $ map (\p -> Tuple p name) globMatches
 
   logDebug "Got the pathToPackage map, calling packageGraph"
@@ -116,18 +117,24 @@ getModuleGraphWithPackage (ModuleGraph graph) = do
     addPackageInfo pkgGraph (Tuple moduleName { path, depends }) =
       let
         -- Windows paths will need a conversion to forward slashes to be matched to globs
-        newPath = withForwardSlashes path
+        newPath = withForwardSlashes $ rootPath </> path
         newVal = do
           package <- Map.lookup newPath pathToPackage
-          pure { path: newPath, depends, package }
+          pure { path: Path.localPart newPath, depends, package }
       in
         maybe pkgGraph (\v -> Map.insert moduleName v pkgGraph) newVal
     packageGraph = foldl addPackageInfo Map.empty (Map.toUnfoldable graph :: Array _)
 
   pure packageGraph
 
-compileGlob :: forall a. FilePath -> Spago a (Array FilePath)
-compileGlob sourcePath = liftAff $ Glob.gitignoringGlob { cwd: Paths.cwd, includePatterns: [ withForwardSlashes sourcePath ], ignorePatterns: [] }
+compileGlob :: ∀ a. LocalPath -> Spago { rootPath :: RootPath | a } (Array LocalPath)
+compileGlob sourcePath = do
+  { rootPath } <- ask
+  liftAff $ Glob.gitignoringGlob
+    { root: rootPath
+    , includePatterns: [ Path.localPart $ withForwardSlashes sourcePath ]
+    , ignorePatterns: []
+    }
 
 --------------------------------------------------------------------------------
 -- Package graph
@@ -181,6 +188,7 @@ type ImportsGraphEnv a =
   , workspacePackages :: NonEmptyArray WorkspacePackage
   , dependencies :: Fetch.PackageTransitiveDeps
   , logOptions :: LogOptions
+  , rootPath :: RootPath
   | a
   }
 
@@ -231,12 +239,17 @@ checkImports graph = do
         | otherwise = OnlyTestGlobs
 
     -- Compile the globs for the project, we get the set of source files in the project
-    glob :: Set FilePath <- map Set.fromFoldable do
-      map Array.fold $ traverse compileGlob (Config.sourceGlob testGlobOption packageName (WorkspacePackage selected))
+    { rootPath } <- ask
+    projectFiles :: Set String <-
+      Config.sourceGlob rootPath testGlobOption packageName (WorkspacePackage selected)
+        # traverse compileGlob
+        <#> Array.fold
+        <#> map (Path.localPart <<< withForwardSlashes)
+        <#> Set.fromFoldable
 
     let
       -- Filter this improved graph to only have the project modules
-      projectGraph = Map.filterWithKey (\_ { path } -> Set.member path glob) packageGraph
+      projectGraph = packageGraph # Map.filter \{ path } -> Set.member path projectFiles
 
       -- Go through all the modules in the project graph, figure out which packages each module depends on,
       -- accumulate all of that in a single place
@@ -289,10 +302,10 @@ toImportErrors
   -> Array { errorMessage :: Docc, correction :: Docc }
 toImportErrors selected opts { unused, unusedTest, transitive, transitiveTest } = do
   Array.catMaybes
-    [ if opts.reportSrc && (not $ Set.isEmpty unused) then Just $ unusedError false selected unused else Nothing
-    , if opts.reportSrc && (not $ Map.isEmpty transitive) then Just $ transitiveError false selected transitive else Nothing
-    , if opts.reportTest && (not $ Set.isEmpty unusedTest) then Just $ unusedError true selected unusedTest else Nothing
-    , if opts.reportTest && (not $ Map.isEmpty transitiveTest) then Just $ transitiveError true selected transitiveTest else Nothing
+    [ if opts.reportSrc && (not Set.isEmpty unused) then Just $ unusedError false selected unused else Nothing
+    , if opts.reportSrc && (not Map.isEmpty transitive) then Just $ transitiveError false selected transitive else Nothing
+    , if opts.reportTest && (not Set.isEmpty unusedTest) then Just $ unusedError true selected unusedTest else Nothing
+    , if opts.reportTest && (not Map.isEmpty transitiveTest) then Just $ transitiveError true selected transitiveTest else Nothing
     ]
 
 formatImportErrors :: Array { errorMessage :: Docc, correction :: Docc } -> Docc

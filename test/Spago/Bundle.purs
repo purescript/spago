@@ -15,68 +15,68 @@ spec :: Spec Unit
 spec = Spec.around withTempDir do
   Spec.describe "bundle" do
 
-    Spec.it "bundles into an app (browser)" \{ spago, fixture } -> do
+    Spec.it "bundles into an app (browser)" \{ spago, fixture, testCwd } -> do
       spago [ "init" ] >>= shouldBeSuccess
       spago [ "bundle", "-v", "--bundle-type", "app", "--outfile", "bundle-app-browser.js" ] >>= shouldBeSuccess
-      checkBundle "bundle-app-browser.js" (fixture "bundle-app-browser.js")
+      checkBundle (testCwd </> "bundle-app-browser.js") (fixture "bundle-app-browser.js")
 
-    Spec.it "bundles into an app (node)" \{ spago, fixture } -> do
+    Spec.it "bundles into an app (node)" \{ spago, fixture, testCwd } -> do
       spago [ "init" ] >>= shouldBeSuccess
       spago [ "bundle", "-v", "--bundle-type", "app", "--outfile", "bundle-app-node.js", "--platform", "node" ] >>= shouldBeSuccess
-      checkBundle "bundle-app-node.js" (fixture "bundle-app-node.js")
+      checkBundle (testCwd </> "bundle-app-node.js") (fixture "bundle-app-node.js")
 
-    Spec.it "bundles into a module" \{ spago, fixture } -> do
+    Spec.it "bundles into a module" \{ spago, fixture, testCwd } -> do
       spago [ "init" ] >>= shouldBeSuccess
       spago [ "build" ] >>= shouldBeSuccess
       spago [ "bundle", "--bundle-type=module", "--outfile", "bundle-module.js" ] >>= shouldBeSuccess
-      checkBundle "bundle-module.js" (fixture "bundle-module.js")
+      checkBundle (testCwd </> "bundle-module.js") (fixture "bundle-module.js")
 
-    Spec.it "bundles an app with source map (browser)" \{ spago, fixture } -> do
+    Spec.it "bundles an app with source map (browser)" \{ spago, fixture, testCwd } -> do
       spago [ "init" ] >>= shouldBeSuccess
       spago [ "bundle", "-v", "--outfile", "bundle-app-browser-map.js", "--source-maps", "--bundle-type", "app" ] >>= shouldBeSuccess
-      checkBundle "bundle-app-browser-map.js" (fixture "bundle-app-browser-map.js")
-      checkFixture "bundle-app-browser-map.js.map" (fixture "bundle-app-browser-map.js.map")
+      checkBundle (testCwd </> "bundle-app-browser-map.js") (fixture "bundle-app-browser-map.js")
+      checkFixture (testCwd </> "bundle-app-browser-map.js.map") (fixture "bundle-app-browser-map.js.map")
 
-    Spec.it "bundles an app with source map (node)" \{ spago, fixture } -> do
+    Spec.it "bundles an app with source map (node)" \{ spago, fixture, testCwd } -> do
       spago [ "init" ] >>= shouldBeSuccess
       spago [ "bundle", "-v", "--outfile", "bundle-app-node-map.js", "--source-maps", "--bundle-type", "app", "--platform", "node" ] >>= shouldBeSuccess
-      checkBundle "bundle-app-node-map.js" (fixture "bundle-app-node-map.js")
-      checkFixture "bundle-app-node-map.js.map" (fixture "bundle-app-node-map.js.map")
+      checkBundle (testCwd </> "bundle-app-node-map.js") (fixture "bundle-app-node-map.js")
+      checkFixture (testCwd </> "bundle-app-node-map.js.map") (fixture "bundle-app-node-map.js.map")
 
-    Spec.it "bundles a module with source map" \{ spago, fixture } -> do
+    Spec.it "bundles a module with source map" \{ spago, fixture, testCwd } -> do
       spago [ "init" ] >>= shouldBeSuccess
       spago [ "build" ] >>= shouldBeSuccess
       spago [ "bundle", "--bundle-type", "module", "--outfile", "bundle-module-map.js", "--source-maps" ] >>= shouldBeSuccess
 
-      checkBundle "bundle-module-map.js" (fixture "bundle-module-map.js")
-      checkFixture "bundle-module-map.js.map" (fixture "bundle-module-map.js.map")
+      checkBundle (testCwd </> "bundle-module-map.js") (fixture "bundle-module-map.js")
+      checkFixture (testCwd </> "bundle-module-map.js.map") (fixture "bundle-module-map.js.map")
 
-    Spec.it "bundles a module with extra esbuild arguments" \{ spago, fixture } -> do
+    Spec.it "bundles a module with extra esbuild arguments" \{ spago, fixture, testCwd } -> do
       spago [ "init" ] >>= shouldBeSuccess
       spago [ "build" ] >>= shouldBeSuccess
       spago [ "bundle", "--bundle-type", "module", "--outfile", "bundle-module-map.js", "--source-maps" ] >>= shouldBeSuccess
 
-      checkBundle "bundle-module-map.js" (fixture "bundle-module-map.js")
-      checkFixture "bundle-module-map.js.map" (fixture "bundle-module-map.js.map")
+      checkBundle (testCwd </> "bundle-module-map.js") (fixture "bundle-module-map.js")
+      checkFixture (testCwd </> "bundle-module-map.js.map") (fixture "bundle-module-map.js.map")
 
-    Spec.it "refuses to overwrite existing bundle that is not Spago-generated" \{ spago, fixture } -> do
-      FS.writeTextFile checkWatermarkMarkerFileName "."
+    Spec.it "refuses to overwrite existing bundle that is not Spago-generated" \{ spago, fixture, testCwd } -> do
+      FS.writeTextFile (testCwd </> checkWatermarkMarkerFileName) "."
       spago [ "init", "--name", "project" ] >>= shouldBeSuccess
       spago [ "bundle" ] >>= shouldBeSuccess
       spago [ "bundle" ] >>= shouldBeSuccess
-      FS.readTextFile "index.js" >>= \content -> content `shouldStartWith` "/* Generated by Spago"
-      FS.writeTextFile "index.js" "Bogus"
+      FS.readTextFile (testCwd </> "index.js") >>= \content -> content `shouldStartWith` "/* Generated by Spago"
+      FS.writeTextFile (testCwd </> "index.js") "Bogus"
       spago [ "bundle" ] >>= shouldBeFailureErr (fixture "bundle-refuse-overwrite-output.txt")
-      FS.readTextFile "index.js" >>= shouldEqual "Bogus"
+      FS.readTextFile (testCwd </> "index.js") >>= shouldEqual "Bogus"
       spago [ "bundle", "--force" ] >>= shouldBeSuccess
-      FS.readTextFile "index.js" >>= shouldNotEqual "Bogus"
+      FS.readTextFile (testCwd </> "index.js") >>= shouldNotEqual "Bogus"
 
-    Spec.it "overwrites non-Spago-generated bundle when there is no magic marker file" \{ spago, fixture } -> do
+    Spec.it "overwrites non-Spago-generated bundle when there is no magic marker file" \{ spago, fixture, testCwd } -> do
       spago [ "init", "--name", "project" ] >>= shouldBeSuccess
       spago [ "bundle" ] >>= shouldBeSuccess
-      FS.writeTextFile "index.js" "Bogus"
+      FS.writeTextFile (testCwd </> "index.js") "Bogus"
       spago [ "bundle" ] >>= shouldBeSuccess
-      checkBundle "index.js" (fixture "bundle-default.js")
+      checkBundle (testCwd </> "index.js") (fixture "bundle-default.js")
 
   where
   -- This is a version of `checkFixture`, but it replaces the "v0" placeholder

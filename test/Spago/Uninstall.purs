@@ -3,7 +3,6 @@ module Test.Spago.Uninstall where
 import Test.Prelude
 
 import Data.String as String
-import Node.Path as Path
 import Spago.Command.Init (DefaultConfigOptions(..))
 import Spago.Command.Init as Init
 import Spago.Core.Config as Config
@@ -16,18 +15,18 @@ spec ∷ Spec Unit
 spec = Spec.around withTempDir do
   Spec.describe "uninstall" do
 
-    Spec.it "fails when no package was selected" \{ spago, fixture } -> do
+    Spec.it "fails when no package was selected" \{ spago, fixture, testCwd } -> do
       let
         setupSubpackage packageName = do
-          let subdir = Path.concat [ packageName, "src" ]
+          let subdir = testCwd </> packageName </> "src"
           FS.mkdirp subdir
-          FS.writeTextFile (Path.concat [ subdir, "Main.purs" ]) $ "module " <> String.toUpper packageName <> " where"
-          FS.writeYamlFile Config.configCodec (Path.concat [ packageName, "spago.yaml" ]) $ mkPackageOnlyConfig
+          FS.writeTextFile (subdir </> "Main.purs") $ "module " <> String.toUpper packageName <> " where"
+          FS.writeYamlFile Config.configCodec (testCwd </> packageName </> "spago.yaml") $ mkPackageOnlyConfig
             { packageName: packageName
             , srcDependencies: []
             }
             []
-      FS.writeYamlFile Config.configCodec "spago.yaml"
+      FS.writeYamlFile Config.configCodec (testCwd </> "spago.yaml")
         $ Init.defaultConfig'
         $ WorkspaceOnly { setVersion: Just $ mkVersion "0.0.1" }
       setupSubpackage "foo"
@@ -35,9 +34,9 @@ spec = Spec.around withTempDir do
       spago [ "build" ] >>= shouldBeSuccess
       spago [ "uninstall" ] >>= shouldBeFailureErr (fixture "uninstall-no-package-selection.txt")
 
-    Spec.it "warns when test config does not exist and uninstalling test deps" \{ spago, fixture } -> do
+    Spec.it "warns when test config does not exist and uninstalling test deps" \{ spago, fixture, testCwd } -> do
       spago [ "init", "--name", "uninstall-tests" ] >>= shouldBeSuccess
-      editSpagoYaml' "spago.yaml" \config ->
+      editSpagoYaml' (testCwd </> "spago.yaml") \config ->
         config { package = config.package <#> \p -> p { test = Nothing } }
       spago [ "uninstall", "--test-deps", "either" ] >>= shouldBeSuccessErr (fixture "uninstall-no-test-config.txt")
 
@@ -49,26 +48,26 @@ spec = Spec.around withTempDir do
       spago [ "init", "--name", "uninstall-tests" ] >>= shouldBeSuccess
       spago [ "uninstall", "--test-deps", "either" ] >>= shouldBeSuccessErr (fixture "uninstall-deps-undeclared-test-deps.txt")
 
-    Spec.it "removes declared packages in source config" \{ spago, fixture } -> do
+    Spec.it "removes declared packages in source config" \{ spago, fixture, testCwd } -> do
       spago [ "init", "--name", "uninstall-tests" ] >>= shouldBeSuccess
-      originalConfig <- FS.readTextFile "spago.yaml"
+      originalConfig <- FS.readTextFile (testCwd </> "spago.yaml")
 
       spago [ "install", "either" ] >>= shouldBeSuccess
-      postInstallConfig <- FS.readTextFile "spago.yaml"
+      postInstallConfig <- FS.readTextFile (testCwd </> "spago.yaml")
       originalConfig `Assert.shouldNotEqual` postInstallConfig
 
       spago [ "uninstall", "either" ] >>= shouldBeSuccessErr (fixture "uninstall-remove-src-deps.txt")
-      postUninstallConfig <- FS.readTextFile "spago.yaml"
+      postUninstallConfig <- FS.readTextFile (testCwd </> "spago.yaml")
       originalConfig `Assert.shouldEqual` postUninstallConfig
 
-    Spec.it "removes declared packages in test config" \{ spago, fixture } -> do
+    Spec.it "removes declared packages in test config" \{ spago, fixture, testCwd } -> do
       spago [ "init", "--name", "uninstall-tests" ] >>= shouldBeSuccess
-      originalConfig <- FS.readTextFile "spago.yaml"
+      originalConfig <- FS.readTextFile (testCwd </> "spago.yaml")
 
       spago [ "install", "--test-deps", "either" ] >>= shouldBeSuccess
-      postInstallConfig <- FS.readTextFile "spago.yaml"
+      postInstallConfig <- FS.readTextFile (testCwd </> "spago.yaml")
       originalConfig `Assert.shouldNotEqual` postInstallConfig
 
       spago [ "uninstall", "--test-deps", "either" ] >>= shouldBeSuccessErr (fixture "uninstall-remove-test-deps.txt")
-      postUninstallConfig <- FS.readTextFile "spago.yaml"
+      postUninstallConfig <- FS.readTextFile (testCwd </> "spago.yaml")
       originalConfig `Assert.shouldEqual` postUninstallConfig
