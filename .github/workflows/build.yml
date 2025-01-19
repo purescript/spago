@@ -45,7 +45,9 @@ jobs:
         env:
           cache-name: cache-node-modules
         with:
-          path: ~/.npm
+          path: |
+            ~/.npm
+            node_modules
           key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ hashFiles('**/package.json') }}
           restore-keys: |
             ${{ runner.os }}-build-${{ env.cache-name }}-
@@ -79,7 +81,7 @@ jobs:
         run: node ./bin/bundle.js bundle -p docs-search-client-halogen
 
       - name: Run tests
-        run: node ./bin/bundle.js test -- -e "fails if running with --offline"
+        run: SPAGO_TEST_DEBUG=1 node ./bin/bundle.js test -- -e "fails if running with --offline"
 
       - name: Check formatting (Linux only)
         if: matrix.os == 'ubuntu-latest'
