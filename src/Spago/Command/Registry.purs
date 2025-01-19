@@ -27,6 +27,7 @@ import Spago.FS as FS
 import Spago.Git as Git
 import Spago.Json as Json
 import Spago.Path as Path
+import Spago.Paths as Paths
 import Spago.Registry (RegistryEnv)
 import Spago.Registry as Registry
 
@@ -216,7 +217,7 @@ transfer { privateKeyPath } = do
       let dataToSign = { name: selected.package.name, newLocation }
       let rawPayload = Json.stringifyJson Operation.transferCodec dataToSign
 
-      key <- getPrivateKeyForSigning $ rootPath </> privateKeyPath
+      key <- getPrivateKeyForSigning privateKeyPath
       -- We have a key! We can sign the payload with it, and submit the whole package to the Registry
       let signature = SSH.sign key rawPayload
 
@@ -230,8 +231,11 @@ transfer { privateKeyPath } = do
           , payload: Operation.Transfer dataToSign
           }
 
-getPrivateKeyForSigning :: ∀ e. LocalPath -> Spago (LogEnv e) SSH.PrivateKey
-getPrivateKeyForSigning privateKeyPath = do
+getPrivateKeyForSigning :: ∀ e. AdHocFilePath -> Spago (LogEnv e) SSH.PrivateKey
+getPrivateKeyForSigning privateKeyPath' = do
+  here <- Paths.cwd
+  let privateKeyPath = here </> privateKeyPath'
+
   -- If all is well we read in the private key
   privateKey <- try (FS.readTextFile privateKeyPath) >>= case _ of
     Right key -> pure key

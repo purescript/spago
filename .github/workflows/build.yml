@@ -13,8 +13,8 @@ jobs:
     strategy:
       matrix:
         include:
-          # - os: ubuntu-latest
-          # - os: macOS-latest
+          - os: ubuntu-latest
+          - os: macOS-latest
           - os: windows-latest
     steps:
       # We set LF endings so that the Windows environment is consistent with the rest
@@ -82,8 +82,6 @@ jobs:
         run: node ./bin/bundle.js bundle -p docs-search-client-halogen
 
       - name: Run tests
-        env:
-          SPAGO_TEST_DEBUG: 1
         run: node ./bin/bundle.js test -- -e "fails if running with --offline" --no-timeout
 
       - name: Check formatting (Linux only)

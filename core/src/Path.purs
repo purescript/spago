@@ -94,8 +94,11 @@ instance IsPath LocalPath where
 
 instance IsPath GlobalPath where
   toGlobal = identity
-  relativeTo (GlobalPath path) (RootPath root) =
-    LocalPath { root: RootPath root, local: Path.relative root path }
+  relativeTo (GlobalPath path) (RootPath root)
+    | bothAbsolutePathsOnDifferentDrives path root =
+        LocalPath { root: RootPath path, local: "" }
+    | otherwise =
+        LocalPath { root: RootPath root, local: Path.relative root path }
   quote (GlobalPath path) =
     "\"" <> path <> "\""
   replaceExtension p r (GlobalPath path) =
@@ -178,3 +181,9 @@ printLocalPath p =
     l = localPart p
   in
     if l == "" then "./" else l
+
+bothAbsolutePathsOnDifferentDrives :: String -> String -> Boolean
+bothAbsolutePathsOnDifferentDrives a b =
+  Path.isAbsolute a && Path.isAbsolute b && driveLetter a /= driveLetter b
+  where
+  driveLetter s = String.toLower $ String.take 1 s
