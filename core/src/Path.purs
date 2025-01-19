@@ -30,12 +30,14 @@ import Prelude
 
 import Data.Codec.JSON as CJ
 import Data.Function (on)
-import Data.Maybe (Maybe, isJust)
+import Data.Maybe (Maybe(..), isJust)
 import Data.Profunctor (dimap)
 import Data.String as String
 import Effect.Class (class MonadEffect, liftEffect)
 import Node.Path as Node.Path
 import Node.Path as Path
+import Node.Platform (Platform(..)) as Node
+import Node.Process (platform) as Node
 
 -- | Normally this represents the root directory of the workspace. All Spago
 -- | Workspace-scoped paths are relative to a `RootPath`.
@@ -95,8 +97,8 @@ instance IsPath LocalPath where
 instance IsPath GlobalPath where
   toGlobal = identity
   relativeTo (GlobalPath path) (RootPath root)
-    | bothAbsolutePathsOnDifferentDrives path root =
-        LocalPath { root: RootPath path, local: "" }
+    | areBothAbsolutePathsOnDifferentDrives path root =
+        LocalPath { root: RootPath path, local: "" } -- see comments on `areBothAbsolutePathsOnDifferentDrives`
     | otherwise =
         LocalPath { root: RootPath root, local: Path.relative root path }
   quote (GlobalPath path) =
@@ -182,8 +184,32 @@ printLocalPath p =
   in
     if l == "" then "./" else l
 
-bothAbsolutePathsOnDifferentDrives :: String -> String -> Boolean
-bothAbsolutePathsOnDifferentDrives a b =
-  Path.isAbsolute a && Path.isAbsolute b && driveLetter a /= driveLetter b
-  where
-  driveLetter s = String.toLower $ String.take 1 s
+-- This function is special handling for Windows, which may have multiple
+-- different file systems with separate roots and no way to build a relative
+-- path from one root to another, for example C:\foo\bar and D:\qux\baz. When
+-- this happens as we try to build a `LocalPath` as a relative from a given
+-- `RootPath`, and the two paths are from different file systems, we cannot use
+-- the same `RootPath` as root of the result.
+--
+-- For example:
+--
+--     -- POSIX case:
+--     (GlobalPath "/a/b") `relativeTo` (RootPath "/a/x") == LocalPath { root: RootPath "/a/x", local: "../b" }
+--
+--     -- Windows case on the same drive:
+--     (GlobalPath "C:\\a\\b") `relativeTo` (RootPath "C:\\a\\x") == LocalPath { root: RootPath "C:\\a\\x", local: "..\\b" }
+--
+--     -- But Windows case on different drives:
+--     (GlobalPath "C:\\a\\b") `relativeTo` (RootPath "D:\\a\\x") == LocalPath { root: RootPath "C:\\a\\b", local: "" }
+--
+-- In the last case the root path `D:\\a\\x` could not be used as the root of
+-- the resulting `LocalPath`, because there is no way to build a relative path
+-- from it to `C:\\a\\b`.
+areBothAbsolutePathsOnDifferentDrives :: String -> String -> Boolean
+areBothAbsolutePathsOnDifferentDrives a b
+  | Node.platform == Just Node.Win32 =
+      Path.isAbsolute a && Path.isAbsolute b && driveLetter a /= driveLetter b
+      where
+      driveLetter s = String.toLower $ String.take 1 s
+  | otherwise =
+      false
