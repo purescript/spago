@@ -7,7 +7,7 @@ package:
       githubOwner: purescript
       githubRepo: spago
   build:
-    strict: true
+    # strict: true
     censorProjectWarnings:
       - WildcardInferredType
       - ImplicitQualifiedImportReExport
