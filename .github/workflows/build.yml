@@ -81,7 +81,9 @@ jobs:
         run: node ./bin/bundle.js bundle -p docs-search-client-halogen
 
       - name: Run tests
-        run: bash -c SPAGO_TEST_DEBUG=1 node ./bin/bundle.js test -- -e "fails if running with --offline"
+        env:
+          SPAGO_TEST_DEBUG: 1
+        run: node ./bin/bundle.js test -- -e "fails if running with --offline"
 
       - name: Check formatting (Linux only)
         if: matrix.os == 'ubuntu-latest'
