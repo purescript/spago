@@ -73,7 +73,7 @@ mkComponent
   -> MD.MarkdownIt
   -> Meta
   -> H.Component Query i o Aff
-mkComponent initialEngineState contents markdownIt {} =
+mkComponent initialEngineState contents markdownIt _ =
   H.mkComponent
     { initialState: const
         { engineState: initialEngineState
