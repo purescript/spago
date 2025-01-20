@@ -1,4 +1,10 @@
-module Spago.Command.Graph where
+module Spago.Command.Graph
+  ( GraphModulesArgs
+  , GraphPackagesArgs
+  , graphModules
+  , graphModules'
+  , graphPackages
+  ) where
 
 import Spago.Prelude
 
@@ -16,8 +22,9 @@ import Spago.Command.Fetch as Fetch
 import Spago.Config (Workspace, WorkspacePackage)
 import Spago.Config as Config
 import Spago.Purs (Purs)
-import Spago.Purs.Graph (ModuleGraphWithPackage, PackageGraph, ModuleGraphWithPackageNode)
+import Spago.Purs.Graph (PackageGraph)
 import Spago.Purs.Graph as Graph
+import Spago.Purs.Types (ModuleGraphWithPackage, ModuleGraphWithPackageNode)
 
 type GraphEnv a =
   { dependencies :: Fetch.PackageTransitiveDeps
@@ -40,9 +47,10 @@ type GraphPackagesArgs =
   , topo :: Boolean
   }
 
-graphModules :: ∀ a. GraphModulesArgs -> Spago (GraphEnv a) Unit
-graphModules { dot, json, topo } = do
+graphModules' :: forall a. Spago (GraphEnv a) { moduleGraph :: ModuleGraphWithPackage, selected :: NonEmptyArray WorkspacePackage }
+graphModules' = do
   env@{ dependencies, workspace, rootPath } <- ask
+
   let allDependencies = Fetch.toAllDependencies dependencies
   let selected = Config.getWorkspacePackages workspace.packageSet
   let globs = Build.getBuildGlobs { rootPath, selected, withTests: false, dependencies: allDependencies, depsOnly: false }
@@ -50,6 +58,11 @@ graphModules { dot, json, topo } = do
   graph <- either die pure eitherGraph
 
   moduleGraph <- runSpago (Record.union { selected } env) (Graph.getModuleGraphWithPackage graph)
+  pure { moduleGraph, selected }
+
+graphModules :: forall a. GraphModulesArgs -> Spago (GraphEnv a) Unit
+graphModules { dot, json, topo } = do
+  { moduleGraph, selected } <- graphModules'
   case topo of
     false -> output case dot, json of
       true, _ -> OutputLines $ modulesToDot selected moduleGraph
@@ -66,8 +79,8 @@ graphModules { dot, json, topo } = do
           true -> OutputJson (CJ.Common.list CJ.string) list
           false -> OutputLines $ Array.fromFoldable list
 
-graphPackages :: forall a. GraphPackagesArgs -> Spago (GraphEnv a) Unit
-graphPackages { dot, json, topo } = do
+graphPackages' :: forall a. Spago (GraphEnv a) { packageGraph :: PackageGraph, selected :: NonEmptyArray WorkspacePackage }
+graphPackages' = do
   env@{ dependencies, workspace, rootPath } <- ask
   let allDependencies = Fetch.toAllDependencies dependencies
   let selected = Config.getWorkspacePackages workspace.packageSet
@@ -76,6 +89,11 @@ graphPackages { dot, json, topo } = do
   graph <- either die pure eitherGraph
 
   packageGraph <- runSpago (Record.union { selected } env) (Graph.getPackageGraph graph)
+  pure { packageGraph, selected }
+
+graphPackages :: forall a. GraphPackagesArgs -> Spago (GraphEnv a) Unit
+graphPackages { dot, json, topo } = do
+  { packageGraph, selected } <- graphPackages'
   case topo of
     false -> output case dot, json of
       true, _ -> OutputLines $ packagesToDot selected packageGraph

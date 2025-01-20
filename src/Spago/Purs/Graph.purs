@@ -8,8 +8,6 @@ module Spago.Purs.Graph
   , PackageGraph
   , packageGraphCodec
   , getPackageGraph
-  , ModuleGraphWithPackage
-  , ModuleGraphWithPackageNode
   , moduleGraphCodec
   , getModuleGraphWithPackage
   ) where
@@ -34,8 +32,9 @@ import Spago.Config as Config
 import Spago.Glob as Glob
 import Spago.Log as Log
 import Spago.Path as Path
-import Spago.Purs (ModuleGraph(..), ModuleGraphNode, ModuleName, Purs)
+import Spago.Purs (Purs)
 import Spago.Purs as Purs
+import Spago.Purs.Types (ModuleGraph(..), ModuleGraphNode, ModuleName, ModuleGraphWithPackageNode, ModuleGraphWithPackage)
 import Unsafe.Coerce (unsafeCoerce)
 
 --------------------------------------------------------------------------------
@@ -48,7 +47,7 @@ type PreGraphEnv a =
   | a
   }
 
-runGraph :: ∀ a. RootPath -> Set LocalPath -> Array String -> Spago (PreGraphEnv a) (Either String Purs.ModuleGraph)
+runGraph :: ∀ a. RootPath -> Set LocalPath -> Array String -> Spago (PreGraphEnv a) (Either String ModuleGraph)
 runGraph root globs pursArgs = map (lmap toErrorMessage) $ Purs.graph root globs pursArgs
   where
   toErrorMessage = append "Could not decode the output of `purs graph`, error: " <<< CJ.DecodeError.print
@@ -64,12 +63,6 @@ type PackageGraphEnv a =
   | a
   }
 
-type ModuleGraphWithPackageNode =
-  { path :: String
-  , depends :: Array ModuleName
-  , package :: PackageName
-  }
-
 moduleGraphWithPackageNodeCodec :: CJ.Codec ModuleGraphWithPackageNode
 moduleGraphWithPackageNodeCodec = CJ.named "ModuleGraphNode" $ CJ.Record.object
   { path: CJ.string
@@ -77,12 +70,10 @@ moduleGraphWithPackageNodeCodec = CJ.named "ModuleGraphNode" $ CJ.Record.object
   , package: PackageName.codec
   }
 
-type ModuleGraphWithPackage = Map ModuleName ModuleGraphWithPackageNode
-
 moduleGraphCodec :: CJ.Codec ModuleGraphWithPackage
 moduleGraphCodec = Internal.Codec.strMap "ModuleGraphWithPackage" Right identity moduleGraphWithPackageNodeCodec
 
-getModuleGraphWithPackage :: forall a. Purs.ModuleGraph -> Spago (PackageGraphEnv a) ModuleGraphWithPackage
+getModuleGraphWithPackage :: forall a. ModuleGraph -> Spago (PackageGraphEnv a) ModuleGraphWithPackage
 getModuleGraphWithPackage (ModuleGraph graph) = do
   { selected, dependencies, rootPath } <- ask
 
@@ -144,7 +135,7 @@ type PackageGraph = Map PackageName { depends :: Set PackageName }
 packageGraphCodec :: CJ.Codec PackageGraph
 packageGraphCodec = Internal.Codec.packageMap (CJ.named "PackageGraphNode" $ CJ.Record.object { depends: CJ.Common.set PackageName.codec })
 
-getPackageGraph :: forall a. Purs.ModuleGraph -> Spago (PackageGraphEnv a) PackageGraph
+getPackageGraph :: forall a. ModuleGraph -> Spago (PackageGraphEnv a) PackageGraph
 getPackageGraph graph = do
   moduleGraphWithPackage <- getModuleGraphWithPackage graph
   let

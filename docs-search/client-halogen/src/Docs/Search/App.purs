@@ -1,6 +1,14 @@
 -- | This is the main module of the client-side Halogen app.
 module Docs.Search.App where
 
+import Prelude
+
+import Control.Alt (alt)
+import Data.Map as Map
+import Data.Maybe (Maybe(..))
+import Data.Newtype (wrap)
+import Data.Tuple (Tuple(..))
+import Data.Tuple.Nested ((/\))
 import Docs.Search.App.SearchField as SearchField
 import Docs.Search.App.SearchResults as SearchResults
 import Docs.Search.App.Sidebar as Sidebar
@@ -8,16 +16,6 @@ import Docs.Search.Config as Config
 import Docs.Search.Extra (whenJust)
 import Docs.Search.ModuleIndex as ModuleIndex
 import Docs.Search.PackageIndex as PackageIndex
-import Docs.Search.Meta as Meta
-
-import Prelude
-
-import Control.Alt (alt)
-import Data.Maybe (Maybe(..))
-import Data.Newtype (wrap)
-import Data.Map as Map
-import Data.Tuple (Tuple(..))
-import Data.Tuple.Nested ((/\))
 import Effect (Effect)
 import Effect.Aff (launchAff_)
 import Halogen as H
@@ -26,8 +24,8 @@ import Halogen.Subscription (subscribe)
 import Halogen.VDom.Driver (runUI)
 import MarkdownIt as MD
 import Web.DOM.ChildNode as ChildNode
-import Web.DOM.Document as Document
 import Web.DOM.Document (Document)
+import Web.DOM.Document as Document
 import Web.DOM.Element as Element
 import Web.DOM.Node as Node
 import Web.DOM.ParentNode as ParentNode
@@ -66,7 +64,6 @@ main = do
       HA.runHalogenAff do
         packageIndex <- PackageIndex.loadPackageIndex
         moduleIndex <- ModuleIndex.unpackModuleIndex <$> ModuleIndex.loadModuleIndex
-        meta <- Meta.load
         let scores = PackageIndex.mkScoresFromPackageIndex packageIndex
 
         let
@@ -82,7 +79,6 @@ main = do
               initialSearchEngineState
               pageContents
               markdownIt
-              meta
 
         sfio <- runUI SearchField.component unit searchField
         srio <- runUI resultsComponent unit searchResults
@@ -106,7 +102,7 @@ main = do
           addEventListener hashchange listener true (Window.toEventTarget window)
 
         sbio <- do
-          component <- Sidebar.mkComponent moduleIndex isIndexHTML meta
+          component <- Sidebar.mkComponent moduleIndex isIndexHTML
           runUI component unit sidebarContainer
 
         -- Subscribe to window focus events

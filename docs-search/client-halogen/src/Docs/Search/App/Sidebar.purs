@@ -1,10 +1,5 @@
 module Docs.Search.App.Sidebar where
 
-import Docs.Search.Config as Config
-import Docs.Search.Meta (Meta)
-import Docs.Search.ModuleIndex (ModuleIndex)
-import Docs.Search.Types (ModuleName(..), PackageInfo(..), PackageName)
-
 import Prelude
 
 import Data.Array as Array
@@ -17,23 +12,27 @@ import Data.Maybe (Maybe(..), isJust, fromMaybe)
 import Data.Newtype (wrap, unwrap)
 import Data.Set (Set)
 import Data.Set as Set
+import Data.Traversable (traverse)
 import Data.Tuple.Nested (type (/\), (/\))
+import Docs.Search.Config as Config
+import Docs.Search.ModuleIndex (ModuleIndex)
+import Docs.Search.Types (ModuleName(..), PackageInfo(..))
 import Effect (Effect)
 import Effect.Aff (Aff)
 import Halogen as H
 import Halogen.HTML as HH
 import Halogen.HTML.Events as HE
 import Halogen.HTML.Properties as HP
+import Registry.PackageName as PackageName
 import Type.Proxy (Proxy(..))
-import Web.HTML as HTML
-import Web.HTML.Window as Window
-import Web.Storage.Storage as Storage
 import Web.DOM.Document as Document
 import Web.DOM.Element as Element
-import Web.HTML.HTMLDocument as HTMLDocument
-import Web.DOM.ParentNode as ParentNode
-import Data.Traversable (traverse)
 import Web.DOM.Node as Node
+import Web.DOM.ParentNode as ParentNode
+import Web.HTML as HTML
+import Web.HTML.HTMLDocument as HTMLDocument
+import Web.HTML.Window as Window
+import Web.Storage.Storage as Storage
 
 data Action = ToggleGrouping GroupingMode
 
@@ -54,7 +53,6 @@ type State =
   , groupingMode :: GroupingMode
   , moduleNames :: Array ModuleName
   , isIndexHTML :: IsIndexHTML
-  , localPackageName :: PackageName
   , currentPackage :: PackageInfo
   }
 
@@ -62,9 +60,8 @@ mkComponent
   :: forall i
    . ModuleIndex
   -> IsIndexHTML
-  -> Meta
   -> Aff (H.Component Query i Action Aff)
-mkComponent moduleIndex@{ packageModules } isIndexHTML { localPackageName } = do
+mkComponent moduleIndex@{ packageModules } isIndexHTML = do
   groupingMode <- H.liftEffect loadGroupingModeFromLocalStorage
   mbModuleName <- H.liftEffect getCurrentModuleName
   let currentPackage = getCurrentPackage moduleIndex mbModuleName
@@ -75,7 +72,6 @@ mkComponent moduleIndex@{ packageModules } isIndexHTML { localPackageName } = do
           , groupingMode
           , moduleNames
           , isIndexHTML
-          , localPackageName
           , currentPackage
           }
       , render
@@ -118,7 +114,7 @@ render
   :: forall m
    . State
   -> H.ComponentHTML Action () m
-render state@{ groupingMode, moduleNames, localPackageName } =
+render state@{ groupingMode, moduleNames } =
   HH.div
     [ HP.classes
         [ wrap "col"
@@ -156,8 +152,8 @@ render state@{ groupingMode, moduleNames, localPackageName } =
           [ HH.summary_
               [ HH.text $
                   case package of
-                    Package packageName -> unwrap packageName
-                    LocalPackage -> unwrap localPackageName
+                    Package packageName -> PackageName.print packageName
+                    LocalPackage packageName -> PackageName.print packageName
                     Builtin -> "<builtins>"
                     UnknownPackage -> "<unknown>"
               ]

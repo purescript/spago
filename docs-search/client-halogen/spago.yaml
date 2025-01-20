@@ -25,6 +25,7 @@ package:
     - ordered-collections
     - prelude
     - profunctor-lenses
+    - registry-lib
     - search-trie
     - strings
     - tuples

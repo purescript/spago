@@ -11,6 +11,7 @@
 /.spago
 /bin/bundle.js
 /bin/docs-search-app.js
+/bin/docs-search-app.js.map
 .direnv
 .envrc
 .spec-results
