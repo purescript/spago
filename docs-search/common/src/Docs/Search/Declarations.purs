@@ -10,6 +10,7 @@ module Docs.Search.Declarations
 import Prelude
 
 import Control.Alt ((<|>))
+import Data.Array as Array
 import Data.Foldable (foldl, foldr)
 import Data.List (List, (:))
 import Data.List as List
@@ -21,8 +22,8 @@ import Data.Set (Set)
 import Data.Set as Set
 import Data.String.CodeUnits (stripPrefix, stripSuffix, toCharArray)
 import Data.String.Common (toLower)
+import Data.String.Common as String
 import Data.String.Pattern (Pattern(..))
-import Data.String.Utils (startsWith)
 import Data.Tuple (Tuple(..))
 import Docs.Search.DocTypes (ChildDeclaration(..), ChildDeclarationInfo(..), Declaration(..), DeclarationInfo(..), DocModule(..), ModuleName(..), ProperName(..), QualifiedBy(..), Type')
 import Docs.Search.Score (Scores, getPackageScore, getPackageScoreForPackageName)
@@ -212,7 +213,7 @@ getLevelAndName (Declaration { info, title }) =
 -- | built-in (guaranteed by the compiler).
 extractPackageName :: Graph.ModuleGraphWithPackage -> Set PackageName -> ModuleName -> PackageInfo
 extractPackageName moduleGraph workspacePackages (ModuleName moduleName) =
-  case moduleName # startsWith "Prim." of
+  case Array.index (String.split (Pattern ".") moduleName) 0 == Just "Prim" of
     true -> Builtin
     false -> case Map.lookup moduleName moduleGraph of
       Nothing -> UnknownPackage
