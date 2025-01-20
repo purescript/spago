@@ -213,7 +213,7 @@ getLevelAndName (Declaration { info, title }) =
 -- | built-in (guaranteed by the compiler).
 extractPackageName :: Graph.ModuleGraphWithPackage -> Set PackageName -> ModuleName -> PackageInfo
 extractPackageName moduleGraph workspacePackages (ModuleName moduleName) =
-  case String.split (Pattern ".") moduleName !! 0 == Just "Prim" of
+  case moduleName # startsWith "Prim." of
     true -> Builtin
     false -> case Map.lookup moduleName moduleGraph of
       Nothing -> UnknownPackage
