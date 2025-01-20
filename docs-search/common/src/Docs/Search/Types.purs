@@ -1,6 +1,5 @@
 module Docs.Search.Types
   ( module ReExport
-  , packageNameCodec
   , moduleNameCodec
   , Identifier(..)
   , PackageInfo(..)
@@ -15,19 +14,18 @@ module Docs.Search.Types
 
 import Prelude
 
-import Data.Codec.JSON.Variant as CJ.Variant
 import Data.Codec.JSON.Common as CJ
+import Data.Codec.JSON.Variant as CJ.Variant
 import Data.Either (Either(..))
 import Data.Generic.Rep (class Generic)
 import Data.Newtype (class Newtype)
 import Data.Profunctor (wrapIso, dimap)
-import Data.Show.Generic (genericShow)
 import Data.Variant as Variant
 import Docs.Search.JsonCodec (inject)
 import Language.PureScript.Names (ModuleName(..))
 import Language.PureScript.Names (ModuleName(..)) as ReExport
-import Web.Bower.PackageMeta (PackageName(..))
-import Web.Bower.PackageMeta (PackageName(..)) as ReExport
+import Registry.PackageName (PackageName)
+import Registry.PackageName as PackageName
 
 newtype Identifier = Identifier String
 
@@ -40,34 +38,40 @@ derive newtype instance showIdentifier :: Show Identifier
 moduleNameCodec :: CJ.Codec ModuleName
 moduleNameCodec = wrapIso ModuleName CJ.string
 
-data PackageInfo = LocalPackage | Builtin | Package PackageName | UnknownPackage
+data PackageInfo
+  = LocalPackage PackageName
+  | Package PackageName
+  | Builtin
+  | UnknownPackage
 
 derive instance eqPackageInfo :: Eq PackageInfo
 derive instance ordPackageInfo :: Ord PackageInfo
 derive instance genericPackageInfo :: Generic PackageInfo _
-instance showPackageInfo :: Show PackageInfo where
-  show = genericShow
 
-packageNameCodec :: CJ.Codec PackageName
-packageNameCodec = wrapIso PackageName CJ.string
+instance Show PackageInfo where
+  show = case _ of
+    LocalPackage name -> "LocalPackage " <> PackageName.print name
+    Package name -> "Package " <> PackageName.print name
+    Builtin -> "Builtin"
+    UnknownPackage -> "UnknownPackage"
 
 packageInfoCodec :: CJ.Codec PackageInfo
 packageInfoCodec =
   dimap toVariant fromVariant $ CJ.Variant.variantMatch
-    { local: Left unit
+    { local: Right PackageName.codec
     , builtin: Left unit
     , unknown: Left unit
-    , package: Right packageNameCodec
+    , package: Right PackageName.codec
     }
   where
   toVariant = case _ of
-    LocalPackage -> inject @"local" unit
+    LocalPackage name -> inject @"local" name
     Builtin -> inject @"builtin" unit
     Package name -> inject @"package" name
     UnknownPackage -> inject @"unknown" unit
 
   fromVariant = Variant.match
-    { local: \_ -> LocalPackage
+    { local: \name -> LocalPackage name
     , builtin: \_ -> Builtin
     , unknown: \_ -> UnknownPackage
     , package: \name -> Package name

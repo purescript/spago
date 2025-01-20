@@ -5,8 +5,9 @@ import Prelude
 import Data.Char as Char
 import Data.List (List, (:))
 import Data.Newtype (wrap)
-import Docs.Search.Types (GlobalIdentifier, PackageName, PartId(..), URL, FilePath)
+import Docs.Search.Types (GlobalIdentifier, PartId(..), URL, FilePath)
 
+-- TODO use the spago-generated one
 version :: String
 version = "0.0.12"
 
@@ -90,14 +91,8 @@ getPartId (a : _) =
   PartId $ Char.toCharCode a `mod` numberOfIndexParts
 getPartId _ = PartId 0
 
-defaultPackageName :: PackageName
-defaultPackageName = wrap "<local package>"
-
 defaultDocsFiles :: Array String
 defaultDocsFiles = [ "output/**/docs.json" ]
 
-defaultBowerFiles :: Array String
-defaultBowerFiles = [ ".spago/*/*/bower.json", "bower_components/purescript-*/bower.json" ]
-
-defaultSourceFiles :: Array String
-defaultSourceFiles = [ "src/**/*.purs" ]
+defaultPursFiles :: Array String
+defaultPursFiles = [ ".spago/*/*/purs.json" ]

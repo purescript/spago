@@ -9,6 +9,7 @@ import Data.Codec.JSON as CJ
 import Data.Codec.JSON.Common as CJ.Common
 import Data.Either (hush)
 import Data.Foldable (foldl)
+import Data.FoldableWithIndex (foldrWithIndex)
 import Data.Lens ((%~))
 import Data.Lens.Record (prop)
 import Data.List (List, (:))
@@ -30,11 +31,13 @@ import Docs.Search.Declarations (Declarations(..))
 import Docs.Search.Extra (stringToList)
 import Docs.Search.Score (Scores, getPackageScore)
 import Docs.Search.SearchResult (SearchResult(..))
-import Docs.Search.Types (ModuleName, PackageInfo(..), PackageScore)
+import Docs.Search.Types (ModuleName(..), PackageInfo(..), PackageScore)
 import Docs.Search.Types as Package
 import Effect (Effect)
 import Effect.Aff (Aff)
 import JSON (JSON)
+import Registry.PackageName (PackageName)
+import Spago.Purs.Types as Graph
 import Type.Proxy (Proxy(..))
 
 -- | Module index that is actually stored in a JS file.
@@ -100,16 +103,22 @@ queryModuleIndex scores { index, modulePackages } query =
         Array.catMaybes
 
 -- | Constructs a mapping from packages to modules
-mkPackedModuleIndex :: Declarations -> Array ModuleName -> PackedModuleIndex
-mkPackedModuleIndex (Declarations trie) moduleNames =
-  addLocalPackageModuleNames
+mkPackedModuleIndex :: Graph.ModuleGraphWithPackage -> Set PackageName -> Declarations -> PackedModuleIndex
+mkPackedModuleIndex moduleGraph workspacePackages (Declarations trie) =
+  addModulesForWorkspacePackages
     $ foldr (Map.unionWith Set.union) Map.empty
     $ extract <$> Trie.values trie
   where
-  -- Add modules from src/ that may not contain any definitions, only
-  -- re-exports
-  addLocalPackageModuleNames = flip Map.alter LocalPackage $
-    Just <<< append (Set.fromFoldable moduleNames) <<< fromMaybe Set.empty
+  -- We need to get all the modules in the workspace packages and add them as a separate step,
+  -- because if they don't have definitions (and are just re-exporting other things) then they won't
+  -- have a docs.json file, and so they won't be in the trie.
+  addModulesForWorkspacePackages index = foldrWithIndex addModulesForPackage index moduleGraph
+  addModulesForPackage moduleName { package } index = case Set.member package workspacePackages of
+    false -> index
+    true -> Map.alter
+      (Just <<< Set.insert (ModuleName moduleName) <<< fromMaybe Set.empty)
+      (LocalPackage package)
+      index
 
   extract
     :: List SearchResult

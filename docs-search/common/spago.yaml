@@ -28,8 +28,10 @@ package:
     - prelude
     - profunctor
     - profunctor-lenses
+    - registry-lib
     - safe-coerce
     - search-trie
+    - spago-core
     - string-parsers
     - strings
     - transformers

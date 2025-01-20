@@ -1,4 +1,19 @@
-module Spago.Purs where
+module Spago.Purs
+  ( DocsFormat(..)
+  , Purs
+  , PursEnv
+  , compile
+  , docs
+  , getPurs
+  , graph
+  , moduleGraphCodec
+  , moduleGraphNodeCodec
+  , parseDocsFormat
+  , parseVersionOutput
+  , printDocsFormat
+  , repl
+  , module Types
+  ) where
 
 import Spago.Prelude
 
@@ -13,6 +28,7 @@ import Registry.Internal.Codec as Internal.Codec
 import Registry.Version as Version
 import Spago.Cmd as Cmd
 import Spago.Path as Path
+import Spago.Purs.Types (ModuleGraph(..), ModuleGraphNode) as Types
 
 type PursEnv a =
   { purs :: Purs
@@ -108,27 +124,16 @@ docs cwd globs format = do
 --------------------------------------------------------------------------------
 -- Graph
 
-type ModuleName = String
+moduleGraphCodec :: CJ.Codec Types.ModuleGraph
+moduleGraphCodec = Profunctor.wrapIso Types.ModuleGraph (Internal.Codec.strMap "ModuleGraph" Right identity moduleGraphNodeCodec)
 
-newtype ModuleGraph = ModuleGraph (Map ModuleName ModuleGraphNode)
-
-derive instance Newtype ModuleGraph _
-
-moduleGraphCodec :: CJ.Codec ModuleGraph
-moduleGraphCodec = Profunctor.wrapIso ModuleGraph (Internal.Codec.strMap "ModuleGraph" Right identity moduleGraphNodeCodec)
-
-type ModuleGraphNode =
-  { path :: String
-  , depends :: Array ModuleName
-  }
-
-moduleGraphNodeCodec :: CJ.Codec ModuleGraphNode
+moduleGraphNodeCodec :: CJ.Codec Types.ModuleGraphNode
 moduleGraphNodeCodec = CJ.named "ModuleGraphNode" $ CJ.Record.object
   { path: CJ.string
   , depends: CJ.array CJ.string
   }
 
-graph :: ∀ a. RootPath -> Set LocalPath -> Array String -> Spago (PursEnv a) (Either CJ.DecodeError ModuleGraph)
+graph :: ∀ a. RootPath -> Set LocalPath -> Array String -> Spago (PursEnv a) (Either CJ.DecodeError Types.ModuleGraph)
 graph cwd globs pursArgs = do
   { purs } <- ask
   let args = [ "graph" ] <> pursArgs <> globsToArgs cwd globs

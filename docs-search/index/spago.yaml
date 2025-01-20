@@ -15,7 +15,6 @@ package:
     - identity
     - json
     - json-codecs
-    - language-purescript
     - lists
     - maybe
     - newtype
@@ -26,14 +25,15 @@ package:
     - ordered-collections
     - prelude
     - profunctor
+    - registry-lib
     - search-trie
-    - string-parsers
+    - spago-core
     - strings
     - tuples
     - unsafe-coerce
   test:
     main: Test.Docs.Search.Main
     dependencies:
-      - exceptions
+      - registry-lib
       - spec
       - spec-node
