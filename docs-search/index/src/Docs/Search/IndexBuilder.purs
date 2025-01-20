@@ -85,7 +85,7 @@ run cfg = do
     log "Building the search index..."
 
   docsJsons /\ packageMetas <- sequential $
-    (\d m -> d /\ m)
+    Tuple
       <$> parallel (decodeDocsJsons cfg)
       <*> parallel (decodePursJsons cfg)
 
