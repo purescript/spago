@@ -10,7 +10,6 @@ module Docs.Search.Declarations
 import Prelude
 
 import Control.Alt ((<|>))
-import Data.Array ((!!))
 import Data.Foldable (foldl, foldr)
 import Data.List (List, (:))
 import Data.List as List
@@ -21,9 +20,9 @@ import Data.Search.Trie (Trie, alter)
 import Data.Set (Set)
 import Data.Set as Set
 import Data.String.CodeUnits (stripPrefix, stripSuffix, toCharArray)
-import Data.String.Common (split) as String
 import Data.String.Common (toLower)
 import Data.String.Pattern (Pattern(..))
+import Data.String.Utils (startsWith)
 import Data.Tuple (Tuple(..))
 import Docs.Search.DocTypes (ChildDeclaration(..), ChildDeclarationInfo(..), Declaration(..), DeclarationInfo(..), DocModule(..), ModuleName(..), ProperName(..), QualifiedBy(..), Type')
 import Docs.Search.Score (Scores, getPackageScore, getPackageScoreForPackageName)
