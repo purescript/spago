@@ -61,7 +61,7 @@ insertDeclaration
   -> Declaration
   -> Trie Char (List SearchResult)
   -> Trie Char (List SearchResult)
-insertDeclaration moduleGraph workspacePackages scores moduleName entry@(Declaration { title: _ }) trie =
+insertDeclaration moduleGraph workspacePackages scores moduleName entry@(Declaration _) trie =
   foldr insertSearchResult trie (resultsForDeclaration moduleGraph workspacePackages scores moduleName entry)
 
 insertSearchResult
