@@ -63,7 +63,7 @@ mkComponent
   -> IsIndexHTML
   -> Meta
   -> Aff (H.Component Query i Action Aff)
-mkComponent moduleIndex@{ packageModules } isIndexHTML {} = do
+mkComponent moduleIndex@{ packageModules } isIndexHTML _ = do
   groupingMode <- H.liftEffect loadGroupingModeFromLocalStorage
   mbModuleName <- H.liftEffect getCurrentModuleName
   let currentPackage = getCurrentPackage moduleIndex mbModuleName
