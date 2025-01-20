@@ -15,7 +15,6 @@ import Data.Set as Set
 import Data.Traversable (traverse)
 import Data.Tuple.Nested (type (/\), (/\))
 import Docs.Search.Config as Config
-import Docs.Search.Meta (Meta)
 import Docs.Search.ModuleIndex (ModuleIndex)
 import Docs.Search.Types (ModuleName(..), PackageInfo(..))
 import Effect (Effect)
@@ -61,9 +60,8 @@ mkComponent
   :: forall i
    . ModuleIndex
   -> IsIndexHTML
-  -> Meta
   -> Aff (H.Component Query i Action Aff)
-mkComponent moduleIndex@{ packageModules } isIndexHTML _ = do
+mkComponent moduleIndex@{ packageModules } isIndexHTML = do
   groupingMode <- H.liftEffect loadGroupingModeFromLocalStorage
   mbModuleName <- H.liftEffect getCurrentModuleName
   let currentPackage = getCurrentPackage moduleIndex mbModuleName

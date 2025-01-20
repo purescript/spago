@@ -38,8 +38,6 @@ import Docs.Search.Declarations as Declarations
 import Docs.Search.DocTypes (DocModule)
 import Docs.Search.DocTypes as Docs
 import Docs.Search.Extra ((>#>))
-import Docs.Search.Meta (Meta)
-import Docs.Search.Meta as Meta
 import Docs.Search.ModuleIndex (PackedModuleIndex)
 import Docs.Search.ModuleIndex as ModuleIndex
 import Docs.Search.PackageIndex (PackageInfo)
@@ -107,7 +105,6 @@ run cfg = do
     typeIndex = TypeIndex.mkTypeIndex cfg.moduleGraph cfg.workspacePackages scores docsJsons
     packageInfo = PackageIndex.mkPackageInfo scores packageMetas
     moduleIndex = ModuleIndex.mkPackedModuleIndex cfg.moduleGraph cfg.workspacePackages index
-    meta = {}
 
   createDirectories cfg
 
@@ -116,7 +113,6 @@ run cfg = do
       <*> parallel (writeTypeIndex typeIndex)
       <*> parallel (writePackageInfo packageInfo)
       <*> parallel (writeModuleIndex moduleIndex)
-      <*> parallel (writeMeta meta)
       <*> parallel (patchDocs cfg)
       <*> parallel (copyAppFile cfg)
 
@@ -265,13 +261,6 @@ writeModuleIndex moduleIndex = do
     header <> JSON.print (CJ.encode ModuleIndex.packedModuleIndexCodec moduleIndex)
   where
   header = "window.DocsSearchModuleIndex = "
-
-writeMeta :: Meta -> Aff Unit
-writeMeta meta = do
-  writeTextFile UTF8 (unwrap Config.metaPath) $
-    header <> JSON.print (CJ.encode Meta.metaCodec meta)
-  where
-  header = "window." <> unwrap Config.metaItem <> " = "
 
 -- | Get a mapping from index parts to index contents.
 getIndex :: Declarations -> Map PartId (Array (Tuple String (Array SearchResult)))

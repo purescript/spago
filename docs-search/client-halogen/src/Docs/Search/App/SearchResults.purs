@@ -19,7 +19,6 @@ import Docs.Search.DocTypes (DataDeclType(..))
 import Docs.Search.Engine (Result(..), packageInfoToString)
 import Docs.Search.Engine as Engine
 import Docs.Search.Extra ((>#>))
-import Docs.Search.Meta (Meta)
 import Docs.Search.ModuleIndex (ModuleResult)
 import Docs.Search.PackageIndex (PackageResult)
 import Docs.Search.SearchResult (ResultInfo(..), SearchResult(..))
@@ -71,9 +70,8 @@ mkComponent
    . EngineState
   -> Element
   -> MD.MarkdownIt
-  -> Meta
   -> H.Component Query i o Aff
-mkComponent initialEngineState contents markdownIt _ =
+mkComponent initialEngineState contents markdownIt =
   H.mkComponent
     { initialState: const
         { engineState: initialEngineState
