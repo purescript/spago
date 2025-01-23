@@ -78,6 +78,13 @@ spec = Spec.around withTempDir do
       spago [ "fetch" ] >>= shouldBeSuccess
       spago [ "publish", "--offline" ] >>= shouldBeFailureErr (fixture "publish/ready.txt")
 
+    Spec.it "#1307 allows other non-published projects to reference local project in the workspace" \{ spago, fixture, testCwd } -> do
+      FS.copyTree { src: fixture "publish/1307-publish-dependencies", dst: testCwd }
+      spago [ "build" ] >>= shouldBeSuccess
+      doTheGitThing
+      spago [ "fetch" ] >>= shouldBeSuccess
+      spago [ "publish", "-p", "root", "--offline" ] >>= shouldBeFailureErr (fixture "publish/1307-publish-dependencies/expected-stderr.txt")
+
   Spec.describe "transfer" do
 
     Spec.it "fails if the publish config is not specified" \{ spago, fixture } -> do
