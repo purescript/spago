@@ -91,7 +91,7 @@ publish _args = do
   logDebug $ "Publishing package " <> strName
 
   -- As first thing we run a build to make sure the package compiles at all
-  built <- runBuild { selected, dependencies: env.dependencies }
+  built <- runBuild { selected, dependencies }
     ( Build.run
         { depsOnly: false
         , pursArgs: []
@@ -103,8 +103,8 @@ publish _args = do
     Effect.liftEffect Process.exit
 
   -- We then need to check that the dependency graph is accurate. If not, queue the errors
-  let allCoreDependencies = Fetch.toAllDependencies $ dependencies <#> _ { test = Map.empty }
-  let globs = Build.getBuildGlobs { rootPath, selected: NEA.singleton selected, withTests: false, dependencies: allCoreDependencies, depsOnly: false }
+  let coreDependencies = dependencies # Map.lookup name <#> _.core # fromMaybe Map.empty
+  let globs = Build.getBuildGlobs { rootPath, selected: NEA.singleton selected, withTests: false, dependencies: coreDependencies, depsOnly: false }
   eitherGraph <- Graph.runGraph rootPath globs []
   case eitherGraph of
     Right graph -> do
@@ -206,7 +206,7 @@ publish _args = do
                       RegistryVersion v -> Right (Tuple pkgName v)
                       _ -> Left pkgName
                   )
-              $ (Map.toUnfoldable allCoreDependencies :: Array _)
+              $ (Map.toUnfoldable coreDependencies :: Array _)
         if Array.length fail > 0 then
           addError
             $ toDoc

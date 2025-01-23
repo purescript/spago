@@ -43,6 +43,8 @@ Other improvements:
 - When the `publish.location` field is missing, `spago publish` will attempt to
   figure out the location from Git remotes and write it back to `spago.yaml`.
 - Internally Spago uses stricter-typed file paths.
+- `spago publish` no longer tries to validate all workspace dependencies, but
+  only the (transitive) dependencies of the project being published.
 
 ## [0.21.0] - 2023-05-04
 
