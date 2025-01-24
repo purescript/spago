@@ -8,6 +8,7 @@ import Effect.Now as Now
 import Registry.Version as Version
 import Spago.Command.Init as Init
 import Spago.Core.Config as Config
+import Spago.Core.Config (Dependencies(..))
 import Spago.FS as FS
 import Spago.Log (LogVerbosity(..))
 import Spago.Path as Path
@@ -60,6 +61,25 @@ spec = Spec.around withTempDir do
       spago [ "init", "--name", "aaaa", "--package-set", "29.3.0" ] >>= shouldBeSuccess
       spago [ "install", "foo-foo-foo", "bar-bar-bar", "effcet", "arrys" ] >>= shouldBeFailureErr (fixture "missing-dependencies.txt")
       checkFixture (testCwd </> "spago.yaml") (fixture "spago-install-failure.yaml")
+
+    Spec.it "warns when specified dependency versions do not exist" \{ spago, fixture, testCwd } -> do
+      spago [ "init", "--package-set", "29.3.0" ] >>= shouldBeSuccess
+
+      let
+        dependencies = Dependencies <<< Map.fromFoldable
+          $ (\name -> Tuple (mkPackageName name) (Just $ mkRange ">=1000.0.0 <1000.0.1"))
+          <$> [ "maybe", "lists" ]
+
+        conf = Init.defaultConfig
+          { name: mkPackageName "aaa"
+          , withWorkspace: Nothing
+          , testModuleName: "Test.Main"
+          }
+
+      FS.writeYamlFile Config.configCodec (testCwd </> "spago.yaml")
+        (conf { package = conf.package # map (_ { dependencies = dependencies }) })
+
+      spago [ "install" ] >>= shouldBeFailureErr (fixture "missing-dependencies.txt")
 
     Spec.it "does not allow circular dependencies" \{ spago, fixture, testCwd } -> do
       spago [ "init" ] >>= shouldBeSuccess
