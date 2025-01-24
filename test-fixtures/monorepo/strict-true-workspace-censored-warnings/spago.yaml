@@ -1,7 +1,6 @@
 workspace:
   buildOpts:
-    censor_project_warnings:
-      - UnusedName
+    censor_project_warnings: all
   package_set:
     registry: 0.0.1
   extra_packages: {}

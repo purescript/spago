@@ -40,7 +40,6 @@ module Spago.Core.Config
 import Spago.Core.Prelude
 
 import Codec.JSON.DecodeError as CJ.DecodeError
-import Data.Array.NonEmpty as NonEmptyArray
 import Data.Codec as Codec
 import Data.Codec.JSON as CJ
 import Data.Codec.JSON.Record as CJ.Record
@@ -387,7 +386,7 @@ censorBuildWarningsCodec = Codec.codec' decode encode
 
     decodeSpecific = CensorSpecificWarnings <$> do
       arr <- Codec.decode (CJ.array warningCensorTestCodec) json
-      except $ Either.note (CJ.DecodeError.basic "Expected array of warning codes") $ Just arr
+      except $ Right arr
 
 data WarningCensorTest
   = ByCode String
