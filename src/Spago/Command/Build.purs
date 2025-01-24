@@ -116,6 +116,7 @@ run opts = do
     , selectedPackages: NEA.toArray selectedPackages
     , psaCliFlags: { strict: strictWarnings, statVerbosity: workspace.buildOptions.statVerbosity }
     , censorLibWarnings: workspace.buildOptions.censorLibWarnings
+    , censorProjectWarnings: workspace.buildOptions.censorProjectWarnings
     }
   let
     psaArgs =

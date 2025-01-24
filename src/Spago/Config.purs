@@ -88,6 +88,7 @@ type Workspace =
 type WorkspaceBuildOptions =
   { output :: Maybe LocalPath
   , censorLibWarnings :: Maybe Core.CensorBuildWarnings
+  , censorProjectWarnings :: Maybe Core.CensorBuildWarnings
   , statVerbosity :: Maybe Core.StatVerbosity
   }
 
@@ -454,6 +455,7 @@ readWorkspace { maybeSelectedPackage, pureBuild, migrateConfig } = do
     buildOptions =
       { output: workspace.buildOpts >>= _.output <#> \o -> withForwardSlashes $ rootPath </> o
       , censorLibWarnings: _.censorLibraryWarnings =<< workspace.buildOpts
+      , censorProjectWarnings: _.censorProjectWarnings =<< workspace.buildOpts
       , statVerbosity: _.statVerbosity =<< workspace.buildOpts
       }
 

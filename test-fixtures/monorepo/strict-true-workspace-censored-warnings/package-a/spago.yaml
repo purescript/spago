@@ -1,0 +1,6 @@
+package:
+  name: package-a
+  dependencies:
+    - prelude
+  build:
+    strict: true # TODO: allow strict in root

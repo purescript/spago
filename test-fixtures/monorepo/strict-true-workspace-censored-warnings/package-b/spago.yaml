@@ -1,0 +1,8 @@
+package:
+  name: package-b
+  dependencies:
+    - package-a
+    - prelude
+  build:
+    strict: true
+    censor_project_warnings: [] # override workspace
