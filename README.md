@@ -975,6 +975,7 @@ $ node -e "import('./index.js').then(m => console.log(m.main))"
 ```
 
 Spago does not wrap the entirety of the bundler's API (esbuild for JS builds), so it's possible to pass arguments through to it. E.g. to exclude an NPM package from the bundle you can pass the `--external` flag to esbuild:
+
 - either through the command line, with the `--bundler-args` flag, i.e. `--bundler-args "--external:better-sqlite3"`.
 - or by adding it to the configuration file:
   ```yaml
@@ -982,6 +983,8 @@ Spago does not wrap the entirety of the bundler's API (esbuild for JS builds), s
     bundle:
       extra_args:
         - "--external:better-sqlite3"
+  ```
+
 ### Enable source maps
 
 When bundling, you can include `--source-maps` to generate a final source map for your bundle.
@@ -1083,6 +1086,7 @@ Library authors will often build "ecosystems" of small interdependent packages t
 If you're using the registry solver then this is not an issue, but if your project is based on a package set, then that will not contain your newly published package, since well, you just published it!
 
 You should be able to add the newly released version to your build plan by adding it to the `extraPackages` section ([see here](https://github.com/purescript/spago/issues/1215)):
+
 ```yaml
 package:
   name: next-library-to-publish
@@ -1095,6 +1099,7 @@ workspace:
   extraPackages:
     newly-published-library: 0.1.0
 ```
+
 > [!NOTE]\
 > This only works when the package you add to `extraPackages` has been published to the registry. Adding a git dependency will produce an error, as publishing to the Registry only admits build plans that only contain packages coming from the Registry.
 
@@ -1117,9 +1122,10 @@ If you are the owner of a package and you want to transfer it to another user, y
 about the new location of the repository, so that the new owner will be able to publish new versions of the package.
 
 The transfer procedure is automated by Spago commands, and goes as follows:
-* Add your (or the new owner's) SSH public key to the `spago.yaml` through `spago auth` if they are not there already (see previous section)
-* Transfer the repository to the new owner using the hosting platform's transfer mechanism (e.g. GitHub's transfer feature)
-* Depending on whose key is present in the `owners` field, either you or the new owner will update the `publish.location` field in the `spago.yaml`, and call `spago registry transfer` to initiate the transfer. If all goes well you'll now be able to publish a new version from the new location.
+
+- Add your (or the new owner's) SSH public key to the `spago.yaml` through `spago auth` if they are not there already (see previous section)
+- Transfer the repository to the new owner using the hosting platform's transfer mechanism (e.g. GitHub's transfer feature)
+- Depending on whose key is present in the `owners` field, either you or the new owner will update the `publish.location` field in the `spago.yaml`, and call `spago registry transfer` to initiate the transfer. If all goes well you'll now be able to publish a new version from the new location.
 
 ### Know which `purs` commands are run under the hood
 
@@ -1373,7 +1379,7 @@ workspace:
       # Value 1: "all" - All warnings are censored
       all
 
-      # Value 2: `NonEmptyArray (Either String { byPrefix :: String })`
+      # Value 2: `Array (Either String { byPrefix :: String })`
       # - String values:
       #      censor warnings if the code matches this code
       # - { byPrefix } values:
@@ -1384,6 +1390,12 @@ workspace:
       # see https://yaml-multiline.info/
       - byPrefix: >
         "Data.Map"'s `Semigroup instance`
+
+    # Specify whether to censor warnings coming from the compiler
+    # for files in workspace projects and tests
+    # Optional - takes the same values as censorLibraryWarnings above
+    censorProjectWarnings: all
+    censorTestWarnings: all
 
     # Specify whether to show statistics at the end of the compilation,
     # and how verbose they should be.
@@ -1563,17 +1575,18 @@ You can enable it manually by adding a `lock: true` field to the `workspace` sec
 ### File System Paths used in Spago
 
 Run `spago ls paths` to see all paths used by Spago. But in general, Spago utilizes two main directories for every project:
+
 - the local cache directory
 - the global cache directory
 
 The local cache directory is located at `<project-directory>/.spago` and its location cannot be changed.
 
 The global cache directory's location depends on your OS. Its location can be changed by configuring the corresponding environment variable, if it is used:
+
 - Mac: `~/Library/Caches/spago-nodejs`. The location cannot be changed.
 - Linux: `${XDG_CACHE_HOME}/spago-nodejs`, or if `XDG_CACHE_HOME` is not set, `~/.cache/spago-nodejs`. See [`XDG_CACHE_HOME`](https://specifications.freedesktop.org/basedir-spec/basedir-spec-latest.html).
 - Windows: `%LOCALAPPDATA%\spago-nodejs\Cache`, or if `$LOCALAPPDATA%` is not set, `C:\Users\USERNAME\AppData\Local\spago-nodejs\Cache`.
 - NixOS: `${XDG_RUNTIME_DIR}/spago-nodejs`. See [`XDG_RUNTIME_DIR`](https://specifications.freedesktop.org/basedir-spec/basedir-spec-latest.html).
-
 
 ## FAQ
 
