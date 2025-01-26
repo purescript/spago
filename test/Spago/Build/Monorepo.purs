@@ -138,7 +138,7 @@ spec = Spec.describe "monorepo" do
         shouldNotHaveWarning = assertWarning paths false
       spago [ "build" ] >>= check { stdout: mempty, stderr: shouldNotHaveWarning, result: isRight }
 
-    Spec.itOnly "build fails when 'strict: true' because warnings censored at the workspace level were overridden" \{ spago, fixture, testCwd } -> do
+    Spec.it "build fails when 'strict: true' because warnings censored at the workspace level were overridden" \{ spago, fixture, testCwd } -> do
       FS.copyTree { src: fixture "monorepo/strict-true-workspace-censored-warnings", dst: Path.toGlobal testCwd }
       let
         errs =

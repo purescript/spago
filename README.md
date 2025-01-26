@@ -1395,7 +1395,6 @@ workspace:
     # for files in workspace projects and tests
     # Optional - takes the same values as censorLibraryWarnings above
     censorProjectWarnings: all
-    censorTestWarnings: all
 
     # Specify whether to show statistics at the end of the compilation,
     # and how verbose they should be.

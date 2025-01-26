@@ -3,4 +3,4 @@ package:
   dependencies:
     - prelude
   build:
-    strict: true # TODO: allow strict in root
+    strict: true
