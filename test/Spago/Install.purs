@@ -18,6 +18,7 @@ import Test.Spec (Spec)
 import Test.Spec as Spec
 import Test.Spec.Assertions as Assert
 import Test.Spec.Assertions as Assertions
+import Test.Spec.Assertions.String (shouldContain)
 
 spec :: Spec Unit
 spec = Spec.around withTempDir do
@@ -65,21 +66,28 @@ spec = Spec.around withTempDir do
     Spec.it "warns when specified dependency versions do not exist" \{ spago, fixture, testCwd } -> do
       spago [ "init", "--package-set", "29.3.0" ] >>= shouldBeSuccess
 
-      let
-        dependencies = Dependencies <<< Map.fromFoldable
-          $ (\name -> Tuple (mkPackageName name) (Just $ mkRange ">=1000.0.0 <1000.0.1"))
-          <$> [ "maybe", "lists" ]
-
-        conf = Init.defaultConfig
-          { name: mkPackageName "aaa"
-          , withWorkspace: Nothing
-          , testModuleName: "Test.Main"
-          }
-
       FS.writeYamlFile Config.configCodec (testCwd </> "spago.yaml")
-        (conf { package = conf.package # map (_ { dependencies = dependencies }) })
+        $ Init.withDependencies
+            ( Init.defaultConfig
+                { name: mkPackageName "aaa"
+                , withWorkspace: Just { setVersion: Just $ unsafeFromRight $ Version.parse "0.0.1" }
+                , testModuleName: "Test.Main"
+                }
+            )
+            ( Dependencies $ Map.fromFoldable
+                [ Tuple (mkPackageName "prelude") (Just $ mkRange ">=6.0.0 <7.0.0")
+                , Tuple (mkPackageName "lists") (Just $ mkRange ">=1000.0.0 <1000.0.1")
+                ]
+            )
+            ( Dependencies $ Map.fromFoldable
+                [ Tuple (mkPackageName "spec") (Just $ mkRange ">=7.0.0 <8.0.0")
+                , Tuple (mkPackageName "maybe") (Just $ mkRange ">=1000.0.0 <1000.0.1")
+                ]
+            )
 
-      spago [ "install" ] >>= shouldBeFailureErr (fixture "missing-dependencies.txt")
+      warning <- FS.readTextFileSync $ fixture "missing-versions.txt"
+      outputs <- spago [ "install" ]
+      either _.stderr _.stderr outputs `shouldContain` warning
 
     Spec.it "does not allow circular dependencies" \{ spago, fixture, testCwd } -> do
       spago [ "init" ] >>= shouldBeSuccess

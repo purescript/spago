@@ -46,6 +46,7 @@ import Registry.Sha256 as Sha256
 import Registry.Solver as Registry.Solver
 import Registry.Version as Registry.Version
 import Registry.Version as Version
+import Spago.Command.Resolution (missingWarning, resolutions, unavailable)
 import Spago.Config (BuildType(..), Dependencies(..), GitPackage, Package(..), PackageMap, Workspace, WorkspacePackage)
 import Spago.Config as Config
 import Spago.Db as Db
@@ -620,9 +621,17 @@ getTransitiveDeps workspacePackage = do
           <$> forEnv "core" depsRanges.core
           <*> forEnv "test" depsRanges.test
 
-      PackageSetBuild _info set -> do
-        depsRanges # onEachEnvM \depsRanges' ->
-          getTransitiveDepsFromPackageSet set $ (Array.fromFoldable $ Map.keys depsRanges')
+      PackageSetBuild _info set ->
+        do
+          packages <- depsRanges # onEachEnvM \depsRanges' ->
+            getTransitiveDepsFromPackageSet set $ (Array.fromFoldable $ Map.keys depsRanges')
+
+          let
+            versions = resolutions (mergeEnvs packages) (mergeEnvs depsRanges)
+            missing = Array.filter unavailable versions
+
+          unless (Array.null missing) (logWarn $ missingWarning missing)
+          pure packages
 
   where
   -- Note: here we can safely discard the dependencies because we don't need to bother about building a build plan,
@@ -778,6 +787,9 @@ cycleError dep result = result
 -- | for core and test, because they need to be treated differently in some
 -- | contexts.
 type ByEnv a = { core :: a, test :: a }
+
+mergeEnvs :: ∀ k v. Ord k => ByEnv (Map k v) -> Map k v
+mergeEnvs { core, test } = Map.union core test
 
 onEachEnv :: ∀ a b. (a -> b) -> ByEnv a -> ByEnv b
 onEachEnv f e = e { core = f e.core, test = f e.test }
