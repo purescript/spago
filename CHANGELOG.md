@@ -45,6 +45,8 @@ Other improvements:
 - Internally Spago uses stricter-typed file paths.
 - `spago install` warns the user when the installed versions of packages are outside
   their specified dependency ranges.
+- `spago publish` no longer tries to validate all workspace dependencies, but
+  only the (transitive) dependencies of the project being published.
 
 ## [0.21.0] - 2023-05-04
 

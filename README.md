@@ -969,7 +969,7 @@ See the help message for more flags, and [the configuration format section](#the
 When bundling an `app`, the output will be a single executable file:
 
 ```console
-$ spago bundle --to index.js --bundle-type app --platform node
+$ spago bundle --outfile index.js --bundle-type app --platform node
 
 # It is then possible to run it with node:
 $ node index.js
