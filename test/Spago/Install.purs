@@ -7,8 +7,8 @@ import Data.Map as Map
 import Effect.Now as Now
 import Registry.Version as Version
 import Spago.Command.Init as Init
+import Spago.Core.Config (Dependencies(..), Config)
 import Spago.Core.Config as Config
-import Spago.Core.Config (Dependencies(..))
 import Spago.FS as FS
 import Spago.Log (LogVerbosity(..))
 import Spago.Path as Path
@@ -67,7 +67,7 @@ spec = Spec.around withTempDir do
       spago [ "init", "--package-set", "29.3.0" ] >>= shouldBeSuccess
 
       FS.writeYamlFile Config.configCodec (testCwd </> "spago.yaml")
-        $ Init.withDependencies
+        $ insertConfigDependencies
             ( Init.defaultConfig
                 { name: mkPackageName "aaa"
                 , withWorkspace: Just { setVersion: Just $ unsafeFromRight $ Version.parse "0.0.1" }
@@ -261,6 +261,19 @@ spec = Spec.around withTempDir do
       spago [ "uninstall", "maybe" ] >>= shouldBeSuccess
       -- Check that the lockfile is back to the original
       checkFixture (testCwd </> "spago.lock") (fixture "spago.lock")
+
+
+insertConfigDependencies :: Config -> Dependencies -> Dependencies -> Config
+insertConfigDependencies config core test =
+  ( config
+      { package = config.package # map
+          ( \package' -> package'
+              { dependencies = core
+              , test = package'.test # map ((_ { dependencies = test }))
+              }
+          )
+      }
+  )
 
 writeConfigWithEither :: RootPath -> Aff Unit
 writeConfigWithEither root = do

@@ -46,7 +46,6 @@ import Registry.Sha256 as Sha256
 import Registry.Solver as Registry.Solver
 import Registry.Version as Registry.Version
 import Registry.Version as Version
-import Spago.Command.Resolution (missingWarning, resolutions, unavailable)
 import Spago.Config (BuildType(..), Dependencies(..), GitPackage, Package(..), PackageMap, Workspace, WorkspacePackage)
 import Spago.Config as Config
 import Spago.Db as Db
@@ -82,6 +81,12 @@ type FetchOpts =
   , ensureRanges :: Boolean
   , isTest :: Boolean
   , isRepl :: Boolean
+  }
+
+type VersionResolution =
+  { name :: PackageName
+  , requested :: Range
+  , resolved :: Version
   }
 
 run :: forall a. FetchOpts -> Spago (FetchEnv a) PackageTransitiveDeps
@@ -542,6 +547,15 @@ getPackageDependencies packageName package = case package of
         , indent $ toDoc errLines
         ]
 
+resolvePackageVersionsToRanges :: Map PackageName Package -> Map PackageName Range -> Array VersionResolution
+resolvePackageVersionsToRanges registry = Map.toUnfoldable >>> Array.foldl
+  ( \acc (Tuple name requested) ->
+      case (Map.lookup name registry) of
+        Just (RegistryVersion resolved) -> Array.snoc acc { name, requested, resolved }
+        _ -> acc
+  )
+  []
+
 getWorkspacePackageDeps :: WorkspacePackage -> ByEnv Dependencies
 getWorkspacePackageDeps pkg =
   { core: pkg.package.dependencies
@@ -627,10 +641,24 @@ getTransitiveDeps workspacePackage = do
             getTransitiveDepsFromPackageSet set $ (Array.fromFoldable $ Map.keys depsRanges')
 
           let
-            versions = resolutions (mergeEnvs packages) (mergeEnvs depsRanges)
-            missing = Array.filter unavailable versions
+            mergeEnvs :: ∀ k v. Ord k => ByEnv (Map k v) -> Map k v
+            mergeEnvs { core, test } = Map.union core test
 
-          unless (Array.null missing) (logWarn $ missingWarning missing)
+            missing =
+              Array.filter
+                (\{ requested, resolved } -> not $ Range.includes requested resolved)
+                $ resolvePackageVersionsToRanges (mergeEnvs packages) (mergeEnvs depsRanges)
+
+          when (Array.length missing > 0) do
+            let list k v = "  - " <> PackageName.print k <> ": " <> v
+
+            logWarn <<< joinWith "\n" $ join
+              [ [ "The following package versions do not exist in your package set:" ]
+              , (\{ name, requested } -> list name $ Range.print requested) <$> missing
+              , [ "", "Proceeding with the latest available versions instead:" ]
+              , (\{ name, resolved } -> list name $ Version.print resolved) <$> missing
+              ]
+
           pure packages
 
   where
@@ -787,9 +815,6 @@ cycleError dep result = result
 -- | for core and test, because they need to be treated differently in some
 -- | contexts.
 type ByEnv a = { core :: a, test :: a }
-
-mergeEnvs :: ∀ k v. Ord k => ByEnv (Map k v) -> Map k v
-mergeEnvs { core, test } = Map.union core test
 
 onEachEnv :: ∀ a b. (a -> b) -> ByEnv a -> ByEnv b
 onEachEnv f e = e { core = f e.core, test = f e.test }

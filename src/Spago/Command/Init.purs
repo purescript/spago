@@ -10,7 +10,6 @@ module Spago.Command.Init
   , run
   , srcMainTemplate
   , testMainTemplate
-  , withDependencies
   ) where
 
 import Spago.Prelude
@@ -239,18 +238,6 @@ defaultConfig' opts =
   }
   where
   mkDep p = Tuple (unsafeFromRight $ PackageName.parse p) Nothing
-
-withDependencies :: Config -> Dependencies -> Dependencies -> Config
-withDependencies config core test =
-  ( config
-      { package = config.package # map
-          ( \package' -> package'
-              { dependencies = core
-              , test = package'.test # map ((_ { dependencies = test }))
-              }
-          )
-      }
-  )
 
 srcMainTemplate :: String -> String
 srcMainTemplate moduleName = "module " <> moduleName <>
