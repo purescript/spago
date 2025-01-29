@@ -53,6 +53,7 @@ import Spago.FS as FS
 import Spago.Git as Git
 import Spago.Lock (LockEntry(..))
 import Spago.Lock as Lock
+import Spago.Log as Log
 import Spago.Path as Path
 import Spago.Paths as Paths
 import Spago.Purs as Purs
@@ -547,15 +548,6 @@ getPackageDependencies packageName package = case package of
         , indent $ toDoc errLines
         ]
 
-resolvePackageVersionsToRanges :: Map PackageName Package -> Map PackageName Range -> Array VersionResolution
-resolvePackageVersionsToRanges registry = Map.toUnfoldable >>> Array.foldl
-  ( \acc (Tuple name requested) ->
-      case (Map.lookup name registry) of
-        Just (RegistryVersion resolved) -> Array.snoc acc { name, requested, resolved }
-        _ -> acc
-  )
-  []
-
 getWorkspacePackageDeps :: WorkspacePackage -> ByEnv Dependencies
 getWorkspacePackageDeps pkg =
   { core: pkg.package.dependencies
@@ -644,19 +636,38 @@ getTransitiveDeps workspacePackage = do
             mergeEnvs :: ∀ k v. Ord k => ByEnv (Map k v) -> Map k v
             mergeEnvs { core, test } = Map.union core test
 
-            missing =
+            resolvePackageVersionsToRanges :: Map PackageName Package -> Map PackageName Range -> Array VersionResolution
+            resolvePackageVersionsToRanges registry =
+              Array.fromFoldable
+                <<< Map.values
+                <<< Map.mapMaybeWithKey \name requested ->
+                  Map.lookup name registry >>= case _ of
+                    RegistryVersion resolved -> Just { name, requested, resolved }
+                    _ -> Nothing
+
+            itemisePackages :: String -> Array (Tuple PackageName String) -> Array Docc
+            itemisePackages heading pairs =
+              Array.cons (toDoc heading) $ pairs <#> \(Tuple name version) ->
+                Log.indent <<< toDoc
+                  $ "- "
+                  <> PackageName.print name
+                  <> ": "
+                  <> version
+
+            missingVersions =
               Array.filter
                 (\{ requested, resolved } -> not $ Range.includes requested resolved)
                 $ resolvePackageVersionsToRanges (mergeEnvs packages) (mergeEnvs depsRanges)
 
-          when (Array.length missing > 0) do
-            let list k v = "  - " <> PackageName.print k <> ": " <> v
-
-            logWarn <<< joinWith "\n" $ join
-              [ [ "The following package versions do not exist in your package set:" ]
-              , (\{ name, requested } -> list name $ Range.print requested) <$> missing
-              , [ "", "Proceeding with the latest available versions instead:" ]
-              , (\{ name, resolved } -> list name $ Version.print resolved) <$> missing
+          when (Array.length missingVersions > 0) do
+            logWarn
+              [ itemisePackages "The following package versions do not exist in your package set:"
+                  $ (\{ name, requested } -> Tuple name (Range.print requested))
+                  <$> missingVersions
+              , [ Log.break ]
+              , itemisePackages "Proceeding with the latest available versions instead:"
+                  $ (\{ name, resolved } -> Tuple name (Version.print resolved))
+                  <$> missingVersions
               ]
 
           pure packages
@@ -821,3 +832,4 @@ onEachEnv f e = e { core = f e.core, test = f e.test }
 
 onEachEnvM :: ∀ m a b. Apply m => (a -> m b) -> ByEnv a -> m (ByEnv b)
 onEachEnvM f e = e { core = _, test = _ } <$> f e.core <*> f e.test
+
