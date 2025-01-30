@@ -289,6 +289,14 @@ You can ask Spago to come up with a good set of bounds for you by running:
 $ spago install --ensure-ranges
 ```
 
+You can specify your version ranges manually in the `spago.yaml` configuration file too:
+
+```yaml
+package:
+  dependencies:
+    - lists: ">=7.0.0 <8.0.0"
+```
+
 ### Install a direct dependency
 
 To add a dependency to your project you can run:

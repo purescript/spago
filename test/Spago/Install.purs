@@ -7,6 +7,7 @@ import Data.Map as Map
 import Effect.Now as Now
 import Registry.Version as Version
 import Spago.Command.Init as Init
+import Spago.Core.Config (Dependencies(..), Config)
 import Spago.Core.Config as Config
 import Spago.FS as FS
 import Spago.Log (LogVerbosity(..))
@@ -17,6 +18,7 @@ import Test.Spec (Spec)
 import Test.Spec as Spec
 import Test.Spec.Assertions as Assert
 import Test.Spec.Assertions as Assertions
+import Test.Spec.Assertions.String (shouldContain)
 
 spec :: Spec Unit
 spec = Spec.around withTempDir do
@@ -60,6 +62,32 @@ spec = Spec.around withTempDir do
       spago [ "init", "--name", "aaaa", "--package-set", "29.3.0" ] >>= shouldBeSuccess
       spago [ "install", "foo-foo-foo", "bar-bar-bar", "effcet", "arrys" ] >>= shouldBeFailureErr (fixture "missing-dependencies.txt")
       checkFixture (testCwd </> "spago.yaml") (fixture "spago-install-failure.yaml")
+
+    Spec.it "warns when specified dependency versions do not exist" \{ spago, fixture, testCwd } -> do
+      spago [ "init", "--package-set", "29.3.0" ] >>= shouldBeSuccess
+
+      FS.writeYamlFile Config.configCodec (testCwd </> "spago.yaml")
+        $ insertConfigDependencies
+            ( Init.defaultConfig
+                { name: mkPackageName "aaa"
+                , withWorkspace: Just { setVersion: Just $ unsafeFromRight $ Version.parse "0.0.1" }
+                , testModuleName: "Test.Main"
+                }
+            )
+            ( Dependencies $ Map.fromFoldable
+                [ Tuple (mkPackageName "prelude") (Just $ mkRange ">=6.0.0 <7.0.0")
+                , Tuple (mkPackageName "lists") (Just $ mkRange ">=1000.0.0 <1000.0.1")
+                ]
+            )
+            ( Dependencies $ Map.fromFoldable
+                [ Tuple (mkPackageName "spec") (Just $ mkRange ">=7.0.0 <8.0.0")
+                , Tuple (mkPackageName "maybe") (Just $ mkRange ">=1000.0.0 <1000.0.1")
+                ]
+            )
+
+      warning <- FS.readTextFileSync $ fixture "missing-versions.txt"
+      outputs <- spago [ "install" ]
+      either _.stderr _.stderr outputs `shouldContain` warning
 
     Spec.it "does not allow circular dependencies" \{ spago, fixture, testCwd } -> do
       spago [ "init" ] >>= shouldBeSuccess
@@ -233,6 +261,19 @@ spec = Spec.around withTempDir do
       spago [ "uninstall", "maybe" ] >>= shouldBeSuccess
       -- Check that the lockfile is back to the original
       checkFixture (testCwd </> "spago.lock") (fixture "spago.lock")
+
+
+insertConfigDependencies :: Config -> Dependencies -> Dependencies -> Config
+insertConfigDependencies config core test =
+  ( config
+      { package = config.package # map
+          ( \package' -> package'
+              { dependencies = core
+              , test = package'.test # map ((_ { dependencies = test }))
+              }
+          )
+      }
+  )
 
 writeConfigWithEither :: RootPath -> Aff Unit
 writeConfigWithEither root = do
