@@ -1386,9 +1386,14 @@ workspace:
         "Data.Map"'s `Semigroup instance`
 
     # Specify whether to censor warnings coming from the compiler
-    # for files in workspace projects and tests
+    # for files in workspace project source
     # Optional - takes the same values as censorLibraryWarnings above
     censorProjectWarnings: all
+
+    # Specify whether to censor warnings coming from the compiler
+    # for files in workspace project tests
+    # Optional - takes the same values as censorLibraryWarnings above
+    censorTestWarnings: all
 
     # Specify whether to show statistics at the end of the compilation,
     # and how verbose they should be.

@@ -144,6 +144,7 @@ spec = Spec.describe "monorepo" do
         errs =
           [ "[ERROR 1/2 WildcardInferredType] " <> escapePathInErrMsg [ "package-b", "src", "Main.purs:5:16" ]
           , "[ERROR 2/2 UnusedName] " <> escapePathInErrMsg [ "package-b", "src", "Main.purs:6:13" ]
+          , "[WARNING 1/1 UnusedName] " <> escapePathInErrMsg [ "package-b", "test", "Main.purs:7:7" ]
           ]
         hasUnusedWarningError = assertWarning errs true
       spago [ "build" ] >>= check { stdout: mempty, stderr: hasUnusedWarningError, result: isLeft }

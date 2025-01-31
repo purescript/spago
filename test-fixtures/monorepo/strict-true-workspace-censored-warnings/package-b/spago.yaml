@@ -5,4 +5,8 @@ package:
     - prelude
   build:
     strict: true
-    censor_project_warnings: [] # override workspace
+    censor_project_warnings: [] # override workspace setting
+  test:
+    main: Src.PACKAGE.B.Test
+    dependencies: []
+    censor_test_warnings: [] # override workspace setting

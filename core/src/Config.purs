@@ -349,6 +349,7 @@ type WorkspaceBuildOptionsInput =
   { output :: Maybe RawFilePath
   , censorLibraryWarnings :: Maybe CensorBuildWarnings
   , censorProjectWarnings :: Maybe CensorBuildWarnings
+  , censorTestWarnings :: Maybe CensorBuildWarnings
   , statVerbosity :: Maybe StatVerbosity
   }
 
@@ -357,6 +358,7 @@ buildOptionsCodec = CJ.named "WorkspaceBuildOptionsInput" $ CJS.objectStrict
   $ CJS.recordPropOptional @"output" CJ.string
   $ CJS.recordPropOptional @"censorLibraryWarnings" censorBuildWarningsCodec
   $ CJS.recordPropOptional @"censorProjectWarnings" censorBuildWarningsCodec
+  $ CJS.recordPropOptional @"censorTestWarnings" censorBuildWarningsCodec
   $ CJS.recordPropOptional @"statVerbosity" statVerbosityCodec
   $ CJS.record
 

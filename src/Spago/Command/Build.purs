@@ -117,6 +117,7 @@ run opts = do
     , psaCliFlags: { strict: strictWarnings, statVerbosity: workspace.buildOptions.statVerbosity }
     , censorLibWarnings: workspace.buildOptions.censorLibWarnings
     , censorProjectWarnings: workspace.buildOptions.censorProjectWarnings
+    , censorTestWarnings: workspace.buildOptions.censorTestWarnings
     }
   let
     psaArgs =

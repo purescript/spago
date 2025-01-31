@@ -106,12 +106,13 @@ toPathDecisions
      , psaCliFlags :: PsaOutputOptions
      , censorLibWarnings :: Maybe Core.CensorBuildWarnings
      , censorProjectWarnings :: Maybe Core.CensorBuildWarnings
+     , censorTestWarnings :: Maybe Core.CensorBuildWarnings
      }
   -> Array (Effect (Array (LocalPath -> Maybe PathDecision)))
-toPathDecisions { rootPath, allDependencies, selectedPackages, psaCliFlags, censorLibWarnings, censorProjectWarnings } =
+toPathDecisions { rootPath, allDependencies, selectedPackages, psaCliFlags, censorLibWarnings, censorProjectWarnings, censorTestWarnings } =
   projectDecisions <> dependencyDecisions
   where
-  projectDecisions = selectedPackages <#> \selected -> toWorkspacePackagePathDecision { selected, psaCliFlags, censorProjectWarnings }
+  projectDecisions = selectedPackages <#> \selected -> toWorkspacePackagePathDecision { selected, psaCliFlags, censorProjectWarnings, censorTestWarnings }
 
   dependencyDecisions =
     map toDependencyDecision
@@ -130,6 +131,7 @@ toPathDecisions { rootPath, allDependencies, selectedPackages, psaCliFlags, cens
         { selected: p
         , psaCliFlags
         , censorProjectWarnings
+        , censorTestWarnings
         }
     _ -> do
       let pkgLocation = Tuple.uncurry (Config.getLocalPackageLocation rootPath) dep
@@ -146,9 +148,10 @@ toWorkspacePackagePathDecision
   :: { selected :: WorkspacePackage
      , psaCliFlags :: PsaOutputOptions
      , censorProjectWarnings :: Maybe Core.CensorBuildWarnings
+     , censorTestWarnings :: Maybe Core.CensorBuildWarnings
      }
   -> Effect (Array (LocalPath -> Maybe PathDecision))
-toWorkspacePackagePathDecision { selected: { path, package }, psaCliFlags, censorProjectWarnings } = do
+toWorkspacePackagePathDecision { selected: { path, package }, psaCliFlags, censorProjectWarnings, censorTestWarnings } = do
   let srcPath = path </> "src"
   let testPath = path </> "test"
   pure
@@ -162,7 +165,7 @@ toWorkspacePackagePathDecision { selected: { path, package }, psaCliFlags, censo
         { pathIsFromPackage: (testPath `Path.isPrefixOf` _)
         , pathType: IsSrc
         , strict: fromMaybe false $ psaCliFlags.strict <|> (package.test >>= _.strict)
-        , censorWarnings: (package.test >>= _.censorTestWarnings) <|> censorProjectWarnings
+        , censorWarnings: (package.test >>= _.censorTestWarnings) <|> censorTestWarnings
         }
     ]
 

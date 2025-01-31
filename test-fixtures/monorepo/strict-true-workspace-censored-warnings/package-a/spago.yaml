@@ -4,3 +4,6 @@ package:
     - prelude
   build:
     strict: true
+  test:
+    main: Src.PACKAGE.A.Test
+    dependencies: []
