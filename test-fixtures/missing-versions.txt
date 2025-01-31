@@ -1,0 +1,8 @@
+‼ The following package versions do not exist in your package set:
+  - lists: >=1000.0.0 <1000.0.1
+  - maybe: >=1000.0.0 <1000.0.1
+
+
+Proceeding with the latest available versions instead:
+  - lists: 7.0.0
+  - maybe: 6.0.0

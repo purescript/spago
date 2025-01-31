@@ -18,6 +18,7 @@ import Node.Platform as Platform
 import Node.Process as Process
 import Record (merge)
 import Registry.PackageName as PackageName
+import Registry.Range as Range
 import Registry.Version as Version
 import Spago.Cmd (ExecResult, StdinConfig(..))
 import Spago.Cmd (ExecResult, StdinConfig(..)) as X
@@ -249,6 +250,9 @@ mkPackageName = unsafeFromRight <<< PackageName.parse
 
 mkVersion :: String -> Version
 mkVersion = unsafeFromRight <<< Version.parse
+
+mkRange :: String -> Range
+mkRange = unsafeFromRight <<< Range.parse
 
 writeMain :: Array String -> String
 writeMain rest = writePursFile { moduleName: "Main", rest }
