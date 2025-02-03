@@ -4,7 +4,6 @@ import Test.Prelude
 
 import Codec.JSON.DecodeError as CJ
 import Data.String as String
-import Debug (traceM)
 import Registry.License as License
 import Registry.Location (Location(..))
 import Registry.PackageName as PackageName
