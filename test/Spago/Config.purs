@@ -134,8 +134,8 @@ spec =
             , stderrFile: Just (fixture "config/malformed-configs/from-root.txt")
             , sanitize:
                 String.trim
-                  >>> String.replaceAll (String.Pattern "\\") (String.Replacement "/")
-                  >>> String.replaceAll (String.Pattern $ Path.toRaw testCwd) (String.Replacement "<test-dir>")
+                  -- >>> String.replaceAll (String.Pattern "\\") (String.Replacement "/")
+                  -- >>> String.replaceAll (String.Pattern $ Path.toRaw testCwd) (String.Replacement "<test-dir>")
             }
 
     where
