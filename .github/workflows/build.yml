@@ -81,6 +81,8 @@ jobs:
       # - name: Bundle docs-search client
       #   run: node ./bin/bundle.js bundle -p docs-search-client-halogen
 
+      - node ./test-macos.js
+
       - name: Run tests
         run: node ./bin/bundle.js test -- -E "(warns about a malformed config, but stops parsing down the tree)|(#1208)"
 
