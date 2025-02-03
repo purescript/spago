@@ -138,6 +138,17 @@ spec = Spec.describe "monorepo" do
         shouldNotHaveWarning = assertWarning paths false
       spago [ "build" ] >>= check { stdout: mempty, stderr: shouldNotHaveWarning, result: isRight }
 
+    Spec.it "build fails when 'strict: true' because warnings censored at the workspace level were overridden" \{ spago, fixture, testCwd } -> do
+      FS.copyTree { src: fixture "monorepo/strict-true-workspace-censored-warnings", dst: Path.toGlobal testCwd }
+      let
+        errs =
+          [ "[ERROR 1/2 WildcardInferredType] " <> escapePathInErrMsg [ "package-b", "src", "Main.purs:5:16" ]
+          , "[ERROR 2/2 UnusedName] " <> escapePathInErrMsg [ "package-b", "src", "Main.purs:6:13" ]
+          , "[WARNING 1/1 UnusedName] " <> escapePathInErrMsg [ "package-b", "test", "Main.purs:7:7" ]
+          ]
+        hasUnusedWarningError = assertWarning errs true
+      spago [ "build" ] >>= check { stdout: mempty, stderr: hasUnusedWarningError, result: isLeft }
+
     Spec.it "build fails when 'strict: true' and warnings were not censored" \{ spago, fixture, testCwd } -> do
       FS.copyTree { src: fixture "monorepo/strict-true-uncensored-warnings", dst: Path.toGlobal testCwd }
       let
