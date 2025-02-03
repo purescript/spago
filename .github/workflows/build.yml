@@ -82,7 +82,7 @@ jobs:
       #   run: node ./bin/bundle.js bundle -p docs-search-client-halogen
 
       - name: Run tests
-        run: node ./bin/bundle.js test -- -e "warns about a malformed config, but stops parsing down the tree"
+        run: node ./bin/bundle.js test -- -E "(warns about a malformed config, but stops parsing down the tree)|(#1208)"
 
       - name: Check formatting (Linux only)
         if: matrix.os == 'ubuntu-latest'
