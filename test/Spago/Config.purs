@@ -122,6 +122,7 @@ spec =
 
         Spec.it "warns about a malformed config, but stops parsing down the tree" \{ spago, fixture, testCwd } -> do
           let bogusPath = Paths.paths.temp </> "bogus-dir"
+          FS.mkdirp bogusPath
           Paths.chdir bogusPath
           traceM bogusPath
           traceM Paths.paths
