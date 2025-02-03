@@ -1,0 +1,9 @@
+Reading Spago workspace configuration...
+‼ Failed to read config at "<test-dir>/a/b/spago.yaml"
+Skipping it and all its subprojects
+
+✘ Selected package bogus was not found in the local packages.
+All available packages:
+  a
+  d
+  root

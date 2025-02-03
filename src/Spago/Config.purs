@@ -182,9 +182,13 @@ discoverWorkspace options cwd = do
   logInfo "Reading Spago workspace configuration..."
   logDebug $ "Discovering nearest workspace " <> spagoYaml <> " starting at " <> Path.quote cwd
 
-  { workspace, rootPath } /\ { loadedPackages, closestPackage } <-
+  { workspace, rootPath } /\ upTree@{ closestPackage } <-
     State.runStateT (walkDirectoriesUpFrom cwd)
-      { loadedPackages: Map.empty, otherWorkspaceRoots: [], misnamedConfigs: [], closestPackage: Nothing }
+      { loadedPackages: Map.empty, misnamedConfigs: [], closestPackage: Nothing }
+
+  { loadedPackages } <-
+    State.execStateT (loadSubprojectConfigs rootPath)
+      { loadedPackages: upTree.loadedPackages, blockedSubtrees: [] }
 
   migrateConfigsWhereNeeded rootPath loadedPackages
 
@@ -229,6 +233,7 @@ discoverWorkspace options cwd = do
         }
     }
   where
+  readConfig' :: ∀ s. _ -> State.StateT s _ _
   readConfig' = State.lift <<< readConfig
 
   walkDirectoriesUpFrom dir = do
@@ -249,7 +254,6 @@ discoverWorkspace options cwd = do
       Just { doc, yaml: { workspace: Just workspace, package } } -> do
         -- Finally, found the "workspace" config!
         rootPath <- Path.mkRoot dir
-        loadSubprojectConfigs rootPath
         pure { workspace: { config: workspace, doc, rootPackage: package }, rootPath }
       _ -> do
         -- No workspace in this directory => recur to parent directory (unless it's already root)
@@ -277,19 +281,20 @@ discoverWorkspace options cwd = do
       let
         configFile = dir </> spagoYaml
         alreadyLoaded = st.loadedPackages # Map.member configFile
-        anotherParentWorkspace = st.otherWorkspaceRoots # Array.find (_ `Path.isPrefixOf` dir)
-      case alreadyLoaded, anotherParentWorkspace of
+        blockedSubtree = st.blockedSubtrees # Array.find (_ `Path.isPrefixOf` dir)
+      case alreadyLoaded, blockedSubtree of
         true, _ ->
           pure unit
-        _, Just ws -> do
-          logDebug $ "Not trying to load " <> Path.quote configFile <> " because it belongs to a different workspace at " <> Path.quote ws
+        _, Just b -> do
+          logDebug $ "Not trying to load " <> Path.quote configFile <> " because it is nested under " <> Path.quote b
           pure unit
         false, Nothing ->
           readConfig' configFile >>= case _ of
-            Left _ ->
-              logWarn $ "Failed to read config at " <> Path.quote configFile
+            Left _ -> do
+              logWarn [ "Failed to read config at " <> Path.quote configFile, "Skipping it and all its subprojects" ]
+              State.modify_ \s -> s { blockedSubtrees = Array.cons dir s.blockedSubtrees }
             Right { yaml: { workspace: Just _ } } ->
-              State.modify_ \s -> s { otherWorkspaceRoots = Array.cons dir s.otherWorkspaceRoots }
+              State.modify_ \s -> s { blockedSubtrees = Array.cons dir s.blockedSubtrees }
             Right config@{ yaml: { package: Just package } } -> do
               logDebug $ "Loaded a subproject config at " <> Path.quote configFile
               State.modify_ \s -> s { loadedPackages = Map.insert dir { package, config } s.loadedPackages }

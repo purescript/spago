@@ -11,6 +11,7 @@ import Registry.Version as Version
 import Spago.Core.Config (SetAddress(..))
 import Spago.Core.Config as C
 import Spago.FS as FS
+import Spago.Path as Path
 import Spago.Paths as Paths
 import Spago.Yaml as Yaml
 import Test.Spec (Spec)
@@ -117,6 +118,20 @@ spec =
 
           Paths.chdir $ testCwd </> "a" </> "b" </> "d"
           spago [ "build" ] >>= shouldBeFailureErr' (fixture "config/misnamed-configs/from-d.txt")
+
+        Spec.it "warns about a malformed config, but stops parsing down the tree" \{ spago, fixture, testCwd } -> do
+          FS.copyTree { src: fixture "config/malformed-configs", dst: testCwd }
+
+          -- Running with "-p bogus" to get Spago to list all available
+          -- packages. Packages `b` and `c` shouldn't be in that list because
+          -- b's config is malformatted, so Spago should warn about it and stop
+          -- loading configs down the tree from `b`, thus skipping `c`.
+          spago [ "build", "-p", "bogus" ] >>= checkOutputs'
+            { result: isLeft
+            , stdoutFile: Nothing
+            , stderrFile: Just (fixture "config/malformed-configs/from-root.txt")
+            , sanitize: String.trim >>> String.replaceAll (String.Pattern $ Path.toRaw testCwd) (String.Replacement "<test-dir>")
+            }
 
     where
     shouldFailWith result expectedError =
