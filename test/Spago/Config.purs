@@ -121,22 +121,7 @@ spec =
           spago [ "build" ] >>= shouldBeFailureErr' (fixture "config/misnamed-configs/from-d.txt")
 
         Spec.it "warns about a malformed config, but stops parsing down the tree" \{ spago, fixture, testCwd } -> do
-          let bogusPath = Paths.paths.temp </> "bogus-dir"
-          FS.mkdirp bogusPath
-          Paths.chdir bogusPath
-          traceM bogusPath
-          traceM Paths.paths
-          traceM =<< Paths.cwd
-
           FS.copyTree { src: fixture "config/malformed-configs", dst: testCwd }
-
-          -- Theoretically `cwd` should equal `testCwd`, but something fishy is
-          -- happening on MacOS CI, where it turns out that:
-          --
-          --     cwd == "/private/" <> testCwd
-          --
-          -- I don't know why it happens.
-          cwd <- Path.toRaw <$> Paths.cwd
 
           -- Running with "-p bogus" to get Spago to list all available
           -- packages. Packages `b` and `c` shouldn't be in that list because
@@ -149,7 +134,7 @@ spec =
             , sanitize:
                 String.trim
                   >>> String.replaceAll (String.Pattern "\\") (String.Replacement "/")
-                  >>> String.replaceAll (String.Pattern cwd) (String.Replacement "<test-dir>")
+                  >>> String.replaceAll (String.Pattern $ Path.toRaw testCwd) (String.Replacement "<test-dir>")
             }
 
     where
