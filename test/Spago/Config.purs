@@ -4,6 +4,7 @@ import Test.Prelude
 
 import Codec.JSON.DecodeError as CJ
 import Data.String as String
+import Debug (traceM)
 import Registry.License as License
 import Registry.Location (Location(..))
 import Registry.PackageName as PackageName
@@ -122,6 +123,7 @@ spec =
         Spec.it "warns about a malformed config, but stops parsing down the tree" \{ spago, fixture, testCwd } -> do
           FS.copyTree { src: fixture "config/malformed-configs", dst: testCwd }
 
+          traceM { testCwd }
           -- Running with "-p bogus" to get Spago to list all available
           -- packages. Packages `b` and `c` shouldn't be in that list because
           -- b's config is malformatted, so Spago should warn about it and stop

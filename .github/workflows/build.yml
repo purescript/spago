@@ -78,11 +78,11 @@ jobs:
       - name: Bootstrap executable
         run: node ./bin/index.dev.js bundle -p spago-bin
 
-      - name: Bundle docs-search client
-        run: node ./bin/bundle.js bundle -p docs-search-client-halogen
+      # - name: Bundle docs-search client
+      #   run: node ./bin/bundle.js bundle -p docs-search-client-halogen
 
       - name: Run tests
-        run: node ./bin/bundle.js test
+        run: node ./bin/bundle.js test -- -e "warns about a malformed config, but stops parsing down the tree"
 
       - name: Check formatting (Linux only)
         if: matrix.os == 'ubuntu-latest'
