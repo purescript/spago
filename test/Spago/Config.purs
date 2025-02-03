@@ -123,7 +123,8 @@ spec =
         Spec.it "warns about a malformed config, but stops parsing down the tree" \{ spago, fixture, testCwd } -> do
           FS.copyTree { src: fixture "config/malformed-configs", dst: testCwd }
 
-          traceM { testCwd }
+          cwd <- Path.toRaw <$> Paths.cwd
+
           -- Running with "-p bogus" to get Spago to list all available
           -- packages. Packages `b` and `c` shouldn't be in that list because
           -- b's config is malformatted, so Spago should warn about it and stop
@@ -134,8 +135,8 @@ spec =
             , stderrFile: Just (fixture "config/malformed-configs/from-root.txt")
             , sanitize:
                 String.trim
-                  -- >>> String.replaceAll (String.Pattern "\\") (String.Replacement "/")
-                  -- >>> String.replaceAll (String.Pattern $ Path.toRaw testCwd) (String.Replacement "<test-dir>")
+                  >>> String.replaceAll (String.Pattern "\\") (String.Replacement "/")
+                  >>> String.replaceAll (String.Pattern cwd) (String.Replacement "<test-dir>")
             }
 
     where
