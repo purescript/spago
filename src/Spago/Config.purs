@@ -300,6 +300,10 @@ discoverWorkspace options cwd = do
         true, _ ->
           pure unit
         _, Just b -> do
+          -- We prune any configs that use a different workspace,
+          -- see https://github.com/purescript/spago/issues/951
+          -- We also prune configs that are nested under a config that we couldn't read,
+          -- see discussion in https://github.com/purescript/spago/pull/1316#issuecomment-2629011927
           logDebug $ "Not trying to load " <> Path.quote configFile <> " because it is nested under " <> Path.quote b
           pure unit
         false, Nothing ->
