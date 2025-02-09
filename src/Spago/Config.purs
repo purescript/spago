@@ -238,12 +238,12 @@ discoverWorkspace options cwd = do
   readConfig' :: ∀ s. _ -> State.StateT s _ _
   readConfig' = State.lift <<< readConfig
 
-  walkDirectoriesUpFrom ::
-    GlobalPath
+  walkDirectoriesUpFrom
+    :: GlobalPath
     -> State.StateT
-        { loadedPackages :: Map _ _, misnamedConfigs :: Array GlobalPath, closestPackage :: Maybe _ }
-        _
-        { workspace :: _, rootPath :: _ }
+         { loadedPackages :: Map _ _, misnamedConfigs :: Array GlobalPath, closestPackage :: Maybe _ }
+         _
+         { workspace :: _, rootPath :: _ }
   walkDirectoriesUpFrom dir = do
     maybeConfig <- tryReadConfigAt configFile
 
@@ -273,12 +273,12 @@ discoverWorkspace options cwd = do
     configFile = dir </> spagoYaml
     parentDir = Path.dirname dir
 
-  loadSubprojectConfigs ::
-    RootPath
+  loadSubprojectConfigs
+    :: RootPath
     -> State.StateT
-        { loadedPackages :: Map _ _, blockedSubtrees :: Array GlobalPath }
-        _
-        Unit
+         { loadedPackages :: Map _ _, blockedSubtrees :: Array GlobalPath }
+         _
+         Unit
   loadSubprojectConfigs rootPath = do
     candidates <- liftAff $ Glob.gitignoringGlob
       { root: rootPath
