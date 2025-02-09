@@ -110,14 +110,20 @@ printDocsFormat = case _ of
   Ctags -> "ctags"
   Etags -> "etags"
 
-docs :: ∀ a. RootPath -> Set LocalPath -> DocsFormat -> Spago (PursEnv a) (Either ExecaResult ExecaResult)
-docs cwd globs format = do
+docs :: ∀ a.
+  { root :: RootPath
+  , globs :: Set LocalPath
+  , format :: DocsFormat
+  , quiet :: Boolean
+  }
+  -> Spago (PursEnv a) (Either ExecaResult ExecaResult)
+docs cfg = do
   { purs } <- ask
-  let args = [ "docs", "--format", printDocsFormat format ] <> globsToArgs cwd globs
+  let args = [ "docs", "--format", printDocsFormat cfg.format ] <> globsToArgs cfg.root cfg.globs
   Cmd.exec purs.cmd args $ Cmd.defaultExecOptions
-    { cwd = Just $ Path.toGlobal cwd
-    , pipeStdout = true
-    , pipeStderr = true
+    { cwd = Just $ Path.toGlobal cfg.root
+    , pipeStdout = not cfg.quiet
+    , pipeStderr = not cfg.quiet
     , pipeStdin = Cmd.StdinPipeParent
     }
 

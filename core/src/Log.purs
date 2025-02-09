@@ -76,6 +76,7 @@ data LogVerbosity
   = LogQuiet
   | LogNormal
   | LogVerbose
+derive instance Eq LogVerbosity
 
 -- | LogVeryVerbose -- TODO:we'll need to add timestamps, and locations, see https://stackoverflow.com/questions/45395369/
 

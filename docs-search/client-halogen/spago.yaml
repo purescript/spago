@@ -38,7 +38,7 @@ package:
     strict: true
   bundle:
     type: "app"
-    minify: true
+    minify: false
     module: Docs.Search.App
     outfile: "../../bin/docs-search-app.js"
     platform: browser
