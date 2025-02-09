@@ -1,6 +1,6 @@
 # spago
 
-[![npm](https://img.shields.io/npm/v/spago.svg)][spago-npm]
+![NPM Version (with dist tag)](https://img.shields.io/npm/v/spago/next)
 [![Latest release](https://img.shields.io/github/v/release/purescript/spago.svg)](https://github.com/purescript/spago/releases)
 [![build](https://github.com/purescript/spago/actions/workflows/build.yml/badge.svg)](https://github.com/purescript/spago/actions/workflows/build.yml)
 [![nix-flake](https://github.com/purescript/spago/actions/workflows/nix-flake.yml/badge.svg)](https://github.com/purescript/spago/actions/workflows/nix-flake.yml)
