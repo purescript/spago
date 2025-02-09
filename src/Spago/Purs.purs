@@ -110,12 +110,13 @@ printDocsFormat = case _ of
   Ctags -> "ctags"
   Etags -> "etags"
 
-docs :: ∀ a.
-  { root :: RootPath
-  , globs :: Set LocalPath
-  , format :: DocsFormat
-  , quiet :: Boolean
-  }
+docs
+  :: ∀ a
+   . { root :: RootPath
+     , globs :: Set LocalPath
+     , format :: DocsFormat
+     , quiet :: Boolean
+     }
   -> Spago (PursEnv a) (Either ExecaResult ExecaResult)
 docs cfg = do
   { purs } <- ask

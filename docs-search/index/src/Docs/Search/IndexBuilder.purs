@@ -108,11 +108,11 @@ run cfg@{ log } = do
 
   sequential $
     parallel (writeIndex cfg index)
-    *> parallel (writeTypeIndex typeIndex)
-    *> parallel (writePackageInfo packageInfo)
-    *> parallel (writeModuleIndex moduleIndex)
-    *> parallel (patchDocs cfg)
-    *> parallel (copyAppFile cfg)
+      *> parallel (writeTypeIndex typeIndex)
+      *> parallel (writePackageInfo packageInfo)
+      *> parallel (writeModuleIndex moduleIndex)
+      *> parallel (patchDocs cfg)
+      *> parallel (copyAppFile cfg)
 
   let
     countOfDefinitions = Trie.size $ unwrap index
@@ -365,8 +365,9 @@ createDirectories { generatedDocs, die } = do
 copyAppFile :: Config -> Aff Unit
 copyAppFile { generatedDocs, die } = do
   appFile <- liftEffect getDocsSearchAppPath
-  unlessM (fileExists appFile) $
-    die $
+  unlessM (fileExists appFile)
+    $ die
+    $
       "Client-side app was not found at " <> appFile <> ".\n" <>
         "Check your installation."
   buffer <- readFile appFile
