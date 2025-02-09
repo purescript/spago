@@ -190,6 +190,8 @@ discoverWorkspace options cwd = do
     State.execStateT (loadSubprojectConfigs rootPath)
       { loadedPackages: upTree.loadedPackages, blockedSubtrees: [] }
 
+  -- Note: we migrate configs only at this point - this is because we read a whole lot of them but we are
+  -- supposed to ignore any subtrees that contain a different workspace, and those we don't want to migrate
   migrateConfigsWhereNeeded rootPath loadedPackages
 
   packagesByName <-
@@ -197,9 +199,9 @@ discoverWorkspace options cwd = do
       for (Map.toUnfoldable loadedPackages :: Array _) \(path /\ { package, config }) -> do
         hasTests <- FS.exists (path </> "test")
         let
-          wsp :: WorkspacePackage
-          wsp = { package, path: path `Path.relativeTo` rootPath, doc: Just config.doc, hasTests }
-        pure (package.name /\ wsp)
+          workspacePackage :: WorkspacePackage
+          workspacePackage = { package, path: path `Path.relativeTo` rootPath, doc: Just config.doc, hasTests }
+        pure (package.name /\ workspacePackage)
 
   selected <-
     determineSelectedPackage
@@ -209,11 +211,11 @@ discoverWorkspace options cwd = do
       , loadedPackages: packagesByName
       }
 
-  lockfile <-
+  eitherLockfile <-
     loadLockfile { pureBuild: options.pureBuild, workspaceConfig: workspace.config, loadedPackages: packagesByName, rootPath }
 
   { packageSet, compiler } <-
-    loadPackageSet { workspaceConfig: workspace.config, loadedPackages: packagesByName, rootPath, lockfile }
+    loadPackageSet { workspaceConfig: workspace.config, loadedPackages: packagesByName, rootPath, eitherLockfile }
 
   pure
     { rootPath
@@ -236,6 +238,12 @@ discoverWorkspace options cwd = do
   readConfig' :: ∀ s. _ -> State.StateT s _ _
   readConfig' = State.lift <<< readConfig
 
+  walkDirectoriesUpFrom ::
+    GlobalPath
+    -> State.StateT
+        { loadedPackages :: Map _ _, misnamedConfigs :: Array GlobalPath, closestPackage :: Maybe _ }
+        _
+        { workspace :: _, rootPath :: _ }
   walkDirectoriesUpFrom dir = do
     maybeConfig <- tryReadConfigAt configFile
 
@@ -265,6 +273,12 @@ discoverWorkspace options cwd = do
     configFile = dir </> spagoYaml
     parentDir = Path.dirname dir
 
+  loadSubprojectConfigs ::
+    RootPath
+    -> State.StateT
+        { loadedPackages :: Map _ _, blockedSubtrees :: Array GlobalPath }
+        _
+        Unit
   loadSubprojectConfigs rootPath = do
     candidates <- liftAff $ Glob.gitignoringGlob
       { root: rootPath
@@ -444,21 +458,21 @@ loadPackageSet
    . { workspaceConfig :: Core.WorkspaceConfig
      , loadedPackages :: Map PackageName WorkspacePackage
      , rootPath :: RootPath
-     , lockfile :: Either String Lockfile
+     , eitherLockfile :: Either String Lockfile
      }
   -> Spago (Registry.RegistryEnv a) { packageSet :: PackageSet, compiler :: Range }
-loadPackageSet { lockfile, workspaceConfig, loadedPackages, rootPath } = do
+loadPackageSet { eitherLockfile, workspaceConfig, loadedPackages, rootPath } = do
   { offline } <- ask
-  packageSetInfo <- case lockfile, workspaceConfig.packageSet of
+  packageSetInfo <- case eitherLockfile, workspaceConfig.packageSet of
     _, Nothing -> do
       logDebug "Did not find a package set in your config, using Registry solver"
       pure Nothing
 
     -- If there's a lockfile we don't attempt to fetch the package set from the registry
     -- repo nor from the internet, since we already have the whole set right there
-    Right lf, _ -> do
+    Right lockfile, _ -> do
       logDebug "Found the lockfile, using the package set from there"
-      pure lf.workspace.package_set
+      pure lockfile.workspace.package_set
 
     Left reason, Just address@(Core.SetFromRegistry { registry: v }) -> do
       logDebug reason
@@ -548,7 +562,7 @@ loadPackageSet { lockfile, workspaceConfig, loadedPackages, rootPath } = do
       <> map (\p -> indent $ toDoc $ "- " <> PackageName.print p) (Array.fromFoldable localPackagesOverlap)
 
   pure
-    { packageSet: { buildType, lockfile }
+    { packageSet: { buildType, lockfile: eitherLockfile }
     , compiler: packageSetInfo <#> _.compiler # fromMaybe Core.widestRange
     }
 
