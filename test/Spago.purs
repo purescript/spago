@@ -23,22 +23,23 @@ import Test.Spago.Repl as Repl
 import Test.Spago.Run as Run
 import Test.Spago.Sources as Sources
 import Test.Spago.Test as Test
+import Test.Spago.Transfer as Transfer
 import Test.Spago.Uninstall as Uninstall
 import Test.Spago.Unit as Unit
 import Test.Spago.Upgrade as Upgrade
 import Test.Spec as Spec
 import Test.Spec.Reporter as Spec.Reporter
 import Test.Spec.Runner.Node (runSpecAndExitProcess')
-import Test.Spec.Runner.Node.Config as Config
+import Test.Spec.Runner.Node.Config as Cfg
 
-testConfig :: Config.TestRunConfig
-testConfig = Config.defaultConfig
+testConfig :: Cfg.TestRunConfig
+testConfig = Cfg.defaultConfig
   { timeout = Just (Milliseconds 120_000.0)
   }
 
 main :: Effect Unit
 main = do
-  config <- Config.fromCommandLine' testConfig Config.commandLineOptionParsers
+  config <- Cfg.fromCommandLine' testConfig Cfg.commandLineOptionParsers
   runSpecAndExitProcess' config [ Spec.Reporter.consoleReporter ] do
     Spec.describe "spago" do
       -- TODO: script
@@ -57,6 +58,7 @@ main = do
       Docs.spec
       Upgrade.spec
       Publish.spec
+      Transfer.spec
       Graph.spec
       Spec.describe "miscellaneous" do
         Lock.spec

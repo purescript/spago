@@ -1,0 +1,19 @@
+Reading Spago workspace configuration...
+
+✓ Selecting package to build: aaa
+
+Downloading dependencies...
+Building...
+           Src   Lib   All
+Warnings     0     0     0
+Errors       0     0     0
+
+✓ Build succeeded.
+
+Your package "aaa" is not ready for publishing yet, encountered 1 error:
+
+
+✘ The tag (v0.0.1) does not match the expected tag (v0.0.2).
+Fix all other publishing-related errors first before creating the correct tag. Do not push your created tag to its remote. Prematurely creating and pushing a tag can lead to unpublishable tags.
+To create the tag, you can run:
+  git tag v0.0.2
