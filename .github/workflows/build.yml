@@ -14,6 +14,7 @@ jobs:
       matrix:
         include:
           - os: ubuntu-latest
+          - os: ubuntu-24.04-arm
           - os: macOS-latest
           - os: windows-latest
     steps:
@@ -84,6 +85,6 @@ jobs:
       - name: Run tests
         run: node ./bin/bundle.js test
 
-      - name: Check formatting (Linux only)
+      - name: Check formatting (Linux x86_64 only)
         if: matrix.os == 'ubuntu-latest'
         run: npm run format:check
