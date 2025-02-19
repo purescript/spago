@@ -1,0 +1,17 @@
+Reading Spago workspace configuration...
+
+✓ Selecting 3 packages to build:
+    c
+    d
+    nested-workspace
+
+Downloading dependencies...
+Building...
+purs compile: No files found using pattern: c/src/**/*.purs
+purs compile: No files found using pattern: d/src/**/*.purs
+purs compile: No files found using pattern: src/**/*.purs
+           Src   Lib   All
+Warnings     0     0     0
+Errors       0     0     0
+
+✓ Build succeeded.

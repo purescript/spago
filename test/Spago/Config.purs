@@ -3,12 +3,16 @@ module Test.Spago.Config where
 import Test.Prelude
 
 import Codec.JSON.DecodeError as CJ
+import Data.String as String
 import Registry.License as License
 import Registry.Location (Location(..))
 import Registry.PackageName as PackageName
 import Registry.Version as Version
 import Spago.Core.Config (SetAddress(..))
 import Spago.Core.Config as C
+import Spago.FS as FS
+import Spago.Path as Path
+import Spago.Paths as Paths
 import Spago.Yaml as Yaml
 import Test.Spec (Spec)
 import Test.Spec as Spec
@@ -64,11 +68,92 @@ spec =
               <> "\n        - Could not decode GitHub:"
               <> "\n            Unknown field(s): bogus_field"
           )
-  where
-  shouldFailWith result expectedError =
-    case result of
-      Right _ -> Assert.fail "Expected an error, but parsed successfully"
-      Left err -> CJ.print err `shouldEqual` expectedError
+
+    Spec.around withTempDir $
+      Spec.describe "spago.yaml discovery" do
+        Spec.it "discovers config up the directory tree" \{ testCwd, fixture, spago } -> do
+          FS.copyTree { src: fixture "config/discovery", dst: testCwd }
+          spago [ "build" ] >>= shouldBeSuccess
+          spago [ "build" ] >>= shouldBeSuccessErr' (fixture "config/discovery/from-root.txt")
+
+          -- Running from `./a`, Spago should discover the workspace root at
+          -- './' and select package 'a'
+          Paths.chdir $ testCwd </> "a"
+          spago [ "build" ] >>= shouldBeSuccessErr' (fixture "config/discovery/from-a.txt")
+
+          -- Running from `./nested-workspace`, Spago should use the workspace
+          -- root at './nested-workspace' and not the one at './'
+          Paths.chdir $ testCwd </> "nested-workspace"
+          spago [ "build" ] >>= shouldBeSuccess
+          spago [ "build" ] >>= shouldBeSuccessErr' (fixture "config/discovery/from-nested.txt")
+
+          -- Running from `./nested-workspace/d`, Spago should use the workspace
+          -- root at './nested-workspace', because that's the closest one, and
+          -- select package 'd'
+          Paths.chdir $ testCwd </> "nested-workspace" </> "d"
+          spago [ "build" ] >>= shouldBeSuccessErr' (fixture "config/discovery/from-d.txt")
+
+          -- At workspace roots, a ".spago" directory should be created for
+          -- local cache, but not in subdirs
+          FS.exists (testCwd </> ".spago") `Assert.shouldReturn` true
+          FS.exists (testCwd </> "a" </> ".spago") `Assert.shouldReturn` false
+          FS.exists (testCwd </> "nested-workspace" </> ".spago") `Assert.shouldReturn` true
+          FS.exists (testCwd </> "nested-workspace" </> "d" </> ".spago") `Assert.shouldReturn` false
+
+        Spec.it "reports no config in any parent directories" \{ spago, fixture } ->
+          spago [ "build" ] >>= shouldBeFailureErr' (fixture "config/no-workspace-anywhere.txt")
+
+        Spec.it "reports possible misnamed configs up the directory tree" \{ testCwd, spago, fixture } -> do
+          FS.copyTree { src: fixture "config/misnamed-configs", dst: testCwd }
+          spago [ "build" ] >>= shouldBeFailureErr' (fixture "config/misnamed-configs/from-root.txt")
+
+          Paths.chdir $ testCwd </> "a"
+          spago [ "build" ] >>= shouldBeFailureErr' (fixture "config/misnamed-configs/from-a.txt")
+
+          Paths.chdir $ testCwd </> "a" </> "b"
+          spago [ "build" ] >>= shouldBeFailureErr' (fixture "config/misnamed-configs/from-b.txt")
+
+          Paths.chdir $ testCwd </> "a" </> "b" </> "c"
+          spago [ "build" ] >>= shouldBeFailureErr' (fixture "config/misnamed-configs/from-c.txt")
+
+          Paths.chdir $ testCwd </> "a" </> "b" </> "d"
+          spago [ "build" ] >>= shouldBeFailureErr' (fixture "config/misnamed-configs/from-d.txt")
+
+        Spec.it "warns about a malformed config, but stops parsing down the tree" \{ spago, fixture, testCwd } -> do
+          FS.copyTree { src: fixture "config/malformed-configs", dst: testCwd }
+
+          -- Running with "-p bogus" to get Spago to list all available
+          -- packages. Packages `b` and `c` shouldn't be in that list because
+          -- b's config is malformatted, so Spago should warn about it and stop
+          -- loading configs down the tree from `b`, thus skipping `c`.
+          spago [ "build", "-p", "bogus" ] >>= checkOutputs'
+            { result: isLeft
+            , stdoutFile: Nothing
+            , stderrFile: Just (fixture "config/malformed-configs/from-root.txt")
+            , sanitize:
+                String.trim
+                  >>> String.replaceAll (String.Pattern $ Path.toRaw testCwd) (String.Replacement "<test-dir>")
+                  >>> String.replaceAll (String.Pattern "\\") (String.Replacement "/")
+            }
+
+    where
+    shouldFailWith result expectedError =
+      case result of
+        Right _ -> Assert.fail "Expected an error, but parsed successfully"
+        Left err -> CJ.print err `shouldEqual` expectedError
+
+    shouldBeSuccessErr' = shouldBeErr isRight
+    shouldBeFailureErr' = shouldBeErr isLeft
+
+    shouldBeErr result file = checkOutputs'
+        { stdoutFile: Nothing
+        , stderrFile: Just file
+        , result
+        , sanitize:
+            String.trim
+              >>> String.replaceAll (String.Pattern "\\") (String.Replacement "/")
+              >>> String.replaceAll (String.Pattern "\r\n") (String.Replacement "\n")
+        }
 
 validSpagoYaml :: { serialized :: String, parsed :: C.Config }
 validSpagoYaml =

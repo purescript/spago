@@ -50,22 +50,24 @@ type LsPathsArgs =
   { json :: Boolean
   }
 
-type LsSetEnv =
+type LsSetEnv r =
   { dependencies :: Fetch.PackageTransitiveDeps
   , logOptions :: LogOptions
   , workspace :: Workspace
   , rootPath :: RootPath
+  | r
   }
 
-type LsEnv =
+type LsEnv r =
   { dependencies :: Fetch.PackageTransitiveDeps
   , logOptions :: LogOptions
   , workspace :: Workspace
   , selected :: WorkspacePackage
   , rootPath :: RootPath
+  | r
   }
 
-listPaths :: LsPathsArgs -> Spago { logOptions :: LogOptions, rootPath :: RootPath } Unit
+listPaths :: ∀ r. LsPathsArgs -> Spago { logOptions :: LogOptions, rootPath :: RootPath | r } Unit
 listPaths { json } = do
   logDebug "Running `listPaths`"
   { rootPath } <- ask
@@ -90,7 +92,7 @@ listPaths { json } = do
 
 -- TODO: add LICENSE field
 
-listPackageSet :: LsPackagesArgs -> Spago LsSetEnv Unit
+listPackageSet :: ∀ r. LsPackagesArgs -> Spago (LsSetEnv r) Unit
 listPackageSet { json } = do
   logDebug "Running `listPackageSet`"
   { workspace, rootPath } <- ask
@@ -102,7 +104,7 @@ listPackageSet { json } = do
         true -> formatPackagesJson rootPath packages
         false -> formatPackagesTable packages
 
-listPackages :: LsDepsOpts -> Spago LsEnv Unit
+listPackages :: ∀ r. LsDepsOpts -> Spago (LsEnv r) Unit
 listPackages { transitive, json } = do
   logDebug "Running `listPackages`"
   { dependencies, selected, rootPath } <- ask

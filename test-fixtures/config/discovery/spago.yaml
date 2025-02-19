@@ -1,0 +1,10 @@
+package:
+  name: foo
+  dependencies:
+    - console
+    - effect
+    - prelude
+
+workspace:
+  packageSet:
+    registry: 41.5.0
