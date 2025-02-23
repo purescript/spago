@@ -51,8 +51,7 @@ data OnlineStatus = Offline | Online | OnlineBypassCache
 derive instance Eq OnlineStatus
 
 type SpagoBaseEnv a =
-  { rootPath :: Path.RootPath
-  , logOptions :: LogOptions
+  { logOptions :: LogOptions
   | a
   }
 

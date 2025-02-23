@@ -2,4 +2,4 @@ src\**\*.purs
 test\**\*.purs
 .spago\p\console-6.1.0\src\**\*.purs
 .spago\p\effect-4.0.0\src\**\*.purs
-.spago\p\prelude-6.0.1\src\**\*.purs
+.spago\p\prelude-6.0.2\src\**\*.purs

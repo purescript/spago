@@ -1,0 +1,17 @@
+Reading Spago workspace configuration...
+
+✓ Selecting 3 packages to build:
+    a
+    b
+    foo
+
+Downloading dependencies...
+Building...
+purs compile: No files found using pattern: a/src/**/*.purs
+purs compile: No files found using pattern: b/src/**/*.purs
+purs compile: No files found using pattern: src/**/*.purs
+           Src   Lib   All
+Warnings     0     0     0
+Errors       0     0     0
+
+✓ Build succeeded.
