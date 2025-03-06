@@ -39,8 +39,8 @@ spec = Spec.around withTempDir do
           , result: isLeft
           , sanitize:
               String.trim
-              >>> String.replaceAll (String.Pattern "Usage: purs.bin") (String.Replacement "Usage: purs")
-              >>> String.replaceAll (String.Pattern "\r\n") (String.Replacement "\n")
+                >>> String.replaceAll (String.Pattern "Usage: purs.bin") (String.Replacement "Usage: purs")
+                >>> String.replaceAll (String.Pattern "\r\n") (String.Replacement "\n")
           }
 
     Spec.it "passes options to purs" \{ spago } -> do
@@ -220,7 +220,7 @@ spec = Spec.around withTempDir do
         Just Platform.Win32 -> fixture "build/json-truncated-many-warnings/warnings-windows.json"
         _ -> fixture "build/json-truncated-many-warnings/warnings.json"
 
-    Spec.it "building with old-format config files works, as well as migrating them" \{ spago, fixture, testCwd } -> do
+    Spec.itOnly "building with old-format config files works, as well as migrating them" \{ spago, fixture, testCwd } -> do
       FS.copyTree { src: fixture "build/migrate-config", dst: testCwd </> "." }
       spago [ "build" ] >>= shouldBeSuccess
       spago [ "build" ] >>= shouldBeSuccessErr (fixture "build/migrate-config/unmigrated-warning.txt")

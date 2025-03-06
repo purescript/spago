@@ -1448,6 +1448,26 @@ package:
       # see https://yaml-multiline.info/
       - byPrefix: >
         "Data.Map"'s `Semigroup instance`
+
+    # Specify whether to censor warnings coming from the compiler
+    # for files from this package's test code.
+    # Optional and can be one of two possible values
+    censorTestWarnings:
+      # Value 1: "all" - All warnings are censored
+      all
+
+      # Value 2: `NonEmptyArray (Either String { byPrefix :: String })`
+      # - String values:
+      #      censor warnings if the code matches this code
+      # - { byPrefix } values:
+      #      censor warnings if the warning's message
+      #      starts with the given text
+      - CodeName
+      # Note: when using `byPrefix`, use the `>` for block-string:
+      # see https://yaml-multiline.info/
+      - byPrefix: >
+        "Data.Map"'s `Semigroup instance`
+
     # Convert compiler warnings for files in this package's src code
     # into errors that can fail the build.
     # Optional and defaults to false
@@ -1498,24 +1518,6 @@ package:
     # Optional boolean that defaults to `false`.
     pedanticPackages: false
 
-    # Specify whether to censor warnings coming from the compiler
-    # for files from this package's test code.
-    # Optional and can be one of two possible values
-    censorTestWarnings:
-      # Value 1: "all" - All warnings are censored
-      all
-
-      # Value 2: `NonEmptyArray (Either String { byPrefix :: String })`
-      # - String values:
-      #      censor warnings if the code matches this code
-      # - { byPrefix } values:
-      #      censor warnings if the warning's message
-      #      starts with the given text
-      - CodeName
-      # Note: when using `byPrefix`, use the `>` for block-string:
-      # see https://yaml-multiline.info/
-      - byPrefix: >
-        "Data.Map"'s `Semigroup instance`
     # Convert compiler warnings for files from this package's test code
     # into errors that can fail the build.
     # Optional and defaults to false

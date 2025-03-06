@@ -168,7 +168,6 @@ type TestConfig =
   { main :: String
   , execArgs :: Maybe (Array String)
   , dependencies :: Dependencies
-  , censorTestWarnings :: Maybe CensorBuildWarnings
   , strict :: Maybe Boolean
   , pedanticPackages :: Maybe Boolean
   }
@@ -177,7 +176,6 @@ testConfigCodec :: CJ.Codec TestConfig
 testConfigCodec = CJ.named "TestConfig" $ CJS.objectStrict
   $ CJS.recordProp @"main" CJ.string
   $ CJS.recordPropOptional @"execArgs" (CJ.array CJ.string)
-  $ CJS.recordPropOptional @"censorTestWarnings" censorBuildWarningsCodec
   $ CJS.recordPropOptional @"strict" CJ.boolean
   $ CJS.recordPropOptional @"pedanticPackages" CJ.boolean
   $ CJS.recordProp @"dependencies" dependenciesCodec
@@ -196,6 +194,7 @@ backendConfigCodec = CJ.named "BackendConfig" $ CJS.objectStrict
 
 type PackageBuildOptionsInput =
   { censorProjectWarnings :: Maybe CensorBuildWarnings
+  , censorTestWarnings :: Maybe CensorBuildWarnings
   , strict :: Maybe Boolean
   , pedanticPackages :: Maybe Boolean
   }
@@ -203,6 +202,7 @@ type PackageBuildOptionsInput =
 packageBuildOptionsCodec :: CJ.Codec PackageBuildOptionsInput
 packageBuildOptionsCodec = CJ.named "PackageBuildOptionsInput" $ CJS.objectStrict
   $ CJS.recordPropOptional @"censorProjectWarnings" censorBuildWarningsCodec
+  $ CJS.recordPropOptional @"censorTestWarnings" censorBuildWarningsCodec
   $ CJS.recordPropOptional @"strict" CJ.boolean
   $ CJS.recordPropOptional @"pedanticPackages" CJ.boolean
   $ CJS.record

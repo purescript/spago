@@ -10,10 +10,10 @@ package:
     main: Test.Main
     execArgs: []
     dependencies: []
-    censorTestWarnings: all
     pedanticPackages: false
   build:
     censorProjectWarnings: all
+    censorTestWarnings: all
     pedanticPackages: false
 workspace:
   packageSet:

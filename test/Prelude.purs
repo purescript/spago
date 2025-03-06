@@ -105,20 +105,20 @@ shouldEqualStr v1 v2 =
   let
     renderNonPrinting =
       String.replaceAll (String.Pattern "\r") (String.Replacement "␍")
-      >>> String.replaceAll (String.Pattern "\t") (String.Replacement "␉-->")
+        >>> String.replaceAll (String.Pattern "\t") (String.Replacement "␉-->")
   in
-  when (v1 /= v2) do
-    fail $ Array.intercalate "\n"
-      [ ""
-      , "===== (Actual)"
-      , renderNonPrinting v1
-      , "====="
-      , "  ≠"
-      , "===== (Expected)"
-      , renderNonPrinting v2
-      , "====="
-      , ""
-      ]
+    when (v1 /= v2) do
+      fail $ Array.intercalate "\n"
+        [ ""
+        , "===== (Actual)"
+        , renderNonPrinting v1
+        , "====="
+        , "  ≠"
+        , "===== (Expected)"
+        , renderNonPrinting v2
+        , "====="
+        , ""
+        ]
 
 checkFixture :: ∀ path. IsPath path => path -> FixturePath -> Aff Unit
 checkFixture filepath fixturePath = checkFixture' filepath fixturePath (shouldEqualStr `on` String.trim)
@@ -324,83 +324,63 @@ configurePackageSection initialOptions = snd <<< Array.foldl (\c f -> f c)
 
 configAddSrcStrict :: Tuple String Init.DefaultConfigPackageOptions -> Tuple String Init.DefaultConfigPackageOptions
 configAddSrcStrict = map \r -> r
-  { build = Just
-      { strict: Just true
-      , censorProjectWarnings: r.build >>= _.censorProjectWarnings
-      , pedanticPackages: r.build >>= _.pedanticPackages
+  { build = r.build <#> _
+      { strict = Just true
       }
   }
 
 configAddSrcPedantic :: Tuple String Init.DefaultConfigPackageOptions -> Tuple String Init.DefaultConfigPackageOptions
 configAddSrcPedantic = map \r -> r
-  { build = Just
-      { strict: r.build >>= _.strict
-      , censorProjectWarnings: r.build >>= _.censorProjectWarnings
-      , pedanticPackages: Just true
+  { build = r.build <#> _
+      { pedanticPackages = Just true
       }
   }
 
 configAddSrcCensor :: Config.CensorBuildWarnings -> Tuple String Init.DefaultConfigPackageOptions -> Tuple String Init.DefaultConfigPackageOptions
 configAddSrcCensor censors = map \r -> r
-  { build = Just
-      { strict: r.build >>= _.strict
-      , censorProjectWarnings: Just censors
-      , pedanticPackages: r.build >>= _.pedanticPackages
+  { build = r.build <#> _
+      { censorProjectWarnings = Just censors
       }
   }
 
 configAddTestMain :: Tuple String Init.DefaultConfigPackageOptions -> Tuple String Init.DefaultConfigPackageOptions
 configAddTestMain (Tuple packageName r) = Tuple packageName $ r
-  { test = Just
-      { moduleMain: mkTestModuleName packageName
-      , strict: r.test >>= _.strict
-      , censorTestWarnings: r.test >>= _.censorTestWarnings
-      , pedanticPackages: r.test >>= _.pedanticPackages
-      , dependencies: r.test >>= _.dependencies
+  { test = r.test <#> _
+      { moduleMain = mkTestModuleName packageName
       }
   }
 
 configAddTestStrict :: Tuple String Init.DefaultConfigPackageOptions -> Tuple String Init.DefaultConfigPackageOptions
 configAddTestStrict (Tuple packageName r) = Tuple packageName $ r
-  { test = Just
-      { moduleMain: mkTestModuleName packageName
-      , strict: Just true
-      , censorTestWarnings: r.test >>= _.censorTestWarnings
-      , pedanticPackages: r.test >>= _.pedanticPackages
-      , dependencies: r.test >>= _.dependencies
+  { test = r.test <#> _
+      { moduleMain = mkTestModuleName packageName
+      , strict = Just true
       }
   }
 
 configAddTestPedantic :: Tuple String Init.DefaultConfigPackageOptions -> Tuple String Init.DefaultConfigPackageOptions
 configAddTestPedantic (Tuple packageName r) = Tuple packageName $ r
-  { test = Just
-      { moduleMain: mkTestModuleName packageName
-      , strict: r.test >>= _.strict
-      , censorTestWarnings: r.test >>= _.censorTestWarnings
-      , pedanticPackages: Just true
-      , dependencies: r.test >>= _.dependencies
+  { test = r.test <#> _
+      { moduleMain = mkTestModuleName packageName
+      , pedanticPackages = Just true
       }
   }
 
 configAddTestCensor :: Config.CensorBuildWarnings -> Tuple String Init.DefaultConfigPackageOptions -> Tuple String Init.DefaultConfigPackageOptions
 configAddTestCensor censors (Tuple packageName r) = Tuple packageName $ r
-  { test = Just
-      { moduleMain: mkTestModuleName packageName
-      , strict: r.test >>= _.strict
-      , censorTestWarnings: Just censors
-      , pedanticPackages: r.test >>= _.pedanticPackages
-      , dependencies: r.test >>= _.dependencies
+  { test = r.test <#> _
+      { moduleMain = mkTestModuleName packageName
+      }
+  , build = r.build <#> _
+      { censorTestWarnings = Just censors
       }
   }
 
 configAddTestDependencies :: Array String -> Tuple String Init.DefaultConfigPackageOptions -> Tuple String Init.DefaultConfigPackageOptions
 configAddTestDependencies deps (Tuple packageName r) = Tuple packageName $ r
-  { test = Just
-      { moduleMain: mkTestModuleName packageName
-      , strict: r.test >>= _.strict
-      , censorTestWarnings: r.test >>= _.censorTestWarnings
-      , pedanticPackages: r.test >>= _.pedanticPackages
-      , dependencies: Just $ maybe (mkDependencies deps) (append (mkDependencies deps)) $ r.test >>= _.dependencies
+  { test = r.test <#> _
+      { moduleMain = mkTestModuleName packageName
+      , dependencies = Just $ maybe (mkDependencies deps) (append (mkDependencies deps)) $ r.test >>= _.dependencies
       }
   }
 
