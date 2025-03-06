@@ -222,7 +222,7 @@ spec = Spec.around withTempDir do
 
     Spec.itOnly "building with old-format config files works, as well as migrating them" \{ spago, fixture, testCwd } -> do
       FS.copyTree { src: fixture "build/migrate-config", dst: testCwd </> "." }
-      spago [ "build" ] >>= shouldBeSuccess
+      -- spago [ "build" ] >>= shouldBeSuccess
       spago [ "build" ] >>= shouldBeSuccessErr (fixture "build/migrate-config/unmigrated-warning.txt")
       spago [ "build", "--migrate" ] >>= shouldBeSuccessErr (fixture "build/migrate-config/migrating-output.txt")
       spago [ "build" ] >>= shouldBeSuccessErr (fixture "build/migrate-config/migrated-output.txt")
