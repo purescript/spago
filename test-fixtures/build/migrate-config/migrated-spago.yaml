@@ -13,8 +13,8 @@ package:
     pedanticPackages: false
   build:
     censorProjectWarnings: all
-    censorTestWarnings: all
     pedanticPackages: false
+    censorTestWarnings: all
 workspace:
   packageSet:
     registry: 50.4.0

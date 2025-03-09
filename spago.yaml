@@ -73,9 +73,6 @@ package:
     - unsafe-coerce
   test:
     main: Test.Spago
-    censorTestWarnings:
-      - ImplicitQualifiedImportReExport
-      - ImplicitQualifiedImport
     dependencies:
       - exceptions
       - quickcheck

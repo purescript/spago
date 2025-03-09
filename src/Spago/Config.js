@@ -131,16 +131,21 @@ export function migrateV1ConfigImpl(doc) {
         });
       }
 
+      // move censorTestWarnings from test to build map
       if (pair.key.value === "censorTestWarnings") {
-        hasChanged = true;
-        const root = _path.at(0);
-        const build = root.get("package").get("build");
-        build.set("censorTestWarnings", pair.value);
+        const parent = _path.at(-2);
+        if (parent.key && parent.key.value === "test") {
+          hasChanged = true;
+          const root = _path.at(0);
+          const build = root.get("package").get("build");
+          build.set("censorTestWarnings", pair.value);
 
-        return Yaml.visit.REMOVE;
+          return Yaml.visit.REMOVE;
+        }
       }
     },
   });
+
   if (hasChanged) {
     return doc;
   }
