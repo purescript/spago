@@ -48,6 +48,7 @@ Other improvements:
 - `spago publish` no longer tries to validate all workspace dependencies, but
   only the (transitive) dependencies of the project being published.
 - Restored broken search-directed search in generated docs.
+- Move `censorTestWarnings` from `test` to `build` in `spago.yaml`
 
 ## [0.21.0] - 2023-05-04
 
