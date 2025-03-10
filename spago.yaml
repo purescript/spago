@@ -11,6 +11,9 @@ package:
     censorProjectWarnings:
       - WildcardInferredType
       - ImplicitQualifiedImportReExport
+    censorTestWarnings:
+      - ImplicitQualifiedImportReExport
+      - ImplicitQualifiedImport
   dependencies:
     - aff
     - aff-promise
