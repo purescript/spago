@@ -10,11 +10,11 @@ package:
     main: Test.Main
     execArgs: []
     dependencies: []
-    censorTestWarnings: all
     pedanticPackages: false
   build:
     censorProjectWarnings: all
     pedanticPackages: false
+    censorTestWarnings: all
 workspace:
   packageSet:
     registry: 50.4.0

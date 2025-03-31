@@ -197,6 +197,7 @@ validSpagoYaml =
           , build: Just
               { strict: Just true
               , censorProjectWarnings: Nothing
+              , censorTestWarnings: Nothing
               , pedanticPackages: Nothing
               }
           , bundle: Nothing
@@ -206,7 +207,6 @@ validSpagoYaml =
           , test: Just
               { main: "Test.Main"
               , dependencies: mkDependencies [ "spec", "spec-node" ]
-              , censorTestWarnings: Nothing
               , execArgs: Nothing
               , strict: Nothing
               , pedanticPackages: Nothing

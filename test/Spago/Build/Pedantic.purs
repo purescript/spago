@@ -201,10 +201,11 @@ spec =
       spago [ "install", "-p", "follow-instructions", "effect" ] >>= shouldBeSuccessErr (fixture "pedantic/pedantic-instructions-installation-result.txt")
 
     -- Regression test for https://github.com/purescript/spago/pull/1222
-    let gitignores = [".spago", "/.spago", ".spago/**"]
+    let gitignores = [ ".spago", "/.spago", ".spago/**" ]
     for_ gitignores \gitignore ->
       Spec.it
-        (".gitignore does not affect discovery of transitive deps (" <> gitignore <> ")") \{ spago, fixture, testCwd } -> do
+        (".gitignore does not affect discovery of transitive deps (" <> gitignore <> ")")
+        \{ spago, fixture, testCwd } -> do
           FS.copyTree { src: fixture "pedantic/follow-instructions", dst: testCwd }
           FS.writeTextFile (Path.global ".gitignore") gitignore
           spago [ "uninstall", "effect" ] >>= shouldBeSuccess
@@ -221,6 +222,7 @@ addPedanticFlagToSrc config = config
           { pedanticPackages: Just true
           , strict: Nothing
           , censorProjectWarnings: Nothing
+          , censorTestWarnings: Nothing
           }
       }
   }
@@ -232,7 +234,6 @@ addPedanticFlagToTest config = config
           { main: "Test.Main"
           , pedanticPackages: Just true
           , strict: Nothing
-          , censorTestWarnings: Nothing
           , dependencies: maybe (Dependencies Map.empty) _.dependencies r.test
           , execArgs: r.test >>= _.execArgs
           }
