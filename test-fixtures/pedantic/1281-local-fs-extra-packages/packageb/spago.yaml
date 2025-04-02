@@ -1,0 +1,9 @@
+package:
+  name: packageb
+  dependencies:
+    - maybe
+  build:
+    strict: true
+workspace:
+  packageSet:
+    registry: 58.0.1

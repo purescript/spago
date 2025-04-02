@@ -96,10 +96,22 @@ getModuleGraphWithPackage (ModuleGraph graph) = do
     $ for (Map.toUnfoldable allPackages)
         \(Tuple name package) -> do
           -- Basically partition the modules of the current package by in src and test packages
-          let withTestGlobs = if (Set.member name (Map.keys testPackages)) then OnlyTestGlobs else NoTestGlobs
+          let withTestGlobs = if (Map.member name testPackages) then OnlyTestGlobs else NoTestGlobs
           logDebug $ "Getting globs for package " <> PackageName.print name
-          globMatches :: Array LocalPath <- map Array.fold $ traverse compileGlob (Config.sourceGlob rootPath withTestGlobs name package)
-          pure $ map (\p -> Tuple p name) globMatches
+
+          -- We have to glob this package's sources relative to its own root,
+          -- not to our workspace root, because the package may be located
+          -- outside of the workspace root - e.g. if it's a local-file-system
+          -- package, - in which case the `gitignoringGlob` function won't match
+          -- any files there. That's just how it works: it walks down the tree
+          -- from the given root.
+          packageRoot <- Path.mkRoot $ Config.getLocalPackageLocation rootPath name package
+
+          Config.sourceGlob rootPath withTestGlobs name package
+            <#> (_ `Path.relativeTo` packageRoot)
+            # traverse (compileGlob packageRoot)
+            <#> Array.fold
+            <#> map \p -> (p `Path.relativeTo` rootPath) /\ name
 
   logDebug "Got the pathToPackage map, calling packageGraph"
   let
@@ -112,15 +124,14 @@ getModuleGraphWithPackage (ModuleGraph graph) = do
         newVal = do
           package <- Map.lookup newPath pathToPackage
           pure { path: Path.localPart newPath, depends, package }
-      in
+      in --trace { moduleName, newPath, newVal } \_ ->
         maybe pkgGraph (\v -> Map.insert moduleName v pkgGraph) newVal
     packageGraph = foldl addPackageInfo Map.empty (Map.toUnfoldable graph :: Array _)
 
   pure packageGraph
 
-compileGlob :: ∀ a. LocalPath -> Spago { rootPath :: RootPath | a } (Array LocalPath)
-compileGlob sourcePath = do
-  { rootPath } <- ask
+compileGlob :: ∀ a. RootPath -> LocalPath -> Spago { rootPath :: RootPath | a } (Array LocalPath)
+compileGlob rootPath sourcePath = do
   liftAff $ Glob.gitignoringGlob
     { root: rootPath
     , includePatterns: [ Path.localPart $ withForwardSlashes sourcePath ]
@@ -233,7 +244,7 @@ checkImports graph = do
     { rootPath } <- ask
     projectFiles :: Set String <-
       Config.sourceGlob rootPath testGlobOption packageName (WorkspacePackage selected)
-        # traverse compileGlob
+        # traverse (compileGlob rootPath)
         <#> Array.fold
         <#> map (Path.localPart <<< withForwardSlashes)
         <#> Set.fromFoldable
@@ -324,7 +335,7 @@ unusedError isTest selected unused = do
   { errorMessage: toDoc
       [ toDoc $ (if isTest then "Tests for package '" else "Sources for package '")
           <> PackageName.print selected.package.name
-          <> "' declares unused dependencies - please remove them from the project config:"
+          <> "' declare unused dependencies - please remove them from the project config:"
       , indent $ toDoc $ map (append "- ") unusedPkgs
       ]
   , correction: toDoc

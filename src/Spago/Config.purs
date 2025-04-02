@@ -653,8 +653,10 @@ data WithTestGlobs
   | OnlyTestGlobs
 
 sourceGlob :: RootPath -> WithTestGlobs -> PackageName -> Package -> Array LocalPath
-sourceGlob root withTestGlobs name package = map (\p -> getLocalPackageLocation root name package </> p)
-  case package of
+sourceGlob root withTestGlobs name package =
+  localGlobs <#> (packageRoot </> _)
+  where
+  localGlobs = case package of
     WorkspacePackage { hasTests } ->
       case hasTests, withTestGlobs of
         false, OnlyTestGlobs -> []
@@ -664,6 +666,8 @@ sourceGlob root withTestGlobs name package = map (\p -> getLocalPackageLocation 
         true, WithTestGlobs -> [ srcGlob, testGlob ]
     GitPackage { subdir: Just s } -> [ Node.Path.concat [ s, srcGlob ] ]
     _ -> [ srcGlob ]
+
+  packageRoot = getLocalPackageLocation root name package
 
 srcGlob :: String
 srcGlob = "src/**/*.purs"
