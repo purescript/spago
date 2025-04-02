@@ -131,8 +131,8 @@ getModuleGraphWithPackage (ModuleGraph graph) = do
   pure packageGraph
 
 compileGlob :: ∀ a. RootPath -> LocalPath -> Spago { rootPath :: RootPath | a } (Array LocalPath)
-compileGlob rootPath sourcePath = do
-  liftAff $ Glob.gitignoringGlob
+compileGlob rootPath sourcePath = liftAff $
+  Glob.gitignoringGlob
     { root: rootPath
     , includePatterns: [ Path.localPart $ withForwardSlashes sourcePath ]
     , ignorePatterns: []
