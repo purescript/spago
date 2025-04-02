@@ -124,7 +124,7 @@ getModuleGraphWithPackage (ModuleGraph graph) = do
         newVal = do
           package <- Map.lookup newPath pathToPackage
           pure { path: Path.localPart newPath, depends, package }
-      in --trace { moduleName, newPath, newVal } \_ ->
+      in
         maybe pkgGraph (\v -> Map.insert moduleName v pkgGraph) newVal
     packageGraph = foldl addPackageInfo Map.empty (Map.toUnfoldable graph :: Array _)
 
