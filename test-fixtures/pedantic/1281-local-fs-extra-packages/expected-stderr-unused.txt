@@ -1,6 +1,6 @@
 Reading Spago workspace configuration...
 
-✓ Selecting package to build: pedantic
+✓ Selecting package to build: packagec
 
 Downloading dependencies...
 Building...
@@ -14,9 +14,8 @@ Looking for unused and undeclared transitive dependencies...
 
 ✘ Found unused and/or undeclared transitive dependencies:
 
-Sources for package 'pedantic' declare unused dependencies - please remove them from the project config:
-  - console
-  - effect
+Sources for package 'packagec' declare unused dependencies - please remove them from the project config:
+  - packageb
 
 These errors can be fixed by running the below command(s):
-spago uninstall -p pedantic console effect
+spago uninstall -p packagec packageb

@@ -1,0 +1,11 @@
+package:
+  name: consumer
+  dependencies:
+    - extra-package
+
+workspace:
+  packageSet:
+    registry: 41.5.0
+  extraPackages:
+    extra-package:
+      path: ../extra-package
