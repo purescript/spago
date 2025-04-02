@@ -29,6 +29,7 @@ import Registry.PackageName as PackageName
 import Spago.Command.Fetch as Fetch
 import Spago.Config (Package(..), WithTestGlobs(..), WorkspacePackage)
 import Spago.Config as Config
+import Spago.FS as FS
 import Spago.Glob as Glob
 import Spago.Log as Log
 import Spago.Path as Path
@@ -106,12 +107,16 @@ getModuleGraphWithPackage (ModuleGraph graph) = do
           -- any files there. That's just how it works: it walks down the tree
           -- from the given root.
           packageRoot <- Path.mkRoot $ Config.getLocalPackageLocation rootPath name package
+          packageExists <- FS.exists packageRoot
 
-          Config.sourceGlob rootPath withTestGlobs name package
-            <#> (_ `Path.relativeTo` packageRoot)
-            # traverse (compileGlob packageRoot)
-            <#> Array.fold
-            <#> map \p -> (p `Path.relativeTo` rootPath) /\ name
+          if packageExists then
+            Config.sourceGlob rootPath withTestGlobs name package
+              <#> (_ `Path.relativeTo` packageRoot)
+              # traverse (compileGlob packageRoot)
+              <#> Array.fold
+              <#> map \p -> (p `Path.relativeTo` rootPath) /\ name
+          else
+            pure []
 
   logDebug "Got the pathToPackage map, calling packageGraph"
   let
