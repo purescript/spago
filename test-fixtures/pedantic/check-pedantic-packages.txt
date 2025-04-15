@@ -14,7 +14,7 @@ Looking for unused and undeclared transitive dependencies...
 
 ✘ Found unused and/or undeclared transitive dependencies:
 
-Sources for package 'pedantic' declares unused dependencies - please remove them from the project config:
+Sources for package 'pedantic' declare unused dependencies - please remove them from the project config:
   - console
   - effect
   - either
@@ -24,7 +24,7 @@ Sources for package 'pedantic' import the following transitive dependencies - pl
     from `Main`, which imports:
       Data.Newtype
 
-Tests for package 'pedantic' declares unused dependencies - please remove them from the project config:
+Tests for package 'pedantic' declare unused dependencies - please remove them from the project config:
   - tuples
 
 Tests for package 'pedantic' import the following transitive dependencies - please add them to the project dependencies, or remove the imports:

@@ -6,7 +6,7 @@ import Data.Array as Array
 import Data.Map as Map
 import Spago.Core.Config (Dependencies(..), Config)
 import Spago.FS as FS
-import Spago.Path as Path
+import Spago.Paths as Paths
 import Test.Spec (SpecT)
 import Test.Spec as Spec
 
@@ -207,13 +207,26 @@ spec =
         (".gitignore does not affect discovery of transitive deps (" <> gitignore <> ")")
         \{ spago, fixture, testCwd } -> do
           FS.copyTree { src: fixture "pedantic/follow-instructions", dst: testCwd }
-          FS.writeTextFile (Path.global ".gitignore") gitignore
+          FS.writeTextFile (testCwd </> ".gitignore") gitignore
           spago [ "uninstall", "effect" ] >>= shouldBeSuccess
           -- Get rid of "Compiling..." messages
           spago [ "build" ] >>= shouldBeSuccess
           editSpagoYaml (addPedanticFlagToSrc)
           spago [ "build" ] >>= shouldBeFailureErr (fixture "pedantic/pedantic-instructions-initial-failure.txt")
           spago [ "install", "-p", "follow-instructions", "effect" ] >>= shouldBeSuccessErr (fixture "pedantic/pedantic-instructions-installation-result.txt")
+
+    Spec.it "#1281 treats extra-packages on the local file system as used" \{ spago, fixture, testCwd } -> do
+      FS.copyTree { src: fixture "pedantic/1281-local-fs-extra-packages", dst: testCwd }
+
+      Paths.chdir $ testCwd </> "packagea"
+      spago [ "build" ] >>= shouldBeSuccess
+      spago [ "build", "--pedantic-packages" ]
+        >>= shouldBeSuccessErr (fixture "pedantic/1281-local-fs-extra-packages/expected-stderr-used.txt")
+
+      Paths.chdir $ testCwd </> "packagec"
+      spago [ "build" ] >>= shouldBeSuccess
+      spago [ "build", "--pedantic-packages" ]
+        >>= shouldBeFailureErr (fixture "pedantic/1281-local-fs-extra-packages/expected-stderr-unused.txt")
 
 addPedanticFlagToSrc :: Config -> Config
 addPedanticFlagToSrc config = config
