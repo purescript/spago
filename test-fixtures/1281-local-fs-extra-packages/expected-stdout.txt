@@ -1,0 +1,9 @@
+Consumer:
+  depends:
+    - ExtraPackage
+  package: consumer
+  path: src/Main.purs
+ExtraPackage:
+  depends: []
+  package: extra-package
+  path: ../extra-package/src/Main.purs

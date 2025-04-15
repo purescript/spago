@@ -203,7 +203,7 @@ spec = Spec.describe "monorepo" do
 
       mkUnusedDepErr isSrc package =
         Array.intercalate "\n"
-          [ toMsgPrefix isSrc <> " for package '" <> package <> "' declares unused dependencies - please remove them from the project config:"
+          [ toMsgPrefix isSrc <> " for package '" <> package <> "' declare unused dependencies - please remove them from the project config:"
           , "  - " <> (if isSrc then "tuples" else "either")
           ]
       mkTransitiveDepErr isSrc package = do

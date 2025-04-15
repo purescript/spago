@@ -14,7 +14,7 @@ Looking for unused and undeclared transitive dependencies...
 
 ✘ Found unused and/or undeclared transitive dependencies:
 
-Sources for package 'pedantic' declares unused dependencies - please remove them from the project config:
+Sources for package 'pedantic' declare unused dependencies - please remove them from the project config:
   - console
   - effect
 

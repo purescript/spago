@@ -1,0 +1,6 @@
+package:
+  name: root
+  dependencies: []
+workspace:
+  packageSet:
+    registry: 0.0.1

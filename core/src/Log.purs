@@ -22,7 +22,6 @@ module Spago.Log
   , rightOrDie
   , rightOrDie_
   , rightOrDieWith
-  , rightOrDieWith'
   , toDoc
   ) where
 
@@ -76,6 +75,8 @@ data LogVerbosity
   = LogQuiet
   | LogNormal
   | LogVerbose
+
+derive instance Eq LogVerbosity
 
 -- | LogVeryVerbose -- TODO:we'll need to add timestamps, and locations, see https://stackoverflow.com/questions/45395369/
 
@@ -183,24 +184,17 @@ justOrDieWith' value msg = case value of
     die' msg
 
 rightOrDie :: ∀ b m err x. MonadEffect m => MonadAsk (LogEnv b) m => Loggable err => Either err x -> m x
-rightOrDie value = rightOrDieWith value identity
+rightOrDie = rightOrDieWith identity
 
 rightOrDie_ :: ∀ b m err x. MonadEffect m => MonadAsk (LogEnv b) m => Loggable err => Either err x -> m Unit
 rightOrDie_ = void <<< rightOrDie
 
-rightOrDieWith :: ∀ a b m err x. MonadEffect m => MonadAsk (LogEnv b) m => Loggable a => Either err x -> (err -> a) -> m x
-rightOrDieWith value toMsg = case value of
+rightOrDieWith :: ∀ a b m err x. MonadEffect m => MonadAsk (LogEnv b) m => Loggable a => (err -> a) -> Either err x -> m x
+rightOrDieWith toMsg value = case value of
   Right a ->
     pure a
   Left err ->
     die $ toMsg err
-
-rightOrDieWith' :: ∀ a b m err x. MonadEffect m => MonadAsk (LogEnv b) m => Loggable a => Either err x -> (err -> Array a) -> m x
-rightOrDieWith' value toMsg = case value of
-  Right a ->
-    pure a
-  Left err ->
-    die' $ toMsg err
 
 data OutputFormat a
   = OutputJson (CJ.Codec a) a

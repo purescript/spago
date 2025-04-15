@@ -49,9 +49,10 @@ withTempDir = Aff.bracket createTempDir cleanupTempDir
   where
   createTempDir = do
     oldCwd <- Paths.cwd
-    temp <- Path.mkRoot =<< mkTemp' (Just "spago-test-")
-    FS.mkdirp temp
-    Paths.chdir temp
+    temp' <- mkTemp' (Just "spago-test-")
+    FS.mkdirp temp'
+    Paths.chdir temp'
+    temp <- Path.mkRoot =<< Paths.cwd
     isDebug <- liftEffect $ map isJust $ Process.lookupEnv "SPAGO_TEST_DEBUG"
     when isDebug do
       log $ "Running test in " <> Path.quote temp

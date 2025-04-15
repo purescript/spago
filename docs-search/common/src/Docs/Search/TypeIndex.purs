@@ -7,14 +7,16 @@ module Docs.Search.TypeIndex
 
 import Prelude
 
+import Codec.JSON.DecodeError as DecodeError
 import Control.Promise (Promise, toAffE)
 import Data.Array as Array
+import Data.Bifunctor (lmap)
 import Data.Codec.JSON as CJ
-import Data.Either (hush)
+import Data.Either (Either(..))
 import Data.Foldable (fold, foldr)
 import Data.Map (Map)
 import Data.Map as Map
-import Data.Maybe (Maybe(..), fromMaybe')
+import Data.Maybe (Maybe(..))
 import Data.Newtype (class Newtype, over)
 import Data.Set (Set)
 import Docs.Search.Config as Config
@@ -27,6 +29,8 @@ import Docs.Search.TypeQuery (TypeQuery)
 import Docs.Search.TypeShape (shapeOfType, shapeOfTypeQuery, stringifyShape)
 import Effect (Effect)
 import Effect.Aff (Aff, try)
+import Effect.Aff as Error
+import Effect.Class.Console as Console
 import JSON (JSON)
 import Language.PureScript.Docs.Types (DocModule(..))
 import Registry.PackageName (PackageName)
@@ -80,15 +84,22 @@ lookup
   -> Aff { index :: TypeIndex, results :: Array SearchResult }
 lookup key index@(TypeIndex map) =
   case Map.lookup key map of
-    Just results -> pure { index, results: fold results }
+    Just results ->
+      pure { index, results: fold results }
     Nothing -> do
-      eiJson <- try (toAffE (lookup_ key $ Config.mkShapeScriptPath key))
-      pure $ fromMaybe'
-        (\_ -> { index: insert key Nothing index, results: [] })
-        do
-          json <- hush eiJson
-          results <- hush (CJ.decode (CJ.array SearchResult.searchResultCodec) json)
+      eitherJson <- try $ toAffE $ lookup_ key (Config.mkShapeScriptPath key)
+
+      let
+        eitherResults = do
+          json <- eitherJson # lmap Error.message
+          CJ.decode (CJ.array SearchResult.searchResultCodec) json # lmap DecodeError.print
+
+      case eitherResults of
+        Right results ->
           pure { index: insert key (Just results) index, results }
+        Left err -> do
+          Console.error $ "Error reading type index: " <> err
+          pure { index: insert key Nothing index, results: [] }
 
   where
   insert
@@ -102,9 +113,8 @@ query
   :: TypeIndex
   -> TypeQuery
   -> Aff { index :: TypeIndex, results :: Array SearchResult }
-query typeIndex typeQuery = do
-  res <- lookup (stringifyShape $ shapeOfTypeQuery typeQuery) typeIndex
-  pure $ res { results = res.results }
+query typeIndex typeQuery =
+  lookup (stringifyShape $ shapeOfTypeQuery typeQuery) typeIndex
 
 foreign import lookup_
   :: String
