@@ -11,34 +11,38 @@ spec :: Spec Unit
 spec = do
   Spec.describe "Git" do
     Spec.describe "parseRemote" do
+      Spec.describe "successfully parses" do
+        let
+          mkTest input expectedUrl = Spec.it input $ parseRemote input `shouldEqual` Just { name: "origin", url: expectedUrl, owner: "foo", repo: "bar" }
 
-      Spec.it "parses a remote with a git protocol" do
-        parseRemote "origin\tgit@github.com:foo/bar.git (fetch)"
-          `shouldEqual` Just { name: "origin", url: "git@github.com:foo/bar.git", owner: "foo", repo: "bar" }
-        parseRemote "origin  git@github.com:foo/bar.git (fetch)"
-          `shouldEqual` Just { name: "origin", url: "git@github.com:foo/bar.git", owner: "foo", repo: "bar" }
+        Spec.describe "remote with a git protocol" do
+          mkTest "origin\tgit@github.com:foo/bar.git (fetch)" "git@github.com:foo/bar.git"
+          mkTest "origin  git@github.com:foo/bar.git (fetch)" "git@github.com:foo/bar.git"
 
-      Spec.it "parses a remote with an https protocol" do
-        parseRemote "origin\thttps://github.com/foo/bar.git (push)"
-          `shouldEqual` Just { name: "origin", url: "https://github.com/foo/bar.git", owner: "foo", repo: "bar" }
-        parseRemote "origin  https://github.com/foo/bar.git (push)"
-          `shouldEqual` Just { name: "origin", url: "https://github.com/foo/bar.git", owner: "foo", repo: "bar" }
+        Spec.describe "remote with an https protocol" do
+          mkTest "origin\thttps://github.com/foo/bar.git (push)" "https://github.com/foo/bar.git"
+          mkTest "origin  https://github.com/foo/bar.git (push)" "https://github.com/foo/bar.git"
 
-      Spec.it "parses a remote with an ssh protocol" do
-        parseRemote "origin\tssh://git@github.com/foo/bar.git (push)"
-          `shouldEqual` Just { name: "origin", url: "ssh://git@github.com/foo/bar.git", owner: "foo", repo: "bar" }
-        parseRemote "origin  ssh://git@github.com/foo/bar.git (push)"
-          `shouldEqual` Just { name: "origin", url: "ssh://git@github.com/foo/bar.git", owner: "foo", repo: "bar" }
+        Spec.describe "remote with an ssh protocol" do
+          mkTest "origin\tssh://git@github.com/foo/bar.git (push)" "ssh://git@github.com/foo/bar.git"
+          mkTest "origin  ssh://git@github.com/foo/bar.git (push)" "ssh://git@github.com/foo/bar.git"
 
-      Spec.it "rejects malformed remotes" do
-        parseRemote "origin\tgit@github.com:foo/bar.git" `shouldEqual` Nothing
-        parseRemote "origin  git@github.com:foo/bar.git" `shouldEqual` Nothing
+      Spec.describe "rejects" do
+        let mkTest input = Spec.it input $ parseRemote input `shouldEqual` Nothing
 
-        parseRemote "origin\tgit@github.com:foo/bar (push)" `shouldEqual` Nothing
-        parseRemote "origin  git@github.com:foo/bar (push)" `shouldEqual` Nothing
+        Spec.describe "rejects malformed remotes" do
+          Spec.describe "missing trailing (push) or (fetch) field" do
+            mkTest "origin\tgit@github.com:foo/bar.git"
+            mkTest "origin  git@github.com:foo/bar.git"
 
-        parseRemote "origin\tgit@github.com:foo.git (push)" `shouldEqual` Nothing
-        parseRemote "origin  git@github.com:foo.git (push)" `shouldEqual` Nothing
+          Spec.describe "missing .git at the end of repo URL" do
+            mkTest "origin\tgit@github.com:foo/bar (push)"
+            mkTest "origin  git@github.com:foo/bar (push)"
 
-        parseRemote "origin\thttps://foo.com/bar.git (push)" `shouldEqual` Nothing
-        parseRemote "origin  https://foo.com/bar.git (push)" `shouldEqual` Nothing
+          Spec.describe "missing repo name (only owner.git given)" do
+            mkTest "origin\tgit@github.com:foo.git (push)"
+            mkTest "origin  git@github.com:foo.git (push)"
+
+          Spec.describe "non-GitHub domain (unsupported host)" do
+            mkTest "origin\thttps://foo.com/bar.git (push)"
+            mkTest "origin  https://foo.com/bar.git (push)"
