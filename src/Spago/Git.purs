@@ -197,4 +197,4 @@ parseRemote = \line ->
       Nothing
   where
   tabOrSpaceRegex = Regex.unsafeRegex """\s+""" mempty
-  gitUrlRegex = Regex.unsafeRegex """^((ssh:\/\/)?[^@]+@[^:]+[:\/]|https?:\/\/[^\/]+\/)(.*)\/(.+)\.git$""" mempty
+  gitUrlRegex = Regex.unsafeRegex """^((ssh:\/\/)?[^@]+@[^:]+[:\/]|https?:\/\/[^\/]+\/)([^\/]+)\/([^\/]+?)(?:\.git)?$""" mempty
