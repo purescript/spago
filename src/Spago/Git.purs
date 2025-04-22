@@ -22,11 +22,10 @@ import Control.Monad.Except (ExceptT(..))
 import Control.Monad.Except as Except
 import Data.Array as Array
 import Data.Array.NonEmpty as NEA
-import Data.Maybe (fromJust)
 import Data.String (Pattern(..))
 import Data.String as String
-import Data.String.Regex as Regex
-import Partial.Unsafe (unsafePartial)
+import Data.String.Regex (match, split) as Regex
+import Data.String.Regex.Unsafe (unsafeRegex) as Regex
 import Registry.Version as Version
 import Spago.Cmd as Cmd
 import Spago.FS as FS
@@ -197,7 +196,5 @@ parseRemote = \line ->
     _ ->
       Nothing
   where
-  tabOrSpaceRegex = unsafePartial $ fromJust $ hush $
-    Regex.regex "\\s+" mempty
-  gitUrlRegex = unsafePartial $ fromJust $ hush $
-    Regex.regex "^((ssh:\\/\\/)?[^@]+@[^:]+[:\\/]|https?:\\/\\/[^\\/]+\\/)(.*)\\/(.+)\\.git$" mempty
+  tabOrSpaceRegex = Regex.unsafeRegex "\\s+" mempty
+  gitUrlRegex = Regex.unsafeRegex "^((ssh:\\/\\/)?[^@]+@[^:]+[:\\/]|https?:\\/\\/[^\\/]+\\/)(.*)\\/(.+)\\.git$" mempty
