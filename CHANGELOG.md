@@ -52,6 +52,9 @@ Other improvements:
 - Restored broken type-directed search in generated docs.
 - `spago graph modules` now correctly reports extra-packages located outside the
   workspace root.
+- on `spago publish` - add support for urls without `.git` suffix.
+  Before: `ssh://git@github.com/foo/bar.git` - ok, `ssh://git@github.com/foo/bar` - error
+  After: `ssh://git@github.com/foo/bar.git` - ok, `ssh://git@github.com/foo/bar` - ok
 
 ## [0.21.0] - 2023-05-04
 
