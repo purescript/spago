@@ -831,6 +831,31 @@ The `--package` flag is also available for many more commands, such as `build`, 
 
 An important property of this "monorepo setup" is that the `output` folder will be shared between all the packages: they will share the same build package set (or build plan when using the solver) and they will be all build together.
 
+#### Multiple Main Modules
+
+Given
+```
+.
+├── app1
+│   ├── spago.yaml
+│   └── src
+│       └── Main.purs
+├── app2
+│   ├── spago.yaml
+│   └── src
+│       └── Main.purs
+└── spago.yaml
+```
+
+, to avoid the error `Module Main has been defined multiple times`:
+* `app1` `Main.purs` can have `module Main1`
+* `app2` `Main.purs` can have `module Main2`
+
+From the root, run:
+* `spago run -p app1 --main Main1` 
+or 
+* `spago run -p app2 --main Main2`
+
 ### Polyrepo support
 
 There might be cases where you want to have multiple loosely-connected codebases in the same repository that do _not_ necessarily build together all the time. This is sometimes called [a "polyrepo"][monorepo-tools].
