@@ -1,7 +1,7 @@
 # spago
 
-[![npm](https://img.shields.io/npm/v/spago.svg)][spago-npm]
-[![Latest release](https://img.shields.io/github/v/release/purescript/spago.svg)](https://github.com/purescript/spago/releases)
+![NPM Version (with dist tag)](https://img.shields.io/npm/v/spago/next)
+![Latest release](https://img.shields.io/badge/dynamic/yaml?url=https%3A%2F%2Fraw.githubusercontent.com%2Fpurescript%2Fspago%2Frefs%2Fheads%2Fmaster%2Fspago.yaml&query=package.publish.version&prefix=v&label=release)
 [![build](https://github.com/purescript/spago/actions/workflows/build.yml/badge.svg)](https://github.com/purescript/spago/actions/workflows/build.yml)
 [![nix-flake](https://github.com/purescript/spago/actions/workflows/nix-flake.yml/badge.svg)](https://github.com/purescript/spago/actions/workflows/nix-flake.yml)
 [![Maintainer: f-f](https://img.shields.io/badge/maintainer-f%2d-f-teal.svg)](http://github.com/f-f)
@@ -830,6 +830,9 @@ spago install -p lib1 maybe
 The `--package` flag is also available for many more commands, such as `build`, `run`, `test`, `bundle` and so on.
 
 An important property of this "monorepo setup" is that the `output` folder will be shared between all the packages: they will share the same build package set (or build plan when using the solver) and they will be all build together.
+
+> [!NOTE]\
+> Remember that you can't have multiple modules with the same name in a single project. This usually happens with the `Main` module being defined multiple times. Rename these modules to something unique.
 
 ### Polyrepo support
 

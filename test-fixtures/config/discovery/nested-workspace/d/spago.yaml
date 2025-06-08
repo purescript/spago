@@ -1,0 +1,4 @@
+package:
+  name: d
+  dependencies:
+    - prelude

@@ -1,0 +1,7 @@
+package:
+  name: extra-package
+  dependencies: []
+
+workspace:
+  packageSet:
+    registry: 41.5.0
