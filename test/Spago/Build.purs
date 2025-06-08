@@ -39,8 +39,8 @@ spec = Spec.around withTempDir do
           , result: isLeft
           , sanitize:
               String.trim
-              >>> String.replaceAll (String.Pattern "Usage: purs.bin") (String.Replacement "Usage: purs")
-              >>> String.replaceAll (String.Pattern "\r\n") (String.Replacement "\n")
+                >>> String.replaceAll (String.Pattern "Usage: purs.bin") (String.Replacement "Usage: purs")
+                >>> String.replaceAll (String.Pattern "\r\n") (String.Replacement "\n")
           }
 
     Spec.it "passes options to purs" \{ spago } -> do

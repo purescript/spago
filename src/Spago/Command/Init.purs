@@ -159,7 +159,7 @@ defaultConfig { name, withWorkspace, testModuleName } = do
     pkg =
       { name
       , dependencies: [ "effect", "console", "prelude" ]
-      , test: Just { moduleMain: testModuleName, strict: Nothing, censorTestWarnings: Nothing, pedanticPackages: Nothing, dependencies: Nothing }
+      , test: Just { moduleMain: testModuleName, strict: Nothing, pedanticPackages: Nothing, dependencies: Nothing }
       , build: Nothing
       }
   defaultConfig' case withWorkspace of
@@ -173,7 +173,6 @@ type DefaultConfigPackageOptions =
       Maybe
         { moduleMain :: String
         , strict :: Maybe Boolean
-        , censorTestWarnings :: Maybe Config.CensorBuildWarnings
         , pedanticPackages :: Maybe Boolean
         , dependencies :: Maybe Config.Dependencies
         }
@@ -181,6 +180,7 @@ type DefaultConfigPackageOptions =
       Maybe
         { strict :: Maybe Boolean
         , censorProjectWarnings :: Maybe Config.CensorBuildWarnings
+        , censorTestWarnings :: Maybe Config.CensorBuildWarnings
         , pedanticPackages :: Maybe Boolean
         }
   }
@@ -212,17 +212,17 @@ defaultConfig' opts =
       { name
       , dependencies: Dependencies $ Map.fromFoldable $ map mkDep dependencies
       , description: Nothing
-      , build: build <#> \{ censorProjectWarnings, strict, pedanticPackages } ->
+      , build: build <#> \{ censorProjectWarnings, censorTestWarnings, strict, pedanticPackages } ->
           { censorProjectWarnings
+          , censorTestWarnings
           , strict
           , pedanticPackages
           }
       , run: Nothing
-      , test: test <#> \{ moduleMain, censorTestWarnings, strict, pedanticPackages, dependencies: testDeps } ->
+      , test: test <#> \{ moduleMain, strict, pedanticPackages, dependencies: testDeps } ->
           { dependencies: fromMaybe (Dependencies Map.empty) testDeps
           , execArgs: Nothing
           , main: moduleMain
-          , censorTestWarnings
           , strict
           , pedanticPackages
           }

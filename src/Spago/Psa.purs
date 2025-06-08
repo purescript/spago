@@ -160,7 +160,7 @@ toWorkspacePackagePathDecision { selected: { path, package }, psaCliFlags } = do
         { pathIsFromPackage: (testPath `Path.isPrefixOf` _)
         , pathType: IsSrc
         , strict: fromMaybe false $ psaCliFlags.strict <|> (package.test >>= _.strict)
-        , censorWarnings: package.test >>= _.censorTestWarnings
+        , censorWarnings: package.build >>= _.censorTestWarnings
         }
     ]
 
