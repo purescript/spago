@@ -1,0 +1,8 @@
+package:
+  name: package-c
+  dependencies:
+    - package-a
+    - package-b
+    - prelude
+  build:
+    strict: true

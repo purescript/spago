@@ -89,6 +89,8 @@ type Workspace =
 type WorkspaceBuildOptions =
   { output :: Maybe LocalPath
   , censorLibWarnings :: Maybe Core.CensorBuildWarnings
+  , censorProjectWarnings :: Maybe Core.CensorBuildWarnings
+  , censorTestWarnings :: Maybe Core.CensorBuildWarnings
   , statVerbosity :: Maybe Core.StatVerbosity
   }
 
@@ -227,6 +229,8 @@ discoverWorkspace options cwd = do
         , buildOptions:
             { output: workspace.config.buildOpts >>= _.output <#> \o -> withForwardSlashes $ rootPath </> o
             , censorLibWarnings: _.censorLibraryWarnings =<< workspace.config.buildOpts
+            , censorProjectWarnings: _.censorProjectWarnings =<< workspace.config.buildOpts
+            , censorTestWarnings: _.censorTestWarnings =<< workspace.config.buildOpts
             , statVerbosity: _.statVerbosity =<< workspace.config.buildOpts
             }
         , doc: Just workspace.doc
