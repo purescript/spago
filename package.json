@@ -1,6 +1,6 @@
 {
   "name": "spago",
-  "version": "0.93.43",
+  "version": "0.93.44",
   "license": "BSD-3-Clause",
   "description": "🍝 PureScript package manager and build tool",
   "keywords": [
@@ -38,7 +38,7 @@
     "better-sqlite3": "^11.8.1",
     "env-paths": "^3.0.0",
     "fs-extra": "^11.3.0",
-    "fuse.js": "^7.0.0",
+    "fuse.js": "^7.1.0",
     "glob": "^11.0.1",
     "markdown-it": "^14.1.0",
     "micromatch": "^4.0.8",
@@ -46,7 +46,7 @@
     "picomatch": "^4.0.2",
     "punycode": "^2.3.1",
     "readline-sync": "^1.4.10",
-    "semver": "^7.6.3",
+    "semver": "^7.7.1",
     "spdx-expression-parse": "^4.0.0",
     "ssh2": "^1.16.0",
     "supports-color": "^10.0.0",

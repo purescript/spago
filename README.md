@@ -831,6 +831,9 @@ The `--package` flag is also available for many more commands, such as `build`, 
 
 An important property of this "monorepo setup" is that the `output` folder will be shared between all the packages: they will share the same build package set (or build plan when using the solver) and they will be all build together.
 
+> [!NOTE]\
+> Remember that you can't have multiple modules with the same name in a single project. This usually happens with the `Main` module being defined multiple times. Rename these modules to something unique.
+
 ### Polyrepo support
 
 There might be cases where you want to have multiple loosely-connected codebases in the same repository that do _not_ necessarily build together all the time. This is sometimes called [a "polyrepo"][monorepo-tools].
