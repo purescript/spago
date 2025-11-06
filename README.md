@@ -506,6 +506,7 @@ In this case we override the package with its local copy, which should have a `s
 
 ```yaml
 workspace:
+  packageSet:
     registry: 41.2.0
   extraPackages:
     aff:
@@ -538,6 +539,7 @@ In this case, we can just change the override to point to some commit of our for
 
 ```yaml
 workspace:
+  packageSet:
     registry: 41.2.0
   extraPackages:
     aff:
@@ -560,7 +562,8 @@ There are a few possible scenarios - the most straightforward is when a package 
 
 ```
 workspace:
-  registry: 41.2.0
+  packageSet:
+    registry: 41.2.0
   extraPackages:
     some-package-from-the-registry: 4.0.0
 ```
@@ -569,6 +572,7 @@ Another possibility is that the package is not in the registry (maybe it's your 
 
 ```yaml
 workspace:
+  packageSet:
     registry: 41.2.0
   extraPackages:
     facebook:
@@ -584,6 +588,7 @@ The last possible case is the one picking up a local folder as a package (note: 
 
 ```yaml
 workspace:
+  packageSet:
     registry: 41.2.0
   extraPackages:
     facebook:
