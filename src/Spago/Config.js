@@ -5,17 +5,21 @@ const getOrElse = (node, key, fallback) => {
     node.set(key, fallback);
   }
   return node.get(key);
-}
+};
 
 export function addPackagesToConfigImpl(doc, isTest, newPkgs) {
   const pkg = doc.get("package");
 
   const deps = (() => {
     if (isTest) {
-      const test = getOrElse(pkg, "test", doc.createNode({ main: "Test.Main", dependencies: [] }));
+      const test = getOrElse(
+        pkg,
+        "test",
+        doc.createNode({ main: "Test.Main", dependencies: [] }),
+      );
       return getOrElse(test, "dependencies", doc.createNode([]));
     } else {
-      return getOrElse(pkg, "dependencies", doc.createNode([]))
+      return getOrElse(pkg, "dependencies", doc.createNode([]));
     }
   })();
 
@@ -59,7 +63,9 @@ export function addPackagesToConfigImpl(doc, isTest, newPkgs) {
 export function removePackagesFromConfigImpl(doc, isTest, shouldRemove) {
   const pkg = doc.get("package");
 
-  const deps = isTest ? pkg.get("test").get("dependencies") : pkg.get("dependencies");
+  const deps = isTest
+    ? pkg.get("test").get("dependencies")
+    : pkg.get("dependencies");
   let newItems = [];
   for (const el of deps.items) {
     if (
@@ -124,8 +130,22 @@ export function migrateV1ConfigImpl(doc) {
           return match.charAt(1).toUpperCase();
         });
       }
-    }
+
+      // move censorTestWarnings from test to build map
+      if (pair.key.value === "censorTestWarnings") {
+        const parent = _path.at(-2);
+        if (parent.key && parent.key.value === "test") {
+          hasChanged = true;
+          const root = _path.at(0);
+          const build = root.get("package").get("build");
+          build.set("censorTestWarnings", pair.value);
+
+          return Yaml.visit.REMOVE;
+        }
+      }
+    },
   });
+
   if (hasChanged) {
     return doc;
   }
