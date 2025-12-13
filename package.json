@@ -35,7 +35,7 @@
   },
   "dependencies": {
     "@nodelib/fs.walk": "^3.0.1",
-    "better-sqlite3": "^11.8.1",
+    "better-sqlite3": "^12.5.0",
     "env-paths": "^3.0.0",
     "fs-extra": "^11.3.0",
     "fuse.js": "^7.1.0",
