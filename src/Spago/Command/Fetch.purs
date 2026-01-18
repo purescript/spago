@@ -217,7 +217,17 @@ run { packages: packagesRequestedToInstall, ensureRanges, isTest, isRepl } = do
 
 fetchPackagesToLocalCache :: ∀ a. Map PackageName Package -> Spago (FetchEnv a) Unit
 fetchPackagesToLocalCache packages = do
-  { offline } <- ask
+  { offline, workspace } <- ask
+  -- Build a map of expected integrities from the lockfile for verification
+  let
+    lockfileIntegrities :: Map PackageName Sha256
+    lockfileIntegrities = case workspace.packageSet.lockfile of
+      Left _ -> Map.empty
+      Right lockfile -> Map.mapMaybe extractRegistryIntegrity lockfile.packages
+      where
+      extractRegistryIntegrity = case _ of
+        FromRegistry { integrity } -> Just integrity
+        _ -> Nothing
   -- Before starting to fetch packages we build a Map of AVars to act as locks for each git location.
   -- This is so we don't have two threads trying to clone the same repo at the same time.
   gitLocks <- liftAff $ map (Map.fromFoldable <<< List.catMaybes) $ for (Map.values packages) case _ of
@@ -246,6 +256,13 @@ fetchPackagesToLocalCache packages = do
           Left err -> die $ "Couldn't read metadata, reason:\n  " <> err
           Right versionMetadata -> do
             logDebug $ "Metadata read: " <> printJson Metadata.publishedMetadataCodec versionMetadata
+            -- Verify that the lockfile integrity matches the registry metadata
+            case Map.lookup name lockfileIntegrities of
+              Just expectedIntegrity | expectedIntegrity /= versionMetadata.hash ->
+                logWarn $ "Package " <> packageVersion
+                  <> " has a different hash in the lockfile (" <> Sha256.print expectedIntegrity
+                  <> ") than in the registry metadata (" <> Sha256.print versionMetadata.hash <> ")"
+              _ -> pure unit
             -- then check if we have a tarball cached. If not, download it
             let globalCachePackagePath = Paths.globalCachePath </> "packages" </> PackageName.print name
             let archivePath = globalCachePackagePath </> (versionString <> ".tar.gz")
