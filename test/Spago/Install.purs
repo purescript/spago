@@ -262,11 +262,6 @@ spec = Spec.around withTempDir do
       -- Check that the lockfile is back to the original
       checkFixture (testCwd </> "spago.lock") (fixture "spago.lock")
 
-    Spec.it "adds version ranges automatically for solver-based projects" \{ spago, fixture, testCwd } -> do
-      spago [ "init", "--name", "aaa", "--use-solver" ] >>= shouldBeSuccess
-      spago [ "install", "either" ] >>= shouldBeSuccess
-      checkFixture (testCwd </> "spago.yaml") (fixture "spago-install-solver-ranges.yaml")
-
 
 insertConfigDependencies :: Config -> Dependencies -> Dependencies -> Config
 insertConfigDependencies config core test =
