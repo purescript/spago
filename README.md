@@ -506,6 +506,7 @@ In this case we override the package with its local copy, which should have a `s
 
 ```yaml
 workspace:
+  packageSet:
     registry: 41.2.0
   extraPackages:
     aff:
@@ -538,6 +539,7 @@ In this case, we can just change the override to point to some commit of our for
 
 ```yaml
 workspace:
+  packageSet:
     registry: 41.2.0
   extraPackages:
     aff:
@@ -560,7 +562,8 @@ There are a few possible scenarios - the most straightforward is when a package 
 
 ```
 workspace:
-  registry: 41.2.0
+  packageSet:
+    registry: 41.2.0
   extraPackages:
     some-package-from-the-registry: 4.0.0
 ```
@@ -569,6 +572,7 @@ Another possibility is that the package is not in the registry (maybe it's your 
 
 ```yaml
 workspace:
+  packageSet:
     registry: 41.2.0
   extraPackages:
     facebook:
@@ -584,6 +588,7 @@ The last possible case is the one picking up a local folder as a package (note: 
 
 ```yaml
 workspace:
+  packageSet:
     registry: 41.2.0
   extraPackages:
     facebook:
@@ -1626,9 +1631,9 @@ packages, you should run the appropriate package-manager for that (e.g. npm).
 
 Spago dropped support for the --watch flag in `spago build` and `spago test`.
 
-VSCode users are recommended to use the [Purescript IDE](purescript-ide) extension for seamless experiences with automatic rebuilds.
+VSCode users are recommended to use the [Purescript IDE][ide-purescript] extension for seamless experiences with automatic rebuilds.
 
-Users of other editors, e.g. vim, emacs, etc., can make use of the underlying [LSP plugin](purescript-language-server).
+Users of other editors, e.g. vim, emacs, etc., can make use of the underlying [LSP plugin][purescript-language-server].
 
 If you want a very simple drop in replacement for `spago test --watch`, you can use a general purpose tool such as [watchexec]:
 
@@ -1665,6 +1670,6 @@ and similarly for the `test` folder, using that for the test sources.
 [purescript-overlay]: https://github.com/thomashoneyman/purescript-overlay
 [sample-package-set]: https://github.com/purescript/registry/blob/main/package-sets/41.2.0.json
 [watchexec]: https://github.com/watchexec/watchexec#quick-start
-[purescript-langugage-server]: https://github.com/nwolverson/purescript-language-server
+[purescript-language-server]: https://github.com/nwolverson/purescript-language-server
 [ide-purescript]: https://marketplace.visualstudio.com/items?itemName=nwolverson.ide-purescript
 [registry-dev-auth]: https://github.com/purescript/registry-dev/blob/master/SPEC.md#52-authentication
