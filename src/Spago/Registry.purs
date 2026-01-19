@@ -188,6 +188,18 @@ getRegistryFns registryBox registryLock = do
 
     -- Now that we are up to date with the Registry we init/refresh the database
     updatePackageSetsDb db
+
+    -- Check if registry directories exist when offline - the build should have already failed by now, but just in case..
+    case offline of
+      Offline -> do
+        registryExists <- FS.exists Paths.registryPath
+        registryIndexExists <- FS.exists Paths.registryIndexPath
+        unless registryExists do
+          die "You are offline and the Registry is not cached locally. Please connect to the internet and run 'spago install' to cache the registry."
+        unless registryIndexExists do
+          die "You are offline and the Registry Index is not cached locally. Please connect to the internet and run 'spago install' to cache the registry index."
+      _ -> pure unit
+
     pure fetchingFreshRegistry
 
   -- | Update the database with the latest package sets
@@ -211,12 +223,17 @@ getRegistryFns registryBox registryLock = do
   -- | List all the package sets versions available in the Registry repo
   getAvailablePackageSets :: ∀ a. Spago (LogEnv a) (Array Version)
   getAvailablePackageSets = do
-    { success: setVersions, fail: parseFailures } <- map (partitionEithers <<< map parseSetVersion) $ FS.ls Paths.packageSetsPath
+    packageSetsExists <- FS.exists Paths.packageSetsPath
+    if packageSetsExists then do
+      { success: setVersions, fail: parseFailures } <- map (partitionEithers <<< map parseSetVersion) $ FS.ls Paths.packageSetsPath
 
-    unless (Array.null parseFailures) do
-      logDebug $ [ toDoc "Failed to parse some package-sets versions:" ] <> map (indent <<< toDoc <<< show) parseFailures
+      unless (Array.null parseFailures) do
+        logDebug $ [ toDoc "Failed to parse some package-sets versions:" ] <> map (indent <<< toDoc <<< show) parseFailures
 
-    pure setVersions
+      pure setVersions
+    else do
+      logDebug $ "Package sets directory does not exist at " <> Path.quote Paths.packageSetsPath
+      pure []
     where
     parseSetVersion str = Version.parse case String.stripSuffix (Pattern ".json") str of
       Nothing -> str
@@ -286,7 +303,7 @@ getManifestFromIndexImpl db name version = do
       manifests <- map (map (\m@(Manifest m') -> Tuple m'.version m)) case maybeManifests of
         Right ms -> pure $ NonEmptyArray.toUnfoldable ms
         Left err -> do
-          logWarn $ "Could not read package manifests from index, proceeding anyways. Error: " <> err
+          logWarn $ "Could not read package manifests for '" <> PackageName.print name <> "' from index. Error: " <> err
           pure []
       let versions = Map.fromFoldable manifests
       -- and memoize it
