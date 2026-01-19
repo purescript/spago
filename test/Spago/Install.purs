@@ -1,4 +1,7 @@
-module Test.Spago.Install where
+module Test.Spago.Install
+  ( spec
+  , forceResetSpec
+  ) where
 
 import Test.Prelude
 
@@ -7,9 +10,11 @@ import Data.Map as Map
 import Effect.Now as Now
 import Registry.Version as Version
 import Spago.Command.Init as Init
+import Spago.Cmd as Cmd
 import Spago.Core.Config (Dependencies(..), Config)
 import Spago.Core.Config as Config
 import Spago.FS as FS
+import Spago.Git as Git
 import Spago.Log (LogVerbosity(..))
 import Spago.Path as Path
 import Spago.Paths as Paths
@@ -307,3 +312,82 @@ writeConfigWithEither root = do
             )
         }
     )
+
+-- | Test that fetchRepo handles git history rewrites (squash) gracefully
+-- This verifies that git pull --rebase works even when the remote history is squashed,
+-- as long as the content is the same. This is important for the registry repo.
+forceResetSpec :: Spec Unit
+forceResetSpec = Spec.around withTempDir do
+  Spec.describe "git fetchRepo" do
+    Spec.it "handles history rewrite (squash) gracefully" \{ testCwd } -> do
+      -- Setup logging
+      startingTime <- liftEffect $ Now.now
+      let logOptions = { color: false, verbosity: LogQuiet, startingTime }
+
+      -- Get git command
+      gitCmd <- runSpago { logOptions } Git.getGit
+
+      -- Build GitEnv
+      let gitEnv = { git: gitCmd, logOptions, offline: Online }
+
+      -- 1. Create a bare "origin" repo
+      let originRepo = testCwd </> "origin"
+      FS.mkdirp originRepo
+      git' (Just $ Path.toGlobal originRepo) [ "init", "--bare" ]
+
+      -- 2. Clone, make commits, push
+      let workRepo = testCwd </> "work"
+      let gitInWorkRepo = git' (Just $ Path.toGlobal workRepo)
+      git [ "clone", Path.toRaw originRepo, Path.toRaw workRepo ]
+      gitInWorkRepo [ "config", "user.name", "test" ]
+      gitInWorkRepo [ "config", "user.email", "test@test.com" ]
+      gitInWorkRepo [ "checkout", "-b", "main" ]
+      FS.writeTextFile (workRepo </> "file1.txt") "content1"
+      gitInWorkRepo [ "add", "." ]
+      gitInWorkRepo [ "commit", "-m", "first" ]
+      FS.writeTextFile (workRepo </> "file2.txt") "content2"
+      gitInWorkRepo [ "add", "." ]
+      gitInWorkRepo [ "commit", "-m", "second" ]
+      gitInWorkRepo [ "push", "-u", "origin", "main" ]
+
+      -- 3. Clone again (simulating spago's cached registry)
+      let cachedRepo = testCwd </> "cached"
+      git [ "clone", Path.toRaw originRepo, Path.toRaw cachedRepo ]
+
+      -- 4. Add another commit to origin that modifies an existing file
+      -- Now cached is behind and has different content
+      FS.writeTextFile (workRepo </> "file2.txt") "content2-updated"
+      gitInWorkRepo [ "add", "." ]
+      gitInWorkRepo [ "commit", "-m", "third" ]
+      gitInWorkRepo [ "push", "origin", "main" ]
+
+      -- 5. Squash all history and force push (simulating registry squash)
+      -- Now origin has: first -> second -> third (with updated file2), squashed to single commit
+      -- But cached only has: first -> second (with original file2)
+      gitInWorkRepo [ "reset", "--soft", "HEAD~2" ]
+      gitInWorkRepo [ "commit", "--amend", "-m", "squashed all history" ]
+      gitInWorkRepo [ "push", "--force", "origin", "main" ]
+
+      -- 6. fetchRepo should succeed despite the history rewrite and different content
+      -- because git pull --rebase can handle rebasing onto a squashed history
+      result <- runSpago gitEnv $ Git.fetchRepo
+        { git: Path.toRaw originRepo, ref: "main" }
+        cachedRepo
+      case result of
+        Left err -> Assert.fail $ "Expected fetchRepo to succeed after history squash, but got: " <> show err
+        Right _ -> pure unit
+
+      -- 7. Verify the content is updated correctly
+      content1 <- FS.readTextFile (cachedRepo </> "file1.txt")
+      content1 `shouldEqualStr` "content1"
+      content2 <- FS.readTextFile (cachedRepo </> "file2.txt")
+      content2 `shouldEqualStr` "content2-updated"
+
+git :: Array String -> Aff Unit
+git = git' Nothing
+
+git' :: Maybe GlobalPath -> Array String -> Aff Unit
+git' cwd args =
+  Cmd.exec (Path.global "git") args
+    (Cmd.defaultExecOptions { pipeStdout = false, pipeStderr = false, pipeStdin = StdinNewPipe, cwd = cwd })
+    >>= shouldBeSuccess
